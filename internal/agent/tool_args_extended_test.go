@@ -384,3 +384,49 @@ func TestDecodeMissionArgsUsesAliasesAndLockedPresence(t *testing.T) {
 		t.Fatalf("decoded mission args = %+v", req)
 	}
 }
+
+func TestDecodeNotificationArgsUsesPushAliasAndContentFallback(t *testing.T) {
+	req := decodeNotificationArgs(ToolCall{
+		Action: "send_push_notification",
+		Params: map[string]interface{}{
+			"title":    "Deployment finished",
+			"content":  "Build #42 is live",
+			"priority": "high",
+		},
+	})
+
+	if req.Channel != "push" || req.Title != "Deployment finished" || req.Message != "Build #42 is live" || req.Priority != "high" {
+		t.Fatalf("decoded notification args = %+v", req)
+	}
+}
+
+func TestDecodeEmailFetchArgsUsesParamsFallback(t *testing.T) {
+	req := decodeEmailFetchArgs(ToolCall{
+		Action: "fetch_email",
+		Params: map[string]interface{}{
+			"account": "ops",
+			"folder":  "Alerts",
+			"limit":   float64(25),
+		},
+	})
+
+	if req.Account != "ops" || req.Folder != "Alerts" || req.Limit != 25 {
+		t.Fatalf("decoded email fetch args = %+v", req)
+	}
+}
+
+func TestDecodeEmailSendArgsUsesBodyFallbacks(t *testing.T) {
+	req := decodeEmailSendArgs(ToolCall{
+		Action: "send_email",
+		Params: map[string]interface{}{
+			"account": "primary",
+			"to":      "ops@example.com",
+			"subject": "Status",
+			"content": "All systems go",
+		},
+	})
+
+	if req.Account != "primary" || req.To != "ops@example.com" || req.Subject != "Status" || req.Body != "All systems go" {
+		t.Fatalf("decoded email send args = %+v", req)
+	}
+}

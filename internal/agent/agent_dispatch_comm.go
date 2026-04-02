@@ -759,10 +759,8 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			return "Tool Output: " + scanResult
 
 		case "send_notification", "notification_center", "send_push_notification", "web_push":
-			if tc.ToolName == "send_push_notification" || tc.ToolName == "web_push" {
-				tc.Channel = "push"
-			}
-			logger.Info("LLM requested notification", "channel", tc.Channel, "title", tc.Title)
+			req := decodeNotificationArgs(tc)
+			logger.Info("LLM requested notification", "channel", req.Channel, "title", req.Title)
 			// Use discord bridge (tools.DiscordSend) to avoid import cycle
 			var discordSend tools.DiscordSendFunc
 			if cfg.Discord.Enabled {
@@ -778,8 +776,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 					return err
 				}
 			}
-			priority := tc.Tag // reuse existing Tag field for priority
-			return "Tool Output: " + tools.SendNotification(cfg, logger, tc.Channel, tc.Title, tc.Message, priority, discordSend, telnyxSend)
+			return "Tool Output: " + tools.SendNotification(cfg, logger, req.Channel, req.Title, req.Message, req.Priority, discordSend, telnyxSend)
 
 		case "send_image":
 			logger.Info("LLM requested image send", "path", tc.Path, "caption", tc.Caption)
@@ -873,12 +870,13 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if !cfg.Email.Enabled && len(cfg.EmailAccounts) == 0 {
 				return `Tool Output: {"status": "error", "message": "Email is not enabled. Configure the email section in config.yaml or add email_accounts."}`
 			}
+			req := decodeEmailFetchArgs(tc)
 			// Resolve email account
 			var acct *config.EmailAccount
-			if tc.Account != "" {
-				acct = cfg.FindEmailAccount(tc.Account)
+			if req.Account != "" {
+				acct = cfg.FindEmailAccount(req.Account)
 				if acct == nil {
-					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Email account '%s' not found. Use list_email_accounts to see available accounts."}`, tc.Account)
+					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Email account '%s' not found. Use list_email_accounts to see available accounts."}`, req.Account)
 				}
 			} else {
 				acct = cfg.DefaultEmailAccount()
@@ -889,12 +887,12 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if acct.Disabled {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Email account '%s' is disabled. Enable it in Settings > Email."}`, acct.ID)
 			}
-			logger.Info("LLM requested email fetch", "account", acct.ID, "folder", tc.Folder)
-			folder := tc.Folder
+			logger.Info("LLM requested email fetch", "account", acct.ID, "folder", req.Folder)
+			folder := req.Folder
 			if folder == "" {
 				folder = acct.WatchFolder
 			}
-			limit := tc.Limit
+			limit := req.Limit
 			if limit <= 0 {
 				limit = 10
 			}
@@ -917,12 +915,13 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if cfg.Email.ReadOnly {
 				return `Tool Output: {"status":"error","message":"Email is in read-only mode. Disable email.read_only to allow sending."}`
 			}
+			req := decodeEmailSendArgs(tc)
 			// Resolve email account
 			var acct *config.EmailAccount
-			if tc.Account != "" {
-				acct = cfg.FindEmailAccount(tc.Account)
+			if req.Account != "" {
+				acct = cfg.FindEmailAccount(req.Account)
 				if acct == nil {
-					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Email account '%s' not found. Use list_email_accounts to see available accounts."}`, tc.Account)
+					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Email account '%s' not found. Use list_email_accounts to see available accounts."}`, req.Account)
 				}
 			} else {
 				acct = cfg.DefaultEmailAccount()
@@ -936,18 +935,15 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if acct.ReadOnly {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Email account '%s' is read-only. Enable sending in Settings > Email."}`, acct.ID)
 			}
-			to := tc.To
+			to := req.To
 			if to == "" {
 				return `Tool Output: {"status": "error", "message": "'to' (recipient address) is required"}`
 			}
-			subject := tc.Subject
+			subject := req.Subject
 			if subject == "" {
 				subject = "(no subject)"
 			}
-			body := tc.Body
-			if body == "" {
-				body = tc.Content
-			}
+			body := req.Body
 			logger.Info("LLM requested email send", "account", acct.ID, "to", to, "subject", subject)
 			var sendErr error
 			if acct.SMTPPort == 465 {

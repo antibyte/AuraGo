@@ -183,6 +183,26 @@ type missionArgs struct {
 	LockedProvided bool
 }
 
+type notificationArgs struct {
+	Channel  string
+	Title    string
+	Message  string
+	Priority string
+}
+
+type emailFetchArgs struct {
+	Account string
+	Folder  string
+	Limit   int
+}
+
+type emailSendArgs struct {
+	Account string
+	To      string
+	Subject string
+	Body    string
+}
+
 func toolArgStringSlice(args map[string]interface{}, keys ...string) []string {
 	for _, key := range keys {
 		raw, ok := args[key]
@@ -587,6 +607,37 @@ func decodeMissionArgs(tc ToolCall) missionArgs {
 		req.LockedProvided = true
 	}
 	return req
+}
+
+func decodeNotificationArgs(tc ToolCall) notificationArgs {
+	req := notificationArgs{
+		Channel:  firstNonEmptyToolString(tc.Channel, toolArgString(tc.Params, "channel")),
+		Title:    firstNonEmptyToolString(tc.Title, toolArgString(tc.Params, "title")),
+		Message:  firstNonEmptyToolString(tc.Message, tc.Content, tc.Body, toolArgString(tc.Params, "message", "content", "body")),
+		Priority: firstNonEmptyToolString(tc.Tag, toolArgString(tc.Params, "tag", "priority")),
+	}
+	switch firstNonEmptyToolString(tc.Action, tc.ToolName) {
+	case "send_push_notification", "web_push":
+		req.Channel = "push"
+	}
+	return req
+}
+
+func decodeEmailFetchArgs(tc ToolCall) emailFetchArgs {
+	return emailFetchArgs{
+		Account: firstNonEmptyToolString(tc.Account, toolArgString(tc.Params, "account")),
+		Folder:  firstNonEmptyToolString(tc.Folder, toolArgString(tc.Params, "folder")),
+		Limit:   max(tc.Limit, toolArgInt(tc.Params, 0, "limit")),
+	}
+}
+
+func decodeEmailSendArgs(tc ToolCall) emailSendArgs {
+	return emailSendArgs{
+		Account: firstNonEmptyToolString(tc.Account, toolArgString(tc.Params, "account")),
+		To:      firstNonEmptyToolString(tc.To, toolArgString(tc.Params, "to")),
+		Subject: firstNonEmptyToolString(tc.Subject, toolArgString(tc.Params, "subject")),
+		Body:    firstNonEmptyToolString(tc.Body, tc.Content, toolArgString(tc.Params, "body", "content")),
+	}
 }
 
 func decodeGoogleWorkspaceArgsFromMap(args map[string]interface{}) googleWorkspaceArgs {
