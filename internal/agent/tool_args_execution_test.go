@@ -272,3 +272,67 @@ func TestDecodeCheatsheetArgsUsesParamsFallback(t *testing.T) {
 		t.Fatalf("Active = %v, want true", req.Active)
 	}
 }
+
+func TestDecodeSecretVaultArgsUsesParamsFallback(t *testing.T) {
+	req := decodeSecretVaultArgs(ToolCall{
+		Action: "set_secret",
+		Params: map[string]interface{}{
+			"operation": "store",
+			"key":       "api_token",
+			"value":     "secret-value",
+		},
+	})
+
+	if req.Action != "set_secret" || req.Operation != "store" {
+		t.Fatalf("unexpected secret decode: %+v", req)
+	}
+	if req.Key != "api_token" || req.Value != "secret-value" {
+		t.Fatalf("unexpected key/value decode: %+v", req)
+	}
+}
+
+func TestDecodeCronScheduleArgsUsesParamsFallback(t *testing.T) {
+	req := decodeCronScheduleArgs(ToolCall{
+		Action: "manage_schedule",
+		Params: map[string]interface{}{
+			"operation":   "add",
+			"id":          "job-1",
+			"cron_expr":   "0 9 * * *",
+			"task_prompt": "send daily summary",
+		},
+	})
+
+	if req.Operation != "add" || req.ID != "job-1" {
+		t.Fatalf("unexpected cron decode: %+v", req)
+	}
+	if req.CronExpr != "0 9 * * *" || req.TaskPrompt != "send daily summary" {
+		t.Fatalf("unexpected cron fields: %+v", req)
+	}
+}
+
+func TestDecodeDocumentCreatorArgsUsesParamsFallback(t *testing.T) {
+	req := decodeDocumentCreatorArgs(ToolCall{
+		Action: "document_creator",
+		Params: map[string]interface{}{
+			"operation":    "create_pdf",
+			"title":        "Weekly Report",
+			"content":      "Hello",
+			"url":          "https://example.com",
+			"filename":     "weekly-report",
+			"paper_size":   "A4",
+			"landscape":    true,
+			"sections":     "[{\"title\":\"Intro\"}]",
+			"source_files": "[\"a.md\",\"b.md\"]",
+		},
+	})
+
+	if req.Operation != "create_pdf" || req.Title != "Weekly Report" {
+		t.Fatalf("unexpected document decode: %+v", req)
+	}
+	if req.URL != "https://example.com" || req.Filename != "weekly-report" || req.PaperSize != "A4" {
+		t.Fatalf("unexpected document metadata: %+v", req)
+	}
+	if !req.Landscape || req.Sections == "" || req.SourceFiles == "" {
+		t.Fatalf("unexpected document options: %+v", req)
+	}
+}

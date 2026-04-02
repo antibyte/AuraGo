@@ -91,6 +91,32 @@ type cheatsheetArgs struct {
 	AttachmentID string
 }
 
+type secretVaultArgs struct {
+	Action    string
+	Operation string
+	Key       string
+	Value     string
+}
+
+type cronScheduleArgs struct {
+	Operation  string
+	ID         string
+	CronExpr   string
+	TaskPrompt string
+}
+
+type documentCreatorArgs struct {
+	Operation   string
+	Title       string
+	Content     string
+	URL         string
+	Filename    string
+	PaperSize   string
+	Landscape   bool
+	Sections    string
+	SourceFiles string
+}
+
 func toolArgInterfaceMap(args map[string]interface{}, keys ...string) map[string]interface{} {
 	for _, key := range keys {
 		raw, ok := args[key]
@@ -337,6 +363,42 @@ func decodeCheatsheetArgs(tc ToolCall) cheatsheetArgs {
 	}
 	if req.Active == nil {
 		req.Active = toolArgBoolPtr(tc.Params, "active")
+	}
+	return req
+}
+
+func decodeSecretVaultArgs(tc ToolCall) secretVaultArgs {
+	return secretVaultArgs{
+		Action:    firstNonEmptyToolString(tc.Action, toolArgString(tc.Params, "action")),
+		Operation: firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		Key:       firstNonEmptyToolString(tc.Key, toolArgString(tc.Params, "key")),
+		Value:     firstNonEmptyToolString(tc.Value, toolArgString(tc.Params, "value")),
+	}
+}
+
+func decodeCronScheduleArgs(tc ToolCall) cronScheduleArgs {
+	return cronScheduleArgs{
+		Operation:  firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		ID:         firstNonEmptyToolString(tc.ID, toolArgString(tc.Params, "id")),
+		CronExpr:   firstNonEmptyToolString(tc.CronExpr, toolArgString(tc.Params, "cron_expr")),
+		TaskPrompt: firstNonEmptyToolString(tc.TaskPrompt, tc.Content, toolArgString(tc.Params, "task_prompt", "content")),
+	}
+}
+
+func decodeDocumentCreatorArgs(tc ToolCall) documentCreatorArgs {
+	req := documentCreatorArgs{
+		Operation:   firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		Title:       firstNonEmptyToolString(tc.Title, toolArgString(tc.Params, "title")),
+		Content:     firstNonEmptyToolString(tc.Content, toolArgString(tc.Params, "content")),
+		URL:         firstNonEmptyToolString(tc.URL, toolArgString(tc.Params, "url")),
+		Filename:    firstNonEmptyToolString(tc.Filename, toolArgString(tc.Params, "filename")),
+		PaperSize:   firstNonEmptyToolString(tc.PaperSize, toolArgString(tc.Params, "paper_size")),
+		Landscape:   tc.Landscape,
+		Sections:    firstNonEmptyToolString(tc.Sections, toolArgString(tc.Params, "sections")),
+		SourceFiles: firstNonEmptyToolString(tc.SourceFiles, toolArgString(tc.Params, "source_files")),
+	}
+	if landscape, ok := toolArgBool(tc.Params, "landscape"); ok {
+		req.Landscape = landscape
 	}
 	return req
 }

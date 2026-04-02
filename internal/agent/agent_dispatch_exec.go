@@ -1022,32 +1022,33 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			}
 
 		case "get_secret", "secrets_vault":
+			req := decodeSecretVaultArgs(tc)
 			if !cfg.Tools.SecretsVault.Enabled {
 				return `Tool Output: {"status":"error","message":"Secrets vault is disabled. Set tools.secrets_vault.enabled=true in config.yaml."}`
 			}
-			op := strings.TrimSpace(strings.ToLower(tc.Operation))
-			if cfg.Tools.SecretsVault.ReadOnly && (op == "store" || op == "set" || tc.Action == "set_secret") {
+			op := strings.TrimSpace(strings.ToLower(req.Operation))
+			if cfg.Tools.SecretsVault.ReadOnly && (op == "store" || op == "set" || req.Action == "set_secret") {
 				return `Tool Output: {"status":"error","message":"Secrets vault is in read-only mode. Disable tools.secrets_vault.read_only to allow changes."}`
 			}
-			if op == "store" || op == "set" || (tc.Action == "set_secret") {
-				logger.Info("LLM requested secret storage", "key", tc.Key)
-				if tc.Key == "" || tc.Value == "" {
+			if op == "store" || op == "set" || (req.Action == "set_secret") {
+				logger.Info("LLM requested secret storage", "key", req.Key)
+				if req.Key == "" || req.Value == "" {
 					return `Tool Output: {"status": "error", "message": "'key' and 'value' are required for set_secret/store"}`
 				}
-				if isSystemSecret(tc.Key) {
+				if isSystemSecret(req.Key) {
 					logger.Warn("LLM attempted to overwrite system-managed secret — access denied", "key", tc.Key)
 					return `Tool Output: {"status": "error", "message": "Access denied: this secret is managed by a system component and cannot be overwritten via secrets_vault."}`
 				}
-				err := vault.WriteSecret(tc.Key, tc.Value)
+				err := vault.WriteSecret(req.Key, req.Value)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
 				}
-				return fmt.Sprintf(`Tool Output: {"status": "success", "message": "Secret '%s' stored safely."}`, tc.Key)
+				return fmt.Sprintf(`Tool Output: {"status": "success", "message": "Secret '%s' stored safely."}`, req.Key)
 			}
 
 			// Default: read/list
-			logger.Info("LLM requested secret retrieval", "key", tc.Key)
-			if tc.Key == "" {
+			logger.Info("LLM requested secret retrieval", "key", req.Key)
+			if req.Key == "" {
 				// List available secret keys when no key is specified
 				// Filter out system-managed keys — the agent must not know they exist
 				keys, err := vault.ListKeys()
@@ -1067,19 +1068,20 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				return fmt.Sprintf(`Tool Output: {"status": "success", "message": "Stored secret keys (use get_secret with 'key' to retrieve a value)", "keys": %s}`, string(b))
 			}
 			// Block access to system-managed secrets
-			if isSystemSecret(tc.Key) {
+			if isSystemSecret(req.Key) {
 				logger.Warn("LLM attempted to read system-managed secret — access denied", "key", tc.Key)
 				return `Tool Output: {"status": "error", "message": "Access denied: this secret is managed by a system component and cannot be retrieved via secrets_vault."}`
 			}
-			secret, err := vault.ReadSecret(tc.Key)
+			secret, err := vault.ReadSecret(req.Key)
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
 			}
 			// JSON-encode the secret value to prevent injection from special characters
 			safeVal, _ := json.Marshal(secret)
-			return fmt.Sprintf(`Tool Output: {"status": "success", "key": "%s", "value": %s}`, tc.Key, string(safeVal))
+			return fmt.Sprintf(`Tool Output: {"status": "success", "key": "%s", "value": %s}`, req.Key, string(safeVal))
 
 		case "set_secret":
+			req := decodeSecretVaultArgs(tc)
 			if !cfg.Tools.SecretsVault.Enabled {
 				return `Tool Output: {"status":"error","message":"Secrets vault is disabled. Set tools.secrets_vault.enabled=true in config.yaml."}`
 			}
@@ -1087,18 +1089,18 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				return `Tool Output: {"status":"error","message":"Secrets vault is in read-only mode. Disable tools.secrets_vault.read_only to allow changes."}`
 			}
 			logger.Info("LLM requested secret storage", "key", tc.Key)
-			if tc.Key == "" || tc.Value == "" {
+			if req.Key == "" || req.Value == "" {
 				return `Tool Output: {"status": "error", "message": "'key' and 'value' are required for set_secret"}`
 			}
-			if isSystemSecret(tc.Key) {
+			if isSystemSecret(req.Key) {
 				logger.Warn("LLM attempted to overwrite system-managed secret — access denied", "key", tc.Key)
 				return `Tool Output: {"status": "error", "message": "Access denied: this secret is managed by a system component and cannot be overwritten via secrets_vault."}`
 			}
-			err := vault.WriteSecret(tc.Key, tc.Value)
+			err := vault.WriteSecret(req.Key, req.Value)
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
 			}
-			return fmt.Sprintf(`Tool Output: {"status": "success", "message": "Secret '%s' stored safely."}`, tc.Key)
+			return fmt.Sprintf(`Tool Output: {"status": "success", "message": "Secret '%s' stored safely."}`, req.Key)
 
 		case "archive":
 			fpath := resolveFilePath(tc)
@@ -1576,31 +1578,33 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			return fmt.Sprintf(`Tool Output: {"status": "success", "message": "File %s successfully"}`, tc.Direction)
 
 		case "manage_schedule", "cron_scheduler":
+			req := decodeCronScheduleArgs(tc)
 			if !cfg.Tools.Scheduler.Enabled {
 				return `Tool Output: {"status":"error","message":"Scheduler is disabled. Set tools.scheduler.enabled=true in config.yaml."}`
 			}
 			if cfg.Tools.Scheduler.ReadOnly {
-				switch tc.Operation {
+				switch req.Operation {
 				case "add", "remove":
 					return `Tool Output: {"status":"error","message":"Scheduler is in read-only mode. Disable tools.scheduler.read_only to allow changes."}`
 				}
 			}
-			logger.Info("LLM requested cron management", "operation", tc.Operation)
-			result, err := cronManager.ManageSchedule(tc.Operation, tc.ID, tc.CronExpr, tc.TaskPrompt)
+			logger.Info("LLM requested cron management", "operation", req.Operation)
+			result, err := cronManager.ManageSchedule(req.Operation, req.ID, req.CronExpr, req.TaskPrompt)
 			if err != nil {
 				return fmt.Sprintf("Tool Output: ERROR in manage_schedule: %v", err)
 			}
 			return result
 
 		case "schedule_cron":
+			req := decodeCronScheduleArgs(tc)
 			if !cfg.Tools.Scheduler.Enabled {
 				return `Tool Output: {"status":"error","message":"Scheduler is disabled. Set tools.scheduler.enabled=true in config.yaml."}`
 			}
 			if cfg.Tools.Scheduler.ReadOnly {
 				return `Tool Output: {"status":"error","message":"Scheduler is in read-only mode. Disable tools.scheduler.read_only to allow changes."}`
 			}
-			logger.Info("LLM requested cron scheduling", "expr", tc.CronExpr)
-			result, err := cronManager.ManageSchedule("add", "", tc.CronExpr, tc.TaskPrompt)
+			logger.Info("LLM requested cron scheduling", "expr", req.CronExpr)
+			result, err := cronManager.ManageSchedule("add", "", req.CronExpr, req.TaskPrompt)
 			if err != nil {
 				return fmt.Sprintf("Tool Output: ERROR scheduling cron: %v", err)
 			}
@@ -1615,22 +1619,24 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			return result
 
 		case "remove_cron_job":
+			req := decodeCronScheduleArgs(tc)
 			if !cfg.Tools.Scheduler.Enabled {
 				return `Tool Output: {"status":"error","message":"Scheduler is disabled. Set tools.scheduler.enabled=true in config.yaml."}`
 			}
 			if cfg.Tools.Scheduler.ReadOnly {
 				return `Tool Output: {"status":"error","message":"Scheduler is in read-only mode. Disable tools.scheduler.read_only to allow changes."}`
 			}
-			logger.Info("LLM requested cron job removal", "id", tc.ID)
-			result, _ := cronManager.ManageSchedule("remove", tc.ID, "", "")
+			logger.Info("LLM requested cron job removal", "id", req.ID)
+			result, _ := cronManager.ManageSchedule("remove", req.ID, "", "")
 			return result
 
 		case "document_creator":
+			req := decodeDocumentCreatorArgs(tc)
 			if !cfg.Tools.DocumentCreator.Enabled {
 				return `Tool Output: {"status":"error","message":"Document Creator is disabled. Set tools.document_creator.enabled=true in config.yaml."}`
 			}
-			logger.Info("LLM requested document creation", "operation", tc.Operation, "backend", cfg.Tools.DocumentCreator.Backend)
-			docResult := tools.ExecuteDocumentCreator(ctx, &cfg.Tools.DocumentCreator, tc.Operation, tc.Title, tc.Content, tc.URL, tc.Filename, tc.PaperSize, tc.Landscape, tc.Sections, tc.SourceFiles)
+			logger.Info("LLM requested document creation", "operation", req.Operation, "backend", cfg.Tools.DocumentCreator.Backend)
+			docResult := tools.ExecuteDocumentCreator(ctx, &cfg.Tools.DocumentCreator, req.Operation, req.Title, req.Content, req.URL, req.Filename, req.PaperSize, req.Landscape, req.Sections, req.SourceFiles)
 			// Auto-register every successfully created document in the media registry
 			if mediaRegistryDB != nil {
 				var parsed struct {
@@ -1641,7 +1647,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				}
 				if jsonErr := json.Unmarshal([]byte(docResult), &parsed); jsonErr == nil && parsed.Status == "success" {
 					mediaType := "document"
-					if tc.Operation == "screenshot_url" || tc.Operation == "screenshot_html" {
+					if req.Operation == "screenshot_url" || req.Operation == "screenshot_html" {
 						mediaType = "image"
 					}
 					tools.RegisterMedia(mediaRegistryDB, tools.MediaItem{
@@ -1650,7 +1656,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 						Filename:    parsed.Filename,
 						FilePath:    parsed.FilePath,
 						WebPath:     parsed.WebPath,
-						Description: tc.Title,
+						Description: req.Title,
 						Tags:        []string{"auto-generated"},
 					})
 				}
