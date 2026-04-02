@@ -84,7 +84,16 @@ async function loadData() {
         missions = data.missions || [];
         queue = data.queue || { items: [], running: '' };
         initialLoad = true;
-        render();
+        try {
+            render();
+        } catch (renderErr) {
+            console.error('Failed to render missions:', renderErr);
+            document.getElementById('missions-grid').innerHTML = `
+                <div class="empty-state">
+                    <div class="icon">⚠️</div>
+                    <p>${t('missions.empty_load_error')}</p>
+                </div>`;
+        }
     } catch (err) {
         console.error('Failed to load missions:', err);
         if (!initialLoad) {
@@ -876,6 +885,15 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+function escapeAttr(s) {
+    return String(s ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
 }
 
 function formatTime(isoString) {
