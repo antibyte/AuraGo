@@ -10,9 +10,10 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/security"
 )
 
-var outgoingWebhookHTTPClient = &http.Client{Timeout: 30 * time.Second}
+var outgoingWebhookHTTPClient = security.NewSSRFProtectedHTTPClient(30 * time.Second)
 
 // ExecuteOutgoingWebhook resolves variables and sends an HTTP request
 func ExecuteOutgoingWebhook(ctx context.Context, hook config.OutgoingWebhook, params map[string]interface{}) (string, int, error) {

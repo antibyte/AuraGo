@@ -2,6 +2,7 @@ package tools
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -70,6 +71,7 @@ type mcpConn struct {
 	ready     bool
 	closeCh   chan struct{}
 	closeOnce sync.Once // ensures close() is idempotent
+	stderrBuf *bytes.Buffer // captures MCP server stderr for diagnostics
 }
 
 func (c *mcpConn) markReady() {
@@ -103,8 +105,9 @@ func newMCPConn(name, command string, args []string, env map[string]string, logg
 		stdinPipe.Close()
 		return nil, fmt.Errorf("stdout pipe: %w", err)
 	}
-	// Discard stderr to prevent blocking
-	cmd.Stderr = io.Discard
+	// Capture stderr for diagnostics (MCP server startup errors, etc.)
+	stderrBuf := &bytes.Buffer{}
+	cmd.Stderr = stderrBuf
 
 	if err := cmd.Start(); err != nil {
 		stdinPipe.Close()
@@ -112,11 +115,12 @@ func newMCPConn(name, command string, args []string, env map[string]string, logg
 	}
 
 	conn := &mcpConn{
-		name:    name,
-		cmd:     cmd,
-		stdin:   stdinPipe,
-		stdout:  bufio.NewReaderSize(stdoutPipe, 1024*1024), // 1MB buffer for large responses
-		closeCh: make(chan struct{}),
+		name:      name,
+		cmd:       cmd,
+		stdin:     stdinPipe,
+		stdout:    bufio.NewReaderSize(stdoutPipe, 1024*1024), // 1MB buffer for large responses
+		closeCh:   make(chan struct{}),
+		stderrBuf: stderrBuf,
 	}
 
 	logger.Info("[MCP] Server process started", "name", name, "command", command, "pid", cmd.Process.Pid)
@@ -150,6 +154,9 @@ func (c *mcpConn) send(method string, params interface{}) (*jsonRPCResponse, err
 	for {
 		line, err := c.stdout.ReadBytes('\n')
 		if err != nil {
+			if c.stderrBuf != nil && c.stderrBuf.Len() > 0 {
+				slog.Default().Error("[MCP] Server stderr", "server", c.name, "stderr", c.stderrBuf.String())
+			}
 			return nil, fmt.Errorf("read from stdout: %w", err)
 		}
 		line = []byte(strings.TrimSpace(string(line)))

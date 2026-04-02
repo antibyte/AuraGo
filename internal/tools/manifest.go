@@ -68,7 +68,7 @@ func (m *Manifest) save(tools map[string]string) error {
 	if err != nil {
 		return fmt.Errorf("failed to marshal manifest: %w", err)
 	}
-	return os.WriteFile(m.filePath, data, 0644)
+	return os.WriteFile(m.filePath, data, 0600)
 }
 
 // Register adds or updates a tool entry in the manifest.

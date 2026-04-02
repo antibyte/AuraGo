@@ -2,6 +2,7 @@
 package tools
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -67,7 +68,7 @@ const maxConcurrency = 50
 // ScanPorts performs a TCP connect scan on the target host.
 // portRange can be: "80", "80,443,8080", "1-1024", or "common" (top well-known ports).
 // timeoutMs is the per-port timeout in milliseconds (100–5000, default: 1000).
-func ScanPorts(targetHost, portRange string, timeoutMs int) string {
+func ScanPorts(ctx context.Context, targetHost, portRange string, timeoutMs int) string {
 	encode := func(r portScanResult) string {
 		b, _ := json.Marshal(r)
 		return string(b)
@@ -108,7 +109,7 @@ func ScanPorts(targetHost, portRange string, timeoutMs int) string {
 			defer func() { <-sem }()
 
 			addr := net.JoinHostPort(targetHost, fmt.Sprintf("%d", p))
-			conn, err := net.DialTimeout("tcp", addr, timeout)
+			conn, err := (&net.Dialer{Timeout: timeout}).DialContext(ctx, "tcp", addr)
 			entry := portEntry{Port: p}
 			if err != nil {
 				entry.Status = "closed"

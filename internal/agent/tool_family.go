@@ -10,7 +10,7 @@ func classifyToolFamily(toolName string) string {
 	switch {
 	case strings.HasPrefix(name, "file") || name == "filesystem" || name == "smart_file_read" || strings.Contains(name, "_editor") || name == "pdf_operations" || name == "detect_file_type" || name == "archive":
 		return "files"
-	case strings.Contains(name, "shell") || strings.Contains(name, "sudo") || name == "process_analyzer" || name == "process_management":
+	case strings.Contains(name, "shell") || strings.Contains(name, "sudo") || name == "process_analyzer" || name == "process_management" || name == "system_metrics":
 		return "shell"
 	case strings.Contains(name, "python") || strings.Contains(name, "sandbox") || strings.Contains(name, "skill") || name == "generate_image" || name == "document_creator":
 		return "coding"
@@ -22,13 +22,13 @@ func classifyToolFamily(toolName string) string {
 		return "deployment"
 	case strings.Contains(name, "network") || strings.Contains(name, "dns_") || strings.Contains(name, "port_") || strings.Contains(name, "mdns_") || strings.Contains(name, "whois") || strings.Contains(name, "upnp") || strings.Contains(name, "wake_on_lan") || strings.Contains(name, "fritzbox"):
 		return "network"
-	case name == "docker" || name == "proxmox" || name == "tailscale" || name == "ansible" || name == "github" || name == "mcp_call" || strings.HasPrefix(name, "sql_") || name == "manage_sql_connections" || strings.Contains(name, "meshcentral") || strings.Contains(name, "remote_") || name == "invasion_control" || name == "home_assistant" || name == "ollama" || name == "adguard" || strings.HasPrefix(name, "mqtt_") || name == "s3_storage" || name == "jellyfin" || name == "truenas" || strings.HasPrefix(name, "jellyfin_") || strings.HasPrefix(name, "truenas_"):
+	case name == "docker" || name == "proxmox" || name == "tailscale" || name == "ansible" || name == "github" || name == "mcp_call" || strings.HasPrefix(name, "sql_") || name == "manage_sql_connections" || strings.Contains(name, "meshcentral") || strings.Contains(name, "remote_") || name == "invasion_control" || name == "home_assistant" || name == "ollama" || name == "adguard" || strings.HasPrefix(name, "mqtt_") || name == "s3_storage" || name == "jellyfin" || name == "truenas" || strings.HasPrefix(name, "jellyfin_") || strings.HasPrefix(name, "truenas_") || name == "koofr" || name == "onedrive" || strings.HasPrefix(name, "koofr_") || strings.HasPrefix(name, "onedrive_"):
 		return "infra"
 	case strings.Contains(name, "email") || strings.Contains(name, "webhook") || strings.Contains(name, "telnyx") || name == "address_book":
 		return "communication"
 	case strings.Contains(name, "cron") || strings.Contains(name, "follow_up") || strings.Contains(name, "mission") || name == "co_agent" || name == "co_agents":
 		return "automation"
-	case strings.Contains(name, "image") || strings.Contains(name, "audio") || name == "tts" || strings.Contains(name, "transcribe") || strings.Contains(name, "media_"):
+	case strings.Contains(name, "image") || strings.Contains(name, "audio") || name == "tts" || strings.Contains(name, "transcribe") || strings.Contains(name, "media_") || name == "send_document":
 		return "media"
 	default:
 		return "misc"

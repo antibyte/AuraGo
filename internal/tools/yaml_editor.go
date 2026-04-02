@@ -80,7 +80,7 @@ func yamlSet(resolved, yamlPath string, value interface{}, encode func(YamlEdito
 	data, err := os.ReadFile(resolved)
 	if err != nil {
 		if os.IsNotExist(err) {
-			data = []byte("{}")
+			data = []byte("---\n")
 		} else {
 			return encode(YamlEditorResult{Status: "error", Message: fmt.Sprintf("Failed to read file: %v", err)})
 		}

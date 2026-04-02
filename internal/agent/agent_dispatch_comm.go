@@ -732,7 +732,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) string 
 
 	case "port_scanner":
 		logger.Info("LLM requested port scan", "host", tc.Host, "port_range", tc.PortRange)
-		return "Tool Output: " + tools.ScanPorts(tc.Host, tc.PortRange, tc.TimeoutMs)
+		return "Tool Output: " + tools.ScanPorts(ctx, tc.Host, tc.PortRange, tc.TimeoutMs)
 
 	case "site_crawler":
 		logger.Info("LLM requested site crawler", "url", tc.URL, "max_depth", tc.MaxDepth, "max_pages", tc.MaxPages)

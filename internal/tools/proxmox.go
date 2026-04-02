@@ -615,7 +615,8 @@ func ProxmoxCreateSnapshot(cfg ProxmoxConfig, node, vmType, vmid, snapName, desc
 	if code != 200 {
 		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%s}`, code, proxmoxJSONStr(string(data)))
 	}
-	return fmt.Sprintf(`{"status":"ok","snapshot":"%s","data":%s}`, snapName, proxmoxExtractData(data))
+	out, _ := json.Marshal(map[string]interface{}{"status": "ok", "snapshot": snapName, "data": json.RawMessage(proxmoxExtractData(data))})
+	return string(out)
 }
 
 // ProxmoxListSnapshots lists all snapshots of a VM or container.

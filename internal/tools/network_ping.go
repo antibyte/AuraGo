@@ -61,14 +61,29 @@ func NetworkPing(targetHost string, count, timeoutSecs int) string {
 
 	pinger.Count = count
 	pinger.Timeout = time.Duration(timeoutSecs) * time.Second
-	pinger.SetPrivileged(true) // requires raw socket access
+	pinger.SetPrivileged(true) // try privileged ICMP first (requires root / CAP_NET_RAW on Linux)
 
 	if err := pinger.Run(); err != nil {
-		return encode(pingResult{
-			Status:  "error",
-			Host:    targetHost,
-			Message: fmt.Sprintf("ping failed: %v — ensure the process has permission to send ICMP packets (root / CAP_NET_RAW on Linux)", err),
-		})
+		// Fall back to unprivileged UDP ping (works without elevated privileges on most Linux systems)
+		pinger2, err2 := probing.NewPinger(targetHost)
+		if err2 != nil {
+			return encode(pingResult{
+				Status:  "error",
+				Host:    targetHost,
+				Message: fmt.Sprintf("ping failed: %v — ensure the process has permission to send ICMP packets (root / CAP_NET_RAW on Linux)", err),
+			})
+		}
+		pinger2.Count = count
+		pinger2.Timeout = time.Duration(timeoutSecs) * time.Second
+		pinger2.SetPrivileged(false) // unprivileged UDP ping
+		if err2 = pinger2.Run(); err2 != nil {
+			return encode(pingResult{
+				Status:  "error",
+				Host:    targetHost,
+				Message: fmt.Sprintf("ping failed (privileged: %v; unprivileged: %v) — ensure the host is reachable and ICMP is allowed", err, err2),
+			})
+		}
+		pinger = pinger2
 	}
 
 	stats := pinger.Statistics()
