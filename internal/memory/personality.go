@@ -1088,7 +1088,14 @@ func DetectMood(userMsg, toolResult string, meta PersonalityMeta) (Mood, map[str
 	var mood Mood
 
 	switch {
-	// 1. Errors → cautious
+	// 1. Explicit frustration keywords (must be checked before generic negative/error)
+	case isFrustrated:
+		mood = MoodFrustrated
+		deltas[TraitConfidence] = -0.05
+		deltas[TraitEmpathy] = +0.03
+		deltas[TraitAffinity] = -0.03
+
+	// 2. Tool errors or negative sentiment → cautious
 	case hasToolError || isNegative:
 		mood = MoodCautious
 		deltas[TraitConfidence] = -0.04
@@ -1097,13 +1104,6 @@ func DetectMood(userMsg, toolResult string, meta PersonalityMeta) (Mood, map[str
 			deltas[TraitEmpathy] = +0.02
 			deltas[TraitAffinity] = -0.02
 		}
-
-	// 2. Explicit frustration keywords (user/tool signal)
-	case isFrustrated || (hasToolError && isNegative):
-		mood = MoodFrustrated
-		deltas[TraitConfidence] = -0.05
-		deltas[TraitEmpathy] = +0.03
-		deltas[TraitAffinity] = -0.03
 
 	// 3. Playful
 	case isPlayful:

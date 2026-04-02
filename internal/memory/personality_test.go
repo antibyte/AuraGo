@@ -491,6 +491,31 @@ func TestDetectMoodFrustrated(t *testing.T) {
 	}
 }
 
+// TestDetectMoodFrustratedPriorityOverNegative verifies that frustration keywords take
+// priority over generic negative keywords. Before the BUG-05 fix, a message containing
+// both a frustration keyword (e.g. "frustrated") and a negative keyword ("wrong") would
+// incorrectly resolve to MoodCautious instead of MoodFrustrated.
+func TestDetectMoodFrustratedPriorityOverNegative(t *testing.T) {
+	cases := []struct {
+		msg  string
+		want Mood
+	}{
+		// frustration keyword + negative keyword → MoodFrustrated must win
+		{"i am so frustrated and everything is wrong", MoodFrustrated},
+		{"das nervt schon wieder, alles schlecht und falsch", MoodFrustrated},
+		{"keeps failing again, this is terrible and wrong", MoodFrustrated},
+		// pure negative (no frustration keyword) → MoodCautious
+		{"this is wrong and bad", MoodCautious},
+		{"das ist schlecht und falsch", MoodCautious},
+	}
+	for _, tc := range cases {
+		mood, _ := detectMoodDefault(tc.msg, "")
+		if mood != tc.want {
+			t.Errorf("detectMoodDefault(%q) = %s, want %s", tc.msg, mood, tc.want)
+		}
+	}
+}
+
 func TestDetectMoodConcerned(t *testing.T) {
 	tests := []string{
 		"ich bin besorgt, das ist gefährlich",

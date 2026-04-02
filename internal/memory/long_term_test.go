@@ -80,3 +80,33 @@ func TestQueryCacheEntry(t *testing.T) {
 		t.Error("timestamp should be recent")
 	}
 }
+
+// TestExtractSimilarityScoreOnRawContent is a regression test for BUG-02.
+// SearchMemoriesOnly and SearchSimilar return raw document content (without a
+// "[Similarity: x.xx]" prefix), so passing their output to ExtractSimilarityScore
+// always returned 0 — effectively bypassing deduplication.
+// The fix replaces that pattern with searchTopSimilarityScore which returns the
+// raw float32 similarity directly.  This test documents the incorrect old behaviour
+// so a future refactor cannot silently re-introduce it.
+func TestExtractSimilarityScoreOnRawContent(t *testing.T) {
+	rawContents := []string{
+		"This is a document about Go memory management.",
+		"Docker container started successfully.",
+		"The user asked about filesystem operations.",
+	}
+	for _, raw := range rawContents {
+		if got := ExtractSimilarityScore(raw); got != 0 {
+			t.Errorf("ExtractSimilarityScore on raw content %q = %v, want 0 (no prefix)", raw, got)
+		}
+	}
+}
+
+// TestSearchTopSimilarityScoreDisabled verifies that searchTopSimilarityScore
+// returns 0 safely when the VectorDB is disabled (e.g. no embedding model configured).
+func TestSearchTopSimilarityScoreDisabled(t *testing.T) {
+	cv := &ChromemVectorDB{}
+	cv.disabled.Store(true)
+	if got := cv.searchTopSimilarityScore("any concept"); got != 0 {
+		t.Errorf("searchTopSimilarityScore on disabled VectorDB = %v, want 0", got)
+	}
+}

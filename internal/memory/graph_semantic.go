@@ -23,6 +23,7 @@ const knowledgeGraphSemanticEdgeMinSimilarity = 0.35
 
 const knowledgeGraphSemanticQueryCacheTTL = 5 * time.Minute
 const knowledgeGraphSemanticEdgeMaxResults = 50
+const knowledgeGraphSemanticQueryCacheMaxSize = 100
 
 type knowledgeGraphSemanticIndex struct {
 	collection    *chromem.Collection
@@ -31,6 +32,14 @@ type knowledgeGraphSemanticIndex struct {
 	mu            sync.Mutex
 	queryCache    map[string]queryCacheEntry
 	queryCacheTTL time.Duration
+}
+
+// Close releases resources held by the semantic index and clears the embedding cache.
+func (idx *knowledgeGraphSemanticIndex) Close() {
+	idx.mu.Lock()
+	defer idx.mu.Unlock()
+	idx.collection = nil
+	idx.queryCache = nil
 }
 
 func (kg *KnowledgeGraph) EnableSemanticSearch(cfg *config.Config) error {
@@ -342,6 +351,26 @@ func (kg *KnowledgeGraph) getSemanticQueryEmbedding(query string) ([]float32, er
 	}
 
 	kg.semantic.queryCache[query] = queryCacheEntry{embedding: embedding, timestamp: time.Now()}
+	// Evict stale entries when cache exceeds the size cap to prevent unbounded growth.
+	if len(kg.semantic.queryCache) > knowledgeGraphSemanticQueryCacheMaxSize {
+		now := time.Now()
+		for k, v := range kg.semantic.queryCache {
+			if now.Sub(v.timestamp) > kg.semantic.queryCacheTTL {
+				delete(kg.semantic.queryCache, k)
+			}
+		}
+		// If still over cap after TTL eviction, clear the oldest half.
+		if len(kg.semantic.queryCache) > knowledgeGraphSemanticQueryCacheMaxSize {
+			count := 0
+			for k := range kg.semantic.queryCache {
+				delete(kg.semantic.queryCache, k)
+				count++
+				if count >= knowledgeGraphSemanticQueryCacheMaxSize/2 {
+					break
+				}
+			}
+		}
+	}
 	return embedding, nil
 }
 

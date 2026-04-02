@@ -113,11 +113,16 @@ func NewEmotionSynthesizer(client PersonalityAnalyzerClient, modelName string, m
 	}
 }
 
-// GetLastEmotion returns the most recent emotion state (thread-safe).
+// GetLastEmotion returns a copy of the most recent emotion state (thread-safe).
+// Callers receive their own copy and cannot mutate the synthesizer's internal state.
 func (es *EmotionSynthesizer) GetLastEmotion() *EmotionState {
 	es.mu.RLock()
 	defer es.mu.RUnlock()
-	return es.lastState
+	if es.lastState == nil {
+		return nil
+	}
+	copy := *es.lastState
+	return &copy
 }
 
 // ApplyExternalState validates, caches, and persists an already synthesized emotion state.
@@ -244,7 +249,10 @@ func (es *EmotionSynthesizer) SynthesizeEmotion(ctx context.Context, stm *SQLite
 		return &sfEmotionResult{state: state}, nil
 	})
 
-	res := v.(*sfEmotionResult)
+	res, ok := v.(*sfEmotionResult)
+	if !ok || res == nil {
+		return nil, fmt.Errorf("emotion synthesis: unexpected nil result from singleflight")
+	}
 	return res.state, res.err
 }
 

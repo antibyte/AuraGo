@@ -62,6 +62,7 @@ type KnowledgeGraph struct {
 	accessQueue chan knowledgeGraphAccessHit // buffered channel for async access-count updates
 	doneChan    chan struct{}                // signals worker to exit
 	closeOnce   sync.Once                    // ensures Close is only called once
+	wg          sync.WaitGroup               // tracks accessCountWorker goroutine lifetime
 	semantic    *knowledgeGraphSemanticIndex
 }
 
@@ -95,6 +96,7 @@ func NewKnowledgeGraph(dbPath string, jsonMigratePath string, logger *slog.Logge
 		accessQueue: make(chan knowledgeGraphAccessHit, 1000), // buffer for 1000 access hits
 		doneChan:    make(chan struct{}),
 	}
+	kg.wg.Add(1)
 	go kg.accessCountWorker()
 	if err := kg.initTables(); err != nil {
 		close(kg.doneChan) // signal worker to exit
@@ -118,7 +120,11 @@ func (kg *KnowledgeGraph) Close() error {
 	var err error
 	kg.closeOnce.Do(func() {
 		close(kg.doneChan) // signal worker to exit
+		kg.wg.Wait()       // wait for worker goroutine to finish current DB write
 		kg.drainAccessQueue()
+		if kg.semantic != nil {
+			kg.semantic.Close()
+		}
 		err = kg.db.Close()
 	})
 	return err
@@ -141,6 +147,7 @@ func (kg *KnowledgeGraph) drainAccessQueue() {
 // Runs as a single goroutine for the lifetime of the KnowledgeGraph.
 // Exits when doneChan is closed or when db is closed.
 func (kg *KnowledgeGraph) accessCountWorker() {
+	defer kg.wg.Done()
 	for {
 		select {
 		case <-kg.doneChan:
@@ -382,7 +389,7 @@ func (kg *KnowledgeGraph) QualityReport(sampleLimit int) (*KnowledgeGraphQuality
 		sampleLimit = 50
 	}
 
-	rows, err := kg.db.Query(`SELECT id, label, properties, protected FROM kg_nodes ORDER BY label COLLATE NOCASE, id COLLATE NOCASE`)
+	rows, err := kg.db.Query(`SELECT id, label, properties, protected FROM kg_nodes ORDER BY label COLLATE NOCASE, id COLLATE NOCASE LIMIT 5000`)
 	if err != nil {
 		return nil, fmt.Errorf("query kg nodes for quality report: %w", err)
 	}

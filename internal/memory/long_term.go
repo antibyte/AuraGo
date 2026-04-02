@@ -246,12 +246,10 @@ func (cv *ChromemVectorDB) StoreDocumentWithDomain(concept, content, domain stri
 	// Deduplication: serialise check+store so two concurrent calls for the
 	// same concept cannot both pass the similarity gate before either is stored.
 	cv.storeDocMu.Lock()
-	if similar, _, err := cv.SearchMemoriesOnly(concept, 1); err == nil && len(similar) > 0 {
-		if sim := ExtractSimilarityScore(similar[0]); sim > 0.95 {
-			cv.storeDocMu.Unlock()
-			cv.logger.Debug("Skipping duplicate concept (similarity > 0.95)", "concept", concept, "similarity", sim)
-			return nil, nil
-		}
+	if sim := cv.searchTopSimilarityScore(concept); sim > 0.95 {
+		cv.storeDocMu.Unlock()
+		cv.logger.Debug("Skipping duplicate concept (similarity > 0.95)", "concept", concept, "similarity", sim)
+		return nil, nil
 	}
 	defer cv.storeDocMu.Unlock()
 
@@ -460,11 +458,9 @@ func (cv *ChromemVectorDB) StoreBatch(items []ArchiveItem) ([]string, error) {
 			defer func() { <-cv.dedupSem }()
 
 			keep := true
-			if similar, _, err := cv.SearchMemoriesOnly(item.Concept, 1); err == nil && len(similar) > 0 {
-				if sim := ExtractSimilarityScore(similar[0]); sim > 0.95 {
-					cv.logger.Debug("StoreBatch: skipping duplicate concept", "concept", item.Concept, "similarity", sim)
-					keep = false
-				}
+			if sim := cv.searchTopSimilarityScore(item.Concept); sim > 0.95 {
+				cv.logger.Debug("StoreBatch: skipping duplicate concept", "concept", item.Concept, "similarity", sim)
+				keep = false
 			}
 			resultsCh <- dedupResult{idx: i, item: item, keep: keep}
 		}()
@@ -758,6 +754,50 @@ func (cv *ChromemVectorDB) GetByID(id string) (string, error) {
 		return "", err
 	}
 	return doc.Content, nil
+}
+
+// searchTopSimilarityScore returns the decayed similarity score of the closest existing
+// document in the aurago_memories collection for the given concept, or 0 if no match.
+// It is used internally for dedup checks and does NOT format results with a prefix string,
+// unlike SearchSimilar/SearchMemoriesOnly. Callers must not hold storeDocMu when calling
+// SearchMemoriesOnly (which this replaces), but since this method creates its own context
+// and does not acquire any other lock, it is safe to call while storeDocMu is held.
+func (cv *ChromemVectorDB) searchTopSimilarityScore(concept string) float32 {
+	if cv.disabled.Load() {
+		return 0
+	}
+	col, err := cv.db.GetOrCreateCollection("aurago_memories", nil, cv.embeddingFunc)
+	if err != nil || col.Count() == 0 {
+		return 0
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	queryEmbedding, err := cv.getQueryEmbedding(ctx, concept)
+	if err != nil {
+		return 0
+	}
+
+	results, err := col.QueryEmbedding(ctx, queryEmbedding, 1, nil, nil)
+	if err != nil || len(results) == 0 {
+		return 0
+	}
+
+	sim := results[0].Similarity
+	if tsStr, ok := results[0].Metadata["timestamp"]; ok {
+		if ts, err := strconv.ParseInt(tsStr, 10, 64); err == nil {
+			ageDays := float32(time.Since(time.Unix(ts, 0)).Hours() / 24.0)
+			if ageDays > 0 {
+				decay := ageDays * 0.01
+				if decay > 0.30 {
+					decay = 0.30
+				}
+				sim = sim * (1.0 - decay)
+			}
+		}
+	}
+	return sim
 }
 
 // DeleteDocument removes a specific document from the VectorDB by its ID.

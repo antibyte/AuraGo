@@ -132,7 +132,10 @@ func TestSynthesizeEmotion_RateLimiting(t *testing.T) {
 	if err != nil {
 		t.Fatalf("second call: %v", err)
 	}
-	if state2 != state1 {
+	if state2 == nil {
+		t.Fatal("expected non-nil cached state on rate-limited call")
+	}
+	if *state2 != *state1 {
 		t.Error("expected same cached state on rate-limited call")
 	}
 	if mock.calls != 1 {

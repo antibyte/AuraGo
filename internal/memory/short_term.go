@@ -234,22 +234,7 @@ func (s *SQLiteMemory) GetConsolidationCandidates(limit int, maxRetries int) ([]
 // MarkConsolidated marks a batch of archived messages as consolidated.
 // Deprecated: prefer MarkConsolidationSuccess which also sets consolidation_status.
 func (s *SQLiteMemory) MarkConsolidated(ids []int64) error {
-	if len(ids) == 0 {
-		return nil
-	}
-	placeholders := make([]string, len(ids))
-	args := make([]interface{}, len(ids))
-	for i, id := range ids {
-		placeholders[i] = "?"
-		args[i] = id
-	}
-	query := fmt.Sprintf(`UPDATE archived_messages
-		SET consolidated = 1,
-		    consolidation_status = 'done',
-		    consolidation_last_error = ''
-		WHERE id IN (%s)`, strings.Join(placeholders, ","))
-	_, err := s.db.Exec(query, args...)
-	return err
+	return s.MarkConsolidationSuccess(ids)
 }
 
 // MarkConsolidationSuccess marks archived messages as successfully consolidated.
@@ -819,8 +804,8 @@ func (s *SQLiteMemory) RecordInteraction(topic string) error {
 	if topic == "" {
 		return nil
 	}
-	if len(topic) > 120 {
-		topic = topic[:120]
+	if r := []rune(topic); len(r) > 120 {
+		topic = string(r[:120])
 	}
 	stmt := `
 	INSERT INTO interaction_patterns (hour_of_day, day_of_week, topic, count, last_seen)
