@@ -283,17 +283,132 @@ Das Dashboard zeigt Faktoren, die den Mood beeinflussen:
 
 ### Knowledge Graph
 
+Der Knowledge Graph Tab bietet umfassende Einblicke in Auras strukturiertes Gedächtnissystem.
+
+#### Knowledge Graph Zusammenfassung
+
 ```
-┌─────────────────────────────────────────┐
-│ Knowledge Graph                         │
-│                                         │
-│  Knoten:    3,421  ████████████████░░░ │
-│  Kanten:    8,934  ██████████████████  │
-│  Relationen:  156  █████░░░░░░░░░░░░░░ │
-│                                         │
-│  Größe: 12.3 MB                         │
-│  Letztes Update: Vor 2 Stunden          │
-└─────────────────────────────────────────┘
+Knowledge Graph Statistiken
+┌─────────────────────────────────────────────────────────┐
+│                                                         │
+│  Knoten: 1,247    Typen: 89      Kanten: 3,892        │
+│                                                         │
+│  Top-Entitätstypen:                                    │
+│  • Person: 234    • Ort: 189                          │
+│  • Thema: 412     • Ereignis: 156                     │
+│  • Tool: 89       • Sonstige: 167                     │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+```
+
+#### Graph-Qualität
+
+Der Graph-Qualität-Bereich hilft, ein gesundes Wissensnetz zu pflegen:
+
+```
+Graph-Qualitätsmetriken
+┌─────────────────────────────────────────────────────────┐
+│  🛡️ Geschützt: 12   📍 Isoliert: 5   🏷️ Ohne Typ: 1 │
+└─────────────────────────────────────────────────────────┘
+
+Isolierte Knoten (keine Verbindungen):
+  • node_id_abc123 ... 2 direkte Verbindungen
+  • node_id_def456 ... 1 direkte Verbindung
+
+Knoten ohne Typ (fehlende Typ-Eigenschaft):
+  • node_id_ghi789 ... Label: "Ein Thema"
+
+Duplikat-Kandidaten (identische Labels):
+  • "Besprechungsnotizen" ... 3 Vorkommen
+  • "Projekt Alpha" ... 2 Vorkommen
+```
+
+**Qualitätsmetriken:**
+| Metrik | Beschreibung | Idealwert |
+|--------|--------------|------------|
+| **Geschützte Knoten** | Knoten die vor Bereinigung geschützt sind | Beliebig |
+| **Isolierte Knoten** | Knoten ohne Verbindungen | Möglichst 0 |
+| **Knoten ohne Typ** | Knoten ohne Typ-Eigenschaft | Möglichst 0 |
+| **Duplikat-Gruppen** | Gruppen mit identischen Labels | Möglichst 0 |
+
+**Qualitätsprobleme:**
+- **Isolierte Knoten**: Können verwaiste oder unvollständige Daten anzeigen
+- **Knoten ohne Typ**: Sollten einen Typ für ordnungsgemäße Kategorisierung erhalten
+- **Duplikate**: Erwäge das Zusammenführen von Knoten mit identischen Labels
+
+#### KG-Explorer
+
+Suchen und durchsuchen von Wissensgraph-Einträgen:
+
+```
+KG-Explorer
+┌─────────────────────────────────────────────────────────┐
+│  🔍 Suche: [________________________] [Suchen]        │
+│                                                         │
+│  Ergebnisse: "projekt" → 23 Knoten, 45 Kanten        │
+│                                                         │
+│  Letzte Knoten:                                        │
+│  • Projekt Alpha          node_001                      │
+│  • Projekt Beta           node_002                      │
+│  • Besprechungsnotizen   node_003                      │
+│                                                         │
+│  Letzte Kanten:                                       │
+│  • projekt_alpha --verwandet_mit--> besprechungsnotizen│
+│  • benutzer_jan --erstellt--> projekt_beta             │
+└─────────────────────────────────────────────────────────┘
+```
+
+#### Graph-Visualisierung
+
+Interaktive visuelle Darstellung des Wissensgraphs:
+
+```
+Graph-Ansicht
+┌─────────────────────────────────────────────────────────┐
+│  [Übersicht]  [Fokus]           [Zurücksetzen]        │
+│                                                         │
+│       ┌─────────────────────────────────────┐          │
+│       │           ○ ──── ○                 │          │
+│       │          /│\     /│\                │          │
+│       │         ○ ○ ○   ○ ○ ○               │          │
+│       │          \│/     \│/                │          │
+│       │           ○ ──── ○                  │          │
+│       └─────────────────────────────────────┘          │
+│                                                         │
+│  Zeige 50 Knoten und 120 Kanten aus der Stichprobe.  │
+└─────────────────────────────────────────────────────────┘
+```
+
+- **Übersicht**: Zeigt eine Stichprobe aller Knoten und Kanten
+- **Fokus**: Zentriert auf einem ausgewählten Knoten mit seinen direkten Nachbarn
+- Klicke auf einen Knoten um Details im Knoten-Inspektor zu sehen
+
+#### Knoten-Inspektor
+
+Detaillierte Knoteneigenschaften anzeigen und bearbeiten:
+
+```
+Knoten-Inspektor
+┌─────────────────────────────────────────────────────────┐
+│  🧭 Knoten-Inspektor                        [Schützen] │
+├─────────────────────────────────────────────────────────┤
+│  Label: "Projekt Alpha"                                │
+│  Typ: Projekt                                           │
+│  ID: node_001                                          │
+│  Geschützt: Ja                                           │
+│                                                         │
+│  Eigenschaften:                                         │
+│  • erstellt_am: 2024-01-15                            │
+│  • status: aktiv                                       │
+│  • priorität: hoch                                     │
+│                                                         │
+│  Kanten (12):                                          │
+│  • --erstellt_von--> benutzer_jan                      │
+│  • --verwandt_mit--> besprechungsnotizen (2x)         │
+│  • --hat_schlagwort--> dringend                        │
+│                                                         │
+│  [Eigenschaften bearbeiten]  [Knoten löschen]          │
+└─────────────────────────────────────────────────────────┘
 ```
 
 ### Memory-Nutzung nach Typ

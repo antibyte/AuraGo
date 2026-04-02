@@ -1202,8 +1202,8 @@ async function restartAuraGo(skipConfirm = false) {
                             <p class="cfg-restart-desc">${t('config.restart.reloading')}</p>
                         </div>
                     `;
-            // Attempt to reload after 4 seconds to give the service time to restart
-            setTimeout(() => window.location.reload(), 4000);
+            // Wait for server to restart, then reload with retry logic
+            scheduleReloadWithRetry(8000);
         } else {
             await showAlert(t('config.restart.error'));
         }
@@ -1211,8 +1211,34 @@ async function restartAuraGo(skipConfirm = false) {
         // If the fetch fails immediately, it might be that the server died instantly.
         // We'll still show the reloading screen.
         document.body.innerHTML = '<div class="cfg-restart-disconnected">' + t('config.restart.disconnected') + '</div>';
-        setTimeout(() => window.location.reload(), 4000);
+        scheduleReloadWithRetry(5000);
     }
+}
+
+let _reloadRetryTimer = null;
+let _reloadRetryCount = 0;
+const MAX_RELOAD_RETRIES = 10;
+
+function scheduleReloadWithRetry(delayMs) {
+    if (_reloadRetryTimer) return;
+    _reloadRetryTimer = setTimeout(function attemptReload() {
+        const img = new Image();
+        img.onload = img.onerror = function () {
+            // Small image load test - if it works, server is back
+            _reloadRetryCount = 0;
+            _reloadRetryTimer = null;
+            window.location.reload();
+        };
+        img.src = '/favicon.ico?t=' + Date.now(); // Cache-bust
+        // If server not back yet, retry after increasing delay
+        _reloadRetryCount++;
+        if (_reloadRetryCount < MAX_RELOAD_RETRIES) {
+            // Exponential backoff: 8s, 12s, 18s, 27s, 40s, 60s, 90s, ...
+            const nextDelay = Math.min(delayMs * 1.5, 120000);
+            delayMs = nextDelay;
+            _reloadRetryTimer = setTimeout(attemptReload, nextDelay);
+        }
+    }, delayMs);
 }
 
 // Boot

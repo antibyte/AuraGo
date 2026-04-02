@@ -2,6 +2,9 @@
 
 let _updatesReloadTimer = null;
 let _updatesReloadDeadline = 0;
+let _updatesReloadRetryTimer = null;
+let _updatesReloadRetryCount = 0;
+const MAX_UPDATE_RELOAD_RETRIES = 10;
 
 function renderUpdatesSection(section) {
     const content = document.getElementById('content');
@@ -148,12 +151,32 @@ function updatesStartReloadCountdown(seconds) {
         if (remaining <= 0) {
             clearInterval(_updatesReloadTimer);
             _updatesReloadTimer = null;
-            location.reload();
+            // Start retry-aware reload
+            scheduleUpdateReloadWithRetry(5000);
         }
     };
 
     tick();
     _updatesReloadTimer = setInterval(tick, 1000);
+}
+
+function scheduleUpdateReloadWithRetry(delayMs) {
+    if (_updatesReloadRetryTimer) return;
+    _updatesReloadRetryTimer = setTimeout(function attemptReload() {
+        const img = new Image();
+        img.onload = img.onerror = function () {
+            _updatesReloadRetryCount = 0;
+            _updatesReloadRetryTimer = null;
+            location.reload();
+        };
+        img.src = '/favicon.ico?t=' + Date.now();
+        _updatesReloadRetryCount++;
+        if (_updatesReloadRetryCount < MAX_UPDATE_RELOAD_RETRIES) {
+            const nextDelay = Math.min(delayMs * 1.5, 120000);
+            delayMs = nextDelay;
+            _updatesReloadRetryTimer = setTimeout(attemptReload, nextDelay);
+        }
+    }, delayMs);
 }
 
 function updatesCancelReload() {

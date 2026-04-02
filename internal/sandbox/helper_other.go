@@ -11,6 +11,11 @@ import (
 // RunHelper on non-Linux platforms simply executes the command directly without
 // any sandboxing. This path should not normally be reached because the sandbox
 // is only enabled on Linux, but it provides a safe fallback.
+func RunExecHelper() {
+	fmt.Fprintln(os.Stderr, "sandbox: RunExecHelper not supported on this platform")
+	os.Exit(126)
+}
+
 func RunHelper(command string) {
 	workDir := os.Getenv("AURAGO_SBX_WORKDIR")
 	if workDir != "" {

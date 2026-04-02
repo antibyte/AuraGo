@@ -1,9 +1,12 @@
 package server
 
 import (
+	"encoding/json"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -137,5 +140,74 @@ func TestHandleUpdateConfigInvalidJSONIsGeneric(t *testing.T) {
 	body := rec.Body.String()
 	if !strings.Contains(body, "Invalid JSON") || strings.Contains(strings.ToLower(body), "unexpected eof") {
 		t.Fatalf("expected generic invalid JSON response, got %q", body)
+	}
+}
+
+func TestHandleGetConfigRemovesHelperOwnedLegacyLLMFields(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	configContent := `
+personality:
+  engine_v2: true
+  v2_provider: legacy-helper
+  v2_model: helper-model
+memory_analysis:
+  provider: legacy-helper
+  model: helper-model
+tools:
+  web_scraper:
+    summary_provider: legacy-helper
+  wikipedia:
+    summary_provider: legacy-helper
+  ddg_search:
+    summary_provider: legacy-helper
+  pdf_extractor:
+    summary_provider: legacy-helper
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	s := &Server{
+		Cfg:    &config.Config{ConfigPath: configPath},
+		Logger: slog.Default(),
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/config", nil)
+	rec := httptest.NewRecorder()
+
+	handleGetConfig(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+
+	var body map[string]interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+
+	personality, _ := body["personality"].(map[string]interface{})
+	if _, ok := personality["v2_provider"]; ok {
+		t.Fatal("expected personality.v2_provider to be removed from config response")
+	}
+	if _, ok := personality["v2_model"]; ok {
+		t.Fatal("expected personality.v2_model to be removed from config response")
+	}
+
+	memoryAnalysis, _ := body["memory_analysis"].(map[string]interface{})
+	if _, ok := memoryAnalysis["provider"]; ok {
+		t.Fatal("expected memory_analysis.provider to be removed from config response")
+	}
+	if _, ok := memoryAnalysis["model"]; ok {
+		t.Fatal("expected memory_analysis.model to be removed from config response")
+	}
+
+	toolsMap, _ := body["tools"].(map[string]interface{})
+	for _, toolKey := range []string{"web_scraper", "wikipedia", "ddg_search", "pdf_extractor"} {
+		toolSection, _ := toolsMap[toolKey].(map[string]interface{})
+		if _, ok := toolSection["summary_provider"]; ok {
+			t.Fatalf("expected %s.summary_provider to be removed from config response", toolKey)
+		}
 	}
 }

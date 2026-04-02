@@ -1,4 +1,4 @@
-﻿{
+{
   "config.cloudflare_tunnel.enabled_label": "Cloudflare Tunnel ingeschakeld",
   "config.cloudflare_tunnel.readonly_label": "Alleen-lezen modus (alleen status)",
   "config.cloudflare_tunnel.auto_start_label": "Automatisch starten bij opstarten",
@@ -23,6 +23,8 @@
   "config.cloudflare_tunnel.token_saved": "Token succesvol opgeslagen in vault",
   "config.cloudflare_tunnel.start_tunnel": "Start tunnel",
   "config.cloudflare_tunnel.expose_target_label": "Doeldienst van de tunnel",
-  "config.cloudflare_tunnel.expose_single_hint": "Token- en Quick-tunnels gebruiken \u00e9\u00e9n origine-URL. Slechts \u00e9\u00e9n dienst kan het tunneldoel zijn. Gebruik Named Tunnel voor multi-service routing.",
-  "config.cloudflare_tunnel.expose_named_hint": "Named tunnels ondersteunen meerdere ingress-regels — beide diensten kunnen tegelijk worden blootgesteld via aparte hostnames."
+  "config.cloudflare_tunnel.expose_single_hint": "Token- en Quick-tunnels gebruiken één origine-URL. Slechts één dienst kan het tunneldoel zijn. Gebruik Named Tunnel voor multi-service routing.",
+  "config.cloudflare_tunnel.expose_named_hint": "Named tunnels ondersteunen meerdere ingress-regels — beide diensten kunnen tegelijk worden blootgesteld via aparte hostnames.",
+  "config.cloudflare_tunnel.loopback_label": "Loopback HTTP port for cloudflared (avoids TLS)",
+  "config.cloudflare_tunnel.loopback_hint": "Opens a plain HTTP port on 127.0.0.1 only. cloudflared connects to this instead of the HTTPS port — no certificate verification needed. The port is assigned automatically."
 }

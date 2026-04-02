@@ -56,7 +56,7 @@
   "config.embeddings.reset_point_vectors": "Existing long-term memory vectors may no longer match the new embeddings model.",
   "config.embeddings.reset_point_rebuild": "Tool guides, documentation and indexed knowledge files will be rebuilt after restart.",
   "config.embeddings.reset_point_memories": "Stored conversation memories in the vector database will be deleted and rebuilt only when new content is archived again.",
-  "config.embeddings.reset_cancel": "Cancel",
+  "config.embeddings.reset_cancel": "Annuler",
   "config.embeddings.reset_continue": "Delete old embeddings",
   "config.embeddings.reset_confirm_final": "Really delete the existing embeddings and rebuild them after restart?",
   "config.embeddings.reset_cancelled": "Embedding change aborted. Nothing was saved.",

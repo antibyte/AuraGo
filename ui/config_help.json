@@ -433,15 +433,15 @@
     },
     "wikipedia": {
       "title": "Wikipedia Search",
-      "description": "Summary mode sends Wikipedia content to a separate LLM for focused summarisation before returning to the agent"
+      "description": "Summary mode sends Wikipedia content through the central Helper LLM for focused summarisation before returning to the agent"
     },
     "ddg_search": {
       "title": "DuckDuckGo Search",
-      "description": "Summary mode sends search results to a separate LLM for focused summarisation before returning to the agent"
+      "description": "Summary mode sends search results through the central Helper LLM for focused summarisation before returning to the agent"
     },
     "pdf_extractor": {
       "title": "PDF Extractor",
-      "description": "Extract text content from PDF files. Summary mode sends extracted text to a separate LLM for focused summarisation"
+      "description": "Extract text content from PDF files. Summary mode sends extracted text through the central Helper LLM for focused summarisation"
     }
   }
 }

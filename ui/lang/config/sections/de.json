@@ -154,7 +154,7 @@
   "config.section.onedrive.label": "OneDrive",
   "config.section.onedrive.desc": "Microsoft OneDrive Cloud-Speicher Integration",
   "config.section.memory_analysis.label": "Gedächtnisanalyse",
-  "config.section.memory_analysis.desc": "Eigenes LLM für Gesprächsanalyse und Gedächtnisextraktion",
+  "config.section.memory_analysis.desc": "Nutzt das zentrale Hilfs-LLM für Gesprächsanalyse, Erinnerungsextraktion und Helper-Batching.",
   "config.section.llm_guardian.label": "LLM Guardian",
   "config.section.llm_guardian.desc": "LLM-basierte Sicherheitsschicht für Tool-Aufruf-Validierung",
   "config.section.prompts_editor.label": "Prompts & Personas",

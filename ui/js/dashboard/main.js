@@ -495,8 +495,8 @@
                 <div class="knowledge-detail-row knowledge-edge-row">
                     <div><strong>${escapeHtml(edge.relation || '')}</strong>: ${escapeHtml(edge.source || '')} → ${escapeHtml(edge.target || '')}</div>
                     <div class="knowledge-detail-actions">
-                        <button type="button" class="btn-secondary btn-sm" onclick="toggleKnowledgeGraphEdgeEdit('${escapeJsString(knowledgeGraphEdgeIdentity(edge))}')">${KnowledgeGraphState.editingEdgeKey === knowledgeGraphEdgeIdentity(edge) ? t('dashboard.knowledge_action_cancel') : t('dashboard.knowledge_action_edit')}</button>
-                        <button type="button" class="btn-danger btn-sm" onclick="deleteKnowledgeGraphEdge('${escapeJsString(edge.source || '')}', '${escapeJsString(edge.target || '')}', '${escapeJsString(edge.relation || '')}')">${t('dashboard.knowledge_edge_delete')}</button>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="toggleKnowledgeGraphEdgeEdit('${escapeJsString(knowledgeGraphEdgeIdentity(edge))}')">${KnowledgeGraphState.editingEdgeKey === knowledgeGraphEdgeIdentity(edge) ? t('dashboard.knowledge_action_cancel') : t('dashboard.knowledge_action_edit')}</button>
+                        <button type="button" class="btn btn-danger btn-sm" onclick="deleteKnowledgeGraphEdge('${escapeJsString(edge.source || '')}', '${escapeJsString(edge.target || '')}', '${escapeJsString(edge.relation || '')}')">${t('dashboard.knowledge_edge_delete')}</button>
                     </div>
                 </div>
             `).join('') || `<div class="knowledge-detail-row">${t('dashboard.knowledge_detail_no_edges')}</div>`;
@@ -509,9 +509,9 @@
                     </div>
                     <div class="knowledge-detail-actions">
                         ${isProtected ? `<span class="knowledge-item-badge knowledge-item-badge-protected">${t('dashboard.knowledge_detail_protected')}</span>` : ''}
-                        <button type="button" class="btn-secondary btn-sm" onclick="toggleKnowledgeGraphEdit('${escapeJsString(node.id || '')}')">${isEditing ? t('dashboard.knowledge_action_cancel') : t('dashboard.knowledge_action_edit')}</button>
-                        <button type="button" class="btn-secondary btn-sm" onclick="toggleKnowledgeGraphProtection('${escapeJsString(node.id || '')}', ${isProtected ? 'false' : 'true'})">${isProtected ? t('dashboard.knowledge_action_unprotect') : t('dashboard.knowledge_action_protect')}</button>
-                        <button type="button" class="btn-danger btn-sm" onclick="deleteKnowledgeGraphNode('${escapeJsString(node.id || '')}', '${escapeJsString(node.label || node.id || 'Node')}')">${t('dashboard.knowledge_action_delete')}</button>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="toggleKnowledgeGraphEdit('${escapeJsString(node.id || '')}')">${isEditing ? t('dashboard.knowledge_action_cancel') : t('dashboard.knowledge_action_edit')}</button>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="toggleKnowledgeGraphProtection('${escapeJsString(node.id || '')}', ${isProtected ? 'false' : 'true'})">${isProtected ? t('dashboard.knowledge_action_unprotect') : t('dashboard.knowledge_action_protect')}</button>
+                        <button type="button" class="btn btn-danger btn-sm" onclick="deleteKnowledgeGraphNode('${escapeJsString(node.id || '')}', '${escapeJsString(node.label || node.id || 'Node')}')">${t('dashboard.knowledge_action_delete')}</button>
                     </div>
                 </div>
                 ${renderKnowledgeGraphNodeEditor(node, isEditing)}
@@ -569,8 +569,8 @@
                     </div>
                     <div class="knowledge-editor-hint">${t('dashboard.knowledge_editor_hint')}</div>
                     <div class="knowledge-detail-actions">
-                        <button type="button" class="btn-primary btn-sm" onclick="saveKnowledgeGraphNodeEdit('${escapeJsString(node.id || '')}')">${t('dashboard.knowledge_action_save')}</button>
-                        <button type="button" class="btn-secondary btn-sm" onclick="toggleKnowledgeGraphEdit('${escapeJsString(node.id || '')}')">${t('dashboard.knowledge_action_cancel')}</button>
+                        <button type="button" class="btn btn-primary btn-sm" onclick="saveKnowledgeGraphNodeEdit('${escapeJsString(node.id || '')}')">${t('dashboard.knowledge_action_save')}</button>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="toggleKnowledgeGraphEdit('${escapeJsString(node.id || '')}')">${t('dashboard.knowledge_action_cancel')}</button>
                     </div>
                 </div>
             `;
@@ -594,8 +594,8 @@
                     </div>
                     <div class="knowledge-editor-hint">${t('dashboard.knowledge_editor_hint')}</div>
                     <div class="knowledge-detail-actions">
-                        <button type="button" class="btn-primary btn-sm" onclick="saveKnowledgeGraphEdgeEdit('${escapeJsString(edge.source || '')}', '${escapeJsString(edge.target || '')}', '${escapeJsString(edge.relation || '')}')">${t('dashboard.knowledge_action_save')}</button>
-                        <button type="button" class="btn-secondary btn-sm" onclick="toggleKnowledgeGraphEdgeEdit('${escapeJsString(knowledgeGraphEdgeIdentity(edge))}')">${t('dashboard.knowledge_action_cancel')}</button>
+                        <button type="button" class="btn btn-primary btn-sm" onclick="saveKnowledgeGraphEdgeEdit('${escapeJsString(edge.source || '')}', '${escapeJsString(edge.target || '')}', '${escapeJsString(edge.relation || '')}')">${t('dashboard.knowledge_action_save')}</button>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="toggleKnowledgeGraphEdgeEdit('${escapeJsString(knowledgeGraphEdgeIdentity(edge))}')">${t('dashboard.knowledge_action_cancel')}</button>
                     </div>
                 </div>
             `;
@@ -3498,18 +3498,34 @@
         }
 
         let _dashSSERegistered = false;
+        let _sseReconnectTimer = null;
+        let _sseReconnectTimeout = null;
         function connectSSE() {
             if (_dashSSERegistered) return;
             _dashSSERegistered = true;
             // Use the shared AuraSSE singleton — no dedicated EventSource needed.
-            window.AuraSSE.on('_open', hideSSEBanner);
+            window.AuraSSE.on('_open', function () {
+                // Clear any pending reconnect timers
+                if (_sseReconnectTimer) { clearTimeout(_sseReconnectTimer); _sseReconnectTimer = null; }
+                if (_sseReconnectTimeout) { clearTimeout(_sseReconnectTimeout); _sseReconnectTimeout = null; }
+                hideSSEBanner();
+            });
             window.AuraSSE.on('_error', function () {
-                showSSEBanner('⚠ ' + (t('dashboard.sse_reconnecting') || 'Reconnecting…'));
-                fetch('/api/auth/status', { credentials: 'same-origin' }).then(function (r) {
-                    if (r.status === 401) {
-                        window.location.href = '/auth/login?redirect=' + encodeURIComponent(window.location.pathname);
-                    }
-                }).catch(function () { });
+                // Don't show banner immediately — wait 3 seconds of sustained disconnection
+                if (_sseReconnectTimer) return; // Already pending
+                _sseReconnectTimer = setTimeout(function () {
+                    _sseReconnectTimer = null;
+                    showSSEBanner('⚠ ' + (t('dashboard.sse_reconnecting') || 'Reconnecting…'));
+                }, 3000);
+                // Also check auth status after a longer delay
+                if (_sseReconnectTimeout) clearTimeout(_sseReconnectTimeout);
+                _sseReconnectTimeout = setTimeout(function () {
+                    fetch('/api/auth/status', { credentials: 'same-origin' }).then(function (r) {
+                        if (r.status === 401) {
+                            window.location.href = '/auth/login?redirect=' + encodeURIComponent(window.location.pathname);
+                        }
+                    }).catch(function () { });
+                }, 8000);
             });
             window.AuraSSE.on('system_metrics', function (sys) {
                 updateGauge(Charts.cpu, 'cpu-val', (sys.cpu && sys.cpu.usage_percent) || 0);

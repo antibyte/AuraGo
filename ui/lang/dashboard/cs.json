@@ -170,7 +170,6 @@
   "dashboard.memory_chart_messages": "Zprávy",
   "dashboard.memory_core_facts": "Klíčové fakty",
   "dashboard.memory_curator_empty": "Zatím žádné návrhy kurátora",
-  "dashboard.memory_curar_contradictions": "{{count}} rozporuplných vzpomínek",
   "dashboard.memory_curator_fact_low_confidence": "{{count}} vzpomínek s nízkou důvěrou",
   "dashboard.memory_curator_fact_overused": "{{count}} opakovaně použitých vzpomínek",
   "dashboard.memory_curator_fact_verification": "{{count}} vzpomínek čekajících na ověření",
@@ -509,5 +508,6 @@
   "knowledge_quality_empty_isolated": "Nebyly detekovány žádné izolované uzly.",
   "knowledge_quality_empty_untyped": "Všechny viditelné uzly mají typ.",
   "knowledge_quality_empty_duplicates": "Nebyly detekovány žádné duplicitní štítky.",
-  "knowledge_quality_duplicate_count": "{count} uzlů"
+  "knowledge_quality_duplicate_count": "{count} uzlů",
+  "dashboard.memory_curator_fact_contradictions": "{{count}} rozporuplných vzpomínek"
 }

@@ -16,6 +16,7 @@ AuraGo lässt sich nahtlos in verschiedene Dienste und Plattformen integrieren.
 | **MQTT** | IoT | Geräte-Kommunikation | `mqtt:` |
 | **Docker** | Infrastruktur | Container-Verwaltung | `docker:` |
 | **Proxmox** | Infrastruktur | VM-Verwaltung | `proxmox:` |
+| **FritzBox** | Infrastruktur | FRITZ!Box Router | `fritzbox:` |
 | **Webhooks** | API | Eingehende HTTP-Events | `webhooks:` |
 | **Budget Tracking** | Finanzen | Kostenkontrolle | `budget:` |
 | **Google Workspace** | Produktivität | Gmail, Kalender, Drive | `google_workspace:` |
@@ -34,6 +35,29 @@ AuraGo lässt sich nahtlos in verschiedene Dienste und Plattformen integrieren.
 | **SQL Connections** | Datenbank | Externe DB-Verbindungen | `sql_connections:` |
 | **Chromecast** | Media | Casting zu Geräten | `chromecast:` |
 | **Notifications** | Alerts | Push-Benachrichtigungen | `notifications:` |
+| **LLM Guardian** | Sicherheit | Inhaltsfilterung | `llm_guardian:` |
+| **Fallback LLM** | AI | Failover für LLM | `fallback_llm:` |
+| **MCP Client/Server** | AI | Model Context Protocol | `mcp:` |
+| **Image Generation** | AI | Bildgenerierung | `image_generation:` |
+| **Piper TTS** | Audio | Lokale Sprachsynthese | `piper_tts:` |
+| **Paperless-ngx** | Dokumentenmanagement | Dokumentenablage | `paperless_ngx:` |
+| **AdGuard** | Sicherheit | AdGuard Home | `adguard:` |
+| **n8n** | Automation | Workflow-Automatisierung | `n8n:` |
+| **Memory Analysis** | Analyse | Gedächtnis-Analytik | `memory_analysis:` |
+| **Skill Manager** | Skills | Python-Skill-Verwaltung | `skill_manager:` |
+| **Personality V2** | Persönlichkeit | Erweiterte Persönlichkeit | `personality_v2:` |
+| **User Profiling** | Analyse | Nutzerverhaltensprofil | `user_profiling:` |
+| **Indexer** | Suche | Inhaltsindexierung | `indexing:` |
+| **AI Gateway** | AI | Multi-Provider Gateway | `ai_gateway:` |
+| **Security Proxy** | Sicherheit | Sicherheits-Proxy | `security_proxy:` |
+| **VirusTotal** | Sicherheit | Datei-/URL-Scanning | `virustotal:` |
+| **Firewall** | Sicherheit | Firewall-Verwaltung | `firewall:` |
+| **A2A** | Agent | Agent-zu-Agent Protokoll | `a2a:` |
+| **Co-Agents** | Agent | Sub-Agent-Koordination | `co_agents:` |
+| **Remote Control** | Remote | Fernsteuerung | `remote_control:` |
+| **Invasion** | Distributed | Verteilte Bereitstellung | `invasion:` |
+| **Sandbox** | Sicherheit | Isolierte Ausführung | `sandbox:` |
+| **Helper LLM** | AI | Helper-LLM für Analysen | `helper_llm:` |
 
 ---
 

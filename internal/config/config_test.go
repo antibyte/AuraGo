@@ -560,3 +560,42 @@ personality:
 		t.Fatalf("helper resolved model = %q, want helper-model", cfg.LLM.HelperResolvedModel)
 	}
 }
+
+func TestLoadDoesNotFallbackHelperOwnedSubsystemsToMainLLM(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	configContent := `
+providers:
+  - id: main
+    type: openrouter
+    base_url: https://openrouter.ai/api/v1
+    api_key: main-secret
+    model: main-model
+llm:
+  provider: main
+personality:
+  engine_v2: true
+tools:
+  web_scraper:
+    enabled: true
+    summary_mode: true
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.Personality.V2ResolvedModel != "" || cfg.Personality.V2ResolvedURL != "" || cfg.Personality.V2ResolvedKey != "" {
+		t.Fatalf("expected personality v2 helper path to stay unresolved without helper llm, got model=%q url=%q", cfg.Personality.V2ResolvedModel, cfg.Personality.V2ResolvedURL)
+	}
+	if cfg.MemoryAnalysis.ResolvedModel != "" || cfg.MemoryAnalysis.BaseURL != "" || cfg.MemoryAnalysis.APIKey != "" || cfg.MemoryAnalysis.ProviderType != "" {
+		t.Fatalf("expected memory analysis helper path to stay unresolved without helper llm, got model=%q url=%q", cfg.MemoryAnalysis.ResolvedModel, cfg.MemoryAnalysis.BaseURL)
+	}
+	if cfg.Tools.WebScraper.SummaryModel != "" || cfg.Tools.WebScraper.SummaryBaseURL != "" || cfg.Tools.WebScraper.SummaryAPIKey != "" {
+		t.Fatalf("expected web scraper summary helper path to stay unresolved without helper llm, got model=%q url=%q", cfg.Tools.WebScraper.SummaryModel, cfg.Tools.WebScraper.SummaryBaseURL)
+	}
+}

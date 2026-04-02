@@ -337,21 +337,131 @@ Long-Term Memory Categories
 
 ### Knowledge Graph
 
+The Knowledge Graph tab provides comprehensive insights into AuraGo's structured memory system.
+
+#### Knowledge Graph Summary
+
 ```
 Knowledge Graph Statistics
 ┌─────────────────────────────────────────────────────────┐
 │                                                         │
-│  Entities: 1,247                                        │
-│  Relationships: 3,892                                   │
-│  Connections per Entity: 3.1 avg                        │
+│  Nodes: 1,247        Types: 89         Edges: 3,892   │
 │                                                         │
 │  Top Entity Types:                                      │
 │  • Person: 234    • Location: 189                       │
 │  • Topic: 412     • Event: 156                          │
-│  • Tool: 89       • Other: 167                          │
+│  • Tool: 89       • Other: 167                         │
 │                                                         │
-│  Graph Density: Medium                                  │
+└─────────────────────────────────────────────────────────┘
+```
+
+#### Graph Quality
+
+The Graph Quality section helps maintain a healthy knowledge graph by identifying issues:
+
+```
+Graph Quality Metrics
+┌─────────────────────────────────────────────────────────┐
+│  🛡️ Protected: 12    📍 Isolated: 5    🏷️ Untyped: 1  │
+└─────────────────────────────────────────────────────────┘
+
+Isolated Nodes (no connections):
+  • node_id_abc123 ... 2 direct connections
+  • node_id_def456 ... 1 direct connection
+
+Untyped Nodes (missing type property):
+  • node_id_ghi789 ... label: "Some Topic"
+
+Duplicate Candidates (identical labels):
+  • "Meeting Notes" ... 3 occurrences
+  • "Project Alpha" ... 2 occurrences
+```
+
+**Quality Metrics:**
+| Metric | Description | Ideal Value |
+|--------|-------------|-------------|
+| **Protected Nodes** | Nodes marked as protected from cleanup | Any |
+| **Isolated Nodes** | Nodes with no connections | Close to 0 |
+| **Untyped Nodes** | Nodes missing a type property | Close to 0 |
+| **Duplicate Groups** | Groups of nodes with identical labels | Close to 0 |
+
+**Quality Issues:**
+- **Isolated Nodes**: May indicate orphaned or incomplete data
+- **Untyped Nodes**: Should be assigned a type for proper categorization
+- **Duplicates**: Consider merging nodes with identical labels
+
+#### KG Explorer
+
+Search and browse knowledge graph entries:
+
+```
+KG Explorer
+┌─────────────────────────────────────────────────────────┐
+│  🔍 Search: [________________________] [Search]        │
 │                                                         │
+│  Results: "project" → 23 nodes, 45 edges               │
+│                                                         │
+│  Recent Nodes:                                          │
+│  • Project Alpha          node_001                      │
+│  • Project Beta           node_002                      │
+│  • Meeting Notes          node_003                      │
+│                                                         │
+│  Recent Edges:                                         │
+│  • project_alpha → related_to → meeting_notes           │
+│  • user_john → created → project_beta                   │
+└─────────────────────────────────────────────────────────┘
+```
+
+#### Graph Visualization
+
+Interactive visual representation of the knowledge graph:
+
+```
+Graph View
+┌─────────────────────────────────────────────────────────┐
+│  [Overview Graph]  [Focus Graph]     [Reset]          │
+│                                                         │
+│       ┌─────────────────────────────────────┐          │
+│       │           ○ ──── ○                 │          │
+│       │          /│\     /│\                │          │
+│       │         ○ ○ ○   ○ ○ ○               │          │
+│       │          \│/     \│/                │          │
+│       │           ○ ──── ○                  │          │
+│       └─────────────────────────────────────┘          │
+│                                                         │
+│  Showing 50 nodes and 120 edges from sample.           │
+└─────────────────────────────────────────────────────────┘
+```
+
+- **Overview Graph**: Shows a sample of all nodes and edges
+- **Focus Graph**: Centers on a selected node with its direct neighbors
+- Click any node to see details in the Node Inspector
+
+#### Node Inspector
+
+View and edit detailed node properties:
+
+```
+Node Inspector
+┌─────────────────────────────────────────────────────────┐
+│  🧭 Node Inspector                          [Protect]   │
+├─────────────────────────────────────────────────────────┤
+│  Label: "Project Alpha"                                 │
+│  Type: Project                                          │
+│  ID: node_001                                          │
+│  Protected: Yes                                          │
+│                                                         │
+│  Properties:                                            │
+│  • created_at: 2024-01-15                              │
+│  • status: active                                       │
+│  • priority: high                                       │
+│                                                         │
+│  Edges (12):                                           │
+│  • --created_by--> user_john                           │
+│  • --related_to--> meeting_notes (2x)                   │
+│  • --has_tag--> urgent                                 │
+│                                                         │
+│  [Edit Properties]  [Delete Node]  [Open in Graph]     │
 └─────────────────────────────────────────────────────────┘
 ```
 

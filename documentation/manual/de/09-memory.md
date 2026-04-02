@@ -182,6 +182,120 @@ Agent: [Inhalt der indexierten Datei]
 
 ---
 
+## Helper LLM — Automatisierte Wartung
+
+Der Helper LLM ist ein sekundäres, kostengünstigeres LLM, das Hintergrundwartungsaufgaben erledigt, um den Hauptagenten schnell und effizient zu halten.
+
+### Übersicht
+
+```
+┌──────────────────────────────────────────────────────────┐
+│  Helper LLM — Hintergrundwartung                          │
+├──────────────────────────────────────────────────────────┤
+│                                                           │
+│  • Turn-Analyse        → Extrahiert Fakten, Präferenzen │
+│  • Tageszusammenfassung + KG → Zusammenfassung + Entitäten │
+│  • Konsolidierung      → Stapel-Konsolidierung Gedächtnis│
+│  • Speicherkomprimierung → Komprimiert Konversationshistorie│
+│  • RAG-Stapel          → Stapel-RAG-Verarbeitung        │
+│                                                           │
+└──────────────────────────────────────────────────────────┘
+```
+
+### Operationen
+
+| Operation | Beschreibung | Auslöser |
+|-----------|--------------|----------|
+| **Turn-Analyse** | Analysiert jeden Gesprächsstrang für Fakten, Präferenzen, Stimmung und ausstehende Aktionen | Nach jedem Strang |
+| **Tageszusammenfassung + KG** | Tägliche Zusammenfassung + Wissensgraph-Extraktion | Tägliche Wartung |
+| **Konsolidierung** | Konsolidiert Gesprächsstapel in Langzeitwissen | Periodisch |
+| **Speicherkomprimierung** | Komprimiert alte Konversationshistorie | Zeichenlimit erreicht |
+| **Inhaltszusammenfassungen** | Erstellt Zusammenfassungen von Inhalten | Bei Bedarf |
+| **RAG-Stapel** | Stapelverarbeitung für Retrieval-Augmented Generation | Periodisch |
+
+### Turn-Analyse
+
+Nach jedem Gesprächsstrang analysiert der Helper LLM:
+
+**Gedächtnisanalyse:**
+- **Fakten**: Konkrete Fakten über Benutzer/Projekt/Umgebung
+- **Präferenzen**: Benutzerpräferenzen, Gewohnheiten, Arbeitsabläufe
+- **Korrekturen**: Aktualisierungen previously bekannter Informationen
+- **Ausstehende Aktionen**: Zurückgestellte Folgemaßnahmen
+
+**Aktivitätszusammenfassung:**
+- Benutzerabsicht und -ziel
+- Vom Agenten durchgeführte Aktionen
+- Ergebnisse und wichtige Punkte
+- Ausstehende Punkte
+- Wichtigkeitsstufe (1-4)
+
+**Persönlichkeitsanalyse:**
+- Benutzerstimmung und -emotion
+- Angemessene Antwortstimmung für nächste Interaktion
+- Trait-Deltas (Neugier, Gründlichkeit, Kreativität, Empathie, etc.)
+- Emotionszustandsbeschreibung
+
+### Dashboard-Überwachung
+
+Helper LLM-Statistiken im Dashboard → System-Tab anzeigen:
+
+```
+Helper LLM Statistiken
+┌─────────────────────────────────────────────────────────┐
+│  Status: Aktiviert ✓                                    │
+│  Letztes Update: Vor 2 Minuten                          │
+│                                                           │
+│  Anfragen: 1.234      LLM-Aufrufe: 567               │
+│  Cache-Treffer: 432 (35%)  Fallbacks: 12             │
+│                                                           │
+│  Gesparte Aufrufe: 89       Stapel-Artikel: 456      │
+│                                                           │
+│  Operationen:                                           │
+│  • Turn-Analyse: 1.234 erfolgreich                     │
+│  • Tageszusammenfassung + KG: 28 erfolgreich           │
+│  • Konsolidierung: 5 erfolgreich                         │
+│  • Speicherkomprimierung: 3 ausgelöst                  │
+│  • Inhaltszusammenfassungen: 45 erfolgreich            │
+│  • RAG-Stapel: 89 erfolgreich                          │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Konfiguration
+
+```yaml
+helper_llm:
+  enabled: true                    # Helper LLM aktivieren
+  provider: "auto"                # "auto" oder Provider-ID
+  model: "auto"                   # "auto" oder spezifisches Modell
+  cache_enabled: true              # Analyseergebnisse zwischenspeichern
+  operations:
+    turn_analysis: true            # Jeden Strang analysieren
+    daily_summary: true            # Tägliche Wartung
+    consolidation: true            # Stapel-Konsolidierung
+    compression: true              # Speicherkomprimierung
+    content_summaries: true       # Zusammenfassungen erstellen
+    rag_batch: true              # RAG-Stapelverarbeitung
+```
+
+| Parameter | Standard | Beschreibung |
+|-----------|----------|--------------|
+| `enabled` | `true` | Helper LLM aktivieren/deaktivieren |
+| `provider` | `"auto"` | LLM-Provider |
+| `model` | `"auto"` | Modell (auto wählt günstigstes fähiges) |
+| `cache_enabled` | `true` | Ergebnisse zwischenspeichern |
+
+### Fehlerbehebung
+
+| Problem | Ursache | Lösung |
+|---------|---------|--------|
+| Helper LLM zeigt "deaktiviert" | Feature nicht aktiviert | Setze `helper_llm.enabled: true` |
+| Hohe Helper-LLM-Kosten | Zu häufige Operationen | Operationsfrequenz reduzieren |
+| Keine Turn-Analyse | Provider unterstützt keine Function Calls | Fähiges Modell verwenden |
+| Zu hohe Cache-Miss-Rate | Cache häufig geleert | Cache-Speichereinstellungen prüfen |
+
+---
+
 ## Best Practices
 
 ### Für Benutzer

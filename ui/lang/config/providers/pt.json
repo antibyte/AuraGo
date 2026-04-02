@@ -46,7 +46,7 @@
   "config.providers.card_auth": "Auth:",
   "config.providers.card_id": "ID:",
   "config.providers.card_edit_tooltip": "Edit",
-  "config.providers.card_delete_tooltip": "Delete",
+  "config.providers.card_delete_tooltip": "Eliminar",
   "config.providers.field_id": "ID",
   "config.providers.field_name": "Name",
   "config.providers.field_type": "Type",

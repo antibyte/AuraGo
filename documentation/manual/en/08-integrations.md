@@ -46,15 +46,68 @@ AuraGo supports multiple communication channels and service integrations:
 | **Ollama** | Local LLM management |
 | **Tailscale** | VPN network management |
 | **Ansible** | Infrastructure automation |
+| **MQTT** | IoT message broker integration |
+| **FritzBox** | FRITZ!Box router integration |
+| **AdGuard** | AdGuard Home integration |
+| **Paperless-ngx** | Document management |
+| **n8n** | Workflow automation |
+| **Netlify** | Deployment platform |
+| **Cloudflare Tunnel** | Tunnel connectivity |
+| **OneDrive** | Microsoft cloud storage |
+| **S3 Storage** | Amazon S3 compatible storage |
 
-### Monitoring & Notifications
+### AI & LLM Integrations
+
+| Integration | Purpose |
+|-------------|---------|
+| **LLM Guardian** | Content safety and filtering |
+| **Fallback LLM** | Failover to secondary LLM provider |
+| **MCP Client/Server** | Model Context Protocol |
+| **Image Generation** | AI image generation |
+| **Piper TTS** | Local text-to-speech |
+| **Brave Search** | Web search integration |
+| **AI Gateway** | Multi-provider AI gateway |
+
+### Memory & Knowledge
+
+| Integration | Purpose |
+|-------------|---------|
+| **Memory Analysis** | Memory system analytics |
+| **Skill Manager** | Python skill management |
+| **Personality V2** | Enhanced personality engine |
+| **User Profiling** | User behavior profiling |
+| **Indexer** | Content indexing service |
+
+### Security & Monitoring
 
 | Integration | Purpose |
 |-------------|---------|
 | **Webhooks** | Incoming HTTP events |
 | **Budget** | Cost tracking and limits |
-| **Ntfy** | Push notifications |
-| **Pushover** | Mobile push notifications |
+| **LLM Guardian** | Content safety filtering |
+| **Security Proxy** | Security proxy integration |
+| **VirusTotal** | File and URL scanning |
+| **Firewall** | Firewall management |
+| **Chromecast** | Media streaming |
+
+### Communication Channels
+
+| Integration | Purpose |
+|-------------|---------|
+| **Rocket.Chat** | Enterprise chat integration |
+| **Discord** | Server integration, channel management |
+| **Telegram** | Text, voice messages, images |
+| **Email** | IMAP/SMTP email handling |
+
+### Tooling & DevOps
+
+| Integration | Purpose |
+|-------------|---------|
+| **A2A** | Agent-to-Agent protocol |
+| **Co-Agents** | Sub-agent coordination |
+| **Remote Control** | Remote device control |
+| **Invasion** | Distributed deployment control |
+| **Sandbox** | Isolated execution environment |
 
 ---
 

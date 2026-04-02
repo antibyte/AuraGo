@@ -392,7 +392,11 @@ func (c *Config) ResolveProviders() {
 		}
 	}
 
-	// ── Helper-owned summary tools ── (prefer Helper LLM when available)
+	// ── Helper-owned summary tools ──
+	// Visible product contract:
+	//   1. Prefer the central Helper LLM when configured.
+	//   2. Allow only explicit legacy compatibility providers.
+	//   3. Do NOT silently fall back to the main LLM.
 	if helperResolved {
 		for _, slot := range []struct {
 			baseURL *string
@@ -409,7 +413,7 @@ func (c *Config) ResolveProviders() {
 			*slot.model = c.LLM.HelperResolvedModel
 		}
 	} else {
-		// ── WebScraper summary ── (falls back to main LLM if provider empty)
+		// ── WebScraper summary ── (legacy compatibility provider only)
 		if c.Tools.WebScraper.SummaryProvider != "" {
 			if p := c.FindProvider(c.Tools.WebScraper.SummaryProvider); p != nil {
 				c.Tools.WebScraper.SummaryBaseURL = p.BaseURL
@@ -417,17 +421,8 @@ func (c *Config) ResolveProviders() {
 				c.Tools.WebScraper.SummaryModel = p.Model
 			}
 		}
-		if c.Tools.WebScraper.SummaryAPIKey == "" {
-			c.Tools.WebScraper.SummaryAPIKey = c.LLM.APIKey
-		}
-		if c.Tools.WebScraper.SummaryBaseURL == "" {
-			c.Tools.WebScraper.SummaryBaseURL = c.LLM.BaseURL
-		}
-		if c.Tools.WebScraper.SummaryModel == "" {
-			c.Tools.WebScraper.SummaryModel = c.LLM.Model
-		}
 
-		// ── Wikipedia summary ── (falls back to main LLM if provider empty)
+		// ── Wikipedia summary ── (legacy compatibility provider only)
 		if c.Tools.Wikipedia.SummaryProvider != "" {
 			if p := c.FindProvider(c.Tools.Wikipedia.SummaryProvider); p != nil {
 				c.Tools.Wikipedia.SummaryBaseURL = p.BaseURL
@@ -435,17 +430,8 @@ func (c *Config) ResolveProviders() {
 				c.Tools.Wikipedia.SummaryModel = p.Model
 			}
 		}
-		if c.Tools.Wikipedia.SummaryAPIKey == "" {
-			c.Tools.Wikipedia.SummaryAPIKey = c.LLM.APIKey
-		}
-		if c.Tools.Wikipedia.SummaryBaseURL == "" {
-			c.Tools.Wikipedia.SummaryBaseURL = c.LLM.BaseURL
-		}
-		if c.Tools.Wikipedia.SummaryModel == "" {
-			c.Tools.Wikipedia.SummaryModel = c.LLM.Model
-		}
 
-		// ── DDG Search summary ── (falls back to main LLM if provider empty)
+		// ── DDG Search summary ── (legacy compatibility provider only)
 		if c.Tools.DDGSearch.SummaryProvider != "" {
 			if p := c.FindProvider(c.Tools.DDGSearch.SummaryProvider); p != nil {
 				c.Tools.DDGSearch.SummaryBaseURL = p.BaseURL
@@ -453,17 +439,8 @@ func (c *Config) ResolveProviders() {
 				c.Tools.DDGSearch.SummaryModel = p.Model
 			}
 		}
-		if c.Tools.DDGSearch.SummaryAPIKey == "" {
-			c.Tools.DDGSearch.SummaryAPIKey = c.LLM.APIKey
-		}
-		if c.Tools.DDGSearch.SummaryBaseURL == "" {
-			c.Tools.DDGSearch.SummaryBaseURL = c.LLM.BaseURL
-		}
-		if c.Tools.DDGSearch.SummaryModel == "" {
-			c.Tools.DDGSearch.SummaryModel = c.LLM.Model
-		}
 
-		// ── PDF Extractor summary ── (falls back to main LLM if provider empty)
+		// ── PDF Extractor summary ── (legacy compatibility provider only)
 		if c.Tools.PDFExtractor.SummaryProvider != "" {
 			if p := c.FindProvider(c.Tools.PDFExtractor.SummaryProvider); p != nil {
 				c.Tools.PDFExtractor.SummaryBaseURL = p.BaseURL
@@ -471,18 +448,11 @@ func (c *Config) ResolveProviders() {
 				c.Tools.PDFExtractor.SummaryModel = p.Model
 			}
 		}
-		if c.Tools.PDFExtractor.SummaryAPIKey == "" {
-			c.Tools.PDFExtractor.SummaryAPIKey = c.LLM.APIKey
-		}
-		if c.Tools.PDFExtractor.SummaryBaseURL == "" {
-			c.Tools.PDFExtractor.SummaryBaseURL = c.LLM.BaseURL
-		}
-		if c.Tools.PDFExtractor.SummaryModel == "" {
-			c.Tools.PDFExtractor.SummaryModel = c.LLM.Model
-		}
 	}
 
-	// ── Memory Analysis ── (prefers Helper LLM when available)
+	// ── Memory Analysis ──
+	// Prefer the central Helper LLM when configured and otherwise allow only
+	// explicit legacy compatibility providers. No silent main-LLM fallback.
 	if helperResolved {
 		c.MemoryAnalysis.ProviderType = c.LLM.HelperProviderType
 		c.MemoryAnalysis.BaseURL = c.LLM.HelperBaseURL
@@ -500,18 +470,6 @@ func (c *Config) ResolveProviders() {
 					c.MemoryAnalysis.ResolvedModel = c.MemoryAnalysis.Model
 				}
 			}
-		}
-		if c.MemoryAnalysis.APIKey == "" {
-			c.MemoryAnalysis.APIKey = c.LLM.APIKey
-		}
-		if c.MemoryAnalysis.BaseURL == "" {
-			c.MemoryAnalysis.BaseURL = c.LLM.BaseURL
-		}
-		if c.MemoryAnalysis.ResolvedModel == "" {
-			c.MemoryAnalysis.ResolvedModel = c.LLM.Model
-		}
-		if c.MemoryAnalysis.ProviderType == "" {
-			c.MemoryAnalysis.ProviderType = c.LLM.ProviderType
 		}
 	}
 

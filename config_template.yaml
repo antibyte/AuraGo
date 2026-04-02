@@ -290,17 +290,17 @@ tools:
     web_scraper:
         enabled: true
         summary_mode: false
-        summary_provider: ""
+        summary_provider: ""                                 # deprecated compatibility field; helper-owned summaries now use llm.helper_*
     wikipedia:
         summary_mode: false
-        summary_provider: ""
+        summary_provider: ""                                 # deprecated compatibility field; helper-owned summaries now use llm.helper_*
     ddg_search:
         summary_mode: false
-        summary_provider: ""
+        summary_provider: ""                                 # deprecated compatibility field; helper-owned summaries now use llm.helper_*
     pdf_extractor:
         enabled: true
         summary_mode: false
-        summary_provider: ""
+        summary_provider: ""                                 # deprecated compatibility field; helper-owned summaries now use llm.helper_*
     document_creator:
         enabled: false
         backend: maroto  # maroto (built-in) or gotenberg (Docker sidecar)
@@ -372,8 +372,8 @@ consolidation:
     optimize_threshold: 1
     model: ""                                             # optional override; empty = use llm.model for nightly extraction
 memory_analysis:
-    provider: ""                                          # optional provider entry ID; empty = main llm
-    model: ""                                             # optional override; empty = provider/main default
+    provider: ""                                          # deprecated compatibility field; helper-owned runtime now uses llm.helper_*
+    model: ""                                             # deprecated compatibility field; helper-owned runtime now uses llm.helper_*
     auto_confirm_threshold: 0.92                           # adaptive memory strategy is always active; this only tunes auto-store aggressiveness
     reflection_day: sunday
 server:
@@ -564,7 +564,7 @@ personality:
     core_personality: friend           # active personality profile, e.g. 'neutral', 'punk', 'zen'
     engine: true                       # enable personality engine (mood, micro-traits)
     engine_v2: true                    # enable advanced V2 engine with async LLM mood analysis
-    v2_provider: ""                    # provider ID for V2 analysis (empty = main LLM)
+    v2_provider: ""                    # deprecated compatibility field; personality V2 now uses llm.helper_*
     user_profiling: false              # auto-detect user preferences from conversation
     user_profiling_threshold: 2        # confirmations needed before injecting a trait into prompt
     emotion_synthesizer:

@@ -511,6 +511,120 @@ LTM:
   /memory stats             - Show memory statistics
 ```
 
+## Helper LLM — Automated Maintenance
+
+The Helper LLM is a secondary, lower-cost LLM that handles background maintenance tasks to keep the main agent fast and efficient.
+
+### Overview
+
+```
+┌──────────────────────────────────────────────────────────┐
+│  Helper LLM — Background Maintenance                       │
+├──────────────────────────────────────────────────────────┤
+│                                                          │
+│  • Turn Analysis        → Extracts facts, preferences    │
+│  • Daily Summary + KG  → Summarizes + extracts entities │
+│  • Consolidation       → Batch memory consolidation     │
+│  • Memory Compression  → Compresses conversation history │
+│  • RAG Batch           → Batch RAG processing          │
+│                                                          │
+└──────────────────────────────────────────────────────────┘
+```
+
+### Operations
+
+| Operation | Description | Trigger |
+|-----------|-------------|---------|
+| **Turn Analysis** | Analyzes each conversation turn for facts, preferences, mood, and pending actions | After each turn |
+| **Maintenance Summary + KG** | Daily summary + knowledge graph extraction | Daily maintenance |
+| **Consolidation Batches** | Consolidates conversation batches into long-term knowledge | Periodic |
+| **Memory Compression** | Compresses old conversation history | Character limit reached |
+| **Content Summaries** | Generates summaries of content | On demand |
+| **RAG Batch** | Batch processing for retrieval-augmented generation | Periodic |
+
+### Turn Analysis
+
+After each conversation turn, the Helper LLM analyzes:
+
+**Memory Analysis:**
+- **Facts**: Concrete user/project/environment facts worth remembering
+- **Preferences**: User preferences, habits, workflows
+- **Corrections**: Updates to previously known information
+- **Pending Actions**: Deferred follow-ups or unfinished work
+
+**Activity Digest:**
+- User intent and goal
+- Actions taken by the agent
+- Outcomes and important points
+- Pending items
+- Importance level (1-4)
+
+**Personality Analysis:**
+- User sentiment and mood
+- Appropriate response mood for next turn
+- Trait deltas (curiosity, thoroughness, creativity, empathy, etc.)
+- Emotion state description
+
+### Dashboard Monitoring
+
+View Helper LLM statistics in the Dashboard → System tab:
+
+```
+Helper LLM Statistics
+┌─────────────────────────────────────────────────────────┐
+│  State: Enabled ✓                                       │
+│  Last Update: 2 minutes ago                             │
+│                                                         │
+│  Requests: 1,234        LLM Calls: 567                │
+│  Cache Hits: 432 (35%)    Fallbacks: 12                │
+│                                                         │
+│  Saved Calls: 89          Batched Items: 456           │
+│                                                         │
+│  Operations:                                             │
+│  • Turn Analysis: 1,234 successful                      │
+│  • Daily Summary + KG: 28 successful                    │
+│  • Consolidation Batches: 5 successful                   │
+│  • Memory Compression: 3 triggered                      │
+│  • Content Summaries: 45 successful                      │
+│  • RAG Batch: 89 successful                            │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Configuration
+
+```yaml
+helper_llm:
+  enabled: true                    # Enable Helper LLM
+  provider: "auto"                 # "auto" or provider-id
+  model: "auto"                    # "auto" or specific model
+  cache_enabled: true               # Cache analysis results
+  operations:
+    turn_analysis: true            # Analyze each turn
+    daily_summary: true            # Daily maintenance
+    consolidation: true            # Batch consolidation
+    compression: true              # Memory compression
+    content_summaries: true        # Generate summaries
+    rag_batch: true               # RAG batch processing
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `enabled` | `true` | Enable/disable Helper LLM |
+| `provider` | `"auto"` | LLM provider to use |
+| `model` | `"auto"` | Model to use (auto selects cheapest capable) |
+| `cache_enabled` | `true` | Cache results to avoid recomputation |
+
+### Troubleshooting
+
+| Issue | Cause | Solution |
+|-------|-------|----------|
+| Helper LLM shows as disabled | Feature not enabled | Set `helper_llm.enabled: true` |
+| High Helper LLM costs | Too frequent operations | Reduce operation frequency |
+| No turn analysis | Provider doesn't support function calling | Use a capable model |
+| Cache miss rate too high | Cache cleared frequently | Check cache storage settings |
+
+---
+
 ## Troubleshooting
 
 | Issue | Cause | Solution |
