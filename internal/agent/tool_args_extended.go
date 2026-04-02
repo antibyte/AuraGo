@@ -166,6 +166,23 @@ type pinMessageArgs struct {
 	Pinned bool
 }
 
+type discordMessageArgs struct {
+	ChannelID string
+	Message   string
+	Limit     int
+}
+
+type missionArgs struct {
+	Operation      string
+	ID             string
+	Title          string
+	Command        string
+	CronExpr       string
+	Priority       int
+	Locked         bool
+	LockedProvided bool
+}
+
 func toolArgStringSlice(args map[string]interface{}, keys ...string) []string {
 	for _, key := range keys {
 		raw, ok := args[key]
@@ -541,6 +558,33 @@ func decodePinMessageArgs(tc ToolCall) pinMessageArgs {
 	}
 	if pinned, ok := toolArgBool(tc.Params, "pinned"); ok {
 		req.Pinned = pinned
+	}
+	return req
+}
+
+func decodeDiscordMessageArgs(tc ToolCall) discordMessageArgs {
+	return discordMessageArgs{
+		ChannelID: firstNonEmptyToolString(tc.ChannelID, toolArgString(tc.Params, "channel_id")),
+		Message:   firstNonEmptyToolString(tc.Message, tc.Content, tc.Body, toolArgString(tc.Params, "message", "content", "body")),
+		Limit:     max(tc.Limit, toolArgInt(tc.Params, 0, "limit")),
+	}
+}
+
+func decodeMissionArgs(tc ToolCall) missionArgs {
+	req := missionArgs{
+		Operation: firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		ID:        firstNonEmptyToolString(tc.ID, toolArgString(tc.Params, "id")),
+		Title:     firstNonEmptyToolString(tc.Title, toolArgString(tc.Params, "title", "name")),
+		Command:   firstNonEmptyToolString(tc.Command, toolArgString(tc.Params, "command", "prompt")),
+		CronExpr:  firstNonEmptyToolString(tc.CronExpr, toolArgString(tc.Params, "cron_expr")),
+		Priority:  max(tc.Priority, toolArgInt(tc.Params, 0, "priority")),
+		Locked:    tc.Locked,
+	}
+	if locked, ok := toolArgBool(tc.Params, "locked"); ok {
+		req.Locked = locked
+		req.LockedProvided = true
+	} else if strings.Contains(tc.RawJSON, `"locked"`) {
+		req.LockedProvided = true
 	}
 	return req
 }

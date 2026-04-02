@@ -349,3 +349,38 @@ func TestDecodePinMessageArgsUsesParamsFallback(t *testing.T) {
 		t.Fatalf("decoded pin args = %+v", req)
 	}
 }
+
+func TestDecodeDiscordMessageArgsUsesContentFallback(t *testing.T) {
+	req := decodeDiscordMessageArgs(ToolCall{
+		Action: "send_discord",
+		Params: map[string]interface{}{
+			"channel_id": "chan-1",
+			"content":    "Hello Discord",
+			"limit":      float64(12),
+		},
+	})
+
+	if req.ChannelID != "chan-1" || req.Message != "Hello Discord" || req.Limit != 12 {
+		t.Fatalf("decoded discord args = %+v", req)
+	}
+}
+
+func TestDecodeMissionArgsUsesAliasesAndLockedPresence(t *testing.T) {
+	req := decodeMissionArgs(ToolCall{
+		Action:  "manage_missions",
+		RawJSON: `{"locked":true}`,
+		Params: map[string]interface{}{
+			"operation": "update",
+			"id":        "mission-1",
+			"name":      "Nightly sync",
+			"prompt":    "sync everything",
+			"cron_expr": "0 2 * * *",
+			"priority":  float64(3),
+			"locked":    true,
+		},
+	})
+
+	if req.Operation != "update" || req.ID != "mission-1" || req.Title != "Nightly sync" || req.Command != "sync everything" || req.CronExpr != "0 2 * * *" || req.Priority != 3 || !req.Locked || !req.LockedProvided {
+		t.Fatalf("decoded mission args = %+v", req)
+	}
+}

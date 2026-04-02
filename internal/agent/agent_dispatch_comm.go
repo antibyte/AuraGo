@@ -998,20 +998,15 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if cfg.Discord.ReadOnly {
 				return `Tool Output: {"status":"error","message":"Discord is in read-only mode. Disable discord.read_only to allow changes."}`
 			}
-			channelID := tc.ChannelID
+			req := decodeDiscordMessageArgs(tc)
+			channelID := req.ChannelID
 			if channelID == "" {
 				channelID = cfg.Discord.DefaultChannelID
 			}
 			if channelID == "" {
 				return `Tool Output: {"status": "error", "message": "'channel_id' is required (or set default_channel_id in config)"}`
 			}
-			message := tc.Message
-			if message == "" {
-				message = tc.Content
-			}
-			if message == "" {
-				message = tc.Body
-			}
+			message := req.Message
 			if message == "" {
 				return `Tool Output: {"status": "error", "message": "'message' (or 'content') is required"}`
 			}
@@ -1025,14 +1020,15 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if !cfg.Discord.Enabled {
 				return `Tool Output: {"status": "error", "message": "Discord is not enabled. Configure the discord section in config.yaml."}`
 			}
-			channelID := tc.ChannelID
+			req := decodeDiscordMessageArgs(tc)
+			channelID := req.ChannelID
 			if channelID == "" {
 				channelID = cfg.Discord.DefaultChannelID
 			}
 			if channelID == "" {
 				return `Tool Output: {"status": "error", "message": "'channel_id' is required (or set default_channel_id in config)"}`
 			}
-			limit := tc.Limit
+			limit := req.Limit
 			if limit <= 0 {
 				limit = 10
 			}
@@ -1084,39 +1080,40 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if !cfg.Tools.Missions.Enabled {
 				return `Tool Output: {"status":"error","message":"Missions are disabled. Set tools.missions.enabled=true in config.yaml."}`
 			}
+			req := decodeMissionArgs(tc)
 			if cfg.Tools.Missions.ReadOnly {
-				switch tc.Operation {
+				switch req.Operation {
 				case "create", "add", "update", "edit", "delete", "remove", "run", "run_now", "execute":
 					return `Tool Output: {"status":"error","message":"Missions are in read-only mode. Disable tools.missions.read_only to allow changes."}`
 				}
 			}
-			logger.Info("LLM requested mission management", "op", tc.Operation)
+			logger.Info("LLM requested mission management", "op", req.Operation)
 			if missionManagerV2 == nil {
 				return `Tool Output: {"status": "error", "message": "Mission control storage not available"}`
 			}
 
-			switch tc.Operation {
+			switch req.Operation {
 			case "list":
 				missions := missionManagerV2.List()
 				b, _ := json.Marshal(map[string]interface{}{"status": "success", "data": missions})
 				return "Tool Output: " + string(b)
 
 			case "create", "add":
-				if tc.Title == "" || tc.Command == "" {
+				if req.Title == "" || req.Command == "" {
 					return `Tool Output: {"status": "error", "message": "'title' (name) and 'command' (prompt) are required for create"}`
 				}
 				priorityStr := "medium"
-				if tc.Priority == 1 {
+				if req.Priority == 1 {
 					priorityStr = "low"
-				} else if tc.Priority == 3 {
+				} else if req.Priority == 3 {
 					priorityStr = "high"
 				}
 				m := &tools.MissionV2{
-					Name:     tc.Title,
-					Prompt:   tc.Command,
-					Schedule: tc.CronExpr,
+					Name:     req.Title,
+					Prompt:   req.Command,
+					Schedule: req.CronExpr,
 					Priority: priorityStr,
-					Locked:   tc.Locked,
+					Locked:   req.Locked,
 					Enabled:  true,
 				}
 				if m.Schedule != "" {
@@ -1132,27 +1129,27 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				return "Tool Output: " + string(b)
 
 			case "update", "edit":
-				if tc.ID == "" {
+				if req.ID == "" {
 					return `Tool Output: {"status": "error", "message": "'id' is required for update"}`
 				}
-				existing, ok := missionManagerV2.Get(tc.ID)
+				existing, ok := missionManagerV2.Get(req.ID)
 				if !ok {
-					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Mission %s not found"}`, tc.ID)
+					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Mission %s not found"}`, req.ID)
 				}
 
-				if tc.Title != "" {
-					existing.Name = tc.Title
+				if req.Title != "" {
+					existing.Name = req.Title
 				}
-				if tc.Command != "" {
-					existing.Prompt = tc.Command
+				if req.Command != "" {
+					existing.Prompt = req.Command
 				}
-				if tc.CronExpr != "" {
-					existing.Schedule = tc.CronExpr
+				if req.CronExpr != "" {
+					existing.Schedule = req.CronExpr
 				}
-				if tc.Priority > 0 {
-					if tc.Priority == 1 {
+				if req.Priority > 0 {
+					if req.Priority == 1 {
 						existing.Priority = "low"
-					} else if tc.Priority == 3 {
+					} else if req.Priority == 3 {
 						existing.Priority = "high"
 					} else {
 						existing.Priority = "medium"
@@ -1161,38 +1158,38 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				// Only apply lock state changes if the LLM explicitly provides it,
 				// though typical struct fields default to false if omitted.
 				// Since we want to allow keeping existing state, we should check if it was provided in raw json
-				if strings.Contains(tc.RawJSON, `"locked"`) {
-					existing.Locked = tc.Locked
+				if req.LockedProvided {
+					existing.Locked = req.Locked
 				}
 
-				err := missionManagerV2.Update(tc.ID, existing)
+				err := missionManagerV2.Update(req.ID, existing)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
 				}
 				return `Tool Output: {"status": "success", "message": "Mission updated"}`
 
 			case "delete", "remove":
-				if tc.ID == "" {
+				if req.ID == "" {
 					return `Tool Output: {"status": "error", "message": "'id' is required for delete"}`
 				}
-				err := missionManagerV2.Delete(tc.ID)
+				err := missionManagerV2.Delete(req.ID)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
 				}
 				return `Tool Output: {"status": "success", "message": "Mission deleted"}`
 
 			case "run", "run_now":
-				if tc.ID == "" {
+				if req.ID == "" {
 					return `Tool Output: {"status": "error", "message": "'id' is required for run"}`
 				}
-				err := missionManagerV2.RunNow(tc.ID)
+				err := missionManagerV2.RunNow(req.ID)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
 				}
 				return `Tool Output: {"status": "success", "message": "Mission scheduled for immediate execution by the background task queue"}`
 
 			default:
-				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Unknown operation: %s"}`, tc.Operation)
+				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Unknown operation: %s"}`, req.Operation)
 			}
 
 		case "remember":
