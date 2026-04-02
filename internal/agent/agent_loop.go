@@ -2149,7 +2149,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				batchResult, err := helperManager.AnalyzeTurn(analysisCtx, userMsg, aResp, toolNames, toolSummaries, personalityInput)
 				if err != nil {
 					helperManager.ObserveFallback("analyze_turn", err.Error())
-					currentLogger.Debug("[HelperLLM] Batched turn analysis failed, falling back", "error", err)
+					currentLogger.Warn("[HelperLLM] Batched turn analysis failed, falling back", "error", err)
 					if useBatchedTurnPersonality {
 						launchAsyncPersonalityV2Analysis(
 							cfg,
@@ -2209,7 +2209,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 							personalityResult,
 						)
 					} else {
-						helperManager.ObserveFallback("analyze_turn", "personality_payload_invalid")
+						helperManager.ObserveFallback("analyze_turn_personality", "personality_payload_invalid")
 						launchAsyncPersonalityV2Analysis(
 							cfg,
 							currentLogger,

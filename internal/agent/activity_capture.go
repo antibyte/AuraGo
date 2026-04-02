@@ -176,33 +176,14 @@ func syncActivityTurnToKnowledgeGraph(kg *memory.KnowledgeGraph, turnID int64, d
 		return
 	}
 
-	turnNodeID := fmt.Sprintf("activity_turn_%d", turnID)
-	turnLabel := strings.TrimSpace(digest.Intent)
-	if turnLabel == "" {
-		turnLabel = strings.TrimSpace(digest.UserGoal)
-	}
-	if turnLabel == "" {
-		turnLabel = "Activity Turn"
+	entities := digest.Entities
+	if len(entities) < 1 {
+		return
 	}
 
-	turnProps := map[string]string{
-		"type":       "activity_turn",
-		"source":     "activity_turn",
-		"session_id": sessionID,
-		"date":       date,
-		"channel":    channel,
-	}
-	if source != "" {
-		turnProps["origin"] = source
-	}
-	if digest.UserGoal != "" {
-		turnProps["goal"] = digest.UserGoal
-	}
-
-	_ = kg.AddNode(turnNodeID, turnLabel, turnProps)
-
-	for _, entity := range digest.Entities {
-		label := strings.TrimSpace(entity)
+	cleanEntities := make([]string, 0, len(entities))
+	for _, raw := range entities {
+		label := strings.TrimSpace(raw)
 		entityID := normalizeActivityEntityID(label)
 		if entityID == "" {
 			continue
@@ -213,10 +194,20 @@ func syncActivityTurnToKnowledgeGraph(kg *memory.KnowledgeGraph, turnID int64, d
 			"session_id": sessionID,
 			"last_seen":  date,
 		})
-		_ = kg.AddEdge(entityID, turnNodeID, "mentioned_in_activity_turn", map[string]string{
-			"source": "activity_turn",
-			"date":   date,
-		})
+		cleanEntities = append(cleanEntities, entityID)
+	}
+
+	for i := 0; i < len(cleanEntities); i++ {
+		for j := i + 1; j < len(cleanEntities); j++ {
+			a, b := cleanEntities[i], cleanEntities[j]
+			if a > b {
+				a, b = b, a
+			}
+			_ = kg.AddEdge(a, b, "co_mentioned_with", map[string]string{
+				"source": "activity_turn",
+				"date":   date,
+			})
+		}
 	}
 }
 

@@ -212,12 +212,15 @@ Rules:
 - If the original request is already specific, keep search_query close to it.
 - Do not invent facts that are not present in the request or candidate memories.`
 
+const helperResponseCacheMaxSize = 500
+
 type helperLLMManager struct {
 	client        llm.ChatClient
 	model         string
 	logger        *slog.Logger
 	cacheMu       sync.RWMutex
 	responseCache map[string]string
+	cacheKeys     []string
 	statsMu       sync.RWMutex
 	stats         map[string]HelperLLMOperationStats
 }
@@ -358,6 +361,7 @@ func newHelperLLMManager(cfg *config.Config, logger *slog.Logger) *helperLLMMana
 		model:         strings.TrimSpace(helperCfg.Model),
 		logger:        logger,
 		responseCache: make(map[string]string),
+		cacheKeys:     make([]string, 0, helperResponseCacheMaxSize),
 		stats:         make(map[string]HelperLLMOperationStats),
 	}
 }
@@ -385,8 +389,19 @@ func (m *helperLLMManager) setCachedResponse(cacheKey, value string) {
 	defer m.cacheMu.Unlock()
 	if m.responseCache == nil {
 		m.responseCache = make(map[string]string)
+		m.cacheKeys = make([]string, 0, helperResponseCacheMaxSize)
+	}
+	if _, exists := m.responseCache[cacheKey]; exists {
+		m.responseCache[cacheKey] = value
+		return
+	}
+	for len(m.responseCache) >= helperResponseCacheMaxSize && len(m.cacheKeys) > 0 {
+		oldest := m.cacheKeys[0]
+		m.cacheKeys = m.cacheKeys[1:]
+		delete(m.responseCache, oldest)
 	}
 	m.responseCache[cacheKey] = value
+	m.cacheKeys = append(m.cacheKeys, cacheKey)
 }
 
 func (m *helperLLMManager) observeStat(operation string, mutate func(*HelperLLMOperationStats)) {
@@ -406,7 +421,7 @@ func (m *helperLLMManager) observeStat(operation string, mutate func(*HelperLLMO
 }
 
 func (m *helperLLMManager) ObserveFallback(operation, detail string) {
-	if operation == "" {
+	if m == nil || operation == "" {
 		return
 	}
 	detail = strings.TrimSpace(detail)
@@ -414,8 +429,8 @@ func (m *helperLLMManager) ObserveFallback(operation, detail string) {
 		stat.Fallbacks++
 		stat.LastDetail = detail
 	})
-	if m != nil && m.logger != nil {
-		m.logger.Debug("[HelperLLM] Fallback observed", "operation", operation, "detail", detail)
+	if m.logger != nil {
+		m.logger.Warn("[HelperLLM] Fallback observed", "operation", operation, "detail", detail)
 	}
 }
 
@@ -675,6 +690,7 @@ func (m *helperLLMManager) AnalyzeConsolidationBatches(ctx context.Context, batc
 	if parseErr != nil {
 		return helperConsolidationBatchResult{}, parseErr
 	}
+	validateHelperBatchIDs("consolidation", batches, result.Batches, func(b helperConsolidationBatchInput) string { return b.BatchID }, func(r helperConsolidationBatchFacts) string { return r.BatchID }, m)
 	m.observeBatchEfficiency("consolidation_batches", len(batches), max(0, len(batches)-1))
 	return result, nil
 }
@@ -733,6 +749,7 @@ func (m *helperLLMManager) CompressMemoryBatches(ctx context.Context, memories [
 	if parseErr != nil {
 		return helperCompressionBatchResult{}, parseErr
 	}
+	validateHelperBatchIDs("compress_memories", memories, result.Memories, func(m helperCompressionBatchInput) string { return m.MemoryID }, func(r helperCompressionBatchItem) string { return r.MemoryID }, m)
 	m.observeBatchEfficiency("compress_memories", len(memories), max(0, len(memories)-1))
 	return result, nil
 }
@@ -795,6 +812,7 @@ func (m *helperLLMManager) SummarizeContentBatches(ctx context.Context, items []
 	if parseErr != nil {
 		return helperContentSummaryBatchResult{}, parseErr
 	}
+	validateHelperBatchIDs("content_summaries", items, result.Summaries, func(i helperContentSummaryBatchInput) string { return i.BatchID }, func(r helperContentSummaryBatchItem) string { return r.BatchID }, m)
 	m.observeBatchEfficiency("content_summaries", len(items), max(0, len(items)-1))
 	return result, nil
 }
@@ -902,4 +920,27 @@ func parseHelperRAGBatchResult(raw string) (helperRAGBatchResult, error) {
 	}
 	result.CandidateScores = filteredScores
 	return result, nil
+}
+
+func validateHelperBatchIDs[I any, R any](operation string, inputs []I, results []R, inputID func(I) string, resultID func(R) string, m *helperLLMManager) {
+	expected := make(map[string]struct{}, len(inputs))
+	for _, in := range inputs {
+		expected[strings.TrimSpace(inputID(in))] = struct{}{}
+	}
+	var missing []string
+	for id := range expected {
+		found := false
+		for _, r := range results {
+			if strings.TrimSpace(resultID(r)) == id {
+				found = true
+				break
+			}
+		}
+		if !found {
+			missing = append(missing, id)
+		}
+	}
+	if len(missing) > 0 && m != nil && m.logger != nil {
+		m.logger.Warn("[HelperLLM] Missing batch IDs in response", "operation", operation, "missing", missing)
+	}
 }

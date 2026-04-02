@@ -85,6 +85,30 @@ func handleKnowledgeGraphSearch(s *Server) http.HandlerFunc {
 	}
 }
 
+func handleKnowledgeGraphQuality(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if s.KG == nil {
+			writeJSON(w, &memory.KnowledgeGraphQualityReport{
+				IsolatedSample:      []memory.Node{},
+				UntypedSample:       []memory.Node{},
+				DuplicateCandidates: []memory.KnowledgeGraphDuplicateCandidate{},
+			})
+			return
+		}
+
+		report, err := s.KG.QualityReport(parseKnowledgeGraphLimit(r, 5))
+		if err != nil {
+			http.Error(w, "Failed to build knowledge graph quality report", http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, report)
+	}
+}
+
 func handleKnowledgeGraphNodeDetail(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {

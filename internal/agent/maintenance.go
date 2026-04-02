@@ -523,12 +523,12 @@ func runBatchedMaintenanceSummaryAndKG(cfg *config.Config, logger *slog.Logger, 
 	result, err := helperManager.AnalyzeMaintenanceSummaryAndKG(batchCtx, today, journalInput, conversationInput)
 	if err != nil {
 		helperManager.ObserveFallback("maintenance_summary_kg", err.Error())
-		logger.Debug("[HelperLLM] Maintenance summary/KG batch failed, falling back", "error", err)
+		logger.Warn("[HelperLLM] Maintenance summary/KG batch failed, falling back", "error", err)
 		return false
 	}
 	if result.DailySummary == "" {
 		helperManager.ObserveFallback("maintenance_summary_kg", "empty daily summary")
-		logger.Debug("[HelperLLM] Maintenance batch returned empty daily summary, falling back")
+		logger.Warn("[HelperLLM] Maintenance batch returned empty daily summary, falling back")
 		return false
 	}
 
@@ -580,8 +580,11 @@ Inputs:
 		return
 	}
 
+	kgCtx, kgCancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer kgCancel()
+
 	resp, err := llm.ExecuteWithRetry(
-		context.Background(),
+		kgCtx,
 		kgClient,
 		openai.ChatCompletionRequest{
 			Model: kgModel,
@@ -817,10 +820,12 @@ func consolidateSTMtoLTM(cfg *config.Config, logger *slog.Logger, client llm.Cha
 			})
 		}
 
-		result, err := helperManager.AnalyzeConsolidationBatches(context.Background(), inputs)
+		consolidationCtx, consolidationCancel := context.WithTimeout(context.Background(), 60*time.Second)
+		result, err := helperManager.AnalyzeConsolidationBatches(consolidationCtx, inputs)
+		consolidationCancel()
 		if err != nil {
 			helperManager.ObserveFallback("consolidation_batches", err.Error())
-			logger.Debug("[HelperLLM] Consolidation batch failed, falling back", "start_batch", i+1, "error", err)
+			logger.Warn("[HelperLLM] Consolidation batch failed, falling back", "start_batch", i+1, "error", err)
 			for offset, item := range group {
 				processWorkItem(item, i+offset+1)
 			}
@@ -1132,8 +1137,11 @@ func autoOptimizeMemory(cfg *config.Config, logger *slog.Logger, client llm.Chat
 	}
 
 	compressOne := func(item compressionWorkItem) {
+		compressCtx, compressCancel := context.WithTimeout(context.Background(), 60*time.Second)
+		defer compressCancel()
+
 		resp, err := llm.ExecuteWithRetry(
-			context.Background(),
+			compressCtx,
 			optimizeClient,
 			openai.ChatCompletionRequest{
 				Model: optimizeModel,
@@ -1184,10 +1192,12 @@ func autoOptimizeMemory(cfg *config.Config, logger *slog.Logger, client llm.Chat
 			})
 		}
 
-		result, err := helperManager.CompressMemoryBatches(context.Background(), inputs)
+		compressionCtx, compressionCancel := context.WithTimeout(context.Background(), 60*time.Second)
+		result, err := helperManager.CompressMemoryBatches(compressionCtx, inputs)
+		compressionCancel()
 		if err != nil {
 			helperManager.ObserveFallback("compress_memories", err.Error())
-			logger.Debug("[HelperLLM] Memory compression batch failed, falling back", "start_memory", i+1, "error", err)
+			logger.Warn("[HelperLLM] Memory compression batch failed, falling back", "start_memory", i+1, "error", err)
 			for _, item := range group {
 				compressOne(item)
 			}

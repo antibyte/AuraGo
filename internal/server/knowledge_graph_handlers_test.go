@@ -113,6 +113,44 @@ func TestHandleKnowledgeGraphNodeDetail(t *testing.T) {
 	}
 }
 
+func TestHandleKnowledgeGraphQuality(t *testing.T) {
+	s := newTestKnowledgeGraphServer(t)
+	if err := s.KG.AddNode("router", "Router", map[string]string{"type": "device", "protected": "true"}); err != nil {
+		t.Fatalf("AddNode router: %v", err)
+	}
+	if err := s.KG.AddNode("nas_a", "NAS", map[string]string{"type": "device"}); err != nil {
+		t.Fatalf("AddNode nas_a: %v", err)
+	}
+	if err := s.KG.AddNode("nas_b", "NAS", nil); err != nil {
+		t.Fatalf("AddNode nas_b: %v", err)
+	}
+	if err := s.KG.AddEdge("router", "nas_a", "backs_up", nil); err != nil {
+		t.Fatalf("AddEdge: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/knowledge-graph/quality?limit=5", nil)
+	rec := httptest.NewRecorder()
+	handleKnowledgeGraphQuality(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d, body=%s", rec.Code, rec.Body.String())
+	}
+
+	var payload memory.KnowledgeGraphQualityReport
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("decode payload: %v", err)
+	}
+	if payload.ProtectedNodes != 1 {
+		t.Fatalf("ProtectedNodes = %d, want 1", payload.ProtectedNodes)
+	}
+	if payload.DuplicateGroups != 1 {
+		t.Fatalf("DuplicateGroups = %d, want 1", payload.DuplicateGroups)
+	}
+	if payload.UntypedNodes != 1 {
+		t.Fatalf("UntypedNodes = %d, want 1", payload.UntypedNodes)
+	}
+}
+
 func TestHandleKnowledgeGraphNodeUpdate(t *testing.T) {
 	s := newTestKnowledgeGraphServer(t)
 	if err := s.KG.AddNode("backup_server", "Backup Server", map[string]string{"type": "device"}); err != nil {

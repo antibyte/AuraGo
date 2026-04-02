@@ -306,6 +306,33 @@
       </div>
     </div>
 
+    <div class="dash-card dash-full-width" id="card-knowledge-graph-quality">
+      <div class="dash-card-header"><span class="card-icon">ðŸ§ª</span> <span data-i18n="dashboard.knowledge_quality_title">Graph Quality</span></div>
+      <div class="dash-card-body">
+        <div id="knowledge-quality-metrics" class="knowledge-quality-metrics"></div>
+        <div id="knowledge-quality-grid" class="knowledge-quality-grid">
+          <div class="knowledge-quality-section">
+            <h4 class="card-section-title" data-i18n="dashboard.knowledge_quality_isolated_title">Isolated Nodes</h4>
+            <div id="knowledge-quality-isolated" class="knowledge-list">
+              <div class="empty-state" data-i18n="dashboard.knowledge_quality_empty_isolated">No isolated nodes detected.</div>
+            </div>
+          </div>
+          <div class="knowledge-quality-section">
+            <h4 class="card-section-title" data-i18n="dashboard.knowledge_quality_untyped_title">Untyped Nodes</h4>
+            <div id="knowledge-quality-untyped" class="knowledge-list">
+              <div class="empty-state" data-i18n="dashboard.knowledge_quality_empty_untyped">All visible nodes have a type.</div>
+            </div>
+          </div>
+          <div class="knowledge-quality-section">
+            <h4 class="card-section-title" data-i18n="dashboard.knowledge_quality_duplicates_title">Duplicate Candidates</h4>
+            <div id="knowledge-quality-duplicates" class="knowledge-list">
+              <div class="empty-state" data-i18n="dashboard.knowledge_quality_empty_duplicates">No duplicate labels detected.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="dash-card dash-full-width" id="card-knowledge-graph-results">
       <div class="dash-card-header"><span class="card-icon">🔎</span> <span data-i18n="dashboard.knowledge_results_title">KG Explorer</span></div>
       <div class="dash-card-body">

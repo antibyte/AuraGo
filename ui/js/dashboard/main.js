@@ -201,13 +201,15 @@
         }
 
         async function loadTabKnowledge() {
-            const [nodes, edges] = await Promise.all([
+            const [nodes, edges, quality] = await Promise.all([
                 API.get('/api/knowledge-graph/nodes?limit=50'),
                 API.get('/api/knowledge-graph/edges?limit=50'),
+                API.get('/api/knowledge-graph/quality?limit=6'),
             ]);
             KnowledgeGraphState.nodes = Array.isArray(nodes) ? nodes : [];
             KnowledgeGraphState.edges = Array.isArray(edges) ? edges : [];
             renderKnowledgeGraphSummary(KnowledgeGraphState.nodes, KnowledgeGraphState.edges);
+            renderKnowledgeGraphQuality(quality || {});
             renderKnowledgeGraphLists(KnowledgeGraphState.nodes, KnowledgeGraphState.edges);
             renderKnowledgeGraphVisual();
 
@@ -279,6 +281,69 @@
                     <div class="mem-stat-lbl">${esc(stat.lbl)}</div>
                 </div>
             `).join('');
+        }
+
+        function renderKnowledgeGraphQuality(report) {
+            const metrics = document.getElementById('knowledge-quality-metrics');
+            const isolated = document.getElementById('knowledge-quality-isolated');
+            const untyped = document.getElementById('knowledge-quality-untyped');
+            const duplicates = document.getElementById('knowledge-quality-duplicates');
+            if (!metrics || !isolated || !untyped || !duplicates) return;
+
+            const stats = [
+                { val: Number(report?.protected_nodes || 0), lbl: t('dashboard.knowledge_quality_protected') },
+                { val: Number(report?.isolated_nodes || 0), lbl: t('dashboard.knowledge_quality_isolated') },
+                { val: Number(report?.untyped_nodes || 0), lbl: t('dashboard.knowledge_quality_untyped') },
+                { val: Number(report?.duplicate_groups || 0), lbl: t('dashboard.knowledge_quality_duplicates') },
+            ];
+            metrics.innerHTML = stats.map(stat => `
+                <div class="mem-stat">
+                    <div class="mem-stat-val">${esc(String(stat.val))}</div>
+                    <div class="mem-stat-lbl">${esc(stat.lbl)}</div>
+                </div>
+            `).join('');
+
+            renderKnowledgeGraphQualityNodeList(isolated, report?.isolated_sample, 'dashboard.knowledge_quality_empty_isolated');
+            renderKnowledgeGraphQualityNodeList(untyped, report?.untyped_sample, 'dashboard.knowledge_quality_empty_untyped');
+
+            const candidates = Array.isArray(report?.duplicate_candidates) ? report.duplicate_candidates : [];
+            if (!candidates.length) {
+                duplicates.innerHTML = `<div class="empty-state">${t('dashboard.knowledge_quality_empty_duplicates')}</div>`;
+                return;
+            }
+            duplicates.innerHTML = candidates.map(candidate => `
+                <div class="knowledge-item">
+                    <div class="knowledge-item-head">
+                        <span class="knowledge-item-title">${escapeHtml(candidate.label || candidate.normalized_label || 'Node')}</span>
+                        <span class="knowledge-item-badge">${escapeHtml(t('dashboard.knowledge_quality_duplicate_count', { count: Number(candidate.count || 0) }))}</span>
+                    </div>
+                    <div class="knowledge-item-props">
+                        ${(Array.isArray(candidate.ids) ? candidate.ids : []).map(id => `
+                            <span class="knowledge-inline-link" data-kg-node-id="${escapeHtml(id || '')}">${escapeHtml(id || '')}</span>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderKnowledgeGraphQualityNodeList(container, nodes, emptyKey) {
+            if (!container) return;
+            if (!Array.isArray(nodes) || nodes.length === 0) {
+                container.innerHTML = `<div class="empty-state">${t(emptyKey)}</div>`;
+                return;
+            }
+            container.innerHTML = nodes.map(node => {
+                const props = renderKnowledgeProps(node.properties);
+                return `
+                    <div class="knowledge-item clickable" data-kg-node-id="${escapeHtml(node.id || '')}">
+                        <div class="knowledge-item-head">
+                            <span class="knowledge-item-title">${escapeHtml(node.label || node.id || 'Node')}</span>
+                            <span class="knowledge-item-badge">${escapeHtml(node.id || '')}</span>
+                        </div>
+                        ${props ? `<div class="knowledge-item-props">${props}</div>` : ''}
+                    </div>
+                `;
+            }).join('');
         }
 
         function renderKnowledgeGraphLists(nodes, edges) {

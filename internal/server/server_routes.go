@@ -558,6 +558,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		mux.HandleFunc("/api/knowledge-graph/nodes", handleKnowledgeGraphNodes(s))
 		mux.HandleFunc("/api/knowledge-graph/edges", handleKnowledgeGraphEdges(s))
 		mux.HandleFunc("/api/knowledge-graph/search", handleKnowledgeGraphSearch(s))
+		mux.HandleFunc("/api/knowledge-graph/quality", handleKnowledgeGraphQuality(s))
 
 		// System endpoints
 		mux.HandleFunc("/api/system/os", func(w http.ResponseWriter, r *http.Request) {

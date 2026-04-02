@@ -18,6 +18,11 @@ const knowledgeGraphSemanticCollection = "kg_embeddings"
 const knowledgeGraphSemanticTimeout = 20 * time.Second
 const knowledgeGraphSemanticMinSimilarity = 0.45
 
+const knowledgeGraphSemanticEdgeMinSimilarity = 0.35
+
+const knowledgeGraphSemanticQueryCacheTTL = 5 * time.Minute
+const knowledgeGraphSemanticEdgeMaxResults = 50
+
 type knowledgeGraphSemanticIndex struct {
 	collection    *chromem.Collection
 	embeddingFunc chromem.EmbeddingFunc
@@ -65,7 +70,7 @@ func (kg *KnowledgeGraph) enableSemanticSearchWithCollection(db *chromem.DB, emb
 		embeddingFunc: embeddingFunc,
 		logger:        logger,
 		queryCache:    make(map[string]queryCacheEntry),
-		queryCacheTTL: 5 * time.Minute,
+		queryCacheTTL: knowledgeGraphSemanticQueryCacheTTL,
 	}
 
 	if err := kg.validateSemanticIndex(index); err != nil {
@@ -94,6 +99,13 @@ func (kg *KnowledgeGraph) reindexSemanticNodes() error {
 	}
 	for _, node := range nodes {
 		kg.upsertSemanticNodeIndex(node)
+	}
+	edges, err := kg.GetAllEdges(10000)
+	if err != nil {
+		return fmt.Errorf("load edges for semantic reindex: %w", err)
+	}
+	for _, edge := range edges {
+		kg.upsertSemanticEdgeIndex(edge)
 	}
 	return nil
 }
@@ -124,8 +136,52 @@ func (kg *KnowledgeGraph) upsertSemanticNodeIndex(node Node) {
 		},
 	})
 	if err != nil && kg.semantic.logger != nil {
-		kg.semantic.logger.Warn("KG semantic index update failed", "node_id", node.ID, "error", err)
+		kg.semantic.logger.Warn("KG semantic node index update failed", "node_id", node.ID, "error", err)
 	}
+}
+
+func (kg *KnowledgeGraph) upsertSemanticEdgeIndex(edge Edge) {
+	if kg.semantic == nil {
+		return
+	}
+	content := buildKnowledgeGraphEdgeSemanticContent(edge)
+	if content == "" {
+		return
+	}
+
+	kg.semantic.mu.Lock()
+	defer kg.semantic.mu.Unlock()
+
+	ctx, cancel := context.WithTimeout(context.Background(), knowledgeGraphSemanticTimeout)
+	defer cancel()
+
+	edgeDocID := "edge_" + edge.Source + "\x00" + edge.Target + "\x00" + edge.Relation
+	_ = kg.semantic.collection.Delete(ctx, nil, nil, edgeDocID)
+	err := kg.semantic.collection.AddDocument(ctx, chromem.Document{
+		ID:      edgeDocID,
+		Content: content,
+		Metadata: map[string]string{
+			"source":   edge.Source,
+			"target":   edge.Target,
+			"relation": edge.Relation,
+		},
+	})
+	if err != nil && kg.semantic.logger != nil {
+		kg.semantic.logger.Warn("KG semantic edge index update failed", "source", edge.Source, "target", edge.Target, "error", err)
+	}
+}
+
+func buildKnowledgeGraphEdgeSemanticContent(edge Edge) string {
+	var parts []string
+	if strings.TrimSpace(edge.Relation) != "" {
+		parts = append(parts, edge.Relation)
+	}
+	srcLabel := strings.TrimSpace(edge.Source)
+	tgtLabel := strings.TrimSpace(edge.Target)
+	if srcLabel != "" && tgtLabel != "" {
+		parts = append(parts, srcLabel+" "+edge.Relation+" "+tgtLabel)
+	}
+	return strings.TrimSpace(strings.Join(parts, ". "))
 }
 
 func (kg *KnowledgeGraph) semanticSearchNodeIDs(query string, maxNodes int) []string {
@@ -164,7 +220,42 @@ func (kg *KnowledgeGraph) semanticSearchNodeIDs(query string, maxNodes int) []st
 		if result.Similarity < knowledgeGraphSemanticMinSimilarity {
 			continue
 		}
-		out = append(out, result.ID)
+		if !strings.HasPrefix(result.ID, "edge_") {
+			out = append(out, result.ID)
+		}
+	}
+	return out
+}
+
+func (kg *KnowledgeGraph) semanticSearchEdgeIDs(query string, maxEdges int) []string {
+	if kg.semantic == nil || maxEdges <= 0 || shouldSkipKnowledgeGraphSemanticQuery(query) {
+		return nil
+	}
+	embedding, err := kg.getSemanticQueryEmbedding(query)
+	if err != nil {
+		return nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	count := kg.semantic.collection.Count()
+	if count == 0 {
+		return nil
+	}
+	if maxEdges > count {
+		maxEdges = count
+	}
+	results, err := kg.semantic.collection.QueryEmbedding(ctx, embedding, maxEdges, nil, nil)
+	if err != nil {
+		return nil
+	}
+	out := make([]string, 0, len(results))
+	for _, result := range results {
+		if result.Similarity < knowledgeGraphSemanticEdgeMinSimilarity {
+			continue
+		}
+		if strings.HasPrefix(result.ID, "edge_") {
+			out = append(out, result.ID)
+		}
 	}
 	return out
 }

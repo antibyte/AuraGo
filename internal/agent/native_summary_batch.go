@@ -62,7 +62,7 @@ func maybeBuildPendingSummaryBatch(ctx context.Context, pending []ToolCall, dc *
 			}
 		} else if dc.Logger != nil {
 			helperManager.ObserveFallback("content_summaries", err.Error())
-			dc.Logger.Debug("[HelperLLM] Native pending content summary batch failed, falling back", "error", err)
+			dc.Logger.Warn("[HelperLLM] Native pending content summary batch failed, falling back", "error", err)
 		}
 	}
 

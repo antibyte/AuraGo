@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"strings"
 	"testing"
 
 	"aurago/internal/memory"
@@ -117,26 +118,35 @@ func TestCaptureActivityTurnWithDigestSyncsEntitiesToKnowledgeGraph(t *testing.T
 		t.Fatalf("GetAllEdges: %v", err)
 	}
 
-	foundTurn := false
 	foundEntity := false
 	for _, node := range nodes {
-		if node.ID == "activity_turn_1" {
-			foundTurn = true
-		}
 		if node.ID == "backup_host" || node.ID == "proxmox_ve" {
 			foundEntity = true
 		}
 	}
-	if !foundTurn {
-		t.Fatal("expected activity turn node in knowledge graph")
-	}
 	if !foundEntity {
 		t.Fatal("expected activity entity nodes in knowledge graph")
 	}
-	if len(edges) == 0 {
-		t.Fatal("expected activity edges in knowledge graph")
+
+	foundCoOccurrence := false
+	for _, edge := range edges {
+		if edge.Relation == "co_mentioned_with" {
+			foundCoOccurrence = true
+			break
+		}
 	}
-	if edges[0].Relation != "mentioned_in_activity_turn" {
-		t.Fatalf("unexpected edge relation: %#v", edges[0])
+	if !foundCoOccurrence {
+		t.Fatal("expected co_mentioned_with edge between entities in knowledge graph")
+	}
+
+	forbiddenTurn := false
+	for _, node := range nodes {
+		if strings.HasPrefix(node.ID, "activity_turn_") {
+			forbiddenTurn = true
+			break
+		}
+	}
+	if forbiddenTurn {
+		t.Fatal("activity_turn_* nodes should no longer be created")
 	}
 }

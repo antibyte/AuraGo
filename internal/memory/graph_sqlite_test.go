@@ -266,6 +266,59 @@ func TestKGUpdateEdge(t *testing.T) {
 	}
 }
 
+func TestKGQualityReport(t *testing.T) {
+	kg := newTestKG(t)
+
+	if err := kg.AddNode("router", "Router", map[string]string{"type": "device", "protected": "true"}); err != nil {
+		t.Fatalf("AddNode router: %v", err)
+	}
+	if err := kg.AddNode("nas_primary", "NAS", map[string]string{"type": "device"}); err != nil {
+		t.Fatalf("AddNode nas_primary: %v", err)
+	}
+	if err := kg.AddNode("nas_secondary", "NAS", nil); err != nil {
+		t.Fatalf("AddNode nas_secondary: %v", err)
+	}
+	if err := kg.AddNode("orphan", "Orphan", nil); err != nil {
+		t.Fatalf("AddNode orphan: %v", err)
+	}
+	if err := kg.AddEdge("router", "nas_primary", "backs_up", nil); err != nil {
+		t.Fatalf("AddEdge: %v", err)
+	}
+
+	report, err := kg.QualityReport(10)
+	if err != nil {
+		t.Fatalf("QualityReport: %v", err)
+	}
+	if report.Nodes != 4 {
+		t.Fatalf("Nodes = %d, want 4", report.Nodes)
+	}
+	if report.Edges != 1 {
+		t.Fatalf("Edges = %d, want 1", report.Edges)
+	}
+	if report.ProtectedNodes != 1 {
+		t.Fatalf("ProtectedNodes = %d, want 1", report.ProtectedNodes)
+	}
+	if report.IsolatedNodes != 2 {
+		t.Fatalf("IsolatedNodes = %d, want 2", report.IsolatedNodes)
+	}
+	if report.UntypedNodes != 2 {
+		t.Fatalf("UntypedNodes = %d, want 2", report.UntypedNodes)
+	}
+	if report.DuplicateGroups != 1 {
+		t.Fatalf("DuplicateGroups = %d, want 1", report.DuplicateGroups)
+	}
+	if report.DuplicateNodes != 2 {
+		t.Fatalf("DuplicateNodes = %d, want 2", report.DuplicateNodes)
+	}
+	if len(report.DuplicateCandidates) != 1 {
+		t.Fatalf("DuplicateCandidates len = %d, want 1", len(report.DuplicateCandidates))
+	}
+	gotIDs := strings.Join(report.DuplicateCandidates[0].IDs, ",")
+	if gotIDs != "nas_primary,nas_secondary" {
+		t.Fatalf("duplicate IDs = %q, want nas_primary,nas_secondary", gotIDs)
+	}
+}
+
 func TestKGOptimizeGraph(t *testing.T) {
 	kg := newTestKG(t)
 
