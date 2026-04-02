@@ -63,3 +63,36 @@ func TestBuildMemoryReflectionOutputReturnsMarshalError(t *testing.T) {
 		t.Fatal("expected marshal error for unsupported reflection payload")
 	}
 }
+
+func TestDispatchExecSaveToolRejectsBuiltinNameCollision(t *testing.T) {
+	tmpDir := t.TempDir()
+	toolsDir := filepath.Join(tmpDir, "tools")
+	if err := os.MkdirAll(toolsDir, 0o755); err != nil {
+		t.Fatalf("mkdir tools dir: %v", err)
+	}
+
+	cfg := &config.Config{}
+	cfg.Agent.AllowPython = true
+	cfg.Directories.ToolsDir = toolsDir
+	manifest := tools.NewManifest(toolsDir)
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+
+	out := dispatchExec(
+		context.Background(),
+		ToolCall{
+			Action:      "save_tool",
+			Name:        "virustotal_scan",
+			Description: "Collision test",
+			Code:        "print('hello')",
+		},
+		&DispatchContext{
+			Cfg:      cfg,
+			Logger:   logger,
+			Manifest: manifest,
+		},
+	)
+
+	if !strings.Contains(out, "collides with built-in tool") {
+		t.Fatalf("expected built-in collision error, got:\n%s", out)
+	}
+}

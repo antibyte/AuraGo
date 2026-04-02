@@ -1,6 +1,11 @@
 package agent
 
-import openai "github.com/sashabaranov/go-openai"
+import (
+	"path/filepath"
+	"strings"
+
+	openai "github.com/sashabaranov/go-openai"
+)
 
 func buildExecuteSkillProps(ff ToolFeatureFlags) map[string]interface{} {
 	execSkillProps := map[string]interface{}{
@@ -87,4 +92,32 @@ func builtinToolNames(ff ToolFeatureFlags) []string {
 		}
 	}
 	return names
+}
+
+func builtinToolNameSet(ff ToolFeatureFlags) map[string]struct{} {
+	names := make(map[string]struct{})
+	for _, name := range builtinToolNames(ff) {
+		names[name] = struct{}{}
+	}
+	return names
+}
+
+func allBuiltinToolNameSet() map[string]struct{} {
+	return builtinToolNameSet(allBuiltinToolFeatureFlags())
+}
+
+func customToolBuiltinCollisionName(name string, builtinNames map[string]struct{}) (string, bool) {
+	candidates := []string{strings.TrimSpace(name)}
+	if ext := filepath.Ext(name); ext != "" {
+		candidates = append(candidates, strings.TrimSuffix(name, ext))
+	}
+	for _, candidate := range candidates {
+		if candidate == "" {
+			continue
+		}
+		if _, ok := builtinNames[candidate]; ok {
+			return candidate, true
+		}
+	}
+	return "", false
 }

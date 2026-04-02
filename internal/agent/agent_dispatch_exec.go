@@ -362,6 +362,9 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) string 
 		if tc.Name == "" || tc.Code == "" {
 			return "Tool Output: ERROR 'name' and 'code' are required for save_tool"
 		}
+		if collisionName, ok := customToolBuiltinCollisionName(tc.Name, allBuiltinToolNameSet()); ok {
+			return fmt.Sprintf("Tool Output: ERROR custom tool name %q collides with built-in tool %q. Choose a different name.", tc.Name, collisionName)
+		}
 		codeHash := sha256.Sum256([]byte(tc.Code))
 		logger.Info("LLM requested tool persistence",
 			"name", tc.Name,

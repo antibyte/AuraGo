@@ -251,6 +251,14 @@ func NativeToolCallToToolCall(native openai.ToolCall, logger *slog.Logger) ToolC
 // BuildNativeToolSchemas returns the full tool list: built-ins + registered skills + custom tools.
 func BuildNativeToolSchemas(skillsDir string, manifest *tools.Manifest, ff ToolFeatureFlags, logger *slog.Logger) []openai.Tool {
 	allTools := builtinToolSchemasCached(ff)
+	builtinNames := allBuiltinToolNameSet()
+	emittedNames := make(map[string]struct{}, len(allTools))
+	for _, toolSchema := range allTools {
+		if toolSchema.Function == nil || toolSchema.Function.Name == "" {
+			continue
+		}
+		emittedNames[toolSchema.Function.Name] = struct{}{}
+	}
 
 	// Add skills as sub-variants of execute_skill (informational context; already handled by execute_skill schema)
 	if skills, err := tools.ListSkills(skillsDir); err == nil {
@@ -258,8 +266,24 @@ func BuildNativeToolSchemas(skillsDir string, manifest *tools.Manifest, ff ToolF
 			if skill.Executable == "__builtin__" && skill.Name == "virustotal_scan" && !ff.VirusTotalEnabled {
 				continue
 			}
+			if skill.Executable != "__builtin__" {
+				if collisionName, ok := customToolBuiltinCollisionName(skill.Name, builtinNames); ok {
+					if logger != nil {
+						logger.Warn("[NativeTools] Skipping custom skill that collides with built-in tool",
+							"skill", skill.Name,
+							"builtin", collisionName,
+						)
+					}
+					continue
+				}
+			}
+			schemaName := "skill__" + skill.Name
+			if _, exists := emittedNames[schemaName]; exists {
+				continue
+			}
+			emittedNames[schemaName] = struct{}{}
 			allTools = append(allTools, tool(
-				"skill__"+skill.Name,
+				schemaName,
 				"(Skill) "+skill.Description+". Use execute_skill with skill='"+skill.Name+"'.",
 				schema(map[string]interface{}{
 					"skill_args": map[string]interface{}{
@@ -275,6 +299,20 @@ func BuildNativeToolSchemas(skillsDir string, manifest *tools.Manifest, ff ToolF
 	if manifest != nil {
 		if entries, err := manifest.Load(); err == nil {
 			for name, description := range entries {
+				if collisionName, ok := customToolBuiltinCollisionName(name, builtinNames); ok {
+					if logger != nil {
+						logger.Warn("[NativeTools] Skipping custom tool that collides with built-in tool",
+							"tool", name,
+							"builtin", collisionName,
+						)
+					}
+					continue
+				}
+				schemaName := "tool__" + name
+				if _, exists := emittedNames[schemaName]; exists {
+					continue
+				}
+				emittedNames[schemaName] = struct{}{}
 				customToolProps := map[string]interface{}{
 					"params": map[string]interface{}{
 						"type":        "object",
@@ -294,7 +332,7 @@ func BuildNativeToolSchemas(skillsDir string, manifest *tools.Manifest, ff ToolF
 					}
 				}
 				allTools = append(allTools, tool(
-					"tool__"+name,
+					schemaName,
 					"(Custom tool) "+description,
 					schema(customToolProps),
 				))

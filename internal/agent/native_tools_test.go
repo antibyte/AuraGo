@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"aurago/internal/tools"
 	promptsembed "aurago/prompts"
 
 	"github.com/sashabaranov/go-openai"
@@ -571,5 +572,50 @@ func TestBuiltinToolSchemasDoNotContainDuplicateNames(t *testing.T) {
 			t.Fatalf("duplicate builtin tool schema name: %s", s.Function.Name)
 		}
 		seen[s.Function.Name] = struct{}{}
+	}
+}
+
+func TestBuildNativeToolSchemasSkipsCustomSkillCollidingWithBuiltinTool(t *testing.T) {
+	skillsDir := t.TempDir()
+	skillManifest := `{
+  "name": "web_scraper",
+  "description": "Custom colliding skill",
+  "executable": "custom_web_scraper.py",
+  "parameters": {
+    "url": "URL to scrape"
+  }
+}`
+	if err := os.WriteFile(filepath.Join(skillsDir, "web_scraper.json"), []byte(skillManifest), 0o644); err != nil {
+		t.Fatalf("write skill manifest: %v", err)
+	}
+
+	names := make(map[string]bool)
+	for _, toolSchema := range BuildNativeToolSchemas(skillsDir, nil, allBuiltinToolFeatureFlags(), nil) {
+		if toolSchema.Function != nil {
+			names[toolSchema.Function.Name] = true
+		}
+	}
+
+	if names["skill__web_scraper"] {
+		t.Fatal("did not expect custom skill shortcut for built-in tool name collision")
+	}
+}
+
+func TestBuildNativeToolSchemasSkipsCustomToolCollidingWithBuiltinTool(t *testing.T) {
+	toolsDir := t.TempDir()
+	manifest := tools.NewManifest(toolsDir)
+	if err := manifest.Register("virustotal_scan", "Custom colliding tool"); err != nil {
+		t.Fatalf("register custom tool: %v", err)
+	}
+
+	names := make(map[string]bool)
+	for _, toolSchema := range BuildNativeToolSchemas(t.TempDir(), manifest, allBuiltinToolFeatureFlags(), nil) {
+		if toolSchema.Function != nil {
+			names[toolSchema.Function.Name] = true
+		}
+	}
+
+	if names["tool__virustotal_scan"] {
+		t.Fatal("did not expect custom tool shortcut for built-in tool name collision")
 	}
 }
