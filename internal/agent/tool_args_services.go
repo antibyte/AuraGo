@@ -27,6 +27,23 @@ type meshCentralArgs struct {
 	Command     string
 }
 
+type webDAVArgs struct {
+	Operation   string
+	Path        string
+	Content     string
+	Destination string
+}
+
+type s3Args struct {
+	Operation         string
+	Bucket            string
+	Key               string
+	LocalPath         string
+	Prefix            string
+	DestinationBucket string
+	DestinationKey    string
+}
+
 type homeAssistantArgs struct {
 	Operation   string
 	Domain      string
@@ -157,6 +174,28 @@ func decodeMeshCentralArgs(tc ToolCall) meshCentralArgs {
 		NodeID:      firstNonEmptyToolString(tc.NodeID, toolArgString(tc.Params, "node_id")),
 		PowerAction: firstNonEmptyInt(tc.PowerAction, toolArgInt(tc.Params, 0, "power_action")),
 		Command:     firstNonEmptyToolString(tc.Command, toolArgString(tc.Params, "command")),
+	}
+}
+
+func decodeWebDAVArgs(tc ToolCall) webDAVArgs {
+	req := webDAVArgs{
+		Operation:   firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		Path:        firstNonEmptyToolString(tc.Path, tc.RemotePath, tc.FilePath, toolArgString(tc.Params, "path", "remote_path", "file_path")),
+		Content:     firstNonEmptyToolString(tc.Content, tc.Body, toolArgString(tc.Params, "content", "body")),
+		Destination: firstNonEmptyToolString(tc.Destination, tc.Dest, toolArgString(tc.Params, "destination", "dest")),
+	}
+	return req
+}
+
+func decodeS3Args(tc ToolCall) s3Args {
+	return s3Args{
+		Operation:         firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		Bucket:            firstNonEmptyToolString(tc.Bucket, toolArgString(tc.Params, "bucket")),
+		Key:               firstNonEmptyToolString(tc.Key, toolArgString(tc.Params, "key")),
+		LocalPath:         firstNonEmptyToolString(tc.LocalPath, toolArgString(tc.Params, "local_path")),
+		Prefix:            firstNonEmptyToolString(tc.Prefix, toolArgString(tc.Params, "prefix")),
+		DestinationBucket: firstNonEmptyToolString(tc.DestinationBucket, toolArgString(tc.Params, "destination_bucket")),
+		DestinationKey:    firstNonEmptyToolString(tc.DestinationKey, toolArgString(tc.Params, "destination_key")),
 	}
 }
 

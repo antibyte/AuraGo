@@ -596,8 +596,9 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			if !cfg.WebDAV.Enabled {
 				return `Tool Output: {"status": "error", "message": "WebDAV integration is not enabled. Set webdav.enabled=true in config.yaml."}`
 			}
+			req := decodeWebDAVArgs(tc)
 			if cfg.WebDAV.ReadOnly {
-				switch tc.Operation {
+				switch req.Operation {
 				case "write", "put", "upload", "mkdir", "create_dir", "delete", "rm", "move", "rename", "mv":
 					return `Tool Output: {"status":"error","message":"WebDAV is in read-only mode. Disable webdav.read_only to allow changes."}`
 				}
@@ -609,14 +610,8 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				Password: cfg.WebDAV.Password,
 				Token:    cfg.WebDAV.Token,
 			}
-			path := tc.Path
-			if path == "" {
-				path = tc.RemotePath
-			}
-			if path == "" {
-				path = tc.FilePath
-			}
-			switch tc.Operation {
+			path := req.Path
+			switch req.Operation {
 			case "list", "ls":
 				logger.Info("LLM requested WebDAV list", "path", path)
 				return "Tool Output: " + tools.WebDAVList(davCfg, path)
@@ -625,11 +620,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return "Tool Output: " + tools.WebDAVRead(davCfg, path)
 			case "write", "put", "upload":
 				logger.Info("LLM requested WebDAV write", "path", path)
-				content := tc.Content
-				if content == "" {
-					content = tc.Body
-				}
-				return "Tool Output: " + tools.WebDAVWrite(davCfg, path, content)
+				return "Tool Output: " + tools.WebDAVWrite(davCfg, path, req.Content)
 			case "mkdir", "create_dir":
 				logger.Info("LLM requested WebDAV mkdir", "path", path)
 				return "Tool Output: " + tools.WebDAVMkdir(davCfg, path)
@@ -637,12 +628,8 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				logger.Info("LLM requested WebDAV delete", "path", path)
 				return "Tool Output: " + tools.WebDAVDelete(davCfg, path)
 			case "move", "rename", "mv":
-				logger.Info("LLM requested WebDAV move", "path", path, "destination", tc.Destination)
-				dst := tc.Destination
-				if dst == "" {
-					dst = tc.Dest
-				}
-				return "Tool Output: " + tools.WebDAVMove(davCfg, path, dst)
+				logger.Info("LLM requested WebDAV move", "path", path, "destination", req.Destination)
+				return "Tool Output: " + tools.WebDAVMove(davCfg, path, req.Destination)
 			case "info", "stat":
 				logger.Info("LLM requested WebDAV info", "path", path)
 				return "Tool Output: " + tools.WebDAVInfo(davCfg, path)
@@ -654,8 +641,9 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			if !cfg.S3.Enabled {
 				return `Tool Output: {"status": "error", "message": "S3 integration is not enabled. Set s3.enabled=true in config.yaml."}`
 			}
+			req := decodeS3Args(tc)
 			if cfg.S3.ReadOnly {
-				switch tc.Operation {
+				switch req.Operation {
 				case "upload", "delete", "copy", "move":
 					return `Tool Output: {"status":"error","message":"S3 is in read-only mode. Disable s3.readonly to allow changes."}`
 				}
@@ -669,8 +657,8 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				UsePathStyle: cfg.S3.UsePathStyle,
 				Insecure:     cfg.S3.Insecure,
 			}
-			logger.Info("LLM requested S3 operation", "op", tc.Operation, "bucket", tc.Bucket, "key", tc.Key)
-			return "Tool Output: " + tools.ExecuteS3(s3Cfg, tc.Operation, tc.Bucket, tc.Key, tc.LocalPath, tc.Prefix, tc.DestinationBucket, tc.DestinationKey)
+			logger.Info("LLM requested S3 operation", "op", req.Operation, "bucket", req.Bucket, "key", req.Key)
+			return "Tool Output: " + tools.ExecuteS3(s3Cfg, req.Operation, req.Bucket, req.Key, req.LocalPath, req.Prefix, req.DestinationBucket, req.DestinationKey)
 
 		case "paperless", "paperless_ngx":
 			if result, ok := handleDirectBuiltinSkillAction(ctx, tc, dc); ok {

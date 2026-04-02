@@ -50,6 +50,61 @@ func TestDecodeMeshCentralArgsNormalizesOperationAndUsesParamsFallback(t *testin
 	}
 }
 
+func TestDecodeWebDAVArgsUsesAliasesAndFallbacks(t *testing.T) {
+	tc := ToolCall{
+		Action: "webdav",
+		Body:   "fallback body",
+		Params: map[string]interface{}{
+			"operation":   "move",
+			"remote_path": "/docs/source.txt",
+			"dest":        "/docs/archive.txt",
+		},
+	}
+
+	req := decodeWebDAVArgs(tc)
+	if req.Operation != "move" {
+		t.Fatalf("Operation = %q, want move", req.Operation)
+	}
+	if req.Path != "/docs/source.txt" {
+		t.Fatalf("Path = %q, want /docs/source.txt", req.Path)
+	}
+	if req.Destination != "/docs/archive.txt" {
+		t.Fatalf("Destination = %q, want /docs/archive.txt", req.Destination)
+	}
+	if req.Content != "fallback body" {
+		t.Fatalf("Content = %q, want fallback body", req.Content)
+	}
+}
+
+func TestDecodeS3ArgsUsesParamsFallback(t *testing.T) {
+	tc := ToolCall{
+		Action: "s3_storage",
+		Params: map[string]interface{}{
+			"operation":          "copy",
+			"bucket":             "source-bucket",
+			"key":                "images/logo.png",
+			"local_path":         "downloads/logo.png",
+			"prefix":             "images/",
+			"destination_bucket": "backup-bucket",
+			"destination_key":    "archive/logo.png",
+		},
+	}
+
+	req := decodeS3Args(tc)
+	if req.Operation != "copy" {
+		t.Fatalf("Operation = %q, want copy", req.Operation)
+	}
+	if req.Bucket != "source-bucket" || req.Key != "images/logo.png" {
+		t.Fatalf("unexpected bucket/key decode: %+v", req)
+	}
+	if req.LocalPath != "downloads/logo.png" || req.Prefix != "images/" {
+		t.Fatalf("unexpected local/prefix decode: %+v", req)
+	}
+	if req.DestinationBucket != "backup-bucket" || req.DestinationKey != "archive/logo.png" {
+		t.Fatalf("unexpected destination decode: %+v", req)
+	}
+}
+
 func TestDecodeManageWebhooksArgsUsesActionAlias(t *testing.T) {
 	tc := ToolCall{
 		Action: "manage_webhooks",
