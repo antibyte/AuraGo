@@ -1,10 +1,16 @@
 package memory
 
 import (
+	"context"
+	"encoding/json"
+	"errors"
 	"log/slog"
 	"os"
+	"strings"
 	"testing"
 	"time"
+
+	chromem "github.com/philippgille/chromem-go"
 )
 
 func newTestKG(t *testing.T) *KnowledgeGraph {
@@ -95,6 +101,24 @@ func TestKGSearchFTS5(t *testing.T) {
 	}
 }
 
+func TestKGEdgeFTS5Indexing(t *testing.T) {
+	kg := newTestKG(t)
+
+	if err := kg.AddEdge("docker_host", "compose_stack", "runs_stack", map[string]string{
+		"notes": "container orchestration for homelab services",
+	}); err != nil {
+		t.Fatalf("AddEdge: %v", err)
+	}
+
+	var count int
+	if err := kg.db.QueryRow(`SELECT COUNT(*) FROM kg_edges_fts WHERE kg_edges_fts MATCH ?`, "orchestration").Scan(&count); err != nil {
+		t.Fatalf("query kg_edges_fts: %v", err)
+	}
+	if count == 0 {
+		t.Fatal("expected kg_edges_fts to index edge properties")
+	}
+}
+
 func TestKGDeleteNode(t *testing.T) {
 	kg := newTestKG(t)
 
@@ -114,6 +138,22 @@ func TestKGDeleteNode(t *testing.T) {
 	}
 }
 
+func TestKGDeleteProtectedNodeRejected(t *testing.T) {
+	kg := newTestKG(t)
+
+	if err := kg.AddNode("important", "Important", map[string]string{"protected": "true"}); err != nil {
+		t.Fatalf("AddNode: %v", err)
+	}
+
+	err := kg.DeleteNode("important")
+	if err == nil {
+		t.Fatal("expected protected node delete to fail")
+	}
+	if !errors.Is(err, ErrKnowledgeGraphProtectedNode) {
+		t.Fatalf("expected ErrKnowledgeGraphProtectedNode, got %v", err)
+	}
+}
+
 func TestKGDeleteEdge(t *testing.T) {
 	kg := newTestKG(t)
 
@@ -127,6 +167,36 @@ func TestKGDeleteEdge(t *testing.T) {
 	_, edges, _ := kg.Stats()
 	if edges != 1 {
 		t.Errorf("expected 1 edge after delete, got %d", edges)
+	}
+}
+
+func TestKGUpdateEdge(t *testing.T) {
+	kg := newTestKG(t)
+
+	if err := kg.AddEdge("a", "b", "rel1", map[string]string{"notes": "before"}); err != nil {
+		t.Fatalf("AddEdge: %v", err)
+	}
+
+	edge, err := kg.UpdateEdge("a", "b", "rel1", "rel2", map[string]string{"notes": "after"})
+	if err != nil {
+		t.Fatalf("UpdateEdge: %v", err)
+	}
+	if edge == nil {
+		t.Fatal("expected updated edge")
+	}
+	if edge.Relation != "rel2" {
+		t.Fatalf("relation = %q, want rel2", edge.Relation)
+	}
+	if edge.Properties["notes"] != "after" {
+		t.Fatalf("notes = %q, want after", edge.Properties["notes"])
+	}
+
+	edges, err := kg.GetAllEdges(10)
+	if err != nil {
+		t.Fatalf("GetAllEdges: %v", err)
+	}
+	if len(edges) != 1 || edges[0].Relation != "rel2" {
+		t.Fatalf("unexpected edges after update: %#v", edges)
 	}
 }
 
@@ -211,6 +281,143 @@ func TestKGBulkAddEntities(t *testing.T) {
 	}
 	if e != 1 {
 		t.Errorf("expected 1 edge, got %d", e)
+	}
+}
+
+func TestKGBulkMergeExtractedEntitiesPreservesExistingProperties(t *testing.T) {
+	kg := newTestKG(t)
+
+	if err := kg.AddNode("proxmox", "Proxmox", map[string]string{
+		"type":   "service",
+		"notes":  "manually curated",
+		"source": "manual",
+	}); err != nil {
+		t.Fatalf("AddNode: %v", err)
+	}
+	if err := kg.AddEdge("proxmox", "backup_server", "replicates_to", map[string]string{
+		"notes":  "hand-written edge note",
+		"source": "manual",
+	}); err != nil {
+		t.Fatalf("AddEdge: %v", err)
+	}
+
+	err := kg.BulkMergeExtractedEntities(
+		[]Node{
+			{
+				ID:    "proxmox",
+				Label: "Proxmox VE Host",
+				Properties: map[string]string{
+					"type":         "platform",
+					"ip":           "192.168.1.50",
+					"notes":        "llm-generated note",
+					"source":       "auto_extraction",
+					"extracted_at": "2026-04-02",
+				},
+			},
+			{
+				ID:    "proxmox",
+				Label: "Proxmox VE",
+				Properties: map[string]string{
+					"vendor": "proxmox",
+				},
+			},
+		},
+		[]Edge{
+			{
+				Source:   "proxmox",
+				Target:   "backup_server",
+				Relation: "replicates_to",
+				Properties: map[string]string{
+					"notes":        "llm edge note",
+					"schedule":     "nightly",
+					"source":       "auto_extraction",
+					"extracted_at": "2026-04-02",
+				},
+			},
+		},
+	)
+	if err != nil {
+		t.Fatalf("BulkMergeExtractedEntities: %v", err)
+	}
+
+	nodes, err := kg.GetAllNodes(10)
+	if err != nil {
+		t.Fatalf("GetAllNodes: %v", err)
+	}
+	if len(nodes) == 0 {
+		t.Fatal("expected merged node")
+	}
+	var proxmox Node
+	for _, node := range nodes {
+		if node.ID == "proxmox" {
+			proxmox = node
+			break
+		}
+	}
+	if proxmox.Label != "Proxmox" {
+		t.Fatalf("expected existing curated label to be preserved, got %q", proxmox.Label)
+	}
+	if proxmox.Properties["notes"] != "manually curated" {
+		t.Fatalf("expected curated node note to be preserved, got %q", proxmox.Properties["notes"])
+	}
+	if proxmox.Properties["ip"] != "192.168.1.50" || proxmox.Properties["vendor"] != "proxmox" {
+		t.Fatalf("expected new extracted properties to be merged, got %#v", proxmox.Properties)
+	}
+	if proxmox.Properties["source"] != "manual" {
+		t.Fatalf("expected existing node source to win, got %q", proxmox.Properties["source"])
+	}
+
+	edges, err := kg.GetAllEdges(10)
+	if err != nil {
+		t.Fatalf("GetAllEdges: %v", err)
+	}
+	if len(edges) == 0 {
+		t.Fatal("expected merged edge")
+	}
+	edge := edges[0]
+	if edge.Properties["notes"] != "hand-written edge note" {
+		t.Fatalf("expected curated edge note to be preserved, got %q", edge.Properties["notes"])
+	}
+	if edge.Properties["schedule"] != "nightly" {
+		t.Fatalf("expected new edge property to be merged, got %#v", edge.Properties)
+	}
+	if edge.Properties["source"] != "manual" {
+		t.Fatalf("expected existing edge source to win, got %q", edge.Properties["source"])
+	}
+}
+
+func TestKGUpdateNodePreservesProtectionAndProperties(t *testing.T) {
+	kg := newTestKG(t)
+
+	if err := kg.AddNode("backup_server", "Backup Server", map[string]string{
+		"type":      "device",
+		"protected": "true",
+		"notes":     "initial",
+	}); err != nil {
+		t.Fatalf("AddNode: %v", err)
+	}
+
+	node, err := kg.UpdateNode("backup_server", "Primary Backup Server", map[string]string{
+		"type":  "device",
+		"notes": "updated",
+	})
+	if err != nil {
+		t.Fatalf("UpdateNode: %v", err)
+	}
+	if node == nil {
+		t.Fatal("expected updated node")
+	}
+	if !node.Protected {
+		t.Fatal("expected protected flag to survive node update")
+	}
+	if node.Label != "Primary Backup Server" {
+		t.Fatalf("label = %q, want updated label", node.Label)
+	}
+	if node.Properties["notes"] != "updated" {
+		t.Fatalf("notes = %q, want updated", node.Properties["notes"])
+	}
+	if node.Properties["protected"] != "true" {
+		t.Fatalf("protected property = %q, want true", node.Properties["protected"])
 	}
 }
 
@@ -339,5 +546,100 @@ func TestKGSearchAccessCountWorker(t *testing.T) {
 	}
 	if accessCount == 0 {
 		t.Error("access_count was not updated by worker pool after multiple searches")
+	}
+}
+
+func TestKGPropertyValuesPreservedBeyondLegacyLimit(t *testing.T) {
+	kg := newTestKG(t)
+
+	longValue := strings.Repeat("x", 120)
+	if err := kg.AddNode("device_1", "Device 1", map[string]string{"notes": longValue}); err != nil {
+		t.Fatalf("AddNode: %v", err)
+	}
+	if err := kg.AddEdge("device_1", "device_2", "connected_to", map[string]string{"notes": longValue}); err != nil {
+		t.Fatalf("AddEdge: %v", err)
+	}
+
+	nodes, err := kg.GetAllNodes(10)
+	if err != nil {
+		t.Fatalf("GetAllNodes: %v", err)
+	}
+	if got := nodes[0].Properties["notes"]; got != longValue {
+		t.Fatalf("node property was unexpectedly truncated: got len %d want len %d", len(got), len(longValue))
+	}
+
+	edges, err := kg.GetAllEdges(10)
+	if err != nil {
+		t.Fatalf("GetAllEdges: %v", err)
+	}
+	if got := edges[0].Properties["notes"]; got != longValue {
+		t.Fatalf("edge property was unexpectedly truncated: got len %d want len %d", len(got), len(longValue))
+	}
+}
+
+func TestKGSearchMatchesEdgePropertiesAndUpdatesEdgeAccessCount(t *testing.T) {
+	kg := newTestKG(t)
+
+	if err := kg.AddEdge("proxmox", "backup_server", "replicates_to", map[string]string{
+		"notes": "nightly replication target in rack-b",
+	}); err != nil {
+		t.Fatalf("AddEdge: %v", err)
+	}
+
+	result := kg.Search("rack-b")
+	if result == "[]" {
+		t.Fatal("expected edge property search result, got empty")
+	}
+
+	var payload struct {
+		Edges []Edge `json:"edges"`
+	}
+	if err := json.Unmarshal([]byte(result), &payload); err != nil {
+		t.Fatalf("unmarshal search result: %v", err)
+	}
+	if len(payload.Edges) == 0 {
+		t.Fatal("expected at least one edge in search result")
+	}
+
+	var accessCount int
+	for i := 0; i < 50; i++ {
+		time.Sleep(10 * time.Millisecond)
+		_ = kg.db.QueryRow(
+			"SELECT access_count FROM kg_edges WHERE source = ? AND target = ? AND relation = ?",
+			"proxmox", "backup_server", "replicates_to",
+		).Scan(&accessCount)
+		if accessCount > 0 {
+			break
+		}
+	}
+	if accessCount == 0 {
+		t.Fatal("edge access_count was not updated after search")
+	}
+}
+
+func TestKGSearchForContextUsesSemanticIndex(t *testing.T) {
+	kg := newTestKG(t)
+
+	db := chromem.NewDB()
+	embeddingFunc := func(_ context.Context, text string) ([]float32, error) {
+		lower := strings.ToLower(text)
+		switch {
+		case strings.Contains(lower, "virtualization"), strings.Contains(lower, "hypervisor"):
+			return []float32{1, 0}, nil
+		default:
+			return []float32{0, 1}, nil
+		}
+	}
+	if err := kg.enableSemanticSearchWithCollection(db, embeddingFunc, nil); err != nil {
+		t.Fatalf("enableSemanticSearchWithCollection: %v", err)
+	}
+
+	if err := kg.AddNode("proxmox", "Virtualization Host", map[string]string{"type": "service"}); err != nil {
+		t.Fatalf("AddNode: %v", err)
+	}
+
+	ctx := kg.SearchForContext("hypervisor", 3, 800)
+	if !strings.Contains(ctx, "proxmox") {
+		t.Fatalf("expected semantic KG search to include proxmox, got %q", ctx)
 	}
 }

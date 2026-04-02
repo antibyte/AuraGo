@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"strings"
 	"time"
+	"unicode"
 
 	"aurago/internal/config"
 	"aurago/internal/llm"
@@ -91,7 +92,7 @@ func compactActivityToolResult(action, result string) string {
 	return action + ": " + status + " - " + clean
 }
 
-func captureActivityTurn(cfg *config.Config, logger *slog.Logger, shortTermMem *memory.SQLiteMemory, sessionID, channel, userRequest, assistantReply string, toolNames, toolSummaries []string, isAutonomous, userRelevant bool) {
+func captureActivityTurn(cfg *config.Config, logger *slog.Logger, shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, sessionID, channel, userRequest, assistantReply string, toolNames, toolSummaries []string, isAutonomous, userRelevant bool) {
 	if shortTermMem == nil {
 		return
 	}
@@ -116,14 +117,14 @@ func captureActivityTurn(cfg *config.Config, logger *slog.Logger, shortTermMem *
 	} else {
 		source = "runtime"
 	}
-	persistActivityTurn(shortTermMem, sessionID, channel, userRequest, toolNames, isAutonomous, userRelevant, digest, source)
+	persistActivityTurn(shortTermMem, kg, sessionID, channel, userRequest, toolNames, isAutonomous, userRelevant, digest, source)
 }
 
-func captureActivityTurnWithDigest(shortTermMem *memory.SQLiteMemory, sessionID, channel, userRequest string, toolNames []string, isAutonomous, userRelevant bool, digest memory.ActivityDigest, source string) {
-	persistActivityTurn(shortTermMem, sessionID, channel, userRequest, toolNames, isAutonomous, userRelevant, digest, source)
+func captureActivityTurnWithDigest(shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, sessionID, channel, userRequest string, toolNames []string, isAutonomous, userRelevant bool, digest memory.ActivityDigest, source string) {
+	persistActivityTurn(shortTermMem, kg, sessionID, channel, userRequest, toolNames, isAutonomous, userRelevant, digest, source)
 }
 
-func persistActivityTurn(shortTermMem *memory.SQLiteMemory, sessionID, channel, userRequest string, toolNames []string, isAutonomous, userRelevant bool, digest memory.ActivityDigest, source string) {
+func persistActivityTurn(shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, sessionID, channel, userRequest string, toolNames []string, isAutonomous, userRelevant bool, digest memory.ActivityDigest, source string) {
 	if shortTermMem == nil {
 		return
 	}
@@ -143,7 +144,7 @@ func persistActivityTurn(shortTermMem *memory.SQLiteMemory, sessionID, channel, 
 		}
 	}
 
-	_, _ = shortTermMem.InsertActivityTurn(memory.ActivityTurn{
+	turnID, err := shortTermMem.InsertActivityTurn(memory.ActivityTurn{
 		Timestamp:        time.Now().UTC().Format(time.RFC3339),
 		Date:             today,
 		SessionID:        sessionID,
@@ -165,6 +166,79 @@ func persistActivityTurn(shortTermMem *memory.SQLiteMemory, sessionID, channel, 
 		LinkedMemoryIDs:  digest.Entities,
 		Source:           source,
 	})
+	if err == nil && kg != nil {
+		syncActivityTurnToKnowledgeGraph(kg, turnID, today, sessionID, channel, digest, source)
+	}
+}
+
+func syncActivityTurnToKnowledgeGraph(kg *memory.KnowledgeGraph, turnID int64, date, sessionID, channel string, digest memory.ActivityDigest, source string) {
+	if kg == nil || turnID <= 0 {
+		return
+	}
+
+	turnNodeID := fmt.Sprintf("activity_turn_%d", turnID)
+	turnLabel := strings.TrimSpace(digest.Intent)
+	if turnLabel == "" {
+		turnLabel = strings.TrimSpace(digest.UserGoal)
+	}
+	if turnLabel == "" {
+		turnLabel = "Activity Turn"
+	}
+
+	turnProps := map[string]string{
+		"type":       "activity_turn",
+		"source":     "activity_turn",
+		"session_id": sessionID,
+		"date":       date,
+		"channel":    channel,
+	}
+	if source != "" {
+		turnProps["origin"] = source
+	}
+	if digest.UserGoal != "" {
+		turnProps["goal"] = digest.UserGoal
+	}
+
+	_ = kg.AddNode(turnNodeID, turnLabel, turnProps)
+
+	for _, entity := range digest.Entities {
+		label := strings.TrimSpace(entity)
+		entityID := normalizeActivityEntityID(label)
+		if entityID == "" {
+			continue
+		}
+		_ = kg.AddNode(entityID, label, map[string]string{
+			"type":       "activity_entity",
+			"source":     "activity_turn",
+			"session_id": sessionID,
+			"last_seen":  date,
+		})
+		_ = kg.AddEdge(entityID, turnNodeID, "mentioned_in_activity_turn", map[string]string{
+			"source": "activity_turn",
+			"date":   date,
+		})
+	}
+}
+
+func normalizeActivityEntityID(label string) string {
+	label = strings.TrimSpace(strings.ToLower(label))
+	if label == "" {
+		return ""
+	}
+
+	var b strings.Builder
+	lastUnderscore := false
+	for _, r := range label {
+		switch {
+		case unicode.IsLetter(r) || unicode.IsDigit(r):
+			b.WriteRune(r)
+			lastUnderscore = false
+		case !lastUnderscore:
+			b.WriteByte('_')
+			lastUnderscore = true
+		}
+	}
+	return strings.Trim(b.String(), "_")
 }
 
 func buildActivityDigestWithConfiguredClient(ctx context.Context, cfg *config.Config, userRequest, assistantReply string, toolNames, toolSummaries []string) (memory.ActivityDigest, error) {

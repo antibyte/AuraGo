@@ -2175,6 +2175,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 						cfg,
 						currentLogger,
 						shortTermMem,
+						kg,
 						sid,
 						runCfg.MessageSource,
 						userMsg,
@@ -2231,6 +2232,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				}
 				captureActivityTurnWithDigest(
 					shortTermMem,
+					kg,
 					sid,
 					runCfg.MessageSource,
 					userMsg,
@@ -2258,6 +2260,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					cfg,
 					currentLogger,
 					shortTermMem,
+					kg,
 					sessionID,
 					runCfg.MessageSource,
 					lastUserMsg,

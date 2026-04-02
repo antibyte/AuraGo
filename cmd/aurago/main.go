@@ -695,6 +695,9 @@ func main() {
 		return
 	}
 	defer kg.Close()
+	if err := kg.EnableSemanticSearch(cfg); err != nil {
+		appLog.Warn("Failed to enable KG semantic search", "error", err)
+	}
 
 	// Handle Recovery Context
 	if recoveryContext != "" {

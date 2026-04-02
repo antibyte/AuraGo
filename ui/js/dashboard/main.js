@@ -93,7 +93,8 @@
         // ══════════════════════════════════════════════════════════════════════════════
 
         const TabState = { active: 'overview', loaded: {} };
-        const VALID_TABS = ['overview', 'agent', 'user', 'system'];
+        const KnowledgeGraphState = { nodes: [], edges: [], focusNodeId: '', focusPayload: null, editingNodeId: '', editingEdgeKey: '' };
+        const VALID_TABS = ['overview', 'agent', 'user', 'knowledge', 'system'];
         function dashSetHidden(el, hidden) {
             if (!el) return;
             el.classList.toggle('is-hidden', hidden);
@@ -114,6 +115,9 @@
                 loadGuardianCard();
                 loadHelperLLMCard();
             }
+            if (tabId === 'knowledge' && TabState.loaded[tabId]) {
+                loadTabKnowledge();
+            }
             if (!TabState.loaded[tabId]) {
                 loadTabContent(tabId);
             }
@@ -125,6 +129,7 @@
                 case 'overview': return loadTabOverview();
                 case 'agent':    return loadTabAgent();
                 case 'user':     return loadTabUser();
+                case 'knowledge': return loadTabKnowledge();
                 case 'system':   return loadTabSystem();
             }
         }
@@ -195,6 +200,32 @@
             loadJournal();
         }
 
+        async function loadTabKnowledge() {
+            const [nodes, edges] = await Promise.all([
+                API.get('/api/knowledge-graph/nodes?limit=50'),
+                API.get('/api/knowledge-graph/edges?limit=50'),
+            ]);
+            KnowledgeGraphState.nodes = Array.isArray(nodes) ? nodes : [];
+            KnowledgeGraphState.edges = Array.isArray(edges) ? edges : [];
+            renderKnowledgeGraphSummary(KnowledgeGraphState.nodes, KnowledgeGraphState.edges);
+            renderKnowledgeGraphLists(KnowledgeGraphState.nodes, KnowledgeGraphState.edges);
+            renderKnowledgeGraphVisual();
+
+            if (KnowledgeGraphState.focusNodeId) {
+                await loadKnowledgeGraphNodeDetail(KnowledgeGraphState.focusNodeId);
+            } else {
+                renderKnowledgeGraphDetailEmpty();
+            }
+
+            const searchInput = document.getElementById('knowledge-search-input');
+            const query = searchInput ? searchInput.value.trim() : '';
+            if (query) {
+                await executeKnowledgeGraphSearch(query);
+            } else {
+                renderKnowledgeGraphSearchState('');
+            }
+        }
+
         async function loadTabSystem() {
             const [activity, promptStats, logResults, githubRepos, overview, toolStats] = await Promise.all([
                 API.get('/api/dashboard/activity'),
@@ -225,6 +256,682 @@
             renderLogs(logResults);
             scrollLogsToBottom();
             renderGitHubRepos(githubRepos);
+        }
+
+        function renderKnowledgeGraphSummary(nodes, edges) {
+            const grid = document.getElementById('knowledge-summary-grid');
+            if (!grid) return;
+            const nodeCount = Array.isArray(nodes) ? nodes.length : 0;
+            const edgeCount = Array.isArray(edges) ? edges.length : 0;
+            const types = new Set();
+            (nodes || []).forEach(node => {
+                const type = node?.properties?.type;
+                if (type) types.add(type);
+            });
+            const stats = [
+                { val: nodeCount, lbl: t('dashboard.knowledge_nodes') },
+                { val: edgeCount, lbl: t('dashboard.knowledge_edges') },
+                { val: types.size, lbl: t('dashboard.knowledge_types') },
+            ];
+            grid.innerHTML = stats.map(stat => `
+                <div class="mem-stat">
+                    <div class="mem-stat-val">${esc(String(stat.val))}</div>
+                    <div class="mem-stat-lbl">${esc(stat.lbl)}</div>
+                </div>
+            `).join('');
+        }
+
+        function renderKnowledgeGraphLists(nodes, edges) {
+            renderKnowledgeNodeList(document.getElementById('knowledge-node-list'), nodes);
+            renderKnowledgeEdgeList(document.getElementById('knowledge-edge-list'), edges);
+        }
+
+        function renderKnowledgeNodeList(container, nodes) {
+            if (!container) return;
+            if (!Array.isArray(nodes) || nodes.length === 0) {
+                container.innerHTML = `<div class="empty-state">${t('dashboard.knowledge_empty')}</div>`;
+                return;
+            }
+            container.innerHTML = nodes.slice(0, 12).map(node => {
+                const props = renderKnowledgeProps(node.properties);
+                return `
+                    <div class="knowledge-item clickable" data-kg-node-id="${escapeHtml(node.id || '')}">
+                        <div class="knowledge-item-head">
+                            <span class="knowledge-item-title">${escapeHtml(node.label || node.id || 'Node')}</span>
+                            <span class="knowledge-item-badge">${escapeHtml(node.id || '')}</span>
+                        </div>
+                        ${props ? `<div class="knowledge-item-props">${props}</div>` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderKnowledgeEdgeList(container, edges) {
+            if (!container) return;
+            if (!Array.isArray(edges) || edges.length === 0) {
+                container.innerHTML = `<div class="empty-state">${t('dashboard.knowledge_empty')}</div>`;
+                return;
+            }
+            container.innerHTML = edges.slice(0, 12).map(edge => {
+                const props = renderKnowledgeProps(edge.properties);
+                return `
+                    <div class="knowledge-item">
+                        <div class="knowledge-item-head">
+                            <span class="knowledge-item-title">${escapeHtml(edge.source || '')} → ${escapeHtml(edge.target || '')}</span>
+                            <span class="knowledge-item-badge">${escapeHtml(edge.relation || '')}</span>
+                        </div>
+                        ${props ? `<div class="knowledge-item-props">${props}</div>` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderKnowledgeProps(properties) {
+            if (!properties || typeof properties !== 'object') return '';
+            const entries = Object.entries(properties)
+                .filter(([key, value]) => value && !['source', 'extracted_at'].includes(String(key)))
+                .slice(0, 4);
+            if (!entries.length) return '';
+            return entries.map(([key, value]) => `
+                <span class="knowledge-item-prop">${escapeHtml(String(key))}: ${escapeHtml(truncate(String(value), 42))}</span>
+            `).join('');
+        }
+
+        function renderKnowledgeGraphSearchState(query, payload) {
+            const meta = document.getElementById('knowledge-search-meta');
+            const results = document.getElementById('knowledge-search-results');
+            if (!meta || !results) return;
+
+            if (!query) {
+                meta.textContent = t('dashboard.knowledge_search_hint');
+                results.innerHTML = `<div class="empty-state">${t('dashboard.knowledge_no_search')}</div>`;
+                return;
+            }
+
+            const nodes = Array.isArray(payload?.nodes) ? payload.nodes : [];
+            const edges = Array.isArray(payload?.edges) ? payload.edges : [];
+            meta.textContent = t('dashboard.knowledge_search_meta', { query, nodes: nodes.length, edges: edges.length });
+
+            if (!nodes.length && !edges.length) {
+                results.innerHTML = `<div class="empty-state">${t('dashboard.knowledge_search_empty')}</div>`;
+                return;
+            }
+
+            const nodeBlock = nodes.map(node => `
+                <div class="knowledge-item clickable" data-kg-node-id="${escapeHtml(node.id || '')}">
+                    <div class="knowledge-item-head">
+                        <span class="knowledge-item-title">${escapeHtml(node.label || node.id || 'Node')}</span>
+                        <span class="knowledge-item-badge">${escapeHtml(t('dashboard.knowledge_nodes'))}</span>
+                    </div>
+                    <div class="knowledge-item-meta">${escapeHtml(node.id || '')}</div>
+                    ${renderKnowledgeProps(node.properties) ? `<div class="knowledge-item-props">${renderKnowledgeProps(node.properties)}</div>` : ''}
+                </div>
+            `).join('');
+            const edgeBlock = edges.map(edge => `
+                <div class="knowledge-item">
+                    <div class="knowledge-item-head">
+                        <span class="knowledge-item-title">${escapeHtml(edge.source || '')} → ${escapeHtml(edge.target || '')}</span>
+                        <span class="knowledge-item-badge">${escapeHtml(edge.relation || '')}</span>
+                    </div>
+                    ${renderKnowledgeProps(edge.properties) ? `<div class="knowledge-item-props">${renderKnowledgeProps(edge.properties)}</div>` : ''}
+                </div>
+            `).join('');
+            results.innerHTML = nodeBlock + edgeBlock;
+        }
+
+        async function executeKnowledgeGraphSearch(query) {
+            const payload = await API.get('/api/knowledge-graph/search?q=' + encodeURIComponent(query));
+            renderKnowledgeGraphSearchState(query, payload || { nodes: [], edges: [] });
+        }
+
+        function renderKnowledgeGraphDetailEmpty() {
+            const panel = document.getElementById('knowledge-detail-panel');
+            if (!panel) return;
+            panel.innerHTML = `<div class="empty-state">${t('dashboard.knowledge_detail_empty')}</div>`;
+        }
+
+        async function loadKnowledgeGraphNodeDetail(nodeID) {
+            const panel = document.getElementById('knowledge-detail-panel');
+            if (!panel || !nodeID) return;
+
+            panel.innerHTML = `<div class="empty-state">${t('dashboard.knowledge_detail_loading')}</div>`;
+            const payload = await API.get('/api/knowledge-graph/node?id=' + encodeURIComponent(nodeID) + '&limit=20');
+            const node = payload?.node;
+            const neighbors = Array.isArray(payload?.neighbors) ? payload.neighbors : [];
+            const edges = Array.isArray(payload?.edges) ? payload.edges : [];
+
+            if (!node) {
+                KnowledgeGraphState.focusNodeId = '';
+                KnowledgeGraphState.focusPayload = null;
+                KnowledgeGraphState.editingEdgeKey = '';
+                renderKnowledgeGraphVisual();
+                panel.innerHTML = `<div class="empty-state">${t('dashboard.knowledge_detail_missing')}</div>`;
+                return;
+            }
+
+            KnowledgeGraphState.focusNodeId = node.id || nodeID;
+            KnowledgeGraphState.focusPayload = payload;
+            renderKnowledgeGraphVisual();
+
+            const isEditing = KnowledgeGraphState.editingNodeId === node.id;
+            const isProtected = !!node.protected;
+            const filteredNodeProperties = filterKnowledgeGraphEditableProperties(node.properties);
+            const editingEdge = edges.find(edge => knowledgeGraphEdgeIdentity(edge) === KnowledgeGraphState.editingEdgeKey) || null;
+
+            const nodeProps = Object.entries(filteredNodeProperties).map(([key, value]) => `
+                <div class="knowledge-detail-row"><strong>${escapeHtml(String(key))}</strong>: ${escapeHtml(String(value))}</div>
+            `).join('') || `<div class="knowledge-detail-row">${t('dashboard.knowledge_empty')}</div>`;
+
+            const neighborRows = neighbors.map(neighbor => `
+                <div class="knowledge-detail-row clickable" data-kg-node-id="${escapeHtml(neighbor.id || '')}"><strong>${escapeHtml(neighbor.label || neighbor.id || '')}</strong> <span class="knowledge-detail-id">${escapeHtml(neighbor.id || '')}</span></div>
+            `).join('') || `<div class="knowledge-detail-row">${t('dashboard.knowledge_detail_no_neighbors')}</div>`;
+
+            const edgeRows = edges.map(edge => `
+                <div class="knowledge-detail-row knowledge-edge-row">
+                    <div><strong>${escapeHtml(edge.relation || '')}</strong>: ${escapeHtml(edge.source || '')} → ${escapeHtml(edge.target || '')}</div>
+                    <div class="knowledge-detail-actions">
+                        <button type="button" class="btn-secondary btn-sm" onclick="toggleKnowledgeGraphEdgeEdit('${escapeJsString(knowledgeGraphEdgeIdentity(edge))}')">${KnowledgeGraphState.editingEdgeKey === knowledgeGraphEdgeIdentity(edge) ? t('dashboard.knowledge_action_cancel') : t('dashboard.knowledge_action_edit')}</button>
+                        <button type="button" class="btn-danger btn-sm" onclick="deleteKnowledgeGraphEdge('${escapeJsString(edge.source || '')}', '${escapeJsString(edge.target || '')}', '${escapeJsString(edge.relation || '')}')">${t('dashboard.knowledge_edge_delete')}</button>
+                    </div>
+                </div>
+            `).join('') || `<div class="knowledge-detail-row">${t('dashboard.knowledge_detail_no_edges')}</div>`;
+
+            panel.innerHTML = `
+                <div class="knowledge-detail-head">
+                    <div>
+                        <div class="knowledge-detail-title">${escapeHtml(node.label || node.id || 'Node')}</div>
+                        <div class="knowledge-detail-id">${escapeHtml(node.id || '')}</div>
+                    </div>
+                    <div class="knowledge-detail-actions">
+                        ${isProtected ? `<span class="knowledge-item-badge knowledge-item-badge-protected">${t('dashboard.knowledge_detail_protected')}</span>` : ''}
+                        <button type="button" class="btn-secondary btn-sm" onclick="toggleKnowledgeGraphEdit('${escapeJsString(node.id || '')}')">${isEditing ? t('dashboard.knowledge_action_cancel') : t('dashboard.knowledge_action_edit')}</button>
+                        <button type="button" class="btn-secondary btn-sm" onclick="toggleKnowledgeGraphProtection('${escapeJsString(node.id || '')}', ${isProtected ? 'false' : 'true'})">${isProtected ? t('dashboard.knowledge_action_unprotect') : t('dashboard.knowledge_action_protect')}</button>
+                        <button type="button" class="btn-danger btn-sm" onclick="deleteKnowledgeGraphNode('${escapeJsString(node.id || '')}', '${escapeJsString(node.label || node.id || 'Node')}')">${t('dashboard.knowledge_action_delete')}</button>
+                    </div>
+                </div>
+                ${renderKnowledgeGraphNodeEditor(node, isEditing)}
+                ${renderKnowledgeGraphEdgeEditor(editingEdge)}
+                <div class="knowledge-detail-grid">
+                    <div class="knowledge-detail-section">
+                        <h4 class="card-section-title">${t('dashboard.knowledge_detail_properties')}</h4>
+                        <div class="knowledge-detail-list">${nodeProps}</div>
+                    </div>
+                    <div class="knowledge-detail-section">
+                        <h4 class="card-section-title">${t('dashboard.knowledge_detail_neighbors')}</h4>
+                        <div class="knowledge-detail-list">${neighborRows}</div>
+                    </div>
+                    <div class="knowledge-detail-section">
+                        <h4 class="card-section-title">${t('dashboard.knowledge_detail_edges')}</h4>
+                        <div class="knowledge-detail-list">${edgeRows}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function resetKnowledgeGraphFocus() {
+            KnowledgeGraphState.focusNodeId = '';
+            KnowledgeGraphState.focusPayload = null;
+            KnowledgeGraphState.editingNodeId = '';
+            KnowledgeGraphState.editingEdgeKey = '';
+            renderKnowledgeGraphVisual();
+            renderKnowledgeGraphDetailEmpty();
+        }
+
+        function filterKnowledgeGraphEditableProperties(properties) {
+            const out = {};
+            Object.entries(properties || {}).forEach(([key, value]) => {
+                if (!key || ['protected', 'access_count'].includes(String(key))) return;
+                out[key] = value;
+            });
+            return out;
+        }
+
+        function renderKnowledgeGraphNodeEditor(node, isEditing) {
+            if (!isEditing) return '';
+            const propsJSON = JSON.stringify(filterKnowledgeGraphEditableProperties(node.properties), null, 2);
+            return `
+                <div class="knowledge-detail-editor">
+                    <h4 class="card-section-title">${t('dashboard.knowledge_editor_title')}</h4>
+                    <div class="knowledge-editor-grid">
+                        <label class="knowledge-editor-field">
+                            <span>${t('dashboard.knowledge_editor_label')}</span>
+                            <input type="text" id="knowledge-edit-label" class="profile-search" value="${escapeHtml(node.label || '')}">
+                        </label>
+                        <label class="knowledge-editor-field">
+                            <span>${t('dashboard.knowledge_editor_properties')}</span>
+                            <textarea id="knowledge-edit-properties" class="knowledge-editor-textarea" spellcheck="false">${escapeHtml(propsJSON)}</textarea>
+                        </label>
+                    </div>
+                    <div class="knowledge-editor-hint">${t('dashboard.knowledge_editor_hint')}</div>
+                    <div class="knowledge-detail-actions">
+                        <button type="button" class="btn-primary btn-sm" onclick="saveKnowledgeGraphNodeEdit('${escapeJsString(node.id || '')}')">${t('dashboard.knowledge_action_save')}</button>
+                        <button type="button" class="btn-secondary btn-sm" onclick="toggleKnowledgeGraphEdit('${escapeJsString(node.id || '')}')">${t('dashboard.knowledge_action_cancel')}</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderKnowledgeGraphEdgeEditor(edge) {
+            if (!edge) return '';
+            const propsJSON = JSON.stringify(filterKnowledgeGraphEditableProperties(edge.properties), null, 2);
+            return `
+                <div class="knowledge-detail-editor">
+                    <h4 class="card-section-title">${t('dashboard.knowledge_edge_editor_title')}</h4>
+                    <div class="knowledge-editor-grid">
+                        <label class="knowledge-editor-field">
+                            <span>${t('dashboard.knowledge_edge_editor_relation')}</span>
+                            <input type="text" id="knowledge-edit-edge-relation" class="profile-search" value="${escapeHtml(edge.relation || '')}">
+                        </label>
+                        <label class="knowledge-editor-field">
+                            <span>${t('dashboard.knowledge_edge_editor_properties')}</span>
+                            <textarea id="knowledge-edit-edge-properties" class="knowledge-editor-textarea" spellcheck="false">${escapeHtml(propsJSON)}</textarea>
+                        </label>
+                    </div>
+                    <div class="knowledge-editor-hint">${t('dashboard.knowledge_editor_hint')}</div>
+                    <div class="knowledge-detail-actions">
+                        <button type="button" class="btn-primary btn-sm" onclick="saveKnowledgeGraphEdgeEdit('${escapeJsString(edge.source || '')}', '${escapeJsString(edge.target || '')}', '${escapeJsString(edge.relation || '')}')">${t('dashboard.knowledge_action_save')}</button>
+                        <button type="button" class="btn-secondary btn-sm" onclick="toggleKnowledgeGraphEdgeEdit('${escapeJsString(knowledgeGraphEdgeIdentity(edge))}')">${t('dashboard.knowledge_action_cancel')}</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function toggleKnowledgeGraphEdit(nodeID) {
+            KnowledgeGraphState.editingNodeId = KnowledgeGraphState.editingNodeId === nodeID ? '' : nodeID;
+            if (KnowledgeGraphState.editingNodeId) {
+                KnowledgeGraphState.editingEdgeKey = '';
+            }
+            if (KnowledgeGraphState.focusNodeId) {
+                loadKnowledgeGraphNodeDetail(KnowledgeGraphState.focusNodeId);
+            }
+        }
+
+        function toggleKnowledgeGraphEdgeEdit(edgeKey) {
+            KnowledgeGraphState.editingEdgeKey = KnowledgeGraphState.editingEdgeKey === edgeKey ? '' : edgeKey;
+            if (KnowledgeGraphState.editingEdgeKey) {
+                KnowledgeGraphState.editingNodeId = '';
+            }
+            if (KnowledgeGraphState.focusNodeId) {
+                loadKnowledgeGraphNodeDetail(KnowledgeGraphState.focusNodeId);
+            }
+        }
+
+        async function saveKnowledgeGraphNodeEdit(nodeID) {
+            const labelInput = document.getElementById('knowledge-edit-label');
+            const propsInput = document.getElementById('knowledge-edit-properties');
+            if (!labelInput || !propsInput || !nodeID) return;
+
+            let properties = {};
+            const raw = propsInput.value.trim();
+            if (raw) {
+                try {
+                    properties = JSON.parse(raw);
+                } catch (err) {
+                    if (typeof showAlert === 'function') {
+                        await showAlert(t('dashboard.knowledge_editor_invalid_title'), t('dashboard.knowledge_editor_invalid'));
+                    }
+                    return;
+                }
+                if (!properties || Array.isArray(properties) || typeof properties !== 'object') {
+                    if (typeof showAlert === 'function') {
+                        await showAlert(t('dashboard.knowledge_editor_invalid_title'), t('dashboard.knowledge_editor_invalid'));
+                    }
+                    return;
+                }
+                properties = Object.entries(properties).reduce((acc, [key, value]) => {
+                    if (!key || value === null || value === undefined) return acc;
+                    acc[String(key)] = String(value);
+                    return acc;
+                }, {});
+            }
+
+            const response = await fetch('/api/knowledge-graph/node', {
+                method: 'PUT',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: nodeID,
+                    label: labelInput.value.trim(),
+                    properties,
+                }),
+            });
+            const payload = await safeReadJSON(response);
+            if (!response.ok) {
+                if (typeof showToast === 'function') showToast(payload?.error || t('dashboard.knowledge_mutation_failed'), 'error', 5000);
+                return;
+            }
+
+            KnowledgeGraphState.editingNodeId = '';
+            if (typeof showToast === 'function') showToast(t('dashboard.knowledge_saved'), 'success', 2500);
+            await loadTabKnowledge();
+        }
+
+        async function saveKnowledgeGraphEdgeEdit(source, target, relation) {
+            const relationInput = document.getElementById('knowledge-edit-edge-relation');
+            const propsInput = document.getElementById('knowledge-edit-edge-properties');
+            if (!relationInput || !propsInput) return;
+
+            let properties = {};
+            const raw = propsInput.value.trim();
+            if (raw) {
+                try {
+                    properties = JSON.parse(raw);
+                } catch (err) {
+                    if (typeof showAlert === 'function') {
+                        await showAlert(t('dashboard.knowledge_editor_invalid_title'), t('dashboard.knowledge_editor_invalid'));
+                    }
+                    return;
+                }
+                if (!properties || Array.isArray(properties) || typeof properties !== 'object') {
+                    if (typeof showAlert === 'function') {
+                        await showAlert(t('dashboard.knowledge_editor_invalid_title'), t('dashboard.knowledge_editor_invalid'));
+                    }
+                    return;
+                }
+                properties = Object.entries(properties).reduce((acc, [key, value]) => {
+                    if (!key || value === null || value === undefined) return acc;
+                    acc[String(key)] = String(value);
+                    return acc;
+                }, {});
+            }
+
+            const response = await fetch('/api/knowledge-graph/edge', {
+                method: 'PUT',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    source,
+                    target,
+                    relation,
+                    new_relation: relationInput.value.trim(),
+                    properties,
+                }),
+            });
+            const payload = await safeReadJSON(response);
+            if (!response.ok) {
+                if (typeof showToast === 'function') showToast(payload?.error || t('dashboard.knowledge_edge_mutation_failed'), 'error', 5000);
+                return;
+            }
+
+            KnowledgeGraphState.editingEdgeKey = '';
+            if (typeof showToast === 'function') showToast(t('dashboard.knowledge_edge_saved'), 'success', 2500);
+            await loadTabKnowledge();
+        }
+
+        async function toggleKnowledgeGraphProtection(nodeID, shouldProtect) {
+            const response = await fetch('/api/knowledge-graph/node/protect', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: nodeID, protected: !!shouldProtect }),
+            });
+            const payload = await safeReadJSON(response);
+            if (!response.ok) {
+                if (typeof showToast === 'function') showToast(payload?.error || t('dashboard.knowledge_mutation_failed'), 'error', 5000);
+                return;
+            }
+
+            if (typeof showToast === 'function') showToast(shouldProtect ? t('dashboard.knowledge_protected') : t('dashboard.knowledge_unprotected'), 'success', 2500);
+            await loadTabKnowledge();
+        }
+
+        async function deleteKnowledgeGraphEdge(source, target, relation) {
+            const confirmed = typeof showConfirm === 'function'
+                ? await showConfirm(t('dashboard.knowledge_edge_delete_title'), t('dashboard.knowledge_edge_delete_confirm', { relation }))
+                : true;
+            if (!confirmed) return;
+
+            const url = '/api/knowledge-graph/edge?source=' + encodeURIComponent(source) + '&target=' + encodeURIComponent(target) + '&relation=' + encodeURIComponent(relation);
+            const response = await fetch(url, {
+                method: 'DELETE',
+                credentials: 'same-origin',
+            });
+            const payload = await safeReadJSON(response);
+            if (!response.ok) {
+                if (typeof showToast === 'function') showToast(payload?.error || t('dashboard.knowledge_edge_delete_failed'), 'error', 5000);
+                return;
+            }
+
+            KnowledgeGraphState.editingEdgeKey = '';
+            if (typeof showToast === 'function') showToast(t('dashboard.knowledge_edge_deleted'), 'success', 2500);
+            await loadTabKnowledge();
+        }
+
+        async function deleteKnowledgeGraphNode(nodeID, label) {
+            const confirmed = typeof showConfirm === 'function'
+                ? await showConfirm(t('dashboard.knowledge_delete_title'), t('dashboard.knowledge_delete_confirm', { label: label || nodeID }))
+                : true;
+            if (!confirmed) return;
+
+            const response = await fetch('/api/knowledge-graph/node?id=' + encodeURIComponent(nodeID), {
+                method: 'DELETE',
+                credentials: 'same-origin',
+            });
+            const payload = await safeReadJSON(response);
+            if (!response.ok) {
+                if (typeof showToast === 'function') showToast(payload?.error || t('dashboard.knowledge_delete_failed'), 'error', 5000);
+                return;
+            }
+
+            KnowledgeGraphState.editingNodeId = '';
+            KnowledgeGraphState.focusNodeId = '';
+            KnowledgeGraphState.focusPayload = null;
+            if (typeof showToast === 'function') showToast(t('dashboard.knowledge_deleted'), 'success', 2500);
+            await loadTabKnowledge();
+        }
+
+        async function safeReadJSON(response) {
+            try {
+                return await response.json();
+            } catch (_) {
+                return null;
+            }
+        }
+
+        function knowledgeGraphEdgeIdentity(edge) {
+            return `${edge?.source || ''}::${edge?.target || ''}::${edge?.relation || ''}`;
+        }
+
+        function renderKnowledgeGraphVisual() {
+            const wrap = document.getElementById('knowledge-graph-visual');
+            const mode = document.getElementById('knowledge-graph-mode');
+            const caption = document.getElementById('knowledge-graph-caption');
+            const resetButton = document.getElementById('knowledge-graph-reset');
+            if (!wrap || !mode || !caption || !resetButton) return;
+
+            const focusedModel = buildKnowledgeGraphFocusedModel(KnowledgeGraphState.focusPayload);
+            const model = focusedModel || buildKnowledgeGraphOverviewModel(KnowledgeGraphState.nodes, KnowledgeGraphState.edges);
+
+            if (!model || !model.nodes.length) {
+                mode.textContent = t('dashboard.knowledge_visual_overview');
+                caption.textContent = t('dashboard.knowledge_visual_empty');
+                resetButton.classList.add('is-hidden');
+                wrap.innerHTML = `<div class="empty-state">${t('dashboard.knowledge_visual_empty')}</div>`;
+                return;
+            }
+
+            if (focusedModel) {
+                const focusLabel = focusedModel.focusNode?.label || focusedModel.focusNode?.id || t('dashboard.knowledge_nodes');
+                mode.textContent = t('dashboard.knowledge_visual_focus');
+                caption.textContent = t('dashboard.knowledge_visual_focus_caption', { label: focusLabel, neighbors: Math.max(0, focusedModel.nodes.length - 1) });
+                resetButton.classList.remove('is-hidden');
+            } else {
+                mode.textContent = t('dashboard.knowledge_visual_overview');
+                caption.textContent = t('dashboard.knowledge_visual_overview_caption', { nodes: model.nodes.length, edges: model.edges.length });
+                resetButton.classList.add('is-hidden');
+            }
+
+            wrap.innerHTML = renderKnowledgeGraphSVG(model);
+        }
+
+        function buildKnowledgeGraphOverviewModel(nodes, edges) {
+            const safeNodes = dedupeKnowledgeGraphNodes(nodes || []);
+            const safeEdges = Array.isArray(edges) ? edges : [];
+            if (!safeNodes.length) return null;
+
+            const degree = new Map();
+            safeEdges.forEach(edge => {
+                if (edge?.source) degree.set(edge.source, (degree.get(edge.source) || 0) + 1);
+                if (edge?.target) degree.set(edge.target, (degree.get(edge.target) || 0) + 1);
+            });
+
+            const selectedNodes = [...safeNodes]
+                .sort((a, b) => {
+                    const degreeDiff = (degree.get(b.id) || 0) - (degree.get(a.id) || 0);
+                    if (degreeDiff !== 0) return degreeDiff;
+                    return String(a.label || a.id || '').localeCompare(String(b.label || b.id || ''));
+                })
+                .slice(0, 12);
+
+            const selectedIDs = new Set(selectedNodes.map(node => node.id));
+            const selectedEdges = safeEdges
+                .filter(edge => selectedIDs.has(edge?.source) && selectedIDs.has(edge?.target))
+                .slice(0, 18);
+
+            return {
+                nodes: layoutKnowledgeGraphRing(selectedNodes, { centerX: 360, centerY: 180, radiusX: 250, radiusY: 120, degree }),
+                edges: selectedEdges,
+                width: 720,
+                height: 360,
+                focusNode: null,
+            };
+        }
+
+        function buildKnowledgeGraphFocusedModel(payload) {
+            const node = payload?.node;
+            if (!node) return null;
+
+            const neighbors = dedupeKnowledgeGraphNodes((payload?.neighbors || []).slice(0, 10));
+            const nodes = [node, ...neighbors];
+            const nodeIDs = new Set(nodes.map(item => item.id));
+            const edges = (payload?.edges || [])
+                .filter(edge => nodeIDs.has(edge?.source) && nodeIDs.has(edge?.target))
+                .slice(0, 20);
+
+            return {
+                nodes: [
+                    {
+                        ...node,
+                        x: 360,
+                        y: 180,
+                        r: 20,
+                        isFocus: true,
+                    },
+                    ...layoutKnowledgeGraphRing(neighbors, { centerX: 360, centerY: 180, radiusX: 235, radiusY: 125 }),
+                ],
+                edges,
+                width: 720,
+                height: 360,
+                focusNode: node,
+            };
+        }
+
+        function layoutKnowledgeGraphRing(nodes, options) {
+            const safeNodes = Array.isArray(nodes) ? nodes : [];
+            const count = safeNodes.length;
+            if (!count) return [];
+
+            const centerX = options?.centerX || 360;
+            const centerY = options?.centerY || 180;
+            const radiusX = options?.radiusX || 240;
+            const radiusY = options?.radiusY || 120;
+            const degree = options?.degree || new Map();
+
+            return safeNodes.map((node, index) => {
+                if (count === 1) {
+                    return {
+                        ...node,
+                        x: centerX,
+                        y: centerY,
+                        r: 15,
+                        isFocus: false,
+                    };
+                }
+                const angle = (-Math.PI / 2) + ((Math.PI * 2) * index / count);
+                const nodeDegree = degree.get(node.id) || 0;
+                return {
+                    ...node,
+                    x: centerX + Math.cos(angle) * radiusX,
+                    y: centerY + Math.sin(angle) * radiusY,
+                    r: Math.max(11, Math.min(16, 11 + nodeDegree * 0.85)),
+                    isFocus: false,
+                };
+            });
+        }
+
+        function renderKnowledgeGraphSVG(model) {
+            const width = model?.width || 720;
+            const height = model?.height || 360;
+            const nodeMap = new Map((model?.nodes || []).map(node => [node.id, node]));
+            const edges = (model?.edges || []).filter(edge => nodeMap.has(edge?.source) && nodeMap.has(edge?.target));
+
+            const edgeMarkup = edges.map(edge => {
+                const source = nodeMap.get(edge.source);
+                const target = nodeMap.get(edge.target);
+                const midX = (source.x + target.x) / 2;
+                const midY = (source.y + target.y) / 2;
+                const relation = truncate(String(edge.relation || ''), 18);
+                return `
+                    <g>
+                        <line class="knowledge-visual-edge" x1="${source.x.toFixed(1)}" y1="${source.y.toFixed(1)}" x2="${target.x.toFixed(1)}" y2="${target.y.toFixed(1)}"></line>
+                        ${relation ? `<text class="knowledge-visual-edge-label" x="${midX.toFixed(1)}" y="${(midY - 6).toFixed(1)}">${escapeHtml(relation)}</text>` : ''}
+                    </g>
+                `;
+            }).join('');
+
+            const nodeMarkup = (model?.nodes || []).map(node => {
+                const fill = knowledgeGraphNodeColor(node);
+                const label = truncate(String(node.label || node.id || 'Node'), 18);
+                const meta = truncate(String(node.id || ''), 18);
+                const placeBelow = node.y < height * 0.42;
+                const labelY = node.y + (placeBelow ? node.r + 18 : -node.r - 10);
+                const metaY = labelY + (placeBelow ? 13 : -13);
+                const title = `${node.label || node.id || 'Node'} (${node.id || ''})`;
+                return `
+                    <g class="knowledge-visual-node${node.isFocus ? ' is-focus' : ''}" data-kg-node-id="${escapeHtml(node.id || '')}">
+                        <title>${escapeHtml(title)}</title>
+                        <circle cx="${node.x.toFixed(1)}" cy="${node.y.toFixed(1)}" r="${node.r}" fill="${escapeHtml(fill)}"></circle>
+                        <text class="knowledge-visual-node-label" x="${node.x.toFixed(1)}" y="${labelY.toFixed(1)}">${escapeHtml(label)}</text>
+                        <text class="knowledge-visual-node-meta" x="${node.x.toFixed(1)}" y="${metaY.toFixed(1)}">${escapeHtml(meta)}</text>
+                    </g>
+                `;
+            }).join('');
+
+            return `
+                <svg class="knowledge-visual-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeHtml(t('dashboard.knowledge_visual_title'))}">
+                    ${edgeMarkup}
+                    ${nodeMarkup}
+                </svg>
+            `;
+        }
+
+        function dedupeKnowledgeGraphNodes(nodes) {
+            const seen = new Set();
+            return (Array.isArray(nodes) ? nodes : []).filter(node => {
+                const id = node?.id;
+                if (!id || seen.has(id)) return false;
+                seen.add(id);
+                return true;
+            });
+        }
+
+        function knowledgeGraphNodeColor(node) {
+            const palette = [
+                cv('--accent') || '#3b82f6',
+                cv('--success') || '#22c55e',
+                cv('--warning') || '#f59e0b',
+                '#ef4444',
+                '#14b8a6',
+                '#8b5cf6',
+            ];
+            if (node?.isFocus) return palette[0];
+            const key = String(node?.properties?.type || node?.properties?.source || node?.id || '');
+            let hash = 0;
+            for (let i = 0; i < key.length; i++) {
+                hash = ((hash << 5) - hash) + key.charCodeAt(i);
+                hash |= 0;
+            }
+            return palette[Math.abs(hash) % palette.length];
         }
 
 
@@ -2563,6 +3270,14 @@
             return String(str).replace(/[&<>"']/g, c => map[c]);
         }
 
+        function escapeJsString(str) {
+            return String(str)
+                .replace(/\\/g, '\\\\')
+                .replace(/'/g, "\\'")
+                .replace(/\r/g, '\\r')
+                .replace(/\n/g, '\\n');
+        }
+
         // ── Relative Time ────────────────────────────────────────────────────────────
         function relativeTime(unixMillis) {
             const diff = Math.floor((Date.now() - unixMillis) / 1000);
@@ -2589,6 +3304,31 @@
                 renderLogs(data);
                 scrollLogsToBottom();
             });
+            const knowledgeSearchInput = document.getElementById('knowledge-search-input');
+            const knowledgeSearchButton = document.getElementById('knowledge-search-button');
+            if (knowledgeSearchButton) {
+                knowledgeSearchButton.addEventListener('click', () => executeKnowledgeGraphSearch((knowledgeSearchInput?.value || '').trim()));
+            }
+            if (knowledgeSearchInput) {
+                knowledgeSearchInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        executeKnowledgeGraphSearch(knowledgeSearchInput.value.trim());
+                    }
+                });
+            }
+            const knowledgeGraphReset = document.getElementById('knowledge-graph-reset');
+            if (knowledgeGraphReset) {
+                knowledgeGraphReset.addEventListener('click', resetKnowledgeGraphFocus);
+            }
+            document.addEventListener('click', (e) => {
+                const nodeCard = e.target.closest('[data-kg-node-id]');
+                if (!nodeCard) return;
+                const nodeID = nodeCard.getAttribute('data-kg-node-id');
+                if (nodeID) {
+                    loadKnowledgeGraphNodeDetail(nodeID);
+                }
+            });
 
             // Determine initial tab from hash or localStorage
             const hashTab = window.location.hash.replace('#', '');
@@ -2606,6 +3346,7 @@
                     case 'overview': loadTabOverview(); break;
                     case 'agent':    loadTabAgent();    break;
                     case 'user':     loadTabUser();     break;
+                    case 'knowledge': loadTabKnowledge(); break;
                     case 'system':   loadTabSystem();   break;
                 }
             }

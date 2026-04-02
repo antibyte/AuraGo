@@ -41,19 +41,34 @@ func (s *SQLiteMemory) SetMessagePinned(id int64, pinned bool) error {
 }
 
 func (s *SQLiteMemory) GetRecentMessages(sessionID string, limit int) ([]openai.ChatCompletionMessage, error) {
-	// We want the most recent N messages, but we need them in chronological order.
-	// So we order by timestamp DESC, limit N, and then reverse the result in Go,
-	// or use a subquery. We'll use a subquery for simplicity.
 	query := `
 	SELECT role, content FROM (
-		SELECT role, content, timestamp 
-		FROM messages 
-		WHERE session_id = ? 
-		ORDER BY timestamp DESC 
+		SELECT role, content, timestamp, id
+		FROM messages
+		WHERE session_id = ?
+		ORDER BY timestamp DESC, id DESC
 		LIMIT ?
-	) ORDER BY timestamp ASC;`
+	) ORDER BY timestamp ASC, id ASC;`
 
-	rows, err := s.db.Query(query, sessionID, limit)
+	return s.queryRecentMessages(query, sessionID, limit)
+}
+
+// GetRecentMessagesAcrossSessions returns the most recent messages across all sessions
+// in chronological order.
+func (s *SQLiteMemory) GetRecentMessagesAcrossSessions(limit int) ([]openai.ChatCompletionMessage, error) {
+	query := `
+	SELECT role, content FROM (
+		SELECT role, content, timestamp, id
+		FROM messages
+		ORDER BY timestamp DESC, id DESC
+		LIMIT ?
+	) ORDER BY timestamp ASC, id ASC;`
+
+	return s.queryRecentMessages(query, limit)
+}
+
+func (s *SQLiteMemory) queryRecentMessages(query string, args ...interface{}) ([]openai.ChatCompletionMessage, error) {
+	rows, err := s.db.Query(query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query recent messages: %w", err)
 	}

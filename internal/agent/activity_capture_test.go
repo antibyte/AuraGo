@@ -2,6 +2,8 @@ package agent
 
 import (
 	"context"
+	"io"
+	"log/slog"
 	"testing"
 
 	"aurago/internal/memory"
@@ -72,5 +74,69 @@ func TestBuildActivityDigestWithLLMUsesStructuredResponse(t *testing.T) {
 	}
 	if len(got.PendingItems) != 1 || got.PendingItems[0] != "Apply the retention fix" {
 		t.Fatalf("pending = %#v", got.PendingItems)
+	}
+}
+
+func TestCaptureActivityTurnWithDigestSyncsEntitiesToKnowledgeGraph(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	t.Cleanup(func() { _ = stm.Close() })
+
+	kg, err := memory.NewKnowledgeGraph(":memory:", "", logger)
+	if err != nil {
+		t.Fatalf("NewKnowledgeGraph: %v", err)
+	}
+	t.Cleanup(func() { _ = kg.Close() })
+
+	captureActivityTurnWithDigest(
+		stm,
+		kg,
+		"session-1",
+		"web_chat",
+		"Please check the backup host",
+		[]string{"query_memory"},
+		false,
+		true,
+		memory.ActivityDigest{
+			Intent:   "Check backup host",
+			UserGoal: "Verify backup health",
+			Entities: []string{"Backup Host", "Proxmox VE"},
+		},
+		"runtime_helper_batch",
+	)
+
+	nodes, err := kg.GetAllNodes(20)
+	if err != nil {
+		t.Fatalf("GetAllNodes: %v", err)
+	}
+	edges, err := kg.GetAllEdges(20)
+	if err != nil {
+		t.Fatalf("GetAllEdges: %v", err)
+	}
+
+	foundTurn := false
+	foundEntity := false
+	for _, node := range nodes {
+		if node.ID == "activity_turn_1" {
+			foundTurn = true
+		}
+		if node.ID == "backup_host" || node.ID == "proxmox_ve" {
+			foundEntity = true
+		}
+	}
+	if !foundTurn {
+		t.Fatal("expected activity turn node in knowledge graph")
+	}
+	if !foundEntity {
+		t.Fatal("expected activity entity nodes in knowledge graph")
+	}
+	if len(edges) == 0 {
+		t.Fatal("expected activity edges in knowledge graph")
+	}
+	if edges[0].Relation != "mentioned_in_activity_turn" {
+		t.Fatalf("unexpected edge relation: %#v", edges[0])
 	}
 }

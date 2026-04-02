@@ -552,6 +552,12 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		mux.HandleFunc("/api/dashboard/helper-llm", handleDashboardHelperLLM(s))
 		mux.HandleFunc("/api/dashboard/guardian", handleDashboardGuardian(s))
 		mux.HandleFunc("/api/dashboard/errors", handleDashboardErrors(s))
+		mux.HandleFunc("/api/knowledge-graph/node", handleKnowledgeGraphNodeDetail(s))
+		mux.HandleFunc("/api/knowledge-graph/node/protect", handleKnowledgeGraphNodeProtect(s))
+		mux.HandleFunc("/api/knowledge-graph/edge", handleKnowledgeGraphEdgeMutate(s))
+		mux.HandleFunc("/api/knowledge-graph/nodes", handleKnowledgeGraphNodes(s))
+		mux.HandleFunc("/api/knowledge-graph/edges", handleKnowledgeGraphEdges(s))
+		mux.HandleFunc("/api/knowledge-graph/search", handleKnowledgeGraphSearch(s))
 
 		// System endpoints
 		mux.HandleFunc("/api/system/os", func(w http.ResponseWriter, r *http.Request) {

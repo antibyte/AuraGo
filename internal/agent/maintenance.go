@@ -358,6 +358,29 @@ func buildDailySummaryJournalInput(entries []memory.JournalEntry) string {
 	return strings.TrimSpace(sb.String())
 }
 
+func buildKGActivityInput(turns []memory.ActivityTurn) string {
+	var sb strings.Builder
+	for _, turn := range turns {
+		if strings.TrimSpace(turn.Intent) == "" && strings.TrimSpace(turn.UserRequest) == "" && len(turn.ImportantPoints) == 0 {
+			continue
+		}
+		sb.WriteString(fmt.Sprintf("- intent=%s; request=%s; goal=%s\n", turn.Intent, turn.UserRequest, turn.UserGoal))
+		if len(turn.ImportantPoints) > 0 {
+			sb.WriteString(fmt.Sprintf("  important: %s\n", strings.Join(turn.ImportantPoints, " | ")))
+		}
+		if len(turn.Outcomes) > 0 {
+			sb.WriteString(fmt.Sprintf("  outcomes: %s\n", strings.Join(turn.Outcomes, " | ")))
+		}
+		if len(turn.PendingItems) > 0 {
+			sb.WriteString(fmt.Sprintf("  pending: %s\n", strings.Join(turn.PendingItems, " | ")))
+		}
+		if sb.Len() > 3000 {
+			break
+		}
+	}
+	return strings.TrimSpace(sb.String())
+}
+
 func buildKGConversationExcerpt(messages []openai.ChatCompletionMessage) string {
 	var sb strings.Builder
 	for _, m := range messages {
@@ -374,6 +397,22 @@ func buildKGConversationExcerpt(messages []openai.ChatCompletionMessage) string 
 		}
 	}
 	return strings.TrimSpace(sb.String())
+}
+
+func buildKGExtractionInput(messages []openai.ChatCompletionMessage, entries []memory.JournalEntry, turns []memory.ActivityTurn) string {
+	sections := make([]string, 0, 3)
+
+	if conversation := buildKGConversationExcerpt(messages); conversation != "" {
+		sections = append(sections, "Conversation:\n"+conversation)
+	}
+	if activity := buildKGActivityInput(turns); activity != "" {
+		sections = append(sections, "Activity turns:\n"+activity)
+	}
+	if journal := buildDailySummaryJournalInput(entries); journal != "" {
+		sections = append(sections, "Journal entries:\n"+journal)
+	}
+
+	return strings.TrimSpace(strings.Join(sections, "\n\n"))
 }
 
 func storeDailySummaryText(stm *memory.SQLiteMemory, logger *slog.Logger, today string, entries []memory.JournalEntry, summaryText string) {
@@ -435,8 +474,15 @@ func storeKGExtraction(logger *slog.Logger, kg *memory.KnowledgeGraph, nodes []m
 		nodes[i].Properties["source"] = "auto_extraction"
 		nodes[i].Properties["extracted_at"] = time.Now().Format("2006-01-02")
 	}
+	for i := range edges {
+		if edges[i].Properties == nil {
+			edges[i].Properties = make(map[string]string)
+		}
+		edges[i].Properties["source"] = "auto_extraction"
+		edges[i].Properties["extracted_at"] = time.Now().Format("2006-01-02")
+	}
 
-	if err := kg.BulkAddEntities(nodes, edges); err != nil {
+	if err := kg.BulkMergeExtractedEntities(nodes, edges); err != nil {
 		logger.Error("[KG] Failed to bulk-add extracted entities", "error", err)
 		return
 	}
@@ -459,13 +505,14 @@ func runBatchedMaintenanceSummaryAndKG(cfg *config.Config, logger *slog.Logger, 
 	if err != nil || len(entries) == 0 {
 		return false
 	}
-	messages, err := stm.GetRecentMessages("default", 100)
+	messages, err := stm.GetRecentMessagesAcrossSessions(100)
 	if err != nil || len(messages) == 0 {
 		return false
 	}
+	turns, _ := stm.GetActivityTurnsForDate(today, 20)
 
 	journalInput := buildDailySummaryJournalInput(entries)
-	conversationInput := buildKGConversationExcerpt(messages)
+	conversationInput := buildKGExtractionInput(messages, entries, turns)
 	if journalInput == "" || len(conversationInput) < 50 {
 		return false
 	}
@@ -493,14 +540,18 @@ func runBatchedMaintenanceSummaryAndKG(cfg *config.Config, logger *slog.Logger, 
 // extractKGEntities performs nightly batch entity extraction from the past 24h of messages.
 // Uses an LLM call to extract entities and relationships, then bulk-adds to the knowledge graph.
 func extractKGEntities(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, stm *memory.SQLiteMemory, kg *memory.KnowledgeGraph) {
-	// Collect recent messages (past 24h)
-	messages, err := stm.GetRecentMessages("default", 100)
+	today := time.Now().Format("2006-01-02")
+
+	// Collect recent messages across all sessions.
+	messages, err := stm.GetRecentMessagesAcrossSessions(100)
 	if err != nil || len(messages) == 0 {
 		logger.Debug("[KG] No recent messages for entity extraction")
 		return
 	}
+	entries, _ := stm.GetJournalEntries(today, today, nil, 30)
+	turns, _ := stm.GetActivityTurnsForDate(today, 20)
 
-	conversationExcerpt := buildKGConversationExcerpt(messages)
+	conversationExcerpt := buildKGExtractionInput(messages, entries, turns)
 	if len(conversationExcerpt) < 50 {
 		logger.Debug("[KG] Not enough conversation content for entity extraction")
 		return
@@ -520,7 +571,7 @@ Rules:
 - Only extract clear, factual entities — not vague references
 - Maximum 15 nodes and 20 edges
 
-Conversation:
+Inputs:
 %s`, conversationExcerpt)
 
 	kgClient, kgModel := resolveHelperBackedLLM(cfg, client, cfg.LLM.Model)

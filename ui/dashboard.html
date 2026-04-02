@@ -66,6 +66,9 @@
     <button class="dash-tab" data-tab="user">
       <span class="tab-icon">👤</span><span class="tab-label" data-i18n="dashboard.tab_user">Benutzer</span>
     </button>
+    <button class="dash-tab" data-tab="knowledge">
+      <span class="tab-icon">🕸️</span><span class="tab-label" data-i18n="dashboard.tab_knowledge">Knowledge Graph</span>
+    </button>
     <button class="dash-tab" data-tab="system">
       <span class="tab-icon">⚙️</span><span class="tab-label" data-i18n="dashboard.tab_system">System</span>
     </button>
@@ -287,6 +290,75 @@
 
     </div><!-- .dash-grid tab-user -->
   </div><!-- #tab-user -->
+
+  <div class="dash-tab-panel is-hidden" id="tab-knowledge">
+    <div class="dash-grid">
+
+    <div class="dash-card" id="card-knowledge-graph-summary">
+      <div class="dash-card-header"><span class="card-icon">🕸️</span> <span data-i18n="dashboard.knowledge_title">Knowledge Graph</span></div>
+      <div class="dash-card-body">
+        <div class="knowledge-summary-grid" id="knowledge-summary-grid"></div>
+        <div class="knowledge-search-row mt-sm">
+          <input type="text" id="knowledge-search-input" class="profile-search knowledge-search-input" data-i18n-placeholder="dashboard.knowledge_search_placeholder" placeholder="Knowledge Graph durchsuchen...">
+          <button type="button" id="knowledge-search-button" class="btn-primary knowledge-search-button" data-i18n="dashboard.knowledge_search_button">Suchen</button>
+        </div>
+        <div id="knowledge-search-meta" class="knowledge-search-meta"></div>
+      </div>
+    </div>
+
+    <div class="dash-card dash-full-width" id="card-knowledge-graph-results">
+      <div class="dash-card-header"><span class="card-icon">🔎</span> <span data-i18n="dashboard.knowledge_results_title">KG Explorer</span></div>
+      <div class="dash-card-body">
+        <div class="knowledge-grid">
+          <div class="knowledge-section">
+            <h4 class="card-section-title" data-i18n="dashboard.knowledge_search_results">Suchergebnisse</h4>
+            <div id="knowledge-search-results" class="knowledge-list">
+              <div class="empty-state" data-i18n="dashboard.knowledge_no_search">Noch keine Suche gestartet.</div>
+            </div>
+          </div>
+          <div class="knowledge-section">
+            <h4 class="card-section-title" data-i18n="dashboard.knowledge_recent_nodes">Nodes</h4>
+            <div id="knowledge-node-list" class="knowledge-list">
+              <div class="empty-state" data-i18n="dashboard.knowledge_empty">Noch keine KG-Daten.</div>
+            </div>
+          </div>
+          <div class="knowledge-section">
+            <h4 class="card-section-title" data-i18n="dashboard.knowledge_recent_edges">Edges</h4>
+            <div id="knowledge-edge-list" class="knowledge-list">
+              <div class="empty-state" data-i18n="dashboard.knowledge_empty">Noch keine KG-Daten.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dash-card dash-full-width" id="card-knowledge-graph-visual">
+      <div class="dash-card-header"><span class="card-icon">🗺️</span> <span data-i18n="dashboard.knowledge_visual_title">Graph View</span></div>
+      <div class="dash-card-body">
+        <div class="knowledge-visual-toolbar">
+          <div class="knowledge-visual-meta">
+            <div id="knowledge-graph-mode" class="knowledge-visual-mode" data-i18n="dashboard.knowledge_visual_overview">Overview Graph</div>
+            <div id="knowledge-graph-caption" class="knowledge-visual-caption" data-i18n="dashboard.knowledge_visual_empty">The graph view appears as soon as KG data is available.</div>
+          </div>
+          <button type="button" id="knowledge-graph-reset" class="btn-secondary btn-sm is-hidden" data-i18n="dashboard.knowledge_visual_reset">Overview</button>
+        </div>
+        <div id="knowledge-graph-visual" class="knowledge-visual-wrap">
+          <div class="empty-state" data-i18n="dashboard.knowledge_visual_empty">The graph view appears as soon as KG data is available.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dash-card dash-full-width" id="card-knowledge-graph-detail">
+      <div class="dash-card-header"><span class="card-icon">🧭</span> <span data-i18n="dashboard.knowledge_detail_title">Node Inspector</span></div>
+      <div class="dash-card-body">
+        <div id="knowledge-detail-panel" class="knowledge-detail-panel">
+          <div class="empty-state" data-i18n="dashboard.knowledge_detail_empty">Wähle einen Node aus, um Details und Nachbarn zu sehen.</div>
+        </div>
+      </div>
+    </div>
+
+    </div><!-- .dash-grid tab-knowledge -->
+  </div><!-- #tab-knowledge -->
 
   <!-- ═══ Tab 4: System & Logs ════════════════════════════════════════════ -->
   <div class="dash-tab-panel" id="tab-system">

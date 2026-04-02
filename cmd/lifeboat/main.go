@@ -193,6 +193,9 @@ func runOperation(cfg *config.Config, statePath, planPath string, l *slog.Logger
 	if err != nil {
 		return fmt.Errorf("knowledge graph init failed: %w", err)
 	}
+	if err := kg.EnableSemanticSearch(cfg); err != nil {
+		l.Warn("Failed to enable KG semantic search", "error", err)
+	}
 	manifest := tools.NewManifest(cfg.Directories.ToolsDir)
 
 	inventoryDB, err := inventory.InitDB(cfg.SQLite.InventoryPath)
