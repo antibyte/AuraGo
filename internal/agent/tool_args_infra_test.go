@@ -226,6 +226,58 @@ func TestDecodeAnsibleArgsUsesFallbacks(t *testing.T) {
 	}
 }
 
+func TestDecodeTrueNASArgsBuildsDispatchParams(t *testing.T) {
+	tc := ToolCall{
+		Action: "truenas_dataset_create",
+		Params: map[string]interface{}{
+			"name":      "tank/media",
+			"path":      "/mnt/tank/media",
+			"query":     "tank/media",
+			"port":      float64(7),
+			"content":   "lz4",
+			"limit":     float64(30),
+			"recursive": true,
+			"force":     true,
+		},
+	}
+
+	req := decodeTrueNASArgs(tc)
+	params := req.params()
+	if params["name"] != "tank/media" || params["path"] != "/mnt/tank/media" {
+		t.Fatalf("unexpected name/path params: %#v", params)
+	}
+	if params["pool"] != "tank/media" || params["dataset"] != "tank/media" {
+		t.Fatalf("unexpected query params: %#v", params)
+	}
+	if params["pool_id"] != "7" || params["share_id"] != "7" {
+		t.Fatalf("unexpected port-derived params: %#v", params)
+	}
+	if params["compression"] != "lz4" || params["quota_gb"] != "30" || params["retention_days"] != "30" {
+		t.Fatalf("unexpected content/limit params: %#v", params)
+	}
+	if params["recursive"] != "true" || params["force"] != "true" {
+		t.Fatalf("unexpected bool params: %#v", params)
+	}
+}
+
+func TestDecodeFirewallArgsUsesCommandFallback(t *testing.T) {
+	tc := ToolCall{
+		Action: "firewall",
+		Params: map[string]interface{}{
+			"operation": "modify_rule",
+			"command":   "iptables -A INPUT -p tcp --dport 80 -j ACCEPT",
+		},
+	}
+
+	req := decodeFirewallArgs(tc)
+	if req.Operation != "modify_rule" {
+		t.Fatalf("Operation = %q, want modify_rule", req.Operation)
+	}
+	if req.Command != "iptables -A INPUT -p tcp --dport 80 -j ACCEPT" {
+		t.Fatalf("Command = %q, want iptables rule", req.Command)
+	}
+}
+
 func TestDecodeMCPCallArgsUsesParamsFallback(t *testing.T) {
 	tc := ToolCall{
 		Action: "mcp_call",

@@ -90,6 +90,24 @@ type ansibleArgs struct {
 	Preview   bool
 }
 
+type trueNASArgs struct {
+	Action    string
+	Name      string
+	FilePath  string
+	Path      string
+	Query     string
+	Port      int
+	Content   string
+	Limit     int
+	Recursive bool
+	Force     bool
+}
+
+type firewallArgs struct {
+	Operation string
+	Command   string
+}
+
 type mcpCallArgs struct {
 	Operation string
 	Server    string
@@ -332,6 +350,63 @@ func (req ansibleArgs) extraVars() map[string]interface{} {
 	var extraVars map[string]interface{}
 	_ = json.Unmarshal([]byte(req.Body), &extraVars)
 	return extraVars
+}
+
+func decodeTrueNASArgs(tc ToolCall) trueNASArgs {
+	req := trueNASArgs{
+		Action:    tc.Action,
+		Name:      firstNonEmptyToolString(tc.Name, toolArgString(tc.Params, "name")),
+		FilePath:  firstNonEmptyToolString(tc.FilePath, toolArgString(tc.Params, "file_path")),
+		Path:      firstNonEmptyToolString(tc.Path, toolArgString(tc.Params, "path")),
+		Query:     firstNonEmptyToolString(tc.Query, toolArgString(tc.Params, "query")),
+		Port:      firstNonEmptyInt(tc.Port, toolArgInt(tc.Params, 0, "port")),
+		Content:   firstNonEmptyToolString(tc.Content, toolArgString(tc.Params, "content")),
+		Limit:     firstNonEmptyInt(tc.Limit, toolArgInt(tc.Params, 0, "limit")),
+		Recursive: tc.Recursive,
+		Force:     tc.Force,
+	}
+	if recursive, ok := toolArgBool(tc.Params, "recursive"); ok {
+		req.Recursive = recursive
+	}
+	if force, ok := toolArgBool(tc.Params, "force"); ok {
+		req.Force = force
+	}
+	return req
+}
+
+func (req trueNASArgs) params() map[string]string {
+	params := map[string]string{}
+	if req.Name != "" {
+		params["name"] = req.Name
+	}
+	if p := firstNonEmpty(req.FilePath, req.Path); p != "" {
+		params["path"] = p
+	}
+	if req.Query != "" {
+		params["pool"] = req.Query
+		params["dataset"] = req.Query
+	}
+	if req.Port != 0 {
+		params["pool_id"] = fmt.Sprintf("%d", req.Port)
+		params["share_id"] = fmt.Sprintf("%d", req.Port)
+	}
+	if req.Content != "" {
+		params["compression"] = req.Content
+	}
+	if req.Limit > 0 {
+		params["quota_gb"] = fmt.Sprintf("%d", req.Limit)
+		params["retention_days"] = fmt.Sprintf("%d", req.Limit)
+	}
+	params["recursive"] = fmt.Sprintf("%v", req.Recursive)
+	params["force"] = fmt.Sprintf("%v", req.Force)
+	return params
+}
+
+func decodeFirewallArgs(tc ToolCall) firewallArgs {
+	return firewallArgs{
+		Operation: firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		Command:   firstNonEmptyToolString(tc.Command, toolArgString(tc.Params, "command")),
+	}
 }
 
 func decodeMCPCallArgs(tc ToolCall) mcpCallArgs {

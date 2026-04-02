@@ -1222,36 +1222,13 @@ func dispatchInfra(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 					return `Tool Output: {"status":"error","message":"TrueNAS is in read-only mode. Disable truenas.readonly to allow changes."}`
 				}
 			}
-			logger.Info("LLM requested TrueNAS operation", "action", tc.Action)
+			req := decodeTrueNASArgs(tc)
+			logger.Info("LLM requested TrueNAS operation", "action", req.Action)
 			// Build a comprehensive params map from ToolCall fields.
 			// The unified "truenas" schema maps: name→tc.Name, path→tc.Path, query→pool/dataset,
 			// port→pool_id/share_id, limit→quota_gb/retention_days, content→compression,
 			// recursive→tc.Recursive, force→tc.Force.
-			trueNASParams := map[string]string{}
-			if tc.Name != "" {
-				trueNASParams["name"] = tc.Name
-			}
-			if p := firstNonEmpty(tc.FilePath, tc.Path); p != "" {
-				trueNASParams["path"] = p
-			}
-			if tc.Query != "" {
-				trueNASParams["pool"] = tc.Query
-				trueNASParams["dataset"] = tc.Query
-			}
-			if tc.Port != 0 {
-				trueNASParams["pool_id"] = fmt.Sprintf("%d", tc.Port)
-				trueNASParams["share_id"] = fmt.Sprintf("%d", tc.Port)
-			}
-			if tc.Content != "" {
-				trueNASParams["compression"] = tc.Content
-			}
-			if tc.Limit > 0 {
-				trueNASParams["quota_gb"] = fmt.Sprintf("%d", tc.Limit)
-				trueNASParams["retention_days"] = fmt.Sprintf("%d", tc.Limit)
-			}
-			trueNASParams["recursive"] = fmt.Sprintf("%v", tc.Recursive)
-			trueNASParams["force"] = fmt.Sprintf("%v", tc.Force)
-			return "Tool Output: " + tools.DispatchTrueNASTool(tc.Action, trueNASParams, cfg, nil, logger)
+			return "Tool Output: " + tools.DispatchTrueNASTool(req.Action, req.params(), cfg, nil, logger)
 
 		// ── Jellyfin Media Server ──
 		case "jellyfin":
@@ -1295,7 +1272,8 @@ func dispatchInfra(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 					return `Tool Output: {"status":"error","message":"sudo_password not found in vault. Store it first via the secrets_vault tool."}`
 				}
 			}
-			switch tc.Operation {
+			req := decodeFirewallArgs(tc)
+			switch req.Operation {
 			case "get_rules":
 				rules, err := tools.FirewallGetRules(sudoPass)
 				if err != nil {
@@ -1306,10 +1284,10 @@ func dispatchInfra(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 				if cfg.Firewall.Mode == "readonly" {
 					return `Tool Output: {"status":"error","message":"Firewall is in read-only mode. Disable firewall.read_only to allow changes."}`
 				}
-				if tc.Command == "" {
+				if req.Command == "" {
 					return `Tool Output: {"status":"error","message":"'command' is required for modify_rule (e.g. 'iptables -A INPUT -p tcp --dport 80 -j ACCEPT')"}`
 				}
-				out, err := tools.FirewallModifyRule(tc.Command, sudoPass)
+				out, err := tools.FirewallModifyRule(req.Command, sudoPass)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
 				}
