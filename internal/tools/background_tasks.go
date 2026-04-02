@@ -132,13 +132,13 @@ func DefaultBackgroundTaskManager() *BackgroundTaskManager {
 func NewBackgroundTaskManager(dataDir string, logger *slog.Logger) *BackgroundTaskManager {
 	ctx, cancel := context.WithCancel(context.Background())
 	mgr := &BackgroundTaskManager{
-		file:   filepath.Join(dataDir, "background_tasks.json"),
-		tasks:  make(map[string]*BackgroundTask),
-		logger: logger,
+		file:       filepath.Join(dataDir, "background_tasks.json"),
+		tasks:      make(map[string]*BackgroundTask),
+		logger:     logger,
 		httpClient: security.NewSSRFProtectedHTTPClient(5 * time.Second),
-		ctx:     ctx,
-		cancel:  cancel,
-		trigger: make(chan struct{}, 1),
+		ctx:        ctx,
+		cancel:     cancel,
+		trigger:    make(chan struct{}, 1),
 	}
 	if err := mgr.load(); err != nil && logger != nil {
 		logger.Warn("Failed to load background tasks", "error", err)
