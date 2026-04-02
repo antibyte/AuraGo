@@ -263,3 +263,89 @@ func TestDecodeFormAutomationArgsEncodesFieldMaps(t *testing.T) {
 		t.Fatalf("fields = %q, want JSON-encoded selectors", req.Fields)
 	}
 }
+
+func TestDecodeUPnPScanArgsUsesParamsFallback(t *testing.T) {
+	req := decodeUPnPScanArgs(ToolCall{
+		Action: "upnp_scan",
+		Params: map[string]interface{}{
+			"search_target":      "ssdp:all",
+			"timeout_secs":       float64(5),
+			"auto_register":      true,
+			"register_type":      "device",
+			"register_tags":      []interface{}{"lan", "upnp"},
+			"overwrite_existing": true,
+		},
+	})
+
+	if req.SearchTarget != "ssdp:all" || req.TimeoutSecs != 5 || !req.AutoRegister || req.RegisterType != "device" || !req.OverwriteExisting {
+		t.Fatalf("decoded upnp args = %+v", req)
+	}
+	if len(req.RegisterTags) != 2 || req.RegisterTags[0] != "lan" || req.RegisterTags[1] != "upnp" {
+		t.Fatalf("RegisterTags = %#v, want [lan upnp]", req.RegisterTags)
+	}
+}
+
+func TestDecodeManageProcessesArgsUsesParamsFallback(t *testing.T) {
+	req := decodeManageProcessesArgs(ToolCall{
+		Action: "manage_processes",
+		Params: map[string]interface{}{
+			"operation": "stop",
+			"pid":       float64(123),
+		},
+	})
+
+	if req.Operation != "stop" || req.PID != 123 {
+		t.Fatalf("decoded manage_processes args = %+v", req)
+	}
+}
+
+func TestDecodeRegisterDeviceArgsUsesAliases(t *testing.T) {
+	req := decodeRegisterDeviceArgs(ToolCall{
+		Action: "register_device",
+		Params: map[string]interface{}{
+			"host":        "nas.local",
+			"device_type": "nas",
+			"ip":          "192.168.1.20",
+			"port":        float64(22),
+			"user":        "root",
+			"pass":        "secret",
+			"key_path":    "/keys/id_ed25519",
+			"description": "Main NAS",
+			"tags":        []interface{}{"storage", "critical"},
+			"mac_address": "00:11:22:33:44:55",
+		},
+	})
+
+	if req.Hostname != "nas.local" || req.DeviceType != "nas" || req.IPAddress != "192.168.1.20" || req.Port != 22 || req.Username != "root" || req.Password != "secret" || req.PrivateKeyPath != "/keys/id_ed25519" || req.Description != "Main NAS" || req.Tags != "storage,critical" || req.MACAddress != "00:11:22:33:44:55" {
+		t.Fatalf("decoded register_device args = %+v", req)
+	}
+}
+
+func TestDecodeWakeOnLANArgsUsesParamsFallback(t *testing.T) {
+	req := decodeWakeOnLANArgs(ToolCall{
+		Action: "wake_on_lan",
+		Params: map[string]interface{}{
+			"server_id":   "srv-1",
+			"mac_address": "AA:BB:CC:DD:EE:FF",
+			"ip":          "192.168.1.255",
+		},
+	})
+
+	if req.ServerID != "srv-1" || req.MACAddress != "AA:BB:CC:DD:EE:FF" || req.IPAddress != "192.168.1.255" {
+		t.Fatalf("decoded wake args = %+v", req)
+	}
+}
+
+func TestDecodePinMessageArgsUsesParamsFallback(t *testing.T) {
+	req := decodePinMessageArgs(ToolCall{
+		Action: "pin_message",
+		Params: map[string]interface{}{
+			"id":     "42",
+			"pinned": true,
+		},
+	})
+
+	if req.ID != "42" || !req.Pinned {
+		t.Fatalf("decoded pin args = %+v", req)
+	}
+}

@@ -128,6 +128,44 @@ type formAutomationArgs struct {
 	ScreenshotDir string
 }
 
+type upnpScanArgs struct {
+	SearchTarget      string
+	TimeoutSecs       int
+	AutoRegister      bool
+	RegisterType      string
+	RegisterTags      []string
+	OverwriteExisting bool
+}
+
+type manageProcessesArgs struct {
+	Operation string
+	PID       int
+}
+
+type registerDeviceArgs struct {
+	Hostname       string
+	DeviceType     string
+	IPAddress      string
+	Port           int
+	Username       string
+	Password       string
+	PrivateKeyPath string
+	Description    string
+	Tags           string
+	MACAddress     string
+}
+
+type wakeOnLANArgs struct {
+	ServerID   string
+	MACAddress string
+	IPAddress  string
+}
+
+type pinMessageArgs struct {
+	ID     string
+	Pinned bool
+}
+
 func toolArgStringSlice(args map[string]interface{}, keys ...string) []string {
 	for _, key := range keys {
 		raw, ok := args[key]
@@ -443,6 +481,68 @@ func decodeFormAutomationArgs(tc ToolCall) formAutomationArgs {
 		Selector:      firstNonEmptyToolString(tc.Selector, toolArgString(tc.Params, "selector")),
 		ScreenshotDir: firstNonEmptyToolString(tc.ScreenshotDir, toolArgString(tc.Params, "screenshot_dir")),
 	}
+}
+
+func decodeUPnPScanArgs(tc ToolCall) upnpScanArgs {
+	req := upnpScanArgs{
+		SearchTarget:      firstNonEmptyToolString(tc.SearchTarget, toolArgString(tc.Params, "search_target")),
+		TimeoutSecs:       max(tc.TimeoutSecs, toolArgInt(tc.Params, 0, "timeout_secs")),
+		AutoRegister:      tc.AutoRegister,
+		RegisterType:      firstNonEmptyToolString(tc.RegisterType, toolArgString(tc.Params, "register_type")),
+		RegisterTags:      append([]string(nil), tc.RegisterTags...),
+		OverwriteExisting: tc.OverwriteExisting,
+	}
+	if autoRegister, ok := toolArgBool(tc.Params, "auto_register"); ok {
+		req.AutoRegister = autoRegister
+	}
+	if len(req.RegisterTags) == 0 {
+		req.RegisterTags = toolArgStringSlice(tc.Params, "register_tags")
+	}
+	if overwriteExisting, ok := toolArgBool(tc.Params, "overwrite_existing"); ok {
+		req.OverwriteExisting = overwriteExisting
+	}
+	return req
+}
+
+func decodeManageProcessesArgs(tc ToolCall) manageProcessesArgs {
+	return manageProcessesArgs{
+		Operation: firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		PID:       max(tc.PID, toolArgInt(tc.Params, 0, "pid")),
+	}
+}
+
+func decodeRegisterDeviceArgs(tc ToolCall) registerDeviceArgs {
+	return registerDeviceArgs{
+		Hostname:       firstNonEmptyToolString(tc.Hostname, toolArgString(tc.Params, "hostname", "host", "server_id")),
+		DeviceType:     firstNonEmptyToolString(tc.DeviceType, toolArgString(tc.Params, "device_type")),
+		IPAddress:      firstNonEmptyToolString(tc.IPAddress, toolArgString(tc.Params, "ip_address", "ip")),
+		Port:           max(tc.Port, toolArgInt(tc.Params, 0, "port")),
+		Username:       firstNonEmptyToolString(tc.Username, toolArgString(tc.Params, "username", "user")),
+		Password:       firstNonEmptyToolString(tc.Password, toolArgString(tc.Params, "password", "pass")),
+		PrivateKeyPath: firstNonEmptyToolString(tc.PrivateKeyPath, toolArgString(tc.Params, "private_key_path", "key_path")),
+		Description:    firstNonEmptyToolString(tc.Description, toolArgString(tc.Params, "description")),
+		Tags:           firstNonEmptyToolString(tc.Tags, toolArgCSV(tc.Params, "tags")),
+		MACAddress:     firstNonEmptyToolString(tc.MACAddress, toolArgString(tc.Params, "mac_address")),
+	}
+}
+
+func decodeWakeOnLANArgs(tc ToolCall) wakeOnLANArgs {
+	return wakeOnLANArgs{
+		ServerID:   firstNonEmptyToolString(tc.ServerID, toolArgString(tc.Params, "server_id")),
+		MACAddress: firstNonEmptyToolString(tc.MACAddress, toolArgString(tc.Params, "mac_address")),
+		IPAddress:  firstNonEmptyToolString(tc.IPAddress, toolArgString(tc.Params, "ip_address", "ip")),
+	}
+}
+
+func decodePinMessageArgs(tc ToolCall) pinMessageArgs {
+	req := pinMessageArgs{
+		ID:     firstNonEmptyToolString(tc.ID, toolArgString(tc.Params, "id")),
+		Pinned: tc.Pinned,
+	}
+	if pinned, ok := toolArgBool(tc.Params, "pinned"); ok {
+		req.Pinned = pinned
+	}
+	return req
 }
 
 func decodeGoogleWorkspaceArgsFromMap(args map[string]interface{}) googleWorkspaceArgs {

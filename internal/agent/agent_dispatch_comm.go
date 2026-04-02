@@ -750,10 +750,11 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if !cfg.Tools.UPnPScan.Enabled {
 				return `Tool Output: {"status":"error","message":"upnp_scan is disabled. Enable tools.upnp_scan.enabled in config."}`
 			}
-			logger.Info("LLM requested UPnP scan", "search_target", tc.SearchTarget, "timeout_secs", tc.TimeoutSecs, "auto_register", tc.AutoRegister)
-			scanResult := tools.ExecuteUPnPScan(tc.SearchTarget, tc.TimeoutSecs)
-			if tc.AutoRegister && inventoryDB != nil {
-				scanResult = upnpAutoRegister(scanResult, inventoryDB, tc.RegisterType, tc.RegisterTags, tc.OverwriteExisting, logger)
+			req := decodeUPnPScanArgs(tc)
+			logger.Info("LLM requested UPnP scan", "search_target", req.SearchTarget, "timeout_secs", req.TimeoutSecs, "auto_register", req.AutoRegister)
+			scanResult := tools.ExecuteUPnPScan(req.SearchTarget, req.TimeoutSecs)
+			if req.AutoRegister && inventoryDB != nil {
+				scanResult = upnpAutoRegister(scanResult, inventoryDB, req.RegisterType, req.RegisterTags, req.OverwriteExisting, logger)
 			}
 			return "Tool Output: " + scanResult
 
@@ -793,23 +794,25 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			return handleSendDocument(tc, cfg, logger, mediaRegistryDB)
 
 		case "manage_processes", "process_management":
-			logger.Info("LLM requested process management", "op", tc.Operation)
-			return "Tool Output: " + tools.ManageProcesses(tc.Operation, int32(tc.PID))
+			req := decodeManageProcessesArgs(tc)
+			logger.Info("LLM requested process management", "op", req.Operation)
+			return "Tool Output: " + tools.ManageProcesses(req.Operation, int32(req.PID))
 
 		case "register_device", "register_server":
-			logger.Info("LLM requested device registration", "name", tc.Hostname)
-			tags := services.ParseTags(tc.Tags)
-			deviceType := tc.DeviceType
+			req := decodeRegisterDeviceArgs(tc)
+			logger.Info("LLM requested device registration", "name", req.Hostname)
+			tags := services.ParseTags(req.Tags)
+			deviceType := req.DeviceType
 			if deviceType == "" {
 				deviceType = "server"
 			}
 
 			// If LLM hallucinated, putting IP in Hostname and leaving IPAddress empty:
-			if tc.IPAddress == "" && net.ParseIP(tc.Hostname) != nil {
-				tc.IPAddress = tc.Hostname
+			if req.IPAddress == "" && net.ParseIP(req.Hostname) != nil {
+				req.IPAddress = req.Hostname
 			}
 
-			id, err := services.RegisterDevice(inventoryDB, vault, tc.Hostname, deviceType, tc.IPAddress, tc.Port, tc.Username, tc.Password, tc.PrivateKeyPath, tc.Description, tags, tc.MACAddress)
+			id, err := services.RegisterDevice(inventoryDB, vault, req.Hostname, deviceType, req.IPAddress, req.Port, req.Username, req.Password, req.PrivateKeyPath, req.Description, tags, req.MACAddress)
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Failed to register device: %v"}`, err)
 			}
@@ -819,12 +822,13 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if !cfg.Tools.WOL.Enabled {
 				return `Tool Output: {"status": "error", "message": "Wake-on-LAN is disabled. Enable it via tools.wol.enabled in config.yaml."}`
 			}
-			logger.Info("LLM requested Wake-on-LAN", "server_id", tc.ServerID, "mac", tc.MACAddress)
+			req := decodeWakeOnLANArgs(tc)
+			logger.Info("LLM requested Wake-on-LAN", "server_id", req.ServerID, "mac", req.MACAddress)
 
-			mac := tc.MACAddress
-			if mac == "" && tc.ServerID != "" && inventoryDB != nil {
+			mac := req.MACAddress
+			if mac == "" && req.ServerID != "" && inventoryDB != nil {
 				// Look up MAC from inventory
-				device, err := inventory.GetDeviceByIDOrName(inventoryDB, tc.ServerID)
+				device, err := inventory.GetDeviceByIDOrName(inventoryDB, req.ServerID)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Device not found: %v"}`, err)
 				}
@@ -834,32 +838,33 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				return `Tool Output: {"status": "error", "message": "No MAC address available. Provide 'mac_address' or a 'server_id' with a registered MAC address."}`
 			}
 
-			if err := tools.SendWakeOnLAN(mac, tc.IPAddress); err != nil {
+			if err := tools.SendWakeOnLAN(mac, req.IPAddress); err != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Failed to send WOL packet: %v"}`, err)
 			}
 			return fmt.Sprintf(`Tool Output: {"status": "success", "message": "Wake-on-LAN magic packet sent to %s"}`, mac)
 
 		case "pin_message":
-			logger.Info("LLM requested message pinning", "id", tc.ID, "pinned", tc.Pinned)
-			if tc.ID == "" {
+			req := decodePinMessageArgs(tc)
+			logger.Info("LLM requested message pinning", "id", req.ID, "pinned", req.Pinned)
+			if req.ID == "" {
 				return `Tool Output: {"status": "error", "message": "'id' is required for pin_message"}`
 			}
 			// Try to parse ID as int64
 			var msgID int64
-			fmt.Sscanf(tc.ID, "%d", &msgID)
+			fmt.Sscanf(req.ID, "%d", &msgID)
 			if msgID == 0 {
 				return `Tool Output: {"status": "error", "message": "Invalid 'id' format"}`
 			}
 
-			err := shortTermMem.SetMessagePinned(msgID, tc.Pinned)
+			err := shortTermMem.SetMessagePinned(msgID, req.Pinned)
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Failed to update SQLite: %v"}`, err)
 			}
 			if historyMgr != nil {
-				_ = historyMgr.SetPinned(msgID, tc.Pinned)
+				_ = historyMgr.SetPinned(msgID, req.Pinned)
 			}
 			status := "pinned"
-			if !tc.Pinned {
+			if !req.Pinned {
 				status = "unpinned"
 			}
 			return fmt.Sprintf(`Tool Output: {"status": "success", "message": "Message %d %s successfully."}`, msgID, status)
