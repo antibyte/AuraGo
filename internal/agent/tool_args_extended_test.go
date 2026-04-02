@@ -1,6 +1,9 @@
 package agent
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestDecodeManageOutgoingWebhooksArgsUsesRawParams(t *testing.T) {
 	tc := ToolCall{
@@ -127,5 +130,136 @@ func TestDecodeGoogleWorkspaceArgsFromMapParsesValues(t *testing.T) {
 	}
 	if got := req.Values[1][1]; got != "d" {
 		t.Fatalf("Values[1][1] = %v, want d", got)
+	}
+}
+
+func TestDecodeProcessAnalyzerArgsUsesParamsFallback(t *testing.T) {
+	req := decodeProcessAnalyzerArgs(ToolCall{
+		Action: "process_analyzer",
+		Params: map[string]interface{}{
+			"operation": "find",
+			"name":      "python",
+			"pid":       float64(42),
+			"limit":     float64(7),
+		},
+	})
+
+	if req.Operation != "find" || req.Name != "python" || req.PID != 42 || req.Limit != 7 {
+		t.Fatalf("decoded process args = %+v", req)
+	}
+}
+
+func TestDecodeWebCaptureArgsUsesParamsFallback(t *testing.T) {
+	req := decodeWebCaptureArgs(ToolCall{
+		Action: "web_capture",
+		Params: map[string]interface{}{
+			"operation":  "screenshot",
+			"url":        "https://example.com",
+			"selector":   "#hero",
+			"full_page":  true,
+			"output_dir": "captures",
+		},
+	})
+
+	if req.Operation != "screenshot" || req.URL != "https://example.com" || req.Selector != "#hero" || !req.FullPage || req.OutputDir != "captures" {
+		t.Fatalf("decoded web capture args = %+v", req)
+	}
+}
+
+func TestDecodeNetworkPingArgsUsesTargetAliases(t *testing.T) {
+	req := decodeNetworkPingArgs(ToolCall{
+		Action: "network_ping",
+		Params: map[string]interface{}{
+			"target":  "router.local",
+			"count":   float64(3),
+			"timeout": float64(2),
+		},
+	})
+
+	if req.Host != "router.local" || req.Count != 3 || req.Timeout != 2 {
+		t.Fatalf("decoded ping args = %+v", req)
+	}
+}
+
+func TestDecodeDetectFileTypeArgsUsesPathAliasAndRecursive(t *testing.T) {
+	req := decodeDetectFileTypeArgs(ToolCall{
+		Action: "detect_file_type",
+		Params: map[string]interface{}{
+			"path":      "downloads",
+			"recursive": true,
+		},
+	})
+
+	if req.FilePath != "downloads" || !req.Recursive {
+		t.Fatalf("decoded file type args = %+v", req)
+	}
+}
+
+func TestDecodeSiteCrawlerArgsJoinsAllowedDomains(t *testing.T) {
+	req := decodeSiteCrawlerArgs(ToolCall{
+		Action: "site_crawler",
+		Params: map[string]interface{}{
+			"url":             "https://example.com",
+			"max_depth":       float64(2),
+			"max_pages":       float64(12),
+			"allowed_domains": []interface{}{"example.com", "cdn.example.com"},
+			"selector":        "main",
+		},
+	})
+
+	if req.URL != "https://example.com" || req.MaxDepth != 2 || req.MaxPages != 12 || req.AllowedDomains != "example.com,cdn.example.com" || req.Selector != "main" {
+		t.Fatalf("decoded crawler args = %+v", req)
+	}
+}
+
+func TestDecodeWhoisLookupArgsFallsBackToURL(t *testing.T) {
+	req := decodeWhoisLookupArgs(ToolCall{
+		Action: "whois_lookup",
+		Params: map[string]interface{}{
+			"url":         "example.org",
+			"include_raw": true,
+		},
+	})
+
+	if req.domain() != "example.org" || !req.IncludeRaw {
+		t.Fatalf("decoded whois args = %+v", req)
+	}
+}
+
+func TestDecodeSiteMonitorArgsUsesParamsFallback(t *testing.T) {
+	req := decodeSiteMonitorArgs(ToolCall{
+		Action: "site_monitor",
+		Params: map[string]interface{}{
+			"operation":  "add_monitor",
+			"monitor_id": "mon_1",
+			"url":        "https://example.com",
+			"selector":   "#status",
+			"interval":   "10m",
+			"limit":      float64(5),
+		},
+	})
+
+	if req.Operation != "add_monitor" || req.MonitorID != "mon_1" || req.URL != "https://example.com" || req.Selector != "#status" || req.Interval != "10m" || req.Limit != 5 {
+		t.Fatalf("decoded site monitor args = %+v", req)
+	}
+}
+
+func TestDecodeFormAutomationArgsEncodesFieldMaps(t *testing.T) {
+	req := decodeFormAutomationArgs(ToolCall{
+		Action: "form_automation",
+		Params: map[string]interface{}{
+			"operation":      "fill_submit",
+			"url":            "https://example.com/login",
+			"fields":         map[string]interface{}{"#user": "alice", "#pass": "secret"},
+			"selector":       "button[type=submit]",
+			"screenshot_dir": "screens",
+		},
+	})
+
+	if req.Operation != "fill_submit" || req.URL != "https://example.com/login" || req.Selector != "button[type=submit]" || req.ScreenshotDir != "screens" {
+		t.Fatalf("decoded form args = %+v", req)
+	}
+	if !strings.Contains(req.Fields, "\"#user\":\"alice\"") || !strings.Contains(req.Fields, "\"#pass\":\"secret\"") {
+		t.Fatalf("fields = %q, want JSON-encoded selectors", req.Fields)
 	}
 }

@@ -1,5 +1,10 @@
 package agent
 
+import (
+	"encoding/json"
+	"strings"
+)
+
 type webhookParameterArgs struct {
 	Name        string
 	Type        string
@@ -48,6 +53,79 @@ type googleWorkspaceArgs struct {
 	DocumentID   string
 	Range        string
 	Values       [][]interface{}
+}
+
+type processAnalyzerArgs struct {
+	Operation string
+	Name      string
+	PID       int
+	Limit     int
+}
+
+type webCaptureArgs struct {
+	Operation string
+	URL       string
+	Selector  string
+	FullPage  bool
+	OutputDir string
+}
+
+type webPerformanceAuditArgs struct {
+	URL      string
+	Viewport string
+}
+
+type networkPingArgs struct {
+	Host    string
+	Count   int
+	Timeout int
+}
+
+type detectFileTypeArgs struct {
+	FilePath  string
+	Recursive bool
+}
+
+type dnsLookupArgs struct {
+	Host       string
+	RecordType string
+}
+
+type portScannerArgs struct {
+	Host      string
+	PortRange string
+	TimeoutMs int
+}
+
+type siteCrawlerArgs struct {
+	URL            string
+	MaxDepth       int
+	MaxPages       int
+	AllowedDomains string
+	Selector       string
+}
+
+type whoisLookupArgs struct {
+	Host       string
+	URL        string
+	IncludeRaw bool
+}
+
+type siteMonitorArgs struct {
+	Operation string
+	MonitorID string
+	URL       string
+	Selector  string
+	Interval  string
+	Limit     int
+}
+
+type formAutomationArgs struct {
+	Operation     string
+	URL           string
+	Fields        string
+	Selector      string
+	ScreenshotDir string
 }
 
 func toolArgStringSlice(args map[string]interface{}, keys ...string) []string {
@@ -161,6 +239,37 @@ func toolArgWebhookParameters(args map[string]interface{}, keys ...string) []web
 	return nil
 }
 
+func toolArgCSV(args map[string]interface{}, keys ...string) string {
+	if value := toolArgString(args, keys...); value != "" {
+		return value
+	}
+	values := toolArgStringSlice(args, keys...)
+	if len(values) == 0 {
+		return ""
+	}
+	return strings.Join(values, ",")
+}
+
+func toolArgJSONText(args map[string]interface{}, keys ...string) string {
+	for _, key := range keys {
+		raw, ok := args[key]
+		if !ok || raw == nil {
+			continue
+		}
+		if text, ok := raw.(string); ok {
+			if text != "" {
+				return text
+			}
+			continue
+		}
+		encoded, err := json.Marshal(raw)
+		if err == nil && len(encoded) > 0 && string(encoded) != "null" {
+			return string(encoded)
+		}
+	}
+	return ""
+}
+
 func decodeManageOutgoingWebhooksArgs(tc ToolCall) manageOutgoingWebhooksArgs {
 	req := manageOutgoingWebhooksArgs{
 		Operation:    firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
@@ -223,6 +332,117 @@ func decodeCreateSkillFromTemplateArgs(tc ToolCall) createSkillFromTemplateArgs 
 	}
 	req.Dependencies = toolArgStringSlice(tc.Params, "dependencies")
 	return req
+}
+
+func decodeProcessAnalyzerArgs(tc ToolCall) processAnalyzerArgs {
+	return processAnalyzerArgs{
+		Operation: firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		Name:      firstNonEmptyToolString(tc.Name, toolArgString(tc.Params, "name")),
+		PID:       max(tc.PID, toolArgInt(tc.Params, 0, "pid")),
+		Limit:     max(tc.Limit, toolArgInt(tc.Params, 0, "limit")),
+	}
+}
+
+func decodeWebCaptureArgs(tc ToolCall) webCaptureArgs {
+	req := webCaptureArgs{
+		Operation: firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		URL:       firstNonEmptyToolString(tc.URL, toolArgString(tc.Params, "url")),
+		Selector:  firstNonEmptyToolString(tc.Selector, toolArgString(tc.Params, "selector")),
+		OutputDir: firstNonEmptyToolString(tc.OutputDir, toolArgString(tc.Params, "output_dir")),
+		FullPage:  tc.FullPage,
+	}
+	if fullPage, ok := toolArgBool(tc.Params, "full_page"); ok {
+		req.FullPage = fullPage
+	}
+	return req
+}
+
+func decodeWebPerformanceAuditArgs(tc ToolCall) webPerformanceAuditArgs {
+	return webPerformanceAuditArgs{
+		URL:      firstNonEmptyToolString(tc.URL, toolArgString(tc.Params, "url")),
+		Viewport: firstNonEmptyToolString(tc.Viewport, toolArgString(tc.Params, "viewport")),
+	}
+}
+
+func decodeNetworkPingArgs(tc ToolCall) networkPingArgs {
+	return networkPingArgs{
+		Host:    firstNonEmptyToolString(tc.Host, toolArgString(tc.Params, "host", "target")),
+		Count:   max(tc.Count, toolArgInt(tc.Params, 0, "count")),
+		Timeout: max(tc.Timeout, toolArgInt(tc.Params, 0, "timeout")),
+	}
+}
+
+func decodeDetectFileTypeArgs(tc ToolCall) detectFileTypeArgs {
+	req := detectFileTypeArgs{
+		FilePath:  firstNonEmptyToolString(tc.FilePath, tc.Path, toolArgString(tc.Params, "file_path", "path")),
+		Recursive: tc.Recursive,
+	}
+	if recursive, ok := toolArgBool(tc.Params, "recursive"); ok {
+		req.Recursive = recursive
+	}
+	return req
+}
+
+func decodeDNSLookupArgs(tc ToolCall) dnsLookupArgs {
+	return dnsLookupArgs{
+		Host:       firstNonEmptyToolString(tc.Host, toolArgString(tc.Params, "host", "domain")),
+		RecordType: firstNonEmptyToolString(tc.RecordType, toolArgString(tc.Params, "record_type")),
+	}
+}
+
+func decodePortScannerArgs(tc ToolCall) portScannerArgs {
+	return portScannerArgs{
+		Host:      firstNonEmptyToolString(tc.Host, toolArgString(tc.Params, "host", "target")),
+		PortRange: firstNonEmptyToolString(tc.PortRange, toolArgString(tc.Params, "port_range")),
+		TimeoutMs: max(tc.TimeoutMs, toolArgInt(tc.Params, 0, "timeout_ms")),
+	}
+}
+
+func decodeSiteCrawlerArgs(tc ToolCall) siteCrawlerArgs {
+	return siteCrawlerArgs{
+		URL:            firstNonEmptyToolString(tc.URL, toolArgString(tc.Params, "url")),
+		MaxDepth:       max(tc.MaxDepth, toolArgInt(tc.Params, 0, "max_depth")),
+		MaxPages:       max(tc.MaxPages, toolArgInt(tc.Params, 0, "max_pages")),
+		AllowedDomains: firstNonEmptyToolString(tc.AllowedDomains, toolArgCSV(tc.Params, "allowed_domains")),
+		Selector:       firstNonEmptyToolString(tc.Selector, toolArgString(tc.Params, "selector")),
+	}
+}
+
+func decodeWhoisLookupArgs(tc ToolCall) whoisLookupArgs {
+	req := whoisLookupArgs{
+		Host:       firstNonEmptyToolString(tc.Host, toolArgString(tc.Params, "host", "domain")),
+		URL:        firstNonEmptyToolString(tc.URL, toolArgString(tc.Params, "url")),
+		IncludeRaw: tc.IncludeRaw,
+	}
+	if includeRaw, ok := toolArgBool(tc.Params, "include_raw"); ok {
+		req.IncludeRaw = includeRaw
+	}
+	return req
+}
+
+func (req whoisLookupArgs) domain() string {
+	return firstNonEmptyToolString(req.Host, req.URL)
+}
+
+func decodeSiteMonitorArgs(tc ToolCall) siteMonitorArgs {
+	return siteMonitorArgs{
+		Operation: firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		MonitorID: firstNonEmptyToolString(tc.MonitorID, toolArgString(tc.Params, "monitor_id")),
+		URL:       firstNonEmptyToolString(tc.URL, toolArgString(tc.Params, "url")),
+		Selector:  firstNonEmptyToolString(tc.Selector, toolArgString(tc.Params, "selector")),
+		Interval:  firstNonEmptyToolString(tc.Interval, toolArgString(tc.Params, "interval")),
+		Limit:     max(tc.Limit, toolArgInt(tc.Params, 0, "limit")),
+	}
+}
+
+func decodeFormAutomationArgs(tc ToolCall) formAutomationArgs {
+	return formAutomationArgs{
+		Operation:     firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		URL:           firstNonEmptyToolString(tc.URL, toolArgString(tc.Params, "url")),
+		Fields:        firstNonEmptyToolString(tc.Fields, toolArgJSONText(tc.Params, "fields")),
+		Selector:      firstNonEmptyToolString(tc.Selector, toolArgString(tc.Params, "selector")),
+		ScreenshotDir: firstNonEmptyToolString(tc.ScreenshotDir, toolArgString(tc.Params, "screenshot_dir")),
+	}
 }
 
 func decodeGoogleWorkspaceArgsFromMap(args map[string]interface{}) googleWorkspaceArgs {

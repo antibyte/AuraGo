@@ -683,51 +683,57 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			return "Tool Output: " + tools.GetSystemMetrics(tc.Target)
 
 		case "process_analyzer":
-			logger.Info("LLM requested process analysis", "operation", tc.Operation, "name", tc.Name, "pid", tc.PID)
-			return "Tool Output: " + tools.AnalyzeProcesses(tc.Operation, tc.Name, int(tc.PID), tc.Limit)
+			req := decodeProcessAnalyzerArgs(tc)
+			logger.Info("LLM requested process analysis", "operation", req.Operation, "name", req.Name, "pid", req.PID)
+			return "Tool Output: " + tools.AnalyzeProcesses(req.Operation, req.Name, req.PID, req.Limit)
 
 		case "web_capture":
-			logger.Info("LLM requested web capture", "operation", tc.Operation, "url", tc.URL)
-			return "Tool Output: " + tools.WebCapture(tc.Operation, tc.URL, tc.Selector, tc.FullPage, tc.OutputDir)
+			req := decodeWebCaptureArgs(tc)
+			logger.Info("LLM requested web capture", "operation", req.Operation, "url", req.URL)
+			return "Tool Output: " + tools.WebCapture(req.Operation, req.URL, req.Selector, req.FullPage, req.OutputDir)
 
 		case "web_performance_audit":
-			logger.Info("LLM requested web performance audit", "url", tc.URL, "viewport", tc.Viewport)
-			return "Tool Output: " + tools.WebPerformanceAudit(tc.URL, tc.Viewport)
+			req := decodeWebPerformanceAuditArgs(tc)
+			logger.Info("LLM requested web performance audit", "url", req.URL, "viewport", req.Viewport)
+			return "Tool Output: " + tools.WebPerformanceAudit(req.URL, req.Viewport)
 
 		case "network_ping":
-			logger.Info("LLM requested network ping", "host", tc.Host)
-			return "Tool Output: " + tools.NetworkPing(tc.Host, tc.Count, tc.Timeout)
+			req := decodeNetworkPingArgs(tc)
+			logger.Info("LLM requested network ping", "host", req.Host)
+			return "Tool Output: " + tools.NetworkPing(req.Host, req.Count, req.Timeout)
 
 		case "detect_file_type":
-			logger.Info("LLM requested file type detection", "path", tc.FilePath)
-			return "Tool Output: " + tools.DetectFileType(tc.FilePath, tc.Recursive)
+			req := decodeDetectFileTypeArgs(tc)
+			logger.Info("LLM requested file type detection", "path", req.FilePath)
+			return "Tool Output: " + tools.DetectFileType(req.FilePath, req.Recursive)
 
 		case "dns_lookup":
-			logger.Info("LLM requested DNS lookup", "host", tc.Host, "record_type", tc.RecordType)
-			return "Tool Output: " + tools.DNSLookup(tc.Host, tc.RecordType)
+			req := decodeDNSLookupArgs(tc)
+			logger.Info("LLM requested DNS lookup", "host", req.Host, "record_type", req.RecordType)
+			return "Tool Output: " + tools.DNSLookup(req.Host, req.RecordType)
 
 		case "port_scanner":
-			logger.Info("LLM requested port scan", "host", tc.Host, "port_range", tc.PortRange)
-			return "Tool Output: " + tools.ScanPorts(ctx, tc.Host, tc.PortRange, tc.TimeoutMs)
+			req := decodePortScannerArgs(tc)
+			logger.Info("LLM requested port scan", "host", req.Host, "port_range", req.PortRange)
+			return "Tool Output: " + tools.ScanPorts(ctx, req.Host, req.PortRange, req.TimeoutMs)
 
 		case "site_crawler":
-			logger.Info("LLM requested site crawler", "url", tc.URL, "max_depth", tc.MaxDepth, "max_pages", tc.MaxPages)
-			return "Tool Output: " + tools.ExecuteCrawler(tc.URL, tc.MaxDepth, tc.MaxPages, tc.AllowedDomains, tc.Selector)
+			req := decodeSiteCrawlerArgs(tc)
+			logger.Info("LLM requested site crawler", "url", req.URL, "max_depth", req.MaxDepth, "max_pages", req.MaxPages)
+			return "Tool Output: " + tools.ExecuteCrawler(req.URL, req.MaxDepth, req.MaxPages, req.AllowedDomains, req.Selector)
 
 		case "whois_lookup":
-			logger.Info("LLM requested WHOIS lookup", "domain", tc.Host)
-			domain := tc.Host
-			if domain == "" {
-				domain = tc.URL
-			}
-			return "Tool Output: " + tools.WhoisLookup(domain, tc.IncludeRaw)
+			req := decodeWhoisLookupArgs(tc)
+			logger.Info("LLM requested WHOIS lookup", "domain", req.domain())
+			return "Tool Output: " + tools.WhoisLookup(req.domain(), req.IncludeRaw)
 
 		case "site_monitor":
 			if !cfg.Tools.WebScraper.Enabled {
 				return `Tool Output: {"status":"error","message":"Site monitor is disabled. Enable web_scraper in config."}`
 			}
-			logger.Info("LLM requested site monitor", "op", tc.Operation, "url", tc.URL, "monitor_id", tc.MonitorID)
-			return "Tool Output: " + tools.ExecuteSiteMonitor(cfg.SQLite.SiteMonitorPath, tc.Operation, tc.MonitorID, tc.URL, tc.Selector, tc.Interval, tc.Limit)
+			req := decodeSiteMonitorArgs(tc)
+			logger.Info("LLM requested site monitor", "op", req.Operation, "url", req.URL, "monitor_id", req.MonitorID)
+			return "Tool Output: " + tools.ExecuteSiteMonitor(cfg.SQLite.SiteMonitorPath, req.Operation, req.MonitorID, req.URL, req.Selector, req.Interval, req.Limit)
 
 		case "form_automation":
 			if !cfg.Tools.FormAutomation.Enabled {
@@ -736,8 +742,9 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if !cfg.Tools.WebCapture.Enabled {
 				return `Tool Output: {"status":"error","message":"form_automation requires web_capture (headless browser). Enable tools.web_capture.enabled in config."}`
 			}
-			logger.Info("LLM requested form automation", "op", tc.Operation, "url", tc.URL)
-			return "Tool Output: " + tools.ExecuteFormAutomation(tc.Operation, tc.URL, tc.Fields, tc.Selector, tc.ScreenshotDir)
+			req := decodeFormAutomationArgs(tc)
+			logger.Info("LLM requested form automation", "op", req.Operation, "url", req.URL)
+			return "Tool Output: " + tools.ExecuteFormAutomation(req.Operation, req.URL, req.Fields, req.Selector, req.ScreenshotDir)
 
 		case "upnp_scan":
 			if !cfg.Tools.UPnPScan.Enabled {
