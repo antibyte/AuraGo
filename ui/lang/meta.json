@@ -121,12 +121,6 @@
   "help.co_agents.llm.provider": {
     "provider_ref": true
   },
-  "help.agent.personality_v2_provider": {
-    "provider_ref": true
-  },
-  "help.personality.v2_provider": {
-    "provider_ref": true
-  },
   "help.personality.core_personality": {
     "personalities_ref": true
   },
@@ -138,12 +132,6 @@
       "soft",
       "hard"
     ]
-  },
-  "help.tools.web_scraper.summary_provider": {
-    "provider_ref": true
-  },
-  "help.memory_analysis.provider": {
-    "provider_ref": true
   },
   "help.llm_guardian.provider": {
     "provider_ref": true

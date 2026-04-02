@@ -38,21 +38,13 @@
                     ${t('config.web_scraper.summary_desc')}
                 </div>`;
 
-            // Provider dropdown (only relevant when summary mode is on)
-            const curProvider = wsCfg.summary_provider || '';
-            html += `<label class="ws-provider-label ${summaryOn ? '' : 'is-disabled'}">
-                <span class="ws-provider-text">${t('config.web_scraper.summary_provider')} <small class="ws-provider-hint">(${t('config.web_scraper.empty_main_llm')})</small></span>
-                <select class="cfg-input ws-provider-select" data-path="tools.web_scraper.summary_provider"
-                    onchange="setNestedValue(configData,'tools.web_scraper.summary_provider',this.value);setDirty(true)">
-                    <option value=""${!curProvider ? ' selected' : ''}>${t('config.web_scraper.use_main_llm')}</option>`;
-            providersCache.forEach(p => {
-                const sel = (String(curProvider) === String(p.id)) ? ' selected' : '';
-                const name = p.name || p.id;
-                const badge = p.type ? (' [' + p.type + ']') : '';
-                const model = p.model ? (' — ' + p.model) : '';
-                html += `<option value="${escapeAttr(p.id)}"${sel}>${escapeAttr(name + badge + model)}</option>`;
-            });
-            html += `</select></label>`;
+            html += `<div class="wh-notice ${summaryOn ? '' : 'is-disabled'}">
+                <span>⚡</span>
+                <div>
+                    <strong>${t('config.web_scraper.summary_provider')}</strong><br>
+                    <small>${t('config.web_scraper.summary_desc')}</small>
+                </div>
+            </div>`;
 
             html += `</div>`; // close summary mode box
 

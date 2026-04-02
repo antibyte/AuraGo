@@ -453,3 +453,110 @@ llm:
 		t.Fatalf("helper resolved model = %q, want empty", cfg.LLM.HelperResolvedModel)
 	}
 }
+
+func TestLoadResolvesHelperOwnedSubsystemsFromHelperLLM(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	configContent := `
+providers:
+  - id: main
+    type: openrouter
+    base_url: https://openrouter.ai/api/v1
+    api_key: main-secret
+    model: main-model
+  - id: helper
+    type: openai
+    base_url: https://helper.example/v1
+    api_key: helper-secret
+    model: helper-model
+llm:
+  provider: main
+  helper_enabled: true
+  helper_provider: helper
+personality:
+  engine_v2: true
+memory_analysis:
+  enabled: true
+tools:
+  web_scraper:
+    enabled: true
+    summary_mode: true
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.Personality.V2ProviderType != "openai" {
+		t.Fatalf("personality v2 provider type = %q, want openai", cfg.Personality.V2ProviderType)
+	}
+	if cfg.Personality.V2ResolvedURL != "https://helper.example/v1" {
+		t.Fatalf("personality v2 url = %q", cfg.Personality.V2ResolvedURL)
+	}
+	if cfg.Personality.V2ResolvedModel != "helper-model" {
+		t.Fatalf("personality v2 model = %q, want helper-model", cfg.Personality.V2ResolvedModel)
+	}
+	if cfg.MemoryAnalysis.ProviderType != "openai" {
+		t.Fatalf("memory analysis provider type = %q, want openai", cfg.MemoryAnalysis.ProviderType)
+	}
+	if cfg.MemoryAnalysis.BaseURL != "https://helper.example/v1" {
+		t.Fatalf("memory analysis base url = %q", cfg.MemoryAnalysis.BaseURL)
+	}
+	if cfg.MemoryAnalysis.ResolvedModel != "helper-model" {
+		t.Fatalf("memory analysis model = %q, want helper-model", cfg.MemoryAnalysis.ResolvedModel)
+	}
+	if cfg.Tools.WebScraper.SummaryBaseURL != "https://helper.example/v1" {
+		t.Fatalf("web scraper summary base url = %q", cfg.Tools.WebScraper.SummaryBaseURL)
+	}
+	if cfg.Tools.WebScraper.SummaryModel != "helper-model" {
+		t.Fatalf("web scraper summary model = %q, want helper-model", cfg.Tools.WebScraper.SummaryModel)
+	}
+}
+
+func TestLoadMigratesLegacyPersonalityV2InlineFieldsToHelperLLM(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	configContent := `
+llm:
+  provider: openrouter
+  base_url: https://openrouter.ai/api/v1
+  api_key: main-secret
+  model: main-model
+personality:
+  engine_v2: true
+  v2_model: helper-model
+  v2_url: https://helper.example/v1
+  v2_api_key: helper-secret
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if !cfg.LLM.HelperEnabled {
+		t.Fatal("expected legacy v2 inline fields to enable helper llm migration")
+	}
+	if cfg.LLM.HelperProvider != "helper" {
+		t.Fatalf("helper provider = %q, want helper", cfg.LLM.HelperProvider)
+	}
+	if cfg.LLM.HelperProviderType != "openai" {
+		t.Fatalf("helper provider type = %q, want openai", cfg.LLM.HelperProviderType)
+	}
+	if cfg.LLM.HelperBaseURL != "https://helper.example/v1" {
+		t.Fatalf("helper base url = %q", cfg.LLM.HelperBaseURL)
+	}
+	if cfg.LLM.HelperAPIKey != "helper-secret" {
+		t.Fatalf("helper api key = %q, want helper-secret", cfg.LLM.HelperAPIKey)
+	}
+	if cfg.LLM.HelperResolvedModel != "helper-model" {
+		t.Fatalf("helper resolved model = %q, want helper-model", cfg.LLM.HelperResolvedModel)
+	}
+}

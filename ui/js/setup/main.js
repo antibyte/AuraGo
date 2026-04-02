@@ -344,6 +344,8 @@ function onProviderChange() {
     if (orBrowseBtn) {
         setupSetHidden(orBrowseBtn, provider !== 'openrouter');
     }
+
+    syncHelperModelSuggestion();
 }
 
 // ── Whisper Provider Change Handler ─────────
@@ -439,11 +441,21 @@ function fetchAndApplyLang(langValue) {
         .catch(() => { /* silently ignore — UI stays in current language */ });
 }
 
-// ── Personality V2 Toggle ────────────────────
-function onPersonalityToggle() {
-    const fields = document.getElementById('personality-v2-fields');
-    const checked = document.getElementById('personality-v2').checked;
+// ── Helper LLM Toggle ────────────────────────
+function syncHelperModelSuggestion() {
+    const helperModel = document.getElementById('helper-model');
+    const mainModel = document.getElementById('llm-model');
+    if (!helperModel || !mainModel) return;
+    if (!helperModel.value.trim()) {
+        helperModel.value = mainModel.value.trim();
+    }
+}
+
+function onHelperToggle() {
+    const fields = document.getElementById('helper-llm-fields');
+    const checked = document.getElementById('helper-llm').checked;
     fields.classList.toggle('visible', checked);
+    if (checked) syncHelperModelSuggestion();
 }
 
 // ── Step Navigation ──────────────────────────
@@ -591,7 +603,7 @@ document.addEventListener('keydown', (e) => {
 
 // ── Build Provider Entries ───────────────────
 // Creates provider entries from setup wizard fields.
-// Each subsystem (embeddings, vision, whisper, personality_v2) gets its own
+// Each subsystem (embeddings, vision, whisper, helper) gets its own
 // provider entry so it can have a different model while sharing connection details.
 function buildProviderEntries() {
     const mainType = document.getElementById('llm-provider').value;
@@ -653,15 +665,13 @@ function buildProviderEntries() {
         });
     }
 
-    // Personality V2 provider
-    if (document.getElementById('personality-v2').checked) {
-        const v2Model = document.getElementById('v2-model').value.trim();
-        if (v2Model) {
-            const v2Url = document.getElementById('v2-url').value.trim();
-            const v2Key = document.getElementById('v2-api-key').value.trim();
+    // Helper LLM provider
+    if (document.getElementById('helper-llm').checked) {
+        const helperModel = document.getElementById('helper-model').value.trim();
+        if (helperModel) {
             providers.push({
-                id: 'personality-v2', name: 'Personality V2', type: mainType,
-                base_url: v2Url || mainUrl, api_key: v2Key || mainKey, model: v2Model,
+                id: 'helper', name: 'Helper LLM', type: mainType,
+                base_url: mainUrl, api_key: mainKey, model: helperModel,
             });
         }
     }
@@ -789,6 +799,9 @@ function deepMergePatch(target, source) {
 // Returns the config patch with provider references (no inline API keys/URLs).
 // Provider entries carry all connection details separately.
 function buildConfigPatch() {
+    const helperRequested = document.getElementById('helper-llm').checked;
+    const helperModel = document.getElementById('helper-model').value.trim();
+    const helperConfigured = helperRequested && helperModel !== '';
     const patch = {
         providers: buildProviderEntries(),
         server: {
@@ -796,6 +809,9 @@ function buildConfigPatch() {
         },
         llm: {
             provider: 'main',
+            helper_enabled: helperConfigured,
+            helper_provider: helperConfigured ? 'helper' : '',
+            helper_model: helperConfigured ? helperModel : '',
             use_native_functions: document.getElementById('native-functions').checked,
         },
         agent: {
@@ -805,8 +821,8 @@ function buildConfigPatch() {
                 if (v === 'custom') return document.getElementById('system-language-custom').value.trim();
                 return langMap[v] || v;
             })(),
-            personality_engine_v2: document.getElementById('personality-v2').checked,
-            personality_engine: document.getElementById('personality-v2').checked,
+            personality_engine_v2: helperConfigured,
+            personality_engine: helperConfigured,
             core_personality: document.getElementById('core-personality').value,
         },
         auth: {
@@ -836,14 +852,6 @@ function buildConfigPatch() {
     if (whisperProvider) {
         const whisperMode = document.getElementById('whisper-mode').value;
         patch.whisper = { provider: 'whisper', mode: whisperMode || 'multimodal' };
-    }
-
-    // Personality V2: reference provider entry
-    if (patch.agent.personality_engine_v2) {
-        const v2Model = document.getElementById('v2-model').value.trim();
-        if (v2Model) {
-            patch.agent.personality_v2_provider = 'personality-v2';
-        }
     }
 
     // Trust level (Mutprobe): merge permission config
@@ -978,4 +986,5 @@ function applyI18N() {
 applyI18N();
 onProviderChange();
 onEmbProviderChange();
+onHelperToggle();
 updateUI();

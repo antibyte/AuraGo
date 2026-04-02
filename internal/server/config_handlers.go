@@ -61,7 +61,6 @@ func handleGetConfig(s *Server) http.HandlerFunc {
 			rawCfg["personality"] = map[string]interface{}{
 				"engine":                   p.Engine,
 				"engine_v2":                p.EngineV2,
-				"v2_provider":              p.V2Provider,
 				"core_personality":         p.CorePersonality,
 				"user_profiling":           p.UserProfiling,
 				"user_profiling_threshold": p.UserProfilingThreshold,
@@ -80,10 +79,30 @@ func handleGetConfig(s *Server) http.HandlerFunc {
 		// exist in the raw YAML of older configs but must not be rendered by the UI.
 		if pSection, ok := rawCfg["personality"]; ok {
 			if pMap, ok := pSection.(map[string]interface{}); ok {
+				delete(pMap, "v2_provider")
 				delete(pMap, "v2_model")
 				delete(pMap, "v2_url")
 				delete(pMap, "v2_api_key")
 				delete(pMap, "v2_timeout_secs")
+			}
+		}
+
+		if maSection, ok := rawCfg["memory_analysis"]; ok {
+			if maMap, ok := maSection.(map[string]interface{}); ok {
+				delete(maMap, "provider")
+				delete(maMap, "model")
+			}
+		}
+
+		if toolsSection, ok := rawCfg["tools"]; ok {
+			if toolsMap, ok := toolsSection.(map[string]interface{}); ok {
+				for _, key := range []string{"web_scraper", "wikipedia", "ddg_search", "pdf_extractor"} {
+					if toolSection, ok := toolsMap[key]; ok {
+						if toolMap, ok := toolSection.(map[string]interface{}); ok {
+							delete(toolMap, "summary_provider")
+						}
+					}
+				}
 			}
 		}
 

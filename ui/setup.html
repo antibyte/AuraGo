@@ -296,35 +296,23 @@
                     <p id="desc-step2" class="section-desc" data-i18n="setup.step2_description">Fine-tune AuraGo's personality and advanced features. Everything can be changed later in the config interface.</p>
                 </div>
 
-                <!-- Personality Engine V2 -->
+                <!-- Helper LLM -->
                 <div class="toggle-row setup-divider mb-md">
                     <div>
-                        <div id="lbl-personality-v2" class="toggle-label" data-i18n="setup.step2_personality_v2_label">Personality Engine V2</div>
-                        <div id="desc-personality-v2" class="toggle-desc" data-i18n="setup.step2_personality_v2_desc">Dynamic mood and emotional reactions based on conversation context.</div>
+                        <div id="lbl-helper-llm" class="toggle-label" data-i18n="setup.step2_personality_v2_label">Helper LLM</div>
+                        <div id="desc-helper-llm" class="toggle-desc" data-i18n="setup.step2_personality_v2_desc">Used for internal analysis, maintenance and other helper features. If disabled, many dependent features will not work fully.</div>
                     </div>
                     <label class="toggle-switch">
-                        <input type="checkbox" id="personality-v2" checked onchange="onPersonalityToggle()">
+                        <input type="checkbox" id="helper-llm" checked onchange="onHelperToggle()">
                         <span class="toggle-slider"></span>
                     </label>
                 </div>
 
-                <div class="conditional-fields visible" id="personality-v2-fields">
+                <div class="conditional-fields visible" id="helper-llm-fields">
                     <div class="field-group">
-                        <label id="lbl-v2-model" class="field-label" data-i18n="setup.step2_v2_model_label">V2 LLM Model</label>
-                        <input class="field-input" type="text" id="v2-model" placeholder="gpt-4o-mini"
-                            value="gpt-4o-mini">
-                        <div id="hint-v2-model" class="field-hint" data-i18n="setup.step2_v2_model_hint">Small, fast model for mood analysis.</div>
-                    </div>
-                    <div class="field-group">
-                        <label id="lbl-v2-url" class="field-label" data-i18n="setup.step2_v2_url_label">Base URL</label>
-                        <input class="field-input" type="text" id="v2-url"
-                            placeholder="Leave empty to use main provider URL">
-                    </div>
-                    <div class="field-group">
-                        <label id="lbl-v2-apikey" class="field-label" data-i18n="setup.step2_v2_apikey_label">API Key</label>
-                        <input class="field-input" type="password" id="v2-api-key"
-                            placeholder="Leave empty to use main API key">
-                        <div id="hint-v2-apikey" class="field-hint" data-i18n="setup.step2_v2_apikey_hint">Only needed if V2 uses a different provider than the main LLM.</div>
+                        <label id="lbl-helper-model" class="field-label" data-i18n="setup.step2_v2_model_label">Helper LLM Model</label>
+                        <input class="field-input" type="text" id="helper-model" placeholder="gpt-4o-mini">
+                        <div id="hint-helper-model" class="field-hint" data-i18n="setup.step2_v2_model_hint">A smaller, cheaper model is usually the right choice here. The Guardian uses its own model separately.</div>
                     </div>
                 </div>
 

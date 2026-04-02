@@ -286,7 +286,7 @@ type Config struct {
 	Personality struct {
 		Engine                 bool   `yaml:"engine"`                     // enable personality engine (mood, micro-traits)
 		EngineV2               bool   `yaml:"engine_v2"`                  // enable V2 engine with async LLM mood analysis
-		V2Provider             string `yaml:"v2_provider"`                // provider entry ID for V2 analysis (empty = main LLM)
+		V2Provider             string `yaml:"v2_provider"`                // legacy provider entry ID for V2 analysis; helper-owned runtime prefers llm.helper_*
 		V2Model                string `yaml:"v2_model"          json:"-"` // legacy: model name (hidden from UI, used for migration)
 		V2URL                  string `yaml:"v2_url"            json:"-"` // legacy: base URL (hidden from UI, used for migration)
 		V2APIKey               string `yaml:"v2_api_key"        json:"-"` // legacy: API key (hidden from UI, used for migration)
@@ -374,7 +374,7 @@ type Config struct {
 		Enabled               bool    `yaml:"enabled"`                // deprecated compatibility flag; memory analysis is now adaptive and always active
 		Preset                string  `yaml:"preset"`                 // deprecated compatibility field; rollout is now adaptive
 		RealTime              bool    `yaml:"real_time"`              // deprecated compatibility field; real-time extraction is now adaptive
-		Provider              string  `yaml:"provider"`               // provider entry ID (falls back to main LLM)
+		Provider              string  `yaml:"provider"`               // legacy provider entry; helper-owned runtime prefers llm.helper_*
 		Model                 string  `yaml:"model"`                  // model override (optional)
 		AutoConfirm           float64 `yaml:"auto_confirm_threshold"` // confidence threshold for auto-store (default 0.92)
 		QueryExpansion        bool    `yaml:"query_expansion"`        // deprecated compatibility field; retrieval tuning is now adaptive
@@ -1002,7 +1002,7 @@ type Config struct {
 		WebScraper struct {
 			Enabled         bool   `yaml:"enabled"`          // enable web_scraper (default true)
 			SummaryMode     bool   `yaml:"summary_mode"`     // send scraped content to a separate LLM for summarisation before returning to agent
-			SummaryProvider string `yaml:"summary_provider"` // provider entry ID used for summarisation
+			SummaryProvider string `yaml:"summary_provider"` // legacy provider entry for summarisation; helper-owned runtime prefers llm.helper_*
 			// resolved fields (populated by ResolveProviders)
 			SummaryBaseURL string `yaml:"-" json:"-"`
 			SummaryAPIKey  string `yaml:"-" json:"-"`
@@ -1010,7 +1010,7 @@ type Config struct {
 		} `yaml:"web_scraper"`
 		Wikipedia struct {
 			SummaryMode     bool   `yaml:"summary_mode"`     // summarise Wikipedia content via a separate LLM before returning to agent
-			SummaryProvider string `yaml:"summary_provider"` // provider entry ID used for summarisation
+			SummaryProvider string `yaml:"summary_provider"` // legacy provider entry for summarisation; helper-owned runtime prefers llm.helper_*
 			// resolved fields (populated by ResolveProviders)
 			SummaryBaseURL string `yaml:"-" json:"-"`
 			SummaryAPIKey  string `yaml:"-" json:"-"`
@@ -1018,7 +1018,7 @@ type Config struct {
 		} `yaml:"wikipedia"`
 		DDGSearch struct {
 			SummaryMode     bool   `yaml:"summary_mode"`     // summarise DDG search results via a separate LLM before returning to agent
-			SummaryProvider string `yaml:"summary_provider"` // provider entry ID used for summarisation
+			SummaryProvider string `yaml:"summary_provider"` // legacy provider entry for summarisation; helper-owned runtime prefers llm.helper_*
 			// resolved fields (populated by ResolveProviders)
 			SummaryBaseURL string `yaml:"-" json:"-"`
 			SummaryAPIKey  string `yaml:"-" json:"-"`
@@ -1027,7 +1027,7 @@ type Config struct {
 		PDFExtractor struct {
 			Enabled         bool   `yaml:"enabled"`          // enable pdf_extractor (default true)
 			SummaryMode     bool   `yaml:"summary_mode"`     // summarise extracted PDF text via a separate LLM before returning to agent
-			SummaryProvider string `yaml:"summary_provider"` // provider entry ID used for summarisation
+			SummaryProvider string `yaml:"summary_provider"` // legacy provider entry for summarisation; helper-owned runtime prefers llm.helper_*
 			// resolved fields (populated by ResolveProviders)
 			SummaryBaseURL string `yaml:"-" json:"-"`
 			SummaryAPIKey  string `yaml:"-" json:"-"`

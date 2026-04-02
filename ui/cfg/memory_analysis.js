@@ -26,33 +26,17 @@ async function renderMemoryAnalysisSection(section) {
         </div>
     </div>`;
 
-    // ── Provider ──
+    // ── Helper LLM ──
     html += `<div class="field-group">
         <div class="field-group-title">${t('config.memory_analysis.provider_title')}</div>
         <div class="field-group-desc">${t('config.memory_analysis.provider_desc')}</div>`;
-
-    const curProvider = cfg.provider || '';
-    html += `<label class="ma-label-block">
-        <span class="ma-label-text">${t('config.memory_analysis.provider_label')}</span>
-        <select class="cfg-input ma-input-spaced" data-path="memory_analysis.provider"
-            onchange="setNestedValue(configData,'memory_analysis.provider',this.value);setDirty(true)">
-            <option value=""${!curProvider ? ' selected' : ''}>${t('config.memory_analysis.select_provider')}</option>`;
-    providersCache.forEach(p => {
-        const sel = (String(curProvider) === String(p.id)) ? ' selected' : '';
-        const name = p.name || p.id;
-        const badge = p.type ? (' [' + p.type + ']') : '';
-        const model = p.model ? (' — ' + p.model) : '';
-        html += `<option value="${escapeAttr(p.id)}"${sel}>${escapeAttr(name + badge + model)}</option>`;
-    });
-    html += `</select></label>`;
-
-    // Model override
-    const curModel = cfg.model || '';
-    html += `<label class="ma-label-block">
-        <span class="ma-label-text">${t('config.memory_analysis.model_label')} <small class="ma-label-hint">(${t('config.memory_analysis.model_hint')})</small></span>
-        <input type="text" class="cfg-input ma-input-spaced" data-path="memory_analysis.model" value="${escapeAttr(curModel)}"
-            placeholder="google/gemini-2.0-flash-001, gpt-4o-mini...">
-    </label>`;
+    html += `<div class="wh-notice">
+        <span>⚡</span>
+        <div>
+            <strong>${t('config.memory_analysis.provider_title')}</strong><br>
+            <small>${t('config.memory_analysis.provider_desc')}</small>
+        </div>
+    </div>`;
     html += `</div>`;
 
     html += `<div class="field-group">

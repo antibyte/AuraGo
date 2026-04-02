@@ -221,6 +221,9 @@ func (c *Config) ResolveProviders() {
 			}
 		}
 	}
+	helperResolved := c.LLM.HelperEnabled &&
+		strings.TrimSpace(c.LLM.HelperProviderType) != "" &&
+		strings.TrimSpace(c.LLM.HelperResolvedModel) != ""
 
 	// ── FallbackLLM ──
 	if p := c.FindProvider(c.FallbackLLM.Provider); p != nil {
@@ -362,122 +365,154 @@ func (c *Config) ResolveProviders() {
 		c.A2A.LLM.ProviderType = c.LLM.ProviderType
 	}
 
-	// ── Personality V2 ── (falls back to main LLM if provider empty)
-	if c.Personality.V2Provider != "" {
-		if p := c.FindProvider(c.Personality.V2Provider); p != nil {
-			c.Personality.V2ProviderType = p.Type
-			c.Personality.V2ResolvedURL = p.BaseURL
-			c.Personality.V2ResolvedKey = p.APIKey
-			c.Personality.V2ResolvedModel = p.Model
-		}
-	}
-	// Legacy fallback: use inline fields if provider ref resolved nothing
-	if c.Personality.V2ResolvedModel == "" && c.Personality.V2Model != "" {
-		c.Personality.V2ResolvedModel = c.Personality.V2Model
-	}
-	if c.Personality.V2ResolvedURL == "" && c.Personality.V2URL != "" {
-		c.Personality.V2ResolvedURL = c.Personality.V2URL
-	}
-	if c.Personality.V2ResolvedKey == "" && c.Personality.V2APIKey != "" {
-		c.Personality.V2ResolvedKey = c.Personality.V2APIKey
-	}
-
-	// ── WebScraper summary ── (falls back to main LLM if provider empty)
-	if c.Tools.WebScraper.SummaryProvider != "" {
-		if p := c.FindProvider(c.Tools.WebScraper.SummaryProvider); p != nil {
-			c.Tools.WebScraper.SummaryBaseURL = p.BaseURL
-			c.Tools.WebScraper.SummaryAPIKey = p.APIKey
-			c.Tools.WebScraper.SummaryModel = p.Model
-		}
-	}
-	if c.Tools.WebScraper.SummaryAPIKey == "" {
-		c.Tools.WebScraper.SummaryAPIKey = c.LLM.APIKey
-	}
-	if c.Tools.WebScraper.SummaryBaseURL == "" {
-		c.Tools.WebScraper.SummaryBaseURL = c.LLM.BaseURL
-	}
-	if c.Tools.WebScraper.SummaryModel == "" {
-		c.Tools.WebScraper.SummaryModel = c.LLM.Model
-	}
-
-	// ── Wikipedia summary ── (falls back to main LLM if provider empty)
-	if c.Tools.Wikipedia.SummaryProvider != "" {
-		if p := c.FindProvider(c.Tools.Wikipedia.SummaryProvider); p != nil {
-			c.Tools.Wikipedia.SummaryBaseURL = p.BaseURL
-			c.Tools.Wikipedia.SummaryAPIKey = p.APIKey
-			c.Tools.Wikipedia.SummaryModel = p.Model
-		}
-	}
-	if c.Tools.Wikipedia.SummaryAPIKey == "" {
-		c.Tools.Wikipedia.SummaryAPIKey = c.LLM.APIKey
-	}
-	if c.Tools.Wikipedia.SummaryBaseURL == "" {
-		c.Tools.Wikipedia.SummaryBaseURL = c.LLM.BaseURL
-	}
-	if c.Tools.Wikipedia.SummaryModel == "" {
-		c.Tools.Wikipedia.SummaryModel = c.LLM.Model
-	}
-
-	// ── DDG Search summary ── (falls back to main LLM if provider empty)
-	if c.Tools.DDGSearch.SummaryProvider != "" {
-		if p := c.FindProvider(c.Tools.DDGSearch.SummaryProvider); p != nil {
-			c.Tools.DDGSearch.SummaryBaseURL = p.BaseURL
-			c.Tools.DDGSearch.SummaryAPIKey = p.APIKey
-			c.Tools.DDGSearch.SummaryModel = p.Model
-		}
-	}
-	if c.Tools.DDGSearch.SummaryAPIKey == "" {
-		c.Tools.DDGSearch.SummaryAPIKey = c.LLM.APIKey
-	}
-	if c.Tools.DDGSearch.SummaryBaseURL == "" {
-		c.Tools.DDGSearch.SummaryBaseURL = c.LLM.BaseURL
-	}
-	if c.Tools.DDGSearch.SummaryModel == "" {
-		c.Tools.DDGSearch.SummaryModel = c.LLM.Model
-	}
-
-	// ── PDF Extractor summary ── (falls back to main LLM if provider empty)
-	if c.Tools.PDFExtractor.SummaryProvider != "" {
-		if p := c.FindProvider(c.Tools.PDFExtractor.SummaryProvider); p != nil {
-			c.Tools.PDFExtractor.SummaryBaseURL = p.BaseURL
-			c.Tools.PDFExtractor.SummaryAPIKey = p.APIKey
-			c.Tools.PDFExtractor.SummaryModel = p.Model
-		}
-	}
-	if c.Tools.PDFExtractor.SummaryAPIKey == "" {
-		c.Tools.PDFExtractor.SummaryAPIKey = c.LLM.APIKey
-	}
-	if c.Tools.PDFExtractor.SummaryBaseURL == "" {
-		c.Tools.PDFExtractor.SummaryBaseURL = c.LLM.BaseURL
-	}
-	if c.Tools.PDFExtractor.SummaryModel == "" {
-		c.Tools.PDFExtractor.SummaryModel = c.LLM.Model
-	}
-
-	// ── Memory Analysis ── (falls back to main LLM if provider empty)
-	if c.MemoryAnalysis.Provider != "" {
-		if p := c.FindProvider(c.MemoryAnalysis.Provider); p != nil {
-			c.MemoryAnalysis.ProviderType = p.Type
-			c.MemoryAnalysis.BaseURL = p.BaseURL
-			c.MemoryAnalysis.APIKey = p.APIKey
-			if c.MemoryAnalysis.Model == "" {
-				c.MemoryAnalysis.ResolvedModel = p.Model
-			} else {
-				c.MemoryAnalysis.ResolvedModel = c.MemoryAnalysis.Model
+	// ── Personality V2 ── (prefers Helper LLM when available)
+	if helperResolved {
+		c.Personality.V2ProviderType = c.LLM.HelperProviderType
+		c.Personality.V2ResolvedURL = c.LLM.HelperBaseURL
+		c.Personality.V2ResolvedKey = c.LLM.HelperAPIKey
+		c.Personality.V2ResolvedModel = c.LLM.HelperResolvedModel
+	} else {
+		if c.Personality.V2Provider != "" {
+			if p := c.FindProvider(c.Personality.V2Provider); p != nil {
+				c.Personality.V2ProviderType = p.Type
+				c.Personality.V2ResolvedURL = p.BaseURL
+				c.Personality.V2ResolvedKey = p.APIKey
+				c.Personality.V2ResolvedModel = p.Model
 			}
 		}
+		// Legacy fallback: use inline fields if provider ref resolved nothing
+		if c.Personality.V2ResolvedModel == "" && c.Personality.V2Model != "" {
+			c.Personality.V2ResolvedModel = c.Personality.V2Model
+		}
+		if c.Personality.V2ResolvedURL == "" && c.Personality.V2URL != "" {
+			c.Personality.V2ResolvedURL = c.Personality.V2URL
+		}
+		if c.Personality.V2ResolvedKey == "" && c.Personality.V2APIKey != "" {
+			c.Personality.V2ResolvedKey = c.Personality.V2APIKey
+		}
 	}
-	if c.MemoryAnalysis.APIKey == "" {
-		c.MemoryAnalysis.APIKey = c.LLM.APIKey
+
+	// ── Helper-owned summary tools ── (prefer Helper LLM when available)
+	if helperResolved {
+		for _, slot := range []struct {
+			baseURL *string
+			apiKey  *string
+			model   *string
+		}{
+			{&c.Tools.WebScraper.SummaryBaseURL, &c.Tools.WebScraper.SummaryAPIKey, &c.Tools.WebScraper.SummaryModel},
+			{&c.Tools.Wikipedia.SummaryBaseURL, &c.Tools.Wikipedia.SummaryAPIKey, &c.Tools.Wikipedia.SummaryModel},
+			{&c.Tools.DDGSearch.SummaryBaseURL, &c.Tools.DDGSearch.SummaryAPIKey, &c.Tools.DDGSearch.SummaryModel},
+			{&c.Tools.PDFExtractor.SummaryBaseURL, &c.Tools.PDFExtractor.SummaryAPIKey, &c.Tools.PDFExtractor.SummaryModel},
+		} {
+			*slot.baseURL = c.LLM.HelperBaseURL
+			*slot.apiKey = c.LLM.HelperAPIKey
+			*slot.model = c.LLM.HelperResolvedModel
+		}
+	} else {
+		// ── WebScraper summary ── (falls back to main LLM if provider empty)
+		if c.Tools.WebScraper.SummaryProvider != "" {
+			if p := c.FindProvider(c.Tools.WebScraper.SummaryProvider); p != nil {
+				c.Tools.WebScraper.SummaryBaseURL = p.BaseURL
+				c.Tools.WebScraper.SummaryAPIKey = p.APIKey
+				c.Tools.WebScraper.SummaryModel = p.Model
+			}
+		}
+		if c.Tools.WebScraper.SummaryAPIKey == "" {
+			c.Tools.WebScraper.SummaryAPIKey = c.LLM.APIKey
+		}
+		if c.Tools.WebScraper.SummaryBaseURL == "" {
+			c.Tools.WebScraper.SummaryBaseURL = c.LLM.BaseURL
+		}
+		if c.Tools.WebScraper.SummaryModel == "" {
+			c.Tools.WebScraper.SummaryModel = c.LLM.Model
+		}
+
+		// ── Wikipedia summary ── (falls back to main LLM if provider empty)
+		if c.Tools.Wikipedia.SummaryProvider != "" {
+			if p := c.FindProvider(c.Tools.Wikipedia.SummaryProvider); p != nil {
+				c.Tools.Wikipedia.SummaryBaseURL = p.BaseURL
+				c.Tools.Wikipedia.SummaryAPIKey = p.APIKey
+				c.Tools.Wikipedia.SummaryModel = p.Model
+			}
+		}
+		if c.Tools.Wikipedia.SummaryAPIKey == "" {
+			c.Tools.Wikipedia.SummaryAPIKey = c.LLM.APIKey
+		}
+		if c.Tools.Wikipedia.SummaryBaseURL == "" {
+			c.Tools.Wikipedia.SummaryBaseURL = c.LLM.BaseURL
+		}
+		if c.Tools.Wikipedia.SummaryModel == "" {
+			c.Tools.Wikipedia.SummaryModel = c.LLM.Model
+		}
+
+		// ── DDG Search summary ── (falls back to main LLM if provider empty)
+		if c.Tools.DDGSearch.SummaryProvider != "" {
+			if p := c.FindProvider(c.Tools.DDGSearch.SummaryProvider); p != nil {
+				c.Tools.DDGSearch.SummaryBaseURL = p.BaseURL
+				c.Tools.DDGSearch.SummaryAPIKey = p.APIKey
+				c.Tools.DDGSearch.SummaryModel = p.Model
+			}
+		}
+		if c.Tools.DDGSearch.SummaryAPIKey == "" {
+			c.Tools.DDGSearch.SummaryAPIKey = c.LLM.APIKey
+		}
+		if c.Tools.DDGSearch.SummaryBaseURL == "" {
+			c.Tools.DDGSearch.SummaryBaseURL = c.LLM.BaseURL
+		}
+		if c.Tools.DDGSearch.SummaryModel == "" {
+			c.Tools.DDGSearch.SummaryModel = c.LLM.Model
+		}
+
+		// ── PDF Extractor summary ── (falls back to main LLM if provider empty)
+		if c.Tools.PDFExtractor.SummaryProvider != "" {
+			if p := c.FindProvider(c.Tools.PDFExtractor.SummaryProvider); p != nil {
+				c.Tools.PDFExtractor.SummaryBaseURL = p.BaseURL
+				c.Tools.PDFExtractor.SummaryAPIKey = p.APIKey
+				c.Tools.PDFExtractor.SummaryModel = p.Model
+			}
+		}
+		if c.Tools.PDFExtractor.SummaryAPIKey == "" {
+			c.Tools.PDFExtractor.SummaryAPIKey = c.LLM.APIKey
+		}
+		if c.Tools.PDFExtractor.SummaryBaseURL == "" {
+			c.Tools.PDFExtractor.SummaryBaseURL = c.LLM.BaseURL
+		}
+		if c.Tools.PDFExtractor.SummaryModel == "" {
+			c.Tools.PDFExtractor.SummaryModel = c.LLM.Model
+		}
 	}
-	if c.MemoryAnalysis.BaseURL == "" {
-		c.MemoryAnalysis.BaseURL = c.LLM.BaseURL
-	}
-	if c.MemoryAnalysis.ResolvedModel == "" {
-		c.MemoryAnalysis.ResolvedModel = c.LLM.Model
-	}
-	if c.MemoryAnalysis.ProviderType == "" {
-		c.MemoryAnalysis.ProviderType = c.LLM.ProviderType
+
+	// ── Memory Analysis ── (prefers Helper LLM when available)
+	if helperResolved {
+		c.MemoryAnalysis.ProviderType = c.LLM.HelperProviderType
+		c.MemoryAnalysis.BaseURL = c.LLM.HelperBaseURL
+		c.MemoryAnalysis.APIKey = c.LLM.HelperAPIKey
+		c.MemoryAnalysis.ResolvedModel = c.LLM.HelperResolvedModel
+	} else {
+		if c.MemoryAnalysis.Provider != "" {
+			if p := c.FindProvider(c.MemoryAnalysis.Provider); p != nil {
+				c.MemoryAnalysis.ProviderType = p.Type
+				c.MemoryAnalysis.BaseURL = p.BaseURL
+				c.MemoryAnalysis.APIKey = p.APIKey
+				if c.MemoryAnalysis.Model == "" {
+					c.MemoryAnalysis.ResolvedModel = p.Model
+				} else {
+					c.MemoryAnalysis.ResolvedModel = c.MemoryAnalysis.Model
+				}
+			}
+		}
+		if c.MemoryAnalysis.APIKey == "" {
+			c.MemoryAnalysis.APIKey = c.LLM.APIKey
+		}
+		if c.MemoryAnalysis.BaseURL == "" {
+			c.MemoryAnalysis.BaseURL = c.LLM.BaseURL
+		}
+		if c.MemoryAnalysis.ResolvedModel == "" {
+			c.MemoryAnalysis.ResolvedModel = c.LLM.Model
+		}
+		if c.MemoryAnalysis.ProviderType == "" {
+			c.MemoryAnalysis.ProviderType = c.LLM.ProviderType
+		}
 	}
 
 	// ── LLM Guardian ── (falls back to main LLM if provider empty)
@@ -887,16 +922,20 @@ func (c *Config) migrateInlineProviders() {
 		c.CoAgents.LLM.Provider = "main"
 	}
 
-	// Migrate Personality V2 legacy inline fields → provider entry
+	// Migrate Personality V2 legacy inline fields → Helper LLM provider entry
 	if c.Personality.V2URL != "" || c.Personality.V2Model != "" {
 		v2URL := c.Personality.V2URL
 		v2Key := c.Personality.V2APIKey
 		v2Model := c.Personality.V2Model
-		if v2URL != "" && (v2URL != c.LLM.LegacyURL || v2Key != c.LLM.LegacyAPIKey) {
-			v2Type := inferType(v2URL, "")
-			c.Personality.V2Provider = addProvider("personality-v2", "Personality V2", v2Type, v2URL, v2Key, v2Model)
+		if v2URL == "" {
+			v2URL = c.LLM.LegacyURL
 		}
-		// If no separate URL, V2 uses main LLM provider (resolved in ResolveProviders)
+		if v2Key == "" {
+			v2Key = c.LLM.LegacyAPIKey
+		}
+		v2Type := inferType(v2URL, "")
+		c.LLM.HelperEnabled = true
+		c.LLM.HelperProvider = addProvider("helper", "Helper LLM", v2Type, v2URL, v2Key, v2Model)
 	}
 }
 
