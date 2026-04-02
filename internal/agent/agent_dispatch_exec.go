@@ -661,55 +661,56 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			return "Tool Output: " + runMemoryOrchestrator(tc, cfg, logger, llmClient, longTermMem, shortTermMem, kg)
 
 		case "manage_knowledge", "knowledge_graph":
+			req := decodeKnowledgeGraphArgs(tc)
 			if !cfg.Tools.KnowledgeGraph.Enabled {
 				return `Tool Output: {"status":"error","message":"Knowledge graph is disabled. Set tools.knowledge_graph.enabled=true in config.yaml."}`
 			}
 			if cfg.Tools.KnowledgeGraph.ReadOnly {
-				switch tc.Operation {
+				switch req.Operation {
 				case "add_node", "add_edge", "delete_node", "delete_edge", "update_node", "update_edge", "optimize":
 					return `Tool Output: {"status":"error","message":"Knowledge graph is in read-only mode. Disable tools.knowledge_graph.read_only to allow changes."}`
 				}
 			}
-			logger.Info("LLM requested knowledge graph operation", "op", tc.Operation)
-			switch tc.Operation {
+			logger.Info("LLM requested knowledge graph operation", "op", req.Operation)
+			switch req.Operation {
 			case "add_node":
-				err := kg.AddNode(tc.ID, tc.Label, tc.Properties)
+				err := kg.AddNode(req.ID, req.Label, req.Properties)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
 				}
 				return `Tool Output: {"status": "success", "message": "Node added to graph"}`
 
 			case "add_edge":
-				err := kg.AddEdge(tc.Source, tc.Target, tc.Relation, tc.Properties)
+				err := kg.AddEdge(req.Source, req.Target, req.Relation, req.Properties)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
 				}
 				return `Tool Output: {"status": "success", "message": "Edge added to graph"}`
 
 			case "delete_node":
-				err := kg.DeleteNode(tc.ID)
+				err := kg.DeleteNode(req.ID)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
 				}
 				return `Tool Output: {"status": "success", "message": "Node deleted"}`
 
 			case "delete_edge":
-				err := kg.DeleteEdge(tc.Source, tc.Target, tc.Relation)
+				err := kg.DeleteEdge(req.Source, req.Target, req.Relation)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
 				}
 				return `Tool Output: {"status": "success", "message": "Edge deleted"}`
 
 			case "update_node":
-				if tc.ID == "" {
+				if req.ID == "" {
 					return `Tool Output: {"status": "error", "message": "Node 'id' is required for update_node"}`
 				}
-				node, err := kg.UpdateNode(tc.ID, tc.Label, tc.Properties)
+				node, err := kg.UpdateNode(req.ID, req.Label, req.Properties)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
 				}
 				if node == nil {
-					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Node not found: %s"}`, tc.ID)
+					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Node not found: %s"}`, req.ID)
 				}
 				data, _ := json.Marshal(map[string]interface{}{
 					"status":     "success",
@@ -722,14 +723,14 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				return "Tool Output: " + string(data)
 
 			case "update_edge":
-				if tc.Source == "" || tc.Target == "" || tc.Relation == "" {
+				if req.Source == "" || req.Target == "" || req.Relation == "" {
 					return `Tool Output: {"status": "error", "message": "source, target, and relation are required for update_edge"}`
 				}
-				newRel := tc.NewRelation
+				newRel := req.NewRelation
 				if newRel == "" {
-					newRel = tc.Relation
+					newRel = req.Relation
 				}
-				edge, err := kg.UpdateEdge(tc.Source, tc.Target, tc.Relation, newRel, tc.Properties)
+				edge, err := kg.UpdateEdge(req.Source, req.Target, req.Relation, newRel, req.Properties)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
 				}
@@ -747,15 +748,15 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				return "Tool Output: " + string(data)
 
 			case "get_node":
-				if tc.ID == "" {
+				if req.ID == "" {
 					return `Tool Output: {"status": "error", "message": "Node 'id' is required for get_node"}`
 				}
-				node, err := kg.GetNode(tc.ID)
+				node, err := kg.GetNode(req.ID)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
 				}
 				if node == nil {
-					return fmt.Sprintf(`Tool Output: {"status": "not_found", "message": "Node not found: %s"}`, tc.ID)
+					return fmt.Sprintf(`Tool Output: {"status": "not_found", "message": "Node not found: %s"}`, req.ID)
 				}
 				data, _ := json.Marshal(map[string]interface{}{
 					"id":         node.ID,
@@ -766,38 +767,38 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				return "Tool Output: " + string(data)
 
 			case "get_neighbors":
-				if tc.ID == "" {
+				if req.ID == "" {
 					return `Tool Output: {"status": "error", "message": "Node 'id' is required for get_neighbors"}`
 				}
-				limit := tc.Limit
+				limit := req.Limit
 				if limit <= 0 {
 					limit = 20
 				}
-				nodes, edges := kg.GetNeighbors(tc.ID, limit)
+				nodes, edges := kg.GetNeighbors(req.ID, limit)
 				if len(nodes) == 0 && len(edges) == 0 {
-					return fmt.Sprintf(`Tool Output: {"status": "not_found", "message": "No neighbors found for node: %s"}`, tc.ID)
+					return fmt.Sprintf(`Tool Output: {"status": "not_found", "message": "No neighbors found for node: %s"}`, req.ID)
 				}
 				data, _ := json.Marshal(map[string]interface{}{
-					"center_id": tc.ID,
+					"center_id": req.ID,
 					"nodes":     nodes,
 					"edges":     edges,
 				})
 				return "Tool Output: " + string(data)
 
 			case "subgraph":
-				if tc.ID == "" {
+				if req.ID == "" {
 					return `Tool Output: {"status": "error", "message": "Node 'id' is required for subgraph"}`
 				}
-				depth := tc.Depth
+				depth := req.Depth
 				if depth <= 0 {
 					depth = 2
 				}
-				nodes, edges := kg.GetSubgraph(tc.ID, depth)
+				nodes, edges := kg.GetSubgraph(req.ID, depth)
 				if len(nodes) == 0 && len(edges) == 0 {
-					return fmt.Sprintf(`Tool Output: {"status": "not_found", "message": "No subgraph found around node: %s"}`, tc.ID)
+					return fmt.Sprintf(`Tool Output: {"status": "not_found", "message": "No subgraph found around node: %s"}`, req.ID)
 				}
 				data, _ := json.Marshal(map[string]interface{}{
-					"center_id": tc.ID,
+					"center_id": req.ID,
 					"depth":     depth,
 					"nodes":     nodes,
 					"edges":     edges,
@@ -805,7 +806,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				return "Tool Output: " + string(data)
 
 			case "search":
-				res := kg.Search(tc.Content)
+				res := kg.Search(req.Content)
 				return fmt.Sprintf("Tool Output: %s", res)
 
 			case "optimize":
@@ -813,39 +814,40 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				return fmt.Sprintf("Tool Output: %s", res)
 
 			default:
-				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Unknown graph operation: %s"}`, tc.Operation)
+				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Unknown graph operation: %s"}`, req.Operation)
 			}
 
 		case "manage_memory", "core_memory":
+			req := decodeCoreMemoryArgs(tc)
 			if !cfg.Tools.Memory.Enabled {
 				return `Tool Output: {"status":"error","message":"Memory tools are disabled. Set tools.memory.enabled=true in config.yaml."}`
 			}
 			if cfg.Tools.Memory.ReadOnly {
-				switch tc.Operation {
+				switch req.Operation {
 				case "add", "store", "save", "set", "update", "delete", "remove", "reset_profile", "delete_profile_entry":
 					return `Tool Output: {"status":"error","message":"Memory is in read-only mode. Disable tools.memory.read_only to allow changes."}`
 				}
 			}
 			// Handle synonyms for 'fact'
-			fact := tc.Fact
+			fact := req.Fact
 			if fact == "" {
-				if tc.MemoryValue != "" {
-					fact = tc.MemoryValue
-				} else if tc.MemoryKey != "" {
-					fact = tc.MemoryKey
-				} else if tc.Value != "" {
-					fact = tc.Value
-				} else if tc.Content != "" {
-					fact = tc.Content
+				if req.MemoryValue != "" {
+					fact = req.MemoryValue
+				} else if req.MemoryKey != "" {
+					fact = req.MemoryKey
+				} else if req.Value != "" {
+					fact = req.Value
+				} else if req.Content != "" {
+					fact = req.Content
 				}
 			}
 			// When LLM uses separate key+value fields, combine into a meaningful fact (e.g. "agent_name: Nova")
 			// Only for add/update, and only when key is a descriptive word (not a numeric ID)
 			{
-				op := strings.ToLower(tc.Operation)
-				keyField := tc.Key
+				op := strings.ToLower(req.Operation)
+				keyField := req.Key
 				if keyField == "" {
-					keyField = tc.MemoryKey
+					keyField = req.MemoryKey
 				}
 				if (op == "add" || op == "update") && keyField != "" && fact != "" && fact != keyField {
 					if _, parseErr := strconv.ParseInt(keyField, 10, 64); parseErr != nil {
@@ -858,13 +860,13 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				}
 			}
 
-			logger.Info("LLM requested core memory management", "op", tc.Operation, "fact", fact)
-			if tc.Operation == "" {
+			logger.Info("LLM requested core memory management", "op", req.Operation, "fact", fact)
+			if req.Operation == "" {
 				return `Tool Output: {"status": "error", "message": "'operation' is required for manage_memory"}`
 			}
 
 			// User Profile operations (sub-ops of manage_memory)
-			switch tc.Operation {
+			switch req.Operation {
 			case "view_profile":
 				entries, err := shortTermMem.GetProfileEntries("")
 				if err != nil {
@@ -889,8 +891,8 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				}
 				return `Tool Output: {"status": "success", "message": "User profile has been completely reset."}`
 			case "delete_profile_entry":
-				cat := tc.Key
-				key := tc.Value
+				cat := req.Key
+				key := req.Value
 				if cat == "" || key == "" {
 					return `Tool Output: {"status": "error", "message": "'key' (category) and 'value' (key name) are required for delete_profile_entry"}`
 				}
@@ -901,18 +903,19 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			}
 
 			var memID int64
-			fmt.Sscanf(tc.ID, "%d", &memID)
-			result, err := tools.ManageCoreMemory(tc.Operation, fact, memID, shortTermMem, cfg.Agent.CoreMemoryMaxEntries, cfg.Agent.CoreMemoryCapMode)
+			fmt.Sscanf(req.ID, "%d", &memID)
+			result, err := tools.ManageCoreMemory(req.Operation, fact, memID, shortTermMem, cfg.Agent.CoreMemoryMaxEntries, cfg.Agent.CoreMemoryCapMode)
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
 			}
 			return fmt.Sprintf("Tool Output: %s", result)
 
 		case "cheatsheet":
+			req := decodeCheatsheetArgs(tc)
 			if cheatsheetDB == nil {
 				return `Tool Output: {"status":"error","message":"Cheat sheet database is not available."}`
 			}
-			op := strings.ToLower(strings.TrimSpace(tc.Operation))
+			op := strings.ToLower(strings.TrimSpace(req.Operation))
 			if op == "" {
 				return `Tool Output: {"status":"error","message":"'operation' is required (list, get, create, update, delete)."}`
 			}
@@ -935,10 +938,10 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			case "get":
 				var sheet *tools.CheatSheet
 				var err error
-				if tc.ID != "" {
-					sheet, err = tools.CheatsheetGet(cheatsheetDB, tc.ID)
-				} else if tc.Name != "" {
-					sheet, err = tools.CheatsheetGetByName(cheatsheetDB, tc.Name)
+				if req.ID != "" {
+					sheet, err = tools.CheatsheetGet(cheatsheetDB, req.ID)
+				} else if req.Name != "" {
+					sheet, err = tools.CheatsheetGetByName(cheatsheetDB, req.Name)
 				} else {
 					return `Tool Output: {"status":"error","message":"'id' or 'name' is required for get."}`
 				}
@@ -948,69 +951,69 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				data, _ := json.Marshal(map[string]interface{}{"status": "ok", "cheatsheet": sheet})
 				return fmt.Sprintf("Tool Output: %s", string(data))
 			case "create":
-				if tc.Name == "" {
+				if req.Name == "" {
 					return `Tool Output: {"status":"error","message":"'name' is required for create."}`
 				}
-				sheet, err := tools.CheatsheetCreate(cheatsheetDB, tc.Name, tc.Content, "agent")
+				sheet, err := tools.CheatsheetCreate(cheatsheetDB, req.Name, req.Content, "agent")
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
 				}
 				data, _ := json.Marshal(map[string]interface{}{"status": "ok", "message": "Cheat sheet created.", "cheatsheet": sheet})
 				return fmt.Sprintf("Tool Output: %s", string(data))
 			case "update":
-				if tc.ID == "" {
+				if req.ID == "" {
 					return `Tool Output: {"status":"error","message":"'id' is required for update."}`
 				}
 				var namePtr, contentPtr *string
 				var activePtr *bool
-				if tc.Name != "" {
-					namePtr = &tc.Name
+				if req.Name != "" {
+					namePtr = &req.Name
 				}
-				if tc.Content != "" {
-					contentPtr = &tc.Content
+				if req.Content != "" {
+					contentPtr = &req.Content
 				}
-				if tc.Active != nil {
-					activePtr = tc.Active
+				if req.Active != nil {
+					activePtr = req.Active
 				}
-				sheet, err := tools.CheatsheetUpdate(cheatsheetDB, tc.ID, namePtr, contentPtr, activePtr)
+				sheet, err := tools.CheatsheetUpdate(cheatsheetDB, req.ID, namePtr, contentPtr, activePtr)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
 				}
 				data, _ := json.Marshal(map[string]interface{}{"status": "ok", "message": "Cheat sheet updated.", "cheatsheet": sheet})
 				return fmt.Sprintf("Tool Output: %s", string(data))
 			case "delete":
-				if tc.ID == "" {
+				if req.ID == "" {
 					return `Tool Output: {"status":"error","message":"'id' is required for delete."}`
 				}
-				if err := tools.CheatsheetDelete(cheatsheetDB, tc.ID); err != nil {
+				if err := tools.CheatsheetDelete(cheatsheetDB, req.ID); err != nil {
 					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
 				}
 				return `Tool Output: {"status":"ok","message":"Cheat sheet deleted."}`
 			case "attach":
-				if tc.ID == "" {
+				if req.ID == "" {
 					return `Tool Output: {"status":"error","message":"'id' (cheat sheet ID) is required for attach."}`
 				}
-				if tc.Filename == "" {
+				if req.Filename == "" {
 					return `Tool Output: {"status":"error","message":"'filename' is required for attach."}`
 				}
 				source := "upload"
-				if tc.Source != "" {
-					source = tc.Source
+				if req.Source != "" {
+					source = req.Source
 				}
-				attachment, err := tools.CheatsheetAttachmentAdd(cheatsheetDB, tc.ID, tc.Filename, source, tc.Content)
+				attachment, err := tools.CheatsheetAttachmentAdd(cheatsheetDB, req.ID, req.Filename, source, req.Content)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
 				}
 				data, _ := json.Marshal(map[string]interface{}{"status": "ok", "message": "Attachment added.", "attachment": attachment})
 				return fmt.Sprintf("Tool Output: %s", string(data))
 			case "detach":
-				if tc.ID == "" {
+				if req.ID == "" {
 					return `Tool Output: {"status":"error","message":"'id' (cheat sheet ID) is required for detach."}`
 				}
-				if tc.AttachmentID == "" {
+				if req.AttachmentID == "" {
 					return `Tool Output: {"status":"error","message":"'attachment_id' is required for detach."}`
 				}
-				if err := tools.CheatsheetAttachmentRemove(cheatsheetDB, tc.ID, tc.AttachmentID); err != nil {
+				if err := tools.CheatsheetAttachmentRemove(cheatsheetDB, req.ID, req.AttachmentID); err != nil {
 					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
 				}
 				return `Tool Output: {"status":"ok","message":"Attachment removed."}`

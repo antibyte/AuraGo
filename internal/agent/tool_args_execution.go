@@ -55,6 +55,42 @@ type updateManagementArgs struct {
 	Operation string
 }
 
+type knowledgeGraphArgs struct {
+	Operation   string
+	ID          string
+	Label       string
+	Properties  map[string]string
+	Source      string
+	Target      string
+	Relation    string
+	NewRelation string
+	Limit       int
+	Depth       int
+	Content     string
+}
+
+type coreMemoryArgs struct {
+	Operation   string
+	Fact        string
+	Key         string
+	Value       string
+	ID          string
+	MemoryKey   string
+	MemoryValue string
+	Content     string
+}
+
+type cheatsheetArgs struct {
+	Operation    string
+	ID           string
+	Name         string
+	Content      string
+	Active       *bool
+	Filename     string
+	Source       string
+	AttachmentID string
+}
+
 func toolArgInterfaceMap(args map[string]interface{}, keys ...string) map[string]interface{} {
 	for _, key := range keys {
 		raw, ok := args[key]
@@ -84,6 +120,20 @@ func toolArgBool(args map[string]interface{}, keys ...string) (bool, bool) {
 		}
 	}
 	return false, false
+}
+
+func toolArgBoolPtr(args map[string]interface{}, keys ...string) *bool {
+	for _, key := range keys {
+		raw, ok := args[key]
+		if !ok {
+			continue
+		}
+		if value, ok := raw.(bool); ok {
+			v := value
+			return &v
+		}
+	}
+	return nil
 }
 
 func toolArgStringsFromRaw(raw interface{}) []string {
@@ -239,4 +289,54 @@ func decodeUpdateManagementArgs(tc ToolCall) updateManagementArgs {
 	return updateManagementArgs{
 		Operation: firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
 	}
+}
+
+func decodeKnowledgeGraphArgs(tc ToolCall) knowledgeGraphArgs {
+	req := knowledgeGraphArgs{
+		Operation:   firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		ID:          firstNonEmptyToolString(tc.ID, toolArgString(tc.Params, "id")),
+		Label:       firstNonEmptyToolString(tc.Label, toolArgString(tc.Params, "label")),
+		Properties:  tc.Properties,
+		Source:      firstNonEmptyToolString(tc.Source, toolArgString(tc.Params, "source")),
+		Target:      firstNonEmptyToolString(tc.Target, toolArgString(tc.Params, "target")),
+		Relation:    firstNonEmptyToolString(tc.Relation, toolArgString(tc.Params, "relation")),
+		NewRelation: firstNonEmptyToolString(tc.NewRelation, toolArgString(tc.Params, "new_relation")),
+		Limit:       firstNonEmptyInt(tc.Limit, toolArgInt(tc.Params, 0, "limit")),
+		Depth:       firstNonEmptyInt(tc.Depth, toolArgInt(tc.Params, 0, "depth")),
+		Content:     firstNonEmptyToolString(tc.Content, toolArgString(tc.Params, "content")),
+	}
+	if len(req.Properties) == 0 {
+		req.Properties = toolArgStringMap(tc.Params, "properties")
+	}
+	return req
+}
+
+func decodeCoreMemoryArgs(tc ToolCall) coreMemoryArgs {
+	return coreMemoryArgs{
+		Operation:   firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		Fact:        firstNonEmptyToolString(tc.Fact, toolArgString(tc.Params, "fact")),
+		Key:         firstNonEmptyToolString(tc.Key, toolArgString(tc.Params, "key")),
+		Value:       firstNonEmptyToolString(tc.Value, toolArgString(tc.Params, "value")),
+		ID:          firstNonEmptyToolString(tc.ID, toolArgString(tc.Params, "id")),
+		MemoryKey:   firstNonEmptyToolString(tc.MemoryKey, toolArgString(tc.Params, "memory_key")),
+		MemoryValue: firstNonEmptyToolString(tc.MemoryValue, toolArgString(tc.Params, "memory_value")),
+		Content:     firstNonEmptyToolString(tc.Content, toolArgString(tc.Params, "content")),
+	}
+}
+
+func decodeCheatsheetArgs(tc ToolCall) cheatsheetArgs {
+	req := cheatsheetArgs{
+		Operation:    firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		ID:           firstNonEmptyToolString(tc.ID, toolArgString(tc.Params, "id")),
+		Name:         firstNonEmptyToolString(tc.Name, toolArgString(tc.Params, "name")),
+		Content:      firstNonEmptyToolString(tc.Content, toolArgString(tc.Params, "content")),
+		Active:       tc.Active,
+		Filename:     firstNonEmptyToolString(tc.Filename, toolArgString(tc.Params, "filename")),
+		Source:       firstNonEmptyToolString(tc.Source, toolArgString(tc.Params, "source")),
+		AttachmentID: firstNonEmptyToolString(tc.AttachmentID, toolArgString(tc.Params, "attachment_id")),
+	}
+	if req.Active == nil {
+		req.Active = toolArgBoolPtr(tc.Params, "active")
+	}
+	return req
 }

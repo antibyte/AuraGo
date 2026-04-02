@@ -186,3 +186,89 @@ func TestDecodeUpdateManagementArgsUsesParamsFallback(t *testing.T) {
 		t.Fatalf("Operation = %q, want check", req.Operation)
 	}
 }
+
+func TestDecodeKnowledgeGraphArgsUsesParamsFallback(t *testing.T) {
+	req := decodeKnowledgeGraphArgs(ToolCall{
+		Action: "knowledge_graph",
+		Params: map[string]interface{}{
+			"operation":    "update_edge",
+			"id":           "node-1",
+			"label":        "Server",
+			"source":       "srv-1",
+			"target":       "rack-1",
+			"relation":     "located_in",
+			"new_relation": "runs_in",
+			"depth":        float64(3),
+			"limit":        float64(25),
+			"content":      "search term",
+			"properties": map[string]interface{}{
+				"role": "db",
+			},
+		},
+	})
+
+	if req.Operation != "update_edge" || req.ID != "node-1" || req.Label != "Server" {
+		t.Fatalf("unexpected graph decode: %+v", req)
+	}
+	if req.Source != "srv-1" || req.Target != "rack-1" || req.Relation != "located_in" || req.NewRelation != "runs_in" {
+		t.Fatalf("unexpected edge decode: %+v", req)
+	}
+	if req.Depth != 3 || req.Limit != 25 || req.Content != "search term" {
+		t.Fatalf("unexpected depth/limit/content decode: %+v", req)
+	}
+	if req.Properties["role"] != "db" {
+		t.Fatalf("Properties[role] = %q, want db", req.Properties["role"])
+	}
+}
+
+func TestDecodeCoreMemoryArgsUsesParamsFallback(t *testing.T) {
+	req := decodeCoreMemoryArgs(ToolCall{
+		Action: "manage_memory",
+		Params: map[string]interface{}{
+			"operation":    "add",
+			"fact":         "primary fact",
+			"key":          "profile",
+			"value":        "Nova",
+			"id":           "12",
+			"memory_key":   "nickname",
+			"memory_value": "Nova Prime",
+			"content":      "fallback content",
+		},
+	})
+
+	if req.Operation != "add" || req.ID != "12" {
+		t.Fatalf("unexpected core memory decode: %+v", req)
+	}
+	if req.Fact != "primary fact" || req.Key != "profile" || req.Value != "Nova" {
+		t.Fatalf("unexpected fact/key/value decode: %+v", req)
+	}
+	if req.MemoryKey != "nickname" || req.MemoryValue != "Nova Prime" || req.Content != "fallback content" {
+		t.Fatalf("unexpected memory alias decode: %+v", req)
+	}
+}
+
+func TestDecodeCheatsheetArgsUsesParamsFallback(t *testing.T) {
+	req := decodeCheatsheetArgs(ToolCall{
+		Action: "cheatsheet",
+		Params: map[string]interface{}{
+			"operation":     "attach",
+			"id":            "sheet-1",
+			"name":          "Deploy",
+			"content":       "steps",
+			"active":        true,
+			"filename":      "runbook.md",
+			"source":        "upload",
+			"attachment_id": "att-1",
+		},
+	})
+
+	if req.Operation != "attach" || req.ID != "sheet-1" || req.Name != "Deploy" {
+		t.Fatalf("unexpected cheatsheet decode: %+v", req)
+	}
+	if req.Content != "steps" || req.Filename != "runbook.md" || req.Source != "upload" || req.AttachmentID != "att-1" {
+		t.Fatalf("unexpected attachment decode: %+v", req)
+	}
+	if req.Active == nil || !*req.Active {
+		t.Fatalf("Active = %v, want true", req.Active)
+	}
+}
