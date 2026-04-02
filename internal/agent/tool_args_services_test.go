@@ -220,6 +220,75 @@ func TestDecodeDockerArgsUsesParamsFallback(t *testing.T) {
 	}
 }
 
+func TestDecodeHomepageArgsUsesParamsFallback(t *testing.T) {
+	tc := ToolCall{
+		Action: "homepage",
+		Params: map[string]interface{}{
+			"operation":     "json_edit",
+			"command":       "npm run dev",
+			"framework":     "vite",
+			"name":          "marketing-site",
+			"template":      "landing",
+			"project_dir":   "sites/marketing",
+			"auto_fix":      true,
+			"packages":      []interface{}{"react", "vite"},
+			"url":           "https://example.com",
+			"viewport":      "1440x900",
+			"path":          "sites/marketing/package.json",
+			"content":       "{\"name\":\"marketing\"}",
+			"sub_operation": "set",
+			"old":           "old",
+			"new":           "new",
+			"marker":        "\"scripts\"",
+			"start_line":    float64(2),
+			"end_line":      float64(4),
+			"json_path":     "scripts.dev",
+			"set_value":     "vite --host",
+			"xpath":         "/project/name",
+			"port":          float64(4173),
+			"build_dir":     "dist",
+			"site_id":       "site-123",
+			"title":         "Deploy title",
+			"draft":         true,
+			"git_message":   "ship homepage",
+			"message":       "fallback commit",
+			"count":         float64(12),
+		},
+	}
+
+	req := decodeHomepageArgs(tc)
+	if req.Operation != "json_edit" || req.Command != "npm run dev" {
+		t.Fatalf("unexpected operation/command decode: %+v", req)
+	}
+	if req.Framework != "vite" || req.Name != "marketing-site" || req.Template != "landing" {
+		t.Fatalf("unexpected project metadata: %+v", req)
+	}
+	if req.ProjectDir != "sites/marketing" || !req.AutoFix {
+		t.Fatalf("unexpected project dir/auto_fix: %+v", req)
+	}
+	if len(req.Packages) != 2 || req.Packages[0] != "react" || req.Packages[1] != "vite" {
+		t.Fatalf("Packages = %#v, want [react vite]", req.Packages)
+	}
+	if req.URL != "https://example.com" || req.Viewport != "1440x900" || req.Path != "sites/marketing/package.json" {
+		t.Fatalf("unexpected path/url decode: %+v", req)
+	}
+	if req.SubOperation != "set" || req.JsonPath != "scripts.dev" || req.Xpath != "/project/name" {
+		t.Fatalf("unexpected edit metadata: %+v", req)
+	}
+	if req.StartLine != 2 || req.EndLine != 4 || req.Port != 4173 || req.Count != 12 {
+		t.Fatalf("unexpected numeric decode: %+v", req)
+	}
+	if req.BuildDir != "dist" || req.SiteID != "site-123" || req.Title != "Deploy title" || !req.Draft {
+		t.Fatalf("unexpected deploy metadata: %+v", req)
+	}
+	if req.GitMessage != "ship homepage" || req.Message != "fallback commit" {
+		t.Fatalf("unexpected git metadata: %+v", req)
+	}
+	if value, ok := req.SetValue.(string); !ok || value != "vite --host" {
+		t.Fatalf("SetValue = %#v, want vite --host", req.SetValue)
+	}
+}
+
 func TestDecodeManageWebhooksArgsUsesActionAlias(t *testing.T) {
 	tc := ToolCall{
 		Action: "manage_webhooks",

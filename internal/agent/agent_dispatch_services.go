@@ -332,6 +332,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			if !cfg.Homepage.Enabled {
 				return `Tool Output: {"status": "error", "message": "Homepage tool is not enabled. Set homepage.enabled=true in config.yaml."}`
 			}
+			req := decodeHomepageArgs(tc)
 			homepageCfg := tools.HomepageConfig{
 				DockerHost:            cfg.Docker.Host,
 				WorkspacePath:         cfg.Homepage.WorkspacePath,
@@ -355,7 +356,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			}
 
 			// Permission checks for restricted operations
-			switch tc.Operation {
+			switch req.Operation {
 			case "deploy", "test_connection":
 				if !cfg.Homepage.AllowDeploy {
 					return `Tool Output: {"status":"error","message":"Deployment is disabled by administrator. The homepage.allow_deploy setting is false in config.yaml. Do NOT retry this action — inform the user that deployment must be enabled in the configuration first."}`
@@ -366,7 +367,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				}
 			}
 
-			switch tc.Operation {
+			switch req.Operation {
 			case "init":
 				logger.Info("LLM requested homepage init")
 				return "Tool Output: " + tools.HomepageInit(homepageCfg, logger)
@@ -386,52 +387,52 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				logger.Info("LLM requested homepage destroy")
 				return "Tool Output: " + tools.HomepageDestroy(homepageCfg, logger)
 			case "exec":
-				logger.Info("LLM requested homepage exec", "cmd", tc.Command)
-				execCmd := tc.Command
+				logger.Info("LLM requested homepage exec", "cmd", req.Command)
+				execCmd := req.Command
 				// Auto-inject Netlify auth token when the command invokes the netlify CLI
-				if vault != nil && strings.Contains(tc.Command, "netlify ") {
+				if vault != nil && strings.Contains(req.Command, "netlify ") {
 					if nfTok, tokErr := vault.ReadSecret("netlify_token"); tokErr == nil && nfTok != "" {
-						execCmd = "NETLIFY_AUTH_TOKEN=" + nfTok + " " + tc.Command
+						execCmd = "NETLIFY_AUTH_TOKEN=" + nfTok + " " + req.Command
 					}
 				}
 				return "Tool Output: " + tools.HomepageExec(homepageCfg, execCmd, logger)
 			case "init_project":
-				logger.Info("LLM requested homepage init_project", "framework", tc.Framework, "name", tc.Name, "template", tc.Template)
-				result := tools.HomepageInitProject(homepageCfg, tc.Framework, tc.Name, tc.Template, logger)
+				logger.Info("LLM requested homepage init_project", "framework", req.Framework, "name", req.Name, "template", req.Template)
+				result := tools.HomepageInitProject(homepageCfg, req.Framework, req.Name, req.Template, logger)
 				// Auto-register project in homepage registry
-				if homepageRegistryDB != nil && tc.Name != "" {
+				if homepageRegistryDB != nil && req.Name != "" {
 					tools.RegisterProject(homepageRegistryDB, tools.HomepageProject{
-						Name:      tc.Name,
-						Framework: tc.Framework,
+						Name:      req.Name,
+						Framework: req.Framework,
 						Status:    "active",
 						Tags:      []string{"auto-registered"},
 					})
 				}
 				return "Tool Output: " + result
 			case "build":
-				logger.Info("LLM requested homepage build", "dir", tc.ProjectDir, "auto_fix", tc.AutoFix)
+				logger.Info("LLM requested homepage build", "dir", req.ProjectDir, "auto_fix", req.AutoFix)
 				var result string
-				if tc.AutoFix {
-					result = tools.HomepageBuildWithAutoFix(homepageCfg, tc.ProjectDir, logger)
+				if req.AutoFix {
+					result = tools.HomepageBuildWithAutoFix(homepageCfg, req.ProjectDir, logger)
 				} else {
-					result = tools.HomepageBuild(homepageCfg, tc.ProjectDir, logger)
+					result = tools.HomepageBuild(homepageCfg, req.ProjectDir, logger)
 				}
 				// Auto-log edit in homepage registry
-				if homepageRegistryDB != nil && tc.ProjectDir != "" {
-					if proj, err := tools.GetProjectByDir(homepageRegistryDB, tc.ProjectDir); err == nil {
+				if homepageRegistryDB != nil && req.ProjectDir != "" {
+					if proj, err := tools.GetProjectByDir(homepageRegistryDB, req.ProjectDir); err == nil {
 						tools.LogEdit(homepageRegistryDB, proj.ID, "build")
 					}
 				}
 				return "Tool Output: " + result
 			case "install_deps":
-				logger.Info("LLM requested homepage install_deps", "packages", tc.Packages)
-				return "Tool Output: " + tools.HomepageInstallDeps(homepageCfg, tc.ProjectDir, tc.Packages, logger)
+				logger.Info("LLM requested homepage install_deps", "packages", req.Packages)
+				return "Tool Output: " + tools.HomepageInstallDeps(homepageCfg, req.ProjectDir, req.Packages, logger)
 			case "lighthouse":
-				logger.Info("LLM requested homepage lighthouse", "url", tc.URL)
-				result := tools.HomepageLighthouse(homepageCfg, tc.URL, logger)
+				logger.Info("LLM requested homepage lighthouse", "url", req.URL)
+				result := tools.HomepageLighthouse(homepageCfg, req.URL, logger)
 				// Auto-log lighthouse score in homepage registry
-				if homepageRegistryDB != nil && tc.URL != "" {
-					projects, _, _ := tools.SearchProjects(homepageRegistryDB, tc.URL, "", nil, 1, 0)
+				if homepageRegistryDB != nil && req.URL != "" {
+					projects, _, _ := tools.SearchProjects(homepageRegistryDB, req.URL, "", nil, 1, 0)
 					if len(projects) > 0 {
 						var scoreMap map[string]interface{}
 						var perfScore float64
@@ -449,52 +450,52 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				}
 				return "Tool Output: " + result
 			case "screenshot":
-				logger.Info("LLM requested homepage screenshot", "url", tc.URL, "viewport", tc.Viewport)
-				return "Tool Output: " + tools.HomepageScreenshot(homepageCfg, tc.URL, tc.Viewport, logger)
+				logger.Info("LLM requested homepage screenshot", "url", req.URL, "viewport", req.Viewport)
+				return "Tool Output: " + tools.HomepageScreenshot(homepageCfg, req.URL, req.Viewport, logger)
 			case "lint":
-				logger.Info("LLM requested homepage lint", "dir", tc.ProjectDir)
-				return "Tool Output: " + tools.HomepageLint(homepageCfg, tc.ProjectDir, logger)
+				logger.Info("LLM requested homepage lint", "dir", req.ProjectDir)
+				return "Tool Output: " + tools.HomepageLint(homepageCfg, req.ProjectDir, logger)
 			case "list_files":
-				logger.Info("LLM requested homepage list_files", "path", tc.Path)
-				return "Tool Output: " + tools.HomepageListFiles(homepageCfg, tc.Path, logger)
+				logger.Info("LLM requested homepage list_files", "path", req.Path)
+				return "Tool Output: " + tools.HomepageListFiles(homepageCfg, req.Path, logger)
 			case "read_file":
-				logger.Info("LLM requested homepage read_file", "path", tc.Path)
-				return "Tool Output: " + tools.HomepageReadFile(homepageCfg, tc.Path, logger)
+				logger.Info("LLM requested homepage read_file", "path", req.Path)
+				return "Tool Output: " + tools.HomepageReadFile(homepageCfg, req.Path, logger)
 			case "write_file":
-				logger.Info("LLM requested homepage write_file", "path", tc.Path)
-				return "Tool Output: " + tools.HomepageWriteFile(homepageCfg, tc.Path, tc.Content, logger)
+				logger.Info("LLM requested homepage write_file", "path", req.Path)
+				return "Tool Output: " + tools.HomepageWriteFile(homepageCfg, req.Path, req.Content, logger)
 			case "edit_file":
-				editOp := tc.SubOperation
-				logger.Info("LLM requested homepage edit_file", "path", tc.Path, "op", editOp)
-				return "Tool Output: " + tools.HomepageEditFile(homepageCfg, tc.Path, editOp, tc.Old, tc.New, tc.Marker, tc.Content, tc.StartLine, tc.EndLine, logger)
+				editOp := req.SubOperation
+				logger.Info("LLM requested homepage edit_file", "path", req.Path, "op", editOp)
+				return "Tool Output: " + tools.HomepageEditFile(homepageCfg, req.Path, editOp, req.Old, req.New, req.Marker, req.Content, req.StartLine, req.EndLine, logger)
 			case "json_edit":
-				editOp := tc.SubOperation
-				logger.Info("LLM requested homepage json_edit", "path", tc.Path, "op", editOp)
-				return "Tool Output: " + tools.HomepageJsonEdit(homepageCfg, tc.Path, editOp, tc.JsonPath, tc.SetValue, tc.Content, logger)
+				editOp := req.SubOperation
+				logger.Info("LLM requested homepage json_edit", "path", req.Path, "op", editOp)
+				return "Tool Output: " + tools.HomepageJsonEdit(homepageCfg, req.Path, editOp, req.JsonPath, req.SetValue, req.Content, logger)
 			case "yaml_edit":
-				editOp := tc.SubOperation
-				logger.Info("LLM requested homepage yaml_edit", "path", tc.Path, "op", editOp)
-				return "Tool Output: " + tools.HomepageYamlEdit(homepageCfg, tc.Path, editOp, tc.JsonPath, tc.SetValue, logger)
+				editOp := req.SubOperation
+				logger.Info("LLM requested homepage yaml_edit", "path", req.Path, "op", editOp)
+				return "Tool Output: " + tools.HomepageYamlEdit(homepageCfg, req.Path, editOp, req.JsonPath, req.SetValue, logger)
 			case "xml_edit":
-				editOp := tc.SubOperation
-				logger.Info("LLM requested homepage xml_edit", "path", tc.Path, "op", editOp)
-				xpath := tc.Xpath
+				editOp := req.SubOperation
+				logger.Info("LLM requested homepage xml_edit", "path", req.Path, "op", editOp)
+				xpath := req.Xpath
 				if xpath == "" {
-					xpath = tc.JsonPath
+					xpath = req.JsonPath
 				}
-				return "Tool Output: " + tools.HomepageXmlEdit(homepageCfg, tc.Path, editOp, xpath, tc.SetValue, logger)
+				return "Tool Output: " + tools.HomepageXmlEdit(homepageCfg, req.Path, editOp, xpath, req.SetValue, logger)
 			case "optimize_images":
-				logger.Info("LLM requested homepage optimize_images", "dir", tc.ProjectDir)
-				return "Tool Output: " + tools.HomepageOptimizeImages(homepageCfg, tc.ProjectDir, logger)
+				logger.Info("LLM requested homepage optimize_images", "dir", req.ProjectDir)
+				return "Tool Output: " + tools.HomepageOptimizeImages(homepageCfg, req.ProjectDir, logger)
 			case "dev":
-				logger.Info("LLM requested homepage dev server", "dir", tc.ProjectDir)
-				return "Tool Output: " + tools.HomepageDev(homepageCfg, tc.ProjectDir, 3000, logger)
+				logger.Info("LLM requested homepage dev server", "dir", req.ProjectDir)
+				return "Tool Output: " + tools.HomepageDev(homepageCfg, req.ProjectDir, 3000, logger)
 			case "deploy":
 				logger.Info("LLM requested homepage deploy", "host", deployCfg.Host)
-				result := tools.HomepageDeploy(homepageCfg, deployCfg, tc.ProjectDir, tc.BuildDir, logger)
+				result := tools.HomepageDeploy(homepageCfg, deployCfg, req.ProjectDir, req.BuildDir, logger)
 				// Auto-log deploy in homepage registry
-				if homepageRegistryDB != nil && tc.ProjectDir != "" {
-					if proj, err := tools.GetProjectByDir(homepageRegistryDB, tc.ProjectDir); err == nil {
+				if homepageRegistryDB != nil && req.ProjectDir != "" {
+					if proj, err := tools.GetProjectByDir(homepageRegistryDB, req.ProjectDir); err == nil {
 						tools.LogDeploy(homepageRegistryDB, proj.ID, deployCfg.Host)
 					}
 				}
@@ -504,7 +505,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return "Tool Output: " + tools.HomepageTestConnection(deployCfg, logger)
 			case "webserver_start":
 				logger.Info("LLM requested homepage webserver_start")
-				return "Tool Output: " + tools.HomepageWebServerStart(homepageCfg, tc.ProjectDir, tc.BuildDir, logger)
+				return "Tool Output: " + tools.HomepageWebServerStart(homepageCfg, req.ProjectDir, req.BuildDir, logger)
 			case "webserver_stop":
 				logger.Info("LLM requested homepage webserver_stop")
 				return "Tool Output: " + tools.HomepageWebServerStop(homepageCfg, logger)
@@ -512,15 +513,15 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				logger.Info("LLM requested homepage webserver_status")
 				return "Tool Output: " + tools.HomepageWebServerStatus(homepageCfg, logger)
 			case "tunnel":
-				logger.Info("LLM requested homepage tunnel", "port", tc.Port)
-				port := tc.Port
+				logger.Info("LLM requested homepage tunnel", "port", req.Port)
+				port := req.Port
 				if port <= 0 {
 					port = 3000
 				}
 				return "Tool Output: " + tools.HomepageTunnel(homepageCfg, port, logger)
 			case "publish_local":
 				logger.Info("LLM requested homepage publish_local")
-				return "Tool Output: " + tools.HomepagePublishToLocal(homepageCfg, tc.ProjectDir, logger)
+				return "Tool Output: " + tools.HomepagePublishToLocal(homepageCfg, req.ProjectDir, logger)
 			case "deploy_netlify":
 				if !cfg.Netlify.AllowDeploy {
 					return `Tool Output: {"status":"error","message":"Deployment is disabled. Enable netlify.allow_deploy in config."}`
@@ -537,19 +538,19 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					DefaultSiteID: cfg.Netlify.DefaultSiteID,
 					TeamSlug:      cfg.Netlify.TeamSlug,
 				}
-				logger.Info("LLM requested homepage deploy_netlify", "project", tc.ProjectDir, "build_dir", tc.BuildDir, "site_id", tc.SiteID, "draft", tc.Draft)
-				result := tools.HomepageDeployNetlify(homepageCfg, nfCfg, tc.ProjectDir, tc.BuildDir, tc.SiteID, tc.Title, tc.Draft, logger)
+				logger.Info("LLM requested homepage deploy_netlify", "project", req.ProjectDir, "build_dir", req.BuildDir, "site_id", req.SiteID, "draft", req.Draft)
+				result := tools.HomepageDeployNetlify(homepageCfg, nfCfg, req.ProjectDir, req.BuildDir, req.SiteID, req.Title, req.Draft, logger)
 				// Auto-log deploy in homepage registry
-				if homepageRegistryDB != nil && tc.ProjectDir != "" {
-					deployURL := tc.SiteID
+				if homepageRegistryDB != nil && req.ProjectDir != "" {
+					deployURL := req.SiteID
 					if deployURL == "" {
 						deployURL = "netlify"
 					}
-					if proj, err := tools.GetProjectByDir(homepageRegistryDB, tc.ProjectDir); err == nil {
+					if proj, err := tools.GetProjectByDir(homepageRegistryDB, req.ProjectDir); err == nil {
 						tools.LogDeploy(homepageRegistryDB, proj.ID, deployURL)
-						if tc.SiteID != "" {
+						if req.SiteID != "" {
 							tools.UpdateProject(homepageRegistryDB, proj.ID, map[string]interface{}{
-								"netlify_site_id": tc.SiteID,
+								"netlify_site_id": req.SiteID,
 							})
 						}
 					}
@@ -557,35 +558,35 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return "Tool Output: " + result
 			// ─── Git operations ─────────────────────────────────────
 			case "git_init":
-				logger.Info("LLM requested homepage git_init", "dir", tc.ProjectDir)
-				return "Tool Output: " + tools.HomepageGitInit(homepageCfg, tc.ProjectDir, logger)
+				logger.Info("LLM requested homepage git_init", "dir", req.ProjectDir)
+				return "Tool Output: " + tools.HomepageGitInit(homepageCfg, req.ProjectDir, logger)
 			case "git_commit":
-				msg := tc.GitMessage
+				msg := req.GitMessage
 				if msg == "" {
-					msg = tc.Message
+					msg = req.Message
 				}
-				logger.Info("LLM requested homepage git_commit", "dir", tc.ProjectDir, "message", msg)
-				return "Tool Output: " + tools.HomepageGitCommit(homepageCfg, tc.ProjectDir, msg, logger)
+				logger.Info("LLM requested homepage git_commit", "dir", req.ProjectDir, "message", msg)
+				return "Tool Output: " + tools.HomepageGitCommit(homepageCfg, req.ProjectDir, msg, logger)
 			case "git_status":
-				logger.Info("LLM requested homepage git_status", "dir", tc.ProjectDir)
-				return "Tool Output: " + tools.HomepageGitStatus(homepageCfg, tc.ProjectDir, logger)
+				logger.Info("LLM requested homepage git_status", "dir", req.ProjectDir)
+				return "Tool Output: " + tools.HomepageGitStatus(homepageCfg, req.ProjectDir, logger)
 			case "git_diff":
-				logger.Info("LLM requested homepage git_diff", "dir", tc.ProjectDir)
-				return "Tool Output: " + tools.HomepageGitDiff(homepageCfg, tc.ProjectDir, logger)
+				logger.Info("LLM requested homepage git_diff", "dir", req.ProjectDir)
+				return "Tool Output: " + tools.HomepageGitDiff(homepageCfg, req.ProjectDir, logger)
 			case "git_log":
-				count := tc.Count
+				count := req.Count
 				if count <= 0 {
 					count = 10
 				}
-				logger.Info("LLM requested homepage git_log", "dir", tc.ProjectDir, "count", count)
-				return "Tool Output: " + tools.HomepageGitLog(homepageCfg, tc.ProjectDir, count, logger)
+				logger.Info("LLM requested homepage git_log", "dir", req.ProjectDir, "count", count)
+				return "Tool Output: " + tools.HomepageGitLog(homepageCfg, req.ProjectDir, count, logger)
 			case "git_rollback":
-				count := tc.Count
+				count := req.Count
 				if count <= 0 {
 					count = 1
 				}
-				logger.Info("LLM requested homepage git_rollback", "dir", tc.ProjectDir, "steps", count)
-				return "Tool Output: " + tools.HomepageGitRollback(homepageCfg, tc.ProjectDir, count, logger)
+				logger.Info("LLM requested homepage git_rollback", "dir", req.ProjectDir, "steps", count)
+				return "Tool Output: " + tools.HomepageGitRollback(homepageCfg, req.ProjectDir, count, logger)
 			default:
 				return `Tool Output: {"status":"error","message":"Unknown homepage operation. Use: init, start, stop, status, rebuild, destroy, exec, init_project, build, install_deps, lighthouse, screenshot, lint, list_files, read_file, write_file, optimize_images, dev, deploy, deploy_netlify, test_connection, webserver_start, webserver_stop, webserver_status, publish_local, tunnel, git_init, git_commit, git_status, git_diff, git_log, git_rollback"}`
 			}

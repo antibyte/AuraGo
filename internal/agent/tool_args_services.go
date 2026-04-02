@@ -66,6 +66,38 @@ type dockerArgs struct {
 	File        string
 }
 
+type homepageArgs struct {
+	Operation    string
+	Command      string
+	Framework    string
+	Name         string
+	Template     string
+	ProjectDir   string
+	AutoFix      bool
+	Packages     []string
+	URL          string
+	Viewport     string
+	Path         string
+	Content      string
+	SubOperation string
+	Old          string
+	New          string
+	Marker       string
+	StartLine    int
+	EndLine      int
+	JsonPath     string
+	SetValue     interface{}
+	Xpath        string
+	Port         int
+	BuildDir     string
+	SiteID       string
+	Title        string
+	Draft        bool
+	GitMessage   string
+	Message      string
+	Count        int
+}
+
 type manageSQLConnectionsArgs struct {
 	Operation      string
 	ConnectionName string
@@ -290,6 +322,55 @@ func (req dockerArgs) targetContainerID() string {
 		return req.ContainerID
 	}
 	return req.Name
+}
+
+func decodeHomepageArgs(tc ToolCall) homepageArgs {
+	req := homepageArgs{
+		Operation:    firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		Command:      firstNonEmptyToolString(tc.Command, toolArgString(tc.Params, "command")),
+		Framework:    firstNonEmptyToolString(tc.Framework, toolArgString(tc.Params, "framework")),
+		Name:         firstNonEmptyToolString(tc.Name, toolArgString(tc.Params, "name")),
+		Template:     firstNonEmptyToolString(tc.Template, toolArgString(tc.Params, "template")),
+		ProjectDir:   firstNonEmptyToolString(tc.ProjectDir, toolArgString(tc.Params, "project_dir")),
+		AutoFix:      tc.AutoFix,
+		URL:          firstNonEmptyToolString(tc.URL, toolArgString(tc.Params, "url")),
+		Viewport:     firstNonEmptyToolString(tc.Viewport, toolArgString(tc.Params, "viewport")),
+		Path:         firstNonEmptyToolString(tc.Path, toolArgString(tc.Params, "path")),
+		Content:      firstNonEmptyToolString(tc.Content, toolArgString(tc.Params, "content")),
+		SubOperation: firstNonEmptyToolString(tc.SubOperation, toolArgString(tc.Params, "sub_operation")),
+		Old:          firstNonEmptyToolString(tc.Old, toolArgString(tc.Params, "old")),
+		New:          firstNonEmptyToolString(tc.New, toolArgString(tc.Params, "new")),
+		Marker:       firstNonEmptyToolString(tc.Marker, toolArgString(tc.Params, "marker")),
+		StartLine:    firstNonEmptyInt(tc.StartLine, toolArgInt(tc.Params, 0, "start_line")),
+		EndLine:      firstNonEmptyInt(tc.EndLine, toolArgInt(tc.Params, 0, "end_line")),
+		JsonPath:     firstNonEmptyToolString(tc.JsonPath, toolArgString(tc.Params, "json_path")),
+		Xpath:        firstNonEmptyToolString(tc.Xpath, toolArgString(tc.Params, "xpath")),
+		Port:         firstNonEmptyInt(tc.Port, toolArgInt(tc.Params, 0, "port")),
+		BuildDir:     firstNonEmptyToolString(tc.BuildDir, toolArgString(tc.Params, "build_dir")),
+		SiteID:       firstNonEmptyToolString(tc.SiteID, toolArgString(tc.Params, "site_id")),
+		Title:        firstNonEmptyToolString(tc.Title, toolArgString(tc.Params, "title")),
+		Draft:        tc.Draft,
+		GitMessage:   firstNonEmptyToolString(tc.GitMessage, toolArgString(tc.Params, "git_message")),
+		Message:      firstNonEmptyToolString(tc.Message, toolArgString(tc.Params, "message")),
+		Count:        firstNonEmptyInt(tc.Count, toolArgInt(tc.Params, 0, "count")),
+	}
+	if autoFix, ok := toolArgBool(tc.Params, "auto_fix"); ok {
+		req.AutoFix = autoFix
+	}
+	if draft, ok := toolArgBool(tc.Params, "draft"); ok {
+		req.Draft = draft
+	}
+	if len(tc.Packages) > 0 {
+		req.Packages = append([]string(nil), tc.Packages...)
+	} else {
+		req.Packages = toolArgStringSlice(tc.Params, "packages")
+	}
+	if tc.SetValue != nil {
+		req.SetValue = tc.SetValue
+	} else if tc.Params != nil {
+		req.SetValue = tc.Params["set_value"]
+	}
+	return req
 }
 
 func toolArgOptionalBool(args map[string]interface{}, keys ...string) *bool {
