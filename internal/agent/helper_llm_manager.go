@@ -4,10 +4,14 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"log/slog"
+	"net"
 	"strings"
 	"sync"
+	"time"
 
 	"aurago/internal/config"
 	"aurago/internal/llm"
@@ -214,15 +218,37 @@ Rules:
 
 const helperResponseCacheMaxSize = 500
 
+const (
+	helperMaxRetries       = 1
+	helperRetryDelay       = 2 * time.Second
+	helperMaxConcurrent    = 3
+	helperProviderCacheKey = "provider_identity"
+)
+
 type helperLLMManager struct {
 	client        llm.ChatClient
 	model         string
+	providerID    string
 	logger        *slog.Logger
 	cacheMu       sync.RWMutex
 	responseCache map[string]string
 	cacheKeys     []string
 	statsMu       sync.RWMutex
 	stats         map[string]HelperLLMOperationStats
+	sem           chan struct{}
+}
+
+var (
+	globalHelperMu       sync.Mutex
+	globalHelperInstance *helperLLMManager
+	globalHelperConfig   helperInstanceConfig
+)
+
+type helperInstanceConfig struct {
+	ProviderType string
+	BaseURL      string
+	APIKey       string
+	Model        string
 }
 
 type HelperLLMOperationStats struct {
@@ -348,26 +374,69 @@ type helperRAGBatchResult struct {
 }
 
 func newHelperLLMManager(cfg *config.Config, logger *slog.Logger) *helperLLMManager {
+	return getOrCreateHelperLLMManager(cfg, logger)
+}
+
+func getOrCreateHelperLLMManager(cfg *config.Config, logger *slog.Logger) *helperLLMManager {
+	globalHelperMu.Lock()
+	defer globalHelperMu.Unlock()
+
 	if !llm.IsHelperLLMAvailable(cfg) {
 		return nil
 	}
 	helperCfg := llm.ResolveHelperLLM(cfg)
-	client := llm.NewClientFromProvider(helperCfg.ProviderType, helperCfg.BaseURL, helperCfg.APIKey)
-	if client == nil || strings.TrimSpace(helperCfg.Model) == "" {
+	newInstCfg := helperInstanceConfig{
+		ProviderType: strings.TrimSpace(helperCfg.ProviderType),
+		BaseURL:      strings.TrimSpace(helperCfg.BaseURL),
+		APIKey:       strings.TrimSpace(helperCfg.APIKey),
+		Model:        strings.TrimSpace(helperCfg.Model),
+	}
+	if newInstCfg.ProviderType == "" || newInstCfg.Model == "" {
 		return nil
 	}
-	return &helperLLMManager{
+
+	if globalHelperInstance != nil && globalHelperConfig == newInstCfg {
+		return globalHelperInstance
+	}
+
+	client := llm.NewClientFromProvider(newInstCfg.ProviderType, newInstCfg.BaseURL, newInstCfg.APIKey)
+	if client == nil {
+		return nil
+	}
+
+	inst := &helperLLMManager{
 		client:        client,
-		model:         strings.TrimSpace(helperCfg.Model),
+		model:         newInstCfg.Model,
+		providerID:    newInstCfg.ProviderType + "|" + newInstCfg.BaseURL,
 		logger:        logger,
 		responseCache: make(map[string]string),
 		cacheKeys:     make([]string, 0, helperResponseCacheMaxSize),
 		stats:         make(map[string]HelperLLMOperationStats),
+		sem:           make(chan struct{}, helperMaxConcurrent),
 	}
+
+	globalHelperInstance = inst
+	globalHelperConfig = newInstCfg
+
+	if inst.logger != nil {
+		inst.logger.Info("[HelperLLM] Singleton manager created", "model", newInstCfg.Model, "provider", newInstCfg.ProviderType)
+	}
+
+	return inst
+}
+
+func ResetGlobalHelperLLMManager() {
+	globalHelperMu.Lock()
+	defer globalHelperMu.Unlock()
+	globalHelperInstance = nil
+	globalHelperConfig = helperInstanceConfig{}
 }
 
 func (m *helperLLMManager) helperCacheKey(parts ...string) string {
-	sum := sha256.Sum256([]byte(strings.Join(parts, "\n\x1f")))
+	all := make([]string, 0, len(parts)+1)
+	all = append(all, m.providerID)
+	all = append(all, parts...)
+	sum := sha256.Sum256([]byte(strings.Join(all, "\n\x1f")))
 	return fmt.Sprintf("%x", sum[:])
 }
 
@@ -479,33 +548,102 @@ func (m *helperLLMManager) requestJSONResponse(ctx context.Context, operation, c
 		}
 		return cached, nil
 	}
-	m.observeStat(operation, func(stat *HelperLLMOperationStats) {
-		stat.LLMCalls++
-		stat.LastDetail = "llm_call"
-	})
+
+	if m.sem != nil {
+		select {
+		case m.sem <- struct{}{}:
+		default:
+			if m.logger != nil {
+				m.logger.Warn("[HelperLLM] Concurrency limit reached, waiting", "operation", operation, "limit", helperMaxConcurrent)
+			}
+			select {
+			case m.sem <- struct{}{}:
+			case <-ctx.Done():
+				return "", fmt.Errorf("helper llm concurrency wait cancelled: %w", ctx.Err())
+			}
+		}
+		defer func() { <-m.sem }()
+	}
+
 	if m.logger != nil {
 		m.logger.Debug("[HelperLLM] Executing helper batch", "operation", operation, "max_tokens", maxTokens)
 	}
 
-	resp, err := m.client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
-		Model: m.model,
-		Messages: []openai.ChatCompletionMessage{
-			{Role: openai.ChatMessageRoleSystem, Content: systemPrompt},
-			{Role: openai.ChatMessageRoleUser, Content: userPrompt},
-		},
-		Temperature: 0.1,
-		MaxTokens:   maxTokens,
-	})
-	if err != nil {
-		return "", err
-	}
-	if len(resp.Choices) == 0 || strings.TrimSpace(resp.Choices[0].Message.Content) == "" {
-		return "", fmt.Errorf("helper llm returned empty content")
+	var lastErr error
+	for attempt := 0; attempt <= helperMaxRetries; attempt++ {
+		if attempt > 0 {
+			select {
+			case <-time.After(helperRetryDelay):
+			case <-ctx.Done():
+				return "", fmt.Errorf("helper llm retry cancelled: %w", ctx.Err())
+			}
+			if m.logger != nil {
+				m.logger.Debug("[HelperLLM] Retrying", "operation", operation, "attempt", attempt+1)
+			}
+		}
+
+		resp, err := m.client.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
+			Model: m.model,
+			Messages: []openai.ChatCompletionMessage{
+				{Role: openai.ChatMessageRoleSystem, Content: systemPrompt},
+				{Role: openai.ChatMessageRoleUser, Content: userPrompt},
+			},
+			Temperature: 0.1,
+			MaxTokens:   maxTokens,
+		})
+		if err != nil {
+			lastErr = err
+			if !isTransientHelperError(err) {
+				break
+			}
+			continue
+		}
+		if len(resp.Choices) == 0 || strings.TrimSpace(resp.Choices[0].Message.Content) == "" {
+			return "", fmt.Errorf("helper llm returned empty content")
+		}
+
+		m.observeStat(operation, func(stat *HelperLLMOperationStats) {
+			stat.LLMCalls++
+			stat.LastDetail = "llm_call"
+		})
+
+		raw := strings.TrimSpace(resp.Choices[0].Message.Content)
+		m.setCachedResponse(cacheKey, raw)
+		return raw, nil
 	}
 
-	raw := strings.TrimSpace(resp.Choices[0].Message.Content)
-	m.setCachedResponse(cacheKey, raw)
-	return raw, nil
+	m.observeStat(operation, func(stat *HelperLLMOperationStats) {
+		stat.LLMCalls++
+		stat.LastDetail = "llm_call_failed"
+	})
+	return "", fmt.Errorf("helper llm failed after %d attempts: %w", helperMaxRetries+1, lastErr)
+}
+
+func isTransientHelperError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	if strings.Contains(msg, "429") || strings.Contains(msg, "rate_limit") || strings.Contains(msg, "rate limit") {
+		return true
+	}
+	if strings.Contains(msg, "500") || strings.Contains(msg, "502") || strings.Contains(msg, "503") || strings.Contains(msg, "504") {
+		return true
+	}
+	if strings.Contains(msg, "timeout") || strings.Contains(msg, "deadline") || strings.Contains(msg, "context deadline") {
+		return true
+	}
+	if errors.Is(err, io.ErrUnexpectedEOF) {
+		return true
+	}
+	var netErr net.Error
+	if errors.As(err, &netErr) {
+		return true
+	}
+	if strings.Contains(msg, "connection refused") || strings.Contains(msg, "connection reset") || strings.Contains(msg, "EOF") {
+		return true
+	}
+	return false
 }
 
 func (m *helperLLMManager) AnalyzeTurn(ctx context.Context, userRequest, assistantReply string, toolNames, toolSummaries []string, personalityInput *helperTurnPersonalityInput) (helperTurnBatchResult, error) {

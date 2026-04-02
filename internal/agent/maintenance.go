@@ -906,6 +906,10 @@ func resolveConsolidationModel(cfg *config.Config) string {
 
 func resolveHelperBackedLLM(cfg *config.Config, fallbackClient llm.ChatClient, fallbackModel string) (llm.ChatClient, string) {
 	if helperCfg := llm.ResolveHelperLLM(cfg); helperCfg.Enabled && helperCfg.Model != "" {
+		manager := getOrCreateHelperLLMManager(cfg, nil)
+		if manager != nil && manager.client != nil {
+			return manager.client, helperCfg.Model
+		}
 		helperClient := llm.NewClientFromProvider(helperCfg.ProviderType, helperCfg.BaseURL, helperCfg.APIKey)
 		if helperClient != nil {
 			return helperClient, helperCfg.Model
