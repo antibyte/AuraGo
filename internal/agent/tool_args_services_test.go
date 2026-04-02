@@ -160,6 +160,66 @@ func TestDecodeManageSQLConnectionsArgsUsesParamsFallback(t *testing.T) {
 	}
 }
 
+func TestDecodeDockerArgsUsesParamsFallback(t *testing.T) {
+	tc := ToolCall{
+		Action: "docker",
+		Params: map[string]interface{}{
+			"operation": "run",
+			"name":      "web-app",
+			"image":     "nginx:latest",
+			"env":       []interface{}{"A=1", "B=2"},
+			"ports": map[string]interface{}{
+				"80/tcp": "8080",
+			},
+			"volumes":     []interface{}{"/host/data:/data"},
+			"command":     "nginx -g 'daemon off;'",
+			"restart":     "unless-stopped",
+			"all":         true,
+			"force":       true,
+			"tail":        float64(25),
+			"user":        "root",
+			"source":      "/tmp/in.txt",
+			"destination": "/app/in.txt",
+			"direction":   "to_container",
+			"driver":      "bridge",
+			"network":     "frontend",
+			"file":        "compose.yml",
+		},
+	}
+
+	req := decodeDockerArgs(tc)
+	if req.Operation != "run" {
+		t.Fatalf("Operation = %q, want run", req.Operation)
+	}
+	if req.targetContainerID() != "web-app" {
+		t.Fatalf("targetContainerID = %q, want web-app", req.targetContainerID())
+	}
+	if req.Image != "nginx:latest" || req.Command != "nginx -g 'daemon off;'" {
+		t.Fatalf("unexpected image/command decode: %+v", req)
+	}
+	if len(req.Env) != 2 || req.Env[0] != "A=1" || req.Env[1] != "B=2" {
+		t.Fatalf("Env = %#v, want [A=1 B=2]", req.Env)
+	}
+	if req.Ports["80/tcp"] != "8080" {
+		t.Fatalf("Ports = %#v, want 80/tcp -> 8080", req.Ports)
+	}
+	if len(req.Volumes) != 1 || req.Volumes[0] != "/host/data:/data" {
+		t.Fatalf("Volumes = %#v, want mount", req.Volumes)
+	}
+	if !req.All || !req.Force {
+		t.Fatalf("All/Force = %v/%v, want true/true", req.All, req.Force)
+	}
+	if req.Tail != 25 {
+		t.Fatalf("Tail = %d, want 25", req.Tail)
+	}
+	if req.User != "root" || req.Network != "frontend" || req.Driver != "bridge" || req.File != "compose.yml" {
+		t.Fatalf("unexpected execution/network metadata: %+v", req)
+	}
+	if req.Source != "/tmp/in.txt" || req.Destination != "/app/in.txt" || req.Direction != "to_container" {
+		t.Fatalf("unexpected copy metadata: %+v", req)
+	}
+}
+
 func TestDecodeManageWebhooksArgsUsesActionAlias(t *testing.T) {
 	tc := ToolCall{
 		Action: "manage_webhooks",

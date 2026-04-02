@@ -44,6 +44,28 @@ type s3Args struct {
 	DestinationKey    string
 }
 
+type dockerArgs struct {
+	Operation   string
+	ContainerID string
+	Name        string
+	Image       string
+	Env         []string
+	Ports       map[string]string
+	Volumes     []string
+	Command     string
+	Restart     string
+	All         bool
+	Force       bool
+	Tail        int
+	User        string
+	Source      string
+	Destination string
+	Direction   string
+	Driver      string
+	Network     string
+	File        string
+}
+
 type manageSQLConnectionsArgs struct {
 	Operation      string
 	ConnectionName string
@@ -215,6 +237,59 @@ func decodeS3Args(tc ToolCall) s3Args {
 		DestinationBucket: firstNonEmptyToolString(tc.DestinationBucket, toolArgString(tc.Params, "destination_bucket")),
 		DestinationKey:    firstNonEmptyToolString(tc.DestinationKey, toolArgString(tc.Params, "destination_key")),
 	}
+}
+
+func decodeDockerArgs(tc ToolCall) dockerArgs {
+	req := dockerArgs{
+		Operation:   firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		ContainerID: firstNonEmptyToolString(tc.ContainerID, toolArgString(tc.Params, "container_id")),
+		Name:        firstNonEmptyToolString(tc.Name, toolArgString(tc.Params, "name")),
+		Image:       firstNonEmptyToolString(tc.Image, toolArgString(tc.Params, "image")),
+		Command:     firstNonEmptyToolString(tc.Command, toolArgString(tc.Params, "command")),
+		Restart:     firstNonEmptyToolString(tc.Restart, toolArgString(tc.Params, "restart")),
+		Tail:        firstNonEmptyInt(tc.Tail, toolArgInt(tc.Params, 0, "tail")),
+		User:        firstNonEmptyToolString(tc.User, toolArgString(tc.Params, "user")),
+		Source:      firstNonEmptyToolString(tc.Source, toolArgString(tc.Params, "source")),
+		Destination: firstNonEmptyToolString(tc.Destination, toolArgString(tc.Params, "destination")),
+		Direction:   firstNonEmptyToolString(tc.Direction, toolArgString(tc.Params, "direction")),
+		Driver:      firstNonEmptyToolString(tc.Driver, toolArgString(tc.Params, "driver")),
+		Network:     firstNonEmptyToolString(tc.Network, toolArgString(tc.Params, "network")),
+		File:        firstNonEmptyToolString(tc.File, toolArgString(tc.Params, "file")),
+		All:         tc.All,
+		Force:       tc.Force,
+	}
+	if all, ok := toolArgBool(tc.Params, "all"); ok {
+		req.All = all
+	}
+	if force, ok := toolArgBool(tc.Params, "force"); ok {
+		req.Force = force
+	}
+	if len(tc.Env) > 0 {
+		req.Env = append([]string(nil), tc.Env...)
+	} else {
+		req.Env = toolArgStringSlice(tc.Params, "env")
+	}
+	if len(tc.Ports) > 0 {
+		req.Ports = make(map[string]string, len(tc.Ports))
+		for key, value := range tc.Ports {
+			req.Ports[key] = value
+		}
+	} else {
+		req.Ports = toolArgStringMap(tc.Params, "ports")
+	}
+	if len(tc.Volumes) > 0 {
+		req.Volumes = append([]string(nil), tc.Volumes...)
+	} else {
+		req.Volumes = toolArgStringSlice(tc.Params, "volumes")
+	}
+	return req
+}
+
+func (req dockerArgs) targetContainerID() string {
+	if req.ContainerID != "" {
+		return req.ContainerID
+	}
+	return req.Name
 }
 
 func toolArgOptionalBool(args map[string]interface{}, keys ...string) *bool {

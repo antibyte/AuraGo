@@ -209,21 +209,19 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			if !cfg.Docker.Enabled {
 				return `Tool Output: {"status": "error", "message": "Docker integration is not enabled. Set docker.enabled=true in config.yaml."}`
 			}
+			req := decodeDockerArgs(tc)
 			if cfg.Docker.ReadOnly {
-				switch tc.Operation {
+				switch req.Operation {
 				case "start", "stop", "restart", "pause", "unpause", "remove", "rm", "create", "create_container", "run", "pull_image", "pull", "remove_image", "rmi":
 					return `Tool Output: {"status":"error","message":"Docker is in read-only mode. Disable docker.read_only to allow changes."}`
 				}
 			}
 			dockerCfg := tools.DockerConfig{Host: cfg.Docker.Host, WorkspaceDir: cfg.Directories.WorkspaceDir}
-			containerID := tc.ContainerID
-			if containerID == "" {
-				containerID = tc.Name
-			}
-			switch tc.Operation {
+			containerID := req.targetContainerID()
+			switch req.Operation {
 			case "list_containers", "ps":
-				logger.Info("LLM requested Docker list_containers", "all", tc.All)
-				return "Tool Output: " + tools.DockerListContainers(dockerCfg, tc.All)
+				logger.Info("LLM requested Docker list_containers", "all", req.All)
+				return "Tool Output: " + tools.DockerListContainers(dockerCfg, req.All)
 			case "inspect", "inspect_container":
 				logger.Info("LLM requested Docker inspect", "container_id", containerID)
 				return "Tool Output: " + tools.DockerInspectContainer(dockerCfg, containerID)
@@ -243,24 +241,24 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				logger.Info("LLM requested Docker unpause", "container_id", containerID)
 				return "Tool Output: " + tools.DockerContainerAction(dockerCfg, containerID, "unpause", false)
 			case "remove", "rm":
-				logger.Info("LLM requested Docker remove", "container_id", containerID, "force", tc.Force)
-				return "Tool Output: " + tools.DockerContainerAction(dockerCfg, containerID, "remove", tc.Force)
+				logger.Info("LLM requested Docker remove", "container_id", containerID, "force", req.Force)
+				return "Tool Output: " + tools.DockerContainerAction(dockerCfg, containerID, "remove", req.Force)
 			case "logs":
-				logger.Info("LLM requested Docker logs", "container_id", containerID, "tail", tc.Tail)
-				return "Tool Output: " + tools.DockerContainerLogs(dockerCfg, containerID, tc.Tail)
+				logger.Info("LLM requested Docker logs", "container_id", containerID, "tail", req.Tail)
+				return "Tool Output: " + tools.DockerContainerLogs(dockerCfg, containerID, req.Tail)
 			case "create", "create_container", "run":
-				logger.Info("LLM requested Docker create", "image", tc.Image, "name", tc.Name)
+				logger.Info("LLM requested Docker create", "image", req.Image, "name", req.Name)
 				var cmd []string
-				if tc.Command != "" {
-					cmd = strings.Fields(tc.Command)
+				if req.Command != "" {
+					cmd = strings.Fields(req.Command)
 				}
-				restart := tc.Restart
+				restart := req.Restart
 				if restart == "" {
 					restart = "no"
 				}
-				result := tools.DockerCreateContainer(dockerCfg, tc.Name, tc.Image, tc.Env, tc.Ports, tc.Volumes, cmd, restart)
+				result := tools.DockerCreateContainer(dockerCfg, req.Name, req.Image, req.Env, req.Ports, req.Volumes, cmd, restart)
 				// Auto-start if operation was "run"
-				if tc.Operation == "run" {
+				if req.Operation == "run" {
 					var created map[string]interface{}
 					if json.Unmarshal([]byte(result), &created) == nil {
 						if id, ok := created["id"].(string); ok && id != "" {
@@ -276,11 +274,11 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				logger.Info("LLM requested Docker list_images")
 				return "Tool Output: " + tools.DockerListImages(dockerCfg)
 			case "pull_image", "pull":
-				logger.Info("LLM requested Docker pull", "image", tc.Image)
-				return "Tool Output: " + tools.DockerPullImage(dockerCfg, tc.Image)
+				logger.Info("LLM requested Docker pull", "image", req.Image)
+				return "Tool Output: " + tools.DockerPullImage(dockerCfg, req.Image)
 			case "remove_image", "rmi":
-				logger.Info("LLM requested Docker remove_image", "image", tc.Image, "force", tc.Force)
-				return "Tool Output: " + tools.DockerRemoveImage(dockerCfg, tc.Image, tc.Force)
+				logger.Info("LLM requested Docker remove_image", "image", req.Image, "force", req.Force)
+				return "Tool Output: " + tools.DockerRemoveImage(dockerCfg, req.Image, req.Force)
 			case "list_networks", "networks":
 				logger.Info("LLM requested Docker list_networks")
 				return "Tool Output: " + tools.DockerListNetworks(dockerCfg)
@@ -291,8 +289,8 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				logger.Info("LLM requested Docker system_info")
 				return "Tool Output: " + tools.DockerSystemInfo(dockerCfg)
 			case "exec":
-				logger.Info("LLM requested Docker exec", "container_id", containerID, "cmd", tc.Command)
-				return "Tool Output: " + tools.DockerExec(dockerCfg, containerID, tc.Command, tc.User)
+				logger.Info("LLM requested Docker exec", "container_id", containerID, "cmd", req.Command)
+				return "Tool Output: " + tools.DockerExec(dockerCfg, containerID, req.Command, req.User)
 			case "stats":
 				logger.Info("LLM requested Docker stats", "container_id", containerID)
 				return "Tool Output: " + tools.DockerStats(dockerCfg, containerID)
@@ -303,29 +301,29 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				logger.Info("LLM requested Docker port", "container_id", containerID)
 				return "Tool Output: " + tools.DockerPort(dockerCfg, containerID)
 			case "cp", "copy":
-				logger.Info("LLM requested Docker cp", "container_id", containerID, "src", tc.Source, "dest", tc.Destination, "direction", tc.Direction)
-				return "Tool Output: " + tools.DockerCopy(dockerCfg, containerID, tc.Source, tc.Destination, tc.Direction)
+				logger.Info("LLM requested Docker cp", "container_id", containerID, "src", req.Source, "dest", req.Destination, "direction", req.Direction)
+				return "Tool Output: " + tools.DockerCopy(dockerCfg, containerID, req.Source, req.Destination, req.Direction)
 			case "create_network":
-				logger.Info("LLM requested Docker create_network", "name", tc.Name, "driver", tc.Driver)
-				return "Tool Output: " + tools.DockerCreateNetwork(dockerCfg, tc.Name, tc.Driver)
+				logger.Info("LLM requested Docker create_network", "name", req.Name, "driver", req.Driver)
+				return "Tool Output: " + tools.DockerCreateNetwork(dockerCfg, req.Name, req.Driver)
 			case "remove_network":
-				logger.Info("LLM requested Docker remove_network", "name", tc.Name)
-				return "Tool Output: " + tools.DockerRemoveNetwork(dockerCfg, tc.Name)
+				logger.Info("LLM requested Docker remove_network", "name", req.Name)
+				return "Tool Output: " + tools.DockerRemoveNetwork(dockerCfg, req.Name)
 			case "connect":
-				logger.Info("LLM requested Docker connect", "container_id", containerID, "network", tc.Network)
-				return "Tool Output: " + tools.DockerConnectNetwork(dockerCfg, containerID, tc.Network)
+				logger.Info("LLM requested Docker connect", "container_id", containerID, "network", req.Network)
+				return "Tool Output: " + tools.DockerConnectNetwork(dockerCfg, containerID, req.Network)
 			case "disconnect":
-				logger.Info("LLM requested Docker disconnect", "container_id", containerID, "network", tc.Network)
-				return "Tool Output: " + tools.DockerDisconnectNetwork(dockerCfg, containerID, tc.Network)
+				logger.Info("LLM requested Docker disconnect", "container_id", containerID, "network", req.Network)
+				return "Tool Output: " + tools.DockerDisconnectNetwork(dockerCfg, containerID, req.Network)
 			case "create_volume":
-				logger.Info("LLM requested Docker create_volume", "name", tc.Name, "driver", tc.Driver)
-				return "Tool Output: " + tools.DockerCreateVolume(dockerCfg, tc.Name, tc.Driver)
+				logger.Info("LLM requested Docker create_volume", "name", req.Name, "driver", req.Driver)
+				return "Tool Output: " + tools.DockerCreateVolume(dockerCfg, req.Name, req.Driver)
 			case "remove_volume":
-				logger.Info("LLM requested Docker remove_volume", "name", tc.Name, "force", tc.Force)
-				return "Tool Output: " + tools.DockerRemoveVolume(dockerCfg, tc.Name, tc.Force)
+				logger.Info("LLM requested Docker remove_volume", "name", req.Name, "force", req.Force)
+				return "Tool Output: " + tools.DockerRemoveVolume(dockerCfg, req.Name, req.Force)
 			case "compose":
-				logger.Info("LLM requested Docker compose", "file", tc.File, "cmd", tc.Command)
-				return "Tool Output: " + tools.DockerCompose(dockerCfg, tc.File, tc.Command)
+				logger.Info("LLM requested Docker compose", "file", req.File, "cmd", req.Command)
+				return "Tool Output: " + tools.DockerCompose(dockerCfg, req.File, req.Command)
 			default:
 				return `Tool Output: {"status": "error", "message": "Unknown docker operation. Use: list_containers, inspect, start, stop, restart, pause, unpause, remove, logs, create, run, list_images, pull, remove_image, list_networks, create_network, remove_network, connect, disconnect, list_volumes, create_volume, remove_volume, exec, stats, top, port, cp, compose, info"}`
 			}
