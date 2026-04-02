@@ -1298,24 +1298,20 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if !cfg.Koofr.Enabled {
 				return `Tool Output: {"status": "error", "message": "Koofr integration is not enabled. Set koofr.enabled=true in config.yaml."}`
 			}
+			req := decodeCloudStorageArgs(tc)
 			if cfg.Koofr.ReadOnly {
-				switch tc.Operation {
+				switch req.Operation {
 				case "write", "put", "upload", "mkdir", "delete", "rm", "move", "rename", "mv":
 					return `Tool Output: {"status":"error","message":"Koofr is in read-only mode. Disable koofr.read_only to allow changes."}`
 				}
 			}
-			fpath := resolveFilePath(tc)
-			fdest := tc.Destination
-			if fdest == "" {
-				fdest = tc.Dest
-			}
-			logger.Info("LLM requested koofr operation", "op", tc.Operation, "path", fpath, "dest", fdest)
+			logger.Info("LLM requested koofr operation", "op", req.Operation, "path", req.FilePath, "dest", req.Destination)
 			koofrCfg := tools.KoofrConfig{
 				BaseURL:     cfg.Koofr.BaseURL,
 				Username:    cfg.Koofr.Username,
 				AppPassword: cfg.Koofr.AppPassword,
 			}
-			return tools.ExecuteKoofr(koofrCfg, tc.Operation, fpath, fdest, tc.Content)
+			return tools.ExecuteKoofr(koofrCfg, req.Operation, req.FilePath, req.Destination, req.Content)
 
 		case "google_workspace", "gworkspace":
 			if !cfg.GoogleWorkspace.Enabled {
@@ -1333,27 +1329,20 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if !cfg.OneDrive.Enabled {
 				return `Tool Output: {"status": "error", "message": "OneDrive integration is not enabled. Set onedrive.enabled=true in config.yaml."}`
 			}
-			op := tc.Operation
-			if op == "" {
-				op = tc.Action
-			}
+			req := decodeCloudStorageArgs(tc)
+			op := req.Operation
 			if cfg.OneDrive.ReadOnly {
 				switch op {
 				case "upload", "write", "mkdir", "delete", "move", "copy", "share":
 					return `Tool Output: {"status":"error","message":"OneDrive is in read-only mode. Disable onedrive.readonly to allow changes."}`
 				}
 			}
-			fpath := resolveFilePath(tc)
-			fdest := tc.Destination
-			if fdest == "" {
-				fdest = tc.Dest
-			}
-			logger.Info("LLM requested onedrive operation", "op", op, "path", fpath, "dest", fdest)
+			logger.Info("LLM requested onedrive operation", "op", op, "path", req.FilePath, "dest", req.Destination)
 			client, err := tools.NewOneDriveClient(*cfg, vault)
 			if err != nil {
 				return "Tool Output: " + tools.ODErrJSON("OneDrive client error: %v", err)
 			}
-			return "Tool Output: " + client.ExecuteOneDrive(op, fpath, fdest, tc.Content, tc.MaxResults)
+			return "Tool Output: " + client.ExecuteOneDrive(op, req.FilePath, req.Destination, req.Content, req.MaxResults)
 
 		case "generate_image":
 			if !cfg.ImageGeneration.Enabled {

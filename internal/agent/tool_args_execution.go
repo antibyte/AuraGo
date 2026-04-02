@@ -225,6 +225,14 @@ type smartFileReadArgs struct {
 	LineCount        int
 }
 
+type cloudStorageArgs struct {
+	Operation   string
+	FilePath    string
+	Destination string
+	Content     string
+	MaxResults  int
+}
+
 func toolArgInterfaceMap(args map[string]interface{}, keys ...string) map[string]interface{} {
 	for _, key := range keys {
 		raw, ok := args[key]
@@ -715,5 +723,15 @@ func decodeSmartFileReadArgs(tc ToolCall) smartFileReadArgs {
 		SamplingStrategy: firstNonEmptyToolString(tc.SamplingStrategy, toolArgString(tc.Params, "sampling_strategy")),
 		MaxTokens:        firstNonEmptyInt(tc.MaxTokens, toolArgInt(tc.Params, 0, "max_tokens")),
 		LineCount:        firstNonEmptyInt(tc.LineCount, toolArgInt(tc.Params, 0, "line_count")),
+	}
+}
+
+func decodeCloudStorageArgs(tc ToolCall) cloudStorageArgs {
+	return cloudStorageArgs{
+		Operation:   firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation"), tc.Action),
+		FilePath:    firstNonEmptyToolString(tc.FilePath, tc.Path, toolArgString(tc.Params, "file_path", "path")),
+		Destination: firstNonEmptyToolString(tc.Destination, tc.Dest, toolArgString(tc.Params, "destination", "dest")),
+		Content:     firstNonEmptyToolString(tc.Content, toolArgString(tc.Params, "content")),
+		MaxResults:  firstNonEmptyInt(tc.MaxResults, toolArgInt(tc.Params, 0, "max_results")),
 	}
 }

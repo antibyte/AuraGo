@@ -424,6 +424,26 @@ func TestDecodeFileReadArgsUseParamsFallback(t *testing.T) {
 	}
 }
 
+func TestDecodeCloudStorageArgsUsesParamsFallback(t *testing.T) {
+	req := decodeCloudStorageArgs(ToolCall{
+		Action: "onedrive",
+		Params: map[string]interface{}{
+			"operation":   "upload",
+			"path":        "report.txt",
+			"destination": "/docs/report.txt",
+			"content":     "hello",
+			"max_results": float64(25),
+		},
+	})
+
+	if req.Operation != "upload" || req.FilePath != "report.txt" || req.Destination != "/docs/report.txt" || req.Content != "hello" {
+		t.Fatalf("unexpected cloud storage decode: %+v", req)
+	}
+	if req.MaxResults != 25 {
+		t.Fatalf("MaxResults = %d, want 25", req.MaxResults)
+	}
+}
+
 func TestDecodeKnowledgeGraphArgsUsesParamsFallback(t *testing.T) {
 	req := decodeKnowledgeGraphArgs(ToolCall{
 		Action: "knowledge_graph",
