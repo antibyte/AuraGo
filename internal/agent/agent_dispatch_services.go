@@ -678,58 +678,10 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) str
 		return "Tool Output: " + tools.ExecuteS3(s3Cfg, tc.Operation, tc.Bucket, tc.Key, tc.LocalPath, tc.Prefix, tc.DestinationBucket, tc.DestinationKey)
 
 	case "paperless", "paperless_ngx":
-		if !cfg.PaperlessNGX.Enabled {
-			return `Tool Output: {"status": "error", "message": "Paperless-ngx integration is not enabled. Set paperless_ngx.enabled=true in config.yaml."}`
+		if result, ok := handleDirectBuiltinSkillAction(ctx, tc, dc); ok {
+			return result
 		}
-		if cfg.PaperlessNGX.ReadOnly {
-			switch tc.Operation {
-			case "upload", "post", "update", "patch", "delete", "rm":
-				return `Tool Output: {"status":"error","message":"Paperless-ngx is in read-only mode. Disable paperless_ngx.readonly to allow changes."}`
-			}
-		}
-		plCfg := tools.PaperlessConfig{
-			URL:      cfg.PaperlessNGX.URL,
-			APIToken: cfg.PaperlessNGX.APIToken,
-		}
-		docID := tc.DocumentID
-		if docID == "" {
-			docID = tc.ID
-		}
-		query := tc.Query
-		if query == "" {
-			query = tc.Content
-		}
-		switch tc.Operation {
-		case "search", "find", "query":
-			logger.Info("LLM requested Paperless search", "query", query)
-			return "Tool Output: " + tools.PaperlessSearch(plCfg, query, tc.Tags, tc.Name, tc.Category, tc.Limit)
-		case "get", "info":
-			logger.Info("LLM requested Paperless get", "document_id", docID)
-			return "Tool Output: " + tools.PaperlessGet(plCfg, docID)
-		case "download", "read", "content":
-			logger.Info("LLM requested Paperless download", "document_id", docID)
-			return "Tool Output: " + tools.PaperlessDownload(plCfg, docID)
-		case "upload", "post":
-			logger.Info("LLM requested Paperless upload", "title", tc.Title)
-			return "Tool Output: " + tools.PaperlessUpload(plCfg, tc.Title, tc.Content, tc.Tags, tc.Name, tc.Category)
-		case "update", "patch":
-			logger.Info("LLM requested Paperless update", "document_id", docID)
-			return "Tool Output: " + tools.PaperlessUpdate(plCfg, docID, tc.Title, tc.Tags, tc.Name, tc.Category)
-		case "delete", "rm":
-			logger.Info("LLM requested Paperless delete", "document_id", docID)
-			return "Tool Output: " + tools.PaperlessDelete(plCfg, docID)
-		case "list_tags", "tags":
-			logger.Info("LLM requested Paperless list tags")
-			return "Tool Output: " + tools.PaperlessListTags(plCfg)
-		case "list_correspondents", "correspondents":
-			logger.Info("LLM requested Paperless list correspondents")
-			return "Tool Output: " + tools.PaperlessListCorrespondents(plCfg)
-		case "list_document_types", "document_types":
-			logger.Info("LLM requested Paperless list document types")
-			return "Tool Output: " + tools.PaperlessListDocumentTypes(plCfg)
-		default:
-			return `Tool Output: {"status": "error", "message": "Unknown paperless operation. Use: search, get, download, upload, update, delete, list_tags, list_correspondents, list_document_types"}`
-		}
+		return unexpectedBuiltinActionError(tc.Action)
 
 	case "home_assistant", "homeassistant", "ha":
 		if !cfg.HomeAssistant.Enabled {

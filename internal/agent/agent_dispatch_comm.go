@@ -393,109 +393,10 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) string 
 			return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s is a native AuraGo tool, not a Python skill. Call it directly as {\"action\":\"%s\"} instead of wrapping it in execute_skill.","redirect_action":"%s","redirect_example":"{\"action\":\"%s\"}"}`, cleanSkillName, nativeAction, nativeAction, nativeAction)
 		}
 		args = filterExecuteSkillArgs(cfg.Directories.SkillsDir, cleanSkillName, args)
+		if result, ok := handleExecuteSkillBuiltinAction(ctx, dc, cleanSkillName, args); ok {
+			return result
+		}
 		switch cleanSkillName {
-		case "web_scraper":
-			if !cfg.Tools.WebScraper.Enabled {
-				return "Tool Output: [PERMISSION DENIED] web_scraper is disabled in settings (tools.web_scraper.enabled: false)."
-			}
-			urlStr, _ := args["url"].(string)
-			scraped := tools.ExecuteWebScraper(urlStr)
-
-			// Summary mode: send scraped content to a separate LLM for
-			// summarisation so the agent only receives a concise summary.
-			// This saves tokens in the main model and prevents prompt
-			// injection from external web content.
-			if cfg.Tools.WebScraper.SummaryMode {
-				searchQuery, _ := args["search_query"].(string)
-				if searchQuery == "" {
-					searchQuery = "general summary of the page content"
-				}
-				summary, err := tools.SummariseScrapedContent(ctx, cfg, logger, scraped, searchQuery)
-				if err != nil {
-					logger.Warn("web_scraper summary failed, returning raw content", "error", err)
-				} else {
-					scraped = summary
-				}
-			}
-			return scraped
-		case "wikipedia_search":
-			queryStr, _ := args["query"].(string)
-			langStr, _ := args["language"].(string)
-			result := tools.ExecuteWikipediaSearch(queryStr, langStr)
-			if cfg.Tools.Wikipedia.SummaryMode {
-				searchQuery, _ := args["search_query"].(string)
-				if searchQuery == "" {
-					searchQuery = "summarise the key facts about: " + queryStr
-				}
-				summary, err := tools.SummariseContent(ctx, tools.ResolveSummaryLLMConfig(cfg, tools.SummaryLLMConfig{
-					APIKey:  cfg.Tools.Wikipedia.SummaryAPIKey,
-					BaseURL: cfg.Tools.Wikipedia.SummaryBaseURL,
-					Model:   cfg.Tools.Wikipedia.SummaryModel,
-				}), logger, result, searchQuery, "Wikipedia article")
-				if err != nil {
-					logger.Warn("wikipedia summary failed, returning raw content", "error", err)
-				} else {
-					result = summary
-				}
-			}
-			return result
-		case "ddg_search":
-			queryStr, _ := args["query"].(string)
-			maxRes, ok := args["max_results"].(float64)
-			if !ok {
-				maxRes = 5
-			}
-			result := tools.ExecuteDDGSearch(queryStr, int(maxRes))
-			if cfg.Tools.DDGSearch.SummaryMode {
-				searchQuery, _ := args["search_query"].(string)
-				if searchQuery == "" {
-					searchQuery = "synthesise the most relevant findings for: " + queryStr
-				}
-				summary, err := tools.SummariseContent(ctx, tools.ResolveSummaryLLMConfig(cfg, tools.SummaryLLMConfig{
-					APIKey:  cfg.Tools.DDGSearch.SummaryAPIKey,
-					BaseURL: cfg.Tools.DDGSearch.SummaryBaseURL,
-					Model:   cfg.Tools.DDGSearch.SummaryModel,
-				}), logger, result, searchQuery, "search results")
-				if err != nil {
-					logger.Warn("ddg_search summary failed, returning raw content", "error", err)
-				} else {
-					result = summary
-				}
-			}
-			return result
-		case "virustotal_scan":
-			if !cfg.VirusTotal.Enabled {
-				return `Tool Output: {"status": "error", "message": "VirusTotal integration is not enabled. Set virustotal.enabled=true in config.yaml."}`
-			}
-			resource, _ := args["resource"].(string)
-			filePath, _ := args["file_path"].(string)
-			if filePath == "" {
-				filePath, _ = args["path"].(string)
-			}
-			mode, _ := args["mode"].(string)
-			return tools.ExecuteVirusTotalScanWithOptions(cfg.VirusTotal.APIKey, tools.VirusTotalOptions{
-				Resource: resource,
-				FilePath: filePath,
-				Mode:     mode,
-			})
-		case "brave_search":
-			if !cfg.BraveSearch.Enabled {
-				return `Tool Output: {"status": "error", "message": "Brave Search integration is not enabled. Enable it in Settings \u203a Brave Search."}`
-			}
-			queryStr, _ := args["query"].(string)
-			count, ok := args["count"].(float64)
-			if !ok {
-				count = 10
-			}
-			country, _ := args["country"].(string)
-			if country == "" {
-				country = cfg.BraveSearch.Country
-			}
-			lang, _ := args["lang"].(string)
-			if lang == "" {
-				lang = cfg.BraveSearch.Lang
-			}
-			return tools.ExecuteBraveSearch(cfg.BraveSearch.APIKey, queryStr, int(count), country, lang)
 		case "git_backup_restore":
 			reqJSON, _ := json.Marshal(args)
 			var req tools.GitBackupRequest
@@ -533,60 +434,6 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) string 
 				}
 			}
 			return result
-		case "paperless", "paperless_ngx":
-			if !cfg.PaperlessNGX.Enabled {
-				return `Tool Output: {"status": "error", "message": "Paperless-ngx integration is not enabled. Set paperless_ngx.enabled=true in config.yaml."}`
-			}
-			op, _ := args["operation"].(string)
-			if cfg.PaperlessNGX.ReadOnly {
-				switch op {
-				case "upload", "post", "update", "patch", "delete", "rm":
-					return `Tool Output: {"status":"error","message":"Paperless-ngx is in read-only mode. Disable paperless_ngx.readonly to allow changes."}`
-				}
-			}
-			plCfg := tools.PaperlessConfig{
-				URL:      cfg.PaperlessNGX.URL,
-				APIToken: cfg.PaperlessNGX.APIToken,
-			}
-			docID, _ := args["document_id"].(string)
-			query, _ := args["query"].(string)
-			content, _ := args["content"].(string)
-			title, _ := args["title"].(string)
-			tagsStr, _ := args["tags"].(string)
-			corrName, _ := args["name"].(string)
-			category, _ := args["category"].(string)
-			limitF, _ := args["limit"].(float64)
-			switch op {
-			case "search", "find", "query":
-				logger.Info("LLM requested Paperless search (via skill)", "query", query)
-				return "Tool Output: " + tools.PaperlessSearch(plCfg, query, tagsStr, corrName, category, int(limitF))
-			case "get", "info":
-				logger.Info("LLM requested Paperless get (via skill)", "document_id", docID)
-				return "Tool Output: " + tools.PaperlessGet(plCfg, docID)
-			case "download", "read", "content":
-				logger.Info("LLM requested Paperless download (via skill)", "document_id", docID)
-				return "Tool Output: " + tools.PaperlessDownload(plCfg, docID)
-			case "upload", "post":
-				logger.Info("LLM requested Paperless upload (via skill)", "title", title)
-				return "Tool Output: " + tools.PaperlessUpload(plCfg, title, content, tagsStr, corrName, category)
-			case "update", "patch":
-				logger.Info("LLM requested Paperless update (via skill)", "document_id", docID)
-				return "Tool Output: " + tools.PaperlessUpdate(plCfg, docID, title, tagsStr, corrName, category)
-			case "delete", "rm":
-				logger.Info("LLM requested Paperless delete (via skill)", "document_id", docID)
-				return "Tool Output: " + tools.PaperlessDelete(plCfg, docID)
-			case "list_tags", "tags":
-				logger.Info("LLM requested Paperless list tags (via skill)")
-				return "Tool Output: " + tools.PaperlessListTags(plCfg)
-			case "list_correspondents", "correspondents":
-				logger.Info("LLM requested Paperless list correspondents (via skill)")
-				return "Tool Output: " + tools.PaperlessListCorrespondents(plCfg)
-			case "list_document_types", "document_types":
-				logger.Info("LLM requested Paperless list document types (via skill)")
-				return "Tool Output: " + tools.PaperlessListDocumentTypes(plCfg)
-			default:
-				return `Tool Output: {"status": "error", "message": "Unknown paperless operation. Use: search, get, download, upload, update, delete, list_tags, list_correspondents, list_document_types"}`
-			}
 		}
 
 		// If the skill manifest doesn't exist in SkillsDir but a matching .py is in ToolsDir,
@@ -1823,110 +1670,34 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) string 
 
 	// Built-in search/scrape tools — also callable as direct actions (no execute_skill wrapper needed)
 	case "ddg_search":
-		queryStr := tc.Query
-		if queryStr == "" {
-			queryStr, _ = tc.Params["query"].(string)
+		if result, ok := handleDirectBuiltinSkillAction(ctx, tc, dc); ok {
+			return result
 		}
-		maxRes, ok := tc.Params["max_results"].(float64)
-		if !ok {
-			maxRes = 5
-		}
-		result := tools.ExecuteDDGSearch(queryStr, int(maxRes))
-		if cfg.Tools.DDGSearch.SummaryMode {
-			searchQuery, _ := tc.Params["search_query"].(string)
-			if searchQuery == "" {
-				searchQuery = "synthesise the most relevant findings for: " + queryStr
-			}
-			summary, err := tools.SummariseContent(ctx, tools.ResolveSummaryLLMConfig(cfg, tools.SummaryLLMConfig{
-				APIKey:  cfg.Tools.DDGSearch.SummaryAPIKey,
-				BaseURL: cfg.Tools.DDGSearch.SummaryBaseURL,
-				Model:   cfg.Tools.DDGSearch.SummaryModel,
-			}), logger, result, searchQuery, "search results")
-			if err != nil {
-				logger.Warn("ddg_search summary failed, returning raw content", "error", err)
-			} else {
-				result = summary
-			}
-		}
-		return result
+		return unexpectedBuiltinActionError(tc.Action)
 
 	case "web_scraper":
-		if !cfg.Tools.WebScraper.Enabled {
-			return "Tool Output: [PERMISSION DENIED] web_scraper is disabled in settings (tools.web_scraper.enabled: false)."
+		if result, ok := handleDirectBuiltinSkillAction(ctx, tc, dc); ok {
+			return result
 		}
-		urlStr := tc.URL
-		if urlStr == "" {
-			urlStr, _ = tc.Params["url"].(string)
-		}
-		scraped := tools.ExecuteWebScraper(urlStr)
-		if cfg.Tools.WebScraper.SummaryMode {
-			searchQuery, _ := tc.Params["search_query"].(string)
-			if searchQuery == "" {
-				searchQuery = "general summary of the page content"
-			}
-			summary, err := tools.SummariseScrapedContent(ctx, cfg, logger, scraped, searchQuery)
-			if err != nil {
-				logger.Warn("web_scraper summary failed, returning raw content", "error", err)
-			} else {
-				scraped = summary
-			}
-		}
-		return scraped
+		return unexpectedBuiltinActionError(tc.Action)
 
 	case "wikipedia_search":
-		queryStr := tc.Query
-		if queryStr == "" {
-			queryStr, _ = tc.Params["query"].(string)
+		if result, ok := handleDirectBuiltinSkillAction(ctx, tc, dc); ok {
+			return result
 		}
-		langStr, _ := tc.Params["language"].(string)
-		result := tools.ExecuteWikipediaSearch(queryStr, langStr)
-		if cfg.Tools.Wikipedia.SummaryMode {
-			searchQuery, _ := tc.Params["search_query"].(string)
-			if searchQuery == "" {
-				searchQuery = "summarise the key facts about: " + queryStr
-			}
-			summary, err := tools.SummariseContent(ctx, tools.ResolveSummaryLLMConfig(cfg, tools.SummaryLLMConfig{
-				APIKey:  cfg.Tools.Wikipedia.SummaryAPIKey,
-				BaseURL: cfg.Tools.Wikipedia.SummaryBaseURL,
-				Model:   cfg.Tools.Wikipedia.SummaryModel,
-			}), logger, result, searchQuery, "Wikipedia article")
-			if err != nil {
-				logger.Warn("wikipedia summary failed, returning raw content", "error", err)
-			} else {
-				result = summary
-			}
-		}
-		return result
+		return unexpectedBuiltinActionError(tc.Action)
 
 	case "virustotal_scan":
-		if !cfg.VirusTotal.Enabled {
-			return `Tool Output: {"status": "error", "message": "VirusTotal integration is not enabled. Set virustotal.enabled=true in config.yaml."}`
+		if result, ok := handleDirectBuiltinSkillAction(ctx, tc, dc); ok {
+			return result
 		}
-		resource := tc.Resource
-		if resource == "" {
-			resource, _ = tc.Params["resource"].(string)
-		}
-		filePath := tc.FilePath
-		if filePath == "" {
-			filePath, _ = tc.Params["file_path"].(string)
-		}
-		if filePath == "" {
-			filePath, _ = tc.Params["path"].(string)
-		}
-		if filePath == "" {
-			filePath = tc.Path
-		}
-		mode := tc.Mode
-		if mode == "" {
-			mode, _ = tc.Params["mode"].(string)
-		}
-		return tools.ExecuteVirusTotalScanWithOptions(cfg.VirusTotal.APIKey, tools.VirusTotalOptions{
-			Resource: resource,
-			FilePath: filePath,
-			Mode:     mode,
-		})
+		return unexpectedBuiltinActionError(tc.Action)
 
 	case "brave_search":
+		if result, ok := handleDirectBuiltinSkillAction(ctx, tc, dc); ok {
+			return result
+		}
+		return unexpectedBuiltinActionError(tc.Action)
 		if !cfg.BraveSearch.Enabled {
 			return `Tool Output: {"status": "error", "message": "Brave Search integration is not enabled. Enable it in Settings › Brave Search."}`
 		}
