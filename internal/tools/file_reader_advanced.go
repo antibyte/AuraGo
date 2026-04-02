@@ -21,7 +21,10 @@ type FileReaderResult struct {
 // ExecuteFileReaderAdvanced handles advanced file reading operations.
 func ExecuteFileReaderAdvanced(operation, filePath, pattern string, startLine, endLine, lineCount int, workspaceDir string) string {
 	encode := func(r FileReaderResult) string {
-		b, _ := json.Marshal(r)
+		b, err := json.Marshal(r)
+		if err != nil {
+			return `{"status":"error","message":"internal: result serialization failed"}`
+		}
 		return string(b)
 	}
 
@@ -83,6 +86,9 @@ func readLines(resolved string, start, end int, encode func(FileReaderResult) st
 			break
 		}
 	}
+	if err := scanner.Err(); err != nil {
+		return encode(FileReaderResult{Status: "error", Message: fmt.Sprintf("Failed to read file: %v", err)})
+	}
 
 	if len(lines) == 0 {
 		return encode(FileReaderResult{Status: "error", Message: fmt.Sprintf("No lines in range %d-%d (file has %d lines)", start, end, lineNum)})
@@ -119,6 +125,9 @@ func readTail(resolved string, n int, encode func(FileReaderResult) string) stri
 		buf[pos%n] = scanner.Text()
 		pos++
 		total++
+	}
+	if err := scanner.Err(); err != nil {
+		return encode(FileReaderResult{Status: "error", Message: fmt.Sprintf("Failed to read file: %v", err)})
 	}
 
 	filled := pos
@@ -158,6 +167,9 @@ func countLines(resolved string, encode func(FileReaderResult) string) string {
 	scanner := newLargeFileScanner(f)
 	for scanner.Scan() {
 		count++
+	}
+	if err := scanner.Err(); err != nil {
+		return encode(FileReaderResult{Status: "error", Message: fmt.Sprintf("Failed to read file: %v", err)})
 	}
 
 	info, _ := os.Stat(resolved)
@@ -304,6 +316,9 @@ func searchContext(resolved, pattern string, contextLines int, encode func(FileR
 		}
 	}
 	flushActive()
+	if err := scanner.Err(); err != nil {
+		return encode(FileReaderResult{Status: "error", Message: fmt.Sprintf("Failed to read file: %v", err)})
+	}
 
 	return encode(FileReaderResult{Status: "success", Data: map[string]interface{}{
 		"matches": results,

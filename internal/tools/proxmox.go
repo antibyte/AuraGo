@@ -615,7 +615,10 @@ func ProxmoxCreateSnapshot(cfg ProxmoxConfig, node, vmType, vmid, snapName, desc
 	if code != 200 {
 		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%s}`, code, proxmoxJSONStr(string(data)))
 	}
-	out, _ := json.Marshal(map[string]interface{}{"status": "ok", "snapshot": snapName, "data": json.RawMessage(proxmoxExtractData(data))})
+	out, err := json.Marshal(map[string]interface{}{"status": "ok", "snapshot": snapName, "data": json.RawMessage(proxmoxExtractData(data))})
+	if err != nil {
+		return fmt.Sprintf(`{"status":"ok","snapshot":%s,"data":%s}`, proxmoxJSONStr(snapName), proxmoxExtractData(data))
+	}
 	return string(out)
 }
 

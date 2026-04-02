@@ -124,8 +124,10 @@ proceed:
 
 	rawResult := dispatchInner(ctx, tc, dc)
 
-	// Apply redaction to tool output
-	sanitized := security.StripThinkingTags(security.RedactSensitiveInfo(rawResult))
+	// Apply scrubbing and redaction to tool output.
+	// Scrub() removes registered runtime secrets (vault keys, API tokens, etc.).
+	// RedactSensitiveInfo() catches regex-identified patterns (key=value pairs, etc.).
+	sanitized := security.StripThinkingTags(security.RedactSensitiveInfo(security.Scrub(rawResult)))
 
 	// Guardian: Sanitize tool output (isolation + role-marker stripping)
 	if guardian != nil {

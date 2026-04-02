@@ -27,7 +27,10 @@ type FileSearchMatch struct {
 // ExecuteFileSearch handles file search operations, sandboxed to workspaceDir.
 func ExecuteFileSearch(operation, pattern, filePath, glob, outputMode string, workspaceDir string) string {
 	encode := func(r FileSearchResult) string {
-		b, _ := json.Marshal(r)
+		b, err := json.Marshal(r)
+		if err != nil {
+			return `{"status":"error","message":"internal: result serialization failed"}`
+		}
 		return string(b)
 	}
 
@@ -292,6 +295,9 @@ func grepFile(absPath string, re *regexp.Regexp, displayPath string) ([]FileSear
 				Content: strings.TrimRight(line, "\r\n"),
 			})
 		}
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("scan error in %s: %w", displayPath, err)
 	}
 	return matches, nil
 }
