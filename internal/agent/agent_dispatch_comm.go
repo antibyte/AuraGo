@@ -247,16 +247,11 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if !cfg.Webhooks.Enabled {
 				return `Tool Output: {"status":"error","message":"Webhooks are disabled in the config. Set webhooks.enabled=true."}`
 			}
-			if cfg.Webhooks.ReadOnly && tc.Operation != "list" {
+			req := decodeManageOutgoingWebhooksArgs(tc)
+			if cfg.Webhooks.ReadOnly && req.Operation != "list" {
 				return `Tool Output: {"status":"error","message":"Webhooks tool is set to Read-Only mode. Cannot modify."}`
 			}
-
-			var rawParams []interface{}
-			if rp, ok := tc.Parameters.([]interface{}); ok {
-				rawParams = rp
-			}
-
-			return tools.ManageOutgoingWebhooks(tc.Operation, tc.ID, tc.Name, tc.Description, tc.Method, tc.URL, tc.PayloadType, tc.BodyTemplate, tc.Headers, rawParams, cfg)
+			return tools.ManageOutgoingWebhooks(req.Operation, req.ID, req.Name, req.Description, req.Method, req.URL, req.PayloadType, req.BodyTemplate, req.Headers, req.rawParameters(), cfg)
 
 		case "list_skill_templates":
 			logger.Info("LLM requested to list skill templates")
@@ -280,35 +275,22 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if !cfg.Agent.AllowPython {
 				return "Tool Output: [PERMISSION DENIED] create_skill_from_template is disabled in Danger Zone settings (agent.allow_python: false)."
 			}
-			templateName := tc.Template
-			skillName := tc.Name
-			if templateName == "" {
+			req := decodeCreateSkillFromTemplateArgs(tc)
+			if req.Template == "" {
 				return "Tool Output: ERROR 'template' is required. Use list_skill_templates to see available templates."
 			}
-			if skillName == "" {
+			if req.Name == "" {
 				return "Tool Output: ERROR 'name' is required for the new skill."
-			}
-
-			// Extract optional array fields from Params or SkillArgs
-			var deps []string
-			if rawDeps, ok := tc.Params["dependencies"]; ok {
-				if arr, ok := rawDeps.([]interface{}); ok {
-					for _, v := range arr {
-						if s, ok := v.(string); ok {
-							deps = append(deps, s)
-						}
-					}
-				}
 			}
 
 			result, err := tools.CreateSkillFromTemplate(
 				cfg.Directories.SkillsDir,
-				templateName,
-				skillName,
-				tc.Description,
-				tc.URL,
-				deps,
-				tc.VaultKeys,
+				req.Template,
+				req.Name,
+				req.Description,
+				req.URL,
+				req.Dependencies,
+				req.VaultKeys,
 			)
 			if err != nil {
 				return fmt.Sprintf("Tool Output: ERROR creating skill from template: %v", err)
@@ -318,8 +300,8 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			tools.ProvisionSkillDependencies(cfg.Directories.SkillsDir, cfg.Directories.WorkspaceDir, logger)
 
 			logger.Info("Skill created from template",
-				"template", templateName,
-				"skill", skillName,
+				"template", req.Template,
+				"skill", req.Name,
 			)
 			return "Tool Output: " + result
 
@@ -410,8 +392,8 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				if !cfg.GoogleWorkspace.Enabled {
 					return `Tool Output: {"status": "error", "message": "Google Workspace is not enabled. Enable it in Settings > Google Workspace."}`
 				}
-				op, _ := args["operation"].(string)
-				return "Tool Output: " + tools.ExecuteGoogleWorkspace(*cfg, vault, op, args)
+				req := decodeGoogleWorkspaceArgsFromMap(args)
+				return "Tool Output: " + tools.ExecuteGoogleWorkspace(*cfg, vault, req.Operation, req.params())
 			case "pdf_extractor":
 				if !cfg.Tools.PDFExtractor.Enabled {
 					return "Tool Output: [PERMISSION DENIED] pdf_extractor is disabled in settings (tools.pdf_extractor.enabled: false)."

@@ -1319,68 +1319,13 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if !cfg.GoogleWorkspace.Enabled {
 				return `Tool Output: {"status": "error", "message": "Google Workspace is not enabled. Enable it in Settings > Google Workspace."}`
 			}
-			op := tc.Operation
+			req := decodeGoogleWorkspaceArgs(tc)
+			op := req.Operation
 			if op == "" {
 				op = tc.Action
 			}
 			logger.Info("LLM requested google_workspace operation", "op", op)
-			params := make(map[string]interface{})
-			if tc.Params != nil {
-				params = tc.Params
-			}
-			// Map ToolCall fields into params for the dispatch function
-			if tc.DocumentID != "" {
-				params["document_id"] = tc.DocumentID
-			}
-			if tc.MessageID != "" {
-				params["message_id"] = tc.MessageID
-			}
-			if tc.FileID != "" {
-				params["file_id"] = tc.FileID
-			}
-			if tc.EventID != "" {
-				params["event_id"] = tc.EventID
-			}
-			if tc.MaxResults > 0 {
-				params["max_results"] = tc.MaxResults
-			}
-			if tc.Query != "" {
-				params["query"] = tc.Query
-			}
-			if tc.To != "" {
-				params["to"] = tc.To
-			}
-			if tc.Subject != "" {
-				params["subject"] = tc.Subject
-			}
-			if tc.Body != "" {
-				params["body"] = tc.Body
-			}
-			if tc.Title != "" {
-				params["title"] = tc.Title
-			}
-			if tc.Description != "" {
-				params["description"] = tc.Description
-			}
-			if tc.StartTime != "" {
-				params["start_time"] = tc.StartTime
-			}
-			if tc.EndTime != "" {
-				params["end_time"] = tc.EndTime
-			}
-			if tc.Range != "" {
-				params["range"] = tc.Range
-			}
-			if len(tc.Values) > 0 {
-				params["values"] = tc.Values
-			}
-			if len(tc.AddLabels) > 0 {
-				params["add_labels"] = tc.AddLabels
-			}
-			if len(tc.RemoveLabels) > 0 {
-				params["remove_labels"] = tc.RemoveLabels
-			}
-			return "Tool Output: " + tools.ExecuteGoogleWorkspace(*cfg, vault, op, params)
+			return "Tool Output: " + tools.ExecuteGoogleWorkspace(*cfg, vault, op, req.params())
 
 		case "onedrive", "onedrive_op":
 			if !cfg.OneDrive.Enabled {
