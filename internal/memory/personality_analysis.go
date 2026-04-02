@@ -257,9 +257,7 @@ User Statements (use ONLY this section for user_profile_updates — these are th
 		Model: modelName,
 		Messages: []openai.ChatCompletionMessage{
 			{Role: openai.ChatMessageRoleSystem, Content: prompt},
-		},
-		ResponseFormat: &openai.ChatCompletionResponseFormat{
-			Type: openai.ChatCompletionResponseFormatTypeJSONObject,
+			{Role: openai.ChatMessageRoleUser, Content: "Analyze the above data and respond with valid JSON only."},
 		},
 		Temperature: 0.1,
 	}
@@ -585,9 +583,7 @@ User Statements:
 		Model: modelName,
 		Messages: []openai.ChatCompletionMessage{
 			{Role: openai.ChatMessageRoleSystem, Content: prompt},
-		},
-		ResponseFormat: &openai.ChatCompletionResponseFormat{
-			Type: openai.ChatCompletionResponseFormatTypeJSONObject,
+			{Role: openai.ChatMessageRoleUser, Content: "Analyze the above data and respond with valid JSON only."},
 		},
 		Temperature: 0.1,
 	}

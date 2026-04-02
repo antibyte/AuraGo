@@ -236,8 +236,7 @@ func (s *MissionPreparationService) PrepareMission(ctx context.Context, missionI
 			{Role: openai.ChatMessageRoleSystem, Content: systemPrompt},
 			{Role: openai.ChatMessageRoleUser, Content: userPrompt},
 		},
-		Temperature:    0.3,
-		ResponseFormat: &openai.ChatCompletionResponseFormat{Type: openai.ChatCompletionResponseFormatTypeJSONObject},
+		Temperature: 0.3,
 	}
 
 	resp, err := client.CreateChatCompletion(llmCtx, req)
