@@ -14,6 +14,19 @@ type manageWebhooksArgs struct {
 	TokenID   string
 }
 
+type imageAnalysisArgs struct {
+	FilePath string
+	Prompt   string
+}
+
+type meshCentralArgs struct {
+	Operation   string
+	MeshID      string
+	NodeID      string
+	PowerAction int
+	Command     string
+}
+
 type homeAssistantArgs struct {
 	Operation   string
 	Domain      string
@@ -115,6 +128,36 @@ func decodeManageWebhooksArgs(tc ToolCall) manageWebhooksArgs {
 		req.Enabled = enabled
 	}
 	return req
+}
+
+func decodeImageAnalysisArgs(tc ToolCall) imageAnalysisArgs {
+	return imageAnalysisArgs{
+		FilePath: firstNonEmptyToolString(tc.FilePath, tc.Path, toolArgString(tc.Params, "file_path", "path")),
+		Prompt:   firstNonEmptyToolString(tc.Prompt, toolArgString(tc.Params, "prompt")),
+	}
+}
+
+func normalizeMeshCentralOp(op string) string {
+	switch strings.ToLower(strings.TrimSpace(op)) {
+	case "meshes":
+		return "list_groups"
+	case "nodes":
+		return "list_devices"
+	case "wakeonlan":
+		return "wake"
+	default:
+		return strings.ToLower(strings.TrimSpace(op))
+	}
+}
+
+func decodeMeshCentralArgs(tc ToolCall) meshCentralArgs {
+	return meshCentralArgs{
+		Operation:   normalizeMeshCentralOp(firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation"))),
+		MeshID:      firstNonEmptyToolString(tc.MeshID, toolArgString(tc.Params, "mesh_id")),
+		NodeID:      firstNonEmptyToolString(tc.NodeID, toolArgString(tc.Params, "node_id")),
+		PowerAction: firstNonEmptyInt(tc.PowerAction, toolArgInt(tc.Params, 0, "power_action")),
+		Command:     firstNonEmptyToolString(tc.Command, toolArgString(tc.Params, "command")),
+	}
 }
 
 func decodeHomeAssistantArgs(tc ToolCall) homeAssistantArgs {

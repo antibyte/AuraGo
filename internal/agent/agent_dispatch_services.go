@@ -33,18 +33,16 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			if budgetTracker != nil && budgetTracker.IsBlocked("vision") {
 				return `Tool Output: {"status": "error", "message": "Vision blocked: daily budget exceeded. Try again tomorrow."}`
 			}
-			logger.Info("LLM requested image analysis", "file_path", tc.FilePath)
-			fpath := tc.FilePath
-			if fpath == "" {
-				fpath = tc.Path
-			}
+			req := decodeImageAnalysisArgs(tc)
+			logger.Info("LLM requested image analysis", "file_path", req.FilePath)
+			fpath := req.FilePath
 			if fpath == "" {
 				return `Tool Output: {"status": "error", "message": "'file_path' is required for analyze_image"}`
 			}
 			if strings.Contains(fpath, "..") {
 				return `Tool Output: {"status": "error", "message": "path traversal sequences ('..') are not allowed"}`
 			}
-			prompt := tc.Prompt
+			prompt := req.Prompt
 			if prompt == "" {
 				prompt = "Describe this image in detail. What do you see? If there is text, transcribe it. If there are people, describe their actions."
 			}
@@ -58,11 +56,9 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			if budgetTracker != nil && budgetTracker.IsBlocked("stt") {
 				return `Tool Output: {"status": "error", "message": "Speech-to-text blocked: daily budget exceeded. Try again tomorrow."}`
 			}
-			logger.Info("LLM requested audio transcription", "file_path", tc.FilePath)
-			fpath := tc.FilePath
-			if fpath == "" {
-				fpath = tc.Path
-			}
+			req := decodeImageAnalysisArgs(tc)
+			logger.Info("LLM requested audio transcription", "file_path", req.FilePath)
+			fpath := req.FilePath
 			if fpath == "" {
 				return `Tool Output: {"status": "error", "message": "'file_path' is required for transcribe_audio"}`
 			}
@@ -80,35 +76,23 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return `Tool Output: {"status": "error", "message": "MeshCentral integration is not enabled in config.yaml."}`
 			}
 
-			logger.Info("LLM requested MeshCentral operation", "op", tc.Operation)
+			req := decodeMeshCentralArgs(tc)
+			logger.Info("LLM requested MeshCentral operation", "op", req.Operation)
 
-			normalizeMeshCentralOp := func(op string) string {
-				switch strings.ToLower(strings.TrimSpace(op)) {
-				case "meshes":
-					return "list_groups"
-				case "nodes":
-					return "list_devices"
-				case "wakeonlan":
-					return "wake"
-				default:
-					return strings.ToLower(strings.TrimSpace(op))
-				}
-			}
-
-			op := normalizeMeshCentralOp(tc.Operation)
+			op := req.Operation
 
 			if cfg.MeshCentral.ReadOnly {
 				switch op {
 				case "list_groups", "list_devices":
 					// allowed in read-only mode
 				default:
-					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "MeshCentral operation '%s' blocked: meshcentral.readonly is enabled."}`, tc.Operation)
+					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "MeshCentral operation '%s' blocked: meshcentral.readonly is enabled."}`, req.Operation)
 				}
 			}
 
 			for _, blocked := range cfg.MeshCentral.BlockedOperations {
 				if normalizeMeshCentralOp(blocked) == op && op != "" {
-					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "MeshCentral operation '%s' blocked by policy (meshcentral.blocked_operations)."}`, tc.Operation)
+					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "MeshCentral operation '%s' blocked by policy (meshcentral.blocked_operations)."}`, req.Operation)
 				}
 			}
 
@@ -147,7 +131,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return fmt.Sprintf(`Tool Output: {"status": "success", "groups": %s}`, string(b))
 
 			case "list_devices":
-				nodes, err := mcClient.ListDevices(tc.MeshID)
+				nodes, err := mcClient.ListDevices(req.MeshID)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Failed to list devices: %v"}`, err)
 				}
@@ -155,45 +139,45 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return fmt.Sprintf(`Tool Output: {"status": "success", "devices": %s}`, string(b))
 
 			case "wake":
-				if tc.NodeID == "" {
+				if req.NodeID == "" {
 					return `Tool Output: {"status": "error", "message": "'node_id' is required for wake"}`
 				}
-				if !strings.HasPrefix(tc.NodeID, "node//") {
+				if !strings.HasPrefix(req.NodeID, "node//") {
 					return `Tool Output: {"status": "error", "message": "invalid node_id: must start with 'node//'"}`
 				}
-				logger.Info("MeshCentral wake_on_lan", "node_id", tc.NodeID, "session_id", sessionID)
-				result, err := mcClient.WakeOnLan([]string{tc.NodeID})
+				logger.Info("MeshCentral wake_on_lan", "node_id", req.NodeID, "session_id", sessionID)
+				result, err := mcClient.WakeOnLan([]string{req.NodeID})
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Failed to send wake magic packet: %v"}`, err)
 				}
 				return fmt.Sprintf(`Tool Output: {"status": "success", "message": "%s"}`, result)
 
 			case "power_action":
-				if tc.NodeID == "" {
+				if req.NodeID == "" {
 					return `Tool Output: {"status": "error", "message": "'node_id' is required for power_action"}`
 				}
-				if !strings.HasPrefix(tc.NodeID, "node//") {
+				if !strings.HasPrefix(req.NodeID, "node//") {
 					return `Tool Output: {"status": "error", "message": "invalid node_id: must start with 'node//'"}`
 				}
-				if tc.PowerAction < 1 || tc.PowerAction > 4 {
+				if req.PowerAction < 1 || req.PowerAction > 4 {
 					return `Tool Output: {"status": "error", "message": "Invalid power action. 1=Sleep, 2=Hibernate, 3=PowerOff, 4=Reset"}`
 				}
-				logger.Info("MeshCentral power_action", "node_id", tc.NodeID, "power_action", tc.PowerAction, "session_id", sessionID)
-				result, err := mcClient.PowerAction([]string{tc.NodeID}, tc.PowerAction)
+				logger.Info("MeshCentral power_action", "node_id", req.NodeID, "power_action", req.PowerAction, "session_id", sessionID)
+				result, err := mcClient.PowerAction([]string{req.NodeID}, req.PowerAction)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Failed to send power action: %v"}`, err)
 				}
 				return fmt.Sprintf(`Tool Output: {"status": "success", "message": "%s"}`, result)
 
 			case "run_command":
-				if tc.NodeID == "" || tc.Command == "" {
+				if req.NodeID == "" || req.Command == "" {
 					return `Tool Output: {"status": "error", "message": "'node_id' and 'command' are required for run_command"}`
 				}
-				if !strings.HasPrefix(tc.NodeID, "node//") {
+				if !strings.HasPrefix(req.NodeID, "node//") {
 					return `Tool Output: {"status": "error", "message": "invalid node_id: must start with 'node//'"}`
 				}
-				logger.Info("MeshCentral run_command", "node_id", tc.NodeID, "command", tc.Command, "session_id", sessionID)
-				result, err := mcClient.RunCommand(tc.NodeID, tc.Command)
+				logger.Info("MeshCentral run_command", "node_id", req.NodeID, "command", req.Command, "session_id", sessionID)
+				result, err := mcClient.RunCommand(req.NodeID, req.Command)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Failed to run command: %v"}`, err)
 				}
@@ -202,14 +186,14 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return fmt.Sprintf(`Tool Output: {"status": "success", "data": %s}`, string(resultJSON))
 
 			case "shell":
-				if tc.NodeID == "" || tc.Command == "" {
+				if req.NodeID == "" || req.Command == "" {
 					return `Tool Output: {"status": "error", "message": "'node_id' and 'command' are required for shell"}`
 				}
-				if !strings.HasPrefix(tc.NodeID, "node//") {
+				if !strings.HasPrefix(req.NodeID, "node//") {
 					return `Tool Output: {"status": "error", "message": "invalid node_id: must start with 'node//'"}`
 				}
-				logger.Info("MeshCentral shell", "node_id", tc.NodeID, "command", tc.Command, "session_id", sessionID)
-				result, err := mcClient.Shell(tc.NodeID, tc.Command)
+				logger.Info("MeshCentral shell", "node_id", req.NodeID, "command", req.Command, "session_id", sessionID)
+				result, err := mcClient.Shell(req.NodeID, req.Command)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Failed to execute shell command: %v"}`, err)
 				}
@@ -218,7 +202,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return fmt.Sprintf(`Tool Output: {"status": "success", "data": %s}`, string(resultJSON))
 
 			default:
-				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Unknown operation: %s"}`, tc.Operation)
+				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Unknown operation: %s"}`, req.Operation)
 			}
 
 		case "docker", "docker_management":

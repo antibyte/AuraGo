@@ -2,6 +2,54 @@ package agent
 
 import "testing"
 
+func TestDecodeImageAnalysisArgsUsesPathFallback(t *testing.T) {
+	tc := ToolCall{
+		Action: "analyze_image",
+		Params: map[string]interface{}{
+			"path":   "media/demo.png",
+			"prompt": "Summarize the image",
+		},
+	}
+
+	req := decodeImageAnalysisArgs(tc)
+	if req.FilePath != "media/demo.png" {
+		t.Fatalf("FilePath = %q, want media/demo.png", req.FilePath)
+	}
+	if req.Prompt != "Summarize the image" {
+		t.Fatalf("Prompt = %q, want custom prompt", req.Prompt)
+	}
+}
+
+func TestDecodeMeshCentralArgsNormalizesOperationAndUsesParamsFallback(t *testing.T) {
+	tc := ToolCall{
+		Action: "meshcentral",
+		Params: map[string]interface{}{
+			"operation":    "wakeonlan",
+			"mesh_id":      "mesh//group",
+			"node_id":      "node//abc",
+			"power_action": float64(4),
+			"command":      "hostname",
+		},
+	}
+
+	req := decodeMeshCentralArgs(tc)
+	if req.Operation != "wake" {
+		t.Fatalf("Operation = %q, want wake", req.Operation)
+	}
+	if req.MeshID != "mesh//group" {
+		t.Fatalf("MeshID = %q, want mesh//group", req.MeshID)
+	}
+	if req.NodeID != "node//abc" {
+		t.Fatalf("NodeID = %q, want node//abc", req.NodeID)
+	}
+	if req.PowerAction != 4 {
+		t.Fatalf("PowerAction = %d, want 4", req.PowerAction)
+	}
+	if req.Command != "hostname" {
+		t.Fatalf("Command = %q, want hostname", req.Command)
+	}
+}
+
 func TestDecodeManageWebhooksArgsUsesActionAlias(t *testing.T) {
 	tc := ToolCall{
 		Action: "manage_webhooks",
