@@ -1470,7 +1470,13 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 
 		// Recovery: model announced a next action but did not emit the tool call yet.
-		isAnnouncement := isAnnouncementOnlyResponse(content, tc, useNativePath, lastResponseWasTool, lastUserMsg)
+		// Use sanitized content (think-tags stripped) to avoid false positives from
+		// reasoning-only language inside <think> blocks triggering the forward-cue detector.
+		announcementContent := parsedToolResp.SanitizedContent
+		if announcementContent == "" {
+			announcementContent = content
+		}
+		isAnnouncement := isAnnouncementOnlyResponse(announcementContent, tc, useNativePath, lastResponseWasTool, lastUserMsg)
 		if isAnnouncement && announcementCount < 2 {
 			announcementCount++
 			currentLogger.Warn("[Sync] Announcement-only response detected, requesting immediate tool call", "attempt", announcementCount, "content_preview", Truncate(content, 120))
