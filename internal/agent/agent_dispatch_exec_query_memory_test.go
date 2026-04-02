@@ -52,11 +52,14 @@ func TestDispatchExecQueryMemoryUsesMemoriesOnlyForVectorDB(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(testWriter{t}, &slog.HandlerOptions{Level: slog.LevelError}))
 	vdb := &fakeVectorDB{}
 
-	out := dispatchExec(
+	out, ok := dispatchExec(
 		context.Background(),
 		ToolCall{Action: "query_memory", Query: "Vincenzo", Sources: []string{"vector_db"}},
 		&DispatchContext{Cfg: cfg, Logger: logger, LongTermMem: vdb},
 	)
+	if !ok {
+		t.Fatal("expected dispatchExec to handle query_memory")
+	}
 
 	if !vdb.searchMemoriesOnlyCalled {
 		t.Fatal("expected SearchMemoriesOnly to be called")
@@ -104,11 +107,14 @@ func TestDispatchExecQueryMemoryUnderstandsTemporalJournalQueries(t *testing.T) 
 		t.Fatalf("InsertJournalEntry old: %v", err)
 	}
 
-	out := dispatchExec(
+	out, ok := dispatchExec(
 		context.Background(),
 		ToolCall{Action: "query_memory", Query: "docker gestern", Sources: []string{"journal"}},
 		&DispatchContext{Cfg: cfg, Logger: logger, ShortTermMem: stm},
 	)
+	if !ok {
+		t.Fatal("expected dispatchExec to handle query_memory")
+	}
 
 	if !strings.Contains(out, `"temporal_range"`) {
 		t.Fatalf("output = %q, want temporal_range metadata", out)
@@ -156,11 +162,14 @@ func TestDispatchExecQueryMemoryIncludesActivitySource(t *testing.T) {
 		t.Fatalf("InsertActivityTurn: %v", err)
 	}
 
-	out := dispatchExec(
+	out, ok := dispatchExec(
 		context.Background(),
 		ToolCall{Action: "query_memory", Query: "docker deployment", Sources: []string{"activity"}},
 		&DispatchContext{Cfg: cfg, Logger: logger, ShortTermMem: stm},
 	)
+	if !ok {
+		t.Fatal("expected dispatchExec to handle query_memory")
+	}
 
 	if !strings.Contains(out, `"source":"activity"`) {
 		t.Fatalf("output = %q, want activity source", out)
@@ -212,11 +221,14 @@ func TestDispatchExecContextMemoryReturnsCombinedResults(t *testing.T) {
 		t.Fatalf("InsertActivityTurn: %v", err)
 	}
 
-	out := dispatchExec(
+	out, ok := dispatchExec(
 		context.Background(),
 		ToolCall{Action: "context_memory", Query: "backup", Sources: []string{"activity", "journal", "notes"}, TimeRange: "last_week", ContextDepth: "deep"},
 		&DispatchContext{Cfg: cfg, Logger: logger, ShortTermMem: stm},
 	)
+	if !ok {
+		t.Fatal("expected dispatchExec to handle context_memory")
+	}
 
 	if !strings.Contains(out, `"combined_results"`) {
 		t.Fatalf("output = %q, want combined results", out)
@@ -235,11 +247,14 @@ func TestDispatchExecContextMemorySupportsVectorAliasSources(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
 	vdb := &fakeVectorDB{}
 
-	out := dispatchExec(
+	out, ok := dispatchExec(
 		context.Background(),
 		ToolCall{Action: "context_memory", Query: "Vincenzo", Sources: []string{"vector_db"}},
 		&DispatchContext{Cfg: cfg, Logger: logger, LongTermMem: vdb, ShortTermMem: nil},
 	)
+	if !ok {
+		t.Fatal("expected dispatchExec to handle context_memory")
+	}
 
 	if !vdb.searchMemoriesOnlyCalled {
 		t.Fatal("expected context_memory to use SearchMemoriesOnly via vector_db alias")

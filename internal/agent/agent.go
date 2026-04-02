@@ -696,16 +696,16 @@ func dispatchInner(ctx context.Context, tc ToolCall, dc *DispatchContext) string
 	}
 
 	// Route to sub-dispatchers
-	if result := dispatchExec(ctx, tc, dc); result != dispatchNotHandled {
+	if result, ok := dispatchExec(ctx, tc, dc); ok {
 		return result
 	}
-	if result := dispatchComm(ctx, tc, dc); result != dispatchNotHandled {
+	if result, ok := dispatchComm(ctx, tc, dc); ok {
 		return result
 	}
-	if result := dispatchServices(ctx, tc, dc); result != dispatchNotHandled {
+	if result, ok := dispatchServices(ctx, tc, dc); ok {
 		return result
 	}
-	if result := dispatchInfra(ctx, tc, dc); result != dispatchNotHandled {
+	if result, ok := dispatchInfra(ctx, tc, dc); ok {
 		return result
 	}
 
@@ -728,7 +728,7 @@ func dispatchInner(ctx context.Context, tc ToolCall, dc *DispatchContext) string
 			tc.Operation = tc.Action
 		}
 		tc.Action = "homepage"
-		if result := dispatchServices(ctx, tc, dc); result != dispatchNotHandled {
+		if result, ok := dispatchServices(ctx, tc, dc); ok {
 			return result
 		}
 	}
@@ -750,7 +750,7 @@ func dispatchInner(ctx context.Context, tc ToolCall, dc *DispatchContext) string
 			tc.Command = gitCmd
 		}
 		tc.Action = "execute_shell"
-		if result := dispatchExec(ctx, tc, dc); result != dispatchNotHandled {
+		if result, ok := dispatchExec(ctx, tc, dc); ok {
 			return result
 		}
 	}
@@ -758,7 +758,7 @@ func dispatchInner(ctx context.Context, tc ToolCall, dc *DispatchContext) string
 	if tc.Action == "exec" && tc.Command != "" {
 		logger.Info("Redirecting exec alias to execute_shell")
 		tc.Action = "execute_shell"
-		if result := dispatchExec(ctx, tc, dc); result != dispatchNotHandled {
+		if result, ok := dispatchExec(ctx, tc, dc); ok {
 			return result
 		}
 	}

@@ -619,3 +619,16 @@ func TestBuildNativeToolSchemasSkipsCustomToolCollidingWithBuiltinTool(t *testin
 		t.Fatal("did not expect custom tool shortcut for built-in tool name collision")
 	}
 }
+
+func TestToolFeatureFlagsKeyChangesWhenFlagsChange(t *testing.T) {
+	base := ToolFeatureFlags{AllowShell: true, DockerEnabled: true}
+	same := ToolFeatureFlags{AllowShell: true, DockerEnabled: true}
+	changed := ToolFeatureFlags{AllowShell: true, DockerEnabled: false}
+
+	if base.Key() != same.Key() {
+		t.Fatal("expected identical feature flags to produce identical cache keys")
+	}
+	if base.Key() == changed.Key() {
+		t.Fatal("expected different feature flags to produce different cache keys")
+	}
+}

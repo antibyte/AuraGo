@@ -82,6 +82,79 @@ func TestBuildPromptContextFlagsKeepsHomepageFallbackWhenDockerSocketUnavailable
 	}
 }
 
+func TestBuildPromptContextFlagsAndToolFeatureFlagsShareResolvedCapabilities(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Discord.Enabled = true
+	cfg.HomeAssistant.Enabled = true
+	cfg.Koofr.Enabled = true
+	cfg.GoogleWorkspace.Enabled = true
+	cfg.Tools.Memory.Enabled = true
+	cfg.Tools.WebCapture.Enabled = true
+	cfg.Tools.NetworkPing.Enabled = true
+	cfg.Tools.NetworkScan.Enabled = true
+	cfg.Tools.FormAutomation.Enabled = true
+	cfg.Tools.UPnPScan.Enabled = true
+	cfg.S3.Enabled = true
+	cfg.VirusTotal.Enabled = true
+	cfg.Agent.AllowShell = true
+	cfg.Agent.AllowPython = true
+	cfg.Agent.AllowFilesystemWrite = true
+	cfg.Agent.AllowNetworkRequests = true
+	cfg.Agent.AllowRemoteShell = true
+	cfg.Agent.AllowSelfUpdate = true
+
+	runCfg := RunConfig{Config: cfg, SessionID: "default"}
+	policy := buildToolingPolicy(cfg, "")
+
+	contextFlags := buildPromptContextFlags(runCfg, policy, promptContextOptions{})
+	toolFlags := buildToolFeatureFlags(runCfg, policy)
+
+	if contextFlags.DiscordEnabled != toolFlags.DiscordEnabled {
+		t.Fatal("discord capability mismatch between prompt context and tool feature flags")
+	}
+	if contextFlags.HomeAssistantEnabled != toolFlags.HomeAssistantEnabled {
+		t.Fatal("home assistant capability mismatch between prompt context and tool feature flags")
+	}
+	if contextFlags.KoofrEnabled != toolFlags.KoofrEnabled {
+		t.Fatal("koofr capability mismatch between prompt context and tool feature flags")
+	}
+	if contextFlags.GoogleWorkspaceEnabled != toolFlags.GoogleWorkspaceEnabled {
+		t.Fatal("google workspace capability mismatch between prompt context and tool feature flags")
+	}
+	if contextFlags.MemoryEnabled != toolFlags.MemoryEnabled {
+		t.Fatal("memory capability mismatch between prompt context and tool feature flags")
+	}
+	if contextFlags.WebCaptureEnabled != toolFlags.WebCaptureEnabled {
+		t.Fatal("web capture capability mismatch between prompt context and tool feature flags")
+	}
+	if contextFlags.NetworkPingEnabled != toolFlags.NetworkPingEnabled {
+		t.Fatal("network ping capability mismatch between prompt context and tool feature flags")
+	}
+	if contextFlags.NetworkScanEnabled != toolFlags.NetworkScanEnabled {
+		t.Fatal("network scan capability mismatch between prompt context and tool feature flags")
+	}
+	if contextFlags.FormAutomationEnabled != toolFlags.FormAutomationEnabled {
+		t.Fatal("form automation capability mismatch between prompt context and tool feature flags")
+	}
+	if contextFlags.UPnPScanEnabled != toolFlags.UPnPScanEnabled {
+		t.Fatal("upnp capability mismatch between prompt context and tool feature flags")
+	}
+	if contextFlags.S3Enabled != toolFlags.S3Enabled {
+		t.Fatal("s3 capability mismatch between prompt context and tool feature flags")
+	}
+	if contextFlags.VirusTotalEnabled != toolFlags.VirusTotalEnabled {
+		t.Fatal("virustotal capability mismatch between prompt context and tool feature flags")
+	}
+	if contextFlags.AllowShell != toolFlags.AllowShell ||
+		contextFlags.AllowPython != toolFlags.AllowPython ||
+		contextFlags.AllowFilesystemWrite != toolFlags.AllowFilesystemWrite ||
+		contextFlags.AllowNetworkRequests != toolFlags.AllowNetworkRequests ||
+		contextFlags.AllowRemoteShell != toolFlags.AllowRemoteShell ||
+		contextFlags.AllowSelfUpdate != toolFlags.AllowSelfUpdate {
+		t.Fatal("danger-zone capability mismatch between prompt context and tool feature flags")
+	}
+}
+
 func TestBuildToolingPolicyKeepsConfiguredGuideBudgetByDefault(t *testing.T) {
 	resetAgentTelemetryForTest()
 

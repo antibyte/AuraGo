@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"encoding/json"
 	"path/filepath"
 	"strings"
 
@@ -47,11 +48,11 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 	return tools
 }
 func builtinToolSchemasCached(ff ToolFeatureFlags) []openai.Tool {
-	if cached, ok := builtinToolSchemaCache.Load(ff); ok {
+	if cached, ok := builtinToolSchemaCache.Load(ff.Key()); ok {
 		return deepClone(cached.([]openai.Tool))
 	}
 	built := builtinToolSchemas(ff)
-	builtinToolSchemaCache.Store(ff, deepClone(built))
+	builtinToolSchemaCache.Store(ff.Key(), deepClone(built))
 	return built
 }
 
@@ -92,6 +93,14 @@ func builtinToolNames(ff ToolFeatureFlags) []string {
 		}
 	}
 	return names
+}
+
+func (ff ToolFeatureFlags) Key() string {
+	encoded, err := json.Marshal(ff)
+	if err != nil {
+		return ""
+	}
+	return string(encoded)
 }
 
 func builtinToolNameSet(ff ToolFeatureFlags) map[string]struct{} {

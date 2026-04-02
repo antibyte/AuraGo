@@ -18,7 +18,7 @@ func TestDispatchExecListToolsClarifiesBuiltinSkills(t *testing.T) {
 	manifest := tools.NewManifest(filepath.Join(tmpDir, "tools"))
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 
-	out := dispatchExec(
+	out, ok := dispatchExec(
 		context.Background(),
 		ToolCall{Action: "list_tools"},
 		&DispatchContext{
@@ -27,6 +27,9 @@ func TestDispatchExecListToolsClarifiesBuiltinSkills(t *testing.T) {
 			Manifest: manifest,
 		},
 	)
+	if !ok {
+		t.Fatal("expected dispatchExec to handle list_tools")
+	}
 
 	for _, snippet := range []string{
 		"list_tools' ONLY lists custom reusable Python tools",
@@ -77,7 +80,7 @@ func TestDispatchExecSaveToolRejectsBuiltinNameCollision(t *testing.T) {
 	manifest := tools.NewManifest(toolsDir)
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 
-	out := dispatchExec(
+	out, ok := dispatchExec(
 		context.Background(),
 		ToolCall{
 			Action:      "save_tool",
@@ -91,6 +94,9 @@ func TestDispatchExecSaveToolRejectsBuiltinNameCollision(t *testing.T) {
 			Manifest: manifest,
 		},
 	)
+	if !ok {
+		t.Fatal("expected dispatchExec to handle save_tool")
+	}
 
 	if !strings.Contains(out, "collides with built-in tool") {
 		t.Fatalf("expected built-in collision error, got:\n%s", out)
