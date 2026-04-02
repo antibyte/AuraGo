@@ -1,6 +1,9 @@
 package agent
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 type githubArgs struct {
 	Operation   string
@@ -33,6 +36,31 @@ type netlifyArgs struct {
 	Value        string
 	SiteName     string
 	CustomDomain string
+}
+
+type mcpCallArgs struct {
+	Operation string
+	Server    string
+	ToolName  string
+	Args      map[string]interface{}
+}
+
+type adGuardArgs struct {
+	Operation string
+	Query     string
+	Limit     int
+	Offset    int
+	Services  []string
+	Enabled   bool
+	URL       string
+	Name      string
+	Rules     string
+	Domain    string
+	Answer    string
+	Content   string
+	MAC       string
+	IP        string
+	Hostname  string
 }
 
 type sqlQueryArgs struct {
@@ -109,6 +137,61 @@ func (req netlifyArgs) hookData() map[string]interface{} {
 		hookData["email"] = req.Value
 	}
 	return hookData
+}
+
+func decodeMCPCallArgs(tc ToolCall) mcpCallArgs {
+	req := mcpCallArgs{
+		Operation: firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		Server:    firstNonEmptyToolString(tc.Server, toolArgString(tc.Params, "server")),
+		ToolName:  firstNonEmptyToolString(tc.ToolName, toolArgString(tc.Params, "tool_name", "name")),
+	}
+	if tc.MCPArgs != nil {
+		req.Args = tc.MCPArgs
+	} else {
+		req.Args = toolArgInterfaceMap(tc.Params, "args", "mcp_args", "parameters")
+	}
+	if req.Args == nil {
+		req.Args = map[string]interface{}{}
+	}
+	return req
+}
+
+func decodeAdGuardArgs(tc ToolCall) adGuardArgs {
+	req := adGuardArgs{
+		Operation: firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		Query:     firstNonEmptyToolString(tc.Query, toolArgString(tc.Params, "query")),
+		Limit:     firstNonEmptyInt(tc.Limit, toolArgInt(tc.Params, 0, "limit")),
+		Offset:    firstNonEmptyInt(tc.Offset, toolArgInt(tc.Params, 0, "offset")),
+		Enabled:   tc.Enabled,
+		URL:       firstNonEmptyToolString(tc.URL, toolArgString(tc.Params, "url")),
+		Name:      firstNonEmptyToolString(tc.Name, toolArgString(tc.Params, "name")),
+		Domain:    firstNonEmptyToolString(tc.Domain, toolArgString(tc.Params, "domain")),
+		Answer:    firstNonEmptyToolString(tc.Answer, toolArgString(tc.Params, "answer")),
+		Content:   firstNonEmptyToolString(tc.Content, toolArgString(tc.Params, "content")),
+		MAC:       firstNonEmptyToolString(tc.MAC, toolArgString(tc.Params, "mac")),
+		IP:        firstNonEmptyToolString(tc.IP, toolArgString(tc.Params, "ip")),
+		Hostname:  firstNonEmptyToolString(tc.Hostname, toolArgString(tc.Params, "hostname")),
+	}
+	if enabled, ok := toolArgBool(tc.Params, "enabled"); ok {
+		req.Enabled = enabled
+	}
+	if len(tc.Services) > 0 {
+		req.Services = append([]string(nil), tc.Services...)
+	} else {
+		req.Services = toolArgStringSlice(tc.Params, "services")
+		if len(req.Services) == 0 {
+			req.Services = splitCSV(toolArgString(tc.Params, "services"))
+		}
+	}
+	req.Rules = tc.Rules
+	if req.Rules == "" {
+		if rules := toolArgStringSlice(tc.Params, "rules"); len(rules) > 0 {
+			req.Rules = strings.Join(rules, "\n")
+		} else {
+			req.Rules = toolArgString(tc.Params, "rules")
+		}
+	}
+	return req
 }
 
 func decodeSQLQueryArgs(tc ToolCall) sqlQueryArgs {

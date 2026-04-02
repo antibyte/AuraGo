@@ -82,6 +82,83 @@ func TestDecodeNetlifyArgsUsesParamsFallback(t *testing.T) {
 	}
 }
 
+func TestDecodeMCPCallArgsUsesParamsFallback(t *testing.T) {
+	tc := ToolCall{
+		Action: "mcp_call",
+		Params: map[string]interface{}{
+			"operation": "call_tool",
+			"server":    "filesystem",
+			"tool_name": "read_file",
+			"args": map[string]interface{}{
+				"path": "/tmp/demo.txt",
+			},
+		},
+	}
+
+	req := decodeMCPCallArgs(tc)
+	if req.Operation != "call_tool" {
+		t.Fatalf("Operation = %q, want call_tool", req.Operation)
+	}
+	if req.Server != "filesystem" {
+		t.Fatalf("Server = %q, want filesystem", req.Server)
+	}
+	if req.ToolName != "read_file" {
+		t.Fatalf("ToolName = %q, want read_file", req.ToolName)
+	}
+	if req.Args["path"] != "/tmp/demo.txt" {
+		t.Fatalf("Args[path] = %#v, want /tmp/demo.txt", req.Args["path"])
+	}
+}
+
+func TestDecodeAdGuardArgsUsesParamsFallback(t *testing.T) {
+	tc := ToolCall{
+		Action: "adguard",
+		Params: map[string]interface{}{
+			"operation": "blocked_services_set",
+			"query":     "client:test",
+			"limit":     float64(25),
+			"offset":    float64(5),
+			"services":  []interface{}{"tiktok", "youtube"},
+			"enabled":   true,
+			"rules":     []interface{}{"||ads.example^", "||track.example^"},
+			"domain":    "bad.example",
+			"answer":    "0.0.0.0",
+			"content":   "{\"client\":\"demo\"}",
+			"mac":       "00:11:22:33:44:55",
+			"ip":        "192.168.1.10",
+			"hostname":  "demo-host",
+			"url":       "https://filters.example/list.txt",
+			"name":      "My filter",
+		},
+	}
+
+	req := decodeAdGuardArgs(tc)
+	if req.Operation != "blocked_services_set" {
+		t.Fatalf("Operation = %q, want blocked_services_set", req.Operation)
+	}
+	if req.Query != "client:test" || req.Limit != 25 || req.Offset != 5 {
+		t.Fatalf("unexpected query pagination: %#v", req)
+	}
+	if len(req.Services) != 2 || req.Services[0] != "tiktok" || req.Services[1] != "youtube" {
+		t.Fatalf("Services = %#v, want [tiktok youtube]", req.Services)
+	}
+	if !req.Enabled {
+		t.Fatal("expected Enabled to be true")
+	}
+	if req.Rules != "||ads.example^\n||track.example^" {
+		t.Fatalf("Rules = %q, want newline-joined rules", req.Rules)
+	}
+	if req.Domain != "bad.example" || req.Answer != "0.0.0.0" {
+		t.Fatalf("unexpected rewrite data: %#v", req)
+	}
+	if req.MAC != "00:11:22:33:44:55" || req.IP != "192.168.1.10" || req.Hostname != "demo-host" {
+		t.Fatalf("unexpected lease data: %#v", req)
+	}
+	if req.URL != "https://filters.example/list.txt" || req.Name != "My filter" {
+		t.Fatalf("unexpected URL/name data: %#v", req)
+	}
+}
+
 func TestDecodeSQLQueryArgsUsesParamsFallback(t *testing.T) {
 	tc := ToolCall{
 		Action: "sql_query",
