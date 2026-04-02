@@ -221,6 +221,8 @@ func (hm *HistoryManager) Add(role, content string, id int64, pinned bool, isInt
 
 // trimEphemeralLocked removes the oldest non-pinned messages until the slice is
 // at 75 % of maxEphemeralMessages. Must be called with hm.mu held.
+// If all messages are pinned and the slice still exceeds the target, the oldest
+// messages are force-removed regardless of pin status to prevent unbounded growth.
 func (hm *HistoryManager) trimEphemeralLocked() {
 	targetLen := maxEphemeralMessages * 3 / 4
 	if len(hm.Messages) <= targetLen {
@@ -235,6 +237,11 @@ func (hm *HistoryManager) trimEphemeralLocked() {
 			continue
 		}
 		result = append(result, m)
+	}
+	// Hard cap: if all messages were pinned and nothing was removed, force-trim
+	// the oldest entries to prevent unbounded memory growth in co-agent loops.
+	if removed == 0 && len(result) > targetLen {
+		result = result[len(result)-targetLen:]
 	}
 	hm.Messages = result
 }

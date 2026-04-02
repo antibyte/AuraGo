@@ -40,12 +40,18 @@ func (s *SQLiteMemory) InitPersonalityTables() error {
 		return fmt.Errorf("personality schema: %w", err)
 	}
 	for _, trait := range []string{TraitCuriosity, TraitThoroughness, TraitCreativity, TraitEmpathy, TraitConfidence, TraitAffinity} {
-		_, _ = s.db.Exec(`INSERT OR IGNORE INTO personality_traits (trait, value) VALUES (?, ?)`, trait, traitDefault)
+		if _, err := s.db.Exec(`INSERT OR IGNORE INTO personality_traits (trait, value) VALUES (?, ?)`, trait, traitDefault); err != nil {
+			s.logger.Warn("Failed to seed personality trait", "trait", trait, "error", err)
+		}
 	}
-	_, _ = s.db.Exec(`INSERT OR IGNORE INTO personality_traits (trait, value) VALUES (?, ?)`, TraitLoneliness, 0.0)
+	if _, err := s.db.Exec(`INSERT OR IGNORE INTO personality_traits (trait, value) VALUES (?, ?)`, TraitLoneliness, 0.0); err != nil {
+		s.logger.Warn("Failed to seed loneliness trait", "error", err)
+	}
 
 	for _, trait := range []string{TraitCuriosity, TraitThoroughness, TraitCreativity, TraitEmpathy, TraitConfidence, TraitAffinity} {
-		_, _ = s.db.Exec(`UPDATE personality_traits SET value = ? WHERE trait = ? AND value = 0.0`, traitDefault, trait)
+		if _, err := s.db.Exec(`UPDATE personality_traits SET value = ? WHERE trait = ? AND value = 0.0`, traitDefault, trait); err != nil {
+			s.logger.Warn("Failed to reset zeroed personality trait", "trait", trait, "error", err)
+		}
 	}
 
 	if err := s.InitEmotionTables(); err != nil {

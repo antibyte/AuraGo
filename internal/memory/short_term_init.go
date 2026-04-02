@@ -2,6 +2,7 @@ package memory
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -272,25 +273,26 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 }
 
 func applySQLiteMemoryMigrations(db *sql.DB, logger *slog.Logger) error {
-	migrateAddColumn(db, logger, "messages", "is_pinned", "BOOLEAN DEFAULT 0")
-	migrateAddColumn(db, logger, "messages", "is_internal", "BOOLEAN DEFAULT 0")
-	migrateAddColumn(db, logger, "user_profile", "first_seen", "DATETIME DEFAULT NULL")
-	migrateAddColumn(db, logger, "tool_usage_adaptive", "success_count", "INTEGER DEFAULT 0")
-	migrateAddColumn(db, logger, "memory_meta", "last_event_at", "DATETIME DEFAULT CURRENT_TIMESTAMP")
-	migrateAddColumn(db, logger, "memory_meta", "extraction_confidence", "REAL DEFAULT 0.75")
-	migrateAddColumn(db, logger, "memory_meta", "verification_status", "TEXT DEFAULT 'unverified'")
-	migrateAddColumn(db, logger, "memory_meta", "source_type", "TEXT DEFAULT 'system'")
-	migrateAddColumn(db, logger, "memory_meta", "source_reliability", "REAL DEFAULT 0.70")
-	migrateAddColumn(db, logger, "memory_meta", "useful_count", "INTEGER DEFAULT 0")
-	migrateAddColumn(db, logger, "memory_meta", "useless_count", "INTEGER DEFAULT 0")
-	migrateAddColumn(db, logger, "memory_meta", "last_effectiveness_at", "DATETIME")
-	migrateAddColumn(db, logger, "archived_messages", "consolidation_status", "TEXT DEFAULT 'pending'")
+	var errs []error
+	errs = append(errs, migrateAddColumn(db, logger, "messages", "is_pinned", "BOOLEAN DEFAULT 0"))
+	errs = append(errs, migrateAddColumn(db, logger, "messages", "is_internal", "BOOLEAN DEFAULT 0"))
+	errs = append(errs, migrateAddColumn(db, logger, "user_profile", "first_seen", "DATETIME DEFAULT NULL"))
+	errs = append(errs, migrateAddColumn(db, logger, "tool_usage_adaptive", "success_count", "INTEGER DEFAULT 0"))
+	errs = append(errs, migrateAddColumn(db, logger, "memory_meta", "last_event_at", "DATETIME DEFAULT CURRENT_TIMESTAMP"))
+	errs = append(errs, migrateAddColumn(db, logger, "memory_meta", "extraction_confidence", "REAL DEFAULT 0.75"))
+	errs = append(errs, migrateAddColumn(db, logger, "memory_meta", "verification_status", "TEXT DEFAULT 'unverified'"))
+	errs = append(errs, migrateAddColumn(db, logger, "memory_meta", "source_type", "TEXT DEFAULT 'system'"))
+	errs = append(errs, migrateAddColumn(db, logger, "memory_meta", "source_reliability", "REAL DEFAULT 0.70"))
+	errs = append(errs, migrateAddColumn(db, logger, "memory_meta", "useful_count", "INTEGER DEFAULT 0"))
+	errs = append(errs, migrateAddColumn(db, logger, "memory_meta", "useless_count", "INTEGER DEFAULT 0"))
+	errs = append(errs, migrateAddColumn(db, logger, "memory_meta", "last_effectiveness_at", "DATETIME"))
+	errs = append(errs, migrateAddColumn(db, logger, "archived_messages", "consolidation_status", "TEXT DEFAULT 'pending'"))
 	if _, err := db.Exec("CREATE INDEX IF NOT EXISTS idx_archived_messages_retry ON archived_messages(consolidation_status, next_retry_at)"); err != nil {
 		logger.Warn("Failed to create idx_archived_messages_retry", "error", err)
 	}
-	migrateAddColumn(db, logger, "archived_messages", "consolidation_retries", "INTEGER DEFAULT 0")
-	migrateAddColumn(db, logger, "archived_messages", "consolidation_last_error", "TEXT DEFAULT ''")
-	migrateAddColumn(db, logger, "archived_messages", "next_retry_at", "DATETIME DEFAULT CURRENT_TIMESTAMP")
+	errs = append(errs, migrateAddColumn(db, logger, "archived_messages", "consolidation_retries", "INTEGER DEFAULT 0"))
+	errs = append(errs, migrateAddColumn(db, logger, "archived_messages", "consolidation_last_error", "TEXT DEFAULT ''"))
+	errs = append(errs, migrateAddColumn(db, logger, "archived_messages", "next_retry_at", "DATETIME DEFAULT CURRENT_TIMESTAMP"))
 
 	if _, err := db.Exec("UPDATE archived_messages SET consolidation_status = 'pending' WHERE consolidated = 0 AND (consolidation_status IS NULL OR consolidation_status = '' OR consolidation_status NOT IN ('pending', 'failed', 'done'))"); err != nil {
 		logger.Warn("Failed to normalize consolidation_status pending rows", "error", err)
@@ -299,7 +301,7 @@ func applySQLiteMemoryMigrations(db *sql.DB, logger *slog.Logger) error {
 		logger.Warn("Failed to normalize consolidation_status done rows", "error", err)
 	}
 
-	migrateAddColumn(db, logger, "tool_transitions", "last_updated", "DATETIME DEFAULT ''")
+	errs = append(errs, migrateAddColumn(db, logger, "tool_transitions", "last_updated", "DATETIME DEFAULT ''"))
 
 	const shortTermSchemaVersion = 8
 	var currentVer int
@@ -311,22 +313,25 @@ func applySQLiteMemoryMigrations(db *sql.DB, logger *slog.Logger) error {
 		}
 	}
 
-	return nil
+	return errors.Join(errs...)
 }
 
-func migrateAddColumn(db *sql.DB, logger *slog.Logger, table, column, definition string) {
+func migrateAddColumn(db *sql.DB, logger *slog.Logger, table, column, definition string) error {
 	query := fmt.Sprintf("SELECT count(*) > 0 FROM pragma_table_info('%s') WHERE name=?", table)
 	var hasColumn bool
 	if err := db.QueryRow(query, column).Scan(&hasColumn); err != nil {
 		logger.Warn("Failed to check for column", "table", table, "column", column, "error", err)
-		return
+		// Non-fatal: schema check failure does not prevent startup.
+		return nil
 	}
 	if hasColumn {
-		return
+		return nil
 	}
 	logger.Info("Migrating SQLite: adding column", "table", table, "column", column)
 	stmt := fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", table, column, definition)
 	if _, err := db.Exec(stmt); err != nil {
 		logger.Error("Failed to add column", "table", table, "column", column, "error", err)
+		return fmt.Errorf("add column %s.%s: %w", table, column, err)
 	}
+	return nil
 }

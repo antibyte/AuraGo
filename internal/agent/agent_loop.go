@@ -773,7 +773,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					RecordRetrievalEventForScope(telemetryScope, "rag_auto_filtered_out")
 				}
 				currentLogger.Debug("[Sync] RAG: Retrieved memories (recency-boosted)", "count", len(ranked))
-			} else if err == nil {
+			} else {
 				RecordRetrievalEventForScope(telemetryScope, "rag_auto_miss")
 			}
 
