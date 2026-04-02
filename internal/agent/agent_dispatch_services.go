@@ -449,9 +449,18 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) str
 			if homepageRegistryDB != nil && tc.URL != "" {
 				projects, _, _ := tools.SearchProjects(homepageRegistryDB, tc.URL, "", nil, 1, 0)
 				if len(projects) > 0 {
-					tools.UpdateProject(homepageRegistryDB, projects[0].ID, map[string]interface{}{
-						"lighthouse_score": result,
-					})
+					var scoreMap map[string]interface{}
+					var perfScore float64
+					if err := json.Unmarshal([]byte(result), &scoreMap); err == nil {
+						if perf, ok := scoreMap["performance"].(float64); ok {
+							perfScore = perf
+						}
+					}
+					if perfScore > 0 {
+						tools.UpdateProject(homepageRegistryDB, projects[0].ID, map[string]interface{}{
+							"lighthouse_score": perfScore,
+						})
+					}
 				}
 			}
 			return "Tool Output: " + result

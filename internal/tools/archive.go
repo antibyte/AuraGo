@@ -108,6 +108,16 @@ func collectFiles(sourceDir, sourceFilesJSON string) ([]string, error) {
 		if err := json.Unmarshal([]byte(sourceFilesJSON), &paths); err != nil {
 			return nil, fmt.Errorf("parse source_files JSON: %w", err)
 		}
+		// Reject absolute paths and path traversal attempts in source_files
+		for _, p := range paths {
+			if filepath.IsAbs(p) {
+				return nil, fmt.Errorf("absolute paths are not allowed in source_files: %q", p)
+			}
+			cleaned := filepath.Clean(p)
+			if cleaned == ".." || strings.HasPrefix(cleaned, ".."+string(filepath.Separator)) {
+				return nil, fmt.Errorf("path traversal not allowed in source_files: %q", p)
+			}
+		}
 		return paths, nil
 	}
 	var files []string

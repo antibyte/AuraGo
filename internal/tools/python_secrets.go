@@ -147,6 +147,8 @@ func BuildSecretPrelude(secrets map[string]string) string {
 		escaped = strings.ReplaceAll(escaped, `'`, `\'`)
 		escaped = strings.ReplaceAll(escaped, "\n", `\n`)
 		escaped = strings.ReplaceAll(escaped, "\r", `\r`)
+		escaped = strings.ReplaceAll(escaped, "\t", `\t`)
+		escaped = strings.ReplaceAll(escaped, "\x00", `\x00`)
 		sb.WriteString(fmt.Sprintf("_aurago_os.environ['%s'] = '%s'\n", envKey, escaped))
 		security.RegisterSensitive(val)
 	}
@@ -266,6 +268,8 @@ func BuildCredentialPrelude(creds []CredentialFields) string {
 			escaped = strings.ReplaceAll(escaped, `'`, `\'`)
 			escaped = strings.ReplaceAll(escaped, "\n", `\n`)
 			escaped = strings.ReplaceAll(escaped, "\r", `\r`)
+			escaped = strings.ReplaceAll(escaped, "\t", `\t`)
+			escaped = strings.ReplaceAll(escaped, "\x00", `\x00`)
 			sb.WriteString(fmt.Sprintf("_aurago_os.environ['%s'] = '%s'\n", envKey, escaped))
 			security.RegisterSensitive(val)
 		}

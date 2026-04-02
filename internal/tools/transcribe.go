@@ -185,7 +185,7 @@ func transcribeMultimodal(filePath string, cfg *config.Config) (string, error) {
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+apiKey)
-	req.Header.Set("HTTP-Referer", "https://github.com/andre/aurago")
+	req.Header.Set("HTTP-Referer", "https://github.com/antibyte/AuraGo")
 	req.Header.Set("X-Title", "AuraGo")
 
 	resp, err := multimodalTranscribeHTTPClient.Do(req)

@@ -479,7 +479,13 @@ func (m *MCPManager) CallTool(serverName, toolName string, arguments map[string]
 	case r := <-ch:
 		return r.s, r.err
 	case <-time.After(mcpCallToolTimeout):
-		return "", fmt.Errorf("MCP tool call timed out after %s (server=%s, tool=%s)", mcpCallToolTimeout, serverName, toolName)
+		// Close the connection to release the blocked goroutine and prevent
+		// future callers from using a potentially corrupted connection.
+		go conn.close()
+		m.mu.Lock()
+		delete(m.conns, serverName)
+		m.mu.Unlock()
+		return "", fmt.Errorf("MCP tool call timed out after %s (server=%s, tool=%s) â connection closed", mcpCallToolTimeout, serverName, toolName)
 	}
 }
 

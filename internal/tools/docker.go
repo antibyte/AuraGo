@@ -378,7 +378,8 @@ func DockerContainerAction(cfg DockerConfig, containerID, action string, force b
 	}
 	// 204 = success (no content), 304 = already in state
 	if code == 204 || code == 304 {
-		return fmt.Sprintf(`{"status":"ok","action":"%s","container_id":"%s"}`, action, containerID)
+		out, _ := json.Marshal(map[string]string{"status": "ok", "action": action, "container_id": containerID})
+		return string(out)
 	}
 	if code == 404 {
 		return errJSON("Container '%s' not found", containerID)
@@ -547,7 +548,8 @@ func DockerPullImage(cfg DockerConfig, image string) string {
 	if code != 200 {
 		return dockerBodyErr(code, data)
 	}
-	return fmt.Sprintf(`{"status":"ok","message":"Image '%s' pulled successfully"}`, image)
+	out, _ := json.Marshal(map[string]string{"status": "ok", "message": "Image '" + image + "' pulled successfully"})
+	return string(out)
 }
 
 // DockerRemoveImage deletes a local image.
@@ -564,7 +566,8 @@ func DockerRemoveImage(cfg DockerConfig, image string, force bool) string {
 		return errJSON("Failed to remove image: %v", err)
 	}
 	if code == 200 {
-		return fmt.Sprintf(`{"status":"ok","message":"Image '%s' removed"}`, image)
+		out, _ := json.Marshal(map[string]string{"status": "ok", "message": "Image '" + image + "' removed"})
+		return string(out)
 	}
 	if code == 404 {
 		return errJSON("Image '%s' not found", image)
@@ -589,7 +592,8 @@ func DockerRenameContainer(cfg DockerConfig, containerID, newName string) string
 		return errJSON("Failed to rename container: %v", err)
 	}
 	if code == 204 || code == 200 {
-		return fmt.Sprintf(`{"status":"ok","message":"Container renamed to '%s'"}`, newName)
+		out, _ := json.Marshal(map[string]string{"status": "ok", "message": "Container renamed to '" + newName + "'"})
+		return string(out)
 	}
 	if code == 404 {
 		return errJSON("Container '%s' not found", containerID)

@@ -106,7 +106,7 @@ func AnalyzeImageWithPrompt(filePath, prompt string, cfg *config.Config) (string
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+apiKey)
-	req.Header.Set("HTTP-Referer", "https://github.com/andre/aurago")
+	req.Header.Set("HTTP-Referer", "https://github.com/antibyte/AuraGo")
 	req.Header.Set("X-Title", "AuraGo")
 
 	resp, err := visionHTTPClient.Do(req)

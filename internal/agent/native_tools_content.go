@@ -193,7 +193,7 @@ func appendContentToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai
 				"timeout":            map[string]interface{}{"type": "integer", "description": "Scan timeout in seconds (1–30, default: 5)"},
 				"auto_register":      map[string]interface{}{"type": "boolean", "description": "If true, automatically register all discovered devices into the device inventory in one call. Saves many token-costly individual manage_inventory calls."},
 				"register_type":      prop("string", "Device type to assign when auto_register is true (e.g. 'iot', 'printer', 'server'). Defaults to 'mdns-device'."),
-				"register_tags":      map[string]interface{}{"type": "array", "items": map[string]string{"type": "string"}, "description": "Tags to assign to auto-registered devices (e.g. ['mdns', 'home-lab'])."},
+				"register_tags":      map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Tags to assign to auto-registered devices (e.g. ['mdns', 'home-lab'])."},
 				"overwrite_existing": map[string]interface{}{"type": "boolean", "description": "If true, update an existing device record when the name matches. Default: false (skip duplicates)."},
 			}),
 		))

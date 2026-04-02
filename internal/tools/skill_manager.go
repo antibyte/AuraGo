@@ -77,7 +77,7 @@ type SkillVersion struct {
 
 type SkillAuditEntry struct {
 	ID        int64     `json:"id"`
-	SkillID    string    `json:"skill_id"`
+	SkillID   string    `json:"skill_id"`
 	SkillName string    `json:"skill_name"`
 	Action    string    `json:"action"`
 	Actor     string    `json:"actor"`
@@ -86,13 +86,13 @@ type SkillAuditEntry struct {
 }
 
 type SkillExportBundle struct {
-	Format   string             `json:"format"`
-	Exported time.Time          `json:"exported_at"`
+	Format   string              `json:"format"`
+	Exported time.Time           `json:"exported_at"`
 	Skill    *SkillRegistryEntry `json:"skill"`
-	Manifest SkillManifest      `json:"manifest"`
-	Code     string             `json:"code"`
-	Versions []SkillVersion     `json:"versions,omitempty"`
-	Audit    []SkillAuditEntry  `json:"audit,omitempty"`
+	Manifest SkillManifest       `json:"manifest"`
+	Code     string              `json:"code"`
+	Versions []SkillVersion      `json:"versions,omitempty"`
+	Audit    []SkillAuditEntry   `json:"audit,omitempty"`
 }
 
 // InitSkillsDB opens (or creates) the skills registry SQLite database and runs migrations.

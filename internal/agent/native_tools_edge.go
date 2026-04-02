@@ -69,7 +69,7 @@ func appendEdgeToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai.To
 				"timeout_secs":       map[string]interface{}{"type": "integer", "description": "Discovery timeout in seconds (1–30, default: 5)"},
 				"auto_register":      map[string]interface{}{"type": "boolean", "description": "If true, automatically register all discovered devices into the device inventory in one call. Saves many token-costly individual manage_inventory calls."},
 				"register_type":      prop("string", "Device type to assign when auto_register is true (e.g. 'router', 'media-server', 'iot'). Defaults to the UPnP device_type field."),
-				"register_tags":      map[string]interface{}{"type": "array", "items": map[string]string{"type": "string"}, "description": "Tags to assign to auto-registered devices."},
+				"register_tags":      map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "Tags to assign to auto-registered devices."},
 				"overwrite_existing": map[string]interface{}{"type": "boolean", "description": "If true, update an existing device record when the name matches. Default: false (skip duplicates)."},
 			}),
 		))

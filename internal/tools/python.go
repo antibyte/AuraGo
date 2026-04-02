@@ -185,20 +185,29 @@ func InstallPackage(pkgName, workspaceDir string) (string, string, error) {
 	return stdout.String(), stderr.String(), err
 }
 
-// RunTool executes a saved tool from the tools directory with arguments (foreground, 30s timeout).
-// Path traversal is blocked — name must resolve within toolsDir.
-func RunTool(name string, args []string, workspaceDir, toolsDir string) (string, string, error) {
-	if strings.ContainsAny(name, "/\\") || strings.Contains(name, "..") || name == "" {
-		return "", "", fmt.Errorf("invalid tool name: must be a simple filename without path separators")
+// resolveToolPath validates the tool name and returns its absolute path within toolsDir.
+// Returns an error if name contains path separators, traversal sequences, or if the tool does not exist.
+func resolveToolPath(name, toolsDir string) (string, error) {
+	if name == "" || strings.ContainsAny(name, "/\\") || strings.Contains(name, "..") {
+		return "", fmt.Errorf("invalid tool name: must be a simple filename without path separators")
 	}
 	toolPath := filepath.Join(toolsDir, name)
 	if _, err := os.Stat(toolPath); os.IsNotExist(err) {
-		return "", "", fmt.Errorf("tool '%s' not found in %s", name, toolsDir)
+		return "", fmt.Errorf("tool '%s' not found in %s", name, toolsDir)
 	}
-
-	absToolPath, err := filepath.Abs(toolPath)
+	abs, err := filepath.Abs(toolPath)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to resolve tool path: %w", err)
+		return "", fmt.Errorf("failed to resolve tool path: %w", err)
+	}
+	return abs, nil
+}
+
+// RunTool executes a saved tool from the tools directory with arguments (foreground, 30s timeout).
+// Path traversal is blocked — name must resolve within toolsDir.
+func RunTool(name string, args []string, workspaceDir, toolsDir string) (string, string, error) {
+	absToolPath, err := resolveToolPath(name, toolsDir)
+	if err != nil {
+		return "", "", err
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), GetForegroundTimeout())
@@ -225,17 +234,9 @@ func RunTool(name string, args []string, workspaceDir, toolsDir string) (string,
 // RunToolWithSecrets is like RunTool but injects vault secrets and credential secrets
 // as environment variables and scrubs secrets from the output.
 func RunToolWithSecrets(name string, args []string, workspaceDir, toolsDir string, secrets map[string]string, creds []CredentialFields) (string, string, error) {
-	if strings.ContainsAny(name, "/\\") || strings.Contains(name, "..") || name == "" {
-		return "", "", fmt.Errorf("invalid tool name: must be a simple filename without path separators")
-	}
-	toolPath := filepath.Join(toolsDir, name)
-	if _, err := os.Stat(toolPath); os.IsNotExist(err) {
-		return "", "", fmt.Errorf("tool '%s' not found in %s", name, toolsDir)
-	}
-
-	absToolPath, err := filepath.Abs(toolPath)
+	absToolPath, err := resolveToolPath(name, toolsDir)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to resolve tool path: %w", err)
+		return "", "", err
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), GetForegroundTimeout())
@@ -262,17 +263,9 @@ func RunToolWithSecrets(name string, args []string, workspaceDir, toolsDir strin
 
 // RunToolBackground starts a saved tool in the background and registers it in the process registry.
 func RunToolBackground(name string, args []string, workspaceDir, toolsDir string, registry *ProcessRegistry) (int, error) {
-	if strings.ContainsAny(name, "/\\") || strings.Contains(name, "..") || name == "" {
-		return 0, fmt.Errorf("invalid tool name: must be a simple filename without path separators")
-	}
-	toolPath := filepath.Join(toolsDir, name)
-	if _, err := os.Stat(toolPath); os.IsNotExist(err) {
-		return 0, fmt.Errorf("tool '%s' not found in %s", name, toolsDir)
-	}
-
-	absToolPath, err := filepath.Abs(toolPath)
+	absToolPath, err := resolveToolPath(name, toolsDir)
 	if err != nil {
-		return 0, fmt.Errorf("failed to resolve tool path: %w", err)
+		return 0, err
 	}
 
 	pythonCmd := GetPythonBin(workspaceDir)
@@ -292,17 +285,9 @@ func RunToolBackground(name string, args []string, workspaceDir, toolsDir string
 // RunToolBackgroundWithSecrets is like RunToolBackground but injects vault secrets
 // and credential secrets as environment variables. Output scrubbing happens at read_process_logs time.
 func RunToolBackgroundWithSecrets(name string, args []string, workspaceDir, toolsDir string, registry *ProcessRegistry, secrets map[string]string, creds []CredentialFields) (int, error) {
-	if strings.ContainsAny(name, "/\\") || strings.Contains(name, "..") || name == "" {
-		return 0, fmt.Errorf("invalid tool name: must be a simple filename without path separators")
-	}
-	toolPath := filepath.Join(toolsDir, name)
-	if _, err := os.Stat(toolPath); os.IsNotExist(err) {
-		return 0, fmt.Errorf("tool '%s' not found in %s", name, toolsDir)
-	}
-
-	absToolPath, err := filepath.Abs(toolPath)
+	absToolPath, err := resolveToolPath(name, toolsDir)
 	if err != nil {
-		return 0, fmt.Errorf("failed to resolve tool path: %w", err)
+		return 0, err
 	}
 
 	pythonCmd := GetPythonBin(workspaceDir)
