@@ -59,6 +59,20 @@ type ollamaArgs struct {
 	Dest        string
 }
 
+type tailscaleArgs struct {
+	Operation string
+	Query     string
+	Value     string
+	Hostname  string
+	ID        string
+	Name      string
+}
+
+type cloudflareTunnelArgs struct {
+	Operation string
+	Port      int
+}
+
 type mcpCallArgs struct {
 	Operation string
 	Server    string
@@ -218,6 +232,41 @@ func (req ollamaArgs) destinationName() string {
 		return req.Destination
 	}
 	return req.Dest
+}
+
+func decodeTailscaleArgs(tc ToolCall) tailscaleArgs {
+	return tailscaleArgs{
+		Operation: firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		Query:     firstNonEmptyToolString(tc.Query, toolArgString(tc.Params, "query")),
+		Value:     firstNonEmptyToolString(tc.Value, toolArgString(tc.Params, "value", "routes")),
+		Hostname:  firstNonEmptyToolString(tc.Hostname, toolArgString(tc.Params, "hostname")),
+		ID:        firstNonEmptyToolString(tc.ID, toolArgString(tc.Params, "id")),
+		Name:      firstNonEmptyToolString(tc.Name, toolArgString(tc.Params, "name")),
+	}
+}
+
+func (req tailscaleArgs) deviceQuery() string {
+	if req.Query != "" {
+		return req.Query
+	}
+	if req.Hostname != "" {
+		return req.Hostname
+	}
+	if req.ID != "" {
+		return req.ID
+	}
+	return req.Name
+}
+
+func (req tailscaleArgs) routes() []string {
+	return splitCSV(req.Value)
+}
+
+func decodeCloudflareTunnelArgs(tc ToolCall) cloudflareTunnelArgs {
+	return cloudflareTunnelArgs{
+		Operation: firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		Port:      firstNonEmptyInt(tc.Port, toolArgInt(tc.Params, 0, "port")),
+	}
 }
 
 func decodeMCPCallArgs(tc ToolCall) mcpCallArgs {

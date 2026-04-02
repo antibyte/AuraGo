@@ -456,25 +456,17 @@ func dispatchInfra(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 			if !cfg.Tailscale.Enabled {
 				return `Tool Output: {"status":"error","message":"Tailscale integration is not enabled. Set tailscale.enabled=true in config.yaml."}`
 			}
+			req := decodeTailscaleArgs(tc)
 			if cfg.Tailscale.ReadOnly {
-				switch tc.Operation {
+				switch req.Operation {
 				case "enable_routes", "disable_routes":
 					return `Tool Output: {"status":"error","message":"Tailscale is in read-only mode. Disable tailscale.read_only to allow changes."}`
 				}
 			}
 			tsCfg := tools.TailscaleConfig{APIKey: cfg.Tailscale.APIKey, Tailnet: cfg.Tailscale.Tailnet}
 			// query is hostname, IP, or node ID for device-specific operations
-			query := tc.Query
-			if query == "" {
-				query = tc.Hostname
-			}
-			if query == "" {
-				query = tc.ID
-			}
-			if query == "" {
-				query = tc.Name
-			}
-			switch tc.Operation {
+			query := req.deviceQuery()
+			switch req.Operation {
 			case "devices", "list", "list_devices":
 				logger.Info("LLM requested Tailscale list devices")
 				return "Tool Output: " + tools.TailscaleListDevices(tsCfg)
@@ -485,11 +477,11 @@ func dispatchInfra(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 				logger.Info("LLM requested Tailscale get routes", "query", query)
 				return "Tool Output: " + tools.TailscaleGetRoutes(tsCfg, query)
 			case "enable_routes":
-				routes := splitCSV(tc.Value)
+				routes := req.routes()
 				logger.Info("LLM requested Tailscale enable routes", "query", query, "routes", routes)
 				return "Tool Output: " + tools.TailscaleSetRoutes(tsCfg, query, routes, true)
 			case "disable_routes":
-				routes := splitCSV(tc.Value)
+				routes := req.routes()
 				logger.Info("LLM requested Tailscale disable routes", "query", query, "routes", routes)
 				return "Tool Output: " + tools.TailscaleSetRoutes(tsCfg, query, routes, false)
 			case "dns", "get_dns":
@@ -509,8 +501,9 @@ func dispatchInfra(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 			if !cfg.CloudflareTunnel.Enabled {
 				return `Tool Output: {"status":"error","message":"Cloudflare Tunnel integration is not enabled. Set cloudflare_tunnel.enabled=true in config.yaml."}`
 			}
+			req := decodeCloudflareTunnelArgs(tc)
 			if cfg.CloudflareTunnel.ReadOnly {
-				switch tc.Operation {
+				switch req.Operation {
 				case "start", "stop", "restart", "install":
 					return `Tool Output: {"status":"error","message":"Cloudflare Tunnel is in read-only mode. Disable cloudflare_tunnel.readonly to allow changes."}`
 				}
@@ -543,7 +536,7 @@ func dispatchInfra(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 					Path:     r.Path,
 				})
 			}
-			switch tc.Operation {
+			switch req.Operation {
 			case "start":
 				logger.Info("LLM requested Cloudflare Tunnel start")
 				return "Tool Output: " + tools.CloudflareTunnelStart(tunnelCfg, vault, registry, logger)
@@ -557,7 +550,7 @@ func dispatchInfra(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 				logger.Info("LLM requested Cloudflare Tunnel status")
 				return "Tool Output: " + tools.CloudflareTunnelStatus(tunnelCfg, registry, logger)
 			case "quick_tunnel":
-				port := tc.Port
+				port := req.Port
 				logger.Info("LLM requested Cloudflare quick tunnel", "port", port)
 				return "Tool Output: " + tools.CloudflareTunnelQuickTunnel(tunnelCfg, registry, logger, port)
 			case "logs":

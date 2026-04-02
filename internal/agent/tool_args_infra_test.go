@@ -140,6 +140,47 @@ func TestDecodeOllamaArgsUsesFallbacks(t *testing.T) {
 	}
 }
 
+func TestDecodeTailscaleArgsUsesQueryFallbacks(t *testing.T) {
+	tc := ToolCall{
+		Action: "tailscale",
+		Params: map[string]interface{}{
+			"operation": "enable_routes",
+			"hostname":  "node-1",
+			"routes":    "10.0.0.0/24,10.1.0.0/24",
+		},
+	}
+
+	req := decodeTailscaleArgs(tc)
+	if req.Operation != "enable_routes" {
+		t.Fatalf("Operation = %q, want enable_routes", req.Operation)
+	}
+	if req.deviceQuery() != "node-1" {
+		t.Fatalf("deviceQuery = %q, want node-1", req.deviceQuery())
+	}
+	routes := req.routes()
+	if len(routes) != 2 || routes[0] != "10.0.0.0/24" || routes[1] != "10.1.0.0/24" {
+		t.Fatalf("routes = %#v, want two CIDRs", routes)
+	}
+}
+
+func TestDecodeCloudflareTunnelArgsUsesPortFallback(t *testing.T) {
+	tc := ToolCall{
+		Action: "cloudflare_tunnel",
+		Params: map[string]interface{}{
+			"operation": "quick_tunnel",
+			"port":      float64(8081),
+		},
+	}
+
+	req := decodeCloudflareTunnelArgs(tc)
+	if req.Operation != "quick_tunnel" {
+		t.Fatalf("Operation = %q, want quick_tunnel", req.Operation)
+	}
+	if req.Port != 8081 {
+		t.Fatalf("Port = %d, want 8081", req.Port)
+	}
+}
+
 func TestDecodeMCPCallArgsUsesParamsFallback(t *testing.T) {
 	tc := ToolCall{
 		Action: "mcp_call",
