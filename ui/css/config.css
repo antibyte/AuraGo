@@ -903,7 +903,8 @@ select.cfg-input option {
 }
 
 /* Tablet (768px-1023px): icon-only sidebar */
-@media (min-width: 768px) and (max-width: 1023px) {
+/* D-14/D-15: Unified breakpoint — max-width 1023px → 1024px */
+@media (min-width: 768px) and (max-width: 1024px) {
     .cfg-sidebar {
         width: 60px;
     }
