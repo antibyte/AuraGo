@@ -52,6 +52,7 @@ conditions: ["document_creator_enabled"]
 
 **Output:**
 - Files are saved to the configured output directory (default: `data/documents/`)
+- Documents are **automatically registered in the Media Registry**. You do NOT need to call `media_registry` manually when using this tool.
 - Returns the file path and a web-accessible URL at `/files/documents/`
 
 **IMPORTANT — Presenting the download link:**

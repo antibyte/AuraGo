@@ -87,7 +87,7 @@ The Media View in the Web UI only shows items that are registered. Files placed 
 
 **Correct workflow for any document/file you create:**
 1. Use `document_creator` → auto-registers on success ✅
-2. Use `filesystem` to write a file to a media directory? → immediately call `media_registry` `register` ✅
-3. Use shell/Python to copy or generate a file into a media directory? → immediately call `media_registry` `register` ✅
+2. Use `send_document` tool (not filesystem!) → auto-registers the file ✅
+3. Use `filesystem` to write a file to a media directory? → immediately call `media_registry` `register` ✅
 
-**Never do this:** Create a file with shell/Python/filesystem and skip registration → ❌ file is invisible in the UI.
+**Never do this:** Create a file with shell/Python/filesystem and skip registration → 📁 file is invisible in the UI. Or try calling `{"action": "filesystem", "operation": "send_document"}` which does not exist!

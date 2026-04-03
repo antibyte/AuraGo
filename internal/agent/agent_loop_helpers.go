@@ -66,10 +66,13 @@ type toolGuideSearcher interface {
 
 var nonAlphaNumPattern = regexp.MustCompile(`[^a-z0-9]+`)
 var adaptiveToolNeighbors = map[string][]string{
+	// Web & Hosting
 	"homepage":             {"netlify", "homepage_registry", "filesystem"},
 	"netlify":              {"homepage", "homepage_registry", "filesystem"},
 	"homepage_registry":    {"homepage", "netlify"},
-	"filesystem":           {"file_search", "file_reader_advanced", "file_editor"},
+
+	// File System & Editing
+	"filesystem":           {"file_search", "file_reader_advanced", "file_editor", "manage_memory"},
 	"smart_file_read":      {"filesystem", "file_reader_advanced", "file_search"},
 	"file_search":          {"filesystem", "file_reader_advanced"},
 	"file_reader_advanced": {"filesystem", "file_search", "smart_file_read"},
@@ -77,20 +80,116 @@ var adaptiveToolNeighbors = map[string][]string{
 	"json_editor":          {"filesystem", "file_editor"},
 	"yaml_editor":          {"filesystem", "file_editor"},
 	"xml_editor":           {"filesystem", "file_editor"},
-	"execute_shell":        {"filesystem", "file_search"},
-	"execute_python":       {"filesystem", "execute_sandbox"},
+
+	// Code & Execution
+	"execute_shell":        {"filesystem", "file_search", "media_registry", "send_document", "document_creator"},
+	"execute_python":       {"filesystem", "execute_sandbox", "media_registry", "send_document", "document_creator"},
 	"execute_sandbox":      {"filesystem", "execute_python"},
-	"manage_memory":        {"query_memory", "remember"},
-	"query_memory":         {"manage_memory", "remember"},
-	"remember":             {"manage_memory", "query_memory"},
-	"network_ping":         {"dns_lookup", "port_scanner", "mdns_scan"},
+	"ansible":              {"ssh_exec", "query_inventory", "execute_shell", "filesystem"},
+	"remote_execution":     {"transfer_remote_file", "ssh_exec", "execute_shell"},
+	"transfer_remote_file": {"remote_execution", "filesystem", "ssh_exec"},
+
+	// Media & Documents
+	"document_creator":     {"media_registry", "send_document", "filesystem"},
+	"media_registry":       {"document_creator", "send_document", "filesystem", "generate_image", "send_image", "tts", "send_audio"},
+	"send_document":        {"media_registry", "document_creator"},
+	"send_image":           {"media_registry", "generate_image"},
+	"send_audio":           {"media_registry", "tts"},
+	"generate_image":       {"media_registry", "send_image", "analyze_image"},
+	"analyze_image":        {"generate_image", "media_registry"},
+	"tts":                  {"media_registry", "send_audio"},
+	"transcribe_audio":     {"filesystem", "media_registry"},
+	"pdf_operations":       {"detect_file_type", "filesystem", "document_creator"},
+	"image_processing":     {"detect_file_type", "filesystem", "media_registry"},
+
+	// Docker & Infrastructure
+	"docker":               {"docker_compose", "execute_shell", "filesystem"},
+	"docker_compose":       {"docker", "execute_shell", "filesystem"},
+	"query_inventory":      {"ssh_exec", "register_device", "network_ping"},
+	"register_device":      {"query_inventory", "network_ping", "ssh_exec"},
+	"ssh_exec":             {"query_inventory", "execute_shell", "filesystem", "ansible"},
+	"proxmox":              {"ssh_exec", "query_inventory", "network_ping"},
+	"truenas":              {"ssh_exec", "query_inventory", "network_ping"},
+
+	// Memory & Knowledge
+	"manage_memory":        {"query_memory", "remember", "knowledge_graph", "cheatsheet"},
+	"query_memory":         {"manage_memory", "remember", "knowledge_graph"},
+	"remember":             {"manage_memory", "query_memory", "knowledge_graph"},
+	"knowledge_graph":      {"manage_memory", "query_memory", "remember"},
+	"cheatsheet":           {"manage_memory", "query_memory", "remember"},
+
+	// Network & Scanning
+	"network_ping":         {"dns_lookup", "port_scanner", "mdns_scan", "query_inventory", "mac_lookup"},
 	"dns_lookup":           {"network_ping", "whois_lookup"},
-	"port_scanner":         {"network_ping"},
-	"web_scraper":          {"site_crawler", "web_capture", "web_performance_audit"},
+	"port_scanner":         {"network_ping", "query_inventory"},
+	"mdns_scan":            {"network_ping", "upnp_scan"},
+	"mac_lookup":           {"network_ping", "mdns_scan"},
+	"whois_lookup":         {"dns_lookup", "network_ping"},
+	"upnp_scan":            {"mdns_scan", "network_ping"},
+	"tailscale":            {"network_ping", "query_inventory"},
+	"cloudflare_tunnel":    {"network_ping", "dns_lookup"},
+
+	// Web Scraping & QA
+	"web_scraper":          {"site_crawler", "web_capture", "web_performance_audit", "document_creator"},
 	"site_crawler":         {"web_scraper", "web_capture"},
 	"web_capture":          {"web_scraper", "site_crawler", "web_performance_audit"},
-	"pdf_operations":       {"detect_file_type", "filesystem"},
-	"image_processing":     {"detect_file_type", "filesystem"},
+	"site_monitor":         {"web_scraper", "network_ping"},
+
+	// SQL & Databases
+	"sql_query":               {"manage_sql_connections", "filesystem"},
+	"manage_sql_connections":  {"sql_query"},
+
+	// Communication & Messaging
+	"fetch_email":           {"send_email", "list_email_accounts"},
+	"send_email":            {"fetch_email", "list_email_accounts"},
+	"list_email_accounts":   {"fetch_email", "send_email"},
+	"fetch_discord":         {"send_discord", "list_discord_channels"},
+	"send_discord":          {"fetch_discord", "list_discord_channels"},
+	"list_discord_channels": {"fetch_discord", "send_discord"},
+
+	// Telephony & SMS
+	"telnyx_sms":    {"telnyx_call", "telnyx_manage"},
+	"telnyx_call":   {"telnyx_sms", "telnyx_manage"},
+	"telnyx_manage": {"telnyx_sms", "telnyx_call"},
+
+	// MQTT & Smart Home
+	"mqtt_publish":       {"mqtt_subscribe", "mqtt_get_messages"},
+	"mqtt_subscribe":     {"mqtt_publish", "mqtt_unsubscribe", "mqtt_get_messages"},
+	"mqtt_unsubscribe":   {"mqtt_subscribe", "mqtt_get_messages"},
+	"mqtt_get_messages":  {"mqtt_publish", "mqtt_subscribe"},
+	"home_assistant":     {"fritzbox_smarthome", "chromecast"},
+	"fritzbox_smarthome": {"home_assistant"},
+
+	// Fritzbox Suite
+	"fritzbox_system":    {"fritzbox_network", "fritzbox_storage", "fritzbox_telephony"},
+	"fritzbox_network":   {"fritzbox_system", "network_ping"},
+	"fritzbox_storage":   {"fritzbox_system", "filesystem"},
+
+	// Webhooks
+	"call_webhook":             {"manage_outgoing_webhooks", "manage_webhooks"},
+	"manage_outgoing_webhooks": {"call_webhook"},
+	"manage_webhooks":          {"call_webhook"},
+
+	// Cloud Storage
+	"google_workspace": {"filesystem", "document_creator"},
+	"onedrive":         {"filesystem", "document_creator"},
+	"koofr":            {"filesystem"},
+
+	// System & OS
+	"process_analyzer":   {"process_management", "system_metrics"},
+	"process_management": {"process_analyzer", "system_metrics"},
+	"system_metrics":     {"process_analyzer"},
+	
+	// Skills Management
+	"list_skills":                {"execute_skill", "list_skill_templates"},
+	"execute_skill":              {"list_skills"},
+	"list_skill_templates":       {"create_skill_from_template", "list_skills"},
+	"create_skill_from_template": {"list_skill_templates", "save_tool", "execute_skill"},
+	"save_tool":                  {"execute_skill", "filesystem"},
+
+	// Agents & Teams
+	"co_agent":         {"invasion_control", "follow_up"},
+	"invasion_control": {"co_agent", "register_device", "ssh_exec"},
 }
 
 // splitCSV splits a comma-separated value string into a trimmed, non-empty slice.
@@ -429,40 +528,32 @@ func filterToolSchemas(schemas []openai.Tool, frequentTools, alwaysInclude []str
 		dropped = append(dropped, schemaByName[name])
 	}
 
-	// Enforce maxTools cap on frequent tools (alwaysInclude tools are exempt)
+	// Enforce maxTools cap on frequent tools (alwaysInclude and skills are entirely exempt from the count)
 	if maxTools > 0 {
-		remaining := maxTools - len(keptAlways)
-		if remaining < 0 {
-			remaining = 0
-		}
-		if len(keptFrequent) > remaining {
+		if len(keptFrequent) > maxTools {
 			// Push excess frequent tools back to dropped (preserving order)
-			dropped = append(keptFrequent[remaining:], dropped...)
-			keptFrequent = keptFrequent[:remaining]
+			dropped = append(keptFrequent[maxTools:], dropped...)
+			keptFrequent = keptFrequent[:maxTools]
 		}
 	}
 
 	kept := append(keptAlways, keptFrequent...)
 
-	// If at or over the limit (or no limit), done
-	if maxTools <= 0 || len(kept) >= maxTools {
-		if logger != nil && len(dropped) > 0 {
-			logger.Info("[AdaptiveTools] Filtered tool schemas",
-				"kept", len(kept), "dropped", len(dropped), "max", maxTools)
-		}
-		return kept
-	}
-
 	// Fill remaining slots from dropped tools (preserving original order)
-	remaining := maxTools - len(kept)
-	for i := 0; i < remaining && i < len(dropped); i++ {
-		kept = append(kept, dropped[i])
+	// Note: we only count keptFrequent towards maxTools, not keptAlways
+	if maxTools > 0 {
+		remaining := maxTools - len(keptFrequent)
+		for i := 0; i < remaining && i < len(dropped); i++ {
+			kept = append(kept, dropped[i])
+		}
+	} else {
+		kept = append(kept, dropped...)
 	}
 
 	finalDropped := len(schemas) - len(kept)
 	if logger != nil && finalDropped > 0 {
 		logger.Info("[AdaptiveTools] Filtered tool schemas",
-			"kept", len(kept), "dropped", finalDropped, "max", maxTools)
+			"kept_always", len(keptAlways), "kept_adaptive", len(kept)-len(keptAlways), "dropped", finalDropped, "max_adaptive", maxTools)
 	}
 	return kept
 }
