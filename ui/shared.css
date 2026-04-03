@@ -3,6 +3,36 @@
    Base reset, theme variables, shared components
    ══════════════════════════════════════════════════════════════ */
 
+/* ══════════════════════════════════════════════════════════════
+   CSS NAMING CONVENTION & OVERRIDE RULES
+   ══════════════════════════════════════════════════════════════
+
+   NAMING CONVENTION (D-01 / D-04):
+   - Base/atomic components: single class (.card, .badge, .btn)
+   - Component variants: single-class suffix (.badge-running, .btn-primary)
+   - New page-specific variants: use .aura-* prefix (.aura-badge--mission, .aura-status--active)
+     The .aura- prefix ensures zero conflict with any existing or future classes.
+   - Page-specific overrides: descendant selectors (.missions-page .card)
+
+   SPECIFICITY & OVERRIDE RULES (CSS-03):
+   - shared.css uses LOW-SPECIFICITY single-class selectors (.card { ... })
+     This makes all base components easy to override via cascade.
+   - To override a shared component on a specific page:
+     PREFERRED:  .page-name .component { }  ← wins via cascade (1-0 specificity advantage)
+     AVOID:      re-declaring .card { } in page CSS ← creates duplication and specificity wars
+   - To create page-specific badge/button variants:
+     Use .aura-badge--* or .aura-btn--* pattern (no conflict with shared.css variants)
+   - NEVER directly redefine base component classes (.card, .badge, .btn) in page CSS files.
+     Instead extend them via descendant selectors or .aura-* modifier classes.
+
+   COMPONENT ARCHITECTURE:
+   - Components section (below) defines ATOMIC base styles
+   - Each uses a single-class selector for minimum specificity
+   - Page CSS extends via: .page-name .component { new properties }
+   - Never duplicate base component property sets in page CSS
+
+   ══════════════════════════════════════════════════════════════ */
+
 /* ── Tailwind CDN config is in each HTML <script> block ──── */
 
 /* ── Reset ─────────────────────────────────────────────────── */
@@ -196,6 +226,9 @@ body::after {
 
 /* ══════════════════════════════════════════════════════════════
    SHARED UI COMPONENTS - Glassmorphism & Eye Candy
+   BASE/ATOMIC STYLES — These use single-class selectors for
+   minimum specificity. Override via descendant selectors in
+   page CSS (see Override Rules section above).
    ══════════════════════════════════════════════════════════════ */
 
 /* ── Page Header with Compact Accent Rail ─────────────────── */
@@ -419,6 +452,10 @@ a.logo {
 .mt-sm { margin-top: 0.75rem; }
 .mt-md { margin-top: 1rem; }
 .mt-lg { margin-top: 1.5rem; }
+
+/* ═══ UI COMPONENTS ═══════════════════════════════════════════════════════
+   Buttons, Cards, Badges, Tabs, Forms, Modals, Toggles, Toasts
+   ═══════════════════════════════════════════════════════════════════════ */
 
 /* ── Buttons with Shine Effect ─────────────────────────────── */
 .btn {
