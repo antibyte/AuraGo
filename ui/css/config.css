@@ -805,7 +805,8 @@ select.cfg-input option {
 /* ── Responsive ────────────────────────────── */
 
 /* Mobile (< 768px): sidebar as slide-out drawer */
-@media (max-width: 767px) {
+/* D-14/D-15: Unified breakpoint — 767px → 768px */
+@media (max-width: 768px) {
     .cfg-sidebar {
         position: fixed;
         top: 0;
@@ -1048,7 +1049,8 @@ select.cfg-input option {
     font-weight: 600;
 }
 
-@media (max-width: 767px) {
+/* D-14/D-15: Unified breakpoint — 767px → 768px */
+@media (max-width: 768px) {
     .cfg-hamburger {
         display: grid !important;
     }
@@ -1082,7 +1084,8 @@ select.cfg-input option {
     }
 }
 
-@media (max-width: 374px) {
+/* D-14/D-15: Unified breakpoint — 374px → 480px */
+@media (max-width: 480px) {
 
     /* Very small phones: also hide logo text */
     .logo>span {

@@ -898,12 +898,13 @@
 }
 
 @media (max-width: 480px) {
+    /* D-16: Status bar uses auto-fit — columns adapt 1-4 based on available width */
     .status-bar {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
         gap: 8px;
     }
     .status-card {
-        padding: 12px 10px;
+        padding: 10px 8px;
         border-radius: 14px;
     }
     .status-label {
@@ -938,22 +939,7 @@
         width: 100%;
     }
 }
-
-@media (max-width: 380px) {
-    .status-bar {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 6px;
-    }
-    .status-card {
-        padding: 10px 8px;
-    }
-    .status-label {
-        font-size: 0.58rem;
-    }
-    .status-value {
-        font-size: 0.84rem;
-    }
-}
+/* 380px breakpoint removed — covered by 480px query (D-14/D-15: unified breakpoint scale) */
 
 /* ── Mission Preparation Badges ─────────────────────────────── */
 .badge-prep-preparing {
