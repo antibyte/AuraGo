@@ -2,11 +2,11 @@
 
 function hpSetStatusState(el, state, text) {
     if (!el) return;
-    el.classList.remove('cfg-status-success', 'cfg-status-error', 'cfg-status-warning', 'cfg-status-text');
-    if (state === 'success') el.classList.add('cfg-status-success');
-    if (state === 'error') el.classList.add('cfg-status-error');
-    if (state === 'warning') el.classList.add('cfg-status-warning');
-    if (state === 'muted') el.classList.add('cfg-status-text');
+    el.classList.remove('is-success', 'is-error', 'is-warning', 'is-muted');
+    if (state === 'success') el.classList.add('is-success');
+    if (state === 'error') el.classList.add('is-error');
+    if (state === 'warning') el.classList.add('is-warning');
+    if (state === 'muted') el.classList.add('is-muted');
     el.textContent = text || '';
 }
 

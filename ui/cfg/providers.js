@@ -1175,9 +1175,9 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
             );
         }
 
-        function providerDelete(idx) {
+        async function providerDelete(idx) {
             const p = providersCache[idx];
-            if (!(await showConfirm(t('config.providers.delete_confirm_title', {default: t('config.providers.delete_confirm')}), t('config.providers.delete_confirm', { name: p.name || p.id })))))) return;
+            if (!(await showConfirm(t('config.providers.delete_confirm_title', {default: t('config.providers.delete_confirm')}), t('config.providers.delete_confirm', { name: p.name || p.id })))) return;
             providersCache.splice(idx, 1);
             providerSave();
         }
