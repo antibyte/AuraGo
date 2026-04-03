@@ -631,12 +631,38 @@ func handleBudgetStatus(s *Server) http.HandlerFunc {
 func handleOpenRouterCredits(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		provider := strings.ToLower(s.Cfg.LLM.ProviderType)
-		if provider != "openrouter" {
+
+		var apiKey, baseURL string
+		found := false
+
+		// Check primary LLM
+		if strings.ToLower(s.Cfg.LLM.ProviderType) == "openrouter" && s.Cfg.LLM.APIKey != "" {
+			apiKey = s.Cfg.LLM.APIKey
+			baseURL = s.Cfg.LLM.BaseURL
+			found = true
+		} else if strings.ToLower(s.Cfg.LLM.HelperProviderType) == "openrouter" && s.Cfg.LLM.HelperAPIKey != "" {
+			// Check helper LLM
+			apiKey = s.Cfg.LLM.HelperAPIKey
+			baseURL = s.Cfg.LLM.HelperBaseURL
+			found = true
+		} else {
+			// Check all other providers (e.g. Vision, Whisper, Embeddings might use OpenRouter)
+			for _, p := range s.Cfg.Providers {
+				if strings.ToLower(p.Type) == "openrouter" && p.APIKey != "" {
+					apiKey = p.APIKey
+					baseURL = p.BaseURL
+					found = true
+					break
+				}
+			}
+		}
+
+		if !found {
 			w.Write([]byte(`{"available":false,"reason":"provider is not openrouter"}`))
 			return
 		}
-		credits, err := llm.FetchOpenRouterCredits(s.Cfg.LLM.APIKey, s.Cfg.LLM.BaseURL)
+
+		credits, err := llm.FetchOpenRouterCredits(apiKey, baseURL)
 		if err != nil {
 			s.Logger.Error("Failed to fetch OpenRouter credits", "error", err)
 			w.Write([]byte(`{"available":true,"error":"Failed to fetch OpenRouter credits"}`))

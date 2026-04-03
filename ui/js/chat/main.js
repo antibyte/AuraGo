@@ -703,22 +703,26 @@ function appendMessage(role, text) {
                     (match, _tag, inner) => {
                         const idx = thinkingBlocks.length;
                         thinkingBlocks.push(inner.trim());
-                        return `\n<div id="thinking-ph-${idx}"></div>\n`;
+                        return `\n\n%%THINKING_BLOCK_${idx}%%\n\n`;
                     }
                 );
 
-                finalHTML = sanitizeRenderedHTML(md.render(contentForRender));
+                finalHTML = md.render(contentForRender);
 
                 // Add target="_blank" to all links (external and internal)
                 finalHTML = finalHTML.replace(/<a(\s+[^>]*)?\s+href="([^"]+)"/g, '<a$1href="$2" target="_blank" rel="noopener noreferrer"');
 
                 // Replace placeholders with collapsible <details> elements
                 thinkingBlocks.forEach((innerText, idx) => {
-                    const innerHtml = sanitizeRenderedHTML(md.render(innerText));
+                    const innerHtml = md.render(innerText);
                     const label = (typeof t === 'function') ? t('chat.thinking_label') : 'Reasoning';
                     const detailsHtml = `<details class="thinking-block"><summary>🧠 ${label}</summary><div class="thinking-content">${innerHtml}</div></details>`;
-                    finalHTML = finalHTML.replace(`<div id="thinking-ph-${idx}"></div>`, detailsHtml);
+                    // Replace whether it is wrapped in paragraph or not
+                    finalHTML = finalHTML.replace(new RegExp(`<p>%%THINKING_BLOCK_${idx}%%</p>`, 'g'), detailsHtml);
+                    finalHTML = finalHTML.replace(new RegExp(`%%THINKING_BLOCK_${idx}%%`, 'g'), detailsHtml);
                 });
+
+                finalHTML = sanitizeRenderedHTML(finalHTML);
             }
         } catch (e) {
             console.error("Markdown parsing failed:", e);

@@ -314,10 +314,10 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			req := decodeShellExecutionArgs(tc)
 			// Block commands that attempt to read AURAGO_* environment variables (contains vault master key etc.)
 			if isBlockedEnvRead(req.Command) {
-				logger.Warn("[Security] Blocked attempt to read sensitive environment variable", "command", req.Command)
+				logger.Warn("[Security] Blocked attempt to read sensitive environment variable", "command", Truncate(req.Command, 200))
 				return "Tool Output: [PERMISSION DENIED] Reading AURAGO_ environment variables via shell is not permitted."
 			}
-			logger.Info("LLM requested shell execution", "command", req.Command, "background", req.Background)
+			logger.Info("LLM requested shell execution", "command", Truncate(req.Command, 200), "background", req.Background)
 			if req.Background {
 				pid, err := tools.ExecuteShellBackground(req.Command, cfg.Directories.WorkspaceDir, registry)
 				if err != nil {
@@ -373,7 +373,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if vaultErr != nil || sudoPass == "" {
 				return "Tool Output: [PERMISSION DENIED] sudo password not found in vault. Store it first: {\"action\": \"secrets_vault\", \"operation\": \"store\", \"key\": \"sudo_password\", \"value\": \"<password>\"}"
 			}
-			logger.Info("LLM requested sudo execution", "command", req.Command)
+			logger.Info("LLM requested sudo execution", "command", Truncate(req.Command, 200))
 			stdoutS, stderrS, errS := tools.ExecuteSudo(req.Command, cfg.Directories.WorkspaceDir, sudoPass)
 			stdoutS = security.Scrub(stdoutS)
 			stderrS = security.Scrub(stderrS)
@@ -1636,7 +1636,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				return "Tool Output: [PERMISSION DENIED] execute_remote_shell is disabled in Danger Zone settings (agent.allow_remote_shell: false)."
 			}
 			req := decodeRemoteShellArgs(tc)
-			logger.Info("LLM requested remote shell execution", "server_id", req.ServerID, "command", req.Command)
+			logger.Info("LLM requested remote shell execution", "server_id", req.ServerID, "command", Truncate(req.Command, 200))
 			if req.ServerID == "" || req.Command == "" {
 				return `Tool Output: {"status": "error", "message": "'server_id' and 'command' are required"}`
 			}

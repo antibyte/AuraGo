@@ -299,7 +299,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				logger.Info("LLM requested Docker system_info")
 				return "Tool Output: " + tools.DockerSystemInfo(dockerCfg)
 			case "exec":
-				logger.Info("LLM requested Docker exec", "container_id", containerID, "cmd", req.Command)
+				logger.Info("LLM requested Docker exec", "container_id", containerID, "cmd", Truncate(req.Command, 200))
 				return "Tool Output: " + tools.DockerExec(dockerCfg, containerID, req.Command, req.User)
 			case "stats":
 				logger.Info("LLM requested Docker stats", "container_id", containerID)

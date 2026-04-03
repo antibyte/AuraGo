@@ -797,37 +797,7 @@
             return `${edge?.source || ''}::${edge?.target || ''}::${edge?.relation || ''}`;
         }
 
-        function renderKnowledgeGraphVisual() {
-            const wrap = document.getElementById('knowledge-graph-visual');
-            const mode = document.getElementById('knowledge-graph-mode');
-            const caption = document.getElementById('knowledge-graph-caption');
-            const resetButton = document.getElementById('knowledge-graph-reset');
-            if (!wrap || !mode || !caption || !resetButton) return;
 
-            const focusedModel = buildKnowledgeGraphFocusedModel(KnowledgeGraphState.focusPayload);
-            const model = focusedModel || buildKnowledgeGraphOverviewModel(KnowledgeGraphState.nodes, KnowledgeGraphState.edges);
-
-            if (!model || !model.nodes.length) {
-                mode.textContent = t('dashboard.knowledge_visual_overview');
-                caption.textContent = t('dashboard.knowledge_visual_empty');
-                resetButton.classList.add('is-hidden');
-                wrap.innerHTML = `<div class="empty-state">${t('dashboard.knowledge_visual_empty')}</div>`;
-                return;
-            }
-
-            if (focusedModel) {
-                const focusLabel = focusedModel.focusNode?.label || focusedModel.focusNode?.id || t('dashboard.knowledge_nodes');
-                mode.textContent = t('dashboard.knowledge_visual_focus');
-                caption.textContent = t('dashboard.knowledge_visual_focus_caption', { label: focusLabel, neighbors: Math.max(0, focusedModel.nodes.length - 1) });
-                resetButton.classList.remove('is-hidden');
-            } else {
-                mode.textContent = t('dashboard.knowledge_visual_overview');
-                caption.textContent = t('dashboard.knowledge_visual_overview_caption', { nodes: model.nodes.length, edges: model.edges.length });
-                resetButton.classList.add('is-hidden');
-            }
-
-            wrap.innerHTML = renderKnowledgeGraphSVG(model);
-        }
 
         function buildKnowledgeGraphOverviewModel(nodes, edges) {
             const safeNodes = dedupeKnowledgeGraphNodes(nodes || []);
@@ -854,7 +824,7 @@
                 .slice(0, 18);
 
             return {
-                nodes: layoutKnowledgeGraphRing(selectedNodes, { centerX: 360, centerY: 180, radiusX: 250, radiusY: 120, degree }),
+                nodes: selectedNodes.map(n => ({...n, isFocus: false, r: 15})),
                 edges: selectedEdges,
                 width: 720,
                 height: 360,
@@ -877,12 +847,10 @@
                 nodes: [
                     {
                         ...node,
-                        x: 360,
-                        y: 180,
                         r: 20,
                         isFocus: true,
                     },
-                    ...layoutKnowledgeGraphRing(neighbors, { centerX: 360, centerY: 180, radiusX: 235, radiusY: 125 }),
+                    ...neighbors.map(n => ({...n, isFocus: false, r: 15}))
                 ],
                 edges,
                 width: 720,
@@ -891,83 +859,110 @@
             };
         }
 
-        function layoutKnowledgeGraphRing(nodes, options) {
-            const safeNodes = Array.isArray(nodes) ? nodes : [];
-            const count = safeNodes.length;
-            if (!count) return [];
+        function renderKnowledgeGraphVisual() {
+            const wrap = document.getElementById('knowledge-graph-visual');
+            const mode = document.getElementById('knowledge-graph-mode');
+            const caption = document.getElementById('knowledge-graph-caption');
+            const resetButton = document.getElementById('knowledge-graph-reset');
+            if (!wrap || !mode || !caption || !resetButton) return;
 
-            const centerX = options?.centerX || 360;
-            const centerY = options?.centerY || 180;
-            const radiusX = options?.radiusX || 240;
-            const radiusY = options?.radiusY || 120;
-            const degree = options?.degree || new Map();
+            const focusedModel = buildKnowledgeGraphFocusedModel(KnowledgeGraphState.focusPayload);
+            const model = focusedModel || buildKnowledgeGraphOverviewModel(KnowledgeGraphState.nodes, KnowledgeGraphState.edges);
 
-            return safeNodes.map((node, index) => {
-                if (count === 1) {
-                    return {
-                        ...node,
-                        x: centerX,
-                        y: centerY,
-                        r: 15,
-                        isFocus: false,
-                    };
+            if (!model || !model.nodes.length) {
+                mode.textContent = t('dashboard.knowledge_visual_overview');
+                caption.textContent = t('dashboard.knowledge_visual_empty');
+                resetButton.classList.add('is-hidden');
+                
+                // Clear any existing force graph instance
+                if (wrap._forceGraph) {
+                    wrap._forceGraph._destructor();
+                    delete wrap._forceGraph;
                 }
-                const angle = (-Math.PI / 2) + ((Math.PI * 2) * index / count);
-                const nodeDegree = degree.get(node.id) || 0;
-                return {
-                    ...node,
-                    x: centerX + Math.cos(angle) * radiusX,
-                    y: centerY + Math.sin(angle) * radiusY,
-                    r: Math.max(11, Math.min(16, 11 + nodeDegree * 0.85)),
-                    isFocus: false,
-                };
-            });
-        }
+                wrap.innerHTML = `<div class="empty-state">${t('dashboard.knowledge_visual_empty')}</div>`;
+                return;
+            }
 
-        function renderKnowledgeGraphSVG(model) {
-            const width = model?.width || 720;
-            const height = model?.height || 360;
-            const nodeMap = new Map((model?.nodes || []).map(node => [node.id, node]));
-            const edges = (model?.edges || []).filter(edge => nodeMap.has(edge?.source) && nodeMap.has(edge?.target));
+            if (focusedModel) {
+                const focusLabel = focusedModel.focusNode?.label || focusedModel.focusNode?.id || t('dashboard.knowledge_nodes');
+                mode.textContent = t('dashboard.knowledge_visual_focus');
+                caption.textContent = t('dashboard.knowledge_visual_focus_caption', { label: focusLabel, neighbors: Math.max(0, focusedModel.nodes.length - 1) });
+                resetButton.classList.remove('is-hidden');
+            } else {
+                mode.textContent = t('dashboard.knowledge_visual_overview');
+                caption.textContent = t('dashboard.knowledge_visual_overview_caption', { nodes: model.nodes.length, edges: model.edges.length });
+                resetButton.classList.add('is-hidden');
+            }
 
-            const edgeMarkup = edges.map(edge => {
-                const source = nodeMap.get(edge.source);
-                const target = nodeMap.get(edge.target);
-                const midX = (source.x + target.x) / 2;
-                const midY = (source.y + target.y) / 2;
-                const relation = truncate(String(edge.relation || ''), 18);
-                return `
-                    <g>
-                        <line class="knowledge-visual-edge" x1="${source.x.toFixed(1)}" y1="${source.y.toFixed(1)}" x2="${target.x.toFixed(1)}" y2="${target.y.toFixed(1)}"></line>
-                        ${relation ? `<text class="knowledge-visual-edge-label" x="${midX.toFixed(1)}" y="${(midY - 6).toFixed(1)}">${escapeHtml(relation)}</text>` : ''}
-                    </g>
-                `;
-            }).join('');
+            if (!wrap._forceGraph) {
+                wrap.innerHTML = '';
+                wrap._forceGraph = ForceGraph()(wrap);
+            }
 
-            const nodeMarkup = (model?.nodes || []).map(node => {
-                const fill = knowledgeGraphNodeColor(node);
-                const label = truncate(String(node.label || node.id || 'Node'), 18);
-                const meta = truncate(String(node.id || ''), 18);
-                const placeBelow = node.y < height * 0.42;
-                const labelY = node.y + (placeBelow ? node.r + 18 : -node.r - 10);
-                const metaY = labelY + (placeBelow ? 13 : -13);
-                const title = `${node.label || node.id || 'Node'} (${node.id || ''})`;
-                return `
-                    <g class="knowledge-visual-node${node.isFocus ? ' is-focus' : ''}" data-kg-node-id="${escapeHtml(node.id || '')}">
-                        <title>${escapeHtml(title)}</title>
-                        <circle cx="${node.x.toFixed(1)}" cy="${node.y.toFixed(1)}" r="${node.r}" fill="${escapeHtml(fill)}"></circle>
-                        <text class="knowledge-visual-node-label" x="${node.x.toFixed(1)}" y="${labelY.toFixed(1)}">${escapeHtml(label)}</text>
-                        <text class="knowledge-visual-node-meta" x="${node.x.toFixed(1)}" y="${metaY.toFixed(1)}">${escapeHtml(meta)}</text>
-                    </g>
-                `;
-            }).join('');
+            wrap._forceGraph
+                .width(wrap.clientWidth || 720)
+                .height(wrap.clientHeight || 360)
+                .backgroundColor('transparent')
+                .graphData({
+                    nodes: model.nodes.map(n => ({
+                        id: n.id,
+                        label: truncate(String(n.label || n.id || 'Node'), 18),
+                        meta: truncate(String(n.id || ''), 18),
+                        val: (n.r || 15) / 2,
+                        color: knowledgeGraphNodeColor(n),
+                        isFocus: n.isFocus || false
+                    })),
+                    links: model.edges.map(e => ({
+                        source: e.source,
+                        target: e.target,
+                        relation: truncate(String(e.relation || ''), 18)
+                    }))
+                })
+                .nodeId('id')
+                .nodeVal('val')
+                .nodeColor('color')
+                .nodeLabel('meta')
+                .linkDirectionalArrowLength(3.5)
+                .linkDirectionalArrowRelPos(1)
+                .linkColor(() => cv('--border-subtle') || '#334155')
+                .linkLabel('relation')
+                .nodeCanvasObject((node, ctx, globalScale) => {
+                    const fontSize = Math.max(12 / globalScale, 4);
+                    let radius = node.val;
+                    if (node.isFocus) {
+                        radius = node.val * 1.5;
+                    }
+                    
+                    ctx.beginPath();
+                    ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI, false);
+                    ctx.fillStyle = node.color;
+                    ctx.fill();
+                    
+                    if (node.isFocus) {
+                        ctx.lineWidth = 2 / globalScale;
+                        ctx.strokeStyle = cv('--text-primary') || '#fff';
+                        ctx.stroke();
+                    }
 
-            return `
-                <svg class="knowledge-visual-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeHtml(t('dashboard.knowledge_visual_title'))}">
-                    ${edgeMarkup}
-                    ${nodeMarkup}
-                </svg>
-            `;
+                    ctx.font = `${fontSize}px Sans-Serif`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillStyle = node.isFocus ? (cv('--text-primary') || '#f8fafc') : (cv('--text-secondary') || '#94a3b8');
+
+                    const textY = node.y + radius + 4 + fontSize/2;
+                    ctx.fillText(node.label, node.x, textY);
+                })
+                .onNodeClick(node => {
+                    KnowledgeGraphState.focusNodeId = node.id;
+                    loadKnowledgeGraphNodeDetail(node.id);
+                });
+            
+            // Add a small delay then run a quick pulse layout reset if needed
+            setTimeout(() => {
+                if (wrap._forceGraph && typeof wrap._forceGraph.zoomToFit === 'function') {
+                    wrap._forceGraph.zoomToFit(400, 20);
+                }
+            }, 300);
         }
 
         function dedupeKnowledgeGraphNodes(nodes) {
