@@ -135,6 +135,7 @@ type ContextFlags struct {
 	VirusTotalEnabled        bool
 	BraveSearchEnabled       bool
 	PaperlessNGXEnabled      bool
+	MiniMaxTTSEnabled        bool
 	// Danger Zone toggles
 	AllowShell           bool
 	AllowPython          bool

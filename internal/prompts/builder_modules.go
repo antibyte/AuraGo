@@ -464,6 +464,10 @@ func (m *PromptModule) ShouldInclude(flags ContextFlags) bool {
 			if flags.SpecialistsAvailable {
 				return true
 			}
+		case "minimax_tts_enabled":
+			if flags.MiniMaxTTSEnabled {
+				return true
+			}
 		}
 	}
 
