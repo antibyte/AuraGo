@@ -1528,6 +1528,11 @@ select.large,
     transform-origin: center;
 }
 
+/* Danger variant for delete/confirmation modals */
+.modal-card-danger {
+    border-color: rgba(239, 68, 68, 0.4);
+}
+
 .modal-overlay.open {
     display: flex;
     opacity: 1;
