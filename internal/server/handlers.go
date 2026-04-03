@@ -16,7 +16,6 @@ import (
 	"aurago/internal/commands"
 	"aurago/internal/llm"
 	"aurago/internal/memory"
-	"aurago/internal/prompts"
 	"aurago/internal/security"
 	"aurago/internal/tools"
 
@@ -25,9 +24,23 @@ import (
 )
 
 var (
-	followUpDepths = make(map[string]int)
-	muFollowUp     sync.Mutex
+	followUpDepths        = make(map[string]int)
+	muFollowUp            sync.Mutex
+	sessionRequestLocks   = make(map[string]*sync.Mutex)
+	muSessionRequestLocks sync.Mutex
 )
+
+func lockSessionRequest(sessionID string) func() {
+	muSessionRequestLocks.Lock()
+	lock := sessionRequestLocks[sessionID]
+	if lock == nil {
+		lock = &sync.Mutex{}
+		sessionRequestLocks[sessionID] = lock
+	}
+	muSessionRequestLocks.Unlock()
+	lock.Lock()
+	return lock.Unlock
+}
 
 // sanitizeFilename sanitizes a filename to prevent path traversal and ensure safe names.
 func sanitizeFilename(filename string) string {
@@ -136,6 +149,8 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 		if missionID != "" {
 			sessionID = "mission-" + missionID
 		}
+		unlockSession := lockSessionRequest(sessionID)
+		defer unlockSession()
 
 		// Guardian: Scan user input for injection patterns (log only, never block)
 		if lastUserMsg.Role == openai.ChatMessageRoleUser && s.Guardian != nil {
@@ -229,8 +244,13 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 								s.Logger.Error("[Compression] Goroutine panic recovered", "error", r)
 							}
 						}()
+						compressionClient, compressionModel := llm.ResolveHelperBackedClient(s.Cfg, s.LLMClient, s.Cfg.LLM.Model)
+						llmSource := "main"
+						if compressionModel != s.Cfg.LLM.Model {
+							llmSource = "helper"
+						}
 						s.Logger.Info("[Compression] Triggering character-based context compression",
-							"msg_count", len(msgs), "chars", charsPruned, "limit", charLimit)
+							"msg_count", len(msgs), "chars", charsPruned, "limit", charLimit, "llm", llmSource, "model", compressionModel)
 
 						prompt := "Update the following 'Persistent Summary' with the details from the 'Recent Messages' below. Maintain a chronological flow of facts, technical decisions, and user preferences. Ensure metadata is explicitly protected. Result must be a concise briefing.\n\n"
 						if existingSummary != "" {
@@ -244,7 +264,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 						}
 
 						summaryReq := openai.ChatCompletionRequest{
-							Model: s.Cfg.LLM.Model,
+							Model: compressionModel,
 							Messages: []openai.ChatCompletionMessage{
 								{Role: openai.ChatMessageRoleUser, Content: prompt},
 							},
@@ -255,7 +275,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 						bgCtx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 						defer cancel()
 
-						resp, err := llm.ExecuteWithRetry(bgCtx, s.LLMClient, summaryReq, s.Logger, nil)
+						resp, err := llm.ExecuteWithRetry(bgCtx, compressionClient, summaryReq, s.Logger, nil)
 						if err != nil {
 							s.Logger.Error("[Compression] Background summarization failed", "error", err)
 							return
@@ -295,27 +315,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			}
 		}
 
-		// 3. Inject Dynamic Core System Prompt with RAG
-		var retrievedMemories string
-		if lastUserMsg.Role == openai.ChatMessageRoleUser && lastUserMsg.Content != "" {
-			memories, docIDs, err := s.LongTermMem.SearchSimilar(lastUserMsg.Content, 2)
-			if err == nil {
-				for _, docID := range docIDs {
-					_ = s.ShortTermMem.UpdateMemoryAccess(docID)
-				}
-				if len(memories) > 0 {
-					retrievedMemories = strings.Join(memories, "\n---\n")
-					s.Logger.Debug("RAG: Retrieved memories", "count", len(memories))
-				}
-			}
-		}
-
-		// Load Core Memory (Semi-Static)
-		coreMem := s.ShortTermMem.ReadCoreMemory()
-
-		// Build flags via the canonical factory so all channels (web, bots, agent loop)
-		// receive the same feature-toggle logic, including Docker/Runtime socket guards.
-		toolingPolicy := agent.BuildToolingPolicy(s.Cfg, lastUserMsg.Content)
+		// Build run configuration for the unified agent loop.
 		msgSource := "web_chat"
 		if missionID != "" {
 			msgSource = "mission"
@@ -353,31 +353,14 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			MessageSource:      msgSource,
 			VoiceOutputActive:  GetSpeakerMode(),
 		}
-		flags := agent.BuildPromptContextFlags(runCfg, toolingPolicy, agent.PromptContextOptions{
-			IsMaintenanceMode:     inMaintenance,
-			ActiveProcesses:       agent.GetActiveProcessStatus(s.Registry),
-			SpecialistsAvailable:  agent.BuildSpecialistsAvailable(s.Cfg),
-			SpecialistsStatus:     agent.BuildSpecialistsStatus(s.Cfg),
-			SpecialistsSuggestion: agent.BuildSpecialistDelegationHint(s.Cfg, lastUserMsg.Content),
-		})
-		// Inject dynamic context fields known only at request time.
-		flags.RetrievedMemories = retrievedMemories
-		flags.MessageCount = len(recentMessages)
-		sysPrompt := prompts.BuildSystemPrompt(s.Cfg.Directories.PromptsDir, flags, coreMem, s.Logger)
 
-		finalMessages := []openai.ChatCompletionMessage{
-			{Role: openai.ChatMessageRoleSystem, Content: sysPrompt},
-		}
-
-		currentSummary := s.HistoryManager.GetSummary()
-		if currentSummary != "" {
-			finalMessages = append(finalMessages, openai.ChatCompletionMessage{
+		finalMessages := append([]openai.ChatCompletionMessage{}, recentMessages...)
+		if currentSummary := s.HistoryManager.GetSummary(); currentSummary != "" {
+			finalMessages = append([]openai.ChatCompletionMessage{{
 				Role:    openai.ChatMessageRoleSystem,
 				Content: "[CONTEXT_RECAP]: The following is a summary of previous relevant discussions for context. DO NOT echo or repeat this recap in your response:\n" + currentSummary,
-			})
+			}}, finalMessages...)
 		}
-
-		finalMessages = append(finalMessages, recentMessages...)
 
 		// First-start: inject a one-time naming prompt so the agent asks the user
 		// for a personal name on the very first conversation.

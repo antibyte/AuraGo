@@ -223,13 +223,13 @@ func runMemoryOrchestrator(req memoryOrchestratorArgs, cfg *config.Config, logge
 		}
 
 		// 2. Process VectorDB Medium Priority (Compression)
+		compressionClient, compressionModel := resolveHelperBackedLLM(cfg, client, cfg.LLM.Model)
 		for _, docID := range mediumDocs {
 			content, err := longTermMem.GetByID(docID)
 			if err != nil || len(content) < 300 {
 				continue
 			}
 
-			// Compress via LLM
 			compressionTimeout := time.Duration(cfg.CircuitBreaker.LLMTimeoutSeconds) * time.Second
 			if compressionTimeout <= 0 {
 				compressionTimeout = 10 * time.Minute
@@ -237,9 +237,9 @@ func runMemoryOrchestrator(req memoryOrchestratorArgs, cfg *config.Config, logge
 			compressionCtx, cancelCompression := context.WithTimeout(context.Background(), compressionTimeout)
 			resp, err := llm.ExecuteWithRetry(
 				compressionCtx,
-				client,
+				compressionClient,
 				openai.ChatCompletionRequest{
-					Model: cfg.LLM.Model,
+					Model: compressionModel,
 					Messages: []openai.ChatCompletionMessage{
 						{Role: openai.ChatMessageRoleSystem, Content: "You are an AI compressing old memories. Summarize the following RAG memory into a dense, concise bullet-point list containing only core facts. Lose the verbose narrative immediately."},
 						{Role: openai.ChatMessageRoleUser, Content: content},
