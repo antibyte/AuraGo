@@ -76,6 +76,17 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 		))
 	}
 
+	// TTS — synthesize speech audio. Always shown (runtime checks if TTS is actually configured).
+	tools = append(tools, tool("tts",
+		"Convert text to speech (TTS). Generates an audio file that can be sent to the user via send_audio. "+
+			"Supports ElevenLabs, MiniMax, and Piper TTS providers (configured in config.yaml). "+
+			"Returns the audio file path, URL, and local path. Use send_audio to play it in the chat.",
+		schema(map[string]interface{}{
+			"text":     prop("string", "Text to synthesize into speech. Can be a sentence, paragraph, or any text content."),
+			"language": prop("string", "Language code for the speech (e.g. 'en', 'de', 'es', 'fr'). Defaults to the configured TTS language."),
+		}, "text"),
+	))
+
 	if ff.DockerEnabled {
 		tools = append(tools, tool("docker",
 			"Manage Docker containers, images, networks, and volumes. List, inspect, start, stop, create, remove containers; pull/remove images; view logs; get system info.",
