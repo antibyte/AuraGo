@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -47,9 +48,20 @@ func handleSendAudio(req sendMediaArgs, cfg *config.Config, logger *slog.Logger,
 	if strings.HasPrefix(req.Path, "http://") || strings.HasPrefix(req.Path, "https://") {
 		saved, err := media.SaveURLToDir(req.Path, audioDir)
 		if err != nil {
-			return encode(map[string]interface{}{"status": "error", "message": "failed to download audio: " + err.Error()})
+			// Fallback: if the URL is a /tts/{filename} self-reference, try the local TTS cache directly.
+			// This handles the common case where the TTS cache was evicted after generation.
+			if fallback := resolveTTSURLToLocalPath(req.Path, absDataDir); fallback != "" {
+				logger.Info("[send_audio] URL download failed, resolved TTS URL to local path", "url", req.Path, "local", fallback)
+				localPath = fallback
+			} else {
+				return encode(map[string]interface{}{
+					"status":  "error",
+					"message": "failed to download audio: " + err.Error() + ". If this was a TTS file, call the tts tool again to regenerate it and use the returned local_path with send_audio.",
+				})
+			}
+		} else {
+			localPath = saved
 		}
-		localPath = saved
 	} else {
 		candidate := resolveAgentFilePath(req.Path, cfg)
 		if _, err := os.Stat(candidate); err != nil {
@@ -128,6 +140,24 @@ func audioMIMEType(filename string) string {
 	default:
 		return "audio/mpeg"
 	}
+}
+
+// resolveTTSURLToLocalPath maps a /tts/{filename} URL to the local data/tts/ path.
+// Returns empty string if the URL doesn't match or the file doesn't exist.
+func resolveTTSURLToLocalPath(rawURL, absDataDir string) string {
+	u, err := url.Parse(rawURL)
+	if err != nil || !strings.HasPrefix(u.Path, "/tts/") {
+		return ""
+	}
+	filename := strings.TrimPrefix(u.Path, "/tts/")
+	if filename == "" || strings.ContainsAny(filename, "/\\") {
+		return ""
+	}
+	candidate := filepath.Join(absDataDir, "tts", filename)
+	if _, err := os.Stat(candidate); err == nil {
+		return candidate
+	}
+	return ""
 }
 
 // resolveAgentFilePath resolves a file path the agent provided, looking in the

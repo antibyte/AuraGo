@@ -35,3 +35,4 @@ MP3, WAV, OGG, FLAC, M4A, AAC, Opus, WebM
 - URL audio is downloaded automatically — no pre-download needed
 - The audio player supports all modern browsers natively (HTML5 `<audio>`)
 - **On error:** try at most **one alternative path**, then inform the user. Do **not** loop.
+- **For TTS audio:** prefer the `local_path` from the `tts` tool result over the URL — it is always reachable regardless of TTS cache state. If only the URL is known and it returns 404, call `tts` again to regenerate, then use the new `local_path`.
