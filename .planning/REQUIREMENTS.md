@@ -30,10 +30,10 @@
 
 ### CSS Architecture
 
-- [ ] **CSS-01**: Extract duplicate keyframe definitions (fadeIn, card-enter, pulse) to single animations.css
+- [x] **CSS-01**: Extract duplicate keyframe definitions (fadeIn, card-enter, pulse) to single animations.css
 - [ ] **CSS-02**: Audit and fix fixed pixel min-widths that break on small viewports
 - [ ] **CSS-03**: Resolve CSS specificity conflicts between shared.css and page-specific CSS
-- [ ] **CSS-04**: Establish naming convention for component classes (BEM or similar)
+- [x] **CSS-04**: Establish naming convention for component classes (BEM or similar)
 
 ## v2 Requirements
 
@@ -78,10 +78,10 @@
 | I18N-02 | Phase 3 | Pending |
 | I18N-03 | Phase 3 | Pending |
 | I18N-04 | Phase 3 | Pending |
-| CSS-01 | Phase 1 | Pending |
+| CSS-01 | Phase 1 | Complete |
 | CSS-02 | Phase 1 | Pending |
 | CSS-03 | Phase 1 | Pending |
-| CSS-04 | Phase 1 | Pending |
+| CSS-04 | Phase 1 | Complete |
 
 **Coverage:**
 - v1 requirements: 18 total
