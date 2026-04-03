@@ -95,20 +95,21 @@
     <script src="/js/config/main.js"></script>
 
     <!-- Vault delete confirmation modal -->
-    <div id="vault-delete-overlay" class="vault-modal-overlay is-hidden">
-        <div class="vault-modal-card">
-            <div class="vault-modal-icon">☠️</div>
-            <h2 id="vault-modal-title" class="vault-modal-title"></h2>
-            <div id="vault-modal-desc" class="vault-modal-desc">
+    <div id="vault-delete-overlay" class="modal-overlay">
+        <div class="modal-card modal-card-danger">
+            <div class="modal-icon" style="font-size:3rem;text-align:center;">☠️</div>
+            <h2 id="modal-title" class="modal-title" style="color:#f87171;text-align:center;"></h2>
+            <div id="modal-message" class="modal-body">
+                <p id="vault-modal-desc" class="modal-desc" style="color:var(--text-secondary);font-size:0.85rem;line-height:1.65;margin-bottom:1.25rem;text-align:center;"></p>
+                <input id="vault-confirm-input" type="text" class="field-input vault-confirm-input" oninput="vaultCheckWord()"
+                    autocomplete="off" style="text-align:center;letter-spacing:0.12em;font-size:1rem;margin-top:12px;">
+                <div id="vault-confirm-word" class="is-hidden"></div>
             </div>
-            <input id="vault-confirm-input" type="text" class="field-input vault-confirm-input" oninput="vaultCheckWord()"
-                autocomplete="off">
-            <div id="vault-confirm-word" class="is-hidden"></div>
-            <div class="vault-modal-actions">
+            <div class="modal-actions">
                 <button id="vault-cancel-btn" type="button" onclick="vaultDeleteCancel()"
-                    class="vault-btn vault-btn-cancel"></button>
+                    class="btn btn-secondary"></button>
                 <button id="vault-confirm-btn" type="button" onclick="vaultDeleteConfirm()" disabled
-                    class="vault-btn vault-btn-confirm"></button>
+                    class="btn btn-danger"></button>
             </div>
         </div>
     </div>
