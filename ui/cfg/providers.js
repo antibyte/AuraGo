@@ -5,11 +5,6 @@ let _orModelsCache = null;
 let _orModelsCacheTime = 0;
 const OR_CACHE_TTL = 5 * 60 * 1000;
 
-function providerSetHidden(el, hidden) {
-    if (!el) return;
-    el.classList.toggle('is-hidden', !!hidden);
-}
-
         async function queryOllamaModelsInModal() {
             const spinner = document.getElementById('prov-ollama-spinner');
             const resultDiv = document.getElementById('prov-ollama-result');
@@ -17,9 +12,9 @@ function providerSetHidden(el, hidden) {
             const errorDiv = document.getElementById('prov-ollama-error');
             if (!spinner) return;
 
-            providerSetHidden(spinner, false);
-            providerSetHidden(resultDiv, true);
-            providerSetHidden(errorDiv, true);
+            setHidden(spinner, false);
+            setHidden(resultDiv, true);
+            setHidden(errorDiv, true);
             modelsDiv.innerHTML = '';
 
             const baseUrl = (document.getElementById('prov-url') || {}).value || '';
@@ -28,25 +23,25 @@ function providerSetHidden(el, hidden) {
             try {
                 const resp = await fetch(url);
                 const json = await resp.json();
-                providerSetHidden(resultDiv, false);
+                setHidden(resultDiv, false);
 
                 if (!resp.ok || json.available === false) {
                     errorDiv.textContent = json.reason || t('config.ollama.fetch_error');
-                    providerSetHidden(errorDiv, false);
+                    setHidden(errorDiv, false);
                 } else if (!json.models || json.models.length === 0) {
                     errorDiv.textContent = t('config.ollama.no_models');
-                    providerSetHidden(errorDiv, false);
+                    setHidden(errorDiv, false);
                 } else {
                     modelsDiv.innerHTML = json.models.map(m =>
                         `<button type="button" class="prov-ollama-chip" title="${t('config.ollama.click_to_apply')}" onclick="applyOllamaModelInModal(this.textContent)">${escapeHtml(m)}</button>`
                     ).join('');
                 }
             } catch (e) {
-                providerSetHidden(resultDiv, false);
+                setHidden(resultDiv, false);
                 errorDiv.textContent = t('config.ollama.connection_error') + e.message;
-                providerSetHidden(errorDiv, false);
+                setHidden(errorDiv, false);
             } finally {
-                providerSetHidden(spinner, true);
+                setHidden(spinner, true);
             }
         }
 
@@ -149,8 +144,8 @@ function providerSetHidden(el, hidden) {
                 loadingDiv.innerHTML = '<span class="prov-text-danger">❌ ' + t('config.openrouter.connection_error') + e.message + '</span>';
                 return;
             }
-            providerSetHidden(loadingDiv, true);
-            providerSetHidden(listWrap, false);
+            setHidden(loadingDiv, true);
+            setHidden(listWrap, false);
 
             function isFree(m) {
                 return m.pricing && parseFloat(m.pricing.prompt || '1') === 0 && parseFloat(m.pricing.completion || '1') === 0;
@@ -312,21 +307,7 @@ function providerSetHidden(el, hidden) {
 
             // Show a brief toast-style notification
             const msg = t('config.budget.model_cost_updated', { model: m.id });
-            showBudgetToast(msg);
-        }
-
-        function showBudgetToast(message) {
-            const existing = document.getElementById('budget-toast');
-            if (existing) existing.remove();
-            const toast = document.createElement('div');
-            toast.id = 'budget-toast';
-            toast.className = 'prov-budget-toast';
-            toast.textContent = message;
-            document.body.appendChild(toast);
-            setTimeout(() => {
-                toast.classList.add('is-fading');
-                setTimeout(() => toast.remove(), 300);
-            }, 3500);
+            showToast(msg, 'info');
         }
 
         // ── Model Pricing Table helpers (inside provider modal) ──
@@ -348,7 +329,7 @@ function providerSetHidden(el, hidden) {
             if (!tbody) return;
 
             // Show filter bar only when enough rows to be useful
-            if (searchWrap) providerSetHidden(searchWrap, _provModalModels.length < 5);
+            if (searchWrap) setHidden(searchWrap, _provModalModels.length < 5);
 
             const filterQ = filterEl ? filterEl.value.toLowerCase().trim() : '';
             const visible = filterQ
@@ -359,17 +340,17 @@ function providerSetHidden(el, hidden) {
                 countEl.textContent = filterQ
                     ? `${visible.length} / ${_provModalModels.length}`
                     : `${_provModalModels.length} ${t('config.providers.pricing_picker_total')}`;
-                providerSetHidden(countEl, false);
+                setHidden(countEl, false);
             } else if (countEl) {
-                providerSetHidden(countEl, true);
+                setHidden(countEl, true);
             }
 
             if (_provModalModels.length === 0) {
                 tbody.innerHTML = '';
-                if (empty) providerSetHidden(empty, false);
+                if (empty) setHidden(empty, false);
                 return;
             }
-            if (empty) providerSetHidden(empty, true);
+            if (empty) setHidden(empty, true);
 
             if (visible.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="4" class="prov-no-filter-results">${escapeHtml(t('config.providers.no_filter_results', { q: filterQ }))}</td></tr>`;
@@ -439,7 +420,7 @@ function providerSetHidden(el, hidden) {
                 });
             }
             providerRenderModelsTable();
-            showBudgetToast(t('config.budget.model_cost_updated', { model: m.id }));
+            showToast(t('config.budget.model_cost_updated', { model: m.id }));
         }
 
         /**
@@ -448,7 +429,7 @@ function providerSetHidden(el, hidden) {
          */
         function openPricingPickerModal(allPricing) {
             if (!allPricing || allPricing.length === 0) {
-                showBudgetToast(t('config.providers.no_pricing_found'));
+                showToast(t('config.providers.no_pricing_found'));
                 return;
             }
 
@@ -556,7 +537,7 @@ function providerSetHidden(el, hidden) {
                         }
                         overlay.remove();
                         providerRenderModelsTable();
-                        showBudgetToast(t('config.providers.pricing_fetched', { count: toImport.length }));
+                        showToast(t('config.providers.pricing_fetched', { count: toImport.length }));
                     });
                 }
             }
@@ -608,7 +589,7 @@ function providerSetHidden(el, hidden) {
                 // Open picker modal instead of bulk-importing
                 openPricingPickerModal(pricing);
             } catch (e) {
-                showBudgetToast('❌ ' + e.message);
+                showToast('❌ ' + e.message);
             } finally {
                 if (btn) { btn.disabled = false; btn.textContent = '📡 ' + t('config.providers.fetch_pricing'); }
             }
@@ -637,8 +618,8 @@ function providerSetHidden(el, hidden) {
             const msgDiv    = document.getElementById('mc-test-msg');
             if (!spinner) return;
 
-            providerSetHidden(spinner, false);
-            providerSetHidden(resultDiv, true);
+            setHidden(spinner, false);
+            setHidden(resultDiv, true);
 
             // Read values from the existing config fields on the page.
             // If the user edited them, those values are sent; otherwise they're
@@ -667,7 +648,7 @@ function providerSetHidden(el, hidden) {
                 });
                 const json = await resp.json();
 
-                providerSetHidden(resultDiv, false);
+                setHidden(resultDiv, false);
                 if (json.status === 'ok') {
                     msgDiv.classList.remove('is-error');
                     msgDiv.classList.add('is-success');
@@ -678,12 +659,12 @@ function providerSetHidden(el, hidden) {
                     msgDiv.textContent = '❌ ' + (json.message || t('config.meshcentral.failed'));
                 }
             } catch (e) {
-                providerSetHidden(resultDiv, false);
+                setHidden(resultDiv, false);
                 msgDiv.classList.remove('is-success');
                 msgDiv.classList.add('is-error');
                 msgDiv.textContent = '❌ ' + e.message;
             } finally {
-                providerSetHidden(spinner, true);
+                setHidden(spinner, true);
             }
         }
 
@@ -711,10 +692,10 @@ function providerSetHidden(el, hidden) {
             if (!wrap) return;
             if (providersCache.length === 0) {
                 wrap.innerHTML = '';
-                if (empty) providerSetHidden(empty, false);
+                if (empty) setHidden(empty, false);
                 return;
             }
-            if (empty) providerSetHidden(empty, true);
+            if (empty) setHidden(empty, true);
 
             let html = '';
             providersCache.forEach((p, idx) => {
@@ -1031,15 +1012,15 @@ function providerSetHidden(el, hidden) {
                     hintEl.textContent = hintKey ? t(hintKey) : '';
                 }
                 // Show/hide Workers AI account ID + URL auto hint
-                if (accountIdBlock) providerSetHidden(accountIdBlock, !isWorkersAI);
-                if (urlAutoHint) providerSetHidden(urlAutoHint, !isWorkersAI);
+                if (accountIdBlock) setHidden(accountIdBlock, !isWorkersAI);
+                if (urlAutoHint) setHidden(urlAutoHint, !isWorkersAI);
                 // Show/hide Ollama model query block
-                if (ollamaBlock) providerSetHidden(ollamaBlock, typ !== 'ollama');
+                if (ollamaBlock) setHidden(ollamaBlock, typ !== 'ollama');
                 // Show/hide OpenRouter model browser block
-                if (openrouterBlock) providerSetHidden(openrouterBlock, typ !== 'openrouter');
+                if (openrouterBlock) setHidden(openrouterBlock, typ !== 'openrouter');
                 // Show/hide fetch pricing button
                 if (fetchPricingBtn) {
-                    providerSetHidden(fetchPricingBtn, !['openrouter','openai','anthropic','google','ollama','workers-ai'].includes(typ));
+                    setHidden(fetchPricingBtn, !['openrouter','openai','anthropic','google','ollama','workers-ai'].includes(typ));
                 }
             });
 
@@ -1049,8 +1030,8 @@ function providerSetHidden(el, hidden) {
             const oauthSection = document.getElementById('prov-oauth-section');
             authTypeSelect.addEventListener('change', () => {
                 const isOA = authTypeSelect.value === 'oauth2';
-                providerSetHidden(apikeySection, isOA);
-                providerSetHidden(oauthSection, !isOA);
+                setHidden(apikeySection, isOA);
+                setHidden(oauthSection, !isOA);
             });
 
             // ── OAuth Authorize button ──
@@ -1072,7 +1053,7 @@ function providerSetHidden(el, hidden) {
             const revokeBtn = document.getElementById('prov-oauth-revoke-btn');
             if (revokeBtn) {
                 revokeBtn.onclick = async () => {
-                    if (!confirm(t('config.providers.revoke_confirm'))) return;
+                    if (!(await showConfirm(t('config.providers.revoke_confirm_title', {default: t('config.providers.revoke_confirm')}), t('config.providers.revoke_confirm')))) return;
                     try {
                         await fetch('/api/oauth/revoke?provider=' + encodeURIComponent(data.id), { method: 'DELETE' });
                         const statusEl = document.getElementById('prov-oauth-status');
@@ -1196,7 +1177,7 @@ function providerSetHidden(el, hidden) {
 
         function providerDelete(idx) {
             const p = providersCache[idx];
-            if (!confirm(t('config.providers.delete_confirm', { name: p.name || p.id }))) return;
+            if (!(await showConfirm(t('config.providers.delete_confirm_title', {default: t('config.providers.delete_confirm')}), t('config.providers.delete_confirm', { name: p.name || p.id })))))) return;
             providersCache.splice(idx, 1);
             providerSave();
         }

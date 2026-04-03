@@ -8,11 +8,6 @@ let whEditingId = null; // null = new, string = editing
 let ogWebhooks = [];    // outgoing webhooks
 let ogEditingIdx = -1;  // -1 = new, >= 0 = editing index
 
-function whSetHidden(el, hidden) {
-    if (!el) return;
-    el.classList.toggle('is-hidden', hidden);
-}
-
 async function whFetchAll() {
     try {
         const [wResp, tResp, pResp, ogResp] = await Promise.all([
@@ -286,13 +281,13 @@ function whShowEditor(id) {
                 <button class="wh-btn" onclick="whHideEditor()">${t('config.webhooks.cancel')}</button>
                 <button class="wh-btn wh-btn-primary" onclick="whSaveWebhook()">${t('config.webhooks.save')}</button>
             </div>`;
-    whSetHidden(ed, false);
+    setHidden(ed, false);
     ed.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function whHideEditor() {
     const ed = document.getElementById('wh-editor');
-    whSetHidden(ed, true);
+    setHidden(ed, true);
     whEditingId = null;
 }
 
@@ -364,8 +359,8 @@ function whCollectEditor() {
 
 async function whSaveWebhook() {
     const data = whCollectEditor();
-    if (!data.name) return whToast(t('config.webhooks.name_required'), 'error');
-    if (!whEditingId && !data.slug) return whToast(t('config.webhooks.slug_required'), 'error');
+    if (!data.name) return showToast(t('config.webhooks.name_required'), 'error');
+    if (!whEditingId && !data.slug) return showToast(t('config.webhooks.slug_required'), 'error');
 
     try {
         let resp;
@@ -384,32 +379,32 @@ async function whSaveWebhook() {
         }
         const result = await resp.json();
         if (!resp.ok) {
-            whToast(result.error || t('config.webhooks.error'), 'error');
+            showToast(result.error || t('config.webhooks.error'), 'error');
             return;
         }
-        whToast(t('config.webhooks.saved'), 'success');
+        showToast(t('config.webhooks.saved'), 'success');
         whHideEditor();
         // Refresh
         const section = SECTIONS.flatMap(g => g.items).find(s => s.key === 'webhooks');
         await renderWebhooksSection(section);
     } catch (e) {
-        whToast(e.message, 'error');
+        showToast(e.message, 'error');
     }
 }
 
 async function whDeleteWebhook(id, name) {
-    if (!confirm(t('config.webhooks.delete_confirm') + name + '?')) return;
+    if (!(await showConfirm(t('config.webhooks.delete_confirm_title', {default: t('config.webhooks.delete_confirm')}), t('config.webhooks.delete_confirm') + name + '?'))) return;
     try {
         const resp = await fetch('/api/webhooks/' + id, { method: 'DELETE' });
         if (resp.ok) {
-            whToast(t('config.webhooks.deleted'), 'success');
+            showToast(t('config.webhooks.deleted'), 'success');
             const section = SECTIONS.flatMap(g => g.items).find(s => s.key === 'webhooks');
             await renderWebhooksSection(section);
         } else {
             const r = await resp.json();
-            whToast(r.error || t('config.webhooks.error'), 'error');
+            showToast(r.error || t('config.webhooks.error'), 'error');
         }
-    } catch (e) { whToast(e.message, 'error'); }
+    } catch (e) { showToast(e.message, 'error'); }
 }
 
 async function whTestWebhook(id) {
@@ -417,11 +412,11 @@ async function whTestWebhook(id) {
         const resp = await fetch('/api/webhooks/' + id + '/test', { method: 'POST' });
         const r = await resp.json();
         if (resp.ok) {
-            whToast(t('config.webhooks.test_prefix') + (r.prompt || t('config.webhooks.test_ok')).substring(0, 100), 'success');
+            showToast(t('config.webhooks.test_prefix') + (r.prompt || t('config.webhooks.test_ok')).substring(0, 100), 'success');
         } else {
-            whToast(r.error || t('config.webhooks.test_failed'), 'error');
+            showToast(r.error || t('config.webhooks.test_failed'), 'error');
         }
-    } catch (e) { whToast(e.message, 'error'); }
+    } catch (e) { showToast(e.message, 'error'); }
 }
 
 /* ── Token Management ── */
@@ -473,7 +468,7 @@ async function whCreateToken() {
             body: JSON.stringify({ name: name, scopes: ['webhook'] })
         });
         const r = await resp.json();
-        if (!resp.ok) { whToast(r.error || 'Error', 'error'); return; }
+        if (!resp.ok) { showToast(r.error || 'Error', 'error'); return; }
         // Show the raw token ONCE
         const reveal = document.getElementById('wh-token-created');
         if (reveal) {
@@ -502,7 +497,7 @@ async function whCreateToken() {
                 newReveal.outerHTML = revealHtml;
             }
         }
-    } catch (e) { whToast(e.message, 'error'); }
+    } catch (e) { showToast(e.message, 'error'); }
 }
 
 async function whToggleToken(id, enabled) {
@@ -513,27 +508,27 @@ async function whToggleToken(id, enabled) {
             body: JSON.stringify({ enabled: enabled })
         });
         if (resp.ok) {
-            whToast(enabled ? t('config.tokens.activated') : t('config.tokens.deactivated'), 'success');
+            showToast(enabled ? t('config.tokens.activated') : t('config.tokens.deactivated'), 'success');
             const tResp = await fetch('/api/tokens');
             if (tResp.ok) whTokens = await tResp.json();
             const panel = document.getElementById('wh-panel-tokens');
             if (panel) panel.innerHTML = whRenderTokenList();
         }
-    } catch (e) { whToast(e.message, 'error'); }
+    } catch (e) { showToast(e.message, 'error'); }
 }
 
 async function whDeleteToken(id, name) {
-    if (!confirm(t('config.tokens.delete_confirm') + name + '?')) return;
+    if (!(await showConfirm(t('config.tokens.delete_confirm_title', {default: t('config.tokens.delete_confirm')}), t('config.tokens.delete_confirm') + name + '?'))) return;
     try {
         const resp = await fetch('/api/tokens/' + id, { method: 'DELETE' });
         if (resp.ok) {
-            whToast(t('config.tokens.deleted'), 'success');
+            showToast(t('config.tokens.deleted'), 'success');
             const tResp = await fetch('/api/tokens');
             if (tResp.ok) whTokens = await tResp.json();
             const panel = document.getElementById('wh-panel-tokens');
             if (panel) panel.innerHTML = whRenderTokenList();
         }
-    } catch (e) { whToast(e.message, 'error'); }
+    } catch (e) { showToast(e.message, 'error'); }
 }
 
 /* ── Webhook Log ── */
@@ -583,14 +578,6 @@ function whCopy(el, text) {
         const icon = el.querySelector('.wh-copy-icon');
         if (icon) { icon.textContent = '✓'; setTimeout(() => icon.textContent = '📋', 2000); }
     });
-}
-
-function whToast(msg, type) {
-    const toast = document.createElement('div');
-    toast.className = 'wh-toast ' + (type || '');
-    toast.textContent = msg;
-    document.body.appendChild(toast);
-    setTimeout(() => { toast.classList.add('wh-toast-exit'); setTimeout(() => toast.remove(), 300); }, 3000);
 }
 
 /* ══════════════════════════════════════
@@ -771,26 +758,26 @@ function ogCollectModal() {
 
 async function ogSave() {
     const hook = ogCollectModal();
-    if (!hook.name) return whToast(t('config.webhooks.og_name_required'), 'error');
-    if (!hook.url) return whToast(t('config.webhooks.og_url_required'), 'error');
+    if (!hook.name) return showToast(t('config.webhooks.og_name_required'), 'error');
+    if (!hook.url) return showToast(t('config.webhooks.og_url_required'), 'error');
     const newList = [...ogWebhooks];
     if (ogEditingIdx >= 0) newList[ogEditingIdx] = hook; else newList.push(hook);
     try {
         const resp = await fetch('/api/outgoing-webhooks', {
             method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newList)
         });
-        if (!resp.ok) { const r = await resp.json(); whToast(r.error || t('config.webhooks.error'), 'error'); return; }
+        if (!resp.ok) { const r = await resp.json(); showToast(r.error || t('config.webhooks.error'), 'error'); return; }
         ogWebhooks = newList;
         ogCloseModal();
-        whToast(t('config.webhooks.og_saved'), 'success');
+        showToast(t('config.webhooks.og_saved'), 'success');
         const panel = document.getElementById('wh-panel-outgoing');
         if (panel) panel.innerHTML = ogRenderList();
-    } catch (e) { whToast(e.message, 'error'); }
+    } catch (e) { showToast(e.message, 'error'); }
 }
 
 async function ogDelete(idx) {
     const name = ogWebhooks[idx]?.name || t('config.webhooks.og_unnamed');
-    if (!confirm(t('config.webhooks.og_delete_confirm') + name + '?')) return;
+    if (!(await showConfirm(t('config.webhooks.og_delete_confirm_title', {default: t('config.webhooks.og_delete_confirm')}), t('config.webhooks.og_delete_confirm') + name + '?'))) return;
     const newList = ogWebhooks.filter((_, i) => i !== idx);
     try {
         const resp = await fetch('/api/outgoing-webhooks', {
@@ -798,9 +785,9 @@ async function ogDelete(idx) {
         });
         if (resp.ok) {
             ogWebhooks = newList;
-            whToast(t('config.webhooks.og_deleted'), 'success');
+            showToast(t('config.webhooks.og_deleted'), 'success');
             const panel = document.getElementById('wh-panel-outgoing');
             if (panel) panel.innerHTML = ogRenderList();
         }
-    } catch (e) { whToast(e.message, 'error'); }
+    } catch (e) { showToast(e.message, 'error'); }
 }

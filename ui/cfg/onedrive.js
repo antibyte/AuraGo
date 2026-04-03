@@ -85,10 +85,11 @@ async function renderOneDriveSection(section) {
 
 let _odPollTimer = null;
 
-function odSetHidden(el, hidden) {
-    if (!el) return;
-    el.classList.toggle('is-hidden', hidden);
+function _odClearPoll() {
+    if (_odPollTimer) { clearInterval(_odPollTimer); _odPollTimer = null; }
 }
+
+window.addEventListener('cfg:section-leave', _odClearPoll);
 
 function odSetStatus(msg, color) {
     const bar = document.getElementById('od-status-bar');
@@ -111,12 +112,12 @@ async function odRefreshStatus() {
             if (data.token_expired && data.has_refresh) statusText += ` (${t('config.onedrive.token_expired')}, ${t('config.onedrive.has_refresh')})`;
             else if (data.token_expired) statusText += ` (${t('config.onedrive.token_expired')})`;
             odSetStatus('✅ ' + statusText, 'var(--success)');
-            odSetHidden(disconnectBtn, false);
-            odSetHidden(connectBtn, true);
+            setHidden(disconnectBtn, false);
+            setHidden(connectBtn, true);
         } else {
             odSetStatus('⚪ ' + t('config.onedrive.auth_not_connected'), 'var(--text-secondary)');
-            odSetHidden(disconnectBtn, true);
-            odSetHidden(connectBtn, false);
+            setHidden(disconnectBtn, true);
+            setHidden(connectBtn, false);
         }
     } catch (_) {}
 }
@@ -128,7 +129,7 @@ async function odConnect() {
     const resultDiv = document.getElementById('od-auth-result');
     const codeBox = document.getElementById('od-device-code-box');
     if (resultDiv) resultDiv.innerHTML = '';
-    odSetHidden(codeBox, true);
+    setHidden(codeBox, true);
 
     try {
         const resp = await fetch('/api/onedrive/auth/start', { method: 'POST' });
@@ -142,7 +143,7 @@ async function odConnect() {
         const linkEl = document.getElementById('od-device-code-link');
         if (codeEl) codeEl.textContent = data.user_code || '';
         if (linkEl) linkEl.href = data.verification_uri || 'https://microsoft.com/devicelogin';
-        odSetHidden(codeBox, false);
+        setHidden(codeBox, false);
         odSetStatus('⏳ ' + t('config.onedrive.auth_waiting'), 'var(--warning)');
 
         // Start polling
@@ -158,7 +159,7 @@ async function odPoll(expiresAt) {
     if (Date.now() > expiresAt) {
         clearInterval(_odPollTimer);
         const codeBox = document.getElementById('od-device-code-box');
-        odSetHidden(codeBox, true);
+        setHidden(codeBox, true);
         odSetStatus('⏰ ' + t('config.onedrive.auth_timeout'), 'var(--danger)');
         return;
     }
@@ -169,12 +170,12 @@ async function odPoll(expiresAt) {
             case 'authorized':
                 clearInterval(_odPollTimer);
                 const codeBox = document.getElementById('od-device-code-box');
-                odSetHidden(codeBox, true);
+                setHidden(codeBox, true);
                 odSetStatus('✅ ' + t('config.onedrive.auth_connected'), 'var(--success)');
                 const disconnectBtn = document.getElementById('od-disconnect-btn');
                 const connectBtn = document.getElementById('od-connect-btn');
-                odSetHidden(disconnectBtn, false);
-                odSetHidden(connectBtn, true);
+                setHidden(disconnectBtn, false);
+                setHidden(connectBtn, true);
                 break;
             case 'declined':
                 clearInterval(_odPollTimer);
@@ -194,14 +195,14 @@ async function odPoll(expiresAt) {
 }
 
 async function odDisconnect() {
-    if (!confirm(t('config.onedrive.disconnect_btn') + '?')) return;
+    if (!(await showConfirm(t('config.onedrive.disconnect_confirm_title', {default: t('config.onedrive.disconnect_btn') + '?'}), t('config.onedrive.disconnect_btn') + '?'))) return;
     try {
         await fetch('/api/onedrive/auth/revoke', { method: 'DELETE' });
         odSetStatus('⚪ ' + t('config.onedrive.auth_disconnected'), 'var(--text-secondary)');
         const disconnectBtn = document.getElementById('od-disconnect-btn');
         const connectBtn = document.getElementById('od-connect-btn');
-        odSetHidden(disconnectBtn, true);
-        odSetHidden(connectBtn, false);
+        setHidden(disconnectBtn, true);
+        setHidden(connectBtn, false);
     } catch (_) {}
 }
 

@@ -1,4 +1,3 @@
-// cfg/sql_connections.js — SQL Connections section module
 let sqlConnCache = [];
 
 function renderSQLConnectionsSection(section) {
@@ -15,40 +14,39 @@ function renderSQLConnectionsSection(section) {
             ＋ ${t('config.sql_connections.add_connection')}
         </button>
     </div>
-    <div id="sqlconn-table-wrap" style="overflow-x:auto;">
-        <table style="width:100%;border-collapse:collapse;font-size:0.82rem;">
+    <div id="sqlconn-table-wrap" class="sql-table-wrap">
+        <table class="sql-table">
             <thead>
-                <tr style="border-bottom:2px solid var(--border-subtle);text-align:left;">
-                    <th style="padding:0.5rem 0.6rem;">${t('config.sql_connections.col_name')}</th>
-                    <th style="padding:0.5rem 0.6rem;">${t('config.sql_connections.col_driver')}</th>
-                    <th style="padding:0.5rem 0.6rem;">${t('config.sql_connections.col_host')}</th>
-                    <th style="padding:0.5rem 0.6rem;">${t('config.sql_connections.col_database')}</th>
-                    <th style="padding:0.5rem 0.6rem;">${t('config.sql_connections.col_description')}</th>
-                    <th style="padding:0.5rem 0.6rem;">${t('config.sql_connections.col_permissions')}</th>
-                    <th style="padding:0.5rem 0.6rem;text-align:right;">${t('config.sql_connections.col_actions')}</th>
+                <tr class="sql-table-head-row">
+                    <th class="sql-table-th">${t('config.sql_connections.col_name')}</th>
+                    <th class="sql-table-th">${t('config.sql_connections.col_driver')}</th>
+                    <th class="sql-table-th">${t('config.sql_connections.col_host')}</th>
+                    <th class="sql-table-th">${t('config.sql_connections.col_database')}</th>
+                    <th class="sql-table-th">${t('config.sql_connections.col_description')}</th>
+                    <th class="sql-table-th">${t('config.sql_connections.col_permissions')}</th>
+                    <th class="sql-table-th sql-table-th-actions">${t('config.sql_connections.col_actions')}</th>
                 </tr>
             </thead>
             <tbody id="sqlconn-tbody"></tbody>
         </table>
     </div>
-    <div id="sqlconn-empty" style="display:none;text-align:center;padding:2rem;color:var(--text-tertiary);font-size:0.85rem;">
+    <div id="sqlconn-empty" class="sql-empty-state is-hidden">
         ${t('config.sql_connections.empty')}
     </div>
-    <div id="sqlconn-loading" style="text-align:center;padding:2rem;color:var(--text-secondary);font-size:0.85rem;">
+    <div id="sqlconn-loading" class="sql-loading-state">
         ${t('config.sql_connections.loading')}
     </div>`;
 
-    // Modal overlay
     html += `
-    <div id="sqlconn-modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:1000;backdrop-filter:blur(4px);" onclick="sqlConnCloseModal(event)">
+    <div id="sqlconn-modal-overlay" class="sql-modal-overlay is-hidden" onclick="sqlConnCloseModal(event)">
         <div class="sqlconn-modal" onclick="event.stopPropagation()">
             <div class="sqlconn-modal-header">
-                <span id="sqlconn-modal-title" style="font-size:1rem;font-weight:600;"></span>
-                <button onclick="sqlConnCloseModal()" style="background:none;border:none;color:var(--text-secondary);font-size:1.2rem;cursor:pointer;">✕</button>
+                <span id="sqlconn-modal-title" class="sql-modal-title"></span>
+                <button onclick="sqlConnCloseModal()" class="sql-modal-close">✕</button>
             </div>
             <input type="hidden" id="sqlconn-edit-id">
 
-            <div class="field-group" style="margin-bottom:0.8rem;">
+            <div class="field-group sql-field-group">
                 <div class="field-label">${t('config.sql_connections.name_label')} *</div>
                 <input type="text" id="sqlconn-field-name" class="field-input" placeholder="${t('config.sql_connections.name_placeholder')}">
             </div>
@@ -56,7 +54,7 @@ function renderSQLConnectionsSection(section) {
             <div class="sqlconn-grid-two">
                 <div class="field-group">
                     <div class="field-label">${t('config.sql_connections.driver_label')} *</div>
-                    <select id="sqlconn-field-driver" class="field-input" style="padding:0.45rem 0.6rem;" onchange="sqlConnDriverChanged()">
+                    <select id="sqlconn-field-driver" class="field-input sql-select-compact" onchange="sqlConnDriverChanged()">
                         <option value="postgres">PostgreSQL</option>
                         <option value="mysql">MySQL / MariaDB</option>
                         <option value="sqlite">SQLite</option>
@@ -75,7 +73,7 @@ function renderSQLConnectionsSection(section) {
                 </div>
                 <div class="field-group">
                     <div class="field-label">${t('config.sql_connections.ssl_mode_label')}</div>
-                    <select id="sqlconn-field-ssl" class="field-input" style="padding:0.45rem 0.6rem;">
+                    <select id="sqlconn-field-ssl" class="field-input sql-select-compact">
                         <option value="">Default</option>
                         <option value="disable">Disable</option>
                         <option value="require">Require</option>
@@ -85,12 +83,12 @@ function renderSQLConnectionsSection(section) {
                 </div>
             </div>
 
-            <div class="field-group" style="margin-top:0.8rem;">
+            <div class="field-group sql-field-group-mt">
                 <div class="field-label">${t('config.sql_connections.database_label')} *</div>
                 <input type="text" id="sqlconn-field-database" class="field-input" placeholder="${t('config.sql_connections.database_placeholder')}">
             </div>
 
-            <div class="field-group" style="margin-top:0.8rem;">
+            <div class="field-group sql-field-group-mt">
                 <div class="field-label">${t('config.sql_connections.description_label')}</div>
                 <input type="text" id="sqlconn-field-desc" class="field-input" placeholder="${t('config.sql_connections.description_placeholder')}">
             </div>
@@ -107,7 +105,7 @@ function renderSQLConnectionsSection(section) {
             </div>
 
             <div class="sqlconn-permissions-card">
-                <div class="field-label" style="margin-bottom:0.5rem;font-weight:600;">${t('config.sql_connections.permissions_title')}</div>
+                <div class="field-label sql-perm-title">${t('config.sql_connections.permissions_title')}</div>
                 <div class="sqlconn-permissions-grid">
                     <label class="sqlconn-permission-item">
                         <input type="checkbox" id="sqlconn-perm-read" checked> ${t('config.sql_connections.perm_read')}
@@ -122,11 +120,11 @@ function renderSQLConnectionsSection(section) {
                         <input type="checkbox" id="sqlconn-perm-delete"> ${t('config.sql_connections.perm_delete')}
                     </label>
                 </div>
-                <div style="margin-top:0.4rem;font-size:0.75rem;color:var(--text-tertiary);">${t('config.sql_connections.permissions_hint')}</div>
+                <div class="sql-perm-hint">${t('config.sql_connections.permissions_hint')}</div>
             </div>
 
-            <div id="sqlconn-modal-error" style="display:none;margin-top:0.7rem;padding:0.5rem 0.8rem;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;font-size:0.8rem;color:var(--danger);"></div>
-            <div id="sqlconn-modal-success" style="display:none;margin-top:0.7rem;padding:0.5rem 0.8rem;background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.3);border-radius:8px;font-size:0.8rem;color:var(--success);"></div>
+            <div id="sqlconn-modal-error" class="sql-modal-error is-hidden"></div>
+            <div id="sqlconn-modal-success" class="sql-modal-success is-hidden"></div>
 
             <div class="sqlconn-modal-actions">
                 <button class="btn-save sqlconn-test-btn" id="sqlconn-test-btn" onclick="sqlConnTest()">
@@ -150,9 +148,9 @@ async function sqlConnLoad() {
     const empty = document.getElementById('sqlconn-empty');
     const loading = document.getElementById('sqlconn-loading');
     const table = document.getElementById('sqlconn-table-wrap');
-    loading.style.display = 'block';
-    table.style.display = 'none';
-    empty.style.display = 'none';
+    loading.classList.remove('is-hidden');
+    table.classList.add('is-hidden');
+    empty.classList.add('is-hidden');
 
     try {
         const resp = await fetch('/api/sql-connections');
@@ -164,18 +162,19 @@ async function sqlConnLoad() {
         return;
     }
 
-    loading.style.display = 'none';
+    loading.classList.add('is-hidden');
     if (sqlConnCache.length === 0) {
-        empty.style.display = 'block';
+        empty.classList.remove('is-hidden');
         return;
     }
-    table.style.display = 'block';
+    table.classList.remove('is-hidden');
     sqlConnRenderRows(sqlConnCache);
 }
 
 function sqlConnRenderRows(connections) {
     const tbody = document.getElementById('sqlconn-tbody');
     tbody.innerHTML = '';
+    const permClasses = { R: 'sql-perm-read', W: 'sql-perm-write', C: 'sql-perm-change', D: 'sql-perm-delete' };
     connections.forEach(c => {
         const perms = [];
         if (c.allow_read) perms.push('R');
@@ -183,27 +182,26 @@ function sqlConnRenderRows(connections) {
         if (c.allow_change) perms.push('C');
         if (c.allow_delete) perms.push('D');
         const permBadges = perms.map(p => {
-            const colors = { R: '#3b82f6', W: '#22c55e', C: '#f59e0b', D: '#ef4444' };
             const labels = { R: t('config.sql_connections.badge_read'), W: t('config.sql_connections.badge_write'), C: t('config.sql_connections.badge_change'), D: t('config.sql_connections.badge_delete') };
-            return '<span style="display:inline-block;background:' + colors[p] + '22;color:' + colors[p] + ';border:1px solid ' + colors[p] + '44;border-radius:6px;padding:0.1rem 0.4rem;font-size:0.7rem;font-weight:600;margin-right:0.2rem;">' + labels[p] + '</span>';
+            return '<span class="sql-perm-badge ' + permClasses[p] + '">' + labels[p] + '</span>';
         }).join('');
 
         const driverIcon = { postgres: '🐘', mysql: '🐬', sqlite: '📄' }[c.driver] || '🗄️';
         const hostDisplay = c.driver === 'sqlite' ? (c.database_name || '—') : (c.host || 'localhost') + (c.port ? ':' + c.port : '');
         const tr = document.createElement('tr');
-        tr.style.borderBottom = '1px solid var(--border-subtle)';
+        tr.classList.add('sql-table-row');
         tr.dataset.id = c.id;
         tr.innerHTML = `
-            <td style="padding:0.5rem 0.6rem;font-weight:500;">${escapeHtml(c.name)}</td>
-            <td style="padding:0.5rem 0.6rem;"><span style="background:var(--bg-secondary);border:1px solid var(--border-subtle);border-radius:6px;padding:0.15rem 0.5rem;font-size:0.75rem;">${driverIcon} ${escapeHtml(c.driver)}</span></td>
-            <td style="padding:0.5rem 0.6rem;font-family:monospace;font-size:0.8rem;">${escapeHtml(hostDisplay)}</td>
-            <td style="padding:0.5rem 0.6rem;">${escapeHtml(c.database_name || '—')}</td>
-            <td style="padding:0.5rem 0.6rem;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(c.description || '')}">${escapeHtml(c.description || '—')}</td>
-            <td style="padding:0.5rem 0.6rem;">${permBadges || '—'}</td>
-            <td style="padding:0.5rem 0.6rem;text-align:right;white-space:nowrap;">
-                <button onclick="sqlConnTestExisting(${c.id})" style="background:none;border:none;cursor:pointer;font-size:0.9rem;" title="${t('config.sql_connections.test_tooltip')}">🔌</button>
-                <button onclick="sqlConnShowModal(${c.id})" style="background:none;border:none;cursor:pointer;font-size:0.9rem;" title="${t('config.sql_connections.edit_tooltip')}">✏️</button>
-                <button onclick="sqlConnDelete(${c.id},'${escapeHtml(c.name).replace(/'/g, "\\'")}')" style="background:none;border:none;cursor:pointer;font-size:0.9rem;margin-left:0.3rem;" title="${t('config.sql_connections.delete_tooltip')}">🗑️</button>
+            <td class="sql-td-name">${escapeHtml(c.name)}</td>
+            <td class="sql-td"><span class="sql-driver-badge">${driverIcon} ${escapeHtml(c.driver)}</span></td>
+            <td class="sql-td-host">${escapeHtml(hostDisplay)}</td>
+            <td class="sql-td">${escapeHtml(c.database_name || '—')}</td>
+            <td class="sql-td-desc" title="${escapeHtml(c.description || '')}">${escapeHtml(c.description || '—')}</td>
+            <td class="sql-td">${permBadges || '—'}</td>
+            <td class="sql-td-actions">
+                <button onclick="sqlConnTestExisting(${c.id})" class="sql-action-btn" title="${t('config.sql_connections.test_tooltip')}">🔌</button>
+                <button onclick="sqlConnShowModal(${c.id})" class="sql-action-btn" title="${t('config.sql_connections.edit_tooltip')}">✏️</button>
+                <button onclick="sqlConnDelete(${c.id},'${escapeHtml(c.name).replace(/'/g, "\\'")}')" class="sql-action-btn sql-action-btn-delete" title="${t('config.sql_connections.delete_tooltip')}">🗑️</button>
             </td>`;
         tbody.appendChild(tr);
     });
@@ -216,15 +214,15 @@ function sqlConnApplyFilter() {
         return hay.includes(q);
     });
     sqlConnRenderRows(filtered);
-    document.getElementById('sqlconn-empty').style.display = filtered.length === 0 ? 'block' : 'none';
-    document.getElementById('sqlconn-table-wrap').style.display = filtered.length > 0 ? 'block' : 'none';
+    document.getElementById('sqlconn-empty').classList.toggle('is-hidden', filtered.length > 0);
+    document.getElementById('sqlconn-table-wrap').classList.toggle('is-hidden', filtered.length === 0);
 }
 
 function sqlConnDriverChanged() {
     const driver = document.getElementById('sqlconn-field-driver').value;
     const isSQLite = driver === 'sqlite';
-    document.getElementById('sqlconn-host-row').style.display = isSQLite ? 'none' : '';
-    document.getElementById('sqlconn-creds-row').style.display = isSQLite ? 'none' : '';
+    document.getElementById('sqlconn-host-row').classList.toggle('is-hidden', isSQLite);
+    document.getElementById('sqlconn-creds-row').classList.toggle('is-hidden', isSQLite);
     const portInput = document.getElementById('sqlconn-field-port');
     if (driver === 'postgres') portInput.placeholder = '5432';
     else if (driver === 'mysql') portInput.placeholder = '3306';
@@ -236,8 +234,8 @@ function sqlConnDriverChanged() {
 function sqlConnShowModal(id) {
     const overlay = document.getElementById('sqlconn-modal-overlay');
     const title = document.getElementById('sqlconn-modal-title');
-    document.getElementById('sqlconn-modal-error').style.display = 'none';
-    document.getElementById('sqlconn-modal-success').style.display = 'none';
+    document.getElementById('sqlconn-modal-error').classList.add('is-hidden');
+    document.getElementById('sqlconn-modal-success').classList.add('is-hidden');
 
     if (id) {
         const c = sqlConnCache.find(x => x.id === id);
@@ -275,30 +273,30 @@ function sqlConnShowModal(id) {
         document.getElementById('sqlconn-perm-delete').checked = false;
     }
     sqlConnDriverChanged();
-    overlay.style.display = 'block';
+    overlay.classList.remove('is-hidden');
 }
 
 function sqlConnCloseModal(e) {
     if (e && e.target !== e.currentTarget) return;
-    document.getElementById('sqlconn-modal-overlay').style.display = 'none';
+    document.getElementById('sqlconn-modal-overlay').classList.add('is-hidden');
 }
 
 async function sqlConnSave() {
     const errBox = document.getElementById('sqlconn-modal-error');
     const successBox = document.getElementById('sqlconn-modal-success');
-    errBox.style.display = 'none';
-    successBox.style.display = 'none';
+    errBox.classList.add('is-hidden');
+    successBox.classList.add('is-hidden');
 
     const name = document.getElementById('sqlconn-field-name').value.trim();
     const database = document.getElementById('sqlconn-field-database').value.trim();
     if (!name) {
         errBox.textContent = t('config.sql_connections.name_required');
-        errBox.style.display = 'block';
+        errBox.classList.remove('is-hidden');
         return;
     }
     if (!database) {
         errBox.textContent = t('config.sql_connections.database_required');
-        errBox.style.display = 'block';
+        errBox.classList.remove('is-hidden');
         return;
     }
 
@@ -339,7 +337,7 @@ async function sqlConnSave() {
         await sqlConnLoad();
     } catch (e) {
         errBox.textContent = '❌ ' + e.message;
-        errBox.style.display = 'block';
+        errBox.classList.remove('is-hidden');
     } finally {
         btn.disabled = false;
     }
@@ -348,8 +346,8 @@ async function sqlConnSave() {
 async function sqlConnTest() {
     const errBox = document.getElementById('sqlconn-modal-error');
     const successBox = document.getElementById('sqlconn-modal-success');
-    errBox.style.display = 'none';
-    successBox.style.display = 'none';
+    errBox.classList.add('is-hidden');
+    successBox.classList.add('is-hidden');
 
     const btn = document.getElementById('sqlconn-test-btn');
     btn.disabled = true;
@@ -359,21 +357,19 @@ async function sqlConnTest() {
 
     try {
         if (editId) {
-            // Test existing connection via ID
             const resp = await fetch('/api/sql-connections/' + editId + '/test', { method: 'POST' });
             const data = await resp.json().catch(() => ({}));
             if (!resp.ok) throw new Error(data.error || 'Test failed');
             successBox.textContent = '✅ ' + (data.message || t('config.sql_connections.test_success'));
         } else {
-            // For new connections, save first then test
             errBox.textContent = t('config.sql_connections.save_before_test');
-            errBox.style.display = 'block';
+            errBox.classList.remove('is-hidden');
             return;
         }
-        successBox.style.display = 'block';
+        successBox.classList.remove('is-hidden');
     } catch (e) {
         errBox.textContent = '❌ ' + e.message;
-        errBox.style.display = 'block';
+        errBox.classList.remove('is-hidden');
     } finally {
         btn.disabled = false;
         btn.textContent = '🔌 ' + t('config.sql_connections.test_connection');
@@ -385,16 +381,15 @@ async function sqlConnTestExisting(id) {
         const resp = await fetch('/api/sql-connections/' + id + '/test', { method: 'POST' });
         const data = await resp.json().catch(() => ({}));
         if (!resp.ok) throw new Error(data.error || 'Test failed');
-
-            showToast(data.message || t('config.sql_connections.test_success'), 'success');
+        showToast(data.message || t('config.sql_connections.test_success'), 'success');
     } catch (e) {
-            showToast(e.message || t('config.common.error'), 'error');
+        showToast(e.message || t('config.common.error'), 'error');
     }
 }
 
 async function sqlConnDelete(id, name) {
     const msg = t('config.sql_connections.delete_confirm', { name: name });
-    if (!confirm(msg)) return;
+    if (!await showConfirm(msg)) return;
 
     try {
         const resp = await fetch('/api/sql-connections/' + id, { method: 'DELETE' });
@@ -404,6 +399,6 @@ async function sqlConnDelete(id, name) {
         }
         await sqlConnLoad();
     } catch (e) {
-            showToast(e.message || t('config.common.error'), 'error');
+        showToast(e.message || t('config.common.error'), 'error');
     }
 }

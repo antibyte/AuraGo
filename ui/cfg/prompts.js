@@ -2,11 +2,6 @@
 
 let persState = { personalities: [], active: '', editName: undefined, isCore: false, extraMetaYaml: '' };
 
-        function persSetHidden(el, hidden) {
-            if (!el) return;
-            el.classList.toggle('is-hidden', hidden);
-        }
-
         async function renderPromptsSection(section) {
             const agentCfg = configData.agent || {};
             const additionalPromptVal = agentCfg.additional_prompt || '';
@@ -168,15 +163,15 @@ let persState = { personalities: [], active: '', editName: undefined, isCore: fa
             persState.isCore = false;
             const editor = document.getElementById('pers-editor');
             if (!editor) return;
-            persSetHidden(document.getElementById('pers-editor-name-row'), false);
-            persSetHidden(document.getElementById('pers-activate-btn'), true);
-            persSetHidden(document.getElementById('pers-delete-btn'), true);
+            setHidden(document.getElementById('pers-editor-name-row'), false);
+            setHidden(document.getElementById('pers-activate-btn'), true);
+            setHidden(document.getElementById('pers-delete-btn'), true);
             document.getElementById('pers-name-input').value = '';
             document.getElementById('pers-content-input').value = '';
             document.getElementById('pers-editor-status').textContent = '';
             persSetMetaDefaults();
             persApplyCoreMode(false);
-            persSetHidden(editor, false);
+            setHidden(editor, false);
             document.querySelectorAll('.pers-chip').forEach(c => c.classList.remove('selected'));
             document.getElementById('pers-name-input').focus();
         }
@@ -193,13 +188,13 @@ let persState = { personalities: [], active: '', editName: undefined, isCore: fa
             });
             const editor = document.getElementById('pers-editor');
             if (!editor) return;
-            persSetHidden(document.getElementById('pers-editor-name-row'), true);
-            persSetHidden(document.getElementById('pers-activate-btn'), name === persState.active);
-            persSetHidden(document.getElementById('pers-delete-btn'), name === persState.active);
+            setHidden(document.getElementById('pers-editor-name-row'), true);
+            setHidden(document.getElementById('pers-activate-btn'), name === persState.active);
+            setHidden(document.getElementById('pers-delete-btn'), name === persState.active);
             document.getElementById('pers-content-input').value = '';
             const status = document.getElementById('pers-editor-status');
             status.textContent = t('config.prompts.loading');
-            persSetHidden(editor, false);
+            setHidden(editor, false);
             try {
                 const resp = await fetch('/api/config/personality-files?name=' + encodeURIComponent(name));
                 if (!resp.ok) throw new Error('HTTP ' + resp.status);
@@ -223,9 +218,9 @@ let persState = { personalities: [], active: '', editName: undefined, isCore: fa
                 if (el) el.disabled = isCore;
             });
             const saveBtn = document.querySelector('.pers-editor-actions .wh-btn-primary');
-            if (saveBtn) persSetHidden(saveBtn, isCore);
+            if (saveBtn) setHidden(saveBtn, isCore);
             const delBtn = document.getElementById('pers-delete-btn');
-            if (delBtn && isCore) persSetHidden(delBtn, true);
+            if (delBtn && isCore) setHidden(delBtn, true);
             const statusEl = document.getElementById('pers-editor-status');
             if (statusEl) {
                 if (isCore) {
@@ -296,7 +291,7 @@ let persState = { personalities: [], active: '', editName: undefined, isCore: fa
         async function persDelete() {
             const name = persState.editName;
             if (!name) return;
-            const confirmed = confirm(t('config.prompts.delete_confirm', {name: name}));
+            const confirmed = await showConfirm(t('config.prompts.delete_confirm_title', {name: name}), t('config.prompts.delete_confirm', {name: name}));
             if (!confirmed) return;
             const status = document.getElementById('pers-editor-status');
             status.textContent = t('config.prompts.deleting');
@@ -311,7 +306,7 @@ let persState = { personalities: [], active: '', editName: undefined, isCore: fa
 
         function persCancel() {
             const editor = document.getElementById('pers-editor');
-            persSetHidden(editor, true);
+            setHidden(editor, true);
             document.querySelectorAll('.pers-chip').forEach(c => c.classList.remove('selected'));
             persState.editName = undefined;
         }

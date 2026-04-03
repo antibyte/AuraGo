@@ -126,7 +126,7 @@
                 <label class="idx-field-label">${t('config.indexing.poll_interval')}</label>
                 <input type="number" min="10" max="3600" value="${poll}"
                     data-path="indexing.poll_interval_seconds"
-                    oninput="idxSetVal('indexing.poll_interval_seconds', parseInt(this.value))"
+                    oninput="setNestedValue(configData,'indexing.poll_interval_seconds', parseInt(this.value));markDirty()"
                     class="idx-poll-input">
                 <div class="idx-field-help idx-field-help-tight">
                     ${t('config.indexing.poll_help')}
@@ -159,18 +159,6 @@
         }
 
 
-
-        function idxSetVal(path, val) {
-            const parts = path.split('.');
-            let obj = configData;
-            for (let i = 0; i < parts.length - 1; i++) {
-                if (!obj[parts[i]]) obj[parts[i]] = {};
-                obj = obj[parts[i]];
-            }
-            obj[parts[parts.length - 1]] = val;
-            setDirty(true);
-        }
-
         async function idxAddDir() {
             const input = document.getElementById('idx-new-dir');
             const path = input.value.trim();
@@ -197,7 +185,7 @@
         }
 
         async function idxRemoveDir(path) {
-            if (!confirm(t('config.indexing.remove_confirm'))) return;
+            if (!(await showConfirm(t('config.indexing.remove_confirm_title', {default: t('config.indexing.remove_confirm')}), t('config.indexing.remove_confirm')))) return;
             try {
                 const resp = await fetch('/api/indexing/directories', {
                     method: 'DELETE',

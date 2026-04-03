@@ -2,18 +2,13 @@
 
 let _totpNewSecret = '';
 
-function authSetHidden(el, hidden) {
-    if (!el) return;
-    el.classList.toggle('is-hidden', !!hidden);
-}
-
 function authSetStatus(el, level, text) {
     if (!el) return;
     el.classList.remove('is-success', 'is-error');
     if (level === 'success') el.classList.add('is-success');
     if (level === 'error') el.classList.add('is-error');
     el.textContent = text || '';
-    authSetHidden(el, !text);
+    setHidden(el, !text);
 }
 
 async function renderWebConfigSection(section) {
@@ -201,8 +196,8 @@ async function authTOTPStartSetup() {
         const data = await resp.json();
         _totpNewSecret = data.secret;
         document.getElementById('totp-secret-display').textContent = data.secret;
-        authSetHidden(document.getElementById('auth-totp-setup'), false);
-        authSetHidden(document.getElementById('btn-totp-start'), true);
+        setHidden(document.getElementById('auth-totp-setup'), false);
+        setHidden(document.getElementById('btn-totp-start'), true);
         // Render QR code (qrcodejs library)
         const qrEl = document.getElementById('totp-qr');
         qrEl.innerHTML = '';
@@ -242,7 +237,7 @@ async function authTOTPConfirm() {
 }
 
 async function authTOTPDisable() {
-    if (!confirm(t('config.auth.totp_disable_confirm'))) return;
+    if (!(await showConfirm(t('config.auth.totp_disable_confirm_title', {default: t('config.auth.totp_disable_confirm')}), t('config.auth.totp_disable_confirm')))) return;
     try {
         const resp = await fetch('/api/auth/totp', { method: 'DELETE' });
         const data = await resp.json();

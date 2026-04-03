@@ -2,11 +2,6 @@
 let ccDevicesCache = [];
 let ccDiscoveredCache = [];
 
-function ccSetHidden(element, hidden) {
-    if (!element) return;
-    element.classList.toggle('is-hidden', hidden);
-}
-
 function ccRenderDiscoveryState(area, type, message) {
     if (!area) return;
     area.innerHTML = `<div class="cc-discovery-state cc-discovery-state-${type}">${message}</div>`;
@@ -126,9 +121,9 @@ async function ccLoadDevices() {
     const empty = document.getElementById('cc-empty');
     const loading = document.getElementById('cc-loading');
     const table = document.getElementById('cc-table-wrap');
-    ccSetHidden(loading, false);
-    ccSetHidden(table, true);
-    ccSetHidden(empty, true);
+    setHidden(loading, false);
+    setHidden(table, true);
+    setHidden(empty, true);
 
     try {
         const resp = await fetch('/api/devices');
@@ -140,12 +135,12 @@ async function ccLoadDevices() {
         return;
     }
 
-    ccSetHidden(loading, true);
+    setHidden(loading, true);
     if (ccDevicesCache.length === 0) {
-        ccSetHidden(empty, false);
+        setHidden(empty, false);
         return;
     }
-    ccSetHidden(table, false);
+    setHidden(table, false);
     ccRenderRows(ccDevicesCache);
 }
 
@@ -175,7 +170,7 @@ async function ccDiscoverDevices() {
     const area = document.getElementById('cc-discover-area');
     btn.disabled = true;
     btn.textContent = '⏳ ' + t('config.chromecast.discovering');
-    ccSetHidden(area, false);
+    setHidden(area, false);
     ccRenderDiscoveryState(area, 'loading', '⏳ ' + t('config.chromecast.discovering'));
 
     try {
@@ -275,7 +270,7 @@ function ccShowAddManual() {
 function ccShowEditModal(id, prefill) {
     const overlay = document.getElementById('cc-modal-overlay');
     const title = document.getElementById('cc-modal-title');
-    ccSetHidden(document.getElementById('cc-modal-error'), true);
+    setHidden(document.getElementById('cc-modal-error'), true);
 
     if (id) {
         // Editing existing device
@@ -304,30 +299,30 @@ function ccShowEditModal(id, prefill) {
         document.getElementById('cc-field-port').value = '8009';
         document.getElementById('cc-field-desc').value = '';
     }
-    ccSetHidden(overlay, false);
+    setHidden(overlay, false);
 }
 
 function ccCloseModal(e) {
     if (e && e.target !== e.currentTarget) return;
-    ccSetHidden(document.getElementById('cc-modal-overlay'), true);
+    setHidden(document.getElementById('cc-modal-overlay'), true);
 }
 
 // ── Save device (create/update via device registry API) ──
 async function ccSaveDevice() {
     const errBox = document.getElementById('cc-modal-error');
-    ccSetHidden(errBox, true);
+    setHidden(errBox, true);
 
     const name = document.getElementById('cc-field-name').value.trim();
     if (!name) {
         errBox.textContent = t('config.chromecast.name_required');
-        ccSetHidden(errBox, false);
+        setHidden(errBox, false);
         return;
     }
 
     const ip = document.getElementById('cc-field-ip').value.trim();
     if (!ip) {
         errBox.textContent = t('config.chromecast.ip_required');
-        ccSetHidden(errBox, false);
+        setHidden(errBox, false);
         return;
     }
 
@@ -382,7 +377,7 @@ async function ccSaveDevice() {
         }
     } catch (e) {
         errBox.textContent = '❌ ' + e.message;
-        ccSetHidden(errBox, false);
+        setHidden(errBox, false);
     } finally {
         btn.disabled = false;
     }
@@ -391,7 +386,7 @@ async function ccSaveDevice() {
 // ── Delete device ──
 async function ccDeleteDevice(id, name) {
     const msg = t('config.chromecast.delete_confirm', { name: name });
-    if (!confirm(msg)) return;
+    if (!(await showConfirm(t('config.chromecast.delete_confirm_title', {default: msg}), msg))) return;
 
     try {
         const resp = await fetch('/api/devices/' + id, { method: 'DELETE' });

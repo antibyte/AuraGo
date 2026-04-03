@@ -1,6 +1,9 @@
 // cfg/webdav.js — WebDAV integration config panel
 
+let _wbdSection = null;
+
 function renderWebDAVSection(section) {
+    if (section) _wbdSection = section; else section = _wbdSection;
     const data = configData.webdav || {};
     const enabled = data.enabled === true;
     const readonly = data.readonly === true;

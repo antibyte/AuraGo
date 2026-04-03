@@ -2,11 +2,6 @@
 
 let _dcSection = null;
 
-function dcSetHidden(element, hidden) {
-    if (!element) return;
-    element.classList.toggle('is-hidden', hidden);
-}
-
 async function renderDocumentCreatorSection(section) {
     if (section) _dcSection = section; else section = _dcSection;
     const toolsCfg = configData.tools || {};
@@ -109,7 +104,7 @@ function dcSwitchBackend(val) {
     configData.tools.document_creator.backend = val;
     setDirty(true);
     var el = document.getElementById('dc-gotenberg-fields');
-    dcSetHidden(el, val !== 'gotenberg');
+    setHidden(el, val !== 'gotenberg');
 }
 
 async function dcTestGotenberg() {

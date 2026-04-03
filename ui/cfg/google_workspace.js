@@ -1,5 +1,13 @@
 // cfg/google_workspace.js — Google Workspace integration section module
 
+let _gwPollInterval = null;
+
+function _gwClearPoll() {
+    if (_gwPollInterval) { clearInterval(_gwPollInterval); _gwPollInterval = null; }
+}
+
+window.addEventListener('cfg:section-leave', _gwClearPoll);
+
 async function renderGoogleWorkspaceSection(section) {
     const data = configData['google_workspace'] || {};
     const enabledOn = data.enabled === true;
@@ -171,12 +179,12 @@ async function gwOAuthConnect() {
             statusEl.textContent = t('config.google_workspace.oauth_waiting');
             const manualSection = document.getElementById('gw-manual-section');
             if (manualSection) manualSection.style.display = 'block';
-            // Poll status every 3 seconds for up to 2 minutes
+            _gwClearPoll();
             let attempts = 0;
-            const poll = setInterval(async () => {
+            _gwPollInterval = setInterval(async () => {
                 attempts++;
                 if (attempts > 40) {
-                    clearInterval(poll);
+                    _gwClearPoll();
                     statusEl.textContent = t('config.google_workspace.oauth_timeout');
                     return;
                 }
@@ -184,7 +192,7 @@ async function gwOAuthConnect() {
                     const sr = await fetch('/api/oauth/status?provider=google_workspace');
                     const sd = await sr.json();
                     if (sd.authorized) {
-                        clearInterval(poll);
+                        _gwClearPoll();
                         statusEl.style.color = 'var(--success)';
                         statusEl.textContent = '✓ ' + t('config.google_workspace.oauth_connected');
                     }

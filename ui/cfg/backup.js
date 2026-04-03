@@ -56,7 +56,7 @@ function renderBackupSection(section) {
             <div class="field-hint backup-field-hint">${t('config.backup.password_hint')}</div>
             <div class="password-wrap">
                 <input type="password" id="backup-password" class="field-input" placeholder="${t('config.backup.encryption_placeholder')}" autocomplete="new-password" oninput="backupUpdateVaultHint()">
-                <button type="button" class="password-toggle" onclick="(function(b){var i=document.getElementById('backup-password');i.type=i.type==='password'?'text':'password';b.innerHTML=i.type==='password'?EYE_OPEN_SVG:EYE_CLOSED_SVG;})(this)" title="Toggle visibility">${'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="backup-eye-icon"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>'}</button>
+                <button type="button" class="password-toggle" onclick="togglePassword(this)" title="Toggle visibility">${EYE_OPEN_SVG}</button>
             </div>
             <div id="backup-vault-hint" class="backup-vault-hint is-warning">${t('config.backup.no_password_warning')}</div>
         </div>
@@ -84,7 +84,7 @@ function renderBackupSection(section) {
             <div class="field-label">${t('config.backup.import_password_label')}</div>
             <div class="password-wrap">
                 <input type="password" id="backup-import-password" class="field-input" placeholder="${t('config.backup.decryption_placeholder')}" autocomplete="off">
-                <button type="button" class="password-toggle" onclick="(function(b){var i=document.getElementById('backup-import-password');i.type=i.type==='password'?'text':'password';b.innerHTML=i.type==='password'?EYE_OPEN_SVG:EYE_CLOSED_SVG;})(this)" title="Toggle visibility">${'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="backup-eye-icon"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>'}</button>
+                <button type="button" class="password-toggle" onclick="togglePassword(this)" title="Toggle visibility">${EYE_OPEN_SVG}</button>
             </div>
         </div>
 

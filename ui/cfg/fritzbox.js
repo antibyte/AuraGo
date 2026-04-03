@@ -1,10 +1,7 @@
-// cfg/fritzbox.js — Fritz!Box integration config panel
-
 function renderFritzBoxSection(section) {
     const data = configData['fritzbox'] || {};
     const enabled = data.enabled === true;
 
-    // Feature groups
     const sys = (data.system) || {};
     const net = (data.network) || {};
     const tel = (data.telephony) || {};
@@ -16,10 +13,8 @@ function renderFritzBoxSection(section) {
     html += '<div class="section-header">' + section.icon + ' ' + section.label + '</div>';
     html += '<div class="section-desc">' + section.desc + '</div>';
 
-    // ── Connection status banner ──
-    html += '<div id="fb-status-banner" style="margin-bottom:1rem;padding:0.8rem 1rem;border-radius:10px;font-size:0.84rem;background:var(--bg-tertiary);color:var(--text-secondary);">' + t('config.fritzbox.checking') + '</div>';
+    html += '<div id="fb-status-banner" class="cfg-status-banner">' + t('config.fritzbox.checking') + '</div>';
 
-    // ── Master enabled toggle ──
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.fritzbox.enabled_label') + '</div>';
     html += '<div class="field-help">' + t('help.fritzbox.enabled') + '</div>';
@@ -28,22 +23,19 @@ function renderFritzBoxSection(section) {
     html += '<span class="toggle-label">' + (enabled ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
     html += '</div></div>';
 
-    // ── Host ──
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.fritzbox.host_label') + '</div>';
     html += '<div class="field-help">' + t('help.fritzbox.host') + '</div>';
     html += '<input class="field-input" type="text" data-path="fritzbox.host" value="' + escapeAttr(data.host || 'fritz.box') + '" placeholder="fritz.box">';
     html += '</div>';
 
-    // ── Port ──
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.fritzbox.port_label') + '</div>';
     html += '<div class="field-help">' + t('help.fritzbox.port') + '</div>';
     html += '<input class="field-input" type="number" data-path="fritzbox.port" value="' + escapeAttr(String(data.port || '49000')) + '" placeholder="49000">';
     html += '</div>';
 
-    // ── HTTPS toggle ──
-    const httpsOn = data.https !== false; // default true
+    const httpsOn = data.https !== false;
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.fritzbox.https_label') + '</div>';
     html += '<div class="field-help">' + t('help.fritzbox.https') + '</div>';
@@ -52,45 +44,41 @@ function renderFritzBoxSection(section) {
     html += '<span class="toggle-label">' + (httpsOn ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
     html += '</div></div>';
 
-    // ── Username ──
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.fritzbox.username_label') + '</div>';
     html += '<div class="field-help">' + t('help.fritzbox.username') + '</div>';
     html += '<input class="field-input" type="text" data-path="fritzbox.username" value="' + escapeAttr(data.username || '') + '" placeholder="">';
     html += '</div>';
 
-    // ── Password (vault) ──
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.fritzbox.password_label') + '</div>';
     html += '<div class="field-help">' + t('help.fritzbox.password') + '</div>';
-    html += '<div style="display:flex;gap:0.5rem;align-items:center;">';
-    html += '<input class="field-input" type="password" id="fb-password" placeholder="' + t('config.fritzbox.password_placeholder') + '" style="flex:1;">';
-    html += '<button class="btn-save" style="padding:0.45rem 1rem;font-size:0.82rem;" onclick="fbSavePassword()">💾 ' + t('config.fritzbox.save_vault') + '</button>';
+    html += '<div class="cfg-field-row">';
+    html += '<div class="password-wrap cfg-password-input">';
+    html += '<input class="field-input cfg-password-input" type="password" id="fb-password" placeholder="' + t('config.fritzbox.password_placeholder') + '">';
+    html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
+    html += '</div>';
+    html += '<button class="btn-save cfg-save-btn-sm" onclick="fbSavePassword()">💾 ' + t('config.fritzbox.save_vault') + '</button>';
     html += '</div></div>';
 
-    // ── Test connection ──
     html += '<div class="field-group">';
-    html += '<button class="btn-save" style="padding:0.5rem 1.2rem;font-size:0.85rem;" onclick="fbTestConnection()" id="fb-test-btn">🔌 ' + t('config.fritzbox.test_btn') + '</button>';
-    html += '<span id="fb-test-result" style="margin-left:0.8rem;font-size:0.83rem;"></span>';
+    html += '<button class="btn-save cfg-save-btn-sm" onclick="fbTestConnection()" id="fb-test-btn">🔌 ' + t('config.fritzbox.test_btn') + '</button>';
+    html += '<span id="fb-test-result" class="cfg-status-text"></span>';
     html += '</div>';
 
-    // ── Feature groups ──────────────────────────────────────────────────────
-    html += '<hr style="border:none;border-top:1px solid var(--border-subtle);margin:1.5rem 0;">';
-    html += '<div style="font-weight:600;font-size:0.95rem;color:var(--accent);margin-bottom:1rem;">⚙️ ' + t('config.fritzbox.features_title') + '</div>';
+    html += '<hr class="cfg-section-hr">';
+    html += '<div class="cfg-section-title">⚙️ ' + t('config.fritzbox.features_title') + '</div>';
 
-    // Helper: render a feature group with enabled + readonly toggles
     function featureGroup(key, titleKey, data) {
         const on = data.enabled === true;
         const ro = data.readonly === true;
-        let h = '<div style="background:var(--bg-tertiary);border-radius:10px;padding:1rem;margin-bottom:0.8rem;">';
-        h += '<div style="font-weight:600;font-size:0.88rem;color:var(--text-primary);margin-bottom:0.7rem;">' + t(titleKey) + '</div>';
-        h += '<div style="display:flex;gap:1.5rem;flex-wrap:wrap;">';
-        // Enabled
+        let h = '<div class="fb-feature-card">';
+        h += '<div class="fb-feature-title">' + t(titleKey) + '</div>';
+        h += '<div class="fb-feature-toggles">';
         h += '<div class="cfg-toggle-row-compact">';
         h += '<div class="toggle toggle-sm' + (on ? ' on' : '') + '" data-path="fritzbox.' + key + '.enabled" onclick="toggleBool(this)"></div>';
         h += '<span class="cfg-toggle-label">' + t('config.fritzbox.feature_enabled') + '</span>';
         h += '</div>';
-        // Read-only
         h += '<div class="cfg-toggle-row-compact">';
         h += '<div class="toggle toggle-sm' + (ro ? ' on' : '') + '" data-path="fritzbox.' + key + '.readonly" onclick="toggleBool(this)"></div>';
         h += '<span class="cfg-toggle-label">' + t('config.fritzbox.feature_readonly') + '</span>';
@@ -106,25 +94,23 @@ function renderFritzBoxSection(section) {
     html += featureGroup('storage',    'config.fritzbox.group_storage',    sto);
     html += featureGroup('tv',         'config.fritzbox.group_tv',         tv);
 
-    // ── Telephony polling ──
     const pollingEnabled = (tel.polling || {}).enabled === true;
     const pollingInterval = (tel.polling || {}).interval_seconds || 60;
-    html += '<div style="background:var(--bg-tertiary);border-radius:10px;padding:1rem;margin-bottom:0.8rem;">';
-    html += '<div style="font-weight:600;font-size:0.88rem;color:var(--text-primary);margin-bottom:0.7rem;">📞 ' + t('config.fritzbox.group_polling') + '</div>';
-    html += '<div class="cfg-toggle-row-compact" style="margin-bottom:0.6rem;">';
+    html += '<div class="fb-feature-card">';
+    html += '<div class="fb-feature-title">📞 ' + t('config.fritzbox.group_polling') + '</div>';
+    html += '<div class="cfg-toggle-row-compact">';
     html += '<div class="toggle toggle-sm' + (pollingEnabled ? ' on' : '') + '" data-path="fritzbox.telephony.polling.enabled" onclick="toggleBool(this)"></div>';
     html += '<span class="cfg-toggle-label">' + t('config.fritzbox.polling_enabled') + '</span>';
     html += '</div>';
-    html += '<div style="display:flex;align-items:center;gap:0.6rem;">';
-    html += '<span style="font-size:0.82rem;color:var(--text-secondary);">' + t('config.fritzbox.polling_interval') + '</span>';
-    html += '<input class="field-input" type="number" min="10" max="3600" data-path="fritzbox.telephony.polling.interval_seconds" value="' + escapeAttr(String(pollingInterval)) + '" style="width:90px;">';
-    html += '<span style="font-size:0.8rem;color:var(--text-tertiary);">' + t('config.fritzbox.polling_seconds') + '</span>';
+    html += '<div class="cfg-input-row">';
+    html += '<span class="cfg-label">' + t('config.fritzbox.polling_interval') + '</span>';
+    html += '<input class="field-input fb-poll-input" type="number" min="10" max="3600" data-path="fritzbox.telephony.polling.interval_seconds" value="' + escapeAttr(String(pollingInterval)) + '">';
+    html += '<span class="fb-hint">' + t('config.fritzbox.polling_seconds') + '</span>';
     html += '</div></div>';
 
     html += '</div>';
     document.getElementById('content').innerHTML = html;
 
-    // Auto-check status if enabled and host set
     if (enabled && data.host) {
         fbCheckStatus();
     }
@@ -133,28 +119,27 @@ function renderFritzBoxSection(section) {
 function fbCheckStatus() {
     const banner = document.getElementById('fb-status-banner');
     if (!banner) return;
-    banner.style.background = 'var(--bg-tertiary)';
-    banner.style.color = 'var(--text-secondary)';
+    banner.className = 'cfg-status-banner';
     banner.textContent = t('config.fritzbox.checking');
 
     fetch('/api/fritzbox/status')
         .then(r => r.json())
         .then(res => {
             if (!res.enabled) {
+                banner.className = 'cfg-status-banner';
                 banner.textContent = '⚪ ' + t('config.fritzbox.status_disabled');
                 return;
             }
             if (!res.configured) {
+                banner.className = 'cfg-status-banner';
                 banner.textContent = '⚪ ' + t('config.fritzbox.status_not_configured');
                 return;
             }
-            banner.style.background = 'rgba(52,199,89,0.1)';
-            banner.style.color = 'var(--success, #34c759)';
+            banner.className = 'cfg-status-banner cfg-status-success';
             banner.textContent = '🟢 ' + t('config.fritzbox.status_ok') + ' — ' + (res.host || '');
         })
         .catch(() => {
-            banner.style.background = 'rgba(255,59,48,0.1)';
-            banner.style.color = 'var(--error, #ff3b30)';
+            banner.className = 'cfg-status-banner cfg-status-error';
             banner.textContent = '🔴 ' + t('config.fritzbox.status_error');
         });
 }
@@ -163,7 +148,7 @@ function fbTestConnection() {
     const btn = document.getElementById('fb-test-btn');
     const result = document.getElementById('fb-test-result');
     if (btn) btn.disabled = true;
-    if (result) { result.textContent = '⏳ ...'; result.style.color = 'var(--text-secondary)'; }
+    if (result) { result.textContent = '⏳ ...'; result.className = 'cfg-status-text'; }
 
     fetch('/api/fritzbox/test', { method: 'POST' })
         .then(r => r.json())
@@ -171,18 +156,18 @@ function fbTestConnection() {
             if (btn) btn.disabled = false;
             if (!result) return;
             if (res.status === 'ok') {
-                result.style.color = 'var(--success, #34c759)';
+                result.className = 'cfg-status-text cfg-status-success';
                 result.textContent = '✅ ' + t('config.fritzbox.test_ok') + (res.model ? ' — ' + res.model : '');
                 fbCheckStatus();
             } else {
-                result.style.color = 'var(--error, #ff3b30)';
+                result.className = 'cfg-status-text cfg-status-error';
                 result.textContent = '❌ ' + (res.message || t('config.fritzbox.test_fail'));
             }
         })
         .catch(() => {
             if (btn) btn.disabled = false;
             if (result) {
-                result.style.color = 'var(--error, #ff3b30)';
+                result.className = 'cfg-status-text cfg-status-error';
                 result.textContent = '❌ ' + t('config.fritzbox.test_fail');
             }
         });

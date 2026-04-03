@@ -1,11 +1,6 @@
 // cfg/devices.js — Device Registry section module
 let devicesCache = [];
 
-function devicesSetHidden(element, hidden) {
-    if (!element) return;
-    element.classList.toggle('is-hidden', !!hidden);
-}
-
 function renderDevicesSection(section) {
     let html = '<div class="cfg-section active">';
     html += '<div class="section-header">' + section.icon + ' ' + section.label + '</div>';
@@ -131,9 +126,9 @@ async function devicesLoad() {
     const empty = document.getElementById('devices-empty');
     const loading = document.getElementById('devices-loading');
     const table = document.getElementById('devices-table-wrap');
-    devicesSetHidden(loading, false);
-    devicesSetHidden(table, true);
-    devicesSetHidden(empty, true);
+    setHidden(loading, false);
+    setHidden(table, true);
+    setHidden(empty, true);
 
     try {
         const resp = await fetch('/api/devices');
@@ -144,12 +139,12 @@ async function devicesLoad() {
         return;
     }
 
-    devicesSetHidden(loading, true);
+    setHidden(loading, true);
     if (devicesCache.length === 0) {
-        devicesSetHidden(empty, false);
+        setHidden(empty, false);
         return;
     }
-    devicesSetHidden(table, false);
+    setHidden(table, false);
     devicesRenderRows(devicesCache);
 }
 
@@ -184,15 +179,15 @@ function devicesApplyFilter() {
         return hay.includes(q);
     });
     devicesRenderRows(filtered);
-    devicesSetHidden(document.getElementById('devices-empty'), filtered.length !== 0);
-    devicesSetHidden(document.getElementById('devices-table-wrap'), filtered.length === 0);
+    setHidden(document.getElementById('devices-empty'), filtered.length !== 0);
+    setHidden(document.getElementById('devices-table-wrap'), filtered.length === 0);
 }
 
 function devicesShowModal(id) {
     const overlay = document.getElementById('device-modal-overlay');
     const title = document.getElementById('device-modal-title');
-    devicesSetHidden(document.getElementById('device-modal-error'), true);
-    devicesSetHidden(document.getElementById('device-mac-status'), true);
+    setHidden(document.getElementById('device-modal-error'), true);
+    setHidden(document.getElementById('device-mac-status'), true);
 
     if (id) {
         const d = devicesCache.find(x => x.id === id);
@@ -221,12 +216,12 @@ function devicesShowModal(id) {
         document.getElementById('device-field-tags').value = '';
         document.getElementById('device-field-vault').value = '';
     }
-    devicesSetHidden(overlay, false);
+    setHidden(overlay, false);
 }
 
 function devicesCloseModal(e) {
     if (e && e.target !== e.currentTarget) return;
-    devicesSetHidden(document.getElementById('device-modal-overlay'), true);
+    setHidden(document.getElementById('device-modal-overlay'), true);
 }
 
 // devicesFindMAC queries the ARP table via the backend API and fills in the MAC field.
@@ -238,14 +233,14 @@ async function devicesFindMAC() {
     if (!ip) {
         statusEl.textContent = '⚠️ ' + t('config.devices.find_mac_no_ip');
         statusEl.className = 'devices-mac-status devices-mac-warn';
-        devicesSetHidden(statusEl, false);
+        setHidden(statusEl, false);
         return;
     }
 
     btn.disabled = true;
     statusEl.textContent = t('config.devices.find_mac_searching');
     statusEl.className = 'devices-mac-status devices-mac-info';
-    devicesSetHidden(statusEl, false);
+    setHidden(statusEl, false);
 
     try {
         const resp = await fetch('/api/tools/mac_lookup', {
@@ -271,18 +266,18 @@ async function devicesFindMAC() {
         statusEl.className = 'devices-mac-status devices-mac-error';
     } finally {
         btn.disabled = false;
-        devicesSetHidden(statusEl, false);
+        setHidden(statusEl, false);
     }
 }
 
 async function devicesSave() {
     const errBox = document.getElementById('device-modal-error');
-    devicesSetHidden(errBox, true);
+    setHidden(errBox, true);
 
     const name = document.getElementById('device-field-name').value.trim();
     if (!name) {
         errBox.textContent = t('config.devices.name_required');
-        devicesSetHidden(errBox, false);
+        setHidden(errBox, false);
         return;
     }
 
@@ -322,7 +317,7 @@ async function devicesSave() {
         await devicesLoad();
     } catch (e) {
         errBox.textContent = '❌ ' + e.message;
-        devicesSetHidden(errBox, false);
+        setHidden(errBox, false);
     } finally {
         btn.disabled = false;
     }
@@ -330,7 +325,7 @@ async function devicesSave() {
 
 async function devicesDelete(id, name) {
     const msg = t('config.devices.delete_confirm', {name: name});
-    if (!confirm(msg)) return;
+    if (!(await showConfirm(t('config.devices.delete_confirm_title', {default: msg}), msg))) return;
 
     try {
         const resp = await fetch('/api/devices/' + id, { method: 'DELETE' });

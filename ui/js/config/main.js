@@ -398,10 +398,9 @@ async function selectSection(key, options = {}) {
         }
     }
     scrollActiveSidebarItemIntoView(scrollBehavior, expandedTargetGroup ? 320 : 0);
+    window.dispatchEvent(new CustomEvent('cfg:section-leave'));
     await renderSection(key);
-    // Re-attach change listeners after rendering
     attachChangeListeners();
-    // Auto-close sidebar on mobile
     closeSidebar();
 }
 

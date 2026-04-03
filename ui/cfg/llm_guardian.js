@@ -1,5 +1,3 @@
-// cfg/llm_guardian.js — LLM Guardian config section module
-
 let _guardianSection = null;
 
 async function renderLLMGuardianSection(section) {
@@ -11,7 +9,6 @@ async function renderLLMGuardianSection(section) {
         <div class="section-header">${section.icon} ${section.label}</div>
         <div class="section-desc">${section.desc}</div>`;
 
-    // ── Enabled toggle ──
     html += `<div class="cfg-toggle-row-highlight">
         <span class="cfg-toggle-label">${t('config.llm_guardian.enabled_label')}</span>
         <div class="toggle ${enabled ? 'on' : ''}" data-path="llm_guardian.enabled" onclick="toggleBool(this);setNestedValue(configData,'llm_guardian.enabled',this.classList.contains('on'));renderLLMGuardianSection(null)"></div>
@@ -31,15 +28,14 @@ async function renderLLMGuardianSection(section) {
         return;
     }
 
-    // ── Provider ──
     html += `<div class="field-group">
         <div class="field-group-title">${t('config.llm_guardian.provider_title')}</div>
         <div class="field-group-desc">${t('config.llm_guardian.provider_desc')}</div>`;
 
     const curProvider = cfg.provider || '';
-    html += `<label style="display:block;margin-bottom:0.6rem;">
-        <span style="font-size:0.78rem;color:var(--text-secondary);">${t('config.llm_guardian.provider_label')}</span>
-        <select class="cfg-input" data-path="llm_guardian.provider" style="width:100%;margin-top:0.2rem;"
+    html += `<label class="lg-field-label">
+        <span class="lg-label-text">${t('config.llm_guardian.provider_label')}</span>
+        <select class="field-input cfg-input-full" data-path="llm_guardian.provider"
             onchange="setNestedValue(configData,'llm_guardian.provider',this.value);setDirty(true)">
             <option value=""${!curProvider ? ' selected' : ''}>${t('config.llm_guardian.select_provider')}</option>`;
     providersCache.forEach(p => {
@@ -51,26 +47,23 @@ async function renderLLMGuardianSection(section) {
     });
     html += `</select></label>`;
 
-    // Model override
     const curModel = cfg.model || '';
-    html += `<label style="display:block;margin-bottom:0.6rem;">
-        <span style="font-size:0.78rem;color:var(--text-secondary);">${t('config.llm_guardian.model_label')} <small style="color:var(--text-tertiary);">(${t('config.llm_guardian.model_hint')})</small></span>
-        <input type="text" class="cfg-input" data-path="llm_guardian.model" value="${escapeAttr(curModel)}"
-            placeholder="gemini-2.0-flash, gpt-4o-mini..."
-            style="width:100%;margin-top:0.2rem;">
+    html += `<label class="lg-field-label">
+        <span class="lg-label-text">${t('config.llm_guardian.model_label')} <small class="lg-hint-text">(${t('config.llm_guardian.model_hint')})</small></span>
+        <input type="text" class="field-input cfg-input-full" data-path="llm_guardian.model" value="${escapeAttr(curModel)}"
+            placeholder="gemini-2.0-flash, gpt-4o-mini...">
     </label>`;
     html += `</div>`;
 
-    // ── Default Level ──
     html += `<div class="field-group">
         <div class="field-group-title">${t('config.llm_guardian.level_title')}</div>
         <div class="field-group-desc">${t('config.llm_guardian.level_desc')}</div>`;
 
     const curLevel = cfg.default_level || 'medium';
     const levels = ['off', 'low', 'medium', 'high'];
-    html += `<label style="display:block;margin-bottom:0.6rem;">
-        <span style="font-size:0.78rem;color:var(--text-secondary);">${t('config.llm_guardian.level_label')}</span>
-        <select class="cfg-input" data-path="llm_guardian.default_level" style="width:100%;margin-top:0.2rem;"
+    html += `<label class="lg-field-label">
+        <span class="lg-label-text">${t('config.llm_guardian.level_label')}</span>
+        <select class="field-input cfg-input-full" data-path="llm_guardian.default_level"
             onchange="setNestedValue(configData,'llm_guardian.default_level',this.value);setDirty(true)">`;
     levels.forEach(lv => {
         const sel = (curLevel === lv) ? ' selected' : '';
@@ -79,16 +72,15 @@ async function renderLLMGuardianSection(section) {
     html += `</select></label>`;
     html += `</div>`;
 
-    // ── Fail-Safe Behavior ──
     html += `<div class="field-group">
         <div class="field-group-title">${t('config.llm_guardian.failsafe_title')}</div>
         <div class="field-group-desc">${t('config.llm_guardian.failsafe_desc')}</div>`;
 
     const curFailSafe = cfg.fail_safe || 'quarantine';
     const failSafes = ['block', 'quarantine', 'allow'];
-    html += `<label style="display:block;margin-bottom:0.6rem;">
-        <span style="font-size:0.78rem;color:var(--text-secondary);">${t('config.llm_guardian.failsafe_label')}</span>
-        <select class="cfg-input" data-path="llm_guardian.fail_safe" style="width:100%;margin-top:0.2rem;"
+    html += `<label class="lg-field-label">
+        <span class="lg-label-text">${t('config.llm_guardian.failsafe_label')}</span>
+        <select class="field-input cfg-input-full" data-path="llm_guardian.fail_safe"
             onchange="setNestedValue(configData,'llm_guardian.fail_safe',this.value);setDirty(true)">`;
     failSafes.forEach(fs => {
         const sel = (curFailSafe === fs) ? ' selected' : '';
@@ -97,29 +89,25 @@ async function renderLLMGuardianSection(section) {
     html += `</select></label>`;
     html += `</div>`;
 
-    // ── Performance ──
     html += `<div class="field-group">
         <div class="field-group-title">${t('config.llm_guardian.perf_title')}</div>
         <div class="field-group-desc">${t('config.llm_guardian.perf_desc')}</div>`;
 
     const curTTL = cfg.cache_ttl != null ? cfg.cache_ttl : 300;
-    html += `<label style="display:block;margin-bottom:0.6rem;">
-        <span style="font-size:0.78rem;color:var(--text-secondary);">${t('config.llm_guardian.cache_ttl_label')}</span>
-        <input type="number" class="cfg-input" data-path="llm_guardian.cache_ttl" value="${curTTL}"
-            min="0" max="3600" step="30"
-            style="width:100%;margin-top:0.2rem;">
+    html += `<label class="lg-field-label">
+        <span class="lg-label-text">${t('config.llm_guardian.cache_ttl_label')}</span>
+        <input type="number" class="field-input cfg-input-full" data-path="llm_guardian.cache_ttl" value="${curTTL}"
+            min="0" max="3600" step="30">
     </label>`;
 
     const curRate = cfg.max_checks_per_minute != null ? cfg.max_checks_per_minute : 60;
-    html += `<label style="display:block;margin-bottom:0.6rem;">
-        <span style="font-size:0.78rem;color:var(--text-secondary);">${t('config.llm_guardian.rate_limit_label')}</span>
-        <input type="number" class="cfg-input" data-path="llm_guardian.max_checks_per_minute" value="${curRate}"
-            min="1" max="300" step="1"
-            style="width:100%;margin-top:0.2rem;">
+    html += `<label class="lg-field-label">
+        <span class="lg-label-text">${t('config.llm_guardian.rate_limit_label')}</span>
+        <input type="number" class="field-input cfg-input-full" data-path="llm_guardian.max_checks_per_minute" value="${curRate}"
+            min="1" max="300" step="1">
     </label>`;
     html += `</div>`;
 
-    // ── Agent Clarification ──
     html += `<div class="field-group">
         <div class="field-group-title">${t('config.llm_guardian.clarification_title')}</div>
         <div class="field-group-desc">${t('config.llm_guardian.clarification_desc')}</div>`;
@@ -131,7 +119,6 @@ async function renderLLMGuardianSection(section) {
     </div>`;
     html += `</div>`;
 
-    // ── Content Scanning ──
     html += `<div class="field-group">
         <div class="field-group-title">${t('config.llm_guardian.scan_title')}</div>
         <div class="field-group-desc">${t('config.llm_guardian.scan_desc')}</div>`;
@@ -149,7 +136,6 @@ async function renderLLMGuardianSection(section) {
     </div>`;
     html += `</div>`;
 
-    // ── Tool Overrides ──
     html += `<div class="field-group">
         <div class="field-group-title">${t('config.llm_guardian.overrides_title')}</div>
         <div class="field-group-desc">${t('config.llm_guardian.overrides_desc')}</div>`;
@@ -158,31 +144,30 @@ async function renderLLMGuardianSection(section) {
     const overrideKeys = Object.keys(overrides);
 
     if (overrideKeys.length > 0) {
-        html += `<div style="display:flex;flex-direction:column;gap:0.4rem;margin-bottom:0.6rem;">`;
+        html += `<div class="lg-override-list">`;
         overrideKeys.forEach(toolName => {
             const toolLevel = overrides[toolName] || 'medium';
             const desc = _guardianToolDescriptions[toolName] || '';
             const riskIcon = _guardianHighRiskTools.has(toolName) ? '🔴' : (_guardianRiskyTools.has(toolName) ? '🟡' : '⚪');
-            html += `<div style="display:flex;align-items:center;gap:0.5rem;">
-                <span style="flex:1;font-size:0.78rem;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${escapeAttr(desc ? toolName + ' — ' + desc : toolName)}">${riskIcon} <strong>${escapeAttr(toolName)}</strong>${desc ? ' <span style="color:var(--text-tertiary);">— ' + escapeAttr(desc) + '</span>' : ''}</span>
-                <select class="cfg-input" style="width:120px;font-size:0.78rem;"
+            html += `<div class="lg-override-row">
+                <span class="lg-override-name" title="${escapeAttr(desc ? toolName + ' — ' + desc : toolName)}">${riskIcon} <strong>${escapeAttr(toolName)}</strong>${desc ? ' <span class="lg-override-desc">— ' + escapeAttr(desc) + '</span>' : ''}</span>
+                <select class="field-input lg-select-sm"
                     onchange="guardianSetOverride('${escapeAttr(toolName)}',this.value)">`;
             levels.forEach(lv => {
                 const sel = (toolLevel === lv) ? ' selected' : '';
                 html += `<option value="${lv}"${sel}>${t('config.llm_guardian.level_' + lv)}</option>`;
             });
             html += `</select>
-                <button class="btn-sm" style="font-size:0.7rem;padding:0.2rem 0.5rem;background:var(--error);color:#fff;border:none;border-radius:4px;cursor:pointer;"
+                <button class="lg-btn-remove"
                     onclick="guardianRemoveOverride('${escapeAttr(toolName)}')">✕</button>
             </div>`;
         });
         html += `</div>`;
     }
 
-    // Searchable tool input with datalist
-    html += `<div style="display:flex;gap:0.4rem;align-items:center;">
-        <input type="text" id="guardian-new-tool" class="cfg-input" list="guardian-tool-datalist"
-            placeholder="${t('config.llm_guardian.overrides_tool_search')}" style="flex:1;font-size:0.78rem;">
+    html += `<div class="lg-add-row">
+        <input type="text" id="guardian-new-tool" class="field-input lg-add-input" list="guardian-tool-datalist"
+            placeholder="${t('config.llm_guardian.overrides_tool_search')}">
         <datalist id="guardian-tool-datalist">`;
     if (_guardianToolList) {
         _guardianToolList.forEach(name => {
@@ -195,13 +180,13 @@ async function renderLLMGuardianSection(section) {
         });
     }
     html += `</datalist>
-        <select id="guardian-new-level" class="cfg-input" style="width:120px;font-size:0.78rem;">`;
+        <select id="guardian-new-level" class="field-input lg-select-sm">`;
     levels.forEach(lv => {
         const sel = (lv === 'high') ? ' selected' : '';
         html += `<option value="${lv}"${sel}>${t('config.llm_guardian.level_' + lv)}</option>`;
     });
     html += `</select>
-        <button class="btn-sm" style="font-size:0.78rem;padding:0.2rem 0.6rem;background:var(--accent);color:#fff;border:none;border-radius:4px;cursor:pointer;"
+        <button class="lg-btn-add"
             onclick="guardianAddOverride()">+</button>
     </div>`;
     html += `</div>`;
@@ -210,13 +195,10 @@ async function renderLLMGuardianSection(section) {
     document.getElementById('content').innerHTML = html;
     attachChangeListeners();
 
-    // Load tool list asynchronously if not cached yet
     if (!_guardianToolList) {
         guardianLoadToolList();
     }
 }
-
-// ── Tool list & descriptions ────────────────────────────────────────────────
 
 let _guardianToolList = null;
 
@@ -277,11 +259,9 @@ async function guardianLoadToolList() {
         const names = await resp.json();
         if (Array.isArray(names) && names.length > 0) {
             _guardianToolList = names;
-            // Re-render to populate datalist
             renderLLMGuardianSection(null);
         }
     } catch (e) {
-        // Silent fail — tool list is optional enhancement
     }
 }
 

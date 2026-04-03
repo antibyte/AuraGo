@@ -58,4 +58,5 @@ function renderAIGatewaySection(section) {
     html += '</div>';
     html += '</div>';
     document.getElementById('content').innerHTML = html;
+    attachChangeListeners();
 }

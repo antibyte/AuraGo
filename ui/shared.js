@@ -1210,6 +1210,46 @@ function initShared() {
     console.log('[AuraGo] Shared components initialized');
 }
 
+// ── Config-page shared utilities ─────────────────────
+
+function setHidden(el, hidden) {
+    if (!el) return;
+    el.classList.toggle('is-hidden', hidden);
+}
+
+async function vaultSave(key, value, statusEl) {
+    const resp = await fetch('/api/vault/secrets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key, value })
+    });
+    const res = await resp.json();
+    if (res.status === 'ok' || res.success) {
+        showToast('✓ ' + t('config.common.saved'), 'success');
+        if (statusEl) { statusEl.textContent = ''; }
+        return true;
+    } else {
+        const msg = res.message || t('config.common.error');
+        showToast(msg, 'error');
+        if (statusEl) {
+            statusEl.style.color = 'var(--danger)';
+            statusEl.textContent = '✗ ' + msg;
+        }
+        return false;
+    }
+}
+
+async function cfgFetch(url, options = {}) {
+    const resp = await fetch(url, options);
+    if (!resp.ok) {
+        const text = await resp.text();
+        let msg;
+        try { msg = JSON.parse(text).message; } catch(_) { msg = text.slice(0, 200); }
+        throw new Error(msg || 'HTTP ' + resp.status);
+    }
+    return resp.json();
+}
+
 // Auto-initialize on DOM ready - simple and reliable approach
 function scheduleInit() {
     if (document.readyState === 'loading') {
