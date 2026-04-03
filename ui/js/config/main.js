@@ -1315,11 +1315,11 @@ function vaultDeletePrompt() {
     document.getElementById('vault-confirm-input').placeholder = word;
     document.getElementById('vault-confirm-input').value = '';
     document.getElementById('vault-confirm-btn').disabled = true;
-    document.getElementById('vault-modal-title').textContent = t('config.vault.delete_title');
+    document.getElementById('modal-title').textContent = t('config.vault.delete_title');
     document.getElementById('vault-modal-desc').innerHTML = t('config.vault.delete_desc');
     document.getElementById('vault-confirm-btn').textContent = t('config.vault.destroy_button');
     document.getElementById('vault-cancel-btn').textContent = t('config.vault.cancel');
-    document.getElementById('vault-delete-overlay').classList.remove('is-hidden');
+    document.getElementById('vault-delete-overlay').classList.add('active');
     setTimeout(() => document.getElementById('vault-confirm-input').focus(), 100);
 }
 
@@ -1330,7 +1330,7 @@ function vaultCheckWord() {
 }
 
 function vaultDeleteCancel() {
-    document.getElementById('vault-delete-overlay').classList.add('is-hidden');
+    document.getElementById('vault-delete-overlay').classList.remove('active');
 }
 
 async function vaultDeleteConfirm() {
@@ -1340,7 +1340,7 @@ async function vaultDeleteConfirm() {
         const data = await resp.json();
         if (resp.ok) {
             vaultExists = false;
-            document.getElementById('vault-delete-overlay').classList.add('is-hidden');
+            document.getElementById('vault-delete-overlay').classList.remove('active');
             const cfgResp = await fetch('/api/config');
             configData = await cfgResp.json();
             selectSection('server');
