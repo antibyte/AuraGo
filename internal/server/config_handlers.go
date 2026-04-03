@@ -2,7 +2,6 @@ package server
 
 import (
 	"aurago/internal/agent"
-	"aurago/internal/budget"
 	"aurago/internal/config"
 	"aurago/internal/llm"
 	"aurago/internal/security"
@@ -433,7 +432,8 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 
 			// Always re-create BudgetTracker after a config reload so that
 			// toggling budget.enabled or changing limits takes effect immediately.
-			s.BudgetTracker = budget.NewTracker(newCfg, s.Logger, newCfg.Directories.DataDir)
+			// reinitBudgetTracker also re-registers the MissionManagerV2 callback.
+			s.reinitBudgetTracker(newCfg)
 			if newCfg.Budget.Enabled {
 				s.Logger.Info("[Config UI] BudgetTracker re-initialized", "enabled", true)
 			} else {

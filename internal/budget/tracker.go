@@ -74,6 +74,9 @@ type Tracker struct {
 
 	// Optional mission trigger callback: eventType is "budget_warning" or "budget_exceeded"
 	missionCallback func(eventType string, spentUSD, limitUSD, percentage float64)
+
+	// Debounced persistence: timer fires actual disk write at most every 3 s
+	persistTimer *time.Timer
 }
 
 // NewTracker creates a budget tracker. If budget is disabled in config, returns nil.
@@ -97,22 +100,15 @@ func NewTracker(cfg *config.Config, logger *slog.Logger, dataDir string) *Tracke
 	// Check if we need to reset for a new day
 	today := t.todayStr()
 	if t.date != today {
-		t.date = today
-		t.totalCostUSD = 0
-		t.categoryCost = make(map[string]float64)
-		t.inputTokens = make(map[string]int)
-		t.outputTokens = make(map[string]int)
-		t.callCounts = make(map[string]int)
-		t.warningsSent = 0
-		t.exceeded = false
-		t.persistLocked()
+		t.resetForNewDayLocked(today)
+		t.doPersistLocked()
 	}
 
 	// Re-evaluate exceeded flag: if the effective limit was raised above current spend,
 	// clear the exceeded state so the new limit takes effect immediately.
 	if t.exceeded && cfg.Budget.DailyLimitUSD > 0 && t.totalCostUSD < cfg.Budget.DailyLimitUSD {
 		t.exceeded = false
-		t.persistLocked()
+		t.doPersistLocked()
 		logger.Info("[Budget] Exceeded flag cleared (limit raised above current spend)",
 			"spent", t.totalCostUSD, "new_limit", cfg.Budget.DailyLimitUSD)
 	}
@@ -156,14 +152,7 @@ func (t *Tracker) RecordForCategory(category, model string, inputTokens, outputT
 	today := t.todayStr()
 	if t.date != today {
 		t.logger.Info("[Budget] Day rolled over, resetting counters", "old_date", t.date, "new_date", today)
-		t.date = today
-		t.totalCostUSD = 0
-		t.categoryCost = make(map[string]float64)
-		t.inputTokens = make(map[string]int)
-		t.outputTokens = make(map[string]int)
-		t.callCounts = make(map[string]int)
-		t.warningsSent = 0
-		t.exceeded = false
+		t.resetForNewDayLocked(today)
 	}
 
 	t.inputTokens[model] += inputTokens
@@ -219,7 +208,14 @@ func (t *Tracker) RecordForCategory(category, model string, inputTokens, outputT
 }
 
 // RecordCost adds a direct cost to the daily budget (e.g. image generation).
+// Use RecordCostForCategory to also track the cost under a named category.
 func (t *Tracker) RecordCost(costUSD float64) {
+	t.RecordCostForCategory("", costUSD)
+}
+
+// RecordCostForCategory adds a direct cost and attributes it to a named category
+// (e.g. "image_generation"). It also fires mission callbacks for warning/exceeded thresholds.
+func (t *Tracker) RecordCostForCategory(category string, costUSD float64) {
 	if t == nil || costUSD <= 0 {
 		return
 	}
@@ -229,26 +225,54 @@ func (t *Tracker) RecordCost(costUSD float64) {
 
 	today := t.todayStr()
 	if t.date != today {
-		t.date = today
-		t.totalCostUSD = 0
-		t.categoryCost = make(map[string]float64)
-		t.inputTokens = make(map[string]int)
-		t.outputTokens = make(map[string]int)
-		t.callCounts = make(map[string]int)
-		t.warningsSent = 0
-		t.exceeded = false
+		t.resetForNewDayLocked(today)
 	}
 
 	t.totalCostUSD += costUSD
-
-	limit := t.cfg.Budget.DailyLimitUSD
-	if limit > 0 && t.totalCostUSD/limit >= 1.0 && !t.exceeded {
-		t.exceeded = true
-		t.logger.Warn("[Budget] Daily budget EXCEEDED (image generation)",
-			"spent", t.totalCostUSD, "limit", limit)
+	if category != "" {
+		t.categoryCost[strings.ToLower(category)] += costUSD
 	}
 
-	t.persistLocked()
+	limit := t.cfg.Budget.DailyLimitUSD
+	crossedWarning := false
+	crossedExceeded := false
+
+	if limit > 0 {
+		pct := t.totalCostUSD / limit
+		threshold := t.cfg.Budget.WarningThreshold
+
+		if pct >= threshold && t.warningsSent == 0 {
+			t.warningsSent = 1
+			crossedWarning = true
+			t.logger.Warn("[Budget] Warning threshold crossed",
+				"spent", t.totalCostUSD, "limit", limit, "pct", pct)
+		}
+
+		if pct >= 1.0 && !t.exceeded {
+			t.exceeded = true
+			crossedExceeded = true
+			t.logger.Warn("[Budget] Daily budget EXCEEDED",
+				"spent", t.totalCostUSD, "limit", limit, "category", category)
+		}
+	}
+
+	cb := t.missionCallback
+	spent := t.totalCostUSD
+	// Use debounced persist for the LLM-cost hot path; immediate on threshold crossings.
+	if crossedWarning || crossedExceeded {
+		t.persistLocked()
+	} else {
+		t.schedulePersistLocked()
+	}
+
+	if cb != nil {
+		if crossedWarning {
+			go cb("budget_warning", spent, limit, spent/limit)
+		}
+		if crossedExceeded {
+			go cb("budget_exceeded", spent, limit, spent/limit)
+		}
+	}
 }
 
 // CategorySpendUSD returns the tracked spend for one execution category on the current day.
@@ -565,7 +589,60 @@ func (t *Tracker) nextResetTime() time.Time {
 	return next
 }
 
+// resetForNewDayLocked zeroes all daily counters. Must be called with t.mu held.
+func (t *Tracker) resetForNewDayLocked(today string) {
+	t.date = today
+	t.totalCostUSD = 0
+	t.categoryCost = make(map[string]float64)
+	t.inputTokens = make(map[string]int)
+	t.outputTokens = make(map[string]int)
+	t.callCounts = make(map[string]int)
+	t.warningsSent = 0
+	t.exceeded = false
+}
+
+// persistLocked writes the budget state to disk immediately.
+// Must be called with t.mu held (write lock).
 func (t *Tracker) persistLocked() {
+	if t.persistTimer != nil {
+		t.persistTimer.Stop()
+		t.persistTimer = nil
+	}
+	t.doPersistLocked()
+}
+
+// schedulePersistLocked schedules a debounced disk write (at most every 3 s).
+// Prefer this on the hot recording path to avoid per-call I/O.
+// Must be called with t.mu held (write lock).
+func (t *Tracker) schedulePersistLocked() {
+	if t.persistTimer != nil {
+		return // write already scheduled
+	}
+	t.persistTimer = time.AfterFunc(3*time.Second, func() {
+		t.mu.Lock()
+		defer t.mu.Unlock()
+		t.persistTimer = nil
+		t.doPersistLocked()
+	})
+}
+
+// Flush forces an immediate disk write, bypassing the debounce timer.
+// Call this during graceful shutdown to avoid losing the last few recordings.
+func (t *Tracker) Flush() {
+	if t == nil {
+		return
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.persistTimer != nil {
+		t.persistTimer.Stop()
+		t.persistTimer = nil
+	}
+	t.doPersistLocked()
+}
+
+// doPersistLocked writes the budget state to disk. Must be called with t.mu held.
+func (t *Tracker) doPersistLocked() {
 	state := persistedState{
 		Date:         t.date,
 		TotalCostUSD: t.totalCostUSD,
@@ -577,7 +654,7 @@ func (t *Tracker) persistLocked() {
 		Exceeded:     t.exceeded,
 	}
 
-	data, err := json.MarshalIndent(state, "", "  ")
+	data, err := json.Marshal(state)
 	if err != nil {
 		t.logger.Error("[Budget] Failed to marshal state", "error", err)
 		return

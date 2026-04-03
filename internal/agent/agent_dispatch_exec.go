@@ -1452,9 +1452,9 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				})
 			}
 
-			// Record cost in budget tracker
+			// Record cost in budget tracker under "image_generation" category
 			if budgetTracker != nil && result.CostEstimate > 0 {
-				budgetTracker.RecordCost(result.CostEstimate)
+				budgetTracker.RecordCostForCategory("image_generation", result.CostEstimate)
 			}
 
 			resultJSON, _ := json.Marshal(map[string]interface{}{

@@ -1,7 +1,6 @@
 package server
 
 import (
-	"aurago/internal/budget"
 	"aurago/internal/config"
 	"aurago/internal/llm"
 	"aurago/internal/memory"
@@ -210,8 +209,8 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 			// (same sequence as main.go: ApplyVaultSecrets → ResolveProviders)
 			s.Cfg.ResolveProviders()
 
-			// Re-create BudgetTracker
-			s.BudgetTracker = budget.NewTracker(s.Cfg, s.Logger, s.Cfg.Directories.DataDir)
+			// Re-create BudgetTracker and re-register MissionManagerV2 callback.
+			s.reinitBudgetTracker(s.Cfg)
 
 			// Reconfigure the live LLM client with the new API key / base URL / model.
 			// Without this the old client (created at startup with an empty key from

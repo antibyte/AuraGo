@@ -273,6 +273,18 @@ func (s *Server) accessLogger() *slog.Logger {
 	return s.Logger
 }
 
+// reinitBudgetTracker recreates the BudgetTracker from the current config and
+// re-registers the MissionManagerV2 callback. Must be called whenever the config
+// is reloaded so that budget threshold mission triggers keep firing.
+func (s *Server) reinitBudgetTracker(cfg *config.Config) {
+	s.BudgetTracker = budget.NewTracker(cfg, s.Logger, cfg.Directories.DataDir)
+	if s.BudgetTracker != nil && s.MissionManagerV2 != nil {
+		s.BudgetTracker.SetMissionCallback(func(eventType string, spentUSD, limitUSD, percentage float64) {
+			s.MissionManagerV2.NotifyBudgetEvent(eventType, spentUSD, limitUSD, percentage)
+		})
+	}
+}
+
 func Start(cfg *config.Config, logger *slog.Logger, accessLogger *slog.Logger, llmClient llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, remoteControlDB *sql.DB, mediaRegistryDB *sql.DB, homepageRegistryDB *sql.DB, contactsDB *sql.DB, sqlConnectionsDB *sql.DB, sqlConnectionPool *sqlconnections.ConnectionPool, backgroundTasks *tools.BackgroundTaskManager, isFirstStart bool, shutdownCh chan struct{}) error {
 	startLoginRecordCleaner(shutdownCh)
 	s := &Server{
@@ -570,12 +582,9 @@ func Start(cfg *config.Config, logger *slog.Logger, accessLogger *slog.Logger, l
 		}
 	}
 
-	// Set budget tracker callback for budget threshold mission triggers
-	if s.BudgetTracker != nil {
-		s.BudgetTracker.SetMissionCallback(func(eventType string, spentUSD, limitUSD, percentage float64) {
-			s.MissionManagerV2.NotifyBudgetEvent(eventType, spentUSD, limitUSD, percentage)
-		})
-	}
+	// Set budget tracker callback for budget threshold mission triggers.
+	// Use reinitBudgetTracker so the callback is always registered after a reload too.
+	s.reinitBudgetTracker(cfg)
 
 	if err := s.MissionManagerV2.Start(); err != nil {
 		logger.Warn("Failed to start MissionManagerV2", "error", err)
