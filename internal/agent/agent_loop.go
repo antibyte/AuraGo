@@ -368,7 +368,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 			prioritized := buildAdaptiveToolPriority(ntSchemas, frequent, initialUserMsg, guideSearcher, logger)
 			maxTools := cfg.Agent.AdaptiveTools.MaxTools
-			
+
 			alwaysInclude := make([]string, len(cfg.Agent.AdaptiveTools.AlwaysInclude))
 			copy(alwaysInclude, cfg.Agent.AdaptiveTools.AlwaysInclude)
 			if GetVoiceMode() {

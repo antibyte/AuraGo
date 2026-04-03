@@ -301,6 +301,13 @@ function updateSpeakerButton() {
 }
 updateSpeakerButton();
 
+// Notify backend of current state on initial load
+fetch('/api/preferences', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ speaker_mode: speakerMode })
+}).catch(() => { });
+
 document.getElementById('speaker-toggle').addEventListener('click', () => {
     speakerMode = !speakerMode;
     localStorage.setItem('aurago-speaker', speakerMode);
