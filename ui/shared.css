@@ -1384,6 +1384,23 @@ select.large,
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
+/* Small variant — for grouped feature toggles inside panels (e.g. cfg modules) */
+.toggle-sm {
+    width: 38px;
+    height: 21px;
+}
+
+.toggle-sm .slider::before {
+    width: 15px;
+    height: 15px;
+    left: 2px;
+    bottom: 2px;
+}
+
+.toggle-sm input:checked+.slider::before {
+    transform: translateX(17px);
+}
+
 /* ── Modal with Scale Animation ────────────────────────────── */
 .modal-overlay {
     position: fixed;
