@@ -99,7 +99,8 @@
             to   { opacity: 1; transform: translateY(0); }
         }
 
-        @media (max-width: 600px) {
+        /* D-14/D-15: Unified breakpoint — 600px → 640px */
+        @media (max-width: 640px) {
             .dash-tabs {
                 overflow-x: auto;
                 padding: 0.5rem 0.75rem;
@@ -813,7 +814,8 @@
             flex-wrap: wrap;
         }
 
-        @media (max-width: 900px) {
+        /* D-14/D-15: Unified breakpoint — 900px → 1024px */
+        @media (max-width: 1024px) {
             .memory-health-summary,
             .memory-curator-grid {
                 grid-template-columns: 1fr;
@@ -1571,7 +1573,8 @@
         }
 
         /* ── Responsive ──────────────────────────────────────── */
-        @media (max-width: 900px) {
+        /* D-14/D-15: Unified breakpoint — 900px → 1024px */
+        @media (max-width: 1024px) {
             .dash-grid {
                 grid-template-columns: 1fr;
                 padding: 1rem;
@@ -1738,7 +1741,8 @@
             grid-template-columns: 1fr 1fr;
             gap: 0.6rem;
         }
-        @media (max-width: 900px) {
+        /* D-14/D-15: Unified breakpoint — 900px → 1024px */
+        @media (max-width: 1024px) {
             .gh-repo-list { grid-template-columns: 1fr; }
         }
         .gh-repo {
@@ -2032,7 +2036,8 @@
             grid-template-columns: repeat(4, 1fr);
             gap: 0.6rem;
         }
-        @media (max-width: 900px) {
+        /* D-14/D-15: Unified breakpoint — 900px → 1024px */
+        @media (max-width: 1024px) {
             .ops-grid { grid-template-columns: repeat(2, 1fr); }
         }
         .ops-stat {
@@ -3223,7 +3228,8 @@
 .w-pct-50 { width: 50%; }
 .w-pct-51 { width: 51%; }
 
-@media (max-width: 1100px) {
+/* D-14/D-15: Unified breakpoint — 1100px → 1024px */
+@media (max-width: 1024px) {
     .knowledge-quality-grid,
     .knowledge-grid {
         grid-template-columns: 1fr;
