@@ -199,6 +199,100 @@ func ToolNamesFromConfig(cfg *config.Config) []string {
 	return builtinToolNames(ff)
 }
 
+// ToolSummariesFromConfig returns tool names with short descriptions as
+// "name: description" strings. Used by the mission preparation service
+// so the LLM knows both the name and purpose of each available tool.
+func ToolSummariesFromConfig(cfg *config.Config) []string {
+	if cfg == nil {
+		return nil
+	}
+	ff := ToolFeatureFlags{
+		HomeAssistantEnabled:         cfg.HomeAssistant.Enabled,
+		DockerEnabled:                cfg.Docker.Enabled,
+		CoAgentEnabled:               cfg.CoAgents.Enabled,
+		SudoEnabled:                  cfg.Agent.SudoEnabled,
+		WebhooksEnabled:              cfg.Webhooks.Enabled,
+		ProxmoxEnabled:               cfg.Proxmox.Enabled,
+		OllamaEnabled:                cfg.Ollama.Enabled,
+		TailscaleEnabled:             cfg.Tailscale.Enabled,
+		AnsibleEnabled:               cfg.Ansible.Enabled,
+		InvasionControlEnabled:       cfg.InvasionControl.Enabled,
+		GitHubEnabled:                cfg.GitHub.Enabled,
+		MQTTEnabled:                  cfg.MQTT.Enabled,
+		AdGuardEnabled:               cfg.AdGuard.Enabled,
+		MCPEnabled:                   cfg.MCP.Enabled && cfg.Agent.AllowMCP,
+		SandboxEnabled:               cfg.Sandbox.Enabled,
+		MeshCentralEnabled:           cfg.MeshCentral.Enabled,
+		HomepageEnabled:              cfg.Homepage.Enabled,
+		NetlifyEnabled:               cfg.Netlify.Enabled,
+		FirewallEnabled:              cfg.Firewall.Enabled,
+		EmailEnabled:                 cfg.Email.Enabled || len(cfg.EmailAccounts) > 0,
+		CloudflareTunnelEnabled:      cfg.CloudflareTunnel.Enabled,
+		GoogleWorkspaceEnabled:       cfg.GoogleWorkspace.Enabled,
+		OneDriveEnabled:              cfg.OneDrive.Enabled,
+		VirusTotalEnabled:            cfg.VirusTotal.Enabled,
+		ImageGenerationEnabled:       cfg.ImageGeneration.Enabled,
+		RemoteControlEnabled:         cfg.RemoteControl.Enabled,
+		MemoryEnabled:                cfg.Tools.Memory.Enabled,
+		KnowledgeGraphEnabled:        cfg.Tools.KnowledgeGraph.Enabled,
+		SecretsVaultEnabled:          cfg.Tools.SecretsVault.Enabled,
+		SchedulerEnabled:             cfg.Tools.Scheduler.Enabled,
+		NotesEnabled:                 cfg.Tools.Notes.Enabled,
+		MissionsEnabled:              cfg.Tools.Missions.Enabled,
+		StopProcessEnabled:           cfg.Tools.StopProcess.Enabled,
+		InventoryEnabled:             cfg.Tools.Inventory.Enabled,
+		MemoryMaintenanceEnabled:     cfg.Tools.MemoryMaintenance.Enabled,
+		WOLEnabled:                   cfg.Tools.WOL.Enabled,
+		MediaRegistryEnabled:         cfg.MediaRegistry.Enabled,
+		HomepageRegistryEnabled:      cfg.Homepage.Enabled,
+		ContactsEnabled:              cfg.Tools.Contacts.Enabled,
+		JournalEnabled:               cfg.Tools.Journal.Enabled,
+		MemoryAnalysisEnabled:        cfg.MemoryAnalysis.Enabled,
+		DocumentCreatorEnabled:       cfg.Tools.DocumentCreator.Enabled,
+		WebCaptureEnabled:            cfg.Tools.WebCapture.Enabled,
+		NetworkPingEnabled:           cfg.Tools.NetworkPing.Enabled,
+		WebScraperEnabled:            cfg.Tools.WebScraper.Enabled,
+		S3Enabled:                    cfg.S3.Enabled,
+		NetworkScanEnabled:           cfg.Tools.NetworkScan.Enabled,
+		FormAutomationEnabled:        cfg.Tools.FormAutomation.Enabled,
+		UPnPScanEnabled:              cfg.Tools.UPnPScan.Enabled,
+		JellyfinEnabled:              cfg.Jellyfin.Enabled,
+		ChromecastEnabled:            cfg.Chromecast.Enabled,
+		DiscordEnabled:               cfg.Discord.Enabled,
+		TrueNASEnabled:               cfg.TrueNAS.Enabled,
+		KoofrEnabled:                 cfg.Koofr.Enabled,
+		FritzBoxSystemEnabled:        cfg.FritzBox.Enabled && cfg.FritzBox.System.Enabled,
+		FritzBoxNetworkEnabled:       cfg.FritzBox.Enabled && cfg.FritzBox.Network.Enabled,
+		FritzBoxTelephonyEnabled:     cfg.FritzBox.Enabled && cfg.FritzBox.Telephony.Enabled,
+		FritzBoxSmartHomeEnabled:     cfg.FritzBox.Enabled && cfg.FritzBox.SmartHome.Enabled,
+		FritzBoxStorageEnabled:       cfg.FritzBox.Enabled && cfg.FritzBox.Storage.Enabled,
+		FritzBoxTVEnabled:            cfg.FritzBox.Enabled && cfg.FritzBox.TV.Enabled,
+		TelnyxSMSEnabled:             cfg.Telnyx.Enabled && !cfg.Telnyx.ReadOnly,
+		TelnyxCallEnabled:            cfg.Telnyx.Enabled && !cfg.Telnyx.ReadOnly,
+		SQLConnectionsEnabled:        cfg.SQLConnections.Enabled,
+		PythonSecretInjectionEnabled: cfg.Tools.PythonSecretInjection.Enabled,
+		AllowShell:                   cfg.Agent.AllowShell,
+		AllowPython:                  cfg.Agent.AllowPython,
+		AllowFilesystemWrite:         cfg.Agent.AllowFilesystemWrite,
+		AllowNetworkRequests:         cfg.Agent.AllowNetworkRequests,
+		AllowRemoteShell:             cfg.Agent.AllowRemoteShell,
+		AllowSelfUpdate:              cfg.Agent.AllowSelfUpdate,
+	}
+	schemas := builtinToolSchemas(ff)
+	summaries := make([]string, 0, len(schemas))
+	for _, s := range schemas {
+		if s.Function == nil || s.Function.Name == "" {
+			continue
+		}
+		desc := s.Function.Description
+		if len(desc) > 120 {
+			desc = desc[:117] + "..."
+		}
+		summaries = append(summaries, s.Function.Name+": "+desc)
+	}
+	return summaries
+}
+
 func customToolBuiltinCollisionName(name string, builtinNames map[string]struct{}) (string, bool) {
 	candidates := []string{strings.TrimSpace(name)}
 	if ext := filepath.Ext(name); ext != "" {

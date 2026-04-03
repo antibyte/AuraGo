@@ -31,7 +31,7 @@ type MissionPreparationService struct {
 	cancel     context.CancelFunc
 	promptTpl  string // loaded from prompts/mission_preparation.md
 
-	// availableTools is a list of tool names the agent can use.
+	// availableTools is a list of "name: description" entries the agent can use.
 	// Set via SetAvailableTools before Start.
 	availableTools []string
 }
@@ -406,11 +406,13 @@ func (s *MissionPreparationService) buildUserPrompt(mission *tools.MissionV2) st
 	// Available tools
 	if len(s.availableTools) > 0 {
 		sb.WriteString("## Available Tools\n")
+		sb.WriteString("IMPORTANT: You MUST ONLY use tool names from this list. Do NOT invent tool names.\n")
 		for _, t := range s.availableTools {
 			sb.WriteString("- ")
 			sb.WriteString(t)
 			sb.WriteString("\n")
 		}
+		sb.WriteString("\nIf a task requires a tool not in this list, set confidence to ≤ 0.3 and explain what tool is missing.\n")
 	}
 
 	return sb.String()

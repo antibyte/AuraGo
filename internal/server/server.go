@@ -577,7 +577,7 @@ func Start(cfg *config.Config, logger *slog.Logger, accessLogger *slog.Logger, l
 			s.PreparationService = services.NewMissionPreparationService(
 				cfg, &s.CfgMu, prepDB, s.MissionManagerV2, logger,
 			)
-			s.PreparationService.SetAvailableTools(agent.ToolNamesFromConfig(cfg))
+			s.PreparationService.SetAvailableTools(agent.ToolSummariesFromConfig(cfg))
 			s.PreparationService.Start(context.Background())
 			logger.Info("Mission preparation service initialized")
 		}

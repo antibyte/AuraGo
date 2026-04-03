@@ -54,9 +54,10 @@ Respond with a JSON object (no markdown, no explanation outside the JSON). The s
 ```
 
 ## Critical Rules
-- **tool_name MUST match exactly** a name from the Available Tools list. Never invent or guess tool names. If no matching tool exists, omit the tool field or set confidence low.
+- **tool_name MUST match EXACTLY** a name from the "Available Tools" list below (the part before the colon). Never invent, guess, or fabricate tool names like "list_tasks", "query_database", "read_file", "send_notification". These do NOT exist. Only use names you see in the list.
+- **If no suitable tool exists** for a step, set the tool field to "" and set confidence ≤ 0.3 with a note explaining what tool is missing.
 - **step_plan.actions** must be imperative commands ("List all containers", "Send email to X"), NOT descriptions ("This mission requires the agent to...").
-- **summary** must be brief and action-oriented, NOT a narrative description of the mission.
+- **summary** must be brief and action-oriented (max 2 sentences), NOT a narrative description of the mission.
 - Maximum {{.MaxEssentialTools}} tools in essential_tools, ordered by execution sequence.
 - **estimated_steps**: Realistic count of agent turns (tool calls).
 - **confidence**: 0.0–1.0. Lower if the mission is vague or needs tools not in the available list.
