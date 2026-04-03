@@ -526,7 +526,7 @@ func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string,
 
 	// Voice mode injection
 	if flags.IsVoiceMode {
-		finalPrompt.WriteString("\n> **VOICE MODE ACTIVE (SPEAKER ON):** The user has enabled voice output. You MUST use the `tts` tool to read your final response out loud. Do not just textually reply, use the tts tool!\n")
+		finalPrompt.WriteString("\n> **VOICE MODE ACTIVE (SPEAKER ON):** The user has enabled voice output. You MUST use the `tts` tool to read your final response out loud, and then play it to the user using the `send_audio` tool. Do not just textually reply!\n")
 	}
 
 	rawPrompt := finalPrompt.String()

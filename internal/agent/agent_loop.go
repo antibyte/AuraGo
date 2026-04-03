@@ -368,7 +368,13 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 			prioritized := buildAdaptiveToolPriority(ntSchemas, frequent, initialUserMsg, guideSearcher, logger)
 			maxTools := cfg.Agent.AdaptiveTools.MaxTools
-			alwaysInclude := cfg.Agent.AdaptiveTools.AlwaysInclude
+			
+			alwaysInclude := make([]string, len(cfg.Agent.AdaptiveTools.AlwaysInclude))
+			copy(alwaysInclude, cfg.Agent.AdaptiveTools.AlwaysInclude)
+			if GetVoiceMode() {
+				alwaysInclude = append(alwaysInclude, "tts", "send_audio")
+			}
+
 			if maxTools > 0 && len(prioritized) > 0 {
 				ntSchemas = filterToolSchemas(ntSchemas, prioritized, alwaysInclude, maxTools, logger)
 			}
