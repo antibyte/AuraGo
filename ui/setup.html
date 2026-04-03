@@ -198,8 +198,10 @@
                         </div>
                         <div id="desc-native-functions" class="toggle-desc" data-i18n-html="setup.step0_native_functions_desc">Uses the provider's native tool calls. <strong>Warning:</strong> Only enable if the model supports this (GPT-4, Claude, Gemini). Free-tier models often do NOT support this!</div>
                     </div>
-                    <input type="checkbox" id="native-functions" class="toggle">
-                    <label for="native-functions" class="toggle-label-text"></label>
+                    <label class="toggle" for="native-functions">
+                        <input type="checkbox" id="native-functions" class="toggle">
+                        <span class="slider"></span>
+                    </label>
                 </div>
             </div>
 
@@ -306,8 +308,10 @@
                         <div id="lbl-helper-llm" class="toggle-label" data-i18n="setup.step2_personality_v2_label">Helper LLM</div>
                         <div id="desc-helper-llm" class="toggle-desc" data-i18n="setup.step2_personality_v2_desc">Used for internal analysis, maintenance and other helper features. If disabled, many dependent features will not work fully.</div>
                     </div>
-                    <input type="checkbox" id="helper-llm" class="toggle" checked onchange="onHelperToggle()">
-                    <label for="helper-llm" class="toggle-label-text"></label>
+                    <label class="toggle" for="helper-llm">
+                        <input type="checkbox" id="helper-llm" class="toggle" checked onchange="onHelperToggle()">
+                        <span class="slider"></span>
+                    </label>
                 </div>
 
                 <div class="conditional-fields visible" id="helper-llm-fields">
@@ -335,8 +339,10 @@
                         <div id="lbl-maintenance" class="toggle-label" data-i18n="setup.step2_maintenance_label">Automatic Maintenance</div>
                         <div id="desc-maintenance" class="toggle-desc" data-i18n="setup.step2_maintenance_desc">Daily self-reflection and memory optimization (recommended).</div>
                     </div>
-                    <input type="checkbox" id="maintenance-enabled" class="toggle" checked>
-                    <label for="maintenance-enabled" class="toggle-label-text"></label>
+                    <label class="toggle" for="maintenance-enabled">
+                        <input type="checkbox" id="maintenance-enabled" class="toggle" checked>
+                        <span class="slider"></span>
+                    </label>
                 </div>
 
                 <!-- Web Config -->
@@ -345,8 +351,10 @@
                         <div id="lbl-web-config" class="toggle-label" data-i18n="setup.step2_web_config_label">Web Config UI</div>
                         <div id="desc-web-config" class="toggle-desc" data-i18n="setup.step2_web_config_desc">Edit configuration via the browser (at /config).</div>
                     </div>
-                    <input type="checkbox" id="web-config-enabled" class="toggle" checked>
-                    <label for="web-config-enabled" class="toggle-label-text"></label>
+                    <label class="toggle" for="web-config-enabled">
+                        <input type="checkbox" id="web-config-enabled" class="toggle" checked>
+                        <span class="slider"></span>
+                    </label>
                 </div>
                 </div>
             </div>
