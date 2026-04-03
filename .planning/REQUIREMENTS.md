@@ -7,10 +7,10 @@
 
 ### Layout & Cards
 
-- [ ] **LAY-01**: Fix Mission Control pills placement — badges/badges must not overflow card boundaries
-- [ ] **LAY-02**: Fix Mission Control title overflow — mission headings must not be truncated
-- [ ] **LAY-03**: Fix Mission Control button cutoff — action buttons must not overflow card/container
-- [ ] **LAY-04**: Establish consistent card grid system across all pages (no wasted space, no overflow)
+- [x] **LAY-01**: Fix Mission Control pills placement — badges/badges must not overflow card boundaries
+- [x] **LAY-02**: Fix Mission Control title overflow — mission headings must not be truncated
+- [x] **LAY-03**: Fix Mission Control button cutoff — action buttons must not overflow card/container
+- [x] **LAY-04**: Establish consistent card grid system across all pages (no wasted space, no overflow)
 - [ ] **LAY-05**: Fix status bar responsive layout — 4-column forced grid breaks on small screens
 
 ### Consistency
@@ -64,10 +64,10 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| LAY-01 | Phase 2 | Pending |
-| LAY-02 | Phase 2 | Pending |
-| LAY-03 | Phase 2 | Pending |
-| LAY-04 | Phase 2 | Pending |
+| LAY-01 | Phase 2 | Complete |
+| LAY-02 | Phase 2 | Complete |
+| LAY-03 | Phase 2 | Complete |
+| LAY-04 | Phase 2 | Complete |
 | LAY-05 | Phase 2 | Pending |
 | CONS-01 | Phase 2 | Pending |
 | CONS-02 | Phase 2 | Pending |
