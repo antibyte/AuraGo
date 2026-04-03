@@ -1,0 +1,531 @@
+/**
+ * AuraGo Animations
+ * Centralized @keyframes definitions for all pages.
+ * Shared/duplicate keyframes (fadeIn, card-enter, pulse, etc.) live here
+ * so they are defined once and referenced by multiple files.
+ * Page-specific keyframes are also included here for completeness.
+ *
+ * Usage: Include this file early in the CSS load order (before page-specific files).
+ * Individual page CSS files keep their page-specific keyframes too — this file
+ * ensures shared animations are not duplicated across multiple files.
+ */
+
+/* ═══════════════════════════════════════════════════════════════
+   SHARED / TOKENS — extracted from tokens.css
+   fadeIn, card-enter, pulse, slideInRight, shimmer, voicePulse,
+   fadeInUp, fadeInScale, spin, bounce, float, progress-stripes
+   ═══════════════════════════════════════════════════════════════ */
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeInScale {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes card-enter {
+    from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 0.4;
+        transform: scale(0.8);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.2);
+    }
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-4px); }
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+}
+
+@keyframes voicePulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+    50% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+}
+
+@keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+
+@keyframes progress-stripes {
+    from { background-position: 1rem 0; }
+    to { background-position: 0 0; }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   CHAT — extracted from chat.css
+   ═══════════════════════════════════════════════════════════════ */
+
+@keyframes msgIn {
+    from {
+        opacity: 0;
+        transform: translateY(12px) scale(0.97);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes queueSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes recorderSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes recorderPulse {
+    0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+    }
+    50% {
+        transform: scale(1.1);
+        box-shadow: 0 0 0 8px rgba(239, 68, 68, 0);
+    }
+}
+
+@keyframes pulse-new {
+    0%, 100% { box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); }
+    50% { box-shadow: 0 4px 20px var(--accent-dim); }
+}
+
+@keyframes floatUp {
+    0% {
+        opacity: 0.8;
+        transform: translateY(0) scale(1);
+    }
+    50% {
+        opacity: 0.5;
+        transform: translateY(-40px) scale(0.9);
+    }
+    100% {
+        opacity: 0;
+        transform: translateY(-80px) scale(0.7);
+    }
+}
+
+@keyframes statusIn {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes flashGreen {
+    0% {
+        background: rgba(34, 197, 94, 0.4);
+    }
+    100% {
+        background: var(--bg-glass);
+    }
+}
+
+@keyframes composerPopoverIn {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(6px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0) scale(1);
+    }
+}
+
+@keyframes typing {
+    0%, 60%, 100% {
+        opacity: 0.3;
+        transform: translateY(0);
+    }
+    30% {
+        opacity: 1;
+        transform: translateY(-4px);
+    }
+}
+
+@keyframes scaleIn {
+    from {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes glowPulse {
+    0%, 100% {
+        box-shadow: 0 0 5px var(--accent-glow), 0 0 10px var(--accent-glow);
+    }
+    50% {
+        box-shadow: 0 0 15px var(--accent-glow), 0 0 30px var(--accent-glow);
+    }
+}
+
+@keyframes bounceSoft {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-3px);
+    }
+}
+
+@keyframes gradientShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   CONFIG — extracted from config.css
+   ═══════════════════════════════════════════════════════════════ */
+
+@keyframes pulse-glow-success {
+    0%, 100% {
+        box-shadow: 0 0 5px rgba(34, 197, 94, 0.4);
+    }
+    50% {
+        box-shadow: 0 0 15px rgba(34, 197, 94, 0.7);
+    }
+}
+
+@keyframes cfgRestartSpin {
+    100% { transform: rotate(360deg); }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   CONTAINERS — extracted from containers.css
+   ═══════════════════════════════════════════════════════════════ */
+
+@keyframes ctPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+
+@keyframes ctSlideIn {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes ctSlideOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   DASHBOARD — extracted from dashboard.css
+   ═══════════════════════════════════════════════════════════════ */
+
+@keyframes dashTabIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 10px currentColor; }
+    50% { box-shadow: 0 0 20px currentColor; }
+}
+
+@keyframes valueUpdate {
+    0% { transform: translate(-50%, -60%) scale(1); }
+    50% { transform: translate(-50%, -60%) scale(1.2); }
+    100% { transform: translate(-50%, -60%) scale(1); }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ENHANCEMENTS — extracted from enhancements.css
+   ═══════════════════════════════════════════════════════════════ */
+
+@keyframes typingBounce {
+    0%, 60%, 100% {
+        transform: translateY(0);
+        opacity: 0.4;
+    }
+    30% {
+        transform: translateY(-6px);
+        opacity: 1;
+        box-shadow: 0 0 12px var(--accent);
+    }
+}
+
+@keyframes statusPulse {
+    0% { transform: scale(0.8); opacity: 0.6; }
+    100% { transform: scale(2); opacity: 0; }
+}
+
+@keyframes messageSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes panelFadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes valuePop {
+    0% { transform: translate(-50%, -60%) scale(1); }
+    50% { transform: translate(-50%, -60%) scale(1.3); color: var(--accent); }
+    100% { transform: translate(-50%, -60%) scale(1); }
+}
+
+@keyframes moodPulse {
+    0%, 100% { box-shadow: 0 0 10px rgba(45, 212, 191, 0.15); }
+    50% { box-shadow: 0 0 20px rgba(45, 212, 191, 0.3); }
+}
+
+@keyframes connectionPulse {
+    0% { transform: scale(1); opacity: 0.5; }
+    100% { transform: scale(1.1); opacity: 0; }
+}
+
+@keyframes toastSlideIn {
+    from {
+        opacity: 0;
+        transform: translateX(100px) scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+    }
+}
+
+@keyframes bgShift {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33% { transform: translate(2%, -2%) scale(1.05); }
+    66% { transform: translate(-1%, 1%) scale(0.95); }
+}
+
+@keyframes gentleFloat {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50% { transform: translateY(-10px) rotate(2deg); }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   LOGIN — extracted from login.css
+   ═══════════════════════════════════════════════════════════════ */
+
+@keyframes aurora-move {
+    0%, 100% {
+        transform: translate(0, 0) rotate(0deg) scale(1);
+    }
+    25% {
+        transform: translate(5%, 5%) rotate(2deg) scale(1.05);
+    }
+    50% {
+        transform: translate(-3%, 8%) rotate(-1deg) scale(0.95);
+    }
+    75% {
+        transform: translate(-5%, -3%) rotate(1deg) scale(1.02);
+    }
+}
+
+@keyframes orb-float {
+    0%, 100% {
+        transform: translate(0, 0) scale(1);
+    }
+    33% {
+        transform: translate(30px, -30px) scale(1.1);
+    }
+    66% {
+        transform: translate(-20px, 20px) scale(0.9);
+    }
+}
+
+@keyframes grid-pulse {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 0.6; }
+}
+
+@keyframes cardIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.98);
+        filter: blur(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        filter: blur(0);
+    }
+}
+
+@keyframes glow-in {
+    to { opacity: 1; }
+}
+
+@keyframes logo-pulse {
+    0%, 100% {
+        box-shadow:
+            0 0 40px rgba(45, 212, 191, 0.4),
+            0 0 80px rgba(45, 212, 191, 0.2);
+    }
+    50% {
+        box-shadow:
+            0 0 50px rgba(45, 212, 191, 0.6),
+            0 0 100px rgba(45, 212, 191, 0.3);
+    }
+}
+
+@keyframes scan {
+    0% { transform: translateY(-100vh); }
+    100% { transform: translateY(100vh); }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SKILLS — extracted from skills.css
+   ═══════════════════════════════════════════════════════════════ */
+
+@keyframes skToastIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   STT-OVERLAY — extracted from stt-overlay.css
+   ═══════════════════════════════════════════════════════════════ */
+
+@keyframes stt-ring-pulse {
+    0%, 100% {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 0.12;
+    }
+    50% {
+        transform: translate(-50%, -50%) scale(1.3);
+        opacity: 0.22;
+    }
+}
+
+@keyframes stt-mic-glow {
+    0%, 100% {
+        box-shadow:
+            0 0 30px rgba(45, 212, 191, 0.4),
+            0 0 60px rgba(45, 212, 191, 0.15);
+    }
+    50% {
+        box-shadow:
+            0 0 40px rgba(45, 212, 191, 0.6),
+            0 0 80px rgba(45, 212, 191, 0.25);
+    }
+}
+
+@keyframes stt-status-pulse {
+    0%, 100% { opacity: 0.7; }
+    50% { opacity: 1; }
+}
+
+@keyframes stt-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   KNOWLEDGE — extracted from knowledge.css
+   ═══════════════════════════════════════════════════════════════ */
+
+@keyframes kcFadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   TRUENAS — extracted from truenas.css
+   ═══════════════════════════════════════════════════════════════ */
+
+@keyframes tn-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   CHAT-MODULES — extracted from chat-modules.css
+   ═══════════════════════════════════════════════════════════════ */
+
+@keyframes pulse-dot {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(45, 212, 191, 0.4); }
+    50% { box-shadow: 0 0 0 8px rgba(45, 212, 191, 0); }
+}
+
+@keyframes vr-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+    50% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+}
