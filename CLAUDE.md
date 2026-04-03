@@ -581,3 +581,319 @@ $AURAGO_MASTER_KEY = ($bytes | ForEach-Object { $_.ToString("x2") }) -join ""
 - **config_template.yaml** - Full configuration reference (~600 lines)
 - **prompts/tools_manuals/** - Tool documentation (RAG-indexed)
 - **ui/lang/** - Translation files for 15 languages
+
+<!-- GSD:project-start source:PROJECT.md -->
+## Project
+
+**AuraGo UI/UX Overhaul**
+
+Systematic improvement of AuraGo's embedded Web UI — fixing layout issues, achieving visual consistency across all pages, and ensuring complete internationalization. The goal is a polished, professional interface that feels cohesive across all areas (Setup, Chat, Dashboard, Config, Missions, etc.).
+
+**Core Value:** Every page must be usable, consistent, and translated — no half-finished sections, no orphaned UI elements, no language gaps.
+
+### Constraints
+
+- **Tech**: Vanilla JS SPA, CSS custom properties (CSS variables), no framework changes
+- **Compatibility**: Must maintain dark/light theme support
+- **Scope**: Only frontend/UI files — no backend changes
+- **Languages**: All 15 languages must have complete, correct translations
+<!-- GSD:project-end -->
+
+<!-- GSD:stack-start source:codebase/STACK.md -->
+## Technology Stack
+
+## Languages
+- **Go 1.26.1** - Core application language for all backend services, agent loop, integrations
+- **JavaScript** - Frontend SPA (vanilla JS, no framework)
+- **Python 3.12** - Sandboxed skill/tool execution via embedded venv
+## Runtime
+- Go 1.26.1 (build target)
+- Python 3.12-slim (runtime in Docker)
+- CGO disabled for pure Go cross-compilation
+- Go modules (`go.mod` / `go.sum`)
+- No external package registry dependencies beyond go.mod
+## Frameworks
+- Standard library `net/http` with custom routing (not using gorilla/mux despite CLAUDE.md mentioning it)
+- `github.com/gorilla/websocket v1.5.4` - WebSocket support
+- `github.com/sashabaranov/go-openai v1.41.2` - OpenAI-compatible LLM client
+- `modernc.org/sqlite v1.28.0` - Pure Go SQLite driver (no CGO)
+- `github.com/philippgille/chromem-go v0.7.0` - Embedded vector database for semantic memory
+- Go standard `testing` package
+- `go test ./...` for all tests
+- Docker multi-stage build (`Dockerfile`)
+- Go cross-compilation with `GOOS`/`GOARCH`/`CGO_ENABLED=0`
+## Key Dependencies
+- `github.com/sashabaranov/go-openai v1.41.2` - LLM client for OpenAI-compatible APIs
+- `modernc.org/sqlite v1.28.0` - All SQLite databases (memory, inventory, etc.)
+- `github.com/philippgille/chromem-go v0.7.0` - Vector DB for long-term memory
+- `github.com/bwmarrin/discordgo v0.29.0` - Discord bot
+- `github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1` - Telegram bot
+- `github.com/eclipse/paho.mqtt.golang v1.5.1` - MQTT client
+- `golang.org/x/crypto` - SSH client, bcrypt, ACME/Let's Encrypt
+- `github.com/pkg/sftp v1.13.10` - SFTP for remote file transfers
+- `tailscale.com v1.96.1` - Tailscale VPN integration
+- `github.com/aws/aws-sdk-go-v2` - AWS S3 SDK
+- `github.com/robfig/cron/v3 v3.0.1` - Cron scheduler
+- `github.com/go-rod/rod v0.116.2` - Headless Chrome for web scraping/screenshots
+- `github.com/ledongthuc/pdf v0.0.0-20250511090121-5959a4027728` - PDF parsing
+- `github.com/johnfercher/maroto/v2 v2.3.4` - PDF generation (Maroto)
+- `github.com/pdfcpu/pdfcpu v0.11.1` - PDF processing
+- `github.com/charmbracelet/bubbletea v1.3.10` - TUI (used in CLI tools)
+- `github.com/tidwall/gjson v1.18.0` - JSON parsing
+- `github.com/tidwall/sjson v1.2.5` - JSON building
+- `gopkg.in/yaml.v3 v3.0.1` - YAML config parsing
+- `github.com/lib/pq v1.12.0` - PostgreSQL driver
+- `github.com/go-sql-driver/mysql v1.9.3` - MySQL driver
+- `github.com/google/uuid v1.6.0` - UUID generation
+- `github.com/gofrs/flock v0.13.0` - File-based locking
+- `github.com/shirou/gopsutil/v4 v4.26.1` - System metrics
+- `github.com/prometheus-community/pro-bing v0.4.0` - ICMP ping
+- `github.com/beevik/etree v1.6.0` - XML parsing
+## Configuration
+- YAML-based configuration (`config.yaml`, `config_template.yaml`)
+- Environment variable overrides (e.g., `AURAGO_MASTER_KEY`, `AURAGO_SERVER_HOST`)
+- Vault system for secrets (AES-256-GCM encrypted, `data/vault.bin`)
+- Multi-stage Dockerfile:
+- `go.mod` / `go.sum` - Go dependencies
+- `Dockerfile` - Multi-stage production build
+- `Dockerfile.ansible` - Ansible sidecar image
+- `config_template.yaml` - Full configuration reference (~600 lines)
+- `docker-compose.yml` - Docker Compose with Gotenberg sidecar
+## Platform Requirements
+- Go 1.26.1+
+- Python 3.10+ (for skill execution)
+- Git
+- Linux (amd64, arm64), macOS (amd64, arm64), Windows (amd64, arm64)
+- Docker (optional, for containerized deployment)
+- 512MB RAM minimum, 2GB recommended
+## Frontend Stack
+- Single-file SPA embedded via `go:embed`
+- Multiple HTML entry points: `index.html`, `config.html`, `setup.html`, etc.
+- Module-based JavaScript in `ui/js/` with subdirectories for features
+- `ui/index.html` - Main chat interface
+- `ui/js/chat/main.js` - Chat functionality
+- `ui/js/setup/main.js` - Setup wizard
+- `ui/shared.js` - Shared utilities
+- `ui/css/` - Stylesheets (missions.css, setup.css)
+- `ui/lang/` - i18n translations (15 languages)
+- Tailwind CSS (`ui/tailwind.min.js`)
+- Chart.js (`ui/chart.min.js`)
+- CodeMirror 6 (`ui/js/vendor/codemirror6.min.js`)
+## Database Technologies
+- `data/short_term.db` - Conversation context (sliding window)
+- `data/long_term.db` - Archived conversations
+- `data/inventory.db` - SSH device inventory
+- `data/invasion.db` - Distributed egg/nest system
+- `data/cheatsheets.db` - Cheatsheet storage
+- `data/image_gallery.db` - Image gallery metadata
+- `data/remote_control.db` - Remote device control
+- `data/media_registry.db` - Media file registry
+- `data/homepage_registry.db` - Homepage project registry
+- `data/contacts.db` - Address book
+- `data/site_monitor.db` - Website monitoring
+- `data/sql_connections.db` - External SQL connection configs
+- `data/skills.db` - Skill management
+- `data/vectordb/` - Semantic memory / knowledge graph embeddings
+## Build System
+# Development build
+# Cross-compile for all platforms (Linux/macOS)
+# Windows build
+# Docker
+- `aurago` - Main binary
+- `lifeboat` - Self-update companion
+- `config-merger` - Config merging utility
+- `aurago-remote` - Remote execution agent (cross-platform clients bundled)
+## Testing
+- `*_test.go` files alongside source files
+- `TestFunctionName` naming convention
+- Table-driven tests preferred
+<!-- GSD:stack-end -->
+
+<!-- GSD:conventions-start source:CONVENTIONS.md -->
+## Conventions
+
+## Language
+## Naming Conventions
+### Files
+- **Multi-word files:** `snake_case.go` (e.g., `config_test.go`, `agent_loop.go`)
+- **Single-word files:** `word.go`
+- **Test files:** `*_test.go` co-located with source
+### Types
+- **Exported types:** `PascalCase` (e.g., `Agent`, `Vault`, `HistoryManager`)
+- **Unexported types:** `camelCase` (e.g., `dockerConfig`, `historyMessage`)
+### Functions
+- **Exported functions:** `PascalCase` (e.g., `NewVault`, `Load`, `ExecuteWithRetry`)
+- **Unexported functions:** `camelCase` (e.g., `buildLogger`, `parseWorkflowPlan`, `writeVaultFileAtomic`)
+### Variables
+- **General:** `camelCase` (e.g., `logger`, `configPath`, `vaultPath`)
+- **Constants:** `PascalCase` for exported (e.g., `MaxScriptBytes`), `camelCase` for unexported (e.g., `dockerAPIVersion`)
+### Packages
+- **Naming:** Short, lowercase, no underscores (e.g., `config`, `llm`, `tools`)
+- **Avoid:** Generic names like `util` or `common`
+## Code Style
+### Formatting
+- **Tool:** `gofmt` (standard Go formatter)
+- **No golangci configuration detected** - project relies on `gofmt` defaults
+### Line Length
+- No strict line length limit enforced
+### Imports
+### Indentation
+- **Tabs:** Use tabs for indentation (Go standard)
+- **Align:** Multiple imports on separate lines when needed
+## Error Handling
+### Pattern
+### Error Context Rules
+### Examples from codebase
+### Nil Checks
+### Sentinel Errors
+## Logging
+### Framework
+### Logger Creation
+### Log Levels
+- **`slog.LevelDebug`:** Detailed debugging information
+- **`slog.LevelInfo`:** General operational information (default)
+- **`slog.LevelWarn`:** Warning conditions
+- **`slog.LevelError`:** Error conditions
+### Key-Value Pairs
+### Logger Injection
+### Silent Operations
+## Comments
+### Style
+### When to Comment
+### What NOT to Comment
+### TODO/FIXME Pattern
+## File Organization
+### One Responsibility Per File
+### Large File Threshold
+### Test File Co-location
+### Package Structure
+- **`internal/`:** Private application code (not importable by other projects)
+- **`cmd/`:** Application entry points
+- **`internal/tools/`:** 90+ tool implementations
+- **`internal/server/`:** 60+ HTTP server handlers
+## Security Patterns
+### Vault System
+### Master Key
+- **Environment variable:** `AURAGO_MASTER_KEY`
+- **Format:** 64 hex characters (32 bytes)
+- **Never commit:** `.env` files, vault files
+### Sensitive Data Scrubbing
+### Atomic File Writes
+### Permission Toggles
+### Forbidden Vault Exports
+## Import Organization
+### Order
+### Path Aliases
+## Function Design
+### Constructor Pattern
+### Parameter Order
+### Return Values
+- **Errors:** Return `error` as last return value
+- **Multiple values:** Group related returns (result + error)
+## Concurrency
+### Mutex Pattern
+### Channel-Based Communication
+### WaitGroups
+<!-- GSD:conventions-end -->
+
+<!-- GSD:architecture-start source:ARCHITECTURE.md -->
+## Architecture
+
+## Pattern Overview
+- Single Go binary with embedded Web UI (no CGO dependencies)
+- Agent-centric design: all components serve the autonomous agent loop
+- Multi-transport communication: HTTP REST, SSE streaming, WebSocket-ready
+- Tiered memory system: STM (SQLite) -> LTM (VectorDB) -> Knowledge Graph (SQLite/FTS5)
+- Security-first: AES-256-GCM vault, secret scrubbing, permission toggles
+## Layers
+- Purpose: Core autonomous agent orchestration
+- Location: `internal/agent/agent_loop.go`
+- Contains: Main loop, tool dispatch, memory ranking, context compression, co-agents
+- Depends on: LLM client, memory systems, vault, config
+- Used by: Server SSE handler, background tasks
+- Purpose: Multi-provider LLM client with failover and retry logic
+- Location: `internal/llm/`
+- Contains: FailoverManager, pricing, context window detection
+- Depends on: Config, HTTP client
+- Used by: Agent loop, server handlers
+- Purpose: Multi-tier persistent memory for conversation context and knowledge
+- Locations:
+- Contains: Message storage, vector embeddings, entity relationships, temporal patterns
+- Depends on: Config, LLM for embeddings
+- Used by: Agent loop, server handlers, indexing service
+- Purpose: HTTP/HTTPS server, REST API, SSE streaming, Web UI serving
+- Location: `internal/server/server.go`, `internal/server/sse.go`
+- Contains: Router, handlers (60+), auth, middleware, SSE broadcaster
+- Depends on: All other layers
+- Used by: Web UI (browser), external API clients
+- Purpose: 90+ built-in tools for agent execution
+- Locations: `internal/tools/*.go`, `internal/agent/native_tools*.go`
+- Contains: Shell, Python, filesystem, HTTP, Docker, SSH, cron, etc.
+- Depends on: Config, sandbox, vault, process registry
+- Used by: Agent dispatch
+- Purpose: Vault encryption, secret scrubbing, Guardian (input validation), LLM Guardian
+- Location: `internal/security/vault.go`, `internal/security/guardian.go`
+- Contains: AES-256-GCM vault, token manager, scrubber, SSRF protection
+- Depends on: OS crypto, file system
+- Used by: All layers handling secrets
+- Purpose: YAML config parsing, defaults, provider resolution
+- Location: `internal/config/config.go`, `internal/config/config_types.go`
+- Contains: Config structs, env var loading, vault secret injection
+- Depends on: YAML parser, vault
+- Used by: All layers
+## Data Flow
+## Key Abstractions
+- Purpose: Manage multiple LLM providers with automatic failover
+- Examples: `internal/llm/failover.go`
+- Pattern: Wraps primary provider, falls back to configured alternatives
+- Purpose: Abstraction for vector database operations
+- Implementation: ChromemVectorDB (chromem-go)
+- Methods: StoreDocument, SearchSimilar, GetByID, DeleteDocument
+- Purpose: Real-time event streaming to Web UI
+- Pattern: Pub/sub with channel-based clients
+- Methods: Send, SendJSON, BroadcastType
+- Purpose: Encrypted secret storage
+- Pattern: AES-256-GCM with atomic file writes
+- Methods: ReadSecret, WriteSecret, ListKeys, EncryptBytes
+- Purpose: Track background processes spawned by agent
+- Pattern: Thread-safe map of PID -> ProcessInfo
+- Methods: Register, Terminate, KillAll, List
+## Entry Points
+- Location: `cmd/aurago/main.go` (~930 lines)
+- Triggers: Application startup
+- Responsibilities:
+- Location: `internal/server/server.go:Start()`
+- Triggers: After all subsystems initialized
+- Responsibilities:
+## Error Handling
+- `fmt.Errorf("context: %w", err)` for error wrapping
+- `log/slog` for structured logging with key-value pairs
+- Feature flags disable failing subsystems (VectorDB disabled if embeddings fail)
+- Background tasks recover from panics with deferred recovery
+- Retry logic with exponential backoff for transient failures
+- VectorDB disabled if embedding pipeline fails (app still functional)
+- SQLite-only mode if VectorDB unavailable
+- LLM failover to backup providers
+- Sandbox fallback to direct Python execution
+## Cross-Cutting Concerns
+<!-- GSD:architecture-end -->
+
+<!-- GSD:workflow-start source:GSD defaults -->
+## GSD Workflow Enforcement
+
+Before using Edit, Write, or other file-changing tools, start work through a GSD command so planning artifacts and execution context stay in sync.
+
+Use these entry points:
+- `/gsd:quick` for small fixes, doc updates, and ad-hoc tasks
+- `/gsd:debug` for investigation and bug fixing
+- `/gsd:execute-phase` for planned phase work
+
+Do not make direct repo edits outside a GSD workflow unless the user explicitly asks to bypass it.
+<!-- GSD:workflow-end -->
+
+<!-- GSD:profile-start -->
+## Developer Profile
+
+> Profile not yet configured. Run `/gsd:profile-user` to generate your developer profile.
+> This section is managed by `generate-claude-profile` -- do not edit manually.
+<!-- GSD:profile-end -->
