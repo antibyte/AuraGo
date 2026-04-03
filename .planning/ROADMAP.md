@@ -84,7 +84,7 @@ Plans:
 - [ ] 03-A-PLAN.md -- Translation Key Audit (I18N-01, I18N-04)
 - [ ] 03-B-PLAN.md -- Mixed-Language and Key Fixes (I18N-02, I18N-03)
 - [ ] 03-C-PLAN.md -- Modal Consolidation (CONS-03)
-- [ ] 03-D-PLAN.md -- Translation Consistency Polish (I18N-04)
+- [x] 03-D-PLAN.md -- Translation Consistency Polish (I18N-04)
 
 ---
 
@@ -94,7 +94,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 1. CSS Foundation Cleanup | 4/4 | Complete   | 2026-04-03 |
 | 2. Component Unification and Responsive Fixes | 4/4 | Complete   | 2026-04-03 |
-| 3. Translation Audit and Polish | 0/5 | Not started | - |
+| 3. Translation Audit and Polish | 1/4 | In progress | - |
 
 ---
 
