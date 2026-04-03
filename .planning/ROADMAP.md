@@ -29,7 +29,12 @@
 3. CSS specificity conflicts between shared.css and page-specific CSS files are resolved (specific component overrides work predictably)
 4. A consistent CSS naming convention is established and applied across all CSS files
 
-**Plans:** TBD
+**Plans:** 4 plans (01-04)
+Plans:
+- [ ] 01-01-PLAN.md -- Extract and centralize all @keyframes to animations.css
+- [ ] 01-02-PLAN.md -- Replace hardcoded color fallbacks and fixed min-widths
+- [ ] 01-03-PLAN.md -- Document CSS naming convention in shared.css header
+- [ ] 01-04-PLAN.md -- Audit and document CSS specificity override rules
 
 ---
 
