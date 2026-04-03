@@ -46,9 +46,16 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			if prompt == "" {
 				prompt = "Describe this image in detail. What do you see? If there is text, transcribe it. If there are people, describe their actions."
 			}
-			result, err := tools.AnalyzeImageWithPrompt(fpath, prompt, cfg)
+			result, pTokens, cTokens, err := tools.AnalyzeImageWithPrompt(fpath, prompt, cfg)
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Vision analysis failed: %v"}`, err)
+			}
+			if budgetTracker != nil {
+				vModel := cfg.Vision.Model
+				if vModel == "" {
+					vModel = "google/gemini-2.5-flash-lite-preview-09-2025"
+				}
+				budgetTracker.RecordForCategory("vision", vModel, pTokens, cTokens)
 			}
 			return fmt.Sprintf("Tool Output: %s", result)
 
@@ -65,9 +72,12 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			if strings.Contains(fpath, "..") {
 				return `Tool Output: {"status": "error", "message": "path traversal sequences ('..') are not allowed"}`
 			}
-			result, err := tools.TranscribeAudioFile(fpath, cfg)
+			result, sttCost, err := tools.TranscribeAudioFile(fpath, cfg)
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Transcription failed: %v"}`, err)
+			}
+			if budgetTracker != nil {
+				budgetTracker.RecordCostForCategory("stt", sttCost)
 			}
 			return fmt.Sprintf("Tool Output: %s", result)
 

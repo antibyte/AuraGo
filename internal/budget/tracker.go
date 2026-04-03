@@ -43,14 +43,15 @@ type ModelUsage struct {
 
 // persistedState is the JSON structure saved to disk.
 type persistedState struct {
-	Date         string             `json:"date"`
-	TotalCostUSD float64            `json:"total_cost_usd"`
-	CategoryCost map[string]float64 `json:"category_cost,omitempty"`
-	InputTokens  map[string]int     `json:"input_tokens"`
-	OutputTokens map[string]int     `json:"output_tokens"`
-	CallCounts   map[string]int     `json:"call_counts"`
-	WarningsSent int                `json:"warnings_sent"`
-	Exceeded     bool               `json:"exceeded"`
+	Date           string             `json:"date"`
+	TotalCostUSD   float64            `json:"total_cost_usd"`
+	CategoryCost   map[string]float64 `json:"category_cost,omitempty"`
+	InputTokens    map[string]int     `json:"input_tokens"`
+	OutputTokens   map[string]int     `json:"output_tokens"`
+	CallCounts     map[string]int     `json:"call_counts"`
+	WarningsSent   int                `json:"warnings_sent,omitempty"`    // Legacy
+	LastWarningPct float64            `json:"last_warning_pct,omitempty"` // New field
+	Exceeded       bool               `json:"exceeded"`
 }
 
 // Tracker is the central budget tracking singleton.
@@ -61,14 +62,14 @@ type Tracker struct {
 	logger *slog.Logger
 
 	// Daily counters
-	date         string // "2006-01-02"
-	totalCostUSD float64
-	categoryCost map[string]float64
-	inputTokens  map[string]int
-	outputTokens map[string]int
-	callCounts   map[string]int
-	warningsSent int
-	exceeded     bool
+	date           string // "2006-01-02"
+	totalCostUSD   float64
+	categoryCost   map[string]float64
+	inputTokens    map[string]int
+	outputTokens   map[string]int
+	callCounts     map[string]int
+	lastWarningPct float64
+	exceeded       bool
 
 	persistPath string
 
@@ -173,9 +174,9 @@ func (t *Tracker) RecordForCategory(category, model string, inputTokens, outputT
 		pct := t.totalCostUSD / limit
 		threshold := t.cfg.Budget.WarningThreshold
 
-		// Check warning threshold
-		if pct >= threshold && t.warningsSent == 0 {
-			t.warningsSent = 1
+		// Check warning threshold (fire once at initial threshold, then every +10%)
+		if pct >= threshold && (t.lastWarningPct == 0 || pct >= t.lastWarningPct+0.1) {
+			t.lastWarningPct = pct
 			crossedWarning = true
 			t.logger.Warn("[Budget] Warning threshold crossed",
 				"spent", t.totalCostUSD, "limit", limit, "pct", pct)
@@ -241,8 +242,8 @@ func (t *Tracker) RecordCostForCategory(category string, costUSD float64) {
 		pct := t.totalCostUSD / limit
 		threshold := t.cfg.Budget.WarningThreshold
 
-		if pct >= threshold && t.warningsSent == 0 {
-			t.warningsSent = 1
+		if pct >= threshold && (t.lastWarningPct == 0 || pct >= t.lastWarningPct+0.1) {
+			t.lastWarningPct = pct
 			crossedWarning = true
 			t.logger.Warn("[Budget] Warning threshold crossed",
 				"spent", t.totalCostUSD, "limit", limit, "pct", pct)
@@ -597,7 +598,7 @@ func (t *Tracker) resetForNewDayLocked(today string) {
 	t.inputTokens = make(map[string]int)
 	t.outputTokens = make(map[string]int)
 	t.callCounts = make(map[string]int)
-	t.warningsSent = 0
+	t.lastWarningPct = 0
 	t.exceeded = false
 }
 
@@ -644,14 +645,14 @@ func (t *Tracker) Flush() {
 // doPersistLocked writes the budget state to disk. Must be called with t.mu held.
 func (t *Tracker) doPersistLocked() {
 	state := persistedState{
-		Date:         t.date,
-		TotalCostUSD: t.totalCostUSD,
-		CategoryCost: t.categoryCost,
-		InputTokens:  t.inputTokens,
-		OutputTokens: t.outputTokens,
-		CallCounts:   t.callCounts,
-		WarningsSent: t.warningsSent,
-		Exceeded:     t.exceeded,
+		Date:           t.date,
+		TotalCostUSD:   t.totalCostUSD,
+		CategoryCost:   t.categoryCost,
+		InputTokens:    t.inputTokens,
+		OutputTokens:   t.outputTokens,
+		CallCounts:     t.callCounts,
+		LastWarningPct: t.lastWarningPct,
+		Exceeded:       t.exceeded,
 	}
 
 	data, err := json.Marshal(state)
@@ -687,7 +688,17 @@ func (t *Tracker) load() {
 
 	t.date = state.Date
 	t.totalCostUSD = state.TotalCostUSD
-	t.warningsSent = state.WarningsSent
+
+	// Migrate legacy WarningsSent to LastWarningPct if needed
+	lastWarningPct := state.LastWarningPct
+	if lastWarningPct == 0 && state.WarningsSent > 0 {
+		lastWarningPct = t.cfg.Budget.WarningThreshold
+		if lastWarningPct <= 0 {
+			lastWarningPct = 0.8
+		}
+	}
+	t.lastWarningPct = lastWarningPct
+
 	t.exceeded = state.Exceeded
 
 	if state.InputTokens != nil {

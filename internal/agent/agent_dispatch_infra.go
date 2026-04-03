@@ -1184,7 +1184,7 @@ func dispatchInfra(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 				return fmt.Sprintf(`Tool Output: {"status":"error","message":"Fritz!Box client init failed: %s"}`, fbErr)
 			}
 			defer fbClient.Close()
-			return handleFritzBoxToolCall(tc, fbClient, cfg, logger)
+			return handleFritzBoxToolCall(tc, fbClient, cfg, logger, budgetTracker)
 
 		// ── TrueNAS Storage Management ──
 		case "truenas",

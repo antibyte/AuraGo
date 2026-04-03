@@ -17,10 +17,10 @@ var visionHTTPClient = &http.Client{Timeout: 60 * time.Second}
 
 // AnalyzeImageWithPrompt sends an image file to the configured Vision LLM for analysis.
 // The prompt parameter controls what the model should focus on.
-func AnalyzeImageWithPrompt(filePath, prompt string, cfg *config.Config) (string, error) {
+func AnalyzeImageWithPrompt(filePath, prompt string, cfg *config.Config) (string, int, int, error) {
 	resolvedPath, err := resolveToolInputPath(filePath, cfg)
 	if err != nil {
-		return "", fmt.Errorf("invalid image file path: %w", err)
+		return "", 0, 0, fmt.Errorf("invalid image file path: %w", err)
 	}
 
 	// Resolved by config.ResolveProviders (falls back to main LLM)
@@ -35,15 +35,15 @@ func AnalyzeImageWithPrompt(filePath, prompt string, cfg *config.Config) (string
 	// Read and base64-encode the image
 	visionInfo, err := os.Stat(resolvedPath)
 	if err != nil {
-		return "", fmt.Errorf("failed to stat image file: %w", err)
+		return "", 0, 0, fmt.Errorf("failed to stat image file: %w", err)
 	}
 	const maxVisionBytes = 50 * 1024 * 1024 // 50 MB
 	if visionInfo.Size() > maxVisionBytes {
-		return "", fmt.Errorf("image file too large (%d bytes, max 50 MB)", visionInfo.Size())
+		return "", 0, 0, fmt.Errorf("image file too large (%d bytes, max 50 MB)", visionInfo.Size())
 	}
 	imageData, err := os.ReadFile(resolvedPath)
 	if err != nil {
-		return "", fmt.Errorf("failed to read image file: %w", err)
+		return "", 0, 0, fmt.Errorf("failed to read image file: %w", err)
 	}
 
 	mimeType := "image/jpeg"
@@ -95,13 +95,13 @@ func AnalyzeImageWithPrompt(filePath, prompt string, cfg *config.Config) (string
 
 	jsonData, err := json.Marshal(payload)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal vision payload: %w", err)
+		return "", 0, 0, fmt.Errorf("failed to marshal vision payload: %w", err)
 	}
 
 	reqURL := baseURL + "/chat/completions"
 	req, err := http.NewRequest("POST", reqURL, bytes.NewBuffer(jsonData))
 	if err != nil {
-		return "", fmt.Errorf("failed to create vision request: %w", err)
+		return "", 0, 0, fmt.Errorf("failed to create vision request: %w", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -111,16 +111,16 @@ func AnalyzeImageWithPrompt(filePath, prompt string, cfg *config.Config) (string
 
 	resp, err := visionHTTPClient.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("vision request failed: %w", err)
+		return "", 0, 0, fmt.Errorf("vision request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		body, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
 		if err != nil {
-			return "", fmt.Errorf("vision API error (status %d) and failed to read response body: %w", resp.StatusCode, err)
+			return "", 0, 0, fmt.Errorf("vision API error (status %d) and failed to read response body: %w", resp.StatusCode, err)
 		}
-		return "", fmt.Errorf("vision API error (status %d): %s", resp.StatusCode, string(body))
+		return "", 0, 0, fmt.Errorf("vision API error (status %d): %s", resp.StatusCode, string(body))
 	}
 
 	var result struct {
@@ -129,15 +129,19 @@ func AnalyzeImageWithPrompt(filePath, prompt string, cfg *config.Config) (string
 				Content string `json:"content"`
 			} `json:"message"`
 		} `json:"choices"`
+		Usage struct {
+			PromptTokens     int `json:"prompt_tokens"`
+			CompletionTokens int `json:"completion_tokens"`
+		} `json:"usage"`
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", fmt.Errorf("failed to decode vision response: %w", err)
+		return "", 0, 0, fmt.Errorf("failed to decode vision response: %w", err)
 	}
 
 	if len(result.Choices) == 0 {
-		return "", fmt.Errorf("no analysis received in vision response")
+		return "", 0, 0, fmt.Errorf("no analysis received in vision response")
 	}
 
-	return result.Choices[0].Message.Content, nil
+	return result.Choices[0].Message.Content, result.Usage.PromptTokens, result.Usage.CompletionTokens, nil
 }

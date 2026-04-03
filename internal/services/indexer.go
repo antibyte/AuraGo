@@ -274,7 +274,7 @@ func (fi *FileIndexer) scanDirectory(dir string) (totalFiles, indexedFiles int, 
 					"Dateiname: %s, Pfad: %s", info.Name(), relPath,
 			)
 
-			analysis, visionErr := tools.AnalyzeImageWithPrompt(path, prompt, fi.cfg)
+			analysis, _, _, visionErr := tools.AnalyzeImageWithPrompt(path, prompt, fi.cfg)
 			if visionErr != nil {
 				errors = append(errors, fmt.Sprintf("vision error %s: %v", path, visionErr))
 				fi.logger.Warn("[Indexer] Vision analysis failed", "path", path, "error", visionErr)

@@ -21,10 +21,10 @@ var multimodalTranscribeHTTPClient = &http.Client{Timeout: 60 * time.Second}
 // TranscribeAudioFile sends an audio file to the configured Whisper/STT service for transcription.
 // It tries the native OpenAI Whisper API first, and falls back to multimodal transcription
 // if the provider is set to "multimodal".
-func TranscribeAudioFile(filePath string, cfg *config.Config) (string, error) {
+func TranscribeAudioFile(filePath string, cfg *config.Config) (string, float64, error) {
 	resolvedPath, err := resolveToolInputPath(filePath, cfg)
 	if err != nil {
-		return "", fmt.Errorf("invalid audio file path: %w", err)
+		return "", 0.0, fmt.Errorf("invalid audio file path: %w", err)
 	}
 
 	mode := strings.ToLower(cfg.Whisper.Mode)
@@ -53,7 +53,7 @@ func TranscribeAudioFile(filePath string, cfg *config.Config) (string, error) {
 }
 
 // transcribeWhisper uses the standard OpenAI Whisper API.
-func transcribeWhisper(filePath string, cfg *config.Config) (string, error) {
+func transcribeWhisper(filePath string, cfg *config.Config) (string, float64, error) {
 	// Resolved by config.ResolveProviders (falls back to main LLM)
 	apiKey := cfg.Whisper.APIKey
 	baseURL := cfg.Whisper.BaseURL
@@ -85,14 +85,14 @@ func transcribeWhisper(filePath string, cfg *config.Config) (string, error) {
 		},
 	)
 	if err != nil {
-		return "", fmt.Errorf("whisper transcription failed: %w", err)
+		return "", 0.0, fmt.Errorf("whisper transcription failed: %w", err)
 	}
 
-	return resp.Text, nil
+	return resp.Text, 0.0, nil
 }
 
 // transcribeMultimodal uses a multimodal LLM (e.g. Gemini) via OpenRouter for transcription.
-func transcribeMultimodal(filePath string, cfg *config.Config) (string, error) {
+func transcribeMultimodal(filePath string, cfg *config.Config) (string, float64, error) {
 	// Resolved by config.ResolveProviders (falls back to main LLM)
 	apiKey := cfg.Whisper.APIKey
 	baseURL := cfg.Whisper.BaseURL
@@ -104,15 +104,15 @@ func transcribeMultimodal(filePath string, cfg *config.Config) (string, error) {
 
 	audioInfo, err := os.Stat(filePath)
 	if err != nil {
-		return "", fmt.Errorf("failed to stat audio file: %w", err)
+		return "", 0.0, fmt.Errorf("failed to stat audio file: %w", err)
 	}
 	const maxAudioBytes = 100 * 1024 * 1024 // 100 MB
 	if audioInfo.Size() > maxAudioBytes {
-		return "", fmt.Errorf("audio file too large (%d bytes, max 100 MB)", audioInfo.Size())
+		return "", 0.0, fmt.Errorf("audio file too large (%d bytes, max 100 MB)", audioInfo.Size())
 	}
 	audioData, err := os.ReadFile(filePath)
 	if err != nil {
-		return "", fmt.Errorf("failed to read audio file: %w", err)
+		return "", 0.0, fmt.Errorf("failed to read audio file: %w", err)
 	}
 	encodedAudio := base64.StdEncoding.EncodeToString(audioData)
 
@@ -174,13 +174,13 @@ func transcribeMultimodal(filePath string, cfg *config.Config) (string, error) {
 
 	jsonData, err := json.Marshal(payload)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal transcription payload: %w", err)
+		return "", 0.0, fmt.Errorf("failed to marshal transcription payload: %w", err)
 	}
 
 	reqURL := baseURL + "/chat/completions"
 	req, err := http.NewRequest("POST", reqURL, bytes.NewBuffer(jsonData))
 	if err != nil {
-		return "", fmt.Errorf("failed to create transcription request: %w", err)
+		return "", 0.0, fmt.Errorf("failed to create transcription request: %w", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -190,16 +190,16 @@ func transcribeMultimodal(filePath string, cfg *config.Config) (string, error) {
 
 	resp, err := multimodalTranscribeHTTPClient.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("transcription request failed: %w", err)
+		return "", 0.0, fmt.Errorf("transcription request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		body, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
 		if err != nil {
-			return "", fmt.Errorf("transcription API error (status %d) and failed to read response body: %w", resp.StatusCode, err)
+			return "", 0.0, fmt.Errorf("transcription API error (status %d) and failed to read response body: %w", resp.StatusCode, err)
 		}
-		return "", fmt.Errorf("transcription API error (status %d): %s", resp.StatusCode, string(body))
+		return "", 0.0, fmt.Errorf("transcription API error (status %d): %s", resp.StatusCode, string(body))
 	}
 
 	var result struct {
@@ -211,12 +211,12 @@ func transcribeMultimodal(filePath string, cfg *config.Config) (string, error) {
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return "", fmt.Errorf("failed to decode transcription response: %w", err)
+		return "", 0.0, fmt.Errorf("failed to decode transcription response: %w", err)
 	}
 
 	if len(result.Choices) == 0 {
-		return "", fmt.Errorf("no transcription received in response")
+		return "", 0.0, fmt.Errorf("no transcription received in response")
 	}
 
-	return result.Choices[0].Message.Content, nil
+	return result.Choices[0].Message.Content, 0.0, nil
 }

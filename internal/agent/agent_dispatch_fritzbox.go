@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"aurago/internal/budget"
 	"aurago/internal/config"
 	"aurago/internal/fritzbox"
 	"aurago/internal/security"
@@ -21,7 +22,7 @@ import (
 
 // handleFritzBoxToolCall routes the tool call to the appropriate Fritz!Box service method.
 // tc.Action determines the feature group; tc.Operation determines the specific action.
-func handleFritzBoxToolCall(tc ToolCall, c *fritzbox.Client, cfg *config.Config, logger *slog.Logger) string {
+func handleFritzBoxToolCall(tc ToolCall, c *fritzbox.Client, cfg *config.Config, logger *slog.Logger, budgetTracker *budget.Tracker) string {
 	req := decodeFritzBoxArgs(tc)
 	op := strings.ToLower(strings.TrimSpace(req.Operation))
 
@@ -38,7 +39,7 @@ func handleFritzBoxToolCall(tc ToolCall, c *fritzbox.Client, cfg *config.Config,
 	case "fritzbox_network":
 		return fbNetworkOp(c, req, op, logger)
 	case "fritzbox_telephony":
-		return fbTelephonyOp(c, req, op, cfg, logger)
+		return fbTelephonyOp(c, req, op, cfg, logger, budgetTracker)
 	case "fritzbox_smarthome":
 		return fbSmartHomeOp(c, req, op, logger)
 	case "fritzbox_storage":
@@ -62,7 +63,7 @@ routeByOp:
 		return fbNetworkOp(c, req, op, logger)
 	case strings.Contains(op, "call") || strings.Contains(op, "phonebook") ||
 		strings.Contains(op, "tam"):
-		return fbTelephonyOp(c, req, op, cfg, logger)
+		return fbTelephonyOp(c, req, op, cfg, logger, budgetTracker)
 	case strings.HasPrefix(op, "get_device") || strings.HasPrefix(op, "set_switch") ||
 		strings.HasPrefix(op, "set_heat") || strings.HasPrefix(op, "set_bright") ||
 		strings.Contains(op, "template"):
@@ -229,7 +230,7 @@ func fbNetworkOp(c *fritzbox.Client, req fritzBoxArgs, op string, logger *slog.L
 // Telephony group
 // ────────────────────────────────────────────────────────────────
 
-func fbTelephonyOp(c *fritzbox.Client, req fritzBoxArgs, op string, cfg *config.Config, logger *slog.Logger) string {
+func fbTelephonyOp(c *fritzbox.Client, req fritzBoxArgs, op string, cfg *config.Config, logger *slog.Logger, budgetTracker *budget.Tracker) string {
 	if !c.TelephonyEnabled() {
 		return `Tool Output: {"status":"error","message":"Fritz!Box telephony integration is not enabled."}`
 	}
@@ -329,9 +330,12 @@ func fbTelephonyOp(c *fritzbox.Client, req fritzBoxArgs, op string, cfg *config.
 		}
 		defer os.Remove(tmpPath)
 
-		text, err := tools.TranscribeAudioFile(tmpPath, cfg)
+		text, fbSttCost, err := tools.TranscribeAudioFile(tmpPath, cfg)
 		if err != nil {
 			return fbError("transcribe_tam_message", fmt.Errorf("transcription failed: %w", err))
+		}
+		if budgetTracker != nil {
+			budgetTracker.RecordCostForCategory("stt", fbSttCost)
 		}
 		return fbOK(map[string]interface{}{
 			"transcription": security.IsolateExternalData(text),
