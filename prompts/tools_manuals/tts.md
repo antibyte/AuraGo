@@ -40,12 +40,18 @@ Use these inline in the `text` parameter to control speech dynamics:
 | `(clear-throat)` | Clearing throat |
 | `(groans)` | Groaning |
 | `(breath)` | Breathing sound |
-| `(sighs)` | Sigh |
-| `(gasps)` | Gasp |
-| `(sniffs)` | Sniff |
+| `(pant)` | Panting |
 | `(inhale)` | Inhale |
 | `(exhale)` | Exhale |
+| `(gasps)` | Gasp |
+| `(sniffs)` | Sniff |
+| `(sighs)` | Sigh |
+| `(snorts)` | Snort |
+| `(burps)` | Burp |
+| `(lip-smacking)` | Lip smacking |
 | `(humming)` | Humming |
+| `(hissing)` | Hissing |
+| `(emm)` | Thinking sound ("emm") |
 | `(sneezes)` | Sneeze |
 
 Example: `"Hello! <#0.5#> (laughs) That's great news."`
