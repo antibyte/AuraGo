@@ -31,7 +31,7 @@
   "help.agent.step_delay_seconds": "Délai entre les appels d'outils en secondes. 0 = pas de retard.",
   "help.agent.sudo_enabled": "Active exécuter_sudo. Le mot de passe sudo doit être stocké dans le coffre-fort sous la clé « sudo_password ».",
   "help.agent.system_language": "Langue pour les réponses, par ex. « Deutsch » ou « English ».",
-  "help.agent.system_prompt_token_budget": "Nombre maximal de jetons pour l'invite système. 0 = illimité.",
+  "help.agent.system_prompt_token_budget": "Nombre maximal de jetons pour l'invite système. 0 = automatique.",
   "help.agent.user_profiling": "Permet le profilage automatique des utilisateurs : l'agent détecte les préférences et les habitudes du chat et les stocke (nécessite Personality Engine V2).",
   "help.agent.user_profiling_threshold": "Confiance minimale (nombre de confirmations) avant qu'un attribut de profil ne soit injecté dans l'invite système. Par défaut : 2.",
   "help.agent.workflow_feedback": "Permet des mises à jour de statut occasionnelles pendant de longs flux de travail (par exemple « Un instant s'il vous plaît... »).",

@@ -31,7 +31,7 @@
   "help.agent.step_delay_seconds": "Ritardo tra le chiamate tool in secondi. 0 = nessun ritardo.",
   "help.agent.sudo_enabled": "Abilita execute_sudo. La password sudo deve essere memorizzata nel vault sotto la chiave 'sudo_password'.",
   "help.agent.system_language": "Lingua per le risposte, es. 'Deutsch' o 'English'.",
-  "help.agent.system_prompt_token_budget": "Numero massimo di token per il system prompt. 0 = illimitato.",
+  "help.agent.system_prompt_token_budget": "Numero massimo di token per il system prompt. 0 = automatico.",
   "help.agent.user_profiling": "Abilita il profilo utente automatico: l'agente rileva preferenze e abitudini dalla chat e le memorizza (richiede Personality Engine V2).",
   "help.agent.user_profiling_threshold": "Confidenza minima (numero di conferme) prima che un attributo del profilo venga iniettato nel system prompt. Default: 2.",
   "help.agent.workflow_feedback": "Abilita aggiornamenti di stato occasionali durante workflow lunghi (es. 'Un momento per favore...').",

@@ -520,9 +520,7 @@ func main() {
 	// Auto-detect context window and configure token budget
 	if cfg.Agent.ContextWindow == 0 {
 		detected := llm.DetectContextWindow(cfg.LLM.BaseURL, cfg.LLM.APIKey, cfg.LLM.Model, cfg.LLM.ProviderType, appLog)
-		if detected > 0 {
-			cfg.Agent.SystemPromptTokenBudget, cfg.Agent.ContextWindow = llm.AutoConfigureBudget(detected, cfg.Agent.SystemPromptTokenBudget, appLog)
-		}
+		cfg.Agent.SystemPromptTokenBudget, cfg.Agent.ContextWindow = llm.AutoConfigureBudget(detected, cfg.Agent.SystemPromptTokenBudget, appLog)
 	}
 
 	// Process Registry for background daemon management

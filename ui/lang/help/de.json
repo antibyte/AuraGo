@@ -46,7 +46,7 @@
   "help.agent.step_delay_seconds": "Wartezeit zwischen Tool-Aufrufen in Sekunden. 0 = kein Delay.",
   "help.agent.sudo_enabled": "Aktiviert execute_sudo. Das Sudo-Passwort muss im Vault unter dem Schlüssel 'sudo_password' gespeichert sein.",
   "help.agent.system_language": "Sprache für Antworten, z.B. 'Deutsch' oder 'English'.",
-  "help.agent.system_prompt_token_budget": "Maximale Token-Anzahl für den System-Prompt. 0 = unbegrenzt.",
+  "help.agent.system_prompt_token_budget": "Maximale Token-Anzahl für den System-Prompt. 0 = automatisch.",
   "help.agent.user_profiling": "Aktiviert das automatische User-Profiling: Der Agent erkennt Vorlieben und Gewohnheiten aus dem Chat und speichert sie (benötigt Personality Engine V2).",
   "help.agent.user_profiling_threshold": "Mindestkonfidenz (Anzahl Bestätigungen), ab der ein Profilmerkmal in den System-Prompt injiziert wird. Standard: 2.",
   "help.agent.workflow_feedback": "Aktiviert gelegentliche Status-Updates bei langen Arbeitsabläufen (z.B. 'Bin gleich fertig...').",

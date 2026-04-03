@@ -31,7 +31,7 @@
   "help.agent.step_delay_seconds": "Zpozdeni mezi volanimi nastroju.",
   "help.agent.sudo_enabled": "Povoluje sudo spousteni. Vyzaduje heslo.",
   "help.agent.system_language": "Jazyk pro odpovedi, napr. \"Cestina\".",
-  "help.agent.system_prompt_token_budget": "Maximaal aantal tokens voor de systeemprompt. 0 = onbeperkt.",
+  "help.agent.system_prompt_token_budget": "Maksimalt antal tokens for systemprompt. 0 = automatisk.",
   "help.agent.user_profiling": "Schakelt automatisch gebruikersprofiel in: de agent detecteert voorkeuren en gewoonten uit de chat en slaat ze op (vereist Personality Engine V2).",
   "help.agent.user_profiling_threshold": "Minimale zekerheid (aantal bevestigingen) voordat een profielattribuut in de systeemprompt wordt geïnjecteerd. Standaard: 2.",
   "help.agent.workflow_feedback": "Schakelt occasionele statusupdates in tijdens lange workflows (bijv. \"Een ogenblik geduld...\").",

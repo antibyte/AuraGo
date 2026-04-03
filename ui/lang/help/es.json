@@ -31,7 +31,7 @@
   "help.agent.step_delay_seconds": "Retraso entre llamadas de herramientas en segundos. 0 = sin retraso.",
   "help.agent.sudo_enabled": "Habilita ejecutar_sudo. La contraseña de sudo debe almacenarse en la bóveda con la clave 'sudo_password'.",
   "help.agent.system_language": "Idioma para las respuestas, p.e. 'Deutsch' o 'inglés'.",
-  "help.agent.system_prompt_token_budget": "Recuento máximo de tokens para el aviso del sistema. 0 = ilimitado.",
+  "help.agent.system_prompt_token_budget": "Recuento máximo de tokens para el aviso del sistema. 0 = automático.",
   "help.agent.user_profiling": "Habilita la creación de perfiles automáticos de usuarios: el agente detecta preferencias y hábitos del chat y los almacena (requiere Personality Engine V2).",
   "help.agent.user_profiling_threshold": "Confianza mínima (número de confirmaciones) antes de inyectar un atributo de perfil en el mensaje del sistema. Predeterminado: 2.",
   "help.agent.workflow_feedback": "Permite actualizaciones de estado ocasionales durante flujos de trabajo prolongados (por ejemplo, \"Un momento, por favor...\").",

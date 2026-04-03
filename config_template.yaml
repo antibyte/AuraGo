@@ -20,7 +20,7 @@ agent:
     show_tool_results: false
     step_delay_seconds: 0
     system_language: English
-    system_prompt_token_budget: 12288
+    system_prompt_token_budget: 0 # 0 = automatic
     adaptive_system_prompt_token_budget: true
     workflow_feedback: true
     sudo_enabled: false

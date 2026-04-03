@@ -31,7 +31,7 @@
   "help.agent.step_delay_seconds": "工具调用之间的延迟（以秒为单位）。 0 = 无延迟。",
   "help.agent.sudo_enabled": "启用execute_sudo。 sudo 密码必须存储在密钥“sudo_password”下的保管库中。",
   "help.agent.system_language": "回复的语言，例如“德语”或“英语”。",
-  "help.agent.system_prompt_token_budget": "系统提示的最大令牌计数。 0 = 无限制。",
+  "help.agent.system_prompt_token_budget": "系统提示的最大令牌计数。 0 = 自动。",
   "help.agent.user_profiling": "启用自动用户分析：代理从聊天中检测偏好和习惯并存储它们（需要 Personality Engine V2）。",
   "help.agent.user_profiling_threshold": "将配置文件属性注入系统提示之前的最小置信度（确认次数）。默认值：2。",
   "help.agent.workflow_feedback": "在长时间的工作流程中启用偶尔的状态更新（例如“请稍等...”）。",

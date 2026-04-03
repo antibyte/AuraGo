@@ -46,7 +46,7 @@
   "help.agent.step_delay_seconds": "Delay between tool calls in seconds. 0 = no delay.",
   "help.agent.sudo_enabled": "Enables execute_sudo. The sudo password must be stored in the vault under the key 'sudo_password'.",
   "help.agent.system_language": "Language for responses, e.g. 'Deutsch' or 'English'.",
-  "help.agent.system_prompt_token_budget": "Maximum token count for the system prompt. 0 = unlimited.",
+  "help.agent.system_prompt_token_budget": "Maximum token count for the system prompt. 0 = automatic.",
   "help.agent.user_profiling": "Enables automatic user profiling: the agent detects preferences and habits from the chat and stores them (requires Personality Engine V2).",
   "help.agent.user_profiling_threshold": "Minimum confidence (number of confirmations) before a profile attribute is injected into the system prompt. Default: 2.",
   "help.agent.workflow_feedback": "Enables occasional status updates during long workflows (e.g. 'One moment please...').",

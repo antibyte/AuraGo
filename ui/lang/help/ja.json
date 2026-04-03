@@ -31,7 +31,7 @@
   "help.agent.step_delay_seconds": "ツール呼び出し間の遅延 (秒単位)。 0 = 遅延なし。",
   "help.agent.sudo_enabled": "execute_sudo を有効にします。 sudo パスワードは、キー「sudo_password」の下でボールトに保存する必要があります。",
   "help.agent.system_language": "応答の言語。例: 「ドイツ語」または「英語」。",
-  "help.agent.system_prompt_token_budget": "システム プロンプトの最大トークン数。 0 = 無制限。",
+  "help.agent.system_prompt_token_budget": "システム プロンプトの最大トークン数。 0 = 自動。",
   "help.agent.user_profiling": "自動ユーザー プロファイリングを有効にします。エージェントはチャットから好みと習慣を検出し、それらを保存します (Personality Engine V2 が必要)。",
   "help.agent.user_profiling_threshold": "プロファイル属性がシステム プロンプトに挿入される前の最小信頼度 (確認回数)。デフォルト: 2。",
   "help.agent.workflow_feedback": "長いワークフロー中に不定期にステータスを更新できるようにします (例: 「しばらくお待ちください...」)。",
