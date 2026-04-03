@@ -280,5 +280,12 @@
   "config.section.truenas.label": "TrueNAS",
   "config.section.truenas.desc": "TrueNAS ZFS storage management (Pools, Datasets, Snapshots, Shares)",
   "config.section.mission_preparation.label": "Oppdragsforberedelse",
-  "config.section.mission_preparation.desc": "Konfigurer LLM-basert foranalyse og planlegging av oppdrag"
+  "config.section.mission_preparation.desc": "Konfigurer LLM-basert foranalyse og planlegging av oppdrag",
+  "config.tts.minimax_voice_id_label": "Stemme-ID",
+  "config.tts.minimax_voice_id_help": "MiniMax stemmeidentifikator (f.eks. English_expressive_narrator)",
+  "config.tts.minimax_model_label": "Modell",
+  "config.tts.minimax_model_help": "speech-2.8-hd (høy kvalitet) eller speech-2.8-turbo (raskere)",
+  "config.tts.minimax_speed_label": "Hastighet",
+  "config.tts.minimax_speed_help": "Talehastighet 0,5–2,0 (standard 1,0)",
+  "config.tts.minimax_api_key_required": "MiniMax API-nøkkel er påkrevd"
 }

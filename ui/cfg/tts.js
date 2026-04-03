@@ -7,6 +7,8 @@ function renderTTSSection(section) {
     const currentProvider = data.provider || '';
     const elData = data.elevenlabs || {};
     const hasElevenLabsKey = elData.api_key === '••••••••';
+    const mmData = data.minimax || {};
+    const hasMiniMaxKey = mmData.api_key === '••••••••';
 
     let html = '<div class="cfg-section active">';
     html += '<div class="section-header">' + section.icon + ' ' + section.label + '</div>';
@@ -20,6 +22,7 @@ function renderTTSSection(section) {
     html += '<option value=""' + (currentProvider === '' ? ' selected' : '') + '>— ' + t('config.tts.provider_none') + ' —</option>';
     html += '<option value="google"' + (currentProvider === 'google' ? ' selected' : '') + '>Google TTS</option>';
     html += '<option value="elevenlabs"' + (currentProvider === 'elevenlabs' ? ' selected' : '') + '>ElevenLabs</option>';
+    html += '<option value="minimax"' + (currentProvider === 'minimax' ? ' selected' : '') + '>MiniMax</option>';
     html += '<option value="piper"' + (currentProvider === 'piper' ? ' selected' : '') + '>Piper (Local)</option>';
     html += '</select>';
     html += '</div>';
@@ -55,6 +58,44 @@ function renderTTSSection(section) {
     html += '<div class="field-group">';
     html += '<div class="field-label">Model ID</div>';
     html += '<input class="field-input" type="text" data-path="tts.elevenlabs.model_id" value="' + escapeAttr(elData.model_id || '') + '" placeholder="eleven_monolingual_v1">';
+    html += '</div>';
+    html += '</div>';
+
+    // ── MiniMax fields (shown when provider=minimax) ──
+    const showMM = currentProvider === 'minimax';
+    html += '<div id="tts-minimax-section" style="' + (showMM ? '' : 'display:none;') + '">';
+    html += '<div style="font-weight:600;font-size:0.92rem;color:var(--accent);border-bottom:1px solid var(--border-subtle);padding-bottom:0.4rem;margin:1.5rem 0 0.8rem;">🎵 MiniMax TTS</div>';
+
+    html += '<div class="field-group">';
+    html += '<div class="field-label">API Key</div>';
+    html += '<div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">';
+    html += '<div class="password-wrap" style="flex:1;min-width:240px;">';
+    html += '<input class="field-input" type="password" id="tts-minimax-api-key" value="" placeholder="' + escapeAttr(hasMiniMaxKey ? '••••••••' : 'Enter MiniMax API key') + '">';
+    html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
+    html += '</div>';
+    html += '<button class="btn-save" style="padding:0.45rem 1rem;font-size:0.82rem;white-space:nowrap;" onclick="ttsSaveMiniMaxKey()">💾</button>';
+    html += '</div>';
+    html += '</div>';
+
+    html += '<div class="field-group">';
+    html += '<div class="field-label">' + t('config.tts.minimax_voice_id_label') + '</div>';
+    html += '<div class="field-help">' + t('config.tts.minimax_voice_id_help') + '</div>';
+    html += '<input class="field-input" type="text" data-path="tts.minimax.voice_id" value="' + escapeAttr(mmData.voice_id || '') + '" placeholder="English_expressive_narrator">';
+    html += '</div>';
+
+    html += '<div class="field-group">';
+    html += '<div class="field-label">' + t('config.tts.minimax_model_label') + '</div>';
+    html += '<div class="field-help">' + t('config.tts.minimax_model_help') + '</div>';
+    html += '<select class="field-input" data-path="tts.minimax.model_id">';
+    html += '<option value="speech-2.8-hd"' + (mmData.model_id === 'speech-2.8-hd' || !mmData.model_id ? ' selected' : '') + '>speech-2.8-hd (High Quality)</option>';
+    html += '<option value="speech-2.8-turbo"' + (mmData.model_id === 'speech-2.8-turbo' ? ' selected' : '') + '>speech-2.8-turbo (Fast)</option>';
+    html += '</select>';
+    html += '</div>';
+
+    html += '<div class="field-group">';
+    html += '<div class="field-label">' + t('config.tts.minimax_speed_label') + '</div>';
+    html += '<div class="field-help">' + t('config.tts.minimax_speed_help') + '</div>';
+    html += '<input class="field-input" type="number" data-path="tts.minimax.speed" value="' + (mmData.speed || 1.0) + '" min="0.5" max="2.0" step="0.1" placeholder="1.0">';
     html += '</div>';
     html += '</div>';
 
@@ -134,6 +175,8 @@ function renderTTSSection(section) {
 function ttsProviderChanged(val) {
     const elSection = document.getElementById('tts-elevenlabs-section');
     if (elSection) elSection.style.display = val === 'elevenlabs' ? '' : 'none';
+    const mmSection = document.getElementById('tts-minimax-section');
+    if (mmSection) mmSection.style.display = val === 'minimax' ? '' : 'none';
 }
 
 function ttsSaveElevenLabsKey() {
@@ -165,6 +208,37 @@ function ttsSaveElevenLabsKey() {
             }
         })
         .catch(() => showToast('Failed to save ElevenLabs API key', 'error'));
+}
+
+function ttsSaveMiniMaxKey() {
+    const input = document.getElementById('tts-minimax-api-key');
+    const value = input ? input.value.trim() : '';
+    if (!value) {
+        showToast(t('config.tts.minimax_api_key_required') || 'MiniMax API key is required', 'warn');
+        return;
+    }
+
+    fetch('/api/vault/secrets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'tts_minimax_api_key', value })
+    })
+        .then(r => r.json())
+        .then(res => {
+            if (res.status === 'ok' || res.success) {
+                showToast('MiniMax API key saved', 'success');
+                if (input) {
+                    input.value = '';
+                    input.placeholder = '••••••••';
+                }
+                if (!configData.tts) configData.tts = {};
+                if (!configData.tts.minimax) configData.tts.minimax = {};
+                configData.tts.minimax.api_key = '••••••••';
+            } else {
+                showToast(res.message || 'Failed to save MiniMax API key', 'error');
+            }
+        })
+        .catch(() => showToast('Failed to save MiniMax API key', 'error'));
 }
 
 function piperCheckStatus() {

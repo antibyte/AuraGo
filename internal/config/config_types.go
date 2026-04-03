@@ -692,6 +692,12 @@ type Config struct {
 			VoiceID string `yaml:"voice_id"`          // default voice ID
 			ModelID string `yaml:"model_id"`          // e.g. "eleven_multilingual_v2"
 		} `yaml:"elevenlabs"`
+		MiniMax struct {
+			APIKey  string  `yaml:"-" vault:"api_key"` // vault-only
+			VoiceID string  `yaml:"voice_id"`          // e.g. "English_expressive_narrator"
+			ModelID string  `yaml:"model_id"`          // "speech-2.8-hd" or "speech-2.8-turbo"
+			Speed   float64 `yaml:"speed"`             // 0.5–2.0; 0 means default (1.0)
+		} `yaml:"minimax"`
 		Piper struct {
 			Enabled       bool   `yaml:"enabled"`        // auto-manage a Piper TTS container
 			Voice         string `yaml:"voice"`          // e.g. "de_DE-thorsten-high"

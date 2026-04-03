@@ -280,5 +280,12 @@
   "config.section.truenas.label": "TrueNAS",
   "config.section.truenas.desc": "TrueNAS ZFS storage management (Pools, Datasets, Snapshots, Shares)",
   "config.section.mission_preparation.label": "Προετοιμασία αποστολών",
-  "config.section.mission_preparation.desc": "Διαμόρφωση προανάλυσης και σχεδιασμού αποστολών μέσω LLM"
+  "config.section.mission_preparation.desc": "Διαμόρφωση προανάλυσης και σχεδιασμού αποστολών μέσω LLM",
+  "config.tts.minimax_voice_id_label": "Αναγνωριστικό φωνής",
+  "config.tts.minimax_voice_id_help": "Αναγνωριστικό φωνής MiniMax (π.χ. English_expressive_narrator)",
+  "config.tts.minimax_model_label": "Μοντέλο",
+  "config.tts.minimax_model_help": "speech-2.8-hd (υψηλή ποιότητα) ή speech-2.8-turbo (πιο γρήγορο)",
+  "config.tts.minimax_speed_label": "Ταχύτητα",
+  "config.tts.minimax_speed_help": "Ταχύτητα ομιλίας 0,5–2,0 (προεπιλογή 1,0)",
+  "config.tts.minimax_api_key_required": "Απαιτείται κλειδί API MiniMax"
 }

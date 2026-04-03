@@ -1,8 +1,12 @@
 package tools
 
 import (
+	"bytes"
 	"crypto/md5"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -28,6 +32,12 @@ type TTSConfig struct {
 		Port      int    // Wyoming TCP port (default 10200)
 		Voice     string // e.g. "de_DE-thorsten-high"
 		SpeakerID int    // multi-speaker model index
+	}
+	MiniMax struct {
+		APIKey  string
+		VoiceID string  // e.g. "English_expressive_narrator"
+		ModelID string  // "speech-2.8-hd" or "speech-2.8-turbo"
+		Speed   float64 // 0.5–2.0; 0 means default (1.0)
 	}
 }
 
@@ -73,6 +83,8 @@ func TTSSynthesize(cfg TTSConfig, text string) (string, error) {
 	switch strings.ToLower(cfg.Provider) {
 	case "elevenlabs":
 		audioData, err = ttsElevenLabs(cfg, text)
+	case "minimax":
+		audioData, err = ttsMiniMax(cfg, text)
 	case "piper":
 		audioData, err = ttsPiper(cfg, text)
 	default: // "google" or fallback
@@ -278,4 +290,96 @@ func ttsPiper(cfg TTSConfig, text string) ([]byte, error) {
 	}
 
 	return PCMToWAV(pcm, rate, width, channels), nil
+}
+
+// ttsMiniMax calls the MiniMax T2A v2 API (non-streaming, hex output) and returns
+// the decoded MP3 audio bytes.
+func ttsMiniMax(cfg TTSConfig, text string) ([]byte, error) {
+	if cfg.MiniMax.APIKey == "" {
+		return nil, fmt.Errorf("MiniMax API key not configured")
+	}
+
+	model := cfg.MiniMax.ModelID
+	if model == "" {
+		model = "speech-2.8-hd"
+	}
+	voiceID := cfg.MiniMax.VoiceID
+	if voiceID == "" {
+		voiceID = "English_expressive_narrator"
+	}
+	speed := cfg.MiniMax.Speed
+	if speed == 0 {
+		speed = 1.0
+	}
+
+	payload := map[string]interface{}{
+		"model":  model,
+		"text":   text,
+		"stream": false,
+		"voice_setting": map[string]interface{}{
+			"voice_id": voiceID,
+			"speed":    speed,
+			"vol":      1,
+			"pitch":    0,
+		},
+		"audio_setting": map[string]interface{}{
+			"format":      "mp3",
+			"sample_rate": 32000,
+			"bitrate":     128000,
+			"channel":     1,
+		},
+		"output_format": "hex",
+	}
+
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode MiniMax request: %w", err)
+	}
+
+	req, err := http.NewRequest("POST", "https://api.minimax.io/v1/t2a_v2", bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create MiniMax request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+cfg.MiniMax.APIKey)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := ttsHTTPClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("MiniMax request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read MiniMax response: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("MiniMax API error %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	var result struct {
+		Data struct {
+			Audio string `json:"audio"`
+		} `json:"data"`
+		BaseResp struct {
+			StatusCode int    `json:"status_code"`
+			StatusMsg  string `json:"status_msg"`
+		} `json:"base_resp"`
+	}
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse MiniMax response: %w", err)
+	}
+	if result.BaseResp.StatusCode != 0 {
+		return nil, fmt.Errorf("MiniMax API error %d: %s", result.BaseResp.StatusCode, result.BaseResp.StatusMsg)
+	}
+	if result.Data.Audio == "" {
+		return nil, fmt.Errorf("MiniMax returned empty audio data")
+	}
+
+	audioData, err := hex.DecodeString(result.Data.Audio)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode MiniMax audio hex: %w", err)
+	}
+	return audioData, nil
 }

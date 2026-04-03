@@ -952,6 +952,7 @@ var vaultKeyMap = map[string]string{
 	"virustotal.api_key":               "virustotal_api_key",
 	"brave_search.api_key":             "brave_search_api_key",
 	"tts.elevenlabs.api_key":           "tts_elevenlabs_api_key",
+	"tts.minimax.api_key":              "tts_minimax_api_key",
 	"notifications.ntfy.token":         "ntfy_token",
 	"auth.password_hash":               "auth_password_hash",
 	"auth.session_secret":              "auth_session_secret",

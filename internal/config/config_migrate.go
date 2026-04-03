@@ -664,6 +664,7 @@ func (c *Config) ApplyVaultSecrets(vault SecretReader) {
 	apply("virustotal_api_key", &c.VirusTotal.APIKey)
 	apply("brave_search_api_key", &c.BraveSearch.APIKey)
 	apply("tts_elevenlabs_api_key", &c.TTS.ElevenLabs.APIKey)
+	apply("tts_minimax_api_key", &c.TTS.MiniMax.APIKey)
 
 	// ── Notifications ──
 	apply("ntfy_token", &c.Notifications.Ntfy.Token)

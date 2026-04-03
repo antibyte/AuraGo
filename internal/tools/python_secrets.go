@@ -53,6 +53,7 @@ var blockedSecretExact = map[string]struct{}{
 	"virustotal_api_key":          {},
 	"brave_search_api_key":        {},
 	"tts_elevenlabs_api_key":      {},
+	"tts_minimax_api_key":         {},
 	"ntfy_token":                  {},
 	"home_assistant_access_token": {},
 	"webdav_password":             {},

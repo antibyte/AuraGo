@@ -280,5 +280,12 @@
   "config.section.truenas.label": "TrueNAS",
   "config.section.truenas.desc": "TrueNAS ZFS storage management (Pools, Datasets, Snapshots, Shares)",
   "config.section.mission_preparation.label": "Preparación de misiones",
-  "config.section.mission_preparation.desc": "Configurar el pre-análisis y planificación de misiones por LLM"
+  "config.section.mission_preparation.desc": "Configurar el pre-análisis y planificación de misiones por LLM",
+  "config.tts.minimax_voice_id_label": "ID de voz",
+  "config.tts.minimax_voice_id_help": "Identificador de voz de MiniMax (p. ej. English_expressive_narrator)",
+  "config.tts.minimax_model_label": "Modelo",
+  "config.tts.minimax_model_help": "speech-2.8-hd (alta calidad) o speech-2.8-turbo (más rápido)",
+  "config.tts.minimax_speed_label": "Velocidad",
+  "config.tts.minimax_speed_help": "Velocidad de habla 0,5–2,0 (predeterminado 1,0)",
+  "config.tts.minimax_api_key_required": "Se requiere la clave API de MiniMax"
 }

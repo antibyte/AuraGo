@@ -201,6 +201,10 @@ func dispatchInfra(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 			ttsCfg.ElevenLabs.APIKey = cfg.TTS.ElevenLabs.APIKey
 			ttsCfg.ElevenLabs.VoiceID = cfg.TTS.ElevenLabs.VoiceID
 			ttsCfg.ElevenLabs.ModelID = cfg.TTS.ElevenLabs.ModelID
+			ttsCfg.MiniMax.APIKey = cfg.TTS.MiniMax.APIKey
+			ttsCfg.MiniMax.VoiceID = cfg.TTS.MiniMax.VoiceID
+			ttsCfg.MiniMax.ModelID = cfg.TTS.MiniMax.ModelID
+			ttsCfg.MiniMax.Speed = cfg.TTS.MiniMax.Speed
 			ttsCfg.Piper.Port = cfg.TTS.Piper.ContainerPort
 			ttsCfg.Piper.Voice = cfg.TTS.Piper.Voice
 			ttsCfg.Piper.SpeakerID = cfg.TTS.Piper.SpeakerID
