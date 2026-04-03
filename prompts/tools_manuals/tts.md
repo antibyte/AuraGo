@@ -27,6 +27,6 @@ Generate speech audio from text. Max 200 characters per call.
 - Audio files are cached by content hash — the cache may be evicted over time
 - Audio is automatically sent as native attachment in Telegram/Discord
 - Combine with `chromecast` action `speak` to play on speakers
-- **To post TTS audio to chat:** use `send_audio` with `path` set to the `local_path` from this result (not the URL). The local path is always available even if the TTS cache was evicted.
+- **⚠️ TTS audio is automatically posted to the WebUI chat when generated.** Do NOT call `send_audio` after `tts` — that would send it twice. Only use `send_audio` for audio files that are NOT from the `tts` tool.
 
 
