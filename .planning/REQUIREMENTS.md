@@ -24,8 +24,8 @@
 ### Translation
 
 - [ ] **I18N-01**: Audit all 15 language files for missing translation keys
-- [ ] **I18N-02**: Fix mixed-language entries (e.g., `setup.header_subtitle: "Quick Setup"` in German)
-- [ ] **I18N-03**: Fix incorrect key references (e.g., `setup.language_custom` referencing wrong key)
+- [x] **I18N-02**: Fix mixed-language entries (e.g., `setup.header_subtitle: "Quick Setup"` in German)
+- [x] **I18N-03**: Fix incorrect key references (e.g., `setup.language_custom` referencing wrong key)
 - [ ] **I18N-04**: Ensure all 15 languages have complete, consistent translations
 
 ### CSS Architecture
@@ -75,8 +75,8 @@
 | CONS-04 | Phase 2 | Pending |
 | CONS-05 | Phase 2 | Pending |
 | I18N-01 | Phase 3 | Pending |
-| I18N-02 | Phase 3 | Pending |
-| I18N-03 | Phase 3 | Pending |
+| I18N-02 | Phase 3 | Complete |
+| I18N-03 | Phase 3 | Complete |
 | I18N-04 | Phase 3 | Pending |
 | CSS-01 | Phase 1 | Complete |
 | CSS-02 | Phase 1 | Pending |

@@ -78,11 +78,11 @@ Plans:
 4. A single unified modal pattern (modal-overlay + modal-card) is used consistently across all pages, replacing any vault-modal-* variants
 5. All 15 languages have translations that are consistent in length and tone (no clipped or overlapping UI text)
 
-**Plans:** 4 plans
+**Plans:** 3/4 plans executed
 
 Plans:
-- [ ] 03-A-PLAN.md -- Translation Key Audit (I18N-01, I18N-04)
-- [ ] 03-B-PLAN.md -- Mixed-Language and Key Fixes (I18N-02, I18N-03)
+- [x] 03-A-PLAN.md -- Translation Key Audit (I18N-01, I18N-04)
+- [x] 03-B-PLAN.md -- Mixed-Language and Key Fixes (I18N-02, I18N-03)
 - [ ] 03-C-PLAN.md -- Modal Consolidation (CONS-03)
 - [x] 03-D-PLAN.md -- Translation Consistency Polish (I18N-04)
 
@@ -94,7 +94,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 1. CSS Foundation Cleanup | 4/4 | Complete   | 2026-04-03 |
 | 2. Component Unification and Responsive Fixes | 4/4 | Complete   | 2026-04-03 |
-| 3. Translation Audit and Polish | 1/4 | In progress | - |
+| 3. Translation Audit and Polish | 3/4 | In Progress|  |
 
 ---
 
