@@ -81,6 +81,9 @@ func recordRetrievalPromptTelemetry(scope AgentTelemetryScope, retrievalTokens, 
 }
 
 const ragRefreshAfterToolIterations = 2
+const maxConcurrentAgentLoops = 8
+
+var agentLoopLimiter = make(chan struct{}, maxConcurrentAgentLoops)
 
 func shouldRefreshRAG(query, lastQuery string, toolIterations int) bool {
 	trimmedQuery := strings.TrimSpace(query)
@@ -93,9 +96,50 @@ func shouldRefreshRAG(query, lastQuery string, toolIterations int) bool {
 	return toolIterations >= ragRefreshAfterToolIterations
 }
 
+func buildTrimmedContextRecap(messages []openai.ChatCompletionMessage, tokenBudget int) string {
+	if len(messages) == 0 || tokenBudget <= 0 {
+		return ""
+	}
+	start := 0
+	if len(messages) > 6 {
+		start = len(messages) - 6
+	}
+	var builder strings.Builder
+	builder.WriteString("[TRIMMED_CONTEXT_RECAP]: Older conversation content was condensed to stay within the model context window. Use this only as supporting context and do not quote it verbatim.\n")
+	if start > 0 {
+		builder.WriteString(fmt.Sprintf("Earlier omitted messages before this recap: %d\n", start))
+	}
+	for _, msg := range messages[start:] {
+		content := strings.Join(strings.Fields(msg.Content), " ")
+		if content == "" {
+			continue
+		}
+		builder.WriteString("- ")
+		builder.WriteString(msg.Role)
+		builder.WriteString(": ")
+		builder.WriteString(Truncate(content, 220))
+		builder.WriteString("\n")
+	}
+	recap := strings.TrimSpace(builder.String())
+	for recap != "" && prompts.CountTokens(recap) > tokenBudget {
+		if len(recap) <= 160 {
+			return ""
+		}
+		recap = strings.TrimSpace(Truncate(recap, len(recap)-(len(recap)/4)))
+	}
+	return recap
+}
+
 // ExecuteAgentLoop executes the multi-turn reasoning and tool execution loop.
 // It supports both synchronous returns and asynchronous streaming via the broker.
 func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, runCfg RunConfig, stream bool, broker FeedbackBroker) (openai.ChatCompletionResponse, error) {
+	select {
+	case agentLoopLimiter <- struct{}{}:
+		defer func() { <-agentLoopLimiter }()
+	case <-ctx.Done():
+		return openai.ChatCompletionResponse{}, ctx.Err()
+	}
+
 	cfg := runCfg.Config
 	logger := runCfg.Logger
 	client := runCfg.LLMClient
@@ -225,6 +269,24 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	llmGuardian := runCfg.LLMGuardian
 	if llmGuardian == nil {
 		llmGuardian = security.NewLLMGuardian(cfg, logger)
+	}
+
+	makeDispatchContext := func(currentLogger *slog.Logger) *DispatchContext {
+		return &DispatchContext{
+			Cfg: cfg, Logger: currentLogger, LLMClient: client, Vault: vault,
+			Registry: registry, Manifest: manifest, CronManager: cronManager,
+			MissionManagerV2: missionManagerV2, LongTermMem: longTermMem,
+			ShortTermMem: shortTermMem, KG: kg, InventoryDB: inventoryDB,
+			InvasionDB: invasionDB, CheatsheetDB: cheatsheetDB,
+			ImageGalleryDB: imageGalleryDB, MediaRegistryDB: mediaRegistryDB,
+			HomepageRegistryDB: homepageRegistryDB, ContactsDB: contactsDB,
+			SQLConnectionsDB: sqlConnectionsDB, SQLConnectionPool: sqlConnectionPool,
+			RemoteHub: remoteHub, HistoryMgr: historyManager,
+			IsMaintenance: tools.IsBusy(), SurgeryPlan: surgeryPlan,
+			Guardian: guardian, LLMGuardian: llmGuardian,
+			SessionID: sessionID, CoAgentRegistry: coAgentRegistry,
+			BudgetTracker: budgetTracker,
+		}
 	}
 
 	var currentLogger *slog.Logger = logger
@@ -403,22 +465,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 		// Process queued tool calls from multi-tool responses (skip LLM for these)
 		if len(pendingTCs) > 0 {
+			dispatchCtx := makeDispatchContext(currentLogger)
 			if helperManager != nil && len(pendingSummaryBatch) == 0 {
-				pendingSummaryBatch = maybeBuildPendingSummaryBatch(ctx, pendingTCs, &DispatchContext{
-					Cfg: cfg, Logger: currentLogger, LLMClient: client, Vault: vault,
-					Registry: registry, Manifest: manifest, CronManager: cronManager,
-					MissionManagerV2: missionManagerV2, LongTermMem: longTermMem,
-					ShortTermMem: shortTermMem, KG: kg, InventoryDB: inventoryDB,
-					InvasionDB: invasionDB, CheatsheetDB: cheatsheetDB,
-					ImageGalleryDB: imageGalleryDB, MediaRegistryDB: mediaRegistryDB,
-					HomepageRegistryDB: homepageRegistryDB, ContactsDB: contactsDB,
-					SQLConnectionsDB: sqlConnectionsDB, SQLConnectionPool: sqlConnectionPool,
-					RemoteHub: remoteHub, HistoryMgr: historyManager,
-					IsMaintenance: tools.IsBusy(), SurgeryPlan: surgeryPlan,
-					Guardian: guardian, LLMGuardian: llmGuardian,
-					SessionID: sessionID, CoAgentRegistry: coAgentRegistry,
-					BudgetTracker: budgetTracker,
-				}, helperManager, lastUserMsg)
+				pendingSummaryBatch = maybeBuildPendingSummaryBatch(ctx, pendingTCs, dispatchCtx, helperManager, lastUserMsg)
 			}
 
 			ptc := pendingTCs[0]
@@ -451,21 +500,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			} else if recoveryState.handleDuplicateToolCall(ptc, &req, currentLogger, telemetryScope) {
 				pResultContent = blockedToolOutputFromRequest(&req)
 			} else {
-				pResultContent = DispatchToolCall(ctx, ptc, &DispatchContext{
-					Cfg: cfg, Logger: currentLogger, LLMClient: client, Vault: vault,
-					Registry: registry, Manifest: manifest, CronManager: cronManager,
-					MissionManagerV2: missionManagerV2, LongTermMem: longTermMem,
-					ShortTermMem: shortTermMem, KG: kg, InventoryDB: inventoryDB,
-					InvasionDB: invasionDB, CheatsheetDB: cheatsheetDB,
-					ImageGalleryDB: imageGalleryDB, MediaRegistryDB: mediaRegistryDB,
-					HomepageRegistryDB: homepageRegistryDB, ContactsDB: contactsDB,
-					SQLConnectionsDB: sqlConnectionsDB, SQLConnectionPool: sqlConnectionPool,
-					RemoteHub: remoteHub, HistoryMgr: historyManager,
-					IsMaintenance: tools.IsBusy(), SurgeryPlan: surgeryPlan,
-					Guardian: guardian, LLMGuardian: llmGuardian,
-					SessionID: sessionID, CoAgentRegistry: coAgentRegistry,
-					BudgetTracker: budgetTracker,
-				}, lastUserMsg)
+				pResultContent = DispatchToolCall(ctx, ptc, dispatchCtx, lastUserMsg)
 			}
 			policyResult := finalizeToolExecution(ptc, pResultContent, cfg, shortTermMem, sessionID, &recoveryState, &req, currentLogger, telemetryScope)
 			pResultContent = policyResult.Content
@@ -1058,17 +1093,28 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				"tokens", totalMsgTokens, "limit", maxHistoryTokens, "messages", len(req.Messages))
 			sysMsg := req.Messages[0]
 			lastMsg := req.Messages[len(req.Messages)-1]
+			var droppedMessages []openai.ChatCompletionMessage
 			// Drop messages from index 1 onward (oldest first) until we fit.
 			// Always keep system (0) and the latest message.
 			mid := req.Messages[1 : len(req.Messages)-1]
 			for totalMsgTokens > maxHistoryTokens && len(mid) > 0 {
 				dropped := mid[0]
+				droppedMessages = append(droppedMessages, dropped)
 				mid = mid[1:]
 				totalMsgTokens -= prompts.CountTokens(dropped.Content) + 4
 			}
-			req.Messages = append([]openai.ChatCompletionMessage{sysMsg}, append(mid, lastMsg)...)
+			trimmedMessages := []openai.ChatCompletionMessage{sysMsg}
+			remainingRecapBudget := maxHistoryTokens - totalMsgTokens - 4
+			if recap := buildTrimmedContextRecap(droppedMessages, remainingRecapBudget); recap != "" {
+				trimmedMessages = append(trimmedMessages, openai.ChatCompletionMessage{
+					Role:    openai.ChatMessageRoleSystem,
+					Content: recap,
+				})
+				totalMsgTokens += prompts.CountTokens(recap) + 4
+			}
+			req.Messages = append(trimmedMessages, append(mid, lastMsg)...)
 			currentLogger.Info("[ContextGuard] History trimmed",
-				"remaining_messages", len(req.Messages), "estimated_tokens", totalMsgTokens)
+				"remaining_messages", len(req.Messages), "estimated_tokens", totalMsgTokens, "dropped_messages", len(droppedMessages))
 		}
 
 		// Verbose Logging of LLM Request
@@ -1649,21 +1695,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				broker.Send("co_agent_spawn", taskPreview)
 			}
 
-			resultContent := DispatchToolCall(ctx, tc, &DispatchContext{
-				Cfg: cfg, Logger: currentLogger, LLMClient: client, Vault: vault,
-				Registry: registry, Manifest: manifest, CronManager: cronManager,
-				MissionManagerV2: missionManagerV2, LongTermMem: longTermMem,
-				ShortTermMem: shortTermMem, KG: kg, InventoryDB: inventoryDB,
-				InvasionDB: invasionDB, CheatsheetDB: cheatsheetDB,
-				ImageGalleryDB: imageGalleryDB, MediaRegistryDB: mediaRegistryDB,
-				HomepageRegistryDB: homepageRegistryDB, ContactsDB: contactsDB,
-				SQLConnectionsDB: sqlConnectionsDB, SQLConnectionPool: sqlConnectionPool,
-				RemoteHub: remoteHub, HistoryMgr: historyManager,
-				IsMaintenance: tools.IsBusy(), SurgeryPlan: surgeryPlan,
-				Guardian: guardian, LLMGuardian: llmGuardian,
-				SessionID: sessionID, CoAgentRegistry: coAgentRegistry,
-				BudgetTracker: budgetTracker,
-			}, lastUserMsg)
+			dispatchCtx := makeDispatchContext(currentLogger)
+			resultContent := DispatchToolCall(ctx, tc, dispatchCtx, lastUserMsg)
 			policyResult := finalizeToolExecution(tc, resultContent, cfg, shortTermMem, sessionID, &recoveryState, &req, currentLogger, telemetryScope)
 			resultContent = policyResult.Content
 			trackActivityTool(&turnToolNames, &turnToolSummaries, tc.Action, resultContent)
@@ -1887,9 +1920,6 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				historyManager.Add(openai.ChatMessageRoleSystem, resultContent, id, false, true)
 			}
 
-			// Phase 72: Broadcast the supervisor's result to the UI (shown only in debug mode)
-			broker.Send("tool_output", resultContent)
-
 			// Phase 1: Lifecycle Handover check
 			if strings.Contains(resultContent, "Maintenance Mode activated") {
 				currentLogger.Info("Handover sentinel detected, Sidecar taking over...")
@@ -1919,23 +1949,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				// The OpenAI API requires ALL role=tool responses to be present before
 				// the next API call when the assistant message contains multiple tool_calls.
 				var nativePendingSummaryBatch map[string]string
+				nativeDispatchCtx := makeDispatchContext(currentLogger)
 				for len(pendingTCs) > 0 && pendingTCs[0].NativeCallID != "" {
 					if helperManager != nil && len(nativePendingSummaryBatch) == 0 {
-						nativePendingSummaryBatch = maybeBuildPendingSummaryBatch(ctx, pendingTCs, &DispatchContext{
-							Cfg: cfg, Logger: currentLogger, LLMClient: client, Vault: vault,
-							Registry: registry, Manifest: manifest, CronManager: cronManager,
-							MissionManagerV2: missionManagerV2, LongTermMem: longTermMem,
-							ShortTermMem: shortTermMem, KG: kg, InventoryDB: inventoryDB,
-							InvasionDB: invasionDB, CheatsheetDB: cheatsheetDB,
-							ImageGalleryDB: imageGalleryDB, MediaRegistryDB: mediaRegistryDB,
-							HomepageRegistryDB: homepageRegistryDB, ContactsDB: contactsDB,
-							SQLConnectionsDB: sqlConnectionsDB, SQLConnectionPool: sqlConnectionPool,
-							RemoteHub: remoteHub, HistoryMgr: historyManager,
-							IsMaintenance: tools.IsBusy(), SurgeryPlan: surgeryPlan,
-							Guardian: guardian, LLMGuardian: llmGuardian,
-							SessionID: sessionID, CoAgentRegistry: coAgentRegistry,
-							BudgetTracker: budgetTracker,
-						}, helperManager, lastUserMsg)
+						nativePendingSummaryBatch = maybeBuildPendingSummaryBatch(ctx, pendingTCs, nativeDispatchCtx, helperManager, lastUserMsg)
 					}
 
 					btc := pendingTCs[0]
@@ -1957,21 +1974,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					} else if recoveryState.handleDuplicateToolCall(btc, &req, currentLogger, telemetryScope) {
 						bResult = blockedToolOutputFromRequest(&req)
 					} else {
-						bResult = DispatchToolCall(ctx, btc, &DispatchContext{
-							Cfg: cfg, Logger: currentLogger, LLMClient: client, Vault: vault,
-							Registry: registry, Manifest: manifest, CronManager: cronManager,
-							MissionManagerV2: missionManagerV2, LongTermMem: longTermMem,
-							ShortTermMem: shortTermMem, KG: kg, InventoryDB: inventoryDB,
-							InvasionDB: invasionDB, CheatsheetDB: cheatsheetDB,
-							ImageGalleryDB: imageGalleryDB, MediaRegistryDB: mediaRegistryDB,
-							HomepageRegistryDB: homepageRegistryDB, ContactsDB: contactsDB,
-							SQLConnectionsDB: sqlConnectionsDB, SQLConnectionPool: sqlConnectionPool,
-							RemoteHub: remoteHub, HistoryMgr: historyManager,
-							IsMaintenance: tools.IsBusy(), SurgeryPlan: surgeryPlan,
-							Guardian: guardian, LLMGuardian: llmGuardian,
-							SessionID: sessionID, CoAgentRegistry: coAgentRegistry,
-							BudgetTracker: budgetTracker,
-						}, lastUserMsg)
+						bResult = DispatchToolCall(ctx, btc, nativeDispatchCtx, lastUserMsg)
 					}
 					policyResult := finalizeToolExecution(btc, bResult, cfg, shortTermMem, sessionID, &recoveryState, &req, currentLogger, telemetryScope)
 					bResult = policyResult.Content

@@ -1,0 +1,22 @@
+{
+  "plans.logo_subtitle": "PLANS",
+  "plans.session_label": "Sessie",
+  "plans.status_label": "Status",
+  "plans.status_all": "Alle",
+  "plans.status_draft": "Ontwerp",
+  "plans.status_active": "Actief",
+  "plans.status_paused": "Gepauzeerd",
+  "plans.status_blocked": "Geblokkeerd",
+  "plans.status_completed": "Voltooid",
+  "plans.status_cancelled": "Geannuleerd",
+  "plans.show_archived": "Archiefde weergeven",
+  "plans.refresh": "Vernieuwen",
+  "plans.heading": "Sessieplannen",
+  "plans.empty_detail": "Selecteer een plan om taken, gebeurtenissen en voortgang te inspecteren.",
+  "plans.block_modal_title": "Blokkering instellen",
+  "plans.block_prompt": "Beschrijf de blokkering",
+  "plans.split_modal_title": "Taak splitsen",
+  "plans.split_prompt": "Voer één subtaken per regel in.",
+  "plans.split_placeholder": "Logs inspecteren\nHandler patchen\nFix verifiëren",
+  "plans.split": "Splitsen"
+}

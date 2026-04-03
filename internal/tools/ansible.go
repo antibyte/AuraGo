@@ -646,7 +646,7 @@ func AnsibleLocalGatherFacts(cfg AnsibleLocalConfig, hosts, inventoryPath string
 	stdout, stderr, err := ansibleRunCmd(cfg.Timeout, "ansible", args...)
 	// Truncate large fact output to avoid overwhelming the context window
 	if len(stdout) > 16384 {
-		stdout = stdout[:16384] + "\n... [truncated]"
+		stdout = truncateUTF8Safe(stdout, 16384) + "\n... [truncated]"
 	}
 	return ansibleLocalResult(stdout, stderr, err)
 }

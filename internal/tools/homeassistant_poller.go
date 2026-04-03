@@ -15,7 +15,7 @@ func StartHomeAssistantPoller(ctx context.Context, cfg HAConfig, m *MissionManag
 	}
 
 	logger.Info("Starting Home Assistant state poller for Mission Control triggers")
-	
+
 	// Track previous state for trigger edges
 	lastStateMap := make(map[string]string)
 
@@ -28,27 +28,39 @@ func StartHomeAssistantPoller(ctx context.Context, cfg HAConfig, m *MissionManag
 			logger.Info("Home Assistant poller shutting down")
 			return
 		case <-ticker.C:
-			// Fetch all states
-			data, code, err := haRequest(cfg, "GET", "/api/states", "")
-			if err != nil {
-				logger.Debug("HA poller request failed", "error", err)
-				continue
+			// Fetch states only for monitored entities
+			monitoredEntities := make(map[string]bool)
+			for _, mission := range m.List() {
+				if mission.ExecutionType == ExecutionTriggered && mission.TriggerType == TriggerHomeAssistantState && mission.Enabled {
+					if mission.TriggerConfig != nil && mission.TriggerConfig.HAEntityID != "" {
+						monitoredEntities[mission.TriggerConfig.HAEntityID] = true
+					}
+				}
 			}
-			if code != 200 {
-				logger.Debug("HA poller bad status code", "code", code)
+
+			if len(monitoredEntities) == 0 {
+				// No active entities, skip polling
 				continue
 			}
 
-			var states []map[string]interface{}
-			if err := json.Unmarshal(data, &states); err != nil {
-				continue
-			}
+			for entityID := range monitoredEntities {
+				data, code, err := haRequest(cfg, "GET", "/api/states/"+entityID, "")
+				if err != nil {
+					logger.Debug("HA poller request failed for entity", "entity", entityID, "error", err)
+					continue
+				}
+				if code != 200 {
+					logger.Debug("HA poller bad status code for entity", "entity", entityID, "code", code)
+					continue
+				}
 
-			// Evaluate changes
-			for _, s := range states {
-				entityID, ok1 := s["entity_id"].(string)
-				state, ok2 := s["state"].(string)
-				if !ok1 || !ok2 {
+				var stateObj map[string]interface{}
+				if err := json.Unmarshal(data, &stateObj); err != nil {
+					continue
+				}
+
+				state, ok := stateObj["state"].(string)
+				if !ok {
 					continue
 				}
 

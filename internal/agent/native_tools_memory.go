@@ -46,6 +46,17 @@ func appendMemoryToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai.
 					},
 				}, "query"),
 			),
+			tool("context_manager",
+				"Manage the current conversation context window. Operations: 'status' (check token budget and messages count), 'compact' (summarize old messages into a single statement to free up tokens), 'drop' (remove a specific message by its index).",
+				schema(map[string]interface{}{
+					"operation": map[string]interface{}{
+						"type":        "string",
+						"description": "Context operation",
+						"enum":        []string{"status", "compact", "drop"},
+					},
+					"index": prop("integer", "The 0-based index of the message to drop (used only for 'drop')"),
+				}, "operation"),
+			),
 
 			// remember — simplified single-entry-point for storing any kind of information
 			tool("remember",

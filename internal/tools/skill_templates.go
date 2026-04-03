@@ -11,61 +11,48 @@ import (
 	"text/template"
 )
 
-// SkillTemplate defines a reusable blueprint for creating new skills.
 type SkillTemplate struct {
 	Name         string            `json:"name"`
 	Description  string            `json:"description"`
 	Parameters   map[string]string `json:"parameters"`
 	Dependencies []string          `json:"dependencies"`
-	Code         string            `json:"-"` // Go text/template for Python code
+	Code         string            `json:"-"`
 }
 
-// AvailableSkillTemplates returns all built-in skill templates.
 func AvailableSkillTemplates() []SkillTemplate {
 	return []SkillTemplate{
 		{
 			Name:        "api_client",
-			Description: "REST API client with authentication, configurable base URL, and vault key injection for API keys.",
+			Description: "REST API client with Bearer/Basic/API-Key auth, retry logic, pagination support, and vault key injection.",
 			Parameters: map[string]string{
-				"endpoint": "API endpoint path (appended to base URL)",
-				"method":   "HTTP method: GET, POST, PUT, DELETE (default: GET)",
-				"body":     "JSON request body (optional, for POST/PUT)",
+				"endpoint":  "API endpoint path (appended to base URL)",
+				"method":    "HTTP method: GET, POST, PUT, DELETE, PATCH (default: GET)",
+				"body":      "JSON request body (optional, for POST/PUT/PATCH)",
+				"headers":   "Additional headers as JSON object (optional)",
+				"auth_type": "Auth type: bearer, basic, api_key, none (default: bearer)",
+				"max_pages": "Follow pagination links up to N pages (optional, default: 1)",
 			},
 			Dependencies: []string{"requests"},
 			Code: composePythonSkillTemplate(apiClientTemplateBody, `{{.FunctionName}}(
         endpoint=args.get("endpoint", ""),
         method=args.get("method", "GET"),
         body=args.get("body"),
-    )`),
-		},
-		{
-			Name:        "file_processor",
-			Description: "Read, transform, and write files. Supports text processing, line filtering, and content extraction.",
-			Parameters: map[string]string{
-				"input_path":  "Path to the input file",
-				"output_path": "Path to the output file (optional, prints to stdout if omitted)",
-				"operation":   "Operation: extract_lines, search, replace, head, tail, count",
-				"pattern":     "Regex or search pattern (for search/replace/extract_lines)",
-				"replacement": "Replacement string (for replace operation)",
-			},
-			Dependencies: nil,
-			Code: composePythonSkillTemplate(fileProcessorTemplateBody, `{{.FunctionName}}(
-        input_path=args.get("input_path", ""),
-        output_path=args.get("output_path"),
-        operation=args.get("operation", "head"),
-        pattern=args.get("pattern"),
-        replacement=args.get("replacement"),
+        headers=args.get("headers"),
+        auth_type=args.get("auth_type", "bearer"),
+        max_pages=args.get("max_pages", 1),
     )`),
 		},
 		{
 			Name:        "data_transformer",
-			Description: "Convert data between JSON, CSV, and YAML formats with optional field filtering and transformation.",
+			Description: "Convert data between JSON, CSV, YAML, and XML formats with field filtering, sorting, and aggregation.",
 			Parameters: map[string]string{
 				"input_path":    "Path to the input file",
 				"output_path":   "Path to the output file (optional, prints to stdout if omitted)",
-				"input_format":  "Input format: json, csv, yaml",
-				"output_format": "Output format: json, csv, yaml",
-				"fields":        "Comma-separated list of fields to include (optional, all if omitted)",
+				"input_format":  "Input format: json, csv, yaml, xml",
+				"output_format": "Output format: json, csv, yaml, xml",
+				"fields":        "Comma-separated list of fields to include (optional)",
+				"sort_by":       "Field name to sort results by (optional)",
+				"limit":         "Maximum number of records to output (optional)",
 			},
 			Dependencies: []string{"pyyaml"},
 			Code: composePythonSkillTemplate(dataTransformerTemplateBody, `{{.FunctionName}}(
@@ -74,50 +61,160 @@ func AvailableSkillTemplates() []SkillTemplate {
         input_format=args.get("input_format", "json"),
         output_format=args.get("output_format", "json"),
         fields=args.get("fields"),
+        sort_by=args.get("sort_by"),
+        limit=args.get("limit"),
     )`),
 		},
 		{
-			Name:        "scraper",
-			Description: "Web scraper using BeautifulSoup4 with CSS selectors. Wraps output in <external_data> tags for safety.",
+			Name:        "notification_sender",
+			Description: "Send notifications via Telegram, Discord, email (SMTP), or generic webhook. Supports message formatting and attachments.",
 			Parameters: map[string]string{
-				"url":      "URL to scrape",
-				"selector": "CSS selector to extract elements (default: body)",
-				"attr":     "HTML attribute to extract from elements (optional, extracts text if omitted)",
-				"limit":    "Maximum number of elements to return (default: 50)",
-			},
-			Dependencies: []string{"requests", "beautifulsoup4"},
-			Code: composePythonSkillTemplate(scraperTemplateBody, `{{.FunctionName}}(
-        url=args.get("url", ""),
-        selector=args.get("selector", "body"),
-        attr=args.get("attr"),
-        limit=args.get("limit", 50),
-    )`),
-		},
-		{
-			Name:        "example_use_vault_login",
-			Description: "Example: authenticate with username + password from the vault, then call a REST API. Create vault secrets 'my_service_username' and 'my_service_password' in Config → Vault before use.",
-			Parameters: map[string]string{
-				"action":   "API action / path to call after login (default: whoami)",
-				"base_url": "Base URL of the service (can also be set via AURAGO_SECRET_BASE_URL vault key)",
+				"channel":  "Channel: telegram, discord, email, webhook",
+				"message":  "Notification message text",
+				"title":    "Message title or subject (optional)",
+				"attach":   "File path to attach (optional)",
+				"priority": "Priority level: low, normal, high (default: normal)",
 			},
 			Dependencies: []string{"requests"},
-			Code: composePythonSkillTemplate(vaultLoginTemplateBody, `{{.FunctionName}}(
-        action=args.get("action", "whoami"),
+			Code: composePythonSkillTemplate(notificationSenderTemplateBody, `{{.FunctionName}}(
+        channel=args.get("channel", "webhook"),
+        message=args.get("message", ""),
+        title=args.get("title"),
+        attach=args.get("attach"),
+        priority=args.get("priority", "normal"),
     )`),
 		},
 		{
-			Name:        "example_use_vault_token",
-			Description: "Example: call a REST API using a single Bearer token / API key from the vault. Create a vault secret 'my_service_api_key' in Config → Vault before use.",
+			Name:        "monitor_check",
+			Description: "Health check for HTTP endpoints, TCP ports, and DNS resolution. Returns latency, status, and pass/fail result.",
 			Parameters: map[string]string{
-				"endpoint": "API endpoint path to call (appended to base URL)",
-				"method":   "HTTP method: GET, POST, PUT, DELETE (default: GET)",
-				"body":     "JSON request body (optional, for POST/PUT)",
+				"target":     "URL, host:port, or hostname to check",
+				"check_type": "Check type: http, tcp, dns (default: http)",
+				"timeout":    "Timeout in seconds (default: 10)",
+				"expected":   "Expected status code (HTTP) or resolved IP (DNS), optional",
+				"keyword":    "Keyword to search for in HTTP response body (optional)",
 			},
 			Dependencies: []string{"requests"},
-			Code: composePythonSkillTemplate(vaultTokenTemplateBody, `{{.FunctionName}}(
-        endpoint=args.get("endpoint", ""),
-        method=args.get("method", "GET"),
-        body=args.get("body"),
+			Code: composePythonSkillTemplate(monitorCheckTemplateBody, `{{.FunctionName}}(
+        target=args.get("target", ""),
+        check_type=args.get("check_type", "http"),
+        timeout=args.get("timeout", 10),
+        expected=args.get("expected"),
+        keyword=args.get("keyword"),
+    )`),
+		},
+		{
+			Name:        "log_analyzer",
+			Description: "Parse and analyze log files: filter by time range, severity, pattern; extract errors and summarize statistics.",
+			Parameters: map[string]string{
+				"log_path":    "Path to the log file",
+				"operation":   "Operation: summary, errors, search, tail, count_by_level",
+				"pattern":     "Regex pattern to search for (optional)",
+				"since":       `Time filter: "5m", "1h", "24h", "7d" (optional)`,
+				"max_results": "Maximum number of results to return (default: 100)",
+			},
+			Dependencies: nil,
+			Code: composePythonSkillTemplate(logAnalyzerTemplateBody, `{{.FunctionName}}(
+        log_path=args.get("log_path", ""),
+        operation=args.get("operation", "summary"),
+        pattern=args.get("pattern"),
+        since=args.get("since"),
+        max_results=args.get("max_results", 100),
+    )`),
+		},
+		{
+			Name:        "docker_manager",
+			Description: "Manage Docker containers via the Docker Engine API: list, inspect, start, stop, restart, get logs and stats.",
+			Parameters: map[string]string{
+				"action":    "Action: list, inspect, start, stop, restart, logs, stats",
+				"container": "Container name or ID (required for all actions except list)",
+				"tail":      "Number of log lines to return for logs action (default: 100)",
+				"all":       "Include stopped containers for list action (default: false)",
+			},
+			Dependencies: []string{"requests"},
+			Code: composePythonSkillTemplate(dockerManagerTemplateBody, `{{.FunctionName}}(
+        action=args.get("action", "list"),
+        container=args.get("container"),
+        tail=args.get("tail", 100),
+        all=args.get("all", False),
+    )`),
+		},
+		{
+			Name:        "backup_runner",
+			Description: "Backup files and directories as compressed archives with rotation, integrity check, and size reporting.",
+			Parameters: map[string]string{
+				"action":  "Action: create, list, restore, cleanup",
+				"source":  "Source file or directory path to backup",
+				"output":  "Output archive path (default: auto-generated in backup directory)",
+				"keep":    "Number of backups to keep during cleanup (default: 5)",
+				"exclude": "Comma-separated glob patterns to exclude (optional)",
+			},
+			Dependencies: nil,
+			Code: composePythonSkillTemplate(backupRunnerTemplateBody, `{{.FunctionName}}(
+        action=args.get("action", "create"),
+        source=args.get("source", ""),
+        output=args.get("output"),
+        keep=args.get("keep", 5),
+        exclude=args.get("exclude"),
+    )`),
+		},
+		{
+			Name:        "database_query",
+			Description: "Execute SQL queries against SQLite, PostgreSQL, or MySQL databases. Supports SELECT, INSERT, UPDATE, DELETE with parameterized queries.",
+			Parameters: map[string]string{
+				"query":      "SQL query to execute",
+				"db_type":    "Database type: sqlite, postgresql, mysql (default: sqlite)",
+				"connection": "Database file path (SQLite) or connection string",
+				"params":     "Query parameters as JSON array (optional, for parameterized queries)",
+				"limit":      "Maximum rows to return for SELECT queries (default: 100)",
+			},
+			Dependencies: nil,
+			Code: composePythonSkillTemplate(databaseQueryTemplateBody, `{{.FunctionName}}(
+        query=args.get("query", ""),
+        db_type=args.get("db_type", "sqlite"),
+        connection=args.get("connection", ""),
+        params=args.get("params"),
+        limit=args.get("limit", 100),
+    )`),
+		},
+		{
+			Name:        "ssh_executor",
+			Description: "Execute commands on remote hosts via SSH with key and password authentication. Returns structured output with exit codes.",
+			Parameters: map[string]string{
+				"host":    "Target hostname or IP address",
+				"command": "Command to execute on the remote host",
+				"user":    "SSH username (default: current user)",
+				"port":    "SSH port (default: 22)",
+				"timeout": "Command timeout in seconds (default: 30)",
+			},
+			Dependencies: []string{"paramiko"},
+			Code: composePythonSkillTemplate(sshExecutorTemplateBody, `{{.FunctionName}}(
+        host=args.get("host", ""),
+        command=args.get("command", ""),
+        user=args.get("user"),
+        port=args.get("port", 22),
+        timeout=args.get("timeout", 30),
+    )`),
+		},
+		{
+			Name:        "mqtt_publisher",
+			Description: "Publish and subscribe to MQTT topics for IoT device control and sensor data. Supports QoS levels and retained messages.",
+			Parameters: map[string]string{
+				"action":  "Action: publish, subscribe",
+				"topic":   "MQTT topic path",
+				"payload": "Message payload to publish (optional for subscribe)",
+				"qos":     "QoS level: 0, 1, 2 (default: 0)",
+				"retain":  "Retain message on broker (default: false)",
+				"timeout": "Subscribe timeout in seconds (default: 5)",
+			},
+			Dependencies: []string{"paho-mqtt"},
+			Code: composePythonSkillTemplate(mqttPublisherTemplateBody, `{{.FunctionName}}(
+        action=args.get("action", "publish"),
+        topic=args.get("topic", ""),
+        payload=args.get("payload"),
+        qos=args.get("qos", 0),
+        retain=args.get("retain", False),
+        timeout=args.get("timeout", 5),
     )`),
 		},
 	}
@@ -161,8 +258,6 @@ const pythonSkillMainTemplateSuffix = `
 
 var validFuncNameRe = regexp.MustCompile(`[^a-zA-Z0-9_]`)
 
-// escapePythonString escapes a string for safe inclusion in a Python single-quoted
-// string literal: backslashes, single quotes, and control characters are escaped.
 func escapePythonString(s string) string {
 	var sb strings.Builder
 	for _, r := range s {
@@ -184,21 +279,18 @@ func escapePythonString(s string) string {
 	return sb.String()
 }
 
-// toFunctionName converts a skill name to a valid Python function name.
 func toFunctionName(name string) string {
 	fn := validFuncNameRe.ReplaceAllString(name, "_")
 	fn = strings.Trim(fn, "_")
 	if fn == "" {
 		fn = "skill_main"
 	}
-	// Ensure it doesn't start with a digit
 	if fn[0] >= '0' && fn[0] <= '9' {
 		fn = "skill_" + fn
 	}
 	return fn
 }
 
-// CreateSkillFromTemplate generates a new skill from a built-in template.
 func CreateSkillFromTemplate(skillsDir, templateName, skillName, description, baseURL string, dependencies, vaultKeys []string) (string, error) {
 	var err error
 	skillName, err = validateSkillName(skillName)
@@ -213,7 +305,6 @@ func CreateSkillFromTemplate(skillsDir, templateName, skillName, description, ba
 		return "", fmt.Errorf("template name is required")
 	}
 
-	// Find template
 	var tmpl *SkillTemplate
 	for _, t := range AvailableSkillTemplates() {
 		if t.Name == templateName {
@@ -232,7 +323,6 @@ func CreateSkillFromTemplate(skillsDir, templateName, skillName, description, ba
 	jsonPath := filepath.Join(skillsDir, skillName+".json")
 	pyPath := filepath.Join(skillsDir, skillName+".py")
 
-	// Render Python code from template
 	data := templateData{
 		FunctionName: toFunctionName(skillName),
 		Description:  description,
@@ -252,7 +342,6 @@ func CreateSkillFromTemplate(skillsDir, templateName, skillName, description, ba
 		return "", fmt.Errorf("failed to render template '%s': %w", templateName, err)
 	}
 
-	// Merge dependencies: template defaults + user-provided extras
 	depSet := make(map[string]bool)
 	var allDeps []string
 	for _, d := range tmpl.Dependencies {
@@ -274,7 +363,6 @@ func CreateSkillFromTemplate(skillsDir, templateName, skillName, description, ba
 		return "", err
 	}
 
-	// Build manifest
 	manifest := SkillManifest{
 		Name:         skillName,
 		Description:  description,
@@ -288,12 +376,10 @@ func CreateSkillFromTemplate(skillsDir, templateName, skillName, description, ba
 		manifest.Description = tmpl.Description
 	}
 
-	// Ensure skills directory exists
 	if err := os.MkdirAll(skillsDir, 0o750); err != nil {
 		return "", fmt.Errorf("failed to create skills directory: %w", err)
 	}
 
-	// Write manifest JSON
 	manifestJSON, err := json.MarshalIndent(manifest, "", "    ")
 	if err != nil {
 		return "", fmt.Errorf("failed to serialize manifest: %w", err)
@@ -305,13 +391,11 @@ func CreateSkillFromTemplate(skillsDir, templateName, skillName, description, ba
 		return "", fmt.Errorf("failed to write manifest: %w", err)
 	}
 
-	// Write Python code
 	if err := validateSkillCode(codeBuf.String()); err != nil {
 		_ = os.Remove(jsonPath)
 		return "", err
 	}
 	if err := writeFileExclusive(pyPath, codeBuf.Bytes(), 0o640); err != nil {
-		// Clean up manifest if Python file write fails
 		os.Remove(jsonPath)
 		if os.IsExist(err) {
 			return "", fmt.Errorf("skill '%s' already exists", skillName)
@@ -326,96 +410,90 @@ func CreateSkillFromTemplate(skillsDir, templateName, skillName, description, ba
 		strings.Join(allDeps, ", "), skillName), nil
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
-// Python code templates (Go text/template syntax)
-// ──────────────────────────────────────────────────────────────────────────────
-
 const apiClientTemplateBody = `import sys
 import json
 import os
+import time
 import requests
 
-def {{.FunctionName}}(endpoint, method="GET", body=None):
+def {{.FunctionName}}(endpoint, method="GET", body=None, headers=None, auth_type="bearer", max_pages=1):
     """{{.Description}}"""
     base_url = os.environ.get("AURAGO_SECRET_BASE_URL", "{{.BaseURL}}").rstrip("/")
     api_key = os.environ.get("AURAGO_SECRET_API_KEY", "")
-    
+    username = os.environ.get("AURAGO_SECRET_USERNAME", "")
+    password = os.environ.get("AURAGO_SECRET_PASSWORD", "")
+
+    req_headers = {"Content-Type": "application/json"}
+    if headers and isinstance(headers, dict):
+        req_headers.update(headers)
+
+    if auth_type == "bearer" and api_key:
+        req_headers["Authorization"] = f"Bearer {api_key}"
+    elif auth_type == "basic" and username and password:
+        pass
+    elif auth_type == "api_key" and api_key:
+        req_headers["X-API-Key"] = api_key
+
     url = f"{base_url}/{endpoint.lstrip('/')}" if endpoint else base_url
-    
-    headers = {"Content-Type": "application/json"}
-    if api_key:
-        headers["Authorization"] = f"Bearer {api_key}"
-    
+    all_items = []
+    page = 0
+    retries = 3
+
     try:
-        resp = requests.request(
-            method=method.upper(),
-            url=url,
-            headers=headers,
-            json=body if body else None,
-            timeout=30,
-        )
-        resp.raise_for_status()
-        try:
-            data = resp.json()
-        except ValueError:
-            data = resp.text
-        return {"status": "success", "result": f"<external_data>{json.dumps(data, ensure_ascii=False)}</external_data>"}
+        while page < int(max_pages):
+            kwargs = {
+                "method": method.upper(),
+                "url": url,
+                "headers": req_headers,
+                "timeout": 30,
+            }
+            if body and method.upper() in ("POST", "PUT", "PATCH"):
+                kwargs["json"] = body
+            if auth_type == "basic" and username and password:
+                kwargs["auth"] = (username, password)
+
+            for attempt in range(retries):
+                try:
+                    resp = requests.request(**kwargs)
+                    resp.raise_for_status()
+                    break
+                except requests.exceptions.ConnectionError as e:
+                    if attempt == retries - 1:
+                        raise
+                    time.sleep(2 ** attempt)
+
+            try:
+                data = resp.json()
+            except ValueError:
+                data = resp.text
+
+            if isinstance(data, list):
+                all_items.extend(data)
+            elif isinstance(data, dict):
+                items = data.get("data", data.get("items", data.get("results", None)))
+                if isinstance(items, list):
+                    all_items.extend(items)
+                else:
+                    all_items.append(data)
+
+            next_url = None
+            if isinstance(data, dict):
+                next_url = data.get("next") or data.get("next_page_token")
+                if isinstance(next_url, str) and next_url.startswith("http"):
+                    url = next_url
+                elif next_url:
+                    sep = "&" if "?" in url else "?"
+                    url = f"{url}{sep}page_token={next_url}"
+                else:
+                    break
+            else:
+                break
+
+            page += 1
+
+        result_data = all_items if all_items else data
+        return {"status": "success", "result": f"<external_data>{json.dumps(result_data, ensure_ascii=False)}</external_data>"}
     except requests.RequestException as e:
-        return {"status": "error", "message": str(e)}
-`
-
-const fileProcessorTemplateBody = `import sys
-import json
-import os
-import re
-
-WORKSPACE_ROOT = os.path.realpath(os.getcwd())
-
-def resolve_workspace_path(path_value, must_exist=False):
-    if not path_value:
-        raise ValueError("Path is required")
-    candidate = path_value
-    if not os.path.isabs(candidate):
-        candidate = os.path.join(WORKSPACE_ROOT, candidate)
-    candidate = os.path.realpath(candidate)
-    try:
-        if os.path.commonpath([WORKSPACE_ROOT, candidate]) != WORKSPACE_ROOT:
-            raise ValueError(f"Path escapes workspace: {path_value}")
-    except ValueError:
-        raise ValueError(f"Invalid path: {path_value}")
-    if must_exist and not os.path.exists(candidate):
-        raise FileNotFoundError(f"File not found: {candidate}")
-    return candidate
-
-def {{.FunctionName}}(input_path, output_path=None, operation="head", pattern=None, replacement=None):
-    """{{.Description}}"""
-    try:
-        input_path = resolve_workspace_path(input_path, must_exist=True)
-        with open(input_path, "r", encoding="utf-8") as f:
-            lines = f.readlines()
-        
-        result_lines = lines
-        if operation == "head":
-            result_lines = lines[:20]
-        elif operation == "tail":
-            result_lines = lines[-20:]
-        elif operation == "count":
-            return {"status": "success", "result": {"lines": len(lines), "chars": sum(len(l) for l in lines)}}
-        elif operation == "search" and pattern:
-            result_lines = [l for l in lines if re.search(pattern, l)]
-        elif operation == "replace" and pattern and replacement is not None:
-            result_lines = [re.sub(pattern, replacement, l) for l in lines]
-        elif operation == "extract_lines" and pattern:
-            result_lines = [l for l in lines if re.search(pattern, l)]
-        
-        output = "".join(result_lines)
-        if output_path:
-            output_path = resolve_workspace_path(output_path)
-            with open(output_path, "w", encoding="utf-8") as f:
-                f.write(output)
-            return {"status": "success", "result": f"Written {len(result_lines)} lines to {output_path}"}
-        return {"status": "success", "result": output}
-    except Exception as e:
         return {"status": "error", "message": str(e)}
 `
 
@@ -430,18 +508,59 @@ try:
 except ImportError:
     yaml = None
 
-def {{.FunctionName}}(input_path, output_path=None, input_format="json", output_format="json", fields=None):
+try:
+    import xml.etree.ElementTree as ET
+except ImportError:
+    ET = None
+
+def _parse_xml(raw):
+    root = ET.fromstring(raw)
+    def elem_to_dict(el):
+        d = {}
+        if el.attrib:
+            d.update({"@" + k: v for k, v in el.attrib.items()})
+        children = list(el)
+        if not children:
+            return el.text or ""
+        for child in children:
+            tag = child.tag
+            val = elem_to_dict(child)
+            if tag in d:
+                if not isinstance(d[tag], list):
+                    d[tag] = [d[tag]]
+                d[tag].append(val)
+            else:
+                d[tag] = val
+        return d
+    return elem_to_dict(root)
+
+def _to_xml(data, tag="root"):
+    root = ET.Element(tag)
+    def build(parent, val):
+        if isinstance(val, dict):
+            for k, v in val.items():
+                child = ET.SubElement(parent, k)
+                build(child, v)
+        elif isinstance(val, list):
+            for item in val:
+                child = ET.SubElement(parent, "item")
+                build(child, item)
+        else:
+            parent.text = str(val) if val is not None else ""
+    build(root, data)
+    return ET.tostring(root, encoding="unicode")
+
+def {{.FunctionName}}(input_path, output_path=None, input_format="json", output_format="json", fields=None, sort_by=None, limit=None):
     """{{.Description}}"""
     if not os.path.isabs(input_path):
         input_path = os.path.abspath(input_path)
     if not os.path.exists(input_path):
         return {"status": "error", "message": f"File not found: {input_path}"}
-    
+
     try:
         with open(input_path, "r", encoding="utf-8") as f:
             raw = f.read()
-        
-        # Parse input
+
         if input_format == "json":
             data = json.loads(raw)
         elif input_format == "csv":
@@ -451,15 +570,25 @@ def {{.FunctionName}}(input_path, output_path=None, input_format="json", output_
             if yaml is None:
                 return {"status": "error", "message": "pyyaml not installed"}
             data = yaml.safe_load(raw)
+        elif input_format == "xml":
+            if ET is None:
+                return {"status": "error", "message": "xml module not available"}
+            data = _parse_xml(raw)
         else:
             return {"status": "error", "message": f"Unsupported input format: {input_format}"}
-        
-        # Filter fields if specified
+
         if fields and isinstance(data, list):
             field_list = [f.strip() for f in fields.split(",")]
             data = [{k: row.get(k) for k in field_list} for row in data]
-        
-        # Render output
+
+        if sort_by and isinstance(data, list):
+            reverse = sort_by.startswith("-")
+            key = sort_by.lstrip("-")
+            data.sort(key=lambda r: r.get(key, ""), reverse=reverse)
+
+        if limit and isinstance(data, list):
+            data = data[:int(limit)]
+
         if output_format == "json":
             output = json.dumps(data, indent=2, ensure_ascii=False)
         elif output_format == "csv":
@@ -474,9 +603,11 @@ def {{.FunctionName}}(input_path, output_path=None, input_format="json", output_
             if yaml is None:
                 return {"status": "error", "message": "pyyaml not installed"}
             output = yaml.dump(data, allow_unicode=True, default_flow_style=False)
+        elif output_format == "xml":
+            output = _to_xml(data)
         else:
             return {"status": "error", "message": f"Unsupported output format: {output_format}"}
-        
+
         if output_path:
             if not os.path.isabs(output_path):
                 output_path = os.path.abspath(output_path)
@@ -488,209 +619,820 @@ def {{.FunctionName}}(input_path, output_path=None, input_format="json", output_
         return {"status": "error", "message": str(e)}
 `
 
-const scraperTemplateBody = `import sys
+const notificationSenderTemplateBody = `import sys
 import json
+import os
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase
+from email import encoders
 import requests
-from bs4 import BeautifulSoup
 
-def {{.FunctionName}}(url, selector="body", attr=None, limit=50):
-    """{{.Description}}"""
+def _send_telegram(token, chat_id, message, title=None, priority="normal"):
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+    text = f"*{title}*\n\n{message}" if title else message
+    if priority == "high":
+        text = "\u26a0\ufe0f " + text
+    payload = {"chat_id": chat_id, "text": text, "parse_mode": "Markdown"}
+    resp = requests.post(url, json=payload, timeout=10)
+    resp.raise_for_status()
+    return resp.json()
+
+def _send_discord(webhook_url, message, title=None, priority="normal"):
+    payload = {"content": ""}
+    embed = {"description": message}
+    if title:
+        embed["title"] = title
+    color_map = {"low": 3447003, "normal": 3066993, "high": 15158332}
+    embed["color"] = color_map.get(priority, 3066993)
+    payload["embeds"] = [embed]
+    resp = requests.post(webhook_url, json=payload, timeout=10)
+    resp.raise_for_status()
+    return {"sent": True}
+
+def _send_email(smtp_host, smtp_port, smtp_user, smtp_pass, from_addr, to_addr, message, title=None, attach=None, priority="normal"):
+    msg = MIMEMultipart()
+    msg["From"] = from_addr
+    msg["To"] = to_addr
+    msg["Subject"] = title or "AuraGo Notification"
+    if priority == "high":
+        msg["X-Priority"] = "1"
+    msg.attach(MIMEText(message, "plain"))
+
+    if attach and os.path.isfile(attach):
+        with open(attach, "rb") as f:
+            part = MIMEBase("application", "octet-stream")
+            part.set_payload(f.read())
+        encoders.encode_base64(part)
+        part.add_header("Content-Disposition", f"attachment; filename={os.path.basename(attach)}")
+        msg.attach(part)
+
+    if smtp_port == 465:
+        server = smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=15)
+    else:
+        server = smtplib.SMTP(smtp_host, smtp_port, timeout=15)
+        server.starttls()
+    if smtp_user and smtp_pass:
+        server.login(smtp_user, smtp_pass)
+    server.sendmail(from_addr, to_addr, msg.as_string())
+    server.quit()
+    return {"sent": True}
+
+def _send_webhook(url, message, title=None, priority="normal"):
+    payload = {
+        "message": message,
+        "title": title,
+        "priority": priority,
+        "source": "AuraGo",
+    }
+    api_key = os.environ.get("AURAGO_SECRET_WEBHOOK_KEY", "")
+    headers = {"Content-Type": "application/json"}
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+    resp = requests.post(url, json=payload, headers=headers, timeout=10)
+    resp.raise_for_status()
     try:
-        resp = requests.get(url, timeout=30, headers={
-            "User-Agent": "Mozilla/5.0 (compatible; AuraGo-Skill/1.0)",
-        })
-        resp.raise_for_status()
-        soup = BeautifulSoup(resp.text, "html.parser")
-        
-        elements = soup.select(selector)[:int(limit)]
-        results = []
-        for el in elements:
-            if attr:
-                val = el.get(attr, "")
-            else:
-                val = el.get_text(strip=True)
-            if val:
-                results.append(val)
-        
-        return {"status": "success", "result": f"<external_data>{json.dumps(results, ensure_ascii=False)}</external_data>"}
-    except requests.RequestException as e:
-        return {"status": "error", "message": str(e)}
+        return resp.json()
+    except ValueError:
+        return {"status": "sent", "http_code": resp.status_code}
+
+def {{.FunctionName}}(channel, message, title=None, attach=None, priority="normal"):
+    """{{.Description}}"""
+    if not message:
+        return {"status": "error", "message": "Message text is required"}
+
+    try:
+        if channel == "telegram":
+            token = os.environ.get("AURAGO_SECRET_TELEGRAM_BOT_TOKEN", "")
+            chat_id = os.environ.get("AURAGO_SECRET_TELEGRAM_CHAT_ID", "")
+            if not token or not chat_id:
+                return {"status": "error", "message": "Telegram requires vault keys: TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID"}
+            result = _send_telegram(token, chat_id, message, title, priority)
+
+        elif channel == "discord":
+            webhook_url = os.environ.get("AURAGO_SECRET_DISCORD_WEBHOOK_URL", "")
+            if not webhook_url:
+                return {"status": "error", "message": "Discord requires vault key: DISCORD_WEBHOOK_URL"}
+            result = _send_discord(webhook_url, message, title, priority)
+
+        elif channel == "email":
+            smtp_host = os.environ.get("AURAGO_SECRET_SMTP_HOST", "")
+            smtp_port = int(os.environ.get("AURAGO_SECRET_SMTP_PORT", "587"))
+            smtp_user = os.environ.get("AURAGO_SECRET_SMTP_USER", "")
+            smtp_pass = os.environ.get("AURAGO_SECRET_SMTP_PASSWORD", "")
+            from_addr = os.environ.get("AURAGO_SECRET_EMAIL_FROM", smtp_user)
+            to_addr = os.environ.get("AURAGO_SECRET_EMAIL_TO", "")
+            if not smtp_host or not to_addr:
+                return {"status": "error", "message": "Email requires vault keys: SMTP_HOST, EMAIL_TO (and SMTP_USER/SMTP_PASSWORD for auth)"}
+            result = _send_email(smtp_host, smtp_port, smtp_user, smtp_pass, from_addr, to_addr, message, title, attach, priority)
+
+        elif channel == "webhook":
+            url = os.environ.get("AURAGO_SECRET_WEBHOOK_URL", "{{.BaseURL}}")
+            if not url:
+                return {"status": "error", "message": "Webhook requires vault key: WEBHOOK_URL or 'url' parameter"}
+            result = _send_webhook(url, message, title, priority)
+
+        else:
+            return {"status": "error", "message": f"Unknown channel: {channel}. Use: telegram, discord, email, webhook"}
+
+        return {"status": "success", "result": result}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 `
 
-// ─── Vault example templates ──────────────────────────────────────────────────
+const monitorCheckTemplateBody = `import sys
+import json
+import os
+import socket
+import time
+import requests
 
-// vaultLoginTemplate demonstrates authenticating with username + password from
-// the AuraGo Vault and then calling a service API.
-//
-// Required vault secrets (create them in Config → Vault):
-//
-//	Key: "my_service_username"   → injected as AURAGO_SECRET_MY_SERVICE_USERNAME
-//	Key: "my_service_password"   → injected as AURAGO_SECRET_MY_SERVICE_PASSWORD
-//	Key: "my_service_base_url"   → injected as AURAGO_SECRET_MY_SERVICE_BASE_URL  (optional)
-//
-// Declaration in the skill manifest (vault_keys field):
-//
-//	"vault_keys": ["my_service_username", "my_service_password", "my_service_base_url"]
-const vaultLoginTemplateBody = `import sys
+def _check_http(target, timeout, expected, keyword):
+    start = time.time()
+    try:
+        resp = requests.get(target, timeout=int(timeout), headers={
+            "User-Agent": "AuraGo-Monitor/1.0",
+        }, allow_redirects=True)
+        latency_ms = round((time.time() - start) * 1000, 1)
+        result = {
+            "target": target,
+            "type": "http",
+            "status_code": resp.status_code,
+            "latency_ms": latency_ms,
+            "passed": True,
+        }
+        if expected:
+            result["expected"] = int(expected)
+            result["passed"] = resp.status_code == int(expected)
+        if keyword:
+            found = keyword.lower() in resp.text.lower()
+            result["keyword"] = keyword
+            result["keyword_found"] = found
+            result["passed"] = result["passed"] and found
+        return result
+    except requests.RequestException as e:
+        latency_ms = round((time.time() - start) * 1000, 1)
+        return {"target": target, "type": "http", "passed": False, "error": str(e), "latency_ms": latency_ms}
+
+def _check_tcp(target, timeout):
+    if ":" not in target:
+        return {"target": target, "type": "tcp", "passed": False, "error": "Format must be host:port"}
+    host, port_str = target.rsplit(":", 1)
+    try:
+        port = int(port_str)
+    except ValueError:
+        return {"target": target, "type": "tcp", "passed": False, "error": "Invalid port number"}
+    start = time.time()
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(int(timeout))
+        sock.connect((host, port))
+        sock.close()
+        latency_ms = round((time.time() - start) * 1000, 1)
+        return {"target": target, "type": "tcp", "passed": True, "latency_ms": latency_ms}
+    except (socket.timeout, socket.error) as e:
+        latency_ms = round((time.time() - start) * 1000, 1)
+        return {"target": target, "type": "tcp", "passed": False, "error": str(e), "latency_ms": latency_ms}
+
+def _check_dns(target, expected):
+    start = time.time()
+    try:
+        resolved = socket.gethostbyname(target)
+        latency_ms = round((time.time() - start) * 1000, 1)
+        result = {
+            "target": target,
+            "type": "dns",
+            "resolved_ip": resolved,
+            "latency_ms": latency_ms,
+            "passed": True,
+        }
+        if expected:
+            result["expected"] = expected
+            result["passed"] = resolved == expected
+        return result
+    except socket.gaierror as e:
+        latency_ms = round((time.time() - start) * 1000, 1)
+        return {"target": target, "type": "dns", "passed": False, "error": str(e), "latency_ms": latency_ms}
+
+def {{.FunctionName}}(target, check_type="http", timeout=10, expected=None, keyword=None):
+    """{{.Description}}"""
+    if not target:
+        return {"status": "error", "message": "Target is required"}
+
+    timeout = int(timeout)
+    if check_type == "http":
+        if not target.startswith(("http://", "https://")):
+            target = f"http://{target}"
+        result = _check_http(target, timeout, expected, keyword)
+    elif check_type == "tcp":
+        result = _check_tcp(target, timeout)
+    elif check_type == "dns":
+        result = _check_dns(target, expected)
+    else:
+        return {"status": "error", "message": f"Unknown check type: {check_type}. Use: http, tcp, dns"}
+
+    status = "success" if result.get("passed") else "warning"
+    return {"status": status, "result": result}
+`
+
+const logAnalyzerTemplateBody = `import sys
+import json
+import os
+import re
+from datetime import datetime, timedelta
+
+LEVEL_PATTERNS = {
+    "error": re.compile(r'\b(ERROR|FATAL|CRITICAL|SEVERE|ERR)\b', re.IGNORECASE),
+    "warning": re.compile(r'\b(WARN|WARNING|WRN)\b', re.IGNORECASE),
+    "info": re.compile(r'\b(INFO|INFORMATION)\b', re.IGNORECASE),
+    "debug": re.compile(r'\b(DEBUG|DBG|TRACE)\b', re.IGNORECASE),
+}
+
+TIMESTAMP_PATTERNS = [
+    re.compile(r'(\d{4}-\d{2}-\d{2}[\sT]\d{2}:\d{2}:\d{2})'),
+    re.compile(r'(\d{2}/\d{2}/\d{4}\s+\d{2}:\d{2}:\d{2})'),
+    re.compile(r'(\w{3}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2})'),
+]
+
+def _parse_timestamp(line):
+    for pat in TIMESTAMP_PATTERNS:
+        m = pat.search(line)
+        if m:
+            for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%d/%m/%Y %H:%M:%S", "%b %d %H:%M:%S"):
+                try:
+                    return datetime.strptime(m.group(1), fmt)
+                except ValueError:
+                    continue
+    return None
+
+def _detect_level(line):
+    for level, pat in LEVEL_PATTERNS.items():
+        if pat.search(line):
+            return level
+    return "unknown"
+
+def _parse_time_filter(since):
+    if not since:
+        return None
+    m = re.match(r'(\d+)\s*(m|h|d|w)', since.lower().strip())
+    if not m:
+        return None
+    val, unit = int(m.group(1)), m.group(2)
+    delta_map = {"m": timedelta(minutes=val), "h": timedelta(hours=val), "d": timedelta(days=val), "w": timedelta(weeks=val)}
+    return datetime.now() - delta_map.get(unit, timedelta())
+
+def {{.FunctionName}}(log_path, operation="summary", pattern=None, since=None, max_results=100):
+    """{{.Description}}"""
+    if not os.path.isabs(log_path):
+        log_path = os.path.abspath(log_path)
+    if not os.path.exists(log_path):
+        return {"status": "error", "message": f"File not found: {log_path}"}
+
+    try:
+        with open(log_path, "r", encoding="utf-8", errors="replace") as f:
+            lines = f.readlines()
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+    cutoff = _parse_time_filter(since)
+    max_results = int(max_results)
+    parsed = []
+    for line in lines:
+        ts = _parse_timestamp(line)
+        level = _detect_level(line)
+        if cutoff and ts and ts < cutoff:
+            continue
+        parsed.append({"line": line.rstrip(), "level": level, "timestamp": ts})
+
+    if operation == "summary":
+        counts = {}
+        for entry in parsed:
+            counts[entry["level"]] = counts.get(entry["level"], 0) + 1
+        return {
+            "status": "success",
+            "result": {
+                "total_lines": len(lines),
+                "filtered_lines": len(parsed),
+                "level_counts": counts,
+                "time_range": {
+                    "earliest": str(parsed[0]["timestamp"]) if parsed and parsed[0]["timestamp"] else None,
+                    "latest": str(parsed[-1]["timestamp"]) if parsed and parsed[-1]["timestamp"] else None,
+                },
+            },
+        }
+
+    elif operation == "errors":
+        errors = [e for e in parsed if e["level"] in ("error", "fatal")]  [:max_results]
+        return {"status": "success", "result": {"count": len(errors), "errors": [e["line"] for e in errors]}}
+
+    elif operation == "search":
+        if not pattern:
+            return {"status": "error", "message": "Pattern is required for search operation"}
+        regex = re.compile(pattern, re.IGNORECASE)
+        matches = [e for e in parsed if regex.search(e["line"])][:max_results]
+        return {"status": "success", "result": {"count": len(matches), "matches": [e["line"] for e in matches]}}
+
+    elif operation == "tail":
+        tail_lines = parsed[-max_results:]
+        return {"status": "success", "result": {"lines": [e["line"] for e in tail_lines]}}
+
+    elif operation == "count_by_level":
+        counts = {}
+        for entry in parsed:
+            counts[entry["level"]] = counts.get(entry["level"], 0) + 1
+        return {"status": "success", "result": counts}
+
+    else:
+        return {"status": "error", "message": f"Unknown operation: {operation}. Use: summary, errors, search, tail, count_by_level"}
+`
+
+const dockerManagerTemplateBody = `import sys
 import json
 import os
 import requests
 
-# ─── HOW TO SET UP THIS SKILL ────────────────────────────────────────────────
-# Before running this skill, store your credentials in the AuraGo Vault:
-#
-#   1. Open the AuraGo Web UI → Config → Vault
-#   2. Add two (or three) secrets:
-#        Key: "my_service_username"   Value: <your username or login>
-#        Key: "my_service_password"   Value: <your password>
-#        Key: "my_service_base_url"   Value: <https://your-service.example.com>  (optional)
-#
-#   3. In the skill manifest (.json), declare them in "vault_keys":
-#        "vault_keys": ["my_service_username", "my_service_password", "my_service_base_url"]
-#
-# AuraGo will then inject the secrets as environment variables before each run:
-#   AURAGO_SECRET_MY_SERVICE_USERNAME  = <username>
-#   AURAGO_SECRET_MY_SERVICE_PASSWORD  = <password>
-#   AURAGO_SECRET_MY_SERVICE_BASE_URL  = <base url>   (if declared)
-#
-# Rename "my_service" to something meaningful, e.g. "nextcloud", "gitlab_local".
-# ─────────────────────────────────────────────────────────────────────────────
+DOCKER_SOCKET = os.environ.get("DOCKER_HOST", "/var/run/docker.sock")
 
-def {{.FunctionName}}(action="whoami"):
-    """{{.Description}}"""
-    # Read credentials injected by AuraGo from the vault
-    base_url = os.environ.get("AURAGO_SECRET_MY_SERVICE_BASE_URL",
-                              os.environ.get("AURAGO_SECRET_BASE_URL", "{{.BaseURL}}")).rstrip("/")
-    username = os.environ.get("AURAGO_SECRET_MY_SERVICE_USERNAME", "")
-    password = os.environ.get("AURAGO_SECRET_MY_SERVICE_PASSWORD", "")
-
-    if not username or not password:
-        return {
-            "status": "error",
-            "message": (
-                "Credentials not found in environment. "
-                "Please add 'my_service_username' and 'my_service_password' to the AuraGo Vault "
-                "(Config → Vault) and declare them in the skill's vault_keys."
-            )
-        }
-
-    session = requests.Session()
+def _docker_api(method, path, params=None, timeout=30):
+    base = "http://localhost"
+    if DOCKER_SOCKET.startswith("unix://") or DOCKER_SOCKET.startswith("/"):
+        base = "http+docker://localhost"
     try:
-        # ── Step 1: Login and obtain a session token ──────────────────────────
-        # Adjust the login endpoint and payload to match your service.
-        login_resp = session.post(
-            f"{base_url}/auth/login",
-            json={"username": username, "password": password},
-            timeout=15,
+        url = f"http://localhost{path}"
+        resp = requests.request(
+            method, url,
+            params=params,
+            timeout=timeout,
+            headers={"Content-Type": "application/json"},
         )
-        login_resp.raise_for_status()
-
-        # Many APIs return a Bearer token on login; fall back to cookie sessions.
-        token = login_resp.json().get("token") or login_resp.json().get("access_token", "")
-        if token:
-            session.headers.update({"Authorization": f"Bearer {token}"})
-
-        # ── Step 2: Call the actual API ────────────────────────────────────────
-        # Replace "/api/{action}" with the real endpoint your service provides.
-        resp = session.get(f"{base_url}/api/{action}", timeout=15)
-        resp.raise_for_status()
-
+    except Exception:
+        import http.client
+        import urllib.parse
+        if DOCKER_SOCKET.startswith("/"):
+            sock_path = DOCKER_SOCKET
+        else:
+            sock_path = DOCKER_SOCKET.replace("unix://", "")
+        conn = http.client.HTTPConnection("localhost")
         try:
-            data = resp.json()
+            conn.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            conn.sock.connect(sock_path)
+        except Exception:
+            import socket
+            conn.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            conn.sock.connect(sock_path)
+        qs = urllib.parse.urlencode(params) if params else ""
+        full_path = f"{path}?{qs}" if qs else path
+        conn.request(method, full_path)
+        resp_raw = conn.getresponse()
+        body = resp_raw.read().decode("utf-8")
+        conn.close()
+        try:
+            data = json.loads(body)
         except ValueError:
-            data = resp.text
+            data = body
+        return data
 
-        return {
-            "status": "success",
-            "result": f"<external_data>{json.dumps(data, ensure_ascii=False)}</external_data>"
-        }
+    try:
+        return resp.json()
+    except ValueError:
+        return resp.text
 
-    except requests.RequestException as e:
+def {{.FunctionName}}(action="list", container=None, tail=100, all=False):
+    """{{.Description}}"""
+    import subprocess
+
+    try:
+        if action == "list":
+            cmd = ["docker", "ps"]
+            if all:
+                cmd.append("-a")
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+            if result.returncode != 0:
+                return {"status": "error", "message": result.stderr.strip()}
+            lines = result.stdout.strip().split("\n")
+            containers = []
+            if len(lines) > 1:
+                header = lines[0]
+                for line in lines[1:]:
+                    containers.append({"raw": line.strip()})
+            return {"status": "success", "result": {"count": len(containers), "containers": containers}}
+
+        elif action == "inspect":
+            if not container:
+                return {"status": "error", "message": "Container name or ID required"}
+            result = subprocess.run(["docker", "inspect", container], capture_output=True, text=True, timeout=15)
+            if result.returncode != 0:
+                return {"status": "error", "message": result.stderr.strip()}
+            data = json.loads(result.stdout)
+            return {"status": "success", "result": f"<external_data>{json.dumps(data, ensure_ascii=False)}</external_data>"}
+
+        elif action in ("start", "stop", "restart"):
+            if not container:
+                return {"status": "error", "message": "Container name or ID required"}
+            result = subprocess.run(["docker", action, container], capture_output=True, text=True, timeout=30)
+            if result.returncode != 0:
+                return {"status": "error", "message": result.stderr.strip()}
+            return {"status": "success", "result": f"Container {container}: {action} completed"}
+
+        elif action == "logs":
+            if not container:
+                return {"status": "error", "message": "Container name or ID required"}
+            result = subprocess.run(["docker", "logs", "--tail", str(tail), container], capture_output=True, text=True, timeout=15)
+            if result.returncode != 0:
+                return {"status": "error", "message": result.stderr.strip()}
+            return {"status": "success", "result": result.stdout[-5000:]}
+
+        elif action == "stats":
+            if not container:
+                return {"status": "error", "message": "Container name or ID required"}
+            result = subprocess.run(["docker", "stats", "--no-stream", container], capture_output=True, text=True, timeout=15)
+            if result.returncode != 0:
+                return {"status": "error", "message": result.stderr.strip()}
+            data = {"raw": result.stdout.strip()}
+            return {"status": "success", "result": data}
+
+        else:
+            return {"status": "error", "message": f"Unknown action: {action}. Use: list, inspect, start, stop, restart, logs, stats"}
+
+    except subprocess.TimeoutExpired:
+        return {"status": "error", "message": f"Docker command timed out"}
+    except FileNotFoundError:
+        return {"status": "error", "message": "Docker CLI not found. Is Docker installed?"}
+    except Exception as e:
         return {"status": "error", "message": str(e)}
 `
 
-// vaultTokenTemplate demonstrates calling a REST API with a single Bearer
-// token / API key from the AuraGo Vault.
-//
-// Required vault secrets (create them in Config → Vault):
-//
-//	Key: "my_service_api_key"  → injected as AURAGO_SECRET_MY_SERVICE_API_KEY
-//	Key: "my_service_base_url" → injected as AURAGO_SECRET_MY_SERVICE_BASE_URL  (optional)
-//
-// Declaration in the skill manifest (vault_keys field):
-//
-//	"vault_keys": ["my_service_api_key", "my_service_base_url"]
-const vaultTokenTemplateBody = `import sys
+const backupRunnerTemplateBody = `import sys
 import json
 import os
-import requests
+import glob
+import hashlib
+import tarfile
+import tempfile
+from datetime import datetime
 
-# ─── HOW TO SET UP THIS SKILL ────────────────────────────────────────────────
-# Before running this skill, store your API key in the AuraGo Vault:
-#
-#   1. Open the AuraGo Web UI → Config → Vault
-#   2. Add one (or two) secrets:
-#        Key: "my_service_api_key"   Value: <your API key or Bearer token>
-#        Key: "my_service_base_url"  Value: <https://api.your-service.example.com>  (optional)
-#
-#   3. In the skill manifest (.json), declare them in "vault_keys":
-#        "vault_keys": ["my_service_api_key", "my_service_base_url"]
-#
-# AuraGo will inject the secret before each run:
-#   AURAGO_SECRET_MY_SERVICE_API_KEY   = <api key>
-#   AURAGO_SECRET_MY_SERVICE_BASE_URL  = <base url>  (if declared)
-#
-# Rename "my_service" to something meaningful, e.g. "openweathermap", "hass_token".
-# ─────────────────────────────────────────────────────────────────────────────
+BACKUP_DIR = os.environ.get("AURAGO_BACKUP_DIR", os.path.join(os.getcwd(), "backups"))
 
-def {{.FunctionName}}(endpoint, method="GET", body=None):
-    """{{.Description}}"""
-    # Read API key and base URL injected by AuraGo from the vault
-    base_url = os.environ.get("AURAGO_SECRET_MY_SERVICE_BASE_URL",
-                              os.environ.get("AURAGO_SECRET_BASE_URL", "{{.BaseURL}}")).rstrip("/")
-    api_key = os.environ.get("AURAGO_SECRET_MY_SERVICE_API_KEY",
-                             os.environ.get("AURAGO_SECRET_API_KEY", ""))
+def _generate_backup_name(source):
+    name = os.path.basename(os.path.normpath(source))
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    return f"{name}_{timestamp}.tar.gz"
 
-    if not api_key:
-        return {
-            "status": "error",
-            "message": (
-                "API key not found in environment. "
-                "Please add 'my_service_api_key' to the AuraGo Vault "
-                "(Config → Vault) and declare it in the skill's vault_keys."
-            )
-        }
+def _create_backup(source, output, exclude_patterns=None):
+    if not os.path.exists(source):
+        return {"status": "error", "message": f"Source not found: {source}"}
 
-    url = f"{base_url}/{endpoint.lstrip('/')}" if endpoint else base_url
-    headers = {
-        "Content-Type": "application/json",
-        # Standard Bearer auth – change to a different header if your service requires it,
-        # e.g. "X-API-Key": api_key  or  "token": api_key
-        "Authorization": f"Bearer {api_key}",
+    os.makedirs(BACKUP_DIR, exist_ok=True)
+    if not output:
+        output = os.path.join(BACKUP_DIR, _generate_backup_name(source))
+
+    exclude_set = set()
+    if exclude_patterns:
+        for pat in [p.strip() for p in exclude_patterns.split(",") if p.strip()]:
+            for match in glob.glob(os.path.join(source, pat), recursive=True):
+                exclude_set.add(os.path.normpath(match))
+
+    source = os.path.normpath(source)
+    source_name = os.path.basename(source)
+    file_count = 0
+    total_size = 0
+
+    def tar_filter(info):
+        norm = os.path.normpath(info.name)
+        for exc in exclude_set:
+            if norm.startswith(exc):
+                return None
+        return info
+
+    with tarfile.open(output, "w:gz") as tar:
+        tar.add(source, arcname=source_name, filter=tar_filter)
+
+    archive_size = os.path.getsize(output)
+    with open(output, "rb") as f:
+        sha256 = hashlib.sha256(f.read()).hexdigest()
+
+    return {
+        "status": "success",
+        "result": {
+            "archive": output,
+            "size_bytes": archive_size,
+            "size_human": f"{archive_size / 1024 / 1024:.1f} MB" if archive_size > 1024 * 1024 else f"{archive_size / 1024:.1f} KB",
+            "sha256": sha256,
+            "created_at": datetime.now().isoformat(),
+        },
     }
 
+def _list_backups():
+    if not os.path.exists(BACKUP_DIR):
+        return {"status": "success", "result": {"backups": [], "total": 0}}
+    backups = []
+    for f in sorted(glob.glob(os.path.join(BACKUP_DIR, "*.tar.gz")), reverse=True):
+        stat = os.stat(f)
+        backups.append({
+            "file": os.path.basename(f),
+            "size_bytes": stat.st_size,
+            "size_human": f"{stat.st_size / 1024 / 1024:.1f} MB" if stat.st_size > 1024 * 1024 else f"{stat.st_size / 1024:.1f} KB",
+            "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+        })
+    return {"status": "success", "result": {"backups": backups, "total": len(backups)}}
+
+def _restore_backup(source, output):
+    if not os.path.exists(source):
+        return {"status": "error", "message": f"Archive not found: {source}"}
+    if not output:
+        output = os.getcwd()
+    os.makedirs(output, exist_ok=True)
+    with tarfile.open(source, "r:gz") as tar:
+        tar.extractall(path=output)
+    return {"status": "success", "result": f"Restored to {output}"}
+
+def _cleanup_backups(keep):
+    keep = int(keep)
+    if not os.path.exists(BACKUP_DIR):
+        return {"status": "success", "result": {"removed": 0, "kept": 0}}
+    backups = sorted(glob.glob(os.path.join(BACKUP_DIR, "*.tar.gz")), reverse=True)
+    kept = backups[:keep]
+    removed = backups[keep:]
+    for f in removed:
+        os.remove(f)
+    return {"status": "success", "result": {"removed": len(removed), "kept": len(kept)}}
+
+def {{.FunctionName}}(action="create", source="", output=None, keep=5, exclude=None):
+    """{{.Description}}"""
     try:
-        resp = requests.request(
-            method=method.upper(),
-            url=url,
-            headers=headers,
-            json=body if body else None,
-            timeout=30,
-        )
-        resp.raise_for_status()
+        if action == "create":
+            if not source:
+                return {"status": "error", "message": "Source path is required for create action"}
+            return _create_backup(source, output, exclude)
+        elif action == "list":
+            return _list_backups()
+        elif action == "restore":
+            if not source:
+                return {"status": "error", "message": "Archive path is required for restore action"}
+            return _restore_backup(source, output)
+        elif action == "cleanup":
+            return _cleanup_backups(keep)
+        else:
+            return {"status": "error", "message": f"Unknown action: {action}. Use: create, list, restore, cleanup"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+`
 
-        try:
-            data = resp.json()
-        except ValueError:
-            data = resp.text
+const databaseQueryTemplateBody = `import sys
+import json
+import os
+import sqlite3
 
-        return {
-            "status": "success",
-            "result": f"<external_data>{json.dumps(data, ensure_ascii=False)}</external_data>"
+def {{.FunctionName}}(query, db_type="sqlite", connection="", params=None, limit=100):
+    """{{.Description}}"""
+    if not query:
+        return {"status": "error", "message": "SQL query is required"}
+    if not connection:
+        return {"status": "error", "message": "Database connection (file path or connection string) is required"}
+
+    limit = int(limit)
+    query_upper = query.strip().upper()
+
+    try:
+        if db_type == "sqlite":
+            if not os.path.isabs(connection):
+                connection = os.path.abspath(connection)
+            if not os.path.exists(connection):
+                return {"status": "error", "message": f"Database file not found: {connection}"}
+
+            conn = sqlite3.connect(connection)
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+
+            if params and isinstance(params, list):
+                cursor.execute(query, params)
+            else:
+                cursor.execute(query)
+
+            if query_upper.startswith("SELECT"):
+                rows = cursor.fetchmany(limit)
+                columns = [desc[0] for desc in cursor.description] if cursor.description else []
+                results = [dict(zip(columns, row)) for row in rows]
+                conn.close()
+                return {"status": "success", "result": {"rows": results, "count": len(results), "columns": columns}}
+            else:
+                affected = cursor.rowcount
+                conn.commit()
+                conn.close()
+                return {"status": "success", "result": {"affected_rows": affected}}
+
+        elif db_type == "postgresql":
+            try:
+                import psycopg2
+            except ImportError:
+                return {"status": "error", "message": "psycopg2 not installed. Add 'psycopg2-binary' to dependencies."}
+            conn = psycopg2.connect(connection)
+            cursor = conn.cursor()
+            if params and isinstance(params, list):
+                cursor.execute(query, params)
+            else:
+                cursor.execute(query)
+            if query_upper.startswith("SELECT"):
+                rows = cursor.fetchmany(limit)
+                columns = [desc[0] for desc in cursor.description] if cursor.description else []
+                results = [dict(zip(columns, row)) for row in rows]
+                conn.close()
+                return {"status": "success", "result": {"rows": results, "count": len(results), "columns": columns}}
+            else:
+                affected = cursor.rowcount
+                conn.commit()
+                conn.close()
+                return {"status": "success", "result": {"affected_rows": affected}}
+
+        elif db_type == "mysql":
+            try:
+                import pymysql
+            except ImportError:
+                return {"status": "error", "message": "pymysql not installed. Add 'pymysql' to dependencies."}
+            conn = pymysql.connect(connection if "://" in connection else connection)
+            cursor = conn.cursor()
+            if params and isinstance(params, list):
+                cursor.execute(query, params)
+            else:
+                cursor.execute(query)
+            if query_upper.startswith("SELECT"):
+                rows = cursor.fetchmany(limit)
+                columns = [desc[0] for desc in cursor.description] if cursor.description else []
+                results = [dict(zip(columns, row)) for row in rows]
+                conn.close()
+                return {"status": "success", "result": {"rows": results, "count": len(results), "columns": columns}}
+            else:
+                affected = cursor.rowcount
+                conn.commit()
+                conn.close()
+                return {"status": "success", "result": {"affected_rows": affected}}
+
+        else:
+            return {"status": "error", "message": f"Unsupported database type: {db_type}. Use: sqlite, postgresql, mysql"}
+
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+`
+
+const sshExecutorTemplateBody = `import sys
+import json
+import os
+
+def {{.FunctionName}}(host, command, user=None, port=22, timeout=30):
+    """{{.Description}}"""
+    if not host:
+        return {"status": "error", "message": "Host is required"}
+    if not command:
+        return {"status": "error", "message": "Command is required"}
+
+    try:
+        import paramiko
+    except ImportError:
+        return {"status": "error", "message": "paramiko not installed. Add 'paramiko' to dependencies."}
+
+    ssh_key = os.environ.get("AURAGO_SECRET_SSH_KEY", "")
+    ssh_password = os.environ.get("AURAGO_SECRET_SSH_PASSWORD", "")
+    if not user:
+        user = os.environ.get("AURAGO_SECRET_SSH_USER", os.environ.get("USER", "root"))
+
+    client = paramiko.SSHClient()
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+    try:
+        connect_kwargs = {
+            "hostname": host,
+            "port": int(port),
+            "username": user,
+            "timeout": int(timeout),
         }
 
-    except requests.RequestException as e:
+        if ssh_key:
+            key_file = os.path.expanduser(ssh_key) if not os.path.isabs(ssh_key) else ssh_key
+            if os.path.isfile(key_file):
+                connect_kwargs["key_filename"] = key_file
+            else:
+                import tempfile
+                with tempfile.NamedTemporaryFile(mode="w", suffix=".key", delete=False) as kf:
+                    kf.write(ssh_key)
+                    kf.flush()
+                    connect_kwargs["key_filename"] = kf.name
+        elif ssh_password:
+            connect_kwargs["password"] = ssh_password
+        else:
+            key_path = os.path.expanduser("~/.ssh/id_rsa")
+            if os.path.isfile(key_path):
+                connect_kwargs["key_filename"] = key_path
+
+        client.connect(**connect_kwargs)
+        stdin, stdout, stderr = client.exec_command(command, timeout=int(timeout))
+
+        exit_code = stdout.channel.recv_exit_status()
+        out = stdout.read().decode("utf-8", errors="replace")
+        err = stderr.read().decode("utf-8", errors="replace")
+
+        return {
+            "status": "success" if exit_code == 0 else "error",
+            "result": {
+                "host": host,
+                "command": command,
+                "exit_code": exit_code,
+                "stdout": out[-10000:] if len(out) > 10000 else out,
+                "stderr": err[-5000:] if len(err) > 5000 else err,
+            },
+        }
+    except paramiko.AuthenticationException:
+        return {"status": "error", "message": f"Authentication failed for {user}@{host}"}
+    except paramiko.SSHException as e:
+        return {"status": "error", "message": f"SSH error: {str(e)}"}
+    except Exception as e:
         return {"status": "error", "message": str(e)}
+    finally:
+        client.close()
+`
+
+const mqttPublisherTemplateBody = `import sys
+import json
+import os
+
+def {{.FunctionName}}(action, topic, payload=None, qos=0, retain=False, timeout=5):
+    """{{.Description}}"""
+    if not topic:
+        return {"status": "error", "message": "MQTT topic is required"}
+
+    try:
+        import paho.mqtt.client as mqtt
+    except ImportError:
+        return {"status": "error", "message": "paho-mqtt not installed. Add 'paho-mqtt' to dependencies."}
+
+    broker_host = os.environ.get("AURAGO_SECRET_MQTT_HOST", os.environ.get("AURAGO_SECRET_BROKER_HOST", "localhost"))
+    broker_port = int(os.environ.get("AURAGO_SECRET_MQTT_PORT", "1883"))
+    mqtt_user = os.environ.get("AURAGO_SECRET_MQTT_USER", "")
+    mqtt_password = os.environ.get("AURAGO_SECRET_MQTT_PASSWORD", "")
+
+    qos = int(qos)
+    retain = bool(retain)
+    timeout = int(timeout)
+
+    client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+    if mqtt_user and mqtt_password:
+        client.username_pw_set(mqtt_user, mqtt_password)
+
+    try:
+        client.connect(broker_host, broker_port, keepalive=60)
+        client.loop_start()
+
+        if action == "publish":
+            if payload is None:
+                return {"status": "error", "message": "Payload is required for publish action"}
+            if not isinstance(payload, str):
+                payload = json.dumps(payload)
+            result = client.publish(topic, payload, qos=qos, retain=retain)
+            result.wait_for_publish(timeout=timeout)
+            return {
+                "status": "success",
+                "result": {
+                    "action": "publish",
+                    "topic": topic,
+                    "broker": f"{broker_host}:{broker_port}",
+                    "qos": qos,
+                    "retained": retain,
+                    "payload_size": len(payload),
+                },
+            }
+
+        elif action == "subscribe":
+            messages = []
+
+            def on_message(client, userdata, msg):
+                messages.append({"topic": msg.topic, "payload": msg.payload.decode("utf-8", errors="replace"), "qos": msg.qos})
+
+            client.on_message = on_message
+            client.subscribe(topic, qos=qos)
+
+            import time
+            deadline = time.time() + timeout
+            while time.time() < deadline:
+                time.sleep(0.1)
+
+            client.unsubscribe(topic)
+            return {
+                "status": "success",
+                "result": {
+                    "action": "subscribe",
+                    "topic": topic,
+                    "broker": f"{broker_host}:{broker_port}",
+                    "messages_received": len(messages),
+                    "messages": messages[:50],
+                },
+            }
+
+        else:
+            return {"status": "error", "message": f"Unknown action: {action}. Use: publish, subscribe"}
+
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+    finally:
+        client.loop_stop()
+        client.disconnect()
 `

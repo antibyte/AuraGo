@@ -10,8 +10,8 @@ import (
 
 func TestAvailableSkillTemplates(t *testing.T) {
 	templates := AvailableSkillTemplates()
-	if len(templates) != 6 {
-		t.Fatalf("expected 6 templates, got %d", len(templates))
+	if len(templates) != 10 {
+		t.Fatalf("expected 10 templates, got %d", len(templates))
 	}
 	names := map[string]bool{}
 	for _, tmpl := range templates {
@@ -29,7 +29,7 @@ func TestAvailableSkillTemplates(t *testing.T) {
 		}
 		names[tmpl.Name] = true
 	}
-	for _, expected := range []string{"api_client", "file_processor", "data_transformer", "scraper", "example_use_vault_login", "example_use_vault_token"} {
+	for _, expected := range []string{"api_client", "data_transformer", "notification_sender", "monitor_check", "log_analyzer", "docker_manager", "backup_runner", "database_query", "ssh_executor", "mqtt_publisher"} {
 		if !names[expected] {
 			t.Errorf("missing expected template '%s'", expected)
 		}
@@ -138,32 +138,29 @@ func TestCreateSkillFromTemplate_AllTemplates(t *testing.T) {
 	}
 }
 
-func TestCreateSkillFromTemplate_FileProcessorConstrainsPathsToWorkspace(t *testing.T) {
+func TestCreateSkillFromTemplate_LogAnalyzerHasOperations(t *testing.T) {
 	dir := t.TempDir()
-	_, err := CreateSkillFromTemplate(dir, "file_processor", "workspace_file_processor", "", "", nil, nil)
+	_, err := CreateSkillFromTemplate(dir, "log_analyzer", "workspace_log_analyzer", "", "", nil, nil)
 	if err != nil {
 		t.Fatalf("CreateSkillFromTemplate failed: %v", err)
 	}
 
-	pyData, err := os.ReadFile(filepath.Join(dir, "workspace_file_processor.py"))
+	pyData, err := os.ReadFile(filepath.Join(dir, "workspace_log_analyzer.py"))
 	if err != nil {
 		t.Fatalf("failed to read Python file: %v", err)
 	}
 	pyCode := string(pyData)
-	if !contains(pyCode, "WORKSPACE_ROOT = os.path.realpath(os.getcwd())") {
-		t.Fatal("generated file processor is missing workspace root guard")
+	if !contains(pyCode, "def workspace_log_analyzer(") {
+		t.Fatal("generated log analyzer is missing function definition")
 	}
-	if !contains(pyCode, "def resolve_workspace_path(path_value, must_exist=False):") {
-		t.Fatal("generated file processor is missing workspace path resolver")
+	if !contains(pyCode, `"summary"`) {
+		t.Fatal("generated log analyzer is missing summary operation")
 	}
-	if !contains(pyCode, "os.path.commonpath([WORKSPACE_ROOT, candidate])") {
-		t.Fatal("generated file processor is missing workspace boundary check")
+	if !contains(pyCode, `"errors"`) {
+		t.Fatal("generated log analyzer is missing errors operation")
 	}
-	if !contains(pyCode, "input_path = resolve_workspace_path(input_path, must_exist=True)") {
-		t.Fatal("generated file processor is missing validated input path resolution")
-	}
-	if !contains(pyCode, "output_path = resolve_workspace_path(output_path)") {
-		t.Fatal("generated file processor is missing validated output path resolution")
+	if !contains(pyCode, `"search"`) {
+		t.Fatal("generated log analyzer is missing search operation")
 	}
 }
 
@@ -171,13 +168,13 @@ func TestCreateSkillFromTemplate_Conflict(t *testing.T) {
 	dir := t.TempDir()
 
 	// Create first
-	_, err := CreateSkillFromTemplate(dir, "file_processor", "my_skill", "", "", nil, nil)
+	_, err := CreateSkillFromTemplate(dir, "log_analyzer", "my_skill", "", "", nil, nil)
 	if err != nil {
 		t.Fatalf("first create failed: %v", err)
 	}
 
 	// Try duplicate
-	_, err = CreateSkillFromTemplate(dir, "file_processor", "my_skill", "", "", nil, nil)
+	_, err = CreateSkillFromTemplate(dir, "log_analyzer", "my_skill", "", "", nil, nil)
 	if err == nil {
 		t.Fatal("expected error on duplicate skill name, got nil")
 	}

@@ -16,6 +16,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sashabaranov/go-openai"
+
 	"aurago/internal/config"
 	"aurago/internal/credentials"
 	"aurago/internal/inventory"
@@ -126,6 +128,44 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 
 	result := func() string {
 		switch tc.Action {
+		case "code_analysis":
+			analyzer := tools.NewCodeAnalyzer()
+			op := stringValueFromMap(tc.Params, "operation")
+			target := stringValueFromMap(tc.Params, "target")
+			symbol := stringValueFromMap(tc.Params, "symbol")
+
+			if op == "" || target == "" {
+				return "Tool Output: [ERROR] 'operation' and 'target' are required."
+			}
+
+			if op == "structure" {
+				items, err := analyzer.ExtractStructure(target)
+				if err != nil {
+					return "Tool Output: [ERROR] ExtractStructure failed: " + err.Error()
+				}
+				if len(items) == 0 {
+					return "Tool Output: No structural items identified in file."
+				}
+				var rs []string
+				for _, it := range items {
+					rs = append(rs, fmt.Sprintf("Line %d - %s: %s", it.Line, it.Type, it.Name))
+				}
+				return "Tool Output:\n" + strings.Join(rs, "\n")
+			} else if op == "symbol_search" {
+				if symbol == "" {
+					return "Tool Output: [ERROR] 'symbol' is required for symbol_search operation."
+				}
+				locations, err := analyzer.SymbolSearch(target, symbol)
+				if err != nil {
+					return "Tool Output: [ERROR] SymbolSearch failed: " + err.Error()
+				}
+				if len(locations) == 0 {
+					return "Tool Output: Symbol '" + symbol + "' not found."
+				}
+				return "Tool Output:\n" + strings.Join(locations, "\n")
+			}
+			return "Tool Output: [ERROR] Unknown operation: " + op
+
 		case "execute_sandbox":
 			if !cfg.Sandbox.Enabled {
 				return "Tool Output: [PERMISSION DENIED] execute_sandbox is disabled (sandbox.enabled: false)."
@@ -301,6 +341,22 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				sb.WriteString(fmt.Sprintf("[EXECUTION ERROR]: %v\n", err))
 			}
 			return sb.String()
+
+		case "service_manager":
+			if !cfg.Agent.AllowShell {
+				return "Tool Output: [PERMISSION DENIED] service_manager requires shell access (agent.allow_shell: false)."
+			}
+			operation := stringValueFromMap(tc.Params, "operation")
+			service := stringValueFromMap(tc.Params, "service")
+			if operation == "" || service == "" {
+				return "Tool Output: [ERROR] 'operation' and 'service' are required for service_manager."
+			}
+			sm := tools.NewServiceManager()
+			out, err := sm.ManageService(operation, service)
+			if err != nil {
+				return fmt.Sprintf("Tool Output: [ERROR] %v", err)
+			}
+			return fmt.Sprintf("Tool Output:\n%s", out)
 
 		case "execute_sudo":
 			if !cfg.Agent.SudoEnabled {
@@ -810,12 +866,98 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				res := kg.Search(req.Content)
 				return fmt.Sprintf("Tool Output: %s", res)
 
+			case "explore":
+				if req.Content == "" {
+					return `Tool Output: {"status": "error", "message": "Search 'content' is required for explore"}`
+				}
+				return fmt.Sprintf("Tool Output: %s", kg.Explore(req.Content))
+
+			case "suggest_relations":
+				return fmt.Sprintf("Tool Output: %s", kg.SuggestRelations(req.Limit))
+
 			case "optimize":
 				res := runMemoryOrchestrator(decodeMemoryOrchestratorArgs(tc), cfg, logger, llmClient, longTermMem, shortTermMem, kg)
 				return fmt.Sprintf("Tool Output: %s", res)
 
 			default:
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Unknown graph operation: %s"}`, req.Operation)
+			}
+
+		case "context_manager":
+			if dc.HistoryMgr == nil || dc.BudgetTracker == nil {
+				return `Tool Output: {"status": "error", "message": "Context manager dependencies unavailable."}`
+			}
+			var req struct {
+				Operation string `json:"operation"`
+				Index     int    `json:"index"`
+			}
+			if err := json.Unmarshal([]byte(tc.NativeArgsRaw), &req); err != nil {
+				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Failed to parse arguments: %v"}`, err)
+			}
+
+			switch req.Operation {
+			case "status":
+				msgs := dc.HistoryMgr.GetAll()
+				bStat := dc.BudgetTracker.GetStatusJSON()
+				return fmt.Sprintf(`Tool Output: {"status": "success", "messages_count": %d, "total_chars": %d, "budget": %s}`, len(msgs), dc.HistoryMgr.TotalChars(), bStat)
+			case "compact":
+				msgs := dc.HistoryMgr.GetAll()
+				if len(msgs) < 4 {
+					return `Tool Output: {"status": "error", "message": "Not enough messages to compact."}`
+				}
+
+				toCompact := len(msgs) / 2
+				var transcript strings.Builder
+				var idsToDrop []int64
+				for i := 0; i < toCompact; i++ {
+					m := msgs[i]
+					if m.Pinned {
+						continue
+					}
+					transcript.WriteString(fmt.Sprintf("[%s]: %s\n", m.Role, m.Content))
+					idsToDrop = append(idsToDrop, m.ID)
+				}
+
+				if len(idsToDrop) == 0 {
+					return `Tool Output: {"status": "error", "message": "No unpinned messages to compact."}`
+				}
+
+				prompt := "Compress this conversation into a concise factual summary. Preserve key facts, tool results, decisions. Output ONLY the summary.\n\n" + transcript.String()
+				llmReq := openai.ChatCompletionRequest{
+					Model: dc.Cfg.LLM.Model,
+					Messages: []openai.ChatCompletionMessage{
+						{Role: openai.ChatMessageRoleUser, Content: prompt},
+					},
+					MaxTokens:   500,
+					Temperature: 0.2,
+				}
+
+				resp, err := dc.LLMClient.CreateChatCompletion(ctx, llmReq)
+				if err != nil {
+					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Summarization failed: %v"}`, err)
+				}
+
+				summary := resp.Choices[0].Message.Content
+				oldSummary := dc.HistoryMgr.GetSummary()
+				if oldSummary != "" {
+					summary = oldSummary + "\n" + summary
+				}
+				dc.HistoryMgr.SetSummary(summary)
+				dc.HistoryMgr.DropMessages(idsToDrop)
+
+				return fmt.Sprintf(`Tool Output: {"status": "success", "message": "Compacted %d messages into summary."}`, len(idsToDrop))
+			case "drop":
+				msgs := dc.HistoryMgr.GetAll()
+				if req.Index < 0 || req.Index >= len(msgs) {
+					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Index %d out of bounds (0-%d)."}`, req.Index, len(msgs)-1)
+				}
+
+				idToDrop := msgs[req.Index].ID
+				dc.HistoryMgr.DropMessages([]int64{idToDrop})
+				return fmt.Sprintf(`Tool Output: {"status": "success", "message": "Dropped message at index %d (ID %d)."}`, req.Index, idToDrop)
+
+			default:
+				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Unknown context operation: %s"}`, req.Operation)
 			}
 
 		case "manage_memory", "core_memory":
@@ -1264,6 +1406,12 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			}
 			logger.Info("LLM requested xml_editor operation", "op", op, "path", fpath)
 			return tools.ExecuteXmlEditor(op, fpath, req.XPath, req.SetValue, wsDir)
+
+		case "text_diff":
+			req := decodeTextDiffArgs(tc)
+			op := strings.TrimSpace(strings.ToLower(req.Operation))
+			logger.Info("LLM requested text_diff", "op", op)
+			return tools.ExecuteTextDiff(op, req.File1, req.File2, req.Text1, req.Text2, cfg.Directories.WorkspaceDir)
 
 		case "file_search":
 			req := decodeFileSearchArgs(tc)

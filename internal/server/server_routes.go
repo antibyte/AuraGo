@@ -259,7 +259,19 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/personality", handleUpdatePersonality(s))
 	mux.HandleFunc("/api/personality/state", handlePersonalityState(s))
 	mux.HandleFunc("/api/personality/feedback", handlePersonalityFeedback(s))
-	mux.HandleFunc("/events", sse.ServeHTTP) // SSE usually authenticates via cookie/query; keeping open for now unless explicitly needed
+	mux.HandleFunc("/events", func(w http.ResponseWriter, r *http.Request) {
+		s.CfgMu.RLock()
+		enabled := s.Cfg.Auth.Enabled
+		secret := s.Cfg.Auth.SessionSecret
+		s.CfgMu.RUnlock()
+		if enabled && !IsAuthenticated(r, secret) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusUnauthorized)
+			w.Write([]byte(`{"error":"unauthorized","redirect":"/auth/login"}`))
+			return
+		}
+		sse.ServeHTTP(w, r)
+	})
 
 	// Config UI endpoints (only when explicitly enabled for security)
 	if s.Cfg.WebConfig.Enabled {
@@ -612,7 +624,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		tools.StartEmailWatcher(s.Cfg, s.Logger, s.Guardian, s.LLMGuardian)
 
 		// Rocket.Chat Bot: listen for messages and relay to the agent
-		rocketchat.StartBot(s.Cfg, s.Logger, s.LLMClient, s.ShortTermMem, s.LongTermMem, s.Vault, s.Registry, s.CronManager, s.HistoryManager, s.KG, s.InventoryDB)
+		rocketchat.StartBot(s.Cfg, s.Logger, s.LLMClient, s.ShortTermMem, s.LongTermMem, s.Vault, s.Registry, s.CronManager, s.HistoryManager, s.KG, s.InventoryDB, s.MissionManagerV2)
 
 		// MQTT Client: connect to broker and register bridge
 		mqtt.StartClient(s.Cfg, s.Logger)

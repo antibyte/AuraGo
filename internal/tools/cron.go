@@ -15,6 +15,7 @@ type CronJob struct {
 	ID         string `json:"id"`
 	CronExpr   string `json:"cron_expr"`
 	TaskPrompt string `json:"task_prompt"`
+	Disabled   bool   `json:"disabled,omitempty"`
 }
 
 type CronManager struct {
@@ -61,7 +62,9 @@ func (m *CronManager) Start(callback func(prompt string)) error {
 
 // Unlocked scheduling logic — must be called with m.mu held.
 func (m *CronManager) scheduleInternal(job CronJob) error {
-	// Rebind job.TaskPrompt so the closure captures the correct string
+	if job.Disabled {
+		return nil
+	} // Rebind job.TaskPrompt so the closure captures the correct string
 	prompt := job.TaskPrompt
 	// Caller already holds m.mu, so read m.callback directly (no nested lock).
 	callback := m.callback
@@ -164,6 +167,49 @@ func (m *CronManager) ManageSchedule(operation, id, expr, prompt string) (string
 		}
 
 		return `{"status": "success", "message": "Job removed."}`, nil
+
+	case "enable":
+		if id == "" {
+			return `{"status": "error", "message": "id required for enable"}`, nil
+		}
+		for i, job := range m.jobs {
+			if job.ID == id {
+				if job.Disabled {
+					m.jobs[i].Disabled = false
+					if err := m.scheduleInternal(m.jobs[i]); err != nil {
+						return "", err
+					}
+					if err := m.save(); err != nil {
+						return "", err
+					}
+					return `{"status": "success", "message": "Job enabled."}`, nil
+				}
+				return `{"status": "success", "message": "Job already enabled."}`, nil
+			}
+		}
+		return `{"status": "warning", "message": "Job ID not found"}`, nil
+
+	case "disable":
+		if id == "" {
+			return `{"status": "error", "message": "id required for disable"}`, nil
+		}
+		for i, job := range m.jobs {
+			if job.ID == id {
+				if !job.Disabled {
+					m.jobs[i].Disabled = true
+					if entryID, exists := m.cronEntryIDs[id]; exists {
+						m.engine.Remove(entryID)
+						delete(m.cronEntryIDs, id)
+					}
+					if err := m.save(); err != nil {
+						return "", err
+					}
+					return `{"status": "success", "message": "Job disabled."}`, nil
+				}
+				return `{"status": "success", "message": "Job already disabled."}`, nil
+			}
+		}
+		return `{"status": "warning", "message": "Job ID not found"}`, nil
 
 	case "list":
 		if len(m.jobs) == 0 {

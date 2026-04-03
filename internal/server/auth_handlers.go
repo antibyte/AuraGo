@@ -77,10 +77,7 @@ func handleAuthLoginPage(s *Server, uiFS fs.FS) http.HandlerFunc {
 		secret := s.Cfg.Auth.SessionSecret
 		s.CfgMu.RUnlock()
 		if IsAuthenticated(r, secret) {
-			redirect := r.URL.Query().Get("redirect")
-			if redirect == "" {
-				redirect = "/"
-			}
+			redirect := sanitizeRedirectTarget(r.URL.Query().Get("redirect"))
 			http.Redirect(w, r, redirect, http.StatusTemporaryRedirect)
 			return
 		}
@@ -100,6 +97,14 @@ func handleAuthLoginPage(s *Server, uiFS fs.FS) http.HandlerFunc {
 			s.Logger.Error("[Auth] Failed to render login page", "error", err)
 		}
 	}
+}
+
+func sanitizeRedirectTarget(target string) string {
+	target = strings.TrimSpace(target)
+	if target == "" || !strings.HasPrefix(target, "/") || strings.HasPrefix(target, "//") {
+		return "/"
+	}
+	return target
 }
 
 // handleAuthLogin processes the login form POST.
@@ -203,10 +208,7 @@ func handleAuthLogin(s *Server) http.HandlerFunc {
 		SetSessionCookie(w, r, secret, timeout)
 		s.Logger.Info("[Auth] Successful login", "ip", ip)
 
-		redirect := req.Redirect
-		if redirect == "" {
-			redirect = "/"
-		}
+		redirect := sanitizeRedirectTarget(req.Redirect)
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"ok":       true,

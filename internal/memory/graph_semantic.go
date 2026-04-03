@@ -270,6 +270,52 @@ func buildKnowledgeGraphEdgeSemanticContent(edge Edge) string {
 	return strings.TrimSpace(strings.Join(parts, ". "))
 }
 
+func (kg *KnowledgeGraph) semanticSearchNodes(query string, minSim float32, maxNodes int) []Node {
+	if kg.semantic == nil || maxNodes <= 0 || shouldSkipKnowledgeGraphSemanticQuery(query) {
+		return nil
+	}
+
+	embedding, err := kg.getSemanticQueryEmbedding(query)
+	if err != nil {
+		if kg.semantic.logger != nil {
+			kg.semantic.logger.Debug("KG semantic query embedding failed", "error", err)
+		}
+		return nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	count := kg.semantic.collection.Count()
+	if count == 0 {
+		return nil
+	}
+	if maxNodes > count {
+		maxNodes = count
+	}
+	results, err := kg.semantic.collection.QueryEmbedding(ctx, embedding, maxNodes, nil, nil)
+	if err != nil {
+		if kg.semantic.logger != nil {
+			kg.semantic.logger.Debug("KG semantic search failed", "error", err)
+		}
+		return nil
+	}
+
+	var out []Node
+	for _, result := range results {
+		if result.Similarity < minSim {
+			continue
+		}
+		if !strings.HasPrefix(result.ID, "edge_") {
+			// Resolve full node from SQLite to return Node struct
+			if n, err := kg.GetNode(result.ID); err == nil && n != nil {
+				out = append(out, *n)
+			}
+		}
+	}
+	return out
+}
+
 func (kg *KnowledgeGraph) semanticSearchNodeIDs(query string, maxNodes int) []string {
 	if kg.semantic == nil || maxNodes <= 0 || shouldSkipKnowledgeGraphSemanticQuery(query) {
 		return nil

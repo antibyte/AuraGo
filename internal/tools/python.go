@@ -1,7 +1,6 @@
 package tools
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"log/slog"
@@ -174,9 +173,10 @@ func InstallPackage(pkgName, workspaceDir string) (string, string, error) {
 
 	slog.Debug("[InstallPackage]", "cmd", pipCmd, "args", cmd.Args)
 
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
+	stdout := NewBoundedBuffer(1024 * 1024)
+	stderr := NewBoundedBuffer(1024 * 1024)
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
 
 	err := cmd.Run()
 	if ctx.Err() == context.DeadlineExceeded {
@@ -218,9 +218,10 @@ func RunTool(name string, args []string, workspaceDir, toolsDir string) (string,
 
 	slog.Debug("[RunTool]", "cmd", pythonCmd, "args", cmd.Args)
 
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
+	stdout := NewBoundedBuffer(1024 * 1024)
+	stderr := NewBoundedBuffer(1024 * 1024)
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
 
 	if err := cmd.Start(); err != nil {
 		return "", "", err
@@ -258,9 +259,10 @@ func RunToolWithSecrets(name string, args []string, workspaceDir, toolsDir strin
 	InjectSecretsEnv(cmd, secrets)
 	InjectCredentialEnv(cmd, creds)
 
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
+	stdout := NewBoundedBuffer(1024 * 1024)
+	stderr := NewBoundedBuffer(1024 * 1024)
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
 
 	if err := cmd.Start(); err != nil {
 		return "", "", err
@@ -344,9 +346,10 @@ func ExecutePython(code, workspaceDir, toolsDir string) (string, string, error) 
 	cmd.Dir = getAbsWorkspace(workspaceDir)
 	SetupCmd(cmd)
 
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
+	stdout := NewBoundedBuffer(1024 * 1024)
+	stderr := NewBoundedBuffer(1024 * 1024)
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
 
 	if err := cmd.Start(); err != nil {
 		return "", "", err
@@ -384,9 +387,10 @@ func ExecutePythonWithSecrets(code, workspaceDir, toolsDir string, secrets map[s
 	InjectSecretsEnv(cmd, secrets)
 	InjectCredentialEnv(cmd, creds)
 
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
+	stdout := NewBoundedBuffer(1024 * 1024)
+	stderr := NewBoundedBuffer(1024 * 1024)
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
 
 	if err := cmd.Start(); err != nil {
 		return "", "", err

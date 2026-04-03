@@ -1,0 +1,22 @@
+{
+  "plans.logo_subtitle": "PLANS",
+  "plans.session_label": "Συνεδρία",
+  "plans.status_label": "Κατάσταση",
+  "plans.status_all": "Όλα",
+  "plans.status_draft": "Πρόχειρο",
+  "plans.status_active": "Ενεργό",
+  "plans.status_paused": "Σε παύση",
+  "plans.status_blocked": "Μπλοκαρισμένο",
+  "plans.status_completed": "Ολοκληρωμένο",
+  "plans.status_cancelled": "Ακυρωμένο",
+  "plans.show_archived": "Εμφάνιση αρχειοθετημένων",
+  "plans.refresh": "Ανανέωση",
+  "plans.heading": "Σχέδια συνεδρίας",
+  "plans.empty_detail": "Επιλέξτε ένα σχέδιο για να επιθεωρήσετε εργασίες, συμβάντα και πρόοδο.",
+  "plans.block_modal_title": "Ορισμός αποκλεισμού",
+  "plans.block_prompt": "Περιγράψτε τον αποκλεισμό",
+  "plans.split_modal_title": "Διαίρεση εργασίας",
+  "plans.split_prompt": "Εισαγάγετε ένα δευτερεύοντα στόχο ανά γραμμή.",
+  "plans.split_placeholder": "Επιθεώρηση logs\nPatch handler\nΕπαλήθευση fix",
+  "plans.split": "Διαίρεση"
+}

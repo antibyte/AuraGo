@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -9,8 +10,6 @@ import (
 
 	"aurago/internal/security"
 
-	"github.com/go-rod/rod"
-	"github.com/go-rod/rod/lib/launcher"
 	"github.com/go-rod/rod/lib/proto"
 )
 
@@ -50,7 +49,7 @@ func webPerfJSON(r webPerfResult) string {
 }
 
 // WebPerformanceAudit measures page load performance using a headless browser.
-func WebPerformanceAudit(rawURL string, viewport string) string {
+func WebPerformanceAudit(ctx context.Context, rawURL string, viewport string) string {
 	// Validate URL
 	if rawURL == "" {
 		return webPerfJSON(webPerfResult{Status: "error", Message: "url is required"})
@@ -74,26 +73,18 @@ func WebPerformanceAudit(rawURL string, viewport string) string {
 		}
 	}
 
-	// Launch headless browser
-	u, err := launcher.New().
-		Headless(true).
-		NoSandbox(true).
-		Launch()
+	// Get shared headless browser
+	browser, err := getSharedBrowser()
 	if err != nil {
 		return webPerfJSON(webPerfResult{Status: "error", Message: fmt.Sprintf("browser launch failed: %v", err)})
 	}
-
-	browser := rod.New().ControlURL(u)
-	if err := browser.Connect(); err != nil {
-		return webPerfJSON(webPerfResult{Status: "error", Message: fmt.Sprintf("browser connect failed: %v", err)})
-	}
-	defer browser.MustClose()
 
 	// Set viewport
 	page, err := browser.Page(proto.TargetCreateTarget{URL: "about:blank"})
 	if err != nil {
 		return webPerfJSON(webPerfResult{Status: "error", Message: fmt.Sprintf("create page failed: %v", err)})
 	}
+	defer page.Close()
 
 	err = page.SetViewport(&proto.EmulationSetDeviceMetricsOverride{
 		Width:  vpWidth,

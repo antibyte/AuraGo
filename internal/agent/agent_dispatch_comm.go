@@ -695,12 +695,12 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 		case "web_capture":
 			req := decodeWebCaptureArgs(tc)
 			logger.Info("LLM requested web capture", "operation", req.Operation, "url", req.URL)
-			return "Tool Output: " + tools.WebCapture(req.Operation, req.URL, req.Selector, req.FullPage, req.OutputDir)
+			return "Tool Output: " + tools.WebCapture(ctx, req.Operation, req.URL, req.Selector, req.FullPage, req.OutputDir)
 
 		case "web_performance_audit":
 			req := decodeWebPerformanceAuditArgs(tc)
 			logger.Info("LLM requested web performance audit", "url", req.URL, "viewport", req.Viewport)
-			return "Tool Output: " + tools.WebPerformanceAudit(req.URL, req.Viewport)
+			return "Tool Output: " + tools.WebPerformanceAudit(ctx, req.URL, req.Viewport)
 
 		case "network_ping":
 			req := decodeNetworkPingArgs(tc)

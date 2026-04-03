@@ -805,12 +805,13 @@ type Config struct {
 		} `yaml:"managed_instance"`
 	} `yaml:"ollama"`
 	RocketChat struct {
-		Enabled   bool   `yaml:"enabled"`
-		URL       string `yaml:"url"`                  // e.g. "https://chat.example.com"
-		UserID    string `yaml:"user_id"`              // bot user ID
-		AuthToken string `yaml:"-" vault:"auth_token"` // auth token (vault-only)
-		Channel   string `yaml:"channel"`              // default channel to listen on
-		Alias     string `yaml:"alias"`                // display name
+		Enabled      bool     `yaml:"enabled"`
+		URL          string   `yaml:"url"`                  // e.g. "https://chat.example.com"
+		UserID       string   `yaml:"user_id"`              // bot user ID
+		AuthToken    string   `yaml:"-" vault:"auth_token"` // auth token (vault-only)
+		Channel      string   `yaml:"channel"`              // default channel to listen on
+		Alias        string   `yaml:"alias"`                // display name
+		AllowedUsers []string `yaml:"allowed_users"`        // allowed user IDs or usernames; empty = deny all
 	} `yaml:"rocketchat"`
 	Tailscale struct {
 		Enabled  bool   `yaml:"enabled"`

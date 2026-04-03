@@ -16,41 +16,63 @@ Generate a complete skill (manifest + Python code) from a template. The skill is
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
-| `template` | string | yes | Template name: `api_client`, `file_processor`, `data_transformer`, `scraper`, `example_use_vault_login`, `example_use_vault_token` |
+| `template` | string | yes | Template name (see below) |
 | `name` | string | yes | Unique name for the new skill (e.g. `weather_api`) |
 | `description` | string | no | What this skill does |
-| `url` | string | no | Base URL for API (api_client template only) |
+| `url` | string | no | Base URL (used by api_client, notification_sender) |
 | `dependencies` | array | no | Additional pip packages beyond template defaults |
 | `vault_keys` | array | no | Vault secret keys the skill needs at runtime |
 
 #### Templates
 
-**api_client** — REST API client with auth header and vault key injection.
+**api_client** — REST API client with Bearer/Basic/API-Key auth, retry logic, and pagination support.
 - Default deps: `requests`
-- Vault: `API_KEY` (injected as `AURAGO_SECRET_API_KEY`), `BASE_URL` (optional override)
-- Params: `endpoint`, `method`, `body`
+- Vault: `API_KEY` or `USERNAME`+`PASSWORD`, `BASE_URL` (optional)
+- Params: `endpoint`, `method`, `body`, `headers`, `auth_type` (bearer/basic/api_key/none), `max_pages`
 
-**file_processor** — Read, transform, and write files with regex operations.
-- No default deps (stdlib only)
-- Params: `input_path`, `output_path`, `operation` (extract_lines/search/replace/head/tail/count), `pattern`, `replacement`
-
-**data_transformer** — Convert between JSON, CSV, and YAML formats.
+**data_transformer** — Convert between JSON, CSV, YAML, and XML formats with field filtering, sorting, and limit.
 - Default deps: `pyyaml`
-- Params: `input_path`, `output_path`, `input_format`, `output_format`, `fields`
+- Params: `input_path`, `output_path`, `input_format`, `output_format`, `fields`, `sort_by`, `limit`
 
-**scraper** — Web scraper with CSS selectors. Output wrapped in `<external_data>` tags.
-- Default deps: `requests`, `beautifulsoup4`
-- Params: `url`, `selector`, `attr`, `limit`
-
-**example_use_vault_login** — Example API client that logs in with username/password secrets from the vault first.
+**notification_sender** — Send notifications via Telegram, Discord, email (SMTP), or generic webhook.
 - Default deps: `requests`
-- Vault: `my_service_username`, `my_service_password`, optional `BASE_URL`
-- Params: `action`, `base_url`
+- Vault: channel-specific keys (see below)
+- Params: `channel` (telegram/discord/email/webhook), `message`, `title`, `attach`, `priority`
+- Required vault keys per channel:
+  - Telegram: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`
+  - Discord: `DISCORD_WEBHOOK_URL`
+  - Email: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `EMAIL_FROM`, `EMAIL_TO`
+  - Webhook: `WEBHOOK_URL`, optional `WEBHOOK_KEY`
 
-**example_use_vault_token** — Example API client that uses a bearer token or API key from the vault.
+**monitor_check** — Health check for HTTP endpoints, TCP ports, and DNS resolution.
 - Default deps: `requests`
-- Vault: `my_service_api_key`, optional `BASE_URL`
-- Params: `endpoint`, `method`, `body`
+- Params: `target`, `check_type` (http/tcp/dns), `timeout`, `expected`, `keyword`
+
+**log_analyzer** — Parse and analyze log files: filter by time range, severity, pattern; extract errors and summarize.
+- No default deps (stdlib only)
+- Params: `log_path`, `operation` (summary/errors/search/tail/count_by_level), `pattern`, `since` (e.g. "1h", "24h"), `max_results`
+
+**docker_manager** — Manage Docker containers: list, inspect, start, stop, restart, logs, stats.
+- Default deps: `requests`
+- Params: `action` (list/inspect/start/stop/restart/logs/stats), `container`, `tail`, `all`
+
+**backup_runner** — Backup files/directories as compressed archives with rotation and integrity check.
+- No default deps (stdlib only)
+- Params: `action` (create/list/restore/cleanup), `source`, `output`, `keep`, `exclude`
+
+**database_query** — Execute SQL queries against SQLite, PostgreSQL, or MySQL databases.
+- No default deps (add `psycopg2-binary` for PostgreSQL, `pymysql` for MySQL)
+- Params: `query`, `db_type` (sqlite/postgresql/mysql), `connection`, `params`, `limit`
+
+**ssh_executor** — Execute commands on remote hosts via SSH with key or password auth.
+- Default deps: `paramiko`
+- Vault: `SSH_KEY` or `SSH_PASSWORD`, optional `SSH_USER`
+- Params: `host`, `command`, `user`, `port`, `timeout`
+
+**mqtt_publisher** — Publish and subscribe to MQTT topics for IoT device control and sensor data.
+- Default deps: `paho-mqtt`
+- Vault: `MQTT_HOST`, optional `MQTT_PORT`, `MQTT_USER`, `MQTT_PASSWORD`
+- Params: `action` (publish/subscribe), `topic`, `payload`, `qos`, `retain`, `timeout`
 
 #### Example
 

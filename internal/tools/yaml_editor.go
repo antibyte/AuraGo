@@ -51,7 +51,7 @@ func ExecuteYamlEditor(operation, filePath, yamlPath string, value interface{}, 
 // yamlGet reads a value at a dot-separated path from a YAML file.
 func yamlGet(resolved, yamlPath string, encode func(YamlEditorResult) string) string {
 	if yamlPath == "" {
-		return encode(YamlEditorResult{Status: "error", Message: "'json_path' is required for get"})
+		return encode(YamlEditorResult{Status: "error", Message: "'yaml_path' is required for get"})
 	}
 	data, err := os.ReadFile(resolved)
 	if err != nil {
@@ -74,7 +74,7 @@ func yamlGet(resolved, yamlPath string, encode func(YamlEditorResult) string) st
 // yamlSet sets a value at a dot-separated path in a YAML file, preserving comments.
 func yamlSet(resolved, yamlPath string, value interface{}, encode func(YamlEditorResult) string) string {
 	if yamlPath == "" {
-		return encode(YamlEditorResult{Status: "error", Message: "'json_path' is required for set"})
+		return encode(YamlEditorResult{Status: "error", Message: "'yaml_path' is required for set"})
 	}
 
 	data, err := os.ReadFile(resolved)
@@ -116,7 +116,7 @@ func yamlSet(resolved, yamlPath string, value interface{}, encode func(YamlEdito
 // yamlDelete removes a key at a dot-separated path from a YAML file.
 func yamlDelete(resolved, yamlPath string, encode func(YamlEditorResult) string) string {
 	if yamlPath == "" {
-		return encode(YamlEditorResult{Status: "error", Message: "'json_path' is required for delete"})
+		return encode(YamlEditorResult{Status: "error", Message: "'yaml_path' is required for delete"})
 	}
 
 	data, err := os.ReadFile(resolved)

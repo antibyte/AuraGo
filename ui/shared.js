@@ -1005,6 +1005,15 @@ window.AuraSSE = (function () {
         if (handlers) handlers.slice().forEach(function (fn) { try { fn(arg); } catch (_) { } });
     }
 
+    var _retryAttempt = 0;
+
+    function _nextReconnectDelay() {
+        var base = Math.min(30000, 1000 * Math.pow(2, Math.min(_retryAttempt, 5)));
+        var jitter = Math.floor(Math.random() * 750);
+        _retryAttempt += 1;
+        return base + jitter;
+    }
+
     function _connect() {
         var path = window.location.pathname;
         if (path.indexOf('/login') !== -1 || path.indexOf('/setup') !== -1) return;
@@ -1012,6 +1021,7 @@ window.AuraSSE = (function () {
         _es = new EventSource('/events', { withCredentials: true });
         _es.onopen = function () {
             _connected = true;
+            _retryAttempt = 0;
             if (_retryTimer) { clearTimeout(_retryTimer); _retryTimer = null; }
             _fireInternal('_open');
         };
@@ -1019,10 +1029,11 @@ window.AuraSSE = (function () {
             _connected = false;
             _fireInternal('_error', _es ? _es.readyState : -1);
             if (!_retryTimer) {
+                var delay = _nextReconnectDelay();
                 _retryTimer = setTimeout(function () {
                     _retryTimer = null;
                     _connect();
-                }, 5000);
+                }, delay);
             }
         };
         _es.onmessage = _dispatch;

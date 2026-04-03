@@ -451,7 +451,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return "Tool Output: " + result
 			case "screenshot":
 				logger.Info("LLM requested homepage screenshot", "url", req.URL, "viewport", req.Viewport)
-				return "Tool Output: " + tools.HomepageScreenshot(homepageCfg, req.URL, req.Viewport, logger)
+				return "Tool Output: " + tools.HomepageScreenshot(ctx, homepageCfg, req.URL, req.Viewport, logger)
 			case "lint":
 				logger.Info("LLM requested homepage lint", "dir", req.ProjectDir)
 				return "Tool Output: " + tools.HomepageLint(homepageCfg, req.ProjectDir, logger)

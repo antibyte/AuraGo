@@ -1,0 +1,22 @@
+{
+  "plans.logo_subtitle": "PLANS",
+  "plans.session_label": "Sesión",
+  "plans.status_label": "Estado",
+  "plans.status_all": "Todos",
+  "plans.status_draft": "Borrador",
+  "plans.status_active": "Activo",
+  "plans.status_paused": "Pausado",
+  "plans.status_blocked": "Bloqueado",
+  "plans.status_completed": "Completado",
+  "plans.status_cancelled": "Cancelado",
+  "plans.show_archived": "Mostrar archivados",
+  "plans.refresh": "Actualizar",
+  "plans.heading": "Planes de sesión",
+  "plans.empty_detail": "Seleccione un plan para inspeccionar tareas, eventos y progreso.",
+  "plans.block_modal_title": "Establecer bloqueador",
+  "plans.block_prompt": "Describa el bloqueador",
+  "plans.split_modal_title": "Dividir tarea",
+  "plans.split_prompt": "Ingrese una subtarea por línea.",
+  "plans.split_placeholder": "Inspeccionar logs\nParchear handler\nVerificar fix",
+  "plans.split": "Dividir"
+}

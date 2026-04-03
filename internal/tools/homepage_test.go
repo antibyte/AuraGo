@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"context"
 	"strings"
 	"testing"
 )
@@ -216,7 +217,7 @@ func TestHomepageScreenshotFallsBackToWebCaptureWhenPlaywrightIsMissing(t *testi
 	homepageDockerExecFunc = func(cfg DockerConfig, containerName, command, user string) string {
 		return `{"container_id":"aurago-homepage","exit_code":1,"output":"Error: Cannot find module 'playwright'"}`
 	}
-	homepageWebCaptureFunc = func(operation, rawURL, selector string, fullPage bool, outputDir string) string {
+	homepageWebCaptureFunc = func(ctx context.Context, operation, rawURL, selector string, fullPage bool, outputDir string) string {
 		if operation != "screenshot" {
 			t.Fatalf("operation = %q, want screenshot", operation)
 		}
@@ -226,7 +227,7 @@ func TestHomepageScreenshotFallsBackToWebCaptureWhenPlaywrightIsMissing(t *testi
 		return `{"status":"success","operation":"screenshot","file":"agent_workspace/workdir/fallback.png"}`
 	}
 
-	got := HomepageScreenshot(HomepageConfig{}, "https://example.com", "", nil)
+	got := HomepageScreenshot(context.Background(), HomepageConfig{}, "https://example.com", "", nil)
 	if !strings.Contains(got, `"status":"success"`) {
 		t.Fatalf("expected web_capture fallback result, got: %s", got)
 	}

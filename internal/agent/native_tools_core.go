@@ -53,6 +53,20 @@ func buildCoreToolSchemas(ff ToolFeatureFlags, execSkillProps map[string]interfa
 				}, "operation", "file_path"),
 			)
 		}(),
+		tool("text_diff",
+			"Compare two files or strings and return a unified diff.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "Operation to perform",
+					"enum":        []string{"diff_files", "diff_strings"},
+				},
+				"file1": prop("string", "Path to the first file (for diff_files)"),
+				"file2": prop("string", "Path to the second file (for diff_files)"),
+				"text1": prop("string", "First text string (for diff_strings)"),
+				"text2": prop("string", "Second text string (for diff_strings)"),
+			}, "operation"),
+		),
 		tool("file_search",
 			"Search for text patterns across files or find files by name. Supports regex patterns, glob filters, and recursive search.",
 			schema(map[string]interface{}{

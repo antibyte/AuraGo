@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -643,7 +644,7 @@ func HomepageLighthouse(cfg HomepageConfig, url string, logger *slog.Logger) str
 }
 
 // HomepageScreenshot takes a screenshot using Playwright.
-func HomepageScreenshot(cfg HomepageConfig, url, viewport string, logger *slog.Logger) string {
+func HomepageScreenshot(ctx context.Context, cfg HomepageConfig, url, viewport string, logger *slog.Logger) string {
 	if url == "" {
 		return errJSON("url is required for screenshot")
 	}
@@ -682,7 +683,7 @@ const {chromium} = require('playwright');
 		if logger != nil {
 			logger.Warn("[Homepage] Playwright missing in homepage container, falling back to web_capture")
 		}
-		return homepageWebCaptureFunc("screenshot", url, "", true, "agent_workspace/workdir")
+		return homepageWebCaptureFunc(ctx, "screenshot", url, "", true, "agent_workspace/workdir")
 	}
 	return result
 }

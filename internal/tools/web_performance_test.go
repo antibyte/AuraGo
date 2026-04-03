@@ -1,13 +1,14 @@
 package tools
 
 import (
+	"context"
 	"encoding/json"
 	"strings"
 	"testing"
 )
 
 func TestWebPerformanceAudit_MissingURL(t *testing.T) {
-	result := WebPerformanceAudit("", "")
+	result := WebPerformanceAudit(context.Background(), "", "")
 	var r webPerfResult
 	if err := json.Unmarshal([]byte(result), &r); err != nil {
 		t.Fatalf("invalid JSON: %v", err)
@@ -21,7 +22,7 @@ func TestWebPerformanceAudit_MissingURL(t *testing.T) {
 }
 
 func TestWebPerformanceAudit_InvalidURL(t *testing.T) {
-	result := WebPerformanceAudit("not-a-url", "")
+	result := WebPerformanceAudit(context.Background(), "not-a-url", "")
 	var r webPerfResult
 	if err := json.Unmarshal([]byte(result), &r); err != nil {
 		t.Fatalf("invalid JSON: %v", err)
@@ -32,7 +33,7 @@ func TestWebPerformanceAudit_InvalidURL(t *testing.T) {
 }
 
 func TestWebPerformanceAudit_InvalidViewport(t *testing.T) {
-	result := WebPerformanceAudit("https://example.com", "invalid")
+	result := WebPerformanceAudit(context.Background(), "https://example.com", "invalid")
 	var r webPerfResult
 	if err := json.Unmarshal([]byte(result), &r); err != nil {
 		t.Fatalf("invalid JSON: %v", err)
@@ -46,7 +47,7 @@ func TestWebPerformanceAudit_InvalidViewport(t *testing.T) {
 }
 
 func TestWebPerformanceAudit_ViewportOutOfRange(t *testing.T) {
-	result := WebPerformanceAudit("https://example.com", "100x100")
+	result := WebPerformanceAudit(context.Background(), "https://example.com", "100x100")
 	var r webPerfResult
 	if err := json.Unmarshal([]byte(result), &r); err != nil {
 		t.Fatalf("invalid JSON: %v", err)
@@ -57,7 +58,7 @@ func TestWebPerformanceAudit_ViewportOutOfRange(t *testing.T) {
 }
 
 func TestWebPerformanceAudit_FTPNotAllowed(t *testing.T) {
-	result := WebPerformanceAudit("ftp://example.com/file", "")
+	result := WebPerformanceAudit(context.Background(), "ftp://example.com/file", "")
 	var r webPerfResult
 	if err := json.Unmarshal([]byte(result), &r); err != nil {
 		t.Fatalf("invalid JSON: %v", err)

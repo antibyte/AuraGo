@@ -6,6 +6,12 @@
 (function() {
     'use strict';
 
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
     const DragDrop = {
         container: null,
         overlay: null,
@@ -139,11 +145,12 @@
 
             this.uploadQueue.forEach(item => {
                 const icon = this.getFileIcon(item.file);
+                const safeFileName = escapeHtml(item.file.name);
                 html += `
                     <div class="uq-item ${item.status}" data-id="${item.id}">
                         <span class="uq-icon">${icon}</span>
                         <div class="uq-info">
-                            <div class="uq-name" title="${item.file.name}">${item.file.name}</div>
+                            <div class="uq-name" title="${safeFileName}">${safeFileName}</div>
                             <div class="uq-meta">
                                 ${this.formatSize(item.file.size)} • ${item.status}
                             </div>

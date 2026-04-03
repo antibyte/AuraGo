@@ -508,7 +508,7 @@ function updateUI() {
 
     // Update buttons
     setupSetHidden(document.getElementById('btn-back'), currentStep <= 0);
-    setupSetHidden(document.getElementById('btn-skip-step'), currentStep <= 0);
+    // btn-skip-step is always visible
 
     const btnNext = document.getElementById('btn-next');
     if (currentStep === totalSteps - 1) {
@@ -893,7 +893,7 @@ async function saveConfig() {
 
         // Show success screen
         document.querySelectorAll('.setup-section').forEach(s => s.classList.remove('active'));
-        setupSetHidden(document.getElementById('setup-footer'), true);
+        setupSetHidden(document.getElementById('header-nav'), true);
         setupSetHidden(document.querySelector('.step-indicator'), true);
         document.getElementById('success-screen').classList.add('active');
 

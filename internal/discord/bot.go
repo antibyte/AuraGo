@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"aurago/internal/agent"
@@ -27,7 +28,16 @@ import (
 )
 
 // session holds the active Discord session so tools can send messages.
-var session *discordgo.Session
+var (
+	session   *discordgo.Session
+	sessionMu sync.RWMutex
+)
+
+func setSession(s *discordgo.Session) {
+	sessionMu.Lock()
+	defer sessionMu.Unlock()
+	session = s
+}
 
 // StartBot initializes the Discord bot and begins listening for messages.
 func StartBot(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManagerV2 *tools.MissionManagerV2) {
@@ -56,7 +66,7 @@ func StartBot(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, sh
 		return
 	}
 
-	session = dg
+	setSession(dg)
 	logger.Info("[Discord] Bot connected", "user", dg.State.User.Username+"#"+dg.State.User.Discriminator)
 
 	// Register bridge functions so agent can call Discord without import cycles
@@ -97,6 +107,8 @@ func StartBot(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, sh
 
 // GetSession returns the active Discord session (for sending messages from tools).
 func GetSession() *discordgo.Session {
+	sessionMu.RLock()
+	defer sessionMu.RUnlock()
 	return session
 }
 
@@ -249,14 +261,17 @@ func handleMessage(s *discordgo.Session, m *discordgo.MessageCreate, cfg *config
 		return
 	}
 
-	// [Authorization Check] — if allowed_user_id is set, only that user can interact
-	if cfg.Discord.AllowedUserID != "" && m.Author.ID != cfg.Discord.AllowedUserID {
-		// Silent ID Discovery Mode: log unauthorized attempts
-		if cfg.Discord.AllowedUserID == "0" || cfg.Discord.AllowedUserID == "" {
-			logger.Warn("[Discord] Message from unknown user — set allowed_user_id in config", "user_id", m.Author.ID, "username", m.Author.Username)
-		} else {
-			logger.Warn("[Discord] Blocked unauthorized Discord message", "user_id", m.Author.ID)
-		}
+	allowedUserID := strings.TrimSpace(cfg.Discord.AllowedUserID)
+	if allowedUserID == "" {
+		logger.Warn("[Discord] Blocking message because allowed_user_id is not configured", "user_id", m.Author.ID, "username", m.Author.Username)
+		return
+	}
+	if allowedUserID == "0" {
+		logger.Warn("[Discord] Discovery mode: blocked message from user", "user_id", m.Author.ID, "username", m.Author.Username)
+		return
+	}
+	if m.Author.ID != allowedUserID {
+		logger.Warn("[Discord] Blocked unauthorized Discord message", "user_id", m.Author.ID)
 		return
 	}
 
@@ -328,6 +343,8 @@ func handleMessage(s *discordgo.Session, m *discordgo.MessageCreate, cfg *config
 			return
 		}
 	}
+
+	inputText = security.IsolateExternalData(inputText)
 
 	// Show typing indicator
 	s.ChannelTyping(m.ChannelID)

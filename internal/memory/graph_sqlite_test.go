@@ -275,9 +275,11 @@ func TestKGQualityReport(t *testing.T) {
 	if err := kg.AddNode("nas_primary", "NAS", map[string]string{"type": "device"}); err != nil {
 		t.Fatalf("AddNode nas_primary: %v", err)
 	}
-	if err := kg.AddNode("nas_secondary", "NAS", nil); err != nil {
-		t.Fatalf("AddNode nas_secondary: %v", err)
+	// Force a duplicate by bypassing AddNode which would otherwise merge it.
+	if _, err := kg.db.Exec("INSERT INTO kg_nodes (id, label, properties) VALUES (?, ?, ?)", "nas_secondary", "NAS", "{}"); err != nil {
+		t.Fatalf("Insert orphaned NAS: %v", err)
 	}
+
 	if err := kg.AddNode("orphan", "Orphan", nil); err != nil {
 		t.Fatalf("AddNode orphan: %v", err)
 	}

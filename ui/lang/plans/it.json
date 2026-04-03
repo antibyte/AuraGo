@@ -1,0 +1,22 @@
+{
+  "plans.logo_subtitle": "PLANS",
+  "plans.session_label": "Sessione",
+  "plans.status_label": "Stato",
+  "plans.status_all": "Tutti",
+  "plans.status_draft": "Bozza",
+  "plans.status_active": "Attivo",
+  "plans.status_paused": "In pausa",
+  "plans.status_blocked": "Bloccato",
+  "plans.status_completed": "Completato",
+  "plans.status_cancelled": "Annullato",
+  "plans.show_archived": "Mostra archiviati",
+  "plans.refresh": "Aggiorna",
+  "plans.heading": "Piani di sessione",
+  "plans.empty_detail": "Seleziona un piano per ispezionare attività, eventi e progresso.",
+  "plans.block_modal_title": "Imposta bloccante",
+  "plans.block_prompt": "Descrivi il bloccante",
+  "plans.split_modal_title": "Dividi attività",
+  "plans.split_prompt": "Inserisci una sottoattività per riga.",
+  "plans.split_placeholder": "Ispeziona logs\nPatch handler\nVerifica fix",
+  "plans.split": "Dividi"
+}

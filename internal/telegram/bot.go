@@ -251,6 +251,8 @@ func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Con
 		}
 	}
 
+	inputText = security.IsolateExternalData(inputText)
+
 	// Authorized text found (either native or transcribed)
 	manifest := tools.NewManifest(cfg.Directories.ToolsDir)
 	sessionID := "default"
@@ -506,6 +508,7 @@ func (b *TelegramBroker) SendJSON(jsonStr string) {
 }
 
 func downloadFile(url string, logger *slog.Logger) (string, error) {
+	const maxTelegramDownloadBytes = 50 * 1024 * 1024
 	client := &http.Client{Timeout: 60 * time.Second}
 	resp, err := client.Get(url)
 	if err != nil {
@@ -516,6 +519,9 @@ func downloadFile(url string, logger *slog.Logger) (string, error) {
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("failed to download file: %s", resp.Status)
 	}
+	if resp.ContentLength > maxTelegramDownloadBytes {
+		return "", fmt.Errorf("telegram download exceeds max size: %d", resp.ContentLength)
+	}
 
 	tempFile, err := os.CreateTemp("", "aura_voice_*.ogg")
 	if err != nil {
@@ -523,7 +529,7 @@ func downloadFile(url string, logger *slog.Logger) (string, error) {
 	}
 	defer tempFile.Close()
 
-	if _, err := io.Copy(tempFile, resp.Body); err != nil {
+	if _, err := io.Copy(tempFile, io.LimitReader(resp.Body, maxTelegramDownloadBytes)); err != nil {
 		return "", err
 	}
 

@@ -970,17 +970,17 @@ async function viewPreparedContext(id) {
             if (a.summary) content += a.summary + '\n\n';
             if (a.essential_tools && a.essential_tools.length) {
                 content += '── Tools ──\n';
-                a.essential_tools.forEach(tool => { content += `• ${tool.name}: ${tool.purpose}\n`; });
+                a.essential_tools.forEach(tool => { content += `• ${tool.tool_name}: ${tool.purpose}\n`; });
                 content += '\n';
             }
             if (a.step_plan && a.step_plan.length) {
                 content += '── Steps ──\n';
-                a.step_plan.forEach((s, i) => { content += `${i+1}. ${s.action}${s.details ? ' — ' + s.details : ''}\n`; });
+                a.step_plan.forEach((s, i) => { content += `${i+1}. ${s.action}${s.expectation ? ' — ' + s.expectation : ''}\n`; });
                 content += '\n';
             }
             if (a.pitfalls && a.pitfalls.length) {
                 content += '── Pitfalls ──\n';
-                a.pitfalls.forEach(p => { content += `⚠ ${p.description}${p.mitigation ? ' → ' + p.mitigation : ''}\n`; });
+                a.pitfalls.forEach(p => { content += `⚠ ${p.risk}${p.mitigation ? ' → ' + p.mitigation : ''}\n`; });
                 content += '\n';
             }
             if (data.confidence) content += `${t('missions.prep_confidence')}: ${Math.round(data.confidence * 100)}%\n`;

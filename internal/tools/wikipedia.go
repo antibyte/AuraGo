@@ -26,7 +26,7 @@ func formatWikipediaError(msg string) string {
 // ExecuteWikipediaSearch queries the Wikipedia REST API for page summaries
 func ExecuteWikipediaSearch(query, lang string) string {
 	if lang == "" {
-		lang = "de"
+		lang = "en"
 	}
 
 	// We use the REST API for summary
@@ -45,7 +45,7 @@ func ExecuteWikipediaSearch(query, lang string) string {
 	defer resp.Body.Close()
 
 	if resp.StatusCode == 404 {
-		return formatWikipediaError(fmt.Sprintf("Es wurde kein Wikipedia-Artikel für '%s' gefunden.", query))
+		return formatWikipediaError(fmt.Sprintf("No Wikipedia article found for '%s'.", query))
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return formatWikipediaError(fmt.Sprintf("Wikipedia HTTP Error %d", resp.StatusCode))

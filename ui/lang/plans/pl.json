@@ -1,0 +1,22 @@
+{
+  "plans.logo_subtitle": "PLANS",
+  "plans.session_label": "Sesja",
+  "plans.status_label": "Status",
+  "plans.status_all": "Wszystkie",
+  "plans.status_draft": "Szkic",
+  "plans.status_active": "Aktywny",
+  "plans.status_paused": "Wstrzymany",
+  "plans.status_blocked": "Zablokowany",
+  "plans.status_completed": "Ukończony",
+  "plans.status_cancelled": "Anulowany",
+  "plans.show_archived": "Pokaż zarchiwizowane",
+  "plans.refresh": "Odśwież",
+  "plans.heading": "Plany sesji",
+  "plans.empty_detail": "Wybierz plan, aby sprawdzić zadania, wydarzenia i postęp.",
+  "plans.block_modal_title": "Ustaw blokadę",
+  "plans.block_prompt": "Opisz blokadę",
+  "plans.split_modal_title": "Podziel zadanie",
+  "plans.split_prompt": "Wprowadź jedno podzadanie na linię.",
+  "plans.split_placeholder": "Sprawdź logi\nPatchuj handler\nZweryfikuj poprawkę",
+  "plans.split": "Podziel"
+}

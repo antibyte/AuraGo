@@ -427,6 +427,8 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    flex: 1;
+    min-width: 0;
 }
 
 .mission-locked {
@@ -476,7 +478,8 @@
 .mission-actions {
     display: flex;
     gap: 6px;
-    flex-shrink: 0;
+    flex-shrink: 1;
+    flex-wrap: wrap;
 }
 
 /* Priority Badges — extend .badge base class; colors use CSS vars */

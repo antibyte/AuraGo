@@ -1,0 +1,22 @@
+{
+  "plans.logo_subtitle": "PLANS",
+  "plans.session_label": "セッション",
+  "plans.status_label": "ステータス",
+  "plans.status_all": "すべて",
+  "plans.status_draft": "下書き",
+  "plans.status_active": "アクティブ",
+  "plans.status_paused": "一時停止",
+  "plans.status_blocked": "ブロック済み",
+  "plans.status_completed": "完了",
+  "plans.status_cancelled": "キャンセル",
+  "plans.show_archived": "アーカイブを表示",
+  "plans.refresh": "更新",
+  "plans.heading": "セッションプラン",
+  "plans.empty_detail": "タスク、イベント、進捗を検査するプランを選択してください。",
+  "plans.block_modal_title": "ブロッカーを設定",
+  "plans.block_prompt": "ブロッカーを説明してください",
+  "plans.split_modal_title": "タスクを分割",
+  "plans.split_prompt": "1行に1つのサブタスクを入力してください。",
+  "plans.split_placeholder": "ログを検査\nハンドラにパッチ\n修正を確認",
+  "plans.split": "分割"
+}

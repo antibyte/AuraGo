@@ -6,6 +6,12 @@
 (function() {
     'use strict';
 
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
     const MermaidLoader = {
         loaded: false,
         loading: false,
@@ -85,7 +91,7 @@
                         block.innerHTML = `
                             <div class="mermaid-error">
                                 <div class="me-title">⚠️ Diagram Error</div>
-                                <div class="me-msg">${err.message || 'Failed to render'}</div>
+                                <div class="me-msg">${escapeHtml(err.message || 'Failed to render')}</div>
                             </div>
                         `;
                     }

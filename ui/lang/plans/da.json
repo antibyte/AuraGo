@@ -1,0 +1,22 @@
+{
+  "plans.logo_subtitle": "PLANS",
+  "plans.session_label": "Session",
+  "plans.status_label": "Status",
+  "plans.status_all": "Alle",
+  "plans.status_draft": "Udkast",
+  "plans.status_active": "Aktiv",
+  "plans.status_paused": "Sat på pause",
+  "plans.status_blocked": "Blokeret",
+  "plans.status_completed": "Fuldført",
+  "plans.status_cancelled": "Annulleret",
+  "plans.show_archived": "Vis arkiverede",
+  "plans.refresh": "Opdater",
+  "plans.heading": "Sessionsplaner",
+  "plans.empty_detail": "Vælg en plan for at inspicere opgaver, hændelser og fremskridt.",
+  "plans.block_modal_title": "Angiv blokering",
+  "plans.block_prompt": "Beskriv blokeringen",
+  "plans.split_modal_title": "Del opgave",
+  "plans.split_prompt": "Indtast en underopgave pr. linje.",
+  "plans.split_placeholder": "Inspicer logs\nPatch handler\nVerificer fix",
+  "plans.split": "Del"
+}

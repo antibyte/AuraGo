@@ -86,10 +86,10 @@ class MermaidRenderer {
                 block.innerHTML = `
                     <div class="mermaid-error">
                         <div class="error-title">⚠️ Diagram Error</div>
-                        <div class="error-message">${escapeHtml(err.message || 'Failed to render diagram')}</div>
+                        <div class="error-message">${mermaidEscapeHtml(err.message || 'Failed to render diagram')}</div>
                         <details>
                             <summary>View source</summary>
-                            <pre>${escapeHtml(code)}</pre>
+                            <pre>${mermaidEscapeHtml(code)}</pre>
                         </details>
                     </div>
                 `;
@@ -347,7 +347,7 @@ class MermaidRenderer {
 const mermaidRenderer = new MermaidRenderer();
 
 // Helper to escape HTML
-function escapeHtml(text) {
+function mermaidEscapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;

@@ -1,0 +1,22 @@
+{
+  "plans.logo_subtitle": "PLANS",
+  "plans.session_label": "Session",
+  "plans.status_label": "Status",
+  "plans.status_all": "All",
+  "plans.status_draft": "Draft",
+  "plans.status_active": "Active",
+  "plans.status_paused": "Paused",
+  "plans.status_blocked": "Blocked",
+  "plans.status_completed": "Completed",
+  "plans.status_cancelled": "Cancelled",
+  "plans.show_archived": "Show archived",
+  "plans.refresh": "Refresh",
+  "plans.heading": "Session Plans",
+  "plans.empty_detail": "Select a plan to inspect tasks, events, and progress.",
+  "plans.block_modal_title": "Set Blocker",
+  "plans.block_prompt": "Describe the blocker",
+  "plans.split_modal_title": "Split Task",
+  "plans.split_prompt": "Enter one subtask per line.",
+  "plans.split_placeholder": "Inspect logs\nPatch handler\nVerify fix",
+  "plans.split": "Split"
+}

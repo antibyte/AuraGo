@@ -199,6 +199,14 @@ type xmlEditorArgs struct {
 	SetValue  interface{}
 }
 
+type textDiffArgs struct {
+	Operation string
+	File1     string
+	File2     string
+	Text1     string
+	Text2     string
+}
+
 type fileSearchArgs struct {
 	Operation  string
 	Pattern    string
@@ -699,6 +707,25 @@ func decodeJSONEditorArgs(tc ToolCall) jsonEditorArgs {
 	return req
 }
 
+type tomlEditorArgs struct {
+        Operation string
+        FilePath  string
+        TomlPath  string
+        SetValue  interface{}
+}
+
+func decodeTOMLEditorArgs(tc ToolCall) tomlEditorArgs {
+        req := tomlEditorArgs{
+                Operation: firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+                FilePath:  firstNonEmptyToolString(tc.FilePath, tc.Path, toolArgString(tc.Params, "file_path", "path")),
+                TomlPath:  firstNonEmptyToolString(toolArgString(tc.Params, "toml_path"), toolArgString(tc.Params, "json_path")),
+        }
+        if value, ok := toolArgRaw(tc.Params, "set_value"); ok {
+                req.SetValue = value
+        }
+        return req
+}
+
 func decodeYAMLEditorArgs(tc ToolCall) yamlEditorArgs {
 	req := yamlEditorArgs{
 		Operation: firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
@@ -721,6 +748,16 @@ func decodeXMLEditorArgs(tc ToolCall) xmlEditorArgs {
 		req.SetValue = value
 	}
 	return req
+}
+
+func decodeTextDiffArgs(tc ToolCall) textDiffArgs {
+	return textDiffArgs{
+		Operation: toolArgString(tc.Params, "operation"),
+		File1:     toolArgString(tc.Params, "file1"),
+		File2:     toolArgString(tc.Params, "file2"),
+		Text1:     toolArgString(tc.Params, "text1"),
+		Text2:     toolArgString(tc.Params, "text2"),
+	}
 }
 
 func decodeFileSearchArgs(tc ToolCall) fileSearchArgs {

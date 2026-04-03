@@ -544,9 +544,19 @@ func isSafeMethod(method string) bool {
 func checkCSRFOrigin(r *http.Request) bool {
 	originHeader := r.Header.Get("Origin")
 	if originHeader == "" {
-		// Absent Origin is accepted — same-origin navigations and non-browser clients
-		// (curl, internal service calls) legitimately omit it.
-		return true
+		referer := r.Header.Get("Referer")
+		if referer == "" {
+			return false
+		}
+		parsedReferer, err := url.Parse(referer)
+		if err != nil || parsedReferer.Host == "" {
+			return false
+		}
+		serverHost := r.Header.Get("X-Forwarded-Host")
+		if serverHost == "" {
+			serverHost = r.Host
+		}
+		return strings.EqualFold(parsedReferer.Host, serverHost)
 	}
 
 	parsed, err := url.Parse(originHeader)

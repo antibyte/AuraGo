@@ -62,8 +62,10 @@ func ExecuteFileEditor(operation, filePath, old, new_, marker, content string, s
 		return fileAppendPrepend(resolved, content, false, encode)
 	case "delete_lines":
 		return fileDeleteLines(resolved, startLine, endLine, encode)
+	case "apply_patch":
+		return fileApplyPatch(resolved, content, encode)
 	default:
-		return encode(FileEditorResult{Status: "error", Message: fmt.Sprintf("Unknown file_editor operation '%s'. Valid: str_replace, str_replace_all, insert_after, insert_before, append, prepend, delete_lines", operation)})
+		return encode(FileEditorResult{Status: "error", Message: fmt.Sprintf("Unknown file_editor operation '%s'. Valid: str_replace, str_replace_all, insert_after, insert_before, append, prepend, delete_lines, apply_patch", operation)})
 	}
 }
 

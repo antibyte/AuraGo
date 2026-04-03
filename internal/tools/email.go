@@ -258,7 +258,7 @@ func parseIMAPFetch(lines []string, logger *slog.Logger) []EmailMessage {
 			current.Body = decodeBodyText(text)
 			// Cap body at 4KB for LLM context
 			if len(current.Body) > 4096 {
-				current.Body = current.Body[:4096] + "\n[... truncated]"
+				current.Body = truncateUTF8Safe(current.Body, 4096) + "\n[... truncated]"
 			}
 			current.Snippet = truncateSnippet(current.Body, 200)
 		}
@@ -402,7 +402,7 @@ func truncateSnippet(s string, maxLen int) string {
 	if len(s) <= maxLen {
 		return s
 	}
-	return s[:maxLen] + "..."
+	return truncateUTF8Safe(s, maxLen) + "..."
 }
 
 func quoteIMAPString(s string) string {

@@ -576,6 +576,7 @@ rocketchat:
     user_id: ""
     channel: ""
     alias: ""
+    allowed_users: []
 tailscale:
     enabled: false
     readonly: false

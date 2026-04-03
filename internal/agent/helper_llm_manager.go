@@ -98,16 +98,17 @@ Rules for personality_analysis:
 Be conservative. Do not invent details.`
 
 const helperMaintenanceBatchPrompt = `You are the shared helper LLM for low-cost maintenance tasks.
-You receive two inputs:
+You receive three inputs:
 1. Journal entries from today.
 2. A recent conversation excerpt.
+3. Existing Knowledge Graph Nodes (for ID reuse).
 
 Produce BOTH outputs in one JSON object.
 Return ONLY valid JSON in this exact shape:
 {
   "daily_summary": "",
   "kg_extraction": {
-    "nodes": [{"id": "lowercase_id", "label": "Display Label", "properties": {"type": "person|place|tool|project|concept|device|service"}}],
+    "nodes": [{"id": "lowercase_id", "label": "Display Label", "properties": {"type": "person|device|service|software|location|project|concept|event"}}],
     "edges": [{"source": "node_id", "target": "node_id", "relation": "relationship_type"}]
   }
 }
@@ -119,11 +120,28 @@ Rules for daily_summary:
 
 Rules for kg_extraction:
 - IDs must be lowercase with underscores.
+- REUSE existing node IDs if the entity matches an existing one.
 - Extract only clear factual entities and relationships from the conversation excerpt.
-- Good entity types: person, place, tool, project, concept, device, service.
-- Good relations: owns, uses, manages, works_on, located_at, connected_to.
+- Good entity types: person, device, service, software, location, project, concept, event.
+- Good relations: owns, uses, manages, runs_on, located_at, connected_to, depends_on, part_of.
 - Maximum 12 nodes and 16 edges.
 - If nothing useful is present, return empty arrays.
+
+Example:
+Excerpt: "I installed adguard on my truenas server at 192.168.1.5"
+JSON:
+{
+  "daily_summary": "Installed AdGuard on the TrueNAS server.",
+  "kg_extraction": {
+    "nodes": [
+      {"id": "adguard", "label": "AdGuard", "properties": {"type": "software"}},
+      {"id": "truenas", "label": "TrueNAS Server", "properties": {"type": "device", "ip": "192.168.1.5"}}
+    ],
+    "edges": [
+      {"source": "adguard", "target": "truenas", "relation": "runs_on"}
+    ]
+  }
+}
 
 Be conservative and literal. Do not invent details.`
 
@@ -756,7 +774,7 @@ func buildHelperTurnPersonalitySection(input *helperTurnPersonalityInput) string
 	return strings.TrimSpace(b.String())
 }
 
-func (m *helperLLMManager) AnalyzeMaintenanceSummaryAndKG(ctx context.Context, today, journalEntries, conversationExcerpt string) (helperMaintenanceBatchResult, error) {
+func (m *helperLLMManager) AnalyzeMaintenanceSummaryAndKG(ctx context.Context, today, journalEntries, conversationExcerpt, existingNodes string) (helperMaintenanceBatchResult, error) {
 	if m == nil || m.client == nil || m.model == "" {
 		return helperMaintenanceBatchResult{}, fmt.Errorf("helper llm manager unavailable")
 	}
@@ -767,8 +785,9 @@ func (m *helperLLMManager) AnalyzeMaintenanceSummaryAndKG(ctx context.Context, t
 	}
 
 	userPrompt := fmt.Sprintf(
-		"Today: %s\n\n=== JOURNAL ENTRIES ===\n%s\n\n=== RECENT CONVERSATION ===\n%s",
+		"Today: %s\n\n=== EXISTING KG NODES ===\n%s\n\n=== JOURNAL ENTRIES ===\n%s\n\n=== RECENT CONVERSATION ===\n%s",
 		today,
+		existingNodes,
 		journalEntries,
 		conversationExcerpt,
 	)

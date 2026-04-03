@@ -232,6 +232,36 @@ let seenSSEAudios = new Set();
 let seenSSEDocuments = new Set();
 let currentPlanState = null;
 
+function nextAnimationFrame() {
+    return new Promise((resolve) => window.requestAnimationFrame(resolve));
+}
+
+async function renderHistoryMessagesBatched(history) {
+    if (!Array.isArray(history) || history.length === 0) return;
+    const renderBatchSize = 20;
+    for (let index = 0; index < history.length; index++) {
+        const msg = history[index];
+        if (!debugMode && isDebugOnlyHistoryMessage(msg)) {
+            conversation.push(msg);
+        } else if (msg.role === 'user' || msg.role === 'assistant') {
+            // Skip tool output user messages in the visible transcript, but keep them
+            // in local conversation state for debugging and parity with loaded history.
+            if (msg.role === 'user' && msg.content &&
+                (msg.content.startsWith('[Tool Output]') ||
+                 msg.content.startsWith('Tool Output:'))) {
+                conversation.push(msg);
+            } else {
+                appendMessage(msg.role, msg.content);
+                conversation.push(msg);
+            }
+        }
+
+        if ((index + 1) % renderBatchSize === 0) {
+            await nextAnimationFrame();
+        }
+    }
+}
+
 /* ── Debug mode ── */
 // If user has explicitly set a preference in localStorage, use it.
 // Only fall back to server defaults if no preference has been saved yet.
@@ -302,7 +332,7 @@ function appendToolOutput(text, label) {
     if (!text || !debugMode) return;
     const greet = chatContent.querySelector('[data-greeting]');
     if (greet) greet.remove();
-    const escaped = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const escaped = escapeHtml(text);
     const lbl = label || t('chat.tool_output_label');
     const row = document.createElement('div');
     row.className = 'tool-output-row';
@@ -444,24 +474,7 @@ async function initPage() {
             const history = await res.json();
             if (history && history.length > 0) {
                 chatContent.innerHTML = '';
-                history.forEach(msg => {
-                    if (!debugMode && isDebugOnlyHistoryMessage(msg)) {
-                        conversation.push(msg);
-                        return;
-                    }
-                    if (msg.role === 'user' || msg.role === 'assistant') {
-                        // Skip tool output user messages — they are internal context,
-                        // not conversational. Still push to conversation array for LLM context.
-                        if (msg.role === 'user' && msg.content &&
-                            (msg.content.startsWith('[Tool Output]') ||
-                             msg.content.startsWith('Tool Output:'))) {
-                            conversation.push(msg);
-                            return;
-                        }
-                        appendMessage(msg.role, msg.content);
-                        conversation.push(msg);
-                    }
-                });
+                await renderHistoryMessagesBatched(history);
             }
         }
     } catch (err) {
@@ -656,7 +669,7 @@ function appendMessage(role, text) {
         try {
             if (typeof window.markdownit !== 'undefined') {
                 const md = window.markdownit({
-                    html: true,
+                    html: false,
                     breaks: true,
                     linkify: true,
                     highlight: function (str, lang) {
@@ -694,14 +707,14 @@ function appendMessage(role, text) {
                     }
                 );
 
-                finalHTML = md.render(contentForRender);
+                finalHTML = sanitizeRenderedHTML(md.render(contentForRender));
 
                 // Add target="_blank" to all links (external and internal)
                 finalHTML = finalHTML.replace(/<a(\s+[^>]*)?\s+href="([^"]+)"/g, '<a$1href="$2" target="_blank" rel="noopener noreferrer"');
 
                 // Replace placeholders with collapsible <details> elements
                 thinkingBlocks.forEach((innerText, idx) => {
-                    const innerHtml = md.render(innerText);
+                    const innerHtml = sanitizeRenderedHTML(md.render(innerText));
                     const label = (typeof t === 'function') ? t('chat.thinking_label') : 'Reasoning';
                     const detailsHtml = `<details class="thinking-block"><summary>🧠 ${label}</summary><div class="thinking-content">${innerHtml}</div></details>`;
                     finalHTML = finalHTML.replace(`<div id="thinking-ph-${idx}"></div>`, detailsHtml);
@@ -780,6 +793,39 @@ function escapeHtml(str) {
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;');
+}
+
+function isSafeHref(url, allowRelative = true) {
+    if (!url || typeof url !== 'string') return false;
+    const trimmed = url.trim();
+    if (!trimmed) return false;
+    if (allowRelative && (trimmed.startsWith('/') || trimmed.startsWith('./') || trimmed.startsWith('../'))) {
+        return true;
+    }
+    try {
+        const parsed = new URL(trimmed, window.location.origin);
+        return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+    } catch (_err) {
+        return false;
+    }
+}
+
+function sanitizeRenderedHTML(html) {
+    const template = document.createElement('template');
+    template.innerHTML = html;
+    template.content.querySelectorAll('*').forEach((node) => {
+        Array.from(node.attributes).forEach((attr) => {
+            const name = attr.name.toLowerCase();
+            if (name.startsWith('on')) {
+                node.removeAttribute(attr.name);
+                return;
+            }
+            if ((name === 'href' || name === 'src') && !isSafeHref(attr.value, true)) {
+                node.removeAttribute(attr.name);
+            }
+        });
+    });
+    return template.innerHTML;
 }
 
 /* ── File Upload ── */
@@ -920,7 +966,7 @@ chatForm.addEventListener('submit', async (e) => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     model: 'aurago',
-                    messages: conversation
+                    messages: [{ role: 'user', content: message }]
                 }),
                 signal: controller.signal
             });
@@ -1212,10 +1258,14 @@ function handleSSEMessage(e) {
                     const title = escapeHtml(docData.title || docData.filename || 'Document');
                     const fmt = escapeHtml((docData.format || '').toUpperCase() || 'FILE');
                     const docIcon = docFormatIcon(docData.format);
-                    const openBtn = docData.preview_url
-                        ? `<a href="${escapeHtml(docData.preview_url)}" target="_blank" title="Open">🔍</a>`
+                    const previewUrl = isSafeHref(docData.preview_url, true) ? docData.preview_url : '';
+                    const downloadPath = isSafeHref(docData.path, true) ? docData.path : '';
+                    const openBtn = previewUrl
+                        ? `<a href="${escapeHtml(previewUrl)}" target="_blank" rel="noopener noreferrer" title="Open">🔍</a>`
                         : '';
-                    const dlBtn = `<a href="${escapeHtml(docData.path)}" download="${escapeHtml(docData.filename || 'document')}" title="Download">⬇</a>`;
+                    const dlBtn = downloadPath
+                        ? `<a href="${escapeHtml(downloadPath)}" download="${escapeHtml(docData.filename || 'document')}" title="Download">⬇</a>`
+                        : '';
                     const cardHTML = `
                         <div class="chat-document-card">
                             <div class="chat-document-icon">${docIcon}</div>

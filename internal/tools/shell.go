@@ -1,7 +1,6 @@
 package tools
 
 import (
-	"bytes"
 	"fmt"
 	"log/slog"
 	"os/exec"
@@ -37,9 +36,10 @@ func ExecuteShell(command, workspaceDir string) (string, string, error) {
 
 	slog.Debug("[ExecuteShell]", "command", command, "dir", cmd.Dir)
 
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
+	stdout := NewBoundedBuffer(1024 * 1024)
+	stderr := NewBoundedBuffer(1024 * 1024)
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
 
 	if err := cmd.Start(); err != nil {
 		return "", "", err
@@ -107,9 +107,10 @@ func ExecuteSudo(command, workspaceDir, password string) (string, string, error)
 
 	slog.Debug("[ExecuteSudo]", "command", command, "dir", cmd.Dir)
 
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
+	stdout := NewBoundedBuffer(1024 * 1024)
+	stderr := NewBoundedBuffer(1024 * 1024)
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
 
 	if err := cmd.Start(); err != nil {
 		return "", "", err

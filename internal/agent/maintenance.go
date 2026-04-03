@@ -155,6 +155,13 @@ func runMaintenanceTask(cfg *config.Config, logger *slog.Logger, client llm.Chat
 		}
 	}
 
+	// Knowledge Graph: Garbage collection
+	if kg != nil {
+		if _, _, err := kg.CleanupStaleGraph(30); err != nil {
+			logger.Error("[Maintenance] Failed to clean up stale KG elements", "error", err)
+		}
+	}
+
 	// Knowledge Graph: nightly batch entity extraction from recent conversations
 	if !maintenanceBatchDone && cfg.Tools.KnowledgeGraph.Enabled && cfg.Tools.KnowledgeGraph.AutoExtraction && kg != nil && shortTermMem != nil {
 		extractKGEntities(cfg, logger, client, shortTermMem, kg)
@@ -524,10 +531,19 @@ func runBatchedMaintenanceSummaryAndKG(cfg *config.Config, logger *slog.Logger, 
 		return false
 	}
 
+	existingNodesString := ""
+	if existingNodes, err := kg.GetAllNodes(150); err == nil && len(existingNodes) > 0 {
+		var contexts []string
+		for _, n := range existingNodes {
+			contexts = append(contexts, fmt.Sprintf("- ID: %s, Label: %s", n.ID, n.Label))
+		}
+		existingNodesString = strings.Join(contexts, "\n")
+	}
+
 	batchCtx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	defer cancel()
 
-	result, err := helperManager.AnalyzeMaintenanceSummaryAndKG(batchCtx, today, journalInput, conversationInput)
+	result, err := helperManager.AnalyzeMaintenanceSummaryAndKG(batchCtx, today, journalInput, conversationInput, existingNodesString)
 	if err != nil {
 		helperManager.ObserveFallback("maintenance_summary_kg", err.Error())
 		logger.Warn("[HelperLLM] Maintenance summary/KG batch failed, falling back", "error", err)
@@ -564,22 +580,45 @@ func extractKGEntities(cfg *config.Config, logger *slog.Logger, client llm.ChatC
 		return
 	}
 
+	existingNodesString := ""
+	if existingNodes, err := kg.GetAllNodes(150); err == nil && len(existingNodes) > 0 {
+		var contexts []string
+		for _, n := range existingNodes {
+			contexts = append(contexts, fmt.Sprintf("- ID: %s, Label: %s", n.ID, n.Label))
+		}
+		existingNodesString = "Existing Nodes (reuse IDs if possible):\n" + strings.Join(contexts, "\n") + "\n\n"
+	}
+
 	prompt := fmt.Sprintf(`Extract entities and relationships from this conversation.
 Return ONLY valid JSON with this exact structure:
 {
-  "nodes": [{"id": "lowercase_id", "label": "Display Label", "properties": {"type": "person|place|tool|project|concept|device|service"}}],
+  "nodes": [{"id": "lowercase_id", "label": "Display Label", "properties": {"type": "person|device|service|software|location|project|concept|event"}}],
   "edges": [{"source": "node_id", "target": "node_id", "relation": "relationship_type"}]
 }
 
 Rules:
-- IDs must be lowercase with underscores (e.g. "john_doe", "home_server")
-- Extract people, places, devices, services, projects, concepts mentioned
-- Extract relationships like "owns", "uses", "manages", "works_on", "located_at", "connected_to"
-- Only extract clear, factual entities — not vague references
-- Maximum 15 nodes and 20 edges
+- IDs must be lowercase with underscores (e.g. "john_doe", "home_server").
+- REUSE existing node IDs if the entity matches an existing one.
+- Extract only clear, factual entities.
+- Vocabulary for types: person, device, service, software, location, project, concept, event.
+- Vocabulary for relationships: runs_on, owns, manages, uses, depends_on, connected_to, related_to, part_of, deployed_on, located_in.
+- Limit to highly relevant facts. Maximum 15 nodes and 20 edges.
+
+Example:
+Excerpt: "I installed adguard on my truenas server at 192.168.1.5"
+JSON:
+{
+  "nodes": [
+    {"id": "adguard", "label": "AdGuard", "properties": {"type": "software"}},
+    {"id": "truenas", "label": "TrueNAS Server", "properties": {"type": "device", "ip": "192.168.1.5"}}
+  ],
+  "edges": [
+    {"source": "adguard", "target": "truenas", "relation": "runs_on"}
+  ]
+}
 
 Inputs:
-%s`, conversationExcerpt)
+%s%s`, existingNodesString, conversationExcerpt)
 
 	kgClient, kgModel := resolveHelperBackedLLM(cfg, client, cfg.LLM.Model)
 	if kgClient == nil || kgModel == "" {

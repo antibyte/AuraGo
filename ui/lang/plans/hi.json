@@ -1,0 +1,22 @@
+{
+  "plans.logo_subtitle": "PLANS",
+  "plans.session_label": "सत्र",
+  "plans.status_label": "स्थिति",
+  "plans.status_all": "सभी",
+  "plans.status_draft": "ड्राफ्ट",
+  "plans.status_active": "सक्रिय",
+  "plans.status_paused": "रुका हुआ",
+  "plans.status_blocked": "अवरुद्ध",
+  "plans.status_completed": "पूर्ण",
+  "plans.status_cancelled": "रद्द",
+  "plans.show_archived": "संग्रहीत दिखाएं",
+  "plans.refresh": "रीफ्रेश",
+  "plans.heading": "सत्र योजनाएं",
+  "plans.empty_detail": "कार्य, घटनाओं और प्रगति का निरीक्षण करने के लिए एक योजना चुनें।",
+  "plans.block_modal_title": "अवरोधक सेट करें",
+  "plans.block_prompt": "अवरोधक का वर्णन करें",
+  "plans.split_modal_title": "कार्य विभाजित करें",
+  "plans.split_prompt": "प्रति पंक्ति एक उप-कार्य दर्ज करें।",
+  "plans.split_placeholder": "लॉग निरीक्षण\nहैंडलर पैच\nफिक्स सत्यापित",
+  "plans.split": "विभाजित"
+}

@@ -5,16 +5,22 @@ import (
 	"time"
 
 	"aurago/internal/prompts"
+	"aurago/internal/security"
 	"aurago/internal/tools"
 
 	"github.com/sashabaranov/go-openai"
 )
+
+var loopbackLimiter = make(chan struct{}, 8)
 
 // Loopback injects an external message into the agent loop synchronously.
 // Used by webhook-based integrations (e.g. Telnyx SMS) to relay incoming
 // messages through the full agent pipeline including tool execution.
 // The caller should invoke this in a goroutine for non-blocking operation.
 func Loopback(runCfg RunConfig, message string, broker FeedbackBroker) {
+	loopbackLimiter <- struct{}{}
+	defer func() { <-loopbackLimiter }()
+
 	cfg := runCfg.Config
 	logger := runCfg.Logger
 	shortTermMem := runCfg.ShortTermMem
@@ -37,13 +43,15 @@ func Loopback(runCfg RunConfig, message string, broker FeedbackBroker) {
 		runCfg.Manifest = tools.NewManifest(cfg.Directories.ToolsDir)
 	}
 
+	safeMessage := security.IsolateExternalData(message)
+
 	// Insert external message into short-term memory
-	mid, err := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, message, false, false)
+	mid, err := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, safeMessage, false, false)
 	if err != nil {
 		logger.Error("[Loopback] Failed to insert message", "error", err)
 		return
 	}
-	historyManager.Add(openai.ChatMessageRoleUser, message, mid, false, false)
+	historyManager.Add(openai.ChatMessageRoleUser, safeMessage, mid, false, false)
 
 	policy := buildToolingPolicy(cfg, "")
 	flags := buildPromptContextFlags(runCfg, policy, promptContextOptions{
@@ -51,7 +59,7 @@ func Loopback(runCfg RunConfig, message string, broker FeedbackBroker) {
 		IsMaintenanceMode:     tools.IsBusy(),
 		SpecialistsAvailable:  specialistsAvailable(runCfg.Config),
 		SpecialistsStatus:     buildSpecialistsStatus(runCfg.Config),
-		SpecialistsSuggestion: buildSpecialistDelegationHint(runCfg.Config, message),
+		SpecialistsSuggestion: buildSpecialistDelegationHint(runCfg.Config, safeMessage),
 	})
 	coreMem := shortTermMem.ReadCoreMemory()
 	sysPrompt := prompts.BuildSystemPrompt(cfg.Directories.PromptsDir, flags, coreMem, logger)
@@ -85,7 +93,7 @@ func Loopback(runCfg RunConfig, message string, broker FeedbackBroker) {
 
 	// Send final response via broker
 	if len(resp.Choices) > 0 {
-		answer := resp.Choices[0].Message.Content
+		answer := security.StripThinkingTags(resp.Choices[0].Message.Content)
 		if answer != "" {
 			broker.Send("final_response", answer)
 		}

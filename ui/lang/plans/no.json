@@ -1,0 +1,22 @@
+{
+  "plans.logo_subtitle": "PLANS",
+  "plans.session_label": "Sesjon",
+  "plans.status_label": "Status",
+  "plans.status_all": "Alle",
+  "plans.status_draft": "Utkast",
+  "plans.status_active": "Aktiv",
+  "plans.status_paused": "Paused",
+  "plans.status_blocked": "Blockert",
+  "plans.status_completed": "Fullført",
+  "plans.status_cancelled": "Kansellert",
+  "plans.show_archived": "Vis arkiverte",
+  "plans.refresh": "Oppdater",
+  "plans.heading": "Sessionsplaner",
+  "plans.empty_detail": "Velg en plan for å inspisere oppgaver, hendelser og fremgang.",
+  "plans.block_modal_title": "Angi blokkerer",
+  "plans.block_prompt": "Beskriv blokkereren",
+  "plans.split_modal_title": "Del oppgave",
+  "plans.split_prompt": "Angi en underoppgave per linje.",
+  "plans.split_placeholder": "Inspiser logs\nPatch handler\nVerifiser fix",
+  "plans.split": "Del"
+}

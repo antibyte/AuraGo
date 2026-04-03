@@ -176,14 +176,7 @@ func DockerSystemInfo(cfg DockerConfig) string {
 	return string(out)
 }
 
-// dockerExecInternal executes a command inside a running container using the REST API.
-// Pass env as nil when no additional environment variables are needed.
-func dockerExecInternal(cfg DockerConfig, containerID, cmd, user string, env []string) string {
-	if err := validateDockerName(containerID); err != nil {
-		return errJSON("%v", err)
-	}
-
-	cmdArray := []string{"sh", "-c", cmd}
+func dockerExecRaw(cfg DockerConfig, containerID string, cmdArray []string, user string, env []string) (int, string, error) {
 	payload := map[string]interface{}{
 		"AttachStdout": true,
 		"AttachStderr": true,
@@ -201,32 +194,80 @@ func dockerExecInternal(cfg DockerConfig, containerID, cmd, user string, env []s
 	// Create exec instance
 	data, code, err := dockerRequest(cfg, "POST", "/containers/"+url.PathEscape(containerID)+"/exec", string(body))
 	if err != nil {
-		return errJSON("Failed to map exec: %v", err)
+		return -1, "", fmt.Errorf("failed to map exec: %w", err)
 	}
 	if code != 201 {
-		return dockerBodyErr(code, data)
+		return -1, "", fmt.Errorf("API error: %s", dockerBodyErr(code, data))
 	}
 
 	var execResp map[string]interface{}
 	if err := json.Unmarshal(data, &execResp); err != nil {
-		return errJSON("Failed to parse exec response: %v", err)
+		return -1, "", fmt.Errorf("failed to parse exec response: %w", err)
 	}
 	execID, ok := execResp["Id"].(string)
 	if !ok || execID == "" {
-		return errJSON("Failed to obtain exec ID")
+		return -1, "", fmt.Errorf("failed to obtain exec ID")
 	}
 
 	// Start exec instance and read output
 	startPayload := `{"Detach": false, "Tty": false}`
 	outData, outCode, err := dockerRequest(cfg, "POST", "/exec/"+execID+"/start", startPayload)
 	if err != nil {
-		return errJSON("Failed to start exec: %v", err)
+		return -1, "", fmt.Errorf("failed to start exec: %w", err)
 	}
 	if outCode != 200 {
-		return dockerBodyErr(outCode, outData)
+		return -1, "", fmt.Errorf("API error: %s", dockerBodyErr(outCode, outData))
 	}
 
 	outputStr := stripDockerLogHeaders(outData)
+
+	// Inspect exec instance to get exit code
+	exitCode := -1
+	inspectData, inspectCode, inspectErr := dockerRequest(cfg, "GET", "/exec/"+execID+"/json", "")
+	if inspectErr == nil && inspectCode == 200 {
+		var inspectResp map[string]interface{}
+		if json.Unmarshal(inspectData, &inspectResp) == nil {
+			if ec, ok := inspectResp["ExitCode"].(float64); ok {
+				exitCode = int(ec)
+			}
+		}
+	}
+
+	return exitCode, outputStr, nil
+}
+
+func dockerDetectShell(cfg DockerConfig, containerID string) string {
+	shells := []string{"/bin/sh", "/bin/bash", "/bin/ash", "sh", "bash"}
+	for _, shell := range shells {
+		ec, out, err := dockerExecRaw(cfg, containerID, []string{shell, "-c", "echo 1"}, "", nil)
+		if err == nil && ec == 0 && strings.TrimSpace(out) == "1" {
+			return shell
+		}
+	}
+	return ""
+}
+
+// dockerExecInternal executes a command inside a running container using the REST API.
+// Pass env as nil when no additional environment variables are needed.
+func dockerExecInternal(cfg DockerConfig, containerID, cmd, user string, env []string) string {
+	if err := validateDockerName(containerID); err != nil {
+		return errJSON("%v", err)
+	}
+
+	shell := dockerDetectShell(cfg, containerID)
+	var cmdArray []string
+	if shell != "" {
+		cmdArray = []string{shell, "-c", cmd}
+	} else {
+		// Fallback to passing the command as separate arguments if no shell is found
+		// This split is naïve and only works for simple commands
+		cmdArray = strings.Fields(cmd)
+	}
+
+	exitCode, outputStr, err := dockerExecRaw(cfg, containerID, cmdArray, user, env)
+	if err != nil {
+		return errJSON("%v", err)
+	}
 
 	// Truncate output if too large to prevent memory issues
 	const maxOutputLen = 64000 // ~64KB limit
@@ -238,20 +279,10 @@ func dockerExecInternal(cfg DockerConfig, containerID, cmd, user string, env []s
 		"status":       "ok",
 		"container_id": containerID,
 		"output":       outputStr,
+		"exit_code":    exitCode,
 	}
-
-	// Inspect exec instance to get exit code
-	inspectData, inspectCode, inspectErr := dockerRequest(cfg, "GET", "/exec/"+execID+"/json", "")
-	if inspectErr == nil && inspectCode == 200 {
-		var inspectResp map[string]interface{}
-		if json.Unmarshal(inspectData, &inspectResp) == nil {
-			if ec, ok := inspectResp["ExitCode"].(float64); ok {
-				result["exit_code"] = int(ec)
-				if int(ec) != 0 {
-					result["status"] = "error"
-				}
-			}
-		}
+	if exitCode != 0 {
+		result["status"] = "error"
 	}
 
 	out, _ := json.Marshal(result)

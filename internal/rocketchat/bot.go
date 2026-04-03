@@ -8,6 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -16,7 +17,6 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/llm"
 	"aurago/internal/memory"
-	"aurago/internal/prompts"
 	"aurago/internal/security"
 	"aurago/internal/tools"
 
@@ -27,7 +27,7 @@ import (
 var rcHTTPClient = &http.Client{Timeout: 30 * time.Second}
 
 // StartBot initializes the Rocket.Chat bot and begins polling for new messages.
-func StartBot(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB) {
+func StartBot(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManagerV2 *tools.MissionManagerV2) {
 	if !cfg.RocketChat.Enabled {
 		return
 	}
@@ -38,7 +38,7 @@ func StartBot(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, sh
 
 	logger.Info("[RocketChat] Bot starting", "url", cfg.RocketChat.URL, "channel", cfg.RocketChat.Channel)
 
-	go pollLoop(cfg, logger, client, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB)
+	go pollLoop(cfg, logger, client, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, missionManagerV2)
 }
 
 // rcRequest performs a REST API request against the Rocket.Chat server.
@@ -107,7 +107,7 @@ type message struct {
 }
 
 // pollLoop continuously polls for new messages in the configured channel.
-func pollLoop(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB) {
+func pollLoop(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManagerV2 *tools.MissionManagerV2) {
 	channel := cfg.RocketChat.Channel
 	if channel == "" {
 		logger.Error("[RocketChat] No channel configured")
@@ -123,7 +123,9 @@ func pollLoop(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, sh
 	logger.Info("[RocketChat] Resolved channel", "name", channel, "id", channelID)
 
 	lastTS := time.Now()
-	pollInterval := 3 * time.Second
+	basePollInterval := 3 * time.Second
+	pollInterval := basePollInterval
+	maxPollInterval := 30 * time.Second
 
 	for {
 		time.Sleep(pollInterval)
@@ -131,8 +133,13 @@ func pollLoop(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, sh
 		messages, err := fetchNewMessages(cfg, channelID, lastTS)
 		if err != nil {
 			logger.Error("[RocketChat] Poll failed", "error", err)
+			pollInterval *= 2
+			if pollInterval > maxPollInterval {
+				pollInterval = maxPollInterval
+			}
 			continue
 		}
+		pollInterval = basePollInterval
 
 		for _, msg := range messages {
 			// Skip bot's own messages
@@ -149,11 +156,28 @@ func pollLoop(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, sh
 				lastTS = msgTime
 			}
 
+			if !isAllowedRocketChatUser(cfg, msg) {
+				logger.Warn("[RocketChat] Blocked unauthorized message", "user_id", msg.User.ID, "username", msg.User.Username)
+				continue
+			}
+
 			logger.Info("[RocketChat] Received message", "user", msg.User.Username, "text_len", len(msg.Msg))
 
-			go processMessage(cfg, logger, client, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, channelID, msg)
+			go processMessage(cfg, logger, client, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, channelID, msg, missionManagerV2)
 		}
 	}
+}
+
+func isAllowedRocketChatUser(cfg *config.Config, msg message) bool {
+	if len(cfg.RocketChat.AllowedUsers) == 0 {
+		return false
+	}
+	for _, candidate := range []string{msg.User.ID, msg.User.Username} {
+		if candidate != "" && slices.Contains(cfg.RocketChat.AllowedUsers, candidate) {
+			return true
+		}
+	}
+	return false
 }
 
 // resolveChannelID resolves a channel name to its ID.
@@ -198,7 +222,7 @@ func fetchNewMessages(cfg *config.Config, channelID string, since time.Time) ([]
 }
 
 // processMessage handles a single incoming Rocket.Chat message.
-func processMessage(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, channelID string, msg message) {
+func processMessage(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, channelID string, msg message, missionManagerV2 *tools.MissionManagerV2) {
 	inputText := msg.Msg
 
 	// Command interception
@@ -223,6 +247,8 @@ func processMessage(cfg *config.Config, logger *slog.Logger, client llm.ChatClie
 		}
 	}
 
+	inputText = security.IsolateExternalData(inputText)
+
 	manifest := tools.NewManifest(cfg.Directories.ToolsDir)
 	sessionID := "default"
 
@@ -234,91 +260,43 @@ func processMessage(cfg *config.Config, logger *slog.Logger, client llm.ChatClie
 
 	// Build RunConfig first so it can be used for prompt flag derivation
 	runCfg := agent.RunConfig{
-		Config:         cfg,
-		Logger:         logger,
-		LLMClient:      client,
-		ShortTermMem:   shortTermMem,
-		HistoryManager: historyManager,
-		LongTermMem:    longTermMem,
-		KG:             kg,
-		InventoryDB:    inventoryDB,
-		Vault:          vault,
-		Registry:       registry,
-		Manifest:       manifest,
-		CronManager:    cronManager,
-		SessionID:      sessionID,
-		IsMaintenance:  tools.IsBusy(),
-		MessageSource:  "rocketchat",
+		Config:            cfg,
+		Logger:            logger,
+		LLMClient:         client,
+		ShortTermMem:      shortTermMem,
+		HistoryManager:    historyManager,
+		LongTermMem:       longTermMem,
+		KG:                kg,
+		InventoryDB:       inventoryDB,
+		Vault:             vault,
+		Registry:          registry,
+		Manifest:          manifest,
+		CronManager:       cronManager,
+		MissionManagerV2:  missionManagerV2,
+		SessionID:         sessionID,
+		IsMaintenance:     tools.IsBusy(),
+		MessageSource:     "rocketchat",
+		VoiceOutputActive: agent.GetVoiceMode(),
 	}
-
-	// Build context flags via central factory
-	toolingPolicy := agent.BuildToolingPolicy(cfg, inputText)
-	flags := agent.BuildPromptContextFlags(runCfg, toolingPolicy, agent.PromptContextOptions{
-		IsMaintenanceMode:     tools.IsBusy(),
-		ActiveProcesses:       agent.GetActiveProcessStatus(registry),
-		SpecialistsAvailable:  agent.BuildSpecialistsAvailable(cfg),
-		SpecialistsStatus:     agent.BuildSpecialistsStatus(cfg),
-		SpecialistsSuggestion: agent.BuildSpecialistDelegationHint(cfg, inputText),
-	})
-
-	coreMem := shortTermMem.ReadCoreMemory()
-	sysPrompt := prompts.BuildSystemPrompt(cfg.Directories.PromptsDir, flags, coreMem, logger)
-
-	finalMessages := []openai.ChatCompletionMessage{
-		{Role: openai.ChatMessageRoleSystem, Content: sysPrompt},
-	}
-
-	currentSummary := historyManager.GetSummary()
-	if currentSummary != "" {
-		finalMessages = append(finalMessages, openai.ChatCompletionMessage{
+	finalMessages := historyManager.Get()
+	if currentSummary := historyManager.GetSummary(); currentSummary != "" {
+		finalMessages = append([]openai.ChatCompletionMessage{{
 			Role:    openai.ChatMessageRoleSystem,
-			Content: "[CONTEXT_RECAP]: " + currentSummary,
-		})
+			Content: "[CONTEXT_RECAP]: The following is a summary of previous relevant discussions for context. DO NOT echo or repeat this recap in your response:\n" + currentSummary,
+		}}, finalMessages...)
 	}
-	finalMessages = append(finalMessages, historyManager.Get()...)
 
 	req := openai.ChatCompletionRequest{
 		Model:    cfg.LLM.Model,
 		Messages: finalMessages,
 	}
 
-	if cfg.LLM.UseNativeFunctions {
-		ff := agent.ToolFeatureFlags{
-			HomeAssistantEnabled:         cfg.HomeAssistant.Enabled,
-			DockerEnabled:                cfg.Docker.Enabled && cfg.Runtime.DockerSocketOK,
-			CoAgentEnabled:               cfg.CoAgents.Enabled,
-			SudoEnabled:                  cfg.Agent.SudoEnabled && !cfg.Runtime.IsDocker && !cfg.Runtime.NoNewPrivileges,
-			WebhooksEnabled:              cfg.Webhooks.Enabled,
-			ProxmoxEnabled:               cfg.Proxmox.Enabled,
-			OllamaEnabled:                cfg.Ollama.Enabled,
-			HomepageEnabled:              cfg.Homepage.Enabled && (!cfg.Runtime.IsDocker || cfg.Runtime.DockerSocketOK || cfg.Homepage.AllowLocalServer),
-			HomepageAllowLocalServer:     cfg.Homepage.AllowLocalServer,
-			NetlifyEnabled:               cfg.Netlify.Enabled,
-			ImageGenerationEnabled:       cfg.ImageGeneration.Enabled,
-			VirusTotalEnabled:            cfg.VirusTotal.Enabled,
-			AdGuardEnabled:               cfg.AdGuard.Enabled,
-			GoogleWorkspaceEnabled:       cfg.GoogleWorkspace.Enabled,
-			FritzBoxSystemEnabled:        cfg.FritzBox.Enabled && cfg.FritzBox.System.Enabled,
-			FritzBoxNetworkEnabled:       cfg.FritzBox.Enabled && cfg.FritzBox.Network.Enabled,
-			FritzBoxTelephonyEnabled:     cfg.FritzBox.Enabled && cfg.FritzBox.Telephony.Enabled,
-			FritzBoxSmartHomeEnabled:     cfg.FritzBox.Enabled && cfg.FritzBox.SmartHome.Enabled,
-			FritzBoxStorageEnabled:       cfg.FritzBox.Enabled && cfg.FritzBox.Storage.Enabled,
-			FritzBoxTVEnabled:            cfg.FritzBox.Enabled && cfg.FritzBox.TV.Enabled,
-			ContactsEnabled:              cfg.Tools.Contacts.Enabled,
-			PythonSecretInjectionEnabled: cfg.Tools.PythonSecretInjection.Enabled,
-		}
-		ntSchemas := agent.BuildNativeToolSchemas(cfg.Directories.SkillsDir, manifest, ff, logger)
-		req.Tools = ntSchemas
-		req.ToolChoice = "auto"
-	}
-
-	// Send to LLM
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(cfg.CircuitBreaker.LLMTimeoutSeconds)*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 	defer cancel()
 
-	response, err := client.CreateChatCompletion(ctx, req)
+	response, err := agent.ExecuteAgentLoop(ctx, req, runCfg, false, agent.NoopBroker{})
 	if err != nil {
-		logger.Error("[RocketChat] LLM call failed", "error", err)
+		logger.Error("[RocketChat] Agent loop failed", "error", err)
 		_ = SendMessage(cfg, channelID, "⚠️ Fehler beim Verarbeiten der Anfrage.")
 		return
 	}
@@ -326,13 +304,6 @@ func processMessage(cfg *config.Config, logger *slog.Logger, client llm.ChatClie
 	if len(response.Choices) > 0 {
 		reply := security.StripThinkingTags(response.Choices[0].Message.Content)
 		if reply != "" {
-			// Store assistant reply
-			replyID, _ := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleAssistant, reply, false, false)
-			if sessionID == "default" {
-				historyManager.Add(openai.ChatMessageRoleAssistant, reply, replyID, false, false)
-			}
-
-			// Send reply to RocketChat
 			if err := SendMessage(cfg, channelID, reply); err != nil {
 				logger.Error("[RocketChat] Failed to send reply", "error", err)
 			}

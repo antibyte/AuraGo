@@ -141,6 +141,10 @@ func (h *WebhookHandler) handleIncomingSMS(event *WebhookEvent) {
 	text := event.Data.Payload.Text
 
 	h.logger.Info("Telnyx incoming SMS", "from", from, "length", len(text))
+	if h.smsLimiter != nil && !h.smsLimiter.allow() {
+		h.logger.Warn("Telnyx incoming SMS rejected by rate limiter", "from", from)
+		return
+	}
 
 	// Collect media URLs from MMS
 	var mediaURLs []string

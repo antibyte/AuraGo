@@ -1,0 +1,22 @@
+{
+  "plans.logo_subtitle": "PLANS",
+  "plans.session_label": "Relace",
+  "plans.status_label": "Stav",
+  "plans.status_all": "Všechny",
+  "plans.status_draft": "Návrh",
+  "plans.status_active": "Aktivní",
+  "plans.status_paused": "Pozastaveno",
+  "plans.status_blocked": "Blokováno",
+  "plans.status_completed": "Dokončeno",
+  "plans.status_cancelled": "Zrušeno",
+  "plans.show_archived": "Zobrazit archivované",
+  "plans.refresh": "Obnovit",
+  "plans.heading": "Plány relace",
+  "plans.empty_detail": "Vyberte plán pro kontrolu úkolů, událostí a pokroku.",
+  "plans.block_modal_title": "Nastavit blokování",
+  "plans.block_prompt": "Popište blokování",
+  "plans.split_modal_title": "Rozdělit úkol",
+  "plans.split_prompt": "Zadejte jeden dílčí úkol na řádek.",
+  "plans.split_placeholder": "Zkontrolovat logy\nPatchnout handler\nOvěřit opravu",
+  "plans.split": "Rozdělit"
+}

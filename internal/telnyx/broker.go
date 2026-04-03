@@ -10,6 +10,20 @@ import (
 	"aurago/internal/security"
 )
 
+func truncateSMSMessage(message string, maxRunes int) string {
+	if maxRunes <= 0 {
+		return ""
+	}
+	runes := []rune(message)
+	if len(runes) <= maxRunes {
+		return message
+	}
+	if maxRunes <= 3 {
+		return string(runes[:maxRunes])
+	}
+	return string(runes[:maxRunes-3]) + "..."
+}
+
 // TelnyxSMSBroker implements agent.FeedbackProvider for SMS-based interaction.
 type TelnyxSMSBroker struct {
 	client     *Client
@@ -34,9 +48,7 @@ func (b *TelnyxSMSBroker) Send(event, message string) {
 	switch event {
 	case "final_response", "error_recovery":
 		// Truncate long messages for SMS (max ~1600 chars for long SMS)
-		if len(message) > 1500 {
-			message = message[:1497] + "..."
-		}
+		message = truncateSMSMessage(message, 1500)
 		_, err := b.client.SendSMS(context.Background(), b.fromNumber, b.toNumber, message, "")
 		if err != nil {
 			b.logger.Warn("Telnyx SMS broker: failed to send", "error", err)

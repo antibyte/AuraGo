@@ -96,7 +96,7 @@ func TestHelperLLMManagerAnalyzeMaintenanceSummaryAndKGUsesSharedModel(t *testin
 		model:  "helper-model",
 	}
 
-	got, err := manager.AnalyzeMaintenanceSummaryAndKG(context.Background(), "2026-04-01", "- [activity] Backup: Checked the failed job", "[user]: The NAS alert came from the backup target.")
+	got, err := manager.AnalyzeMaintenanceSummaryAndKG(context.Background(), "2026-04-01", "- [activity] Backup: Checked the failed job", "[user]: The NAS alert came from the backup target.", "- id: nas, label: TrueNAS")
 	if err != nil {
 		t.Fatalf("AnalyzeMaintenanceSummaryAndKG: %v", err)
 	}

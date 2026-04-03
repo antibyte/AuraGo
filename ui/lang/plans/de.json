@@ -1,0 +1,22 @@
+{
+  "plans.logo_subtitle": "PLANS",
+  "plans.session_label": "Sitzung",
+  "plans.status_label": "Status",
+  "plans.status_all": "Alle",
+  "plans.status_draft": "Entwurf",
+  "plans.status_active": "Aktiv",
+  "plans.status_paused": "Pausiert",
+  "plans.status_blocked": "Blockiert",
+  "plans.status_completed": "Abgeschlossen",
+  "plans.status_cancelled": "Abgebrochen",
+  "plans.show_archived": "Archivierte anzeigen",
+  "plans.refresh": "Aktualisieren",
+  "plans.heading": "Sitzungspläne",
+  "plans.empty_detail": "Wählen Sie einen Plan aus, um Aufgaben, Ereignisse und Fortschritt zu überprüfen.",
+  "plans.block_modal_title": "Blocker setzen",
+  "plans.block_prompt": "Beschreiben Sie den Blocker",
+  "plans.split_modal_title": "Aufgabe aufteilen",
+  "plans.split_prompt": "Geben Sie einen Untertask pro Zeile ein.",
+  "plans.split_placeholder": "Logs prüfen\nHandler patchen\nFix verifizieren",
+  "plans.split": "Aufteilen"
+}

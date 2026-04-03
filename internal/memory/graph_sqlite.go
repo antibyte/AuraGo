@@ -494,6 +494,40 @@ func (kg *KnowledgeGraph) QualityReport(sampleLimit int) (*KnowledgeGraphQuality
 	return report, nil
 }
 
+// validateNodeSchema ensures common node types have basic property structures.
+func validateNodeSchema(properties map[string]string) map[string]string {
+	if properties == nil {
+		properties = make(map[string]string)
+	}
+	nodeType := strings.ToLower(properties["type"])
+
+	ensureKey := func(key string) {
+		if _, exists := properties[key]; !exists {
+			properties[key] = ""
+		}
+	}
+
+	switch nodeType {
+	case "device":
+		ensureKey("ip")
+		ensureKey("mac")
+		ensureKey("os")
+	case "service":
+		ensureKey("port")
+		ensureKey("protocol")
+	case "person":
+		ensureKey("role")
+		ensureKey("email")
+	case "container":
+		ensureKey("image")
+		ensureKey("state")
+	case "software":
+		ensureKey("version")
+		ensureKey("vendor")
+	}
+	return properties
+}
+
 // AddNode adds or updates a node in the knowledge graph.
 // On conflict, properties are merged: existing keys are preserved, new keys from
 // incoming properties are added, and matching keys are overwritten with incoming values
@@ -1118,6 +1152,64 @@ func (kg *KnowledgeGraph) OptimizeGraph(threshold int) (int, error) {
 	return len(toRemove), nil
 }
 
+// CleanupStaleGraph removes pending edges (co_mentioned_with edges that never reached threshold)
+// and unaccessed nodes (access_count = 0) that are older than the specified threshold in days.
+// Protected nodes are never removed. It returns the number of deleted edges, nodes, and any error.
+func (kg *KnowledgeGraph) CleanupStaleGraph(thresholdDays int) (int, int, error) {
+	if thresholdDays <= 0 {
+		return 0, 0, fmt.Errorf("invalid thresholdDays: %d", thresholdDays)
+	}
+
+	tx, err := kg.db.Begin()
+	if err != nil {
+		return 0, 0, fmt.Errorf("begin cleanup graph: %w", err)
+	}
+	defer tx.Rollback()
+
+	// 1. Delete stale pending edges
+	edgeRes, err := tx.Exec(`
+		DELETE FROM kg_edges 
+		WHERE relation = 'co_mentioned_with' 
+		  AND json_extract(properties, '$.source') = 'pending'
+		  AND created_at <= datetime('now', '-' || ? || ' days')
+	`, thresholdDays)
+	if err != nil {
+		return 0, 0, fmt.Errorf("delete stale pending edges: %w", err)
+	}
+	edgesDeleted, _ := edgeRes.RowsAffected()
+
+	// 2. Identify unaccessed old nodes
+	rows, err := tx.Query(`
+		SELECT id FROM kg_nodes
+		WHERE access_count = 0 
+		  AND protected = 0
+		  AND updated_at <= datetime('now', '-' || ? || ' days')
+	`, thresholdDays)
+	if err != nil {
+		return 0, 0, fmt.Errorf("query unaccessed nodes: %w", err)
+	}
+
+	var toRemove []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err == nil {
+			toRemove = append(toRemove, id)
+		}
+	}
+	rows.Close()
+
+	for _, id := range toRemove {
+		tx.Exec("DELETE FROM kg_edges WHERE source = ? OR target = ?", id, id)
+		tx.Exec("DELETE FROM kg_nodes WHERE id = ?", id)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return 0, 0, fmt.Errorf("commit cleanup graph: %w", err)
+	}
+
+	return int(edgesDeleted), len(toRemove), nil
+}
+
 // GetAllNodes returns all nodes in the graph (for export/dashboard).
 func (kg *KnowledgeGraph) GetAllNodes(limit int) ([]Node, error) {
 	if limit <= 0 {
@@ -1358,6 +1450,7 @@ func (kg *KnowledgeGraph) UpdateNode(id, label string, properties map[string]str
 	if properties != nil {
 		finalProps = sanitizeKnowledgeGraphNodeProperties(properties, existingProtected != 0)
 	}
+	finalProps = validateNodeSchema(finalProps)
 	propsJSON, err := json.Marshal(finalProps)
 	if err != nil {
 		return nil, fmt.Errorf("marshal updated node properties: %w", err)

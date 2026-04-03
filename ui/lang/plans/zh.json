@@ -1,0 +1,22 @@
+{
+  "plans.logo_subtitle": "PLANS",
+  "plans.session_label": "会话",
+  "plans.status_label": "状态",
+  "plans.status_all": "全部",
+  "plans.status_draft": "草稿",
+  "plans.status_active": "进行中",
+  "plans.status_paused": "已暂停",
+  "plans.status_blocked": "已阻止",
+  "plans.status_completed": "已完成",
+  "plans.status_cancelled": "已取消",
+  "plans.show_archived": "显示已归档",
+  "plans.refresh": "刷新",
+  "plans.heading": "会话计划",
+  "plans.empty_detail": "选择一个计划以检查任务、事件和进度。",
+  "plans.block_modal_title": "设置阻止者",
+  "plans.block_prompt": "描述阻止者",
+  "plans.split_modal_title": "分割任务",
+  "plans.split_prompt": "每行输入一个子任务。",
+  "plans.split_placeholder": "检查日志\n补丁处理程序\n验证修复",
+  "plans.split": "分割"
+}

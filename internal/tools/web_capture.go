@@ -2,6 +2,7 @@
 package tools
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -13,8 +14,6 @@ import (
 
 	"aurago/internal/security"
 
-	"github.com/go-rod/rod"
-	"github.com/go-rod/rod/lib/launcher"
 	"github.com/go-rod/rod/lib/proto"
 )
 
@@ -34,7 +33,7 @@ type webCaptureResult struct {
 // selector  – optional CSS selector to wait for before capture
 // fullPage  – capture full scrollable page (screenshot only)
 // outputDir – directory where the output file is saved; defaults to workdir
-func WebCapture(operation, rawURL, selector string, fullPage bool, outputDir string) string {
+func WebCapture(ctx context.Context, operation, rawURL, selector string, fullPage bool, outputDir string) string {
 	encode := func(r webCaptureResult) string {
 		b, _ := json.Marshal(r)
 		return string(b)
@@ -66,25 +65,17 @@ func WebCapture(operation, rawURL, selector string, fullPage bool, outputDir str
 		return encode(webCaptureResult{Status: "error", Message: fmt.Sprintf("cannot create output dir: %v", err)})
 	}
 
-	// Launch headless browser
-	u, err := launcher.New().
-		Headless(true).
-		NoSandbox(true).
-		Launch()
+	browser, err := getSharedBrowser()
 	if err != nil {
 		return encode(webCaptureResult{Status: "error", Message: fmt.Sprintf("browser launch failed: %v", err)})
 	}
-
-	browser := rod.New().ControlURL(u)
-	if err := browser.Connect(); err != nil {
-		return encode(webCaptureResult{Status: "error", Message: fmt.Sprintf("browser connect failed: %v", err)})
-	}
-	defer browser.MustClose()
 
 	page, err := browser.Page(proto.TargetCreateTarget{URL: rawURL})
 	if err != nil {
 		return encode(webCaptureResult{Status: "error", Message: fmt.Sprintf("open page failed: %v", err)})
 	}
+	page = page.Context(ctx)
+	defer page.Close()
 
 	if err := page.WaitLoad(); err != nil {
 		// non-fatal; continue with possibly partial page

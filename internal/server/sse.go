@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
+	"time"
 
 	"aurago/internal/security"
 )
@@ -47,28 +48,29 @@ func (b *SSEBroadcaster) Send(event, detail string) {
 		Event  string `json:"event"`
 		Detail string `json:"detail"`
 	}{event, detail})
-	msg := string(payload)
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	for ch := range b.clients {
-		select {
-		case ch <- msg:
-		default:
-			// Client buffer full, skip to avoid blocking the supervisor loop
-		}
-	}
+	b.broadcast(string(payload))
 }
 
 // SendJSON broadcasts a raw JSON string to all connected SSE clients (non-blocking).
 func (b *SSEBroadcaster) SendJSON(jsonMsg string) {
 	jsonMsg = security.Scrub(jsonMsg)
+	b.broadcast(jsonMsg)
+}
+
+func (b *SSEBroadcaster) broadcast(msg string) {
 	b.mu.RLock()
-	defer b.mu.RUnlock()
+	staleClients := make([]chan string, 0)
 	for ch := range b.clients {
 		select {
-		case ch <- jsonMsg:
+		case ch <- msg:
 		default:
+			staleClients = append(staleClients, ch)
 		}
+	}
+	b.mu.RUnlock()
+
+	for _, ch := range staleClients {
+		b.unsubscribe(ch)
 	}
 }
 
@@ -94,7 +96,7 @@ func (b *SSEBroadcaster) ClientCount() int {
 
 // subscribe registers a new client channel.
 func (b *SSEBroadcaster) subscribe() chan string {
-	ch := make(chan string, 16)
+	ch := make(chan string, 64)
 	b.mu.Lock()
 	b.clients[ch] = struct{}{}
 	b.mu.Unlock()
@@ -104,6 +106,10 @@ func (b *SSEBroadcaster) subscribe() chan string {
 // unsubscribe removes a client channel and closes it.
 func (b *SSEBroadcaster) unsubscribe(ch chan string) {
 	b.mu.Lock()
+	if _, ok := b.clients[ch]; !ok {
+		b.mu.Unlock()
+		return
+	}
 	delete(b.clients, ch)
 	b.mu.Unlock()
 	close(ch)
@@ -130,10 +136,15 @@ func (b *SSEBroadcaster) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	flusher.Flush()
 
 	ctx := r.Context()
+	heartbeat := time.NewTicker(20 * time.Second)
+	defer heartbeat.Stop()
 	for {
 		select {
 		case msg := <-ch:
 			fmt.Fprintf(w, "data: %s\n\n", msg)
+			flusher.Flush()
+		case <-heartbeat.C:
+			fmt.Fprintf(w, ": ping\n\n")
 			flusher.Flush()
 		case <-ctx.Done():
 			return
