@@ -18,6 +18,7 @@
     "setup.language_pt":  "Português",
     "setup.language_sv":  "Svenska",
     "setup.language_zh":  "中文",
+    "setup.language_custom":  "Benutzerdefiniert",
     "setup.nav_back":  "← Zurück",
     "setup.nav_next":  "Weiter →",
     "setup.nav_save_and_start":  "Speichern \u0026 Starten ✓",
