@@ -34,12 +34,12 @@ Return ONLY valid JSON in this exact shape:
   "activity_digest": {
     "intent": "",
     "user_goal": "",
-    "actions_taken": [],
-    "outcomes": [],
-    "important_points": [],
-    "pending_items": [],
+    "actions_taken": ["string"],
+    "outcomes": ["string"],
+    "important_points": ["string"],
+    "pending_items": ["string"],
     "importance": 2,
-    "entities": []
+    "entities": ["string"]
   },
   "personality_analysis": {
     "mood_analysis": {

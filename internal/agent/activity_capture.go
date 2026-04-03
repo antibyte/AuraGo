@@ -35,7 +35,7 @@ Rules:
 - entities can contain short identifiers like tools, project names, services, hosts, or files if clearly relevant.
 
 Return ONLY valid JSON in this exact shape:
-{"intent":"","user_goal":"","actions_taken":[],"outcomes":[],"important_points":[],"pending_items":[],"importance":2,"entities":[]}
+{"intent":"","user_goal":"","actions_taken":["string"],"outcomes":["string"],"important_points":["string"],"pending_items":["string"],"importance":2,"entities":["string"]}
 
 User request:
 %s
