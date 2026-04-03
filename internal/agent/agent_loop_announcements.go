@@ -52,6 +52,10 @@ var completionEvidenceTerms = []string{
 	"abgeschlossen", "fertig", "erfolgreich", "fehlgeschlagen", "aktualisiert", "geschrieben",
 	"gespeichert", "erstellt", "geändert", "gebaut", "deployt", "installiert", "gefunden",
 	"gelesen", "geladen", "analysiert", "verifiziert", "veröffentlicht", "neu gestartet",
+	// German result/presentation verbs
+	"präsentiert", "gesendet", "gespielt", "abgespielt", "vorgeführt", "demonstriert",
+	"hier ist", "hier sind", "hier hast du", "hier haben wir", "schau mal", "siehe oben",
+	"tipp gelernt", "problem erkannt", "lösung gefunden",
 }
 
 var planLinePattern = regexp.MustCompile(`(?m)^\s*(?:[-*]|\d+[.)])\s+\S`)

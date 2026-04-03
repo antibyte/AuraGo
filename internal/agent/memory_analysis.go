@@ -135,6 +135,19 @@ func trimJSONResponse(raw string) string {
 		}
 	}
 
+	// Strip trailing non-JSON characters (e.g. backticks, stray chars after the closing bracket).
+	// This handles malformed responses from reasoning models that append stray characters.
+	if len(raw) > 0 {
+		// Find the last valid JSON terminator: } or ]
+		lastValid := len(raw) - 1
+		for lastValid >= 0 && raw[lastValid] != '}' && raw[lastValid] != ']' {
+			lastValid--
+		}
+		if lastValid >= 0 {
+			raw = raw[:lastValid+1]
+		}
+	}
+
 	return strings.TrimSpace(raw)
 }
 
