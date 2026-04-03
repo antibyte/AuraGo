@@ -124,6 +124,14 @@
             margin: 0 auto;
         }
 
+        /* LAY-04: Unified card grid */
+        .dashboard-grid,
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px; /* D-18: consistent 20px gap */
+        }
+
         .dash-card {
             background: var(--card-bg);
             border: 1px solid var(--border-subtle);
