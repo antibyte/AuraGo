@@ -43,12 +43,17 @@
 
 <body>
     <!-- ── Header ─────────────────────────────────── -->
-    <header class="cfg-header">
+    <header class="cfg-header setup-header">
         <div class="logo">
             <div class="logo-icon">✦</div>
             <span class="logo-wordmark-accent">AURA</span><span class="logo-wordmark-base">GO</span>
             <span id="header-subtitle" class="logo-subtitle" data-i18n="setup.header_subtitle">Quick Setup</span>
         </div>
+        <nav id="header-nav" class="setup-header-nav">
+            <button class="btn-setup btn-back is-hidden" id="btn-back" onclick="prevStep()" data-i18n="setup.nav_back">← Back</button>
+            <button class="btn-skip" id="btn-skip-step" onclick="nextStep(true)" data-i18n="setup.nav_skip_step">Skip</button>
+            <button class="btn-setup btn-next" id="btn-next" onclick="nextStep()" data-i18n="setup.nav_next">Next →</button>
+        </nav>
         <div class="header-actions">
             <button id="theme-toggle" type="button" class="btn-theme" data-i18n-title="common.toggle_theme"></button>
             <button id="btn-skip-setup" class="btn-header btn-skip" onclick="skipSetup()" data-i18n="setup.skip_button">Skip ✕</button>
@@ -193,10 +198,8 @@
                         </div>
                         <div id="desc-native-functions" class="toggle-desc" data-i18n-html="setup.step0_native_functions_desc">Uses the provider's native tool calls. <strong>Warning:</strong> Only enable if the model supports this (GPT-4, Claude, Gemini). Free-tier models often do NOT support this!</div>
                     </div>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="native-functions">
-                        <span class="toggle-slider"></span>
-                    </label>
+                    <input type="checkbox" id="native-functions" class="toggle">
+                    <label for="native-functions" class="toggle-label-text"></label>
                 </div>
             </div>
 
@@ -209,7 +212,7 @@
                 </div>
 
                 <!-- Embeddings -->
-                <div class="mb-lg">
+                <div class="setup-inner-card">
                     <h3 id="heading-embeddings" class="setup-section-heading" data-i18n="setup.step1_embeddings_heading">🧠 Embeddings (Long-Term Memory)</h3>
                     <p class="field-hint mb-sm" data-i18n="setup.step1_embeddings_explanation">Embeddings enable semantic long-term memory. AuraGo can remember and recall information across conversations.</p>
                     <div class="field-row">
@@ -236,7 +239,7 @@
                 </div>
 
                 <!-- Vision -->
-                <div class="mb-lg">
+                <div class="setup-inner-card">
                     <h3 id="heading-vision" class="setup-section-heading" data-i18n="setup.step1_vision_heading">👁️ Vision (Image Recognition)</h3>
                     <div class="field-row">
                         <div class="field-group">
@@ -258,7 +261,7 @@
                 </div>
 
                 <!-- Whisper / STT -->
-                <div>
+                <div class="setup-inner-card">
                     <h3 id="heading-whisper" class="setup-section-heading" data-i18n="setup.step1_whisper_heading">🎙️ Speech-to-Text (Whisper)</h3>
                     <div class="field-row">
                         <div class="field-group">
@@ -297,15 +300,14 @@
                 </div>
 
                 <!-- Helper LLM -->
+                <div class="setup-inner-card">
                 <div class="toggle-row setup-divider mb-md">
                     <div>
                         <div id="lbl-helper-llm" class="toggle-label" data-i18n="setup.step2_personality_v2_label">Helper LLM</div>
                         <div id="desc-helper-llm" class="toggle-desc" data-i18n="setup.step2_personality_v2_desc">Used for internal analysis, maintenance and other helper features. If disabled, many dependent features will not work fully.</div>
                     </div>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="helper-llm" checked onchange="onHelperToggle()">
-                        <span class="toggle-slider"></span>
-                    </label>
+                    <input type="checkbox" id="helper-llm" class="toggle" checked onchange="onHelperToggle()">
+                    <label for="helper-llm" class="toggle-label-text"></label>
                 </div>
 
                 <div class="conditional-fields visible" id="helper-llm-fields">
@@ -315,7 +317,9 @@
                         <div id="hint-helper-model" class="field-hint" data-i18n="setup.step2_v2_model_hint">A smaller, cheaper model is usually the right choice here. The Guardian uses its own model separately.</div>
                     </div>
                 </div>
+                </div>
 
+                <div class="setup-inner-card">
                 <!-- Core Personality -->
                 <div class="field-group mt-lg">
                     <label id="lbl-core-personality" class="field-label" data-i18n="setup.step2_core_personality_label">Core Personality</label>
@@ -331,10 +335,8 @@
                         <div id="lbl-maintenance" class="toggle-label" data-i18n="setup.step2_maintenance_label">Automatic Maintenance</div>
                         <div id="desc-maintenance" class="toggle-desc" data-i18n="setup.step2_maintenance_desc">Daily self-reflection and memory optimization (recommended).</div>
                     </div>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="maintenance-enabled" checked>
-                        <span class="toggle-slider"></span>
-                    </label>
+                    <input type="checkbox" id="maintenance-enabled" class="toggle" checked>
+                    <label for="maintenance-enabled" class="toggle-label-text"></label>
                 </div>
 
                 <!-- Web Config -->
@@ -343,10 +345,9 @@
                         <div id="lbl-web-config" class="toggle-label" data-i18n="setup.step2_web_config_label">Web Config UI</div>
                         <div id="desc-web-config" class="toggle-desc" data-i18n="setup.step2_web_config_desc">Edit configuration via the browser (at /config).</div>
                     </div>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="web-config-enabled" checked>
-                        <span class="toggle-slider"></span>
-                    </label>
+                    <input type="checkbox" id="web-config-enabled" class="toggle" checked>
+                    <label for="web-config-enabled" class="toggle-label-text"></label>
+                </div>
                 </div>
             </div>
 
@@ -418,16 +419,7 @@
                 <button id="btn-go-to-chat" class="btn-setup btn-next" onclick="window.location.href='/'" data-i18n="setup.success_go_to_chat">Go to Chat →</button>
             </div>
 
-            <!-- Footer -->
-            <div class="setup-footer" id="setup-footer">
-                <div class="footer-left">
-                    <button class="btn-setup btn-back is-hidden" id="btn-back" onclick="prevStep()" data-i18n="setup.nav_back">← Back</button>
-                </div>
-                <div class="setup-inline-actions">
-                    <button class="btn-skip" id="btn-skip-step" onclick="nextStep(true)" data-i18n="setup.nav_skip_step">Skip</button>
-                    <button class="btn-setup btn-next" id="btn-next" onclick="nextStep()" data-i18n="setup.nav_next">Next →</button>
-                </div>
-            </div>
+
         </div>
     </div>
 
