@@ -96,5 +96,7 @@
   "chat.more_actions_title": "Mas acciones",
   "chat.feedback_toggle_title": "Feedback",
   "chat.input_placeholder_mobile": "Escribe una tarea...",
-  "chat.thinking_label": "Razonamiento"
+  "chat.thinking_label": "Razonamiento",
+  "chat.speaker_on_title": "Altavoz activado – TTS se reproduce automáticamente",
+  "chat.speaker_off_title": "Altavoz desactivado – clic para activar reproducción automática"
 }

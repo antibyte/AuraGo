@@ -89,6 +89,7 @@ function applyI18n() {
     document.title = t('chat.page_title');
     /* Header pills & controls */
     document.getElementById('theme-toggle').title = t('common.toggle_theme');
+    document.getElementById('speaker-toggle').title = speakerMode ? t('chat.speaker_on_title') : t('chat.speaker_off_title');
     document.getElementById('tokenCounter').textContent = t('chat.token_counter_default');
     document.getElementById('budgetPill').title = t('chat.budget_pill_title');
     document.getElementById('creditsPill').title = t('chat.credits_pill_title');
@@ -255,6 +256,47 @@ document.getElementById('debug-pill').addEventListener('click', () => {
         body: JSON.stringify({ model: 'aurago', messages: [{ role: 'user', content: cmd }] })
     }).catch(() => { }); // fire-and-forget
 });
+
+/* ── Speaker mode (TTS auto-play) ── */
+let speakerMode = localStorage.getItem('aurago-speaker') === 'true';
+const _audioQueue = [];
+let _audioPlaying = false;
+
+function updateSpeakerButton() {
+    const btn = document.getElementById('speaker-toggle');
+    if (!btn) return;
+    btn.textContent = speakerMode ? '🔊' : '🔇';
+    btn.title = speakerMode ? t('chat.speaker_on_title') : t('chat.speaker_off_title');
+    btn.classList.toggle('speaker-active', speakerMode);
+}
+updateSpeakerButton();
+
+document.getElementById('speaker-toggle').addEventListener('click', () => {
+    speakerMode = !speakerMode;
+    localStorage.setItem('aurago-speaker', speakerMode);
+    updateSpeakerButton();
+    // Notify backend so prompt hint can be adjusted
+    fetch('/api/preferences', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ speaker_mode: speakerMode })
+    }).catch(() => { });
+});
+
+function _playNextInQueue() {
+    if (_audioQueue.length === 0) { _audioPlaying = false; return; }
+    _audioPlaying = true;
+    const src = _audioQueue.shift();
+    const audio = new Audio(src);
+    audio.addEventListener('ended', _playNextInQueue);
+    audio.addEventListener('error', _playNextInQueue);
+    audio.play().catch(_playNextInQueue);
+}
+
+function enqueueAutoPlay(src) {
+    _audioQueue.push(src);
+    if (!_audioPlaying) _playNextInQueue();
+}
 
 function appendToolOutput(text, label) {
     if (!text || !debugMode) return;
@@ -1137,22 +1179,28 @@ function handleSSEMessage(e) {
                 const audioData = JSON.parse(data.detail);
                 if (audioData && audioData.path && !seenSSEAudios.has(audioData.path)) {
                     seenSSEAudios.add(audioData.path);
-                    const wrapper = document.createElement('div');
-                    wrapper.className = 'chat-audio-wrapper';
-                    if (audioData.title) {
-                        const titleEl = document.createElement('div');
-                        titleEl.className = 'chat-audio-title';
-                        titleEl.textContent = audioData.title;
-                        wrapper.appendChild(titleEl);
+                    if (speakerMode) {
+                        // Auto-play: queue audio, no visible player widget
+                        enqueueAutoPlay(audioData.path);
+                    } else {
+                        // Manual mode: show inline player widget
+                        const wrapper = document.createElement('div');
+                        wrapper.className = 'chat-audio-wrapper';
+                        if (audioData.title) {
+                            const titleEl = document.createElement('div');
+                            titleEl.className = 'chat-audio-title';
+                            titleEl.textContent = audioData.title;
+                            wrapper.appendChild(titleEl);
+                        }
+                        const player = new ChatAudioPlayer(audioData.path);
+                        wrapper.appendChild(player.element);
+                        const row = document.createElement('div');
+                        row.className = 'msg-row bot';
+                        row.innerHTML = '<div class="avatar bot">🤖</div><div class="bubble bot"></div>';
+                        row.querySelector('.bubble').appendChild(wrapper);
+                        chatContent.appendChild(row);
+                        chatBox.scrollTop = chatBox.scrollHeight;
                     }
-                    const player = new ChatAudioPlayer(audioData.path);
-                    wrapper.appendChild(player.element);
-                    const row = document.createElement('div');
-                    row.className = 'msg-row bot';
-                    row.innerHTML = '<div class="avatar bot">🤖</div><div class="bubble bot"></div>';
-                    row.querySelector('.bubble').appendChild(wrapper);
-                    chatContent.appendChild(row);
-                    chatBox.scrollTop = chatBox.scrollHeight;
                 }
             } catch (e) { /* ignore */ }
             return;

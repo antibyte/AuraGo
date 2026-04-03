@@ -96,5 +96,7 @@
   "chat.more_actions_title": "Dalsi akce",
   "chat.feedback_toggle_title": "Zpetna vazba",
   "chat.input_placeholder_mobile": "Zadejte ukol...",
-  "chat.thinking_label": "Úvaha"
+  "chat.thinking_label": "Úvaha",
+  "chat.speaker_on_title": "Reproduktor zapnutý – TTS se přehrává automaticky",
+  "chat.speaker_off_title": "Reproduktor vypnutý – klikněte pro aktivaci automatického přehrávání"
 }

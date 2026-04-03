@@ -345,6 +345,7 @@ func buildPromptContextFlags(runCfg RunConfig, policy ToolingPolicy, opts prompt
 		VirusTotalEnabled:        flags.VirusTotalEnabled,
 		BraveSearchEnabled:       state.BraveSearchEnabled,
 		MiniMaxTTSEnabled:        cfg.TTS.Provider == "minimax",
+		VoiceOutputActive:        runCfg.VoiceOutputActive,
 		ImageGenerationEnabled:   flags.ImageGenerationEnabled,
 		RemoteControlEnabled:     flags.RemoteControlEnabled,
 		MemoryEnabled:            flags.MemoryEnabled,

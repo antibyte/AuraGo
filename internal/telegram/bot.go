@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -262,24 +263,25 @@ func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Con
 
 	// 1. Build RunConfig first so it can be used for prompt flag derivation
 	runCfg := agent.RunConfig{
-		Config:           cfg,
-		Logger:           logger,
-		LLMClient:        client,
-		ShortTermMem:     shortTermMem,
-		HistoryManager:   historyManager,
-		LongTermMem:      longTermMem,
-		KG:               nil,
-		InventoryDB:      inventoryDB,
-		Vault:            vault,
-		Registry:         registry,
-		Manifest:         manifest,
-		CronManager:      cronManager,
-		MissionManagerV2: missionManagerV2,
-		CoAgentRegistry:  nil,
-		BudgetTracker:    nil,
-		SessionID:        sessionID,
-		IsMaintenance:    tools.IsBusy(),
-		MessageSource:    "telegram",
+		Config:            cfg,
+		Logger:            logger,
+		LLMClient:         client,
+		ShortTermMem:      shortTermMem,
+		HistoryManager:    historyManager,
+		LongTermMem:       longTermMem,
+		KG:                nil,
+		InventoryDB:       inventoryDB,
+		Vault:             vault,
+		Registry:          registry,
+		Manifest:          manifest,
+		CronManager:       cronManager,
+		MissionManagerV2:  missionManagerV2,
+		CoAgentRegistry:   nil,
+		BudgetTracker:     nil,
+		SessionID:         sessionID,
+		IsMaintenance:     tools.IsBusy(),
+		MessageSource:     "telegram",
+		VoiceOutputActive: agent.GetVoiceMode(),
 	}
 
 	// 2. Build context flags via central factory (keeps flags in sync with agent_loop)
@@ -343,10 +345,26 @@ func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Con
 		return
 	}
 
-	// Send captured audio files as native Telegram audio messages
+	// Send captured audio files as native Telegram audio/voice messages
 	for _, af := range broker.AudioFiles {
-		if err := sendTelegramAudio(bot, msg.From.ID, af.FilePath, af.Title); err != nil {
-			logger.Warn("[Telegram] Failed to send audio", "path", af.FilePath, "error", err)
+		if agent.GetVoiceMode() {
+			// Voice mode: send as voice note (OGG/Opus) for inline playback
+			oggPath, convErr := convertToOGG(af.FilePath, logger)
+			if convErr != nil {
+				logger.Warn("[Telegram] OGG conversion failed, falling back to audio", "error", convErr)
+				if err := sendTelegramAudio(bot, msg.From.ID, af.FilePath, af.Title); err != nil {
+					logger.Warn("[Telegram] Failed to send audio", "path", af.FilePath, "error", err)
+				}
+			} else {
+				if err := sendTelegramVoice(bot, msg.From.ID, oggPath); err != nil {
+					logger.Warn("[Telegram] Failed to send voice note", "path", oggPath, "error", err)
+				}
+				os.Remove(oggPath) // cleanup temp OGG file
+			}
+		} else {
+			if err := sendTelegramAudio(bot, msg.From.ID, af.FilePath, af.Title); err != nil {
+				logger.Warn("[Telegram] Failed to send audio", "path", af.FilePath, "error", err)
+			}
 		}
 	}
 
@@ -405,6 +423,26 @@ func sendTelegramAudio(bot *tgbotapi.BotAPI, chatID int64, localPath, title stri
 	audio.Title = title
 	_, err := bot.Send(audio)
 	return err
+}
+
+// sendTelegramVoice sends a local OGG/Opus file as a Telegram voice note (inline playback).
+func sendTelegramVoice(bot *tgbotapi.BotAPI, chatID int64, oggPath string) error {
+	voice := tgbotapi.NewVoice(chatID, tgbotapi.FilePath(oggPath))
+	_, err := bot.Send(voice)
+	return err
+}
+
+// convertToOGG converts an audio file (MP3, WAV, etc.) to OGG/Opus format using ffmpeg.
+// Returns the path to the temporary OGG file. Caller must clean up.
+func convertToOGG(inputPath string, logger *slog.Logger) (string, error) {
+	outPath := inputPath + ".ogg"
+	cmd := exec.Command("ffmpeg", "-y", "-i", inputPath, "-c:a", "libopus", "-b:a", "64k", outPath)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		logger.Debug("[Telegram] ffmpeg OGG conversion output", "output", string(out))
+		return "", fmt.Errorf("ffmpeg conversion failed: %w", err)
+	}
+	return outPath, nil
 }
 
 // CapturedAudio represents an audio file captured during the agent loop for native sending.

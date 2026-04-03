@@ -136,6 +136,7 @@ type ContextFlags struct {
 	BraveSearchEnabled       bool
 	PaperlessNGXEnabled      bool
 	MiniMaxTTSEnabled        bool
+	VoiceOutputActive        bool // Speaker mode on — agent should use TTS for short replies
 	// Danger Zone toggles
 	AllowShell           bool
 	AllowPython          bool
@@ -486,6 +487,11 @@ func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string,
 			label = "Mission (automated)"
 		}
 		finalPrompt.WriteString("> **Channel:** " + label + "\n")
+	}
+
+	// Voice output hint — when speaker mode is active, guide the agent to use TTS proactively
+	if flags.VoiceOutputActive {
+		finalPrompt.WriteString("> **Voice Output Active:** The user has enabled automatic voice playback. Use the `tts` tool to speak short replies (up to ~500 characters). Do NOT use TTS for code blocks, tables, lists, or long technical output. TTS supplements visual text — always send a text reply too.\n")
 	}
 
 	// Internet-exposure warning — shown before custom instructions so it is always visible

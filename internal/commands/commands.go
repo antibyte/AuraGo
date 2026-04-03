@@ -201,6 +201,36 @@ func (c *PersonalityCommand) Help() string {
 	return "Listet Persönlichkeiten auf oder wechselt sie (/personality <name>)."
 }
 
+// VoiceCommand toggles voice output mode (TTS auto-play / voice notes).
+type VoiceCommand struct{}
+
+func (c *VoiceCommand) Execute(args []string, ctx Context) (string, error) {
+	var enabled bool
+	if len(args) > 0 {
+		switch strings.ToLower(args[0]) {
+		case "on", "1", "true":
+			enabled = true
+			agent.SetVoiceMode(true)
+		case "off", "0", "false":
+			enabled = false
+			agent.SetVoiceMode(false)
+		default:
+			return "❌ Invalid argument. Use `/voice on` or `/voice off`.", nil
+		}
+	} else {
+		enabled = agent.ToggleVoiceMode()
+	}
+
+	if enabled {
+		return "🔊 **Voice mode enabled.** Short replies will be spoken via TTS.", nil
+	}
+	return "🔇 **Voice mode disabled.** Audio will not auto-play.", nil
+}
+
+func (c *VoiceCommand) Help() string {
+	return "Toggles voice output mode — when on, the agent uses TTS for short replies (/voice on|off)."
+}
+
 func init() {
 	Register("reset", &ResetCommand{})
 	Register("stop", &StopCommand{})
@@ -208,4 +238,5 @@ func init() {
 	Register("help", &HelpCommand{})
 	Register("debug", &DebugCommand{})
 	Register("personality", &PersonalityCommand{})
+	Register("voice", &VoiceCommand{})
 }

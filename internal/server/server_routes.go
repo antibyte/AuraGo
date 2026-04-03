@@ -1332,6 +1332,10 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	registerJellyfinHandlers(mux, s)
 	s.Logger.Info("Jellyfin API registered at /api/jellyfin/...")
 
+	// Session preferences API (speaker mode, etc.)
+	registerPreferencesHandlers(mux, s)
+	s.Logger.Info("Preferences API registered at /api/preferences")
+
 	// Invasion Control UI page (always registered — same pattern as /setup)
 	invasionTmpl, invasionErr := template.ParseFS(uiFS, "invasion_control.html")
 	if invasionErr != nil {

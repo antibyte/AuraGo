@@ -351,6 +351,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			IsMission:          missionID != "",
 			MissionID:          missionID,
 			MessageSource:      msgSource,
+			VoiceOutputActive:  GetSpeakerMode(),
 		}
 		flags := agent.BuildPromptContextFlags(runCfg, toolingPolicy, agent.PromptContextOptions{
 			IsMaintenanceMode:     inMaintenance,

@@ -96,5 +96,7 @@
   "chat.more_actions_title": "Fler atgarder",
   "chat.feedback_toggle_title": "Feedback",
   "chat.input_placeholder_mobile": "Skriv en uppgift...",
-  "chat.thinking_label": "Resonemang"
+  "chat.thinking_label": "Resonemang",
+  "chat.speaker_on_title": "Högtalare på – TTS spelas automatiskt",
+  "chat.speaker_off_title": "Högtalare av – klicka för att aktivera automatisk uppspelning"
 }

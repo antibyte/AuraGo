@@ -599,6 +599,34 @@ a.logo {
     transform: rotate(20deg) scale(1.1);
 }
 
+/* Speaker toggle (TTS auto-play) */
+.btn-speaker {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    border-radius: 10px;
+    border: 1px solid var(--border-subtle);
+    background: var(--bg-glass);
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
+}
+
+.btn-speaker:hover {
+    background: rgba(128, 128, 128, 0.12);
+    transform: scale(1.1);
+}
+
+.btn-speaker.speaker-active {
+    border-color: var(--accent);
+    background: var(--accent-dim, rgba(99, 102, 241, 0.15));
+    box-shadow: 0 0 10px var(--accent-dim, rgba(99, 102, 241, 0.2));
+}
+
 /* ── Cards with Glassmorphism ──────────────────────────────── */
 .card {
     background: var(--card-bg);
@@ -751,6 +779,12 @@ a.logo {
     }
 
     .btn-theme {
+        width: 30px;
+        height: 30px;
+        min-width: 30px;
+    }
+
+    .btn-speaker {
         width: 30px;
         height: 30px;
         min-width: 30px;

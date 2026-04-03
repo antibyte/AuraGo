@@ -96,5 +96,7 @@
   "chat.more_actions_title": "Flere handlinger",
   "chat.feedback_toggle_title": "Feedback",
   "chat.input_placeholder_mobile": "Skriv en opgave...",
-  "chat.thinking_label": "Ræsonnement"
+  "chat.thinking_label": "Ræsonnement",
+  "chat.speaker_on_title": "Højttaler tændt – TTS afspilles automatisk",
+  "chat.speaker_off_title": "Højttaler slukket – klik for at aktivere automatisk afspilning"
 }

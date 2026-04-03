@@ -96,6 +96,9 @@ var (
 
 	debugModeEnabled bool
 	muDebugMode      sync.Mutex
+
+	voiceModeEnabled bool
+	muVoiceMode      sync.Mutex
 )
 
 // SetDebugMode enables or disables the runtime debug mode for the agent.
@@ -119,6 +122,28 @@ func ToggleDebugMode() bool {
 	defer muDebugMode.Unlock()
 	debugModeEnabled = !debugModeEnabled
 	return debugModeEnabled
+}
+
+// SetVoiceMode enables or disables voice output mode (TTS auto-play / voice notes).
+func SetVoiceMode(enabled bool) {
+	muVoiceMode.Lock()
+	defer muVoiceMode.Unlock()
+	voiceModeEnabled = enabled
+}
+
+// GetVoiceMode returns whether voice output mode is currently active.
+func GetVoiceMode() bool {
+	muVoiceMode.Lock()
+	defer muVoiceMode.Unlock()
+	return voiceModeEnabled
+}
+
+// ToggleVoiceMode flips the current voice mode state and returns the new value.
+func ToggleVoiceMode() bool {
+	muVoiceMode.Lock()
+	defer muVoiceMode.Unlock()
+	voiceModeEnabled = !voiceModeEnabled
+	return voiceModeEnabled
 }
 
 // InterruptSession marks a specific session as interrupted.
@@ -647,6 +672,7 @@ type RunConfig struct {
 	IsMission          bool   // true when triggered by a mission (skips RAG, personality, profiling)
 	MissionID          string // mission ID for logging/tracking
 	MessageSource      string // origin channel: "web_chat", "telegram", "discord", "a2a", "sms", "mission"
+	VoiceOutputActive  bool   // true when the user's speaker toggle is on
 }
 
 func dispatchInner(ctx context.Context, tc ToolCall, dc *DispatchContext) string {
