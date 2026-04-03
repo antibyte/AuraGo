@@ -88,8 +88,8 @@ func (pm *PreparedMission) RenderPreparedContext() string {
 	a := pm.Analysis
 
 	var buf []byte
-	buf = append(buf, "\n\n---\n## Mission Preparation (Advisory)\n"...)
-	buf = append(buf, "The following analysis was pre-computed. Use it as guidance, not as strict instructions.\n\n"...)
+	buf = append(buf, "\n\n---\n## Mission Execution Plan (Advisory)\n"...)
+	buf = append(buf, "Above is your original mission prompt — follow it as the primary instruction. Use the following pre-computed plan as guidance to structure your approach. You may deviate from it when the situation requires it.\n\n"...)
 
 	if a.Summary != "" {
 		buf = append(buf, "### Summary\n"...)
