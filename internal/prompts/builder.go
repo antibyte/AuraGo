@@ -96,6 +96,7 @@ type ContextFlags struct {
 	TokenBudget       int      // Max tokens for system prompt (0 = unlimited)
 	RecentlyUsedTools []string // Last N tools the agent used (for lazy schema injection)
 	IsDebugMode       bool     // When true, inject a debugging instruction into the system prompt
+	IsVoiceMode       bool     // When true, inject a TTS instruction into the system prompt
 	IsCoAgent         bool     // True if the current LLM call is for a co-agent
 	IsEgg             bool     // True if this instance runs in egg worker mode
 	// Specialist co-agent fields
@@ -521,6 +522,11 @@ func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string,
 	// Debug mode injection — placed last for maximum LLM attention
 	if flags.IsDebugMode {
 		finalPrompt.WriteString("\n> **DEBUG MODE ACTIVE:** The system is in debugging mode. If you encounter an error, report it to the user with useful information that could help in fixing it. Include the error message, the tool or action that failed, and any relevant context.\n")
+	}
+
+	// Voice mode injection
+	if flags.IsVoiceMode {
+		finalPrompt.WriteString("\n> **VOICE MODE ACTIVE (SPEAKER ON):** The user has enabled voice output. You MUST use the `tts` tool to read your final response out loud. Do not just textually reply, use the tts tool!\n")
 	}
 
 	rawPrompt := finalPrompt.String()

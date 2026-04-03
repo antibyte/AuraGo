@@ -1014,6 +1014,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 		}
 		flags.IsDebugMode = cfg.Agent.DebugMode || GetDebugMode() // re-check each iteration (toggleable at runtime)
+		flags.IsVoiceMode = GetVoiceMode()                        // re-check each iteration (toggleable at runtime)
 
 		// Inject high-priority open notes as reminders
 		if cfg.Tools.Notes.Enabled && shortTermMem != nil {

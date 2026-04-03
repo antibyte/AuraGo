@@ -67,9 +67,9 @@ type toolGuideSearcher interface {
 var nonAlphaNumPattern = regexp.MustCompile(`[^a-z0-9]+`)
 var adaptiveToolNeighbors = map[string][]string{
 	// Web & Hosting
-	"homepage":             {"netlify", "homepage_registry", "filesystem"},
-	"netlify":              {"homepage", "homepage_registry", "filesystem"},
-	"homepage_registry":    {"homepage", "netlify"},
+	"homepage":          {"netlify", "homepage_registry", "filesystem"},
+	"netlify":           {"homepage", "homepage_registry", "filesystem"},
+	"homepage_registry": {"homepage", "netlify"},
 
 	// File System & Editing
 	"filesystem":           {"file_search", "file_reader_advanced", "file_editor", "manage_memory"},
@@ -90,54 +90,54 @@ var adaptiveToolNeighbors = map[string][]string{
 	"transfer_remote_file": {"remote_execution", "filesystem", "ssh_exec"},
 
 	// Media & Documents
-	"document_creator":     {"media_registry", "send_document", "filesystem"},
-	"media_registry":       {"document_creator", "send_document", "filesystem", "generate_image", "send_image", "tts", "send_audio"},
-	"send_document":        {"media_registry", "document_creator"},
-	"send_image":           {"media_registry", "generate_image"},
-	"send_audio":           {"media_registry", "tts"},
-	"generate_image":       {"media_registry", "send_image", "analyze_image"},
-	"analyze_image":        {"generate_image", "media_registry"},
-	"tts":                  {"media_registry", "send_audio"},
-	"transcribe_audio":     {"filesystem", "media_registry"},
-	"pdf_operations":       {"detect_file_type", "filesystem", "document_creator"},
-	"image_processing":     {"detect_file_type", "filesystem", "media_registry"},
+	"document_creator": {"media_registry", "send_document", "filesystem"},
+	"media_registry":   {"document_creator", "send_document", "filesystem", "generate_image", "send_image", "tts", "send_audio"},
+	"send_document":    {"media_registry", "document_creator"},
+	"send_image":       {"media_registry", "generate_image"},
+	"send_audio":       {"media_registry", "tts"},
+	"generate_image":   {"media_registry", "send_image", "analyze_image"},
+	"analyze_image":    {"generate_image", "media_registry"},
+	"tts":              {"media_registry", "send_audio"},
+	"transcribe_audio": {"filesystem", "media_registry"},
+	"pdf_operations":   {"detect_file_type", "filesystem", "document_creator"},
+	"image_processing": {"detect_file_type", "filesystem", "media_registry"},
 
 	// Docker & Infrastructure
-	"docker":               {"docker_compose", "execute_shell", "filesystem"},
-	"docker_compose":       {"docker", "execute_shell", "filesystem"},
-	"query_inventory":      {"ssh_exec", "register_device", "network_ping"},
-	"register_device":      {"query_inventory", "network_ping", "ssh_exec"},
-	"ssh_exec":             {"query_inventory", "execute_shell", "filesystem", "ansible"},
-	"proxmox":              {"ssh_exec", "query_inventory", "network_ping"},
-	"truenas":              {"ssh_exec", "query_inventory", "network_ping"},
+	"docker":          {"docker_compose", "execute_shell", "filesystem"},
+	"docker_compose":  {"docker", "execute_shell", "filesystem"},
+	"query_inventory": {"ssh_exec", "register_device", "network_ping"},
+	"register_device": {"query_inventory", "network_ping", "ssh_exec"},
+	"ssh_exec":        {"query_inventory", "execute_shell", "filesystem", "ansible"},
+	"proxmox":         {"ssh_exec", "query_inventory", "network_ping"},
+	"truenas":         {"ssh_exec", "query_inventory", "network_ping"},
 
 	// Memory & Knowledge
-	"manage_memory":        {"query_memory", "remember", "knowledge_graph", "cheatsheet"},
-	"query_memory":         {"manage_memory", "remember", "knowledge_graph"},
-	"remember":             {"manage_memory", "query_memory", "knowledge_graph"},
-	"knowledge_graph":      {"manage_memory", "query_memory", "remember"},
-	"cheatsheet":           {"manage_memory", "query_memory", "remember"},
+	"manage_memory":   {"query_memory", "remember", "knowledge_graph", "cheatsheet"},
+	"query_memory":    {"manage_memory", "remember", "knowledge_graph"},
+	"remember":        {"manage_memory", "query_memory", "knowledge_graph"},
+	"knowledge_graph": {"manage_memory", "query_memory", "remember"},
+	"cheatsheet":      {"manage_memory", "query_memory", "remember"},
 
 	// Network & Scanning
-	"network_ping":         {"dns_lookup", "port_scanner", "mdns_scan", "query_inventory", "mac_lookup"},
-	"dns_lookup":           {"network_ping", "whois_lookup"},
-	"port_scanner":         {"network_ping", "query_inventory"},
-	"mdns_scan":            {"network_ping", "upnp_scan"},
-	"mac_lookup":           {"network_ping", "mdns_scan"},
-	"whois_lookup":         {"dns_lookup", "network_ping"},
-	"upnp_scan":            {"mdns_scan", "network_ping"},
-	"tailscale":            {"network_ping", "query_inventory"},
-	"cloudflare_tunnel":    {"network_ping", "dns_lookup"},
+	"network_ping":      {"dns_lookup", "port_scanner", "mdns_scan", "query_inventory", "mac_lookup"},
+	"dns_lookup":        {"network_ping", "whois_lookup"},
+	"port_scanner":      {"network_ping", "query_inventory"},
+	"mdns_scan":         {"network_ping", "upnp_scan"},
+	"mac_lookup":        {"network_ping", "mdns_scan"},
+	"whois_lookup":      {"dns_lookup", "network_ping"},
+	"upnp_scan":         {"mdns_scan", "network_ping"},
+	"tailscale":         {"network_ping", "query_inventory"},
+	"cloudflare_tunnel": {"network_ping", "dns_lookup"},
 
 	// Web Scraping & QA
-	"web_scraper":          {"site_crawler", "web_capture", "web_performance_audit", "document_creator"},
-	"site_crawler":         {"web_scraper", "web_capture"},
-	"web_capture":          {"web_scraper", "site_crawler", "web_performance_audit"},
-	"site_monitor":         {"web_scraper", "network_ping"},
+	"web_scraper":  {"site_crawler", "web_capture", "web_performance_audit", "document_creator"},
+	"site_crawler": {"web_scraper", "web_capture"},
+	"web_capture":  {"web_scraper", "site_crawler", "web_performance_audit"},
+	"site_monitor": {"web_scraper", "network_ping"},
 
 	// SQL & Databases
-	"sql_query":               {"manage_sql_connections", "filesystem"},
-	"manage_sql_connections":  {"sql_query"},
+	"sql_query":              {"manage_sql_connections", "filesystem"},
+	"manage_sql_connections": {"sql_query"},
 
 	// Communication & Messaging
 	"fetch_email":           {"send_email", "list_email_accounts"},
@@ -161,9 +161,9 @@ var adaptiveToolNeighbors = map[string][]string{
 	"fritzbox_smarthome": {"home_assistant"},
 
 	// Fritzbox Suite
-	"fritzbox_system":    {"fritzbox_network", "fritzbox_storage", "fritzbox_telephony"},
-	"fritzbox_network":   {"fritzbox_system", "network_ping"},
-	"fritzbox_storage":   {"fritzbox_system", "filesystem"},
+	"fritzbox_system":  {"fritzbox_network", "fritzbox_storage", "fritzbox_telephony"},
+	"fritzbox_network": {"fritzbox_system", "network_ping"},
+	"fritzbox_storage": {"fritzbox_system", "filesystem"},
 
 	// Webhooks
 	"call_webhook":             {"manage_outgoing_webhooks", "manage_webhooks"},
@@ -179,7 +179,7 @@ var adaptiveToolNeighbors = map[string][]string{
 	"process_analyzer":   {"process_management", "system_metrics"},
 	"process_management": {"process_analyzer", "system_metrics"},
 	"system_metrics":     {"process_analyzer"},
-	
+
 	// Skills Management
 	"list_skills":                {"execute_skill", "list_skill_templates"},
 	"execute_skill":              {"list_skills"},
