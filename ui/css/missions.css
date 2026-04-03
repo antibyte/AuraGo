@@ -291,10 +291,13 @@
 }
 
 /* Mission Grid */
-.missions-grid {
+/* LAY-04: Unified card grid */
+.mission-grid,
+.missions-grid,
+.card-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-    gap: 20px;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px; /* D-18: consistent 20px gap */
 }
 
 .missions-grid > .empty-state {
@@ -382,6 +385,7 @@
     justify-content: space-between;
     align-items: center;
     gap: 8px;
+    min-width: 0;
 }
 
 /* Expandable Card Styles */
@@ -519,6 +523,8 @@
     gap: 4px;
     align-items: center;
     flex-wrap: wrap;
+    min-width: 0;
+    overflow-wrap: break-word;
 }
 
 .mission-stats {
@@ -827,7 +833,7 @@
         grid-template-columns: 1fr;
     }
     .status-bar {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
         gap: 10px;
     }
     .trigger-type-selector {
