@@ -103,6 +103,7 @@ func NewGuardianWithOptions(logger *slog.Logger, opts GuardianOptions) *Guardian
 
 	psOpts := []promptsec.Guard{
 		promptsec.WithHeuristics(&promptsec.HeuristicOptions{Preset: preset}),
+		promptsec.WithOutputValidator(&promptsec.OutputOptions{}),
 	}
 
 	if opts.Spotlight {

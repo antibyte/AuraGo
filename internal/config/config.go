@@ -181,6 +181,9 @@ func Load(path string) (*Config, error) {
 	cfg.LLMGuardian.ScanEmails = false
 	cfg.Guardian.MaxScanBytes = 16 * 1024
 	cfg.Guardian.ScanEdgeBytes = 6 * 1024
+	cfg.Guardian.PromptSec.Preset = "strict"
+	cfg.Guardian.PromptSec.Spotlight = true
+	cfg.Guardian.PromptSec.Canary = true
 
 	// n8n integration defaults: disabled by default, token auth required when enabled.
 	cfg.N8n.Enabled = false

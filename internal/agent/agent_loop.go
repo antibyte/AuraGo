@@ -261,6 +261,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	guardian := security.NewGuardianWithOptions(logger, security.GuardianOptions{
 		MaxScanBytes:  cfg.Guardian.MaxScanBytes,
 		ScanEdgeBytes: cfg.Guardian.ScanEdgeBytes,
+		Preset:        cfg.Guardian.PromptSec.Preset,
+		Spotlight:     cfg.Guardian.PromptSec.Spotlight,
+		Canary:        cfg.Guardian.PromptSec.Canary,
 	})
 	tools.ConfigureTimeouts(cfg.Tools.PythonTimeoutSeconds, cfg.Tools.SkillTimeoutSeconds, cfg.Tools.BackgroundTimeoutSeconds)
 
