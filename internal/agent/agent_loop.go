@@ -2128,6 +2128,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			currentLogger.Warn("[Sync] Skipping history persistence for empty response")
 		}
 
+		if !isMaintenance && sessionID == "default" && toolCallCount > 0 && !isEmpty {
+			StallGuardRecordTurnComplete(sessionID, toolCallCount)
+		}
+
 		memAnalysis := resolveMemoryAnalysisSettings(cfg, shortTermMem)
 		useBatchedTurnHelper := helperManager != nil && memAnalysis.Enabled && memAnalysis.RealTime && !isEmpty && shortTermMem != nil && !flags.IsCoAgent
 		useBatchedTurnPersonality := useBatchedTurnHelper && personalityEnabled && cfg.Personality.EngineV2

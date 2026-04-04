@@ -56,6 +56,12 @@ agent:
         wait_default_timeout_secs: 600                              # default timeout for wait_for_event tasks
     # ── Tool guide injection ──
     max_tool_guides: 5                                              # max tool guide documents injected into prompt (default: 5)
+    # ── Stall Guard ──
+    stall_guard:
+        enabled: false                                              # enable automatic continuation when agent stops prematurely during multi-step work
+        idle_timeout_secs: 45                                       # seconds to wait after agent finishes before checking if work is incomplete
+        max_continuations: 3                                        # maximum automatic continuation attempts per user turn
+        min_tool_calls: 1                                           # minimum tool calls in a turn to trigger stall guard
 budget:
     daily_limit_usd: 5
     default_cost:

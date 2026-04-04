@@ -269,6 +269,12 @@ type Config struct {
 			WaitDefaultTimeoutSecs int  `yaml:"wait_default_timeout_secs"`  // default timeout for wait_for_event tasks (default: 600)
 		} `yaml:"background_tasks"`
 		MaxToolGuides int `yaml:"max_tool_guides"` // maximum tool guide documents injected into prompt (default: 5)
+		StallGuard    struct {
+			Enabled          bool `yaml:"enabled"`           // enable stall guard — auto-continue when agent stops prematurely (default: false)
+			IdleTimeoutSecs  int  `yaml:"idle_timeout_secs"` // seconds to wait after agent finishes before checking if work is incomplete (default: 45)
+			MaxContinuations int  `yaml:"max_continuations"` // maximum automatic continuation attempts per user turn (default: 3)
+			MinToolCalls     int  `yaml:"min_tool_calls"`    // minimum tool calls in a turn to trigger stall guard (default: 1)
+		} `yaml:"stall_guard"`
 
 		// ── Legacy personality fields — read-only for YAML migration to Personality section ──
 		LegacyPersonalityEngine         bool   `yaml:"personality_engine"         json:"-"`  // migrated → Personality.Engine

@@ -201,6 +201,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 		}
 
 		if lastUserMsg.Role == openai.ChatMessageRoleUser {
+			agent.StallGuardRecordUserMessage(sessionID)
 			id, err := s.ShortTermMem.InsertMessage(sessionID, lastUserMsg.Role, lastUserMsg.Content, false, false)
 			if err != nil {
 				s.Logger.Error("Failed to insert user message", "error", err)
