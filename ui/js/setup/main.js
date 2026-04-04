@@ -890,7 +890,13 @@ async function saveConfig() {
 
         if (!resp.ok) {
             const text = await resp.text();
-            throw new Error(text || `HTTP ${resp.status}`);
+            let errMsg = text || `HTTP ${resp.status}`;
+            try {
+                const parsed = JSON.parse(text);
+                if (parsed.error) errMsg = parsed.error;
+                else if (parsed.message) errMsg = parsed.message;
+            } catch (_) { /* not JSON, use raw text */ }
+            throw new Error(errMsg);
         }
 
         const result = await resp.json();
@@ -930,10 +936,12 @@ function showToast(message, type = 'info') {
     const icons = { success: '✓', error: '✕', warning: '⚠', info: 'ℹ' };
     toast.innerHTML = `<span class="setup-toast-icon">${icons[type] || ''}</span> ${message}`;
     container.appendChild(toast);
+    requestAnimationFrame(() => toast.classList.add('show'));
     setTimeout(() => {
+        toast.classList.remove('show');
         toast.classList.add('toast-exit');
-        setTimeout(() => toast.remove(), 300);
-    }, 4000);
+        setTimeout(() => toast.remove(), 400);
+    }, 5000);
 }
 
 // ── Browser Language Auto-detection ──────────

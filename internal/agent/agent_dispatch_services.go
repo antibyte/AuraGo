@@ -369,7 +369,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			switch req.Operation {
 			case "deploy", "test_connection":
 				if !cfg.Homepage.AllowDeploy {
-					return `Tool Output: {"status":"error","message":"Deployment is disabled by administrator. The homepage.allow_deploy setting is false in config.yaml. Do NOT retry this action — inform the user that deployment must be enabled in the configuration first."}`
+					return `Tool Output: {"status":"error","message":"Remote deployment is disabled by administrator. The homepage.allow_deploy setting is false in config.yaml. For local serving use operation 'publish_local' instead — it does not require allow_deploy. Do NOT retry this operation — use publish_local or inform the user that remote deployment must be enabled in the configuration."}`
 				}
 			case "init", "start", "stop", "rebuild", "destroy", "webserver_start", "webserver_stop", "exec":
 				if !cfg.Homepage.AllowContainerManagement {

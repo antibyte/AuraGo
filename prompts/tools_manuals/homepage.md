@@ -221,6 +221,7 @@ Serves the build output via Caddy (Docker required).
 ### publish_local — Build and serve locally
 Combines `build` + `webserver_start` in one step.
 For plain HTML projects (no `package.json`), the build step is automatically skipped and the project directory is served directly.
+Referenced assets (`/files/generated_images/*`, `/files/audio/*`, `/files/documents/*`) are automatically copied into the build directory so the Caddy container can serve them.
 ```json
 {"action": "homepage", "operation": "publish_local", "project_dir": "my-site"}
 ```
@@ -236,7 +237,10 @@ For plain HTML projects (no `package.json`), the build step is automatically ski
 7. **Test:** `lighthouse` for performance audit, `lint` for code quality
 8. **Optimize:** `optimize_images` for SVG optimization
 9. **Build:** `build` (with `auto_fix: true` for automatic error recovery)
-10. **Deploy:** Either `deploy` (upload to remote server), `deploy_netlify`, or `publish_local` (serve locally with Caddy)
+10. **Deploy:** Choose based on target:
+    - `publish_local` — serve locally with Caddy (DEFAULT for most cases, no config flags needed)
+    - `deploy` — upload to remote server (requires `homepage.allow_deploy=true`)
+    - `deploy_netlify` — deploy to Netlify (requires `netlify.allow_deploy=true`)
 
 ## Version Control (Git)
 
