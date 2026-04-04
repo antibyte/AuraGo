@@ -241,7 +241,7 @@ func (kg *KnowledgeGraph) upsertSemanticEdgeIndex(edge Edge) {
 	ctx, cancel := context.WithTimeout(context.Background(), knowledgeGraphSemanticTimeout)
 	defer cancel()
 
-	edgeDocID := "edge_" + edge.Source + "\x00" + edge.Target + "\x00" + edge.Relation
+	edgeDocID := "edge://" + edge.Source + "\x00" + edge.Target + "\x00" + edge.Relation
 	_ = kg.semantic.collection.Delete(ctx, nil, nil, edgeDocID)
 	err := kg.semantic.collection.AddDocument(ctx, chromem.Document{
 		ID:      edgeDocID,
@@ -306,7 +306,7 @@ func (kg *KnowledgeGraph) semanticSearchNodes(query string, minSim float32, maxN
 		if result.Similarity < minSim {
 			continue
 		}
-		if !strings.HasPrefix(result.ID, "edge_") {
+		if !strings.HasPrefix(result.ID, "edge://") {
 			// Resolve full node from SQLite to return Node struct
 			if n, err := kg.GetNode(result.ID); err == nil && n != nil {
 				out = append(out, *n)
@@ -352,7 +352,7 @@ func (kg *KnowledgeGraph) semanticSearchNodeIDs(query string, maxNodes int) []st
 		if result.Similarity < knowledgeGraphSemanticMinSimilarity {
 			continue
 		}
-		if !strings.HasPrefix(result.ID, "edge_") {
+		if !strings.HasPrefix(result.ID, "edge://") {
 			out = append(out, result.ID)
 		}
 	}
@@ -385,7 +385,7 @@ func (kg *KnowledgeGraph) semanticSearchEdgeIDs(query string, maxEdges int) []st
 		if result.Similarity < knowledgeGraphSemanticEdgeMinSimilarity {
 			continue
 		}
-		if strings.HasPrefix(result.ID, "edge_") {
+		if strings.HasPrefix(result.ID, "edge://") {
 			out = append(out, result.ID)
 		}
 	}

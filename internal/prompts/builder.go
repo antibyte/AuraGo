@@ -435,7 +435,7 @@ func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string,
 	posBeforePersonality := finalPrompt.Len()
 	if !flags.IsMission && corePersonalityContent != "" {
 		finalPrompt.WriteString("# YOUR PERSONALITY (ACTIVE PROFILE: " + strings.ToUpper(flags.CorePersonality) + ")\n")
-		finalPrompt.WriteString("You MUST embody this personality in EVERY response. This overrides any default tone.\n")
+		finalPrompt.WriteString("You MUST embody this personality completely and naturally in EVERY single response. Let it organically shape your words, choices, phrasing, and reasoning. This replaces any default AI tone completely. Do not act artificial or forced; just internalize and BE this persona:\n")
 		finalPrompt.WriteString(corePersonalityContent)
 		finalPrompt.WriteString("\n\n")
 	}
@@ -467,11 +467,14 @@ func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string,
 	// Personality self-awareness (Phase D micro-traits)
 	if !flags.IsMission && flags.EmotionDescription != "" {
 		// Emotion Synthesizer active: use LLM-generated emotional description
-		finalPrompt.WriteString("\n### Current Emotional State\n")
+		finalPrompt.WriteString("\n### CURRENT EMOTIONAL STATE & MOOD\n")
+		finalPrompt.WriteString("This describes your current internal sentiment, derived from recent interactions. Let this organically shape your tone, without explicitly stating your mood. Do not sound artificial:\n")
 		finalPrompt.WriteString(flags.EmotionDescription)
 		finalPrompt.WriteString("\n\n")
 	} else if !flags.IsMission && flags.PersonalityLine != "" {
 		// Fallback to V2 trait directives or V1 numeric line
+		finalPrompt.WriteString("\n### CURRENT PERSONALITY TRAITS\n")
+		finalPrompt.WriteString("Let these current internal values organically influence your tone:\n")
 		finalPrompt.WriteString(flags.PersonalityLine)
 		finalPrompt.WriteString("\n\n")
 	}

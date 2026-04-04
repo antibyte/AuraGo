@@ -87,8 +87,12 @@ func NewKnowledgeGraph(dbPath string, jsonMigratePath string, logger *slog.Logge
 		return nil, fmt.Errorf("open knowledge graph db: %w", err)
 	}
 
-	// SQLite is single-writer; cap connections to prevent locking errors
-	db.SetMaxOpenConns(1)
+	// SQLite expects small connection pool for concurrent reads + 1 writer
+	db.SetMaxOpenConns(2)
+	// Enable WAL for better concurrency and performance
+	if _, err := db.Exec("PRAGMA journal_mode=WAL"); err != nil {
+		logger.Warn("KG: failed to set WAL mode", "error", err)
+	}
 	// Retry for up to 5 s when another writer holds the lock (prevents SQLITE_BUSY).
 	if _, err := db.Exec("PRAGMA busy_timeout=5000"); err != nil {
 		logger.Warn("KG: failed to set busy_timeout", "error", err)
@@ -139,8 +143,19 @@ func (kg *KnowledgeGraph) Close() error {
 func (kg *KnowledgeGraph) drainAccessQueue() {
 	for {
 		select {
-		case <-kg.accessQueue:
-			// drain
+		case hit := <-kg.accessQueue:
+			ctx, cancel := context.WithTimeout(context.Background(), knowledgeGraphWriteTimeout)
+			var execErr error
+			switch {
+			case hit.nodeID != "":
+				_, execErr = kg.db.ExecContext(ctx, "UPDATE kg_nodes SET access_count = access_count + 1 WHERE id = ?", hit.nodeID)
+			case hit.source != "" && hit.target != "" && hit.relation != "":
+				_, execErr = kg.db.ExecContext(ctx, "UPDATE kg_edges SET access_count = access_count + 1 WHERE source = ? AND target = ? AND relation = ?", hit.source, hit.target, hit.relation)
+			}
+			cancel()
+			if execErr != nil {
+				kg.logger.Warn("KG access count update failed during drain", "hit", hit, "error", execErr)
+			}
 		default:
 			return
 		}
@@ -152,26 +167,79 @@ func (kg *KnowledgeGraph) drainAccessQueue() {
 // Exits when doneChan is closed or when db is closed.
 func (kg *KnowledgeGraph) accessCountWorker() {
 	defer kg.wg.Done()
+
+	nodeHits := make(map[string]int)
+	type edgeKey struct{ source, target, relation string }
+	edgeHits := make(map[edgeKey]int)
+
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
+
+	flush := func() {
+		if len(nodeHits) == 0 && len(edgeHits) == 0 {
+			return
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), knowledgeGraphWriteTimeout)
+		defer cancel()
+
+		tx, err := kg.db.BeginTx(ctx, nil)
+		if err != nil {
+			kg.logger.Warn("KG access count batch begin failed", "error", err)
+			nodeHits = make(map[string]int)
+			edgeHits = make(map[edgeKey]int)
+			return
+		}
+
+		if len(nodeHits) > 0 {
+			stmt, err := tx.PrepareContext(ctx, "UPDATE kg_nodes SET access_count = access_count + ? WHERE id = ?")
+			if err == nil {
+				for id, count := range nodeHits {
+					stmt.ExecContext(ctx, count, id)
+				}
+				stmt.Close()
+			}
+		}
+
+		if len(edgeHits) > 0 {
+			stmt, err := tx.PrepareContext(ctx, "UPDATE kg_edges SET access_count = access_count + ? WHERE source = ? AND target = ? AND relation = ?")
+			if err == nil {
+				for e, count := range edgeHits {
+					stmt.ExecContext(ctx, count, e.source, e.target, e.relation)
+				}
+				stmt.Close()
+			}
+		}
+
+		if err := tx.Commit(); err != nil {
+			kg.logger.Warn("KG access count batch commit failed", "error", err)
+		}
+
+		// Reset tracking
+		nodeHits = make(map[string]int)
+		edgeHits = make(map[edgeKey]int)
+	}
+
 	for {
 		select {
 		case <-kg.doneChan:
+			flush()
 			return
 		case hit, ok := <-kg.accessQueue:
 			if !ok {
+				flush()
 				return // channel closed
 			}
-			ctx, cancel := context.WithTimeout(context.Background(), knowledgeGraphWriteTimeout)
-			var execErr error
-			switch {
-			case hit.nodeID != "":
-				_, execErr = kg.db.ExecContext(ctx, "UPDATE kg_nodes SET access_count = access_count + 1 WHERE id = ?", hit.nodeID)
-			case hit.source != "" && hit.target != "" && hit.relation != "":
-				_, execErr = kg.db.ExecContext(ctx, "UPDATE kg_edges SET access_count = access_count + 1 WHERE source = ? AND target = ? AND relation = ?", hit.source, hit.target, hit.relation)
+			if hit.nodeID != "" {
+				nodeHits[hit.nodeID]++
+			} else if hit.source != "" && hit.target != "" && hit.relation != "" {
+				edgeHits[edgeKey{hit.source, hit.target, hit.relation}]++
 			}
-			cancel()
-			if execErr != nil {
-				kg.logger.Warn("KG access count update failed", "hit", hit, "error", execErr)
+
+			if len(nodeHits)+len(edgeHits) > 200 {
+				flush()
 			}
+		case <-ticker.C:
+			flush()
 		}
 	}
 }
@@ -191,7 +259,9 @@ func (kg *KnowledgeGraph) initTables() error {
 		protected INTEGER NOT NULL DEFAULT 0,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-		semantic_indexed_at DATETIME
+		semantic_indexed_at DATETIME,
+		node_type TEXT GENERATED ALWAYS AS (json_extract(properties, '$.type')) STORED,
+		source_type TEXT GENERATED ALWAYS AS (json_extract(properties, '$.source')) STORED
 	);
 
 	CREATE TABLE IF NOT EXISTS kg_edges (
@@ -217,6 +287,10 @@ func (kg *KnowledgeGraph) initTables() error {
 	migrations := []string{
 		`ALTER TABLE kg_nodes ADD COLUMN semantic_indexed_at DATETIME`,
 		`ALTER TABLE kg_edges ADD COLUMN semantic_indexed_at DATETIME`,
+		`ALTER TABLE kg_nodes ADD COLUMN node_type TEXT GENERATED ALWAYS AS (json_extract(properties, '$.type')) STORED`,
+		`ALTER TABLE kg_nodes ADD COLUMN source_type TEXT GENERATED ALWAYS AS (json_extract(properties, '$.source')) STORED`,
+		`CREATE INDEX IF NOT EXISTS idx_kg_nodes_type ON kg_nodes(node_type)`,
+		`CREATE INDEX IF NOT EXISTS idx_kg_nodes_source ON kg_nodes(source_type)`,
 	}
 	for _, m := range migrations {
 		kg.db.Exec(m)
@@ -404,91 +478,104 @@ func (kg *KnowledgeGraph) QualityReport(sampleLimit int) (*KnowledgeGraphQuality
 		sampleLimit = 50
 	}
 
-	rows, err := kg.db.Query(`SELECT id, label, properties, protected FROM kg_nodes ORDER BY label COLLATE NOCASE, id COLLATE NOCASE LIMIT 5000`)
-	if err != nil {
-		return nil, fmt.Errorf("query kg nodes for quality report: %w", err)
-	}
-	defer rows.Close()
-
-	nodes := make([]Node, 0, 128)
-	duplicateGroups := make(map[string][]Node)
-	for rows.Next() {
-		var (
-			node      Node
-			propsJSON string
-			protected int
-		)
-		if err := rows.Scan(&node.ID, &node.Label, &propsJSON, &protected); err != nil {
-			return nil, fmt.Errorf("scan kg node for quality report: %w", err)
-		}
-		node.Properties = decodeKnowledgeGraphNodeProperties(kg.logger, "QualityReport", node.ID, propsJSON, protected)
-		node.Protected = protected != 0
-		nodes = append(nodes, node)
-
-		labelKey := normalizeKnowledgeGraphDuplicateLabel(node.Label)
-		if labelKey != "" {
-			duplicateGroups[labelKey] = append(duplicateGroups[labelKey], node)
-		}
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate kg nodes for quality report: %w", err)
-	}
-
-	edgeRows, err := kg.db.Query(`SELECT source, target FROM kg_edges`)
-	if err != nil {
-		return nil, fmt.Errorf("query kg edges for quality report: %w", err)
-	}
-	defer edgeRows.Close()
-
-	degrees := make(map[string]int, len(nodes))
-	edgeCount := 0
-	for edgeRows.Next() {
-		var source, target string
-		if err := edgeRows.Scan(&source, &target); err != nil {
-			return nil, fmt.Errorf("scan kg edge for quality report: %w", err)
-		}
-		edgeCount++
-		degrees[source]++
-		degrees[target]++
-	}
-	if err := edgeRows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate kg edges for quality report: %w", err)
-	}
-
 	report := &KnowledgeGraphQualityReport{
-		Nodes:          len(nodes),
-		Edges:          edgeCount,
 		IsolatedSample: make([]Node, 0, sampleLimit),
 		UntypedSample:  make([]Node, 0, sampleLimit),
 	}
 
-	for _, node := range nodes {
-		if node.Protected {
-			report.ProtectedNodes++
-		}
-		if degrees[node.ID] == 0 {
-			report.IsolatedNodes++
-			if len(report.IsolatedSample) < sampleLimit {
-				report.IsolatedSample = append(report.IsolatedSample, node)
-			}
-		}
-		if strings.TrimSpace(node.Properties["type"]) == "" {
-			report.UntypedNodes++
-			if len(report.UntypedSample) < sampleLimit {
-				report.UntypedSample = append(report.UntypedSample, node)
+	kg.db.QueryRow("SELECT COUNT(*) FROM kg_nodes").Scan(&report.Nodes)
+	kg.db.QueryRow("SELECT COUNT(*) FROM kg_edges").Scan(&report.Edges)
+	kg.db.QueryRow("SELECT COUNT(*) FROM kg_nodes WHERE protected != 0").Scan(&report.ProtectedNodes)
+
+	// Isolated nodes
+	kg.db.QueryRow(`SELECT COUNT(*) FROM kg_nodes n WHERE NOT EXISTS (SELECT 1 FROM kg_edges e WHERE e.source = n.id OR e.target = n.id)`).Scan(&report.IsolatedNodes)
+
+	isolatedRows, _ := kg.db.Query(`
+		SELECT id, label, properties, protected FROM kg_nodes n 
+		WHERE NOT EXISTS (SELECT 1 FROM kg_edges e WHERE e.source = n.id OR e.target = n.id)
+		LIMIT ?`, sampleLimit)
+	if isolatedRows != nil {
+		defer isolatedRows.Close()
+		for isolatedRows.Next() {
+			var n Node
+			var propsJSON string
+			var protected int
+			if err := isolatedRows.Scan(&n.ID, &n.Label, &propsJSON, &protected); err == nil {
+				n.Properties = decodeKnowledgeGraphNodeProperties(kg.logger, "QualityReport", n.ID, propsJSON, protected)
+				n.Protected = protected != 0
+				report.IsolatedSample = append(report.IsolatedSample, n)
 			}
 		}
 	}
 
-	allDuplicateCandidates := buildKnowledgeGraphDuplicateCandidates(duplicateGroups)
-	report.DuplicateGroups = len(allDuplicateCandidates)
-	for _, candidate := range allDuplicateCandidates {
-		report.DuplicateNodes += candidate.Count
+	// Untyped nodes
+	kg.db.QueryRow(`
+		SELECT COUNT(*) FROM kg_nodes n 
+		WHERE json_extract(properties, '$.type') IS NULL OR json_extract(properties, '$.type') = ''
+	`).Scan(&report.UntypedNodes)
+
+	untypedRows, _ := kg.db.Query(`
+		SELECT id, label, properties, protected FROM kg_nodes n 
+		WHERE json_extract(properties, '$.type') IS NULL OR json_extract(properties, '$.type') = ''
+		LIMIT ?`, sampleLimit)
+	if untypedRows != nil {
+		defer untypedRows.Close()
+		for untypedRows.Next() {
+			var n Node
+			var propsJSON string
+			var protected int
+			if err := untypedRows.Scan(&n.ID, &n.Label, &propsJSON, &protected); err == nil {
+				n.Properties = decodeKnowledgeGraphNodeProperties(kg.logger, "QualityReport", n.ID, propsJSON, protected)
+				n.Protected = protected != 0
+				report.UntypedSample = append(report.UntypedSample, n)
+			}
+		}
 	}
-	if len(allDuplicateCandidates) > sampleLimit {
-		report.DuplicateCandidates = allDuplicateCandidates[:sampleLimit]
-	} else {
-		report.DuplicateCandidates = allDuplicateCandidates
+
+	// Duplicate groups
+	dupGroupRows, _ := kg.db.Query(`
+		SELECT LOWER(TRIM(label)), COUNT(*) 
+		FROM kg_nodes 
+		WHERE label != ''
+		GROUP BY LOWER(TRIM(label)) 
+		HAVING COUNT(*) > 1
+	`)
+	if dupGroupRows != nil {
+		defer dupGroupRows.Close()
+		var labels []string
+		for dupGroupRows.Next() {
+			var label string
+			var count int
+			if err := dupGroupRows.Scan(&label, &count); err == nil {
+				report.DuplicateGroups++
+				report.DuplicateNodes += count
+				if len(labels) < sampleLimit {
+					labels = append(labels, label)
+				}
+			}
+		}
+
+		for _, l := range labels {
+			cand := KnowledgeGraphDuplicateCandidate{
+				Label:           l,
+				NormalizedLabel: l,
+				Count:           0,
+			}
+			nodesRows, _ := kg.db.Query(`SELECT id, label, properties, protected FROM kg_nodes WHERE LOWER(TRIM(label)) = ?`, l)
+			if nodesRows != nil {
+				for nodesRows.Next() {
+					var n Node
+					var propsJSON string
+					var protected int
+					if err := nodesRows.Scan(&n.ID, &n.Label, &propsJSON, &protected); err == nil {
+						cand.IDs = append(cand.IDs, n.ID)
+						cand.Count++
+					}
+				}
+				nodesRows.Close()
+			}
+			report.DuplicateCandidates = append(report.DuplicateCandidates, cand)
+		}
 	}
 
 	return report, nil
@@ -817,15 +904,30 @@ func (kg *KnowledgeGraph) GetNeighbors(nodeID string, limit int) ([]Node, []Edge
 	// rows.Close() called by defer when GetNeighbors returns
 
 	var nodes []Node
-	for id := range neighborIDs {
-		var n Node
-		var propsJSON string
-		var protected int
-		err := kg.db.QueryRow("SELECT id, label, properties, protected FROM kg_nodes WHERE id = ?", id).Scan(&n.ID, &n.Label, &propsJSON, &protected)
+	if len(neighborIDs) > 0 {
+		var ids []interface{}
+		var placeholders []string
+		for id := range neighborIDs {
+			ids = append(ids, id)
+			placeholders = append(placeholders, "?")
+		}
+
+		query := "SELECT id, label, properties, protected FROM kg_nodes WHERE id IN (" + strings.Join(placeholders, ",") + ")"
+		rows, err := kg.db.Query(query, ids...)
 		if err == nil {
-			n.Properties = decodeKnowledgeGraphNodeProperties(kg.logger, "GetNeighbors", n.ID, propsJSON, protected)
-			n.Protected = protected != 0
-			nodes = append(nodes, n)
+			defer rows.Close()
+			for rows.Next() {
+				var n Node
+				var propsJSON string
+				var protected int
+				if err := rows.Scan(&n.ID, &n.Label, &propsJSON, &protected); err == nil {
+					n.Properties = decodeKnowledgeGraphNodeProperties(kg.logger, "GetNeighbors", n.ID, propsJSON, protected)
+					n.Protected = protected != 0
+					nodes = append(nodes, n)
+				}
+			}
+		} else {
+			kg.logger.Warn("GetNeighbors: batch node query failed", "error", err)
 		}
 	}
 
@@ -1369,7 +1471,7 @@ func (kg *KnowledgeGraph) BulkMergeExtractedEntities(nodes []Node, edges []Edge)
 			INSERT INTO kg_nodes (id, label, properties, protected, updated_at)
 			VALUES (?, ?, ?, ?, ?)
 			ON CONFLICT(id) DO UPDATE SET
-				label = excluded.label,
+				label = CASE WHEN excluded.label = 'Unknown' THEN kg_nodes.label ELSE excluded.label END,
 				properties = excluded.properties,
 				protected = excluded.protected,
 				updated_at = excluded.updated_at
@@ -1904,6 +2006,7 @@ func (kg *KnowledgeGraph) GetSubgraph(centerNodeID string, maxDepth int) ([]Node
 		for _, id := range neighborIDs {
 			if !seen[id] && !visited[id] {
 				seen[id] = true
+				visited[id] = true
 				uniqueNeighborIDs = append(uniqueNeighborIDs, id)
 			}
 		}

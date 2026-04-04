@@ -195,7 +195,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 
 	// Phase 68: Start the daily maintenance loop
 	manifest := tools.NewManifest(s.Cfg.Directories.ToolsDir)
-	agent.StartMaintenanceLoop(serverCtx, s.Cfg, s.Logger, s.LLMClient, s.Vault, s.Registry, manifest, s.CronManager, s.LongTermMem, s.ShortTermMem, s.HistoryManager, s.KG, s.InventoryDB, s.MissionManagerV2)
+	agent.StartMaintenanceLoop(serverCtx, s.Cfg, s.Logger, s.LLMClient, s.Vault, s.Registry, manifest, s.CronManager, s.LongTermMem, s.ShortTermMem, s.HistoryManager, s.KG, s.InventoryDB, s.ContactsDB, s.MissionManagerV2)
 
 	s.CoAgentRegistry.StartCleanupLoop()
 
@@ -1662,3 +1662,4 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 
 	return s.runHTTP(mux, ttsServer, shutdownCh)
 }
+

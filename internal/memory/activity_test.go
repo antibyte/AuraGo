@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestActivityOverviewBuildsFromTurnsAndNotes(t *testing.T) {
@@ -25,7 +26,7 @@ func TestActivityOverviewBuildsFromTurnsAndNotes(t *testing.T) {
 		t.Fatalf("AddNote: %v", err)
 	}
 	if _, err := stm.InsertActivityTurn(ActivityTurn{
-		Date:            "2026-03-28",
+		Date:            time.Now().Format("2006-01-02"),
 		SessionID:       "default",
 		Channel:         "web_chat",
 		UserRelevant:    true,

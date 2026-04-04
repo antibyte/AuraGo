@@ -23,7 +23,7 @@ import (
 )
 
 // StartMaintenanceLoop spawns a background goroutine that runs daily at the configured time.
-func StartMaintenanceLoop(ctx context.Context, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, historyMgr *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManagerV2 *tools.MissionManagerV2) {
+func StartMaintenanceLoop(ctx context.Context, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, historyMgr *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, contactsDB *sql.DB, missionManagerV2 *tools.MissionManagerV2) {
 	if !cfg.Maintenance.Enabled {
 		logger.Info("Daily maintenance is disabled in config")
 		return
@@ -49,7 +49,7 @@ func StartMaintenanceLoop(ctx context.Context, cfg *config.Config, logger *slog.
 
 			select {
 			case <-time.After(sleepDuration):
-				runMaintenanceTask(cfg, logger, llmClient, vault, registry, manifest, cronManager, longTermMem, shortTermMem, historyMgr, kg, inventoryDB, missionManagerV2)
+				runMaintenanceTask(ctx, cfg, logger, llmClient, vault, registry, manifest, cronManager, longTermMem, shortTermMem, historyMgr, kg, inventoryDB, contactsDB, missionManagerV2)
 			case <-ctx.Done():
 				logger.Info("Maintenance loop shutting down")
 				return
@@ -74,7 +74,7 @@ func parseTime(t string) (int, int, error) {
 	return hour, minute, nil
 }
 
-func runMaintenanceTask(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, historyMgr *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManagerV2 *tools.MissionManagerV2) {
+func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, historyMgr *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, contactsDB *sql.DB, missionManagerV2 *tools.MissionManagerV2) {
 	logger.Info("[Maintenance] Waking up to perform daily tasks")
 
 	// Phase A5: Clean up old interaction patterns (>90 days)
@@ -160,6 +160,14 @@ func runMaintenanceTask(cfg *config.Config, logger *slog.Logger, client llm.Chat
 		if _, _, err := kg.CleanupStaleGraph(30); err != nil {
 			logger.Error("[Maintenance] Failed to clean up stale KG elements", "error", err)
 		}
+	}
+
+	// Sync contacts and core memory
+	if kg != nil {
+		SyncContactsToKnowledgeGraph(ctx, contactsDB, kg, logger)
+	}
+	if kg != nil && shortTermMem != nil {
+		SyncCoreMemoryToKnowledgeGraph(ctx, shortTermMem, kg, logger)
 	}
 
 	// Knowledge Graph: nightly batch entity extraction from recent conversations
@@ -1290,5 +1298,89 @@ func autoOptimizeMemory(cfg *config.Config, logger *slog.Logger, client llm.Chat
 			"low_removed", len(lowDocs),
 			"medium_compressed", len(mediumDocs),
 			"graph_nodes_removed", graphRemoved)
+	}
+}
+
+// SyncContactsToKnowledgeGraph synchronizes contacts to the knowledge graph.
+func SyncContactsToKnowledgeGraph(ctx context.Context, contactsDB *sql.DB, kg *memory.KnowledgeGraph, logger *slog.Logger) {
+	if contactsDB == nil || kg == nil {
+		return
+	}
+
+	logger.Info("[Maintenance] Syncing Contacts to Knowledge Graph")
+
+	rows, err := contactsDB.QueryContext(ctx, "SELECT id, name, email, phone, mobile, relationship FROM contacts")
+	if err != nil {
+		logger.Error("[Maintenance] Failed to query contacts for KG sync", "error", err)
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var id, name string
+		var email, phone, mobile, relationship sql.NullString
+		if err := rows.Scan(&id, &name, &email, &phone, &mobile, &relationship); err != nil {
+			logger.Error("[Maintenance] Failed to scan contact", "error", err)
+			continue
+		}
+
+		nodeID := "contact_" + id
+		props := map[string]string{
+			"type": "person",
+		}
+		if email.Valid && email.String != "" {
+			props["email"] = email.String
+		}
+		if phone.Valid && phone.String != "" {
+			props["phone"] = phone.String
+		}
+		if mobile.Valid && mobile.String != "" {
+			props["mobile"] = mobile.String
+		}
+		if relationship.Valid && relationship.String != "" {
+			props["relationship"] = relationship.String
+		}
+
+		err := kg.AddNode(nodeID, name, props)
+		if err != nil && !strings.Contains(err.Error(), "UNIQUE constraint failed") {
+			logger.Debug("[Maintenance] AddNode returned error", "nodeID", nodeID, "error", err)
+		}
+
+		if relationship.Valid && relationship.String != "" {
+			relSlug := strings.ToLower(strings.ReplaceAll(relationship.String, " ", "_"))
+			relNodeID := "org_" + relSlug
+
+			_ = kg.AddNode(relNodeID, relationship.String, map[string]string{"type": "organization"})
+			_ = kg.AddEdge(nodeID, relNodeID, "belongs_to", nil)
+		}
+	}
+}
+
+// SyncCoreMemoryToKnowledgeGraph synchronizes core memory facts to the knowledge graph.
+func SyncCoreMemoryToKnowledgeGraph(ctx context.Context, stm *memory.SQLiteMemory, kg *memory.KnowledgeGraph, logger *slog.Logger) {
+	if stm == nil || kg == nil {
+		return
+	}
+
+	logger.Info("[Maintenance] Syncing Core Memory to Knowledge Graph")
+
+	facts, err := stm.GetCoreMemoryFacts()
+	if err != nil {
+		logger.Error("[Maintenance] Failed to get core memory facts for KG sync", "error", err)
+		return
+	}
+
+	for _, fact := range facts {
+		nodeID := fmt.Sprintf("core_fact_%d", fact.ID)
+		label := fmt.Sprintf("Fact %d", fact.ID)
+		props := map[string]string{
+			"type":    "concept",
+			"content": fact.Fact,
+		}
+
+		err := kg.AddNode(nodeID, label, props)
+		if err != nil && !strings.Contains(err.Error(), "UNIQUE constraint failed") {
+			logger.Debug("[Maintenance] AddNode returned error", "nodeID", nodeID, "error", err)
+		}
 	}
 }
