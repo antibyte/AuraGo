@@ -111,8 +111,11 @@ func handleAppointmentByID(s *Server) http.HandlerFunc {
 			json.NewEncoder(w).Encode(map[string]string{"status": "updated"})
 
 		case http.MethodDelete:
-			// Remove from KG before deleting
+			// Remove from KG before deleting from DB to avoid orphaned nodes
 			a, _ := planner.GetAppointment(s.PlannerDB, id)
+			if a != nil && a.KGNodeID != "" && s.KG != nil {
+				_ = s.KG.DeleteNode(a.KGNodeID)
+			}
 			if err := planner.DeleteAppointment(s.PlannerDB, id); err != nil {
 				status := http.StatusInternalServerError
 				if strings.Contains(err.Error(), "not found") {
@@ -124,9 +127,6 @@ func handleAppointmentByID(s *Server) http.HandlerFunc {
 					jsonLoggedError(w, s.Logger, status, "Failed to delete appointment", "Failed to delete appointment", err, "id", id)
 				}
 				return
-			}
-			if a != nil && a.KGNodeID != "" && s.KG != nil {
-				_ = s.KG.DeleteNode(a.KGNodeID)
 			}
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(map[string]string{"status": "deleted"})
@@ -237,8 +237,11 @@ func handleTodoByID(s *Server) http.HandlerFunc {
 			json.NewEncoder(w).Encode(map[string]string{"status": "updated"})
 
 		case http.MethodDelete:
-			// Remove from KG before deleting
+			// Remove from KG before deleting from DB to avoid orphaned nodes
 			t, _ := planner.GetTodo(s.PlannerDB, id)
+			if t != nil && t.KGNodeID != "" && s.KG != nil {
+				_ = s.KG.DeleteNode(t.KGNodeID)
+			}
 			if err := planner.DeleteTodo(s.PlannerDB, id); err != nil {
 				status := http.StatusInternalServerError
 				if strings.Contains(err.Error(), "not found") {
@@ -250,9 +253,6 @@ func handleTodoByID(s *Server) http.HandlerFunc {
 					jsonLoggedError(w, s.Logger, status, "Failed to delete todo", "Failed to delete todo", err, "id", id)
 				}
 				return
-			}
-			if t != nil && t.KGNodeID != "" && s.KG != nil {
-				_ = s.KG.DeleteNode(t.KGNodeID)
 			}
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(map[string]string{"status": "deleted"})
@@ -294,7 +294,7 @@ func syncTodoToKG(kg *memory.KnowledgeGraph, db *sql.DB, id string, logger inter
 		return
 	}
 	props := map[string]string{
-		"type":     "concept",
+		"type":     "task",
 		"source":   "planner",
 		"priority": t.Priority,
 		"status":   t.Status,

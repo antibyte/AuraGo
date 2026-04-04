@@ -9,7 +9,7 @@ When an appointment has a notification time and `wake_agent` is enabled, the age
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `operation` | string | yes | `list`, `get`, `add`, `update`, `delete`, `complete`, `cancel` |
-| `id` | integer | for `get`, `update`, `delete`, `complete`, `cancel` | Appointment ID |
+| `id` | string | for `get`, `update`, `delete`, `complete`, `cancel` | Appointment ID (UUID) |
 | `title` | string | for `add` | Appointment title |
 | `description` | string | no | Optional description |
 | `date_time` | string | for `add` | ISO 8601 datetime (e.g. `2025-03-15T14:00:00Z`) |
@@ -50,11 +50,11 @@ When an appointment has a notification time and `wake_agent` is enabled, the age
 #### Complete an appointment
 
 ```json
-{"action": "manage_appointments", "operation": "complete", "id": 3}
+{"action": "manage_appointments", "operation": "complete", "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"}
 ```
 
 #### Delete an appointment
 
 ```json
-{"action": "manage_appointments", "operation": "delete", "id": 5}
+{"action": "manage_appointments", "operation": "delete", "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"}
 ```

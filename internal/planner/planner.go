@@ -95,6 +95,21 @@ func InitDB(dbPath string) (*sql.DB, error) {
 
 // ── Appointment CRUD ──
 
+// validAppointmentStatus returns true for allowed appointment status values.
+func validAppointmentStatus(s string) bool {
+	return s == "upcoming" || s == "completed" || s == "cancelled"
+}
+
+// validTodoPriority returns true for allowed todo priority values.
+func validTodoPriority(p string) bool {
+	return p == "low" || p == "medium" || p == "high"
+}
+
+// validTodoStatus returns true for allowed todo status values.
+func validTodoStatus(s string) bool {
+	return s == "open" || s == "in_progress" || s == "done"
+}
+
 // CreateAppointment adds a new appointment and returns its ID.
 func CreateAppointment(db *sql.DB, a Appointment) (string, error) {
 	if a.Title == "" {
@@ -109,6 +124,9 @@ func CreateAppointment(db *sql.DB, a Appointment) (string, error) {
 	a.UpdatedAt = now
 	if a.Status == "" {
 		a.Status = "upcoming"
+	}
+	if !validAppointmentStatus(a.Status) {
+		return "", fmt.Errorf("invalid status %q: must be upcoming, completed, or cancelled", a.Status)
 	}
 	a.KGNodeID = "appointment_" + a.ID
 
@@ -129,6 +147,9 @@ func CreateAppointment(db *sql.DB, a Appointment) (string, error) {
 func UpdateAppointment(db *sql.DB, a Appointment) error {
 	if a.ID == "" {
 		return fmt.Errorf("id is required")
+	}
+	if !validAppointmentStatus(a.Status) {
+		return fmt.Errorf("invalid status %q: must be upcoming, completed, or cancelled", a.Status)
 	}
 	a.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 
@@ -216,13 +237,15 @@ func ListAppointments(db *sql.DB, query, status string) ([]Appointment, error) {
 }
 
 // GetDueNotifications returns appointments due for notification that have not been notified yet.
+// Limited to 50 per tick to avoid burst load after downtime.
 func GetDueNotifications(db *sql.DB) ([]Appointment, error) {
 	now := time.Now().UTC().Format(time.RFC3339)
 	rows, err := db.Query(
 		`SELECT id, title, description, date_time, notification_at, wake_agent, agent_instruction, notified, status, kg_node_id, created_at, updated_at
 		 FROM appointments
 		 WHERE notification_at != '' AND notification_at <= ? AND notified = 0 AND wake_agent = 1 AND status = 'upcoming'
-		 ORDER BY notification_at ASC`, now)
+		 ORDER BY notification_at ASC
+		 LIMIT 50`, now)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query due notifications: %w", err)
 	}
@@ -266,6 +289,12 @@ func CreateTodo(db *sql.DB, t Todo) (string, error) {
 	if t.Priority == "" {
 		t.Priority = "medium"
 	}
+	if !validTodoStatus(t.Status) {
+		return "", fmt.Errorf("invalid status %q: must be open, in_progress, or done", t.Status)
+	}
+	if !validTodoPriority(t.Priority) {
+		return "", fmt.Errorf("invalid priority %q: must be low, medium, or high", t.Priority)
+	}
 	t.KGNodeID = "todo_" + t.ID
 
 	_, err := db.Exec(
@@ -283,6 +312,12 @@ func CreateTodo(db *sql.DB, t Todo) (string, error) {
 func UpdateTodo(db *sql.DB, t Todo) error {
 	if t.ID == "" {
 		return fmt.Errorf("id is required")
+	}
+	if !validTodoStatus(t.Status) {
+		return fmt.Errorf("invalid status %q: must be open, in_progress, or done", t.Status)
+	}
+	if !validTodoPriority(t.Priority) {
+		return fmt.Errorf("invalid priority %q: must be low, medium, or high", t.Priority)
 	}
 	t.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 

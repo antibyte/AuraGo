@@ -23,7 +23,9 @@ async function loadAppointments() {
     if (q) url += 'q=' + encodeURIComponent(q) + '&';
     if (status) url += 'status=' + encodeURIComponent(status);
     try {
-        const resp = await fetch(url).then(r => r.json());
+        const r = await fetch(url);
+        if (!r.ok) throw new Error(r.status + ' ' + r.statusText);
+        const resp = await r.json();
         allAppointments = resp || [];
         renderAppointments();
     } catch (e) {

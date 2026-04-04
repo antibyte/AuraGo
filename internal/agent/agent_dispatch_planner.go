@@ -2,13 +2,22 @@ package agent
 
 import (
 	"database/sql"
-	"fmt"
 	"log/slog"
 	"strings"
 
 	"aurago/internal/memory"
 	"aurago/internal/planner"
 )
+
+// plannerError returns a safe JSON error string, properly escaping the message.
+func plannerError(err error) string {
+	return "Tool Output: " + planner.ToJSON(map[string]string{"status": "error", "message": err.Error()})
+}
+
+// plannerErrorMsg returns a safe JSON error string from a plain message.
+func plannerErrorMsg(msg string) string {
+	return "Tool Output: " + planner.ToJSON(map[string]string{"status": "error", "message": msg})
+}
 
 // dispatchManageAppointments handles the manage_appointments tool call.
 func dispatchManageAppointments(tc ToolCall, db *sql.DB, kg *memory.KnowledgeGraph, logger *slog.Logger) string {
@@ -27,7 +36,7 @@ func dispatchManageAppointments(tc ToolCall, db *sql.DB, kg *memory.KnowledgeGra
 		status, _ := tc.Params["status"].(string)
 		list, err := planner.ListAppointments(db, query, status)
 		if err != nil {
-			return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
+			return plannerError(err)
 		}
 		return "Tool Output: " + planner.ToJSON(map[string]interface{}{"status": "success", "appointments": list, "count": len(list)})
 
@@ -41,7 +50,7 @@ func dispatchManageAppointments(tc ToolCall, db *sql.DB, kg *memory.KnowledgeGra
 		}
 		a, err := planner.GetAppointment(db, id)
 		if err != nil {
-			return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
+			return plannerError(err)
 		}
 		return "Tool Output: " + planner.ToJSON(map[string]interface{}{"status": "success", "appointment": a})
 
@@ -60,10 +69,10 @@ func dispatchManageAppointments(tc ToolCall, db *sql.DB, kg *memory.KnowledgeGra
 		}
 		id, err := planner.CreateAppointment(db, a)
 		if err != nil {
-			return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
+			return plannerError(err)
 		}
 		syncAppointmentToKG(db, id, kg, logger)
-		return fmt.Sprintf(`Tool Output: {"status":"success","message":"Appointment created","id":"%s"}`, id)
+		return "Tool Output: " + planner.ToJSON(map[string]interface{}{"status": "success", "message": "Appointment created", "id": id})
 
 	case "update":
 		id, _ := tc.Params["id"].(string)
@@ -75,7 +84,7 @@ func dispatchManageAppointments(tc ToolCall, db *sql.DB, kg *memory.KnowledgeGra
 		}
 		existing, err := planner.GetAppointment(db, id)
 		if err != nil {
-			return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
+			return plannerError(err)
 		}
 		if v := strParam(tc.Params, "title"); v != "" {
 			existing.Title = v
@@ -100,10 +109,10 @@ func dispatchManageAppointments(tc ToolCall, db *sql.DB, kg *memory.KnowledgeGra
 			existing.Status = v
 		}
 		if err := planner.UpdateAppointment(db, *existing); err != nil {
-			return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
+			return plannerError(err)
 		}
 		syncAppointmentToKG(db, id, kg, logger)
-		return fmt.Sprintf(`Tool Output: {"status":"success","message":"Appointment updated","id":"%s"}`, id)
+		return "Tool Output: " + planner.ToJSON(map[string]interface{}{"status": "success", "message": "Appointment updated", "id": id})
 
 	case "complete":
 		id, _ := tc.Params["id"].(string)
@@ -115,14 +124,14 @@ func dispatchManageAppointments(tc ToolCall, db *sql.DB, kg *memory.KnowledgeGra
 		}
 		existing, err := planner.GetAppointment(db, id)
 		if err != nil {
-			return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
+			return plannerError(err)
 		}
 		existing.Status = "completed"
 		if err := planner.UpdateAppointment(db, *existing); err != nil {
-			return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
+			return plannerError(err)
 		}
 		syncAppointmentToKG(db, id, kg, logger)
-		return fmt.Sprintf(`Tool Output: {"status":"success","message":"Appointment marked as completed","id":"%s"}`, id)
+		return "Tool Output: " + planner.ToJSON(map[string]interface{}{"status": "success", "message": "Appointment marked as completed", "id": id})
 
 	case "cancel":
 		id, _ := tc.Params["id"].(string)
@@ -134,14 +143,14 @@ func dispatchManageAppointments(tc ToolCall, db *sql.DB, kg *memory.KnowledgeGra
 		}
 		existing, err := planner.GetAppointment(db, id)
 		if err != nil {
-			return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
+			return plannerError(err)
 		}
 		existing.Status = "cancelled"
 		if err := planner.UpdateAppointment(db, *existing); err != nil {
-			return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
+			return plannerError(err)
 		}
 		syncAppointmentToKG(db, id, kg, logger)
-		return fmt.Sprintf(`Tool Output: {"status":"success","message":"Appointment cancelled","id":"%s"}`, id)
+		return "Tool Output: " + planner.ToJSON(map[string]interface{}{"status": "success", "message": "Appointment cancelled", "id": id})
 
 	case "delete":
 		id, _ := tc.Params["id"].(string)
@@ -153,12 +162,12 @@ func dispatchManageAppointments(tc ToolCall, db *sql.DB, kg *memory.KnowledgeGra
 		}
 		nodeID := "appointment_" + id
 		if err := planner.DeleteAppointment(db, id); err != nil {
-			return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
+			return plannerError(err)
 		}
 		if kg != nil {
 			_ = kg.DeleteNode(nodeID)
 		}
-		return fmt.Sprintf(`Tool Output: {"status":"success","message":"Appointment deleted","id":"%s"}`, id)
+		return "Tool Output: " + planner.ToJSON(map[string]interface{}{"status": "success", "message": "Appointment deleted", "id": id})
 
 	default:
 		return `Tool Output: {"status":"error","message":"Unknown operation. Use: list, get, add, update, delete, complete, cancel"}`
@@ -182,7 +191,7 @@ func dispatchManageTodos(tc ToolCall, db *sql.DB, kg *memory.KnowledgeGraph, log
 		status, _ := tc.Params["status"].(string)
 		list, err := planner.ListTodos(db, query, status)
 		if err != nil {
-			return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
+			return plannerError(err)
 		}
 		return "Tool Output: " + planner.ToJSON(map[string]interface{}{"status": "success", "todos": list, "count": len(list)})
 
@@ -196,7 +205,7 @@ func dispatchManageTodos(tc ToolCall, db *sql.DB, kg *memory.KnowledgeGraph, log
 		}
 		t, err := planner.GetTodo(db, id)
 		if err != nil {
-			return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
+			return plannerError(err)
 		}
 		return "Tool Output: " + planner.ToJSON(map[string]interface{}{"status": "success", "todo": t})
 
@@ -214,10 +223,10 @@ func dispatchManageTodos(tc ToolCall, db *sql.DB, kg *memory.KnowledgeGraph, log
 		}
 		id, err := planner.CreateTodo(db, t)
 		if err != nil {
-			return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
+			return plannerError(err)
 		}
 		syncTodoToKG(db, id, kg, logger)
-		return fmt.Sprintf(`Tool Output: {"status":"success","message":"Todo created","id":"%s"}`, id)
+		return "Tool Output: " + planner.ToJSON(map[string]interface{}{"status": "success", "message": "Todo created", "id": id})
 
 	case "update":
 		id, _ := tc.Params["id"].(string)
@@ -229,7 +238,7 @@ func dispatchManageTodos(tc ToolCall, db *sql.DB, kg *memory.KnowledgeGraph, log
 		}
 		existing, err := planner.GetTodo(db, id)
 		if err != nil {
-			return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
+			return plannerError(err)
 		}
 		if v := strParam(tc.Params, "title"); v != "" {
 			existing.Title = v
@@ -247,10 +256,10 @@ func dispatchManageTodos(tc ToolCall, db *sql.DB, kg *memory.KnowledgeGraph, log
 			existing.DueDate = v
 		}
 		if err := planner.UpdateTodo(db, *existing); err != nil {
-			return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
+			return plannerError(err)
 		}
 		syncTodoToKG(db, id, kg, logger)
-		return fmt.Sprintf(`Tool Output: {"status":"success","message":"Todo updated","id":"%s"}`, id)
+		return "Tool Output: " + planner.ToJSON(map[string]interface{}{"status": "success", "message": "Todo updated", "id": id})
 
 	case "set_status":
 		id, _ := tc.Params["id"].(string)
@@ -266,14 +275,14 @@ func dispatchManageTodos(tc ToolCall, db *sql.DB, kg *memory.KnowledgeGraph, log
 		}
 		existing, err := planner.GetTodo(db, id)
 		if err != nil {
-			return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
+			return plannerError(err)
 		}
 		existing.Status = status
 		if err := planner.UpdateTodo(db, *existing); err != nil {
-			return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
+			return plannerError(err)
 		}
 		syncTodoToKG(db, id, kg, logger)
-		return fmt.Sprintf(`Tool Output: {"status":"success","message":"Todo status updated to %s","id":"%s"}`, status, id)
+		return "Tool Output: " + planner.ToJSON(map[string]interface{}{"status": "success", "message": "Todo status updated to " + status, "id": id})
 
 	case "delete":
 		id, _ := tc.Params["id"].(string)
@@ -285,12 +294,12 @@ func dispatchManageTodos(tc ToolCall, db *sql.DB, kg *memory.KnowledgeGraph, log
 		}
 		nodeID := "todo_" + id
 		if err := planner.DeleteTodo(db, id); err != nil {
-			return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
+			return plannerError(err)
 		}
 		if kg != nil {
 			_ = kg.DeleteNode(nodeID)
 		}
-		return fmt.Sprintf(`Tool Output: {"status":"success","message":"Todo deleted","id":"%s"}`, id)
+		return "Tool Output: " + planner.ToJSON(map[string]interface{}{"status": "success", "message": "Todo deleted", "id": id})
 
 	default:
 		return `Tool Output: {"status":"error","message":"Unknown operation. Use: list, get, add, update, delete, set_status"}`

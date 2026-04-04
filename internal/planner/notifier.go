@@ -90,14 +90,14 @@ func (n *Notifier) checkDue() {
 			defer func() {
 				if r := recover(); r != nil {
 					n.logger.Error("[Planner] Panic in appointment notification executor", "error", r, "appointment_id", apt.ID)
+					return
 				}
 			}()
 			executor(p)
+			if err := MarkNotified(n.db, apt.ID); err != nil {
+				n.logger.Error("[Planner] Failed to mark appointment as notified", "error", err, "id", apt.ID)
+			}
 		}(a, prompt)
-
-		if err := MarkNotified(n.db, a.ID); err != nil {
-			n.logger.Error("[Planner] Failed to mark appointment as notified", "error", err, "id", a.ID)
-		}
 	}
 }
 

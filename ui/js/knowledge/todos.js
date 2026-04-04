@@ -23,7 +23,9 @@ async function loadTodos() {
     if (q) url += 'q=' + encodeURIComponent(q) + '&';
     if (status) url += 'status=' + encodeURIComponent(status);
     try {
-        const resp = await fetch(url).then(r => r.json());
+        const r = await fetch(url);
+        if (!r.ok) throw new Error(r.status + ' ' + r.statusText);
+        const resp = await r.json();
         allTodos = resp || [];
         renderTodos();
     } catch (e) {
@@ -118,6 +120,10 @@ async function saveTodo() {
 
     if (!data.title) {
         showToast(t('knowledge.todos_title_required'), 'error');
+        return;
+    }
+    if (data.priority && !['low', 'medium', 'high'].includes(data.priority)) {
+        showToast(t('knowledge.todos_invalid_priority') || 'Invalid priority value', 'error');
         return;
     }
 

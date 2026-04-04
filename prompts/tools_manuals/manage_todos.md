@@ -7,7 +7,7 @@ Create, read, update, and delete to-do items. Todos are stored in the planner da
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `operation` | string | yes | `list`, `get`, `add`, `update`, `delete`, `set_status` |
-| `id` | integer | for `get`, `update`, `delete`, `set_status` | Todo ID |
+| `id` | string | for `get`, `update`, `delete`, `set_status` | Todo ID (UUID) |
 | `title` | string | for `add` | Todo title |
 | `description` | string | no | Optional description |
 | `priority` | string | no | `low`, `medium`, `high` (default: `medium`) |
@@ -48,17 +48,17 @@ Create, read, update, and delete to-do items. Todos are stored in the planner da
 #### Mark a todo as in progress
 
 ```json
-{"action": "manage_todos", "operation": "set_status", "id": 2, "status": "in_progress"}
+{"action": "manage_todos", "operation": "set_status", "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890", "status": "in_progress"}
 ```
 
 #### Complete a todo
 
 ```json
-{"action": "manage_todos", "operation": "set_status", "id": 2, "status": "done"}
+{"action": "manage_todos", "operation": "set_status", "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890", "status": "done"}
 ```
 
 #### Delete a todo
 
 ```json
-{"action": "manage_todos", "operation": "delete", "id": 4}
+{"action": "manage_todos", "operation": "delete", "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"}
 ```
