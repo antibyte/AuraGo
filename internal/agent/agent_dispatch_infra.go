@@ -35,7 +35,25 @@ func dispatchInfra(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 	remoteHub := dc.RemoteHub
 	coAgentRegistry := dc.CoAgentRegistry
 	budgetTracker := dc.BudgetTracker
+	sessionID := dc.SessionID
 	handled := true
+
+	updateStallGuardCoAgentState := func() {
+		if coAgentRegistry == nil || sessionID == "" {
+			return
+		}
+		list := coAgentRegistry.List()
+		hasActive := false
+		for _, info := range list {
+			if state, ok := info["state"].(string); ok {
+				if state == string(CoAgentRunning) || state == string(CoAgentQueued) {
+					hasActive = true
+					break
+				}
+			}
+		}
+		StallGuardSetWaitingForCoAgents(sessionID, hasActive)
+	}
 
 	result := func() string {
 		switch tc.Action {
@@ -74,6 +92,7 @@ func dispatchInfra(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 				if state == CoAgentQueued {
 					message = "Co-Agent queued because all slots are busy. Use operation 'list' to monitor queue position."
 				}
+				updateStallGuardCoAgentState()
 				return fmt.Sprintf(`Tool Output: {"status": "ok", "co_agent_id": "%s", "state": "%s", "available_slots": %d, "message": "%s"}`, id, state, slots, message)
 
 			case "spawn_specialist":
@@ -101,6 +120,7 @@ func dispatchInfra(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 				if state == CoAgentQueued {
 					message = fmt.Sprintf("Specialist '%s' queued because all slots are busy. Use 'list' to monitor queue position.", specialist)
 				}
+				updateStallGuardCoAgentState()
 				return fmt.Sprintf(`Tool Output: {"status": "ok", "co_agent_id": "%s", "specialist": "%s", "state": "%s", "available_slots": %d, "message": "%s"}`, id, specialist, state, slots, message)
 
 			case "list", "status":
@@ -137,6 +157,7 @@ func dispatchInfra(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 					status["message"] = "Co-Agent was cancelled."
 				}
 				out, _ := json.Marshal(status)
+				updateStallGuardCoAgentState()
 				return "Tool Output: " + string(out)
 
 			case "stop", "cancel", "kill":
@@ -147,10 +168,12 @@ func dispatchInfra(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 				if err := coAgentRegistry.Stop(coID); err != nil {
 					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
 				}
+				updateStallGuardCoAgentState()
 				return fmt.Sprintf(`Tool Output: {"status": "ok", "message": "Co-Agent '%s' stopped."}`, coID)
 
 			case "stop_all", "cancel_all":
 				n := coAgentRegistry.StopAll()
+				updateStallGuardCoAgentState()
 				return fmt.Sprintf(`Tool Output: {"status": "ok", "message": "Stopped %d co-agent(s)."}`, n)
 
 			default:

@@ -1212,7 +1212,13 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		var promptTokens, completionTokens, totalTokens int
 
 		if stream {
-			stm, streamErr := llm.ExecuteStreamWithRetry(llmCtx, client, req, currentLogger, broker)
+			var stm *openai.ChatCompletionStream
+			var streamErr error
+			if emptyRetried {
+				stm, streamErr = llm.ExecuteStreamWithCustomRetry(llmCtx, client, req, currentLogger, broker, []time.Duration{5 * time.Second}, 5*time.Second)
+			} else {
+				stm, streamErr = llm.ExecuteStreamWithRetry(llmCtx, client, req, currentLogger, broker)
+			}
 			if streamErr != nil {
 				cancelResp()
 				telemetryScope = refreshTelemetryScope(telemetryScope, client, nil)
@@ -1305,7 +1311,11 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				},
 			}
 		} else {
-			resp, err = llm.ExecuteWithRetry(llmCtx, client, req, currentLogger, broker)
+			if emptyRetried {
+				resp, err = llm.ExecuteWithCustomRetry(llmCtx, client, req, currentLogger, broker, []time.Duration{5 * time.Second}, 5*time.Second)
+			} else {
+				resp, err = llm.ExecuteWithRetry(llmCtx, client, req, currentLogger, broker)
+			}
 			if err != nil {
 				cancelResp()
 				telemetryScope = refreshTelemetryScope(telemetryScope, client, nil)

@@ -195,3 +195,61 @@ func TestStallGuard_Stop(t *testing.T) {
 		t.Fatal("expected all sessions to be cleared after stop")
 	}
 }
+
+func TestStallGuard_CoAgentWaitPausesTimer(t *testing.T) {
+	var triggered atomic.Int32
+	sg := &StallGuard{
+		config: StallGuardConfig{
+			Enabled:          true,
+			IdleTimeoutSecs:  1,
+			MaxContinuations: 3,
+			MinToolCalls:     1,
+		},
+		sessions: make(map[string]*stallGuardSession),
+		continueFn: func(sessionID string, continuationPrompt string) error {
+			triggered.Add(1)
+			return nil
+		},
+		stopCh: make(chan struct{}),
+	}
+
+	sg.recordTurnComplete("test-session", 2)
+	sg.setWaitingForCoAgents("test-session", true)
+
+	time.Sleep(1500 * time.Millisecond)
+	if triggered.Load() != 0 {
+		t.Fatalf("expected 0 triggers while waiting for co-agents, got %d", triggered.Load())
+	}
+
+	sg.setWaitingForCoAgents("test-session", false)
+	time.Sleep(1500 * time.Millisecond)
+	if triggered.Load() != 1 {
+		t.Fatalf("expected 1 trigger after co-agent wait cleared, got %d", triggered.Load())
+	}
+}
+
+func TestStallGuard_CoAgentWaitSkipsRecordTurn(t *testing.T) {
+	var triggered atomic.Int32
+	sg := &StallGuard{
+		config: StallGuardConfig{
+			Enabled:          true,
+			IdleTimeoutSecs:  1,
+			MaxContinuations: 3,
+			MinToolCalls:     1,
+		},
+		sessions: make(map[string]*stallGuardSession),
+		continueFn: func(sessionID string, continuationPrompt string) error {
+			triggered.Add(1)
+			return nil
+		},
+		stopCh: make(chan struct{}),
+	}
+
+	sg.setWaitingForCoAgents("test-session", true)
+	sg.recordTurnComplete("test-session", 2)
+
+	time.Sleep(1500 * time.Millisecond)
+	if triggered.Load() != 0 {
+		t.Fatalf("expected 0 triggers when co-agent wait is set before turn, got %d", triggered.Load())
+	}
+}

@@ -17,10 +17,11 @@ type StallGuardConfig struct {
 type StallGuardContinuationFunc func(sessionID string, continuationPrompt string) error
 
 type stallGuardSession struct {
-	toolCallCount     int
-	continuationCount int
-	timer             *time.Timer
-	lastActivity      time.Time
+	toolCallCount      int
+	continuationCount  int
+	timer              *time.Timer
+	lastActivity       time.Time
+	waitingForCoAgents bool
 }
 
 type StallGuard struct {
@@ -99,6 +100,31 @@ func StallGuardReset(sessionID string) {
 	globalStallGuard.reset(sessionID)
 }
 
+func StallGuardSetWaitingForCoAgents(sessionID string, waiting bool) {
+	if globalStallGuard == nil || !globalStallGuard.config.Enabled {
+		return
+	}
+	globalStallGuard.setWaitingForCoAgents(sessionID, waiting)
+}
+
+func (sg *StallGuard) logDebug(msg string, args ...interface{}) {
+	if sg.logger != nil {
+		sg.logger.Debug(msg, args...)
+	}
+}
+
+func (sg *StallGuard) logInfo(msg string, args ...interface{}) {
+	if sg.logger != nil {
+		sg.logger.Info(msg, args...)
+	}
+}
+
+func (sg *StallGuard) logError(msg string, args ...interface{}) {
+	if sg.logger != nil {
+		sg.logger.Error(msg, args...)
+	}
+}
+
 func (sg *StallGuard) recordTurnComplete(sessionID string, toolCallCount int) {
 	if toolCallCount < sg.config.MinToolCalls {
 		return
@@ -121,12 +147,18 @@ func (sg *StallGuard) recordTurnComplete(sessionID string, toolCallCount int) {
 	}
 
 	sess := sg.sessions[sessionID]
+
+	if sess.waitingForCoAgents {
+		sg.logDebug("[StallGuard] Timer skipped — waiting for co-agents", "session", sessionID, "tool_calls", toolCallCount)
+		return
+	}
+
 	timeout := time.Duration(sg.config.IdleTimeoutSecs) * time.Second
 	sess.timer = time.AfterFunc(timeout, func() {
 		sg.triggerContinuation(sessionID)
 	})
 
-	sg.logger.Debug("[StallGuard] Timer started", "session", sessionID, "tool_calls", toolCallCount, "timeout", timeout)
+	sg.logDebug("[StallGuard] Timer started", "session", sessionID, "tool_calls", toolCallCount, "timeout", timeout)
 }
 
 func (sg *StallGuard) recordUserMessage(sessionID string) {
@@ -139,7 +171,7 @@ func (sg *StallGuard) recordUserMessage(sessionID string) {
 		}
 		sess.continuationCount = 0
 		sess.lastActivity = time.Now()
-		sg.logger.Debug("[StallGuard] Timer cancelled by user message", "session", sessionID)
+		sg.logDebug("[StallGuard] Timer cancelled by user message", "session", sessionID)
 	}
 }
 
@@ -155,6 +187,42 @@ func (sg *StallGuard) reset(sessionID string) {
 	}
 }
 
+func (sg *StallGuard) setWaitingForCoAgents(sessionID string, waiting bool) {
+	sg.mu.Lock()
+	defer sg.mu.Unlock()
+
+	sess, exists := sg.sessions[sessionID]
+	if !exists {
+		if waiting {
+			sg.sessions[sessionID] = &stallGuardSession{
+				waitingForCoAgents: true,
+				lastActivity:       time.Now(),
+			}
+			sg.logDebug("[StallGuard] Co-agent wait flag set", "session", sessionID, "waiting", true)
+		}
+		return
+	}
+
+	if sess.waitingForCoAgents == waiting {
+		return
+	}
+
+	sess.waitingForCoAgents = waiting
+	sg.logDebug("[StallGuard] Co-agent wait flag changed", "session", sessionID, "waiting", waiting)
+
+	if waiting && sess.timer != nil {
+		sess.timer.Stop()
+		sess.timer = nil
+		sg.logDebug("[StallGuard] Timer paused due to co-agent wait", "session", sessionID)
+	} else if !waiting && sess.continuationCount < sg.config.MaxContinuations {
+		timeout := time.Duration(sg.config.IdleTimeoutSecs) * time.Second
+		sess.timer = time.AfterFunc(timeout, func() {
+			sg.triggerContinuation(sessionID)
+		})
+		sg.logDebug("[StallGuard] Timer resumed after co-agent wait", "session", sessionID, "timeout", timeout)
+	}
+}
+
 func (sg *StallGuard) triggerContinuation(sessionID string) {
 	sg.mu.Lock()
 	sess, exists := sg.sessions[sessionID]
@@ -164,8 +232,14 @@ func (sg *StallGuard) triggerContinuation(sessionID string) {
 	}
 
 	if sess.continuationCount >= sg.config.MaxContinuations {
-		sg.logger.Info("[StallGuard] Max continuations reached, stopping", "session", sessionID, "count", sess.continuationCount)
+		sg.logInfo("[StallGuard] Max continuations reached, stopping", "session", sessionID, "count", sess.continuationCount)
 		delete(sg.sessions, sessionID)
+		sg.mu.Unlock()
+		return
+	}
+
+	if sess.waitingForCoAgents {
+		sg.logDebug("[StallGuard] Skipping continuation — waiting for co-agents", "session", sessionID)
 		sg.mu.Unlock()
 		return
 	}
@@ -176,7 +250,7 @@ func (sg *StallGuard) triggerContinuation(sessionID string) {
 	sess.lastActivity = time.Now()
 	sg.mu.Unlock()
 
-	sg.logger.Info("[StallGuard] Triggering continuation check", "session", sessionID, "continuation", count, "previous_tool_calls", toolCalls)
+	sg.logInfo("[StallGuard] Triggering continuation check", "session", sessionID, "continuation", count, "previous_tool_calls", toolCalls)
 
 	prompt := fmt.Sprintf(
 		"[SYSTEM: STALL GUARD - CONTINUATION CHECK %d/%d]\n"+
@@ -194,7 +268,7 @@ func (sg *StallGuard) triggerContinuation(sessionID string) {
 
 	if sg.continueFn != nil {
 		if err := sg.continueFn(sessionID, prompt); err != nil {
-			sg.logger.Error("[StallGuard] Continuation failed", "session", sessionID, "error", err)
+			sg.logError("[StallGuard] Continuation failed", "session", sessionID, "error", err)
 		}
 	}
 
@@ -206,7 +280,7 @@ func (sg *StallGuard) triggerContinuation(sessionID string) {
 			sg.triggerContinuation(sessionID)
 		})
 	} else if still {
-		sg.logger.Info("[StallGuard] All continuation attempts exhausted", "session", sessionID)
+		sg.logInfo("[StallGuard] All continuation attempts exhausted", "session", sessionID)
 		delete(sg.sessions, sessionID)
 	}
 }
