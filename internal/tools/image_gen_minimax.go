@@ -20,7 +20,7 @@ func generateMiniMax(cfg ImageGenConfig, prompt string, opts ImageGenOptions) ([
 	if baseURL == "" {
 		baseURL = "https://api.minimax.io/v1"
 	}
-	url := strings.TrimRight(baseURL, "/") + "/image_generation"
+	url := strings.TrimRight(baseURL, "/") + "/image/generation"
 
 	body := map[string]interface{}{
 		"model":           model,
