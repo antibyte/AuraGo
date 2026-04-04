@@ -702,10 +702,17 @@ function appendMessage(role, text) {
                     }
                 });
 
+                // Strip <external_data> wrapper tags — keep their inner content.
+                // These are security wrappers the LLM occasionally mixes into its own output.
+                const contentStripped = displayContent.replace(
+                    /<external_data>([\s\S]*?)<\/external_data>/gi,
+                    (match, inner) => inner.trim()
+                );
+
                 // Extract <thinking>/<think> blocks and replace with block-level placeholders
                 // so markdown-it doesn't wrap them in <p> tags.
                 const thinkingBlocks = [];
-                const contentForRender = displayContent.replace(
+                const contentForRender = contentStripped.replace(
                     /<(thinking|think)>([\s\S]*?)<\/\1>/gi,
                     (match, _tag, inner) => {
                         const idx = thinkingBlocks.length;

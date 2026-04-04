@@ -21,6 +21,12 @@ var (
 	// Matches <thinking>…</thinking> and <think>…</think> blocks (reasoning traces from some LLMs).
 	thinkingTagRe = regexp.MustCompile(`(?is)<(thinking|think)>[\s\S]*?</(thinking|think)>`)
 
+	// Matches <external_data>…</external_data> blocks.
+	// These are security wrappers injected by the supervisor around untrusted content.
+	// If the LLM erroneously echoes them in its own response text they must be stripped
+	// so the wrapper syntax never leaks into the chat UI or channel outputs.
+	externalDataTagRe = regexp.MustCompile(`(?is)<external_data>([\s\S]*?)</external_data>`)
+
 	sensitiveMu     sync.RWMutex
 	sensitiveValues []string
 )
@@ -182,7 +188,11 @@ func redactKeyValueMatch(match string) string {
 // StripThinkingTags removes <thinking>…</thinking> (and <think>…</think>) blocks from text.
 // These reasoning traces are emitted by some LLMs and must be removed before sending
 // responses through channels that cannot render collapsible UI (Telegram, Discord, etc.).
+// It also strips any <external_data>…</external_data> wrappers the LLM may erroneously
+// include in its own output — their content is kept, only the wrapper tags are removed.
 func StripThinkingTags(text string) string {
 	stripped := thinkingTagRe.ReplaceAllString(text, "")
+	// Unwrap <external_data> blocks: keep inner content, remove the wrapper tags.
+	stripped = externalDataTagRe.ReplaceAllString(stripped, "$1")
 	return strings.TrimSpace(stripped)
 }
