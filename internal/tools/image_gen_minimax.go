@@ -18,7 +18,7 @@ func generateMiniMax(cfg ImageGenConfig, prompt string, opts ImageGenOptions) ([
 
 	baseURL := cfg.BaseURL
 	if baseURL == "" {
-		baseURL = "https://api.minimax.io/v1"
+		baseURL = "https://api.minimax.chat/v1"
 	}
 	url := strings.TrimRight(baseURL, "/") + "/image_generation"
 
