@@ -234,7 +234,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 			}
 			go agent.Loopback(runCfg, prompt, agent.NoopBroker{})
 		})
-		plannerNotifier.Start(serverCtx)
+		go plannerNotifier.Start(serverCtx)
 		s.Logger.Info("Planner notifier started")
 	}
 
