@@ -462,49 +462,6 @@ func Start(cfg *config.Config, logger *slog.Logger, accessLogger *slog.Logger, l
 	// Initialize runtime debug mode from config
 	agent.SetDebugMode(cfg.Agent.DebugMode)
 
-	// Initialize Stall Guard — auto-continues when agent stops prematurely during multi-step work
-	if cfg.Agent.StallGuard.Enabled {
-		agent.InitStallGuard(agent.StallGuardConfig{
-			Enabled:          true,
-			IdleTimeoutSecs:  cfg.Agent.StallGuard.IdleTimeoutSecs,
-			MaxContinuations: cfg.Agent.StallGuard.MaxContinuations,
-			MinToolCalls:     cfg.Agent.StallGuard.MinToolCalls,
-		}, func(sessionID string, continuationPrompt string) error {
-			runCfg := agent.RunConfig{
-				Config:             cfg,
-				Logger:             logger,
-				LLMClient:          llmClient,
-				ShortTermMem:       shortTermMem,
-				HistoryManager:     historyManager,
-				LongTermMem:        longTermMem,
-				Vault:              vault,
-				Registry:           registry,
-				Manifest:           tools.NewManifest(cfg.Directories.ToolsDir),
-				CronManager:        cronManager,
-				KG:                 kg,
-				InventoryDB:        inventoryDB,
-				InvasionDB:         invasionDB,
-				CheatsheetDB:       cheatsheetDB,
-				ImageGalleryDB:     imageGalleryDB,
-				MediaRegistryDB:    mediaRegistryDB,
-				HomepageRegistryDB: homepageRegistryDB,
-				ContactsDB:         contactsDB,
-				PlannerDB:          plannerDB,
-				SQLConnectionsDB:   sqlConnectionsDB,
-				SQLConnectionPool:  sqlConnectionPool,
-				RemoteHub:          s.RemoteHub,
-				MissionManagerV2:   s.MissionManagerV2,
-				CoAgentRegistry:    s.CoAgentRegistry,
-				BudgetTracker:      s.BudgetTracker,
-				LLMGuardian:        s.LLMGuardian,
-				SessionID:          sessionID,
-				MessageSource:      "stall_guard",
-			}
-			go agent.Loopback(runCfg, continuationPrompt, s.SSE)
-			return nil
-		}, logger)
-	}
-
 	// Initialize Token Manager
 	tokenFilePath := filepath.Join(cfg.Directories.DataDir, "tokens.json")
 	tm, tmErr := security.NewTokenManager(vault, tokenFilePath)
@@ -952,8 +909,6 @@ func (s *Server) serveWithShutdown(server, redirectServer, ttsServer *http.Serve
 		tools.ShutdownMCPManager()
 		// Shut down Sandbox
 		tools.ShutdownSandboxManager()
-		// Shut down Stall Guard
-		agent.StopStallGuard()
 		// Shut down Cloudflare Tunnel (Docker containers won't be killed by KillAll)
 		if tools.IsTunnelRunning() {
 			tunnelCfg := tools.CloudflareTunnelConfig{DockerHost: s.Cfg.Docker.Host}

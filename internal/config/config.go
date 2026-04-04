@@ -466,14 +466,8 @@ func Load(path string) (*Config, error) {
 	if cfg.Agent.MaxToolGuides <= 0 {
 		cfg.Agent.MaxToolGuides = 5
 	}
-	if cfg.Agent.StallGuard.IdleTimeoutSecs <= 0 && cfg.Agent.StallGuard.Enabled {
-		cfg.Agent.StallGuard.IdleTimeoutSecs = 45
-	}
-	if cfg.Agent.StallGuard.MaxContinuations <= 0 && cfg.Agent.StallGuard.Enabled {
-		cfg.Agent.StallGuard.MaxContinuations = 3
-	}
-	if cfg.Agent.StallGuard.MinToolCalls <= 0 && cfg.Agent.StallGuard.Enabled {
-		cfg.Agent.StallGuard.MinToolCalls = 1
+	if cfg.Agent.MaxToolGuides <= 0 {
+		cfg.Agent.MaxToolGuides = 5
 	}
 	if cfg.Agent.Recovery.MaxProvider422Recoveries <= 0 {
 		cfg.Agent.Recovery.MaxProvider422Recoveries = 3
