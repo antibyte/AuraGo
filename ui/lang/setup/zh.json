@@ -1,5 +1,6 @@
 {
     "setup.confirm_skip_setup":  "跳过设置？您可以稍后通过 /config 配置 AuraGo。",
+    "setup.confirm_skip_setup_title":  "跳过设置",
     "setup.header_subtitle":  "快速设置",
     "setup.https_warning":  "您正在使用未加密的HTTP连接。API密钥可能会以不安全的方式传输。",
     "setup.language_cs":  "Čeština",

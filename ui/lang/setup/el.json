@@ -1,5 +1,6 @@
 {
     "setup.confirm_skip_setup":  "Παραλειψη ρυθμισης;",
+    "setup.confirm_skip_setup_title":  "Παράλειψη ρύθμισης",
     "setup.header_subtitle":  "Ας ρυθμισουμε τον agent σας",
     "setup.https_warning":  "Χρησιμοποιείτε μη κρυπτογραφημένη σύνδεση HTTP. Τα κλειδιά API μπορεί να μεταδοθούν με μη ασφαλή τρόπο.",
     "setup.language_cs":  "Cestina",

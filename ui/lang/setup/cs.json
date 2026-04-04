@@ -1,5 +1,6 @@
 {
     "setup.confirm_skip_setup":  "Preskocit nastaveni?",
+    "setup.confirm_skip_setup_title":  "Přeskočit nastavení",
     "setup.header_subtitle":  "Pojdme nastavit vaseho agenta",
     "setup.https_warning":  "Používáte nešifrované HTTP připojení. API klíče mohou být přenášeny nezabezpečeně.",
     "setup.language_cs":  "Cestina",

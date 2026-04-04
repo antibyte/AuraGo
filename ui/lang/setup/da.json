@@ -1,5 +1,6 @@
 {
     "setup.confirm_skip_setup":  "Preskocit nastaveni?",
+    "setup.confirm_skip_setup_title":  "Spring opsætning over",
     "setup.header_subtitle":  "Pojdme nastavit vaseho agenta",
     "setup.https_warning":  "Du bruger en ukrypteret HTTP-forbindelse. API-nøgler kan blive sendt usikkert.",
     "setup.language_cs":  "Cestina",

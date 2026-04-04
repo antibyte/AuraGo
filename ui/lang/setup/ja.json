@@ -1,5 +1,6 @@
 {
     "setup.confirm_skip_setup":  "セットアップをスキップしますか？後で /config から AuraGo を設定できます。",
+    "setup.confirm_skip_setup_title":  "セットアップをスキップ",
     "setup.header_subtitle":  "クイックセットアップ",
     "setup.https_warning":  "暗号化されていないHTTP接続を使用しています。APIキーが安全でない方法で送信される可能性があります。",
     "setup.language_cs":  "Čeština",

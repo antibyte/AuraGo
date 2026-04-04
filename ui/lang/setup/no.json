@@ -1,5 +1,6 @@
 {
     "setup.confirm_skip_setup":  "Preskocit nastaveni?",
+    "setup.confirm_skip_setup_title":  "Hopp over oppsett",
     "setup.header_subtitle":  "Pojdme nastavit vaseho agenta",
     "setup.https_warning":  "Du bruker en ukryptert HTTP-tilkobling. API-nøkler kan overføres usikkert.",
     "setup.language_cs":  "Cestina",

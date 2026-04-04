@@ -1,5 +1,6 @@
 {
     "setup.confirm_skip_setup":  "Preskocit nastaveni?",
+    "setup.confirm_skip_setup_title":  "सेटअप छोड़ें",
     "setup.header_subtitle":  "Pojdme nastavit vaseho agenta",
     "setup.https_warning":  "आप एक अनएन्क्रिप्टेड HTTP कनेक्शन का उपयोग कर रहे हैं। API कुंजियाँ असुरक्षित रूप से प्रसारित हो सकती हैं।",
     "setup.language_cs":  "Cestina",

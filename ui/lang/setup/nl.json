@@ -1,5 +1,6 @@
 {
     "setup.confirm_skip_setup":  "Configuratie overslaan?",
+    "setup.confirm_skip_setup_title":  "Configuratie overslaan",
     "setup.header_subtitle":  "Laten we uw agent configureren",
     "setup.https_warning":  "U gebruikt een onversleutelde HTTP-verbinding. API-sleutels kunnen onveilig worden verzonden.",
     "setup.language_cs":  "Čeština",

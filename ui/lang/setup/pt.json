@@ -1,5 +1,6 @@
 {
     "setup.confirm_skip_setup":  "Pular configuração? Você pode configurar o AuraGo depois via /config.",
+    "setup.confirm_skip_setup_title":  "Pular configuração",
     "setup.header_subtitle":  "Configuração Rápida",
     "setup.https_warning":  "Você está usando uma conexão HTTP não criptografada. As chaves de API podem ser transmitidas de forma insegura.",
     "setup.language_cs":  "Čeština",
