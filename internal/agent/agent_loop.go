@@ -16,6 +16,7 @@ import (
 	"aurago/internal/memory"
 	"aurago/internal/prompts"
 	"aurago/internal/security"
+	"aurago/internal/services/optimizer"
 	"aurago/internal/tools"
 
 	"github.com/sashabaranov/go-openai"
@@ -508,7 +509,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			} else {
 				pResultContent = DispatchToolCall(ctx, ptc, dispatchCtx, lastUserMsg)
 			}
-			policyResult := finalizeToolExecution(ptc, pResultContent, cfg, shortTermMem, sessionID, &recoveryState, &req, currentLogger, telemetryScope)
+			policyResult := finalizeToolExecution(ptc, pResultContent, cfg, shortTermMem, sessionID, &recoveryState, &req, currentLogger, telemetryScope, optimizer.GetToolPromptVersion(ptc.Action))
 			pResultContent = policyResult.Content
 			trackActivityTool(&turnToolNames, &turnToolSummaries, ptc.Action, pResultContent)
 			recordPlanToolProgress(shortTermMem, sessionID, ptc, pResultContent, currentLogger)
@@ -1704,7 +1705,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 			dispatchCtx := makeDispatchContext(currentLogger)
 			resultContent := DispatchToolCall(ctx, tc, dispatchCtx, lastUserMsg)
-			policyResult := finalizeToolExecution(tc, resultContent, cfg, shortTermMem, sessionID, &recoveryState, &req, currentLogger, telemetryScope)
+			policyResult := finalizeToolExecution(tc, resultContent, cfg, shortTermMem, sessionID, &recoveryState, &req, currentLogger, telemetryScope, optimizer.GetToolPromptVersion(tc.Action))
 			resultContent = policyResult.Content
 			trackActivityTool(&turnToolNames, &turnToolSummaries, tc.Action, resultContent)
 			recordPlanToolProgress(shortTermMem, sessionID, tc, resultContent, currentLogger)
@@ -1983,7 +1984,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					} else {
 						bResult = DispatchToolCall(ctx, btc, nativeDispatchCtx, lastUserMsg)
 					}
-					policyResult := finalizeToolExecution(btc, bResult, cfg, shortTermMem, sessionID, &recoveryState, &req, currentLogger, telemetryScope)
+					policyResult := finalizeToolExecution(btc, bResult, cfg, shortTermMem, sessionID, &recoveryState, &req, currentLogger, telemetryScope, optimizer.GetToolPromptVersion(btc.Action))
 					bResult = policyResult.Content
 					trackActivityTool(&turnToolNames, &turnToolSummaries, btc.Action, bResult)
 					recordPlanToolProgress(shortTermMem, sessionID, btc, bResult, currentLogger)

@@ -271,7 +271,7 @@ func (s *toolRecoveryState) shouldRecordResolution() bool {
 	return s.ConsecutiveErrorCount > 0 && s.LastToolError != ""
 }
 
-func (s *toolRecoveryState) updateToolErrorState(tc ToolCall, resultContent string, req *openai.ChatCompletionRequest, logger *slog.Logger, scope AgentTelemetryScope) bool {
+func (s *toolRecoveryState) updateToolErrorState(tc ToolCall, resultContent string, req *openai.ChatCompletionRequest, logger *slog.Logger, scope AgentTelemetryScope, promptVersion string) bool {
 	hasSandboxFailure := containsSandboxFailure(resultContent)
 	isToolError := containsToolError(resultContent) || hasSandboxFailure
 
@@ -285,10 +285,12 @@ func (s *toolRecoveryState) updateToolErrorState(tc ToolCall, resultContent stri
 			}
 		}
 
-		promptVer := "v1"
+		if promptVersion == "" {
+			promptVersion = "v1"
+		}
 
 		// In the context of the recovery state, we might not always have exec time, passing 0 for now.
-		optimizer.LogToolTrace(tc.Action, !isToolError, s.ConsecutiveErrorCount, promptVer, errMsg, 0)
+		optimizer.LogToolTrace(tc.Action, !isToolError, s.ConsecutiveErrorCount, promptVersion, errMsg, 0)
 	}()
 
 	if isToolError {

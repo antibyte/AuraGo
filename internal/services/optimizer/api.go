@@ -20,8 +20,8 @@ func (db *OptimizerDB) GetDashboardStats() (*OptimizationStats, error) {
 	db.db.QueryRow(`SELECT COUNT(*) FROM prompt_overrides WHERE active = 1`).Scan(&stats.ActiveOverrides)
 	db.db.QueryRow(`SELECT COUNT(*) FROM prompt_overrides WHERE active = 0 AND shadow = 1`).Scan(&stats.RunningShadows)
 
-	// Assume we keep track of rolling rejected count or compute it from trace rollbacks
-	// For now, let's mock the rejected stats as the difference
+	db.db.QueryRow(`SELECT value FROM optimizer_metrics WHERE key = 'rejected_mutations'`).Scan(&stats.RejectedMutations)
+
 	db.db.QueryRow(`SELECT COUNT(*) FROM tool_traces`).Scan(&stats.TotalTraceEvents)
 
 	if stats.TotalTraceEvents > 0 {

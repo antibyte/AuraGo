@@ -1,4 +1,4 @@
-package optimizer
+﻿package optimizer
 
 import (
 	"context"
@@ -87,11 +87,13 @@ func (w *OptimizerWorker) runEvaluationCycle(ctx context.Context) {
 		var baselineSuccessRate float64
 		w.db.db.QueryRow(`
 			SELECT CAST(SUM(CASE WHEN success=1 THEN 1 ELSE 0 END) AS FLOAT) / COUNT(*) 
-			FROM tool_traces 
-			WHERE tool_name = ? AND prompt_version = 'v1' 
-			ORDER BY timestamp DESC LIMIT 50`, toolName).Scan(&baselineSuccessRate)
+                        FROM (
+                                SELECT success
+                                FROM tool_traces
+                                WHERE tool_name = ? AND prompt_version = 'v1'
+                                ORDER BY timestamp DESC LIMIT 50
+                        )`, toolName).Scan(&baselineSuccessRate)
 
-		// Is it >= 10% better?
 		if newSuccessRate >= baselineSuccessRate+0.1 {
 			// Promote!
 			w.db.db.Exec(`UPDATE prompt_overrides SET active = 1, shadow = 0 WHERE id = ?`, id)
@@ -99,6 +101,7 @@ func (w *OptimizerWorker) runEvaluationCycle(ctx context.Context) {
 		} else {
 			// Rollback! Discard it
 			w.db.db.Exec(`DELETE FROM prompt_overrides WHERE id = ?`, id)
+			w.db.db.Exec(`UPDATE optimizer_metrics SET value = value + 1 WHERE key = 'rejected_mutations'`)
 			slog.Info("[Optimizer] Rolled back and deleted shadow prompt", "tool", toolName, "reason", "no significant improvement")
 		}
 	}

@@ -51,6 +51,7 @@ func finalizeToolExecution(
 	req *openai.ChatCompletionRequest,
 	logger *slog.Logger,
 	scope AgentTelemetryScope,
+	promptVersion string,
 ) toolExecutionResult {
 	limit := 0
 	if cfg != nil {
@@ -131,7 +132,7 @@ func finalizeToolExecution(
 	}
 
 	if recoveryState != nil && req != nil {
-		_ = recoveryState.updateToolErrorState(tc, resultContent, req, logger, scope)
+		_ = recoveryState.updateToolErrorState(tc, resultContent, req, logger, scope, promptVersion)
 	}
 
 	return toolExecutionResult{

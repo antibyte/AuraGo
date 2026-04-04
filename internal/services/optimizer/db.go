@@ -44,14 +44,21 @@ func InitDB(dbPath string) (*OptimizerDB, error) {
 
 	CREATE TABLE IF NOT EXISTS prompt_overrides (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		tool_name TEXT UNIQUE NOT NULL,
-		mutated_prompt TEXT NOT NULL,
-		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-		active BOOLEAN DEFAULT 1
-	);`
+                tool_name TEXT NOT NULL,
+                mutated_prompt TEXT NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                active BOOLEAN DEFAULT 1,
+                shadow BOOLEAN DEFAULT 0
+        );
+        CREATE INDEX IF NOT EXISTS idx_prompt_overrides_tool_status ON prompt_overrides(tool_name, active, shadow);
+		
+		CREATE TABLE IF NOT EXISTS optimizer_metrics (
+			key TEXT PRIMARY KEY,
+			value INTEGER DEFAULT 0
+		);
+		INSERT OR IGNORE INTO optimizer_metrics (key, value) VALUES ('rejected_mutations', 0);`
 
 	if _, err := db.Exec(schema); err != nil {
-		return nil, fmt.Errorf("failed to init optimizer schema: %w", err)
 	}
 
 	defaultDB = &OptimizerDB{db: db}
@@ -79,6 +86,31 @@ func GetActivePromptOverrides() map[string]string {
 		return nil
 	}
 	return defaultDB.GetActivePromptOverrides()
+}
+
+func GetToolPromptVersion(toolName string) string {
+	if defaultDB == nil {
+		return "v1"
+	}
+	return defaultDB.GetToolPromptVersion(toolName)
+}
+
+func (o *OptimizerDB) GetToolPromptVersion(toolName string) string {
+	// Let's check for shadow prompt first as it's the intended override for tests
+	var id int
+	err := o.db.QueryRow(`SELECT id FROM prompt_overrides WHERE tool_name = ? AND shadow = 1 AND active = 0 ORDER BY id DESC LIMIT 1`, toolName).Scan(&id)
+	if err == nil {
+		return fmt.Sprintf("v2-shadow-%d", id)
+	}
+
+	// Else check if there's a normal active override
+	var count int
+	err = o.db.QueryRow(`SELECT COUNT(*) FROM prompt_overrides WHERE tool_name = ? AND active = 1`, toolName).Scan(&count)
+	if err == nil && count > 0 {
+		return "optim-db"
+	}
+
+	return "v1"
 }
 
 func (o *OptimizerDB) GetActivePromptOverrides() map[string]string {
