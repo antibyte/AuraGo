@@ -16,6 +16,7 @@ type Notifier struct {
 	executor func(string)
 	mu       sync.Mutex
 	cancel   context.CancelFunc
+	running  bool
 }
 
 // NewNotifier creates a new appointment notifier.
@@ -34,14 +35,26 @@ func (n *Notifier) SetExecutor(fn func(string)) {
 }
 
 // Start begins the notification check loop. Call in a goroutine.
+// Calling Start a second time is a no-op if already running.
 func (n *Notifier) Start(ctx context.Context) {
-	ctx, cancel := context.WithCancel(ctx)
 	n.mu.Lock()
+	if n.running {
+		n.mu.Unlock()
+		n.logger.Warn("[Planner] Notifier.Start called while already running — ignoring")
+		return
+	}
+	ctx, cancel := context.WithCancel(ctx)
 	n.cancel = cancel
+	n.running = true
 	n.mu.Unlock()
 
 	ticker := time.NewTicker(30 * time.Second)
-	defer ticker.Stop()
+	defer func() {
+		ticker.Stop()
+		n.mu.Lock()
+		n.running = false
+		n.mu.Unlock()
+	}()
 
 	// Run once immediately on start
 	n.checkDue()
@@ -83,21 +96,28 @@ func (n *Notifier) checkDue() {
 	}
 
 	for _, a := range due {
-		prompt := buildNotificationPrompt(a)
-		n.logger.Info("[Planner] Triggering appointment notification", "id", a.ID, "title", a.Title)
+		n.logger.Info("[Planner] Processing due appointment notification", "id", a.ID, "title", a.Title, "wake_agent", a.WakeAgent)
 
-		go func(apt Appointment, p string) {
-			defer func() {
-				if r := recover(); r != nil {
-					n.logger.Error("[Planner] Panic in appointment notification executor", "error", r, "appointment_id", apt.ID)
-					return
+		if a.WakeAgent {
+			prompt := buildNotificationPrompt(a)
+			go func(apt Appointment, p string) {
+				defer func() {
+					if r := recover(); r != nil {
+						n.logger.Error("[Planner] Panic in appointment notification executor", "error", r, "appointment_id", apt.ID)
+						return
+					}
+				}()
+				executor(p)
+				if err := MarkNotified(n.db, apt.ID); err != nil {
+					n.logger.Error("[Planner] Failed to mark appointment as notified", "error", err, "id", apt.ID)
 				}
-			}()
-			executor(p)
-			if err := MarkNotified(n.db, apt.ID); err != nil {
-				n.logger.Error("[Planner] Failed to mark appointment as notified", "error", err, "id", apt.ID)
+			}(a, prompt)
+		} else {
+			// Non-wake appointments: mark as notified without running the agent.
+			if err := MarkNotified(n.db, a.ID); err != nil {
+				n.logger.Error("[Planner] Failed to mark non-wake appointment as notified", "error", err, "id", a.ID)
 			}
-		}(a, prompt)
+		}
 	}
 }
 

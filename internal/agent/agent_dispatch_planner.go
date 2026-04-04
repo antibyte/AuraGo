@@ -98,9 +98,8 @@ func dispatchManageAppointments(tc ToolCall, db *sql.DB, kg *memory.KnowledgeGra
 		if v := strParam(tc.Params, "notification_at"); v != "" {
 			existing.NotificationAt = v
 		}
-		if v, ok := tc.Params["wake_agent"]; ok {
+		if _, ok := tc.Params["wake_agent"]; ok {
 			existing.WakeAgent = boolParam(tc.Params, "wake_agent")
-			_ = v
 		}
 		if v := strParam(tc.Params, "agent_instruction"); v != "" {
 			existing.AgentInstruction = v

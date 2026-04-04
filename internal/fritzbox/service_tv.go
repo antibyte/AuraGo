@@ -59,7 +59,13 @@ func (c *Client) fetchChannelListXML(rawURL string) ([]TVChannel, error) {
 		return nil, fmt.Errorf("fetch channel list: %w", err)
 	}
 	defer resp.Body.Close()
-	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("fetch channel list: unexpected status %d", resp.StatusCode)
+	}
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 2<<20)) // 2 MB limit
+	if err != nil {
+		return nil, fmt.Errorf("fetch channel list: read body: %w", err)
+	}
 
 	var doc channelListDoc
 	if err := xml.Unmarshal(body, &doc); err != nil {

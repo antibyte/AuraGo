@@ -238,12 +238,13 @@ func ListAppointments(db *sql.DB, query, status string) ([]Appointment, error) {
 
 // GetDueNotifications returns appointments due for notification that have not been notified yet.
 // Limited to 50 per tick to avoid burst load after downtime.
+// Includes all appointments with a due notification_at, regardless of wake_agent setting.
 func GetDueNotifications(db *sql.DB) ([]Appointment, error) {
 	now := time.Now().UTC().Format(time.RFC3339)
 	rows, err := db.Query(
 		`SELECT id, title, description, date_time, notification_at, wake_agent, agent_instruction, notified, status, kg_node_id, created_at, updated_at
 		 FROM appointments
-		 WHERE notification_at != '' AND notification_at <= ? AND notified = 0 AND wake_agent = 1 AND status = 'upcoming'
+		 WHERE notification_at != '' AND notification_at <= ? AND notified = 0 AND status = 'upcoming'
 		 ORDER BY notification_at ASC
 		 LIMIT 50`, now)
 	if err != nil {
@@ -268,8 +269,15 @@ func GetDueNotifications(db *sql.DB) ([]Appointment, error) {
 
 // MarkNotified marks an appointment as notified.
 func MarkNotified(db *sql.DB, id string) error {
-	_, err := db.Exec("UPDATE appointments SET notified = 1 WHERE id = ?", id)
-	return err
+	res, err := db.Exec("UPDATE appointments SET notified = 1 WHERE id = ?", id)
+	if err != nil {
+		return err
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("appointment not found: %s", id)
+	}
+	return nil
 }
 
 // ── Todo CRUD ──
@@ -433,7 +441,9 @@ func scanAppointment(row *sql.Row) (*Appointment, error) {
 func ToJSON(v interface{}) string {
 	b, err := json.Marshal(v)
 	if err != nil {
-		return fmt.Sprintf(`{"error": "%v"}`, err)
+		// Use json.Marshal for the error message itself to ensure safe escaping.
+		msg, _ := json.Marshal(err.Error())
+		return `{"error":` + string(msg) + `}`
 	}
 	return string(b)
 }
