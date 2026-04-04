@@ -16,9 +16,67 @@ type ModelInfo struct {
 	ContextLength int `json:"context_length"`
 }
 
+// knownContextWindows is a static fallback table for providers whose APIs do not
+// expose model info in OpenRouter-compatible format. Keys are lowercase model IDs
+// (or partial prefixes that are matched with strings.HasPrefix / Contains).
+// Values are context window sizes in tokens.
+var knownContextWindows = []struct {
+	prefix  string
+	context int
+}{
+	// MiniMax models
+	{"minimax-m2.7", 1_000_000},
+	{"minimax-text-01", 1_000_000},
+	{"abab7", 1_000_000},
+	{"abab6.5s", 245_760},
+	{"abab6.5t", 8_192},
+	{"abab6.5g", 8_192},
+	{"abab5.5s", 8_192},
+	// Anthropic (direct, not via OpenRouter)
+	{"claude-3-5-sonnet", 200_000},
+	{"claude-3-5-haiku", 200_000},
+	{"claude-3-7-sonnet", 200_000},
+	{"claude-3-opus", 200_000},
+	{"claude-3-sonnet", 200_000},
+	{"claude-3-haiku", 200_000},
+	{"claude-2", 200_000},
+	// Google Gemini (direct)
+	{"gemini-2.5", 1_048_576},
+	{"gemini-2.0-flash", 1_048_576},
+	{"gemini-1.5-pro", 2_097_152},
+	{"gemini-1.5-flash", 1_048_576},
+	// DeepSeek (direct)
+	{"deepseek-v3", 131_072},
+	{"deepseek-r1", 131_072},
+	{"deepseek-chat", 131_072},
+	// Mistral (direct)
+	{"mistral-large", 131_072},
+	{"mistral-small", 131_072},
+	{"mistral-medium", 131_072},
+	{"codestral", 256_000},
+}
+
+// lookupKnownContextWindow returns the known context window for a model based on the
+// static table above. Returns (size, true) if found, (0, false) otherwise.
+func lookupKnownContextWindow(model string) (int, bool) {
+	lower := strings.ToLower(model)
+	for _, entry := range knownContextWindows {
+		if strings.HasPrefix(lower, entry.prefix) || strings.Contains(lower, entry.prefix) {
+			return entry.context, true
+		}
+	}
+	return 0, false
+}
+
 // DetectContextWindow queries the LLM provider API for the model's context window size.
 // Supports OpenRouter and Ollama (via /api/show). Returns the context length in tokens, or 0 if detection fails.
 func DetectContextWindow(baseURL, apiKey, model, provider string, logger *slog.Logger) int {
+	// Check static known-models table first — covers providers that don't expose
+	// an OpenRouter-compatible /api/v1/models endpoint (MiniMax, direct Anthropic, etc.)
+	if ctxLen, ok := lookupKnownContextWindow(model); ok {
+		logger.Info("[ContextDetect] Using known context window from static table", "model", model, "context_length", ctxLen)
+		return ctxLen
+	}
 	if strings.EqualFold(provider, "ollama") {
 		return detectContextWindowOllama(baseURL, model, logger)
 	}
