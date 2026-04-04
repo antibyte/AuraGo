@@ -410,6 +410,11 @@ type Config struct {
 	Guardian struct {
 		MaxScanBytes  int `yaml:"max_scan_bytes"`  // max bytes scanned by regex guardian before windowing (default 16384)
 		ScanEdgeBytes int `yaml:"scan_edge_bytes"` // bytes kept from start and end when windowing large inputs (default 6144)
+		PromptSec     struct {
+			Preset    string `yaml:"preset"`    // "strict", "moderate", "lenient" (default: strict)
+			Spotlight bool   `yaml:"spotlight"` // default: true
+			Canary    bool   `yaml:"canary"`    // default: true
+		} `yaml:"promptsec"`
 	} `yaml:"guardian"`
 	Logging struct {
 		LogDir          string `yaml:"log_dir"`

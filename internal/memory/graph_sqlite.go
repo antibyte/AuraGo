@@ -716,7 +716,7 @@ func (kg *KnowledgeGraph) AddEdge(source, target, relation string, properties ma
 	return nil
 }
 
-const coOccurrenceThreshold = 5
+const coOccurrenceThreshold = 15
 
 // IncrementCoOccurrence tracks how often two entities are mentioned together.
 // On the first co-mention a pending edge (source="pending") is inserted.
@@ -971,31 +971,58 @@ func (kg *KnowledgeGraph) SearchForContext(query string, maxNodes int, maxChars 
 		maxChars = 2000
 	}
 
-	// Find relevant nodes via FTS5 or LIKE fallback
 	var nodeIDs []string
+	type searchHit struct {
+		score float32
+		id    string
+	}
+	hits := make(map[string]float32)
+
+	// Semantic Search (0.0 to 1.0)
+	semScores := kg.semanticSearchNodeScores(query, maxNodes*2)
+	for id, score := range semScores {
+		hits[id] += score * 0.5 // Weight semantic search at 50%
+	}
+
+	// FTS5 (Fallback to LIKE)
 	ftsQuery := escapeFTS5(query)
 	rows, err := kg.db.Query(`
-		SELECT n.id FROM kg_nodes_fts f
+		SELECT n.id, n.access_count FROM kg_nodes_fts f
 		JOIN kg_nodes n ON n.rowid = f.rowid
 		WHERE kg_nodes_fts MATCH ?
 		ORDER BY n.updated_at DESC
 		LIMIT ?
 	`, ftsQuery, maxNodes)
+
+	count := 0
 	if err == nil {
 		for rows.Next() {
 			var id string
-			if rows.Scan(&id) == nil {
-				nodeIDs = append(nodeIDs, id)
+			var ac sql.NullInt64
+			if rows.Scan(&id, &ac) == nil {
+				// FTS score: max 0.4 (decaying per position), plus access boost max 0.1
+				ftsScore := float32(0.4) - (float32(count) * 0.05)
+				if ftsScore < 0.1 {
+					ftsScore = 0.1
+				}
+				accessBoost := float32(0)
+				if ac.Valid && ac.Int64 > 0 {
+					accessBoost = float32(ac.Int64) / 100.0
+					if accessBoost > 0.1 {
+						accessBoost = 0.1
+					}
+				}
+				hits[id] += ftsScore + accessBoost
+				count++
 			}
 		}
 		rows.Close()
 	}
 
-	// Fallback to LIKE if FTS5 found nothing
-	if len(nodeIDs) == 0 {
+	if count == 0 {
 		likeQ := "%" + query + "%"
 		rows, err := kg.db.Query(`
-			SELECT id FROM kg_nodes
+			SELECT id, access_count FROM kg_nodes
 			WHERE id LIKE ? OR label LIKE ? OR properties LIKE ?
 			ORDER BY updated_at DESC, access_count DESC
 			LIMIT ?
@@ -1003,29 +1030,36 @@ func (kg *KnowledgeGraph) SearchForContext(query string, maxNodes int, maxChars 
 		if err == nil {
 			for rows.Next() {
 				var id string
-				if rows.Scan(&id) == nil {
-					nodeIDs = append(nodeIDs, id)
+				var ac sql.NullInt64
+				if rows.Scan(&id, &ac) == nil {
+					likeScore := float32(0.3) - (float32(count) * 0.05)
+					if likeScore < 0.1 {
+						likeScore = 0.1
+					}
+					hits[id] += likeScore
+					count++
 				}
 			}
 			rows.Close()
 		}
 	}
 
-	// prioritize semantic search IDs if any
-	nodeIDs = append(kg.semanticSearchNodeIDs(query, maxNodes*2), nodeIDs...)
-
-	seen := make(map[string]bool)
-	var deduped []string
-	for _, id := range nodeIDs {
-		if !seen[id] {
-			deduped = append(deduped, id)
-			seen[id] = true
-			if len(deduped) >= maxNodes {
-				break
-			}
-		}
+	var rankedHits []searchHit
+	for id, score := range hits {
+		rankedHits = append(rankedHits, searchHit{score: score, id: id})
 	}
-	nodeIDs = deduped
+
+	// Sort by score descending
+	sort.Slice(rankedHits, func(i, j int) bool {
+		return rankedHits[i].score > rankedHits[j].score
+	})
+
+	for i, hit := range rankedHits {
+		if i >= maxNodes {
+			break
+		}
+		nodeIDs = append(nodeIDs, hit.id)
+	}
 
 	if len(nodeIDs) == 0 {
 		return ""

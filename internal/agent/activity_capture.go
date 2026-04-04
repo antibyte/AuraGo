@@ -214,19 +214,20 @@ func normalizeActivityEntityID(label string) string {
 		return ""
 	}
 
+	// Remove common stop words and punctuation chars that cause duplicates
+	label = strings.ReplaceAll(label, "-", "")
+	label = strings.ReplaceAll(label, " ", "")
+	label = strings.ReplaceAll(label, ".", "")
+	label = strings.ReplaceAll(label, "_", "")
+
 	var b strings.Builder
-	lastUnderscore := false
 	for _, r := range label {
 		switch {
 		case unicode.IsLetter(r) || unicode.IsDigit(r):
 			b.WriteRune(r)
-			lastUnderscore = false
-		case !lastUnderscore:
-			b.WriteByte('_')
-			lastUnderscore = true
 		}
 	}
-	return strings.Trim(b.String(), "_")
+	return b.String()
 }
 
 func buildActivityDigestWithConfiguredClient(ctx context.Context, cfg *config.Config, userRequest, assistantReply string, toolNames, toolSummaries []string) (memory.ActivityDigest, error) {
@@ -369,7 +370,7 @@ func buildActivityDigest(userRequest, assistantReply string, toolNames, toolSumm
 		ImportantPoints: uniqueActivityStrings(important, 5),
 		PendingItems:    uniqueActivityStrings(pending, 5),
 		Importance:      importance,
-		Entities:        uniqueActivityStrings(toolNames, 8),
+		Entities:        []string{}, // Tool names are not valid KG entities
 	}
 }
 

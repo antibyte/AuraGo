@@ -120,7 +120,7 @@ func TestCaptureActivityTurnWithDigestSyncsEntitiesToKnowledgeGraph(t *testing.T
 
 	foundEntity := false
 	for _, node := range nodes {
-		if node.ID == "backup_host" || node.ID == "proxmox_ve" {
+		if node.ID == "backuphost" || node.ID == "proxmoxve" {
 			foundEntity = true
 		}
 	}

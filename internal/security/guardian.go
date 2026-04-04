@@ -1,10 +1,11 @@
 package security
 
 import (
-	"fmt"
 	"log/slog"
 	"regexp"
 	"strings"
+
+	"github.com/danielthedm/promptsec"
 )
 
 const (
@@ -49,16 +50,14 @@ type ScanResult struct {
 }
 
 // injectionPattern holds a compiled regex and metadata for detection.
-type injectionPattern struct {
-	name  string
-	re    *regexp.Regexp
-	level ThreatLevel
-}
 
 // GuardianOptions controls bounded regex scanning behavior.
 type GuardianOptions struct {
 	MaxScanBytes  int
 	ScanEdgeBytes int
+	Preset        string
+	Spotlight     bool
+	Canary        bool
 }
 
 // Guardian provides multi-layer prompt injection defense.
@@ -66,9 +65,9 @@ type GuardianOptions struct {
 // and strips dangerous role-impersonation markers from tool output.
 type Guardian struct {
 	logger        *slog.Logger
-	patterns      []injectionPattern
 	maxScanBytes  int
 	scanEdgeBytes int
+	protector     *promptsec.Protector
 }
 
 // NewGuardian creates a Guardian with pre-compiled injection detection patterns.
@@ -94,101 +93,33 @@ func NewGuardianWithOptions(logger *slog.Logger, opts GuardianOptions) *Guardian
 		scanEdgeBytes = maxScanBytes
 	}
 
+	preset := promptsec.PresetStrict
+	switch strings.ToLower(opts.Preset) {
+	case "moderate":
+		preset = promptsec.PresetModerate
+	case "lenient":
+		preset = promptsec.PresetLenient
+	}
+
+	psOpts := []promptsec.Guard{
+		promptsec.WithHeuristics(&promptsec.HeuristicOptions{Preset: preset}),
+	}
+
+	if opts.Spotlight {
+		psOpts = append(psOpts, promptsec.WithSpotlighting(promptsec.Datamark, &promptsec.DatamarkOptions{Token: "^"}))
+	}
+	if opts.Canary {
+		psOpts = append(psOpts, promptsec.WithCanary(&promptsec.CanaryOptions{Format: promptsec.CanaryHex, Length: 16}))
+	}
+
 	g := &Guardian{
 		logger:        logger,
 		maxScanBytes:  maxScanBytes,
 		scanEdgeBytes: scanEdgeBytes,
+		protector:     promptsec.New(psOpts...),
 	}
-	g.compilePatterns()
+
 	return g
-}
-
-func (g *Guardian) compilePatterns() {
-	raw := []struct {
-		name  string
-		regex string
-		level ThreatLevel
-	}{
-		// ── Role hijacking / identity override ──────────────────────
-		{"role_hijack_en", `(?i)\b(you are now|act as|pretend (to be|you'?re)|from now on you|your new (role|identity|instructions?)|assume the (role|persona|identity))\b`, ThreatCritical},
-		{"role_hijack_de", `(?i)\b(du bist (jetzt|nun|ab sofort)|ab jetzt bist du|verhalte dich als|deine neue (rolle|identität|anweisung|aufgabe)|nimm die rolle)\b`, ThreatCritical},
-		{"role_hijack_cjk", `(?i)(你现在是|从现在开始你是|请扮演|作为.{0,8}(助手|系统|管理员|开发者)|あなたは今|今からあなたは|として振る舞って|지금부터 너는|이제 너는|처럼 행동해)`, ThreatCritical},
-
-		// ── Instruction override ────────────────────────────────────
-		{"override_en", `(?i)\b(ignore (all |your )?(previous|prior|above|earlier|original|system) (instructions?|prompts?|rules?|guidelines?))\b`, ThreatCritical},
-		{"override_de", `(?i)\b(ignoriere? (alle |deine )?(vorherigen?|bisherigen?|obigen?|urspr.nglichen?) (anweisungen?|instruktionen?|regeln?|prompts?))\b`, ThreatCritical},
-		{"override_cjk", `(?i)(忽略.{0,8}(之前|以上|原来|系统).{0,8}(指令|提示|规则)|无视.{0,8}(之前|系统).{0,8}(指示|规则)|前の(指示|命令|プロンプト)を無視|これまでの(指示|ルール)を無視|이전 (지시|명령|규칙)을 무시|시스템 (지침|프롬프트)을 무시)`, ThreatCritical},
-		{"override_new", `(?i)\b(new instructions?|new system prompt|override (system|instructions?)|replace (your|the) (prompt|instructions?))\b`, ThreatHigh},
-		{"override_new_de", `(?i)\b(neue (anweisungen?|instruktionen?|system.?prompt)|ersetze? (deine?|die) (anweisungen?|instruktionen?))\b`, ThreatHigh},
-
-		// ── System prompt extraction ────────────────────────────────
-		{"extract_prompt_en", `(?i)(show|reveal|print|repeat|output|display|tell me|what (is|are)|give me).{0,20}(system|initial|original|full|complete) (prompt|instructions?|message|rules?)`, ThreatHigh},
-		{"extract_prompt_de", `(?i)(zeig|gib|nenn|wiederhole|ausgib).{0,20}(system.?prompt|anweisungen?|instruktionen?|regeln?)`, ThreatHigh},
-
-		// ── Developer/debug mode tricks ─────────────────────────────
-		{"devmode", `(?i)\b(enter (developer|debug|admin|maintenance|god|test) mode|enable (dev|debug|admin|sudo|root) mode|DAN mode|jailbreak|bypass (safety|filter|restriction|guard))\b`, ThreatCritical},
-		{"devmode_de", `(?i)\b(aktiviere? (entwickler|debug|admin|wartungs|test).?modus|schalte? (sicherheit|filter|schutz|einschr.nkung).{0,5} (ab|aus))\b`, ThreatHigh},
-
-		// ── Delimiter / context escape ──────────────────────────────
-		{"delimiter_escape", `(?i)(<<\s*SYS(TEM)?\s*>>|<\|im_start\|>|<\|im_end\|>|\[INST\]|\[\/INST\]|<\|system\|>|<\|user\|>|<\|assistant\|>)`, ThreatCritical},
-		{"role_tag_inject", `(?i)(###\s*(system|user|assistant|human|ai)\s*:)`, ThreatHigh},
-		{"xml_role_inject", `(?i)(<(system|assistant|user|human|ai)>)`, ThreatMedium},
-
-		// ── Dangerous action coercion ───────────────────────────────
-		{"action_coerce", `(?i)\b(execute this (tool|command|code)|call this function|run the following (command|code|script)|you must (run|execute|call))\b`, ThreatMedium},
-		{"tool_json_inject", `(?i)\{\s*"(action|tool)"\s*:\s*"(execute_shell|execute_python|set_secret|save_tool|api_request|filesystem)"`, ThreatHigh},
-
-		// ── Shell with external network tools ─────────────────────
-		// curl/wget/etc. to public internet via shell is unsafe; web_scraper must be used instead.
-		{"curl_external", `(?i)\b(curl|wget|fetch)\s+.*https?://`, ThreatHigh},
-		{"powershell_web", `(?i)(Invoke-WebRequest|Invoke-RestMethod|iwr|irm)\s+.*https?://`, ThreatHigh},
-
-		// ── Encoded / obfuscated payloads ───────────────────────────
-		{"base64_payload", `(?i)\b(decode|eval|exec)\s*\(\s*(base64|atob|b64)\b`, ThreatHigh},
-		{"base64_literal_payload", `(?i)\b(base64_decode|frombase64string|atob)\s*\(\s*["'][A-Za-z0-9+/=]{16,}["']\s*\)`, ThreatHigh},
-		{"hex_literal_payload", `(?i)\b(hex\.decodestring|fromhex|unhexlify|decode_hex|hexdecode|xxd\s+-r\s+-p)\b.{0,24}["']?[A-Fa-f0-9]{16,}["']?`, ThreatHigh},
-		{"rot13_literal_payload", `(?i)(\b(rot13|caesar)\b.{0,20}\b(decode|decoded|decoder|transform|translated?)\b)|(\bcodecs\.decode\b.{0,80}["']rot_13["'])|(\brot_13\b.{0,80}["'][A-Za-z\s]{12,}["'])`, ThreatMedium},
-		{"charcode_literal_payload", `(?i)\b(fromcharcode|charcodeat|string\.fromcharcode|chr\()\b.{0,40}(?:\d{2,3}\s*,\s*){4,}\d{2,3}`, ThreatHigh},
-		{"morse_literal_payload", `(?i)\b(morse(\.|_)?decode|decode(\.|_)?morse|translate.{0,10}morse|decode\s+morse)\b.{0,32}["']?[.\-/\s]{12,}["']?`, ThreatMedium},
-		{"uu_literal_payload", `(?i)\b(uudecode|uu\.decode|decode\s+uu(?:encode|encoded)?)\b.{0,80}(begin\s+[0-7]{3}\s+\S+|[ !-` + "`" + `]{20,})`, ThreatMedium},
-		{"unicode_escape", `(?i)(\\u00[0-9a-f]{2}){4,}`, ThreatMedium},
-		{"html_entity_injection", `(?i)(&#x?[0-9a-f]+;|&(lt|gt|amp|quot|apos);){3,}`, ThreatMedium},
-		{"zero_width_injection", `[\x{200B}\x{200C}\x{200D}\x{FEFF}\x{2060}]+`, ThreatMedium},
-		{"markdown_js_link", `(?i)\[[^\]]{0,120}\]\(\s*javascript\s*:`, ThreatHigh},
-		{"markdown_injection_heading", `(?im)^\s{0,3}#{1,6}\s*(ignore|system prompt|developer mode|new instructions?|override|jailbreak|bypass)\b`, ThreatMedium},
-
-		// ── Application secret extraction ─────────────────────────
-		{"aurago_env_read", `(?i)(printenv|echo\s+\$\{?|get-item\s+env:|getenvironmentvariable|\$env:|export\s+.*=.*)\s*AURAGO_`, ThreatCritical},
-		{"env_master_key", `(?i)(master.?key|masterkey|vault.?key|AURAGO_MASTER|AURAGO_SECRET)`, ThreatHigh},
-
-		// ── Repetition / flooding (token waste attack) ──────────────
-		{"repeat_attack", `(?i)\b(repeat (this|the following|after me) (\d+|a thousand|forever|infinitely) times)\b`, ThreatMedium},
-
-		// ── Credential exfiltration via encoding / transformation ──
-		// Detect requests to convert/encode credential-related variables to numbers, ASCII, hex, etc.
-		{"cred_encode_en", `(?i)(password|username|credential|secret|token|api.?key).{0,80}(\bord\b|ascii|ordinal|convert.{0,20}(number|integer|digit)|as.{0,5}numbers?|to.{0,5}(numbers?|digit)|int\(.*char|chr\()`, ThreatHigh},
-		{"cred_encode_de", `(?i)(passwort|benutzername|zugangsdaten|anmeldedaten|geheimnis|token).{0,80}(\bord\b|ascii|ordinal|in.{0,5}zahlen?|als.{0,5}zahlen?|umwandeln|konvertieren|umgewandelt|in.{0,5}ziffern?)`, ThreatHigh},
-		// Detect false claim that security masked data, combined with credential-related requests
-		{"false_mask_bypass_de", `(?i)(sicherheits?.?(system|guard|filter|schutz)|guardian|filter|maskier).{0,80}(maskiert|verborgen|gesperrt|geblockt|zensiert|versteckt).{0,120}(username|passwort|zugangsdaten|variable|credential)`, ThreatHigh},
-		{"false_mask_bypass_en", `(?i)(security.?(system|guard|filter)|guardian|filter).{0,80}(masked|hidden|blocked|censored|redacted).{0,120}(username|password|credentials?|variable|token)`, ThreatHigh},
-		// Detect hardcoded credential-like test variables in code (medium — could be legitimately in test code)
-		{"cred_hardcode_in_code", `(?i)(TEST_USERNAME|TEST_PASSWORD|test.?user(name)?|test.?pass(word)?)\s*=\s*['"][^'"]{3,}`, ThreatMedium},
-	}
-
-	for _, r := range raw {
-		compiled, err := regexp.Compile(r.regex)
-		if err != nil {
-			if g.logger != nil {
-				g.logger.Warn("[Guardian] Failed to compile pattern", "name", r.name, "error", err)
-			}
-			continue
-		}
-		g.patterns = append(g.patterns, injectionPattern{
-			name:  r.name,
-			re:    compiled,
-			level: r.level,
-		})
-	}
 }
 
 // ScanForInjection analyzes text for prompt injection patterns.
@@ -199,19 +130,37 @@ func (g *Guardian) ScanForInjection(text string) ScanResult {
 	}
 
 	scanText, truncated := prepareGuardianScanText(text, g.maxScanBytes, g.scanEdgeBytes)
-	result := ScanResult{Level: ThreatNone}
-	for _, p := range g.patterns {
-		if p.re.MatchString(scanText) {
-			result.Patterns = append(result.Patterns, p.name)
-			if p.level > result.Level {
-				result.Level = p.level
-			}
-		}
-	}
 
-	if len(result.Patterns) > 0 {
-		result.Message = fmt.Sprintf("Detected %d injection pattern(s): %s [threat=%s]",
-			len(result.Patterns), strings.Join(result.Patterns, ", "), result.Level)
+	analysis := g.protector.Analyze(scanText)
+	result := ScanResult{Level: ThreatNone}
+
+	if !analysis.Safe || len(analysis.Threats) > 0 {
+		var msgs []string
+		for _, thr := range analysis.Threats {
+			// Find max ThreatLevel effectively
+			lvl := ThreatLow
+			if thr.Severity >= 0.8 {
+				lvl = ThreatCritical
+			} else if thr.Severity >= 0.5 {
+				lvl = ThreatHigh
+			} else if thr.Severity >= 0.3 {
+				lvl = ThreatMedium
+			}
+
+			if lvl > result.Level {
+				result.Level = lvl
+			}
+
+			result.Patterns = append(result.Patterns, string(thr.Type))
+			msgs = append(msgs, thr.Message)
+		}
+
+		// If promptsec marks unsafe, ensure at least ThreatMedium
+		if !analysis.Safe && result.Level < ThreatMedium {
+			result.Level = ThreatMedium
+		}
+
+		result.Message = strings.Join(msgs, "; ")
 		if truncated {
 			result.Message += " [scan_window=truncated]"
 		}
@@ -343,6 +292,19 @@ func (g *Guardian) SanitizeToolOutput(toolName, output string) string {
 			}
 			output = IsolateExternalData(output)
 		}
+	}
+
+	validation := g.protector.ValidateOutput(output, nil)
+	if !validation.Safe {
+		var msgs []string
+		for _, thr := range validation.Threats {
+			msgs = append(msgs, thr.Message)
+		}
+		recommendation := strings.Join(msgs, "; ")
+		if g.logger != nil {
+			g.logger.Warn("[Guardian] Promptsec validation failed", "tool", toolName, "recommendation", recommendation)
+		}
+		output += "\n[SECURITY WARNING: " + recommendation + "]"
 	}
 
 	return output

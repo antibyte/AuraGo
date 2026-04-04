@@ -359,6 +359,49 @@ func (kg *KnowledgeGraph) semanticSearchNodeIDs(query string, maxNodes int) []st
 	return out
 }
 
+func (kg *KnowledgeGraph) semanticSearchNodeScores(query string, maxNodes int) map[string]float32 {
+	if kg.semantic == nil || maxNodes <= 0 || shouldSkipKnowledgeGraphSemanticQuery(query) {
+		return nil
+	}
+
+	embedding, err := kg.getSemanticQueryEmbedding(query)
+	if err != nil {
+		if kg.semantic.logger != nil {
+			kg.semantic.logger.Debug("KG semantic query embedding failed", "error", err)
+		}
+		return nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	count := kg.semantic.collection.Count()
+	if count == 0 {
+		return nil
+	}
+	if maxNodes > count {
+		maxNodes = count
+	}
+	results, err := kg.semantic.collection.QueryEmbedding(ctx, embedding, maxNodes, nil, nil)
+	if err != nil {
+		if kg.semantic.logger != nil {
+			kg.semantic.logger.Debug("KG semantic search failed", "error", err)
+		}
+		return nil
+	}
+
+	out := make(map[string]float32)
+	for _, result := range results {
+		if result.Similarity < knowledgeGraphSemanticMinSimilarity {
+			continue
+		}
+		if !strings.HasPrefix(result.ID, "edge://") {
+			out[result.ID] = result.Similarity
+		}
+	}
+	return out
+}
+
 func (kg *KnowledgeGraph) semanticSearchEdgeIDs(query string, maxEdges int) []string {
 	if kg.semantic == nil || maxEdges <= 0 || shouldSkipKnowledgeGraphSemanticQuery(query) {
 		return nil

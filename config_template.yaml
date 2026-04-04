@@ -671,6 +671,10 @@ llm_guardian:
 guardian:
     max_scan_bytes: 16384                 # regex guardian scans larger inputs in a bounded window
     scan_edge_bytes: 6144                 # bytes kept from start and end when max_scan_bytes is exceeded
+    promptsec:
+        preset: strict                        # promptsec preset ("strict", "moderate", "lenient")
+        spotlight: true                       # use promptsec spotlighting for output isolation
+        canary: true                          # use promptsec canaries for manipulation detection
 netlify:
     enabled: false
     readonly: false

@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -812,8 +813,8 @@ func TestKGCoOccurrenceThreshold(t *testing.T) {
 	if props["source"] != "activity_turn" {
 		t.Errorf("expected source='activity_turn' at threshold, got %q", props["source"])
 	}
-	if props["weight"] != "3" {
-		t.Errorf("expected weight='3' at threshold, got %q", props["weight"])
+	if props["weight"] != strconv.Itoa(coOccurrenceThreshold) {
+		t.Errorf("expected weight='%d' at threshold, got %q", coOccurrenceThreshold, props["weight"])
 	}
 }
 

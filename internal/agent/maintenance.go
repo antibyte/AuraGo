@@ -1372,7 +1372,10 @@ func SyncCoreMemoryToKnowledgeGraph(ctx context.Context, stm *memory.SQLiteMemor
 
 	for _, fact := range facts {
 		nodeID := fmt.Sprintf("core_fact_%d", fact.ID)
-		label := fmt.Sprintf("Fact %d", fact.ID)
+		label := fact.Fact
+		if len(label) > 50 {
+			label = label[:47] + "..."
+		}
 		props := map[string]string{
 			"type":    "concept",
 			"content": fact.Fact,
