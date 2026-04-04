@@ -39,7 +39,7 @@ priority: 10
   - Update `_todo` on **every** subsequent tool call — mark completed items and add new ones as they emerge.
   - Keep it concise (one line per task, max ~10 items). Drop completed items once the overall task is finished.
   - Do NOT save todo items to core memory — they are session-scoped and automatically cleared on new sessions.
-  - This is purely for your own progress tracking; the user sees it only in debug mode.
+  - This is purely for your own progress tracking; the user sees it only in debug mode. **NEVER output `- [ ]` or `- [x]` lines in your text response** — they must ONLY appear inside the `_todo` JSON field.
 - **Inventory Management.** When the user provides details about a new network device, server, or IP address, or when you discover one, you MUST immediately output a `{"action": "register_device", ...}` JSON tool call to save it to your inventory.
   - **Media & Document Registry.**
     - **Document Creator**: If you need to create a PDF, convert a document, or take a screenshot, use the `document_creator` tool. It automatically registers the file in the UI so the user can see it instantly. It is much more reliable than trying to script a PDF generator manually in Python.

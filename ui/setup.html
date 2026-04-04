@@ -104,33 +104,28 @@
                     <p id="desc-step0" class="section-desc" data-i18n="setup.step0_description">AuraGo requires at least one LLM connection to function. Choose your provider and enter the API key.</p>
                 </div>
 
-                <div class="field-group">
-                    <label id="lbl-provider" class="field-label">
-                        <span data-i18n="setup.step0_provider_label">Provider</span> <span class="required-star">*</span>
-                    </label>
-                    <select class="field-select" id="llm-provider" onchange="onProviderChange()">
-                        <option value="openrouter" data-i18n="setup.step0_provider_openrouter">OpenRouter</option>
-                        <option value="openai" data-i18n="setup.step0_provider_openai">OpenAI</option>
-                        <option value="anthropic" data-i18n="setup.step0_provider_anthropic">Anthropic</option>
-                        <option value="google" data-i18n="setup.step0_provider_google">Google (Gemini)</option>
-                        <option value="ollama" data-i18n="setup.step0_provider_ollama">Ollama (local)</option>
-                        <option value="custom" data-i18n="setup.step0_provider_custom">Custom / Other</option>
-                    </select>
-                    <div id="hint-provider" class="field-hint" data-i18n="setup.step0_provider_hint">OpenRouter recommended — offers many models including free options.</div>
+                <!-- Admin Password — FIRST -->
+                <div class="setup-inner-card">
+                    <h3 id="heading-admin-password" class="setup-section-heading" data-i18n="setup.step0_security_heading">🔐 Admin Password</h3>
+                    <div class="field-group">
+                        <label id="lbl-admin-password" class="field-label">
+                            <span data-i18n="setup.step0_admin_password_label">Admin password</span> <span class="required-star">*</span>
+                        </label>
+                        <input class="field-input" type="password" id="admin-password"
+                            data-i18n-placeholder="setup.step0_admin_password_placeholder" placeholder="Minimum 8 characters" autocomplete="new-password">
+                        <div class="field-error" id="err-admin-password" data-i18n="setup.step0_admin_password_error">Admin password must be at least 8 characters.</div>
+                        <div class="field-hint" id="hint-admin-password" data-i18n="setup.step0_admin_password_hint">Protects the web UI and API on first start. You can change it later in Login Guard.</div>
+                    </div>
+
+                    <div class="field-group" id="group-password-confirm">
+                        <label id="lbl-admin-password-confirm" class="field-label" data-i18n="setup.step0_admin_password_confirm_label">Confirm Password</label>
+                        <input class="field-input" type="password" id="admin-password-confirm"
+                            data-i18n-placeholder="setup.step0_admin_password_confirm_placeholder" placeholder="Repeat password" autocomplete="new-password">
+                        <div class="field-error" id="err-admin-password-confirm" data-i18n="setup.step0_admin_password_confirm_error">Passwords do not match.</div>
+                    </div>
                 </div>
 
-                <div class="field-group" id="group-api-key">
-                    <label id="lbl-api-key" class="field-label">
-                        <span data-i18n="setup.step0_api_key_label">API Key</span> <span class="required-star">*</span>
-                    </label>
-                    <input class="field-input" type="password" id="llm-api-key" placeholder="sk-or-v1-..."
-                        autocomplete="off">
-                    <div class="field-error" id="err-api-key" data-i18n="setup.step0_api_key_error">API Key is required.</div>
-                    <div class="field-hint" id="hint-api-key"><span id="hint-api-key-text" data-i18n="setup.step0_api_key_hint">Available at</span> <span id="provider-link">openrouter.ai</span></div>
-                    <button type="button" id="btn-test-connection" class="btn-setup btn-test-connection" onclick="testConnection()" data-i18n="setup.step0_test_connection">🔌 Test Connection</button>
-                    <div id="test-connection-result" class="field-hint is-hidden"></div>
-                </div>
-
+                <!-- Language -->
                 <div class="setup-inner-card">
                     <h3 id="heading-language" class="setup-section-heading" data-i18n="setup.step0_language_heading">🌐 Language</h3>
                     <div class="field-group">
@@ -156,6 +151,33 @@
                         </select>
                         <input class="field-input is-hidden mt-xs" type="text" id="system-language-custom" placeholder="e.g. Klingon">
                     </div>
+                </div>
+
+                <div class="field-group">
+                    <label id="lbl-provider" class="field-label">
+                        <span data-i18n="setup.step0_provider_label">Provider</span> <span class="required-star">*</span>
+                    </label>
+                    <select class="field-select" id="llm-provider" onchange="onProviderChange()">
+                        <option value="openrouter" data-i18n="setup.step0_provider_openrouter">OpenRouter</option>
+                        <option value="openai" data-i18n="setup.step0_provider_openai">OpenAI</option>
+                        <option value="anthropic" data-i18n="setup.step0_provider_anthropic">Anthropic</option>
+                        <option value="google" data-i18n="setup.step0_provider_google">Google (Gemini)</option>
+                        <option value="ollama" data-i18n="setup.step0_provider_ollama">Ollama (local)</option>
+                        <option value="custom" data-i18n="setup.step0_provider_custom">Custom / Other</option>
+                    </select>
+                    <div id="hint-provider" class="field-hint" data-i18n="setup.step0_provider_hint">OpenRouter recommended — offers many models including free options.</div>
+                </div>
+
+                <div class="field-group" id="group-api-key">
+                    <label id="lbl-api-key" class="field-label">
+                        <span data-i18n="setup.step0_api_key_label">API Key</span> <span class="required-star">*</span>
+                    </label>
+                    <input class="field-input" type="password" id="llm-api-key" placeholder="sk-or-v1-..."
+                        autocomplete="off">
+                    <div class="field-error" id="err-api-key" data-i18n="setup.step0_api_key_error">API Key is required.</div>
+                    <div class="field-hint" id="hint-api-key"><span id="hint-api-key-text" data-i18n="setup.step0_api_key_hint">Available at</span> <span id="provider-link">openrouter.ai</span></div>
+                    <button type="button" id="btn-test-connection" class="btn-setup btn-test-connection" onclick="testConnection()" data-i18n="setup.step0_test_connection">🔌 Test Connection</button>
+                    <div id="test-connection-result" class="field-hint is-hidden"></div>
                 </div>
 
                 <div class="field-group">
@@ -186,26 +208,6 @@
                         <input type="checkbox" id="native-functions" class="toggle">
                         <span class="slider"></span>
                     </label>
-                </div>
-
-                <div class="setup-inner-card">
-                    <h3 id="heading-admin-password" class="setup-section-heading" data-i18n="setup.step0_security_heading">🔐 Admin Password</h3>
-                    <div class="field-group">
-                        <label id="lbl-admin-password" class="field-label">
-                            <span data-i18n="setup.step0_admin_password_label">Admin password</span> <span class="required-star">*</span>
-                        </label>
-                        <input class="field-input" type="password" id="admin-password"
-                            data-i18n-placeholder="setup.step0_admin_password_placeholder" placeholder="Minimum 8 characters" autocomplete="new-password">
-                        <div class="field-error" id="err-admin-password" data-i18n="setup.step0_admin_password_error">Admin password must be at least 8 characters.</div>
-                        <div class="field-hint" id="hint-admin-password" data-i18n="setup.step0_admin_password_hint">Protects the web UI and API on first start. You can change it later in Login Guard.</div>
-                    </div>
-
-                    <div class="field-group" id="group-password-confirm">
-                        <label id="lbl-admin-password-confirm" class="field-label" data-i18n="setup.step0_admin_password_confirm_label">Confirm Password</label>
-                        <input class="field-input" type="password" id="admin-password-confirm"
-                            data-i18n-placeholder="setup.step0_admin_password_confirm_placeholder" placeholder="Repeat password" autocomplete="new-password">
-                        <div class="field-error" id="err-admin-password-confirm" data-i18n="setup.step0_admin_password_confirm_error">Passwords do not match.</div>
-                    </div>
                 </div>
             </div>
 

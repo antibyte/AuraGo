@@ -1335,6 +1335,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		content = strings.TrimPrefix(content, "[CONTEXT_RECAP]:")
 		content = strings.TrimPrefix(content, "[CONTEXT_RECAP]:\n")
 		content = strings.TrimSpace(content)
+		content = stripLeakedTodoList(content)
 
 		// Conversation log to stdout
 		logger.Info("[LLM Response]", "content_len", len(content), "preview", Truncate(content, 200))
@@ -2405,4 +2406,40 @@ func trim422Messages(msgs []openai.ChatCompletionMessage) []openai.ChatCompletio
 		Content: "[The previous tool call history was trimmed due to a provider error. Please summarise what you were doing and continue.]",
 	})
 	return trimmed
+}
+
+var todoCheckboxLinePrefixes = []string{
+	"- [ ] ",
+	"- [x] ",
+	"- [X] ",
+	"* [ ] ",
+	"* [x] ",
+	"* [X] ",
+}
+
+func stripLeakedTodoList(content string) string {
+	lines := strings.Split(content, "\n")
+	filtered := make([]string, 0, len(lines))
+	removed := 0
+	for _, line := range lines {
+		isTodo := false
+		trimmed := strings.TrimLeft(line, " \t")
+		for _, prefix := range todoCheckboxLinePrefixes {
+			if strings.HasPrefix(trimmed, prefix) {
+				isTodo = true
+				break
+			}
+		}
+		if isTodo {
+			removed++
+			continue
+		}
+		filtered = append(filtered, line)
+	}
+	result := strings.Join(filtered, "\n")
+	result = strings.TrimSpace(result)
+	if removed > 0 && result == "" {
+		return content
+	}
+	return result
 }

@@ -545,18 +545,19 @@ function validateStep0() {
     }
 
     const adminPassword = document.getElementById('admin-password').value.trim();
-    const passwordTooShort = adminPassword.length > 0 && adminPassword.length < 8;
-    if ((setupPasswordRequired && adminPassword.length < 8) || passwordTooShort) {
+    // Always validate password if required-star is visible (setupPasswordRequired)
+    const passwordRequired = setupPasswordRequired;
+    if (passwordRequired && adminPassword.length < 8) {
         showFieldError('admin-password', 'err-admin-password');
         valid = false;
     } else {
         clearFieldError('admin-password', 'err-admin-password');
     }
 
-    // Password confirmation
-    if (adminPassword.length >= 8) {
+    // Password confirmation (only if password is required)
+    if (passwordRequired) {
         const confirmPassword = document.getElementById('admin-password-confirm').value.trim();
-        if (confirmPassword !== adminPassword) {
+        if (adminPassword.length >= 8 && confirmPassword !== adminPassword) {
             showFieldError('admin-password-confirm', 'err-admin-password-confirm');
             valid = false;
         } else {
