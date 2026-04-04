@@ -9,7 +9,6 @@ import (
 	"strings"
 )
 
-// generateMiniMax generates an image using the MiniMax Image Generation API.
 func generateMiniMax(cfg ImageGenConfig, prompt string, opts ImageGenOptions) ([]byte, string, error) {
 	model := cfg.Model
 	if model == "" {
@@ -79,7 +78,6 @@ func generateMiniMax(cfg ImageGenConfig, prompt string, opts ImageGenOptions) ([
 	return imgData, "jpeg", nil
 }
 
-// sizeToMiniMaxAspect converts a size string to MiniMax aspect ratio format.
 func sizeToMiniMaxAspect(size string) string {
 	switch size {
 	case "1024x1024":

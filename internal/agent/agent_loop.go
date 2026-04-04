@@ -250,6 +250,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	rawCodeCount := 0
 	missedToolCount := 0
 	announcementCount := 0
+	orphanedToolCallCount := 0
 	invalidNativeToolCount := 0
 	sessionTokens := 0
 	recoveryPolicy := buildRecoveryPolicy(cfg)
@@ -1611,6 +1612,46 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: content})
 			req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: feedbackMsg})
 			continue
+		}
+
+		// Recovery: LLM output literal "[TOOL_CALL]" tag without a closing "[/TOOL_CALL]"
+		// or valid tool call payload — it intended to call a tool but failed to produce one.
+		if !tc.IsTool && !useNativePath && orphanedToolCallCount < 2 {
+			lowerForTagCheck := strings.ToLower(content)
+			hasOpenTag := strings.Contains(lowerForTagCheck, "[tool_call]")
+			hasCloseTag := strings.Contains(lowerForTagCheck, "[/tool_call]")
+			if hasOpenTag && !hasCloseTag {
+				orphanedToolCallCount++
+				currentLogger.Warn("[Sync] Orphaned [TOOL_CALL] tag detected without closing tag, requesting corrective tool call", "attempt", orphanedToolCallCount, "content_preview", Truncate(content, 150))
+				broker.Send("error_recovery", "Incomplete tool call tag detected, requesting proper tool call...")
+
+				id, err := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleAssistant, content, false, true)
+				if err != nil {
+					currentLogger.Error("Failed to persist assistant message to SQLite", "error", err)
+				}
+				if sessionID == "default" {
+					historyManager.Add(openai.ChatMessageRoleAssistant, content, id, false, true)
+				}
+
+				var feedbackMsg string
+				if useNativeFunctions {
+					feedbackMsg = "ERROR: Your response contained the literal text \"[TOOL_CALL]\" but no actual function call was made. You MUST use the native function-calling mechanism to invoke a tool. Do NOT write [TOOL_CALL] as text — call the function directly using the tool call interface."
+				} else {
+					feedbackMsg = "ERROR: Your response contained the literal text \"[TOOL_CALL]\" but no valid tool call JSON. Do NOT write [TOOL_CALL] as text. Your ENTIRE response must be ONLY the raw JSON tool call — no explanation, no tags. Output the JSON tool call NOW."
+				}
+				feedbackMsg = applyEmotionRecoveryNudge(feedbackMsg, emotionPolicy)
+				id, err = shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, feedbackMsg, false, true)
+				if err != nil {
+					currentLogger.Error("Failed to persist feedback message to SQLite", "error", err)
+				}
+				if sessionID == "default" {
+					historyManager.Add(openai.ChatMessageRoleUser, feedbackMsg, id, false, true)
+				}
+
+				req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: content})
+				req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: feedbackMsg})
+				continue
+			}
 		}
 
 		// Berechne effektives Limit neu mit bekanntem tc (für Tool-spezifische Anpassungen)

@@ -38,7 +38,7 @@ var operationalTerms = []string{
 	"build", "deploy", "test", "run", "restart", "install", "search", "read", "write",
 	"edit", "update", "modify", "analy", "inspect", "create", "delete", "move", "list",
 	"lint", "screenshot", "summar", "publish", "commit", "push", "pull", "grep", "tail",
-	"head", "open", "browse", "render", "compile", "filesystem", "homepage", "netlify",
+	"head", "open", "browse", "render", "compile", "generate", "filesystem", "homepage", "netlify",
 	"file_reader_advanced", "file_search", "execute_shell", "execute_skill", "smart_file_read",
 	"analyze_image", "docker", "git", ".go", ".ts", ".tsx", ".js", ".css", ".html", ".json",
 	".yaml", ".yml", ".md", ".log",
