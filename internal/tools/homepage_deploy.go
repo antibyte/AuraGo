@@ -258,6 +258,13 @@ func HomepageWebServerStart(cfg HomepageConfig, projectDir, buildDir string, log
 
 	// Check if Docker is available
 	dockerCfg := DockerConfig{Host: cfg.DockerHost}
+
+	// Copy any referenced generated images into the build directory so
+	// Caddy/Python can serve them as static assets (the main AuraGo server's
+	// /files/generated_images/ route is NOT reachable from the separate
+	// homepage web server).
+	copyAssetsToBuildDir(hostBuildPath, cfg.DataDir, logger)
+
 	if !checkDockerAvailable(cfg.DockerHost) {
 		// Check if local Python server is allowed (Danger Zone)
 		if !cfg.AllowLocalServer {
@@ -595,11 +602,22 @@ func HomepageDeployNetlify(cfg HomepageConfig, nfCfg NetlifyConfig, projectDir, 
 	// Track which special Netlify config files are already present in the project.
 	var hasHeaders, hasNetlifyToml, hasRedirects bool
 
-	// Collect /files/generated_images/<name> references found in HTML files so we
-	// can bundle the actual images into the ZIP (they're served by AuraGo locally
+	// Collect /files/<subdir>/<name> references found in HTML/CSS/JS files so we
+	// can bundle the actual files into the ZIP (they're served by AuraGo locally
 	// but must be included as static assets for Netlify to serve them).
-	generatedImageRef := regexp.MustCompile(`/files/generated_images/([^"' ><\\]+)`)
-	referencedImages := make(map[string]struct{})
+	type assetRef struct {
+		subdir string
+		name   string
+	}
+	referencedAssets := make(map[assetRef]struct{})
+	assetRegexes := []struct {
+		re     *regexp.Regexp
+		subdir string
+	}{
+		{generatedImageRefRegex, "generated_images"},
+		{audioFileRefRegex, "audio"},
+		{documentFileRefRegex, "documents"},
+	}
 
 	walkErr := filepath.Walk(deployPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -630,12 +648,14 @@ func HomepageDeployNetlify(cfg HomepageConfig, nfCfg NetlifyConfig, projectDir, 
 		if err != nil {
 			return err
 		}
-		// Scan HTML/CSS files for local generated-image references.
 		lowerRel := strings.ToLower(rel)
-		if strings.HasSuffix(lowerRel, ".html") || strings.HasSuffix(lowerRel, ".htm") || strings.HasSuffix(lowerRel, ".css") {
-			for _, m := range generatedImageRef.FindAllSubmatch(data, -1) {
-				if len(m) > 1 {
-					referencedImages[string(m[1])] = struct{}{}
+		if strings.HasSuffix(lowerRel, ".html") || strings.HasSuffix(lowerRel, ".htm") ||
+			strings.HasSuffix(lowerRel, ".css") || strings.HasSuffix(lowerRel, ".js") {
+			for _, ar := range assetRegexes {
+				for _, m := range ar.re.FindAllSubmatch(data, -1) {
+					if len(m) > 1 {
+						referencedAssets[assetRef{subdir: ar.subdir, name: string(m[1])}] = struct{}{}
+					}
 				}
 			}
 		}
@@ -646,25 +666,25 @@ func HomepageDeployNetlify(cfg HomepageConfig, nfCfg NetlifyConfig, projectDir, 
 		return errJSON("Failed to create ZIP: %v", walkErr)
 	}
 
-	// Bundle any referenced generated images into the ZIP so Netlify can serve
-	// them at the same /files/generated_images/<name> path.
-	if cfg.DataDir != "" && len(referencedImages) > 0 {
+	// Bundle any referenced assets into the ZIP so Netlify can serve
+	// them at the same /files/<subdir>/<name> path.
+	if cfg.DataDir != "" && len(referencedAssets) > 0 {
 		bundled := 0
-		for imgName := range referencedImages {
-			imgPath := filepath.Join(cfg.DataDir, "generated_images", filepath.Base(imgName))
-			imgData, readErr := os.ReadFile(imgPath)
+		for ref := range referencedAssets {
+			srcPath := filepath.Join(cfg.DataDir, ref.subdir, filepath.Base(ref.name))
+			srcData, readErr := os.ReadFile(srcPath)
 			if readErr != nil {
-				logger.Warn("[Homepage] Could not bundle generated image", "image", imgName, "error", readErr)
+				logger.Warn("[Homepage] Could not bundle asset", "subdir", ref.subdir, "file", ref.name, "error", readErr)
 				continue
 			}
-			zipPath := "files/generated_images/" + filepath.Base(imgName)
+			zipPath := "files/" + ref.subdir + "/" + filepath.Base(ref.name)
 			if iw, werr := zw.Create(zipPath); werr == nil {
-				_, _ = iw.Write(imgData)
+				_, _ = iw.Write(srcData)
 				bundled++
 			}
 		}
 		if bundled > 0 {
-			logger.Info("[Homepage] Bundled generated images into deployment", "count", bundled)
+			logger.Info("[Homepage] Bundled referenced assets into deployment", "count", bundled)
 		}
 	}
 
@@ -786,6 +806,86 @@ func HomepagePublishToLocal(cfg HomepageConfig, projectDir string, logger *slog.
 }
 
 // ─── Internal Helpers ─────────────────────────────────────────────────────
+
+var generatedImageRefRegex = regexp.MustCompile(`/files/generated_images/([^"' ><\\]+)`)
+var audioFileRefRegex = regexp.MustCompile(`/files/audio/([^"' ><\\]+)`)
+var documentFileRefRegex = regexp.MustCompile(`/files/documents/([^"' ><\\]+)`)
+
+type assetRef struct {
+	subdir string
+	name   string
+}
+
+// copyAssetsToBuildDir scans HTML/CSS/JS files in the build directory for
+// /files/<subdir>/<name> references (generated_images, audio, documents) and
+// copies the actual files from the AuraGo data directory into the build
+// directory so the Caddy/Python web server can serve them as static assets.
+func copyAssetsToBuildDir(buildPath, dataDir string, logger *slog.Logger) {
+	if dataDir == "" {
+		return
+	}
+
+	refs := make(map[assetRef]struct{})
+	regexes := []struct {
+		re     *regexp.Regexp
+		subdir string
+	}{
+		{generatedImageRefRegex, "generated_images"},
+		{audioFileRefRegex, "audio"},
+		{documentFileRefRegex, "documents"},
+	}
+
+	filepath.Walk(buildPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() {
+			return nil
+		}
+		lowerName := strings.ToLower(info.Name())
+		if !strings.HasSuffix(lowerName, ".html") && !strings.HasSuffix(lowerName, ".htm") &&
+			!strings.HasSuffix(lowerName, ".css") && !strings.HasSuffix(lowerName, ".js") {
+			return nil
+		}
+		data, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return nil
+		}
+		for _, r := range regexes {
+			for _, m := range r.re.FindAllSubmatch(data, -1) {
+				if len(m) > 1 {
+					refs[assetRef{subdir: r.subdir, name: string(m[1])}] = struct{}{}
+				}
+			}
+		}
+		return nil
+	})
+
+	if len(refs) == 0 {
+		return
+	}
+
+	copied := 0
+	for ref := range refs {
+		srcPath := filepath.Join(dataDir, ref.subdir, filepath.Base(ref.name))
+		srcData, readErr := os.ReadFile(srcPath)
+		if readErr != nil {
+			logger.Warn("[Homepage] Could not copy asset for local serving", "subdir", ref.subdir, "file", ref.name, "error", readErr)
+			continue
+		}
+		targetDir := filepath.Join(buildPath, "files", ref.subdir)
+		if mkdirErr := os.MkdirAll(targetDir, 0755); mkdirErr != nil {
+			logger.Warn("[Homepage] Could not create target directory for assets", "dir", targetDir, "error", mkdirErr)
+			return
+		}
+		dstPath := filepath.Join(targetDir, filepath.Base(ref.name))
+		if writeErr := os.WriteFile(dstPath, srcData, 0644); writeErr != nil {
+			logger.Warn("[Homepage] Could not write asset to build dir", "file", ref.name, "error", writeErr)
+			continue
+		}
+		copied++
+	}
+	if copied > 0 {
+		logger.Info("[Homepage] Copied referenced assets to build directory for local serving", "count", copied)
+	}
+}
 
 func homepageBuildImage(dockerCfg DockerConfig) string {
 	// Build the image via the Docker Engine HTTP API.
