@@ -122,13 +122,13 @@ func TestToolRecoveryStateUpdateToolErrorStateTriggersCircuitBreaker(t *testing.
 	tc := ToolCall{Action: "homepage"}
 	result := `Tool Output: {"status":"error","message":"connect failed"}`
 
-	if state.updateToolErrorState(tc, result, &req, nil, AgentTelemetryScope{}, "v1") {
+	if state.updateToolErrorState(tc, result, &req, nil, AgentTelemetryScope{}, "v1", 100) {
 		t.Fatal("did not expect first identical error to trip circuit breaker")
 	}
-	if state.updateToolErrorState(tc, result, &req, nil, AgentTelemetryScope{}, "v1") {
+	if state.updateToolErrorState(tc, result, &req, nil, AgentTelemetryScope{}, "v1", 100) {
 		t.Fatal("did not expect second identical error to trip circuit breaker")
 	}
-	if !state.updateToolErrorState(tc, result, &req, nil, AgentTelemetryScope{}, "v1") {
+	if !state.updateToolErrorState(tc, result, &req, nil, AgentTelemetryScope{}, "v1", 100) {
 		t.Fatal("expected third identical error to trip circuit breaker")
 	}
 	if len(req.Messages) < 1 {
@@ -150,10 +150,10 @@ func TestToolRecoveryStateUpdateToolErrorStateHonorsCustomThreshold(t *testing.T
 	tc := ToolCall{Action: "homepage"}
 	result := `Tool Output: {"status":"error","message":"connect failed"}`
 
-	if state.updateToolErrorState(tc, result, &req, nil, AgentTelemetryScope{}, "v1") {
+	if state.updateToolErrorState(tc, result, &req, nil, AgentTelemetryScope{}, "v1", 100) {
 		t.Fatal("did not expect first identical error to trip circuit breaker")
 	}
-	if !state.updateToolErrorState(tc, result, &req, nil, AgentTelemetryScope{}, "v1") {
+	if !state.updateToolErrorState(tc, result, &req, nil, AgentTelemetryScope{}, "v1", 100) {
 		t.Fatal("expected second identical error to trip circuit breaker with stricter policy")
 	}
 }
@@ -164,10 +164,10 @@ func TestToolRecoveryStateInjectsRecoveryHintBeforeBreaker(t *testing.T) {
 	tc := ToolCall{Action: "homepage"}
 	result := `Tool Output: {"status":"error","message":"npm error Missing script: \"build\""}`
 
-	if state.updateToolErrorState(tc, result, &req, nil, AgentTelemetryScope{}, "v1") {
+	if state.updateToolErrorState(tc, result, &req, nil, AgentTelemetryScope{}, "v1", 100) {
 		t.Fatal("did not expect first identical error to trip circuit breaker")
 	}
-	if state.updateToolErrorState(tc, result, &req, nil, AgentTelemetryScope{}, "v1") {
+	if state.updateToolErrorState(tc, result, &req, nil, AgentTelemetryScope{}, "v1", 100) {
 		t.Fatal("did not expect second identical error to trip circuit breaker yet")
 	}
 	if len(req.Messages) != 1 {
@@ -183,12 +183,12 @@ func TestToolRecoveryStateUpdateToolErrorStateResolvesOnSuccess(t *testing.T) {
 	req := openai.ChatCompletionRequest{}
 	tc := ToolCall{Action: "execute_shell"}
 
-	_ = state.updateToolErrorState(tc, `Tool Output: {"status":"error","message":"boom"}`, &req, nil, AgentTelemetryScope{}, "v1")
+	_ = state.updateToolErrorState(tc, `Tool Output: {"status":"error","message":"boom"}`, &req, nil, AgentTelemetryScope{}, "v1", 100)
 	if !state.shouldRecordResolution() {
 		t.Fatal("expected pending resolution after an error")
 	}
 
-	_ = state.updateToolErrorState(tc, `Tool Output: {"status":"success","message":"ok"}`, &req, nil, AgentTelemetryScope{}, "v1")
+	_ = state.updateToolErrorState(tc, `Tool Output: {"status":"success","message":"ok"}`, &req, nil, AgentTelemetryScope{}, "v1", 100)
 	if state.shouldRecordResolution() {
 		t.Fatal("expected success to clear pending resolution state")
 	}

@@ -33,7 +33,7 @@ func TestFinalizeToolExecutionRecordsErrorAndResolution(t *testing.T) {
 	state := newToolRecoveryState()
 	tc := ToolCall{Action: "homepage"}
 
-	first := finalizeToolExecution(tc, `{"status":"error","message":"connect failed"}`, cfg, stm, "default", &state, &req, logger, scope, "optim-db")
+	first := finalizeToolExecution(tc, `{"status":"error","message":"connect failed"}`, cfg, stm, "default", &state, &req, logger, scope, "optim-db", 100)
 	if !first.Failed {
 		t.Fatal("expected failing tool output to be marked as failed")
 	}
@@ -46,7 +46,7 @@ func TestFinalizeToolExecutionRecordsErrorAndResolution(t *testing.T) {
 		t.Fatalf("error pattern count = %d, want 1", count)
 	}
 
-	second := finalizeToolExecution(tc, `{"status":"success","message":"ok"}`, cfg, stm, "default", &state, &req, logger, scope, "optim-db")
+	second := finalizeToolExecution(tc, `{"status":"success","message":"ok"}`, cfg, stm, "default", &state, &req, logger, scope, "optim-db", 100)
 	if second.Failed {
 		t.Fatal("expected success output to be marked as successful")
 	}
@@ -72,7 +72,7 @@ func TestFinalizeToolExecutionAppendsSuggestedNextStep(t *testing.T) {
 	state := newToolRecoveryState()
 	tc := ToolCall{Action: "filesystem"}
 
-	result := finalizeToolExecution(tc, `{"status":"error","message":"Unknown filesystem operation: 'read'"}`, cfg, nil, "default", &state, &req, logger, scope, "optim-db")
+	result := finalizeToolExecution(tc, `{"status":"error","message":"Unknown filesystem operation: 'read'"}`, cfg, nil, "default", &state, &req, logger, scope, "optim-db", 100)
 	if !result.Failed {
 		t.Fatal("expected tool failure")
 	}
@@ -107,7 +107,7 @@ func TestFinalizeToolExecutionWarnsWhenMemoryPersistenceFails(t *testing.T) {
 	state := newToolRecoveryState()
 	tc := ToolCall{Action: "homepage"}
 
-	result := finalizeToolExecution(tc, `{"status":"error","message":"connect failed"}`, cfg, stm, "default", &state, &req, logger, scope, "v1")
+	result := finalizeToolExecution(tc, `{"status":"error","message":"connect failed"}`, cfg, stm, "default", &state, &req, logger, scope, "v1", 100)
 	if !result.Failed {
 		t.Fatal("expected tool failure")
 	}

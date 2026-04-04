@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
+	"math/rand"
 	"os"
 	"path/filepath"
 
@@ -51,6 +52,8 @@ func InitDB(dbPath string) (*OptimizerDB, error) {
                 shadow BOOLEAN DEFAULT 0
         );
         CREATE INDEX IF NOT EXISTS idx_prompt_overrides_tool_status ON prompt_overrides(tool_name, active, shadow);
+	CREATE INDEX IF NOT EXISTS idx_traces_tool_version ON tool_traces(tool_name, prompt_version);
+	CREATE INDEX IF NOT EXISTS idx_traces_timestamp ON tool_traces(timestamp);
 		
 		CREATE TABLE IF NOT EXISTS optimizer_metrics (
 			key TEXT PRIMARY KEY,
@@ -59,6 +62,7 @@ func InitDB(dbPath string) (*OptimizerDB, error) {
 		INSERT OR IGNORE INTO optimizer_metrics (key, value) VALUES ('rejected_mutations', 0);`
 
 	if _, err := db.Exec(schema); err != nil {
+		return nil, fmt.Errorf("failed to initialize schema: %w", err)
 	}
 
 	defaultDB = &OptimizerDB{db: db}
@@ -100,7 +104,11 @@ func (o *OptimizerDB) GetToolPromptVersion(toolName string) string {
 	var id int
 	err := o.db.QueryRow(`SELECT id FROM prompt_overrides WHERE tool_name = ? AND shadow = 1 AND active = 0 ORDER BY id DESC LIMIT 1`, toolName).Scan(&id)
 	if err == nil {
-		return fmt.Sprintf("v2-shadow-%d", id)
+		// ~30% chance for shadow test (v2), ~70% for standard (v1)
+		if rand.Float64() < 0.3 {
+			return fmt.Sprintf("v2-shadow-%d", id)
+		}
+		return "v1"
 	}
 
 	// Else check if there's a normal active override
@@ -135,3 +143,4 @@ func (o *OptimizerDB) GetActivePromptOverrides() map[string]string {
 func (o *OptimizerDB) Close() error {
 	return o.db.Close()
 }
+

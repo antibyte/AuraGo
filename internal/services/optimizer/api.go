@@ -1,4 +1,4 @@
-package optimizer
+﻿package optimizer
 
 import (
 	"encoding/json"
@@ -24,10 +24,14 @@ func (db *OptimizerDB) GetDashboardStats() (*OptimizationStats, error) {
 
 	db.db.QueryRow(`SELECT COUNT(*) FROM tool_traces`).Scan(&stats.TotalTraceEvents)
 
-	if stats.TotalTraceEvents > 0 {
+	var recentTotal int
+	db.db.QueryRow(`SELECT COUNT(*) FROM tool_traces WHERE timestamp > datetime('now', '-7 days')`).Scan(&recentTotal)
+	if recentTotal > 0 {
 		var succ int
-		db.db.QueryRow(`SELECT COUNT(*) FROM tool_traces WHERE success = 1`).Scan(&succ)
-		stats.GlobalSuccessRate = float64(succ) / float64(stats.TotalTraceEvents)
+		db.db.QueryRow(`SELECT COUNT(*) FROM tool_traces WHERE success = 1 AND timestamp > datetime('now', '-7 days')`).Scan(&succ)
+		stats.GlobalSuccessRate = float64(succ) / float64(recentTotal)
+	} else {
+		stats.GlobalSuccessRate = 0
 	}
 
 	return stats, nil
@@ -49,3 +53,4 @@ func OptimizationDashboardHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(stats)
 }
+

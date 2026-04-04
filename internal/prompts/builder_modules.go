@@ -2,7 +2,6 @@ package prompts
 
 import (
 	"aurago/internal/memory"
-	"aurago/internal/services/optimizer"
 	promptsembed "aurago/prompts"
 	"fmt"
 	"io/fs"
@@ -34,6 +33,9 @@ func parseOrFallback(filename, content string, logger *slog.Logger) PromptModule
 	return *mod
 }
 
+// GetActivePromptOverrides is a function hook to break import cycles.
+var GetActivePromptOverrides func() map[string]string
+
 func loadPromptModules(dir string, logger *slog.Logger) []PromptModule {
 	// --- Fast path: check cache validity (based on disk files only) ---
 	promptCacheMu.RLock()
@@ -53,7 +55,10 @@ func loadPromptModules(dir string, logger *slog.Logger) []PromptModule {
 
 	// 0. Seed from Optimizer DB overrides (highest system priority before files)
 	// We parse them so they have the proper metadata for version tracking.
-	overrides := optimizer.GetActivePromptOverrides()
+	var overrides map[string]string
+	if GetActivePromptOverrides != nil {
+		overrides = GetActivePromptOverrides()
+	}
 	for name, content := range overrides {
 		filename := name + ".md"
 		mod := parseOrFallback(filename, content, logger)
@@ -146,6 +151,13 @@ func promptCacheStale(dir string, mtimes map[string]time.Time) bool {
 		}
 	}
 	return newCount != len(mtimes)
+}
+
+// ClearPromptCache empties the in-memory cache of parsed prompt modules.
+func ClearPromptCache() {
+	promptCacheMu.Lock()
+	promptCacheByDir = make(map[string]promptDirCache)
+	promptCacheMu.Unlock()
 }
 
 func parsePromptModule(raw string) (*PromptModule, error) {

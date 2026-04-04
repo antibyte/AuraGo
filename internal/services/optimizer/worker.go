@@ -4,12 +4,19 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
 	"time"
 
 	"aurago/internal/llm"
+	"aurago/internal/prompts"
+	promptsembed "aurago/prompts"
 
 	"github.com/sashabaranov/go-openai"
 )
+
+func init() {
+	prompts.GetActivePromptOverrides = GetActivePromptOverrides
+}
 
 type OptimizerWorker struct {
 	db              *OptimizerDB
@@ -35,6 +42,10 @@ func NewOptimizerWorker(db *OptimizerDB, helperManager, primaryManager *llm.Fail
 func (w *OptimizerWorker) Start(ctx context.Context) {
 	slog.Info("[Optimizer] Starting optimization background worker", "interval", w.checkInterval)
 
+	w.runEvaluationCycle(ctx)
+	w.runCreationCycle(ctx)
+	w.pruneTraces(ctx)
+
 	ticker := time.NewTicker(w.checkInterval)
 	defer ticker.Stop()
 
@@ -45,7 +56,15 @@ func (w *OptimizerWorker) Start(ctx context.Context) {
 		case <-ticker.C:
 			w.runEvaluationCycle(ctx)
 			w.runCreationCycle(ctx)
+			w.pruneTraces(ctx)
 		}
+	}
+}
+
+func (w *OptimizerWorker) pruneTraces(ctx context.Context) {
+	_, err := w.db.db.ExecContext(ctx, `DELETE FROM tool_traces WHERE timestamp < datetime('now', '-90 days')`)
+	if err != nil {
+		slog.Error("[Optimizer] Failed to prune traces", "error", err)
 	}
 }
 
@@ -83,6 +102,15 @@ func (w *OptimizerWorker) runEvaluationCycle(ctx context.Context) {
 			SELECT CAST(SUM(CASE WHEN success=1 THEN 1 ELSE 0 END) AS FLOAT) / COUNT(*) 
 			FROM tool_traces 
 			WHERE tool_name = ? AND prompt_version = ?`, toolName, versionTag).Scan(&newSuccessRate)
+		if err != nil {
+			continue
+		}
+		if err != nil {
+			continue
+		}
+		if err != nil {
+			continue
+		}
 
 		var baselineSuccessRate float64
 		w.db.db.QueryRow(`
@@ -93,10 +121,20 @@ func (w *OptimizerWorker) runEvaluationCycle(ctx context.Context) {
                                 WHERE tool_name = ? AND prompt_version = 'v1'
                                 ORDER BY timestamp DESC LIMIT 50
                         )`, toolName).Scan(&baselineSuccessRate)
+		if err != nil {
+			continue
+		}
+		if err != nil {
+			continue
+		}
+		if err != nil {
+			continue
+		}
 
 		if newSuccessRate >= baselineSuccessRate+0.1 {
 			// Promote!
 			w.db.db.Exec(`UPDATE prompt_overrides SET active = 1, shadow = 0 WHERE id = ?`, id)
+			prompts.ClearPromptCache()
 			slog.Info("[Optimizer] Promoted shadow prompt to active", "tool", toolName, "gain", newSuccessRate-baselineSuccessRate)
 		} else {
 			// Rollback! Discard it
@@ -116,7 +154,7 @@ func (w *OptimizerWorker) runCreationCycle(ctx context.Context) {
 		WHERE prompt_version = 'v1' AND timestamp > datetime('now', '-7 days')
 		GROUP BY tool_name
 		HAVING success_rate < 0.8 AND trace_count >= 5
-		ORDER BY success_rate ASC LIMIT 1
+		ORDER BY success_rate ASC LIMIT 3
 	`)
 	if err != nil {
 		slog.Error("[Optimizer] Failed to find poorly performing tools", "error", err)
@@ -124,26 +162,28 @@ func (w *OptimizerWorker) runCreationCycle(ctx context.Context) {
 	}
 	defer rows.Close()
 
-	if !rows.Next() {
-		return // Nothing to optimize
+	var toolsToOptimize []string
+	for rows.Next() {
+		var toolName string
+		var succRate float64
+		var traceCount int
+		if err := rows.Scan(&toolName, &succRate, &traceCount); err != nil {
+			continue
+		}
+		toolsToOptimize = append(toolsToOptimize, toolName)
 	}
+	rows.Close()
 
-	var toolName string
-	var succRate float64
-	var traceCount int
-	if err := rows.Scan(&toolName, &succRate, &traceCount); err != nil {
-		return
+	for _, toolName := range toolsToOptimize {
+		// Do not optimize if there's already a shadow prompt running for this tool
+		var existing int
+		w.db.db.QueryRow(`SELECT COUNT(*) FROM prompt_overrides WHERE tool_name = ? AND shadow = 1`, toolName).Scan(&existing)
+		if existing > 0 {
+			continue
+		}
+
+		w.mutateToolPrompt(ctx, toolName)
 	}
-	rows.Close() // Finished with rows to free connection
-
-	// Do not optimize if there's already a shadow prompt running for this tool
-	var existing int
-	w.db.db.QueryRow(`SELECT COUNT(*) FROM prompt_overrides WHERE tool_name = ? AND shadow = 1`, toolName).Scan(&existing)
-	if existing > 0 {
-		return
-	}
-
-	w.mutateToolPrompt(ctx, toolName)
 }
 
 func (w *OptimizerWorker) mutateToolPrompt(ctx context.Context, toolName string) {
@@ -164,12 +204,28 @@ func (w *OptimizerWorker) mutateToolPrompt(ctx context.Context, toolName string)
 		}
 	}
 
-	// You would typically load the current prompt content from embedded/disk here.
-	// For demonstration, we just mock the reflection logic
+	// Load the current prompt content from embedded/disk
+	var currentManual string
+	data, err := os.ReadFile("prompts/tools_manuals/" + toolName + ".md")
+	if err != nil {
+		// fallback to embed
+		data, err = promptsembed.FS.ReadFile("tools_manuals/" + toolName + ".md")
+	}
+	if err == nil {
+		currentManual = string(data)
+	} else {
+		currentManual = "(No existing manual found)"
+	}
+
 	reflectionPrompt := fmt.Sprintf(`Rewrite the usage manual for the tool '%s'.
+Current manual:
+<current_manual>
+%s
+</current_manual>
+
 Recent execution errors:
 %s
-Ensure the instructions prevent these errors. Reply ONLY with the new markdown manual.`, toolName, errorsList)
+Ensure the instructions prevent these errors. Reply ONLY with the new markdown manual.`, toolName, currentManual, errorsList)
 
 	// Fallback logic
 	req := openai.ChatCompletionRequest{

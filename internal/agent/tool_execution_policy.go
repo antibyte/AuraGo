@@ -52,6 +52,7 @@ func finalizeToolExecution(
 	logger *slog.Logger,
 	scope AgentTelemetryScope,
 	promptVersion string,
+	execTimeMs int64,
 ) toolExecutionResult {
 	limit := 0
 	if cfg != nil {
@@ -132,7 +133,7 @@ func finalizeToolExecution(
 	}
 
 	if recoveryState != nil && req != nil {
-		_ = recoveryState.updateToolErrorState(tc, resultContent, req, logger, scope, promptVersion)
+		_ = recoveryState.updateToolErrorState(tc, resultContent, req, logger, scope, promptVersion, execTimeMs)
 	}
 
 	return toolExecutionResult{

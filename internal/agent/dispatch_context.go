@@ -47,4 +47,5 @@ type DispatchContext struct {
 	SessionID          string
 	CoAgentRegistry    *CoAgentRegistry
 	BudgetTracker      *budget.Tracker
+	ExecutionTimeMs    int64
 }

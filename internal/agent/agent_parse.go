@@ -122,7 +122,9 @@ func DispatchToolCall(ctx context.Context, tc ToolCall, dc *DispatchContext, use
 	}
 proceed:
 
+	startTime := time.Now()
 	rawResult := dispatchInner(ctx, tc, dc)
+	dc.ExecutionTimeMs = time.Since(startTime).Milliseconds()
 
 	// Apply scrubbing and redaction to tool output.
 	// Scrub() removes registered runtime secrets (vault keys, API tokens, etc.).
