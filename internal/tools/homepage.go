@@ -291,11 +291,14 @@ func HomepageInit(cfg HomepageConfig, logger *slog.Logger) string {
 		return okJSON("Dev container started", "container", homepageContainerName)
 	}
 
-	// Create new container
+	// Create new container — run as the current UID/GID so bind-mounted
+	// workspace files are owned by the aurago user, not root.
 	workspaceMount := cfg.WorkspacePath + ":" + homepageWorkspaceMount
+	currentUser := fmt.Sprintf("%d:%d", os.Getuid(), os.Getgid())
 	payload := map[string]interface{}{
 		"Image": homepageImageName,
 		"Tty":   false,
+		"User":  currentUser,
 		"HostConfig": map[string]interface{}{
 			"Binds":         []string{workspaceMount},
 			"RestartPolicy": map[string]string{"Name": "unless-stopped"},

@@ -3,6 +3,8 @@
 ## Overview
 The `generate_image` tool creates images from text descriptions using various AI image generation providers. It supports text-to-image and image-to-image generation with configurable size, quality, and style options.
 
+**IMPORTANT:** `generate_image` is a **native tool** that must be called directly via function calling. Do NOT use `execute_skill` to invoke it — it is not a skill.
+
 ## Configuration
 Configure in Settings > Image Generation:
 - **Provider** — Select an existing provider entry (OpenRouter, OpenAI, Stability AI, Ideogram, Google)

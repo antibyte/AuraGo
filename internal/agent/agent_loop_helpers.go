@@ -91,11 +91,12 @@ var adaptiveToolNeighbors = map[string][]string{
 
 	// Media & Documents
 	"document_creator": {"media_registry", "send_document", "filesystem"},
-	"media_registry":   {"document_creator", "send_document", "filesystem", "generate_image", "send_image", "tts", "send_audio"},
+	"media_registry":   {"document_creator", "send_document", "filesystem", "generate_image", "send_image", "tts", "send_audio", "generate_music"},
 	"send_document":    {"media_registry", "document_creator"},
 	"send_image":       {"media_registry", "generate_image"},
-	"send_audio":       {"media_registry", "tts"},
+	"send_audio":       {"media_registry", "tts", "generate_music"},
 	"generate_image":   {"media_registry", "send_image", "analyze_image"},
+	"generate_music":   {"media_registry", "send_audio", "tts"},
 	"analyze_image":    {"generate_image", "media_registry"},
 	"tts":              {"media_registry", "send_audio"},
 	"transcribe_audio": {"filesystem", "media_registry"},

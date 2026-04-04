@@ -62,7 +62,7 @@ func inferToolFamilyFromQuery(query string) string {
 		return "communication"
 	case strings.Contains(q, "schedule") || strings.Contains(q, "cron") || strings.Contains(q, "mission") || strings.Contains(q, "automation") || strings.Contains(q, "follow up"):
 		return "automation"
-	case strings.Contains(q, "image") || strings.Contains(q, "audio") || strings.Contains(q, "speech") || strings.Contains(q, "media"):
+	case strings.Contains(q, "image") || strings.Contains(q, "audio") || strings.Contains(q, "speech") || strings.Contains(q, "media") || strings.Contains(q, "music"):
 		return "media"
 	default:
 		return ""

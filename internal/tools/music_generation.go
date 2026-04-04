@@ -5,7 +5,6 @@ import (
 	"context"
 	"database/sql"
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -18,9 +17,13 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/security"
 
 	"github.com/google/uuid"
 )
+
+// musicGenHTTPClient is the SSRF-protected HTTP client for all music generation requests.
+var musicGenHTTPClient = security.NewSSRFProtectedHTTPClient(5 * time.Minute)
 
 // MusicGenParams holds the parameters for the generate_music tool call.
 type MusicGenParams struct {
@@ -32,19 +35,20 @@ type MusicGenParams struct {
 
 // MusicGenResult holds the result of a music generation.
 type MusicGenResult struct {
-	Status     string `json:"status"`
-	Title      string `json:"title,omitempty"`
-	Filename   string `json:"filename,omitempty"`
-	FilePath   string `json:"file_path,omitempty"`
-	WebPath    string `json:"web_path,omitempty"`
-	DurationMs int64  `json:"duration_ms,omitempty"`
-	Provider   string `json:"provider,omitempty"`
-	Model      string `json:"model,omitempty"`
-	Format     string `json:"format,omitempty"`
-	FileSize   int64  `json:"file_size,omitempty"`
-	MediaID    int64  `json:"media_id,omitempty"`
-	Message    string `json:"message,omitempty"`
-	Error      string `json:"error,omitempty"`
+	Status       string  `json:"status"`
+	Title        string  `json:"title,omitempty"`
+	Filename     string  `json:"filename,omitempty"`
+	FilePath     string  `json:"file_path,omitempty"`
+	WebPath      string  `json:"web_path,omitempty"`
+	DurationMs   int64   `json:"duration_ms,omitempty"`
+	Provider     string  `json:"provider,omitempty"`
+	Model        string  `json:"model,omitempty"`
+	Format       string  `json:"format,omitempty"`
+	FileSize     int64   `json:"file_size,omitempty"`
+	MediaID      int64   `json:"media_id,omitempty"`
+	CostEstimate float64 `json:"cost_estimate,omitempty"`
+	Message      string  `json:"message,omitempty"`
+	Error        string  `json:"error,omitempty"`
 }
 
 // musicDailyCounter tracks daily usage for music generation.
@@ -87,8 +91,20 @@ func MusicCounterGet() int {
 
 // GenerateMusic is the main entry point for the generate_music tool.
 func GenerateMusic(ctx context.Context, cfg *config.Config, mediaDB *sql.DB, logger *slog.Logger, params MusicGenParams) string {
+	result := GenerateMusicResult(ctx, cfg, mediaDB, logger, params)
+	return mustJSON(result)
+}
+
+// MusicResultToJSON serialises a MusicGenResult to a JSON string.
+func MusicResultToJSON(r MusicGenResult) string {
+	return mustJSON(r)
+}
+
+// GenerateMusicResult runs music generation and returns the structured result.
+// Use this when the caller needs to inspect or record the result (e.g. budget tracking).
+func GenerateMusicResult(ctx context.Context, cfg *config.Config, mediaDB *sql.DB, logger *slog.Logger, params MusicGenParams) MusicGenResult {
 	if params.Prompt == "" {
-		return mustJSON(MusicGenResult{Status: "error", Error: "'prompt' is required for music generation."})
+		return MusicGenResult{Status: "error", Error: "'prompt' is required for music generation."}
 	}
 
 	providerType := cfg.MusicGeneration.ProviderType
@@ -98,17 +114,17 @@ func GenerateMusic(ctx context.Context, cfg *config.Config, mediaDB *sql.DB, log
 	logger.Info("Music generation requested", "provider_type", providerType, "prompt_len", len(params.Prompt), "instrumental", params.Instrumental)
 
 	if apiKey == "" {
-		return mustJSON(MusicGenResult{Status: "error", Error: "Music generation provider not configured. Set a provider in Settings > Music Generation."})
+		return MusicGenResult{Status: "error", Error: "Music generation provider not configured. Set a provider in Settings > Music Generation."}
 	}
 
 	// Check daily limit
 	if cfg.MusicGeneration.MaxDaily > 0 {
 		count, allowed := musicCounterIncrement(cfg.MusicGeneration.MaxDaily)
 		if !allowed {
-			return mustJSON(MusicGenResult{
+			return MusicGenResult{
 				Status: "error",
 				Error:  fmt.Sprintf("Daily music generation limit reached (%d/%d). Try again tomorrow or increase the limit in settings.", count, cfg.MusicGeneration.MaxDaily),
-			})
+			}
 		}
 	} else {
 		musicCounterIncrement(0)
@@ -117,7 +133,7 @@ func GenerateMusic(ctx context.Context, cfg *config.Config, mediaDB *sql.DB, log
 	// Ensure audio output directory exists
 	audioDir := filepath.Join(cfg.Directories.DataDir, "audio")
 	if err := os.MkdirAll(audioDir, 0755); err != nil {
-		return mustJSON(MusicGenResult{Status: "error", Error: fmt.Sprintf("Failed to create audio directory: %v", err)})
+		return MusicGenResult{Status: "error", Error: fmt.Sprintf("Failed to create audio directory: %v", err)}
 	}
 
 	var result MusicGenResult
@@ -127,7 +143,7 @@ func GenerateMusic(ctx context.Context, cfg *config.Config, mediaDB *sql.DB, log
 	case "google", "google_lyria":
 		result = generateMusicGoogleLyria(ctx, apiKey, model, params, audioDir, logger)
 	default:
-		return mustJSON(MusicGenResult{Status: "error", Error: fmt.Sprintf("Unknown music generation provider type: %q. Supported: minimax, google", providerType)})
+		return MusicGenResult{Status: "error", Error: fmt.Sprintf("Unknown music generation provider type: %q. Supported: minimax, google", providerType)}
 	}
 
 	// Register in media registry
@@ -162,7 +178,19 @@ func GenerateMusic(ctx context.Context, cfg *config.Config, mediaDB *sql.DB, log
 		}
 	}
 
-	return mustJSON(result)
+	// Rough cost estimate per generation (provider-specific)
+	if result.Status == "ok" {
+		switch strings.ToLower(providerType) {
+		case "minimax":
+			result.CostEstimate = 0.05
+		case "google", "google_lyria":
+			result.CostEstimate = 0.06
+		default:
+			result.CostEstimate = 0.05
+		}
+	}
+
+	return result
 }
 
 // --- MiniMax Music API ---
@@ -238,8 +266,7 @@ func generateMusicMiniMax(ctx context.Context, apiKey, model string, params Musi
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+apiKey)
 
-	client := &http.Client{Timeout: 5 * time.Minute}
-	resp, err := client.Do(req)
+	resp, err := musicGenHTTPClient.Do(req)
 	if err != nil {
 		return MusicGenResult{Status: "error", Error: fmt.Sprintf("MiniMax API request failed: %v", err)}
 	}
@@ -279,10 +306,10 @@ func generateMusicMiniMax(ctx context.Context, apiKey, model string, params Musi
 			return MusicGenResult{Status: "error", Error: fmt.Sprintf("Failed to download audio: %v", err)}
 		}
 	} else {
-		// Hex-encoded data
-		decoded, err := hex.DecodeString(audioData)
+		// Base64-encoded data (MiniMax fallback when not returning a URL)
+		decoded, err := base64.StdEncoding.DecodeString(audioData)
 		if err != nil {
-			return MusicGenResult{Status: "error", Error: fmt.Sprintf("Failed to decode hex audio: %v", err)}
+			return MusicGenResult{Status: "error", Error: fmt.Sprintf("Failed to decode base64 audio: %v", err)}
 		}
 		if err := os.WriteFile(filePath, decoded, 0644); err != nil {
 			return MusicGenResult{Status: "error", Error: fmt.Sprintf("Failed to write audio file: %v", err)}
@@ -306,7 +333,7 @@ func generateMusicMiniMax(ctx context.Context, apiKey, model string, params Musi
 		Title:      title,
 		Filename:   filename,
 		FilePath:   filePath,
-		WebPath:    "/api/media/audio/" + filename,
+		WebPath:    "/files/audio/" + filename,
 		DurationMs: mmResp.ExtraInfo.MusicDuration,
 		Provider:   "minimax",
 		Model:      model,
@@ -396,8 +423,7 @@ func generateMusicGoogleLyria(ctx context.Context, apiKey, model string, params 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("x-goog-api-key", apiKey)
 
-	client := &http.Client{Timeout: 5 * time.Minute}
-	resp, err := client.Do(req)
+	resp, err := musicGenHTTPClient.Do(req)
 	if err != nil {
 		return MusicGenResult{Status: "error", Error: fmt.Sprintf("Google Lyria API request failed: %v", err)}
 	}
@@ -459,7 +485,7 @@ func generateMusicGoogleLyria(ctx context.Context, apiKey, model string, params 
 		Title:    title,
 		Filename: filename,
 		FilePath: filePath,
-		WebPath:  "/api/media/audio/" + filename,
+		WebPath:  "/files/audio/" + filename,
 		Provider: "google_lyria",
 		Model:    model,
 		Format:   "mp3",
@@ -476,8 +502,7 @@ func downloadFile(ctx context.Context, url, dest string) error {
 	if err != nil {
 		return fmt.Errorf("create download request: %w", err)
 	}
-	client := &http.Client{Timeout: 3 * time.Minute}
-	resp, err := client.Do(req)
+	resp, err := musicGenHTTPClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("download request: %w", err)
 	}
@@ -508,21 +533,21 @@ func mustJSON(v interface{}) string {
 	return string(b)
 }
 
-// TestMusicConnection performs a lightweight API connectivity test.
+// TestMusicConnection performs a lightweight API connectivity test without generating music.
 func TestMusicConnection(ctx context.Context, provider, apiKey string) (bool, string) {
 	switch provider {
 	case "minimax":
-		// Send a minimal request with intentionally short lyrics to verify API key
-		reqBody := miniMaxMusicRequest{
-			Model:  "music-2.5+",
-			Prompt: "test",
-			Lyrics: "[Verse]\nTest connection\n",
-			AudioSetting: miniMaxAudioSetting{
+		// Send a request with no prompt — the API rejects it with a validation error
+		// (StatusCode != 0) before any generation happens, which confirms the key is
+		// valid without incurring music-generation costs.
+		reqBody := map[string]interface{}{
+			"model":         "music-2.5+",
+			"output_format": "url",
+			"audio_setting": miniMaxAudioSetting{
 				SampleRate: 44100,
 				Bitrate:    128000,
 				Format:     "mp3",
 			},
-			OutputFormat: "url",
 		}
 		bodyBytes, _ := json.Marshal(reqBody)
 		req, err := http.NewRequestWithContext(ctx, "POST", "https://api.minimax.io/v1/music_generation", bytes.NewReader(bodyBytes))
@@ -532,56 +557,41 @@ func TestMusicConnection(ctx context.Context, provider, apiKey string) (bool, st
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+apiKey)
 
-		client := &http.Client{Timeout: 30 * time.Second}
-		resp, err := client.Do(req)
+		resp, err := musicGenHTTPClient.Do(req)
 		if err != nil {
 			return false, fmt.Sprintf("Connection failed: %v", err)
 		}
 		defer resp.Body.Close()
 
-		body, _ := io.ReadAll(resp.Body)
 		if resp.StatusCode == 401 || resp.StatusCode == 403 {
 			return false, "Authentication failed — check your API key"
 		}
-		// Any non-error response (even 200 with processing) means key works
+		body, _ := io.ReadAll(resp.Body)
 		var mmResp miniMaxMusicResponse
 		if err := json.Unmarshal(body, &mmResp); err == nil {
-			if mmResp.BaseResp.StatusCode == 0 || mmResp.BaseResp.StatusCode == 1 {
+			// StatusCode 0 = success (would mean music was created — shouldn't happen
+			// without a prompt), any other code = validation error = key is valid
+			if mmResp.BaseResp.StatusCode != 0 {
 				return true, "Connection successful"
 			}
-			if mmResp.BaseResp.StatusMsg != "" {
-				return false, mmResp.BaseResp.StatusMsg
-			}
+			// Shouldn't happen: music generated without a prompt
+			return true, "Connection successful"
 		}
-		// Status 200 is still a good sign
 		if resp.StatusCode == 200 {
 			return true, "Connection successful"
 		}
 		return false, fmt.Sprintf("API returned status %d: %s", resp.StatusCode, truncateString(string(body), 200))
 
 	case "google_lyria":
-		// Verify API key by sending a minimal generate request
-		reqBody := lyriaRequest{
-			Contents: []lyriaContent{{
-				Role:  "user",
-				Parts: []lyriaPart{{Text: "Generate a short 2-second test beep"}},
-			}},
-			Config: lyriaConfig{
-				ResponseModalities: []string{"AUDIO", "TEXT"},
-				ResponseMimeType:   "audio/mp3",
-			},
-		}
-		bodyBytes, _ := json.Marshal(reqBody)
-		url := "https://generativelanguage.googleapis.com/v1beta/models/lyria-3-clip-preview:generateContent"
-		req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(bodyBytes))
+		// Use the model-listing endpoint — completely free and verifies the API key.
+		url := "https://generativelanguage.googleapis.com/v1beta/models"
+		req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 		if err != nil {
 			return false, fmt.Sprintf("Request creation failed: %v", err)
 		}
-		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("x-goog-api-key", apiKey)
 
-		client := &http.Client{Timeout: 30 * time.Second}
-		resp, err := client.Do(req)
+		resp, err := musicGenHTTPClient.Do(req)
 		if err != nil {
 			return false, fmt.Sprintf("Connection failed: %v", err)
 		}

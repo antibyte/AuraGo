@@ -9,6 +9,8 @@ conditions: ["image_generation_enabled"]
 |---|---|
 | `generate_image` | Generate images from text prompts using AI models |
 
+**IMPORTANT:** `generate_image` is a **native tool**, NOT a skill. Call it directly via function calling — do NOT use `execute_skill`.
+
 **Parameters:**
 - `prompt` (required) — Text description of the image to generate
 - `size` — Image dimensions (e.g. `1024x1024`, `1024x1792`, `512x512`)

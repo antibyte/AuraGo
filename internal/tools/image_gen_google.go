@@ -20,8 +20,8 @@ func generateGoogleImagen(cfg ImageGenConfig, prompt string, opts ImageGenOption
 	if baseURL == "" {
 		baseURL = "https://generativelanguage.googleapis.com/v1beta"
 	}
-	url := fmt.Sprintf("%s/models/%s:predict?key=%s",
-		strings.TrimRight(baseURL, "/"), model, cfg.APIKey)
+	url := fmt.Sprintf("%s/models/%s:predict",
+		strings.TrimRight(baseURL, "/"), model)
 
 	body := map[string]interface{}{
 		"instances": []map[string]interface{}{
@@ -50,6 +50,7 @@ func generateGoogleImagen(cfg ImageGenConfig, prompt string, opts ImageGenOption
 		return nil, "", fmt.Errorf("failed to create request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("x-goog-api-key", cfg.APIKey)
 
 	resp, err := imageGenHTTPClient.Do(req)
 	if err != nil {

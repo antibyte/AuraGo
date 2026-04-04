@@ -1515,12 +1515,19 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				return `Tool Output: {"status": "error", "message": "Music generation blocked: daily budget exceeded."}`
 			}
 
-			return "Tool Output: " + tools.GenerateMusic(ctx, cfg, mediaRegistryDB, logger, tools.MusicGenParams{
+			musicResult := tools.GenerateMusicResult(ctx, cfg, mediaRegistryDB, logger, tools.MusicGenParams{
 				Prompt:       prompt,
 				Lyrics:       lyrics,
 				Instrumental: instrumental,
 				Title:        title,
 			})
+
+			// Record cost in budget tracker
+			if budgetTracker != nil && musicResult.CostEstimate > 0 {
+				budgetTracker.RecordCostForCategory("music_generation", musicResult.CostEstimate)
+			}
+
+			return "Tool Output: " + tools.MusicResultToJSON(musicResult)
 
 		case "generate_image":
 			if !cfg.ImageGeneration.Enabled {
