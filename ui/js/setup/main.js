@@ -467,8 +467,8 @@ function goToStep(step) {
 }
 
 function nextStep(skip = false) {
-    if (currentStep === 0 && !skip) {
-        if (!validateStep0()) return;
+    if (currentStep === 0) {
+        if (!validateStep0(skip)) return;
     }
 
     if (currentStep < totalSteps - 1) {
@@ -519,8 +519,31 @@ function updateUI() {
 }
 
 // ── Validation ───────────────────────────────
-function validateStep0() {
+function validateStep0(skip = false) {
     let valid = true;
+
+    // Password validation — always enforced, never skippable
+    if (setupPasswordRequired) {
+        const adminPassword = document.getElementById('admin-password').value.trim();
+        if (adminPassword.length < 8) {
+            showFieldError('admin-password', 'err-admin-password');
+            valid = false;
+        } else {
+            clearFieldError('admin-password', 'err-admin-password');
+        }
+
+        const confirmPassword = document.getElementById('admin-password-confirm').value.trim();
+        if (adminPassword.length >= 8 && confirmPassword !== adminPassword) {
+            showFieldError('admin-password-confirm', 'err-admin-password-confirm');
+            valid = false;
+        } else {
+            clearFieldError('admin-password-confirm', 'err-admin-password-confirm');
+        }
+    }
+
+    // Skip remaining validation when user pressed Skip
+    if (skip) return valid;
+
     const provider = document.getElementById('llm-provider').value;
     const cfg = providerConfig[provider];
 
@@ -542,30 +565,6 @@ function validateStep0() {
         valid = false;
     } else {
         clearFieldError('llm-model', 'err-model');
-    }
-
-    const adminPassword = document.getElementById('admin-password').value.trim();
-    // Check if required star is visible (always validate on setup page)
-    const lblPw = document.getElementById('lbl-admin-password');
-    const star = lblPw ? lblPw.querySelector('.required-star') : null;
-    const passwordRequired = star && star.style.display !== 'none';
-
-    if (passwordRequired && adminPassword.length < 8) {
-        showFieldError('admin-password', 'err-admin-password');
-        valid = false;
-    } else {
-        clearFieldError('admin-password', 'err-admin-password');
-    }
-
-    // Password confirmation (only if password is required)
-    if (passwordRequired) {
-        const confirmPassword = document.getElementById('admin-password-confirm').value.trim();
-        if (adminPassword.length >= 8 && confirmPassword !== adminPassword) {
-            showFieldError('admin-password-confirm', 'err-admin-password-confirm');
-            valid = false;
-        } else {
-            clearFieldError('admin-password-confirm', 'err-admin-password-confirm');
-        }
     }
 
     return valid;
