@@ -381,6 +381,12 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			if GetVoiceMode() {
 				alwaysInclude = append(alwaysInclude, "tts", "send_audio")
 			}
+			if ff.MusicGenerationEnabled {
+				alwaysInclude = append(alwaysInclude, "generate_music")
+			}
+			if ff.ImageGenerationEnabled {
+				alwaysInclude = append(alwaysInclude, "generate_image")
+			}
 
 			if maxTools > 0 && len(prioritized) > 0 {
 				ntSchemas = filterToolSchemas(ntSchemas, prioritized, alwaysInclude, maxTools, logger)
