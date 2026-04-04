@@ -1,0 +1,18 @@
+{
+  "config.music_gen.enabled_label": "Génération de musique activée :",
+  "config.music_gen.disabled_notice": "La génération de musique est désactivée. Activez le bouton ci-dessus pour permettre à l'agent de générer de la musique.",
+  "config.music_gen.provider_label": "Fournisseur",
+  "config.music_gen.provider_help": "Sélectionnez le fournisseur de génération de musique.",
+  "config.music_gen.max_daily_label": "Max. générations par jour",
+  "config.music_gen.max_daily_help": "0 = illimité",
+  "config.music_gen.api_key_label": "Clé API",
+  "config.music_gen.model_label": "Modèle",
+  "config.music_gen.recommended": "Recommandé",
+  "config.music_gen.test_btn": "Tester la connexion",
+  "config.music_gen.testing": "Test en cours...",
+  "config.music_gen.test_success": "Connexion réussie",
+  "config.music_gen.test_failed": "Échec de la connexion",
+  "config.music_gen.key_required": "Clé API requise",
+  "config.music_gen.key_saved": "Clé API enregistrée",
+  "config.music_gen.key_save_failed": "Échec de l'enregistrement de la clé API"
+}

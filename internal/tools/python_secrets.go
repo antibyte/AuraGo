@@ -37,6 +37,8 @@ var blockedSecretPrefixes = []string{
 	"mqtt_",
 	"ollama_managed_",
 	"jellyfin_",
+	"music_minimax_",
+	"music_google_lyria_",
 }
 
 // blockedSecretExact is the set of exact vault keys that are exclusively

@@ -1,0 +1,18 @@
+{
+  "config.music_gen.enabled_label": "Musikgenerierung aktiviert:",
+  "config.music_gen.disabled_notice": "Musikgenerierung ist deaktiviert. Aktiviere den Schalter oben, damit der Agent Musik erzeugen kann.",
+  "config.music_gen.provider_label": "Anbieter",
+  "config.music_gen.provider_help": "Wähle den Anbieter für die Musikgenerierung.",
+  "config.music_gen.max_daily_label": "Max. Generierungen pro Tag",
+  "config.music_gen.max_daily_help": "0 = unbegrenzt",
+  "config.music_gen.api_key_label": "API-Schlüssel",
+  "config.music_gen.model_label": "Modell",
+  "config.music_gen.recommended": "Empfohlen",
+  "config.music_gen.test_btn": "Verbindung testen",
+  "config.music_gen.testing": "Teste...",
+  "config.music_gen.test_success": "Verbindung erfolgreich",
+  "config.music_gen.test_failed": "Verbindung fehlgeschlagen",
+  "config.music_gen.key_required": "API-Schlüssel erforderlich",
+  "config.music_gen.key_saved": "API-Schlüssel gespeichert",
+  "config.music_gen.key_save_failed": "API-Schlüssel konnte nicht gespeichert werden"
+}

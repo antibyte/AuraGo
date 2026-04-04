@@ -76,6 +76,7 @@ type ToolFeatureFlags struct {
 	OneDriveEnabled         bool
 	VirusTotalEnabled       bool
 	ImageGenerationEnabled  bool
+	MusicGenerationEnabled  bool
 	RemoteControlEnabled    bool
 	// Danger Zone toggles
 	AllowShell               bool

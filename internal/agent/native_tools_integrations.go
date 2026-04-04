@@ -704,6 +704,23 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 		))
 	}
 
+	if ff.MusicGenerationEnabled {
+		tools = append(tools, tool("generate_music",
+			"Generate music from text prompts using AI. Supports MiniMax and Google Lyria providers. "+
+				"Can create vocal songs with lyrics or instrumental tracks. "+
+				"The generated audio file is automatically registered in the media registry.",
+			schema(map[string]interface{}{
+				"prompt": map[string]interface{}{
+					"type":        "string",
+					"description": "Description of the music style, mood, genre, instruments, tempo, etc. Be specific for best results.",
+				},
+				"lyrics":       prop("string", "Song lyrics with structure tags ([Verse], [Chorus], [Bridge], etc.). If empty and not instrumental, lyrics are auto-generated from the prompt."),
+				"instrumental": map[string]interface{}{"type": "boolean", "description": "If true, generate instrumental music without vocals (default: false)"},
+				"title":        prop("string", "Title for the generated track (optional, defaults to a truncated prompt)"),
+			}, "prompt"),
+		))
+	}
+
 	if ff.RemoteControlEnabled {
 		tools = append(tools, tool("remote_control",
 			"Manage and interact with remote devices connected to this AuraGo instance. "+

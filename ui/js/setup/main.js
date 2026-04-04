@@ -545,8 +545,11 @@ function validateStep0() {
     }
 
     const adminPassword = document.getElementById('admin-password').value.trim();
-    // Always validate password if required-star is visible (setupPasswordRequired)
-    const passwordRequired = setupPasswordRequired;
+    // Check if required star is visible (always validate on setup page)
+    const lblPw = document.getElementById('lbl-admin-password');
+    const star = lblPw ? lblPw.querySelector('.required-star') : null;
+    const passwordRequired = star && star.style.display !== 'none';
+
     if (passwordRequired && adminPassword.length < 8) {
         showFieldError('admin-password', 'err-admin-password');
         valid = false;
@@ -684,21 +687,22 @@ function buildProviderEntries() {
 // Returns a config patch based on the selected trust level (1-4).
 // Base tools (Memory, Knowledge Graph, Secrets Vault, Scheduler, Notes,
 // Missions, Inventory, Memory Maintenance, Journal, Contacts) are always
-// enabled at every level — they are harmless and essential.
+// enabled at every level — they are harmless and essential. Write access is
+// always allowed since these tools only store data locally and pose no risk.
 function buildTrustLevelPatch(level) {
     const n = parseInt(level, 10) || 1;
 
-    // Base tools — always enabled at all levels
+    // Base tools — always enabled at all levels, always read-write
     const baseTools = {
-        memory:             { enabled: true, readonly: n <= 1 },
-        knowledge_graph:    { enabled: true, readonly: n <= 1 },
-        secrets_vault:      { enabled: true, readonly: n <= 1 },
-        scheduler:          { enabled: true, readonly: n <= 1 },
-        notes:              { enabled: true, readonly: n <= 1 },
-        missions:           { enabled: true, readonly: n <= 1 },
+        memory:             { enabled: true },
+        knowledge_graph:    { enabled: true },
+        secrets_vault:      { enabled: true },
+        scheduler:          { enabled: true },
+        notes:              { enabled: true },
+        missions:           { enabled: true },
         inventory:          { enabled: true },
         memory_maintenance: { enabled: true },
-        journal:            { enabled: true, readonly: n <= 1 },
+        journal:            { enabled: true },
         contacts:           { enabled: true },
     };
 

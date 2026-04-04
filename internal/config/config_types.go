@@ -1190,6 +1190,19 @@ type Config struct {
 		APIKey        string `yaml:"-" json:"-"` // resolved from provider entry
 		ResolvedModel string `yaml:"-" json:"-"` // resolved: model from provider if not overridden
 	} `yaml:"image_generation"`
+	MusicGeneration struct {
+		Enabled  bool   `yaml:"enabled"`
+		Provider string `yaml:"provider"`  // "minimax" or "google_lyria"
+		MaxDaily int    `yaml:"max_daily"` // 0 = unlimited
+		MiniMax  struct {
+			APIKey string `yaml:"-" vault:"music_minimax_api_key" json:"-"`
+			Model  string `yaml:"model"` // "music-2.5+", "music-2.5"
+		} `yaml:"minimax"`
+		GoogleLyria struct {
+			APIKey string `yaml:"-" vault:"music_google_lyria_api_key" json:"-"`
+			Model  string `yaml:"model"` // "lyria-3-clip-preview", "lyria-3-pro-preview"
+		} `yaml:"google_lyria"`
+	} `yaml:"music_generation"`
 	OneDrive struct {
 		Enabled      bool   `yaml:"enabled"`
 		ReadOnly     bool   `yaml:"readonly"`   // true = only list/read/search/quota, block upload/delete/move/copy/share/mkdir

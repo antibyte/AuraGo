@@ -1398,6 +1398,192 @@ func (kg *KnowledgeGraph) GetAllEdges(limit int) ([]Edge, error) {
 	return edges, nil
 }
 
+// ImportantNode extends Node with an importance score for dashboard display.
+type ImportantNode struct {
+	Node
+	ImportanceScore int `json:"importance_score"`
+}
+
+// KnowledgeGraphStats holds structured statistics about the knowledge graph.
+type KnowledgeGraphStats struct {
+	TotalNodes      int            `json:"total_nodes"`
+	TotalEdges      int            `json:"total_edges"`
+	MeaningfulEdges int            `json:"meaningful_edges"`
+	CoMentionEdges  int            `json:"co_mention_edges"`
+	ByType          map[string]int `json:"by_type"`
+	BySource        map[string]int `json:"by_source"`
+}
+
+// GetImportantNodes returns nodes sorted by a composite importance score.
+// The score rewards: protected status, manual source, typed nodes, access count,
+// meaningful connections (excluding co_mentioned_with), rich properties, and recency.
+func (kg *KnowledgeGraph) GetImportantNodes(limit int, minScore int) ([]ImportantNode, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 500 {
+		limit = 500
+	}
+	if minScore < 0 {
+		minScore = 0
+	}
+
+	rows, err := kg.db.Query(`
+		SELECT n.id, n.label, n.properties, n.protected,
+			(CASE WHEN n.protected = 1 THEN 50 ELSE 0 END) +
+			(CASE WHEN json_extract(n.properties, '$.source') = 'manual' THEN 30 ELSE 0 END) +
+			(CASE WHEN json_extract(n.properties, '$.source') = 'auto_extraction' THEN 5 ELSE 0 END) +
+			(CASE WHEN json_extract(n.properties, '$.type') IS NOT NULL
+				AND json_extract(n.properties, '$.type') != '' THEN 15 ELSE 0 END) +
+			MIN(n.access_count, 20) +
+			MIN((
+				SELECT COUNT(*) FROM kg_edges e
+				WHERE (e.source = n.id OR e.target = n.id)
+				  AND e.relation != 'co_mentioned_with'
+			) * 3, 30) +
+			(CASE WHEN (SELECT COUNT(*) FROM json_each(n.properties)
+				WHERE key NOT IN ('source','extracted_at','last_seen','session_id','channel','protected')) >= 3
+				THEN 10 ELSE 0 END) +
+			(CASE WHEN n.updated_at > datetime('now', '-7 days') THEN 5 ELSE 0 END)
+			AS importance_score
+		FROM kg_nodes n
+		WHERE importance_score >= ?
+		ORDER BY importance_score DESC
+		LIMIT ?
+	`, minScore, limit)
+	if err != nil {
+		return nil, fmt.Errorf("query important nodes: %w", err)
+	}
+	defer rows.Close()
+
+	var result []ImportantNode
+	for rows.Next() {
+		var n ImportantNode
+		var propsJSON string
+		var protected int
+		if err := rows.Scan(&n.ID, &n.Label, &propsJSON, &protected, &n.ImportanceScore); err == nil {
+			n.Properties = decodeKnowledgeGraphNodeProperties(kg.logger, "GetImportantNodes", n.ID, propsJSON, protected)
+			n.Protected = protected != 0
+			result = append(result, n)
+		}
+	}
+	return result, nil
+}
+
+// GetImportantEdges returns edges excluding co_mentioned_with, filtered to the given node IDs.
+// If nodeIDs is empty, all non-co-mention edges are returned.
+func (kg *KnowledgeGraph) GetImportantEdges(limit int, nodeIDs []string) ([]Edge, error) {
+	if limit <= 0 {
+		limit = 200
+	}
+	if limit > 1000 {
+		limit = 1000
+	}
+
+	var rows *sql.Rows
+	var err error
+	if len(nodeIDs) > 0 {
+		placeholders := make([]string, len(nodeIDs))
+		args := make([]interface{}, 0, len(nodeIDs)+1)
+		for i, id := range nodeIDs {
+			placeholders[i] = "?"
+			args = append(args, id)
+		}
+		args = append(args, limit)
+
+		query := fmt.Sprintf(`
+			SELECT source, target, relation, properties FROM kg_edges
+			WHERE relation != 'co_mentioned_with'
+			  AND (source IN (%s) OR target IN (%s))
+			ORDER BY (
+				SELECT SUM(n2.access_count) FROM kg_nodes n2
+				WHERE n2.id IN (kg_edges.source, kg_edges.target)
+			) DESC
+			LIMIT ?
+		`, strings.Join(placeholders, ","), strings.Join(placeholders, ","))
+		allArgs := make([]interface{}, 0, len(nodeIDs)*2+1)
+		for _, id := range nodeIDs {
+			allArgs = append(allArgs, id)
+		}
+		for _, id := range nodeIDs {
+			allArgs = append(allArgs, id)
+		}
+		allArgs = append(allArgs, limit)
+		rows, err = kg.db.Query(query, allArgs...)
+	} else {
+		rows, err = kg.db.Query(`
+			SELECT source, target, relation, properties FROM kg_edges
+			WHERE relation != 'co_mentioned_with'
+			LIMIT ?
+		`, limit)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("query important edges: %w", err)
+	}
+	defer rows.Close()
+
+	var edges []Edge
+	for rows.Next() {
+		var e Edge
+		var propsJSON string
+		if err := rows.Scan(&e.Source, &e.Target, &e.Relation, &propsJSON); err == nil {
+			if err := json.Unmarshal([]byte(propsJSON), &e.Properties); err != nil {
+				kg.logger.Warn("GetImportantEdges: corrupt edge properties JSON", "source", e.Source, "target", e.Target, "error", err)
+			}
+			if e.Properties == nil {
+				e.Properties = make(map[string]string)
+			}
+			edges = append(edges, e)
+		}
+	}
+	return edges, nil
+}
+
+// GetStats returns structured statistics about the knowledge graph.
+func (kg *KnowledgeGraph) GetStats() (*KnowledgeGraphStats, error) {
+	stats := &KnowledgeGraphStats{
+		ByType:   make(map[string]int),
+		BySource: make(map[string]int),
+	}
+
+	kg.db.QueryRow("SELECT COUNT(*) FROM kg_nodes").Scan(&stats.TotalNodes)
+	kg.db.QueryRow("SELECT COUNT(*) FROM kg_edges").Scan(&stats.TotalEdges)
+	kg.db.QueryRow("SELECT COUNT(*) FROM kg_edges WHERE relation = 'co_mentioned_with'").Scan(&stats.CoMentionEdges)
+	stats.MeaningfulEdges = stats.TotalEdges - stats.CoMentionEdges
+
+	typeRows, err := kg.db.Query(`
+		SELECT COALESCE(NULLIF(json_extract(properties, '$.type'), ''), 'untyped') AS t, COUNT(*)
+		FROM kg_nodes GROUP BY t ORDER BY COUNT(*) DESC
+	`)
+	if err == nil {
+		defer typeRows.Close()
+		for typeRows.Next() {
+			var t string
+			var c int
+			if typeRows.Scan(&t, &c) == nil {
+				stats.ByType[t] = c
+			}
+		}
+	}
+
+	sourceRows, err := kg.db.Query(`
+		SELECT COALESCE(NULLIF(json_extract(properties, '$.source'), ''), 'unknown') AS s, COUNT(*)
+		FROM kg_nodes GROUP BY s ORDER BY COUNT(*) DESC
+	`)
+	if err == nil {
+		defer sourceRows.Close()
+		for sourceRows.Next() {
+			var s string
+			var c int
+			if sourceRows.Scan(&s, &c) == nil {
+				stats.BySource[s] = c
+			}
+		}
+	}
+
+	return stats, nil
+}
+
 // BulkAddEntities adds multiple nodes and edges in a single transaction.
 // Used by nightly batch entity extraction.
 func (kg *KnowledgeGraph) BulkAddEntities(nodes []Node, edges []Edge) error {

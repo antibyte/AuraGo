@@ -1,0 +1,18 @@
+{
+  "config.music_gen.enabled_label": "启用音乐生成：",
+  "config.music_gen.disabled_notice": "音乐生成已禁用。启用上方的开关以允许代理生成音乐。",
+  "config.music_gen.provider_label": "提供商",
+  "config.music_gen.provider_help": "选择音乐生成提供商。",
+  "config.music_gen.max_daily_label": "每日最大生成次数",
+  "config.music_gen.max_daily_help": "0 = 无限制",
+  "config.music_gen.api_key_label": "API密钥",
+  "config.music_gen.model_label": "模型",
+  "config.music_gen.recommended": "推荐",
+  "config.music_gen.test_btn": "测试连接",
+  "config.music_gen.testing": "测试中...",
+  "config.music_gen.test_success": "连接成功",
+  "config.music_gen.test_failed": "连接失败",
+  "config.music_gen.key_required": "需要API密钥",
+  "config.music_gen.key_saved": "API密钥已保存",
+  "config.music_gen.key_save_failed": "保存API密钥失败"
+}

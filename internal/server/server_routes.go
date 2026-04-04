@@ -372,6 +372,9 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		mux.HandleFunc("/api/onedrive/auth/revoke", handleOneDriveAuthRevoke(s))
 		mux.HandleFunc("/api/onedrive/test", handleOneDriveTest(s))
 
+		// Music Generation endpoints
+		mux.HandleFunc("/api/music-generation/test", handleMusicGenerationTest(s))
+
 		// Image Generation endpoints
 		mux.HandleFunc("/api/image-generation/test", handleImageGenerationTest(s))
 		mux.HandleFunc("/api/image-gallery", handleImageGalleryList(s))
@@ -571,6 +574,8 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		mux.HandleFunc("/api/knowledge-graph/edge", handleKnowledgeGraphEdgeMutate(s))
 		mux.HandleFunc("/api/knowledge-graph/nodes", handleKnowledgeGraphNodes(s))
 		mux.HandleFunc("/api/knowledge-graph/edges", handleKnowledgeGraphEdges(s))
+		mux.HandleFunc("/api/knowledge-graph/important", handleKnowledgeGraphImportant(s))
+		mux.HandleFunc("/api/knowledge-graph/stats", handleKnowledgeGraphStats(s))
 		mux.HandleFunc("/api/knowledge-graph/search", handleKnowledgeGraphSearch(s))
 		mux.HandleFunc("/api/knowledge-graph/quality", handleKnowledgeGraphQuality(s))
 
@@ -1662,4 +1667,3 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 
 	return s.runHTTP(mux, ttsServer, shutdownCh)
 }
-

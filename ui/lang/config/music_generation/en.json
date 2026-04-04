@@ -1,0 +1,18 @@
+{
+  "config.music_gen.enabled_label": "Music generation enabled:",
+  "config.music_gen.disabled_notice": "Music generation is disabled. Enable the toggle above to let the agent generate music.",
+  "config.music_gen.provider_label": "Provider",
+  "config.music_gen.provider_help": "Select the music generation provider to use.",
+  "config.music_gen.max_daily_label": "Max generations per day",
+  "config.music_gen.max_daily_help": "0 = unlimited",
+  "config.music_gen.api_key_label": "API Key",
+  "config.music_gen.model_label": "Model",
+  "config.music_gen.recommended": "Recommended",
+  "config.music_gen.test_btn": "Test Connection",
+  "config.music_gen.testing": "Testing...",
+  "config.music_gen.test_success": "Connection successful",
+  "config.music_gen.test_failed": "Connection failed",
+  "config.music_gen.key_required": "API key is required",
+  "config.music_gen.key_saved": "API key saved",
+  "config.music_gen.key_save_failed": "Failed to save API key"
+}

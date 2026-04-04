@@ -93,7 +93,7 @@
         // ══════════════════════════════════════════════════════════════════════════════
 
         const TabState = { active: 'overview', loaded: {} };
-        const KnowledgeGraphState = { nodes: [], edges: [], focusNodeId: '', focusPayload: null, editingNodeId: '', editingEdgeKey: '' };
+        const KnowledgeGraphState = { nodes: [], edges: [], importantNodes: [], importantEdges: [], stats: null, focusNodeId: '', focusPayload: null, editingNodeId: '', editingEdgeKey: '', showAll: false, filterType: '', filterSource: '' };
         const VALID_TABS = ['overview', 'agent', 'user', 'knowledge', 'system'];
         function dashSetHidden(el, hidden) {
             if (!el) return;
@@ -203,17 +203,35 @@
         }
 
         async function loadTabKnowledge() {
-            const [nodes, edges, quality] = await Promise.all([
-                API.get('/api/knowledge-graph/nodes?limit=50'),
-                API.get('/api/knowledge-graph/edges?limit=50'),
+            const [important, stats, quality] = await Promise.all([
+                API.get('/api/knowledge-graph/important?limit=30&min_score=15'),
+                API.get('/api/knowledge-graph/stats'),
                 API.get('/api/knowledge-graph/quality?limit=6'),
             ]);
-            KnowledgeGraphState.nodes = Array.isArray(nodes) ? nodes : [];
-            KnowledgeGraphState.edges = Array.isArray(edges) ? edges : [];
-            renderKnowledgeGraphSummary(KnowledgeGraphState.nodes, KnowledgeGraphState.edges);
+
+            KnowledgeGraphState.importantNodes = Array.isArray(important) ? important : [];
+            const importantIDs = new Set(KnowledgeGraphState.importantNodes.map(n => n.id));
+
+            let allEdges = [];
+            if (importantIDs.size > 0) {
+                const edgeResp = await API.get('/api/knowledge-graph/edges?limit=200');
+                allEdges = Array.isArray(edgeResp) ? edgeResp.filter(e => e.relation !== 'co_mentioned_with') : [];
+            }
+            KnowledgeGraphState.importantEdges = allEdges;
+            KnowledgeGraphState.stats = stats || null;
+
+            const displayNodes = KnowledgeGraphState.showAll
+                ? await loadAllNodes()
+                : KnowledgeGraphState.importantNodes;
+
+            KnowledgeGraphState.nodes = displayNodes;
+            KnowledgeGraphState.edges = filterEdgesForDisplay(allEdges, displayNodes);
+
+            renderKnowledgeGraphSummary(KnowledgeGraphState.importantNodes, KnowledgeGraphState.importantEdges, KnowledgeGraphState.stats);
             renderKnowledgeGraphQuality(quality || {});
             renderKnowledgeGraphLists(KnowledgeGraphState.nodes, KnowledgeGraphState.edges);
             renderKnowledgeGraphVisual();
+            renderKnowledgeGraphFilters();
 
             if (KnowledgeGraphState.focusNodeId) {
                 await loadKnowledgeGraphNodeDetail(KnowledgeGraphState.focusNodeId);
@@ -228,6 +246,17 @@
             } else {
                 renderKnowledgeGraphSearchState('');
             }
+        }
+
+        async function loadAllNodes() {
+            const nodes = await API.get('/api/knowledge-graph/nodes?limit=200');
+            return Array.isArray(nodes) ? nodes : [];
+        }
+
+        function filterEdgesForDisplay(edges, nodes) {
+            if (!Array.isArray(edges) || !Array.isArray(nodes)) return [];
+            const nodeIDs = new Set(nodes.map(n => n.id));
+            return edges.filter(e => nodeIDs.has(e.source) && nodeIDs.has(e.target));
         }
 
         async function loadTabSystem() {
@@ -262,27 +291,44 @@
             renderGitHubRepos(githubRepos);
         }
 
-        function renderKnowledgeGraphSummary(nodes, edges) {
+        function renderKnowledgeGraphSummary(nodes, edges, stats) {
             const grid = document.getElementById('knowledge-summary-grid');
             if (!grid) return;
-            const nodeCount = Array.isArray(nodes) ? nodes.length : 0;
-            const edgeCount = Array.isArray(edges) ? edges.length : 0;
-            const types = new Set();
+
+            const totalNodes = stats?.total_nodes ?? nodes.length;
+            const totalEdges = stats?.total_edges ?? edges.length;
+            const meaningfulEdges = stats?.meaningful_edges ?? edges.length;
+
+            const types = new Map();
             (nodes || []).forEach(node => {
-                const type = node?.properties?.type;
-                if (type) types.add(type);
+                const type = node?.properties?.type || 'untyped';
+                types.set(type, (types.get(type) || 0) + 1);
             });
-            const stats = [
-                { val: nodeCount, lbl: t('dashboard.knowledge_nodes') },
-                { val: edgeCount, lbl: t('dashboard.knowledge_edges') },
-                { val: types.size, lbl: t('dashboard.knowledge_types') },
-            ];
-            grid.innerHTML = stats.map(stat => `
+
+            const statsHTML = `
                 <div class="mem-stat">
-                    <div class="mem-stat-val">${esc(String(stat.val))}</div>
-                    <div class="mem-stat-lbl">${esc(stat.lbl)}</div>
+                    <div class="mem-stat-val">${esc(String(totalNodes))}</div>
+                    <div class="mem-stat-lbl">${t('dashboard.knowledge_nodes')}</div>
                 </div>
-            `).join('');
+                <div class="mem-stat">
+                    <div class="mem-stat-val">${esc(String(meaningfulEdges))}</div>
+                    <div class="mem-stat-lbl">${t('dashboard.knowledge_meaningful_edges')}</div>
+                </div>
+                <div class="mem-stat">
+                    <div class="mem-stat-val">${esc(String(types.size))}</div>
+                    <div class="mem-stat-lbl">${t('dashboard.knowledge_types')}</div>
+                </div>
+            `;
+
+            const typeBadges = Array.from(types.entries())
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 6)
+                .map(([type, count]) => {
+                    const color = knowledgeGraphTypeColor(type);
+                    return `<span class="knowledge-type-badge" style="--badge-color: ${color}">${esc(type)} (${count})</span>`;
+                }).join('');
+
+            grid.innerHTML = statsHTML + (typeBadges ? `<div class="knowledge-type-badges">${typeBadges}</div>` : '');
         }
 
         function renderKnowledgeGraphQuality(report) {
@@ -359,13 +405,22 @@
                 container.innerHTML = `<div class="empty-state">${t('dashboard.knowledge_empty')}</div>`;
                 return;
             }
-            container.innerHTML = nodes.slice(0, 12).map(node => {
+            container.innerHTML = nodes.slice(0, 15).map(node => {
                 const props = renderKnowledgeProps(node.properties);
+                const score = node.importance_score;
+                const scoreBadge = (typeof score === 'number')
+                    ? `<span class="knowledge-item-badge knowledge-score-badge" title="${t('dashboard.knowledge_importance_score')}">${score}</span>`
+                    : '';
+                const typeBadge = node?.properties?.type
+                    ? `<span class="knowledge-type-dot" style="--dot-color: ${knowledgeGraphTypeColor(node.properties.type)}"></span>`
+                    : '';
                 return `
                     <div class="knowledge-item clickable" data-kg-node-id="${escapeHtml(node.id || '')}">
                         <div class="knowledge-item-head">
+                            ${typeBadge}
                             <span class="knowledge-item-title">${escapeHtml(node.label || node.id || 'Node')}</span>
                             <span class="knowledge-item-badge">${escapeHtml(node.id || '')}</span>
+                            ${scoreBadge}
                         </div>
                         ${props ? `<div class="knowledge-item-props">${props}</div>` : ''}
                     </div>
@@ -379,7 +434,7 @@
                 container.innerHTML = `<div class="empty-state">${t('dashboard.knowledge_empty')}</div>`;
                 return;
             }
-            container.innerHTML = edges.slice(0, 12).map(edge => {
+            container.innerHTML = edges.slice(0, 15).map(edge => {
                 const props = renderKnowledgeProps(edge.properties);
                 return `
                     <div class="knowledge-item">
@@ -812,21 +867,40 @@
                 if (edge?.target) degree.set(edge.target, (degree.get(edge.target) || 0) + 1);
             });
 
-            const selectedNodes = [...safeNodes]
-                .sort((a, b) => {
-                    const degreeDiff = (degree.get(b.id) || 0) - (degree.get(a.id) || 0);
-                    if (degreeDiff !== 0) return degreeDiff;
-                    return String(a.label || a.id || '').localeCompare(String(b.label || b.id || ''));
-                })
-                .slice(0, 12);
+            const MAX_PER_TYPE = 4;
+            const MAX_NODES = 15;
+            const typeCount = new Map();
+            const selectedNodes = [];
+
+            const sortedNodes = [...safeNodes].sort((a, b) => {
+                const scoreA = a.importance_score ?? 0;
+                const scoreB = b.importance_score ?? 0;
+                if (scoreB !== scoreA) return scoreB - scoreA;
+                return String(a.label || a.id || '').localeCompare(String(b.label || b.id || ''));
+            });
+
+            for (const node of sortedNodes) {
+                if (selectedNodes.length >= MAX_NODES) break;
+                const type = node?.properties?.type || '_untyped';
+                const currentTypeCount = typeCount.get(type) || 0;
+                if (currentTypeCount >= MAX_PER_TYPE) continue;
+                typeCount.set(type, currentTypeCount + 1);
+                selectedNodes.push(node);
+            }
 
             const selectedIDs = new Set(selectedNodes.map(node => node.id));
             const selectedEdges = safeEdges
                 .filter(edge => selectedIDs.has(edge?.source) && selectedIDs.has(edge?.target))
-                .slice(0, 18);
+                .slice(0, 25);
+
+            const maxScore = Math.max(1, ...selectedNodes.map(n => n.importance_score ?? 0));
 
             return {
-                nodes: selectedNodes.map(n => ({...n, isFocus: false, r: 15})),
+                nodes: selectedNodes.map(n => {
+                    const score = n.importance_score ?? 0;
+                    const radius = 10 + (score / maxScore) * 15;
+                    return {...n, isFocus: false, r: radius};
+                }),
                 edges: selectedEdges,
                 width: 720,
                 height: 360,
@@ -894,6 +968,7 @@
                 mode.textContent = t('dashboard.knowledge_visual_overview');
                 caption.textContent = t('dashboard.knowledge_visual_overview_caption', { nodes: model.nodes.length, edges: model.edges.length });
                 resetButton.classList.add('is-hidden');
+                renderKnowledgeGraphLegend();
             }
 
             if (!wrap._forceGraph) {
@@ -906,18 +981,25 @@
                 .height(wrap.clientHeight || 360)
                 .backgroundColor('transparent')
                 .graphData({
-                    nodes: model.nodes.map(n => ({
-                        id: n.id,
-                        label: truncate(String(n.label || n.id || 'Node'), 18),
-                        meta: truncate(String(n.id || ''), 18),
-                        val: (n.r || 15) / 2,
-                        color: knowledgeGraphNodeColor(n),
-                        isFocus: n.isFocus || false
-                    })),
+                    nodes: model.nodes.map(n => {
+                        const score = n.importance_score ?? 0;
+                        const type = n?.properties?.type || '';
+                        return {
+                            id: n.id,
+                            label: truncate(String(n.label || n.id || 'Node'), 18),
+                            meta: buildKnowledgeGraphNodeTooltip(n),
+                            type: type,
+                            val: (n.r || 15) / 2,
+                            color: knowledgeGraphNodeColor(n),
+                            isFocus: n.isFocus || false,
+                            importance: score
+                        };
+                    }),
                     links: model.edges.map(e => ({
                         source: e.source,
                         target: e.target,
-                        relation: truncate(String(e.relation || ''), 18)
+                        relation: truncate(String(e.relation || ''), 18),
+                        relationFull: String(e.relation || '')
                     }))
                 })
                 .nodeId('id')
@@ -927,7 +1009,7 @@
                 .linkDirectionalArrowLength(3.5)
                 .linkDirectionalArrowRelPos(1)
                 .linkColor(() => cv('--border-subtle') || '#334155')
-                .linkLabel('relation')
+                .linkLabel('relationFull')
                 .nodeCanvasObject((node, ctx, globalScale) => {
                     const fontSize = Math.max(12 / globalScale, 4);
                     let radius = node.val;
@@ -977,23 +1059,139 @@
             });
         }
 
-        function knowledgeGraphNodeColor(node) {
-            const palette = [
-                cv('--accent') || '#3b82f6',
-                cv('--success') || '#22c55e',
-                cv('--warning') || '#f59e0b',
-                '#ef4444',
-                '#14b8a6',
-                '#8b5cf6',
-            ];
-            if (node?.isFocus) return palette[0];
-            const key = String(node?.properties?.type || node?.properties?.source || node?.id || '');
-            let hash = 0;
-            for (let i = 0; i < key.length; i++) {
-                hash = ((hash << 5) - hash) + key.charCodeAt(i);
-                hash |= 0;
+        function buildKnowledgeGraphNodeTooltip(node) {
+            const parts = [];
+            const label = node?.label || node?.id || 'Node';
+            parts.push(label);
+            const type = node?.properties?.type;
+            if (type) parts.push(`[${type}]`);
+            const score = node?.importance_score;
+            if (typeof score === 'number') parts.push(`Score: ${score}`);
+            const ip = node?.properties?.ip;
+            if (ip) parts.push(`IP: ${ip}`);
+            const os = node?.properties?.os;
+            if (os) parts.push(`OS: ${os}`);
+            return parts.join(' | ');
+        }
+
+        const KNOWLEDGE_GRAPH_TYPE_COLORS = {
+            'device':     '#3b82f6',
+            'service':    '#22c55e',
+            'person':     '#f59e0b',
+            'container':  '#8b5cf6',
+            'software':   '#14b8a6',
+            'location':   '#ef4444',
+            'concept':    '#ec4899',
+            'event':      '#f97316',
+            'network':    '#06b6d4',
+            'organization': '#6366f1',
+            '_default':   '#6b7280',
+        };
+
+        function knowledgeGraphTypeColor(type) {
+            if (!type) return KNOWLEDGE_GRAPH_TYPE_COLORS._default;
+            const lower = String(type).toLowerCase();
+            for (const [key, color] of Object.entries(KNOWLEDGE_GRAPH_TYPE_COLORS)) {
+                if (key !== '_default' && lower.includes(key)) return color;
             }
-            return palette[Math.abs(hash) % palette.length];
+            return KNOWLEDGE_GRAPH_TYPE_COLORS._default;
+        }
+
+        function knowledgeGraphNodeColor(node) {
+            if (node?.isFocus) return cv('--accent') || '#3b82f6';
+            const type = node?.properties?.type || '';
+            return knowledgeGraphTypeColor(type);
+        }
+
+        function renderKnowledgeGraphLegend() {
+            const legend = document.getElementById('knowledge-graph-legend');
+            if (!legend) return;
+
+            const typesInGraph = new Set();
+            const allNodes = KnowledgeGraphState.nodes || [];
+            allNodes.forEach(n => {
+                if (n?.properties?.type) typesInGraph.add(n.properties.type);
+            });
+
+            if (typesInGraph.size === 0) {
+                legend.innerHTML = '';
+                return;
+            }
+
+            const entries = Array.from(typesInGraph).sort().map(type => {
+                const color = knowledgeGraphTypeColor(type);
+                const count = allNodes.filter(n => n?.properties?.type === type).length;
+                return `<span class="kg-legend-entry"><span class="kg-legend-dot" style="background:${color}"></span>${esc(type)} (${count})</span>`;
+            }).join('');
+
+            legend.innerHTML = `<div class="kg-legend-row">${entries}</div>`;
+        }
+
+        function renderKnowledgeGraphFilters() {
+            const filterBar = document.getElementById('knowledge-filter-bar');
+            if (!filterBar) return;
+
+            const stats = KnowledgeGraphState.stats;
+            if (!stats) { filterBar.innerHTML = ''; return; }
+
+            const types = stats.by_type || {};
+            const sources = stats.by_source || {};
+
+            const typeOptions = Object.entries(types).sort((a, b) => b[1] - a[1]).map(([type, count]) =>
+                `<option value="${escapeHtml(type)}" ${KnowledgeGraphState.filterType === type ? 'selected' : ''}>${escapeHtml(type)} (${count})</option>`
+            ).join('');
+
+            const sourceOptions = Object.entries(sources).sort((a, b) => b[1] - a[1]).map(([source, count]) =>
+                `<option value="${escapeHtml(source)}" ${KnowledgeGraphState.filterSource === source ? 'selected' : ''}>${escapeHtml(source)} (${count})</option>`
+            ).join('');
+
+            filterBar.innerHTML = `
+                <label class="kg-filter-toggle">
+                    <input type="checkbox" id="kg-show-all" ${KnowledgeGraphState.showAll ? 'checked' : ''} onchange="toggleKnowledgeGraphShowAll()">
+                    <span>${t('dashboard.knowledge_filter_show_all')}</span>
+                </label>
+                <select class="kg-filter-select" id="kg-filter-type" onchange="applyKnowledgeGraphFilters()">
+                    <option value="">${t('dashboard.knowledge_filter_all_types')}</option>
+                    ${typeOptions}
+                </select>
+                <select class="kg-filter-select" id="kg-filter-source" onchange="applyKnowledgeGraphFilters()">
+                    <option value="">${t('dashboard.knowledge_filter_all_sources')}</option>
+                    ${sourceOptions}
+                </select>
+            `;
+
+            renderKnowledgeGraphLegend();
+        }
+
+        function toggleKnowledgeGraphShowAll() {
+            const checkbox = document.getElementById('kg-show-all');
+            KnowledgeGraphState.showAll = checkbox ? checkbox.checked : false;
+            loadTabKnowledge();
+        }
+
+        async function applyKnowledgeGraphFilters() {
+            const typeSelect = document.getElementById('kg-filter-type');
+            const sourceSelect = document.getElementById('kg-filter-source');
+            KnowledgeGraphState.filterType = typeSelect ? typeSelect.value : '';
+            KnowledgeGraphState.filterSource = sourceSelect ? sourceSelect.value : '';
+
+            let baseNodes = KnowledgeGraphState.showAll
+                ? await loadAllNodes()
+                : KnowledgeGraphState.importantNodes;
+
+            if (KnowledgeGraphState.filterType) {
+                baseNodes = baseNodes.filter(n => n?.properties?.type === KnowledgeGraphState.filterType);
+            }
+            if (KnowledgeGraphState.filterSource) {
+                baseNodes = baseNodes.filter(n => n?.properties?.source === KnowledgeGraphState.filterSource);
+            }
+
+            KnowledgeGraphState.nodes = baseNodes;
+            KnowledgeGraphState.edges = filterEdgesForDisplay(KnowledgeGraphState.importantEdges, baseNodes);
+
+            renderKnowledgeGraphLists(KnowledgeGraphState.nodes, KnowledgeGraphState.edges);
+            renderKnowledgeGraphVisual();
+            renderKnowledgeGraphLegend();
         }
 
 

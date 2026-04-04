@@ -3,8 +3,10 @@ package memory
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"sort"
 	"strings"
 	"sync"
@@ -16,7 +18,7 @@ import (
 )
 
 const knowledgeGraphSemanticCollection = "kg_embeddings"
-const knowledgeGraphSemanticTimeout = 20 * time.Second
+const knowledgeGraphSemanticTimeout = 60 * time.Second
 const knowledgeGraphSemanticMinSimilarity = 0.45
 
 const knowledgeGraphSemanticEdgeMinSimilarity = 0.35
@@ -24,6 +26,9 @@ const knowledgeGraphSemanticEdgeMinSimilarity = 0.35
 const knowledgeGraphSemanticQueryCacheTTL = 5 * time.Minute
 const knowledgeGraphSemanticEdgeMaxResults = 50
 const knowledgeGraphSemanticQueryCacheMaxSize = 100
+
+const knowledgeGraphSemanticRetryMaxAttempts = 3
+const knowledgeGraphSemanticRetryBackoffBase = 250 * time.Millisecond
 
 type knowledgeGraphSemanticIndex struct {
 	collection    *chromem.Collection
@@ -106,9 +111,11 @@ func (kg *KnowledgeGraph) enableSemanticSearchWithCollection(db *chromem.DB, emb
 }
 
 func (kg *KnowledgeGraph) validateSemanticIndex(index *knowledgeGraphSemanticIndex) error {
-	ctx, cancel := context.WithTimeout(context.Background(), knowledgeGraphSemanticTimeout)
-	defer cancel()
-	if _, err := index.embeddingFunc(ctx, "knowledge graph semantic validation"); err != nil {
+	err := kg.retrySemanticEmbedding("validate", func(ctx context.Context) error {
+		_, err := index.embeddingFunc(ctx, "knowledge graph semantic validation")
+		return err
+	})
+	if err != nil {
 		return fmt.Errorf("validate semantic embeddings: %w", err)
 	}
 	return nil
@@ -205,17 +212,15 @@ func (kg *KnowledgeGraph) upsertSemanticNodeIndex(node Node) bool {
 	kg.semantic.mu.Lock()
 	defer kg.semantic.mu.Unlock()
 
-	ctx, cancel := context.WithTimeout(context.Background(), knowledgeGraphSemanticTimeout)
-	defer cancel()
-
-	_ = kg.semantic.collection.Delete(ctx, nil, nil, node.ID)
-	err := kg.semantic.collection.AddDocument(ctx, chromem.Document{
-		ID:      node.ID,
-		Content: content,
-		Metadata: map[string]string{
-			"node_id": node.ID,
-			"label":   node.Label,
-		},
+	err := kg.retrySemanticEmbedding("node_upsert", func(ctx context.Context) error {
+		return kg.semantic.collection.AddDocument(ctx, chromem.Document{
+			ID:      node.ID,
+			Content: content,
+			Metadata: map[string]string{
+				"node_id": node.ID,
+				"label":   node.Label,
+			},
+		})
 	})
 	if err != nil {
 		if kg.semantic.logger != nil {
@@ -238,19 +243,17 @@ func (kg *KnowledgeGraph) upsertSemanticEdgeIndex(edge Edge) {
 	kg.semantic.mu.Lock()
 	defer kg.semantic.mu.Unlock()
 
-	ctx, cancel := context.WithTimeout(context.Background(), knowledgeGraphSemanticTimeout)
-	defer cancel()
-
 	edgeDocID := "edge://" + edge.Source + "\x00" + edge.Target + "\x00" + edge.Relation
-	_ = kg.semantic.collection.Delete(ctx, nil, nil, edgeDocID)
-	err := kg.semantic.collection.AddDocument(ctx, chromem.Document{
-		ID:      edgeDocID,
-		Content: content,
-		Metadata: map[string]string{
-			"source":   edge.Source,
-			"target":   edge.Target,
-			"relation": edge.Relation,
-		},
+	err := kg.retrySemanticEmbedding("edge_upsert", func(ctx context.Context) error {
+		return kg.semantic.collection.AddDocument(ctx, chromem.Document{
+			ID:      edgeDocID,
+			Content: content,
+			Metadata: map[string]string{
+				"source":   edge.Source,
+				"target":   edge.Target,
+				"relation": edge.Relation,
+			},
+		})
 	})
 	if err != nil && kg.semantic.logger != nil {
 		kg.semantic.logger.Warn("KG semantic edge index update failed", "source", edge.Source, "target", edge.Target, "error", err)
@@ -520,4 +523,53 @@ func shouldSkipKnowledgeGraphSemanticQuery(query string) bool {
 		return true
 	}
 	return false
+}
+
+func shouldRetrySemanticEmbeddingErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+	var netErr net.Error
+	if errors.As(err, &netErr) && (netErr.Timeout() || netErr.Temporary()) {
+		return true
+	}
+	// Best-effort handling for provider-side throttling / transient upstream issues.
+	msg := strings.ToLower(err.Error())
+	if strings.Contains(msg, "rate limit") || strings.Contains(msg, "too many requests") {
+		return true
+	}
+	if strings.Contains(msg, " 429 ") || strings.Contains(msg, "429") {
+		return true
+	}
+	if strings.Contains(msg, " 5") && strings.Contains(msg, "http") {
+		return true
+	}
+	return false
+}
+
+func (kg *KnowledgeGraph) retrySemanticEmbedding(op string, fn func(ctx context.Context) error) error {
+	var lastErr error
+	for attempt := 1; attempt <= knowledgeGraphSemanticRetryMaxAttempts; attempt++ {
+		ctx, cancel := context.WithTimeout(context.Background(), knowledgeGraphSemanticTimeout)
+		err := fn(ctx)
+		cancel()
+		if err == nil {
+			return nil
+		}
+		lastErr = err
+
+		if attempt == knowledgeGraphSemanticRetryMaxAttempts || !shouldRetrySemanticEmbeddingErr(err) {
+			return err
+		}
+
+		backoff := time.Duration(attempt*attempt) * knowledgeGraphSemanticRetryBackoffBase
+		if kg.semantic != nil && kg.semantic.logger != nil {
+			kg.semantic.logger.Debug("KG semantic embedding op failed; retrying", "op", op, "attempt", attempt, "backoff", backoff, "error", err)
+		}
+		time.Sleep(backoff)
+	}
+	return lastErr
 }

@@ -287,5 +287,7 @@
   "config.tts.minimax_model_help": "speech-2.8-hd (haute qualité) ou speech-2.8-turbo (plus rapide)",
   "config.tts.minimax_speed_label": "Vitesse",
   "config.tts.minimax_speed_help": "Vitesse de parole 0,5–2,0 (défaut 1,0)",
-  "config.tts.minimax_api_key_required": "La clé API MiniMax est requise"
+  "config.tts.minimax_api_key_required": "La clé API MiniMax est requise",
+  "config.section.music_generation.label": "Génération de musique",
+  "config.section.music_generation.desc": "Générer de la musique à partir de descriptions textuelles avec l'IA"
 }

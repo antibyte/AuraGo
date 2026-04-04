@@ -1,0 +1,18 @@
+{
+  "config.music_gen.enabled_label": "Δημιουργία μουσικής ενεργοποιημένη:",
+  "config.music_gen.disabled_notice": "Η δημιουργία μουσικής είναι απενεργοποιημένη. Ενεργοποιήστε τον διακόπτη παραπάνω για να επιτρέψετε στον πράκτορα να δημιουργεί μουσική.",
+  "config.music_gen.provider_label": "Πάροχος",
+  "config.music_gen.provider_help": "Επιλέξτε τον πάροχο δημιουργίας μουσικής.",
+  "config.music_gen.max_daily_label": "Μέγ. δημιουργίες ανά ημέρα",
+  "config.music_gen.max_daily_help": "0 = απεριόριστο",
+  "config.music_gen.api_key_label": "Κλειδί API",
+  "config.music_gen.model_label": "Μοντέλο",
+  "config.music_gen.recommended": "Προτεινόμενο",
+  "config.music_gen.test_btn": "Δοκιμή σύνδεσης",
+  "config.music_gen.testing": "Δοκιμή...",
+  "config.music_gen.test_success": "Σύνδεση επιτυχής",
+  "config.music_gen.test_failed": "Αποτυχία σύνδεσης",
+  "config.music_gen.key_required": "Απαιτείται κλειδί API",
+  "config.music_gen.key_saved": "Το κλειδί API αποθηκεύτηκε",
+  "config.music_gen.key_save_failed": "Αποτυχία αποθήκευσης κλειδιού API"
+}

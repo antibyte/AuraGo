@@ -287,5 +287,7 @@
   "config.tts.minimax_model_help": "speech-2.8-hd (高品質) または speech-2.8-turbo (高速)",
   "config.tts.minimax_speed_label": "速度",
   "config.tts.minimax_speed_help": "音声速度 0.5–2.0 (デフォルト 1.0)",
-  "config.tts.minimax_api_key_required": "MiniMax APIキーが必要です"
+  "config.tts.minimax_api_key_required": "MiniMax APIキーが必要です",
+  "config.section.music_generation.label": "音楽生成",
+  "config.section.music_generation.desc": "AIを使用してテキストプロンプトから音楽を生成"
 }

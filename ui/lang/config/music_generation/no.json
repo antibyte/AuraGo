@@ -1,0 +1,18 @@
+{
+  "config.music_gen.enabled_label": "Musikkgenerering aktivert:",
+  "config.music_gen.disabled_notice": "Musikkgenerering er deaktivert. Aktiver bryteren ovenfor for å la agenten generere musikk.",
+  "config.music_gen.provider_label": "Leverandør",
+  "config.music_gen.provider_help": "Velg leverandør for musikkgenerering.",
+  "config.music_gen.max_daily_label": "Maks. genereringer per dag",
+  "config.music_gen.max_daily_help": "0 = ubegrenset",
+  "config.music_gen.api_key_label": "API-nøkkel",
+  "config.music_gen.model_label": "Modell",
+  "config.music_gen.recommended": "Anbefalt",
+  "config.music_gen.test_btn": "Test tilkobling",
+  "config.music_gen.testing": "Tester...",
+  "config.music_gen.test_success": "Tilkobling vellykket",
+  "config.music_gen.test_failed": "Tilkobling mislyktes",
+  "config.music_gen.key_required": "API-nøkkel påkrevd",
+  "config.music_gen.key_saved": "API-nøkkel lagret",
+  "config.music_gen.key_save_failed": "Kunne ikke lagre API-nøkkel"
+}

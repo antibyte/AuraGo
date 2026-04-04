@@ -1493,6 +1493,35 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			}
 			return "Tool Output: " + client.ExecuteOneDrive(op, req.FilePath, req.Destination, req.Content, req.MaxResults)
 
+		case "generate_music":
+			if !cfg.MusicGeneration.Enabled {
+				return `Tool Output: {"status": "error", "message": "Music generation is not enabled. Enable it in Settings > Music Generation."}`
+			}
+			prompt := stringValueFromMap(tc.Params, "prompt")
+			if prompt == "" {
+				return `Tool Output: {"status": "error", "message": "'prompt' is required for music generation."}`
+			}
+			lyrics := stringValueFromMap(tc.Params, "lyrics")
+			instrumental := false
+			if v, ok := tc.Params["instrumental"]; ok {
+				if b, ok := v.(bool); ok {
+					instrumental = b
+				}
+			}
+			title := stringValueFromMap(tc.Params, "title")
+			logger.Info("LLM requested music generation", "prompt_len", len(prompt), "provider", cfg.MusicGeneration.Provider)
+
+			if budgetTracker != nil && budgetTracker.IsBlocked("music_generation") {
+				return `Tool Output: {"status": "error", "message": "Music generation blocked: daily budget exceeded."}`
+			}
+
+			return "Tool Output: " + tools.GenerateMusic(ctx, cfg, vault, mediaRegistryDB, logger, tools.MusicGenParams{
+				Prompt:       prompt,
+				Lyrics:       lyrics,
+				Instrumental: instrumental,
+				Title:        title,
+			})
+
 		case "generate_image":
 			if !cfg.ImageGeneration.Enabled {
 				return `Tool Output: {"status": "error", "message": "Image generation is not enabled. Enable it in Settings > Image Generation."}`

@@ -1,0 +1,18 @@
+{
+  "config.music_gen.enabled_label": "Muziekgeneratie ingeschakeld:",
+  "config.music_gen.disabled_notice": "Muziekgeneratie is uitgeschakeld. Schakel de toggle hierboven in om de agent muziek te laten genereren.",
+  "config.music_gen.provider_label": "Provider",
+  "config.music_gen.provider_help": "Selecteer de muziekgeneratie-provider.",
+  "config.music_gen.max_daily_label": "Max. generaties per dag",
+  "config.music_gen.max_daily_help": "0 = onbeperkt",
+  "config.music_gen.api_key_label": "API-sleutel",
+  "config.music_gen.model_label": "Model",
+  "config.music_gen.recommended": "Aanbevolen",
+  "config.music_gen.test_btn": "Verbinding testen",
+  "config.music_gen.testing": "Testen...",
+  "config.music_gen.test_success": "Verbinding geslaagd",
+  "config.music_gen.test_failed": "Verbinding mislukt",
+  "config.music_gen.key_required": "API-sleutel vereist",
+  "config.music_gen.key_saved": "API-sleutel opgeslagen",
+  "config.music_gen.key_save_failed": "API-sleutel opslaan mislukt"
+}

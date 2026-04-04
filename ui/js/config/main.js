@@ -59,6 +59,7 @@ const SECTIONS = [
             { key: 'whisper', icon: '🎤', label: t('config.section.whisper.label'), desc: t('config.section.whisper.desc') },
             { key: 'tts', icon: '🔊', label: t('config.section.tts.label'), desc: t('config.section.tts.desc') },
             { key: 'image_generation', icon: '🎨', label: t('config.section.image_generation.label'), desc: t('config.section.image_generation.desc') },
+            { key: 'music_generation', icon: '🎵', label: t('config.section.music_generation.label'), desc: t('config.section.music_generation.desc') },
             { key: 'document_creator', icon: '📄', label: t('config.section.document_creator.label'), desc: t('config.section.document_creator.desc') }
         ]
     },
@@ -1277,6 +1278,7 @@ const SECTION_MODULES = {
     cloudflare_tunnel: { m: 'cloudflare_tunnel', fn: 'renderCloudflareTunnelSection' },
     mcp_server: { m: 'mcp_server', fn: 'renderMCPServerSection' },
     image_generation: { m: 'image_generation', fn: 'renderImageGenerationSection' },
+    music_generation: { m: 'music_generation', fn: 'renderMusicGenerationSection' },
     remote_control: { m: 'remote_control', fn: 'renderRemoteControlSection' },
     security_proxy: { m: 'security_proxy', fn: 'renderSecurityProxySection' },
     memory_analysis: { m: 'memory_analysis', fn: 'renderMemoryAnalysisSection' },

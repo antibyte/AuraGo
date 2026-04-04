@@ -1,0 +1,18 @@
+{
+  "config.music_gen.enabled_label": "音楽生成有効:",
+  "config.music_gen.disabled_notice": "音楽生成は無効です。上のトグルを有効にして、エージェントが音楽を生成できるようにしてください。",
+  "config.music_gen.provider_label": "プロバイダー",
+  "config.music_gen.provider_help": "音楽生成プロバイダーを選択してください。",
+  "config.music_gen.max_daily_label": "1日あたりの最大生成数",
+  "config.music_gen.max_daily_help": "0 = 無制限",
+  "config.music_gen.api_key_label": "APIキー",
+  "config.music_gen.model_label": "モデル",
+  "config.music_gen.recommended": "推奨",
+  "config.music_gen.test_btn": "接続テスト",
+  "config.music_gen.testing": "テスト中...",
+  "config.music_gen.test_success": "接続成功",
+  "config.music_gen.test_failed": "接続失敗",
+  "config.music_gen.key_required": "APIキーが必要です",
+  "config.music_gen.key_saved": "APIキーを保存しました",
+  "config.music_gen.key_save_failed": "APIキーの保存に失敗しました"
+}

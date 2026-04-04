@@ -1,0 +1,18 @@
+{
+  "config.music_gen.enabled_label": "Generování hudby povoleno:",
+  "config.music_gen.disabled_notice": "Generování hudby je zakázáno. Zapněte přepínač výše, aby agent mohl generovat hudbu.",
+  "config.music_gen.provider_label": "Poskytovatel",
+  "config.music_gen.provider_help": "Vyberte poskytovatele generování hudby.",
+  "config.music_gen.max_daily_label": "Max. generací za den",
+  "config.music_gen.max_daily_help": "0 = neomezeně",
+  "config.music_gen.api_key_label": "API klíč",
+  "config.music_gen.model_label": "Model",
+  "config.music_gen.recommended": "Doporučeno",
+  "config.music_gen.test_btn": "Otestovat připojení",
+  "config.music_gen.testing": "Testování...",
+  "config.music_gen.test_success": "Připojení úspěšné",
+  "config.music_gen.test_failed": "Připojení selhalo",
+  "config.music_gen.key_required": "API klíč je vyžadován",
+  "config.music_gen.key_saved": "API klíč uložen",
+  "config.music_gen.key_save_failed": "Uložení API klíče selhalo"
+}

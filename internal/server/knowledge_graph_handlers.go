@@ -31,6 +31,58 @@ func handleKnowledgeGraphNodes(s *Server) http.HandlerFunc {
 	}
 }
 
+func handleKnowledgeGraphImportant(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if s.KG == nil {
+			writeJSON(w, []interface{}{})
+			return
+		}
+
+		limit := parseKnowledgeGraphLimit(r, 30)
+		minScore := 15
+		if raw := strings.TrimSpace(r.URL.Query().Get("min_score")); raw != "" {
+			if parsed, err := strconv.Atoi(raw); err == nil {
+				minScore = parsed
+			}
+		}
+
+		nodes, err := s.KG.GetImportantNodes(limit, minScore)
+		if err != nil {
+			http.Error(w, "Failed to load important knowledge graph nodes", http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, nodes)
+	}
+}
+
+func handleKnowledgeGraphStats(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if s.KG == nil {
+			writeJSON(w, map[string]interface{}{
+				"total_nodes": 0, "total_edges": 0,
+				"meaningful_edges": 0, "co_mention_edges": 0,
+				"by_type": map[string]int{}, "by_source": map[string]int{},
+			})
+			return
+		}
+
+		stats, err := s.KG.GetStats()
+		if err != nil {
+			http.Error(w, "Failed to load knowledge graph stats", http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, stats)
+	}
+}
+
 func handleKnowledgeGraphEdges(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
