@@ -230,6 +230,7 @@ func dispatchInfra(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 					SourceTool: "tts",
 					Filename:   filename,
 					FilePath:   ttsFilePath,
+					WebPath:    "/tts/" + filename,
 					FileSize:   ttsFileSize,
 					Format:     format,
 					Provider:   provider,

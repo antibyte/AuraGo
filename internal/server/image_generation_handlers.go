@@ -3,6 +3,9 @@ package server
 import (
 	"encoding/json"
 	"net/http"
+	"os"
+	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -46,9 +49,29 @@ func handleImageGenerationTest(s *Server) http.HandlerFunc {
 			return
 		}
 
-		// Save to gallery
 		result.Prompt = "Test generation"
 		tools.SaveGeneratedImage(s.ImageGalleryDB, result)
+
+		if s.MediaRegistryDB != nil {
+			tools.RegisterMedia(s.MediaRegistryDB, tools.MediaItem{
+				MediaType:        "image",
+				SourceTool:       "generate_image",
+				Filename:         result.Filename,
+				FilePath:         filepath.Join(cfg.Directories.DataDir, "generated_images", result.Filename),
+				WebPath:          result.WebPath,
+				Format:           "png",
+				Provider:         result.Provider,
+				Model:            result.Model,
+				Prompt:           result.Prompt,
+				Quality:          result.Quality,
+				Style:            result.Style,
+				Size:             result.Size,
+				SourceImage:      result.SourceImage,
+				GenerationTimeMs: int64(result.DurationMs),
+				CostEstimate:     result.CostEstimate,
+				Tags:             []string{"auto-generated"},
+			})
+		}
 
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"status":   "ok",
@@ -58,7 +81,32 @@ func handleImageGenerationTest(s *Server) http.HandlerFunc {
 	}
 }
 
+type unifiedImage struct {
+	ID               int64   `json:"id"`
+	CreatedAt        string  `json:"created_at"`
+	Prompt           string  `json:"prompt"`
+	EnhancedPrompt   string  `json:"enhanced_prompt,omitempty"`
+	Provider         string  `json:"provider"`
+	Model            string  `json:"model"`
+	Size             string  `json:"size,omitempty"`
+	Quality          string  `json:"quality,omitempty"`
+	Style            string  `json:"style,omitempty"`
+	Filename         string  `json:"filename"`
+	FileSize         int64   `json:"file_size"`
+	SourceImage      string  `json:"source_image,omitempty"`
+	GenerationTimeMs int64   `json:"generation_time_ms"`
+	CostEstimate     float64 `json:"cost_estimate"`
+	WebPath          string  `json:"web_path"`
+	SourceDB         string  `json:"source_db"`
+}
+
+func (u unifiedImage) GetCreatedAt() string {
+	return u.CreatedAt
+}
+
 // handleImageGalleryList returns a handler that lists generated images with pagination.
+// It merges results from both the Image Gallery DB and the Media Registry DB so that
+// all images (agent-generated, seeded, screenshots) appear in the gallery view.
 func handleImageGalleryList(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -77,16 +125,102 @@ func handleImageGalleryList(s *Server) http.HandlerFunc {
 			offset = v
 		}
 
-		images, total, err := tools.ListGeneratedImages(s.ImageGalleryDB, provider, query, limit, offset)
-		if err != nil {
-			s.Logger.Error("Failed to list generated images", "provider", provider, "query", query, "error", err)
-			json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "Failed to load generated images"})
-			return
+		seen := make(map[string]bool)
+		var all []unifiedImage
+
+		// Primary source: Media Registry DB (has all images including agent-generated)
+		if s.MediaRegistryDB != nil {
+			items, _, err := tools.SearchMedia(s.MediaRegistryDB, query, "image", nil, 5000, 0)
+			if err == nil {
+				for _, item := range items {
+					if provider != "" && item.Provider != provider {
+						continue
+					}
+					key := item.Filename
+					if key != "" && seen[key] {
+						continue
+					}
+					seen[key] = true
+					wp := item.WebPath
+					if wp == "" {
+						wp = "/files/generated_images/" + item.Filename
+					}
+					all = append(all, unifiedImage{
+						ID:               item.ID,
+						CreatedAt:        item.CreatedAt,
+						Prompt:           item.Prompt,
+						EnhancedPrompt:   "",
+						Provider:         item.Provider,
+						Model:            item.Model,
+						Size:             item.Size,
+						Quality:          item.Quality,
+						Style:            item.Style,
+						Filename:         item.Filename,
+						FileSize:         item.FileSize,
+						SourceImage:      item.SourceImage,
+						GenerationTimeMs: item.GenerationTimeMs,
+						CostEstimate:     item.CostEstimate,
+						WebPath:          wp,
+						SourceDB:         "media_registry",
+					})
+				}
+			}
+		}
+
+		// Secondary source: Image Gallery DB for records not yet in Media Registry
+		if s.ImageGalleryDB != nil {
+			galleryImages, _, err := tools.ListGeneratedImages(s.ImageGalleryDB, provider, query, 5000, 0)
+			if err == nil {
+				for _, img := range galleryImages {
+					key := img.Filename
+					if key != "" && seen[key] {
+						continue
+					}
+					seen[key] = true
+					wp := "/files/generated_images/" + img.Filename
+					all = append(all, unifiedImage{
+						ID:               img.ID,
+						CreatedAt:        img.CreatedAt,
+						Prompt:           img.Prompt,
+						EnhancedPrompt:   img.EnhancedPrompt,
+						Provider:         img.Provider,
+						Model:            img.Model,
+						Size:             img.Size,
+						Quality:          img.Quality,
+						Style:            img.Style,
+						Filename:         img.Filename,
+						FileSize:         img.FileSize,
+						SourceImage:      img.SourceImage,
+						GenerationTimeMs: img.GenerationTimeMs,
+						CostEstimate:     img.CostEstimate,
+						WebPath:          wp,
+						SourceDB:         "image_gallery",
+					})
+				}
+			}
+		}
+
+		sort.SliceStable(all, func(i, j int) bool {
+			return all[i].CreatedAt > all[j].CreatedAt
+		})
+
+		total := len(all)
+		if offset > total {
+			offset = total
+		}
+		end := offset + limit
+		if end > total {
+			end = total
+		}
+		page := all[offset:end]
+
+		if page == nil {
+			page = []unifiedImage{}
 		}
 
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"status": "ok",
-			"images": images,
+			"images": page,
 			"total":  total,
 			"limit":  limit,
 			"offset": offset,
@@ -99,7 +233,6 @@ func handleImageGalleryByID(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
-		// Extract ID from path: /api/image-gallery/{id}
 		parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/api/image-gallery/"), "/")
 		if len(parts) == 0 || parts[0] == "" {
 			w.WriteHeader(http.StatusBadRequest)
@@ -113,12 +246,48 @@ func handleImageGalleryByID(s *Server) http.HandlerFunc {
 			return
 		}
 
+		source := r.URL.Query().Get("source")
+
 		s.CfgMu.RLock()
 		dataDir := s.Cfg.Directories.DataDir
 		s.CfgMu.RUnlock()
 
 		switch r.Method {
 		case http.MethodGet:
+			if source == "media_registry" && s.MediaRegistryDB != nil {
+				item, err := tools.GetMedia(s.MediaRegistryDB, id)
+				if err != nil {
+					w.WriteHeader(http.StatusNotFound)
+					json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "Image not found"})
+					return
+				}
+				wp := item.WebPath
+				if wp == "" {
+					wp = "/files/generated_images/" + item.Filename
+				}
+				json.NewEncoder(w).Encode(map[string]interface{}{
+					"status": "ok",
+					"image": unifiedImage{
+						ID:               item.ID,
+						CreatedAt:        item.CreatedAt,
+						Prompt:           item.Prompt,
+						Provider:         item.Provider,
+						Model:            item.Model,
+						Size:             item.Size,
+						Quality:          item.Quality,
+						Style:            item.Style,
+						Filename:         item.Filename,
+						FileSize:         item.FileSize,
+						SourceImage:      item.SourceImage,
+						GenerationTimeMs: item.GenerationTimeMs,
+						CostEstimate:     item.CostEstimate,
+						WebPath:          wp,
+						SourceDB:         "media_registry",
+					},
+				})
+				return
+			}
+
 			img, err := tools.GetGeneratedImage(s.ImageGalleryDB, id)
 			if err != nil {
 				w.WriteHeader(http.StatusNotFound)
@@ -127,16 +296,63 @@ func handleImageGalleryByID(s *Server) http.HandlerFunc {
 			}
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status": "ok",
-				"image":  img,
+				"image": unifiedImage{
+					ID:               img.ID,
+					CreatedAt:        img.CreatedAt,
+					Prompt:           img.Prompt,
+					EnhancedPrompt:   img.EnhancedPrompt,
+					Provider:         img.Provider,
+					Model:            img.Model,
+					Size:             img.Size,
+					Quality:          img.Quality,
+					Style:            img.Style,
+					Filename:         img.Filename,
+					FileSize:         img.FileSize,
+					SourceImage:      img.SourceImage,
+					GenerationTimeMs: img.GenerationTimeMs,
+					CostEstimate:     img.CostEstimate,
+					WebPath:          "/files/generated_images/" + img.Filename,
+					SourceDB:         "image_gallery",
+				},
 			})
 
 		case http.MethodDelete:
-			if err := tools.DeleteGeneratedImage(s.ImageGalleryDB, id, dataDir); err != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				s.Logger.Error("Failed to delete generated image", "image_id", id, "error", err)
-				json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "Failed to delete image"})
-				return
+			var filename string
+			var filePath string
+
+			if source == "media_registry" && s.MediaRegistryDB != nil {
+				item, err := tools.GetMedia(s.MediaRegistryDB, id)
+				if err != nil {
+					w.WriteHeader(http.StatusNotFound)
+					json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "Image not found"})
+					return
+				}
+				filename = item.Filename
+				filePath = item.FilePath
+				if err := tools.DeleteMedia(s.MediaRegistryDB, id); err != nil {
+					w.WriteHeader(http.StatusInternalServerError)
+					s.Logger.Error("Failed to delete media image", "id", id, "error", err)
+					json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "Failed to delete image"})
+					return
+				}
+			} else {
+				if err := tools.DeleteGeneratedImage(s.ImageGalleryDB, id, dataDir); err != nil {
+					w.WriteHeader(http.StatusInternalServerError)
+					s.Logger.Error("Failed to delete generated image", "image_id", id, "error", err)
+					json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "Failed to delete image"})
+					return
+				}
 			}
+
+			// Best-effort: also delete from the other DB and physical file
+			if filename != "" {
+				if filePath != "" {
+					os.Remove(filePath)
+				} else {
+					os.Remove(filepath.Join(dataDir, "generated_images", filename))
+				}
+			}
+
 			json.NewEncoder(w).Encode(map[string]string{"status": "ok", "message": "Image deleted"})
 
 		default:

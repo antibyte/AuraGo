@@ -79,7 +79,7 @@ function renderGrid(images) {
         const promptDisplay = escapeHtml(img.prompt || '').substring(0, 100);
         const date = img.created_at ? new Date(img.created_at).toLocaleDateString() : '';
         const providerBadge = img.provider || '';
-        html += '<div class="gallery-card" onclick="openLightbox(' + img.id + ')">';
+        html += '<div class="gallery-card" data-source="' + escapeHtml(img.source_db || '') + '" data-media-id="' + img.id + '" onclick="openLightbox(' + img.id + ')">';
         html += '<img src="' + escapeHtml(webPath) + '" loading="lazy" alt="' + escapeHtml(img.prompt || '') + '">';
         html += '<div class="gallery-card-info">';
         html += '<div class="gallery-card-prompt">' + promptDisplay + '</div>';
@@ -183,7 +183,7 @@ async function galleryDeleteCurrent() {
 
 function escapeHtml(str) {
     if (!str) return '';
-    return String(str).replace(/&/g, '&').replace(/</g, '<').replace(/>/g, '>').replace(/"/g, '"');
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -199,8 +199,13 @@ async function confirmDeleteGallery() {
         return;
     }
 
+    var img = galleryImages.find(function (i) { return i.id === parseInt(id); });
+    var source = img && img.source_db ? img.source_db : '';
+
     try {
-        const resp = await fetch('/api/image-gallery/' + id, { method: 'DELETE' });
+        var url = '/api/image-gallery/' + id;
+        if (source) url += '?source=' + encodeURIComponent(source);
+        const resp = await fetch(url, { method: 'DELETE' });
         const data = await resp.json();
         if (data.status === 'ok') {
             closeModal('delete-modal');
