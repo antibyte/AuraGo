@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 )
 
 // generateMiniMax generates an image using the MiniMax Image Generation API.
@@ -15,7 +16,10 @@ func generateMiniMax(cfg ImageGenConfig, prompt string, opts ImageGenOptions) ([
 		model = "image-01"
 	}
 
-	url := "https://api.minimax.io/v1/image_generation"
+	url := strings.TrimRight(cfg.BaseURL, "/")
+	if url == "" {
+		url = "https://api.minimax.io/v1/image_generation"
+	}
 
 	jsonBody, err := json.Marshal(map[string]interface{}{
 		"model":           model,
