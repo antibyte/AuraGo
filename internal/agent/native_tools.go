@@ -100,6 +100,7 @@ type ToolFeatureFlags struct {
 	MediaRegistryEnabled     bool
 	HomepageRegistryEnabled  bool
 	ContactsEnabled          bool
+	PlannerEnabled           bool
 	JournalEnabled           bool
 	MemoryAnalysisEnabled    bool
 	DocumentCreatorEnabled   bool

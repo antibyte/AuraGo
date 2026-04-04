@@ -293,7 +293,7 @@ func mcpCallTool(ctx context.Context, s *Server, params json.RawMessage) mcpCall
 			InventoryDB: s.InventoryDB, InvasionDB: s.InvasionDB,
 			CheatsheetDB: s.CheatsheetDB, ImageGalleryDB: s.ImageGalleryDB,
 			MediaRegistryDB: s.MediaRegistryDB, HomepageRegistryDB: s.HomepageRegistryDB,
-			ContactsDB: s.ContactsDB, SQLConnectionsDB: s.SQLConnectionsDB,
+			ContactsDB: s.ContactsDB, PlannerDB: s.PlannerDB, SQLConnectionsDB: s.SQLConnectionsDB,
 			SQLConnectionPool: s.SQLConnectionPool, RemoteHub: s.RemoteHub,
 			HistoryMgr: s.HistoryManager, Guardian: s.Guardian,
 			LLMGuardian: s.LLMGuardian, SessionID: "mcp-server",
@@ -364,6 +364,7 @@ func mcpFeatureFlags(cfg *config.Config) agent.ToolFeatureFlags {
 		FritzBoxStorageEnabled:       cfg.FritzBox.Enabled && cfg.FritzBox.Storage.Enabled,
 		FritzBoxTVEnabled:            cfg.FritzBox.Enabled && cfg.FritzBox.TV.Enabled,
 		ContactsEnabled:              cfg.Tools.Contacts.Enabled,
+		PlannerEnabled:               cfg.Tools.Planner.Enabled,
 		PythonSecretInjectionEnabled: cfg.Tools.PythonSecretInjection.Enabled,
 	}
 }

@@ -193,6 +193,7 @@ type Config struct {
 		MediaRegistryPath    string `yaml:"media_registry_path"`
 		HomepageRegistryPath string `yaml:"homepage_registry_path"`
 		ContactsPath         string `yaml:"contacts_path"`
+		PlannerPath          string `yaml:"planner_path"`
 		SiteMonitorPath      string `yaml:"site_monitor_path"`
 		SQLConnectionsPath   string `yaml:"sql_connections_path"`
 		SkillsPath           string `yaml:"skills_path"`
@@ -1075,6 +1076,9 @@ type Config struct {
 		Contacts struct {
 			Enabled bool `yaml:"enabled"` // enable address_book tool (contact management)
 		} `yaml:"contacts"`
+		Planner struct {
+			Enabled bool `yaml:"enabled"` // enable manage_appointments and manage_todos tools
+		} `yaml:"planner"`
 		PythonSecretInjection struct {
 			Enabled bool `yaml:"enabled"` // allow Python tools to request vault secrets via vault_keys parameter
 		} `yaml:"python_secret_injection"`

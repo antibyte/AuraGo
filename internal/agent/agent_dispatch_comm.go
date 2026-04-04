@@ -194,6 +194,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 	mediaRegistryDB := dc.MediaRegistryDB
 	homepageRegistryDB := dc.HomepageRegistryDB
 	contactsDB := dc.ContactsDB
+	plannerDB := dc.PlannerDB
 	sqlConnectionsDB := dc.SQLConnectionsDB
 	sqlConnectionPool := dc.SQLConnectionPool
 	remoteHub := dc.RemoteHub
@@ -604,6 +605,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				MediaRegistryDB:    mediaRegistryDB,
 				HomepageRegistryDB: homepageRegistryDB,
 				ContactsDB:         contactsDB,
+				PlannerDB:          plannerDB,
 				SQLConnectionsDB:   sqlConnectionsDB,
 				SQLConnectionPool:  sqlConnectionPool,
 				RemoteHub:          remoteHub,
@@ -1658,6 +1660,24 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			default:
 				return `Tool Output: {"status":"error","message":"Unknown operation. Use: list, search, add, update, delete"}`
 			}
+
+		case "manage_appointments":
+			if !cfg.Tools.Planner.Enabled {
+				return `Tool Output: {"status":"error","message":"Planner is disabled. Enable tools.planner.enabled in config."}`
+			}
+			if plannerDB == nil {
+				return `Tool Output: {"status":"error","message":"Planner database not available."}`
+			}
+			return dispatchManageAppointments(tc, plannerDB, kg, logger)
+
+		case "manage_todos":
+			if !cfg.Tools.Planner.Enabled {
+				return `Tool Output: {"status":"error","message":"Planner is disabled. Enable tools.planner.enabled in config."}`
+			}
+			if plannerDB == nil {
+				return `Tool Output: {"status":"error","message":"Planner database not available."}`
+			}
+			return dispatchManageTodos(tc, plannerDB, kg, logger)
 
 		// Built-in search/scrape tools — also callable as direct actions (no execute_skill wrapper needed)
 		case "ddg_search":

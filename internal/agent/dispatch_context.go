@@ -36,6 +36,7 @@ type DispatchContext struct {
 	MediaRegistryDB    *sql.DB
 	HomepageRegistryDB *sql.DB
 	ContactsDB         *sql.DB
+	PlannerDB          *sql.DB
 	SQLConnectionsDB   *sql.DB
 	SQLConnectionPool  *sqlconnections.ConnectionPool
 	RemoteHub          *remote.RemoteHub

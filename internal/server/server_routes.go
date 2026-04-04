@@ -22,6 +22,7 @@ import (
 	"aurago/internal/invasion/bridge"
 	"aurago/internal/memory"
 	"aurago/internal/mqtt"
+	"aurago/internal/planner"
 	"aurago/internal/rocketchat"
 	"aurago/internal/services/optimizer"
 	"aurago/internal/telegram"
@@ -195,7 +196,47 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 
 	// Phase 68: Start the daily maintenance loop
 	manifest := tools.NewManifest(s.Cfg.Directories.ToolsDir)
-	agent.StartMaintenanceLoop(serverCtx, s.Cfg, s.Logger, s.LLMClient, s.Vault, s.Registry, manifest, s.CronManager, s.LongTermMem, s.ShortTermMem, s.HistoryManager, s.KG, s.InventoryDB, s.ContactsDB, s.MissionManagerV2)
+	agent.StartMaintenanceLoop(serverCtx, s.Cfg, s.Logger, s.LLMClient, s.Vault, s.Registry, manifest, s.CronManager, s.LongTermMem, s.ShortTermMem, s.HistoryManager, s.KG, s.InventoryDB, s.ContactsDB, s.PlannerDB, s.MissionManagerV2)
+
+	// Start Planner Notifier for appointment reminders with agent wake-up
+	if s.PlannerDB != nil && s.Cfg.Tools.Planner.Enabled {
+		plannerNotifier := planner.NewNotifier(s.PlannerDB, s.Logger)
+		plannerNotifier.SetExecutor(func(prompt string) {
+			runCfg := agent.RunConfig{
+				Config:             s.Cfg,
+				Logger:             s.Logger,
+				LLMClient:          s.LLMClient,
+				ShortTermMem:       s.ShortTermMem,
+				HistoryManager:     s.HistoryManager,
+				LongTermMem:        s.LongTermMem,
+				KG:                 s.KG,
+				InventoryDB:        s.InventoryDB,
+				InvasionDB:         s.InvasionDB,
+				CheatsheetDB:       s.CheatsheetDB,
+				ImageGalleryDB:     s.ImageGalleryDB,
+				MediaRegistryDB:    s.MediaRegistryDB,
+				HomepageRegistryDB: s.HomepageRegistryDB,
+				ContactsDB:         s.ContactsDB,
+				PlannerDB:          s.PlannerDB,
+				SQLConnectionsDB:   s.SQLConnectionsDB,
+				SQLConnectionPool:  s.SQLConnectionPool,
+				RemoteHub:          s.RemoteHub,
+				Vault:              s.Vault,
+				Registry:           s.Registry,
+				CronManager:        s.CronManager,
+				MissionManagerV2:   s.MissionManagerV2,
+				CoAgentRegistry:    s.CoAgentRegistry,
+				BudgetTracker:      s.BudgetTracker,
+				LLMGuardian:        s.LLMGuardian,
+				SessionID:          "default",
+				IsMaintenance:      false,
+				MessageSource:      "planner_notification",
+			}
+			go agent.Loopback(runCfg, prompt, agent.NoopBroker{})
+		})
+		plannerNotifier.Start(serverCtx)
+		s.Logger.Info("Planner notifier started")
+	}
 
 	s.CoAgentRegistry.StartCleanupLoop()
 
@@ -661,6 +702,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 					MediaRegistryDB:    s.MediaRegistryDB,
 					HomepageRegistryDB: s.HomepageRegistryDB,
 					ContactsDB:         s.ContactsDB,
+					PlannerDB:          s.PlannerDB,
 					SQLConnectionsDB:   s.SQLConnectionsDB,
 					SQLConnectionPool:  s.SQLConnectionPool,
 					RemoteHub:          s.RemoteHub,
@@ -1150,6 +1192,12 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		// ── Contacts (Address Book) API ──
 		mux.HandleFunc("/api/contacts", handleContacts(s))
 		mux.HandleFunc("/api/contacts/", handleContactByID(s))
+
+		// ── Planner (Appointments & Todos) API ──
+		mux.HandleFunc("/api/appointments", handleAppointments(s))
+		mux.HandleFunc("/api/appointments/", handleAppointmentByID(s))
+		mux.HandleFunc("/api/todos", handleTodos(s))
+		mux.HandleFunc("/api/todos/", handleTodoByID(s))
 
 		// ── SQL Connections API ──
 		mux.HandleFunc("/api/sql-connections", handleSQLConnections(s))

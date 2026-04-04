@@ -44,6 +44,7 @@ func builtinToolSchemas(ff ToolFeatureFlags) []openai.Tool {
 	tools := buildCoreToolSchemas(ff, buildExecuteSkillProps(ff))
 	tools = appendExecutionToolSchemas(tools, ff, executePythonDesc)
 	tools = appendMemoryToolSchemas(tools, ff)
+	tools = appendPlannerToolSchemas(tools, ff)
 	tools = appendIntegrationToolSchemas(tools, ff)
 	tools = appendContentToolSchemas(tools, ff)
 	tools = appendEdgeToolSchemas(tools, ff)
@@ -75,7 +76,7 @@ func allBuiltinToolFeatureFlags() ToolFeatureFlags {
 		SchedulerEnabled: true, NotesEnabled: true, MissionsEnabled: true, StopProcessEnabled: true,
 		InventoryEnabled: true, MemoryMaintenanceEnabled: true, WOLEnabled: true,
 		MediaRegistryEnabled: true, HomepageRegistryEnabled: true, ContactsEnabled: true,
-		JournalEnabled: true, MemoryAnalysisEnabled: true, DocumentCreatorEnabled: true,
+		PlannerEnabled: true, JournalEnabled: true, MemoryAnalysisEnabled: true, DocumentCreatorEnabled: true,
 		WebCaptureEnabled: true, NetworkPingEnabled: true, WebScraperEnabled: true,
 		S3Enabled: true, NetworkScanEnabled: true, FormAutomationEnabled: true, UPnPScanEnabled: true,
 		JellyfinEnabled: true, ChromecastEnabled: true, DiscordEnabled: true, TrueNASEnabled: true,
@@ -165,6 +166,7 @@ func ToolNamesFromConfig(cfg *config.Config) []string {
 		MediaRegistryEnabled:         cfg.MediaRegistry.Enabled,
 		HomepageRegistryEnabled:      cfg.Homepage.Enabled,
 		ContactsEnabled:              cfg.Tools.Contacts.Enabled,
+		PlannerEnabled:               cfg.Tools.Planner.Enabled,
 		JournalEnabled:               cfg.Tools.Journal.Enabled,
 		MemoryAnalysisEnabled:        cfg.MemoryAnalysis.Enabled,
 		DocumentCreatorEnabled:       cfg.Tools.DocumentCreator.Enabled,
@@ -248,6 +250,7 @@ func ToolSummariesFromConfig(cfg *config.Config) []string {
 		MediaRegistryEnabled:         cfg.MediaRegistry.Enabled,
 		HomepageRegistryEnabled:      cfg.Homepage.Enabled,
 		ContactsEnabled:              cfg.Tools.Contacts.Enabled,
+		PlannerEnabled:               cfg.Tools.Planner.Enabled,
 		JournalEnabled:               cfg.Tools.Journal.Enabled,
 		MemoryAnalysisEnabled:        cfg.MemoryAnalysis.Enabled,
 		DocumentCreatorEnabled:       cfg.Tools.DocumentCreator.Enabled,

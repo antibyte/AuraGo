@@ -655,6 +655,7 @@ type RunConfig struct {
 	MediaRegistryDB    *sql.DB
 	HomepageRegistryDB *sql.DB
 	ContactsDB         *sql.DB
+	PlannerDB          *sql.DB
 	SQLConnectionsDB   *sql.DB
 	SQLConnectionPool  *sqlconnections.ConnectionPool
 	RemoteHub          *remote.RemoteHub
@@ -707,6 +708,14 @@ func dispatchInner(ctx context.Context, tc ToolCall, dc *DispatchContext) string
 		case "manage_plan":
 			if tc.Operation != "list" && tc.Operation != "get" {
 				return `Tool Output: {"status": "error", "message": "Co-Agents cannot modify plans. Only list and get are allowed."}`
+			}
+		case "manage_appointments":
+			if tc.Operation != "list" && tc.Operation != "get" {
+				return `Tool Output: {"status": "error", "message": "Co-Agents cannot modify appointments. Only list and get are allowed."}`
+			}
+		case "manage_todos":
+			if tc.Operation != "list" && tc.Operation != "get" {
+				return `Tool Output: {"status": "error", "message": "Co-Agents cannot modify todos. Only list and get are allowed."}`
 			}
 		case "co_agent", "co_agents":
 			return `Tool Output: {"status": "error", "message": "Co-Agents cannot spawn sub-agents."}`

@@ -23,7 +23,7 @@ import (
 )
 
 // StartMaintenanceLoop spawns a background goroutine that runs daily at the configured time.
-func StartMaintenanceLoop(ctx context.Context, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, historyMgr *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, contactsDB *sql.DB, missionManagerV2 *tools.MissionManagerV2) {
+func StartMaintenanceLoop(ctx context.Context, cfg *config.Config, logger *slog.Logger, llmClient llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, historyMgr *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, contactsDB *sql.DB, plannerDB *sql.DB, missionManagerV2 *tools.MissionManagerV2) {
 	if !cfg.Maintenance.Enabled {
 		logger.Info("Daily maintenance is disabled in config")
 		return
@@ -49,7 +49,7 @@ func StartMaintenanceLoop(ctx context.Context, cfg *config.Config, logger *slog.
 
 			select {
 			case <-time.After(sleepDuration):
-				runMaintenanceTask(ctx, cfg, logger, llmClient, vault, registry, manifest, cronManager, longTermMem, shortTermMem, historyMgr, kg, inventoryDB, contactsDB, missionManagerV2)
+				runMaintenanceTask(ctx, cfg, logger, llmClient, vault, registry, manifest, cronManager, longTermMem, shortTermMem, historyMgr, kg, inventoryDB, contactsDB, plannerDB, missionManagerV2)
 			case <-ctx.Done():
 				logger.Info("Maintenance loop shutting down")
 				return
@@ -74,7 +74,7 @@ func parseTime(t string) (int, int, error) {
 	return hour, minute, nil
 }
 
-func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, historyMgr *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, contactsDB *sql.DB, missionManagerV2 *tools.MissionManagerV2) {
+func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, vault *security.Vault, registry *tools.ProcessRegistry, manifest *tools.Manifest, cronManager *tools.CronManager, longTermMem memory.VectorDB, shortTermMem *memory.SQLiteMemory, historyMgr *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, contactsDB *sql.DB, plannerDB *sql.DB, missionManagerV2 *tools.MissionManagerV2) {
 	logger.Info("[Maintenance] Waking up to perform daily tasks")
 
 	// Phase A5: Clean up old interaction patterns (>90 days)
@@ -165,6 +165,9 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 	// Sync contacts and core memory
 	if kg != nil {
 		SyncContactsToKnowledgeGraph(ctx, contactsDB, kg, logger)
+	}
+	if kg != nil {
+		SyncPlannerToKnowledgeGraph(ctx, plannerDB, kg, logger)
 	}
 	if kg != nil && shortTermMem != nil {
 		SyncCoreMemoryToKnowledgeGraph(ctx, shortTermMem, kg, logger)
@@ -1352,6 +1355,76 @@ func SyncContactsToKnowledgeGraph(ctx context.Context, contactsDB *sql.DB, kg *m
 
 			_ = kg.AddNode(relNodeID, relationship.String, map[string]string{"type": "organization"})
 			_ = kg.AddEdge(nodeID, relNodeID, "belongs_to", nil)
+		}
+	}
+}
+
+// SyncPlannerToKnowledgeGraph synchronizes appointments and todos to the knowledge graph.
+func SyncPlannerToKnowledgeGraph(ctx context.Context, plannerDB *sql.DB, kg *memory.KnowledgeGraph, logger *slog.Logger) {
+	if plannerDB == nil || kg == nil {
+		return
+	}
+
+	logger.Info("[Maintenance] Syncing Planner to Knowledge Graph")
+
+	// Sync appointments
+	rows, err := plannerDB.QueryContext(ctx, "SELECT id, title, description, date_time, status, kg_node_id FROM appointments WHERE status != 'cancelled'")
+	if err != nil {
+		logger.Error("[Maintenance] Failed to query appointments for KG sync", "error", err)
+	} else {
+		defer rows.Close()
+		for rows.Next() {
+			var id, title, status, kgNodeID string
+			var description, dateTime sql.NullString
+			if err := rows.Scan(&id, &title, &description, &dateTime, &status, &kgNodeID); err != nil {
+				logger.Error("[Maintenance] Failed to scan appointment", "error", err)
+				continue
+			}
+			props := map[string]string{
+				"type":   "event",
+				"source": "planner",
+				"status": status,
+			}
+			if dateTime.Valid {
+				props["date"] = dateTime.String
+			}
+			if description.Valid {
+				props["description"] = description.String
+			}
+			if err := kg.AddNode(kgNodeID, title, props); err != nil && !strings.Contains(err.Error(), "UNIQUE constraint failed") {
+				logger.Debug("[Maintenance] AddNode returned error", "nodeID", kgNodeID, "error", err)
+			}
+		}
+	}
+
+	// Sync todos
+	todoRows, err := plannerDB.QueryContext(ctx, "SELECT id, title, description, priority, status, due_date, kg_node_id FROM todos WHERE status != 'cancelled'")
+	if err != nil {
+		logger.Error("[Maintenance] Failed to query todos for KG sync", "error", err)
+		return
+	}
+	defer todoRows.Close()
+	for todoRows.Next() {
+		var id, title, priority, status, kgNodeID string
+		var description, dueDate sql.NullString
+		if err := todoRows.Scan(&id, &title, &description, &priority, &status, &dueDate, &kgNodeID); err != nil {
+			logger.Error("[Maintenance] Failed to scan todo", "error", err)
+			continue
+		}
+		props := map[string]string{
+			"type":     "task",
+			"source":   "planner",
+			"priority": priority,
+			"status":   status,
+		}
+		if dueDate.Valid {
+			props["due_date"] = dueDate.String
+		}
+		if description.Valid {
+			props["description"] = description.String
+		}
+		if err := kg.AddNode(kgNodeID, title, props); err != nil && !strings.Contains(err.Error(), "UNIQUE constraint failed") {
+			logger.Debug("[Maintenance] AddNode returned error", "nodeID", kgNodeID, "error", err)
 		}
 	}
 }

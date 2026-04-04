@@ -155,6 +155,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	mediaRegistryDB := runCfg.MediaRegistryDB
 	homepageRegistryDB := runCfg.HomepageRegistryDB
 	contactsDB := runCfg.ContactsDB
+	plannerDB := runCfg.PlannerDB
 	sqlConnectionsDB := runCfg.SQLConnectionsDB
 	sqlConnectionPool := runCfg.SQLConnectionPool
 	remoteHub := runCfg.RemoteHub
@@ -284,6 +285,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			InvasionDB: invasionDB, CheatsheetDB: cheatsheetDB,
 			ImageGalleryDB: imageGalleryDB, MediaRegistryDB: mediaRegistryDB,
 			HomepageRegistryDB: homepageRegistryDB, ContactsDB: contactsDB,
+			PlannerDB:        plannerDB,
 			SQLConnectionsDB: sqlConnectionsDB, SQLConnectionPool: sqlConnectionPool,
 			RemoteHub: remoteHub, HistoryMgr: historyManager,
 			IsMaintenance: tools.IsBusy(), SurgeryPlan: surgeryPlan,

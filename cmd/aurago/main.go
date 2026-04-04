@@ -30,6 +30,7 @@ import (
 	"aurago/internal/llm"
 	"aurago/internal/logger"
 	"aurago/internal/memory"
+	"aurago/internal/planner"
 	promptspkg "aurago/internal/prompts"
 	"aurago/internal/push"
 	"aurago/internal/remote"
@@ -428,6 +429,16 @@ func main() {
 	} else {
 		defer contactsDB.Close()
 		appLog.Info("Contacts DB initialized", "path", cfg.SQLite.ContactsPath)
+	}
+
+	// Planner (Appointments & Todos) DB
+	plannerDB, plannerDBErr := planner.InitDB(cfg.SQLite.PlannerPath)
+	if plannerDBErr != nil {
+		appLog.Warn("Failed to initialize Planner DB", "error", plannerDBErr, "path", cfg.SQLite.PlannerPath)
+		plannerDB = nil
+	} else {
+		defer plannerDB.Close()
+		appLog.Info("Planner DB initialized", "path", cfg.SQLite.PlannerPath)
 	}
 
 	var sqlConnectionsDB *sql.DB
@@ -833,7 +844,7 @@ func main() {
 		}
 	}
 
-	if err := server.Start(cfg, appLog, webAccessLog, llmClient, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, remoteControlDB, mediaRegistryDB, homepageRegistryDB, contactsDB, sqlConnectionsDB, sqlConnectionPool, backgroundTaskManager, isFirstStart, shutdownCh); err != nil {
+	if err := server.Start(cfg, appLog, webAccessLog, llmClient, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, remoteControlDB, mediaRegistryDB, homepageRegistryDB, contactsDB, plannerDB, sqlConnectionsDB, sqlConnectionPool, backgroundTaskManager, isFirstStart, shutdownCh); err != nil {
 		appLog.Error("Server failed", "error", err)
 		os.Exit(1)
 	}

@@ -633,3 +633,348 @@
 [data-theme="light"] .kc-table tbody tr:hover {
     background: rgba(15, 143, 132, 0.05);
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   Filter select (appointments/todos)
+   ══════════════════════════════════════════════════════════════ */
+
+.kc-filter-select {
+    padding: 10px 14px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    outline: none;
+    cursor: pointer;
+    transition: border-color 0.2s;
+    min-width: 140px;
+}
+
+.kc-filter-select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-dim), inset 0 1px 0 var(--surface-highlight);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Appointment cards
+   ══════════════════════════════════════════════════════════════ */
+
+.kc-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.kc-appointment-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    padding: 16px 20px;
+    box-shadow: var(--surface-shadow), inset 0 1px 0 var(--surface-highlight);
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.kc-appointment-card:hover {
+    border-color: var(--accent-dim);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+}
+
+.kc-appointment-past {
+    opacity: 0.7;
+}
+
+.kc-appointment-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.kc-appointment-title-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    min-width: 0;
+}
+
+.kc-appointment-title {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.kc-appointment-actions {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.kc-appointment-desc {
+    margin: 0 0 10px;
+    color: var(--text-secondary);
+    font-size: 0.88rem;
+    line-height: 1.5;
+}
+
+.kc-appointment-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+}
+
+.kc-appointment-meta-item {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.kc-wake-badge {
+    color: var(--accent);
+    font-weight: 500;
+}
+
+/* Status pills */
+.kc-status-pill {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+}
+
+.kc-status-upcoming {
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    color: var(--accent);
+    border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+}
+
+.kc-status-completed {
+    background: rgba(34, 197, 94, 0.12);
+    color: #22c55e;
+    border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.kc-status-cancelled {
+    background: rgba(148, 163, 184, 0.12);
+    color: var(--text-secondary);
+    border: 1px solid rgba(148, 163, 184, 0.3);
+}
+
+/* Wake agent toggle section */
+.kc-wake-agent-section {
+    margin-top: 4px;
+}
+
+.kc-toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+}
+
+.kc-toggle-label input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--accent);
+    cursor: pointer;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Todo list
+   ══════════════════════════════════════════════════════════════ */
+
+.kc-todo-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.kc-todo-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    background: var(--card-bg);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    padding: 14px 18px;
+    box-shadow: var(--surface-shadow), inset 0 1px 0 var(--surface-highlight);
+    transition: border-color 0.2s, opacity 0.3s;
+}
+
+.kc-todo-item:hover {
+    border-color: var(--accent-dim);
+}
+
+.kc-todo-done {
+    opacity: 0.6;
+}
+
+.kc-todo-overdue {
+    border-left: 3px solid #ef4444;
+}
+
+.kc-todo-check {
+    padding-top: 2px;
+    flex-shrink: 0;
+}
+
+.kc-todo-check input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    accent-color: var(--accent);
+    cursor: pointer;
+}
+
+.kc-todo-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.kc-todo-title-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 4px;
+}
+
+.kc-todo-title {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--text-primary);
+}
+
+.kc-todo-title-done {
+    text-decoration: line-through;
+    color: var(--text-secondary);
+}
+
+.kc-todo-desc {
+    margin: 0 0 6px;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    line-height: 1.4;
+}
+
+.kc-todo-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.kc-todo-meta-item {
+    font-size: 0.78rem;
+    color: var(--text-tertiary, var(--text-secondary));
+    white-space: nowrap;
+}
+
+.kc-todo-overdue-text {
+    color: #ef4444 !important;
+    font-weight: 500;
+}
+
+.kc-todo-created {
+    opacity: 0.7;
+}
+
+.kc-todo-actions {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+    padding-top: 2px;
+}
+
+/* Priority badges */
+.kc-priority-badge {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 6px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.kc-priority-high {
+    background: rgba(239, 68, 68, 0.14);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.kc-priority-medium {
+    background: rgba(234, 179, 8, 0.14);
+    color: #eab308;
+    border: 1px solid rgba(234, 179, 8, 0.3);
+}
+
+.kc-priority-low {
+    background: rgba(34, 197, 94, 0.14);
+    color: #22c55e;
+    border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+/* In-progress status pill */
+.kc-status-inprogress {
+    background: rgba(59, 130, 246, 0.14);
+    color: #3b82f6;
+    border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Responsive additions for appointments & todos
+   ══════════════════════════════════════════════════════════════ */
+
+@media (max-width: 768px) {
+    .kc-appointment-header {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .kc-appointment-actions {
+        align-self: flex-end;
+    }
+
+    .kc-appointment-meta {
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .kc-todo-item {
+        padding: 12px 14px;
+        gap: 10px;
+    }
+
+    .kc-todo-actions {
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .kc-filter-select {
+        min-width: 0;
+        width: 100%;
+    }
+}
+
+/* Light theme additions */
+[data-theme="light"] .kc-appointment-card,
+[data-theme="light"] .kc-todo-item {
+    border-color: rgba(71, 85, 105, 0.14);
+}
+
+[data-theme="light"] .kc-appointment-card:hover,
+[data-theme="light"] .kc-todo-item:hover {
+    border-color: rgba(15, 143, 132, 0.3);
+}
+
+[data-theme="light"] .kc-filter-select {
+    border-color: rgba(71, 85, 105, 0.14);
+}

@@ -335,6 +335,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			MediaRegistryDB:    s.MediaRegistryDB,
 			HomepageRegistryDB: s.HomepageRegistryDB,
 			ContactsDB:         s.ContactsDB,
+			PlannerDB:          s.PlannerDB,
 			SQLConnectionsDB:   s.SQLConnectionsDB,
 			SQLConnectionPool:  s.SQLConnectionPool,
 			RemoteHub:          s.RemoteHub,

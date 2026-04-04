@@ -45,6 +45,10 @@
                 onclick="switchKCTab('credentials')" data-i18n="knowledge.tab_credentials">🔑 Access Credentials</button>
             <button class="kc-tab" id="tab-secrets" role="tab" aria-selected="false"
                 onclick="switchKCTab('secrets')" data-i18n="knowledge.tab_secrets">🔐 Secrets</button>
+            <button class="kc-tab" id="tab-appointments" role="tab" aria-selected="false"
+                onclick="switchKCTab('appointments')" data-i18n="knowledge.tab_appointments">📅 Appointments</button>
+            <button class="kc-tab" id="tab-todos" role="tab" aria-selected="false"
+                onclick="switchKCTab('todos')" data-i18n="knowledge.tab_todos">✅ To-Dos</button>
         </div>
 
         <!-- ═══════ CONTACTS PANEL ═══════ -->
@@ -189,6 +193,58 @@
         <!-- ═══════ SECRETS PANEL ═══════ -->
         <div id="panel-secrets" class="kc-panel">
             <div id="secrets-section-content"></div>
+        </div>
+
+        <!-- ═══════ APPOINTMENTS PANEL ═══════ -->
+        <div id="panel-appointments" class="kc-panel">
+            <div class="kc-panel-header">
+                <div class="kc-search-row">
+                    <input type="text" id="appointments-search" class="kc-search"
+                        placeholder="Search appointments..." data-i18n-placeholder="knowledge.appointments_search_placeholder"
+                        oninput="debounceAppointmentSearch()">
+                    <select id="appointments-filter" class="kc-filter-select" onchange="loadAppointments()">
+                        <option value="" data-i18n="knowledge.appointments_filter_all">All</option>
+                        <option value="upcoming" data-i18n="knowledge.appointments_filter_upcoming">Upcoming</option>
+                        <option value="completed" data-i18n="knowledge.appointments_filter_completed">Completed</option>
+                        <option value="cancelled" data-i18n="knowledge.appointments_filter_cancelled">Cancelled</option>
+                    </select>
+                    <button class="btn btn-primary" onclick="openAppointmentModal()">
+                        <span>+</span> <span data-i18n="knowledge.appointments_add">New Appointment</span>
+                    </button>
+                </div>
+            </div>
+            <div id="appointments-list" class="kc-cards"></div>
+            <div class="empty-state is-hidden" id="appointments-empty">
+                <div class="empty-icon">📅</div>
+                <h3 data-i18n="knowledge.appointments_empty_title">No Appointments</h3>
+                <p data-i18n="knowledge.appointments_empty_desc">Create your first appointment to get started.</p>
+            </div>
+        </div>
+
+        <!-- ═══════ TODOS PANEL ═══════ -->
+        <div id="panel-todos" class="kc-panel">
+            <div class="kc-panel-header">
+                <div class="kc-search-row">
+                    <input type="text" id="todos-search" class="kc-search"
+                        placeholder="Search to-dos..." data-i18n-placeholder="knowledge.todos_search_placeholder"
+                        oninput="debounceTodoSearch()">
+                    <select id="todos-filter" class="kc-filter-select" onchange="loadTodos()">
+                        <option value="" data-i18n="knowledge.todos_filter_all">All</option>
+                        <option value="open" data-i18n="knowledge.todos_filter_open">Open</option>
+                        <option value="in_progress" data-i18n="knowledge.todos_filter_in_progress">In Progress</option>
+                        <option value="done" data-i18n="knowledge.todos_filter_done">Done</option>
+                    </select>
+                    <button class="btn btn-primary" onclick="openTodoModal()">
+                        <span>+</span> <span data-i18n="knowledge.todos_add">New To-Do</span>
+                    </button>
+                </div>
+            </div>
+            <div id="todos-list" class="kc-todo-list"></div>
+            <div class="empty-state is-hidden" id="todos-empty">
+                <div class="empty-icon">✅</div>
+                <h3 data-i18n="knowledge.todos_empty_title">No To-Dos</h3>
+                <p data-i18n="knowledge.todos_empty_desc">Create your first to-do to get started.</p>
+            </div>
         </div>
     </div>
 
@@ -396,6 +452,94 @@
         </div>
     </div>
 
+    <!-- ═══════ APPOINTMENT MODAL ═══════ -->
+    <div class="modal-overlay" id="appointment-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="appointment-modal-title" data-i18n="knowledge.appointments_add">New Appointment</h2>
+                <button class="modal-close" onclick="closeModal('appointment-modal')">&times;</button>
+            </div>
+            <input type="hidden" id="appointment-id">
+            <div class="form-group">
+                <label data-i18n="knowledge.appointments_title_label">Title</label>
+                <input type="text" id="appointment-title" maxlength="200" required
+                    placeholder="e.g. Team Meeting" data-i18n-placeholder="knowledge.appointments_title_placeholder">
+            </div>
+            <div class="form-group">
+                <label data-i18n="knowledge.appointments_desc_label">Description</label>
+                <textarea id="appointment-description" rows="3"
+                    placeholder="Optional description..." data-i18n-placeholder="knowledge.appointments_desc_placeholder"></textarea>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label data-i18n="knowledge.appointments_datetime_label">Date &amp; Time</label>
+                    <input type="datetime-local" id="appointment-datetime" required>
+                </div>
+                <div class="form-group">
+                    <label data-i18n="knowledge.appointments_notify_label">Notification</label>
+                    <input type="datetime-local" id="appointment-notification">
+                    <small class="form-hint" data-i18n="knowledge.appointments_notify_hint">Leave empty for no notification</small>
+                </div>
+            </div>
+            <div class="form-group kc-wake-agent-section">
+                <label class="kc-toggle-label">
+                    <input type="checkbox" id="appointment-wake-agent" onchange="toggleAgentInstruction()">
+                    <span data-i18n="knowledge.appointments_wake_agent">Wake agent at notification time</span>
+                </label>
+            </div>
+            <div class="form-group is-hidden" id="agent-instruction-group">
+                <label data-i18n="knowledge.appointments_instruction_label">Agent Instruction</label>
+                <textarea id="appointment-instruction" rows="2"
+                    placeholder="e.g. Send me a reminder via Telegram" data-i18n-placeholder="knowledge.appointments_instruction_placeholder"></textarea>
+                <small class="form-hint" data-i18n="knowledge.appointments_instruction_hint">Optional instruction for the agent when woken up</small>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal('appointment-modal')" data-i18n="common.btn_cancel">Cancel</button>
+                <button class="btn btn-primary" onclick="saveAppointment()" data-i18n="common.btn_save">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════ TODO MODAL ═══════ -->
+    <div class="modal-overlay" id="todo-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="todo-modal-title" data-i18n="knowledge.todos_add">New To-Do</h2>
+                <button class="modal-close" onclick="closeModal('todo-modal')">&times;</button>
+            </div>
+            <input type="hidden" id="todo-id">
+            <div class="form-group">
+                <label data-i18n="knowledge.todos_title_label">Title</label>
+                <input type="text" id="todo-title" maxlength="200" required
+                    placeholder="e.g. Update documentation" data-i18n-placeholder="knowledge.todos_title_placeholder">
+            </div>
+            <div class="form-group">
+                <label data-i18n="knowledge.todos_desc_label">Description</label>
+                <textarea id="todo-description" rows="3"
+                    placeholder="Optional description..." data-i18n-placeholder="knowledge.todos_desc_placeholder"></textarea>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label data-i18n="knowledge.todos_priority_label">Priority</label>
+                    <select id="todo-priority">
+                        <option value="low" data-i18n="knowledge.todos_priority_low">Low</option>
+                        <option value="medium" selected data-i18n="knowledge.todos_priority_medium">Medium</option>
+                        <option value="high" data-i18n="knowledge.todos_priority_high">High</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label data-i18n="knowledge.todos_due_label">Due Date</label>
+                    <input type="date" id="todo-due-date">
+                    <small class="form-hint" data-i18n="knowledge.todos_due_hint">Optional</small>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeModal('todo-modal')" data-i18n="common.btn_cancel">Cancel</button>
+                <button class="btn btn-primary" onclick="saveTodo()" data-i18n="common.btn_save">Save</button>
+            </div>
+        </div>
+    </div>
+
     <!-- ═══════ DELETE CONFIRM MODAL ═══════ -->
     <div class="modal-overlay" id="delete-modal">
         <div class="modal modal-small">
@@ -456,5 +600,7 @@
     </div>
 
     <script src="/js/knowledge/main.js"></script>
+    <script src="/js/knowledge/appointments.js"></script>
+    <script src="/js/knowledge/todos.js"></script>
 </body>
 </html>

@@ -44,7 +44,11 @@ function switchKCTab(tab) {
     document.getElementById('tab-' + tab).setAttribute('aria-selected', 'true');
     document.getElementById('panel-' + tab).classList.add('active');
 
-    if (tab === 'secrets') {
+    if (tab === 'appointments' && typeof loadAppointments === 'function') {
+        loadAppointments();
+    } else if (tab === 'todos' && typeof loadTodos === 'function') {
+        loadTodos();
+    } else if (tab === 'secrets') {
         if (!window._secretsModuleLoaded) {
             window._secretsModuleLoaded = true;
             const s = document.createElement('script');
@@ -893,6 +897,10 @@ async function confirmDelete() {
             resp = await fetch('/api/devices/' + encodeURIComponent(id), { method: 'DELETE' });
         } else if (type === 'credential') {
             resp = await fetch('/api/credentials/' + encodeURIComponent(id), { method: 'DELETE' });
+        } else if (type === 'appointment') {
+            resp = await fetch('/api/appointments/' + encodeURIComponent(id), { method: 'DELETE' });
+        } else if (type === 'todo') {
+            resp = await fetch('/api/todos/' + encodeURIComponent(id), { method: 'DELETE' });
         } else {
             resp = await fetch('/api/knowledge/' + encodeURIComponent(id), { method: 'DELETE' });
         }
@@ -905,6 +913,8 @@ async function confirmDelete() {
         if (type === 'contact') loadContacts();
         else if (type === 'device') loadDevices();
         else if (type === 'credential') loadCredentials();
+        else if (type === 'appointment') loadAppointments();
+        else if (type === 'todo') loadTodos();
         else loadFiles();
     } catch (e) {
         console.error('Delete failed:', e);
