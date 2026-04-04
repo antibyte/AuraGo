@@ -618,6 +618,17 @@ func (c *Config) ApplyOAuthTokens(vault SecretReader) {
 	applyIfOAuth(c.Embeddings.Provider, &c.Embeddings.APIKey)
 	applyIfOAuth(c.CoAgents.LLM.Provider, &c.CoAgents.LLM.APIKey)
 	applyIfOAuth(c.Agent.LegacyPersonalityV2Provider, &c.Personality.V2ResolvedKey)
+	// Additional slots that may use OAuth2 providers
+	applyIfOAuth(c.LLMGuardian.Provider, &c.LLMGuardian.APIKey)
+	applyIfOAuth(c.MissionPreparation.Provider, &c.MissionPreparation.APIKey)
+	applyIfOAuth(c.ImageGeneration.Provider, &c.ImageGeneration.APIKey)
+	applyIfOAuth(c.MusicGeneration.Provider, &c.MusicGeneration.APIKey)
+	applyIfOAuth(c.A2A.LLM.Provider, &c.A2A.LLM.APIKey)
+	applyIfOAuth(c.CoAgents.Specialists.Researcher.LLM.Provider, &c.CoAgents.Specialists.Researcher.LLM.APIKey)
+	applyIfOAuth(c.CoAgents.Specialists.Coder.LLM.Provider, &c.CoAgents.Specialists.Coder.LLM.APIKey)
+	applyIfOAuth(c.CoAgents.Specialists.Designer.LLM.Provider, &c.CoAgents.Specialists.Designer.LLM.APIKey)
+	applyIfOAuth(c.CoAgents.Specialists.Security.LLM.Provider, &c.CoAgents.Specialists.Security.LLM.APIKey)
+	applyIfOAuth(c.CoAgents.Specialists.Writer.LLM.Provider, &c.CoAgents.Specialists.Writer.LLM.APIKey)
 
 	// ── Google Workspace OAuth token ──
 	if raw, err := vault.ReadSecret("oauth_google_workspace"); err == nil && raw != "" {

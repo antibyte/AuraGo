@@ -1,8 +1,10 @@
 package server
 
 import (
+	"aurago/internal/agent"
 	"aurago/internal/config"
 	"aurago/internal/llm"
+	"aurago/internal/security"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -100,9 +102,11 @@ func handlePutProviders(s *Server, w http.ResponseWriter, r *http.Request) {
 	s.CfgMu.RLock()
 	oldKeyMap := make(map[string]string, len(s.Cfg.Providers))
 	oldSecretMap := make(map[string]string, len(s.Cfg.Providers))
-	for _, p := range s.Cfg.Providers {
+	oldProviderIDs := make([]string, len(s.Cfg.Providers))
+	for i, p := range s.Cfg.Providers {
 		oldKeyMap[p.ID] = p.APIKey
 		oldSecretMap[p.ID] = p.OAuthClientSecret
+		oldProviderIDs[i] = p.ID
 	}
 	configPath := s.Cfg.ConfigPath
 	s.CfgMu.RUnlock()
@@ -114,12 +118,18 @@ func handlePutProviders(s *Server, w http.ResponseWriter, r *http.Request) {
 
 	// Convert to ProviderEntry slice; write secrets to vault, not YAML
 	entries := make([]config.ProviderEntry, len(incoming))
+	seenIDs := make(map[string]bool, len(incoming))
 	for i, p := range incoming {
 		p.ID = strings.TrimSpace(p.ID)
 		if p.ID == "" {
 			jsonError(w, "Provider ID must not be empty", http.StatusBadRequest)
 			return
 		}
+		if seenIDs[p.ID] {
+			jsonError(w, "Duplicate provider ID: "+p.ID, http.StatusBadRequest)
+			return
+		}
+		seenIDs[p.ID] = true
 
 		// ── API Key → vault ──
 		apiKey := p.APIKey
@@ -170,6 +180,22 @@ func handlePutProviders(s *Server, w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Clean up vault secrets for providers that were removed.
+	if s.Vault != nil {
+		newIDSet := make(map[string]bool, len(entries))
+		for _, e := range entries {
+			newIDSet[e.ID] = true
+		}
+		for _, oldID := range oldProviderIDs {
+			if !newIDSet[oldID] {
+				_ = s.Vault.DeleteSecret("provider_" + oldID + "_api_key")
+				_ = s.Vault.DeleteSecret("provider_" + oldID + "_oauth_client_secret")
+				_ = s.Vault.DeleteSecret("oauth_" + oldID)
+				s.Logger.Info("[Providers] Cleaned up vault secrets for removed provider", "id", oldID)
+			}
+		}
+	}
+
 	// Read raw YAML, update providers key, write back
 	data, err := os.ReadFile(configPath)
 	if err != nil {
@@ -188,28 +214,7 @@ func handlePutProviders(s *Server, w http.ResponseWriter, r *http.Request) {
 	// Build providers as []interface{} for YAML marshal (secrets excluded)
 	provList := make([]interface{}, len(entries))
 	for i, e := range entries {
-		m := map[string]interface{}{
-			"id":       e.ID,
-			"name":     e.Name,
-			"type":     e.Type,
-			"base_url": e.BaseURL,
-			"model":    e.Model,
-		}
-		if e.AccountID != "" {
-			m["account_id"] = e.AccountID
-		}
-		if len(e.Models) > 0 {
-			m["models"] = e.Models
-		}
-		// Secrets are NOT written to YAML — they live in the vault.
-		if e.AuthType != "" && e.AuthType != "api_key" {
-			m["auth_type"] = e.AuthType
-			m["oauth_auth_url"] = e.OAuthAuthURL
-			m["oauth_token_url"] = e.OAuthTokenURL
-			m["oauth_client_id"] = e.OAuthClientID
-			m["oauth_scopes"] = e.OAuthScopes
-		}
-		provList[i] = m
+		provList[i] = buildProviderYAMLEntry(e)
 	}
 	rawCfg["providers"] = provList
 
@@ -250,11 +255,17 @@ func handlePutProviders(s *Server, w http.ResponseWriter, r *http.Request) {
 			"model", s.Cfg.LLM.Model,
 			"provider", s.Cfg.LLM.ProviderType)
 	}
+	// Recreate LLMGuardian so its client uses the updated API keys.
+	s.LLMGuardian = security.NewLLMGuardian(s.Cfg, s.Logger)
 
 	// Capture updated agent info before releasing the lock.
 	activeLLMModel := s.Cfg.LLM.Model
 	activeLLMProvider := s.Cfg.LLM.ProviderType
 	s.CfgMu.Unlock()
+
+	// Reset the global Helper-LLM singleton so its next request picks up the
+	// new configuration (updated API keys, model, etc.).
+	agent.ResetGlobalHelperLLMManager()
 
 	s.Logger.Info("[Providers] Updated", "count", len(entries))
 
@@ -372,33 +383,7 @@ func persistProviders(s *Server, configPath string) error {
 
 	provList := make([]interface{}, len(providers))
 	for i, e := range providers {
-		m := map[string]interface{}{
-			"id":       e.ID,
-			"name":     e.Name,
-			"type":     e.Type,
-			"base_url": e.BaseURL,
-			"model":    e.Model,
-		}
-		if len(e.Models) > 0 {
-			// Convert to generic []interface{} for clean YAML output
-			ml := make([]interface{}, len(e.Models))
-			for j, mc := range e.Models {
-				ml[j] = map[string]interface{}{
-					"name":               mc.Name,
-					"input_per_million":  mc.InputPerMillion,
-					"output_per_million": mc.OutputPerMillion,
-				}
-			}
-			m["models"] = ml
-		}
-		if e.AuthType != "" && e.AuthType != "api_key" {
-			m["auth_type"] = e.AuthType
-			m["oauth_auth_url"] = e.OAuthAuthURL
-			m["oauth_token_url"] = e.OAuthTokenURL
-			m["oauth_client_id"] = e.OAuthClientID
-			m["oauth_scopes"] = e.OAuthScopes
-		}
-		provList[i] = m
+		provList[i] = buildProviderYAMLEntry(e)
 	}
 	rawCfg["providers"] = provList
 
@@ -407,4 +392,38 @@ func persistProviders(s *Server, configPath string) error {
 		return err
 	}
 	return os.WriteFile(configPath, out, 0644)
+}
+
+// buildProviderYAMLEntry converts a ProviderEntry to a map suitable for YAML marshalling.
+// Secrets (API keys, OAuth tokens) are intentionally excluded — they live in the vault.
+func buildProviderYAMLEntry(e config.ProviderEntry) map[string]interface{} {
+	m := map[string]interface{}{
+		"id":       e.ID,
+		"name":     e.Name,
+		"type":     e.Type,
+		"base_url": e.BaseURL,
+		"model":    e.Model,
+	}
+	if e.AccountID != "" {
+		m["account_id"] = e.AccountID
+	}
+	if len(e.Models) > 0 {
+		ml := make([]interface{}, len(e.Models))
+		for j, mc := range e.Models {
+			ml[j] = map[string]interface{}{
+				"name":               mc.Name,
+				"input_per_million":  mc.InputPerMillion,
+				"output_per_million": mc.OutputPerMillion,
+			}
+		}
+		m["models"] = ml
+	}
+	if e.AuthType != "" && e.AuthType != "api_key" {
+		m["auth_type"] = e.AuthType
+		m["oauth_auth_url"] = e.OAuthAuthURL
+		m["oauth_token_url"] = e.OAuthTokenURL
+		m["oauth_client_id"] = e.OAuthClientID
+		m["oauth_scopes"] = e.OAuthScopes
+	}
+	return m
 }

@@ -29,10 +29,11 @@ type FailoverManager struct {
 	primaryModel  string
 	fallbackModel string
 
-	isOnFallback   bool
-	errorCount     int
-	errorThreshold int
-	probeInterval  time.Duration
+	isOnFallback       bool
+	errorCount         int // consecutive primary errors
+	fallbackErrorCount int // consecutive fallback errors (for monitoring)
+	errorThreshold     int
+	probeInterval      time.Duration
 
 	stopCh chan struct{} // closed by Stop() to signal probeLoop to exit
 
@@ -99,6 +100,7 @@ func (fm *FailoverManager) Reconfigure(cfg *config.Config) {
 	fm.primaryModel = cfg.LLM.Model
 	fm.isOnFallback = false
 	fm.errorCount = 0
+	fm.fallbackErrorCount = 0
 	fm.stopCh = newStopCh
 
 	fb := cfg.FallbackLLM
@@ -212,8 +214,8 @@ func (fm *FailoverManager) recordError(err error) {
 	if fm.fallback == nil || fm.isOnFallback {
 		// No fallback configured, or already on fallback – just log.
 		if fm.isOnFallback {
-			fm.logger.Warn("LLM failover: error on fallback endpoint", "error", err, "count", fm.errorCount)
-			fm.errorCount = 0 // reset so we don't spam
+			fm.fallbackErrorCount++
+			fm.logger.Warn("LLM failover: error on fallback endpoint", "error", err, "fallback_error_count", fm.fallbackErrorCount)
 		}
 		return
 	}
@@ -259,12 +261,19 @@ func (fm *FailoverManager) probeLoop(stopCh <-chan struct{}) {
 
 			fm.logger.Debug("LLM failover: probing primary endpoint…")
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-			_, err := fm.primary.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
-				Model: fm.primaryModel,
+
+			// Read primary client and model under RLock to avoid a race with Reconfigure.
+			fm.mu.RLock()
+			primaryClient := fm.primary
+			primaryModel := fm.primaryModel
+			fm.mu.RUnlock()
+
+			_, err := primaryClient.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
+				Model: primaryModel,
 				Messages: []openai.ChatCompletionMessage{
-					{Role: openai.ChatMessageRoleUser, Content: "answer only with ok"},
+					{Role: openai.ChatMessageRoleUser, Content: "ok"},
 				},
-				MaxTokens: 5,
+				MaxTokens: 1,
 			})
 			cancel()
 
@@ -276,6 +285,7 @@ func (fm *FailoverManager) probeLoop(stopCh <-chan struct{}) {
 			fm.mu.Lock()
 			fm.isOnFallback = false
 			fm.errorCount = 0
+			fm.fallbackErrorCount = 0
 			fm.mu.Unlock()
 			fm.logger.Info("LLM failover: primary recovered – switched back", "model", fm.primaryModel)
 		}

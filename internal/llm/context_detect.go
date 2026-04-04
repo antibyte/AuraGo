@@ -33,18 +33,30 @@ var knownContextWindows = []struct {
 	{"abab6.5g", 8_192},
 	{"abab5.5s", 8_192},
 	// Anthropic (direct, not via OpenRouter)
+	{"claude-opus-4", 200_000},
+	{"claude-sonnet-4", 200_000},
+	{"claude-3-7-sonnet", 200_000},
 	{"claude-3-5-sonnet", 200_000},
 	{"claude-3-5-haiku", 200_000},
-	{"claude-3-7-sonnet", 200_000},
 	{"claude-3-opus", 200_000},
 	{"claude-3-sonnet", 200_000},
 	{"claude-3-haiku", 200_000},
 	{"claude-2", 200_000},
 	// Google Gemini (direct)
+	{"gemini-2.5-pro", 1_048_576},
+	{"gemini-2.5-flash", 1_048_576},
 	{"gemini-2.5", 1_048_576},
 	{"gemini-2.0-flash", 1_048_576},
 	{"gemini-1.5-pro", 2_097_152},
 	{"gemini-1.5-flash", 1_048_576},
+	// OpenAI (direct)
+	{"o3-pro", 200_000},
+	{"o4-mini", 200_000},
+	{"o3-mini", 200_000},
+	{"o3", 200_000},
+	{"o1-pro", 200_000},
+	{"o1-mini", 128_000},
+	{"o1", 200_000},
 	// DeepSeek (direct)
 	{"deepseek-v3", 131_072},
 	{"deepseek-r1", 131_072},
@@ -148,11 +160,18 @@ func detectContextWindowOllama(baseURL, model string, logger *slog.Logger) int {
 
 // detectContextWindowOpenRouter queries the OpenRouter models API.
 func detectContextWindowOpenRouter(baseURL, apiKey, model string, logger *slog.Logger) int {
-	// OpenRouter exposes model info at /api/v1/models
-	modelsURL := strings.TrimSuffix(baseURL, "/v1") + "/api/v1/models"
-	// Also try the direct base if it already contains /api
-	if strings.Contains(baseURL, "/api/v1") {
-		modelsURL = strings.TrimSuffix(baseURL, "/v1") + "/v1/models"
+	// Normalise: strip any trailing /v1 or / so we can always append /api/v1/models
+	base := strings.TrimRight(baseURL, "/")
+	if strings.HasSuffix(base, "/v1") {
+		base = strings.TrimSuffix(base, "/v1")
+	}
+	// For standard OpenRouter-style APIs the models list is at /api/v1/models;
+	// if the base already ends with /api, just append /v1/models.
+	var modelsURL string
+	if strings.HasSuffix(base, "/api") {
+		modelsURL = base + "/v1/models"
+	} else {
+		modelsURL = base + "/api/v1/models"
 	}
 
 	client := &http.Client{Timeout: 10 * time.Second}

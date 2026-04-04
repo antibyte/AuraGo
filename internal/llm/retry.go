@@ -19,6 +19,10 @@ var RetryIntervals = []time.Duration{
 
 const FinalRetryInterval = 10 * time.Minute
 
+// maxRetryAttempts caps the total number of retry attempts to prevent infinite
+// loops when a provider returns persistent transient errors (e.g. prolonged outage).
+const maxRetryAttempts = 10
+
 // FeedbackProvider allows the retry loop to notify the UI/Transports
 type FeedbackProvider interface {
 	Send(event, message string)
@@ -92,6 +96,10 @@ func ExecuteWithCustomRetry(ctx context.Context, client ChatClient, req openai.C
 		}
 
 		attempt++
+		if attempt >= maxRetryAttempts {
+			logger.Error("[LLM Retry] Max retry attempts reached, aborting", "attempts", attempt, "error", err)
+			return openai.ChatCompletionResponse{}, fmt.Errorf("max retry attempts (%d) exceeded: %w", maxRetryAttempts, err)
+		}
 		safeErrMsg := safeAPIError(err)
 		msg := fmt.Sprintf("API Error (%s). Retrying in %v (Attempt %d)...", safeErrMsg, waitTime, attempt)
 		logger.Warn("[LLM Retry]", "error", safeErrMsg, "wait", waitTime, "attempt", attempt)
@@ -147,6 +155,10 @@ func ExecuteStreamWithCustomRetry(ctx context.Context, client ChatClient, req op
 		}
 
 		attempt++
+		if attempt >= maxRetryAttempts {
+			logger.Error("[LLM Stream Retry] Max retry attempts reached, aborting", "attempts", attempt, "error", err)
+			return nil, fmt.Errorf("max retry attempts (%d) exceeded: %w", maxRetryAttempts, err)
+		}
 		safeErrMsg := safeAPIError(err)
 		msg := fmt.Sprintf("Stream API Error (%s). Retrying in %v (Attempt %d)...", safeErrMsg, waitTime, attempt)
 		logger.Warn("[LLM Stream Retry]", "error", safeErrMsg, "wait", waitTime, "attempt", attempt)

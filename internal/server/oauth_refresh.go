@@ -5,7 +5,10 @@ import (
 	"encoding/json"
 	"time"
 
+	"aurago/internal/agent"
 	"aurago/internal/config"
+	"aurago/internal/llm"
+	"aurago/internal/security"
 )
 
 // startOAuthRefreshLoop runs a background goroutine that periodically checks
@@ -117,10 +120,16 @@ func refreshAllOAuthTokens(s *Server) {
 	}
 
 	if refreshed > 0 {
-		// Apply updated tokens to live config
+		// Apply updated tokens to live config and reconfigure all LLM clients
+		// so refreshed tokens take effect immediately without a restart.
 		s.CfgMu.Lock()
 		s.Cfg.ApplyOAuthTokens(s.Vault)
+		if fm, ok := s.LLMClient.(*llm.FailoverManager); ok {
+			fm.Reconfigure(s.Cfg)
+		}
+		s.LLMGuardian = security.NewLLMGuardian(s.Cfg, s.Logger)
 		s.CfgMu.Unlock()
+		agent.ResetGlobalHelperLLMManager()
 		s.Logger.Info("[OAuth Refresh] Applied refreshed tokens", "count", refreshed)
 	}
 }
