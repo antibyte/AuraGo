@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -219,18 +220,28 @@ func dispatchInfra(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 				if strings.ToLower(provider) == "piper" {
 					format = "wav"
 				}
-				tools.RegisterMedia(mediaRegistryDB, tools.MediaItem{
+				ttsFilePath := filepath.Join(cfg.Directories.DataDir, "tts", filename)
+				var ttsFileSize int64
+				if fi, fiErr := os.Stat(ttsFilePath); fiErr == nil {
+					ttsFileSize = fi.Size()
+				}
+				if regID, dup, regErr := tools.RegisterMedia(mediaRegistryDB, tools.MediaItem{
 					MediaType:  "tts",
 					SourceTool: "tts",
 					Filename:   filename,
-					FilePath:   filepath.Join(cfg.Directories.DataDir, "tts", filename),
+					FilePath:   ttsFilePath,
+					FileSize:   ttsFileSize,
 					Format:     format,
 					Provider:   provider,
 					Prompt:     req.Text,
 					Language:   ttsCfg.Language,
 					VoiceID:    ttsCfg.ElevenLabs.VoiceID,
 					Tags:       []string{"auto-generated", "tts"},
-				})
+				}); regErr != nil {
+					logger.Warn("Auto-register TTS in media registry failed", "filename", filename, "error", regErr)
+				} else if !dup {
+					logger.Debug("Auto-registered TTS in media registry", "id", regID, "filename", filename)
+				}
 			}
 
 			ttsPort := cfg.Server.Port // TTS is always served on the main server

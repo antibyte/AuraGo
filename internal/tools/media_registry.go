@@ -133,30 +133,48 @@ func RegisterMedia(db *sql.DB, item MediaItem) (int64, bool, error) {
 		return 0, false, fmt.Errorf("media registry DB not initialized")
 	}
 
-	// Dedup check: if hash is set, check for existing non-deleted entry
+	tx, err := db.Begin()
+	if err != nil {
+		return 0, false, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
 	if item.Hash != "" {
 		var existingID int64
-		err := db.QueryRow("SELECT id FROM media_items WHERE hash = ? AND deleted = 0", item.Hash).Scan(&existingID)
-		if err == nil {
-			return existingID, true, nil // already exists
-		}
-	}
-
-	// Dedup check: if filename is set, check for existing non-deleted entry
-	if item.Filename != "" {
-		var existingID int64
-		err := db.QueryRow("SELECT id FROM media_items WHERE filename = ? AND deleted = 0", item.Filename).Scan(&existingID)
+		err := tx.QueryRow("SELECT id FROM media_items WHERE hash = ? AND deleted = 0", item.Hash).Scan(&existingID)
 		if err == nil {
 			return existingID, true, nil
 		}
 	}
 
-	tagsJSON, _ := json.Marshal(item.Tags)
+	if item.Filename != "" {
+		var existingID int64
+		dedupPath := item.FilePath
+		if dedupPath == "" {
+			dedupPath = item.WebPath
+		}
+		if dedupPath != "" {
+			err := tx.QueryRow("SELECT id FROM media_items WHERE filename = ? AND file_path = ? AND deleted = 0", item.Filename, dedupPath).Scan(&existingID)
+			if err == nil {
+				return existingID, true, nil
+			}
+		} else {
+			err := tx.QueryRow("SELECT id FROM media_items WHERE filename = ? AND deleted = 0", item.Filename).Scan(&existingID)
+			if err == nil {
+				return existingID, true, nil
+			}
+		}
+	}
+
+	tagsJSON, err := json.Marshal(item.Tags)
+	if err != nil {
+		return 0, false, fmt.Errorf("failed to marshal tags: %w", err)
+	}
 	if item.Tags == nil {
 		tagsJSON = []byte("[]")
 	}
 
-	res, err := db.Exec(`INSERT INTO media_items
+	res, err := tx.Exec(`INSERT INTO media_items
 		(media_type, source_tool, filename, file_path, web_path, file_size, format, provider, model,
 		 prompt, description, tags, duration_ms, generation_time_ms, cost_estimate, source_image,
 		 quality, style, size, language, voice_id, hash)
@@ -170,6 +188,9 @@ func RegisterMedia(db *sql.DB, item MediaItem) (int64, bool, error) {
 		return 0, false, fmt.Errorf("failed to insert media item: %w", err)
 	}
 	id, _ := res.LastInsertId()
+	if err := tx.Commit(); err != nil {
+		return 0, false, fmt.Errorf("failed to commit media registration: %w", err)
+	}
 	return id, false, nil
 }
 
@@ -254,11 +275,16 @@ func SearchMedia(db *sql.DB, query, mediaType string, tags []string, limit, offs
 		if err := rows.Scan(&m.ID, &m.CreatedAt, &m.UpdatedAt, &m.MediaType, &m.SourceTool, &m.Filename, &m.FilePath, &m.WebPath, &m.FileSize, &m.Format, &m.Provider, &m.Model, &m.Prompt, &m.Description, &tagsStr, &m.DurationMs, &m.GenerationTimeMs, &m.CostEstimate, &m.SourceImage, &m.Quality, &m.Style, &m.Size, &m.Language, &m.VoiceID, &m.Hash); err != nil {
 			return nil, 0, fmt.Errorf("failed to scan media item: %w", err)
 		}
-		json.Unmarshal([]byte(tagsStr), &m.Tags)
+		if err := json.Unmarshal([]byte(tagsStr), &m.Tags); err != nil {
+			m.Tags = []string{}
+		}
 		if m.Tags == nil {
 			m.Tags = []string{}
 		}
 		items = append(items, m)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("error iterating media items: %w", err)
 	}
 	return items, total, nil
 }
@@ -277,7 +303,9 @@ func GetMedia(db *sql.DB, id int64) (*MediaItem, error) {
 		}
 		return nil, fmt.Errorf("failed to get media item: %w", err)
 	}
-	json.Unmarshal([]byte(tagsStr), &m.Tags)
+	if err := json.Unmarshal([]byte(tagsStr), &m.Tags); err != nil {
+		m.Tags = []string{}
+	}
 	if m.Tags == nil {
 		m.Tags = []string{}
 	}
@@ -297,8 +325,11 @@ func UpdateMedia(db *sql.DB, id int64, description string, tags []string) error 
 	now := time.Now().UTC().Format("2006-01-02 15:04:05")
 
 	if tags != nil {
-		tagsJSON, _ := json.Marshal(tags)
-		_, err := db.Exec("UPDATE media_items SET description = ?, tags = ?, updated_at = ? WHERE id = ? AND deleted = 0", description, string(tagsJSON), now, id)
+		tagsJSON, err := json.Marshal(tags)
+		if err != nil {
+			return fmt.Errorf("failed to marshal tags: %w", err)
+		}
+		_, err = db.Exec("UPDATE media_items SET description = ?, tags = ?, updated_at = ? WHERE id = ? AND deleted = 0", description, string(tagsJSON), now, id)
 		return err
 	}
 	_, err := db.Exec("UPDATE media_items SET description = ?, updated_at = ? WHERE id = ? AND deleted = 0", description, now, id)
@@ -344,7 +375,10 @@ func TagMedia(db *sql.DB, id int64, newTags []string, mode string) error {
 	}
 
 	now := time.Now().UTC().Format("2006-01-02 15:04:05")
-	tagsJSON, _ := json.Marshal(resultTags)
+	tagsJSON, err := json.Marshal(resultTags)
+	if err != nil {
+		return fmt.Errorf("failed to marshal tags: %w", err)
+	}
 	_, err = db.Exec("UPDATE media_items SET tags = ?, updated_at = ? WHERE id = ? AND deleted = 0", string(tagsJSON), now, id)
 	return err
 }
@@ -386,10 +420,15 @@ func MediaStats(db *sql.DB) (map[string]interface{}, error) {
 	for rows.Next() {
 		var mt string
 		var cnt, sz int64
-		rows.Scan(&mt, &cnt, &sz)
+		if err := rows.Scan(&mt, &cnt, &sz); err != nil {
+			return nil, fmt.Errorf("failed to scan media stats: %w", err)
+		}
 		typeCounts[mt] = map[string]interface{}{"count": cnt, "size_bytes": sz}
 		totalCount += cnt
 		totalSize += sz
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating media stats: %w", err)
 	}
 	stats["by_type"] = typeCounts
 	stats["total_count"] = totalCount

@@ -96,7 +96,7 @@ func handleSendAudio(req sendMediaArgs, cfg *config.Config, logger *slog.Logger,
 	}
 
 	if mediaRegistryDB != nil {
-		tools.RegisterMedia(mediaRegistryDB, tools.MediaItem{
+		if regID, dup, regErr := tools.RegisterMedia(mediaRegistryDB, tools.MediaItem{
 			MediaType:   "audio",
 			SourceTool:  "send_audio",
 			Filename:    filename,
@@ -106,7 +106,11 @@ func handleSendAudio(req sendMediaArgs, cfg *config.Config, logger *slog.Logger,
 			Format:      strings.TrimPrefix(filepath.Ext(filename), "."),
 			Description: title,
 			Tags:        []string{"agent-sent"},
-		})
+		}); regErr != nil {
+			logger.Warn("Auto-register audio in media registry failed", "filename", filename, "error", regErr)
+		} else if !dup {
+			logger.Debug("Auto-registered audio in media registry", "id", regID, "filename", filename)
+		}
 	}
 
 	logger.Info("[send_audio] Audio ready", "web_path", webPath, "local_path", localPath)

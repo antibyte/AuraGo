@@ -1580,7 +1580,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 
 			// Auto-register in media registry
 			if mediaRegistryDB != nil {
-				tools.RegisterMedia(mediaRegistryDB, tools.MediaItem{
+				if regID, dup, regErr := tools.RegisterMedia(mediaRegistryDB, tools.MediaItem{
 					MediaType:        "image",
 					SourceTool:       "generate_image",
 					Filename:         result.Filename,
@@ -1597,7 +1597,11 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 					GenerationTimeMs: int64(result.DurationMs),
 					CostEstimate:     result.CostEstimate,
 					Tags:             []string{"auto-generated"},
-				})
+				}); regErr != nil {
+					logger.Warn("Auto-register image in media registry failed", "filename", result.Filename, "error", regErr)
+				} else if !dup {
+					logger.Debug("Auto-registered image in media registry", "id", regID, "filename", result.Filename)
+				}
 			}
 
 			// Record cost in budget tracker under "image_generation" category
@@ -1772,15 +1776,25 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 					if req.Operation == "screenshot_url" || req.Operation == "screenshot_html" {
 						mediaType = "image"
 					}
-					tools.RegisterMedia(mediaRegistryDB, tools.MediaItem{
+					var fileSize int64
+					if fi, fiErr := os.Stat(parsed.FilePath); fiErr == nil {
+						fileSize = fi.Size()
+					}
+					if regID, dup, regErr := tools.RegisterMedia(mediaRegistryDB, tools.MediaItem{
 						MediaType:   mediaType,
 						SourceTool:  "document_creator",
 						Filename:    parsed.Filename,
 						FilePath:    parsed.FilePath,
 						WebPath:     parsed.WebPath,
+						FileSize:    fileSize,
+						Format:      strings.TrimPrefix(filepath.Ext(parsed.Filename), "."),
 						Description: req.Title,
 						Tags:        []string{"auto-generated"},
-					})
+					}); regErr != nil {
+						logger.Warn("Auto-register document in media registry failed", "filename", parsed.Filename, "error", regErr)
+					} else if !dup {
+						logger.Debug("Auto-registered document in media registry", "id", regID, "filename", parsed.Filename)
+					}
 				}
 			}
 			return docResult

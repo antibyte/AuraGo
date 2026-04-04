@@ -85,7 +85,7 @@ func handleSendDocument(req sendMediaArgs, cfg *config.Config, logger *slog.Logg
 	}
 
 	if mediaRegistryDB != nil {
-		tools.RegisterMedia(mediaRegistryDB, tools.MediaItem{
+		if regID, dup, regErr := tools.RegisterMedia(mediaRegistryDB, tools.MediaItem{
 			MediaType:   "document",
 			SourceTool:  "send_document",
 			Filename:    filename,
@@ -95,7 +95,11 @@ func handleSendDocument(req sendMediaArgs, cfg *config.Config, logger *slog.Logg
 			Format:      ext,
 			Description: title,
 			Tags:        []string{"agent-sent"},
-		})
+		}); regErr != nil {
+			logger.Warn("Auto-register document in media registry failed", "filename", filename, "error", regErr)
+		} else if !dup {
+			logger.Debug("Auto-registered document in media registry", "id", regID, "filename", filename)
+		}
 	}
 
 	// Provide an inline preview URL for PDFs and text-like docs

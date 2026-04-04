@@ -30,15 +30,18 @@ type IndexerStatus struct {
 
 // FileIndexer watches configured directories and indexes files into VectorDB.
 type FileIndexer struct {
-	cfg        *config.Config
-	cfgMu      *sync.RWMutex
-	vectorDB   memory.VectorDB
-	stm        *memory.SQLiteMemory
-	logger     *slog.Logger
-	cancel     context.CancelFunc
-	mu         sync.RWMutex
-	status     IndexerStatus
-	extensions map[string]bool
+	cfg               *config.Config
+	cfgMu             *sync.RWMutex
+	vectorDB          memory.VectorDB
+	stm               *memory.SQLiteMemory
+	logger            *slog.Logger
+	cancel            context.CancelFunc
+	mu                sync.RWMutex
+	status            IndexerStatus
+	extensions        map[string]bool
+	embedderMu        sync.Mutex
+	cachedEmbedder    *memory.MultimodalEmbedder
+	cachedEmbedderKey string
 }
 
 // NewFileIndexer creates a new file indexer service.
@@ -336,7 +339,7 @@ func (fi *FileIndexer) scanDirectory(dir string) (totalFiles, indexedFiles int, 
 		}
 
 		// Build metadata-rich concept for the embedding
-		concept := fmt.Sprintf("Datei: %s (Pfad: %s, GeÃƒÂ¤ndert: %s)",
+		concept := fmt.Sprintf("Datei: %s (Pfad: %s, Geändert: %s)",
 			info.Name(), relPath, info.ModTime().Format("2006-01-02 15:04"))
 
 		// Store in VectorDB - use pre-computed embedding when available.
@@ -446,5 +449,14 @@ func (fi *FileIndexer) getMultimodalEmbedder() *memory.MultimodalEmbedder {
 		return nil
 	}
 
-	return memory.NewMultimodalEmbedder(baseURL, apiKey, model, format, provType, fi.logger)
+	cacheKey := baseURL + "|" + model + "|" + format + "|" + provType
+	fi.embedderMu.Lock()
+	defer fi.embedderMu.Unlock()
+	if fi.cachedEmbedder != nil && fi.cachedEmbedderKey == cacheKey {
+		return fi.cachedEmbedder
+	}
+	embedder := memory.NewMultimodalEmbedder(baseURL, apiKey, model, format, provType, fi.logger)
+	fi.cachedEmbedder = embedder
+	fi.cachedEmbedderKey = cacheKey
+	return embedder
 }
