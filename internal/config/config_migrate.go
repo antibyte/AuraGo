@@ -534,6 +534,20 @@ func (c *Config) ResolveProviders() {
 			}
 		}
 	}
+
+	// ── Music Generation ── (no fallback — must be explicitly configured)
+	if c.MusicGeneration.Provider != "" {
+		if p := c.FindProvider(c.MusicGeneration.Provider); p != nil {
+			c.MusicGeneration.ProviderType = p.Type
+			c.MusicGeneration.BaseURL = p.BaseURL
+			c.MusicGeneration.APIKey = p.APIKey
+			if c.MusicGeneration.Model == "" {
+				c.MusicGeneration.ResolvedModel = p.Model
+			} else {
+				c.MusicGeneration.ResolvedModel = c.MusicGeneration.Model
+			}
+		}
+	}
 }
 
 // resolveSpecialistLLM resolves a single specialist's LLM fields.

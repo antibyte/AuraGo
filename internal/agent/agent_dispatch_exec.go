@@ -1515,7 +1515,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				return `Tool Output: {"status": "error", "message": "Music generation blocked: daily budget exceeded."}`
 			}
 
-			return "Tool Output: " + tools.GenerateMusic(ctx, cfg, vault, mediaRegistryDB, logger, tools.MusicGenParams{
+			return "Tool Output: " + tools.GenerateMusic(ctx, cfg, mediaRegistryDB, logger, tools.MusicGenParams{
 				Prompt:       prompt,
 				Lyrics:       lyrics,
 				Instrumental: instrumental,
@@ -1546,6 +1546,14 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				count, err := tools.ImageGalleryMonthlyCount(imageGalleryDB)
 				if err == nil && count >= cfg.ImageGeneration.MaxMonthly {
 					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Monthly image generation limit reached (%d/%d). Try again next month or increase the limit in settings."}`, count, cfg.ImageGeneration.MaxMonthly)
+				}
+			}
+
+			// Check daily limit
+			if cfg.ImageGeneration.MaxDaily > 0 {
+				count, allowed := tools.ImageGenCounterIncrement(cfg.ImageGeneration.MaxDaily)
+				if !allowed {
+					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Daily image generation limit reached (%d/%d). Try again tomorrow or increase the limit in settings."}`, count, cfg.ImageGeneration.MaxDaily)
 				}
 			}
 

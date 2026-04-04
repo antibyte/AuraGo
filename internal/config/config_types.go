@@ -1184,6 +1184,7 @@ type Config struct {
 		DefaultStyle      string `yaml:"default_style"`      // "natural", "vivid"
 		PromptEnhancement bool   `yaml:"prompt_enhancement"` // LLM improves prompt before generation
 		MaxMonthly        int    `yaml:"max_monthly"`        // 0 = unlimited
+		MaxDaily          int    `yaml:"max_daily"`          // 0 = unlimited
 		// resolved fields (populated by ResolveProviders)
 		ProviderType  string `yaml:"-" json:"-"` // resolved: openai, openrouter, stability, ideogram, google, etc.
 		BaseURL       string `yaml:"-" json:"-"` // resolved from provider entry
@@ -1192,16 +1193,14 @@ type Config struct {
 	} `yaml:"image_generation"`
 	MusicGeneration struct {
 		Enabled  bool   `yaml:"enabled"`
-		Provider string `yaml:"provider"`  // "minimax" or "google_lyria"
+		Provider string `yaml:"provider"`  // references ProviderEntry ID
+		Model    string `yaml:"model"`     // model override (empty = use provider default)
 		MaxDaily int    `yaml:"max_daily"` // 0 = unlimited
-		MiniMax  struct {
-			APIKey string `yaml:"-" vault:"music_minimax_api_key" json:"-"`
-			Model  string `yaml:"model"` // "music-2.5+", "music-2.5"
-		} `yaml:"minimax"`
-		GoogleLyria struct {
-			APIKey string `yaml:"-" vault:"music_google_lyria_api_key" json:"-"`
-			Model  string `yaml:"model"` // "lyria-3-clip-preview", "lyria-3-pro-preview"
-		} `yaml:"google_lyria"`
+		// resolved fields (populated by ResolveProviders)
+		ProviderType  string `yaml:"-" json:"-"` // minimax, google, google_lyria, etc.
+		BaseURL       string `yaml:"-" json:"-"` // resolved from provider entry
+		APIKey        string `yaml:"-" json:"-"` // resolved from provider entry
+		ResolvedModel string `yaml:"-" json:"-"` // resolved: model from provider if not overridden
 	} `yaml:"music_generation"`
 	OneDrive struct {
 		Enabled      bool   `yaml:"enabled"`

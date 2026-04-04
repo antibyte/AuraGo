@@ -13,7 +13,7 @@ import (
 func generateGoogleImagen(cfg ImageGenConfig, prompt string, opts ImageGenOptions) ([]byte, string, error) {
 	model := cfg.Model
 	if model == "" {
-		model = "imagen-3.0-generate-002"
+		model = "imagen-4.0-generate-001"
 	}
 
 	baseURL := cfg.BaseURL

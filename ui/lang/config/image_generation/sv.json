@@ -3,7 +3,7 @@
   "config.image_generation.disabled_notice": "Bildgenerering är inaktiverad",
   "config.image_generation.disabled_desc": "Aktivera reglaget ovan för att låta agenten generera bilder från textprompter med AI-modeller.",
   "config.image_generation.provider_title": "Leverantör",
-  "config.image_generation.provider_desc": "Välj en leverantör som är konfigurerad i leverantörshanteringen. Stödda typer: OpenAI, OpenRouter, Stability AI, Ideogram, Google Imagen.",
+  "config.image_generation.provider_desc": "Välj en leverantör som är konfigurerad i leverantörshanteringen. Stödda typer: OpenAI, OpenRouter, Stability AI, Ideogram, Google Imagen, MiniMax.",
   "config.image_generation.provider_label": "Leverantör",
   "config.image_generation.select_provider": "— Välj en leverantör —",
   "config.image_generation.model_label": "Modell",
@@ -23,5 +23,7 @@
   "config.image_generation.test_btn": "Testgenerering",
   "config.image_generation.testing": "Genererar...",
   "config.image_generation.test_success": "Bild genererad",
-  "config.image_generation.test_failed": "Generering misslyckades"
+  "config.image_generation.test_failed": "Generering misslyckades",
+  "config.image_generation.max_daily_label": "Max bilder per dag",
+  "config.image_generation.max_daily_hint": "0 = obegränsat"
 }

@@ -3,7 +3,7 @@
   "config.image_generation.disabled_notice": "Generování obrázků je vypnuto",
   "config.image_generation.disabled_desc": "Zapněte přepínač výše, aby agent mohl generovat obrázky z textových promptů pomocí AI modelů.",
   "config.image_generation.provider_title": "Poskytovatel",
-  "config.image_generation.provider_desc": "Vyberte poskytovatele nakonfigurovaného ve správě poskytovatelů. Podporované typy: OpenAI, OpenRouter, Stability AI, Ideogram, Google Imagen.",
+  "config.image_generation.provider_desc": "Vyberte poskytovatele nakonfigurovaného ve správě poskytovatelů. Podporované typy: OpenAI, OpenRouter, Stability AI, Ideogram, Google Imagen, MiniMax.",
   "config.image_generation.provider_label": "Poskytovatel",
   "config.image_generation.select_provider": "— Vyberte poskytovatele —",
   "config.image_generation.model_label": "Model",
@@ -23,5 +23,7 @@
   "config.image_generation.test_btn": "Testovací generování",
   "config.image_generation.testing": "Generování...",
   "config.image_generation.test_success": "Obrázek úspěšně vygenerován",
-  "config.image_generation.test_failed": "Generování selhalo"
+  "config.image_generation.test_failed": "Generování selhalo",
+  "config.image_generation.max_daily_label": "Max obrázků za den",
+  "config.image_generation.max_daily_hint": "0 = neomezeně"
 }

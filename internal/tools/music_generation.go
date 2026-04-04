@@ -18,7 +18,6 @@ import (
 	"time"
 
 	"aurago/internal/config"
-	"aurago/internal/security"
 
 	"github.com/google/uuid"
 )
@@ -87,13 +86,20 @@ func MusicCounterGet() int {
 }
 
 // GenerateMusic is the main entry point for the generate_music tool.
-func GenerateMusic(ctx context.Context, cfg *config.Config, vault *security.Vault, mediaDB *sql.DB, logger *slog.Logger, params MusicGenParams) string {
+func GenerateMusic(ctx context.Context, cfg *config.Config, mediaDB *sql.DB, logger *slog.Logger, params MusicGenParams) string {
 	if params.Prompt == "" {
 		return mustJSON(MusicGenResult{Status: "error", Error: "'prompt' is required for music generation."})
 	}
 
-	provider := cfg.MusicGeneration.Provider
-	logger.Info("Music generation requested", "provider", provider, "prompt_len", len(params.Prompt), "instrumental", params.Instrumental)
+	providerType := cfg.MusicGeneration.ProviderType
+	apiKey := cfg.MusicGeneration.APIKey
+	model := cfg.MusicGeneration.ResolvedModel
+
+	logger.Info("Music generation requested", "provider_type", providerType, "prompt_len", len(params.Prompt), "instrumental", params.Instrumental)
+
+	if apiKey == "" {
+		return mustJSON(MusicGenResult{Status: "error", Error: "Music generation provider not configured. Set a provider in Settings > Music Generation."})
+	}
 
 	// Check daily limit
 	if cfg.MusicGeneration.MaxDaily > 0 {
@@ -105,7 +111,6 @@ func GenerateMusic(ctx context.Context, cfg *config.Config, vault *security.Vaul
 			})
 		}
 	} else {
-		// Still track usage even if unlimited
 		musicCounterIncrement(0)
 	}
 
@@ -116,33 +121,13 @@ func GenerateMusic(ctx context.Context, cfg *config.Config, vault *security.Vaul
 	}
 
 	var result MusicGenResult
-	switch provider {
+	switch strings.ToLower(providerType) {
 	case "minimax":
-		apiKey := cfg.MusicGeneration.MiniMax.APIKey
-		if apiKey == "" && vault != nil {
-			if v, _ := vault.ReadSecret("music_minimax_api_key"); v != "" {
-				apiKey = v
-			}
-		}
-		if apiKey == "" {
-			return mustJSON(MusicGenResult{Status: "error", Error: "MiniMax API key not configured. Set it in Settings > Music Generation."})
-		}
-		result = generateMusicMiniMax(ctx, apiKey, cfg.MusicGeneration.MiniMax.Model, params, audioDir, logger)
-
-	case "google_lyria":
-		apiKey := cfg.MusicGeneration.GoogleLyria.APIKey
-		if apiKey == "" && vault != nil {
-			if v, _ := vault.ReadSecret("music_google_lyria_api_key"); v != "" {
-				apiKey = v
-			}
-		}
-		if apiKey == "" {
-			return mustJSON(MusicGenResult{Status: "error", Error: "Google Lyria API key not configured. Set it in Settings > Music Generation."})
-		}
-		result = generateMusicGoogleLyria(ctx, apiKey, cfg.MusicGeneration.GoogleLyria.Model, params, audioDir, logger)
-
+		result = generateMusicMiniMax(ctx, apiKey, model, params, audioDir, logger)
+	case "google", "google_lyria":
+		result = generateMusicGoogleLyria(ctx, apiKey, model, params, audioDir, logger)
 	default:
-		return mustJSON(MusicGenResult{Status: "error", Error: fmt.Sprintf("Unknown music generation provider: %s", provider)})
+		return mustJSON(MusicGenResult{Status: "error", Error: fmt.Sprintf("Unknown music generation provider type: %q. Supported: minimax, google", providerType)})
 	}
 
 	// Register in media registry

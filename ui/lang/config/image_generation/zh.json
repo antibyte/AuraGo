@@ -3,7 +3,7 @@
   "config.image_generation.disabled_notice": "图像生成功能已禁用",
   "config.image_generation.disabled_desc": "启用上方开关后，代理即可使用 AI 模型根据文本提示生成图像。",
   "config.image_generation.provider_title": "提供商",
-  "config.image_generation.provider_desc": "选择在提供商管理中已配置的提供商。支持类型：OpenAI、OpenRouter、Stability AI、Ideogram、Google Imagen。",
+  "config.image_generation.provider_desc": "选择在提供商管理中已配置的提供商。支持类型：OpenAI、OpenRouter、Stability AI、Ideogram、Google Imagen、MiniMax。",
   "config.image_generation.provider_label": "提供商",
   "config.image_generation.select_provider": "— 选择提供商 —",
   "config.image_generation.model_label": "模型",
@@ -23,5 +23,7 @@
   "config.image_generation.test_btn": "测试生成",
   "config.image_generation.testing": "生成中...",
   "config.image_generation.test_success": "图像生成成功",
-  "config.image_generation.test_failed": "生成失败"
+  "config.image_generation.test_failed": "生成失败",
+  "config.image_generation.max_daily_label": "每日最大图像数",
+  "config.image_generation.max_daily_hint": "0 = 不限"
 }

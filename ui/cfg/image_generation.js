@@ -112,6 +112,13 @@ async function renderImageGenerationSection(section) {
         <input type="number" class="cfg-input cfg-input-full" data-path="image_generation.max_monthly" value="${curMax}" min="0"
             placeholder="0">
     </label>`;
+
+    const curMaxDaily = cfg.max_daily || 0;
+    html += `<label class="ig-label">
+        <span class="ig-label-text">${t('config.image_generation.max_daily_label')} <small class="ig-hint">(${t('config.image_generation.max_daily_hint')})</small></span>
+        <input type="number" class="cfg-input cfg-input-full" data-path="image_generation.max_daily" value="${curMaxDaily}" min="0"
+            placeholder="0">
+    </label>`;
     html += `</div>`;
 
     html += `<div class="field-group">

@@ -3,7 +3,7 @@
   "config.image_generation.disabled_notice": "Bildegenerering er deaktivert",
   "config.image_generation.disabled_desc": "Aktiver bryteren over for å la agenten generere bilder fra tekstprompter med AI-modeller.",
   "config.image_generation.provider_title": "Leverandør",
-  "config.image_generation.provider_desc": "Velg en leverandør konfigurert i leverandøradministrasjon. Støttede typer: OpenAI, OpenRouter, Stability AI, Ideogram, Google Imagen.",
+  "config.image_generation.provider_desc": "Velg en leverandør konfigurert i leverandøradministrasjon. Støttede typer: OpenAI, OpenRouter, Stability AI, Ideogram, Google Imagen, MiniMax.",
   "config.image_generation.provider_label": "Leverandør",
   "config.image_generation.select_provider": "— Velg en leverandør —",
   "config.image_generation.model_label": "Modell",
@@ -23,5 +23,7 @@
   "config.image_generation.test_btn": "Testgenerering",
   "config.image_generation.testing": "Genererer...",
   "config.image_generation.test_success": "Bilde generert",
-  "config.image_generation.test_failed": "Generering mislyktes"
+  "config.image_generation.test_failed": "Generering mislyktes",
+  "config.image_generation.max_daily_label": "Maks bilder per dag",
+  "config.image_generation.max_daily_hint": "0 = ubegrenset"
 }

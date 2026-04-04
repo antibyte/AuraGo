@@ -177,9 +177,7 @@ func Load(path string) (*Config, error) {
 	cfg.TTS.Piper.Voice = "de_DE-thorsten-high"
 
 	// Music Generation defaults
-	cfg.MusicGeneration.Provider = "minimax"
-	cfg.MusicGeneration.MiniMax.Model = "music-2.5+"
-	cfg.MusicGeneration.GoogleLyria.Model = "lyria-3-clip-preview"
+	// (Provider must be configured via Provider Management — no defaults for API keys)
 
 	cfg.LLMGuardian.TimeoutSecs = 30
 	cfg.LLMGuardian.ScanDocuments = false

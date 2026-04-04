@@ -3,7 +3,7 @@
   "config.image_generation.disabled_notice": "Afbeeldingsgeneratie is uitgeschakeld",
   "config.image_generation.disabled_desc": "Schakel de optie hierboven in zodat de agent afbeeldingen uit tekstprompts kan genereren met AI-modellen.",
   "config.image_generation.provider_title": "Provider",
-  "config.image_generation.provider_desc": "Selecteer een provider die is geconfigureerd in Providerbeheer. Ondersteunde typen: OpenAI, OpenRouter, Stability AI, Ideogram, Google Imagen.",
+  "config.image_generation.provider_desc": "Selecteer een provider die is geconfigureerd in Providerbeheer. Ondersteunde typen: OpenAI, OpenRouter, Stability AI, Ideogram, Google Imagen, MiniMax.",
   "config.image_generation.provider_label": "Provider",
   "config.image_generation.select_provider": "— Selecteer een provider —",
   "config.image_generation.model_label": "Model",
@@ -23,5 +23,7 @@
   "config.image_generation.test_btn": "Testgeneratie",
   "config.image_generation.testing": "Genereren...",
   "config.image_generation.test_success": "Afbeelding succesvol gegenereerd",
-  "config.image_generation.test_failed": "Generatie mislukt"
+  "config.image_generation.test_failed": "Generatie mislukt",
+  "config.image_generation.max_daily_label": "Max. afbeeldingen per dag",
+  "config.image_generation.max_daily_hint": "0 = onbeperkt"
 }

@@ -3,7 +3,7 @@
   "config.image_generation.disabled_notice": "इमेज जनरेशन निष्क्रिय है",
   "config.image_generation.disabled_desc": "ऊपर वाला टॉगल सक्षम करें ताकि एजेंट AI मॉडलों का उपयोग करके टेक्स्ट प्रॉम्प्ट से इमेज बना सके।",
   "config.image_generation.provider_title": "प्रदाता",
-  "config.image_generation.provider_desc": "प्रोवाइडर मैनेजमेंट में कॉन्फ़िगर किया गया प्रदाता चुनें। समर्थित प्रकार: OpenAI, OpenRouter, Stability AI, Ideogram, Google Imagen.",
+  "config.image_generation.provider_desc": "प्रोवाइडर मैनेजमेंट में कॉन्फ़िगर किया गया प्रदाता चुनें। समर्थित प्रकार: OpenAI, OpenRouter, Stability AI, Ideogram, Google Imagen, MiniMax.",
   "config.image_generation.provider_label": "प्रदाता",
   "config.image_generation.select_provider": "— एक प्रदाता चुनें —",
   "config.image_generation.model_label": "मॉडल",
@@ -23,5 +23,7 @@
   "config.image_generation.test_btn": "टेस्ट जनरेशन",
   "config.image_generation.testing": "जनरेट हो रहा है...",
   "config.image_generation.test_success": "इमेज सफलतापूर्वक जनरेट हुई",
-  "config.image_generation.test_failed": "जनरेशन विफल हुआ"
+  "config.image_generation.test_failed": "जनरेशन विफल हुआ",
+  "config.image_generation.max_daily_label": "प्रति दिन अधिकतम इमेज",
+  "config.image_generation.max_daily_hint": "0 = असीमित"
 }

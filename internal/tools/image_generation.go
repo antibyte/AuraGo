@@ -8,10 +8,49 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	_ "modernc.org/sqlite"
 )
+
+// imageGenDailyCounter tracks daily usage for image generation.
+type imageGenDailyCounter struct {
+	mu    sync.Mutex
+	date  string
+	count int
+}
+
+var imgGenCounter = &imageGenDailyCounter{}
+
+// ImageGenCounterIncrement checks and increments the daily image generation counter.
+// Returns (current_count, allowed).
+func ImageGenCounterIncrement(maxDaily int) (int, bool) {
+	imgGenCounter.mu.Lock()
+	defer imgGenCounter.mu.Unlock()
+
+	today := time.Now().Format("2006-01-02")
+	if imgGenCounter.date != today {
+		imgGenCounter.date = today
+		imgGenCounter.count = 0
+	}
+	if maxDaily > 0 && imgGenCounter.count >= maxDaily {
+		return imgGenCounter.count, false
+	}
+	imgGenCounter.count++
+	return imgGenCounter.count, true
+}
+
+// ImageGenDailyCount returns the current daily count (for display).
+func ImageGenDailyCount() int {
+	imgGenCounter.mu.Lock()
+	defer imgGenCounter.mu.Unlock()
+	today := time.Now().Format("2006-01-02")
+	if imgGenCounter.date != today {
+		return 0
+	}
+	return imgGenCounter.count
+}
 
 // ImageGenConfig holds the resolved provider configuration for image generation.
 type ImageGenConfig struct {
@@ -244,6 +283,8 @@ func GenerateImage(cfg ImageGenConfig, prompt string, opts ImageGenOptions) (*Im
 		imgData, format, err = generateIdeogram(cfg, prompt, opts)
 	case "google", "google-imagen":
 		imgData, format, err = generateGoogleImagen(cfg, prompt, opts)
+	case "minimax":
+		imgData, format, err = generateMiniMax(cfg, prompt, opts)
 	default:
 		return nil, fmt.Errorf("unsupported image generation provider type: %q", cfg.ProviderType)
 	}

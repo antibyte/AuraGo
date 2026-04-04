@@ -3,7 +3,7 @@
   "config.image_generation.disabled_notice": "Billedgenerering er deaktiveret",
   "config.image_generation.disabled_desc": "Aktivér kontakten ovenfor for at lade agenten generere billeder fra tekstprompter med AI-modeller.",
   "config.image_generation.provider_title": "Udbyder",
-  "config.image_generation.provider_desc": "Vælg en udbyder konfigureret i udbyderstyring. Understøttede typer: OpenAI, OpenRouter, Stability AI, Ideogram, Google Imagen.",
+  "config.image_generation.provider_desc": "Vælg en udbyder konfigureret i udbyderstyring. Understøttede typer: OpenAI, OpenRouter, Stability AI, Ideogram, Google Imagen, MiniMax.",
   "config.image_generation.provider_label": "Udbyder",
   "config.image_generation.select_provider": "— Vælg en udbyder —",
   "config.image_generation.model_label": "Model",
@@ -23,5 +23,7 @@
   "config.image_generation.test_btn": "Testgenerering",
   "config.image_generation.testing": "Genererer...",
   "config.image_generation.test_success": "Billede genereret",
-  "config.image_generation.test_failed": "Generering mislykkedes"
+  "config.image_generation.test_failed": "Generering mislykkedes",
+  "config.image_generation.max_daily_label": "Maks billeder pr. dag",
+  "config.image_generation.max_daily_hint": "0 = ubegrænset"
 }

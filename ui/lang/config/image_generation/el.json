@@ -3,7 +3,7 @@
   "config.image_generation.disabled_notice": "Η δημιουργία εικόνων είναι απενεργοποιημένη",
   "config.image_generation.disabled_desc": "Ενεργοποιήστε τον διακόπτη παραπάνω ώστε ο agent να δημιουργεί εικόνες από text prompts με μοντέλα AI.",
   "config.image_generation.provider_title": "Πάροχος",
-  "config.image_generation.provider_desc": "Επιλέξτε πάροχο που έχει ρυθμιστεί στη Διαχείριση Παρόχων. Υποστηριζόμενοι τύποι: OpenAI, OpenRouter, Stability AI, Ideogram, Google Imagen.",
+  "config.image_generation.provider_desc": "Επιλέξτε πάροχο που έχει ρυθμιστεί στη Διαχείριση Παρόχων. Υποστηριζόμενοι τύποι: OpenAI, OpenRouter, Stability AI, Ideogram, Google Imagen, MiniMax.",
   "config.image_generation.provider_label": "Πάροχος",
   "config.image_generation.select_provider": "— Επιλέξτε πάροχο —",
   "config.image_generation.model_label": "Μοντέλο",
@@ -23,5 +23,7 @@
   "config.image_generation.test_btn": "Δοκιμαστική δημιουργία",
   "config.image_generation.testing": "Δημιουργία...",
   "config.image_generation.test_success": "Η εικόνα δημιουργήθηκε επιτυχώς",
-  "config.image_generation.test_failed": "Η δημιουργία απέτυχε"
+  "config.image_generation.test_failed": "Η δημιουργία απέτυχε",
+  "config.image_generation.max_daily_label": "Μέγιστες εικόνες ανά ημέρα",
+  "config.image_generation.max_daily_hint": "0 = απεριόριστο"
 }

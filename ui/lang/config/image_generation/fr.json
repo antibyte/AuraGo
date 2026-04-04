@@ -3,7 +3,7 @@
   "config.image_generation.disabled_notice": "La génération d’images est désactivée",
   "config.image_generation.disabled_desc": "Activez l’interrupteur ci-dessus pour permettre à l’agent de générer des images à partir de prompts texte avec des modèles IA.",
   "config.image_generation.provider_title": "Fournisseur",
-  "config.image_generation.provider_desc": "Sélectionnez un fournisseur configuré dans la gestion des fournisseurs. Types pris en charge : OpenAI, OpenRouter, Stability AI, Ideogram, Google Imagen.",
+  "config.image_generation.provider_desc": "Sélectionnez un fournisseur configuré dans la gestion des fournisseurs. Types pris en charge : OpenAI, OpenRouter, Stability AI, Ideogram, Google Imagen, MiniMax.",
   "config.image_generation.provider_label": "Fournisseur",
   "config.image_generation.select_provider": "— Sélectionner un fournisseur —",
   "config.image_generation.model_label": "Modèle",
@@ -23,5 +23,7 @@
   "config.image_generation.test_btn": "Génération de test",
   "config.image_generation.testing": "Génération...",
   "config.image_generation.test_success": "Image générée avec succès",
-  "config.image_generation.test_failed": "Échec de la génération"
+  "config.image_generation.test_failed": "Échec de la génération",
+  "config.image_generation.max_daily_label": "Images max par jour",
+  "config.image_generation.max_daily_hint": "0 = illimité"
 }
