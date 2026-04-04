@@ -223,6 +223,7 @@ type Config struct {
 		MemoryCompressionCharLimit      int    `yaml:"memory_compression_char_limit"`
 		SystemPromptTokenBudget         int    `yaml:"system_prompt_token_budget"`
 		AdaptiveSystemPromptTokenBudget bool   `yaml:"adaptive_system_prompt_token_budget"` // adapt system prompt token budget to enabled tools/integrations (default: true)
+		OptimizerEnabled                bool   `yaml:"optimizer_enabled"`
 		ContextWindow                   int    `yaml:"context_window"`
 		ShowToolResults                 bool   `yaml:"show_tool_results"`
 		WorkflowFeedback                bool   `yaml:"workflow_feedback"`

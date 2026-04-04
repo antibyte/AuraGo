@@ -423,6 +423,9 @@ func Load(path string) (*Config, error) {
 	if !yamlHasPath(data, "agent", "adaptive_system_prompt_token_budget") {
 		cfg.Agent.AdaptiveSystemPromptTokenBudget = true
 	}
+	if !yamlHasPath(data, "agent", "optimizer_enabled") {
+		cfg.Agent.OptimizerEnabled = true
+	}
 	// Adaptive tools defaults
 	if cfg.Agent.AdaptiveTools.MaxTools <= 0 && cfg.Agent.AdaptiveTools.Enabled {
 		cfg.Agent.AdaptiveTools.MaxTools = 60

@@ -1,7 +1,9 @@
 ﻿package optimizer
 
 import (
+	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 )
@@ -17,18 +19,36 @@ type OptimizationStats struct {
 func (db *OptimizerDB) GetDashboardStats() (*OptimizationStats, error) {
 	stats := &OptimizationStats{}
 
-	db.db.QueryRow(`SELECT COUNT(*) FROM prompt_overrides WHERE active = 1`).Scan(&stats.ActiveOverrides)
-	db.db.QueryRow(`SELECT COUNT(*) FROM prompt_overrides WHERE active = 0 AND shadow = 1`).Scan(&stats.RunningShadows)
+	if err := db.db.QueryRow(`SELECT COUNT(*) FROM prompt_overrides WHERE active = 1`).Scan(&stats.ActiveOverrides); err != nil {
+		slog.Error("Failed to fetch active overrides", "error", err)
+		return nil, fmt.Errorf("failed to fetch active overrides: %w", err)
+	}
+	if err := db.db.QueryRow(`SELECT COUNT(*) FROM prompt_overrides WHERE active = 0 AND shadow = 1`).Scan(&stats.RunningShadows); err != nil {
+		slog.Error("Failed to fetch running shadows", "error", err)
+		return nil, fmt.Errorf("failed to fetch running shadows: %w", err)
+	}
 
-	db.db.QueryRow(`SELECT value FROM optimizer_metrics WHERE key = 'rejected_mutations'`).Scan(&stats.RejectedMutations)
+	if err := db.db.QueryRow(`SELECT value FROM optimizer_metrics WHERE key = 'rejected_mutations'`).Scan(&stats.RejectedMutations); err != nil && err != sql.ErrNoRows {
+		slog.Error("Failed to fetch rejected mutations", "error", err)
+		return nil, fmt.Errorf("failed to fetch rejected mutations: %w", err)
+	}
 
-	db.db.QueryRow(`SELECT COUNT(*) FROM tool_traces`).Scan(&stats.TotalTraceEvents)
+	if err := db.db.QueryRow(`SELECT COUNT(*) FROM tool_traces`).Scan(&stats.TotalTraceEvents); err != nil {
+		slog.Error("Failed to fetch total trace events", "error", err)
+		return nil, fmt.Errorf("failed to fetch total trace events: %w", err)
+	}
 
 	var recentTotal int
-	db.db.QueryRow(`SELECT COUNT(*) FROM tool_traces WHERE timestamp > datetime('now', '-7 days')`).Scan(&recentTotal)
+	if err := db.db.QueryRow(`SELECT COUNT(*) FROM tool_traces WHERE timestamp > datetime('now', '-7 days')`).Scan(&recentTotal); err != nil {
+		slog.Error("Failed to fetch recent total traces", "error", err)
+		return nil, fmt.Errorf("failed to fetch recent total traces: %w", err)
+	}
 	if recentTotal > 0 {
 		var succ int
-		db.db.QueryRow(`SELECT COUNT(*) FROM tool_traces WHERE success = 1 AND timestamp > datetime('now', '-7 days')`).Scan(&succ)
+		if err := db.db.QueryRow(`SELECT COUNT(*) FROM tool_traces WHERE success = 1 AND timestamp > datetime('now', '-7 days')`).Scan(&succ); err != nil {
+			slog.Error("Failed to fetch successful recent traces", "error", err)
+			return nil, fmt.Errorf("failed to fetch successful recent traces: %w", err)
+		}
 		stats.GlobalSuccessRate = float64(succ) / float64(recentTotal)
 	} else {
 		stats.GlobalSuccessRate = 0
@@ -53,4 +73,3 @@ func OptimizationDashboardHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(stats)
 }
-

@@ -13,8 +13,7 @@ type PromptBuildRecord struct {
 	Tier          string    `json:"tier"`
 	RawLen        int       `json:"raw_len"`
 	OptimizedLen  int       `json:"optimized_len"`
-	SavedChars    int       `json:"saved_chars"`    // format-only savings (whitespace/markdown)
-	FormatSavings int       `json:"format_savings"` // same as SavedChars, explicit name
+	FormatSavings int       `json:"format_savings"` // explicit name for format-only savings (whitespace/markdown)
 	ShedSavings   int       `json:"shed_savings"`   // chars removed by budget shedding
 	FilterSavings int       `json:"filter_savings"` // chars in loaded modules that were filtered out
 	Tokens        int       `json:"tokens"`

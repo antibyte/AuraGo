@@ -691,7 +691,9 @@ func main() {
 	} else {
 		defer optDB.Close()
 		optWorker := optimizer.NewOptimizerWorker(optDB, llmClient, llmClient, 6*time.Hour)
-		go optWorker.Start(context.Background())
+		if cfg.Agent.OptimizerEnabled {
+			go optWorker.Start(context.Background())
+		}
 	}
 
 	kg, err := memory.NewKnowledgeGraph(

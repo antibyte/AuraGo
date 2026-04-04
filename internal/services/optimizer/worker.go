@@ -1,15 +1,17 @@
 ﻿package optimizer
 
 import (
-	"context"
-	"fmt"
-	"log/slog"
-	"os"
-	"time"
-
 	"aurago/internal/llm"
 	"aurago/internal/prompts"
 	promptsembed "aurago/prompts"
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
+	"log/slog"
+	"os"
+	"path/filepath"
+	"time"
 
 	"github.com/sashabaranov/go-openai"
 )
@@ -70,7 +72,7 @@ func (w *OptimizerWorker) pruneTraces(ctx context.Context) {
 
 func (w *OptimizerWorker) runEvaluationCycle(ctx context.Context) {
 	// Evaluate running shadow tests (v2 prompts)
-	rows, err := w.db.db.Query(`
+	rows, err := w.db.db.QueryContext(ctx, `
 		SELECT id, tool_name, mutated_prompt
 		FROM prompt_overrides
 		WHERE active = 0 AND shadow = 1
@@ -91,29 +93,23 @@ func (w *OptimizerWorker) runEvaluationCycle(ctx context.Context) {
 		// Check count of traces for this new prompt version
 		var count int
 		versionTag := fmt.Sprintf("v2-shadow-%d", id)
-		err = w.db.db.QueryRow(`SELECT COUNT(*) FROM tool_traces WHERE tool_name = ? AND prompt_version = ?`, toolName, versionTag).Scan(&count)
+		err = w.db.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM tool_traces WHERE tool_name = ? AND prompt_version = ?`, toolName, versionTag).Scan(&count)
 		if err != nil || count < w.evaluationLimit {
 			continue // Need more traces
 		}
 
 		// Got enough traces. Let's compare performance
 		var newSuccessRate float64
-		w.db.db.QueryRow(`
+		err = w.db.db.QueryRowContext(ctx, `
 			SELECT CAST(SUM(CASE WHEN success=1 THEN 1 ELSE 0 END) AS FLOAT) / COUNT(*) 
 			FROM tool_traces 
 			WHERE tool_name = ? AND prompt_version = ?`, toolName, versionTag).Scan(&newSuccessRate)
 		if err != nil {
 			continue
 		}
-		if err != nil {
-			continue
-		}
-		if err != nil {
-			continue
-		}
 
 		var baselineSuccessRate float64
-		w.db.db.QueryRow(`
+		err = w.db.db.QueryRowContext(ctx, `
 			SELECT CAST(SUM(CASE WHEN success=1 THEN 1 ELSE 0 END) AS FLOAT) / COUNT(*) 
                         FROM (
                                 SELECT success
@@ -124,22 +120,17 @@ func (w *OptimizerWorker) runEvaluationCycle(ctx context.Context) {
 		if err != nil {
 			continue
 		}
-		if err != nil {
-			continue
-		}
-		if err != nil {
-			continue
-		}
 
 		if newSuccessRate >= baselineSuccessRate+0.1 {
 			// Promote!
-			w.db.db.Exec(`UPDATE prompt_overrides SET active = 1, shadow = 0 WHERE id = ?`, id)
+			w.db.db.ExecContext(ctx, "UPDATE prompt_overrides SET active = 0 WHERE tool_name = ? AND active = 1", toolName)
+			w.db.db.ExecContext(ctx, `UPDATE prompt_overrides SET active = 1, shadow = 0 WHERE id = ?`, id)
 			prompts.ClearPromptCache()
 			slog.Info("[Optimizer] Promoted shadow prompt to active", "tool", toolName, "gain", newSuccessRate-baselineSuccessRate)
 		} else {
 			// Rollback! Discard it
-			w.db.db.Exec(`DELETE FROM prompt_overrides WHERE id = ?`, id)
-			w.db.db.Exec(`UPDATE optimizer_metrics SET value = value + 1 WHERE key = 'rejected_mutations'`)
+			w.db.db.ExecContext(ctx, `DELETE FROM prompt_overrides WHERE id = ?`, id)
+			w.db.db.ExecContext(ctx, `UPDATE optimizer_metrics SET value = value + 1 WHERE key = 'rejected_mutations'`)
 			slog.Info("[Optimizer] Rolled back and deleted shadow prompt", "tool", toolName, "reason", "no significant improvement")
 		}
 	}
@@ -148,7 +139,7 @@ func (w *OptimizerWorker) runEvaluationCycle(ctx context.Context) {
 func (w *OptimizerWorker) runCreationCycle(ctx context.Context) {
 	// Find tools with high consecutive error counts or low success rates in last 7 days
 	// Example: threshold < 0.6 success rate, minimum 10 traces
-	rows, err := w.db.db.Query(`
+	rows, err := w.db.db.QueryContext(ctx, `
 		SELECT tool_name, CAST(SUM(CASE WHEN success=1 THEN 1 ELSE 0 END) AS FLOAT) / COUNT(*) as success_rate, COUNT(*) as trace_count
 		FROM tool_traces
 		WHERE prompt_version = 'v1' AND timestamp > datetime('now', '-7 days')
@@ -177,7 +168,7 @@ func (w *OptimizerWorker) runCreationCycle(ctx context.Context) {
 	for _, toolName := range toolsToOptimize {
 		// Do not optimize if there's already a shadow prompt running for this tool
 		var existing int
-		w.db.db.QueryRow(`SELECT COUNT(*) FROM prompt_overrides WHERE tool_name = ? AND shadow = 1`, toolName).Scan(&existing)
+		w.db.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM prompt_overrides WHERE tool_name = ? AND shadow = 1`, toolName).Scan(&existing)
 		if existing > 0 {
 			continue
 		}
@@ -190,7 +181,7 @@ func (w *OptimizerWorker) mutateToolPrompt(ctx context.Context, toolName string)
 	slog.Info("[Optimizer] Initiating self-reflection for tool", "tool", toolName)
 
 	// Fetch recent error traces for context
-	rows, err := w.db.db.Query(`SELECT error_message FROM tool_traces WHERE tool_name = ? AND success = 0 ORDER BY timestamp DESC LIMIT 5`, toolName)
+	rows, err := w.db.db.QueryContext(ctx, `SELECT error_message FROM tool_traces WHERE tool_name = ? AND success = 0 ORDER BY timestamp DESC LIMIT 5`, toolName)
 	if err != nil {
 		return
 	}
@@ -206,10 +197,11 @@ func (w *OptimizerWorker) mutateToolPrompt(ctx context.Context, toolName string)
 
 	// Load the current prompt content from embedded/disk
 	var currentManual string
-	data, err := os.ReadFile("prompts/tools_manuals/" + toolName + ".md")
+	safeToolName := filepath.Base(toolName)
+	data, err := os.ReadFile("prompts/tools_manuals/" + safeToolName + ".md")
 	if err != nil {
 		// fallback to embed
-		data, err = promptsembed.FS.ReadFile("tools_manuals/" + toolName + ".md")
+		data, err = promptsembed.FS.ReadFile("tools_manuals/" + safeToolName + ".md")
 	}
 	if err == nil {
 		currentManual = string(data)
@@ -251,8 +243,11 @@ Ensure the instructions prevent these errors. Reply ONLY with the new markdown m
 		return
 	}
 
+	hash := sha256.Sum256([]byte(currentManual))
+	hashStr := hex.EncodeToString(hash[:])
+
 	// Save as shadow prompt
-	_, err = w.db.db.Exec(`INSERT INTO prompt_overrides (tool_name, mutated_prompt, active, shadow) VALUES (?, ?, 0, 1)`, toolName, newPrompt)
+	_, err = w.db.db.ExecContext(ctx, `INSERT INTO prompt_overrides (tool_name, mutated_prompt, original_hash, active, shadow) VALUES (?, ?, ?, 0, 1)`, toolName, newPrompt, hashStr)
 	if err != nil {
 		slog.Error("[Optimizer] Failed to store mutated shadow prompt", "error", err)
 	} else {

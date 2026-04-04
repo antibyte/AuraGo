@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -113,6 +114,11 @@ func loadPromptModules(dir string, logger *slog.Logger) []PromptModule {
 	for _, m := range moduleMap {
 		modules = append(modules, m)
 	}
+
+	// Sort modules by ID to ensure deterministic output
+	sort.Slice(modules, func(i, j int) bool {
+		return modules[i].Metadata.ID < modules[j].Metadata.ID
+	})
 
 	// Update cache
 	promptCacheMu.Lock()
@@ -484,6 +490,26 @@ func (m *PromptModule) ShouldInclude(flags ContextFlags) bool {
 			if flags.FritzBoxTVEnabled {
 				return true
 			}
+		case "adguard_enabled":
+			if flags.AdGuardEnabled {
+				return true
+			}
+		case "jellyfin_enabled":
+			if flags.JellyfinEnabled {
+				return true
+			}
+		case "truenas_enabled":
+			if flags.TrueNASEnabled {
+				return true
+			}
+		case "telnyx_enabled":
+			if flags.TelnyxEnabled {
+				return true
+			}
+		case "journal_enabled":
+			if flags.JournalEnabled {
+				return true
+			}
 		case "specialists_available":
 			if flags.SpecialistsAvailable {
 				return true
@@ -531,6 +557,9 @@ func readToolGuide(path string) (string, bool) {
 		}
 		content := truncateGuide(string(data), maxGuideBytes)
 		guideCacheMu.Lock()
+		if len(guideCache) > 1000 {
+			guideCache = make(map[string]guideCacheEntry)
+		}
 		guideCache[path] = guideCacheEntry{content: content} // zero mtime = from embed
 		guideCacheMu.Unlock()
 		return content, true
@@ -540,6 +569,9 @@ func readToolGuide(path string) (string, bool) {
 	info, err := os.Stat(path)
 	if err == nil {
 		guideCacheMu.Lock()
+		if len(guideCache) > 1000 {
+			guideCache = make(map[string]guideCacheEntry)
+		}
 		guideCache[path] = guideCacheEntry{content: content, mtime: info.ModTime()}
 		guideCacheMu.Unlock()
 	}

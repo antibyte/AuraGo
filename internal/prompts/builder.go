@@ -24,6 +24,7 @@ import (
 var (
 	tiktokenOnce sync.Once
 	tiktokenEnc  *tiktoken.Tiktoken
+	tiktokenMu   sync.Mutex
 )
 
 // promptModuleCache caches parsed prompt modules keyed by directory path.
@@ -56,8 +57,9 @@ var (
 )
 
 type personalityCacheEntry struct {
-	content string
-	mtime   time.Time
+	content   string
+	mtime     time.Time
+	fromEmbed bool
 }
 
 // toolGuideCache caches tool guide contents keyed by file path.
@@ -292,11 +294,19 @@ func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string,
 		return selectedModules[i].Metadata.Priority < selectedModules[j].Metadata.Priority
 	})
 
-	// Pre-compute the total char count of ALL loaded modules (including filtered-out ones)
-	// so we can report how many chars were saved by module filtering.
-	totalModuleChars := 0
+	// Calculate filter savings directly from filtered-out modules
+	rawFilteredOutChars := 0
 	for _, m := range modules {
-		totalModuleChars += len(m.Content) + 2 // +2 mirrors the "\n\n" separator written per module
+		included := false
+		for _, sm := range selectedModules {
+			if m.Metadata.ID == sm.Metadata.ID {
+				included = true
+				break
+			}
+		}
+		if !included {
+			rawFilteredOutChars += len(m.Content) + 2 // +2 mirrors the "\n\n" separator
+		}
 	}
 
 	// 4. Assemble modules
@@ -531,11 +541,7 @@ func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string,
 	rawLen := len(rawPrompt)
 
 	// Filter savings: chars that were loaded but excluded by filterModules.
-	// sectionModules reflects only the selected modules written to the buffer.
-	filterSavings := totalModuleChars - sectionModules
-	if filterSavings < 0 {
-		filterSavings = 0
-	}
+	filterSavings := rawFilteredOutChars
 
 	// 6. Token budget shedding FIRST — shed large sections before spending CPU on optimization
 	var shedSavings int
@@ -562,7 +568,6 @@ func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string,
 		Tier:          flags.Tier,
 		RawLen:        rawLen,
 		OptimizedLen:  len(optimized),
-		SavedChars:    saved,
 		FormatSavings: saved,
 		ShedSavings:   shedSavings,
 		FilterSavings: filterSavings,
@@ -827,16 +832,12 @@ func removeSection(text, header string) string {
 	nextHeader := -1
 	for i := 0; i < len(rest); i++ {
 		if rest[i] == '\n' && i+1 < len(rest) && rest[i+1] == '#' {
-			// Check if it's a valid header (# , ## , ### )
-			if i+2 < len(rest) && rest[i+2] == ' ' {
-				nextHeader = i + 1
-				break
+			// Check if it's a valid header (any number of # followed by a space)
+			j := i + 1
+			for j < len(rest) && rest[j] == '#' {
+				j++
 			}
-			if i+3 < len(rest) && rest[i+2] == '#' && rest[i+3] == ' ' {
-				nextHeader = i + 1
-				break
-			}
-			if i+4 < len(rest) && rest[i+2] == '#' && rest[i+3] == '#' && rest[i+4] == ' ' {
+			if j < len(rest) && rest[j] == ' ' {
 				nextHeader = i + 1
 				break
 			}
@@ -993,7 +994,7 @@ func loadCorePersonalityContent(promptsDir, profile string, logger *slog.Logger)
 			if !info.ModTime().After(cached.mtime) {
 				return cached.content
 			}
-		} else if cached.mtime.IsZero() {
+		} else if cached.fromEmbed {
 			// File gone from disk — still valid if loaded from embed
 			return cached.content
 		}
@@ -1001,6 +1002,7 @@ func loadCorePersonalityContent(promptsDir, profile string, logger *slog.Logger)
 
 	var content string
 	var mtime time.Time
+	var fromEmbed bool
 	if data, err := os.ReadFile(profilePath); err == nil {
 		content = strings.TrimSpace(string(data))
 		if info, err := os.Stat(profilePath); err == nil {
@@ -1009,6 +1011,7 @@ func loadCorePersonalityContent(promptsDir, profile string, logger *slog.Logger)
 		logger.Debug("Loaded core personality profile from disk", "profile", profile)
 	} else if data, err := fs.ReadFile(promptsembed.FS, "personalities/"+profile+".md"); err == nil {
 		content = strings.TrimSpace(string(data))
+		fromEmbed = true
 		logger.Debug("Loaded core personality profile from embed", "profile", profile)
 	} else {
 		logger.Warn("Core personality profile not found", "profile", profile)
@@ -1016,7 +1019,7 @@ func loadCorePersonalityContent(promptsDir, profile string, logger *slog.Logger)
 	}
 
 	personalityCacheMu.Lock()
-	personalityCache[profile] = personalityCacheEntry{content: content, mtime: mtime}
+	personalityCache[profile] = personalityCacheEntry{content: content, mtime: mtime, fromEmbed: fromEmbed}
 	personalityCacheMu.Unlock()
 
 	return content
@@ -1032,7 +1035,10 @@ func CountTokens(text string) int {
 		}
 	})
 	if tiktokenEnc != nil {
-		return len(tiktokenEnc.Encode(text, nil, nil))
+		tiktokenMu.Lock()
+		count := len(tiktokenEnc.Encode(text, nil, nil))
+		tiktokenMu.Unlock()
+		return count
 	}
 	// Fallback: rough estimate
 	return len(text) / 4

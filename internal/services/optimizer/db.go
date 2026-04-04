@@ -1,12 +1,18 @@
 package optimizer
 
 import (
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"fmt"
 	"log/slog"
 	"math/rand"
 	"os"
 	"path/filepath"
+	"sync"
+	"time"
+
+	promptsembed "aurago/prompts"
 
 	_ "modernc.org/sqlite"
 )
@@ -16,6 +22,15 @@ var defaultDB *OptimizerDB
 type OptimizerDB struct {
 	db *sql.DB
 }
+
+type versionCacheEntry struct {
+	hasShadow bool
+	shadowID  int
+	hasActive bool
+	expireAt  time.Time
+}
+
+var versionCache sync.Map
 
 func InitDB(dbPath string) (*OptimizerDB, error) {
 	if dbPath == "" {
@@ -47,6 +62,7 @@ func InitDB(dbPath string) (*OptimizerDB, error) {
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
                 tool_name TEXT NOT NULL,
                 mutated_prompt TEXT NOT NULL,
+                original_hash TEXT,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 active BOOLEAN DEFAULT 1,
                 shadow BOOLEAN DEFAULT 0
@@ -66,7 +82,49 @@ func InitDB(dbPath string) (*OptimizerDB, error) {
 	}
 
 	defaultDB = &OptimizerDB{db: db}
+	defaultDB.invalidateStaleOverrides()
 	return defaultDB, nil
+}
+
+func (o *OptimizerDB) invalidateStaleOverrides() {
+	rows, err := o.db.Query(`SELECT id, tool_name, original_hash FROM prompt_overrides WHERE active = 1 OR shadow = 1`)
+	if err != nil {
+		slog.Error("[Optimizer] Failed to check stale overrides", "error", err)
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var id int
+		var toolName string
+		var originalHash sql.NullString
+		if err := rows.Scan(&id, &toolName, &originalHash); err != nil {
+			continue
+		}
+
+		// Load current manual
+		var currentManual string
+		safeToolName := filepath.Base(toolName)
+		data, err := os.ReadFile("prompts/tools_manuals/" + safeToolName + ".md")
+		if err != nil {
+			data, err = promptsembed.FS.ReadFile("tools_manuals/" + safeToolName + ".md")
+		}
+		if err == nil {
+			currentManual = string(data)
+		} else {
+			currentManual = "(No existing manual found)"
+		}
+
+		hash := sha256.Sum256([]byte(currentManual))
+		currentHashStr := hex.EncodeToString(hash[:])
+
+		if !originalHash.Valid || originalHash.String != currentHashStr {
+			_, err := o.db.Exec(`UPDATE prompt_overrides SET active = 0, shadow = 0 WHERE id = ?`, id)
+			if err == nil {
+				slog.Info("[Optimizer] Invalidated stale prompt override", "tool", toolName, "id", id)
+			}
+		}
+	}
 }
 
 func LogToolTrace(toolName string, success bool, recoveryLoops int, promptVersion, errMsg string, execTimeMs int64) error {
@@ -100,21 +158,44 @@ func GetToolPromptVersion(toolName string) string {
 }
 
 func (o *OptimizerDB) GetToolPromptVersion(toolName string) string {
-	// Let's check for shadow prompt first as it's the intended override for tests
-	var id int
-	err := o.db.QueryRow(`SELECT id FROM prompt_overrides WHERE tool_name = ? AND shadow = 1 AND active = 0 ORDER BY id DESC LIMIT 1`, toolName).Scan(&id)
-	if err == nil {
+	now := time.Now()
+	var entry versionCacheEntry
+
+	if val, ok := versionCache.Load(toolName); ok {
+		cached := val.(versionCacheEntry)
+		if now.Before(cached.expireAt) {
+			entry = cached
+		}
+	}
+
+	if entry.expireAt.IsZero() || now.After(entry.expireAt) {
+		// Fetch from DB
+		var id int
+		err := o.db.QueryRow(`SELECT id FROM prompt_overrides WHERE tool_name = ? AND shadow = 1 AND active = 0 ORDER BY id DESC LIMIT 1`, toolName).Scan(&id)
+		if err == nil {
+			entry.hasShadow = true
+			entry.shadowID = id
+		} else {
+			var count int
+			err = o.db.QueryRow(`SELECT COUNT(*) FROM prompt_overrides WHERE tool_name = ? AND active = 1`, toolName).Scan(&count)
+			if err == nil && count > 0 {
+				entry.hasActive = true
+			}
+		}
+
+		entry.expireAt = now.Add(60 * time.Second)
+		versionCache.Store(toolName, entry)
+	}
+
+	if entry.hasShadow {
 		// ~30% chance for shadow test (v2), ~70% for standard (v1)
 		if rand.Float64() < 0.3 {
-			return fmt.Sprintf("v2-shadow-%d", id)
+			return fmt.Sprintf("v2-shadow-%d", entry.shadowID)
 		}
 		return "v1"
 	}
 
-	// Else check if there's a normal active override
-	var count int
-	err = o.db.QueryRow(`SELECT COUNT(*) FROM prompt_overrides WHERE tool_name = ? AND active = 1`, toolName).Scan(&count)
-	if err == nil && count > 0 {
+	if entry.hasActive {
 		return "optim-db"
 	}
 
@@ -143,4 +224,3 @@ func (o *OptimizerDB) GetActivePromptOverrides() map[string]string {
 func (o *OptimizerDB) Close() error {
 	return o.db.Close()
 }
-

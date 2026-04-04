@@ -228,7 +228,6 @@ func TestPromptBuildRecordSavingsBreakdown(t *testing.T) {
 		Tier:          "full",
 		RawLen:        10000,
 		OptimizedLen:  6000,
-		SavedChars:    200,
 		FormatSavings: 200,
 		ShedSavings:   1800,
 		FilterSavings: 2000,
@@ -269,11 +268,11 @@ func TestPromptStatsAvgOptimizationPct(t *testing.T) {
 
 	// Build with 40% true reduction (6000 of 10000 chars removed)
 	RecordBuild(PromptBuildRecord{
-		Timestamp:    time.Now(),
-		Tier:         "full",
-		RawLen:       10000,
-		OptimizedLen: 6000, // 40% removed
-		SavedChars:   200,
+		Timestamp:     time.Now(),
+		Tier:          "full",
+		RawLen:        10000,
+		OptimizedLen:  6000, // 40% removed
+		FormatSavings: 200,
 	})
 
 	agg := GetAggregatedStats()
