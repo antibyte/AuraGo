@@ -242,6 +242,7 @@ func resolveToolFeatureState(runCfg RunConfig, policy ToolingPolicy) resolvedToo
 		OneDriveEnabled:              cfg.OneDrive.Enabled,
 		VirusTotalEnabled:            cfg.VirusTotal.Enabled,
 		ImageGenerationEnabled:       cfg.ImageGeneration.Enabled,
+		MusicGenerationEnabled:       cfg.MusicGeneration.Enabled,
 		RemoteControlEnabled:         cfg.RemoteControl.Enabled && runCfg.RemoteHub != nil,
 		MemoryEnabled:                cfg.Tools.Memory.Enabled,
 		KnowledgeGraphEnabled:        cfg.Tools.KnowledgeGraph.Enabled,

@@ -227,6 +227,23 @@ func secureResolve(workspaceDir, userPath string) (string, error) {
 
 	projectRoot := detectFilesystemProjectRoot(absWorkdir)
 
+	// Detect absolute paths that are clearly outside the project root and give a helpful error
+	// before filepath.Join silently concatenates them (e.g. Join("/workdir", "/etc/passwd") → "/workdir/etc/passwd").
+	if filepath.IsAbs(userPath) {
+		cleanAbs := filepath.Clean(userPath)
+		rel, relErr := filepath.Rel(projectRoot, cleanAbs)
+		if relErr != nil || strings.HasPrefix(rel, "..") {
+			return "", fmt.Errorf(
+				"path '%s' is an absolute path outside the project root (%s). "+
+					"Use the execute_shell tool to access arbitrary host paths, "+
+					"or use the homepage/remote tools for container-scoped paths.",
+				userPath, projectRoot,
+			)
+		}
+		// Absolute path is within projectRoot — let it through as-is.
+		return cleanAbs, nil
+	}
+
 	// Normalize: strip workspace-dir prefix if the LLM passed a project-root-relative path.
 	// Example: workspaceDir = ".../agent_workspace/workdir", userPath = "agent_workspace/workdir/file.txt"
 	// → the path is duplicated; strip the prefix so we resolve to the correct location.

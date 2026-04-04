@@ -81,6 +81,17 @@ func InitDB(dbPath string) (*OptimizerDB, error) {
 		return nil, fmt.Errorf("failed to initialize schema: %w", err)
 	}
 
+	// Migrate: add shadow column if missing (older DBs created before shadow testing was introduced).
+	var hasShadow bool
+	_ = db.QueryRow("SELECT count(*) > 0 FROM pragma_table_info('prompt_overrides') WHERE name='shadow'").Scan(&hasShadow)
+	if !hasShadow {
+		if _, err := db.Exec("ALTER TABLE prompt_overrides ADD COLUMN shadow BOOLEAN DEFAULT 0"); err != nil {
+			return nil, fmt.Errorf("failed to add shadow column: %w", err)
+		}
+		// Now create the index that requires the shadow column.
+		_, _ = db.Exec("CREATE INDEX IF NOT EXISTS idx_prompt_overrides_tool_status ON prompt_overrides(tool_name, active, shadow)")
+	}
+
 	defaultDB = &OptimizerDB{db: db}
 	defaultDB.invalidateStaleOverrides()
 	return defaultDB, nil
