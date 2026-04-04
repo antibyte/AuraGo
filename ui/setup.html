@@ -186,21 +186,24 @@
                     </label>
                 </div>
 
-                <div class="field-group">
-                    <label id="lbl-admin-password" class="field-label">
-                        <span data-i18n="setup.step0_admin_password_label">Admin password</span> <span class="required-star">*</span>
-                    </label>
-                    <input class="field-input" type="password" id="admin-password"
-                        data-i18n-placeholder="setup.step0_admin_password_placeholder" placeholder="Minimum 8 characters" autocomplete="new-password">
-                    <div class="field-error" id="err-admin-password" data-i18n="setup.step0_admin_password_error">Admin password must be at least 8 characters.</div>
-                    <div class="field-hint" id="hint-admin-password" data-i18n="setup.step0_admin_password_hint">Protects the web UI and API on first start. You can change it later in Login Guard.</div>
-                </div>
+                <div class="setup-inner-card">
+                    <h3 id="heading-admin-password" class="setup-section-heading" data-i18n="setup.step0_security_heading">🔐 Admin Password</h3>
+                    <div class="field-group">
+                        <label id="lbl-admin-password" class="field-label">
+                            <span data-i18n="setup.step0_admin_password_label">Admin password</span> <span class="required-star">*</span>
+                        </label>
+                        <input class="field-input" type="password" id="admin-password"
+                            data-i18n-placeholder="setup.step0_admin_password_placeholder" placeholder="Minimum 8 characters" autocomplete="new-password">
+                        <div class="field-error" id="err-admin-password" data-i18n="setup.step0_admin_password_error">Admin password must be at least 8 characters.</div>
+                        <div class="field-hint" id="hint-admin-password" data-i18n="setup.step0_admin_password_hint">Protects the web UI and API on first start. You can change it later in Login Guard.</div>
+                    </div>
 
-                <div class="field-group" id="group-password-confirm">
-                    <label id="lbl-admin-password-confirm" class="field-label" data-i18n="setup.step0_admin_password_confirm_label">Confirm Password</label>
-                    <input class="field-input" type="password" id="admin-password-confirm"
-                        data-i18n-placeholder="setup.step0_admin_password_confirm_placeholder" placeholder="Repeat password" autocomplete="new-password">
-                    <div class="field-error" id="err-admin-password-confirm" data-i18n="setup.step0_admin_password_confirm_error">Passwords do not match.</div>
+                    <div class="field-group" id="group-password-confirm">
+                        <label id="lbl-admin-password-confirm" class="field-label" data-i18n="setup.step0_admin_password_confirm_label">Confirm Password</label>
+                        <input class="field-input" type="password" id="admin-password-confirm"
+                            data-i18n-placeholder="setup.step0_admin_password_confirm_placeholder" placeholder="Repeat password" autocomplete="new-password">
+                        <div class="field-error" id="err-admin-password-confirm" data-i18n="setup.step0_admin_password_confirm_error">Passwords do not match.</div>
+                    </div>
                 </div>
             </div>
 

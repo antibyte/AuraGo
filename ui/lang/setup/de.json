@@ -126,6 +126,7 @@
     "setup.success_title":  "Setup abgeschlossen!",
     "setup.toast_config_saved":  "Konfiguration gespeichert!",
     "setup.toast_error_prefix":  "Fehler: ",
+    "setup.step0_security_heading":  "🔐 Admin-Passwort",
     "setup.step0_admin_password_label":  "Admin-Passwort",
     "setup.step0_admin_password_hint":  "Schützt Web-UI und API direkt beim ersten Start. Du kannst es später im Login Guard ändern.",
     "setup.step0_admin_password_confirm_error":  "Passwörter stimmen nicht überein.",
