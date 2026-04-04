@@ -129,7 +129,7 @@ func TestDispatchMediaRegistryInfersDocumentType(t *testing.T) {
 	}
 	defer db.Close()
 
-	resp := DispatchMediaRegistry(db, "register", "", "", "News PDF", nil, "", 0, 10, 0, "ki-news-latest.pdf", "/files/ki-news-latest.pdf")
+	resp := DispatchMediaRegistry(db, "register", "", "", "News PDF", nil, "", 0, 10, 0, "ki-news-latest.pdf", "/files/ki-news-latest.pdf", "")
 	if !strings.Contains(resp, `"status":"success"`) {
 		t.Fatalf("register response = %s", resp)
 	}

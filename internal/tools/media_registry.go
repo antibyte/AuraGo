@@ -438,7 +438,7 @@ func MediaStats(db *sql.DB) (map[string]interface{}, error) {
 }
 
 // DispatchMediaRegistry handles tool calls for the media_registry action.
-func DispatchMediaRegistry(db *sql.DB, operation, query, mediaType, description string, tags []string, tagMode string, id int64, limit, offset int, filename, filePath string) string {
+func DispatchMediaRegistry(db *sql.DB, operation, query, mediaType, description string, tags []string, tagMode string, id int64, limit, offset int, filename, filePath, webPath string) string {
 	switch operation {
 	case "register":
 		item := MediaItem{
@@ -447,6 +447,7 @@ func DispatchMediaRegistry(db *sql.DB, operation, query, mediaType, description 
 			Description: description,
 			Filename:    filename,
 			FilePath:    filePath,
+			WebPath:     webPath,
 		}
 		if item.MediaType == "" {
 			item.MediaType = inferMediaType(item.Filename, item.FilePath)

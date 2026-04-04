@@ -109,12 +109,14 @@ func handleMediaByID(s *Server) http.HandlerFunc {
 				// Try to compute path from media type
 				var subDir string
 				switch item.MediaType {
-				case "audio":
+				case "audio", "music":
 					subDir = "audio"
+				case "tts":
+					subDir = "tts"
 				case "document":
 					subDir = "documents"
-				default:
-					subDir = ""
+				case "image":
+					subDir = "generated_images"
 				}
 				if subDir != "" {
 					os.Remove(filepath.Join(dataDir, subDir, item.Filename))

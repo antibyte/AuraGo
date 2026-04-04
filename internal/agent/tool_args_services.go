@@ -136,6 +136,7 @@ type mediaRegistryArgs struct {
 	Offset      int
 	Filename    string
 	FilePath    string
+	WebPath     string
 }
 
 type homepageRegistryArgs struct {
@@ -440,6 +441,7 @@ func decodeMediaRegistryArgs(tc ToolCall) mediaRegistryArgs {
 		Offset:      firstNonEmptyInt(tc.Offset, toolArgInt(tc.Params, 0, "offset")),
 		Filename:    firstNonEmptyToolString(tc.Filename, toolArgString(tc.Params, "filename")),
 		FilePath:    firstNonEmptyToolString(tc.FilePath, tc.Path, toolArgString(tc.Params, "file_path", "path")),
+		WebPath:     toolArgString(tc.Params, "web_path"),
 	}
 }
 

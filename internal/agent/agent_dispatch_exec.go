@@ -1584,7 +1584,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 					MediaType:        "image",
 					SourceTool:       "generate_image",
 					Filename:         result.Filename,
-					FilePath:         result.Filename,
+					FilePath:         filepath.Join(cfg.Directories.DataDir, "generated_images", result.Filename),
 					WebPath:          result.WebPath,
 					Format:           "png",
 					Provider:         result.Provider,
