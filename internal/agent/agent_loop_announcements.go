@@ -7,8 +7,11 @@ import (
 
 var announcementPhrases = []string{
 	"lass mich", "ich starte", "ich werde", "ich führe", "ich teste",
+	"ich versuche", "versuche ich", "ich probiere", "probiere ich",
+	"nochmal", "noch einmal", "erneut", "wieder ",
 	"let me", "i will", "i'll", "i am going to", "i'm going to",
 	"let's start", "starting", "launching", "i'll start", "i'll run",
+	"i try", "i'll try", "trying", "retrying",
 	"alles klar", "okay, let", "sure, let", "sure, i",
 	"ich suche nach", "ich schaue nach", "ich prüfe", "ich überprüfe",
 	"ich sehe mir", "lass mich sehen", "ich werde nachschauen",
@@ -76,9 +79,6 @@ func isAnnouncementOnlyResponse(content string, tc ToolCall, useNativePath, last
 	if strings.HasSuffix(strings.TrimRight(trimmedContent, "\"'"), "?") {
 		return false
 	}
-	if lastUserMsg != "" && strings.HasSuffix(strings.TrimSpace(lastUserMsg), "?") {
-		return false
-	}
 
 	lc := strings.ToLower(trimmedContent)
 	leadIn := lc
@@ -92,6 +92,14 @@ func isAnnouncementOnlyResponse(content string, tc ToolCall, useNativePath, last
 	hasPlanStructure := looksLikePlanStructure(trimmedContent, leadIn)
 	hasActionIntent := containsActionIntent(leadIn)
 	hasCompletionEvidence := containsCompletionEvidence(lc)
+
+	// When the user asked a question, only skip announcement detection if the
+	// response looks like a genuine answer (contains completion evidence) and
+	// does NOT simultaneously announce a next action.
+	userAskedQuestion := lastUserMsg != "" && strings.HasSuffix(strings.TrimSpace(lastUserMsg), "?")
+	if userAskedQuestion && hasCompletionEvidence && !(hasActionIntent && (containsForwardCue || containsActionCue || hasPlanStructure)) {
+		return false
+	}
 
 	if !lastResponseWasTool {
 		return containsAnnouncementPhrase || (hasActionIntent && (containsForwardCue || containsActionCue || hasPlanStructure))
