@@ -52,6 +52,7 @@
     "setup.step0_base_url_hint":  "Automatically set based on the provider.",
     "setup.step0_base_url_label":  "Base URL",
     "setup.step0_description":  "Το AuraGo απαιτεί τουλάχιστον μία σύνδεση LLM. Επιλέξτε τον πάροχό σας και εισάγετε το API key.",
+    "setup.step0_language_heading":  "🌐 Γλώσσα",
     "setup.step0_language_label":  "Γλώσσα",
     "setup.step0_model_browse":  "🌐 Περιήγηση",
     "setup.step0_model_error":  "Απαιτείται όνομα μοντέλου.",

@@ -52,6 +52,7 @@
     "setup.step0_base_url_hint":  "根据提供商自动设置。",
     "setup.step0_base_url_label":  "Base URL",
     "setup.step0_description":  "AuraGo 需要至少一个 LLM 连接才能运行。选择您的提供商并输入 API Key。",
+    "setup.step0_language_heading":  "🌐 语言",
     "setup.step0_language_label":  "语言",
     "setup.step0_model_browse":  "🌐 浏览",
     "setup.step0_model_error":  "需要模型名称。",

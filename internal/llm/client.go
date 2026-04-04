@@ -126,6 +126,11 @@ func buildLLMHTTPClient(providerType, aiGatewayToken string) *http.Client {
 		hasCustomTransport = true
 	}
 
+	if providerType == "anthropic" {
+		transport = &anthropicTransport{base: transport}
+		hasCustomTransport = true
+	}
+
 	if !hasCustomTransport {
 		return nil
 	}

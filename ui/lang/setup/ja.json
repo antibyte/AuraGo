@@ -52,6 +52,7 @@
     "setup.step0_base_url_hint":  "プロバイダに基づいて自動設定されます。",
     "setup.step0_base_url_label":  "Base URL",
     "setup.step0_description":  "AuraGo の動作には少なくとも 1 つの LLM 接続が必要です。プロバイダを選択し、API キーを入力してください。",
+    "setup.step0_language_heading":  "🌐 言語",
     "setup.step0_language_label":  "言語",
     "setup.step0_model_browse":  "🌐 ブラウズ",
     "setup.step0_model_error":  "モデル名が必要です。",

@@ -52,6 +52,7 @@
     "setup.step0_base_url_hint":  "Settes automatisk basert på leverandøren.",
     "setup.step0_base_url_label":  "Base URL",
     "setup.step0_description":  "AuraGo krever minst én LLM-tilkobling. Velg din leverandør og skriv inn API key.",
+    "setup.step0_language_heading":  "🌐 Språk",
     "setup.step0_language_label":  "Språk",
     "setup.step0_model_browse":  "🌐 Bla gjennom",
     "setup.step0_model_error":  "Modellnavn er påkrevd.",

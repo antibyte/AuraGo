@@ -52,6 +52,7 @@
     "setup.step0_base_url_hint":  "Automatically set based on the provider.",
     "setup.step0_base_url_label":  "Base URL",
     "setup.step0_description":  "AuraGo requires at least one LLM connection to function. Choose your provider and enter the API key.",
+    "setup.step0_language_heading":  "🌐 Language",
     "setup.step0_language_label":  "Language",
     "setup.step0_model_browse":  "🌐 Browse",
     "setup.step0_model_error":  "Model name is required.",

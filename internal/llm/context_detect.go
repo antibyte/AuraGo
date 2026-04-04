@@ -151,24 +151,19 @@ func detectContextWindowOpenRouter(baseURL, apiKey, model string, logger *slog.L
 // Only overrides if current budget is the default (0/unlimited) and context window was detected.
 // If window is unknown, it defaults to 8192.
 func AutoConfigureBudget(contextWindow, currentBudget int, logger *slog.Logger) (tokenBudget int, contextWindowOut int) {
-	// If the user has manually set a specific budget (>0), we don't touch it.
-	if currentBudget > 0 {
-		return currentBudget, contextWindow
-	}
-
 	var suggestedBudget int
 
 	if contextWindow <= 0 {
 		suggestedBudget = 8192
 		contextWindow = 0
 	} else if contextWindow > 100000 {
-		suggestedBudget = contextWindow * 50 / 100 // 50% for system prompt on huge models
+		suggestedBudget = contextWindow * 50 / 100
 	} else {
-		suggestedBudget = contextWindow * 25 / 100 // 25% for system prompt on normal models
+		suggestedBudget = contextWindow * 25 / 100
 	}
 
 	if suggestedBudget < 500 {
-		suggestedBudget = 500 // Minimum viable budget
+		suggestedBudget = 500
 	}
 
 	logger.Info(fmt.Sprintf("[ContextDetect] Auto-configured: context_window=%d, system_budget=%d (was %d)",

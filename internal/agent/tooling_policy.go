@@ -15,6 +15,7 @@ type ModelCapabilities struct {
 	Model                     string
 	IsOllama                  bool
 	IsDeepSeek                bool
+	IsAnthropic               bool
 	AutoEnableNativeFunctions bool
 	SupportsStructuredOutputs bool
 	SupportsParallelToolCalls bool
@@ -82,13 +83,15 @@ func resolveModelCapabilities(cfg *config.Config) ModelCapabilities {
 	lowerModel := strings.ToLower(model)
 	isOllama := lowerProvider == "ollama"
 	isDeepSeek := strings.Contains(lowerModel, "deepseek")
+	isAnthropic := lowerProvider == "anthropic" || strings.Contains(lowerModel, "claude")
 
 	return ModelCapabilities{
 		ProviderType:              providerType,
 		Model:                     model,
 		IsOllama:                  isOllama,
 		IsDeepSeek:                isDeepSeek,
-		AutoEnableNativeFunctions: isDeepSeek,
+		IsAnthropic:               isAnthropic,
+		AutoEnableNativeFunctions: isDeepSeek || isAnthropic,
 		SupportsStructuredOutputs: !isOllama,
 		SupportsParallelToolCalls: !isOllama,
 	}

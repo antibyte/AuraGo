@@ -222,6 +222,7 @@ type Config struct {
 		StepDelaySeconds                int    `yaml:"step_delay_seconds"`
 		MemoryCompressionCharLimit      int    `yaml:"memory_compression_char_limit"`
 		SystemPromptTokenBudget         int    `yaml:"system_prompt_token_budget"`
+		SystemPromptTokenBudgetAuto     bool   `yaml:"-"`                                   // true when user set budget to 0 (automatic mode)
 		AdaptiveSystemPromptTokenBudget bool   `yaml:"adaptive_system_prompt_token_budget"` // adapt system prompt token budget to enabled tools/integrations (default: true)
 		OptimizerEnabled                bool   `yaml:"optimizer_enabled"`
 		ContextWindow                   int    `yaml:"context_window"`

@@ -54,6 +54,8 @@ func isTransientError(lowerErr string) bool {
 		strings.Contains(lowerErr, "503") ||
 		strings.Contains(lowerErr, "502") ||
 		strings.Contains(lowerErr, "504") ||
+		strings.Contains(lowerErr, "529") ||
+		strings.Contains(lowerErr, "overloaded") ||
 		strings.Contains(lowerErr, "server error") ||
 		strings.Contains(lowerErr, "eof")
 }

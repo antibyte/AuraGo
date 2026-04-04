@@ -118,6 +118,10 @@ func directAnthropicPricing() []ModelPricing {
 		{ModelID: "claude-3-haiku-20240307", InputPerMillion: 0.25, OutputPerMillion: 1.25},
 		{ModelID: "claude-3-7-sonnet-20250219", InputPerMillion: 3.00, OutputPerMillion: 15.00},
 		{ModelID: "claude-3-7-sonnet-latest", InputPerMillion: 3.00, OutputPerMillion: 15.00},
+		{ModelID: "claude-sonnet-4-20250514", InputPerMillion: 3.00, OutputPerMillion: 15.00},
+		{ModelID: "claude-sonnet-4-latest", InputPerMillion: 3.00, OutputPerMillion: 15.00},
+		{ModelID: "claude-opus-4-20250514", InputPerMillion: 15.00, OutputPerMillion: 75.00},
+		{ModelID: "claude-opus-4-latest", InputPerMillion: 15.00, OutputPerMillion: 75.00},
 	}
 }
 

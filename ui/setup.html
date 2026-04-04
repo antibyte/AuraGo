@@ -131,25 +131,8 @@
                     <div id="test-connection-result" class="field-hint is-hidden"></div>
                 </div>
 
-                <div class="field-group">
-                    <label id="lbl-base-url" class="field-label" data-i18n="setup.step0_base_url_label">Base URL</label>
-                    <input class="field-input" type="url" id="llm-base-url" placeholder="https://openrouter.ai/api/v1">
-                    <div id="hint-base-url" class="field-hint" data-i18n="setup.step0_base_url_hint">Automatically set based on the provider.</div>
-                </div>
-
-                <div class="field-row">
-                    <div class="field-group">
-                        <label id="lbl-model" class="field-label">
-                            <span data-i18n="setup.step0_model_label">Model</span> <span class="required-star">*</span>
-                        </label>
-                        <div class="setup-inline-row">
-                            <input class="field-input setup-flex-1" type="text" id="llm-model"
-                                data-i18n-placeholder="setup.step0_model_placeholder" placeholder="e.g. gpt-4o, claude-sonnet-4-20250514">
-                            <button type="button" id="or-browse-btn" class="btn-primary setup-or-browse"
-                                onclick="openOpenRouterBrowser(function(m){document.getElementById('llm-model').value=m.id;document.getElementById('err-model').style.display='none';})" data-i18n="setup.step0_model_browse">🌐 Browse</button>
-                        </div>
-                        <div class="field-error" id="err-model" data-i18n="setup.step0_model_error">Model name is required.</div>
-                    </div>
+                <div class="setup-inner-card">
+                    <h3 id="heading-language" class="setup-section-heading" data-i18n="setup.step0_language_heading">🌐 Language</h3>
                     <div class="field-group">
                         <label class="field-label" id="lang-label" data-i18n="setup.step0_language_label">Language</label>
                         <select class="field-select" id="system-language" onchange="onLanguageChange()">
@@ -173,6 +156,25 @@
                         </select>
                         <input class="field-input is-hidden mt-xs" type="text" id="system-language-custom" placeholder="e.g. Klingon">
                     </div>
+                </div>
+
+                <div class="field-group">
+                    <label id="lbl-base-url" class="field-label" data-i18n="setup.step0_base_url_label">Base URL</label>
+                    <input class="field-input" type="url" id="llm-base-url" placeholder="https://openrouter.ai/api/v1">
+                    <div id="hint-base-url" class="field-hint" data-i18n="setup.step0_base_url_hint">Automatically set based on the provider.</div>
+                </div>
+
+                <div class="field-group">
+                    <label id="lbl-model" class="field-label">
+                        <span data-i18n="setup.step0_model_label">Model</span> <span class="required-star">*</span>
+                    </label>
+                    <div class="setup-inline-row">
+                        <input class="field-input setup-flex-1" type="text" id="llm-model"
+                            data-i18n-placeholder="setup.step0_model_placeholder" placeholder="e.g. gpt-4o, claude-sonnet-4-20250514">
+                        <button type="button" id="or-browse-btn" class="btn-primary setup-or-browse"
+                            onclick="openOpenRouterBrowser(function(m){document.getElementById('llm-model').value=m.id;document.getElementById('err-model').style.display='none';})" data-i18n="setup.step0_model_browse">🌐 Browse</button>
+                    </div>
+                    <div class="field-error" id="err-model" data-i18n="setup.step0_model_error">Model name is required.</div>
                 </div>
 
                 <div class="toggle-row">

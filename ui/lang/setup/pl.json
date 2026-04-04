@@ -52,6 +52,7 @@
     "setup.step0_base_url_hint":  "Automatycznie ustawiany na podstawie dostawcy.",
     "setup.step0_base_url_label":  "Bazowy URL",
     "setup.step0_description":  "AuraGo wymaga co najmniej jednego połączenia LLM do działania. Wybierz dostawcę i wpisz klucz API.",
+    "setup.step0_language_heading":  "🌐 Język",
     "setup.step0_language_label":  "Język",
     "setup.step0_model_browse":  "🌐 Przeglądaj",
     "setup.step0_model_error":  "Nazwa modelu jest wymagana.",

@@ -395,6 +395,21 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 						"provider", newCfg.LLM.ProviderType,
 						"base_url", newCfg.LLM.BaseURL)
 				}
+
+				// Re-detect context window and recalculate budget when model
+				// changes and the user has budget set to automatic (0).
+				if s.Cfg.Agent.SystemPromptTokenBudgetAuto {
+					detected := llm.DetectContextWindow(
+						s.Cfg.LLM.BaseURL, s.Cfg.LLM.APIKey,
+						s.Cfg.LLM.Model, s.Cfg.LLM.ProviderType, s.Logger)
+					if detected > 0 {
+						s.Cfg.Agent.ContextWindow = detected
+					}
+					if s.Cfg.Agent.ContextWindow > 0 {
+						s.Cfg.Agent.SystemPromptTokenBudget, s.Cfg.Agent.ContextWindow =
+							llm.AutoConfigureBudget(s.Cfg.Agent.ContextWindow, s.Cfg.Agent.SystemPromptTokenBudget, s.Logger)
+					}
+				}
 			}
 
 			// Sync the global debug-mode flag used by the agent.

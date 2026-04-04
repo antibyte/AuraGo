@@ -52,6 +52,7 @@
     "setup.step0_base_url_hint":  "Definido automaticamente com base no provedor.",
     "setup.step0_base_url_label":  "URL Base",
     "setup.step0_description":  "O AuraGo requer pelo menos uma conexão LLM para funcionar. Escolha seu provedor e insira a chave de API.",
+    "setup.step0_language_heading":  "🌐 Idioma",
     "setup.step0_language_label":  "Idioma",
     "setup.step0_model_browse":  "🌐 Navegar",
     "setup.step0_model_error":  "Nome do modelo é obrigatório.",

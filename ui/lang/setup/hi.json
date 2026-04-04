@@ -52,6 +52,7 @@
     "setup.step0_base_url_hint":  "Automatically set based on the provider.",
     "setup.step0_base_url_label":  "Base URL",
     "setup.step0_description":  "AuraGo को काम करने के लिए कम से कम एक LLM कनेक्शन की आवश्यकता है। अपना प्रदाता चुनें और API key दर्ज करें।",
+    "setup.step0_language_heading":  "🌐 भाषा",
     "setup.step0_language_label":  "भाषा",
     "setup.step0_model_browse":  "🌐 ब्राउज़ करें",
     "setup.step0_model_error":  "मॉडल का नाम आवश्यक है।",

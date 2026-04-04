@@ -421,7 +421,10 @@ func Load(path string) (*Config, error) {
 		cfg.Personality.Engine = true
 	}
 	if cfg.Agent.SystemPromptTokenBudget <= 0 {
-		cfg.Agent.SystemPromptTokenBudget = 12288
+		cfg.Agent.SystemPromptTokenBudgetAuto = true
+		cfg.Agent.SystemPromptTokenBudget = 0
+	} else {
+		cfg.Agent.SystemPromptTokenBudgetAuto = false
 	}
 	if !yamlHasPath(data, "agent", "adaptive_system_prompt_token_budget") {
 		cfg.Agent.AdaptiveSystemPromptTokenBudget = true

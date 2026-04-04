@@ -52,6 +52,7 @@
     "setup.step0_base_url_hint":  "Automaticky nastaveno na základě poskytovatele.",
     "setup.step0_base_url_label":  "Base URL",
     "setup.step0_description":  "AuraGo vyžaduje alespoň jedno LLM připojení. Vyberte svého poskytovatele a zadejte API key.",
+    "setup.step0_language_heading":  "🌐 Jazyk",
     "setup.step0_language_label":  "Jazyk",
     "setup.step0_model_browse":  "🌐 Procházet",
     "setup.step0_model_error":  "Název modelu je povinný.",

@@ -52,6 +52,7 @@
     "setup.step0_base_url_hint":  "Automatisch ingesteld op basis van de provider.",
     "setup.step0_base_url_label":  "Base URL",
     "setup.step0_description":  "AuraGo heeft minimaal één LLM-verbinding nodig om te functioneren. Kies uw provider en voer de API key in.",
+    "setup.step0_language_heading":  "🌐 Taal",
     "setup.step0_language_label":  "Taal",
     "setup.step0_model_browse":  "🌐 Bladeren",
     "setup.step0_model_error":  "Modelnaam is verplicht.",

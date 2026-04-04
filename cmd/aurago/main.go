@@ -1,4 +1,4 @@
-﻿package main
+package main
 
 import (
 	"bytes"
@@ -520,9 +520,13 @@ func main() {
 	llmClient := llm.NewFailoverManager(cfg, appLog)
 
 	// Auto-detect context window and configure token budget
-	if cfg.Agent.ContextWindow == 0 {
-		detected := llm.DetectContextWindow(cfg.LLM.BaseURL, cfg.LLM.APIKey, cfg.LLM.Model, cfg.LLM.ProviderType, appLog)
-		cfg.Agent.SystemPromptTokenBudget, cfg.Agent.ContextWindow = llm.AutoConfigureBudget(detected, cfg.Agent.SystemPromptTokenBudget, appLog)
+	if cfg.Agent.ContextWindow == 0 || cfg.Agent.SystemPromptTokenBudgetAuto {
+		if cfg.Agent.ContextWindow == 0 {
+			cfg.Agent.ContextWindow = llm.DetectContextWindow(cfg.LLM.BaseURL, cfg.LLM.APIKey, cfg.LLM.Model, cfg.LLM.ProviderType, appLog)
+		}
+		if cfg.Agent.SystemPromptTokenBudgetAuto {
+			cfg.Agent.SystemPromptTokenBudget, cfg.Agent.ContextWindow = llm.AutoConfigureBudget(cfg.Agent.ContextWindow, cfg.Agent.SystemPromptTokenBudget, appLog)
+		}
 	}
 
 	// Process Registry for background daemon management
