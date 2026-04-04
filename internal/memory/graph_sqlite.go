@@ -716,7 +716,7 @@ func (kg *KnowledgeGraph) AddEdge(source, target, relation string, properties ma
 	return nil
 }
 
-const coOccurrenceThreshold = 3
+const coOccurrenceThreshold = 5
 
 // IncrementCoOccurrence tracks how often two entities are mentioned together.
 // On the first co-mention a pending edge (source="pending") is inserted.
@@ -968,7 +968,7 @@ func (kg *KnowledgeGraph) SearchForContext(query string, maxNodes int, maxChars 
 		return ""
 	}
 	if maxChars <= 0 {
-		maxChars = 800
+		maxChars = 2000
 	}
 
 	// Find relevant nodes via FTS5 or LIKE fallback
@@ -1011,22 +1011,21 @@ func (kg *KnowledgeGraph) SearchForContext(query string, maxNodes int, maxChars 
 		}
 	}
 
-	if len(nodeIDs) < maxNodes {
-		seen := make(map[string]bool, len(nodeIDs))
-		for _, id := range nodeIDs {
+	// prioritize semantic search IDs if any
+	nodeIDs = append(kg.semanticSearchNodeIDs(query, maxNodes*2), nodeIDs...)
+
+	seen := make(map[string]bool)
+	var deduped []string
+	for _, id := range nodeIDs {
+		if !seen[id] {
+			deduped = append(deduped, id)
 			seen[id] = true
-		}
-		for _, id := range kg.semanticSearchNodeIDs(query, maxNodes) {
-			if seen[id] {
-				continue
-			}
-			nodeIDs = append(nodeIDs, id)
-			seen[id] = true
-			if len(nodeIDs) >= maxNodes {
+			if len(deduped) >= maxNodes {
 				break
 			}
 		}
 	}
+	nodeIDs = deduped
 
 	if len(nodeIDs) == 0 {
 		return ""
@@ -2065,4 +2064,76 @@ func (kg *KnowledgeGraph) batchGetNodes(ids []string) []Node {
 		}
 	}
 	return nodes
+}
+
+// GetRecentChanges returns recently updated nodes.
+func (kg *KnowledgeGraph) GetRecentChanges(since time.Time) ([]Node, error) {
+	rows, err := kg.db.Query(`
+		SELECT id, label, properties, protected 
+		FROM kg_nodes 
+		WHERE updated_at >= ? 
+		ORDER BY updated_at DESC LIMIT 50
+	`, since)
+	if err != nil {
+		return nil, fmt.Errorf("query recent changes: %w", err)
+	}
+	defer rows.Close()
+
+	var nodes []Node
+	for rows.Next() {
+		var n Node
+		var propsJSON string
+		var protected int
+		if err := rows.Scan(&n.ID, &n.Label, &propsJSON, &protected); err == nil {
+			var props map[string]string
+			if propsJSON != "" {
+				if unmarshalErr := json.Unmarshal([]byte(propsJSON), &props); unmarshalErr != nil {
+					kg.logger.Warn("GetRecentChanges: corrupt node properties JSON", "id", n.ID, "error", unmarshalErr)
+					props = make(map[string]string)
+				}
+			}
+			n.Properties = sanitizeKnowledgeGraphNodeProperties(props, protected != 0)
+			n.Protected = protected != 0
+			nodes = append(nodes, n)
+		}
+	}
+	return nodes, nil
+}
+
+// MergeNodes merges two nodes, transferring edges and dropping the source node.
+func (kg *KnowledgeGraph) MergeNodes(targetID, sourceID string) error {
+	tx, err := kg.db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin merge nodes: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Update edges pointing to source
+	_, err = tx.Exec("UPDATE kg_edges SET target = ? WHERE target = ?", targetID, sourceID)
+	if err != nil {
+		return fmt.Errorf("update edges target: %w", err)
+	}
+
+	_, err = tx.Exec("UPDATE kg_edges SET source = ? WHERE source = ?", targetID, sourceID)
+	if err != nil {
+		return fmt.Errorf("update edges source: %w", err)
+	}
+
+	// Update access count of target
+	var sourceAccess int
+	err = tx.QueryRow("SELECT access_count FROM kg_nodes WHERE id = ?", sourceID).Scan(&sourceAccess)
+	if err == nil && sourceAccess > 0 {
+		_, err = tx.Exec("UPDATE kg_nodes SET access_count = access_count + ? WHERE id = ?", sourceAccess, targetID)
+		if err != nil {
+			return fmt.Errorf("update target access count: %w", err)
+		}
+	}
+
+	// Delete source
+	_, err = tx.Exec("DELETE FROM kg_nodes WHERE id = ?", sourceID)
+	if err != nil {
+		return fmt.Errorf("delete source node: %w", err)
+	}
+
+	return tx.Commit()
 }
