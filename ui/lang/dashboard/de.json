@@ -509,5 +509,11 @@
   "dashboard.knowledge_quality_empty_isolated": "Keine isolierten Nodes erkannt.",
   "dashboard.knowledge_quality_empty_untyped": "Alle sichtbaren Nodes haben einen Typ.",
   "dashboard.knowledge_quality_empty_duplicates": "Keine doppelten Labels erkannt.",
-  "dashboard.knowledge_quality_duplicate_count": "{count} Nodes"
+  "dashboard.knowledge_quality_duplicate_count": "{count} Nodes",
+  "dashboard.optimization_title": "Optimierung",
+  "dashboard.opt_active_overrides": "Aktive Overrides",
+  "dashboard.opt_running_shadows": "Laufende Shadows",
+  "dashboard.opt_rejected_mutations": "Abgelehnte Mutationen",
+  "dashboard.opt_total_trace_events": "Gesamte Trace Events",
+  "dashboard.opt_global_success_rate": "Globale Erfolgsrate"
 }

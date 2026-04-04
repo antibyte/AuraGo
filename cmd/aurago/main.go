@@ -35,6 +35,7 @@ import (
 	"aurago/internal/sandbox"
 	"aurago/internal/security"
 	"aurago/internal/server"
+	"aurago/internal/services/optimizer"
 	"aurago/internal/setup"
 	"aurago/internal/sqlconnections"
 	"aurago/internal/tools"
@@ -683,6 +684,13 @@ func main() {
 	defer historyManager.Close()
 
 	// Phase 36: Native Knowledge Graph (SQLite-backed with FTS5)
+	optDB, optErr := optimizer.InitDB(filepath.Join(cfg.Directories.DataDir, "optimization.db"))
+	if optErr != nil {
+		appLog.Warn("Failed to initialize optimizer trace database", "error", optErr)
+	} else {
+		defer optDB.Close()
+	}
+
 	kg, err := memory.NewKnowledgeGraph(
 		filepath.Join(cfg.Directories.DataDir, "knowledge_graph.db"),
 		filepath.Join(cfg.Directories.DataDir, "graph.json"),

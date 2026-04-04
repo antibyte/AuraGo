@@ -509,5 +509,11 @@
   "dashboard.knowledge_quality_empty_untyped": "Všechny viditelné uzly mají typ.",
   "dashboard.knowledge_quality_empty_duplicates": "Nebyly detekovány žádné duplicitní štítky.",
   "dashboard.knowledge_quality_duplicate_count": "{count} uzlů",
-  "dashboard.memory_curator_fact_contradictions": "{{count}} rozporuplných vzpomínek"
+  "dashboard.memory_curator_fact_contradictions": "{{count}} rozporuplných vzpomínek",
+  "dashboard.optimization_title": "Optimization",
+  "dashboard.opt_active_overrides": "Active Overrides",
+  "dashboard.opt_running_shadows": "Running Shadows",
+  "dashboard.opt_rejected_mutations": "Rejected Mutations",
+  "dashboard.opt_total_trace_events": "Total Trace Events",
+  "dashboard.opt_global_success_rate": "Global Success Rate"
 }

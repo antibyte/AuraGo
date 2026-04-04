@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"aurago/internal/services/optimizer"
 	"fmt"
 	"hash"
 	"hash/fnv"
@@ -273,6 +274,23 @@ func (s *toolRecoveryState) shouldRecordResolution() bool {
 func (s *toolRecoveryState) updateToolErrorState(tc ToolCall, resultContent string, req *openai.ChatCompletionRequest, logger *slog.Logger, scope AgentTelemetryScope) bool {
 	hasSandboxFailure := containsSandboxFailure(resultContent)
 	isToolError := containsToolError(resultContent) || hasSandboxFailure
+
+	// Async trace logging for optimization
+	go func() {
+		errMsg := ""
+		if isToolError {
+			errMsg = extractErrorMessage(resultContent)
+			if len(errMsg) > 200 {
+				errMsg = errMsg[:200]
+			}
+		}
+
+		promptVer := "v1"
+
+		// In the context of the recovery state, we might not always have exec time, passing 0 for now.
+		optimizer.LogToolTrace(tc.Action, !isToolError, s.ConsecutiveErrorCount, promptVer, errMsg, 0)
+	}()
+
 	if isToolError {
 		if resultContent == s.LastToolError {
 			s.ConsecutiveErrorCount++

@@ -509,5 +509,11 @@
   "dashboard.knowledge_quality_empty_isolated": "No se detectaron nodos aislados.",
   "dashboard.knowledge_quality_empty_untyped": "Todos los nodos visibles tienen un tipo.",
   "dashboard.knowledge_quality_empty_duplicates": "No se detectaron etiquetas duplicadas.",
-  "dashboard.knowledge_quality_duplicate_count": "{count} nodos"
+  "dashboard.knowledge_quality_duplicate_count": "{count} nodos",
+  "dashboard.optimization_title": "Optimization",
+  "dashboard.opt_active_overrides": "Active Overrides",
+  "dashboard.opt_running_shadows": "Running Shadows",
+  "dashboard.opt_rejected_mutations": "Rejected Mutations",
+  "dashboard.opt_total_trace_events": "Total Trace Events",
+  "dashboard.opt_global_success_rate": "Global Success Rate"
 }

@@ -2,6 +2,7 @@ package prompts
 
 import (
 	"aurago/internal/memory"
+	"aurago/internal/services/optimizer"
 	promptsembed "aurago/prompts"
 	"fmt"
 	"io/fs"
@@ -49,6 +50,17 @@ func loadPromptModules(dir string, logger *slog.Logger) []PromptModule {
 	// Users may add or override any prompt by placing a same-named .md file in
 	// the on-disk promptsDir.  The disk copy always wins over the embedded copy.
 	moduleMap := make(map[string]PromptModule)
+
+	// 0. Seed from Optimizer DB overrides (highest system priority before files)
+	// We parse them so they have the proper metadata for version tracking.
+	overrides := optimizer.GetActivePromptOverrides()
+	for name, content := range overrides {
+		filename := name + ".md"
+		mod := parseOrFallback(filename, content, logger)
+		// Return the correct metadata so the shadow test can log the version
+		mod.Metadata.Version = "optim-db"
+		moduleMap[filename] = mod
+	}
 
 	// 1. Seed from embedded FS (system prompts — tamper-proof in the binary)
 	_ = fs.WalkDir(promptsembed.FS, ".", func(path string, d fs.DirEntry, err error) error {

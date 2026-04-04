@@ -509,5 +509,11 @@
   "dashboard.knowledge_quality_empty_isolated": "Nenhum nó isolado detectado.",
   "dashboard.knowledge_quality_empty_untyped": "Todos os nós visíveis têm um tipo.",
   "dashboard.knowledge_quality_empty_duplicates": "Nenhum rótulo duplicado detectado.",
-  "dashboard.knowledge_quality_duplicate_count": "{{count}} nós"
+  "dashboard.knowledge_quality_duplicate_count": "{{count}} nós",
+  "dashboard.optimization_title": "Optimization",
+  "dashboard.opt_active_overrides": "Active Overrides",
+  "dashboard.opt_running_shadows": "Running Shadows",
+  "dashboard.opt_rejected_mutations": "Rejected Mutations",
+  "dashboard.opt_total_trace_events": "Total Trace Events",
+  "dashboard.opt_global_success_rate": "Global Success Rate"
 }

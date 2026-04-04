@@ -135,14 +135,16 @@
         }
 
         async function loadTabOverview() {
-            const [system, budget, overview, credits] = await Promise.all([
+            const [system, budget, overview, credits, opt] = await Promise.all([
                 API.get('/api/dashboard/system'),
                 API.get('/api/budget'),
                 API.get('/api/dashboard/overview'),
                 API.get('/api/credits'),
+                API.get('/api/dashboard/optimization'),
             ]);
             renderAgentBanner(overview, overview?.context?.total_chars);
             renderQuickStatus(overview);
+            renderOptimizationStats(opt);
             if (system) {
                 if (!Charts.cpu) Charts.cpu = createGauge('cpu-chart', system.cpu?.usage_percent || 0);
                 updateGauge(Charts.cpu, 'cpu-val', system.cpu?.usage_percent || 0);
@@ -2881,6 +2883,41 @@
                     <div class="qs-label">${s.lbl}</div>
                     <div class="qs-val">${s.val}</div>
                     ${s.info ? `<div class="qs-info">${esc(s.info)}</div>` : ''}
+                </div>`
+            ).join('');
+        }
+
+        function renderOptimizationStats(opt) {
+            const el = document.getElementById('opt-grid');
+            if (!el || !opt) return;
+
+            const items = [
+                {
+                    lbl: t('dashboard.opt_active_overrides'),
+                    val: opt.active_overrides || 0
+                },
+                {
+                    lbl: t('dashboard.opt_running_shadows'),
+                    val: opt.running_shadows || 0
+                },
+                {
+                    lbl: t('dashboard.opt_rejected_mutations'),
+                    val: opt.rejected_mutations || 0
+                },
+                {
+                    lbl: t('dashboard.opt_total_trace_events'),
+                    val: opt.total_trace_events || 0
+                },
+                {
+                    lbl: t('dashboard.opt_global_success_rate'),
+                    val: `${opt.global_success_rate || 0}%`
+                }
+            ];
+
+            el.innerHTML = items.map(s =>
+                `<div class="stat-item">
+                    <div class="stat-value">${s.val}</div>
+                    <div class="stat-label">${s.lbl}</div>
                 </div>`
             ).join('');
         }

@@ -509,5 +509,11 @@
   "dashboard.knowledge_quality_empty_isolated": "孤立したノードは検出されていません。",
   "dashboard.knowledge_quality_empty_untyped": "すべての可視ノードに型があります。",
   "dashboard.knowledge_quality_empty_duplicates": "重複ラベルは検出されていません。",
-  "dashboard.knowledge_quality_duplicate_count": "{{count}}ノード"
+  "dashboard.knowledge_quality_duplicate_count": "{{count}}ノード",
+  "dashboard.optimization_title": "Optimization",
+  "dashboard.opt_active_overrides": "Active Overrides",
+  "dashboard.opt_running_shadows": "Running Shadows",
+  "dashboard.opt_rejected_mutations": "Rejected Mutations",
+  "dashboard.opt_total_trace_events": "Total Trace Events",
+  "dashboard.opt_global_success_rate": "Global Success Rate"
 }

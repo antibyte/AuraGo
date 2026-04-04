@@ -250,6 +250,7 @@ func DetermineTierAdaptive(flags ContextFlags) string {
 // PromptMetadata holds the tags and priority for a prompt module.
 type PromptMetadata struct {
 	ID         string                 `yaml:"id"`
+	Version    string                 `yaml:"version"`
 	Tags       []string               `yaml:"tags"`
 	Priority   int                    `yaml:"priority"`
 	Conditions []string               `yaml:"conditions"`

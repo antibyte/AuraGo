@@ -509,5 +509,11 @@
   "dashboard.knowledge_quality_empty_isolated": "Δεν ανιχνεύτηκαν απομονωμένοι κόμβοι.",
   "dashboard.knowledge_quality_empty_untyped": "Όλοι οι ορατοί κόμβοι έχουν τύπο.",
   "dashboard.knowledge_quality_empty_duplicates": "Δεν ανιχνεύτηκαν διπλότυπες ετικέτες.",
-  "dashboard.knowledge_quality_duplicate_count": "{count} Κόμβοι"
+  "dashboard.knowledge_quality_duplicate_count": "{count} Κόμβοι",
+  "dashboard.optimization_title": "Optimization",
+  "dashboard.opt_active_overrides": "Active Overrides",
+  "dashboard.opt_running_shadows": "Running Shadows",
+  "dashboard.opt_rejected_mutations": "Rejected Mutations",
+  "dashboard.opt_total_trace_events": "Total Trace Events",
+  "dashboard.opt_global_success_rate": "Global Success Rate"
 }
