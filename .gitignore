@@ -8,6 +8,8 @@
 /aurago.exe
 /tmp_aurago
 /tmp_aurago_*
+# Windows reserved device name (created as side-effect on some systems)
+/nul
 # bin/ — all binaries are distributed via GitHub Releases, not tracked in git
 /bin/
 METRICS_DASHBOARD_DATA_SOURCES.md
