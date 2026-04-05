@@ -12,9 +12,15 @@ var (
 	redactedPlaceholder  = "[redacted]"
 	sanitizedPlaceholder = "[sanitized]"
 
-	// Regex for common API keys and secrets
-	apiKeyRegex           = regexp.MustCompile(`(?i)(key|secret|password|token|auth|credential|api_key|master_key|bot_token)["']?\s*[:=]\s*["']?([A-Za-z0-9][A-Za-z0-9\-_:+=/]{7,})["']?`)
-	fragmentedSecretRegex = regexp.MustCompile(`(?i)\b(key|secret|password|token|auth|credential|api_key|master_key|bot_token)\b(["']?\s*[:=]\s*["']?)((?:[A-Za-z0-9][\s_:\-./+=]{0,3}){8,})["']?`)
+	// Regex for common API keys and secrets.
+	// \b word boundaries prevent matching keywords embedded inside longer identifiers
+	// (e.g. "auth" inside "auth_token", "key" inside "local_key_path").
+	apiKeyRegex = regexp.MustCompile(`(?i)\b(key|secret|password|token|auth|credential|api_key|master_key|bot_token)\b["']?\s*[:=]\s*["']?([A-Za-z0-9][A-Za-z0-9\-_:+=/]{7,})["']?`)
+	// fragmentedSecretRegex catches secrets obfuscated by inserting whitespace/punctuation
+	// between each character (e.g. "s k - 1 2 3 4 5 6 7 8").
+	// '/' and '.' are intentionally excluded from the separator class: they are path
+	// component separators and including them caused file-paths to be incorrectly redacted.
+	fragmentedSecretRegex = regexp.MustCompile(`(?i)\b(key|secret|password|token|auth|credential|api_key|master_key|bot_token)\b(["']?\s*[:=]\s*["']?)((?:[A-Za-z0-9][\s_:\-+=]{0,3}){8,})["']?`)
 	hexSecretRegex        = regexp.MustCompile(`(?i)\b(key|secret|password|token|auth|credential|api_key|master_key|bot_token)\b(["']?\s*[:=]\s*["']?)((?:[A-Fa-f0-9]{2}[\s:\-]?){6,})["']?`)
 	base64SecretRegex     = regexp.MustCompile(`(?i)\b(key|secret|password|token|auth|credential|api_key|master_key|bot_token)\b(["']?\s*[:=]\s*["']?)([A-Za-z0-9+/]{12,}={0,2})["']?`)
 
