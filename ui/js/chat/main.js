@@ -737,6 +737,18 @@ function appendMessage(role, text) {
                 });
 
                 finalHTML = sanitizeRenderedHTML(finalHTML);
+
+                // If the rendered content contains only thinking blocks with no visible
+                // text, add a subtle "done" indicator so the bubble is never blank.
+                if (thinkingBlocks.length > 0) {
+                    const visibleText = contentForRender
+                        .replace(/%%THINKING_BLOCK_\d+%%/g, '')
+                        .trim();
+                    if (!visibleText) {
+                        const doneLabel = (typeof t === 'function') ? t('chat.thinking_only_done') : 'Done.';
+                        finalHTML += `<p class="thinking-done-hint">${escapeHtml(doneLabel)}</p>`;
+                    }
+                }
             }
         } catch (e) {
             console.error("Markdown parsing failed:", e);

@@ -96,6 +96,7 @@
   "chat.more_actions_title": "Plus d actions",
   "chat.feedback_toggle_title": "Feedback",
   "chat.input_placeholder_mobile": "Saisir une tache...",
+  "chat.thinking_only_done": "Terminé.",
   "chat.thinking_label": "Raisonnement",
   "chat.speaker_on_title": "Haut-parleur activé – TTS en lecture automatique",
   "chat.speaker_off_title": "Haut-parleur désactivé – cliquez pour activer la lecture automatique"

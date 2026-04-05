@@ -96,6 +96,7 @@
   "chat.more_actions_title": "Flere handlinger",
   "chat.feedback_toggle_title": "Tilbakemelding",
   "chat.input_placeholder_mobile": "Skriv en oppgave...",
+  "chat.thinking_only_done": "Ferdig.",
   "chat.thinking_label": "Ressonement",
   "chat.speaker_on_title": "Høyttaler på – TTS spilles automatisk",
   "chat.speaker_off_title": "Høyttaler av – klikk for å aktivere automatisk avspilling"

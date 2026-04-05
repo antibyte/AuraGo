@@ -97,6 +97,7 @@
   "chat.feedback_toggle_title": "Feedback",
   "chat.input_placeholder_mobile": "Enter a task...",
   "chat.thinking_label": "Reasoning",
+  "chat.thinking_only_done": "Done.",
   "chat.speaker_on_title": "Speaker on – TTS auto-plays",
   "chat.speaker_off_title": "Speaker off – click to enable auto-play"
 }
