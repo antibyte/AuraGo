@@ -97,5 +97,7 @@
   "config.providers.input_label": "Inmatning",
   "config.providers.output_label": "Utmatning",
   "config.providers.tokens_suffix": "token",
-  "config.providers.meshcentral_test_title": "MeshCentral-anslutningstest"
+  "config.providers.meshcentral_test_title": "MeshCentral-anslutningstest",
+  "config.providers.copy_key_label": "Använd befintlig API-nyckel",
+  "config.providers.copy_key_none": "— Ange ny nyckel —"
 }

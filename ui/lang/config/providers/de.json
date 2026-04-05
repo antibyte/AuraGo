@@ -96,6 +96,6 @@
   "config.providers.context_label": "Kontext",
   "config.providers.input_label": "Eingabe",
   "config.providers.output_label": "Ausgabe",
-  "config.providers.tokens_suffix": "Tokens",
-  "config.providers.meshcentral_test_title": "MeshCentral-Test"
+  "config.providers.tokens_suffix": "Tokens",  "config.providers.copy_key_label": "Vorhandenen API-Key verwenden",
+  "config.providers.copy_key_none": "— Neuen Key eingeben —",  "config.providers.meshcentral_test_title": "MeshCentral-Test"
 }

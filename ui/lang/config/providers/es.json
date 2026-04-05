@@ -97,5 +97,7 @@
   "config.providers.input_label": "Entrada",
   "config.providers.output_label": "Salida",
   "config.providers.tokens_suffix": "tokens",
-  "config.providers.meshcentral_test_title": "Prueba de conexion de MeshCentral"
+  "config.providers.meshcentral_test_title": "Prueba de conexion de MeshCentral",
+  "config.providers.copy_key_label": "Usar clave API existente",
+  "config.providers.copy_key_none": "— Ingresar nueva clave —"
 }

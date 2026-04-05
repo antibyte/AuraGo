@@ -97,5 +97,7 @@
   "config.providers.input_label": "Input",
   "config.providers.output_label": "Output",
   "config.providers.tokens_suffix": "tokens",
+  "config.providers.copy_key_label": "Use existing API Key",
+  "config.providers.copy_key_none": "— Enter new key —",
   "config.providers.meshcentral_test_title": "MeshCentral Test"
 }

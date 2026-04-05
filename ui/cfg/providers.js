@@ -906,6 +906,12 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
 
                 <!-- API Key section (visible when auth_type = api_key) -->
                 <div id="prov-apikey-section" class="${isOAuth ? 'is-hidden' : ''}">
+                    <div class="field-group" id="prov-copykey-group">
+                        <div class="field-label">${t('config.providers.copy_key_label')}</div>
+                        <select class="field-select" id="prov-copy-key-from">
+                            <option value="">${t('config.providers.copy_key_none')}</option>
+                        </select>
+                    </div>
                     <div class="field-group">
                         <div class="field-label">API Key</div>
                         <div id="prov-key-hint" class="prov-field-hint">${PROVIDER_HINTS[data.type || 'openai'] ? t(PROVIDER_HINTS[data.type || 'openai']) : t(PROVIDER_HINTS.openai)}</div>
@@ -1032,7 +1038,66 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                 const isOA = authTypeSelect.value === 'oauth2';
                 setHidden(apikeySection, isOA);
                 setHidden(oauthSection, !isOA);
+                if (!isOA) rebuildCopyKeyDropdown();
             });
+
+            // ── Copy-key dropdown: rebuild on provider type change ──
+            // rebuildCopyKeyDropdown filters providersCache by same type as the
+            // currently selected provider type, excludes the provider being edited,
+            // and only shows entries that already have a key set (masked = "••••••••").
+            function rebuildCopyKeyDropdown() {
+                const copySelect = document.getElementById('prov-copy-key-from');
+                const keyInput = document.getElementById('prov-key');
+                if (!copySelect) return;
+                const selectedType = typeSelect ? typeSelect.value : (data.type || '');
+                const currentID = data._editMode ? data.id : null;
+                const matches = (providersCache || []).filter(p =>
+                    p.api_key === '••••••••' &&
+                    p.type === selectedType &&
+                    p.id !== currentID &&
+                    p.auth_type !== 'oauth2'
+                );
+                // Preserve current selection if still valid
+                const prevVal = copySelect.value;
+                copySelect.innerHTML = `<option value="">${t('config.providers.copy_key_none')}</option>`;
+                for (const p of matches) {
+                    const opt = document.createElement('option');
+                    opt.value = p.id;
+                    opt.textContent = `${p.name || p.id} (${p.id})`;
+                    if (p.id === prevVal) opt.selected = true;
+                    copySelect.appendChild(opt);
+                }
+                // Re-apply key field state based on restored selection
+                const hasSelection = copySelect.value !== '';
+                if (keyInput) {
+                    keyInput.disabled = hasSelection;
+                    if (!hasSelection) keyInput.placeholder = data.api_key === '••••••••' ? t('config.providers.key_placeholder_existing') : 'sk-...';
+                }
+            }
+
+            // Rebuild when provider type changes
+            if (typeSelect) {
+                typeSelect.addEventListener('change', rebuildCopyKeyDropdown);
+            }
+
+            // Copy-key selection → disable/enable key input
+            const copyKeySelect = document.getElementById('prov-copy-key-from');
+            if (copyKeySelect) {
+                copyKeySelect.addEventListener('change', () => {
+                    const keyInput = document.getElementById('prov-key');
+                    if (!keyInput) return;
+                    if (copyKeySelect.value) {
+                        keyInput.disabled = true;
+                        keyInput.value = '';
+                        keyInput.placeholder = t('config.providers.copy_key_none');
+                    } else {
+                        keyInput.disabled = false;
+                        keyInput.placeholder = data.api_key === '••••••••' ? t('config.providers.key_placeholder_existing') : 'sk-...';
+                    }
+                });
+                // Initial population
+                rebuildCopyKeyDropdown();
+            }
 
             // ── OAuth Authorize button ──
             const authBtn = document.getElementById('prov-oauth-authorize-btn');
@@ -1114,8 +1179,16 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                         return;
                     }
                 } else {
-                    let api_key = document.getElementById('prov-key').value.trim();
-                    if (!api_key && data.api_key === '••••••••') api_key = '••••••••';
+                    // Check if user selected "copy from existing provider"
+                    const copyFromSelect = document.getElementById('prov-copy-key-from');
+                    const copyFromId = copyFromSelect ? copyFromSelect.value : '';
+                    let api_key;
+                    if (copyFromId) {
+                        api_key = '__copy_from__' + copyFromId;
+                    } else {
+                        api_key = document.getElementById('prov-key').value.trim();
+                        if (!api_key && data.api_key === '••••••••') api_key = '••••••••';
+                    }
                     entry.api_key = api_key;
                     // Clear OAuth fields
                     entry.oauth_auth_url = '';

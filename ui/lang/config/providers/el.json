@@ -97,5 +97,7 @@
   "config.providers.input_label": "Είσοδος",
   "config.providers.output_label": "Έξοδος",
   "config.providers.tokens_suffix": "token",
-  "config.providers.meshcentral_test_title": "Δοκιμή σύνδεσης MeshCentral"
+  "config.providers.meshcentral_test_title": "Δοκιμή σύνδεσης MeshCentral",
+  "config.providers.copy_key_label": "Χρήση υπάρχοντος API Key",
+  "config.providers.copy_key_none": "— Εισαγωγή νέου κλειδιού —"
 }

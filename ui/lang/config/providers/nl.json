@@ -97,5 +97,7 @@
   "config.providers.input_label": "Invoer",
   "config.providers.output_label": "Uitvoer",
   "config.providers.tokens_suffix": "tokens",
-  "config.providers.meshcentral_test_title": "MeshCentral-verbindingstest"
+  "config.providers.meshcentral_test_title": "MeshCentral-verbindingstest",
+  "config.providers.copy_key_label": "Bestaande API-sleutel gebruiken",
+  "config.providers.copy_key_none": "— Nieuwe sleutel invoeren —"
 }

@@ -97,5 +97,7 @@
   "config.providers.input_label": "输入",
   "config.providers.output_label": "输出",
   "config.providers.tokens_suffix": "令牌",
-  "config.providers.meshcentral_test_title": "MeshCentral 连接测试"
+  "config.providers.meshcentral_test_title": "MeshCentral 连接测试",
+  "config.providers.copy_key_label": "使用现有 API 密钥",
+  "config.providers.copy_key_none": "— 输入新密钥 —"
 }

@@ -97,5 +97,7 @@
   "config.providers.input_label": "Inndata",
   "config.providers.output_label": "Utdata",
   "config.providers.tokens_suffix": "tokens",
-  "config.providers.meshcentral_test_title": "MeshCentral-tilkoblingstest"
+  "config.providers.meshcentral_test_title": "MeshCentral-tilkoblingstest",
+  "config.providers.copy_key_label": "Bruk eksisterende API-nøkkel",
+  "config.providers.copy_key_none": "— Skriv inn ny nøkkel —"
 }

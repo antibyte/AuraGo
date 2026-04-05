@@ -97,5 +97,7 @@
   "config.providers.input_label": "इनपुट",
   "config.providers.output_label": "आउटपुट",
   "config.providers.tokens_suffix": "टोकन",
-  "config.providers.meshcentral_test_title": "MeshCentral कनेक्शन परीक्षण"
+  "config.providers.meshcentral_test_title": "MeshCentral कनेक्शन परीक्षण",
+  "config.providers.copy_key_label": "मौजूदा API कुंजी उपयोग करें",
+  "config.providers.copy_key_none": "— नई कुंजी दर्ज करें —"
 }

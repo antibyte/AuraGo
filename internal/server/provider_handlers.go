@@ -34,6 +34,11 @@ type providerJSON struct {
 
 const maskedKey = "••••••••"
 
+// copyFromPrefix is a sentinel prefix sent by the UI when the user selects an
+// existing provider's key to copy.  Format: "__copy_from__<sourceProviderID>".
+// The prefix is resolved in the PUT handler and never persisted.
+const copyFromPrefix = "__copy_from__"
+
 // handleProviders dispatches GET / PUT for /api/providers.
 func handleProviders(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -137,6 +142,23 @@ func handlePutProviders(s *Server, w http.ResponseWriter, r *http.Request) {
 			// Unchanged — keep existing vault value
 			if old, ok := oldKeyMap[p.ID]; ok {
 				apiKey = old
+			}
+		} else if strings.HasPrefix(apiKey, copyFromPrefix) {
+			// User selected "copy from existing provider" in the UI.
+			sourceID := strings.TrimPrefix(apiKey, copyFromPrefix)
+			if s.Vault != nil {
+				copied, err := s.Vault.ReadSecret("provider_" + sourceID + "_api_key")
+				if err != nil || copied == "" {
+					s.Logger.Warn("[Providers] Copy-from source key not found in vault",
+						"source_id", sourceID, "target_id", p.ID)
+					apiKey = ""
+				} else {
+					s.Logger.Info("[Providers] Copied API key from source provider",
+						"source_id", sourceID, "target_id", p.ID)
+					apiKey = copied
+				}
+			} else {
+				apiKey = ""
 			}
 		}
 		if apiKey != "" && apiKey != maskedKey && s.Vault != nil {
