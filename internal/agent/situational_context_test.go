@@ -37,26 +37,26 @@ func TestGetInnerVoiceForPrompt_Decay(t *testing.T) {
 	resetInnerVoiceState()
 
 	// No thought yet — should be empty
-	if got := getInnerVoiceForPrompt(3); got != "" {
+	if got, _ := getInnerVoiceForPrompt(3); got != "" {
 		t.Fatalf("expected empty, got %q", got)
 	}
 
 	// Apply a thought
 	applyInnerVoiceResult("Be patient here", "patience")
-	if got := getInnerVoiceForPrompt(3); got != "Be patient here" {
-		t.Fatalf("expected thought, got %q", got)
+	if got, cat := getInnerVoiceForPrompt(3); got != "Be patient here" {
+		t.Fatalf("expected thought, got %q (category=%q)", got, cat)
 	}
 
 	// Tick 2 turns — still within decay window
 	tickInnerVoiceTurn()
 	tickInnerVoiceTurn()
-	if got := getInnerVoiceForPrompt(3); got != "Be patient here" {
+	if got, _ := getInnerVoiceForPrompt(3); got != "Be patient here" {
 		t.Fatalf("expected thought after 2 ticks, got %q", got)
 	}
 
 	// Tick 1 more — now at decay threshold (3 turns since)
 	tickInnerVoiceTurn()
-	if got := getInnerVoiceForPrompt(3); got != "" {
+	if got, _ := getInnerVoiceForPrompt(3); got != "" {
 		t.Fatalf("expected decayed/empty after 3 ticks, got %q", got)
 	}
 }
@@ -69,7 +69,7 @@ func TestGetInnerVoiceForPrompt_NoDecay(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		tickInnerVoiceTurn()
 	}
-	if got := getInnerVoiceForPrompt(0); got != "persistent thought" {
+	if got, _ := getInnerVoiceForPrompt(0); got != "persistent thought" {
 		t.Fatalf("expected persistent thought with decay=0, got %q", got)
 	}
 }
@@ -80,7 +80,7 @@ func TestResetInnerVoiceState(t *testing.T) {
 
 	resetInnerVoiceState()
 
-	if got := getInnerVoiceForPrompt(3); got != "" {
+	if got, _ := getInnerVoiceForPrompt(3); got != "" {
 		t.Fatalf("expected empty after reset, got %q", got)
 	}
 	if count := innerVoiceSessionCount.Load(); count != 0 {

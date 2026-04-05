@@ -57,21 +57,21 @@ func applyInnerVoiceResult(thought, category string) {
 	innerVoiceSessionCount.Add(1)
 }
 
-// getInnerVoiceForPrompt returns the current inner voice text if it hasn't decayed.
-// Returns empty string if decayed or not available.
-func getInnerVoiceForPrompt(decayTurns int) string {
+// getInnerVoiceForPrompt returns the current inner voice text and its nudge category
+// if it hasn't decayed. Returns empty strings if decayed or not available.
+func getInnerVoiceForPrompt(decayTurns int) (string, string) {
 	globalInnerVoiceState.mu.Lock()
 	defer globalInnerVoiceState.mu.Unlock()
 	if globalInnerVoiceState.currentThought == "" {
-		return ""
+		return "", ""
 	}
 	if decayTurns > 0 && globalInnerVoiceState.turnsSinceLast >= decayTurns {
 		// Decayed — clear stale thought
 		globalInnerVoiceState.currentThought = ""
 		globalInnerVoiceState.nudgeCategory = ""
-		return ""
+		return "", ""
 	}
-	return globalInnerVoiceState.currentThought
+	return globalInnerVoiceState.currentThought, globalInnerVoiceState.nudgeCategory
 }
 
 // shouldGenerateInnerVoice determines whether the inner voice system should trigger.
