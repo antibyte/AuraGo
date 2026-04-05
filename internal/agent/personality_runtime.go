@@ -204,7 +204,7 @@ func applyPersonalityV2AnalysisResult(
 		if err := stm.StoreInnerVoice(result.InnerThought, result.NudgeCategory); err != nil {
 			logger.Warn("[InnerVoice] Failed to store inner voice", "error", err)
 		}
-		logger.Debug("[InnerVoice] Inner voice generated", "category", result.NudgeCategory, "thought_len", len(result.InnerThought))
+		logger.Info("[InnerVoice] Inner voice generated", "category", result.NudgeCategory, "thought_len", len(result.InnerThought))
 	}
 
 	if emotionSynthesizer == nil {
@@ -355,7 +355,7 @@ func launchAsyncPersonalityV2Analysis(
 				InactivityHours: inactivityHours,
 			}
 			// Enrich with inner voice context only when rate/session/trigger gates pass
-			if shouldGenerateInnerVoice(cfg, consecutiveErrorCount, successCount, taskCompleted, isMission, isCoAgent) {
+			if shouldGenerateInnerVoice(cfg, consecutiveErrorCount, totalErrorCount, successCount, taskCompleted, isMission, isCoAgent) {
 				combinedInput.InnerVoiceEnabled = true
 				combinedInput.TaskStatus = deriveTaskStatus(consecutiveErrorCount, totalErrorCount, successCount)
 				// Lessons from error patterns

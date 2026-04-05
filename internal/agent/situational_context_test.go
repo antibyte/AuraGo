@@ -92,7 +92,7 @@ func TestShouldGenerateInnerVoice_Disabled(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Personality.InnerVoice.Enabled = false
 
-	if shouldGenerateInnerVoice(cfg, 5, 0, false, false, false) {
+	if shouldGenerateInnerVoice(cfg, 5, 0, 0, false, false, false) {
 		t.Fatal("should not generate when disabled")
 	}
 }
@@ -108,10 +108,10 @@ func TestShouldGenerateInnerVoice_SkipMissionAndCoAgent(t *testing.T) {
 
 	ResetInnerVoiceState()
 
-	if shouldGenerateInnerVoice(cfg, 5, 0, false, true, false) {
+	if shouldGenerateInnerVoice(cfg, 5, 0, 0, false, true, false) {
 		t.Fatal("should not generate for missions")
 	}
-	if shouldGenerateInnerVoice(cfg, 5, 0, false, false, true) {
+	if shouldGenerateInnerVoice(cfg, 5, 0, 0, false, false, true) {
 		t.Fatal("should not generate for co-agents")
 	}
 }
@@ -124,7 +124,7 @@ func TestShouldGenerateInnerVoice_RequiresEmotionSynthesizer(t *testing.T) {
 
 	ResetInnerVoiceState()
 
-	if shouldGenerateInnerVoice(cfg, 5, 0, false, false, false) {
+	if shouldGenerateInnerVoice(cfg, 5, 0, 0, false, false, false) {
 		t.Fatal("should not generate without emotion synthesizer")
 	}
 }
@@ -141,12 +141,12 @@ func TestShouldGenerateInnerVoice_ErrorStreak(t *testing.T) {
 	ResetInnerVoiceState()
 
 	// Below threshold — no trigger
-	if shouldGenerateInnerVoice(cfg, 1, 0, false, false, false) {
-		t.Fatal("should not trigger with only 1 error")
+	if shouldGenerateInnerVoice(cfg, 1, 1, 0, false, false, false) {
+		t.Fatal("should not trigger with only 1 consecutive error")
 	}
 
 	// At threshold — trigger
-	if !shouldGenerateInnerVoice(cfg, 2, 0, false, false, false) {
+	if !shouldGenerateInnerVoice(cfg, 2, 2, 0, false, false, false) {
 		t.Fatal("should trigger with error streak >= 2")
 	}
 }
@@ -162,14 +162,14 @@ func TestShouldGenerateInnerVoice_RecoveryTrigger(t *testing.T) {
 
 	ResetInnerVoiceState()
 
-	// Task completed after errors — recovery trigger
-	if !shouldGenerateInnerVoice(cfg, 1, 3, true, false, false) {
+	// Task completed after errors — recovery trigger (consecutiveErrors=0 = recovered, totalErrors=5)
+	if !shouldGenerateInnerVoice(cfg, 0, 5, 3, true, false, false) {
 		t.Fatal("should trigger on task completion after errors")
 	}
 
-	// Task completed without prior errors — no trigger
-	if shouldGenerateInnerVoice(cfg, 0, 3, true, false, false) {
-		t.Fatal("should not trigger on clean task completion")
+	// Task completed without any prior errors — no trigger
+	if shouldGenerateInnerVoice(cfg, 0, 0, 3, true, false, false) {
+		t.Fatal("should not trigger on clean task completion (no prior errors)")
 	}
 }
 
@@ -188,7 +188,7 @@ func TestShouldGenerateInnerVoice_SessionCap(t *testing.T) {
 	applyInnerVoiceResult("first", "a")
 	applyInnerVoiceResult("second", "b")
 
-	if shouldGenerateInnerVoice(cfg, 5, 0, false, false, false) {
+	if shouldGenerateInnerVoice(cfg, 5, 0, 0, false, false, false) {
 		t.Fatal("should not generate past session cap")
 	}
 }

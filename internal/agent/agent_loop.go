@@ -2287,18 +2287,23 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				contextHistory, userHistory := buildPersonalityHistories(req.Messages, "Assistant Response", content)
 				_, previousEmotion := resolveHelperEmotionBatchState(cfg, emotionSynthesizer)
 				traits, _ := shortTermMem.GetTraits()
+				batchSuccessCount := toolCallCount - recoveryState.ConsecutiveErrorCount
+				batchTaskCompleted := recoveryState.ConsecutiveErrorCount == 0 && batchSuccessCount > 0
+				batchIVEnabled := shouldGenerateInnerVoice(cfg, recoveryState.ConsecutiveErrorCount, recoveryState.TotalErrorCount, batchSuccessCount, batchTaskCompleted, flags.IsMission, flags.IsCoAgent)
 				turnPersonalityInput = &helperTurnPersonalityInput{
-					RecentHistory:   contextHistory,
-					UserOnlyHistory: userHistory,
-					Language:        cfg.Agent.SystemLanguage,
-					Traits:          traits,
-					PreviousEmotion: previousEmotion,
-					TriggerInfo:     moodTrigger(),
-					TriggerType:     userEmotionTrigger,
-					TriggerDetail:   userEmotionTriggerDetail,
-					InactivityHours: userInactivityHours,
-					ErrorCount:      recoveryState.ConsecutiveErrorCount,
-					SuccessCount:    toolCallCount - recoveryState.ConsecutiveErrorCount,
+					RecentHistory:      contextHistory,
+					UserOnlyHistory:    userHistory,
+					Language:           cfg.Agent.SystemLanguage,
+					Traits:             traits,
+					PreviousEmotion:    previousEmotion,
+					TriggerInfo:        moodTrigger(),
+					TriggerType:        userEmotionTrigger,
+					TriggerDetail:      userEmotionTriggerDetail,
+					InactivityHours:    userInactivityHours,
+					ErrorCount:         recoveryState.ConsecutiveErrorCount,
+					SuccessCount:       batchSuccessCount,
+					InnerVoiceEnabled:  batchIVEnabled,
+					InnerVoiceLanguage: cfg.Agent.SystemLanguage,
 				}
 			}
 			go func(userMsg, aResp, sid string, toolNames, toolSummaries []string, personalityInput *helperTurnPersonalityInput, recentMsgs []openai.ChatCompletionMessage) {

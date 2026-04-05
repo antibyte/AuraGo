@@ -286,17 +286,19 @@ type helperTurnBatchResult struct {
 }
 
 type helperTurnPersonalityInput struct {
-	RecentHistory   string
-	UserOnlyHistory string
-	Language        string
-	Traits          memory.PersonalityTraits
-	PreviousEmotion *memory.EmotionState
-	TriggerInfo     string
-	TriggerType     memory.EmotionTriggerType
-	TriggerDetail   string
-	InactivityHours float64
-	ErrorCount      int
-	SuccessCount    int
+	RecentHistory      string
+	UserOnlyHistory    string
+	Language           string
+	Traits             memory.PersonalityTraits
+	PreviousEmotion    *memory.EmotionState
+	TriggerInfo        string
+	TriggerType        memory.EmotionTriggerType
+	TriggerDetail      string
+	InactivityHours    float64
+	ErrorCount         int
+	SuccessCount       int
+	InnerVoiceEnabled  bool   // when true, ask LLM to include inner_voice block
+	InnerVoiceLanguage string // language for inner voice thought
 }
 
 type helperTurnMoodAnalysis struct {
@@ -779,6 +781,16 @@ func buildHelperTurnPersonalitySection(input *helperTurnPersonalityInput) string
 	b.WriteString("Write emotion description and cause in: ")
 	b.WriteString(language)
 	b.WriteString("\n")
+	if input.InnerVoiceEnabled {
+		ivLang := strings.TrimSpace(input.InnerVoiceLanguage)
+		if ivLang == "" {
+			ivLang = language
+		}
+		b.WriteString("\nINNER VOICE REQUESTED: Add an \"inner_voice\" key inside \"personality_analysis\" with this structure:\n")
+		b.WriteString(`{"inner_thought": "1-3 first-person sentences, e.g. I feel...", "nudge_category": "one of: reflection|patience|focus|creativity|caution|recovery", "confidence": 0.8}`)
+		b.WriteString("\nWrite inner_thought in: " + ivLang + "\n")
+		b.WriteString("Write as the agent's inner subconscious voice — genuine, subtle, not commanding.\n")
+	}
 	return strings.TrimSpace(b.String())
 }
 

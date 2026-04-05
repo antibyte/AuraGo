@@ -79,7 +79,8 @@ func getInnerVoiceForPrompt(decayTurns int) (string, string) {
 // It evaluates rate limits, session caps, and situational triggers.
 func shouldGenerateInnerVoice(
 	cfg *config.Config,
-	errorCount int,
+	consecutiveErrors int,
+	totalErrors int,
 	successCount int,
 	taskCompleted bool,
 	isMission bool,
@@ -112,12 +113,13 @@ func shouldGenerateInnerVoice(
 	}
 
 	// Trigger: error streak
-	if errorCount >= cfg.Personality.InnerVoice.ErrorStreakMin {
+	if consecutiveErrors >= cfg.Personality.InnerVoice.ErrorStreakMin {
 		return true
 	}
 
-	// Trigger: task completed (success after errors — recovery)
-	if taskCompleted && errorCount > 0 {
+	// Trigger: task completed after errors (recovery) — consecutiveErrors is 0 when recovered,
+	// so use totalErrors to check whether any errors occurred this session.
+	if taskCompleted && totalErrors > 0 {
 		return true
 	}
 
