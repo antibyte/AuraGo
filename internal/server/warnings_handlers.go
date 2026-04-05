@@ -15,7 +15,7 @@ func handleWarnings(s *Server) http.HandlerFunc {
 		}
 
 		if s.WarningsRegistry == nil {
-			writeJSON(w, http.StatusOK, map[string]interface{}{
+			writeJSON(w, map[string]interface{}{
 				"warnings":       []interface{}{},
 				"total":          0,
 				"unacknowledged": 0,
@@ -26,7 +26,7 @@ func handleWarnings(s *Server) http.HandlerFunc {
 		all := s.WarningsRegistry.Warnings()
 		total, unack := s.WarningsRegistry.Count()
 
-		writeJSON(w, http.StatusOK, map[string]interface{}{
+		writeJSON(w, map[string]interface{}{
 			"warnings":       all,
 			"total":          total,
 			"unacknowledged": unack,
@@ -44,7 +44,7 @@ func handleWarningsAcknowledge(s *Server) http.HandlerFunc {
 		}
 
 		if s.WarningsRegistry == nil {
-			writeJSON(w, http.StatusOK, map[string]interface{}{"ok": true})
+			writeJSON(w, map[string]interface{}{"ok": true})
 			return
 		}
 
@@ -61,7 +61,7 @@ func handleWarningsAcknowledge(s *Server) http.HandlerFunc {
 			s.WarningsRegistry.AcknowledgeAll()
 		} else if req.ID != "" {
 			if !s.WarningsRegistry.Acknowledge(req.ID) {
-				writeJSON(w, http.StatusNotFound, map[string]interface{}{"error": "warning not found"})
+				jsonError(w, "warning not found", http.StatusNotFound)
 				return
 			}
 		} else {
@@ -78,6 +78,6 @@ func handleWarningsAcknowledge(s *Server) http.HandlerFunc {
 			})
 		}
 
-		writeJSON(w, http.StatusOK, map[string]interface{}{"ok": true})
+		writeJSON(w, map[string]interface{}{"ok": true})
 	}
 }
