@@ -147,11 +147,10 @@ async function loadProfiles() {
 function getFeatureBadges(features) {
     if (!features) return '';
     const map = [
-        ['vision',    'setup.feature_vision',    '👁'],
-        ['tts',       'setup.feature_tts',       '🔊'],
-        ['images',    'setup.feature_images',    '🎨'],
-        ['music',     'setup.feature_music',     '🎵'],
-        ['websearch', 'setup.feature_websearch', '🔍'],
+        ['vision',           'setup.feature_vision',  '👁'],
+        ['tts',              'setup.feature_tts',     '🔊'],
+        ['image_generation', 'setup.feature_images',  '🎨'],
+        ['music_generation', 'setup.feature_music',   '🎵'],
     ];
     return map.map(([key, i18nKey, icon]) => {
         const active = !!features[key];
@@ -274,9 +273,22 @@ function onQuickLanguageChange() {
     const sel = document.getElementById('quick-language');
     if (!sel) return;
     fetchAndApplyLang(sel.value);
-    // Mirror to main language selector so buildConfigPatch() stays in sync
+    // Mirror to other language selectors so all flows stay in sync
     const mainSel = document.getElementById('system-language');
     if (mainSel) mainSel.value = sel.value;
+    const planSel = document.getElementById('plan-language');
+    if (planSel) planSel.value = sel.value;
+}
+
+function onPlanLanguageChange() {
+    const sel = document.getElementById('plan-language');
+    if (!sel) return;
+    fetchAndApplyLang(sel.value);
+    // Mirror to other language selectors so all flows stay in sync
+    const mainSel = document.getElementById('system-language');
+    if (mainSel) mainSel.value = sel.value;
+    const quickSel = document.getElementById('quick-language');
+    if (quickSel) quickSel.value = sel.value;
 }
 
 // ── Quick Flow Validation ────────────────────
@@ -350,10 +362,16 @@ function buildQuickConfigPatch() {
     const trustRadio = document.querySelector('input[name="trust-level"]:checked');
     const trustLevel = trustRadio ? parseInt(trustRadio.value, 10) : (p.default_trust_level || 1);
 
+    const langMap = {de:'Deutsch',en:'English',es:'Español',fr:'Français',pl:'Polski',zh:'中文',hi:'हिन्दी',nl:'Nederlands',it:'Italiano',pt:'Português',da:'Dansk',ja:'日本語',sv:'Svenska',no:'Norsk',el:'Ελληνικά',cs:'Čeština'};
     const patch = {
-        system_language: lang,
-        ...(adminPassword ? { admin_password: adminPassword } : {}),
+        auth: {
+            enabled: true,
+            ...(adminPassword ? { admin_password: adminPassword } : {}),
+        },
         providers,
+        agent: {
+            system_language: langMap[lang] || lang,
+        },
         llm: {
             provider: 'main',
             use_native_functions: p.native_function_calling !== false,
@@ -1299,6 +1317,8 @@ function showToast(message, type = 'info') {
     if (sel) sel.value = detected;
     const quickSel = document.getElementById('quick-language');
     if (quickSel) quickSel.value = detected;
+    const planSel = document.getElementById('plan-language');
+    if (planSel) planSel.value = detected;
 })();
 
 // ── i18n: populate text ──

@@ -21,7 +21,7 @@ profiles:
     key_placeholder: "sk-or-v1-..."
     provider_type: openrouter
     base_url: "https://openrouter.ai/api/v1"
-    main_model: "google/gemini-2.5-flash"
+    main_model: "google/gemini-3.1-flash-lite" # Bestes neues, sehr günstiges Modell mit starker Logik
     native_function_calling: true
     default_trust_level: 3
     features:
@@ -35,18 +35,18 @@ profiles:
       video_generation: false
     models:
       vision:
-        model: "google/gemini-2.5-flash"
+        model: "google/gemini-3.1-flash-lite"
       whisper:
-        model: "google/gemini-2.5-flash-lite-preview-06-2025"
+        model: "google/gemini-3.1-flash-lite"
         mode: "multimodal"
       embeddings:
-        model: "qwen/qwen3-embedding-8b"
+        model: "nomic-ai/nomic-embed-text-v1.5" # Sehr performant und preiswert auf OpenRouter
       helper:
-        model: "google/gemini-2.5-flash-lite-preview-06-2025"
+        model: "deepseek/deepseek-chat" # Extrem günstig (DeepSeek V3/R1 Architektur) und rasant als Helper
 
   - id: minimax_coding
     name: "MiniMax Coding Plan"
-    description: "MiniMax coding-optimized models with image and music generation. Best value for creative + code workflows."
+    description: "MiniMax M2.5 coding-optimized models. Best value for creative + agentic code workflows."
     icon: "💻"
     sort_order: 2
     pricing_label: "Coding plan – included models"
@@ -55,7 +55,7 @@ profiles:
     key_placeholder: "mm-..."
     provider_type: openai
     base_url: "https://api.minimaxi.com/v1"
-    main_model: "MiniMax-M1"
+    main_model: "MiniMax-M2.5" # 2026 SOTA Agentic Model von MiniMax
     native_function_calling: true
     default_trust_level: 3
     features:
@@ -69,14 +69,14 @@ profiles:
       video_generation: false
     models:
       vision:
-        model: "MiniMax-VL-01"
+        model: "MiniMax-M2.5"
       whisper:
-        model: "MiniMax-M1"
+        model: "MiniMax-M2.5"
         mode: "multimodal"
       embeddings:
         model: "minimax-embedding"
       helper:
-        model: "MiniMax-M1"
+        model: "MiniMax-M2.1" # Schnellerer, ressourcenschonender Helper der Vorgängergeneration
       image_generation:
         model: "image-01"
       music_generation:
@@ -89,7 +89,7 @@ profiles:
 
   - id: alibaba_coding
     name: "Alibaba Coding Plan"
-    description: "Alibaba Qwen models with coding optimizations. Strong multilingual support."
+    description: "Alibaba Qwen-Max models with coding optimizations. Strong multi-step reasoning."
     icon: "🛒"
     sort_order: 3
     pricing_label: "Coding plan – included models"
@@ -97,8 +97,8 @@ profiles:
     key_url: "https://dashscope.console.aliyun.com"
     key_placeholder: "sk-..."
     provider_type: openai
-    base_url: "https://dashscope.aliyuncs.com/compatible-mode/v1"
-    main_model: "qwen3-235b-a22b"
+    base_url: "https://dashscope-intl.aliyuncs.com/compatible-mode/v1" # Korrigierter OpenAI-kompatibler Endpunkt
+    main_model: "qwen-max" # Aktuelles Flaggschiff der Qwen 3 Serie
     native_function_calling: true
     default_trust_level: 3
     features:
@@ -112,18 +112,18 @@ profiles:
       video_generation: false
     models:
       vision:
-        model: "qwen2.5-vl-72b-instruct"
+        model: "qwen-vl-max"
       whisper:
-        model: "qwen2-audio-instruct"
+        model: "qwen-audio-turbo"
         mode: "multimodal"
       embeddings:
         model: "text-embedding-v3"
       helper:
-        model: "qwen3-30b-a3b"
+        model: "qwen-plus" # Ideale Balance aus Speed und Performance für Helper-Tasks
 
   - id: zai_glm_coding
     name: "Z AI GLM Coding Plan"
-    description: "Zhipu AI GLM models. Excellent Chinese and English support with strong coding."
+    description: "Zhipu AI GLM models. Excellent Chinese and English support with stable multi-step reasoning."
     icon: "🧠"
     sort_order: 4
     pricing_label: "Coding plan – included models"
@@ -132,7 +132,7 @@ profiles:
     key_placeholder: "gl-..."
     provider_type: openai
     base_url: "https://open.bigmodel.cn/api/paas/v4"
-    main_model: "glm-4-plus"
+    main_model: "glm-4.7" # Neues GLM Modell
     native_function_calling: true
     default_trust_level: 3
     features:
@@ -153,11 +153,11 @@ profiles:
       embeddings:
         model: "embedding-3"
       helper:
-        model: "glm-4-flash"
+        model: "glm-4.5-air" # Sehr schnelles und günstiges MoE Modell
 
   - id: kimi_code
     name: "Kimi Code"
-    description: "Moonshot AI Kimi models. Strong coding and long-context capabilities."
+    description: "Moonshot AI Kimi models. Strong coding and extreme long-context capabilities."
     icon: "🌙"
     sort_order: 5
     pricing_label: "Pay-per-use"
@@ -166,7 +166,7 @@ profiles:
     key_placeholder: "sk-..."
     provider_type: openai
     base_url: "https://api.moonshot.cn/v1"
-    main_model: "kimi-k2-0711"
+    main_model: "kimi-k2" # Aktuelle K2 Architektur
     native_function_calling: true
     default_trust_level: 3
     features:
@@ -182,9 +182,9 @@ profiles:
       vision:
         model: "kimi-vl-a3b-thinking"
       embeddings:
-        model: "text-embedding-v3"
+        model: "moonshot-v1-embedding"
       helper:
-        model: "kimi-k2-0711"
+        model: "moonshot-v1-32k" # Klassisches, extrem schnelles Kimi Modell für kleine Agenten-Schritte
 
   # Custom = existing manual setup flow (no auto-config)
   - id: custom

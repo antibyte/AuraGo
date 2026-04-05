@@ -968,6 +968,32 @@
     animation: shake 0.4s ease;
 }
 
+/* ── Plan-Select: Language bar ───────────── */
+.plan-language-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+    padding: 0.6rem 1rem;
+    background: var(--bg-glass);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+}
+.plan-lang-icon {
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+.plan-lang-label {
+    font-size: 0.88rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.plan-lang-select {
+    flex: 0 1 180px;
+    font-size: 0.88rem;
+}
+
 .profile-grid-loading {
     grid-column: 1 / -1;
     text-align: center;

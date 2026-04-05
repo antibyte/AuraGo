@@ -188,9 +188,6 @@ func installService(exePath, installDir string, logger *slog.Logger) error {
 // ── Linux: systemd ──────────────────────────────────────────────────────
 
 func installSystemd(exePath, installDir string, logger *slog.Logger) error {
-	// Read the master key from .env
-	masterKey := readEnvKey(filepath.Join(installDir, ".env"), "AURAGO_MASTER_KEY")
-
 	// Determine the actual user (fallback from sudo if applicable)
 	user := os.Getenv("SUDO_USER")
 	if user == "" {
@@ -214,11 +211,10 @@ ExecStart=%s
 Restart=on-failure
 RestartSec=10
 EnvironmentFile=-%s/.env
-Environment="AURAGO_MASTER_KEY=%s"
 
 [Install]
 WantedBy=multi-user.target
-`, user, user, installDir, exePath, installDir, masterKey)
+`, user, user, installDir, exePath, installDir)
 
 	unitPath := "/etc/systemd/system/aurago.service"
 	if err := os.WriteFile(unitPath, []byte(unit), 0600); err != nil {
@@ -276,7 +272,7 @@ func installLaunchd(exePath, installDir string, logger *slog.Logger) error {
 	os.MkdirAll(plistDir, 0755)
 	plistPath := filepath.Join(plistDir, "com.aurago.agent.plist")
 
-	if err := os.WriteFile(plistPath, []byte(plist), 0644); err != nil {
+	if err := os.WriteFile(plistPath, []byte(plist), 0600); err != nil {
 		return fmt.Errorf("failed to write launchd plist: %w", err)
 	}
 
@@ -332,7 +328,8 @@ func readEnvKey(envPath, key string) string {
 	for _, line := range strings.Split(string(data), "\n") {
 		line = strings.TrimSpace(line)
 		if strings.HasPrefix(line, key+"=") {
-			return strings.TrimPrefix(line, key+"=")
+			val := strings.TrimPrefix(line, key+"=")
+			return strings.Trim(val, `"'`)
 		}
 	}
 	return ""

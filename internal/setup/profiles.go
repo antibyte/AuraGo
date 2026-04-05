@@ -112,14 +112,19 @@ func parseProfiles(data []byte) ([]SetupProfile, error) {
 	}
 
 	var valid []SetupProfile
+	seen := make(map[string]bool)
 	for _, p := range pf.Profiles {
 		if p.ID == "" || p.Name == "" {
+			continue
+		}
+		if seen[p.ID] {
 			continue
 		}
 		// "custom" profile doesn't need provider/base_url/model
 		if p.ID != "custom" && (p.ProviderType == "" || p.BaseURL == "" || p.MainModel == "") {
 			continue
 		}
+		seen[p.ID] = true
 		valid = append(valid, p)
 	}
 
