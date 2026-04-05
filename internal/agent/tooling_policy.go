@@ -84,6 +84,7 @@ func resolveModelCapabilities(cfg *config.Config) ModelCapabilities {
 	isOllama := lowerProvider == "ollama"
 	isDeepSeek := strings.Contains(lowerModel, "deepseek")
 	isAnthropic := lowerProvider == "anthropic" || strings.Contains(lowerModel, "claude")
+	isNemotron := strings.Contains(lowerModel, "nemotron")
 
 	return ModelCapabilities{
 		ProviderType:              providerType,
@@ -92,7 +93,7 @@ func resolveModelCapabilities(cfg *config.Config) ModelCapabilities {
 		IsDeepSeek:                isDeepSeek,
 		IsAnthropic:               isAnthropic,
 		AutoEnableNativeFunctions: isDeepSeek || isAnthropic,
-		SupportsStructuredOutputs: !isOllama,
+		SupportsStructuredOutputs: !isOllama && !isNemotron,
 		SupportsParallelToolCalls: !isOllama,
 	}
 }
