@@ -2,6 +2,7 @@ package agent
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/sashabaranov/go-openai"
@@ -69,6 +70,71 @@ func TestParseToolResponseStripsReasoningTagsBeforeFallbackParsing(t *testing.T)
 	}
 	if parsed.SanitizedContent == parsed.Content {
 		t.Fatal("expected sanitized content to differ after stripping reasoning tags")
+	}
+}
+
+func TestParseToolResponseDetectsDoneTag(t *testing.T) {
+	resp := openai.ChatCompletionResponse{
+		Choices: []openai.ChatCompletionChoice{{
+			Message: openai.ChatCompletionMessage{
+				Content: "Die Demo läuft jetzt lokal auf http://192.168.6.238:8080 — viel Spaß! <done/>",
+			},
+		}},
+	}
+
+	parsed := parseToolResponse(resp, nil, AgentTelemetryScope{})
+
+	if !parsed.IsFinished {
+		t.Fatal("expected IsFinished=true when <done/> tag is present")
+	}
+	if parsed.ToolCall.IsTool {
+		t.Fatal("did not expect a tool call from a completion message")
+	}
+	if strings.Contains(parsed.SanitizedContent, "<done/>") {
+		t.Fatal("expected <done/> tag to be stripped from SanitizedContent")
+	}
+	if strings.Contains(parsed.SanitizedContent, "viel Spaß") == false {
+		t.Fatal("expected actual message text to be preserved after stripping <done/>")
+	}
+}
+
+func TestParseToolResponseNoTagIsNotFinished(t *testing.T) {
+	resp := openai.ChatCompletionResponse{
+		Choices: []openai.ChatCompletionChoice{{
+			Message: openai.ChatCompletionMessage{
+				Content: "Ich prüfe jetzt die Konfiguration.",
+			},
+		}},
+	}
+
+	parsed := parseToolResponse(resp, nil, AgentTelemetryScope{})
+
+	if parsed.IsFinished {
+		t.Fatal("expected IsFinished=false when <done/> tag is absent")
+	}
+}
+
+func TestParseToolResponseDoneTagStrippedFromSanitized(t *testing.T) {
+	resp := openai.ChatCompletionResponse{
+		Choices: []openai.ChatCompletionChoice{{
+			Message: openai.ChatCompletionMessage{
+				// done tag embedded mid-sentence and at end
+				Content: "Fertig! Die Dateien sind gespeichert. <done/>",
+			},
+		}},
+	}
+
+	parsed := parseToolResponse(resp, nil, AgentTelemetryScope{})
+
+	if !parsed.IsFinished {
+		t.Fatal("expected IsFinished=true")
+	}
+	if strings.Contains(parsed.SanitizedContent, "<done/>") {
+		t.Fatalf("tag not stripped, SanitizedContent: %q", parsed.SanitizedContent)
+	}
+	// Raw Content must still carry the original (for history persistence)
+	if !strings.Contains(parsed.Content, "<done/>") {
+		t.Fatal("expected raw Content to still contain the original tag (not stripped)")
 	}
 }
 

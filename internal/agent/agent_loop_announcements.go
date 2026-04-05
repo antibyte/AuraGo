@@ -89,7 +89,7 @@ func isAnnouncementOnlyResponse(content string, tc ToolCall, useNativePath, last
 
 	containsAnnouncementPhrase := containsAnySubstring(leadIn, announcementPhrases)
 	containsForwardCue := containsAnySubstring(leadIn, postToolForwardCues) || containsAnySubstring(leadIn, genericForwardCues)
-	containsActionCue := containsAnySubstring(leadIn, postToolActionCues)
+	containsActionCue := containsAnyWordPhrase(leadIn, postToolActionCues)
 	hasPlanStructure := looksLikePlanStructure(trimmedContent, leadIn)
 	hasActionIntent := containsActionIntent(leadIn)
 	hasCompletionEvidence := containsCompletionEvidence(lc)
@@ -103,14 +103,25 @@ func isAnnouncementOnlyResponse(content string, tc ToolCall, useNativePath, last
 	}
 
 	if !lastResponseWasTool {
+		// Also exempt completion summaries in the pre-tool path to avoid false
+		// positives when the agent responds to a stall-guard or follow-up prompt
+		// after finishing all work (lastResponseWasTool is false because the stall
+		// guard injected a fake user message). Only an explicit forward cue AND an
+		// action cue together can override this (mixed completion+next-action case).
+		// A URL or "jetzt" (current state) alone must NOT suppress completion evidence.
+		if hasCompletionEvidence && !(hasActionIntent && containsForwardCue && containsActionCue) {
+			return false
+		}
 		return containsAnnouncementPhrase || (hasActionIntent && (containsForwardCue || containsActionCue || hasPlanStructure))
 	}
 
 	// Post-tool path: if completion evidence is present, only override it when
-	// there are EXPLICIT forward cues ("next", "jetzt") combined with action cues
-	// ("let me", "ich werde"). Plan structure alone (numbered lists in summaries)
-	// must NOT override completion evidence — that caused false-positive loops.
-	if hasCompletionEvidence && !(hasActionIntent && (containsForwardCue || containsActionCue)) {
+	// there are BOTH an explicit forward cue ("next", "als nächstes") AND an
+	// action cue ("let me", "ich werde"). Requiring both prevents false positives
+	// where a completion URL + "jetzt" (current state) suppresses the exemption:
+	//   "Fertig! läuft jetzt lokal auf http://..."  ← must NOT trigger
+	//   "Done! Now I will deploy to Netlify."        ← must still trigger
+	if hasCompletionEvidence && !(hasActionIntent && containsForwardCue && containsActionCue) {
 		return false
 	}
 
@@ -122,6 +133,31 @@ func containsAnySubstring(s string, needles []string) bool {
 		if needle != "" && strings.Contains(s, needle) {
 			return true
 		}
+	}
+	return false
+}
+
+// containsAnyWordPhrase checks whether any of the needles appears in s with a
+// word-start boundary: the character immediately before the match must not be an
+// ASCII letter.  This prevents cross-word false positives like "ich deploye"
+// matching inside "erfolgreich deployed".
+func containsAnyWordPhrase(s string, needles []string) bool {
+	for _, needle := range needles {
+		if needle == "" {
+			continue
+		}
+		idx := strings.Index(s, needle)
+		if idx < 0 {
+			continue
+		}
+		// Require that the byte before the match is not an ASCII letter.
+		if idx > 0 {
+			b := s[idx-1]
+			if (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') {
+				continue
+			}
+		}
+		return true
 	}
 	return false
 }

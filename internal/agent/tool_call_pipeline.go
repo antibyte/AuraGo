@@ -22,6 +22,7 @@ const (
 type ParsedToolResponse struct {
 	Content            string
 	SanitizedContent   string
+	IsFinished         bool
 	ToolCall           ToolCall
 	PendingToolCalls   []ToolCall
 	UseNativePath      bool
@@ -39,7 +40,14 @@ func parseToolResponse(resp openai.ChatCompletionResponse, logger *slog.Logger, 
 
 	msg := resp.Choices[0].Message
 	result.Content = msg.Content
-	result.SanitizedContent = strings.TrimSpace(security.StripThinkingTags(msg.Content))
+	sanitized := strings.TrimSpace(security.StripThinkingTags(msg.Content))
+	// Detect explicit completion signal from LLM. Strip the tag so it is never
+	// shown to the user or passed to the announcement detector as text.
+	if strings.Contains(sanitized, "<done/>") {
+		result.IsFinished = true
+		sanitized = strings.TrimSpace(strings.ReplaceAll(sanitized, "<done/>", ""))
+	}
+	result.SanitizedContent = sanitized
 	result.NativeAssistantMsg = msg
 
 	if len(msg.ToolCalls) > 0 {

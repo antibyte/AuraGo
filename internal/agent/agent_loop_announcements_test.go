@@ -80,3 +80,43 @@ func TestIsAnnouncementOnlyResponseMixedCompletionAndNextActionStillTriggers(t *
 		t.Fatal("expected unfinished next action to trigger recovery even with completion evidence present")
 	}
 }
+
+func TestIsAnnouncementOnlyResponseStallGuardCompletionSummaryDoesNotTrigger(t *testing.T) {
+	tc := ToolCall{}
+	// Simulates agent giving a completion summary after a STALL GUARD fake user message
+	// (lastResponseWasTool=false because STALL GUARD injected a user turn, not a tool result).
+	// The bullet list + "deployed" used to trigger hasPlanStructure+hasActionIntent → false positive loop.
+	content := "✅ TASK COMPLETE — Die psychedelische Tunnel-Version ist erfolgreich deployed:\n- ✅ Sound-System aktiv\n- ✅ Tunnel-Effekt aktiv"
+	if isAnnouncementOnlyResponse(content, tc, false, false, "Bitte bestätige ob alles fertig ist") {
+		t.Fatal("did not expect completion summary in pre-tool path to trigger recovery (stall-guard scenario)")
+	}
+}
+
+func TestIsAnnouncementOnlyResponsePreToolCompletionWithNextActionStillTriggers(t *testing.T) {
+	tc := ToolCall{}
+	// Even in the pre-tool path, completion evidence + explicit forward cue + action cue must still trigger.
+	content := "Files updated successfully! Now I will deploy to Netlify."
+	if !isAnnouncementOnlyResponse(content, tc, false, false, "continue") {
+		t.Fatal("expected mixed completion+next-action in pre-tool path to trigger recovery")
+	}
+}
+
+func TestIsAnnouncementOnlyResponsePublishLocalCompletionWithURLDoesNotTrigger(t *testing.T) {
+	tc := ToolCall{}
+	// Regression test: after publish_local succeeds, the agent reports the local URL.
+	// "jetzt" (current state) + URL used to falsely trigger hasActionIntent+containsForwardCue
+	// overriding completion evidence → false-positive ERROR loop.
+	content := "Fertig! 🚀 Die Psychedelic Tunnel WebGL Demo läuft jetzt lokal auf deinem Server:\n\n**→ http://192.168.6.238:8080**\n\nDie Demo zeigt einen hypnotisierenden Tunnel mit psychedelischen Farben, Ringmustern und Pulsieren-Effekt. Probier's aus! ✨"
+	if isAnnouncementOnlyResponse(content, tc, false, true, "fahre fort") {
+		t.Fatal("did not expect post-publish completion message with URL and 'jetzt' to trigger recovery")
+	}
+}
+
+func TestIsAnnouncementOnlyResponseStatusWithURLAndJetztPreToolDoesNotTrigger(t *testing.T) {
+	tc := ToolCall{}
+	// Same scenario but in pre-tool path (e.g. stall guard fired after publish_local).
+	content := "Fertig! Die Demo läuft jetzt lokal unter http://192.168.6.238:8080 — viel Spaß!"
+	if isAnnouncementOnlyResponse(content, tc, false, false, "check status") {
+		t.Fatal("did not expect status-with-URL completion in pre-tool path to trigger recovery")
+	}
+}
