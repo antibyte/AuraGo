@@ -736,6 +736,7 @@ function fetchAndApplyLang(langValue) {
             if (json && json.data && typeof json.data === 'object') {
                 I18N = json.data;
                 applyI18N();
+                renderStepIndicator();
             }
         })
         .catch(() => { /* silently ignore — UI stays in current language */ });
@@ -1319,6 +1320,7 @@ function showToast(message, type = 'info') {
     if (quickSel) quickSel.value = detected;
     const planSel = document.getElementById('plan-language');
     if (planSel) planSel.value = detected;
+    fetchAndApplyLang(detected);
 })();
 
 // ── i18n: populate text ──

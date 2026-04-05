@@ -372,6 +372,7 @@ func ClientIP(r *http.Request) string {
 // password is configured, so the setup flow still works without a bypass here.
 var authBypassPrefixes = []string{
 	"/api/health",
+	"/api/i18n",
 	"/auth/",
 	"/api/auth/status",
 	"/api/auth/logout",
