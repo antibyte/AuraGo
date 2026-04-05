@@ -43,6 +43,7 @@ Search **ALL** memory subsystems at once with a single natural-language query. T
 - **Start broad** — don't restrict sources unless you're getting too many irrelevant results
 - Notes and journal entries are included automatically — no need to search them separately
 - Error patterns track tool failures and known resolutions; always check here before retrying a failed operation
+- **Memory-first discipline**: Before troubleshooting any problem or debugging any error, run a `query_memory` search first. You may have already solved the exact same issue — reusing a past solution is faster and more reliable than rediscovering it. Search across `error_patterns`, `journal`, and `cheatsheets` for relevant prior resolutions.
 
 ### When to upgrade to `context_memory`
 
