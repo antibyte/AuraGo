@@ -36,17 +36,12 @@
     // ── Badge / blink ─────────────────────────────────────────
     function updateBadge(unack) {
         if (unack > 0) {
-            btn.classList.remove('is-hidden');
             badge.textContent = unack;
             badge.classList.remove('is-hidden');
             startBlink();
         } else {
             badge.classList.add('is-hidden');
             stopBlink();
-            // Still show button if there are any warnings at all
-            if (warningsData.length === 0) {
-                btn.classList.add('is-hidden');
-            }
         }
     }
 
