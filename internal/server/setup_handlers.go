@@ -368,9 +368,6 @@ func setupValidationMessage(err error) string {
 // We check that at least one provider with a non-empty API key (or OAuth)
 // exists and is referenced by the main LLM slot.
 func needsSetup(cfg *config.Config) bool {
-	// DEBUG: force setup wizard to always appear (remove after testing)
-	return true
-
 	llmConfigured := false
 	// If the LLM has a resolved API key, the provider side is configured.
 	// This covers new-format configs where the key is loaded from vault.

@@ -892,6 +892,11 @@ func deepMerge(dst, src map[string]interface{}, path string) {
 				}
 			}
 			if valid {
+				// Special handling for providers: merge by ID to preserve existing providers
+				if fullPath == "providers" {
+					mergeProvidersByID(dst, sv)
+					continue
+				}
 				// Special handling for budget.models: ensure all items are proper objects
 				if fullPath == "budget.models" {
 					cleanModels := make([]interface{}, 0, len(sv))
@@ -951,6 +956,58 @@ func deepMerge(dst, src map[string]interface{}, path string) {
 			}
 		}
 	}
+}
+
+// mergeProvidersByID merges an incoming providers array into the existing config
+// by provider ID, preserving providers not present in the incoming list.
+func mergeProvidersByID(dst map[string]interface{}, incoming []interface{}) {
+	existing, _ := dst["providers"].([]interface{})
+
+	// Build map of existing providers by ID
+	byID := make(map[string]map[string]interface{})
+	order := make([]string, 0)
+	seen := make(map[string]bool)
+	for _, item := range existing {
+		if p, ok := item.(map[string]interface{}); ok {
+			if id, _ := p["id"].(string); id != "" && !seen[id] {
+				byID[id] = p
+				order = append(order, id)
+				seen[id] = true
+			}
+		}
+	}
+
+	// Update existing or insert new providers
+	for _, item := range incoming {
+		if p, ok := item.(map[string]interface{}); ok {
+			id, _ := p["id"].(string)
+			if id == "" {
+				continue
+			}
+			if existing, exists := byID[id]; exists {
+				// Merge fields into existing provider entry
+				for k, v := range p {
+					existing[k] = v
+				}
+			} else {
+				copy := make(map[string]interface{}, len(p))
+				for k, v := range p {
+					copy[k] = v
+				}
+				byID[id] = copy
+				order = append(order, id)
+			}
+		}
+	}
+
+	// Rebuild ordered list
+	merged := make([]interface{}, 0, len(order))
+	for _, id := range order {
+		if p, ok := byID[id]; ok {
+			merged = append(merged, p)
+		}
+	}
+	dst["providers"] = merged
 }
 
 // vaultKeyMap maps dotted YAML paths to vault key names for static config fields.
