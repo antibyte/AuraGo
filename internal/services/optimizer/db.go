@@ -88,6 +88,14 @@ func InitDB(dbPath string) (*OptimizerDB, error) {
 			return nil, fmt.Errorf("failed to add shadow column: %w", err)
 		}
 	}
+	// Migrate: add original_hash column if missing.
+	var hasOriginalHash bool
+	_ = db.QueryRow("SELECT count(*) > 0 FROM pragma_table_info('prompt_overrides') WHERE name='original_hash'").Scan(&hasOriginalHash)
+	if !hasOriginalHash {
+		if _, err := db.Exec("ALTER TABLE prompt_overrides ADD COLUMN original_hash TEXT"); err != nil {
+			return nil, fmt.Errorf("failed to add original_hash column: %w", err)
+		}
+	}
 	// Always ensure the index exists (covers both new and migrated DBs).
 	_, _ = db.Exec("CREATE INDEX IF NOT EXISTS idx_prompt_overrides_tool_status ON prompt_overrides(tool_name, active, shadow)")
 
