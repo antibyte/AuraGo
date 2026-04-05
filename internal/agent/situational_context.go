@@ -25,8 +25,9 @@ var globalInnerVoiceState = &innerVoiceState{}
 // innerVoiceSessionCount tracks total inner voice generations for the current session.
 var innerVoiceSessionCount atomic.Int32
 
-// resetInnerVoiceState resets the inner voice state (e.g. on session reset).
-func resetInnerVoiceState() {
+// ResetInnerVoiceState resets the inner voice state (e.g. on session reset).
+// Exported so that the commands and server packages can call it on /reset.
+func ResetInnerVoiceState() {
 	globalInnerVoiceState.mu.Lock()
 	defer globalInnerVoiceState.mu.Unlock()
 	globalInnerVoiceState.lastGenerated = time.Time{}

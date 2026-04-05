@@ -70,6 +70,7 @@ func (c *ResetCommand) Execute(args []string, ctx Context) (string, error) {
 	if err := ctx.HM.Clear(); err != nil {
 		return "", err
 	}
+	agent.ResetInnerVoiceState()
 	return "🧹 Chat-Verlauf und Kurzzeitgedächtnis wurden gelöscht.", nil
 }
 

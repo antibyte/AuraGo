@@ -19,6 +19,7 @@ type toolRecoveryState struct {
 	Policy                RecoveryPolicy
 	LastToolError         string
 	ConsecutiveErrorCount int
+	TotalErrorCount       int // cumulative errors this session; never resets (unlike ConsecutiveErrorCount)
 	LastToolCallSig       string
 	DuplicateToolCount    int
 	ToolCallFrequency     map[string]int
@@ -298,6 +299,7 @@ func (s *toolRecoveryState) updateToolErrorState(tc ToolCall, resultContent stri
 	}()
 
 	if isToolError {
+		s.TotalErrorCount++
 		if resultContent == s.LastToolError {
 			s.ConsecutiveErrorCount++
 			if s.ConsecutiveErrorCount == 2 && req != nil {

@@ -127,8 +127,8 @@ func (es *EmotionSynthesizer) GetLastEmotion() *EmotionState {
 	if es.lastState == nil {
 		return nil
 	}
-	copy := *es.lastState
-	return &copy
+	stateCopy := *es.lastState
+	return &stateCopy
 }
 
 // ApplyExternalState validates, caches, and persists an already synthesized emotion state.
@@ -178,9 +178,9 @@ func (es *EmotionSynthesizer) SynthesizeEmotion(ctx context.Context, stm *SQLite
 	// Fast path: rate-limit check with read lock.
 	es.mu.RLock()
 	if time.Since(es.lastCall) < es.minInterval && es.lastState != nil {
-		cached := es.lastState
+		stateCopy := *es.lastState
 		es.mu.RUnlock()
-		return cached, nil
+		return &stateCopy, nil
 	}
 	es.mu.RUnlock()
 
@@ -189,9 +189,9 @@ func (es *EmotionSynthesizer) SynthesizeEmotion(ctx context.Context, stm *SQLite
 		// Re-check inside singleflight: a concurrent goroutine may have just completed.
 		es.mu.RLock()
 		if time.Since(es.lastCall) < es.minInterval && es.lastState != nil {
-			cached := es.lastState
+			stateCopy := *es.lastState
 			es.mu.RUnlock()
-			return &sfEmotionResult{state: cached}, nil
+			return &sfEmotionResult{state: &stateCopy}, nil
 		}
 		es.mu.RUnlock()
 

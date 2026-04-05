@@ -34,7 +34,7 @@ func TestDeriveTaskStatus(t *testing.T) {
 }
 
 func TestGetInnerVoiceForPrompt_Decay(t *testing.T) {
-	resetInnerVoiceState()
+	ResetInnerVoiceState()
 
 	// No thought yet — should be empty
 	if got, _ := getInnerVoiceForPrompt(3); got != "" {
@@ -62,7 +62,7 @@ func TestGetInnerVoiceForPrompt_Decay(t *testing.T) {
 }
 
 func TestGetInnerVoiceForPrompt_NoDecay(t *testing.T) {
-	resetInnerVoiceState()
+	ResetInnerVoiceState()
 	applyInnerVoiceResult("persistent thought", "reflection")
 
 	// With decayTurns=0, thought should never decay
@@ -78,7 +78,7 @@ func TestResetInnerVoiceState(t *testing.T) {
 	applyInnerVoiceResult("some thought", "cat")
 	tickInnerVoiceTurn()
 
-	resetInnerVoiceState()
+	ResetInnerVoiceState()
 
 	if got, _ := getInnerVoiceForPrompt(3); got != "" {
 		t.Fatalf("expected empty after reset, got %q", got)
@@ -106,7 +106,7 @@ func TestShouldGenerateInnerVoice_SkipMissionAndCoAgent(t *testing.T) {
 	cfg.Personality.InnerVoice.MinIntervalSecs = 0
 	cfg.Personality.InnerVoice.ErrorStreakMin = 2
 
-	resetInnerVoiceState()
+	ResetInnerVoiceState()
 
 	if shouldGenerateInnerVoice(cfg, 5, 0, false, true, false) {
 		t.Fatal("should not generate for missions")
@@ -122,7 +122,7 @@ func TestShouldGenerateInnerVoice_RequiresEmotionSynthesizer(t *testing.T) {
 	cfg.Personality.EmotionSynthesizer.Enabled = false
 	cfg.Personality.EngineV2 = true
 
-	resetInnerVoiceState()
+	ResetInnerVoiceState()
 
 	if shouldGenerateInnerVoice(cfg, 5, 0, false, false, false) {
 		t.Fatal("should not generate without emotion synthesizer")
@@ -138,7 +138,7 @@ func TestShouldGenerateInnerVoice_ErrorStreak(t *testing.T) {
 	cfg.Personality.InnerVoice.MinIntervalSecs = 0
 	cfg.Personality.InnerVoice.ErrorStreakMin = 2
 
-	resetInnerVoiceState()
+	ResetInnerVoiceState()
 
 	// Below threshold — no trigger
 	if shouldGenerateInnerVoice(cfg, 1, 0, false, false, false) {
@@ -160,7 +160,7 @@ func TestShouldGenerateInnerVoice_RecoveryTrigger(t *testing.T) {
 	cfg.Personality.InnerVoice.MinIntervalSecs = 0
 	cfg.Personality.InnerVoice.ErrorStreakMin = 5
 
-	resetInnerVoiceState()
+	ResetInnerVoiceState()
 
 	// Task completed after errors — recovery trigger
 	if !shouldGenerateInnerVoice(cfg, 1, 3, true, false, false) {
@@ -182,7 +182,7 @@ func TestShouldGenerateInnerVoice_SessionCap(t *testing.T) {
 	cfg.Personality.InnerVoice.MinIntervalSecs = 0
 	cfg.Personality.InnerVoice.ErrorStreakMin = 1
 
-	resetInnerVoiceState()
+	ResetInnerVoiceState()
 
 	// Generate up to cap
 	applyInnerVoiceResult("first", "a")

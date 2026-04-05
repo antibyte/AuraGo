@@ -309,8 +309,11 @@ func launchAsyncPersonalityV2Analysis(
 	extraContent string,
 	meta memory.PersonalityMeta,
 	profilingEnabled bool,
-	errorCount int,
+	consecutiveErrorCount int,
+	totalErrorCount int,
 	successCount int,
+	isMission bool,
+	isCoAgent bool,
 ) {
 	if stm == nil {
 		return
@@ -336,6 +339,7 @@ func launchAsyncPersonalityV2Analysis(
 			err    error
 		)
 
+		taskCompleted := consecutiveErrorCount == 0 && successCount > 0
 		if helperEmotionBatchEligible {
 			traits, _ := stm.GetTraits()
 			combinedInput := memory.EmotionInput{
@@ -343,17 +347,17 @@ func launchAsyncPersonalityV2Analysis(
 				CurrentMood:     memory.MoodFocused,
 				Traits:          traits,
 				LastEmotion:     previousEmotion,
-				ErrorCount:      errorCount,
+				ErrorCount:      consecutiveErrorCount,
 				SuccessCount:    successCount,
 				TimeOfDay:       memory.TimeOfDay(),
 				TriggerType:     triggerType,
 				TriggerDetail:   triggerDetail,
 				InactivityHours: inactivityHours,
 			}
-			// Enrich with inner voice context if enabled
-			if cfg.Personality.InnerVoice.Enabled {
+			// Enrich with inner voice context only when rate/session/trigger gates pass
+			if shouldGenerateInnerVoice(cfg, consecutiveErrorCount, successCount, taskCompleted, isMission, isCoAgent) {
 				combinedInput.InnerVoiceEnabled = true
-				combinedInput.TaskStatus = deriveTaskStatus(errorCount, errorCount, successCount)
+				combinedInput.TaskStatus = deriveTaskStatus(consecutiveErrorCount, totalErrorCount, successCount)
 				// Lessons from error patterns
 				if errPatterns, lErr := stm.GetRecentErrors(3); lErr == nil {
 					for _, ep := range errPatterns {
@@ -415,7 +419,7 @@ func launchAsyncPersonalityV2Analysis(
 			triggerDetail,
 			inactivityHours,
 			profilingEnabled,
-			errorCount,
+			consecutiveErrorCount,
 			successCount,
 			result,
 		)

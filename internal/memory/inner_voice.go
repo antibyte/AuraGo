@@ -9,9 +9,6 @@ type InnerVoiceEntry struct {
 	ID            int64  `json:"id"`
 	InnerThought  string `json:"inner_thought"`
 	NudgeCategory string `json:"nudge_category"`
-	TaskStatus    string `json:"task_status"`
-	ErrorCount    int    `json:"error_count"`
-	SuccessCount  int    `json:"success_count"`
 	Timestamp     string `json:"timestamp"`
 }
 

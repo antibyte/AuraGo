@@ -879,6 +879,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
 			return
 		}
+		agent.ResetInnerVoiceState()
 		w.WriteHeader(http.StatusOK)
 	})
 

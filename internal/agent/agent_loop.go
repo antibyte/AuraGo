@@ -2002,7 +2002,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 						meta,
 						cfg.Personality.UserProfiling,
 						recoveryState.ConsecutiveErrorCount,
+						recoveryState.TotalErrorCount,
 						toolCallCount-recoveryState.ConsecutiveErrorCount,
+						flags.IsMission,
+						flags.IsCoAgent,
 					)
 
 				} else {
@@ -2235,7 +2238,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 						meta,
 						cfg.Personality.UserProfiling,
 						recoveryState.ConsecutiveErrorCount,
+						recoveryState.TotalErrorCount,
 						toolCallCount-recoveryState.ConsecutiveErrorCount,
+						flags.IsMission,
+						flags.IsCoAgent,
 					)
 				}
 			} else {
@@ -2320,7 +2326,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 							meta,
 							cfg.Personality.UserProfiling,
 							recoveryState.ConsecutiveErrorCount,
+							recoveryState.TotalErrorCount,
 							toolCallCount-recoveryState.ConsecutiveErrorCount,
+							flags.IsMission,
+							flags.IsCoAgent,
 						)
 					}
 					runMemoryAnalysis(analysisCtx, cfg, currentLogger, shortTermMem, kg, longTermMem, userMsg, aResp, sid)
@@ -2379,7 +2388,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 							meta,
 							cfg.Personality.UserProfiling,
 							recoveryState.ConsecutiveErrorCount,
+							recoveryState.TotalErrorCount,
 							toolCallCount-recoveryState.ConsecutiveErrorCount,
+							flags.IsMission,
+							flags.IsCoAgent,
 						)
 					}
 				}
