@@ -320,38 +320,81 @@ function buildQuickConfigPatch() {
     const p = selectedProfile;
     const apiKey = (document.getElementById('quick-api-key').value || '').trim();
     const adminPassword = (document.getElementById('quick-admin-password').value || '').trim();
-    const lang = (document.getElementById('quick-language') || document.getElementById('system-language') || {}).value || 'de';
+    const quickLang = document.getElementById('quick-language');
+    const mainLang = document.getElementById('system-language');
+    const lang = (quickLang || mainLang || {}).value || 'de';
+
+    // Build provider list — main + one entry per enabled subsystem
+    const makeProvider = (id, label, model, extra) => ({
+        id,
+        type: p.provider_type || 'openai',
+        name: `${p.name} ${label}`.trim(),
+        base_url: p.base_url || '',
+        api_key: apiKey,
+        model,
+        native_function_calling: p.native_function_calling !== false,
+        ...extra,
+    });
+
+    const providers = [makeProvider('main', '', p.main_model || '', {})];
+    const m = p.models || {};
+
+    if (p.features && p.features.vision    && m.vision)           providers.push(makeProvider('vision',     'Vision',     m.vision.model,           {}));
+    if (p.features && p.features.whisper   && m.whisper)          providers.push(makeProvider('whisper',    'Whisper',    m.whisper.model,          {}));
+    if (p.features && p.features.embeddings && m.embeddings)      providers.push(makeProvider('embeddings', 'Embeddings', m.embeddings.model,       { native_function_calling: false }));
+    if (p.features && p.features.helper    && m.helper)           providers.push(makeProvider('helper',     'Helper',     m.helper.model,           {}));
+    if (p.features && p.features.image_generation && m.image_generation) providers.push(makeProvider('image_gen', 'Image Gen', m.image_generation.model, {}));
+    if (p.features && p.features.music_generation && m.music_generation) providers.push(makeProvider('music_gen', 'Music Gen',  m.music_generation.model, {}));
+
+    // Read trust level from radio button (may have been pre-selected by nextStep)
+    const trustRadio = document.querySelector('input[name="trust-level"]:checked');
+    const trustLevel = trustRadio ? parseInt(trustRadio.value, 10) : (p.default_trust_level || 1);
 
     const patch = {
         system_language: lang,
         ...(adminPassword ? { admin_password: adminPassword } : {}),
-        providers: [{
-            id: 'main',
-            type: p.provider_type || 'openai',
-            name: p.name,
-            base_url: p.base_url || '',
-            api_key: apiKey,
-            model: p.main_model || '',
-            native_function_calling: p.native_function_calling !== false,
-        }],
-        llm: { provider: 'main' },
-        ...buildTrustLevelPatch(),
-        ...(p.config_patch || {}),
+        providers,
+        llm: {
+            provider: 'main',
+            use_native_functions: p.native_function_calling !== false,
+            helper_enabled: !!(p.features && p.features.helper && m.helper),
+            helper_provider: (p.features && p.features.helper && m.helper) ? 'helper' : '',
+        },
+        embeddings: {
+            provider: (p.features && p.features.embeddings && m.embeddings) ? 'embeddings' : 'disabled',
+        },
+        vision: {
+            provider: (p.features && p.features.vision && m.vision) ? 'vision' : '',
+        },
+        whisper: {
+            provider: (p.features && p.features.whisper && m.whisper) ? 'whisper' : '',
+            mode: (m.whisper && m.whisper.mode) ? m.whisper.mode : 'multimodal',
+        },
+        image_generation: {
+            enabled: !!(p.features && p.features.image_generation),
+            provider: (p.features && p.features.image_generation && m.image_generation) ? 'image_gen' : '',
+        },
+        music_generation: {
+            enabled: !!(p.features && p.features.music_generation),
+            provider: (p.features && p.features.music_generation && m.music_generation) ? 'music_gen' : '',
+        },
     };
 
-    // Inject TTS config from profile if available
-    if (p.tts) {
-        patch.tts = patch.tts || {};
-        const provider = p.tts.provider || '';
-        if (provider && apiKey) {
-            patch.tts[provider] = patch.tts[provider] || {};
-            patch.tts[provider].api_key = apiKey;
-            if (p.tts.model_id) {
-                patch.tts[provider].model_id = p.tts.model_id;
-                patch.tts[provider].voice_id = p.tts.voice_id || '';
-            }
-        }
+    // Merge trust level permissions
+    deepMergePatch(patch, buildTrustLevelPatch(trustLevel));
+
+    // TTS — uses its own config structure (NOT the provider system)
+    if (p.tts && p.tts.provider) {
+        const ttsProvider = p.tts.provider;
+        patch.tts = { provider: ttsProvider };
+        patch.tts[ttsProvider] = { api_key: apiKey };
+        if (p.tts.model_id) patch.tts[ttsProvider].model_id = p.tts.model_id;
+        if (p.tts.voice_id) patch.tts[ttsProvider].voice_id = p.tts.voice_id;
+        if (p.tts.speed)    patch.tts[ttsProvider].speed    = p.tts.speed;
     }
+
+    // Merge any extra config_patch defined in the profile YAML
+    if (p.config_patch) deepMergePatch(patch, p.config_patch);
 
     return patch;
 }
@@ -727,6 +770,16 @@ function nextStep(skip = false) {
         if (!validateQuickStep(skip)) return;
     } else if (stepId === 'step-0') {
         if (!validateStep0(skip)) return;
+    }
+
+    const nextIndex = currentStepIndex + 1;
+    const nextId = activeFlow()[nextIndex];
+
+    // Pre-select trust level from profile when entering step-3 in quick flow
+    if (nextId === 'step-3' && isQuickFlow && selectedProfile && selectedProfile.default_trust_level) {
+        const level = selectedProfile.default_trust_level;
+        const radio = document.querySelector(`input[name="trust-level"][value="${level}"]`);
+        if (radio) radio.checked = true;
     }
 
     if (currentStepIndex < activeFlow().length - 1) {
