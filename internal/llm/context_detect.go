@@ -66,6 +66,13 @@ var knownContextWindows = []struct {
 	{"mistral-small", 131_072},
 	{"mistral-medium", 131_072},
 	{"codestral", 256_000},
+	// NVIDIA Nemotron (via OpenRouter or direct)
+	{"nemotron-super", 131_072},
+	{"nemotron-ultra", 131_072},
+	{"nemotron-nano", 131_072},
+	{"nemotron-51b", 131_072},
+	{"nemotron-70b", 131_072},
+	{"nemotron", 131_072},
 }
 
 // lookupKnownContextWindow returns the known context window for a model based on the

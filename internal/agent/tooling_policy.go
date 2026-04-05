@@ -92,8 +92,10 @@ func resolveModelCapabilities(cfg *config.Config) ModelCapabilities {
 		IsOllama:                  isOllama,
 		IsDeepSeek:                isDeepSeek,
 		IsAnthropic:               isAnthropic,
-		AutoEnableNativeFunctions: isDeepSeek || isAnthropic,
-		SupportsStructuredOutputs: !isOllama && !isNemotron,
+		// Nemotron is heavily optimised for agentic tasks and strict structured outputs;
+		// always enable native function calling for it.
+		AutoEnableNativeFunctions: isDeepSeek || isAnthropic || isNemotron,
+		SupportsStructuredOutputs: !isOllama,
 		SupportsParallelToolCalls: !isOllama,
 	}
 }
@@ -401,6 +403,7 @@ func buildPromptContextFlags(runCfg RunConfig, policy ToolingPolicy, opts prompt
 		SpecialistsAvailable:     opts.SpecialistsAvailable,
 		SpecialistsStatus:        opts.SpecialistsStatus,
 		SpecialistsSuggestion:    opts.SpecialistsSuggestion,
+		NativeToolsEnabled:       policy.UseNativeFunctions,
 	}
 }
 

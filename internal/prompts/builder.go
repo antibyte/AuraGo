@@ -99,8 +99,9 @@ type ContextFlags struct {
 	RecentlyUsedTools []string // Last N tools the agent used (for lazy schema injection)
 	IsDebugMode       bool     // When true, inject a debugging instruction into the system prompt
 	IsVoiceMode       bool     // When true, inject a TTS instruction into the system prompt
-	IsCoAgent         bool     // True if the current LLM call is for a co-agent
-	IsEgg             bool     // True if this instance runs in egg worker mode
+	IsCoAgent          bool // True if the current LLM call is for a co-agent
+	IsEgg              bool // True if this instance runs in egg worker mode
+	NativeToolsEnabled bool // True when native function calling API is active
 	// Specialist co-agent fields
 	SpecialistsAvailable  bool   // True if at least one specialist is enabled
 	SpecialistsStatus     string // Dynamic status text listing enabled specialists
@@ -326,6 +327,18 @@ func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string,
 	sectionModules := finalPrompt.Len()
 
 	// 5. Add dynamic content — tier-aware
+
+	// Native function calling override — injected BEFORE other dynamic sections so it
+	// takes precedence over any sync-JSON protocol described in static prompt modules.
+	// Without this, strictly instruction-following models (e.g. Nemotron) may revert
+	// to outputting raw JSON text after the first tool result turn.
+	if flags.NativeToolsEnabled {
+		finalPrompt.WriteString("## TOOL CALLING MODE\n")
+		finalPrompt.WriteString("This session uses the **native function calling API**. " +
+			"ALWAYS invoke tools via the API tool-call mechanism. " +
+			"NEVER output raw JSON objects as tool invocations — the JSON protocol " +
+			"in the TOOL EXECUTION PROTOCOL section is a fallback for non-native sessions only.\n\n")
+	}
 
 	// Language Instruction
 	if flags.SystemLanguage != "" {
