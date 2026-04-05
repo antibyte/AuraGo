@@ -38,7 +38,7 @@ func appendPlannerToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai
 				"title":       prop("string", "Title of the todo item"),
 				"description": prop("string", "Description or details"),
 				"priority":    prop("string", "Priority: low, medium, high"),
-				"status":      prop("string", "Status: open, in_progress, done, cancelled"),
+				"status":      prop("string", "Status: open, in_progress, done"),
 				"due_date":    prop("string", "Due date in RFC3339 format"),
 				"query":       prop("string", "Search query for list operation"),
 			}, "operation"),

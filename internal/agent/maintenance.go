@@ -15,6 +15,7 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/llm"
 	"aurago/internal/memory"
+	"aurago/internal/planner"
 	"aurago/internal/prompts"
 	"aurago/internal/security"
 	"aurago/internal/tools"
@@ -1360,71 +1361,56 @@ func SyncContactsToKnowledgeGraph(ctx context.Context, contactsDB *sql.DB, kg *m
 }
 
 // SyncPlannerToKnowledgeGraph synchronizes appointments and todos to the knowledge graph.
-func SyncPlannerToKnowledgeGraph(ctx context.Context, plannerDB *sql.DB, kg *memory.KnowledgeGraph, logger *slog.Logger) {
+func SyncPlannerToKnowledgeGraph(ctx context.Context, plannerDB *sql.DB, kg planner.KnowledgeGraph, logger *slog.Logger) {
 	if plannerDB == nil || kg == nil {
 		return
 	}
 
 	logger.Info("[Maintenance] Syncing Planner to Knowledge Graph")
 
-	// Sync appointments
-	rows, err := plannerDB.QueryContext(ctx, "SELECT id, title, description, date_time, status, kg_node_id FROM appointments WHERE status != 'cancelled'")
+	appointments, err := planner.ListAppointments(plannerDB, "", "")
 	if err != nil {
-		logger.Error("[Maintenance] Failed to query appointments for KG sync", "error", err)
+		logger.Error("[Maintenance] Failed to list appointments for KG sync", "error", err)
 	} else {
-		defer rows.Close()
-		for rows.Next() {
-			var id, title, status, kgNodeID string
-			var description, dateTime sql.NullString
-			if err := rows.Scan(&id, &title, &description, &dateTime, &status, &kgNodeID); err != nil {
-				logger.Error("[Maintenance] Failed to scan appointment", "error", err)
+		for _, a := range appointments {
+			if a.Status == "cancelled" {
 				continue
 			}
 			props := map[string]string{
 				"type":   "event",
 				"source": "planner",
-				"status": status,
+				"date":   a.DateTime,
+				"status": a.Status,
 			}
-			if dateTime.Valid {
-				props["date"] = dateTime.String
+			if a.Description != "" {
+				props["description"] = a.Description
 			}
-			if description.Valid {
-				props["description"] = description.String
-			}
-			if err := kg.AddNode(kgNodeID, title, props); err != nil && !strings.Contains(err.Error(), "UNIQUE constraint failed") {
-				logger.Debug("[Maintenance] AddNode returned error", "nodeID", kgNodeID, "error", err)
+			if err := kg.AddNode(a.KGNodeID, a.Title, props); err != nil && !strings.Contains(err.Error(), "UNIQUE constraint failed") {
+				logger.Debug("[Maintenance] AddNode returned error", "nodeID", a.KGNodeID, "error", err)
 			}
 		}
 	}
 
-	// Sync todos
-	todoRows, err := plannerDB.QueryContext(ctx, "SELECT id, title, description, priority, status, due_date, kg_node_id FROM todos WHERE status != 'cancelled'")
+	todos, err := planner.ListTodos(plannerDB, "", "")
 	if err != nil {
-		logger.Error("[Maintenance] Failed to query todos for KG sync", "error", err)
+		logger.Error("[Maintenance] Failed to list todos for KG sync", "error", err)
 		return
 	}
-	defer todoRows.Close()
-	for todoRows.Next() {
-		var id, title, priority, status, kgNodeID string
-		var description, dueDate sql.NullString
-		if err := todoRows.Scan(&id, &title, &description, &priority, &status, &dueDate, &kgNodeID); err != nil {
-			logger.Error("[Maintenance] Failed to scan todo", "error", err)
-			continue
-		}
+	for _, t := range todos {
 		props := map[string]string{
 			"type":     "task",
 			"source":   "planner",
-			"priority": priority,
-			"status":   status,
+			"priority": t.Priority,
+			"status":   t.Status,
 		}
-		if dueDate.Valid {
-			props["due_date"] = dueDate.String
+		if t.DueDate != "" {
+			props["due_date"] = t.DueDate
 		}
-		if description.Valid {
-			props["description"] = description.String
+		if t.Description != "" {
+			props["description"] = t.Description
 		}
-		if err := kg.AddNode(kgNodeID, title, props); err != nil && !strings.Contains(err.Error(), "UNIQUE constraint failed") {
-			logger.Debug("[Maintenance] AddNode returned error", "nodeID", kgNodeID, "error", err)
+		if err := kg.AddNode(t.KGNodeID, t.Title, props); err != nil && !strings.Contains(err.Error(), "UNIQUE constraint failed") {
+			logger.Debug("[Maintenance] AddNode returned error", "nodeID", t.KGNodeID, "error", err)
 		}
 	}
 }

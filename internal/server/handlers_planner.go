@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"strings"
 
-	"aurago/internal/memory"
 	"aurago/internal/planner"
 )
 
@@ -83,18 +82,41 @@ func handleAppointmentByID(s *Server) http.HandlerFunc {
 			json.NewEncoder(w).Encode(a)
 
 		case http.MethodPut:
-			var a planner.Appointment
+			existing, err := planner.GetAppointment(s.PlannerDB, id)
+			if err != nil {
+				jsonError(w, `{"error":"appointment not found"}`, http.StatusNotFound)
+				return
+			}
+			var patch planner.Appointment
 			body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
 			if err != nil {
 				jsonError(w, `{"error":"failed to read body"}`, http.StatusBadRequest)
 				return
 			}
-			if err := json.Unmarshal(body, &a); err != nil {
+			if err := json.Unmarshal(body, &patch); err != nil {
 				jsonError(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
 				return
 			}
-			a.ID = id
-			if err := planner.UpdateAppointment(s.PlannerDB, a); err != nil {
+			if patch.Title != "" {
+				existing.Title = patch.Title
+			}
+			if patch.Description != "" {
+				existing.Description = patch.Description
+			}
+			if patch.DateTime != "" {
+				existing.DateTime = patch.DateTime
+			}
+			if patch.NotificationAt != "" {
+				existing.NotificationAt = patch.NotificationAt
+			}
+			if patch.Status != "" {
+				existing.Status = patch.Status
+			}
+			if patch.AgentInstruction != "" {
+				existing.AgentInstruction = patch.AgentInstruction
+			}
+			existing.WakeAgent = patch.WakeAgent
+			if err := planner.UpdateAppointment(s.PlannerDB, *existing); err != nil {
 				status := http.StatusInternalServerError
 				if strings.Contains(err.Error(), "not found") {
 					status = http.StatusNotFound
@@ -209,18 +231,37 @@ func handleTodoByID(s *Server) http.HandlerFunc {
 			json.NewEncoder(w).Encode(t)
 
 		case http.MethodPut:
-			var t planner.Todo
+			existing, err := planner.GetTodo(s.PlannerDB, id)
+			if err != nil {
+				jsonError(w, `{"error":"todo not found"}`, http.StatusNotFound)
+				return
+			}
+			var patch planner.Todo
 			body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
 			if err != nil {
 				jsonError(w, `{"error":"failed to read body"}`, http.StatusBadRequest)
 				return
 			}
-			if err := json.Unmarshal(body, &t); err != nil {
+			if err := json.Unmarshal(body, &patch); err != nil {
 				jsonError(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
 				return
 			}
-			t.ID = id
-			if err := planner.UpdateTodo(s.PlannerDB, t); err != nil {
+			if patch.Title != "" {
+				existing.Title = patch.Title
+			}
+			if patch.Description != "" {
+				existing.Description = patch.Description
+			}
+			if patch.Priority != "" {
+				existing.Priority = patch.Priority
+			}
+			if patch.Status != "" {
+				existing.Status = patch.Status
+			}
+			if patch.DueDate != "" {
+				existing.DueDate = patch.DueDate
+			}
+			if err := planner.UpdateTodo(s.PlannerDB, *existing); err != nil {
 				status := http.StatusInternalServerError
 				if strings.Contains(err.Error(), "not found") {
 					status = http.StatusNotFound
@@ -265,45 +306,14 @@ func handleTodoByID(s *Server) http.HandlerFunc {
 
 // ── KG sync helpers ──
 
-func syncAppointmentToKG(kg *memory.KnowledgeGraph, db *sql.DB, id string, logger interface{ Error(string, ...any) }) {
-	if kg == nil || db == nil {
-		return
+func syncAppointmentToKG(kg planner.KnowledgeGraph, db *sql.DB, id string, logger interface{ Error(string, ...any) }) {
+	if err := planner.SyncAppointmentToKG(kg, db, id); err != nil {
+		logger.Error("Failed to sync appointment to KG", "error", err, "id", id)
 	}
-	a, err := planner.GetAppointment(db, id)
-	if err != nil {
-		return
-	}
-	props := map[string]string{
-		"type":   "event",
-		"source": "planner",
-		"date":   a.DateTime,
-		"status": a.Status,
-	}
-	if a.Description != "" {
-		props["description"] = a.Description
-	}
-	_ = kg.AddNode(a.KGNodeID, a.Title, props)
 }
 
-func syncTodoToKG(kg *memory.KnowledgeGraph, db *sql.DB, id string, logger interface{ Error(string, ...any) }) {
-	if kg == nil || db == nil {
-		return
+func syncTodoToKG(kg planner.KnowledgeGraph, db *sql.DB, id string, logger interface{ Error(string, ...any) }) {
+	if err := planner.SyncTodoToKG(kg, db, id); err != nil {
+		logger.Error("Failed to sync todo to KG", "error", err, "id", id)
 	}
-	t, err := planner.GetTodo(db, id)
-	if err != nil {
-		return
-	}
-	props := map[string]string{
-		"type":     "task",
-		"source":   "planner",
-		"priority": t.Priority,
-		"status":   t.Status,
-	}
-	if t.DueDate != "" {
-		props["due_date"] = t.DueDate
-	}
-	if t.Description != "" {
-		props["description"] = t.Description
-	}
-	_ = kg.AddNode(t.KGNodeID, t.Title, props)
 }

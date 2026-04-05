@@ -11,6 +11,11 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+type KnowledgeGraph interface {
+	AddNode(id, name string, properties map[string]string) error
+	DeleteNode(id string) error
+}
+
 // Appointment represents a calendar appointment.
 type Appointment struct {
 	ID               string `json:"id"`
@@ -100,14 +105,20 @@ func validAppointmentStatus(s string) bool {
 	return s == "upcoming" || s == "completed" || s == "cancelled"
 }
 
-// validTodoPriority returns true for allowed todo priority values.
 func validTodoPriority(p string) bool {
 	return p == "low" || p == "medium" || p == "high"
 }
 
-// validTodoStatus returns true for allowed todo status values.
 func validTodoStatus(s string) bool {
 	return s == "open" || s == "in_progress" || s == "done"
+}
+
+func validRFC3339(s string) bool {
+	if s == "" {
+		return false
+	}
+	_, err := time.Parse(time.RFC3339, s)
+	return err == nil
 }
 
 // CreateAppointment adds a new appointment and returns its ID.
@@ -117,6 +128,12 @@ func CreateAppointment(db *sql.DB, a Appointment) (string, error) {
 	}
 	if a.DateTime == "" {
 		return "", fmt.Errorf("date_time is required")
+	}
+	if !validRFC3339(a.DateTime) {
+		return "", fmt.Errorf("invalid date_time format %q: must be RFC3339 (e.g. 2025-03-15T14:00:00Z)", a.DateTime)
+	}
+	if a.NotificationAt != "" && !validRFC3339(a.NotificationAt) {
+		return "", fmt.Errorf("invalid notification_at format %q: must be RFC3339", a.NotificationAt)
 	}
 	a.ID = uuid.New().String()
 	now := time.Now().UTC().Format(time.RFC3339)
@@ -303,6 +320,9 @@ func CreateTodo(db *sql.DB, t Todo) (string, error) {
 	if !validTodoPriority(t.Priority) {
 		return "", fmt.Errorf("invalid priority %q: must be low, medium, or high", t.Priority)
 	}
+	if t.DueDate != "" && !validRFC3339(t.DueDate) {
+		return "", fmt.Errorf("invalid due_date format %q: must be RFC3339 (e.g. 2025-03-15T00:00:00Z)", t.DueDate)
+	}
 	t.KGNodeID = "todo_" + t.ID
 
 	_, err := db.Exec(
@@ -435,6 +455,57 @@ func scanAppointment(row *sql.Row) (*Appointment, error) {
 	a.WakeAgent = wakeAgent != 0
 	a.Notified = notified != 0
 	return a, nil
+}
+
+// SyncAppointmentToKG syncs a single appointment to the knowledge graph.
+func SyncAppointmentToKG(kg KnowledgeGraph, db *sql.DB, id string) error {
+	if kg == nil || db == nil {
+		return nil
+	}
+	a, err := GetAppointment(db, id)
+	if err != nil {
+		return fmt.Errorf("failed to get appointment for KG sync: %w", err)
+	}
+	props := map[string]string{
+		"type":   "event",
+		"source": "planner",
+		"date":   a.DateTime,
+		"status": a.Status,
+	}
+	if a.Description != "" {
+		props["description"] = a.Description
+	}
+	if err := kg.AddNode(a.KGNodeID, a.Title, props); err != nil {
+		return fmt.Errorf("failed to sync appointment to KG: %w", err)
+	}
+	return nil
+}
+
+// SyncTodoToKG syncs a single todo to the knowledge graph.
+func SyncTodoToKG(kg KnowledgeGraph, db *sql.DB, id string) error {
+	if kg == nil || db == nil {
+		return nil
+	}
+	t, err := GetTodo(db, id)
+	if err != nil {
+		return fmt.Errorf("failed to get todo for KG sync: %w", err)
+	}
+	props := map[string]string{
+		"type":     "task",
+		"source":   "planner",
+		"priority": t.Priority,
+		"status":   t.Status,
+	}
+	if t.DueDate != "" {
+		props["due_date"] = t.DueDate
+	}
+	if t.Description != "" {
+		props["description"] = t.Description
+	}
+	if err := kg.AddNode(t.KGNodeID, t.Title, props); err != nil {
+		return fmt.Errorf("failed to sync todo to KG: %w", err)
+	}
+	return nil
 }
 
 // ToJSON marshals a value to JSON string (for tool output).

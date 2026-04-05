@@ -5,7 +5,6 @@ import (
 	"log/slog"
 	"strings"
 
-	"aurago/internal/memory"
 	"aurago/internal/planner"
 )
 
@@ -20,7 +19,7 @@ func plannerErrorMsg(msg string) string {
 }
 
 // dispatchManageAppointments handles the manage_appointments tool call.
-func dispatchManageAppointments(tc ToolCall, db *sql.DB, kg *memory.KnowledgeGraph, logger *slog.Logger) string {
+func dispatchManageAppointments(tc ToolCall, db *sql.DB, kg planner.KnowledgeGraph, logger *slog.Logger) string {
 	op := strings.ToLower(tc.Operation)
 	if op == "" {
 		if v, ok := tc.Params["operation"].(string); ok {
@@ -174,7 +173,7 @@ func dispatchManageAppointments(tc ToolCall, db *sql.DB, kg *memory.KnowledgeGra
 }
 
 // dispatchManageTodos handles the manage_todos tool call.
-func dispatchManageTodos(tc ToolCall, db *sql.DB, kg *memory.KnowledgeGraph, logger *slog.Logger) string {
+func dispatchManageTodos(tc ToolCall, db *sql.DB, kg planner.KnowledgeGraph, logger *slog.Logger) string {
 	op := strings.ToLower(tc.Operation)
 	if op == "" {
 		if v, ok := tc.Params["operation"].(string); ok {
@@ -270,7 +269,7 @@ func dispatchManageTodos(tc ToolCall, db *sql.DB, kg *memory.KnowledgeGraph, log
 		}
 		status, _ := tc.Params["status"].(string)
 		if status == "" {
-			return `Tool Output: {"status":"error","message":"'status' is required for set_status (open, in_progress, done, cancelled)"}`
+			return `Tool Output: {"status":"error","message":"'status' is required for set_status (open, in_progress, done)"}`
 		}
 		existing, err := planner.GetTodo(db, id)
 		if err != nil {
@@ -306,46 +305,15 @@ func dispatchManageTodos(tc ToolCall, db *sql.DB, kg *memory.KnowledgeGraph, log
 }
 
 // syncAppointmentToKG syncs an appointment to the knowledge graph.
-func syncAppointmentToKG(db *sql.DB, id string, kg *memory.KnowledgeGraph, logger *slog.Logger) {
-	if kg == nil {
-		return
-	}
-	a, err := planner.GetAppointment(db, id)
-	if err != nil {
-		logger.Warn("Failed to get appointment for KG sync", "id", id, "error", err)
-		return
-	}
-	props := map[string]string{
-		"type":        "event",
-		"source":      "planner",
-		"date":        a.DateTime,
-		"status":      a.Status,
-		"description": a.Description,
-	}
-	if err := kg.AddNode(a.KGNodeID, a.Title, props); err != nil {
+func syncAppointmentToKG(db *sql.DB, id string, kg planner.KnowledgeGraph, logger *slog.Logger) {
+	if err := planner.SyncAppointmentToKG(kg, db, id); err != nil {
 		logger.Warn("Failed to sync appointment to KG", "id", id, "error", err)
 	}
 }
 
 // syncTodoToKG syncs a todo to the knowledge graph.
-func syncTodoToKG(db *sql.DB, id string, kg *memory.KnowledgeGraph, logger *slog.Logger) {
-	if kg == nil {
-		return
-	}
-	t, err := planner.GetTodo(db, id)
-	if err != nil {
-		logger.Warn("Failed to get todo for KG sync", "id", id, "error", err)
-		return
-	}
-	props := map[string]string{
-		"type":        "task",
-		"source":      "planner",
-		"priority":    t.Priority,
-		"status":      t.Status,
-		"due_date":    t.DueDate,
-		"description": t.Description,
-	}
-	if err := kg.AddNode(t.KGNodeID, t.Title, props); err != nil {
+func syncTodoToKG(db *sql.DB, id string, kg planner.KnowledgeGraph, logger *slog.Logger) {
+	if err := planner.SyncTodoToKG(kg, db, id); err != nil {
 		logger.Warn("Failed to sync todo to KG", "id", id, "error", err)
 	}
 }

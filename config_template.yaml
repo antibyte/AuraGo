@@ -282,6 +282,8 @@ tools:
         enabled: true                                      # enable upnp_scan tool (UPnP/SSDP device discovery on LAN)
     contacts:
         enabled: true                                      # enable address_book tool (contact management)
+    planner:
+        enabled: true                                      # enable manage_appointments and manage_todos tools (calendar & task management)
     python_secret_injection:
         enabled: false                                     # allow Python tools to request vault secrets via vault_keys (default: disabled for security)
     python_timeout_seconds: 30                             # foreground Python/shell execution timeout
