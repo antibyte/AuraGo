@@ -98,7 +98,7 @@ func isAnnouncementOnlyResponse(content string, tc ToolCall, useNativePath, last
 	// response looks like a genuine answer (contains completion evidence) and
 	// does NOT simultaneously announce a next action.
 	userAskedQuestion := lastUserMsg != "" && strings.HasSuffix(strings.TrimSpace(lastUserMsg), "?")
-	if userAskedQuestion && hasCompletionEvidence && !(hasActionIntent && (containsForwardCue || containsActionCue || hasPlanStructure)) {
+	if userAskedQuestion && hasCompletionEvidence && !(hasActionIntent && (containsForwardCue || containsActionCue)) {
 		return false
 	}
 
@@ -106,7 +106,11 @@ func isAnnouncementOnlyResponse(content string, tc ToolCall, useNativePath, last
 		return containsAnnouncementPhrase || (hasActionIntent && (containsForwardCue || containsActionCue || hasPlanStructure))
 	}
 
-	if hasCompletionEvidence && !(hasActionIntent && (containsForwardCue || containsActionCue || hasPlanStructure)) {
+	// Post-tool path: if completion evidence is present, only override it when
+	// there are EXPLICIT forward cues ("next", "jetzt") combined with action cues
+	// ("let me", "ich werde"). Plan structure alone (numbered lists in summaries)
+	// must NOT override completion evidence — that caused false-positive loops.
+	if hasCompletionEvidence && !(hasActionIntent && (containsForwardCue || containsActionCue)) {
 		return false
 	}
 
