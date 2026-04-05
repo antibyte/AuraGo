@@ -67,7 +67,6 @@ func InitDB(dbPath string) (*OptimizerDB, error) {
                 active BOOLEAN DEFAULT 1,
                 shadow BOOLEAN DEFAULT 0
         );
-        CREATE INDEX IF NOT EXISTS idx_prompt_overrides_tool_status ON prompt_overrides(tool_name, active, shadow);
 	CREATE INDEX IF NOT EXISTS idx_traces_tool_version ON tool_traces(tool_name, prompt_version);
 	CREATE INDEX IF NOT EXISTS idx_traces_timestamp ON tool_traces(timestamp);
 		
@@ -88,9 +87,9 @@ func InitDB(dbPath string) (*OptimizerDB, error) {
 		if _, err := db.Exec("ALTER TABLE prompt_overrides ADD COLUMN shadow BOOLEAN DEFAULT 0"); err != nil {
 			return nil, fmt.Errorf("failed to add shadow column: %w", err)
 		}
-		// Now create the index that requires the shadow column.
-		_, _ = db.Exec("CREATE INDEX IF NOT EXISTS idx_prompt_overrides_tool_status ON prompt_overrides(tool_name, active, shadow)")
 	}
+	// Always ensure the index exists (covers both new and migrated DBs).
+	_, _ = db.Exec("CREATE INDEX IF NOT EXISTS idx_prompt_overrides_tool_status ON prompt_overrides(tool_name, active, shadow)")
 
 	defaultDB = &OptimizerDB{db: db}
 	defaultDB.invalidateStaleOverrides()

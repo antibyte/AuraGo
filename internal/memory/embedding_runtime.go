@@ -46,6 +46,12 @@ func buildEmbeddingFuncFromConfig(cfg *config.Config, logger *slog.Logger) (chro
 
 	if logger != nil {
 		logger.Info("Embedding runtime configured", "provider", provider, "url", embedURL, "model", embedModel)
+		if embedKey == "" {
+			vaultKey := "provider_" + provider + "_api_key"
+			logger.Warn("[Embedding] API key is empty — check vault entry",
+				"provider", provider, "vault_key", vaultKey,
+				"hint", "Re-enter the API key via Config UI → Providers → "+provider)
+		}
 	}
 
 	return chromem.NewEmbeddingFuncOpenAICompat(embedURL, embedKey, embedModel, nil), provider, false

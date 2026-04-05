@@ -167,6 +167,15 @@ func NewChromemVectorDB(cfg *config.Config, logger *slog.Logger) (*ChromemVector
 			embedModel = "text-embedding-3-small"
 		}
 
+		// Warn early if the API key is empty — the 401 from the provider would
+		// otherwise be the only hint and doesn't clearly say "key missing".
+		if embedKey == "" {
+			vaultKey := "provider_" + provider + "_api_key"
+			logger.Warn("[VectorDB] Embeddings API key is empty — check vault entry",
+				"provider", provider, "vault_key", vaultKey,
+				"hint", "Re-enter the API key via Config UI → Providers → "+provider)
+		}
+
 		embeddingFunc = chromem.NewEmbeddingFuncOpenAICompat(
 			embedURL,
 			embedKey,
