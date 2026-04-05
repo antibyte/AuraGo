@@ -6,7 +6,7 @@
 const QUICK_FLOW_STEPS  = ['plan-select', 'plan-quick', 'step-3'];
 const CUSTOM_FLOW_STEPS = ['plan-select', 'step-0', 'step-1', 'step-2', 'step-3'];
 // Label i18n keys for each logical step in each flow
-const QUICK_FLOW_LABELS  = ['setup.step_label_plan', 'setup.step_label_quick', 'setup.step_label_security'];
+const QUICK_FLOW_LABELS  = ['setup.step_label_plan', 'setup.step_label_quick', 'setup.step_label_3'];
 const CUSTOM_FLOW_LABELS = ['setup.step_label_plan', 'setup.step_label_0', 'setup.step_label_1', 'setup.step_label_2', 'setup.step_label_3'];
 
 let currentStepIndex = 0;   // index into the active flow array
@@ -737,6 +737,8 @@ function fetchAndApplyLang(langValue) {
                 I18N = json.data;
                 applyI18N();
                 renderStepIndicator();
+                // Re-render dynamically built content that used t() at creation time
+                if (profiles && profiles.length > 0) renderProfileCards(profiles);
             }
         })
         .catch(() => { /* silently ignore — UI stays in current language */ });
@@ -841,7 +843,8 @@ function renderStepIndicator() {
             isReachable ? 'reachable' : '',
         ].filter(Boolean).join(' ');
         const clickable = isReachable || isCompleted;
-        const label = t(labels[i]) || labels[i].split('.').pop();
+        const raw = t(labels[i]);
+        const label = (raw && raw !== labels[i]) ? raw : labels[i].split('.').pop();
         html += `<div class="step-group">`;
         html += `<div class="${classes}"${clickable ? ` onclick="goToStep(${i})" style="cursor:pointer"` : ''}>${isCompleted ? '✓' : i + 1}</div>`;
         html += `<span class="step-label">${escapeHtml(label)}</span>`;
