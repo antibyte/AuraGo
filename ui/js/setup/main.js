@@ -160,6 +160,12 @@ function getFeatureBadges(features) {
     }).join('');
 }
 
+function tProfile(profileId, field, fallback) {
+    const key = 'setup.profile_' + profileId + '_' + field;
+    const val = t(key);
+    return (val !== key) ? val : (fallback || '');
+}
+
 function renderProfileCards(list) {
     const grid = document.getElementById('profile-grid');
     if (!grid) return;
@@ -169,16 +175,19 @@ function renderProfileCards(list) {
     }
     grid.innerHTML = list.map(p => {
         const isCustom = p.id === 'custom';
+        const name = tProfile(p.id, 'name', p.name);
+        const desc = tProfile(p.id, 'description', p.description || '');
+        const pricing = tProfile(p.id, 'pricing', p.pricing_label || '');
         return `
         <div class="profile-card${isCustom ? ' is-custom' : ''}"
              id="profile-card-${escapeAttr(p.id)}"
              onclick="selectProfile('${escapeAttr(p.id)}')">
             <div class="profile-check">✓</div>
             <div class="profile-card-icon">${escapeHtml(p.icon || (isCustom ? '⚙️' : '🤖'))}</div>
-            <div class="profile-card-name">${escapeHtml(p.name)}</div>
-            <div class="profile-card-description">${escapeHtml(p.description || '')}</div>
+            <div class="profile-card-name">${escapeHtml(name)}</div>
+            <div class="profile-card-description">${escapeHtml(desc)}</div>
             ${p.features ? `<div class="profile-features">${getFeatureBadges(p.features)}</div>` : ''}
-            ${p.pricing_label ? `<div class="profile-card-pricing">${escapeHtml(p.pricing_label)}</div>` : ''}
+            ${pricing ? `<div class="profile-card-pricing">${escapeHtml(pricing)}</div>` : ''}
         </div>`;
     }).join('');
 }
@@ -190,16 +199,20 @@ function selectProfile(profileId) {
         card.classList.toggle('selected', card.id === `profile-card-${profileId}`);
     });
     if (!selectedProfile) return;
+    // Update Next button state
+    updateNextButtonState();
     // For quick flow: populate quick-step fields
     if (profileId !== 'custom') {
         // Update quick-plan header
         const header = document.getElementById('plan-quick-header');
         if (header) {
+            const name = tProfile(selectedProfile.id, 'name', selectedProfile.name);
+            const desc = tProfile(selectedProfile.id, 'description', selectedProfile.description || '');
             header.innerHTML = `
                 <div class="plan-quick-icon">${escapeHtml(selectedProfile.icon || '🤖')}</div>
                 <div>
-                    <div class="plan-quick-name">${escapeHtml(selectedProfile.name)}</div>
-                    <div class="plan-quick-subtitle">${escapeHtml(selectedProfile.description || '')}</div>
+                    <div class="plan-quick-name">${escapeHtml(name)}</div>
+                    <div class="plan-quick-subtitle">${escapeHtml(desc)}</div>
                 </div>`;
         }
         // Update API key hint
@@ -741,7 +754,7 @@ function fetchAndApplyLang(langValue) {
                 if (profiles && profiles.length > 0) renderProfileCards(profiles);
             }
         })
-        .catch(() => { /* silently ignore — UI stays in current language */ });
+        .catch((err) => { console.warn('fetchAndApplyLang failed:', err); });
 }
 
 // ── Helper LLM Toggle ────────────────────────
@@ -857,6 +870,16 @@ function renderStepIndicator() {
     container.innerHTML = html;
 }
 
+function updateNextButtonState() {
+    const btnNext = document.getElementById('btn-next');
+    if (!btnNext) return;
+    const flow = activeFlow();
+    const stepId = flow[currentStepIndex];
+    const shouldDisable = (stepId === 'plan-select' && !selectedProfile);
+    btnNext.disabled = shouldDisable;
+    btnNext.classList.toggle('disabled', shouldDisable);
+}
+
 function updateUI() {
     const flow = activeFlow();
     const stepId = flow[currentStepIndex];
@@ -876,12 +899,11 @@ function updateUI() {
     if (btnNext) {
         if (currentStepIndex === flow.length - 1) {
             btnNext.innerHTML = t('setup.nav_save_and_start');
-        } else if (stepId === 'plan-select') {
-            btnNext.innerHTML = t('setup.nav_next');
         } else {
             btnNext.innerHTML = t('setup.nav_next');
         }
     }
+    updateNextButtonState();
 }
 
 // ── Validation ───────────────────────────────
