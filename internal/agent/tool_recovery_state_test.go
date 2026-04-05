@@ -32,6 +32,15 @@ func TestToolRecoveryStateHandleDuplicateToolCallTriggersCircuitBreaker(t *testi
 	if !strings.Contains(req.Messages[0].Content, "CIRCUIT BREAKER") {
 		t.Fatal("expected circuit breaker guidance in injected message")
 	}
+
+	// After the circuit breaker fires, the frequency counter is preserved.
+	// Any subsequent identical call must immediately re-trigger — no free retries.
+	if !state.handleDuplicateToolCall(tc, &req, nil, AgentTelemetryScope{}) {
+		t.Fatal("expected 4th identical call to immediately re-trigger circuit breaker (persistent block)")
+	}
+	if !state.handleDuplicateToolCall(tc, &req, nil, AgentTelemetryScope{}) {
+		t.Fatal("expected 5th identical call to also re-trigger circuit breaker")
+	}
 }
 
 func TestToolRecoveryStateHandleDuplicateToolCallHonorsCustomThreshold(t *testing.T) {

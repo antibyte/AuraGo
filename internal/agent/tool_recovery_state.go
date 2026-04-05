@@ -256,7 +256,11 @@ func (s *toolRecoveryState) handleDuplicateToolCall(tc ToolCall, req *openai.Cha
 		})
 		s.DuplicateToolCount = 0
 		s.LastToolCallSig = ""
-		delete(s.ToolCallFrequency, toolSig)
+		// Do NOT delete ToolCallFrequency[toolSig] here.
+		// Keeping the frequency count ensures every subsequent call to the same
+		// signature immediately re-triggers the circuit breaker (freqCount stays
+		// above the threshold), preventing the LLM from looping indefinitely by
+		// cycling through groups of N calls between resets.
 		return true
 	}
 
