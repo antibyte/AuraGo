@@ -85,26 +85,32 @@ func dispatchManageAppointments(tc ToolCall, db *sql.DB, kg planner.KnowledgeGra
 		if err != nil {
 			return plannerError(err)
 		}
-		if v := strParam(tc.Params, "title"); v != "" {
-			existing.Title = v
+		if _, ok := tc.Params["title"]; ok {
+			if v := strParam(tc.Params, "title"); v != "" {
+				existing.Title = v
+			}
 		}
-		if v := strParam(tc.Params, "description"); v != "" {
-			existing.Description = v
+		if _, ok := tc.Params["description"]; ok {
+			existing.Description = strParam(tc.Params, "description")
 		}
-		if v := strParam(tc.Params, "date_time"); v != "" {
-			existing.DateTime = v
+		if _, ok := tc.Params["date_time"]; ok {
+			if v := strParam(tc.Params, "date_time"); v != "" {
+				existing.DateTime = v
+			}
 		}
-		if v := strParam(tc.Params, "notification_at"); v != "" {
-			existing.NotificationAt = v
+		if _, ok := tc.Params["notification_at"]; ok {
+			existing.NotificationAt = strParam(tc.Params, "notification_at")
 		}
 		if _, ok := tc.Params["wake_agent"]; ok {
 			existing.WakeAgent = boolParam(tc.Params, "wake_agent")
 		}
-		if v := strParam(tc.Params, "agent_instruction"); v != "" {
-			existing.AgentInstruction = v
+		if _, ok := tc.Params["agent_instruction"]; ok {
+			existing.AgentInstruction = strParam(tc.Params, "agent_instruction")
 		}
-		if v := strParam(tc.Params, "status"); v != "" {
-			existing.Status = v
+		if _, ok := tc.Params["status"]; ok {
+			if v := strParam(tc.Params, "status"); v != "" {
+				existing.Status = v
+			}
 		}
 		if err := planner.UpdateAppointment(db, *existing); err != nil {
 			return plannerError(err)
@@ -238,20 +244,24 @@ func dispatchManageTodos(tc ToolCall, db *sql.DB, kg planner.KnowledgeGraph, log
 		if err != nil {
 			return plannerError(err)
 		}
-		if v := strParam(tc.Params, "title"); v != "" {
-			existing.Title = v
+		if _, ok := tc.Params["title"]; ok {
+			if v := strParam(tc.Params, "title"); v != "" {
+				existing.Title = v
+			}
 		}
-		if v := strParam(tc.Params, "description"); v != "" {
-			existing.Description = v
+		if _, ok := tc.Params["description"]; ok {
+			existing.Description = strParam(tc.Params, "description")
 		}
-		if v := strParam(tc.Params, "priority"); v != "" {
-			existing.Priority = v
+		if _, ok := tc.Params["priority"]; ok {
+			existing.Priority = strParam(tc.Params, "priority")
 		}
-		if v := strParam(tc.Params, "status"); v != "" {
-			existing.Status = v
+		if _, ok := tc.Params["status"]; ok {
+			if v := strParam(tc.Params, "status"); v != "" {
+				existing.Status = v
+			}
 		}
-		if v := strParam(tc.Params, "due_date"); v != "" {
-			existing.DueDate = v
+		if _, ok := tc.Params["due_date"]; ok {
+			existing.DueDate = strParam(tc.Params, "due_date")
 		}
 		if err := planner.UpdateTodo(db, *existing); err != nil {
 			return plannerError(err)
