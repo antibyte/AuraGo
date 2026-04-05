@@ -73,31 +73,97 @@
     <div class="setup-container">
         <div class="setup-card">
 
-            <!-- Step Indicator -->
-            <div class="step-indicator">
-                <div class="step-group">
-                    <div class="step-dot active" data-step="0" onclick="goToStep(0)"></div>
-                    <span class="step-label" data-i18n="setup.step_label_0">Connection</span>
+            <!-- Step Indicator — rebuilt dynamically by JS based on flow -->
+            <div class="step-indicator" id="step-indicator"></div>
+
+            <!-- ═══ Section: Plan Selection ═══ -->
+            <div class="setup-section active" id="plan-select">
+                <div class="section-header plan-select-header">
+                    <h2 class="section-title" data-i18n="setup.plan_title">Choose Your Plan</h2>
+                    <p class="section-desc" data-i18n="setup.plan_description">Select a pre-configured provider profile for instant setup, or choose Custom for manual configuration.</p>
                 </div>
-                <div class="step-line" id="line-0-1"></div>
-                <div class="step-group">
-                    <div class="step-dot" data-step="1" onclick="goToStep(1)"></div>
-                    <span class="step-label" data-i18n="setup.step_label_1">Capabilities</span>
+                <div class="profile-grid" id="profile-grid">
+                    <!-- Filled dynamically by JS -->
+                    <div class="profile-grid-loading" id="profile-loading">
+                        <div class="spinner" style="margin: 0 auto 0.5rem;"></div>
+                    </div>
                 </div>
-                <div class="step-line" id="line-1-2"></div>
-                <div class="step-group">
-                    <div class="step-dot" data-step="2" onclick="goToStep(2)"></div>
-                    <span class="step-label" data-i18n="setup.step_label_2">Personality</span>
+            </div>
+
+            <!-- ═══ Section: Quick Setup (Profile selected) ═══ -->
+            <div class="setup-section" id="plan-quick">
+                <div class="section-header">
+                    <div class="section-badge badge-recommended" data-i18n="setup.plan_quick_badge">⚡ Quick Setup</div>
+                    <div class="plan-quick-header" id="plan-quick-header">
+                        <!-- Icon + name filled by JS -->
+                    </div>
+                    <p class="section-desc" data-i18n="setup.plan_quick_description">Enter your API key and admin password. Everything else is pre-configured.</p>
                 </div>
-                <div class="step-line" id="line-2-3"></div>
-                <div class="step-group">
-                    <div class="step-dot" data-step="3" onclick="goToStep(3)"></div>
-                    <span class="step-label" data-i18n="setup.step_label_3">Security</span>
+
+                <!-- Language -->
+                <div class="setup-inner-card">
+                    <h3 class="setup-section-heading" data-i18n="setup.step0_language_heading">🌐 Language</h3>
+                    <div class="field-group">
+                        <label class="field-label" data-i18n="setup.step0_language_label">Language</label>
+                        <select class="field-select" id="quick-language" onchange="onQuickLanguageChange()">
+                            <option value="de" data-i18n="setup.language_de">Deutsch</option>
+                            <option value="en" data-i18n="setup.language_en">English</option>
+                            <option value="es" data-i18n="setup.language_es">Español</option>
+                            <option value="fr" data-i18n="setup.language_fr">Français</option>
+                            <option value="pl" data-i18n="setup.language_pl">Polski</option>
+                            <option value="zh" data-i18n="setup.language_zh">中文</option>
+                            <option value="hi" data-i18n="setup.language_hi">हिन्दी</option>
+                            <option value="nl" data-i18n="setup.language_nl">Nederlands</option>
+                            <option value="it" data-i18n="setup.language_it">Italiano</option>
+                            <option value="pt" data-i18n="setup.language_pt">Português</option>
+                            <option value="da" data-i18n="setup.language_da">Dansk</option>
+                            <option value="ja" data-i18n="setup.language_ja">日本語</option>
+                            <option value="sv" data-i18n="setup.language_sv">Svenska</option>
+                            <option value="no" data-i18n="setup.language_no">Norsk</option>
+                            <option value="el" data-i18n="setup.language_el">Ελληνικά</option>
+                            <option value="cs" data-i18n="setup.language_cs">Čeština</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Admin Password -->
+                <div class="setup-inner-card">
+                    <h3 class="setup-section-heading" data-i18n="setup.step0_security_heading">🔐 Admin Password</h3>
+                    <div class="field-group">
+                        <label class="field-label">
+                            <span data-i18n="setup.step0_admin_password_label">Admin password</span> <span class="required-star">*</span>
+                        </label>
+                        <input class="field-input" type="password" id="quick-admin-password"
+                            data-i18n-placeholder="setup.step0_admin_password_placeholder" placeholder="Minimum 8 characters" autocomplete="new-password">
+                        <div class="field-error" id="err-quick-admin-password" data-i18n="setup.step0_admin_password_error">Admin password must be at least 8 characters.</div>
+                    </div>
+                    <div class="field-group">
+                        <label class="field-label" data-i18n="setup.step0_admin_password_confirm_label">Confirm Password</label>
+                        <input class="field-input" type="password" id="quick-admin-password-confirm"
+                            data-i18n-placeholder="setup.step0_admin_password_confirm_placeholder" placeholder="Repeat password" autocomplete="new-password">
+                        <div class="field-error" id="err-quick-admin-password-confirm" data-i18n="setup.step0_admin_password_confirm_error">Passwords do not match.</div>
+                    </div>
+                </div>
+
+                <!-- API Key -->
+                <div class="setup-inner-card">
+                    <h3 class="setup-section-heading" data-i18n="setup.step0_api_key_label">🔑 API Key</h3>
+                    <div class="field-group">
+                        <input class="field-input" type="password" id="quick-api-key"
+                            placeholder="sk-..." autocomplete="off">
+                        <div class="field-error" id="err-quick-api-key" data-i18n="setup.step0_api_key_error">API Key is required.</div>
+                        <div class="field-hint" id="quick-api-key-hint">
+                            <span data-i18n="setup.step0_api_key_hint">Available at</span>
+                            <a id="quick-key-link" href="#" target="_blank" rel="noopener noreferrer" class="setup-link"></a>
+                        </div>
+                        <button type="button" id="btn-quick-test" class="btn-setup btn-test-connection" onclick="testQuickConnection()" data-i18n="setup.step0_test_connection">🔌 Test Connection</button>
+                        <div id="quick-test-result" class="field-hint is-hidden"></div>
+                    </div>
                 </div>
             </div>
 
             <!-- ═══ Section 1: Minimum Config ═══ -->
-            <div class="setup-section active" id="step-0">
+            <div class="setup-section" id="step-0">
                 <div class="section-header">
                     <div id="badge-step0" class="section-badge badge-required" data-i18n="setup.step0_badge">⚡ Required</div>
                     <h2 id="title-step0" class="section-title" data-i18n="setup.step0_title">LLM Connection</h2>

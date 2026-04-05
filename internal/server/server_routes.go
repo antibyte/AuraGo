@@ -270,6 +270,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/n8n/missions", handleN8nMissionCreate(s))
 
 	// Quick Setup wizard endpoints (always available — needed before config is complete)
+	mux.HandleFunc("/api/setup/profiles", handleSetupProfiles(s))
 	mux.HandleFunc("/api/setup/status", handleSetupStatus(s))
 	mux.HandleFunc("/api/setup/test", handleSetupTestConnection(s))
 	mux.HandleFunc("/api/setup", handleSetupSave(s))

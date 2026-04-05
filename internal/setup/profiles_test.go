@@ -1,0 +1,161 @@
+package setup
+
+import (
+	"log/slog"
+	"testing"
+)
+
+func TestLoadEmbeddedProfiles(t *testing.T) {
+	t.Parallel()
+
+	profiles := LoadProfiles("", slog.Default())
+	if len(profiles) == 0 {
+		t.Fatal("expected at least one embedded profile")
+	}
+
+	// Check that profiles are sorted by sort_order
+	for i := 1; i < len(profiles); i++ {
+		if profiles[i].SortOrder < profiles[i-1].SortOrder {
+			t.Fatalf("profiles not sorted: %q (order %d) comes after %q (order %d)",
+				profiles[i].ID, profiles[i].SortOrder,
+				profiles[i-1].ID, profiles[i-1].SortOrder)
+		}
+	}
+}
+
+func TestEmbeddedProfilesContainOpenRouter(t *testing.T) {
+	t.Parallel()
+
+	profiles := LoadProfiles("", slog.Default())
+
+	found := false
+	for _, p := range profiles {
+		if p.ID == "openrouter" {
+			found = true
+			if p.ProviderType != "openrouter" {
+				t.Fatalf("openrouter profile has wrong type: %q", p.ProviderType)
+			}
+			if p.MainModel == "" {
+				t.Fatal("openrouter profile has no main_model")
+			}
+			if !p.Features.Vision {
+				t.Fatal("openrouter profile should have vision enabled")
+			}
+			if !p.Features.Embeddings {
+				t.Fatal("openrouter profile should have embeddings enabled")
+			}
+			break
+		}
+	}
+	if !found {
+		t.Fatal("expected openrouter profile in embedded profiles")
+	}
+}
+
+func TestEmbeddedProfilesContainCustom(t *testing.T) {
+	t.Parallel()
+
+	profiles := LoadProfiles("", slog.Default())
+
+	found := false
+	for _, p := range profiles {
+		if p.ID == "custom" {
+			found = true
+			if p.SortOrder != 99 {
+				t.Fatalf("custom profile sort_order = %d, want 99", p.SortOrder)
+			}
+			break
+		}
+	}
+	if !found {
+		t.Fatal("expected custom profile in embedded profiles")
+	}
+}
+
+func TestMiniMaxProfileHasTTS(t *testing.T) {
+	t.Parallel()
+
+	profiles := LoadProfiles("", slog.Default())
+
+	for _, p := range profiles {
+		if p.ID == "minimax_coding" {
+			if !p.Features.TTS {
+				t.Fatal("minimax profile should have TTS enabled")
+			}
+			if p.TTS == nil {
+				t.Fatal("minimax profile should have TTS config")
+			}
+			if p.TTS.Provider != "minimax" {
+				t.Fatalf("minimax TTS provider = %q, want minimax", p.TTS.Provider)
+			}
+			if p.TTS.ModelID == "" {
+				t.Fatal("minimax TTS should have model_id")
+			}
+			if p.TTS.VoiceID == "" {
+				t.Fatal("minimax TTS should have voice_id")
+			}
+			return
+		}
+	}
+	t.Fatal("minimax_coding profile not found")
+}
+
+func TestAlibabaProfileHasNoTTS(t *testing.T) {
+	t.Parallel()
+
+	profiles := LoadProfiles("", slog.Default())
+
+	for _, p := range profiles {
+		if p.ID == "alibaba_coding" {
+			if p.Features.TTS {
+				t.Fatal("alibaba profile should NOT have TTS (cosyvoice not implemented)")
+			}
+			return
+		}
+	}
+	t.Fatal("alibaba_coding profile not found")
+}
+
+func TestParseProfilesSkipsInvalid(t *testing.T) {
+	t.Parallel()
+
+	yaml := []byte(`
+profiles:
+  - id: ""
+    name: "NoID"
+    provider_type: openai
+    base_url: "https://example.com"
+    main_model: "test"
+  - id: "valid"
+    name: "Valid"
+    provider_type: openai
+    base_url: "https://example.com"
+    main_model: "test"
+    sort_order: 1
+  - id: "no_provider"
+    name: "NoProvider"
+    provider_type: ""
+    base_url: "https://example.com"
+    main_model: "test"
+`)
+
+	profiles, err := parseProfiles(yaml)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(profiles) != 1 {
+		t.Fatalf("expected 1 valid profile, got %d", len(profiles))
+	}
+	if profiles[0].ID != "valid" {
+		t.Fatalf("expected valid profile, got %q", profiles[0].ID)
+	}
+}
+
+func TestLoadProfilesFallsBackOnMissingFile(t *testing.T) {
+	t.Parallel()
+
+	profiles := LoadProfiles("/nonexistent/path.yaml", slog.Default())
+	if len(profiles) == 0 {
+		t.Fatal("expected fallback to embedded profiles when file is missing")
+	}
+}

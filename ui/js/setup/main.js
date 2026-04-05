@@ -2,12 +2,27 @@
 // Extracted from setup.html
 
 // ── State ────────────────────────────────────
-let currentStep = 0;
-let highestStep = 0;
-const totalSteps = 4;
+// Step IDs for each flow (plan-select is always index 0)
+const QUICK_FLOW_STEPS  = ['plan-select', 'plan-quick', 'step-3'];
+const CUSTOM_FLOW_STEPS = ['plan-select', 'step-0', 'step-1', 'step-2', 'step-3'];
+// Label i18n keys for each logical step in each flow
+const QUICK_FLOW_LABELS  = ['setup.step_label_plan', 'setup.step_label_quick', 'setup.step_label_security'];
+const CUSTOM_FLOW_LABELS = ['setup.step_label_plan', 'setup.step_label_0', 'setup.step_label_1', 'setup.step_label_2', 'setup.step_label_3'];
+
+let currentStepIndex = 0;   // index into the active flow array
+let highestStepIndex = 0;
+let isQuickFlow = false;
+let selectedProfile = null;
+let profiles = [];
 let saving = false;
 let setupPasswordRequired = true;
 let csrfToken = '';
+
+// Derived helpers
+function activeFlow()  { return isQuickFlow ? QUICK_FLOW_STEPS  : CUSTOM_FLOW_STEPS; }
+function activeLabels(){ return isQuickFlow ? QUICK_FLOW_LABELS : CUSTOM_FLOW_LABELS; }
+function currentStepId(){ return activeFlow()[currentStepIndex]; }
+function totalSteps()  { return activeFlow().length; }
 
 // ── Security: check setup status & redirect if already configured ──
 (async function checkSetupStatus() {
@@ -115,7 +130,231 @@ const providerConfig = {
     },
 };
 
-// ── Helpers ───────────────────────────────────
+// ── Provider Profile Loading ─────────────────
+async function loadProfiles() {
+    try {
+        const resp = await fetch('/api/setup/profiles');
+        if (!resp.ok) throw new Error(resp.statusText);
+        const data = await resp.json();
+        profiles = data.profiles || [];
+        renderProfileCards(profiles);
+    } catch (e) {
+        const loading = document.getElementById('profile-loading');
+        if (loading) loading.innerHTML = `<p style="color:var(--text-secondary);font-size:0.85rem;">${escapeHtml(t('setup.plan_load_error') || 'Could not load profiles.')}</p>`;
+    }
+}
+
+function getFeatureBadges(features) {
+    if (!features) return '';
+    const map = [
+        ['vision',    'setup.feature_vision',    '👁'],
+        ['tts',       'setup.feature_tts',       '🔊'],
+        ['images',    'setup.feature_images',    '🎨'],
+        ['music',     'setup.feature_music',     '🎵'],
+        ['websearch', 'setup.feature_websearch', '🔍'],
+    ];
+    return map.map(([key, i18nKey, icon]) => {
+        const active = !!features[key];
+        const label = (t(i18nKey) || key);
+        const cls = active ? 'feature-badge' : 'feature-badge inactive';
+        return `<span class="${cls}" title="${active ? '' : t('setup.feature_unavailable') || 'Not available'}">${icon} ${escapeHtml(label)}</span>`;
+    }).join('');
+}
+
+function renderProfileCards(list) {
+    const grid = document.getElementById('profile-grid');
+    if (!grid) return;
+    if (!list || list.length === 0) {
+        grid.innerHTML = `<p style="color:var(--text-secondary);font-size:0.85rem;grid-column:1/-1;text-align:center;padding:2rem;">${escapeHtml(t('setup.plan_no_profiles') || 'No profiles available.')}</p>`;
+        return;
+    }
+    grid.innerHTML = list.map(p => {
+        const isCustom = p.id === 'custom';
+        return `
+        <div class="profile-card${isCustom ? ' is-custom' : ''}"
+             id="profile-card-${escapeAttr(p.id)}"
+             onclick="selectProfile('${escapeAttr(p.id)}')">
+            <div class="profile-check">✓</div>
+            <div class="profile-card-icon">${escapeHtml(p.icon || (isCustom ? '⚙️' : '🤖'))}</div>
+            <div class="profile-card-name">${escapeHtml(p.name)}</div>
+            <div class="profile-card-description">${escapeHtml(p.description || '')}</div>
+            ${p.features ? `<div class="profile-features">${getFeatureBadges(p.features)}</div>` : ''}
+            ${p.pricing_label ? `<div class="profile-card-pricing">${escapeHtml(p.pricing_label)}</div>` : ''}
+        </div>`;
+    }).join('');
+}
+
+function selectProfile(profileId) {
+    selectedProfile = profiles.find(p => p.id === profileId) || null;
+    // Update card selection state
+    document.querySelectorAll('.profile-card').forEach(card => {
+        card.classList.toggle('selected', card.id === `profile-card-${profileId}`);
+    });
+    if (!selectedProfile) return;
+    // For quick flow: populate quick-step fields
+    if (profileId !== 'custom') {
+        // Update quick-plan header
+        const header = document.getElementById('plan-quick-header');
+        if (header) {
+            header.innerHTML = `
+                <div class="plan-quick-icon">${escapeHtml(selectedProfile.icon || '🤖')}</div>
+                <div>
+                    <div class="plan-quick-name">${escapeHtml(selectedProfile.name)}</div>
+                    <div class="plan-quick-subtitle">${escapeHtml(selectedProfile.description || '')}</div>
+                </div>`;
+        }
+        // Update API key hint
+        const hint = document.getElementById('quick-api-key-hint');
+        const link = document.getElementById('quick-key-link');
+        if (hint && link && selectedProfile.key_url) {
+            link.href = selectedProfile.key_url;
+            const domain = selectedProfile.key_url.replace(/^https?:\/\//, '').split('/')[0];
+            link.textContent = domain;
+            setupSetHidden(hint, false);
+        } else if (hint) {
+            setupSetHidden(hint, true);
+        }
+        // Update API key placeholder
+        const apiKeyInput = document.getElementById('quick-api-key');
+        if (apiKeyInput) {
+            apiKeyInput.placeholder = selectedProfile.key_placeholder || 'sk-...';
+        }
+    }
+}
+
+// ── Quick Connection Test ────────────────────
+async function testQuickConnection() {
+    if (!selectedProfile) return;
+    const btn = document.getElementById('btn-quick-test');
+    const result = document.getElementById('quick-test-result');
+    if (!btn || btn.disabled) return;
+
+    const apiKey = document.getElementById('quick-api-key').value.trim();
+    if (!apiKey) {
+        result.textContent = t('setup.step0_api_key_error') || 'API Key is required.';
+        result.className = 'field-hint error';
+        setupSetHidden(result, false);
+        return;
+    }
+
+    btn.disabled = true;
+    result.textContent = t('setup.step0_test_testing') || 'Testing…';
+    result.className = 'field-hint';
+    setupSetHidden(result, false);
+
+    try {
+        const resp = await fetch('/api/setup/test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                provider_type: selectedProfile.provider_type || 'openai',
+                base_url: selectedProfile.base_url || '',
+                api_key: apiKey,
+                model: selectedProfile.main_model || '',
+            }),
+        });
+        const data = await resp.json();
+        if (data.ok) {
+            result.textContent = '✓ ' + (t('setup.step0_test_success') || 'Connection successful!');
+            result.className = 'field-hint success';
+        } else {
+            result.textContent = '✕ ' + (data.error || t('setup.step0_test_failed') || 'Connection failed.');
+            result.className = 'field-hint error';
+        }
+    } catch (err) {
+        result.textContent = '✕ ' + err.message;
+        result.className = 'field-hint error';
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+// ── Quick Flow Language Change ───────────────
+function onQuickLanguageChange() {
+    const sel = document.getElementById('quick-language');
+    if (!sel) return;
+    fetchAndApplyLang(sel.value);
+    // Mirror to main language selector so buildConfigPatch() stays in sync
+    const mainSel = document.getElementById('system-language');
+    if (mainSel) mainSel.value = sel.value;
+}
+
+// ── Quick Flow Validation ────────────────────
+function validateQuickStep(skip = false) {
+    let valid = true;
+
+    if (setupPasswordRequired) {
+        const pw = document.getElementById('quick-admin-password').value.trim();
+        if (pw.length < 8) {
+            showFieldError('quick-admin-password', 'err-quick-admin-password');
+            valid = false;
+        } else {
+            clearFieldError('quick-admin-password', 'err-quick-admin-password');
+        }
+        const pw2 = document.getElementById('quick-admin-password-confirm').value.trim();
+        if (pw.length >= 8 && pw2 !== pw) {
+            showFieldError('quick-admin-password-confirm', 'err-quick-admin-password-confirm');
+            valid = false;
+        } else {
+            clearFieldError('quick-admin-password-confirm', 'err-quick-admin-password-confirm');
+        }
+    }
+
+    if (!skip && selectedProfile && selectedProfile.id !== 'custom') {
+        const apiKey = document.getElementById('quick-api-key').value.trim();
+        if (!apiKey) {
+            showFieldError('quick-api-key', 'err-quick-api-key');
+            valid = false;
+        } else {
+            clearFieldError('quick-api-key', 'err-quick-api-key');
+        }
+    }
+
+    return valid;
+}
+
+// ── Quick Flow Config Patch Builder ──────────
+function buildQuickConfigPatch() {
+    if (!selectedProfile) return buildConfigPatch();
+
+    const p = selectedProfile;
+    const apiKey = (document.getElementById('quick-api-key').value || '').trim();
+    const adminPassword = (document.getElementById('quick-admin-password').value || '').trim();
+    const lang = (document.getElementById('quick-language') || document.getElementById('system-language') || {}).value || 'de';
+
+    const patch = {
+        system_language: lang,
+        ...(adminPassword ? { admin_password: adminPassword } : {}),
+        providers: [{
+            id: 'main',
+            type: p.provider_type || 'openai',
+            name: p.name,
+            base_url: p.base_url || '',
+            api_key: apiKey,
+            model: p.main_model || '',
+            native_function_calling: p.native_function_calling !== false,
+        }],
+        llm: { provider: 'main' },
+        ...buildTrustLevelPatch(),
+        ...(p.config_patch || {}),
+    };
+
+    // Inject TTS config from profile if available
+    if (p.tts) {
+        patch.tts = patch.tts || {};
+        const provider = p.tts.provider || '';
+        if (provider && apiKey) {
+            patch.tts[provider] = patch.tts[provider] || {};
+            patch.tts[provider].api_key = apiKey;
+            if (p.tts.model_id) {
+                patch.tts[provider].model_id = p.tts.model_id;
+                patch.tts[provider].voice_id = p.tts.voice_id || '';
+            }
+        }
+    }
+
+    return patch;
+}
 function escapeAttr(s) { return String(s).replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
 function escapeHtml(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 function setupSetHidden(el, hidden) {
@@ -459,21 +698,40 @@ function onHelperToggle() {
 }
 
 // ── Step Navigation ──────────────────────────
-function goToStep(step) {
-    if (step < 0 || step >= totalSteps) return;
-    if (step > highestStep) return;
-    currentStep = step;
+function goToStep(index) {
+    const flow = activeFlow();
+    if (index < 0 || index >= flow.length) return;
+    if (index > highestStepIndex) return;
+    currentStepIndex = index;
     updateUI();
 }
 
 function nextStep(skip = false) {
-    if (currentStep === 0) {
+    const flow = activeFlow();
+    const stepId = flow[currentStepIndex];
+
+    // Validate current step
+    if (stepId === 'plan-select') {
+        // Must select a profile before advancing
+        if (!selectedProfile) {
+            const grid = document.getElementById('profile-grid');
+            if (grid) {
+                grid.classList.add('shake');
+                setTimeout(() => grid.classList.remove('shake'), 400);
+            }
+            return;
+        }
+        // Determine flow based on selected profile
+        isQuickFlow = (selectedProfile.id !== 'custom');
+    } else if (stepId === 'plan-quick') {
+        if (!validateQuickStep(skip)) return;
+    } else if (stepId === 'step-0') {
         if (!validateStep0(skip)) return;
     }
 
-    if (currentStep < totalSteps - 1) {
-        currentStep++;
-        if (currentStep > highestStep) highestStep = currentStep;
+    if (currentStepIndex < activeFlow().length - 1) {
+        currentStepIndex++;
+        if (currentStepIndex > highestStepIndex) highestStepIndex = currentStepIndex;
         updateUI();
     } else {
         saveConfig();
@@ -481,40 +739,73 @@ function nextStep(skip = false) {
 }
 
 function prevStep() {
-    if (currentStep > 0) {
-        currentStep--;
+    if (currentStepIndex > 0) {
+        // When going back to plan-select, reset flow choice to allow changing
+        if (currentStepIndex === 1) {
+            // stay on plan-select; reset flow
+            isQuickFlow = false;
+            currentStepIndex = 0;
+            highestStepIndex = 0;
+        } else {
+            currentStepIndex--;
+        }
         updateUI();
     }
 }
 
-function updateUI() {
-    // Update sections
-    document.querySelectorAll('.setup-section').forEach((s, i) => {
-        s.classList.toggle('active', i === currentStep);
-    });
-
-    // Update step dots
-    document.querySelectorAll('.step-dot').forEach((dot, i) => {
-        dot.classList.toggle('active', i === currentStep);
-        dot.classList.toggle('completed', i < currentStep);
-        dot.classList.toggle('reachable', i <= highestStep && i !== currentStep);
-    });
-
-    // Update lines
-    for (let i = 0; i < totalSteps - 1; i++) {
-        const line = document.getElementById(`line-${i}-${i + 1}`);
-        if (line) line.classList.toggle('completed', i < currentStep);
+function renderStepIndicator() {
+    const container = document.getElementById('step-indicator');
+    if (!container) return;
+    const flow = activeFlow();
+    const labels = activeLabels();
+    let html = '';
+    for (let i = 0; i < flow.length; i++) {
+        const isActive    = i === currentStepIndex;
+        const isCompleted = i < currentStepIndex;
+        const isReachable = i <= highestStepIndex && !isActive;
+        const classes = ['step-dot',
+            isActive    ? 'active'    : '',
+            isCompleted ? 'completed' : '',
+            isReachable ? 'reachable' : '',
+        ].filter(Boolean).join(' ');
+        const clickable = isReachable || isCompleted;
+        const label = t(labels[i]) || labels[i].split('.').pop();
+        html += `<div class="step-group">`;
+        html += `<div class="${classes}"${clickable ? ` onclick="goToStep(${i})" style="cursor:pointer"` : ''}>${isCompleted ? '✓' : i + 1}</div>`;
+        html += `<span class="step-label">${escapeHtml(label)}</span>`;
+        html += `</div>`;
+        if (i < flow.length - 1) {
+            const lineActive = i < currentStepIndex;
+            html += `<div class="step-line${lineActive ? ' active' : ''}"></div>`;
+        }
     }
+    container.innerHTML = html;
+}
 
-    // Update buttons
-    setupSetHidden(document.getElementById('btn-back'), currentStep <= 0);
-    // btn-skip-step is always visible
+function updateUI() {
+    const flow = activeFlow();
+    const stepId = flow[currentStepIndex];
+
+    // Show active section
+    document.querySelectorAll('.setup-section').forEach(s => {
+        s.classList.toggle('active', s.id === stepId);
+    });
+
+    // Rebuild step indicator
+    renderStepIndicator();
+
+    // Update navigation buttons
+    setupSetHidden(document.getElementById('btn-back'), currentStepIndex <= 0);
 
     const btnNext = document.getElementById('btn-next');
-    if (currentStep === totalSteps - 1) {
-        btnNext.innerHTML = t('setup.nav_save_and_start');
-    } else {
-        btnNext.innerHTML = t('setup.nav_next');
+    if (btnNext) {
+        if (currentStepIndex === flow.length - 1) {
+            btnNext.innerHTML = t('setup.nav_save_and_start');
+        } else if (stepId === 'plan-select') {
+            btnNext.innerHTML = t('setup.nav_next');
+        } else {
+            btnNext.innerHTML = t('setup.nav_next');
+        }
     }
 }
 
@@ -878,7 +1169,7 @@ async function saveConfig() {
     btnNext.innerHTML = '<div class="spinner"></div> ' + t('setup.nav_saving');
 
     try {
-        const patch = buildConfigPatch();
+        const patch = isQuickFlow ? buildQuickConfigPatch() : buildConfigPatch();
         const resp = await fetch('/api/setup', {
             method: 'POST',
             headers: {
@@ -904,7 +1195,8 @@ async function saveConfig() {
         // Show success screen
         document.querySelectorAll('.setup-section').forEach(s => s.classList.remove('active'));
         setupSetHidden(document.getElementById('header-nav'), true);
-        setupSetHidden(document.querySelector('.step-indicator'), true);
+        const indicator = document.getElementById('step-indicator');
+        if (indicator) indicator.innerHTML = '';
         document.getElementById('success-screen').classList.add('active');
 
         if (result.needs_restart) {
@@ -949,8 +1241,11 @@ function showToast(message, type = 'info') {
     const lang = (navigator.languages && navigator.languages[0]) || navigator.language || 'en';
     const base = lang.toLowerCase().split('-')[0];
     const supported = ['de','en','es','fr','pl','zh','hi','nl','it','pt','da','ja','sv','no','cs','el'];
+    const detected = supported.includes(base) ? base : 'en';
     const sel = document.getElementById('system-language');
-    sel.value = supported.includes(base) ? base : 'en';
+    if (sel) sel.value = detected;
+    const quickSel = document.getElementById('quick-language');
+    if (quickSel) quickSel.value = detected;
 })();
 
 // ── i18n: populate text ──
@@ -1000,3 +1295,4 @@ onProviderChange();
 onEmbProviderChange();
 onHelperToggle();
 updateUI();
+loadProfiles();

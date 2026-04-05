@@ -4,6 +4,7 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/llm"
 	"aurago/internal/memory"
+	"aurago/internal/setup"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
@@ -161,6 +162,30 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 						}
 						// Remove api_key from the map so it is never written to YAML
 						delete(prov, "api_key")
+					}
+				}
+			}
+
+			// Extract TTS API keys into vault. TTS has its own config structure
+			// (tts.minimax.api_key, tts.elevenlabs.api_key) separate from the
+			// provider system. The vault keys match config_migrate.go conventions.
+			if tts, ok := patch["tts"].(map[string]interface{}); ok {
+				for _, sub := range []struct {
+					key      string
+					vaultKey string
+				}{
+					{"minimax", "tts_minimax_api_key"},
+					{"elevenlabs", "tts_elevenlabs_api_key"},
+				} {
+					if section, ok := tts[sub.key].(map[string]interface{}); ok {
+						if key, _ := section["api_key"].(string); key != "" {
+							if werr := s.Vault.WriteSecret(sub.vaultKey, key); werr != nil {
+								s.Logger.Warn("[Setup] Failed to write TTS API key to vault", "provider", sub.key, "error", werr)
+							} else {
+								s.Logger.Info("[Setup] TTS API key stored in vault", "provider", sub.key)
+							}
+							delete(section, "api_key")
+						}
 					}
 				}
 			}
@@ -435,6 +460,24 @@ func handleSetupTestConnection(s *Server) http.HandlerFunc {
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"ok":      true,
 			"message": "Connection successful",
+		})
+	}
+}
+
+// handleSetupProfiles returns the list of pre-configured provider profiles
+// for the setup wizard plan selection step.
+func handleSetupProfiles(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		profiles := setup.LoadProfiles("", s.Logger)
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"profiles": profiles,
 		})
 	}
 }

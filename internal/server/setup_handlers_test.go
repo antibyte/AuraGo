@@ -165,3 +165,52 @@ func TestHandleSetupSaveRejectsWrongCSRF(t *testing.T) {
 		t.Fatalf("status = %d, want 403", rec.Code)
 	}
 }
+
+func TestHandleSetupProfilesReturnsProfiles(t *testing.T) {
+	t.Parallel()
+
+	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/setup/profiles", nil)
+	rec := httptest.NewRecorder()
+	handleSetupProfiles(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+
+	var body map[string]interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json: %v", err)
+	}
+
+	profiles, ok := body["profiles"].([]interface{})
+	if !ok {
+		t.Fatal("expected profiles array in response")
+	}
+	if len(profiles) < 2 {
+		t.Fatalf("expected at least 2 profiles, got %d", len(profiles))
+	}
+
+	// Verify first profile has required fields
+	first := profiles[0].(map[string]interface{})
+	for _, field := range []string{"id", "name", "description", "icon"} {
+		if _, ok := first[field]; !ok {
+			t.Fatalf("missing field %q in first profile", field)
+		}
+	}
+}
+
+func TestHandleSetupProfilesRejectsPost(t *testing.T) {
+	t.Parallel()
+
+	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/setup/profiles", nil)
+	rec := httptest.NewRecorder()
+	handleSetupProfiles(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusMethodNotAllowed {
+		t.Fatalf("status = %d, want 405", rec.Code)
+	}
+}
