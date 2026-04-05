@@ -229,9 +229,13 @@ func SearchMedia(db *sql.DB, query, mediaType string, tags []string, limit, offs
 	conditions = append(conditions, "deleted = 0")
 
 	if query != "" {
-		conditions = append(conditions, "(description LIKE ? OR prompt LIKE ? OR tags LIKE ? OR filename LIKE ?)")
-		q := "%" + query + "%"
-		args = append(args, q, q, q, q)
+		// Split multi-word queries so each word is matched independently (OR per field, AND across words)
+		words := strings.Fields(query)
+		for _, word := range words {
+			w := "%" + word + "%"
+			conditions = append(conditions, "(description LIKE ? OR prompt LIKE ? OR tags LIKE ? OR filename LIKE ?)")
+			args = append(args, w, w, w, w)
+		}
 	}
 	if mediaType != "" {
 		// Map logical UI type groups to the actual media_type values stored in the DB.

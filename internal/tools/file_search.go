@@ -46,7 +46,13 @@ func ExecuteFileSearch(operation, pattern, filePath, glob, outputMode string, wo
 		}
 		return fileGrepRecursive(glob, pattern, outputMode, workspaceDir, encode)
 	case "find":
-		return fileFind(glob, workspaceDir, encode)
+		// If glob is broad ("**/*" or empty) but pattern is also provided, prefer pattern
+		// as the filename filter so the agent can pass e.g. pattern="*tunnel*" intuitively.
+		effectiveGlob := glob
+		if pattern != "" && (glob == "**/*" || glob == "") {
+			effectiveGlob = pattern
+		}
+		return fileFind(effectiveGlob, workspaceDir, encode)
 	default:
 		return encode(FileSearchResult{Status: "error", Message: fmt.Sprintf("Unknown file_search operation '%s'. Valid: grep, grep_recursive, find", operation)})
 	}

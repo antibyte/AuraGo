@@ -336,7 +336,7 @@ func decodeHomepageArgs(tc ToolCall) homepageArgs {
 		AutoFix:      tc.AutoFix,
 		URL:          firstNonEmptyToolString(tc.URL, toolArgString(tc.Params, "url")),
 		Viewport:     firstNonEmptyToolString(tc.Viewport, toolArgString(tc.Params, "viewport")),
-		Path:         firstNonEmptyToolString(tc.Path, toolArgString(tc.Params, "path")),
+		Path:         firstNonEmptyToolString(tc.Path, toolArgString(tc.Params, "path", "file_path")),
 		Content:      firstNonEmptyToolString(tc.Content, toolArgString(tc.Params, "content")),
 		SubOperation: firstNonEmptyToolString(tc.SubOperation, toolArgString(tc.Params, "sub_operation")),
 		Old:          toolArgString(tc.Params, "old"),
