@@ -368,6 +368,9 @@ func setupValidationMessage(err error) string {
 // We check that at least one provider with a non-empty API key (or OAuth)
 // exists and is referenced by the main LLM slot.
 func needsSetup(cfg *config.Config) bool {
+	// DEBUG: force setup wizard to always appear (remove after testing)
+	return true
+
 	llmConfigured := false
 	// If the LLM has a resolved API key, the provider side is configured.
 	// This covers new-format configs where the key is loaded from vault.
@@ -378,10 +381,6 @@ func needsSetup(cfg *config.Config) bool {
 		if len(cfg.Providers) == 0 || cfg.LLM.Provider == "" {
 			return true
 		}
-		// Walk providers: accept any that has a key, OAuth, or is a key-less
-		// local endpoint (Ollama) identified by type="ollama" with URL and model set.
-		// NOTE: cloud providers (openrouter, openai, etc.) with BaseURL+model but no key
-		// must NOT be treated as configured — they still need an API key entered by the user.
 		for _, p := range cfg.Providers {
 			if p.APIKey != "" || p.AuthType == "oauth2" {
 				llmConfigured = true
