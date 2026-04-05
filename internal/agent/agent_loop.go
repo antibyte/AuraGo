@@ -2189,7 +2189,6 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			content = "[Empty Response]"
 		}
 		currentLogger.Debug("[Sync] Final answer", "content_len", len(content), "content_preview", Truncate(content, 200))
-		broker.Send("done", "Response complete.")
 
 		// Don't persist [Empty Response] as a real message — it pollutes future context
 		isEmpty := content == "[Empty Response]"
@@ -2204,6 +2203,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		} else {
 			currentLogger.Warn("[Sync] Skipping history persistence for empty response")
 		}
+		// Fire "done" AFTER the message is persisted so that the UI can reliably
+		// fall back to /history if the HTTP response was lost (e.g. page refresh
+		// during a long-running agent run).
+		broker.Send("done", "Response complete.")
 
 		memAnalysis := resolveMemoryAnalysisSettings(cfg, shortTermMem)
 		useBatchedTurnHelper := helperManager != nil && memAnalysis.Enabled && memAnalysis.RealTime && !isEmpty && shortTermMem != nil && !flags.IsCoAgent

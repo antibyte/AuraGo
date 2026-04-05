@@ -228,6 +228,9 @@ let conversation = [];
 // Tracks /files/ paths already rendered via SSE 'image' events
 // so appendMessage() can skip the duplicate markdown image.
 let seenSSEImages = new Set();
+// Tracks whether the HTTP response for the current request has been rendered.
+// Used by the SSE 'done' fallback to avoid duplicate rendering.
+let _httpResponseRendered = false;
 let seenSSEAudios = new Set();
 let seenSSEDocuments = new Set();
 let currentPlanState = null;
@@ -262,7 +265,47 @@ async function renderHistoryMessagesBatched(history) {
     }
 }
 
-/* ── Debug mode ── */
+/**
+ * Fallback: fetch the latest assistant message from /history and render it
+ * if it has not already been displayed. Called when the HTTP response for a
+ * request was lost (e.g. connection dropped during a long agent run or page
+ * was reloaded while the agent was still working).
+ * Sets _httpResponseRendered = true on success.
+ */
+async function tryRecoverFromHistory() {
+    try {
+        const res = await fetch('/history');
+        if (!res.ok) return;
+        const history = await res.json();
+        if (!Array.isArray(history) || history.length === 0) return;
+
+        // Find the last non-internal assistant message
+        let lastAssistant = null;
+        for (let i = history.length - 1; i >= 0; i--) {
+            const m = history[i];
+            if (m.role === 'assistant' && !m.is_internal) {
+                lastAssistant = m;
+                break;
+            }
+        }
+        if (!lastAssistant || !lastAssistant.content) return;
+
+        // Skip if already displayed in this session
+        const alreadyShown = conversation.some(
+            m => m.role === 'assistant' && m.content === lastAssistant.content
+        );
+        if (alreadyShown) return;
+
+        appendMessage('assistant', lastAssistant.content);
+        conversation.push({ role: 'assistant', content: lastAssistant.content });
+        if (conversation.length > 200) { conversation = conversation.slice(-200); }
+        _httpResponseRendered = true;
+    } catch (e) {
+        // Silently ignore — best-effort recovery only
+    }
+}
+
+*/
 // If user has explicitly set a preference in localStorage, use it.
 // Only fall back to server defaults if no preference has been saved yet.
 const _storedDebug = localStorage.getItem('aurago-debug');
@@ -986,6 +1029,9 @@ chatForm.addEventListener('submit', async (e) => {
     agentStatusText.textContent = t('chat.sse_thinking');
     chatSetHidden(agentStatusDiv, false);
 
+    // Reset per-request response tracking for the SSE fallback
+    _httpResponseRendered = false;
+
     try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10 * 60 * 1000); // 10 min
@@ -1010,6 +1056,7 @@ chatForm.addEventListener('submit', async (e) => {
         const assistantMessage = data.choices[0].message;
 
         appendMessage('assistant', assistantMessage.content);
+        _httpResponseRendered = true;
         seenSSEImages.clear(); // reset after final response is rendered
         seenSSEAudios.clear();
         seenSSEDocuments.clear();
@@ -1021,7 +1068,13 @@ chatForm.addEventListener('submit', async (e) => {
         if (error.name === 'AbortError') {
             appendMessage('assistant', t('chat.error_timeout'));
         } else {
-            appendMessage('assistant', t('chat.error_connection') + error.message);
+            // Try to recover the response from /history before showing an error.
+            // This handles the case where the HTTP connection was lost during a
+            // long agent run but the agent did complete and persisted the answer.
+            await tryRecoverFromHistory();
+            if (!_httpResponseRendered) {
+                appendMessage('assistant', t('chat.error_connection') + error.message);
+            }
         }
     } finally {
         userInput.disabled = false;
@@ -1318,6 +1371,17 @@ function handleSSEMessage(e) {
             chatSetHidden(agentStatusDiv, true);
             stopBtn.disabled = true;
             hideTodoPanel();
+            // Fallback: if the HTTP response was not received yet (e.g. page was
+            // reloaded during a long run), wait briefly for it to arrive and then
+            // recover from /history.  Since "done" is now fired after the message
+            // is persisted server-side, /history will already contain the answer.
+            if (!_httpResponseRendered) {
+                setTimeout(() => {
+                    if (!_httpResponseRendered) {
+                        tryRecoverFromHistory();
+                    }
+                }, 1500);
+            }
             return;
         } else if (data.event === 'tokens') {
             const tokenEl = document.getElementById('tokenCounter');
