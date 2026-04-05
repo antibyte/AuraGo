@@ -572,6 +572,12 @@ personality:
     emotion_synthesizer:
         enabled: false                 # enable emotion synthesis
         max_history_entries: 100       # max emotion history entries to keep
+    inner_voice:
+        enabled: false                 # enable inner voice / subconscious nudge engine (requires emotion_synthesizer + engine_v2)
+        min_interval_secs: 60          # minimum seconds between inner voice generations
+        max_per_session: 20            # maximum inner voice thoughts per session
+        decay_turns: 3                 # inner voice thought expires after N turns
+        error_streak_min: 2            # minimum consecutive errors before error-streak trigger fires
 rocketchat:
     enabled: false
     url: ""

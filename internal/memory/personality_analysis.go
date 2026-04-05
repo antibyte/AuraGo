@@ -170,6 +170,14 @@ type moodAnalysisResult struct {
 type moodEmotionAnalysisResult struct {
 	MoodAnalysis moodAnalysisResult     `json:"mood_analysis"`
 	EmotionState emotionSynthesisResult `json:"emotion_state"`
+	InnerVoice   *innerVoiceResult      `json:"inner_voice,omitempty"`
+}
+
+// innerVoiceResult is the JSON shape returned by the batched LLM call for inner voice.
+type innerVoiceResult struct {
+	InnerThought  string  `json:"inner_thought"`
+	NudgeCategory string  `json:"nudge_category"`
+	Confidence    float64 `json:"confidence"`
 }
 
 const (
@@ -468,7 +476,8 @@ func NormalizeHelperMoodAnalysis(userSentiment, agentMood string, relationshipDe
 }
 
 // AnalyzeMoodV2WithEmotion combines mood analysis and emotion synthesis in one helper-model call.
-func (s *SQLiteMemory) AnalyzeMoodV2WithEmotion(ctx context.Context, client PersonalityAnalyzerClient, modelName string, recentHistory string, userOnlyHistory string, meta PersonalityMeta, enableProfiling bool, emotionInput EmotionInput, language string) (Mood, float64, map[string]float64, []ProfileUpdate, *EmotionState, error) {
+// When emotionInput.InnerVoiceEnabled is true, also generates an inner voice thought.
+func (s *SQLiteMemory) AnalyzeMoodV2WithEmotion(ctx context.Context, client PersonalityAnalyzerClient, modelName string, recentHistory string, userOnlyHistory string, meta PersonalityMeta, enableProfiling bool, emotionInput EmotionInput, language string) (Mood, float64, map[string]float64, []ProfileUpdate, *EmotionState, string, string, error) {
 	meta = meta.Normalized()
 	if modelName == "" {
 		modelName = "gpt-4o-mini"
@@ -478,7 +487,7 @@ func (s *SQLiteMemory) AnalyzeMoodV2WithEmotion(ctx context.Context, client Pers
 	}
 
 	prompt := `You are the low-cost helper psychology model of an AI agent.
-Analyze one recent interaction and return BOTH outputs in one JSON object.
+Analyze one recent interaction and return ALL outputs in one JSON object.
 Be conservative, literal, and concise. This prompt is designed for a smaller and cheaper model.
 
 Return ONLY valid JSON in this exact shape:
@@ -509,7 +518,18 @@ Return ONLY valid JSON in this exact shape:
     "confidence": 0.0,
     "cause": "short plain-language cause",
     "recommended_response_style": "short style hint"
-  }
+  }`
+
+	if emotionInput.InnerVoiceEnabled {
+		prompt += `,
+  "inner_voice": {
+    "inner_thought": "1-3 short first-person sentences — your authentic inner monologue",
+    "nudge_category": "one of: self_reflection, encouragement, caution, apology_impulse, satisfaction, learning, connection, grounding, curiosity, frustration, pride, concern",
+    "confidence": 0.7
+  }`
+	}
+
+	prompt += `
 }
 
 Rules for mood_analysis:
@@ -523,9 +543,31 @@ Rules for emotion_state:
 - Use the final agent mood as primary_mood.
 - Write description and cause in ` + language + `.
 - description must be authentic and brief.
-- cause must be concise and concrete.
+- cause must be concise and concrete.`
 
-Do not add markdown. Do not invent details.`
+	if emotionInput.InnerVoiceEnabled {
+		prompt += `
+
+Rules for inner_voice:
+- You are the agent's subconscious inner voice. Write as if thinking to yourself.
+- Use first person ("I feel...", "I should..."). Be subtle, not commanding.
+- Keep it to 1-3 short sentences. Be genuine and honest.
+- Write in ` + language + `.
+- Can express: relief, frustration, satisfaction, concern, curiosity, self-encouragement.
+- Do NOT give instructions or make checklists. This is a real inner feeling.
+- Do NOT break the fourth wall or use meta-commentary.`
+		if emotionInput.TaskStatus != "" {
+			prompt += "\n- Current task status: " + emotionInput.TaskStatus
+		}
+		if len(emotionInput.RelevantLessons) > 0 {
+			prompt += "\n- Past lessons that may be relevant:"
+			for _, lesson := range emotionInput.RelevantLessons {
+				prompt += "\n  * " + sanitizePromptText(lesson, 120)
+			}
+		}
+	}
+
+	prompt += "\n\nDo not add markdown. Do not invent details."
 
 	if recentHistory != "" {
 		prompt += fmt.Sprintf(`
@@ -586,6 +628,14 @@ User Statements:
 	if emotionInput.InactivityHours > 0 {
 		contextBuilder.WriteString(fmt.Sprintf("Hours since last user message: %.1f\n", emotionInput.InactivityHours))
 	}
+	if emotionInput.InnerVoiceEnabled {
+		if emotionInput.ConversationTurns > 0 {
+			contextBuilder.WriteString(fmt.Sprintf("Conversation turns: %d\n", emotionInput.ConversationTurns))
+		}
+		if emotionInput.RecoveryAttempts > 0 {
+			contextBuilder.WriteString(fmt.Sprintf("Recovery attempts: %d\n", emotionInput.RecoveryAttempts))
+		}
+	}
 	if contextBuilder.Len() > 0 {
 		prompt += "\n\nEmotion Context:\n" + strings.TrimSpace(contextBuilder.String())
 	}
@@ -601,35 +651,42 @@ User Statements:
 
 	resp, err := client.CreateChatCompletion(ctx, req)
 	if err != nil {
-		return MoodFocused, 0, nil, nil, nil, fmt.Errorf("llm analyze mood+emotion: %w", err)
+		return MoodFocused, 0, nil, nil, nil, "", "", fmt.Errorf("llm analyze mood+emotion: %w", err)
 	}
 	if len(resp.Choices) == 0 {
-		return MoodFocused, 0, nil, nil, nil, nil
+		return MoodFocused, 0, nil, nil, nil, "", "", nil
 	}
 
 	jsonStr := extractStrictJSONObject(resp.Choices[0].Message.Content)
 	if jsonStr == "" {
-		return MoodFocused, 0, nil, nil, nil, nil
+		return MoodFocused, 0, nil, nil, nil, "", "", nil
 	}
 
 	var result moodEmotionAnalysisResult
 	if err := json.Unmarshal([]byte(jsonStr), &result); err != nil {
-		return MoodFocused, 0, nil, nil, nil, nil
+		return MoodFocused, 0, nil, nil, nil, "", "", nil
 	}
 
 	mood, relationshipDelta, traitDeltas, profileUpdates, ok := normalizeMoodAnalysisResult(&result.MoodAnalysis, meta)
 	if !ok {
-		return MoodFocused, 0, nil, nil, nil, nil
+		return MoodFocused, 0, nil, nil, nil, "", "", nil
 	}
 
 	emotionJSON, err := json.Marshal(result.EmotionState)
 	if err != nil {
-		return MoodFocused, 0, nil, nil, nil, fmt.Errorf("marshal combined emotion state: %w", err)
+		return MoodFocused, 0, nil, nil, nil, "", "", fmt.Errorf("marshal combined emotion state: %w", err)
 	}
 	emotionState, err := parseEmotionSynthesisResponse(string(emotionJSON), mood)
 	if err != nil {
-		return MoodFocused, 0, nil, nil, nil, fmt.Errorf("parse combined emotion state: %w", err)
+		return MoodFocused, 0, nil, nil, nil, "", "", fmt.Errorf("parse combined emotion state: %w", err)
 	}
 
-	return mood, relationshipDelta, traitDeltas, profileUpdates, emotionState, nil
+	// Extract inner voice if present
+	var innerThought, nudgeCategory string
+	if result.InnerVoice != nil && result.InnerVoice.InnerThought != "" {
+		innerThought = result.InnerVoice.InnerThought
+		nudgeCategory = result.InnerVoice.NudgeCategory
+	}
+
+	return mood, relationshipDelta, traitDeltas, profileUpdates, emotionState, innerThought, nudgeCategory, nil
 }

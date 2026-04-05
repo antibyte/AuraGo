@@ -321,6 +321,14 @@ type helperTurnEmotionPayload struct {
 type helperTurnPersonalityBlock struct {
 	MoodAnalysis helperTurnMoodAnalysis   `json:"mood_analysis"`
 	EmotionState helperTurnEmotionPayload `json:"emotion_state"`
+	InnerVoice   *helperTurnInnerVoice    `json:"inner_voice,omitempty"`
+}
+
+// helperTurnInnerVoice is the optional inner voice block from helper turn results.
+type helperTurnInnerVoice struct {
+	InnerThought  string  `json:"inner_thought"`
+	NudgeCategory string  `json:"nudge_category"`
+	Confidence    float64 `json:"confidence"`
 }
 
 type helperMaintenanceBatchResult struct {

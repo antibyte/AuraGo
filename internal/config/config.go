@@ -428,6 +428,27 @@ func Load(path string) (*Config, error) {
 		cfg.Personality.EngineV2 = true
 		cfg.Personality.Engine = true
 	}
+	// Inner Voice defaults
+	if cfg.Personality.InnerVoice.MinIntervalSecs <= 0 {
+		cfg.Personality.InnerVoice.MinIntervalSecs = 60
+	}
+	if cfg.Personality.InnerVoice.MaxPerSession <= 0 {
+		cfg.Personality.InnerVoice.MaxPerSession = 20
+	}
+	if cfg.Personality.InnerVoice.DecayTurns <= 0 {
+		cfg.Personality.InnerVoice.DecayTurns = 3
+	}
+	if cfg.Personality.InnerVoice.ErrorStreakMin <= 0 {
+		cfg.Personality.InnerVoice.ErrorStreakMin = 2
+	}
+	// Inner Voice requires Emotion Synthesizer + V2
+	if cfg.Personality.InnerVoice.Enabled && !cfg.Personality.EmotionSynthesizer.Enabled {
+		cfg.Personality.EmotionSynthesizer.Enabled = true
+	}
+	if cfg.Personality.InnerVoice.Enabled && !cfg.Personality.EngineV2 {
+		cfg.Personality.EngineV2 = true
+		cfg.Personality.Engine = true
+	}
 	if cfg.Agent.SystemPromptTokenBudget <= 0 {
 		cfg.Agent.SystemPromptTokenBudgetAuto = true
 		cfg.Agent.SystemPromptTokenBudget = 0

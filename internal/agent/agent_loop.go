@@ -1003,6 +1003,14 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			if emotionDescription := latestEmotionDescription(shortTermMem, emotionSynthesizer); emotionDescription != "" {
 				flags.EmotionDescription = emotionDescription
 			}
+
+			// Inner Voice: inject if available and not decayed
+			if cfg.Personality.InnerVoice.Enabled {
+				tickInnerVoiceTurn()
+				if iv := getInnerVoiceForPrompt(cfg.Personality.InnerVoice.DecayTurns); iv != "" {
+					flags.InnerVoice = iv
+				}
+			}
 		}
 
 		// User Profiling: inject behavioral instruction + collected profile data
@@ -1062,7 +1070,13 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				flags.SessionTodoItems = planPrompt
 			}
 		}
-		flags.AdditionalPrompt = mergeAdditionalPrompt(baseAdditionalPrompt, emotionPolicy.PromptHint)
+		// When inner voice is active, suppress emotion policy prompt hints
+		// (inner voice provides organic guidance; emotion policy is redundant)
+		if flags.InnerVoice != "" {
+			flags.AdditionalPrompt = mergeAdditionalPrompt(baseAdditionalPrompt, "")
+		} else {
+			flags.AdditionalPrompt = mergeAdditionalPrompt(baseAdditionalPrompt, emotionPolicy.PromptHint)
+		}
 		flags.TokenBudget = calculateEffectivePromptTokenBudget(cfg, ToolCall{}, homepageUsedInChain, currentLogger)
 		recordRetrievalPromptTelemetry(telemetryScope, retrievalPromptTokens, flags.TokenBudget)
 

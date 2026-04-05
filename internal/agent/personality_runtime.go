@@ -117,6 +117,8 @@ type personalityV2AnalysisResult struct {
 	TraitDeltas        map[string]float64
 	ProfileUpdates     []memory.ProfileUpdate
 	SynthesizedEmotion *memory.EmotionState
+	InnerThought       string  // Inner voice thought (1-3 sentences, first person)
+	NudgeCategory      string  // Category of the inner voice nudge
 }
 
 func resolveHelperEmotionBatchState(cfg *config.Config, emotionSynthesizer *memory.EmotionSynthesizer) (bool, *memory.EmotionState) {
@@ -196,6 +198,15 @@ func applyPersonalityV2AnalysisResult(
 
 	logger.Debug("[Personality V2] Asynchronous mood analysis complete", "mood", result.Mood, "affinity_delta", result.AffinityDelta)
 
+	// Apply inner voice result if present
+	if result.InnerThought != "" && cfg.Personality.InnerVoice.Enabled {
+		applyInnerVoiceResult(result.InnerThought, result.NudgeCategory)
+		if err := stm.StoreInnerVoice(result.InnerThought, result.NudgeCategory); err != nil {
+			logger.Warn("[InnerVoice] Failed to store inner voice", "error", err)
+		}
+		logger.Debug("[InnerVoice] Inner voice generated", "category", result.NudgeCategory, "thought_len", len(result.InnerThought))
+	}
+
 	if emotionSynthesizer == nil {
 		return
 	}
@@ -264,7 +275,23 @@ func normalizeHelperTurnPersonalityResult(payload helperTurnPersonalityBlock, me
 		TraitDeltas:        traitDeltas,
 		ProfileUpdates:     profileUpdates,
 		SynthesizedEmotion: synthesizedEmotion,
+		InnerThought:       extractHelperInnerThought(payload),
+		NudgeCategory:      extractHelperNudgeCategory(payload),
 	}, true
+}
+
+func extractHelperInnerThought(payload helperTurnPersonalityBlock) string {
+	if payload.InnerVoice != nil {
+		return payload.InnerVoice.InnerThought
+	}
+	return ""
+}
+
+func extractHelperNudgeCategory(payload helperTurnPersonalityBlock) string {
+	if payload.InnerVoice != nil {
+		return payload.InnerVoice.NudgeCategory
+	}
+	return ""
 }
 
 func launchAsyncPersonalityV2Analysis(
@@ -323,7 +350,20 @@ func launchAsyncPersonalityV2Analysis(
 				TriggerDetail:   triggerDetail,
 				InactivityHours: inactivityHours,
 			}
-			result.Mood, result.AffinityDelta, result.TraitDeltas, result.ProfileUpdates, result.SynthesizedEmotion, err = stm.AnalyzeMoodV2WithEmotion(
+			// Enrich with inner voice context if enabled
+			if cfg.Personality.InnerVoice.Enabled {
+				combinedInput.InnerVoiceEnabled = true
+				combinedInput.TaskStatus = deriveTaskStatus(errorCount, errorCount, successCount)
+				// Lessons from error patterns
+				if errPatterns, lErr := stm.GetRecentErrors(3); lErr == nil {
+					for _, ep := range errPatterns {
+						if ep.Resolution != "" {
+							combinedInput.RelevantLessons = append(combinedInput.RelevantLessons, ep.Resolution)
+						}
+					}
+				}
+			}
+			result.Mood, result.AffinityDelta, result.TraitDeltas, result.ProfileUpdates, result.SynthesizedEmotion, result.InnerThought, result.NudgeCategory, err = stm.AnalyzeMoodV2WithEmotion(
 				v2Ctx,
 				analyzerClient,
 				modelName,

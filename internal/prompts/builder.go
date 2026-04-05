@@ -191,6 +191,7 @@ type ContextFlags struct {
 	KnowledgeContext         string // Relevant KG entities injected from SearchForContext
 	ErrorPatternContext      string // Known error patterns with resolutions for agent learning
 	EmotionDescription       string // LLM-synthesized emotional state description (Emotion Synthesizer)
+	InnerVoice               string // Inner voice thought (1-3 sentences, first person, from Inner Voice System)
 	IsMission                bool   // true when this is a mission run — skips personality, profiling, emotion
 	MessageSource            string // origin channel: "web_chat", "telegram", "discord", "a2a", "sms", "mission"
 	ToolsDir                 string // absolute path to agent_workspace/tools/ for custom tool scripts
@@ -498,6 +499,13 @@ func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string,
 		finalPrompt.WriteString(flags.PersonalityLine)
 		finalPrompt.WriteString("\n\n")
 	}
+
+	// Inner Voice (subconscious nudge) — placed after emotional state, before NOW
+	if !flags.IsMission && flags.InnerVoice != "" {
+		finalPrompt.WriteString("### INNER VOICE\n")
+		finalPrompt.WriteString(flags.InnerVoice)
+		finalPrompt.WriteString("\n\n")
+	}
 	sectionPersonality := finalPrompt.Len() - posBeforePersonality
 
 	finalPrompt.WriteString("# NOW\n")
@@ -665,6 +673,17 @@ func budgetShed(prompt string, flags ContextFlags, personalityContent, coreMemor
 		result, trimmed, tokens = trimRetrievedMemoriesSection(result, flags.TokenBudget, logger)
 		if trimmed {
 			shedList = append(shedList, "# RETRIEVED MEMORIES (partial)")
+		}
+	}
+
+	// Inner Voice: shed before personality lines
+	if tokens > flags.TokenBudget {
+		before := len(result)
+		result = removeSection(result, "### INNER VOICE")
+		if len(result) < before {
+			tokens = CountTokens(result)
+			shedList = append(shedList, "### INNER VOICE")
+			logger.Debug("[Budget] Shed inner voice", "new_tokens", tokens)
 		}
 	}
 

@@ -58,5 +58,9 @@ func (s *SQLiteMemory) InitPersonalityTables() error {
 		return fmt.Errorf("emotion tables: %w", err)
 	}
 
+	if err := s.InitInnerVoiceTables(); err != nil {
+		return fmt.Errorf("inner voice tables: %w", err)
+	}
+
 	return nil
 }
