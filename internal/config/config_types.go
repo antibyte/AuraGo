@@ -301,7 +301,7 @@ type Config struct {
 		UserProfiling          bool   `yaml:"user_profiling"`             // opt-in: collect user profile via V2 analysis
 		UserProfilingThreshold int    `yaml:"user_profiling_threshold"`   // min confidence for profile summary (default: 3)
 		V2TimeoutSecs          int    `yaml:"v2_timeout_secs"  json:"-"`  // timeout for V2 mood analysis LLM call (default: 30)
-		EmotionSynthesizer struct {
+		EmotionSynthesizer     struct {
 			Enabled             bool `yaml:"enabled"`                // enable LLM-based emotion synthesis (default: false)
 			MinIntervalSecs     int  `yaml:"min_interval_seconds"`   // minimum seconds between syntheses (default: 60)
 			MaxHistoryEntries   int  `yaml:"max_history_entries"`    // max emotion history entries to retain (default: 100)
@@ -309,11 +309,11 @@ type Config struct {
 			TriggerAlways       bool `yaml:"trigger_always"`         // synthesize on every message (default: false)
 		} `yaml:"emotion_synthesizer"`
 		InnerVoice struct {
-			Enabled        bool `yaml:"enabled"`          // enable inner voice system (subconscious nudge engine)
-			MinIntervalSecs int `yaml:"min_interval_secs"` // minimum seconds between inner voice generations (default: 60)
-			MaxPerSession  int  `yaml:"max_per_session"`   // max inner voice generations per session (default: 20)
-			DecayTurns     int  `yaml:"decay_turns"`       // turns after which inner voice fades from prompt (default: 3)
-			ErrorStreakMin int  `yaml:"error_streak_min"`  // consecutive errors before triggering inner voice (default: 2)
+			Enabled         bool `yaml:"enabled"`           // enable inner voice system (subconscious nudge engine)
+			MinIntervalSecs int  `yaml:"min_interval_secs"` // minimum seconds between inner voice generations (default: 60)
+			MaxPerSession   int  `yaml:"max_per_session"`   // max inner voice generations per session (default: 20)
+			DecayTurns      int  `yaml:"decay_turns"`       // turns after which inner voice fades from prompt (default: 3)
+			ErrorStreakMin  int  `yaml:"error_streak_min"`  // consecutive errors before triggering inner voice (default: 2)
 		} `yaml:"inner_voice"`
 	} `yaml:"personality"`
 	CircuitBreaker struct {

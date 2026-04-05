@@ -117,8 +117,8 @@ type personalityV2AnalysisResult struct {
 	TraitDeltas        map[string]float64
 	ProfileUpdates     []memory.ProfileUpdate
 	SynthesizedEmotion *memory.EmotionState
-	InnerThought       string  // Inner voice thought (1-3 sentences, first person)
-	NudgeCategory      string  // Category of the inner voice nudge
+	InnerThought       string // Inner voice thought (1-3 sentences, first person)
+	NudgeCategory      string // Category of the inner voice nudge
 }
 
 func resolveHelperEmotionBatchState(cfg *config.Config, emotionSynthesizer *memory.EmotionSynthesizer) (bool, *memory.EmotionState) {

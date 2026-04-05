@@ -9,11 +9,11 @@ import (
 
 func TestDeriveTaskStatus(t *testing.T) {
 	tests := []struct {
-		name             string
-		consecutiveErrs  int
-		totalErrs        int
-		totalSuccesses   int
-		expected         string
+		name            string
+		consecutiveErrs int
+		totalErrs       int
+		totalSuccesses  int
+		expected        string
 	}{
 		{"starting", 0, 0, 0, "starting"},
 		{"struggling", 3, 3, 0, "struggling"},

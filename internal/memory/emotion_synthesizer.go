@@ -66,11 +66,11 @@ type EmotionInput struct {
 	TriggerDetail      string
 	InactivityHours    float64
 	// Inner Voice situational context fields
-	ConversationTurns int               // Number of turns in this session
-	RecoveryAttempts  int               // How many times the agent corrected after errors
-	TaskStatus        string            // "starting" | "in_progress" | "struggling" | "recovering" | "completed"
-	RelevantLessons   []string          // Past lessons from error_learning
-	InnerVoiceEnabled bool              // Whether inner voice generation is requested
+	ConversationTurns int      // Number of turns in this session
+	RecoveryAttempts  int      // How many times the agent corrected after errors
+	TaskStatus        string   // "starting" | "in_progress" | "struggling" | "recovering" | "completed"
+	RelevantLessons   []string // Past lessons from error_learning
+	InnerVoiceEnabled bool     // Whether inner voice generation is requested
 }
 
 type emotionSynthesisResult struct {
