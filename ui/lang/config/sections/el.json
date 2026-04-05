@@ -289,5 +289,11 @@
   "config.tts.minimax_speed_help": "Ταχύτητα ομιλίας 0,5–2,0 (προεπιλογή 1,0)",
   "config.tts.minimax_api_key_required": "Απαιτείται κλειδί API MiniMax",
   "config.section.music_generation.label": "Δημιουργία μουσικής",
-  "config.section.music_generation.desc": "Δημιουργία μουσικής από περιγραφές κειμένου με AI"
+  "config.section.music_generation.desc": "Δημιουργία μουσικής από περιγραφές κειμένου με AI",
+  "config.section.optimizations.label": "Βελτιστοποιήσεις",
+  "config.section.optimizations.desc": "Απόδοση, πόροι και ανθεκτικότητα",
+  "config.section.optimizations.group.token_context": "📊 Token & Περιβάλλον",
+  "config.section.optimizations.group.tool_optimization": "🔧 Βελτιστοποίηση εργαλείων",
+  "config.section.optimizations.group.safety_limits": "🛡️ Όρια ασφαλείας & Ανάκτηση",
+  "config.section.optimizations.group.background_tasks": "🔄 Επεξεργασία παρασκηνίου"
 }

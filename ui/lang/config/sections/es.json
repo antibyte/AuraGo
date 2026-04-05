@@ -289,5 +289,11 @@
   "config.tts.minimax_speed_help": "Velocidad de habla 0,5–2,0 (predeterminado 1,0)",
   "config.tts.minimax_api_key_required": "Se requiere la clave API de MiniMax",
   "config.section.music_generation.label": "Generación de música",
-  "config.section.music_generation.desc": "Generar música a partir de descripciones de texto con IA"
+  "config.section.music_generation.desc": "Generar música a partir de descripciones de texto con IA",
+  "config.section.optimizations.label": "Optimizaciones",
+  "config.section.optimizations.desc": "Rendimiento, recursos y tolerancia a fallos",
+  "config.section.optimizations.group.token_context": "📊 Token y Contexto",
+  "config.section.optimizations.group.tool_optimization": "🔧 Optimización de herramientas",
+  "config.section.optimizations.group.safety_limits": "🛡️ Límites de seguridad y recuperación",
+  "config.section.optimizations.group.background_tasks": "🔄 Procesamiento en segundo plano"
 }

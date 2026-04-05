@@ -289,5 +289,11 @@
   "config.tts.minimax_speed_help": "Talehastighet 0,5–2,0 (standard 1,0)",
   "config.tts.minimax_api_key_required": "MiniMax API-nøkkel er påkrevd",
   "config.section.music_generation.label": "Musikkgenerering",
-  "config.section.music_generation.desc": "Generer musikk fra tekstbeskrivelser med AI"
+  "config.section.music_generation.desc": "Generer musikk fra tekstbeskrivelser med AI",
+  "config.section.optimizations.label": "Optimaliseringer",
+  "config.section.optimizations.desc": "Ytelse, ressurser og feiltoleranse",
+  "config.section.optimizations.group.token_context": "📊 Token & Kontekst",
+  "config.section.optimizations.group.tool_optimization": "🔧 Verktøyoptimalisering",
+  "config.section.optimizations.group.safety_limits": "🛡️ Sikkerheitsgrenser og gjenoppretting",
+  "config.section.optimizations.group.background_tasks": "🔄 Bakgrunnsbehandling"
 }

@@ -73,6 +73,8 @@ func normalizeLang(lang string) string {
 		return "no"
 	case strings.Contains(l, "czech") || strings.Contains(l, "čeština") || l == "cs":
 		return "cs"
+	case strings.Contains(l, "greek") || strings.Contains(l, "ελληνικά") || l == "el":
+		return "el"
 	default:
 		return "en" // Fallback
 	}

@@ -289,5 +289,11 @@
   "config.tts.minimax_speed_help": "Spraaksnelheid 0,5–2,0 (standaard 1,0)",
   "config.tts.minimax_api_key_required": "MiniMax API-sleutel is vereist",
   "config.section.music_generation.label": "Muziekgeneratie",
-  "config.section.music_generation.desc": "Genereer muziek van tekstbeschrijvingen met AI"
+  "config.section.music_generation.desc": "Genereer muziek van tekstbeschrijvingen met AI",
+  "config.section.optimizations.label": "Optimalisaties",
+  "config.section.optimizations.desc": "Prestaties, resources en fouttolerantie",
+  "config.section.optimizations.group.token_context": "📊 Token & Context",
+  "config.section.optimizations.group.tool_optimization": "🔧 Tooloptimalisatie",
+  "config.section.optimizations.group.safety_limits": "🛡️ Veiligheidslimieten & Herstel",
+  "config.section.optimizations.group.background_tasks": "🔄 Achtergrondverwerking"
 }

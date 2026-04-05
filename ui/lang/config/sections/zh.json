@@ -289,5 +289,11 @@
   "config.tts.minimax_speed_help": "语音速度 0.5–2.0（默认 1.0）",
   "config.tts.minimax_api_key_required": "需要 MiniMax API 密钥",
   "config.section.music_generation.label": "音乐生成",
-  "config.section.music_generation.desc": "使用AI从文本提示生成音乐"
+  "config.section.music_generation.desc": "使用AI从文本提示生成音乐",
+  "config.section.optimizations.label": "优化",
+  "config.section.optimizations.desc": "性能、资源与容错",
+  "config.section.optimizations.group.token_context": "📊 令牌与上下文",
+  "config.section.optimizations.group.tool_optimization": "🔧 工具优化",
+  "config.section.optimizations.group.safety_limits": "🛡️ 安全限制与恢复",
+  "config.section.optimizations.group.background_tasks": "🔄 后台处理"
 }

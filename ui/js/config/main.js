@@ -11,11 +11,11 @@ const SECTIONS = [
         group: t('config.group.agent_ai'),
         items: [
             { key: 'agent', icon: '⚙️', label: t('config.section.agent.label'), desc: t('config.section.agent.desc') },
+            { key: 'optimizations', icon: '🚀', label: t('config.section.optimizations.label'), desc: t('config.section.optimizations.desc') },
             { key: 'providers', icon: '🔌', label: t('config.section.providers.label'), desc: t('config.section.providers.desc') },
             { key: 'llm', icon: '🧠', label: t('config.section.llm.label'), desc: t('config.section.llm.desc') },
             { key: 'fallback_llm', icon: '🔄', label: t('config.section.fallback_llm.label'), desc: t('config.section.fallback_llm.desc') },
             { key: 'embeddings', icon: '🔗', label: t('config.section.embeddings.label'), desc: t('config.section.embeddings.desc') },
-            { key: 'circuit_breaker', icon: '⚡', label: t('config.section.circuit_breaker.label'), desc: t('config.section.circuit_breaker.desc') },
             { key: 'budget', icon: '💰', label: t('config.section.budget.label'), desc: t('config.section.budget.desc') },
             { key: 'memory_analysis', icon: '🧬', label: t('config.section.memory_analysis.label'), desc: t('config.section.memory_analysis.desc') },
             { key: 'co_agents', icon: '🤖', label: t('config.section.co_agents.label'), desc: t('config.section.co_agents.desc') },
@@ -405,6 +405,52 @@ async function selectSection(key, options = {}) {
     closeSidebar();
 }
 
+function renderOptimizations() {
+    const agentData = configData['agent'] || {};
+    const cbData = configData['circuit_breaker'] || {};
+    const agentSchema = schema.find(s => s.yaml_key === 'agent');
+    const cbSchema = schema.find(s => s.yaml_key === 'circuit_breaker');
+
+    function agentF(...keys) {
+        if (!agentSchema || !agentSchema.children) return [];
+        return agentSchema.children.filter(f => keys.includes(f.yaml_key));
+    }
+    function cbF(...keys) {
+        if (!cbSchema || !cbSchema.children) return [];
+        return cbSchema.children.filter(f => keys.includes(f.yaml_key));
+    }
+
+    let html = '';
+
+    // Group 1: Token & Context
+    html += `<div class="cfg-group-title cfg-group-title-top">${t('config.section.optimizations.group.token_context')}</div>`;
+    html += renderFields(
+        agentF('optimizer_enabled', 'system_prompt_token_budget', 'adaptive_system_prompt_token_budget', 'context_window', 'memory_compression_char_limit'),
+        agentData, 'agent'
+    );
+
+    // Group 2: Tool Optimization
+    html += `<div class="cfg-group-title cfg-group-title-top">${t('config.section.optimizations.group.tool_optimization')}</div>`;
+    html += renderFields(
+        agentF('tool_output_limit', 'max_tool_guides', 'core_memory_max_entries', 'core_memory_cap_mode', 'adaptive_tools'),
+        agentData, 'agent'
+    );
+
+    // Group 3: Safety Limits & Recovery
+    html += `<div class="cfg-group-title cfg-group-title-top">${t('config.section.optimizations.group.safety_limits')}</div>`;
+    html += renderFields(
+        cbF('max_tool_calls', 'llm_timeout_seconds', 'maintenance_timeout_minutes', 'retry_intervals'),
+        cbData, 'circuit_breaker'
+    );
+    html += renderFields(agentF('recovery'), agentData, 'agent');
+
+    // Group 4: Background Processing
+    html += `<div class="cfg-group-title cfg-group-title-top">${t('config.section.optimizations.group.background_tasks')}</div>`;
+    html += renderFields(agentF('background_tasks'), agentData, 'agent');
+
+    return html;
+}
+
 async function renderSection(key) {
     let section = null;
     for (const group of SECTIONS) {
@@ -441,7 +487,13 @@ async function renderSection(key) {
         'additional_prompt',        // → Prompts & Personas
         'personality_v2_model',     // → managed by provider
         'personality_v2_url',       // → managed by provider
-        'personality_v2_api_key'    // → managed by provider
+        'personality_v2_api_key',   // → managed by provider
+        // → Optimierungen section
+        'optimizer_enabled', 'system_prompt_token_budget', 'adaptive_system_prompt_token_budget',
+        'context_window', 'memory_compression_char_limit',
+        'tool_output_limit', 'max_tool_guides',
+        'core_memory_max_entries', 'core_memory_cap_mode',
+        'adaptive_tools', 'recovery', 'background_tasks'
     ]);
     // Legacy fields superseded by provider management — hide from UI
     const EMBEDDINGS_SKIP_KEYS = new Set(['api_key', 'external_model', 'external_url', 'internal_model']);
@@ -526,6 +578,14 @@ async function renderSection(key) {
             const children = toolsSchema.children.filter(f => SECTION_KEYS.has(f.yaml_key));
             html += renderFields(children, toolsData, 'tools');
         }
+        html += '</div>';
+        document.getElementById('content').innerHTML = html;
+        return;
+    }
+
+    // Optimierungen — combines agent.* and circuit_breaker.* fields
+    if (key === 'optimizations') {
+        html += renderOptimizations();
         html += '</div>';
         document.getElementById('content').innerHTML = html;
         return;

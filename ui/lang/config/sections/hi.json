@@ -289,5 +289,11 @@
   "config.tts.minimax_speed_help": "बोलने की गति 0.5–2.0 (डिफ़ॉल्ट 1.0)",
   "config.tts.minimax_api_key_required": "MiniMax API key आवश्यक है",
   "config.section.music_generation.label": "संगीत निर्माण",
-  "config.section.music_generation.desc": "AI का उपयोग करके पाठ विवरण से संगीत उत्पन्न करें"
+  "config.section.music_generation.desc": "AI का उपयोग करके पाठ विवरण से संगीत उत्पन्न करें",
+  "config.section.optimizations.label": "अनुकूलन",
+  "config.section.optimizations.desc": "प्रदर्शन, संसाधन और दोष सहनशीलता",
+  "config.section.optimizations.group.token_context": "📊 टोकन और संदर्भ",
+  "config.section.optimizations.group.tool_optimization": "🔧 टूल अनुकूलन",
+  "config.section.optimizations.group.safety_limits": "🛡️ सुरक्षा सीमाएं और पुनर्प्राप्ति",
+  "config.section.optimizations.group.background_tasks": "🔄 पृष्ठभूमि प्रसंस्करण"
 }

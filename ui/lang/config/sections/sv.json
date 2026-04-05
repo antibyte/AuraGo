@@ -289,5 +289,11 @@
   "config.tts.minimax_speed_help": "Talhastighet 0,5–2,0 (standard 1,0)",
   "config.tts.minimax_api_key_required": "MiniMax API-nyckel krävs",
   "config.section.music_generation.label": "Musikgenerering",
-  "config.section.music_generation.desc": "Generera musik från textbeskrivningar med AI"
+  "config.section.music_generation.desc": "Generera musik från textbeskrivningar med AI",
+  "config.section.optimizations.label": "Optimeringar",
+  "config.section.optimizations.desc": "Prestanda, resurser och feltolerans",
+  "config.section.optimizations.group.token_context": "📊 Token & Kontext",
+  "config.section.optimizations.group.tool_optimization": "🔧 Verktygoptimering",
+  "config.section.optimizations.group.safety_limits": "🛡️ Säkerhetsgränser och återställning",
+  "config.section.optimizations.group.background_tasks": "🔄 Bakgrundsbearbetning"
 }
