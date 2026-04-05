@@ -105,8 +105,6 @@ go build -trimpath -ldflags="-s -w" -o "bin\aurago_linux"          ./cmd/aurago/
 go build -trimpath -ldflags="-s -w" -o "bin\lifeboat_linux"        ./cmd/lifeboat/      || goto :build_error
 go build -trimpath -ldflags="-s -w" -o "bin\config-merger_linux"   ./cmd/config-merger/ || goto :build_error
 go build -trimpath -ldflags="-s -w" -o "bin\aurago-remote_linux"   ./cmd/remote/        || goto :build_error
-go build -trimpath -ldflags="-s -w" -o "bin\agocli_linux"          ./cmd/agocli/        || goto :build_error
-    copy /y "bin\agocli_linux" "agocli" >nul
 echo     -> Linux amd64 OK
 
 echo   Linux arm64...
@@ -115,35 +113,30 @@ go build -trimpath -ldflags="-s -w" -o "bin\aurago_linux_arm64"        ./cmd/aur
 go build -trimpath -ldflags="-s -w" -o "bin\lifeboat_linux_arm64"      ./cmd/lifeboat/      || goto :build_error
 go build -trimpath -ldflags="-s -w" -o "bin\config-merger_linux_arm64" ./cmd/config-merger/ || goto :build_error
 go build -trimpath -ldflags="-s -w" -o "bin\aurago-remote_linux_arm64" ./cmd/remote/        || goto :build_error
-go build -trimpath -ldflags="-s -w" -o "bin\agocli_linux_arm64"        ./cmd/agocli/        || goto :build_error
 echo     -> Linux arm64 OK
 
 echo   macOS amd64...
 set "GOOS=darwin" & set "GOARCH=amd64"
 go build -trimpath -ldflags="-s -w" -o "deploy\aurago_darwin_amd64"        ./cmd/aurago/ || goto :build_error
 go build -trimpath -ldflags="-s -w" -o "deploy\aurago-remote_darwin_amd64" ./cmd/remote/ || goto :build_error
-go build -trimpath -ldflags="-s -w" -o "deploy\agocli_darwin_amd64"        ./cmd/agocli/ || goto :build_error
 echo     -> macOS amd64 OK
 
 echo   macOS arm64...
 set "GOOS=darwin" & set "GOARCH=arm64"
 go build -trimpath -ldflags="-s -w" -o "deploy\aurago_darwin_arm64"        ./cmd/aurago/ || goto :build_error
 go build -trimpath -ldflags="-s -w" -o "deploy\aurago-remote_darwin_arm64" ./cmd/remote/ || goto :build_error
-go build -trimpath -ldflags="-s -w" -o "deploy\agocli_darwin_arm64"        ./cmd/agocli/ || goto :build_error
 echo     -> macOS arm64 OK
 
 echo   Windows amd64...
 set "GOOS=windows" & set "GOARCH=amd64"
 go build -trimpath -ldflags="-s -w" -o "deploy\aurago_windows_amd64.exe"        ./cmd/aurago/ || goto :build_error
 go build -trimpath -ldflags="-s -w" -o "deploy\aurago-remote_windows_amd64.exe" ./cmd/remote/ || goto :build_error
-go build -trimpath -ldflags="-s -w" -o "deploy\agocli_windows_amd64.exe"        ./cmd/agocli/ || goto :build_error
 echo     -> Windows amd64 OK
 
 echo   Windows arm64...
 set "GOOS=windows" & set "GOARCH=arm64"
 go build -trimpath -ldflags="-s -w" -o "deploy\aurago_windows_arm64.exe"        ./cmd/aurago/ || goto :build_error
 go build -trimpath -ldflags="-s -w" -o "deploy\aurago-remote_windows_arm64.exe" ./cmd/remote/ || goto :build_error
-go build -trimpath -ldflags="-s -w" -o "deploy\agocli_windows_arm64.exe"        ./cmd/agocli/ || goto :build_error
 echo     -> Windows arm64 OK
 
 copy "install.sh" "deploy\install.sh" >nul
@@ -179,21 +172,14 @@ for %%F in (
     "bin\config-merger_linux_arm64"
     "bin\aurago-remote_linux"
     "bin\aurago-remote_linux_arm64"
-    "bin\agocli_linux"
-    "bin\agocli_linux_arm64"
-    "agocli"
     "deploy\aurago_darwin_amd64"
     "deploy\aurago_darwin_arm64"
     "deploy\aurago-remote_darwin_amd64"
     "deploy\aurago-remote_darwin_arm64"
-    "deploy\agocli_darwin_amd64"
-    "deploy\agocli_darwin_arm64"
     "deploy\aurago_windows_amd64.exe"
     "deploy\aurago_windows_arm64.exe"
     "deploy\aurago-remote_windows_amd64.exe"
     "deploy\aurago-remote_windows_arm64.exe"
-    "deploy\agocli_windows_amd64.exe"
-    "deploy\agocli_windows_arm64.exe"
     "deploy\install.sh"
 ) do (
     if exist %%F set ASSETS=!ASSETS! %%F
