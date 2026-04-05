@@ -1,4 +1,4 @@
-package agent
+﻿package agent
 
 import (
 	"context"
@@ -1247,6 +1247,13 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			// be reassembled: each chunk carries an Index identifying the call and
 			// incremental Function.Name / Function.Arguments fragments.
 			streamToolCalls := map[int]*openai.ToolCall{}
+			// SSE-level buffer to filter <done/> from the stream before it reaches the UI.
+			// <done/> is a completion signal stripped by parseToolResponse on the assembled
+			// response, but it would otherwise appear verbatim in the real-time chat display.
+			// We hold the last (len("<done/>")-1) bytes to detect the tag spanning chunk boundaries.
+			const doneTagStr = "<done/>"
+			const doneTagHoldLen = len(doneTagStr) - 1 // 6 bytes
+			doneTagStreamBuf := ""
 			for {
 				chunk, rErr := stm.Recv()
 				if rErr != nil {
@@ -1279,8 +1286,21 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 								strings.Contains(trimmed, `"arguments"`))
 						suppressForMiniMax := isToolCallJSON || (cfg.LLM.MiniMaxFix && isLikelyToolCallJSON)
 						if !suppressForMiniMax {
-							if chunkData, mErr := json.Marshal(chunk); mErr == nil {
-								broker.SendJSON(fmt.Sprintf("data: %s\n\n", string(chunkData)))
+							// Buffer content to filter <done/> before sending to SSE.
+							// Hold the last (len("<done/>")-1) bytes so a tag split across
+							// chunk boundaries is still caught and stripped.
+							doneTagStreamBuf += delta.Content
+							var toSend string
+							if len(doneTagStreamBuf) > doneTagHoldLen {
+								toSend = doneTagStreamBuf[:len(doneTagStreamBuf)-doneTagHoldLen]
+								doneTagStreamBuf = doneTagStreamBuf[len(doneTagStreamBuf)-doneTagHoldLen:]
+							}
+							toSend = strings.ReplaceAll(toSend, doneTagStr, "")
+							if toSend != "" {
+								chunk.Choices[0].Delta.Content = toSend
+								if chunkData, mErr := json.Marshal(chunk); mErr == nil {
+									broker.SendJSON(fmt.Sprintf("data: %s\n\n", string(chunkData)))
+								}
 							}
 						}
 					}
@@ -1291,6 +1311,16 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				}
 			}
 			stm.Close()
+			// Flush the <done/> stream-filter buffer. Any remaining bytes are either
+			// a partial <done/> prefix (strip it) or safe final content (send it).
+			if doneTagStreamBuf != "" {
+				remaining := strings.ReplaceAll(doneTagStreamBuf, doneTagStr, "")
+				if remaining != "" {
+					remainingJSON, _ := json.Marshal(remaining)
+					broker.SendJSON(fmt.Sprintf("data: {\"choices\":[{\"delta\":{\"content\":%s},\"finish_reason\":null}]}\n\n", string(remainingJSON)))
+				}
+				doneTagStreamBuf = ""
+			}
 			content = assembledResponse.String()
 
 			// Build sorted slice of assembled tool calls
