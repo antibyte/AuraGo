@@ -352,6 +352,7 @@ func buildPromptContextFlags(runCfg RunConfig, policy ToolingPolicy, opts prompt
 		MiniMaxTTSEnabled:        cfg.TTS.Provider == "minimax",
 		VoiceOutputActive:        runCfg.VoiceOutputActive,
 		ImageGenerationEnabled:   flags.ImageGenerationEnabled,
+		MusicGenerationEnabled:   flags.MusicGenerationEnabled,
 		RemoteControlEnabled:     flags.RemoteControlEnabled,
 		MemoryEnabled:            flags.MemoryEnabled,
 		KnowledgeGraphEnabled:    flags.KnowledgeGraphEnabled,

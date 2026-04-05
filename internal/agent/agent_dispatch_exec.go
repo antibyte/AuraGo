@@ -459,6 +459,9 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			sb.WriteString("[NOTE] Core capabilities like 'filesystem', 'execute_python', 'core_memory', 'query_memory', and other built-in tools are separate from custom tools. See your system prompt and tool manuals for details.")
 			return sb.String()
 
+		case "discover_tools":
+			return handleDiscoverTools(tc, cfg, logger)
+
 		case "run_tool":
 			if !cfg.Agent.AllowPython {
 				return "Tool Output: [PERMISSION DENIED] run_tool is disabled in Danger Zone settings (agent.allow_python: false)."

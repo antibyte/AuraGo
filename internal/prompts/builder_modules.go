@@ -578,6 +578,12 @@ func readToolGuide(path string) (string, bool) {
 	return content, true
 }
 
+// ReadToolGuide is the exported variant of readToolGuide.
+// It reads and caches a tool guide by its filesystem path.
+func ReadToolGuide(path string) (string, bool) {
+	return readToolGuide(path)
+}
+
 // readToolGuideEmbed tries to load a tool guide from the embedded FS.
 // It derives the embed-relative path by finding the "tools_manuals" segment.
 func readToolGuideEmbed(osPath string) ([]byte, bool) {

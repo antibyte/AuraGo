@@ -55,6 +55,7 @@ var completionEvidenceTerms = []string{
 	"abgeschlossen", "fertig", "erfolgreich", "fehlgeschlagen", "aktualisiert", "geschrieben",
 	"gespeichert", "erstellt", "geändert", "gebaut", "deployt", "installiert", "gefunden",
 	"gelesen", "geladen", "analysiert", "verifiziert", "veröffentlicht", "neu gestartet",
+	"generiert", "erzeugt", "konvertiert", "übertragen", "heruntergeladen", "hochgeladen",
 	// German result/presentation verbs
 	"präsentiert", "gesendet", "gespielt", "abgespielt", "vorgeführt", "demonstriert",
 	"hier ist", "hier sind", "hier hast du", "hier haben wir", "schau mal", "siehe oben",
@@ -64,7 +65,7 @@ var completionEvidenceTerms = []string{
 var planLinePattern = regexp.MustCompile(`(?m)^\s*(?:[-*]|\d+[.)])\s+\S`)
 var pathLikePattern = regexp.MustCompile(`(?i)(?:[A-Za-z]:\\|/|\.{1,2}/|[A-Za-z0-9_-]+\.(?:go|ts|tsx|js|jsx|css|html|json|yaml|yml|md|log|txt|png|jpg|jpeg|webp|svg))`)
 var urlLikePattern = regexp.MustCompile(`(?i)\bhttps?://`)
-var resultMetricPattern = regexp.MustCompile(`(?i)\b\d+\s+(?:bytes?|files?|lines?|matches?|entries?|tests?|warnings?|errors?|items?|records?|results?)\b`)
+var resultMetricPattern = regexp.MustCompile(`(?i)\b\d+\s+(?:bytes?|files?|lines?|matches?|entries?|tests?|warnings?|errors?|items?|records?|results?|seconds?|minutes?|hours?|sekunden|minuten|stunden|ms|kb|mb|gb)\b`)
 var statusEvidencePattern = regexp.MustCompile(`(?i)\b(?:status|exit code|http)\s*[:=]?\s*(?:ok|success|successful|error|failed|200|201|204|400|401|403|404|409|422|429|500)\b`)
 
 func isAnnouncementOnlyResponse(content string, tc ToolCall, useNativePath, lastResponseWasTool bool, lastUserMsg string) bool {

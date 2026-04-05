@@ -553,8 +553,21 @@ func filterToolSchemas(schemas []openai.Tool, frequentTools, alwaysInclude []str
 
 	finalDropped := len(schemas) - len(kept)
 	if logger != nil && finalDropped > 0 {
+		var droppedNames []string
+		keptSet := make(map[string]bool, len(kept))
+		for _, k := range kept {
+			if k.Function != nil {
+				keptSet[k.Function.Name] = true
+			}
+		}
+		for _, s := range schemas {
+			if s.Function != nil && !keptSet[s.Function.Name] {
+				droppedNames = append(droppedNames, s.Function.Name)
+			}
+		}
 		logger.Info("[AdaptiveTools] Filtered tool schemas",
-			"kept_always", len(keptAlways), "kept_adaptive", len(kept)-len(keptAlways), "dropped", finalDropped, "max_adaptive", maxTools)
+			"kept_always", len(keptAlways), "kept_adaptive", len(kept)-len(keptAlways), "dropped", finalDropped, "max_adaptive", maxTools,
+			"dropped_tools", strings.Join(droppedNames, ", "))
 	}
 	return kept
 }

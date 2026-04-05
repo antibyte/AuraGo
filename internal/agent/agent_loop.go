@@ -361,6 +361,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	if useNativeFunctions {
 		ff := buildToolFeatureFlags(runCfg, toolingPolicy)
 		ntSchemas := BuildNativeToolSchemas(cfg.Directories.SkillsDir, manifest, ff, logger)
+		allSchemas := make([]openai.Tool, len(ntSchemas))
+		copy(allSchemas, ntSchemas)
 
 		// Adaptive tool filtering: remove rarely-used tools to save tokens
 		if cfg.Agent.AdaptiveTools.Enabled && shortTermMem != nil {
@@ -392,6 +394,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				ntSchemas = filterToolSchemas(ntSchemas, prioritized, alwaysInclude, maxTools, logger)
 			}
 		}
+		// Update discover_tools state so the agent can browse hidden tools
+		SetDiscoverToolsState(allSchemas, ntSchemas, cfg.Directories.PromptsDir)
+
 		// Structured Outputs: set Strict=true on every tool definition so the
 		// provider uses constrained decoding for tool-call arguments.
 		// Only enable this for models that support structured outputs (e.g. GPT-4o,
@@ -1584,6 +1589,13 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				feedbackMsg = "ERROR: You announced what you were going to do but did not call a tool. You MUST use the native function-calling mechanism to invoke a tool — do not include any text before or after the function call."
 			} else {
 				feedbackMsg = "ERROR: You announced what you were going to do but did not output a tool call. When executing a task, your ENTIRE response must be ONLY the raw JSON tool call — no explanation before it. Output the JSON tool call NOW."
+			}
+			// If the previous iteration was a successful tool call, explicitly warn not to repeat it.
+			// Without this hint the LLM may re-call the same tool (e.g. generate_music a second time)
+			// instead of proceeding to the NEXT planned step.
+			if lastResponseWasTool && len(recentTools) > 0 {
+				lastTool := recentTools[len(recentTools)-1]
+				feedbackMsg += fmt.Sprintf(" IMPORTANT: '%s' already completed successfully in this turn. Do NOT call it again. Your next action must be a DIFFERENT tool that continues your plan.", lastTool)
 			}
 			feedbackMsg = applyEmotionRecoveryNudge(feedbackMsg, emotionPolicy)
 			id, err = shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, feedbackMsg, false, true)

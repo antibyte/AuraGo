@@ -159,6 +159,7 @@ type ContextFlags struct {
 	InventoryEnabled         bool
 	MemoryMaintenanceEnabled bool
 	ImageGenerationEnabled   bool
+	MusicGenerationEnabled   bool
 	RemoteControlEnabled     bool
 	WOLEnabled               bool
 	MediaRegistryEnabled     bool
@@ -409,6 +410,12 @@ func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string,
 	// System Status
 	if flags.ActiveProcesses != "" && flags.ActiveProcesses != "None" {
 		finalPrompt.WriteString(fmt.Sprintf("[ACTIVE DAEMONS] %s\n\n", flags.ActiveProcesses))
+	}
+
+	// Compact enabled integrations overview (one-liner)
+	if overview := buildEnabledToolsOverview(flags); overview != "" {
+		finalPrompt.WriteString(overview)
+		finalPrompt.WriteString("\n\n")
 	}
 
 	// Dynamic Tool Guides — only in full tier
@@ -1045,4 +1052,59 @@ func CountTokens(text string) int {
 	}
 	// Fallback: rough estimate
 	return len(text) / 4
+}
+
+// buildEnabledToolsOverview returns a compact one-liner listing enabled tools
+// that are not part of the core toolset (filesystem, shell, python, etc.).
+// This lets the agent know what integrations are available even when the
+// adaptive tool filter removes some tool schemas to save tokens.
+func buildEnabledToolsOverview(flags ContextFlags) string {
+	var enabled []string
+	add := func(name string, on bool) {
+		if on {
+			enabled = append(enabled, name)
+		}
+	}
+	add("docker", flags.DockerEnabled)
+	add("home_assistant", flags.HomeAssistantEnabled)
+	add("proxmox", flags.ProxmoxEnabled)
+	add("tailscale", flags.TailscaleEnabled)
+	add("ansible", flags.AnsibleEnabled)
+	add("github", flags.GitHubEnabled)
+	add("mqtt", flags.MQTTEnabled)
+	add("adguard", flags.AdGuardEnabled)
+	add("mcp", flags.MCPEnabled)
+	add("meshcentral", flags.MeshCentralEnabled)
+	add("homepage", flags.HomepageEnabled)
+	add("netlify", flags.NetlifyEnabled)
+	add("email", flags.EmailEnabled)
+	add("cloudflare_tunnel", flags.CloudflareTunnelEnabled)
+	add("google_workspace", flags.GoogleWorkspaceEnabled)
+	add("onedrive", flags.OneDriveEnabled)
+	add("virustotal", flags.VirusTotalEnabled)
+	add("brave_search", flags.BraveSearchEnabled)
+	add("image_generation", flags.ImageGenerationEnabled)
+	add("music_generation", flags.MusicGenerationEnabled)
+	add("remote_control", flags.RemoteControlEnabled)
+	add("webdav", flags.WebDAVEnabled)
+	add("koofr", flags.KoofrEnabled)
+	add("chromecast", flags.ChromecastEnabled)
+	add("discord", flags.DiscordEnabled)
+	add("truenas", flags.TrueNASEnabled)
+	add("jellyfin", flags.JellyfinEnabled)
+	add("ollama", flags.OllamaEnabled)
+	add("sandbox", flags.SandboxEnabled)
+	add("webhooks", flags.WebhooksEnabled)
+	add("web_scraper", flags.WebScraperEnabled)
+	add("s3", flags.S3Enabled)
+	add("network_scan", flags.NetworkScanEnabled)
+	add("wol", flags.WOLEnabled)
+	add("fritzbox", flags.FritzBoxSystemEnabled || flags.FritzBoxNetworkEnabled || flags.FritzBoxSmartHomeEnabled)
+	add("telnyx", flags.TelnyxEnabled)
+	add("a2a", flags.A2AEnabled)
+	add("co_agents", flags.CoAgentEnabled)
+	if len(enabled) == 0 {
+		return ""
+	}
+	return "[ENABLED INTEGRATIONS] " + strings.Join(enabled, ", ") + ". Some may be hidden by adaptive tool filtering — if you need one not in your tool list, use it directly by name."
 }
