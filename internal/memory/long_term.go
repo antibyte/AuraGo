@@ -143,14 +143,12 @@ func NewChromemVectorDB(cfg *config.Config, logger *slog.Logger) (*ChromemVector
 		embedKey := cfg.Embeddings.APIKey
 		embedModel := cfg.Embeddings.Model
 
-		// Legacy compat: "internal" uses main LLM endpoint + internal_model
+		// Legacy compat: "internal" always uses the main LLM endpoint + credentials.
+		// The embeddings.api_key field is irrelevant in this mode — always override
+		// so a stale/dummy key never blocks the embedding pipeline.
 		if provider == "internal" {
-			if embedURL == "" {
-				embedURL = cfg.LLM.BaseURL
-			}
-			if embedKey == "" {
-				embedKey = cfg.LLM.APIKey
-			}
+			embedURL = cfg.LLM.BaseURL
+			embedKey = cfg.LLM.APIKey
 			if embedModel == "" {
 				embedModel = cfg.Embeddings.InternalModel
 			}

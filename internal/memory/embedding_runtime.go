@@ -24,12 +24,9 @@ func buildEmbeddingFuncFromConfig(cfg *config.Config, logger *slog.Logger) (chro
 	embedModel := cfg.Embeddings.Model
 
 	if provider == "internal" {
-		if embedURL == "" {
-			embedURL = cfg.LLM.BaseURL
-		}
-		if embedKey == "" {
-			embedKey = cfg.LLM.APIKey
-		}
+		// Always use main LLM credentials — embeddings.api_key is irrelevant here.
+		embedURL = cfg.LLM.BaseURL
+		embedKey = cfg.LLM.APIKey
 		if embedModel == "" {
 			embedModel = cfg.Embeddings.InternalModel
 		}
