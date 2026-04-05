@@ -665,6 +665,124 @@ a.logo {
     box-shadow: 0 0 10px var(--accent-dim, rgba(99, 102, 241, 0.2));
 }
 
+/* ── Warnings Button ───────────────────────────────────────── */
+.btn-warnings {
+    position: relative;
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    border-radius: 10px;
+    border: 1px solid var(--border-subtle);
+    background: var(--bg-glass);
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
+    padding: 0;
+}
+.btn-warnings:hover {
+    background: rgba(128, 128, 128, 0.12);
+    transform: scale(1.1);
+}
+.btn-warnings .warnings-icon {
+    font-size: 0.9rem;
+    line-height: 1;
+}
+.warnings-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 16px;
+    height: 16px;
+    border-radius: 8px;
+    background: var(--error, #ef4444);
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+    line-height: 1;
+    pointer-events: none;
+}
+.btn-warnings.warnings-blink .warnings-icon {
+    opacity: 0.4;
+}
+
+/* ── Warnings Modal ────────────────────────────────────────── */
+.warnings-modal-card {
+    max-width: 560px;
+    width: 92vw;
+}
+.warnings-modal-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+}
+.warnings-list {
+    max-height: 50vh;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.5rem 0;
+}
+.warnings-empty {
+    text-align: center;
+    color: var(--text-secondary);
+    padding: 2rem 0;
+    font-size: 0.9rem;
+}
+.warnings-item {
+    padding: 0.75rem;
+    border-radius: 8px;
+    background: var(--bg-glass);
+    border: 1px solid var(--border-subtle);
+}
+.warnings-item.acknowledged {
+    opacity: 0.55;
+}
+.warnings-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.88rem;
+}
+.warnings-item-meta {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+.warnings-item-desc {
+    margin-top: 0.35rem;
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+.btn-small {
+    padding: 0.3rem 0.7rem;
+    font-size: 0.75rem;
+    border-radius: 6px;
+    border: 1px solid var(--border-subtle);
+    background: var(--bg-glass);
+    color: var(--text-primary);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.2s;
+}
+.btn-small:hover {
+    background: rgba(128, 128, 128, 0.15);
+}
+.warnings-ack-btn {
+    margin-top: 0.4rem;
+}
+
 /* ── Cards with Glassmorphism ──────────────────────────────── */
 .card {
     background: var(--card-bg);

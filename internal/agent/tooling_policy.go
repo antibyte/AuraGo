@@ -92,8 +92,6 @@ func resolveModelCapabilities(cfg *config.Config) ModelCapabilities {
 		IsOllama:                  isOllama,
 		IsDeepSeek:                isDeepSeek,
 		IsAnthropic:               isAnthropic,
-		// Nemotron is heavily optimised for agentic tasks and strict structured outputs;
-		// always enable native function calling for it.
 		AutoEnableNativeFunctions: isDeepSeek || isAnthropic || isNemotron,
 		SupportsStructuredOutputs: !isOllama,
 		SupportsParallelToolCalls: !isOllama,

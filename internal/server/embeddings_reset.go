@@ -3,6 +3,7 @@ package server
 import (
 	"aurago/internal/config"
 	"aurago/internal/memory"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -10,6 +11,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	_ "modernc.org/sqlite"
 )
 
 type embeddingsResetMarker struct {
@@ -86,10 +89,49 @@ func ApplyPendingEmbeddingsReset(cfg *config.Config, stm *memory.SQLiteMemory, l
 	if err := os.Remove(markerPath); err != nil {
 		return false, fmt.Errorf("remove reset marker: %w", err)
 	}
+
+	resetKGSemanticIndex(cfg, logger)
+
 	if logger != nil {
 		logger.Warn("[Embeddings] Applied pending embeddings reset", "vector_dir", vectorDir)
 	}
 	return true, nil
+}
+
+func resetKGSemanticIndex(cfg *config.Config, logger *slog.Logger) {
+	kgPath := filepath.Join(cfg.Directories.DataDir, "knowledge_graph.db")
+	if _, err := os.Stat(kgPath); os.IsNotExist(err) {
+		return
+	}
+	db, err := sql.Open("sqlite", kgPath)
+	if err != nil {
+		if logger != nil {
+			logger.Warn("[Embeddings] Failed to open KG db for semantic reset", "error", err)
+		}
+		return
+	}
+	defer db.Close()
+	db.SetMaxOpenConns(1)
+	result, err := db.Exec("UPDATE kg_nodes SET semantic_indexed_at = NULL WHERE semantic_indexed_at IS NOT NULL")
+	if err != nil {
+		if logger != nil {
+			logger.Warn("[Embeddings] Failed to reset KG node semantic_indexed_at", "error", err)
+		}
+		return
+	}
+	nodesReset, _ := result.RowsAffected()
+	result, err = db.Exec("UPDATE kg_edges SET semantic_indexed_at = NULL WHERE semantic_indexed_at IS NOT NULL")
+	if err != nil {
+		if logger != nil {
+			logger.Warn("[Embeddings] Failed to reset KG edge semantic_indexed_at", "error", err)
+		}
+		return
+	}
+	edgesReset, _ := result.RowsAffected()
+	if logger != nil && (nodesReset > 0 || edgesReset > 0) {
+		logger.Info("[Embeddings] KG semantic index reset — will be rebuilt with new model",
+			"nodes_reset", nodesReset, "edges_reset", edgesReset)
+	}
 }
 
 func embeddingsConfigChanged(oldCfg, newCfg config.Config) bool {

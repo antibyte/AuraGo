@@ -34,6 +34,7 @@ import (
 	"aurago/internal/sqlconnections"
 	"aurago/internal/tools"
 	"aurago/internal/tsnetnode"
+	"aurago/internal/warnings"
 	"aurago/internal/webhooks"
 
 	a2apkg "aurago/internal/a2a"
@@ -259,6 +260,7 @@ type Server struct {
 	SkillsDB           *sql.DB               // Skills registry database
 	PreparedMissionsDB *sql.DB               // Prepared missions SQLite database
 	PreparationService *services.MissionPreparationService
+	WarningsRegistry   *warnings.Registry // Runtime warnings and health issues
 	// IsFirstStart is true if core_memory.md was just freshly created (no prior data).
 	IsFirstStart    bool
 	StartedAt       time.Time     // server start time for uptime calculation
@@ -288,7 +290,7 @@ func (s *Server) reinitBudgetTracker(cfg *config.Config) {
 	}
 }
 
-func Start(cfg *config.Config, logger *slog.Logger, accessLogger *slog.Logger, llmClient llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, remoteControlDB *sql.DB, mediaRegistryDB *sql.DB, homepageRegistryDB *sql.DB, contactsDB *sql.DB, plannerDB *sql.DB, sqlConnectionsDB *sql.DB, sqlConnectionPool *sqlconnections.ConnectionPool, backgroundTasks *tools.BackgroundTaskManager, isFirstStart bool, shutdownCh chan struct{}) error {
+func Start(cfg *config.Config, logger *slog.Logger, accessLogger *slog.Logger, llmClient llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, remoteControlDB *sql.DB, mediaRegistryDB *sql.DB, homepageRegistryDB *sql.DB, contactsDB *sql.DB, plannerDB *sql.DB, sqlConnectionsDB *sql.DB, sqlConnectionPool *sqlconnections.ConnectionPool, backgroundTasks *tools.BackgroundTaskManager, warningsRegistry *warnings.Registry, isFirstStart bool, shutdownCh chan struct{}) error {
 	startLoginRecordCleaner(shutdownCh)
 	s := &Server{
 		Cfg:                cfg,
@@ -328,6 +330,7 @@ func Start(cfg *config.Config, logger *slog.Logger, accessLogger *slog.Logger, l
 		ShutdownCh:       shutdownCh,
 		MissionManagerV2: tools.NewMissionManagerV2(cfg.Directories.DataDir, cronManager),
 		EggHub:           bridge.NewEggHub(logger),
+		WarningsRegistry: warningsRegistry,
 	}
 	s.CoAgentRegistry.ConfigureLifecycle(
 		time.Duration(cfg.CoAgents.CleanupIntervalMins)*time.Minute,

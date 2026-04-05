@@ -26,6 +26,7 @@ const (
 	EventTsnetStatus       SSEEventType = "tsnet_status"
 	EventLogLine           SSEEventType = "log_line"
 	EventToast             SSEEventType = "toast"
+	EventSystemWarning     SSEEventType = "system_warning"
 )
 
 // SSEBroadcaster manages Server-Sent Events connections and broadcasts messages.

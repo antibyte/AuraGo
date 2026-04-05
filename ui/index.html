@@ -90,6 +90,10 @@
                 </div>
             </div>
             <span id="debug-pill" class="pill pill-debug"></span>
+            <button id="warnings-btn" type="button" class="btn-warnings is-hidden" title="">
+                <span class="warnings-icon">🛡️</span>
+                <span id="warnings-badge" class="warnings-badge is-hidden">0</span>
+            </button>
             <span id="connectionPill" class="pill pill-active"></span>
             <a id="logout-btn" href="/auth/logout" class="btn-header btn-header-link is-hidden"
                 data-logout-action="true"
@@ -169,6 +173,22 @@
         </div>
     </footer>
 
+    <!-- ── Warnings Modal ── -->
+    <div id="warnings-overlay" class="modal-overlay">
+        <div class="modal-card warnings-modal-card">
+            <div class="modal-title warnings-modal-title">
+                <span>🛡️ <span data-i18n="chat.warnings_title">System Warnings</span></span>
+                <button id="warnings-ack-all" class="btn-small" data-i18n="chat.warnings_ack_all">Acknowledge All</button>
+            </div>
+            <div id="warnings-list" class="warnings-list">
+                <div class="warnings-empty" data-i18n="chat.warnings_empty">No active warnings.</div>
+            </div>
+            <div class="modal-actions">
+                <button id="warnings-close" class="modal-btn confirm" data-i18n="chat.close">Close</button>
+            </div>
+        </div>
+    </div>
+
     <!-- ── Custom Modal ── -->
     <div id="modal-overlay" class="modal-overlay">
         <div class="modal-card">
@@ -190,6 +210,7 @@
     <script src="/js/chat/modules/speech-to-text.js"></script>
     <script src="/js/chat/modules/drag-drop.js"></script>
     <script src="/js/chat/modules/mermaid-loader.js"></script>
+    <script src="/js/chat/modules/warnings.js"></script>
     <script src="/js/chat/main.js"></script>
 
     <!-- Image Lightbox Overlay -->

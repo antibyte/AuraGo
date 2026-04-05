@@ -41,6 +41,7 @@ import (
 	"aurago/internal/setup"
 	"aurago/internal/sqlconnections"
 	"aurago/internal/tools"
+	"aurago/internal/warnings"
 
 	"github.com/gofrs/flock"
 )
@@ -540,6 +541,9 @@ func main() {
 		}
 	}
 
+	// Warnings Registry for runtime health / security issue tracking
+	warningsRegistry := warnings.NewRegistry()
+
 	// Process Registry for background daemon management
 	registry := tools.NewProcessRegistry(appLog)
 
@@ -842,9 +846,23 @@ func main() {
 		for _, h := range secHints {
 			appLog.Warn("[Security] "+h.Title, "id", h.ID, "severity", h.Severity)
 		}
+
+		// Bridge security hints into the warnings registry.
+		for _, h := range secHints {
+			warningsRegistry.Add(warnings.Warning{
+				ID:          "sec_" + h.ID,
+				Severity:    h.Severity,
+				Title:       h.Title,
+				Description: h.Description,
+				Category:    warnings.CategorySecurity,
+			})
+		}
 	}
 
-	if err := server.Start(cfg, appLog, webAccessLog, llmClient, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, remoteControlDB, mediaRegistryDB, homepageRegistryDB, contactsDB, plannerDB, sqlConnectionsDB, sqlConnectionPool, backgroundTaskManager, isFirstStart, shutdownCh); err != nil {
+	// Register built-in warning producers (token budget fallback, vectordb, etc.).
+	warnings.RegisterBuiltinProducers(warningsRegistry, cfg, appLog)
+
+	if err := server.Start(cfg, appLog, webAccessLog, llmClient, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, remoteControlDB, mediaRegistryDB, homepageRegistryDB, contactsDB, plannerDB, sqlConnectionsDB, sqlConnectionPool, backgroundTaskManager, warningsRegistry, isFirstStart, shutdownCh); err != nil {
 		appLog.Error("Server failed", "error", err)
 		os.Exit(1)
 	}

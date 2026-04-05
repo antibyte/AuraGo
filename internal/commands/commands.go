@@ -12,17 +12,19 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/memory"
 	"aurago/internal/security"
+	"aurago/internal/warnings"
 )
 
 // Context provides dependencies to commands.
 type Context struct {
-	STM           *memory.SQLiteMemory
-	HM            *memory.HistoryManager
-	Vault         *security.Vault
-	InventoryDB   *sql.DB
-	BudgetTracker *budget.Tracker
-	Cfg           *config.Config
-	PromptsDir    string
+	STM              *memory.SQLiteMemory
+	HM               *memory.HistoryManager
+	Vault            *security.Vault
+	InventoryDB      *sql.DB
+	BudgetTracker    *budget.Tracker
+	Cfg              *config.Config
+	PromptsDir       string
+	WarningsRegistry *warnings.Registry
 }
 
 // Command defines the interface for a slash command.

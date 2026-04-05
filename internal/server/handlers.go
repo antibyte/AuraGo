@@ -161,13 +161,14 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 		if lastUserMsg.Role == openai.ChatMessageRoleUser && strings.HasPrefix(lastUserMsg.Content, "/") {
 			// Intercept Slash Commands
 			cmdCtx := commands.Context{
-				STM:           s.ShortTermMem,
-				HM:            s.HistoryManager,
-				Vault:         s.Vault,
-				InventoryDB:   s.InventoryDB,
-				BudgetTracker: s.BudgetTracker,
-				Cfg:           s.Cfg,
-				PromptsDir:    s.Cfg.Directories.PromptsDir,
+				STM:              s.ShortTermMem,
+				HM:               s.HistoryManager,
+				Vault:            s.Vault,
+				InventoryDB:      s.InventoryDB,
+				BudgetTracker:    s.BudgetTracker,
+				Cfg:              s.Cfg,
+				PromptsDir:       s.Cfg.Directories.PromptsDir,
+				WarningsRegistry: s.WarningsRegistry,
 			}
 			cmdResult, isCommand, err := commands.Handle(lastUserMsg.Content, cmdCtx)
 			if err != nil {

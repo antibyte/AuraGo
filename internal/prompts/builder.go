@@ -93,15 +93,15 @@ type ContextFlags struct {
 	SurgeryPlan            string
 	PredictedGuides        []string // Content of tool guides to inject
 	// Optimization fields
-	Tier              string   // "full", "compact", "minimal" — controls module loading
-	MessageCount      int      // Current message count in the conversation
-	TokenBudget       int      // Max tokens for system prompt (0 = unlimited)
-	RecentlyUsedTools []string // Last N tools the agent used (for lazy schema injection)
-	IsDebugMode       bool     // When true, inject a debugging instruction into the system prompt
-	IsVoiceMode       bool     // When true, inject a TTS instruction into the system prompt
-	IsCoAgent          bool // True if the current LLM call is for a co-agent
-	IsEgg              bool // True if this instance runs in egg worker mode
-	NativeToolsEnabled bool // True when native function calling API is active
+	Tier               string   // "full", "compact", "minimal" — controls module loading
+	MessageCount       int      // Current message count in the conversation
+	TokenBudget        int      // Max tokens for system prompt (0 = unlimited)
+	RecentlyUsedTools  []string // Last N tools the agent used (for lazy schema injection)
+	IsDebugMode        bool     // When true, inject a debugging instruction into the system prompt
+	IsVoiceMode        bool     // When true, inject a TTS instruction into the system prompt
+	IsCoAgent          bool     // True if the current LLM call is for a co-agent
+	IsEgg              bool     // True if this instance runs in egg worker mode
+	NativeToolsEnabled bool     // True when native function calling API is active
 	// Specialist co-agent fields
 	SpecialistsAvailable  bool   // True if at least one specialist is enabled
 	SpecialistsStatus     string // Dynamic status text listing enabled specialists

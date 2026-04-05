@@ -28,6 +28,7 @@ import (
 	"aurago/internal/telegram"
 	"aurago/internal/telnyx"
 	"aurago/internal/tools"
+	"aurago/internal/warnings"
 	"aurago/ui"
 )
 
@@ -35,6 +36,18 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux := http.NewServeMux()
 	sse := NewSSEBroadcaster()
 	s.SSE = sse // expose broadcaster for use by handlers and callbacks
+
+	// Wire warnings registry to broadcast new warnings via SSE.
+	if s.WarningsRegistry != nil {
+		s.WarningsRegistry.OnNewWarning = func(w warnings.Warning) {
+			total, unack := s.WarningsRegistry.Count()
+			sse.BroadcastType(EventSystemWarning, map[string]interface{}{
+				"warning":        w,
+				"total":          total,
+				"unacknowledged": unack,
+			})
+		}
+	}
 
 	// Create a context that cancels on shutdown
 	serverCtx, serverCancel := context.WithCancel(context.Background())
@@ -249,6 +262,10 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 	})
+
+	// System warnings — returns runtime health warnings.
+	mux.HandleFunc("/api/warnings", handleWarnings(s))
+	mux.HandleFunc("/api/warnings/acknowledge", handleWarningsAcknowledge(s))
 
 	mux.HandleFunc("/v1/chat/completions", handleChatCompletions(s, sse))
 	mux.HandleFunc("/api/memory/archive", handleArchiveMemory(s))
