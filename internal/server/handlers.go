@@ -486,8 +486,11 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 				return
 			}
 			// Scrub any sensitive values from the response content before sending.
+			// Also strip reasoning tags and hallucinated RAG placeholders.
 			for i := range resp.Choices {
-				resp.Choices[i].Message.Content = security.Scrub(resp.Choices[i].Message.Content)
+				resp.Choices[i].Message.Content = security.StripThinkingTags(
+					security.Scrub(resp.Choices[i].Message.Content),
+				)
 			}
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(resp)

@@ -38,6 +38,12 @@ var (
 	// so the wrapper syntax never leaks into the chat UI or channel outputs.
 	externalDataTagRe = regexp.MustCompile(`(?is)<external_data>([\s\S]*?)</external_data>`)
 
+	// Matches hallucinated RAG placeholder lines emitted by some models.
+	// Patterns like [$LEERER TRÄGER], [/SUCHERGEBNIS], [$EMPTY CARRIER] appear when a
+	// model invents bracket-based markup to represent empty search result carriers.
+	// These must be stripped before they reach the chat UI.
+	hallucinatedRagRe = regexp.MustCompile(`(?m)^\s*\[\$[^\]]*\]\s*$|^\s*\[\/[A-ZÄÖÜ][A-ZÄÖÜ _]+\]\s*$`)
+
 	sensitiveMu     sync.RWMutex
 	sensitiveValues []string
 )
@@ -205,5 +211,7 @@ func StripThinkingTags(text string) string {
 	stripped := thinkingTagRe.ReplaceAllString(text, "")
 	// Unwrap <external_data> blocks: keep inner content, remove the wrapper tags.
 	stripped = externalDataTagRe.ReplaceAllString(stripped, "$1")
+	// Remove hallucinated RAG placeholder lines (e.g. [$LEERER TRÄGER], [/SUCHERGEBNIS]).
+	stripped = hallucinatedRagRe.ReplaceAllString(stripped, "")
 	return strings.TrimSpace(stripped)
 }
