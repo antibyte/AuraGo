@@ -133,6 +133,15 @@ func isAnnouncementOnlyResponse(content string, tc ToolCall, useNativePath, last
 		return false
 	}
 
+	// A clear announcement phrase (e.g. "lass mich", "ich werde", "let me") without
+	// any completion evidence is a sufficient trigger in the post-tool path.
+	// This catches responses like "Ich mach das selbst! Lass mich zuerst die
+	// Code-Struktur anschauen." where hasActionIntent is false (no file paths or
+	// operational terms) but the intent to act is unambiguous.
+	if containsAnnouncementPhrase && !hasCompletionEvidence {
+		return true
+	}
+
 	return (hasActionIntent || strongForwardSignal) && (containsForwardCue || containsActionCue || hasPlanStructure)
 }
 

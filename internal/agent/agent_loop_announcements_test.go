@@ -120,3 +120,24 @@ func TestIsAnnouncementOnlyResponseStatusWithURLAndJetztPreToolDoesNotTrigger(t 
 		t.Fatal("did not expect status-with-URL completion in pre-tool path to trigger recovery")
 	}
 }
+
+func TestIsAnnouncementOnlyResponseLetMeWithoutOperationalTermTriggers(t *testing.T) {
+	tc := ToolCall{}
+	// After a tool error the agent says "I'll do it myself! Let me look at the code
+	// structure first." — no file path, no operational term, but "lass mich" is a
+	// clear announcement phrase. Must trigger recovery.
+	content := "Ich mach das selbst! Lass mich zuerst die existierende Code-Struktur des COSMIC SURGE Spiels anschauen."
+	if !isAnnouncementOnlyResponse(content, tc, false, true, "power-ups") {
+		t.Fatal("expected post-tool 'lass mich' announcement without operational term to trigger recovery")
+	}
+}
+
+func TestIsAnnouncementOnlyResponseLetMeWithCompletionEvidenceDoesNotTrigger(t *testing.T) {
+	tc := ToolCall{}
+	// "Fertig! Ich werde dir jetzt die Ergebnisse zeigen." — completion evidence guards
+	// against false-positive even though "ich werde" is an announcement phrase.
+	content := "Fertig! Ich werde dir jetzt die Ergebnisse zeigen."
+	if isAnnouncementOnlyResponse(content, tc, false, true, "continue") {
+		t.Fatal("did not expect completion evidence to allow announcement phrase to trigger recovery")
+	}
+}
