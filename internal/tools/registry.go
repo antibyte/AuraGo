@@ -169,13 +169,16 @@ func (r *ProcessRegistry) KillAll() {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	for pid, info := range r.processes {
-		if info.Alive && info.Process != nil {
+		info.mu.Lock()
+		alive := info.Alive
+		if alive && info.Process != nil {
 			r.logger.Warn("Killing orphaned background process", "pid", pid)
 			if err := killProcess(info.Process); err != nil {
 				r.logger.Warn("Failed to kill orphaned background process", "pid", pid, "error", err)
 			}
 			info.Alive = false
 		}
+		info.mu.Unlock()
 	}
 	r.processes = make(map[int]*ProcessInfo)
 	r.logger.Info("All background processes cleaned up")

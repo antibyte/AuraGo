@@ -202,8 +202,9 @@ func (es *EmotionSynthesizer) SynthesizeEmotion(ctx context.Context, stm *SQLite
 			modelName = "gpt-4o-mini"
 		}
 
-		// Ensure LLM call has a timeout even if caller didn't provide one.
-		llmCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		// Use a fresh context for the LLM call so that one caller's cancellation
+		// does not abort the shared singleflight operation and fail all waiters.
+		llmCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
 		resp, err := es.client.CreateChatCompletion(llmCtx, openai.ChatCompletionRequest{

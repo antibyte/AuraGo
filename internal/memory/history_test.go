@@ -120,6 +120,7 @@ func TestHistoryManager_SetPinned(t *testing.T) {
 		saveChan: make(chan struct{}, 1),
 		doneChan: make(chan struct{}),
 	}
+	hm.saverWg.Add(1)
 	go hm.backgroundSaver()
 	defer hm.Close()
 
@@ -146,6 +147,7 @@ func TestHistoryManager_GetReturnsOpenAIMessages(t *testing.T) {
 		saveChan: make(chan struct{}, 1),
 		doneChan: make(chan struct{}),
 	}
+	hm.saverWg.Add(1)
 	go hm.backgroundSaver()
 	defer hm.Close()
 

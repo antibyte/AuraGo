@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"sync/atomic"
 	"time"
 
 	"aurago/internal/config"
@@ -19,12 +20,13 @@ var hatchClient = &http.Client{Timeout: 30 * time.Second}
 
 // agentInternalToken holds the per-process crypto token for loopback auth.
 // Set by SetAgentInternalToken during startup before any loopback call is made.
-var agentInternalToken string
+// Accessed from multiple goroutines — stored as atomic.Value for race-free reads.
+var agentInternalToken atomic.Value
 
 // SetAgentInternalToken stores the loopback crypto token so all agent loopback
 // HTTP calls can present it alongside X-Internal-FollowUp.
 func SetAgentInternalToken(token string) {
-	agentInternalToken = token
+	agentInternalToken.Store(token)
 }
 
 // handleInvasionControl dispatches invasion_control tool operations.
@@ -283,8 +285,8 @@ func invasionPost(url, contentType string, body *bytes.Reader) (*http.Response, 
 		req.Header.Set("Content-Type", contentType)
 	}
 	req.Header.Set("X-Internal-FollowUp", "true")
-	if agentInternalToken != "" {
-		req.Header.Set("X-Internal-Token", agentInternalToken)
+	if tok, _ := agentInternalToken.Load().(string); tok != "" {
+		req.Header.Set("X-Internal-Token", tok)
 	}
 	return hatchClient.Do(req)
 }
@@ -296,8 +298,8 @@ func invasionGet(url string) (*http.Response, error) {
 		return nil, err
 	}
 	req.Header.Set("X-Internal-FollowUp", "true")
-	if agentInternalToken != "" {
-		req.Header.Set("X-Internal-Token", agentInternalToken)
+	if tok, _ := agentInternalToken.Load().(string); tok != "" {
+		req.Header.Set("X-Internal-Token", tok)
 	}
 	return hatchClient.Do(req)
 }

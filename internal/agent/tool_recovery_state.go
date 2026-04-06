@@ -269,14 +269,20 @@ func (s *toolRecoveryState) handleDuplicateToolCall(tc ToolCall, req *openai.Cha
 }
 
 func (s *toolRecoveryState) shouldRecordFirstErrorInChain() bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	return s.ConsecutiveErrorCount == 0
 }
 
 func (s *toolRecoveryState) shouldRecordResolution() bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	return s.ConsecutiveErrorCount > 0 && s.LastToolError != ""
 }
 
 func (s *toolRecoveryState) updateToolErrorState(tc ToolCall, resultContent string, req *openai.ChatCompletionRequest, logger *slog.Logger, scope AgentTelemetryScope, promptVersion string, execTimeMs int64) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	hasSandboxFailure := containsSandboxFailure(resultContent)
 	isToolError := containsToolError(resultContent) || hasSandboxFailure
 

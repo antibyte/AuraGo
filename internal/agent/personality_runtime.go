@@ -331,6 +331,11 @@ func launchAsyncPersonalityV2Analysis(
 	helperEmotionBatchEligible, previousEmotion := resolveHelperEmotionBatchState(cfg, emotionSynthesizer)
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				logger.Error("[Personality V2] Panic in async analysis goroutine", "panic", r)
+			}
+		}()
 		v2Ctx, cancel := context.WithTimeout(context.Background(), time.Duration(cfg.Personality.V2TimeoutSecs)*time.Second)
 		defer cancel()
 

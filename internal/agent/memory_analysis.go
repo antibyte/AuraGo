@@ -854,7 +854,9 @@ func generateMemoryReflection(
 	mainClient llm.ChatClient,
 	scope string,
 ) (interface{}, error) {
-	// Gather data from each source
+	if cfg == nil {
+		return nil, fmt.Errorf("config is nil")
+	}
 	var journalData, kgData, coreData, curatorData string
 	scopeKey := strings.ToLower(strings.TrimSpace(scope))
 	switch scopeKey {

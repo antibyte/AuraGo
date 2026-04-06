@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -463,17 +464,16 @@ func (s *DaemonSupervisor) RefreshSkills() error {
 	s.mu.RUnlock()
 
 	for id, manifest := range desired {
-		s.mu.RLock()
-		_, exists := s.runners[id]
-		s.mu.RUnlock()
-		if exists {
-			continue
-		}
 		if running >= s.config.MaxConcurrentDaemons {
 			s.logger.Warn("Max concurrent daemons reached during refresh", "max", s.config.MaxConcurrentDaemons)
 			break
 		}
 		if err := s.startRunner(manifest); err != nil {
+			// startRunner itself checks for existence under a write lock; an
+			// "already exists" error is benign (another goroutine beat us to it).
+			if strings.Contains(err.Error(), "already exists") {
+				continue
+			}
 			s.logger.Error("Failed to start daemon during refresh", "skill", id, "error", err)
 			continue
 		}

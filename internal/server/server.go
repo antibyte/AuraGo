@@ -102,6 +102,7 @@ func InternalAPIURL(cfg *config.Config) string {
 // i18nStore holds the parsed translations from ui/lang/ keyed by language code.
 // Each value is the raw JSON string for that language, ready for template injection.
 var (
+	i18nMu       sync.RWMutex      // protects concurrent access to i18nLangJSON and i18nMetaJSON
 	i18nLangJSON map[string]string // lang -> JSON string of {key: translation, ...}
 	i18nMetaJSON string            // JSON string of {key: {options:[...], provider_ref:bool}, ...}
 )
@@ -112,24 +113,27 @@ var (
 // Each <lang>.json contains a flat {key: translation} map.
 // The special file meta.json in the root holds field-option metadata.
 func loadI18N(uiFS fs.FS, logger *slog.Logger) {
-	i18nLangJSON = make(map[string]string)
+	newLangJSON := make(map[string]string)
 	langData := make(map[string]map[string]string) // lang -> key -> translation
+	var newMetaJSON string
 
 	// Read root lang directory
 	entries, err := fs.ReadDir(uiFS, "lang")
 	if err != nil {
 		logger.Error("Failed to read lang/ directory", "error", err)
+		i18nMu.Lock()
 		i18nLangJSON = map[string]string{"en": "{}"}
 		i18nMetaJSON = "{}"
+		i18nMu.Unlock()
 		return
 	}
 
 	// Process meta.json from root
 	metaData, err := fs.ReadFile(uiFS, "lang/meta.json")
 	if err == nil {
-		i18nMetaJSON = string(metaData)
+		newMetaJSON = string(metaData)
 	} else {
-		i18nMetaJSON = "{}"
+		newMetaJSON = "{}"
 	}
 
 	// Process subdirectories recursively
@@ -187,18 +191,25 @@ func loadI18N(uiFS fs.FS, logger *slog.Logger) {
 			logger.Warn("Failed to marshal translations", "lang", lang, "error", err)
 			continue
 		}
-		i18nLangJSON[lang] = string(jsonBytes)
+		newLangJSON[lang] = string(jsonBytes)
 	}
 
-	if len(i18nLangJSON) == 0 {
-		i18nLangJSON = map[string]string{"en": "{}"}
+	if len(newLangJSON) == 0 {
+		newLangJSON = map[string]string{"en": "{}"}
 	}
 
-	logger.Info("i18n loaded", "languages", len(i18nLangJSON))
+	i18nMu.Lock()
+	i18nLangJSON = newLangJSON
+	i18nMetaJSON = newMetaJSON
+	i18nMu.Unlock()
+
+	logger.Info("i18n loaded", "languages", len(newLangJSON))
 }
 
 // getI18NJSON returns the JSON string for the given language, falling back to "en".
 func getI18NJSON(lang string) template.JS {
+	i18nMu.RLock()
+	defer i18nMu.RUnlock()
 	if j, ok := i18nLangJSON[lang]; ok {
 		return template.JS(j)
 	}
@@ -210,6 +221,8 @@ func getI18NJSON(lang string) template.JS {
 
 // getI18NMetaJSON returns the _meta section JSON for config_help metadata.
 func getI18NMetaJSON() template.JS {
+	i18nMu.RLock()
+	defer i18nMu.RUnlock()
 	return template.JS(i18nMetaJSON)
 }
 

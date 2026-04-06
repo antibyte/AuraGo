@@ -13,7 +13,7 @@ import (
 // Called at the end of a successful agent loop iteration (after final response).
 // lastUserMsg is used to enrich the entry title with the user's intent.
 func JournalAutoTrigger(cfg *config.Config, stm *memory.SQLiteMemory, logger *slog.Logger, sessionID string, toolsUsed []string, lastUserMsg string) {
-	if stm == nil || !cfg.Tools.Journal.Enabled || !cfg.Journal.AutoEntries {
+	if cfg == nil || stm == nil || !cfg.Tools.Journal.Enabled || !cfg.Journal.AutoEntries {
 		return
 	}
 	// Skip maintenance and co-agent sessions

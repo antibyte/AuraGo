@@ -443,13 +443,16 @@ func (kg *KnowledgeGraph) getSemanticQueryEmbedding(query string) ([]float32, er
 		return nil, fmt.Errorf("semantic search is disabled")
 	}
 
+	// Fast path: check cache under read-lock
 	kg.semantic.mu.Lock()
-	defer kg.semantic.mu.Unlock()
-
 	if entry, ok := kg.semantic.queryCache[query]; ok && time.Since(entry.timestamp) < kg.semantic.queryCacheTTL {
-		return entry.embedding, nil
+		embedding := entry.embedding
+		kg.semantic.mu.Unlock()
+		return embedding, nil
 	}
+	kg.semantic.mu.Unlock()
 
+	// Slow path: call embedding API WITHOUT holding the lock to avoid blocking other goroutines.
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	embedding, err := kg.semantic.embeddingFunc(ctx, query)
@@ -457,6 +460,12 @@ func (kg *KnowledgeGraph) getSemanticQueryEmbedding(query string) ([]float32, er
 		return nil, err
 	}
 
+	// Store result under lock; re-check cache in case another goroutine raced us.
+	kg.semantic.mu.Lock()
+	defer kg.semantic.mu.Unlock()
+	if existing, ok := kg.semantic.queryCache[query]; ok && time.Since(existing.timestamp) < kg.semantic.queryCacheTTL {
+		return existing.embedding, nil
+	}
 	kg.semantic.queryCache[query] = queryCacheEntry{embedding: embedding, timestamp: time.Now()}
 	// Evict stale entries when cache exceeds the size cap to prevent unbounded growth.
 	if len(kg.semantic.queryCache) > knowledgeGraphSemanticQueryCacheMaxSize {

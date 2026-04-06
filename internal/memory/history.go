@@ -83,6 +83,7 @@ type HistoryManager struct {
 	doneChan       chan struct{}    // Signals backgroundSaver to exit
 	closeOnce      sync.Once        // Prevents double-close panic on doneChan
 	isCompressing  bool             // Guard against concurrent compression
+	saverWg        sync.WaitGroup   // Used by Close() to wait for backgroundSaver to finish
 }
 
 func NewHistoryManager(filePath string) *HistoryManager {
@@ -95,6 +96,7 @@ func NewHistoryManager(filePath string) *HistoryManager {
 	hm.load()
 
 	// Start background saver
+	hm.saverWg.Add(1)
 	go hm.backgroundSaver()
 
 	return hm
@@ -112,6 +114,7 @@ func NewEphemeralHistoryManager() *HistoryManager {
 }
 
 func (hm *HistoryManager) backgroundSaver() {
+	defer hm.saverWg.Done()
 	for {
 		select {
 		case <-hm.doneChan:
@@ -129,6 +132,7 @@ func (hm *HistoryManager) backgroundSaver() {
 func (hm *HistoryManager) Close() {
 	hm.closeOnce.Do(func() {
 		close(hm.doneChan)
+		hm.saverWg.Wait() // wait for backgroundSaver to drain before final save
 		hm.save()
 	})
 }
