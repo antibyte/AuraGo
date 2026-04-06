@@ -142,10 +142,10 @@ func TestParseToolCallMinimaxJSONFormat(t *testing.T) {
 	// GLM/Zhipu models emit tool calls as JSON directly after the minimax:tool_call prefix
 	// (Format 3b) rather than using <invoke name="> XML format or API-level tool_calls.
 	cases := []struct {
-		name     string
-		content  string
-		wantAct  string
-		wantXML  bool
+		name    string
+		content string
+		wantAct string
+		wantXML bool
 	}{
 		{
 			name:    "minimax:tool_call JSON with action key",
@@ -181,7 +181,6 @@ func TestParseToolCallMinimaxJSONFormat(t *testing.T) {
 		})
 	}
 }
-
 
 func TestRecoverFrom422TrimsMessagesAndRetries(t *testing.T) {
 	req := openai.ChatCompletionRequest{

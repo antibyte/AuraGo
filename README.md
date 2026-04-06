@@ -14,6 +14,8 @@
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker)](docker-compose.yml)
 
 > **🛠️ Work in Progress** — AuraGo is under active development. Expect occasional breaking changes.
+>
+> **Testing note** — This is a one-man (and his agents) project. Many things are not tested, or only minimally tested. Windows and macOS support is built in *in theory*, but is not regularly tested.
 
 > **🔒 You are in control** — Every feature can be individually disabled: Shell/Python execution, filesystem access, network requests, and self-updates each have their own toggle in the **Danger Zone**. For internet-facing installs, always enable HTTPS, login protection, and 2FA.
 

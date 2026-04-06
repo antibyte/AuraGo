@@ -397,4 +397,3 @@ func TestBuildToolingPolicyDoesNotDisableNativeFunctionsForNonGLMModels(t *testi
 		t.Fatal("did not expect AutoMiniMaxFix for non-GLM model")
 	}
 }
-
