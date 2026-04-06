@@ -1289,3 +1289,4 @@ async function saveVaultKeys() {
         showToast(t('common.error') || 'Error', 'error');
     }
 }
+});
