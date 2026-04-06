@@ -231,7 +231,11 @@ Ensure the instructions prevent these errors. Reply ONLY with the new markdown m
 		newPrompt = resp.Choices[0].Message.Content
 	}
 	if err != nil || newPrompt == "" {
-		slog.Warn("[Optimizer] Helper LLM failed, falling back to Primary LLM", "error", err)
+		helperReason := "empty response (no choices)"
+		if err != nil {
+			helperReason = err.Error()
+		}
+		slog.Warn("[Optimizer] Helper LLM failed, falling back to Primary LLM", "reason", helperReason)
 		resp, err = w.primaryManager.CreateChatCompletion(ctx, req)
 		if err == nil && len(resp.Choices) > 0 {
 			newPrompt = resp.Choices[0].Message.Content
@@ -239,7 +243,11 @@ Ensure the instructions prevent these errors. Reply ONLY with the new markdown m
 	}
 
 	if err != nil || newPrompt == "" {
-		slog.Error("[Optimizer] Failed to generate mutated prompt via all LLMs", "error", err)
+		finalReason := "empty response (no choices)"
+		if err != nil {
+			finalReason = err.Error()
+		}
+		slog.Error("[Optimizer] Failed to generate mutated prompt via all LLMs", "reason", finalReason)
 		return
 	}
 
