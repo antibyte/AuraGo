@@ -557,17 +557,44 @@ func ParseToolCall(content string) ToolCall {
 		}
 	}
 
-	// <action>toolname</action> bare tag format — some models emit this as an incomplete tool call
-	// attempt (name only, no parameters). Treat it as a dispatched tool call with XMLFallbackDetected=true
-	// so the tool layer returns an error that the LLM can use to retry with proper arguments.
+	// <action>toolname</action> bare tag format — name only, no parameters.
+	// Also handles the hybrid format <action>toolname","key":"value"...} where some models
+	// replace {"action":"toolname" with <action>toolname (dropping the { and "action":" prefix).
 	if idx := strings.Index(lowerContent, "<action>"); idx != -1 {
-		if endIdx := strings.Index(lowerContent[idx+8:], "</action>"); endIdx != -1 {
-			name := strings.TrimSpace(content[idx+8 : idx+8+endIdx])
+		rest := content[idx+8:]
+		lowerRest := lowerContent[idx+8:]
+		if endIdx := strings.Index(lowerRest, "</action>"); endIdx != -1 {
+			// Format: <action>name</action> — bare name, no args
+			name := strings.TrimSpace(rest[:endIdx])
 			if name != "" && !strings.ContainsAny(name, " \t\n<>\"'{}[]") {
 				tc.Action = name
 				tc.IsTool = true
 				tc.XMLFallbackDetected = true
 				return tc
+			}
+		} else if strings.Contains(lowerRest, `"`) && strings.Contains(lowerRest, "}") {
+			// Hybrid format: <action>toolname","key":"value"...}
+			// Reconstruct as proper JSON by prepending {"action":"
+			// Find the last closing brace to bound the JSON object.
+			candidate := `{"action":"` + rest
+			if closeIdx := strings.LastIndex(candidate, "}"); closeIdx != -1 {
+				jsonStr := candidate[:closeIdx+1]
+				normalized := normalizeTagsInJSON(jsonStr)
+				var tmp ToolCall
+				if json.Unmarshal([]byte(normalized), &tmp) == nil {
+					if tmp.Action == "" && tmp.ToolCallAction != "" {
+						tmp.Action = tmp.ToolCallAction
+					}
+					if tmp.Action == "" && tmp.Name != "" {
+						tmp.Action = tmp.Name
+					}
+					if tmp.Action != "" {
+						tmp.IsTool = true
+						tmp.XMLFallbackDetected = true
+						tmp.RawJSON = jsonStr
+						return tmp
+					}
+				}
 			}
 		}
 	}
