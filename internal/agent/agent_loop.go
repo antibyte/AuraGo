@@ -1330,8 +1330,12 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 						// {"tool_call":...} / {"tool_name":...} are always suppressed (MiniMax format).
 						// Broader JSON heuristics (action/command/...) only suppressed when MiniMaxFix=true.
 						trimmed := strings.TrimLeft(delta.Content, " \t\r\n")
+						// Always-suppress: clear tool call markers regardless of MiniMaxFix setting.
+						// {"tool_call":...}, {"tool_name":...}, {"tool":...}, {"tool_call_path":...} are
+						// unambiguously tool call JSON formats — never render as chat text.
 						isToolCallJSON := len(trimmed) > 0 && trimmed[0] == '{' &&
-							(strings.Contains(trimmed, `"tool_call"`) || strings.Contains(trimmed, `"tool_name"`))
+							(strings.Contains(trimmed, `"tool_call"`) || strings.Contains(trimmed, `"tool_name"`) ||
+								strings.Contains(trimmed, `"tool":`) || strings.Contains(trimmed, `"tool_call_path"`))
 						isLikelyToolCallJSON := len(trimmed) > 0 && trimmed[0] == '{' &&
 							(strings.Contains(trimmed, `"action"`) || strings.Contains(trimmed, `"command"`) ||
 								strings.Contains(trimmed, `"operation"`) || strings.Contains(trimmed, `"tool_call"`) ||
