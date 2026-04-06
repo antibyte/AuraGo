@@ -56,6 +56,16 @@ data/short_term.db-shm
 data/short_term.db-wal
 data/inventory.db
 data/aurago.lock
+# All SQLite WAL/SHM sidecar files
+data/*.db-shm
+data/*.db-wal
+# Runtime JSON state
+data/embeddings_reset_pending.json
+# Generated media
+data/audio/
+data/generated_images/
+# Migration artifacts
+data/*.migrated
 
 # Runtime data (generated at runtime by the agent)
 data/character_journal.md
