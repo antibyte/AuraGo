@@ -323,6 +323,7 @@ func resolveToolFeatureState(runCfg RunConfig, policy ToolingPolicy) resolvedToo
 		TelnyxCallEnabled:            cfg.Telnyx.Enabled && !cfg.Telnyx.ReadOnly,
 		SQLConnectionsEnabled:        cfg.SQLConnections.Enabled && runCfg.SQLConnectionsDB != nil,
 		PythonSecretInjectionEnabled: cfg.Tools.PythonSecretInjection.Enabled,
+		DaemonSkillsEnabled:          cfg.Tools.DaemonSkills.Enabled,
 		AllowShell:                   cfg.Agent.AllowShell,
 		AllowPython:                  cfg.Agent.AllowPython,
 		AllowFilesystemWrite:         cfg.Agent.AllowFilesystemWrite,

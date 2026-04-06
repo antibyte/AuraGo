@@ -135,6 +135,8 @@ type ToolFeatureFlags struct {
 	SQLConnectionsEnabled bool
 	// Python secret injection
 	PythonSecretInjectionEnabled bool
+	// Daemon skills
+	DaemonSkillsEnabled bool
 }
 
 // NativeToolCallToToolCall converts an OpenAI native ToolCall response to AuraGo's ToolCall struct.

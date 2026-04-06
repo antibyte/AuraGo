@@ -297,6 +297,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			Guardian: guardian, LLMGuardian: llmGuardian,
 			SessionID: sessionID, CoAgentRegistry: coAgentRegistry,
 			BudgetTracker: budgetTracker,
+			DaemonSupervisor: runCfg.DaemonSupervisor,
 		}
 	}
 

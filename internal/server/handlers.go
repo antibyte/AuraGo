@@ -356,6 +356,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			MissionManagerV2:   s.MissionManagerV2,
 			CoAgentRegistry:    s.CoAgentRegistry,
 			BudgetTracker:      s.BudgetTracker,
+			DaemonSupervisor:   s.DaemonSupervisor,
 			LLMGuardian:        s.LLMGuardian,
 			SessionID:          sessionID,
 			IsMaintenance:      inMaintenance,

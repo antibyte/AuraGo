@@ -29,8 +29,8 @@ type DaemonMessage struct {
 	Severity  string          `json:"severity,omitempty"` // "info", "warning", "critical"
 	Level     string          `json:"level,omitempty"`    // for log messages: "debug", "info", "warn", "error"
 	Data      json.RawMessage `json:"data,omitempty"`
-	Fatal     bool            `json:"fatal,omitempty"`    // for error messages
-	Reason    string          `json:"reason,omitempty"`   // for shutdown messages
+	Fatal     bool            `json:"fatal,omitempty"`  // for error messages
+	Reason    string          `json:"reason,omitempty"` // for shutdown messages
 	Timestamp int64           `json:"timestamp,omitempty"`
 }
 

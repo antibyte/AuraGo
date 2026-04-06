@@ -277,6 +277,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 				MissionManagerV2:   s.MissionManagerV2,
 				CoAgentRegistry:    s.CoAgentRegistry,
 				BudgetTracker:      s.BudgetTracker,
+				DaemonSupervisor:   s.DaemonSupervisor,
 				LLMGuardian:        s.LLMGuardian,
 				SessionID:          "default",
 				IsMaintenance:      false,
@@ -767,6 +768,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 					MissionManagerV2:   s.MissionManagerV2,
 					CoAgentRegistry:    s.CoAgentRegistry,
 					BudgetTracker:      s.BudgetTracker,
+					DaemonSupervisor:   s.DaemonSupervisor,
 					LLMGuardian:        s.LLMGuardian,
 					SessionID:          "default",
 					IsMaintenance:      tools.IsBusy(),
@@ -1240,6 +1242,13 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		// ── Containers API ──
 		mux.HandleFunc("/api/containers", handleContainersList(s))
 		mux.HandleFunc("/api/containers/", handleContainerAction(s))
+
+		// ── Daemon Skills API ──
+		if s.DaemonSupervisor != nil {
+			mux.HandleFunc("/api/daemons", handleDaemonList(s))
+			mux.HandleFunc("/api/daemons/refresh", handleDaemonRefresh(s))
+			mux.HandleFunc("/api/daemons/", handleDaemonAction(s))
+		}
 
 		// ── Cheat Sheets API ──
 		mux.HandleFunc("/api/cheatsheets", handleCheatSheets(s))

@@ -213,6 +213,153 @@ func TestMistakenNativeToolSkillNameDetectsNativeTools(t *testing.T) {
 	}
 }
 
+func TestDispatchCommManageDaemonDisabled(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Tools.DaemonSkills.Enabled = false
+
+	out, ok := dispatchComm(context.Background(), ToolCall{
+		Action:    "manage_daemon",
+		Operation: "list",
+	}, &DispatchContext{
+		Cfg:    cfg,
+		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	})
+	if !ok {
+		t.Fatal("expected dispatchComm to handle manage_daemon")
+	}
+	if !strings.Contains(out, "disabled") {
+		t.Fatalf("expected disabled message, got %s", out)
+	}
+}
+
+func TestDispatchCommManageDaemonNilSupervisor(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Tools.DaemonSkills.Enabled = true
+
+	out, ok := dispatchComm(context.Background(), ToolCall{
+		Action:    "manage_daemon",
+		Operation: "list",
+	}, &DispatchContext{
+		Cfg:              cfg,
+		Logger:           slog.New(slog.NewTextHandler(io.Discard, nil)),
+		DaemonSupervisor: nil,
+	})
+	if !ok {
+		t.Fatal("expected dispatchComm to handle manage_daemon")
+	}
+	if !strings.Contains(out, "not initialized") {
+		t.Fatalf("expected not initialized message, got %s", out)
+	}
+}
+
+func TestDispatchCommManageDaemonList(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Tools.DaemonSkills.Enabled = true
+
+	sup := tools.NewDaemonSupervisor(
+tools.DaemonSupervisorConfig{Enabled: false},
+nil, nil, nil, nil,
+slog.New(slog.NewTextHandler(io.Discard, nil)),
+)
+
+	out, ok := dispatchComm(context.Background(), ToolCall{
+		Action:    "manage_daemon",
+		Operation: "list",
+	}, &DispatchContext{
+		Cfg:              cfg,
+		Logger:           slog.New(slog.NewTextHandler(io.Discard, nil)),
+		DaemonSupervisor: sup,
+	})
+	if !ok {
+		t.Fatal("expected dispatchComm to handle manage_daemon")
+	}
+	if !strings.Contains(out, `"status":"success"`) {
+		t.Fatalf("expected success response, got %s", out)
+	}
+	if !strings.Contains(out, `"count":0`) {
+		t.Fatalf("expected count 0, got %s", out)
+	}
+}
+
+func TestDispatchCommManageDaemonStatusMissingID(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Tools.DaemonSkills.Enabled = true
+
+	sup := tools.NewDaemonSupervisor(
+tools.DaemonSupervisorConfig{Enabled: false},
+nil, nil, nil, nil,
+slog.New(slog.NewTextHandler(io.Discard, nil)),
+)
+
+	out, ok := dispatchComm(context.Background(), ToolCall{
+		Action:    "manage_daemon",
+		Operation: "status",
+	}, &DispatchContext{
+		Cfg:              cfg,
+		Logger:           slog.New(slog.NewTextHandler(io.Discard, nil)),
+		DaemonSupervisor: sup,
+	})
+	if !ok {
+		t.Fatal("expected dispatchComm to handle manage_daemon")
+	}
+	if !strings.Contains(out, "skill_id") {
+		t.Fatalf("expected skill_id required message, got %s", out)
+	}
+}
+
+func TestDispatchCommManageDaemonStatusNotFound(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Tools.DaemonSkills.Enabled = true
+
+	sup := tools.NewDaemonSupervisor(
+tools.DaemonSupervisorConfig{Enabled: false},
+nil, nil, nil, nil,
+slog.New(slog.NewTextHandler(io.Discard, nil)),
+)
+
+	out, ok := dispatchComm(context.Background(), ToolCall{
+		Action:    "manage_daemon",
+		Operation: "status",
+		SkillID:   "nonexistent",
+	}, &DispatchContext{
+		Cfg:              cfg,
+		Logger:           slog.New(slog.NewTextHandler(io.Discard, nil)),
+		DaemonSupervisor: sup,
+	})
+	if !ok {
+		t.Fatal("expected dispatchComm to handle manage_daemon")
+	}
+	if !strings.Contains(out, "not found") {
+		t.Fatalf("expected not found message, got %s", out)
+	}
+}
+
+func TestDispatchCommManageDaemonUnknownOp(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Tools.DaemonSkills.Enabled = true
+
+	sup := tools.NewDaemonSupervisor(
+tools.DaemonSupervisorConfig{Enabled: false},
+nil, nil, nil, nil,
+slog.New(slog.NewTextHandler(io.Discard, nil)),
+)
+
+	out, ok := dispatchComm(context.Background(), ToolCall{
+		Action:    "manage_daemon",
+		Operation: "destroy",
+	}, &DispatchContext{
+		Cfg:              cfg,
+		Logger:           slog.New(slog.NewTextHandler(io.Discard, nil)),
+		DaemonSupervisor: sup,
+	})
+	if !ok {
+		t.Fatal("expected dispatchComm to handle manage_daemon")
+	}
+	if !strings.Contains(out, "Unknown daemon operation") {
+		t.Fatalf("expected unknown operation message, got %s", out)
+	}
+}
+
 func TestMistakenNativeToolSkillNameIgnoresRealSkills(t *testing.T) {
 	if _, ok := mistakenNativeToolSkillName("ddg_search"); ok {
 		t.Fatal("did not expect builtin skill ddg_search to be treated as native-only tool")

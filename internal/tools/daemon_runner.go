@@ -79,7 +79,13 @@ type commandHandle interface {
 // execCommandHandle wraps a real exec.Cmd.
 type execCommandHandle struct {
 	cmd *os.Process
-	raw interface{ Start() error; Wait() error; StdinPipe() (io.WriteCloser, error); StdoutPipe() (io.ReadCloser, error); StderrPipe() (io.ReadCloser, error) }
+	raw interface {
+		Start() error
+		Wait() error
+		StdinPipe() (io.WriteCloser, error)
+		StdoutPipe() (io.ReadCloser, error)
+		StderrPipe() (io.ReadCloser, error)
+	}
 	pid int
 }
 

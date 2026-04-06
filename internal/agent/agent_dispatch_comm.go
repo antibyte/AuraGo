@@ -1198,6 +1198,65 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Unknown operation: %s"}`, req.Operation)
 			}
 
+		case "manage_daemon":
+			if !cfg.Tools.DaemonSkills.Enabled {
+				return `Tool Output: {"status":"error","message":"Daemon skills are disabled. Set tools.daemon_skills.enabled=true in config.yaml."}`
+			}
+			daemonSupervisor := dc.DaemonSupervisor
+			if daemonSupervisor == nil {
+				return `Tool Output: {"status":"error","message":"Daemon supervisor not initialized"}`
+			}
+			op := tc.Operation
+			skillID := tc.SkillID
+			logger.Info("LLM requested daemon management", "op", op)
+			switch op {
+			case "list":
+				states := daemonSupervisor.ListDaemons()
+				b, _ := json.Marshal(map[string]interface{}{"status": "success", "count": len(states), "daemons": states})
+				return "Tool Output: " + string(b)
+			case "status":
+				if skillID == "" {
+					return `Tool Output: {"status":"error","message":"'skill_id' is required for status"}`
+				}
+				state, ok := daemonSupervisor.GetDaemonState(skillID)
+				if !ok {
+					return fmt.Sprintf(`Tool Output: {"status":"error","message":"Daemon %q not found"}`, skillID)
+				}
+				b, _ := json.Marshal(map[string]interface{}{"status": "success", "daemon": state})
+				return "Tool Output: " + string(b)
+			case "start":
+				if skillID == "" {
+					return `Tool Output: {"status":"error","message":"'skill_id' is required for start"}`
+				}
+				if err := daemonSupervisor.StartDaemon(skillID); err != nil {
+					return fmt.Sprintf(`Tool Output: {"status":"error","message":%q}`, err.Error())
+				}
+				return fmt.Sprintf(`Tool Output: {"status":"success","message":"Daemon %s started"}`, skillID)
+			case "stop":
+				if skillID == "" {
+					return `Tool Output: {"status":"error","message":"'skill_id' is required for stop"}`
+				}
+				if err := daemonSupervisor.StopDaemon(skillID); err != nil {
+					return fmt.Sprintf(`Tool Output: {"status":"error","message":%q}`, err.Error())
+				}
+				return fmt.Sprintf(`Tool Output: {"status":"success","message":"Daemon %s stopped"}`, skillID)
+			case "reenable":
+				if skillID == "" {
+					return `Tool Output: {"status":"error","message":"'skill_id' is required for reenable"}`
+				}
+				if err := daemonSupervisor.ReenableDaemon(skillID); err != nil {
+					return fmt.Sprintf(`Tool Output: {"status":"error","message":%q}`, err.Error())
+				}
+				return fmt.Sprintf(`Tool Output: {"status":"success","message":"Daemon %s re-enabled"}`, skillID)
+			case "refresh":
+				if err := daemonSupervisor.RefreshSkills(); err != nil {
+					return fmt.Sprintf(`Tool Output: {"status":"error","message":%q}`, err.Error())
+				}
+				return `Tool Output: {"status":"success","message":"Daemon skill list refreshed from disk"}`
+			default:
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"Unknown daemon operation: %s"}`, op)
+			}
+
 		case "remember":
 			if !cfg.Tools.Memory.Enabled {
 				return `Tool Output: {"status":"error","message":"Memory tools are disabled. Set tools.memory.enabled=true in config.yaml."}`

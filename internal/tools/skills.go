@@ -59,15 +59,15 @@ type SkillManifest struct {
 // DaemonManifest holds configuration for a daemon skill.
 // A nil DaemonManifest means the skill is not a daemon.
 type DaemonManifest struct {
-	Enabled                  bool              `json:"enabled"`
-	WakeAgent                bool              `json:"wake_agent"`
-	WakeRateLimitSeconds     int               `json:"wake_rate_limit_seconds,omitempty"`     // min seconds between wake-ups (default: 3000)
-	MaxRuntimeHours          int               `json:"max_runtime_hours,omitempty"`            // hard kill after N hours (0 = unlimited)
-	RestartOnCrash           bool              `json:"restart_on_crash"`
-	MaxRestartAttempts       int               `json:"max_restart_attempts,omitempty"`         // max restarts within cooldown (default: 3)
-	RestartCooldownSeconds   int               `json:"restart_cooldown_seconds,omitempty"`     // cooldown window for restart counting (default: 300)
-	HealthCheckIntervalSeconds int             `json:"health_check_interval_seconds,omitempty"` // process liveness check interval (default: 60)
-	Env                      map[string]string `json:"env,omitempty"`                          // extra environment variables
+	Enabled                    bool              `json:"enabled"`
+	WakeAgent                  bool              `json:"wake_agent"`
+	WakeRateLimitSeconds       int               `json:"wake_rate_limit_seconds,omitempty"` // min seconds between wake-ups (default: 3000)
+	MaxRuntimeHours            int               `json:"max_runtime_hours,omitempty"`       // hard kill after N hours (0 = unlimited)
+	RestartOnCrash             bool              `json:"restart_on_crash"`
+	MaxRestartAttempts         int               `json:"max_restart_attempts,omitempty"`          // max restarts within cooldown (default: 3)
+	RestartCooldownSeconds     int               `json:"restart_cooldown_seconds,omitempty"`      // cooldown window for restart counting (default: 300)
+	HealthCheckIntervalSeconds int               `json:"health_check_interval_seconds,omitempty"` // process liveness check interval (default: 60)
+	Env                        map[string]string `json:"env,omitempty"`                           // extra environment variables
 }
 
 // DaemonManifestDefaults returns a DaemonManifest with sensible defaults applied.

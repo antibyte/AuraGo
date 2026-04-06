@@ -26,12 +26,12 @@ type DaemonEventBroadcaster interface {
 
 // DaemonSupervisorConfig holds configuration for the DaemonSupervisor.
 type DaemonSupervisorConfig struct {
-	Enabled               bool
-	MaxConcurrentDaemons  int
-	WakeUpGate            WakeUpGateConfig
-	WorkspaceDir          string
-	SkillsDir             string
-	LogDir                string // defaults to data/daemon_logs
+	Enabled              bool
+	MaxConcurrentDaemons int
+	WakeUpGate           WakeUpGateConfig
+	WorkspaceDir         string
+	SkillsDir            string
+	LogDir               string // defaults to data/daemon_logs
 }
 
 // DaemonSupervisor orchestrates all daemon skill processes.
@@ -39,12 +39,12 @@ type DaemonSupervisorConfig struct {
 type DaemonSupervisor struct {
 	mu sync.RWMutex
 
-	config   DaemonSupervisorConfig
-	runners  map[string]*DaemonRunner // skill ID → runner
-	gate     *WakeUpGate
-	wakeCh   chan daemonWakeEvent
-	stopCh   chan struct{}
-	stopped  bool
+	config  DaemonSupervisorConfig
+	runners map[string]*DaemonRunner // skill ID → runner
+	gate    *WakeUpGate
+	wakeCh  chan daemonWakeEvent
+	stopCh  chan struct{}
+	stopped bool
 
 	// Dependencies
 	registry    *ProcessRegistry

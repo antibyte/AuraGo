@@ -282,6 +282,20 @@ func appendMemoryToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai.
 		))
 	}
 
+	if ff.DaemonSkillsEnabled {
+		tools = append(tools, tool("manage_daemon",
+			"Manage long-running daemon skills. List running daemons, check status, start/stop individual daemons, re-enable auto-disabled daemons, or refresh the daemon list from disk.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "Daemon management operation",
+					"enum":        []string{"list", "status", "start", "stop", "reenable", "refresh"},
+				},
+				"skill_id": prop("string", "Skill ID of the daemon (required for status/start/stop/reenable)"),
+			}, "operation"),
+		))
+	}
+
 	if ff.InventoryEnabled {
 		tools = append(tools, tool("query_inventory",
 			"Search registered servers, virtual machines, and network devices by tag or hostname in the device inventory.",

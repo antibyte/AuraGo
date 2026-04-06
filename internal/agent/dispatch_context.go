@@ -48,5 +48,6 @@ type DispatchContext struct {
 	SessionID          string
 	CoAgentRegistry    *CoAgentRegistry
 	BudgetTracker      *budget.Tracker
+	DaemonSupervisor   *tools.DaemonSupervisor
 	ExecutionTimeMs    int64
 }

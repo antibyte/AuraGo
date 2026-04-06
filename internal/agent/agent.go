@@ -267,6 +267,7 @@ type ToolCall struct {
 	TaskPrompt          string                   `json:"task_prompt"`
 	EventType           string                   `json:"event_type"`
 	Skill               string                   `json:"skill"`
+	SkillID             string                   `json:"skill_id"`
 	SkillArgs           map[string]interface{}   `json:"skill_args"`
 	Content             string                   `json:"content"`
 	Query               string                   `json:"query"` // Alias for content in query_memory
@@ -667,6 +668,7 @@ type RunConfig struct {
 	MissionManagerV2   *tools.MissionManagerV2
 	CoAgentRegistry    *CoAgentRegistry
 	BudgetTracker      *budget.Tracker
+	DaemonSupervisor   *tools.DaemonSupervisor
 	LLMGuardian        *security.LLMGuardian
 	SessionID          string
 	IsMaintenance      bool
@@ -726,6 +728,10 @@ func dispatchInner(ctx context.Context, tc ToolCall, dc *DispatchContext) string
 			return `Tool Output: {"status": "error", "message": "Co-Agents cannot schedule wait events."}`
 		case "cron_scheduler":
 			return `Tool Output: {"status": "error", "message": "Co-Agents cannot manage cron jobs."}`
+		case "manage_daemon":
+			if tc.Operation != "list" && tc.Operation != "status" {
+				return `Tool Output: {"status": "error", "message": "Co-Agents cannot control daemons. Only list and status are allowed."}`
+			}
 		}
 	}
 

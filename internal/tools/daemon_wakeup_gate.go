@@ -42,9 +42,9 @@ type WakeUpGate struct {
 	skills map[string]*skillGateState
 
 	// Budget integration
-	budgetTracker    *budget.Tracker
-	maxBudgetPerHour float64
-	costWindow       []costEntry // sliding window of wake-up costs
+	budgetTracker     *budget.Tracker
+	maxBudgetPerHour  float64
+	costWindow        []costEntry // sliding window of wake-up costs
 	maxWakeUpsPerHour int
 
 	logger *slog.Logger
@@ -62,8 +62,8 @@ type skillGateState struct {
 	hourlyWakes []time.Time
 
 	// Escalation: consecutive rapid wake-ups increase the effective rate limit
-	consecutiveWakes int
-	escalationFactor float64
+	consecutiveWakes    int
+	escalationFactor    float64
 	lastEscalationReset time.Time
 }
 
@@ -117,9 +117,9 @@ func (g *WakeUpGate) RegisterSkill(skillID string, wakeEnabled bool, rateLimitSe
 		interval = g.globalRateLimit
 	}
 	g.skills[skillID] = &skillGateState{
-		wakeEnabled:     wakeEnabled,
-		minInterval:     interval,
-		escalationFactor: 1.0,
+		wakeEnabled:         wakeEnabled,
+		minInterval:         interval,
+		escalationFactor:    1.0,
 		lastEscalationReset: time.Now(),
 	}
 }
