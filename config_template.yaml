@@ -318,6 +318,12 @@ tools:
         max_upload_size_mb: 1                               # maximum upload file size in MB
         auto_enable_clean: false                            # automatically enable skills that pass security scan
         scan_with_guardian: false                            # use LLM Guardian for code review (opt-in)
+    daemon_skills:
+        enabled: false                                      # enable long-running daemon skill processes (opt-in)
+        max_concurrent_daemons: 5                           # max simultaneous daemon processes
+        global_rate_limit_secs: 60                          # minimum seconds between any two wake-ups
+        max_wakeups_per_hour: 6                             # per-skill circuit breaker threshold
+        max_budget_per_hour: 0.50                           # hourly wake-up cost cap in USD
 # ── Mission Preparation ────────────────────────────────────────────────────────
 # Pre-analyses missions via LLM before execution to produce advisory context
 # (tool guides, step plans, decision points, pitfalls). Purely advisory — never blocks execution.

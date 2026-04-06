@@ -56,6 +56,43 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		serverCancel()
 	}()
 
+	// Initialize Daemon Supervisor (long-running daemon skills)
+	if s.Cfg.Tools.DaemonSkills.Enabled {
+		dsCfg := tools.DaemonSupervisorConfig{
+			Enabled:              true,
+			MaxConcurrentDaemons: s.Cfg.Tools.DaemonSkills.MaxConcurrentDaemons,
+			WakeUpGate: tools.WakeUpGateConfig{
+				GlobalEnabled:       true,
+				GlobalRateLimitSecs: s.Cfg.Tools.DaemonSkills.GlobalRateLimitSecs,
+				MaxBudgetPerHourUSD: s.Cfg.Tools.DaemonSkills.MaxBudgetPerHourUSD,
+				MaxWakeUpsPerHour:   s.Cfg.Tools.DaemonSkills.MaxWakeUpsPerHour,
+			},
+			WorkspaceDir: s.Cfg.Directories.WorkspaceDir,
+			SkillsDir:    s.Cfg.Directories.SkillsDir,
+		}
+		s.DaemonSupervisor = tools.NewDaemonSupervisor(
+			dsCfg,
+			s.BudgetTracker,
+			s.Registry,
+			s.BackgroundTasks,
+			newDaemonSSEAdapter(sse),
+			s.Logger,
+		)
+		if err := s.DaemonSupervisor.Start(); err != nil {
+			s.Logger.Error("Failed to start daemon supervisor", "error", err)
+		} else {
+			s.Logger.Info("Daemon supervisor started",
+				"max_concurrent", dsCfg.MaxConcurrentDaemons,
+				"active", s.DaemonSupervisor.RunnerCount(),
+			)
+		}
+		// Stop supervisor on shutdown
+		go func() {
+			<-shutdownCh
+			s.DaemonSupervisor.Stop()
+		}()
+	}
+
 	// Push system metrics to all SSE clients every 10 seconds so the dashboard
 	// does not need to poll /api/dashboard/system independently.
 	go func() {

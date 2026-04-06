@@ -1107,6 +1107,13 @@ type Config struct {
 			AutoEnableClean  bool `yaml:"auto_enable_clean"`  // auto-enable skills that pass all scans (default: false)
 			ScanWithGuardian bool `yaml:"scan_with_guardian"` // use LLM Guardian for code review on upload (default: false, costs tokens)
 		} `yaml:"skill_manager"`
+		DaemonSkills struct {
+			Enabled              bool    `yaml:"enabled"`                // enable daemon skill support (default: false, opt-in)
+			MaxConcurrentDaemons int     `yaml:"max_concurrent_daemons"` // max simultaneous daemon processes (default: 5)
+			GlobalRateLimitSecs  int     `yaml:"global_rate_limit_secs"` // minimum seconds between any two wake-ups (default: 60)
+			MaxWakeUpsPerHour    int     `yaml:"max_wakeups_per_hour"`   // per-skill circuit breaker threshold (default: 6)
+			MaxBudgetPerHourUSD  float64 `yaml:"max_budget_per_hour"`    // hourly wake-up cost cap in USD (default: 0.50)
+		} `yaml:"daemon_skills"`
 	} `yaml:"tools"`
 	MissionPreparation struct {
 		Enabled              bool    `yaml:"enabled"`                // enable mission preparation feature (default: false)

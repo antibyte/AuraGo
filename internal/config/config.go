@@ -121,6 +121,12 @@ func Load(path string) (*Config, error) {
 	cfg.Tools.SkillManager.RequireScan = true
 	cfg.Tools.SkillManager.RequireSandbox = false
 	cfg.Tools.SkillManager.MaxUploadSizeMB = 1
+	// Daemon Skills defaults: disabled by default (opt-in, potentially costly).
+	cfg.Tools.DaemonSkills.MaxConcurrentDaemons = 5
+	cfg.Tools.DaemonSkills.GlobalRateLimitSecs = 60
+	cfg.Tools.DaemonSkills.MaxWakeUpsPerHour = 6
+	cfg.Tools.DaemonSkills.MaxBudgetPerHourUSD = 0.50
+
 	cfg.Tools.WebCapture.Enabled = true
 	cfg.Tools.NetworkPing.Enabled = true
 	cfg.Tools.NetworkScan.Enabled = true

@@ -261,6 +261,7 @@ type Server struct {
 	PreparedMissionsDB *sql.DB               // Prepared missions SQLite database
 	PreparationService *services.MissionPreparationService
 	WarningsRegistry   *warnings.Registry // Runtime warnings and health issues
+	DaemonSupervisor   *tools.DaemonSupervisor
 	// IsFirstStart is true if core_memory.md was just freshly created (no prior data).
 	IsFirstStart    bool
 	StartedAt       time.Time     // server start time for uptime calculation
