@@ -390,10 +390,14 @@ func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string,
 		// RAG: Retrieved Long-Term Memories — skip in minimal tier
 		if flags.RetrievedMemories != "" && flags.Tier != "minimal" {
 			finalPrompt.WriteString("# RETRIEVED MEMORIES\n")
-			finalPrompt.WriteString("**Important**: Memories reflect past observations and MAY BE OUTDATED. " +
-				"For any claim about tool availability, integration status, system configuration, " +
-				"or capability — VERIFY against current context or by using a tool BEFORE acting on it. " +
-				"Never assume a memory about system state is still accurate.\n\n")
+			finalPrompt.WriteString("**Critical**: Memories are snapshots of past observations and ARE FREQUENTLY OUTDATED. " +
+				"**Priority rule: fresh tool output always overrides memory.** " +
+				"If you have just read a file, executed a tool, or received a tool result in this conversation, " +
+				"that is the authoritative current state — ignore any conflicting memory entry about the same file, code, or resource. " +
+				"Memories about file content, code structure, integration status, system configuration, " +
+				"or tool availability are especially prone to staleness. " +
+				"NEVER act on a memory about specific code or file contents without verifying against the actual current file. " +
+				"Treat every memory entry as a *hint to investigate*, not a fact.\n\n")
 			finalPrompt.WriteString(security.IsolateExternalData(flags.RetrievedMemories))
 			finalPrompt.WriteString("\n\n")
 		}
@@ -807,9 +811,14 @@ func buildUnifiedMemoryContextBlock(flags ContextFlags) string {
 
 	if flags.RetrievedMemories != "" && flags.Tier != "minimal" {
 		sections = append(sections,
-			"## Retrieved Memories\n**Important**: Memories reflect past observations and MAY BE OUTDATED. "+
-				"For any claim about tool availability, integration status, system configuration, or capability — VERIFY against current context or by using a tool BEFORE acting on it. "+
-				"Never assume a memory about system state is still accurate.\n\n"+
+			"## Retrieved Memories\n**Critical**: Memories are snapshots of past observations and ARE FREQUENTLY OUTDATED. "+
+				"**Priority rule: fresh tool output always overrides memory.** "+
+				"If you have just read a file, executed a tool, or received a tool result in this conversation, "+
+				"that is the authoritative current state — ignore any conflicting memory entry about the same file, code, or resource. "+
+				"Memories about file content, code structure, integration status, system configuration, "+
+				"or tool availability are especially prone to staleness. "+
+				"NEVER act on a memory about specific code or file contents without verifying against the actual current file. "+
+				"Treat every memory entry as a *hint to investigate*, not a fact.\n\n"+
 				security.IsolateExternalData(flags.RetrievedMemories),
 		)
 	}
