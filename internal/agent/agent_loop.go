@@ -1133,6 +1133,16 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 		compressionClient, compressionModel := resolveHelperBackedLLM(cfg, client, cfg.LLM.Model)
 		if compressionClient != nil && compressionModel != "" {
+			// Pre-check threshold so we can show a feedback event before the potentially
+			// slow synchronous LLM call inside CompressHistory (up to 30 seconds).
+			compressionTokens := 0
+			for _, m := range req.Messages {
+				compressionTokens += prompts.CountTokens(m.Content) + 4
+			}
+			compressionThreshold := int(float64(maxHistoryTokens) * compressionThresholdPct)
+			if compressionTokens > compressionThreshold {
+				broker.Send("thinking", "Compressing context...")
+			}
 			req.Messages, lastCompressionMsg, _ = CompressHistory(
 				ctx, req.Messages, maxHistoryTokens, compressionModel, compressionClient, lastCompressionMsg, currentLogger,
 			)
@@ -1148,6 +1158,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			totalMsgTokens += prompts.CountTokens(m.Content) + 4 // ~4 tokens overhead per message
 		}
 		if totalMsgTokens > maxHistoryTokens && len(req.Messages) > 2 {
+			broker.Send("thinking", "Trimming context window...")
 			currentLogger.Warn("[ContextGuard] Token limit exceeded before LLM call — trimming history",
 				"tokens", totalMsgTokens, "limit", maxHistoryTokens, "messages", len(req.Messages))
 			sysMsg := req.Messages[0]
