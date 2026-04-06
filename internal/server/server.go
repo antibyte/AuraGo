@@ -688,9 +688,10 @@ func Start(cfg *config.Config, logger *slog.Logger, accessLogger *slog.Logger, l
 				req.Header.Set("X-Internal-Token", s.internalToken)
 
 				client := &http.Client{Timeout: 10 * time.Minute}
-				_, err = client.Do(req)
-				if err != nil {
+				if resp, err := client.Do(req); err != nil {
 					logger.Error("[FirewallGuard] Execution failed", "error", err)
+				} else {
+					_ = resp.Body.Close()
 				}
 			}()
 		})
@@ -795,8 +796,10 @@ func Start(cfg *config.Config, logger *slog.Logger, accessLogger *slog.Logger, l
 				req.Header.Set("X-Internal-FollowUp", "true")
 				req.Header.Set("X-Internal-Token", s.internalToken)
 				client := &http.Client{Timeout: 10 * time.Minute}
-				if _, err := client.Do(req); err != nil {
+				if resp, err := client.Do(req); err != nil {
 					logger.Error("[FritzBox Poller] Loopback request failed", "error", err)
+				} else {
+					_ = resp.Body.Close()
 				}
 			}()
 		}, logger)

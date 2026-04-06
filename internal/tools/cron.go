@@ -80,6 +80,13 @@ func (m *CronManager) scheduleInternal(job CronJob) error {
 	return nil
 }
 
+// Stop shuts down the cron engine. Must be called during graceful shutdown
+// to ensure running jobs complete and internal goroutines exit.
+func (m *CronManager) Stop() {
+	ctx := m.engine.Stop()
+	<-ctx.Done()
+}
+
 func (m *CronManager) save() error {
 	data, err := json.MarshalIndent(m.jobs, "", "  ")
 	if err != nil {

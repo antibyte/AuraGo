@@ -249,7 +249,10 @@ func RunTool(name string, args []string, workspaceDir, toolsDir string) (string,
 		return stdout.String(), stderr.String(), err
 	case <-timer.C:
 		KillProcessTree(cmd.Process.Pid)
-		<-done
+		select {
+		case <-done:
+		case <-time.After(10 * time.Second):
+		}
 		return stdout.String(), stderr.String(), fmt.Errorf("TIMEOUT: tool '%s' exceeded %s limit and was killed", name, GetForegroundTimeout())
 	}
 }
@@ -291,7 +294,10 @@ func RunToolWithSecrets(name string, args []string, workspaceDir, toolsDir strin
 		return so, se, err
 	case <-timer.C:
 		KillProcessTree(cmd.Process.Pid)
-		<-done
+		select {
+		case <-done:
+		case <-time.After(10 * time.Second):
+		}
 		so, se := ScrubSecretOutput(stdout.String(), stderr.String())
 		return so, se, fmt.Errorf("TIMEOUT: tool '%s' exceeded %s limit and was killed", name, GetForegroundTimeout())
 	}
@@ -377,7 +383,10 @@ func ExecutePython(code, workspaceDir, toolsDir string) (string, string, error) 
 		return stdout.String(), stderr.String(), err
 	case <-timer.C:
 		KillProcessTree(cmd.Process.Pid)
-		<-done
+		select {
+		case <-done:
+		case <-time.After(10 * time.Second):
+		}
 		return stdout.String(), stderr.String(), fmt.Errorf("TIMEOUT: script exceeded %s limit and was killed", GetForegroundTimeout())
 	}
 }
@@ -419,7 +428,10 @@ func ExecutePythonWithSecrets(code, workspaceDir, toolsDir string, secrets map[s
 		return so, se, err
 	case <-timer.C:
 		KillProcessTree(cmd.Process.Pid)
-		<-done
+		select {
+		case <-done:
+		case <-time.After(10 * time.Second):
+		}
 		so, se := ScrubSecretOutput(stdout.String(), stderr.String())
 		return so, se, fmt.Errorf("TIMEOUT: script exceeded %s limit and was killed", GetForegroundTimeout())
 	}

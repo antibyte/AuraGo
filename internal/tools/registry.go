@@ -106,13 +106,17 @@ func (r *ProcessRegistry) Remove(pid int) {
 
 // Terminate stops a specific process by PID and removes it from the registry.
 func (r *ProcessRegistry) Terminate(pid int) error {
+	// Acquire r.mu only to look up the process info pointer; release before
+	// sending the signal so the lock is not held during a potentially-blocking
+	// OS call (avoids lock-contention with KillAll and superviseBackgroundProcess).
 	r.mu.Lock()
 	info, ok := r.processes[pid]
+	r.mu.Unlock()
 	if !ok {
-		r.mu.Unlock()
 		return fmt.Errorf("process %d not found", pid)
 	}
-	// Check and update under info.mu first
+
+	// Send signal under info.mu only (fine-grained lock).
 	info.mu.Lock()
 	wasAlive := info.Alive
 	var terminateErr error
@@ -128,7 +132,9 @@ func (r *ProcessRegistry) Terminate(pid int) error {
 	}
 	info.Alive = false
 	info.mu.Unlock()
-	// Now remove from registry under r.mu
+
+	// Remove from registry under r.mu after signal is sent.
+	r.mu.Lock()
 	delete(r.processes, pid)
 	r.mu.Unlock()
 	r.logger.Info("Terminated and removed process", "pid", pid)

@@ -22,10 +22,15 @@ type DockerConfig struct {
 	WorkspaceDir string // workspace root for validating host-side file paths used by docker cp
 }
 
-// dockerHTTPClient is a lazily-initialized shared Docker API client.
+// dockerHTTPClient is a lazily-initialized shared Docker API client (60s timeout).
 var dockerHTTPClient *http.Client
 var dockerHTTPClientHost string
 var dockerClientMu sync.Mutex
+
+// dockerPullHTTPClient is a no-timeout client for streaming pull responses.
+// The caller-supplied context handles cancellation instead of a hard timeout.
+var dockerPullHTTPClient *http.Client
+var dockerPullHTTPClientHost string
 
 // reDockerSafeName validates Docker container/image identifiers.
 var reDockerSafeName = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_.:\-/]*$`)
@@ -67,6 +72,40 @@ func getDockerClient(cfg DockerConfig) *http.Client {
 	dockerHTTPClient = &http.Client{Transport: transport, Timeout: 60 * time.Second}
 	dockerHTTPClientHost = host
 	return dockerHTTPClient
+}
+
+// getPullDockerClient returns a shared *http.Client without a response timeout,
+// suitable for streaming responses like image pulls. Cancellation is handled
+// via the per-request context supplied by the caller.
+func getPullDockerClient(cfg DockerConfig) *http.Client {
+	dockerClientMu.Lock()
+	defer dockerClientMu.Unlock()
+
+	host := cfg.Host
+	if host == "" {
+		if runtime.GOOS == "windows" {
+			host = "npipe:////./pipe/docker_engine"
+		} else {
+			host = "unix:///var/run/docker.sock"
+		}
+	}
+
+	if dockerPullHTTPClient != nil && dockerPullHTTPClientHost == host {
+		return dockerPullHTTPClient
+	}
+
+	transport := &http.Transport{
+		MaxIdleConns:    10,
+		IdleConnTimeout: 90 * time.Second,
+		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			return dockerDialContext(ctx, host)
+		},
+	}
+
+	// No Timeout — streaming responses run until context is cancelled.
+	dockerPullHTTPClient = &http.Client{Transport: transport}
+	dockerPullHTTPClientHost = host
+	return dockerPullHTTPClient
 }
 
 // DockerPing checks if the Docker Engine is reachable at the given host.
@@ -508,7 +547,7 @@ func PullImageWait(ctx context.Context, cfg DockerConfig, image string, logger *
 
 	// Build the pull request with the caller-supplied context so long pulls
 	// are not cut short by the 60-second client timeout.
-	client := getDockerClient(cfg)
+	client := getPullDockerClient(cfg)
 	reqURL := "http://localhost/" + dockerAPIVersion + "/images/create?fromImage=" + url.QueryEscape(image)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, reqURL, nil)
 	if err != nil {

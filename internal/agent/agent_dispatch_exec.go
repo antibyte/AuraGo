@@ -700,6 +700,9 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				if err := updateCmd.Start(); err != nil {
 					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Failed to start update script: %v"}`, err)
 				}
+				// Reap the child to avoid a zombie process. The update script may
+				// kill this process, so we do not block — Wait runs in a goroutine.
+				go func() { _ = updateCmd.Wait() }()
 				return `Tool Output: {"status": "success", "message": "Update initiated. The system will restart and apply changes shortly."}`
 
 			default:

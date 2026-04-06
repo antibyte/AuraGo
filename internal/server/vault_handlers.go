@@ -62,6 +62,7 @@ func handleListVaultSecrets(s *Server, w http.ResponseWriter, r *http.Request) {
 // handleSetVaultSecret creates or updates a single secret.
 // Request body: {"key": "...", "value": "..."}
 func handleSetVaultSecret(s *Server, w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20) // 1 MB
 	var req vaultSecretJSON
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		jsonError(w, "Invalid JSON", http.StatusBadRequest)

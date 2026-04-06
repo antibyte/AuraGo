@@ -30,6 +30,9 @@ func haServiceEndpoint(domain, service string) string {
 
 // haRequest performs a generic HTTP request against the HA REST API.
 func haRequest(cfg HAConfig, method, endpoint string, body string) ([]byte, int, error) {
+	if cfg.AccessToken != "" {
+		security.RegisterSensitive(cfg.AccessToken)
+	}
 	url := strings.TrimRight(cfg.URL, "/") + endpoint
 
 	var reqBody io.Reader

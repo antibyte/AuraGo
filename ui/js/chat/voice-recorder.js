@@ -100,6 +100,7 @@ class VoiceRecorder {
 
     setupAudioAnalysis() {
         const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        this.audioContext = audioContext;
         const source = audioContext.createMediaStreamSource(this.stream);
         
         this.analyser = audioContext.createAnalyser();
@@ -334,6 +335,10 @@ class VoiceRecorder {
         this.isRecording = false;
         this.isPaused = false;
         this.audioChunks = [];
+        if (this.audioContext && this.audioContext.state !== 'closed') {
+            this.audioContext.close();
+            this.audioContext = null;
+        }
         this.hide();
     }
 

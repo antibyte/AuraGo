@@ -66,6 +66,8 @@ func (b *SSEBroadcaster) broadcast(msg string) {
 		select {
 		case ch <- msg:
 		default:
+			// Channel full: mark client as stale so it gets unsubscribed.
+			// The client will reconnect automatically via SSE reconnect.
 			staleClients = append(staleClients, ch)
 		}
 	}
@@ -98,7 +100,7 @@ func (b *SSEBroadcaster) ClientCount() int {
 
 // subscribe registers a new client channel.
 func (b *SSEBroadcaster) subscribe() chan string {
-	ch := make(chan string, 64)
+	ch := make(chan string, 128)
 	b.mu.Lock()
 	b.clients[ch] = struct{}{}
 	b.mu.Unlock()

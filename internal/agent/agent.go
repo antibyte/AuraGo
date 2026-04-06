@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"strings"
 	"sync"
+	"time"
 
 	"aurago/internal/budget"
 	"aurago/internal/config"
@@ -37,6 +38,10 @@ type Agent struct {
 	HomepageRegistryDB *sql.DB
 }
 
+func init() {
+	startInterruptCleaner()
+}
+
 // NewAgent creates a new Agent instance.
 func NewAgent(cfg *config.Config, logger *slog.Logger, stm *memory.SQLiteMemory, ltm memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cron *tools.CronManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, mediaRegistryDB *sql.DB, homepageRegistryDB *sql.DB) *Agent {
 	return &Agent{
@@ -60,6 +65,10 @@ func NewAgent(cfg *config.Config, logger *slog.Logger, stm *memory.SQLiteMemory,
 // Shutdown ensures all agent resources are released properly.
 func (a *Agent) Shutdown() error {
 	a.Logger.Info("Agent shutdown initiated...")
+
+	if a.CronManager != nil {
+		a.CronManager.Stop()
+	}
 
 	if a.ShortTermMem != nil {
 		if err := a.ShortTermMem.Close(); err != nil {
@@ -91,7 +100,7 @@ var (
 	GlobalTokenEstimated bool
 	muTokens             sync.Mutex
 
-	sessionInterrupts = make(map[string]bool)
+	sessionInterrupts = make(map[string]time.Time)
 	muInterrupts      sync.Mutex
 
 	debugModeEnabled bool
@@ -150,18 +159,38 @@ func ToggleVoiceMode() bool {
 func InterruptSession(sessionID string) {
 	muInterrupts.Lock()
 	defer muInterrupts.Unlock()
-	sessionInterrupts[sessionID] = true
+	sessionInterrupts[sessionID] = time.Now()
 }
 
 // checkAndClearInterrupt returns true if the session was interrupted and clears the flag.
 func checkAndClearInterrupt(sessionID string) bool {
 	muInterrupts.Lock()
 	defer muInterrupts.Unlock()
-	if sessionInterrupts[sessionID] {
+	if _, ok := sessionInterrupts[sessionID]; ok {
 		delete(sessionInterrupts, sessionID)
 		return true
 	}
 	return false
+}
+
+// startInterruptCleaner runs a background goroutine that purges stale interrupt
+// entries. An interrupt older than 5 minutes is considered stale (the session
+// loop either picked it up or is gone).
+func startInterruptCleaner() {
+	go func() {
+		ticker := time.NewTicker(5 * time.Minute)
+		defer ticker.Stop()
+		for range ticker.C {
+			cutoff := time.Now().Add(-5 * time.Minute)
+			muInterrupts.Lock()
+			for id, ts := range sessionInterrupts {
+				if ts.Before(cutoff) {
+					delete(sessionInterrupts, id)
+				}
+			}
+			muInterrupts.Unlock()
+		}
+	}()
 }
 
 // estimateTokens provides a rough character-based token count for when the API doesn't return one.

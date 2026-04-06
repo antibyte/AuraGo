@@ -644,10 +644,20 @@ class TrueNASUI {
         }
         this._healthCheckInterval = setInterval(() => this.checkStatus(), 30000);
     }
+
+    destroy() {
+        if (this._healthCheckInterval) {
+            clearInterval(this._healthCheckInterval);
+            this._healthCheckInterval = null;
+        }
+    }
 }
 
 // Global instance
 const truenasUI = new TrueNASUI();
+
+// Clean up interval on page unload
+window.addEventListener('pagehide', () => truenasUI.destroy());
 
 // Global functions for onclick handlers
 function refreshPools() { truenasUI.loadPools(); }

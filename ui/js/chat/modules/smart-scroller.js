@@ -49,11 +49,12 @@
                 scrollTimeout = setTimeout(() => this.onScroll(), 50);
             }, { passive: true });
 
-            window.addEventListener('resize', () => {
+            this._resizeHandler = () => {
                 if (!this.isUserScrolledUp) {
                     this.scrollToBottom(true);
                 }
-            });
+            };
+            window.addEventListener('resize', this._resizeHandler);
         },
 
         onScroll() {
@@ -108,6 +109,18 @@
                 top: this.container.scrollHeight,
                 behavior: smooth ? 'smooth' : 'auto'
             });
+        },
+
+        destroy() {
+            if (this._resizeHandler) {
+                window.removeEventListener('resize', this._resizeHandler);
+                this._resizeHandler = null;
+            }
+            if (this.scrollButton && this.scrollButton.parentNode) {
+                this.scrollButton.parentNode.removeChild(this.scrollButton);
+                this.scrollButton = null;
+            }
+            this.isInitialized = false;
         }
     };
 

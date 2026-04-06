@@ -318,10 +318,16 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			return
 		}
 
+		// Snapshot old config under read lock, then do file I/O without holding any lock.
+		s.CfgMu.RLock()
+		oldCfg := *s.Cfg // snapshot before reload
+		s.CfgMu.RUnlock()
+
+		// Load new config outside any lock (disk I/O must not block readers).
+		newCfg, loadErr := config.Load(configPath)
+
 		// Hot-reload: re-parse config and apply to running instance
 		s.CfgMu.Lock()
-		oldCfg := *s.Cfg // snapshot before reload
-		newCfg, loadErr := config.Load(configPath)
 
 		needsRestart := false
 		restartReasons := []string{}
@@ -338,7 +344,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			newCfg.ApplyOAuthTokens(s.Vault)
 
 			// Carry over runtime detection (computed once at startup, not on reload)
-			newCfg.Runtime = s.Cfg.Runtime
+			newCfg.Runtime = oldCfg.Runtime
 
 			// Detect sections that need restart
 			if oldCfg.Server != newCfg.Server {
