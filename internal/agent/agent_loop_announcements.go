@@ -52,14 +52,20 @@ var completionEvidenceTerms = []string{
 	"updated", "written", "wrote", "saved", "created", "deleted", "modified", "changed", "built",
 	"deployed", "installed", "rendered", "generated", "found", "listed", "read", "loaded", "analyzed",
 	"analysed", "verified", "published", "committed", "pushed", "pulled", "restarted",
+	"added", "removed", "enabled", "disabled", "activated", "configured", "inserted", "appended",
 	"abgeschlossen", "fertig", "erfolgreich", "fehlgeschlagen", "aktualisiert", "geschrieben",
 	"gespeichert", "erstellt", "geändert", "gebaut", "deployt", "installiert", "gefunden",
 	"gelesen", "geladen", "analysiert", "verifiziert", "veröffentlicht", "neu gestartet",
 	"generiert", "erzeugt", "konvertiert", "übertragen", "heruntergeladen", "hochgeladen",
+	// German past participles for creative/functional work
+	"hinzugefügt", "eingebaut", "ergänzt", "aktiviert", "deaktiviert", "konfiguriert",
+	"eingefügt", "entfernt", "angepasst", "integriert", "implementiert", "ausgeführt",
 	// German result/presentation verbs
 	"präsentiert", "gesendet", "gespielt", "abgespielt", "vorgeführt", "demonstriert",
 	"hier ist", "hier sind", "hier hast du", "hier haben wir", "schau mal", "siehe oben",
 	"tipp gelernt", "problem erkannt", "lösung gefunden",
+	// Unicode success indicators — must be checked in the original content (before lowercasing)
+	"✅", "✓", "☑", "✔",
 }
 
 var planLinePattern = regexp.MustCompile(`(?m)^\s*(?:[-*]|\d+[.)])\s+\S`)
@@ -200,6 +206,11 @@ func containsActionIntent(leadIn string) bool {
 }
 
 func containsCompletionEvidence(lc string) bool {
+	// Check Unicode checkmark symbols in the original downcased (but not ASCII-only) string first.
+	// These are multi-byte UTF-8 runes that survive ToLower unchanged.
+	if strings.ContainsAny(lc, "✅✓☑✔") {
+		return true
+	}
 	if containsAnySubstring(lc, completionEvidenceTerms) {
 		return true
 	}

@@ -141,3 +141,36 @@ func TestIsAnnouncementOnlyResponseLetMeWithCompletionEvidenceDoesNotTrigger(t *
 		t.Fatal("did not expect completion evidence to allow announcement phrase to trigger recovery")
 	}
 }
+
+// TestIsAnnouncementOnlyResponseCheckmarkCompletionSummaryDoesNotTrigger ensures that a
+// response starting with ✅ and listing completed features (with a URL) is not mistaken
+// for an announcement. This was the real-world false-positive after a successful
+// filesystem write that caused the agent to keep running after the chat already showed
+// the completion message.
+func TestIsAnnouncementOnlyResponseCheckmarkCompletionSummaryDoesNotTrigger(t *testing.T) {
+	tc := ToolCall{}
+	// Mirrors the actual post-tool response that triggered the false positive:
+	// think-block stripped, leaving only the completion summary with emoji, feature
+	// bullet list, and a localhost URL.
+	content := "✅ **Synthwave-Musik hinzugefügt!** 🎸\n\n**Features:**\n- 🎵 Synthwave Bassline (60–180 Hz)\n- 🥁 Drum Machine (Kick, Snare, Hi-Hat)\n- 🎹 Chord-Pads\n\nDas Spiel läuft unter http://localhost:8080/phaser-demo/"
+	if isAnnouncementOnlyResponse(content, tc, false, true, "continue") {
+		t.Fatal("✅ completion summary with feature list and URL must NOT trigger announcement recovery")
+	}
+}
+
+// TestIsAnnouncementOnlyResponseGermanPastParticipleDoesNotTrigger ensures German
+// past participles like "hinzugefügt", "eingebaut", "ergänzt" are treated as
+// completion evidence and prevent false-positive announcement detection.
+func TestIsAnnouncementOnlyResponseGermanPastParticipleDoesNotTrigger(t *testing.T) {
+	tc := ToolCall{}
+	cases := []string{
+		"Ich habe die Musik hinzugefügt. Das Feature ist aktiviert.",
+		"Die Komponente wurde eingebaut. Schau mal: http://localhost:3000",
+		"Erfolgreich ergänzt! Hier sind die Änderungen:\n- Punkt 1\n- Punkt 2",
+	}
+	for _, content := range cases {
+		if isAnnouncementOnlyResponse(content, tc, false, true, "continue") {
+			t.Fatalf("German past-participle completion summary must NOT trigger: %q", content)
+		}
+	}
+}
