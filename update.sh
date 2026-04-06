@@ -953,33 +953,7 @@ if $GO_FOUND; then
         fi
     done
 
-    # Build agocli (AuraGo CLI tool — plain name, root directory)
-    info "Building agocli ($GOARCH)..."
-    if CGO_ENABLED=0 GOOS=linux GOARCH="$GOARCH" go build -trimpath -ldflags='-s -w' -o agocli ./cmd/agocli; then
-        ok "agocli built from source"
-    else
-        warn "agocli build failed — using pre-built binary."
-    fi
 
-    # Cross-compile agocli for all client platforms so the
-    # /api/remote/download/{os}/{arch} endpoint can serve them.
-    info "Cross-compiling agocli client binaries..."
-    for _target in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64; do
-        _os="${_target%/*}"
-        _arch="${_target#*/}"
-        _ext=""
-        [ "$_os" = "windows" ] && _ext=".exe"
-        _out="$DIR/deploy/agocli_${_os}_${_arch}${_ext}"
-        # Skip if we already built this exact combo above
-        if [ "$_os" = "linux" ] && [ "$_arch" = "$GOARCH" ] && [ -f "$_out" ]; then
-            continue
-        fi
-        if CGO_ENABLED=0 GOOS="$_os" GOARCH="$_arch" go build -trimpath -ldflags='-s -w' -o "$_out" ./cmd/agocli; then
-            ok "  $_out"
-        else
-            warn "  cross-compile failed: $_os/$_arch"
-        fi
-    done
 else
     # ── Download binaries from GitHub Releases (no Go available) ─────────
     warn "Go is not installed — downloading pre-built binaries from GitHub Releases."
@@ -987,21 +961,10 @@ else
     # Pick arch-appropriate binary names
     if [ "$GOARCH" = "arm64" ]; then
         BINS=("aurago_linux_arm64" "lifeboat_linux_arm64" "config-merger_linux_arm64" "aurago-remote_linux_arm64")
-        AGOCLI_NAME="agocli_linux_arm64"
     elif [ "$GOARCH" = "amd64" ]; then
         BINS=("aurago_linux" "lifeboat_linux" "config-merger_linux" "aurago-remote_linux")
-        AGOCLI_NAME="agocli_linux"
     else
         die "No prebuilt release binaries for architecture ${ARCH_RAW}. Install Go 1.26+ to build from source."
-    fi
-
-    # Download agocli separately to main directory (plain name)
-    info "Downloading agocli from GitHub Releases..."
-    if _download_release_bin "$AGOCLI_NAME"; then
-        mv "$DIR/bin/$AGOCLI_NAME" "$DIR/agocli" 2>/dev/null || true
-        ok "agocli downloaded."
-    else
-        warn "agocli download failed."
     fi
 
     for BIN_NAME in "${BINS[@]}"; do
@@ -1021,7 +984,7 @@ else
         [ -f "$DIR/bin/aurago-remote_linux_arm64" ]      && cp -p "$DIR/bin/aurago-remote_linux_arm64"      "$DIR/bin/aurago-remote_linux"
     fi
 
-    # Download aurago-remote and agocli client binaries for all platforms so the
+    # Download aurago-remote client binaries for all platforms so the
     # /api/remote/download/{os}/{arch} endpoint can serve them.
     mkdir -p "$DIR/deploy"
     info "Downloading aurago-remote client binaries for all platforms..."
@@ -1037,19 +1000,6 @@ else
     done
     chmod +x "$DIR/deploy/aurago-remote_linux"* 2>/dev/null || true
 
-    info "Downloading agocli client binaries for all platforms..."
-    for _t in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64; do
-        _ros="${_t%/*}"; _rarch="${_t#*/}"; _rext=""
-        [ "$_ros" = "windows" ] && _rext=".exe"
-        _rname="agocli_${_ros}_${_rarch}${_rext}"
-        if fetch_url_to_file "${RELEASE_BASE}/${_rname}" "$DIR/deploy/${_rname}"; then
-            ok "  deploy/${_rname}"
-        else
-            warn "  Could not download deploy/${_rname} — skipping."
-        fi
-    done
-    chmod +x "$DIR/deploy/agocli_linux"* 2>/dev/null || true
-
     [ -f "$DIR/bin/aurago_linux" ] || die "Failed to obtain aurago_linux binary. Cannot continue."
 
     # Create lifeboat symlink
@@ -1058,7 +1008,6 @@ fi
 
 # Ensure all binaries are executable. Try with sudo if needed.
 chmod +x "$DIR/bin/"* 2>/dev/null || sudo chmod +x "$DIR/bin/"* 2>/dev/null || true
-chmod +x "$DIR/agocli" 2>/dev/null || sudo chmod +x "$DIR/agocli" 2>/dev/null || true
 chmod +x "$DIR/"*.sh 2>/dev/null || sudo chmod +x "$DIR/"*.sh 2>/dev/null || true
 
 # ── Patch service file: ensure User= / Group= are set (migration for root-installs) ──

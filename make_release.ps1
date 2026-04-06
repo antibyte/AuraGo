@@ -168,8 +168,6 @@ Build-Binary -Output "bin\aurago_linux" -Target "./cmd/aurago/"
 Build-Binary -Output "bin\lifeboat_linux" -Target "./cmd/lifeboat/"
 Build-Binary -Output "bin\config-merger_linux" -Target "./cmd/config-merger/"
 Build-Binary -Output "bin\aurago-remote_linux" -Target "./cmd/remote/"
-Build-Binary -Output "bin\agocli_linux" -Target "./cmd/agocli/"
-
 # ── Linux arm64 ──
 Write-Host "  Linux arm64..." -ForegroundColor Cyan
 $env:GOOS = "linux"
@@ -178,7 +176,6 @@ Build-Binary -Output "bin\aurago_linux_arm64" -Target "./cmd/aurago/"
 Build-Binary -Output "bin\lifeboat_linux_arm64" -Target "./cmd/lifeboat/"
 Build-Binary -Output "bin\config-merger_linux_arm64" -Target "./cmd/config-merger/"
 Build-Binary -Output "bin\aurago-remote_linux_arm64" -Target "./cmd/remote/"
-Build-Binary -Output "bin\agocli_linux_arm64" -Target "./cmd/agocli/"
 
 # ── macOS amd64 ──
 Write-Host "  macOS amd64..." -ForegroundColor Cyan
@@ -186,7 +183,6 @@ $env:GOOS = "darwin"
 $env:GOARCH = "amd64"
 Build-Binary -Output "deploy\aurago_darwin_amd64" -Target "./cmd/aurago/"
 Build-Binary -Output "deploy\aurago-remote_darwin_amd64" -Target "./cmd/remote/"
-Build-Binary -Output "deploy\agocli_darwin_amd64" -Target "./cmd/agocli/"
 
 # ── macOS arm64 ──
 Write-Host "  macOS arm64..." -ForegroundColor Cyan
@@ -194,7 +190,6 @@ $env:GOOS = "darwin"
 $env:GOARCH = "arm64"
 Build-Binary -Output "deploy\aurago_darwin_arm64" -Target "./cmd/aurago/"
 Build-Binary -Output "deploy\aurago-remote_darwin_arm64" -Target "./cmd/remote/"
-Build-Binary -Output "deploy\agocli_darwin_arm64" -Target "./cmd/agocli/"
 
 # ── Windows amd64 ──
 Write-Host "  Windows amd64..." -ForegroundColor Cyan
@@ -202,7 +197,6 @@ $env:GOOS = "windows"
 $env:GOARCH = "amd64"
 Build-Binary -Output "deploy\aurago_windows_amd64.exe" -Target "./cmd/aurago/"
 Build-Binary -Output "deploy\aurago-remote_windows_amd64.exe" -Target "./cmd/remote/"
-Build-Binary -Output "deploy\agocli_windows_amd64.exe" -Target "./cmd/agocli/"
 
 # ── Windows arm64 ──
 Write-Host "  Windows arm64..." -ForegroundColor Cyan
@@ -210,7 +204,6 @@ $env:GOOS = "windows"
 $env:GOARCH = "arm64"
 Build-Binary -Output "deploy\aurago_windows_arm64.exe" -Target "./cmd/aurago/"
 Build-Binary -Output "deploy\aurago-remote_windows_arm64.exe" -Target "./cmd/remote/"
-Build-Binary -Output "deploy\agocli_windows_arm64.exe" -Target "./cmd/agocli/"
 
 # Copy install.sh
 Copy-Item "install.sh" "deploy\install.sh" -Force
@@ -253,14 +246,10 @@ $assetPaths = @(
     "bin\config-merger_linux_arm64",
     "bin\aurago-remote_linux",
     "bin\aurago-remote_linux_arm64",
-    "bin\agocli_linux",
-    "bin\agocli_linux_arm64",
     "deploy\aurago_darwin_amd64",
     "deploy\aurago_darwin_arm64",
     "deploy\aurago-remote_darwin_amd64",
     "deploy\aurago-remote_darwin_arm64",
-    "deploy\agocli_darwin_amd64",
-    "deploy\agocli_darwin_arm64",
     "deploy\aurago_windows_amd64.exe",
     "deploy\aurago_windows_arm64.exe",
     "deploy\aurago-remote_windows_amd64.exe",
