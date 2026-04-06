@@ -1288,5 +1288,4 @@ async function saveVaultKeys() {
     } catch (e) {
         showToast(t('common.error') || 'Error', 'error');
     }
-}
 });
