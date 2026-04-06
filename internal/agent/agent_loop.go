@@ -1353,7 +1353,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 							if toSend != "" {
 								chunk.Choices[0].Delta.Content = toSend
 								if chunkData, mErr := json.Marshal(chunk); mErr == nil {
-									broker.SendJSON(fmt.Sprintf("data: %s\n\n", string(chunkData)))
+									broker.SendJSON(string(chunkData))
 								}
 							}
 						}
@@ -2185,6 +2185,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				// We return the response so the user sees the handover message,
 				// and the loop terminates. The process stays alive in "busy" mode
 				// until the sidecar triggers a reload.
+				if len(resp.Choices) == 0 {
+					return resp, nil
+				}
 				id, err := shortTermMem.InsertMessage(sessionID, resp.Choices[0].Message.Role, content, false, false)
 				if err != nil {
 					currentLogger.Error("Failed to persist handover message to SQLite", "error", err)

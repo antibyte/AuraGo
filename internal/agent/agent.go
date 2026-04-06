@@ -785,15 +785,20 @@ func dispatchInner(ctx context.Context, tc ToolCall, dc *DispatchContext) string
 		"git_status":   "git status",
 		"git_log":      "git log --oneline -10",
 		"git_diff":     "git diff",
-		"git_commit":   "git add -A && git commit -m \"" + tc.Message + "\"",
 		"git_push":     "git push",
 		"git_pull":     "git pull",
 		"git_rollback": "git reset --hard HEAD~1",
 	}
+	// git_commit is built separately to safely shell-quote the commit message.
+	if tc.Action == "git_commit" {
+		safeMsg := "'" + strings.ReplaceAll(tc.Message, "'", `'"'"'`) + "'"
+		gitAliases["git_commit"] = "git add -A && git commit -m " + safeMsg
+	}
 	if gitCmd, ok := gitAliases[tc.Action]; ok {
 		logger.Info("Redirecting git alias to execute_shell", "action", tc.Action)
 		if tc.Path != "" {
-			tc.Command = "cd " + tc.Path + " && " + gitCmd
+			safePath := "'" + strings.ReplaceAll(tc.Path, "'", `'"'"'`) + "'"
+			tc.Command = "cd " + safePath + " && " + gitCmd
 		} else {
 			tc.Command = gitCmd
 		}

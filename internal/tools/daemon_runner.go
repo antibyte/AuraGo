@@ -33,6 +33,7 @@ type DaemonRunner struct {
 	// Process state
 	cmd       commandHandle
 	stdinPipe io.WriteCloser
+	pid       int
 	cancel    context.CancelFunc
 	status    DaemonStatus
 	startedAt time.Time
@@ -226,6 +227,7 @@ func (r *DaemonRunner) startLocked() error {
 
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
+		_ = stdinPipe.Close()
 		r.status = DaemonStopped
 		r.cancel()
 		return fmt.Errorf("failed to create stdout pipe: %w", err)
@@ -233,6 +235,7 @@ func (r *DaemonRunner) startLocked() error {
 
 	stderrPipe, err := cmd.StderrPipe()
 	if err != nil {
+		_ = stdinPipe.Close()
 		r.status = DaemonStopped
 		r.cancel()
 		return fmt.Errorf("failed to create stderr pipe: %w", err)
@@ -245,7 +248,12 @@ func (r *DaemonRunner) startLocked() error {
 	}
 
 	pid := cmd.Process.Pid
+	// Close old stdin pipe before overwriting (handles restart case).
+	if r.stdinPipe != nil {
+		_ = r.stdinPipe.Close()
+	}
 	r.stdinPipe = stdinPipe
+	r.pid = pid
 	r.startedAt = time.Now()
 	r.lastActivity = r.startedAt
 	r.status = DaemonRunning
@@ -303,6 +311,7 @@ func (r *DaemonRunner) stopLocked(reason string) error {
 	}
 
 	r.status = DaemonStopped
+	r.pid = 0
 	return nil
 }
 
@@ -347,9 +356,8 @@ func (r *DaemonRunner) IncrementWakeUp() {
 
 // processPID returns the PID if running, 0 otherwise. Caller must hold r.mu.
 func (r *DaemonRunner) processPID() int {
-	if r.status == DaemonRunning && r.startedAt != (time.Time{}) {
-		// PID is stored in the process registry — not duplicated here
-		return 0
+	if r.status == DaemonRunning {
+		return r.pid
 	}
 	return 0
 }
@@ -458,6 +466,9 @@ func (r *DaemonRunner) handleMessage(msg DaemonMessage) {
 		r.mu.Lock()
 		_ = r.stopLocked("skill_requested: " + msg.Reason)
 		r.mu.Unlock()
+
+	case DaemonMsgMetric:
+		r.logger.Debug("Daemon metric", "data", truncateString(string(msg.Data), 500))
 	}
 }
 

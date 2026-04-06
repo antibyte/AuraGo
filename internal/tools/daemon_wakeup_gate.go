@@ -258,8 +258,8 @@ func (g *WakeUpGate) RecordSuppressed(skillID string) {
 // ShouldAutoDisable checks if the circuit breaker threshold has been reached
 // and the skill should be auto-disabled.
 func (g *WakeUpGate) ShouldAutoDisable(skillID string) bool {
-	g.mu.RLock()
-	defer g.mu.RUnlock()
+	g.mu.Lock()
+	defer g.mu.Unlock()
 	skill, ok := g.skills[skillID]
 	if !ok {
 		return false

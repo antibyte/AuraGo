@@ -9,15 +9,34 @@ import (
 // filterEnv removes AURAGO_SBX_* and other sensitive env vars from the environment
 // passed to the sandboxed process.
 func filterEnv(env []string) []string {
+	// Prefixes and exact names of env vars that must never be inherited by sandboxed processes.
+	sensitivePrefixes := []string{
+		"AURAGO_SBX_",
+		"AURAGO_MASTER_KEY",
+		"LLM_API_KEY",
+		"OPENAI_API_KEY",
+		"ANTHROPIC_API_KEY",
+		"OPENROUTER_API_KEY",
+		"GEMINI_API_KEY",
+		"GROQ_API_KEY",
+		"MISTRAL_API_KEY",
+		"COHERE_API_KEY",
+		"TOGETHER_API_KEY",
+		"TAILSCALE_API_KEY",
+		"ANSIBLE_API_TOKEN",
+	}
 	var filtered []string
 	for _, e := range env {
-		if strings.HasPrefix(e, "AURAGO_SBX_") {
-			continue
+		skip := false
+		for _, prefix := range sensitivePrefixes {
+			if strings.HasPrefix(e, prefix) {
+				skip = true
+				break
+			}
 		}
-		if strings.HasPrefix(e, "AURAGO_MASTER_KEY") {
-			continue
+		if !skip {
+			filtered = append(filtered, e)
 		}
-		filtered = append(filtered, e)
 	}
 	return filtered
 }

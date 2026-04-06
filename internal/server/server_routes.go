@@ -867,6 +867,16 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
+		s.CfgMu.RLock()
+		authEnabled := s.Cfg.Auth.Enabled
+		sessionSecret := s.Cfg.Auth.SessionSecret
+		s.CfgMu.RUnlock()
+		if authEnabled && !IsAuthenticated(r, sessionSecret) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusUnauthorized)
+			w.Write([]byte(`{"error":"unauthorized","redirect":"/auth/login"}`))
+			return
+		}
 
 		all := s.HistoryManager.GetAll()
 		var filtered []memory.HistoryMessage
@@ -911,6 +921,16 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/clear", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodDelete {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		s.CfgMu.RLock()
+		authEnabled := s.Cfg.Auth.Enabled
+		sessionSecret := s.Cfg.Auth.SessionSecret
+		s.CfgMu.RUnlock()
+		if authEnabled && !IsAuthenticated(r, sessionSecret) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusUnauthorized)
+			w.Write([]byte(`{"error":"unauthorized","redirect":"/auth/login"}`))
 			return
 		}
 		if err := s.HistoryManager.Clear(); err != nil {

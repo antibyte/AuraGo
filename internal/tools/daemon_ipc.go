@@ -14,6 +14,7 @@ const (
 	DaemonMsgHeartbeat = "heartbeat"
 	DaemonMsgError     = "error"
 	DaemonMsgShutdown  = "shutdown"
+	DaemonMsgMetric    = "metric"
 )
 
 // Daemon IPC command types sent by host (host → stdin).
@@ -87,7 +88,7 @@ func ParseDaemonMessage(line string) (DaemonMessage, error) {
 	}
 
 	switch msg.Type {
-	case DaemonMsgWakeAgent, DaemonMsgLog, DaemonMsgHeartbeat, DaemonMsgError, DaemonMsgShutdown:
+	case DaemonMsgWakeAgent, DaemonMsgLog, DaemonMsgHeartbeat, DaemonMsgError, DaemonMsgShutdown, DaemonMsgMetric:
 		// known types
 	default:
 		return DaemonMessage{}, fmt.Errorf("unknown daemon message type: %q", msg.Type)

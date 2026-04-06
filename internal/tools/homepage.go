@@ -177,6 +177,13 @@ func validateHomepageRelativePathArg(path, field string) error {
 	if strings.Contains(trimmed, "..") {
 		return fmt.Errorf("path traversal not allowed in %s %q", field, path)
 	}
+	// Reject shell metacharacters that could be used for command injection.
+	const shellMetachars = ";|&`$(){}[]<>!\\'\""
+	for _, ch := range shellMetachars {
+		if strings.ContainsRune(trimmed, ch) {
+			return fmt.Errorf("invalid character %q in %s %q", ch, field, path)
+		}
+	}
 	normalized := filepath.ToSlash(trimmed)
 	if filepath.IsAbs(trimmed) || strings.HasPrefix(normalized, "/") || strings.HasPrefix(normalized, homepageWorkspaceMount+"/") {
 		return fmt.Errorf("%s must be relative to the homepage workspace, e.g. 'my-site/src/app/page.tsx' not %q", field, path)
