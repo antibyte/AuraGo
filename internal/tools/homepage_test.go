@@ -587,3 +587,178 @@ func TestHomepageCheckJS_RejectsEmptyURL(t *testing.T) {
 		t.Errorf("expected url required error, got: %s", got)
 	}
 }
+
+// ─── applyHomepageEdit tests ──────────────────────────────────────────────
+
+func TestApplyHomepageEdit_StrReplace(t *testing.T) {
+	text := "Hello World\nFoo Bar\nBaz"
+	got, errStr := applyHomepageEdit(text, "str_replace", "Foo Bar", "Replaced", "", "", 0, 0)
+	if errStr != "" {
+		t.Fatalf("unexpected error: %s", errStr)
+	}
+	if !strings.Contains(got, "Replaced") || strings.Contains(got, "Foo Bar") {
+		t.Errorf("str_replace failed: %s", got)
+	}
+}
+
+func TestApplyHomepageEdit_StrReplace_NotFound(t *testing.T) {
+	_, errStr := applyHomepageEdit("Hello", "str_replace", "Missing", "X", "", "", 0, 0)
+	if !strings.Contains(errStr, "not found") {
+		t.Errorf("expected not-found error, got: %s", errStr)
+	}
+}
+
+func TestApplyHomepageEdit_StrReplace_Ambiguous(t *testing.T) {
+	_, errStr := applyHomepageEdit("abc abc", "str_replace", "abc", "x", "", "", 0, 0)
+	if !strings.Contains(errStr, "found 2 times") {
+		t.Errorf("expected ambiguous error, got: %s", errStr)
+	}
+}
+
+func TestApplyHomepageEdit_InsertAfter(t *testing.T) {
+	text := "line1\nmarker\nline3"
+	got, errStr := applyHomepageEdit(text, "insert_after", "", "", "marker", "inserted", 0, 0)
+	if errStr != "" {
+		t.Fatalf("unexpected error: %s", errStr)
+	}
+	lines := strings.Split(got, "\n")
+	if len(lines) != 4 || lines[2] != "inserted" {
+		t.Errorf("insert_after result wrong: %q", got)
+	}
+}
+
+func TestApplyHomepageEdit_InsertBefore(t *testing.T) {
+	text := "line1\nmarker\nline3"
+	got, errStr := applyHomepageEdit(text, "insert_before", "", "", "marker", "inserted", 0, 0)
+	if errStr != "" {
+		t.Fatalf("unexpected error: %s", errStr)
+	}
+	lines := strings.Split(got, "\n")
+	if len(lines) != 4 || lines[1] != "inserted" {
+		t.Errorf("insert_before result wrong: %q", got)
+	}
+}
+
+func TestApplyHomepageEdit_Append(t *testing.T) {
+	text := "existing"
+	got, errStr := applyHomepageEdit(text, "append", "", "", "", "appended", 0, 0)
+	if errStr != "" {
+		t.Fatalf("unexpected error: %s", errStr)
+	}
+	if !strings.HasSuffix(got, "appended") || !strings.Contains(got, "existing") {
+		t.Errorf("append result wrong: %q", got)
+	}
+}
+
+func TestApplyHomepageEdit_DeleteLines(t *testing.T) {
+	text := "line1\nline2\nline3\nline4"
+	got, errStr := applyHomepageEdit(text, "delete_lines", "", "", "", "", 2, 3)
+	if errStr != "" {
+		t.Fatalf("unexpected error: %s", errStr)
+	}
+	lines := strings.Split(got, "\n")
+	if len(lines) != 2 || lines[0] != "line1" || lines[1] != "line4" {
+		t.Errorf("delete_lines result wrong: %q", got)
+	}
+}
+
+func TestApplyHomepageEdit_UnknownOp(t *testing.T) {
+	_, errStr := applyHomepageEdit("text", "bogus_op", "", "", "", "", 0, 0)
+	if !strings.Contains(errStr, "unknown edit operation") {
+		t.Errorf("expected unknown op error, got: %s", errStr)
+	}
+}
+
+// ─── applyHomepageJsonEdit tests ──────────────────────────────────────────
+
+func TestApplyHomepageJsonEdit_Get(t *testing.T) {
+	content := `{"name":"test","version":"1.0"}`
+	result, _, errStr := applyHomepageJsonEdit(content, "get", "name", nil)
+	if errStr != "" {
+		t.Fatalf("unexpected error: %s", errStr)
+	}
+	if !strings.Contains(result, "test") {
+		t.Errorf("get result missing value: %s", result)
+	}
+}
+
+func TestApplyHomepageJsonEdit_Set(t *testing.T) {
+	content := `{"name":"old"}`
+	_, edited, errStr := applyHomepageJsonEdit(content, "set", "name", "new")
+	if errStr != "" {
+		t.Fatalf("unexpected error: %s", errStr)
+	}
+	if !strings.Contains(edited, `"new"`) {
+		t.Errorf("set did not produce expected value: %s", edited)
+	}
+}
+
+func TestApplyHomepageJsonEdit_SetEmpty(t *testing.T) {
+	// set on empty content should create a new object
+	_, edited, errStr := applyHomepageJsonEdit("", "set", "key", "val")
+	if errStr != "" {
+		t.Fatalf("unexpected error: %s", errStr)
+	}
+	if !strings.Contains(edited, `"val"`) {
+		t.Errorf("set on empty content failed: %s", edited)
+	}
+}
+
+func TestApplyHomepageJsonEdit_Delete(t *testing.T) {
+	content := `{"a":1,"b":2}`
+	_, edited, errStr := applyHomepageJsonEdit(content, "delete", "a", nil)
+	if errStr != "" {
+		t.Fatalf("unexpected error: %s", errStr)
+	}
+	if strings.Contains(edited, `"a"`) {
+		t.Errorf("delete did not remove key: %s", edited)
+	}
+}
+
+func TestApplyHomepageJsonEdit_Validate(t *testing.T) {
+	result, _, _ := applyHomepageJsonEdit(`{"ok":true}`, "validate", "", nil)
+	if !strings.Contains(result, "true") || !strings.Contains(result, "valid JSON") {
+		t.Errorf("validate result wrong: %s", result)
+	}
+	result2, _, _ := applyHomepageJsonEdit(`{not json}`, "validate", "", nil)
+	if !strings.Contains(result2, "invalid JSON") {
+		t.Errorf("validate of invalid JSON wrong: %s", result2)
+	}
+}
+
+func TestApplyHomepageJsonEdit_UnknownOp(t *testing.T) {
+	_, _, errStr := applyHomepageJsonEdit(`{}`, "bogus", "", nil)
+	if !strings.Contains(errStr, "unknown operation") {
+		t.Errorf("expected unknown operation error, got: %s", errStr)
+	}
+}
+
+// ─── resolveHomepagePath tests ────────────────────────────────────────────
+
+func TestResolveHomepagePath_Valid(t *testing.T) {
+	ws := t.TempDir()
+	got, err := resolveHomepagePath(ws, "my-site/src/app.tsx")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.HasPrefix(got, ws) {
+		t.Errorf("resolved path outside workspace: %s", got)
+	}
+}
+
+func TestResolveHomepagePath_TraversalRejected(t *testing.T) {
+	ws := t.TempDir()
+	_, err := resolveHomepagePath(ws, "../outside")
+	if err == nil {
+		t.Error("expected path traversal to be rejected")
+	}
+}
+
+func TestResolveHomepagePath_RootRejected(t *testing.T) {
+	ws := t.TempDir()
+	_, err := resolveHomepagePath(ws, ".")
+	if err == nil {
+		// "." resolves to workspace root — should be rejected for file ops
+		t.Error("expected workspace root to be rejected")
+	}
+}

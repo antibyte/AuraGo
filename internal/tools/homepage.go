@@ -1,8 +1,7 @@
-package tools
+﻿package tools
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -14,11 +13,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/beevik/etree"
-	"github.com/tidwall/gjson"
-	"github.com/tidwall/sjson"
-	"gopkg.in/yaml.v3"
 )
 
 // HomepageConfig holds the configuration for the homepage dev environment.
@@ -90,7 +84,7 @@ type HomepageDeployConfig struct {
 	Method   string // "sftp" or "scp"
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────
+// â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 // isValidHomepageURL validates that a URL is a well-formed HTTP(S) URL
 // and does not contain shell metacharacters that could lead to command injection.
@@ -190,12 +184,25 @@ func validateHomepageRelativePathArg(path, field string) error {
 	return nil
 }
 
-// truncateStr returns s truncated to maxLen characters with "…" suffix.
+// resolveHomepagePath resolves a workspace-relative path and validates that the
+// result stays within the workspace root. Does not allow the workspace root itself.
+// Returns (fullPath, nil) on success, or ("", error) on path traversal.
+func resolveHomepagePath(workspacePath, relPath string) (string, error) {
+	fullPath := filepath.Join(workspacePath, filepath.FromSlash(relPath))
+	cleanWS := filepath.Clean(workspacePath)
+	cleanFull := filepath.Clean(fullPath)
+	if cleanFull == cleanWS || !strings.HasPrefix(cleanFull, cleanWS+string(os.PathSeparator)) {
+		return "", fmt.Errorf("path traversal not allowed in path %q", relPath)
+	}
+	return fullPath, nil
+}
+
+// truncateStr returns s truncated to maxLen characters with "â€¦" suffix.
 func truncateStr(s string, maxLen int) string {
 	if len(s) <= maxLen {
 		return s
 	}
-	return s[:maxLen] + "…"
+	return s[:maxLen] + "â€¦"
 }
 
 // extractOutput parses a DockerExec JSON result and returns the "output" field.
@@ -209,7 +216,7 @@ func extractOutput(jsonResult string) string {
 	return jsonResult
 }
 
-// ─── Container Lifecycle ──────────────────────────────────────────────────
+// â”€â”€â”€ Container Lifecycle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 // checkDockerAvailable checks if Docker is available and running.
 func checkDockerAvailable(dockerHost string) bool {
@@ -222,7 +229,7 @@ func startPythonServer(port int, directory string) (string, int, error) {
 	if port <= 0 {
 		port = 8080
 	}
-	// Always bind to loopback — the URL returned is http://localhost:... and
+	// Always bind to loopback â€” the URL returned is http://localhost:... and
 	// the workspace directory must not be served to the public network.
 	cmd := exec.Command("python3", "-m", "http.server",
 		strconv.Itoa(port), "--directory", directory, "--bind", "127.0.0.1")
@@ -311,7 +318,7 @@ func HomepageInit(cfg HomepageConfig, logger *slog.Logger) string {
 	// Check if container already exists
 	inspectData, inspectCode, _ := dockerRequest(dockerCfg, "GET", "/containers/"+homepageContainerName+"/json", "")
 	if inspectCode == 200 {
-		// Container exists — check if running
+		// Container exists â€” check if running
 		var info map[string]interface{}
 		if err := json.Unmarshal(inspectData, &info); err == nil {
 			state, _ := info["State"].(map[string]interface{})
@@ -328,7 +335,7 @@ func HomepageInit(cfg HomepageConfig, logger *slog.Logger) string {
 		return okJSON("Dev container started", "container", homepageContainerName)
 	}
 
-	// Create new container — run as the current UID/GID so bind-mounted
+	// Create new container â€” run as the current UID/GID so bind-mounted
 	// workspace files are owned by the aurago user, not root.
 	workspaceMount := cfg.WorkspacePath + ":" + homepageWorkspaceMount
 	currentUser := fmt.Sprintf("%d:%d", os.Getuid(), os.Getgid())
@@ -452,7 +459,7 @@ func HomepageDestroy(cfg HomepageConfig, logger *slog.Logger) string {
 	return okJSON("Homepage environment destroyed")
 }
 
-// ─── Dev Commands (Token-Saving Compound Operations) ──────────────────────
+// â”€â”€â”€ Dev Commands (Token-Saving Compound Operations) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 // HomepageExec runs a command inside the dev container.
 // Pass env as nil unless additional environment variables need to be injected.
@@ -507,7 +514,7 @@ func HomepageInitProject(cfg HomepageConfig, framework, name, template string, l
 
 		switch strings.ToLower(framework) {
 		case "html", "static", "vanilla":
-			// Pure HTML — create locally without any build tool
+			// Pure HTML â€” create locally without any build tool
 			if err := os.MkdirAll(projectPath, 0755); err != nil {
 				return errJSON("Failed to create project directory: %v", err)
 			}
@@ -543,7 +550,7 @@ func HomepageInitProject(cfg HomepageConfig, framework, name, template string, l
 			return string(out)
 
 		default:
-			// Framework needs npm/npx — try local npx if available
+			// Framework needs npm/npx â€” try local npx if available
 			if _, err := exec.LookPath("npx"); err == nil {
 				if err := os.MkdirAll(cfg.WorkspacePath, 0755); err != nil {
 					return errJSON("Failed to access workspace: %v", err)
@@ -603,7 +610,7 @@ func HomepageInitProject(cfg HomepageConfig, framework, name, template string, l
 }
 
 // HomepageBuild runs the build command in the project directory.
-// Plain HTML projects (no package.json) are detected and skipped — they need no build step.
+// Plain HTML projects (no package.json) are detected and skipped â€” they need no build step.
 func HomepageBuild(cfg HomepageConfig, projectDir string, logger *slog.Logger) string {
 	if projectDir == "" {
 		projectDir = "."
@@ -615,14 +622,14 @@ func HomepageBuild(cfg HomepageConfig, projectDir string, logger *slog.Logger) s
 	}
 	logger.Info("[Homepage] Build", "dir", projectDir)
 
-	// Detect plain HTML projects: no package.json → no build needed.
+	// Detect plain HTML projects: no package.json â†’ no build needed.
 	if cfg.WorkspacePath != "" {
 		pkgPath := filepath.Join(cfg.WorkspacePath, projectDir, "package.json")
 		if _, err := os.Stat(pkgPath); err != nil {
-			logger.Info("[Homepage] No package.json found — plain HTML project, skipping build")
+			logger.Info("[Homepage] No package.json found â€” plain HTML project, skipping build")
 			out, _ := json.Marshal(map[string]interface{}{
 				"status": "ok",
-				"output": "Plain HTML project — no build required",
+				"output": "Plain HTML project â€” no build required",
 				"note":   "This project has no package.json. deploy_netlify and publish_local will serve or package the project directory directly.",
 			})
 			return string(out)
@@ -745,8 +752,9 @@ func HomepageLint(cfg HomepageConfig, projectDir string, logger *slog.Logger) st
 	}
 	logger.Info("[Homepage] Lint", "dir", projectDir)
 	dockerCfg := DockerConfig{Host: cfg.DockerHost}
-	// Run TypeScript check first (if tsconfig exists), then ESLint
-	cmd := fmt.Sprintf(`cd /workspace/%s && { if [ -f tsconfig.json ]; then echo "=== TypeScript Check ==="; npx tsc --noEmit 2>&1 | head -50; echo; fi; echo "=== ESLint ==="; npx eslint . --format compact 2>&1 | head -100; }`, projectDir)
+	// Run TypeScript check first (if tsconfig exists), then ESLint.
+	// Prefer the project-local ESLint binary (faster, no npx lookup overhead).
+	cmd := fmt.Sprintf(`cd /workspace/%s && { if [ -f tsconfig.json ]; then echo "=== TypeScript Check ==="; npx tsc --noEmit 2>&1 | head -50; echo; fi; echo "=== ESLint ==="; if [ -f ./node_modules/.bin/eslint ]; then ./node_modules/.bin/eslint . --format compact 2>&1; else npx eslint . --format compact 2>&1; fi | head -100; }`, projectDir)
 	return DockerExec(dockerCfg, homepageContainerName, cmd, "")
 }
 
@@ -784,800 +792,3 @@ const {chromium} = require('playwright');
 	return result
 }
 
-// HomepageListFiles lists files in a directory inside the container.
-func HomepageListFiles(cfg HomepageConfig, path string, logger *slog.Logger) string {
-	if path == "" {
-		path = "."
-	}
-	if path != "." {
-		if err := validateHomepageRelativePathArg(path, "path"); err != nil {
-			return errJSON("%v", err)
-		}
-	}
-	logger.Info("[Homepage] ListFiles", "path", path)
-
-	if !checkDockerAvailable(cfg.DockerHost) {
-		if cfg.WorkspacePath == "" {
-			return homepageWorkspacePathNotConfiguredJSON()
-		}
-		base := filepath.Join(cfg.WorkspacePath, filepath.FromSlash(path))
-		cleanWS := filepath.Clean(cfg.WorkspacePath)
-		cleanBase := filepath.Clean(base)
-		if cleanBase != cleanWS && !strings.HasPrefix(cleanBase, cleanWS+string(os.PathSeparator)) {
-			return errJSON("path traversal not allowed in path %q", path)
-		}
-		var files []string
-		_ = filepath.Walk(base, func(p string, info os.FileInfo, err error) error {
-			if err != nil {
-				return nil
-			}
-			// Return paths relative to WorkspacePath so they are usable with read_file / write_file
-			rel, _ := filepath.Rel(cfg.WorkspacePath, p)
-			slashRel := filepath.ToSlash(rel)
-			if strings.Contains(slashRel, "/node_modules") || strings.Contains(slashRel, "/.next") || strings.Contains(slashRel, "/.git") {
-				if info.IsDir() {
-					return filepath.SkipDir
-				}
-				return nil
-			}
-			// Limit depth to 3 segments below WorkspacePath
-			parts := strings.Split(slashRel, "/")
-			if len(parts) > 4 {
-				if info.IsDir() {
-					return filepath.SkipDir
-				}
-				return nil
-			}
-			if len(files) < 200 {
-				files = append(files, slashRel)
-			}
-			return nil
-		})
-		out, _ := json.Marshal(map[string]interface{}{"status": "ok", "mode": "local", "workspace": cfg.WorkspacePath, "files": files})
-		return string(out)
-	}
-
-	dockerCfg := DockerConfig{Host: cfg.DockerHost}
-	return DockerExec(dockerCfg, homepageContainerName, fmt.Sprintf("find /workspace/%s -maxdepth 2 -not -path '*/node_modules/*' -not -path '*/.next/*' -not -path '*/.git/*' | head -200", path), "")
-}
-
-// HomepageReadFile reads a file from the container.
-func HomepageReadFile(cfg HomepageConfig, path string, logger *slog.Logger) string {
-	if err := validateHomepageRelativePathArg(path, "path"); err != nil {
-		return errJSON("%v", err)
-	}
-	logger.Info("[Homepage] ReadFile", "path", path)
-
-	if !checkDockerAvailable(cfg.DockerHost) {
-		if cfg.WorkspacePath == "" {
-			return homepageWorkspacePathNotConfiguredJSON()
-		}
-		fullPath := filepath.Join(cfg.WorkspacePath, filepath.FromSlash(path))
-		cleanWS := filepath.Clean(cfg.WorkspacePath)
-		cleanFull := filepath.Clean(fullPath)
-		if cleanFull == cleanWS || !strings.HasPrefix(cleanFull, cleanWS+string(os.PathSeparator)) {
-			return errJSON("path traversal not allowed in path %q", path)
-		}
-		data, err := os.ReadFile(fullPath)
-		if err != nil {
-			return errJSON("Failed to read file: %v", err)
-		}
-		out, _ := json.Marshal(map[string]interface{}{"status": "ok", "content": string(data)})
-		return string(out)
-	}
-
-	dockerCfg := DockerConfig{Host: cfg.DockerHost}
-	return DockerExec(dockerCfg, homepageContainerName, fmt.Sprintf("cat /workspace/%s", path), "")
-}
-
-// HomepageWriteFile writes content to a file inside the container.
-// maxHomepageWriteFileSize is the maximum content size for HomepageWriteFile (2 MB).
-const maxHomepageWriteFileSize = 2 * 1024 * 1024
-
-func HomepageWriteFile(cfg HomepageConfig, path, content string, logger *slog.Logger) string {
-	if err := validateHomepageRelativePathArg(path, "path"); err != nil {
-		return errJSON("%v", err)
-	}
-	if len(content) > maxHomepageWriteFileSize {
-		return errJSON("content too large: %d bytes exceeds maximum of %d bytes", len(content), maxHomepageWriteFileSize)
-	}
-	logger.Info("[Homepage] WriteFile", "path", path, "size", len(content))
-
-	if !checkDockerAvailable(cfg.DockerHost) {
-		if cfg.WorkspacePath == "" {
-			return homepageWorkspacePathNotConfiguredJSON()
-		}
-		fullPath := filepath.Join(cfg.WorkspacePath, filepath.FromSlash(path))
-		cleanWS := filepath.Clean(cfg.WorkspacePath)
-		cleanFull := filepath.Clean(fullPath)
-		if cleanFull == cleanWS || !strings.HasPrefix(cleanFull, cleanWS+string(os.PathSeparator)) {
-			return errJSON("path traversal not allowed in path %q", path)
-		}
-		if err := os.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
-			return errJSON("Failed to create directory: %v", err)
-		}
-		if err := os.WriteFile(fullPath, []byte(content), 0644); err != nil {
-			return errJSON("Failed to write file: %v", err)
-		}
-		out, _ := json.Marshal(map[string]interface{}{"status": "ok", "path": path, "size": len(content)})
-		return string(out)
-	}
-
-	// Use base64 to safely pass content through shell
-	encoded := base64.StdEncoding.EncodeToString([]byte(content))
-	dockerCfg := DockerConfig{Host: cfg.DockerHost}
-	// Ensure parent directory exists
-	dir := filepath.Dir(path)
-	cmd := fmt.Sprintf("mkdir -p /workspace/%s && echo '%s' | base64 -d > /workspace/%s", dir, encoded, path)
-	return DockerExec(dockerCfg, homepageContainerName, cmd, "")
-}
-
-// HomepageEditFile performs precise file editing inside the container (or locally).
-// It reads the file, applies the edit in Go, then writes back.
-func HomepageEditFile(cfg HomepageConfig, path, operation, old, new_, marker, content string, startLine, endLine int, logger *slog.Logger) string {
-	if err := validateHomepageRelativePathArg(path, "path"); err != nil {
-		return errJSON("%v", err)
-	}
-	logger.Info("[Homepage] EditFile", "path", path, "op", operation)
-
-	if !checkDockerAvailable(cfg.DockerHost) {
-		// Local fallback: use file_editor directly on workspace path
-		if cfg.WorkspacePath == "" {
-			return homepageWorkspacePathNotConfiguredJSON()
-		}
-		fullPath := filepath.Join(cfg.WorkspacePath, filepath.FromSlash(path))
-		cleanWS := filepath.Clean(cfg.WorkspacePath)
-		cleanFull := filepath.Clean(fullPath)
-		if cleanFull == cleanWS || !strings.HasPrefix(cleanFull, cleanWS+string(os.PathSeparator)) {
-			return errJSON("path traversal not allowed in path %q", path)
-		}
-		return ExecuteFileEditor(operation, path, old, new_, marker, content, startLine, endLine, 0, cfg.WorkspacePath)
-	}
-
-	// Docker: read file from container, apply edit in Go, write back
-	dockerCfg := DockerConfig{Host: cfg.DockerHost}
-	readResult := DockerExec(dockerCfg, homepageContainerName, fmt.Sprintf("cat /workspace/%s", path), "")
-
-	// DockerExec returns JSON; try to detect errors
-	var readResp map[string]interface{}
-	if err := json.Unmarshal([]byte(readResult), &readResp); err == nil {
-		if status, ok := readResp["status"].(string); ok && status == "error" {
-			return readResult
-		}
-		// If there's an "output" field, use that
-		if output, ok := readResp["output"].(string); ok {
-			readResult = output
-		}
-	}
-
-	// Apply the edit operation on the content
-	edited, editErr := applyHomepageEdit(readResult, operation, old, new_, marker, content, startLine, endLine)
-	if editErr != "" {
-		return editErr
-	}
-
-	// Write back via base64
-	encoded := base64.StdEncoding.EncodeToString([]byte(edited))
-	dir := filepath.Dir(path)
-	writeCmd := fmt.Sprintf("mkdir -p /workspace/%s && echo '%s' | base64 -d > /workspace/%s", dir, encoded, path)
-	return DockerExec(dockerCfg, homepageContainerName, writeCmd, "")
-}
-
-// applyHomepageEdit applies an editing operation to file content in memory.
-// Returns the edited content and an error JSON string (empty if success).
-func applyHomepageEdit(text, operation, old, new_, marker, content string, startLine, endLine int) (string, string) {
-	switch operation {
-	case "str_replace":
-		if old == "" {
-			return "", errJSON("'old' text is required for str_replace")
-		}
-		count := strings.Count(text, old)
-		if count == 0 {
-			return "", errJSON("'old' text not found in file")
-		}
-		if count > 1 {
-			return "", errJSON("'old' text found %d times — must be unique for str_replace", count)
-		}
-		return strings.Replace(text, old, new_, 1), ""
-
-	case "str_replace_all":
-		if old == "" {
-			return "", errJSON("'old' text is required")
-		}
-		if !strings.Contains(text, old) {
-			return "", errJSON("'old' text not found in file")
-		}
-		return strings.ReplaceAll(text, old, new_), ""
-
-	case "insert_after", "insert_before":
-		if marker == "" {
-			return "", errJSON("'marker' is required")
-		}
-		if content == "" {
-			return "", errJSON("'content' is required")
-		}
-		lines := strings.Split(text, "\n")
-		idx := -1
-		for i, line := range lines {
-			if strings.Contains(line, marker) {
-				if idx >= 0 {
-					return "", errJSON("marker found on multiple lines")
-				}
-				idx = i
-			}
-		}
-		if idx < 0 {
-			return "", errJSON("marker not found")
-		}
-		insertLines := strings.Split(content, "\n")
-		insertIdx := idx
-		if operation == "insert_after" {
-			insertIdx = idx + 1
-		}
-		newLines := make([]string, 0, len(lines)+len(insertLines))
-		newLines = append(newLines, lines[:insertIdx]...)
-		newLines = append(newLines, insertLines...)
-		newLines = append(newLines, lines[insertIdx:]...)
-		return strings.Join(newLines, "\n"), ""
-
-	case "append":
-		if content == "" {
-			return "", errJSON("'content' is required")
-		}
-		if len(text) > 0 && !strings.HasSuffix(text, "\n") {
-			text += "\n"
-		}
-		return text + content, ""
-
-	case "prepend":
-		if content == "" {
-			return "", errJSON("'content' is required")
-		}
-		if !strings.HasSuffix(content, "\n") {
-			content += "\n"
-		}
-		return content + text, ""
-
-	case "delete_lines":
-		if startLine < 1 {
-			return "", errJSON("start_line must be >= 1")
-		}
-		if endLine < startLine {
-			return "", errJSON("end_line must be >= start_line")
-		}
-		lines := strings.Split(text, "\n")
-		if startLine > len(lines) {
-			return "", errJSON("start_line exceeds file length")
-		}
-		if endLine > len(lines) {
-			endLine = len(lines)
-		}
-		newLines := make([]string, 0, len(lines)-(endLine-startLine+1))
-		newLines = append(newLines, lines[:startLine-1]...)
-		newLines = append(newLines, lines[endLine:]...)
-		return strings.Join(newLines, "\n"), ""
-
-	default:
-		return "", errJSON("unknown edit operation: %s", operation)
-	}
-}
-
-// HomepageJsonEdit edits a JSON file inside the homepage container (or local workspace).
-func HomepageJsonEdit(cfg HomepageConfig, path, operation, jsonPath string, setValue interface{}, content string, logger *slog.Logger) string {
-	if err := validateHomepageRelativePathArg(path, "path"); err != nil {
-		return errJSON("%v", err)
-	}
-	logger.Info("[Homepage] JsonEdit", "path", path, "op", operation)
-
-	if !checkDockerAvailable(cfg.DockerHost) {
-		if cfg.WorkspacePath == "" {
-			return homepageWorkspacePathNotConfiguredJSON()
-		}
-		fullPath := filepath.Join(cfg.WorkspacePath, filepath.FromSlash(path))
-		cleanWS := filepath.Clean(cfg.WorkspacePath)
-		cleanFull := filepath.Clean(fullPath)
-		if cleanFull == cleanWS || !strings.HasPrefix(cleanFull, cleanWS+string(os.PathSeparator)) {
-			return errJSON("path traversal not allowed in path %q", path)
-		}
-		return ExecuteJsonEditor(operation, fullPath, jsonPath, setValue, content, cfg.WorkspacePath)
-	}
-
-	// Docker: read from container
-	dockerCfg := DockerConfig{Host: cfg.DockerHost}
-	readResult := DockerExec(dockerCfg, homepageContainerName, fmt.Sprintf("cat /workspace/%s", path), "")
-	fileContent := extractDockerOutput(readResult)
-	if fileContent == "" && operation != "set" {
-		return errJSON("could not read file from container")
-	}
-
-	// Apply JSON operation on content
-	result, edited, err := applyHomepageJsonEdit(fileContent, operation, jsonPath, setValue)
-	if err != "" {
-		return err
-	}
-
-	// For read-only operations, return the result
-	switch operation {
-	case "get", "keys", "validate":
-		return result
-	}
-
-	// Write edited content back
-	encoded := base64.StdEncoding.EncodeToString([]byte(edited))
-	dir := filepath.Dir(path)
-	writeCmd := fmt.Sprintf("mkdir -p /workspace/%s && echo '%s' | base64 -d > /workspace/%s", dir, encoded, path)
-	DockerExec(dockerCfg, homepageContainerName, writeCmd, "")
-	return result
-}
-
-// applyHomepageJsonEdit performs JSON operations on in-memory content.
-// Returns (resultJSON, editedContent, errorJSON). errorJSON is empty on success.
-func applyHomepageJsonEdit(content, operation, jsonPath string, setValue interface{}) (string, string, string) {
-	encode := func(r JsonEditorResult) string {
-		b, _ := json.Marshal(r)
-		return string(b)
-	}
-
-	switch operation {
-	case "get":
-		if !gjson.Valid(content) {
-			return "", "", encode(JsonEditorResult{Status: "error", Message: "not valid JSON"})
-		}
-		if jsonPath == "" {
-			return encode(JsonEditorResult{Status: "ok", Data: json.RawMessage(content)}), "", ""
-		}
-		r := gjson.Get(content, jsonPath)
-		if !r.Exists() {
-			return "", "", encode(JsonEditorResult{Status: "error", Message: fmt.Sprintf("path '%s' not found", jsonPath)})
-		}
-		return encode(JsonEditorResult{Status: "ok", Data: json.RawMessage(r.Raw)}), "", ""
-
-	case "set":
-		if jsonPath == "" {
-			return "", "", encode(JsonEditorResult{Status: "error", Message: "'json_path' is required for set"})
-		}
-		data := content
-		if data == "" {
-			data = "{}"
-		}
-		if !gjson.Valid(data) {
-			return "", "", encode(JsonEditorResult{Status: "error", Message: "not valid JSON"})
-		}
-		updated, err := sjson.Set(data, jsonPath, setValue)
-		if err != nil {
-			return "", "", encode(JsonEditorResult{Status: "error", Message: err.Error()})
-		}
-		var raw json.RawMessage = []byte(updated)
-		formatted, _ := json.MarshalIndent(raw, "", "  ")
-		return encode(JsonEditorResult{Status: "ok", Message: fmt.Sprintf("set '%s'", jsonPath)}), string(formatted) + "\n", ""
-
-	case "delete":
-		if jsonPath == "" {
-			return "", "", encode(JsonEditorResult{Status: "error", Message: "'json_path' is required for delete"})
-		}
-		if !gjson.Valid(content) {
-			return "", "", encode(JsonEditorResult{Status: "error", Message: "not valid JSON"})
-		}
-		updated, err := sjson.Delete(content, jsonPath)
-		if err != nil {
-			return "", "", encode(JsonEditorResult{Status: "error", Message: err.Error()})
-		}
-		var raw json.RawMessage = []byte(updated)
-		formatted, _ := json.MarshalIndent(raw, "", "  ")
-		return encode(JsonEditorResult{Status: "ok", Message: fmt.Sprintf("deleted '%s'", jsonPath)}), string(formatted) + "\n", ""
-
-	case "keys":
-		if !gjson.Valid(content) {
-			return "", "", encode(JsonEditorResult{Status: "error", Message: "not valid JSON"})
-		}
-		target := content
-		if jsonPath != "" {
-			r := gjson.Get(content, jsonPath)
-			if !r.Exists() {
-				return "", "", encode(JsonEditorResult{Status: "error", Message: fmt.Sprintf("path '%s' not found", jsonPath)})
-			}
-			target = r.Raw
-		}
-		var keys []string
-		gjson.Parse(target).ForEach(func(key, _ gjson.Result) bool {
-			keys = append(keys, key.String())
-			return true
-		})
-		return encode(JsonEditorResult{Status: "ok", Data: keys}), "", ""
-
-	case "validate":
-		if gjson.Valid(content) {
-			return encode(JsonEditorResult{Status: "ok", Message: "valid JSON", Data: true}), "", ""
-		}
-		return encode(JsonEditorResult{Status: "ok", Message: "invalid JSON", Data: false}), "", ""
-
-	case "format":
-		if !gjson.Valid(content) {
-			return "", "", encode(JsonEditorResult{Status: "error", Message: "not valid JSON"})
-		}
-		var raw json.RawMessage = []byte(content)
-		formatted, _ := json.MarshalIndent(raw, "", "  ")
-		return encode(JsonEditorResult{Status: "ok", Message: "formatted"}), string(formatted) + "\n", ""
-
-	default:
-		return "", "", encode(JsonEditorResult{Status: "error", Message: fmt.Sprintf("unknown operation: %s", operation)})
-	}
-}
-
-// HomepageYamlEdit edits a YAML file inside the homepage container (or local workspace).
-func HomepageYamlEdit(cfg HomepageConfig, path, operation, dotPath string, setValue interface{}, logger *slog.Logger) string {
-	if err := validateHomepageRelativePathArg(path, "path"); err != nil {
-		return errJSON("%v", err)
-	}
-	logger.Info("[Homepage] YamlEdit", "path", path, "op", operation)
-
-	if !checkDockerAvailable(cfg.DockerHost) {
-		if cfg.WorkspacePath == "" {
-			return homepageWorkspacePathNotConfiguredJSON()
-		}
-		fullPath := filepath.Join(cfg.WorkspacePath, filepath.FromSlash(path))
-		cleanWS := filepath.Clean(cfg.WorkspacePath)
-		cleanFull := filepath.Clean(fullPath)
-		if cleanFull == cleanWS || !strings.HasPrefix(cleanFull, cleanWS+string(os.PathSeparator)) {
-			return errJSON("path traversal not allowed in path %q", path)
-		}
-		return ExecuteYamlEditor(operation, fullPath, dotPath, setValue, cfg.WorkspacePath)
-	}
-
-	// Docker: read from container
-	dockerCfg := DockerConfig{Host: cfg.DockerHost}
-	readResult := DockerExec(dockerCfg, homepageContainerName, fmt.Sprintf("cat /workspace/%s", path), "")
-	fileContent := extractDockerOutput(readResult)
-	if fileContent == "" && operation != "set" {
-		return errJSON("could not read file from container")
-	}
-
-	// Apply YAML operation on content
-	result, edited, err := applyHomepageYamlEdit(fileContent, operation, dotPath, setValue)
-	if err != "" {
-		return err
-	}
-
-	// For read-only operations, return the result
-	switch operation {
-	case "get", "keys", "validate":
-		return result
-	}
-
-	// Write edited content back
-	encoded := base64.StdEncoding.EncodeToString([]byte(edited))
-	dir := filepath.Dir(path)
-	writeCmd := fmt.Sprintf("mkdir -p /workspace/%s && echo '%s' | base64 -d > /workspace/%s", dir, encoded, path)
-	DockerExec(dockerCfg, homepageContainerName, writeCmd, "")
-	return result
-}
-
-// applyHomepageYamlEdit performs YAML operations on in-memory content.
-// Returns (resultJSON, editedContent, errorJSON). errorJSON is empty on success.
-func applyHomepageYamlEdit(content, operation, dotPath string, setValue interface{}) (string, string, string) {
-	encode := func(r JsonEditorResult) string {
-		b, _ := json.Marshal(r)
-		return string(b)
-	}
-
-	switch operation {
-	case "get":
-		var doc interface{}
-		if err := yaml.Unmarshal([]byte(content), &doc); err != nil {
-			return "", "", encode(JsonEditorResult{Status: "error", Message: "invalid YAML: " + err.Error()})
-		}
-		if dotPath == "" {
-			return encode(JsonEditorResult{Status: "ok", Data: doc}), "", ""
-		}
-		val, found := yamlNavigate(doc, strings.Split(dotPath, "."))
-		if !found {
-			return "", "", encode(JsonEditorResult{Status: "error", Message: fmt.Sprintf("path '%s' not found", dotPath)})
-		}
-		return encode(JsonEditorResult{Status: "ok", Data: val}), "", ""
-
-	case "set":
-		if dotPath == "" {
-			return "", "", encode(JsonEditorResult{Status: "error", Message: "'json_path' is required for set"})
-		}
-		var node yaml.Node
-		data := []byte(content)
-		if len(data) > 0 {
-			if err := yaml.Unmarshal(data, &node); err != nil {
-				return "", "", encode(JsonEditorResult{Status: "error", Message: "invalid YAML: " + err.Error()})
-			}
-		}
-		if node.Kind == 0 {
-			node = yaml.Node{Kind: yaml.DocumentNode, Content: []*yaml.Node{{Kind: yaml.MappingNode}}}
-		}
-		parts := strings.Split(dotPath, ".")
-		if err := yamlNodeSet(&node, parts, setValue); err != nil {
-			return "", "", encode(JsonEditorResult{Status: "error", Message: err.Error()})
-		}
-		out, err := yaml.Marshal(&node)
-		if err != nil {
-			return "", "", encode(JsonEditorResult{Status: "error", Message: err.Error()})
-		}
-		return encode(JsonEditorResult{Status: "ok", Message: fmt.Sprintf("set '%s'", dotPath)}), string(out), ""
-
-	case "delete":
-		if dotPath == "" {
-			return "", "", encode(JsonEditorResult{Status: "error", Message: "'json_path' is required for delete"})
-		}
-		var node yaml.Node
-		if err := yaml.Unmarshal([]byte(content), &node); err != nil {
-			return "", "", encode(JsonEditorResult{Status: "error", Message: "invalid YAML: " + err.Error()})
-		}
-		parts := strings.Split(dotPath, ".")
-		if !yamlNodeDelete(&node, parts) {
-			return "", "", encode(JsonEditorResult{Status: "error", Message: fmt.Sprintf("path '%s' not found", dotPath)})
-		}
-		out, err := yaml.Marshal(&node)
-		if err != nil {
-			return "", "", encode(JsonEditorResult{Status: "error", Message: err.Error()})
-		}
-		return encode(JsonEditorResult{Status: "ok", Message: fmt.Sprintf("deleted '%s'", dotPath)}), string(out), ""
-
-	case "keys":
-		var doc interface{}
-		if err := yaml.Unmarshal([]byte(content), &doc); err != nil {
-			return "", "", encode(JsonEditorResult{Status: "error", Message: "invalid YAML: " + err.Error()})
-		}
-		target := doc
-		if dotPath != "" {
-			val, found := yamlNavigate(doc, strings.Split(dotPath, "."))
-			if !found {
-				return "", "", encode(JsonEditorResult{Status: "error", Message: fmt.Sprintf("path '%s' not found", dotPath)})
-			}
-			target = val
-		}
-		m, ok := target.(map[string]interface{})
-		if !ok {
-			return "", "", encode(JsonEditorResult{Status: "error", Message: "value at path is not a mapping"})
-		}
-		keys := make([]string, 0, len(m))
-		for k := range m {
-			keys = append(keys, k)
-		}
-		return encode(JsonEditorResult{Status: "ok", Data: keys}), "", ""
-
-	case "validate":
-		var doc interface{}
-		if err := yaml.Unmarshal([]byte(content), &doc); err != nil {
-			return encode(JsonEditorResult{Status: "ok", Message: "invalid YAML", Data: false}), "", ""
-		}
-		return encode(JsonEditorResult{Status: "ok", Message: "valid YAML", Data: true}), "", ""
-
-	default:
-		return "", "", encode(JsonEditorResult{Status: "error", Message: fmt.Sprintf("unknown operation: %s", operation)})
-	}
-}
-
-// extractDockerOutput extracts the output text from a DockerExec JSON response.
-func extractDockerOutput(result string) string {
-	var resp map[string]interface{}
-	if err := json.Unmarshal([]byte(result), &resp); err == nil {
-		if status, ok := resp["status"].(string); ok && status == "error" {
-			return ""
-		}
-		if output, ok := resp["output"].(string); ok {
-			return output
-		}
-	}
-	return result
-}
-
-// HomepageXmlEdit performs XML editing operations on homepage project files.
-func HomepageXmlEdit(cfg HomepageConfig, path, operation, xpath string, setValue interface{}, logger *slog.Logger) string {
-	if err := validateHomepageRelativePathArg(path, "path"); err != nil {
-		return errJSON("%v", err)
-	}
-	logger.Info("[Homepage] XmlEdit", "path", path, "op", operation)
-
-	if !checkDockerAvailable(cfg.DockerHost) {
-		if cfg.WorkspacePath == "" {
-			return homepageWorkspacePathNotConfiguredJSON()
-		}
-		fullPath := filepath.Join(cfg.WorkspacePath, filepath.FromSlash(path))
-		cleanWS := filepath.Clean(cfg.WorkspacePath)
-		cleanFull := filepath.Clean(fullPath)
-		if cleanFull == cleanWS || !strings.HasPrefix(cleanFull, cleanWS+string(os.PathSeparator)) {
-			return errJSON("path traversal not allowed in path %q", path)
-		}
-		return ExecuteXmlEditor(operation, fullPath, xpath, setValue, cfg.WorkspacePath)
-	}
-
-	// Docker: read from container
-	dockerCfg := DockerConfig{Host: cfg.DockerHost}
-	readResult := DockerExec(dockerCfg, homepageContainerName, fmt.Sprintf("cat /workspace/%s", path), "")
-	fileContent := extractDockerOutput(readResult)
-	if fileContent == "" && operation != "add_element" {
-		return errJSON("could not read file from container")
-	}
-
-	// Apply XML operation on content
-	result, edited, errMsg := applyHomepageXmlEdit(fileContent, operation, xpath, setValue)
-	if errMsg != "" {
-		return errMsg
-	}
-
-	// For read-only operations, return the result
-	switch operation {
-	case "get", "validate":
-		return result
-	}
-
-	// Write edited content back
-	encoded := base64.StdEncoding.EncodeToString([]byte(edited))
-	dir := filepath.Dir(path)
-	writeCmd := fmt.Sprintf("mkdir -p /workspace/%s && echo '%s' | base64 -d > /workspace/%s", dir, encoded, path)
-	DockerExec(dockerCfg, homepageContainerName, writeCmd, "")
-	return result
-}
-
-// applyHomepageXmlEdit performs XML operations on in-memory content.
-func applyHomepageXmlEdit(content, operation, xpath string, setValue interface{}) (string, string, string) {
-	encode := func(r XmlEditorResult) string {
-		b, _ := json.Marshal(r)
-		return string(b)
-	}
-
-	doc := etree.NewDocument()
-	if content != "" {
-		if err := doc.ReadFromString(content); err != nil {
-			return "", "", encode(XmlEditorResult{Status: "error", Message: "invalid XML: " + err.Error()})
-		}
-	}
-
-	switch operation {
-	case "get":
-		if xpath == "" {
-			return "", "", encode(XmlEditorResult{Status: "error", Message: "'xpath' is required for get"})
-		}
-		elements := doc.FindElements(xpath)
-		if len(elements) == 0 {
-			return "", "", encode(XmlEditorResult{Status: "error", Message: fmt.Sprintf("No elements found for path '%s'", xpath)})
-		}
-		var results []map[string]interface{}
-		for _, el := range elements {
-			entry := map[string]interface{}{"tag": el.Tag, "text": strings.TrimSpace(el.Text())}
-			if len(el.Attr) > 0 {
-				attrs := make(map[string]string)
-				for _, a := range el.Attr {
-					key := a.Key
-					if a.Space != "" {
-						key = a.Space + ":" + key
-					}
-					attrs[key] = a.Value
-				}
-				entry["attributes"] = attrs
-			}
-			results = append(results, entry)
-		}
-		if len(results) == 1 {
-			return encode(XmlEditorResult{Status: "success", Data: results[0]}), "", ""
-		}
-		return encode(XmlEditorResult{Status: "success", Data: results}), "", ""
-
-	case "set_text":
-		if xpath == "" {
-			return "", "", encode(XmlEditorResult{Status: "error", Message: "'xpath' is required for set_text"})
-		}
-		text := fmt.Sprintf("%v", setValue)
-		elements := doc.FindElements(xpath)
-		if len(elements) == 0 {
-			return "", "", encode(XmlEditorResult{Status: "error", Message: fmt.Sprintf("No elements found for path '%s'", xpath)})
-		}
-		for _, el := range elements {
-			el.SetText(text)
-		}
-		doc.Indent(2)
-		output, err := doc.WriteToString()
-		if err != nil {
-			return "", "", encode(XmlEditorResult{Status: "error", Message: err.Error()})
-		}
-		return encode(XmlEditorResult{Status: "success", Message: fmt.Sprintf("Set text on %d element(s)", len(elements))}), output, ""
-
-	case "set_attribute":
-		if xpath == "" {
-			return "", "", encode(XmlEditorResult{Status: "error", Message: "'xpath' is required for set_attribute"})
-		}
-		attrs, ok := setValue.(map[string]interface{})
-		if !ok {
-			return "", "", encode(XmlEditorResult{Status: "error", Message: "set_value must be {name, value}"})
-		}
-		attrName, _ := attrs["name"].(string)
-		if attrName == "" {
-			return "", "", encode(XmlEditorResult{Status: "error", Message: "set_value.name is required"})
-		}
-		attrValue := fmt.Sprintf("%v", attrs["value"])
-		elements := doc.FindElements(xpath)
-		if len(elements) == 0 {
-			return "", "", encode(XmlEditorResult{Status: "error", Message: fmt.Sprintf("No elements found for path '%s'", xpath)})
-		}
-		for _, el := range elements {
-			el.CreateAttr(attrName, attrValue)
-		}
-		doc.Indent(2)
-		output, err := doc.WriteToString()
-		if err != nil {
-			return "", "", encode(XmlEditorResult{Status: "error", Message: err.Error()})
-		}
-		return encode(XmlEditorResult{Status: "success", Message: fmt.Sprintf("Set attribute '%s' on %d element(s)", attrName, len(elements))}), output, ""
-
-	case "add_element":
-		if xpath == "" {
-			return "", "", encode(XmlEditorResult{Status: "error", Message: "'xpath' is required for add_element"})
-		}
-		spec, ok := setValue.(map[string]interface{})
-		if !ok {
-			return "", "", encode(XmlEditorResult{Status: "error", Message: "set_value must be {tag, text?, attributes?}"})
-		}
-		tag, _ := spec["tag"].(string)
-		if tag == "" {
-			return "", "", encode(XmlEditorResult{Status: "error", Message: "set_value.tag is required"})
-		}
-		parents := doc.FindElements(xpath)
-		if len(parents) == 0 {
-			return "", "", encode(XmlEditorResult{Status: "error", Message: fmt.Sprintf("No parent elements found for path '%s'", xpath)})
-		}
-		for _, parent := range parents {
-			child := parent.CreateElement(tag)
-			if text, ok := spec["text"].(string); ok {
-				child.SetText(text)
-			}
-			if childAttrs, ok := spec["attributes"].(map[string]interface{}); ok {
-				for k, v := range childAttrs {
-					child.CreateAttr(k, fmt.Sprintf("%v", v))
-				}
-			}
-		}
-		doc.Indent(2)
-		output, err := doc.WriteToString()
-		if err != nil {
-			return "", "", encode(XmlEditorResult{Status: "error", Message: err.Error()})
-		}
-		return encode(XmlEditorResult{Status: "success", Message: fmt.Sprintf("Added <%s> to %d parent(s)", tag, len(parents))}), output, ""
-
-	case "delete":
-		if xpath == "" {
-			return "", "", encode(XmlEditorResult{Status: "error", Message: "'xpath' is required for delete"})
-		}
-		elements := doc.FindElements(xpath)
-		if len(elements) == 0 {
-			return "", "", encode(XmlEditorResult{Status: "error", Message: fmt.Sprintf("No elements found for path '%s'", xpath)})
-		}
-		count := 0
-		for _, el := range elements {
-			if p := el.Parent(); p != nil {
-				p.RemoveChild(el)
-				count++
-			}
-		}
-		doc.Indent(2)
-		output, err := doc.WriteToString()
-		if err != nil {
-			return "", "", encode(XmlEditorResult{Status: "error", Message: err.Error()})
-		}
-		return encode(XmlEditorResult{Status: "success", Message: fmt.Sprintf("Deleted %d element(s)", count)}), output, ""
-
-	case "validate":
-		root := doc.Root()
-		if root == nil {
-			return encode(XmlEditorResult{Status: "error", Message: "XML document has no root element"}), "", ""
-		}
-		return encode(XmlEditorResult{Status: "success", Message: "Valid XML", Data: map[string]interface{}{"root_tag": root.Tag}}), "", ""
-
-	case "format":
-		doc.Indent(2)
-		output, err := doc.WriteToString()
-		if err != nil {
-			return "", "", encode(XmlEditorResult{Status: "error", Message: err.Error()})
-		}
-		return encode(XmlEditorResult{Status: "success", Message: "File formatted"}), output, ""
-
-	default:
-		return "", "", encode(XmlEditorResult{Status: "error", Message: fmt.Sprintf("unknown operation: %s", operation)})
-	}
-}
-
-// HomepageOptimizeImages runs SVG optimization on the project.

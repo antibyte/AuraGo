@@ -90,6 +90,8 @@ func HomepageDetectWorkspacePath(cfg HomepageConfig, logger *slog.Logger) string
 	return errJSON("No workspace bind-mount found in container '%s'. The container may not have been created by AuraGo, or the workspace mount is missing. %s", homepageContainerName, homepageWorkspacePathGuidance())
 }
 
+// HomepageOptimizeImages optimizes SVG files in the project using SVGO.
+// Note: only SVG files are processed; PNG/JPEG optimization is not supported.
 func HomepageOptimizeImages(cfg HomepageConfig, projectDir string, logger *slog.Logger) string {
 	if projectDir == "" {
 		projectDir = "."

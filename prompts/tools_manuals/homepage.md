@@ -155,6 +155,7 @@ Uses Playwright to load a page in headless Chromium and captures JavaScript erro
 - `errors`: Array of error messages (page errors and console errors)
 
 ### optimize_images — Optimize SVGs with SVGO
+Optimizes **SVG files only** (not PNG/JPEG). Uses SVGO with multipass optimization.
 ```json
 {"action": "homepage", "operation": "optimize_images", "project_dir": "my-site"}
 ```

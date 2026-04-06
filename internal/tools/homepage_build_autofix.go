@@ -94,6 +94,42 @@ var buildFixPatterns = []buildFixPattern{
 			return fmt.Sprintf("cd /workspace/%s && npm install 2>&1", dir)
 		},
 	},
+	// TypeScript-specific: TS2307 module not found → install the package
+	{
+		name:    "ts-missing-module",
+		pattern: regexp.MustCompile(`(?i)error TS2307: Cannot find module '([^']+)'`),
+		fix: func(m []string, dir string) string {
+			mod := m[1]
+			if strings.HasPrefix(mod, ".") || strings.HasPrefix(mod, "/") {
+				return "" // relative path — not an installable package
+			}
+			if idx := strings.Index(mod, "/"); idx > 0 && !strings.HasPrefix(mod, "@") {
+				mod = mod[:idx]
+			}
+			if strings.HasPrefix(mod, "@") {
+				parts := strings.SplitN(mod, "/", 3)
+				if len(parts) >= 2 {
+					mod = parts[0] + "/" + parts[1]
+				}
+			}
+			return fmt.Sprintf("cd /workspace/%s && npm install %s 2>&1", dir, mod)
+		},
+	},
+	// TypeScript: missing @types declaration → install @types/package
+	{
+		name:    "ts-missing-types",
+		pattern: regexp.MustCompile(`(?i)Could not find a declaration file for module '([^']+)'`),
+		fix: func(m []string, dir string) string {
+			mod := m[1]
+			if strings.HasPrefix(mod, ".") || strings.HasPrefix(mod, "/") {
+				return "" // relative path
+			}
+			if idx := strings.Index(mod, "/"); idx > 0 && !strings.HasPrefix(mod, "@") {
+				mod = mod[:idx]
+			}
+			return fmt.Sprintf("cd /workspace/%s && npm install --save-dev @types/%s 2>&1 || true", dir, mod)
+		},
+	},
 }
 
 // HomepageBuildWithAutoFix runs the build, and if it fails, tries pattern-based
