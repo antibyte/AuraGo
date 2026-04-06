@@ -613,9 +613,19 @@ else
             warn "Fast-forward merge failed — retrying after tracked-change cleanup..."
             clean_tracked_changes || true
             if ! git merge --ff-only origin/main; then
-                warn "Could not fast-forward automatically."
-                warn "Please ensure repository files are writable and no manual merge is required."
-                die "Update aborted safely (no hard reset performed)."
+                # Check if branches have diverged (force-push scenario)
+                LOCAL=$(git rev-parse HEAD)
+                REMOTE=$(git rev-parse origin/main)
+                BASE=$(git merge-base HEAD origin/main)
+                if [ "$LOCAL" != "$BASE" ] && [ "$REMOTE" != "$BASE" ]; then
+                    warn "Branches have diverged (force-push detected). Performing hard reset..."
+                    git reset --hard origin/main
+                    ok "Hard reset complete."
+                else
+                    warn "Could not fast-forward automatically."
+                    warn "Please ensure repository files are writable and no manual merge is required."
+                    die "Update aborted safely (no hard reset performed)."
+                fi
             fi
         fi
         ok "Code updated to $(git log --format='%h  %s' -1)"
