@@ -86,6 +86,19 @@ func resolveModelCapabilities(cfg *config.Config) ModelCapabilities {
 	isAnthropic := lowerProvider == "anthropic" || strings.Contains(lowerModel, "claude")
 	isNemotron := strings.Contains(lowerModel, "nemotron")
 
+	// Models from providers known to NOT support OpenAI-style strict structured outputs
+	// (Function.Strict=true). These are mostly Chinese LLM providers with OpenAI-compatible
+	// APIs but without the strict-mode constraint decoding extension.
+	isNoStrictStructuredOutputs := isOllama ||
+		strings.HasPrefix(lowerModel, "glm-") ||
+		strings.HasPrefix(lowerModel, "minimax") ||
+		strings.HasPrefix(lowerModel, "abab") ||
+		strings.HasPrefix(lowerModel, "kimi-") ||
+		strings.HasPrefix(lowerModel, "moonshot-") ||
+		strings.HasPrefix(lowerModel, "qwen") ||
+		strings.HasPrefix(lowerModel, "qwq") ||
+		strings.HasPrefix(lowerModel, "ernie")
+
 	return ModelCapabilities{
 		ProviderType:              providerType,
 		Model:                     model,
@@ -93,7 +106,7 @@ func resolveModelCapabilities(cfg *config.Config) ModelCapabilities {
 		IsDeepSeek:                isDeepSeek,
 		IsAnthropic:               isAnthropic,
 		AutoEnableNativeFunctions: isDeepSeek || isAnthropic || isNemotron,
-		SupportsStructuredOutputs: !isOllama,
+		SupportsStructuredOutputs: !isNoStrictStructuredOutputs,
 		SupportsParallelToolCalls: !isOllama,
 	}
 }
