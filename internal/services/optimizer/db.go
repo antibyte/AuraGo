@@ -97,6 +97,33 @@ func InitDB(dbPath string) (*OptimizerDB, error) {
 		}
 	}
 	_, _ = db.Exec("DROP INDEX IF EXISTS idx_prompt_overrides_unique_tool")
+
+	// Migrate: remove any sqlite_autoindex on prompt_overrides.
+	// Older databases had `tool_name TEXT NOT NULL UNIQUE` inline, which creates a
+	// sqlite_autoindex that cannot be dropped with DROP INDEX. It prevents inserting
+	// multiple rows per tool (e.g. an active row + a shadow row). Rebuild the table
+	// without the UNIQUE constraint when this auto-index is detected.
+	var autoIndexName string
+	_ = db.QueryRow(
+		`SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='prompt_overrides' AND name LIKE 'sqlite_autoindex%' LIMIT 1`,
+	).Scan(&autoIndexName)
+	if autoIndexName != "" {
+		_, _ = db.Exec(`CREATE TABLE IF NOT EXISTS prompt_overrides_new (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			tool_name TEXT NOT NULL,
+			mutated_prompt TEXT NOT NULL,
+			original_hash TEXT,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			active BOOLEAN DEFAULT 1,
+			shadow BOOLEAN DEFAULT 0
+		)`)
+		_, _ = db.Exec(`INSERT OR IGNORE INTO prompt_overrides_new
+			SELECT id, tool_name, mutated_prompt, original_hash, created_at, active, shadow
+			FROM prompt_overrides`)
+		_, _ = db.Exec(`DROP TABLE prompt_overrides`)
+		_, _ = db.Exec(`ALTER TABLE prompt_overrides_new RENAME TO prompt_overrides`)
+	}
+
 	_, _ = db.Exec("CREATE INDEX IF NOT EXISTS idx_prompt_overrides_tool_status ON prompt_overrides(tool_name, active, shadow)")
 
 	defaultDB = &OptimizerDB{db: db}
