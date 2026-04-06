@@ -218,7 +218,14 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 		charLimit := s.Cfg.Agent.MemoryCompressionCharLimit
 		if s.HistoryManager.TotalChars() >= charLimit {
 			if ok, release := s.HistoryManager.TryLockCompression(); ok {
-				defer release() // Ensure lock is released even if early return below
+				// Do NOT defer release() here — ownership transfers to the goroutine below.
+				// If no goroutine is spawned, release() is called explicitly at the end of the
+				// else branch.  Using defer here would fire when the HTTP handler returns
+				// (~seconds after the agent loop finishes), which is far BEFORE the goroutine's
+				// LLM summarisation call completes (up to 2 minutes).  That premature unlock
+				// allowed a second request to start another compression round whose snapshot
+				// included the just-finished agent response, silently deleting it from
+				// HistoryManager and making it disappear on the next page reload.
 
 				// Safety Check: Check if pinned messages exceed 50% of the limit
 				pinnedChars := s.HistoryManager.TotalPinnedChars()
@@ -239,7 +246,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 
 				if len(messagesToSummarize) > 0 {
 					go func(msgs []memory.HistoryMessage, charsPruned int, existingSummary string, releaseFn func()) {
-						defer releaseFn() // Release compression lock when goroutine completes
+						defer releaseFn() // Goroutine owns the lock; released when summarisation completes
 						defer func() {
 							if r := recover(); r != nil {
 								s.Logger.Error("[Compression] Goroutine panic recovered", "error", r)
@@ -311,8 +318,10 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 							}
 						}
 					}(messagesToSummarize, actualChars, s.HistoryManager.GetSummary(), release)
+				} else {
+					// No messages to compress — release the lock immediately.
+					release()
 				}
-				// else: release() called via defer when if block exits
 			}
 		}
 
