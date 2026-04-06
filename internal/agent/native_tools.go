@@ -392,10 +392,14 @@ func BuildNativeToolSchemas(skillsDir string, manifest *tools.Manifest, ff ToolF
 	}
 
 	// Inject _todo property into every tool schema so the agent can piggyback
-	// a session-scoped task list on each tool call (optional, never required).
+	// a session-scoped task list on each tool call.
+	//
+	// Strict-mode compatibility (OpenAI Structured Outputs):
+	//   - type must be a single string, not an array (no union types allowed)
+	//   - every property in the schema must appear in "required"
 	todoProperty := map[string]interface{}{
-		"type":        []string{"string", "null"},
-		"description": "Session task list. '- [x] done' / '- [ ] pending', one per line. Update each call. Null if unused.",
+		"type":        "string",
+		"description": "Session task list. '- [x] done' / '- [ ] pending', one per line. Update each call. Empty string if unused.",
 	}
 	for i := range allTools {
 		if allTools[i].Function == nil || allTools[i].Function.Parameters == nil {
@@ -410,6 +414,17 @@ func BuildNativeToolSchemas(skillsDir string, manifest *tools.Manifest, ff ToolF
 			continue
 		}
 		props["_todo"] = todoProperty
+		// Add _todo to "required" so strict-mode schemas remain valid.
+		// Tools that already declare a required array get _todo appended;
+		// tools without one get a new required array containing ["_todo"].
+		switch req := params["required"].(type) {
+		case []string:
+			params["required"] = append(req, "_todo")
+		case []interface{}:
+			params["required"] = append(req, "_todo")
+		default:
+			params["required"] = []string{"_todo"}
+		}
 	}
 
 	if logger != nil {

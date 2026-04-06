@@ -69,9 +69,10 @@ type anthropicContentBlock struct {
 }
 
 type anthropicImageSource struct {
-	Type      string `json:"type"`       // "base64"
-	MediaType string `json:"media_type"` // "image/png", "image/jpeg", etc.
-	Data      string `json:"data"`       // base64-encoded bytes
+	Type      string `json:"type"`                 // "base64" or "url"
+	MediaType string `json:"media_type,omitempty"` // "image/png", "image/jpeg", etc.
+	Data      string `json:"data,omitempty"`        // base64-encoded bytes (type="base64")
+	URL       string `json:"url,omitempty"`         // external URL (type="url")
 }
 
 type anthropicToolDef struct {
@@ -700,13 +701,13 @@ func translateImageURL(part map[string]interface{}) (*anthropicContentBlock, err
 		}, nil
 	}
 
-	// External URLs: Anthropic supports URL sources since 2024-10-22
+	// External URLs: Anthropic supports URL sources since 2024-10-22.
+	// The url-type source uses the "url" field, not "data".
 	return &anthropicContentBlock{
 		Type: "image",
 		Source: &anthropicImageSource{
-			Type:      "url",
-			MediaType: guessMediaType(urlStr),
-			Data:      urlStr, // Use URL directly as data for url type
+			Type: "url",
+			URL:  urlStr,
 		},
 	}, nil
 }
@@ -739,6 +740,13 @@ func parseDataURI(dataURI string) (mediaType, data string, err error) {
 
 func guessMediaType(url string) string {
 	lower := strings.ToLower(url)
+	// Strip query string and fragment before inspecting the file extension.
+	if idx := strings.IndexByte(lower, '?'); idx != -1 {
+		lower = lower[:idx]
+	}
+	if idx := strings.IndexByte(lower, '#'); idx != -1 {
+		lower = lower[:idx]
+	}
 	switch {
 	case strings.HasSuffix(lower, ".png"):
 		return "image/png"

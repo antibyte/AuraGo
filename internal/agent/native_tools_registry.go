@@ -55,7 +55,9 @@ func builtinToolSchemasCached(ff ToolFeatureFlags) []openai.Tool {
 		return deepClone(cached.([]openai.Tool))
 	}
 	built := builtinToolSchemas(ff)
-	builtinToolSchemaCache.Store(ff.Key(), deepClone(built))
+	// Store the original slice (no clone needed here — deepClone on load ensures
+	// every caller gets its own independent copy to mutate safely).
+	builtinToolSchemaCache.Store(ff.Key(), built)
 	return built
 }
 

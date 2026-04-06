@@ -83,10 +83,30 @@ func CompressHistory(
 	logger.Info("[Compression] Token threshold exceeded, compressing history",
 		"tokens", totalTokens, "threshold", threshold, "messages", len(messages))
 
-	// Identify compressible window: everything between system (0) and the tail
+	// Identify compressible window: everything between system (0) and the tail.
+	//
+	// Extend the protected tail backward to avoid splitting a tool-call group:
+	// an assistant message with ToolCalls and its following role=tool messages
+	// must stay together so the LLM retains multi-turn tool context.
 	tailStart := len(messages) - compressionKeepTail
 	if tailStart < 1 {
 		tailStart = 1
+	}
+	// Walk backward from tailStart: if the message just before tailStart is a
+	// role=tool result (it has a ToolCallID), keep pulling in earlier messages
+	// until we reach the assistant message that triggered those tool calls.
+	for tailStart > 1 {
+		prev := messages[tailStart-1]
+		if prev.Role == openai.ChatMessageRoleTool || prev.ToolCallID != "" {
+			tailStart--
+			continue
+		}
+		// Also protect the assistant message that contains the ToolCalls slice.
+		if prev.Role == openai.ChatMessageRoleAssistant && len(prev.ToolCalls) > 0 {
+			tailStart--
+			continue
+		}
+		break
 	}
 	compressible := messages[1:tailStart]
 	if len(compressible) == 0 {
