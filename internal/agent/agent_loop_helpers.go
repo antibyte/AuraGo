@@ -67,8 +67,8 @@ type toolGuideSearcher interface {
 var nonAlphaNumPattern = regexp.MustCompile(`[^a-z0-9]+`)
 var adaptiveToolNeighbors = map[string][]string{
 	// Web & Hosting
-	"homepage":          {"netlify", "homepage_registry", "filesystem"},
-	"netlify":           {"homepage", "homepage_registry", "filesystem"},
+	"homepage":          {"netlify", "homepage_registry", "filesystem", "file_editor"},
+	"netlify":           {"homepage", "homepage_registry", "filesystem", "file_editor"},
 	"homepage_registry": {"homepage", "netlify"},
 
 	// File System & Editing
@@ -82,7 +82,7 @@ var adaptiveToolNeighbors = map[string][]string{
 	"xml_editor":           {"filesystem", "file_editor"},
 
 	// Code & Execution
-	"execute_shell":        {"filesystem", "file_search", "media_registry", "send_document", "document_creator"},
+	"execute_shell":        {"filesystem", "file_editor", "file_search", "media_registry", "send_document", "document_creator"},
 	"execute_python":       {"filesystem", "execute_sandbox", "media_registry", "send_document", "document_creator"},
 	"execute_sandbox":      {"filesystem", "execute_python"},
 	"ansible":              {"ssh_exec", "query_inventory", "execute_shell", "filesystem"},

@@ -254,8 +254,6 @@ $assetPaths = @(
     "deploy\aurago_windows_arm64.exe",
     "deploy\aurago-remote_windows_amd64.exe",
     "deploy\aurago-remote_windows_arm64.exe",
-    "deploy\agocli_windows_amd64.exe",
-    "deploy\agocli_windows_arm64.exe",
     "deploy\install.sh"
 )
 
@@ -282,7 +280,7 @@ curl -fsSL https://raw.githubusercontent.com/antibyte/AuraGo/main/install.sh | b
 \`\`\`
 
 ### Included binaries
-- Linux amd64 / arm64 (main, lifeboat, config-merger, aurago-remote, agocli)
+- Linux amd64 / arm64 (main, lifeboat, config-merger, aurago-remote)
 - macOS amd64 / arm64 (Apple Silicon)
 - Windows x64 / arm64
 "@

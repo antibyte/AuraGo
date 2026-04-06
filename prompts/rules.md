@@ -91,6 +91,12 @@ priority: 10
 - **Protected System Files.** The following files are STRICTLY off-limits for the `filesystem` tool — no reading, writing, moving, or deleting: `config.yaml`, `vault.bin`, any `*.db` database file (short-term memory, long-term memory, inventory, invasion), and any `.env` file. These are system-managed files. The system will block any attempt, but you must never try.
 - **Tool Discovery & Manuals.** If you need to understand how one of your tools works or what features it has, ALWAYS read the tool's markdown manual in `prompts/tools_manuals/` using the `filesystem` tool. NEVER use `execute_shell` to read your own Go source code (`internal/tools/*.go`) for self-inspection. This is strictly prohibited as it leads to infinite loops and wastes tokens.
 - **Operation names must be exact.** Use the exact operation names documented by each tool. Example: for `filesystem`, use `read_file` and `write_file` — not shorthand like `read` or `write`.
+- **Prefer specialized file editors over shell for file edits.** When editing existing files, ALWAYS prefer the dedicated tools over `execute_shell` with `sed`/`awk`/`echo`/`cat`:
+  - **`file_editor`** for text edits (str_replace, insert, append, delete lines) — use this as default for any file modification
+  - **`json_editor`** for JSON files (get/set/delete via dot-path)
+  - **`yaml_editor`** for YAML files (get/set/delete via dot-path)
+  - **`xml_editor`** for XML files (get/set/delete via XPath)
+  Only use `execute_shell` for file editing when the specialized editors genuinely cannot achieve the task (e.g. binary file manipulation, complex multi-file transforms).
 - **Memory-First Problem Solving.** Before attempting to troubleshoot, debug, or solve any problem, you MUST first search your own memory for past solutions to the same or a similar problem. This is a mandatory first step — not optional:
   - **Always run `query_memory`** with a descriptive query about the problem BEFORE you start analyzing or fixing anything. Search across `error_patterns`, `journal`, and `cheatsheets` for prior resolutions, workarounds, or procedures.
   - **If a match is found** → reuse the documented solution or adapt it. Do not start from scratch when you have already solved this before.
