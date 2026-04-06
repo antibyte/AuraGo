@@ -13,6 +13,20 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
+// normalizeBaseURL strips common endpoint suffixes that users often include
+// when pasting the full API URL.  The go-openai library appends
+// "/chat/completions" automatically, so any such suffix would be doubled.
+func normalizeBaseURL(u string) string {
+	u = strings.TrimRight(u, "/")
+	for _, suffix := range []string{"/chat/completions", "/v1/chat/completions"} {
+		if strings.HasSuffix(strings.ToLower(u), suffix) {
+			u = u[:len(u)-len(suffix)]
+			break
+		}
+	}
+	return u
+}
+
 // NewClient creates a new OpenAI compatible client based on the routing configuration.
 // Handles provider-specific quirks: Ollama doesn't require an API key but the
 // go-openai library still sends an Authorization header — we use a dummy value
@@ -33,7 +47,7 @@ func NewClient(cfg *config.Config) *openai.Client {
 
 	// Override the BaseURL if provided in the configuration (crucial for Ollama/OpenRouter)
 	if cfg.LLM.BaseURL != "" {
-		baseURL := cfg.LLM.BaseURL
+		baseURL := normalizeBaseURL(cfg.LLM.BaseURL)
 
 		// Ollama's OpenAI-compatible endpoint lives under /v1.  The go-openai
 		// library appends "/chat/completions" to BaseURL, so BaseURL must end
@@ -95,7 +109,7 @@ func NewClientFromProvider(providerType, baseURL, apiKey string) *openai.Client 
 	clientConfig := openai.DefaultConfig(apiKey)
 
 	if baseURL != "" {
-		u := baseURL
+		u := normalizeBaseURL(baseURL)
 		if isOllama {
 			u = strings.TrimRight(u, "/")
 			if !strings.HasSuffix(u, "/v1") {

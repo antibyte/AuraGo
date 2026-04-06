@@ -163,6 +163,22 @@ func (c *Config) MigrateEmailAccounts() {
 	c.EmailAccounts = append(c.EmailAccounts, acct)
 }
 
+// normalizeBaseURL strips trailing "/chat/completions" (and variants) from a
+// provider base URL.  The go-openai library automatically appends
+// "/chat/completions" to BaseURL, so users who paste the full endpoint URL
+// end up with a doubled path like ".../chat/completions/chat/completions".
+// Stripping the suffix here normalises the URL for all subsystems at once.
+func normalizeBaseURL(u string) string {
+	u = strings.TrimRight(u, "/")
+	for _, suffix := range []string{"/chat/completions", "/v1/chat/completions"} {
+		if strings.HasSuffix(strings.ToLower(u), suffix) {
+			u = u[:len(u)-len(suffix)]
+			break
+		}
+	}
+	return u
+}
+
 // knownProviderTypes is the set of valid provider type strings. An entry whose
 // Type field is not in this set most likely has a typo in the config file.
 var knownProviderTypes = map[string]bool{
@@ -180,13 +196,15 @@ func (c *Config) ResolveProviders() {
 	c.migrateInlineProviders()
 	c.migrateBudgetModelsToProviders()
 
-	// Warn about unknown provider types so typos surface immediately at startup.
-	for _, p := range c.Providers {
+	// Normalise and validate every provider entry.
+	for i := range c.Providers {
+		p := &c.Providers[i]
 		lower := strings.ToLower(p.Type)
 		if lower != "" && !knownProviderTypes[lower] {
 			slog.Warn("[Config] Provider has unknown type — possible typo in config",
 				"provider_id", p.ID, "type", p.Type)
 		}
+		p.BaseURL = normalizeBaseURL(p.BaseURL)
 	}
 
 	// ── LLM ──
@@ -197,8 +215,7 @@ func (c *Config) ResolveProviders() {
 		c.LLM.Model = p.Model
 		c.LLM.AccountID = p.AccountID
 	} else if c.LLM.LegacyAPIKey != "" {
-		// Legacy fallback: use inline fields from old config format
-		c.LLM.BaseURL = c.LLM.LegacyURL
+		c.LLM.BaseURL = normalizeBaseURL(c.LLM.LegacyURL)
 		c.LLM.APIKey = c.LLM.LegacyAPIKey
 		c.LLM.Model = c.LLM.LegacyModel
 		c.LLM.ProviderType = c.LLM.Provider // old value is the type string
@@ -233,7 +250,7 @@ func (c *Config) ResolveProviders() {
 		c.FallbackLLM.Model = p.Model
 		c.FallbackLLM.AccountID = p.AccountID
 	} else if c.FallbackLLM.LegacyAPIKey != "" {
-		c.FallbackLLM.BaseURL = c.FallbackLLM.LegacyURL
+		c.FallbackLLM.BaseURL = normalizeBaseURL(c.FallbackLLM.LegacyURL)
 		c.FallbackLLM.APIKey = c.FallbackLLM.LegacyAPIKey
 		c.FallbackLLM.Model = c.FallbackLLM.LegacyModel
 	}
@@ -246,7 +263,7 @@ func (c *Config) ResolveProviders() {
 			c.Vision.APIKey = p.APIKey
 			c.Vision.Model = p.Model
 		} else if c.Vision.LegacyAPIKey != "" || c.Vision.LegacyURL != "" {
-			c.Vision.BaseURL = c.Vision.LegacyURL
+			c.Vision.BaseURL = normalizeBaseURL(c.Vision.LegacyURL)
 			c.Vision.APIKey = c.Vision.LegacyAPIKey
 			c.Vision.Model = c.Vision.LegacyModel
 		}
@@ -266,7 +283,7 @@ func (c *Config) ResolveProviders() {
 			c.Whisper.APIKey = p.APIKey
 			c.Whisper.Model = p.Model
 		} else if c.Whisper.LegacyAPIKey != "" || c.Whisper.LegacyURL != "" {
-			c.Whisper.BaseURL = c.Whisper.LegacyURL
+			c.Whisper.BaseURL = normalizeBaseURL(c.Whisper.LegacyURL)
 			c.Whisper.APIKey = c.Whisper.LegacyAPIKey
 			c.Whisper.Model = c.Whisper.LegacyModel
 		}
@@ -317,7 +334,7 @@ func (c *Config) ResolveProviders() {
 			c.CoAgents.LLM.APIKey = p.APIKey
 			c.CoAgents.LLM.Model = p.Model
 		} else if c.CoAgents.LLM.LegacyAPIKey != "" || c.CoAgents.LLM.LegacyURL != "" {
-			c.CoAgents.LLM.BaseURL = c.CoAgents.LLM.LegacyURL
+			c.CoAgents.LLM.BaseURL = normalizeBaseURL(c.CoAgents.LLM.LegacyURL)
 			c.CoAgents.LLM.APIKey = c.CoAgents.LLM.LegacyAPIKey
 			c.CoAgents.LLM.Model = c.CoAgents.LLM.LegacyModel
 		}
@@ -347,7 +364,7 @@ func (c *Config) ResolveProviders() {
 			c.A2A.LLM.APIKey = p.APIKey
 			c.A2A.LLM.Model = p.Model
 		} else if c.A2A.LLM.LegacyAPIKey != "" || c.A2A.LLM.LegacyURL != "" {
-			c.A2A.LLM.BaseURL = c.A2A.LLM.LegacyURL
+			c.A2A.LLM.BaseURL = normalizeBaseURL(c.A2A.LLM.LegacyURL)
 			c.A2A.LLM.APIKey = c.A2A.LLM.LegacyAPIKey
 			c.A2A.LLM.Model = c.A2A.LLM.LegacyModel
 		}
