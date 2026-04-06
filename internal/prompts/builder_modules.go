@@ -19,7 +19,7 @@ func parseOrFallback(filename, content string, logger *slog.Logger) PromptModule
 	mod, err := parsePromptModule(content)
 	if err != nil {
 		if logger != nil {
-			logger.Warn("Prompt module has no valid YAML frontmatter, using raw content as fallback",
+			logger.Debug("Prompt module has no valid YAML frontmatter, using raw content as fallback",
 				"file", filename, "error", err)
 		}
 		return PromptModule{
