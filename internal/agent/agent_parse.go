@@ -560,6 +560,26 @@ func ParseToolCall(content string) ToolCall {
 	// Stepfun / OpenRouter <tool_call> fallback
 	// Format 1: <function=name> ... </function>
 	// Format 2: <tool_calls><invoke name="..."> ... </invoke></tool_calls>
+	// Format 3: minimax:tool_call\n<invoke name="..."> ... </invoke> (MiniMax bare prefix, no wrapper tag)
+	if start := strings.Index(lowerContent, "minimax:tool_call"); start != -1 {
+		if invStart := strings.Index(lowerContent[start:], "<invoke name="); invStart != -1 {
+			invStart += start
+			invNameStart := invStart + 13
+			invEndChar := strings.Index(lowerContent[invNameStart:], ">")
+			if invEndChar != -1 {
+				tc.Action = strings.Trim(strings.TrimSpace(content[invNameStart:invNameStart+invEndChar]), "\"'")
+				if tc.Action != "" {
+					tc.IsTool = true
+					bodyStart := invNameStart + invEndChar + 1
+					bodyEnd := strings.Index(lowerContent[bodyStart:], "</invoke>")
+					if bodyEnd != -1 {
+						parseXMLParams(&tc, content[bodyStart:bodyStart+bodyEnd])
+					}
+					return tc
+				}
+			}
+		}
+	}
 	if start := strings.Index(lowerContent, "<tool_calls>"); start != -1 {
 		tc.IsTool = true
 		// Extract first invoke

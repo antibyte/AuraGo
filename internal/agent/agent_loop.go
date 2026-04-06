@@ -1264,13 +1264,18 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			// be reassembled: each chunk carries an Index identifying the call and
 			// incremental Function.Name / Function.Arguments fragments.
 			streamToolCalls := map[int]*openai.ToolCall{}
-			// SSE-level buffer to filter <done/> from the stream before it reaches the UI.
-			// <done/> is a completion signal stripped by parseToolResponse on the assembled
-			// response, but it would otherwise appear verbatim in the real-time chat display.
-			// We hold the last (len("<done/>")-1) bytes to detect the tag spanning chunk boundaries.
+			// SSE-level buffer to filter <done/> and minimax:tool_call XML blocks from the
+			// stream before they reach the UI.
+			// <done/> is a completion signal; minimax:tool_call is a raw XML tool call emitted
+			// by MiniMax-based models when a tool is not in the native schema (e.g. filtered by
+			// AdaptiveTools). Both must be stripped from the real-time chat display.
+			// We hold enough trailing bytes to catch either tag spanning chunk boundaries.
 			const doneTagStr = "<done/>"
-			const doneTagHoldLen = len(doneTagStr) - 1 // 6 bytes
+			const minimaxToolCallPrefix = "minimax:tool_call"
+			// holdLen must cover the longest tag prefix minus 1
+			const doneTagHoldLen = len(minimaxToolCallPrefix) - 1 // 16 bytes (≥ len("<done/>")-1 = 6)
 			doneTagStreamBuf := ""
+			xmlToolCallSuppressed := false // once true, suppress all remaining stream chunks
 			for {
 				chunk, rErr := stm.Recv()
 				if rErr != nil {
@@ -1302,10 +1307,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 								strings.Contains(trimmed, `"tool"`) || strings.Contains(trimmed, `"name"`) ||
 								strings.Contains(trimmed, `"arguments"`))
 						suppressForMiniMax := isToolCallJSON || (cfg.LLM.MiniMaxFix && isLikelyToolCallJSON)
-						if !suppressForMiniMax {
-							// Buffer content to filter <done/> before sending to SSE.
-							// Hold the last (len("<done/>")-1) bytes so a tag split across
-							// chunk boundaries is still caught and stripped.
+						if !suppressForMiniMax && !xmlToolCallSuppressed {
+							// Buffer content to filter <done/> and minimax:tool_call XML before sending to SSE.
+							// Hold the last (holdLen) bytes so a tag split across chunk boundaries is caught.
 							doneTagStreamBuf += delta.Content
 							var toSend string
 							if len(doneTagStreamBuf) > doneTagHoldLen {
@@ -1313,6 +1317,12 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 								doneTagStreamBuf = doneTagStreamBuf[len(doneTagStreamBuf)-doneTagHoldLen:]
 							}
 							toSend = strings.ReplaceAll(toSend, doneTagStr, "")
+							// Strip minimax:tool_call XML block and everything after it.
+							if idx := strings.Index(strings.ToLower(toSend), minimaxToolCallPrefix); idx != -1 {
+								toSend = toSend[:idx]
+								xmlToolCallSuppressed = true
+								doneTagStreamBuf = "" // discard buffered tail
+							}
 							if toSend != "" {
 								chunk.Choices[0].Delta.Content = toSend
 								if chunkData, mErr := json.Marshal(chunk); mErr == nil {
@@ -1328,10 +1338,14 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				}
 			}
 			stm.Close()
-			// Flush the <done/> stream-filter buffer. Any remaining bytes are either
-			// a partial <done/> prefix (strip it) or safe final content (send it).
-			if doneTagStreamBuf != "" {
+			// Flush the stream-filter buffer. Any remaining bytes are either
+			// a partial tag prefix (strip it) or safe final content (send it).
+			if doneTagStreamBuf != "" && !xmlToolCallSuppressed {
 				remaining := strings.ReplaceAll(doneTagStreamBuf, doneTagStr, "")
+				// Also strip any trailing minimax:tool_call prefix fragment.
+				if idx := strings.Index(strings.ToLower(remaining), minimaxToolCallPrefix); idx != -1 {
+					remaining = remaining[:idx]
+				}
 				if remaining != "" {
 					remainingJSON, _ := json.Marshal(remaining)
 					broker.SendJSON(fmt.Sprintf("data: {\"choices\":[{\"delta\":{\"content\":%s},\"finish_reason\":null}]}\n\n", string(remainingJSON)))
