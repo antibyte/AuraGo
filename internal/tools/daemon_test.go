@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io"
 	"log/slog"
+	"sync"
 	"testing"
 	"time"
 )
@@ -416,4 +417,363 @@ func TestDaemonRunner_CanRestart(t *testing.T) {
 // noopLogger returns a logger that discards all output.
 func noopLogger() *slog.Logger {
 	return slog.New(slog.NewTextHandler(io.Discard, nil))
+}
+
+// ---------------------------------------------------------------------------
+// WakeUpGate tests
+// ---------------------------------------------------------------------------
+
+func TestWakeUpGate_GlobalDisabled(t *testing.T) {
+	gate := NewWakeUpGate(WakeUpGateConfig{
+		GlobalEnabled:       false,
+		GlobalRateLimitSecs: 1,
+	}, nil, noopLogger())
+	gate.RegisterSkill("s1", true, 1)
+
+	ok, denial := gate.Allow("s1")
+	if ok {
+		t.Error("expected denial when globally disabled")
+	}
+	if denial.Layer != "global_toggle" {
+		t.Errorf("expected layer global_toggle, got %q", denial.Layer)
+	}
+}
+
+func TestWakeUpGate_SkillToggleOff(t *testing.T) {
+	gate := NewWakeUpGate(WakeUpGateConfig{
+		GlobalEnabled:       true,
+		GlobalRateLimitSecs: 1,
+	}, nil, noopLogger())
+	gate.RegisterSkill("s1", false, 1)
+
+	ok, denial := gate.Allow("s1")
+	if ok {
+		t.Error("expected denial when skill toggle off")
+	}
+	if denial.Layer != "skill_toggle" {
+		t.Errorf("expected layer skill_toggle, got %q", denial.Layer)
+	}
+}
+
+func TestWakeUpGate_UnregisteredSkill(t *testing.T) {
+	gate := NewWakeUpGate(WakeUpGateConfig{
+		GlobalEnabled:       true,
+		GlobalRateLimitSecs: 1,
+	}, nil, noopLogger())
+
+	ok, denial := gate.Allow("unknown")
+	if ok {
+		t.Error("expected denial for unregistered skill")
+	}
+	if denial.Layer != "skill_not_registered" {
+		t.Errorf("expected layer skill_not_registered, got %q", denial.Layer)
+	}
+}
+
+func TestWakeUpGate_AllowAndRateLimit(t *testing.T) {
+	gate := NewWakeUpGate(WakeUpGateConfig{
+		GlobalEnabled:       true,
+		GlobalRateLimitSecs: 1,
+		MaxWakeUpsPerHour:   100,
+	}, nil, noopLogger())
+	gate.RegisterSkill("s1", true, 60) // minimum 60s between wakes
+
+	// First call should be allowed
+	ok, denial := gate.Allow("s1")
+	if !ok {
+		t.Fatalf("expected first wake-up to be allowed, got denial: %v", denial)
+	}
+	gate.RecordWakeUp("s1", 0.01)
+
+	// Immediate second call should be rate-limited (per-skill)
+	ok, denial = gate.Allow("s1")
+	if ok {
+		t.Error("expected second wake-up to be rate-limited")
+	}
+	if denial.Layer != "skill_rate_limit" && denial.Layer != "global_rate_limit" {
+		t.Errorf("expected rate limit denial, got layer %q", denial.Layer)
+	}
+}
+
+func TestWakeUpGate_GlobalRateLimit(t *testing.T) {
+	gate := NewWakeUpGate(WakeUpGateConfig{
+		GlobalEnabled:       true,
+		GlobalRateLimitSecs: 600, // 10 min global
+		MaxWakeUpsPerHour:   100,
+	}, nil, noopLogger())
+	gate.RegisterSkill("s1", true, 1) // 1s per-skill, but global is 600s
+
+	ok, _ := gate.Allow("s1")
+	if !ok {
+		t.Fatal("expected first wake-up to be allowed")
+	}
+	gate.RecordWakeUp("s1", 0)
+
+	// Register another skill — should still be blocked by global rate limit
+	gate.RegisterSkill("s2", true, 1)
+	ok, denial := gate.Allow("s2")
+	if ok {
+		t.Error("expected global rate limit to block second skill")
+	}
+	if denial.Layer != "global_rate_limit" {
+		t.Errorf("expected global_rate_limit layer, got %q", denial.Layer)
+	}
+}
+
+func TestWakeUpGate_Escalation(t *testing.T) {
+	gate := NewWakeUpGate(WakeUpGateConfig{
+		GlobalEnabled:       true,
+		GlobalRateLimitSecs: 1,
+		MaxWakeUpsPerHour:   100,
+	}, nil, noopLogger())
+	gate.RegisterSkill("s1", true, 10) // 10s base
+
+	// Simulate consecutive wake-ups
+	gate.RecordWakeUp("s1", 0.01)
+	gate.RecordWakeUp("s1", 0.01)
+	gate.RecordWakeUp("s1", 0.01)
+
+	gate.mu.RLock()
+	skill := gate.skills["s1"]
+	factor := skill.escalationFactor
+	gate.mu.RUnlock()
+
+	if factor <= 1.0 {
+		t.Errorf("expected escalation factor > 1.0, got %f", factor)
+	}
+}
+
+func TestWakeUpGate_ResetEscalation(t *testing.T) {
+	gate := NewWakeUpGate(WakeUpGateConfig{
+		GlobalEnabled:       true,
+		GlobalRateLimitSecs: 1,
+		MaxWakeUpsPerHour:   100,
+	}, nil, noopLogger())
+	gate.RegisterSkill("s1", true, 10)
+
+	gate.RecordWakeUp("s1", 0.01)
+	gate.RecordWakeUp("s1", 0.01)
+
+	gate.ResetEscalation("s1")
+
+	gate.mu.RLock()
+	factor := gate.skills["s1"].escalationFactor
+	gate.mu.RUnlock()
+
+	if factor != 1.0 {
+		t.Errorf("expected escalation reset to 1.0, got %f", factor)
+	}
+}
+
+func TestWakeUpGate_CircuitBreaker(t *testing.T) {
+	gate := NewWakeUpGate(WakeUpGateConfig{
+		GlobalEnabled:       true,
+		GlobalRateLimitSecs: 1,
+		MaxWakeUpsPerHour:   3,
+	}, nil, noopLogger())
+	gate.RegisterSkill("s1", true, 1)
+
+	// Record 3 wakes — should trigger circuit breaker
+	for i := 0; i < 3; i++ {
+		gate.RecordWakeUp("s1", 0)
+	}
+
+	if !gate.ShouldAutoDisable("s1") {
+		t.Error("expected circuit breaker to trigger after max wakes per hour")
+	}
+}
+
+func TestWakeUpGate_HourlyBudget(t *testing.T) {
+	gate := NewWakeUpGate(WakeUpGateConfig{
+		GlobalEnabled:       true,
+		GlobalRateLimitSecs: 1,
+		MaxBudgetPerHourUSD: 0.10,
+		MaxWakeUpsPerHour:   100,
+	}, nil, noopLogger())
+	gate.RegisterSkill("s1", true, 1)
+
+	// Record wake-ups that exceed the hourly budget
+	gate.RecordWakeUp("s1", 0.05)
+	gate.RecordWakeUp("s1", 0.06)
+
+	// Manually reset global + skill timestamps so rate limit doesn't interfere
+	gate.mu.Lock()
+	gate.lastGlobalWake = time.Time{}
+	gate.skills["s1"].lastWake = time.Time{}
+	gate.skills["s1"].escalationFactor = 1.0
+	gate.mu.Unlock()
+
+	ok, denial := gate.Allow("s1")
+	if ok {
+		t.Error("expected hourly budget to block wake-up")
+	}
+	if denial.Layer != "hourly_budget" {
+		t.Errorf("expected hourly_budget layer, got %q", denial.Layer)
+	}
+}
+
+func TestWakeUpGate_Stats(t *testing.T) {
+	gate := NewWakeUpGate(WakeUpGateConfig{
+		GlobalEnabled:       true,
+		GlobalRateLimitSecs: 1,
+		MaxWakeUpsPerHour:   100,
+	}, nil, noopLogger())
+	gate.RegisterSkill("s1", true, 1)
+
+	gate.RecordWakeUp("s1", 0)
+	gate.RecordWakeUp("s1", 0)
+	gate.RecordSuppressed("s1")
+
+	wakes, suppressed := gate.Stats("s1")
+	if wakes != 2 {
+		t.Errorf("expected 2 wakes, got %d", wakes)
+	}
+	if suppressed != 1 {
+		t.Errorf("expected 1 suppressed, got %d", suppressed)
+	}
+}
+
+func TestWakeUpGate_SetGlobalEnabled(t *testing.T) {
+	gate := NewWakeUpGate(WakeUpGateConfig{
+		GlobalEnabled:       false,
+		GlobalRateLimitSecs: 1,
+	}, nil, noopLogger())
+	gate.RegisterSkill("s1", true, 1)
+
+	ok, _ := gate.Allow("s1")
+	if ok {
+		t.Error("expected denial with global disabled")
+	}
+
+	gate.SetGlobalEnabled(true)
+	ok, _ = gate.Allow("s1")
+	if !ok {
+		t.Error("expected allow after enabling globally")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// DaemonSupervisor tests
+// ---------------------------------------------------------------------------
+
+// mockBroadcaster implements DaemonEventBroadcaster for testing.
+type mockBroadcaster struct {
+	mu     sync.Mutex
+	events []mockEvent
+}
+
+type mockEvent struct {
+	Type    string
+	Payload any
+}
+
+func (b *mockBroadcaster) BroadcastDaemonEvent(eventType string, payload any) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.events = append(b.events, mockEvent{Type: eventType, Payload: payload})
+}
+
+func (b *mockBroadcaster) eventCount() int {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return len(b.events)
+}
+
+func TestDaemonSupervisor_NewAndDefaults(t *testing.T) {
+	sv := NewDaemonSupervisor(
+		DaemonSupervisorConfig{Enabled: true},
+		nil,
+		nil,
+		NewBackgroundTaskManager(t.TempDir(), noopLogger()),
+		&mockBroadcaster{},
+		noopLogger(),
+	)
+	if sv == nil {
+		t.Fatal("expected non-nil supervisor")
+	}
+	if sv.config.MaxConcurrentDaemons != 5 {
+		t.Errorf("expected default MaxConcurrentDaemons=5, got %d", sv.config.MaxConcurrentDaemons)
+	}
+	if sv.RunnerCount() != 0 {
+		t.Errorf("expected 0 runners initially, got %d", sv.RunnerCount())
+	}
+}
+
+func TestDaemonSupervisor_DisabledStart(t *testing.T) {
+	sv := NewDaemonSupervisor(
+		DaemonSupervisorConfig{Enabled: false},
+		nil, nil,
+		NewBackgroundTaskManager(t.TempDir(), noopLogger()),
+		nil,
+		noopLogger(),
+	)
+	if err := sv.Start(); err != nil {
+		t.Fatalf("expected no error when disabled, got: %v", err)
+	}
+}
+
+func TestDaemonSupervisor_ListDaemonsEmpty(t *testing.T) {
+	sv := NewDaemonSupervisor(
+		DaemonSupervisorConfig{Enabled: true},
+		nil, nil,
+		NewBackgroundTaskManager(t.TempDir(), noopLogger()),
+		nil,
+		noopLogger(),
+	)
+	states := sv.ListDaemons()
+	if len(states) != 0 {
+		t.Errorf("expected empty daemon list, got %d", len(states))
+	}
+}
+
+func TestDaemonSupervisor_StopIdempotent(t *testing.T) {
+	sv := NewDaemonSupervisor(
+		DaemonSupervisorConfig{Enabled: true},
+		nil, nil,
+		NewBackgroundTaskManager(t.TempDir(), noopLogger()),
+		nil,
+		noopLogger(),
+	)
+	// Multiple stops should not panic
+	sv.Stop()
+	sv.Stop()
+}
+
+func TestDaemonSupervisor_StopDaemonNotFound(t *testing.T) {
+	sv := NewDaemonSupervisor(
+		DaemonSupervisorConfig{Enabled: true},
+		nil, nil,
+		NewBackgroundTaskManager(t.TempDir(), noopLogger()),
+		nil,
+		noopLogger(),
+	)
+	err := sv.StopDaemon("nonexistent")
+	if err == nil {
+		t.Error("expected error for nonexistent daemon")
+	}
+}
+
+func TestDaemonSupervisor_GateAccess(t *testing.T) {
+	sv := NewDaemonSupervisor(
+		DaemonSupervisorConfig{
+			Enabled: true,
+			WakeUpGate: WakeUpGateConfig{
+				GlobalEnabled:       true,
+				GlobalRateLimitSecs: 60,
+			},
+		},
+		nil, nil,
+		NewBackgroundTaskManager(t.TempDir(), noopLogger()),
+		nil,
+		noopLogger(),
+	)
+	gate := sv.Gate()
+	if gate == nil {
+		t.Fatal("expected non-nil gate")
+	}
+	gate.RegisterSkill("test-skill", true, 60)
+	ok, _ := gate.Allow("test-skill")
+	if !ok {
+		t.Error("expected gate to allow first wake-up")
+	}
 }

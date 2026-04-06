@@ -171,14 +171,47 @@ func InitSkillsDB(dbPath string) (*sql.DB, error) {
 		db.Close()
 		return nil, fmt.Errorf("failed to create skills schema: %w", err)
 	}
-	for _, stmt := range []string{
+	// Migrations: add columns and tables idempotently (duplicate column errors are ignored)
+	migrations := []string{
 		"ALTER TABLE skills_registry ADD COLUMN category TEXT DEFAULT ''",
 		"ALTER TABLE skills_registry ADD COLUMN tags TEXT",
-	} {
+		// Daemon support columns
+		"ALTER TABLE skills_registry ADD COLUMN daemon_enabled INTEGER DEFAULT 0",
+		"ALTER TABLE skills_registry ADD COLUMN daemon_status TEXT DEFAULT 'stopped'",
+		"ALTER TABLE skills_registry ADD COLUMN daemon_pid INTEGER DEFAULT 0",
+		"ALTER TABLE skills_registry ADD COLUMN daemon_started_at DATETIME",
+		"ALTER TABLE skills_registry ADD COLUMN daemon_restart_count INTEGER DEFAULT 0",
+		"ALTER TABLE skills_registry ADD COLUMN daemon_last_error TEXT DEFAULT ''",
+		"ALTER TABLE skills_registry ADD COLUMN daemon_auto_disabled INTEGER DEFAULT 0",
+	}
+	for _, stmt := range migrations {
 		if _, err := db.Exec(stmt); err != nil && !strings.Contains(strings.ToLower(err.Error()), "duplicate column name") {
 			db.Close()
 			return nil, fmt.Errorf("failed to migrate skills schema: %w", err)
 		}
+	}
+
+	// Create daemon wake-up log table
+	daemonTables := `
+	CREATE TABLE IF NOT EXISTS daemon_wakeup_log (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		skill_id TEXT NOT NULL,
+		skill_name TEXT,
+		event_type TEXT NOT NULL DEFAULT 'wake_agent',
+		severity TEXT DEFAULT 'info',
+		message TEXT,
+		allowed INTEGER DEFAULT 1,
+		deny_reason TEXT,
+		deny_layer TEXT,
+		cost_usd REAL DEFAULT 0,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	);
+	CREATE INDEX IF NOT EXISTS idx_daemon_wakeup_skill ON daemon_wakeup_log(skill_id, created_at DESC);
+	CREATE INDEX IF NOT EXISTS idx_daemon_wakeup_created ON daemon_wakeup_log(created_at DESC);
+	`
+	if _, err := db.Exec(daemonTables); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("failed to create daemon tables: %w", err)
 	}
 
 	return db, nil

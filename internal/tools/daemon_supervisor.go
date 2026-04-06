@@ -1,0 +1,472 @@
+package tools
+
+import (
+	"fmt"
+	"log/slog"
+	"os"
+	"path/filepath"
+	"sync"
+	"time"
+
+	"aurago/internal/budget"
+)
+
+// DaemonSSEEventType identifies daemon-related SSE events.
+// These are string constants compatible with server.SSEEventType.
+const (
+	DaemonSSEStatus       = "daemon_status"
+	DaemonSSEWakeUp       = "daemon_wakeup"
+	DaemonSSEAutoDisabled = "daemon_auto_disabled"
+)
+
+// DaemonEventBroadcaster abstracts SSE broadcasting to avoid an import cycle with server.
+type DaemonEventBroadcaster interface {
+	BroadcastDaemonEvent(eventType string, payload any)
+}
+
+// DaemonSupervisorConfig holds configuration for the DaemonSupervisor.
+type DaemonSupervisorConfig struct {
+	Enabled               bool
+	MaxConcurrentDaemons  int
+	WakeUpGate            WakeUpGateConfig
+	WorkspaceDir          string
+	SkillsDir             string
+	LogDir                string // defaults to data/daemon_logs
+}
+
+// DaemonSupervisor orchestrates all daemon skill processes.
+// It discovers daemon skills, starts/stops DaemonRunners, and dispatches wake-up events.
+type DaemonSupervisor struct {
+	mu sync.RWMutex
+
+	config   DaemonSupervisorConfig
+	runners  map[string]*DaemonRunner // skill ID → runner
+	gate     *WakeUpGate
+	wakeCh   chan daemonWakeEvent
+	stopCh   chan struct{}
+	stopped  bool
+
+	// Dependencies
+	registry    *ProcessRegistry
+	taskManager *BackgroundTaskManager
+	broadcaster DaemonEventBroadcaster
+	logger      *slog.Logger
+}
+
+// NewDaemonSupervisor creates a new DaemonSupervisor.
+func NewDaemonSupervisor(
+	cfg DaemonSupervisorConfig,
+	budgetTracker *budget.Tracker,
+	registry *ProcessRegistry,
+	taskManager *BackgroundTaskManager,
+	broadcaster DaemonEventBroadcaster,
+	logger *slog.Logger,
+) *DaemonSupervisor {
+	if cfg.MaxConcurrentDaemons <= 0 {
+		cfg.MaxConcurrentDaemons = 5
+	}
+	if cfg.LogDir == "" {
+		cfg.LogDir = filepath.Join("data", "daemon_logs")
+	}
+
+	gate := NewWakeUpGate(cfg.WakeUpGate, budgetTracker, logger)
+
+	return &DaemonSupervisor{
+		config:      cfg,
+		runners:     make(map[string]*DaemonRunner),
+		gate:        gate,
+		wakeCh:      make(chan daemonWakeEvent, 64),
+		stopCh:      make(chan struct{}),
+		registry:    registry,
+		taskManager: taskManager,
+		broadcaster: broadcaster,
+		logger:      logger.With("component", "daemon_supervisor"),
+	}
+}
+
+// Gate returns the WakeUpGate for external configuration (e.g., REST API toggle).
+func (s *DaemonSupervisor) Gate() *WakeUpGate {
+	return s.gate
+}
+
+// Start discovers daemon skills and starts enabled ones, then begins the wake-up dispatcher.
+func (s *DaemonSupervisor) Start() error {
+	if !s.config.Enabled {
+		s.logger.Info("Daemon supervisor disabled")
+		return nil
+	}
+
+	// Ensure log directory exists
+	if err := os.MkdirAll(s.config.LogDir, 0755); err != nil {
+		return fmt.Errorf("create daemon log dir: %w", err)
+	}
+
+	// Discover daemon skills
+	skills, err := ListSkills(s.config.SkillsDir)
+	if err != nil {
+		return fmt.Errorf("list skills for daemon discovery: %w", err)
+	}
+
+	running := 0
+	for _, manifest := range skills {
+		if manifest.Daemon == nil || !manifest.Daemon.Enabled {
+			continue
+		}
+		if running >= s.config.MaxConcurrentDaemons {
+			s.logger.Warn("Max concurrent daemons reached, skipping remaining",
+				"max", s.config.MaxConcurrentDaemons, "skill", manifest.Name)
+			break
+		}
+		if err := s.startRunner(manifest); err != nil {
+			s.logger.Error("Failed to start daemon", "skill", manifest.Name, "error", err)
+			continue
+		}
+		running++
+	}
+
+	// Start the wake-up dispatcher goroutine
+	go s.wakeUpDispatcher()
+
+	s.logger.Info("Daemon supervisor started", "active_daemons", running)
+	return nil
+}
+
+// Stop gracefully shuts down all daemons and the wake-up dispatcher.
+func (s *DaemonSupervisor) Stop() {
+	s.mu.Lock()
+	if s.stopped {
+		s.mu.Unlock()
+		return
+	}
+	s.stopped = true
+	close(s.stopCh)
+	runners := make([]*DaemonRunner, 0, len(s.runners))
+	for _, r := range s.runners {
+		runners = append(runners, r)
+	}
+	s.mu.Unlock()
+
+	for _, r := range runners {
+		if err := r.Stop(); err != nil {
+			s.logger.Warn("Error stopping daemon", "skill_id", r.skillID, "error", err)
+		}
+	}
+	s.logger.Info("Daemon supervisor stopped", "daemons_stopped", len(runners))
+}
+
+// startRunner creates and starts a DaemonRunner for the given manifest.
+// Caller must NOT hold s.mu for write operations on s.runners — this method acquires it.
+func (s *DaemonSupervisor) startRunner(manifest SkillManifest) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	skillID := manifest.Name // use skill name as ID (same as skill system convention)
+
+	if _, exists := s.runners[skillID]; exists {
+		return fmt.Errorf("daemon runner already exists for %q", skillID)
+	}
+
+	daemon := *manifest.Daemon
+	daemon.ApplyDefaults()
+
+	runner := NewDaemonRunner(DaemonRunnerConfig{
+		SkillID:      skillID,
+		SkillName:    manifest.Name,
+		Config:       daemon,
+		Manifest:     manifest,
+		WorkspaceDir: s.config.WorkspaceDir,
+		SkillsDir:    s.config.SkillsDir,
+		Registry:     s.registry,
+		LogDir:       s.config.LogDir,
+		Logger:       s.logger,
+		WakeCh:       s.wakeCh,
+	})
+
+	// Register in the wake-up gate
+	s.gate.RegisterSkill(skillID, daemon.WakeAgent, daemon.WakeRateLimitSeconds)
+
+	// Start the runner (lock is released internally by runner.Start())
+	if err := runner.Start(); err != nil {
+		s.gate.UnregisterSkill(skillID)
+		return fmt.Errorf("start daemon runner: %w", err)
+	}
+
+	s.runners[skillID] = runner
+	s.broadcastStatus(skillID, runner)
+	return nil
+}
+
+// StopDaemon stops a specific daemon by skill ID.
+func (s *DaemonSupervisor) StopDaemon(skillID string) error {
+	s.mu.RLock()
+	runner, ok := s.runners[skillID]
+	s.mu.RUnlock()
+	if !ok {
+		return fmt.Errorf("no daemon runner for skill %q", skillID)
+	}
+	if err := runner.Stop(); err != nil {
+		return err
+	}
+	s.broadcastStatus(skillID, runner)
+	return nil
+}
+
+// StartDaemon starts (or restarts) a specific daemon by skill ID.
+func (s *DaemonSupervisor) StartDaemon(skillID string) error {
+	s.mu.RLock()
+	runner, ok := s.runners[skillID]
+	s.mu.RUnlock()
+	if !ok {
+		return fmt.Errorf("no daemon runner for skill %q", skillID)
+	}
+	if err := runner.Start(); err != nil {
+		return err
+	}
+	s.broadcastStatus(skillID, runner)
+	return nil
+}
+
+// ReenableDaemon clears the auto-disabled flag and allows restart.
+func (s *DaemonSupervisor) ReenableDaemon(skillID string) error {
+	s.mu.RLock()
+	runner, ok := s.runners[skillID]
+	s.mu.RUnlock()
+	if !ok {
+		return fmt.Errorf("no daemon runner for skill %q", skillID)
+	}
+	runner.Reenable()
+	s.gate.ResetEscalation(skillID)
+	s.broadcastStatus(skillID, runner)
+	return nil
+}
+
+// ListDaemons returns the state of all registered daemons.
+func (s *DaemonSupervisor) ListDaemons() []DaemonState {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	states := make([]DaemonState, 0, len(s.runners))
+	for _, r := range s.runners {
+		states = append(states, r.State())
+	}
+	return states
+}
+
+// GetDaemonState returns the state for a specific daemon.
+func (s *DaemonSupervisor) GetDaemonState(skillID string) (DaemonState, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	runner, ok := s.runners[skillID]
+	if !ok {
+		return DaemonState{}, false
+	}
+	return runner.State(), true
+}
+
+// RunnerCount returns the number of registered daemons.
+func (s *DaemonSupervisor) RunnerCount() int {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return len(s.runners)
+}
+
+// wakeUpDispatcher reads wake-up events from the shared channel and dispatches them
+// through the WakeUpGate to the BackgroundTaskManager.
+func (s *DaemonSupervisor) wakeUpDispatcher() {
+	for {
+		select {
+		case <-s.stopCh:
+			return
+		case event := <-s.wakeCh:
+			s.handleWakeUp(event)
+		}
+	}
+}
+
+// handleWakeUp processes a single wake-up event from a daemon.
+func (s *DaemonSupervisor) handleWakeUp(event daemonWakeEvent) {
+	skillID := event.SkillID
+
+	// Check wake-up gate
+	allowed, denial := s.gate.Allow(skillID)
+	if !allowed {
+		s.logger.Info("Wake-up denied",
+			"skill_id", skillID,
+			"layer", denial.Layer,
+			"reason", denial.Reason,
+		)
+		s.gate.RecordSuppressed(skillID)
+
+		s.mu.RLock()
+		if runner, ok := s.runners[skillID]; ok {
+			runner.IncrementSuppressed()
+		}
+		s.mu.RUnlock()
+
+		// Check if circuit breaker should auto-disable
+		if s.gate.ShouldAutoDisable(skillID) {
+			s.autoDisableDaemon(skillID, "circuit breaker: too many wake-ups per hour")
+		}
+		return
+	}
+
+	// Build the prompt that the agent will see
+	prompt := s.buildWakeUpPrompt(event)
+
+	// Record the wake-up (cost is unknown until execution; record 0 for now)
+	s.gate.RecordWakeUp(skillID, 0)
+
+	s.mu.RLock()
+	if runner, ok := s.runners[skillID]; ok {
+		runner.IncrementWakeUp()
+	}
+	s.mu.RUnlock()
+
+	// Dispatch to BackgroundTaskManager
+	_, err := s.taskManager.ScheduleCronPrompt(prompt, BackgroundTaskScheduleOptions{
+		Source:      fmt.Sprintf("daemon:%s", skillID),
+		Description: fmt.Sprintf("Daemon wake-up from %s", event.SkillName),
+	})
+	if err != nil {
+		s.logger.Error("Failed to schedule daemon wake-up",
+			"skill_id", skillID,
+			"error", err,
+		)
+		return
+	}
+
+	s.logger.Info("Daemon wake-up dispatched",
+		"skill_id", skillID,
+		"severity", event.Message.Severity,
+	)
+
+	// Broadcast SSE event
+	if s.broadcaster != nil {
+		s.broadcaster.BroadcastDaemonEvent(DaemonSSEWakeUp, map[string]any{
+			"skill_id":   skillID,
+			"skill_name": event.SkillName,
+			"severity":   event.Message.Severity,
+			"message":    truncateString(event.Message.Message, 200),
+			"timestamp":  time.Now().Format(time.RFC3339),
+		})
+	}
+}
+
+// buildWakeUpPrompt constructs the prompt that the agent loop will receive.
+func (s *DaemonSupervisor) buildWakeUpPrompt(event daemonWakeEvent) string {
+	severity := event.Message.Severity
+	if severity == "" {
+		severity = "info"
+	}
+
+	prompt := fmt.Sprintf("[DAEMON EVENT — %s] (severity: %s)\n%s",
+		event.SkillName,
+		severity,
+		event.Message.Message,
+	)
+
+	if event.Message.Data != nil {
+		prompt += fmt.Sprintf("\n\nAdditional data: %s", string(event.Message.Data))
+	}
+
+	return prompt
+}
+
+// autoDisableDaemon stops a daemon and marks it as auto-disabled.
+func (s *DaemonSupervisor) autoDisableDaemon(skillID, reason string) {
+	s.mu.RLock()
+	runner, ok := s.runners[skillID]
+	s.mu.RUnlock()
+	if !ok {
+		return
+	}
+
+	runner.Disable(reason)
+
+	s.logger.Warn("Daemon auto-disabled by circuit breaker",
+		"skill_id", skillID,
+		"reason", reason,
+	)
+
+	// Broadcast SSE event
+	if s.broadcaster != nil {
+		s.broadcaster.BroadcastDaemonEvent(DaemonSSEAutoDisabled, map[string]any{
+			"skill_id":   skillID,
+			"skill_name": runner.skillName,
+			"reason":     reason,
+			"timestamp":  time.Now().Format(time.RFC3339),
+		})
+	}
+}
+
+// broadcastStatus sends the current daemon state via SSE.
+func (s *DaemonSupervisor) broadcastStatus(skillID string, runner *DaemonRunner) {
+	if s.broadcaster == nil {
+		return
+	}
+	state := runner.State()
+	s.broadcaster.BroadcastDaemonEvent(DaemonSSEStatus, state)
+}
+
+// RefreshSkills re-scans the skills directory and starts/stops daemons as needed.
+func (s *DaemonSupervisor) RefreshSkills() error {
+	if !s.config.Enabled {
+		return nil
+	}
+
+	skills, err := ListSkills(s.config.SkillsDir)
+	if err != nil {
+		return fmt.Errorf("list skills for refresh: %w", err)
+	}
+
+	// Build a set of daemon skills that should be running
+	desired := make(map[string]SkillManifest)
+	for _, m := range skills {
+		if m.Daemon != nil && m.Daemon.Enabled {
+			desired[m.Name] = m
+		}
+	}
+
+	s.mu.RLock()
+	currentIDs := make([]string, 0, len(s.runners))
+	for id := range s.runners {
+		currentIDs = append(currentIDs, id)
+	}
+	s.mu.RUnlock()
+
+	// Stop runners that are no longer desired
+	for _, id := range currentIDs {
+		if _, wanted := desired[id]; !wanted {
+			s.logger.Info("Stopping removed/disabled daemon", "skill_id", id)
+			_ = s.StopDaemon(id)
+			s.gate.UnregisterSkill(id)
+			s.mu.Lock()
+			delete(s.runners, id)
+			s.mu.Unlock()
+		}
+	}
+
+	// Start new daemons
+	s.mu.RLock()
+	running := len(s.runners)
+	s.mu.RUnlock()
+
+	for id, manifest := range desired {
+		s.mu.RLock()
+		_, exists := s.runners[id]
+		s.mu.RUnlock()
+		if exists {
+			continue
+		}
+		if running >= s.config.MaxConcurrentDaemons {
+			s.logger.Warn("Max concurrent daemons reached during refresh", "max", s.config.MaxConcurrentDaemons)
+			break
+		}
+		if err := s.startRunner(manifest); err != nil {
+			s.logger.Error("Failed to start daemon during refresh", "skill", id, "error", err)
+			continue
+		}
+		running++
+	}
+
+	return nil
+}
