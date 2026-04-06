@@ -73,6 +73,54 @@ var knownContextWindows = []struct {
 	{"nemotron-51b", 131_072},
 	{"nemotron-70b", 131_072},
 	{"nemotron", 131_072},
+	// ZhipuAI GLM models (direct api.bigmodel.cn / open.bigmodel.cn)
+	{"glm-4-long", 1_000_000},
+	{"glm-4", 128_000},
+	{"glm-z1", 32_000},
+	{"glm-", 128_000},
+	// Alibaba Qwen (direct / compatible gateway)
+	{"qwen-long", 10_000_000},
+	{"qwen-turbo", 1_000_000},
+	{"qwen-plus", 131_072},
+	{"qwen-max", 131_072},
+	{"qwen2.5-72b", 131_072},
+	{"qwen2.5-32b", 131_072},
+	{"qwen2.5-14b", 131_072},
+	{"qwen2.5-7b", 131_072},
+	{"qwen2.5-coder", 131_072},
+	{"qwen2.5-", 131_072},
+	{"qwen2-72b", 131_072},
+	{"qwen2-", 131_072},
+	{"qwq-32b", 131_072},
+	{"qwq-", 131_072},
+	// Meta Llama (direct / Ollama / HF)
+	{"llama-3.3", 131_072},
+	{"llama-3.2", 131_072},
+	{"llama-3.1", 131_072},
+	{"llama-3", 131_072},
+	{"llama3", 131_072},
+	// Falcon, Phi, Mixtral, Command R (common self-hosted)
+	{"phi-4", 16_384},
+	{"phi-3.5", 131_072},
+	{"phi-3", 131_072},
+	{"mixtral-8x22b", 65_536},
+	{"mixtral-8x7b", 32_768},
+	{"mixtral", 32_768},
+	{"command-r-plus", 131_072},
+	{"command-r", 131_072},
+	{"command-a", 256_000},
+	// Grok (xAI)
+	{"grok-3", 131_072},
+	{"grok-2", 131_072},
+	{"grok-", 131_072},
+	// Yi (01.ai)
+	{"yi-large", 32_768},
+	{"yi-medium", 200_000},
+	{"yi-", 32_768},
+	// Baidu ERNIE
+	{"ernie-4.5", 131_072},
+	{"ernie-4", 131_072},
+	{"ernie-", 8_192},
 }
 
 // lookupKnownContextWindow returns the known context window for a model based on the
@@ -96,8 +144,16 @@ func DetectContextWindow(baseURL, apiKey, model, provider string, logger *slog.L
 		logger.Info("[ContextDetect] Using known context window from static table", "model", model, "context_length", ctxLen)
 		return ctxLen
 	}
-	if strings.EqualFold(provider, "ollama") {
+	lowerProvider := strings.ToLower(provider)
+	if lowerProvider == "ollama" {
 		return detectContextWindowOllama(baseURL, model, logger)
+	}
+	// Anthropic's /v1/models endpoint exists but does NOT return context_length.
+	// All Claude models should already be covered by the static table above.
+	// Skip the API call to avoid a useless HTTP request that always returns 0.
+	if lowerProvider == "anthropic" {
+		logger.Debug("[ContextDetect] Anthropic provider: static table is authoritative, skipping API query", "model", model)
+		return 0
 	}
 	return detectContextWindowOpenRouter(baseURL, apiKey, model, logger)
 }
@@ -167,27 +223,52 @@ func detectContextWindowOllama(baseURL, model string, logger *slog.Logger) int {
 
 // detectContextWindowOpenRouter queries the OpenRouter models API.
 func detectContextWindowOpenRouter(baseURL, apiKey, model string, logger *slog.Logger) int {
-	// Normalise: strip any trailing /v1 or / so we can always append /api/v1/models
+	// Normalise: strip any trailing / so we can always append the path cleanly.
 	base := strings.TrimRight(baseURL, "/")
-	if strings.HasSuffix(base, "/v1") {
-		base = strings.TrimSuffix(base, "/v1")
+
+	// Build a prioritised list of candidate URLs to try.
+	// Different provider APIs host their model list at different paths:
+	//   - OpenRouter / LiteLLM: <base>/api/v1/models  (base already ends with /api or not)
+	//   - Standard OpenAI-compatible: <base>/v1/models  or  <base>/models
+	//   - Self-hosted (base has /v1): strip /v1 then try /v1/models
+	var candidates []string
+	stripped := base
+	if strings.HasSuffix(stripped, "/v1") {
+		stripped = strings.TrimSuffix(stripped, "/v1")
 	}
-	// For standard OpenRouter-style APIs the models list is at /api/v1/models;
-	// if the base already ends with /api, just append /v1/models.
-	var modelsURL string
-	if strings.HasSuffix(base, "/api") {
-		modelsURL = base + "/v1/models"
+	if strings.HasSuffix(stripped, "/api") {
+		// e.g. "https://openrouter.ai/api"  →  /v1/models
+		candidates = append(candidates, stripped+"/v1/models")
 	} else {
-		modelsURL = base + "/api/v1/models"
+		// Typical case: try OpenRouter-style first, then bare /v1/models
+		candidates = append(candidates, stripped+"/api/v1/models")
+		candidates = append(candidates, stripped+"/v1/models")
+		candidates = append(candidates, base+"/models")
 	}
 
 	client := &http.Client{Timeout: 10 * time.Second}
+
+	for _, modelsURL := range candidates {
+		ctxLen := queryModelsEndpoint(client, modelsURL, apiKey, model, logger)
+		if ctxLen > 0 {
+			return ctxLen
+		}
+	}
+
+	logger.Debug("[ContextDetect] All candidate URLs exhausted, model not found", "model", model, "tried", candidates)
+	return 0
+}
+
+// queryModelsEndpoint performs GET <url> and looks for the model's context_length.
+func queryModelsEndpoint(client *http.Client, modelsURL, apiKey, model string, logger *slog.Logger) int {
 	req, err := http.NewRequest("GET", modelsURL, nil)
 	if err != nil {
-		logger.Debug("[ContextDetect] Failed to create request", "error", err)
+		logger.Debug("[ContextDetect] Failed to create request", "error", err, "url", modelsURL)
 		return 0
 	}
-	req.Header.Set("Authorization", "Bearer "+apiKey)
+	if apiKey != "" {
+		req.Header.Set("Authorization", "Bearer "+apiKey)
+	}
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -197,7 +278,7 @@ func detectContextWindowOpenRouter(baseURL, apiKey, model string, logger *slog.L
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		logger.Debug("[ContextDetect] Models API returned non-200", "status", resp.StatusCode)
+		logger.Debug("[ContextDetect] Models API returned non-200", "status", resp.StatusCode, "url", modelsURL)
 		return 0
 	}
 
@@ -213,20 +294,23 @@ func detectContextWindowOpenRouter(baseURL, apiKey, model string, logger *slog.L
 			ID            string `json:"id"`
 			ContextLength int    `json:"context_length"`
 		} `json:"data"`
+		// Some providers wrap data at the top level as an array.
 	}
 	if err := json.Unmarshal(body, &result); err != nil {
-		logger.Debug("[ContextDetect] Failed to parse models response", "error", err)
+		logger.Debug("[ContextDetect] Failed to parse models response", "error", err, "url", modelsURL)
 		return 0
 	}
 
 	for _, m := range result.Data {
 		if m.ID == model {
-			logger.Info("[ContextDetect] Detected model context window", "model", model, "context_length", m.ContextLength)
-			return m.ContextLength
+			if m.ContextLength > 0 {
+				logger.Info("[ContextDetect] Detected model context window", "model", model, "context_length", m.ContextLength, "url", modelsURL)
+				return m.ContextLength
+			}
 		}
 	}
 
-	logger.Debug("[ContextDetect] Model not found in API response", "model", model, "total_models", len(result.Data))
+	logger.Debug("[ContextDetect] Model not found or context_length=0 in API response", "model", model, "total_models", len(result.Data), "url", modelsURL)
 	return 0
 }
 
