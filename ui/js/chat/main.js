@@ -305,7 +305,6 @@ async function tryRecoverFromHistory() {
     }
 }
 
-*/
 // If user has explicitly set a preference in localStorage, use it.
 // Only fall back to server defaults if no preference has been saved yet.
 const _storedDebug = localStorage.getItem('aurago-debug');
