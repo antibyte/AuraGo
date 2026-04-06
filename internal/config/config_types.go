@@ -270,6 +270,11 @@ type Config struct {
 		} `yaml:"background_tasks"`
 		MaxToolGuides int `yaml:"max_tool_guides"` // maximum tool guide documents injected into prompt (default: 5)
 
+		AnnouncementDetector struct {
+			Enabled    bool `yaml:"enabled"`     // enable announcement-only response detection (default: true)
+			MaxRetries int  `yaml:"max_retries"` // max corrective retries per user turn (default: 2)
+		} `yaml:"announcement_detector"`
+
 		// ── Legacy personality fields — read-only for YAML migration to Personality section ──
 		LegacyPersonalityEngine         bool   `yaml:"personality_engine"         json:"-"`  // migrated → Personality.Engine
 		LegacyPersonalityEngineV2       bool   `yaml:"personality_engine_v2"      json:"-"`  // migrated → Personality.EngineV2

@@ -8,7 +8,7 @@ import (
 var announcementPhrases = []string{
 	"lass mich", "ich starte", "ich werde", "ich führe", "ich teste",
 	"ich versuche", "versuche ich", "ich probiere", "probiere ich",
-	"nochmal", "noch einmal", "erneut", "wieder ",
+	"erneut",
 	"let me", "i will", "i'll", "i am going to", "i'm going to",
 	"let's start", "starting", "launching", "i'll start", "i'll run",
 	"i try", "i'll try", "trying", "retrying",
@@ -21,8 +21,10 @@ var announcementPhrases = []string{
 }
 
 var postToolForwardCues = []string{
-	"jetzt ", "als nächstes", "danach", "anschließend", "nun ",
-	"now ", "next ", "next,", "then ", "after that",
+	"jetzt", "als nächstes", "danach", "anschließend", "nun",
+	"now", "next", "next,", "then", "after that",
+	// De-escalated from announcementPhrases — only supporting signals, not standalone triggers.
+	"nochmal", "noch einmal", "wieder",
 }
 
 var postToolActionCues = []string{
@@ -38,13 +40,11 @@ var genericForwardCues = []string{
 }
 
 var operationalTerms = []string{
-	"build", "deploy", "test", "run", "restart", "install", "search", "read", "write",
-	"edit", "update", "modify", "analy", "inspect", "create", "delete", "move", "list",
-	"lint", "screenshot", "summar", "publish", "commit", "push", "pull", "grep", "tail",
-	"head", "open", "browse", "render", "compile", "generate", "filesystem", "homepage", "netlify",
-	"file_reader_advanced", "file_search", "execute_shell", "execute_skill", "smart_file_read",
-	"analyze_image", "docker", "git", ".go", ".ts", ".tsx", ".js", ".css", ".html", ".json",
-	".yaml", ".yml", ".md", ".log",
+	"build", "deploy", "test", "run", "restart", "install", "search", "write",
+	"edit", "update", "modify", "inspect", "create",
+	"lint", "screenshot", "publish", "commit", "push", "pull", "grep",
+	"open", "browse", "render", "compile", "generate", "homepage", "netlify",
+	"docker", "git",
 }
 
 var completionEvidenceTerms = []string{
@@ -94,7 +94,7 @@ func isAnnouncementOnlyResponse(content string, tc ToolCall, useNativePath, last
 	}
 
 	containsAnnouncementPhrase := containsAnySubstring(leadIn, announcementPhrases)
-	containsForwardCue := containsAnySubstring(leadIn, postToolForwardCues) || containsAnySubstring(leadIn, genericForwardCues)
+	containsForwardCue := containsAnyWordPhrase(leadIn, postToolForwardCues) || containsAnySubstring(leadIn, genericForwardCues)
 	containsActionCue := containsAnyWordPhrase(leadIn, postToolActionCues)
 	hasPlanStructure := looksLikePlanStructure(trimmedContent, leadIn)
 	hasActionIntent := containsActionIntent(leadIn)
@@ -160,10 +160,10 @@ func containsAnySubstring(s string, needles []string) bool {
 	return false
 }
 
-// containsAnyWordPhrase checks whether any of the needles appears in s with a
-// word-start boundary: the character immediately before the match must not be an
-// ASCII letter.  This prevents cross-word false positives like "ich deploye"
-// matching inside "erfolgreich deployed".
+// containsAnyWordPhrase checks whether any of the needles appears in s with
+// word boundaries: the characters immediately before and after the match must
+// not be ASCII letters.  This prevents cross-word false positives like
+// "read" matching inside "already" or "i will" matching inside "i willing".
 func containsAnyWordPhrase(s string, needles []string) bool {
 	for _, needle := range needles {
 		if needle == "" {
@@ -176,6 +176,13 @@ func containsAnyWordPhrase(s string, needles []string) bool {
 		// Require that the byte before the match is not an ASCII letter.
 		if idx > 0 {
 			b := s[idx-1]
+			if (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') {
+				continue
+			}
+		}
+		// Require that the byte after the match is not an ASCII letter.
+		if endIdx := idx + len(needle); endIdx < len(s) {
+			b := s[endIdx]
 			if (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') {
 				continue
 			}
@@ -196,7 +203,7 @@ func looksLikePlanStructure(trimmedContent, leadIn string) bool {
 }
 
 func containsActionIntent(leadIn string) bool {
-	if containsAnySubstring(leadIn, operationalTerms) {
+	if containsAnyWordPhrase(leadIn, operationalTerms) {
 		return true
 	}
 	if pathLikePattern.MatchString(leadIn) || urlLikePattern.MatchString(leadIn) {
@@ -211,7 +218,7 @@ func containsCompletionEvidence(lc string) bool {
 	if strings.ContainsAny(lc, "✅✓☑✔") {
 		return true
 	}
-	if containsAnySubstring(lc, completionEvidenceTerms) {
+	if containsAnyWordPhrase(lc, completionEvidenceTerms) {
 		return true
 	}
 	if resultMetricPattern.MatchString(lc) {

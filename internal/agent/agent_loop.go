@@ -1685,8 +1685,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		if announcementContent == "" {
 			announcementContent = content
 		}
-		isAnnouncement := !parsedToolResp.IsFinished && isAnnouncementOnlyResponse(announcementContent, tc, useNativePath, lastResponseWasTool, lastUserMsg)
-		if isAnnouncement && announcementCount < 2 {
+		isAnnouncement := !parsedToolResp.IsFinished && cfg.Agent.AnnouncementDetector.Enabled && isAnnouncementOnlyResponse(announcementContent, tc, useNativePath, lastResponseWasTool, lastUserMsg)
+		if isAnnouncement && announcementCount < cfg.Agent.AnnouncementDetector.MaxRetries {
 			announcementCount++
 			currentLogger.Warn("[Sync] Announcement-only response detected, requesting immediate tool call", "attempt", announcementCount, "content_preview", Truncate(content, 120))
 			broker.Send("error_recovery", "Announcement without action detected, requesting tool call...")
@@ -1712,6 +1712,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				lastTool := recentTools[len(recentTools)-1]
 				feedbackMsg += fmt.Sprintf(" IMPORTANT: '%s' already completed successfully in this turn. Do NOT call it again. Your next action must be a DIFFERENT tool that continues your plan.", lastTool)
 			}
+			feedbackMsg += " If there is nothing left to do, respond with <done/> to signal completion."
 			feedbackMsg = applyEmotionRecoveryNudge(feedbackMsg, emotionPolicy)
 			id, err = shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, feedbackMsg, false, true)
 			if err != nil {

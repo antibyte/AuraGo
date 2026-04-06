@@ -85,6 +85,9 @@ func Load(path string) (*Config, error) {
 	cfg.Tools.Journal.Enabled = true
 	cfg.Tools.WebScraper.Enabled = true
 
+	// Announcement detector: enabled by default; YAML can override with 'enabled: false'.
+	cfg.Agent.AnnouncementDetector.Enabled = true
+
 	// FritzBox defaults: disabled by default; system group enabled + readonly when fritzbox.enabled is set.
 	cfg.FritzBox.Host = "fritz.box"
 	cfg.FritzBox.Port = 49000
@@ -494,8 +497,9 @@ func Load(path string) (*Config, error) {
 	if cfg.Agent.MaxToolGuides <= 0 {
 		cfg.Agent.MaxToolGuides = 5
 	}
-	if cfg.Agent.MaxToolGuides <= 0 {
-		cfg.Agent.MaxToolGuides = 5
+	// AnnouncementDetector defaults — enabled by default.
+	if cfg.Agent.AnnouncementDetector.MaxRetries <= 0 {
+		cfg.Agent.AnnouncementDetector.MaxRetries = 2
 	}
 	if cfg.Agent.Recovery.MaxProvider422Recoveries <= 0 {
 		cfg.Agent.Recovery.MaxProvider422Recoveries = 3

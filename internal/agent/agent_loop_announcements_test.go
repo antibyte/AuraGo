@@ -174,3 +174,57 @@ func TestIsAnnouncementOnlyResponseGermanPastParticipleDoesNotTrigger(t *testing
 		}
 	}
 }
+
+// ── Word-boundary regression tests ──
+
+func TestContainsAnyWordPhraseEndBoundary(t *testing.T) {
+	// "i will" must NOT match inside "i willing" — end-boundary check.
+	if containsAnyWordPhrase("i willing to help", []string{"i will"}) {
+		t.Fatal("end-boundary bug: 'i will' should NOT match 'i willing'")
+	}
+	// But must match when followed by a space.
+	if !containsAnyWordPhrase("i will deploy now", []string{"i will"}) {
+		t.Fatal("expected 'i will' to match with space separator")
+	}
+}
+
+func TestContainsAnyWordPhraseStartBoundary(t *testing.T) {
+	// "read" must NOT match inside "already".
+	if containsAnyWordPhrase("i already did that", []string{"read"}) {
+		t.Fatal("start-boundary bug: 'read' should NOT match 'already'")
+	}
+}
+
+func TestContainsAnyWordPhraseBothBoundaries(t *testing.T) {
+	// "list" must NOT match inside "listen".
+	if containsAnyWordPhrase("listen to this", []string{"list"}) {
+		t.Fatal("boundary bug: 'list' should NOT match 'listen'")
+	}
+	// But must match at the start of the string.
+	if !containsAnyWordPhrase("list the files", []string{"list"}) {
+		t.Fatal("expected 'list' to match at start of string")
+	}
+	// And at end of string.
+	if !containsAnyWordPhrase("show me the list", []string{"list"}) {
+		t.Fatal("expected 'list' to match at end of string")
+	}
+}
+
+func TestOperationalTermsNoFileExtensionFalsePositive(t *testing.T) {
+	tc := ToolCall{}
+	// Mentioning a filename like "config.yaml" should not trigger as an announcement.
+	content := "The config.yaml file looks correct to me."
+	if isAnnouncementOnlyResponse(content, tc, false, false, "check config") {
+		t.Fatal("file extension in plain text should not trigger announcement recovery")
+	}
+}
+
+func TestNochmalDoesNotTriggerPreTool(t *testing.T) {
+	tc := ToolCall{}
+	// "Erkläre das nochmal" is a user-like statement; "nochmal" was de-escalated from
+	// announcementPhrases to postToolForwardCues, so it should NOT trigger pre-tool.
+	content := "Erkläre das nochmal bitte."
+	if isAnnouncementOnlyResponse(content, tc, false, false, "erkläre") {
+		t.Fatal("'nochmal' in conversational pre-tool text should not trigger announcement")
+	}
+}
