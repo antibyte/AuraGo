@@ -28,6 +28,10 @@ func ApplySkillLimits(pid, memoryMB, cpuSeconds int) {
 	// No-op: Windows does not support POSIX rlimits.
 }
 
+// signalZero is a placeholder on Windows — Signal(0) is not supported.
+// daemon_runner.go uses os.FindProcess instead on Windows.
+var signalZero = syscall.Signal(0)
+
 // KillProcessTree forcefully terminates a process and all its children on Windows.
 // Uses taskkill /F /T to traverse and kill the full process subtree.
 func KillProcessTree(pid int) {

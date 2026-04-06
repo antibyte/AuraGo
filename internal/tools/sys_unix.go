@@ -25,6 +25,9 @@ func SetSkillLimits(cmd *exec.Cmd, memoryMB, cpuSeconds int) {
 	cmd.SysProcAttr.Setpgid = true
 }
 
+// signalZero is used by daemon health checks — Signal(0) checks process existence without an actual signal.
+var signalZero = syscall.Signal(0)
+
 // KillProcessTree kills the entire process group rooted at pid on Unix.
 func KillProcessTree(pid int) {
 	// Negative PID sends signal to the whole process group.

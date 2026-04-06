@@ -53,6 +53,49 @@ type SkillManifest struct {
 	Returns      string            `json:"returns,omitempty"`      // describes expected output format
 	Dependencies []string          `json:"dependencies,omitempty"` // pip packages required by this skill
 	VaultKeys    []string          `json:"vault_keys,omitempty"`   // vault secret keys this skill needs at runtime
+	Daemon       *DaemonManifest   `json:"daemon,omitempty"`       // if set, skill can run as a background daemon
+}
+
+// DaemonManifest holds configuration for a daemon skill.
+// A nil DaemonManifest means the skill is not a daemon.
+type DaemonManifest struct {
+	Enabled                  bool              `json:"enabled"`
+	WakeAgent                bool              `json:"wake_agent"`
+	WakeRateLimitSeconds     int               `json:"wake_rate_limit_seconds,omitempty"`     // min seconds between wake-ups (default: 3000)
+	MaxRuntimeHours          int               `json:"max_runtime_hours,omitempty"`            // hard kill after N hours (0 = unlimited)
+	RestartOnCrash           bool              `json:"restart_on_crash"`
+	MaxRestartAttempts       int               `json:"max_restart_attempts,omitempty"`         // max restarts within cooldown (default: 3)
+	RestartCooldownSeconds   int               `json:"restart_cooldown_seconds,omitempty"`     // cooldown window for restart counting (default: 300)
+	HealthCheckIntervalSeconds int             `json:"health_check_interval_seconds,omitempty"` // process liveness check interval (default: 60)
+	Env                      map[string]string `json:"env,omitempty"`                          // extra environment variables
+}
+
+// DaemonManifestDefaults returns a DaemonManifest with sensible defaults applied.
+func DaemonManifestDefaults() DaemonManifest {
+	return DaemonManifest{
+		WakeRateLimitSeconds:       3000,
+		RestartOnCrash:             true,
+		MaxRestartAttempts:         3,
+		RestartCooldownSeconds:     300,
+		HealthCheckIntervalSeconds: 60,
+	}
+}
+
+// ApplyDefaults fills zero-value fields with sensible defaults.
+func (d *DaemonManifest) ApplyDefaults() {
+	defaults := DaemonManifestDefaults()
+	if d.WakeRateLimitSeconds <= 0 {
+		d.WakeRateLimitSeconds = defaults.WakeRateLimitSeconds
+	}
+	if d.MaxRestartAttempts <= 0 {
+		d.MaxRestartAttempts = defaults.MaxRestartAttempts
+	}
+	if d.RestartCooldownSeconds <= 0 {
+		d.RestartCooldownSeconds = defaults.RestartCooldownSeconds
+	}
+	if d.HealthCheckIntervalSeconds <= 0 {
+		d.HealthCheckIntervalSeconds = defaults.HealthCheckIntervalSeconds
+	}
 }
 
 // ListSkills scans the skills directory for .json manifest files and returns them.
