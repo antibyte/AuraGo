@@ -78,6 +78,9 @@ type Tracker struct {
 
 	// Debounced persistence: timer fires actual disk write at most every 3 s
 	persistTimer *time.Timer
+
+	// Midnight auto-reset: fires at the next calendar day boundary
+	midnightTimer *time.Timer
 }
 
 // NewTracker creates a budget tracker. If budget is disabled in config, returns nil.
@@ -101,9 +104,17 @@ func NewTracker(cfg *config.Config, logger *slog.Logger, dataDir string) *Tracke
 	// Check if we need to reset for a new day
 	today := t.todayStr()
 	if t.date != today {
+		oldDate := t.date
+		oldSpent := t.totalCostUSD
 		t.resetForNewDayLocked(today)
 		t.doPersistLocked()
+		logger.Info("[Budget] Daily reset on startup",
+			"old_date", oldDate, "new_date", today, "previous_spent", oldSpent)
 	}
+
+	// Schedule automatic midnight reset so the budget resets even when the server
+	// runs continuously without an LLM call across the day boundary.
+	t.scheduleMidnightReset()
 
 	// Re-evaluate exceeded flag: if the effective limit was raised above current spend,
 	// clear the exceeded state so the new limit takes effect immediately.
@@ -590,6 +601,32 @@ func (t *Tracker) nextResetTime() time.Time {
 	return next
 }
 
+// scheduleMidnightReset arms a one-shot timer that fires at the next calendar
+// midnight (local time) to reset the daily counters automatically. The timer
+// re-arms itself for the following night after each reset. This ensures the
+// budget resets even when the server runs continuously without LLM calls.
+func (t *Tracker) scheduleMidnightReset() {
+	now := time.Now()
+	// Compute duration until next local midnight
+	nextMidnight := time.Date(now.Year(), now.Month(), now.Day()+1, 0, 0, 1, 0, now.Location())
+	d := time.Until(nextMidnight)
+	t.midnightTimer = time.AfterFunc(d, func() {
+		t.mu.Lock()
+		today := t.todayStr()
+		if t.date != today {
+			oldDate := t.date
+			oldSpent := t.totalCostUSD
+			t.resetForNewDayLocked(today)
+			t.doPersistLocked()
+			if t.logger != nil {
+				t.logger.Info("[Budget] Automatic midnight reset", "old_date", oldDate, "new_date", today, "previous_spent", oldSpent)
+			}
+		}
+		t.scheduleMidnightReset() // re-arm for next night
+		t.mu.Unlock()
+	})
+}
+
 // resetForNewDayLocked zeroes all daily counters. Must be called with t.mu held.
 func (t *Tracker) resetForNewDayLocked(today string) {
 	t.date = today
@@ -638,6 +675,10 @@ func (t *Tracker) Flush() {
 	if t.persistTimer != nil {
 		t.persistTimer.Stop()
 		t.persistTimer = nil
+	}
+	if t.midnightTimer != nil {
+		t.midnightTimer.Stop()
+		t.midnightTimer = nil
 	}
 	t.doPersistLocked()
 }
