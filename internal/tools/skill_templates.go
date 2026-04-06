@@ -16,6 +16,7 @@ type SkillTemplate struct {
 	Description  string            `json:"description"`
 	Parameters   map[string]string `json:"parameters"`
 	Dependencies []string          `json:"dependencies"`
+	IsDaemon     bool              `json:"is_daemon,omitempty"`
 	Code         string            `json:"-"`
 }
 
@@ -217,6 +218,46 @@ func AvailableSkillTemplates() []SkillTemplate {
         timeout=args.get("timeout", 5),
     )`),
 		},
+		// ── Daemon skill templates ───────────────────────────────────────
+		{
+			Name:        "daemon_monitor",
+			Description: "Long-running daemon that periodically checks a resource (disk, CPU, service, URL) and wakes the agent on threshold violations.",
+			IsDaemon:    true,
+			Parameters: map[string]string{
+				"target":         "What to monitor (e.g. 'disk', 'cpu', 'url', 'service')",
+				"threshold":      "Alert threshold value (e.g. '90' for 90%)",
+				"interval":       "Check interval in seconds (default: 60)",
+				"alert_severity": "Severity when threshold exceeded: info, warning, critical (default: warning)",
+			},
+			Dependencies: []string{},
+			Code:         composeDaemonSkillTemplate(daemonMonitorTemplateBody),
+		},
+		{
+			Name:        "daemon_watcher",
+			Description: "Long-running daemon that watches a directory for file changes (created, modified, deleted) and wakes the agent on events.",
+			IsDaemon:    true,
+			Parameters: map[string]string{
+				"watch_path":  "Directory path to watch for changes",
+				"patterns":    "Comma-separated file patterns to match (e.g. '*.log,*.csv'); empty = all files",
+				"events":      "Comma-separated events: created, modified, deleted (default: all)",
+				"cooldown":    "Minimum seconds between alerts for the same file (default: 10)",
+				"recursive":   "Watch subdirectories recursively: true/false (default: true)",
+			},
+			Dependencies: []string{},
+			Code:         composeDaemonSkillTemplate(daemonWatcherTemplateBody),
+		},
+		{
+			Name:        "daemon_listener",
+			Description: "Long-running daemon that listens on a Unix domain socket or named pipe for external events and forwards them to the agent.",
+			IsDaemon:    true,
+			Parameters: map[string]string{
+				"socket_path": "Path for the Unix domain socket or named pipe",
+				"protocol":    "Protocol: line (newline-delimited text) or json (JSON per line) (default: json)",
+				"max_clients": "Maximum concurrent connections (default: 5)",
+			},
+			Dependencies: []string{},
+			Code:         composeDaemonSkillTemplate(daemonListenerTemplateBody),
+		},
 	}
 }
 
@@ -228,6 +269,10 @@ type templateData struct {
 
 func composePythonSkillTemplate(body, invocation string) string {
 	return body + pythonSkillMainTemplatePrefix + invocation + pythonSkillMainTemplateSuffix
+}
+
+func composeDaemonSkillTemplate(body string) string {
+	return body
 }
 
 const pythonSkillMainTemplatePrefix = `
@@ -374,6 +419,12 @@ func CreateSkillFromTemplate(skillsDir, templateName, skillName, description, ba
 	}
 	if manifest.Description == "" {
 		manifest.Description = tmpl.Description
+	}
+	if tmpl.IsDaemon {
+		dm := DaemonManifestDefaults()
+		dm.Enabled = true
+		dm.WakeAgent = true
+		manifest.Daemon = &dm
 	}
 
 	if err := os.MkdirAll(skillsDir, 0o750); err != nil {
@@ -1435,4 +1486,332 @@ def {{.FunctionName}}(action, topic, payload=None, qos=0, retain=False, timeout=
     finally:
         client.loop_stop()
         client.disconnect()
+`
+
+// ── Daemon skill template bodies ──────────────────────────────────────
+
+const daemonMonitorTemplateBody = `import os
+import sys
+import time
+
+sys.path.insert(0, os.path.dirname(__file__))
+from aurago_daemon import AuraGoDaemon
+
+def {{.FunctionName}}(daemon, target, threshold, interval, alert_severity):
+    """{{.Description}}"""
+    threshold = float(threshold)
+    interval = int(interval)
+
+    while daemon.is_running():
+        try:
+            value = None
+
+            if target == "disk":
+                st = os.statvfs("/")
+                used_pct = (1 - st.f_bavail / st.f_blocks) * 100
+                value = round(used_pct, 1)
+                label = f"Disk usage: {value}%"
+
+            elif target == "cpu":
+                # Simple /proc/stat-based CPU check (Linux)
+                try:
+                    with open("/proc/stat") as f:
+                        a = [int(x) for x in f.readline().split()[1:]]
+                    time.sleep(1)
+                    with open("/proc/stat") as f:
+                        b = [int(x) for x in f.readline().split()[1:]]
+                    da = sum(b) - sum(a)
+                    idle = (b[3] - a[3])
+                    value = round((1 - idle / da) * 100, 1) if da > 0 else 0.0
+                except FileNotFoundError:
+                    value = 0.0
+                label = f"CPU usage: {value}%"
+
+            elif target == "url":
+                import urllib.request
+                url = os.environ.get("AURAGO_SECRET_MONITOR_URL", "http://localhost")
+                try:
+                    r = urllib.request.urlopen(url, timeout=10)
+                    value = r.getcode()
+                    label = f"URL {url} status: {value}"
+                except Exception as e:
+                    value = 999
+                    label = f"URL {url} unreachable: {e}"
+
+            else:
+                label = f"Unknown target: {target}"
+                daemon.log(label, level="warn")
+                time.sleep(interval)
+                continue
+
+            daemon.metric(f"{target}_value", value)
+
+            if target == "url":
+                exceeded = value != 200
+            else:
+                exceeded = value >= threshold
+
+            if exceeded:
+                daemon.wake_agent(
+                    f"Threshold exceeded — {label} (threshold: {threshold})",
+                    severity=alert_severity,
+                    target=target,
+                    value=value,
+                    threshold=threshold,
+                )
+            else:
+                daemon.log(f"OK — {label}", level="debug")
+
+        except Exception as e:
+            daemon.log(f"Monitor error: {e}", level="error")
+
+        daemon.heartbeat()
+        time.sleep(interval)
+
+
+if __name__ == "__main__":
+    daemon = AuraGoDaemon()
+    args = {}
+    if len(sys.argv) > 1:
+        import json
+        try:
+            args = json.loads(sys.argv[1])
+        except Exception:
+            pass
+    {{.FunctionName}}(
+        daemon,
+        target=args.get("target", "disk"),
+        threshold=args.get("threshold", 90),
+        interval=args.get("interval", 60),
+        alert_severity=args.get("alert_severity", "warning"),
+    )
+`
+
+const daemonWatcherTemplateBody = `import os
+import sys
+import time
+import hashlib
+
+sys.path.insert(0, os.path.dirname(__file__))
+from aurago_daemon import AuraGoDaemon
+
+def {{.FunctionName}}(daemon, watch_path, patterns, events, cooldown, recursive):
+    """{{.Description}}"""
+    import fnmatch
+
+    cooldown = int(cooldown)
+    recursive = str(recursive).lower() in ("true", "1", "yes")
+    pattern_list = [p.strip() for p in patterns.split(",") if p.strip()] if patterns else []
+    event_set = set(e.strip().lower() for e in events.split(",") if e.strip()) if events else {"created", "modified", "deleted"}
+
+    def matches_pattern(name):
+        if not pattern_list:
+            return True
+        return any(fnmatch.fnmatch(name, p) for p in pattern_list)
+
+    def scan_dir(path):
+        result = {}
+        try:
+            if recursive:
+                for root, dirs, files in os.walk(path):
+                    for f in files:
+                        fp = os.path.join(root, f)
+                        try:
+                            st = os.stat(fp)
+                            result[fp] = (st.st_mtime, st.st_size)
+                        except OSError:
+                            pass
+            else:
+                for f in os.listdir(path):
+                    fp = os.path.join(path, f)
+                    if os.path.isfile(fp):
+                        try:
+                            st = os.stat(fp)
+                            result[fp] = (st.st_mtime, st.st_size)
+                        except OSError:
+                            pass
+        except OSError as e:
+            daemon.log(f"Scan error: {e}", level="error")
+        return result
+
+    last_alert = {}
+    prev_snapshot = scan_dir(watch_path)
+    daemon.log(f"Watching {watch_path} — {len(prev_snapshot)} files, patterns={pattern_list}", level="info")
+
+    while daemon.is_running():
+        time.sleep(5)
+        curr_snapshot = scan_dir(watch_path)
+        now = time.time()
+
+        # Detect created files
+        if "created" in event_set:
+            for fp in curr_snapshot:
+                if fp not in prev_snapshot and matches_pattern(os.path.basename(fp)):
+                    if now - last_alert.get(fp, 0) >= cooldown:
+                        last_alert[fp] = now
+                        daemon.wake_agent(
+                            f"File created: {fp}",
+                            severity="info",
+                            event="created",
+                            path=fp,
+                        )
+
+        # Detect modified files
+        if "modified" in event_set:
+            for fp in curr_snapshot:
+                if fp in prev_snapshot and curr_snapshot[fp] != prev_snapshot[fp] and matches_pattern(os.path.basename(fp)):
+                    if now - last_alert.get(fp, 0) >= cooldown:
+                        last_alert[fp] = now
+                        daemon.wake_agent(
+                            f"File modified: {fp}",
+                            severity="info",
+                            event="modified",
+                            path=fp,
+                        )
+
+        # Detect deleted files
+        if "deleted" in event_set:
+            for fp in prev_snapshot:
+                if fp not in curr_snapshot and matches_pattern(os.path.basename(fp)):
+                    if now - last_alert.get(fp, 0) >= cooldown:
+                        last_alert[fp] = now
+                        daemon.wake_agent(
+                            f"File deleted: {fp}",
+                            severity="warning",
+                            event="deleted",
+                            path=fp,
+                        )
+
+        prev_snapshot = curr_snapshot
+        daemon.heartbeat()
+
+
+if __name__ == "__main__":
+    daemon = AuraGoDaemon()
+    args = {}
+    if len(sys.argv) > 1:
+        import json
+        try:
+            args = json.loads(sys.argv[1])
+        except Exception:
+            pass
+    {{.FunctionName}}(
+        daemon,
+        watch_path=args.get("watch_path", "."),
+        patterns=args.get("patterns", ""),
+        events=args.get("events", "created,modified,deleted"),
+        cooldown=args.get("cooldown", 10),
+        recursive=args.get("recursive", True),
+    )
+`
+
+const daemonListenerTemplateBody = `import os
+import sys
+import json
+import socket
+import threading
+import time
+
+sys.path.insert(0, os.path.dirname(__file__))
+from aurago_daemon import AuraGoDaemon
+
+def {{.FunctionName}}(daemon, socket_path, protocol, max_clients):
+    """{{.Description}}"""
+    max_clients = int(max_clients)
+
+    # Clean up stale socket file
+    if os.path.exists(socket_path):
+        try:
+            os.remove(socket_path)
+        except OSError:
+            pass
+
+    srv = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    srv.settimeout(2.0)
+    srv.bind(socket_path)
+    srv.listen(max_clients)
+    os.chmod(socket_path, 0o660)
+
+    daemon.log(f"Listening on {socket_path} (protocol={protocol})", level="info")
+
+    active_threads = []
+
+    def handle_client(conn, addr):
+        try:
+            buf = b""
+            conn.settimeout(5.0)
+            while daemon.is_running():
+                try:
+                    data = conn.recv(4096)
+                except socket.timeout:
+                    continue
+                if not data:
+                    break
+                buf += data
+                while b"\n" in buf:
+                    line, buf = buf.split(b"\n", 1)
+                    text = line.decode("utf-8", errors="replace").strip()
+                    if not text:
+                        continue
+                    if protocol == "json":
+                        try:
+                            payload = json.loads(text)
+                        except json.JSONDecodeError:
+                            payload = {"raw": text}
+                    else:
+                        payload = {"raw": text}
+
+                    message = payload.get("message", text) if isinstance(payload, dict) else text
+                    severity = payload.get("severity", "info") if isinstance(payload, dict) else "info"
+                    daemon.wake_agent(
+                        message=str(message),
+                        severity=severity,
+                        source="socket",
+                        socket_path=socket_path,
+                        payload=payload,
+                    )
+        except Exception as e:
+            daemon.log(f"Client handler error: {e}", level="error")
+        finally:
+            conn.close()
+
+    try:
+        while daemon.is_running():
+            # Clean up finished threads
+            active_threads = [t for t in active_threads if t.is_alive()]
+            try:
+                conn, addr = srv.accept()
+                if len(active_threads) >= max_clients:
+                    conn.close()
+                    daemon.log("Max clients reached, rejecting connection", level="warn")
+                    continue
+                t = threading.Thread(target=handle_client, args=(conn, addr), daemon=True)
+                t.start()
+                active_threads.append(t)
+            except socket.timeout:
+                pass
+            daemon.heartbeat()
+    finally:
+        srv.close()
+        try:
+            os.remove(socket_path)
+        except OSError:
+            pass
+
+
+if __name__ == "__main__":
+    daemon = AuraGoDaemon()
+    args = {}
+    if len(sys.argv) > 1:
+        try:
+            args = json.loads(sys.argv[1])
+        except Exception:
+            pass
+    {{.FunctionName}}(
+        daemon,
+        socket_path=args.get("socket_path", "/tmp/aurago_daemon.sock"),
+        protocol=args.get("protocol", "json"),
+        max_clients=args.get("max_clients", 5),
+    )
 `

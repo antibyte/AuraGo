@@ -10,8 +10,8 @@ import (
 
 func TestAvailableSkillTemplates(t *testing.T) {
 	templates := AvailableSkillTemplates()
-	if len(templates) != 10 {
-		t.Fatalf("expected 10 templates, got %d", len(templates))
+	if len(templates) != 13 {
+		t.Fatalf("expected 13 templates, got %d", len(templates))
 	}
 	names := map[string]bool{}
 	for _, tmpl := range templates {

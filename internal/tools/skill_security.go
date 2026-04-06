@@ -157,6 +157,42 @@ var dangerousPatterns = []dangerousPattern{
 		Category: "injection",
 		Message:  "Possible obfuscated code execution via base64",
 	},
+	// ── Daemon-specific patterns ──────────────────────────────────────
+	{
+		Name:     "os_fork",
+		Regex:    regexp.MustCompile(`\bos\.fork\s*\(`),
+		Severity: "critical",
+		Category: "exec",
+		Message:  "os.fork() can create fork bombs in long-running daemons",
+	},
+	{
+		Name:     "socket_bind_all",
+		Regex:    regexp.MustCompile(`\.bind\s*\(\s*["'(]\s*["']0\.0\.0\.0["']`),
+		Severity: "warning",
+		Category: "network",
+		Message:  "Binding to 0.0.0.0 exposes service to all network interfaces",
+	},
+	{
+		Name:     "import_http_server",
+		Regex:    regexp.MustCompile(`(?m)^\s*(?:import\s+http\.server|from\s+http\.server\s+import|import\s+socketserver)`),
+		Severity: "warning",
+		Category: "network",
+		Message:  "Running an HTTP server inside a daemon skill — ensure this is intentional",
+	},
+	{
+		Name:     "signal_sigkill",
+		Regex:    regexp.MustCompile(`signal\.(?:SIGKILL|SIGSTOP)`),
+		Severity: "warning",
+		Category: "exec",
+		Message:  "Overriding SIGKILL/SIGSTOP handling can prevent graceful shutdown",
+	},
+	{
+		Name:     "multiprocessing_process",
+		Regex:    regexp.MustCompile(`(?m)^\s*(?:from\s+multiprocessing\s+import|import\s+multiprocessing)`),
+		Severity: "info",
+		Category: "exec",
+		Message:  "Multiprocessing in daemon skills may spawn untracked child processes",
+	},
 }
 
 // StaticCodeAnalysis scans Python source code for dangerous patterns.
