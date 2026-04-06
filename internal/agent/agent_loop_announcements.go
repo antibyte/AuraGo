@@ -69,7 +69,10 @@ var resultMetricPattern = regexp.MustCompile(`(?i)\b\d+\s+(?:bytes?|files?|lines
 var statusEvidencePattern = regexp.MustCompile(`(?i)\b(?:status|exit code|http)\s*[:=]?\s*(?:ok|success|successful|error|failed|200|201|204|400|401|403|404|409|422|429|500)\b`)
 
 func isAnnouncementOnlyResponse(content string, tc ToolCall, useNativePath, lastResponseWasTool bool, lastUserMsg string) bool {
-	if tc.IsTool || useNativePath || tc.RawCodeDetected || len(content) > 1000 {
+	// For the native function-calling path, bypass announcement detection UNLESS the
+	// previous response was a tool call. After a tool call, the model may announce the
+	// next step in text without actually invoking the next tool — we must catch that.
+	if tc.IsTool || (useNativePath && !lastResponseWasTool) || tc.RawCodeDetected || len(content) > 1000 {
 		return false
 	}
 
