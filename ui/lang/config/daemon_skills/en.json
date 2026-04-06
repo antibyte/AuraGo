@@ -1,0 +1,13 @@
+{
+  "config.daemon_skills.enabled_label": "Enabled",
+  "config.daemon_skills.max_concurrent_daemons_label": "Max Concurrent Daemons",
+  "config.daemon_skills.global_rate_limit_secs_label": "Global Rate Limit (seconds)",
+  "config.daemon_skills.max_wakeups_per_hour_label": "Max Wake-ups per Hour",
+  "config.daemon_skills.max_budget_per_hour_label": "Max Budget per Hour (USD)",
+  "help.daemon_skills.enabled": "Enable or disable daemon skills globally",
+  "help.daemon_skills.max_concurrent_daemons": "Maximum number of daemons that can run simultaneously",
+  "help.daemon_skills.global_rate_limit_secs": "Minimum seconds between daemon wake-up calls to the agent",
+  "help.daemon_skills.max_wakeups_per_hour": "Maximum total agent wake-ups from all daemons per hour",
+  "help.daemon_skills.max_budget_per_hour": "Maximum LLM cost (in USD) that daemon wake-ups can consume per hour",
+  "config.daemon_skills.status_title": "Running Daemons"
+}

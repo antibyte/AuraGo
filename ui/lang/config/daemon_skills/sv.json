@@ -1,0 +1,13 @@
+{
+  "config.daemon_skills.enabled_label": "Aktiverad",
+  "config.daemon_skills.max_concurrent_daemons_label": "Max. samtidiga daemons",
+  "config.daemon_skills.global_rate_limit_secs_label": "Global hastighetsgräns (sekunder)",
+  "config.daemon_skills.max_wakeups_per_hour_label": "Max. uppvakningar per timme",
+  "config.daemon_skills.max_budget_per_hour_label": "Max. budget per timme (USD)",
+  "help.daemon_skills.enabled": "Aktivera eller inaktivera daemon-skills globalt",
+  "help.daemon_skills.max_concurrent_daemons": "Maximalt antal daemons som kan köras samtidigt",
+  "help.daemon_skills.global_rate_limit_secs": "Minimala sekunder mellan daemon-uppvakningsanrop till agenten",
+  "help.daemon_skills.max_wakeups_per_hour": "Maximalt totalt antal agent-uppvakningar från alla daemons per timme",
+  "help.daemon_skills.max_budget_per_hour": "Maximala LLM-kostnader (i USD) som daemon-uppvakningar kan förbruka per timme",
+  "config.daemon_skills.status_title": "Körande daemons"
+}

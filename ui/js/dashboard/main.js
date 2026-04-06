@@ -272,6 +272,7 @@
             renderIntegrations(overview);
             loadGuardianCard();
             loadHelperLLMCard();
+            loadDaemonsCard();
             renderActivity(activity);
             if (promptStats) {
                 renderPromptStats(promptStats);
@@ -3214,6 +3215,63 @@
             renderHelperLLMCard(data);
         }
 
+        // ── Daemon Skills Card ──────────────────────────────────────────────
+
+        async function loadDaemonsCard() {
+            try {
+                const resp = await fetch('/api/daemons');
+                if (!resp.ok) return;
+                const data = await resp.json();
+                const daemons = data.daemons || data || [];
+                if (!Array.isArray(daemons) || daemons.length === 0) return;
+                renderDaemonsCard(daemons);
+            } catch (_) {}
+        }
+
+        function renderDaemonsCard(daemons) {
+            const card = document.getElementById('card-daemons');
+            if (!card) return;
+            card.classList.remove('is-hidden');
+
+            const summaryEl = document.getElementById('daemon-summary');
+            const listEl = document.getElementById('daemon-list');
+
+            const running = daemons.filter(d => (d.status || '').toLowerCase() === 'running').length;
+            const stopped = daemons.filter(d => (d.status || '').toLowerCase() === 'stopped').length;
+            const errored = daemons.filter(d => ['error', 'disabled'].includes((d.status || '').toLowerCase())).length;
+
+            summaryEl.innerHTML = `
+                <div class="guardian-metrics-grid">
+                    <div class="guardian-metric">
+                        <div class="guardian-metric-val">${daemons.length}</div>
+                        <div class="guardian-metric-lbl">${t('dashboard.daemons_total') || 'Total'}</div>
+                    </div>
+                    <div class="guardian-metric">
+                        <div class="guardian-metric-val ok">${running}</div>
+                        <div class="guardian-metric-lbl">${t('dashboard.daemons_running') || 'Running'}</div>
+                    </div>
+                    <div class="guardian-metric">
+                        <div class="guardian-metric-val">${stopped}</div>
+                        <div class="guardian-metric-lbl">${t('dashboard.daemons_stopped') || 'Stopped'}</div>
+                    </div>
+                    <div class="guardian-metric">
+                        <div class="guardian-metric-val${errored > 0 ? ' warn' : ''}">${errored}</div>
+                        <div class="guardian-metric-lbl">${t('dashboard.daemons_error') || 'Error'}</div>
+                    </div>
+                </div>`;
+
+            const statusIcon = { running: '🟢', stopped: '⏹', error: '🔴', disabled: '⛔', starting: '🟡' };
+
+            listEl.innerHTML = daemons.map(d => {
+                const s = (d.status || 'stopped').toLowerCase();
+                const icon = statusIcon[s] || '⏹';
+                const name = esc(d.name || d.skill_id || '?');
+                const uptime = d.uptime ? esc(d.uptime) : '';
+                const lastErr = d.last_error ? `<span class="daemon-err" title="${esc(d.last_error)}">⚠</span>` : '';
+                return `<div class="daemon-row"><span class="daemon-icon">${icon}</span> <span class="daemon-name">${name}</span> ${uptime ? `<span class="daemon-uptime">${uptime}</span>` : ''} ${lastErr}</div>`;
+            }).join('');
+        }
+
         function helperLLMOperationLabel(operation) {
             const labels = {
                 analyze_turn: t('dashboard.helper_llm_operation_analyze_turn'),
@@ -3780,6 +3838,11 @@
                 renderMoodBadge(personality);
                 if (TabState.active === 'agent') {
                     API.get('/api/dashboard/emotion-history?hours=' + currentMoodHours).then(data => renderEmotionHistory(data, personality));
+                }
+            });
+            window.AuraSSE.on('daemon_update', function () {
+                if (TabState.active === 'system') {
+                    loadDaemonsCard();
                 }
             });
             window.AuraSSE.onLegacy(function (event) {

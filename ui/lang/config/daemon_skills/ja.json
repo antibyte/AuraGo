@@ -1,0 +1,13 @@
+{
+  "config.daemon_skills.enabled_label": "有効",
+  "config.daemon_skills.max_concurrent_daemons_label": "最大同時デーモン数",
+  "config.daemon_skills.global_rate_limit_secs_label": "グローバルレート制限（秒）",
+  "config.daemon_skills.max_wakeups_per_hour_label": "1時間あたりの最大ウェイクアップ数",
+  "config.daemon_skills.max_budget_per_hour_label": "1時間あたりの最大予算（USD）",
+  "help.daemon_skills.enabled": "デーモンスキルをグローバルに有効/無効にする",
+  "help.daemon_skills.max_concurrent_daemons": "同時に実行できるデーモンの最大数",
+  "help.daemon_skills.global_rate_limit_secs": "デーモンからエージェントへのウェイクアップコール間の最小秒数",
+  "help.daemon_skills.max_wakeups_per_hour": "すべてのデーモンからの1時間あたりの最大エージェントウェイクアップ数",
+  "help.daemon_skills.max_budget_per_hour": "デーモンウェイクアップが1時間に消費できる最大LLMコスト（USD）",
+  "config.daemon_skills.status_title": "実行中のデーモン"
+}

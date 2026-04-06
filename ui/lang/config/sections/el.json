@@ -295,5 +295,7 @@
   "config.section.optimizations.group.token_context": "📊 Token & Περιβάλλον",
   "config.section.optimizations.group.tool_optimization": "🔧 Βελτιστοποίηση εργαλείων",
   "config.section.optimizations.group.safety_limits": "🛡️ Όρια ασφαλείας & Ανάκτηση",
-  "config.section.optimizations.group.background_tasks": "🔄 Επεξεργασία παρασκηνίου"
+  "config.section.optimizations.group.background_tasks": "🔄 Επεξεργασία παρασκηνίου",
+  "config.section.daemon_skills.label": "Daemon Skills",
+  "config.section.daemon_skills.desc": "Διεργασίες daemon στο παρασκήνιο για μακροχρόνιες εργασίες skills"
 }

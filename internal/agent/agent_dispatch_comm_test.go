@@ -257,10 +257,10 @@ func TestDispatchCommManageDaemonList(t *testing.T) {
 	cfg.Tools.DaemonSkills.Enabled = true
 
 	sup := tools.NewDaemonSupervisor(
-tools.DaemonSupervisorConfig{Enabled: false},
-nil, nil, nil, nil,
-slog.New(slog.NewTextHandler(io.Discard, nil)),
-)
+		tools.DaemonSupervisorConfig{Enabled: false},
+		nil, nil, nil, nil,
+		slog.New(slog.NewTextHandler(io.Discard, nil)),
+	)
 
 	out, ok := dispatchComm(context.Background(), ToolCall{
 		Action:    "manage_daemon",
@@ -286,10 +286,10 @@ func TestDispatchCommManageDaemonStatusMissingID(t *testing.T) {
 	cfg.Tools.DaemonSkills.Enabled = true
 
 	sup := tools.NewDaemonSupervisor(
-tools.DaemonSupervisorConfig{Enabled: false},
-nil, nil, nil, nil,
-slog.New(slog.NewTextHandler(io.Discard, nil)),
-)
+		tools.DaemonSupervisorConfig{Enabled: false},
+		nil, nil, nil, nil,
+		slog.New(slog.NewTextHandler(io.Discard, nil)),
+	)
 
 	out, ok := dispatchComm(context.Background(), ToolCall{
 		Action:    "manage_daemon",
@@ -312,10 +312,10 @@ func TestDispatchCommManageDaemonStatusNotFound(t *testing.T) {
 	cfg.Tools.DaemonSkills.Enabled = true
 
 	sup := tools.NewDaemonSupervisor(
-tools.DaemonSupervisorConfig{Enabled: false},
-nil, nil, nil, nil,
-slog.New(slog.NewTextHandler(io.Discard, nil)),
-)
+		tools.DaemonSupervisorConfig{Enabled: false},
+		nil, nil, nil, nil,
+		slog.New(slog.NewTextHandler(io.Discard, nil)),
+	)
 
 	out, ok := dispatchComm(context.Background(), ToolCall{
 		Action:    "manage_daemon",
@@ -339,10 +339,10 @@ func TestDispatchCommManageDaemonUnknownOp(t *testing.T) {
 	cfg.Tools.DaemonSkills.Enabled = true
 
 	sup := tools.NewDaemonSupervisor(
-tools.DaemonSupervisorConfig{Enabled: false},
-nil, nil, nil, nil,
-slog.New(slog.NewTextHandler(io.Discard, nil)),
-)
+		tools.DaemonSupervisorConfig{Enabled: false},
+		nil, nil, nil, nil,
+		slog.New(slog.NewTextHandler(io.Discard, nil)),
+	)
 
 	out, ok := dispatchComm(context.Background(), ToolCall{
 		Action:    "manage_daemon",

@@ -56,6 +56,7 @@ type SkillRegistryEntry struct {
 	LastScanAt     *time.Time        `json:"last_scan_at,omitempty"`
 	FilePath       string            `json:"file_path"`
 	FileHash       string            `json:"file_hash"`
+	IsDaemon       bool              `json:"is_daemon,omitempty"`
 }
 
 // SkillManager manages the skill registry and lifecycle.
@@ -401,6 +402,22 @@ func (m *SkillManager) ListSkillsFiltered(skillType, status, search string, enab
 		}
 		skills = append(skills, s)
 	}
+
+	// Enrich with daemon info from manifests
+	if manifests, err := ListSkills(m.skillsDir); err == nil {
+		daemonSet := make(map[string]bool, len(manifests))
+		for _, mf := range manifests {
+			if mf.Daemon != nil {
+				daemonSet[mf.Name] = true
+			}
+		}
+		for i := range skills {
+			if daemonSet[skills[i].Name] {
+				skills[i].IsDaemon = true
+			}
+		}
+	}
+
 	return skills, nil
 }
 
@@ -447,6 +464,15 @@ func (m *SkillManager) GetSkill(id string) (*SkillRegistryEntry, error) {
 	}
 	if lastScan.Valid {
 		s.LastScanAt = &lastScan.Time
+	}
+
+	// Enrich with daemon info from manifest
+	manifestPath := filepath.Join(m.skillsDir, strings.TrimSuffix(s.Executable, filepath.Ext(s.Executable))+".json")
+	if data, readErr := os.ReadFile(manifestPath); readErr == nil {
+		var mf SkillManifest
+		if json.Unmarshal(data, &mf) == nil && mf.Daemon != nil {
+			s.IsDaemon = true
+		}
 	}
 
 	return &s, nil

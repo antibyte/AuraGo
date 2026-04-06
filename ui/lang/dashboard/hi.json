@@ -520,5 +520,10 @@
   "dashboard.opt_running_shadows": "Running Shadows",
   "dashboard.opt_rejected_mutations": "Rejected Mutations",
   "dashboard.opt_total_trace_events": "Total Trace Events",
-  "dashboard.opt_global_success_rate": "Global Success Rate"
+  "dashboard.opt_global_success_rate": "Global Success Rate",
+  "dashboard.daemons_title": "डेमॉन स्किल्स",
+  "dashboard.daemons_total": "कुल",
+  "dashboard.daemons_running": "चालू",
+  "dashboard.daemons_stopped": "बंद",
+  "dashboard.daemons_error": "त्रुटि"
 }

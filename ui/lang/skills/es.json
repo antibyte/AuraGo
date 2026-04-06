@@ -123,5 +123,16 @@
   "skills.placeholder_prompt": "Crea un skill que obtenga JSON de una API y devuelva un resumen filtrado.",
   "skills.placeholder_skill_name_short": "resumen_api",
   "skills.placeholder_dependencies": "requests, pyyaml",
-  "skills.placeholder_base_url": "https://api.ejemplo.es"
+  "skills.placeholder_base_url": "https://api.ejemplo.es",
+  "skills.filter_daemon": "Daemon",
+  "skills.daemon": "Daemon",
+  "skills.daemon_running": "Daemon: En ejecución",
+  "skills.daemon_stopped": "Daemon: Detenido",
+  "skills.daemon_error": "Daemon: Error",
+  "skills.daemon_disabled": "Daemon: Desactivado",
+  "skills.daemon_starting": "Daemon: Iniciando",
+  "skills.daemon_start": "Iniciar",
+  "skills.daemon_stop": "Detener",
+  "skills.daemon_reenable": "Reactivar",
+  "skills.daemon_action_ok": "Acción daemon ejecutada"
 }

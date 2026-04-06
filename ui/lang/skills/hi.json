@@ -123,5 +123,16 @@
   "skills.placeholder_prompt": "एक skill बनाएं जो API से JSON प्राप्त करे और फ़िल्टर्ड सारांश लौटाए।",
   "skills.placeholder_skill_name_short": "api_sammanfatting",
   "skills.placeholder_dependencies": "requests, pyyaml",
-  "skills.placeholder_base_url": "https://api.example.in"
+  "skills.placeholder_base_url": "https://api.example.in",
+  "skills.filter_daemon": "डेमॉन",
+  "skills.daemon": "डेमॉन",
+  "skills.daemon_running": "डेमॉन: चालू",
+  "skills.daemon_stopped": "डेमॉन: बंद",
+  "skills.daemon_error": "डेमॉन: त्रुटि",
+  "skills.daemon_disabled": "डेमॉन: अक्षम",
+  "skills.daemon_starting": "डेमॉन: शुरू हो रहा है",
+  "skills.daemon_start": "शुरू करें",
+  "skills.daemon_stop": "बंद करें",
+  "skills.daemon_reenable": "पुनः सक्षम करें",
+  "skills.daemon_action_ok": "डेमॉन क्रिया निष्पादित"
 }

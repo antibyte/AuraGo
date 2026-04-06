@@ -123,5 +123,16 @@
   "skills.placeholder_prompt": "Maak een skill die JSON van een API haalt en een gefilterd overzicht retourneert.",
   "skills.placeholder_skill_name_short": "api_overzicht",
   "skills.placeholder_dependencies": "requests, pyyaml",
-  "skills.placeholder_base_url": "https://api.example.nl"
+  "skills.placeholder_base_url": "https://api.example.nl",
+  "skills.filter_daemon": "Daemon",
+  "skills.daemon": "Daemon",
+  "skills.daemon_running": "Daemon: Actief",
+  "skills.daemon_stopped": "Daemon: Gestopt",
+  "skills.daemon_error": "Daemon: Fout",
+  "skills.daemon_disabled": "Daemon: Uitgeschakeld",
+  "skills.daemon_starting": "Daemon: Starten",
+  "skills.daemon_start": "Starten",
+  "skills.daemon_stop": "Stoppen",
+  "skills.daemon_reenable": "Heractiveren",
+  "skills.daemon_action_ok": "Daemon-actie uitgevoerd"
 }

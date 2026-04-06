@@ -3403,3 +3403,18 @@
 [data-theme="light"] .chart-modal-bg {
     background: rgba(30, 41, 59, 0.35);
 }
+
+/* ── Daemon Card ── */
+.daemon-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border-subtle);
+    font-size: 0.88rem;
+}
+.daemon-row:last-child { border-bottom: none; }
+.daemon-icon { flex-shrink: 0; }
+.daemon-name { font-weight: 500; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.daemon-uptime { color: var(--text-secondary); font-size: 0.8rem; flex-shrink: 0; }
+.daemon-err { color: var(--error, #ef4444); cursor: help; flex-shrink: 0; }

@@ -1,0 +1,13 @@
+{
+  "config.daemon_skills.enabled_label": "启用",
+  "config.daemon_skills.max_concurrent_daemons_label": "最大并发守护进程",
+  "config.daemon_skills.global_rate_limit_secs_label": "全局速率限制（秒）",
+  "config.daemon_skills.max_wakeups_per_hour_label": "每小时最大唤醒次数",
+  "config.daemon_skills.max_budget_per_hour_label": "每小时最大预算（USD）",
+  "help.daemon_skills.enabled": "全局启用或禁用守护进程技能",
+  "help.daemon_skills.max_concurrent_daemons": "可同时运行的最大守护进程数",
+  "help.daemon_skills.global_rate_limit_secs": "守护进程唤醒代理之间的最小秒数",
+  "help.daemon_skills.max_wakeups_per_hour": "所有守护进程每小时的最大代理唤醒总数",
+  "help.daemon_skills.max_budget_per_hour": "守护进程唤醒每小时可消耗的最大LLM成本（USD）",
+  "config.daemon_skills.status_title": "运行中的守护进程"
+}

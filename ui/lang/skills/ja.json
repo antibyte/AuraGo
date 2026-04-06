@@ -123,5 +123,16 @@
   "skills.placeholder_prompt": "APIからJSONを取得し、フィルタリングされたサマリーを返すスキルを作成します。",
   "skills.placeholder_skill_name_short": "apiサマリー",
   "skills.placeholder_dependencies": "requests, pyyaml",
-  "skills.placeholder_base_url": "https://api.example.jp"
+  "skills.placeholder_base_url": "https://api.example.jp",
+  "skills.filter_daemon": "デーモン",
+  "skills.daemon": "デーモン",
+  "skills.daemon_running": "デーモン: 実行中",
+  "skills.daemon_stopped": "デーモン: 停止",
+  "skills.daemon_error": "デーモン: エラー",
+  "skills.daemon_disabled": "デーモン: 無効",
+  "skills.daemon_starting": "デーモン: 起動中",
+  "skills.daemon_start": "開始",
+  "skills.daemon_stop": "停止",
+  "skills.daemon_reenable": "再有効化",
+  "skills.daemon_action_ok": "デーモンアクション実行完了"
 }

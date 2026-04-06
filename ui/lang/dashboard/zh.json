@@ -520,5 +520,10 @@
   "dashboard.opt_running_shadows": "Running Shadows",
   "dashboard.opt_rejected_mutations": "Rejected Mutations",
   "dashboard.opt_total_trace_events": "Total Trace Events",
-  "dashboard.opt_global_success_rate": "Global Success Rate"
+  "dashboard.opt_global_success_rate": "Global Success Rate",
+  "dashboard.daemons_title": "守护进程技能",
+  "dashboard.daemons_total": "总计",
+  "dashboard.daemons_running": "运行中",
+  "dashboard.daemons_stopped": "已停止",
+  "dashboard.daemons_error": "错误"
 }

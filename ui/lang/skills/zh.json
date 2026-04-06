@@ -123,5 +123,16 @@
   "skills.placeholder_prompt": "创建一个技能，从 API 获取 JSON 并返回过滤后的摘要。",
   "skills.placeholder_skill_name_short": "api摘要",
   "skills.placeholder_dependencies": "requests, pyyaml",
-  "skills.placeholder_base_url": "https://api.example.cn"
+  "skills.placeholder_base_url": "https://api.example.cn",
+  "skills.filter_daemon": "守护进程",
+  "skills.daemon": "守护进程",
+  "skills.daemon_running": "守护进程: 运行中",
+  "skills.daemon_stopped": "守护进程: 已停止",
+  "skills.daemon_error": "守护进程: 错误",
+  "skills.daemon_disabled": "守护进程: 已禁用",
+  "skills.daemon_starting": "守护进程: 启动中",
+  "skills.daemon_start": "启动",
+  "skills.daemon_stop": "停止",
+  "skills.daemon_reenable": "重新启用",
+  "skills.daemon_action_ok": "守护进程操作已执行"
 }

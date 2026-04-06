@@ -123,5 +123,16 @@
   "skills.placeholder_prompt": "Δημιουργήστε ένα skill που ανακτά JSON από ένα API και επιστρέφει ένα φιλτραρισμένο σύνοψη.",
   "skills.placeholder_skill_name_short": "api_syntaxi",
   "skills.placeholder_dependencies": "requests, pyyaml",
-  "skills.placeholder_base_url": "https://api.example.gr"
+  "skills.placeholder_base_url": "https://api.example.gr",
+  "skills.filter_daemon": "Daemon",
+  "skills.daemon": "Daemon",
+  "skills.daemon_running": "Daemon: Εκτελείται",
+  "skills.daemon_stopped": "Daemon: Σταματημένο",
+  "skills.daemon_error": "Daemon: Σφάλμα",
+  "skills.daemon_disabled": "Daemon: Απενεργοποιημένο",
+  "skills.daemon_starting": "Daemon: Εκκίνηση",
+  "skills.daemon_start": "Εκκίνηση",
+  "skills.daemon_stop": "Διακοπή",
+  "skills.daemon_reenable": "Επανενεργοποίηση",
+  "skills.daemon_action_ok": "Ενέργεια daemon εκτελέστηκε"
 }

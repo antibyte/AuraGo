@@ -295,5 +295,7 @@
   "config.section.optimizations.group.token_context": "📊 令牌与上下文",
   "config.section.optimizations.group.tool_optimization": "🔧 工具优化",
   "config.section.optimizations.group.safety_limits": "🛡️ 安全限制与恢复",
-  "config.section.optimizations.group.background_tasks": "🔄 后台处理"
+  "config.section.optimizations.group.background_tasks": "🔄 后台处理",
+  "config.section.daemon_skills.label": "守护进程技能",
+  "config.section.daemon_skills.desc": "用于长时间运行技能任务的后台守护进程"
 }

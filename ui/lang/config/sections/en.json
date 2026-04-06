@@ -295,5 +295,7 @@
   "config.tts.minimax_speed_help": "Speech speed 0.5–2.0 (default 1.0)",
   "config.tts.minimax_api_key_required": "MiniMax API key is required",
   "config.section.music_generation.label": "Music Generation",
-  "config.section.music_generation.desc": "Generate music from text prompts using AI"
+  "config.section.music_generation.desc": "Generate music from text prompts using AI",
+  "config.section.daemon_skills.label": "Daemon Skills",
+  "config.section.daemon_skills.desc": "Background daemon processes for long-running skill tasks"
 }

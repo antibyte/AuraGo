@@ -4,6 +4,7 @@
 
 let allSkills = [];
 let allTemplates = [];
+let daemonStates = {};  // skill_id -> daemon state object
 let currentTypeFilter = 'all';
 let currentSecFilter = 'all';
 let currentDetailId = '';
@@ -26,8 +27,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadCredentialMap();
     loadSkills();
     loadTemplates();
+    loadDaemonStates();
     initDropzone();
     applyPlaceholders();
+    initDaemonSSE();
 });
 
 function applyPlaceholders() {
@@ -85,6 +88,89 @@ async function loadTemplates() {
         }
     } catch (e) {
         console.error('Failed to load templates:', e);
+    }
+}
+
+function showDisabledState() {
+
+// ── Daemon Data ─────────────────────────────────────────────────────────────
+
+async function loadDaemonStates() {
+    try {
+        const resp = await fetch('/api/daemons');
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const list = data.daemons || data || [];
+        daemonStates = {};
+        if (Array.isArray(list)) {
+            list.forEach(d => { daemonStates[d.skill_id || d.SkillID] = d; });
+        }
+        renderSkills();
+    } catch (_) {}
+}
+
+function initDaemonSSE() {
+    if (window.AuraSSE) {
+        window.AuraSSE.on('daemon_update', () => { loadDaemonStates(); });
+    }
+}
+
+function getDaemonState(skillId) {
+    return daemonStates[skillId] || null;
+}
+
+function renderDaemonBadge(skill) {
+    const isDaemon = skill.IsDaemon || skill.is_daemon;
+    if (!isDaemon) return '';
+    const id = skill.ID || skill.id || '';
+    const ds = getDaemonState(id);
+    if (!ds) {
+        return `<span class="sk-daemon-badge sk-daemon-stopped" title="${t('skills.daemon_stopped') || 'Daemon: Stopped'}">⏹ ${t('skills.daemon') || 'Daemon'}</span>`;
+    }
+    const status = (ds.status || ds.Status || 'stopped').toLowerCase();
+    const statusMap = {
+        running: { cls: 'sk-daemon-running', icon: '🟢', label: t('skills.daemon_running') || 'Running' },
+        stopped: { cls: 'sk-daemon-stopped', icon: '⏹', label: t('skills.daemon_stopped') || 'Stopped' },
+        error: { cls: 'sk-daemon-error', icon: '🔴', label: t('skills.daemon_error') || 'Error' },
+        disabled: { cls: 'sk-daemon-disabled', icon: '⛔', label: t('skills.daemon_disabled') || 'Disabled' },
+        starting: { cls: 'sk-daemon-starting', icon: '🟡', label: t('skills.daemon_starting') || 'Starting' },
+    };
+    const info = statusMap[status] || statusMap.stopped;
+    return `<span class="sk-daemon-badge ${info.cls}" title="${info.label}">${info.icon} ${t('skills.daemon') || 'Daemon'}</span>`;
+}
+
+function renderDaemonActions(skill) {
+    const isDaemon = skill.IsDaemon || skill.is_daemon;
+    if (!isDaemon) return '';
+    const id = skill.ID || skill.id || '';
+    const ds = getDaemonState(id);
+    const status = ds ? (ds.status || ds.Status || 'stopped').toLowerCase() : 'stopped';
+    const autoDisabled = ds && (ds.auto_disabled || ds.AutoDisabled);
+
+    let btns = '';
+    if (status === 'running') {
+        btns = `<button class="btn btn-sm btn-warning" onclick="daemonAction('${id}','stop')">${t('skills.daemon_stop') || 'Stop'}</button>`;
+    } else if (autoDisabled || status === 'disabled') {
+        btns = `<button class="btn btn-sm btn-primary" onclick="daemonAction('${id}','reenable')">${t('skills.daemon_reenable') || 'Re-enable'}</button>`;
+    } else {
+        btns = `<button class="btn btn-sm btn-primary" onclick="daemonAction('${id}','start')">${t('skills.daemon_start') || 'Start'}</button>`;
+    }
+    return `<div class="sk-daemon-actions">${btns}</div>`;
+}
+
+// eslint-disable-next-line no-unused-vars
+async function daemonAction(skillId, action) {
+    try {
+        const resp = await fetch(`/api/daemons/${encodeURIComponent(skillId)}/${action}`, { method: 'POST' });
+        const data = await resp.json();
+        if (data.status === 'ok' || resp.ok) {
+            showToast(t('skills.daemon_action_ok') || 'Daemon action executed', 'success');
+            await loadDaemonStates();
+        } else {
+            showToast(data.message || data.error || t('common.error'), 'error');
+        }
+    } catch (e) {
+        showToast(t('common.error') || 'Error', 'error');
     }
 }
 
@@ -180,12 +266,14 @@ function renderCard(skill) {
             <div class="sk-card-badges">
                 <span class="sk-type-badge sk-type-${type}">${typeLabel}</span>
                 ${secBadge}
+                ${renderDaemonBadge(skill)}
             </div>
         </div>
         <div class="sk-card-desc">${desc || '<em>' + (t('skills.no_description') || 'No description') + '</em>'}</div>
         ${metaRow}
         ${depTags}
         ${vaultRow}
+        ${renderDaemonActions(skill)}
         <div class="sk-card-actions">
             <button class="btn btn-sm btn-secondary" onclick="showDetail('${id}')" data-i18n="skills.btn_details">Details</button>
             <button class="btn btn-sm btn-secondary" onclick="viewCode('${id}')" data-i18n="skills.btn_view_code">Code</button>
@@ -216,8 +304,10 @@ function getFilteredSkills() {
         const sec = (s.SecurityStatus || s.security_status || 'pending').toLowerCase();
         const name = (s.Name || s.name || '').toLowerCase();
         const desc = (s.Description || s.description || '').toLowerCase();
+        const isDaemon = s.IsDaemon || s.is_daemon;
 
-        if (currentTypeFilter !== 'all' && type !== currentTypeFilter) return false;
+        if (currentTypeFilter === 'daemon' && !isDaemon) return false;
+        if (currentTypeFilter !== 'all' && currentTypeFilter !== 'daemon' && type !== currentTypeFilter) return false;
         if (currentSecFilter !== 'all' && sec !== currentSecFilter) return false;
         if (search && !name.includes(search) && !desc.includes(search)) return false;
         return true;

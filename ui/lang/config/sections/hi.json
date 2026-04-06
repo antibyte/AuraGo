@@ -295,5 +295,7 @@
   "config.section.optimizations.group.token_context": "📊 टोकन और संदर्भ",
   "config.section.optimizations.group.tool_optimization": "🔧 टूल अनुकूलन",
   "config.section.optimizations.group.safety_limits": "🛡️ सुरक्षा सीमाएं और पुनर्प्राप्ति",
-  "config.section.optimizations.group.background_tasks": "🔄 पृष्ठभूमि प्रसंस्करण"
+  "config.section.optimizations.group.background_tasks": "🔄 पृष्ठभूमि प्रसंस्करण",
+  "config.section.daemon_skills.label": "डेमॉन स्किल्स",
+  "config.section.daemon_skills.desc": "लंबे समय तक चलने वाले स्किल कार्यों के लिए पृष्ठभूमि डेमॉन प्रक्रियाएं"
 }

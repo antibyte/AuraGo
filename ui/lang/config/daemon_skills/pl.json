@@ -1,0 +1,13 @@
+{
+  "config.daemon_skills.enabled_label": "Włączony",
+  "config.daemon_skills.max_concurrent_daemons_label": "Maks. jednoczesnych daemonów",
+  "config.daemon_skills.global_rate_limit_secs_label": "Globalny limit szybkości (sekundy)",
+  "config.daemon_skills.max_wakeups_per_hour_label": "Maks. wybudzeń na godzinę",
+  "config.daemon_skills.max_budget_per_hour_label": "Maks. budżet na godzinę (USD)",
+  "help.daemon_skills.enabled": "Globalnie włącz lub wyłącz daemon skills",
+  "help.daemon_skills.max_concurrent_daemons": "Maksymalna liczba daemonów mogących działać jednocześnie",
+  "help.daemon_skills.global_rate_limit_secs": "Minimalne sekundy między wywołaniami wybudzenia daemona do agenta",
+  "help.daemon_skills.max_wakeups_per_hour": "Maksymalna łączna liczba wybudzeń agenta ze wszystkich daemonów na godzinę",
+  "help.daemon_skills.max_budget_per_hour": "Maksymalny koszt LLM (w USD) jaki wybudzenia daemonów mogą pochłonąć na godzinę",
+  "config.daemon_skills.status_title": "Działające daemony"
+}

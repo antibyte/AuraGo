@@ -27,6 +27,7 @@ const (
 	EventLogLine           SSEEventType = "log_line"
 	EventToast             SSEEventType = "toast"
 	EventSystemWarning     SSEEventType = "system_warning"
+	EventDaemonUpdate      SSEEventType = "daemon_update"
 )
 
 // SSEBroadcaster manages Server-Sent Events connections and broadcasts messages.

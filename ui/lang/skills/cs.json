@@ -123,5 +123,16 @@
   "skills.placeholder_prompt": "Vytvořte skill, který načte JSON z API a vrátí filtrované shrnutí.",
   "skills.placeholder_skill_name_short": "api_shrnuti",
   "skills.placeholder_dependencies": "requests, pyyaml",
-  "skills.placeholder_base_url": "https://api.priklad.cz"
+  "skills.placeholder_base_url": "https://api.priklad.cz",
+  "skills.filter_daemon": "Daemon",
+  "skills.daemon": "Daemon",
+  "skills.daemon_running": "Daemon: Běží",
+  "skills.daemon_stopped": "Daemon: Zastaveno",
+  "skills.daemon_error": "Daemon: Chyba",
+  "skills.daemon_disabled": "Daemon: Zakázáno",
+  "skills.daemon_starting": "Daemon: Spouštění",
+  "skills.daemon_start": "Spustit",
+  "skills.daemon_stop": "Zastavit",
+  "skills.daemon_reenable": "Znovu povolit",
+  "skills.daemon_action_ok": "Akce daemonu provedena"
 }

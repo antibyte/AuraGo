@@ -295,5 +295,7 @@
   "config.section.optimizations.group.token_context": "📊 Token & Contexto",
   "config.section.optimizations.group.tool_optimization": "🔧 Otimização de ferramentas",
   "config.section.optimizations.group.safety_limits": "🛡️ Limites de segurança e recuperação",
-  "config.section.optimizations.group.background_tasks": "🔄 Processamento em segundo plano"
+  "config.section.optimizations.group.background_tasks": "🔄 Processamento em segundo plano",
+  "config.section.daemon_skills.label": "Skills Daemon",
+  "config.section.daemon_skills.desc": "Processos daemon em segundo plano para tarefas de skills de longa duração"
 }

@@ -295,5 +295,7 @@
   "config.section.optimizations.group.token_context": "📊 トークンとコンテキスト",
   "config.section.optimizations.group.tool_optimization": "🔧 ツール最適化",
   "config.section.optimizations.group.safety_limits": "🛡️ セーフティリミットと回復",
-  "config.section.optimizations.group.background_tasks": "🔄 バックグラウンド処理"
+  "config.section.optimizations.group.background_tasks": "🔄 バックグラウンド処理",
+  "config.section.daemon_skills.label": "デーモンスキル",
+  "config.section.daemon_skills.desc": "長時間実行スキルタスクのバックグラウンドデーモンプロセス"
 }

@@ -295,5 +295,7 @@
   "config.section.optimizations.group.token_context": "📊 Token & Kontekst",
   "config.section.optimizations.group.tool_optimization": "🔧 Værktøjsoptimering",
   "config.section.optimizations.group.safety_limits": "🛡️ Sikkerhedsgrænser og gendannelse",
-  "config.section.optimizations.group.background_tasks": "🔄 Baggrundsbehandling"
+  "config.section.optimizations.group.background_tasks": "🔄 Baggrundsbehandling",
+  "config.section.daemon_skills.label": "Daemon Skills",
+  "config.section.daemon_skills.desc": "Baggrunds-daemon-processer til langvarige skill-opgaver"
 }

@@ -520,5 +520,10 @@
   "dashboard.opt_running_shadows": "Laufende Shadows",
   "dashboard.opt_rejected_mutations": "Abgelehnte Mutationen",
   "dashboard.opt_total_trace_events": "Gesamte Trace Events",
-  "dashboard.opt_global_success_rate": "Globale Erfolgsrate"
+  "dashboard.opt_global_success_rate": "Globale Erfolgsrate",
+  "dashboard.daemons_title": "Daemon-Skills",
+  "dashboard.daemons_total": "Gesamt",
+  "dashboard.daemons_running": "Laufend",
+  "dashboard.daemons_stopped": "Gestoppt",
+  "dashboard.daemons_error": "Fehler"
 }

@@ -123,5 +123,16 @@
   "skills.placeholder_prompt": "Opret en skill, der henter JSON fra en API og returnerer et filtreret resumé.",
   "skills.placeholder_skill_name_short": "api_resume",
   "skills.placeholder_dependencies": "requests, pyyaml",
-  "skills.placeholder_base_url": "https://api.eksempel.dk"
+  "skills.placeholder_base_url": "https://api.eksempel.dk",
+  "skills.filter_daemon": "Daemon",
+  "skills.daemon": "Daemon",
+  "skills.daemon_running": "Daemon: Kører",
+  "skills.daemon_stopped": "Daemon: Stoppet",
+  "skills.daemon_error": "Daemon: Fejl",
+  "skills.daemon_disabled": "Daemon: Deaktiveret",
+  "skills.daemon_starting": "Daemon: Starter",
+  "skills.daemon_start": "Start",
+  "skills.daemon_stop": "Stop",
+  "skills.daemon_reenable": "Genaktivér",
+  "skills.daemon_action_ok": "Daemon-handling udført"
 }

@@ -296,10 +296,6 @@
   "config.tts.minimax_api_key_required": "Je vyžadován API klíč MiniMax",
   "config.section.music_generation.label": "Generování hudby",
   "config.section.music_generation.desc": "Generování hudby z textových popisů pomocí AI",
-  "config.section.optimizations.label": "Optimalizace",
-  "config.section.optimizations.desc": "Výkon, zdroje a odolnost vůči chybám",
-  "config.section.optimizations.group.token_context": "📊 Token & Kontext",
-  "config.section.optimizations.group.tool_optimization": "🔧 Optimalizace nástrojů",
-  "config.section.optimizations.group.safety_limits": "🛡️ Bezpečnostní limity a obnova",
-  "config.section.optimizations.group.background_tasks": "🔄 Zpracování na pozadí"
+  "config.section.daemon_skills.label": "Daemon Skills",
+  "config.section.daemon_skills.desc": "Procesy daemon na pozadí pro dlouhodobé úlohy skills"
 }
