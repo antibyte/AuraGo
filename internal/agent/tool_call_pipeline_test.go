@@ -272,3 +272,60 @@ func TestRecoverFromEmptyResponseWithPolicyHonorsMinMessages(t *testing.T) {
 		t.Fatal("did not expect emptyRetried flag to be set")
 	}
 }
+
+// TestRecoverFromEmptyResponsePureThinkBlock ensures that a response consisting
+// only of <think>…</think> reasoning (no visible output after stripping) is treated
+// as effectively empty and triggers recovery — preventing the agent from hanging.
+func TestRecoverFromEmptyResponsePureThinkBlock(t *testing.T) {
+	req := openai.ChatCompletionRequest{
+		Messages: []openai.ChatCompletionMessage{
+			{Role: openai.ChatMessageRoleSystem, Content: "sys"},
+			{Role: openai.ChatMessageRoleSystem, Content: "summary"},
+			{Role: openai.ChatMessageRoleUser, Content: "u1"},
+			{Role: openai.ChatMessageRoleAssistant, Content: "a1"},
+			{Role: openai.ChatMessageRoleUser, Content: "u2"},
+			{Role: openai.ChatMessageRoleAssistant, Content: "a2"},
+			{Role: openai.ChatMessageRoleUser, Content: "u3"},
+		},
+	}
+	resp := openai.ChatCompletionResponse{
+		Choices: []openai.ChatCompletionChoice{{
+			Message: openai.ChatCompletionMessage{},
+		}},
+	}
+	pureThinkContent := "<think>\nThe user wants me to update the file. Let me do that.\n</think>"
+	emptyRetried := false
+
+	recovered := recoverFromEmptyResponse(resp, pureThinkContent, &req, &emptyRetried, nil, nil, AgentTelemetryScope{})
+
+	if !recovered {
+		t.Fatal("expected pure think-block response to trigger empty-response recovery")
+	}
+	if !emptyRetried {
+		t.Fatal("expected emptyRetried flag to be set")
+	}
+}
+
+// TestRecoverFromEmptyResponseDoesNotTriggerForRealContent ensures that non-empty
+// content (even with a think block prefix) does NOT falsely trigger recovery.
+func TestRecoverFromEmptyResponseDoesNotTriggerForRealContent(t *testing.T) {
+	req := openai.ChatCompletionRequest{
+		Messages: []openai.ChatCompletionMessage{
+			{Role: openai.ChatMessageRoleSystem, Content: "sys"},
+			{Role: openai.ChatMessageRoleUser, Content: "hello"},
+		},
+	}
+	resp := openai.ChatCompletionResponse{
+		Choices: []openai.ChatCompletionChoice{{
+			Message: openai.ChatCompletionMessage{},
+		}},
+	}
+	contentWithThinkAndText := "<think>\nSome reasoning.\n</think>\n\nHere is my answer."
+	emptyRetried := false
+
+	recovered := recoverFromEmptyResponse(resp, contentWithThinkAndText, &req, &emptyRetried, nil, nil, AgentTelemetryScope{})
+
+	if recovered {
+		t.Fatal("should NOT trigger recovery when real content exists after think block")
+	}
+}

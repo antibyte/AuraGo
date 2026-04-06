@@ -60,9 +60,9 @@ type musicDailyCounter struct {
 
 var musicCounter = &musicDailyCounter{}
 
-// musicCounterIncrement checks and increments the daily counter.
-// Returns (current_count, allowed).
-func musicCounterIncrement(maxDaily int) (int, bool) {
+// musicCounterCheck checks whether a new generation is within the daily limit.
+// Does NOT increment; call musicCounterMark() after a successful generation.
+func musicCounterCheck(maxDaily int) (int, bool) {
 	musicCounter.mu.Lock()
 	defer musicCounter.mu.Unlock()
 
@@ -74,8 +74,31 @@ func musicCounterIncrement(maxDaily int) (int, bool) {
 	if maxDaily > 0 && musicCounter.count >= maxDaily {
 		return musicCounter.count, false
 	}
-	musicCounter.count++
 	return musicCounter.count, true
+}
+
+// musicCounterMark records one successful generation against today's quota.
+func musicCounterMark() {
+	musicCounter.mu.Lock()
+	defer musicCounter.mu.Unlock()
+
+	today := time.Now().Format("2006-01-02")
+	if musicCounter.date != today {
+		musicCounter.date = today
+		musicCounter.count = 0
+	}
+	musicCounter.count++
+}
+
+// musicCounterIncrement checks and increments the daily counter.
+// Deprecated: use musicCounterCheck + musicCounterMark instead.
+func musicCounterIncrement(maxDaily int) (int, bool) {
+	count, allowed := musicCounterCheck(maxDaily)
+	if allowed {
+		musicCounterMark()
+		return count + 1, true
+	}
+	return count, false
 }
 
 // MusicCounterGet returns the current daily count (for display).
@@ -117,17 +140,16 @@ func GenerateMusicResult(ctx context.Context, cfg *config.Config, mediaDB *sql.D
 		return MusicGenResult{Status: "error", Error: "Music generation provider not configured. Set a provider in Settings > Music Generation."}
 	}
 
-	// Check daily limit
+	// Check daily limit — only increment AFTER a successful generation so that
+	// API errors (wrong model, plan restrictions, network failures) do not consume quota.
 	if cfg.MusicGeneration.MaxDaily > 0 {
-		count, allowed := musicCounterIncrement(cfg.MusicGeneration.MaxDaily)
+		count, allowed := musicCounterCheck(cfg.MusicGeneration.MaxDaily)
 		if !allowed {
 			return MusicGenResult{
 				Status: "error",
 				Error:  fmt.Sprintf("Daily music generation limit reached (%d/%d). Try again tomorrow or increase the limit in settings.", count, cfg.MusicGeneration.MaxDaily),
 			}
 		}
-	} else {
-		musicCounterIncrement(0)
 	}
 
 	// Ensure audio output directory exists
@@ -144,6 +166,11 @@ func GenerateMusicResult(ctx context.Context, cfg *config.Config, mediaDB *sql.D
 		result = generateMusicGoogleLyria(ctx, apiKey, model, params, audioDir, logger)
 	default:
 		return MusicGenResult{Status: "error", Error: fmt.Sprintf("Unknown music generation provider type: %q. Supported: minimax, google", providerType)}
+	}
+
+	// Mark successful generation against daily quota now that we know the call succeeded.
+	if result.Status == "ok" {
+		musicCounterMark()
 	}
 
 	// Register in media registry
@@ -249,10 +276,11 @@ func generateMusicMiniMax(ctx context.Context, apiKey, model string, params Musi
 		reqBody.IsInstrumental = true
 	} else if params.Lyrics != "" {
 		reqBody.Lyrics = params.Lyrics
-	} else {
-		// Auto-generate lyrics from prompt
-		reqBody.LyricsOptimize = true
 	}
+	// When no lyrics are provided and not instrumental, just send the prompt.
+	// LyricsOptimize (which triggers the separate lyrics_generation API) is intentionally
+	// NOT set here — it requires a higher token plan (error 2061) and is unnecessary
+	// because the music-2.5+ model can produce vocals from a plain text prompt.
 
 	bodyBytes, err := json.Marshal(reqBody)
 	if err != nil {

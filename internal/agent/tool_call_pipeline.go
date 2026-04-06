@@ -159,7 +159,13 @@ func recoverFromEmptyResponse(resp openai.ChatCompletionResponse, content string
 }
 
 func recoverFromEmptyResponseWithPolicy(policy RecoveryPolicy, resp openai.ChatCompletionResponse, content string, req *openai.ChatCompletionRequest, emptyRetried *bool, logger *slog.Logger, broker FeedbackBroker, scope AgentTelemetryScope) bool {
-	if *emptyRetried || strings.TrimSpace(content) != "" || len(resp.Choices) == 0 || len(resp.Choices[0].Message.ToolCalls) > 0 || len(req.Messages) < policy.minMessagesForEmptyRetry() {
+	// Treat a response that contains only <think>…</think> blocks (and nothing visible
+	// after stripping them) as effectively empty — the model spent all tokens reasoning
+	// but produced no actual output.  Without this check the raw content is non-empty
+	// (it holds the think tags), bypassing the empty-response recovery and silently
+	// ending the agent loop with no user-visible output.
+	effectivelyEmpty := strings.TrimSpace(content) == "" || strings.TrimSpace(security.StripThinkingTags(content)) == ""
+	if *emptyRetried || !effectivelyEmpty || len(resp.Choices) == 0 || len(resp.Choices[0].Message.ToolCalls) > 0 || len(req.Messages) < policy.minMessagesForEmptyRetry() {
 		return false
 	}
 
