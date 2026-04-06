@@ -1,14 +1,13 @@
-// Package tools – filetype_detect: magic-byte file-type detection via h2non/filetype.
+// Package tools – filetype_detect: magic-byte file-type detection via net/http.
 package tools
 
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/h2non/filetype"
 )
 
 // fileTypeEntry represents the detected type of a single file.
@@ -28,8 +27,8 @@ type fileTypeResult struct {
 	Errors int             `json:"errors"`
 }
 
-// detectOne reads up to 261 bytes of a file and returns the detected type.
-// 261 bytes is sufficient for all filetype matchers.
+// detectOne reads up to 512 bytes of a file and returns the detected type.
+// Uses net/http.DetectContentType for magic-byte sniffing (stdlib, no external dep).
 func detectOne(path string) fileTypeEntry {
 	entry := fileTypeEntry{Path: path}
 	f, err := os.Open(path) // #nosec G304 – path comes from an OS walk, not user HTTP input
@@ -39,27 +38,26 @@ func detectOne(path string) fileTypeEntry {
 	}
 	defer f.Close()
 
-	buf := make([]byte, 261)
+	buf := make([]byte, 512)
 	n, err := f.Read(buf)
 	if err != nil && n == 0 {
 		entry.Error = fmt.Sprintf("read: %v", err)
 		return entry
 	}
 
-	kind, err := filetype.Match(buf[:n])
-	if err != nil || kind == filetype.Unknown {
-		entry.MIME = "application/octet-stream"
-		entry.Extension = strings.TrimPrefix(filepath.Ext(path), ".")
-		entry.Group = "unknown"
-		return entry
+	mime := http.DetectContentType(buf[:n])
+	// DetectContentType may return params like "text/plain; charset=utf-8" — strip them.
+	if idx := strings.Index(mime, ";"); idx >= 0 {
+		mime = strings.TrimSpace(mime[:idx])
 	}
 
-	entry.MIME = kind.MIME.Value
-	entry.Extension = kind.Extension
-	if idx := strings.Index(kind.MIME.Type, "/"); idx >= 0 {
-		entry.Group = kind.MIME.Type[:idx]
+	entry.MIME = mime
+	// Derive extension from file path as fallback (DetectContentType doesn't provide one).
+	entry.Extension = strings.TrimPrefix(strings.ToLower(filepath.Ext(path)), ".")
+	if idx := strings.Index(mime, "/"); idx >= 0 {
+		entry.Group = mime[:idx]
 	} else {
-		entry.Group = kind.MIME.Type
+		entry.Group = mime
 	}
 	return entry
 }
