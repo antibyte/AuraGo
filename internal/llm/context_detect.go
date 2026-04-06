@@ -28,12 +28,12 @@ var knownContextWindows = []struct {
 }{
 	// ── MiniMax (api.minimaxi.com) ────────────────────────────────────────────
 	// M2 generation — specific variants before generic "minimax-m2" catch-all
-	{"minimax-m2.7", 204_800},     // MiniMax-M2.7 / M2.7-highspeed: 200K
-	{"minimax-m2.5", 196_608},     // MiniMax-M2.5 / M2.5-highspeed: ~192K
-	{"minimax-m2.1", 204_800},     // MiniMax-M2.1: 200K
-	{"minimax-m2-her", 196_608},   // MiniMax-M2-her (roleplay model): ~192K
-	{"minimax-m2", 204_800},       // catch-all for other M2 variants
-	{"m2-her", 196_608},           // bare "M2-her" / "m2-her" variant
+	{"minimax-m2.7", 204_800},   // MiniMax-M2.7 / M2.7-highspeed: 200K
+	{"minimax-m2.5", 196_608},   // MiniMax-M2.5 / M2.5-highspeed: ~192K
+	{"minimax-m2.1", 204_800},   // MiniMax-M2.1: 200K
+	{"minimax-m2-her", 196_608}, // MiniMax-M2-her (roleplay model): ~192K
+	{"minimax-m2", 204_800},     // catch-all for other M2 variants
+	{"m2-her", 196_608},         // bare "M2-her" / "m2-her" variant
 	// Legacy MiniMax models (abab series)
 	{"minimax-text-01", 1_000_000},
 	{"abab7", 1_000_000},
@@ -44,16 +44,16 @@ var knownContextWindows = []struct {
 
 	// ── Kimi / Moonshot AI (api.moonshot.cn) ─────────────────────────────────
 	// kimi-k2 variants with 256K window before base kimi-k2 (128K)
-	{"kimi-k2.5", 262_144},          // kimi-k2.5: 256K
-	{"kimi-k2-thinking", 262_144},   // kimi-k2-thinking / kimi-k2-thinking-turbo: 256K
-	{"kimi-k2-turbo", 262_144},      // kimi-k2-turbo-preview: 256K
-	{"kimi-k2-0905", 262_144},       // kimi-k2-0905-preview: 256K
-	{"kimi-k2", 131_072},            // base kimi-k2 / kimi-k2-0711-preview: 128K
+	{"kimi-k2.5", 262_144},        // kimi-k2.5: 256K
+	{"kimi-k2-thinking", 262_144}, // kimi-k2-thinking / kimi-k2-thinking-turbo: 256K
+	{"kimi-k2-turbo", 262_144},    // kimi-k2-turbo-preview: 256K
+	{"kimi-k2-0905", 262_144},     // kimi-k2-0905-preview: 256K
+	{"kimi-k2", 131_072},          // base kimi-k2 / kimi-k2-0711-preview: 128K
 	{"moonshot-v1-128k", 131_072},
 	{"moonshot-v1-32k", 32_768},
 	{"moonshot-v1-8k", 8_192},
-	{"moonshot-v1-auto", 131_072},   // auto-selects variant, max is 128K
-	{"moonshot-v1", 131_072},        // catch-all for remaining moonshot-v1 models
+	{"moonshot-v1-auto", 131_072}, // auto-selects variant, max is 128K
+	{"moonshot-v1", 131_072},      // catch-all for remaining moonshot-v1 models
 
 	// ── Anthropic (direct, not via OpenRouter) ────────────────────────────────
 	{"claude-opus-4", 200_000},
@@ -104,37 +104,37 @@ var knownContextWindows = []struct {
 
 	// ── ZhipuAI GLM (open.bigmodel.cn) ───────────────────────────────────────
 	// Specific newer models (200K) before generic glm-4 catch-all (128K)
-	{"glm-5", 200_000},              // GLM-5 / GLM-5-Turbo: ~200K
-	{"glm-4.7", 200_000},            // GLM-4.7 / GLM-4.7-Flash / GLM-4.7-FlashX: ~200K
-	{"glm-4.6", 200_000},            // GLM-4.6: ~200K
-	{"glm-4.5-air", 131_072},        // GLM-4.5-Air: 128K (before glm-4.5)
-	{"glm-4.5", 131_072},            // GLM-4.5: 128K
-	{"glm-4-long", 1_000_000},       // GLM-4-Long: 1M (before glm-4)
-	{"glm-4-airx", 8_192},           // GLM-4-AirX: 8K (before glm-4)
-	{"glm-z1", 32_000},              // GLM-Z1 reasoning series
-	{"glm-4", 131_072},              // GLM-4-Plus, GLM-4-Air, GLM-4-Flash, etc.: 128K
-	{"glm-", 131_072},               // catch-all for other GLM models
+	{"glm-5", 200_000},        // GLM-5 / GLM-5-Turbo: ~200K
+	{"glm-4.7", 200_000},      // GLM-4.7 / GLM-4.7-Flash / GLM-4.7-FlashX: ~200K
+	{"glm-4.6", 200_000},      // GLM-4.6: ~200K
+	{"glm-4.5-air", 131_072},  // GLM-4.5-Air: 128K (before glm-4.5)
+	{"glm-4.5", 131_072},      // GLM-4.5: 128K
+	{"glm-4-long", 1_000_000}, // GLM-4-Long: 1M (before glm-4)
+	{"glm-4-airx", 8_192},     // GLM-4-AirX: 8K (before glm-4)
+	{"glm-z1", 32_000},        // GLM-Z1 reasoning series
+	{"glm-4", 131_072},        // GLM-4-Plus, GLM-4-Air, GLM-4-Flash, etc.: 128K
+	{"glm-", 131_072},         // catch-all for other GLM models
 
 	// ── Alibaba Qwen (dashscope / dashscope-intl) ────────────────────────────
 	// Most specific entries (longer prefix) MUST come first.
-	{"qwen-long", 10_000_000},               // Qwen-Long: 10M context
+	{"qwen-long", 10_000_000}, // Qwen-Long: 10M context
 	// Qwen3.x variant-specific 1M models before the general qwen3.x prefixes
-	{"qwen3.6-plus", 1_000_000},             // Qwen3.6-Plus: 1M
-	{"qwen3.5-plus", 1_000_000},             // Qwen3.5-Plus: 1M
-	{"qwen3.5-flash", 1_000_000},            // Qwen3.5-Flash: 1M
-	{"qwen3.5", 262_144},                    // Qwen3.5 open models (27B, 122B, etc.): 256K
+	{"qwen3.6-plus", 1_000_000},  // Qwen3.6-Plus: 1M
+	{"qwen3.5-plus", 1_000_000},  // Qwen3.5-Plus: 1M
+	{"qwen3.5-flash", 1_000_000}, // Qwen3.5-Flash: 1M
+	{"qwen3.5", 262_144},         // Qwen3.5 open models (27B, 122B, etc.): 256K
 	// Qwen3-Coder: commercial (1M) before open (256K)
-	{"qwen3-coder-plus", 1_000_000},         // Qwen3-Coder-Plus commercial: 1M
-	{"qwen3-coder-flash", 1_000_000},        // Qwen3-Coder-Flash commercial: 1M
-	{"qwen3-coder-next", 262_144},           // Qwen3-Coder-Next open: 256K
-	{"qwen3-coder", 262_144},               // other Qwen3-Coder open models: 256K
+	{"qwen3-coder-plus", 1_000_000},  // Qwen3-Coder-Plus commercial: 1M
+	{"qwen3-coder-flash", 1_000_000}, // Qwen3-Coder-Flash commercial: 1M
+	{"qwen3-coder-next", 262_144},    // Qwen3-Coder-Next open: 256K
+	{"qwen3-coder", 262_144},         // other Qwen3-Coder open models: 256K
 	// Other Qwen3 multimodal / specialized
-	{"qwen3-vl", 262_144},                  // Qwen3-VL series: 256K
-	{"qwen3-omni", 262_144},               // Qwen3-Omni: 256K
-	{"qwen3-max", 262_144},                // Qwen3-Max commercial: 256K
+	{"qwen3-vl", 262_144},   // Qwen3-VL series: 256K
+	{"qwen3-omni", 262_144}, // Qwen3-Omni: 256K
+	{"qwen3-max", 262_144},  // Qwen3-Max commercial: 256K
 	// Small Qwen3 open models with limited context
-	{"qwen3-1.7b", 32_768},               // Qwen3-1.7B: 32K
-	{"qwen3-0.6b", 32_768},               // Qwen3-0.6B: 32K
+	{"qwen3-1.7b", 32_768}, // Qwen3-1.7B: 32K
+	{"qwen3-0.6b", 32_768}, // Qwen3-0.6B: 32K
 	// Remaining Qwen3 models (235B, 32B, 14B, 8B, 4B): 128K
 	{"qwen3", 131_072},
 	// QwQ reasoning models
@@ -142,14 +142,14 @@ var knownContextWindows = []struct {
 	{"qwq-32b", 131_072},
 	{"qwq-", 131_072},
 	// Legacy qwen-* commercial aliases (stable versions updated to larger windows)
-	{"qwen-turbo", 1_000_000},             // Qwen-Turbo (latest): 1M
-	{"qwen-flash", 1_000_000},             // Qwen-Flash: 1M
-	{"qwen-plus", 1_000_000},              // Qwen-Plus: ~1M
-	{"qwen-max", 262_144},                 // Qwen-Max (qwen3-max alias): 256K
-	{"qwen-vl-ocr", 38_192},              // Qwen-VL-OCR: ~38K (before qwen-vl)
-	{"qwen-vl", 131_072},                 // Qwen-VL visual models
-	{"qwen-audio", 8_192},               // Qwen-Audio: 8K
-	{"qwen-math", 4_096},                // Qwen-Math (specialized): 4K
+	{"qwen-turbo", 1_000_000}, // Qwen-Turbo (latest): 1M
+	{"qwen-flash", 1_000_000}, // Qwen-Flash: 1M
+	{"qwen-plus", 1_000_000},  // Qwen-Plus: ~1M
+	{"qwen-max", 262_144},     // Qwen-Max (qwen3-max alias): 256K
+	{"qwen-vl-ocr", 38_192},   // Qwen-VL-OCR: ~38K (before qwen-vl)
+	{"qwen-vl", 131_072},      // Qwen-VL visual models
+	{"qwen-audio", 8_192},     // Qwen-Audio: 8K
+	{"qwen-math", 4_096},      // Qwen-Math (specialized): 4K
 	{"qwen2.5-72b", 131_072},
 	{"qwen2.5-32b", 131_072},
 	{"qwen2.5-14b", 131_072},
