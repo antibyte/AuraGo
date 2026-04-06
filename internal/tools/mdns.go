@@ -6,10 +6,7 @@ import (
 	"log/slog"
 	"regexp"
 	"strings"
-	"sync"
 	"time"
-
-	"github.com/hashicorp/mdns"
 )
 
 // MDNSService represents a discovered MDNS service.
@@ -46,46 +43,21 @@ func MDNSScan(logger *slog.Logger, serviceType string, timeout int) string {
 
 	logger.Info("Starting MDNS scan", "service", serviceType, "timeout_seconds", timeout)
 
-	// Channel to receive responses
-	entriesCh := make(chan *mdns.ServiceEntry, 50)
-	var (
-		services   []MDNSService
-		servicesMu sync.Mutex
-	)
-
-	// Start a goroutine to process entries
-	go func() {
-		for entry := range entriesCh {
-			var ips []string
-			if entry.AddrV4 != nil {
-				ips = append(ips, entry.AddrV4.String())
-			}
-			if entry.AddrV6 != nil {
-				ips = append(ips, entry.AddrV6.String())
-			}
-
-			servicesMu.Lock()
-			services = append(services, MDNSService{
-				Name: entry.Name,
-				Host: entry.Host,
-				IPs:  ips,
-				Port: entry.Port,
-				Info: strings.Join(entry.InfoFields, ", "),
-			})
-			servicesMu.Unlock()
-		}
-	}()
-
-	params := mdns.DefaultParams(serviceType)
-	params.Entries = entriesCh
-	params.Timeout = time.Duration(timeout) * time.Second
-
-	err := mdns.Query(params)
-	close(entriesCh) // Ensure channel is closed after query finishes
-
+	entries, err := mdnsQueryServices(serviceType, time.Duration(timeout)*time.Second)
 	if err != nil {
 		logger.Error("MDNS scan failed", "error", err)
 		return fmt.Sprintf(`{"status": "error", "message": "MDNS scan failed: %v"}`, err)
+	}
+
+	services := make([]MDNSService, 0, len(entries))
+	for _, e := range entries {
+		services = append(services, MDNSService{
+			Name: e.Name,
+			Host: e.Host,
+			IPs:  e.IPs,
+			Port: e.Port,
+			Info: strings.Join(e.TXTs, ", "),
+		})
 	}
 
 	if len(services) == 0 {

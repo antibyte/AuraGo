@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/mdns"
 	"github.com/vishen/go-chromecast/application"
 )
 
@@ -27,38 +26,25 @@ type chromecastDevice struct {
 
 // ChromecastDiscover scans the local network for Chromecast devices via mDNS.
 func ChromecastDiscover(logger *slog.Logger) string {
-	logger.Info("Starting Chromecast discovery via hashicorp/mdns")
+	logger.Info("Starting Chromecast discovery via mDNS")
 
-	entriesCh := make(chan *mdns.ServiceEntry, 10)
-	var devices []chromecastDevice
-
-	go func() {
-		for entry := range entriesCh {
-			ip := ""
-			if entry.AddrV4 != nil {
-				ip = entry.AddrV4.String()
-			} else if entry.AddrV6 != nil {
-				ip = entry.AddrV6.String()
-			}
-
-			devices = append(devices, chromecastDevice{
-				Name: strings.TrimSuffix(entry.Name, "._googlecast._tcp.local."),
-				Addr: ip,
-				Port: entry.Port,
-				UUID: entry.Info, // Some chromecasts broadcast extra info here
-			})
-		}
-	}()
-
-	params := mdns.DefaultParams("_googlecast._tcp")
-	params.Entries = entriesCh
-	params.Timeout = 5 * time.Second
-
-	err := mdns.Query(params)
-	close(entriesCh)
-
+	entries, err := mdnsQueryServices("_googlecast._tcp", 5*time.Second)
 	if err != nil {
 		return jsonErr("mDNS discovery failed: " + err.Error())
+	}
+
+	var devices []chromecastDevice
+	for _, e := range entries {
+		ip := ""
+		if len(e.IPs) > 0 {
+			ip = e.IPs[0]
+		}
+		devices = append(devices, chromecastDevice{
+			Name: strings.TrimSuffix(e.Name, "._googlecast._tcp.local."),
+			Addr: ip,
+			Port: e.Port,
+			UUID: strings.Join(e.TXTs, ", "),
+		})
 	}
 
 	if len(devices) == 0 {

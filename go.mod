@@ -21,11 +21,11 @@ require (
 	github.com/gocolly/colly/v2 v2.3.0
 	github.com/gofrs/flock v0.13.0
 	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674
-	github.com/hashicorp/mdns v1.0.6
 	github.com/huin/goupnp v1.3.0
 	github.com/johnfercher/maroto/v2 v2.3.4
 	github.com/ledongthuc/pdf v0.0.0-20250511090121-5959a4027728
 	github.com/lib/pq v1.12.0
+	github.com/miekg/dns v1.1.62
 	github.com/minio/minio-go/v7 v7.0.100
 	github.com/pdfcpu/pdfcpu v0.11.1
 	github.com/philippgille/chromem-go v0.7.0
@@ -40,6 +40,7 @@ require (
 	github.com/vishen/go-chromecast v0.3.4
 	golang.org/x/crypto v0.49.0
 	golang.org/x/image v0.38.0
+	golang.org/x/net v0.52.0
 	golang.org/x/sync v0.20.0
 	golang.org/x/sys v0.42.0
 	google.golang.org/grpc v1.79.3
@@ -116,7 +117,6 @@ require (
 	github.com/mattn/go-runewidth v0.0.21 // indirect
 	github.com/mdlayher/netlink v1.7.3-0.20250113171957-fbb4dce95f42 // indirect
 	github.com/mdlayher/socket v0.5.0 // indirect
-	github.com/miekg/dns v1.1.62 // indirect
 	github.com/minio/crc64nvme v1.1.1 // indirect
 	github.com/minio/md5-simd v1.1.2 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
@@ -156,7 +156,6 @@ require (
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba // indirect
 	golang.org/x/exp v0.0.0-20251023183803-a4bb9ffd2546 // indirect
 	golang.org/x/mod v0.33.0 // indirect
-	golang.org/x/net v0.52.0 // indirect
 	golang.org/x/oauth2 v0.34.0 // indirect
 	golang.org/x/term v0.41.0 // indirect
 	golang.org/x/text v0.35.0 // indirect
