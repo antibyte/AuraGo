@@ -351,6 +351,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			currentLogger,
 		)
 		logger.Info("[EmotionSynthesizer] Initialized", "model", esModel, "interval_secs", cfg.Personality.EmotionSynthesizer.MinIntervalSecs)
+		if cfg.Personality.InnerVoice.Enabled {
+			logger.Info("[InnerVoice] Enabled", "min_interval_secs", cfg.Personality.InnerVoice.MinIntervalSecs, "max_per_session", cfg.Personality.InnerVoice.MaxPerSession, "decay_turns", cfg.Personality.InnerVoice.DecayTurns)
+		}
 	}
 
 	// Native function calling: build tool schemas once and attach to request
