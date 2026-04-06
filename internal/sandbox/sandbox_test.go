@@ -101,11 +101,11 @@ func TestFilterEnv(t *testing.T) {
 		"LANG=en_US.UTF-8",
 	}
 
-	got := filterEnv(input)
+	got := FilterEnv(input)
 
 	for _, e := range got {
 		if e == "AURAGO_SBX_WORKDIR=/tmp" || e == "AURAGO_SBX_MEM=512" || e == "AURAGO_MASTER_KEY=secret" {
-			t.Errorf("filterEnv should have removed %q", e)
+			t.Errorf("FilterEnv should have removed %q", e)
 		}
 	}
 

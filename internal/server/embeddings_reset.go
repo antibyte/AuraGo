@@ -43,7 +43,7 @@ func WriteEmbeddingsResetMarker(cfg *config.Config, logger *slog.Logger, reason 
 		return fmt.Errorf("marshal marker: %w", err)
 	}
 	path := embeddingsResetMarkerPath(cfg)
-	if err := os.WriteFile(path, raw, 0644); err != nil {
+	if err := os.WriteFile(path, raw, 0600); err != nil {
 		return fmt.Errorf("write marker: %w", err)
 	}
 	if logger != nil {

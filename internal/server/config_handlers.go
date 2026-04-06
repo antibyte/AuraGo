@@ -312,8 +312,12 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			}
 		}
 
-		if err := os.WriteFile(configPath, out, 0644); err != nil {
-			s.Logger.Error("Failed to write config file", "error", err)
+		// Serialize concurrent config saves to prevent TOCTOU: read-modify-write race.
+		s.CfgSaveMu.Lock()
+		writeErr := os.WriteFile(configPath, out, 0600)
+		s.CfgSaveMu.Unlock()
+		if writeErr != nil {
+			s.Logger.Error("Failed to write config file", "error", writeErr)
 			jsonError(w, "Failed to write config", http.StatusInternalServerError)
 			return
 		}

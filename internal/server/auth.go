@@ -349,11 +349,15 @@ func LoginBackoffDelay(keys ...string) time.Duration {
 	return delay
 }
 
-// ClientIP extracts the real client IP, respecting X-Forwarded-For for reverse proxies.
-func ClientIP(r *http.Request) string {
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		if ip := strings.TrimSpace(strings.SplitN(xff, ",", 2)[0]); ip != "" {
-			return ip
+// ClientIP extracts the real client IP from the request.
+// When behindProxy is true the X-Forwarded-For header is consulted first;
+// otherwise only r.RemoteAddr is used to prevent IP spoofing by untrusted clients.
+func ClientIP(r *http.Request, behindProxy bool) string {
+	if behindProxy {
+		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+			if ip := strings.TrimSpace(strings.SplitN(xff, ",", 2)[0]); ip != "" {
+				return ip
+			}
 		}
 	}
 	ip := r.RemoteAddr

@@ -11,10 +11,19 @@ import (
 	"net"
 	"os"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/sashabaranov/go-openai"
 )
+
+// maxBridgeConns is the maximum number of concurrent TCP bridge connections.
+// The bridge is an internal IPC channel used by child processes (sandbox, lifeboat, etc.).
+// A generous limit protects against runaway processes without breaking normal operation.
+const maxBridgeConns = 64
+
+// bridgeConnCount tracks the current number of active TCP bridge connections.
+var bridgeConnCount atomic.Int32
 
 type BridgeCommand struct {
 	Command   string `json:"command"`
@@ -45,11 +54,18 @@ func (s *Server) StartTCPBridge(addr string) {
 			s.Logger.Error("TCP Bridge: Failed to accept connection", "error", err)
 			continue
 		}
+		if bridgeConnCount.Load() >= maxBridgeConns {
+			s.Logger.Warn("TCP Bridge: connection limit reached, rejecting connection", "limit", maxBridgeConns)
+			conn.Close()
+			continue
+		}
 		go s.handleBridgeConnection(conn)
 	}
 }
 
 func (s *Server) handleBridgeConnection(conn net.Conn) {
+	bridgeConnCount.Add(1)
+	defer bridgeConnCount.Add(-1)
 	defer conn.Close()
 	reader := bufio.NewReader(conn)
 

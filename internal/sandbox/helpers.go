@@ -6,9 +6,9 @@ import (
 	"strings"
 )
 
-// filterEnv removes AURAGO_SBX_* and other sensitive env vars from the environment
-// passed to the sandboxed process.
-func filterEnv(env []string) []string {
+// FilterEnv removes AURAGO_SBX_* and other sensitive env vars from the environment
+// passed to any child process (sandbox helper, Python scripts, etc.).
+func FilterEnv(env []string) []string {
 	// Prefixes and exact names of env vars that must never be inherited by sandboxed processes.
 	sensitivePrefixes := []string{
 		"AURAGO_SBX_",

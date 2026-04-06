@@ -41,7 +41,7 @@ func RunHelper(command string) {
 	// Landlock restrictions and rlimits are inherited.
 	shell := "/bin/sh"
 	argv := []string{shell, "-c", command}
-	env := filterEnv(os.Environ())
+	env := FilterEnv(os.Environ())
 
 	err := syscall.Exec(shell, argv, env)
 	// If we get here, exec failed
@@ -90,7 +90,7 @@ func RunExecHelper() {
 	}
 
 	argv := append([]string{binary}, args...)
-	env := filterEnv(os.Environ())
+	env := FilterEnv(os.Environ())
 	err = syscall.Exec(resolvedBinary, argv, env)
 	fmt.Fprintf(os.Stderr, "sandbox: exec %s: %v\n", resolvedBinary, err)
 	os.Exit(126)

@@ -57,7 +57,7 @@ func (l *Log) save() error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(l.filePath, data, 0644)
+	return os.WriteFile(l.filePath, data, 0600)
 }
 
 // Append adds an entry and trims to maxSize.

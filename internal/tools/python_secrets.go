@@ -10,6 +10,7 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/credentials"
+	"aurago/internal/sandbox"
 	"aurago/internal/security"
 )
 
@@ -122,9 +123,10 @@ func InjectSecretsEnv(cmd *exec.Cmd, secrets map[string]string) {
 	if len(secrets) == 0 {
 		return
 	}
-	// Start from parent env if not already set
+	// Start from filtered parent env if not already set — strips sensitive
+	// vars (AURAGO_MASTER_KEY, API keys, etc.) before passing to subprocess.
 	if cmd.Env == nil {
-		cmd.Env = os.Environ()
+		cmd.Env = sandbox.FilterEnv(os.Environ())
 	}
 	for key, val := range secrets {
 		envKey := "AURAGO_SECRET_" + sanitizeEnvKey(key)
@@ -242,8 +244,9 @@ func InjectCredentialEnv(cmd *exec.Cmd, creds []CredentialFields) {
 	if len(creds) == 0 {
 		return
 	}
+	// Start from filtered parent env if not already set — strips sensitive vars.
 	if cmd.Env == nil {
-		cmd.Env = os.Environ()
+		cmd.Env = sandbox.FilterEnv(os.Environ())
 	}
 	for _, cf := range creds {
 		prefix := "AURAGO_CRED_" + cf.Name + "_"

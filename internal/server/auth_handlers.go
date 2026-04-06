@@ -115,7 +115,7 @@ func handleAuthLogin(s *Server) http.HandlerFunc {
 			return
 		}
 
-		ip := ClientIP(r)
+		ip := ClientIP(r, s.Cfg.Server.HTTPS.BehindProxy)
 		accountKey := loginScopeKey("account", "admin")
 		ipKey := loginScopeKey("ip", ip)
 

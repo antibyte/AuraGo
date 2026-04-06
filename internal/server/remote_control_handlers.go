@@ -336,7 +336,7 @@ func handleRemoteDownload(s *Server) http.HandlerFunc {
 
 		// Rate-limit unauthenticated download requests to prevent enrollment token
 		// flooding (max 5 downloads per 10 minutes per IP).
-		clientIP := ClientIP(r)
+		clientIP := ClientIP(r, s.Cfg.Server.HTTPS.BehindProxy)
 		if IsLockedOut(clientIP) {
 			jsonError(w, "Too many download requests — please wait before trying again", http.StatusTooManyRequests)
 			return

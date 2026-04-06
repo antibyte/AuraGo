@@ -100,3 +100,5 @@ log_analysis_*.md
 .claude/
 CLAUDE.md
 AGENTS.md
+.github/
+.planning/

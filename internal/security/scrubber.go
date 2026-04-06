@@ -24,6 +24,11 @@ var (
 	hexSecretRegex        = regexp.MustCompile(`(?i)\b(key|secret|password|token|auth|credential|api_key|master_key|bot_token)\b(["']?\s*[:=]\s*["']?)((?:[A-Fa-f0-9]{2}[\s:\-]?){6,})["']?`)
 	base64SecretRegex     = regexp.MustCompile(`(?i)\b(key|secret|password|token|auth|credential|api_key|master_key|bot_token)\b(["']?\s*[:=]\s*["']?)([A-Za-z0-9+/]{12,}={0,2})["']?`)
 
+	// bearerTokenRegex catches Authorization header values: "Bearer <token>"
+	bearerTokenRegex = regexp.MustCompile(`(?i)(bearer\s+)([A-Za-z0-9\-_=]+\.[A-Za-z0-9\-_=]+\.[A-Za-z0-9\-_.+/=]+|[A-Za-z0-9\-_:+/=]{20,})`)
+	// urlCredentialsRegex catches credentials embedded in URLs: "scheme://user:pass@host"
+	urlCredentialsRegex = regexp.MustCompile(`([a-zA-Z][a-zA-Z0-9+\-.]*://)([^:@/\s]+:[^@/\s]+)(@)`)
+
 	// Matches <thinking>…</thinking> and <think>…</think> blocks (reasoning traces from some LLMs).
 	thinkingTagRe = regexp.MustCompile(`(?is)<(thinking|think)>[\s\S]*?</(thinking|think)>`)
 
@@ -170,9 +175,9 @@ func RedactSensitiveInfo(text string) string {
 	text = fragmentedSecretRegex.ReplaceAllString(text, `$1$2`+redactedPlaceholder)
 	text = hexSecretRegex.ReplaceAllString(text, `$1$2`+redactedPlaceholder)
 	text = base64SecretRegex.ReplaceAllString(text, `$1$2`+redactedPlaceholder)
-
-	// Note: We avoid aggressive generic redaction to prevent breaking valid code/data.
-	// But we can add specific known keys here if identified.
+	// Redact Bearer tokens and URL-embedded credentials
+	text = bearerTokenRegex.ReplaceAllString(text, `$1`+redactedPlaceholder)
+	text = urlCredentialsRegex.ReplaceAllString(text, `$1`+redactedPlaceholder+`$3`)
 
 	return text
 }

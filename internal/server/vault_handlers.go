@@ -5,9 +5,41 @@ import (
 	"net/http"
 	"sort"
 	"strings"
+	"sync"
+	"time"
 
 	"aurago/internal/tools"
 )
+
+// vaultRateLimiter enforces a per-IP sliding-window rate limit on vault API endpoints.
+// Limit: 30 requests per minute per IP — sufficient for normal UI interactions, blocks automated attacks.
+var (
+	vaultRateMu      sync.Mutex
+	vaultRateWindows = make(map[string][]time.Time)
+)
+
+func vaultAllowRequest(r *http.Request, behindProxy bool) bool {
+	const maxPerMinute = 30
+	ip := ClientIP(r, behindProxy)
+	now := time.Now()
+	cutoff := now.Add(-time.Minute)
+
+	vaultRateMu.Lock()
+	defer vaultRateMu.Unlock()
+
+	ts := vaultRateWindows[ip]
+	i := 0
+	for i < len(ts) && ts[i].Before(cutoff) {
+		i++
+	}
+	ts = ts[i:]
+	if len(ts) >= maxPerMinute {
+		vaultRateWindows[ip] = ts
+		return false
+	}
+	vaultRateWindows[ip] = append(ts, now)
+	return true
+}
 
 // vaultSecretJSON is the API representation of a single vault secret.
 type vaultSecretJSON struct {
@@ -18,6 +50,10 @@ type vaultSecretJSON struct {
 // handleVaultSecrets dispatches GET / POST / DELETE for /api/vault/secrets.
 func handleVaultSecrets(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !vaultAllowRequest(r, s.Cfg.Server.HTTPS.BehindProxy) {
+			jsonError(w, "Too many requests", http.StatusTooManyRequests)
+			return
+		}
 		if s.Vault == nil {
 			jsonError(w, "Vault not initialized (master key missing)", http.StatusServiceUnavailable)
 			return

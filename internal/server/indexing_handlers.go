@@ -213,5 +213,5 @@ func patchIndexingDirs(s *Server) error {
 		return err
 	}
 
-	return os.WriteFile(configPath, out, 0644)
+	return os.WriteFile(configPath, out, 0600)
 }

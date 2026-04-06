@@ -1031,7 +1031,7 @@ func n8nCheckRateLimit(s *Server, r *http.Request) bool {
 	}
 
 	// Key on the first 8 chars of the Bearer token, or fall back to the client IP.
-	key := ClientIP(r)
+	key := ClientIP(r, s.Cfg.Server.HTTPS.BehindProxy)
 	if auth := r.Header.Get("Authorization"); strings.HasPrefix(auth, "Bearer ") {
 		t := strings.TrimPrefix(auth, "Bearer ")
 		if len(t) >= 8 {

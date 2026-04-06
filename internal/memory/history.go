@@ -195,10 +195,10 @@ func (hm *HistoryManager) save() error {
 		return err
 	}
 	// WriteFile is the slow part on Windows, now done completely outside the lock.
-	// 0644: owner write, group/world read. On Unix this protects from other users.
+	// 0600: owner read/write only — conversation history is sensitive.
 	// On Windows the ACL model differs and mode is advisory; the file will be created
 	// with default ACLs inherited from the parent directory.
-	return os.WriteFile(hm.file, data, 0644)
+	return os.WriteFile(hm.file, data, 0600)
 }
 
 func (hm *HistoryManager) Add(role, content string, id int64, pinned bool, isInternal bool) error {

@@ -230,6 +230,7 @@ func getI18NMetaJSON() template.JS {
 type Server struct {
 	Cfg                *config.Config
 	CfgMu              sync.RWMutex // protects Cfg during hot-reload
+	CfgSaveMu          sync.Mutex   // serializes config file writes to prevent TOCTOU races
 	Logger             *slog.Logger
 	AccessLogger       *slog.Logger
 	LLMClient          llm.ChatClient
@@ -882,7 +883,7 @@ func (s *Server) runHTTP(mux *http.ServeMux, ttsServer *http.Server, shutdownCh 
 	s.Logger.Info("Starting HTTP server", "host", s.Cfg.Server.Host, "port", s.Cfg.Server.Port, "tls", false)
 
 	// Apply security headers (relaxed for HTTP, but still present)
-	handler := accessLogMiddleware(s.accessLogger(), securityHeadersMiddleware(authMiddleware(s, mux), false, s.Cfg.Server.HTTPS.BehindProxy))
+	handler := accessLogMiddleware(s.accessLogger(), securityHeadersMiddleware(authMiddleware(s, mux), false, s.Cfg.Server.HTTPS.BehindProxy), s.Cfg.Server.HTTPS.BehindProxy)
 
 	server := &http.Server{
 		Addr:         addr,
@@ -901,7 +902,7 @@ func (s *Server) runHTTPS(mux *http.ServeMux, ttsServer *http.Server, tlsCfg *TL
 	tlsCfg.HTTPPort = s.Cfg.Server.HTTPS.HTTPPort
 
 	// Apply security headers (strict for HTTPS)
-	handler := accessLogMiddleware(s.accessLogger(), securityHeadersMiddleware(authMiddleware(s, mux), true, s.Cfg.Server.HTTPS.BehindProxy))
+	handler := accessLogMiddleware(s.accessLogger(), securityHeadersMiddleware(authMiddleware(s, mux), true, s.Cfg.Server.HTTPS.BehindProxy), s.Cfg.Server.HTTPS.BehindProxy)
 
 	httpsServer, httpServer, err := SetupServers(tlsCfg, handler, s.Logger)
 	if err != nil {
@@ -999,13 +1000,18 @@ func securityHeadersMiddleware(next http.Handler, tlsActive, behindProxy bool) h
 		w.Header().Set("X-XSS-Protection", "1; mode=block")
 		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
 
-		// Content Security Policy - strict but allows necessary CDNs
+		// Content Security Policy
+		// NOTE: unsafe-inline is required for inline scripts in the SPA.
+		// NOTE: unsafe-eval is required by Tailwind CSS JIT and CodeMirror 6.
+		// Removing either would require a full frontend rewrite.
 		csp := "default-src 'self'; " +
 			"script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com; " +
 			"style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; " +
 			"img-src 'self' data: blob:; " +
 			"font-src 'self' https://fonts.gstatic.com; " +
 			"connect-src 'self' ws: wss:; " +
+			"object-src 'none'; " +
+			"form-action 'self'; " +
 			"frame-ancestors 'none'; " +
 			"base-uri 'self';"
 		w.Header().Set("Content-Security-Policy", csp)
@@ -1076,7 +1082,7 @@ func (r *statusRecorder) Flush() {
 //
 // Log fields:
 //   - method, path, status, duration_ms, ip, user_agent
-func accessLogMiddleware(logger *slog.Logger, next http.Handler) http.Handler {
+func accessLogMiddleware(logger *slog.Logger, next http.Handler, behindProxy bool) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Skip noisy static assets that are irrelevant for security monitoring.
 		path := r.URL.Path
@@ -1124,7 +1130,7 @@ func accessLogMiddleware(logger *slog.Logger, next http.Handler) http.Handler {
 			"path", path,
 			"status", rec.status,
 			"duration_ms", elapsed,
-			"ip", ClientIP(r),
+			"ip", ClientIP(r, behindProxy),
 			"user_agent", r.UserAgent(),
 		}
 		if isError || isAuthWarn {
