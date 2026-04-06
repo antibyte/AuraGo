@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/security"
 )
 
 // ── OAuth2 Authorization Code Flow ──────────────────────────────────────────
@@ -327,7 +328,16 @@ func exchangeCodeForToken(prov config.ProviderEntry, code, redirectURI string) (
 		data.Set("client_secret", prov.OAuthClientSecret)
 	}
 
-	resp, err := http.Post(prov.OAuthTokenURL, "application/x-www-form-urlencoded", strings.NewReader(data.Encode()))
+	client, err := security.NewSSRFProtectedHTTPClientForURL(prov.OAuthTokenURL, 15*time.Second)
+	if err != nil {
+		return nil, fmt.Errorf("OAuth token URL rejected: %w", err)
+	}
+	req, err := http.NewRequest(http.MethodPost, prov.OAuthTokenURL, strings.NewReader(data.Encode()))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create token request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("HTTP request failed: %w", err)
 	}
@@ -364,7 +374,16 @@ func refreshOAuthToken(prov config.ProviderEntry, refreshToken string) (*tokenEx
 		data.Set("client_secret", prov.OAuthClientSecret)
 	}
 
-	resp, err := http.Post(prov.OAuthTokenURL, "application/x-www-form-urlencoded", strings.NewReader(data.Encode()))
+	client, err := security.NewSSRFProtectedHTTPClientForURL(prov.OAuthTokenURL, 15*time.Second)
+	if err != nil {
+		return nil, fmt.Errorf("OAuth token URL rejected: %w", err)
+	}
+	req, err := http.NewRequest(http.MethodPost, prov.OAuthTokenURL, strings.NewReader(data.Encode()))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create refresh request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("HTTP request failed: %w", err)
 	}

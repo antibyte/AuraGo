@@ -70,6 +70,11 @@ func NewLLMGuardian(cfg *config.Config, logger *slog.Logger) *LLMGuardian {
 		return nil
 	}
 
+	if cfg.LLMGuardian.FailSafe == "allow" {
+		logger.Warn("[Guardian] fail_safe is set to 'allow': guardian errors will silently pass requests through. " +
+			"Consider setting fail_safe to 'quarantine' or 'block' for stronger security.")
+	}
+
 	client := llm.NewClientFromProvider(
 		cfg.LLMGuardian.ProviderType,
 		cfg.LLMGuardian.BaseURL,

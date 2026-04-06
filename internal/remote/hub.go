@@ -390,7 +390,9 @@ func (h *RemoteHub) HandleEnrollment(wsConn *websocket.Conn, msg RemoteMessage) 
 		h.Register(device.ID, conn)
 		_ = UpdateDeviceStatus(h.db, device.ID, "connected")
 
-		return h.sendAuthResponse(wsConn, storedKey, device.ID, "authenticated", "")
+		// Do NOT echo back the shared key — the client already has it (it just used it to sign
+		// the auth message). Sending it here would transmit the key over the wire unnecessarily.
+		return h.sendAuthResponse(wsConn, "", device.ID, "authenticated", "")
 	}
 
 	// ── Case 2: Token-based enrollment ──

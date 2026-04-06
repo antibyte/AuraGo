@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log/slog"
 	"net"
 	"os"
 	"path/filepath"
@@ -33,13 +32,13 @@ func GetSSHConfig(user string, secret []byte) (*ssh.ClientConfig, error) {
 		auth = append(auth, ssh.Password(string(secret)))
 	}
 
-	// Host key verification: use known_hosts when available, warn when falling back to insecure.
-	// If InsecureHostKey is explicitly enabled via config, skip verification entirely.
+	// Host key verification: use known_hosts when available.
+	// If InsecureHostKey is explicitly enabled via config, skip verification (homelab opt-in).
+	// Never silently fall back to insecure — require explicit opt-in or a valid known_hosts file.
 	var hostKeyCallback ssh.HostKeyCallback
 	if InsecureHostKey {
 		hostKeyCallback = ssh.InsecureIgnoreHostKey() //nolint:gosec
 	} else {
-		hostKeyCallback = ssh.InsecureIgnoreHostKey() //nolint:gosec // default fallback
 		usingKnownHosts := false
 		homeDir, err := os.UserHomeDir()
 		if err == nil {
@@ -52,7 +51,9 @@ func GetSSHConfig(user string, secret []byte) (*ssh.ClientConfig, error) {
 			}
 		}
 		if !usingKnownHosts {
-			slog.Default().Warn("SSH host key verification disabled: no known_hosts file found. Connections are vulnerable to MITM attacks. Enable 'ssh_insecure_host_key' in config to suppress this warning.")
+			return nil, fmt.Errorf("SSH host key verification failed: no known_hosts file found at ~/.ssh/known_hosts. " +
+				"Add the host key with 'ssh-keyscan <host> >> ~/.ssh/known_hosts' or enable " +
+				"'ssh.insecure_host_key: true' in config to disable host verification (not recommended)")
 		}
 	}
 

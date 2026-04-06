@@ -391,14 +391,10 @@ var authBypassPrefixes = []string{
 	"/shared.js",
 	"/css/login.css",
 	"/js/login/",
-	// Static media files are served inline in authenticated pages (audio player, image gallery,
-	// document viewer). The browser's <audio>/<img>/<iframe> sub-resource requests may not
-	// carry the session cookie in all browsers/configurations (e.g. after a server restart
-	// that invalidated the session, or strict SameSite edge-cases). These paths are already
-	// protected by obscurity (timestamp-based filenames) and are not sensitive API endpoints.
-	"/files/audio/",
-	"/files/generated_images/",
-	"/files/documents/",
+	// Static media files (audio, images, documents) require authentication.
+	// They are served as sub-resources in authenticated pages and must not be
+	// accessible without a valid session (could expose user-generated content).
+	// Browsers consistently send session cookies for same-origin sub-resource requests.
 	"/manifest.json",
 	"/sw.js",
 	"/tailwind.min.js",

@@ -376,10 +376,12 @@ func siteMonitorHistory(db *sql.DB, monitorID string, limit int) string {
 // --- helpers ---
 
 func fetchSiteContent(url string) (string, error) {
-	if err := security.ValidateSSRF(url); err != nil {
+	// Use the SSRF-protected client that pins the resolved IP to prevent DNS-rebinding
+	// TOCTOU attacks between the validation check and the actual HTTP dial.
+	client, err := security.NewSSRFProtectedHTTPClientForURL(url, 15*time.Second)
+	if err != nil {
 		return "", fmt.Errorf("URL not allowed: %w", err)
 	}
-	client := &http.Client{Timeout: 15 * time.Second}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return "", fmt.Errorf("create request: %w", err)
