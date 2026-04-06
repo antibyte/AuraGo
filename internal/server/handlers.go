@@ -20,6 +20,7 @@ import (
 	"aurago/internal/tools"
 
 	"aurago/internal/uid"
+
 	"github.com/sashabaranov/go-openai"
 )
 
