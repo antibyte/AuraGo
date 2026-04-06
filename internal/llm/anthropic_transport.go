@@ -71,8 +71,8 @@ type anthropicContentBlock struct {
 type anthropicImageSource struct {
 	Type      string `json:"type"`                 // "base64" or "url"
 	MediaType string `json:"media_type,omitempty"` // "image/png", "image/jpeg", etc.
-	Data      string `json:"data,omitempty"`        // base64-encoded bytes (type="base64")
-	URL       string `json:"url,omitempty"`         // external URL (type="url")
+	Data      string `json:"data,omitempty"`       // base64-encoded bytes (type="base64")
+	URL       string `json:"url,omitempty"`        // external URL (type="url")
 }
 
 type anthropicToolDef struct {
