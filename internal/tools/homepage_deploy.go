@@ -953,7 +953,9 @@ func containerStatus(dockerCfg DockerConfig, name string) string {
 		return `{"running":false,"exists":false}`
 	}
 	var info map[string]interface{}
-	json.Unmarshal(data, &info)
+	if err := json.Unmarshal(data, &info); err != nil {
+		return `{"running":false,"exists":false}`
+	}
 	state, _ := info["State"].(map[string]interface{})
 	running, _ := state["Running"].(bool)
 	status, _ := state["Status"].(string)
@@ -1095,16 +1097,18 @@ func sftpUploadDir(ctx context.Context, deployCfg HomepageDeployConfig, localDir
 		if err != nil {
 			return fmt.Errorf("failed to open %s: %w", path, err)
 		}
-		defer localFile.Close()
 
 		remoteFile, err := sftpClient.Create(remotePath)
 		if err != nil {
+			localFile.Close()
 			return fmt.Errorf("failed to create remote %s: %w", remotePath, err)
 		}
-		defer remoteFile.Close()
 
-		if _, err := remoteFile.ReadFrom(localFile); err != nil {
-			return fmt.Errorf("failed to upload %s: %w", relPath, err)
+		_, copyErr := remoteFile.ReadFrom(localFile)
+		remoteFile.Close()
+		localFile.Close()
+		if copyErr != nil {
+			return fmt.Errorf("failed to upload %s: %w", relPath, copyErr)
 		}
 		uploaded++
 		return nil

@@ -97,19 +97,20 @@ type BackgroundTaskSummary struct {
 }
 
 type BackgroundTaskManager struct {
-	mu           sync.Mutex
-	file         string
-	tasks        map[string]*BackgroundTask
-	logger       *slog.Logger
-	httpClient   *http.Client
-	registry     atomic.Pointer[ProcessRegistry]
-	executor     func(prompt string, timeout time.Duration) error
-	notifier     func(title, body string)
-	ctx          context.Context
-	cancel       context.CancelFunc
-	trigger      chan struct{}
-	workerOnce   sync.Once
-	shutdownOnce sync.Once
+	mu            sync.Mutex
+	file          string
+	tasks         map[string]*BackgroundTask
+	logger        *slog.Logger
+	httpClient    *http.Client
+	registry      atomic.Pointer[ProcessRegistry]
+	executor      func(prompt string, timeout time.Duration) error
+	notifier      func(title, body string)
+	internalToken string // crypto token for loopback auth (set by main, read by server)
+	ctx           context.Context
+	cancel        context.CancelFunc
+	trigger       chan struct{}
+	workerOnce    sync.Once
+	shutdownOnce  sync.Once
 }
 
 var (
@@ -150,6 +151,20 @@ func (m *BackgroundTaskManager) SetLoopbackExecutor(fn func(prompt string, timeo
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.executor = fn
+}
+
+// SetInternalToken stores the crypto token generated at startup for loopback auth.
+func (m *BackgroundTaskManager) SetInternalToken(token string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.internalToken = token
+}
+
+// InternalToken returns the crypto token for loopback auth.
+func (m *BackgroundTaskManager) InternalToken() string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.internalToken
 }
 
 func (m *BackgroundTaskManager) SetProcessRegistry(registry *ProcessRegistry) {

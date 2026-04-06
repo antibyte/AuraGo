@@ -621,8 +621,15 @@ func (r *DaemonRunner) rotateDaemonLog(logPath string) {
 			break
 		}
 	}
-	if err := os.WriteFile(logPath, data[half:], 0644); err != nil {
-		r.logger.Warn("Failed to rotate daemon log", "path", logPath, "error", err)
+	// Write to a temp file first, then atomically replace to avoid data loss on crash.
+	tmpPath := logPath + ".tmp"
+	if err := os.WriteFile(tmpPath, data[half:], 0644); err != nil {
+		r.logger.Warn("Failed to write rotated daemon log", "path", tmpPath, "error", err)
+		return
+	}
+	if err := os.Rename(tmpPath, logPath); err != nil {
+		r.logger.Warn("Failed to replace daemon log after rotation", "path", logPath, "error", err)
+		_ = os.Remove(tmpPath)
 	}
 }
 

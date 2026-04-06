@@ -91,7 +91,7 @@ func (tm *TokenManager) load() error {
 	return nil
 }
 
-// save encrypts and writes the token file.
+// save encrypts and writes the token file atomically (write-to-temp then rename).
 func (tm *TokenManager) save() error {
 	data, err := json.MarshalIndent(tm.tokens, "", "  ")
 	if err != nil {
@@ -103,8 +103,13 @@ func (tm *TokenManager) save() error {
 		return fmt.Errorf("failed to encrypt token file: %w", err)
 	}
 
-	if err := os.WriteFile(tm.filePath, ciphertext, 0600); err != nil {
-		return fmt.Errorf("failed to write token file: %w", err)
+	tmpPath := tm.filePath + ".tmp"
+	if err := os.WriteFile(tmpPath, ciphertext, 0600); err != nil {
+		return fmt.Errorf("failed to write token file temp: %w", err)
+	}
+	if err := os.Rename(tmpPath, tm.filePath); err != nil {
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("failed to replace token file: %w", err)
 	}
 	return nil
 }

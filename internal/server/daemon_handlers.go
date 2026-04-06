@@ -9,9 +9,22 @@ import (
 // ── Daemon Skills API Handlers ──────────────────────────────────────────────
 // Provides REST endpoints for the Web UI to manage long-running daemon skills.
 
+// isDaemonAuthOK returns true if auth is disabled or the request is authenticated.
+func isDaemonAuthOK(s *Server, r *http.Request) bool {
+	s.CfgMu.RLock()
+	enabled := s.Cfg.Auth.Enabled
+	secret := s.Cfg.Auth.SessionSecret
+	s.CfgMu.RUnlock()
+	return !enabled || IsAuthenticated(r, secret)
+}
+
 // handleDaemonList returns all daemon states (GET /api/daemons).
 func handleDaemonList(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !isDaemonAuthOK(s, r) {
+			daemonJSON(w, http.StatusUnauthorized, map[string]string{"status": "error", "message": "Unauthorized"})
+			return
+		}
 		if r.Method != http.MethodGet {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
@@ -32,6 +45,10 @@ func handleDaemonList(s *Server) http.HandlerFunc {
 // handleDaemonRefresh triggers a skill rescan from disk (POST /api/daemons/refresh).
 func handleDaemonRefresh(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !isDaemonAuthOK(s, r) {
+			daemonJSON(w, http.StatusUnauthorized, map[string]string{"status": "error", "message": "Unauthorized"})
+			return
+		}
 		if r.Method != http.MethodPost {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
@@ -51,6 +68,10 @@ func handleDaemonRefresh(s *Server) http.HandlerFunc {
 // handleDaemonAction routes /api/daemons/{id}/{action} requests.
 func handleDaemonAction(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if !isDaemonAuthOK(s, r) {
+			daemonJSON(w, http.StatusUnauthorized, map[string]string{"status": "error", "message": "Unauthorized"})
+			return
+		}
 		if s.DaemonSupervisor == nil {
 			daemonJSON(w, http.StatusServiceUnavailable, map[string]string{"status": "error", "message": "Daemon supervisor not initialized"})
 			return
@@ -123,9 +144,14 @@ func handleDaemonAction(s *Server) http.HandlerFunc {
 	}
 }
 
-// daemonJSON writes a JSON response with the given status code.
+// daemonJSON serializes v as JSON and writes it with the given HTTP status code.
 func daemonJSON(w http.ResponseWriter, code int, v interface{}) {
+	data, err := json.Marshal(v)
+	if err != nil {
+		http.Error(w, `{"status":"error","message":"internal serialization error"}`, http.StatusInternalServerError)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
-	json.NewEncoder(w).Encode(v)
+	_, _ = w.Write(data)
 }

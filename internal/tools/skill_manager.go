@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -64,6 +65,11 @@ type SkillManager struct {
 	db        *sql.DB
 	skillsDir string
 	logger    *slog.Logger
+
+	// daemonSkillsCache is populated by SyncFromDisk and avoids re-reading
+	// manifests from disk on every ListSkillsFiltered call.
+	daemonSkillsMu    sync.RWMutex
+	daemonSkillsCache map[string]bool
 }
 
 type SkillVersion struct {
@@ -228,7 +234,9 @@ func NewSkillManager(db *sql.DB, skillsDir string, logger *slog.Logger) *SkillMa
 }
 
 // SyncFromDisk scans the skills directory and reconciles with the database.
-// New skills found on disk are inserted; skills removed from disk are marked as disabled.
+// New skills found on disk are inserted; skills still present are updated.
+// Skills removed from disk are NOT automatically disabled — they remain in the
+// registry with their last-known state.
 func (m *SkillManager) SyncFromDisk() error {
 	manifests, err := ListSkills(m.skillsDir)
 	if err != nil {
@@ -288,6 +296,18 @@ func (m *SkillManager) SyncFromDisk() error {
 			}
 		}
 	}
+
+	// Refresh the daemon-skills cache so ListSkillsFiltered doesn't need to
+	// call ListSkills on every request.
+	daemonSet := make(map[string]bool, len(manifests))
+	for _, mf := range manifests {
+		if mf.Daemon != nil {
+			daemonSet[mf.Name] = true
+		}
+	}
+	m.daemonSkillsMu.Lock()
+	m.daemonSkillsCache = daemonSet
+	m.daemonSkillsMu.Unlock()
 
 	return nil
 }
@@ -403,18 +423,25 @@ func (m *SkillManager) ListSkillsFiltered(skillType, status, search string, enab
 		skills = append(skills, s)
 	}
 
-	// Enrich with daemon info from manifests
-	if manifests, err := ListSkills(m.skillsDir); err == nil {
-		daemonSet := make(map[string]bool, len(manifests))
-		for _, mf := range manifests {
-			if mf.Daemon != nil {
-				daemonSet[mf.Name] = true
+	// Enrich with daemon info from the cache populated by SyncFromDisk.
+	// Fall back to a fresh disk read only when the cache is empty (e.g. first
+	// call before SyncFromDisk has run).
+	m.daemonSkillsMu.RLock()
+	daemonSet := m.daemonSkillsCache
+	m.daemonSkillsMu.RUnlock()
+	if daemonSet == nil {
+		if manifests, err := ListSkills(m.skillsDir); err == nil {
+			daemonSet = make(map[string]bool, len(manifests))
+			for _, mf := range manifests {
+				if mf.Daemon != nil {
+					daemonSet[mf.Name] = true
+				}
 			}
 		}
-		for i := range skills {
-			if daemonSet[skills[i].Name] {
-				skills[i].IsDaemon = true
-			}
+	}
+	for i := range skills {
+		if daemonSet[skills[i].Name] {
+			skills[i].IsDaemon = true
 		}
 	}
 

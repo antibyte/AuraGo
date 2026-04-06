@@ -275,7 +275,14 @@ func (s *DaemonSupervisor) wakeUpDispatcher() {
 	for {
 		select {
 		case <-s.stopCh:
-			return
+			// Drain pending events so senders don't block indefinitely after shutdown.
+			for {
+				select {
+				case <-s.wakeCh:
+				default:
+					return
+				}
+			}
 		case event := <-s.wakeCh:
 			s.handleWakeUp(event)
 		}
@@ -365,7 +372,12 @@ func (s *DaemonSupervisor) buildWakeUpPrompt(event daemonWakeEvent) string {
 	)
 
 	if event.Message.Data != nil {
-		prompt += fmt.Sprintf("\n\nAdditional data: %s", string(event.Message.Data))
+		const maxDataBytes = 4096
+		data := string(event.Message.Data)
+		if len(data) > maxDataBytes {
+			data = data[:maxDataBytes] + "... [truncated]"
+		}
+		prompt += fmt.Sprintf("\n\nAdditional data: %s", data)
 	}
 
 	return prompt

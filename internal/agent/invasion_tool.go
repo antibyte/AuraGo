@@ -17,6 +17,16 @@ import (
 // hatchClient is used for loopback calls to the server's invasion API.
 var hatchClient = &http.Client{Timeout: 30 * time.Second}
 
+// agentInternalToken holds the per-process crypto token for loopback auth.
+// Set by SetAgentInternalToken during startup before any loopback call is made.
+var agentInternalToken string
+
+// SetAgentInternalToken stores the loopback crypto token so all agent loopback
+// HTTP calls can present it alongside X-Internal-FollowUp.
+func SetAgentInternalToken(token string) {
+	agentInternalToken = token
+}
+
 // handleInvasionControl dispatches invasion_control tool operations.
 // It exposes read-only listing, status lookup, egg assignment, and deployment actions.
 // Secrets are never included in responses.
@@ -270,6 +280,9 @@ func invasionPost(url, contentType string, body *bytes.Reader) (*http.Response, 
 		req.Header.Set("Content-Type", contentType)
 	}
 	req.Header.Set("X-Internal-FollowUp", "true")
+	if agentInternalToken != "" {
+		req.Header.Set("X-Internal-Token", agentInternalToken)
+	}
 	return hatchClient.Do(req)
 }
 
@@ -280,6 +293,9 @@ func invasionGet(url string) (*http.Response, error) {
 		return nil, err
 	}
 	req.Header.Set("X-Internal-FollowUp", "true")
+	if agentInternalToken != "" {
+		req.Header.Set("X-Internal-Token", agentInternalToken)
+	}
 	return hatchClient.Do(req)
 }
 

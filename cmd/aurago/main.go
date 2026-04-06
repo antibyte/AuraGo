@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
@@ -569,6 +570,17 @@ func main() {
 			appLog.Warn("Failed to store background task notification", "error", err)
 		}
 	})
+
+	// Generate a per-process crypto token for loopback authentication.
+	// This token is only valid for the lifetime of this process and never persisted.
+	loopbackTokenBytes := make([]byte, 32)
+	if _, err := rand.Read(loopbackTokenBytes); err != nil {
+		appLog.Error("Failed to generate loopback auth token", "error", err)
+		os.Exit(1)
+	}
+	loopbackToken := base64.StdEncoding.EncodeToString(loopbackTokenBytes)
+	backgroundTaskManager.SetInternalToken(loopbackToken)
+
 	backgroundTaskManager.SetLoopbackExecutor(func(prompt string, timeout time.Duration) error {
 		url := server.InternalAPIURL(cfg) + "/v1/chat/completions"
 		payload := map[string]interface{}{
@@ -589,6 +601,7 @@ func main() {
 		}
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("X-Internal-FollowUp", "true")
+		req.Header.Set("X-Internal-Token", loopbackToken)
 		resp, err := client.Do(req)
 		if err != nil {
 			return fmt.Errorf("execute background loopback request: %w", err)
@@ -796,6 +809,7 @@ func main() {
 			} else {
 				req.Header.Set("Content-Type", "application/json")
 				req.Header.Set("X-Internal-FollowUp", "true")
+				req.Header.Set("X-Internal-Token", loopbackToken)
 				resp, err := cronHTTPClient.Do(req)
 				if err != nil {
 					result.Status = "failure"

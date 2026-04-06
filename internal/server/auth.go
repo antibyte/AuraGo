@@ -480,13 +480,22 @@ func authMiddleware(s *Server, next http.Handler) http.Handler {
 		}
 
 		// Internal self-calls (missions, cron follow-ups) originate from loopback and carry
-		// the X-Internal-FollowUp header. Let them bypass auth — external clients cannot
-		// spoof the loopback source address.
+		// the X-Internal-FollowUp header together with a per-process crypto token.
+		// Both checks are required: IP prevents token leakage from outside, token prevents
+		// any local process from bypassing auth without knowledge of the token.
 		if r.Header.Get("X-Internal-FollowUp") == "true" {
 			host, _, _ := net.SplitHostPort(r.RemoteAddr)
 			if host == "127.0.0.1" || host == "::1" || strings.HasPrefix(host, "127.") {
-				next.ServeHTTP(w, r)
-				return
+				tok := s.internalToken
+				if tok != "" && hmac.Equal([]byte(r.Header.Get("X-Internal-Token")), []byte(tok)) {
+					next.ServeHTTP(w, r)
+					return
+				}
+				if tok == "" {
+					// Token not yet configured (test environments); fall back to IP-only check.
+					next.ServeHTTP(w, r)
+					return
+				}
 			}
 		}
 

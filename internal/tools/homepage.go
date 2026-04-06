@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -36,6 +37,12 @@ const (
 
 var homepageDockerExecFunc = DockerExec
 var homepageWebCaptureFunc = WebCapture
+
+// activePythonServerCmd tracks the last Python HTTP server started as fallback.
+var (
+	activePythonServerCmd *exec.Cmd
+	activePythonServerMu  sync.Mutex
+)
 
 // homepageDockerfile is the embedded Dockerfile for the dev container.
 const homepageDockerfile = `FROM mcr.microsoft.com/playwright:v1.58.2-noble
@@ -232,18 +239,31 @@ func checkDockerAvailable(dockerHost string) bool {
 
 // startPythonServer starts a Python HTTP server as fallback when Docker is not available.
 // Returns the URL and process info or error.
+// startPythonServer starts a Python HTTP server as fallback when Docker is not available.
+// Returns the URL and process info or error. Kills any previously started server first.
 func startPythonServer(port int, directory string) (string, int, error) {
 	if port <= 0 {
 		port = 8080
 	}
-	// Always bind to loopback â€” the URL returned is http://localhost:... and
-	// the workspace directory must not be served to the public network.
+
+	// Kill any previously tracked Python server to avoid orphaned processes.
+	activePythonServerMu.Lock()
+	if activePythonServerCmd != nil && activePythonServerCmd.Process != nil {
+		_ = activePythonServerCmd.Process.Kill()
+		_ = activePythonServerCmd.Wait()
+		activePythonServerCmd = nil
+	}
+	activePythonServerMu.Unlock()
+
 	cmd := exec.Command("python3", "-m", "http.server",
 		strconv.Itoa(port), "--directory", directory, "--bind", "127.0.0.1")
-	err := cmd.Start()
-	if err != nil {
+	if err := cmd.Start(); err != nil {
 		return "", 0, fmt.Errorf("failed to start Python server: %w", err)
 	}
+
+	activePythonServerMu.Lock()
+	activePythonServerCmd = cmd
+	activePythonServerMu.Unlock()
 
 	// Give the server a moment to start
 	time.Sleep(500 * time.Millisecond)

@@ -39,7 +39,15 @@ func lockSessionRequest(sessionID string) func() {
 	}
 	muSessionRequestLocks.Unlock()
 	lock.Lock()
-	return lock.Unlock
+	return func() {
+		lock.Unlock()
+		// Remove per-mission entries after use so the map does not grow unboundedly.
+		if sessionID != "default" {
+			muSessionRequestLocks.Lock()
+			delete(sessionRequestLocks, sessionID)
+			muSessionRequestLocks.Unlock()
+		}
+	}
 }
 
 // sanitizeFilename sanitizes a filename to prevent path traversal and ensure safe names.
@@ -131,11 +139,27 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			}
 		}
 		muFollowUp.Unlock()
+		// Decrement the follow-up depth when this request is done; clean up mission entries.
+		if isFollowUp && followUpKey != "default" {
+			defer func() {
+				muFollowUp.Lock()
+				if followUpDepths[followUpKey] > 0 {
+					followUpDepths[followUpKey]--
+				}
+				if followUpDepths[followUpKey] == 0 {
+					delete(followUpDepths, followUpKey)
+				}
+				muFollowUp.Unlock()
+			}()
+		}
 
 		// Override the model with the configured backend model
-		if s.Cfg.LLM.Model != "" {
-			s.Logger.Debug("Overriding model", "from", req.Model, "to", s.Cfg.LLM.Model)
-			req.Model = s.Cfg.LLM.Model
+		s.CfgMu.RLock()
+		overrideModel := s.Cfg.LLM.Model
+		s.CfgMu.RUnlock()
+		if overrideModel != "" {
+			s.Logger.Debug("Overriding model", "from", req.Model, "to", overrideModel)
+			req.Model = overrideModel
 		}
 
 		if len(req.Messages) == 0 {

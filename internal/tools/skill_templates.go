@@ -1194,7 +1194,13 @@ def _restore_backup(source, output):
     if not output:
         output = os.getcwd()
     os.makedirs(output, exist_ok=True)
+    abs_output = os.path.abspath(output)
     with tarfile.open(source, "r:gz") as tar:
+        # Zip-slip / path traversal protection
+        for member in tar.getmembers():
+            member_path = os.path.abspath(os.path.join(abs_output, member.name))
+            if not member_path.startswith(abs_output + os.sep) and member_path != abs_output:
+                return {"status": "error", "message": f"Path traversal detected in archive member: {member.name}"}
         tar.extractall(path=output)
     return {"status": "success", "result": f"Restored to {output}"}
 
@@ -1358,46 +1364,52 @@ def {{.FunctionName}}(host, command, user=None, port=22, timeout=30):
             "timeout": int(timeout),
         }
 
-        if ssh_key:
-            key_file = os.path.expanduser(ssh_key) if not os.path.isabs(ssh_key) else ssh_key
-            if os.path.isfile(key_file):
-                connect_kwargs["key_filename"] = key_file
+        tmp_key_path = None
+        try:
+            if ssh_key:
+                key_file = os.path.expanduser(ssh_key) if not os.path.isabs(ssh_key) else ssh_key
+                if os.path.isfile(key_file):
+                    connect_kwargs["key_filename"] = key_file
+                else:
+                    import tempfile, stat
+                    with tempfile.NamedTemporaryFile(mode="w", suffix=".key", delete=False) as kf:
+                        kf.write(ssh_key)
+                        tmp_key_path = kf.name
+                    os.chmod(tmp_key_path, stat.S_IRUSR | stat.S_IWUSR)
+                    connect_kwargs["key_filename"] = tmp_key_path
+            elif ssh_password:
+                connect_kwargs["password"] = ssh_password
             else:
-                import tempfile
-                with tempfile.NamedTemporaryFile(mode="w", suffix=".key", delete=False) as kf:
-                    kf.write(ssh_key)
-                    kf.flush()
-                    connect_kwargs["key_filename"] = kf.name
-        elif ssh_password:
-            connect_kwargs["password"] = ssh_password
-        else:
-            key_path = os.path.expanduser("~/.ssh/id_rsa")
-            if os.path.isfile(key_path):
-                connect_kwargs["key_filename"] = key_path
+                key_path = os.path.expanduser("~/.ssh/id_rsa")
+                if os.path.isfile(key_path):
+                    connect_kwargs["key_filename"] = key_path
 
-        client.connect(**connect_kwargs)
-        stdin, stdout, stderr = client.exec_command(command, timeout=int(timeout))
+            client.connect(**connect_kwargs)
+            stdin, stdout, stderr = client.exec_command(command, timeout=int(timeout))
 
-        exit_code = stdout.channel.recv_exit_status()
-        out = stdout.read().decode("utf-8", errors="replace")
-        err = stderr.read().decode("utf-8", errors="replace")
+            exit_code = stdout.channel.recv_exit_status()
+            out = stdout.read().decode("utf-8", errors="replace")
+            err = stderr.read().decode("utf-8", errors="replace")
 
-        return {
-            "status": "success" if exit_code == 0 else "error",
-            "result": {
-                "host": host,
-                "command": command,
-                "exit_code": exit_code,
-                "stdout": out[-10000:] if len(out) > 10000 else out,
-                "stderr": err[-5000:] if len(err) > 5000 else err,
-            },
-        }
-    except paramiko.AuthenticationException:
-        return {"status": "error", "message": f"Authentication failed for {user}@{host}"}
-    except paramiko.SSHException as e:
-        return {"status": "error", "message": f"SSH error: {str(e)}"}
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
+            return {
+                "status": "success" if exit_code == 0 else "error",
+                "result": {
+                    "host": host,
+                    "command": command,
+                    "exit_code": exit_code,
+                    "stdout": out[-10000:] if len(out) > 10000 else out,
+                    "stderr": err[-5000:] if len(err) > 5000 else err,
+                },
+            }
+        except paramiko.AuthenticationException:
+            return {"status": "error", "message": f"Authentication failed for {user}@{host}"}
+        except paramiko.SSHException as e:
+            return {"status": "error", "message": f"SSH error: {str(e)}"}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+        finally:
+            if tmp_key_path and os.path.exists(tmp_key_path):
+                os.remove(tmp_key_path)
     finally:
         client.close()
 `

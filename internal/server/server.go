@@ -268,6 +268,7 @@ type Server struct {
 	ShutdownCh      chan struct{} // signal channel for graceful shutdown
 	firstStartDone  bool
 	muFirstStart    sync.Mutex
+	internalToken   string       // per-process crypto token for loopback auth
 	loopbackSrv     *http.Server // plain-HTTP server on 127.0.0.1 for cloudflared (HTTPS loopback port)
 	loopbackHandler http.Handler // stored handler so hot-reload can restart the listener without a full restart
 }
@@ -332,6 +333,15 @@ func Start(cfg *config.Config, logger *slog.Logger, accessLogger *slog.Logger, l
 		MissionManagerV2: tools.NewMissionManagerV2(cfg.Directories.DataDir, cronManager),
 		EggHub:           bridge.NewEggHub(logger),
 		WarningsRegistry: warningsRegistry,
+	}
+	// Retrieve the per-process loopback auth token from BackgroundTaskManager.
+	// It was generated in main() before server.Start() was called.
+	if backgroundTasks != nil {
+		s.internalToken = backgroundTasks.InternalToken()
+	}
+	// Propagate the token to the agent package for invasion_tool loopback calls.
+	if s.internalToken != "" {
+		agent.SetAgentInternalToken(s.internalToken)
 	}
 	s.CoAgentRegistry.ConfigureLifecycle(
 		time.Duration(cfg.CoAgents.CleanupIntervalMins)*time.Minute,
@@ -525,6 +535,7 @@ func Start(cfg *config.Config, logger *slog.Logger, accessLogger *slog.Logger, l
 			}
 			req.Header.Set("Content-Type", "application/json")
 			req.Header.Set("X-Internal-FollowUp", "true")
+			req.Header.Set("X-Internal-Token", s.internalToken)
 			req.Header.Set("X-Mission-ID", missionID)
 
 			client := &http.Client{
@@ -661,6 +672,7 @@ func Start(cfg *config.Config, logger *slog.Logger, accessLogger *slog.Logger, l
 				}
 				req.Header.Set("Content-Type", "application/json")
 				req.Header.Set("X-Internal-FollowUp", "true")
+				req.Header.Set("X-Internal-Token", s.internalToken)
 
 				client := &http.Client{Timeout: 10 * time.Minute}
 				_, err = client.Do(req)
@@ -768,6 +780,7 @@ func Start(cfg *config.Config, logger *slog.Logger, accessLogger *slog.Logger, l
 				}
 				req.Header.Set("Content-Type", "application/json")
 				req.Header.Set("X-Internal-FollowUp", "true")
+				req.Header.Set("X-Internal-Token", s.internalToken)
 				client := &http.Client{Timeout: 10 * time.Minute}
 				if _, err := client.Do(req); err != nil {
 					logger.Error("[FritzBox Poller] Loopback request failed", "error", err)

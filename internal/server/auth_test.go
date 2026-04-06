@@ -176,6 +176,7 @@ func TestAuthMiddlewareLoopbackFollowUpBypassRequiresLoopbackRemoteAddr(t *testi
 	s.Cfg.Auth.Enabled = true
 	s.Cfg.Auth.SessionSecret = "0123456789abcdef0123456789abcdef"
 	s.Cfg.Auth.PasswordHash = "configured"
+	s.internalToken = "test-secret-token"
 
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
@@ -184,6 +185,7 @@ func TestAuthMiddlewareLoopbackFollowUpBypassRequiresLoopbackRemoteAddr(t *testi
 
 	externalReq := httptest.NewRequest(http.MethodPost, "/api/invasion/nests/n1/hatch", nil)
 	externalReq.Header.Set("X-Internal-FollowUp", "true")
+	externalReq.Header.Set("X-Internal-Token", "test-secret-token")
 	externalReq.RemoteAddr = "10.0.0.42:1234"
 	externalRec := httptest.NewRecorder()
 	handler.ServeHTTP(externalRec, externalReq)
@@ -193,10 +195,21 @@ func TestAuthMiddlewareLoopbackFollowUpBypassRequiresLoopbackRemoteAddr(t *testi
 
 	loopbackReq := httptest.NewRequest(http.MethodPost, "/api/invasion/nests/n1/hatch", nil)
 	loopbackReq.Header.Set("X-Internal-FollowUp", "true")
+	loopbackReq.Header.Set("X-Internal-Token", "test-secret-token")
 	loopbackReq.RemoteAddr = "127.0.0.1:1234"
 	loopbackRec := httptest.NewRecorder()
 	handler.ServeHTTP(loopbackRec, loopbackReq)
 	if loopbackRec.Code != http.StatusNoContent {
-		t.Fatalf("loopback follow-up status = %d, want 204", loopbackRec.Code)
+		t.Fatalf("loopback follow-up with valid token status = %d, want 204", loopbackRec.Code)
+	}
+
+	wrongTokenReq := httptest.NewRequest(http.MethodPost, "/api/invasion/nests/n1/hatch", nil)
+	wrongTokenReq.Header.Set("X-Internal-FollowUp", "true")
+	wrongTokenReq.Header.Set("X-Internal-Token", "wrong-token")
+	wrongTokenReq.RemoteAddr = "127.0.0.1:1234"
+	wrongTokenRec := httptest.NewRecorder()
+	handler.ServeHTTP(wrongTokenRec, wrongTokenReq)
+	if wrongTokenRec.Code != http.StatusUnauthorized {
+		t.Fatalf("loopback follow-up with wrong token status = %d, want 401", wrongTokenRec.Code)
 	}
 }

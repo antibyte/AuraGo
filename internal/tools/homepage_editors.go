@@ -241,7 +241,7 @@ func applyHomepageYamlEdit(content, operation, dotPath string, setValue interfac
 
 	case "set":
 		if dotPath == "" {
-			return "", "", encode(JsonEditorResult{Status: "error", Message: "'json_path' is required for set"})
+			return "", "", encode(JsonEditorResult{Status: "error", Message: "'dot_path' is required for set"})
 		}
 		var node yaml.Node
 		data := []byte(content)
@@ -265,7 +265,7 @@ func applyHomepageYamlEdit(content, operation, dotPath string, setValue interfac
 
 	case "delete":
 		if dotPath == "" {
-			return "", "", encode(JsonEditorResult{Status: "error", Message: "'json_path' is required for delete"})
+			return "", "", encode(JsonEditorResult{Status: "error", Message: "'dot_path' is required for delete"})
 		}
 		var node yaml.Node
 		if err := yaml.Unmarshal([]byte(content), &node); err != nil {
