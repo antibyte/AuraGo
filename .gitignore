@@ -85,6 +85,7 @@ log/
 CODE_AUDIT_REPORT.md
 
 # Agent reports (may contain sensitive data like log analyses)
+/reports
 /reports/*.md
 /reports/**/*.md
 agent_analysis/

@@ -342,6 +342,24 @@ grep -r "AURAGO_MASTER_KEY\|sk-or-\|password\|secret" .  # Scan for secrets
 3. Force push to overwrite (coordinate with team)
 4. Assume the secret is compromised
 
+### Git Protocol (CRITICAL)
+
+**FORBIDDEN operations that will corrupt repository history:**
+- **`git commit --amend` on already-pushed commits** - This rewrites history and forces a subsequent `git push --force`, which can resurrect ignored files and corrupt shared repository state
+- **`git rebase` on already-pushed commits** - Same reason as above
+- **`git reset --hard` on a public branch** - This discards commits that others may depend on
+
+**Why these are dangerous:**
+- Amending a pushed commit replaces it with a new one, making the old commit orphaned
+- A force-push to overwrite the orphaned commit brings back old tracked files
+- Files previously in `.gitignore` but tracked in history can reappear
+- Other collaborators' local repositories become inconsistent
+
+**If you need to fix a pushed commit:**
+1. Create a new commit with the correction (don't amend)
+2. Push the new commit normally
+3. If the original commit was bad, document in the commit message that it's superseded
+
 ## Deployment
 
 ### Docker Deployment (Recommended)
