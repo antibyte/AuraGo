@@ -223,6 +223,15 @@ func (g *WakeUpGate) RecordWakeUp(skillID string, cost float64) {
 	skill.wakeCount++
 	skill.hourlyWakes = append(skill.hourlyWakes, now)
 
+	// Reset escalation first — if idle for more than 1 hour, start fresh before
+	// applying any new escalation so the first wake after a long pause doesn't
+	// unnecessarily double the factor and then undo it in the same call.
+	if now.Sub(skill.lastEscalationReset) > time.Duration(defaultEscalationResetHours)*time.Hour {
+		skill.consecutiveWakes = 0
+		skill.escalationFactor = 1.0
+		skill.lastEscalationReset = now
+	}
+
 	// Escalation: if waking up again before the base interval has fully elapsed,
 	// double the effective rate limit (up to maxEscalationMultiplier)
 	if skill.consecutiveWakes > 0 && skill.escalationFactor < maxEscalationMultiplier {
@@ -237,13 +246,6 @@ func (g *WakeUpGate) RecordWakeUp(skillID string, cost float64) {
 		)
 	}
 	skill.consecutiveWakes++
-
-	// Reset escalation after 1 hour of inactivity
-	if now.Sub(skill.lastEscalationReset) > time.Duration(defaultEscalationResetHours)*time.Hour {
-		skill.consecutiveWakes = 0
-		skill.escalationFactor = 1.0
-		skill.lastEscalationReset = now
-	}
 }
 
 // RecordSuppressed records a suppressed wake-up.

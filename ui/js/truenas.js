@@ -89,10 +89,10 @@ class TrueNASUI {
             if (data.enabled === false) {
                 indicator.innerHTML = '<span class="status-offline">● Deaktiviert</span>';
             } else if (data.status === 'online') {
-                indicator.innerHTML = `<span class="status-online">● Online</span> (${data.version})`;
+                indicator.innerHTML = `<span class="status-online">● Online</span> (${escapeHtmlTruenas(data.version)})`;
                 this.loadOverview();
             } else if (data.status === 'error') {
-                indicator.innerHTML = `<span class="status-error">● Fehler: ${data.error}</span>`;
+                indicator.innerHTML = `<span class="status-error">● Fehler: ${escapeHtmlTruenas(data.error)}</span>`;
             } else {
                 indicator.innerHTML = '<span class="status-offline">● Offline</span>';
             }
@@ -201,7 +201,7 @@ class TrueNASUI {
                             <div class="progress-fill ${usage > 90 ? 'danger' : usage > 70 ? 'warning' : ''}" style="width: ${usage}%"></div>
                         </div>
                         <div class="pool-actions">
-                            <button class="btn btn-secondary" data-pool-id="${pool.id}" onclick="truenasUI.scrubPool(this.getAttribute('data-pool-id'))" ${pool.scan?.state === 'SCANNING' ? 'disabled' : ''}>
+                            <button class="btn btn-secondary" data-pool-id="${escapeHtmlTruenas(pool.id)}" onclick="truenasUI.scrubPool(this.getAttribute('data-pool-id'))" ${pool.scan?.state === 'SCANNING' ? 'disabled' : ''}>
                                 ${pool.scan?.state === 'SCANNING' ? 'Scrub läuft...' : 'Scrub starten'}
                             </button>
                         </div>
@@ -210,7 +210,7 @@ class TrueNASUI {
             }).join('');
             
         } catch (err) {
-            container.innerHTML = `<div class="alert error">Fehler: ${err.message}</div>`;
+            container.innerHTML = `<div class="alert error">Fehler: ${escapeHtmlTruenas(err.message)}</div>`;
         }
     }
     
@@ -261,7 +261,7 @@ class TrueNASUI {
             }
             
         } catch (err) {
-            container.innerHTML = `<div class="alert error">Fehler: ${err.message}</div>`;
+            container.innerHTML = `<div class="alert error">Fehler: ${escapeHtmlTruenas(err.message)}</div>`;
         }
     }
     
@@ -297,7 +297,7 @@ class TrueNASUI {
             }).join('');
             
         } catch (err) {
-            container.innerHTML = `<div class="alert error">Fehler: ${err.message}</div>`;
+            container.innerHTML = `<div class="alert error">Fehler: ${escapeHtmlTruenas(err.message)}</div>`;
         }
     }
     
@@ -321,13 +321,13 @@ class TrueNASUI {
                         <p>${escapeHtmlTruenas(share.path)} ${share.guestok ? '• Gast erlaubt' : ''} ${share.timemachine ? '• Time Machine' : ''}</p>
                     </div>
                     <div class="share-actions">
-                        <button class="btn btn-danger" data-share-id="${share.id}" onclick="truenasUI.deleteShare(this.getAttribute('data-share-id'))">Löschen</button>
+                        <button class="btn btn-danger" data-share-id="${escapeHtmlTruenas(share.id)}" onclick="truenasUI.deleteShare(this.getAttribute('data-share-id'))">Löschen</button>
                     </div>
                 </div>
             `).join('');
             
         } catch (err) {
-            container.innerHTML = `<div class="alert error">Fehler: ${err.message}</div>`;
+            container.innerHTML = `<div class="alert error">Fehler: ${escapeHtmlTruenas(err.message)}</div>`;
         }
     }
     

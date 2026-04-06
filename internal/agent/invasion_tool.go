@@ -325,7 +325,8 @@ func invasionHatchEgg(cfg *config.Config, tc ToolCall, logger *slog.Logger) stri
 
 	if resp.StatusCode != http.StatusOK {
 		errMsg, _ := result["error"].(string)
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, errMsg)
+		b, _ := json.Marshal(map[string]string{"status": "error", "message": errMsg})
+		return "Tool Output: " + string(b)
 	}
 
 	b, _ := json.Marshal(map[string]interface{}{
@@ -356,7 +357,8 @@ func invasionStopEgg(cfg *config.Config, tc ToolCall, logger *slog.Logger) strin
 
 	if resp.StatusCode != http.StatusOK {
 		errMsg, _ := result["error"].(string)
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, errMsg)
+		b, _ := json.Marshal(map[string]string{"status": "error", "message": errMsg})
+		return "Tool Output: " + string(b)
 	}
 
 	logger.Info("[InvasionTool] Egg stopped", "nest_id", tc.NestID)
@@ -381,7 +383,8 @@ func invasionEggDeployStatus(cfg *config.Config, tc ToolCall, logger *slog.Logge
 
 	if resp.StatusCode != http.StatusOK {
 		errMsg, _ := result["error"].(string)
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, errMsg)
+		b, _ := json.Marshal(map[string]string{"status": "error", "message": errMsg})
+		return "Tool Output: " + string(b)
 	}
 
 	result["status"] = "success"
@@ -416,7 +419,8 @@ func invasionSendTask(cfg *config.Config, db *sql.DB, tc ToolCall, logger *slog.
 
 	if resp.StatusCode != http.StatusOK {
 		errMsg, _ := result["error"].(string)
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, errMsg)
+		b, _ := json.Marshal(map[string]string{"status": "error", "message": errMsg})
+		return "Tool Output: " + string(b)
 	}
 
 	taskID, _ := result["task_id"].(string)
@@ -450,7 +454,8 @@ func invasionSendSecret(cfg *config.Config, tc ToolCall, logger *slog.Logger) st
 
 	if resp.StatusCode != http.StatusOK {
 		errMsg, _ := result["error"].(string)
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, errMsg)
+		b, _ := json.Marshal(map[string]string{"status": "error", "message": errMsg})
+		return "Tool Output: " + string(b)
 	}
 
 	logger.Info("[InvasionTool] Secret sent to egg", "nest_id", tc.NestID, "key", tc.Key)
