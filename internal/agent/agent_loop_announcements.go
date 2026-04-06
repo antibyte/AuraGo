@@ -69,10 +69,7 @@ var resultMetricPattern = regexp.MustCompile(`(?i)\b\d+\s+(?:bytes?|files?|lines
 var statusEvidencePattern = regexp.MustCompile(`(?i)\b(?:status|exit code|http)\s*[:=]?\s*(?:ok|success|successful|error|failed|200|201|204|400|401|403|404|409|422|429|500)\b`)
 
 func isAnnouncementOnlyResponse(content string, tc ToolCall, useNativePath, lastResponseWasTool bool, lastUserMsg string) bool {
-	// For the native function-calling path, bypass announcement detection UNLESS the
-	// previous response was a tool call. After a tool call, the model may announce the
-	// next step in text without actually invoking the next tool — we must catch that.
-	if tc.IsTool || (useNativePath && !lastResponseWasTool) || tc.RawCodeDetected || len(content) > 1000 {
+	if tc.IsTool || tc.RawCodeDetected || len(content) > 1000 {
 		return false
 	}
 
@@ -112,10 +109,14 @@ func isAnnouncementOnlyResponse(content string, tc ToolCall, useNativePath, last
 		// guard injected a fake user message). Only an explicit forward cue AND an
 		// action cue together can override this (mixed completion+next-action case).
 		// A URL or "jetzt" (current state) alone must NOT suppress completion evidence.
-		if hasCompletionEvidence && !(hasActionIntent && containsForwardCue && containsActionCue) {
+		// Exception: strong forward signal (action cue + plan structure like ":") always
+		// wins — e.g. "Todo erstellt! Jetzt baue ich X:" is an announcement even though
+		// "erstellt" looks like completion evidence.
+		strongForwardSignal := containsActionCue && hasPlanStructure
+		if hasCompletionEvidence && !strongForwardSignal && !(hasActionIntent && containsForwardCue && containsActionCue) {
 			return false
 		}
-		return containsAnnouncementPhrase || (hasActionIntent && (containsForwardCue || containsActionCue || hasPlanStructure))
+		return containsAnnouncementPhrase || strongForwardSignal || (hasActionIntent && (containsForwardCue || containsActionCue || hasPlanStructure))
 	}
 
 	// Post-tool path: if completion evidence is present, only override it when
@@ -124,11 +125,15 @@ func isAnnouncementOnlyResponse(content string, tc ToolCall, useNativePath, last
 	// where a completion URL + "jetzt" (current state) suppresses the exemption:
 	//   "Fertig! läuft jetzt lokal auf http://..."  ← must NOT trigger
 	//   "Done! Now I will deploy to Netlify."        ← must still trigger
-	if hasCompletionEvidence && !(hasActionIntent && containsForwardCue && containsActionCue) {
+	// Exception: strong forward signal (action cue + plan structure like trailing ":")
+	// overrides completion evidence — e.g. "Todo erstellt! Jetzt baue ich X ein:" must
+	// trigger even though "erstellt" is a completion term.
+	strongForwardSignal := containsActionCue && hasPlanStructure
+	if hasCompletionEvidence && !strongForwardSignal && !(hasActionIntent && containsForwardCue && containsActionCue) {
 		return false
 	}
 
-	return hasActionIntent && (containsForwardCue || containsActionCue || hasPlanStructure)
+	return (hasActionIntent || strongForwardSignal) && (containsForwardCue || containsActionCue || hasPlanStructure)
 }
 
 func containsAnySubstring(s string, needles []string) bool {
