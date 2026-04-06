@@ -123,6 +123,21 @@ func shouldGenerateInnerVoice(
 		return true
 	}
 
+	// Trigger: periodic — generate inner voice during normal conversation (no errors required).
+	// Fire when no thought has been generated yet this session, or when the current thought
+	// has aged past the decay threshold (meaning the last thought already faded from the prompt).
+	globalInnerVoiceState.mu.Lock()
+	genCount := globalInnerVoiceState.generationCount
+	turnsSinceLast := globalInnerVoiceState.turnsSinceLast
+	globalInnerVoiceState.mu.Unlock()
+	periodicThreshold := cfg.Personality.InnerVoice.DecayTurns
+	if periodicThreshold <= 0 {
+		periodicThreshold = 3
+	}
+	if genCount == 0 || turnsSinceLast >= periodicThreshold {
+		return true
+	}
+
 	return false
 }
 

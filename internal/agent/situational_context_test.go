@@ -140,6 +140,9 @@ func TestShouldGenerateInnerVoice_ErrorStreak(t *testing.T) {
 
 	ResetInnerVoiceState()
 
+	// Simulate a recent generation so the periodic (genCount==0) trigger is not active.
+	applyInnerVoiceResult("seed", "seed")
+
 	// Below threshold — no trigger
 	if shouldGenerateInnerVoice(cfg, 1, 1, 0, false, false, false) {
 		t.Fatal("should not trigger with only 1 consecutive error")
@@ -166,6 +169,9 @@ func TestShouldGenerateInnerVoice_RecoveryTrigger(t *testing.T) {
 	if !shouldGenerateInnerVoice(cfg, 0, 5, 3, true, false, false) {
 		t.Fatal("should trigger on task completion after errors")
 	}
+
+	// Simulate a recent generation so the periodic (genCount==0) trigger is not active.
+	applyInnerVoiceResult("seed", "seed")
 
 	// Task completed without any prior errors — no trigger
 	if shouldGenerateInnerVoice(cfg, 0, 0, 3, true, false, false) {
