@@ -28,3 +28,5 @@ User friendlly system design: Always think ahead for the user and also add test 
 If you add a new tool or integration that uses the vault add it to the list of secrets that are forbidden to be exported to python tools !
 Real life tests are mostly running on a remote machine. Do not assume local config or logs are relevant for bug fixing until told by the user.
 COMMIT CHANGES !! Always commit your changes with clear and descriptive commit messages. This helps keep the project history organized and makes it easier for others to understand the changes you have made. Regularly committing your changes also helps prevent data loss and allows you to track your progress effectively.
+Do NOT add new functions to already huge files. Create a new a new file for the new functionality and notify the user a refactor and file split is needed.
+Do NOT create huge signatures. Notify the user a refactor is needed.
