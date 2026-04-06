@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -109,7 +110,43 @@ func isValidHomepageURL(u string) bool {
 			return false
 		}
 	}
+	// SSRF protection: reject private/loopback IPs
+	parsed, err := url.Parse(u)
+	if err != nil {
+		return false
+	}
+	hostname := parsed.Hostname()
+	if hostname == "" {
+		return false
+	}
+	if isPrivateHost(hostname) {
+		return false
+	}
 	return true
+}
+
+// isPrivateHost checks if a hostname resolves to a private or loopback IP address.
+func isPrivateHost(hostname string) bool {
+	// Check if it's a direct IP
+	if ip := net.ParseIP(hostname); ip != nil {
+		return isPrivateIP(ip)
+	}
+	// Resolve hostname and check all IPs
+	ips, err := net.LookupIP(hostname)
+	if err != nil {
+		return true // fail closed: unresolvable hosts are rejected
+	}
+	for _, ip := range ips {
+		if isPrivateIP(ip) {
+			return true
+		}
+	}
+	return false
+}
+
+// isPrivateIP returns true for loopback, private, and link-local addresses.
+func isPrivateIP(ip net.IP) bool {
+	return ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast()
 }
 
 // sanitizeProjectDir validates a project directory name for use in shell commands.
@@ -642,7 +679,7 @@ func HomepageLighthouse(cfg HomepageConfig, url string, logger *slog.Logger) str
 	logger.Info("[Homepage] Lighthouse", "url", url)
 	dockerCfg := DockerConfig{Host: cfg.DockerHost}
 	// Run lighthouse with JSON output, extract key scores
-	cmd := fmt.Sprintf(`lighthouse "%s" --output json --chrome-flags="--headless --no-sandbox --disable-gpu" 2>/dev/null | jq '{performance: .categories.performance.score, accessibility: .categories.accessibility.score, bestPractices: .categories["best-practices"].score, seo: .categories.seo.score, fcp: .audits["first-contentful-paint"].displayValue, lcp: .audits["largest-contentful-paint"].displayValue, cls: .audits["cumulative-layout-shift"].displayValue, tbt: .audits["total-blocking-time"].displayValue}'`, url)
+	cmd := fmt.Sprintf(`lighthouse "%s" --output json --chrome-flags="--headless --no-sandbox --disable-gpu" 2>/dev/null | jq '{performance: .categories.performance.score, accessibility: .categories.accessibility.score, bestPractices: .categories["best-practices"].score, seo: .categories.seo.score, fcp: .audits["first-contentful-paint"].displayValue, lcp: .audits["largest-contentful-paint"].displayValue, cls: .audits["cumulative-layout-shift"].displayValue, tbt: .audits["total-blocking-time"].displayValue, errorsInConsole: .audits["errors-in-console"].score, consoleErrors: (.audits["errors-in-console"].details.items // [] | length)}'`, url)
 	return DockerExec(dockerCfg, homepageContainerName, cmd, "")
 }
 
@@ -658,10 +695,15 @@ func HomepageScreenshot(ctx context.Context, cfg HomepageConfig, url, viewport s
 		viewport = "1280x720"
 	}
 	parts := strings.Split(viewport, "x")
-	width, height := "1280", "720"
-	if len(parts) == 2 {
-		width, height = parts[0], parts[1]
+	if len(parts) != 2 {
+		return errJSON("invalid viewport %q: must be WIDTHxHEIGHT with numeric values 1-9999", viewport)
 	}
+	w, errW := strconv.Atoi(strings.TrimSpace(parts[0]))
+	h, errH := strconv.Atoi(strings.TrimSpace(parts[1]))
+	if errW != nil || errH != nil || w < 1 || w > 9999 || h < 1 || h > 9999 {
+		return errJSON("invalid viewport %q: must be WIDTHxHEIGHT with numeric values 1-9999", viewport)
+	}
+	width, height := strconv.Itoa(w), strconv.Itoa(h)
 
 	if logger != nil {
 		logger.Info("[Homepage] Screenshot", "url", url, "viewport", viewport)
@@ -703,7 +745,43 @@ func HomepageLint(cfg HomepageConfig, projectDir string, logger *slog.Logger) st
 	}
 	logger.Info("[Homepage] Lint", "dir", projectDir)
 	dockerCfg := DockerConfig{Host: cfg.DockerHost}
-	return DockerExec(dockerCfg, homepageContainerName, fmt.Sprintf("cd /workspace/%s && npx eslint . --format compact 2>&1 | head -100", projectDir), "")
+	// Run TypeScript check first (if tsconfig exists), then ESLint
+	cmd := fmt.Sprintf(`cd /workspace/%s && { if [ -f tsconfig.json ]; then echo "=== TypeScript Check ==="; npx tsc --noEmit 2>&1 | head -50; echo; fi; echo "=== ESLint ==="; npx eslint . --format compact 2>&1 | head -100; }`, projectDir)
+	return DockerExec(dockerCfg, homepageContainerName, cmd, "")
+}
+
+// HomepageCheckJS navigates to a URL and captures any JavaScript console errors.
+func HomepageCheckJS(ctx context.Context, cfg HomepageConfig, url string, logger *slog.Logger) string {
+	if url == "" {
+		return errJSON("url is required for check_js")
+	}
+	if !isValidHomepageURL(url) {
+		return errJSON("invalid URL: must be a valid http:// or https:// URL without shell metacharacters")
+	}
+	if logger != nil {
+		logger.Info("[Homepage] CheckJS", "url", url)
+	}
+	dockerCfg := DockerConfig{Host: cfg.DockerHost}
+
+	script := fmt.Sprintf(`node -e "
+const {chromium} = require('playwright');
+(async()=>{
+  const errors = [];
+  const b = await chromium.launch({args:['--no-sandbox']});
+  const p = await b.newPage();
+  p.on('pageerror', e => errors.push({type:'error',message:e.message}));
+  p.on('console', m => { if(m.type()==='error') errors.push({type:'console-error',message:m.text()}); });
+  await p.goto('%s',{waitUntil:'networkidle',timeout:30000});
+  await new Promise(r=>setTimeout(r,2000));
+  await b.close();
+  console.log(JSON.stringify({errorCount:errors.length,errors:errors.slice(0,20)}));
+})();"`, url)
+
+	result := homepageDockerExecFunc(dockerCfg, homepageContainerName, script, "")
+	if strings.Contains(result, "Cannot find module 'playwright'") || strings.Contains(result, "MODULE_NOT_FOUND") {
+		return errJSON("Playwright not available in homepage container. Install with: homepage exec 'npm i -g playwright && npx playwright install chromium'")
+	}
+	return result
 }
 
 // HomepageListFiles lists files in a directory inside the container.
@@ -793,9 +871,15 @@ func HomepageReadFile(cfg HomepageConfig, path string, logger *slog.Logger) stri
 }
 
 // HomepageWriteFile writes content to a file inside the container.
+// maxHomepageWriteFileSize is the maximum content size for HomepageWriteFile (2 MB).
+const maxHomepageWriteFileSize = 2 * 1024 * 1024
+
 func HomepageWriteFile(cfg HomepageConfig, path, content string, logger *slog.Logger) string {
 	if err := validateHomepageRelativePathArg(path, "path"); err != nil {
 		return errJSON("%v", err)
+	}
+	if len(content) > maxHomepageWriteFileSize {
+		return errJSON("content too large: %d bytes exceeds maximum of %d bytes", len(content), maxHomepageWriteFileSize)
 	}
 	logger.Info("[Homepage] WriteFile", "path", path, "size", len(content))
 

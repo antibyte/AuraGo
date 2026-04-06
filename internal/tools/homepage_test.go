@@ -2,18 +2,23 @@ package tools
 
 import (
 	"context"
+	"io"
+	"log/slog"
+	"net"
 	"strings"
 	"testing"
 )
+
+func slogDiscard() *slog.Logger {
+	return slog.New(slog.NewTextHandler(io.Discard, nil))
+}
 
 // ─── isValidHomepageURL ──────────────────────────────────────────────────
 
 func TestIsValidHomepageURL_Valid(t *testing.T) {
 	valid := []string{
-		"http://localhost:3000",
 		"https://example.com",
-		"http://192.168.1.1:8080/path",
-		"https://my-site.example.com/page?q=1",
+		"https://example.com/page?q=1",
 		"HTTP://EXAMPLE.COM",
 	}
 	for _, u := range valid {
@@ -44,6 +49,49 @@ func TestIsValidHomepageURL_Rejects(t *testing.T) {
 	for _, u := range invalid {
 		if isValidHomepageURL(u) {
 			t.Errorf("expected rejection, got valid for: %q", u)
+		}
+	}
+}
+
+// ─── SSRF Protection ─────────────────────────────────────────────────────
+
+func TestIsValidHomepageURL_RejectsSSRF(t *testing.T) {
+	ssrf := []string{
+		"http://localhost:3000",
+		"http://127.0.0.1:8080",
+		"http://192.168.1.1:8080/path",
+		"http://10.0.0.1",
+		"http://172.16.0.1",
+		"http://[::1]:3000",
+	}
+	for _, u := range ssrf {
+		if isValidHomepageURL(u) {
+			t.Errorf("expected SSRF rejection for private/loopback URL: %q", u)
+		}
+	}
+}
+
+func TestIsPrivateIP(t *testing.T) {
+	tests := []struct {
+		ip      string
+		private bool
+	}{
+		{"127.0.0.1", true},
+		{"10.0.0.1", true},
+		{"172.16.0.1", true},
+		{"192.168.1.1", true},
+		{"::1", true},
+		{"8.8.8.8", false},
+		{"1.1.1.1", false},
+	}
+	for _, tc := range tests {
+		ip := net.ParseIP(tc.ip)
+		if ip == nil {
+			t.Fatalf("failed to parse IP %q", tc.ip)
+		}
+		got := isPrivateIP(ip)
+		if got != tc.private {
+			t.Errorf("isPrivateIP(%q) = %v, want %v", tc.ip, got, tc.private)
 		}
 	}
 }
@@ -459,5 +507,83 @@ func TestGetLocalLANIP_Format(t *testing.T) {
 	// Should look like an IPv4 address
 	if strings.Count(ip, ".") != 3 {
 		t.Errorf("expected IPv4 format, got %q", ip)
+	}
+}
+
+// ─── Viewport Validation ─────────────────────────────────────────────────
+
+func TestHomepageScreenshot_ViewportInjection(t *testing.T) {
+	oldDockerExec := homepageDockerExecFunc
+	defer func() { homepageDockerExecFunc = oldDockerExec }()
+
+	homepageDockerExecFunc = func(cfg DockerConfig, containerName, command, user string) string {
+		return `{"status":"ok"}`
+	}
+
+	// Injection attempt: should be rejected
+	malicious := []string{
+		"1280x720;rm -rf /",
+		"1280x$(whoami)",
+		"abc x def",
+		"-1x720",
+		"0x0",
+		"99999x99999",
+		"1280",
+	}
+	for _, v := range malicious {
+		got := HomepageScreenshot(context.Background(), HomepageConfig{}, "https://example.com", v, nil)
+		if !strings.Contains(got, "error") && !strings.Contains(got, "invalid viewport") {
+			t.Errorf("expected viewport rejection for %q, got: %s", v, got)
+		}
+	}
+
+	// Valid viewports should pass (not return error)
+	valid := []string{"1280x720", "1920x1080", "320x480"}
+	for _, v := range valid {
+		got := HomepageScreenshot(context.Background(), HomepageConfig{}, "https://example.com", v, nil)
+		if strings.Contains(got, "invalid viewport") {
+			t.Errorf("expected valid viewport %q to pass, got: %s", v, got)
+		}
+	}
+}
+
+// ─── File Size Limit ─────────────────────────────────────────────────────
+
+func TestHomepageWriteFile_SizeLimit(t *testing.T) {
+	// Content exceeding maxHomepageWriteFileSize should be rejected
+	largeContent := strings.Repeat("x", maxHomepageWriteFileSize+1)
+	got := HomepageWriteFile(HomepageConfig{WorkspacePath: t.TempDir()}, "test.txt", largeContent, slogDiscard())
+	if !strings.Contains(got, "content too large") {
+		t.Errorf("expected size limit error, got: %s", got)
+	}
+
+	// Content within limit should not get size error
+	smallContent := "hello world"
+	got = HomepageWriteFile(HomepageConfig{WorkspacePath: t.TempDir()}, "test.txt", smallContent, slogDiscard())
+	if strings.Contains(got, "content too large") {
+		t.Errorf("expected small content to pass, got: %s", got)
+	}
+}
+
+// ─── HomepageCheckJS Fallback ────────────────────────────────────────────
+
+func TestHomepageCheckJS_PlaywrightMissing(t *testing.T) {
+	oldDockerExec := homepageDockerExecFunc
+	defer func() { homepageDockerExecFunc = oldDockerExec }()
+
+	homepageDockerExecFunc = func(cfg DockerConfig, containerName, command, user string) string {
+		return `{"exit_code":1,"output":"Error: Cannot find module 'playwright'"}`
+	}
+
+	got := HomepageCheckJS(context.Background(), HomepageConfig{}, "https://example.com", nil)
+	if !strings.Contains(got, "Playwright not available") {
+		t.Errorf("expected Playwright not available error, got: %s", got)
+	}
+}
+
+func TestHomepageCheckJS_RejectsEmptyURL(t *testing.T) {
+	got := HomepageCheckJS(context.Background(), HomepageConfig{}, "", nil)
+	if !strings.Contains(got, "url is required") {
+		t.Errorf("expected url required error, got: %s", got)
 	}
 }

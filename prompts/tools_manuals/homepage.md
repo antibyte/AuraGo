@@ -133,10 +133,26 @@ Returns up to 200 files, excluding node_modules, .next, and .git.
 {"action": "homepage", "operation": "dev", "project_dir": "my-site"}
 ```
 
-### lint — Run ESLint
+### lint — Run TypeScript & ESLint checks
+Runs `tsc --noEmit` (if `tsconfig.json` exists) followed by ESLint. Returns combined output.
 ```json
 {"action": "homepage", "operation": "lint", "project_dir": "my-site"}
 ```
+
+### check_js — Check for JavaScript runtime errors
+Uses Playwright to load a page in headless Chromium and captures JavaScript errors and console errors. Useful for detecting runtime issues that linting alone cannot catch.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `url` | string | yes | URL to check (e.g. `http://localhost:3000`) |
+
+```json
+{"action": "homepage", "operation": "check_js", "url": "http://localhost:3000"}
+```
+
+**Response fields:**
+- `errorCount`: Number of JS errors detected
+- `errors`: Array of error messages (page errors and console errors)
 
 ### optimize_images — Optimize SVGs with SVGO
 ```json
@@ -234,7 +250,7 @@ Referenced assets (`/files/generated_images/*`, `/files/audio/*`, `/files/docume
 4. **Develop:** Use `write_file` to create/edit files, `install_deps` for packages
 5. **Commit:** `git_commit` → save progress with a meaningful message
 6. **Preview:** `dev` to start the dev server, `tunnel` to share externally, `screenshot` to capture preview
-7. **Test:** `lighthouse` for performance audit, `lint` for code quality
+7. **Test:** `lighthouse` for performance audit, `lint` for code quality, `check_js` for runtime JS errors
 8. **Optimize:** `optimize_images` for SVG optimization
 9. **Build:** `build` (with `auto_fix: true` for automatic error recovery)
 10. **Deploy:** Choose based on target:
