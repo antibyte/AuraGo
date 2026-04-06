@@ -376,9 +376,6 @@ func TestBuildToolingPolicyDisablesNativeFunctionsForGLMModels(t *testing.T) {
 			if policy.UseNativeFunctions {
 				t.Fatalf("model %q: expected native function calling to be disabled (GLM/MiniMax family)", tc.model)
 			}
-			if !policy.AutoMiniMaxFix {
-				t.Fatalf("model %q: expected AutoMiniMaxFix to be enabled", tc.model)
-			}
 		})
 	}
 }
@@ -392,8 +389,5 @@ func TestBuildToolingPolicyDoesNotDisableNativeFunctionsForNonGLMModels(t *testi
 
 	if !policy.UseNativeFunctions {
 		t.Fatal("expected native functions to remain enabled for non-GLM model")
-	}
-	if policy.AutoMiniMaxFix {
-		t.Fatal("did not expect AutoMiniMaxFix for non-GLM model")
 	}
 }

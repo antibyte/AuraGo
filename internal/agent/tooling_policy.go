@@ -24,10 +24,6 @@ type ModelCapabilities struct {
 	// invocations as text content using proprietary XML/JSON markers. Forcing JSON text mode
 	// gives the system a consistent, parseable output format.
 	DisableNativeFunctionCalling bool
-	// AutoMiniMaxFix is true for models that emit tool-call JSON in text content rather than
-	// the API tool_calls field. The SSE stream filter and related code use this flag to
-	// suppress raw JSON from being displayed as chat text.
-	AutoMiniMaxFix bool
 }
 
 // ToolingPolicy resolves the effective runtime behavior after combining user
@@ -51,9 +47,6 @@ type ToolingPolicy struct {
 	WOLEnabled                 bool
 	EffectiveMaxToolGuides     int
 	EffectiveGuideStrategy     prompts.DynamicGuideStrategy
-	// AutoMiniMaxFix is set when the model is a GLM/MiniMax family that emits tool-call
-	// JSON inline in content rather than via the API tool_calls field.
-	AutoMiniMaxFix bool
 }
 
 // PromptContextOptions carries per-request runtime values that are known only
@@ -132,7 +125,6 @@ func resolveModelCapabilities(cfg *config.Config) ModelCapabilities {
 		SupportsStructuredOutputs:    !isNoStrictStructuredOutputs,
 		SupportsParallelToolCalls:    !isOllama,
 		DisableNativeFunctionCalling: isGLMFamily,
-		AutoMiniMaxFix:               isGLMFamily,
 	}
 }
 
@@ -219,7 +211,6 @@ func buildToolingPolicy(cfg *config.Config, userQuery string) ToolingPolicy {
 		WOLEnabled:                 wolEnabled,
 		EffectiveMaxToolGuides:     effectiveMaxToolGuides,
 		EffectiveGuideStrategy:     guideStrategy,
-		AutoMiniMaxFix:             caps.AutoMiniMaxFix || cfg.LLM.MiniMaxFix,
 	}
 }
 

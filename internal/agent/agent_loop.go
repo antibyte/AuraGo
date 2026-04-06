@@ -1326,23 +1326,16 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 						// in the chat before the tool can execute (especially with
 						// providers that don't use the tool_calls field properly).
 						//
-						// Suppress JSON tool-call chunks so they never render as chat text.
-						// {"tool_call":...} / {"tool_name":...} are always suppressed (MiniMax format).
-						// Broader JSON heuristics (action/command/...) only suppressed when MiniMaxFix=true.
+						// Suppress all tool-call JSON patterns — always, regardless of model or provider.
+						// Covers both explicit markers and broader heuristics for all known inline formats.
 						trimmed := strings.TrimLeft(delta.Content, " \t\r\n")
-						// Always-suppress: clear tool call markers regardless of MiniMaxFix setting.
-						// {"tool_call":...}, {"tool_name":...}, {"tool":...}, {"tool_call_path":...} are
-						// unambiguously tool call JSON formats — never render as chat text.
-						isToolCallJSON := len(trimmed) > 0 && trimmed[0] == '{' &&
+						suppressToolCallJSON := len(trimmed) > 0 && trimmed[0] == '{' &&
 							(strings.Contains(trimmed, `"tool_call"`) || strings.Contains(trimmed, `"tool_name"`) ||
-								strings.Contains(trimmed, `"tool":`) || strings.Contains(trimmed, `"tool_call_path"`))
-						isLikelyToolCallJSON := len(trimmed) > 0 && trimmed[0] == '{' &&
-							(strings.Contains(trimmed, `"action"`) || strings.Contains(trimmed, `"command"`) ||
-								strings.Contains(trimmed, `"operation"`) || strings.Contains(trimmed, `"tool_call"`) ||
-								strings.Contains(trimmed, `"tool"`) || strings.Contains(trimmed, `"name"`) ||
+								strings.Contains(trimmed, `"tool":`) || strings.Contains(trimmed, `"tool_call_path"`) ||
+								strings.Contains(trimmed, `"action"`) || strings.Contains(trimmed, `"command"`) ||
+								strings.Contains(trimmed, `"operation"`) || strings.Contains(trimmed, `"name"`) ||
 								strings.Contains(trimmed, `"arguments"`))
-						suppressForMiniMax := isToolCallJSON || ((cfg.LLM.MiniMaxFix || toolingPolicy.AutoMiniMaxFix) && isLikelyToolCallJSON)
-						if !suppressForMiniMax && !xmlToolCallSuppressed {
+						if !suppressToolCallJSON && !xmlToolCallSuppressed {
 							// Buffer content to filter <done/> and minimax:tool_call XML before sending to SSE.
 							// Hold the last (holdLen) bytes so a tag split across chunk boundaries is caught.
 							doneTagStreamBuf += delta.Content

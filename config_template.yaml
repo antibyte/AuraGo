@@ -355,7 +355,6 @@ llm:
     use_native_functions: true
     temperature: 0.7
     structured_outputs: false
-    # minimax_fix: true   # auto-enabled when provider type is minimax; suppress tool call JSON from SSE stream
 logging:
     enable_file_log: true
     enable_prompt_log: false                   # write full LLM requests to log/prompts.log (may contain sensitive data)
