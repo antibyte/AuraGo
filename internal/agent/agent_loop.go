@@ -1302,6 +1302,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			const doneTagStr = "<done/>"
 			const minimaxToolCallPrefix = "minimax:tool_call"
 			const xmlToolCallPrefix = "<tool_call" // matches <tool_call> and <tool_call\n> variants
+			const actionTagPrefix = "<action>"    // bare <action>toolname</action> emitted by some models
 			// holdLen must cover the longest tag prefix minus 1
 			const doneTagHoldLen = len(minimaxToolCallPrefix) - 1 // 16 bytes (≥ len("<done/>")-1 = 6)
 			doneTagStreamBuf := ""
@@ -1361,6 +1362,14 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 									doneTagStreamBuf = "" // discard buffered tail
 								}
 							}
+							// Strip bare <action>toolname</action> XML (all modes — model emitted bare action tag).
+							if !xmlToolCallSuppressed {
+								if idx := strings.Index(strings.ToLower(toSend), actionTagPrefix); idx != -1 {
+									toSend = toSend[:idx]
+									xmlToolCallSuppressed = true
+									doneTagStreamBuf = "" // discard buffered tail
+								}
+							}
 							if toSend != "" {
 								chunk.Choices[0].Delta.Content = toSend
 								if chunkData, mErr := json.Marshal(chunk); mErr == nil {
@@ -1388,6 +1397,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					if idx := strings.Index(strings.ToLower(remaining), xmlToolCallPrefix); idx != -1 {
 						remaining = remaining[:idx]
 					}
+				}
+				// Also strip any trailing <action> fragment.
+				if idx := strings.Index(strings.ToLower(remaining), actionTagPrefix); idx != -1 {
+					remaining = remaining[:idx]
 				}
 				if remaining != "" {
 					remainingJSON, _ := json.Marshal(remaining)

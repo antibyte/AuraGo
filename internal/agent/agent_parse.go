@@ -557,6 +557,21 @@ func ParseToolCall(content string) ToolCall {
 		}
 	}
 
+	// <action>toolname</action> bare tag format — some models emit this as an incomplete tool call
+	// attempt (name only, no parameters). Treat it as a dispatched tool call with XMLFallbackDetected=true
+	// so the tool layer returns an error that the LLM can use to retry with proper arguments.
+	if idx := strings.Index(lowerContent, "<action>"); idx != -1 {
+		if endIdx := strings.Index(lowerContent[idx+8:], "</action>"); endIdx != -1 {
+			name := strings.TrimSpace(content[idx+8 : idx+8+endIdx])
+			if name != "" && !strings.ContainsAny(name, " \t\n<>\"'{}[]") {
+				tc.Action = name
+				tc.IsTool = true
+				tc.XMLFallbackDetected = true
+				return tc
+			}
+		}
+	}
+
 	// Stepfun / OpenRouter <tool_call> fallback
 	// Format 1: <function=name> ... </function>
 	// Format 2: <tool_calls><invoke name="..."> ... </invoke></tool_calls>
