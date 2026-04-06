@@ -1324,7 +1324,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 								strings.Contains(trimmed, `"operation"`) || strings.Contains(trimmed, `"tool_call"`) ||
 								strings.Contains(trimmed, `"tool"`) || strings.Contains(trimmed, `"name"`) ||
 								strings.Contains(trimmed, `"arguments"`))
-						suppressForMiniMax := isToolCallJSON || (cfg.LLM.MiniMaxFix && isLikelyToolCallJSON)
+						suppressForMiniMax := isToolCallJSON || ((cfg.LLM.MiniMaxFix || toolingPolicy.AutoMiniMaxFix) && isLikelyToolCallJSON)
 						if !suppressForMiniMax && !xmlToolCallSuppressed {
 							// Buffer content to filter <done/> and minimax:tool_call XML before sending to SSE.
 							// Hold the last (holdLen) bytes so a tag split across chunk boundaries is caught.

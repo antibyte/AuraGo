@@ -138,6 +138,51 @@ func TestParseToolResponseDoneTagStrippedFromSanitized(t *testing.T) {
 	}
 }
 
+func TestParseToolCallMinimaxJSONFormat(t *testing.T) {
+	// GLM/Zhipu models emit tool calls as JSON directly after the minimax:tool_call prefix
+	// (Format 3b) rather than using <invoke name="> XML format or API-level tool_calls.
+	cases := []struct {
+		name     string
+		content  string
+		wantAct  string
+		wantXML  bool
+	}{
+		{
+			name:    "minimax:tool_call JSON with action key",
+			content: `Lass mich das prüfen:<minimax:tool_call>{"action":"execute_shell","command":"ls -la"}`,
+			wantAct: "execute_shell",
+			wantXML: true,
+		},
+		{
+			name:    "minimax:tool_call JSON with tool_call key (MiniMax format)",
+			content: `<minimax:tool_call>{"tool_call":"read_file","file_path":"/tmp/test.txt"}`,
+			wantAct: "read_file",
+			wantXML: true,
+		},
+		{
+			name:    "minimax:tool_call JSON with name key",
+			content: "<minimax:tool_call>\n{\"name\":\"execute_shell\",\"command\":\"echo hello\"}",
+			wantAct: "execute_shell",
+			wantXML: true,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := ParseToolCall(tc.content)
+			if !result.IsTool {
+				t.Fatalf("IsTool=false, expected tool call to be parsed from: %q", tc.content)
+			}
+			if result.Action != tc.wantAct {
+				t.Fatalf("Action=%q, want %q", result.Action, tc.wantAct)
+			}
+			if tc.wantXML && !result.XMLFallbackDetected {
+				t.Fatal("XMLFallbackDetected=false, expected true for minimax:tool_call format")
+			}
+		})
+	}
+}
+
+
 func TestRecoverFrom422TrimsMessagesAndRetries(t *testing.T) {
 	req := openai.ChatCompletionRequest{
 		Messages: []openai.ChatCompletionMessage{

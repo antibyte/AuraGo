@@ -560,9 +560,12 @@ func ParseToolCall(content string) ToolCall {
 	// Stepfun / OpenRouter <tool_call> fallback
 	// Format 1: <function=name> ... </function>
 	// Format 2: <tool_calls><invoke name="..."> ... </invoke></tool_calls>
-	// Format 3: minimax:tool_call\n<invoke name="..."> ... </invoke> (MiniMax bare prefix, no wrapper tag)
+	// Format 3a: minimax:tool_call\n<invoke name="..."> ... </invoke> (MiniMax XML format)
+	// Format 3b: <minimax:tool_call>{"action":"name",...} or minimax:tool_call\n{"tool_call":"name",...}
+	//            (GLM/Zhipu models that append a JSON object directly after the marker)
 	if start := strings.Index(lowerContent, "minimax:tool_call"); start != -1 {
 		if invStart := strings.Index(lowerContent[start:], "<invoke name="); invStart != -1 {
+			// Format 3a: <invoke name="..."> XML body
 			invStart += start
 			invNameStart := invStart + 13
 			invEndChar := strings.Index(lowerContent[invNameStart:], ">")
@@ -577,6 +580,37 @@ func ParseToolCall(content string) ToolCall {
 						parseXMLParams(&tc, content[bodyStart:bodyStart+bodyEnd])
 					}
 					return tc
+				}
+			}
+		}
+		// Format 3b: JSON object immediately follows the tag (GLM/Zhipu style)
+		afterPrefix := content[start+len("minimax:tool_call"):]
+		if braceIdx := strings.Index(afterPrefix, "{"); braceIdx != -1 {
+			jsonSection := afterPrefix[braceIdx:]
+			for j := strings.LastIndex(jsonSection, "}"); j >= 0; j = strings.LastIndex(jsonSection[:j], "}") {
+				candidate := jsonSection[:j+1]
+				normalized := normalizeTagsInJSON(candidate)
+				var tmp ToolCall
+				if json.Unmarshal([]byte(normalized), &tmp) == nil {
+					// Promote proprietary key variants to Action
+					if tmp.Action == "" && tmp.ToolCallAction != "" {
+						tmp.Action = tmp.ToolCallAction
+					}
+					if tmp.Action == "" && tmp.Name != "" {
+						tmp.Action = tmp.Name
+					}
+					if tmp.Action == "" && tmp.Tool != "" {
+						tmp.Action = tmp.Tool
+					}
+					if tmp.Action != "" {
+						tmp.IsTool = true
+						tmp.XMLFallbackDetected = true
+						tmp.RawJSON = candidate
+						return tmp
+					}
+				}
+				if j == 0 {
+					break
 				}
 			}
 		}

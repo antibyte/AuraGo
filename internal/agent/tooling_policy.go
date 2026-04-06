@@ -19,6 +19,15 @@ type ModelCapabilities struct {
 	AutoEnableNativeFunctions bool
 	SupportsStructuredOutputs bool
 	SupportsParallelToolCalls bool
+	// DisableNativeFunctionCalling is true for models (e.g. GLM/Zhipu, MiniMax) that do not
+	// reliably produce OpenAI-compatible API-level tool_calls. These models often emit tool
+	// invocations as text content using proprietary XML/JSON markers. Forcing JSON text mode
+	// gives the system a consistent, parseable output format.
+	DisableNativeFunctionCalling bool
+	// AutoMiniMaxFix is true for models that emit tool-call JSON in text content rather than
+	// the API tool_calls field. The SSE stream filter and related code use this flag to
+	// suppress raw JSON from being displayed as chat text.
+	AutoMiniMaxFix bool
 }
 
 // ToolingPolicy resolves the effective runtime behavior after combining user
@@ -42,6 +51,9 @@ type ToolingPolicy struct {
 	WOLEnabled                 bool
 	EffectiveMaxToolGuides     int
 	EffectiveGuideStrategy     prompts.DynamicGuideStrategy
+	// AutoMiniMaxFix is set when the model is a GLM/MiniMax family that emits tool-call
+	// JSON inline in content rather than via the API tool_calls field.
+	AutoMiniMaxFix bool
 }
 
 // PromptContextOptions carries per-request runtime values that are known only
@@ -91,6 +103,8 @@ func resolveModelCapabilities(cfg *config.Config) ModelCapabilities {
 	// APIs but without the strict-mode constraint decoding extension.
 	isNoStrictStructuredOutputs := isOllama ||
 		strings.HasPrefix(lowerModel, "glm-") ||
+		strings.Contains(lowerModel, "/glm-") ||
+		strings.Contains(lowerModel, "zhipuai/") ||
 		strings.HasPrefix(lowerModel, "minimax") ||
 		strings.HasPrefix(lowerModel, "abab") ||
 		strings.HasPrefix(lowerModel, "kimi-") ||
@@ -99,15 +113,26 @@ func resolveModelCapabilities(cfg *config.Config) ModelCapabilities {
 		strings.HasPrefix(lowerModel, "qwq") ||
 		strings.HasPrefix(lowerModel, "ernie")
 
+	// GLM (Zhipu) and MiniMax models emit tool calls as proprietary XML/JSON text
+	// content rather than proper OpenAI-compatible API tool_calls. Force JSON text
+	// mode for these so the prompt-based JSON extraction path is used instead.
+	isGLMFamily := strings.HasPrefix(lowerModel, "glm-") ||
+		strings.Contains(lowerModel, "/glm-") ||
+		strings.Contains(lowerModel, "zhipuai/") ||
+		strings.HasPrefix(lowerModel, "minimax") ||
+		strings.HasPrefix(lowerModel, "abab")
+
 	return ModelCapabilities{
-		ProviderType:              providerType,
-		Model:                     model,
-		IsOllama:                  isOllama,
-		IsDeepSeek:                isDeepSeek,
-		IsAnthropic:               isAnthropic,
-		AutoEnableNativeFunctions: isDeepSeek || isAnthropic || isNemotron,
-		SupportsStructuredOutputs: !isNoStrictStructuredOutputs,
-		SupportsParallelToolCalls: !isOllama,
+		ProviderType:                 providerType,
+		Model:                        model,
+		IsOllama:                     isOllama,
+		IsDeepSeek:                   isDeepSeek,
+		IsAnthropic:                  isAnthropic,
+		AutoEnableNativeFunctions:    isDeepSeek || isAnthropic || isNemotron,
+		SupportsStructuredOutputs:    !isNoStrictStructuredOutputs,
+		SupportsParallelToolCalls:    !isOllama,
+		DisableNativeFunctionCalling: isGLMFamily,
+		AutoMiniMaxFix:               isGLMFamily,
 	}
 }
 
@@ -136,6 +161,12 @@ func buildToolingPolicy(cfg *config.Config, userQuery string) ToolingPolicy {
 	wolEnabled := cfg.Tools.WOL.Enabled && (!cfg.Runtime.IsDocker || cfg.Runtime.BroadcastOK)
 
 	useNativeFunctions := cfg.LLM.UseNativeFunctions || caps.AutoEnableNativeFunctions
+	// Force JSON text mode for models known to emit tool calls in text content rather
+	// than proper API tool_calls (e.g. GLM/Zhipu, MiniMax). This ensures the prompt-based
+	// JSON extraction path is used regardless of what the config says.
+	if caps.DisableNativeFunctionCalling {
+		useNativeFunctions = false
+	}
 	effectiveMaxToolGuides := cfg.Agent.MaxToolGuides
 	if effectiveMaxToolGuides <= 0 {
 		effectiveMaxToolGuides = 5
@@ -188,6 +219,7 @@ func buildToolingPolicy(cfg *config.Config, userQuery string) ToolingPolicy {
 		WOLEnabled:                 wolEnabled,
 		EffectiveMaxToolGuides:     effectiveMaxToolGuides,
 		EffectiveGuideStrategy:     guideStrategy,
+		AutoMiniMaxFix:             caps.AutoMiniMaxFix || cfg.LLM.MiniMaxFix,
 	}
 }
 

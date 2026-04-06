@@ -352,3 +352,49 @@ func TestCalculateEffectivePromptTokenBudgetHomepageScalesAdaptiveBase(t *testin
 		t.Fatalf("effective prompt token budget = %d, want 43288", got)
 	}
 }
+
+func TestBuildToolingPolicyDisablesNativeFunctionsForGLMModels(t *testing.T) {
+	cases := []struct {
+		name  string
+		model string
+	}{
+		{"GLM direct", "glm-4.7"},
+		{"GLM dash prefix", "glm-4-air"},
+		{"GLM via OpenRouter", "zhipuai/glm-4.7"},
+		{"GLM via OpenRouter slash", "zhipuai/glm-4-air"},
+		{"MiniMax", "minimax-text-01"},
+		{"Abab", "abab5.5-chat"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := &config.Config{}
+			cfg.LLM.Model = tc.model
+			cfg.LLM.UseNativeFunctions = true // would normally enable native functions
+
+			policy := buildToolingPolicy(cfg, "")
+
+			if policy.UseNativeFunctions {
+				t.Fatalf("model %q: expected native function calling to be disabled (GLM/MiniMax family)", tc.model)
+			}
+			if !policy.AutoMiniMaxFix {
+				t.Fatalf("model %q: expected AutoMiniMaxFix to be enabled", tc.model)
+			}
+		})
+	}
+}
+
+func TestBuildToolingPolicyDoesNotDisableNativeFunctionsForNonGLMModels(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.LLM.Model = "gpt-4o"
+	cfg.LLM.UseNativeFunctions = true
+
+	policy := buildToolingPolicy(cfg, "")
+
+	if !policy.UseNativeFunctions {
+		t.Fatal("expected native functions to remain enabled for non-GLM model")
+	}
+	if policy.AutoMiniMaxFix {
+		t.Fatal("did not expect AutoMiniMaxFix for non-GLM model")
+	}
+}
+
