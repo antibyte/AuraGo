@@ -253,6 +253,7 @@ type ToolCall struct {
 	PID                 int                      `json:"pid"`
 	IsTool              bool                     `json:"-"`
 	RawCodeDetected     bool                     `json:"-"`
+	XMLFallbackDetected bool                     `json:"-"` // Model used proprietary XML (e.g. minimax:tool_call) instead of native API
 	RawJSON             string                   `json:"-"`
 	NativeCallID        string                   `json:"-"` // Native API tool call ID for role=tool responses
 	NativeArgsMalformed bool                     `json:"-"`

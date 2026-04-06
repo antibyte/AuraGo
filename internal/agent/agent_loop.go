@@ -248,6 +248,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	baseAdditionalPrompt := flags.AdditionalPrompt
 	toolCallCount := 0
 	rawCodeCount := 0
+	xmlFallbackCount := 0
 	missedToolCount := 0
 	announcementCount := 0
 	orphanedToolCallCount := 0
@@ -258,6 +259,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	retry422Count := 0    // Counts consecutive 422 retries — capped to prevent infinite loops
 	stepsSinceLastFeedback := 0
 	homepageUsedInChain := false // Elevated circuit breaker once homepage tool is first used
+	// sessionUsedTools tracks every tool called in this conversation so AdaptiveTools
+	// always re-includes them next turn (Option 3: context-based alwaysInclude expansion).
+	sessionUsedTools := make(map[string]bool)
 
 	// Guardian: prompt injection defense
 	guardian := security.NewGuardianWithOptions(logger, security.GuardianOptions{
@@ -389,6 +393,11 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			if ff.ImageGenerationEnabled {
 				alwaysInclude = append(alwaysInclude, "generate_image")
 			}
+			// Re-include every tool that was actually called in this conversation so the
+			// model can continue using tools it already relied on (Option 3: session context).
+			for tool := range sessionUsedTools {
+				alwaysInclude = append(alwaysInclude, tool)
+			}
 
 			if maxTools > 0 && len(prioritized) > 0 {
 				ntSchemas = filterToolSchemas(ntSchemas, prioritized, alwaysInclude, maxTools, logger)
@@ -514,6 +523,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 			broker.Send("tool_call", ptcJSON)
 			broker.Send("tool_start", ptc.Action)
+			// Record in session set so AdaptiveTools keeps this tool in schema next turn.
+			if ptc.Action != "" {
+				sessionUsedTools[ptc.Action] = true
+			}
 			pResultContent := ""
 			if precomputed, ok := pendingSummaryBatch[pendingSummaryBatchKey(ptc)]; ok {
 				pResultContent = precomputed
@@ -1593,6 +1606,43 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			continue
 		}
 
+		// XML fallback format detected (e.g. minimax:tool_call): the tool was already
+		// parsed and will execute, but we send corrective feedback so the model uses
+		// the native function-calling API on subsequent turns.
+		if tc.XMLFallbackDetected && xmlFallbackCount < 2 {
+			xmlFallbackCount++
+			currentLogger.Warn("[Sync] XML fallback tool call detected, sending corrective feedback",
+				"attempt", xmlFallbackCount, "action", tc.Action)
+			broker.Send("error_recovery", "XML tool call format detected, requesting native API format...")
+
+			id, err := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleAssistant, content, false, true)
+			if err != nil {
+				currentLogger.Error("Failed to persist assistant message to SQLite", "error", err)
+			}
+			if sessionID == "default" {
+				historyManager.Add(openai.ChatMessageRoleAssistant, content, id, false, true)
+			}
+
+			xmlFeedback := fmt.Sprintf(
+				"NOTE: You called '%s' using a proprietary XML format (minimax:tool_call). "+
+					"The tool was executed, but please always use the native function-calling API instead. "+
+					"If a tool is not in your current tool list, you can still call it directly by name — "+
+					"the system accepts all enabled tools. Use discover_tools to find available tools.",
+				tc.Action)
+			xmlFeedback = applyEmotionRecoveryNudge(xmlFeedback, emotionPolicy)
+			id, err = shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, xmlFeedback, false, true)
+			if err != nil {
+				currentLogger.Error("Failed to persist XML feedback message to SQLite", "error", err)
+			}
+			if sessionID == "default" {
+				historyManager.Add(openai.ChatMessageRoleUser, xmlFeedback, id, false, true)
+			}
+
+			req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: content})
+			req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: xmlFeedback})
+			// Don't continue — fall through so the tool is actually executed this turn.
+		}
+
 		if useNativePath && tc.NativeArgsMalformed && invalidNativeToolCount < 2 {
 			invalidNativeToolCount++
 			currentLogger.Warn("[Sync] Invalid native tool call detected, requesting corrected function call",
@@ -1816,6 +1866,11 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 			broker.Send("tool_call", sseToolContent)
 			broker.Send("tool_start", tc.Action)
+
+			// Record the tool in the session set so AdaptiveTools keeps it in schema next turn.
+			if tc.Action != "" {
+				sessionUsedTools[tc.Action] = true
+			}
 
 			if recoveryState.handleDuplicateToolCall(tc, &req, currentLogger, telemetryScope) {
 				lastResponseWasTool = false
@@ -2111,6 +2166,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					}
 					broker.Send("thinking", fmt.Sprintf("[%d] Running %s (batched)...", toolCallCount, btc.Action))
 					broker.Send("tool_start", btc.Action)
+					// Record in session set so AdaptiveTools keeps this tool in schema next turn.
+					if btc.Action != "" {
+						sessionUsedTools[btc.Action] = true
+					}
 
 					bResult := ""
 					if precomputed, ok := nativePendingSummaryBatch[pendingSummaryBatchKey(btc)]; ok {

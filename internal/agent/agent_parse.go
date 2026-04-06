@@ -570,6 +570,7 @@ func ParseToolCall(content string) ToolCall {
 				tc.Action = strings.Trim(strings.TrimSpace(content[invNameStart:invNameStart+invEndChar]), "\"'")
 				if tc.Action != "" {
 					tc.IsTool = true
+					tc.XMLFallbackDetected = true
 					bodyStart := invNameStart + invEndChar + 1
 					bodyEnd := strings.Index(lowerContent[bodyStart:], "</invoke>")
 					if bodyEnd != -1 {
