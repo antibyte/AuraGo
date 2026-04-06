@@ -1,0 +1,3 @@
+=== Sections where ALL strings are untranslated (identical to English) ===
+Format: section / language / total_comparable / all_untranslated
+
