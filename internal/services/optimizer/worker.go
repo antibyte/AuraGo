@@ -1,4 +1,4 @@
-﻿package optimizer
+package optimizer
 
 import (
 	"aurago/internal/llm"
@@ -254,7 +254,8 @@ Ensure the instructions prevent these errors. Reply ONLY with the new markdown m
 	hash := sha256.Sum256([]byte(currentManual))
 	hashStr := hex.EncodeToString(hash[:])
 
-	// Save as shadow prompt
+	w.db.db.ExecContext(ctx, `DELETE FROM prompt_overrides WHERE tool_name = ? AND shadow = 1`, toolName)
+
 	_, err = w.db.db.ExecContext(ctx, `INSERT INTO prompt_overrides (tool_name, mutated_prompt, original_hash, active, shadow) VALUES (?, ?, ?, 0, 1)`, toolName, newPrompt, hashStr)
 	if err != nil {
 		slog.Error("[Optimizer] Failed to store mutated shadow prompt", "error", err)

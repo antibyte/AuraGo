@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
+	"aurago/internal/uid"
 
 	_ "modernc.org/sqlite"
 )
@@ -201,7 +201,7 @@ func InitDB(dbPath string) (*sql.DB, error) {
 
 // CreateNest generates a UUID and inserts a new nest record.
 func CreateNest(db *sql.DB, n NestRecord) (string, error) {
-	n.ID = uuid.New().String()
+	n.ID = uid.New()
 	now := time.Now().UTC().Format(time.RFC3339)
 	n.CreatedAt = now
 	n.UpdatedAt = now
@@ -361,7 +361,7 @@ func ToggleNestActive(db *sql.DB, id string, active bool) error {
 
 // CreateEgg generates a UUID and inserts a new egg record.
 func CreateEgg(db *sql.DB, e EggRecord) (string, error) {
-	e.ID = uuid.New().String()
+	e.ID = uid.New()
 	now := time.Now().UTC().Format(time.RFC3339)
 	e.CreatedAt = now
 	e.UpdatedAt = now
@@ -596,7 +596,7 @@ type TaskRecord struct {
 
 // CreateTask inserts a new task record with status "pending".
 func CreateTask(db *sql.DB, nestID, eggID, description string, timeout int) (string, error) {
-	id := uuid.New().String()
+	id := uid.New()
 	now := time.Now().UTC().Format(time.RFC3339)
 	_, err := db.Exec(`INSERT INTO invasion_tasks (id, nest_id, egg_id, description, timeout, status, created_at)
 		VALUES (?, ?, ?, ?, ?, 'pending', ?)`, id, nestID, eggID, description, timeout, now)
@@ -718,7 +718,7 @@ type DeploymentRecord struct {
 
 // CreateDeployment inserts a new deployment history record with status "started".
 func CreateDeployment(db *sql.DB, nestID, eggID, deployMethod, binaryHash, configHash string) (string, error) {
-	id := uuid.New().String()
+	id := uid.New()
 	now := time.Now().UTC().Format(time.RFC3339)
 	_, err := db.Exec(`INSERT INTO deployment_history (id, nest_id, egg_id, status, binary_hash, config_hash, deploy_method, created_at)
 		VALUES (?, ?, ?, 'started', ?, ?, ?, ?)`, id, nestID, eggID, binaryHash, configHash, deployMethod, now)

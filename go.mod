@@ -24,7 +24,6 @@ require (
 	github.com/go-telegram-bot-api/telegram-bot-api/v5 v5.5.1
 	github.com/gocolly/colly/v2 v2.3.0
 	github.com/gofrs/flock v0.13.0
-	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674
 	github.com/hashicorp/mdns v1.0.6
 	github.com/huin/goupnp v1.3.0
@@ -102,6 +101,7 @@ require (
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/btree v1.1.3 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/h2non/filetype v1.1.3 // indirect
 	github.com/hdevalence/ed25519consensus v0.2.0 // indirect
 	github.com/hhrutter/lzw v1.0.0 // indirect

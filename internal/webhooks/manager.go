@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
+	"aurago/internal/uid"
 )
 
 var slugRegex = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$`)
@@ -116,7 +116,7 @@ func (m *Manager) Create(w Webhook) (Webhook, error) {
 		}
 	}
 
-	w.ID = uuid.New().String()
+	w.ID = uid.New()
 	w.CreatedAt = time.Now().UTC()
 	w.FireCount = 0
 

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/google/uuid"
+	"aurago/internal/uid"
 
 	_ "modernc.org/sqlite"
 )
@@ -117,7 +117,7 @@ func InitDB(dbPath string) (*sql.DB, error) {
 
 // CreateDevice generates a new UUID and adds a device record to the database.
 func CreateDevice(db *sql.DB, name, deviceType, ipAddress string, port int, username, vaultSecretID, credentialID, description string, tags []string, macAddress string) (string, error) {
-	id := uuid.New().String()
+	id := uid.New()
 	d := DeviceRecord{
 		ID:            id,
 		Name:          name,
@@ -182,7 +182,7 @@ func UpsertDeviceByName(db *sql.DB, d DeviceRecord, overwrite bool) (created boo
 	var existingID string
 	err = db.QueryRow(`SELECT id FROM devices WHERE lower(name) = lower(?)`, d.Name).Scan(&existingID)
 	if err == sql.ErrNoRows {
-		d.ID = uuid.New().String()
+		d.ID = uid.New()
 		if insertErr := AddDevice(db, d); insertErr != nil {
 			return false, false, insertErr
 		}

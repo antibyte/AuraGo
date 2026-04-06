@@ -9,7 +9,7 @@ import (
 	"aurago/internal/credentials"
 	"aurago/internal/security"
 
-	"github.com/google/uuid"
+	"aurago/internal/uid"
 )
 
 type credentialRequest struct {
@@ -121,7 +121,7 @@ func handleCreateCredential(s *Server) http.HandlerFunc {
 		certificate := strings.TrimSpace(req.CertificateText)
 		token := strings.TrimSpace(req.Token)
 		if password != "" {
-			rec.PasswordVaultID = "credential_password_" + uuid.NewString()
+			rec.PasswordVaultID = "credential_password_" + uid.NewString()
 			security.RegisterSensitive(password)
 			if err := s.Vault.WriteSecret(rec.PasswordVaultID, password); err != nil {
 				jsonError(w, `{"error":"failed to store password in vault"}`, http.StatusInternalServerError)
@@ -129,7 +129,7 @@ func handleCreateCredential(s *Server) http.HandlerFunc {
 			}
 		}
 		if certificate != "" {
-			rec.CertificateVaultID = "credential_certificate_" + uuid.NewString()
+			rec.CertificateVaultID = "credential_certificate_" + uid.NewString()
 			security.RegisterSensitive(certificate)
 			if err := s.Vault.WriteSecret(rec.CertificateVaultID, certificate); err != nil {
 				if rec.PasswordVaultID != "" {
@@ -140,7 +140,7 @@ func handleCreateCredential(s *Server) http.HandlerFunc {
 			}
 		}
 		if token != "" {
-			rec.TokenVaultID = "credential_token_" + uuid.NewString()
+			rec.TokenVaultID = "credential_token_" + uid.NewString()
 			security.RegisterSensitive(token)
 			if err := s.Vault.WriteSecret(rec.TokenVaultID, token); err != nil {
 				if rec.PasswordVaultID != "" {
@@ -226,7 +226,7 @@ func handleUpdateCredential(s *Server) http.HandlerFunc {
 
 		if password := strings.TrimSpace(req.Password); password != "" {
 			if existing.PasswordVaultID == "" {
-				existing.PasswordVaultID = "credential_password_" + uuid.NewString()
+				existing.PasswordVaultID = "credential_password_" + uid.NewString()
 			}
 			security.RegisterSensitive(password)
 			if err := s.Vault.WriteSecret(existing.PasswordVaultID, password); err != nil {
@@ -237,7 +237,7 @@ func handleUpdateCredential(s *Server) http.HandlerFunc {
 
 		if certificate := strings.TrimSpace(req.CertificateText); certificate != "" {
 			if existing.CertificateVaultID == "" {
-				existing.CertificateVaultID = "credential_certificate_" + uuid.NewString()
+				existing.CertificateVaultID = "credential_certificate_" + uid.NewString()
 			}
 			security.RegisterSensitive(certificate)
 			if err := s.Vault.WriteSecret(existing.CertificateVaultID, certificate); err != nil {
@@ -248,7 +248,7 @@ func handleUpdateCredential(s *Server) http.HandlerFunc {
 
 		if token := strings.TrimSpace(req.Token); token != "" {
 			if existing.TokenVaultID == "" {
-				existing.TokenVaultID = "credential_token_" + uuid.NewString()
+				existing.TokenVaultID = "credential_token_" + uid.NewString()
 			}
 			security.RegisterSensitive(token)
 			if err := s.Vault.WriteSecret(existing.TokenVaultID, token); err != nil {

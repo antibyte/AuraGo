@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
+	"aurago/internal/uid"
 
 	_ "modernc.org/sqlite"
 )
@@ -215,7 +215,7 @@ func CheatsheetCreate(db *sql.DB, name, content, createdBy string) (*CheatSheet,
 		createdBy = "user"
 	}
 
-	id := uuid.New().String()
+	id := uid.New()
 	now := time.Now().UTC().Format(time.RFC3339)
 
 	_, err := db.Exec(
@@ -417,7 +417,7 @@ func CheatsheetAttachmentAdd(db *sql.DB, cheatsheetID, filename, source, content
 		return nil, fmt.Errorf("attachment would exceed the %d character limit (current: %d, new: %d)", MaxAttachmentChars, currentTotal, charCount)
 	}
 
-	id := uuid.New().String()
+	id := uid.New()
 	now := time.Now().UTC().Format(time.RFC3339)
 
 	_, err = tx.Exec(

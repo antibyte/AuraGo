@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
+	"aurago/internal/uid"
 	_ "modernc.org/sqlite"
 )
 
@@ -65,7 +65,7 @@ func Create(db *sql.DB, c Contact) (string, error) {
 	if c.Name == "" {
 		return "", fmt.Errorf("name is required")
 	}
-	c.ID = uuid.New().String()
+	c.ID = uid.New()
 	now := time.Now().UTC().Format(time.RFC3339)
 	c.CreatedAt = now
 	c.UpdatedAt = now

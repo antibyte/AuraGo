@@ -19,7 +19,7 @@ import (
 	"aurago/internal/security"
 	"aurago/internal/tools"
 
-	"github.com/google/uuid"
+	"aurago/internal/uid"
 	"github.com/sashabaranov/go-openai"
 )
 
@@ -203,7 +203,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			if isCommand {
 				w.Header().Set("Content-Type", "application/json")
 				if err := json.NewEncoder(w).Encode(openai.ChatCompletionResponse{
-					ID:      "cmd-" + uuid.New().String(),
+					ID:      "cmd-" + uid.New(),
 					Object:  "chat.completion",
 					Created: time.Now().Unix(),
 					Model:   "aurago-cmd",

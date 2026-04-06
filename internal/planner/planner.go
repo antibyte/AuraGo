@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
+	"aurago/internal/uid"
 	_ "modernc.org/sqlite"
 )
 
@@ -135,7 +135,7 @@ func CreateAppointment(db *sql.DB, a Appointment) (string, error) {
 	if a.NotificationAt != "" && !validRFC3339(a.NotificationAt) {
 		return "", fmt.Errorf("invalid notification_at format %q: must be RFC3339", a.NotificationAt)
 	}
-	a.ID = uuid.New().String()
+	a.ID = uid.New()
 	now := time.Now().UTC().Format(time.RFC3339)
 	a.CreatedAt = now
 	a.UpdatedAt = now
@@ -304,7 +304,7 @@ func CreateTodo(db *sql.DB, t Todo) (string, error) {
 	if t.Title == "" {
 		return "", fmt.Errorf("title is required")
 	}
-	t.ID = uuid.New().String()
+	t.ID = uid.New()
 	now := time.Now().UTC().Format(time.RFC3339)
 	t.CreatedAt = now
 	t.UpdatedAt = now

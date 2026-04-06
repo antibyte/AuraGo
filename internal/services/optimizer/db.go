@@ -96,7 +96,7 @@ func InitDB(dbPath string) (*OptimizerDB, error) {
 			return nil, fmt.Errorf("failed to add original_hash column: %w", err)
 		}
 	}
-	// Always ensure the index exists (covers both new and migrated DBs).
+	_, _ = db.Exec("DROP INDEX IF EXISTS idx_prompt_overrides_unique_tool")
 	_, _ = db.Exec("CREATE INDEX IF NOT EXISTS idx_prompt_overrides_tool_status ON prompt_overrides(tool_name, active, shadow)")
 
 	defaultDB = &OptimizerDB{db: db}

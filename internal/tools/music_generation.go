@@ -19,7 +19,7 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/security"
 
-	"github.com/google/uuid"
+	"aurago/internal/uid"
 )
 
 // musicGenHTTPClient is the SSRF-protected HTTP client for all music generation requests.
@@ -324,7 +324,7 @@ func generateMusicMiniMax(ctx context.Context, apiKey, model string, params Musi
 	}
 
 	// Generate filename
-	filename := fmt.Sprintf("music_%s.mp3", uuid.New().String()[:8])
+	filename := fmt.Sprintf("music_%s.mp3", uid.New()[:8])
 	filePath := filepath.Join(audioDir, filename)
 
 	// Handle URL or hex output
@@ -496,7 +496,7 @@ func generateMusicGoogleLyria(ctx context.Context, apiKey, model string, params 
 		return MusicGenResult{Status: "error", Error: "Google Lyria returned no audio data"}
 	}
 
-	filename := fmt.Sprintf("music_%s.mp3", uuid.New().String()[:8])
+	filename := fmt.Sprintf("music_%s.mp3", uid.New()[:8])
 	filePath := filepath.Join(audioDir, filename)
 
 	if err := os.WriteFile(filePath, audioBytes, 0644); err != nil {

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
+	"aurago/internal/uid"
 )
 
 const schemaVersion = 2
@@ -100,7 +100,7 @@ func Create(db *sql.DB, rec Record) (string, error) {
 		return "", fmt.Errorf("username is required")
 	}
 
-	rec.ID = uuid.NewString()
+	rec.ID = uid.NewString()
 	rec.CertificateMode = normalizeCertificateMode(rec.CertificateMode)
 	now := time.Now().UTC()
 	rec.CreatedAt = now

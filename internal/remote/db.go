@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/uuid"
+	"aurago/internal/uid"
 	_ "modernc.org/sqlite"
 )
 
@@ -148,7 +148,7 @@ func parseStrings(s string) []string {
 
 // CreateDevice inserts a new device record and returns its UUID.
 func CreateDevice(db *sql.DB, d DeviceRecord) (string, error) {
-	d.ID = uuid.New().String()
+	d.ID = uid.New()
 	now := time.Now().UTC().Format(time.RFC3339)
 	_, err := db.Exec(`
 		INSERT INTO remote_devices
@@ -279,7 +279,7 @@ func scanDevices(rows *sql.Rows) ([]DeviceRecord, error) {
 
 // CreateEnrollment stores a new enrollment token record.
 func CreateEnrollment(db *sql.DB, e EnrollmentRecord) (string, error) {
-	e.ID = uuid.New().String()
+	e.ID = uid.New()
 	now := time.Now().UTC().Format(time.RFC3339)
 	_, err := db.Exec(`
 		INSERT INTO remote_enrollments (id, token_hash, device_name, created_at, expires_at, used, used_by_device)

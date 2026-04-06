@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/uuid"
+	"aurago/internal/uid"
 )
 
 const (
@@ -243,7 +243,7 @@ func (s *SQLiteMemory) CreatePlan(sessionID, title, description, userRequest str
 	}
 
 	now := planNow()
-	planID := "plan_" + uuid.NewString()
+	planID := "plan_" + uid.NewString()
 
 	// Begin transaction before the duplicate-plan check so the check and insert
 	// are atomic — prevents a TOCTOU race between the SELECT and the INSERT.
@@ -816,7 +816,7 @@ func (s *SQLiteMemory) SplitPlanTask(planID, taskID string, inputs []PlanTaskInp
 		if kind == "" {
 			kind = "task"
 		}
-		subtaskID := fmt.Sprintf("%s_sub_%s", taskID, uuid.NewString())
+		subtaskID := fmt.Sprintf("%s_sub_%s", taskID, uid.NewString())
 		toolArgsJSON := ""
 		if len(input.ToolArgs) > 0 {
 			b, _ := json.Marshal(input.ToolArgs)

@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
+	"aurago/internal/uid"
 )
 
 // Token represents an API token with scopes and metadata.
@@ -141,7 +141,7 @@ func (tm *TokenManager) Create(name string, scopes []string, expiresAt *time.Tim
 
 	now := time.Now().UTC()
 	t := Token{
-		ID:        uuid.New().String(),
+		ID:        uid.New(),
 		Name:      name,
 		TokenHash: hashToken(raw),
 		Prefix:    raw[:13] + "...", // "aura_" + 8 hex chars + "..."

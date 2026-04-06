@@ -9,7 +9,7 @@ import (
 	"aurago/internal/inventory"
 	"aurago/internal/security"
 
-	"github.com/google/uuid"
+	"aurago/internal/uid"
 )
 
 // RegisterDevice handles the dual-ingestion logic for enrolling a new device.
@@ -32,7 +32,7 @@ func RegisterDevice(db *sql.DB, v *security.Vault, name string, deviceType strin
 	var vaultSecretID string
 	// Store in Vault only if auth details provided
 	if secretValue != "" && v != nil {
-		vaultSecretID = "dev-" + uuid.New().String()
+		vaultSecretID = "dev-" + uid.New()
 		if err := v.WriteSecret(vaultSecretID, secretValue); err != nil {
 			return "", fmt.Errorf("failed to store secret in vault: %w", err)
 		}

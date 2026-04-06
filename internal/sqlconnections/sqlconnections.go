@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/uuid"
+	"aurago/internal/uid"
 	_ "modernc.org/sqlite"
 )
 
@@ -87,7 +87,7 @@ func Create(db *sql.DB, name, driver, host string, port int, databaseName, descr
 		return "", fmt.Errorf("unsupported driver: %s (must be postgres, mysql, or sqlite)", driver)
 	}
 
-	id := uuid.New().String()
+	id := uid.New()
 	now := time.Now().UTC().Format(time.RFC3339)
 
 	_, err := db.Exec(`INSERT INTO sql_connections
