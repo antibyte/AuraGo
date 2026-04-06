@@ -228,3 +228,19 @@ func TestNochmalDoesNotTriggerPreTool(t *testing.T) {
 		t.Fatal("'nochmal' in conversational pre-tool text should not trigger announcement")
 	}
 }
+
+// TestIsAnnouncementOnlyResponsePureThinkBlockDoesNotTrigger ensures that a response
+// consisting entirely of <think>...</think> reasoning (SanitizedContent == "") never
+// triggers the announcement detector.  The caller must NOT fall back to raw content.
+func TestIsAnnouncementOnlyResponsePureThinkBlockDoesNotTrigger(t *testing.T) {
+	// The actual announcement detector receives the SanitizedContent (think-stripped) string,
+	// which is "" for pure think-block responses.  Passing "" should return false.
+	tc := ToolCall{}
+	// Simulate what the agent loop does after stripping think tags — passes SanitizedContent.
+	if isAnnouncementOnlyResponse("", tc, true, false, "absolute stille") {
+		t.Fatal("empty sanitized content (pure think-block) must NOT trigger announcement recovery")
+	}
+	if isAnnouncementOnlyResponse("", tc, false, true, "weiter") {
+		t.Fatal("empty sanitized content (pure think-block) post-tool must NOT trigger announcement recovery")
+	}
+}

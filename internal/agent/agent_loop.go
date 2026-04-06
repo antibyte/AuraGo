@@ -1280,14 +1280,16 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			// be reassembled: each chunk carries an Index identifying the call and
 			// incremental Function.Name / Function.Arguments fragments.
 			streamToolCalls := map[int]*openai.ToolCall{}
-			// SSE-level buffer to filter <done/> and minimax:tool_call XML blocks from the
-			// stream before they reach the UI.
+			// SSE-level buffer to filter <done/>, minimax:tool_call, and bare <tool_call> XML
+			// blocks from the stream before they reach the UI.
 			// <done/> is a completion signal; minimax:tool_call is a raw XML tool call emitted
-			// by MiniMax-based models when a tool is not in the native schema (e.g. filtered by
-			// AdaptiveTools). Both must be stripped from the real-time chat display.
-			// We hold enough trailing bytes to catch either tag spanning chunk boundaries.
+			// by MiniMax-based models; <tool_call> is emitted by some models in native mode
+			// when they fail to use the function-calling API (e.g. after a corrective prompt).
+			// All three must be stripped from the real-time chat display.
+			// We hold enough trailing bytes to catch any tag spanning chunk boundaries.
 			const doneTagStr = "<done/>"
 			const minimaxToolCallPrefix = "minimax:tool_call"
+			const xmlToolCallPrefix = "<tool_call" // matches <tool_call> and <tool_call\n> variants
 			// holdLen must cover the longest tag prefix minus 1
 			const doneTagHoldLen = len(minimaxToolCallPrefix) - 1 // 16 bytes (≥ len("<done/>")-1 = 6)
 			doneTagStreamBuf := ""
@@ -1339,6 +1341,14 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 								xmlToolCallSuppressed = true
 								doneTagStreamBuf = "" // discard buffered tail
 							}
+							// Strip bare <tool_call> XML (native mode, model fell back to XML format).
+							if useNativeFunctions && !xmlToolCallSuppressed {
+								if idx := strings.Index(strings.ToLower(toSend), xmlToolCallPrefix); idx != -1 {
+									toSend = toSend[:idx]
+									xmlToolCallSuppressed = true
+									doneTagStreamBuf = "" // discard buffered tail
+								}
+							}
 							if toSend != "" {
 								chunk.Choices[0].Delta.Content = toSend
 								if chunkData, mErr := json.Marshal(chunk); mErr == nil {
@@ -1358,9 +1368,14 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			// a partial tag prefix (strip it) or safe final content (send it).
 			if doneTagStreamBuf != "" && !xmlToolCallSuppressed {
 				remaining := strings.ReplaceAll(doneTagStreamBuf, doneTagStr, "")
-				// Also strip any trailing minimax:tool_call prefix fragment.
+				// Also strip any trailing minimax:tool_call or <tool_call prefix fragment.
 				if idx := strings.Index(strings.ToLower(remaining), minimaxToolCallPrefix); idx != -1 {
 					remaining = remaining[:idx]
+				}
+				if useNativeFunctions {
+					if idx := strings.Index(strings.ToLower(remaining), xmlToolCallPrefix); idx != -1 {
+						remaining = remaining[:idx]
+					}
 				}
 				if remaining != "" {
 					remainingJSON, _ := json.Marshal(remaining)
@@ -1681,11 +1696,11 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		// Use sanitized content (think-tags stripped) to avoid false positives from
 		// reasoning-only language inside <think> blocks triggering the forward-cue detector.
 		// Skip detection entirely when the LLM explicitly signaled completion via <done/>.
+		// IMPORTANT: do NOT fall back to raw content when SanitizedContent is empty — an empty
+		// sanitized string means the entire response was inside <think> blocks, and feeding raw
+		// think-block language to the detector causes spurious WARN / recovery loops.
 		announcementContent := parsedToolResp.SanitizedContent
-		if announcementContent == "" {
-			announcementContent = content
-		}
-		isAnnouncement := !parsedToolResp.IsFinished && cfg.Agent.AnnouncementDetector.Enabled && isAnnouncementOnlyResponse(announcementContent, tc, useNativePath, lastResponseWasTool, lastUserMsg)
+		isAnnouncement := announcementContent != "" && !parsedToolResp.IsFinished && cfg.Agent.AnnouncementDetector.Enabled && isAnnouncementOnlyResponse(announcementContent, tc, useNativePath, lastResponseWasTool, lastUserMsg)
 		if isAnnouncement && announcementCount < cfg.Agent.AnnouncementDetector.MaxRetries {
 			announcementCount++
 			currentLogger.Warn("[Sync] Announcement-only response detected, requesting immediate tool call", "attempt", announcementCount, "content_preview", Truncate(content, 120))
@@ -1783,6 +1798,42 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				} else {
 					feedbackMsg = "ERROR: Your response contained the literal text \"[TOOL_CALL]\" but no valid tool call JSON. Do NOT write [TOOL_CALL] as text. Your ENTIRE response must be ONLY the raw JSON tool call — no explanation, no tags. Output the JSON tool call NOW."
 				}
+				feedbackMsg = applyEmotionRecoveryNudge(feedbackMsg, emotionPolicy)
+				id, err = shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, feedbackMsg, false, true)
+				if err != nil {
+					currentLogger.Error("Failed to persist feedback message to SQLite", "error", err)
+				}
+				if sessionID == "default" {
+					historyManager.Add(openai.ChatMessageRoleUser, feedbackMsg, id, false, true)
+				}
+
+				req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: content})
+				req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: feedbackMsg})
+				continue
+			}
+		}
+
+		// Recovery: model emitted literal <tool_call> XML in native function-calling mode but
+		// did not actually produce a function call.  This happens when a model that was trained
+		// on XML-format tool calls falls back to that format after receiving a corrective prompt.
+		// The bare tag is already stripped from the SSE stream, but we still need a corrective
+		// retry so the model produces an actual native call.
+		if !tc.IsTool && useNativeFunctions && orphanedToolCallCount < 2 {
+			lowerContent := strings.ToLower(parsedToolResp.SanitizedContent + content)
+			if strings.Contains(lowerContent, "<tool_call") {
+				orphanedToolCallCount++
+				currentLogger.Warn("[Sync] Bare <tool_call> XML in native mode, requesting native function call", "attempt", orphanedToolCallCount, "content_preview", Truncate(content, 150))
+				broker.Send("error_recovery", "<tool_call> XML detected in native mode, requesting function call...")
+
+				id, err := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleAssistant, content, false, true)
+				if err != nil {
+					currentLogger.Error("Failed to persist assistant message to SQLite", "error", err)
+				}
+				if sessionID == "default" {
+					historyManager.Add(openai.ChatMessageRoleAssistant, content, id, false, true)
+				}
+
+				feedbackMsg := "ERROR: Your response contained a literal <tool_call> XML tag but no actual function call was made. You MUST use the native function-calling mechanism — do not write XML tags. Call the function directly using the tool call interface now."
 				feedbackMsg = applyEmotionRecoveryNudge(feedbackMsg, emotionPolicy)
 				id, err = shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, feedbackMsg, false, true)
 				if err != nil {
