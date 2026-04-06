@@ -22,11 +22,11 @@ import (
 )
 
 // setupCSRF holds the active CSRF token for the setup wizard.
-// It is generated once when the status endpoint is first called and
-// validated on every state-changing request (POST).
+// A fresh token is issued on every GET /api/setup/status request so that
+// the token cannot be replayed across multiple browser sessions.
 var (
 	setupCSRFToken string
-	setupCSRFOnce  sync.Once
+	setupCSRFMu    sync.RWMutex
 )
 
 // generateSetupCSRF creates a cryptographically random 32-byte hex token.
@@ -55,10 +55,14 @@ func handleSetupStatus(s *Server) http.HandlerFunc {
 			"needs_setup": show,
 		}
 
-		// Include CSRF token only when setup is still needed.
+		// Issue a fresh CSRF token on every status request when setup is needed.
+		// This prevents replay of observed tokens.
 		if show {
-			setupCSRFOnce.Do(func() { setupCSRFToken = generateSetupCSRF() })
-			resp["csrf_token"] = setupCSRFToken
+			token := generateSetupCSRF()
+			setupCSRFMu.Lock()
+			setupCSRFToken = token
+			setupCSRFMu.Unlock()
+			resp["csrf_token"] = token
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -91,7 +95,12 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 		}
 
 		// CSRF protection: the token was issued via GET /api/setup/status.
-		if token := r.Header.Get("X-CSRF-Token"); token == "" || token != setupCSRFToken {
+		// Validate and immediately invalidate to prevent replay.
+		setupCSRFMu.Lock()
+		expectedToken := setupCSRFToken
+		setupCSRFToken = "" // invalidate after single use
+		setupCSRFMu.Unlock()
+		if token := r.Header.Get("X-CSRF-Token"); token == "" || expectedToken == "" || token != expectedToken {
 			s.Logger.Warn("[Setup] CSRF token mismatch")
 			jsonError(w, "Invalid CSRF token", http.StatusForbidden)
 			return

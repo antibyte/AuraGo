@@ -21,6 +21,7 @@ type BridgeCommand struct {
 	Challenge string `json:"challenge,omitempty"`
 	Summary   string `json:"summary,omitempty"`
 	Status    bool   `json:"status,omitempty"` // For set_busy
+	Token     string `json:"token,omitempty"`  // per-process auth token
 }
 
 type BridgeResponse struct {
@@ -74,6 +75,17 @@ func (s *Server) handleBridgeConnection(conn net.Conn) {
 		if err := json.Unmarshal(line, &cmd); err != nil {
 			s.sendBridgeResponse(conn, BridgeResponse{Status: "error", Message: "Invalid JSON"})
 			continue
+		}
+
+		// Authenticate: vitality_check has its own challenge/response; all other
+		// commands require the per-process token to be present and correct.
+		if cmd.Command != "vitality_check" {
+			tok := s.internalToken
+			if tok == "" || cmd.Token != tok {
+				s.Logger.Warn("TCP Bridge: rejected unauthenticated command", "command", cmd.Command)
+				s.sendBridgeResponse(conn, BridgeResponse{Status: "error", Message: "unauthorized"})
+				continue
+			}
 		}
 
 		switch cmd.Command {

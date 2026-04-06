@@ -274,15 +274,17 @@ func handleAuthSetPassword(s *Server) http.HandlerFunc {
 		}
 
 		s.CfgMu.RLock()
-		enabled := s.Cfg.Auth.Enabled
 		existingHash := s.Cfg.Auth.PasswordHash
 		secret := s.Cfg.Auth.SessionSecret
 		s.CfgMu.RUnlock()
 
-		// Authorization: allowed if first setup (no hash yet) or already authenticated
+		// Authorization: allowed if first setup (no hash yet) or already authenticated.
+		// When a password hash exists the user MUST be authenticated regardless of
+		// whether auth is currently enabled — otherwise an attacker could pre-set a
+		// password and silently take over when auth is re-enabled.
 		firstSetup := existingHash == ""
 		authed := IsAuthenticated(r, secret)
-		if enabled && !firstSetup && !authed {
+		if !firstSetup && !authed {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnauthorized)
 			json.NewEncoder(w).Encode(map[string]interface{}{"error": "unauthorized"})

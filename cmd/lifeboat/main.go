@@ -360,7 +360,7 @@ func sendShutdownAndReload(l *slog.Logger) error {
 	}
 	defer conn.Close()
 
-	cmd := map[string]string{"command": "shutdown_and_reload"}
+	cmd := map[string]string{"command": "shutdown_and_reload", "token": os.Getenv("AURAGO_BRIDGE_TOKEN")}
 	data, _ := json.Marshal(cmd)
 	fmt.Fprintf(conn, "%s\n", string(data))
 	return nil

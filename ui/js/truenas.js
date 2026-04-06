@@ -1,4 +1,16 @@
 // TrueNAS UI Controller
+
+// Escape HTML entities to prevent XSS when inserting server-provided data into the DOM.
+function escapeHtmlTruenas(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
 class TrueNASUI {
     constructor() {
         this.baseUrl = '/api/truenas';
@@ -135,9 +147,9 @@ class TrueNASUI {
                 alertsSection.style.display = 'block';
                 const container = document.getElementById('alerts-container');
                 container.innerHTML = activeAlerts.map(a => `
-                    <div class="alert-item ${a.level.toLowerCase()}">
-                        <h4>${a.title}</h4>
-                        <p>${a.message}</p>
+                    <div class="alert-item ${escapeHtmlTruenas(a.level.toLowerCase())}">
+                        <h4>${escapeHtmlTruenas(a.title)}</h4>
+                        <p>${escapeHtmlTruenas(a.message)}</p>
                         <div class="alert-date">${new Date(a.date).toLocaleString()}</div>
                     </div>
                 `).join('');
@@ -164,11 +176,12 @@ class TrueNASUI {
             this.pools = data.pools;
             container.innerHTML = data.pools.map(pool => {
                 const usage = pool.size?.total > 0 ? (pool.size.allocated / pool.size.total * 100).toFixed(1) : 0;
+                const safeStatus = escapeHtmlTruenas(pool.status.toLowerCase());
                 return `
-                    <div class="pool-card ${pool.status.toLowerCase()}">
+                    <div class="pool-card ${safeStatus}">
                         <div class="pool-header">
-                            <h3>${pool.name}</h3>
-                            <span class="status-badge ${pool.status.toLowerCase()}">${pool.status}</span>
+                            <h3>${escapeHtmlTruenas(pool.name)}</h3>
+                            <span class="status-badge ${safeStatus}">${escapeHtmlTruenas(pool.status)}</span>
                         </div>
                         <div class="pool-stats">
                             <div class="stat">
@@ -188,7 +201,7 @@ class TrueNASUI {
                             <div class="progress-fill ${usage > 90 ? 'danger' : usage > 70 ? 'warning' : ''}" style="width: ${usage}%"></div>
                         </div>
                         <div class="pool-actions">
-                            <button class="btn btn-secondary" onclick="truenasUI.scrubPool(${pool.id})" ${pool.scan?.state === 'SCANNING' ? 'disabled' : ''}>
+                            <button class="btn btn-secondary" data-pool-id="${pool.id}" onclick="truenasUI.scrubPool(this.getAttribute('data-pool-id'))" ${pool.scan?.state === 'SCANNING' ? 'disabled' : ''}>
                                 ${pool.scan?.state === 'SCANNING' ? 'Scrub läuft...' : 'Scrub starten'}
                             </button>
                         </div>
@@ -224,11 +237,11 @@ class TrueNASUI {
                 return `
                     <div class="dataset-item">
                         <div class="dataset-info">
-                            <h4>${ds.name}</h4>
-                            <p>${this.formatBytes(used)} / ${this.formatBytes(total)} belegt (${usage}%) • Kompression: ${ds.compression?.parsed || 'off'}</p>
+                            <h4>${escapeHtmlTruenas(ds.name)}</h4>
+                            <p>${this.formatBytes(used)} / ${this.formatBytes(total)} belegt (${usage}%) • Kompression: ${escapeHtmlTruenas(ds.compression?.parsed || 'off')}</p>
                         </div>
                         <div class="dataset-actions">
-                            <button class="btn btn-danger" onclick="truenasUI.deleteDataset('${ds.name}')">Löschen</button>
+                            <button class="btn btn-danger" data-name="${escapeHtmlTruenas(ds.name)}" onclick="truenasUI.deleteDataset(this.getAttribute('data-name'))">Löschen</button>
                         </div>
                     </div>
                 `;
@@ -238,13 +251,13 @@ class TrueNASUI {
             const filterSelect = document.getElementById('snapshot-filter');
             if (filterSelect) {
                 filterSelect.innerHTML = '<option value="">Alle Datasets</option>' + 
-                    data.datasets.map(ds => `<option value="${ds.name}">${ds.name}</option>`).join('');
+                    data.datasets.map(ds => `<option value="${escapeHtmlTruenas(ds.name)}">${escapeHtmlTruenas(ds.name)}</option>`).join('');
             }
             // Update snapshot create dropdown
             const createSelect = document.getElementById('snapshot-dataset');
             if (createSelect) {
                 createSelect.innerHTML = '<option value="">Wählen...</option>' + 
-                    data.datasets.map(ds => `<option value="${ds.name}">${ds.name}</option>`).join('');
+                    data.datasets.map(ds => `<option value="${escapeHtmlTruenas(ds.name)}">${escapeHtmlTruenas(ds.name)}</option>`).join('');
             }
             
         } catch (err) {
@@ -272,12 +285,12 @@ class TrueNASUI {
                 return `
                     <div class="snapshot-item">
                         <div class="snapshot-info">
-                            <h4>${snap.name}</h4>
-                            <p>${snap.dataset} • ${this.formatBytes(snap.properties?.used?.parsed || 0)} • Vor ${age}</p>
+                            <h4>${escapeHtmlTruenas(snap.name)}</h4>
+                            <p>${escapeHtmlTruenas(snap.dataset)} • ${this.formatBytes(snap.properties?.used?.parsed || 0)} • Vor ${age}</p>
                         </div>
                         <div class="snapshot-actions">
-                            <button class="btn btn-secondary" onclick="truenasUI.rollbackSnapshot('${snap.name}')">Rollback</button>
-                            <button class="btn btn-danger" onclick="truenasUI.deleteSnapshot('${snap.name}')">Löschen</button>
+                            <button class="btn btn-secondary" data-name="${escapeHtmlTruenas(snap.name)}" onclick="truenasUI.rollbackSnapshot(this.getAttribute('data-name'))">Rollback</button>
+                            <button class="btn btn-danger" data-name="${escapeHtmlTruenas(snap.name)}" onclick="truenasUI.deleteSnapshot(this.getAttribute('data-name'))">Löschen</button>
                         </div>
                     </div>
                 `;
@@ -304,11 +317,11 @@ class TrueNASUI {
             container.innerHTML = data.shares.map(share => `
                 <div class="share-item">
                     <div class="share-info">
-                        <h4>${share.name}</h4>
-                        <p>${share.path} ${share.guestok ? '• Gast erlaubt' : ''} ${share.timemachine ? '• Time Machine' : ''}</p>
+                        <h4>${escapeHtmlTruenas(share.name)}</h4>
+                        <p>${escapeHtmlTruenas(share.path)} ${share.guestok ? '• Gast erlaubt' : ''} ${share.timemachine ? '• Time Machine' : ''}</p>
                     </div>
                     <div class="share-actions">
-                        <button class="btn btn-danger" onclick="truenasUI.deleteShare(${share.id})">Löschen</button>
+                        <button class="btn btn-danger" data-share-id="${share.id}" onclick="truenasUI.deleteShare(this.getAttribute('data-share-id'))">Löschen</button>
                     </div>
                 </div>
             `).join('');
@@ -596,12 +609,12 @@ class TrueNASUI {
     
     showError(elementId, message) {
         const el = document.getElementById(elementId);
-        if (el) el.innerHTML = `<div class="alert error">${message}</div>`;
+        if (el) el.innerHTML = `<div class="alert error">${escapeHtmlTruenas(message)}</div>`;
     }
     
     showSuccess(elementId, message) {
         const el = document.getElementById(elementId);
-        if (el) el.innerHTML = `<div class="alert success">${message}</div>`;
+        if (el) el.innerHTML = `<div class="alert success">${escapeHtmlTruenas(message)}</div>`;
         setTimeout(() => el.innerHTML = '', 3000);
     }
     

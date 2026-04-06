@@ -5,7 +5,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"strings"
-	"sync"
 	"testing"
 
 	"aurago/internal/config"
@@ -15,9 +14,9 @@ func TestHandleSetupSaveInvalidJSONIsGeneric(t *testing.T) {
 	t.Parallel()
 
 	// Set a known CSRF token for this test.
-	setupCSRFOnce = sync.Once{}
+	setupCSRFMu.Lock()
 	setupCSRFToken = "test-token"
-	setupCSRFOnce.Do(func() {})
+	setupCSRFMu.Unlock()
 
 	s := &Server{
 		Cfg: &config.Config{ConfigPath: t.TempDir() + "\\config.yaml"},

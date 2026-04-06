@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"sync/atomic"
@@ -161,9 +162,19 @@ func createVenv(workspaceDir string, logger *slog.Logger) error {
 	return fmt.Errorf("failed to create venv: %w", lastErr)
 }
 
+// validPackageName matches pip-safe package name specifiers.
+// Allows: name, name[extra], name>=1.0, name==1.0.0, etc.
+// Blocks: paths, flags (--index-url), shell metacharacters.
+var validPackageName = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._\-]*(\[[\w,\s]+\])?([\s]*(==|!=|<=|>=|<|>|~=)[^\s;]+)?$`)
+
 // InstallPackage installs a Python package using the virtual environment's pip.
 // Has a generous 3-minute timeout for downloads and compilation.
 func InstallPackage(pkgName, workspaceDir string) (string, string, error) {
+	// Validate package name to prevent pip flag injection or path traversal.
+	pkgName = strings.TrimSpace(pkgName)
+	if !validPackageName.MatchString(pkgName) {
+		return "", "", fmt.Errorf("invalid package name %q: must match pip package name format", pkgName)
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
 	defer cancel()
 

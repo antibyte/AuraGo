@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
-	"sync"
 	"testing"
 )
 
@@ -78,8 +77,9 @@ func TestExtractSetupAdminPasswordAllowsExistingPasswordToRemain(t *testing.T) {
 
 func TestHandleSetupStatusReturnsCSRFToken(t *testing.T) {
 	// Reset global CSRF state for this test.
-	setupCSRFOnce = sync.Once{}
+	setupCSRFMu.Lock()
 	setupCSRFToken = ""
+	setupCSRFMu.Unlock()
 
 	s := &Server{Cfg: &config.Config{}}
 	// Config has no provider → needsSetup returns true
@@ -106,8 +106,9 @@ func TestHandleSetupStatusReturnsCSRFToken(t *testing.T) {
 }
 
 func TestHandleSetupStatusNoCSRFWhenConfigured(t *testing.T) {
-	setupCSRFOnce = sync.Once{}
+	setupCSRFMu.Lock()
 	setupCSRFToken = ""
+	setupCSRFMu.Unlock()
 
 	s := &Server{Cfg: &config.Config{}}
 	s.Cfg.LLM.APIKey = "configured"
@@ -129,9 +130,9 @@ func TestHandleSetupStatusNoCSRFWhenConfigured(t *testing.T) {
 }
 
 func TestHandleSetupSaveRejectsWithoutCSRF(t *testing.T) {
-	setupCSRFOnce = sync.Once{}
+	setupCSRFMu.Lock()
 	setupCSRFToken = "test-csrf-token-12345"
-	setupCSRFOnce.Do(func() {}) // mark as done so the token is used as-is
+	setupCSRFMu.Unlock()
 
 	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
 
@@ -149,9 +150,9 @@ func TestHandleSetupSaveRejectsWithoutCSRF(t *testing.T) {
 }
 
 func TestHandleSetupSaveRejectsWrongCSRF(t *testing.T) {
-	setupCSRFOnce = sync.Once{}
+	setupCSRFMu.Lock()
 	setupCSRFToken = "correct-token"
-	setupCSRFOnce.Do(func() {})
+	setupCSRFMu.Unlock()
 
 	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
 

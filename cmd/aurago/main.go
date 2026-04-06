@@ -771,7 +771,7 @@ func main() {
 
 	// Start Lifeboat Sidecar if enabled
 	if cfg.Maintenance.LifeboatEnabled {
-		startLifeboatSidecar(appLog, cfg)
+		startLifeboatSidecar(appLog, cfg, loopbackToken)
 	}
 
 	// â”€â”€ Egg Mode: start WebSocket client to master â”€â”€
@@ -954,7 +954,7 @@ func loadDockerSecret(path, envVar string, log *slog.Logger) {
 	log.Info("Loaded secret from Docker secret file", "env", envVar, "path", path)
 }
 
-func startLifeboatSidecar(log *slog.Logger, cfg *config.Config) {
+func startLifeboatSidecar(log *slog.Logger, cfg *config.Config, bridgeToken string) {
 	// Candidate paths in priority order:
 	//   1. ./lifeboat         â€“ Docker image layout (/app/lifeboat next to /app/aurago)
 	//   2. ./bin/lifeboat     â€“ native Linux install via install.sh
@@ -986,6 +986,9 @@ func startLifeboatSidecar(log *slog.Logger, cfg *config.Config) {
 	planPath := filepath.Join(cfg.Directories.DataDir, "current_plan.md")
 	statePath := filepath.Join(cfg.Directories.DataDir, "state.json")
 	cmd := exec.Command(lifeboatPath, "--state", statePath, "--plan", planPath, "--sidecar")
+	// Pass the bridge authentication token via environment variable so lifeboat
+	// can authenticate itself when sending commands over the TCP bridge.
+	cmd.Env = append(os.Environ(), "AURAGO_BRIDGE_TOKEN="+bridgeToken)
 
 	// Platform specific detachment
 	attachDetachedAttributes(cmd)

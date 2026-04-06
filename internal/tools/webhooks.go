@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -17,10 +18,11 @@ var outgoingWebhookHTTPClient = security.NewSSRFProtectedHTTPClient(30 * time.Se
 
 // ExecuteOutgoingWebhook resolves variables and sends an HTTP request
 func ExecuteOutgoingWebhook(ctx context.Context, hook config.OutgoingWebhook, params map[string]interface{}) (string, int, error) {
-	// Resolve URL parameters
-	url := hook.URL
+	// Resolve URL parameters — values are URL-encoded to prevent injection of
+	// additional query parameters or path components.
+	urlStr := hook.URL
 	for k, v := range params {
-		url = strings.ReplaceAll(url, "{{"+k+"}}", fmt.Sprintf("%v", v))
+		urlStr = strings.ReplaceAll(urlStr, "{"+"{"+k+"}}", url.QueryEscape(fmt.Sprintf("%v", v)))
 	}
 
 	// Prepare payload
@@ -60,7 +62,7 @@ func ExecuteOutgoingWebhook(ctx context.Context, hook config.OutgoingWebhook, pa
 		reqBody = []byte(bodyString)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, hook.Method, url, bytes.NewBuffer(reqBody))
+	req, err := http.NewRequestWithContext(ctx, hook.Method, urlStr, bytes.NewBuffer(reqBody))
 	if err != nil {
 		return "", 0, fmt.Errorf("failed to create request: %w", err)
 	}

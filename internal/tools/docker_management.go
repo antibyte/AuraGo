@@ -644,6 +644,15 @@ func DockerCompose(cfg DockerConfig, file, cmd string) string {
 	if !allowedComposeCommands[parts[0]] {
 		return errJSON("compose command %q is not allowed", parts[0])
 	}
+	// Block global Docker daemon flags that could redirect commands to a remote host
+	// or change TLS configuration — only parts[0] (the subcommand) is validated above.
+	for _, arg := range parts[1:] {
+		lower := strings.ToLower(arg)
+		if strings.HasPrefix(lower, "--host") || strings.HasPrefix(lower, "--context") ||
+			strings.HasPrefix(lower, "--tls") || strings.HasPrefix(lower, "-h=") {
+			return errJSON("compose argument %q is not allowed", arg)
+		}
+	}
 	args := []string{"compose", "-f", file}
 	args = append(args, parts...)
 	return runDockerCLIHelper(cfg, args...)

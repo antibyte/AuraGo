@@ -785,14 +785,16 @@ func (kg *KnowledgeGraph) Search(query string) string {
 
 	// Combined FTS5 + LIKE UNION: one round-trip instead of two.
 	// FTS5 results are preferred; LIKE catches non-indexed partial matches.
+	// Escape LIKE wildcards in the query to prevent unintended pattern matching.
 	ftsQuery := escapeFTS5(query)
-	likePattern := "%" + query + "%"
+	escapedLike := strings.NewReplacer("%", `\%`, "_", `\_`).Replace(query)
+	likePattern := "%" + escapedLike + "%"
 	rows, err := kg.db.Query(`
 		SELECT id, label, properties, protected FROM kg_nodes
 		WHERE rowid IN (SELECT rowid FROM kg_nodes_fts WHERE kg_nodes_fts MATCH ?)
 		UNION
 		SELECT id, label, properties, protected FROM kg_nodes
-		WHERE id LIKE ? OR label LIKE ? OR properties LIKE ?
+		WHERE id LIKE ? ESCAPE '\' OR label LIKE ? ESCAPE '\' OR properties LIKE ? ESCAPE '\'
 		LIMIT 50
 	`, ftsQuery, likePattern, likePattern, likePattern)
 	if err == nil {
@@ -811,14 +813,15 @@ func (kg *KnowledgeGraph) Search(query string) string {
 	}
 
 	// Edge search — substring match on source, target, relation
-	likeQ := "%" + strings.ToLower(query) + "%"
+	escapedLikeEdge := strings.NewReplacer("%", `\%`, "_", `\_`).Replace(strings.ToLower(query))
+	likeQ := "%" + escapedLikeEdge + "%"
 	edgeFTSQuery := escapeFTS5(query)
 	edgeRows, err := kg.db.Query(`
 		SELECT source, target, relation, properties FROM kg_edges
 		WHERE id IN (SELECT rowid FROM kg_edges_fts WHERE kg_edges_fts MATCH ?)
 		UNION
 		SELECT source, target, relation, properties FROM kg_edges
-		WHERE LOWER(source) LIKE ? OR LOWER(target) LIKE ? OR LOWER(relation) LIKE ? OR LOWER(properties) LIKE ?
+		WHERE LOWER(source) LIKE ? ESCAPE '\' OR LOWER(target) LIKE ? ESCAPE '\' OR LOWER(relation) LIKE ? ESCAPE '\' OR LOWER(properties) LIKE ? ESCAPE '\'
 		LIMIT 50
 	`, edgeFTSQuery, likeQ, likeQ, likeQ, likeQ)
 	if err == nil {

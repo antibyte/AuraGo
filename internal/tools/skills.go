@@ -318,8 +318,19 @@ func ExecuteSkillWithSecrets(skillsDir, workspaceDir, skillName string, argsJSON
 // It reads the skill code, injects secrets/creds, prepends the args, and runs via SandboxExecuteCode.
 // Returns error if sandbox is unavailable or skill not found.
 func ExecuteSkillInSandbox(skillsDir, skillName string, argsJSON map[string]interface{}, secrets map[string]string, creds []CredentialFields, timeoutSeconds int, logger *slog.Logger) (string, error) {
+	// Path traversal check: ensure the resolved path stays within skillsDir.
+	absSkillsDir, err := filepath.Abs(skillsDir)
+	if err != nil {
+		return "", fmt.Errorf("invalid skills directory: %w", err)
+	}
+	absExecPath, err := filepath.Abs(filepath.Join(skillsDir, skillName+".py"))
+	if err != nil {
+		return "", fmt.Errorf("invalid skill path: %w", err)
+	}
+	if !strings.HasPrefix(absExecPath, absSkillsDir+string(filepath.Separator)) {
+		return "", fmt.Errorf("skill path traversal detected for '%s'", skillName)
+	}
 	// Read skill code
-	absExecPath := filepath.Join(skillsDir, skillName+".py")
 	data, err := os.ReadFile(absExecPath)
 	if err != nil {
 		return "", fmt.Errorf("skill '%s' not found: %w", skillName, err)

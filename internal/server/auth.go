@@ -491,11 +491,6 @@ func authMiddleware(s *Server, next http.Handler) http.Handler {
 					next.ServeHTTP(w, r)
 					return
 				}
-				if tok == "" {
-					// Token not yet configured (test environments); fall back to IP-only check.
-					next.ServeHTTP(w, r)
-					return
-				}
 			}
 		}
 

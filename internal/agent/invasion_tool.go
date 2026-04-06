@@ -235,7 +235,8 @@ func invasionAssignEgg(db *sql.DB, tc ToolCall, logger *slog.Logger) string {
 			return fmt.Sprintf(`Tool Output: {"status":"error","message":"Failed to unassign egg: %v"}`, uErr)
 		}
 		logger.Info("[InvasionTool] Egg unassigned from nest", "nest_id", nest.ID, "nest_name", nest.Name)
-		return fmt.Sprintf(`Tool Output: {"status":"success","message":"Egg unassigned from nest '%s'."}`, nest.Name)
+		b, _ := json.Marshal(map[string]string{"status": "success", "message": "Egg unassigned from nest '" + nest.Name + "'."})
+		return "Tool Output: " + string(b)
 	}
 
 	// Verify egg exists and is active
@@ -244,7 +245,8 @@ func invasionAssignEgg(db *sql.DB, tc ToolCall, logger *slog.Logger) string {
 		return fmt.Sprintf(`Tool Output: {"status":"error","message":"Egg not found: %v"}`, err)
 	}
 	if !egg.Active {
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"Egg '%s' is inactive. Activate it first before assigning."}`, egg.Name)
+		b, _ := json.Marshal(map[string]string{"status": "error", "message": "Egg '" + egg.Name + "' is inactive. Activate it first before assigning."})
+		return "Tool Output: " + string(b)
 	}
 
 	nest.EggID = tc.EggID
@@ -253,7 +255,8 @@ func invasionAssignEgg(db *sql.DB, tc ToolCall, logger *slog.Logger) string {
 	}
 
 	logger.Info("[InvasionTool] Egg assigned to nest", "nest_id", nest.ID, "nest_name", nest.Name, "egg_id", egg.ID, "egg_name", egg.Name)
-	return fmt.Sprintf(`Tool Output: {"status":"success","message":"Egg '%s' assigned to nest '%s'.","nest_id":"%s","egg_id":"%s"}`, egg.Name, nest.Name, nest.ID, egg.ID)
+	b, _ := json.Marshal(map[string]string{"status": "success", "message": "Egg '" + egg.Name + "' assigned to nest '" + nest.Name + "'.", "nest_id": nest.ID, "egg_id": egg.ID})
+	return "Tool Output: " + string(b)
 }
 
 // ── Deployment operations (use loopback HTTP to server endpoints) ───────────
@@ -416,7 +419,8 @@ func invasionSendTask(cfg *config.Config, db *sql.DB, tc ToolCall, logger *slog.
 
 	taskID, _ := result["task_id"].(string)
 	logger.Info("[InvasionTool] Task sent to egg", "nest_id", tc.NestID, "task_id", taskID)
-	return fmt.Sprintf(`Tool Output: {"status":"success","message":"Task sent to egg on nest %s","task_id":"%s","task":"%s"}`, tc.NestID, taskID, taskDesc)
+	bOut, _ := json.Marshal(map[string]string{"status": "success", "message": "Task sent to egg on nest " + tc.NestID, "task_id": taskID, "task": taskDesc})
+	return "Tool Output: " + string(bOut)
 }
 
 // invasionSendSecret sends a secret to a running egg via the encrypted channel.
@@ -448,5 +452,6 @@ func invasionSendSecret(cfg *config.Config, tc ToolCall, logger *slog.Logger) st
 	}
 
 	logger.Info("[InvasionTool] Secret sent to egg", "nest_id", tc.NestID, "key", tc.Key)
-	return fmt.Sprintf(`Tool Output: {"status":"success","message":"Secret '%s' sent to egg on nest %s"}`, tc.Key, tc.NestID)
+	bOut, _ := json.Marshal(map[string]string{"status": "success", "message": "Secret '" + tc.Key + "' sent to egg on nest " + tc.NestID})
+	return "Tool Output: " + string(bOut)
 }
