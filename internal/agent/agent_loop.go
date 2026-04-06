@@ -1302,7 +1302,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			const doneTagStr = "<done/>"
 			const minimaxToolCallPrefix = "minimax:tool_call"
 			const xmlToolCallPrefix = "<tool_call" // matches <tool_call> and <tool_call\n> variants
-			const actionTagPrefix = "<action>"    // bare <action>toolname</action> emitted by some models
+			const actionTagPrefix = "<action>"     // bare <action>toolname</action> emitted by some models
 			// holdLen must cover the longest tag prefix minus 1
 			const doneTagHoldLen = len(minimaxToolCallPrefix) - 1 // 16 bytes (≥ len("<done/>")-1 = 6)
 			doneTagStreamBuf := ""
