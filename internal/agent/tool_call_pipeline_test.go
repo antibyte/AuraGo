@@ -54,8 +54,7 @@ func TestParseToolResponseStripsReasoningTagsBeforeFallbackParsing(t *testing.T)
 	resp := openai.ChatCompletionResponse{
 		Choices: []openai.ChatCompletionChoice{{
 			Message: openai.ChatCompletionMessage{
-				Content: `<think>I should use a tool</think>
-{"action":"execute_shell","command":"pwd"}`,
+				Content: "<thinking>I should use a tool</thinking>\n{\"action\":\"execute_shell\",\"command\":\"pwd\"}",
 			},
 		}},
 	}
@@ -118,7 +117,6 @@ func TestParseToolResponseDoneTagStrippedFromSanitized(t *testing.T) {
 	resp := openai.ChatCompletionResponse{
 		Choices: []openai.ChatCompletionChoice{{
 			Message: openai.ChatCompletionMessage{
-				// done tag embedded mid-sentence and at end
 				Content: "Fertig! Die Dateien sind gespeichert. <done/>",
 			},
 		}},
@@ -132,15 +130,12 @@ func TestParseToolResponseDoneTagStrippedFromSanitized(t *testing.T) {
 	if strings.Contains(parsed.SanitizedContent, "<done/>") {
 		t.Fatalf("tag not stripped, SanitizedContent: %q", parsed.SanitizedContent)
 	}
-	// Raw Content must still carry the original (for history persistence)
 	if !strings.Contains(parsed.Content, "<done/>") {
 		t.Fatal("expected raw Content to still contain the original tag (not stripped)")
 	}
 }
 
 func TestParseToolCallMinimaxJSONFormat(t *testing.T) {
-	// GLM/Zhipu models emit tool calls as JSON directly after the minimax:tool_call prefix
-	// (Format 3b) rather than using <invoke name="> XML format or API-level tool_calls.
 	cases := []struct {
 		name    string
 		content string
@@ -317,9 +312,6 @@ func TestRecoverFromEmptyResponseWithPolicyHonorsMinMessages(t *testing.T) {
 	}
 }
 
-// TestRecoverFromEmptyResponsePureThinkBlock ensures that a response consisting
-// only of <think>…</think> reasoning (no visible output after stripping) is treated
-// as effectively empty and triggers recovery — preventing the agent from hanging.
 func TestRecoverFromEmptyResponsePureThinkBlock(t *testing.T) {
 	req := openai.ChatCompletionRequest{
 		Messages: []openai.ChatCompletionMessage{
@@ -337,7 +329,7 @@ func TestRecoverFromEmptyResponsePureThinkBlock(t *testing.T) {
 			Message: openai.ChatCompletionMessage{},
 		}},
 	}
-	pureThinkContent := "<think>\nThe user wants me to update the file. Let me do that.\n</think>"
+	pureThinkContent := "<thinking>\nThe user wants me to update the file. Let me do that.\n</thinking>"
 	emptyRetried := false
 
 	recovered := recoverFromEmptyResponse(resp, pureThinkContent, &req, &emptyRetried, nil, nil, AgentTelemetryScope{})
@@ -350,8 +342,6 @@ func TestRecoverFromEmptyResponsePureThinkBlock(t *testing.T) {
 	}
 }
 
-// TestRecoverFromEmptyResponseDoesNotTriggerForRealContent ensures that non-empty
-// content (even with a think block prefix) does NOT falsely trigger recovery.
 func TestRecoverFromEmptyResponseDoesNotTriggerForRealContent(t *testing.T) {
 	req := openai.ChatCompletionRequest{
 		Messages: []openai.ChatCompletionMessage{
@@ -364,12 +354,63 @@ func TestRecoverFromEmptyResponseDoesNotTriggerForRealContent(t *testing.T) {
 			Message: openai.ChatCompletionMessage{},
 		}},
 	}
-	contentWithThinkAndText := "<think>\nSome reasoning.\n</think>\n\nHere is my answer."
+	contentWithThinkAndText := "<thinking>\nSome reasoning.\n</thinking>\n\nHere is my answer."
 	emptyRetried := false
 
 	recovered := recoverFromEmptyResponse(resp, contentWithThinkAndText, &req, &emptyRetried, nil, nil, AgentTelemetryScope{})
 
 	if recovered {
 		t.Fatal("should NOT trigger recovery when real content exists after think block")
+	}
+}
+
+func TestParseToolCallBracketFormatSetsXMLFallbackDetected(t *testing.T) {
+	content := `[TOOL_CALL]{tool => "homepage", args => {--url "http://example.com"}}[/TOOL_CALL]`
+	result := ParseToolCall(content)
+	if !result.IsTool {
+		t.Fatal("expected IsTool=true for bracket format")
+	}
+	if result.Action != "homepage" {
+		t.Fatalf("expected action=homepage, got %q", result.Action)
+	}
+	if !result.XMLFallbackDetected {
+		t.Fatal("expected XMLFallbackDetected=true for bracket format tool call")
+	}
+}
+
+func TestParseToolCallBracketFormatWithThinkingPreservesToolName(t *testing.T) {
+	rawContent := ` Lass mich die Homepage aufrufen.
+[TOOL_CALL]{tool => "homepage", args => {--url "http://example.com"}}
+[/TOOL_CALL]`
+
+	resp := openai.ChatCompletionResponse{
+		Choices: []openai.ChatCompletionChoice{{
+			Message: openai.ChatCompletionMessage{
+				Content: rawContent,
+			},
+		}},
+	}
+
+	parsed := parseToolResponse(resp, nil, AgentTelemetryScope{})
+
+	if !parsed.ToolCall.IsTool {
+		t.Fatal("expected IsTool=true for bracket format behind thinking tags")
+	}
+	if parsed.ToolCall.Action != "homepage" {
+		t.Fatalf("expected action=homepage, got %q — tool name should not be overridden by secondary parser", parsed.ToolCall.Action)
+	}
+	if !parsed.ToolCall.XMLFallbackDetected {
+		t.Fatal("expected XMLFallbackDetected=true for bracket format tool call")
+	}
+}
+
+func TestParseToolCallBracketFormatInlineCloseTag(t *testing.T) {
+	content := `[TOOL_CALL]{tool => "execute_shell", args => {--command "ls"}}[/TOOL_CALL]`
+	result := ParseToolCall(content)
+	if !result.IsTool {
+		t.Fatal("expected IsTool=true for inline bracket format")
+	}
+	if result.Action != "execute_shell" {
+		t.Fatalf("expected action=execute_shell, got %q", result.Action)
 	}
 }

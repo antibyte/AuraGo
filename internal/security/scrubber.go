@@ -211,7 +211,19 @@ func StripThinkingTags(text string) string {
 	stripped := thinkingTagRe.ReplaceAllString(text, "")
 	// Unwrap <external_data> blocks: keep inner content, remove the wrapper tags.
 	stripped = externalDataTagRe.ReplaceAllString(stripped, "$1")
+	// Protect [/TOOL_CALL] closing tags from the hallucinated RAG cleanup regex.
+	// The regex \[\/[A-ZÄÖÜ][A-ZÄÖÜ _]+\] matches [/TOOL_CALL] on its own line,
+	// which breaks bracket-format tool call detection downstream.
+	const toolCallCloseMarker = "[/TOOL_CALL]"
+	const toolCallClosePlaceholder = "\x00TC_CLOSE\x00"
+	hasToolCallClose := strings.Contains(stripped, toolCallCloseMarker)
+	if hasToolCallClose {
+		stripped = strings.ReplaceAll(stripped, toolCallCloseMarker, toolCallClosePlaceholder)
+	}
 	// Remove hallucinated RAG placeholder lines (e.g. [$LEERER TRÄGER], [/SUCHERGEBNIS]).
 	stripped = hallucinatedRagRe.ReplaceAllString(stripped, "")
+	if hasToolCallClose {
+		stripped = strings.ReplaceAll(stripped, toolCallClosePlaceholder, toolCallCloseMarker)
+	}
 	return strings.TrimSpace(stripped)
 }

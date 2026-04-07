@@ -557,6 +557,7 @@ func ParseToolCall(content string) ToolCall {
 		if blockEnd := strings.Index(lowerContent[blockStart:], "[/tool_call]"); blockEnd != -1 {
 			block := content[blockStart+11 : blockStart+blockEnd]
 			if parsed, ok := parseBracketToolCallBlock(block); ok {
+				parsed.XMLFallbackDetected = true
 				return parsed
 			}
 		}
