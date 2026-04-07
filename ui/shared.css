@@ -708,6 +708,10 @@ a.logo {
     padding: 0 4px;
     line-height: 1;
     pointer-events: none;
+    transition: background 0.3s ease;
+}
+.warnings-badge.seen {
+    background: var(--text-secondary, #6b7280);
 }
 .btn-warnings.warnings-blink .warnings-icon {
     opacity: 0.4;

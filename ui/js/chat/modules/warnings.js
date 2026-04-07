@@ -1,5 +1,13 @@
 // warnings.js — System Warnings UI module
 // Loads warnings from /api/warnings, renders the modal, and listens for SSE updates.
+//
+// Badge behaviour:
+//   RED  + blink  — one or more warnings whose IDs have never been acknowledged
+//   GRAY + no blink — all current warnings were previously acknowledged (known issues)
+//   hidden          — no warnings at all
+//
+// Acknowledged IDs are persisted in localStorage so the state survives page reloads
+// and server restarts. Only truly NEW warning IDs cause the red/blink state again.
 
 (function () {
     'use strict';
@@ -15,6 +23,29 @@
 
     let warningsData = [];
     let blinkInterval = null;
+
+    // ── localStorage persistence ──────────────────────────────
+    const LS_KEY = 'aurago-warnings-acked';
+
+    function getAckedIds() {
+        try {
+            return new Set(JSON.parse(localStorage.getItem(LS_KEY) || '[]'));
+        } catch (e) {
+            return new Set();
+        }
+    }
+
+    function persistAckedId(id) {
+        const set = getAckedIds();
+        set.add(id);
+        try { localStorage.setItem(LS_KEY, JSON.stringify([...set])); } catch (e) {}
+    }
+
+    function persistAckedIds(warnings) {
+        const set = getAckedIds();
+        warnings.forEach(function (w) { set.add(w.id); });
+        try { localStorage.setItem(LS_KEY, JSON.stringify([...set])); } catch (e) {}
+    }
 
     // ── Severity helpers ──────────────────────────────────────
     function severityIcon(sev) {
@@ -34,13 +65,30 @@
     }
 
     // ── Badge / blink ─────────────────────────────────────────
-    function updateBadge(unack) {
-        if (unack > 0) {
-            badge.textContent = unack;
-            badge.classList.remove('is-hidden');
+    // warnings: full array from server.
+    function updateBadge(warnings) {
+        const total = warnings.length;
+        if (total === 0) {
+            badge.classList.add('is-hidden');
+            badge.classList.remove('seen');
+            stopBlink();
+            return;
+        }
+
+        const ackedIds = getAckedIds();
+        // "New" = present on server AND never acknowledged by this user
+        const newCount = warnings.filter(function (w) { return !ackedIds.has(w.id); }).length;
+
+        if (newCount > 0) {
+            // Genuinely new problems — alert the user
+            badge.textContent = newCount;
+            badge.classList.remove('is-hidden', 'seen');
             startBlink();
         } else {
-            badge.classList.add('is-hidden');
+            // All problems are known / previously acknowledged — show softly
+            badge.textContent = total;
+            badge.classList.remove('is-hidden');
+            badge.classList.add('seen');
             stopBlink();
         }
     }
@@ -71,16 +119,22 @@
             return;
         }
 
-        // Sort: critical > warning > info, then by timestamp desc
+        const ackedIds = getAckedIds();
+
+        // Sort: new (unacked locally) first, then critical > warning > info, then by timestamp desc
         warningsData.sort(function (a, b) {
+            const aNew = !ackedIds.has(a.id);
+            const bNew = !ackedIds.has(b.id);
+            if (aNew !== bNew) return aNew ? -1 : 1;
             const so = severityOrder(a.severity) - severityOrder(b.severity);
             if (so !== 0) return so;
             return new Date(b.timestamp) - new Date(a.timestamp);
         });
 
         warningsData.forEach(function (w) {
+            const isLocallyAcked = ackedIds.has(w.id);
             const item = document.createElement('div');
-            item.className = 'warnings-item' + (w.acknowledged ? ' acknowledged' : '');
+            item.className = 'warnings-item' + (isLocallyAcked ? ' acknowledged' : '');
             item.dataset.id = w.id;
 
             const header = document.createElement('div');
@@ -93,7 +147,7 @@
             right.className = 'warnings-item-meta';
             const catLabel = typeof t === 'function' ? t('chat.warnings_cat_' + w.category) || w.category : w.category;
             right.textContent = catLabel;
-            if (w.acknowledged) {
+            if (isLocallyAcked) {
                 right.textContent += ' ✓';
             }
 
@@ -106,7 +160,7 @@
             desc.textContent = w.description;
             item.appendChild(desc);
 
-            if (!w.acknowledged) {
+            if (!isLocallyAcked) {
                 const ackBtn = document.createElement('button');
                 ackBtn.className = 'btn-small warnings-ack-btn';
                 ackBtn.textContent = typeof t === 'function' ? t('chat.warnings_acknowledge') : 'Acknowledge';
@@ -132,7 +186,7 @@
             .then(function (r) { return r.json(); })
             .then(function (data) {
                 warningsData = data.warnings || [];
-                updateBadge(data.unacknowledged || 0);
+                updateBadge(warningsData);
                 if (overlay.classList.contains('active')) {
                     renderWarnings();
                 }
@@ -143,6 +197,11 @@
     }
 
     function acknowledgeWarning(id) {
+        // Persist locally first so the badge updates instantly even if the server call is slow
+        persistAckedId(id);
+        updateBadge(warningsData);
+        renderWarnings();
+
         fetch('/api/warnings/acknowledge', {
             method: 'POST',
             credentials: 'same-origin',
@@ -154,6 +213,11 @@
     }
 
     function acknowledgeAll() {
+        // Persist all current IDs locally
+        persistAckedIds(warningsData);
+        updateBadge(warningsData);
+        renderWarnings();
+
         fetch('/api/warnings/acknowledge', {
             method: 'POST',
             credentials: 'same-origin',
