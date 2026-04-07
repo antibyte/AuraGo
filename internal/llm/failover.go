@@ -130,9 +130,10 @@ func (fm *FailoverManager) Stop() {
 
 func (fm *FailoverManager) CreateChatCompletion(ctx context.Context, req openai.ChatCompletionRequest) (openai.ChatCompletionResponse, error) {
 	client, model := fm.active()
-	req.Model = model
+	reqCopy := req
+	reqCopy.Model = model
 
-	resp, err := client.CreateChatCompletion(ctx, req)
+	resp, err := client.CreateChatCompletion(ctx, reqCopy)
 	if err != nil {
 		fm.recordError(err)
 	} else {
@@ -143,9 +144,10 @@ func (fm *FailoverManager) CreateChatCompletion(ctx context.Context, req openai.
 
 func (fm *FailoverManager) CreateChatCompletionStream(ctx context.Context, req openai.ChatCompletionRequest) (*openai.ChatCompletionStream, error) {
 	client, model := fm.active()
-	req.Model = model
+	reqCopy := req
+	reqCopy.Model = model
 
-	stream, err := client.CreateChatCompletionStream(ctx, req)
+	stream, err := client.CreateChatCompletionStream(ctx, reqCopy)
 	if err != nil {
 		fm.recordError(err)
 	} else {

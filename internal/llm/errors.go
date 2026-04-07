@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/sashabaranov/go-openai"
 )
@@ -191,4 +192,24 @@ func isTransientByString(lowerErr string) bool {
 		strings.Contains(lowerErr, "overloaded") ||
 		strings.Contains(lowerErr, "server error") ||
 		strings.Contains(lowerErr, "eof")
+}
+
+type RateLimitError struct {
+	*LLMError
+	RetryAfterSeconds int
+}
+
+func (e *RateLimitError) RetryAfter() time.Duration {
+	if e.RetryAfterSeconds > 0 {
+		return time.Duration(e.RetryAfterSeconds) * time.Second
+	}
+	return 0
+}
+
+func GetRetryAfter(err error) time.Duration {
+	var rlErr *RateLimitError
+	if errors.As(err, &rlErr) {
+		return rlErr.RetryAfter()
+	}
+	return 0
 }

@@ -63,7 +63,9 @@ func ExecuteWithCustomRetry(ctx context.Context, client ChatClient, req openai.C
 		}
 
 		var waitTime time.Duration
-		if attempt < len(intervals) {
+		if retryAfter := GetRetryAfter(err); retryAfter > 0 {
+			waitTime = retryAfter
+		} else if attempt < len(intervals) {
 			waitTime = intervals[attempt]
 		} else {
 			waitTime = finalInterval
@@ -127,7 +129,9 @@ func ExecuteStreamWithCustomRetry(ctx context.Context, client ChatClient, req op
 		}
 
 		var waitTime time.Duration
-		if attempt < len(intervals) {
+		if retryAfter := GetRetryAfter(err); retryAfter > 0 {
+			waitTime = retryAfter
+		} else if attempt < len(intervals) {
 			waitTime = intervals[attempt]
 		} else {
 			waitTime = finalInterval
