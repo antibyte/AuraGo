@@ -47,7 +47,7 @@ func ExecuteGolangciLint(lintPath, configPath, workspaceDir string) string {
 	}
 
 	// Build args
-	args := []string{"run", "--out-format=line-number"}
+	args := []string{"run"}
 	if configPath != "" {
 		resolved, resolveErr := filepath.Abs(filepath.Join(absWorkDir, configPath))
 		if resolveErr == nil {
@@ -80,6 +80,10 @@ func ExecuteGolangciLint(lintPath, configPath, workspaceDir string) string {
 	select {
 	case <-timer.C:
 		KillProcessTree(cmd.Process.Pid)
+		select {
+		case <-done:
+		case <-time.After(10 * time.Second):
+		}
 		return encodeGolangciResult(GolangciLintResult{
 			Status:  "error",
 			Message: "golangci-lint timed out after 5 minutes",
