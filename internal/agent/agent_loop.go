@@ -1683,7 +1683,17 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				historyManager.Add(openai.ChatMessageRoleUser, xmlFeedback, id, false, true)
 			}
 
-			req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: content})
+			// When the XML fallback content is very large (e.g. a full write_file payload
+			// with kilobytes of code), storing it verbatim in req.Messages balloons the
+			// context and routinely causes the next LLM call to return empty.  Replace it
+			// with a compact synthetic representation so the corrective feedback cycle
+			// does not destroy the remaining context budget.
+			const xmlFallbackContentMaxBytes = 500
+			xmlAssistantContent := content
+			if len(xmlAssistantContent) > xmlFallbackContentMaxBytes {
+				xmlAssistantContent = fmt.Sprintf(`{"action":"%s"}`, tc.Action)
+			}
+			req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: xmlAssistantContent})
 			req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: xmlFeedback})
 			// Don't continue — fall through so the tool is actually executed this turn.
 		}

@@ -141,6 +141,7 @@ func trimMessagesForEmptyResponse(msgs []openai.ChatCompletionMessage) []openai.
 		return msgs
 	}
 
+	// Always keep the system prompt (index 0, and optionally index 1 if also system).
 	trimmed := []openai.ChatCompletionMessage{msgs[0]}
 	startIdx := 1
 	if len(msgs) > 1 && msgs[1].Role == openai.ChatMessageRoleSystem {
@@ -148,10 +149,38 @@ func trimMessagesForEmptyResponse(msgs []openai.ChatCompletionMessage) []openai.
 		startIdx = 2
 	}
 	historyMsgs := msgs[startIdx:]
-	if len(historyMsgs) > 4 {
-		historyMsgs = historyMsgs[len(historyMsgs)-4:]
+
+	// Find the last genuine user message (non-empty, non-internal tool noise).
+	// It represents the original user intent and must survive the trim so the LLM
+	// knows what task it was working on.  Without this, after an XML-fallback cycle
+	// inflates context and triggers an empty response, the trimmed context loses the
+	// task entirely and the LLM replies with just descriptive text instead of acting.
+	lastUserIdx := -1
+	for i := len(historyMsgs) - 1; i >= 0; i-- {
+		if historyMsgs[i].Role == openai.ChatMessageRoleUser {
+			lastUserIdx = i
+			break
+		}
 	}
-	return append(trimmed, historyMsgs...)
+
+	const keepTail = 4
+	if len(historyMsgs) <= keepTail {
+		return append(trimmed, historyMsgs...)
+	}
+
+	tail := historyMsgs[len(historyMsgs)-keepTail:]
+
+	// If the last user message is already inside the tail window, nothing extra needed.
+	if lastUserIdx >= len(historyMsgs)-keepTail {
+		return append(trimmed, tail...)
+	}
+
+	// Last user message is outside the tail — prepend it so the LLM retains the intent.
+	if lastUserIdx >= 0 {
+		return append(trimmed, append([]openai.ChatCompletionMessage{historyMsgs[lastUserIdx]}, tail...)...)
+	}
+
+	return append(trimmed, tail...)
 }
 
 func recoverFromEmptyResponse(resp openai.ChatCompletionResponse, content string, req *openai.ChatCompletionRequest, emptyRetried *bool, logger *slog.Logger, broker FeedbackBroker, scope AgentTelemetryScope) bool {
