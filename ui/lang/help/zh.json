@@ -153,6 +153,8 @@
   "help.llm.helper_enabled": "Enables the dedicated Helper LLM for internal analysis and background tasks. If disabled, many dependent helper features will not work fully.",
   "help.llm.helper_provider": "Provider from provider management for the Helper LLM. This model is used for internal helper tasks and is separate from the Guardian model.",
   "help.llm.helper_model": "Optional model override for the Helper LLM. A smaller, faster and cheaper model is usually recommended here.",
+  "help.llm.multimodal": "启用后，AuraGo 会将聊天中上传的图片附件转换为发送给主 LLM 的多模态 `image_url` 内容片段。需要支持视觉的模型/提供商。注意：图片可能显著增加上下文/Token 使用量和成本。",
+  "help.llm.multimodal_provider_types_extra": "可选：额外的 provider type 列表，用于将这些类型也视为支持图片多模态（例如：如果你的 Ollama 端点支持 image parts，可添加 \"ollama\"）。",
   "help.llm.structured_outputs": "⚠️ 为工具调用启用结构化输出（严格模式）。仅适用于支持此功能的型号（例如 GPT-4o、GPT-4o-mini）。不兼容的型号会返回错误！",
   "help.llm.temperature": "语言模型的采样温度 (0.1–1.5)。较低的值→更具确定性，较高→更具创造性。默认值：0.7。个性引擎会自动稍微调整该值（±0.1）。",
   "help.llm.use_native_functions": "⚠️ 使用 LLM 的本机函数调用，而不是基于 JSON 的工具调度。仅当模型支持此功能时才启用（例如 GPT-4、Claude、Gemini）。免费套餐模型通常不支持此功能！",

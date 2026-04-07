@@ -153,6 +153,8 @@
   "help.llm.helper_enabled": "Enables the dedicated Helper LLM for internal analysis and background tasks. If disabled, many dependent helper features will not work fully.",
   "help.llm.helper_provider": "Provider from provider management for the Helper LLM. This model is used for internal helper tasks and is separate from the Guardian model.",
   "help.llm.helper_model": "Optional model override for the Helper LLM. A smaller, faster and cheaper model is usually recommended here.",
+  "help.llm.multimodal": "有効にすると、AuraGo はチャットでアップロードした画像添付を、メイン LLM へのリクエスト内のマルチモーダル `image_url` パートに変換します。Vision 対応のモデル/プロバイダーが必要です。注意: 画像はコンテキスト/トークン使用量とコストを大きく増やす場合があります。",
+  "help.llm.multimodal_provider_types_extra": "任意: 画像をマルチモーダル対応として扱う追加のプロバイダー種別のリスト（例: Ollama エンドポイントが image parts をサポートする場合は \"ollama\" を追加）。",
   "help.llm.structured_outputs": "⚠️ ツール呼び出しの構造化出力 (厳密モード) を有効にします。これをサポートするモデル (GPT-4o、GPT-4o-mini など) でのみ有効にします。互換性のないモデルではエラーが返されます。",
   "help.llm.temperature": "言語モデルのサンプリング温度 (0.1 ～ 1.5)。値が低いほど決定性が高く、値が高いほど創造的になります。デフォルト: 0.7。パーソナリティ エンジンは、この値を自動的にわずかに調整します (±0.1)。",
   "help.llm.use_native_functions": "⚠️ JSON ベースのツールディスパッチの代わりに、LLM のネイティブ関数呼び出しを使用します。モデルがこれをサポートしている場合にのみ有効にします (GPT-4、Claude、Gemini など)。無料枠モデルでは多くの場合、これがサポートされていません。",

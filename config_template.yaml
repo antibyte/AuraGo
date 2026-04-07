@@ -349,6 +349,8 @@ s3:
 providers: []
 llm:
     provider: ""
+    multimodal: false                                      # enable image inputs (multimodal chat) in the main agent loop
+    multimodal_provider_types_extra: []                    # optional: extra provider types treated as multimodal-capable (e.g. ["ollama"])
     helper_enabled: false                                   # recommended: enable a dedicated helper LLM for internal analysis/background features
     helper_provider: ""                                     # if disabled or unset, many helper-dependent features will not work fully
     helper_model: ""                                        # optional override; use a smaller, cost-efficient model here when possible

@@ -122,7 +122,7 @@
 
     <footer class="app-footer">
         <form id="chat-form" class="input-row">
-            <input type="file" id="file-input" class="is-hidden">
+            <input type="file" id="file-input" class="is-hidden" multiple>
             <button type="button" id="voice-btn" class="btn-voice btn-composer-primary" title="🎤">🎤</button>
             <div class="input-wrap">
                 <textarea id="user-input" name="aura-chat-input" autocomplete="off" spellcheck="true" rows="1"
@@ -171,6 +171,7 @@
             <span>📎&nbsp;</span><span id="attachment-name" class="attachment-chip-name"></span>
             <button type="button" id="attachment-clear" class="chip-clear">✕</button>
         </div>
+        <div id="attachments-panel" class="attachments-panel is-hidden"></div>
     </footer>
 
     <!-- ── Warnings Modal ── -->

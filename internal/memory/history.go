@@ -30,6 +30,7 @@ type HistoryMessage struct {
 type historyMessageDisk struct {
 	Role         string               `json:"role"`
 	Content      string               `json:"content,omitempty"`
+	MultiContent []openai.ChatMessagePart `json:"multi_content,omitempty"`
 	Name         string               `json:"name,omitempty"`
 	FunctionCall *openai.FunctionCall `json:"function_call,omitempty"`
 	ToolCalls    []openai.ToolCall    `json:"tool_calls,omitempty"`
@@ -41,9 +42,16 @@ type historyMessageDisk struct {
 
 // MarshalJSON serialises all fields including Pinned, IsInternal, and ID.
 func (h HistoryMessage) MarshalJSON() ([]byte, error) {
+	content := h.Content
+	multi := h.MultiContent
+	if len(multi) > 0 {
+		// openai.ChatCompletionMessage rejects having both Content and MultiContent set.
+		content = ""
+	}
 	return json.Marshal(historyMessageDisk{
 		Role:         h.Role,
-		Content:      h.Content,
+		Content:      content,
+		MultiContent: multi,
 		Name:         h.Name,
 		FunctionCall: h.FunctionCall,
 		ToolCalls:    h.ToolCalls,
@@ -63,6 +71,7 @@ func (h *HistoryMessage) UnmarshalJSON(data []byte) error {
 	h.ChatCompletionMessage = openai.ChatCompletionMessage{
 		Role:         d.Role,
 		Content:      d.Content,
+		MultiContent: d.MultiContent,
 		Name:         d.Name,
 		FunctionCall: d.FunctionCall,
 		ToolCalls:    d.ToolCalls,
@@ -223,6 +232,25 @@ func (hm *HistoryManager) Add(role, content string, id int64, pinned bool, isInt
 	return nil
 }
 
+func (hm *HistoryManager) AddMessage(msg openai.ChatCompletionMessage, id int64, pinned bool, isInternal bool) error {
+	hm.mu.Lock()
+	hm.Messages = append(hm.Messages, HistoryMessage{
+		ChatCompletionMessage: msg,
+		ID:                   id,
+		Pinned:               pinned,
+		IsInternal:           isInternal,
+	})
+	// For ephemeral (co-agent) history, enforce a message-count ceiling to
+	// prevent unbounded memory growth in long-running co-agent loops.
+	if hm.file == "" && len(hm.Messages) > maxEphemeralMessages {
+		hm.trimEphemeralLocked()
+	}
+	hm.mu.Unlock()
+
+	hm.triggerSave()
+	return nil
+}
+
 // trimEphemeralLocked removes the oldest non-pinned messages until the slice is
 // at 75 % of maxEphemeralMessages. Must be called with hm.mu held.
 // If all messages are pinned and the slice still exceeds the target, the oldest
@@ -276,7 +304,14 @@ func (hm *HistoryManager) Get() []openai.ChatCompletionMessage {
 
 	copied := make([]openai.ChatCompletionMessage, len(hm.Messages))
 	for i, m := range hm.Messages {
-		copied[i] = m.ChatCompletionMessage
+		msg := m.ChatCompletionMessage
+		if len(msg.MultiContent) > 0 {
+			msg.MultiContent = append([]openai.ChatMessagePart(nil), msg.MultiContent...)
+		}
+		if len(msg.ToolCalls) > 0 {
+			msg.ToolCalls = append([]openai.ToolCall(nil), msg.ToolCalls...)
+		}
+		copied[i] = msg
 	}
 	return copied
 }

@@ -232,6 +232,9 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 				s.Logger.Error("Failed to insert user message", "error", err)
 			}
 			if sessionID == "default" {
+				// Persist the raw text message (including attachment paths) so we
+				// don't bloat history.json with base64-encoded images. Multimodal
+				// promotion happens only when building the outgoing LLM request.
 				s.HistoryManager.Add(lastUserMsg.Role, lastUserMsg.Content, id, false, false)
 			}
 		}
@@ -423,6 +426,18 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			} else {
 				s.muFirstStart.Unlock()
 			}
+		}
+
+		// Multimodal promotion (images): convert uploaded attachment references into
+		// OpenAI-style MultiContent parts for the outgoing LLM request. We do this
+		// here (not in HistoryManager) to avoid bloating persisted history with
+		// base64-encoded image data.
+		s.CfgMu.RLock()
+		cfg := s.Cfg
+		workspaceDir := s.Cfg.Directories.WorkspaceDir
+		s.CfgMu.RUnlock()
+		for i := range finalMessages {
+			finalMessages[i] = promoteUploadedImagesToMultiContent(cfg, finalMessages[i], workspaceDir, s.Logger)
 		}
 
 		req.Messages = finalMessages

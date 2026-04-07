@@ -261,7 +261,8 @@
                             const response = JSON.parse(xhr.responseText);
                             this.onUpload({
                                 path: response.path,
-                                filename: response.filename
+                                filename: response.filename,
+                                file: item.file
                             });
                             resolve(response);
                         } catch (e) {

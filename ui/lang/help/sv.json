@@ -153,6 +153,8 @@
   "help.llm.helper_enabled": "Enables the dedicated Helper LLM for internal analysis and background tasks. If disabled, many dependent helper features will not work fully.",
   "help.llm.helper_provider": "Provider from provider management for the Helper LLM. This model is used for internal helper tasks and is separate from the Guardian model.",
   "help.llm.helper_model": "Optional model override for the Helper LLM. A smaller, faster and cheaper model is usually recommended here.",
+  "help.llm.multimodal": "När aktiverat konverterar AuraGo uppladdade bildbilagor i chatten till multimodala `image_url`-delar i begäran till huvud-LLM. Kräver en vision-kompatibel modell/leverantör. Obs: bilder kan öka kontext-/tokenanvändning och kostnader avsevärt.",
+  "help.llm.multimodal_provider_types_extra": "Valfri lista med extra leverantörstyper som ska behandlas som multimodala för bilder (t.ex. lägg till \"ollama\" om din Ollama-endpoint stöder image parts).",
   "help.llm.structured_outputs": "Structured Outputs pro volani nastroju.",
   "help.llm.temperature": "Sampling teplota.",
   "help.llm.use_native_functions": "Nativni function calling.",

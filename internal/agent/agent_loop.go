@@ -111,7 +111,7 @@ func buildTrimmedContextRecap(messages []openai.ChatCompletionMessage, tokenBudg
 		builder.WriteString(fmt.Sprintf("Earlier omitted messages before this recap: %d\n", start))
 	}
 	for _, msg := range messages[start:] {
-		content := strings.Join(strings.Fields(msg.Content), " ")
+		content := strings.Join(strings.Fields(messageText(msg)), " ")
 		if content == "" {
 			continue
 		}
@@ -206,8 +206,12 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	initialUserMsg := ""
 	if len(req.Messages) > 0 {
 		for i := len(req.Messages) - 1; i >= 0; i-- {
-			if req.Messages[i].Role == openai.ChatMessageRoleUser && strings.TrimSpace(req.Messages[i].Content) != "" {
-				initialUserMsg = req.Messages[i].Content
+			if req.Messages[i].Role == openai.ChatMessageRoleUser {
+				txt := strings.TrimSpace(messageText(req.Messages[i]))
+				if txt == "" {
+					continue
+				}
+				initialUserMsg = txt
 				break
 			}
 		}
@@ -699,7 +703,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 		// Prepare Dynamic Tool Guides
 		if len(req.Messages) > 0 && req.Messages[len(req.Messages)-1].Role == openai.ChatMessageRoleUser {
-			lastUserMsg = req.Messages[len(req.Messages)-1].Content
+			lastUserMsg = messageText(req.Messages[len(req.Messages)-1])
 		}
 
 		// Get the mood trigger context from the message history
@@ -1137,7 +1141,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			// slow synchronous LLM call inside CompressHistory (up to 30 seconds).
 			compressionTokens := 0
 			for _, m := range req.Messages {
-				compressionTokens += prompts.CountTokens(m.Content) + 4
+				compressionTokens += prompts.CountTokens(messageText(m)) + 4
 			}
 			compressionThreshold := int(float64(maxHistoryTokens) * compressionThresholdPct)
 			if compressionTokens > compressionThreshold {
@@ -1155,7 +1159,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		// A 4096-token margin is reserved for the model's completion output.
 		totalMsgTokens := 0
 		for _, m := range req.Messages {
-			totalMsgTokens += prompts.CountTokens(m.Content) + 4 // ~4 tokens overhead per message
+			totalMsgTokens += prompts.CountTokens(messageText(m)) + 4 // ~4 tokens overhead per message
 		}
 		if totalMsgTokens > maxHistoryTokens && len(req.Messages) > 2 {
 			broker.Send("thinking", "Trimming context window...")
@@ -1171,7 +1175,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				dropped := mid[0]
 				droppedMessages = append(droppedMessages, dropped)
 				mid = mid[1:]
-				totalMsgTokens -= prompts.CountTokens(dropped.Content) + 4
+				totalMsgTokens -= prompts.CountTokens(messageText(dropped)) + 4
 			}
 			trimmedMessages := []openai.ChatCompletionMessage{sysMsg}
 			remainingRecapBudget := maxHistoryTokens - totalMsgTokens - 4
@@ -1191,8 +1195,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		if len(req.Messages) > 0 {
 			lastMsg := req.Messages[len(req.Messages)-1]
 			// Keep conversation logs in the original logger (stdout) to avoid pollution of technical log
-			logger.Info("[LLM Request]", "role", lastMsg.Role, "content_len", len(lastMsg.Content), "preview", Truncate(lastMsg.Content, 200))
-			currentLogger.Info("[LLM Request Redirected]", "role", lastMsg.Role, "content_len", len(lastMsg.Content))
+			lastMsgText := messageText(lastMsg)
+			logger.Info("[LLM Request]", "role", lastMsg.Role, "content_len", len(lastMsgText), "preview", Truncate(lastMsgText, 200))
+			currentLogger.Info("[LLM Request Redirected]", "role", lastMsg.Role, "content_len", len(lastMsgText))
 			currentLogger.Debug("[LLM Full History]", "messages_count", len(req.Messages))
 		}
 
@@ -1416,7 +1421,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			// Estimate streaming tokens
 			completionTokens = estimateTokensForModel(content, req.Model)
 			for _, m := range req.Messages {
-				promptTokens += estimateTokensForModel(m.Content, req.Model)
+				promptTokens += estimateTokensForModel(messageText(m), req.Model)
 			}
 			totalTokens = promptTokens + completionTokens
 
@@ -1511,7 +1516,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 			// Estimate prompt tokens from all messages in request
 			for _, m := range req.Messages {
-				promptTokens += estimateTokensForModel(m.Content, req.Model)
+				promptTokens += estimateTokensForModel(messageText(m), req.Model)
 			}
 			// Estimate completion tokens from response content
 			completionTokens = estimateTokensForModel(content, req.Model)

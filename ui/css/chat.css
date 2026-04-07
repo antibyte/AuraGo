@@ -2282,6 +2282,98 @@
             max-width: 260px;
         }
 
+        .attachments-panel {
+            max-width: 52rem;
+            min-width: 18rem;
+            background: color-mix(in srgb, var(--bg-secondary, #111827) 92%, var(--accent-dim) 8%);
+            border: 1px solid var(--border-accent);
+            border-radius: 16px;
+            padding: 10px;
+            position: absolute;
+            left: 50%;
+            bottom: calc(100% + 2.4rem);
+            transform: translateX(-50%);
+            z-index: 54;
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            box-shadow: 0 16px 34px rgba(15, 23, 42, 0.22);
+            animation: composerPopoverIn 0.18s ease;
+            pointer-events: auto;
+        }
+
+        .attachments-panel.is-hidden {
+            display: none;
+        }
+
+        .attachments-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: flex-start;
+        }
+
+        .attachment-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 10px;
+            border-radius: 12px;
+            background: color-mix(in srgb, var(--bg-tertiary, #0b1220) 92%, var(--accent-dim) 8%);
+            border: 1px solid rgba(148, 163, 184, 0.14);
+            max-width: 360px;
+        }
+
+        .attachment-thumb {
+            width: 44px;
+            height: 44px;
+            border-radius: 10px;
+            object-fit: cover;
+            background: rgba(15, 23, 42, 0.35);
+            border: 1px solid rgba(148, 163, 184, 0.18);
+            flex-shrink: 0;
+        }
+
+        .attachment-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 0;
+        }
+
+        .attachment-filename {
+            font-size: 0.82rem;
+            color: var(--text-primary);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 240px;
+        }
+
+        .attachment-path {
+            font-size: 0.72rem;
+            color: var(--text-secondary);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 240px;
+        }
+
+        .attachment-remove {
+            margin-left: auto;
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            padding: 2px 6px;
+            line-height: 1;
+            flex-shrink: 0;
+        }
+
+        .attachment-remove:hover {
+            color: var(--text-primary);
+        }
+
         @keyframes composerPopoverIn {
             from {
                 opacity: 0;

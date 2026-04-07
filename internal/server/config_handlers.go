@@ -19,6 +19,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"time"
 
@@ -395,9 +396,9 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			s.Cfg.ConfigPath = savedPath
 
 			// Reconfigure the live LLM client when model, API key, base URL,
-			// provider or fallback settings have changed.  This ensures that model
+			// provider or fallback settings have changed. This ensures that model
 			// name changes in the web UI take effect immediately without a restart.
-			if oldCfg.LLM != newCfg.LLM || oldCfg.FallbackLLM != newCfg.FallbackLLM {
+			if llmHotReloadChanged(oldCfg, *newCfg) || oldCfg.FallbackLLM != newCfg.FallbackLLM {
 				if fm, ok := s.LLMClient.(*llm.FailoverManager); ok {
 					fm.Reconfigure(s.Cfg)
 					s.Logger.Info("[Config UI] LLM client reconfigured",
@@ -790,6 +791,52 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			})
 		}
 	}
+}
+
+func llmHotReloadChanged(oldCfg config.Config, newCfg config.Config) bool {
+	type llmFingerprint struct {
+		Provider                   string
+		LegacyURL                  string
+		LegacyAPIKey               string
+		LegacyModel                string
+		HelperEnabled              bool
+		HelperProvider             string
+		HelperModel                string
+		UseNativeFunctions         bool
+		Temperature                float64
+		StructuredOutputs          bool
+		Multimodal                 bool
+		MultimodalProviderTypesExtra []string
+	}
+	oldFP := llmFingerprint{
+		Provider:                     oldCfg.LLM.Provider,
+		LegacyURL:                    oldCfg.LLM.LegacyURL,
+		LegacyAPIKey:                 oldCfg.LLM.LegacyAPIKey,
+		LegacyModel:                  oldCfg.LLM.LegacyModel,
+		HelperEnabled:                oldCfg.LLM.HelperEnabled,
+		HelperProvider:               oldCfg.LLM.HelperProvider,
+		HelperModel:                  oldCfg.LLM.HelperModel,
+		UseNativeFunctions:           oldCfg.LLM.UseNativeFunctions,
+		Temperature:                  oldCfg.LLM.Temperature,
+		StructuredOutputs:            oldCfg.LLM.StructuredOutputs,
+		Multimodal:                   oldCfg.LLM.Multimodal,
+		MultimodalProviderTypesExtra: oldCfg.LLM.MultimodalProviderTypesExtra,
+	}
+	newFP := llmFingerprint{
+		Provider:                     newCfg.LLM.Provider,
+		LegacyURL:                    newCfg.LLM.LegacyURL,
+		LegacyAPIKey:                 newCfg.LLM.LegacyAPIKey,
+		LegacyModel:                  newCfg.LLM.LegacyModel,
+		HelperEnabled:                newCfg.LLM.HelperEnabled,
+		HelperProvider:               newCfg.LLM.HelperProvider,
+		HelperModel:                  newCfg.LLM.HelperModel,
+		UseNativeFunctions:           newCfg.LLM.UseNativeFunctions,
+		Temperature:                  newCfg.LLM.Temperature,
+		StructuredOutputs:            newCfg.LLM.StructuredOutputs,
+		Multimodal:                   newCfg.LLM.Multimodal,
+		MultimodalProviderTypesExtra: newCfg.LLM.MultimodalProviderTypesExtra,
+	}
+	return !reflect.DeepEqual(oldFP, newFP)
 }
 
 // sensitiveKeys are YAML keys whose values should be masked in the API response.

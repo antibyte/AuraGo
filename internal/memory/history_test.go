@@ -97,6 +97,46 @@ func TestHistoryManager_PersistAndLoad(t *testing.T) {
 	}
 }
 
+func TestHistoryManager_PersistAndLoad_MultiContent(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "history.json")
+
+	hm := NewHistoryManager(path)
+	msg := openai.ChatCompletionMessage{
+		Role: openai.ChatMessageRoleUser,
+		MultiContent: []openai.ChatMessagePart{
+			{Type: openai.ChatMessagePartTypeText, Text: "what is in this image?"},
+			{Type: openai.ChatMessagePartTypeImageURL, ImageURL: &openai.ChatMessageImageURL{URL: "data:image/png;base64,AA=="}},
+		},
+	}
+	if err := hm.AddMessage(msg, 7, false, false); err != nil {
+		t.Fatalf("AddMessage: %v", err)
+	}
+	hm.Close()
+
+	hm2 := NewHistoryManager(path)
+	defer hm2.Close()
+	all := hm2.GetAll()
+	if len(all) != 1 {
+		t.Fatalf("expected 1 message after reload, got %d", len(all))
+	}
+	if all[0].Role != openai.ChatMessageRoleUser {
+		t.Fatalf("expected role %q, got %q", openai.ChatMessageRoleUser, all[0].Role)
+	}
+	if all[0].Content != "" {
+		t.Fatalf("expected empty Content for MultiContent message, got %q", all[0].Content)
+	}
+	if len(all[0].MultiContent) != 2 {
+		t.Fatalf("expected 2 MultiContent parts, got %d", len(all[0].MultiContent))
+	}
+	if all[0].MultiContent[0].Type != openai.ChatMessagePartTypeText {
+		t.Fatalf("expected first part type text, got %q", all[0].MultiContent[0].Type)
+	}
+	if all[0].MultiContent[1].Type != openai.ChatMessagePartTypeImageURL {
+		t.Fatalf("expected second part type image_url, got %q", all[0].MultiContent[1].Type)
+	}
+}
+
 func TestHistoryManager_EmptyFileStartsFresh(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "history.json")

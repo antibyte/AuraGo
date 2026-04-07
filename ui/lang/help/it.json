@@ -153,6 +153,8 @@
   "help.llm.helper_enabled": "Enables the dedicated Helper LLM for internal analysis and background tasks. If disabled, many dependent helper features will not work fully.",
   "help.llm.helper_provider": "Provider from provider management for the Helper LLM. This model is used for internal helper tasks and is separate from the Guardian model.",
   "help.llm.helper_model": "Optional model override for the Helper LLM. A smaller, faster and cheaper model is usually recommended here.",
+  "help.llm.multimodal": "Se attivo, AuraGo converte le immagini caricate in chat in parti multimodali `image_url` nella richiesta al LLM principale. Richiede un modello/provider con supporto vision. Attenzione: le immagini possono aumentare molto uso di contesto/token e costi.",
+  "help.llm.multimodal_provider_types_extra": "Elenco opzionale di tipi di provider aggiuntivi da trattare come multimodali per le immagini (es. aggiungi \"ollama\" se il tuo endpoint Ollama supporta gli image parts).",
   "help.llm.structured_outputs": "⚠️ Abilita Structured Outputs (strict mode) per le chiamate tool. ABILITA SOLO per modelli che lo supportano (es. GPT-4o, GPT-4o-mini). I modelli incompatibili restituiranno errori!",
   "help.llm.temperature": "Temperatura di campionamento per il modello di linguaggio (0.1–1.5). Valori più bassi → più deterministico, più alti → più creativo. Default: 0.7. Il motore della personalità regola leggermente questo valore automaticamente (±0.1).",
   "help.llm.use_native_functions": "⚠️ Usa il function calling nativo del LLM invece del dispatch tool JSON. Abilita solo se il modello lo supporta (es. GPT-4, Claude, Gemini). I modelli tier gratuito spesso NON lo supportano!",

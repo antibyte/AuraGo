@@ -549,6 +549,9 @@ async function renderSection(key) {
         html += `<div class="cfg-note-banner cfg-note-banner-info">
                     \u{1F6E1} ${t('config.llm.helper_guardian_banner')}
                 </div>`;
+        html += `<div class="cfg-note-banner cfg-note-banner-info">
+                    \u{1F5BC}\uFE0F ${t('config.llm.multimodal_banner')}
+                </div>`;
     }
 
     // Embeddings explanation
@@ -667,6 +670,8 @@ async function renderSection(key) {
 
     document.getElementById('content').innerHTML = html;
 
+    _initArrayChipFields();
+
     // ── Embeddings: multimodal_format visibility depends on multimodal toggle ──
     if (key === 'embeddings') {
         _embeddingsBindMultimodal();
@@ -688,6 +693,66 @@ function _embeddingsBindMultimodal() {
 
     // Observe class changes on the toggle to react to toggleBool()
     new MutationObserver(sync).observe(toggle, { attributes: true, attributeFilter: ['class'] });
+}
+
+function _initArrayChipFields() {
+    document.querySelectorAll('.cfg-array-chips').forEach((wrap) => {
+        const hidden = wrap.querySelector('input[data-path]');
+        const row = wrap.querySelector('.cfg-chip-row');
+        const input = wrap.querySelector('.cfg-chip-input');
+        const addBtn = wrap.querySelector('.cfg-chip-add-btn');
+        if (!hidden || !row || !input || !addBtn) return;
+
+        function parse() {
+            return (hidden.value || '').split(',').map(s => s.trim()).filter(Boolean);
+        }
+
+        function set(values) {
+            hidden.value = values.join(', ');
+            markDirty();
+        }
+
+        function render() {
+            const values = parse();
+            row.innerHTML = values.map(v => {
+                const safe = escapeHtml(v);
+                return `<span class="cfg-chip" data-chip="${escapeAttr(v)}">${safe}<button type="button" class="cfg-chip-x" data-chip-x="${escapeAttr(v)}" title="Remove">✕</button></span>`;
+            }).join('');
+        }
+
+        function addCurrent() {
+            const v = (input.value || '').trim();
+            if (!v) return;
+            const values = parse();
+            const norm = v.toLowerCase();
+            if (!values.some(x => x.toLowerCase() === norm)) {
+                values.push(v);
+                set(values);
+            }
+            input.value = '';
+            render();
+        }
+
+        addBtn.addEventListener('click', addCurrent);
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addCurrent();
+            }
+        });
+
+        wrap.addEventListener('click', (e) => {
+            const btn = e.target.closest('.cfg-chip-x');
+            if (!btn) return;
+            const v = btn.dataset.chipX;
+            if (!v) return;
+            const values = parse().filter(x => x !== v);
+            set(values);
+            render();
+        });
+
+        render();
+    });
 }
 
 
@@ -838,14 +903,27 @@ function renderField(fullPath, key, value, parentPath, fieldSchema) {
                 + '💰 ' + t('config.budget.models_moved_hint')
                 + '</div>';
         } else {
-        const isObjArray = (Array.isArray(value) && value.length > 0 && typeof value[0] === 'object' && value[0] !== null);
-        if (isObjArray) {
-            const jsonVal = Array.isArray(value) ? JSON.stringify(value, null, 2) : '[]';
-            html += '<textarea class="field-input cfg-json-array-input" data-path="' + fullPath + '" data-type="json" rows="6">' + escapeHtml(jsonVal) + '</textarea>';
-            html += '<div class="cfg-json-array-hint">' + t('config.field.json_array_hint') + '</div>';
+        if (fullPath === 'llm.multimodal_provider_types_extra') {
+            const arr = Array.isArray(value) ? value : (value ? String(value).split(',').map(s => s.trim()).filter(Boolean) : []);
+            const joined = arr.join(', ');
+            html += `<div class="cfg-array-chips" data-array-path="${escapeAttr(fullPath)}">
+                <div class="cfg-chip-row" data-chip-row="1"></div>
+                <div class="cfg-chip-input-row">
+                    <input class="field-input cfg-chip-input" type="text" placeholder="ollama">
+                    <button type="button" class="cfg-btn cfg-btn-sm cfg-chip-add-btn" title="Add">+</button>
+                </div>
+                <input class="field-input is-hidden" type="text" data-path="${escapeAttr(fullPath)}" data-type="array" value="${escapeAttr(joined)}">
+            </div>`;
         } else {
-            const arrVal = Array.isArray(value) ? value.join(', ') : (value || '');
-            html += '<input class="field-input" type="text" data-path="' + fullPath + '" data-type="array" value="' + escapeAttr(arrVal) + '" placeholder="' + t('config.field.comma_separated') + '">';
+            const isObjArray = (Array.isArray(value) && value.length > 0 && typeof value[0] === 'object' && value[0] !== null);
+            if (isObjArray) {
+                const jsonVal = Array.isArray(value) ? JSON.stringify(value, null, 2) : '[]';
+                html += '<textarea class="field-input cfg-json-array-input" data-path="' + fullPath + '" data-type="json" rows="6">' + escapeHtml(jsonVal) + '</textarea>';
+                html += '<div class="cfg-json-array-hint">' + t('config.field.json_array_hint') + '</div>';
+            } else {
+                const arrVal = Array.isArray(value) ? value.join(', ') : (value || '');
+                html += '<input class="field-input" type="text" data-path="' + fullPath + '" data-type="array" value="' + escapeAttr(arrVal) + '" placeholder="' + t('config.field.comma_separated') + '">';
+            }
         }
         }
     } else {

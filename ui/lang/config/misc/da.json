@@ -11,6 +11,7 @@
   "config.llm.helper_enabled_banner": "The Helper LLM is enabled. AuraGo uses it for internal analysis and background tasks and batches helper requests whenever possible. A smaller, faster and cheaper model is usually a good fit here.",
   "config.llm.helper_disabled_banner": "The Helper LLM is disabled. Many dependent analysis and background features will not work fully, and AuraGo cannot use its full potential without it.",
   "config.llm.helper_guardian_banner": "The LLM Guardian always uses its own separate model path. It is not routed through the Helper LLM.",
+  "config.llm.multimodal_banner": "Multimodal (billeder): Når det er aktiveret, kan uploadede billeder i chat sendes direkte til hovedmodellen.",
   "config.embeddings.info_banner": "Indlejringer konverterer tekst til numeriske vektorer, så agenten kan finde semantisk lignende indhold. Dette driver agentens <strong>langtidshukommelse</strong>: samtaleindhold, noter og indekserede filer gemmes som indlejringer og hentes automatisk, når det er relevant. Model og URL er taget fra den valgte <strong>udbyderindgang</strong>.",
   "config.budget.info_banner": "Værdier, der ikke kan bestemmes direkte (f.eks. lokale modeller uden token-rapportering), estimeres internt. Det viste forbrug kan afvige fra det faktiske forbrug. Denne funktion erstatter <strong>ikke</strong> indstilling af forbrugsgrænser direkte hos udbyderen eller API.",
   "config.tools.warning_banner": "<strong>Disse indstillinger bør normalt ikke ændres.</strong> Deaktivering af værktøjer vil begrænse agentens muligheder betydeligt.",

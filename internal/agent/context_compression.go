@@ -72,7 +72,7 @@ func CompressHistory(
 	// Calculate total tokens
 	totalTokens := 0
 	for _, m := range messages {
-		totalTokens += prompts.CountTokens(m.Content) + 4
+		totalTokens += prompts.CountTokens(messageText(m)) + 4
 	}
 
 	threshold := int(float64(maxHistoryTokens) * compressionThresholdPct)
@@ -117,7 +117,7 @@ func CompressHistory(
 	var transcript strings.Builder
 	for _, m := range compressible {
 		role := m.Role
-		content := m.Content
+		content := messageText(m)
 		if len(content) > 500 {
 			content = truncateUTF8ToLimit(content, 503, "...")
 		}

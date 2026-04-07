@@ -11,6 +11,7 @@
   "config.llm.helper_enabled_banner": "The Helper LLM is enabled. AuraGo uses it for internal analysis and background tasks and batches helper requests whenever possible. A smaller, faster and cheaper model is usually a good fit here.",
   "config.llm.helper_disabled_banner": "The Helper LLM is disabled. Many dependent analysis and background features will not work fully, and AuraGo cannot use its full potential without it.",
   "config.llm.helper_guardian_banner": "The LLM Guardian always uses its own separate model path. It is not routed through the Helper LLM.",
+  "config.llm.multimodal_banner": "多模态（图片）：启用后，聊天中上传的图片可直接发送给主模型。",
   "config.embeddings.info_banner": "Embeddings 将文本转换为数值向量，使代理能够找到语义相似的内容。这驱动了代理的<strong>长期记忆</strong>：对话内容、笔记和索引文件存储为 embeddings，并在相关时自动检索。模型和 URL 从选定的<strong>提供商条目</strong>中获取。",
   "config.budget.info_banner": "无法直接确定的值 (例如没有令牌报告的本地模型) 将在内部估算。显示的用量可能与实际用量有所不同。此功能<strong>不能</strong>替代直接在提供商或 API 处设置支出限制。",
   "config.tools.warning_banner": "<strong>这些设置通常不应更改。</strong>禁用工具将显著限制代理的能力。",

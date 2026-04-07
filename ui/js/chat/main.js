@@ -906,7 +906,93 @@ const uploadBtn = document.getElementById('upload-btn');
 const attachChip = document.getElementById('attachment-chip');
 const attachName = document.getElementById('attachment-name');
 const attachClear = document.getElementById('attachment-clear');
-let pendingAttachment = null; // { path, filename }
+const attachmentsPanel = document.getElementById('attachments-panel');
+let pendingAttachments = []; // [{ path, filename, localUrl, kind }]
+
+function _attachmentKindFromFile(file) {
+    const t = (file && file.type) ? file.type : '';
+    if (t.startsWith('image/')) return 'image';
+    if (t.startsWith('audio/')) return 'audio';
+    if (t.startsWith('video/')) return 'video';
+    return 'file';
+}
+
+function _makeAttachmentLabel() {
+    if (!pendingAttachments.length) return '';
+    const first = pendingAttachments[0]?.filename || t('chat.file_sent');
+    if (pendingAttachments.length === 1) return first;
+    return `${first} (+${pendingAttachments.length - 1})`;
+}
+
+function _revokeAttachmentURLs() {
+    pendingAttachments.forEach(a => {
+        try { if (a.localUrl) URL.revokeObjectURL(a.localUrl); } catch (_e) { }
+    });
+}
+
+function clearPendingAttachments() {
+    _revokeAttachmentURLs();
+    pendingAttachments = [];
+    if (fileInput) fileInput.value = '';
+    chatSetHidden(attachChip, true);
+    chatSetHidden(attachmentsPanel, true);
+    uploadBtn.classList.remove('has-file');
+    if (attachmentsPanel) attachmentsPanel.innerHTML = '';
+}
+
+function renderPendingAttachments() {
+    if (!pendingAttachments.length) {
+        chatSetHidden(attachChip, true);
+        chatSetHidden(attachmentsPanel, true);
+        uploadBtn.classList.remove('has-file');
+        if (attachmentsPanel) attachmentsPanel.innerHTML = '';
+        return;
+    }
+
+    attachName.textContent = _makeAttachmentLabel();
+    chatSetHidden(attachChip, false);
+    uploadBtn.classList.add('has-file');
+
+    if (!attachmentsPanel) return;
+    chatSetHidden(attachmentsPanel, false);
+
+    const itemsHTML = pendingAttachments.map((a, idx) => {
+        const safeName = escapeHtml(a.filename || '');
+        const safePath = escapeHtml(a.path || '');
+        const removeTitle = escapeAttr(t('chat.attachment_clear_title') || 'Remove');
+        let thumb = `<div class="attachment-thumb"></div>`;
+        if (a.kind === 'image' && a.localUrl) {
+            thumb = `<img class="attachment-thumb" src="${escapeAttr(a.localUrl)}" alt="${safeName}">`;
+        } else if (a.kind === 'audio' && a.localUrl) {
+            thumb = `<audio class="attachment-thumb" src="${escapeAttr(a.localUrl)}" controls></audio>`;
+        } else if (a.kind === 'video' && a.localUrl) {
+            thumb = `<video class="attachment-thumb" src="${escapeAttr(a.localUrl)}" controls muted></video>`;
+        }
+        return `
+            <div class="attachment-item" data-idx="${idx}">
+                ${thumb}
+                <div class="attachment-meta">
+                    <div class="attachment-filename" title="${safeName}">${safeName}</div>
+                    <div class="attachment-path" title="${safePath}">${safePath}</div>
+                </div>
+                <button type="button" class="attachment-remove" data-idx="${idx}" title="${removeTitle}">✕</button>
+            </div>
+        `;
+    }).join('');
+
+    attachmentsPanel.innerHTML = `<div class="attachments-grid">${itemsHTML}</div>`;
+    attachmentsPanel.querySelectorAll('.attachment-remove').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const idx = Number(btn.dataset.idx);
+            const item = pendingAttachments[idx];
+            if (item && item.localUrl) {
+                try { URL.revokeObjectURL(item.localUrl); } catch (_e) { }
+            }
+            pendingAttachments = pendingAttachments.filter((_, i) => i !== idx);
+            renderPendingAttachments();
+        });
+    });
+}
 
 uploadBtn.addEventListener('click', () => {
     closeComposerPanel();
@@ -914,10 +1000,7 @@ uploadBtn.addEventListener('click', () => {
 });
 
 attachClear.addEventListener('click', () => {
-    pendingAttachment = null;
-    fileInput.value = '';
-    chatSetHidden(attachChip, true);
-    uploadBtn.classList.remove('has-file');
+    clearPendingAttachments();
 });
 
 if (composerMoreBtn && composerPanel) {
@@ -952,25 +1035,32 @@ if (feedbackToggleBtn && moodFeedbackRow) {
     });
 }
 
-fileInput.addEventListener('change', async () => {
-    const file = fileInput.files[0];
-    if (!file) return;
+async function uploadSingleAttachment(file) {
     const formData = new FormData();
     formData.append('file', file);
+    const res = await fetch('/api/upload', { method: 'POST', body: formData });
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    const kind = _attachmentKindFromFile(file);
+    const localUrl = (kind !== 'file') ? URL.createObjectURL(file) : null;
+    pendingAttachments.push({ path: data.path, filename: data.filename, localUrl, kind });
+    renderPendingAttachments();
+}
+
+fileInput.addEventListener('change', async () => {
+    const files = Array.from(fileInput.files || []);
+    if (!files.length) return;
     uploadBtn.disabled = true;
     try {
-        const res = await fetch('/api/upload', { method: 'POST', body: formData });
-        if (!res.ok) throw new Error(await res.text());
-        const data = await res.json();
-        pendingAttachment = { path: data.path, filename: data.filename };
-        attachName.textContent = data.filename;
-        chatSetHidden(attachChip, false);
-        uploadBtn.classList.add('has-file');
+        for (const file of files) {
+            await uploadSingleAttachment(file);
+        }
     } catch (err) {
         console.error('Upload error:', err);
         appendMessage('assistant', t('chat.upload_failed') + err.message);
     } finally {
         uploadBtn.disabled = false;
+        fileInput.value = ''; // allow re-upload of same file(s)
     }
 });
 
@@ -980,18 +1070,18 @@ chatForm.addEventListener('submit', async (e) => {
     closeComposerPanel();
     closeMoodFeedbackRow();
     let message = userInput.value.trim();
-    if (!message && !pendingAttachment) return;
+    if (!message && !pendingAttachments.length) return;
     if (!message) message = t('chat.file_sent');
 
     // Append attachment info for the agent
     let agentMessage = message;
-    if (pendingAttachment) {
-        agentMessage += '\n\n' + t('chat.file_attached_prefix') + pendingAttachment.path +
-            '\n' + t('chat.file_attached_instructions');
-        pendingAttachment = null;
-        fileInput.value = '';
-        chatSetHidden(attachChip, true);
-        uploadBtn.classList.remove('has-file');
+    if (pendingAttachments.length) {
+        for (const a of pendingAttachments) {
+            if (!a || !a.path) continue;
+            agentMessage += '\n\n' + t('chat.file_attached_prefix') + a.path;
+        }
+        agentMessage += '\n' + t('chat.file_attached_instructions');
+        clearPendingAttachments();
     }
 
     // Show only the user's typed message in chat (not the agent path)
@@ -1719,10 +1809,11 @@ document.addEventListener('DOMContentLoaded', () => {
         window.DragDrop.init({
             container: document.getElementById('chat-box'),
             onUpload: (data) => {
-                pendingAttachment = { path: data.path, filename: data.filename };
-                attachName.textContent = data.filename;
-                chatSetHidden(attachChip, false);
-                uploadBtn.classList.add('has-file');
+                const file = data.file || null;
+                const kind = _attachmentKindFromFile(file);
+                const localUrl = (file && kind !== 'file') ? URL.createObjectURL(file) : null;
+                pendingAttachments.push({ path: data.path, filename: data.filename, localUrl, kind });
+                renderPendingAttachments();
             },
             onError: (msg) => {
                 if (window.showToast) {
