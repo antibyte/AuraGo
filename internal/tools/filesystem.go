@@ -233,6 +233,23 @@ func secureResolve(workspaceDir, userPath string) (string, error) {
 		cleanAbs := filepath.Clean(userPath)
 		rel, relErr := filepath.Rel(projectRoot, cleanAbs)
 		if relErr != nil || strings.HasPrefix(rel, "..") {
+			// Detect /workspace/... paths — these are container-internal paths that the
+			// homepage dev container exposes. The filesystem tool cannot access them; the
+			// agent must use the homepage tool instead with the /workspace/ prefix stripped.
+			cleanSlash := filepath.ToSlash(cleanAbs)
+			if strings.HasPrefix(cleanSlash, "/workspace/") {
+				relPath := strings.TrimPrefix(cleanSlash, "/workspace/")
+				return "", fmt.Errorf(
+					"path '%s' is a container-internal path (inside the homepage dev container). "+
+						"The filesystem tool cannot access it directly. "+
+						"Use the homepage tool instead:\n"+
+						"  - To read:  homepage tool with operation='read_file'  and path='%s'\n"+
+						"  - To write: homepage tool with operation='write_file' and path='%s'\n"+
+						"  - To edit:  homepage tool with operation='edit_file'  and path='%s'\n"+
+						"(Always strip the leading /workspace/ prefix when using homepage tools.)",
+					userPath, relPath, relPath, relPath,
+				)
+			}
 			return "", fmt.Errorf(
 				"path '%s' is an absolute path outside the project root (%s). "+
 					"Use the execute_shell tool to access arbitrary host paths, "+
