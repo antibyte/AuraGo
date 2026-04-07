@@ -6,6 +6,22 @@ import (
 	"strings"
 )
 
+// resolveToManifestName resolves a raw skill ID (may be a DB ID like
+// "agent_my_daemon_1712448000000") to the manifest name used as key in
+// DaemonSupervisor.runners (e.g. "my_daemon").  If the ID cannot be resolved
+// (SkillManager absent, skill not found, or rawID is already a name) the
+// original value is returned unchanged so that callers always get a usable key.
+func resolveToManifestName(s *Server, rawID string) string {
+	if s.SkillManager == nil {
+		return rawID
+	}
+	skill, err := s.SkillManager.GetSkill(rawID)
+	if err != nil || skill == nil {
+		return rawID
+	}
+	return skill.Name
+}
+
 // ── Daemon Skills API Handlers ──────────────────────────────────────────────
 // Provides REST endpoints for the Web UI to manage long-running daemon skills.
 
@@ -86,7 +102,7 @@ func handleDaemonAction(s *Server) http.HandlerFunc {
 		}
 
 		parts := strings.SplitN(path, "/", 2)
-		skillID := parts[0]
+		skillID := resolveToManifestName(s, parts[0])
 		action := ""
 		if len(parts) == 2 {
 			action = parts[1]
@@ -111,6 +127,7 @@ func handleDaemonAction(s *Server) http.HandlerFunc {
 				return
 			}
 			if err := s.DaemonSupervisor.StartDaemon(skillID); err != nil {
+				s.Logger.Warn("[Daemon] start failed", "skill_id", skillID, "error", err)
 				daemonJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": err.Error()})
 				return
 			}
@@ -122,6 +139,7 @@ func handleDaemonAction(s *Server) http.HandlerFunc {
 				return
 			}
 			if err := s.DaemonSupervisor.StopDaemon(skillID); err != nil {
+				s.Logger.Warn("[Daemon] stop failed", "skill_id", skillID, "error", err)
 				daemonJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": err.Error()})
 				return
 			}
@@ -133,6 +151,7 @@ func handleDaemonAction(s *Server) http.HandlerFunc {
 				return
 			}
 			if err := s.DaemonSupervisor.ReenableDaemon(skillID); err != nil {
+				s.Logger.Warn("[Daemon] reenable failed", "skill_id", skillID, "error", err)
 				daemonJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": err.Error()})
 				return
 			}

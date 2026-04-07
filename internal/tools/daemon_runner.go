@@ -23,7 +23,8 @@ const daemonStopGracePeriod = 10 * time.Second
 
 // DaemonRunner manages the lifecycle of a single daemon skill process.
 type DaemonRunner struct {
-	mu sync.Mutex
+	mu    sync.Mutex
+	logMu sync.Mutex // guards appendDaemonLog / rotateDaemonLog
 
 	skillID   string
 	skillName string
@@ -114,7 +115,9 @@ type DaemonRunnerConfig struct {
 
 // NewDaemonRunner creates a new DaemonRunner for the given skill.
 func NewDaemonRunner(cfg DaemonRunnerConfig) *DaemonRunner {
-	cfg.Config.ApplyDefaults()
+	// Note: ApplyDefaults is already called by DaemonSupervisor.startRunner before
+	// constructing the config; do not call it again here to avoid overwriting
+	// user-provided defaults with zero-value fields.
 	return &DaemonRunner{
 		skillID:      cfg.SkillID,
 		skillName:    cfg.SkillName,
@@ -591,6 +594,9 @@ func (r *DaemonRunner) appendDaemonLog(line string) {
 	if r.logDir == "" {
 		return
 	}
+
+	r.logMu.Lock()
+	defer r.logMu.Unlock()
 
 	logPath := filepath.Join(r.logDir, r.skillID+".log")
 

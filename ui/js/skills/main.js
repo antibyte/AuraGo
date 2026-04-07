@@ -129,7 +129,7 @@ function showDisabledState() {
     function renderDaemonBadge(skill) {
         const isDaemon = skill.IsDaemon || skill.is_daemon;
         if (!isDaemon) return '';
-        const id = skill.ID || skill.id || '';
+        const id = skill.name || skill.Name || skill.id || skill.ID || '';
         const ds = getDaemonState(id);
         if (!ds) {
             return `<span class="sk-daemon-badge sk-daemon-stopped" title="${t('skills.daemon_stopped') || 'Daemon: Stopped'}">⏹ ${t('skills.daemon') || 'Daemon'}</span>`;
@@ -149,7 +149,7 @@ function showDisabledState() {
     function renderDaemonActions(skill) {
         const isDaemon = skill.IsDaemon || skill.is_daemon;
         if (!isDaemon) return '';
-        const id = skill.ID || skill.id || '';
+        const id = skill.name || skill.Name || skill.id || skill.ID || '';
         const ds = getDaemonState(id);
         const status = ds ? (ds.status || ds.Status || 'stopped').toLowerCase() : 'stopped';
         const autoDisabled = ds && (ds.auto_disabled || ds.AutoDisabled);
@@ -170,7 +170,7 @@ function showDisabledState() {
         try {
             const resp = await fetch(`/api/daemons/${encodeURIComponent(skillId)}/${action}`, { method: 'POST' });
             const data = await resp.json();
-            if (data.status === 'ok' || resp.ok) {
+            if (data.status === 'ok' && resp.ok) {
                 showToast(t('skills.daemon_action_ok') || 'Daemon action executed', 'success');
                 await loadDaemonStates();
             } else {
