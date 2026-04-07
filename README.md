@@ -101,6 +101,14 @@ go build -o aurago ./cmd/aurago
 
 ---
 
+## Screenshots
+
+| Dashboard | Chat | Containers | Configuration |
+|:---------:|:----:|:----------:|:-------------:|
+| ![Dashboard](documentation/screenshots/dashboard.png) | ![Chat](documentation/screenshots/chat.png) | ![Containers](documentation/screenshots/containers.png) | ![Config](documentation/screenshots/config.png) |
+
+---
+
 ## Capabilities at a Glance
 
 AuraGo includes **50+ built-in tools** across these categories:
