@@ -666,9 +666,24 @@ func expandQueryForRAG(ctx context.Context, cfg *config.Config, logger *slog.Log
 
 // rerankWithLLM uses the MemoryAnalysis LLM to score the relevance of RAG candidates
 // against the user query. Returns re-ranked results or falls back to the input order on failure.
+// Skips LLM reranking if all candidates already have high vector scores (≥0.9) since
+// embedding-based similarity is already reliable in that range.
 func rerankWithLLM(ctx context.Context, cfg *config.Config, logger *slog.Logger, candidates []rankedMemory, userQuery string, stm *memory.SQLiteMemory) []rankedMemory {
 	settings := resolveMemoryAnalysisSettings(cfg, stm)
 	if !settings.Enabled || !settings.LLMReranking || len(candidates) == 0 {
+		return candidates
+	}
+
+	highConfidenceThreshold := 0.9
+	allHighConfidence := true
+	for _, c := range candidates {
+		if c.score < highConfidenceThreshold {
+			allHighConfidence = false
+			break
+		}
+	}
+	if allHighConfidence && len(candidates) > 1 {
+		logger.Debug("[RAG LLM Rerank] Skipping — all candidates already have high vector similarity (≥0.9)")
 		return candidates
 	}
 

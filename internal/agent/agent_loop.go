@@ -444,7 +444,18 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		logger.Info("[NativeTools] Native function calling enabled", "tool_count", len(ntSchemas), "parallel", toolingPolicy.ParallelToolCallsEnabled)
 	}
 
+	loopIterationCount := 0
 	for {
+		const maxLoopIterations = 100
+		loopIterationCount++
+
+		// Safety: prevent infinite loops
+		if loopIterationCount > maxLoopIterations {
+			currentLogger.Error("[Sync] Maximum loop iterations exceeded — aborting to prevent infinite loop", "iterations", loopIterationCount)
+			broker.Send("error_recovery", fmt.Sprintf("Agent loop exceeded maximum iterations (%d). Please restart.", maxLoopIterations))
+			return openai.ChatCompletionResponse{}, fmt.Errorf("agent loop exceeded maximum iterations: %d", maxLoopIterations)
+		}
+
 		emotionPolicy := emotionBehaviorPolicy{}
 		if !runCfg.IsMission && personalityEnabled && shortTermMem != nil {
 			emotionPolicy = deriveEmotionBehaviorPolicy(shortTermMem, emotionSynthesizer)
@@ -1190,9 +1201,15 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			lastMsg := req.Messages[len(req.Messages)-1]
 			var droppedMessages []openai.ChatCompletionMessage
 			// Drop messages from index 1 onward (oldest first) until we fit.
-			// Always keep system (0) and the latest message.
+			// Always keep system (0), the latest message, and at least 4 recent messages
+			// to preserve conversation context continuity.
+			const minPreservedMessages = 4
 			mid := req.Messages[1 : len(req.Messages)-1]
-			for totalMsgTokens > maxHistoryTokens && len(mid) > 0 {
+			preserveFrom := len(mid)
+			if preserveFrom > minPreservedMessages {
+				preserveFrom = len(mid) - minPreservedMessages
+			}
+			for totalMsgTokens > maxHistoryTokens && len(mid) > preserveFrom {
 				dropped := mid[0]
 				droppedMessages = append(droppedMessages, dropped)
 				mid = mid[1:]
@@ -1342,6 +1359,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			const toolResponsePrefix = "<tool_response" // model hallucinating a tool response XML block
 			// holdLen must cover the longest tag prefix minus 1
 			const doneTagHoldLen = len(minimaxToolCallPrefix) - 1 // 16 bytes (≥ len("<done/>")-1 = 6)
+			const doneTagStreamBufMaxLen = 8192                   // max buffer to prevent unbounded growth
 			doneTagStreamBuf := ""
 			xmlToolCallSuppressed := false // once true, suppress all remaining stream chunks
 			for {
@@ -1384,6 +1402,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 						if !suppressToolCallJSON && !xmlToolCallSuppressed {
 							// Buffer content to filter <done/> and minimax:tool_call XML before sending to SSE.
 							// Hold the last (holdLen) bytes so a tag split across chunk boundaries is caught.
+							// Cap buffer to prevent unbounded growth if <done/> never arrives.
+							if len(doneTagStreamBuf)+len(delta.Content) > doneTagStreamBufMaxLen {
+								doneTagStreamBuf = doneTagStreamBuf[len(doneTagStreamBuf)-doneTagHoldLen:]
+							}
 							doneTagStreamBuf += delta.Content
 							var toSend string
 							if len(doneTagStreamBuf) > doneTagHoldLen {
@@ -1655,7 +1677,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 
 		// Detect <workflow_plan>["tool1","tool2"]</workflow_plan> in the response
-		if workflowPlanCount < 3 {
+		if workflowPlanCount < 10 {
 			if parsed, stripped := parseWorkflowPlan(content); len(parsed) > 0 {
 				workflowPlanCount++
 				explicitTools = parsed

@@ -15,6 +15,7 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/llm"
 	"aurago/internal/memory"
+	"aurago/internal/prompts"
 	"aurago/internal/remote"
 	"aurago/internal/security"
 	"aurago/internal/sqlconnections"
@@ -218,32 +219,13 @@ func estimateTokens(text string) int {
 	return estimateTokensForModel(text, "")
 }
 
-// estimateTokensForModel estimates the token count with model-aware character ratios.
-// Different model families use different tokenizers with meaningfully different ratios.
+// estimateTokensForModel estimates the token count using tiktoken BPE encoding.
+// Falls back to character-based heuristic only if tiktoken is unavailable.
 func estimateTokensForModel(text string, model string) int {
 	if text == "" {
 		return 0
 	}
-	lower := strings.ToLower(model)
-	switch {
-	case strings.Contains(lower, "gpt-4") || strings.Contains(lower, "gpt-3.5") ||
-		strings.Contains(lower, "o1") || strings.Contains(lower, "o3"):
-		// OpenAI cl100k_base tokenizer: ~3.3 chars/token for English
-		return int(float64(len(text)) / 3.3)
-	case strings.Contains(lower, "claude"):
-		// Anthropic tokenizer: slightly larger tokens on average
-		return int(float64(len(text)) / 3.5)
-	case strings.Contains(lower, "gemini"):
-		// Google SentencePiece / BPE: similar to cl100k
-		return int(float64(len(text)) / 3.4)
-	case strings.Contains(lower, "llama") || strings.Contains(lower, "mistral") ||
-		strings.Contains(lower, "qwen") || strings.Contains(lower, "deepseek"):
-		// LLaMA/Mistral-family BPE: ~3.5-4.0 chars/token
-		return int(float64(len(text)) / 3.7)
-	default:
-		// Conservative fallback: 1 token per 4 characters
-		return len(text) / 4
-	}
+	return prompts.CountTokens(text)
 }
 
 // ── Recency-Boosted Re-ranking (Phase A3) ──────────────────────────
