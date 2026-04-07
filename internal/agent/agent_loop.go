@@ -1784,12 +1784,17 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		// Recovery: model announced a next action but did not emit the tool call yet.
 		// Use sanitized content (think-tags stripped) to avoid false positives from
 		// reasoning-only language inside <think> blocks triggering the forward-cue detector.
-		// Skip detection entirely when the LLM explicitly signaled completion via <done/>.
+		// Skip detection entirely when:
+		// - The LLM explicitly signaled completion via <done/>
+		// - A valid tool call was successfully parsed (native, bracket, or JSON) — even if
+		//   the sanitized content only shows an acknowledgment prefix (e.g. "Alles klar,
+		//   ich schau mir die Version an!" followed by [TOOL_CALL]{...}[/TOOL_CALL] where
+		//   StripThinkingTags removed the [/TOOL_CALL] closing tag)
 		// IMPORTANT: do NOT fall back to raw content when SanitizedContent is empty — an empty
 		// sanitized string means the entire response was inside <think> blocks, and feeding raw
 		// think-block language to the detector causes spurious WARN / recovery loops.
 		announcementContent := parsedToolResp.SanitizedContent
-		isAnnouncement := announcementContent != "" && !parsedToolResp.IsFinished && cfg.Agent.AnnouncementDetector.Enabled && isAnnouncementOnlyResponse(announcementContent, tc, useNativePath, lastResponseWasTool, lastUserMsg)
+		isAnnouncement := announcementContent != "" && !parsedToolResp.IsFinished && !tc.IsTool && cfg.Agent.AnnouncementDetector.Enabled && isAnnouncementOnlyResponse(announcementContent, tc, useNativePath, lastResponseWasTool, lastUserMsg)
 		if isAnnouncement && announcementCount < cfg.Agent.AnnouncementDetector.MaxRetries {
 			announcementCount++
 			currentLogger.Warn("[Sync] Announcement-only response detected, requesting immediate tool call", "attempt", announcementCount, "content_preview", Truncate(content, 120))
