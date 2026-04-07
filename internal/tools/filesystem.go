@@ -563,8 +563,8 @@ func executeFilesystemResult(operation, path, destination, content string, items
 		return FSResult{Status: "success", Message: fmt.Sprintf("Read %d bytes", len(data)), Data: string(data)}
 
 	case "write_file":
-		if path == "" || content == "" {
-			return FSResult{Status: "error", Message: "'path' and 'content' are required for write_file"}
+		if path == "" {
+			return FSResult{Status: "error", Message: "'path' is required for write_file"}
 		}
 		resolved, err := secureResolve(workspaceDir, path)
 		if err != nil {

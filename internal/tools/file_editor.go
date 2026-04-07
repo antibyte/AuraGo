@@ -89,7 +89,35 @@ func fileStrReplace(resolved, old, new_ string, replaceAll bool, encode func(Fil
 		return encode(FileEditorResult{Status: "error", Message: "The 'old' text was not found in the file"})
 	}
 	if !replaceAll && count > 1 {
-		return encode(FileEditorResult{Status: "error", Message: fmt.Sprintf("The 'old' text was found %d times — must be unique for str_replace. Use str_replace_all to replace all occurrences, or provide more context to make the match unique.", count)})
+		// Collect the first line of each occurrence to help the LLM add enough context.
+		var occurrences []string
+		for i, part := range strings.SplitAfter(text, old) {
+			if i == 0 || i >= count {
+				continue
+			}
+			// Find the line in the original text where match (i-1) starts.
+			before := strings.Join(strings.SplitAfter(text, old)[:i], "")
+			lineStart := strings.LastIndex(before[:len(before)-len(old)], "\n")
+			if lineStart < 0 {
+				lineStart = 0
+			} else {
+				lineStart++
+			}
+			lineEnd := strings.Index(before[lineStart:], "\n")
+			if lineEnd < 0 {
+				lineEnd = len(before) - lineStart
+			}
+			line := strings.TrimSpace(before[lineStart : lineStart+lineEnd])
+			if len(line) > 80 {
+				line = line[:80] + "…"
+			}
+			occurrences = append(occurrences, fmt.Sprintf("  match %d: …%s…", i, line))
+			_ = part
+		}
+		hint := strings.Join(occurrences, "\n")
+		return encode(FileEditorResult{Status: "error", Message: fmt.Sprintf(
+			"The 'old' text was found %d times — must be unique for str_replace. Include more surrounding context in 'old' to disambiguate, or use str_replace_all to replace all occurrences.\n%s",
+			count, hint)})
 	}
 
 	var result string
