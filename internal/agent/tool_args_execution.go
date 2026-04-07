@@ -175,6 +175,7 @@ type fileEditorArgs struct {
 	StartLine int
 	EndLine   int
 	LineCount int
+	Pattern   string
 }
 
 type jsonEditorArgs struct {
@@ -691,6 +692,7 @@ func decodeFileEditorArgs(tc ToolCall) fileEditorArgs {
 		StartLine: toolArgInt(tc.Params, 0, "start_line"),
 		EndLine:   toolArgInt(tc.Params, 0, "end_line"),
 		LineCount: toolArgInt(tc.Params, 0, "line_count"),
+		Pattern:   toolArgString(tc.Params, "pattern", "glob"),
 	}
 }
 

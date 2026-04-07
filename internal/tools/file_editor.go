@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -42,6 +43,12 @@ func ExecuteFileEditor(operation, filePath, old, new_, marker, content string, s
 		return encode(FileEditorResult{Status: "error", Message: "'file_path' is required"})
 	}
 
+	// str_replace_glob uses filePath as a glob pattern — secureResolve rejects wildcards on Windows.
+	// The function performs its own workspace-boundary check for each matched file.
+	if operation == "str_replace_glob" {
+		return fileStrReplaceGlob(workspaceDir, filePath, old, new_, encode)
+	}
+
 	resolved, err := secureResolve(workspaceDir, filePath)
 	if err != nil {
 		return encode(FileEditorResult{Status: "error", Message: err.Error()})
@@ -52,6 +59,8 @@ func ExecuteFileEditor(operation, filePath, old, new_, marker, content string, s
 		return fileStrReplace(resolved, old, new_, false, encode)
 	case "str_replace_all":
 		return fileStrReplace(resolved, old, new_, true, encode)
+	case "str_replace_regex":
+		return fileStrReplaceRegex(resolved, old, new_, encode)
 	case "insert_after":
 		return fileInsertRelative(resolved, marker, content, true, encode)
 	case "insert_before":
@@ -65,7 +74,7 @@ func ExecuteFileEditor(operation, filePath, old, new_, marker, content string, s
 	case "apply_patch":
 		return fileApplyPatch(resolved, content, encode)
 	default:
-		return encode(FileEditorResult{Status: "error", Message: fmt.Sprintf("Unknown file_editor operation '%s'. Valid: str_replace, str_replace_all, insert_after, insert_before, append, prepend, delete_lines, apply_patch", operation)})
+		return encode(FileEditorResult{Status: "error", Message: fmt.Sprintf("Unknown file_editor operation '%s'. Valid: str_replace, str_replace_all, str_replace_regex, str_replace_glob, insert_after, insert_before, append, prepend, delete_lines, apply_patch", operation)})
 	}
 }
 
@@ -335,4 +344,121 @@ func writeFileAtomic(path string, data []byte) error {
 		return fmt.Errorf("failed to rename temp file: %w", err)
 	}
 	return nil
+}
+
+// fileStrReplaceRegex performs a regex-based replacement in a single file.
+// The 'old' field is the regex pattern; 'new' is the replacement string (supports $1, $2 capture groups).
+func fileStrReplaceRegex(resolved, pattern, replacement string, encode func(FileEditorResult) string) string {
+	if pattern == "" {
+		return encode(FileEditorResult{Status: "error", Message: "'old' (regex pattern) is required for str_replace_regex"})
+	}
+	re, err := regexp.Compile(pattern)
+	if err != nil {
+		return encode(FileEditorResult{Status: "error", Message: fmt.Sprintf("Invalid regex pattern: %v", err)})
+	}
+	if err := checkEditSizeLimit(resolved); err != nil {
+		return encode(FileEditorResult{Status: "error", Message: err.Error()})
+	}
+	data, err := os.ReadFile(resolved)
+	if err != nil {
+		return encode(FileEditorResult{Status: "error", Message: fmt.Sprintf("Failed to read file: %v", err)})
+	}
+	text := string(data)
+	count := len(re.FindAllString(text, -1))
+	if count == 0 {
+		return encode(FileEditorResult{Status: "error", Message: "Pattern matched 0 occurrences in the file"})
+	}
+	result := re.ReplaceAllString(text, replacement)
+	if err := writeFileAtomic(resolved, []byte(result)); err != nil {
+		return encode(FileEditorResult{Status: "error", Message: fmt.Sprintf("Failed to write file: %v", err)})
+	}
+	return encode(FileEditorResult{
+		Status:       "success",
+		Message:      fmt.Sprintf("Replaced %d match(es) using regex", count),
+		LinesChanged: count,
+		TotalLines:   strings.Count(result, "\n") + 1,
+	})
+}
+
+// fileStrReplaceGlob applies str_replace_all across all files matching a glob pattern.
+// 'filePath' is interpreted as a glob (e.g. "src/**/*.ts"). 'old' and 'new' are literal strings.
+func fileStrReplaceGlob(workspaceDir, globPattern, old, new_ string, encode func(FileEditorResult) string) string {
+	if globPattern == "" {
+		return encode(FileEditorResult{Status: "error", Message: "'file_path' (glob pattern) is required for str_replace_glob"})
+	}
+	if old == "" {
+		return encode(FileEditorResult{Status: "error", Message: "'old' text is required for str_replace_glob"})
+	}
+	// Resolve glob relative to workspace dir
+	absGlob := globPattern
+	if !filepath.IsAbs(absGlob) {
+		absGlob = filepath.Join(workspaceDir, globPattern)
+	}
+	matches, err := filepath.Glob(absGlob)
+	if err != nil {
+		return encode(FileEditorResult{Status: "error", Message: fmt.Sprintf("Invalid glob pattern: %v", err)})
+	}
+	if len(matches) == 0 {
+		return encode(FileEditorResult{Status: "error", Message: fmt.Sprintf("Glob pattern matched 0 files: %s", globPattern)})
+	}
+
+	// Resolve the workspace root for security checks
+	absWorkspace, wsErr := filepath.Abs(workspaceDir)
+	if wsErr != nil {
+		absWorkspace = workspaceDir
+	}
+
+	filesChanged := 0
+	totalReplacements := 0
+	var skipped []string
+	for _, path := range matches {
+		// Security: ensure file is within workspace
+		absPath, err := filepath.Abs(path)
+		if err != nil {
+			skipped = append(skipped, filepath.Base(path)+" (path error)")
+			continue
+		}
+		rel, relErr := filepath.Rel(absWorkspace, absPath)
+		if relErr != nil || strings.HasPrefix(rel, "..") {
+			skipped = append(skipped, filepath.Base(path)+" (outside workspace)")
+			continue
+		}
+
+		info, err := os.Stat(path)
+		if err != nil || info.IsDir() {
+			continue
+		}
+		if info.Size() > maxEditFileSize {
+			skipped = append(skipped, filepath.Base(path)+" (too large)")
+			continue
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			skipped = append(skipped, filepath.Base(path)+" (read error)")
+			continue
+		}
+		text := string(data)
+		count := strings.Count(text, old)
+		if count == 0 {
+			continue
+		}
+		result := strings.ReplaceAll(text, old, new_)
+		if err := writeFileAtomic(path, []byte(result)); err != nil {
+			skipped = append(skipped, filepath.Base(path)+" (write error)")
+			continue
+		}
+		filesChanged++
+		totalReplacements += count
+	}
+
+	msg := fmt.Sprintf("Replaced %d occurrence(s) across %d file(s) (of %d matching)", totalReplacements, filesChanged, len(matches))
+	if len(skipped) > 0 {
+		msg += fmt.Sprintf("; skipped: %s", strings.Join(skipped, ", "))
+	}
+	return encode(FileEditorResult{
+		Status:       "success",
+		Message:      msg,
+		LinesChanged: totalReplacements,
+		TotalLines:   filesChanged,
+	})
 }
