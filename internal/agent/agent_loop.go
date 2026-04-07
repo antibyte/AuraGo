@@ -1307,7 +1307,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			const doneTagStr = "<done/>"
 			const minimaxToolCallPrefix = "minimax:tool_call"
 			const xmlToolCallPrefix = "<tool_call" // matches <tool_call> and <tool_call\n> variants
-			const actionTagPrefix = "<action>"     // bare <action>toolname</action> emitted by some models
+			const actionTagPrefix = "<action>"      // bare <action>toolname</action> emitted by some models
+			const toolResponsePrefix = "<tool_response" // model hallucinating a tool response XML block
 			// holdLen must cover the longest tag prefix minus 1
 			const doneTagHoldLen = len(minimaxToolCallPrefix) - 1 // 16 bytes (≥ len("<done/>")-1 = 6)
 			doneTagStreamBuf := ""
@@ -1372,6 +1373,14 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 									doneTagStreamBuf = "" // discard buffered tail
 								}
 							}
+							// Strip <tool_response> hallucinations — model is fabricating a tool result instead of calling the tool.
+							if !xmlToolCallSuppressed {
+								if idx := strings.Index(strings.ToLower(toSend), toolResponsePrefix); idx != -1 {
+									toSend = toSend[:idx]
+									xmlToolCallSuppressed = true
+									doneTagStreamBuf = "" // discard buffered tail
+								}
+							}
 							if toSend != "" {
 								chunk.Choices[0].Delta.Content = toSend
 								if chunkData, mErr := json.Marshal(chunk); mErr == nil {
@@ -1402,6 +1411,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				}
 				// Also strip any trailing <action> fragment.
 				if idx := strings.Index(strings.ToLower(remaining), actionTagPrefix); idx != -1 {
+					remaining = remaining[:idx]
+				}
+				// Also strip any trailing <tool_response> hallucination fragment.
+				if idx := strings.Index(strings.ToLower(remaining), toolResponsePrefix); idx != -1 {
 					remaining = remaining[:idx]
 				}
 				if remaining != "" {
@@ -2383,6 +2396,14 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 		// Don't persist [Empty Response] as a real message — it pollutes future context
 		isEmpty := content == "[Empty Response]"
+		// Strip <tool_response> hallucinations before persisting — the model fabricated a
+		// tool result instead of calling the tool; only keep any human-readable preamble.
+		if idx := strings.Index(strings.ToLower(content), "<tool_response"); idx != -1 {
+			content = strings.TrimSpace(content[:idx])
+			if content == "" {
+				isEmpty = true
+			}
+		}
 		if !isEmpty {
 			id, err := shortTermMem.InsertMessage(sessionID, resp.Choices[0].Message.Role, content, false, false)
 			if err != nil {
