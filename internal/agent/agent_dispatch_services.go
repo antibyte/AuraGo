@@ -600,8 +600,30 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				}
 				logger.Info("LLM requested homepage git_rollback", "dir", req.ProjectDir, "steps", count)
 				return "Tool Output: " + tools.HomepageGitRollback(homepageCfg, req.ProjectDir, count, logger)
+			case "save_revision":
+				logger.Info("LLM requested homepage save_revision", "dir", req.ProjectDir, "message", req.Message)
+				return "Tool Output: " + tools.HomepageSaveRevision(homepageCfg, homepageRegistryDB, req.ProjectDir, req.Message, req.Reason, logger)
+			case "list_revisions":
+				logger.Info("LLM requested homepage list_revisions", "dir", req.ProjectDir, "count", req.Count)
+				count := req.Count
+				if count <= 0 {
+					count = 20
+				}
+				return "Tool Output: " + tools.HomepageListRevisions(homepageRegistryDB, req.ProjectDir, count, 0, logger)
+			case "get_revision":
+				logger.Info("LLM requested homepage get_revision", "revision_id", req.RevisionID)
+				return "Tool Output: " + tools.HomepageGetRevision(homepageRegistryDB, req.RevisionID, logger)
+			case "diff_revision":
+				logger.Info("LLM requested homepage diff_revision", "revision_id", req.RevisionID, "path", req.Path)
+				return "Tool Output: " + tools.HomepageDiffRevision(homepageRegistryDB, req.RevisionID, req.Path, logger)
+			case "restore_revision":
+				logger.Info("LLM requested homepage restore_revision", "revision_id", req.RevisionID, "path", req.Path)
+				return "Tool Output: " + tools.HomepageRestoreRevision(homepageCfg, homepageRegistryDB, req.RevisionID, req.Path, logger)
+			case "revision_status":
+				logger.Info("LLM requested homepage revision_status", "dir", req.ProjectDir)
+				return "Tool Output: " + tools.HomepageRevisionStatus(homepageCfg, homepageRegistryDB, req.ProjectDir, logger)
 			default:
-				return `Tool Output: {"status":"error","message":"Unknown homepage operation. Use: init, start, stop, status, rebuild, destroy, exec, init_project, build, install_deps, lighthouse, screenshot, lint, list_files, read_file, write_file, optimize_images, dev, deploy, deploy_netlify, test_connection, webserver_start, webserver_stop, webserver_status, publish_local, tunnel, git_init, git_commit, git_status, git_diff, git_log, git_rollback"}`
+				return `Tool Output: {"status":"error","message":"Unknown homepage operation. Use: init, start, stop, status, rebuild, destroy, exec, init_project, build, install_deps, lighthouse, screenshot, lint, list_files, read_file, write_file, optimize_images, dev, deploy, deploy_netlify, test_connection, webserver_start, webserver_stop, webserver_status, publish_local, tunnel, git_init, git_commit, git_status, git_diff, git_log, git_rollback, save_revision, list_revisions, get_revision, diff_revision, restore_revision, revision_status"}`
 			}
 
 		case "webdav", "webdav_storage":

@@ -95,7 +95,9 @@ type homepageArgs struct {
 	Draft        bool
 	GitMessage   string
 	Message      string
+	Reason       string
 	Count        int
+	RevisionID   int64
 }
 
 type manageSQLConnectionsArgs struct {
@@ -353,7 +355,9 @@ func decodeHomepageArgs(tc ToolCall) homepageArgs {
 		Draft:        tc.Draft,
 		GitMessage:   firstNonEmptyToolString(tc.GitMessage, toolArgString(tc.Params, "git_message")),
 		Message:      firstNonEmptyToolString(tc.Message, toolArgString(tc.Params, "message")),
+		Reason:       firstNonEmptyToolString(tc.Reason, toolArgString(tc.Params, "reason")),
 		Count:        firstNonEmptyInt(tc.Count, toolArgInt(tc.Params, 0, "count")),
+		RevisionID:   toolArgInt64(tc.Params, "revision_id"),
 	}
 	if autoFix, ok := toolArgBool(tc.Params, "auto_fix"); ok {
 		req.AutoFix = autoFix

@@ -34,6 +34,34 @@ type HomepageProject struct {
 	Notes            string   `json:"notes,omitempty"`
 }
 
+// HomepageRevision represents a saved revision of a homepage project.
+type HomepageRevision struct {
+	ID           int64  `json:"id"`
+	ProjectID    int64  `json:"project_id,omitempty"`
+	ProjectDir   string `json:"project_dir"`
+	CreatedAt    string `json:"created_at"`
+	Message      string `json:"message,omitempty"`
+	Reason       string `json:"reason,omitempty"`
+	Author       string `json:"author"`
+	FileCount    int    `json:"file_count"`
+	Restorable   bool   `json:"restorable"`
+	MetadataJSON string `json:"metadata_json,omitempty"`
+}
+
+// HomepageRevisionFile represents a single changed file within a revision.
+type HomepageRevisionFile struct {
+	ID                int64  `json:"id"`
+	RevisionID        int64  `json:"revision_id"`
+	Path              string `json:"path"`
+	ChangeType        string `json:"change_type"` // added, modified, deleted
+	ContentBefore     string `json:"content_before,omitempty"`
+	ContentAfter      string `json:"content_after,omitempty"`
+	ContentHashBefore string `json:"content_hash_before,omitempty"`
+	ContentHashAfter  string `json:"content_hash_after,omitempty"`
+	SizeBefore        int64  `json:"size_before,omitempty"`
+	SizeAfter         int64  `json:"size_after,omitempty"`
+}
+
 // InitHomepageRegistryDB initializes the homepage registry SQLite database.
 func InitHomepageRegistryDB(dbPath string) (*sql.DB, error) {
 	db, err := sql.Open("sqlite", dbPath)
@@ -73,7 +101,40 @@ func InitHomepageRegistryDB(dbPath string) (*sql.DB, error) {
 	CREATE INDEX IF NOT EXISTS idx_hp_name ON homepage_projects(name);
 	CREATE INDEX IF NOT EXISTS idx_hp_status ON homepage_projects(status);
 	CREATE INDEX IF NOT EXISTS idx_hp_project_dir ON homepage_projects(project_dir);
-	CREATE INDEX IF NOT EXISTS idx_hp_last_edited ON homepage_projects(last_edited_at);`
+	CREATE INDEX IF NOT EXISTS idx_hp_last_edited ON homepage_projects(last_edited_at);
+
+	CREATE TABLE IF NOT EXISTS homepage_revisions (
+		id             INTEGER PRIMARY KEY AUTOINCREMENT,
+		project_id     INTEGER DEFAULT NULL,
+		project_dir    TEXT NOT NULL,
+		created_at     DATETIME DEFAULT CURRENT_TIMESTAMP,
+		message        TEXT DEFAULT '',
+		reason         TEXT DEFAULT '',
+		author         TEXT DEFAULT 'agent',
+		file_count     INTEGER DEFAULT 0,
+		restorable     INTEGER DEFAULT 1,
+		metadata_json  TEXT DEFAULT '',
+		FOREIGN KEY (project_id) REFERENCES homepage_projects(id) ON DELETE SET NULL
+	);
+	CREATE INDEX IF NOT EXISTS idx_hr_project_dir ON homepage_revisions(project_dir);
+	CREATE INDEX IF NOT EXISTS idx_hr_created_at ON homepage_revisions(created_at);
+	CREATE INDEX IF NOT EXISTS idx_hr_project_id ON homepage_revisions(project_id);
+
+	CREATE TABLE IF NOT EXISTS homepage_revision_files (
+		id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+		revision_id         INTEGER NOT NULL,
+		path                TEXT NOT NULL,
+		change_type         TEXT NOT NULL,
+		content_before      TEXT DEFAULT '',
+		content_after       TEXT DEFAULT '',
+		content_hash_before TEXT DEFAULT '',
+		content_hash_after  TEXT DEFAULT '',
+		size_before         INTEGER DEFAULT 0,
+		size_after          INTEGER DEFAULT 0,
+		FOREIGN KEY (revision_id) REFERENCES homepage_revisions(id) ON DELETE CASCADE
+	);
+	CREATE INDEX IF NOT EXISTS idx_hrf_revision_id ON homepage_revision_files(revision_id);
+	CREATE INDEX IF NOT EXISTS idx_hrf_path ON homepage_revision_files(path);`
 	if _, err := db.Exec(schema); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("failed to create homepage registry schema: %w", err)
@@ -370,6 +431,155 @@ func ResolveProblem(db *sql.DB, projectID int64, problem string) error {
 	_, err := db.Exec("UPDATE homepage_projects SET known_problems = ?, updated_at = ? WHERE id = ?",
 		strings.Join(remaining, "\n"), now, projectID)
 	return err
+}
+
+// CreateHomepageRevision creates a new revision and returns its ID.
+func CreateHomepageRevision(db *sql.DB, projectID int64, projectDir, message, reason, author string, fileCount int, restorable bool, metadataJSON string) (int64, error) {
+	if db == nil {
+		return 0, fmt.Errorf("homepage registry DB not initialized")
+	}
+	restorableInt := 0
+	if restorable {
+		restorableInt = 1
+	}
+	res, err := db.Exec(`INSERT INTO homepage_revisions (project_id, project_dir, message, reason, author, file_count, restorable, metadata_json)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		projectID, projectDir, message, reason, author, fileCount, restorableInt, metadataJSON)
+	if err != nil {
+		return 0, fmt.Errorf("failed to insert homepage revision: %w", err)
+	}
+	id, _ := res.LastInsertId()
+	return id, nil
+}
+
+// CreateHomepageRevisionFile creates a revision file entry.
+func CreateHomepageRevisionFile(db *sql.DB, revisionID int64, path, changeType, contentBefore, contentAfter, hashBefore, hashAfter string, sizeBefore, sizeAfter int64) (int64, error) {
+	if db == nil {
+		return 0, fmt.Errorf("homepage registry DB not initialized")
+	}
+	res, err := db.Exec(`INSERT INTO homepage_revision_files (revision_id, path, change_type, content_before, content_after, content_hash_before, content_hash_after, size_before, size_after)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		revisionID, path, changeType, contentBefore, contentAfter, hashBefore, hashAfter, sizeBefore, sizeAfter)
+	if err != nil {
+		return 0, fmt.Errorf("failed to insert revision file: %w", err)
+	}
+	id, _ := res.LastInsertId()
+	return id, nil
+}
+
+// ListHomepageRevisions returns revisions for a project_dir, newest first.
+func ListHomepageRevisions(db *sql.DB, projectDir string, limit, offset int) ([]HomepageRevision, int, error) {
+	if db == nil {
+		return nil, 0, fmt.Errorf("homepage registry DB not initialized")
+	}
+	if limit <= 0 {
+		limit = 20
+	}
+	var total int
+	countErr := db.QueryRow("SELECT COUNT(*) FROM homepage_revisions WHERE project_dir = ?", projectDir).Scan(&total)
+	if countErr != nil {
+		return nil, 0, fmt.Errorf("failed to count revisions: %w", countErr)
+	}
+	rows, err := db.Query("SELECT id, project_id, project_dir, created_at, message, reason, author, file_count, restorable, metadata_json FROM homepage_revisions WHERE project_dir = ? ORDER BY created_at DESC LIMIT ? OFFSET ?", projectDir, limit, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to list revisions: %w", err)
+	}
+	defer rows.Close()
+
+	var revisions []HomepageRevision
+	for rows.Next() {
+		var r HomepageRevision
+		var projectID sql.NullInt64
+		var restorableInt int
+		err := rows.Scan(&r.ID, &projectID, &r.ProjectDir, &r.CreatedAt, &r.Message, &r.Reason, &r.Author, &r.FileCount, &restorableInt, &r.MetadataJSON)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to scan revision: %w", err)
+		}
+		if projectID.Valid {
+			r.ProjectID = projectID.Int64
+		}
+		r.Restorable = restorableInt == 1
+		revisions = append(revisions, r)
+	}
+	return revisions, total, nil
+}
+
+// GetHomepageRevision retrieves a single revision by ID.
+func GetHomepageRevision(db *sql.DB, id int64) (*HomepageRevision, error) {
+	if db == nil {
+		return nil, fmt.Errorf("homepage registry DB not initialized")
+	}
+	var r HomepageRevision
+	var projectID sql.NullInt64
+	var restorableInt int
+	err := db.QueryRow("SELECT id, project_id, project_dir, created_at, message, reason, author, file_count, restorable, metadata_json FROM homepage_revisions WHERE id = ?", id).
+		Scan(&r.ID, &projectID, &r.ProjectDir, &r.CreatedAt, &r.Message, &r.Reason, &r.Author, &r.FileCount, &restorableInt, &r.MetadataJSON)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("revision %d not found", id)
+		}
+		return nil, fmt.Errorf("failed to get revision: %w", err)
+	}
+	if projectID.Valid {
+		r.ProjectID = projectID.Int64
+	}
+	r.Restorable = restorableInt == 1
+	return &r, nil
+}
+
+// GetHomepageRevisionFiles returns all files in a revision.
+func GetHomepageRevisionFiles(db *sql.DB, revisionID int64) ([]HomepageRevisionFile, error) {
+	if db == nil {
+		return nil, fmt.Errorf("homepage registry DB not initialized")
+	}
+	rows, err := db.Query("SELECT id, revision_id, path, change_type, content_before, content_after, content_hash_before, content_hash_after, size_before, size_after FROM homepage_revision_files WHERE revision_id = ? ORDER BY path", revisionID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list revision files: %w", err)
+	}
+	defer rows.Close()
+
+	var files []HomepageRevisionFile
+	for rows.Next() {
+		var f HomepageRevisionFile
+		err := rows.Scan(&f.ID, &f.RevisionID, &f.Path, &f.ChangeType, &f.ContentBefore, &f.ContentAfter, &f.ContentHashBefore, &f.ContentHashAfter, &f.SizeBefore, &f.SizeAfter)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan revision file: %w", err)
+		}
+		files = append(files, f)
+	}
+	return files, nil
+}
+
+// DeleteHomepageRevision deletes a revision and its files (CASCADE).
+func DeleteHomepageRevision(db *sql.DB, id int64) error {
+	if db == nil {
+		return fmt.Errorf("homepage registry DB not initialized")
+	}
+	_, err := db.Exec("DELETE FROM homepage_revisions WHERE id = ?", id)
+	return err
+}
+
+// GetLatestHomepageRevision returns the most recent revision for a project_dir.
+func GetLatestHomepageRevision(db *sql.DB, projectDir string) (*HomepageRevision, error) {
+	if db == nil {
+		return nil, fmt.Errorf("homepage registry DB not initialized")
+	}
+	var r HomepageRevision
+	var projectID sql.NullInt64
+	var restorableInt int
+	err := db.QueryRow("SELECT id, project_id, project_dir, created_at, message, reason, author, file_count, restorable, metadata_json FROM homepage_revisions WHERE project_dir = ? ORDER BY created_at DESC LIMIT 1", projectDir).
+		Scan(&r.ID, &projectID, &r.ProjectDir, &r.CreatedAt, &r.Message, &r.Reason, &r.Author, &r.FileCount, &restorableInt, &r.MetadataJSON)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to get latest revision: %w", err)
+	}
+	if projectID.Valid {
+		r.ProjectID = projectID.Int64
+	}
+	r.Restorable = restorableInt == 1
+	return &r, nil
 }
 
 // DispatchHomepageRegistry handles tool calls for the homepage_registry action.

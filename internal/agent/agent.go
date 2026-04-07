@@ -796,11 +796,25 @@ func dispatchInner(ctx context.Context, tc ToolCall, dc *DispatchContext) string
 		"edit_file": true, "json_edit": true, "yaml_edit": true, "xml_edit": true,
 		"deploy_netlify": true, "publish_local": true, "deploy": true,
 		"list_files": true, "read_file": true, "write_file": true,
+		"save_revision": true, "list_revisions": true, "get_revision": true,
+		"diff_revision": true, "restore_revision": true, "revision_status": true,
 	}
 	if homepageSubOps[tc.Action] {
 		logger.Info("Redirecting direct sub-operation call to homepage tool", "action", tc.Action)
 		if tc.Action == "deploy" {
 			tc.Operation = "deploy"
+		} else if tc.Action == "save_revision" {
+			tc.Operation = "save_revision"
+		} else if tc.Action == "list_revisions" {
+			tc.Operation = "list_revisions"
+		} else if tc.Action == "get_revision" {
+			tc.Operation = "get_revision"
+		} else if tc.Action == "diff_revision" {
+			tc.Operation = "diff_revision"
+		} else if tc.Action == "restore_revision" {
+			tc.Operation = "restore_revision"
+		} else if tc.Action == "revision_status" {
+			tc.Operation = "revision_status"
 		} else {
 			tc.Operation = tc.Action
 		}
