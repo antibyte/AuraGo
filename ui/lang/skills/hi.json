@@ -134,5 +134,6 @@
   "skills.daemon_start": "शुरू करें",
   "skills.daemon_stop": "बंद करें",
   "skills.daemon_reenable": "पुनः सक्षम करें",
-  "skills.daemon_action_ok": "डेमॉन क्रिया निष्पादित"
+  "skills.daemon_action_ok": "डेमॉन क्रिया निष्पादित",
+  "skills.daemon_action_failed": "Daemon त्रुटि"
 }

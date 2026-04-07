@@ -178,9 +178,10 @@ function showDisabledState() {
             const data = await resp.json();
             if (data.status === 'ok' && resp.ok) {
                 showToast(t('skills.daemon_action_ok') || 'Daemon action executed', 'success');
-                await loadDaemonStates();
+                await loadSkills();
             } else {
-                showToast(data.message || data.error || t('common.error'), 'error');
+                const msg = data.message || data.error || t('common.error');
+                showToast(`${t('skills.daemon_action_failed') || 'Daemon error'}: ${msg}`, 'error');
             }
         } catch (e) {
             showToast(t('common.error') || 'Error', 'error');

@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
@@ -213,18 +214,68 @@ func (s *DaemonSupervisor) StopDaemon(skillID string) error {
 }
 
 // StartDaemon starts (or restarts) a specific daemon by skill ID.
+// If no runner exists yet (daemon had enabled=false in manifest), the manifest is
+// loaded from disk, enabled=true is persisted, and a new runner is created.
 func (s *DaemonSupervisor) StartDaemon(skillID string) error {
 	s.mu.RLock()
 	runner, ok := s.runners[skillID]
 	s.mu.RUnlock()
 	if !ok {
-		return fmt.Errorf("no daemon runner for skill %q", skillID)
+		// No runner yet — create one on demand from the manifest on disk.
+		return s.startDaemonOnDemand(skillID)
 	}
 	if err := runner.Start(); err != nil {
 		return err
 	}
 	s.broadcastStatus(skillID, runner)
 	return nil
+}
+
+// startDaemonOnDemand scans the skills directory for a manifest whose Name matches
+// skillID, sets enabled=true (persisted to disk), and starts a new runner.
+func (s *DaemonSupervisor) startDaemonOnDemand(skillID string) error {
+	entries, err := os.ReadDir(s.config.SkillsDir)
+	if err != nil {
+		return fmt.Errorf("cannot read skills directory: %w", err)
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
+			continue
+		}
+		filePath := filepath.Join(s.config.SkillsDir, entry.Name())
+		data, readErr := os.ReadFile(filePath)
+		if readErr != nil {
+			continue
+		}
+		var manifest SkillManifest
+		if err := json.Unmarshal(data, &manifest); err != nil || manifest.Name != skillID {
+			continue
+		}
+		if manifest.Daemon == nil {
+			return fmt.Errorf("skill %q is not a daemon skill", skillID)
+		}
+		// Persist enabled=true so the daemon survives restarts / RefreshSkills calls.
+		manifest.Daemon.Enabled = true
+		if updated, marshalErr := json.MarshalIndent(manifest, "", "  "); marshalErr == nil {
+			if writeErr := os.WriteFile(filePath, updated, 0644); writeErr != nil {
+				s.logger.Warn("Could not persist daemon enabled flag", "skill_id", skillID, "error", writeErr)
+			} else {
+				InvalidateSkillsCache(s.config.SkillsDir)
+			}
+		}
+		s.logger.Info("Starting daemon on demand (was disabled)", "skill_id", skillID)
+		if startErr := s.startRunner(manifest); startErr != nil {
+			// Benign: another goroutine might have created the runner between our check
+			// and startRunner's internal lock acquisition.
+			if strings.Contains(startErr.Error(), "already exists") {
+				return nil
+			}
+			return startErr
+		}
+		return nil
+	}
+	return fmt.Errorf("daemon skill %q not found — check skills directory", skillID)
 }
 
 // ReenableDaemon clears the auto-disabled flag and allows restart.

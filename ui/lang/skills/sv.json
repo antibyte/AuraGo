@@ -134,5 +134,6 @@
   "skills.daemon_start": "Starta",
   "skills.daemon_stop": "Stoppa",
   "skills.daemon_reenable": "Återaktivera",
-  "skills.daemon_action_ok": "Daemon-åtgärd utförd"
+  "skills.daemon_action_ok": "Daemon-åtgärd utförd",
+  "skills.daemon_action_failed": "Daemon-fel"
 }
