@@ -54,6 +54,9 @@ agent:
         retry_delay_seconds: 60                                     # retry delay for failed background prompt executions
         wait_poll_interval_seconds: 5                               # poll interval for wait_for_event tasks
         wait_default_timeout_secs: 600                              # default timeout for wait_for_event tasks
+    # ── Announcement detector ──
+    announcement_detector:
+        enabled: false                                              # detect and suppress "I will now do X" announcements without action
     # ── Tool guide injection ──
     max_tool_guides: 5                                              # max tool guide documents injected into prompt (default: 5)
     budget:
