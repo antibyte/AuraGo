@@ -20,6 +20,7 @@ import (
 type HomepageConfig struct {
 	DockerHost            string
 	WorkspacePath         string // host path mounted as /workspace in the container
+	AgentWorkspaceDir     string // agent workdir (filesystem tool writes here); used as fallback when WorkspacePath differs
 	DataDir               string // host path to AuraGo's data directory (for bundling generated images into deploys)
 	WebServerPort         int
 	WebServerDomain       string
@@ -43,6 +44,20 @@ var (
 	activePythonServerCmd *exec.Cmd
 	activePythonServerMu  sync.Mutex
 )
+
+// dockerAvailabilityCache caches DockerPing results per host to prevent flip-flopping
+// between Docker and local-fallback mode within a single operation sequence.
+var (
+	dockerAvailabilityMu      sync.Mutex
+	dockerAvailabilityResults = make(map[string]dockerAvailabilityEntry)
+)
+
+type dockerAvailabilityEntry struct {
+	available bool
+	expiry    time.Time
+}
+
+const dockerAvailabilityCacheTTL = 10 * time.Second
 
 // homepageDockerfile is the embedded Dockerfile for the dev container.
 const homepageDockerfile = `FROM mcr.microsoft.com/playwright:v1.58.2-noble
@@ -233,8 +248,30 @@ func extractOutput(jsonResult string) string {
 // â”€â”€â”€ Container Lifecycle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 // checkDockerAvailable checks if Docker is available and running.
+// Results are cached per dockerHost for dockerAvailabilityCacheTTL to prevent
+// successive homepage tool calls from flip-flopping between Docker and local-fallback
+// mode when Docker has transient slowness.
 func checkDockerAvailable(dockerHost string) bool {
-	return DockerPing(dockerHost) == nil
+	dockerAvailabilityMu.Lock()
+	defer dockerAvailabilityMu.Unlock()
+	now := time.Now()
+	if entry, ok := dockerAvailabilityResults[dockerHost]; ok && now.Before(entry.expiry) {
+		return entry.available
+	}
+	available := DockerPing(dockerHost) == nil
+	dockerAvailabilityResults[dockerHost] = dockerAvailabilityEntry{
+		available: available,
+		expiry:    now.Add(dockerAvailabilityCacheTTL),
+	}
+	return available
+}
+
+// invalidateDockerAvailabilityCache removes the cached availability result for dockerHost,
+// forcing the next call to checkDockerAvailable to re-probe the daemon.
+func invalidateDockerAvailabilityCache(dockerHost string) {
+	dockerAvailabilityMu.Lock()
+	delete(dockerAvailabilityResults, dockerHost)
+	dockerAvailabilityMu.Unlock()
 }
 
 // startPythonServer starts a Python HTTP server as fallback when Docker is not available.
@@ -281,6 +318,9 @@ func HomepageInit(cfg HomepageConfig, logger *slog.Logger) string {
 			return errJSON("Failed to create workspace directory: %v", err)
 		}
 	}
+
+	// Invalidate cached Docker availability so fresh state is probed after init.
+	invalidateDockerAvailabilityCache(cfg.DockerHost)
 
 	// Check if Docker is available
 	dockerCfg := DockerConfig{Host: cfg.DockerHost}

@@ -25,26 +25,39 @@ func HomepageListFiles(cfg HomepageConfig, path string, logger *slog.Logger) str
 	logger.Info("[Homepage] ListFiles", "path", path)
 
 	if !checkDockerAvailable(cfg.DockerHost) {
-		if cfg.WorkspacePath == "" {
-			return homepageWorkspacePathNotConfiguredJSON()
-		}
-		var base string
-		if path == "." {
-			base = cfg.WorkspacePath
-		} else {
-			var err error
-			base, err = resolveHomepagePath(cfg.WorkspacePath, path)
-			if err != nil {
-				return errJSON("%v", err)
-			}
-		}
-		var files []string
-		_ = filepath.Walk(base, func(p string, info os.FileInfo, err error) error {
+		return homepageListFilesLocal(cfg, path)
+	}
+
+	dockerCfg := DockerConfig{Host: cfg.DockerHost}
+	// Warm up the kernel directory entry cache inside the container before listing.
+	// When files are written to the bind-mounted workspace by the host process, the
+	// container's view of that directory can occasionally lag until an inode lookup is
+	// forced — stat on the target path triggers that lookup reliably.
+	DockerExec(dockerCfg, homepageContainerName, fmt.Sprintf("stat /workspace/%s > /dev/null 2>&1 || true", path), "")
+	return DockerExec(dockerCfg, homepageContainerName, fmt.Sprintf("find /workspace/%s -maxdepth 2 -not -path '*/node_modules/*' -not -path '*/.next/*' -not -path '*/.git/*' | head -200", path), "")
+}
+
+// homepageListFilesLocal performs the local (non-Docker) directory listing.
+// It checks cfg.WorkspacePath first, then falls back to cfg.AgentWorkspaceDir when
+// the two directories differ — this covers the case where files were written by the
+// filesystem tool (which operates on AgentWorkspaceDir) while the homepage workspace
+// is configured separately.
+func homepageListFilesLocal(cfg HomepageConfig, path string) string {
+	scanDirs := homepageResolveScanDirs(cfg, path)
+	if len(scanDirs) == 0 {
+		return homepageWorkspacePathNotConfiguredJSON()
+	}
+
+	seen := make(map[string]struct{})
+	var files []string
+	primaryWorkspace := scanDirs[0].workspace
+
+	for _, sd := range scanDirs {
+		_ = filepath.Walk(sd.base, func(p string, info os.FileInfo, err error) error {
 			if err != nil {
 				return nil
 			}
-			// Return paths relative to WorkspacePath so they are usable with read_file / write_file
-			rel, _ := filepath.Rel(cfg.WorkspacePath, p)
+			rel, _ := filepath.Rel(sd.workspace, p)
 			slashRel := filepath.ToSlash(rel)
 			if strings.Contains(slashRel, "/node_modules") || strings.Contains(slashRel, "/.next") || strings.Contains(slashRel, "/.git") {
 				if info.IsDir() {
@@ -52,7 +65,7 @@ func HomepageListFiles(cfg HomepageConfig, path string, logger *slog.Logger) str
 				}
 				return nil
 			}
-			// Limit depth to 3 segments below WorkspacePath
+			// Limit depth to 3 segments below workspace root
 			parts := strings.Split(slashRel, "/")
 			if len(parts) > 4 {
 				if info.IsDir() {
@@ -60,17 +73,61 @@ func HomepageListFiles(cfg HomepageConfig, path string, logger *slog.Logger) str
 				}
 				return nil
 			}
-			if len(files) < 200 {
+			if _, dup := seen[slashRel]; !dup && len(files) < 200 {
+				seen[slashRel] = struct{}{}
 				files = append(files, slashRel)
 			}
 			return nil
 		})
-		out, _ := json.Marshal(map[string]interface{}{"status": "ok", "mode": "local", "workspace": cfg.WorkspacePath, "files": files})
-		return string(out)
+	}
+	out, _ := json.Marshal(map[string]interface{}{"status": "ok", "mode": "local", "workspace": primaryWorkspace, "files": files})
+	return string(out)
+}
+
+type homepageScanDir struct {
+	base      string // absolute path to scan
+	workspace string // root to use for relative-path computation
+}
+
+// homepageResolveScanDirs returns the ordered list of base directories to scan for
+// local (non-Docker) homepage file operations. cfg.WorkspacePath is primary; when it
+// differs from cfg.AgentWorkspaceDir (the agent's own workdir where filesystem tool
+// writes files), the latter is appended so that files created by filesystem write_file
+// are also visible through homepage tools.
+func homepageResolveScanDirs(cfg HomepageConfig, subPath string) []homepageScanDir {
+	var dirs []homepageScanDir
+
+	addDir := func(workspace string) {
+		if workspace == "" {
+			return
+		}
+		var base string
+		if subPath == "." || subPath == "" {
+			base = workspace
+		} else {
+			resolvedBase, err := resolveHomepagePath(workspace, subPath)
+			if err != nil {
+				return
+			}
+			base = resolvedBase
+		}
+		// Only add if the directory exists
+		if _, err := os.Stat(base); err != nil {
+			return
+		}
+		dirs = append(dirs, homepageScanDir{base: base, workspace: workspace})
 	}
 
-	dockerCfg := DockerConfig{Host: cfg.DockerHost}
-	return DockerExec(dockerCfg, homepageContainerName, fmt.Sprintf("find /workspace/%s -maxdepth 2 -not -path '*/node_modules/*' -not -path '*/.next/*' -not -path '*/.git/*' | head -200", path), "")
+	addDir(cfg.WorkspacePath)
+	// Add agent workspace dir only when it is set and is a different path from WorkspacePath.
+	if cfg.AgentWorkspaceDir != "" {
+		abs1, _ := filepath.Abs(cfg.WorkspacePath)
+		abs2, _ := filepath.Abs(cfg.AgentWorkspaceDir)
+		if abs1 != abs2 {
+			addDir(cfg.AgentWorkspaceDir)
+		}
+	}
+	return dirs
 }
 
 // HomepageReadFile reads a file from the container.
@@ -81,23 +138,46 @@ func HomepageReadFile(cfg HomepageConfig, path string, logger *slog.Logger) stri
 	logger.Info("[Homepage] ReadFile", "path", path)
 
 	if !checkDockerAvailable(cfg.DockerHost) {
-		if cfg.WorkspacePath == "" {
-			return homepageWorkspacePathNotConfiguredJSON()
-		}
-		fullPath, err := resolveHomepagePath(cfg.WorkspacePath, path)
-		if err != nil {
-			return errJSON("%v", err)
-		}
-		data, readErr := os.ReadFile(fullPath)
-		if readErr != nil {
-			return errJSON("Failed to read file: %v", readErr)
-		}
-		out, _ := json.Marshal(map[string]interface{}{"status": "ok", "content": string(data)})
-		return string(out)
+		return homepageReadFileLocal(cfg, path)
 	}
 
 	dockerCfg := DockerConfig{Host: cfg.DockerHost}
 	return DockerExec(dockerCfg, homepageContainerName, fmt.Sprintf("cat /workspace/%s", path), "")
+}
+
+// homepageReadFileLocal reads a file from the host filesystem in the local (non-Docker)
+// fallback mode. It checks cfg.WorkspacePath first, then falls back to cfg.AgentWorkspaceDir
+// when the two directories differ — covering the case where the file was written by the
+// filesystem tool (which operates on AgentWorkspaceDir).
+func homepageReadFileLocal(cfg HomepageConfig, path string) string {
+	// Try WorkspacePath first
+	if cfg.WorkspacePath != "" {
+		fullPath, err := resolveHomepagePath(cfg.WorkspacePath, path)
+		if err == nil {
+			if data, readErr := os.ReadFile(fullPath); readErr == nil {
+				out, _ := json.Marshal(map[string]interface{}{"status": "ok", "content": string(data)})
+				return string(out)
+			}
+		}
+	}
+	// Fallback: try AgentWorkspaceDir when it differs from WorkspacePath
+	if cfg.AgentWorkspaceDir != "" {
+		abs1, _ := filepath.Abs(cfg.WorkspacePath)
+		abs2, _ := filepath.Abs(cfg.AgentWorkspaceDir)
+		if abs1 != abs2 {
+			fullPath, err := resolveHomepagePath(cfg.AgentWorkspaceDir, path)
+			if err == nil {
+				if data, readErr := os.ReadFile(fullPath); readErr == nil {
+					out, _ := json.Marshal(map[string]interface{}{"status": "ok", "content": string(data), "source": "agent_workspace"})
+					return string(out)
+				}
+			}
+		}
+	}
+	if cfg.WorkspacePath == "" && cfg.AgentWorkspaceDir == "" {
+		return homepageWorkspacePathNotConfiguredJSON()
+	}
+	return errJSON("File not found: %s", path)
 }
 
 // maxHomepageWriteFileSize is the maximum content size for HomepageWriteFile (2 MB).
