@@ -248,6 +248,7 @@ For advanced users, all settings can also be configured via `config.yaml` or the
 - **[English Manual](documentation/manual/en/README.md)** — Complete user guide
 - **[Configuration Reference](documentation/configuration.md)** — All config options
 - **[Docker Installation](documentation/docker_installation.md)** — Container setup
+- **[Architecture Overview](documentation/architecture.md)** — System architecture diagram
 - **[Telegram Setup](documentation/telegram_setup.md)** — Bot configuration
 - **[Google Setup](documentation/google_setup.md)** — OAuth2 configuration
 
