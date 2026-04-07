@@ -449,6 +449,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		if !runCfg.IsMission && personalityEnabled && shortTermMem != nil {
 			emotionPolicy = deriveEmotionBehaviorPolicy(shortTermMem, emotionSynthesizer)
 		}
+		// Per-iteration flag: set when the XML fallback block has already appended an
+		// assistant message to req.Messages this turn.  Used below to avoid adding a
+		// duplicate assistant entry in the non-native tool-execution branch.
+		xmlFallbackHandledThisTurn := false
 
 		// Check for user interrupt
 		if checkAndClearInterrupt(sessionID) {
@@ -1767,6 +1771,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 			req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: xmlAssistantContent})
 			req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: xmlFeedback})
+			xmlFallbackHandledThisTurn = true
 			// Don't continue — fall through so the tool is actually executed this turn.
 		}
 
@@ -2405,7 +2410,12 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					})
 				}
 			} else {
-				req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: content})
+				// When the XML fallback handler already appended an assistant message this
+				// turn, skip re-adding content to avoid a duplicate assistant entry that
+				// confuses the model into mis-attributing the tool output.
+				if !xmlFallbackHandledThisTurn {
+					req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: content})
+				}
 				if useNativeFunctions {
 					req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: resultContent})
 				} else {

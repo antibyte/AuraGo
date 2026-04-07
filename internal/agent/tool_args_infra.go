@@ -387,7 +387,7 @@ func (req netlifyArgs) hookData() map[string]interface{} {
 func decodeProxmoxArgs(tc ToolCall) proxmoxArgs {
 	return proxmoxArgs{
 		Operation:    firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
-		Hostname:     firstNonEmptyToolString(tc.Hostname, toolArgString(tc.Params, "hostname")),
+		Hostname:     firstNonEmptyToolString(tc.Hostname, toolArgString(tc.Params, "hostname", "node")),
 		Name:         firstNonEmptyToolString(tc.Name, toolArgString(tc.Params, "name")),
 		ID:           firstNonEmptyToolString(tc.ID, toolArgString(tc.Params, "id")),
 		VMID:         firstNonEmptyToolString(tc.VMID, toolArgString(tc.Params, "vmid")),
