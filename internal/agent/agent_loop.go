@@ -1660,12 +1660,21 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				"attempt", xmlFallbackCount, "action", tc.Action)
 			broker.Send("error_recovery", "XML tool call format detected, requesting native API format...")
 
-			id, err := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleAssistant, content, false, true)
-			if err != nil {
-				currentLogger.Error("Failed to persist assistant message to SQLite", "error", err)
+			// Strip the <action>...</action> block (and everything after it) before
+			// persisting to SQLite so the raw XML never appears in history / chat UI.
+			// The streaming filter already hides it in real-time; this keeps storage clean.
+			displayContent := content
+			if idx := strings.Index(strings.ToLower(displayContent), "<action>"); idx != -1 {
+				displayContent = strings.TrimSpace(displayContent[:idx])
 			}
-			if sessionID == "default" {
-				historyManager.Add(openai.ChatMessageRoleAssistant, content, id, false, true)
+			if displayContent != "" {
+				id, err := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleAssistant, displayContent, false, true)
+				if err != nil {
+					currentLogger.Error("Failed to persist assistant message to SQLite", "error", err)
+				}
+				if sessionID == "default" {
+					historyManager.Add(openai.ChatMessageRoleAssistant, displayContent, id, false, true)
+				}
 			}
 
 			// Large XML fallback payloads (e.g. a full write_file with kilobytes of code)
@@ -1686,6 +1695,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					" never requires sending the complete file content."
 			}
 			xmlFeedback = applyEmotionRecoveryNudge(xmlFeedback, emotionPolicy)
+			var id int64
 			id, err = shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, xmlFeedback, false, true)
 			if err != nil {
 				currentLogger.Error("Failed to persist XML feedback message to SQLite", "error", err)
