@@ -389,6 +389,10 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				needsRestart = true
 				restartReasons = append(restartReasons, "MQTT")
 			}
+			if oldCfg.Tools.DaemonSkills != newCfg.Tools.DaemonSkills {
+				needsRestart = true
+				restartReasons = append(restartReasons, "Daemon Skills")
+			}
 
 			// Apply hot-reload: copy all new fields into the live config pointer
 			savedPath := s.Cfg.ConfigPath
