@@ -1,0 +1,1083 @@
+3:    async function loadDaemonStates() {
+4:        try {
+5:            const resp = await fetch('/api/daemons');
+6:            if (!resp.ok) return;
+7:            const data = await resp.json();
+8:            const list = data.daemons || data || [];
+9:            daemonStates = {};
+10:            if (Array.isArray(list)) {
+11:                list.forEach(d => { daemonStates[d.skill_id || d.SkillID] = d; });
+12:            }
+13:            renderSkills();
+14:        } catch (_) { }
+15:    }
+17:    function initDaemonSSE() {
+18:        if (window.AuraSSE) {
+19:            // Reload full skills list on daemon state changes so badges reflect
+20:            // the new status without a separate /api/daemons round-trip.
+21:            window.AuraSSE.on('daemon_update', () => { loadSkills(); });
+22:        }
+23:    }
+25:    function getDaemonState(skillId) {
+26:        return daemonStates[skillId] || null;
+27:    }
+29:    function renderDaemonBadge(skill) {
+30:        const isDaemon = skill.IsDaemon || skill.is_daemon;
+31:        if (!isDaemon) return '';
+32:        const id = skill.name || skill.Name || skill.id || skill.ID || '';
+33:        const ds = getDaemonState(id);
+34:        if (!ds) {
+35:            return `<span class="sk-daemon-badge sk-daemon-stopped" title="${t('skills.daemon_stopped') || 'Daemon: Stopped'}">⏹ ${t('skills.daemon') || 'Daemon'}</span>`;
+36:        }
+37:        const status = (ds.status || ds.Status || 'stopped').toLowerCase();
+38:        const statusMap = {
+39:            running: { cls: 'sk-daemon-running', icon: '🟢', label: t('skills.daemon_running') || 'Running' },
+40:            stopped: { cls: 'sk-daemon-stopped', icon: '⏹', label: t('skills.daemon_stopped') || 'Stopped' },
+41:            error: { cls: 'sk-daemon-error', icon: '🔴', label: t('skills.daemon_error') || 'Error' },
+42:            disabled: { cls: 'sk-daemon-disabled', icon: '⛔', label: t('skills.daemon_disabled') || 'Disabled' },
+43:            starting: { cls: 'sk-daemon-starting', icon: '🟡', label: t('skills.daemon_starting') || 'Starting' },
+44:        };
+45:        const info = statusMap[status] || statusMap.stopped;
+46:        return `<span class="sk-daemon-badge ${info.cls}" title="${info.label}">${info.icon} ${t('skills.daemon') || 'Daemon'}</span>`;
+47:    }
+49:    function renderDaemonActions(skill) {
+50:        const isDaemon = skill.IsDaemon || skill.is_daemon;
+51:        if (!isDaemon) return '';
+52:        const id = skill.name || skill.Name || skill.id || skill.ID || '';
+53:        const ds = getDaemonState(id);
+54:        const status = ds ? (ds.status || ds.Status || 'stopped').toLowerCase() : 'stopped';
+55:        const autoDisabled = ds && (ds.auto_disabled || ds.AutoDisabled);
+57:        let btns = '';
+58:        if (status === 'running') {
+59:            btns = `<button class="btn btn-sm btn-warning" onclick="daemonAction('${id}','stop')">${t('skills.daemon_stop') || 'Stop'}</button>`;
+60:        } else if (autoDisabled || status === 'disabled') {
+61:            btns = `<button class="btn btn-sm btn-primary" onclick="daemonAction('${id}','reenable')">${t('skills.daemon_reenable') || 'Re-enable'}</button>`;
+62:        } else {
+63:            btns = `<button class="btn btn-sm btn-primary" onclick="daemonAction('${id}','start')">${t('skills.daemon_start') || 'Start'}</button>`;
+64:        }
+65:        return `<div class="sk-daemon-actions">${btns}</div>`;
+66:    }
+68:    // eslint-disable-next-line no-unused-vars
+69:    async function daemonAction(skillId, action) {
+70:        try {
+71:            const resp = await fetch(`/api/daemons/${encodeURIComponent(skillId)}/${action}`, { method: 'POST' });
+72:            const data = await resp.json();
+73:            if (data.status === 'ok' && resp.ok) {
+74:                showToast(t('skills.daemon_action_ok') || 'Daemon action executed', 'success');
+75:                await loadSkills();
+76:            } else {
+77:                const msg = data.message || data.error || t('common.error');
+78:                showToast(`${t('skills.daemon_action_failed') || 'Daemon error'}: ${msg}`, 'error');
+79:            }
+80:        } catch (e) {
+81:            showToast(t('common.error') || 'Error', 'error');
+82:        }
+83:    }
+85:    function showDisabledState() {
+86:        document.getElementById('sk-grid').style.display = 'none';
+87:        document.getElementById('sk-empty').style.display = 'none';
+88:        document.getElementById('sk-disabled').style.display = '';
+89:        document.getElementById('sk-status-bar').style.display = 'none';
+90:        document.getElementById('sk-toolbar-actions').style.display = 'none';
+91:        document.getElementById('sk-security-filters').style.display = 'none';
+92:    }
+94:    // ── Stats ───────────────────────────────────────────────────────────────────
+96:    function updateStats(stats) {
+97:        if (!stats) return;
+98:        document.getElementById('sk-total').textContent = stats.total || 0;
+99:        document.getElementById('sk-agent').textContent = stats.agent || 0;
+100:        document.getElementById('sk-user').textContent = stats.user || 0;
+101:        document.getElementById('sk-pending').textContent = stats.pending || 0;
+102:    }
+104:    // ── Rendering ───────────────────────────────────────────────────────────────
+106:    function renderSkills() {
+107:        const grid = document.getElementById('sk-grid');
+108:        const empty = document.getElementById('sk-empty');
+109:        const disabled = document.getElementById('sk-disabled');
+110:        disabled.style.display = 'none';
+112:        const filtered = getFilteredSkills();
+114:        if (filtered.length === 0) {
+115:            grid.style.display = 'none';
+116:            empty.style.display = '';
+117:            return;
+118:        }
+119:        empty.style.display = 'none';
+120:        grid.style.display = '';
+122:        grid.innerHTML = filtered.map(s => renderCard(s)).join('');
+123:        if (typeof applyI18n === 'function') applyI18n();
+124:    }
+126:    function renderCard(skill) {
+127:        const name = esc(skill.Name || skill.name || 'Unknown');
+128:        const desc = esc(skill.Description || skill.description || '');
+129:        const type = (skill.Type || skill.type || 'user').toLowerCase();
+130:        const secStatus = (skill.SecurityStatus || skill.security_status || 'pending').toLowerCase();
+131:        const enabled = skill.Enabled !== undefined ? skill.Enabled : skill.enabled;
+132:        const id = esc(skill.ID || skill.id || '');
+133:        const deps = skill.Dependencies || skill.dependencies || [];
+134:        const tags = skill.Tags || skill.tags || [];
+135:        const category = skill.Category || skill.category || '';
+136:        const vaultKeys = skill.VaultKeys || skill.vault_keys || [];
+138:        const typeLabel = type.charAt(0).toUpperCase() + type.slice(1);
+139:        const secBadge = renderSecurityBadge(secStatus);
+140:        const enabledClass = enabled ? 'sk-enabled' : 'sk-disabled-card';
+141:        const toggleLabel = enabled ? (t('skills.btn_disable') || 'Disable') : (t('skills.btn_enable') || 'Enable');
+142:        const toggleClass = enabled ? 'btn-secondary' : 'btn-primary';
+144:        let depTags = '';
+145:        if (deps.length > 0) {
+146:            depTags = `<div class="sk-card-deps">${deps.slice(0, 5).map(d => `<span class="sk-dep-tag">${esc(d)}</span>`).join('')}${deps.length > 5 ? `<span class="sk-dep-tag">+${deps.length - 5}</span>` : ''}</div>`;
+147:        }
+148:        const metaTags = [];
+149:        if (category) metaTags.push(`<span class="sk-dep-tag">${esc(category)}</span>`);
+150:        tags.slice(0, 4).forEach(tag => metaTags.push(`<span class="sk-dep-tag">${esc(tag)}</span>`));
+151:        const metaRow = metaTags.length > 0 ? `<div class="sk-card-deps">${metaTags.join('')}</div>` : '';
+153:        let vaultRow = '';
+154:        {
+155:            const keyTags = vaultKeys.length > 0
+156:                ? vaultKeys.map(k => {
+157:                    if (k.startsWith('cred:')) {
+158:                        const cname = credentialMap[k.slice(5)] || k.slice(5);
+159:                        return `<code class="sk-vault-key-tag sk-vault-key-cred" title="${esc(k)}">🔑 ${esc(cname)}</code>`;
+160:                    }
+161:                    return `<code class="sk-vault-key-tag" title="${esc(k)}">${esc(k)}</code>`;
+162:                }).join('')
+163:                : '';
+164:            vaultRow = `<div class="sk-card-vault">
+165:            <button class="btn btn-xs btn-secondary sk-vault-edit-btn" onclick="openVaultKeyModal('${id}')" title="${t('skills.btn_edit_secrets') || 'Edit Secrets'}">🔑 ${t('skills.btn_edit_secrets') || 'Secrets'}</button>
+166:            ${keyTags ? `<span class="sk-vault-keys">${keyTags}</span>` : ''}
+167:        </div>`;
+168:        }
+170:        return `
+171:    <div class="sk-card ${enabledClass}" data-id="${id}" data-type="${type}" data-sec="${secStatus}">
+172:        <div class="sk-card-header">
+173:            <div class="sk-card-name" title="${name}">${name}</div>
+174:            <div class="sk-card-badges">
+175:                <span class="sk-type-badge sk-type-${type}">${typeLabel}</span>
+176:                ${secBadge}
+177:                ${renderDaemonBadge(skill)}
+178:            </div>
+179:        </div>
+180:        <div class="sk-card-desc">${desc || '<em>' + (t('skills.no_description') || 'No description') + '</em>'}</div>
+181:        ${metaRow}
+182:        ${depTags}
+183:        ${vaultRow}
+184:        ${renderDaemonActions(skill)}
+185:        <div class="sk-card-actions">
+186:            <button class="btn btn-sm btn-secondary" onclick="showDetail('${id}')" data-i18n="skills.btn_details">Details</button>
+187:            <button class="btn btn-sm btn-secondary" onclick="viewCode('${id}')" data-i18n="skills.btn_view_code">Code</button>
+188:            <button class="btn btn-sm ${toggleClass}" onclick="toggleSkill('${id}', ${!enabled})">${toggleLabel}</button>
+189:            <button class="btn btn-sm btn-danger" onclick="showDeleteSkillModal('${id}', '${name}')" data-i18n="skills.btn_delete">Delete</button>
+190:        </div>
+191:    </div>`;
+192:    }
+194:    function renderSecurityBadge(status) {
+195:        const labels = {
+196:            clean: t('skills.sec_clean') || 'Clean',
+197:            warning: t('skills.sec_warning') || 'Warning',
+198:            dangerous: t('skills.sec_dangerous') || 'Dangerous',
+199:            pending: t('skills.sec_pending') || 'Pending',
+200:            error: t('skills.sec_error') || 'Error'
+201:        };
+202:        const label = labels[status] || status;
+203:        return `<span class="sk-sec-badge sk-sec-${status}">${label}</span>`;
+204:    }
+206:    // ── Filtering ───────────────────────────────────────────────────────────────
+208:    function getFilteredSkills() {
+209:        const search = (document.getElementById('sk-search').value || '').toLowerCase();
+210:        return allSkills.filter(s => {
+211:            const type = (s.Type || s.type || '').toLowerCase();
+212:            const sec = (s.SecurityStatus || s.security_status || 'pending').toLowerCase();
+213:            const name = (s.Name || s.name || '').toLowerCase();
+214:            const desc = (s.Description || s.description || '').toLowerCase();
+215:            const isDaemon = s.IsDaemon || s.is_daemon;
+217:            if (currentTypeFilter === 'daemon' && !isDaemon) return false;
+218:            if (currentTypeFilter !== 'all' && currentTypeFilter !== 'daemon' && type !== currentTypeFilter) return false;
+219:            if (currentSecFilter !== 'all' && sec !== currentSecFilter) return false;
+220:            if (search && !name.includes(search) && !desc.includes(search)) return false;
+221:            return true;
+222:        });
+223:    }
+225:    // eslint-disable-next-line no-unused-vars
+226:    function filterSkills() {
+227:        window.clearTimeout(searchDebounceHandle);
+228:        searchDebounceHandle = window.setTimeout(() => renderSkills(), 120);
+229:    }
+231:    // eslint-disable-next-line no-unused-vars
+232:    function setSkillFilter(filter) {
+233:        currentTypeFilter = filter;
+234:        document.querySelectorAll('.sk-filter-btn').forEach(btn => {
+235:            btn.classList.toggle('active', btn.dataset.filter === filter);
+236:        });
+237:        renderSkills();
+238:    }
+240:    // eslint-disable-next-line no-unused-vars
+241:    function setSecurityFilter(filter) {
+242:        currentSecFilter = filter;
+243:        document.querySelectorAll('.sk-pill').forEach(btn => {
+244:            btn.classList.toggle('active', btn.dataset.sec === filter);
+245:        });
+246:        renderSkills();
+247:    }
+249:    // ── Skill Actions ───────────────────────────────────────────────────────────
+251:    // eslint-disable-next-line no-unused-vars
+252:    async function toggleSkill(id, enabled) {
+253:        try {
+254:            const resp = await fetch(`/api/skills/${encodeURIComponent(id)}`, {
+255:                method: 'PUT',
+256:                headers: { 'Content-Type': 'application/json' },
+257:                body: JSON.stringify({ enabled })
+258:            });
+259:            const data = await resp.json();
+260:            if (data.status === 'ok') {
+261:                showToast(t('skills.toggle_success') || 'Skill updated', 'success');
+262:                await loadSkills();
+263:            } else {
+264:                showToast(data.message || t('common.error'), 'error');
+265:            }
+266:        } catch (e) {
+267:            showToast(t('common.error') || 'Error', 'error');
+268:        }
+269:    }
+271:    // ── Detail Modal ────────────────────────────────────────────────────────────
+273:    // eslint-disable-next-line no-unused-vars
+274:    async function showDetail(id) {
+275:        currentDetailId = id;
+276:        const body = document.getElementById('detail-modal-body');
+277:        body.innerHTML = `<p>${t('common.loading') || 'Loading...'}</p>`;
+278:        document.getElementById('detail-modal').classList.add('active');
+280:        try {
+281:            const [skillResp, versionsResp, auditResp] = await Promise.all([
+282:                fetch(`/api/skills/${encodeURIComponent(id)}`),
+283:                fetch(`/api/skills/${encodeURIComponent(id)}/versions`),
+284:                fetch(`/api/skills/${encodeURIComponent(id)}/audit?limit=20`)
+285:            ]);
+286:            const data = await skillResp.json();
+287:            if (data.status !== 'ok') {
+288:                body.innerHTML = `<p class="sk-error">${esc(data.message || 'Not found')}</p>`;
+289:                return;
+290:            }
+291:            const s = data.skill;
+292:            detailVersions = versionsResp.ok ? ((await versionsResp.json()).versions || []) : [];
+293:            detailAudit = auditResp.ok ? ((await auditResp.json()).audit || []) : [];
+294:            const sec = s.SecurityReport || s.security_report;
+295:            const deps = (s.Dependencies || s.dependencies || []);
+296:            const vaultKeys = (s.VaultKeys || s.vault_keys || []);
+297:            const tags = (s.Tags || s.tags || []);
+298:            const category = (s.Category || s.category || '');
+300:            let secHTML = '';
+301:            if (sec) {
+302:                const findings = sec.StaticAnalysis || sec.static_analysis || [];
+303:                if (findings.length > 0) {
+304:                    secHTML = `<div class="sk-findings">
+305:                    <h4 data-i18n="skills.findings_title">${t('skills.findings_title') || 'Security Findings'}</h4>
+306:                    <ul>${findings.map(f => `<li class="sk-finding sk-finding-${(f.Severity || f.severity || 'info').toLowerCase()}">
+307:                        <strong>${esc(f.Category || f.category || '')}</strong>: ${esc(f.Message || f.message || '')}
+308:                        ${f.Line || f.line ? ` <span class="sk-finding-line">(${t('skills.finding_line') || 'line'} ${f.Line || f.line})</span>` : ''}
+309:                    </li>`).join('')}</ul>
+310:                </div>`;
+311:                }
+312:                if (sec.GuardianDecision || sec.guardian_decision) {
+313:                    secHTML += `<div class="sk-guardian-result">
+314:                    <h4>${t('skills.guardian_title') || 'LLM Guardian'}</h4>
+315:                    <p><strong>${t('skills.guardian_decision') || 'Decision'}:</strong> ${esc(sec.GuardianDecision || sec.guardian_decision)}</p>
+316:                    ${sec.GuardianReason || sec.guardian_reason ? `<p>${esc(sec.GuardianReason || sec.guardian_reason)}</p>` : ''}
+317:                </div>`;
+318:                }
+319:            }
+321:            body.innerHTML = `
+322:            <div class="sk-detail-grid">
+323:                <div class="sk-detail-row"><span class="sk-detail-label">${t('skills.detail_name') || 'Name'}:</span> <span>${esc(s.Name || s.name)}</span></div>
+324:                <div class="sk-detail-row"><span class="sk-detail-label">${t('skills.detail_type') || 'Type'}:</span> <span class="sk-type-badge sk-type-${(s.Type || s.type || '').toLowerCase()}">${esc(s.Type || s.type)}</span></div>
+325:                <div class="sk-detail-row"><span class="sk-detail-label">${t('skills.detail_status') || 'Security'}:</span> ${renderSecurityBadge((s.SecurityStatus || s.security_status || 'pending').toLowerCase())}</div>
+326:                <div class="sk-detail-row"><span class="sk-detail-label">${t('skills.detail_enabled') || 'Enabled'}:</span> <span>${s.Enabled || s.enabled ? '✅' : '❌'}</span></div>
+327:                <div class="sk-detail-row"><span class="sk-detail-label">${t('skills.detail_created') || 'Created'}:</span> <span>${esc(s.CreatedAt || s.created_at || '-')}</span></div>
+328:                <div class="sk-detail-row"><span class="sk-detail-label">${t('skills.detail_description') || 'Description'}:</span> <span>${esc(s.Description || s.description || '-')}</span></div>
+329:                ${category ? `<div class="sk-detail-row"><span class="sk-detail-label">${t('skills.field_category') || 'Category'}:</span> <span>${esc(category)}</span></div>` : ''}
+330:                ${tags.length > 0 ? `<div class="sk-detail-row"><span class="sk-detail-label">${t('skills.field_tags') || 'Tags'}:</span> <span class="sk-meta-list">${tags.map(tag => `<span class="sk-dep-tag">${esc(tag)}</span>`).join('')}</span></div>` : ''}
+331:                ${deps.length > 0 ? `<div class="sk-detail-row"><span class="sk-detail-label">${t('skills.detail_deps') || 'Dependencies'}:</span> <span>${deps.map(d => `<span class="sk-dep-tag">${esc(d)}</span>`).join(' ')}</span></div>` : ''}
+332:                <div class="sk-detail-row"><span class="sk-detail-label">${t('skills.vault_keys_label') || 'Vault Keys'}:</span> <span>${vaultKeys.length > 0 ? vaultKeys.map(k => {
+333:                if (k.startsWith('cred:')) {
+334:                    const cname = credentialMap[k.slice(5)] || k.slice(5);
+335:                    return `<code class="sk-vault-key-tag sk-vault-key-cred" title="${esc(k)}">🔑 ${esc(cname)}</code>`;
+336:                }
+337:                return `<code class="sk-vault-key-tag">${esc(k)}</code>`;
+338:            }).join(' ') : `<span class="sk-vault-none">${t('skills.vault_none') || 'No secrets assigned'}</span>`}</span></div>
+339:            </div>
+340:            ${renderSkillHistory(detailVersions)}
+341:            ${renderSkillAudit(detailAudit)}
+342:            ${secHTML}`;
+343:            if (typeof applyI18n === 'function') applyI18n();
+344:        } catch (e) {
+345:            body.innerHTML = `<p class="sk-error">${t('common.error') || 'Error'}</p>`;
+346:        }
+347:    }
+349:    // eslint-disable-next-line no-unused-vars
+350:    function closeDetailModal() {
+351:        document.getElementById('detail-modal').classList.remove('active');
+352:        currentDetailId = '';
+353:    }
+355:    // eslint-disable-next-line no-unused-vars
+356:    async function verifyCurrentSkill() {
+357:        if (!currentDetailId) return;
+358:        const btn = document.getElementById('detail-verify-btn');
+359:        btn.disabled = true;
+360:        btn.textContent = t('common.loading') || 'Scanning...';
+362:        try {
+363:            const resp = await fetch(`/api/skills/${encodeURIComponent(currentDetailId)}/verify`, { method: 'POST' });
+364:            const data = await resp.json();
+365:            if (data.status === 'scanned') {
+366:                showToast(t('skills.scan_complete') || 'Scan complete', 'success');
+367:                showDetail(currentDetailId);
+368:                loadSkills();
+369:            } else {
+370:                showToast(data.message || t('common.error'), 'error');
+371:            }
+372:        } catch (e) {
+373:            showToast(t('common.error') || 'Error', 'error');
+374:        } finally {
+375:            btn.disabled = false;
+376:            btn.textContent = t('skills.btn_verify') || 'Re-Scan';
+377:        }
+378:    }
+380:    // ── Code Editor Modal (CodeMirror 6) ────────────────────────────────────────
+382:    function createEditorState(code, readOnly) {
+383:        const cm = window.CM6;
+384:        if (!cm || !cm.EditorState || !cm.EditorView) {
+385:            throw new Error('CodeMirror unavailable');
+386:        }
+387:        const extensions = [
+388:            cm.lineNumbers(),
+389:            cm.highlightActiveLineGutter(),
+390:            cm.highlightSpecialChars(),
+391:            cm.history(),
+392:            cm.foldGutter(),
+393:            cm.drawSelection(),
+394:            cm.dropCursor(),
+395:            cm.indentOnInput(),
+396:            cm.syntaxHighlighting(cm.defaultHighlightStyle, { fallback: true }),
+397:            cm.bracketMatching(),
+398:            cm.closeBrackets(),
+399:            cm.autocompletion(),
+400:            cm.rectangularSelection(),
+401:            cm.crosshairCursor(),
+402:            cm.highlightActiveLine(),
+403:            cm.highlightSelectionMatches(),
+404:            cm.keymap.of([
+405:                ...cm.closeBracketsKeymap,
+406:                ...cm.defaultKeymap,
+407:                ...cm.searchKeymap,
+408:                ...cm.historyKeymap,
+409:                ...cm.foldKeymap,
+410:                ...cm.completionKeymap,
+411:                cm.indentWithTab,
+412:            ]),
+413:            cm.python(),
+414:            cm.oneDark,
+415:        ];
+416:        if (readOnly) {
+417:            extensions.push(cm.EditorState.readOnly.of(true));
+418:        }
+419:        return cm.EditorState.create({ doc: code, extensions });
+420:    }
+422:    function getCurrentEditorCode() {
+423:        if (codeEditorView && codeEditorView.state && codeEditorView.state.doc) {
+424:            return codeEditorView.state.doc.toString();
+425:        }
+426:        const fallback = document.getElementById('code-editor-fallback');
+427:        return fallback ? fallback.value : '';
+428:    }
+430:    function setDraftMeta(meta, readOnly) {
+431:        codeEditorDraft = meta || null;
+432:        const metaWrap = document.getElementById('code-draft-meta');
+433:        const saveBtn = document.getElementById('code-save-btn');
+434:        if (!meta) {
+435:            metaWrap.style.display = 'none';
+436:            saveBtn.textContent = t('skills.btn_save_code') || 'Save';
+437:            return;
+438:        }
+439:        metaWrap.style.display = '';
+440:        document.getElementById('code-draft-name').value = meta.name || '';
+441:        document.getElementById('code-draft-description').value = meta.description || '';
+442:        document.getElementById('code-draft-category').value = meta.category || '';
+443:        document.getElementById('code-draft-tags').value = (meta.tags || []).join(', ');
+444:        saveBtn.textContent = readOnly ? (t('common.btn_close') || 'Close') : (t('skills.btn_create_skill') || 'Create Skill');
+445:    }
+447:    // eslint-disable-next-line no-unused-vars
+448:    function openCodeEditor(id, code, readOnly, draftMeta = null) {
+449:        codeEditorSkillId = id;
+450:        const container = document.getElementById('code-editor-container');
+451:        container.innerHTML = '';
+453:        if (codeEditorView) {
+454:            codeEditorView.destroy();
+455:            codeEditorView = null;
+456:        }
+458:        try {
+459:            const state = createEditorState(code || '', readOnly);
+460:            codeEditorView = new window.CM6.EditorView({
+461:                state,
+462:                parent: container,
+463:            });
+464:        } catch (_) {
+465:            container.innerHTML = `<textarea id="code-editor-fallback" class="sk-editor-fallback" ${readOnly ? 'readonly' : ''}></textarea>`;
+466:            document.getElementById('code-editor-fallback').value = code || '';
+467:            showToast(t('skills.editor_fallback') || 'Advanced editor unavailable, using plain text mode.', 'info');
+468:        }
+470:        const saveBtn = document.getElementById('code-save-btn');
+471:        saveBtn.style.display = readOnly ? 'none' : '';
+472:        setDraftMeta(draftMeta, readOnly);
+474:        document.getElementById('code-modal').classList.add('active');
+475:    }
+477:    // eslint-disable-next-line no-unused-vars
+478:    async function viewCode(id) {
+479:        document.getElementById('code-modal').classList.add('active');
+480:        const container = document.getElementById('code-editor-container');
+481:        container.innerHTML = `<p style="padding:16px;color:var(--text-secondary);">${t('common.loading') || 'Loading...'}</p>`;
+483:        try {
+484:            const resp = await fetch(`/api/skills/${encodeURIComponent(id)}?code=true`);
+485:            const data = await resp.json();
+486:            if (data.status === 'ok' && data.code) {
+487:                container.innerHTML = '';
+488:                openCodeEditor(id, data.code, false, null);
+489:            } else {
+490:                container.innerHTML = `<p style="padding:16px;color:var(--text-secondary);">${t('skills.no_code') || 'Code not available'}</p>`;
+491:            }
+492:        } catch (e) {
+493:            container.innerHTML = `<p style="padding:16px;color:var(--text-secondary);">${t('skills.failed_to_load_code') || 'Failed to load code'}</p>`;
+494:        }
+495:    }
+497:    // eslint-disable-next-line no-unused-vars
+498:    async function saveSkillCode() {
+499:        const code = getCurrentEditorCode();
+500:        if (!code) return;
+501:        const btn = document.getElementById('code-save-btn');
+502:        btn.disabled = true;
+503:        btn.textContent = t('common.loading') || 'Saving...';
+505:        try {
+506:            let resp;
+507:            if (codeEditorSkillId) {
+508:                resp = await fetch(`/api/skills/${encodeURIComponent(codeEditorSkillId)}`, {
+509:                    method: 'PUT',
+510:                    headers: { 'Content-Type': 'application/json' },
+511:                    body: JSON.stringify({ code })
+512:                });
+513:            } else {
+514:                const name = document.getElementById('code-draft-name').value.trim();
+515:                const description = document.getElementById('code-draft-description').value.trim();
+516:                const category = document.getElementById('code-draft-category').value.trim();
+517:                const tags = parseCSV(document.getElementById('code-draft-tags').value);
+518:                resp = await fetch('/api/skills', {
+519:                    method: 'POST',
+520:                    headers: { 'Content-Type': 'application/json' },
+521:                    body: JSON.stringify({ name, description, category, tags, code })
+522:                });
+523:            }
+524:            const data = await resp.json();
+525:            if (data.status === 'ok' || data.status === 'created') {
+526:                showToast(codeEditorSkillId ? (t('skills.code_saved') || 'Code saved') : (t('skills.create_success') || 'Skill created'), 'success');
+527:                await loadSkills();
+528:                closeCodeModal();
+529:                if (!codeEditorSkillId && data.skill && data.skill.id) {
+530:                    currentDetailId = data.skill.id;
+531:                }
+532:            } else {
+533:                showToast(data.message || t('common.error'), 'error');
+534:            }
+535:        } catch (e) {
+536:            showToast(t('common.error') || 'Error', 'error');
+537:        } finally {
+538:            btn.disabled = false;
+539:            btn.textContent = t('skills.btn_save_code') || 'Save';
+540:        }
+541:    }
+543:    // eslint-disable-next-line no-unused-vars
+544:    function closeCodeModal() {
+545:        const modal = document.getElementById('code-modal');
+546:        modal.classList.remove('active');
+547:        modal.classList.remove('sk-code-overlay-fullscreen');
+548:        if (codeEditorView) {
+549:            codeEditorView.destroy();
+550:            codeEditorView = null;
+551:        }
+552:        codeEditorSkillId = '';
+553:        codeEditorDraft = null;
+554:        document.getElementById('code-draft-meta').style.display = 'none';
+555:    }
+557:    // eslint-disable-next-line no-unused-vars
+558:    function toggleCodeFullscreen() {
+559:        document.getElementById('code-modal').classList.toggle('sk-code-overlay-fullscreen');
+560:    }
+562:    // ── Upload Modal ────────────────────────────────────────────────────────────
+564:    function initDropzone() {
+565:        const dz = document.getElementById('sk-dropzone');
+566:        if (!dz) return;
+568:        dz.addEventListener('click', () => document.getElementById('upload-file').click());
+569:        dz.addEventListener('dragover', (e) => { e.preventDefault(); dz.classList.add('sk-dropzone-active'); });
+570:        dz.addEventListener('dragleave', () => dz.classList.remove('sk-dropzone-active'));
+571:        dz.addEventListener('drop', (e) => {
+572:            e.preventDefault();
+573:            dz.classList.remove('sk-dropzone-active');
+574:            if (e.dataTransfer.files.length > 0) {
+575:                selectFile(e.dataTransfer.files[0]);
+576:            }
+577:        });
+578:    }
+580:    // eslint-disable-next-line no-unused-vars
+581:    function handleFileSelect(event) {
+582:        if (event.target.files.length > 0) {
+583:            selectFile(event.target.files[0]);
+584:        }
+585:    }
+587:    function selectFile(file) {
+588:        if (!file.name.endsWith('.py')) {
+589:            showToast(t('skills.upload_py_only') || 'Only .py files are allowed', 'error');
+590:            return;
+591:        }
+592:        selectedFile = file;
+593:        document.getElementById('sk-dropzone').style.display = 'none';
+594:        document.getElementById('sk-selected-file').style.display = '';
+595:        document.getElementById('sk-selected-name').textContent = file.name;
+596:        document.getElementById('upload-submit-btn').disabled = false;
+597:    }
+599:    // eslint-disable-next-line no-unused-vars
+600:    function clearFileSelection() {
+601:        selectedFile = null;
+602:        document.getElementById('sk-dropzone').style.display = '';
+603:        document.getElementById('sk-selected-file').style.display = 'none';
+604:        document.getElementById('upload-submit-btn').disabled = true;
+605:        document.getElementById('upload-file').value = '';
+606:    }
+608:    // eslint-disable-next-line no-unused-vars
+609:    function showUploadModal() {
+610:        clearFileSelection();
+611:        document.getElementById('upload-name').value = '';
+612:        document.getElementById('upload-description').value = '';
+613:        document.getElementById('upload-category').value = '';
+614:        document.getElementById('upload-tags').value = '';
+615:        document.getElementById('upload-modal').classList.add('active');
+616:    }
+618:    // eslint-disable-next-line no-unused-vars
+619:    function closeUploadModal() {
+620:        document.getElementById('upload-modal').classList.remove('active');
+621:    }
+623:    // eslint-disable-next-line no-unused-vars
+624:    async function submitUpload() {
+625:        if (!selectedFile) return;
+626:        const btn = document.getElementById('upload-submit-btn');
+627:        btn.disabled = true;
+628:        btn.textContent = t('common.loading') || 'Uploading...';
+630:        const fd = new FormData();
+631:        fd.append('file', selectedFile);
+632:        fd.append('name', document.getElementById('upload-name').value.trim());
+633:        fd.append('description', document.getElementById('upload-description').value.trim());
+634:        fd.append('category', document.getElementById('upload-category').value.trim());
+635:        fd.append('tags', document.getElementById('upload-tags').value.trim());
+637:        try {
+638:            const resp = await fetch('/api/skills/upload', { method: 'POST', body: fd });
+639:            const data = await resp.json();
+641:            if (data.status === 'uploaded' || data.status === 'created') {
+642:                showToast(t('skills.upload_success') || 'Skill uploaded', 'success');
+643:                closeUploadModal();
+644:                await loadSkills();
+645:            } else if (data.status === 'rejected') {
+646:                const msgs = (data.validation && data.validation.Errors) ? data.validation.Errors.join(', ') : (data.message || 'Validation failed');
+647:                showToast(msgs, 'error');
+648:            } else {
+649:                showToast(data.message || t('common.error'), 'error');
+650:            }
+651:        } catch (e) {
+652:            showToast(t('common.error') || 'Error', 'error');
+653:        } finally {
+654:            btn.disabled = false;
+655:            btn.textContent = t('skills.btn_upload') || 'Upload';
+656:        }
+657:    }
+659:    // ── Template Modal ──────────────────────────────────────────────────────────
+661:    function populateTemplateSelect() {
+662:        const sel = document.getElementById('template-select');
+663:        if (!sel) return;
+664:        // Keep the first "choose" option
+665:        while (sel.options.length > 1) sel.remove(1);
+666:        allTemplates.forEach(tmpl => {
+667:            const opt = document.createElement('option');
+668:            opt.value = tmpl.Name || tmpl.name || '';
+669:            opt.textContent = opt.value;
+670:            sel.appendChild(opt);
+671:        });
+672:    }
+674:    function populateGenerateTemplateSelect() {
+675:        const sel = document.getElementById('generate-template-select');
+676:        if (!sel) return;
+677:        while (sel.options.length > 1) sel.remove(1);
+678:        allTemplates.forEach(tmpl => {
+679:            const opt = document.createElement('option');
+680:            opt.value = tmpl.Name || tmpl.name || '';
+681:            opt.textContent = opt.value;
+682:            sel.appendChild(opt);
+683:        });
+684:    }
+686:    // eslint-disable-next-line no-unused-vars
+687:    function onTemplateSelect() {
+688:        const sel = document.getElementById('template-select');
+689:        const descDiv = document.getElementById('template-description');
+690:        const btn = document.getElementById('template-submit-btn');
+691:        const tmpl = allTemplates.find(t => (t.Name || t.name) === sel.value);
+693:        if (tmpl) {
+694:            descDiv.textContent = tmpl.Description || tmpl.description || '';
+695:            descDiv.style.display = '';
+696:            btn.disabled = false;
+697:        } else {
+698:            descDiv.style.display = 'none';
+699:            btn.disabled = true;
+700:        }
+701:    }
+703:    // eslint-disable-next-line no-unused-vars
+704:    function showTemplateModal() {
+705:        document.getElementById('template-skill-name').value = '';
+706:        document.getElementById('template-description-input').value = '';
+707:        document.getElementById('template-category-input').value = '';
+708:        document.getElementById('template-tags-input').value = '';
+709:        document.getElementById('template-base-url-input').value = '';
+710:        document.getElementById('template-dependencies-input').value = '';
+711:        document.getElementById('template-select').selectedIndex = 0;
+712:        document.getElementById('template-description').style.display = 'none';
+713:        document.getElementById('template-submit-btn').disabled = true;
+714:        document.getElementById('template-modal').classList.add('active');
+715:    }
+717:    // eslint-disable-next-line no-unused-vars
+718:    function closeTemplateModal() {
+719:        document.getElementById('template-modal').classList.remove('active');
+720:    }
+722:    // eslint-disable-next-line no-unused-vars
+723:    async function submitTemplate() {
+724:        const templateName = document.getElementById('template-select').value;
+725:        const skillName = document.getElementById('template-skill-name').value.trim();
+726:        const description = document.getElementById('template-description-input').value.trim();
+727:        const category = document.getElementById('template-category-input').value.trim();
+728:        const tags = parseCSV(document.getElementById('template-tags-input').value);
+729:        const baseURL = document.getElementById('template-base-url-input').value.trim();
+730:        const dependencies = parseCSV(document.getElementById('template-dependencies-input').value);
+732:        if (!templateName || !skillName) {
+733:            showToast(t('skills.template_required') || 'Template and skill name are required', 'error');
+734:            return;
+735:        }
+737:        const btn = document.getElementById('template-submit-btn');
+738:        btn.disabled = true;
+739:        btn.textContent = t('common.loading') || 'Creating...';
+741:        try {
+742:            const resp = await fetch('/api/skills/templates', {
+743:                method: 'POST',
+744:                headers: { 'Content-Type': 'application/json' },
+745:                body: JSON.stringify({
+746:                    template_name: templateName,
+747:                    skill_name: skillName,
+748:                    description: description,
+749:                    category: category,
+750:                    tags: tags,
+751:                    base_url: baseURL,
+752:                    dependencies: dependencies
+753:                })
+754:            });
+755:            const data = await resp.json();
+757:            if (data.status === 'created') {
+758:                showToast(t('skills.template_success') || 'Skill created from template', 'success');
+759:                closeTemplateModal();
+760:                await loadSkills();
+761:                // Open the code editor for the newly created skill
+762:                if (data.skill_id) {
+763:                    viewCode(data.skill_id);
+764:                }
+765:            } else {
+766:                showToast(data.message || t('common.error'), 'error');
+767:            }
+768:        } catch (e) {
+769:            showToast(t('common.error') || 'Error', 'error');
+770:        } finally {
+771:            btn.disabled = false;
+772:            btn.textContent = t('skills.btn_create') || 'Create';
+773:        }
+774:    }
+776:    // ── Delete Modal ────────────────────────────────────────────────────────────
+778:    // eslint-disable-next-line no-unused-vars
+779:    function showDeleteSkillModal(id, name) {
+780:        deleteTargetId = id;
+781:        document.getElementById('delete-skill-name').textContent = name;
+782:        document.getElementById('delete-files-checkbox').checked = true;
+783:        document.getElementById('delete-skill-modal').classList.add('active');
+784:    }
+786:    // eslint-disable-next-line no-unused-vars
+787:    function closeDeleteSkillModal() {
+788:        document.getElementById('delete-skill-modal').classList.remove('active');
+789:        deleteTargetId = '';
+790:    }
+792:    // eslint-disable-next-line no-unused-vars
+793:    async function confirmDeleteSkill() {
+794:        if (!deleteTargetId) return;
+795:        const deleteFiles = document.getElementById('delete-files-checkbox').checked;
+797:        try {
+798:            const resp = await fetch(`/api/skills/${encodeURIComponent(deleteTargetId)}?delete_files=${deleteFiles}`, { method: 'DELETE' });
+799:            const data = await resp.json();
+800:            if (data.status === 'deleted') {
+801:                showToast(t('skills.delete_success') || 'Skill deleted', 'success');
+802:                closeDeleteSkillModal();
+803:                closeDetailModal();
+804:                await loadSkills();
+805:            } else {
+806:                showToast(data.message || t('common.error'), 'error');
+807:            }
+808:        } catch (e) {
+809:            showToast(t('common.error') || 'Error', 'error');
+810:        }
+811:    }
+813:    function renderSkillHistory(versions) {
+814:        if (!Array.isArray(versions) || versions.length === 0) return '';
+815:        return `<div class="sk-findings">
+816:        <h4>${t('skills.history_title') || 'Version History'}</h4>
+817:        <ul class="sk-history-list">
+818:            ${versions.slice(0, 8).map(v => `<li class="sk-history-item">
+819:                <div class="sk-history-item-head">
+820:                    <span>${t('skills.history_version') || 'Version'} ${esc(String(v.version || v.Version || '?'))}</span>
+821:                    <button class="btn btn-sm btn-secondary" onclick="restoreSkillVersion('${esc(currentDetailId)}', ${Number(v.version || v.Version || 0)})">${t('skills.btn_restore') || 'Restore'}</button>
+822:                </div>
+823:                <div class="sk-history-note">${esc(v.change_note || v.ChangeNote || '')}</div>
+824:                <div class="sk-audit-details">${esc(v.created_by || v.CreatedBy || '')} · ${esc(v.created_at || v.CreatedAt || '')}</div>
+825:            </li>`).join('')}
+826:        </ul>
+827:    </div>`;
+828:    }
+830:    function renderSkillAudit(audit) {
+831:        if (!Array.isArray(audit) || audit.length === 0) return '';
+832:        return `<div class="sk-findings">
+833:        <h4>${t('skills.audit_title') || 'Audit Trail'}</h4>
+834:        <ul class="sk-audit-list">
+835:            ${audit.slice(0, 12).map(entry => `<li class="sk-audit-item">
+836:                <div class="sk-audit-item-head">
+837:                    <strong>${esc(entry.action || entry.Action || '')}</strong>
+838:                    <span>${esc(entry.created_at || entry.CreatedAt || '')}</span>
+839:                </div>
+840:                <div class="sk-audit-details">${esc(entry.actor || entry.Actor || '')}${(entry.details || entry.Details) ? ' · ' + esc(entry.details || entry.Details) : ''}</div>
+841:            </li>`).join('')}
+842:        </ul>
+843:    </div>`;
+844:    }
+846:    // eslint-disable-next-line no-unused-vars
+847:    async function restoreSkillVersion(id, version) {
+848:        if (!id || !version) return;
+849:        try {
+850:            const resp = await fetch(`/api/skills/${encodeURIComponent(id)}`, {
+851:                method: 'PUT',
+852:                headers: { 'Content-Type': 'application/json' },
+853:                body: JSON.stringify({ restore_version: version })
+854:            });
+855:            const data = await resp.json();
+856:            if (data.status === 'ok') {
+857:                showToast(t('skills.restore_success') || 'Version restored', 'success');
+858:                await showDetail(id);
+859:                await loadSkills();
+860:            } else {
+861:                showToast(data.message || t('common.error'), 'error');
+862:            }
+863:        } catch (_) {
+864:            showToast(t('common.error') || 'Error', 'error');
+865:        }
+866:    }
+868:    // eslint-disable-next-line no-unused-vars
+869:    function exportCurrentSkill() {
+870:        if (!currentDetailId) return;
+871:        window.location.href = `/api/skills/${encodeURIComponent(currentDetailId)}/export`;
+872:    }
+874:    // eslint-disable-next-line no-unused-vars
+875:    function showTestModal() {
+876:        if (!currentDetailId) return;
+877:        document.getElementById('test-args-input').value = '{}';
+878:        document.getElementById('test-output').textContent = '';
+879:        document.getElementById('test-output-status').textContent = '';
+880:        document.getElementById('test-modal').classList.add('active');
+881:    }
+883:    // eslint-disable-next-line no-unused-vars
+884:    function closeTestModal() {
+885:        document.getElementById('test-modal').classList.remove('active');
+886:    }
+888:    // eslint-disable-next-line no-unused-vars
+889:    async function runSkillTest() {
+890:        if (!currentDetailId) return;
+891:        const btn = document.getElementById('test-run-btn');
+892:        const statusEl = document.getElementById('test-output-status');
+893:        const outputEl = document.getElementById('test-output');
+894:        btn.disabled = true;
+895:        btn.textContent = t('common.loading') || 'Running...';
+896:        try {
+897:            const args = JSON.parse(document.getElementById('test-args-input').value || '{}');
+898:            const resp = await fetch(`/api/skills/${encodeURIComponent(currentDetailId)}/test`, {
+899:                method: 'POST',
+900:                headers: { 'Content-Type': 'application/json' },
+901:                body: JSON.stringify({ args })
+902:            });
+903:            const data = await resp.json();
+904:            statusEl.textContent = data.status || '';
+905:            outputEl.textContent = data.output || data.message || '';
+906:            if (data.status === 'ok') {
+907:                showToast(t('skills.test_success') || 'Test finished', 'success');
+908:            } else {
+909:                showToast(data.message || (t('skills.test_failed') || 'Test failed'), 'error');
+910:            }
+911:        } catch (e) {
+912:            statusEl.textContent = 'error';
+913:            outputEl.textContent = e.message || 'Invalid JSON';
+914:            showToast(t('skills.test_invalid_json') || 'Input must be valid JSON', 'error');
+915:        } finally {
+916:            btn.disabled = false;
+917:            btn.textContent = t('skills.btn_run_test') || 'Run Test';
+918:        }
+919:    }
+921:    // eslint-disable-next-line no-unused-vars
+922:    function showImportModal() {
+923:        selectedImportFile = null;
+924:        document.getElementById('import-file').value = '';
+925:        document.getElementById('import-file-name').textContent = t('skills.import_hint') || 'Choose an exported `.aurago-skill.json` bundle.';
+926:        document.getElementById('import-submit-btn').disabled = true;
+927:        document.getElementById('import-modal').classList.add('active');
+928:    }
+930:    // eslint-disable-next-line no-unused-vars
+931:    function closeImportModal() {
+932:        document.getElementById('import-modal').classList.remove('active');
+933:    }
+935:    // eslint-disable-next-line no-unused-vars
+936:    function handleImportFileSelect(event) {
+937:        if (!event.target.files || event.target.files.length === 0) return;
+938:        selectedImportFile = event.target.files[0];
+939:        document.getElementById('import-file-name').textContent = selectedImportFile.name;
+940:        document.getElementById('import-submit-btn').disabled = false;
+941:    }
+943:    // eslint-disable-next-line no-unused-vars
+944:    async function submitImportSkill() {
+945:        if (!selectedImportFile) return;
+946:        const btn = document.getElementById('import-submit-btn');
+947:        btn.disabled = true;
+948:        btn.textContent = t('common.loading') || 'Importing...';
+949:        try {
+950:            const bundle = JSON.parse(await selectedImportFile.text());
+951:            const resp = await fetch('/api/skills/import', {
+952:                method: 'POST',
+953:                headers: { 'Content-Type': 'application/json' },
+954:                body: JSON.stringify(bundle)
+955:            });
+956:            const data = await resp.json();
+957:            if (data.status === 'imported') {
+958:                showToast(t('skills.import_success') || 'Skill imported', 'success');
+959:                closeImportModal();
+960:                await loadSkills();
+961:            } else {
+962:                showToast(data.message || t('common.error'), 'error');
+963:            }
+964:        } catch (e) {
+965:            showToast(e.message || (t('common.error') || 'Error'), 'error');
+966:        } finally {
+967:            btn.disabled = false;
+968:            btn.textContent = t('skills.btn_import') || 'Import';
+969:        }
+970:    }
+972:    // eslint-disable-next-line no-unused-vars
+973:    function showGenerateModal() {
+974:        document.getElementById('generate-prompt').value = '';
+975:        document.getElementById('generate-skill-name').value = '';
+976:        document.getElementById('generate-category').value = '';
+977:        document.getElementById('generate-template-select').selectedIndex = 0;
+978:        document.getElementById('generate-dependencies').value = '';
+979:        clearGenerateStatus();
+980:        document.getElementById('generate-modal').classList.add('active');
+981:    }
+983:    // eslint-disable-next-line no-unused-vars
+984:    function closeGenerateModal() {
+985:        clearGenerateStatus();
+986:        document.getElementById('generate-modal').classList.remove('active');
+987:    }
+989:    function setGenerateStatus(message, type = 'info') {
+990:        const el = document.getElementById('generate-status');
+991:        if (!el) return;
+992:        if (!message) {
+993:            el.textContent = '';
+994:            el.className = 'sk-generate-status';
+995:            el.style.display = 'none';
+996:            return;
+997:        }
+998:        el.textContent = message;
+999:        el.className = `sk-generate-status sk-generate-status-${type}`;
+1000:        el.style.display = '';
+1001:    }
+1003:    function clearGenerateStatus() {
+1004:        setGenerateStatus('');
+1005:    }
+1007:    async function readResponseJSON(resp) {
+1008:        const raw = await resp.text();
+1009:        if (!raw) return {};
+1010:        try {
+1011:            return JSON.parse(raw);
+1012:        } catch (_) {
+1013:            return { error: raw };
+1014:        }
+1015:    }
+1017:    function getResponseError(data, fallback) {
+1018:        if (!data || typeof data !== 'object') return fallback;
+1019:        return data.message || data.error || fallback;
+1020:    }
+1022:    // eslint-disable-next-line no-unused-vars
+1023:    async function submitGenerateSkill() {
+1024:        const prompt = document.getElementById('generate-prompt').value.trim();
+1025:        if (!prompt) {
+1026:            showToast(t('skills.generate_prompt_required') || 'Please describe the skill you want.', 'error');
+1027:            return;
+1028:        }
+1029:        const btn = document.getElementById('generate-submit-btn');
+1030:        btn.disabled = true;
+1031:        btn.textContent = t('common.loading') || 'Generating...';
+1032:        setGenerateStatus(t('skills.generate_in_progress') || 'Creating AI draft. This can take a few moments.', 'info');
+1033:        const controller = new AbortController();
+1034:        const timeoutHandle = window.setTimeout(() => controller.abort(), 90000);
+1035:        try {
+1036:            const resp = await fetch('/api/skills/generate', {
+1037:                method: 'POST',
+1038:                headers: { 'Content-Type': 'application/json' },
+1039:                signal: controller.signal,
+1040:                body: JSON.stringify({
+1041:                    prompt,
+1042:                    skill_name: document.getElementById('generate-skill-name').value.trim(),
+1043:                    category: document.getElementById('generate-category').value.trim(),
+1044:                    template_name: document.getElementById('generate-template-select').value,
+1045:                    dependencies: parseCSV(document.getElementById('generate-dependencies').value)
+1046:                })
+1047:            });
+1048:            const data = await readResponseJSON(resp);
+1049:            if (!resp.ok || data.status !== 'ok' || !data.draft) {
+1050:                const message = getResponseError(data, t('common.error') || 'Error');
+1051:                setGenerateStatus(message, 'error');
+1052:                showToast(message, 'error');
+1053:                return;
+1054:            }
+1055:            setGenerateStatus(t('skills.generate_success') || 'Draft generated', 'success');
+1056:            closeGenerateModal();
+1057:            openCodeEditor('', data.draft.code || '', false, {
+1058:                name: data.draft.name || '',
+1059:                description: data.draft.description || '',
+1060:                category: data.draft.category || '',
+1061:                tags: data.draft.tags || []
+1062:            });
+1063:            showToast(t('skills.generate_success') || 'Draft generated', 'success');
+1064:        } catch (e) {
+1065:            const message = e && e.name === 'AbortError'
+1066:                ? (t('skills.generate_timeout') || 'The AI draft took too long. Please try again or shorten the prompt.')
+1067:                : (e.message || (t('common.error') || 'Error'));
+1068:            setGenerateStatus(message, 'error');
+1069:            showToast(message, 'error');
+1070:        } finally {
+1071:            window.clearTimeout(timeoutHandle);
+1072:            btn.disabled = false;
+1073:            btn.textContent = t('skills.btn_generate') || 'Generate';
+1074:        }
+1075:    }
+1077:    function parseCSV(raw) {
+1078:        return (raw || '')
+1079:            .split(',')
+1080:            .map(part => part.trim())
+1081:            .filter(Boolean);
+1082:    }
+1084:    // ── Toast helper ────────────────────────────────────────────────────────────
+1086:    function showToast(msg, type) {
+1087:        let c = document.getElementById('sk-toast-container');
+1088:        if (!c) {
+1089:            c = document.createElement('div');
+1090:            c.id = 'sk-toast-container';
+1091:            c.className = 'sk-toast-container';
+1092:            document.body.appendChild(c);
+1093:        }
+1094:        const el = document.createElement('div');
+1095:        el.className = `sk-toast sk-toast-${type || 'info'}`;
+1096:        el.textContent = msg;
+1097:        c.appendChild(el);
+1098:        setTimeout(() => { el.classList.add('sk-toast-out'); setTimeout(() => el.remove(), 300); }, 3500);
+1099:    }
+1101:    // ── Vault Key Assignment Modal ───────────────────────────────────────────────
+1103:    // eslint-disable-next-line no-unused-vars
+1104:    async function openVaultKeyModal(id) {
+1105:        vaultKeyTargetId = id;
+1106:        const listEl = document.getElementById('vault-key-list');
+1107:        const emptyEl = document.getElementById('vault-key-empty');
+1108:        listEl.innerHTML = `<p>${t('common.loading') || 'Loading...'}</p>`;
+1109:        emptyEl.style.display = 'none';
+1110:        document.getElementById('vault-key-modal').classList.add('active');
+1112:        try {
+1113:            // Load vault secrets, credentials, and current skill in parallel
+1114:            // ?filter=user excludes internal/system secrets from the list
+1115:            const [vaultResp, credResp, skillResp] = await Promise.all([
+1116:                fetch('/api/vault/secrets?filter=user'),
+1117:                fetch('/api/credentials'),
+1118:                fetch(`/api/skills/${encodeURIComponent(id)}`)
+1119:            ]);
+1120:            const vaultData = await vaultResp.json();
+1121:            const credData = await credResp.json().catch(() => []);
+1122:            const skillData = await skillResp.json();
+1124:            const rawSecrets = Array.isArray(vaultData) ? vaultData : (vaultData.secrets || []);
+1125:            allVaultSecrets = rawSecrets.map(s => (typeof s === 'string' ? s : s.key));
+1126:            const currentKeys = skillData.skill ? (skillData.skill.VaultKeys || skillData.skill.vault_keys || []) : [];
+1128:            // Credentials become selectable as cred:<id>
+1129:            const credList = (credResp.ok && Array.isArray(credData)) ? credData : (credData.items || credData.credentials || []);
+1131:            if (allVaultSecrets.length === 0 && credList.length === 0) {
+1132:                listEl.innerHTML = '';
+1133:                emptyEl.style.display = '';
+1134:                return;
+1135:            }
+1137:            let html = '';
+1139:            if (allVaultSecrets.length > 0) {
+1140:                html += `<p class="sk-vault-section-label">${t('skills.vault_section_secrets') || 'Vault Secrets'}</p>`;
+1141:                html += allVaultSecrets.map(key => {
+1142:                    const checked = currentKeys.includes(key) ? 'checked' : '';
+1143:                    return `<label class="sk-vault-checkbox-row">
+1144:                    <input type="checkbox" class="sk-vault-checkbox" value="${esc(key)}" ${checked}>
+1145:                    <code class="sk-vault-key-tag">${esc(key)}</code>
+1146:                </label>`;
+1147:                }).join('');
+1148:            }
+1150:            if (credList.length > 0) {
+1151:                html += `<p class="sk-vault-section-label" style="margin-top:10px">${t('skills.vault_section_creds') || 'Credentials'}</p>`;
+1152:                html += credList.map(c => {
+1153:                    const credKey = `cred:${c.id}`;
+1154:                    const checked = currentKeys.includes(credKey) ? 'checked' : '';
+1155:                    const label = c.name || c.id;
+1156:                    const sub = c.type ? ` <span class="sk-vault-cred-type">${esc(c.type)}</span>` : '';
+1157:                    return `<label class="sk-vault-checkbox-row">
+1158:                    <input type="checkbox" class="sk-vault-checkbox" value="${esc(credKey)}" ${checked}>
+1159:                    <span class="sk-vault-cred-label">${esc(label)}${sub}</span>
+1160:                </label>`;
+1161:                }).join('');
+1162:            }
+1164:            listEl.innerHTML = html;
+1165:        } catch (e) {
+1166:            listEl.innerHTML = `<p class="sk-error">${t('common.error') || 'Error loading secrets'}</p>`;
+1167:        }
+1168:    }
+1170:    // eslint-disable-next-line no-unused-vars
+1171:    function closeVaultKeyModal() {
+1172:        document.getElementById('vault-key-modal').classList.remove('active');
+1173:        vaultKeyTargetId = '';
+1174:    }
+1176:    // eslint-disable-next-line no-unused-vars
+1177:    async function saveVaultKeys() {
+1178:        if (!vaultKeyTargetId) return;
+1179:        const checkboxes = document.querySelectorAll('#vault-key-list .sk-vault-checkbox:checked');
+1180:        const selectedKeys = Array.from(checkboxes).map(cb => cb.value);
+1182:        try {
+1183:            const resp = await fetch(`/api/skills/${encodeURIComponent(vaultKeyTargetId)}`, {
+1184:                method: 'PUT',
+1185:                headers: { 'Content-Type': 'application/json' },
+1186:                body: JSON.stringify({ vault_keys: selectedKeys })
+1187:            });
+1188:            const data = await resp.json();
+1189:            if (data.status === 'ok') {
+1190:                showToast(t('skills.vault_save_success') || 'Secrets updated', 'success');
+1191:                closeVaultKeyModal();
+1192:                await loadSkills();
+1193:            } else {
+1194:                showToast(data.message || t('common.error'), 'error');
+1195:            }
+1196:        } catch (e) {
+1197:            showToast(t('common.error') || 'Error', 'error');
+1198:        }
+1199:    }
