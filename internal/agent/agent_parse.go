@@ -462,11 +462,42 @@ func parseBracketToolCallBlock(block string) (ToolCall, bool) {
 	if toolIdx == -1 {
 		return tc, false
 	}
-	arrowIdx := strings.Index(lower[toolIdx:], "=>")
-	if arrowIdx == -1 {
+	// Find the arrow (=> or ->) that immediately follows the tool name.
+	// First try -> (MiniMax variant), then fall back to => (standard).
+	// Only accept an arrow if it appears within 40 chars of "tool" and
+	// the character immediately before the arrow is whitespace or punctuation.
+	searchAfterTool := toolIdx + 4
+	searchLimit := searchAfterTool + 40
+	if searchLimit > len(block) {
+		searchLimit = len(block)
+	}
+	searchSlice := lower[searchAfterTool:searchLimit]
+
+	arrowStr := "->"
+	arrowIdx := strings.Index(searchSlice, arrowStr)
+	arrowAbs := -1
+	if arrowIdx != -1 {
+		// Verify it's immediately after "tool" (only whitespace/separator between)
+		beforeArrow := strings.TrimLeft(searchSlice[:arrowIdx], " \t->")
+		if len(beforeArrow) == 0 {
+			arrowAbs = searchAfterTool + arrowIdx
+		}
+	}
+	if arrowAbs == -1 {
+		// Fall back to standard => arrow
+		arrowStr = "=>"
+		arrowIdx = strings.Index(searchSlice, arrowStr)
+		if arrowIdx != -1 {
+			beforeArrow := strings.TrimLeft(searchSlice[:arrowIdx], " \t->")
+			if len(beforeArrow) == 0 {
+				arrowAbs = searchAfterTool + arrowIdx
+			}
+		}
+	}
+	if arrowAbs == -1 {
 		return tc, false
 	}
-	afterArrow := strings.TrimSpace(block[toolIdx+arrowIdx+2:])
+	afterArrow := strings.TrimSpace(block[arrowAbs+len(arrowStr):])
 	if len(afterArrow) == 0 || (afterArrow[0] != '"' && afterArrow[0] != '\'') {
 		return tc, false
 	}
@@ -549,8 +580,15 @@ func ParseToolCall(content string) ToolCall {
 
 	// Handle [TOOL_CALL]...[/TOOL_CALL] bracket format (custom model format).
 	// Example: [TOOL_CALL]{tool => "generate_image", args => {--prompt "..." --size "1024x1792"}}[/TOOL_CALL]
+	// Some models (e.g. MiniMax) use -> instead of => and ) instead of ] in the closing tag.
 	if blockStart := strings.Index(lowerContent, "[tool_call]"); blockStart != -1 {
-		if blockEnd := strings.Index(lowerContent[blockStart:], "[/tool_call]"); blockEnd != -1 {
+		searchArea := lowerContent[blockStart:]
+		blockEnd := strings.Index(searchArea, "[/tool_call]")
+		// Also check for malformed closing tag with ) instead of ]
+		if blockEnd == -1 {
+			blockEnd = strings.Index(searchArea, "[/tool_call)")
+		}
+		if blockEnd != -1 {
 			block := content[blockStart+11 : blockStart+blockEnd]
 			if parsed, ok := parseBracketToolCallBlock(block); ok {
 				parsed.XMLFallbackDetected = true

@@ -439,3 +439,53 @@ func TestParseToolCallBracketFormatSingleQuotesMultiline(t *testing.T) {
 		t.Fatalf("expected action=homepage, got %q", result.Action)
 	}
 }
+
+func TestParseToolCallBracketFormatClosingTagWithParen(t *testing.T) {
+	// MiniMax sometimes emits ) instead of ] in the closing tag
+	content := `[TOOL_CALL]{tool => "query_memory", args => {--query "sound" --type "all"}}[/TOOL_CALL)`
+	result := ParseToolCall(content)
+	if !result.IsTool {
+		t.Fatalf("IsTool=false, expected tool call from bracket format with ) closing tag: %q", content)
+	}
+	if result.Action != "query_memory" {
+		t.Fatalf("Action=%q, want %q", result.Action, "query_memory")
+	}
+}
+
+func TestParseToolCallBracketFormatArrowDash(t *testing.T) {
+	// Some GLM-family models use -> instead of => for the arrow operator
+	content := `[TOOL_CALL]{tool -> "query_memory", args => {--query "sound" --type "all"}}[/TOOL_CALL]`
+	result := ParseToolCall(content)
+	if !result.IsTool {
+		t.Fatalf("IsTool=false, expected tool call from bracket format with -> arrow: %q", content)
+	}
+	if result.Action != "query_memory" {
+		t.Fatalf("Action=%q, want %q", result.Action, "query_memory")
+	}
+}
+
+func TestParseToolCallBracketFormatMinimaxVariant(t *testing.T) {
+	// Realistic MiniMax output: acknowledgment text + bracket format with ) closing
+	content := `Ich schaue mir das kurz an.
+[TOOL_CALL]{tool => "query_memory", args => {--query "Phaser sound effects" --type "all"}}[/TOOL_CALL)`
+	result := ParseToolCall(content)
+	if !result.IsTool {
+		t.Fatalf("IsTool=false, expected tool call from MiniMax variant format: %q", content)
+	}
+	if result.Action != "query_memory" {
+		t.Fatalf("Action=%q, want %q", result.Action, "query_memory")
+	}
+}
+
+func TestParseToolCallBracketFormatAfterTagStripping(t *testing.T) {
+	// Simulates what happens after StripThinkingTags removes [/TOOL_CALL] from its own line
+	content := `[TOOL_CALL]{tool => "query_memory", args => {--query "sound"}}
+[TOOL_CALL]`
+	result := ParseToolCall(content)
+	// This case can't be fixed by the bracket parser alone - the closing tag was stripped.
+	// The announcement detector should NOT fire when the model outputs this format.
+	// We verify the parser handles it gracefully (IsTool=false is expected here)
+	if result.IsTool {
+		t.Fatalf("expected IsTool=false when closing tag was stripped by tag removal")
+	}
+}
