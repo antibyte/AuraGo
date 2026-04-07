@@ -1357,8 +1357,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 								xmlToolCallSuppressed = true
 								doneTagStreamBuf = "" // discard buffered tail
 							}
-							// Strip bare <tool_call> XML (native mode, model fell back to XML format).
-							if useNativeFunctions && !xmlToolCallSuppressed {
+							// Strip bare <tool_call> XML (model fell back to XML format — suppress regardless of mode).
+							if !xmlToolCallSuppressed {
 								if idx := strings.Index(strings.ToLower(toSend), xmlToolCallPrefix); idx != -1 {
 									toSend = toSend[:idx]
 									xmlToolCallSuppressed = true
@@ -1404,10 +1404,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				if idx := strings.Index(strings.ToLower(remaining), minimaxToolCallPrefix); idx != -1 {
 					remaining = remaining[:idx]
 				}
-				if useNativeFunctions {
-					if idx := strings.Index(strings.ToLower(remaining), xmlToolCallPrefix); idx != -1 {
-						remaining = remaining[:idx]
-					}
+				if idx := strings.Index(strings.ToLower(remaining), xmlToolCallPrefix); idx != -1 {
+					remaining = remaining[:idx]
 				}
 				// Also strip any trailing <action> fragment.
 				if idx := strings.Index(strings.ToLower(remaining), actionTagPrefix); idx != -1 {

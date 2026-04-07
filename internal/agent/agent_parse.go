@@ -1104,6 +1104,24 @@ func parseXMLParams(tc *ToolCall, body string) {
 			}
 		case "args":
 			_ = json.Unmarshal([]byte(paramVal), &tc.Args)
+		case "new_str":
+			// MiniMax and other models use "new_str" instead of the canonical "new" key.
+			// Map to tc.Params["new"] so decodeFileEditorArgs can retrieve it.
+			if tc.Params == nil {
+				tc.Params = make(map[string]interface{})
+			}
+			tc.Params["new"] = paramVal
+		default:
+			// Store all unrecognized params in tc.Params so tool decode functions
+			// (e.g. decodeFileEditorArgs) can retrieve them via toolArgString.
+			if paramName != "" {
+				if tc.Params == nil {
+					tc.Params = make(map[string]interface{})
+				}
+				if _, alreadySet := tc.Params[paramName]; !alreadySet {
+					tc.Params[paramName] = paramVal
+				}
+			}
 		}
 
 		// advance
