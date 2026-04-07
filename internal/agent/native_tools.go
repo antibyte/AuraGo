@@ -75,6 +75,7 @@ type ToolFeatureFlags struct {
 	GoogleWorkspaceEnabled  bool
 	OneDriveEnabled         bool
 	VirusTotalEnabled       bool
+	GolangciLintEnabled     bool
 	ImageGenerationEnabled  bool
 	MusicGenerationEnabled  bool
 	RemoteControlEnabled    bool

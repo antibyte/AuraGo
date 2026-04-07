@@ -85,6 +85,14 @@ func handleBuiltinSkillAction(ctx context.Context, dc *DispatchContext, action s
 			Mode:     req.Mode,
 		}), true
 
+	case "golangci_lint":
+		if !cfg.GolangciLint.Enabled {
+			return `Tool Output: {"status": "error", "message": "golangci_lint tool is not enabled. Set golangci_lint.enabled=true in config.yaml."}`, true
+		}
+		lintPath, _ := args["path"].(string)
+		configPath, _ := args["config"].(string)
+		return tools.ExecuteGolangciLint(lintPath, configPath, cfg.Directories.WorkspaceDir), true
+
 	case "brave_search":
 		if !cfg.BraveSearch.Enabled {
 			return `Tool Output: {"status": "error", "message": "Brave Search integration is not enabled. Enable it in Settings > Brave Search."}`, true

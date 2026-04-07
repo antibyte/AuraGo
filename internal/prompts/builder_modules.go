@@ -414,6 +414,10 @@ func (m *PromptModule) ShouldInclude(flags ContextFlags) bool {
 			if flags.VirusTotalEnabled {
 				return true
 			}
+		case "golangci_lint_enabled":
+			if flags.GolangciLintEnabled {
+				return true
+			}
 		case "brave_search_enabled":
 			if flags.BraveSearchEnabled {
 				return true

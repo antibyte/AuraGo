@@ -18,6 +18,16 @@ func appendExecutionToolSchemas(tools []openai.Tool, ff ToolFeatureFlags, execut
 		))
 	}
 
+	if ff.GolangciLintEnabled {
+		tools = append(tools, tool("golangci_lint",
+			"Run golangci-lint static analysis on Go source code. Returns a structured list of lint issues. golangci-lint is auto-installed if not present.",
+			schema(map[string]interface{}{
+				"path":   prop("string", "Package path or directory to lint (e.g. './...', './internal/agent', './cmd/aurago'). Defaults to './...' if omitted."),
+				"config": prop("string", "Optional path to a .golangci.yml config file relative to the workspace root. Uses golangci-lint auto-detection if omitted."),
+			}),
+		))
+	}
+
 	// ── Conditionally-included built-in tools ────────────────────────────────
 
 	if ff.AllowFilesystemWrite {

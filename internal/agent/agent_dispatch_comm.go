@@ -1763,6 +1763,12 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			}
 			return unexpectedBuiltinActionError(tc.Action)
 
+		case "golangci_lint":
+			if result, ok := handleDirectBuiltinSkillAction(ctx, tc, dc); ok {
+				return result
+			}
+			return unexpectedBuiltinActionError(tc.Action)
+
 		case "brave_search":
 			if result, ok := handleDirectBuiltinSkillAction(ctx, tc, dc); ok {
 				return result
@@ -2008,6 +2014,8 @@ func isBuiltinSkillEnabled(skillName string, cfg *config.Config) bool {
 		return cfg.BraveSearch.Enabled
 	case "virustotal_scan":
 		return cfg.VirusTotal.Enabled
+	case "golangci_lint":
+		return cfg.GolangciLint.Enabled
 	case "web_scraper":
 		return cfg.Tools.WebScraper.Enabled
 	case "pdf_extractor":

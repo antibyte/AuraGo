@@ -137,6 +137,7 @@ type ContextFlags struct {
 	WebhooksEnabled          bool
 	WebhooksDefinitions      string // Summary of configured outgoing webhooks for tool context
 	VirusTotalEnabled        bool
+	GolangciLintEnabled      bool
 	BraveSearchEnabled       bool
 	PaperlessNGXEnabled      bool
 	MiniMaxTTSEnabled        bool

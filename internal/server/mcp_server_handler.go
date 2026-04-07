@@ -326,6 +326,7 @@ func mcpFeatureFlags(cfg *config.Config) agent.ToolFeatureFlags {
 		CloudflareTunnelEnabled:      cfg.CloudflareTunnel.Enabled,
 		GoogleWorkspaceEnabled:       cfg.GoogleWorkspace.Enabled,
 		VirusTotalEnabled:            cfg.VirusTotal.Enabled,
+		GolangciLintEnabled:          cfg.GolangciLint.Enabled,
 		AnsibleEnabled:               cfg.Ansible.Enabled,
 		InvasionControlEnabled:       cfg.InvasionControl.Enabled,
 		GitHubEnabled:                cfg.GitHub.Enabled,

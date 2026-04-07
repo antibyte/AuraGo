@@ -789,6 +789,9 @@ type Config struct {
 		Enabled bool   `yaml:"enabled"`
 		APIKey  string `yaml:"-" vault:"api_key"` // vault-only
 	} `yaml:"virustotal"`
+	GolangciLint struct {
+		Enabled bool `yaml:"enabled"` // enable the golangci_lint agent tool
+	} `yaml:"golangci_lint"`
 	BraveSearch struct {
 		Enabled bool   `yaml:"enabled"`
 		APIKey  string `yaml:"-" vault:"api_key"` // Brave Search Subscription Token (vault-only)
