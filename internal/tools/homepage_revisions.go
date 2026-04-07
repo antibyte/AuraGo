@@ -255,8 +255,15 @@ func reconstructProjectState(db *sql.DB, projectDir string, baseRevID int64, log
 }
 
 func RestoreRevisionFiles(projectDir string, files []HomepageRevisionFile, logger *slog.Logger) (restored []string, warnings []string) {
+	projectDir, _ = filepath.Abs(projectDir)
 	for _, f := range files {
-		fullPath := filepath.Join(projectDir, filepath.FromSlash(f.Path))
+		relPath := filepath.FromSlash(f.Path)
+		fullPath := filepath.Join(projectDir, relPath)
+		cleanFull := filepath.Clean(fullPath)
+		if !strings.HasPrefix(cleanFull, projectDir+string(os.PathSeparator)) {
+			warnings = append(warnings, fmt.Sprintf("path %q escapes project directory, skipping", f.Path))
+			continue
+		}
 		switch f.ChangeType {
 		case "added", "modified":
 			if f.ContentAfter == "" {
@@ -557,7 +564,7 @@ func HomepageRevisionStatus(cfg HomepageConfig, db *sql.DB, projectDir string, l
 	status.HasRevisions = true
 	status.LatestRevID = latest.ID
 	status.LatestMessage = latest.Message
-	delta, err := computeUnifiedDelta(db, basePath, latest.ID, logger)
+	delta, err := computeUnifiedDelta(db, projectDir, latest.ID, logger)
 	if err != nil {
 		return fmt.Sprintf(`{"status":"error","message":"%s"}`, err.Error())
 	}
