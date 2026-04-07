@@ -507,6 +507,14 @@ func (b *TelegramBroker) SendJSON(jsonStr string) {
 	// Usually for token usage etc. - skip for Telegram
 }
 
+func (b *TelegramBroker) SendLLMStreamDelta(content, toolName, toolID string, index int, finishReason string) {
+}
+
+func (b *TelegramBroker) SendLLMStreamDone(finishReason string) {}
+
+func (b *TelegramBroker) SendTokenUpdate(prompt, completion, total, sessionTotal, globalTotal int, isEstimated bool) {
+}
+
 func downloadFile(url string, logger *slog.Logger) (string, error) {
 	const maxTelegramDownloadBytes = 50 * 1024 * 1024
 	client := &http.Client{Timeout: 60 * time.Second}

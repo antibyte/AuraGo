@@ -285,7 +285,7 @@ func mcpCallTool(ctx context.Context, s *Server, params json.RawMessage) mcpCall
 
 	manifest := tools.NewManifest(cfg.Directories.ToolsDir)
 	result := agent.DispatchToolCall(
-		toolCtx, tc, &agent.DispatchContext{
+		toolCtx, &tc, &agent.DispatchContext{
 			Cfg: cfg, Logger: s.Logger, LLMClient: s.LLMClient, Vault: s.Vault,
 			Registry: s.Registry, Manifest: manifest, CronManager: s.CronManager,
 			MissionManagerV2: s.MissionManagerV2, LongTermMem: s.LongTermMem,

@@ -1,6 +1,10 @@
 package agent
 
-import "aurago/internal/config"
+import (
+	"time"
+
+	"aurago/internal/config"
+)
 
 // RecoveryPolicy centralizes retry and circuit-breaker thresholds so recovery
 // behavior is defined in one place instead of being spread across helpers.
@@ -10,6 +14,7 @@ type RecoveryPolicy struct {
 	DuplicateConsecutiveHits int
 	DuplicateFrequencyHits   int
 	IdenticalToolErrorHits   int
+	EmptyRetryIntervals      []time.Duration
 }
 
 func defaultRecoveryPolicy() RecoveryPolicy {
@@ -19,6 +24,7 @@ func defaultRecoveryPolicy() RecoveryPolicy {
 		DuplicateConsecutiveHits: 2,
 		DuplicateFrequencyHits:   3,
 		IdenticalToolErrorHits:   3,
+		EmptyRetryIntervals:      []time.Duration{5 * time.Second},
 	}
 }
 
@@ -78,4 +84,19 @@ func (p RecoveryPolicy) identicalToolErrorHits() int {
 		return defaultRecoveryPolicy().IdenticalToolErrorHits
 	}
 	return p.IdenticalToolErrorHits
+}
+
+func (p RecoveryPolicy) emptyRetryIntervals() []time.Duration {
+	if len(p.EmptyRetryIntervals) == 0 {
+		return defaultRecoveryPolicy().EmptyRetryIntervals
+	}
+	return p.EmptyRetryIntervals
+}
+
+func (p RecoveryPolicy) emptyRetryBaseDelay() time.Duration {
+	intervals := p.emptyRetryIntervals()
+	if len(intervals) == 0 {
+		return 5 * time.Second
+	}
+	return intervals[0]
 }

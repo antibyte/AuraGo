@@ -622,3 +622,11 @@ func (b *DiscordBroker) Send(event, message string) {
 func (b *DiscordBroker) SendJSON(jsonStr string) {
 	// Token usage etc. — skip for Discord
 }
+
+func (b *DiscordBroker) SendLLMStreamDelta(content, toolName, toolID string, index int, finishReason string) {
+}
+
+func (b *DiscordBroker) SendLLMStreamDone(finishReason string) {}
+
+func (b *DiscordBroker) SendTokenUpdate(prompt, completion, total, sessionTotal, globalTotal int, isEstimated bool) {
+}

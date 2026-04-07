@@ -314,7 +314,7 @@ func handleN8nChat(s *Server) http.HandlerFunc {
 						Params: args,
 					}
 					result = agent.DispatchToolCall(
-						ctx, agentTC, &agent.DispatchContext{
+						ctx, &agentTC, &agent.DispatchContext{
 							Cfg: s.Cfg, Logger: s.Logger, LLMClient: s.LLMClient, Vault: s.Vault,
 							Registry: s.Registry, Manifest: manifest, CronManager: s.CronManager,
 							MissionManagerV2: s.MissionManagerV2, LongTermMem: s.LongTermMem,
@@ -521,7 +521,7 @@ func handleN8nToolExecute(s *Server) http.HandlerFunc {
 		// Execute tool
 		manifest := tools.NewManifest(s.Cfg.Directories.ToolsDir)
 		result := agent.DispatchToolCall(
-			ctx, tc, &agent.DispatchContext{
+			ctx, &tc, &agent.DispatchContext{
 				Cfg: s.Cfg, Logger: s.Logger, LLMClient: s.LLMClient, Vault: s.Vault,
 				Registry: s.Registry, Manifest: manifest, CronManager: s.CronManager,
 				MissionManagerV2: s.MissionManagerV2, LongTermMem: s.LongTermMem,

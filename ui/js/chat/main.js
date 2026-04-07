@@ -1270,6 +1270,35 @@ function connectSSE() {
 
     window.AuraSSE.onLegacy(handleSSEMessage);
 
+    // Typed LLM streaming events — sent via BroadcastType instead of raw chunk passthrough.
+    let _streamingRow = null;
+    let _streamingContent = '';
+    window.AuraSSE.on('llm_stream_delta', function (payload) {
+        if (!payload || !payload.content) return;
+        // Suppress tool-call JSON patterns in streamed content (same logic as backend filter).
+        const trimmed = payload.content.trimStart();
+        if (trimmed.length > 0 && trimmed[0] === '{' &&
+            (trimmed.includes('"tool_call"') || trimmed.includes('"tool_name"') ||
+             trimmed.includes('"action"') || trimmed.includes('"command"') ||
+             trimmed.includes('"operation"') || trimmed.includes('"arguments"'))) {
+            return;
+        }
+        if (!_streamingRow) {
+            _streamingRow = document.createElement('div');
+            _streamingRow.className = 'msg-row bot';
+            _streamingRow.innerHTML = '<div class="avatar bot">🤖</div><div class="bubble bot"></div>';
+            chatContent.appendChild(_streamingRow);
+        }
+        _streamingContent += payload.content;
+        const bubble = _streamingRow.querySelector('.bubble');
+        if (bubble) bubble.textContent = _streamingContent;
+        chatBox.scrollTop = chatBox.scrollHeight;
+    });
+    window.AuraSSE.on('llm_stream_done', function (payload) {
+        _streamingRow = null;
+        _streamingContent = '';
+    });
+
     // Check auth on SSE error (may indicate 401)
     window.AuraSSE.on('_error', function () {
         fetch('/api/auth/status', { credentials: 'same-origin' }).then(function (r) {
@@ -1289,9 +1318,9 @@ function handleSSEMessage(e) {
         const data = JSON.parse(e.data);
         let message = '';
 
-        // Raw OpenAI streaming chunks (broker.SendJSON) and BroadcastType messages
-        // ({"type":"system_metrics",...}) have no "event" field — skip them here;
-        // streaming content is already rendered live via the chunk passthrough.
+        // Typed SSE events (BroadcastType) with {"type":"..."} have no "event" field
+        // and are handled by AuraSSE.on(...) handlers registered separately.
+        // Skip them here — they are processed by typed event handlers.
         if (!data.event) return;
 
         // Make the status bar visible early so floating icons can render

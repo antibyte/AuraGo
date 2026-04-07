@@ -64,6 +64,14 @@ func (b *TelnyxSMSBroker) SendJSON(jsonStr string) {
 	// No-op: token usage not useful via SMS
 }
 
+func (b *TelnyxSMSBroker) SendLLMStreamDelta(content, toolName, toolID string, index int, finishReason string) {
+}
+
+func (b *TelnyxSMSBroker) SendLLMStreamDone(finishReason string) {}
+
+func (b *TelnyxSMSBroker) SendTokenUpdate(prompt, completion, total, sessionTotal, globalTotal int, isEstimated bool) {
+}
+
 // TelnyxCallBroker implements agent.FeedbackProvider for active voice calls.
 type TelnyxCallBroker struct {
 	client        *Client
@@ -114,6 +122,14 @@ func (b *TelnyxCallBroker) Send(event, message string) {
 // SendJSON is a no-op for call broker.
 func (b *TelnyxCallBroker) SendJSON(jsonStr string) {
 	// No-op
+}
+
+func (b *TelnyxCallBroker) SendLLMStreamDelta(content, toolName, toolID string, index int, finishReason string) {
+}
+
+func (b *TelnyxCallBroker) SendLLMStreamDone(finishReason string) {}
+
+func (b *TelnyxCallBroker) SendTokenUpdate(prompt, completion, total, sessionTotal, globalTotal int, isEstimated bool) {
 }
 
 // FormatSMSForAgent wraps incoming SMS content for the agent with external data protection.

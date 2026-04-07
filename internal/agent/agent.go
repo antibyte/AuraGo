@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"aurago/internal/budget"
@@ -96,9 +97,8 @@ func (a *Agent) Shutdown() error {
 // allowing the reasoning loop to be used by multiple transports (SSE, Telegram, etc.)
 
 var (
-	GlobalTokenCount     int
-	GlobalTokenEstimated bool
-	muTokens             sync.Mutex
+	globalTokenCount     atomic.Int64
+	globalTokenEstimated atomic.Bool
 
 	sessionInterrupts = make(map[string]time.Time)
 	muInterrupts      sync.Mutex
@@ -109,6 +109,26 @@ var (
 	voiceModeEnabled bool
 	muVoiceMode      sync.Mutex
 )
+
+// GlobalTokenCount returns the current total token count across all sessions.
+func GlobalTokenCount() int64 {
+	return globalTokenCount.Load()
+}
+
+// AddGlobalTokenCount adds tokens to the global counter. Returns the new total.
+func AddGlobalTokenCount(tokens int) int64 {
+	return globalTokenCount.Add(int64(tokens))
+}
+
+// GlobalTokenEstimated returns true if the global token count was computed via estimation.
+func GlobalTokenEstimated() bool {
+	return globalTokenEstimated.Load()
+}
+
+// SetGlobalTokenEstimated marks the global token count as estimated.
+func SetGlobalTokenEstimated(estimated bool) {
+	globalTokenEstimated.Store(estimated)
+}
 
 // SetDebugMode enables or disables the runtime debug mode for the agent.
 // When enabled, the agent's system prompt includes an extra debugging instruction.
@@ -231,6 +251,9 @@ func estimateTokensForModel(text string, model string) int {
 type FeedbackBroker interface {
 	Send(event, message string)
 	SendJSON(jsonStr string)
+	SendLLMStreamDelta(content, toolName, toolID string, index int, finishReason string)
+	SendLLMStreamDone(finishReason string)
+	SendTokenUpdate(prompt, completion, total, sessionTotal, globalTotal int, isEstimated bool)
 }
 
 // NoopBroker is a silent fallback for transports that don't support real-time feedback
@@ -238,6 +261,11 @@ type NoopBroker struct{}
 
 func (n NoopBroker) Send(event, message string) {}
 func (n NoopBroker) SendJSON(jsonStr string)    {}
+func (n NoopBroker) SendLLMStreamDelta(content, toolName, toolID string, index int, finishReason string) {
+}
+func (n NoopBroker) SendLLMStreamDone(finishReason string) {}
+func (n NoopBroker) SendTokenUpdate(prompt, completion, total, sessionTotal, globalTotal int, isEstimated bool) {
+}
 
 // StringOrArray is a ToolCall field type that accepts both a JSON string
 // and a JSON array (the LLM sometimes sends _todo as ["item1","item2",...]
@@ -512,6 +540,8 @@ type ToolCall struct {
 	// Circuit Breaker Override - ermöglicht temporäre Erhöhung des Limits für komplexe Operationen
 	CircuitBreakerOverride int    `json:"circuit_breaker_override,omitempty"`
 	GuardianJustification  string `json:"_guardian_justification,omitempty"` // agent explains why a blocked tool call is needed
+	GuardianBlocked        bool   `json:"_guardian_blocked,omitempty"`       // true if Guardian blocked this tool call
+	GuardianBlockReason    string `json:"_guardian_block_reason,omitempty"`  // reason for Guardian block
 	// Netlify fields
 	SiteID       string `json:"site_id"`       // Netlify site ID
 	DeployID     string `json:"deploy_id"`     // Netlify deploy ID

@@ -61,7 +61,8 @@ func formatGuardianBlockedMessage(action, reason string, risk float64, allowClar
 // DispatchToolCall executes the appropriate tool based on the parsed ToolCall.
 // It automatically handles LLM Guardian pre-check, Redaction, Guardian sanitization,
 // and ensures the output is correctly prefixed with "[Tool Output]\n" unless it's a known error marker.
-func DispatchToolCall(ctx context.Context, tc ToolCall, dc *DispatchContext, userContext string) string {
+// If the tool is blocked by Guardian, tc.GuardianBlocked and tc.GuardianBlockReason are set.
+func DispatchToolCall(ctx context.Context, tc *ToolCall, dc *DispatchContext, userContext string) string {
 	cfg := dc.Cfg
 	logger := dc.Logger
 	guardian := dc.Guardian
@@ -71,7 +72,7 @@ func DispatchToolCall(ctx context.Context, tc ToolCall, dc *DispatchContext, use
 	if llmGuardian != nil {
 		var regexLevel security.ThreatLevel
 		if guardian != nil {
-			scanText := toolCallScanText(tc)
+			scanText := toolCallScanText(*tc)
 			regexLevel = guardian.ScanForInjection(scanText).Level
 		}
 		// Build guardian context: prefer the triggering user message over tc.Content
@@ -84,7 +85,7 @@ func DispatchToolCall(ctx context.Context, tc ToolCall, dc *DispatchContext, use
 		}
 		check := security.GuardianCheck{
 			Operation:  tc.Action,
-			Parameters: toolCallParams(tc),
+			Parameters: toolCallParams(*tc),
 			Context:    guardianCtx,
 			RegexLevel: regexLevel,
 		}
@@ -107,11 +108,15 @@ func DispatchToolCall(ctx context.Context, tc ToolCall, dc *DispatchContext, use
 					// Clarification rejected — final block (no more retries)
 					logger.Warn("[LLM Guardian] Clarification rejected, final block",
 						"tool", tc.Action, "reason", clarResult.Reason, "risk", clarResult.RiskScore)
+					tc.GuardianBlocked = true
+					tc.GuardianBlockReason = clarResult.Reason
 					return formatGuardianBlockedMessage(tc.Action, clarResult.Reason, clarResult.RiskScore, cfg.LLMGuardian.AllowClarification, true)
 				}
 
 				logger.Warn("[LLM Guardian] Blocked tool call",
 					"tool", tc.Action, "reason", result.Reason, "risk", result.RiskScore)
+				tc.GuardianBlocked = true
+				tc.GuardianBlockReason = result.Reason
 				return formatGuardianBlockedMessage(tc.Action, result.Reason, result.RiskScore, cfg.LLMGuardian.AllowClarification, false)
 			}
 			if result.Decision == security.DecisionQuarantine {
@@ -123,7 +128,7 @@ func DispatchToolCall(ctx context.Context, tc ToolCall, dc *DispatchContext, use
 proceed:
 
 	startTime := time.Now()
-	rawResult := dispatchInner(ctx, tc, dc)
+	rawResult := dispatchInner(ctx, *tc, dc)
 	dc.ExecutionTimeMs = time.Since(startTime).Milliseconds()
 
 	// Apply scrubbing and redaction to tool output.

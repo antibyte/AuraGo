@@ -3,7 +3,6 @@ package llm
 import (
 	"context"
 	"log/slog"
-	"strings"
 	"sync"
 	"time"
 
@@ -12,36 +11,27 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-// FailoverManager implements ChatClient.  It wraps a primary and an optional
-// fallback LLM endpoint.  When the primary accumulates enough consecutive
-// errors it transparently switches to the fallback.  A background goroutine
-// periodically probes the primary and switches back on success.
-//
-// If fallback is disabled in config, FailoverManager is a thin passthrough
-// around the primary client so existing behaviour is preserved.
 type FailoverManager struct {
 	mu sync.RWMutex
 
 	primary       *openai.Client
-	fallback      *openai.Client // nil when fallback not configured
+	fallback      *openai.Client
 	primaryType   string
 	fallbackType  string
 	primaryModel  string
 	fallbackModel string
 
 	isOnFallback       bool
-	errorCount         int // consecutive primary errors
-	fallbackErrorCount int // consecutive fallback errors (for monitoring)
+	errorCount         int
+	fallbackErrorCount int
 	errorThreshold     int
 	probeInterval      time.Duration
 
-	stopCh chan struct{} // closed by Stop() to signal probeLoop to exit
+	stopCh chan struct{}
 
 	logger *slog.Logger
 }
 
-// NewFailoverManager creates a FailoverManager from cfg.
-// The probe goroutine is started if fallback is enabled.
 func NewFailoverManager(cfg *config.Config, logger *slog.Logger) *FailoverManager {
 	primary := NewClient(cfg)
 
@@ -57,10 +47,9 @@ func NewFailoverManager(cfg *config.Config, logger *slog.Logger) *FailoverManage
 
 	fb := cfg.FallbackLLM
 	if !fb.Enabled || (fb.BaseURL == "" && fb.AccountID == "") {
-		return fm // passthrough mode
+		return fm
 	}
 
-	// Build fallback client reusing NewClient logic
 	fallbackCfg := *cfg
 	fallbackCfg.LLM.ProviderType = fb.ProviderType
 	fallbackCfg.LLM.BaseURL = fb.BaseURL
@@ -82,13 +71,8 @@ func NewFailoverManager(cfg *config.Config, logger *slog.Logger) *FailoverManage
 	return fm
 }
 
-// Reconfigure atomically replaces the primary (and optionally fallback) client
-// with new settings from cfg.  The previous probe goroutine is stopped before
-// the new configuration is applied.  Call this during hot-reload so that
-// model, API-key, base-URL, and provider changes take effect immediately.
 func (fm *FailoverManager) Reconfigure(cfg *config.Config) {
-	// Stop old probe goroutine.  It captured its stop channel by value so it
-	// will reliably exit even after we replace fm.stopCh below.
+	oldStopCh := fm.stopCh
 	fm.Stop()
 
 	newPrimary := NewClient(cfg)
@@ -132,20 +116,18 @@ func (fm *FailoverManager) Reconfigure(cfg *config.Config) {
 	if startProbe {
 		go fm.probeLoop(newStopCh)
 	}
+	_ = oldStopCh
 	fm.logger.Info("[LLM] FailoverManager reconfigured", "model", cfg.LLM.Model, "provider", cfg.LLM.ProviderType, "base_url", cfg.LLM.BaseURL)
 }
 
-// Stop signals the background probe goroutine to exit. Call during server shutdown.
 func (fm *FailoverManager) Stop() {
 	select {
 	case <-fm.stopCh:
-		// already closed
 	default:
 		close(fm.stopCh)
 	}
 }
 
-// CreateChatCompletion satisfies ChatClient.
 func (fm *FailoverManager) CreateChatCompletion(ctx context.Context, req openai.ChatCompletionRequest) (openai.ChatCompletionResponse, error) {
 	client, model := fm.active()
 	req.Model = model
@@ -159,7 +141,6 @@ func (fm *FailoverManager) CreateChatCompletion(ctx context.Context, req openai.
 	return resp, err
 }
 
-// CreateChatCompletionStream satisfies ChatClient.
 func (fm *FailoverManager) CreateChatCompletionStream(ctx context.Context, req openai.ChatCompletionRequest) (*openai.ChatCompletionStream, error) {
 	client, model := fm.active()
 	req.Model = model
@@ -173,7 +154,6 @@ func (fm *FailoverManager) CreateChatCompletionStream(ctx context.Context, req o
 	return stream, err
 }
 
-// active returns the currently active client and model under a read lock.
 func (fm *FailoverManager) active() (*openai.Client, string) {
 	fm.mu.RLock()
 	defer fm.mu.RUnlock()
@@ -183,7 +163,6 @@ func (fm *FailoverManager) active() (*openai.Client, string) {
 	return fm.primary, fm.primaryModel
 }
 
-// ActiveProviderAndModel returns the currently active failover endpoint identity.
 func (fm *FailoverManager) ActiveProviderAndModel() (string, string) {
 	fm.mu.RLock()
 	defer fm.mu.RUnlock()
@@ -193,26 +172,21 @@ func (fm *FailoverManager) ActiveProviderAndModel() (string, string) {
 	return fm.primaryType, fm.primaryModel
 }
 
-// recordError increments the error counter and switches to fallback if the
-// threshold is reached.  Context-cancelled errors and non-retryable config
-// errors (e.g. model not found) are ignored so they never trigger failover.
 func (fm *FailoverManager) recordError(err error) {
-	if err == nil || isContextError(err) {
+	if err == nil || IsContextError(err) {
 		return
 	}
-	// Non-retryable errors (bad model name, invalid API key, unsupported param)
-	// indicate a configuration problem, not a transient failure.  Counting them
-	// towards the failover threshold would cause a needless and confusing switch.
-	if isNonRetryable(strings.ToLower(err.Error())) {
-		fm.logger.Error("[LLM] Non-retryable error, not counting towards failover", "error", err)
+
+	if IsNonRetryable(err) {
+		fm.logger.Error("[LLM] Non-retryable error, not counting towards failover", "error", err, "category", ClassifyError(err))
 		return
 	}
+
 	fm.mu.Lock()
 	defer fm.mu.Unlock()
 
 	fm.errorCount++
 	if fm.fallback == nil || fm.isOnFallback {
-		// No fallback configured, or already on fallback – just log.
 		if fm.isOnFallback {
 			fm.fallbackErrorCount++
 			fm.logger.Warn("LLM failover: error on fallback endpoint", "error", err, "fallback_error_count", fm.fallbackErrorCount)
@@ -228,7 +202,6 @@ func (fm *FailoverManager) recordError(err error) {
 	}
 }
 
-// recordSuccess resets the error counter when we are on the primary.
 func (fm *FailoverManager) recordSuccess() {
 	fm.mu.Lock()
 	defer fm.mu.Unlock()
@@ -237,10 +210,6 @@ func (fm *FailoverManager) recordSuccess() {
 	}
 }
 
-// probeLoop runs in a background goroutine.  While on fallback it pings the
-// primary at probeInterval; on success it switches back.
-// stopCh is captured by value so that Reconfigure can safely replace fm.stopCh
-// without the goroutine being affected by the swap.
 func (fm *FailoverManager) probeLoop(stopCh <-chan struct{}) {
 	ticker := time.NewTicker(fm.probeInterval)
 	defer ticker.Stop()
@@ -259,10 +228,9 @@ func (fm *FailoverManager) probeLoop(stopCh <-chan struct{}) {
 				continue
 			}
 
-			fm.logger.Debug("LLM failover: probing primary endpoint…")
+			fm.logger.Debug("LLM failover: probing primary endpoint...")
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 
-			// Read primary client and model under RLock to avoid a race with Reconfigure.
 			fm.mu.RLock()
 			primaryClient := fm.primary
 			primaryModel := fm.primaryModel
@@ -278,6 +246,10 @@ func (fm *FailoverManager) probeLoop(stopCh <-chan struct{}) {
 			cancel()
 
 			if err != nil {
+				if IsContextError(err) {
+					fm.logger.Debug("LLM failover: primary probe context error (inconclusive)", "error", err)
+					continue
+				}
 				fm.logger.Debug("LLM failover: primary still unavailable", "error", err)
 				continue
 			}
@@ -287,18 +259,7 @@ func (fm *FailoverManager) probeLoop(stopCh <-chan struct{}) {
 			fm.errorCount = 0
 			fm.fallbackErrorCount = 0
 			fm.mu.Unlock()
-			fm.logger.Info("LLM failover: primary recovered – switched back", "model", fm.primaryModel)
+			fm.logger.Info("LLM failover: primary recovered - switched back", "model", fm.primaryModel)
 		}
 	}
-}
-
-// isContextError returns true if the error is caused by context cancellation
-// or deadline exceeded – these should not count towards the failure threshold.
-func isContextError(err error) bool {
-	if err == nil {
-		return false
-	}
-	s := err.Error()
-	return strings.Contains(s, "context canceled") ||
-		strings.Contains(s, "context deadline exceeded")
 }

@@ -33,9 +33,12 @@ func TestFinalizeToolExecutionRecordsErrorAndResolution(t *testing.T) {
 	state := newToolRecoveryState()
 	tc := ToolCall{Action: "homepage"}
 
-	first := finalizeToolExecution(tc, `{"status":"error","message":"connect failed"}`, cfg, stm, "default", &state, &req, logger, scope, "optim-db", 100)
+	first := finalizeToolExecution(tc, `{"status":"error","message":"connect failed"}`, false, cfg, stm, "default", &state, &req, logger, scope, "optim-db", 100)
 	if !first.Failed {
 		t.Fatal("expected failing tool output to be marked as failed")
+	}
+	if first.Outcome != ExecutionOutcomeFailed {
+		t.Fatalf("first.Outcome = %v, want ExecutionOutcomeFailed", first.Outcome)
 	}
 
 	count, err := stm.GetErrorPatternsCount()
@@ -46,9 +49,12 @@ func TestFinalizeToolExecutionRecordsErrorAndResolution(t *testing.T) {
 		t.Fatalf("error pattern count = %d, want 1", count)
 	}
 
-	second := finalizeToolExecution(tc, `{"status":"success","message":"ok"}`, cfg, stm, "default", &state, &req, logger, scope, "optim-db", 100)
+	second := finalizeToolExecution(tc, `{"status":"success","message":"ok"}`, false, cfg, stm, "default", &state, &req, logger, scope, "optim-db", 100)
 	if second.Failed {
 		t.Fatal("expected success output to be marked as successful")
+	}
+	if second.Outcome != ExecutionOutcomeSuccess {
+		t.Fatalf("second.Outcome = %v, want ExecutionOutcomeSuccess", second.Outcome)
 	}
 
 	patterns, err := stm.GetFrequentErrors("homepage", 1)
@@ -63,6 +69,43 @@ func TestFinalizeToolExecutionRecordsErrorAndResolution(t *testing.T) {
 	}
 }
 
+func TestFinalizeToolExecutionGuardianBlockedSetsOutcome(t *testing.T) {
+	resetAgentTelemetryForTest()
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	cfg := &config.Config{}
+	scope := AgentTelemetryScope{}
+	req := openai.ChatCompletionRequest{}
+	state := newToolRecoveryState()
+	tc := ToolCall{Action: "execute_shell"}
+
+	guardianBlockedMsg := "[TOOL BLOCKED] Security check failed for execute_shell: remote code execution via curl pipe sh (risk: 85%)."
+	result := finalizeToolExecution(tc, guardianBlockedMsg, true, cfg, nil, "default", &state, &req, logger, scope, "v1", 100)
+	if !result.Failed {
+		t.Fatal("expected guardian blocked to be marked as failed")
+	}
+	if result.Outcome != ExecutionOutcomeGuardianBlocked {
+		t.Fatalf("result.Outcome = %v, want ExecutionOutcomeGuardianBlocked", result.Outcome)
+	}
+}
+
+func TestExecutionOutcomeString(t *testing.T) {
+	tests := []struct {
+		outcome ExecutionOutcome
+		want    string
+	}{
+		{ExecutionOutcomeSuccess, "success"},
+		{ExecutionOutcomeFailed, "failed"},
+		{ExecutionOutcomeGuardianBlocked, "guardian_blocked"},
+		{ExecutionOutcomeSanitized, "sanitized"},
+		{ExecutionOutcome(99), "unknown"},
+	}
+	for _, tt := range tests {
+		if got := tt.outcome.String(); got != tt.want {
+			t.Errorf("ExecutionOutcome(%d).String() = %q, want %q", tt.outcome, got, tt.want)
+		}
+	}
+}
+
 func TestFinalizeToolExecutionAppendsSuggestedNextStep(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	cfg := &config.Config{}
@@ -72,7 +115,7 @@ func TestFinalizeToolExecutionAppendsSuggestedNextStep(t *testing.T) {
 	state := newToolRecoveryState()
 	tc := ToolCall{Action: "filesystem"}
 
-	result := finalizeToolExecution(tc, `{"status":"error","message":"Unknown filesystem operation: 'read'"}`, cfg, nil, "default", &state, &req, logger, scope, "optim-db", 100)
+	result := finalizeToolExecution(tc, `{"status":"error","message":"Unknown filesystem operation: 'read'"}`, false, cfg, nil, "default", &state, &req, logger, scope, "optim-db", 100)
 	if !result.Failed {
 		t.Fatal("expected tool failure")
 	}
@@ -107,7 +150,7 @@ func TestFinalizeToolExecutionWarnsWhenMemoryPersistenceFails(t *testing.T) {
 	state := newToolRecoveryState()
 	tc := ToolCall{Action: "homepage"}
 
-	result := finalizeToolExecution(tc, `{"status":"error","message":"connect failed"}`, cfg, stm, "default", &state, &req, logger, scope, "v1", 100)
+	result := finalizeToolExecution(tc, `{"status":"error","message":"connect failed"}`, false, cfg, stm, "default", &state, &req, logger, scope, "v1", 100)
 	if !result.Failed {
 		t.Fatal("expected tool failure")
 	}

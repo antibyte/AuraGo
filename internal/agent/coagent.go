@@ -59,6 +59,14 @@ func (b *coAgentBroker) Send(event, message string) {
 
 func (b *coAgentBroker) SendJSON(jsonStr string) {}
 
+func (b *coAgentBroker) SendLLMStreamDelta(content, toolName, toolID string, index int, finishReason string) {
+}
+
+func (b *coAgentBroker) SendLLMStreamDone(finishReason string) {}
+
+func (b *coAgentBroker) SendTokenUpdate(prompt, completion, total, sessionTotal, globalTotal int, isEstimated bool) {
+}
+
 // SpawnCoAgent starts a co-agent goroutine and returns its ID.
 // Returns an error when the system is disabled or all slots are occupied.
 func SpawnCoAgent(

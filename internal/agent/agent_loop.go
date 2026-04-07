@@ -545,9 +545,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			} else if recoveryState.handleDuplicateToolCall(ptc, &req, currentLogger, telemetryScope) {
 				pResultContent = blockedToolOutputFromRequest(&req)
 			} else {
-				pResultContent = DispatchToolCall(ctx, ptc, dispatchCtx, lastUserMsg)
+				pResultContent = DispatchToolCall(ctx, &ptc, dispatchCtx, lastUserMsg)
 			}
-			policyResult := finalizeToolExecution(ptc, pResultContent, cfg, shortTermMem, sessionID, &recoveryState, &req, currentLogger, telemetryScope, optimizer.GetToolPromptVersion(ptc.Action), dispatchCtx.ExecutionTimeMs)
+			policyResult := finalizeToolExecution(ptc, pResultContent, ptc.GuardianBlocked, cfg, shortTermMem, sessionID, &recoveryState, &req, currentLogger, telemetryScope, optimizer.GetToolPromptVersion(ptc.Action), dispatchCtx.ExecutionTimeMs)
 			pResultContent = policyResult.Content
 			trackActivityTool(&turnToolNames, &turnToolSummaries, ptc.Action, pResultContent)
 			recordPlanToolProgress(shortTermMem, sessionID, ptc, pResultContent, currentLogger)
@@ -1205,7 +1205,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		if cfg.Logging.EnablePromptLog && cfg.Logging.LogDir != "" {
 			if f, ferr := os.OpenFile(
 				filepath.Join(cfg.Logging.LogDir, "prompts.log"),
-				os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644,
+				os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600,
 			); ferr == nil {
 				type promptLogEntry struct {
 					Time       string                         `json:"time"`
@@ -1276,7 +1276,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			var stm *openai.ChatCompletionStream
 			var streamErr error
 			if emptyRetried {
-				stm, streamErr = llm.ExecuteStreamWithCustomRetry(llmCtx, client, req, currentLogger, broker, []time.Duration{5 * time.Second}, 5*time.Second)
+				stm, streamErr = llm.ExecuteStreamWithCustomRetry(llmCtx, client, req, currentLogger, broker, recoveryPolicy.emptyRetryIntervals(), recoveryPolicy.emptyRetryBaseDelay())
 			} else {
 				stm, streamErr = llm.ExecuteStreamWithRetry(llmCtx, client, req, currentLogger, broker)
 			}
@@ -1292,11 +1292,13 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 
 			var assembledResponse strings.Builder
+			// Track last finish reason from streaming chunks for llm_stream_done event
+			var lastFinishReason string
 			// Collect streamed tool calls (native function calling via streaming).
 			// The API sends partial tool call data across multiple chunks that must
 			// be reassembled: each chunk carries an Index identifying the call and
 			// incremental Function.Name / Function.Arguments fragments.
-			streamToolCalls := map[int]*openai.ToolCall{}
+			tcAssembler := NewStreamToolCallAssembler()
 			// SSE-level buffer to filter <done/>, minimax:tool_call, and bare <tool_call> XML
 			// blocks from the stream before they reach the UI.
 			// <done/> is a completion signal; minimax:tool_call is a raw XML tool call emitted
@@ -1322,6 +1324,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					break
 				}
 				if len(chunk.Choices) > 0 {
+					if chunk.Choices[0].FinishReason != "" {
+						lastFinishReason = string(chunk.Choices[0].FinishReason)
+					}
 					delta := chunk.Choices[0].Delta
 					if delta.Content != "" {
 						assembledResponse.WriteString(delta.Content)
@@ -1382,16 +1387,13 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 								}
 							}
 							if toSend != "" {
-								chunk.Choices[0].Delta.Content = toSend
-								if chunkData, mErr := json.Marshal(chunk); mErr == nil {
-									broker.SendJSON(string(chunkData))
-								}
+								broker.SendLLMStreamDelta(toSend, "", "", chunk.Choices[0].Index, "")
 							}
 						}
 					}
 					// Accumulate streamed tool call fragments
 					for _, tc := range delta.ToolCalls {
-						mergeStreamToolCallChunk(streamToolCalls, tc)
+						tcAssembler.Merge(tc)
 					}
 				}
 			}
@@ -1416,15 +1418,15 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					remaining = remaining[:idx]
 				}
 				if remaining != "" {
-					remainingJSON, _ := json.Marshal(remaining)
-					broker.SendJSON(fmt.Sprintf("data: {\"choices\":[{\"delta\":{\"content\":%s},\"finish_reason\":null}]}\n\n", string(remainingJSON)))
+					broker.SendLLMStreamDelta(remaining, "", "", 0, "")
 				}
 				doneTagStreamBuf = ""
 			}
+			broker.SendLLMStreamDone(lastFinishReason)
 			content = assembledResponse.String()
 
 			// Build sorted slice of assembled tool calls
-			assembledToolCalls := assembleSortedStreamToolCalls(streamToolCalls)
+			assembledToolCalls := tcAssembler.Assemble()
 			if len(assembledToolCalls) > 0 {
 				currentLogger.Info("[Stream] Assembled streamed tool calls", "count", len(assembledToolCalls))
 			}
@@ -1453,7 +1455,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 		} else {
 			if emptyRetried {
-				resp, err = llm.ExecuteWithCustomRetry(llmCtx, client, req, currentLogger, broker, []time.Duration{5 * time.Second}, 5*time.Second)
+				resp, err = llm.ExecuteWithCustomRetry(llmCtx, client, req, currentLogger, broker, recoveryPolicy.emptyRetryIntervals(), recoveryPolicy.emptyRetryBaseDelay())
 			} else {
 				resp, err = llm.ExecuteWithRetry(llmCtx, client, req, currentLogger, broker)
 			}
@@ -1520,26 +1522,18 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 
 		if totalTokens == 0 {
-			// Estimate tokens if usage is missing
-			muTokens.Lock()
-			GlobalTokenEstimated = true
-			muTokens.Unlock()
+			SetGlobalTokenEstimated(true)
 
-			// Estimate prompt tokens from all messages in request
 			for _, m := range req.Messages {
 				promptTokens += estimateTokensForModel(messageText(m), req.Model)
 			}
-			// Estimate completion tokens from response content
 			completionTokens = estimateTokensForModel(content, req.Model)
 			totalTokens = promptTokens + completionTokens
 		}
 
 		sessionTokens += totalTokens
-		muTokens.Lock()
-		GlobalTokenCount += totalTokens
-		localGlobalTotal := GlobalTokenCount
-		localIsEstimated := GlobalTokenEstimated
-		muTokens.Unlock()
+		localGlobalTotal := AddGlobalTokenCount(totalTokens)
+		localIsEstimated := GlobalTokenEstimated()
 
 		broker.SendJSON(fmt.Sprintf(`{"event":"tokens","prompt":%d,"completion":%d,"total":%d,"session_total":%d,"global_total":%d,"is_estimated":%t}`,
 			promptTokens, completionTokens, totalTokens, sessionTokens, localGlobalTotal, localIsEstimated))
@@ -2016,8 +2010,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 
 			dispatchCtx := makeDispatchContext(currentLogger)
-			resultContent := DispatchToolCall(ctx, tc, dispatchCtx, lastUserMsg)
-			policyResult := finalizeToolExecution(tc, resultContent, cfg, shortTermMem, sessionID, &recoveryState, &req, currentLogger, telemetryScope, optimizer.GetToolPromptVersion(tc.Action), dispatchCtx.ExecutionTimeMs)
+			resultContent := DispatchToolCall(ctx, &tc, dispatchCtx, lastUserMsg)
+			policyResult := finalizeToolExecution(tc, resultContent, tc.GuardianBlocked, cfg, shortTermMem, sessionID, &recoveryState, &req, currentLogger, telemetryScope, optimizer.GetToolPromptVersion(tc.Action), dispatchCtx.ExecutionTimeMs)
 			resultContent = policyResult.Content
 			trackActivityTool(&turnToolNames, &turnToolSummaries, tc.Action, resultContent)
 			recordPlanToolProgress(shortTermMem, sessionID, tc, resultContent, currentLogger)
@@ -2304,9 +2298,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					} else if recoveryState.handleDuplicateToolCall(btc, &req, currentLogger, telemetryScope) {
 						bResult = blockedToolOutputFromRequest(&req)
 					} else {
-						bResult = DispatchToolCall(ctx, btc, nativeDispatchCtx, lastUserMsg)
+						bResult = DispatchToolCall(ctx, &btc, nativeDispatchCtx, lastUserMsg)
 					}
-					policyResult := finalizeToolExecution(btc, bResult, cfg, shortTermMem, sessionID, &recoveryState, &req, currentLogger, telemetryScope, optimizer.GetToolPromptVersion(btc.Action), nativeDispatchCtx.ExecutionTimeMs)
+					policyResult := finalizeToolExecution(btc, bResult, btc.GuardianBlocked, cfg, shortTermMem, sessionID, &recoveryState, &req, currentLogger, telemetryScope, optimizer.GetToolPromptVersion(btc.Action), nativeDispatchCtx.ExecutionTimeMs)
 					bResult = policyResult.Content
 					trackActivityTool(&turnToolNames, &turnToolSummaries, btc.Action, bResult)
 					recordPlanToolProgress(shortTermMem, sessionID, btc, bResult, currentLogger)

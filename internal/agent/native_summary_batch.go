@@ -189,7 +189,8 @@ func dispatchRawSummaryBatchCandidate(ctx context.Context, candidate pendingSumm
 	rawCfg := cloneConfigWithSummaryModeDisabled(dc.Cfg, candidate.EffectiveAction)
 	rawDC := *dc
 	rawDC.Cfg = rawCfg
-	return DispatchToolCall(ctx, candidate.ToolCall, &rawDC, lastUserMsg)
+	tc := candidate.ToolCall
+	return DispatchToolCall(ctx, &tc, &rawDC, lastUserMsg)
 }
 
 func cloneConfigWithSummaryModeDisabled(cfg *config.Config, action string) *config.Config {

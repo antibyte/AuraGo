@@ -299,6 +299,14 @@ func (b *CLIBroker) SendJSON(jsonStr string) {
 	fmt.Printf("[JSON] %s\n", jsonStr)
 }
 
+func (b *CLIBroker) SendLLMStreamDelta(content, toolName, toolID string, index int, finishReason string) {
+}
+
+func (b *CLIBroker) SendLLMStreamDone(finishReason string) {}
+
+func (b *CLIBroker) SendTokenUpdate(prompt, completion, total, sessionTotal, globalTotal int, isEstimated bool) {
+}
+
 func checkVitality(summary string, l *slog.Logger) error {
 	l.Info("Führe Vitality Check durch (localhost:8089)...")
 

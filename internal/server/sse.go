@@ -28,6 +28,10 @@ const (
 	EventToast             SSEEventType = "toast"
 	EventSystemWarning     SSEEventType = "system_warning"
 	EventDaemonUpdate      SSEEventType = "daemon_update"
+	EventLLMStreamDelta    SSEEventType = "llm_stream_delta"
+	EventLLMStreamDone     SSEEventType = "llm_stream_done"
+	EventTokenUpdate       SSEEventType = "token_update"
+	EventToolCallPreview   SSEEventType = "tool_call_preview"
 )
 
 // SSEBroadcaster manages Server-Sent Events connections and broadcasts messages.
@@ -89,6 +93,32 @@ func (b *SSEBroadcaster) BroadcastType(eventType SSEEventType, payload any) {
 		return
 	}
 	b.SendJSON(string(msg))
+}
+
+type LLMStreamDeltaPayload struct {
+	Content      string `json:"content,omitempty"`
+	ToolName     string `json:"tool_name,omitempty"`
+	ToolID       string `json:"tool_id,omitempty"`
+	Index        int    `json:"index,omitempty"`
+	FinishReason string `json:"finish_reason,omitempty"`
+}
+
+type LLMStreamDonePayload struct {
+	FinishReason string `json:"finish_reason,omitempty"`
+}
+
+type TokenUpdatePayload struct {
+	PromptTokens     int  `json:"prompt"`
+	CompletionTokens int  `json:"completion"`
+	TotalTokens      int  `json:"total"`
+	SessionTotal     int  `json:"session_total"`
+	GlobalTotal      int  `json:"global_total"`
+	IsEstimated      bool `json:"is_estimated"`
+}
+
+type ToolCallPreviewPayload struct {
+	Action  string `json:"action"`
+	RawJSON string `json:"raw_json,omitempty"`
 }
 
 // ClientCount returns the number of currently connected SSE clients.

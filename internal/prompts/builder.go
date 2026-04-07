@@ -22,9 +22,9 @@ import (
 
 // tiktokenEncoder is a cached BPE encoder for token counting.
 var (
-	tiktokenOnce sync.Once
-	tiktokenEnc  *tiktoken.Tiktoken
-	tiktokenMu   sync.Mutex
+	tiktokenOnce     sync.Once
+	tiktokenEnc      *tiktoken.Tiktoken
+	tiktokenWarnOnce sync.Once
 )
 
 // promptModuleCache caches parsed prompt modules keyed by directory path.
@@ -1087,12 +1087,11 @@ func CountTokens(text string) int {
 		}
 	})
 	if tiktokenEnc != nil {
-		tiktokenMu.Lock()
-		count := len(tiktokenEnc.Encode(text, nil, nil))
-		tiktokenMu.Unlock()
-		return count
+		return len(tiktokenEnc.Encode(text, nil, nil))
 	}
-	// Fallback: rough estimate
+	tiktokenWarnOnce.Do(func() {
+		slog.Warn("[TokenCount] tiktoken encoder unavailable, using char/4 fallback")
+	})
 	return len(text) / 4
 }
 

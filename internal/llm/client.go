@@ -233,16 +233,17 @@ func miniMaxConvertSystemMessages(body []byte) []byte {
 		return body
 	}
 
-	// Collect and remove system messages.
+	// Collect and remove system messages, handling both string and structured content.
 	var sysBuilder strings.Builder
 	var filtered []map[string]interface{}
 	for _, m := range msgs {
 		if role, _ := m["role"].(string); role == "system" {
-			if content, ok := m["content"].(string); ok && content != "" {
+			sysText := extractTextContent(m["content"])
+			if sysText != "" {
 				if sysBuilder.Len() > 0 {
 					sysBuilder.WriteString("\n\n")
 				}
-				sysBuilder.WriteString(content)
+				sysBuilder.WriteString(sysText)
 			}
 		} else {
 			filtered = append(filtered, m)
@@ -250,15 +251,15 @@ func miniMaxConvertSystemMessages(body []byte) []byte {
 	}
 
 	if sysBuilder.Len() == 0 {
-		return body // nothing to rewrite
+		return body
 	}
 	sysContent := sysBuilder.String()
 
-	// Prepend system content to the first user message.
-	for i, m := range filtered {
+	// Prepend system content to the first user message, handling both string and structured content.
+	for _, m := range filtered {
 		if role, _ := m["role"].(string); role == "user" {
-			if content, ok := m["content"].(string); ok {
-				filtered[i]["content"] = sysContent + "\n\n" + content
+			if err := prependToUserContent(m, sysContent); err != nil {
+				continue
 			}
 			break
 		}
@@ -275,4 +276,55 @@ func miniMaxConvertSystemMessages(body []byte) []byte {
 		return body
 	}
 	return result
+}
+
+// prependToUserContent prepends sysContent to the content of a user message,
+// handling both string and structured (array of parts) content.
+func prependToUserContent(msg map[string]interface{}, sysContent string) error {
+	content := msg["content"]
+	switch v := content.(type) {
+	case string:
+		msg["content"] = sysContent + "\n\n" + v
+	case []interface{}:
+		// Try to inject as first text part; if no text part found, prepend as string.
+		parts, ok := toContentParts(v)
+		if !ok {
+			return fmt.Errorf("cannot convert content parts")
+		}
+		foundTextPart := false
+		for idx, part := range parts {
+			if part["type"] == "text" {
+				if text, ok := part["text"].(string); ok {
+					parts[idx]["text"] = sysContent + "\n\n" + text
+					foundTextPart = true
+					break
+				}
+			}
+		}
+		if !foundTextPart {
+			// No text part found: prepend a text part with the system content.
+			newParts := make([]map[string]interface{}, 0, len(parts)+1)
+			newParts = append(newParts, map[string]interface{}{"type": "text", "text": sysContent})
+			newParts = append(newParts, parts...)
+			msg["content"] = newParts
+			return nil
+		}
+		msg["content"] = parts
+	default:
+		return fmt.Errorf("unsupported content type %T", content)
+	}
+	return nil
+}
+
+// toContentParts converts []interface{} to []map[string]interface{} for content parts.
+func toContentParts(parts []interface{}) ([]map[string]interface{}, bool) {
+	result := make([]map[string]interface{}, 0, len(parts))
+	for _, p := range parts {
+		if m, ok := p.(map[string]interface{}); ok {
+			result = append(result, m)
+		} else {
+			return nil, false
+		}
+	}
+	return result, true
 }

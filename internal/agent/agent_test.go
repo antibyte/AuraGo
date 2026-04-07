@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"sync"
 	"testing"
 )
 
@@ -78,5 +79,52 @@ func TestParseWorkflowPlan(t *testing.T) {
 				t.Errorf("parseWorkflowPlan() stripped = %q, want %q", gotStripped, tt.wantStripped)
 			}
 		})
+	}
+}
+
+func TestGlobalTokenCountAtomic(t *testing.T) {
+	initial := GlobalTokenCount()
+	AddGlobalTokenCount(100)
+	if got := GlobalTokenCount(); got != initial+100 {
+		t.Fatalf("GlobalTokenCount() = %d, want %d", got, initial+100)
+	}
+	AddGlobalTokenCount(-100)
+	if got := GlobalTokenCount(); got != initial {
+		t.Fatalf("GlobalTokenCount() = %d, want %d", got, initial)
+	}
+}
+
+func TestGlobalTokenEstimatedAtomic(t *testing.T) {
+	SetGlobalTokenEstimated(false)
+	if got := GlobalTokenEstimated(); got != false {
+		t.Fatalf("GlobalTokenEstimated() = %v, want false", got)
+	}
+	SetGlobalTokenEstimated(true)
+	if got := GlobalTokenEstimated(); got != true {
+		t.Fatalf("GlobalTokenEstimated() = %v, want true", got)
+	}
+	SetGlobalTokenEstimated(false)
+}
+
+func TestGlobalTokenCountConcurrent(t *testing.T) {
+	const n = 100
+	const inc = 10
+	var wg sync.WaitGroup
+	wg.Add(n)
+	start := make(chan struct{})
+	for i := 0; i < n; i++ {
+		go func() {
+			defer wg.Done()
+			<-start
+			for j := 0; j < inc; j++ {
+				AddGlobalTokenCount(1)
+			}
+		}()
+	}
+	close(start)
+	wg.Wait()
+	expected := GlobalTokenCount()
+	if expected != n*inc {
+		t.Errorf("GlobalTokenCount() = %d after %d goroutines × %d increments, want %d", expected, n, inc, n*inc)
 	}
 }

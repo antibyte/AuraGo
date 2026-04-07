@@ -12,9 +12,34 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
+type ExecutionOutcome int
+
+const (
+	ExecutionOutcomeSuccess         ExecutionOutcome = iota
+	ExecutionOutcomeFailed                           // tool returned an error status
+	ExecutionOutcomeGuardianBlocked                  // LLM Guardian blocked the tool
+	ExecutionOutcomeSanitized                        // output was truncated/sanitized by policy
+)
+
+func (e ExecutionOutcome) String() string {
+	switch e {
+	case ExecutionOutcomeSuccess:
+		return "success"
+	case ExecutionOutcomeFailed:
+		return "failed"
+	case ExecutionOutcomeGuardianBlocked:
+		return "guardian_blocked"
+	case ExecutionOutcomeSanitized:
+		return "sanitized"
+	default:
+		return "unknown"
+	}
+}
+
 type toolExecutionResult struct {
 	Content string
 	Failed  bool
+	Outcome ExecutionOutcome
 }
 
 func augmentToolFailureContent(tc ToolCall, content string, errorSummary string) string {
@@ -44,6 +69,7 @@ func blockedToolOutputFromRequest(req *openai.ChatCompletionRequest) string {
 func finalizeToolExecution(
 	tc ToolCall,
 	rawContent string,
+	guardianBlocked bool,
 	cfg *config.Config,
 	shortTermMem *memory.SQLiteMemory,
 	sessionID string,
@@ -62,6 +88,15 @@ func finalizeToolExecution(
 	policyResult := applyToolOutputPolicy(rawContent, limit, scope)
 	resultContent := policyResult.Content
 	toolFailed := policyResult.WasError
+	outcome := ExecutionOutcomeSuccess
+	if guardianBlocked {
+		outcome = ExecutionOutcomeGuardianBlocked
+		toolFailed = true
+	} else if toolFailed {
+		outcome = ExecutionOutcomeFailed
+	} else if policyResult.Truncated {
+		outcome = ExecutionOutcomeSanitized
+	}
 	if toolFailed {
 		resultContent = augmentToolFailureContent(tc, resultContent, policyResult.ErrorSummary)
 	}
@@ -139,6 +174,7 @@ func finalizeToolExecution(
 	return toolExecutionResult{
 		Content: resultContent,
 		Failed:  toolFailed,
+		Outcome: outcome,
 	}
 }
 

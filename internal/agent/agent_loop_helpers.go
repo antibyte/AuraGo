@@ -60,6 +60,60 @@ func assembleSortedStreamToolCalls(streamToolCalls map[int]*openai.ToolCall) []o
 	return assembledToolCalls
 }
 
+type StreamToolCallAssembler struct {
+	calls map[int]*openai.ToolCall
+}
+
+func NewStreamToolCallAssembler() *StreamToolCallAssembler {
+	return &StreamToolCallAssembler{calls: make(map[int]*openai.ToolCall)}
+}
+
+func (a *StreamToolCallAssembler) Merge(tc openai.ToolCall) {
+	idx := 0
+	if tc.Index != nil {
+		idx = *tc.Index
+	}
+	existing, ok := a.calls[idx]
+	if !ok {
+		clone := openai.ToolCall{
+			Index: tc.Index,
+			ID:    tc.ID,
+			Type:  tc.Type,
+			Function: openai.FunctionCall{
+				Name:      tc.Function.Name,
+				Arguments: tc.Function.Arguments,
+			},
+		}
+		a.calls[idx] = &clone
+		return
+	}
+	if tc.ID != "" {
+		existing.ID = tc.ID
+	}
+	if tc.Function.Name != "" {
+		existing.Function.Name += tc.Function.Name
+	}
+	existing.Function.Arguments += tc.Function.Arguments
+}
+
+func (a *StreamToolCallAssembler) Assemble() []openai.ToolCall {
+	if len(a.calls) == 0 {
+		return nil
+	}
+	keys := make([]int, 0, len(a.calls))
+	for idx := range a.calls {
+		keys = append(keys, idx)
+	}
+	sort.Ints(keys)
+	result := make([]openai.ToolCall, 0, len(keys))
+	for _, idx := range keys {
+		if tc := a.calls[idx]; tc != nil {
+			result = append(result, *tc)
+		}
+	}
+	return result
+}
+
 type toolGuideSearcher interface {
 	SearchToolGuides(query string, topK int) ([]string, error)
 }

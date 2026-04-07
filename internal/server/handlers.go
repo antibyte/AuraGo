@@ -459,7 +459,8 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			// Initial flush to establish SSE connection
 			flusher.Flush()
 
-			_, err := agent.ExecuteAgentLoop(r.Context(), req, runCfg, true, sse)
+			broker := NewSSEBrokerAdapter(sse)
+			_, err := agent.ExecuteAgentLoop(r.Context(), req, runCfg, true, broker)
 			if err != nil {
 				s.Logger.Error("Streamed agent loop failed", "error", err)
 				return
@@ -475,7 +476,8 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			// the agent already started hatching an egg or running a command).
 			syncCtx, syncCancel := context.WithTimeout(context.Background(), 30*time.Minute)
 			defer syncCancel()
-			resp, err := agent.ExecuteAgentLoop(syncCtx, req, runCfg, false, sse)
+			broker := NewSSEBrokerAdapter(sse)
+			resp, err := agent.ExecuteAgentLoop(syncCtx, req, runCfg, false, broker)
 			if err != nil {
 				s.Logger.Error("Sync agent loop failed", "error", err)
 				// Return a user-visible error as a proper OpenAI response instead of HTTP 500

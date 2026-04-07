@@ -9,6 +9,72 @@ import (
 
 func intPtr(v int) *int { return &v }
 
+func TestStreamToolCallAssemblerEmptyReturnsNil(t *testing.T) {
+	asm := NewStreamToolCallAssembler()
+	result := asm.Assemble()
+	if result != nil {
+		t.Fatalf("expected nil for empty assembler, got %d items", len(result))
+	}
+}
+
+func TestStreamToolCallAssemblerMergesAndSorts(t *testing.T) {
+	asm := NewStreamToolCallAssembler()
+	asm.Merge(openai.ToolCall{
+		Index: intPtr(7),
+		ID:    "call-7",
+		Function: openai.FunctionCall{
+			Name:      "filesystem",
+			Arguments: `{"operation":"stat"}`,
+		},
+	})
+	asm.Merge(openai.ToolCall{
+		Index: intPtr(2),
+		ID:    "call-2",
+		Function: openai.FunctionCall{
+			Name:      "execute_shell",
+			Arguments: `{"command":"pwd"}`,
+		},
+	})
+
+	result := asm.Assemble()
+	if len(result) != 2 {
+		t.Fatalf("expected 2 tool calls, got %d", len(result))
+	}
+	if result[0].ID != "call-2" || result[1].ID != "call-7" {
+		t.Fatalf("unexpected assembly order: %q, %q", result[0].ID, result[1].ID)
+	}
+}
+
+func TestStreamToolCallAssemblerAppendsFragments(t *testing.T) {
+	asm := NewStreamToolCallAssembler()
+	asm.Merge(openai.ToolCall{
+		Index: intPtr(1),
+		ID:    "call-1",
+		Function: openai.FunctionCall{
+			Name:      "exec",
+			Arguments: `{"comm`,
+		},
+	})
+	asm.Merge(openai.ToolCall{
+		Index: intPtr(1),
+		Function: openai.FunctionCall{
+			Name:      "ute_shell",
+			Arguments: `and":"pwd"}`,
+		},
+	})
+
+	result := asm.Assemble()
+	if len(result) != 1 {
+		t.Fatalf("expected 1 tool call, got %d", len(result))
+	}
+	if result[0].Function.Name != "execute_shell" {
+		t.Fatalf("Function.Name = %q, want %q", result[0].Function.Name, "execute_shell")
+	}
+	if result[0].Function.Arguments != `{"command":"pwd"}` {
+		t.Fatalf("Function.Arguments = %q", result[0].Function.Arguments)
+	}
+}
+
 func TestAssembleSortedStreamToolCallsHandlesSparseIndices(t *testing.T) {
 	streamToolCalls := map[int]*openai.ToolCall{}
 	mergeStreamToolCallChunk(streamToolCalls, openai.ToolCall{
