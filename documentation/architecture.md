@@ -5,53 +5,54 @@
 ## System Overview
 
 ```mermaid
-blockdiag {
-   # === STYLING ===
-   default_fontsize = 11
-   default_shape = roundedbox
-   span_width = 2
+flowchart TD
+    subgraph Core["🔧 Core"]
+        WEB[("Web UI<br/>embedded SPA")]
+        SERVER[("Server<br/>REST + SSE")]
+        AGENT[("Agent Loop<br/>Tool Dispatch")]
+        LLM[("LLM Client<br/>OpenAI-compatible")]
+    end
 
-   # === CORE LAYER ===
-   web_ui [label = "Web UI\n(embedded SPA)"];
-   server [label = "Server\n(REST + SSE)"];
-   agent_loop [label = "Agent Loop\n(Tool Dispatch)"];
-   llm_client [label = "LLM Client\n(OpenAI-compatible)"];
+    subgraph Memory["🧠 Memory & Security"]
+        STM[("STM<br/>SQLite sliding window")]
+        LTM[("LTM<br/>Chromem-go vector DB")]
+        KG[("Knowledge Graph<br/>SQLite + FTS5")]
+        VAULT[("Vault<br/>AES-256-GCM")]
+        CORE[("Core Memory<br/>Permanent facts")]
+    end
 
-   # === MEMORY LAYER ===
-   stm [label = "STM\n(SQLite sliding window)"];
-   ltm [label = "LTM\n(Chromem-go vector DB)"];
-   knowledge_graph [label = "Knowledge Graph\n(SQLite + FTS5)"];
-   vault [label = "Vault\n(AES-256-GCM)"];
-   core_memory [label = "Core Memory\n(Permanent facts)"];
+    subgraph Tools["🔧 Tool Layer"]
+        TD[("Tool Dispatcher<br/>90+ built-in tools")]
+    end
 
-   # === TOOLS ===
-   tool_dispatcher [label = "Tool Dispatcher\n(90+ built-in tools)"];
+    subgraph Integrations["🔌 Integrations"]
+        TG[("Telegram")]
+        DC[("Discord")]
+        FB[("Fritz!Box")]
+        HA[("Home Assistant")]
+        MQ[("MQTT")]
+        PX[("Proxmox")]
+        JF[("Jellyfin")]
+        TS[("Tailscale")]
+        DOC[("Docker")]
+    end
 
-   # === INTEGRATIONS ===
-   telegram [label = "Telegram"];
-   discord [label = "Discord"];
-   fritzbox [label = "Fritz!Box"];
-   home_assistant [label = "Home Assistant"];
-   mqtt [label = "MQTT"];
-   proxmox [label = "Proxmox"];
-   jellyfin [label = "Jellyfin"];
-   tailscale [label = "Tailscale"];
-   docker [label = "Docker"];
-
-   # === LAYOUT ===
-   web_ui -> server -> agent_loop -> llm_client;
-
-   agent_loop -> tool_dispatcher;
-   agent_loop -> { stm, ltm, knowledge_graph, vault, core_memory };
-
-   tool_dispatcher -> { telegram, discord, fritzbox, home_assistant, mqtt, proxmox, jellyfin, tailscale, docker };
-
-   # === GROUPING ===
-   group core [label = "Core", color = "#e1e4e8"];
-   group memory [label = "Memory & Security", color = "#e1e4e8"];
-   group tools [label = "Tool Layer", color = "#e1e4e8"];
-   group integrations [label = "Integrations", color = "#e1e4e8"];
-}
+    WEB --> SERVER --> AGENT --> LLM
+    AGENT --> TD
+    AGENT --> STM
+    AGENT --> LTM
+    AGENT --> KG
+    AGENT --> VAULT
+    AGENT --> CORE
+    TD --> TG
+    TD --> DC
+    TD --> FB
+    TD --> HA
+    TD --> MQ
+    TD --> PX
+    TD --> JF
+    TD --> TS
+    TD --> DOC
 ```
 
 ## Component Description
