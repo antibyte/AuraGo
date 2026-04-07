@@ -126,45 +126,6 @@ func computeDelta(baseline map[string]fileEntry, current []fileEntry) revisionDe
 	return delta
 }
 
-func reconstructState(basePath string, revisions []HomepageRevision, revisionFiles map[int64][]HomepageRevisionFile, targetRevID int64) (map[string]fileEntry, error) {
-	state := make(map[string]fileEntry)
-	dirs, _ := os.ReadDir(basePath)
-	for _, d := range dirs {
-		if d.IsDir() {
-			continue
-		}
-		data, _ := os.ReadFile(filepath.Join(basePath, d.Name()))
-		state[d.Name()] = fileEntry{
-			Path: d.Name(), Data: data, Size: int64(len(data)),
-			Hash: hashContent(data), IsBinary: isBinaryContent(data),
-		}
-	}
-	for _, rev := range revisions {
-		if rev.ID > targetRevID {
-			continue
-		}
-		files := revisionFiles[rev.ID]
-		for _, f := range files {
-			switch f.ChangeType {
-			case "added", "modified":
-				if f.ContentAfter != "" {
-					state[f.Path] = fileEntry{
-						Path: f.Path, Data: []byte(f.ContentAfter),
-						Size: int64(len(f.ContentAfter)), Hash: f.ContentHashAfter,
-						IsBinary: isBinaryContent([]byte(f.ContentAfter)),
-					}
-				}
-			case "deleted":
-				delete(state, f.Path)
-			}
-		}
-		if rev.ID == targetRevID {
-			break
-		}
-	}
-	return state, nil
-}
-
 func computeDiffText(before, after string, isBinary bool) (beforeText, afterText string) {
 	if isBinary {
 		return "[binary file]", "[binary file]"
@@ -186,23 +147,6 @@ type revisionStatus struct {
 	LatestRevID   int64         `json:"latest_rev_id,omitempty"`
 	LatestMessage string        `json:"latest_message,omitempty"`
 	UnifiedDelta  revisionDelta `json:"unified_delta"`
-}
-
-func computeRevisionStatus(db *sql.DB, projectDir string, logger *slog.Logger) (*revisionStatus, error) {
-	status := &revisionStatus{ProjectDir: projectDir}
-	latest, err := GetLatestHomepageRevision(db, projectDir)
-	if err != nil || latest == nil {
-		return status, nil
-	}
-	status.HasRevisions = true
-	status.LatestRevID = latest.ID
-	status.LatestMessage = latest.Message
-	delta, err := computeUnifiedDelta(db, projectDir, latest.ID, logger)
-	if err != nil {
-		return status, err
-	}
-	status.UnifiedDelta = *delta
-	return status, nil
 }
 
 func computeUnifiedDelta(db *sql.DB, projectDir string, baseRevID int64, logger *slog.Logger) (*revisionDelta, error) {
@@ -564,7 +508,7 @@ func HomepageRevisionStatus(cfg HomepageConfig, db *sql.DB, projectDir string, l
 	status.HasRevisions = true
 	status.LatestRevID = latest.ID
 	status.LatestMessage = latest.Message
-	delta, err := computeUnifiedDelta(db, projectDir, latest.ID, logger)
+	delta, err := computeUnifiedDelta(db, basePath, latest.ID, logger)
 	if err != nil {
 		return fmt.Sprintf(`{"status":"error","message":"%s"}`, err.Error())
 	}
