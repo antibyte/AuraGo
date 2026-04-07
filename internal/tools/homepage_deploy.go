@@ -448,6 +448,25 @@ func getLocalLANIP() string {
 	return ""
 }
 
+// extractTrycloudflareURL scans plain text for a trycloudflare.com URL and returns
+// the first match, or empty string if none found.
+func extractTrycloudflareURL(text string) string {
+	for _, line := range strings.Split(strings.TrimSpace(text), "\n") {
+		line = strings.TrimSpace(line)
+		if strings.Contains(line, "trycloudflare.com") {
+			// Extract just the URL portion — the line may contain surrounding text.
+			for _, word := range strings.Fields(line) {
+				if strings.HasPrefix(word, "https://") && strings.Contains(word, "trycloudflare.com") {
+					return strings.TrimRight(word, ".,;\"')")
+				}
+			}
+			// Fallback: return the whole trimmed line.
+			return line
+		}
+	}
+	return ""
+}
+
 // HomepageTunnel starts a Cloudflare quick tunnel inside the Docker container
 // that exposes a local port to the internet with a temporary *.trycloudflare.com URL.
 // The tunnel runs in the background; use HomepageExec to check its status.
@@ -470,28 +489,36 @@ func HomepageTunnel(cfg HomepageConfig, port int, logger *slog.Logger) string {
 		return errJSON("%s", msg)
 	}
 
-	// Start tunnel in background, capture the URL from stderr
-	cmd := fmt.Sprintf("nohup cloudflared tunnel --url http://localhost:%d > /tmp/tunnel.log 2>&1 & sleep 3 && grep -oP 'https://[a-z0-9-]+\\.trycloudflare\\.com' /tmp/tunnel.log | head -1", port)
+	// Start tunnel in background. Give cloudflared 12 seconds to register with
+	// Cloudflare and write the URL to the log (3s was too short; real-world
+	// registration typically takes 8–15 seconds).
+	cmd := fmt.Sprintf("nohup cloudflared tunnel --url http://localhost:%d > /tmp/tunnel.log 2>&1 & sleep 12 && grep -oP 'https://[a-z0-9-]+\\.trycloudflare\\.com' /tmp/tunnel.log | head -1", port)
 	result := DockerExec(dockerCfg, homepageContainerName, cmd, "")
 
-	// Try to extract the tunnel URL from the output
-	output := extractOutput(result)
-	if strings.Contains(output, "trycloudflare.com") {
-		lines := strings.Split(strings.TrimSpace(output), "\n")
-		for _, line := range lines {
-			line = strings.TrimSpace(line)
-			if strings.Contains(line, "trycloudflare.com") {
-				return okJSON("Cloudflare tunnel started", "tunnel_url", line, "local_port", fmt.Sprintf("%d", port))
-			}
+	// Try to extract the tunnel URL from the initial output.
+	if tunnelURL := extractTrycloudflareURL(extractOutput(result)); tunnelURL != "" {
+		return okJSON("Cloudflare tunnel started", "tunnel_url", tunnelURL, "local_port", fmt.Sprintf("%d", port))
+	}
+
+	// cloudflared may still be registering. Poll the log file up to 3 more times
+	// with 5-second gaps before giving up.
+	for i := 0; i < 3; i++ {
+		time.Sleep(5 * time.Second)
+		pollResult := DockerExec(dockerCfg, homepageContainerName, "grep -oP 'https://[a-z0-9-]+\\.trycloudflare\\.com' /tmp/tunnel.log | head -1", "")
+		if tunnelURL := extractTrycloudflareURL(extractOutput(pollResult)); tunnelURL != "" {
+			logger.Info("[Homepage] Cloudflare tunnel URL found after polling", "attempt", i+1, "url", tunnelURL)
+			return okJSON("Cloudflare tunnel started", "tunnel_url", tunnelURL, "local_port", fmt.Sprintf("%d", port))
 		}
 	}
 
-	// Tunnel might still be starting — return what we have
+	// Still no URL — return diagnostics so the agent can investigate.
 	lanIP := getLocalLANIP()
-	return okJSON("Tunnel started (URL may take a moment to appear). Check /tmp/tunnel.log inside the container.",
+	logContents := extractOutput(DockerExec(dockerCfg, homepageContainerName, "cat /tmp/tunnel.log 2>/dev/null | tail -20", ""))
+	return okJSON("Tunnel process started but URL not yet available. cloudflared may need more time or cannot reach Cloudflare servers.",
 		"local_port", fmt.Sprintf("%d", port),
 		"lan_ip", lanIP,
-		"check_cmd", "cat /tmp/tunnel.log | grep trycloudflare")
+		"tunnel_log_tail", logContents,
+		"check_cmd", "cat /tmp/tunnel.log | grep -E 'trycloudflare|error|ERR'")
 }
 
 // HomepageDeployNetlify builds the project (if a build script exists) and deploys it to
@@ -779,6 +806,24 @@ func HomepageDeployNetlify(cfg HomepageConfig, nfCfg NetlifyConfig, projectDir, 
 // For plain HTML projects (no build script), the build step is skipped and
 // the project directory is served directly.
 func HomepagePublishToLocal(cfg HomepageConfig, projectDir string, logger *slog.Logger) string {
+	// For Next.js projects ensure the config has output:'export' before building.
+	// Without it, `next build` produces a .next/ server bundle that Caddy cannot serve.
+	// This mirrors the same logic used by HomepageDeployNetlify.
+	if cfg.WorkspacePath != "" {
+		projectRoot := filepath.Join(cfg.WorkspacePath, projectDir)
+		if isNextJsProject(projectRoot) {
+			if patched := ensureNextJsStaticExport(projectRoot, logger); patched {
+				logger.Info("[Homepage] publish_local: Next.js config patched for static export")
+			}
+			// Warn if a stale root index.html exists alongside a Next.js project —
+			// Caddy would serve it instead of the proper build output if buildDir ends up as ".".
+			rootIndex := filepath.Join(projectRoot, "index.html")
+			if _, err := os.Stat(rootIndex); err == nil {
+				logger.Warn("[Homepage] publish_local: stale index.html found in project root alongside Next.js project — it will be shadowed by the static export", "path", rootIndex)
+			}
+		}
+	}
+
 	// Try build; ignore failure for plain-HTML projects that have no build script.
 	buildResult := HomepageBuild(cfg, projectDir, logger)
 	var br map[string]interface{}
@@ -795,6 +840,27 @@ func HomepagePublishToLocal(cfg HomepageConfig, projectDir string, logger *slog.
 	if buildSucceeded {
 		// Build produced an output directory — auto-detect it.
 		buildDir = detectBuildDir(cfg, projectDir)
+
+		// If we still ended up with .next/ (Next.js server build, output:'export' patch
+		// may not have taken effect yet), patch and rebuild once more.
+		if buildDir == ".next" && cfg.WorkspacePath != "" {
+			projectRoot := filepath.Join(cfg.WorkspacePath, projectDir)
+			logger.Info("[Homepage] publish_local: .next server build detected — patching Next.js config and rebuilding")
+			ensureNextJsStaticExport(projectRoot, logger)
+			rebuildResult := HomepageBuild(cfg, projectDir, logger)
+			var rb map[string]interface{}
+			if json.Unmarshal([]byte(rebuildResult), &rb) == nil {
+				if s, _ := rb["status"].(string); s == "ok" {
+					buildDir = detectBuildDir(cfg, projectDir)
+				}
+			}
+			// If still .next after second build, fall back to project root so the
+			// agent gets a visible error from Caddy rather than a silent wrong serve.
+			if buildDir == ".next" {
+				logger.Warn("[Homepage] publish_local: still .next after rebuild — falling back to project root")
+				buildDir = "."
+			}
+		}
 	} else {
 		// No build script (plain-HTML project). Always serve from the project
 		// root so that files written via write_file are immediately visible.
