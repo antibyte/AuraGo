@@ -1,44 +1,46 @@
----
-id: "koofr"
-tags: ["system", "storage", "cloud"]
-priority: 5
----
-# internal_tool: koofr
+# Koofr (`koofr`)
 
-Interact with the user's connected Koofr Cloud Storage account.
-The Koofr tool allows you to read, write, and manage folders and files directly in their primary Koofr Vault. All paths MUST be absolute (starting with `/`).
+Interact with Koofr Cloud Storage. Read, write, and manage folders and files in the primary Koofr Vault.
+
+## Operations
+
+| Operation | Description |
+|-----------|-------------|
+| `list` | List files in a directory |
+| `read` | Read text file content |
+| `write` | Upload a text file |
+| `mkdir` | Create a new folder |
+| `delete` | Delete a file or folder |
+| `rename` | Rename a file or folder |
+| `copy` | Copy a file or folder |
+
+## Parameters
 
 | Parameter | Type | Required | Description |
-|---|---|---|---|
-| `operation` | string | yes | `list`, `read`, `write`, `mkdir`, `delete`, `rename`, `copy` |
-| `path` | string | yes | Absolute path inside Koofr (e.g. `/Documents/notes.txt` or `/`) |
-| `destination` | string | no | Destination path for `rename`, `copy`, or `write` |
-| `content` | string | no | Text content to upload when using `write` |
+|-----------|------|----------|-------------|
+| `operation` | string | yes | One of the operations above |
+| `path` | string | yes | Absolute path inside Koofr (e.g., `/Documents/notes.txt`) |
+| `destination` | string | for rename, copy, write | Target path or filename |
+| `content` | string | for write | Text content to upload |
 
-**Important Rules for Koofr:**
-1. All paths must start with `/`. The root directory is `/`.
-2. When performing `mkdir`, the `path` should be the full path of the new directory (e.g. `/NewFolder`).
-3. For `write`, `destination` is the filename (e.g., `test.txt`) and `path` is the target directory (e.g., `/Backup`).
-4. For `rename` and `copy`, `path` is the source and `destination` is the target.
+## Examples
 
-### Examples
-
-**List the root directory:**
+**List root directory:**
 ```json
 {"action": "koofr", "operation": "list", "path": "/"}
 ```
 
-**Upload a new text file:**
+**Upload a file:**
 ```json
 {"action": "koofr", "operation": "write", "path": "/Backup", "destination": "report.txt", "content": "This is a backup report."}
 ```
 
-**Read a text file:**
+**Read a file:**
 ```json
 {"action": "koofr", "operation": "read", "path": "/Backup/report.txt"}
 ```
 
-**Create a new folder:**
+**Create a folder:**
 ```json
 {"action": "koofr", "operation": "mkdir", "path": "/MyNewFolder"}
 ```
@@ -47,3 +49,10 @@ The Koofr tool allows you to read, write, and manage folders and files directly 
 ```json
 {"action": "koofr", "operation": "delete", "path": "/Backup/report.txt"}
 ```
+
+## Notes
+
+- **Paths**: All paths must start with `/`. Root is `/`
+- **mkdir**: The `path` should be the full path of the new directory
+- **write**: `destination` is the filename, `path` is the target directory
+- **rename/copy**: `path` is source, `destination` is target

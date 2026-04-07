@@ -1,4 +1,4 @@
-## Tool: Manage Plan (`manage_plan`)
+# Manage Plan (`manage_plan`)
 
 Create and maintain a structured work plan for the current chat session.
 
@@ -10,216 +10,35 @@ Notes are **not** replaced by plans:
 
 Only one unfinished plan (`draft`, `active`, `paused`, or `blocked`) exists per session.
 
-### When to use
+## When to use
+
 - complex implementations with several dependent steps
 - debugging or investigation with checkpoints
 - work that should be easy to resume later in the same session
 
-### When not to use
+## When not to use
+
 - tiny one-step tasks
 - quick lookups or trivial edits
 - long-term automation flows better handled by missions/follow-ups
 
-### Operations
+## Parameters
 
-#### `create`
-Create a new session plan with ordered tasks.
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `operation` | string | yes | `create`, `list`, `get`, `set_status`, `update_task`, `advance`, `set_blocker`, `clear_blocker`, `append_note`, `attach_artifact`, `split_task`, `reorder_tasks`, `archive_completed`, `delete` |
+| `id` | string | for most ops | Plan ID |
+| `task_id` | string | for task ops | Task ID within the plan |
+| `status` | string | for set_status | New status (draft, active, paused, blocked, completed, cancelled) |
+| `title` | string | for create | Plan title |
+| `items` | array | for create, split_task | Task items array |
+| `content` | string | optional | Original user request or note |
+| `priority` | int | optional | 1=low, 2=medium, 3=high |
 
-Required:
-- `title`
-- `items` with at least one task
+## Practical pattern
 
-Optional:
-- `description`
-- `content` for the original user request
-- `priority` (`1` low, `2` medium, `3` high)
-
-Task item fields:
-- `title`
-- `description`
-- `kind` (`task`, `tool`, `reasoning`, `verification`, `note`)
-- `acceptance_criteria`
-- `owner` (`agent`, `user`, `external`)
-- `tool_name`
-- `tool_args`
-- `depends_on` as task IDs or 1-based task indices
-
-Example:
-```json
-{
-  "action": "manage_plan",
-  "operation": "create",
-  "title": "Fix MCP bridge persistence",
-  "description": "Track the config save bug from analysis to verification",
-  "content": "Investigate why vscode_debug_bridge is not persisted",
-  "priority": 3,
-  "items": [
-    {
-      "title": "Inspect config save path",
-      "kind": "reasoning"
-    },
-    {
-      "title": "Patch UI persistence logic",
-      "kind": "tool",
-      "tool_name": "filesystem"
-    },
-    {
-      "title": "Run regression tests",
-      "kind": "verification",
-      "depends_on": [2]
-    }
-  ]
-}
-```
-
-#### `list`
-List plans for the current session.
-
-Optional:
-- `status` (`all`, `draft`, `active`, `paused`, `blocked`, `completed`, `cancelled`)
-- `limit`
-- `include_archived` (`true` to include archived plans)
-
-#### `get`
-Fetch one plan in detail.
-
-Required:
-- `id`
-
-#### `set_status`
-Change a plan status.
-
-Required:
-- `id`
-- `status`
-
-Valid statuses:
-- `draft`
-- `active`
-- `paused`
-- `blocked`
-- `completed`
-- `cancelled`
-
-Optional:
-- `content` for a short note explaining the change
-
-When a draft plan is set to `active`, the first ready task is promoted to `in_progress`.
-
-#### `update_task`
-Update one task inside a plan.
-
-Required:
-- `id`
-- `task_id`
-- `status`
-
-Valid task statuses:
-- `pending`
-- `in_progress`
-- `blocked`
-- `completed`
-- `failed`
-- `skipped`
-
-Optional:
-- `result`
-- `error`
-
-When an active task is marked `completed`, the next ready task becomes `in_progress` automatically. When no open tasks remain, the plan is completed automatically.
-
-#### `advance`
-Mark the current `in_progress` task as completed and move to the next ready task.
-
-Required:
-- `id`
-
-Optional:
-- `result`
-
-Use this when you have finished the current active step and want the plan to continue safely.
-
-#### `set_blocker`
-Mark a task as blocked and move the whole plan into `blocked`.
-
-Required:
-- `id`
-- `task_id`
-- `reason` or `content`
-
-#### `clear_blocker`
-Clear a blocked task and reactivate the plan.
-
-Required:
-- `id`
-- `task_id`
-
-Optional:
-- `content` or `reason` as a short unblock note
-
-#### `append_note`
-Append an event/note to the plan timeline.
-
-Required:
-- `id`
-- `content`
-
-#### `attach_artifact`
-Attach an artifact to a specific task.
-
-Required:
-- `id`
-- `task_id`
-
-And one artifact value via:
-- `content`
-- `file_path`
-- or `url`
-
-Optional:
-- `label`
-- `artifact_type` such as `file`, `url`, `id`, or `report`
-
-#### `split_task`
-Replace one open task with several sequential subtasks.
-
-Required:
-- `id`
-- `task_id`
-- `items` with at least two subtask definitions
-
-Each subtask item can use the same fields as `create` task items.
-
-Use this when a task turns out to be too large and should be broken into smaller actionable steps.
-
-#### `reorder_tasks`
-Reorder all tasks in a plan.
-
-Required:
-- `id`
-- `items` containing every task exactly once in the desired final order
-
-For reorder, each item only needs:
-- `task_id`
-
-#### `archive_completed`
-Archive finished plans so they stop cluttering the default session list.
-
-Options:
-- `id` to archive one completed or cancelled plan
-- omit `id` to archive all completed/cancelled plans in the current session
-
-Archived plans are excluded from the default `list` output unless `include_archived=true`.
-
-#### `delete`
-Delete a plan permanently.
-
-Required:
-- `id`
-
-### Practical pattern
-1. Create the plan.
-2. Set it to `active`.
+1. Create the plan with `create`.
+2. Set it to `active` with `set_status`.
 3. Work normally with the existing tools.
 4. Use `update_task` after meaningful milestones.
 5. Use `advance` for the normal happy-path handoff to the next step.
@@ -230,15 +49,10 @@ Required:
 10. Use `reorder_tasks` for reprioritization.
 11. Archive completed plans once they are no longer actively useful.
 
-### Output
-Plan responses return structured JSON and include the current plan state where useful:
-- `plan`
-- `tasks`
-- `events`
-- `task_counts`
-- `progress_pct`
-- `current_task`
-- `recommendation`
-- `artifacts`
+## Notes
 
-This tool is session-scoped and designed to complement the chat todo panel and prompt context.
+- **Task kinds**: `task` (generic), `tool` (specify tool_name), `reasoning` (thinking step), `verification` (test/check), `note` (info only)
+- **Dependency format**: `depends_on` accepts task IDs or 1-based task indices (e.g. `[2]` means depends on task #2)
+- **Auto-completion**: When an active task is marked `completed`, the next ready task becomes `in_progress` automatically. When no open tasks remain, the plan is completed automatically.
+- **Session-scoped**: Plans exist only in the current session. Use `archive_completed` to clean up.
+- **Output includes**: plan state, tasks, events, task_counts, progress_pct, current_task, recommendation, artifacts

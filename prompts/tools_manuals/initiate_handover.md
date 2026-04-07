@@ -1,16 +1,14 @@
-## Tool: Initiate Handover (`initiate_handover`) — Supervisor Only
+# Initiate Handover (`initiate_handover`) — Supervisor Only
 
-Trigger a transition to Maintenance (Lifeboat) mode. Optionally pass a summary of your plan to the sidecar.
+Trigger a transition to Maintenance (Lifeboat) mode. Optionally pass a summary of the planned maintenance work to the sidecar.
 
-> If you are already in the Lifeboat, use `exit_lifeboat` to return instead.
-
-### Schema
+## Parameters
 
 | Parameter | Type | Required | Description |
-|---|---|---|---|
+|-----------|------|----------|-------------|
 | `task_prompt` | string | no | Summary of the planned maintenance work |
 
-### Examples
+## Examples
 
 ```json
 {"action": "initiate_handover"}
@@ -18,4 +16,11 @@ Trigger a transition to Maintenance (Lifeboat) mode. Optionally pass a summary o
 
 ```json
 {"action": "initiate_handover", "task_prompt": "Summary of plan..."}
+```
+
+## Notes
+
+- **Supervisor only**: This tool is only available in the main supervisor context
+- **Lifeboat mode**: Transitions AuraGo to maintenance mode for code modifications
+- **If already in Lifeboat**: Use `exit_lifeboat` to return instead
 ```

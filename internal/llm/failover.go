@@ -192,6 +192,9 @@ func (fm *FailoverManager) recordError(err error) {
 		if fm.isOnFallback {
 			fm.fallbackErrorCount++
 			fm.logger.Warn("LLM failover: error on fallback endpoint", "error", err, "fallback_error_count", fm.fallbackErrorCount)
+			if fm.fallbackErrorCount >= fm.errorThreshold*3 {
+				fm.logger.Error("LLM failover: fallback endpoint has excessive errors, consider reconfiguring", "fallback_error_count", fm.fallbackErrorCount, "threshold", fm.errorThreshold*3)
+			}
 		}
 		return
 	}

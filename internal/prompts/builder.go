@@ -37,6 +37,7 @@ var (
 type promptDirCache struct {
 	modules []PromptModule
 	mtimes  map[string]time.Time // file path → last mod time
+	checked time.Time            // last time staleness was checked
 }
 
 // personalityMetaCache caches parsed personality meta keyed by profile path.
@@ -665,9 +666,13 @@ func budgetShed(prompt string, flags ContextFlags, personalityContent, coreMemor
 		before := len(result)
 		result = removeSection(result, header)
 		if len(result) < before {
-			tokens = CountTokens(result)
+			tokens += (len(result) - before) / 4
 			shedList = append(shedList, header)
-			logger.Debug("[Budget] Shed section", "header", header, "new_tokens", tokens)
+			logger.Debug("[Budget] Shed section", "header", header, "estimated_tokens", tokens)
+			// Full re-count only every 3 sheds or when close to budget
+			if len(shedList)%3 == 0 || tokens <= flags.TokenBudget+200 {
+				tokens = CountTokens(result)
+			}
 		}
 	}
 

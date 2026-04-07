@@ -657,3 +657,78 @@ func filterToolSchemas(schemas []openai.Tool, frequentTools, alwaysInclude []str
 	}
 	return kept
 }
+
+func emitMediaSSEEvents(broker FeedbackBroker, action, resultContent string, dataDir string) {
+	raw := strings.TrimPrefix(resultContent, "[Tool Output]\n")
+	raw = strings.TrimPrefix(raw, "Tool Output: ")
+
+	switch action {
+	case "send_image":
+		var imgRes struct {
+			Status  string `json:"status"`
+			WebPath string `json:"web_path"`
+			Caption string `json:"caption"`
+		}
+		if json.Unmarshal([]byte(raw), &imgRes) == nil && imgRes.Status == "success" {
+			evtPayload, _ := json.Marshal(map[string]string{"path": imgRes.WebPath, "caption": imgRes.Caption})
+			broker.Send("image", string(evtPayload))
+		}
+	case "send_audio":
+		var audioRes struct {
+			Status   string `json:"status"`
+			WebPath  string `json:"web_path"`
+			Title    string `json:"title"`
+			MimeType string `json:"mime_type"`
+			Filename string `json:"filename"`
+		}
+		if json.Unmarshal([]byte(raw), &audioRes) == nil && audioRes.Status == "success" {
+			evtPayload, _ := json.Marshal(map[string]string{
+				"path":      audioRes.WebPath,
+				"title":     audioRes.Title,
+				"mime_type": audioRes.MimeType,
+				"filename":  audioRes.Filename,
+			})
+			broker.Send("audio", string(evtPayload))
+		}
+	case "tts":
+		var ttsRes struct {
+			Status string `json:"status"`
+			File   string `json:"file"`
+		}
+		if json.Unmarshal([]byte(raw), &ttsRes) == nil && ttsRes.Status == "success" {
+			mimeType := "audio/mpeg"
+			if strings.HasSuffix(ttsRes.File, ".wav") {
+				mimeType = "audio/wav"
+			}
+			evtPayload, _ := json.Marshal(map[string]string{
+				"path":      "/tts/" + ttsRes.File,
+				"title":     "TTS Audio",
+				"mime_type": mimeType,
+				"filename":  ttsRes.File,
+				"file_path": filepath.Join(dataDir, "tts", ttsRes.File),
+			})
+			broker.Send("audio", string(evtPayload))
+		}
+	case "send_document":
+		var docRes struct {
+			Status     string `json:"status"`
+			WebPath    string `json:"web_path"`
+			PreviewURL string `json:"preview_url"`
+			Title      string `json:"title"`
+			MimeType   string `json:"mime_type"`
+			Filename   string `json:"filename"`
+			Format     string `json:"format"`
+		}
+		if json.Unmarshal([]byte(raw), &docRes) == nil && docRes.Status == "success" {
+			evtPayload, _ := json.Marshal(map[string]string{
+				"path":        docRes.WebPath,
+				"preview_url": docRes.PreviewURL,
+				"title":       docRes.Title,
+				"mime_type":   docRes.MimeType,
+				"filename":    docRes.Filename,
+				"format":      docRes.Format,
+			})
+			broker.Send("document", string(evtPayload))
+		}
+	}
+}

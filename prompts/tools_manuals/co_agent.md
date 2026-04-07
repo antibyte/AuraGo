@@ -1,13 +1,35 @@
-# Co-Agent Tool
+# Co-Agent (`co_agent`)
 
 Spawn and manage parallel co-agents that work on sub-tasks independently. Each co-agent runs in its own goroutine with a separate LLM context and returns results when done.
-Assume that the co-agents may be less capable than you, so you should double check their work.
+
+> **Note**: Assume that co-agents may be less capable than you — double check their work.
 
 ## Prerequisites
+
 - `co_agents.enabled: true` in config.yaml
 - Optional: separate LLM model/API key via `co_agents.llm.*`
 
 ## Operations
+
+| Operation | Description |
+|-----------|-------------|
+| `spawn` | Start a new generic co-agent with a task |
+| `spawn_specialist` | Start a specialized expert co-agent |
+| `list` | Show all co-agents and their status |
+| `get_result` | Retrieve the result of a completed co-agent |
+| `stop` | Cancel a running co-agent |
+| `stop_all` | Cancel all running co-agents |
+
+## Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `operation` | string | yes | One of the operations above |
+| `task` | string | for spawn, spawn_specialist | Natural language description of the task |
+| `specialist` | string | for spawn_specialist | One of: researcher, coder, designer, security, writer |
+| `context_hints` | array | no | Keywords for RAG context injection |
+| `priority` | integer | no | Queue priority: 1=low, 2=normal, 3=high |
+| `co_agent_id` | string | for get_result, stop | ID of the co-agent |
 
 ### spawn — Start a new generic co-agent with a task
 ```json

@@ -1,36 +1,35 @@
----
-description: "Check for and install AuraGo software updates from GitHub."
-conditions: ["allow_self_update"]
----
+# Manage Updates (`manage_updates`)
 
-# Tool Guide: manage_updates
-
-Use this tool to manage AuraGo software updates. It interacts with the git repository to check for new commits or apply them using the internal update script.
+Check for and install AuraGo software updates from GitHub. This is a **conditional tool** only enabled when `allow_self_update: true`.
 
 ## Operations
 
-### check
-- **Description**: Fetches the latest state from GitHub and compares it with your local version.
-- **Usage**: Use this during daily maintenance or when the user asks if an update is available.
-- **Output**: Returns whether an update is available, the number of commits ahead, and a brief changelog.
+| Operation | Description |
+|-----------|-------------|
+| `check` | Fetch latest state from GitHub and compare with local version |
+| `install` | Pull latest code, merge configuration, and restart the system |
 
-### install
-- **Description**: Pulls the latest code, merges configuration, and restarts the system.
-- **Usage**: **ONLY** call this after receiving explicit user permission to "install the update" or "perform the update".
-- **Risk**: This operation will restart the AuraGo service. You will be temporarily disconnected.
+## Parameters
 
-## Usage Example
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `operation` | string | yes | One of: check, install |
 
+## Examples
+
+**Check for updates:**
 ```json
-{
-  "action": "manage_updates",
-  "operation": "check"
-}
+{"action": "manage_updates", "operation": "check"}
 ```
 
+**Install updates:**
 ```json
-{
-  "action": "manage_updates",
-  "operation": "install"
-}
+{"action": "manage_updates", "operation": "install"}
 ```
+
+## Notes
+
+- **Check usage**: Use during daily maintenance or when user asks if an update is available
+- **Install requires permission**: ONLY call install after receiving explicit user permission
+- **Service restart**: The install operation will restart the AuraGo service — temporary disconnection occurs
+- **Conditional**: This tool is only available when `allow_self_update: true` in the Danger Zone settings

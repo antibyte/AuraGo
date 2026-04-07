@@ -1,35 +1,36 @@
----
-id: "paperless"
-tags: ["system", "documents", "dms"]
-priority: 5
----
-# internal_tool: paperless
+# Paperless-ngx (`paperless`)
 
-Interact with the user's Paperless-ngx document management system.
-Search, retrieve, and manage documents, tags, correspondents, and document types.
+Interact with the Paperless-ngx document management system. Search, retrieve, and manage documents, tags, correspondents, and document types.
+
+## Operations
+
+| Operation | Description |
+|-----------|-------------|
+| `search` | Full-text search for documents |
+| `get` | Get full metadata for a specific document |
+| `download` | Download document text content |
+| `upload` | Upload a new document |
+| `update` | Update document metadata |
+| `delete` | Delete a document |
+| `list_tags` | List all available tags |
+| `list_correspondents` | List all correspondents |
+| `list_document_types` | List all document types |
+
+## Parameters
 
 | Parameter | Type | Required | Description |
-|---|---|---|---|
-| `operation` | string | yes | `search`, `get`, `download`, `upload`, `update`, `delete`, `list_tags`, `list_correspondents`, `list_document_types` |
+|-----------|------|----------|-------------|
+| `operation` | string | yes | One of the operations above |
 | `query` | string | for search | Full-text search query |
 | `document_id` | string | for get/download/update/delete | Numeric document ID |
 | `title` | string | no | Document title (for upload/update) |
-| `tags` | string | no | Comma-separated tag names (for search filter or upload/update) |
-| `name` | string | no | Correspondent name (for search filter or upload/update) |
-| `category` | string | no | Document type name (for search filter or upload/update) |
-| `content` | string | for upload | Text content to upload as a new document |
-| `limit` | int | no | Max results for search (default: 25) |
+| `tags` | string | no | Comma-separated tag names |
+| `name` | string | no | Correspondent name (maps to Paperless-ngx "correspondent") |
+| `category` | string | no | Document type name (maps to Paperless-ngx "document type") |
+| `content` | string | for upload | Text content to upload as a document |
+| `limit` | integer | no | Max results for search (default: 25) |
 
-**Important Rules:**
-1. Use `search` to find documents by text content, tags, correspondents, or document types.
-2. Use `get` to retrieve full metadata for a specific document (includes content preview).
-3. Use `download` to get a document's full text content.
-4. Use `list_tags`, `list_correspondents`, `list_document_types` to discover available categories before filtering.
-5. Tags in `upload` and `update` are comma-separated names (e.g. `"invoice,2025,important"`).
-6. The `name` parameter maps to the Paperless-ngx "correspondent" field.
-7. The `category` parameter maps to the Paperless-ngx "document type" field.
-
-### Examples
+## Examples
 
 **Search for invoices:**
 ```json
@@ -44,11 +45,6 @@ Search, retrieve, and manage documents, tags, correspondents, and document types
 **Get document metadata:**
 ```json
 {"action": "paperless", "operation": "get", "document_id": "42"}
-```
-
-**Download document text content:**
-```json
-{"action": "paperless", "operation": "download", "document_id": "42"}
 ```
 
 **Upload a new document:**
@@ -71,12 +67,9 @@ Search, retrieve, and manage documents, tags, correspondents, and document types
 {"action": "paperless", "operation": "list_tags"}
 ```
 
-**List all correspondents:**
-```json
-{"action": "paperless", "operation": "list_correspondents"}
-```
+## Notes
 
-**List all document types:**
-```json
-{"action": "paperless", "operation": "list_document_types"}
-```
+- **Tag format**: Tags in `upload` and `update` are comma-separated names (e.g., `"invoice,2025,important"`)
+- **Correspondent**: The `name` parameter maps to Paperless-ngx's "correspondent" field
+- **Document type**: The `category` parameter maps to Paperless-ngx's "document type" field
+- **Discovery**: Use `list_tags`, `list_correspondents`, `list_document_types` to discover available filters before searching

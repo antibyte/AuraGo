@@ -1,4 +1,4 @@
-# Homepage — Web Development & Deployment Tool
+# Homepage (`homepage`)
 
 Design, develop, build, test and deploy professional websites using AuraGo's web workspace with Docker-based full mode and limited local fallback support.
 
@@ -6,8 +6,44 @@ Design, develop, build, test and deploy professional websites using AuraGo's web
 
 - **Required**: Homepage integration enabled (`homepage.enabled: true`)
 - **Recommended**: Docker integration enabled for the full dev environment
-- Homepage tool must be enabled (`homepage.enabled: true`)
 - For deployment: SFTP/SCP credentials must be stored in the vault
+
+## Operations
+
+| Operation | Description |
+|-----------|-------------|
+| `init` | Initialize the dev environment (run first) |
+| `start` | Start the dev container |
+| `stop` | Stop the dev container |
+| `status` | Get environment status |
+| `rebuild` | Rebuild the dev container from scratch |
+| `destroy` | Remove everything |
+| `init_project` | Create a new web project |
+| `exec` | Run a shell command in the container |
+| `write_file` | Write/create a file |
+| `read_file` | Read a file |
+| `list_files` | List project files |
+| `install_deps` | Install npm packages |
+| `build` | Build for production |
+| `dev` | Start the dev server |
+| `lint` | Run TypeScript & ESLint checks |
+| `check_js` | Check for JavaScript runtime errors |
+| `optimize_images` | Optimize SVGs with SVGO |
+| `lighthouse` | Run Lighthouse performance audit |
+| `screenshot` | Take a full-page screenshot |
+| `deploy` | Build and upload to remote server via SFTP |
+| `test_connection` | Test SFTP/SCP connection |
+| `webserver_start` | Start local Caddy web server |
+| `webserver_stop` | Stop the web server |
+| `webserver_status` | Check web server status |
+| `publish_local` | Build and serve locally |
+| `git_init` | Initialize a git repository |
+| `git_commit` | Commit all changes |
+| `git_status` | View changed files |
+| `git_diff` | View current changes |
+| `git_log` | View commit history |
+| `git_rollback` | Revert recent commits |
+| `tunnel` | Create a public URL for sharing |
 
 ## Runtime Modes
 
@@ -444,3 +480,27 @@ The `deploy_netlify` operation scans all HTML and CSS files, detects `/files/gen
 2. Add a valid `build` script to `package.json`, then retry.
 
 If the project is plain HTML, you usually do not need a build step at all.
+
+## Configuration
+
+```yaml
+homepage:
+  enabled: true
+  allow_local_server: false  # Enable Python fallback when Docker unavailable
+  workspace_path: "data/homepage"  # Path for homepage projects
+  # For deployment:
+  # SFTP/SCP credentials stored in vault:
+  # - homepage_deploy_host: deployment server hostname
+  # - homepage_deploy_user: deployment username
+  # - homepage_deploy_password OR homepage_deploy_key: authentication
+```
+
+## Notes
+
+- **File paths**: All file paths are relative to `/workspace` inside the container
+- **project_dir**: Must always be relative to the homepage workspace (e.g., `my-site`, not `/workspace/my-site`)
+- **NEVER use `filesystem` tool** for homepage project files — it writes to `agent_workspace/workdir/` instead of the homepage workspace
+- **Container persistence**: The container persists between sessions (uses `unless-stopped` restart policy)
+- **Build output**: Auto-detected: `out`, `dist`, `build`, `.next`, `public`
+- **Plain HTML projects**: Skip the build step entirely — no Docker dev container needed for deployment
+- **Auto-fix**: The `build` operation can automatically fix common errors when `auto_fix: true`

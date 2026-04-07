@@ -38,12 +38,24 @@ func parseOrFallback(filename, content string, logger *slog.Logger) PromptModule
 var GetActivePromptOverrides func() map[string]string
 
 func loadPromptModules(dir string, logger *slog.Logger) []PromptModule {
-	// --- Fast path: check cache validity (based on disk files only) ---
+	// --- Fast path: check cache validity (TTL + disk files) ---
 	promptCacheMu.RLock()
 	cached, ok := promptCacheByDir[dir]
 	promptCacheMu.RUnlock()
 
-	if ok && !promptCacheStale(dir, cached.mtimes) {
+	if ok {
+		if time.Since(cached.checked) < 30*time.Second {
+			return cached.modules
+		}
+		if !promptCacheStale(dir, cached.mtimes) {
+			promptCacheMu.Lock()
+			c := promptCacheByDir[dir]
+			c.checked = time.Now()
+			promptCacheByDir[dir] = c
+			promptCacheMu.Unlock()
+			return cached.modules
+		}
+	} else if ok && !promptCacheStale(dir, cached.mtimes) {
 		return cached.modules
 	}
 
@@ -122,7 +134,7 @@ func loadPromptModules(dir string, logger *slog.Logger) []PromptModule {
 
 	// Update cache
 	promptCacheMu.Lock()
-	promptCacheByDir[dir] = promptDirCache{modules: modules, mtimes: mtimes}
+	promptCacheByDir[dir] = promptDirCache{modules: modules, mtimes: mtimes, checked: time.Now()}
 	promptCacheMu.Unlock()
 
 	if ok {

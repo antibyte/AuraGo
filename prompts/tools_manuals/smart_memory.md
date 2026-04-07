@@ -1,138 +1,34 @@
-## Tool: Smart Memory (`smart_memory`) — DEPRECATED
+# Smart Memory (`smart_memory`) — DEPRECATED
 
 > **This tool does not exist.** Do NOT call `smart_memory` — it will fail with an unknown tool error.
 >
-> The functionality described here is covered by two existing tools:
+> The functionality is now covered by two existing tools:
 > - **Writing** → use `remember` (auto-routes to core memory, journal, notes, or knowledge graph)
 > - **Reading** → use `query_memory` (searches all memory layers at once)
 >
 > See `remember.md` and `query_memory.md` for the current implementation.
 
----
-
 *Historical note: smart_memory was a planning artifact. The `remember` tool implements the store/auto-route functionality. The `query_memory` tool implements the unified search functionality.*
 
-### Wann verwenden?
+## When to Use
 
-- **Auto-Extraktion**: Nach wichtigen User-Äußerungen automatisch ausführen
-- **Smart Store**: Wenn du dir unsicher bist, WO etwas gespeichert werden soll
-- **Smart Query**: Wenn du Informationen aus ALLEN Memory-Ebenen brauchst
-- **Konsolidierung**: Am Ende einer Session zur Zusammenfassung
+- **Auto-Extraction**: After important user statements automatically
+- **Smart Store**: When unsure WHERE something should be stored
+- **Smart Query**: When you need information from ALL memory layers
+- **Consolidation**: At the end of a session for summary
 
-### Operationen
+## Former Operations
 
-| Operation | Beschreibung | Auto-Confirm |
-|-----------|--------------|--------------|
-| `auto_extract` | Analysiert Text und schlägt Speicherorte vor | Bei Confidence >95% |
-| `store` | Direktes Speichern mit Smart-Routing | Nein |
-| `query` | Intelligente Suche über alle Ebenen | Ja |
-| `consolidate` | Analysiert Session und schlägt Aktionen vor | Konfigurierbar |
-| `suggest` | Holt proaktive Vorschläge | Ja |
+| Operation | Description | Auto-Confirm |
+|-----------|-------------|--------------|
+| `auto_extract` | Analyzes text and suggests storage locations | When Confidence >95% |
+| `store` | Direct storage with smart routing | No |
+| `query` | Intelligent search across all layers | Yes |
+| `consolidate` | Analyzes session and suggests actions | Configurable |
+| `suggest` | Retrieves proactive suggestions | Yes |
 
-### Auto-Extraktion Beispiel
+## Notes
 
-**User sagt:** "Mein Name ist Andre, ich arbeite am AuraGo Projekt und bevorzuge Docker Compose."
-
-**Tool Call:**
-```json
-{"action": "smart_memory", "operation": "auto_extract", "content": "Mein Name ist Andre, ich arbeite am AuraGo Projekt und bevorzuge Docker Compose.", "context": "conversation"}
-```
-
-**Ergebnis:**
-```json
-{
-  "status": "success",
-  "findings": [
-    {
-      "type": "entity",
-      "summary": "User heißt Andre",
-      "storage_recommendation": "kg",
-      "confidence": 0.99,
-      "auto_stored": true
-    },
-    {
-      "type": "entity", 
-      "summary": "Projekt AuraGo",
-      "storage_recommendation": "kg",
-      "confidence": 0.95,
-      "auto_stored": true
-    },
-    {
-      "type": "relation",
-      "summary": "Andre arbeitet an AuraGo",
-      "storage_recommendation": "kg",
-      "confidence": 0.98,
-      "auto_stored": true
-    },
-    {
-      "type": "preference",
-      "summary": "Bevorzugt Docker Compose",
-      "storage_recommendation": "core",
-      "suggested_key": "docker_preference",
-      "confidence": 0.92,
-      "auto_stored": false,
-      "reason": "Warte auf Bestätigung bei Präferenzen"
-    }
-  ]
-}
-```
-
-### Smart Store Beispiel
-
-```json
-{"action": "smart_memory", "operation": "store", "content": "Docker Compose Setup mit 3 Services: app, db, redis", "storage_hint": "auto"}
-```
-
-Das System entscheidet automatisch:
-- Wenn Projekt bekannt → KG (Relation: Projekt → nutzt → Docker)
-- Wenn technisches Detail → LTM
-- Wenn wichtiger Meilenstein → Journal
-
-### Smart Query Beispiel
-
-```json
-{"action": "smart_memory", "operation": "query", "content": "Was haben wir gestern über Docker besprochen?"}
-```
-
-Durchsucht:
-1. LTM (ähnliche Dokumente)
-2. Journal (Einträge vom gestrigen Tag)
-3. KG (Docker-Projekt-Verbindungen)
-4. Notizen (Docker-Todos)
-
-### Konsolidierung Beispiel
-
-```json
-{"action": "smart_memory", "operation": "consolidate", "auto_mode": false}
-```
-
-Analysiert die aktuelle Session und schlägt vor:
-- Präferenzen speichern?
-- Journal-Eintrag erstellen?
-- Fehler-Learning speichern?
-- KG aktualisieren?
-
-### Best Practices
-
-1. **Auto-Extraktion nach wichtigen Äußerungen**
-   - User stellt sich vor
-   - User nennt Präferenzen
-   - User beschreibt Projekt/Setup
-
-2. **Storage Hints nur wenn nötig**
-   - `"storage_hint": "auto"` → System entscheidet (empfohlen)
-   - `"storage_hint": "core"` → Nur für wichtige Präferenzen
-   - `"storage_hint": "journal"` → Nur für Meilensteine
-
-3. **Auto-Confirm nutzen für:**
-   - Entitäten (hohe Confidence)
-   - Fakten (objektiv)
-   - KEINE Präferenzen ohne Bestätigung
-
-### Automatische Trigger
-
-Das Tool wird AUTOMATISCH ausgeführt bei:
-- Session-Ende (Konsolidierung)
-- User-Einführung (Entity-Extraktion)
-- Erfolgreicher Tool-Chain (Meilenstein-Check)
-- Fehler mit Lösung (Learning-Extraktion)
+- This tool is deprecated and should not be called
+- Use `remember` for storing information with automatic routing
+- Use `query_memory` for unified search across all memory layers

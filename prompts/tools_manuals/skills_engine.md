@@ -1,34 +1,52 @@
-## Tool: Skills Engine
+# Skills Engine (`skills_engine`)
 
-Discover and execute admin-managed skill plugins from the `skills/` directory.
+Discover and execute admin-managed skill plugins from the `skills/` directory. Skills are pre-built Python utilities managed by the supervisor with automatic path resolution, venv activation, secret injection, and output scrubbing.
 
-> ⚠️ **NEVER run skills via `execute_shell` or `execute_python` directly.** Skills are managed by the supervisor, which handles path resolution, venv activation, secret injection, and output scrubbing automatically. Always use `execute_skill` — guessing filesystem paths will fail.
+> **IMPORTANT:** Never run skills via `execute_shell` or `execute_python` directly. Always use `execute_skill` — guessing filesystem paths will fail.
 
-### Discover Skills (`list_skills`) — MANDATORY FIRST STEP
+## Operations
 
-You MUST call this before writing custom Python code for: web search, web scraping, API interactions, file conversion (PDF/Office), or database access.
+| Operation | Description |
+|-----------|-------------|
+| `list_skills` | Discover available skills (MANDATORY first step) |
+| `execute_skill` | Execute a discovered skill |
+| `list_skill_templates` | List templates for creating new skills |
+| `create_skill_from_template` | Create a new skill from a template |
 
-Using an existing skill is strictly preferred over writing custom tools. Only create a custom tool if `list_skills` returns no suitable capability.
+## Parameters
 
-Returns an array of plugins, each with `name`, `description`, `parameters` schema, and `returns` field.
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `skill` | string | for execute_skill | Skill name from `list_skills` |
+| `skill_args` | object | for execute_skill | Arguments matching the skill's parameter schema |
+| `template` | string | for create_skill_from_template | Template name (e.g., `api_client`, `file_processor`) |
+| `name` | string | for create_skill_from_template | Name for the new skill |
 
+## Examples
+
+**Discover available skills (MANDATORY before writing custom code):**
 ```json
 {"action": "list_skills"}
 ```
 
-### Execute Skill (`execute_skill`)
-
-Run a skill discovered via `list_skills`. Map arguments exactly to the skill's `parameters` schema inside `skill_args`.
-
-| Parameter | Type | Required | Description |
-|---|---|---|---|
-| `skill` | string | yes | Skill name from `list_skills` |
-| `skill_args` | object | yes | Arguments matching the skill's parameter schema |
-
+**Execute a skill:**
 ```json
 {"action": "execute_skill", "skill": "pdf_reader", "skill_args": {"filepath": "doc.pdf"}}
 ```
 
-### Create New Skills from Templates
+**List skill templates:**
+```json
+{"action": "list_skill_templates"}
+```
 
-If no existing skill fits your need, use `list_skill_templates` and `create_skill_from_template` to scaffold a new skill from a built-in template such as `api_client`, `file_processor`, `data_transformer`, `scraper`, `example_use_vault_login`, or `example_use_vault_token`. See the **Skill Templates** tool manual for details.
+**Create a new skill from template:**
+```json
+{"action": "create_skill_from_template", "template": "api_client", "name": "my_api_client"}
+```
+
+## Notes
+
+- **MANDATORY first step**: Call `list_skills` before writing custom Python code for web search, web scraping, API interactions, file conversion (PDF/Office), or database access.
+- **Use existing skills**: Using an existing skill is strictly preferred over writing custom tools. Only create a custom tool if `list_skills` returns no suitable capability.
+- **Skill templates**: Available templates include `api_client`, `file_processor`, `data_transformer`, `scraper`, `example_use_vault_login`, `example_use_vault_token`.
+- **Supervisor features**: The skill supervisor handles venv activation, secret injection from vault, and output scrubbing automatically.

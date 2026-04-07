@@ -1,8 +1,8 @@
-## Tool: Core Memory (`manage_memory`)
+# Core Memory (`manage_memory`)
 
 Add or remove critical, permanent facts from `core_memory.md`. This file is injected into your system prompt **every single turn** — each entry costs tokens on every request.
 
-### When to use — Decision Tree
+## When to use — Decision Tree
 
 ```
 Is this about WHO the user is (name, role, personality)?
@@ -16,14 +16,16 @@ Is it a preference, constraint, or environment fact?
   → NO → Journal (milestone or learning)
 ```
 
-### ✅ Use ONLY for
+## Use ONLY for
+
 - **User identity** — name, role, language, how they want to be addressed
 - **Permanent preferences** — "User prefers German", "Always use tabs"
 - **Hard constraints** — "Never use Python 2", "No emojis"
 - **Persistent environment** — "Main server: Dell R730 with Proxmox"
 - **Key relationships** — "User's colleague Max handles networking"
 
-### ❌ NEVER use for (use the right tool instead)
+## NEVER use for
+
 - Current tasks or to-do items → `manage_notes` (category: `todo`)
 - Project progress or status → `manage_journal` (entry_type: `task_completed`)
 - "Check X later" / reminders → `manage_notes` with `due_date` + `cron_scheduler`
@@ -31,14 +33,14 @@ Is it a preference, constraint, or environment fact?
 - Learnings from this session → `manage_journal` (entry_type: `learning`)
 - Anything that won't matter in 6 months → `manage_notes` or `manage_journal`
 
-### Schema
+## Parameters
 
 | Parameter | Type | Required | Description |
-|---|---|---|---|
+|-----------|------|----------|-------------|
 | `operation` | string | yes | `add` or `remove` |
 | `fact` | string | yes | The fact to add or the exact text to remove |
 
-### Examples
+## Examples
 
 ```json
 {"action": "manage_memory", "operation": "add", "fact": "User prefers concise answers"}
@@ -47,3 +49,11 @@ Is it a preference, constraint, or environment fact?
 ```json
 {"action": "manage_memory", "operation": "remove", "fact": "Old fact to delete"}
 ```
+
+## Notes
+
+- **Token cost**: Every fact in core memory is included in every LLM request. Keep facts concise.
+- **Permanence**: Facts here persist until explicitly removed. Only add information that is truly permanent.
+- **Removal**: Use `remove` with the **exact** fact text to delete it.
+- **Privacy**: Core memory is stored locally in `data/core_memory.md` — it does not leave the server.
+- **Conflict resolution**: If user preferences change, add the new fact and remove the old one explicitly.

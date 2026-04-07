@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"aurago/internal/llm"
 	loggerPkg "aurago/internal/logger"
@@ -124,11 +125,28 @@ func buildTrimmedContextRecap(messages []openai.ChatCompletionMessage, tokenBudg
 		builder.WriteString("\n")
 	}
 	recap := strings.TrimSpace(builder.String())
-	for recap != "" && prompts.CountTokens(recap) > tokenBudget {
-		if len(recap) <= 160 {
-			return ""
+	if recap == "" {
+		return ""
+	}
+	// Estimate target char length from token budget (approx 4 chars per token)
+	// then verify with a single CountTokens call.
+	estChars := tokenBudget * 4
+	if len(recap) > estChars {
+		for estChars > 0 && estChars < len(recap) && !utf8.RuneStart(recap[estChars]) {
+			estChars--
 		}
-		recap = strings.TrimSpace(Truncate(recap, len(recap)-(len(recap)/4)))
+		recap = strings.TrimSpace(recap[:estChars])
+	}
+	if prompts.CountTokens(recap) > tokenBudget {
+		if len(recap) > 160 {
+			recap = strings.TrimSpace(Truncate(recap, len(recap)/2))
+		}
+		for recap != "" && prompts.CountTokens(recap) > tokenBudget {
+			if len(recap) <= 160 {
+				return ""
+			}
+			recap = strings.TrimSpace(Truncate(recap, len(recap)-(len(recap)/4)))
+		}
 	}
 	return recap
 }
@@ -575,85 +593,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			trackActivityTool(&turnToolNames, &turnToolSummaries, ptc.Action, pResultContent)
 			recordPlanToolProgress(shortTermMem, sessionID, ptc, pResultContent, currentLogger)
 			broker.Send("tool_output", pResultContent)
-			if ptc.Action == "send_image" {
-				var imgRes struct {
-					Status  string `json:"status"`
-					WebPath string `json:"web_path"`
-					Caption string `json:"caption"`
-				}
-				raw := strings.TrimPrefix(pResultContent, "[Tool Output]\n")
-				raw = strings.TrimPrefix(raw, "Tool Output: ")
-				if json.Unmarshal([]byte(raw), &imgRes) == nil && imgRes.Status == "success" {
-					evtPayload, _ := json.Marshal(map[string]string{"path": imgRes.WebPath, "caption": imgRes.Caption})
-					broker.Send("image", string(evtPayload))
-				}
-			}
-			if ptc.Action == "send_audio" {
-				var audioRes struct {
-					Status   string `json:"status"`
-					WebPath  string `json:"web_path"`
-					Title    string `json:"title"`
-					MimeType string `json:"mime_type"`
-					Filename string `json:"filename"`
-				}
-				raw := strings.TrimPrefix(pResultContent, "[Tool Output]\n")
-				raw = strings.TrimPrefix(raw, "Tool Output: ")
-				if json.Unmarshal([]byte(raw), &audioRes) == nil && audioRes.Status == "success" {
-					evtPayload, _ := json.Marshal(map[string]string{
-						"path":      audioRes.WebPath,
-						"title":     audioRes.Title,
-						"mime_type": audioRes.MimeType,
-						"filename":  audioRes.Filename,
-					})
-					broker.Send("audio", string(evtPayload))
-				}
-			}
-			if ptc.Action == "tts" {
-				var ttsRes struct {
-					Status string `json:"status"`
-					File   string `json:"file"`
-				}
-				raw := strings.TrimPrefix(pResultContent, "[Tool Output]\n")
-				raw = strings.TrimPrefix(raw, "Tool Output: ")
-				if json.Unmarshal([]byte(raw), &ttsRes) == nil && ttsRes.Status == "success" {
-					mimeType := "audio/mpeg"
-					if strings.HasSuffix(ttsRes.File, ".wav") {
-						mimeType = "audio/wav"
-					}
-					evtPayload, _ := json.Marshal(map[string]string{
-						"path":      "/tts/" + ttsRes.File,
-						"title":     "TTS Audio",
-						"mime_type": mimeType,
-						"filename":  ttsRes.File,
-						"file_path": filepath.Join(cfg.Directories.DataDir, "tts", ttsRes.File),
-					})
-					broker.Send("audio", string(evtPayload))
-				}
-			}
-			if ptc.Action == "send_document" {
-				var docRes struct {
-					Status     string `json:"status"`
-					WebPath    string `json:"web_path"`
-					PreviewURL string `json:"preview_url"`
-					Title      string `json:"title"`
-					MimeType   string `json:"mime_type"`
-					Filename   string `json:"filename"`
-					Format     string `json:"format"`
-				}
-				raw := strings.TrimPrefix(pResultContent, "[Tool Output]\n")
-				raw = strings.TrimPrefix(raw, "Tool Output: ")
-				if json.Unmarshal([]byte(raw), &docRes) == nil && docRes.Status == "success" {
-					evtPayload, _ := json.Marshal(map[string]string{
-						"path":        docRes.WebPath,
-						"preview_url": docRes.PreviewURL,
-						"title":       docRes.Title,
-						"mime_type":   docRes.MimeType,
-						"filename":    docRes.Filename,
-						"format":      docRes.Format,
-					})
-					broker.Send("document", string(evtPayload))
-				}
-			}
+			emitMediaSSEEvents(broker, ptc.Action, pResultContent, cfg.Directories.DataDir)
 			broker.Send("tool_end", ptc.Action)
 			lastActivity = time.Now()
 			// Update session todo from piggybacked _todo field
@@ -1393,12 +1333,24 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 						// Suppress all tool-call JSON patterns — always, regardless of model or provider.
 						// Covers both explicit markers and broader heuristics for all known inline formats.
 						trimmed := strings.TrimLeft(delta.Content, " \t\r\n")
-						suppressToolCallJSON := len(trimmed) > 0 && trimmed[0] == '{' &&
-							(strings.Contains(trimmed, `"tool_call"`) || strings.Contains(trimmed, `"tool_name"`) ||
-								strings.Contains(trimmed, `"tool":`) || strings.Contains(trimmed, `"tool_call_path"`) ||
-								strings.Contains(trimmed, `"action"`) || strings.Contains(trimmed, `"command"`) ||
-								strings.Contains(trimmed, `"operation"`) || strings.Contains(trimmed, `"name"`) ||
-								strings.Contains(trimmed, `"arguments"`))
+						suppressToolCallJSON := false
+						if len(trimmed) > 0 && trimmed[0] == '{' {
+							highSpecKeys := []string{`"tool_call"`, `"tool_name"`, `"tool_call_path"`, `"action"`}
+							ambiguousKeys := []string{`"tool":`, `"command"`, `"operation"`, `"name"`, `"arguments"`}
+							highCount := 0
+							for _, k := range highSpecKeys {
+								if strings.Contains(trimmed, k) {
+									highCount++
+								}
+							}
+							ambCount := 0
+							for _, k := range ambiguousKeys {
+								if strings.Contains(trimmed, k) {
+									ambCount++
+								}
+							}
+							suppressToolCallJSON = highCount >= 1 || (highCount+ambCount >= 2 && ambCount >= 1) || ambCount >= 3
+						}
 						if !suppressToolCallJSON && !xmlToolCallSuppressed {
 							// Buffer content to filter <done/> and minimax:tool_call XML before sending to SSE.
 							// Hold the last (holdLen) bytes so a tag split across chunk boundaries is caught.
@@ -1553,7 +1505,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		cancelResp()
 		telemetryScope = refreshTelemetryScope(telemetryScope, client, &resp)
 
-		retry422Count = 0 // reset on successful LLM response
+		retry422Count = 0    // reset on successful LLM response
+		emptyRetried = false // reset after successful non-empty response (BUG-03 fix)
 
 		if recoverFromEmptyResponseWithPolicy(recoveryPolicy, resp, content, &req, &emptyRetried, currentLogger, broker, telemetryScope) {
 			continue
@@ -2094,90 +2047,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			recordPlanToolProgress(shortTermMem, sessionID, tc, resultContent, currentLogger)
 
 			broker.Send("tool_output", resultContent)
-
-			// Emit SSE image event so the Web UI shows the image immediately (before LLM responds)
-			if tc.Action == "send_image" {
-				var imgRes struct {
-					Status  string `json:"status"`
-					WebPath string `json:"web_path"`
-					Caption string `json:"caption"`
-				}
-				raw := strings.TrimPrefix(resultContent, "[Tool Output]\n")
-				raw = strings.TrimPrefix(raw, "Tool Output: ")
-				if json.Unmarshal([]byte(raw), &imgRes) == nil && imgRes.Status == "success" {
-					evtPayload, _ := json.Marshal(map[string]string{
-						"path":    imgRes.WebPath,
-						"caption": imgRes.Caption,
-					})
-					broker.Send("image", string(evtPayload))
-				}
-			}
-			if tc.Action == "send_audio" {
-				var audioRes struct {
-					Status   string `json:"status"`
-					WebPath  string `json:"web_path"`
-					Title    string `json:"title"`
-					MimeType string `json:"mime_type"`
-					Filename string `json:"filename"`
-				}
-				raw := strings.TrimPrefix(resultContent, "[Tool Output]\n")
-				raw = strings.TrimPrefix(raw, "Tool Output: ")
-				if json.Unmarshal([]byte(raw), &audioRes) == nil && audioRes.Status == "success" {
-					evtPayload, _ := json.Marshal(map[string]string{
-						"path":      audioRes.WebPath,
-						"title":     audioRes.Title,
-						"mime_type": audioRes.MimeType,
-						"filename":  audioRes.Filename,
-					})
-					broker.Send("audio", string(evtPayload))
-				}
-			}
-			if tc.Action == "tts" {
-				var ttsRes struct {
-					Status string `json:"status"`
-					File   string `json:"file"`
-				}
-				raw := strings.TrimPrefix(resultContent, "[Tool Output]\n")
-				raw = strings.TrimPrefix(raw, "Tool Output: ")
-				if json.Unmarshal([]byte(raw), &ttsRes) == nil && ttsRes.Status == "success" {
-					mimeType := "audio/mpeg"
-					if strings.HasSuffix(ttsRes.File, ".wav") {
-						mimeType = "audio/wav"
-					}
-					evtPayload, _ := json.Marshal(map[string]string{
-						"path":      "/tts/" + ttsRes.File,
-						"title":     "TTS Audio",
-						"mime_type": mimeType,
-						"filename":  ttsRes.File,
-						"file_path": filepath.Join(cfg.Directories.DataDir, "tts", ttsRes.File),
-					})
-					broker.Send("audio", string(evtPayload))
-				}
-			}
-			if tc.Action == "send_document" {
-				var docRes struct {
-					Status     string `json:"status"`
-					WebPath    string `json:"web_path"`
-					PreviewURL string `json:"preview_url"`
-					Title      string `json:"title"`
-					MimeType   string `json:"mime_type"`
-					Filename   string `json:"filename"`
-					Format     string `json:"format"`
-				}
-				raw := strings.TrimPrefix(resultContent, "[Tool Output]\n")
-				raw = strings.TrimPrefix(raw, "Tool Output: ")
-				if json.Unmarshal([]byte(raw), &docRes) == nil && docRes.Status == "success" {
-					evtPayload, _ := json.Marshal(map[string]string{
-						"path":        docRes.WebPath,
-						"preview_url": docRes.PreviewURL,
-						"title":       docRes.Title,
-						"mime_type":   docRes.MimeType,
-						"filename":    docRes.Filename,
-						"format":      docRes.Format,
-					})
-					broker.Send("document", string(evtPayload))
-				}
-			}
+			emitMediaSSEEvents(broker, tc.Action, resultContent, cfg.Directories.DataDir)
 
 			broker.Send("tool_end", tc.Action)
 			lastActivity = time.Now() // Tool activity
@@ -2306,12 +2176,16 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					flags.IsErrorState = false
 				}
 			}
-			id, err = shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleSystem, resultContent, false, true)
+			toolResultPersistRole := openai.ChatMessageRoleTool
+			if !useNativePath {
+				toolResultPersistRole = openai.ChatMessageRoleUser
+			}
+			id, err = shortTermMem.InsertMessage(sessionID, toolResultPersistRole, resultContent, false, true)
 			if err != nil {
 				currentLogger.Error("Failed to persist tool-result message to SQLite", "error", err)
 			}
 			if sessionID == "default" {
-				historyManager.Add(openai.ChatMessageRoleSystem, resultContent, id, false, true)
+				historyManager.Add(toolResultPersistRole, resultContent, id, false, true)
 			}
 
 			// Phase 1: Lifecycle Handover check
@@ -2417,12 +2291,12 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					if sessionID == "default" {
 						historyManager.Add(openai.ChatMessageRoleAssistant, bHistContent, bID, false, true)
 					}
-					bID, bErr = shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleSystem, bResult, false, true)
+					bID, bErr = shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleTool, bResult, false, true)
 					if bErr != nil {
 						currentLogger.Error("Failed to persist batched tool-result message", "error", bErr)
 					}
 					if sessionID == "default" {
-						historyManager.Add(openai.ChatMessageRoleSystem, bResult, bID, false, true)
+						historyManager.Add(openai.ChatMessageRoleTool, bResult, bID, false, true)
 					}
 
 					req.Messages = append(req.Messages, openai.ChatCompletionMessage{
@@ -2432,17 +2306,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					})
 				}
 			} else {
-				// When the XML fallback handler already appended an assistant message this
-				// turn, skip re-adding content to avoid a duplicate assistant entry that
-				// confuses the model into mis-attributing the tool output.
 				if !xmlFallbackHandledThisTurn {
 					req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: content})
 				}
-				if useNativeFunctions {
-					req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: resultContent})
-				} else {
-					req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleSystem, Content: resultContent})
-				}
+				req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: resultContent})
 			}
 
 			// Support early exit for Lifeboat
@@ -2786,44 +2653,92 @@ func trim422Messages(msgs []openai.ChatCompletionMessage) []openai.ChatCompletio
 	// with ToolCalls, only keep them if ALL their tool call IDs have matching
 	// tool responses AND we also keep those responses. Otherwise drop the
 	// entire tool-call round (assistant + tool responses) to avoid dangling refs.
-	var clean []openai.ChatCompletionMessage
-	for _, m := range msgs {
+	//
+	// However, preserve the LAST complete tool-call round (assistant with
+	// ToolCalls + its tool responses) so the model retains context about
+	// what it just did (CORR-02 fix).
+	type toolRound struct {
+		assistantIdx int
+		assistant    openai.ChatCompletionMessage
+		toolResults  []openai.ChatCompletionMessage
+	}
+	var rounds []toolRound
+	var nonToolMsgs []openai.ChatCompletionMessage
+
+	for i := 0; i < len(msgs); i++ {
+		m := msgs[i]
 		switch m.Role {
 		case openai.ChatMessageRoleTool:
-			continue // always drop — we'll re-add complete pairs below if needed
+			continue // handled in round collection below
 		case openai.ChatMessageRoleAssistant:
 			if len(m.ToolCalls) > 0 {
-				// Drop assistant messages that requested tool calls — their tool
-				// responses have been dropped, leaving an orphaned tool_call.
+				// Collect this assistant + its following tool results as a round
+				round := toolRound{assistantIdx: len(nonToolMsgs), assistant: m}
+				for j := i + 1; j < len(msgs); j++ {
+					if msgs[j].Role == openai.ChatMessageRoleTool {
+						allMatch := true
+						for _, tc := range m.ToolCalls {
+							if msgs[j].ToolCallID == tc.ID {
+								round.toolResults = append(round.toolResults, msgs[j])
+								allMatch = false
+								break
+							}
+						}
+						_ = allMatch
+						if len(round.toolResults) == len(m.ToolCalls) {
+							break
+						}
+					} else {
+						break
+					}
+				}
+				rounds = append(rounds, round)
+				// Skip past the tool results we collected
+				for j := i + 1; j < len(msgs) && msgs[j].Role == openai.ChatMessageRoleTool; j++ {
+					i = j
+				}
 				continue
 			}
-			// Plain assistant text — keep it.
-			clean = append(clean, m)
+			nonToolMsgs = append(nonToolMsgs, m)
 		default:
-			// system, user — keep as-is
-			clean = append(clean, m)
+			nonToolMsgs = append(nonToolMsgs, m)
+		}
+	}
+
+	// Find the last complete round (has matching tool results for all ToolCalls)
+	lastCompleteRound := -1
+	for ri := len(rounds) - 1; ri >= 0; ri-- {
+		if len(rounds[ri].toolResults) == len(rounds[ri].assistant.ToolCalls) {
+			lastCompleteRound = ri
+			break
 		}
 	}
 
 	// Pass 2: keep system prompt (first system messages) + last few user/assistant messages.
-	// Find the boundary between leading system messages and the conversation.
 	sysEnd := 0
-	for sysEnd < len(clean) && clean[sysEnd].Role == openai.ChatMessageRoleSystem {
+	for sysEnd < len(nonToolMsgs) && nonToolMsgs[sysEnd].Role == openai.ChatMessageRoleSystem {
 		sysEnd++
 	}
-	conversation := clean[sysEnd:]
+	conversation := nonToolMsgs[sysEnd:]
 	if len(conversation) > 4 {
 		conversation = conversation[len(conversation)-4:]
 	}
-	// Ensure the conversation starts with a user message (providers reject leading assistant).
+	// Ensure the conversation starts with a user message.
 	for len(conversation) > 0 && conversation[0].Role != openai.ChatMessageRoleUser {
 		conversation = conversation[1:]
 	}
 
 	trimmed := make([]openai.ChatCompletionMessage, 0, sysEnd+len(conversation)+1)
-	trimmed = append(trimmed, clean[:sysEnd]...)
+	trimmed = append(trimmed, nonToolMsgs[:sysEnd]...)
+
+	// Preserve last complete tool-call round (CORR-02)
+	if lastCompleteRound >= 0 {
+		r := rounds[lastCompleteRound]
+		trimmed = append(trimmed, r.assistant)
+		trimmed = append(trimmed, r.toolResults...)
+	}
+
 	trimmed = append(trimmed, conversation...)
-	// Append a user message (not system) so the model can respond naturally.
 	trimmed = append(trimmed, openai.ChatCompletionMessage{
 		Role:    openai.ChatMessageRoleUser,
 		Content: "[The previous tool call history was trimmed due to a provider error. Please summarise what you were doing and continue.]",

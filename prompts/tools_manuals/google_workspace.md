@@ -1,139 +1,97 @@
-# Tool Manual: Google Workspace (`google_workspace`)
+# Google Workspace (`google_workspace`)
 
-The `google_workspace` tool provides native access to your Google account services: Gmail, Calendar, Drive, Docs, and Sheets.
+Access Google account services: Gmail, Calendar, Drive, Docs, and Sheets. Handles OAuth2 authentication automatically via the vault.
 
-> [!TIP]
-> **PREFER THIS TOOL FOR GMAIL:** Use this tool instead of the generic `fetch_email` or `send_email` tools when dealing with Gmail accounts. It handles OAuth2 authentication automatically via the vault.
+## Operations
 
-## Recommended Usage
+| Operation | Description |
+|-----------|-------------|
+| `gmail_list` | List recent emails from inbox |
+| `gmail_read` | Read full content of a specific email |
+| `gmail_send` | Send an email |
+| `gmail_modify_labels` | Add or remove labels on an email |
+| `calendar_list` | List upcoming calendar events |
+| `calendar_create` | Create a new calendar event |
+| `calendar_update` | Update an existing calendar event |
+| `drive_search` | Search for files in Google Drive |
+| `drive_get_content` | Get content of a file from Drive |
+| `docs_get` | Retrieve text content of a Google Doc |
+| `docs_create` | Create a new Google Doc |
+| `docs_update` | Replace content of a Google Doc |
+| `sheets_get` | Read values from a Google Sheet |
+| `sheets_update` | Update values in a Google Sheet |
+| `sheets_create` | Create a new spreadsheet |
 
-Use this tool when the user asks to:
-- Check their emails or look for specific messages.
-- Send an email.
-- View upcoming calendar events or create new ones.
-- Search for files in Google Drive.
-- Read or write Google Documents.
-- Read or update Google Sheets.
+## Parameters
 
-## Operations Reference
-
-### Gmail
-
-#### `gmail_list`
-Lists recent emails from the primary inbox.
-- `query` (optional): Gmail search query (e.g., `from:boss is:unread`)
-- `max_results` (optional): Number of emails to fetch (default: 10)
-
-#### `gmail_read`
-Reads the full content of a specific email.
-- `message_id` (required): The ID of the email to read
-
-#### `gmail_send`
-Sends an email.
-- `to` (required): Recipient email address
-- `subject` (required): Email subject
-- `body` (required): Email body text
-
-#### `gmail_modify_labels`
-Adds or removes labels on an email.
-- `message_id` (required): The ID of the email
-- `add_labels` (optional): Array of label IDs to add
-- `remove_labels` (optional): Array of label IDs to remove
-
-### Calendar
-
-#### `calendar_list`
-Lists upcoming calendar events.
-- `max_results` (optional): Number of events (default: 10)
-- `time_min` (optional): ISO timestamp start bound
-- `time_max` (optional): ISO timestamp end bound
-
-#### `calendar_create`
-Creates a new calendar event.
-- `summary` (required): Event title
-- `start_time` (required): ISO timestamp
-- `end_time` (required): ISO timestamp
-- `description` (optional): Event description
-
-#### `calendar_update`
-Updates an existing calendar event.
-- `event_id` (required): The event ID
-- `summary` (optional): Updated title
-- `start_time` (optional): Updated start
-- `end_time` (optional): Updated end
-- `description` (optional): Updated description
-
-### Drive
-
-#### `drive_search`
-Searches for files in Google Drive.
-- `query` (required): Drive search query (e.g., `name contains 'Invoice'`)
-- `max_results` (optional): Number of files (default: 10)
-
-#### `drive_get_content`
-Gets the content of a file from Drive.
-- `file_id` (required): The file's Drive ID
-
-### Docs
-
-#### `docs_get`
-Retrieves text content of a Google Doc.
-- `file_id` (required): The document ID
-
-#### `docs_create`
-Creates a new Google Doc.
-- `title` (required): Document title
-- `body` (optional): Initial text content
-
-#### `docs_update`
-Replaces the content of a Google Doc.
-- `file_id` (required): The document ID
-- `body` (required): New text content
-
-### Sheets
-
-#### `sheets_get`
-Reads values from a Google Sheet.
-- `file_id` (required): The spreadsheet ID
-- `range` (optional): A1 notation range (default: entire first sheet)
-
-#### `sheets_update`
-Updates values in a Google Sheet.
-- `file_id` (required): The spreadsheet ID
-- `range` (required): A1 notation range
-- `values` (required): 2D array of values
-
-#### `sheets_create`
-Creates a new spreadsheet.
-- `title` (required): Spreadsheet title
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `operation` | string | yes | One of the operations above |
+| `query` | string | for gmail_list, drive_search | Search query |
+| `max_results` | integer | no | Max items to return (default: 10) |
+| `message_id` | string | for gmail_read, gmail_modify_labels | Email message ID |
+| `to` | string | for gmail_send | Recipient email address |
+| `subject` | string | for gmail_send | Email subject |
+| `body` | string | for gmail_send, docs_update | Content text |
+| `add_labels` | array | for gmail_modify_labels | Label IDs to add |
+| `remove_labels` | array | for gmail_modify_labels | Label IDs to remove |
+| `time_min` | string | for calendar_list | ISO timestamp start bound |
+| `time_max` | string | for calendar_list | ISO timestamp end bound |
+| `summary` | string | for calendar_create, calendar_update | Event title |
+| `start_time` | string | for calendar_create, calendar_update | ISO timestamp |
+| `end_time` | string | for calendar_create, calendar_update | ISO timestamp |
+| `description` | string | for calendar_create, calendar_update | Event description |
+| `event_id` | string | for calendar_update | Calendar event ID |
+| `file_id` | string | for drive_get_content, docs_get, docs_update, sheets_get, sheets_update | Drive/Docs/Sheets file ID |
+| `title` | string | for docs_create, sheets_create | Document/spreadsheet title |
+| `range` | string | for sheets_get, sheets_update | A1 notation range |
+| `values` | array | for sheets_update | 2D array of values |
 
 ## Examples
 
 **Read recent emails:**
 ```json
-{
-  "tool": "google_workspace",
-  "operation": "gmail_list",
-  "max_results": 3
-}
+{"action": "google_workspace", "operation": "gmail_list", "max_results": 3}
+```
+
+**Send an email:**
+```json
+{"action": "google_workspace", "operation": "gmail_send", "to": "colleague@example.com", "subject": "Meeting Notes", "body": "Here are the notes from today's meeting..."}
 ```
 
 **Search Drive for a document:**
 ```json
-{
-  "tool": "google_workspace",
-  "operation": "drive_search",
-  "query": "name contains 'Project Alpha'"
-}
+{"action": "google_workspace", "operation": "drive_search", "query": "name contains 'Invoice'"}
 ```
 
 **Create a calendar event:**
 ```json
-{
-  "tool": "google_workspace",
-  "operation": "calendar_create",
-  "summary": "Team standup",
-  "start_time": "2024-03-01T09:00:00Z",
-  "end_time": "2024-03-01T09:15:00Z"
-}
+{"action": "google_workspace", "operation": "calendar_create", "summary": "Team standup", "start_time": "2024-03-01T09:00:00Z", "end_time": "2024-03-01T09:15:00Z"}
 ```
+
+**Read a Google Doc:**
+```json
+{"action": "google_workspace", "operation": "docs_get", "file_id": "1abc123..."}
+```
+
+**Update a Google Sheet:**
+```json
+{"action": "google_workspace", "operation": "sheets_update", "file_id": "1xyz...", "range": "A1:B2", "values": [["Name", "Value"], ["Item 1", 100]]}
+```
+
+## Configuration
+
+```yaml
+google_workspace:
+  enabled: true
+  # OAuth2 credentials are stored in the vault
+  # Configure via Web UI: Settings → Integrations → Google Workspace
+```
+
+## Notes
+
+- **OAuth2**: Authentication is handled automatically via OAuth2 stored in the vault. No manual token handling required.
+- **Gmail queries**: Use Gmail search syntax (e.g., `from:boss is:unread has:attachment`)
+- **Drive queries**: Use Google Drive search syntax (e.g., `name contains 'Invoice' and mimeType='application/pdf'`)
+- **A1 notation**: Sheets ranges use standard A1 notation (e.g., `Sheet1!A1:B10` or just `A1:B10` for first sheet)
+- **File IDs**: The file ID is the long string in the Google Drive URL, not the human-readable name

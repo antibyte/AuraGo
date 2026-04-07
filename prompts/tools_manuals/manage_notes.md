@@ -1,10 +1,10 @@
-## Tool: Notes & To-Do (`manage_notes`)
+# Notes & To-Do (`manage_notes`)
 
 Manage persistent notes and to-do items. Notes are your **short-term memory** for tasks, reminders, and temporary bookmarks. Stored in SQLite, survives restarts.
 
 **Unlike Core Memory** (permanent, always in prompt), notes are for things that have a limited lifespan. Unlike Journal (event log), notes are actionable items.
 
-### Recommended Categories
+## Recommended Categories
 
 | Category | Use for |
 |---|---|
@@ -15,26 +15,27 @@ Manage persistent notes and to-do items. Notes are your **short-term memory** fo
 | `ideas` | Feature ideas, improvement suggestions |
 | `work` | Work-related tasks and notes |
 
-### Lifecycle
+## Lifecycle
+
 1. **Create** a note during conversation
 2. **Act** on it when relevant (or when due_date arrives)
 3. **Toggle done** when complete
 4. Done notes are cleaned up automatically after 7 days
 
-### Operations
+## Operations
 
 | Operation | Description |
-|---|---|
+|-----------|-------------|
 | `add` | Create a new note or to-do item |
 | `list` | List notes, optionally filtered by category or done status |
 | `update` | Update an existing note's fields |
 | `toggle` | Toggle the done/undone status of a note |
 | `delete` | Remove a note by ID |
 
-### Schema
+## Parameters
 
 | Parameter | Type | Required | Description |
-|---|---|---|---|
+|-----------|------|----------|-------------|
 | `operation` | string | yes | `add`, `list`, `update`, `toggle`, or `delete` |
 | `title` | string | for add | Title of the note |
 | `content` | string | no | Detailed content or body text |
@@ -44,11 +45,7 @@ Manage persistent notes and to-do items. Notes are your **short-term memory** fo
 | `note_id` | int | for update/toggle/delete | ID of the note to modify |
 | `done` | int | no | Filter for list: -1=all (default), 0=open only, 1=done only |
 
-### IMPORTANT
-Also add a cron entry if you add a to-do with a due date.
-Use the `cron_scheduler` tool to add a cron entry for the to-do.
-
-### Examples
+## Examples
 
 **Add a to-do:**
 ```json
@@ -79,3 +76,11 @@ Use the `cron_scheduler` tool to add a cron entry for the to-do.
 ```json
 {"action": "manage_notes", "operation": "delete", "note_id": 7}
 ```
+
+## Notes
+
+- **Due dates**: If you add a to-do with a `due_date`, also create a cron entry to remind you when the date arrives.
+- **Auto-cleanup**: Done notes are automatically deleted after 7 days. Use `toggle` to mark complete.
+- **Category filtering**: Use `category` with `list` to organize your view (e.g. `category: "todo"`).
+- **Priority levels**: 1=low, 2=medium (default), 3=high. Higher priority items shown first.
+- **IDs are stable**: Note IDs persist across sessions. Use `list` first to find the ID you need.

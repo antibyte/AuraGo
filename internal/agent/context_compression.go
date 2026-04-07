@@ -119,8 +119,12 @@ func CompressHistory(
 	for _, m := range compressible {
 		role := m.Role
 		content := messageText(m)
-		if len(content) > 500 {
-			content = truncateUTF8ToLimit(content, 503, "...")
+		maxMsgLen := 500
+		if role == openai.ChatMessageRoleTool || role == openai.ChatMessageRoleSystem || role == openai.ChatMessageRoleUser {
+			maxMsgLen = 2000
+		}
+		if len(content) > maxMsgLen {
+			content = truncateUTF8ToLimit(content, maxMsgLen+3, "...")
 		}
 		fmt.Fprintf(&transcript, "[%s]: %s\n", role, content)
 	}

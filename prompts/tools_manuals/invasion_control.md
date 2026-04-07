@@ -1,0 +1,81 @@
+# Invasion Control (`invasion_control`)
+
+Manage deployment nests (target servers/VMs/containers) and eggs (sub-agent configurations). List, inspect, assign, deploy (hatch), stop, monitor eggs, and send tasks and secrets to running eggs.
+
+## Operations
+
+| Operation | Description |
+|-----------|-------------|
+| `list_nests` | List all configured nests |
+| `list_eggs` | List all eggs in a nest |
+| `nest_status` | Get status of a specific nest |
+| `assign_egg` | Assign an egg to a nest |
+| `hatch_egg` | Deploy/start an egg in a nest |
+| `stop_egg` | Stop a running egg |
+| `egg_status` | Get status of a running egg |
+| `send_task` | Send a task to a running egg |
+| `send_secret` | Send a secret to a running egg |
+
+## Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `operation` | string | yes | One of the operations above |
+| `nest_id` | string | for most nest operations | Nest ID |
+| `nest_name` | string | no | Nest name — alternative to nest_id for lookup |
+| `egg_id` | string | for assign_egg | Egg ID to assign |
+| `task` | string | for send_task | Task description in natural language |
+| `key` | string | for send_secret | Secret key name |
+| `value` | string | for send_secret | Secret value |
+
+## Examples
+
+**List all nests:**
+```json
+{"action": "invasion_control", "operation": "list_nests"}
+```
+
+**List eggs in a nest:**
+```json
+{"action": "invasion_control", "operation": "list_eggs", "nest_id": "nest-123"}
+```
+
+**Get nest status:**
+```json
+{"action": "invasion_control", "operation": "nest_status", "nest_name": "production"}
+```
+
+**Deploy an egg:**
+```json
+{"action": "invasion_control", "operation": "hatch_egg", "nest_id": "nest-123", "egg_id": "egg-456"}
+```
+
+**Send a task to a running egg:**
+```json
+{"action": "invasion_control", "operation": "send_task", "nest_id": "nest-123", "egg_id": "egg-456", "task": "Check the system metrics on all servers"}
+```
+
+**Send a secret to a running egg:**
+```json
+{"action": "invasion_control", "operation": "send_secret", "nest_id": "nest-123", "egg_id": "egg-456", "key": "API_KEY", "value": "secret123"}
+```
+
+**Stop an egg:**
+```json
+{"action": "invasion_control", "operation": "stop_egg", "nest_id": "nest-123", "egg_id": "egg-456"}
+```
+
+## Architecture
+
+- **Nests**: Target environments (servers, VMs, containers) where eggs are deployed
+- **Eggs**: Sub-agent configurations that define what code runs in a nest
+- **Hatching**: The process of deploying an egg to a nest
+- **Tasks**: Natural language instructions sent to running eggs
+- **Secrets**: Credentials or sensitive data passed to running eggs
+
+## Notes
+
+- Nests and eggs are the core concepts in the invasion control system
+- Eggs must be assigned to a nest before they can be hatched
+- Running eggs can receive tasks and secrets dynamically
+- Use `egg_status` to monitor the state of deployed eggs
