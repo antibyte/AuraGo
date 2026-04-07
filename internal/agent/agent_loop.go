@@ -1668,12 +1668,21 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				historyManager.Add(openai.ChatMessageRoleAssistant, content, id, false, true)
 			}
 
+			// Large XML fallback payloads (e.g. a full write_file with kilobytes of code)
+			// balloon the context and cause the next LLM call to return empty.
+			const xmlFallbackContentMaxBytes = 500
+
 			xmlFeedback := fmt.Sprintf(
 				"NOTE: You called '%s' using a proprietary XML format (minimax:tool_call). "+
 					"The tool was executed, but please always use the native function-calling API instead. "+
 					"If a tool is not in your current tool list, you can still call it directly by name — "+
 					"the system accepts all enabled tools. Use discover_tools to find available tools.",
 				tc.Action)
+			if len(content) > xmlFallbackContentMaxBytes {
+				xmlFeedback += " IMPORTANT: To edit existing files, use the `file_editor` tool with" +
+					" `str_replace` or `insert_after` — it modifies only the targeted section and" +
+					" never requires sending the complete file content."
+			}
 			xmlFeedback = applyEmotionRecoveryNudge(xmlFeedback, emotionPolicy)
 			id, err = shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, xmlFeedback, false, true)
 			if err != nil {
@@ -1683,12 +1692,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				historyManager.Add(openai.ChatMessageRoleUser, xmlFeedback, id, false, true)
 			}
 
-			// When the XML fallback content is very large (e.g. a full write_file payload
-			// with kilobytes of code), storing it verbatim in req.Messages balloons the
-			// context and routinely causes the next LLM call to return empty.  Replace it
-			// with a compact synthetic representation so the corrective feedback cycle
-			// does not destroy the remaining context budget.
-			const xmlFallbackContentMaxBytes = 500
+			// Replace verbatim content in req.Messages with a compact representation so
+			// the corrective feedback cycle does not destroy the remaining context budget.
 			xmlAssistantContent := content
 			if len(xmlAssistantContent) > xmlFallbackContentMaxBytes {
 				xmlAssistantContent = fmt.Sprintf(`{"action":"%s"}`, tc.Action)
