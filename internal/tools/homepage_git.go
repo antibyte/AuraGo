@@ -23,7 +23,7 @@ func HomepageGitInit(cfg HomepageConfig, projectDir string, logger *slog.Logger)
 	}
 	logger.Info("[Homepage] Git init", "dir", projectDir)
 	dockerCfg := DockerConfig{Host: cfg.DockerHost}
-	cmd := fmt.Sprintf("cd /workspace/%s && git init -b main && git add -A && git commit -m 'Initial commit' --allow-empty 2>&1", projectDir)
+	cmd := fmt.Sprintf("cd /workspace/%s && git init -b main && git config user.email 'aurago@local' && git config user.name 'Aurago Agent' && git add -A && git commit -m 'Initial commit' --allow-empty 2>&1", projectDir)
 	return DockerExec(dockerCfg, homepageContainerName, cmd, "")
 }
 
