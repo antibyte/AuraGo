@@ -3,6 +3,7 @@ package agent
 import (
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/sashabaranov/go-openai"
 )
@@ -393,5 +394,111 @@ func TestStreamingAccountingState_FinalizedDefaultsFalse(t *testing.T) {
 	st := streamingAccountingState{}
 	if st.finalized {
 		t.Error("expected finalized=false initially")
+	}
+}
+
+func TestShouldReloadCoreMemory_TTLExpired(t *testing.T) {
+	orig := nowFunc
+	defer func() { nowFunc = orig }()
+
+	base := time.Date(2026, 4, 7, 12, 0, 0, 0, time.UTC)
+	nowFunc = func() time.Time { return base.Add(6 * time.Minute) }
+
+	loadedAt := base
+	dbUpdatedAt := base
+	cachedUpdatedAt := base
+
+	if !ShouldReloadCoreMemory(false, loadedAt, dbUpdatedAt, cachedUpdatedAt) {
+		t.Error("expected reload when TTL expired")
+	}
+}
+
+func TestShouldReloadCoreMemory_TTLNotExpired(t *testing.T) {
+	orig := nowFunc
+	defer func() { nowFunc = orig }()
+
+	base := time.Date(2026, 4, 7, 12, 0, 0, 0, time.UTC)
+	nowFunc = func() time.Time { return base.Add(2 * time.Minute) }
+
+	loadedAt := base
+	dbUpdatedAt := base
+	cachedUpdatedAt := base
+
+	if ShouldReloadCoreMemory(false, loadedAt, dbUpdatedAt, cachedUpdatedAt) {
+		t.Error("expected no reload when TTL not expired")
+	}
+}
+
+func TestShouldReloadCoreMemory_VersionChanged(t *testing.T) {
+	orig := nowFunc
+	defer func() { nowFunc = orig }()
+
+	base := time.Date(2026, 4, 7, 12, 0, 0, 0, time.UTC)
+	nowFunc = func() time.Time { return base }
+
+	loadedAt := base
+	dbUpdatedAt := base.Add(1 * time.Minute)
+	cachedUpdatedAt := base
+
+	if !ShouldReloadCoreMemory(false, loadedAt, dbUpdatedAt, cachedUpdatedAt) {
+		t.Error("expected reload when version changed")
+	}
+}
+
+func TestShouldReloadCoreMemory_DirtyFlag(t *testing.T) {
+	orig := nowFunc
+	defer func() { nowFunc = orig }()
+
+	base := time.Date(2026, 4, 7, 12, 0, 0, 0, time.UTC)
+	nowFunc = func() time.Time { return base }
+
+	loadedAt := base
+	dbUpdatedAt := base
+	cachedUpdatedAt := base
+
+	if !ShouldReloadCoreMemory(true, loadedAt, dbUpdatedAt, cachedUpdatedAt) {
+		t.Error("expected reload when dirty flag is set")
+	}
+}
+
+func TestShouldReloadCoreMemory_NotYetLoaded(t *testing.T) {
+	orig := nowFunc
+	defer func() { nowFunc = orig }()
+
+	base := time.Date(2026, 4, 7, 12, 0, 0, 0, time.UTC)
+	nowFunc = func() time.Time { return base.Add(10 * time.Minute) }
+
+	loadedAt := time.Time{}
+	dbUpdatedAt := base
+	cachedUpdatedAt := time.Time{}
+
+	if ShouldReloadCoreMemory(false, loadedAt, dbUpdatedAt, cachedUpdatedAt) {
+		t.Error("expected no reload when not yet loaded (loadedAt is zero)")
+	}
+}
+
+func TestShouldReloadCoreMemory_RepeatedLoopsNoChange(t *testing.T) {
+	orig := nowFunc
+	defer func() { nowFunc = orig }()
+
+	base := time.Date(2026, 4, 7, 12, 0, 0, 0, time.UTC)
+	nowFunc = func() time.Time { return base.Add(1 * time.Minute) }
+
+	loadedAt := base
+	dbUpdatedAt := base
+	cachedUpdatedAt := base
+
+	if ShouldReloadCoreMemory(false, loadedAt, dbUpdatedAt, cachedUpdatedAt) {
+		t.Error("expected no reload in repeated loop with no changes")
+	}
+
+	nowFunc = func() time.Time { return base.Add(2 * time.Minute) }
+	if ShouldReloadCoreMemory(false, loadedAt, dbUpdatedAt, cachedUpdatedAt) {
+		t.Error("expected no reload in second repeated loop with no changes")
+	}
+
+	nowFunc = func() time.Time { return base.Add(4 * time.Minute) }
+	if ShouldReloadCoreMemory(false, loadedAt, dbUpdatedAt, cachedUpdatedAt) {
+		t.Error("expected no reload in third repeated loop with no changes (still within TTL)")
 	}
 }

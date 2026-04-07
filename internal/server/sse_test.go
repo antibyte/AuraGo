@@ -139,6 +139,113 @@ func TestBroadcastTypeTokenUpdate(t *testing.T) {
 	b.unsubscribe(ch)
 }
 
+func TestBroadcastTypeTokenUpdate_WithFinalAndSource(t *testing.T) {
+	b := NewSSEBroadcaster()
+	ch := b.subscribe()
+
+	b.BroadcastType(EventTokenUpdate, TokenUpdatePayload{
+		PromptTokens:     100,
+		CompletionTokens: 50,
+		TotalTokens:      150,
+		SessionTotal:     300,
+		GlobalTotal:      5000,
+		IsEstimated:      false,
+		IsFinal:          true,
+		Source:           "provider_usage",
+	})
+
+	gotMsg := false
+	for i := 0; i < 10; i++ {
+		select {
+		case msg := <-ch:
+			var evt struct {
+				Type    SSEEventType       `json:"type"`
+				Payload TokenUpdatePayload `json:"payload"`
+			}
+			if err := json.Unmarshal([]byte(msg), &evt); err != nil {
+				t.Fatalf("failed to unmarshal typed event: %v", err)
+			}
+			if evt.Type != EventTokenUpdate {
+				t.Fatalf("event type = %q, want %q", evt.Type, EventTokenUpdate)
+			}
+			if !evt.Payload.IsFinal {
+				t.Error("payload is_final = false, want true")
+			}
+			if evt.Payload.Source != "provider_usage" {
+				t.Errorf("payload source = %q, want %q", evt.Payload.Source, "provider_usage")
+			}
+			if evt.Payload.TotalTokens != 150 {
+				t.Fatalf("payload total = %d, want 150", evt.Payload.TotalTokens)
+			}
+			gotMsg = true
+		default:
+			time.Sleep(5 * time.Millisecond)
+		}
+		if gotMsg {
+			break
+		}
+	}
+	if !gotMsg {
+		t.Fatal("no message received from broadcaster")
+	}
+	b.unsubscribe(ch)
+}
+
+func TestBroadcastTypeTokenUpdate_FallbackEstimateSource(t *testing.T) {
+	b := NewSSEBroadcaster()
+	ch := b.subscribe()
+
+	b.BroadcastType(EventTokenUpdate, TokenUpdatePayload{
+		PromptTokens:     80,
+		CompletionTokens: 120,
+		TotalTokens:      200,
+		SessionTotal:     500,
+		GlobalTotal:      5000,
+		IsEstimated:      true,
+		IsFinal:          true,
+		Source:           "fallback_estimate",
+	})
+
+	gotMsg := false
+	for i := 0; i < 10; i++ {
+		select {
+		case msg := <-ch:
+			var evt struct {
+				Type    SSEEventType       `json:"type"`
+				Payload TokenUpdatePayload `json:"payload"`
+			}
+			if err := json.Unmarshal([]byte(msg), &evt); err != nil {
+				t.Fatalf("failed to unmarshal typed event: %v", err)
+			}
+			if evt.Type != EventTokenUpdate {
+				t.Fatalf("event type = %q, want %q", evt.Type, EventTokenUpdate)
+			}
+			if !evt.Payload.IsFinal {
+				t.Error("payload is_final = false, want true")
+			}
+			if evt.Payload.Source != "fallback_estimate" {
+				t.Errorf("payload source = %q, want %q", evt.Payload.Source, "fallback_estimate")
+			}
+			if !evt.Payload.IsEstimated {
+				t.Error("payload is_estimated = false, want true for fallback_estimate")
+			}
+			if evt.Payload.TotalTokens != 200 {
+				t.Fatalf("payload total = %d, want 200", evt.Payload.TotalTokens)
+			}
+			gotMsg = true
+		default:
+			time.Sleep(5 * time.Millisecond)
+		}
+		if gotMsg {
+			break
+		}
+	}
+	if !gotMsg {
+		t.Fatal("no message received from broadcaster")
+	}
+	b.unsubscribe(ch)
+}
+
 func TestSSEEventTypeConstants(t *testing.T) {
 	tests := []struct {
 		evt      SSEEventType

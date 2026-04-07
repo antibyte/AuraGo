@@ -702,11 +702,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		// or when the DB timestamp has changed due to external modifications).
 		if coreMemDirty || shortTermMem != nil {
 			dbUpdatedAt, err := shortTermMem.GetCoreMemoryUpdatedAt()
-			if err == nil && (!coreMemDirty && !dbUpdatedAt.IsZero() && !coreMemUpdatedAt.IsZero() && !dbUpdatedAt.Equal(coreMemUpdatedAt)) {
+			if err == nil && !dbUpdatedAt.IsZero() && !coreMemUpdatedAt.IsZero() && !dbUpdatedAt.Equal(coreMemUpdatedAt) {
 				coreMemDirty = true
 			}
-			needTTLCheck := !coreMemDirty && !coreMemLoadedAt.IsZero() && time.Since(coreMemLoadedAt) > coreMemCacheTTL
-			if coreMemDirty || needTTLCheck {
+			if ShouldReloadCoreMemory(coreMemDirty, coreMemLoadedAt, dbUpdatedAt, coreMemUpdatedAt) {
 				coreMemCache = shortTermMem.ReadCoreMemory()
 				coreMemLoadedAt = time.Now()
 				if err == nil {
@@ -1298,6 +1297,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 		if stream {
 			streamAcct := streamingAccountingState{}
+			contextCancelled := false
 			var stm *openai.ChatCompletionStream
 			var streamErr error
 			if emptyRetried {
@@ -1345,6 +1345,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				if rErr != nil {
 					if rErr.Error() != "EOF" {
 						currentLogger.Error("Stream error", "error", rErr)
+						if llmCtx.Err() == context.Canceled {
+							contextCancelled = true
+						}
 					}
 					break
 				}
@@ -1460,10 +1463,19 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 
 			// Finalize token accounting: prefer provider usage, fall back to estimate.
+			// If context was cancelled mid-stream and we have no provider usage, do NOT
+			// apply fallback estimation — we should not artificially estimate completion
+			// tokens for content that was never fully delivered.
 			if streamAcct.hasProviderUsage {
 				promptTokens = streamAcct.providerPrompt
 				completionTokens = streamAcct.providerCompletion
 				totalTokens = promptTokens + completionTokens
+				tokenSource = "provider_usage"
+			} else if contextCancelled {
+				// User interrupted mid-stream with no usage data: do not estimate
+				promptTokens = 0
+				completionTokens = 0
+				totalTokens = 0
 				tokenSource = "provider_usage"
 			} else {
 				completionTokens = estimateTokensForModel(content, req.Model)

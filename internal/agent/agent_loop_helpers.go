@@ -7,12 +7,31 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 
 	"aurago/internal/config"
 	"aurago/internal/tools"
 
 	"github.com/sashabaranov/go-openai"
 )
+
+var nowFunc = time.Now
+
+func ShouldReloadCoreMemory(dirty bool, loadedAt time.Time, dbUpdatedAt, cachedUpdatedAt time.Time) bool {
+	if dirty {
+		return true
+	}
+	if loadedAt.IsZero() {
+		return false
+	}
+	if !dbUpdatedAt.IsZero() && !cachedUpdatedAt.IsZero() && !dbUpdatedAt.Equal(cachedUpdatedAt) {
+		return true
+	}
+	if nowFunc().Sub(loadedAt) > coreMemCacheTTL {
+		return true
+	}
+	return false
+}
 
 func mergeStreamToolCallChunk(streamToolCalls map[int]*openai.ToolCall, tc openai.ToolCall) {
 	idx := 0
