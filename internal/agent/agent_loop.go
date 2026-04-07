@@ -1674,7 +1674,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 			xmlFeedback := fmt.Sprintf(
 				"NOTE: You called '%s' using a proprietary XML format (minimax:tool_call). "+
-					"The tool was executed, but please always use the native function-calling API instead. "+
+					"The tool has already been executed and the action is COMPLETE — do NOT repeat it. "+
+					"Continue with the next step of the task. "+
+					"For future calls, always use the native function-calling API instead. "+
 					"If a tool is not in your current tool list, you can still call it directly by name — "+
 					"the system accepts all enabled tools. Use discover_tools to find available tools.",
 				tc.Action)
