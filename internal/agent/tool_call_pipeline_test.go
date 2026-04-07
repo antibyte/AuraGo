@@ -414,3 +414,28 @@ func TestParseToolCallBracketFormatInlineCloseTag(t *testing.T) {
 		t.Fatalf("expected action=execute_shell, got %q", result.Action)
 	}
 }
+
+func TestParseToolCallBracketFormatSingleQuotes(t *testing.T) {
+	content := `[TOOL_CALL]{tool => 'homepage', args => {--operation "read_file" --path "phaser-demo/src/main.ts"}}[/TOOL_CALL]`
+	result := ParseToolCall(content)
+	if !result.IsTool {
+		t.Fatal("expected IsTool=true for bracket format with single-quoted tool name")
+	}
+	if result.Action != "homepage" {
+		t.Fatalf("expected action=homepage, got %q", result.Action)
+	}
+	if !result.XMLFallbackDetected {
+		t.Fatal("expected XMLFallbackDetected=true for bracket format tool call")
+	}
+}
+
+func TestParseToolCallBracketFormatSingleQuotesMultiline(t *testing.T) {
+	content := "[[TOOL_CALL]\n{tool => 'homepage', args => {\n--operation \"read_file\"\n--path \"phaser-demo/src/main.ts\"\n}}\n[/TOOL_CALL]"
+	result := ParseToolCall(content)
+	if !result.IsTool {
+		t.Fatal("expected IsTool=true for multiline bracket format with single quotes")
+	}
+	if result.Action != "homepage" {
+		t.Fatalf("expected action=homepage, got %q", result.Action)
+	}
+}

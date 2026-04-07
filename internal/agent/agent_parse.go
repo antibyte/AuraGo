@@ -458,7 +458,6 @@ func parseBracketToolCallBlock(block string) (ToolCall, bool) {
 	var tc ToolCall
 	lower := strings.ToLower(block)
 
-	// Find: tool => "name"
 	toolIdx := strings.Index(lower, "tool")
 	if toolIdx == -1 {
 		return tc, false
@@ -468,10 +467,11 @@ func parseBracketToolCallBlock(block string) (ToolCall, bool) {
 		return tc, false
 	}
 	afterArrow := strings.TrimSpace(block[toolIdx+arrowIdx+2:])
-	if len(afterArrow) == 0 || afterArrow[0] != '"' {
+	if len(afterArrow) == 0 || (afterArrow[0] != '"' && afterArrow[0] != '\'') {
 		return tc, false
 	}
-	closeQ := strings.Index(afterArrow[1:], `"`)
+	quoteChar := afterArrow[0]
+	closeQ := strings.IndexByte(afterArrow[1:], quoteChar)
 	if closeQ == -1 {
 		return tc, false
 	}
@@ -480,7 +480,6 @@ func parseBracketToolCallBlock(block string) (ToolCall, bool) {
 		return tc, false
 	}
 
-	// Build a JSON map from --key "value" pairs found in the args block
 	fields := map[string]interface{}{
 		"action": tc.Action,
 	}
@@ -491,7 +490,6 @@ func parseBracketToolCallBlock(block string) (ToolCall, bool) {
 			break
 		}
 		rest = rest[dashIdx+2:]
-		// Find the key (up to next whitespace)
 		keyEnd := strings.IndexAny(rest, " \t\r\n")
 		if keyEnd == -1 {
 			break
@@ -502,11 +500,11 @@ func parseBracketToolCallBlock(block string) (ToolCall, bool) {
 			break
 		}
 		var val string
-		if rest[0] == '"' {
-			// Quoted value — find closing quote (handle escaped quotes)
+		if rest[0] == '"' || rest[0] == '\'' {
+			qc := rest[0]
 			i := 1
 			for i < len(rest) {
-				if rest[i] == '"' && (i == 0 || rest[i-1] != '\\') {
+				if rest[i] == qc && (i == 0 || rest[i-1] != '\\') {
 					break
 				}
 				i++
@@ -518,7 +516,6 @@ func parseBracketToolCallBlock(block string) (ToolCall, bool) {
 				rest = ""
 			}
 		} else {
-			// Unquoted value — up to next whitespace
 			valEnd := strings.IndexAny(rest, " \t\r\n")
 			if valEnd == -1 {
 				val = rest
@@ -533,7 +530,6 @@ func parseBracketToolCallBlock(block string) (ToolCall, bool) {
 		}
 	}
 
-	// Marshal to JSON and unmarshal into ToolCall to handle all field mappings
 	jsonBytes, err := json.Marshal(fields)
 	if err != nil {
 		return tc, false
