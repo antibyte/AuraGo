@@ -1306,8 +1306,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			// We hold enough trailing bytes to catch any tag spanning chunk boundaries.
 			const doneTagStr = "<done/>"
 			const minimaxToolCallPrefix = "minimax:tool_call"
-			const xmlToolCallPrefix = "<tool_call" // matches <tool_call> and <tool_call\n> variants
-			const actionTagPrefix = "<action>"      // bare <action>toolname</action> emitted by some models
+			const xmlToolCallPrefix = "<tool_call"      // matches <tool_call> and <tool_call\n> variants
+			const actionTagPrefix = "<action>"          // bare <action>toolname</action> emitted by some models
 			const toolResponsePrefix = "<tool_response" // model hallucinating a tool response XML block
 			// holdLen must cover the longest tag prefix minus 1
 			const doneTagHoldLen = len(minimaxToolCallPrefix) - 1 // 16 bytes (≥ len("<done/>")-1 = 6)

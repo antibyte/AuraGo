@@ -120,7 +120,7 @@ func ExecuteSmartFileRead(ctx context.Context, llmCfg SummaryLLMConfig, logger *
 			return encode(SmartFileReadResult{Status: "error", Message: err.Error()})
 		}
 		if query == "" {
-			query = "Summarize the important content, key findings, and suspicious or noteworthy details in this file."
+			query = "Summarize the content: what is the purpose of this file, what are the key values or entries, and are there any notable or suspicious details?"
 		}
 		summaryJSON, err := smartFileReadSummariseFunc(ctx, llmCfg, logger, summarySource, query, "file contents")
 		if err != nil {
@@ -284,6 +284,18 @@ func buildSmartFileSample(resolved, strategy string, lineCount int) (string, map
 		totalLines, err := countFileLinesDetailed(resolved)
 		if err != nil {
 			return "", nil, err
+		}
+		// For small files where lineCount covers most or all of the file,
+		// just return the full content instead of three overlapping sections.
+		if totalLines <= lineCount*2 {
+			data, err := os.ReadFile(resolved)
+			if err != nil {
+				return "", nil, err
+			}
+			return formatSmartFileSection("FULL CONTENT", strings.Split(string(data), "\n")), map[string]interface{}{
+				"strategy": "full",
+				"sections": 1,
+			}, nil
 		}
 		head, err := readLineRangeDetailed(resolved, 1, lineCount)
 		if err != nil {
