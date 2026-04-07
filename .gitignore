@@ -115,4 +115,6 @@ CLAUDE.md
 AGENTS.md
 .github/
 .planning/
-disposable/
+disposable/linux
+macos
+windows
