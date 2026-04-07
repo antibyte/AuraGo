@@ -110,16 +110,20 @@ type LLMStreamDonePayload struct {
 }
 
 type ThinkingBlockPayload struct {
-	Thinking string `json:"thinking,omitempty"`
+	Provider string `json:"provider,omitempty"`
+	Content  string `json:"content,omitempty"`
+	State    string `json:"state,omitempty"` // "start", "delta", "stop"
 }
 
 type TokenUpdatePayload struct {
-	PromptTokens     int  `json:"prompt"`
-	CompletionTokens int  `json:"completion"`
-	TotalTokens      int  `json:"total"`
-	SessionTotal     int  `json:"session_total"`
-	GlobalTotal      int  `json:"global_total"`
-	IsEstimated      bool `json:"is_estimated"`
+	PromptTokens     int    `json:"prompt"`
+	CompletionTokens int    `json:"completion"`
+	TotalTokens      int    `json:"total"`
+	SessionTotal     int    `json:"session_total"`
+	GlobalTotal      int    `json:"global_total"`
+	IsEstimated      bool   `json:"is_estimated"`
+	IsFinal          bool   `json:"is_final"`
+	Source           string `json:"source,omitempty"` // "provider_usage", "tokenizer", "fallback_estimate"
 }
 
 type ToolCallPreviewPayload struct {

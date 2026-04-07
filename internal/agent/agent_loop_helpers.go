@@ -114,6 +114,19 @@ func (a *StreamToolCallAssembler) Assemble() []openai.ToolCall {
 	return result
 }
 
+type streamingAccountingState struct {
+	hasProviderUsage   bool
+	providerPrompt     int
+	providerCompletion int
+	finalized          bool
+}
+
+func (s *streamingAccountingState) recordProviderUsage(prompt, completion int) {
+	s.providerPrompt = prompt
+	s.providerCompletion = completion
+	s.hasProviderUsage = true
+}
+
 type toolGuideSearcher interface {
 	SearchToolGuides(query string, topK int) ([]string, error)
 }

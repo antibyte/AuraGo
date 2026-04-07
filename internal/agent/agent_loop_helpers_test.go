@@ -365,3 +365,33 @@ func TestBuildAdaptiveToolPriorityAddsCuratedDependencyNeighbors(t *testing.T) {
 		t.Fatalf("expected curated homepage neighbor homepage_registry, got %v", prioritized)
 	}
 }
+
+func TestStreamingAccountingState_RecordsProviderUsage(t *testing.T) {
+	st := streamingAccountingState{}
+	if st.hasProviderUsage {
+		t.Fatal("expected hasProviderUsage=false initially")
+	}
+	st.recordProviderUsage(100, 50)
+	if !st.hasProviderUsage {
+		t.Error("expected hasProviderUsage=true after recordProviderUsage")
+	}
+	if st.providerPrompt != 100 || st.providerCompletion != 50 {
+		t.Errorf("providerPrompt=%d providerCompletion=%d, want 100, 50", st.providerPrompt, st.providerCompletion)
+	}
+}
+
+func TestStreamingAccountingState_OverwritesOnMultipleRecords(t *testing.T) {
+	st := streamingAccountingState{}
+	st.recordProviderUsage(100, 50)
+	st.recordProviderUsage(200, 75)
+	if st.providerPrompt != 200 || st.providerCompletion != 75 {
+		t.Errorf("expected last record (200, 75), got (%d, %d)", st.providerPrompt, st.providerCompletion)
+	}
+}
+
+func TestStreamingAccountingState_FinalizedDefaultsFalse(t *testing.T) {
+	st := streamingAccountingState{}
+	if st.finalized {
+		t.Error("expected finalized=false initially")
+	}
+}

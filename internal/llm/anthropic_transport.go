@@ -3,6 +3,7 @@ package llm
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -11,6 +12,14 @@ import (
 	"strconv"
 	"strings"
 )
+
+type thinkingCallbackContextKey struct{}
+
+var cbCtxKey = thinkingCallbackContextKey{}
+
+func WithThinkingCallback(ctx context.Context, cb func(content, state string)) context.Context {
+	return context.WithValue(ctx, cbCtxKey, cb)
+}
 
 const anthropicAPIVersion = "2024-10-22"
 const anthropicDefaultMaxTokens = 8192
@@ -24,7 +33,8 @@ const anthropicDefaultMaxTokens = 8192
 // Pattern: same as miniMaxTransport in client.go — intercept in-flight,
 // translate bidirectionally, zero blast radius.
 type anthropicTransport struct {
-	base http.RoundTripper
+	base             http.RoundTripper
+	ThinkingCallback func(content, state string)
 }
 
 // ---------------------------------------------------------------------------
@@ -343,7 +353,8 @@ func (t *anthropicTransport) RoundTrip(req *http.Request) (*http.Response, error
 	}
 
 	if oaiReq.Stream {
-		return translateAnthropicStream(resp, oaiReq.Model)
+		thinkingCB, _ := req.Context().Value(cbCtxKey).(func(content, state string))
+		return translateAnthropicStream(resp, oaiReq.Model, thinkingCB)
 	}
 	return translateAnthropicResponse(resp)
 }
@@ -926,13 +937,13 @@ func translateAnthropicError(resp *http.Response) (*http.Response, error) {
 // Streaming translation: Anthropic SSE → OpenAI SSE
 // ---------------------------------------------------------------------------
 
-func translateAnthropicStream(resp *http.Response, model string) (*http.Response, error) {
+func translateAnthropicStream(resp *http.Response, model string, thinkingCB func(content, state string)) (*http.Response, error) {
 	pr, pw := io.Pipe()
 	originalBody := resp.Body // capture before replacing
 
 	go func() {
 		defer pw.Close()
-		translateStreamEvents(originalBody, pw, model)
+		translateStreamEvents(originalBody, pw, model, thinkingCB)
 		originalBody.Close()
 	}()
 
@@ -941,7 +952,7 @@ func translateAnthropicStream(resp *http.Response, model string) (*http.Response
 	return resp, nil
 }
 
-func translateStreamEvents(reader io.Reader, writer io.Writer, model string) {
+func translateStreamEvents(reader io.Reader, writer io.Writer, model string, thinkingCB func(content, state string)) {
 	scanner := bufio.NewScanner(reader)
 	// Increase buffer for large streaming payloads
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
@@ -955,6 +966,9 @@ func translateStreamEvents(reader io.Reader, writer io.Writer, model string) {
 	// Track block index → tool name mapping for streaming
 	blockToolNames := map[int]string{}
 	blockToolIDs := map[int]string{}
+
+	// Track active thinking block state
+	thinkingBlockActive := false
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -1026,6 +1040,11 @@ func translateStreamEvents(reader io.Reader, writer io.Writer, model string) {
 				}
 				writeSSEChunk(writer, chunk)
 				toolCallIndex++
+			} else if evt.ContentBlock.Type == "thinking" {
+				thinkingBlockActive = true
+				if thinkingCB != nil {
+					thinkingCB("", "start")
+				}
 			}
 			// text blocks: no initial chunk needed
 
@@ -1068,10 +1087,20 @@ func translateStreamEvents(reader io.Reader, writer io.Writer, model string) {
 					},
 				}
 				writeSSEChunk(writer, chunk)
+
+			case "thinking_delta":
+				if thinkingBlockActive && thinkingCB != nil {
+					thinkingCB(evt.Delta.Thinking, "delta")
+				}
 			}
 
 		case "content_block_stop":
-			// No-op for OpenAI format
+			if thinkingBlockActive {
+				thinkingBlockActive = false
+				if thinkingCB != nil {
+					thinkingCB("", "stop")
+				}
+			}
 
 		case "message_delta":
 			var evt anthropicStreamMessageDelta

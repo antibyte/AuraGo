@@ -211,3 +211,45 @@ func TestIsToolError(t *testing.T) {
 		})
 	}
 }
+
+func TestCompressHistory_LargeSystemPromptDoesNotTriggerCompression(t *testing.T) {
+	largeSystem := strings.Repeat("SYSTEM PROMPT CONTENT. ", 500)
+	messages := []openai.ChatCompletionMessage{
+		{Role: openai.ChatMessageRoleSystem, Content: largeSystem},
+		{Role: openai.ChatMessageRoleUser, Content: "Hello"},
+		{Role: openai.ChatMessageRoleAssistant, Content: "Hi!"},
+		{Role: openai.ChatMessageRoleUser, Content: "How are you?"},
+		{Role: openai.ChatMessageRoleAssistant, Content: "I'm fine, thanks!"},
+	}
+
+	client := &mockChatClient{response: "Summary"}
+	result, _, res := CompressHistory(context.Background(), messages, 100000, "test", client, 0, testLogger)
+
+	if res.Compressed {
+		t.Error("Large system prompt alone should not trigger compression; compressible history is small")
+	}
+	if len(result) != len(messages) {
+		t.Error("Messages should be unchanged when compressible history is below threshold")
+	}
+}
+
+func TestCompressHistory_FixedSystemPartsDoNotInflateThreshold(t *testing.T) {
+	systemPrompt := strings.Repeat("Fixed system instruction. ", 100)
+	messages := []openai.ChatCompletionMessage{
+		{Role: openai.ChatMessageRoleSystem, Content: systemPrompt},
+	}
+	for i := 0; i < 12; i++ {
+		messages = append(messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: strings.Repeat("User message. ", 30)})
+		messages = append(messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: strings.Repeat("Assistant reply. ", 30)})
+	}
+
+	client := &mockChatClient{response: "Summary"}
+	result, _, res := CompressHistory(context.Background(), messages, 200, "test", client, 0, testLogger)
+
+	if !res.Compressed {
+		t.Error("With large real conversation history compression should trigger despite large system prompt")
+	}
+	if len(result) >= len(messages) {
+		t.Errorf("Result should be shorter after compression: got %d, had %d", len(result), len(messages))
+	}
+}

@@ -69,7 +69,10 @@ func (b *TelnyxSMSBroker) SendLLMStreamDelta(content, toolName, toolID string, i
 
 func (b *TelnyxSMSBroker) SendLLMStreamDone(finishReason string) {}
 
-func (b *TelnyxSMSBroker) SendTokenUpdate(prompt, completion, total, sessionTotal, globalTotal int, isEstimated bool) {
+func (b *TelnyxSMSBroker) SendTokenUpdate(prompt, completion, total, sessionTotal, globalTotal int, isEstimated, isFinal bool, source string) {
+}
+
+func (b *TelnyxSMSBroker) SendThinkingBlock(provider, content, state string) {
 }
 
 // TelnyxCallBroker implements agent.FeedbackProvider for active voice calls.
@@ -129,7 +132,10 @@ func (b *TelnyxCallBroker) SendLLMStreamDelta(content, toolName, toolID string, 
 
 func (b *TelnyxCallBroker) SendLLMStreamDone(finishReason string) {}
 
-func (b *TelnyxCallBroker) SendTokenUpdate(prompt, completion, total, sessionTotal, globalTotal int, isEstimated bool) {
+func (b *TelnyxCallBroker) SendTokenUpdate(prompt, completion, total, sessionTotal, globalTotal int, isEstimated, isFinal bool, source string) {
+}
+
+func (b *TelnyxCallBroker) SendThinkingBlock(provider, content, state string) {
 }
 
 // FormatSMSForAgent wraps incoming SMS content for the agent with external data protection.

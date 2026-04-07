@@ -28,7 +28,8 @@ type ProxmoxConfig struct {
 var proxmoxClientCache sync.Map
 
 func getProxmoxClient(cfg ProxmoxConfig) *http.Client {
-	if cached, ok := proxmoxClientCache.Load(cfg.Insecure); ok {
+	cacheKey := cfg.URL + "|" + cfg.TokenID + "|" + strconv.FormatBool(cfg.Insecure)
+	if cached, ok := proxmoxClientCache.Load(cacheKey); ok {
 		return cached.(*http.Client)
 	}
 	transport := http.DefaultTransport.(*http.Transport).Clone()
@@ -40,7 +41,7 @@ func getProxmoxClient(cfg ProxmoxConfig) *http.Client {
 		Timeout:   30 * time.Second,
 		Transport: transport,
 	}
-	actual, _ := proxmoxClientCache.LoadOrStore(cfg.Insecure, client)
+	actual, _ := proxmoxClientCache.LoadOrStore(cacheKey, client)
 	return actual.(*http.Client)
 }
 
@@ -298,19 +299,21 @@ func ProxmoxListVMs(cfg ProxmoxConfig, node string) string {
 			if err := json.Unmarshal(proxmoxExtractData(data), &raw); err != nil {
 				return fmt.Sprintf(`{"status":"error","message":"Failed to parse VMs: %v"}`, err)
 			}
-			normalized := proxmoxNormalizeResourceList(raw, "qemu", node)
-			summary := proxmoxBuildStateSummary(normalized)
-			rawOut, _ := json.Marshal(raw)
-			normalizedOut, _ := json.Marshal(normalized)
-			summaryOut, _ := json.Marshal(summary)
-			return fmt.Sprintf(`{"status":"ok","scope":"node","node":%s,"vms":%s,"monitoring":%s,"summary":%s}`, proxmoxJSONStr(node), rawOut, normalizedOut, summaryOut)
+			if len(raw) > 0 {
+				normalized := proxmoxNormalizeResourceList(raw, "qemu", node)
+				summary := proxmoxBuildStateSummary(normalized)
+				rawOut, _ := json.Marshal(raw)
+				normalizedOut, _ := json.Marshal(normalized)
+				summaryOut, _ := json.Marshal(summary)
+				return fmt.Sprintf(`{"status":"ok","scope":"node","node":%s,"vms":%s,"monitoring":%s,"summary":%s}`, proxmoxJSONStr(node), rawOut, normalizedOut, summaryOut)
+			}
 		}
 		if code != http.StatusForbidden {
 			return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%s}`, code, proxmoxJSONStr(string(data)))
 		}
 	}
 
-	resources, _, err := proxmoxGetClusterResourceList(cfg, "vm")
+	resources, _, err := proxmoxGetClusterResourceList(cfg, "qemu")
 	if err != nil {
 		if node == "" {
 			return `{"status":"error","message":"No node specified. Set proxmox.node in config or provide node parameter."}`
@@ -345,19 +348,21 @@ func ProxmoxListContainers(cfg ProxmoxConfig, node string) string {
 			if err := json.Unmarshal(proxmoxExtractData(data), &raw); err != nil {
 				return fmt.Sprintf(`{"status":"error","message":"Failed to parse containers: %v"}`, err)
 			}
-			normalized := proxmoxNormalizeResourceList(raw, "lxc", node)
-			summary := proxmoxBuildStateSummary(normalized)
-			rawOut, _ := json.Marshal(raw)
-			normalizedOut, _ := json.Marshal(normalized)
-			summaryOut, _ := json.Marshal(summary)
-			return fmt.Sprintf(`{"status":"ok","scope":"node","node":%s,"containers":%s,"monitoring":%s,"summary":%s}`, proxmoxJSONStr(node), rawOut, normalizedOut, summaryOut)
+			if len(raw) > 0 {
+				normalized := proxmoxNormalizeResourceList(raw, "lxc", node)
+				summary := proxmoxBuildStateSummary(normalized)
+				rawOut, _ := json.Marshal(raw)
+				normalizedOut, _ := json.Marshal(normalized)
+				summaryOut, _ := json.Marshal(summary)
+				return fmt.Sprintf(`{"status":"ok","scope":"node","node":%s,"containers":%s,"monitoring":%s,"summary":%s}`, proxmoxJSONStr(node), rawOut, normalizedOut, summaryOut)
+			}
 		}
 		if code != http.StatusForbidden {
 			return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%s}`, code, proxmoxJSONStr(string(data)))
 		}
 	}
 
-	resources, _, err := proxmoxGetClusterResourceList(cfg, "vm")
+	resources, _, err := proxmoxGetClusterResourceList(cfg, "lxc")
 	if err != nil {
 		if node == "" {
 			return `{"status":"error","message":"No node specified."}`
@@ -424,7 +429,7 @@ func ProxmoxGetStatus(cfg ProxmoxConfig, node string, vmType string, vmid string
 		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%s}`, code, proxmoxJSONStr(string(data)))
 	}
 
-	resources, _, err := proxmoxGetClusterResourceList(cfg, "vm")
+	resources, _, err := proxmoxGetClusterResourceList(cfg, vmType)
 	if err != nil {
 		return fmt.Sprintf(`{"status":"error","http_code":%d,"message":%s}`, code, proxmoxJSONStr(string(data)))
 	}

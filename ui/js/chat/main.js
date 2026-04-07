@@ -1273,6 +1273,9 @@ function connectSSE() {
     // Typed LLM streaming events — sent via BroadcastType instead of raw chunk passthrough.
     let _streamingRow = null;
     let _streamingContent = '';
+    let _thinkingContent = '';
+    let _thinkingDiv = null;
+    let _inThinkingBlock = false;
     window.AuraSSE.on('llm_stream_delta', function (payload) {
         if (!payload || !payload.content) return;
         // Suppress tool-call JSON patterns in streamed content (same logic as backend filter).
@@ -1291,12 +1294,52 @@ function connectSSE() {
         }
         _streamingContent += payload.content;
         const bubble = _streamingRow.querySelector('.bubble');
-        if (bubble) bubble.textContent = _streamingContent;
+        if (!bubble) return;
+        if (_inThinkingBlock) {
+            // During thinking: don't let text content overwrite the thinking block DOM.
+            // The thinking_block handler updates _thinkingDiv.textContent directly.
+        } else if (_thinkingContent) {
+            // After thinking ended: rebuild with thinking block + new response text
+            const label = typeof t === 'function' ? t('chat.thinking_label') : 'Reasoning';
+            const detailsHtml = '<details class="thinking-block"><summary>🧠 ' + label + '</summary><div class="thinking-content">' + _thinkingContent + '</div></details>';
+            bubble.innerHTML = detailsHtml + '\n\n' + escapeHtml(_streamingContent);
+        } else {
+            bubble.textContent = _streamingContent;
+        }
         chatBox.scrollTop = chatBox.scrollHeight;
     });
     window.AuraSSE.on('llm_stream_done', function (payload) {
         _streamingRow = null;
         _streamingContent = '';
+        _thinkingContent = '';
+        _thinkingDiv = null;
+        _inThinkingBlock = false;
+    });
+    window.AuraSSE.on('thinking_block', function (payload) {
+        if (!payload || !payload.state) return;
+        if (!_streamingRow) {
+            _streamingRow = document.createElement('div');
+            _streamingRow.className = 'msg-row bot';
+            _streamingRow.innerHTML = '<div class="avatar bot">🤖</div><div class="bubble bot"></div>';
+            chatContent.appendChild(_streamingRow);
+        }
+        const bubble = _streamingRow.querySelector('.bubble');
+        if (!bubble) return;
+        if (payload.state === 'start') {
+            _inThinkingBlock = true;
+            _thinkingContent = '';
+            const label = typeof t === 'function' ? t('chat.thinking_label') : 'Reasoning';
+            const detailsHtml = '<details class="thinking-block"><summary>🧠 ' + label + '</summary><div class="thinking-content"></div></details>';
+            bubble.innerHTML = _streamingContent + detailsHtml;
+            _thinkingDiv = bubble.querySelector('.thinking-content');
+        } else if (payload.state === 'delta' && _thinkingDiv) {
+            _thinkingContent += payload.content || '';
+            _thinkingDiv.textContent = _thinkingContent;
+            chatBox.scrollTop = chatBox.scrollHeight;
+        } else if (payload.state === 'stop') {
+            _inThinkingBlock = false;
+            _thinkingDiv = null;
+        }
     });
 
     // Check auth on SSE error (may indicate 401)

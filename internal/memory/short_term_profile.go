@@ -105,12 +105,15 @@ func (s *SQLiteMemory) GetCoreMemoryFacts() ([]CoreMemoryFact, error) {
 // Returns a zero time if the table is empty. This is used by the agent loop to detect
 // external changes to core memory and invalidate the session cache accordingly.
 func (s *SQLiteMemory) GetCoreMemoryUpdatedAt() (time.Time, error) {
-	var updatedAt time.Time
-	err := s.db.QueryRow("SELECT MAX(updated_at) FROM core_memory").Scan(&updatedAt)
+	var updatedAtStr sql.NullString
+	err := s.db.QueryRow("SELECT MAX(updated_at) FROM core_memory").Scan(&updatedAtStr)
 	if err != nil {
 		return time.Time{}, err
 	}
-	return updatedAt, nil
+	if !updatedAtStr.Valid || updatedAtStr.String == "" {
+		return time.Time{}, nil
+	}
+	return time.ParseInLocation("2006-01-02 15:04:05", updatedAtStr.String, time.Local)
 }
 
 // maxCoreMemoryFactLen is the maximum byte length of a single core memory fact.

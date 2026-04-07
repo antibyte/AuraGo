@@ -64,7 +64,10 @@ func (b *coAgentBroker) SendLLMStreamDelta(content, toolName, toolID string, ind
 
 func (b *coAgentBroker) SendLLMStreamDone(finishReason string) {}
 
-func (b *coAgentBroker) SendTokenUpdate(prompt, completion, total, sessionTotal, globalTotal int, isEstimated bool) {
+func (b *coAgentBroker) SendTokenUpdate(prompt, completion, total, sessionTotal, globalTotal int, isEstimated, isFinal bool, source string) {
+}
+
+func (b *coAgentBroker) SendThinkingBlock(provider, content, state string) {
 }
 
 // SpawnCoAgent starts a co-agent goroutine and returns its ID.

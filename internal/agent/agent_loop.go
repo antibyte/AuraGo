@@ -22,6 +22,8 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
+const coreMemCacheTTL = 5 * time.Minute
+
 func retrievalLatencyBucket(elapsed time.Duration) string {
 	switch {
 	case elapsed < 50*time.Millisecond:
@@ -327,8 +329,12 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 	// Core memory cache: read once, invalidate on manage_memory calls
 	// and when the DB updated_at timestamp changes (external modifications).
+	// TTL soft-failsafe: if neither dirty nor version-changed, still re-check
+	// after coreMemCacheTTL to catch external modifications that didn't update
+	// the MAX(updated_at) in a detectable way.
 	coreMemCache := ""
 	coreMemUpdatedAt := time.Time{}
+	coreMemLoadedAt := time.Time{}
 	coreMemDirty := true // Force initial load
 
 	// Session-scoped todo list piggybacked on tool calls
@@ -699,8 +705,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			if err == nil && (!coreMemDirty && !dbUpdatedAt.IsZero() && !coreMemUpdatedAt.IsZero() && !dbUpdatedAt.Equal(coreMemUpdatedAt)) {
 				coreMemDirty = true
 			}
-			if coreMemDirty {
+			needTTLCheck := !coreMemDirty && !coreMemLoadedAt.IsZero() && time.Since(coreMemLoadedAt) > coreMemCacheTTL
+			if coreMemDirty || needTTLCheck {
 				coreMemCache = shortTermMem.ReadCoreMemory()
+				coreMemLoadedAt = time.Now()
 				if err == nil {
 					coreMemUpdatedAt = dbUpdatedAt
 				}
@@ -1277,12 +1285,19 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		// Configurable timeout for each individual LLM call to prevent infinite hangs
 		llmCtx, cancelResp := context.WithTimeout(ctx, time.Duration(cfg.CircuitBreaker.LLMTimeoutSeconds)*time.Second)
 
+		thinkingCB := func(content, state string) {
+			broker.SendThinkingBlock("anthropic", content, state)
+		}
+		llmCtx = llm.WithThinkingCallback(llmCtx, thinkingCB)
+
 		var resp openai.ChatCompletionResponse
 		var content string
 		var err error
 		var promptTokens, completionTokens, totalTokens int
+		var tokenSource string
 
 		if stream {
+			streamAcct := streamingAccountingState{}
 			var stm *openai.ChatCompletionStream
 			var streamErr error
 			if emptyRetried {
@@ -1332,6 +1347,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 						currentLogger.Error("Stream error", "error", rErr)
 					}
 					break
+				}
+				if chunk.Usage != nil {
+					streamAcct.recordProviderUsage(chunk.Usage.PromptTokens, chunk.Usage.CompletionTokens)
 				}
 				if len(chunk.Choices) > 0 {
 					if chunk.Choices[0].FinishReason != "" {
@@ -1441,12 +1459,20 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				currentLogger.Info("[Stream] Assembled streamed tool calls", "count", len(assembledToolCalls))
 			}
 
-			// Estimate streaming tokens
-			completionTokens = estimateTokensForModel(content, req.Model)
-			for _, m := range req.Messages {
-				promptTokens += estimateTokensForModel(messageText(m), req.Model)
+			// Finalize token accounting: prefer provider usage, fall back to estimate.
+			if streamAcct.hasProviderUsage {
+				promptTokens = streamAcct.providerPrompt
+				completionTokens = streamAcct.providerCompletion
+				totalTokens = promptTokens + completionTokens
+				tokenSource = "provider_usage"
+			} else {
+				completionTokens = estimateTokensForModel(content, req.Model)
+				for _, m := range req.Messages {
+					promptTokens += estimateTokensForModel(messageText(m), req.Model)
+				}
+				totalTokens = promptTokens + completionTokens
+				tokenSource = "fallback_estimate"
 			}
-			totalTokens = promptTokens + completionTokens
 
 			// Mock a response object for remaining loop logic
 			resp = openai.ChatCompletionResponse{
@@ -1524,11 +1550,13 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			currentLogger.Info("[MultiTool] Queued additional tool calls from response", "count", len(parsedToolResp.PendingToolCalls), "source", parsedToolResp.ParseSource)
 		}
 
-		// Obsolete: we now send it later when histContent is fully assembled.
+		// Unified token accounting: sync path uses provider usage directly.
+		// Streaming path has already finalized via streamAcct before this block.
 		if !stream {
 			promptTokens = resp.Usage.PromptTokens
 			completionTokens = resp.Usage.CompletionTokens
 			totalTokens = resp.Usage.TotalTokens
+			tokenSource = "provider_usage"
 		}
 
 		if totalTokens == 0 {
@@ -1539,14 +1567,14 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 			completionTokens = estimateTokensForModel(content, req.Model)
 			totalTokens = promptTokens + completionTokens
+			tokenSource = "fallback_estimate"
 		}
 
 		sessionTokens += totalTokens
 		localGlobalTotal := AddGlobalTokenCount(totalTokens)
-		localIsEstimated := GlobalTokenEstimated()
+		localIsEstimated := tokenSource == "fallback_estimate"
 
-		broker.SendJSON(fmt.Sprintf(`{"event":"tokens","prompt":%d,"completion":%d,"total":%d,"session_total":%d,"global_total":%d,"is_estimated":%t}`,
-			promptTokens, completionTokens, totalTokens, sessionTokens, localGlobalTotal, localIsEstimated))
+		broker.SendTokenUpdate(promptTokens, completionTokens, totalTokens, sessionTokens, int(localGlobalTotal), localIsEstimated, true, tokenSource)
 
 		// Budget tracking: record cost and send status to UI
 		if budgetTracker != nil {

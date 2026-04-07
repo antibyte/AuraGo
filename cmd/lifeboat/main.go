@@ -304,7 +304,10 @@ func (b *CLIBroker) SendLLMStreamDelta(content, toolName, toolID string, index i
 
 func (b *CLIBroker) SendLLMStreamDone(finishReason string) {}
 
-func (b *CLIBroker) SendTokenUpdate(prompt, completion, total, sessionTotal, globalTotal int, isEstimated bool) {
+func (b *CLIBroker) SendTokenUpdate(prompt, completion, total, sessionTotal, globalTotal int, isEstimated, isFinal bool, source string) {
+}
+
+func (b *CLIBroker) SendThinkingBlock(provider, content, state string) {
 }
 
 func checkVitality(summary string, l *slog.Logger) error {

@@ -196,3 +196,117 @@ func TestCoreMemory_GetEmptyReturnsSlice(t *testing.T) {
 		t.Error("GetCoreMemoryFacts should return non-nil slice even when empty")
 	}
 }
+
+func TestCoreMemoryUpdatedAt_ChangesOnAdd(t *testing.T) {
+	stm := newTestProfileDB(t)
+
+	before, err := stm.GetCoreMemoryUpdatedAt()
+	if err != nil {
+		t.Fatalf("GetCoreMemoryUpdatedAt on empty DB: %v", err)
+	}
+	if !before.IsZero() {
+		t.Errorf("expected zero time on empty DB, got %v", before)
+	}
+
+	_, err = stm.AddCoreMemoryFact("first fact")
+	if err != nil {
+		t.Fatalf("AddCoreMemoryFact: %v", err)
+	}
+
+	afterAdd, err := stm.GetCoreMemoryUpdatedAt()
+	if err != nil {
+		t.Fatalf("GetCoreMemoryUpdatedAt after add: %v", err)
+	}
+	if afterAdd.IsZero() {
+		t.Error("expected non-zero time after adding fact")
+	}
+	if !afterAdd.After(before) && !afterAdd.Equal(before) {
+		t.Errorf("afterAdd=%v should be after or equal before=%v", afterAdd, before)
+	}
+}
+
+func TestCoreMemoryUpdatedAt_ChangesOnUpdate(t *testing.T) {
+	stm := newTestProfileDB(t)
+
+	id, err := stm.AddCoreMemoryFact("original")
+	if err != nil {
+		t.Fatalf("AddCoreMemoryFact: %v", err)
+	}
+
+	before, err := stm.GetCoreMemoryUpdatedAt()
+	if err != nil {
+		t.Fatalf("GetCoreMemoryUpdatedAt: %v", err)
+	}
+
+	err = stm.UpdateCoreMemoryFact(id, "updated")
+	if err != nil {
+		t.Fatalf("UpdateCoreMemoryFact: %v", err)
+	}
+
+	afterUpdate, err := stm.GetCoreMemoryUpdatedAt()
+	if err != nil {
+		t.Fatalf("GetCoreMemoryUpdatedAt after update: %v", err)
+	}
+	if !afterUpdate.After(before) && !afterUpdate.Equal(before) {
+		t.Errorf("afterUpdate=%v should be after or equal before=%v", afterUpdate, before)
+	}
+}
+
+func TestCoreMemoryUpdatedAt_ChangesOnDelete(t *testing.T) {
+	stm := newTestProfileDB(t)
+
+	_, err := stm.AddCoreMemoryFact("first")
+	if err != nil {
+		t.Fatalf("AddCoreMemoryFact: %v", err)
+	}
+	id2, err := stm.AddCoreMemoryFact("second")
+	if err != nil {
+		t.Fatalf("AddCoreMemoryFact: %v", err)
+	}
+
+	before, err := stm.GetCoreMemoryUpdatedAt()
+	if err != nil {
+		t.Fatalf("GetCoreMemoryUpdatedAt: %v", err)
+	}
+
+	err = stm.DeleteCoreMemoryFact(id2)
+	if err != nil {
+		t.Fatalf("DeleteCoreMemoryFact: %v", err)
+	}
+
+	afterDelete, err := stm.GetCoreMemoryUpdatedAt()
+	if err != nil {
+		t.Fatalf("GetCoreMemoryUpdatedAt after delete: %v", err)
+	}
+	// After deleting the most recently added fact, MAX(updated_at) should still reflect the remaining fact's timestamp
+	if afterDelete.IsZero() {
+		t.Error("expected non-zero time after deleting one of two facts")
+	}
+	// The remaining fact (id1) should still have its original timestamp
+	if afterDelete.Before(before) && !afterDelete.Equal(before) {
+		t.Errorf("afterDelete=%v should not be before before=%v", afterDelete, before)
+	}
+}
+
+func TestCoreMemoryUpdatedAt_DeleteOnlyFactReturnsZero(t *testing.T) {
+	stm := newTestProfileDB(t)
+
+	id, err := stm.AddCoreMemoryFact("only fact")
+	if err != nil {
+		t.Fatalf("AddCoreMemoryFact: %v", err)
+	}
+	_ = id
+
+	err = stm.DeleteCoreMemoryFact(id)
+	if err != nil {
+		t.Fatalf("DeleteCoreMemoryFact: %v", err)
+	}
+
+	afterDelete, err := stm.GetCoreMemoryUpdatedAt()
+	if err != nil {
+		t.Fatalf("GetCoreMemoryUpdatedAt after deleting only fact: %v", err)
+	}
+	if !afterDelete.IsZero() {
+		t.Errorf("expected zero time after deleting only fact, got %v", afterDelete)
+	}
+}

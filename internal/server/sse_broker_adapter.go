@@ -34,7 +34,7 @@ func (b *SSEBrokerAdapter) SendLLMStreamDone(finishReason string) {
 	})
 }
 
-func (b *SSEBrokerAdapter) SendTokenUpdate(prompt, completion, total, sessionTotal, globalTotal int, isEstimated bool) {
+func (b *SSEBrokerAdapter) SendTokenUpdate(prompt, completion, total, sessionTotal, globalTotal int, isEstimated, isFinal bool, source string) {
 	b.sse.BroadcastType(EventTokenUpdate, TokenUpdatePayload{
 		PromptTokens:     prompt,
 		CompletionTokens: completion,
@@ -42,6 +42,16 @@ func (b *SSEBrokerAdapter) SendTokenUpdate(prompt, completion, total, sessionTot
 		SessionTotal:     sessionTotal,
 		GlobalTotal:      globalTotal,
 		IsEstimated:      isEstimated,
+		IsFinal:          isFinal,
+		Source:           source,
+	})
+}
+
+func (b *SSEBrokerAdapter) SendThinkingBlock(provider, content, state string) {
+	b.sse.BroadcastType(EventThinkingBlock, ThinkingBlockPayload{
+		Provider: provider,
+		Content:  content,
+		State:    state,
 	})
 }
 

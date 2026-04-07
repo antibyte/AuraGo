@@ -80,8 +80,8 @@ func TestProxmoxGetStatus_FallsBackToClusterResourcesOn403(t *testing.T) {
 			w.WriteHeader(http.StatusForbidden)
 			_, _ = w.Write([]byte(`{"errors":{"permission":"denied"}}`))
 		case "/api2/json/cluster/resources":
-			if got := r.URL.Query().Get("type"); got != "vm" {
-				t.Fatalf("expected cluster resource type vm, got %q", got)
+			if got := r.URL.Query().Get("type"); got != "qemu" {
+				t.Fatalf("expected cluster resource type qemu, got %q", got)
 			}
 			w.Header().Set("Content-Type", "application/json")
 			_ = json.NewEncoder(w).Encode(map[string]any{

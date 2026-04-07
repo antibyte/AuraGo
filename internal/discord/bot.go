@@ -628,5 +628,8 @@ func (b *DiscordBroker) SendLLMStreamDelta(content, toolName, toolID string, ind
 
 func (b *DiscordBroker) SendLLMStreamDone(finishReason string) {}
 
-func (b *DiscordBroker) SendTokenUpdate(prompt, completion, total, sessionTotal, globalTotal int, isEstimated bool) {
+func (b *DiscordBroker) SendTokenUpdate(prompt, completion, total, sessionTotal, globalTotal int, isEstimated, isFinal bool, source string) {
+}
+
+func (b *DiscordBroker) SendThinkingBlock(provider, content, state string) {
 }

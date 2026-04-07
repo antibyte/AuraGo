@@ -253,7 +253,8 @@ type FeedbackBroker interface {
 	SendJSON(jsonStr string)
 	SendLLMStreamDelta(content, toolName, toolID string, index int, finishReason string)
 	SendLLMStreamDone(finishReason string)
-	SendTokenUpdate(prompt, completion, total, sessionTotal, globalTotal int, isEstimated bool)
+	SendTokenUpdate(prompt, completion, total, sessionTotal, globalTotal int, isEstimated, isFinal bool, source string)
+	SendThinkingBlock(provider, content, state string)
 }
 
 // NoopBroker is a silent fallback for transports that don't support real-time feedback
@@ -264,8 +265,9 @@ func (n NoopBroker) SendJSON(jsonStr string)    {}
 func (n NoopBroker) SendLLMStreamDelta(content, toolName, toolID string, index int, finishReason string) {
 }
 func (n NoopBroker) SendLLMStreamDone(finishReason string) {}
-func (n NoopBroker) SendTokenUpdate(prompt, completion, total, sessionTotal, globalTotal int, isEstimated bool) {
+func (n NoopBroker) SendTokenUpdate(prompt, completion, total, sessionTotal, globalTotal int, isEstimated, isFinal bool, source string) {
 }
+func (n NoopBroker) SendThinkingBlock(provider, content, state string) {}
 
 // StringOrArray is a ToolCall field type that accepts both a JSON string
 // and a JSON array (the LLM sometimes sends _todo as ["item1","item2",...]

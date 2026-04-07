@@ -512,7 +512,10 @@ func (b *TelegramBroker) SendLLMStreamDelta(content, toolName, toolID string, in
 
 func (b *TelegramBroker) SendLLMStreamDone(finishReason string) {}
 
-func (b *TelegramBroker) SendTokenUpdate(prompt, completion, total, sessionTotal, globalTotal int, isEstimated bool) {
+func (b *TelegramBroker) SendTokenUpdate(prompt, completion, total, sessionTotal, globalTotal int, isEstimated, isFinal bool, source string) {
+}
+
+func (b *TelegramBroker) SendThinkingBlock(provider, content, state string) {
 }
 
 func downloadFile(url string, logger *slog.Logger) (string, error) {
