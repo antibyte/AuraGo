@@ -458,12 +458,14 @@ func (s *DaemonSupervisor) RefreshSkills() error {
 		}
 	}
 
-	// Start new daemons
-	s.mu.RLock()
-	running := len(s.runners)
-	s.mu.RUnlock()
-
+	// Start new daemons.
+	// Re-read the count under lock before each attempt so concurrent start/stop
+	// operations don't cause us to exceed MaxConcurrentDaemons or skip slots.
 	for id, manifest := range desired {
+		s.mu.RLock()
+		running := len(s.runners)
+		s.mu.RUnlock()
+
 		if running >= s.config.MaxConcurrentDaemons {
 			s.logger.Warn("Max concurrent daemons reached during refresh", "max", s.config.MaxConcurrentDaemons)
 			break
@@ -477,7 +479,6 @@ func (s *DaemonSupervisor) RefreshSkills() error {
 			s.logger.Error("Failed to start daemon during refresh", "skill", id, "error", err)
 			continue
 		}
-		running++
 	}
 
 	return nil

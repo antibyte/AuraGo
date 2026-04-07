@@ -52,11 +52,21 @@ func handleListSkills(s *Server) http.HandlerFunc {
 		// Get stats
 		total, agentCount, userCount, pending, _ := s.SkillManager.GetStats()
 
+		// Embed daemon states so the frontend can populate the daemon badge in a
+		// single API round-trip instead of a separate GET /api/daemons call.
+		daemonStateMap := map[string]interface{}{}
+		if s.DaemonSupervisor != nil {
+			for _, ds := range s.DaemonSupervisor.ListDaemons() {
+				daemonStateMap[ds.SkillID] = ds
+			}
+		}
+
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"status": "ok",
-			"count":  len(skills),
-			"skills": skills,
+			"status":        "ok",
+			"count":         len(skills),
+			"skills":        skills,
+			"daemon_states": daemonStateMap,
 			"stats": map[string]int{
 				"total":   total,
 				"agent":   agentCount,

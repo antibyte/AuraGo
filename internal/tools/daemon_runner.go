@@ -32,7 +32,6 @@ type DaemonRunner struct {
 	manifest  SkillManifest
 
 	// Process state
-	cmd       commandHandle
 	stdinPipe io.WriteCloser
 	pid       int
 	cancel    context.CancelFunc
@@ -65,30 +64,6 @@ type DaemonRunner struct {
 	// Wake-up channel: DaemonRunner sends wake-up messages here.
 	// DaemonSupervisor reads from this channel.
 	wakeCh chan<- daemonWakeEvent
-}
-
-// commandHandle abstracts exec.Cmd for testability.
-type commandHandle interface {
-	Start() error
-	Wait() error
-	StdinPipe() (io.WriteCloser, error)
-	StdoutPipe() (io.ReadCloser, error)
-	StderrPipe() (io.ReadCloser, error)
-	ProcessPid() int
-	ProcessHandle() *os.Process
-}
-
-// execCommandHandle wraps a real exec.Cmd.
-type execCommandHandle struct {
-	cmd *os.Process
-	raw interface {
-		Start() error
-		Wait() error
-		StdinPipe() (io.WriteCloser, error)
-		StdoutPipe() (io.ReadCloser, error)
-		StderrPipe() (io.ReadCloser, error)
-	}
-	pid int
 }
 
 // daemonWakeEvent is sent from a DaemonRunner to the supervisor when a wake_agent message arrives.

@@ -27,7 +27,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadCredentialMap();
     loadSkills();
     loadTemplates();
-    loadDaemonStates();
     initDropzone();
     applyPlaceholders();
     initDaemonSSE();
@@ -70,6 +69,11 @@ async function loadSkills() {
         }
         allSkills = data.skills || [];
         updateStats(data.stats);
+        // Daemon states are embedded in the skills response to avoid a second
+        // round-trip.  Fall back to empty object when no daemons are configured.
+        if (data.daemon_states && typeof data.daemon_states === 'object') {
+            daemonStates = data.daemon_states;
+        }
         renderSkills();
     } catch (e) {
         console.error('Failed to load skills:', e);
@@ -118,7 +122,9 @@ function showDisabledState() {
 
     function initDaemonSSE() {
         if (window.AuraSSE) {
-            window.AuraSSE.on('daemon_update', () => { loadDaemonStates(); });
+            // Reload full skills list on daemon state changes so badges reflect
+            // the new status without a separate /api/daemons round-trip.
+            window.AuraSSE.on('daemon_update', () => { loadSkills(); });
         }
     }
 

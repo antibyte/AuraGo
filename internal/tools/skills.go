@@ -73,7 +73,7 @@ type DaemonManifest struct {
 // DaemonManifestDefaults returns a DaemonManifest with sensible defaults applied.
 func DaemonManifestDefaults() DaemonManifest {
 	return DaemonManifest{
-		WakeRateLimitSeconds:       3000,
+		WakeRateLimitSeconds:       60, // 1 minute; templates with wake_agent write this explicitly
 		RestartOnCrash:             true,
 		MaxRestartAttempts:         3,
 		RestartCooldownSeconds:     300,
