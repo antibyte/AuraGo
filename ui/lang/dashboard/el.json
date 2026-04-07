@@ -525,5 +525,13 @@
   "dashboard.daemons_total": "Σύνολο",
   "dashboard.daemons_running": "Εκτελείται",
   "dashboard.daemons_stopped": "Σταματημένο",
-  "dashboard.daemons_error": "Σφάλμα"
+  "dashboard.daemons_error": "Σφάλμα",
+  "dashboard.daemons_wakeups": "Αφυπνίσεις",
+  "dashboard.daemons_restarts": "Επανεκκινήσεις",
+  "dashboard.daemons_suppressed": "Κατεσταλμένα",
+  "dashboard.daemons_auto_disabled_alert": "daemon(s) απενεργοποιήθηκαν αυτόματα — επανενεργοποίηση στη σελίδα Skills",
+  "dashboard.daemons_uptime": "Χρόνος λειτουργίας",
+  "dashboard.daemons_none": "Δεν έχουν ρυθμιστεί daemon skills",
+  "dashboard.daemons_last_wakeup": "Τελευταία αφύπνιση",
+  "dashboard.quickstatus_daemons": "Daemons"
 }

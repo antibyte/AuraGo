@@ -3418,3 +3418,31 @@
 .daemon-name { font-weight: 500; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .daemon-uptime { color: var(--text-secondary); font-size: 0.8rem; flex-shrink: 0; }
 .daemon-err { color: var(--error, #ef4444); cursor: help; flex-shrink: 0; }
+.daemon-row-disabled { opacity: 0.55; }
+.daemon-row-body { flex: 1; min-width: 0; }
+.daemon-row-main { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.daemon-badges { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
+.daemon-meta { font-size: 0.78rem; color: var(--text-secondary); margin-top: 2px; }
+.daemon-meta-item { font-size: 0.78rem; color: var(--text-secondary); flex-shrink: 0; white-space: nowrap; }
+.daemon-meta-error { color: var(--error, #ef4444); }
+.daemon-badge {
+    font-size: 0.7rem;
+    padding: 1px 6px;
+    border-radius: 10px;
+    background: var(--surface-secondary, rgba(100,116,139,0.15));
+    color: var(--text-secondary);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.daemon-badge-wake { color: var(--accent, #6366f1); }
+.daemon-badge-restart { color: var(--text-secondary); }
+.daemon-badge-restart.warn { color: var(--warning, #f59e0b); }
+.daemon-disabled-alert {
+    background: rgba(245, 158, 11, 0.12);
+    border: 1px solid rgba(245, 158, 11, 0.35);
+    border-radius: 6px;
+    padding: 8px 12px;
+    color: var(--warning, #f59e0b);
+    font-size: 0.82rem;
+    margin-bottom: 10px;
+}

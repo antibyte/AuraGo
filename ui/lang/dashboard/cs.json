@@ -525,5 +525,13 @@
   "dashboard.daemons_total": "Celkem",
   "dashboard.daemons_running": "Běží",
   "dashboard.daemons_stopped": "Zastaveno",
-  "dashboard.daemons_error": "Chyba"
+  "dashboard.daemons_error": "Chyba",
+  "dashboard.daemons_wakeups": "Probuzení",
+  "dashboard.daemons_restarts": "Restarty",
+  "dashboard.daemons_suppressed": "Potlačeno",
+  "dashboard.daemons_auto_disabled_alert": "démon(y) automaticky vypnut(y) — znovu zapnout na stránce Skills",
+  "dashboard.daemons_uptime": "Doba provozu",
+  "dashboard.daemons_none": "Žádné démony nejsou nakonfigurovány",
+  "dashboard.daemons_last_wakeup": "Poslední probuzení",
+  "dashboard.quickstatus_daemons": "Daemony"
 }

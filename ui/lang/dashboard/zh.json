@@ -525,5 +525,13 @@
   "dashboard.daemons_total": "总计",
   "dashboard.daemons_running": "运行中",
   "dashboard.daemons_stopped": "已停止",
-  "dashboard.daemons_error": "错误"
+  "dashboard.daemons_error": "错误",
+  "dashboard.daemons_wakeups": "唤醒次数",
+  "dashboard.daemons_restarts": "重启次数",
+  "dashboard.daemons_suppressed": "已抑制",
+  "dashboard.daemons_auto_disabled_alert": "个守护进程已自动禁用 — 在技能页面重新启用",
+  "dashboard.daemons_uptime": "运行时间",
+  "dashboard.daemons_none": "未配置守护进程技能",
+  "dashboard.daemons_last_wakeup": "最后唤醒",
+  "dashboard.quickstatus_daemons": "守护进程"
 }

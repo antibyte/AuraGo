@@ -525,5 +525,13 @@
   "dashboard.daemons_total": "Razem",
   "dashboard.daemons_running": "Działa",
   "dashboard.daemons_stopped": "Zatrzymany",
-  "dashboard.daemons_error": "Błąd"
+  "dashboard.daemons_error": "Błąd",
+  "dashboard.daemons_wakeups": "Przebudzenia",
+  "dashboard.daemons_restarts": "Restarty",
+  "dashboard.daemons_suppressed": "Stłumione",
+  "dashboard.daemons_auto_disabled_alert": "demon(y) automatycznie wyłączone — ponownie włącz na stronie Skills",
+  "dashboard.daemons_uptime": "Czas działania",
+  "dashboard.daemons_none": "Brak skonfigurowanych demonów",
+  "dashboard.daemons_last_wakeup": "Ostatnie przebudzenie",
+  "dashboard.quickstatus_daemons": "Demony"
 }

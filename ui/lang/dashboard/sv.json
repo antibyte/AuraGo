@@ -525,5 +525,13 @@
   "dashboard.daemons_total": "Totalt",
   "dashboard.daemons_running": "Körs",
   "dashboard.daemons_stopped": "Stoppad",
-  "dashboard.daemons_error": "Fel"
+  "dashboard.daemons_error": "Fel",
+  "dashboard.daemons_wakeups": "Uppvaknanden",
+  "dashboard.daemons_restarts": "Omstarter",
+  "dashboard.daemons_suppressed": "Undertryckt",
+  "dashboard.daemons_auto_disabled_alert": "daemon(ar) automatiskt inaktiverade — återaktivera på Skills-sidan",
+  "dashboard.daemons_uptime": "Drifttid",
+  "dashboard.daemons_none": "Inga daemon-skills konfigurerade",
+  "dashboard.daemons_last_wakeup": "Senaste aktivering",
+  "dashboard.quickstatus_daemons": "Daemons"
 }

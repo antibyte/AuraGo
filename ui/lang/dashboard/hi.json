@@ -525,5 +525,13 @@
   "dashboard.daemons_total": "कुल",
   "dashboard.daemons_running": "चालू",
   "dashboard.daemons_stopped": "बंद",
-  "dashboard.daemons_error": "त्रुटि"
+  "dashboard.daemons_error": "त्रुटि",
+  "dashboard.daemons_wakeups": "जागरण",
+  "dashboard.daemons_restarts": "पुनः आरंभ",
+  "dashboard.daemons_suppressed": "दबाया गया",
+  "dashboard.daemons_auto_disabled_alert": "daemon(s) स्वतः अक्षम — Skills पेज पर पुनः सक्षम करें",
+  "dashboard.daemons_uptime": "अपटाइम",
+  "dashboard.daemons_none": "कोई daemon skill कॉन्फ़िगर नहीं है",
+  "dashboard.daemons_last_wakeup": "अंतिम जागरण",
+  "dashboard.quickstatus_daemons": "Daemons"
 }

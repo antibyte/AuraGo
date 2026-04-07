@@ -1122,6 +1122,37 @@ func handleDashboardOverview(s *Server) http.HandlerFunc {
 			}
 		}
 
+		// ── Daemon Skills Summary ─────────────────────────────
+		daemonsSummary := map[string]interface{}{
+			"total": 0, "running": 0, "stopped": 0, "error_count": 0, "auto_disabled": 0,
+		}
+		if s.DaemonSupervisor != nil {
+			states := s.DaemonSupervisor.ListDaemons()
+			running, stopped, errored, autoDisabled := 0, 0, 0, 0
+			for _, st := range states {
+				switch string(st.Status) {
+				case "running", "starting":
+					running++
+				case "error":
+					errored++
+					if st.AutoDisabled {
+						autoDisabled++
+					}
+				case "disabled":
+					autoDisabled++
+				default:
+					stopped++
+				}
+			}
+			daemonsSummary = map[string]interface{}{
+				"total":         len(states),
+				"running":       running,
+				"stopped":       stopped,
+				"error_count":   errored,
+				"auto_disabled": autoDisabled,
+			}
+		}
+
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"agent":               agentInfo,
@@ -1138,6 +1169,7 @@ func handleDashboardOverview(s *Server) http.HandlerFunc {
 			"cheatsheets":         cheatsheetsSummary,
 			"tunnel":              tunnelInfo,
 			"skills":              skillsSummary,
+			"daemons":             daemonsSummary,
 		})
 	}
 }

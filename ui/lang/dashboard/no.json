@@ -525,5 +525,13 @@
   "dashboard.daemons_total": "Totalt",
   "dashboard.daemons_running": "Kjører",
   "dashboard.daemons_stopped": "Stoppet",
-  "dashboard.daemons_error": "Feil"
+  "dashboard.daemons_error": "Feil",
+  "dashboard.daemons_wakeups": "Aktiveringer",
+  "dashboard.daemons_restarts": "Omstarter",
+  "dashboard.daemons_suppressed": "Undertrykt",
+  "dashboard.daemons_auto_disabled_alert": "daemon(er) automatisk deaktivert — reaktiver på Skills-siden",
+  "dashboard.daemons_uptime": "Oppetid",
+  "dashboard.daemons_none": "Ingen daemon-skills konfigurert",
+  "dashboard.daemons_last_wakeup": "Siste aktivering",
+  "dashboard.quickstatus_daemons": "Daemons"
 }

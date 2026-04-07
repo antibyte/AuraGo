@@ -3076,6 +3076,21 @@
                 },
             ];
 
+            // Add daemon health item only when daemons are configured
+            const dm = overview.daemons || {};
+            if ((dm.total || 0) > 0) {
+                const autoDisabled = dm.auto_disabled || 0;
+                const running = dm.running || 0;
+                const total = dm.total || 0;
+                items.push({
+                    icon: '👹',
+                    lbl: t('dashboard.quickstatus_daemons') || 'Daemons',
+                    val: `${running} / ${total}`,
+                    status: autoDisabled > 0 ? 'warning' : (running > 0 ? 'ok' : 'neutral'),
+                    info: autoDisabled > 0 ? `${autoDisabled} auto-disabled` : ''
+                });
+            }
+
             el.innerHTML = items.map(s =>
                 `<div class="qs-item ${s.status}">
                     <div class="qs-icon">${s.icon}</div>
@@ -3236,9 +3251,10 @@
             const summaryEl = document.getElementById('daemon-summary');
             const listEl = document.getElementById('daemon-list');
 
-            const running = daemons.filter(d => (d.status || '').toLowerCase() === 'running').length;
+            const running = daemons.filter(d => ['running', 'starting'].includes((d.status || '').toLowerCase())).length;
             const stopped = daemons.filter(d => (d.status || '').toLowerCase() === 'stopped').length;
-            const errored = daemons.filter(d => ['error', 'disabled'].includes((d.status || '').toLowerCase())).length;
+            const errored = daemons.filter(d => (d.status || '').toLowerCase() === 'error').length;
+            const autoDisabled = daemons.filter(d => d.auto_disabled || (d.status || '').toLowerCase() === 'disabled').length;
 
             summaryEl.innerHTML = `
                 <div class="guardian-metrics-grid">
@@ -3260,16 +3276,79 @@
                     </div>
                 </div>`;
 
-            const statusIcon = { running: '🟢', stopped: '⏹', error: '🔴', disabled: '⛔', starting: '🟡' };
+            // Auto-disabled alert banner
+            const alertHTML = autoDisabled > 0 ? `
+                <div class="daemon-disabled-alert">
+                    ⚠ ${t('dashboard.daemons_auto_disabled_alert') || `${autoDisabled} daemon(s) auto-disabled — re-enable via Skills page`}
+                </div>` : '';
 
-            listEl.innerHTML = daemons.map(d => {
+            const statusIcon = { running: '🟢', starting: '🟡', stopped: '⏹', error: '🔴', disabled: '⛔' };
+
+            const rowsHTML = daemons.map(d => {
                 const s = (d.status || 'stopped').toLowerCase();
                 const icon = statusIcon[s] || '⏹';
-                const name = esc(d.name || d.skill_id || '?');
-                const uptime = d.uptime ? esc(d.uptime) : '';
-                const lastErr = d.last_error ? `<span class="daemon-err" title="${esc(d.last_error)}">⚠</span>` : '';
-                return `<div class="daemon-row"><span class="daemon-icon">${icon}</span> <span class="daemon-name">${name}</span> ${uptime ? `<span class="daemon-uptime">${uptime}</span>` : ''} ${lastErr}</div>`;
+                const name = esc(d.skill_name || d.skill_id || '?');
+
+                // Uptime from started_at
+                let uptimeHtml = '';
+                if (d.started_at && (s === 'running' || s === 'starting')) {
+                    const ms = Date.now() - Date.parse(d.started_at);
+                    uptimeHtml = `<span class="daemon-uptime">${formatDuration(ms)}</span>`;
+                }
+
+                // Wake-up stats badge
+                const wakeCount = d.wake_up_count || 0;
+                const suppressedCount = d.suppressed_count || 0;
+                const wakeLabel = t('dashboard.daemons_wakeups') || 'Wake-ups';
+                const wakeHtml = wakeCount > 0
+                    ? `<span class="daemon-badge daemon-badge-wake" title="${wakeLabel}: ${wakeCount}${suppressedCount > 0 ? ` (${suppressedCount} suppressed)` : ''}">💬 ${wakeCount}</span>`
+                    : '';
+
+                // Restart count badge
+                const restartCount = d.restart_count || 0;
+                const restartLabel = t('dashboard.daemons_restarts') || 'Restarts';
+                const restartHtml = restartCount > 0
+                    ? `<span class="daemon-badge daemon-badge-restart${restartCount >= 3 ? ' warn' : ''}" title="${restartLabel}: ${restartCount}">↻ ${restartCount}</span>`
+                    : '';
+
+                // Last wake-up time
+                let lastWakeHtml = '';
+                if (d.last_wake_up) {
+                    const wLabel = t('dashboard.daemons_last_wakeup') || 'Last wake-up';
+                    lastWakeHtml = `<span class="daemon-meta-item" title="${wLabel}">${relativeTime(Date.parse(d.last_wake_up))}</span>`;
+                }
+
+                // Error detail
+                const errHtml = d.last_error
+                    ? `<div class="daemon-meta daemon-meta-error"><span title="${esc(d.last_error)}">⚠ ${esc(d.last_error.length > 60 ? d.last_error.substring(0, 60) + '…' : d.last_error)}</span></div>`
+                    : '';
+
+                return `<div class="daemon-row${d.auto_disabled ? ' daemon-row-disabled' : ''}">
+                    <span class="daemon-icon">${icon}</span>
+                    <div class="daemon-row-body">
+                        <div class="daemon-row-main">
+                            <span class="daemon-name">${name}</span>
+                            ${uptimeHtml}
+                            ${wakeHtml}
+                            ${restartHtml}
+                            ${lastWakeHtml}
+                        </div>
+                        ${errHtml}
+                    </div>
+                </div>`;
             }).join('');
+
+            listEl.innerHTML = alertHTML + rowsHTML;
+        }
+
+        // formatDuration converts milliseconds to a human-readable "Xh Ym" string.
+        function formatDuration(ms) {
+            const totalSec = Math.floor(ms / 1000);
+            const h = Math.floor(totalSec / 3600);
+            const m = Math.floor((totalSec % 3600) / 60);
+            if (h > 0) return `${h}h ${m}m`;
+            if (m > 0) return `${m}m`;
+            return `${totalSec}s`;
         }
 
         function helperLLMOperationLabel(operation) {

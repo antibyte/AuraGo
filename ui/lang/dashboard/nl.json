@@ -525,5 +525,13 @@
   "dashboard.daemons_total": "Totaal",
   "dashboard.daemons_running": "Actief",
   "dashboard.daemons_stopped": "Gestopt",
-  "dashboard.daemons_error": "Fout"
+  "dashboard.daemons_error": "Fout",
+  "dashboard.daemons_wakeups": "Activaties",
+  "dashboard.daemons_restarts": "Herstarts",
+  "dashboard.daemons_suppressed": "Onderdrukt",
+  "dashboard.daemons_auto_disabled_alert": "daemon(s) automatisch uitgeschakeld — opnieuw inschakelen op Skills pagina",
+  "dashboard.daemons_uptime": "Uptime",
+  "dashboard.daemons_none": "Geen daemon skills geconfigureerd",
+  "dashboard.daemons_last_wakeup": "Laatste activatie",
+  "dashboard.quickstatus_daemons": "Daemons"
 }

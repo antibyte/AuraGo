@@ -525,5 +525,13 @@
   "dashboard.daemons_total": "Total",
   "dashboard.daemons_running": "En ejecución",
   "dashboard.daemons_stopped": "Detenido",
-  "dashboard.daemons_error": "Error"
+  "dashboard.daemons_error": "Error",
+  "dashboard.daemons_wakeups": "Activaciones",
+  "dashboard.daemons_restarts": "Reinicios",
+  "dashboard.daemons_suppressed": "Suprimidos",
+  "dashboard.daemons_auto_disabled_alert": "daemon(s) deshabilitado(s) automáticamente — reactivar en Skills",
+  "dashboard.daemons_uptime": "Tiempo activo",
+  "dashboard.daemons_none": "No hay daemon skills configurados",
+  "dashboard.daemons_last_wakeup": "Última activación",
+  "dashboard.quickstatus_daemons": "Daemons"
 }
