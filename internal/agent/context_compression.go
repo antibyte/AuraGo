@@ -69,9 +69,10 @@ func CompressHistory(
 		return messages, lastCompressionMsg, result
 	}
 
-	// Calculate total tokens
+	// Calculate total tokens in the compressible window (exclude system message at index 0,
+	// which is never compressed and is counted separately in the prompt budget).
 	totalTokens := 0
-	for _, m := range messages {
+	for _, m := range messages[1:] {
 		totalTokens += prompts.CountTokens(messageText(m)) + 4
 	}
 

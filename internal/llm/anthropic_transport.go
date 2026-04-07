@@ -43,6 +43,12 @@ type anthropicRequest struct {
 	Tools         []anthropicToolDef   `json:"tools,omitempty"`
 	ToolChoice    *anthropicToolChoice `json:"tool_choice,omitempty"`
 	Metadata      *anthropicMetadata   `json:"metadata,omitempty"`
+	Thinking      *anthropicThinking   `json:"thinking,omitempty"`
+}
+
+type anthropicThinking struct {
+	Type         string `json:"type"`
+	BudgetTokens int    `json:"budget_tokens,omitempty"`
 }
 
 type anthropicMessage struct {
@@ -106,11 +112,17 @@ type anthropicResponse struct {
 }
 
 type anthropicResponseBlock struct {
-	Type  string          `json:"type"`
-	Text  string          `json:"text,omitempty"`
-	ID    string          `json:"id,omitempty"`
-	Name  string          `json:"name,omitempty"`
-	Input json.RawMessage `json:"input,omitempty"`
+	Type     string                    `json:"type"`
+	Text     string                    `json:"text,omitempty"`
+	ID       string                    `json:"id,omitempty"`
+	Name     string                    `json:"name,omitempty"`
+	Input    json.RawMessage           `json:"input,omitempty"`
+	Thinking *anthropicThinkingContent `json:"thinking,omitempty"`
+}
+
+type anthropicThinkingContent struct {
+	Type     string `json:"type"`
+	Thinking string `json:"thinking,omitempty"`
 }
 
 type anthropicUsage struct {
@@ -143,6 +155,7 @@ type anthropicStreamDeltaBody struct {
 	Type        string `json:"type"`
 	Text        string `json:"text,omitempty"`
 	PartialJSON string `json:"partial_json,omitempty"`
+	Thinking    string `json:"thinking,omitempty"`
 }
 
 type anthropicStreamMessageDelta struct {
@@ -247,6 +260,7 @@ type openaiRespMessage struct {
 	Role      string           `json:"role"`
 	Content   string           `json:"content"`
 	ToolCalls []openaiToolCall `json:"tool_calls,omitempty"`
+	Reasoning string           `json:"reasoning,omitempty"`
 }
 
 type openaiRespDelta struct {
@@ -351,6 +365,7 @@ func translateOpenAIToAnthropic(oai openaiRequest) (anthropicRequest, error) {
 		Stream:      oai.Stream,
 		Temperature: oai.Temperature,
 		TopP:        oai.TopP,
+		Thinking:    &anthropicThinking{Type: "enabled", BudgetTokens: 10000},
 	}
 
 	// max_tokens is required by Anthropic. Default to 8192 if unset.
@@ -791,6 +806,7 @@ func translateAnthropicResponse(resp *http.Response) (*http.Response, error) {
 func mapAnthropicToOpenAI(ant anthropicResponse) openaiResponse {
 	var content string
 	var toolCalls []openaiToolCall
+	var reasoningContent string
 	toolIdx := 0
 
 	for _, block := range ant.Content {
@@ -816,6 +832,10 @@ func mapAnthropicToOpenAI(ant anthropicResponse) openaiResponse {
 				Index: &idx,
 			})
 			toolIdx++
+		case "thinking":
+			if block.Thinking != nil && block.Thinking.Thinking != "" {
+				reasoningContent += block.Thinking.Thinking
+			}
 		}
 	}
 
@@ -833,6 +853,7 @@ func mapAnthropicToOpenAI(ant anthropicResponse) openaiResponse {
 					Role:      "assistant",
 					Content:   content,
 					ToolCalls: toolCalls,
+					Reasoning: reasoningContent,
 				},
 				FinishReason: &finishReason,
 			},

@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 	"unicode/utf8"
 )
 
@@ -98,6 +99,18 @@ func (s *SQLiteMemory) GetCoreMemoryFacts() ([]CoreMemoryFact, error) {
 		facts = []CoreMemoryFact{}
 	}
 	return facts, nil
+}
+
+// GetCoreMemoryUpdatedAt returns the most recent updated_at timestamp from core_memory.
+// Returns a zero time if the table is empty. This is used by the agent loop to detect
+// external changes to core memory and invalidate the session cache accordingly.
+func (s *SQLiteMemory) GetCoreMemoryUpdatedAt() (time.Time, error) {
+	var updatedAt time.Time
+	err := s.db.QueryRow("SELECT MAX(updated_at) FROM core_memory").Scan(&updatedAt)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return updatedAt, nil
 }
 
 // maxCoreMemoryFactLen is the maximum byte length of a single core memory fact.

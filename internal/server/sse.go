@@ -32,6 +32,7 @@ const (
 	EventLLMStreamDone     SSEEventType = "llm_stream_done"
 	EventTokenUpdate       SSEEventType = "token_update"
 	EventToolCallPreview   SSEEventType = "tool_call_preview"
+	EventThinkingBlock     SSEEventType = "thinking_block"
 )
 
 // SSEBroadcaster manages Server-Sent Events connections and broadcasts messages.
@@ -97,6 +98,7 @@ func (b *SSEBroadcaster) BroadcastType(eventType SSEEventType, payload any) {
 
 type LLMStreamDeltaPayload struct {
 	Content      string `json:"content,omitempty"`
+	Reasoning    string `json:"reasoning,omitempty"`
 	ToolName     string `json:"tool_name,omitempty"`
 	ToolID       string `json:"tool_id,omitempty"`
 	Index        int    `json:"index,omitempty"`
@@ -105,6 +107,10 @@ type LLMStreamDeltaPayload struct {
 
 type LLMStreamDonePayload struct {
 	FinishReason string `json:"finish_reason,omitempty"`
+}
+
+type ThinkingBlockPayload struct {
+	Thinking string `json:"thinking,omitempty"`
 }
 
 type TokenUpdatePayload struct {

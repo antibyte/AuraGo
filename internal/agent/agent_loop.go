@@ -326,7 +326,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	lastCompressionMsg := 0
 
 	// Core memory cache: read once, invalidate on manage_memory calls
+	// and when the DB updated_at timestamp changes (external modifications).
 	coreMemCache := ""
+	coreMemUpdatedAt := time.Time{}
 	coreMemDirty := true // Force initial load
 
 	// Session-scoped todo list piggybacked on tool calls
@@ -690,12 +692,20 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 		flags.ActiveProcesses = GetActiveProcessStatus(registry)
 
-		// Load Core Memory (cached, invalidated when manage_memory is called)
-		if coreMemDirty {
-			if shortTermMem != nil {
-				coreMemCache = shortTermMem.ReadCoreMemory()
+		// Load Core Memory (cached, invalidated when manage_memory is called
+		// or when the DB timestamp has changed due to external modifications).
+		if coreMemDirty || shortTermMem != nil {
+			dbUpdatedAt, err := shortTermMem.GetCoreMemoryUpdatedAt()
+			if err == nil && (!coreMemDirty && !dbUpdatedAt.IsZero() && !coreMemUpdatedAt.IsZero() && !dbUpdatedAt.Equal(coreMemUpdatedAt)) {
+				coreMemDirty = true
 			}
-			coreMemDirty = false
+			if coreMemDirty {
+				coreMemCache = shortTermMem.ReadCoreMemory()
+				if err == nil {
+					coreMemUpdatedAt = dbUpdatedAt
+				}
+				coreMemDirty = false
+			}
 		}
 
 		// Extract explicit workflow tools if present (populated from previous iteration's <workflow_plan> tag)
