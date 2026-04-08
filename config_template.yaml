@@ -359,15 +359,15 @@ llm:
     helper_enabled: false                                   # recommended: enable a dedicated helper LLM for internal analysis/background features
     helper_provider: ""                                     # if disabled or unset, many helper-dependent features will not work fully
     helper_model: ""                                        # optional override; use a smaller, cost-efficient model here when possible
-	    use_native_functions: true
-	    temperature: 0.7
-	    structured_outputs: false
-	    anthropic_thinking:
-	        enabled: false                                   # enable Anthropic "thinking" (only for supported Claude models)
-	        budget_tokens: 10000                             # tokens reserved for thinking; 0 uses default
-	        model_allowlist: []                              # optional: exact/prefix allowlist (supports "*" suffix), empty = auto-detect
+    use_native_functions: true
+    temperature: 0.7
+    structured_outputs: false
+    anthropic_thinking:
+        enabled: false                                   # enable Anthropic "thinking" (only for supported Claude models)
+        budget_tokens: 10000                             # tokens reserved for thinking; 0 uses default
+        model_allowlist: []                              # optional: exact/prefix allowlist (supports "*" suffix), empty = auto-detect
 logging:
-	    enable_file_log: true
+    enable_file_log: true
     enable_prompt_log: false                   # write full LLM requests to log/prompts.log (may contain sensitive data)
     log_dir: ./log
 meshcentral:
