@@ -99,23 +99,36 @@ func (n *Notifier) checkDue() {
 		n.logger.Info("[Planner] Processing due appointment notification", "id", a.ID, "title", a.Title, "wake_agent", a.WakeAgent)
 
 		if a.WakeAgent {
+			// BUG-1 + BUG-4: Atomically claim the notification before spawning the goroutine.
+			// ClaimNotification uses compare-and-swap (WHERE notified=0) so that if the 30s ticker
+			// fires again before the executor finishes, the second tick finds notified=1 and skips.
+			// This also means a panic in the executor no longer causes an infinite retry loop,
+			// because the claim was already committed to the DB.
+			claimed, err := ClaimNotification(n.db, a.ID)
+			if err != nil {
+				n.logger.Error("[Planner] Failed to claim appointment notification", "error", err, "id", a.ID)
+				continue
+			}
+			if !claimed {
+				// Another goroutine already claimed this notification; skip.
+				continue
+			}
 			prompt := buildNotificationPrompt(a)
 			go func(apt Appointment, p string) {
 				defer func() {
 					if r := recover(); r != nil {
 						n.logger.Error("[Planner] Panic in appointment notification executor", "error", r, "appointment_id", apt.ID)
-						return
 					}
 				}()
 				executor(p)
-				if err := MarkNotified(n.db, apt.ID); err != nil {
-					n.logger.Error("[Planner] Failed to mark appointment as notified", "error", err, "id", apt.ID)
-				}
 			}(a, prompt)
 		} else {
-			// Non-wake appointments: mark as notified without running the agent.
-			if err := MarkNotified(n.db, a.ID); err != nil {
+			// Non-wake appointments: claim atomically and log that the reminder time was reached.
+			claimed, err := ClaimNotification(n.db, a.ID)
+			if err != nil {
 				n.logger.Error("[Planner] Failed to mark non-wake appointment as notified", "error", err, "id", a.ID)
+			} else if claimed {
+				n.logger.Info("[Planner] Appointment reminder time reached (wake_agent=false, no agent action)", "id", a.ID, "title", a.Title)
 			}
 		}
 	}

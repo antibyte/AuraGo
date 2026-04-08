@@ -11,7 +11,7 @@ Create, read, update, and delete to-do items. Todos are stored in the planner da
 | `title` | string | for `add` | Todo title |
 | `description` | string | no | Optional description |
 | `priority` | string | no | `low`, `medium`, `high` (default: `medium`) |
-| `due_date` | string | no | ISO 8601 date (e.g. `2025-03-15`) |
+| `due_date` | string | no | RFC3339 datetime (e.g. `2025-03-15T00:00:00Z`) or date-only (e.g. `2025-03-15`) |
 | `status` | string | for `set_status`; optional filter for `list` | `open`, `in_progress`, `done` |
 | `query` | string | no | Search query for `list` operation |
 
@@ -36,7 +36,7 @@ Create, read, update, and delete to-do items. Todos are stored in the planner da
 #### Create a high-priority todo
 
 ```json
-{"action": "manage_todos", "operation": "add", "title": "Update documentation", "description": "Add new API endpoints to docs", "priority": "high", "due_date": "2025-03-18"}
+{"action": "manage_todos", "operation": "add", "title": "Update documentation", "description": "Add new API endpoints to docs", "priority": "high", "due_date": "2025-03-18T00:00:00Z"}
 ```
 
 #### List open todos

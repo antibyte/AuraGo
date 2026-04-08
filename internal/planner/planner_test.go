@@ -671,3 +671,156 @@ func TestToJSONWithHTML(t *testing.T) {
 		t.Error("Expected non-empty result")
 	}
 }
+
+// ── New tests for bug fixes and new features ──
+
+func TestClaimNotification(t *testing.T) {
+	db := testDB(t)
+	defer db.Close()
+
+	id, _ := CreateAppointment(db, Appointment{
+		Title:          "Claim Test",
+		DateTime:       "2025-08-01T10:00:00Z",
+		NotificationAt: "2025-07-31T10:00:00Z",
+		WakeAgent:      true,
+	})
+
+	// First claim should succeed
+	claimed, err := ClaimNotification(db, id)
+	if err != nil {
+		t.Fatalf("ClaimNotification failed: %v", err)
+	}
+	if !claimed {
+		t.Error("Expected first claim to succeed")
+	}
+
+	// Second claim should fail (already notified)
+	claimed2, err := ClaimNotification(db, id)
+	if err != nil {
+		t.Fatalf("Second ClaimNotification failed: %v", err)
+	}
+	if claimed2 {
+		t.Error("Expected second claim to fail (already claimed)")
+	}
+
+	// Verify DB state
+	a, _ := GetAppointment(db, id)
+	if !a.Notified {
+		t.Error("Appointment should be marked as notified after successful claim")
+	}
+}
+
+func TestUpdateAppointmentResetsNotifiedOnReschedule(t *testing.T) {
+	db := testDB(t)
+	defer db.Close()
+
+	id, _ := CreateAppointment(db, Appointment{
+		Title:          "Reschedule Test",
+		DateTime:       "2025-08-01T10:00:00Z",
+		NotificationAt: "2025-07-31T09:00:00Z",
+		WakeAgent:      true,
+	})
+
+	// Mark as notified
+	_, _ = ClaimNotification(db, id)
+	a, _ := GetAppointment(db, id)
+	if !a.Notified {
+		t.Fatal("Setup: should be notified")
+	}
+
+	// Reschedule: change notification_at to a new time
+	a.NotificationAt = "2025-08-15T09:00:00Z"
+	if err := UpdateAppointment(db, *a); err != nil {
+		t.Fatalf("UpdateAppointment failed: %v", err)
+	}
+
+	// notified should be reset to false
+	updated, _ := GetAppointment(db, id)
+	if updated.Notified {
+		t.Error("BUG-3: notified should be reset to false after rescheduling notification_at")
+	}
+}
+
+func TestUpdateAppointmentKeepsNotifiedWhenNotificationUnchanged(t *testing.T) {
+	db := testDB(t)
+	defer db.Close()
+
+	id, _ := CreateAppointment(db, Appointment{
+		Title:          "No-Reschedule Test",
+		DateTime:       "2025-08-01T10:00:00Z",
+		NotificationAt: "2025-07-31T09:00:00Z",
+		WakeAgent:      true,
+	})
+	_, _ = ClaimNotification(db, id)
+
+	// Update title only, keep notification_at unchanged
+	a, _ := GetAppointment(db, id)
+	a.Title = "Updated Title"
+	if err := UpdateAppointment(db, *a); err != nil {
+		t.Fatalf("UpdateAppointment failed: %v", err)
+	}
+
+	updated, _ := GetAppointment(db, id)
+	if !updated.Notified {
+		t.Error("notified should remain true when notification_at is unchanged")
+	}
+}
+
+func TestUpdateAppointmentValidatesDateFormat(t *testing.T) {
+	db := testDB(t)
+	defer db.Close()
+
+	id, _ := CreateAppointment(db, Appointment{
+		Title:    "Validation Test",
+		DateTime: "2025-08-01T10:00:00Z",
+	})
+
+	a, _ := GetAppointment(db, id)
+	a.DateTime = "not-a-date"
+	if err := UpdateAppointment(db, *a); err == nil {
+		t.Error("ISSUE-5: UpdateAppointment should reject invalid date_time format")
+	}
+
+	a.DateTime = "2025-08-01T10:00:00Z"
+	a.NotificationAt = "2025-13-01T00:00:00Z" // invalid month
+	if err := UpdateAppointment(db, *a); err == nil {
+		t.Error("ISSUE-5: UpdateAppointment should reject invalid notification_at format")
+	}
+}
+
+func TestNormalizeDateInput(t *testing.T) {
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{"2025-03-15T00:00:00Z", "2025-03-15T00:00:00Z"}, // already RFC3339, unchanged
+		{"2025-03-15", "2025-03-15T00:00:00Z"},            // date-only → normalized
+		{"", ""},                                          // empty → empty
+		{"not-a-date", "not-a-date"},                     // invalid → unchanged (validation catches)
+	}
+	for _, tt := range tests {
+		got := normalizeDateInput(tt.input)
+		if got != tt.want {
+			t.Errorf("normalizeDateInput(%q) = %q, want %q", tt.input, got, tt.want)
+		}
+	}
+}
+
+func TestCreateTodoDueDateNormalization(t *testing.T) {
+	db := testDB(t)
+	defer db.Close()
+
+	// date-only format should be accepted and normalized
+	id, err := CreateTodo(db, Todo{
+		Title:   "Date normalization test",
+		DueDate: "2025-03-15",
+	})
+	if err != nil {
+		t.Fatalf("ISSUE-8: CreateTodo should accept date-only format, got error: %v", err)
+	}
+
+	todo, _ := GetTodo(db, id)
+	if todo.DueDate != "2025-03-15T00:00:00Z" {
+		t.Errorf("DueDate should be normalized to RFC3339, got %q", todo.DueDate)
+	}
+}

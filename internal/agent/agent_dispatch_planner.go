@@ -70,14 +70,11 @@ func dispatchManageAppointments(tc ToolCall, db *sql.DB, kg planner.KnowledgeGra
 		if err != nil {
 			return plannerError(err)
 		}
-		syncAppointmentToKG(db, id, kg, logger)
-		return "Tool Output: " + planner.ToJSON(map[string]interface{}{"status": "success", "message": "Appointment created", "id": id})
+		kgNote := syncAppointmentToKG(db, id, kg, logger)
+		return "Tool Output: " + planner.ToJSON(map[string]interface{}{"status": "success", "message": "Appointment created" + kgNote, "id": id})
 
 	case "update":
 		id, _ := tc.Params["id"].(string)
-		if id == "" {
-			id = tc.ID
-		}
 		if id == "" {
 			return `Tool Output: {"status":"error","message":"'id' is required for update operation"}`
 		}
@@ -115,14 +112,11 @@ func dispatchManageAppointments(tc ToolCall, db *sql.DB, kg planner.KnowledgeGra
 		if err := planner.UpdateAppointment(db, *existing); err != nil {
 			return plannerError(err)
 		}
-		syncAppointmentToKG(db, id, kg, logger)
-		return "Tool Output: " + planner.ToJSON(map[string]interface{}{"status": "success", "message": "Appointment updated", "id": id})
+		kgNote := syncAppointmentToKG(db, id, kg, logger)
+		return "Tool Output: " + planner.ToJSON(map[string]interface{}{"status": "success", "message": "Appointment updated" + kgNote, "id": id})
 
 	case "complete":
 		id, _ := tc.Params["id"].(string)
-		if id == "" {
-			id = tc.ID
-		}
 		if id == "" {
 			return `Tool Output: {"status":"error","message":"'id' is required for complete operation"}`
 		}
@@ -134,14 +128,11 @@ func dispatchManageAppointments(tc ToolCall, db *sql.DB, kg planner.KnowledgeGra
 		if err := planner.UpdateAppointment(db, *existing); err != nil {
 			return plannerError(err)
 		}
-		syncAppointmentToKG(db, id, kg, logger)
-		return "Tool Output: " + planner.ToJSON(map[string]interface{}{"status": "success", "message": "Appointment marked as completed", "id": id})
+		kgNote := syncAppointmentToKG(db, id, kg, logger)
+		return "Tool Output: " + planner.ToJSON(map[string]interface{}{"status": "success", "message": "Appointment marked as completed" + kgNote, "id": id})
 
 	case "cancel":
 		id, _ := tc.Params["id"].(string)
-		if id == "" {
-			id = tc.ID
-		}
 		if id == "" {
 			return `Tool Output: {"status":"error","message":"'id' is required for cancel operation"}`
 		}
@@ -153,23 +144,24 @@ func dispatchManageAppointments(tc ToolCall, db *sql.DB, kg planner.KnowledgeGra
 		if err := planner.UpdateAppointment(db, *existing); err != nil {
 			return plannerError(err)
 		}
-		syncAppointmentToKG(db, id, kg, logger)
-		return "Tool Output: " + planner.ToJSON(map[string]interface{}{"status": "success", "message": "Appointment cancelled", "id": id})
+		kgNote := syncAppointmentToKG(db, id, kg, logger)
+		return "Tool Output: " + planner.ToJSON(map[string]interface{}{"status": "success", "message": "Appointment cancelled" + kgNote, "id": id})
 
 	case "delete":
 		id, _ := tc.Params["id"].(string)
 		if id == "" {
-			id = tc.ID
-		}
-		if id == "" {
 			return `Tool Output: {"status":"error","message":"'id' is required for delete operation"}`
 		}
-		nodeID := "appointment_" + id
+		// ISSUE-7: Fetch KGNodeID from DB before deleting to avoid using a hardcoded prefix.
+		existingAppt, err := planner.GetAppointment(db, id)
+		if err != nil {
+			return plannerError(err)
+		}
 		if err := planner.DeleteAppointment(db, id); err != nil {
 			return plannerError(err)
 		}
-		if kg != nil {
-			_ = kg.DeleteNode(nodeID)
+		if kg != nil && existingAppt.KGNodeID != "" {
+			_ = kg.DeleteNode(existingAppt.KGNodeID)
 		}
 		return "Tool Output: " + planner.ToJSON(map[string]interface{}{"status": "success", "message": "Appointment deleted", "id": id})
 
@@ -202,9 +194,6 @@ func dispatchManageTodos(tc ToolCall, db *sql.DB, kg planner.KnowledgeGraph, log
 	case "get":
 		id, _ := tc.Params["id"].(string)
 		if id == "" {
-			id = tc.ID
-		}
-		if id == "" {
 			return `Tool Output: {"status":"error","message":"'id' is required for get operation"}`
 		}
 		t, err := planner.GetTodo(db, id)
@@ -229,14 +218,11 @@ func dispatchManageTodos(tc ToolCall, db *sql.DB, kg planner.KnowledgeGraph, log
 		if err != nil {
 			return plannerError(err)
 		}
-		syncTodoToKG(db, id, kg, logger)
-		return "Tool Output: " + planner.ToJSON(map[string]interface{}{"status": "success", "message": "Todo created", "id": id})
+		kgNote := syncTodoToKG(db, id, kg, logger)
+		return "Tool Output: " + planner.ToJSON(map[string]interface{}{"status": "success", "message": "Todo created" + kgNote, "id": id})
 
 	case "update":
 		id, _ := tc.Params["id"].(string)
-		if id == "" {
-			id = tc.ID
-		}
 		if id == "" {
 			return `Tool Output: {"status":"error","message":"'id' is required for update operation"}`
 		}
@@ -266,14 +252,11 @@ func dispatchManageTodos(tc ToolCall, db *sql.DB, kg planner.KnowledgeGraph, log
 		if err := planner.UpdateTodo(db, *existing); err != nil {
 			return plannerError(err)
 		}
-		syncTodoToKG(db, id, kg, logger)
-		return "Tool Output: " + planner.ToJSON(map[string]interface{}{"status": "success", "message": "Todo updated", "id": id})
+		kgNote := syncTodoToKG(db, id, kg, logger)
+		return "Tool Output: " + planner.ToJSON(map[string]interface{}{"status": "success", "message": "Todo updated" + kgNote, "id": id})
 
 	case "set_status":
 		id, _ := tc.Params["id"].(string)
-		if id == "" {
-			id = tc.ID
-		}
 		if id == "" {
 			return `Tool Output: {"status":"error","message":"'id' is required for set_status operation"}`
 		}
@@ -289,23 +272,24 @@ func dispatchManageTodos(tc ToolCall, db *sql.DB, kg planner.KnowledgeGraph, log
 		if err := planner.UpdateTodo(db, *existing); err != nil {
 			return plannerError(err)
 		}
-		syncTodoToKG(db, id, kg, logger)
-		return "Tool Output: " + planner.ToJSON(map[string]interface{}{"status": "success", "message": "Todo status updated to " + status, "id": id})
+		kgNote := syncTodoToKG(db, id, kg, logger)
+		return "Tool Output: " + planner.ToJSON(map[string]interface{}{"status": "success", "message": "Todo status updated to " + status + kgNote, "id": id})
 
 	case "delete":
 		id, _ := tc.Params["id"].(string)
 		if id == "" {
-			id = tc.ID
-		}
-		if id == "" {
 			return `Tool Output: {"status":"error","message":"'id' is required for delete operation"}`
 		}
-		nodeID := "todo_" + id
+		// ISSUE-7: Fetch KGNodeID from DB before deleting to avoid using a hardcoded prefix.
+		existingTodo, err := planner.GetTodo(db, id)
+		if err != nil {
+			return plannerError(err)
+		}
 		if err := planner.DeleteTodo(db, id); err != nil {
 			return plannerError(err)
 		}
-		if kg != nil {
-			_ = kg.DeleteNode(nodeID)
+		if kg != nil && existingTodo.KGNodeID != "" {
+			_ = kg.DeleteNode(existingTodo.KGNodeID)
 		}
 		return "Tool Output: " + planner.ToJSON(map[string]interface{}{"status": "success", "message": "Todo deleted", "id": id})
 
@@ -315,17 +299,23 @@ func dispatchManageTodos(tc ToolCall, db *sql.DB, kg planner.KnowledgeGraph, log
 }
 
 // syncAppointmentToKG syncs an appointment to the knowledge graph.
-func syncAppointmentToKG(db *sql.DB, id string, kg planner.KnowledgeGraph, logger *slog.Logger) {
+// Returns a note string if sync failed, empty string on success (ISSUE-13).
+func syncAppointmentToKG(db *sql.DB, id string, kg planner.KnowledgeGraph, logger *slog.Logger) string {
 	if err := planner.SyncAppointmentToKG(kg, db, id); err != nil {
 		logger.Warn("Failed to sync appointment to KG", "id", id, "error", err)
+		return "; knowledge graph sync failed"
 	}
+	return ""
 }
 
 // syncTodoToKG syncs a todo to the knowledge graph.
-func syncTodoToKG(db *sql.DB, id string, kg planner.KnowledgeGraph, logger *slog.Logger) {
+// Returns a note string if sync failed, empty string on success (ISSUE-13).
+func syncTodoToKG(db *sql.DB, id string, kg planner.KnowledgeGraph, logger *slog.Logger) string {
 	if err := planner.SyncTodoToKG(kg, db, id); err != nil {
 		logger.Warn("Failed to sync todo to KG", "id", id, "error", err)
+		return "; knowledge graph sync failed"
 	}
+	return ""
 }
 
 // strParam extracts a string parameter from the tool call params map.

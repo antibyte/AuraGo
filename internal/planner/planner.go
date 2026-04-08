@@ -122,6 +122,21 @@ func validRFC3339(s string) bool {
 	return err == nil
 }
 
+// normalizeDateInput converts a date-only string (YYYY-MM-DD) to RFC3339 by appending T00:00:00Z.
+// If the input is already RFC3339, it is returned unchanged.
+func normalizeDateInput(s string) string {
+	if s == "" {
+		return s
+	}
+	if _, err := time.Parse(time.RFC3339, s); err == nil {
+		return s // already valid RFC3339
+	}
+	if _, err := time.Parse("2006-01-02", s); err == nil {
+		return s + "T00:00:00Z"
+	}
+	return s // return unchanged; validation will catch the error
+}
+
 // CreateAppointment adds a new appointment and returns its ID.
 func CreateAppointment(db *sql.DB, a Appointment) (string, error) {
 	if a.Title == "" {
@@ -166,8 +181,20 @@ func UpdateAppointment(db *sql.DB, a Appointment) error {
 	if a.ID == "" {
 		return fmt.Errorf("id is required")
 	}
+	if a.DateTime != "" && !validRFC3339(a.DateTime) {
+		return fmt.Errorf("invalid date_time format %q: must be RFC3339 (e.g. 2025-03-15T14:00:00Z)", a.DateTime)
+	}
+	if a.NotificationAt != "" && !validRFC3339(a.NotificationAt) {
+		return fmt.Errorf("invalid notification_at format %q: must be RFC3339", a.NotificationAt)
+	}
 	if !validAppointmentStatus(a.Status) {
 		return fmt.Errorf("invalid status %q: must be upcoming, completed, or cancelled", a.Status)
+	}
+	// BUG-3: Reset notified when notification_at changes so the new time triggers a notification.
+	var currentNotificationAt string
+	_ = db.QueryRow("SELECT notification_at FROM appointments WHERE id=?", a.ID).Scan(&currentNotificationAt)
+	if a.NotificationAt != currentNotificationAt {
+		a.Notified = false
 	}
 	a.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 
@@ -298,6 +325,18 @@ func MarkNotified(db *sql.DB, id string) error {
 	return nil
 }
 
+// ClaimNotification atomically marks an appointment as notified using compare-and-swap.
+// Returns true if this call was the first to claim (rows affected = 1), false if already claimed.
+// This prevents duplicate notifications when multiple goroutines race on the same appointment.
+func ClaimNotification(db *sql.DB, id string) (bool, error) {
+	res, err := db.Exec("UPDATE appointments SET notified = 1 WHERE id = ? AND notified = 0", id)
+	if err != nil {
+		return false, err
+	}
+	n, _ := res.RowsAffected()
+	return n > 0, nil
+}
+
 // ── Todo CRUD ──
 
 // CreateTodo adds a new todo and returns its ID.
@@ -321,8 +360,11 @@ func CreateTodo(db *sql.DB, t Todo) (string, error) {
 	if !validTodoPriority(t.Priority) {
 		return "", fmt.Errorf("invalid priority %q: must be low, medium, or high", t.Priority)
 	}
-	if t.DueDate != "" && !validRFC3339(t.DueDate) {
-		return "", fmt.Errorf("invalid due_date format %q: must be RFC3339 (e.g. 2025-03-15T00:00:00Z)", t.DueDate)
+	if t.DueDate != "" {
+		t.DueDate = normalizeDateInput(t.DueDate)
+		if !validRFC3339(t.DueDate) {
+			return "", fmt.Errorf("invalid due_date format %q: must be RFC3339 (e.g. 2025-03-15T00:00:00Z) or date-only (e.g. 2025-03-15)", t.DueDate)
+		}
 	}
 	t.KGNodeID = "todo_" + t.ID
 
@@ -347,6 +389,12 @@ func UpdateTodo(db *sql.DB, t Todo) error {
 	}
 	if !validTodoPriority(t.Priority) {
 		return fmt.Errorf("invalid priority %q: must be low, medium, or high", t.Priority)
+	}
+	if t.DueDate != "" {
+		t.DueDate = normalizeDateInput(t.DueDate)
+		if !validRFC3339(t.DueDate) {
+			return fmt.Errorf("invalid due_date format %q: must be RFC3339 (e.g. 2025-03-15T00:00:00Z) or date-only (e.g. 2025-03-15)", t.DueDate)
+		}
 	}
 	t.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 

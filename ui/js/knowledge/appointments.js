@@ -181,16 +181,13 @@ async function cancelAppointment(id) {
 }
 
 async function updateAppointmentStatus(id, status) {
-    const a = allAppointments.find(x => x.id === id);
-    if (!a) return;
-
-    const data = Object.assign({}, a, { status });
-
+    // ISSUE-11: Send only the status field to avoid overwriting server-side changes
+    // with stale cached data from the frontend.
     try {
         const resp = await fetch('/api/appointments/' + encodeURIComponent(id), {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data),
+            body: JSON.stringify({ status }),
         });
         if (!resp.ok) throw new Error(await resp.text());
         showToast(t('common.success'), 'success');
