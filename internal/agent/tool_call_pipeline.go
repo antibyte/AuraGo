@@ -66,9 +66,9 @@ func parseToolResponse(resp openai.ChatCompletionResponse, logger *slog.Logger, 
 
 	// Fast path: detect [TOOL_CALL] bracket format on raw content before sanitization.
 	// StripThinkingTags may remove [/TOOL_CALL] closing tags via hallucinatedRagRe,
-	// which breaks bracket detection on the sanitized content path. When content was
-	// modified by stripping AND contains [TOOL_CALL], try the raw content first.
-	if result.SanitizedContent != result.Content && strings.Contains(strings.ToLower(result.Content), "[tool_call]") {
+	// which breaks bracket detection on the sanitized content path. Parse the raw
+	// content directly when it contains [TOOL_CALL].
+	if strings.Contains(strings.ToLower(result.Content), "[tool_call]") {
 		bracketTC := ParseToolCall(result.Content)
 		if bracketTC.IsTool {
 			result.ToolCall = bracketTC

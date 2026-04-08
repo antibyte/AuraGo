@@ -5,6 +5,7 @@
 let allSkills = [];
 let allTemplates = [];
 let daemonStates = {};  // skill_id -> daemon state object
+let daemonSystemEnabled = false;  // true when daemon_skills.enabled in config
 let currentTypeFilter = 'all';
 let currentSecFilter = 'all';
 let currentDetailId = '';
@@ -69,8 +70,9 @@ async function loadSkills() {
         }
         allSkills = data.skills || [];
         updateStats(data.stats);
-        // Daemon states are embedded in the skills response to avoid a second
-        // round-trip.  Fall back to empty object when no daemons are configured.
+        // Track whether the daemon system is enabled so we can hide daemon
+        // action buttons when the supervisor is not running.
+        daemonSystemEnabled = !!data.daemon_system_enabled;
         if (data.daemon_states && typeof data.daemon_states === 'object') {
             daemonStates = data.daemon_states;
         }
@@ -105,20 +107,6 @@ function showDisabledState() {
 }
 
 // ── Daemon Data ─────────────────────────────────────────────────────────────
-
-    async function loadDaemonStates() {
-        try {
-            const resp = await fetch('/api/daemons');
-            if (!resp.ok) return;
-            const data = await resp.json();
-            const list = data.daemons || data || [];
-            daemonStates = {};
-            if (Array.isArray(list)) {
-                list.forEach(d => { daemonStates[d.skill_id || d.SkillID] = d; });
-            }
-            renderSkills();
-        } catch (_) { }
-    }
 
     function initDaemonSSE() {
         if (window.AuraSSE) {
@@ -155,6 +143,9 @@ function showDisabledState() {
     function renderDaemonActions(skill) {
         const isDaemon = skill.IsDaemon || skill.is_daemon;
         if (!isDaemon) return '';
+        if (!daemonSystemEnabled) {
+            return `<div class="sk-daemon-actions"><span class="sk-daemon-badge sk-daemon-disabled" title="${t('skills.daemon_disabled_hint') || 'Enable daemon_skills in config to start'}">⛔ ${t('skills.daemon') || 'Daemon'}</span></div>`;
+        }
         const id = skill.name || skill.Name || skill.id || skill.ID || '';
         const ds = getDaemonState(id);
         const status = ds ? (ds.status || ds.Status || 'stopped').toLowerCase() : 'stopped';
@@ -175,16 +166,25 @@ function showDisabledState() {
     async function daemonAction(skillId, action) {
         try {
             const resp = await fetch(`/api/daemons/${encodeURIComponent(skillId)}/${action}`, { method: 'POST' });
-            const data = await resp.json();
+            let data;
+            try {
+                data = await resp.json();
+            } catch (parseErr) {
+                console.error('Daemon action failed: non-JSON response', resp.status, parseErr);
+                showToast(`${t('skills.daemon_action_failed') || 'Daemon error'}: HTTP ${resp.status}`, 'error');
+                return;
+            }
             if (data.status === 'ok' && resp.ok) {
                 showToast(t('skills.daemon_action_ok') || 'Daemon action executed', 'success');
                 await loadSkills();
             } else {
-                const msg = data.message || data.error || t('common.error');
+                const msg = data.message || data.error || 'Unknown error';
+                console.error('Daemon action error:', msg);
                 showToast(`${t('skills.daemon_action_failed') || 'Daemon error'}: ${msg}`, 'error');
             }
         } catch (e) {
-            showToast(t('common.error') || 'Error', 'error');
+            console.error('Daemon action network error:', e);
+            showToast(`${t('skills.daemon_action_failed') || 'Daemon error'}: ${e.message || 'Network error'}`, 'error');
         }
     }
 

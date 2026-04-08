@@ -15,7 +15,14 @@ func applyToolOutputPolicy(result string, limit int, scope AgentTelemetryScope) 
 		WasError:     isToolError(result),
 		ErrorSummary: extractErrorMessage(result),
 	}
-	if limit <= 0 || len(result) <= limit {
+	if limit <= 0 {
+		// Zero or negative limit means no truncation, but errors still get metadata.
+		if decision.WasError && decision.ErrorSummary != "" {
+			decision.Content = result + "\n\n[Tool result: error occurred, see above for details]"
+		}
+		return decision
+	}
+	if len(result) <= limit {
 		return decision
 	}
 

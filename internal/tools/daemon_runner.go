@@ -268,8 +268,13 @@ func (r *DaemonRunner) Stop() error {
 
 // stopLocked sends stop and kills if needed. Caller must hold r.mu.
 func (r *DaemonRunner) stopLocked(reason string) error {
+	if r.status == DaemonCrashed {
+		r.status = DaemonStopped
+		r.logger.Info("Stopped daemon during crash recovery, preventing pending restart", "reason", reason)
+		return nil
+	}
 	if r.status != DaemonRunning && r.status != DaemonStarting {
-		return nil // already stopped
+		return nil
 	}
 
 	r.logger.Info("Stopping daemon", "reason", reason)
@@ -314,6 +319,13 @@ func (r *DaemonRunner) Reenable() {
 	}
 	r.restartCount = 0
 	r.logger.Info("Daemon re-enabled")
+}
+
+// IsAutoDisabled returns whether the daemon was auto-disabled by the circuit breaker.
+func (r *DaemonRunner) IsAutoDisabled() bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.autoDisabled
 }
 
 // IncrementSuppressed increments the suppressed wake-up counter.

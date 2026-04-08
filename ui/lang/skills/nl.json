@@ -135,5 +135,6 @@
   "skills.daemon_stop": "Stoppen",
   "skills.daemon_reenable": "Heractiveren",
   "skills.daemon_action_ok": "Daemon-actie uitgevoerd",
-  "skills.daemon_action_failed": "Daemon fout"
+  "skills.daemon_action_failed": "Daemon fout",
+  "skills.daemon_disabled_hint": "Schakel daemon_skills in bij config om te starten"
 }

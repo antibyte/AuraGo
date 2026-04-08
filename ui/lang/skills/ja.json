@@ -135,5 +135,6 @@
   "skills.daemon_stop": "停止",
   "skills.daemon_reenable": "再有効化",
   "skills.daemon_action_ok": "デーモンアクション実行完了",
-  "skills.daemon_action_failed": "デーモンエラー"
+  "skills.daemon_action_failed": "デーモンエラー",
+  "skills.daemon_disabled_hint": "開始するには設定でdaemon_skillsを有効にしてください"
 }

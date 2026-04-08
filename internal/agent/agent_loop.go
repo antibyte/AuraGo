@@ -655,7 +655,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 		// Load Core Memory (cached, invalidated when manage_memory is called
 		// or when the DB timestamp has changed due to external modifications).
-		if coreMemDirty || shortTermMem != nil {
+		if shortTermMem != nil {
 			dbUpdatedAt, err := shortTermMem.GetCoreMemoryUpdatedAt()
 			if err == nil && !dbUpdatedAt.IsZero() && !coreMemUpdatedAt.IsZero() && !dbUpdatedAt.Equal(coreMemUpdatedAt) {
 				coreMemDirty = true
@@ -709,7 +709,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			ragSettings := resolveMemoryAnalysisSettings(cfg, shortTermMem)
 			useHelperRAGBatch := helperManager != nil && ragSettings.Enabled && ragSettings.QueryExpansion && ragSettings.LLMReranking
 			ragQuery := lastUserMsg
-			if !useHelperRAGBatch {
+			if useHelperRAGBatch {
 				ragQuery = expandQueryForRAG(ctx, cfg, currentLogger, lastUserMsg, shortTermMem)
 			}
 			ragLastUserMsg = lastUserMsg
@@ -1800,7 +1800,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		isAnnouncement := announcementContent != "" && !parsedToolResp.IsFinished && !tc.IsTool && cfg.Agent.AnnouncementDetector.Enabled && isAnnouncementOnlyResponse(announcementContent, tc, useNativePath, lastResponseWasTool, lastUserMsg)
 		if isAnnouncement && announcementCount < cfg.Agent.AnnouncementDetector.MaxRetries {
 			announcementCount++
-			currentLogger.Warn("[Sync] Announcement-only response detected, requesting immediate tool call", "attempt", announcementCount, "content_preview", Truncate(content, 120))
+			currentLogger.Warn("[Sync] Announcement-only response detected, requesting immediate tool call", "attempt", announcementCount, "content_preview", Truncate(announcementContent, 120))
 			broker.Send("error_recovery", "Announcement without action detected, requesting tool call...")
 
 			id, err := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleAssistant, content, false, true)
@@ -2059,6 +2059,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 			broker.Send("tool_end", tc.Action)
 			lastActivity = time.Now() // Tool activity
+			lastResponseWasTool = true
 
 			// Update session todo from piggybacked _todo field
 			if tc.Todo != "" {

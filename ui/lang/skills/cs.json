@@ -135,5 +135,6 @@
   "skills.daemon_stop": "Zastavit",
   "skills.daemon_reenable": "Znovu povolit",
   "skills.daemon_action_ok": "Akce daemonu provedena",
-  "skills.daemon_action_failed": "Chyba daemona"
+  "skills.daemon_action_failed": "Chyba daemona",
+  "skills.daemon_disabled_hint": "Povolte daemon_skills v konfiguraci pro spuštění"
 }

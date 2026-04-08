@@ -14,11 +14,12 @@ import (
 )
 
 // DaemonSSEEventType identifies daemon-related SSE events.
-// These are string constants compatible with server.SSEEventType.
+// All daemon events use the single canonical type "daemon_update"
+// so the frontend can listen with AuraSSE.on('daemon_update', ...).
 const (
-	DaemonSSEStatus       = "daemon_status"
-	DaemonSSEWakeUp       = "daemon_wakeup"
-	DaemonSSEAutoDisabled = "daemon_auto_disabled"
+	DaemonSSEStatus       = "daemon_update"
+	DaemonSSEWakeUp       = "daemon_update"
+	DaemonSSEAutoDisabled = "daemon_update"
 )
 
 // DaemonEventBroadcaster abstracts SSE broadcasting to avoid an import cycle with server.
@@ -246,10 +247,15 @@ func (s *DaemonSupervisor) startDaemonOnDemand(skillID string) error {
 		filePath := filepath.Join(s.config.SkillsDir, entry.Name())
 		data, readErr := os.ReadFile(filePath)
 		if readErr != nil {
+			s.logger.Warn("Cannot read skill manifest, skipping", "file", entry.Name(), "error", readErr)
 			continue
 		}
 		var manifest SkillManifest
-		if err := json.Unmarshal(data, &manifest); err != nil || manifest.Name != skillID {
+		if err := json.Unmarshal(data, &manifest); err != nil {
+			s.logger.Warn("Cannot parse skill manifest, skipping", "file", entry.Name(), "error", err)
+			continue
+		}
+		if manifest.Name != skillID {
 			continue
 		}
 		if manifest.Daemon == nil {
@@ -508,6 +514,20 @@ func (s *DaemonSupervisor) RefreshSkills() error {
 			s.mu.Unlock()
 		}
 	}
+
+	// Start new daemons. For auto-disabled runners that are still desired,
+	// clear the auto-disabled flag so they can restart.
+	s.mu.RLock()
+	for id := range desired {
+		if runner, ok := s.runners[id]; ok && runner.IsAutoDisabled() {
+			s.mu.RUnlock()
+			runner.Reenable()
+			s.gate.ResetEscalation(id)
+			s.logger.Info("Re-enabling auto-disabled daemon during refresh", "skill_id", id)
+			s.mu.RLock()
+		}
+	}
+	s.mu.RUnlock()
 
 	// Start new daemons.
 	// Re-read the count under lock before each attempt so concurrent start/stop

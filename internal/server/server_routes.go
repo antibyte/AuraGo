@@ -1264,11 +1264,11 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		mux.HandleFunc("/api/containers/", handleContainerAction(s))
 
 		// ── Daemon Skills API ──
-		if s.DaemonSupervisor != nil {
-			mux.HandleFunc("/api/daemons", handleDaemonList(s))
-			mux.HandleFunc("/api/daemons/refresh", handleDaemonRefresh(s))
-			mux.HandleFunc("/api/daemons/", handleDaemonAction(s))
-		}
+		// Always register daemon routes so the frontend gets proper JSON errors
+		// instead of a 404 when daemon_skills.enabled = false (the default).
+		mux.HandleFunc("/api/daemons", handleDaemonList(s))
+		mux.HandleFunc("/api/daemons/refresh", handleDaemonRefresh(s))
+		mux.HandleFunc("/api/daemons/", handleDaemonAction(s))
 
 		// ── Cheat Sheets API ──
 		mux.HandleFunc("/api/cheatsheets", handleCheatSheets(s))

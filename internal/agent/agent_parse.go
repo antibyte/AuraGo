@@ -765,7 +765,7 @@ func ParseToolCall(content string) ToolCall {
 					if strings.HasPrefix(candidate, "{") {
 						normalized := normalizeTagsInJSON(candidate)
 						var tmp ToolCall
-						if json.Unmarshal([]byte(normalized), &tmp) == nil && (tmp.Action != "" || tmp.ToolCallAction != "" || tmp.Operation != "" || tmp.Name != "" || tmp.Tool != "" || tmp.Command != "") {
+						if json.Unmarshal([]byte(normalized), &tmp) == nil && (tmp.Action != "" || tmp.ToolCallAction != "") && (tmp.Operation == "" && tmp.Name == "" && tmp.Tool == "" && tmp.Command == "" || tmp.Action != "" || tmp.ToolCallAction != "") {
 							tc = tmp
 							extractedFromFence = true
 							tc.RawJSON = candidate
@@ -787,7 +787,7 @@ func ParseToolCall(content string) ToolCall {
 						candidate := bStr[:j+1]
 						normalized := normalizeTagsInJSON(candidate)
 						var tmp ToolCall
-						if json.Unmarshal([]byte(normalized), &tmp) == nil && (tmp.Action != "" || tmp.ToolCallAction != "" || tmp.Operation != "" || tmp.Name != "" || tmp.Tool != "" || tmp.Command != "") {
+						if json.Unmarshal([]byte(normalized), &tmp) == nil && (tmp.Action != "" || tmp.ToolCallAction != "") && (tmp.Operation == "" && tmp.Name == "" && tmp.Tool == "" && tmp.Command == "" || tmp.Action != "" || tmp.ToolCallAction != "") {
 							tc = tmp
 							extractedFromFence = true
 							tc.RawJSON = candidate

@@ -135,5 +135,6 @@
   "skills.daemon_stop": "Διακοπή",
   "skills.daemon_reenable": "Επανενεργοποίηση",
   "skills.daemon_action_ok": "Ενέργεια daemon εκτελέστηκε",
-  "skills.daemon_action_failed": "Σφάλμα daemon"
+  "skills.daemon_action_failed": "Σφάλμα daemon",
+  "skills.daemon_disabled_hint": "Ενεργοποιήστε το daemon_skills στη ρύθμιση για εκκίνηση"
 }

@@ -213,8 +213,8 @@ func TestEncodeDaemonCommand_MissingType(t *testing.T) {
 
 func TestDaemonManifestDefaults(t *testing.T) {
 	d := DaemonManifestDefaults()
-	if d.WakeRateLimitSeconds != 3000 {
-		t.Errorf("expected WakeRateLimitSeconds=3000, got %d", d.WakeRateLimitSeconds)
+	if d.WakeRateLimitSeconds != 60 {
+		t.Errorf("expected WakeRateLimitSeconds=60, got %d", d.WakeRateLimitSeconds)
 	}
 	if d.MaxRestartAttempts != 3 {
 		t.Errorf("expected MaxRestartAttempts=3, got %d", d.MaxRestartAttempts)
@@ -275,9 +275,8 @@ func TestNewDaemonRunner_Defaults(t *testing.T) {
 	if runner.Status() != DaemonStopped {
 		t.Errorf("expected initial status stopped, got %s", runner.Status())
 	}
-	// Config defaults should be applied
-	if runner.config.MaxRestartAttempts != 3 {
-		t.Errorf("expected MaxRestartAttempts=3 after defaults, got %d", runner.config.MaxRestartAttempts)
+	if runner.config.MaxRestartAttempts != 0 {
+		t.Errorf("expected MaxRestartAttempts=0 (raw config, ApplyDefaults not called in runner), got %d", runner.config.MaxRestartAttempts)
 	}
 }
 
@@ -1981,8 +1980,8 @@ func TestDaemonSupervisor_RefreshSkillsDisabled(t *testing.T) {
 func TestDaemonManifestApplyDefaults_AllZero(t *testing.T) {
 	d := &DaemonManifest{}
 	d.ApplyDefaults()
-	if d.WakeRateLimitSeconds != 3000 {
-		t.Errorf("expected WakeRateLimitSeconds=3000, got %d", d.WakeRateLimitSeconds)
+	if d.WakeRateLimitSeconds != 60 {
+		t.Errorf("expected WakeRateLimitSeconds=60, got %d", d.WakeRateLimitSeconds)
 	}
 	if d.MaxRestartAttempts != 3 {
 		t.Errorf("expected MaxRestartAttempts=3, got %d", d.MaxRestartAttempts)
@@ -1993,9 +1992,9 @@ func TestDaemonManifestApplyDefaults_AllZero(t *testing.T) {
 	if d.HealthCheckIntervalSeconds != 60 {
 		t.Errorf("expected HealthCheckIntervalSeconds=60, got %d", d.HealthCheckIntervalSeconds)
 	}
-	// Note: RestartOnCrash defaults to false (bool zero value) — ApplyDefaults cannot
-	// distinguish "explicitly set to false" from "unset". DaemonManifestDefaults() returns
-	// true, but ApplyDefaults only sets non-zero fields for integer values.
+	if !d.RestartOnCrash {
+		t.Error("expected RestartOnCrash=true after ApplyDefaults")
+	}
 }
 
 func TestDaemonManifestApplyDefaults_PartialSet(t *testing.T) {
@@ -2012,6 +2011,9 @@ func TestDaemonManifestApplyDefaults_PartialSet(t *testing.T) {
 	}
 	if d.MaxRestartAttempts != 3 {
 		t.Errorf("expected MaxRestartAttempts=3 (default), got %d", d.MaxRestartAttempts)
+	}
+	if !d.RestartOnCrash {
+		t.Error("expected RestartOnCrash=true (always applied from defaults)")
 	}
 }
 
@@ -2059,13 +2061,13 @@ func TestDaemonState_AfterWakeUp(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestDaemonSSEConstants(t *testing.T) {
-	if DaemonSSEStatus != "daemon_status" {
+	if DaemonSSEStatus != "daemon_update" {
 		t.Errorf("unexpected DaemonSSEStatus: %q", DaemonSSEStatus)
 	}
-	if DaemonSSEWakeUp != "daemon_wakeup" {
+	if DaemonSSEWakeUp != "daemon_update" {
 		t.Errorf("unexpected DaemonSSEWakeUp: %q", DaemonSSEWakeUp)
 	}
-	if DaemonSSEAutoDisabled != "daemon_auto_disabled" {
+	if DaemonSSEAutoDisabled != "daemon_update" {
 		t.Errorf("unexpected DaemonSSEAutoDisabled: %q", DaemonSSEAutoDisabled)
 	}
 }

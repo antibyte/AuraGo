@@ -87,6 +87,7 @@ func (d *DaemonManifest) ApplyDefaults() {
 	if d.WakeRateLimitSeconds <= 0 {
 		d.WakeRateLimitSeconds = defaults.WakeRateLimitSeconds
 	}
+	d.RestartOnCrash = defaults.RestartOnCrash
 	if d.MaxRestartAttempts <= 0 {
 		d.MaxRestartAttempts = defaults.MaxRestartAttempts
 	}

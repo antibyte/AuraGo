@@ -135,5 +135,6 @@
   "skills.daemon_stop": "Zatrzymaj",
   "skills.daemon_reenable": "Włącz ponownie",
   "skills.daemon_action_ok": "Akcja daemona wykonana",
-  "skills.daemon_action_failed": "Błąd demona"
+  "skills.daemon_action_failed": "Błąd demona",
+  "skills.daemon_disabled_hint": "Włącz daemon_skills w konfiguracji, aby uruchomić"
 }

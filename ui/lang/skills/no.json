@@ -135,5 +135,6 @@
   "skills.daemon_stop": "Stopp",
   "skills.daemon_reenable": "Reaktiver",
   "skills.daemon_action_ok": "Daemon-handling utført",
-  "skills.daemon_action_failed": "Daemon feil"
+  "skills.daemon_action_failed": "Daemon feil",
+  "skills.daemon_disabled_hint": "Aktiver daemon_skills i konfigurasjon for å starte"
 }

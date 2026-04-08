@@ -135,5 +135,6 @@
   "skills.daemon_stop": "Detener",
   "skills.daemon_reenable": "Reactivar",
   "skills.daemon_action_ok": "Acción daemon ejecutada",
-  "skills.daemon_action_failed": "Error de daemon"
+  "skills.daemon_action_failed": "Error de daemon",
+  "skills.daemon_disabled_hint": "Habilite daemon_skills en la configuración para iniciar"
 }

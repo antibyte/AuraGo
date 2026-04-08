@@ -135,5 +135,6 @@
   "skills.daemon_stop": "停止",
   "skills.daemon_reenable": "重新启用",
   "skills.daemon_action_ok": "守护进程操作已执行",
-  "skills.daemon_action_failed": "守护进程错误"
+  "skills.daemon_action_failed": "守护进程错误",
+  "skills.daemon_disabled_hint": "在配置中启用 daemon_skills 以启动"
 }
