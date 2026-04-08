@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"aurago/internal/config"
 	"gopkg.in/yaml.v3"
 )
 
@@ -213,5 +214,5 @@ func patchIndexingDirs(s *Server) error {
 		return err
 	}
 
-	return os.WriteFile(configPath, out, 0600)
+	return config.WriteFileAtomic(configPath, out, 0o600)
 }

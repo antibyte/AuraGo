@@ -247,7 +247,7 @@ func handlePutProviders(s *Server, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := os.WriteFile(configPath, out, 0644); err != nil {
+	if err := config.WriteFileAtomic(configPath, out, 0o600); err != nil {
 		s.Logger.Error("Failed to write config after provider update", "error", err)
 		jsonError(w, "Failed to write config", http.StatusInternalServerError)
 		return
@@ -413,7 +413,7 @@ func persistProviders(s *Server, configPath string) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(configPath, out, 0644)
+	return config.WriteFileAtomic(configPath, out, 0o600)
 }
 
 // buildProviderYAMLEntry converts a ProviderEntry to a map suitable for YAML marshalling.

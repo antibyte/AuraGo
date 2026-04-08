@@ -5,6 +5,10 @@
 
         body {
             overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            height: 100dvh;
         }
 
         /* Page Header - Gradient underline effect with glow */
@@ -1704,6 +1708,7 @@
             padding: 0.5rem 1rem;
             position: relative;
             overflow: visible;
+            flex-shrink: 0;
         }
 
         #agentStatusContainer.is-hidden {
