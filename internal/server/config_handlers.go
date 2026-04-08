@@ -960,6 +960,12 @@ func deepMerge(dst, src map[string]interface{}, path string) {
 				}
 				// Special handling for budget.models: ensure all items are proper objects
 				if fullPath == "budget.models" {
+					// Protect against clearing non-empty models array with empty incoming
+					if len(sv) == 0 {
+						if existing, ok := dst[key].([]interface{}); ok && len(existing) > 0 {
+							continue // keep existing non-empty array
+						}
+					}
 					cleanModels := make([]interface{}, 0, len(sv))
 					for _, elem := range sv {
 						if obj, ok := elem.(map[string]interface{}); ok {

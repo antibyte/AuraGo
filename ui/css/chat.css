@@ -10,6 +10,7 @@
         /* Page Header - Gradient underline effect with glow */
         .app-header {
             position: relative;
+            flex-shrink: 0;
         }
         .app-header::after {
             content: '';
@@ -1844,6 +1845,7 @@
             position: relative;
             z-index: 30;
             isolation: isolate;
+            flex-shrink: 0;
         }
 
         .input-row {
