@@ -3,12 +3,17 @@ package agent
 import (
 	"fmt"
 	"log/slog"
+	"regexp"
 	"strings"
 
 	"aurago/internal/security"
 
 	"github.com/sashabaranov/go-openai"
 )
+
+// bareToolCallTagRe matches bare <tool_call>, </tool_call>, <tool_call/>, or
+// minimax:tool_call markers that have no JSON body following them.
+var bareToolCallTagRe = regexp.MustCompile(`(?i)</?tool_call/?>|minimax:tool_call\s*$`)
 
 type ToolCallParseSource string
 
@@ -23,6 +28,7 @@ type ParsedToolResponse struct {
 	Content            string
 	SanitizedContent   string
 	IsFinished         bool
+	IncompleteToolCall bool // Model emitted a bare <tool_call> tag without a body
 	ToolCall           ToolCall
 	PendingToolCalls   []ToolCall
 	UseNativePath      bool
@@ -49,6 +55,22 @@ func parseToolResponse(resp openai.ChatCompletionResponse, logger *slog.Logger, 
 	}
 	result.SanitizedContent = sanitized
 	result.NativeAssistantMsg = msg
+
+	// Detect bare <tool_call> tags without body — the model tried to tool-call
+	// but emitted only the tag marker. Strip the tag from displayed content and
+	// flag the response so the agent loop can nudge the model.
+	if !result.IsFinished && bareToolCallTagRe.MatchString(sanitized) {
+		cleaned := strings.TrimSpace(bareToolCallTagRe.ReplaceAllString(sanitized, ""))
+		// Only flag as incomplete when stripping the tag doesn't reveal a
+		// parseable tool call (some models emit JSON right after the tag).
+		if tc := ParseToolCall(sanitized); !tc.IsTool {
+			result.IncompleteToolCall = true
+			result.SanitizedContent = cleaned
+			if logger != nil {
+				logger.Warn("[ToolCallPipeline] Bare <tool_call> tag detected without body", "raw_len", len(msg.Content))
+			}
+		}
+	}
 
 	if len(msg.ToolCalls) > 0 {
 		result.UseNativePath = true

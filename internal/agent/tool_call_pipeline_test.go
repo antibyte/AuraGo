@@ -489,3 +489,70 @@ func TestParseToolCallBracketFormatAfterTagStripping(t *testing.T) {
 		t.Fatalf("expected IsTool=false when closing tag was stripped by tag removal")
 	}
 }
+
+func TestParseToolResponseBareToolCallTag(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+	}{
+		{
+			name:    "bare <tool_call> after think block",
+			content: "<think>\nI should check system status.\n</think>\n\nEinen Moment, ich check den Systemstatus...\n<tool_call>",
+		},
+		{
+			name:    "bare <tool_call> alone",
+			content: "Let me check that.\n<tool_call>",
+		},
+		{
+			name:    "bare </tool_call> closing tag",
+			content: "Checking system status...\n</tool_call>",
+		},
+		{
+			name:    "bare minimax:tool_call marker",
+			content: "<think>thinking</think>\nEinen Moment...\nminimax:tool_call",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resp := openai.ChatCompletionResponse{
+				Choices: []openai.ChatCompletionChoice{{
+					Message: openai.ChatCompletionMessage{Content: tt.content},
+				}},
+			}
+			parsed := parseToolResponse(resp, nil, AgentTelemetryScope{})
+
+			if !parsed.IncompleteToolCall {
+				t.Fatal("expected IncompleteToolCall=true")
+			}
+			if parsed.ToolCall.IsTool {
+				t.Fatal("bare tag should not parse as a valid tool call")
+			}
+			if strings.Contains(parsed.SanitizedContent, "<tool_call>") ||
+				strings.Contains(parsed.SanitizedContent, "</tool_call>") ||
+				strings.Contains(parsed.SanitizedContent, "minimax:tool_call") {
+				t.Fatalf("bare tags should be stripped from SanitizedContent, got: %q", parsed.SanitizedContent)
+			}
+		})
+	}
+}
+
+func TestParseToolResponseValidToolCallNotFlaggedAsIncomplete(t *testing.T) {
+	// A real tool call with minimax:tool_call followed by JSON must NOT be flagged as incomplete
+	content := `<think>thinking</think>
+minimax:tool_call
+{"action":"system_metrics"}`
+	resp := openai.ChatCompletionResponse{
+		Choices: []openai.ChatCompletionChoice{{
+			Message: openai.ChatCompletionMessage{Content: content},
+		}},
+	}
+	parsed := parseToolResponse(resp, nil, AgentTelemetryScope{})
+
+	if parsed.IncompleteToolCall {
+		t.Fatal("valid tool call should not be flagged as incomplete")
+	}
+	if !parsed.ToolCall.IsTool {
+		t.Fatal("expected valid tool call to be parsed")
+	}
+}

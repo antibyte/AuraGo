@@ -275,6 +275,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	xmlFallbackCount := 0
 	missedToolCount := 0
 	announcementCount := 0
+	incompleteToolCallCount := 0
 	orphanedToolCallCount := 0
 	invalidNativeToolCount := 0
 	sessionTokens := 0
@@ -1818,6 +1819,45 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			if sessionID == "default" {
 				historyManager.Add(openai.ChatMessageRoleUser, feedbackMsg, id, false, true)
 			}
+			req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: feedbackMsg})
+			lastResponseWasTool = false
+			continue
+		}
+
+		// Recovery: model emitted a bare <tool_call> tag without any JSON body.
+		// This happens with some providers (MiniMax, OpenRouter) where the model
+		// tries to use XML-style tool calling but only outputs the tag marker.
+		// Handle this independently of the announcement detector.
+		if parsedToolResp.IncompleteToolCall && !tc.IsTool && incompleteToolCallCount < 2 {
+			incompleteToolCallCount++
+			currentLogger.Warn("[Sync] Incomplete <tool_call> tag detected, nudging model to emit actual tool call", "attempt", incompleteToolCallCount)
+			broker.Send("error_recovery", "Incomplete tool call detected, requesting proper function call...")
+
+			id, err := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleAssistant, content, false, true)
+			if err != nil {
+				currentLogger.Error("Failed to persist assistant message to SQLite", "error", err)
+			}
+			if sessionID == "default" {
+				historyManager.Add(openai.ChatMessageRoleAssistant, content, id, false, true)
+			}
+
+			var feedbackMsg string
+			if useNativeFunctions {
+				feedbackMsg = "ERROR: You emitted a bare <tool_call> tag but did not produce an actual tool call. You MUST use the native function-calling mechanism to invoke tools. Do NOT output <tool_call> tags in text — use the structured function call API instead."
+			} else {
+				feedbackMsg = "ERROR: You emitted a bare <tool_call> tag but did not include the JSON body. Output ONLY the raw JSON tool call object — no XML tags, no explanation. Example: {\"action\": \"system_metrics\"}"
+			}
+			feedbackMsg += " If there is nothing left to do, respond with <done/> to signal completion."
+			feedbackMsg = applyEmotionRecoveryNudge(feedbackMsg, emotionPolicy)
+			id, err = shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, feedbackMsg, false, true)
+			if err != nil {
+				currentLogger.Error("Failed to persist incomplete tool call feedback message to SQLite", "error", err)
+			}
+			if sessionID == "default" {
+				historyManager.Add(openai.ChatMessageRoleUser, feedbackMsg, id, false, true)
+			}
+
+			req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: content})
 			req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: feedbackMsg})
 			lastResponseWasTool = false
 			continue
