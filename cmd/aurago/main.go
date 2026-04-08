@@ -150,13 +150,18 @@ func main() {
 			if v, err := security.NewVault(masterKey, vaultPath); err == nil {
 				hash, err := server.HashPassword(initialPassword)
 				if err == nil {
-					_ = v.WriteSecret("auth_password_hash", hash)
-					appLog.Info("Initial password hash stored in vault")
+					if err := v.WriteSecret("auth_password_hash", hash); err != nil {
+						appLog.Error("Failed to store password hash in vault", "error", err)
+					} else {
+						appLog.Info("Initial password hash stored in vault")
+					}
 
 					// Setup session secret if not exists
 					if sec, _ := v.ReadSecret("auth_session_secret"); sec == "" {
 						if newSec, e := server.GenerateRandomHex(32); e == nil {
-							_ = v.WriteSecret("auth_session_secret", newSec)
+							if err := v.WriteSecret("auth_session_secret", newSec); err != nil {
+								appLog.Error("Failed to store session secret in vault", "error", err)
+							}
 						}
 					}
 
@@ -188,7 +193,9 @@ func main() {
 	var lockPath string
 	if cfg != nil && cfg.Directories.DataDir != "" {
 		lockPath = filepath.Join(cfg.Directories.DataDir, "aurago.lock")
-		_ = os.MkdirAll(cfg.Directories.DataDir, 0755)
+		if err := os.MkdirAll(cfg.Directories.DataDir, 0755); err != nil {
+			appLog.Error("Failed to create data directory", "path", cfg.Directories.DataDir, "error", err)
+		}
 	} else {
 		lockPath = "aurago.lock"
 	}
@@ -220,14 +227,16 @@ func main() {
 	installDir := filepath.Dir(exePath)
 	if setup.NeedsSetup(installDir) {
 		resPath := filepath.Join(installDir, "resources.dat")
-		if _, err := os.Stat(resPath); err == nil {
-			appLog.Warn("Essential files missing â€” running automatic setup from resources.dat")
-			if err := setup.Run(appLog); err != nil {
-				appLog.Error("Auto-setup failed", "error", err)
-				os.Exit(1)
-			}
-			appLog.Info("Auto-setup complete, continuing startup ...")
+		if _, err := os.Stat(resPath); err != nil {
+			appLog.Warn("resources.dat not found in install directory â setup will run from defaults", "path", resPath)
+		} else {
+			appLog.Info("Running automatic setup from resources.dat")
 		}
+		if err := setup.Run(appLog); err != nil {
+			appLog.Error("Auto-setup failed", "error", err)
+			os.Exit(1)
+		}
+		appLog.Info("Auto-setup complete, continuing startup ...")
 	}
 
 	appLog.Info("Starting AuraGo")

@@ -1197,8 +1197,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					ToolsCount: len(req.Tools),
 					Messages:   req.Messages,
 				}
-				_ = json.NewEncoder(f).Encode(entry)
-				_ = f.Close()
+				if err := json.NewEncoder(f).Encode(entry); err != nil {
+					currentLogger.Warn("[PromptLog] Failed to encode entry", "error", err)
+				}
+				f.Close()
 			}
 		}
 
@@ -1552,6 +1554,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 		if totalTokens == 0 {
 			SetGlobalTokenEstimated(true)
+			currentLogger.Warn("[TokenEstimation] Provider returned zero tokens — falling back to estimation which may be inaccurate", "model", req.Model)
 
 			for _, m := range req.Messages {
 				promptTokens += estimateTokensForModel(messageText(m), req.Model)
