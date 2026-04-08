@@ -683,19 +683,41 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		moodTrigger := func() string { return triggerValue }
 
 		// Note: The call to PrepareDynamicGuides will happen after the response is received
-		// We initialize flags.PredictedGuides now with empty explicit tools to satisfy builder.go for the first prompt
-		flags.PredictedGuides = prompts.PrepareDynamicGuidesWithStrategy(
-			longTermMem,
-			shortTermMem,
-			lastUserMsg,
-			lastTool,
-			toolGuidesDir,
-			recentTools,
-			explicitTools,
-			toolingPolicy.EffectiveMaxToolGuides,
-			toolingPolicy.EffectiveGuideStrategy,
-			currentLogger,
-		)
+		// We initialize flags.PredictedGuides now with empty explicit tools to satisfy builder.go for the first prompt.
+		// Skip guide loading in minimal tier — the guides are never injected there (builder.go:443 checks Tier=="full").
+		preliminaryTierFlags := prompts.ContextFlags{
+			MessageCount:       len(req.Messages),
+			IsErrorState:       flags.IsErrorState,
+			RequiresCoding:     flags.RequiresCoding,
+			RecentlyUsedTools:  recentTools,
+			PredictedGuides:    explicitTools,
+		}
+		if preliminaryTier := prompts.DetermineTierAdaptive(preliminaryTierFlags); preliminaryTier != "minimal" {
+			// Build skip list: tools that already have native OpenAI function schemas
+			// should not also get their guide content (saves tokens, avoids redundancy).
+			skipTools := make([]string, 0, len(req.Tools))
+			for _, t := range req.Tools {
+				if t.Function != nil {
+					skipTools = append(skipTools, t.Function.Name)
+				}
+			}
+			guideStrategy := toolingPolicy.EffectiveGuideStrategy
+			guideStrategy.SkipTools = skipTools
+			flags.PredictedGuides = prompts.PrepareDynamicGuidesWithStrategy(
+				longTermMem,
+				shortTermMem,
+				lastUserMsg,
+				lastTool,
+				toolGuidesDir,
+				recentTools,
+				explicitTools,
+				toolingPolicy.EffectiveMaxToolGuides,
+				guideStrategy,
+				currentLogger,
+			)
+		} else {
+			flags.PredictedGuides = nil
+		}
 		turnMemoryCandidates := make(map[string]string)
 		turnPendingActions := make([]memory.EpisodicMemory, 0, 2)
 
@@ -769,20 +791,28 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					ranked = rerankWithLLM(ctx, cfg, currentLogger, ranked, lastUserMsg, shortTermMem)
 				}
 
-				// For short queries (<40 chars), apply stricter score filtering to
+				// For short queries (<40 chars), apply a softer score filtering to
 				// avoid injecting semantically-similar but contextually-irrelevant
 				// old memories (e.g. "versuche es erneut" matching old error messages).
-				if len(lastUserMsg) < 40 {
+				// Use a lower threshold (0.50) to avoid filtering out highly-relevant old memories,
+				// and always keep at least the top result if anything was found.
+				if len(lastUserMsg) < 40 && len(ranked) > 0 {
+					scoreThreshold := 0.50
 					var filtered []rankedMemory
 					for _, r := range ranked {
-						if r.score >= 0.65 {
+						if r.score >= scoreThreshold {
 							filtered = append(filtered, r)
 						}
 					}
-					ranked = filtered
-					if len(ranked) > 0 {
-						currentLogger.Debug("[RAG] Short-query filter applied", "before", len(memories), "after", len(ranked))
+					// Preserve at least the top result if it was filtered out — old memories
+					// that are semantically highly similar may still be relevant.
+					if len(filtered) == 0 && len(ranked) > 0 {
+						filtered = ranked[:1]
 					}
+					if len(filtered) < len(ranked) {
+						currentLogger.Debug("[RAG] Short-query filter applied", "before", len(ranked), "after", len(filtered))
+					}
+					ranked = filtered
 				}
 
 				if len(ranked) > 3 {
@@ -951,7 +981,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 
 		if !runCfg.IsMission && shortTermMem != nil {
-			if overview, err := shortTermMem.BuildRecentActivityPromptOverview(7); err == nil {
+			if overview, err := shortTermMem.BuildRecentActivityPromptOverview(3); err == nil {
 				flags.RecentActivityOverview = overview
 			}
 		}
@@ -1075,6 +1105,15 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 		flags.TokenBudget = calculateEffectivePromptTokenBudget(cfg, ToolCall{}, homepageUsedInChain, currentLogger)
 		recordRetrievalPromptTelemetry(telemetryScope, retrievalPromptTokens, flags.TokenBudget)
+
+		// Skip integrations that already have native schemas in the overview
+		skipIntegrationTools := make([]string, 0, len(req.Tools))
+		for _, t := range req.Tools {
+			if t.Function != nil {
+				skipIntegrationTools = append(skipIntegrationTools, t.Function.Name)
+			}
+		}
+		flags.SkipIntegrationTools = skipIntegrationTools
 
 		sysPrompt := prompts.BuildSystemPrompt(cfg.Directories.PromptsDir, flags, coreMemCache, currentLogger)
 

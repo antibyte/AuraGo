@@ -9,7 +9,7 @@ import (
 	"aurago/internal/memory"
 )
 
-var memoryMetaCacheTTL = 5 * time.Minute
+var memoryMetaCacheTTL = 1 * time.Minute
 var memoryMetaCacheNow = time.Now
 
 var memoryMetaCache = struct {

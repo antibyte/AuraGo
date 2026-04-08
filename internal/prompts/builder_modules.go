@@ -44,7 +44,7 @@ func loadPromptModules(dir string, logger *slog.Logger) []PromptModule {
 	promptCacheMu.RUnlock()
 
 	if ok {
-		if time.Since(cached.checked) < 30*time.Second {
+		if time.Since(cached.checked) < 60*time.Second {
 			return cached.modules
 		}
 		if !promptCacheStale(dir, cached.mtimes) {
@@ -55,8 +55,6 @@ func loadPromptModules(dir string, logger *slog.Logger) []PromptModule {
 			promptCacheMu.Unlock()
 			return cached.modules
 		}
-	} else if ok && !promptCacheStale(dir, cached.mtimes) {
-		return cached.modules
 	}
 
 	// --- Slow path: embedded FS is the immutable system base; disk overlays user customizations ---
@@ -657,6 +655,9 @@ type DynamicGuideStrategy struct {
 	DisableRecentHeuristics      bool
 	DisableStatisticalHeuristics bool
 	DisableFrequencyHeuristics   bool
+	// SkipTools is a list of tool names whose guides should be skipped
+	// (typically tools that already have native OpenAI function schemas).
+	SkipTools []string
 }
 
 func PrepareDynamicGuides(vdb memory.VectorDB, stm *memory.SQLiteMemory, userQuery, lastTool, toolsDir string, recentTools []string, explicitTools []string, maxTotalGuides int, logger *slog.Logger) []string {
@@ -692,10 +693,27 @@ func PrepareDynamicGuidesWithStrategy(vdb memory.VectorDB, stm *memory.SQLiteMem
 		}
 	}
 
+	// Build a set of tool names to skip (already have native schemas)
+	skipSet := make(map[string]bool)
+	for _, t := range strategy.SkipTools {
+		skipSet[t] = true
+	}
+
+	isSkipped := func(tool string) bool { return skipSet[tool] }
+
+	// Helper to extract tool name from a guide path (e.g. "tools_manuals/docker.md" → "docker")
+	extractToolName := func(path string) string {
+		base := filepath.Base(path)
+		return strings.TrimSuffix(base, ".md")
+	}
+
 	addRecentGuides := func(limit int) {
 		for _, tool := range recentTools {
 			if len(guides) >= limit {
 				break
+			}
+			if isSkipped(tool) {
+				continue
 			}
 			cleanPath := filepath.Clean(filepath.Join(toolsDir, tool+".md"))
 			if !isToolPathSafe(cleanPath, toolsDir) {
@@ -720,6 +738,9 @@ func PrepareDynamicGuidesWithStrategy(vdb memory.VectorDB, stm *memory.SQLiteMem
 			for _, p := range paths {
 				if len(guides) >= limit {
 					break
+				}
+				if isSkipped(extractToolName(p)) {
+					continue
 				}
 				cleanPath := filepath.Clean(p)
 				if !guideMap[cleanPath] {
@@ -749,7 +770,7 @@ func PrepareDynamicGuidesWithStrategy(vdb memory.VectorDB, stm *memory.SQLiteMem
 	// C. Statistics (Transition Graph)
 	if !strategy.DisableStatisticalHeuristics && stm != nil && lastTool != "" && len(guides) < 3 {
 		nextTool, err := stm.GetTopTransition(lastTool)
-		if err == nil && nextTool != "" {
+		if err == nil && nextTool != "" && !isSkipped(nextTool) {
 			cleanPath := filepath.Clean(filepath.Join(toolsDir, nextTool+".md"))
 			if isToolPathSafe(cleanPath, toolsDir) && !guideMap[cleanPath] {
 				if content, ok := readToolGuide(cleanPath); ok {
@@ -768,6 +789,9 @@ func PrepareDynamicGuidesWithStrategy(vdb memory.VectorDB, stm *memory.SQLiteMem
 		for _, tool := range GetFrequentTools(3) {
 			if len(guides) >= 3 {
 				break
+			}
+			if isSkipped(tool) {
+				continue
 			}
 			cleanPath := filepath.Clean(filepath.Join(toolsDir, tool+".md"))
 			if !isToolPathSafe(cleanPath, toolsDir) || guideMap[cleanPath] {

@@ -199,6 +199,9 @@ type ContextFlags struct {
 	ToolsDir                 string // absolute path to agent_workspace/tools/ for custom tool scripts
 	SkillsDir                string // absolute path to agent_workspace/skills/ for skill plugins
 	UnifiedMemoryBlock       bool   // experimental: merge retrieval/activity/KG context into one prompt section
+	// SkipIntegrationTools lists tool names to exclude from the [ENABLED INTEGRATIONS]
+	// overview line (because they already have native OpenAI function schemas).
+	SkipIntegrationTools []string
 }
 
 // DetermineTierAdaptive returns a prompt tier based on both conversation length and
@@ -351,7 +354,7 @@ func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string,
 	// Surgery Plan injection (always inject when present, regardless of maintenance module)
 	if flags.IsMaintenanceMode && flags.SurgeryPlan != "" {
 		finalPrompt.WriteString("### SURGERY PLAN ###\n")
-		finalPrompt.WriteString(flags.SurgeryPlan)
+		finalPrompt.WriteString(security.IsolateExternalData(flags.SurgeryPlan))
 		finalPrompt.WriteString("\n\n")
 	}
 
@@ -365,14 +368,14 @@ func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string,
 	// High-priority open notes — inject as reminders
 	if flags.HighPriorityNotes != "" {
 		finalPrompt.WriteString("### ACTIVE REMINDERS (high-priority notes) ###\n")
-		finalPrompt.WriteString(flags.HighPriorityNotes)
+		finalPrompt.WriteString(security.IsolateExternalData(flags.HighPriorityNotes))
 		finalPrompt.WriteString("\n\n")
 	}
 
 	// Session-scoped task list — always inject when present
 	if flags.SessionTodoItems != "" {
 		finalPrompt.WriteString("### ACTIVE TASK LIST ###\n")
-		finalPrompt.WriteString(flags.SessionTodoItems)
+		finalPrompt.WriteString(security.IsolateExternalData(flags.SessionTodoItems))
 		finalPrompt.WriteString("\n\n")
 	}
 
@@ -1105,9 +1108,13 @@ func CountTokens(text string) int {
 // This lets the agent know what integrations are available even when the
 // adaptive tool filter removes some tool schemas to save tokens.
 func buildEnabledToolsOverview(flags ContextFlags) string {
+	skipSet := make(map[string]bool, len(flags.SkipIntegrationTools))
+	for _, t := range flags.SkipIntegrationTools {
+		skipSet[t] = true
+	}
 	var enabled []string
 	add := func(name string, on bool) {
-		if on {
+		if on && !skipSet[name] {
 			enabled = append(enabled, name)
 		}
 	}
