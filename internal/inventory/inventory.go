@@ -73,44 +73,52 @@ func InitDB(dbPath string) (*sql.DB, error) {
 		}
 	}
 
-	// Check for legacy servers table and migrate data
-	var hasServers bool
-	err = db.QueryRow("SELECT count(*) > 0 FROM sqlite_master WHERE type='table' AND name='servers'").Scan(&hasServers)
-	if err == nil && hasServers {
-		// Ensure old table has ip_address before copying to prevent errors if it was from an older version
-		var hasIP bool
-		db.QueryRow("SELECT count(*) > 0 FROM pragma_table_info('servers') WHERE name='ip_address'").Scan(&hasIP)
+	// Check and set schema version - only migrate legacy servers table if version is below 1.
+	const inventorySchemaVersion = 2
+	currentVer, err := dbutil.GetUserVersion(db)
+	if err != nil {
+		currentVer = 0
+	}
 
-		if hasIP {
-			migrationQuery := `
+	if currentVer < 1 {
+		// Check for legacy servers table and migrate data
+		var hasServers bool
+		err = db.QueryRow("SELECT count(*) > 0 FROM sqlite_master WHERE type='table' AND name='servers'").Scan(&hasServers)
+		if err == nil && hasServers {
+			// Ensure old table has ip_address before copying to prevent errors if it was from an older version
+			var hasIP bool
+			db.QueryRow("SELECT count(*) > 0 FROM pragma_table_info('servers') WHERE name='ip_address'").Scan(&hasIP)
+
+			if hasIP {
+				migrationQuery := `
 			INSERT INTO devices (id, name, type, ip_address, port, username, vault_secret_id, description, tags)
 			SELECT id, hostname, 'server', ip_address, port, username, vault_secret_id, '', tags FROM servers;
 			`
-			if _, err := db.Exec(migrationQuery); err != nil {
-				return nil, fmt.Errorf("failed to migrate servers to devices: %w", err)
-			}
-		} else {
-			migrationQuery := `
+				if _, err := db.Exec(migrationQuery); err != nil {
+					return nil, fmt.Errorf("failed to migrate servers to devices: %w", err)
+				}
+			} else {
+				migrationQuery := `
 			INSERT INTO devices (id, name, type, ip_address, port, username, vault_secret_id, description, tags)
 			SELECT id, hostname, 'server', '', port, username, vault_secret_id, '', tags FROM servers;
 			`
-			if _, err := db.Exec(migrationQuery); err != nil {
-				return nil, fmt.Errorf("failed to migrate servers to devices: %w", err)
+				if _, err := db.Exec(migrationQuery); err != nil {
+					return nil, fmt.Errorf("failed to migrate servers to devices: %w", err)
+				}
 			}
-		}
 
-		// Drop the old servers table
-		if _, err := db.Exec("DROP TABLE servers"); err != nil {
-			return nil, fmt.Errorf("failed to drop legacy servers table: %w", err)
+			// Drop the old servers table
+			if _, err := db.Exec("DROP TABLE servers"); err != nil {
+				return nil, fmt.Errorf("failed to drop legacy servers table: %w", err)
+			}
 		}
 	}
 
 	// Set user_version so backup/restore can detect schema generation.
-	const inventorySchemaVersion = 2
-	var currentVer int
-	_ = db.QueryRow("PRAGMA user_version").Scan(&currentVer)
-	if currentVer != inventorySchemaVersion {
-		db.Exec(fmt.Sprintf("PRAGMA user_version = %d", inventorySchemaVersion))
+	if currentVer < inventorySchemaVersion {
+		if err := dbutil.SetUserVersion(db, inventorySchemaVersion); err != nil {
+			return nil, fmt.Errorf("failed to set inventory schema version: %w", err)
+		}
 	}
 
 	return db, nil
@@ -376,4 +384,12 @@ func scanDevices(rows *sql.Rows) ([]DeviceRecord, error) {
 		return nil, fmt.Errorf("rows iteration: %w", err)
 	}
 	return devices, nil
+}
+
+// Close closes the database connection.
+func Close(db *sql.DB) error {
+	if db != nil {
+		return db.Close()
+	}
+	return nil
 }

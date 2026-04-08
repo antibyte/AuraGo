@@ -109,7 +109,14 @@ func InitDB(dbPath string) (*OptimizerDB, error) {
 		`SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='prompt_overrides' AND name LIKE 'sqlite_autoindex%' LIMIT 1`,
 	).Scan(&autoIndexName)
 	if autoIndexName != "" {
-		_, _ = db.Exec(`CREATE TABLE IF NOT EXISTS prompt_overrides_new (
+		// Rebuild table atomically within a transaction to prevent data loss on crash.
+		tx, err := db.Begin()
+		if err != nil {
+			return nil, fmt.Errorf("begin rebuild transaction: %w", err)
+		}
+		defer tx.Rollback()
+
+		_, err = tx.Exec(`CREATE TABLE IF NOT EXISTS prompt_overrides_new (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			tool_name TEXT NOT NULL,
 			mutated_prompt TEXT NOT NULL,
@@ -118,11 +125,30 @@ func InitDB(dbPath string) (*OptimizerDB, error) {
 			active BOOLEAN DEFAULT 1,
 			shadow BOOLEAN DEFAULT 0
 		)`)
-		_, _ = db.Exec(`INSERT OR IGNORE INTO prompt_overrides_new
+		if err != nil {
+			return nil, fmt.Errorf("create new table: %w", err)
+		}
+
+		_, err = tx.Exec(`INSERT OR IGNORE INTO prompt_overrides_new
 			SELECT id, tool_name, mutated_prompt, original_hash, created_at, active, shadow
 			FROM prompt_overrides`)
-		_, _ = db.Exec(`DROP TABLE prompt_overrides`)
-		_, _ = db.Exec(`ALTER TABLE prompt_overrides_new RENAME TO prompt_overrides`)
+		if err != nil {
+			return nil, fmt.Errorf("copy data to new table: %w", err)
+		}
+
+		_, err = tx.Exec(`DROP TABLE prompt_overrides`)
+		if err != nil {
+			return nil, fmt.Errorf("drop old table: %w", err)
+		}
+
+		_, err = tx.Exec(`ALTER TABLE prompt_overrides_new RENAME TO prompt_overrides`)
+		if err != nil {
+			return nil, fmt.Errorf("rename table: %w", err)
+		}
+
+		if err := tx.Commit(); err != nil {
+			return nil, fmt.Errorf("commit rebuild: %w", err)
+		}
 	}
 
 	_, _ = db.Exec("CREATE INDEX IF NOT EXISTS idx_prompt_overrides_tool_status ON prompt_overrides(tool_name, active, shadow)")

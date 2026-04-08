@@ -830,6 +830,14 @@ func (m *SkillManager) GetStats() (total, agent, user, pending int, err error) {
 	return
 }
 
+// Close closes the database connection.
+func (m *SkillManager) Close() error {
+	if m.db != nil {
+		return m.db.Close()
+	}
+	return nil
+}
+
 func boolToInt(b bool) int {
 	if b {
 		return 1

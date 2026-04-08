@@ -54,6 +54,11 @@ func InitDB(dbPath string) (*sql.DB, error) {
 		return nil, fmt.Errorf("failed to create contacts schema: %w", err)
 	}
 
+	// Set schema version
+	if err := dbutil.SetUserVersion(db, 1); err != nil {
+		return nil, fmt.Errorf("set contacts schema version: %w", err)
+	}
+
 	return db, nil
 }
 
@@ -160,6 +165,9 @@ func List(db *sql.DB, query string) ([]Contact, error) {
 		}
 		contacts = append(contacts, c)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate contacts: %w", err)
+	}
 	if contacts == nil {
 		contacts = []Contact{}
 	}
@@ -173,4 +181,12 @@ func ToJSON(v interface{}) string {
 		return fmt.Sprintf(`{"error": "%v"}`, err)
 	}
 	return string(b)
+}
+
+// Close closes the database connection.
+func Close(db *sql.DB) error {
+	if db != nil {
+		return db.Close()
+	}
+	return nil
 }

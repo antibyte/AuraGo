@@ -81,6 +81,7 @@ func InitMediaRegistryDB(dbPath string) (*sql.DB, error) {
 	CREATE INDEX IF NOT EXISTS idx_media_items_media_type ON media_items(media_type);
 	CREATE INDEX IF NOT EXISTS idx_media_items_created_at ON media_items(created_at);
 	CREATE INDEX IF NOT EXISTS idx_media_items_hash ON media_items(hash);
+	CREATE UNIQUE INDEX IF NOT EXISTS idx_media_items_hash_unique ON media_items(hash) WHERE hash != '';
 	CREATE INDEX IF NOT EXISTS idx_media_items_deleted ON media_items(deleted);`
 	if _, err := db.Exec(schema); err != nil {
 		db.Close()
@@ -133,43 +134,10 @@ func repairLegacyMediaTypes(db *sql.DB) error {
 	return dbutil.SetUserVersion(db, 1)
 }
 
-// RegisterMedia inserts a new media item. Returns the ID. Skips if hash is non-empty and already exists.
+// RegisterMedia inserts a new media item. Returns the ID. Uses ON CONFLICT for hash deduplication.
 func RegisterMedia(db *sql.DB, item MediaItem) (int64, bool, error) {
 	if db == nil {
 		return 0, false, fmt.Errorf("media registry DB not initialized")
-	}
-
-	tx, err := db.Begin()
-	if err != nil {
-		return 0, false, fmt.Errorf("failed to begin transaction: %w", err)
-	}
-	defer tx.Rollback()
-
-	if item.Hash != "" {
-		var existingID int64
-		err := tx.QueryRow("SELECT id FROM media_items WHERE hash = ? AND deleted = 0", item.Hash).Scan(&existingID)
-		if err == nil {
-			return existingID, true, nil
-		}
-	}
-
-	if item.Filename != "" {
-		var existingID int64
-		dedupPath := item.FilePath
-		if dedupPath == "" {
-			dedupPath = item.WebPath
-		}
-		if dedupPath != "" {
-			err := tx.QueryRow("SELECT id FROM media_items WHERE filename = ? AND file_path = ? AND deleted = 0", item.Filename, dedupPath).Scan(&existingID)
-			if err == nil {
-				return existingID, true, nil
-			}
-		} else {
-			err := tx.QueryRow("SELECT id FROM media_items WHERE filename = ? AND deleted = 0", item.Filename).Scan(&existingID)
-			if err == nil {
-				return existingID, true, nil
-			}
-		}
 	}
 
 	tagsJSON, err := json.Marshal(item.Tags)
@@ -180,23 +148,41 @@ func RegisterMedia(db *sql.DB, item MediaItem) (int64, bool, error) {
 		tagsJSON = []byte("[]")
 	}
 
-	res, err := tx.Exec(`INSERT INTO media_items
-		(media_type, source_tool, filename, file_path, web_path, file_size, format, provider, model,
-		 prompt, description, tags, duration_ms, generation_time_ms, cost_estimate, source_image,
-		 quality, style, size, language, voice_id, hash)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		item.MediaType, item.SourceTool, item.Filename, item.FilePath, item.WebPath, item.FileSize,
-		item.Format, item.Provider, item.Model, item.Prompt, item.Description, string(tagsJSON),
-		item.DurationMs, item.GenerationTimeMs, item.CostEstimate, item.SourceImage,
-		item.Quality, item.Style, item.Size, item.Language, item.VoiceID, item.Hash,
-	)
+	// Use ON CONFLICT for hash-based deduplication - more efficient than transaction-based check.
+	// Only applies when hash is non-empty (partial deduplication for items without hash).
+	var res sql.Result
+	if item.Hash != "" {
+		res, err = db.Exec(`INSERT INTO media_items
+			(media_type, source_tool, filename, file_path, web_path, file_size, format, provider, model,
+			 prompt, description, tags, duration_ms, generation_time_ms, cost_estimate, source_image,
+			 quality, style, size, language, voice_id, hash)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			ON CONFLICT(hash) DO UPDATE SET
+				updated_at = datetime('now'),
+				file_path = COALESCE(NULLIF(excluded.file_path, ''), file_path)
+			WHERE hash = excluded.hash AND deleted = 0`,
+			item.MediaType, item.SourceTool, item.Filename, item.FilePath, item.WebPath, item.FileSize,
+			item.Format, item.Provider, item.Model, item.Prompt, item.Description, string(tagsJSON),
+			item.DurationMs, item.GenerationTimeMs, item.CostEstimate, item.SourceImage,
+			item.Quality, item.Style, item.Size, item.Language, item.VoiceID, item.Hash,
+		)
+	} else {
+		// Fall back to regular insert for items without hash (no deduplication)
+		res, err = db.Exec(`INSERT INTO media_items
+			(media_type, source_tool, filename, file_path, web_path, file_size, format, provider, model,
+			 prompt, description, tags, duration_ms, generation_time_ms, cost_estimate, source_image,
+			 quality, style, size, language, voice_id, hash)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			item.MediaType, item.SourceTool, item.Filename, item.FilePath, item.WebPath, item.FileSize,
+			item.Format, item.Provider, item.Model, item.Prompt, item.Description, string(tagsJSON),
+			item.DurationMs, item.GenerationTimeMs, item.CostEstimate, item.SourceImage,
+			item.Quality, item.Style, item.Size, item.Language, item.VoiceID, item.Hash,
+		)
+	}
 	if err != nil {
 		return 0, false, fmt.Errorf("failed to insert media item: %w", err)
 	}
 	id, _ := res.LastInsertId()
-	if err := tx.Commit(); err != nil {
-		return 0, false, fmt.Errorf("failed to commit media registration: %w", err)
-	}
 	return id, false, nil
 }
 
@@ -222,6 +208,9 @@ func inferMediaType(filename, filePath string) string {
 }
 
 // SearchMedia searches media items by query string across description, prompt, tags, and filename.
+// Note: Dynamic WHERE clause building using string concatenation. While safe from SQL injection
+// (all values are parameterized via args slice), this pattern requires careful maintenance:
+// conditions and args must stay in sync when adding new filter criteria.
 func SearchMedia(db *sql.DB, query, mediaType string, tags []string, limit, offset int) ([]MediaItem, int, error) {
 	if db == nil {
 		return nil, 0, fmt.Errorf("media registry DB not initialized")

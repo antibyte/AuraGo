@@ -227,7 +227,7 @@ func insertNest(db *sql.DB, n NestRecord) error {
 		n.TargetArch = "linux/amd64"
 	}
 	_, err := db.Exec(query, n.ID, n.Name, n.Notes, n.AccessType, n.Host, n.Port, n.Username, n.VaultSecretID,
-		boolToInt(n.Active), n.EggID, n.HatchStatus, n.LastHatchAt, n.HatchError, n.Route, n.RouteConfig, n.DeployMethod, n.TargetArch, n.CreatedAt, n.UpdatedAt)
+		dbutil.BoolToInt(n.Active), n.EggID, n.HatchStatus, n.LastHatchAt, n.HatchError, n.Route, n.RouteConfig, n.DeployMethod, n.TargetArch, n.CreatedAt, n.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("failed to insert nest: %w", err)
 	}
@@ -320,7 +320,7 @@ func UpdateNest(db *sql.DB, n NestRecord) error {
 	n.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 	query := `UPDATE nests SET name=?, notes=?, access_type=?, host=?, port=?, username=?, vault_secret_id=?, active=?, egg_id=?,
 	          hatch_status=?, last_hatch_at=?, hatch_error=?, route=?, route_config=?, deploy_method=?, target_arch=?, updated_at=? WHERE id=?`
-	res, err := db.Exec(query, n.Name, n.Notes, n.AccessType, n.Host, n.Port, n.Username, n.VaultSecretID, boolToInt(n.Active), n.EggID,
+	res, err := db.Exec(query, n.Name, n.Notes, n.AccessType, n.Host, n.Port, n.Username, n.VaultSecretID, dbutil.BoolToInt(n.Active), n.EggID,
 		n.HatchStatus, n.LastHatchAt, n.HatchError, n.Route, n.RouteConfig, n.DeployMethod, n.TargetArch, n.UpdatedAt, n.ID)
 	if err != nil {
 		return fmt.Errorf("failed to update nest: %w", err)
@@ -346,7 +346,7 @@ func DeleteNest(db *sql.DB, id string) error {
 // ToggleNestActive sets the active flag for a nest.
 func ToggleNestActive(db *sql.DB, id string, active bool) error {
 	now := time.Now().UTC().Format(time.RFC3339)
-	res, err := db.Exec(`UPDATE nests SET active=?, updated_at=? WHERE id=?`, boolToInt(active), now, id)
+	res, err := db.Exec(`UPDATE nests SET active=?, updated_at=? WHERE id=?`, dbutil.BoolToInt(active), now, id)
 	if err != nil {
 		return fmt.Errorf("failed to toggle nest: %w", err)
 	}
@@ -378,7 +378,7 @@ func insertEgg(db *sql.DB, e EggRecord) error {
 		e.EggPort = 8099
 	}
 	_, err := db.Exec(query, e.ID, e.Name, e.Description, e.Model, e.Provider, e.BaseURL, e.APIKeyRef,
-		boolToInt(e.Active), boolToInt(e.Permanent), boolToInt(e.IncludeVault), boolToInt(e.InheritLLM), e.EggPort, e.AllowedTools, e.CreatedAt, e.UpdatedAt)
+		dbutil.BoolToInt(e.Active), dbutil.BoolToInt(e.Permanent), dbutil.BoolToInt(e.IncludeVault), dbutil.BoolToInt(e.InheritLLM), e.EggPort, e.AllowedTools, e.CreatedAt, e.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("failed to insert egg: %w", err)
 	}
@@ -436,8 +436,8 @@ func UpdateEgg(db *sql.DB, e EggRecord) error {
 	if e.EggPort <= 0 {
 		e.EggPort = 8099
 	}
-	res, err := db.Exec(query, e.Name, e.Description, e.Model, e.Provider, e.BaseURL, e.APIKeyRef, boolToInt(e.Active),
-		boolToInt(e.Permanent), boolToInt(e.IncludeVault), boolToInt(e.InheritLLM), e.EggPort, e.AllowedTools, e.UpdatedAt, e.ID)
+	res, err := db.Exec(query, e.Name, e.Description, e.Model, e.Provider, e.BaseURL, e.APIKeyRef, dbutil.BoolToInt(e.Active),
+		dbutil.BoolToInt(e.Permanent), dbutil.BoolToInt(e.IncludeVault), dbutil.BoolToInt(e.InheritLLM), e.EggPort, e.AllowedTools, e.UpdatedAt, e.ID)
 	if err != nil {
 		return fmt.Errorf("failed to update egg: %w", err)
 	}
@@ -462,7 +462,7 @@ func DeleteEgg(db *sql.DB, id string) error {
 // ToggleEggActive sets the active flag for an egg.
 func ToggleEggActive(db *sql.DB, id string, active bool) error {
 	now := time.Now().UTC().Format(time.RFC3339)
-	res, err := db.Exec(`UPDATE eggs SET active=?, updated_at=? WHERE id=?`, boolToInt(active), now, id)
+	res, err := db.Exec(`UPDATE eggs SET active=?, updated_at=? WHERE id=?`, dbutil.BoolToInt(active), now, id)
 	if err != nil {
 		return fmt.Errorf("failed to toggle egg: %w", err)
 	}
@@ -532,13 +532,6 @@ func scanEggs(rows *sql.Rows) ([]EggRecord, error) {
 		return nil, fmt.Errorf("egg rows iteration: %w", err)
 	}
 	return eggs, nil
-}
-
-func boolToInt(b bool) int {
-	if b {
-		return 1
-	}
-	return 0
 }
 
 func nullStr(ns sql.NullString) string {
@@ -826,4 +819,12 @@ func scanDeployments(rows *sql.Rows) ([]DeploymentRecord, error) {
 		deployments = append(deployments, d)
 	}
 	return deployments, rows.Err()
+}
+
+// Close closes the database connection.
+func Close(db *sql.DB) error {
+	if db != nil {
+		return db.Close()
+	}
+	return nil
 }

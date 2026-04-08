@@ -246,3 +246,11 @@ func boolToInt(b bool) int {
 	}
 	return 0
 }
+
+// Close closes the database connection.
+func Close(db *sql.DB) error {
+	if db != nil {
+		return db.Close()
+	}
+	return nil
+}

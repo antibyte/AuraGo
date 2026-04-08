@@ -919,6 +919,10 @@ func setupGracefulShutdown(log *slog.Logger, registry *tools.ProcessRegistry, ll
 		if fm, ok := llmClient.(*llm.FailoverManager); ok {
 			fm.Stop()
 		}
+
+		// Close site monitor DB if initialized
+		_ = tools.CloseSiteMonitorDB()
+
 		close(done)
 	}()
 	return done

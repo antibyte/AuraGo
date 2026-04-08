@@ -297,6 +297,8 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	// Health check — no auth required, used by Docker HEALTHCHECK and monitoring.
 	mux.HandleFunc("/api/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
+
+		// Basic health check - just return ok for now (db checks done via separate endpoint if needed)
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 	})

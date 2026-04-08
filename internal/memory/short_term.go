@@ -675,7 +675,7 @@ func (s *SQLiteMemory) DeleteMemoryMeta(docID string) error {
 // Uses pagination to avoid loading unbounded data into memory.
 func (s *SQLiteMemory) GetAllMemoryMeta(limit int, offset int) ([]MemoryMeta, error) {
 	if limit <= 0 {
-		limit = 1000
+		limit = 500
 	}
 	if offset < 0 {
 		offset = 0

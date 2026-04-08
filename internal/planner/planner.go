@@ -92,6 +92,12 @@ func InitDB(dbPath string) (*sql.DB, error) {
 		db.Close()
 		return nil, fmt.Errorf("failed to create planner schema: %w", err)
 	}
+
+	// Set schema version
+	if err := dbutil.SetUserVersion(db, 1); err != nil {
+		return nil, fmt.Errorf("set planner schema version: %w", err)
+	}
+
 	return db, nil
 }
 
@@ -163,7 +169,7 @@ func CreateAppointment(db *sql.DB, a Appointment) (string, error) {
 		`INSERT INTO appointments (id, title, description, date_time, notification_at, wake_agent, agent_instruction, notified, status, kg_node_id, created_at, updated_at)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		a.ID, a.Title, a.Description, a.DateTime, a.NotificationAt,
-		boolToInt(a.WakeAgent), a.AgentInstruction, boolToInt(a.Notified),
+		dbutil.BoolToInt(a.WakeAgent), a.AgentInstruction, dbutil.BoolToInt(a.Notified),
 		a.Status, a.KGNodeID, a.CreatedAt, a.UpdatedAt,
 	)
 	if err != nil {
@@ -198,7 +204,7 @@ func UpdateAppointment(db *sql.DB, a Appointment) error {
 		`UPDATE appointments SET title=?, description=?, date_time=?, notification_at=?, wake_agent=?, agent_instruction=?, notified=?, status=?, updated_at=?
 		 WHERE id=?`,
 		a.Title, a.Description, a.DateTime, a.NotificationAt,
-		boolToInt(a.WakeAgent), a.AgentInstruction, boolToInt(a.Notified),
+		dbutil.BoolToInt(a.WakeAgent), a.AgentInstruction, dbutil.BoolToInt(a.Notified),
 		a.Status, a.UpdatedAt, a.ID,
 	)
 	if err != nil {
@@ -482,13 +488,6 @@ func ListTodos(db *sql.DB, query, status string) ([]Todo, error) {
 
 // ── Helpers ──
 
-func boolToInt(b bool) int {
-	if b {
-		return 1
-	}
-	return 0
-}
-
 func scanAppointment(row *sql.Row) (*Appointment, error) {
 	a := &Appointment{}
 	var wakeAgent, notified int
@@ -564,4 +563,12 @@ func ToJSON(v interface{}) string {
 		return `{"error":` + string(msg) + `}`
 	}
 	return string(b)
+}
+
+// Close closes the database connection.
+func Close(db *sql.DB) error {
+	if db != nil {
+		return db.Close()
+	}
+	return nil
 }

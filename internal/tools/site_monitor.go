@@ -436,3 +436,11 @@ func shortHash(s string) string {
 	h := sha256.Sum256([]byte(s))
 	return hex.EncodeToString(h[:8])
 }
+
+// CloseSiteMonitorDB closes the site monitor database connection.
+func CloseSiteMonitorDB() error {
+	if siteMonitorDB != nil {
+		return siteMonitorDB.Close()
+	}
+	return nil
+}

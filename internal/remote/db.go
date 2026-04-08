@@ -123,16 +123,12 @@ func InitDB(dbPath string) (*sql.DB, error) {
 		slog.Warn("failed to trim remote audit log", "error", err)
 	}
 
-	return db, nil
-}
-
-// ── Helpers ─────────────────────────────────────────────────────────────────
-
-func boolToInt(b bool) int {
-	if b {
-		return 1
+	// Set schema version
+	if err := dbutil.SetUserVersion(db, 1); err != nil {
+		return nil, fmt.Errorf("set remote schema version: %w", err)
 	}
-	return 0
+
+	return db, nil
 }
 
 func jsonStrings(ss []string) string {
@@ -164,7 +160,7 @@ func CreateDevice(db *sql.DB, d DeviceRecord) (string, error) {
 			 shared_key_hash, enrollment_token, last_seen, created_at, version, tags)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		d.ID, d.Name, d.Hostname, d.OS, d.Arch, d.IPAddress, d.Status,
-		boolToInt(d.ReadOnly), jsonStrings(d.AllowedPaths),
+		dbutil.BoolToInt(d.ReadOnly), jsonStrings(d.AllowedPaths),
 		d.SharedKeyHash, d.EnrollmentToken, d.LastSeen, now, d.Version, jsonStrings(d.Tags),
 	)
 	if err != nil {
@@ -213,7 +209,7 @@ func UpdateDevice(db *sql.DB, d DeviceRecord) error {
 			shared_key_hash = ?, last_seen = ?, version = ?, tags = ?
 		WHERE id = ?`,
 		d.Name, d.Hostname, d.OS, d.Arch, d.IPAddress,
-		d.Status, boolToInt(d.ReadOnly), jsonStrings(d.AllowedPaths),
+		d.Status, dbutil.BoolToInt(d.ReadOnly), jsonStrings(d.AllowedPaths),
 		d.SharedKeyHash, d.LastSeen, d.Version, jsonStrings(d.Tags), d.ID,
 	)
 	return err
@@ -375,4 +371,12 @@ func TrimAuditLog(db *sql.DB, maxRows int) error {
 			SELECT id FROM remote_audit_log ORDER BY id DESC LIMIT ?
 		)`, maxRows)
 	return err
+}
+
+// Close closes the database connection.
+func Close(db *sql.DB) error {
+	if db != nil {
+		return db.Close()
+	}
+	return nil
 }
