@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"aurago/internal/dbutil"
 	"aurago/internal/uid"
 
 	_ "modernc.org/sqlite"
@@ -49,15 +50,9 @@ var AllowedAttachmentExtensions = []string{".txt", ".md"}
 
 // InitCheatsheetDB initializes the cheat sheets SQLite database.
 func InitCheatsheetDB(dbPath string) (*sql.DB, error) {
-	db, err := sql.Open("sqlite", dbPath)
+	db, err := dbutil.Open(dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open cheatsheet database: %w", err)
-	}
-
-	db.SetMaxOpenConns(1)
-	if _, err := db.Exec("PRAGMA journal_mode=WAL"); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("failed to set WAL mode: %w", err)
 	}
 
 	schema := `

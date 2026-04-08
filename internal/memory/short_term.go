@@ -581,6 +581,19 @@ func (s *SQLiteMemory) RecordMemoryUsage(memoryID, memoryType, sessionID string,
 	return nil
 }
 
+// CleanOldMemoryUsageLog removes memory_usage_log entries older than the given number of days.
+func (s *SQLiteMemory) CleanOldMemoryUsageLog(maxAgeDays int) error {
+	if maxAgeDays <= 0 {
+		maxAgeDays = 30
+	}
+	_, err := s.db.Exec(`DELETE FROM memory_usage_log WHERE used_at < datetime('now', ?)`,
+		fmt.Sprintf("-%d days", maxAgeDays))
+	if err != nil {
+		return fmt.Errorf("clean memory usage log: %w", err)
+	}
+	return nil
+}
+
 // RecordMemoryEffectiveness updates the aggregated usefulness score for an injected memory item.
 func (s *SQLiteMemory) RecordMemoryEffectiveness(memoryID string, useful bool) error {
 	if memoryID == "" {
@@ -590,17 +603,17 @@ func (s *SQLiteMemory) RecordMemoryEffectiveness(memoryID string, useful bool) e
 		return fmt.Errorf("ensure memory meta before effectiveness update: %w", err)
 	}
 
-	column := "useless_count"
-	if useful {
-		column = "useful_count"
-	}
-
-	stmt := fmt.Sprintf(`
-	UPDATE memory_meta
-	SET %s = %s + 1,
+	// Use CASE to avoid dynamic SQL with column names
+	stmt := `UPDATE memory_meta SET 
+		useful_count = useful_count + CASE WHEN ? = 'useful' THEN 1 ELSE 0 END,
+		useless_count = useless_count + CASE WHEN ? = 'useless' THEN 1 ELSE 0 END,
 		last_effectiveness_at = CURRENT_TIMESTAMP
-	WHERE doc_id = ?;`, column, column)
-	if _, err := s.db.Exec(stmt, memoryID); err != nil {
+	WHERE doc_id = ?`
+	column := "useful"
+	if !useful {
+		column = "useless"
+	}
+	if _, err := s.db.Exec(stmt, column, column, memoryID); err != nil {
 		return fmt.Errorf("record memory effectiveness: %w", err)
 	}
 	return nil

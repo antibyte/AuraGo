@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"aurago/internal/dbutil"
 	"aurago/internal/uid"
 
 	_ "modernc.org/sqlite"
@@ -28,7 +29,7 @@ type DeviceRecord struct {
 
 // InitDB initializes the SQLite database and handles schema migrations.
 func InitDB(dbPath string) (*sql.DB, error) {
-	db, err := sql.Open("sqlite", dbPath)
+	db, err := dbutil.Open(dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
@@ -321,8 +322,8 @@ func QueryDevices(db *sql.DB, tag, deviceType, name string) ([]DeviceRecord, err
 	}
 
 	if name != "" {
-		conditions = append(conditions, "d.name LIKE ?")
-		args = append(args, "%"+name+"%")
+		conditions = append(conditions, "d.name LIKE ? ESCAPE '\\'")
+		args = append(args, "%"+dbutil.EscapeLike(name)+"%")
 	}
 
 	if len(conditions) > 0 {

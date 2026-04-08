@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"aurago/internal/dbutil"
 	"aurago/internal/uid"
 
 	_ "modernc.org/sqlite"
@@ -28,14 +29,9 @@ type Contact struct {
 
 // InitDB initializes the contacts SQLite database.
 func InitDB(dbPath string) (*sql.DB, error) {
-	db, err := sql.Open("sqlite", dbPath)
+	db, err := dbutil.Open(dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open contacts database: %w", err)
-	}
-	db.SetMaxOpenConns(1)
-	if _, err := db.Exec("PRAGMA journal_mode=WAL"); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("failed to set WAL mode: %w", err)
 	}
 
 	schema := `
@@ -136,11 +132,12 @@ func List(db *sql.DB, query string) ([]Contact, error) {
 	var err error
 
 	if query != "" {
-		like := "%" + strings.ToLower(query) + "%"
+		escapedQuery := dbutil.EscapeLike(strings.ToLower(query))
+		like := "%" + escapedQuery + "%"
 		rows, err = db.Query(
 			`SELECT id, name, email, phone, mobile, address, relationship, notes, created_at, updated_at
 			 FROM contacts
-			 WHERE lower(name) LIKE ? OR lower(email) LIKE ? OR lower(phone) LIKE ? OR lower(mobile) LIKE ? OR lower(relationship) LIKE ?
+			 WHERE lower(name) LIKE ? ESCAPE '\' OR lower(email) LIKE ? ESCAPE '\' OR lower(phone) LIKE ? ESCAPE '\' OR lower(mobile) LIKE ? ESCAPE '\' OR lower(relationship) LIKE ? ESCAPE '\'
 			 ORDER BY name ASC`,
 			like, like, like, like, like,
 		)

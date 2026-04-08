@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"aurago/internal/dbutil"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -43,15 +44,9 @@ type MediaItem struct {
 
 // InitMediaRegistryDB initializes the media registry SQLite database.
 func InitMediaRegistryDB(dbPath string) (*sql.DB, error) {
-	db, err := sql.Open("sqlite", dbPath)
+	db, err := dbutil.Open(dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open media registry database: %w", err)
-	}
-
-	db.SetMaxOpenConns(1)
-	if _, err := db.Exec("PRAGMA journal_mode=WAL"); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("failed to set WAL mode: %w", err)
 	}
 
 	schema := `
@@ -100,6 +95,16 @@ func InitMediaRegistryDB(dbPath string) (*sql.DB, error) {
 }
 
 func repairLegacyMediaTypes(db *sql.DB) error {
+	// Check if already migrated using user_version
+	version, err := dbutil.GetUserVersion(db)
+	if err != nil {
+		return fmt.Errorf("check media schema version: %w", err)
+	}
+	if version >= 1 {
+		// Already migrated
+		return nil
+	}
+
 	repairs := []struct {
 		mediaType string
 		patterns  []string
@@ -124,7 +129,8 @@ func repairLegacyMediaTypes(db *sql.DB) error {
 		}
 	}
 
-	return nil
+	// Mark as done
+	return dbutil.SetUserVersion(db, 1)
 }
 
 // RegisterMedia inserts a new media item. Returns the ID. Skips if hash is non-empty and already exists.

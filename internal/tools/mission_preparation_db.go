@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"aurago/internal/dbutil"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -13,15 +14,9 @@ const preparedMissionsSchemaVersion = 1
 
 // InitPreparedMissionsDB initializes the prepared missions SQLite database.
 func InitPreparedMissionsDB(dbPath string) (*sql.DB, error) {
-	db, err := sql.Open("sqlite", dbPath)
+	db, err := dbutil.Open(dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open prepared missions database: %w", err)
-	}
-
-	db.SetMaxOpenConns(1)
-	if _, err := db.Exec("PRAGMA journal_mode=WAL"); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("failed to set WAL mode: %w", err)
 	}
 
 	schema := `

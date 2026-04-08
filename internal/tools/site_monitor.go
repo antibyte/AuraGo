@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"aurago/internal/dbutil"
 	"aurago/internal/security"
 	"crypto/sha256"
 	"database/sql"
@@ -58,15 +59,8 @@ func siteMonitorJSON(r siteMonitorResult) string {
 
 func initSiteMonitorDB(dbPath string) (*sql.DB, error) {
 	siteMonitorOnce.Do(func() {
-		siteMonitorDB, siteMonitorErr = sql.Open("sqlite", dbPath)
+		siteMonitorDB, siteMonitorErr = dbutil.Open(dbPath)
 		if siteMonitorErr != nil {
-			return
-		}
-		siteMonitorDB.SetMaxOpenConns(1)
-		if _, err := siteMonitorDB.Exec("PRAGMA journal_mode=WAL"); err != nil {
-			siteMonitorDB.Close()
-			siteMonitorDB = nil
-			siteMonitorErr = fmt.Errorf("WAL mode: %w", err)
 			return
 		}
 		schema := `
@@ -128,6 +122,9 @@ func ExecuteSiteMonitor(dbPath, operation, monitorID, url, selector, interval st
 }
 
 func siteMonitorAdd(db *sql.DB, url, selector, interval string) string {
+	if db == nil {
+		return siteMonitorJSON(siteMonitorResult{Status: "error", Message: "site monitor database not initialized"})
+	}
 	if url == "" {
 		return siteMonitorJSON(siteMonitorResult{Status: "error", Message: "url is required"})
 	}
@@ -169,6 +166,9 @@ func siteMonitorAdd(db *sql.DB, url, selector, interval string) string {
 }
 
 func siteMonitorRemove(db *sql.DB, monitorID string) string {
+	if db == nil {
+		return siteMonitorJSON(siteMonitorResult{Status: "error", Message: "site monitor database not initialized"})
+	}
 	if monitorID == "" {
 		return siteMonitorJSON(siteMonitorResult{Status: "error", Message: "monitor_id is required"})
 	}
@@ -189,6 +189,9 @@ func siteMonitorRemove(db *sql.DB, monitorID string) string {
 }
 
 func siteMonitorList(db *sql.DB) string {
+	if db == nil {
+		return siteMonitorJSON(siteMonitorResult{Status: "error", Message: "site monitor database not initialized"})
+	}
 	rows, err := db.Query("SELECT id, url, selector, interval, last_check, last_hash, created_at FROM site_monitors ORDER BY created_at DESC")
 	if err != nil {
 		return siteMonitorJSON(siteMonitorResult{Status: "error", Message: fmt.Sprintf("query failed: %v", err)})
@@ -219,6 +222,9 @@ func siteMonitorList(db *sql.DB) string {
 }
 
 func siteMonitorCheck(db *sql.DB, monitorID, url string) string {
+	if db == nil {
+		return siteMonitorJSON(siteMonitorResult{Status: "error", Message: "site monitor database not initialized"})
+	}
 	// Allow checking by ID or direct URL
 	var m monitorEntry
 	if monitorID != "" {
@@ -273,6 +279,9 @@ func siteMonitorCheck(db *sql.DB, monitorID, url string) string {
 }
 
 func siteMonitorCheckAll(db *sql.DB) string {
+	if db == nil {
+		return siteMonitorJSON(siteMonitorResult{Status: "error", Message: "site monitor database not initialized"})
+	}
 	rows, err := db.Query("SELECT id, url, selector, last_hash FROM site_monitors")
 	if err != nil {
 		return siteMonitorJSON(siteMonitorResult{Status: "error", Message: fmt.Sprintf("query failed: %v", err)})
@@ -334,6 +343,9 @@ func siteMonitorCheckAll(db *sql.DB) string {
 }
 
 func siteMonitorHistory(db *sql.DB, monitorID string, limit int) string {
+	if db == nil {
+		return siteMonitorJSON(siteMonitorResult{Status: "error", Message: "site monitor database not initialized"})
+	}
 	if monitorID == "" {
 		return siteMonitorJSON(siteMonitorResult{Status: "error", Message: "monitor_id is required"})
 	}

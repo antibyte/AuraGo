@@ -3,9 +3,11 @@ package invasion
 import (
 	"database/sql"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
+	"aurago/internal/dbutil"
 	"aurago/internal/uid"
 
 	_ "modernc.org/sqlite"
@@ -61,15 +63,9 @@ type EggRecord struct {
 
 // InitDB initializes the invasion SQLite database with nests and eggs tables.
 func InitDB(dbPath string) (*sql.DB, error) {
-	db, err := sql.Open("sqlite", dbPath)
+	db, err := dbutil.Open(dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open invasion database: %w", err)
-	}
-
-	// Configure SQLite for concurrent access
-	if _, err := db.Exec("PRAGMA busy_timeout = 5000"); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("failed to set busy_timeout: %w", err)
 	}
 
 	nestsSchema := `
@@ -185,9 +181,12 @@ func InitDB(dbPath string) (*sql.DB, error) {
 	}
 	for _, m := range migrations {
 		_, err := db.Exec(m)
-		if err != nil && !strings.Contains(err.Error(), "duplicate column") {
-			// Log unexpected migration errors (not "duplicate column" which is expected)
-			_ = err // non-fatal: column may already exist under a different constraint
+		if err != nil {
+			if strings.Contains(err.Error(), "duplicate column") {
+				// Expected when column already exists, ignore
+				continue
+			}
+			slog.Warn("Invasion migration failed", "error", err, "migration", m)
 		}
 	}
 

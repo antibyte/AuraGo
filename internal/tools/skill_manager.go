@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"aurago/internal/dbutil"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
@@ -104,7 +105,7 @@ type SkillExportBundle struct {
 
 // InitSkillsDB opens (or creates) the skills registry SQLite database and runs migrations.
 func InitSkillsDB(dbPath string) (*sql.DB, error) {
-	db, err := sql.Open("sqlite", dbPath)
+	db, err := dbutil.Open(dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open skills database: %w", err)
 	}

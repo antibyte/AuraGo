@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"aurago/internal/dbutil"
 	"aurago/internal/security"
 
 	"github.com/SherClockHolmes/webpush-go"
@@ -31,7 +32,7 @@ type PushSubscription struct {
 
 func NewManager(dataDir string, vault *security.Vault, logger *slog.Logger) (*Manager, error) {
 	dbPath := filepath.Join(dataDir, "push.db")
-	db, err := sql.Open("sqlite", dbPath)
+	db, err := dbutil.Open(dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open push db: %w", err)
 	}

@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"aurago/internal/dbutil"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
@@ -108,15 +109,9 @@ type GeneratedImageRecord struct {
 
 // InitImageGalleryDB initializes the image gallery SQLite database.
 func InitImageGalleryDB(dbPath string) (*sql.DB, error) {
-	db, err := sql.Open("sqlite", dbPath)
+	db, err := dbutil.Open(dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open image gallery database: %w", err)
-	}
-
-	db.SetMaxOpenConns(1)
-	if _, err := db.Exec("PRAGMA journal_mode=WAL"); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("failed to set WAL mode: %w", err)
 	}
 
 	schema := `

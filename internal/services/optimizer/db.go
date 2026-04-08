@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"aurago/internal/dbutil"
 	promptsembed "aurago/prompts"
 
 	_ "modernc.org/sqlite"
@@ -41,7 +42,7 @@ func InitDB(dbPath string) (*OptimizerDB, error) {
 		return nil, fmt.Errorf("failed to create optimizer db directory: %w", err)
 	}
 
-	db, err := sql.Open("sqlite", dbPath+"?_pragma=journal_mode(WAL)&_pragma=foreign_keys(on)")
+	db, err := dbutil.Open(dbPath)
 	if err != nil {
 		return nil, err
 	}
@@ -268,4 +269,23 @@ func (o *OptimizerDB) GetActivePromptOverrides() map[string]string {
 
 func (o *OptimizerDB) Close() error {
 	return o.db.Close()
+}
+
+// CleanupOldTraces removes tool_traces older than maxAgeDays.
+func CleanupOldTraces(maxAgeDays int) error {
+	if defaultDB == nil {
+		return nil
+	}
+	return defaultDB.CleanupOldTraces(maxAgeDays)
+}
+
+func (o *OptimizerDB) CleanupOldTraces(maxAgeDays int) error {
+	_, err := o.db.Exec(
+		"DELETE FROM tool_traces WHERE timestamp < datetime('now', ? || ' days')",
+		fmt.Sprintf("-%d", maxAgeDays),
+	)
+	if err != nil {
+		return fmt.Errorf("cleanup old tool traces: %w", err)
+	}
+	return nil
 }

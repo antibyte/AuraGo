@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"aurago/internal/dbutil"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -82,20 +83,9 @@ type knowledgeGraphAccessHit struct {
 // If jsonMigratePath points to an existing JSON file, its data is imported
 // and the file is renamed to .migrated.
 func NewKnowledgeGraph(dbPath string, jsonMigratePath string, logger *slog.Logger) (*KnowledgeGraph, error) {
-	db, err := sql.Open("sqlite", dbPath)
+	db, err := dbutil.Open(dbPath, dbutil.WithMaxOpenConns(2))
 	if err != nil {
 		return nil, fmt.Errorf("open knowledge graph db: %w", err)
-	}
-
-	// SQLite expects small connection pool for concurrent reads + 1 writer
-	db.SetMaxOpenConns(2)
-	// Enable WAL for better concurrency and performance
-	if _, err := db.Exec("PRAGMA journal_mode=WAL"); err != nil {
-		logger.Warn("KG: failed to set WAL mode", "error", err)
-	}
-	// Retry for up to 5 s when another writer holds the lock (prevents SQLITE_BUSY).
-	if _, err := db.Exec("PRAGMA busy_timeout=5000"); err != nil {
-		logger.Warn("KG: failed to set busy_timeout", "error", err)
 	}
 
 	kg := &KnowledgeGraph{
@@ -293,7 +283,9 @@ func (kg *KnowledgeGraph) initTables() error {
 		`CREATE INDEX IF NOT EXISTS idx_kg_nodes_source ON kg_nodes(source_type)`,
 	}
 	for _, m := range migrations {
-		kg.db.Exec(m)
+		if _, err := kg.db.Exec(m); err != nil {
+			kg.logger.Warn("KG migration failed", "error", err, "migration", m)
+		}
 	}
 
 	var storedFTSVersion string
@@ -328,9 +320,12 @@ func (kg *KnowledgeGraph) rebuildFTSIndexes() error {
 	}
 
 	createStatements := []string{
+		// Note: Using content_rowid=rowid because kg_nodes uses implicit rowid.
 		`CREATE VIRTUAL TABLE kg_nodes_fts USING fts5(
 			id, label, properties, content=kg_nodes, content_rowid=rowid
 		);`,
+		// Note: Using content_rowid=id because kg_edges uses AUTOINCREMENT which makes 'id' an alias for rowid.
+		// This is functionally equivalent to content_rowid=rowid but more explicit.
 		`CREATE VIRTUAL TABLE kg_edges_fts USING fts5(
 			source, target, relation, properties, content=kg_edges, content_rowid=id
 		);`,
@@ -455,6 +450,34 @@ func (kg *KnowledgeGraph) migrateFromJSON(jsonPath string) {
 	kg.logger.Info("[KG] Migrated graph.json to SQLite", "nodes", migrated, "edges", len(state.Edges))
 }
 
+// ResetSemanticIndex clears the semantic_indexed_at timestamp on all nodes and edges,
+// preparing them for re-indexing with a new embedding model. This method uses the
+// existing database connection rather than opening a separate one.
+func (kg *KnowledgeGraph) ResetSemanticIndex() error {
+	if kg == nil || kg.db == nil {
+		return fmt.Errorf("knowledge graph not initialized")
+	}
+
+	result, err := kg.db.Exec("UPDATE kg_nodes SET semantic_indexed_at = NULL WHERE semantic_indexed_at IS NOT NULL")
+	if err != nil {
+		return fmt.Errorf("reset kg node semantic_indexed_at: %w", err)
+	}
+	nodesReset, _ := result.RowsAffected()
+
+	result, err = kg.db.Exec("UPDATE kg_edges SET semantic_indexed_at = NULL WHERE semantic_indexed_at IS NOT NULL")
+	if err != nil {
+		return fmt.Errorf("reset kg edge semantic_indexed_at: %w", err)
+	}
+	edgesReset, _ := result.RowsAffected()
+
+	if kg.logger != nil && (nodesReset > 0 || edgesReset > 0) {
+		kg.logger.Info("KG semantic index reset — will be rebuilt with new model",
+			"nodes_reset", nodesReset, "edges_reset", edgesReset)
+	}
+
+	return nil
+}
+
 // Stats returns the number of nodes and edges in the knowledge graph.
 func (kg *KnowledgeGraph) Stats() (nodes int, edges int, err error) {
 	var nodeErr, edgeErr error
@@ -483,14 +506,21 @@ func (kg *KnowledgeGraph) QualityReport(sampleLimit int) (*KnowledgeGraphQuality
 		UntypedSample:  make([]Node, 0, sampleLimit),
 	}
 
-	kg.db.QueryRow("SELECT COUNT(*) FROM kg_nodes").Scan(&report.Nodes)
-	kg.db.QueryRow("SELECT COUNT(*) FROM kg_edges").Scan(&report.Edges)
-	kg.db.QueryRow("SELECT COUNT(*) FROM kg_nodes WHERE protected != 0").Scan(&report.ProtectedNodes)
+	// Use a read-only transaction for all queries
+	tx, err := kg.db.BeginTx(context.Background(), &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return nil, fmt.Errorf("begin quality report transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	tx.QueryRow("SELECT COUNT(*) FROM kg_nodes").Scan(&report.Nodes)
+	tx.QueryRow("SELECT COUNT(*) FROM kg_edges").Scan(&report.Edges)
+	tx.QueryRow("SELECT COUNT(*) FROM kg_nodes WHERE protected != 0").Scan(&report.ProtectedNodes)
 
 	// Isolated nodes
-	kg.db.QueryRow(`SELECT COUNT(*) FROM kg_nodes n WHERE NOT EXISTS (SELECT 1 FROM kg_edges e WHERE e.source = n.id OR e.target = n.id)`).Scan(&report.IsolatedNodes)
+	tx.QueryRow(`SELECT COUNT(*) FROM kg_nodes n WHERE NOT EXISTS (SELECT 1 FROM kg_edges e WHERE e.source = n.id OR e.target = n.id)`).Scan(&report.IsolatedNodes)
 
-	isolatedRows, _ := kg.db.Query(`
+	isolatedRows, _ := tx.Query(`
 		SELECT id, label, properties, protected FROM kg_nodes n 
 		WHERE NOT EXISTS (SELECT 1 FROM kg_edges e WHERE e.source = n.id OR e.target = n.id)
 		LIMIT ?`, sampleLimit)
@@ -509,12 +539,12 @@ func (kg *KnowledgeGraph) QualityReport(sampleLimit int) (*KnowledgeGraphQuality
 	}
 
 	// Untyped nodes
-	kg.db.QueryRow(`
+	tx.QueryRow(`
 		SELECT COUNT(*) FROM kg_nodes n 
 		WHERE json_extract(properties, '$.type') IS NULL OR json_extract(properties, '$.type') = ''
 	`).Scan(&report.UntypedNodes)
 
-	untypedRows, _ := kg.db.Query(`
+	untypedRows, _ := tx.Query(`
 		SELECT id, label, properties, protected FROM kg_nodes n 
 		WHERE json_extract(properties, '$.type') IS NULL OR json_extract(properties, '$.type') = ''
 		LIMIT ?`, sampleLimit)
@@ -533,7 +563,7 @@ func (kg *KnowledgeGraph) QualityReport(sampleLimit int) (*KnowledgeGraphQuality
 	}
 
 	// Duplicate groups
-	dupGroupRows, _ := kg.db.Query(`
+	dupGroupRows, _ := tx.Query(`
 		SELECT LOWER(TRIM(label)), COUNT(*) 
 		FROM kg_nodes 
 		WHERE label != ''
@@ -561,7 +591,7 @@ func (kg *KnowledgeGraph) QualityReport(sampleLimit int) (*KnowledgeGraphQuality
 				NormalizedLabel: l,
 				Count:           0,
 			}
-			nodesRows, _ := kg.db.Query(`SELECT id, label, properties, protected FROM kg_nodes WHERE LOWER(TRIM(label)) = ?`, l)
+			nodesRows, _ := tx.Query(`SELECT id, label, properties, protected FROM kg_nodes WHERE LOWER(TRIM(label)) = ?`, l)
 			if nodesRows != nil {
 				for nodesRows.Next() {
 					var n Node
@@ -728,9 +758,17 @@ func (kg *KnowledgeGraph) IncrementCoOccurrence(a, b, date string) error {
 	if a > b {
 		a, b = b, a
 	}
+
+	// Wrap in a transaction to prevent TOCTOU races
+	tx, err := kg.db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin co-occurrence transaction: %w", err)
+	}
+	defer tx.Rollback()
+
 	var currentWeight int
 	var propsJSON string
-	err := kg.db.QueryRow(
+	err = tx.QueryRow(
 		"SELECT properties FROM kg_edges WHERE source = ? AND target = ? AND relation = 'co_mentioned_with'",
 		a, b,
 	).Scan(&propsJSON)
@@ -749,26 +787,34 @@ func (kg *KnowledgeGraph) IncrementCoOccurrence(a, b, date string) error {
 			props["source"] = "activity_turn"
 		}
 		newPropsJSON, _ := json.Marshal(props)
-		_, err = kg.db.Exec(
+		_, err = tx.Exec(
 			"UPDATE kg_edges SET properties = ? WHERE source = ? AND target = ? AND relation = 'co_mentioned_with'",
 			string(newPropsJSON), a, b,
 		)
-		return err
+		if err != nil {
+			return fmt.Errorf("update co-occurrence: %w", err)
+		}
+	} else if err == sql.ErrNoRows {
+		// Edge does not exist yet — insert as pending (weight=1, below threshold).
+		initProps, _ := json.Marshal(map[string]string{
+			"source": "pending",
+			"weight": "1",
+			"date":   date,
+		})
+		_, err = tx.Exec(`
+			INSERT INTO kg_edges (source, target, relation, properties)
+			VALUES (?, ?, 'co_mentioned_with', ?)
+			ON CONFLICT(source, target, relation) DO UPDATE SET
+				properties = excluded.properties
+		`, a, b, string(initProps))
+		if err != nil {
+			return fmt.Errorf("insert co-occurrence: %w", err)
+		}
+	} else {
+		return fmt.Errorf("query co-occurrence: %w", err)
 	}
 
-	// Edge does not exist yet — insert as pending (weight=1, below threshold).
-	initProps, _ := json.Marshal(map[string]string{
-		"source": "pending",
-		"weight": "1",
-		"date":   date,
-	})
-	_, err = kg.db.Exec(`
-		INSERT INTO kg_edges (source, target, relation, properties)
-		VALUES (?, ?, 'co_mentioned_with', ?)
-		ON CONFLICT(source, target, relation) DO UPDATE SET
-			properties = excluded.properties
-	`, a, b, string(initProps))
-	return err
+	return tx.Commit()
 }
 
 // Uses a single UNION query combining FTS5 and LIKE to avoid two database round-trips.
@@ -1023,7 +1069,7 @@ func (kg *KnowledgeGraph) SearchForContext(query string, maxNodes int, maxChars 
 	}
 
 	if count == 0 {
-		likeQ := "%" + query + "%"
+		likeQ := "%" + dbutil.EscapeLike(query) + "%"
 		rows, err := kg.db.Query(`
 			SELECT id, access_count FROM kg_nodes
 			WHERE id LIKE ? OR label LIKE ? OR properties LIKE ?

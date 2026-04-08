@@ -350,7 +350,20 @@ func main() {
 	}
 	defer shortTermMem.Close()
 
-	if _, err := server.ApplyPendingEmbeddingsReset(cfg, shortTermMem, appLog); err != nil {
+	// Initialize Knowledge Graph early so ApplyPendingEmbeddingsReset can use it
+	// instead of opening a separate database connection
+	kg, err := memory.NewKnowledgeGraph(
+		filepath.Join(cfg.Directories.DataDir, "knowledge_graph.db"),
+		filepath.Join(cfg.Directories.DataDir, "graph.json"),
+		appLog,
+	)
+	if err != nil {
+		appLog.Error("Failed to initialize knowledge graph", "error", err)
+		os.Exit(1)
+	}
+	defer kg.Close()
+
+	if _, err := server.ApplyPendingEmbeddingsReset(cfg, shortTermMem, kg, appLog); err != nil {
 		appLog.Error("Failed to apply pending embeddings reset", "error", err)
 		os.Exit(1)
 	}
@@ -736,6 +749,7 @@ func main() {
 	defer historyManager.Close()
 
 	// Phase 36: Native Knowledge Graph (SQLite-backed with FTS5)
+	// Note: KG was already initialized earlier for ApplyPendingEmbeddingsReset
 	optDB, optErr := optimizer.InitDB(filepath.Join(cfg.Directories.DataDir, "optimization.db"))
 	if optErr != nil {
 		appLog.Warn("Failed to initialize optimizer trace database", "error", optErr)
@@ -747,16 +761,7 @@ func main() {
 		}
 	}
 
-	kg, err := memory.NewKnowledgeGraph(
-		filepath.Join(cfg.Directories.DataDir, "knowledge_graph.db"),
-		filepath.Join(cfg.Directories.DataDir, "graph.json"),
-		appLog,
-	)
-	if err != nil {
-		appLog.Error("Failed to initialize knowledge graph", "error", err)
-		return
-	}
-	defer kg.Close()
+	// Enable semantic search if embeddings are enabled (kg was initialized earlier)
 	if !longTermMem.IsDisabled() {
 		go func() {
 			if err := kg.EnableSemanticSearchShared(longTermMem.GetDB(), longTermMem.GetEmbeddingFunc()); err != nil {

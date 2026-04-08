@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"aurago/internal/dbutil"
 	"aurago/internal/uid"
 
 	_ "modernc.org/sqlite"
@@ -48,14 +49,9 @@ type Todo struct {
 
 // InitDB initializes the planner SQLite database with appointments and todos tables.
 func InitDB(dbPath string) (*sql.DB, error) {
-	db, err := sql.Open("sqlite", dbPath)
+	db, err := dbutil.Open(dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open planner database: %w", err)
-	}
-	db.SetMaxOpenConns(1)
-	if _, err := db.Exec("PRAGMA journal_mode=WAL"); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("failed to set WAL mode: %w", err)
 	}
 
 	schema := `
@@ -242,8 +238,9 @@ func ListAppointments(db *sql.DB, query, status string) ([]Appointment, error) {
 	var args []interface{}
 
 	if query != "" {
-		like := "%" + strings.ToLower(query) + "%"
-		conditions = append(conditions, "(lower(title) LIKE ? OR lower(description) LIKE ?)")
+		escapedQuery := dbutil.EscapeLike(strings.ToLower(query))
+		like := "%" + escapedQuery + "%"
+		conditions = append(conditions, "(lower(title) LIKE ? ESCAPE '\\' OR lower(description) LIKE ? ESCAPE '\\')")
 		args = append(args, like, like)
 	}
 	if status != "" && status != "all" {
@@ -447,8 +444,9 @@ func ListTodos(db *sql.DB, query, status string) ([]Todo, error) {
 	var args []interface{}
 
 	if query != "" {
-		like := "%" + strings.ToLower(query) + "%"
-		conditions = append(conditions, "(lower(title) LIKE ? OR lower(description) LIKE ?)")
+		escapedQuery := dbutil.EscapeLike(strings.ToLower(query))
+		like := "%" + escapedQuery + "%"
+		conditions = append(conditions, "(lower(title) LIKE ? ESCAPE '\\' OR lower(description) LIKE ? ESCAPE '\\')")
 		args = append(args, like, like)
 	}
 	if status != "" && status != "all" {

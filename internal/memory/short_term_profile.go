@@ -522,12 +522,24 @@ func (s *SQLiteMemory) DeduplicateProfileEntries() error {
 	}
 	rows.Close()
 
+	if len(toDelete) == 0 {
+		return nil
+	}
+
+	// Wrap in a transaction to prevent TOCTOU races
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin dedup transaction: %w", err)
+	}
+	defer tx.Rollback()
+
 	for _, e := range toDelete {
-		if _, err := s.db.Exec("DELETE FROM user_profile WHERE category = ? AND key = ?", e.cat, e.key); err != nil {
+		if _, err := tx.Exec("DELETE FROM user_profile WHERE category = ? AND key = ?", e.cat, e.key); err != nil {
 			return fmt.Errorf("profile dedup delete %s/%s: %w", e.cat, e.key, err)
 		}
 	}
-	return nil
+
+	return tx.Commit()
 }
 
 // EnforceProfileSizeLimit keeps the user_profile table at most maxEntries rows

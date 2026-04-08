@@ -68,7 +68,7 @@ func TestApplyPendingEmbeddingsResetClearsVectorState(t *testing.T) {
 		t.Fatalf("WriteEmbeddingsResetMarker: %v", err)
 	}
 
-	applied, err := ApplyPendingEmbeddingsReset(cfg, stm, logger)
+	applied, err := ApplyPendingEmbeddingsReset(cfg, stm, nil, logger)
 	if err != nil {
 		t.Fatalf("ApplyPendingEmbeddingsReset: %v", err)
 	}

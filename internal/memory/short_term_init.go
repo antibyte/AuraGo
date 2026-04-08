@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"aurago/internal/dbutil"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -61,7 +62,7 @@ func openSQLiteDB(dbPath string, logger *slog.Logger) (*sql.DB, error) {
 }
 
 func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) {
-	db, err := openSQLiteDB(dbPath, logger)
+	db, err := dbutil.Open(dbPath)
 	if err != nil {
 		return nil, err
 	}
@@ -135,6 +136,7 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	);
+	CREATE INDEX IF NOT EXISTS idx_core_memory_updated ON core_memory(updated_at);
 
 	CREATE TABLE IF NOT EXISTS user_profile (
 		category   TEXT NOT NULL,
@@ -148,6 +150,7 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 	);
 
 	CREATE INDEX IF NOT EXISTS idx_messages_session_ts ON messages(session_id, timestamp);
+	CREATE INDEX IF NOT EXISTS idx_messages_session_role_internal_ts ON messages(session_id, role, is_internal, timestamp);
 	CREATE INDEX IF NOT EXISTS idx_memory_meta_accessed ON memory_meta(last_accessed);
 	CREATE INDEX IF NOT EXISTS idx_interaction_patterns_last_seen ON interaction_patterns(last_seen);
 	CREATE INDEX IF NOT EXISTS idx_archive_events_session_ts ON archive_events(session_id, timestamp);
@@ -237,21 +240,6 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 		return nil, fmt.Errorf("failed to create conflict schema: %w", err)
 	}
 
-	if _, err := db.Exec("PRAGMA journal_mode=WAL"); err != nil {
-		logger.Warn("Failed to set WAL journal mode", "error", err)
-	}
-	if _, err := db.Exec("PRAGMA synchronous=NORMAL"); err != nil {
-		logger.Warn("Failed to set synchronous=NORMAL", "error", err)
-	}
-	if _, err := db.Exec("PRAGMA foreign_keys = ON"); err != nil {
-		logger.Warn("Failed to enable foreign key constraints", "error", err)
-	}
-	// Retry for up to 5 s when another writer holds the lock (prevents SQLITE_BUSY).
-	if _, err := db.Exec("PRAGMA busy_timeout=5000"); err != nil {
-		logger.Warn("Failed to set busy_timeout", "error", err)
-	}
-	db.SetMaxOpenConns(1)
-
 	if err := applySQLiteMemoryMigrations(db, logger); err != nil {
 		logger.Warn("SQLite memory migrations reported warnings", "error", err)
 	}
@@ -321,8 +309,8 @@ func migrateAddColumn(db *sql.DB, logger *slog.Logger, table, column, definition
 	var hasColumn bool
 	if err := db.QueryRow(query, column).Scan(&hasColumn); err != nil {
 		logger.Warn("Failed to check for column", "table", table, "column", column, "error", err)
-		// Non-fatal: schema check failure does not prevent startup.
-		return nil
+		// Return error instead of swallowing it
+		return fmt.Errorf("check column %s in %s: %w", column, table, err)
 	}
 	if hasColumn {
 		return nil

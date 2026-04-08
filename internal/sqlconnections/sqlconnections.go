@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"aurago/internal/dbutil"
 	"aurago/internal/uid"
 
 	_ "modernc.org/sqlite"
@@ -39,14 +40,9 @@ type connectionCredentials struct {
 
 // InitDB opens (or creates) the metadata database and ensures the schema exists.
 func InitDB(dbPath string) (*sql.DB, error) {
-	db, err := sql.Open("sqlite", dbPath)
+	db, err := dbutil.Open(dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("sql_connections: failed to open database: %w", err)
-	}
-
-	if _, err := db.Exec("PRAGMA journal_mode=WAL"); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("sql_connections: failed to enable WAL mode: %w", err)
 	}
 
 	schema := `

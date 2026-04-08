@@ -4,8 +4,10 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"time"
 
+	"aurago/internal/dbutil"
 	"aurago/internal/uid"
 
 	_ "modernc.org/sqlite"
@@ -58,7 +60,7 @@ type AuditEntry struct {
 
 // InitDB initializes the remote control SQLite database.
 func InitDB(dbPath string) (*sql.DB, error) {
-	db, err := sql.Open("sqlite", dbPath)
+	db, err := dbutil.Open(dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open remote control database: %w", err)
 	}
@@ -114,6 +116,11 @@ func InitDB(dbPath string) (*sql.DB, error) {
 	if _, err := db.Exec(enrollSchema); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("failed to create remote_enrollments schema: %w", err)
+	}
+
+	// Trim old audit log entries on startup to prevent unbounded growth.
+	if err := TrimAuditLog(db, 10000); err != nil {
+		slog.Warn("failed to trim remote audit log", "error", err)
 	}
 
 	return db, nil

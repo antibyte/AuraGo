@@ -1,6 +1,7 @@
 package truenas
 
 import (
+	"aurago/internal/dbutil"
 	"database/sql"
 	"fmt"
 	"time"
@@ -8,7 +9,7 @@ import (
 
 // InitRegistryDB initializes the TrueNAS registry database schema.
 func InitRegistryDB(dbPath string) (*sql.DB, error) {
-	db, err := sql.Open("sqlite", dbPath)
+	db, err := dbutil.Open(dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("open truenas registry db: %w", err)
 	}
@@ -158,16 +159,16 @@ CREATE INDEX IF NOT EXISTS idx_alerts_level ON truenas_alerts(level);
 
 // ServerRecord represents a registered TrueNAS server.
 type ServerRecord struct {
-	ID         int64     `json:"id"`
-	Name       string    `json:"name"`
-	Host       string    `json:"host"`
-	Port       int       `json:"port"`
-	UseHTTPS   bool      `json:"use_https"`
-	Version    string    `json:"version"`
-	Status     string    `json:"status"`
-	LastCheck  time.Time `json:"last_check"`
-	CreatedAt  time.Time `json:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at"`
+	ID        int64     `json:"id"`
+	Name      string    `json:"name"`
+	Host      string    `json:"host"`
+	Port      int       `json:"port"`
+	UseHTTPS  bool      `json:"use_https"`
+	Version   string    `json:"version"`
+	Status    string    `json:"status"`
+	LastCheck time.Time `json:"last_check"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 // SaveServer registers or updates a TrueNAS server.
@@ -184,7 +185,7 @@ func SaveServer(db *sql.DB, record *ServerRecord) error {
 			last_check = excluded.last_check,
 			updated_at = CURRENT_TIMESTAMP
 	`, record.Name, record.Host, record.Port, record.UseHTTPS, record.Version, record.Status, record.LastCheck)
-	
+
 	return err
 }
 
@@ -192,20 +193,20 @@ func SaveServer(db *sql.DB, record *ServerRecord) error {
 func GetServer(db *sql.DB, name string) (*ServerRecord, error) {
 	var s ServerRecord
 	var lastCheck sql.NullTime
-	
+
 	err := db.QueryRow(`
 		SELECT id, name, host, port, use_https, version, status, last_check, created_at, updated_at
 		FROM truenas_servers WHERE name = ?
 	`, name).Scan(&s.ID, &s.Name, &s.Host, &s.Port, &s.UseHTTPS, &s.Version, &s.Status, &lastCheck, &s.CreatedAt, &s.UpdatedAt)
-	
+
 	if err != nil {
 		return nil, err
 	}
-	
+
 	if lastCheck.Valid {
 		s.LastCheck = lastCheck.Time
 	}
-	
+
 	return &s, nil
 }
 
@@ -225,7 +226,7 @@ func SavePool(db *sql.DB, serverName string, pool *PoolRecord) error {
 			last_check = excluded.last_check,
 			updated_at = CURRENT_TIMESTAMP
 	`, serverName, pool.PoolID, pool.Name, pool.GUID, pool.Status, pool.SizeBytes, pool.AllocatedBytes, pool.FreeBytes, pool.ScanStatus, pool.LastScrub, pool.LastCheck)
-	
+
 	return err
 }
 
@@ -258,22 +259,22 @@ func GetPoolsByServer(db *sql.DB, serverName string) ([]PoolRecord, error) {
 	for rows.Next() {
 		var p PoolRecord
 		var lastScrub, lastCheck sql.NullTime
-		
+
 		err := rows.Scan(&p.PoolID, &p.Name, &p.GUID, &p.Status, &p.SizeBytes, &p.AllocatedBytes, &p.FreeBytes, &p.ScanStatus, &lastScrub, &lastCheck)
 		if err != nil {
 			continue
 		}
-		
+
 		if lastScrub.Valid {
 			p.LastScrub = lastScrub.Time
 		}
 		if lastCheck.Valid {
 			p.LastCheck = lastCheck.Time
 		}
-		
+
 		pools = append(pools, p)
 	}
-	
+
 	return pools, rows.Err()
 }
 
@@ -296,25 +297,25 @@ func SaveDataset(db *sql.DB, serverName string, ds *DatasetRecord) error {
 			last_check = excluded.last_check,
 			updated_at = CURRENT_TIMESTAMP
 	`, serverName, ds.PoolName, ds.DatasetID, ds.Name, ds.Type, ds.Mountpoint, ds.SizeBytes, ds.UsedBytes, ds.AvailableBytes, ds.Compression, ds.QuotaBytes, ds.ReadOnly, ds.ShareType, ds.LastCheck)
-	
+
 	return err
 }
 
 // DatasetRecord represents a tracked dataset.
 type DatasetRecord struct {
-	DatasetID     string    `json:"dataset_id"`
-	PoolName      string    `json:"pool_name"`
-	Name          string    `json:"name"`
-	Type          string    `json:"type"`
-	Mountpoint    string    `json:"mountpoint"`
-	SizeBytes     int64     `json:"size_bytes"`
-	UsedBytes     int64     `json:"used_bytes"`
-	AvailableBytes int64    `json:"available_bytes"`
-	Compression   string    `json:"compression"`
-	QuotaBytes    int64     `json:"quota_bytes"`
-	ReadOnly      bool      `json:"readonly"`
-	ShareType     string    `json:"share_type"`
-	LastCheck     time.Time `json:"last_check"`
+	DatasetID      string    `json:"dataset_id"`
+	PoolName       string    `json:"pool_name"`
+	Name           string    `json:"name"`
+	Type           string    `json:"type"`
+	Mountpoint     string    `json:"mountpoint"`
+	SizeBytes      int64     `json:"size_bytes"`
+	UsedBytes      int64     `json:"used_bytes"`
+	AvailableBytes int64     `json:"available_bytes"`
+	Compression    string    `json:"compression"`
+	QuotaBytes     int64     `json:"quota_bytes"`
+	ReadOnly       bool      `json:"readonly"`
+	ShareType      string    `json:"share_type"`
+	LastCheck      time.Time `json:"last_check"`
 }
 
 // GetDatasetsByPool returns datasets for a pool.
@@ -332,20 +333,20 @@ func GetDatasetsByPool(db *sql.DB, serverName, poolName string) ([]DatasetRecord
 	for rows.Next() {
 		var d DatasetRecord
 		d.PoolName = poolName
-		
+
 		var lastCheck sql.NullTime
 		err := rows.Scan(&d.DatasetID, &d.Name, &d.Type, &d.Mountpoint, &d.SizeBytes, &d.UsedBytes, &d.AvailableBytes, &d.Compression, &d.QuotaBytes, &d.ReadOnly, &d.ShareType, &lastCheck)
 		if err != nil {
 			continue
 		}
-		
+
 		if lastCheck.Valid {
 			d.LastCheck = lastCheck.Time
 		}
-		
+
 		datasets = append(datasets, d)
 	}
-	
+
 	return datasets, rows.Err()
 }
 
@@ -361,7 +362,7 @@ func SaveSnapshot(db *sql.DB, serverName string, snap *SnapshotRecord) error {
 			expires_at = excluded.expires_at,
 			last_check = excluded.last_check
 	`, serverName, snap.DatasetName, snap.SnapshotID, snap.Name, snap.Type, snap.SizeBytes, snap.CreatedAt, snap.Replicated, snap.RetentionDays, snap.ExpiresAt, snap.LastCheck)
-	
+
 	return err
 }
 
@@ -395,13 +396,13 @@ func GetSnapshotsByDataset(db *sql.DB, serverName, datasetName string) ([]Snapsh
 	for rows.Next() {
 		var s SnapshotRecord
 		s.DatasetName = datasetName
-		
+
 		var createdAt, expiresAt, lastCheck sql.NullTime
 		err := rows.Scan(&s.SnapshotID, &s.Name, &s.Type, &s.SizeBytes, &createdAt, &s.Replicated, &s.RetentionDays, &expiresAt, &lastCheck)
 		if err != nil {
 			continue
 		}
-		
+
 		if createdAt.Valid {
 			s.CreatedAt = createdAt.Time
 		}
@@ -411,10 +412,10 @@ func GetSnapshotsByDataset(db *sql.DB, serverName, datasetName string) ([]Snapsh
 		if lastCheck.Valid {
 			s.LastCheck = lastCheck.Time
 		}
-		
+
 		snapshots = append(snapshots, s)
 	}
-	
+
 	return snapshots, rows.Err()
 }
 
@@ -430,7 +431,7 @@ func SaveAlert(db *sql.DB, serverName string, alert *AlertRecord) error {
 			dismissed = excluded.dismissed,
 			dismissed_at = excluded.dismissed_at
 	`, serverName, alert.AlertID, alert.Level, alert.Title, alert.Message, alert.Dismissed, alert.DismissedAt)
-	
+
 	return err
 }
 
@@ -460,19 +461,19 @@ func GetActiveAlerts(db *sql.DB, serverName string) ([]AlertRecord, error) {
 	for rows.Next() {
 		var a AlertRecord
 		var dismissedAt sql.NullTime
-		
+
 		err := rows.Scan(&a.AlertID, &a.Level, &a.Title, &a.Message, &a.Dismissed, &dismissedAt)
 		if err != nil {
 			continue
 		}
-		
+
 		if dismissedAt.Valid {
 			a.DismissedAt = dismissedAt.Time
 		}
-		
+
 		alerts = append(alerts, a)
 	}
-	
+
 	return alerts, rows.Err()
 }
 
@@ -502,20 +503,20 @@ func GetLastSyncLog(db *sql.DB, serverName string, limit int) ([]SyncLogEntry, e
 	for rows.Next() {
 		var e SyncLogEntry
 		e.ServerName = serverName
-		
+
 		var createdAt sql.NullTime
 		err := rows.Scan(&e.Operation, &e.Status, &e.Details, &e.DurationMs, &createdAt)
 		if err != nil {
 			continue
 		}
-		
+
 		if createdAt.Valid {
 			e.CreatedAt = createdAt.Time
 		}
-		
+
 		entries = append(entries, e)
 	}
-	
+
 	return entries, rows.Err()
 }
 
@@ -543,18 +544,18 @@ func DeleteOldSnapshots(db *sql.DB, serverName string, olderThan time.Time) (int
 // CleanupOldRecords removes old records from the database.
 func CleanupOldRecords(db *sql.DB, serverName string, retentionDays int) error {
 	cutoff := time.Now().AddDate(0, 0, -retentionDays)
-	
+
 	// Clean up old alerts
 	_, err := db.Exec(`DELETE FROM truenas_alerts WHERE server_name = ? AND created_at < ?`, serverName, cutoff)
 	if err != nil {
 		return err
 	}
-	
+
 	// Clean up old sync logs
 	_, err = db.Exec(`DELETE FROM truenas_sync_log WHERE server_name = ? AND created_at < ?`, serverName, cutoff)
 	if err != nil {
 		return err
 	}
-	
+
 	return nil
 }

@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"aurago/internal/dbutil"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -64,15 +65,9 @@ type HomepageRevisionFile struct {
 
 // InitHomepageRegistryDB initializes the homepage registry SQLite database.
 func InitHomepageRegistryDB(dbPath string) (*sql.DB, error) {
-	db, err := sql.Open("sqlite", dbPath)
+	db, err := dbutil.Open(dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open homepage registry database: %w", err)
-	}
-
-	db.SetMaxOpenConns(1)
-	if _, err := db.Exec("PRAGMA journal_mode=WAL"); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("failed to set WAL mode: %w", err)
 	}
 
 	schema := `

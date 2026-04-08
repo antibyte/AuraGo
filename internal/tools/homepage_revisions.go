@@ -10,11 +10,19 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 const (
 	maxRevisionFileSize  = 500 * 1024
 	maxDiffPreviewLength = 3000
+)
+
+// stateCache stores the latest known file state per project directory
+// to avoid full replay of all revisions on every save.
+var (
+	stateCache      = make(map[string]map[string]fileEntry)
+	stateCacheMutex sync.RWMutex
 )
 
 var revisionExcludedDirs = []string{
@@ -163,6 +171,14 @@ func computeUnifiedDelta(db *sql.DB, projectDir string, baseRevID int64, logger 
 }
 
 func reconstructProjectState(db *sql.DB, projectDir string, baseRevID int64, logger *slog.Logger) (map[string]fileEntry, error) {
+	// Check cache first
+	stateCacheMutex.RLock()
+	if cached, ok := stateCache[projectDir]; ok {
+		stateCacheMutex.RUnlock()
+		return cached, nil
+	}
+	stateCacheMutex.RUnlock()
+
 	revisions, _, err := ListHomepageRevisions(db, projectDir, 1000, 0)
 	if err != nil {
 		return nil, err
@@ -195,6 +211,12 @@ func reconstructProjectState(db *sql.DB, projectDir string, baseRevID int64, log
 			break
 		}
 	}
+
+	// Store in cache
+	stateCacheMutex.Lock()
+	stateCache[projectDir] = state
+	stateCacheMutex.Unlock()
+
 	return state, nil
 }
 
