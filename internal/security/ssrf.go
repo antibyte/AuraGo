@@ -7,6 +7,8 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
+	"strings"
 	"time"
 )
 
@@ -51,6 +53,19 @@ func isPrivateIP(ip net.IP) bool {
 	return false
 }
 
+func allowSSRFLoopback() bool {
+	v := strings.TrimSpace(os.Getenv("AURAGO_SSRF_ALLOW_LOOPBACK"))
+	return v == "1" || strings.EqualFold(v, "true")
+}
+
+func isAllowedPrivateIP(ip net.IP) bool {
+	// Escape hatch for tests/dev: allow loopback only (still blocks RFC1918 and link-local).
+	if allowSSRFLoopback() && ip != nil && ip.IsLoopback() {
+		return true
+	}
+	return false
+}
+
 // ValidateSSRF validates rawURL to prevent Server-Side Request Forgery.
 // It rejects non-HTTP(S) schemes, empty hosts, and URLs that resolve to
 // private/internal IP addresses (RFC 1918, loopback, link-local, cloud metadata, etc.).
@@ -69,6 +84,9 @@ func ValidateSSRF(rawURL string) error {
 
 	if ip := net.ParseIP(host); ip != nil {
 		if isPrivateIP(ip) {
+			if isAllowedPrivateIP(ip) {
+				return nil
+			}
 			return fmt.Errorf("access to internal address %s is blocked (SSRF protection)", ip)
 		}
 		return nil
@@ -80,6 +98,9 @@ func ValidateSSRF(rawURL string) error {
 	}
 	for _, ip := range ips {
 		if isPrivateIP(ip) {
+			if isAllowedPrivateIP(ip) {
+				continue
+			}
 			return fmt.Errorf("access to internal address %s is blocked (SSRF protection)", ip)
 		}
 	}
@@ -102,6 +123,10 @@ func resolvePublicIPs(ctx context.Context, host string) ([]net.IP, error) {
 	ips := make([]net.IP, 0, len(addrs))
 	for _, addr := range addrs {
 		if isPrivateIP(addr.IP) {
+			if isAllowedPrivateIP(addr.IP) {
+				ips = append(ips, addr.IP)
+				continue
+			}
 			return nil, fmt.Errorf("access to internal address %s is blocked (SSRF protection)", addr.IP)
 		}
 		ips = append(ips, addr.IP)
@@ -117,6 +142,9 @@ func validatedSSRFDialTarget(ctx context.Context, addr string) (networkAddr stri
 	serverName = host
 	if ip := net.ParseIP(host); ip != nil {
 		if isPrivateIP(ip) {
+			if isAllowedPrivateIP(ip) {
+				return net.JoinHostPort(ip.String(), port), serverName, nil
+			}
 			return "", "", fmt.Errorf("access to internal address %s is blocked (SSRF protection)", ip)
 		}
 		return net.JoinHostPort(ip.String(), port), serverName, nil
@@ -127,6 +155,9 @@ func validatedSSRFDialTarget(ctx context.Context, addr string) (networkAddr stri
 	if pinned, ok := ctx.Value(ssrfPinnedIPsKey{}).(map[string]net.IP); ok {
 		if ip, found := pinned[host]; found {
 			if isPrivateIP(ip) {
+				if isAllowedPrivateIP(ip) {
+					return net.JoinHostPort(ip.String(), port), serverName, nil
+				}
 				return "", "", fmt.Errorf("access to internal address %s is blocked (SSRF protection)", ip)
 			}
 			return net.JoinHostPort(ip.String(), port), serverName, nil
@@ -207,6 +238,9 @@ func NewSSRFProtectedHTTPClientForURL(rawURL string, timeout time.Duration) (*ht
 	// Literal IP — validate and use directly (no DNS involved)
 	if ip := net.ParseIP(host); ip != nil {
 		if isPrivateIP(ip) {
+			if isAllowedPrivateIP(ip) {
+				return NewSSRFProtectedHTTPClient(timeout), nil
+			}
 			return nil, fmt.Errorf("access to internal address %s is blocked (SSRF protection)", ip)
 		}
 		return NewSSRFProtectedHTTPClient(timeout), nil

@@ -25,7 +25,7 @@ func TestWebDAVURLEmptyPathKeepsTrailingSlash(t *testing.T) {
 }
 
 func TestWebDAVRequestBasicAuth(t *testing.T) {
-	t.Parallel()
+	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "1")
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		user, pass, ok := r.BasicAuth()
@@ -55,7 +55,7 @@ func TestWebDAVRequestBasicAuth(t *testing.T) {
 }
 
 func TestWebDAVRequestBearerAuth(t *testing.T) {
-	t.Parallel()
+	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "1")
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if got := r.Header.Get("Authorization"); got != "Bearer token-123" {
@@ -80,7 +80,7 @@ func TestWebDAVRequestBearerAuth(t *testing.T) {
 }
 
 func TestWebDAVReadRejectsOversizeResponse(t *testing.T) {
-	t.Parallel()
+	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "1")
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -98,7 +98,7 @@ func TestWebDAVReadRejectsOversizeResponse(t *testing.T) {
 }
 
 func TestWebDAVWriteRejectsOversizeErrorBody(t *testing.T) {
-	t.Parallel()
+	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "1")
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadGateway)

@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 )
 
 // HomepageConfig holds the configuration for the homepage dev environment.
@@ -226,12 +227,25 @@ func resolveHomepagePath(workspacePath, relPath string) (string, error) {
 	return fullPath, nil
 }
 
-// truncateStr returns s truncated to maxLen characters with "â€¦" suffix.
+// truncateStr returns s truncated to maxLen characters with "…" suffix.
 func truncateStr(s string, maxLen int) string {
-	if len(s) <= maxLen {
+	if maxLen <= 0 {
+		return "\u2026"
+	}
+	if utf8.RuneCountInString(s) <= maxLen {
 		return s
 	}
-	return s[:maxLen] + "â€¦"
+	var sb strings.Builder
+	sb.Grow(len(s))
+	i := 0
+	for _, r := range s {
+		if i >= maxLen {
+			break
+		}
+		sb.WriteRune(r)
+		i++
+	}
+	return sb.String() + "\u2026"
 }
 
 // extractOutput parses a DockerExec JSON result and returns the "output" field.

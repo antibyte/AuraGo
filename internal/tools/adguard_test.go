@@ -59,6 +59,8 @@ func TestGetAdGuardClientInitializesOnce(t *testing.T) {
 }
 
 func TestAdGuardRequestRejectsOversizeResponse(t *testing.T) {
+	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "1")
+
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write(bytes.Repeat([]byte("x"), int(maxHTTPResponseSize+1)))

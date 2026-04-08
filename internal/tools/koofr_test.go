@@ -28,6 +28,8 @@ func TestKoofrSuccessContentResponseEscapesStructuredContent(t *testing.T) {
 }
 
 func TestDoKoofrRequestRejectsOversizeResponse(t *testing.T) {
+	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "1")
+
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write(bytes.Repeat([]byte("x"), int(maxHTTPResponseSize+1)))
