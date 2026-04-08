@@ -794,8 +794,8 @@ func TestNormalizeDateInput(t *testing.T) {
 		want  string
 	}{
 		{"2025-03-15T00:00:00Z", "2025-03-15T00:00:00Z"}, // already RFC3339, unchanged
-		{"2025-03-15", "2025-03-15T00:00:00Z"},            // date-only → normalized
-		{"", ""},                                          // empty → empty
+		{"2025-03-15", "2025-03-15T00:00:00Z"},           // date-only → normalized
+		{"", ""},                                         // empty → empty
 		{"not-a-date", "not-a-date"},                     // invalid → unchanged (validation catches)
 	}
 	for _, tt := range tests {
