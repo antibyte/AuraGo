@@ -732,3 +732,152 @@ func emitMediaSSEEvents(broker FeedbackBroker, action, resultContent string, dat
 		}
 	}
 }
+
+func compactMemoryForPrompt(text string, maxLen int) string {
+	text = strings.TrimSpace(text)
+	if maxLen <= 0 || len(text) <= maxLen {
+		return text
+	}
+	return strings.TrimSpace(text[:maxLen]) + "…"
+}
+
+func wantsDetailedMemory(query string) bool {
+	q := strings.ToLower(query)
+	cues := []string{
+		"detail", "details", "exact", "specific", "precise",
+		"genau", "details", "welche", "wann", "konkret",
+	}
+	for _, cue := range cues {
+		if strings.Contains(q, cue) {
+			return true
+		}
+	}
+	return false
+}
+
+func trim422Messages(msgs []openai.ChatCompletionMessage) []openai.ChatCompletionMessage {
+	toolResponseIDs := make(map[string]bool, len(msgs))
+	for _, m := range msgs {
+		if m.Role == openai.ChatMessageRoleTool && m.ToolCallID != "" {
+			toolResponseIDs[m.ToolCallID] = true
+		}
+	}
+
+	type toolRound struct {
+		assistantIdx int
+		assistant    openai.ChatCompletionMessage
+		toolResults  []openai.ChatCompletionMessage
+	}
+	var rounds []toolRound
+	var nonToolMsgs []openai.ChatCompletionMessage
+
+	for i := 0; i < len(msgs); i++ {
+		m := msgs[i]
+		switch m.Role {
+		case openai.ChatMessageRoleTool:
+			continue
+		case openai.ChatMessageRoleAssistant:
+			if len(m.ToolCalls) > 0 {
+				round := toolRound{assistantIdx: len(nonToolMsgs), assistant: m}
+				for j := i + 1; j < len(msgs); j++ {
+					if msgs[j].Role == openai.ChatMessageRoleTool {
+						allMatch := true
+						for _, tc := range m.ToolCalls {
+							if msgs[j].ToolCallID == tc.ID {
+								round.toolResults = append(round.toolResults, msgs[j])
+								allMatch = false
+								break
+							}
+						}
+						_ = allMatch
+						if len(round.toolResults) == len(m.ToolCalls) {
+							break
+						}
+					} else {
+						break
+					}
+				}
+				rounds = append(rounds, round)
+				for j := i + 1; j < len(msgs) && msgs[j].Role == openai.ChatMessageRoleTool; j++ {
+					i = j
+				}
+				continue
+			}
+			nonToolMsgs = append(nonToolMsgs, m)
+		default:
+			nonToolMsgs = append(nonToolMsgs, m)
+		}
+	}
+
+	lastCompleteRound := -1
+	for ri := len(rounds) - 1; ri >= 0; ri-- {
+		if len(rounds[ri].toolResults) == len(rounds[ri].assistant.ToolCalls) {
+			lastCompleteRound = ri
+			break
+		}
+	}
+
+	sysEnd := 0
+	for sysEnd < len(nonToolMsgs) && nonToolMsgs[sysEnd].Role == openai.ChatMessageRoleSystem {
+		sysEnd++
+	}
+	conversation := nonToolMsgs[sysEnd:]
+	if len(conversation) > 4 {
+		conversation = conversation[len(conversation)-4:]
+	}
+	for len(conversation) > 0 && conversation[0].Role != openai.ChatMessageRoleUser {
+		conversation = conversation[1:]
+	}
+
+	trimmed := make([]openai.ChatCompletionMessage, 0, sysEnd+len(conversation)+1)
+	trimmed = append(trimmed, nonToolMsgs[:sysEnd]...)
+
+	if lastCompleteRound >= 0 {
+		r := rounds[lastCompleteRound]
+		trimmed = append(trimmed, r.assistant)
+		trimmed = append(trimmed, r.toolResults...)
+	}
+
+	trimmed = append(trimmed, conversation...)
+	trimmed = append(trimmed, openai.ChatCompletionMessage{
+		Role:    openai.ChatMessageRoleUser,
+		Content: "[The previous tool call history was trimmed due to a provider error. Please summarise what you were doing and continue.]",
+	})
+	return trimmed
+}
+
+var todoCheckboxLinePrefixes = []string{
+	"- [ ] ",
+	"- [x] ",
+	"- [X] ",
+	"* [ ] ",
+	"* [x] ",
+	"* [X] ",
+}
+
+func stripLeakedTodoList(content string) string {
+	lines := strings.Split(content, "\n")
+	filtered := make([]string, 0, len(lines))
+	removed := 0
+	for _, line := range lines {
+		isTodo := false
+		trimmed := strings.TrimLeft(line, " \t")
+		for _, prefix := range todoCheckboxLinePrefixes {
+			if strings.HasPrefix(trimmed, prefix) {
+				isTodo = true
+				break
+			}
+		}
+		if isTodo {
+			removed++
+			continue
+		}
+		filtered = append(filtered, line)
+	}
+	result := strings.Join(filtered, "\n")
+	result = strings.TrimSpace(result)
+	if removed > 0 && result == "" {
+		return content
+	}
+	return result
+}

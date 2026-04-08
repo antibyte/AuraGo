@@ -399,19 +399,21 @@ func TestShouldRefreshRAG(t *testing.T) {
 		query          string
 		lastQuery      string
 		toolIterations int
+		lastWasTool    bool
 		want           bool
 	}{
-		{name: "empty query skipped", query: "", lastQuery: "status", toolIterations: 3, want: false},
-		{name: "new query refreshes immediately", query: "docker status", lastQuery: "tailscale status", toolIterations: 0, want: true},
-		{name: "same query waits during cooldown", query: "docker status", lastQuery: "docker status", toolIterations: 1, want: false},
-		{name: "same query refreshes after cadence", query: "docker status", lastQuery: "docker status", toolIterations: ragRefreshAfterToolIterations, want: true},
+		{name: "empty query skipped", query: "", lastQuery: "status", toolIterations: 3, lastWasTool: false, want: false},
+		{name: "new query refreshes immediately", query: "docker status", lastQuery: "tailscale status", toolIterations: 0, lastWasTool: false, want: true},
+		{name: "same query waits during cooldown", query: "docker status", lastQuery: "docker status", toolIterations: 1, lastWasTool: false, want: false},
+		{name: "same query refreshes after cadence (non-tool)", query: "docker status", lastQuery: "docker status", toolIterations: ragRefreshAfterToolIterations, lastWasTool: false, want: true},
+		{name: "same query suppressed during tool chain", query: "docker status", lastQuery: "docker status", toolIterations: ragRefreshAfterToolIterations, lastWasTool: true, want: false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := shouldRefreshRAG(tt.query, tt.lastQuery, tt.toolIterations)
+			got := shouldRefreshRAG(tt.query, tt.lastQuery, tt.toolIterations, tt.lastWasTool)
 			if got != tt.want {
-				t.Errorf("shouldRefreshRAG(%q, %q, %d) = %v, want %v", tt.query, tt.lastQuery, tt.toolIterations, got, tt.want)
+				t.Errorf("shouldRefreshRAG(%q, %q, %d, %v) = %v, want %v", tt.query, tt.lastQuery, tt.toolIterations, tt.lastWasTool, got, tt.want)
 			}
 		})
 	}

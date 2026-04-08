@@ -35,6 +35,57 @@ const anthropicDefaultMaxTokens = 8192
 type anthropicTransport struct {
 	base             http.RoundTripper
 	ThinkingCallback func(content, state string)
+	thinkingCfg      anthropicThinkingConfig
+}
+
+type anthropicThinkingConfig struct {
+	Enabled        bool
+	BudgetTokens   int
+	ModelAllowlist []string
+}
+
+func (c anthropicThinkingConfig) enabledForModel(model string) bool {
+	if !c.Enabled {
+		return false
+	}
+
+	lower := strings.ToLower(strings.TrimSpace(model))
+	if lower == "" {
+		return false
+	}
+
+	// Explicit allowlist: treat entries as exact matches or prefixes.
+	if len(c.ModelAllowlist) > 0 {
+		for _, entry := range c.ModelAllowlist {
+			p := strings.ToLower(strings.TrimSpace(entry))
+			if p == "" {
+				continue
+			}
+			if strings.HasSuffix(p, "*") {
+				p = strings.TrimSuffix(p, "*")
+				if p != "" && strings.HasPrefix(lower, p) {
+					return true
+				}
+				continue
+			}
+			if lower == p || strings.HasPrefix(lower, p) {
+				return true
+			}
+		}
+		return false
+	}
+
+	// Auto-detect: enable only for newer Claude model families (avoid older Claude 3).
+	switch {
+	case strings.Contains(lower, "claude-3-7"),
+		strings.Contains(lower, "claude-3.7"),
+		strings.Contains(lower, "claude-4"),
+		strings.Contains(lower, "claude-opus-4"),
+		strings.Contains(lower, "claude-sonnet-4"):
+		return true
+	default:
+		return false
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -316,7 +367,7 @@ func (t *anthropicTransport) RoundTrip(req *http.Request) (*http.Response, error
 		return nil, fmt.Errorf("anthropic transport: unmarshal request: %w", err)
 	}
 
-	antReq, err := translateOpenAIToAnthropic(oaiReq)
+	antReq, err := translateOpenAIToAnthropic(oaiReq, t.thinkingCfg)
 	if err != nil {
 		return nil, fmt.Errorf("anthropic transport: translate request: %w", err)
 	}
@@ -370,13 +421,19 @@ func (t *anthropicTransport) baseTransport() http.RoundTripper {
 // Request translation: OpenAI → Anthropic
 // ---------------------------------------------------------------------------
 
-func translateOpenAIToAnthropic(oai openaiRequest) (anthropicRequest, error) {
+func translateOpenAIToAnthropic(oai openaiRequest, thinkingCfg anthropicThinkingConfig) (anthropicRequest, error) {
 	ant := anthropicRequest{
 		Model:       oai.Model,
 		Stream:      oai.Stream,
 		Temperature: oai.Temperature,
 		TopP:        oai.TopP,
-		Thinking:    &anthropicThinking{Type: "enabled", BudgetTokens: 10000},
+	}
+	if thinkingCfg.enabledForModel(oai.Model) {
+		budget := thinkingCfg.BudgetTokens
+		if budget <= 0 {
+			budget = 10000
+		}
+		ant.Thinking = &anthropicThinking{Type: "enabled", BudgetTokens: budget}
 	}
 
 	// max_tokens is required by Anthropic. Default to 8192 if unset.

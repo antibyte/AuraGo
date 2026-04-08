@@ -88,9 +88,9 @@ func NewClient(cfg *config.Config) *openai.Client {
 		}
 	}
 
-	if httpClient := buildLLMHTTPClient(providerType, aiGatewayToken); httpClient != nil {
-		clientConfig.HTTPClient = httpClient
-	}
+		if httpClient := buildLLMHTTPClient(cfg, providerType, aiGatewayToken); httpClient != nil {
+			clientConfig.HTTPClient = httpClient
+		}
 
 	return openai.NewClientWithConfig(clientConfig)
 }
@@ -119,14 +119,14 @@ func NewClientFromProvider(providerType, baseURL, apiKey string) *openai.Client 
 		clientConfig.BaseURL = u
 	}
 
-	if httpClient := buildLLMHTTPClient(pt, ""); httpClient != nil {
-		clientConfig.HTTPClient = httpClient
-	}
+		if httpClient := buildLLMHTTPClient(nil, pt, ""); httpClient != nil {
+			clientConfig.HTTPClient = httpClient
+		}
 
 	return openai.NewClientWithConfig(clientConfig)
 }
 
-func buildLLMHTTPClient(providerType, aiGatewayToken string) *http.Client {
+func buildLLMHTTPClient(cfg *config.Config, providerType, aiGatewayToken string) *http.Client {
 	transport := http.RoundTripper(http.DefaultTransport)
 	hasCustomTransport := false
 
@@ -141,7 +141,15 @@ func buildLLMHTTPClient(providerType, aiGatewayToken string) *http.Client {
 	}
 
 	if providerType == "anthropic" {
-		transport = &anthropicTransport{base: transport}
+		at := &anthropicTransport{base: transport}
+		if cfg != nil {
+			at.thinkingCfg = anthropicThinkingConfig{
+				Enabled:        cfg.LLM.AnthropicThinking.Enabled,
+				BudgetTokens:   cfg.LLM.AnthropicThinking.BudgetTokens,
+				ModelAllowlist: cfg.LLM.AnthropicThinking.ModelAllowlist,
+			}
+		}
+		transport = at
 		hasCustomTransport = true
 	}
 

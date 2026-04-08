@@ -26,7 +26,7 @@ func TestAnthropicRequestTranslation(t *testing.T) {
 		User: "test-user",
 	}
 
-	ant, err := translateOpenAIToAnthropic(oai)
+	ant, err := translateOpenAIToAnthropic(oai, anthropicThinkingConfig{})
 	if err != nil {
 		t.Fatalf("translate: %v", err)
 	}
@@ -57,12 +57,37 @@ func TestAnthropicMaxTokensDefault(t *testing.T) {
 		Messages: marshalMessages(t, []openaiMessage{{Role: "user", Content: "Hi"}}),
 	}
 
-	ant, err := translateOpenAIToAnthropic(oai)
+	ant, err := translateOpenAIToAnthropic(oai, anthropicThinkingConfig{})
 	if err != nil {
 		t.Fatalf("translate: %v", err)
 	}
 	if ant.MaxTokens != anthropicDefaultMaxTokens {
 		t.Errorf("max_tokens = %d, want %d", ant.MaxTokens, anthropicDefaultMaxTokens)
+	}
+}
+
+func TestAnthropicThinkingConditionalEnable(t *testing.T) {
+	oai := openaiRequest{
+		Model:    "claude-3-5-sonnet-latest",
+		MaxTokens: 128,
+		Messages: marshalMessages(t, []openaiMessage{{Role: "user", Content: "Hi"}}),
+	}
+
+	ant, err := translateOpenAIToAnthropic(oai, anthropicThinkingConfig{Enabled: true, BudgetTokens: 4242})
+	if err != nil {
+		t.Fatalf("translate: %v", err)
+	}
+	if ant.Thinking != nil {
+		t.Fatalf("expected thinking disabled for older model, got %+v", ant.Thinking)
+	}
+
+	oai.Model = "claude-sonnet-4-20250514"
+	ant, err = translateOpenAIToAnthropic(oai, anthropicThinkingConfig{Enabled: true, BudgetTokens: 4242})
+	if err != nil {
+		t.Fatalf("translate: %v", err)
+	}
+	if ant.Thinking == nil || ant.Thinking.Type != "enabled" || ant.Thinking.BudgetTokens != 4242 {
+		t.Fatalf("expected thinking enabled with budget 4242, got %+v", ant.Thinking)
 	}
 }
 
@@ -78,7 +103,7 @@ func TestAnthropicSystemMessageExtraction(t *testing.T) {
 		}),
 	}
 
-	ant, err := translateOpenAIToAnthropic(oai)
+	ant, err := translateOpenAIToAnthropic(oai, anthropicThinkingConfig{})
 	if err != nil {
 		t.Fatalf("translate: %v", err)
 	}
@@ -100,7 +125,7 @@ func TestAnthropicConsecutiveUserMerge(t *testing.T) {
 		}),
 	}
 
-	ant, err := translateOpenAIToAnthropic(oai)
+	ant, err := translateOpenAIToAnthropic(oai, anthropicThinkingConfig{})
 	if err != nil {
 		t.Fatalf("translate: %v", err)
 	}
@@ -122,7 +147,7 @@ func TestAnthropicToolDefinitionTranslation(t *testing.T) {
 		Messages: marshalMessages(t, []openaiMessage{{Role: "user", Content: "Weather?"}}),
 	}
 
-	ant, err := translateOpenAIToAnthropic(oai)
+	ant, err := translateOpenAIToAnthropic(oai, anthropicThinkingConfig{})
 	if err != nil {
 		t.Fatalf("translate: %v", err)
 	}
@@ -150,7 +175,7 @@ func TestAnthropicToolResultTranslation(t *testing.T) {
 		}),
 	}
 
-	ant, err := translateOpenAIToAnthropic(oai)
+	ant, err := translateOpenAIToAnthropic(oai, anthropicThinkingConfig{})
 	if err != nil {
 		t.Fatalf("translate: %v", err)
 	}
@@ -247,7 +272,7 @@ func TestAnthropicEmptyContent(t *testing.T) {
 		}),
 	}
 
-	ant, err := translateOpenAIToAnthropic(oai)
+	ant, err := translateOpenAIToAnthropic(oai, anthropicThinkingConfig{})
 	if err != nil {
 		t.Fatalf("translate: %v", err)
 	}
@@ -717,7 +742,7 @@ func TestAnthropicConversationStartsWithAssistant(t *testing.T) {
 		}),
 	}
 
-	ant, err := translateOpenAIToAnthropic(oai)
+	ant, err := translateOpenAIToAnthropic(oai, anthropicThinkingConfig{})
 	if err != nil {
 		t.Fatalf("translate: %v", err)
 	}

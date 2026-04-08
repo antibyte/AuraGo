@@ -154,6 +154,8 @@ func Load(path string) (*Config, error) {
 
 	// Helper LLM defaults: disabled until explicitly configured.
 	cfg.LLM.HelperEnabled = false
+	cfg.LLM.AnthropicThinking.Enabled = false
+	cfg.LLM.AnthropicThinking.BudgetTokens = 10000
 
 	// Memory analysis defaults: adaptive and always active; legacy flags remain for compatibility only.
 	cfg.MemoryAnalysis.Enabled = true
@@ -372,12 +374,18 @@ func Load(path string) (*Config, error) {
 	if cfg.CircuitBreaker.MaxToolCalls <= 0 {
 		cfg.CircuitBreaker.MaxToolCalls = 10 // User specifically asked for 10
 	}
-	if cfg.CircuitBreaker.LLMTimeoutSeconds <= 0 {
-		cfg.CircuitBreaker.LLMTimeoutSeconds = 600 // 10 minutes
-	}
-	if cfg.CircuitBreaker.MaintenanceTimeoutMinutes <= 0 {
-		cfg.CircuitBreaker.MaintenanceTimeoutMinutes = 10
-	}
+		if cfg.CircuitBreaker.LLMTimeoutSeconds <= 0 {
+			cfg.CircuitBreaker.LLMTimeoutSeconds = 600 // 10 minutes
+		}
+		if cfg.CircuitBreaker.LLMPerAttemptTimeoutSeconds <= 0 {
+			cfg.CircuitBreaker.LLMPerAttemptTimeoutSeconds = 60
+		}
+		if cfg.CircuitBreaker.LLMStreamChunkTimeoutSeconds <= 0 {
+			cfg.CircuitBreaker.LLMStreamChunkTimeoutSeconds = 30
+		}
+		if cfg.CircuitBreaker.MaintenanceTimeoutMinutes <= 0 {
+			cfg.CircuitBreaker.MaintenanceTimeoutMinutes = 10
+		}
 	if len(cfg.CircuitBreaker.RetryIntervals) == 0 {
 		cfg.CircuitBreaker.RetryIntervals = []string{"10s", "2m", "10m"}
 	}

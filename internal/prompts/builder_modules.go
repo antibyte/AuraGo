@@ -538,6 +538,20 @@ func (m *PromptModule) ShouldInclude(flags ContextFlags) bool {
 	return false
 }
 
+func evictGuideCacheLocked() {
+	if len(guideCache) <= 1000 {
+		return
+	}
+	// Coarse eviction: drop roughly half of the cache to avoid a full reset.
+	target := len(guideCache) / 2
+	for k := range guideCache {
+		delete(guideCache, k)
+		if len(guideCache) <= target {
+			break
+		}
+	}
+}
+
 // readToolGuide reads a tool guide file with caching.
 // Guides exceeding 8KB are truncated to prevent prompt bloat.
 // It first tries the on-disk path (allowing user overrides), then falls back
@@ -569,28 +583,24 @@ func readToolGuide(path string) (string, bool) {
 		if !ok {
 			return "", false
 		}
-		content := truncateGuide(string(data), maxGuideBytes)
-		guideCacheMu.Lock()
-		if len(guideCache) > 1000 {
-			guideCache = make(map[string]guideCacheEntry)
-		}
-		guideCache[path] = guideCacheEntry{content: content} // zero mtime = from embed
-		guideCacheMu.Unlock()
-		return content, true
+			content := truncateGuide(string(data), maxGuideBytes)
+			guideCacheMu.Lock()
+			evictGuideCacheLocked()
+			guideCache[path] = guideCacheEntry{content: content} // zero mtime = from embed
+			guideCacheMu.Unlock()
+			return content, true
 	}
 
 	content := truncateGuide(string(data), maxGuideBytes)
 	info, err := os.Stat(path)
-	if err == nil {
-		guideCacheMu.Lock()
-		if len(guideCache) > 1000 {
-			guideCache = make(map[string]guideCacheEntry)
+		if err == nil {
+			guideCacheMu.Lock()
+			evictGuideCacheLocked()
+			guideCache[path] = guideCacheEntry{content: content, mtime: info.ModTime()}
+			guideCacheMu.Unlock()
 		}
-		guideCache[path] = guideCacheEntry{content: content, mtime: info.ModTime()}
-		guideCacheMu.Unlock()
+		return content, true
 	}
-	return content, true
-}
 
 // ReadToolGuide is the exported variant of readToolGuide.
 // It reads and caches a tool guide by its filesystem path.

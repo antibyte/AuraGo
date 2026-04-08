@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"sync/atomic"
 	"time"
 
 	"github.com/sashabaranov/go-openai"
@@ -19,7 +20,28 @@ const FinalRetryInterval = 10 * time.Minute
 
 const maxRetryAttempts = 10
 
-const perAttemptTimeout = 60 * time.Second
+var perAttemptTimeoutNanos atomic.Int64
+
+func init() {
+	perAttemptTimeoutNanos.Store(int64(60 * time.Second))
+}
+
+func perAttemptTimeout() time.Duration {
+	v := perAttemptTimeoutNanos.Load()
+	if v <= 0 {
+		return 60 * time.Second
+	}
+	return time.Duration(v)
+}
+
+// SetPerAttemptTimeout configures the per-attempt API timeout used by the retry loops.
+// It is safe to call concurrently.
+func SetPerAttemptTimeout(d time.Duration) {
+	if d <= 0 {
+		return
+	}
+	perAttemptTimeoutNanos.Store(int64(d))
+}
 
 type FeedbackProvider interface {
 	Send(event, message string)
@@ -33,7 +55,8 @@ func ExecuteWithCustomRetry(ctx context.Context, client ChatClient, req openai.C
 	attempt := 0
 
 	for {
-		attemptCtx, attemptCancel := context.WithTimeout(ctx, perAttemptTimeout)
+		timeout := perAttemptTimeout()
+		attemptCtx, attemptCancel := context.WithTimeout(ctx, timeout)
 		resp, err := client.CreateChatCompletion(attemptCtx, req)
 		attemptCancel()
 		if err == nil {
@@ -71,9 +94,9 @@ func ExecuteWithCustomRetry(ctx context.Context, client ChatClient, req openai.C
 			waitTime = finalInterval
 		}
 
-		if _, hasDeadline := ctx.Deadline(); !hasDeadline && waitTime > perAttemptTimeout {
-			waitTime = perAttemptTimeout
-		}
+			if _, hasDeadline := ctx.Deadline(); !hasDeadline && waitTime > timeout {
+				waitTime = timeout
+			}
 
 		safeErrMsg := safeAPIError(err)
 		msg := fmt.Sprintf("API Error (%s). Retrying in %v (Attempt %d)...", safeErrMsg, waitTime, attempt)
@@ -99,7 +122,8 @@ func ExecuteStreamWithCustomRetry(ctx context.Context, client ChatClient, req op
 	attempt := 0
 
 	for {
-		attemptCtx, attemptCancel := context.WithTimeout(ctx, perAttemptTimeout)
+		timeout := perAttemptTimeout()
+		attemptCtx, attemptCancel := context.WithTimeout(ctx, timeout)
 		stream, err := client.CreateChatCompletionStream(attemptCtx, req)
 		attemptCancel()
 		if err == nil {
@@ -133,11 +157,15 @@ func ExecuteStreamWithCustomRetry(ctx context.Context, client ChatClient, req op
 			waitTime = retryAfter
 		} else if attempt < len(intervals) {
 			waitTime = intervals[attempt]
-		} else {
-			waitTime = finalInterval
-		}
+			} else {
+				waitTime = finalInterval
+			}
 
-		safeErrMsg := safeAPIError(err)
+			if _, hasDeadline := ctx.Deadline(); !hasDeadline && waitTime > timeout {
+				waitTime = timeout
+			}
+
+			safeErrMsg := safeAPIError(err)
 		msg := fmt.Sprintf("Stream API Error (%s). Retrying in %v (Attempt %d)...", safeErrMsg, waitTime, attempt)
 		if logger != nil {
 			logger.Warn("[LLM Stream Retry]", "error", safeErrMsg, "wait", waitTime, "attempt", attempt)

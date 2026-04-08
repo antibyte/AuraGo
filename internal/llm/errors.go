@@ -94,8 +94,6 @@ func classifyHTTPError(statusCode int, errMsg string) ErrorCategory {
 		return ErrCategoryProviderValidation
 	case statusCode >= 500 && statusCode < 600:
 		return ErrCategoryTemporaryTransport
-	case statusCode == 422:
-		return ErrCategoryProviderValidation
 	default:
 		return ErrCategoryProviderValidation
 	}

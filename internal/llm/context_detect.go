@@ -196,10 +196,21 @@ var knownContextWindows = []struct {
 // lookupKnownContextWindow returns the known context window for a model based on the
 // static table above. Returns (size, true) if found, (0, false) otherwise.
 func lookupKnownContextWindow(model string) (int, bool) {
-	lower := strings.ToLower(model)
+	lower := strings.ToLower(strings.TrimSpace(model))
+	if lower == "" {
+		return 0, false
+	}
+
+	candidates := []string{lower}
+	if idx := strings.LastIndex(lower, "/"); idx >= 0 && idx+1 < len(lower) {
+		candidates = append(candidates, lower[idx+1:])
+	}
+
 	for _, entry := range knownContextWindows {
-		if strings.HasPrefix(lower, entry.prefix) || strings.Contains(lower, entry.prefix) {
-			return entry.context, true
+		for _, c := range candidates {
+			if strings.HasPrefix(c, entry.prefix) {
+				return entry.context, true
+			}
 		}
 	}
 	return 0, false

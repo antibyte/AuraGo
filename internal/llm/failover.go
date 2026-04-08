@@ -33,6 +33,9 @@ type FailoverManager struct {
 }
 
 func NewFailoverManager(cfg *config.Config, logger *slog.Logger) *FailoverManager {
+	if cfg != nil && cfg.CircuitBreaker.LLMPerAttemptTimeoutSeconds > 0 {
+		SetPerAttemptTimeout(time.Duration(cfg.CircuitBreaker.LLMPerAttemptTimeoutSeconds) * time.Second)
+	}
 	primary := NewClient(cfg)
 
 	fm := &FailoverManager{
@@ -72,6 +75,9 @@ func NewFailoverManager(cfg *config.Config, logger *slog.Logger) *FailoverManage
 }
 
 func (fm *FailoverManager) Reconfigure(cfg *config.Config) {
+	if cfg != nil && cfg.CircuitBreaker.LLMPerAttemptTimeoutSeconds > 0 {
+		SetPerAttemptTimeout(time.Duration(cfg.CircuitBreaker.LLMPerAttemptTimeoutSeconds) * time.Second)
+	}
 	oldStopCh := fm.stopCh
 	fm.Stop()
 
@@ -241,14 +247,19 @@ func (fm *FailoverManager) probeLoop(stopCh <-chan struct{}) {
 			primaryModel := fm.primaryModel
 			fm.mu.RUnlock()
 
-			_, err := primaryClient.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
-				Model: primaryModel,
-				Messages: []openai.ChatCompletionMessage{
-					{Role: openai.ChatMessageRoleUser, Content: "ok"},
-				},
-				MaxTokens: 1,
-			})
-			cancel()
+				// Prefer a lightweight health check that doesn't consume tokens.
+				// Fall back to a minimal chat completion for providers that don't support /models.
+				_, err := primaryClient.ListModels(ctx)
+				if err != nil {
+					_, err = primaryClient.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
+						Model: primaryModel,
+						Messages: []openai.ChatCompletionMessage{
+							{Role: openai.ChatMessageRoleUser, Content: "ok"},
+						},
+						MaxTokens: 1,
+					})
+				}
+				cancel()
 
 			if err != nil {
 				if IsContextError(err) {

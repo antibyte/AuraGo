@@ -152,29 +152,34 @@ type Config struct {
 			BehindProxy bool   `yaml:"behind_proxy"` // trust X-Forwarded-* headers
 		} `yaml:"https"`
 	} `yaml:"server"`
-	LLM struct {
-		Provider            string  `yaml:"provider"`           // provider entry ID (references Providers[].ID)
-		ProviderType        string  `yaml:"-"       json:"-"`   // resolved: openai, openrouter, ollama etc.
-		BaseURL             string  `yaml:"-"       json:"-"`   // resolved from provider entry
-		APIKey              string  `yaml:"-"       json:"-"`   // resolved from provider entry
-		Model               string  `yaml:"-"       json:"-"`   // resolved from provider entry
-		AccountID           string  `yaml:"-"       json:"-"`   // resolved from provider entry (workers-ai)
-		LegacyURL           string  `yaml:"base_url" json:"-"`  // legacy/compat: inline base URL from old config format
-		LegacyAPIKey        string  `yaml:"api_key"  json:"-"`  // legacy/compat: inline API key from old config format
-		LegacyModel         string  `yaml:"model"    json:"-"`  // legacy/compat: inline model from old config format
-		HelperEnabled       bool    `yaml:"helper_enabled"`     // enable the dedicated helper LLM for internal analysis/background tasks
-		HelperProvider      string  `yaml:"helper_provider"`    // provider entry ID for helper/background LLM tasks
-		HelperProviderType  string  `yaml:"-"         json:"-"` // resolved helper provider type
-		HelperBaseURL       string  `yaml:"-"         json:"-"` // resolved helper base URL
-		HelperAPIKey        string  `yaml:"-"         json:"-"` // resolved helper API key
-		HelperModel         string  `yaml:"helper_model"`       // optional helper model override (empty = provider default)
-		HelperResolvedModel string  `yaml:"-"         json:"-"` // resolved helper model
-		UseNativeFunctions  bool    `yaml:"use_native_functions"`
-		Temperature         float64 `yaml:"temperature"`        // 0.0–2.0; default 0.7; 0 = provider default
-		Multimodal          bool     `yaml:"multimodal"`         // enable image inputs (MultiContent) in the main chat loop
-		MultimodalProviderTypesExtra []string `yaml:"multimodal_provider_types_extra"` // extra provider types treated as multimodal-capable (in addition to built-ins)
-		StructuredOutputs   bool    `yaml:"structured_outputs"` // enable structured output mode (only for supported models)
-	} `yaml:"llm"`
+		LLM struct {
+			Provider            string  `yaml:"provider"`           // provider entry ID (references Providers[].ID)
+			ProviderType        string  `yaml:"-"       json:"-"`   // resolved: openai, openrouter, ollama etc.
+			BaseURL             string  `yaml:"-"       json:"-"`   // resolved from provider entry
+			APIKey              string  `yaml:"-"       json:"-"`   // resolved from provider entry
+			Model               string  `yaml:"-"       json:"-"`   // resolved from provider entry
+			AccountID           string  `yaml:"-"       json:"-"`   // resolved from provider entry (workers-ai)
+			LegacyURL           string  `yaml:"base_url" json:"-"`  // legacy/compat: inline base URL from old config format
+			LegacyAPIKey        string  `yaml:"api_key"  json:"-"`  // legacy/compat: inline API key from old config format
+			LegacyModel         string  `yaml:"model"    json:"-"`  // legacy/compat: inline model from old config format
+			HelperEnabled       bool    `yaml:"helper_enabled"`     // enable the dedicated helper LLM for internal analysis/background tasks
+			HelperProvider      string  `yaml:"helper_provider"`    // provider entry ID for helper/background LLM tasks
+			HelperProviderType  string  `yaml:"-"         json:"-"` // resolved helper provider type
+			HelperBaseURL       string  `yaml:"-"         json:"-"` // resolved helper base URL
+			HelperAPIKey        string  `yaml:"-"         json:"-"` // resolved helper API key
+			HelperModel         string  `yaml:"helper_model"`       // optional helper model override (empty = provider default)
+			HelperResolvedModel string  `yaml:"-"         json:"-"` // resolved helper model
+			UseNativeFunctions  bool    `yaml:"use_native_functions"`
+			Temperature         float64 `yaml:"temperature"`        // 0.0–2.0; default 0.7; 0 = provider default
+			Multimodal          bool     `yaml:"multimodal"`         // enable image inputs (MultiContent) in the main chat loop
+			MultimodalProviderTypesExtra []string `yaml:"multimodal_provider_types_extra"` // extra provider types treated as multimodal-capable (in addition to built-ins)
+			StructuredOutputs   bool    `yaml:"structured_outputs"` // enable structured output mode (only for supported models)
+			AnthropicThinking   struct {
+				Enabled        bool     `yaml:"enabled"`
+				BudgetTokens   int      `yaml:"budget_tokens"`
+				ModelAllowlist []string `yaml:"model_allowlist"`
+			} `yaml:"anthropic_thinking"`
+		} `yaml:"llm"`
 	Directories struct {
 		DataDir      string `yaml:"data_dir"`
 		WorkspaceDir string `yaml:"workspace_dir"`
@@ -322,12 +327,14 @@ type Config struct {
 			ErrorStreakMin  int  `yaml:"error_streak_min"`  // consecutive errors before triggering inner voice (default: 2)
 		} `yaml:"inner_voice"`
 	} `yaml:"personality"`
-	CircuitBreaker struct {
-		MaxToolCalls              int      `yaml:"max_tool_calls"`
-		LLMTimeoutSeconds         int      `yaml:"llm_timeout_seconds"`
-		MaintenanceTimeoutMinutes int      `yaml:"maintenance_timeout_minutes"`
-		RetryIntervals            []string `yaml:"retry_intervals"`
-	} `yaml:"circuit_breaker"`
+		CircuitBreaker struct {
+			MaxToolCalls              int      `yaml:"max_tool_calls"`
+			LLMTimeoutSeconds         int      `yaml:"llm_timeout_seconds"`
+			LLMPerAttemptTimeoutSeconds int    `yaml:"llm_per_attempt_timeout_seconds"`
+			LLMStreamChunkTimeoutSeconds int   `yaml:"llm_stream_chunk_timeout_seconds"`
+			MaintenanceTimeoutMinutes int      `yaml:"maintenance_timeout_minutes"`
+			RetryIntervals            []string `yaml:"retry_intervals"`
+		} `yaml:"circuit_breaker"`
 	Telegram struct {
 		UserID               int64  `yaml:"telegram_user_id"`
 		BotToken             string `yaml:"-" vault:"bot_token"` // vault-only
