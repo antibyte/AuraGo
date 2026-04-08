@@ -237,6 +237,8 @@ func main() {
 			os.Exit(1)
 		}
 		appLog.Info("Auto-setup complete, continuing startup ...")
+	} else {
+		setup.EnsureDirectories(installDir, appLog)
 	}
 
 	appLog.Info("Starting AuraGo")

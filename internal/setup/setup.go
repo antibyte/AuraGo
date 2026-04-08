@@ -32,17 +32,21 @@ func Run(logger *slog.Logger) error {
 
 	logger.Info("AuraGo Setup", "install_dir", installDir)
 
-	// ── Step 1: Extract resources.dat ────────────────────────────────────
+	// ── Step 1: Extract resources.dat (optional) ────────────────────────
+	// resources.dat is only present during first installation. On subsequent
+	// starts (e.g. after an update that replaced the binary but not the
+	// resources) the file may have been deleted. We skip extraction in that
+	// case — the app can run with existing files on disk.
 	resPath := filepath.Join(installDir, "resources.dat")
-	if _, err := os.Stat(resPath); os.IsNotExist(err) {
-		return fmt.Errorf("resources.dat not found at %s — place it next to the executable", resPath)
+	if _, err := os.Stat(resPath); err == nil {
+		logger.Info("Extracting resources.dat ...")
+		if err := extractTarGz(resPath, installDir); err != nil {
+			return fmt.Errorf("failed to extract resources.dat: %w", err)
+		}
+		logger.Info("Resources extracted successfully")
+	} else {
+		logger.Warn("resources.dat not found — skipping extraction, using existing files on disk", "path", resPath)
 	}
-
-	logger.Info("Extracting resources.dat ...")
-	if err := extractTarGz(resPath, installDir); err != nil {
-		return fmt.Errorf("failed to extract resources.dat: %w", err)
-	}
-	logger.Info("Resources extracted successfully")
 
 	// ── Step 2: Generate master key if not present ───────────────────────
 	envFile := filepath.Join(installDir, ".env")
@@ -67,6 +71,8 @@ func Run(logger *slog.Logger) error {
 	// ── Step 3: Ensure required directories exist ────────────────────────
 	dirs := []string{
 		"data", "data/vectordb", "log",
+		"agent_workspace/skills",
+		"agent_workspace/tools",
 		"agent_workspace/workdir",
 		"agent_workspace/workdir/attachments",
 	}
@@ -95,18 +101,35 @@ func Run(logger *slog.Logger) error {
 	return nil
 }
 
-// NeedsSetup returns true if essential runtime directories are missing.
+// NeedsSetup returns true if essential runtime files are missing.
+// Only config.yaml is checked — it is the one file that cannot be
+// auto-generated. Other directories (agent_workspace/skills, data, etc.)
+// are ensured by EnsureDirectories() or created on-the-fly during startup.
 func NeedsSetup(installDir string) bool {
-	checks := []string{
-		"config.yaml",
-		"agent_workspace/skills",
-	}
-	for _, p := range checks {
-		if _, err := os.Stat(filepath.Join(installDir, p)); os.IsNotExist(err) {
-			return true
-		}
+	if _, err := os.Stat(filepath.Join(installDir, "config.yaml")); os.IsNotExist(err) {
+		return true
 	}
 	return false
+}
+
+// EnsureDirectories creates required runtime directories under installDir.
+// This is safe to call on every startup — it is a no-op when directories
+// already exist. It prevents missing-directory crashes after updates that
+// replace the binary but don't re-extract resources.dat.
+func EnsureDirectories(installDir string, logger *slog.Logger) {
+	dirs := []string{
+		"data", "data/vectordb", "log",
+		"agent_workspace/skills",
+		"agent_workspace/tools",
+		"agent_workspace/workdir",
+		"agent_workspace/workdir/attachments",
+	}
+	for _, d := range dirs {
+		p := filepath.Join(installDir, d)
+		if err := os.MkdirAll(p, 0750); err != nil {
+			logger.Warn("Failed to create directory", "dir", p, "error", err)
+		}
+	}
 }
 
 // ── tar.gz extraction ────────────────────────────────────────────────────
