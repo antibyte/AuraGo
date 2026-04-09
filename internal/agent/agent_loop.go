@@ -897,7 +897,6 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 		}
 
-
 		if !runCfg.IsMission && shortTermMem != nil {
 			if overview, err := shortTermMem.BuildRecentActivityPromptOverview(3); err == nil {
 				flags.RecentActivityOverview = overview
@@ -1175,7 +1174,6 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			currentLogger.Info("[ContextGuard] History trimmed",
 				"remaining_messages", len(req.Messages), "estimated_tokens", totalMsgTokens, "dropped_messages", len(droppedMessages))
 		}
-
 
 		// Verbose Logging of LLM Request
 		if len(req.Messages) > 0 {
