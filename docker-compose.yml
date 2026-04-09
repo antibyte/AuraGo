@@ -2,6 +2,8 @@ services:
   aurago:
     # Pre-built image from GitHub Container Registry (recommended)
     # Updated automatically on every push to main via GitHub Actions.
+    # Note: Using 'latest' for automatic updates. For reproducible deployments,
+    # pin to a specific version tag (e.g., ghcr.io/antibyte/aurago:v1.2.3).
     image: ghcr.io/antibyte/aurago:latest
 
     # --- Build from source (uncomment to build locally instead) ---

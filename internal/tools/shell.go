@@ -78,10 +78,11 @@ func ExecuteShell(command, workspaceDir string) (string, string, error) {
 	case err := <-done:
 		return stdout.String(), stderr.String(), err
 	case <-timer.C:
-		KillProcessTree(cmd.Process.Pid)
+		// Two-stage kill: SIGTERM first (graceful), then SIGKILL after 2s
+		KillProcessTreeGraceful(cmd.Process.Pid, 2)
 		select {
 		case <-done:
-		case <-time.After(10 * time.Second):
+		case <-time.After(8 * time.Second):
 		}
 		return stdout.String(), stderr.String(), fmt.Errorf("TIMEOUT: shell command exceeded %s limit", GetForegroundTimeout())
 	}
@@ -150,10 +151,11 @@ func ExecuteSudo(command, workspaceDir, password string) (string, string, error)
 		stderrStr := normalizeSudoStderr(stderr.String())
 		return stdout.String(), stderrStr, err
 	case <-timer.C:
-		KillProcessTree(cmd.Process.Pid)
+		// Two-stage kill: SIGTERM first (graceful), then SIGKILL after 2s
+		KillProcessTreeGraceful(cmd.Process.Pid, 2)
 		select {
 		case <-done:
-		case <-time.After(10 * time.Second):
+		case <-time.After(8 * time.Second):
 		}
 		return stdout.String(), stderr.String(), fmt.Errorf("TIMEOUT: sudo command exceeded %s limit", GetForegroundTimeout())
 	}
