@@ -34,7 +34,7 @@
                         <span class="code-lang">${lang || 'text'}</span>
                         <button class="copy-btn" onclick="copyCodeBlock(this)" data-code="${this.encodeHtml(code)}">
                             <span class="copy-icon">📋</span>
-                            <span class="copy-text">Copy</span>
+                            <span class="copy-text">${t('chat.code_copy')}</span>
                         </button>
                     </div>
                     <div class="code-body">
@@ -53,7 +53,7 @@
                 btn.classList.add('copied');
                 btn.innerHTML = `
                     <span class="copy-icon">✓</span>
-                    <span class="copy-text">Copied</span>
+                    <span class="copy-text">${t('chat.code_copied')}</span>
                 `;
                 
                 setTimeout(() => {

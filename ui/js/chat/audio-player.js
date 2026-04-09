@@ -41,7 +41,7 @@ class ChatAudioPlayer {
         container.className = 'chat-audio-player';
         
         container.innerHTML = `
-            <button class="audio-play-btn" title="Play/Pause (Space)">
+            <button class="audio-play-btn" title="${t('chat.audio_play_pause')}">
                 <span class="play-icon">▶</span>
                 <span class="pause-icon is-hidden">⏸</span>
             </button>
@@ -56,8 +56,8 @@ class ChatAudioPlayer {
                 <span class="separator">/</span>
                 <span class="total">${this.formatTime(this.duration)}</span>
             </div>
-            <button class="audio-speed-btn" title="Playback speed">1.0x</button>
-            <button class="audio-download-btn" title="Download">⬇</button>
+            <button class="audio-speed-btn" title="${t('chat.audio_speed')}">1.0x</button>
+            <button class="audio-download-btn" title="${t('chat.audio_download')}">⬇</button>
         `;
 
         // Event listeners
@@ -210,8 +210,8 @@ class ChatAudioPlayer {
     showError() {
         this.element.innerHTML = `
             <div class="audio-error">
-                ❌ Failed to load audio
-                <button onclick="this.parentElement.parentElement.remove()">Dismiss</button>
+                ❌ ${t('chat.audio_failed_load')}
+                <button onclick="this.parentElement.parentElement.remove()">${t('chat.audio_dismiss')}</button>
             </div>
         `;
     }

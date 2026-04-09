@@ -85,10 +85,10 @@ class MermaidRenderer {
                 console.error('Mermaid render error:', err);
                 block.innerHTML = `
                     <div class="mermaid-error">
-                        <div class="error-title">⚠️ Diagram Error</div>
-                        <div class="error-message">${mermaidEscapeHtml(err.message || 'Failed to render diagram')}</div>
+                        <div class="error-title">⚠️ ${t('chat.mermaid_error_title')}</div>
+                        <div class="error-message">${mermaidEscapeHtml(err.message || t('chat.mermaid_error_failed'))}</div>
                         <details>
-                            <summary>View source</summary>
+                            <summary>${t('chat.mermaid_view_source')}</summary>
                             <pre>${mermaidEscapeHtml(code)}</pre>
                         </details>
                     </div>
@@ -108,22 +108,22 @@ class MermaidRenderer {
             </div>
             <div class="mermaid-controls">
                 <div class="mermaid-zoom-controls">
-                    <button class="mermaid-btn zoom-out" title="Zoom out">−</button>
+                    <button class="mermaid-btn zoom-out" title="${t('chat.mermaid_zoom_out')}">−</button>
                     <span class="zoom-level">100%</span>
-                    <button class="mermaid-btn zoom-in" title="Zoom in">+</button>
-                    <button class="mermaid-btn zoom-reset" title="Reset zoom">⟲</button>
+                    <button class="mermaid-btn zoom-in" title="${t('chat.mermaid_zoom_in')}">+</button>
+                    <button class="mermaid-btn zoom-reset" title="${t('chat.mermaid_zoom_reset')}">⟲</button>
                 </div>
                 <div class="mermaid-actions">
-                    <button class="mermaid-btn copy-source" title="Copy diagram source">
-                        📋 Source
+                    <button class="mermaid-btn copy-source" title="${t('chat.mermaid_copy_source')}">
+                        📋 ${t('chat.mermaid_view_source')}
                     </button>
-                    <button class="mermaid-btn expand" title="Expand">
-                        ⛶ Expand
+                    <button class="mermaid-btn expand" title="${t('chat.mermaid_expand')}">
+                        ⛶ ${t('chat.mermaid_expand')}
                     </button>
-                    <button class="mermaid-btn download-svg" title="Download SVG">
+                    <button class="mermaid-btn download-svg" title="${t('chat.mermaid_download_svg')}">
                         ⬇ SVG
                     </button>
-                    <button class="mermaid-btn download-png" title="Download PNG">
+                    <button class="mermaid-btn download-png" title="${t('chat.mermaid_download_png')}">
                         ⬇ PNG
                     </button>
                 </div>
@@ -143,7 +143,7 @@ class MermaidRenderer {
         // Copy source
         container.querySelector('.copy-source').addEventListener('click', () => {
             navigator.clipboard.writeText(code).then(() => {
-                showToast('Diagram source copied', 'success');
+                showToast(t('chat.mermaid_source_copied'), 'success');
             });
         });
 

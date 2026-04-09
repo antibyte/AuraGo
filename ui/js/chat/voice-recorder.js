@@ -30,17 +30,17 @@ class VoiceRecorder {
             <div class="recorder-inner">
                 <div class="recording-indicator">
                     <div class="recorder-pulse"></div>
-                    <span class="recorder-status">Recording...</span>
+                    <span class="recorder-status">${t('chat.voice_recording')}</span>
                 </div>
                 <div class="recorder-timer">00:00</div>
                 <canvas class="recorder-waveform" width="200" height="40"></canvas>
                 <div class="recorder-controls">
-                    <button class="recorder-btn recorder-pause" title="Pause/Resume">
+                    <button class="recorder-btn recorder-pause" title="${t('chat.voice_pause_resume')}">
                         <span class="pause-icon">⏸</span>
                         <span class="resume-icon is-hidden">▶</span>
                     </button>
-                    <button class="recorder-btn recorder-cancel" title="Cancel">✕</button>
-                    <button class="recorder-btn recorder-send" title="Send">➤</button>
+                    <button class="recorder-btn recorder-cancel" title="${t('chat.voice_cancel')}">✕</button>
+                    <button class="recorder-btn recorder-send" title="${t('chat.voice_send')}">➤</button>
                 </div>
             </div>
         `;
@@ -94,7 +94,7 @@ class VoiceRecorder {
             
         } catch (err) {
             console.error('Failed to start recording:', err);
-            await this.showError('Microphone access denied. Please allow microphone permissions.');
+            await this.showError(t('chat.voice_mic_denied'));
         }
     }
 
@@ -133,7 +133,7 @@ class VoiceRecorder {
 
         this.mediaRecorder.onerror = (e) => {
             console.error('MediaRecorder error:', e);
-            this.showError('Recording error occurred.');  // Fire-and-forget in callback is acceptable
+            this.showError(t('chat.voice_recording_error'));  // Fire-and-forget in callback is acceptable
         };
     }
 
@@ -278,12 +278,12 @@ class VoiceRecorder {
         if (this.isPaused) {
             pauseIcon.classList.add('is-hidden');
             resumeIcon.classList.remove('is-hidden');
-            this.statusEl.textContent = 'Paused';
+            this.statusEl.textContent = t('chat.voice_paused');
             this.element.classList.add('paused');
         } else {
             pauseIcon.classList.remove('is-hidden');
             resumeIcon.classList.add('is-hidden');
-            this.statusEl.textContent = 'Recording...';
+            this.statusEl.textContent = t('chat.voice_recording');
             this.element.classList.remove('paused');
         }
     }
@@ -366,7 +366,7 @@ class VoiceRecorder {
     async showError(message) {
         // Could integrate with toast system
         console.error('VoiceRecorder:', message);
-        await showAlert('Error', message);
+        await showAlert(t('chat.voice_error'), message);
     }
 }
 

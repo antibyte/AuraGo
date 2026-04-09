@@ -53,7 +53,7 @@ class DragDropManager {
         this.overlay.innerHTML = `
             <div class="drag-drop-message">
                 <div class="drag-drop-icon">📁</div>
-                <div class="drag-drop-text">Drop files here to upload</div>
+                <div class="drag-drop-text">${t('chat.drag_drop_title')}</div>
             </div>
         `;
         document.body.appendChild(this.overlay);
@@ -111,13 +111,13 @@ class DragDropManager {
     validateFile(file) {
         // Check file size
         if (file.size > this.maxFileSize) {
-            showToast(`File "${file.name}" is too large (max ${this.formatSize(this.maxFileSize)})`, 'error');
+            showToast(t('chat.drag_drop_file_too_large', { name: file.name, size: this.formatSize(this.maxFileSize) }), 'error');
             return false;
         }
 
         // Check file type if restricted
         if (this.allowedTypes && !this.allowedTypes.includes(file.type)) {
-            showToast(`File type "${file.type}" not allowed`, 'error');
+            showToast(t('chat.drag_drop_file_type_not_allowed', { type: file.type }), 'error');
             return false;
         }
 
@@ -137,10 +137,11 @@ class DragDropManager {
         const completed = this.uploadQueue.filter(f => f.status === 'complete').length;
         const errors = this.uploadQueue.filter(f => f.status === 'error').length;
 
+        const count = this.uploadQueue.length;
         let html = `
             <div class="queue-header">
                 <span class="queue-title">
-                    Uploading ${this.uploadQueue.length} file${this.uploadQueue.length !== 1 ? 's' : ''}
+                    ${t('chat.drag_drop_uploading', { count: count })}
                 </span>
                 <button class="queue-close" onclick="dragDropManager.closeQueue()">✕</button>
             </div>
@@ -171,9 +172,9 @@ class DragDropManager {
                         ` : ''}
                     </div>
                     ${item.status === 'error' ? `
-                        <button class="queue-item-retry" onclick="dragDropManager.retryItem('${item.id}')" title="Retry">↻</button>
+                        <button class="queue-item-retry" onclick="dragDropManager.retryItem('${item.id}')" title="${t('chat.drag_drop_retry')}">↻</button>
                     ` : ''}
-                    <button class="queue-item-remove" onclick="dragDropManager.removeItem('${item.id}')" title="Remove">✕</button>
+                    <button class="queue-item-remove" onclick="dragDropManager.removeItem('${item.id}')" title="${t('chat.drag_drop_remove')}">✕</button>
                 </div>
             `;
         });
@@ -183,8 +184,8 @@ class DragDropManager {
         if (completed === this.uploadQueue.length) {
             html += `
                 <div class="queue-footer">
-                    <span class="queue-complete">✓ All uploads complete</span>
-                    <button class="queue-clear-btn" onclick="dragDropManager.clearCompleted()">Clear</button>
+                    <span class="queue-complete">✓ ${t('chat.drag_drop_complete')}</span>
+                    <button class="queue-clear-btn" onclick="dragDropManager.clearCompleted()">${t('chat.drag_drop_clear')}</button>
                 </div>
             `;
         }
@@ -343,7 +344,7 @@ class DragDropManager {
         // Only close if all done, or confirm
         const hasActive = this.uploadQueue.some(i => i.status === 'uploading');
         if (hasActive) {
-            const confirmed = await showConfirm('Upload in Progress', 'Uploads in progress. Close anyway?');
+            const confirmed = await showConfirm(t('chat.drag_drop_in_progress_title'), t('chat.drag_drop_in_progress_msg'));
             if (!confirmed) return;
         }
         this.queuePanel.classList.add('is-hidden');
