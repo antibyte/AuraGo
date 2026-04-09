@@ -399,7 +399,7 @@ func HomepageInit(cfg HomepageConfig, logger *slog.Logger) string {
 	// Check if container already exists
 	inspectData, inspectCode, _ := dockerRequest(dockerCfg, "GET", "/containers/"+homepageContainerName+"/json", "")
 	if inspectCode == 200 {
-		// Container exists â€” check if running
+		// Container exists -- check if running
 		var info map[string]interface{}
 		if err := json.Unmarshal(inspectData, &info); err == nil {
 			state, _ := info["State"].(map[string]interface{})
@@ -416,7 +416,7 @@ func HomepageInit(cfg HomepageConfig, logger *slog.Logger) string {
 		return okJSON("Dev container started", "container", homepageContainerName)
 	}
 
-	// Create new container â€” run as the current UID/GID so bind-mounted
+	// Create new container -- run as the current UID/GID so bind-mounted
 	// workspace files are owned by the aurago user, not root.
 	workspaceMount := cfg.WorkspacePath + ":" + homepageWorkspaceMount
 	currentUser := fmt.Sprintf("%d:%d", os.Getuid(), os.Getgid())
@@ -595,7 +595,7 @@ func HomepageInitProject(cfg HomepageConfig, framework, name, template string, l
 
 		switch strings.ToLower(framework) {
 		case "html", "static", "vanilla":
-			// Pure HTML â€” create locally without any build tool
+			// Pure HTML -- create locally without any build tool
 			if err := os.MkdirAll(projectPath, 0755); err != nil {
 				return errJSON("Failed to create project directory: %v", err)
 			}
@@ -631,7 +631,7 @@ func HomepageInitProject(cfg HomepageConfig, framework, name, template string, l
 			return string(out)
 
 		default:
-			// Framework needs npm/npx â€” try local npx if available
+			// Framework needs npm/npx -- try local npx if available
 			if _, err := exec.LookPath("npx"); err == nil {
 				if err := os.MkdirAll(cfg.WorkspacePath, 0755); err != nil {
 					return errJSON("Failed to access workspace: %v", err)
@@ -691,7 +691,7 @@ func HomepageInitProject(cfg HomepageConfig, framework, name, template string, l
 }
 
 // HomepageBuild runs the build command in the project directory.
-// Plain HTML projects (no package.json) are detected and skipped â€” they need no build step.
+// Plain HTML projects (no package.json) are detected and skipped -- they need no build step.
 func HomepageBuild(cfg HomepageConfig, projectDir string, logger *slog.Logger) string {
 	if projectDir == "" {
 		projectDir = "."
@@ -707,10 +707,10 @@ func HomepageBuild(cfg HomepageConfig, projectDir string, logger *slog.Logger) s
 	if cfg.WorkspacePath != "" {
 		pkgPath := filepath.Join(cfg.WorkspacePath, projectDir, "package.json")
 		if _, err := os.Stat(pkgPath); err != nil {
-			logger.Info("[Homepage] No package.json found â€” plain HTML project, skipping build")
+			logger.Info("[Homepage] No package.json found -- plain HTML project, skipping build")
 			out, _ := json.Marshal(map[string]interface{}{
 				"status": "ok",
-				"output": "Plain HTML project â€” no build required",
+				"output": "Plain HTML project -- no build required",
 				"note":   "This project has no package.json. deploy_netlify and publish_local will serve or package the project directory directly.",
 			})
 			return string(out)

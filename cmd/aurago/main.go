@@ -89,7 +89,7 @@ func main() {
 	slog.SetDefault(appLog)
 	webAccessLog := appLog.With("component", "web-access")
 
-	// Load secrets in priority order â€” each step only sets vars not already present:
+	// Load secrets in priority order -- each step only sets vars not already present:
 	//   1. systemd EnvironmentFile (already in env before process starts)
 	//   2. Docker Compose secret  (/run/secrets/aurago_master_key)
 	//   3. System credential file (/etc/aurago/master.key)  â† manual starts post-migration
@@ -253,7 +253,7 @@ func main() {
 	tools.SetBusyFilePath(filepath.Join(cfg.Directories.DataDir, "maintenance.lock"))
 	// Clean up stale maintenance lock from previous unclean shutdown
 	if tools.IsBusy() {
-		appLog.Warn("Stale maintenance lock detected at startup â€” clearing")
+		appLog.Warn("Stale maintenance lock detected at startup -- clearing")
 		tools.SetBusy(false)
 	}
 	appLog.Info("Maintenance lock path initialized", "path", tools.GetBusyFilePath())
@@ -382,7 +382,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Invasion Control DB (nests & eggs) â€” always initialized so the UI works
+	// Invasion Control DB (nests & eggs) -- always initialized so the UI works
 	// after binary updates even if the server's config.yaml predates the feature.
 	// The agent tool still respects InvasionControl.Enabled for prompt inclusion.
 	invasionDB, invasionDBErr := invasion.InitDB(cfg.SQLite.InvasionPath)
@@ -508,7 +508,7 @@ func main() {
 	}
 
 	// Initialize SQL Connections pool now that vault is available.
-	// Pool is only created when the feature is explicitly enabled â€” it manages
+	// Pool is only created when the feature is explicitly enabled -- it manages
 	// live connections to external databases, which should be opt-in.
 	if sqlConnectionsDB != nil && cfg.SQLConnections.Enabled {
 		sqlConnectionPool = sqlconnections.NewConnectionPool(
@@ -534,9 +534,9 @@ func main() {
 	// Apply OAuth2 access tokens from vault into provider API keys
 	cfg.ApplyOAuthTokens(vault)
 
-	// Web Push (PWA notifications) â€” init after vault so VAPID keys can be stored/loaded
+	// Web Push (PWA notifications) -- init after vault so VAPID keys can be stored/loaded
 	if _, err := push.NewManager(cfg.Directories.DataDir, vault, appLog); err != nil {
-		appLog.Warn("Web Push manager initialization failed â€” push notifications disabled", "error", err)
+		appLog.Warn("Web Push manager initialization failed -- push notifications disabled", "error", err)
 	}
 
 	// Initialize Long-Term memory (VectorDB) after vault secrets are applied
@@ -650,7 +650,7 @@ func main() {
 		// Automatically grant read-write access to the agent's output directories
 		// so that shell commands and Python scripts can write files that are then
 		// served via the web UI (/files/documents/, /files/audio/, etc.).
-		// We deliberately do NOT expose the entire data/ dir â€” vault.bin and the
+		// We deliberately do NOT expose the entire data/ dir -- vault.bin and the
 		// SQLite databases must remain inaccessible from within the sandbox.
 		dataDir := cfg.Directories.DataDir
 		for _, subDir := range []string{"documents", "audio", "generated_images", "tts"} {
@@ -663,7 +663,7 @@ func main() {
 		// Grant read-only access to the agent's tools and skills directories so
 		// that saved tools (save_tool) and skills can be executed via execute_shell.
 		// These directories are outside workspaceDir (workdir) and would otherwise
-		// be blocked by Landlock â€” causing "No such file or directory" errors even
+		// be blocked by Landlock -- causing "No such file or directory" errors even
 		// though the files actually exist.
 		if cfg.Directories.ToolsDir != "" {
 			allowedPaths = append(allowedPaths, sandbox.PathRule{
@@ -680,7 +680,7 @@ func main() {
 
 		// If Docker is enabled, grant the sandbox access to the Docker socket so
 		// that docker CLI commands (docker ps, docker images, etc.) work inside
-		// the sandbox.  The socket path is a Unix domain socket â€” Landlock's
+		// the sandbox.  The socket path is a Unix domain socket -- Landlock's
 		// LANDLOCK_ACCESS_FS_MAKE_SOCK right controls access to it, so the socket
 		// path must be explicitly added to the ruleset.
 		// We also inject DOCKER_HOST so the docker CLI can find the socket even
@@ -792,7 +792,7 @@ func main() {
 
 	// â”€â”€ Egg Mode: start WebSocket client to master â”€â”€
 	if cfg.EggMode.Enabled {
-		appLog.Info("Egg mode enabled â€” connecting to master", "master_url", cfg.EggMode.MasterURL)
+		appLog.Info("Egg mode enabled -- connecting to master", "master_url", cfg.EggMode.MasterURL)
 		eggClient := bridge.NewEggClient(
 			cfg.EggMode.MasterURL,
 			cfg.EggMode.EggID,
@@ -859,13 +859,13 @@ func main() {
 			}
 		}
 		eggClient.OnStop = func() {
-			appLog.Warn("Stop command from master â€” initiating shutdown")
+			appLog.Warn("Stop command from master -- initiating shutdown")
 			close(shutdownCh)
 		}
 		go eggClient.Start()
 	}
 
-	// Startup security audit â€” log warnings for any critical/warning issues
+	// Startup security audit -- log warnings for any critical/warning issues
 	// so admins notice them immediately in the log even before opening the UI.
 	if secHints := server.CheckSecurity(cfg); len(secHints) > 0 {
 		critCount := 0
@@ -875,10 +875,10 @@ func main() {
 			}
 		}
 		if critCount > 0 {
-			appLog.Warn("[Security] CRITICAL security issues detected â€” open /config to review and fix",
+			appLog.Warn("[Security] CRITICAL security issues detected -- open /config to review and fix",
 				"critical", critCount, "total", len(secHints))
 		} else {
-			appLog.Warn("[Security] Security recommendations detected â€” open /config to review",
+			appLog.Warn("[Security] Security recommendations detected -- open /config to review",
 				"total", len(secHints))
 		}
 		for _, h := range secHints {
@@ -960,11 +960,11 @@ func loadDotEnv(path string, log *slog.Logger) {
 // or plaintext environment variables visible in `docker inspect`.
 func loadDockerSecret(path, envVar string, log *slog.Logger) {
 	if os.Getenv(envVar) != "" {
-		return // Already set via env â€” don't override
+		return // Already set via env -- don't override
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return // Secret file doesn't exist â€” not a Docker deployment
+		return // Secret file doesn't exist -- not a Docker deployment
 	}
 	val := strings.TrimSpace(string(data))
 	if val == "" {
@@ -976,10 +976,10 @@ func loadDockerSecret(path, envVar string, log *slog.Logger) {
 
 func startLifeboatSidecar(log *slog.Logger, cfg *config.Config, bridgeToken string) {
 	// Candidate paths in priority order:
-	//   1. ./lifeboat         â€“ Docker image layout (/app/lifeboat next to /app/aurago)
-	//   2. ./bin/lifeboat     â€“ native Linux install via install.sh
-	//   3. ./bin/lifeboat_linux â€“ pre-built binary distributed in the repo
-	//   4. ./bin/lifeboat.exe â€“ Windows
+	//   1. ./lifeboat         " Docker image layout (/app/lifeboat next to /app/aurago)
+	//   2. ./bin/lifeboat     " native Linux install via install.sh
+	//   3. ./bin/lifeboat_linux " pre-built binary distributed in the repo
+	//   4. ./bin/lifeboat.exe " Windows
 	var lifeboatPath string
 	if runtime.GOOS == "windows" {
 		lifeboatPath = "./bin/lifeboat.exe"
