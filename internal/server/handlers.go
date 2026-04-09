@@ -462,11 +462,13 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			flusher.Flush()
 
 			broker := NewSSEBrokerAdapter(sse)
+			s.Logger.Info("[RequestTrace] Dispatching streamed agent loop", "session_id", sessionID, "messages", len(req.Messages), "tools", len(req.Tools))
 			_, err := agent.ExecuteAgentLoop(r.Context(), req, runCfg, true, broker)
 			if err != nil {
 				s.Logger.Error("Streamed agent loop failed", "error", err)
 				return
 			}
+			s.Logger.Info("[RequestTrace] Streamed agent loop returned", "session_id", sessionID)
 
 			// Conclude SSE stream nicely
 			_, _ = io.WriteString(w, "data: [DONE]\n\n")
@@ -479,6 +481,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			syncCtx, syncCancel := context.WithTimeout(context.Background(), 30*time.Minute)
 			defer syncCancel()
 			broker := NewSSEBrokerAdapter(sse)
+			s.Logger.Info("[RequestTrace] Dispatching sync agent loop", "session_id", sessionID, "messages", len(req.Messages), "tools", len(req.Tools))
 			resp, err := agent.ExecuteAgentLoop(syncCtx, req, runCfg, false, broker)
 			if err != nil {
 				s.Logger.Error("Sync agent loop failed", "error", err)
@@ -504,6 +507,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 				})
 				return
 			}
+			s.Logger.Info("[RequestTrace] Sync agent loop returned", "session_id", sessionID, "choices", len(resp.Choices))
 			// Scrub any sensitive values from the response content before sending.
 			// Also strip reasoning tags and hallucinated RAG placeholders.
 			for i := range resp.Choices {
