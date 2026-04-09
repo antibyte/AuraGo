@@ -438,12 +438,12 @@ func (s *SQLiteMemory) DecayAllTraitsWeighted(baseAmount float64, meta Personali
 	if err != nil {
 		return fmt.Errorf("begin trait decay transaction: %w", err)
 	}
+	defer tx.Rollback()
 	stmt := `UPDATE personality_traits
 	         SET value = MIN(1.0, MAX(0.0, ?)), updated_at = CURRENT_TIMESTAMP
 	         WHERE trait = ?`
 	for _, u := range updates {
 		if _, execErr := tx.Exec(stmt, u.value, u.trait); execErr != nil {
-			tx.Rollback()
 			return fmt.Errorf("weighted decay for %s: %w", u.trait, execErr)
 		}
 	}

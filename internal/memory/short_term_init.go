@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"os"
 	"sync"
 	"time"
 
@@ -25,41 +24,8 @@ type SQLiteMemory struct {
 	moodCacheAt        time.Time
 }
 
-// openSQLiteDB opens (or recovers) the SQLite database at dbPath.
-// If the file is corrupted (integrity_check fails), it is renamed to .bak and
-// a fresh database is created so the agent can continue operating.
-func openSQLiteDB(dbPath string, logger *slog.Logger) (*sql.DB, error) {
-	db, err := sql.Open("sqlite", dbPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open sqlite db: %w", err)
-	}
-	var integrityResult string
-	if checkErr := db.QueryRow("PRAGMA integrity_check(1)").Scan(&integrityResult); checkErr != nil || integrityResult != "ok" {
-		db.Close()
-		logger.Error("SQLite database is corrupted, attempting recovery",
-			"path", dbPath, "result", integrityResult, "check_error", checkErr)
-
-		for _, suffix := range []string{"", "-wal", "-shm"} {
-			src := dbPath + suffix
-			if _, statErr := os.Stat(src); statErr == nil {
-				dst := src + ".bak"
-				if renErr := os.Rename(src, dst); renErr != nil {
-					logger.Warn("Could not rename corrupted DB file", "src", src, "error", renErr)
-				} else {
-					logger.Warn("Renamed corrupted DB file", "src", src, "dst", dst)
-				}
-			}
-		}
-
-		db, err = sql.Open("sqlite", dbPath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create fresh sqlite db after recovery: %w", err)
-		}
-		logger.Info("Created fresh SQLite database after corruption recovery", "path", dbPath)
-	}
-
-	return db, nil
-}
+// openSQLiteDB was removed - it was dead code that duplicated dbutil.Open().
+// Use dbutil.Open() instead which handles corruption recovery.
 
 func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) {
 	db, err := dbutil.Open(dbPath)

@@ -80,11 +80,7 @@ func InitCheatsheetDB(dbPath string) (*sql.DB, error) {
 		return nil, fmt.Errorf("failed to create cheatsheets schema: %w", err)
 	}
 
-	// Enable FK enforcement
-	if _, err := db.Exec("PRAGMA foreign_keys = ON"); err != nil {
-		db.Close()
-		return nil, fmt.Errorf("failed to enable foreign keys: %w", err)
-	}
+	// PRAGMA foreign_keys=ON is already set by dbutil.Open()
 
 	// Migration: add attachments table for existing v1 databases
 	var version int

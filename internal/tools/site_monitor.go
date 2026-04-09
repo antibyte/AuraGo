@@ -62,6 +62,8 @@ func siteMonitorJSON(r siteMonitorResult) string {
 
 func initSiteMonitorDB(dbPath string) (*sql.DB, error) {
 	siteMonitorOnce.Do(func() {
+		siteMonitorMu.Lock()
+		defer siteMonitorMu.Unlock()
 		siteMonitorDB, siteMonitorErr = dbutil.Open(dbPath)
 		if siteMonitorErr != nil {
 			return
@@ -102,6 +104,9 @@ func ExecuteSiteMonitor(dbPath, operation, monitorID, url, selector, interval st
 	if err != nil {
 		return siteMonitorJSON(siteMonitorResult{Status: "error", Message: fmt.Sprintf("database init failed: %v", err)})
 	}
+
+	siteMonitorMu.RLock()
+	defer siteMonitorMu.RUnlock()
 
 	switch strings.ToLower(operation) {
 	case "add_monitor":
@@ -442,8 +447,12 @@ func shortHash(s string) string {
 
 // CloseSiteMonitorDB closes the site monitor database connection.
 func CloseSiteMonitorDB() error {
+	siteMonitorMu.Lock()
+	defer siteMonitorMu.Unlock()
 	if siteMonitorDB != nil {
-		return siteMonitorDB.Close()
+		err := siteMonitorDB.Close()
+		siteMonitorDB = nil
+		return err
 	}
 	return nil
 }
