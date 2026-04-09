@@ -104,6 +104,21 @@ func TestLoadI18NBackendKeys(t *testing.T) {
 		"backend.http_method_not_allowed",
 		"backend.auth_too_many_login_attempts",
 		"backend.auth_invalid_credentials",
+		"backend.auth_bad_request",
+		"backend.auth_invalid_json",
+		"backend.auth_not_configured",
+		"backend.auth_unauthorized",
+		"backend.auth_password_min_length",
+		"backend.auth_internal_error",
+		"backend.auth_failed_generate_secret",
+		"backend.auth_failed_save_config",
+		"backend.auth_password_set",
+		"backend.auth_failed_generate_totp_secret",
+		"backend.auth_invalid_request",
+		"backend.auth_invalid_code",
+		"backend.auth_failed_save_totp_config",
+		"backend.authenticator_activated",
+		"backend.authenticator_deactivated",
 	}
 
 	for _, key := range backendMustHave {

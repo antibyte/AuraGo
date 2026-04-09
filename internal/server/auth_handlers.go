@@ -112,7 +112,7 @@ func sanitizeRedirectTarget(target string) string {
 func handleAuthLogin(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.http_method_not_allowed"), http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -130,7 +130,7 @@ func handleAuthLogin(s *Server) http.HandlerFunc {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusTooManyRequests)
 			json.NewEncoder(w).Encode(map[string]interface{}{
-				"error": "Too many login attempts. Please wait a few minutes and try again.",
+				"error": i18n.T(s.Cfg.Server.UILanguage, "backend.auth_too_many_login_attempts"),
 			})
 			return
 		}
@@ -138,7 +138,7 @@ func handleAuthLogin(s *Server) http.HandlerFunc {
 		// Parse body
 		body, err := io.ReadAll(io.LimitReader(r.Body, 4096))
 		if err != nil {
-			jsonError(w, "Bad request", http.StatusBadRequest)
+			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.auth_bad_request"), http.StatusBadRequest)
 			return
 		}
 		defer r.Body.Close()
@@ -149,7 +149,7 @@ func handleAuthLogin(s *Server) http.HandlerFunc {
 			Redirect string `json:"redirect"`
 		}
 		if err := json.Unmarshal(body, &req); err != nil {
-			jsonError(w, "Invalid JSON", http.StatusBadRequest)
+			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.auth_invalid_json"), http.StatusBadRequest)
 			return
 		}
 
@@ -169,7 +169,7 @@ func handleAuthLogin(s *Server) http.HandlerFunc {
 		if hash == "" {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(map[string]interface{}{"error": "Authentication is not fully configured."})
+			json.NewEncoder(w).Encode(map[string]interface{}{"error": i18n.T(s.Cfg.Server.UILanguage, "backend.auth_not_configured")})
 			return
 		}
 		if !CheckPassword(req.Password, hash) {
@@ -178,11 +178,11 @@ func handleAuthLogin(s *Server) http.HandlerFunc {
 			w.Header().Set("Content-Type", "application/json")
 			if IsLockedOutAny(ipKey, accountKey) {
 				w.WriteHeader(http.StatusTooManyRequests)
-				json.NewEncoder(w).Encode(map[string]interface{}{"error": "Too many login attempts. Please wait a few minutes and try again."})
+				json.NewEncoder(w).Encode(map[string]interface{}{"error": i18n.T(s.Cfg.Server.UILanguage, "backend.auth_too_many_login_attempts")})
 				return
 			}
 			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(map[string]interface{}{"error": "Invalid credentials."})
+			json.NewEncoder(w).Encode(map[string]interface{}{"error": i18n.T(s.Cfg.Server.UILanguage, "backend.auth_invalid_credentials")})
 			return
 		}
 
@@ -194,11 +194,11 @@ func handleAuthLogin(s *Server) http.HandlerFunc {
 				w.Header().Set("Content-Type", "application/json")
 				if IsLockedOutAny(ipKey, accountKey) {
 					w.WriteHeader(http.StatusTooManyRequests)
-					json.NewEncoder(w).Encode(map[string]interface{}{"error": "Too many login attempts. Please wait a few minutes and try again."})
+					json.NewEncoder(w).Encode(map[string]interface{}{"error": i18n.T(s.Cfg.Server.UILanguage, "backend.auth_too_many_login_attempts")})
 					return
 				}
 				w.WriteHeader(http.StatusUnauthorized)
-				json.NewEncoder(w).Encode(map[string]interface{}{"error": "Invalid credentials."})
+				json.NewEncoder(w).Encode(map[string]interface{}{"error": i18n.T(s.Cfg.Server.UILanguage, "backend.auth_invalid_credentials")})
 				return
 			}
 		}
@@ -249,7 +249,7 @@ func handleAuthLogout(s *Server) http.HandlerFunc {
 func handleAuthLogoutAPI(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost && r.Method != http.MethodGet {
-			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.http_method_not_allowed"), http.StatusMethodNotAllowed)
 			return
 		}
 		ClearSessionCookie(w, r)
@@ -270,7 +270,7 @@ func handleAuthLogoutAPI(s *Server) http.HandlerFunc {
 func handleAuthSetPassword(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.http_method_not_allowed"), http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -288,13 +288,13 @@ func handleAuthSetPassword(s *Server) http.HandlerFunc {
 		if !firstSetup && !authed {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(map[string]interface{}{"error": "unauthorized"})
+			json.NewEncoder(w).Encode(map[string]interface{}{"error": i18n.T(s.Cfg.Server.UILanguage, "backend.auth_unauthorized")})
 			return
 		}
 
 		body, err := io.ReadAll(io.LimitReader(r.Body, 4096))
 		if err != nil {
-			jsonError(w, "Bad request", http.StatusBadRequest)
+			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.auth_bad_request"), http.StatusBadRequest)
 			return
 		}
 		defer r.Body.Close()
@@ -303,21 +303,21 @@ func handleAuthSetPassword(s *Server) http.HandlerFunc {
 			NewPassword string `json:"new_password"`
 		}
 		if err := json.Unmarshal(body, &req); err != nil {
-			jsonError(w, "Invalid JSON", http.StatusBadRequest)
+			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.auth_invalid_json"), http.StatusBadRequest)
 			return
 		}
 
 		if len(req.NewPassword) < 8 {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]interface{}{"error": "Passwort muss mindestens 8 Zeichen haben."})
+			json.NewEncoder(w).Encode(map[string]interface{}{"error": i18n.T(s.Cfg.Server.UILanguage, "backend.auth_password_min_length")})
 			return
 		}
 
 		newHash, err := HashPassword(req.NewPassword)
 		if err != nil {
 			s.Logger.Error("[Auth] Failed to hash password", "error", err)
-			jsonError(w, "Internal error", http.StatusInternalServerError)
+			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.auth_internal_error"), http.StatusInternalServerError)
 			return
 		}
 
@@ -325,7 +325,7 @@ func handleAuthSetPassword(s *Server) http.HandlerFunc {
 		// all existing sessions signed with the old secret.
 		newSecret, err := GenerateRandomHex(32)
 		if err != nil {
-			jsonError(w, "Failed to generate secret", http.StatusInternalServerError)
+			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.auth_failed_generate_secret"), http.StatusInternalServerError)
 			return
 		}
 
@@ -335,13 +335,13 @@ func handleAuthSetPassword(s *Server) http.HandlerFunc {
 			"session_secret": newSecret,
 		}); err != nil {
 			s.Logger.Error("[Auth] Failed to save password", "error", err)
-			jsonError(w, "Failed to save config", http.StatusInternalServerError)
+			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.auth_failed_save_config"), http.StatusInternalServerError)
 			return
 		}
 
 		s.Logger.Info("[Auth] Password updated")
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{"ok": true, "message": "Passwort gesetzt."})
+		json.NewEncoder(w).Encode(map[string]interface{}{"ok": true, "message": i18n.T(s.Cfg.Server.UILanguage, "backend.auth_password_set")})
 	}
 }
 
@@ -352,7 +352,7 @@ func handleAuthSetPassword(s *Server) http.HandlerFunc {
 func handleAuthTOTPSetup(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.http_method_not_allowed"), http.StatusMethodNotAllowed)
 			return
 		}
 		if !requireSession(s, w, r) {
@@ -361,7 +361,7 @@ func handleAuthTOTPSetup(s *Server) http.HandlerFunc {
 
 		newSecret, err := GenerateTOTPSecret()
 		if err != nil {
-			jsonError(w, "Failed to generate TOTP secret", http.StatusInternalServerError)
+			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.auth_failed_generate_totp_secret"), http.StatusInternalServerError)
 			return
 		}
 
@@ -378,7 +378,7 @@ func handleAuthTOTPSetup(s *Server) http.HandlerFunc {
 func handleAuthTOTPConfirm(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.http_method_not_allowed"), http.StatusMethodNotAllowed)
 			return
 		}
 		if !requireSession(s, w, r) {
@@ -387,7 +387,7 @@ func handleAuthTOTPConfirm(s *Server) http.HandlerFunc {
 
 		body, err := io.ReadAll(io.LimitReader(r.Body, 4096))
 		if err != nil {
-			jsonError(w, "Bad request", http.StatusBadRequest)
+			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.auth_bad_request"), http.StatusBadRequest)
 			return
 		}
 		defer r.Body.Close()
@@ -397,14 +397,14 @@ func handleAuthTOTPConfirm(s *Server) http.HandlerFunc {
 			Code   string `json:"code"`
 		}
 		if err := json.Unmarshal(body, &req); err != nil || req.Secret == "" || req.Code == "" {
-			jsonError(w, "Invalid request", http.StatusBadRequest)
+			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.auth_invalid_request"), http.StatusBadRequest)
 			return
 		}
 
 		if !VerifyTOTP(req.Secret, req.Code) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]interface{}{"error": "Ungültiger Code. Bitte erneut versuchen."})
+			json.NewEncoder(w).Encode(map[string]interface{}{"error": i18n.T(s.Cfg.Server.UILanguage, "backend.auth_invalid_code")})
 			return
 		}
 
@@ -413,13 +413,13 @@ func handleAuthTOTPConfirm(s *Server) http.HandlerFunc {
 			"totp_secret":  req.Secret,
 			"totp_enabled": true,
 		}); err != nil {
-			jsonError(w, "Failed to save TOTP config", http.StatusInternalServerError)
+			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.auth_failed_save_totp_config"), http.StatusInternalServerError)
 			return
 		}
 
 		s.Logger.Info("[Auth] TOTP activated")
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{"ok": true, "message": "Authenticator aktiviert."})
+		json.NewEncoder(w).Encode(map[string]interface{}{"ok": true, "message": i18n.T(s.Cfg.Server.UILanguage, "backend.authenticator_activated")})
 	}
 }
 
@@ -427,7 +427,7 @@ func handleAuthTOTPConfirm(s *Server) http.HandlerFunc {
 func handleAuthTOTPDelete(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodDelete {
-			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.http_method_not_allowed"), http.StatusMethodNotAllowed)
 			return
 		}
 		if !requireSession(s, w, r) {
@@ -438,13 +438,13 @@ func handleAuthTOTPDelete(s *Server) http.HandlerFunc {
 			"totp_secret":  "",
 			"totp_enabled": false,
 		}); err != nil {
-			jsonError(w, "Failed to save config", http.StatusInternalServerError)
+			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.auth_failed_save_config"), http.StatusInternalServerError)
 			return
 		}
 
 		s.Logger.Info("[Auth] TOTP disabled")
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{"ok": true, "message": "Authenticator deaktiviert."})
+		json.NewEncoder(w).Encode(map[string]interface{}{"ok": true, "message": i18n.T(s.Cfg.Server.UILanguage, "backend.authenticator_deactivated")})
 	}
 }
 
@@ -464,7 +464,7 @@ func requireSession(s *Server, w http.ResponseWriter, r *http.Request) bool {
 	if !IsAuthenticated(r, secret) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]interface{}{"error": "unauthorized"})
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": i18n.T(s.Cfg.Server.UILanguage, "backend.auth_unauthorized")})
 		return false
 	}
 	return true
@@ -553,7 +553,7 @@ func patchAuthConfig(s *Server, fields map[string]interface{}) error {
 func handleSecurityStatus(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.http_method_not_allowed"), http.StatusMethodNotAllowed)
 			return
 		}
 
