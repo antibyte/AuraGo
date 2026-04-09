@@ -1307,12 +1307,12 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		cancelResp()
 		telemetryScope = refreshTelemetryScope(telemetryScope, client, &resp)
 
-		retry422Count = 0    // reset on successful LLM response
-		emptyRetried = false // reset after successful non-empty response (BUG-03 fix)
+		retry422Count = 0 // reset on successful LLM response
 
 		if recoverFromEmptyResponseWithPolicy(recoveryPolicy, resp, content, &req, &emptyRetried, currentLogger, broker, telemetryScope) {
 			continue
 		}
+		emptyRetried = false // reset only after confirmed non-empty response
 
 		// Safety Check: Strip "RECAP" hallucinations if the model is still stuck in the old pattern
 		content = strings.TrimPrefix(content, "[RECAP OF PREVIOUS DISCUSSIONS]:")
