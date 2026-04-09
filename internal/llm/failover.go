@@ -3,6 +3,7 @@ package llm
 import (
 	"context"
 	"log/slog"
+	"strings"
 	"sync"
 	"time"
 
@@ -26,6 +27,7 @@ type FailoverManager struct {
 	fallbackErrorCount int
 	errorThreshold     int
 	probeInterval      time.Duration
+	generation         int
 
 	stopCh chan struct{}
 
@@ -90,6 +92,7 @@ func (fm *FailoverManager) Reconfigure(cfg *config.Config) {
 	fm.isOnFallback = false
 	fm.errorCount = 0
 	fm.fallbackErrorCount = 0
+	fm.generation++
 	fm.stopCh = newStopCh
 
 	fb := cfg.FallbackLLM
@@ -134,6 +137,13 @@ func (fm *FailoverManager) Stop() {
 
 func (fm *FailoverManager) CreateChatCompletion(ctx context.Context, req openai.ChatCompletionRequest) (openai.ChatCompletionResponse, error) {
 	client, model := fm.active()
+	if fm.isOnFallback && !fm.fallbackSupportsFeatures(req) {
+		fm.logger.Warn("[LLM] Fallback model does not support request features, using primary", "fallback_model", model)
+		fm.mu.RLock()
+		client = fm.primary
+		model = fm.primaryModel
+		fm.mu.RUnlock()
+	}
 	reqCopy := req
 	reqCopy.Model = model
 
@@ -148,14 +158,19 @@ func (fm *FailoverManager) CreateChatCompletion(ctx context.Context, req openai.
 
 func (fm *FailoverManager) CreateChatCompletionStream(ctx context.Context, req openai.ChatCompletionRequest) (*openai.ChatCompletionStream, error) {
 	client, model := fm.active()
+	if fm.isOnFallback && !fm.fallbackSupportsFeatures(req) {
+		fm.logger.Warn("[LLM] Fallback model does not support request features, using primary", "fallback_model", model)
+		fm.mu.RLock()
+		client = fm.primary
+		model = fm.primaryModel
+		fm.mu.RUnlock()
+	}
 	reqCopy := req
 	reqCopy.Model = model
 
 	stream, err := client.CreateChatCompletionStream(ctx, reqCopy)
 	if err != nil {
 		fm.recordError(err)
-	} else {
-		fm.recordSuccess()
 	}
 	return stream, err
 }
@@ -163,7 +178,7 @@ func (fm *FailoverManager) CreateChatCompletionStream(ctx context.Context, req o
 func (fm *FailoverManager) active() (*openai.Client, string) {
 	fm.mu.RLock()
 	defer fm.mu.RUnlock()
-	if fm.isOnFallback {
+	if fm.isOnFallback && fm.fallback != nil {
 		return fm.fallback, fm.fallbackModel
 	}
 	return fm.primary, fm.primaryModel
@@ -176,6 +191,34 @@ func (fm *FailoverManager) ActiveProviderAndModel() (string, string) {
 		return fm.fallbackType, fm.fallbackModel
 	}
 	return fm.primaryType, fm.primaryModel
+}
+
+func (fm *FailoverManager) fallbackSupportsFeatures(req openai.ChatCompletionRequest) bool {
+	fm.mu.RLock()
+	defer fm.mu.RUnlock()
+	if fm.fallbackModel == "" {
+		return false
+	}
+	lower := strings.ToLower(fm.fallbackModel)
+	for _, m := range req.Messages {
+		for _, part := range m.MultiContent {
+			if part.Type == openai.ChatMessagePartTypeImageURL {
+				if strings.Contains(lower, "llama") || strings.Contains(lower, "mistral") ||
+					strings.Contains(lower, "qwen") || strings.Contains(lower, "phi-") ||
+					strings.Contains(lower, "gemma") || strings.Contains(lower, "falcon") ||
+					strings.Contains(lower, "vicuna") || strings.Contains(lower, "wizard") ||
+					strings.Contains(lower, "stablelm") || strings.Contains(lower, "tinyllama") ||
+					strings.Contains(lower, "starcoder") || strings.Contains(lower, "codellama") ||
+					strings.Contains(lower, "neural-chat") || strings.Contains(lower, "orca") ||
+					strings.Contains(lower, "yi") || strings.Contains(lower, "baichuan") ||
+					strings.Contains(lower, "chatglm") || strings.Contains(lower, " runes") ||
+					strings.Contains(lower, "mixtral") || strings.Contains(lower, "mistral") {
+					return false
+				}
+			}
+		}
+	}
+	return true
 }
 
 func (fm *FailoverManager) recordError(err error) {
@@ -244,6 +287,11 @@ func (fm *FailoverManager) probeLoop(stopCh <-chan struct{}) {
 			primaryClient := fm.primary
 			primaryModel := fm.primaryModel
 			fm.mu.RUnlock()
+
+			// Safe: primaryClient is a pointer copy. Even if Reconfigure()
+			// replaces fm.primary after the unlock, the old pointer still
+			// references the original client and remains valid for the probe.
+			// The local copy is used (not fm.primary) for all HTTP calls.
 
 			// Prefer a lightweight health check that doesn't consume tokens.
 			// ListModels works for OpenAI, OpenRouter, and some custom providers.

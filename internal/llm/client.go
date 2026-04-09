@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -25,6 +26,43 @@ func normalizeBaseURL(u string) string {
 		}
 	}
 	return u
+}
+
+// detectProviderURLMismatch checks if the provider type doesn't match known URL patterns
+// and returns a hint string if a mismatch is detected. Returns "" if no mismatch.
+func detectProviderURLMismatch(providerType, baseURL string) string {
+	lower := strings.ToLower(baseURL)
+	switch providerType {
+	case "openai":
+		if strings.Contains(lower, "anthropic") {
+			return "provider=openai but URL contains 'anthropic' — did you mean provider=anthropic?"
+		}
+		if strings.Contains(lower, "openrouter") {
+			return "provider=openai but URL contains 'openrouter' — did you mean provider=openrouter?"
+		}
+		if strings.Contains(lower, "cloudflare") || strings.Contains(lower, "workers") {
+			return "provider=openai but URL contains 'cloudflare/workers' — did you mean provider=workers-ai?"
+		}
+	case "anthropic":
+		if strings.Contains(lower, "openai") {
+			return "provider=anthropic but URL contains 'openai' — did you mean provider=openai?"
+		}
+		if strings.Contains(lower, "openrouter") {
+			return "provider=anthropic but URL contains 'openrouter' — did you mean provider=openrouter?"
+		}
+	case "openrouter":
+		if strings.Contains(lower, "api.openai.com") {
+			return "provider=openrouter but URL contains 'api.openai.com' — did you mean provider=openai?"
+		}
+		if strings.Contains(lower, "anthropic") {
+			return "provider=openrouter but URL contains 'anthropic' — did you mean provider=anthropic?"
+		}
+	case "ollama":
+		if !strings.Contains(lower, "localhost") && !strings.Contains(lower, "127.0.0.1") && !strings.Contains(lower, "ollama") {
+			return "provider=ollama but URL doesn't reference localhost or ollama — ollama is typically on localhost:11434"
+		}
+	}
+	return ""
 }
 
 // NewClient creates a new OpenAI compatible client based on the routing configuration.
@@ -61,6 +99,13 @@ func NewClient(cfg *config.Config) *openai.Client {
 		}
 
 		clientConfig.BaseURL = baseURL
+	}
+
+	// Warn if provider type doesn't match known base URL patterns
+	if cfg.LLM.BaseURL != "" && cfg.LLM.APIKey != "" {
+		if mismatched := detectProviderURLMismatch(providerType, cfg.LLM.BaseURL); mismatched != "" {
+			slog.Warn("[LLM] Provider type may not match base URL", "provider", providerType, "base_url", cfg.LLM.BaseURL, "hint", mismatched)
+		}
 	}
 
 	// Workers AI: auto-build the OpenAI-compatible URL from the account ID.

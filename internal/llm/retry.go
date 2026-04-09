@@ -11,14 +11,20 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-var RetryIntervals = []time.Duration{
+var defaultRetryIntervals = []time.Duration{
 	30 * time.Second,
 	2 * time.Minute,
 }
 
-const FinalRetryInterval = 10 * time.Minute
+const FinalRetryInterval = 5 * time.Minute
 
 const maxRetryAttempts = 10
+
+func defaultRetryIntervalsCopy() []time.Duration {
+	result := make([]time.Duration, len(defaultRetryIntervals))
+	copy(result, defaultRetryIntervals)
+	return result
+}
 
 var perAttemptTimeoutNanos atomic.Int64
 
@@ -48,7 +54,7 @@ type FeedbackProvider interface {
 }
 
 func ExecuteWithRetry(ctx context.Context, client ChatClient, req openai.ChatCompletionRequest, logger *slog.Logger, broker FeedbackProvider) (openai.ChatCompletionResponse, error) {
-	return ExecuteWithCustomRetry(ctx, client, req, logger, broker, RetryIntervals, FinalRetryInterval)
+	return ExecuteWithCustomRetry(ctx, client, req, logger, broker, defaultRetryIntervalsCopy(), FinalRetryInterval)
 }
 
 func ExecuteWithCustomRetry(ctx context.Context, client ChatClient, req openai.ChatCompletionRequest, logger *slog.Logger, broker FeedbackProvider, intervals []time.Duration, finalInterval time.Duration) (openai.ChatCompletionResponse, error) {
@@ -94,7 +100,12 @@ func ExecuteWithCustomRetry(ctx context.Context, client ChatClient, req openai.C
 			waitTime = finalInterval
 		}
 
-		if _, hasDeadline := ctx.Deadline(); !hasDeadline && waitTime > timeout {
+		if deadline, hasDeadline := ctx.Deadline(); hasDeadline {
+			remaining := time.Until(deadline)
+			if remaining < waitTime {
+				waitTime = remaining
+			}
+		} else if waitTime > timeout {
 			waitTime = timeout
 		}
 
@@ -115,7 +126,7 @@ func ExecuteWithCustomRetry(ctx context.Context, client ChatClient, req openai.C
 }
 
 func ExecuteStreamWithRetry(ctx context.Context, client ChatClient, req openai.ChatCompletionRequest, logger *slog.Logger, broker FeedbackProvider) (*openai.ChatCompletionStream, error) {
-	return ExecuteStreamWithCustomRetry(ctx, client, req, logger, broker, RetryIntervals, FinalRetryInterval)
+	return ExecuteStreamWithCustomRetry(ctx, client, req, logger, broker, defaultRetryIntervalsCopy(), FinalRetryInterval)
 }
 
 func ExecuteStreamWithCustomRetry(ctx context.Context, client ChatClient, req openai.ChatCompletionRequest, logger *slog.Logger, broker FeedbackProvider, intervals []time.Duration, finalInterval time.Duration) (*openai.ChatCompletionStream, error) {
@@ -161,7 +172,12 @@ func ExecuteStreamWithCustomRetry(ctx context.Context, client ChatClient, req op
 			waitTime = finalInterval
 		}
 
-		if _, hasDeadline := ctx.Deadline(); !hasDeadline && waitTime > timeout {
+		if deadline, hasDeadline := ctx.Deadline(); hasDeadline {
+			remaining := time.Until(deadline)
+			if remaining < waitTime {
+				waitTime = remaining
+			}
+		} else if waitTime > timeout {
 			waitTime = timeout
 		}
 

@@ -236,7 +236,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	tokenCache := newTokenCountCache(4096)
 	detectedCtxWindow := 0
 
-	const systemPromptCacheTTL = 60 * time.Second
+	const systemPromptCacheTTL = 30 * time.Second
 	cachedSysPromptKey := ""
 	cachedSysPrompt := ""
 	cachedSysPromptTokens := 0
@@ -1137,7 +1137,11 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		// A 4096-token margin is reserved for the model's completion output.
 		totalMsgTokens := 0
 		for _, m := range req.Messages {
-			totalMsgTokens += tokenCache.Count(messageText(m)) + 4 // ~4 tokens overhead per message
+			totalMsgTokens += prompts.CountTokensForModel(messageText(m), req.Model) + 4 // ~4 tokens overhead per message
+		}
+		if len(req.Tools) > 0 {
+			toolSchemaJSON, _ := json.Marshal(req.Tools)
+			totalMsgTokens += prompts.CountTokensForModel(string(toolSchemaJSON), req.Model)
 		}
 		if totalMsgTokens > maxHistoryTokens && len(req.Messages) > 2 {
 			broker.Send("thinking", "Trimming context window...")
@@ -1159,7 +1163,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				dropped := mid[0]
 				droppedMessages = append(droppedMessages, dropped)
 				mid = mid[1:]
-				totalMsgTokens -= tokenCache.Count(messageText(dropped)) + 4
+				totalMsgTokens -= prompts.CountTokensForModel(messageText(dropped), req.Model) + 4
 			}
 			trimmedMessages := []openai.ChatCompletionMessage{sysMsg}
 			remainingRecapBudget := maxHistoryTokens - totalMsgTokens - 4
@@ -1168,9 +1172,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					Role:    openai.ChatMessageRoleSystem,
 					Content: recap,
 				})
-				totalMsgTokens += prompts.CountTokens(recap) + 4
+				totalMsgTokens += prompts.CountTokensForModel(recap, req.Model) + 4
 			}
 			req.Messages = append(trimmedMessages, append(mid, lastMsg)...)
+			req.Messages = trim422Messages(req.Messages)
 			currentLogger.Info("[ContextGuard] History trimmed",
 				"remaining_messages", len(req.Messages), "estimated_tokens", totalMsgTokens, "dropped_messages", len(droppedMessages))
 		}

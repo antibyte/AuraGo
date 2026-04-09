@@ -664,17 +664,63 @@ func budgetShed(prompt string, flags ContextFlags, personalityContent, coreMemor
 	}
 
 	result := prompt
+
+	// Sort sections by token size (largest first) for efficient shedding
+	type sectionSize struct {
+		header string
+		tokens int
+		isLine bool // true if removed by line prefix instead of header
+	}
+	var sections []sectionSize
 	for _, header := range shedHeaders {
+		removed := removeSection(result, header)
+		if len(removed) < len(result) {
+			savedTokens := CountTokens(result) - CountTokens(removed)
+			sections = append(sections, sectionSize{header: header, tokens: savedTokens})
+		}
+	}
+	// Inner Voice (line-based)
+	if iv := removeSection(result, "### INNER VOICE"); len(iv) < len(result) {
+		sections = append(sections, sectionSize{header: "### INNER VOICE", tokens: CountTokens(result) - CountTokens(iv)})
+	}
+	// V1 Personality Line (line-based)
+	if v1 := removeLineByPrefix(result, "[Self:"); len(v1) < len(result) {
+		sections = append(sections, sectionSize{header: "V1 Personality Line", tokens: CountTokens(result) - CountTokens(v1), isLine: true})
+	}
+	// V2 Personality Block
+	if v2 := removeSection(result, "[SYSTEM DIRECTIVE - CURRENT STATE]"); len(v2) < len(result) {
+		sections = append(sections, sectionSize{header: "V2 Personality Block", tokens: CountTokens(result) - CountTokens(v2)})
+	}
+	// Personality Profile
+	if pp := removeSection(result, "# YOUR PERSONALITY"); len(pp) < len(result) {
+		sections = append(sections, sectionSize{header: "# YOUR PERSONALITY", tokens: CountTokens(result) - CountTokens(pp)})
+	}
+
+	// Sort by token size descending (remove largest sections first)
+	sort.Slice(sections, func(i, j int) bool {
+		return sections[i].tokens > sections[j].tokens
+	})
+
+	for _, sec := range sections {
 		if tokens <= flags.TokenBudget {
 			break
 		}
-		before := len(result)
-		result = removeSection(result, header)
-		if len(result) < before {
-			tokens += (len(result) - before) / 3
-			shedList = append(shedList, header)
-			logger.Debug("[Budget] Shed section", "header", header, "estimated_tokens", tokens)
-			tokens = CountTokens(result)
+		if sec.isLine {
+			before := len(result)
+			result = removeLineByPrefix(result, "[Self:")
+			if len(result) < before {
+				tokens = CountTokens(result)
+				shedList = append(shedList, sec.header)
+				logger.Debug("[Budget] Shed section", "header", sec.header, "tokens_saved", sec.tokens, "remaining_tokens", tokens)
+			}
+		} else {
+			before := len(result)
+			result = removeSection(result, sec.header)
+			if len(result) < before {
+				tokens = CountTokens(result)
+				shedList = append(shedList, sec.header)
+				logger.Debug("[Budget] Shed section", "header", sec.header, "tokens_saved", sec.tokens, "remaining_tokens", tokens)
+			}
 		}
 	}
 
@@ -784,20 +830,33 @@ func trimRetrievedMemoriesSection(prompt string, budget int, logger *slog.Logger
 	entries = nonEmpty
 
 	trimmed := false
-	memContentBudget := budget - CountTokens(before+afterSection)
-	for len(entries) > 0 {
-		content := header + "\n" + strings.Join(entries, sep) + "\n\n"
-		candidate := before + content + afterSection
-		tokens := CountTokens(candidate)
+	baseTokens := CountTokens(before+afterSection) + CountTokens(header) + CountTokens("\n\n")
+	sepTokens := CountTokens(sep)
+	var entryTokens []int
+	for _, e := range entries {
+		entryTokens = append(entryTokens, CountTokens(e))
+	}
+	currentEntryCount := len(entries)
+	for currentEntryCount > 0 {
+		var contentTokens int
+		for i := 0; i < currentEntryCount; i++ {
+			if i > 0 {
+				contentTokens += sepTokens
+			}
+			contentTokens += entryTokens[i]
+		}
+		tokens := baseTokens + contentTokens
 		if tokens <= budget {
 			if trimmed {
-				logger.Debug("[Budget] Trimmed retrieved memories", "remaining_entries", len(entries))
+				logger.Debug("[Budget] Trimmed retrieved memories", "remaining_entries", currentEntryCount)
 			}
+			keptEntries := entries[:currentEntryCount]
+			content := header + "\n" + strings.Join(keptEntries, sep) + "\n\n"
+			candidate := before + content + afterSection
 			return candidate, trimmed, tokens
 		}
-		entries = entries[:len(entries)-1]
+		currentEntryCount--
 		trimmed = true
-		_ = memContentBudget
 	}
 
 	// All entries removed — strip the section header too
@@ -870,6 +929,21 @@ func removeLineByPrefix(text, prefix string) string {
 	return strings.TrimSpace(strings.Join(out, "\n"))
 }
 
+// isInsideCodeBlock checks if position idx in text is inside a markdown code block (between ``` and ```).
+func isInsideCodeBlock(text string, idx int) bool {
+	openCount := 0
+	for i := 0; i < idx && i < len(text); i++ {
+		if text[i] == '`' {
+			if i+2 < len(text) && text[i] == '`' && text[i+1] == '`' && text[i+2] == '`' {
+				openCount++
+				i += 2
+				continue
+			}
+		}
+	}
+	return openCount%2 != 0
+}
+
 // removeSection removes a section starting with the given header line up to the next section header or end of text.
 func removeSection(text, header string) string {
 	idx := strings.Index(text, header)
@@ -878,6 +952,10 @@ func removeSection(text, header string) string {
 	}
 	// Guard against false positives: the header must start at the beginning of a line.
 	if idx != 0 && text[idx-1] != '\n' {
+		return text
+	}
+	// Guard against matching headers inside code blocks
+	if isInsideCodeBlock(text, idx) {
 		return text
 	}
 

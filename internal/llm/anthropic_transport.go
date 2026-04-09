@@ -321,7 +321,7 @@ type openaiRespMessage struct {
 	Role      string           `json:"role"`
 	Content   string           `json:"content"`
 	ToolCalls []openaiToolCall `json:"tool_calls,omitempty"`
-	Reasoning string           `json:"reasoning,omitempty"`
+	Reasoning string           `json:"reasoning_content,omitempty"`
 }
 
 type openaiRespDelta struct {
@@ -575,7 +575,7 @@ func translateMessages(rawMsgs []json.RawMessage) (string, []anthropicMessage, e
 			} else {
 				text := extractTextContent(msg.Content)
 				if text == "" {
-					text = " " // Anthropic requires non-empty content
+					text = "\u200b" // Zero-Width Space: non-empty but invisible
 				}
 				antMsgs = appendMergedMessage("assistant", text, antMsgs)
 			}
@@ -1192,7 +1192,28 @@ func translateStreamEvents(reader io.Reader, writer io.Writer, model string, thi
 		case "error":
 			var evt anthropicStreamError
 			if json.Unmarshal([]byte(data), &evt) == nil {
-				// Write the error as a final chunk with content
+				// Complete any in-progress tool calls with empty arguments to avoid partial JSON
+				for idx, name := range blockToolNames {
+					completeChunk := openaiStreamChunk{
+						ID:     msgID,
+						Object: "chat.completion.chunk",
+						Model:  msgModel,
+						Choices: []openaiChoice{
+							{Index: 0, Delta: &openaiRespDelta{
+								ToolCalls: []openaiToolCall{
+									{
+										Index: &idx,
+										Function: openaiToolCallFn{
+											Name:      name,
+											Arguments: "{}",
+										},
+									},
+								},
+							}},
+						},
+					}
+					writeSSEChunk(writer, completeChunk)
+				}
 				errChunk := openaiStreamChunk{
 					ID:     msgID,
 					Object: "chat.completion.chunk",

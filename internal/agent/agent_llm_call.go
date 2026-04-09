@@ -23,7 +23,7 @@ type streamingResponseResult struct {
 	tokenSource      string
 	contextCancelled bool
 	err              error
-	recoveryContinue  bool
+	recoveryContinue bool
 }
 
 // handleStreamingResponse executes the streaming LLM call and assembles the response.
@@ -43,6 +43,7 @@ func handleStreamingResponse(
 	contextCancelled := false
 	var stm *openai.ChatCompletionStream
 	var streamErr error
+	var midStreamError error
 	if emptyRetried {
 		stm, streamErr = llm.ExecuteStreamWithCustomRetry(llmCtx, client, req, currentLogger, broker, recoveryPolicy.emptyRetryIntervals(), recoveryPolicy.emptyRetryBaseDelay())
 	} else {
@@ -59,9 +60,9 @@ func handleStreamingResponse(
 		return streamingResponseResult{err: streamErr}
 	}
 
-		var assembledResponse strings.Builder
-		var lastFinishReason string
-		tcAssembler := NewStreamToolCallAssembler()
+	var assembledResponse strings.Builder
+	var lastFinishReason string
+	tcAssembler := NewStreamToolCallAssembler()
 
 	const doneTagStr = "<done/>"
 	const minimaxToolCallPrefix = "minimax:tool_call"
@@ -71,73 +72,74 @@ func handleStreamingResponse(
 	// holdLen must cover the longest tag prefix minus 1
 	const doneTagHoldLen = len(minimaxToolCallPrefix) - 1 // 16 bytes (≥ len("<done/>")-1 = 6)
 	const doneTagStreamBufMaxLen = 8192                   // max buffer to prevent unbounded growth
-		doneTagStreamBuf := ""
-		xmlToolCallSuppressed := false // once true, suppress all remaining stream chunks
-		type recvResult struct {
-			chunk openai.ChatCompletionStreamResponse
-			err   error
-		}
+	doneTagStreamBuf := ""
+	xmlToolCallSuppressed := false // once true, suppress all remaining stream chunks
+	type recvResult struct {
+		chunk openai.ChatCompletionStreamResponse
+		err   error
+	}
 
-		recvCh := make(chan recvResult, 1)
-		recvEg, recvCtx := errgroup.WithContext(llmCtx)
-		recvEg.Go(func() error {
-			defer close(recvCh)
-			for {
-				chunk, rErr := stm.Recv()
-				select {
-				case recvCh <- recvResult{chunk: chunk, err: rErr}:
-				case <-recvCtx.Done():
-					return nil
-				}
-				if rErr != nil {
-					return nil
-				}
-			}
-		})
-
-		idleTimeout := chunkIdleTimeout
-		if idleTimeout <= 0 {
-			idleTimeout = 30 * time.Second
-		}
-		timer := time.NewTimer(idleTimeout)
-		defer timer.Stop()
-
+	recvCh := make(chan recvResult, 1)
+	recvEg, recvCtx := errgroup.WithContext(llmCtx)
+	recvEg.Go(func() error {
+		defer close(recvCh)
 		for {
-			var rr recvResult
-			var ok bool
+			chunk, rErr := stm.Recv()
 			select {
-			case <-timer.C:
-				currentLogger.Warn("[Stream] No chunks received within idle timeout; aborting stream", "timeout", idleTimeout.String())
-				cancelResp()
-				contextCancelled = true
-				_ = recvEg.Wait()
-				ok = false
-			case rr, ok = <-recvCh:
-				if !ok {
-					break
-				}
-				if !timer.Stop() {
-					select {
-					case <-timer.C:
-					default:
-					}
-				}
-				timer.Reset(idleTimeout)
+			case recvCh <- recvResult{chunk: chunk, err: rErr}:
+			case <-recvCtx.Done():
+				return nil
 			}
+			if rErr != nil {
+				return nil
+			}
+		}
+	})
+
+	idleTimeout := chunkIdleTimeout
+	if idleTimeout <= 0 {
+		idleTimeout = 30 * time.Second
+	}
+	timer := time.NewTimer(idleTimeout)
+	defer timer.Stop()
+
+	for {
+		var rr recvResult
+		var ok bool
+		select {
+		case <-timer.C:
+			currentLogger.Warn("[Stream] No chunks received within idle timeout; aborting stream", "timeout", idleTimeout.String())
+			cancelResp()
+			contextCancelled = true
+			_ = recvEg.Wait()
+			ok = false
+		case rr, ok = <-recvCh:
 			if !ok {
 				break
 			}
-
-			chunk, rErr := rr.chunk, rr.err
-			if rErr != nil {
-				if rErr.Error() != "EOF" {
-					currentLogger.Error("Stream error", "error", rErr)
-					if llmCtx.Err() == context.Canceled {
-					contextCancelled = true
+			if !timer.Stop() {
+				select {
+				case <-timer.C:
+				default:
 				}
 			}
-				break
+			timer.Reset(idleTimeout)
+		}
+		if !ok {
+			break
+		}
+
+		chunk, rErr := rr.chunk, rr.err
+		if rErr != nil {
+			if rErr.Error() != "EOF" {
+				currentLogger.Error("Stream error", "error", rErr)
+				midStreamError = fmt.Errorf("stream error before done: %w", rErr)
 			}
+			if llmCtx.Err() == context.Canceled {
+				contextCancelled = true
+			}
+			break
+		}
 		if chunk.Usage != nil {
 			streamAcct.recordProviderUsage(chunk.Usage.PromptTokens, chunk.Usage.CompletionTokens)
 		}
@@ -149,28 +151,28 @@ func handleStreamingResponse(
 			if delta.Content != "" {
 				assembledResponse.WriteString(delta.Content)
 				trimmed := strings.TrimLeft(delta.Content, " \t\r\n")
-					suppressToolCallJSON := false
-					if len(trimmed) > 0 && trimmed[0] == '{' {
-						highSpecKeys := []string{`"tool_call"`, `"tool_name"`, `"tool_call_path"`}
-						ambiguousKeys := []string{`"tool":`, `"command"`, `"operation"`, `"name"`, `"arguments"`}
-						highCount := 0
-						for _, k := range highSpecKeys {
-							if strings.Contains(trimmed, k) {
-								highCount++
-							}
-						}
-						ambCount := 0
-						for _, k := range ambiguousKeys {
-							if strings.Contains(trimmed, k) {
-								ambCount++
-							}
-						}
-						suppressToolCallJSON = highCount >= 1 || (highCount+ambCount >= 2 && ambCount >= 1) || ambCount >= 3
-						if !suppressToolCallJSON && strings.Contains(trimmed, `"action"`) &&
-							(strings.Contains(trimmed, `"arguments"`) || strings.Contains(trimmed, `"tool"`) || strings.Contains(trimmed, `"tool_name"`)) {
-							suppressToolCallJSON = true
+				suppressToolCallJSON := false
+				if len(trimmed) > 0 && trimmed[0] == '{' {
+					highSpecKeys := []string{`"tool_call"`, `"tool_name"`, `"tool_call_path"`}
+					ambiguousKeys := []string{`"tool":`, `"command"`, `"operation"`, `"name"`, `"arguments"`}
+					highCount := 0
+					for _, k := range highSpecKeys {
+						if strings.Contains(trimmed, k) {
+							highCount++
 						}
 					}
+					ambCount := 0
+					for _, k := range ambiguousKeys {
+						if strings.Contains(trimmed, k) {
+							ambCount++
+						}
+					}
+					suppressToolCallJSON = highCount >= 1 || (highCount+ambCount >= 2 && ambCount >= 1) || ambCount >= 3
+					if !suppressToolCallJSON && strings.Contains(trimmed, `"action"`) &&
+						(strings.Contains(trimmed, `"arguments"`) || strings.Contains(trimmed, `"tool"`) || strings.Contains(trimmed, `"tool_name"`)) {
+						suppressToolCallJSON = true
+					}
+				}
 				if !suppressToolCallJSON && !xmlToolCallSuppressed {
 					if len(doneTagStreamBuf)+len(delta.Content) > doneTagStreamBufMaxLen {
 						doneTagStreamBuf = doneTagStreamBuf[len(doneTagStreamBuf)-doneTagHoldLen:]
@@ -216,10 +218,16 @@ func handleStreamingResponse(
 			for _, tc := range delta.ToolCalls {
 				tcAssembler.Merge(tc)
 			}
-			}
 		}
-		_ = recvEg.Wait()
-		stm.Close()
+	}
+	_ = recvEg.Wait()
+	stm.Close()
+	if midStreamError != nil {
+		return streamingResponseResult{
+			err:              midStreamError,
+			contextCancelled: contextCancelled,
+		}
+	}
 	if doneTagStreamBuf != "" && !xmlToolCallSuppressed {
 		remaining := strings.ReplaceAll(doneTagStreamBuf, doneTagStr, "")
 		if idx := strings.Index(strings.ToLower(remaining), minimaxToolCallPrefix); idx != -1 {
@@ -298,7 +306,7 @@ type recoveryResult struct {
 	resp             openai.ChatCompletionResponse
 	content          string
 	err              error
-	telemetryScope  AgentTelemetryScope
+	telemetryScope   AgentTelemetryScope
 	recoveryContinue bool
 }
 

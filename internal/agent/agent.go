@@ -225,7 +225,7 @@ func estimateTokensForModel(text string, model string) int {
 	if text == "" {
 		return 0
 	}
-	return prompts.CountTokens(text)
+	return prompts.CountTokensForModel(text, model)
 }
 
 // ── Recency-Boosted Re-ranking (Phase A3) ──────────────────────────
