@@ -180,12 +180,15 @@ func (w *OptimizerWorker) runCreationCycle(ctx context.Context) {
 func (w *OptimizerWorker) mutateToolPrompt(ctx context.Context, toolName string) {
 	slog.Info("[Optimizer] Initiating self-reflection for tool", "tool", toolName)
 
-	// Fetch recent error traces for context
+	// Fetch recent error traces for context.
+	// IMPORTANT: rows must be explicitly closed before the LLM call below.
+	// The optimizer DB uses MaxOpenConns(1). If rows is still open when the LLM
+	// call blocks (e.g. model timeout), GetActivePromptOverrides in the agent loop
+	// will wait forever for a connection → chat hangs indefinitely.
 	rows, err := w.db.db.QueryContext(ctx, `SELECT error_message FROM tool_traces WHERE tool_name = ? AND success = 0 ORDER BY timestamp DESC LIMIT 5`, toolName)
 	if err != nil {
 		return
 	}
-	defer rows.Close()
 
 	var errorsList string
 	for rows.Next() {
@@ -194,6 +197,7 @@ func (w *OptimizerWorker) mutateToolPrompt(ctx context.Context, toolName string)
 			errorsList += "- " + em + "\n"
 		}
 	}
+	rows.Close() // explicit close — must happen before any LLM call
 
 	// Load the current prompt content from embedded/disk
 	var currentManual string
@@ -219,6 +223,11 @@ Recent execution errors:
 %s
 Ensure the instructions prevent these errors. Reply ONLY with the new markdown manual.`, toolName, currentManual, errorsList)
 
+	// Use a bounded context for LLM calls — the optimizer must not block the server
+	// indefinitely if the LLM is slow or unresponsive.
+	llmCtx, llmCancel := context.WithTimeout(ctx, 60*time.Second)
+	defer llmCancel()
+
 	// Fallback logic
 	req := openai.ChatCompletionRequest{
 		Messages: []openai.ChatCompletionMessage{
@@ -226,7 +235,7 @@ Ensure the instructions prevent these errors. Reply ONLY with the new markdown m
 		},
 	}
 	var newPrompt string
-	resp, err := w.helperManager.CreateChatCompletion(ctx, req)
+	resp, err := w.helperManager.CreateChatCompletion(llmCtx, req)
 	if err == nil && len(resp.Choices) > 0 {
 		newPrompt = resp.Choices[0].Message.Content
 	}
@@ -236,7 +245,7 @@ Ensure the instructions prevent these errors. Reply ONLY with the new markdown m
 			helperReason = err.Error()
 		}
 		slog.Warn("[Optimizer] Helper LLM failed, falling back to Primary LLM", "reason", helperReason)
-		resp, err = w.primaryManager.CreateChatCompletion(ctx, req)
+		resp, err = w.primaryManager.CreateChatCompletion(llmCtx, req)
 		if err == nil && len(resp.Choices) > 0 {
 			newPrompt = resp.Choices[0].Message.Content
 		}
