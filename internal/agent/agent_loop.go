@@ -1027,6 +1027,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 		flags.TokenBudget = calculateEffectivePromptTokenBudget(cfg, ToolCall{}, homepageUsedInChain, currentLogger)
 		recordRetrievalPromptTelemetry(telemetryScope, retrievalPromptTokens, flags.TokenBudget)
+		logger.Info("[LoopTrace] 4a: budget + flags ready")
 
 		// Skip integrations that already have native schemas in the overview
 		skipIntegrationTools := make([]string, 0, len(req.Tools))
@@ -1052,6 +1053,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			!cachedSysPromptAt.IsZero() &&
 			time.Since(cachedSysPromptAt) <= systemPromptCacheTTL
 
+		logger.Info("[LoopTrace] 4b: cache key built, about to build/load system prompt", "cache_hit", cacheHit)
 		sysPrompt := ""
 		sysPromptTokens := 0
 		if cacheHit {
@@ -1062,6 +1064,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			if budgetHint != "" {
 				sysPrompt += "\n\n" + budgetHint
 			}
+			logger.Info("[LoopTrace] 4c: BuildSystemPrompt done, calling CountTokens", "prompt_len", len(sysPrompt))
 			sysPromptTokens = prompts.CountTokens(sysPrompt)
 
 			if cacheKeyErr == nil && cacheKey != "" {
