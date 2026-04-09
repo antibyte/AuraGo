@@ -261,20 +261,24 @@ func (s *Store) T(lang, key string, params ...any) string {
 
 // interpolate replaces {name} placeholders with the corresponding parameter values.
 // Parameters can be strings or types that format with fmt.Sprint.
+// Supports both indexed placeholders ({0}, {1}, ...) and named placeholders ({name}).
+// Named parameters are extracted from any map[string]any in the params slice.
 func interpolate(s string, params []any) string {
 	if len(params) == 0 {
 		return s
 	}
 
 	result := s
+
+	// First pass: replace indexed placeholders
 	for i, p := range params {
 		placeholder := fmt.Sprintf("{%d}", i)
 		result = strings.ReplaceAll(result, placeholder, fmt.Sprint(p))
 	}
 
-	// Also support named parameters if first param is a map
-	if len(params) > 0 {
-		if m, ok := params[0].(map[string]any); ok {
+	// Second pass: replace named placeholders from any map[string]any in params
+	for _, p := range params {
+		if m, ok := p.(map[string]any); ok {
 			for k, v := range m {
 				placeholder := fmt.Sprintf("{%s}", k)
 				result = strings.ReplaceAll(result, placeholder, fmt.Sprint(v))
