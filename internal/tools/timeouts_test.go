@@ -56,6 +56,124 @@ func TestConfigureTimeouts_ZeroKeepsDefaults(t *testing.T) {
 	}
 }
 
+func TestGetTimeoutConfig_ReturnsAllCategories(t *testing.T) {
+	cfg := GetTimeoutConfig()
+	if cfg.Foreground != GetForegroundTimeout() {
+		t.Errorf("Foreground mismatch: got %v, want %v", cfg.Foreground, GetForegroundTimeout())
+	}
+	if cfg.Skills != GetSkillTimeout() {
+		t.Errorf("Skills mismatch: got %v, want %v", cfg.Skills, GetSkillTimeout())
+	}
+	if cfg.Background != GetBackgroundTimeout() {
+		t.Errorf("Background mismatch: got %v, want %v", cfg.Background, GetBackgroundTimeout())
+	}
+	if cfg.Sandbox != GetSandboxTimeout() {
+		t.Errorf("Sandbox mismatch: got %v, want %v", cfg.Sandbox, GetSandboxTimeout())
+	}
+	if cfg.Network != GetNetworkTimeout() {
+		t.Errorf("Network mismatch: got %v, want %v", cfg.Network, GetNetworkTimeout())
+	}
+}
+
+func TestConfigureAllTimeouts_SetsAllValues(t *testing.T) {
+	origFg := GetForegroundTimeout()
+	origSk := GetSkillTimeout()
+	origBg := GetBackgroundTimeout()
+	origSb := GetSandboxTimeout()
+	origNw := GetNetworkTimeout()
+	defer func() {
+		SetForegroundTimeout(origFg)
+		SetSkillTimeout(origSk)
+		SetBackgroundTimeout(origBg)
+		SetSandboxTimeout(origSb)
+		SetNetworkTimeout(origNw)
+	}()
+
+	cfg := TimeoutConfig{
+		Foreground: 45 * time.Second,
+		Skills:     200 * time.Second,
+		Background: 2 * time.Hour,
+		Sandbox:    60 * time.Second,
+		Network:    90 * time.Second,
+	}
+	ConfigureAllTimeouts(cfg)
+
+	if GetForegroundTimeout() != 45*time.Second {
+		t.Errorf("Foreground: got %v, want 45s", GetForegroundTimeout())
+	}
+	if GetSkillTimeout() != 200*time.Second {
+		t.Errorf("Skills: got %v, want 200s", GetSkillTimeout())
+	}
+	if GetBackgroundTimeout() != 2*time.Hour {
+		t.Errorf("Background: got %v, want 2h", GetBackgroundTimeout())
+	}
+	if GetSandboxTimeout() != 60*time.Second {
+		t.Errorf("Sandbox: got %v, want 60s", GetSandboxTimeout())
+	}
+	if GetNetworkTimeout() != 90*time.Second {
+		t.Errorf("Network: got %v, want 90s", GetNetworkTimeout())
+	}
+}
+
+func TestConfigureAllTimeouts_ZeroPreservesDefaults(t *testing.T) {
+	origFg := GetForegroundTimeout()
+	origSk := GetSkillTimeout()
+	origBg := GetBackgroundTimeout()
+	origSb := GetSandboxTimeout()
+	origNw := GetNetworkTimeout()
+	defer func() {
+		SetForegroundTimeout(origFg)
+		SetSkillTimeout(origSk)
+		SetBackgroundTimeout(origBg)
+		SetSandboxTimeout(origSb)
+		SetNetworkTimeout(origNw)
+	}()
+
+	// Set to known values
+	SetForegroundTimeout(45 * time.Second)
+	SetSkillTimeout(200 * time.Second)
+	SetBackgroundTimeout(2 * time.Hour)
+	SetSandboxTimeout(60 * time.Second)
+	SetNetworkTimeout(90 * time.Second)
+
+	// Apply zero config - should preserve all values
+	ConfigureAllTimeouts(TimeoutConfig{})
+
+	if GetForegroundTimeout() != 45*time.Second {
+		t.Errorf("Foreground should be preserved: got %v, want 45s", GetForegroundTimeout())
+	}
+	if GetSkillTimeout() != 200*time.Second {
+		t.Errorf("Skills should be preserved: got %v, want 200s", GetSkillTimeout())
+	}
+	if GetBackgroundTimeout() != 2*time.Hour {
+		t.Errorf("Background should be preserved: got %v, want 2h", GetBackgroundTimeout())
+	}
+	if GetSandboxTimeout() != 60*time.Second {
+		t.Errorf("Sandbox should be preserved: got %v, want 60s", GetSandboxTimeout())
+	}
+	if GetNetworkTimeout() != 90*time.Second {
+		t.Errorf("Network should be preserved: got %v, want 90s", GetNetworkTimeout())
+	}
+}
+
+func TestDefaultTimeoutValues(t *testing.T) {
+	if DefaultForegroundTimeout != 30*time.Second {
+		t.Errorf("DefaultForegroundTimeout: got %v, want 30s", DefaultForegroundTimeout)
+	}
+	if DefaultSkillTimeout != 120*time.Second {
+		t.Errorf("DefaultSkillTimeout: got %v, want 120s", DefaultSkillTimeout)
+	}
+	if DefaultBackgroundTimeout != 1*time.Hour {
+		t.Errorf("DefaultBackgroundTimeout: got %v, want 1h", DefaultBackgroundTimeout)
+	}
+	if DefaultSandboxTimeout != 30*time.Second {
+		t.Errorf("DefaultSandboxTimeout: got %v, want 30s", DefaultSandboxTimeout)
+	}
+	if DefaultNetworkTimeout != 60*time.Second {
+		t.Errorf("DefaultNetworkTimeout: got %v, want 60s", DefaultNetworkTimeout)
+	}
+}
+
 func TestConfigureTimeouts_NegativeKeepsDefaults(t *testing.T) {
 	origPython := GetForegroundTimeout()
 	origSkill := GetSkillTimeout()

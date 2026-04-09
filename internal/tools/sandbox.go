@@ -327,9 +327,9 @@ func (m *SandboxManager) ExecuteCode(code, language string, libraries []string, 
 		args["libraries"] = libraries
 	}
 
-	// Use a timeout context
+	// Use a timeout context; fall back to the central sandbox timeout default.
 	if timeoutSecs <= 0 {
-		timeoutSecs = 30
+		timeoutSecs = int(GetSandboxTimeout().Seconds())
 	}
 
 	type result struct {

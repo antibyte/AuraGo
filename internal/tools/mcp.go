@@ -70,7 +70,7 @@ type mcpConn struct {
 	tools     []MCPToolInfo
 	ready     bool
 	closeCh   chan struct{}
-	closeOnce sync.Once // ensures close() is idempotent
+	closeOnce sync.Once     // ensures close() is idempotent
 	stderrBuf *bytes.Buffer // captures MCP server stderr for diagnostics
 }
 
@@ -456,6 +456,16 @@ func (m *MCPManager) ListServers() []map[string]interface{} {
 
 // mcpCallToolTimeout is the maximum duration for a single MCP tool call.
 const mcpCallToolTimeout = 60 * time.Second
+
+// mcpMaxRetries is the maximum number of retries for a failed MCP tool call.
+const mcpMaxRetries = 3
+
+// mcpRetryDelays defines the backoff delays between retries (exponential backoff).
+var mcpRetryDelays = []time.Duration{
+	100 * time.Millisecond,
+	500 * time.Millisecond,
+	2 * time.Second,
+}
 
 // CallTool invokes a tool on a specific MCP server with a timeout.
 func (m *MCPManager) CallTool(serverName, toolName string, arguments map[string]interface{}) (string, error) {

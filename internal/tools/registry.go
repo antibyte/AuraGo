@@ -26,14 +26,51 @@ var killProcess = func(process *os.Process) error {
 // maxOutputSize is the maximum bytes kept in a background process output buffer (1 MB).
 const maxOutputSize = 1 << 20
 
+// ProcessState represents the lifecycle state of a background process.
+type ProcessState int
+
+const (
+	ProcessStateStarting   ProcessState = iota // Process is being set up
+	ProcessStateRunning                        // Process is running
+	ProcessStateTimedOut                       // Process was killed due to timeout
+	ProcessStateExited                         // Process exited normally
+	ProcessStateCrashed                        // Process exited with an error
+	ProcessStateTerminated                     // Process was explicitly terminated
+)
+
 // ProcessInfo holds metadata about a running background process.
 type ProcessInfo struct {
-	PID       int
-	Process   *os.Process
-	Output    *bytes.Buffer
-	StartedAt time.Time
-	Alive     bool
-	mu        sync.Mutex // Protects Output writes
+	PID          int
+	Process      *os.Process
+	Output       *bytes.Buffer
+	StartedAt    time.Time
+	Alive        bool
+	State        ProcessState // Current lifecycle state
+	ExitCode     int          // Exit code (if process has exited)
+	TerminatedAt time.Time    // When the process ended
+	TimedOut     bool         // Whether process was killed due to timeout
+	ErrorReason  string       // Error description (if process crashed or was killed)
+	mu           sync.Mutex   // Protects Output writes and state fields
+}
+
+// String returns a human-readable representation of the process state.
+func (s ProcessState) String() string {
+	switch s {
+	case ProcessStateStarting:
+		return "starting"
+	case ProcessStateRunning:
+		return "running"
+	case ProcessStateTimedOut:
+		return "timed_out"
+	case ProcessStateExited:
+		return "exited"
+	case ProcessStateCrashed:
+		return "crashed"
+	case ProcessStateTerminated:
+		return "terminated"
+	default:
+		return "unknown"
+	}
 }
 
 // Write implements io.Writer so ProcessInfo can be used as cmd.Stdout/Stderr.
@@ -63,6 +100,34 @@ func (p *ProcessInfo) IsAlive() bool {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return p.Alive
+}
+
+// GetState returns the current process state.
+func (p *ProcessInfo) GetState() ProcessState {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.State
+}
+
+// GetExitCode returns the process exit code if available.
+func (p *ProcessInfo) GetExitCode() int {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.ExitCode
+}
+
+// GetTerminatedAt returns when the process terminated.
+func (p *ProcessInfo) GetTerminatedAt() time.Time {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.TerminatedAt
+}
+
+// GetErrorReason returns the error reason if the process failed.
+func (p *ProcessInfo) GetErrorReason() string {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.ErrorReason
 }
 
 // ProcessRegistry is a thread-safe registry for background processes.
@@ -105,6 +170,8 @@ func (r *ProcessRegistry) Remove(pid int) {
 }
 
 // Terminate stops a specific process by PID and removes it from the registry.
+// It is safe to call even if the process has already exited or is being cleaned up
+// by superviseBackgroundProcess.
 func (r *ProcessRegistry) Terminate(pid int) error {
 	// Acquire r.mu only to look up the process info pointer; release before
 	// sending the signal so the lock is not held during a potentially-blocking
@@ -130,14 +197,27 @@ func (r *ProcessRegistry) Terminate(pid int) error {
 			}
 		}
 	}
-	info.Alive = false
+	// Only update state if process was still alive (not already exited by superviseBackgroundProcess)
+	if wasAlive {
+		info.Alive = false
+		info.State = ProcessStateTerminated
+		info.TerminatedAt = time.Now()
+		info.ErrorReason = "explicitly terminated"
+	}
 	info.mu.Unlock()
 
 	// Remove from registry under r.mu after signal is sent.
+	// Check if process is still in registry before deleting (superviseBackgroundProcess
+	// may have already removed it).
 	r.mu.Lock()
-	delete(r.processes, pid)
+	_, stillRegistered := r.processes[pid]
+	if stillRegistered {
+		delete(r.processes, pid)
+		r.logger.Info("Terminated and removed process", "pid", pid)
+	} else {
+		r.logger.Info("Process already removed by supervisor", "pid", pid)
+	}
 	r.mu.Unlock()
-	r.logger.Info("Terminated and removed process", "pid", pid)
 	return terminateErr
 }
 
@@ -183,6 +263,9 @@ func (r *ProcessRegistry) KillAll() {
 				r.logger.Warn("Failed to kill orphaned background process", "pid", pid, "error", err)
 			}
 			info.Alive = false
+			info.State = ProcessStateTerminated
+			info.TerminatedAt = time.Now()
+			info.ErrorReason = "orphaned process killed"
 		}
 		info.mu.Unlock()
 	}

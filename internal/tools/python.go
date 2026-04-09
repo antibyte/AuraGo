@@ -14,6 +14,31 @@ import (
 	"time"
 )
 
+// Timeout categories managed by the central timeout configuration.
+// All execution timeouts flow through these categories to ensure consistency.
+const (
+	// DefaultForegroundTimeout is the default timeout for foreground executions (shell, python scripts).
+	DefaultForegroundTimeout = 30 * time.Second
+	// DefaultSkillTimeout is the default timeout for skill invocations.
+	DefaultSkillTimeout = 120 * time.Second
+	// DefaultBackgroundTimeout is the default timeout for background processes.
+	DefaultBackgroundTimeout = 1 * time.Hour
+	// DefaultSandboxTimeout is the default timeout for sandbox code execution.
+	DefaultSandboxTimeout = 30 * time.Second
+	// DefaultNetworkTimeout is the default timeout for network operations (MCP, HTTP, etc.).
+	DefaultNetworkTimeout = 60 * time.Second
+)
+
+// TimeoutConfig holds the configured timeouts for all execution categories.
+// Use GetTimeoutConfig() to get the current configuration.
+type TimeoutConfig struct {
+	Foreground time.Duration // Python scripts, shell commands
+	Skills     time.Duration // Skill invocations
+	Background time.Duration // Background processes
+	Sandbox    time.Duration // Sandboxed code execution
+	Network    time.Duration // Network operations (MCP, HTTP calls)
+}
+
 // foregroundTimeout stores the default execution timeout for Python scripts and shell commands (nanoseconds).
 var foregroundTimeout atomic.Int64
 
@@ -23,10 +48,18 @@ var skillTimeout atomic.Int64
 // backgroundTimeout stores the default execution timeout for background Python/shell/tool processes (nanoseconds).
 var backgroundTimeout atomic.Int64
 
+// sandboxTimeout stores the default execution timeout for sandbox code execution (nanoseconds).
+var sandboxTimeout atomic.Int64
+
+// networkTimeout stores the default execution timeout for network operations (nanoseconds).
+var networkTimeout atomic.Int64
+
 func init() {
-	foregroundTimeout.Store(int64(30 * time.Second))
-	skillTimeout.Store(int64(120 * time.Second))
-	backgroundTimeout.Store(int64(time.Hour))
+	foregroundTimeout.Store(int64(DefaultForegroundTimeout))
+	skillTimeout.Store(int64(DefaultSkillTimeout))
+	backgroundTimeout.Store(int64(DefaultBackgroundTimeout))
+	sandboxTimeout.Store(int64(DefaultSandboxTimeout))
+	networkTimeout.Store(int64(DefaultNetworkTimeout))
 }
 
 // GetForegroundTimeout returns the current foreground execution timeout.
@@ -59,8 +92,41 @@ func SetBackgroundTimeout(d time.Duration) {
 	backgroundTimeout.Store(int64(d))
 }
 
+// GetSandboxTimeout returns the current sandbox execution timeout.
+func GetSandboxTimeout() time.Duration {
+	return time.Duration(sandboxTimeout.Load())
+}
+
+// SetSandboxTimeout sets the sandbox execution timeout (for testing).
+func SetSandboxTimeout(d time.Duration) {
+	sandboxTimeout.Store(int64(d))
+}
+
+// GetNetworkTimeout returns the current network operation timeout.
+func GetNetworkTimeout() time.Duration {
+	return time.Duration(networkTimeout.Load())
+}
+
+// SetNetworkTimeout sets the network operation timeout (for testing).
+func SetNetworkTimeout(d time.Duration) {
+	networkTimeout.Store(int64(d))
+}
+
+// GetTimeoutConfig returns the current timeout configuration as a struct.
+// This provides a centralized view of all timeouts and their values.
+func GetTimeoutConfig() TimeoutConfig {
+	return TimeoutConfig{
+		Foreground: GetForegroundTimeout(),
+		Skills:     GetSkillTimeout(),
+		Background: GetBackgroundTimeout(),
+		Sandbox:    GetSandboxTimeout(),
+		Network:    GetNetworkTimeout(),
+	}
+}
+
 // ConfigureTimeouts sets package-level timeouts from configuration.
 // Values <= 0 are ignored (defaults are kept).
+// This function now supports all timeout categories including Sandbox and Network.
 func ConfigureTimeouts(pythonSeconds, skillSeconds, backgroundSeconds int) {
 	if pythonSeconds > 0 {
 		foregroundTimeout.Store(int64(time.Duration(pythonSeconds) * time.Second))
@@ -70,6 +136,26 @@ func ConfigureTimeouts(pythonSeconds, skillSeconds, backgroundSeconds int) {
 	}
 	if backgroundSeconds > 0 {
 		backgroundTimeout.Store(int64(time.Duration(backgroundSeconds) * time.Second))
+	}
+}
+
+// ConfigureAllTimeouts sets all timeout categories from a TimeoutConfig struct.
+// Only values > 0 are applied; defaults are preserved for zero values.
+func ConfigureAllTimeouts(cfg TimeoutConfig) {
+	if cfg.Foreground > 0 {
+		foregroundTimeout.Store(int64(cfg.Foreground))
+	}
+	if cfg.Skills > 0 {
+		skillTimeout.Store(int64(cfg.Skills))
+	}
+	if cfg.Background > 0 {
+		backgroundTimeout.Store(int64(cfg.Background))
+	}
+	if cfg.Sandbox > 0 {
+		sandboxTimeout.Store(int64(cfg.Sandbox))
+	}
+	if cfg.Network > 0 {
+		networkTimeout.Store(int64(cfg.Network))
 	}
 }
 
