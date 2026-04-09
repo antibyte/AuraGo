@@ -613,6 +613,10 @@ func (cv *ChromemVectorDB) SearchSimilar(query string, topK int, excludeCollecti
 	}
 	resultCh := make(chan colResult, len(collections))
 
+	// Track in-flight goroutines so we can wait for them before returning.
+	// This ensures clean shutdown when context is cancelled or deadline exceeded.
+	var wg sync.WaitGroup
+
 	for _, colName := range collections {
 		colName := colName // capture
 		col, err := cv.db.GetOrCreateCollection(colName, nil, cv.embeddingFunc)
@@ -630,7 +634,9 @@ func (cv *ChromemVectorDB) SearchSimilar(query string, topK int, excludeCollecti
 		if searchK > col.Count() {
 			searchK = col.Count()
 		}
+		wg.Add(1)
 		go func(c *chromem.Collection, k int) {
+			defer wg.Done()
 			res, qErr := c.QueryEmbedding(ctx, queryEmbedding, k, nil, nil)
 			resultCh <- colResult{colName: colName, results: res, err: qErr}
 		}(col, searchK)
@@ -692,6 +698,9 @@ func (cv *ChromemVectorDB) SearchSimilar(query string, topK int, excludeCollecti
 	}
 
 finalizeResults:
+	// Wait for all in-flight goroutines to complete before returning.
+	// This prevents goroutine leaks when context is cancelled.
+	wg.Wait()
 
 	// Sort by similarity descending and enforce global topK limit
 	sort.Slice(allResults, func(i, j int) bool {
@@ -790,13 +799,17 @@ func (cv *ChromemVectorDB) GetByID(id string) (string, error) {
 // searchTopSimilarityScore returns the decayed similarity score of the closest existing
 // document in the aurago_memories collection for the given concept, or 0 if no match.
 // It is used internally for dedup checks and does NOT format results with a prefix string,
-// unlike SearchSimilar/SearchMemoriesOnly. Callers must not hold storeDocMu when calling
-// SearchMemoriesOnly (which this replaces), but since this method creates its own context
-// and does not acquire any other lock, it is safe to call while storeDocMu is held.
+// unlike SearchSimilar/SearchMemoriesOnly. This method holds cv.mu.RLock for the duration
+// of its operation, so callers must not hold storeDocMu to avoid lock inversion.
 func (cv *ChromemVectorDB) searchTopSimilarityScore(concept string) float32 {
 	if cv.disabled.Load() {
 		return 0
 	}
+	// Hold read lock for consistency with SearchSimilar/SearchMemoriesOnly,
+	// which both protect cv.db and cv.embeddingFunc accesses with cv.mu.RLock().
+	cv.mu.RLock()
+	defer cv.mu.RUnlock()
+
 	col, err := cv.db.GetOrCreateCollection("aurago_memories", nil, cv.embeddingFunc)
 	if err != nil || col.Count() == 0 {
 		return 0

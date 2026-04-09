@@ -366,7 +366,11 @@ func (s *SQLiteMemory) InsertJournalEntry(entry JournalEntry) (int64, error) {
 		entry.Date = time.Now().Format("2006-01-02")
 	}
 
-	tagsJSON, _ := json.Marshal(entry.Tags)
+	tagsJSON, err := json.Marshal(entry.Tags)
+	if err != nil {
+		s.logger.Warn("InsertJournalEntry: failed to marshal tags, using empty array", "error", err)
+		tagsJSON = []byte("[]")
+	}
 
 	res, err := s.db.Exec(
 		`INSERT INTO journal_entries (entry_type, title, content, tags, importance, date, session_id, auto_generated)
