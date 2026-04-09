@@ -14,6 +14,7 @@ import (
 
 	"aurago/internal/agent"
 	"aurago/internal/commands"
+	"aurago/internal/i18n"
 	"aurago/internal/llm"
 	"aurago/internal/memory"
 	"aurago/internal/security"
@@ -104,7 +105,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 		}
 
 		if r.Method != http.MethodPost {
-			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.http_method_not_allowed"), http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -114,7 +115,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 		var req openai.ChatCompletionRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			s.Logger.Error("Failed to decode request body", "error", err)
-			jsonError(w, "Bad request", http.StatusBadRequest)
+			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.handler_bad_request"), http.StatusBadRequest)
 			return
 		}
 
@@ -135,7 +136,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			if followUpDepths[followUpKey] > 10 {
 				muFollowUp.Unlock()
 				s.Logger.Warn("Blocked follow_up execution to prevent infinite loop", "depth", followUpDepths[followUpKey], "key", followUpKey)
-				jsonError(w, `{"error": "Follow-up circuit breaker tripped. Max recursion depth reached."}`, http.StatusTooManyRequests)
+				jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.handler_followup_circuit_breaker"), http.StatusTooManyRequests)
 				return
 			}
 		}
@@ -164,7 +165,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 		}
 
 		if len(req.Messages) == 0 {
-			jsonError(w, "No messages provided", http.StatusBadRequest)
+			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.handler_no_messages"), http.StatusBadRequest)
 			return
 		}
 
@@ -199,7 +200,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			cmdResult, isCommand, err := commands.Handle(lastUserMsg.Content, cmdCtx)
 			if err != nil {
 				s.Logger.Error("Command execution failed", "error", err)
-				jsonError(w, "Command failed", http.StatusInternalServerError)
+				jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.handler_command_failed"), http.StatusInternalServerError)
 				return
 			}
 			if isCommand {
@@ -221,7 +222,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 					},
 				}); err != nil {
 					s.Logger.Error("Failed to encode command response", "error", err)
-					jsonError(w, "Internal server error", http.StatusInternalServerError)
+					jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.handler_internal_error"), http.StatusInternalServerError)
 				}
 				return
 			}
@@ -454,7 +455,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			flusher, ok := w.(http.Flusher)
 			if !ok {
 				s.Logger.Error("Streaming not supported by ResponseWriter")
-				jsonError(w, "Streaming unsupported", http.StatusInternalServerError)
+				jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.handler_streaming_unsupported"), http.StatusInternalServerError)
 				return
 			}
 			// Initial flush to establish SSE connection
@@ -482,9 +483,9 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			if err != nil {
 				s.Logger.Error("Sync agent loop failed", "error", err)
 				// Return a user-visible error as a proper OpenAI response instead of HTTP 500
-				errMsg := "⚠️ The request timed out — the model did not respond in time. Please try again or switch to a faster model."
+				errMsg := i18n.T(s.Cfg.Server.UILanguage, "backend.handler_timeout_error")
 				if !strings.Contains(err.Error(), "context deadline exceeded") && !strings.Contains(err.Error(), "context canceled") {
-					errMsg = "⚠️ An internal error occurred. Check server logs for details."
+					errMsg = i18n.T(s.Cfg.Server.UILanguage, "backend.handler_sync_error")
 				}
 				w.Header().Set("Content-Type", "application/json")
 				json.NewEncoder(w).Encode(openai.ChatCompletionResponse{
@@ -519,7 +520,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 func handleArchiveMemory(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.http_method_not_allowed"), http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -529,7 +530,7 @@ func handleArchiveMemory(s *Server) http.HandlerFunc {
 		bodyBytes, err := io.ReadAll(r.Body)
 		if err != nil {
 			s.Logger.Error("Failed to read archive request body", "error", err)
-			jsonError(w, "Bad request", http.StatusBadRequest)
+			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.handler_bad_request"), http.StatusBadRequest)
 			return
 		}
 
@@ -539,19 +540,19 @@ func handleArchiveMemory(s *Server) http.HandlerFunc {
 			var items []memory.ArchiveItem
 			if err := json.Unmarshal(bodyBytes, &items); err != nil {
 				s.Logger.Error("Failed to decode batch archive request", "error", err)
-				jsonError(w, "Bad request", http.StatusBadRequest)
+				jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.handler_bad_request"), http.StatusBadRequest)
 				return
 			}
 
 			if len(items) == 0 {
-				jsonError(w, "Empty batch", http.StatusBadRequest)
+				jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.handler_empty_batch"), http.StatusBadRequest)
 				return
 			}
 
 			storedIDs, err := s.LongTermMem.StoreBatch(items)
 			if err != nil {
 				s.Logger.Error("Failed to archive batch", "error", err)
-				jsonError(w, "Internal server error", http.StatusInternalServerError)
+				jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.handler_internal_error"), http.StatusInternalServerError)
 				return
 			}
 			for _, id := range storedIDs {
@@ -564,19 +565,19 @@ func handleArchiveMemory(s *Server) http.HandlerFunc {
 			var req memory.ArchiveItem
 			if err := json.Unmarshal(bodyBytes, &req); err != nil {
 				s.Logger.Error("Failed to decode archive request", "error", err)
-				jsonError(w, "Bad request", http.StatusBadRequest)
+				jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.handler_bad_request"), http.StatusBadRequest)
 				return
 			}
 
 			if req.Concept == "" || req.Content == "" {
-				jsonError(w, "Both 'concept' and 'content' are required", http.StatusBadRequest)
+				jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.handler_concept_content_required"), http.StatusBadRequest)
 				return
 			}
 
 			storedIDs, err := s.LongTermMem.StoreDocument(req.Concept, req.Content)
 			if err != nil {
 				s.Logger.Error("Failed to archive memory", "error", err)
-				jsonError(w, "Internal server error", http.StatusInternalServerError)
+				jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.handler_internal_error"), http.StatusInternalServerError)
 				return
 			}
 			for _, id := range storedIDs {
@@ -592,7 +593,7 @@ func handleArchiveMemory(s *Server) http.HandlerFunc {
 func handleInterrupt(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.http_method_not_allowed"), http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -603,7 +604,7 @@ func handleInterrupt(s *Server) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{
 			"status":  "success",
-			"message": "Agent interrupted. It will stop after the current step.",
+			"message": i18n.T(s.Cfg.Server.UILanguage, "backend.handler_agent_interrupted"),
 		})
 	}
 }
@@ -613,20 +614,20 @@ func handleInterrupt(s *Server) http.HandlerFunc {
 func handleUpload(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.http_method_not_allowed"), http.StatusMethodNotAllowed)
 			return
 		}
 
 		// 32 MB max upload size
 		r.Body = http.MaxBytesReader(w, r.Body, 32<<20)
 		if err := r.ParseMultipartForm(32 << 20); err != nil {
-			jsonError(w, "failed to parse form", http.StatusBadRequest)
+			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.handler_failed_parse_form"), http.StatusBadRequest)
 			return
 		}
 
 		file, header, err := r.FormFile("file")
 		if err != nil {
-			jsonError(w, "missing file field", http.StatusBadRequest)
+			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.handler_missing_file"), http.StatusBadRequest)
 			return
 		}
 		defer file.Close()
@@ -641,7 +642,7 @@ func handleUpload(s *Server) http.HandlerFunc {
 		attachDir := filepath.Join(s.Cfg.Directories.WorkspaceDir, "attachments")
 		if err := os.MkdirAll(attachDir, 0755); err != nil {
 			s.Logger.Error("Failed to create attachments dir", "error", err)
-			jsonError(w, "failed to create dir", http.StatusInternalServerError)
+			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.handler_failed_create_dir"), http.StatusInternalServerError)
 			return
 		}
 
@@ -649,14 +650,14 @@ func handleUpload(s *Server) http.HandlerFunc {
 		dst, err := os.Create(destPath)
 		if err != nil {
 			s.Logger.Error("Failed to create upload file", "error", err)
-			jsonError(w, "failed to write file", http.StatusInternalServerError)
+			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.handler_failed_write_file"), http.StatusInternalServerError)
 			return
 		}
 		defer dst.Close()
 
 		if _, err := io.Copy(dst, file); err != nil {
 			s.Logger.Error("Failed to write uploaded file", "error", err)
-			jsonError(w, "failed to save file", http.StatusInternalServerError)
+			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.handler_failed_save_file"), http.StatusInternalServerError)
 			return
 		}
 
@@ -723,7 +724,7 @@ func handleOpenRouterCredits(s *Server) http.HandlerFunc {
 		credits, err := llm.FetchOpenRouterCredits(apiKey, baseURL)
 		if err != nil {
 			s.Logger.Error("Failed to fetch OpenRouter credits", "error", err)
-			w.Write([]byte(`{"available":true,"error":"Failed to fetch OpenRouter credits"}`))
+			w.Write([]byte(fmt.Sprintf(`{"available":true,"error":"%s"}`, i18n.T(s.Cfg.Server.UILanguage, "backend.handler_credits_fetch_error"))))
 			return
 		}
 		data, _ := json.Marshal(map[string]interface{}{
