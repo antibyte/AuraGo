@@ -3,9 +3,10 @@ package tools
 
 import (
 	"encoding/json"
-	"fmt"
 	"net"
 	"strings"
+
+	"aurago/internal/i18n"
 )
 
 // dnsRecord represents a single DNS record in the response.
@@ -26,14 +27,15 @@ type dnsResult struct {
 
 // DNSLookup performs DNS record lookups for the given host.
 // recordType can be: "all", "A", "AAAA", "MX", "NS", "TXT", "CNAME", "PTR".
-func DNSLookup(host, recordType string) string {
+// lang is used for i18n of user-facing messages. If empty, English is used.
+func DNSLookup(host, recordType, lang string) string {
 	encode := func(r dnsResult) string {
 		b, _ := json.Marshal(r)
 		return string(b)
 	}
 
 	if host == "" {
-		return encode(dnsResult{Status: "error", Message: "host is required"})
+		return encode(dnsResult{Status: "error", Message: i18n.T(lang, "tools.dns_host_required")})
 	}
 	recordType = strings.ToUpper(strings.TrimSpace(recordType))
 	if recordType == "" {
@@ -62,7 +64,7 @@ func DNSLookup(host, recordType string) string {
 	if lookups["A"] || lookups["AAAA"] {
 		ips, err := net.LookupIP(host)
 		if err != nil {
-			errs = append(errs, fmt.Sprintf("IP lookup: %v", err))
+			errs = append(errs, i18n.T(lang, "tools.dns_ip_lookup_failed", err))
 		} else {
 			for _, ip := range ips {
 				if ip.To4() != nil && lookups["A"] {
@@ -77,7 +79,7 @@ func DNSLookup(host, recordType string) string {
 	if lookups["MX"] {
 		mxRecords, err := net.LookupMX(host)
 		if err != nil {
-			errs = append(errs, fmt.Sprintf("MX lookup: %v", err))
+			errs = append(errs, i18n.T(lang, "tools.dns_mx_lookup_failed", err))
 		} else {
 			for _, mx := range mxRecords {
 				records = append(records, dnsRecord{
@@ -92,7 +94,7 @@ func DNSLookup(host, recordType string) string {
 	if lookups["NS"] {
 		nsRecords, err := net.LookupNS(host)
 		if err != nil {
-			errs = append(errs, fmt.Sprintf("NS lookup: %v", err))
+			errs = append(errs, i18n.T(lang, "tools.dns_ns_lookup_failed", err))
 		} else {
 			for _, ns := range nsRecords {
 				records = append(records, dnsRecord{Type: "NS", Value: strings.TrimSuffix(ns.Host, ".")})
@@ -103,7 +105,7 @@ func DNSLookup(host, recordType string) string {
 	if lookups["TXT"] {
 		txtRecords, err := net.LookupTXT(host)
 		if err != nil {
-			errs = append(errs, fmt.Sprintf("TXT lookup: %v", err))
+			errs = append(errs, i18n.T(lang, "tools.dns_txt_lookup_failed", err))
 		} else {
 			for _, txt := range txtRecords {
 				records = append(records, dnsRecord{Type: "TXT", Value: txt})
@@ -114,7 +116,7 @@ func DNSLookup(host, recordType string) string {
 	if lookups["CNAME"] {
 		cname, err := net.LookupCNAME(host)
 		if err != nil {
-			errs = append(errs, fmt.Sprintf("CNAME lookup: %v", err))
+			errs = append(errs, i18n.T(lang, "tools.dns_cname_lookup_failed", err))
 		} else {
 			cleaned := strings.TrimSuffix(cname, ".")
 			if cleaned != host {
@@ -126,7 +128,7 @@ func DNSLookup(host, recordType string) string {
 	if lookups["PTR"] {
 		names, err := net.LookupAddr(host)
 		if err != nil {
-			errs = append(errs, fmt.Sprintf("PTR lookup: %v", err))
+			errs = append(errs, i18n.T(lang, "tools.dns_ptr_lookup_failed", err))
 		} else {
 			for _, name := range names {
 				records = append(records, dnsRecord{Type: "PTR", Value: strings.TrimSuffix(name, ".")})
@@ -139,7 +141,7 @@ func DNSLookup(host, recordType string) string {
 		result.Status = "error"
 		result.Message = strings.Join(errs, "; ")
 	} else if len(errs) > 0 {
-		result.Message = "partial results: " + strings.Join(errs, "; ")
+		result.Message = i18n.T(lang, "tools.dns_partial_results") + " " + strings.Join(errs, "; ")
 	}
 
 	return encode(result)

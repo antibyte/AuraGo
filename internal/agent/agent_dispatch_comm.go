@@ -707,7 +707,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 		case "network_ping":
 			req := decodeNetworkPingArgs(tc)
 			logger.Info("LLM requested network ping", "host", req.Host)
-			return "Tool Output: " + tools.NetworkPing(req.Host, req.Count, req.Timeout)
+			return "Tool Output: " + tools.NetworkPing(req.Host, req.Count, req.Timeout, cfg.Server.UILanguage)
 
 		case "detect_file_type":
 			req := decodeDetectFileTypeArgs(tc)
@@ -717,7 +717,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 		case "dns_lookup":
 			req := decodeDNSLookupArgs(tc)
 			logger.Info("LLM requested DNS lookup", "host", req.Host, "record_type", req.RecordType)
-			return "Tool Output: " + tools.DNSLookup(req.Host, req.RecordType)
+			return "Tool Output: " + tools.DNSLookup(req.Host, req.RecordType, cfg.Server.UILanguage)
 
 		case "port_scanner":
 			req := decodePortScannerArgs(tc)
@@ -803,7 +803,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 		case "manage_processes", "process_management":
 			req := decodeManageProcessesArgs(tc)
 			logger.Info("LLM requested process management", "op", req.Operation)
-			return "Tool Output: " + tools.ManageProcesses(req.Operation, int32(req.PID))
+			return "Tool Output: " + tools.ManageProcesses(req.Operation, int32(req.PID), cfg.Server.UILanguage)
 
 		case "register_device", "register_server":
 			req := decodeRegisterDeviceArgs(tc)

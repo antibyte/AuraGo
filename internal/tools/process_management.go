@@ -2,10 +2,11 @@ package tools
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"sort"
 	"time"
+
+	"aurago/internal/i18n"
 
 	"github.com/shirou/gopsutil/v4/process"
 )
@@ -27,7 +28,8 @@ type ProcessBasicInfo struct {
 }
 
 // ManageProcesses handles platform-independent process management.
-func ManageProcesses(operation string, pid int32) string {
+// The lang parameter is used for i18n of user-facing messages. If empty, English is used.
+func ManageProcesses(operation string, pid int32, lang string) string {
 	encode := func(r ProcResult) string {
 		b, _ := json.Marshal(r)
 		return string(b)
@@ -37,7 +39,7 @@ func ManageProcesses(operation string, pid int32) string {
 	case "list":
 		procs, err := process.Processes()
 		if err != nil {
-			return encode(ProcResult{Status: "error", Message: fmt.Sprintf("Failed to list processes: %v", err)})
+			return encode(ProcResult{Status: "error", Message: i18n.T(lang, "tools.process_list_failed", err)})
 		}
 
 		// Warm-up: initialize CPU percentage baseline (first call always returns 0)
@@ -82,30 +84,30 @@ func ManageProcesses(operation string, pid int32) string {
 
 		return encode(ProcResult{
 			Status:  "success",
-			Message: fmt.Sprintf("Listed %d processes (top %d by CPU)", len(items), limit),
+			Message: i18n.T(lang, "tools.process_listed", len(items), limit),
 			Data:    items[:limit],
 		})
 
 	case "kill":
 		if pid == 0 {
-			return encode(ProcResult{Status: "error", Message: "PID 0 cannot be killed"})
+			return encode(ProcResult{Status: "error", Message: i18n.T(lang, "tools.process_kill_zero_pid")})
 		}
 		if pid == 1 || pid == int32(os.Getpid()) {
-			return encode(ProcResult{Status: "error", Message: fmt.Sprintf("PID %d is protected and cannot be killed", pid)})
+			return encode(ProcResult{Status: "error", Message: i18n.T(lang, "tools.process_kill_protected", pid)})
 		}
 		p, err := process.NewProcess(pid)
 		if err != nil {
-			return encode(ProcResult{Status: "error", Message: fmt.Sprintf("Process %d not found: %v", pid, err)})
+			return encode(ProcResult{Status: "error", Message: i18n.T(lang, "tools.process_not_found", pid, err)})
 		}
 		if err := p.Kill(); err != nil {
-			return encode(ProcResult{Status: "error", Message: fmt.Sprintf("Failed to kill process %d: %v", pid, err)})
+			return encode(ProcResult{Status: "error", Message: i18n.T(lang, "tools.process_kill_failed", pid, err)})
 		}
-		return encode(ProcResult{Status: "success", Message: fmt.Sprintf("Process %d terminated", pid)})
+		return encode(ProcResult{Status: "success", Message: i18n.T(lang, "tools.process_terminated", pid)})
 
 	case "stats":
 		p, err := process.NewProcess(pid)
 		if err != nil {
-			return encode(ProcResult{Status: "error", Message: fmt.Sprintf("Process %d not found: %v", pid, err)})
+			return encode(ProcResult{Status: "error", Message: i18n.T(lang, "tools.process_not_found", pid, err)})
 		}
 
 		name, _ := p.Name()
@@ -126,6 +128,6 @@ func ManageProcesses(operation string, pid int32) string {
 		return encode(ProcResult{Status: "success", Data: stats})
 
 	default:
-		return encode(ProcResult{Status: "error", Message: fmt.Sprintf("Unknown operation: %s. Valid: list, kill, stats", operation)})
+		return encode(ProcResult{Status: "error", Message: i18n.T(lang, "tools.process_unknown_op", operation)})
 	}
 }

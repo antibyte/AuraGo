@@ -3,8 +3,9 @@ package tools
 
 import (
 	"encoding/json"
-	"fmt"
 	"time"
+
+	"aurago/internal/i18n"
 
 	probing "github.com/prometheus-community/pro-bing"
 )
@@ -26,20 +27,21 @@ type pingResult struct {
 }
 
 // NetworkPing sends ICMP echo requests to host and returns statistics.
-// count     – number of packets (1–20; defaults to 4)
+// count       – number of packets (1–20; defaults to 4)
 // timeoutSecs – total timeout in seconds (1–60; defaults to 10)
+// lang        – language for i18n of user-facing messages. If empty, English is used.
 //
 // Note: ICMP raw sockets typically require elevated privileges on Linux/macOS.
 // On Windows this usually works without elevation. The tool sets Privileged(true);
 // if the process lacks the necessary capability the error is reported clearly.
-func NetworkPing(targetHost string, count, timeoutSecs int) string {
+func NetworkPing(targetHost string, count, timeoutSecs int, lang string) string {
 	encode := func(r pingResult) string {
 		b, _ := json.Marshal(r)
 		return string(b)
 	}
 
 	if targetHost == "" {
-		return encode(pingResult{Status: "error", Message: "host is required"})
+		return encode(pingResult{Status: "error", Message: i18n.T(lang, "tools.ping_host_required")})
 	}
 
 	// Clamp parameters to sane ranges
@@ -55,7 +57,7 @@ func NetworkPing(targetHost string, count, timeoutSecs int) string {
 		return encode(pingResult{
 			Status:  "error",
 			Host:    targetHost,
-			Message: fmt.Sprintf("failed to create pinger: %v", err),
+			Message: i18n.T(lang, "tools.ping_create_failed", err),
 		})
 	}
 
@@ -70,7 +72,7 @@ func NetworkPing(targetHost string, count, timeoutSecs int) string {
 			return encode(pingResult{
 				Status:  "error",
 				Host:    targetHost,
-				Message: fmt.Sprintf("ping failed: %v — ensure the process has permission to send ICMP packets (root / CAP_NET_RAW on Linux)", err),
+				Message: i18n.T(lang, "tools.ping_failed_privileged", err),
 			})
 		}
 		pinger2.Count = count
@@ -80,7 +82,7 @@ func NetworkPing(targetHost string, count, timeoutSecs int) string {
 			return encode(pingResult{
 				Status:  "error",
 				Host:    targetHost,
-				Message: fmt.Sprintf("ping failed (privileged: %v; unprivileged: %v) — ensure the host is reachable and ICMP is allowed", err, err2),
+				Message: i18n.T(lang, "tools.ping_failed_both", err, err2),
 			})
 		}
 		pinger = pinger2
