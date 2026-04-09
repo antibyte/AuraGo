@@ -471,7 +471,7 @@ func buildAdaptiveToolPriority(schemas []openai.Tool, weightedUsage []string, us
 	}
 
 	if guideSearcher != nil && strings.TrimSpace(userQuery) != "" {
-		paths, err := guideSearcher.SearchToolGuides(userQuery, 4)
+		paths, err := searchToolGuidesWithTimeout(guideSearcher, userQuery, 4, logger)
 		if err != nil {
 			if logger != nil {
 				logger.Debug("[AdaptiveTools] Semantic tool search unavailable", "error", err)

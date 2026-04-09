@@ -143,6 +143,12 @@ func (f fakeGuideSearcher) SearchToolGuides(query string, topK int) ([]string, e
 	return f.paths, f.err
 }
 
+type blockingGuideSearcher struct{}
+
+func (blockingGuideSearcher) SearchToolGuides(query string, topK int) ([]string, error) {
+	select {}
+}
+
 // makeTool is a test helper that builds a minimal openai.Tool with the given function name.
 func makeTool(name string) openai.Tool {
 	return openai.Tool{
@@ -364,6 +370,35 @@ func TestBuildAdaptiveToolPriorityAddsCuratedDependencyNeighbors(t *testing.T) {
 	}
 	if !containsName(prioritized, "homepage_registry") {
 		t.Fatalf("expected curated homepage neighbor homepage_registry, got %v", prioritized)
+	}
+}
+
+func TestBuildAdaptiveToolPriority_DoesNotBlockOnSemanticSearchTimeout(t *testing.T) {
+	schemas := []openai.Tool{
+		makeTool("shell"),
+		makeTool("homepage"),
+	}
+
+	started := time.Now()
+	prioritized := buildAdaptiveToolPriority(
+		schemas,
+		[]string{"shell"},
+		"please deploy the homepage",
+		blockingGuideSearcher{},
+		nil,
+	)
+
+	if elapsed := time.Since(started); elapsed > adaptiveToolGuideSearchTimeout+500*time.Millisecond {
+		t.Fatalf("buildAdaptiveToolPriority blocked too long: %v", elapsed)
+	}
+	if len(prioritized) == 0 {
+		t.Fatalf("expected fallback prioritized tools, got none")
+	}
+	if prioritized[0] != "homepage" {
+		t.Fatalf("expected homepage first, got %v", prioritized)
+	}
+	if !containsName(prioritized, "shell") {
+		t.Fatalf("expected weighted fallback tool shell, got %v", prioritized)
 	}
 }
 
