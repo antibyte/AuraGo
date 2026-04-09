@@ -231,6 +231,10 @@ let seenSSEImages = new Set();
 // Tracks whether the HTTP response for the current request has been rendered.
 // Used by the SSE 'done' fallback to avoid duplicate rendering.
 let _httpResponseRendered = false;
+// Set when the HTTP fetch fails with a network error while SSE is still alive.
+// Suppresses the immediate error message and keeps the status bar visible so the
+// SSE 'done' handler can recover the response once the agent finishes.
+let _fetchConnectionLost = false;
 let seenSSEAudios = new Set();
 let seenSSEDocuments = new Set();
 let currentPlanState = null;
@@ -1156,6 +1160,11 @@ chatForm.addEventListener('submit', async (e) => {
     } catch (error) {
         if (error.name === 'AbortError') {
             appendMessage('assistant', t('chat.error_timeout'));
+        } else if (error instanceof TypeError && window.AuraSSE && window.AuraSSE.isConnected()) {
+            // Network-level connection drop while SSE is still alive — the agent is
+            // still running on the backend.  Suppress the error message and keep the
+            // status bar visible; the SSE 'done' event will recover the response.
+            _fetchConnectionLost = true;
         } else {
             // Try to recover the response from /history before showing an error.
             // This handles the case where the HTTP connection was lost during a
@@ -1169,8 +1178,10 @@ chatForm.addEventListener('submit', async (e) => {
         userInput.disabled = false;
         sendBtn.disabled = false;
         userInput.focus();
-        chatSetHidden(document.getElementById('agentStatusContainer'), true);
-        stopBtn.disabled = true;
+        if (!_fetchConnectionLost) {
+            chatSetHidden(document.getElementById('agentStatusContainer'), true);
+            stopBtn.disabled = true;
+        }
     }
 });
 
@@ -1539,6 +1550,7 @@ function handleSSEMessage(e) {
             } catch (e) { /* ignore */ }
             return;
         } else if (data.event === 'done') {
+            _fetchConnectionLost = false;
             chatSetHidden(agentStatusDiv, true);
             stopBtn.disabled = true;
             hideTodoPanel();
