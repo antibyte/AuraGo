@@ -2,6 +2,7 @@ package server
 
 import (
 	"aurago/internal/config"
+	"aurago/internal/i18n"
 	"aurago/internal/llm"
 	"aurago/internal/memory"
 	"aurago/internal/setup"
@@ -43,7 +44,7 @@ func generateSetupCSRF() string {
 func handleSetupStatus(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.http_method_not_allowed"), http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -76,7 +77,7 @@ func handleSetupStatus(s *Server) http.HandlerFunc {
 func handleSetupSave(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.http_method_not_allowed"), http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -90,7 +91,7 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 		s.CfgMu.RUnlock()
 		if alreadyConfigured {
 			s.Logger.Warn("[Setup] POST to /api/setup rejected — setup already completed")
-			jsonError(w, "Setup already completed", http.StatusForbidden)
+			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.setup_already_completed"), http.StatusForbidden)
 			return
 		}
 
@@ -102,13 +103,13 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 		setupCSRFMu.Unlock()
 		if token := r.Header.Get("X-CSRF-Token"); token == "" || expectedToken == "" || token != expectedToken {
 			s.Logger.Warn("[Setup] CSRF token mismatch")
-			jsonError(w, "Invalid CSRF token", http.StatusForbidden)
+			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.setup_invalid_csrf_token"), http.StatusForbidden)
 			return
 		}
 
 		configPath := s.Cfg.ConfigPath
 		if configPath == "" {
-			jsonError(w, "Config path not set", http.StatusInternalServerError)
+			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.setup_config_path_not_set"), http.StatusInternalServerError)
 			return
 		}
 
@@ -120,14 +121,14 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 		r.Body = http.MaxBytesReader(w, r.Body, maxBody)
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
-			jsonError(w, "Failed to read request body", http.StatusBadRequest)
+			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.setup_failed_read_request_body"), http.StatusBadRequest)
 			return
 		}
 		defer r.Body.Close()
 
 		var patch map[string]interface{}
 		if err := json.Unmarshal(body, &patch); err != nil {
-			jsonError(w, "Invalid JSON", http.StatusBadRequest)
+			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.auth_invalid_json"), http.StatusBadRequest)
 			return
 		}
 
@@ -141,14 +142,14 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 		data, err := os.ReadFile(configPath)
 		if err != nil {
 			s.Logger.Error("[Setup] Failed to read config file", "error", err)
-			jsonError(w, "Failed to read config", http.StatusInternalServerError)
+			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.setup_failed_read_config"), http.StatusInternalServerError)
 			return
 		}
 
 		var rawCfg map[string]interface{}
 		if err := yaml.Unmarshal(data, &rawCfg); err != nil {
 			s.Logger.Error("[Setup] Failed to parse config", "error", err)
-			jsonError(w, "Failed to parse config", http.StatusInternalServerError)
+			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.setup_failed_parse_config"), http.StatusInternalServerError)
 			return
 		}
 
@@ -207,13 +208,13 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 		out, err := yaml.Marshal(rawCfg)
 		if err != nil {
 			s.Logger.Error("[Setup] Failed to marshal config", "error", err)
-			jsonError(w, "Failed to save config", http.StatusInternalServerError)
+			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.setup_failed_save_config"), http.StatusInternalServerError)
 			return
 		}
 
 		if err := config.WriteFileAtomic(configPath, out, 0o600); err != nil {
 			s.Logger.Error("[Setup] Failed to write config", "error", err)
-			jsonError(w, "Failed to write config", http.StatusInternalServerError)
+			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.setup_failed_write_config"), http.StatusInternalServerError)
 			return
 		}
 
@@ -279,13 +280,13 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 			newHash, err := HashPassword(setupPassword)
 			if err != nil {
 				s.Logger.Error("[Setup] Failed to hash admin password", "error", err)
-				jsonError(w, "Failed to hash admin password", http.StatusInternalServerError)
+				jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.auth_internal_error"), http.StatusInternalServerError)
 				return
 			}
 			newSecret, err := GenerateRandomHex(32)
 			if err != nil {
 				s.Logger.Error("[Setup] Failed to generate session secret", "error", err)
-				jsonError(w, "Failed to generate session secret", http.StatusInternalServerError)
+				jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.auth_failed_generate_secret"), http.StatusInternalServerError)
 				return
 			}
 			if err := patchAuthConfig(s, map[string]interface{}{
@@ -294,7 +295,7 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 				"session_secret": newSecret,
 			}); err != nil {
 				s.Logger.Error("[Setup] Failed to persist admin password", "error", err)
-				jsonError(w, "Failed to save admin password", http.StatusInternalServerError)
+				jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.auth_failed_save_config"), http.StatusInternalServerError)
 				return
 			}
 			s.Logger.Info("[Setup] Admin password initialized")
@@ -302,7 +303,7 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		if needsRestart {
-			msg := fmt.Sprintf("Saved. Restart required for: %s", strings.Join(restartReasons, ", "))
+			msg := i18n.T(s.Cfg.Server.UILanguage, "backend.setup_restart_required", strings.Join(restartReasons, ", "))
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status":         "saved",
 				"message":        msg,
@@ -312,7 +313,7 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 		} else {
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status":        "saved",
-				"message":       "Setup complete! Configuration saved and applied.",
+				"message":       i18n.T(s.Cfg.Server.UILanguage, "backend.setup_complete_message"),
 				"needs_restart": false,
 			})
 		}
@@ -411,7 +412,7 @@ func needsSetup(cfg *config.Config) bool {
 func handleSetupTestConnection(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.http_method_not_allowed"), http.StatusMethodNotAllowed)
 			return
 		}
 
@@ -419,7 +420,7 @@ func handleSetupTestConnection(s *Server) http.HandlerFunc {
 		show := needsSetup(s.Cfg)
 		s.CfgMu.RUnlock()
 		if !show {
-			jsonError(w, "Setup already completed", http.StatusForbidden)
+			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.setup_already_completed"), http.StatusForbidden)
 			return
 		}
 
@@ -430,12 +431,12 @@ func handleSetupTestConnection(s *Server) http.HandlerFunc {
 			Model        string `json:"model"`
 		}
 		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&req); err != nil {
-			jsonError(w, "Invalid request", http.StatusBadRequest)
+			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.setup_invalid_request"), http.StatusBadRequest)
 			return
 		}
 
 		if req.Model == "" {
-			jsonError(w, "Model is required", http.StatusBadRequest)
+			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.setup_model_required"), http.StatusBadRequest)
 			return
 		}
 
@@ -464,7 +465,7 @@ func handleSetupTestConnection(s *Server) http.HandlerFunc {
 
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"ok":      true,
-			"message": "Connection successful",
+			"message": i18n.T(s.Cfg.Server.UILanguage, "backend.setup_connection_successful"),
 		})
 	}
 }
@@ -474,7 +475,7 @@ func handleSetupTestConnection(s *Server) http.HandlerFunc {
 func handleSetupProfiles(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.http_method_not_allowed"), http.StatusMethodNotAllowed)
 			return
 		}
 
