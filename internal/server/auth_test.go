@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -211,5 +212,95 @@ func TestAuthMiddlewareLoopbackFollowUpBypassRequiresLoopbackRemoteAddr(t *testi
 	handler.ServeHTTP(wrongTokenRec, wrongTokenReq)
 	if wrongTokenRec.Code != http.StatusUnauthorized {
 		t.Fatalf("loopback follow-up with wrong token status = %d, want 401", wrongTokenRec.Code)
+	}
+}
+
+// TestCheckCSRFOriginValidOrigin verifies that a matching Origin header is accepted.
+func TestCheckCSRFOriginValidOrigin(t *testing.T) {
+	t.Parallel()
+	req := httptest.NewRequest(http.MethodPost, "https://example.com/api/data", nil)
+	req.Header.Set("Origin", "https://example.com")
+	req.Host = "example.com"
+	if !checkCSRFOrigin(req) {
+		t.Error("expected checkCSRFOrigin to return true for matching Origin")
+	}
+}
+
+// TestCheckCSRFOriginMismatchOrigin verifies that a mismatched Origin header is rejected.
+func TestCheckCSRFOriginMismatchOrigin(t *testing.T) {
+	t.Parallel()
+	req := httptest.NewRequest(http.MethodPost, "https://example.com/api/data", nil)
+	req.Header.Set("Origin", "https://evil.com")
+	req.Host = "example.com"
+	if checkCSRFOrigin(req) {
+		t.Error("expected checkCSRFOrigin to return false for mismatched Origin")
+	}
+}
+
+// TestCheckCSRFOriginNoHeaders verifies that requests without Origin or Referer are rejected.
+func TestCheckCSRFOriginNoHeaders(t *testing.T) {
+	t.Parallel()
+	req := httptest.NewRequest(http.MethodPost, "https://example.com/api/data", nil)
+	req.Host = "example.com"
+	if checkCSRFOrigin(req) {
+		t.Error("expected checkCSRFOrigin to return false when both Origin and Referer are missing")
+	}
+}
+
+// TestCheckCSRFOriginValidReferer verifies that a valid matching Referer is accepted.
+func TestCheckCSRFOriginValidReferer(t *testing.T) {
+	t.Parallel()
+	req := httptest.NewRequest(http.MethodPost, "https://example.com/api/data", nil)
+	req.Header.Set("Referer", "https://example.com/page")
+	req.Host = "example.com"
+	if !checkCSRFOrigin(req) {
+		t.Error("expected checkCSRFOrigin to return true for matching Referer")
+	}
+}
+
+// TestCheckCSRFOriginMismatchReferer verifies that a mismatched Referer host is rejected.
+func TestCheckCSRFOriginMismatchReferer(t *testing.T) {
+	t.Parallel()
+	req := httptest.NewRequest(http.MethodPost, "https://example.com/api/data", nil)
+	req.Header.Set("Referer", "https://evil.com/page")
+	req.Host = "example.com"
+	if checkCSRFOrigin(req) {
+		t.Error("expected checkCSRFOrigin to return false for mismatched Referer host")
+	}
+}
+
+// TestCheckCSRFOriginHTTPSDowngrade verifies that HTTPS requests with HTTP Referer are rejected.
+func TestCheckCSRFOriginHTTPSDowngrade(t *testing.T) {
+	t.Parallel()
+	req := httptest.NewRequest(http.MethodPost, "https://example.com/api/data", nil)
+	req.Header.Set("Referer", "http://example.com/page") // HTTP Referer on HTTPS request
+	req.Host = "example.com"
+	// Simulate TLS being present (r.TLS != nil) by constructing the URL with https scheme.
+	req.URL, _ = url.Parse("https://example.com/api/data")
+	if checkCSRFOrigin(req) {
+		t.Error("expected checkCSRFOrigin to return false for HTTPS request with HTTP Referer")
+	}
+}
+
+// TestCheckCSRFOriginMalformedReferer verifies that a malformed Referer is rejected.
+func TestCheckCSRFOriginMalformedReferer(t *testing.T) {
+	t.Parallel()
+	req := httptest.NewRequest(http.MethodPost, "https://example.com/api/data", nil)
+	req.Header.Set("Referer", "not-a-valid-url")
+	req.Host = "example.com"
+	if checkCSRFOrigin(req) {
+		t.Error("expected checkCSRFOrigin to return false for malformed Referer")
+	}
+}
+
+// TestCheckCSRFOriginWithXForwardedHost verifies that X-Forwarded-Host is respected.
+func TestCheckCSRFOriginWithXForwardedHost(t *testing.T) {
+	t.Parallel()
+	req := httptest.NewRequest(http.MethodPost, "https://example.com/api/data", nil)
+	req.Header.Set("Referer", "https://example.com/page")
+	req.Header.Set("X-Forwarded-Host", "example.com")
+	req.Host = "localhost" // actual host differs, but X-Forwarded-Host takes precedence
+	if !checkCSRFOrigin(req) {
+		t.Error("expected checkCSRFOrigin to return true when X-Forwarded-Host matches Referer host")
 	}
 }
