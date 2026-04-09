@@ -136,6 +136,7 @@ func (kg *KnowledgeGraph) reindexSemanticNodes() error {
 	if err != nil {
 		return fmt.Errorf("load dirty nodes for semantic reindex: %w", err)
 	}
+	defer rows.Close()
 	var nodes []Node
 	for rows.Next() {
 		var n Node
@@ -147,7 +148,6 @@ func (kg *KnowledgeGraph) reindexSemanticNodes() error {
 			nodes = append(nodes, n)
 		}
 	}
-	rows.Close()
 
 	var indexedNodeIDs []string
 	for _, node := range nodes {
@@ -174,7 +174,10 @@ func (kg *KnowledgeGraph) reindexSemanticNodes() error {
 		)
 		LIMIT 5000
 	`)
-	if err == nil {
+	if err != nil {
+		kg.semantic.logger.Warn("reindexSemanticNodes: edge query failed", "error", err)
+	} else {
+		defer edgeRows.Close()
 		var edges []Edge
 		for edgeRows.Next() {
 			var e Edge
@@ -187,7 +190,6 @@ func (kg *KnowledgeGraph) reindexSemanticNodes() error {
 				edges = append(edges, e)
 			}
 		}
-		edgeRows.Close()
 		for _, edge := range edges {
 			kg.upsertSemanticEdgeIndex(edge)
 		}

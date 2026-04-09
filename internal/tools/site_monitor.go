@@ -18,10 +18,13 @@ import (
 )
 
 // siteMonitorDB holds the lazily-initialized database connection.
+// siteMonitorMu protects access to siteMonitorDB to allow safe concurrent queries
+// and clean shutdown via CloseSiteMonitorDB.
 var (
 	siteMonitorDB   *sql.DB
 	siteMonitorOnce sync.Once
 	siteMonitorErr  error
+	siteMonitorMu   sync.RWMutex
 )
 
 type siteMonitorResult struct {

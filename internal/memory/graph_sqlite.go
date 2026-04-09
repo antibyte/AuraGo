@@ -184,7 +184,9 @@ func (kg *KnowledgeGraph) accessCountWorker() {
 			stmt, err := tx.PrepareContext(ctx, "UPDATE kg_nodes SET access_count = access_count + ? WHERE id = ?")
 			if err == nil {
 				for id, count := range nodeHits {
-					stmt.ExecContext(ctx, count, id)
+					if _, execErr := stmt.ExecContext(ctx, count, id); execErr != nil {
+						kg.logger.Warn("KG access count update failed for node", "id", id, "count", count, "error", execErr)
+					}
 				}
 				stmt.Close()
 			}
@@ -194,7 +196,9 @@ func (kg *KnowledgeGraph) accessCountWorker() {
 			stmt, err := tx.PrepareContext(ctx, "UPDATE kg_edges SET access_count = access_count + ? WHERE source = ? AND target = ? AND relation = ?")
 			if err == nil {
 				for e, count := range edgeHits {
-					stmt.ExecContext(ctx, count, e.source, e.target, e.relation)
+					if _, execErr := stmt.ExecContext(ctx, count, e.source, e.target, e.relation); execErr != nil {
+						kg.logger.Warn("KG access count update failed for edge", "source", e.source, "target", e.target, "relation", e.relation, "error", execErr)
+					}
 				}
 				stmt.Close()
 			}
@@ -896,7 +900,10 @@ func (kg *KnowledgeGraph) Search(query string) string {
 		WHERE id LIKE ? ESCAPE '\' OR label LIKE ? ESCAPE '\' OR properties LIKE ? ESCAPE '\'
 		LIMIT 50
 	`, ftsQuery, likePattern, likePattern, likePattern)
-	if err == nil {
+	if err != nil {
+		kg.logger.Warn("Search: node query failed", "error", err)
+	} else {
+		defer rows.Close()
 		for rows.Next() {
 			var n Node
 			var propsJSON string
@@ -908,7 +915,6 @@ func (kg *KnowledgeGraph) Search(query string) string {
 				matchedNodeIDs = append(matchedNodeIDs, n.ID)
 			}
 		}
-		rows.Close()
 	}
 
 	// Edge search — substring match on source, target, relation
@@ -923,7 +929,10 @@ func (kg *KnowledgeGraph) Search(query string) string {
 		WHERE LOWER(source) LIKE ? ESCAPE '\' OR LOWER(target) LIKE ? ESCAPE '\' OR LOWER(relation) LIKE ? ESCAPE '\' OR LOWER(properties) LIKE ? ESCAPE '\'
 		LIMIT 50
 	`, edgeFTSQuery, likeQ, likeQ, likeQ, likeQ)
-	if err == nil {
+	if err != nil {
+		kg.logger.Warn("Search: edge query failed", "error", err)
+	} else {
+		defer edgeRows.Close()
 		for edgeRows.Next() {
 			var e Edge
 			var propsJSON string
@@ -942,7 +951,6 @@ func (kg *KnowledgeGraph) Search(query string) string {
 				})
 			}
 		}
-		edgeRows.Close()
 	}
 
 	if len(matchedNodes) == 0 && len(matchedEdges) == 0 {
@@ -1097,7 +1105,10 @@ func (kg *KnowledgeGraph) SearchForContext(query string, maxNodes int, maxChars 
 	`, ftsQuery, maxNodes)
 
 	count := 0
-	if err == nil {
+	if err != nil {
+		kg.logger.Warn("SearchForContext: FTS5 query failed", "error", err)
+	} else {
+		defer rows.Close()
 		for rows.Next() {
 			var id string
 			var ac sql.NullInt64
@@ -1118,22 +1129,24 @@ func (kg *KnowledgeGraph) SearchForContext(query string, maxNodes int, maxChars 
 				count++
 			}
 		}
-		rows.Close()
 	}
 
 	if count == 0 {
 		likeQ := "%" + dbutil.EscapeLike(query) + "%"
-		rows, err := kg.db.Query(`
+		likeRows, err := kg.db.Query(`
 			SELECT id, access_count FROM kg_nodes
 			WHERE id LIKE ? OR label LIKE ? OR properties LIKE ?
 			ORDER BY updated_at DESC, access_count DESC
 			LIMIT ?
 		`, likeQ, likeQ, likeQ, maxNodes)
-		if err == nil {
-			for rows.Next() {
+		if err != nil {
+			kg.logger.Warn("SearchForContext: LIKE fallback query failed", "error", err)
+		} else {
+			defer likeRows.Close()
+			for likeRows.Next() {
 				var id string
 				var ac sql.NullInt64
-				if rows.Scan(&id, &ac) == nil {
+				if likeRows.Scan(&id, &ac) == nil {
 					likeScore := float32(0.3) - (float32(count) * 0.05)
 					if likeScore < 0.1 {
 						likeScore = 0.1
@@ -1142,7 +1155,6 @@ func (kg *KnowledgeGraph) SearchForContext(query string, maxNodes int, maxChars 
 					count++
 				}
 			}
-			rows.Close()
 		}
 	}
 
@@ -1197,7 +1209,10 @@ func (kg *KnowledgeGraph) SearchForContext(query string, maxNodes int, maxChars 
 			ORDER BY access_count DESC
 			LIMIT 5
 		`, nid, nid)
-		if err == nil {
+		if err != nil {
+			kg.logger.Warn("SearchForContext: edge query failed", "nid", nid, "error", err)
+		} else {
+			defer edgeRows.Close()
 			for edgeRows.Next() {
 				var src, tgt, rel string
 				if edgeRows.Scan(&src, &tgt, &rel) == nil {
@@ -1207,7 +1222,6 @@ func (kg *KnowledgeGraph) SearchForContext(query string, maxNodes int, maxChars 
 					})
 				}
 			}
-			edgeRows.Close()
 		}
 
 		if sb.Len() > maxChars {
@@ -1354,6 +1368,7 @@ func (kg *KnowledgeGraph) OptimizeGraph(threshold int) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("query for optimization: %w", err)
 	}
+	defer rows.Close()
 
 	var toRemove []string
 	for rows.Next() {
@@ -1366,7 +1381,6 @@ func (kg *KnowledgeGraph) OptimizeGraph(threshold int) (int, error) {
 			}
 		}
 	}
-	rows.Close()
 
 	if len(toRemove) == 0 {
 		return 0, nil
@@ -1378,15 +1392,22 @@ func (kg *KnowledgeGraph) OptimizeGraph(threshold int) (int, error) {
 	}
 	defer tx.Rollback()
 
+	nodesDeleted := 0
 	for _, id := range toRemove {
-		tx.Exec("DELETE FROM kg_edges WHERE source = ? OR target = ?", id, id)
-		tx.Exec("DELETE FROM kg_nodes WHERE id = ?", id)
+		if _, execErr := tx.Exec("DELETE FROM kg_edges WHERE source = ? OR target = ?", id, id); execErr != nil {
+			kg.logger.Warn("OptimizeGraph: failed to delete edges for node", "id", id, "error", execErr)
+		}
+		if _, execErr := tx.Exec("DELETE FROM kg_nodes WHERE id = ?", id); execErr != nil {
+			kg.logger.Warn("OptimizeGraph: failed to delete node", "id", id, "error", execErr)
+		} else {
+			nodesDeleted++
+		}
 	}
 
 	if err := tx.Commit(); err != nil {
 		return 0, err
 	}
-	return len(toRemove), nil
+	return nodesDeleted, nil
 }
 
 // CleanupStaleGraph removes pending edges (co_mentioned_with edges that never reached threshold)
@@ -1425,6 +1446,7 @@ func (kg *KnowledgeGraph) CleanupStaleGraph(thresholdDays int) (int, int, error)
 	if err != nil {
 		return 0, 0, fmt.Errorf("query unaccessed nodes: %w", err)
 	}
+	defer rows.Close()
 
 	var toRemove []string
 	for rows.Next() {
@@ -1433,11 +1455,14 @@ func (kg *KnowledgeGraph) CleanupStaleGraph(thresholdDays int) (int, int, error)
 			toRemove = append(toRemove, id)
 		}
 	}
-	rows.Close()
 
 	for _, id := range toRemove {
-		tx.Exec("DELETE FROM kg_edges WHERE source = ? OR target = ?", id, id)
-		tx.Exec("DELETE FROM kg_nodes WHERE id = ?", id)
+		if _, execErr := tx.Exec("DELETE FROM kg_edges WHERE source = ? OR target = ?", id, id); execErr != nil {
+			kg.logger.Warn("CleanupStaleGraph: failed to delete edges for node", "id", id, "error", execErr)
+		}
+		if _, execErr := tx.Exec("DELETE FROM kg_nodes WHERE id = ?", id); execErr != nil {
+			kg.logger.Warn("CleanupStaleGraph: failed to delete node", "id", id, "error", execErr)
+		}
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -2291,7 +2316,10 @@ func (kg *KnowledgeGraph) GetSubgraph(centerNodeID string, maxDepth int) ([]Node
 			strings.Join(placeholders, ","),
 		)
 		batchRows, batchErr := kg.db.Query(batchEdgeQuery, batchArgs...)
-		if batchErr == nil {
+		if batchErr != nil {
+			kg.logger.Warn("GetSubgraph: batch edge query failed", "error", batchErr)
+		} else {
+			defer batchRows.Close()
 			for batchRows.Next() {
 				var e Edge
 				var propsJSON string
@@ -2315,7 +2343,6 @@ func (kg *KnowledgeGraph) GetSubgraph(centerNodeID string, maxDepth int) ([]Node
 					}
 				}
 			}
-			batchRows.Close()
 		}
 
 		if len(neighborIDs) == 0 {

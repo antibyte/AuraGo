@@ -22,7 +22,10 @@ func (kg *KnowledgeGraph) Explore(query string) string {
 		ftsQuery := escapeFTS5(query)
 		likePattern := "%" + strings.ToLower(query) + "%"
 		rows, err := kg.db.Query(`SELECT id, label, properties, protected FROM kg_nodes WHERE rowid IN (SELECT rowid FROM kg_nodes_fts WHERE kg_nodes_fts MATCH ?) UNION SELECT id, label, properties, protected FROM kg_nodes WHERE id LIKE ? OR label LIKE ? OR properties LIKE ? LIMIT 5`, ftsQuery, likePattern, likePattern, likePattern)
-		if err == nil {
+		if err != nil {
+			kg.logger.Warn("Explore: fallback query failed", "error", err)
+		} else {
+			defer rows.Close()
 			for rows.Next() {
 				var n Node
 				var propsJSON string
@@ -34,7 +37,6 @@ func (kg *KnowledgeGraph) Explore(query string) string {
 					matchedNodeIDs = append(matchedNodeIDs, n.ID)
 				}
 			}
-			rows.Close()
 		}
 	}
 
