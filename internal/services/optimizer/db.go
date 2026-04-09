@@ -213,7 +213,8 @@ func (o *OptimizerDB) LogToolTrace(toolName string, success bool, recoveryLoops 
 	query := `INSERT INTO tool_traces (tool_name, success, recovery_loops, prompt_version, error_message, execution_time_ms) VALUES (?, ?, ?, ?, ?, ?)`
 	_, err := o.db.Exec(query, toolName, success, recoveryLoops, promptVersion, errMsg, execTimeMs)
 	if err != nil {
-		slog.Error("Failed to log tool trace", "tool", toolName, "error", err)
+		// Non-critical telemetry write — log as WARN so it doesn't alarm on transient lock contention.
+		slog.Warn("Failed to log tool trace", "tool", toolName, "error", err)
 	}
 	return err
 }

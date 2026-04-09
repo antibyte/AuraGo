@@ -549,8 +549,11 @@ func decodeKnowledgeGraphArgs(tc ToolCall) knowledgeGraphArgs {
 }
 
 func decodeCoreMemoryArgs(tc ToolCall) coreMemoryArgs {
+	// Some models (e.g. glm-5.1) emit "action_type" instead of "operation".
+	// Resolve operation with fallback priority: operation → action_type → params.
+	operation := firstNonEmptyToolString(tc.Operation, tc.ActionType, toolArgString(tc.Params, "operation", "action_type"))
 	return coreMemoryArgs{
-		Operation:   firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		Operation:   operation,
 		Fact:        firstNonEmptyToolString(tc.Fact, toolArgString(tc.Params, "fact")),
 		Key:         firstNonEmptyToolString(tc.Key, toolArgString(tc.Params, "key")),
 		Value:       firstNonEmptyToolString(tc.Value, toolArgString(tc.Params, "value")),
@@ -710,22 +713,22 @@ func decodeJSONEditorArgs(tc ToolCall) jsonEditorArgs {
 }
 
 type tomlEditorArgs struct {
-        Operation string
-        FilePath  string
-        TomlPath  string
-        SetValue  interface{}
+	Operation string
+	FilePath  string
+	TomlPath  string
+	SetValue  interface{}
 }
 
 func decodeTOMLEditorArgs(tc ToolCall) tomlEditorArgs {
-        req := tomlEditorArgs{
-                Operation: firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
-                FilePath:  firstNonEmptyToolString(tc.FilePath, tc.Path, toolArgString(tc.Params, "file_path", "path")),
-                TomlPath:  firstNonEmptyToolString(toolArgString(tc.Params, "toml_path"), toolArgString(tc.Params, "json_path")),
-        }
-        if value, ok := toolArgRaw(tc.Params, "set_value"); ok {
-                req.SetValue = value
-        }
-        return req
+	req := tomlEditorArgs{
+		Operation: firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		FilePath:  firstNonEmptyToolString(tc.FilePath, tc.Path, toolArgString(tc.Params, "file_path", "path")),
+		TomlPath:  firstNonEmptyToolString(toolArgString(tc.Params, "toml_path"), toolArgString(tc.Params, "json_path")),
+	}
+	if value, ok := toolArgRaw(tc.Params, "set_value"); ok {
+		req.SetValue = value
+	}
+	return req
 }
 
 func decodeYAMLEditorArgs(tc ToolCall) yamlEditorArgs {

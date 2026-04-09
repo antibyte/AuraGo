@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strings"
 )
 
 // Open opens a SQLite database with standard pragmas and configuration.
@@ -27,8 +28,13 @@ func Open(dbPath string, opts ...Option) (*sql.DB, error) {
 		opt(&cfg)
 	}
 
-	// Open database
-	db, err := sql.Open("sqlite", dbPath)
+	// Open database.
+	// Embed _busy_timeout in the DSN so modernc.org/sqlite applies it to every
+	// new connection opened from the pool — not just the first one.  Without
+	// this, connections #2..N created lazily by MaxOpenConns>1 never get the
+	// PRAGMA, causing immediate SQLITE_BUSY (5) errors under write concurrency.
+	dsn := buildDSN(dbPath, cfg.busyTimeout)
+	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
@@ -84,6 +90,16 @@ func Open(dbPath string, opts ...Option) (*sql.DB, error) {
 	}
 
 	return db, nil
+}
+
+// buildDSN builds the SQLite DSN, embedding _busy_timeout so that every new
+// connection opened from the pool inherits the timeout automatically.
+func buildDSN(path string, busyTimeoutMs int) string {
+	param := fmt.Sprintf("_busy_timeout=%d", busyTimeoutMs)
+	if strings.Contains(path, "?") {
+		return path + "&" + param
+	}
+	return path + "?" + param
 }
 
 // applyPragmas applies the standard SQLite PRAGMAs.

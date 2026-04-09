@@ -302,6 +302,7 @@ type ToolCall struct {
 	NativeArgsRaw       string                   `json:"-"`
 	Todo                StringOrArray            `json:"_todo,omitempty"` // Session-scoped task list piggybacked on every tool call
 	Operation           string                   `json:"operation"`
+	ActionType          string                   `json:"action_type"` // Alias for operation (used by some models like glm-5.1)
 	Fact                string                   `json:"fact"`
 	ID                  string                   `json:"id"`
 	CronExpr            string                   `json:"cron_expr"`
