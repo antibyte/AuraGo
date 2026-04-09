@@ -468,7 +468,6 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 				return
 			}
 
-
 			// Conclude SSE stream nicely
 			_, _ = io.WriteString(w, "data: [DONE]\n\n")
 			flusher.Flush()
