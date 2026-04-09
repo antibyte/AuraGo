@@ -94,9 +94,9 @@ func ExecuteWithCustomRetry(ctx context.Context, client ChatClient, req openai.C
 			waitTime = finalInterval
 		}
 
-			if _, hasDeadline := ctx.Deadline(); !hasDeadline && waitTime > timeout {
-				waitTime = timeout
-			}
+		if _, hasDeadline := ctx.Deadline(); !hasDeadline && waitTime > timeout {
+			waitTime = timeout
+		}
 
 		safeErrMsg := safeAPIError(err)
 		msg := fmt.Sprintf("API Error (%s). Retrying in %v (Attempt %d)...", safeErrMsg, waitTime, attempt)
@@ -157,15 +157,15 @@ func ExecuteStreamWithCustomRetry(ctx context.Context, client ChatClient, req op
 			waitTime = retryAfter
 		} else if attempt < len(intervals) {
 			waitTime = intervals[attempt]
-			} else {
-				waitTime = finalInterval
-			}
+		} else {
+			waitTime = finalInterval
+		}
 
-			if _, hasDeadline := ctx.Deadline(); !hasDeadline && waitTime > timeout {
-				waitTime = timeout
-			}
+		if _, hasDeadline := ctx.Deadline(); !hasDeadline && waitTime > timeout {
+			waitTime = timeout
+		}
 
-			safeErrMsg := safeAPIError(err)
+		safeErrMsg := safeAPIError(err)
 		msg := fmt.Sprintf("Stream API Error (%s). Retrying in %v (Attempt %d)...", safeErrMsg, waitTime, attempt)
 		if logger != nil {
 			logger.Warn("[LLM Stream Retry]", "error", safeErrMsg, "wait", waitTime, "attempt", attempt)

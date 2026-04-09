@@ -247,19 +247,19 @@ func (fm *FailoverManager) probeLoop(stopCh <-chan struct{}) {
 			primaryModel := fm.primaryModel
 			fm.mu.RUnlock()
 
-				// Prefer a lightweight health check that doesn't consume tokens.
-				// Fall back to a minimal chat completion for providers that don't support /models.
-				_, err := primaryClient.ListModels(ctx)
-				if err != nil {
-					_, err = primaryClient.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
-						Model: primaryModel,
-						Messages: []openai.ChatCompletionMessage{
-							{Role: openai.ChatMessageRoleUser, Content: "ok"},
-						},
-						MaxTokens: 1,
-					})
-				}
-				cancel()
+			// Prefer a lightweight health check that doesn't consume tokens.
+			// Fall back to a minimal chat completion for providers that don't support /models.
+			_, err := primaryClient.ListModels(ctx)
+			if err != nil {
+				_, err = primaryClient.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
+					Model: primaryModel,
+					Messages: []openai.ChatCompletionMessage{
+						{Role: openai.ChatMessageRoleUser, Content: "ok"},
+					},
+					MaxTokens: 1,
+				})
+			}
+			cancel()
 
 			if err != nil {
 				if IsContextError(err) {

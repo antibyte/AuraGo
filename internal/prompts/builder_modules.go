@@ -583,24 +583,24 @@ func readToolGuide(path string) (string, bool) {
 		if !ok {
 			return "", false
 		}
-			content := truncateGuide(string(data), maxGuideBytes)
-			guideCacheMu.Lock()
-			evictGuideCacheLocked()
-			guideCache[path] = guideCacheEntry{content: content} // zero mtime = from embed
-			guideCacheMu.Unlock()
-			return content, true
+		content := truncateGuide(string(data), maxGuideBytes)
+		guideCacheMu.Lock()
+		evictGuideCacheLocked()
+		guideCache[path] = guideCacheEntry{content: content} // zero mtime = from embed
+		guideCacheMu.Unlock()
+		return content, true
 	}
 
 	content := truncateGuide(string(data), maxGuideBytes)
 	info, err := os.Stat(path)
-		if err == nil {
-			guideCacheMu.Lock()
-			evictGuideCacheLocked()
-			guideCache[path] = guideCacheEntry{content: content, mtime: info.ModTime()}
-			guideCacheMu.Unlock()
-		}
-		return content, true
+	if err == nil {
+		guideCacheMu.Lock()
+		evictGuideCacheLocked()
+		guideCache[path] = guideCacheEntry{content: content, mtime: info.ModTime()}
+		guideCacheMu.Unlock()
 	}
+	return content, true
+}
 
 // ReadToolGuide is the exported variant of readToolGuide.
 // It reads and caches a tool guide by its filesystem path.
