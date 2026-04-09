@@ -348,15 +348,11 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 		logger.Info("[NativeTools] Native function calling enabled", "tool_count", len(ntSchemas), "parallel", toolingPolicy.ParallelToolCallsEnabled)
 	}
-	logger.Info("[SyncTrace] Request initialization complete", "session_id", sessionID, "stream", stream, "native_tools", useNativeFunctions, "message_count", len(req.Messages))
 
 	loopIterationCount := 0
 	for {
 		const maxLoopIterations = 100
 		loopIterationCount++
-		if loopIterationCount == 1 {
-			logger.Info("[SyncTrace] Entered first agent loop iteration", "session_id", sessionID)
-		}
 
 		// Safety: prevent infinite loops
 		if loopIterationCount > maxLoopIterations {
@@ -584,9 +580,6 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			PredictedGuides:   explicitTools,
 		}
 		if preliminaryTier := prompts.DetermineTierAdaptive(preliminaryTierFlags); preliminaryTier != "minimal" {
-			if loopIterationCount == 1 {
-				logger.Info("[SyncTrace] Preparing dynamic guides", "session_id", sessionID, "last_user_len", len(lastUserMsg), "explicit_tools", len(explicitTools), "recent_tools", len(recentTools))
-			}
 			// Build skip list: tools that already have native OpenAI function schemas
 			// should not also get their guide content (saves tokens, avoids redundancy).
 			skipTools := make([]string, 0, len(req.Tools))
@@ -609,9 +602,6 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				guideStrategy,
 				currentLogger,
 			)
-			if loopIterationCount == 1 {
-				logger.Info("[SyncTrace] Dynamic guides prepared", "session_id", sessionID, "guide_count", len(flags.PredictedGuides))
-			}
 		} else {
 			flags.PredictedGuides = nil
 		}
@@ -641,13 +631,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			if useHelperRAGBatch {
 				searchLimit = 8
 			}
-			if loopIterationCount == 1 {
-				logger.Info("[SyncTrace] Starting RAG retrieval", "session_id", sessionID, "query_len", len(ragQuery), "search_limit", searchLimit, "helper_batch", useHelperRAGBatch)
-			}
 			memories, docIDs, err := longTermMem.SearchMemoriesOnly(ragQuery, searchLimit)
-			if loopIterationCount == 1 {
-				logger.Info("[SyncTrace] RAG retrieval finished", "session_id", sessionID, "memory_count", len(memories), "doc_ids", len(docIDs), "err", err != nil)
-			}
 			RecordRetrievalEventForScope(telemetryScope, "rag_auto_latency:"+retrievalLatencyBucket(time.Since(autoRetrievalStart)))
 			if err != nil {
 				RecordRetrievalEventForScope(telemetryScope, "rag_auto_error")
@@ -914,9 +898,6 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 
 		if !runCfg.IsMission && shortTermMem != nil {
-			if loopIterationCount == 1 {
-				logger.Info("[SyncTrace] Building recent activity overview", "session_id", sessionID)
-			}
 			if overview, err := shortTermMem.BuildRecentActivityPromptOverview(3); err == nil {
 				flags.RecentActivityOverview = overview
 			}
@@ -926,13 +907,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		if !runCfg.IsMission && cfg.Tools.KnowledgeGraph.Enabled && cfg.Tools.KnowledgeGraph.PromptInjection && kg != nil && lastUserMsg != "" {
 			maxNodes := cfg.Tools.KnowledgeGraph.MaxPromptNodes
 			maxChars := cfg.Tools.KnowledgeGraph.MaxPromptChars
-			if loopIterationCount == 1 {
-				logger.Info("[SyncTrace] Starting KG context search", "session_id", sessionID, "query_len", len(lastUserMsg), "max_nodes", maxNodes)
-			}
 			kgContext := kg.SearchForContext(lastUserMsg, maxNodes, maxChars)
-			if loopIterationCount == 1 {
-				logger.Info("[SyncTrace] KG context search finished", "session_id", sessionID, "context_len", len(kgContext))
-			}
 			if kgContext != "" {
 				flags.KnowledgeContext = kgContext
 				currentLogger.Debug("[Sync] KG: Injected knowledge context", "chars", len(kgContext))
@@ -1078,17 +1053,11 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			sysPrompt = cachedSysPrompt
 			sysPromptTokens = cachedSysPromptTokens
 		} else {
-			if loopIterationCount == 1 {
-				logger.Info("[SyncTrace] Building system prompt", "session_id", sessionID, "cache_hit", false)
-			}
 			sysPrompt = prompts.BuildSystemPrompt(cfg.Directories.PromptsDir, flags, coreMemCache, currentLogger)
 			if budgetHint != "" {
 				sysPrompt += "\n\n" + budgetHint
 			}
 			sysPromptTokens = prompts.CountTokens(sysPrompt)
-			if loopIterationCount == 1 {
-				logger.Info("[SyncTrace] System prompt built", "session_id", sessionID, "prompt_len", len(sysPrompt), "tokens", sysPromptTokens)
-			}
 
 			if cacheKeyErr == nil && cacheKey != "" {
 				cachedSysPromptKey = cacheKey
