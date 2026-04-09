@@ -907,3 +907,52 @@ func TestKGGetSubgraphCycle(t *testing.T) {
 		t.Fatal("GetSubgraph did not terminate within 5s on cyclic graph")
 	}
 }
+
+// TestValidIdentifierValid verifies that valid SQLite identifiers are accepted.
+func TestValidIdentifierValid(t *testing.T) {
+	valid := []string{"kg_nodes", "kg_edges", "col1", "_private", "CamelCase", "with_underscores_123"}
+	for _, id := range valid {
+		if !validIdentifier(id) {
+			t.Errorf("expected %q to be valid", id)
+		}
+	}
+}
+
+// TestValidIdentifierInvalid verifies that SQL injection attempts are rejected.
+func TestValidIdentifierInvalid(t *testing.T) {
+	invalid := []string{
+		"'; DROP TABLE kg_nodes;--", // SQL injection attempt
+		"kg_nodes; DROP TABLE kg",   // SQL injection via semicolon
+		"kg_nodes' OR '1'='1",       // SQL injection via quotes
+		"kg_nodes--comment",         // SQL comment injection
+		"",                          // empty string
+		"kg nodes",                  // space
+		"kg.nodes",                  // dot
+		"kg[nodes",                  // bracket
+		"kg(nodes",                  // paren
+		"kg\"nodes",                 // double quote
+	}
+	for _, id := range invalid {
+		if validIdentifier(id) {
+			t.Errorf("expected %q to be invalid", id)
+		}
+	}
+}
+
+// TestQuoteIdentifier verifies safe quoting of identifiers with embedded double-quotes.
+func TestQuoteIdentifier(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"kg_nodes", `"kg_nodes"`},
+		{`with"quote`, `"with""quote"`},
+		{"simple", `"simple"`},
+	}
+	for _, tc := range tests {
+		got := quoteIdentifier(tc.input)
+		if got != tc.expected {
+			t.Errorf("quoteIdentifier(%q) = %q, want %q", tc.input, got, tc.expected)
+		}
+	}
+}

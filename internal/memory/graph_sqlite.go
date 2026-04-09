@@ -10,12 +10,30 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 )
+
+// validIdentifierRE matches valid SQLite identifiers: alphanumeric and underscore, non-empty.
+var validIdentifierRE = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_]*$`)
+
+// validIdentifier reports whether name is a safe SQLite identifier (table or column name).
+// SQLite identifiers must start with a letter or underscore and contain only
+// alphanumeric characters and underscores. This prevents SQL injection via malicious
+// identifier names in the migration code.
+func validIdentifier(name string) bool {
+	return name != "" && validIdentifierRE.MatchString(name)
+}
+
+// quoteIdentifier returns a safely quoted SQLite identifier using double-quotes.
+// Embedded double-quotes are escaped by doubling them per SQLite rules.
+func quoteIdentifier(name string) string {
+	return `"` + strings.ReplaceAll(name, `"`, `""`) + `"`
+}
 
 // Node represents an entity in the knowledge graph.
 type Node struct {
@@ -287,6 +305,10 @@ func (kg *KnowledgeGraph) initTables() error {
 		{"kg_edges", "semantic_indexed_at", "DATETIME"},
 	}
 	for _, cm := range colMigrations {
+		if !validIdentifier(cm.table) || !validIdentifier(cm.column) {
+			kg.logger.Warn("KG migration: skipping unsafe identifier", "table", cm.table, "column", cm.column)
+			continue
+		}
 		var exists bool
 		kg.db.QueryRow(fmt.Sprintf("SELECT count(*)>0 FROM pragma_table_info('%s') WHERE name=?", cm.table), cm.column).Scan(&exists)
 		if exists {
