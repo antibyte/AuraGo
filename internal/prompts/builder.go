@@ -16,15 +16,11 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	tiktoken "github.com/pkoukk/tiktoken-go"
 )
 
-// tiktokenEncoder is a cached BPE encoder for token counting.
+// tokenCountModeOnce ensures we log the active token counting strategy once.
 var (
-	tiktokenOnce     sync.Once
-	tiktokenEnc      *tiktoken.Tiktoken
-	tiktokenWarnOnce sync.Once
+	tokenCountModeOnce sync.Once
 )
 
 // promptModuleCache caches parsed prompt modules keyed by directory path.
@@ -1080,42 +1076,28 @@ func loadCorePersonalityContent(promptsDir, profile string, logger *slog.Logger)
 	return content
 }
 
-// CountTokens returns the number of BPE tokens in text using the cl100k_base encoding.
-// Falls back to a character-based heuristic if the encoder fails to initialize.
-// Initialization is wrapped in a hard 10-second timeout to prevent indefinite hangs
-// when tiktoken-go cannot download the BPE vocabulary from the network.
+// CountTokens returns a fast deterministic token estimate.
+// Prompt budgeting and context trimming only require a stable approximation,
+// so we avoid runtime tokenizer initialization and any network dependency.
 func CountTokens(text string) int {
-	tiktokenOnce.Do(func() {
-		type encResult struct {
-			enc *tiktoken.Tiktoken
-		}
-		ch := make(chan encResult, 1)
-		go func() {
-			enc, err := tiktoken.GetEncoding("cl100k_base")
-			if err != nil {
-				slog.Warn("[TokenCount] tiktoken init failed", "error", err)
-				ch <- encResult{}
-				return
-			}
-			ch <- encResult{enc: enc}
-		}()
-		select {
-		case r := <-ch:
-			tiktokenEnc = r.enc
-			if r.enc != nil {
-				slog.Info("[TokenCount] tiktoken encoder initialized")
-			}
-		case <-time.After(10 * time.Second):
-			slog.Warn("[TokenCount] tiktoken init timed out after 10s, using char/4 fallback")
-		}
-	})
-	if tiktokenEnc != nil {
-		return len(tiktokenEnc.Encode(text, nil, nil))
+	if text == "" {
+		return 0
 	}
-	tiktokenWarnOnce.Do(func() {
-		slog.Warn("[TokenCount] tiktoken encoder unavailable, using char/4 fallback")
+	tokenCountModeOnce.Do(func() {
+		slog.Info("[TokenCount] Using heuristic token counter (char-based, no runtime tokenizer)")
 	})
-	return len(text) / 4
+
+	chars := len(text)
+	newlines := strings.Count(text, "\n")
+
+	// Base estimate: about 4 characters per token for English-heavy prompt text.
+	tokens := (chars + 3) / 4
+	// Prompts with many short lines tend to tokenize a bit worse than plain prose.
+	tokens += newlines / 8
+	if tokens < 1 {
+		return 1
+	}
+	return tokens
 }
 
 // tokenMultiplier returns a model-specific multiplier for token counting accuracy.
