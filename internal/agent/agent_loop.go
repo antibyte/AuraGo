@@ -353,6 +353,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	for {
 		const maxLoopIterations = 100
 		loopIterationCount++
+		logger.Info("[LoopTrace] === Loop iteration START ===", "iteration", loopIterationCount)
 
 		// Safety: prevent infinite loops
 		if loopIterationCount > maxLoopIterations {
@@ -605,6 +606,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		} else {
 			flags.PredictedGuides = nil
 		}
+		logger.Info("[LoopTrace] Tool guides prepared", "count", len(flags.PredictedGuides))
 		turnMemoryCandidates := make(map[string]string)
 		turnPendingActions := make([]memory.EpisodicMemory, 0, 2)
 
@@ -897,6 +899,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 		}
 
+		logger.Info("[LoopTrace] RAG + episodic injection complete")
+
 		if !runCfg.IsMission && shortTermMem != nil {
 			if overview, err := shortTermMem.BuildRecentActivityPromptOverview(3); err == nil {
 				flags.RecentActivityOverview = overview
@@ -968,6 +972,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 
 		// Adaptive tier: adjust prompt complexity based on conversation length and context signals
+		logger.Info("[LoopTrace] KG + personality + profiling done, building system prompt")
 		flags.MessageCount = len(req.Messages)
 		flags.RecentlyUsedTools = recentTools
 		flags.Tier = prompts.DetermineTierAdaptive(flags)
@@ -1081,6 +1086,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			"coding_mode", flags.RequiresCoding,
 			"active_daemons", flags.ActiveProcesses,
 		)
+		logger.Info("[LoopTrace] System prompt built", "tokens", sysPromptTokens, "cache_hit", cacheHit, "tier", flags.Tier)
 
 		if len(req.Messages) > 0 && req.Messages[0].Role == openai.ChatMessageRoleSystem {
 			req.Messages[0].Content = sysPrompt
@@ -1129,6 +1135,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				currentLogger.Debug("[Compression] History compressed", "dropped", compRes.DroppedCount, "summary_tokens", compRes.SummaryTokens)
 			}
 		}
+		logger.Info("[LoopTrace] Compression done, entering context window guard")
 
 		// ── Context window guard ──
 		// Count total tokens across all messages and trim old history if we would
@@ -1174,6 +1181,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			currentLogger.Info("[ContextGuard] History trimmed",
 				"remaining_messages", len(req.Messages), "estimated_tokens", totalMsgTokens, "dropped_messages", len(droppedMessages))
 		}
+
+		logger.Info("[LoopTrace] Context window guard done, about to log LLM request")
 
 		// Verbose Logging of LLM Request
 		if len(req.Messages) > 0 {
