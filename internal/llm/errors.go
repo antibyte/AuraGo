@@ -92,6 +92,9 @@ func classifyHTTPError(statusCode int, errMsg string) ErrorCategory {
 		return ErrCategoryRateLimit
 	case statusCode == http.StatusUnprocessableEntity:
 		return ErrCategoryProviderValidation
+	case statusCode == 529:
+		// Anthropic "overloaded" error - explicitly retryable
+		return ErrCategoryTemporaryTransport
 	case statusCode >= 500 && statusCode < 600:
 		return ErrCategoryTemporaryTransport
 	default:

@@ -23,6 +23,8 @@ func WithThinkingCallback(ctx context.Context, cb func(content, state string)) c
 
 const anthropicAPIVersion = "2024-10-22"
 const anthropicDefaultMaxTokens = 8192
+const maxThinkingBudget = 32000
+const maxReasoningContentLen = 100000
 
 // anthropicTransport is an http.RoundTripper that translates OpenAI-format
 // chat completion requests into the Anthropic Messages API format and maps
@@ -428,19 +430,25 @@ func translateOpenAIToAnthropic(oai openaiRequest, thinkingCfg anthropicThinking
 		Temperature: oai.Temperature,
 		TopP:        oai.TopP,
 	}
-	if thinkingCfg.enabledForModel(oai.Model) {
-		budget := thinkingCfg.BudgetTokens
-		if budget <= 0 {
-			budget = 10000
-		}
-		ant.Thinking = &anthropicThinking{Type: "enabled", BudgetTokens: budget}
-	}
-
 	// max_tokens is required by Anthropic. Default to 8192 if unset.
 	if oai.MaxTokens > 0 {
 		ant.MaxTokens = oai.MaxTokens
 	} else {
 		ant.MaxTokens = anthropicDefaultMaxTokens
+	}
+
+	if thinkingCfg.enabledForModel(oai.Model) {
+		budget := thinkingCfg.BudgetTokens
+		if budget <= 0 {
+			budget = 10000
+		}
+		if budget >= ant.MaxTokens {
+			budget = ant.MaxTokens / 2
+		}
+		if budget > maxThinkingBudget {
+			budget = maxThinkingBudget
+		}
+		ant.Thinking = &anthropicThinking{Type: "enabled", BudgetTokens: budget}
 	}
 
 	// stop → stop_sequences (Anthropic only accepts an array)
@@ -757,15 +765,15 @@ func translateUserContent(content any) (any, error) {
 func translateImageURL(part map[string]interface{}) (*anthropicContentBlock, error) {
 	imgURLIface, ok := part["image_url"]
 	if !ok {
-		return nil, nil
+		return nil, fmt.Errorf("missing image_url in part")
 	}
 	imgURLMap, ok := imgURLIface.(map[string]interface{})
 	if !ok {
-		return nil, nil
+		return nil, fmt.Errorf("image_url is not a map")
 	}
 	urlStr, _ := imgURLMap["url"].(string)
 	if urlStr == "" {
-		return nil, nil
+		return nil, fmt.Errorf("image_url.url is empty")
 	}
 
 	// Handle data: URIs (base64 encoded images)
@@ -903,6 +911,9 @@ func mapAnthropicToOpenAI(ant anthropicResponse) openaiResponse {
 		case "thinking":
 			if block.Thinking != nil && block.Thinking.Thinking != "" {
 				reasoningContent += block.Thinking.Thinking
+				if len(reasoningContent) > maxReasoningContentLen {
+					reasoningContent = reasoningContent[:maxReasoningContentLen]
+				}
 			}
 		}
 	}

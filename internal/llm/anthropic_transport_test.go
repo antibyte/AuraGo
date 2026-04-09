@@ -68,9 +68,9 @@ func TestAnthropicMaxTokensDefault(t *testing.T) {
 
 func TestAnthropicThinkingConditionalEnable(t *testing.T) {
 	oai := openaiRequest{
-		Model:    "claude-3-5-sonnet-latest",
-		MaxTokens: 128,
-		Messages: marshalMessages(t, []openaiMessage{{Role: "user", Content: "Hi"}}),
+		Model:     "claude-3-5-sonnet-latest",
+		MaxTokens: 8192,
+		Messages:  marshalMessages(t, []openaiMessage{{Role: "user", Content: "Hi"}}),
 	}
 
 	ant, err := translateOpenAIToAnthropic(oai, anthropicThinkingConfig{Enabled: true, BudgetTokens: 4242})
@@ -88,6 +88,53 @@ func TestAnthropicThinkingConditionalEnable(t *testing.T) {
 	}
 	if ant.Thinking == nil || ant.Thinking.Type != "enabled" || ant.Thinking.BudgetTokens != 4242 {
 		t.Fatalf("expected thinking enabled with budget 4242, got %+v", ant.Thinking)
+	}
+}
+
+func TestAnthropicThinkingBudgetClamping(t *testing.T) {
+	oai := openaiRequest{
+		Model:     "claude-sonnet-4-20250514",
+		MaxTokens: 128,
+		Messages:  marshalMessages(t, []openaiMessage{{Role: "user", Content: "Hi"}}),
+	}
+
+	// Budget exceeding MaxTokens should be clamped to MaxTokens/2
+	ant, err := translateOpenAIToAnthropic(oai, anthropicThinkingConfig{Enabled: true, BudgetTokens: 10000})
+	if err != nil {
+		t.Fatalf("translate: %v", err)
+	}
+	if ant.Thinking == nil {
+		t.Fatal("expected thinking to be enabled")
+	}
+	if ant.Thinking.BudgetTokens != 64 {
+		t.Errorf("expected budget clamped to 64, got %d", ant.Thinking.BudgetTokens)
+	}
+
+	// Budget exceeding maxThinkingBudget should be clamped to maxThinkingBudget
+	oai.MaxTokens = 65536
+	ant, err = translateOpenAIToAnthropic(oai, anthropicThinkingConfig{Enabled: true, BudgetTokens: 50000})
+	if err != nil {
+		t.Fatalf("translate: %v", err)
+	}
+	if ant.Thinking == nil {
+		t.Fatal("expected thinking to be enabled")
+	}
+	if ant.Thinking.BudgetTokens != 32000 {
+		t.Errorf("expected budget clamped to 32000, got %d", ant.Thinking.BudgetTokens)
+	}
+
+	// Negative budget should use default, then clamped by MaxTokens
+	oai.MaxTokens = 8192
+	ant, err = translateOpenAIToAnthropic(oai, anthropicThinkingConfig{Enabled: true, BudgetTokens: -1})
+	if err != nil {
+		t.Fatalf("translate: %v", err)
+	}
+	if ant.Thinking == nil {
+		t.Fatal("expected thinking to be enabled")
+	}
+	// Default 10000 is clamped to MaxTokens/2 = 4096
+	if ant.Thinking.BudgetTokens != 4096 {
+		t.Errorf("expected default budget clamped to 4096, got %d", ant.Thinking.BudgetTokens)
 	}
 }
 
@@ -335,6 +382,59 @@ func TestAnthropicImageTranslation(t *testing.T) {
 	}
 }
 
+func TestAnthropicImageTranslationErrors(t *testing.T) {
+	tests := []struct {
+		name    string
+		part    map[string]interface{}
+		wantErr string
+	}{
+		{
+			name:    "nil part",
+			part:    nil,
+			wantErr: "missing image_url in part",
+		},
+		{
+			name:    "missing image_url key",
+			part:    map[string]interface{}{},
+			wantErr: "missing image_url in part",
+		},
+		{
+			name:    "image_url not a map",
+			part:    map[string]interface{}{"image_url": "not-a-map"},
+			wantErr: "image_url is not a map",
+		},
+		{
+			name:    "empty url",
+			part:    map[string]interface{}{"image_url": map[string]interface{}{"url": ""}},
+			wantErr: "image_url.url is empty",
+		},
+		{
+			name: "invalid base64 data",
+			part: map[string]interface{}{
+				"image_url": map[string]interface{}{
+					"url": "data:image/png;base64,!!!invalid!!!",
+				},
+			},
+			wantErr: "invalid base64 data",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			block, err := translateImageURL(tt.part)
+			if block != nil {
+				t.Errorf("translateImageURL() block = %v, want nil", block)
+			}
+			if err == nil {
+				t.Fatal("translateImageURL() err = nil, want error")
+			}
+			if !strings.Contains(err.Error(), tt.wantErr) {
+				t.Errorf("translateImageURL() err = %q, want containing %q", err.Error(), tt.wantErr)
+			}
+		})
+	}
+}
+
 func TestAnthropicPassthrough(t *testing.T) {
 	// Non-chat-completion requests should pass through unchanged
 	called := false
@@ -519,6 +619,56 @@ func TestAnthropicStreamToolUse(t *testing.T) {
 	if !strings.Contains(output, `"finish_reason":"tool_calls"`) {
 		t.Error("missing finish_reason 'tool_calls'")
 	}
+	if !strings.Contains(output, "data: [DONE]") {
+		t.Error("missing [DONE]")
+	}
+}
+
+func TestAnthropicStreamThinking(t *testing.T) {
+	// Test that streaming thinking events are processed correctly
+	ssePayload := buildAnthropicSSE([]string{
+		"event: message_start\ndata: " + `{"type":"message_start","message":{"id":"msg_think","type":"message","role":"assistant","model":"claude-sonnet-4-20250514","content":[],"stop_reason":null,"usage":{"input_tokens":20,"output_tokens":0}}}`,
+		"event: content_block_start\ndata: " + `{"type":"content_block_start","index":0,"content_block":{"type":"thinking","thinking":""}}`,
+		"event: content_block_delta\ndata: " + `{"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"Let me think about this"}}`,
+		"event: content_block_delta\ndata: " + `{"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" step by step"}}`,
+		"event: content_block_stop\ndata: " + `{"type":"content_block_stop","index":0}`,
+		"event: content_block_start\ndata: " + `{"type":"content_block_start","index":1,"content_block":{"type":"text","text":""}}`,
+		"event: content_block_delta\ndata: " + `{"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":"Here is my answer"}}`,
+		"event: content_block_stop\ndata: " + `{"type":"content_block_stop","index":1}`,
+		"event: message_delta\ndata: " + `{"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":10}}`,
+		"event: message_stop\ndata: " + `{"type":"message_stop"}`,
+	})
+
+	base := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: 200,
+			Header:     http.Header{"Content-Type": []string{"text/event-stream"}},
+			Body:       io.NopCloser(strings.NewReader(ssePayload)),
+		}, nil
+	})
+
+	transport := &anthropicTransport{base: base}
+	client := &http.Client{Transport: transport}
+
+	body := `{"model":"claude-sonnet-4-20250514","messages":[{"role":"user","content":"Think about something"}],"stream":true}`
+	resp, err := client.Post("https://api.anthropic.com/v1/chat/completions", "application/json", strings.NewReader(body))
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	data, _ := io.ReadAll(resp.Body)
+	output := string(data)
+
+	// Verify text content is present
+	if !strings.Contains(output, `"Here is my answer"`) {
+		t.Error("missing text content in stream")
+	}
+	// Verify finish_reason is present
+	if !strings.Contains(output, `"finish_reason":"stop"`) {
+		t.Error("missing finish_reason")
+	}
+	// Verify [DONE] is present
 	if !strings.Contains(output, "data: [DONE]") {
 		t.Error("missing [DONE]")
 	}
