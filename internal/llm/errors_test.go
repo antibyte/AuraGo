@@ -62,10 +62,36 @@ func TestClassifyError_TemporaryTransport(t *testing.T) {
 }
 
 func TestClassifyError_ProviderValidation(t *testing.T) {
-	apiErr := &openai.APIError{HTTPStatusCode: http.StatusUnprocessableEntity}
+	// Unrecognised 4xx codes fall through to ErrCategoryProviderValidation.
+	apiErr := &openai.APIError{HTTPStatusCode: http.StatusConflict} // 409
 	cat := ClassifyError(apiErr)
 	if cat != ErrCategoryProviderValidation {
-		t.Errorf("ClassifyError(422) = %v, want %v", cat, ErrCategoryProviderValidation)
+		t.Errorf("ClassifyError(409) = %v, want %v", cat, ErrCategoryProviderValidation)
+	}
+}
+
+func TestClassifyError_BadRequestNonRetryable(t *testing.T) {
+	// HTTP 400 (tool_call_id not found, etc.) must NOT be retried — the agent loop
+	// handles recovery via recoverFrom422WithPolicy.
+	apiErr := &openai.APIError{HTTPStatusCode: http.StatusBadRequest}
+	cat := ClassifyError(apiErr)
+	if cat != ErrCategoryNonRetryableConfig {
+		t.Errorf("ClassifyError(400) = %v, want %v", cat, ErrCategoryNonRetryableConfig)
+	}
+	if IsRetryable(apiErr) {
+		t.Error("IsRetryable(400 APIError) = true, want false")
+	}
+}
+
+func TestClassifyError_UnprocessableEntityNonRetryable(t *testing.T) {
+	// HTTP 422 is a structural payload error; same as 400 — no point retrying same payload.
+	apiErr := &openai.APIError{HTTPStatusCode: http.StatusUnprocessableEntity}
+	cat := ClassifyError(apiErr)
+	if cat != ErrCategoryNonRetryableConfig {
+		t.Errorf("ClassifyError(422) = %v, want %v", cat, ErrCategoryNonRetryableConfig)
+	}
+	if IsRetryable(apiErr) {
+		t.Error("IsRetryable(422 APIError) = true, want false")
 	}
 }
 

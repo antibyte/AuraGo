@@ -90,8 +90,14 @@ func classifyHTTPError(statusCode int, errMsg string) ErrorCategory {
 		return ErrCategoryAuthError
 	case statusCode == http.StatusTooManyRequests:
 		return ErrCategoryRateLimit
+	case statusCode == http.StatusBadRequest:
+		// 400 Bad Request is a structural error in the request payload (e.g. orphaned
+		// tool_call_id after history compression). Retrying the same payload is futile.
+		// The agent loop's recoverFrom422WithPolicy handles recovery by trimming messages.
+		return ErrCategoryNonRetryableConfig
 	case statusCode == http.StatusUnprocessableEntity:
-		return ErrCategoryProviderValidation
+		// 422 Unprocessable Entity is also a structural payload error; same rationale as 400.
+		return ErrCategoryNonRetryableConfig
 	case statusCode == 529:
 		// Anthropic "overloaded" error - explicitly retryable
 		return ErrCategoryTemporaryTransport
