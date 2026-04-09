@@ -716,15 +716,26 @@ func handleOpenRouterCredits(s *Server) http.HandlerFunc {
 			}
 		}
 
-		if !found {
+		// Trim whitespace defensively — vault values can occasionally have trailing
+		// newlines, which would send an empty Bearer token to OpenRouter.
+		apiKey = strings.TrimSpace(apiKey)
+		if !found || apiKey == "" {
 			w.Write([]byte(`{"available":false,"reason":"provider is not openrouter"}`))
 			return
 		}
 
 		credits, err := llm.FetchOpenRouterCredits(apiKey, baseURL)
 		if err != nil {
-			s.Logger.Error("Failed to fetch OpenRouter credits", "error", err)
-			w.Write([]byte(fmt.Sprintf(`{"available":true,"error":"%s"}`, i18n.T(s.Cfg.Server.UILanguage, "backend.handler_credits_fetch_error"))))
+			errStr := err.Error()
+			if strings.Contains(errStr, "HTTP 401") || strings.Contains(errStr, "HTTP 403") {
+				// Auth failure — key is present but invalid/revoked. Log once as WARN
+				// (not ERROR) so the log is not spammed on every dashboard refresh.
+				s.Logger.Warn("[OpenRouter] Credit check auth failed — verify the API key stored in the vault for the OpenRouter provider", "error", err)
+				w.Write([]byte(`{"available":false,"reason":"auth_failed"}`))
+			} else {
+				s.Logger.Error("Failed to fetch OpenRouter credits", "error", err)
+				w.Write([]byte(fmt.Sprintf(`{"available":true,"error":"%s"}`, i18n.T(s.Cfg.Server.UILanguage, "backend.handler_credits_fetch_error"))))
+			}
 			return
 		}
 		data, _ := json.Marshal(map[string]interface{}{
