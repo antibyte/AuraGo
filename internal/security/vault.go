@@ -150,6 +150,9 @@ func (v *Vault) ReadSecret(key string) (string, error) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 
+	// Double-check: mutex guards this goroutine; flock guards other processes.
+	// On Windows, flock uses the native locking API (LockFileEx).
+	// If flock fails (e.g., filesystem doesn't support locking), we fail safe.
 	if err := v.fileLock.Lock(); err != nil {
 		return "", fmt.Errorf("failed to acquire vault file lock: %w", err)
 	}
@@ -172,6 +175,9 @@ func (v *Vault) WriteSecret(key, value string) error {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 
+	// Double-check: mutex guards this goroutine; flock guards other processes.
+	// On Windows, flock uses the native locking API (LockFileEx).
+	// If flock fails (e.g., filesystem doesn't support locking), we fail safe.
 	if err := v.fileLock.Lock(); err != nil {
 		return fmt.Errorf("failed to acquire vault file lock: %w", err)
 	}
@@ -191,6 +197,9 @@ func (v *Vault) DeleteSecret(key string) error {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 
+	// Double-check: mutex guards this goroutine; flock guards other processes.
+	// On Windows, flock uses the native locking API (LockFileEx).
+	// If flock fails (e.g., filesystem doesn't support locking), we fail safe.
 	if err := v.fileLock.Lock(); err != nil {
 		return fmt.Errorf("failed to acquire vault file lock: %w", err)
 	}
