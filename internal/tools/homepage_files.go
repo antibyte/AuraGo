@@ -217,7 +217,17 @@ func HomepageWriteFile(cfg HomepageConfig, path, content string, logger *slog.Lo
 	// Ensure parent directory exists
 	dir := filepath.Dir(path)
 	cmd := fmt.Sprintf("mkdir -p /workspace/%s && echo '%s' | base64 -d > /workspace/%s", dir, encoded, path)
-	return DockerExec(dockerCfg, homepageContainerName, cmd, "")
+	result := DockerExec(dockerCfg, homepageContainerName, cmd, "")
+	// Check for DockerExec errors via JSON status field.
+	var execResult map[string]interface{}
+	if err := json.Unmarshal([]byte(result), &execResult); err == nil {
+		if status, ok := execResult["status"].(string); ok && status == "error" {
+			errMsg, _ := execResult["error"].(string)
+			return errJSON("write file failed for %s: %s", path, errMsg)
+		}
+	}
+	out, _ := json.Marshal(map[string]interface{}{"status": "ok", "path": path, "size": len(content)})
+	return string(out)
 }
 
 // HomepageEditFile performs precise file editing inside the container (or locally).
@@ -262,11 +272,21 @@ func HomepageEditFile(cfg HomepageConfig, path, operation, old, new_, marker, co
 		return editErr
 	}
 
-	// Write back via base64
+	// Write back via base64 and verify success.
 	encoded := base64.StdEncoding.EncodeToString([]byte(edited))
 	dir := filepath.Dir(path)
 	writeCmd := fmt.Sprintf("mkdir -p /workspace/%s && echo '%s' | base64 -d > /workspace/%s", dir, encoded, path)
-	return DockerExec(dockerCfg, homepageContainerName, writeCmd, "")
+	result := DockerExec(dockerCfg, homepageContainerName, writeCmd, "")
+	// Check for DockerExec errors via JSON status field.
+	var execResult map[string]interface{}
+	if err := json.Unmarshal([]byte(result), &execResult); err == nil {
+		if status, ok := execResult["status"].(string); ok && status == "error" {
+			errMsg, _ := execResult["error"].(string)
+			return errJSON("edit file write failed for %s: %s", path, errMsg)
+		}
+	}
+	out, _ := json.Marshal(map[string]interface{}{"status": "ok", "path": path, "operation": operation})
+	return string(out)
 }
 
 // applyHomepageEdit applies an editing operation to file content in memory.

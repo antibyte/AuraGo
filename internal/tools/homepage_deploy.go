@@ -1116,6 +1116,11 @@ func okJSON(message string, kvPairs ...string) string {
 
 // sftpUploadDir recursively uploads a local directory to a remote path via SFTP.
 func sftpUploadDir(ctx context.Context, deployCfg HomepageDeployConfig, localDir, remoteDir string, secret []byte, logger *slog.Logger) string {
+	// Check context before starting
+	if ctx.Err() != nil {
+		return errJSON("Upload cancelled before start: %v", ctx.Err())
+	}
+
 	sshCfg, err := remote.GetSSHConfig(deployCfg.User, secret)
 	if err != nil {
 		return errJSON("SSH config failed: %v", err)
@@ -1147,21 +1152,35 @@ func sftpUploadDir(ctx context.Context, deployCfg HomepageDeployConfig, localDir
 		if walkErr != nil {
 			return walkErr
 		}
+		// Check context at the start of each walk iteration.
 		if ctx.Err() != nil {
-			return ctx.Err()
+			return fmt.Errorf("upload cancelled: %w", ctx.Err())
 		}
 
 		relPath, _ := filepath.Rel(localDir, path)
 		remotePath := filepath.ToSlash(filepath.Join(remoteDir, relPath))
 
 		if info.IsDir() {
-			sftpClient.MkdirAll(remotePath)
+			if err := sftpClient.MkdirAll(remotePath); err != nil {
+				return fmt.Errorf("failed to create remote dir %s: %w", remotePath, err)
+			}
 			return nil
+		}
+
+		// Check context before opening local file.
+		if ctx.Err() != nil {
+			return fmt.Errorf("upload cancelled before file %s: %w", relPath, ctx.Err())
 		}
 
 		localFile, err := os.Open(path)
 		if err != nil {
 			return fmt.Errorf("failed to open %s: %w", path, err)
+		}
+
+		// Check context before creating remote file.
+		if ctx.Err() != nil {
+			localFile.Close()
+			return fmt.Errorf("upload cancelled before creating remote file %s: %w", relPath, ctx.Err())
 		}
 
 		remoteFile, err := sftpClient.Create(remotePath)
@@ -1170,9 +1189,15 @@ func sftpUploadDir(ctx context.Context, deployCfg HomepageDeployConfig, localDir
 			return fmt.Errorf("failed to create remote %s: %w", remotePath, err)
 		}
 
+		// Copy with context awareness: check cancellation periodically.
 		_, copyErr := remoteFile.ReadFrom(localFile)
+		// Check context after copy operation.
+		cancelErr := ctx.Err()
 		remoteFile.Close()
 		localFile.Close()
+		if cancelErr != nil {
+			return fmt.Errorf("upload cancelled during file %s: %w", relPath, cancelErr)
+		}
 		if copyErr != nil {
 			return fmt.Errorf("failed to upload %s: %w", relPath, copyErr)
 		}

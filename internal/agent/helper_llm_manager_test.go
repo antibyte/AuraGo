@@ -382,9 +382,14 @@ func TestTrimJSONResponseStripsThinkBlocks(t *testing.T) {
 			want: `{"key":"value"}`,
 		},
 		{
-			name: "unclosed think block drops remainder",
+			name: "unclosed think block — keeps content so JSON inside is recoverable",
 			in:   "<think>unclosed reasoning",
-			want: ``,
+			want: `unclosed reasoning`,
+		},
+		{
+			name: "unclosed think block with JSON inside is recovered",
+			in:   `<think>reasoning... {"key":"value"}`,
+			want: `{"key":"value"}`,
 		},
 		{
 			name: "no think block passes through unchanged",

@@ -48,8 +48,9 @@ var (
 
 // dockerAvailabilityCache caches DockerPing results per host to prevent flip-flopping
 // between Docker and local-fallback mode within a single operation sequence.
+// Uses sync.RWMutex to allow concurrent reads while exclusive writes.
 var (
-	dockerAvailabilityMu      sync.Mutex
+	dockerAvailabilityMu      sync.RWMutex
 	dockerAvailabilityResults = make(map[string]dockerAvailabilityEntry)
 )
 
@@ -248,8 +249,22 @@ func truncateStr(s string, maxLen int) string {
 	return sb.String() + "\u2026"
 }
 
+// maxExtractOutputSize is the maximum size of a JSON result to parse.
+// Large outputs that exceed this limit are returned as-is without parsing
+// to prevent memory exhaustion from json.Unmarshal on huge Docker outputs.
+const maxExtractOutputSize = 10 * 1024 * 1024 // 10 MB
+
 // extractOutput parses a DockerExec JSON result and returns the "output" field.
+// If the result exceeds maxExtractOutputSize, it is returned as-is to avoid
+// memory exhaustion during JSON parsing.
 func extractOutput(jsonResult string) string {
+	if len(jsonResult) > maxExtractOutputSize {
+		// Too large to safely parse; return truncated raw result.
+		if len(jsonResult) > 1000 {
+			return jsonResult[:1000] + "\n... (output truncated, too large to parse)"
+		}
+		return jsonResult
+	}
 	var m map[string]interface{}
 	if json.Unmarshal([]byte(jsonResult), &m) == nil {
 		if o, ok := m["output"].(string); ok {
@@ -265,13 +280,27 @@ func extractOutput(jsonResult string) string {
 // Results are cached per dockerHost for dockerAvailabilityCacheTTL to prevent
 // successive homepage tool calls from flip-flopping between Docker and local-fallback
 // mode when Docker has transient slowness.
+// Uses RWMutex with Double-Check-Locking: concurrent reads, exclusive writes.
 func checkDockerAvailable(dockerHost string) bool {
+	// Fast path: try read-lock first (concurrent reads allowed)
+	dockerAvailabilityMu.RLock()
+	now := time.Now()
+	if entry, ok := dockerAvailabilityResults[dockerHost]; ok && now.Before(entry.expiry) {
+		dockerAvailabilityMu.RUnlock()
+		return entry.available
+	}
+	dockerAvailabilityMu.RUnlock()
+
+	// Slow path: acquire write-lock to perform the actual check.
+	// Double-check after acquiring the write lock in case another goroutine
+	// populated the cache while we were waiting for the lock.
 	dockerAvailabilityMu.Lock()
 	defer dockerAvailabilityMu.Unlock()
-	now := time.Now()
+
 	if entry, ok := dockerAvailabilityResults[dockerHost]; ok && now.Before(entry.expiry) {
 		return entry.available
 	}
+
 	available := DockerPing(dockerHost) == nil
 	dockerAvailabilityResults[dockerHost] = dockerAvailabilityEntry{
 		available: available,
@@ -626,7 +655,9 @@ func HomepageInitProject(cfg HomepageConfig, framework, name, template string, l
 				"files":   []string{name + "/index.html"},
 			})
 			if template != "" {
-				applyHomepageTemplate(cfg, name, template, logger)
+				if templateErr := applyHomepageTemplate(cfg, name, template, logger); templateErr != "" {
+					return templateErr
+				}
 			}
 			return string(out)
 
@@ -653,7 +684,9 @@ func HomepageInitProject(cfg HomepageConfig, framework, name, template string, l
 					"output":  strings.TrimSpace(string(out)),
 				})
 				if template != "" {
-					applyHomepageTemplate(cfg, name, template, logger)
+					if templateErr := applyHomepageTemplate(cfg, name, template, logger); templateErr != "" {
+						return templateErr
+					}
 				}
 				return string(res)
 			}
@@ -684,7 +717,9 @@ func HomepageInitProject(cfg HomepageConfig, framework, name, template string, l
 
 	// Apply template if requested
 	if template != "" {
-		applyHomepageTemplate(cfg, name, template, logger)
+		if templateErr := applyHomepageTemplate(cfg, name, template, logger); templateErr != "" {
+			return templateErr
+		}
 	}
 
 	return scaffoldResult

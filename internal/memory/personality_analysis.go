@@ -384,7 +384,11 @@ func validateMoodAnalysisResult(result *moodAnalysisResult) bool {
 	case string(MoodCurious), string(MoodFocused), string(MoodCreative), string(MoodAnalytical), string(MoodCautious), string(MoodPlayful):
 		result.AgentMood = strings.ToLower(strings.TrimSpace(result.AgentMood))
 	default:
-		return false
+		// Unknown mood value — accept and let normalizeMoodAnalysisResult map it to "focused".
+		// Rejecting here would trigger an expensive fallback LLM call just for a vocabulary mismatch.
+		if strings.TrimSpace(result.AgentMood) == "" {
+			return false
+		}
 	}
 	if math.IsNaN(result.RelationshipDelta) || math.IsInf(result.RelationshipDelta, 0) {
 		return false

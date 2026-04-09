@@ -109,8 +109,11 @@ func trimJSONResponse(raw string) string {
 		}
 		end := strings.Index(lower[start:], "</think>")
 		if end == -1 {
-			// Unclosed tag — drop everything from <think> onward and stop.
-			raw = strings.TrimSpace(raw[:start])
+			// Unclosed <think> tag — the response was truncated inside the thinking block.
+			// Keep the content inside the partial <think> block: the LLM may have written
+			// the JSON there before the stream was cut off. The "advance to first {/["
+			// step below will then locate any usable JSON fragment.
+			raw = strings.TrimSpace(raw[start+len("<think>"):])
 			break
 		}
 		raw = strings.TrimSpace(raw[:start] + raw[start+end+len("</think>"):])

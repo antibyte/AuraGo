@@ -2,6 +2,7 @@ package tools
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
@@ -22,12 +23,12 @@ type homepageTemplateFile struct {
 
 // applyHomepageTemplate writes template starter files into the project directory.
 // It works both locally (via filesystem) and in Docker (via DockerExec + base64).
-// This is best-effort — template application failures don't fail the init.
-func applyHomepageTemplate(cfg HomepageConfig, projectName, template string, logger *slog.Logger) {
+// Returns an error string if any file write fails (non-empty error = failure).
+func applyHomepageTemplate(cfg HomepageConfig, projectName, template string, logger *slog.Logger) string {
 	files := getTemplateFiles(template, projectName)
 	if len(files) == 0 {
 		logger.Warn("[Homepage] Unknown template, skipping", "template", template)
-		return
+		return ""
 	}
 
 	logger.Info("[Homepage] Applying template", "template", template, "files", len(files))
@@ -35,7 +36,7 @@ func applyHomepageTemplate(cfg HomepageConfig, projectName, template string, log
 	if !checkDockerAvailable(cfg.DockerHost) {
 		// Local mode: write files directly
 		if cfg.WorkspacePath == "" {
-			return
+			return ""
 		}
 		for _, f := range files {
 			fullPath := filepath.Join(cfg.WorkspacePath, projectName, filepath.FromSlash(f.path))
@@ -47,18 +48,27 @@ func applyHomepageTemplate(cfg HomepageConfig, projectName, template string, log
 				logger.Warn("[Homepage] Template: failed to write", "path", f.path, "error", err)
 			}
 		}
-		return
+		return ""
 	}
 
-	// Docker mode: write files via base64 + DockerExec
+	// Docker mode: write files via base64 + DockerExec and verify success.
 	dockerCfg := DockerConfig{Host: cfg.DockerHost}
 	for _, f := range files {
 		encoded := base64.StdEncoding.EncodeToString([]byte(f.content))
 		dir := filepath.Dir(f.path)
 		cmd := fmt.Sprintf("mkdir -p /workspace/%s/%s && echo '%s' | base64 -d > /workspace/%s/%s",
 			projectName, dir, encoded, projectName, f.path)
-		DockerExec(dockerCfg, homepageContainerName, cmd, "")
+		result := DockerExec(dockerCfg, homepageContainerName, cmd, "")
+		// Check for DockerExec errors via JSON status field.
+		var execResult map[string]interface{}
+		if err := json.Unmarshal([]byte(result), &execResult); err == nil {
+			if status, ok := execResult["status"].(string); ok && status == "error" {
+				errMsg, _ := execResult["error"].(string)
+				return errJSON("template file write failed for %s: %s", f.path, errMsg)
+			}
+		}
 	}
+	return ""
 }
 
 // getTemplateFiles returns the starter files for a given template name.
