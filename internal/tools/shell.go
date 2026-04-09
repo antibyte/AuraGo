@@ -14,6 +14,29 @@ import (
 
 var sudoPasswordPromptPattern = regexp.MustCompile(`^\[sudo\][^:\r\n]*:\s*`)
 
+// Security notes for shell execution:
+//
+// Shell command execution is an intentional, core agent capability.
+// The primary security layer is the sandbox (Landlock on Linux) which restricts
+// filesystem and process operations. Without a sandbox, shell access is effectively
+// root-equivalent on the host — this is by design for a home-lab autonomous agent.
+//
+// Hardening strategies applied:
+//   - Sandbox is used automatically when available (Linux with Landlock).
+//   - Workspace directory is restricted and enforced via getAbsWorkspace.
+//   - All processes are killed on timeout via KillProcessTree.
+//   - Bounded stdout/stderr buffers prevent memory exhaustion.
+//   - PowerShell on Windows runs with -NoProfile -NonInteractive.
+//
+// Residual risks:
+//   - On Windows and non-Landlock Linux: sandbox unavailable, full shell access.
+//   - The allow_shell config toggle controls whether shell execution is permitted.
+//   - Users must trust the LLM provider when shell is enabled.
+//
+// If you need stricter isolation, consider:
+//   - Running AuraGo inside a Docker container with appropriate capabilities dropped.
+//   - Using landlock-based sandbox on Linux (requires kernel >= 5.13).
+
 // ExecuteShell runs a command in the shell (PS on Windows, sh on Unix) and returns stdout/stderr.
 // Uses a manual timer + KillProcessTree to reliably terminate the full process subtree on timeout,
 // avoiding the Windows issue where exec.CommandContext only kills the parent shell but not grandchildren
