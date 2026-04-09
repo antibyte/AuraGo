@@ -4,10 +4,10 @@
 function escapeHtmlTruenas(str) {
     if (str === null || str === undefined) return '';
     return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
+        .replace(/&/g, '&')
+        .replace(/</g, '<')
+        .replace(/>/g, '>')
+        .replace(/"/g, '"')
         .replace(/'/g, '&#039;');
 }
 
@@ -87,18 +87,18 @@ class TrueNASUI {
             
             const indicator = document.getElementById('status-indicator');
             if (data.enabled === false) {
-                indicator.innerHTML = '<span class="status-offline">● Deaktiviert</span>';
+                indicator.innerHTML = `<span class="status-offline">● ${t('truenas.status_disabled')}</span>`;
             } else if (data.status === 'online') {
-                indicator.innerHTML = `<span class="status-online">● Online</span> (${escapeHtmlTruenas(data.version)})`;
+                indicator.innerHTML = `<span class="status-online">● ${t('truenas.status_online')}</span> (${escapeHtmlTruenas(data.version)})`;
                 this.loadOverview();
             } else if (data.status === 'error') {
-                indicator.innerHTML = `<span class="status-error">● Fehler: ${escapeHtmlTruenas(data.error)}</span>`;
+                indicator.innerHTML = `<span class="status-error">● ${t('truenas.status_error_prefix')} ${escapeHtmlTruenas(data.error)}</span>`;
             } else {
-                indicator.innerHTML = '<span class="status-offline">● Offline</span>';
+                indicator.innerHTML = `<span class="status-offline">● ${t('truenas.status_offline')}</span>`;
             }
         } catch (err) {
             document.getElementById('status-indicator').innerHTML = 
-                '<span class="status-error">● Verbindungsfehler</span>';
+                `<span class="status-error">● ${t('truenas.status_connection_error')}</span>`;
         }
     }
     
@@ -122,9 +122,9 @@ class TrueNASUI {
             const degraded = pools.filter(p => p.status !== 'ONLINE').length;
             const poolStatusEl = document.getElementById('pool-status');
             if (degraded > 0) {
-                poolStatusEl.innerHTML = `<span class="status-error">${degraded} DEGRADED</span>`;
+                poolStatusEl.innerHTML = `<span class="status-error">${degraded} ${t('truenas.pool_degraded')}</span>`;
             } else {
-                poolStatusEl.innerHTML = '<span class="status-online">Alle OK</span>';
+                poolStatusEl.innerHTML = `<span class="status-online">${t('truenas.pool_all_ok')}</span>`;
             }
             
             // Storage calculation
@@ -156,20 +156,20 @@ class TrueNASUI {
             }
             
         } catch (err) {
-            this.showError('overview-error', 'Fehler beim Laden der Übersicht: ' + err.message);
+            this.showError('overview-error', t('truenas.error_load_overview') + ' ' + err.message);
         }
     }
     
     async loadPools() {
         const container = document.getElementById('pools-container');
-        container.innerHTML = '<div class="loading">Lade Pools...</div>';
+        container.innerHTML = `<div class="loading">${t('truenas.loading_pools')}</div>`;
         
         try {
             const response = await fetch(`${this.baseUrl}/pools`);
             const data = await response.json();
             
             if (!data.pools || data.pools.length === 0) {
-                container.innerHTML = '<div class="empty-state">Keine Pools gefunden</div>';
+                container.innerHTML = `<div class="empty-state">${t('truenas.empty_pools')}</div>`;
                 return;
             }
             
@@ -177,6 +177,7 @@ class TrueNASUI {
             container.innerHTML = data.pools.map(pool => {
                 const usage = pool.size?.total > 0 ? (pool.size.allocated / pool.size.total * 100).toFixed(1) : 0;
                 const safeStatus = escapeHtmlTruenas(pool.status.toLowerCase());
+                const scrubLabel = pool.scan?.state === 'SCANNING' ? t('truenas.scrub_running') : t('truenas.scrub_start');
                 return `
                     <div class="pool-card ${safeStatus}">
                         <div class="pool-header">
@@ -185,15 +186,15 @@ class TrueNASUI {
                         </div>
                         <div class="pool-stats">
                             <div class="stat">
-                                <label>Größe</label>
+                                <label>${t('truenas.pool_size')}</label>
                                 <value>${this.formatBytes(pool.size?.total)}</value>
                             </div>
                             <div class="stat">
-                                <label>Belegt</label>
+                                <label>${t('truenas.pool_allocated')}</label>
                                 <value>${this.formatBytes(pool.size?.allocated)}</value>
                             </div>
                             <div class="stat">
-                                <label>Frei</label>
+                                <label>${t('truenas.pool_free')}</label>
                                 <value>${this.formatBytes(pool.size?.free)}</value>
                             </div>
                         </div>
@@ -202,7 +203,7 @@ class TrueNASUI {
                         </div>
                         <div class="pool-actions">
                             <button class="btn btn-secondary" data-pool-id="${escapeHtmlTruenas(pool.id)}" onclick="truenasUI.scrubPool(this.getAttribute('data-pool-id'))" ${pool.scan?.state === 'SCANNING' ? 'disabled' : ''}>
-                                ${pool.scan?.state === 'SCANNING' ? 'Scrub läuft...' : 'Scrub starten'}
+                                ${scrubLabel}
                             </button>
                         </div>
                     </div>
@@ -210,20 +211,20 @@ class TrueNASUI {
             }).join('');
             
         } catch (err) {
-            container.innerHTML = `<div class="alert error">Fehler: ${escapeHtmlTruenas(err.message)}</div>`;
+            container.innerHTML = `<div class="alert error">${t('truenas.error_connection')} ${escapeHtmlTruenas(err.message)}</div>`;
         }
     }
     
     async loadDatasets() {
         const container = document.getElementById('datasets-container');
-        container.innerHTML = '<div class="loading">Lade Datasets...</div>';
+        container.innerHTML = `<div class="loading">${t('truenas.loading_datasets')}</div>`;
         
         try {
             const response = await fetch(`${this.baseUrl}/datasets`);
             const data = await response.json();
             
             if (!data.datasets || data.datasets.length === 0) {
-                container.innerHTML = '<div class="empty-state">Keine Datasets gefunden</div>';
+                container.innerHTML = `<div class="empty-state">${t('truenas.empty_datasets')}</div>`;
                 return;
             }
             
@@ -238,10 +239,10 @@ class TrueNASUI {
                     <div class="dataset-item">
                         <div class="dataset-info">
                             <h4>${escapeHtmlTruenas(ds.name)}</h4>
-                            <p>${this.formatBytes(used)} / ${this.formatBytes(total)} belegt (${usage}%) • Kompression: ${escapeHtmlTruenas(ds.compression?.parsed || 'off')}</p>
+                            <p>${this.formatBytes(used)} / ${this.formatBytes(total)} ${t('truenas.dataset_used')} (${usage}%) • ${t('truenas.dataset_compression')}: ${escapeHtmlTruenas(ds.compression?.parsed || 'off')}</p>
                         </div>
                         <div class="dataset-actions">
-                            <button class="btn btn-danger" data-name="${escapeHtmlTruenas(ds.name)}" onclick="truenasUI.deleteDataset(this.getAttribute('data-name'))">Löschen</button>
+                            <button class="btn btn-danger" data-name="${escapeHtmlTruenas(ds.name)}" onclick="truenasUI.deleteDataset(this.getAttribute('data-name'))">${t('truenas.btn_delete')}</button>
                         </div>
                     </div>
                 `;
@@ -250,24 +251,24 @@ class TrueNASUI {
             // Update snapshot filter dropdown
             const filterSelect = document.getElementById('snapshot-filter');
             if (filterSelect) {
-                filterSelect.innerHTML = '<option value="">Alle Datasets</option>' + 
+                filterSelect.innerHTML = `<option value="">${t('truenas.filter_all_datasets')}</option>` + 
                     data.datasets.map(ds => `<option value="${escapeHtmlTruenas(ds.name)}">${escapeHtmlTruenas(ds.name)}</option>`).join('');
             }
             // Update snapshot create dropdown
             const createSelect = document.getElementById('snapshot-dataset');
             if (createSelect) {
-                createSelect.innerHTML = '<option value="">Wählen...</option>' + 
+                createSelect.innerHTML = `<option value="">${t('truenas.select_placeholder')}</option>` + 
                     data.datasets.map(ds => `<option value="${escapeHtmlTruenas(ds.name)}">${escapeHtmlTruenas(ds.name)}</option>`).join('');
             }
             
         } catch (err) {
-            container.innerHTML = `<div class="alert error">Fehler: ${escapeHtmlTruenas(err.message)}</div>`;
+            container.innerHTML = `<div class="alert error">${t('truenas.error_connection')} ${escapeHtmlTruenas(err.message)}</div>`;
         }
     }
     
     async loadSnapshots() {
         const container = document.getElementById('snapshots-container');
-        container.innerHTML = '<div class="loading">Lade Snapshots...</div>';
+        container.innerHTML = `<div class="loading">${t('truenas.loading_snapshots')}</div>`;
         
         try {
             const filter = document.getElementById('snapshot-filter')?.value || '';
@@ -276,7 +277,7 @@ class TrueNASUI {
             const data = await response.json();
             
             if (!data.snapshots || data.snapshots.length === 0) {
-                container.innerHTML = '<div class="empty-state">Keine Snapshots gefunden</div>';
+                container.innerHTML = `<div class="empty-state">${t('truenas.empty_snapshots')}</div>`;
                 return;
             }
             
@@ -286,48 +287,52 @@ class TrueNASUI {
                     <div class="snapshot-item">
                         <div class="snapshot-info">
                             <h4>${escapeHtmlTruenas(snap.name)}</h4>
-                            <p>${escapeHtmlTruenas(snap.dataset)} • ${this.formatBytes(snap.properties?.used?.parsed || 0)} • Vor ${age}</p>
+                            <p>${escapeHtmlTruenas(snap.dataset)} • ${this.formatBytes(snap.properties?.used?.parsed || 0)} • ${t('truenas.snapshot_ago')} ${age}</p>
                         </div>
                         <div class="snapshot-actions">
-                            <button class="btn btn-secondary" data-name="${escapeHtmlTruenas(snap.name)}" onclick="truenasUI.rollbackSnapshot(this.getAttribute('data-name'))">Rollback</button>
-                            <button class="btn btn-danger" data-name="${escapeHtmlTruenas(snap.name)}" onclick="truenasUI.deleteSnapshot(this.getAttribute('data-name'))">Löschen</button>
+                            <button class="btn btn-secondary" data-name="${escapeHtmlTruenas(snap.name)}" onclick="truenasUI.rollbackSnapshot(this.getAttribute('data-name'))">${t('truenas.btn_rollback')}</button>
+                            <button class="btn btn-danger" data-name="${escapeHtmlTruenas(snap.name)}" onclick="truenasUI.deleteSnapshot(this.getAttribute('data-name'))">${t('truenas.btn_delete')}</button>
                         </div>
                     </div>
                 `;
             }).join('');
             
         } catch (err) {
-            container.innerHTML = `<div class="alert error">Fehler: ${escapeHtmlTruenas(err.message)}</div>`;
+            container.innerHTML = `<div class="alert error">${t('truenas.error_connection')} ${escapeHtmlTruenas(err.message)}</div>`;
         }
     }
     
     async loadShares() {
         const container = document.getElementById('shares-container');
-        container.innerHTML = '<div class="loading">Lade Freigaben...</div>';
+        container.innerHTML = `<div class="loading">${t('truenas.loading_shares')}</div>`;
         
         try {
             const response = await fetch(`${this.baseUrl}/shares/smb`);
             const data = await response.json();
             
             if (!data.shares || data.shares.length === 0) {
-                container.innerHTML = '<div class="empty-state">Keine SMB-Freigaben gefunden</div>';
+                container.innerHTML = `<div class="empty-state">${t('truenas.empty_shares')}</div>`;
                 return;
             }
             
-            container.innerHTML = data.shares.map(share => `
-                <div class="share-item">
-                    <div class="share-info">
-                        <h4>${escapeHtmlTruenas(share.name)}</h4>
-                        <p>${escapeHtmlTruenas(share.path)} ${share.guestok ? '• Gast erlaubt' : ''} ${share.timemachine ? '• Time Machine' : ''}</p>
+            container.innerHTML = data.shares.map(share => {
+                const guestLabel = share.guestok ? ` • ${t('truenas.share_guest')}` : '';
+                const tmLabel = share.timemachine ? ` • ${t('truenas.share_timemachine')}` : '';
+                return `
+                    <div class="share-item">
+                        <div class="share-info">
+                            <h4>${escapeHtmlTruenas(share.name)}</h4>
+                            <p>${escapeHtmlTruenas(share.path)}${guestLabel}${tmLabel}</p>
+                        </div>
+                        <div class="share-actions">
+                            <button class="btn btn-danger" data-share-id="${escapeHtmlTruenas(share.id)}" onclick="truenasUI.deleteShare(this.getAttribute('data-share-id'))">${t('truenas.btn_delete')}</button>
+                        </div>
                     </div>
-                    <div class="share-actions">
-                        <button class="btn btn-danger" data-share-id="${escapeHtmlTruenas(share.id)}" onclick="truenasUI.deleteShare(this.getAttribute('data-share-id'))">Löschen</button>
-                    </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
             
         } catch (err) {
-            container.innerHTML = `<div class="alert error">Fehler: ${escapeHtmlTruenas(err.message)}</div>`;
+            container.innerHTML = `<div class="alert error">${t('truenas.error_connection')} ${escapeHtmlTruenas(err.message)}</div>`;
         }
     }
     
@@ -373,7 +378,7 @@ class TrueNASUI {
                     body: JSON.stringify({ key: 'truenas_api_key', value: apiKey })
                 });
             } catch (err) {
-                this.showError('settings-error', 'Fehler beim Speichern des API Keys: ' + err.message);
+                this.showError('settings-error', t('truenas.error_save_apikey') + ' ' + err.message);
                 return;
             }
         }
@@ -386,30 +391,30 @@ class TrueNASUI {
             });
             
             if (response.ok) {
-                this.showSuccess('settings-error', 'Einstellungen gespeichert');
+                this.showSuccess('settings-error', t('truenas.settings_saved'));
                 this.checkStatus();
             } else {
                 const data = await response.json();
-                this.showError('settings-error', data.error || 'Fehler beim Speichern');
+                this.showError('settings-error', data.error || t('truenas.error_save_settings'));
             }
         } catch (err) {
-            this.showError('settings-error', 'Fehler: ' + err.message);
+            this.showError('settings-error', t('truenas.error_connection') + ' ' + err.message);
         }
     }
     
     async testConnection() {
         const btn = document.querySelector('button[onclick="testConnection()"]');
         btn.disabled = true;
-        btn.textContent = 'Teste...';
+        btn.textContent = t('truenas.btn_testing');
         
         try {
             await this.checkStatus();
-            this.showSuccess('settings-error', 'Verbindung erfolgreich');
+            this.showSuccess('settings-error', t('truenas.connection_success'));
         } catch (err) {
-            this.showError('settings-error', 'Verbindung fehlgeschlagen: ' + err.message);
+            this.showError('settings-error', t('truenas.connection_failed') + ' ' + err.message);
         } finally {
             btn.disabled = false;
-            btn.textContent = 'Verbindung testen';
+            btn.textContent = t('truenas.btn_test_connection');
         }
     }
     
@@ -433,10 +438,10 @@ class TrueNASUI {
                 this.closeModal();
                 this.loadDatasets();
             } else {
-                this.showError('dataset-error', data.error || 'Fehler beim Erstellen');
+                this.showError('dataset-error', data.error || t('truenas.error_create'));
             }
         } catch (err) {
-            this.showError('dataset-error', 'Fehler: ' + err.message);
+            this.showError('dataset-error', t('truenas.error_connection') + ' ' + err.message);
         }
     }
     
@@ -449,7 +454,7 @@ class TrueNASUI {
         const retention = parseInt(document.getElementById('snapshot-retention').value) || 0;
         
         if (!dataset) {
-            this.showError('snapshot-error', 'Bitte ein Dataset wählen');
+            this.showError('snapshot-error', t('truenas.select_dataset_first'));
             return;
         }
         
@@ -466,10 +471,10 @@ class TrueNASUI {
                 this.closeModal();
                 this.loadSnapshots();
             } else {
-                this.showError('snapshot-error', data.error || 'Fehler beim Erstellen');
+                this.showError('snapshot-error', data.error || t('truenas.error_create'));
             }
         } catch (err) {
-            this.showError('snapshot-error', 'Fehler: ' + err.message);
+            this.showError('snapshot-error', t('truenas.error_connection') + ' ' + err.message);
         }
     }
     
@@ -494,32 +499,32 @@ class TrueNASUI {
                 this.closeModal();
                 this.loadShares();
             } else {
-                this.showError('share-error', data.error || 'Fehler beim Erstellen');
+                this.showError('share-error', data.error || t('truenas.error_create'));
             }
         } catch (err) {
-            this.showError('share-error', 'Fehler: ' + err.message);
+            this.showError('share-error', t('truenas.error_connection') + ' ' + err.message);
         }
     }
     
     async scrubPool(poolId) {
-        if (!(await showConfirm('Scrub starten', 'Dies kann die Performance beeinträchtigen.'))) return;
+        if (!(await showConfirm(t('truenas.confirm_scrub_title'), t('truenas.confirm_scrub_msg')))) return;
         
         try {
             const response = await fetch(`${this.baseUrl}/pools/${poolId}/scrub`, { method: 'POST' });
             if (response.ok) {
-                await showAlert('Scrub gestartet', 'Der Pool-Scrub wurde erfolgreich gestartet.');
+                await showAlert(t('truenas.confirm_scrub_title'), t('truenas.scrub_started'));
                 this.loadPools();
             } else {
                 const data = await response.json();
-                await showAlert('Fehler', data.error || 'Unbekannter Fehler');
+                await showAlert(t('truenas.status_error_prefix'), data.error || t('truenas.error_connection'));
             }
         } catch (err) {
-            await showAlert('Fehler', err.message);
+            await showAlert(t('truenas.status_error_prefix'), err.message);
         }
     }
     
     async deleteDataset(name) {
-        if (!(await showConfirm('Dataset löschen', `Dataset "${name}" wirklich löschen? Alle Daten gehen verloren!`))) return;
+        if (!(await showConfirm(t('truenas.confirm_dataset_delete_title'), t('truenas.confirm_dataset_delete_msg', {name})))) return;
         
         try {
             const response = await fetch(`${this.baseUrl}/datasets/${encodeURIComponent(name)}?recursive=true`, {
@@ -530,15 +535,15 @@ class TrueNASUI {
                 this.loadDatasets();
             } else {
                 const data = await response.json();
-                await showAlert('Fehler', data.error || 'Unbekannter Fehler');
+                await showAlert(t('truenas.status_error_prefix'), data.error || t('truenas.error_connection'));
             }
         } catch (err) {
-            await showAlert('Fehler', err.message);
+            await showAlert(t('truenas.status_error_prefix'), err.message);
         }
     }
     
     async deleteSnapshot(name) {
-        if (!(await showConfirm('Snapshot löschen', `Snapshot "${name}" wirklich löschen?`))) return;
+        if (!(await showConfirm(t('truenas.confirm_snapshot_delete_title'), t('truenas.confirm_snapshot_delete_msg', {name})))) return;
         
         try {
             const response = await fetch(`${this.baseUrl}/snapshots/${encodeURIComponent(name)}`, {
@@ -549,15 +554,15 @@ class TrueNASUI {
                 this.loadSnapshots();
             } else {
                 const data = await response.json();
-                await showAlert('Fehler', data.error || 'Unbekannter Fehler');
+                await showAlert(t('truenas.status_error_prefix'), data.error || t('truenas.error_connection'));
             }
         } catch (err) {
-            await showAlert('Fehler', err.message);
+            await showAlert(t('truenas.status_error_prefix'), err.message);
         }
     }
     
     async rollbackSnapshot(name) {
-        if (!(await showConfirm('Rollback bestätigen', `WIRKLICH zu "${name}" zurücksetzen? ALLE Daten nach diesem Snapshot werden gelöscht!`))) return;
+        if (!(await showConfirm(t('truenas.confirm_rollback_title'), t('truenas.confirm_rollback_msg', {name})))) return;
         
         try {
             const response = await fetch(`${this.baseUrl}/snapshots/${encodeURIComponent(name)}/rollback`, {
@@ -567,19 +572,19 @@ class TrueNASUI {
             });
             
             if (response.ok) {
-                await showAlert('Rollback erfolgreich', 'Der Snapshot-Rollback wurde erfolgreich durchgeführt.');
+                await showAlert(t('truenas.rollback_success'), t('truenas.rollback_complete'));
                 this.loadSnapshots();
             } else {
                 const data = await response.json();
-                await showAlert('Fehler', data.error || 'Unbekannter Fehler');
+                await showAlert(t('truenas.status_error_prefix'), data.error || t('truenas.error_connection'));
             }
         } catch (err) {
-            await showAlert('Fehler', err.message);
+            await showAlert(t('truenas.status_error_prefix'), err.message);
         }
     }
     
     async deleteShare(shareId) {
-        if (!(await showConfirm('Freigabe löschen', 'Freigabe wirklich löschen? Die Daten bleiben erhalten.'))) return;
+        if (!(await showConfirm(t('truenas.confirm_share_delete_title'), t('truenas.confirm_share_delete_msg')))) return;
         
         try {
             const response = await fetch(`${this.baseUrl}/shares/smb/${shareId}`, {
@@ -590,10 +595,10 @@ class TrueNASUI {
                 this.loadShares();
             } else {
                 const data = await response.json();
-                await showAlert('Fehler', data.error || 'Unbekannter Fehler');
+                await showAlert(t('truenas.status_error_prefix'), data.error || t('truenas.error_connection'));
             }
         } catch (err) {
-            await showAlert('Fehler', err.message);
+            await showAlert(t('truenas.status_error_prefix'), err.message);
         }
     }
     
