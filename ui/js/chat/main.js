@@ -1342,6 +1342,16 @@ function connectSSE() {
         }
     });
 
+    // Token update events - update the token counter pill
+    window.AuraSSE.on('token_update', function (payload) {
+        if (!payload) return;
+        const tokenEl = document.getElementById('tokenCounter');
+        if (!tokenEl) return;
+        const session = payload.session_total || 0;
+        const est = payload.is_estimated ? ' ~' : '';
+        tokenEl.textContent = t('chat.token_counter_format', { count: session.toLocaleString() + est });
+    });
+
     // Check auth on SSE error (may indicate 401)
     window.AuraSSE.on('_error', function () {
         fetch('/api/auth/status', { credentials: 'same-origin' }).then(function (r) {
@@ -1543,12 +1553,6 @@ function handleSSEMessage(e) {
                     }
                 }, 1500);
             }
-            return;
-        } else if (data.event === 'tokens') {
-            const tokenEl = document.getElementById('tokenCounter');
-            const session = data.session_total || 0;
-            const est = data.is_estimated ? ' ~' : '';
-            tokenEl.textContent = t('chat.token_counter_format', { count: `${session.toLocaleString()}${est}` });
             return;
         }
 
