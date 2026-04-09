@@ -42,7 +42,10 @@ func InitDB(dbPath string) (*OptimizerDB, error) {
 		return nil, fmt.Errorf("failed to create optimizer db directory: %w", err)
 	}
 
-	db, err := dbutil.Open(dbPath)
+	// Use multiple connections: the evaluation cycle reads a rows cursor while issuing
+	// additional QueryRow/Exec calls on the same DB. MaxOpenConns(1) causes an immediate
+	// self-deadlock. SQLite WAL mode supports concurrent readers safely.
+	db, err := dbutil.Open(dbPath, dbutil.WithMaxOpenConns(5))
 	if err != nil {
 		return nil, err
 	}

@@ -71,7 +71,10 @@ func (w *OptimizerWorker) pruneTraces(ctx context.Context) {
 }
 
 func (w *OptimizerWorker) runEvaluationCycle(ctx context.Context) {
-	// Evaluate running shadow tests (v2 prompts)
+	// Evaluate running shadow tests (v2 prompts).
+	// Collect all rows first, then close before issuing any further DB calls.
+	// Issuing QueryRow/Exec while a rows cursor is open violates the MaxOpenConns
+	// invariant and causes a self-deadlock on the connection pool.
 	rows, err := w.db.db.QueryContext(ctx, `
 		SELECT id, tool_name, mutated_prompt
 		FROM prompt_overrides
@@ -81,14 +84,24 @@ func (w *OptimizerWorker) runEvaluationCycle(ctx context.Context) {
 		slog.Error("[Optimizer] Failed to query shadow tests", "error", err)
 		return
 	}
-	defer rows.Close()
 
+	type shadowEntry struct {
+		id       int
+		toolName string
+		prompt   string
+	}
+	var entries []shadowEntry
 	for rows.Next() {
-		var id int
-		var toolName, prompt string
-		if err := rows.Scan(&id, &toolName, &prompt); err != nil {
+		var e shadowEntry
+		if err := rows.Scan(&e.id, &e.toolName, &e.prompt); err != nil {
 			continue
 		}
+		entries = append(entries, e)
+	}
+	rows.Close() // must close before any further DB calls
+
+	for _, e := range entries {
+		id, toolName := e.id, e.toolName
 
 		// Check count of traces for this new prompt version
 		var count int
