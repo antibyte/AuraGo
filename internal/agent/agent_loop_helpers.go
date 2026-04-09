@@ -781,15 +781,14 @@ func trim422Messages(msgs []openai.ChatCompletionMessage) []openai.ChatCompletio
 				round := toolRound{assistantIdx: len(nonToolMsgs), assistant: m}
 				for j := i + 1; j < len(msgs); j++ {
 					if msgs[j].Role == openai.ChatMessageRoleTool {
-						allMatch := true
 						for _, tc := range m.ToolCalls {
-							if msgs[j].ToolCallID == tc.ID {
+							// Require both IDs to be non-empty — "" == "" is a false match
+							// that causes the API to return 400 "tool_call_id  is not found".
+							if tc.ID != "" && msgs[j].ToolCallID != "" && msgs[j].ToolCallID == tc.ID {
 								round.toolResults = append(round.toolResults, msgs[j])
-								allMatch = false
 								break
 							}
 						}
-						_ = allMatch
 						if len(round.toolResults) == len(m.ToolCalls) {
 							break
 						}
@@ -811,7 +810,20 @@ func trim422Messages(msgs []openai.ChatCompletionMessage) []openai.ChatCompletio
 
 	lastCompleteRound := -1
 	for ri := len(rounds) - 1; ri >= 0; ri-- {
-		if len(rounds[ri].toolResults) == len(rounds[ri].assistant.ToolCalls) {
+		r := rounds[ri]
+		if len(r.toolResults) != len(r.assistant.ToolCalls) {
+			continue
+		}
+		// Exclude rounds where any ToolCall has an empty ID — empty IDs cause
+		// the API to return 400 "tool_call_id  is not found".
+		validIDs := true
+		for _, tc := range r.assistant.ToolCalls {
+			if tc.ID == "" {
+				validIDs = false
+				break
+			}
+		}
+		if validIDs {
 			lastCompleteRound = ri
 			break
 		}
