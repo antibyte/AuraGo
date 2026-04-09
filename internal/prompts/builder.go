@@ -650,14 +650,14 @@ func budgetShed(prompt string, flags ContextFlags, personalityContent, coreMemor
 	shedHeaders := []string{"# TOOL GUIDES"}
 	if flags.UnifiedMemoryBlock {
 		shedHeaders = append(shedHeaders,
-			"### User Profile",
+			"## USER PROFILING",
 			"# UNIFIED MEMORY CONTEXT",
 		)
 	} else {
 		shedHeaders = append(shedHeaders,
 			"# PREDICTED CONTEXT",
 			"# LAST 7 DAYS OVERVIEW",
-			"### User Profile",
+			"## USER PROFILING",
 		)
 	}
 

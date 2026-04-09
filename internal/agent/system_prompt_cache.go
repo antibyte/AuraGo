@@ -18,11 +18,32 @@ type systemPromptCacheKey struct {
 	Tier           string   `json:"tier"`
 	TokenBudget    int      `json:"token_budget"`
 	IsMission      bool     `json:"is_mission"`
+	// Missing fields that materially affect prompt content (Fix #1 from prompt pipeline audit)
+	IsErrorState        bool   `json:"is_error_state"`
+	RequiresCoding      bool   `json:"requires_coding"`
+	SystemLanguage      string `json:"system_language"`
+	CorePersonality     string `json:"core_personality"`
+	AdditionalPrompt    string `json:"additional_prompt"`
+	InnerVoice          string `json:"inner_voice"`
+	PredictedGuidesHash string `json:"predicted_guides_hash"`
+	HighPriorityNotes   string `json:"high_priority_notes"`
+	SessionTodoItems    string `json:"session_todo_items"`
+	WebhooksDefinitions string `json:"webhooks_definitions"`
 }
 
 func buildSystemPromptCacheKey(promptsDir string, flags prompts.ContextFlags, coreMemory, budgetHint string) (string, error) {
 	enabledTools := collectEnabledTools(flags)
 	featureToggles := collectFeatureToggles(flags)
+
+	// Hash PredictedGuides to include guide content in cache key without blowing up key size
+	predictedGuidesHash := ""
+	if len(flags.PredictedGuides) > 0 {
+		h := sha256.New()
+		for _, g := range flags.PredictedGuides {
+			h.Write([]byte(g))
+		}
+		predictedGuidesHash = hex.EncodeToString(h.Sum(nil))
+	}
 
 	key := systemPromptCacheKey{
 		PromptsDir:     promptsDir,
@@ -33,6 +54,17 @@ func buildSystemPromptCacheKey(promptsDir string, flags prompts.ContextFlags, co
 		Tier:           flags.Tier,
 		TokenBudget:    flags.TokenBudget,
 		IsMission:      flags.IsMission,
+		// New fields for prompt-relevant state (Fix #1 from prompt pipeline audit)
+		IsErrorState:        flags.IsErrorState,
+		RequiresCoding:      flags.RequiresCoding,
+		SystemLanguage:      flags.SystemLanguage,
+		CorePersonality:     flags.CorePersonality,
+		AdditionalPrompt:    flags.AdditionalPrompt,
+		InnerVoice:          flags.InnerVoice,
+		PredictedGuidesHash: predictedGuidesHash,
+		HighPriorityNotes:   flags.HighPriorityNotes,
+		SessionTodoItems:    flags.SessionTodoItems,
+		WebhooksDefinitions: flags.WebhooksDefinitions,
 	}
 	b, err := json.Marshal(key)
 	if err != nil {
