@@ -78,7 +78,6 @@ func (fm *FailoverManager) Reconfigure(cfg *config.Config) {
 	if cfg != nil && cfg.CircuitBreaker.LLMPerAttemptTimeoutSeconds > 0 {
 		SetPerAttemptTimeout(time.Duration(cfg.CircuitBreaker.LLMPerAttemptTimeoutSeconds) * time.Second)
 	}
-	oldStopCh := fm.stopCh
 	fm.Stop()
 
 	newPrimary := NewClient(cfg)
@@ -122,7 +121,6 @@ func (fm *FailoverManager) Reconfigure(cfg *config.Config) {
 	if startProbe {
 		go fm.probeLoop(newStopCh)
 	}
-	_ = oldStopCh
 	fm.logger.Info("[LLM] FailoverManager reconfigured", "model", cfg.LLM.Model, "provider", cfg.LLM.ProviderType, "base_url", cfg.LLM.BaseURL)
 }
 
@@ -248,8 +246,13 @@ func (fm *FailoverManager) probeLoop(stopCh <-chan struct{}) {
 			fm.mu.RUnlock()
 
 			// Prefer a lightweight health check that doesn't consume tokens.
-			// Fall back to a minimal chat completion for providers that don't support /models.
-			_, err := primaryClient.ListModels(ctx)
+			// ListModels works for OpenAI, OpenRouter, and some custom providers.
+			// For providers that don't support it, we skip directly to the minimal
+			// completion probe to avoid wasting tokens on a failing ListModels call.
+			var err error
+			if fm.primaryType == "openai" || fm.primaryType == "openrouter" || fm.primaryType == "custom" {
+				_, err = primaryClient.ListModels(ctx)
+			}
 			if err != nil {
 				_, err = primaryClient.CreateChatCompletion(ctx, openai.ChatCompletionRequest{
 					Model: primaryModel,

@@ -181,7 +181,8 @@ func isTransientByString(lowerErr string) bool {
 	return strings.Contains(lowerErr, "too many requests") ||
 		strings.Contains(lowerErr, "rate limit") ||
 		strings.Contains(lowerErr, "timeout") ||
-		strings.Contains(lowerErr, "deadline") ||
+		strings.Contains(lowerErr, "deadline_exceeded") ||
+		strings.Contains(lowerErr, "deadline exceeded") ||
 		strings.Contains(lowerErr, "connection") ||
 		strings.Contains(lowerErr, "503") ||
 		strings.Contains(lowerErr, "502") ||

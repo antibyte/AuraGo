@@ -1000,8 +1000,11 @@ func translateAnthropicStream(resp *http.Response, model string, thinkingCB func
 
 	go func() {
 		defer pw.Close()
-		translateStreamEvents(originalBody, pw, model, thinkingCB)
+		err := translateStreamEvents(originalBody, pw, model, thinkingCB)
 		originalBody.Close()
+		if err != nil {
+			pw.CloseWithError(err)
+		}
 	}()
 
 	resp.Body = pr
@@ -1009,7 +1012,7 @@ func translateAnthropicStream(resp *http.Response, model string, thinkingCB func
 	return resp, nil
 }
 
-func translateStreamEvents(reader io.Reader, writer io.Writer, model string, thinkingCB func(content, state string)) {
+func translateStreamEvents(reader io.Reader, writer io.Writer, model string, thinkingCB func(content, state string)) error {
 	scanner := bufio.NewScanner(reader)
 	// Increase buffer for large streaming payloads
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
@@ -1184,7 +1187,7 @@ func translateStreamEvents(reader io.Reader, writer io.Writer, model string, thi
 
 		case "message_stop":
 			fmt.Fprint(writer, "data: [DONE]\n\n")
-			return
+			return nil
 
 		case "error":
 			var evt anthropicStreamError
@@ -1203,7 +1206,7 @@ func translateStreamEvents(reader io.Reader, writer io.Writer, model string, thi
 				writeSSEChunk(writer, errChunk)
 			}
 			fmt.Fprint(writer, "data: [DONE]\n\n")
-			return
+			return nil
 
 		case "ping":
 			// Ignore Anthropic ping events
@@ -1214,6 +1217,10 @@ func translateStreamEvents(reader io.Reader, writer io.Writer, model string, thi
 
 	// If we exit the scanner without message_stop, send [DONE] anyway
 	fmt.Fprint(writer, "data: [DONE]\n\n")
+	if err := scanner.Err(); err != nil {
+		return err
+	}
+	return nil
 }
 
 // findToolIndex maps Anthropic's block index to the OpenAI tool_calls array index.

@@ -669,13 +669,10 @@ func budgetShed(prompt string, flags ContextFlags, personalityContent, coreMemor
 		before := len(result)
 		result = removeSection(result, header)
 		if len(result) < before {
-			tokens += (len(result) - before) / 4
+			tokens += (len(result) - before) / 3
 			shedList = append(shedList, header)
 			logger.Debug("[Budget] Shed section", "header", header, "estimated_tokens", tokens)
-			// Full re-count only every 3 sheds or when close to budget
-			if len(shedList)%3 == 0 || tokens <= flags.TokenBudget+200 {
-				tokens = CountTokens(result)
-			}
+			tokens = CountTokens(result)
 		}
 	}
 
@@ -785,22 +782,20 @@ func trimRetrievedMemoriesSection(prompt string, budget int, logger *slog.Logger
 	entries = nonEmpty
 
 	trimmed := false
+	memContentBudget := budget - CountTokens(before+afterSection)
 	for len(entries) > 0 {
 		content := header + "\n" + strings.Join(entries, sep) + "\n\n"
 		candidate := before + content + afterSection
-		// Fast char-estimate check: skip expensive tokenization if clearly over budget
-		if len(candidate)/4 <= budget {
-			tokens := CountTokens(candidate)
-			if tokens <= budget {
-				if trimmed {
-					logger.Debug("[Budget] Trimmed retrieved memories", "remaining_entries", len(entries))
-				}
-				return candidate, trimmed, tokens
+		tokens := CountTokens(candidate)
+		if tokens <= budget {
+			if trimmed {
+				logger.Debug("[Budget] Trimmed retrieved memories", "remaining_entries", len(entries))
 			}
+			return candidate, trimmed, tokens
 		}
-		// Drop the last (lowest-ranked) entry and retry
 		entries = entries[:len(entries)-1]
 		trimmed = true
+		_ = memContentBudget
 	}
 
 	// All entries removed — strip the section header too
@@ -1101,6 +1096,38 @@ func CountTokens(text string) int {
 		slog.Warn("[TokenCount] tiktoken encoder unavailable, using char/4 fallback")
 	})
 	return len(text) / 4
+}
+
+// tokenMultiplier returns a model-specific multiplier for token counting accuracy.
+// Anthropic Claude and Google Gemini use different tokenizers than cl100k_base,
+// so applying a correction factor improves budget estimation accuracy.
+func tokenMultiplier(model string) float64 {
+	if model == "" {
+		return 1.0
+	}
+	lower := strings.ToLower(model)
+	switch {
+	case strings.Contains(lower, "claude"):
+		return 1.15
+	case strings.Contains(lower, "gemini"):
+		return 1.10
+	case strings.Contains(lower, "deepseek"):
+		return 1.05
+	default:
+		return 1.0
+	}
+}
+
+// CountTokensForModel returns the estimated token count for a specific model.
+// For models that use different tokenizers than cl100k_base (Anthropic, Gemini),
+// a correction multiplier is applied.
+func CountTokensForModel(text string, model string) int {
+	base := CountTokens(text)
+	mult := tokenMultiplier(model)
+	if mult == 1.0 {
+		return base
+	}
+	return int(float64(base) * mult)
 }
 
 // buildEnabledToolsOverview returns a compact one-liner listing enabled tools

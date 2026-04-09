@@ -1,0 +1,513 @@
+diff internal/agent/agent_loop.go.orig internal/agent/agent_loop.go
+--- internal/agent/agent_loop.go.orig
++++ internal/agent/agent_loop.go
+@@ -223,26 +223,26 @@
+ 	// Context compression: tracks message count at last compression for cooldown
+ 	lastCompressionMsg := 0
+ 
+-		// Core memory cache: read once, invalidate on manage_memory calls
+-		// and when the DB updated_at timestamp changes (external modifications).
++	// Core memory cache: read once, invalidate on manage_memory calls
++	// and when the DB updated_at timestamp changes (external modifications).
+ 	// TTL soft-failsafe: if neither dirty nor version-changed, still re-check
+-		// after coreMemCacheTTL to catch external modifications that didn't update
+-		// the MAX(updated_at) in a detectable way.
+-		coreMemCache := ""
+-		coreMemUpdatedAt := time.Time{}
+-		coreMemLoadedAt := time.Time{}
+-		coreMemDirty := true // Force initial load
+-		tokenCache := newTokenCountCache(4096)
+-		detectedCtxWindow := 0
+-
+-		const systemPromptCacheTTL = 60 * time.Second
+-		cachedSysPromptKey := ""
+-		cachedSysPrompt := ""
+-		cachedSysPromptTokens := 0
+-		cachedSysPromptAt := time.Time{}
+-
+-		// Session-scoped todo list piggybacked on tool calls
+-		sessionTodoList := ""
++	// after coreMemCacheTTL to catch external modifications that didn't update
++	// the MAX(updated_at) in a detectable way.
++	coreMemCache := ""
++	coreMemUpdatedAt := time.Time{}
++	coreMemLoadedAt := time.Time{}
++	coreMemDirty := true // Force initial load
++	tokenCache := newTokenCountCache(4096)
++	detectedCtxWindow := 0
++
++	const systemPromptCacheTTL = 60 * time.Second
++	cachedSysPromptKey := ""
++	cachedSysPrompt := ""
++	cachedSysPromptTokens := 0
++	cachedSysPromptAt := time.Time{}
++
++	// Session-scoped todo list piggybacked on tool calls
++	sessionTodoList := ""
+ 
+ 	// Phase D: Personality Engine (opt-in)
+ 	personalityEnabled := cfg.Personality.Engine
+@@ -572,11 +572,11 @@
+ 		// We initialize flags.PredictedGuides now with empty explicit tools to satisfy builder.go for the first prompt.
+ 		// Skip guide loading in minimal tier ÔÇö the guides are never injected there (builder.go:443 checks Tier=="full").
+ 		preliminaryTierFlags := prompts.ContextFlags{
+-			MessageCount:       len(req.Messages),
+-			IsErrorState:       flags.IsErrorState,
+-			RequiresCoding:     flags.RequiresCoding,
+-			RecentlyUsedTools:  recentTools,
+-			PredictedGuides:    explicitTools,
++			MessageCount:      len(req.Messages),
++			IsErrorState:      flags.IsErrorState,
++			RequiresCoding:    flags.RequiresCoding,
++			RecentlyUsedTools: recentTools,
++			PredictedGuides:   explicitTools,
+ 		}
+ 		if preliminaryTier := prompts.DetermineTierAdaptive(preliminaryTierFlags); preliminaryTier != "minimal" {
+ 			// Build skip list: tools that already have native OpenAI function schemas
+@@ -613,7 +613,7 @@
+ 		flags.PredictedMemories = ""
+ 		retrievalPromptTokens := 0
+ 		var topMemories []string
+-			if !runCfg.IsMission && longTermMem != nil && shouldUseRAGForMessage(lastUserMsg) && shouldRefreshRAG(lastUserMsg, ragLastUserMsg, ragToolIterationsSinceLastRefresh, lastResponseWasTool) {
++		if !runCfg.IsMission && longTermMem != nil && shouldUseRAGForMessage(lastUserMsg) && shouldRefreshRAG(lastUserMsg, ragLastUserMsg, ragToolIterationsSinceLastRefresh, lastResponseWasTool) {
+ 			ragSettings := resolveMemoryAnalysisSettings(cfg, shortTermMem)
+ 			useHelperRAGBatch := helperManager != nil && ragSettings.Enabled && ragSettings.QueryExpansion && ragSettings.LLMReranking
+ 			ragQuery := lastUserMsg
+@@ -771,65 +771,65 @@
+ 					}
+ 
+ 					var predictedResults []string
+-						RecordRetrievalEventForScope(telemetryScope, "rag_predictive_attempt")
+-						predictiveStart := time.Now()
+-						hadPredictiveError := false
+-						type predictiveFetch struct {
+-							mem   string
+-							docID string
+-							err   error
+-						}
+-						fetches := make([]predictiveFetch, len(predictions))
+-
+-						g, _ := errgroup.WithContext(ctx)
+-						g.SetLimit(3)
+-						for i, pred := range predictions {
+-							i, pred := i, pred
+-							g.Go(func() error {
+-								// Use SearchMemoriesOnly: predictive pre-fetch needs only user memories,
+-								// not tool_guides/documentation ÔÇö avoids 2 full extra search cycles per request.
+-								pMem, pIDs, pErr := longTermMem.SearchMemoriesOnly(pred, 1)
+-								if pErr != nil {
+-									fetches[i].err = pErr
+-									return nil
+-								}
+-								if len(pMem) > 0 {
+-									fetches[i].mem = pMem[0]
+-									if len(pIDs) > 0 {
+-										fetches[i].docID = pIDs[0]
+-									}
+-								}
++					RecordRetrievalEventForScope(telemetryScope, "rag_predictive_attempt")
++					predictiveStart := time.Now()
++					hadPredictiveError := false
++					type predictiveFetch struct {
++						mem   string
++						docID string
++						err   error
++					}
++					fetches := make([]predictiveFetch, len(predictions))
++
++					g, _ := errgroup.WithContext(ctx)
++					g.SetLimit(3)
++					for i, pred := range predictions {
++						i, pred := i, pred
++						g.Go(func() error {
++							// Use SearchMemoriesOnly: predictive pre-fetch needs only user memories,
++							// not tool_guides/documentation ÔÇö avoids 2 full extra search cycles per request.
++							pMem, pIDs, pErr := longTermMem.SearchMemoriesOnly(pred, 1)
++							if pErr != nil {
++								fetches[i].err = pErr
+ 								return nil
+-							})
+-						}
+-						_ = g.Wait()
+-
+-						for _, f := range fetches {
+-							if f.err != nil {
+-								hadPredictiveError = true
+-								continue
+-							}
+-							if f.mem == "" {
+-								continue
+-							}
+-							if f.docID != "" && usedMemoryDocIDs[f.docID] > 0 {
+-								continue
+-							}
+-							if _, dup := retrievedSet[f.mem]; dup {
+-								continue
+-							}
+-							predictedResults = append(predictedResults, f.mem)
+-							retrievedSet[f.mem] = struct{}{} // prevent intra-prediction duplicates
+-							if f.docID != "" && shortTermMem != nil {
+-								usedMemoryDocIDs[f.docID]++
+-								_ = shortTermMem.RecordMemoryUsage(f.docID, "ltm_predicted", sessionID, 0, false)
+-								turnMemoryCandidates[f.docID] = compactMemoryForPrompt(f.mem, 260)
+-							}
+-						}
+-						RecordRetrievalEventForScope(telemetryScope, "rag_predictive_latency:"+retrievalLatencyBucket(time.Since(predictiveStart)))
+-						if hadPredictiveError {
+-							RecordRetrievalEventForScope(telemetryScope, "rag_predictive_error")
+-						}
++							}
++							if len(pMem) > 0 {
++								fetches[i].mem = pMem[0]
++								if len(pIDs) > 0 {
++									fetches[i].docID = pIDs[0]
++								}
++							}
++							return nil
++						})
++					}
++					_ = g.Wait()
++
++					for _, f := range fetches {
++						if f.err != nil {
++							hadPredictiveError = true
++							continue
++						}
++						if f.mem == "" {
++							continue
++						}
++						if f.docID != "" && usedMemoryDocIDs[f.docID] > 0 {
++							continue
++						}
++						if _, dup := retrievedSet[f.mem]; dup {
++							continue
++						}
++						predictedResults = append(predictedResults, f.mem)
++						retrievedSet[f.mem] = struct{}{} // prevent intra-prediction duplicates
++						if f.docID != "" && shortTermMem != nil {
++							usedMemoryDocIDs[f.docID]++
++							_ = shortTermMem.RecordMemoryUsage(f.docID, "ltm_predicted", sessionID, 0, false)
++							turnMemoryCandidates[f.docID] = compactMemoryForPrompt(f.mem, 260)
++						}
++					}
++					RecordRetrievalEventForScope(telemetryScope, "rag_predictive_latency:"+retrievalLatencyBucket(time.Since(predictiveStart)))
++					if hadPredictiveError {
++						RecordRetrievalEventForScope(telemetryScope, "rag_predictive_error")
++					}
+ 					if len(predictedResults) > 0 {
+ 						flags.PredictedMemories = strings.Join(predictedResults, "\n---\n")
+ 						retrievalPromptTokens += prompts.CountTokens(flags.PredictedMemories)
+@@ -1031,59 +1031,59 @@
+ 		}
+ 		flags.SkipIntegrationTools = skipIntegrationTools
+ 
+-			budgetHint := ""
+-			if budgetTracker != nil {
+-				budgetHint = budgetTracker.GetPromptHint()
+-			}
+-
+-			keyFlags := flags
+-			keyFlags.MessageCount = 0 // MessageCount only affects tier selection & metrics, not the prompt content.
+-			cacheKey, cacheKeyErr := buildSystemPromptCacheKey(cfg.Directories.PromptsDir, keyFlags, coreMemCache, budgetHint)
+-			cacheHit := cacheKeyErr == nil &&
+-				cacheKey != "" &&
+-				cacheKey == cachedSysPromptKey &&
+-				cachedSysPrompt != "" &&
+-				!cachedSysPromptAt.IsZero() &&
+-				time.Since(cachedSysPromptAt) <= systemPromptCacheTTL
+-
+-			sysPrompt := ""
+-			sysPromptTokens := 0
+-			if cacheHit {
+-				sysPrompt = cachedSysPrompt
+-				sysPromptTokens = cachedSysPromptTokens
+-			} else {
+-				sysPrompt = prompts.BuildSystemPrompt(cfg.Directories.PromptsDir, flags, coreMemCache, currentLogger)
+-				if budgetHint != "" {
+-					sysPrompt += "\n\n" + budgetHint
+-				}
+-				sysPromptTokens = prompts.CountTokens(sysPrompt)
+-
+-				if cacheKeyErr == nil && cacheKey != "" {
+-					cachedSysPromptKey = cacheKey
+-					cachedSysPrompt = sysPrompt
+-					cachedSysPromptTokens = sysPromptTokens
+-					cachedSysPromptAt = time.Now()
+-				} else {
+-					cachedSysPromptKey = ""
+-					cachedSysPrompt = ""
+-					cachedSysPromptTokens = 0
+-					cachedSysPromptAt = time.Time{}
+-				}
+-			}
+-
+-			currentLogger.Debug("[Sync] System prompt ready",
+-				"cache_hit", cacheHit,
+-				"length", len(sysPrompt),
+-				"tier", flags.Tier,
+-				"tokens", sysPromptTokens,
+-				"error_state", flags.IsErrorState,
+-				"coding_mode", flags.RequiresCoding,
+-				"active_daemons", flags.ActiveProcesses,
+-			)
+-
+-			if len(req.Messages) > 0 && req.Messages[0].Role == openai.ChatMessageRoleSystem {
+-				req.Messages[0].Content = sysPrompt
+-			} else {
++		budgetHint := ""
++		if budgetTracker != nil {
++			budgetHint = budgetTracker.GetPromptHint()
++		}
++
++		keyFlags := flags
++		keyFlags.MessageCount = 0 // MessageCount only affects tier selection & metrics, not the prompt content.
++		cacheKey, cacheKeyErr := buildSystemPromptCacheKey(cfg.Directories.PromptsDir, keyFlags, coreMemCache, budgetHint)
++		cacheHit := cacheKeyErr == nil &&
++			cacheKey != "" &&
++			cacheKey == cachedSysPromptKey &&
++			cachedSysPrompt != "" &&
++			!cachedSysPromptAt.IsZero() &&
++			time.Since(cachedSysPromptAt) <= systemPromptCacheTTL
++
++		sysPrompt := ""
++		sysPromptTokens := 0
++		if cacheHit {
++			sysPrompt = cachedSysPrompt
++			sysPromptTokens = cachedSysPromptTokens
++		} else {
++			sysPrompt = prompts.BuildSystemPrompt(cfg.Directories.PromptsDir, flags, coreMemCache, currentLogger)
++			if budgetHint != "" {
++				sysPrompt += "\n\n" + budgetHint
++			}
++			sysPromptTokens = prompts.CountTokens(sysPrompt)
++
++			if cacheKeyErr == nil && cacheKey != "" {
++				cachedSysPromptKey = cacheKey
++				cachedSysPrompt = sysPrompt
++				cachedSysPromptTokens = sysPromptTokens
++				cachedSysPromptAt = time.Now()
++			} else {
++				cachedSysPromptKey = ""
++				cachedSysPrompt = ""
++				cachedSysPromptTokens = 0
++				cachedSysPromptAt = time.Time{}
++			}
++		}
++
++		currentLogger.Debug("[Sync] System prompt ready",
++			"cache_hit", cacheHit,
++			"length", len(sysPrompt),
++			"tier", flags.Tier,
++			"tokens", sysPromptTokens,
++			"error_state", flags.IsErrorState,
++			"coding_mode", flags.RequiresCoding,
++			"active_daemons", flags.ActiveProcesses,
++		)
++
++		if len(req.Messages) > 0 && req.Messages[0].Role == openai.ChatMessageRoleSystem {
++			req.Messages[0].Content = sysPrompt
++		} else {
+ 			req.Messages = append([]openai.ChatCompletionMessage{
+ 				{Role: openai.ChatMessageRoleSystem, Content: sysPrompt},
+ 			}, req.Messages...)
+@@ -1092,17 +1092,17 @@
+ 		// ÔöÇÔöÇ Context compression ÔöÇÔöÇ
+ 		// Before the hard-trim guard, try to compress older messages into a summary
+ 		// to preserve knowledge while freeing token budget.
+-			ctxWindow := cfg.Agent.ContextWindow
+-			if ctxWindow <= 0 {
+-				if detectedCtxWindow == 0 {
+-					detectedCtxWindow = llm.DetectContextWindow(cfg.LLM.BaseURL, cfg.LLM.APIKey, req.Model, cfg.LLM.ProviderType, currentLogger)
+-				}
+-				if detectedCtxWindow > 0 {
+-					ctxWindow = detectedCtxWindow
+-				} else {
+-					ctxWindow = 163840
+-				}
+-			}
++		ctxWindow := cfg.Agent.ContextWindow
++		if ctxWindow <= 0 {
++			if detectedCtxWindow == 0 {
++				detectedCtxWindow = llm.DetectContextWindow(cfg.LLM.BaseURL, cfg.LLM.APIKey, req.Model, cfg.LLM.ProviderType, currentLogger)
++			}
++			if detectedCtxWindow > 0 {
++				ctxWindow = detectedCtxWindow
++			} else {
++				ctxWindow = 163840
++			}
++		}
+ 		completionMargin := 4096
+ 		maxHistoryTokens := ctxWindow - completionMargin
+ 		if maxHistoryTokens < 4096 {
+@@ -1112,22 +1112,22 @@
+ 		if compressionClient != nil && compressionModel != "" {
+ 			// Pre-check threshold so we can show a feedback event before the potentially
+ 			// slow synchronous LLM call inside CompressHistory (up to 30 seconds).
+-				compressionTokens := 0
+-				for _, m := range req.Messages {
+-					compressionTokens += tokenCache.Count(messageText(m)) + 4
+-				}
++			compressionTokens := 0
++			for _, m := range req.Messages {
++				compressionTokens += tokenCache.Count(messageText(m)) + 4
++			}
+ 			compressionThreshold := int(float64(maxHistoryTokens) * compressionThresholdPct)
+ 			if compressionTokens > compressionThreshold {
+ 				broker.Send("thinking", "Compressing context...")
+ 			}
+-				var compRes CompressHistoryResult
+-				req.Messages, lastCompressionMsg, compRes = CompressHistory(
+-					ctx, req.Messages, maxHistoryTokens, compressionModel, compressionClient, lastCompressionMsg, currentLogger,
+-				)
+-				if compRes.Compressed {
+-					currentLogger.Debug("[Compression] History compressed", "dropped", compRes.DroppedCount, "summary_tokens", compRes.SummaryTokens)
+-				}
+-			}
++			var compRes CompressHistoryResult
++			req.Messages, lastCompressionMsg, compRes = CompressHistory(
++				ctx, req.Messages, maxHistoryTokens, compressionModel, compressionClient, lastCompressionMsg, currentLogger,
++			)
++			if compRes.Compressed {
++				currentLogger.Debug("[Compression] History compressed", "dropped", compRes.DroppedCount, "summary_tokens", compRes.SummaryTokens)
++			}
++		}
+ 
+ 		// ÔöÇÔöÇ Context window guard ÔöÇÔöÇ
+ 		// Count total tokens across all messages and trim old history if we would
+@@ -1134,10 +1134,10 @@
+ 		// exceed the model's context window. We keep the system prompt (index 0) and
+ 		// always preserve the final user message so the model has something to answer.
+ 		// A 4096-token margin is reserved for the model's completion output.
+-			totalMsgTokens := 0
+-			for _, m := range req.Messages {
+-				totalMsgTokens += tokenCache.Count(messageText(m)) + 4 // ~4 tokens overhead per message
+-			}
++		totalMsgTokens := 0
++		for _, m := range req.Messages {
++			totalMsgTokens += tokenCache.Count(messageText(m)) + 4 // ~4 tokens overhead per message
++		}
+ 		if totalMsgTokens > maxHistoryTokens && len(req.Messages) > 2 {
+ 			broker.Send("thinking", "Trimming context window...")
+ 			currentLogger.Warn("[ContextGuard] Token limit exceeded before LLM call ÔÇö trimming history",
+@@ -1154,12 +1154,12 @@
+ 			if preserveFrom > minPreservedMessages {
+ 				preserveFrom = len(mid) - minPreservedMessages
+ 			}
+-				for totalMsgTokens > maxHistoryTokens && len(mid) > preserveFrom {
+-					dropped := mid[0]
+-					droppedMessages = append(droppedMessages, dropped)
+-					mid = mid[1:]
+-					totalMsgTokens -= tokenCache.Count(messageText(dropped)) + 4
+-				}
++			for totalMsgTokens > maxHistoryTokens && len(mid) > preserveFrom {
++				dropped := mid[0]
++				droppedMessages = append(droppedMessages, dropped)
++				mid = mid[1:]
++				totalMsgTokens -= tokenCache.Count(messageText(dropped)) + 4
++			}
+ 			trimmedMessages := []openai.ChatCompletionMessage{sysMsg}
+ 			remainingRecapBudget := maxHistoryTokens - totalMsgTokens - 4
+ 			if recap := buildTrimmedContextRecap(droppedMessages, remainingRecapBudget); recap != "" {
+@@ -1249,9 +1249,9 @@
+ 
+ 		telemetryScope = refreshTelemetryScope(telemetryScope, client, nil)
+ 
+-			// Configurable timeout for each individual LLM call to prevent infinite hangs
+-			llmTimeout := time.Duration(cfg.CircuitBreaker.LLMTimeoutSeconds) * time.Second
+-			llmCtx, cancelResp := context.WithTimeout(ctx, llmTimeout)
++		// Configurable timeout for each individual LLM call to prevent infinite hangs
++		llmTimeout := time.Duration(cfg.CircuitBreaker.LLMTimeoutSeconds) * time.Second
++		llmCtx, cancelResp := context.WithTimeout(ctx, llmTimeout)
+ 
+ 		thinkingCB := func(content, state string) {
+ 			broker.SendThinkingBlock("anthropic", content, state)
+@@ -1262,20 +1262,20 @@
+ 		var content string
+ 		var err error
+ 		var promptTokens, completionTokens, totalTokens int
+-			var tokenSource string
+-
+-			if stream {
+-				chunkIdleTimeout := time.Duration(cfg.CircuitBreaker.LLMStreamChunkTimeoutSeconds) * time.Second
+-				if chunkIdleTimeout <= 0 {
+-					chunkIdleTimeout = 30 * time.Second
+-				}
+-				if llmTimeout > 0 && chunkIdleTimeout > llmTimeout {
+-					chunkIdleTimeout = llmTimeout
+-				}
+-				result := handleStreamingResponse(llmCtx, req, client, emptyRetried, recoveryPolicy, currentLogger, broker, telemetryScope, cancelResp, chunkIdleTimeout)
+-				if result.recoveryContinue {
+-					continue
+-				}
++		var tokenSource string
++
++		if stream {
++			chunkIdleTimeout := time.Duration(cfg.CircuitBreaker.LLMStreamChunkTimeoutSeconds) * time.Second
++			if chunkIdleTimeout <= 0 {
++				chunkIdleTimeout = 30 * time.Second
++			}
++			if llmTimeout > 0 && chunkIdleTimeout > llmTimeout {
++				chunkIdleTimeout = llmTimeout
++			}
++			result := handleStreamingResponse(llmCtx, req, client, emptyRetried, recoveryPolicy, currentLogger, broker, telemetryScope, cancelResp, chunkIdleTimeout)
++			if result.recoveryContinue {
++				continue
++			}
+ 			if result.err != nil {
+ 				return openai.ChatCompletionResponse{}, result.err
+ 			}
+@@ -1339,30 +1339,30 @@
+ 
+ 		// Unified token accounting: sync path uses provider usage directly.
+ 		// Streaming path has already finalized via streamAcct before this block.
+-			if !stream {
+-				promptTokens = resp.Usage.PromptTokens
+-				completionTokens = resp.Usage.CompletionTokens
+-				totalTokens = resp.Usage.TotalTokens
+-				tokenSource = "provider_usage"
+-			}
+-
+-			var usedFallbackEstimate bool
+-			promptTokens, completionTokens, totalTokens, tokenSource, usedFallbackEstimate = applyTokenEstimationFallback(
+-				promptTokens,
+-				completionTokens,
+-				totalTokens,
+-				tokenSource,
+-				req,
+-				content,
+-			)
+-			if usedFallbackEstimate {
+-				SetGlobalTokenEstimated(true)
+-				currentLogger.Warn("[TokenEstimation] Provider returned zero tokens ÔÇö falling back to estimation which may be inaccurate", "model", req.Model)
+-			}
+-
+-			sessionTokens += totalTokens
+-			localGlobalTotal := AddGlobalTokenCount(totalTokens)
+-			localIsEstimated := tokenSource == "fallback_estimate"
++		if !stream {
++			promptTokens = resp.Usage.PromptTokens
++			completionTokens = resp.Usage.CompletionTokens
++			totalTokens = resp.Usage.TotalTokens
++			tokenSource = "provider_usage"
++		}
++
++		var usedFallbackEstimate bool
++		promptTokens, completionTokens, totalTokens, tokenSource, usedFallbackEstimate = applyTokenEstimationFallback(
++			promptTokens,
++			completionTokens,
++			totalTokens,
++			tokenSource,
++			req,
++			content,
++		)
++		if usedFallbackEstimate {
++			SetGlobalTokenEstimated(true)
++			currentLogger.Warn("[TokenEstimation] Provider returned zero tokens ÔÇö falling back to estimation which may be inaccurate", "model", req.Model)
++		}
++
++		sessionTokens += totalTokens
++		localGlobalTotal := AddGlobalTokenCount(totalTokens)
++		localIsEstimated := tokenSource == "fallback_estimate"
+ 
+ 		broker.SendTokenUpdate(promptTokens, completionTokens, totalTokens, sessionTokens, int(localGlobalTotal), localIsEstimated, true, tokenSource)
+ 
