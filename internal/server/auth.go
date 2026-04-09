@@ -546,6 +546,11 @@ func isSafeMethod(method string) bool {
 //
 // An attacker-controlled page on a different origin cannot forge matching cookies with
 // SameSite=Strict, but this check adds defence-in-depth for edge cases.
+//
+// Security note: when using Referer-based fallback, an attacker on the same HTTP host
+// could potentially bypass this check. The SameSite=Strict cookie attribute provides
+// the primary protection. For high-security deployments, consider requiring the Origin
+// header and rejecting requests without it.
 func checkCSRFOrigin(r *http.Request) bool {
 	originHeader := r.Header.Get("Origin")
 	if originHeader == "" {
@@ -555,6 +560,11 @@ func checkCSRFOrigin(r *http.Request) bool {
 		}
 		parsedReferer, err := url.Parse(referer)
 		if err != nil || parsedReferer.Host == "" {
+			return false
+		}
+		// Defensive: also check scheme to prevent HTTP-downgrade attacks via Referer.
+		// If the request is HTTPS but the Referer is HTTP, reject it.
+		if r.TLS != nil && parsedReferer.Scheme == "http" {
 			return false
 		}
 		serverHost := r.Header.Get("X-Forwarded-Host")
