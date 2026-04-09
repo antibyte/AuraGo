@@ -12,7 +12,7 @@ func TestCronManagerSaveIsAtomic(t *testing.T) {
 	mgr := NewCronManager(dir)
 	mgr.callback = func(prompt string) {}
 
-	if _, err := mgr.ManageSchedule("add", "job-1", "0 * * * * *", "run cleanup"); err != nil {
+	if _, err := mgr.ManageSchedule("add", "job-1", "0 * * * * *", "run cleanup", "en"); err != nil {
 		t.Fatalf("ManageSchedule add: %v", err)
 	}
 

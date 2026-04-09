@@ -1053,7 +1053,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 
 			var memID int64
 			fmt.Sscanf(req.ID, "%d", &memID)
-			result, err := tools.ManageCoreMemory(req.Operation, fact, memID, shortTermMem, cfg.Agent.CoreMemoryMaxEntries, cfg.Agent.CoreMemoryCapMode)
+			result, err := tools.ManageCoreMemory(req.Operation, fact, memID, shortTermMem, cfg.Agent.CoreMemoryMaxEntries, cfg.Agent.CoreMemoryCapMode, cfg.Server.UILanguage)
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
 			}
@@ -1765,7 +1765,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				}
 			}
 			logger.Info("LLM requested cron management", "operation", req.Operation)
-			result, err := cronManager.ManageSchedule(req.Operation, req.ID, req.CronExpr, req.TaskPrompt)
+			result, err := cronManager.ManageSchedule(req.Operation, req.ID, req.CronExpr, req.TaskPrompt, cfg.Server.UILanguage)
 			if err != nil {
 				return fmt.Sprintf("Tool Output: ERROR in manage_schedule: %v", err)
 			}
@@ -1780,7 +1780,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				return `Tool Output: {"status":"error","message":"Scheduler is in read-only mode. Disable tools.scheduler.read_only to allow changes."}`
 			}
 			logger.Info("LLM requested cron scheduling", "expr", req.CronExpr)
-			result, err := cronManager.ManageSchedule("add", "", req.CronExpr, req.TaskPrompt)
+			result, err := cronManager.ManageSchedule("add", "", req.CronExpr, req.TaskPrompt, cfg.Server.UILanguage)
 			if err != nil {
 				return fmt.Sprintf("Tool Output: ERROR scheduling cron: %v", err)
 			}
@@ -1791,7 +1791,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				return `Tool Output: {"status":"error","message":"Scheduler is disabled. Set tools.scheduler.enabled=true in config.yaml."}`
 			}
 			logger.Info("LLM requested cron job list")
-			result, _ := cronManager.ManageSchedule("list", "", "", "")
+			result, _ := cronManager.ManageSchedule("list", "", "", "", cfg.Server.UILanguage)
 			return result
 
 		case "remove_cron_job":
@@ -1803,7 +1803,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				return `Tool Output: {"status":"error","message":"Scheduler is in read-only mode. Disable tools.scheduler.read_only to allow changes."}`
 			}
 			logger.Info("LLM requested cron job removal", "id", req.ID)
-			result, _ := cronManager.ManageSchedule("remove", req.ID, "", "")
+			result, _ := cronManager.ManageSchedule("remove", req.ID, "", "", cfg.Server.UILanguage)
 			return result
 
 		case "document_creator":

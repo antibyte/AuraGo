@@ -884,7 +884,7 @@ func (m *MissionManagerV2) Create(mission *MissionV2) error {
 	// Register with cron if scheduled
 	if mission.ExecutionType == ExecutionScheduled && mission.Schedule != "" {
 		cronID := "mission_" + mission.ID
-		m.cron.ManageSchedule("add", cronID, mission.Schedule, mission.Prompt)
+		m.cron.ManageSchedule("add", cronID, mission.Schedule, mission.Prompt, "")
 	}
 
 	return m.save()
@@ -903,7 +903,7 @@ func (m *MissionManagerV2) Update(id string, updated *MissionV2) error {
 	// Unregister old triggers
 	if mission.ExecutionType == ExecutionScheduled && mission.Schedule != "" {
 		cronID := "mission_" + id
-		m.cron.ManageSchedule("remove", cronID, "", "")
+		m.cron.ManageSchedule("remove", cronID, "", "", "")
 	}
 
 	// Preserve metadata
@@ -925,7 +925,7 @@ func (m *MissionManagerV2) Update(id string, updated *MissionV2) error {
 			m.registerTrigger(updated)
 		} else if updated.ExecutionType == ExecutionScheduled && updated.Schedule != "" {
 			cronID := "mission_" + id
-			m.cron.ManageSchedule("add", cronID, updated.Schedule, updated.Prompt)
+			m.cron.ManageSchedule("add", cronID, updated.Schedule, updated.Prompt, "")
 		}
 	}
 
@@ -953,7 +953,7 @@ func (m *MissionManagerV2) Delete(id string) error {
 	// Unregister triggers
 	if mission.ExecutionType == ExecutionScheduled && mission.Schedule != "" {
 		cronID := "mission_" + id
-		m.cron.ManageSchedule("remove", cronID, "", "")
+		m.cron.ManageSchedule("remove", cronID, "", "", "")
 	}
 
 	delete(m.missions, id)

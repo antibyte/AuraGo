@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"aurago/internal/i18n"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -111,21 +112,23 @@ func (m *CronManager) GetJobs() []CronJob {
 	return out
 }
 
-func (m *CronManager) ManageSchedule(operation, id, expr, prompt string) (string, error) {
+// ManageSchedule handles cron job operations with i18n support.
+// The lang parameter is used for i18n of user-facing messages. If empty, English is used.
+func (m *CronManager) ManageSchedule(operation, id, expr, prompt string, lang string) (string, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	switch operation {
 	case "add":
 		if expr == "" || prompt == "" {
-			return `{"status": "error", "message": "cron_expr and task_prompt required for add"}`, nil
+			return fmt.Sprintf(`{"status": "error", "message": "%s"}`, i18n.T(lang, "tools.cron_add_required")), nil
 		}
 
 		// Parse check
 		parser := cron.NewParser(cron.Second | cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow | cron.Descriptor)
 		_, err := parser.Parse(expr)
 		if err != nil {
-			return fmt.Sprintf(`{"status": "error", "message": "invalid cron expression: %v"}`, err), nil
+			return fmt.Sprintf(`{"status": "error", "message": "%s"}`, i18n.T(lang, "tools.cron_invalid_expr", err)), nil
 		}
 
 		jobID := id
@@ -147,16 +150,16 @@ func (m *CronManager) ManageSchedule(operation, id, expr, prompt string) (string
 			return "", err
 		}
 
-		return fmt.Sprintf(`{"status": "success", "message": "Job scheduled.", "id": "%s"}`, jobID), nil
+		return fmt.Sprintf(`{"status": "success", "message": "%s", "id": "%s"}`, i18n.T(lang, "tools.cron_scheduled"), jobID), nil
 
 	case "remove":
 		if id == "" {
-			return `{"status": "error", "message": "id required for remove"}`, nil
+			return fmt.Sprintf(`{"status": "error", "message": "%s"}`, i18n.T(lang, "tools.cron_remove_id_required")), nil
 		}
 
 		entryID, exists := m.cronEntryIDs[id]
 		if !exists {
-			return `{"status": "warning", "message": "Job ID not found"}`, nil
+			return fmt.Sprintf(`{"status": "warning", "message": "%s"}`, i18n.T(lang, "tools.cron_job_not_found")), nil
 		}
 
 		m.engine.Remove(entryID)
@@ -173,11 +176,11 @@ func (m *CronManager) ManageSchedule(operation, id, expr, prompt string) (string
 			return "", err
 		}
 
-		return `{"status": "success", "message": "Job removed."}`, nil
+		return fmt.Sprintf(`{"status": "success", "message": "%s"}`, i18n.T(lang, "tools.cron_removed")), nil
 
 	case "enable":
 		if id == "" {
-			return `{"status": "error", "message": "id required for enable"}`, nil
+			return fmt.Sprintf(`{"status": "error", "message": "%s"}`, i18n.T(lang, "tools.cron_enable_id_required")), nil
 		}
 		for i, job := range m.jobs {
 			if job.ID == id {
@@ -189,16 +192,16 @@ func (m *CronManager) ManageSchedule(operation, id, expr, prompt string) (string
 					if err := m.save(); err != nil {
 						return "", err
 					}
-					return `{"status": "success", "message": "Job enabled."}`, nil
+					return fmt.Sprintf(`{"status": "success", "message": "%s"}`, i18n.T(lang, "tools.cron_enabled")), nil
 				}
-				return `{"status": "success", "message": "Job already enabled."}`, nil
+				return fmt.Sprintf(`{"status": "success", "message": "%s"}`, i18n.T(lang, "tools.cron_already_enabled")), nil
 			}
 		}
-		return `{"status": "warning", "message": "Job ID not found"}`, nil
+		return fmt.Sprintf(`{"status": "warning", "message": "%s"}`, i18n.T(lang, "tools.cron_job_not_found")), nil
 
 	case "disable":
 		if id == "" {
-			return `{"status": "error", "message": "id required for disable"}`, nil
+			return fmt.Sprintf(`{"status": "error", "message": "%s"}`, i18n.T(lang, "tools.cron_disable_id_required")), nil
 		}
 		for i, job := range m.jobs {
 			if job.ID == id {
@@ -211,12 +214,12 @@ func (m *CronManager) ManageSchedule(operation, id, expr, prompt string) (string
 					if err := m.save(); err != nil {
 						return "", err
 					}
-					return `{"status": "success", "message": "Job disabled."}`, nil
+					return fmt.Sprintf(`{"status": "success", "message": "%s"}`, i18n.T(lang, "tools.cron_disabled")), nil
 				}
-				return `{"status": "success", "message": "Job already disabled."}`, nil
+				return fmt.Sprintf(`{"status": "success", "message": "%s"}`, i18n.T(lang, "tools.cron_already_disabled")), nil
 			}
 		}
-		return `{"status": "warning", "message": "Job ID not found"}`, nil
+		return fmt.Sprintf(`{"status": "warning", "message": "%s"}`, i18n.T(lang, "tools.cron_job_not_found")), nil
 
 	case "list":
 		if len(m.jobs) == 0 {

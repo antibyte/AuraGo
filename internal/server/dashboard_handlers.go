@@ -443,7 +443,7 @@ func handleCronAPI(s *Server) http.HandlerFunc {
 				jsonError(w, "id required", http.StatusBadRequest)
 				return
 			}
-			result, err := s.CronManager.ManageSchedule("remove", id, "", "")
+			result, err := s.CronManager.ManageSchedule("remove", id, "", "", "")
 			if err != nil {
 				s.Logger.Error("Failed to remove cron job", "id", id, "error", err)
 				jsonError(w, "Internal server error", http.StatusInternalServerError)
@@ -463,11 +463,11 @@ func handleCronAPI(s *Server) http.HandlerFunc {
 				return
 			}
 			// Remove old job first (ignore if not found)
-			if _, err := s.CronManager.ManageSchedule("remove", body.ID, "", ""); err != nil {
+			if _, err := s.CronManager.ManageSchedule("remove", body.ID, "", "", ""); err != nil {
 				s.Logger.Warn("Failed to remove old cron job before update", "id", body.ID, "error", err)
 			}
 			// Re-add with same ID and updated parameters
-			result, err := s.CronManager.ManageSchedule("add", body.ID, body.CronExpr, body.TaskPrompt)
+			result, err := s.CronManager.ManageSchedule("add", body.ID, body.CronExpr, body.TaskPrompt, "")
 			if err != nil {
 				s.Logger.Error("Failed to add updated cron job", "id", body.ID, "error", err)
 				jsonError(w, "Internal server error", http.StatusInternalServerError)

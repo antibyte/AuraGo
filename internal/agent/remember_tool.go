@@ -166,7 +166,7 @@ func rememberAsFact(content string, stm *memory.SQLiteMemory, cfg *config.Config
 	if stm == nil {
 		return `Tool Output: {"status":"error","message":"Memory storage not available"}`
 	}
-	result, err := tools.ManageCoreMemory("add", content, 0, stm, cfg.Agent.CoreMemoryMaxEntries, cfg.Agent.CoreMemoryCapMode)
+	result, err := tools.ManageCoreMemory("add", content, 0, stm, cfg.Agent.CoreMemoryMaxEntries, cfg.Agent.CoreMemoryCapMode, cfg.Server.UILanguage)
 	if err != nil {
 		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
 	}
