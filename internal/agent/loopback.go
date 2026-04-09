@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"aurago/internal/i18n"
 	"aurago/internal/prompts"
 	"aurago/internal/security"
 	"aurago/internal/tools"
@@ -87,7 +88,7 @@ func Loopback(runCfg RunConfig, message string, broker FeedbackBroker) {
 	resp, err := ExecuteAgentLoop(ctx, req, runCfg, false, broker)
 	if err != nil {
 		logger.Error("[Loopback] Agent loop failed", "error", err)
-		broker.Send("error_recovery", "Sorry, I encountered an error processing your message.")
+		broker.Send("error_recovery", i18n.T(cfg.Server.UILanguage, "backend.stream_error_recovery_loopback"))
 		return
 	}
 

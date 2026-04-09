@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"aurago/internal/i18n"
 	"aurago/internal/llm"
 	loggerPkg "aurago/internal/logger"
 	"aurago/internal/memory"
@@ -356,7 +357,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		// Safety: prevent infinite loops
 		if loopIterationCount > maxLoopIterations {
 			currentLogger.Error("[Sync] Maximum loop iterations exceeded — aborting to prevent infinite loop", "iterations", loopIterationCount)
-			broker.Send("error_recovery", fmt.Sprintf("Agent loop exceeded maximum iterations (%d). Please restart.", maxLoopIterations))
+			broker.Send("error_recovery", i18n.T(cfg.Server.UILanguage, "backend.stream_error_recovery_loop_exceeded", maxLoopIterations))
 			return openai.ChatCompletionResponse{}, fmt.Errorf("agent loop exceeded maximum iterations: %d", maxLoopIterations)
 		}
 
@@ -372,7 +373,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		// Check for user interrupt
 		if checkAndClearInterrupt(sessionID) {
 			currentLogger.Warn("[Sync] User interrupted the agent — stopping immediately")
-			broker.Send("thinking", "Stopped by user.")
+			broker.Send("thinking", i18n.T(cfg.Server.UILanguage, "backend.stream_thinking_stopped_by_user"))
 			stopContent := "⏹ Stopped."
 			// Persist the stop event so the agent remembers it was stopped
 			if shortTermMem != nil {
@@ -1243,7 +1244,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 		// Budget check: block if daily budget exceeded and enforcement = full
 		if budgetTracker != nil && budgetTracker.IsBlocked("chat") {
-			broker.Send("budget_blocked", "Daily budget exceeded. All LLM calls blocked until reset.")
+			broker.Send("budget_blocked", i18n.T(cfg.Server.UILanguage, "backend.stream_budget_blocked"))
 			return openai.ChatCompletionResponse{}, fmt.Errorf("budget exceeded (enforcement=full)")
 		}
 
@@ -1383,8 +1384,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 			if crossedWarning {
 				bs := budgetTracker.GetStatus()
-				warnMsg := fmt.Sprintf("\u26a0\ufe0f Budget warning: %.0f%% used ($%.4f / $%.2f)", bs.Percentage*100, bs.SpentUSD, bs.DailyLimit)
-				broker.Send("budget_warning", warnMsg)
+				broker.Send("budget_warning", i18n.T(cfg.Server.UILanguage, "backend.stream_budget_warning", fmt.Sprintf("%.0f", bs.Percentage*100), fmt.Sprintf("$%.4f", bs.SpentUSD), fmt.Sprintf("$%.2f", bs.DailyLimit)))
 				// Journal: record budget warning event once per session
 				if shortTermMem != nil && cfg.Tools.Journal.Enabled && cfg.Journal.AutoEntries && sessionID == "default" {
 					_, _ = shortTermMem.InsertJournalEntry(memory.JournalEntry{
@@ -1400,11 +1400,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			if budgetTracker.IsExceeded() {
 				bs := budgetTracker.GetStatus()
 				if bs.IsBlocked {
-					exMsg := fmt.Sprintf("\u26d4 Budget exceeded! $%.4f / $%.2f (enforcement: %s)", bs.SpentUSD, bs.DailyLimit, bs.Enforcement)
-					broker.Send("budget_blocked", exMsg)
+					broker.Send("budget_blocked", i18n.T(cfg.Server.UILanguage, "backend.stream_budget_exceeded", fmt.Sprintf("$%.4f", bs.SpentUSD), fmt.Sprintf("$%.2f", bs.DailyLimit), bs.Enforcement))
 				} else {
-					wMsg := fmt.Sprintf("\u26a0\ufe0f Budget exceeded: $%.4f / $%.2f (enforcement: %s)", bs.SpentUSD, bs.DailyLimit, bs.Enforcement)
-					broker.Send("budget_warning", wMsg)
+					broker.Send("budget_warning", i18n.T(cfg.Server.UILanguage, "backend.stream_budget_exceeded", fmt.Sprintf("$%.4f", bs.SpentUSD), fmt.Sprintf("$%.2f", bs.DailyLimit), bs.Enforcement))
 				}
 				// Journal: record budget exceeded event once per session
 				if shortTermMem != nil && cfg.Tools.Journal.Enabled && cfg.Journal.AutoEntries && sessionID == "default" {
@@ -1459,7 +1457,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		if tc.RawCodeDetected && rawCodeCount < 2 {
 			rawCodeCount++
 			currentLogger.Warn("[Sync] Raw code detected, sending corrective feedback", "attempt", rawCodeCount)
-			broker.Send("error_recovery", "Raw code detected, requesting JSON format...")
+			broker.Send("error_recovery", i18n.T(cfg.Server.UILanguage, "backend.stream_error_recovery_raw_code"))
 
 			id, err := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleAssistant, content, false, true)
 			if err != nil {
@@ -1491,7 +1489,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			xmlFallbackCount++
 			currentLogger.Warn("[Sync] XML fallback tool call detected, sending corrective feedback",
 				"attempt", xmlFallbackCount, "action", tc.Action)
-			broker.Send("error_recovery", "XML tool call format detected, requesting native API format...")
+			broker.Send("error_recovery", i18n.T(cfg.Server.UILanguage, "backend.stream_error_recovery_xml_format"))
 
 			// Strip the <action>...</action> block (and everything after it) before
 			// persisting to SQLite so the raw XML never appears in history / chat UI.
@@ -1555,7 +1553,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				"attempt", invalidNativeToolCount,
 				"action", tc.Action,
 				"error", tc.NativeArgsError)
-			broker.Send("error_recovery", "Invalid native tool call detected, requesting corrected function call...")
+			broker.Send("error_recovery", i18n.T(cfg.Server.UILanguage, "backend.stream_error_recovery_invalid_native"))
 
 			recoveryTool := tc.Action
 			if strings.TrimSpace(recoveryTool) == "" {
@@ -1587,7 +1585,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		if parsedToolResp.IncompleteToolCall && !tc.IsTool && incompleteToolCallCount < 2 {
 			incompleteToolCallCount++
 			currentLogger.Warn("[Sync] Incomplete <tool_call> tag detected, nudging model to emit actual tool call", "attempt", incompleteToolCallCount)
-			broker.Send("error_recovery", "Incomplete tool call detected, requesting proper function call...")
+			broker.Send("error_recovery", i18n.T(cfg.Server.UILanguage, "backend.stream_error_recovery_incomplete_tool_call"))
 
 			id, err := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleAssistant, content, false, true)
 			if err != nil {
@@ -1636,7 +1634,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		if isAnnouncement && announcementCount < cfg.Agent.AnnouncementDetector.MaxRetries {
 			announcementCount++
 			currentLogger.Warn("[Sync] Announcement-only response detected, requesting immediate tool call", "attempt", announcementCount, "content_preview", Truncate(announcementContent, 120))
-			broker.Send("error_recovery", "Announcement without action detected, requesting tool call...")
+			broker.Send("error_recovery", i18n.T(cfg.Server.UILanguage, "backend.stream_error_recovery_announcement_no_action"))
 
 			id, err := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleAssistant, content, false, true)
 			if err != nil {
@@ -1680,7 +1678,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			(strings.Contains(content, `"action"`) || strings.Contains(content, `'action'`)) {
 			missedToolCount++
 			currentLogger.Warn("[Sync] Missed tool call in fence, sending corrective feedback", "attempt", missedToolCount, "content_preview", Truncate(content, 150))
-			broker.Send("error_recovery", "Tool call wrapped in fence, requesting raw JSON...")
+			broker.Send("error_recovery", i18n.T(cfg.Server.UILanguage, "backend.stream_error_recovery_fence_json"))
 
 			id, err := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleAssistant, content, false, true)
 			if err != nil {
@@ -1714,7 +1712,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			if hasOpenTag && !hasCloseTag {
 				orphanedToolCallCount++
 				currentLogger.Warn("[Sync] Orphaned [TOOL_CALL] tag detected without closing tag, requesting corrective tool call", "attempt", orphanedToolCallCount, "content_preview", Truncate(content, 150))
-				broker.Send("error_recovery", "Incomplete tool call tag detected, requesting proper tool call...")
+				broker.Send("error_recovery", i18n.T(cfg.Server.UILanguage, "backend.stream_error_recovery_incomplete_tag"))
 
 				id, err := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleAssistant, content, false, true)
 				if err != nil {
@@ -1755,7 +1753,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			if strings.Contains(lowerContent, "<tool_call") {
 				orphanedToolCallCount++
 				currentLogger.Warn("[Sync] Bare <tool_call> XML in native mode, requesting native function call", "attempt", orphanedToolCallCount, "content_preview", Truncate(content, 150))
-				broker.Send("error_recovery", "<tool_call> XML detected in native mode, requesting function call...")
+				broker.Send("error_recovery", i18n.T(cfg.Server.UILanguage, "backend.stream_error_recovery_xml_in_native_mode"))
 
 				id, err := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleAssistant, content, false, true)
 				if err != nil {
@@ -1866,7 +1864,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 			if tc.Action == "execute_python" {
 				flags.RequiresCoding = true
-				broker.Send("coding", "Executing Python script...")
+				broker.Send("coding", i18n.T(cfg.Server.UILanguage, "backend.stream_coding_executing"))
 			}
 
 			// Co-agent spawn: send a dedicated status event with a task preview
@@ -2203,7 +2201,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		// Fire "done" AFTER the message is persisted so that the UI can reliably
 		// fall back to /history if the HTTP response was lost (e.g. page refresh
 		// during a long-running agent run).
-		broker.Send("done", "Response complete.")
+		broker.Send("done", i18n.T(cfg.Server.UILanguage, "backend.stream_done"))
 
 		memAnalysis := resolveMemoryAnalysisSettings(cfg, shortTermMem)
 		useBatchedTurnHelper := helperManager != nil && memAnalysis.Enabled && memAnalysis.RealTime && !isEmpty && shortTermMem != nil && !flags.IsCoAgent
