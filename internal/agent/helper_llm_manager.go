@@ -241,6 +241,11 @@ const (
 	helperRetryDelay       = 2 * time.Second
 	helperMaxConcurrent    = 3
 	helperProviderCacheKey = "provider_identity"
+	// helperRAGBatchTimeout is the per-call deadline for RAG-batch analysis.
+	// At 100 tok/s (e.g. MiniMax high-speed) with up to 900 output tokens, the
+	// call needs ~9 s of generation time alone; 15 s leaves headroom for network
+	// latency and input processing.
+	helperRAGBatchTimeout = 15 * time.Second
 )
 
 type helperLLMManager struct {

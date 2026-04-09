@@ -25,6 +25,7 @@ var openRouterHTTPClient = &http.Client{Timeout: 10 * time.Second}
 // The apiKey should be the OpenRouter API key.
 // baseURL can be empty (defaults to "https://openrouter.ai/api/v1").
 func FetchOpenRouterCredits(apiKey, baseURL string) (*OpenRouterCredits, error) {
+	apiKey = strings.TrimSpace(apiKey)
 	if apiKey == "" {
 		return nil, fmt.Errorf("no API key provided")
 	}

@@ -672,8 +672,8 @@ func (c *Config) ApplyVaultSecrets(vault SecretReader) {
 		return
 	}
 	apply := func(vaultKey string, target *string) {
-		if v, err := vault.ReadSecret(vaultKey); err == nil && v != "" {
-			*target = v
+		if v, err := vault.ReadSecret(vaultKey); err == nil && strings.TrimSpace(v) != "" {
+			*target = strings.TrimSpace(v)
 		}
 	}
 

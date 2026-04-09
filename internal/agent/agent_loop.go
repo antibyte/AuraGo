@@ -639,7 +639,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			if err == nil {
 				ranked := rankMemoryCandidates(memories, docIDs, shortTermMem, usedMemoryDocIDs, time.Now())
 				if useHelperRAGBatch {
-					batchCtx, batchCancel := context.WithTimeout(ctx, 1800*time.Millisecond)
+					batchCtx, batchCancel := context.WithTimeout(ctx, helperRAGBatchTimeout)
 					batchResult, batchErr := helperManager.AnalyzeRAG(batchCtx, lastUserMsg, ranked)
 					batchCancel()
 					if batchErr != nil {
