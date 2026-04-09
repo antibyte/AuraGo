@@ -691,8 +691,9 @@ func TestAnthropicE2E_Chat(t *testing.T) {
 		if r.Header.Get("anthropic-version") != anthropicAPIVersion {
 			t.Errorf("anthropic-version = %q", r.Header.Get("anthropic-version"))
 		}
-		if r.Header.Get("Authorization") != "" {
-			t.Error("Authorization header should be removed")
+		// Authorization header is kept alongside x-api-key for proxy compatibility (e.g. z.ai)
+		if r.Header.Get("Authorization") == "" {
+			t.Error("Authorization header should be forwarded for proxy compatibility")
 		}
 
 		// Parse request to verify translation
@@ -877,6 +878,125 @@ func TestAnthropicErrorTranslation(t *testing.T) {
 	body, _ := io.ReadAll(resp.Body)
 	if !strings.Contains(string(body), "max_tokens") {
 		t.Errorf("error body doesn't mention max_tokens: %s", body)
+	}
+}
+
+// TestAnthropicPathNormalizationNoV1 verifies that base URLs without /v1
+// (e.g. https://api.z.ai/api/anthropic) get /v1 injected before /messages.
+func TestAnthropicPathNormalizationNoV1(t *testing.T) {
+	var capturedPath string
+	base := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		capturedPath = req.URL.Path
+		// Return minimal valid Anthropic response
+		ant := anthropicResponse{
+			ID: "msg_zai", Type: "message", Role: "assistant",
+			Model:      "glm-5.1",
+			Content:    []anthropicResponseBlock{{Type: "text", Text: "hi"}},
+			StopReason: "end_turn",
+			Usage:      anthropicUsage{InputTokens: 5, OutputTokens: 2},
+		}
+		body, _ := json.Marshal(ant)
+		return &http.Response{
+			StatusCode: 200,
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+			Body:       io.NopCloser(strings.NewReader(string(body))),
+		}, nil
+	})
+
+	transport := &anthropicTransport{base: base}
+	client := &http.Client{Transport: transport}
+
+	// Simulate go-openai with BaseURL="https://api.z.ai/api/anthropic" (no /v1)
+	// → go-openai produces path /api/anthropic/chat/completions
+	body := `{"model":"glm-5.1","messages":[{"role":"user","content":"hi"}]}`
+	req, _ := http.NewRequest(http.MethodPost, "https://api.z.ai/api/anthropic/chat/completions", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer zai-test-key")
+	_, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+
+	// /api/anthropic/chat/completions → /api/anthropic/v1/messages  (v1 injected)
+	if capturedPath != "/api/anthropic/v1/messages" {
+		t.Errorf("path = %q, want /api/anthropic/v1/messages", capturedPath)
+	}
+}
+
+// TestAnthropicPathNormalizationWithV1 verifies that paths already containing /v1
+// are not modified (standard Anthropic and z.ai with explicit /v1 base URL).
+func TestAnthropicPathNormalizationWithV1(t *testing.T) {
+	var capturedPath string
+	base := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		capturedPath = req.URL.Path
+		ant := anthropicResponse{
+			ID: "msg_ok", Type: "message", Role: "assistant", Model: "claude-3-5-sonnet-latest",
+			Content:    []anthropicResponseBlock{{Type: "text", Text: "ok"}},
+			StopReason: "end_turn", Usage: anthropicUsage{InputTokens: 5, OutputTokens: 2},
+		}
+		body, _ := json.Marshal(ant)
+		return &http.Response{
+			StatusCode: 200, Header: http.Header{"Content-Type": []string{"application/json"}},
+			Body: io.NopCloser(strings.NewReader(string(body))),
+		}, nil
+	})
+
+	transport := &anthropicTransport{base: base}
+	client := &http.Client{Transport: transport}
+
+	body := `{"model":"claude-3-5-sonnet-latest","messages":[{"role":"user","content":"hi"}]}`
+	// Standard: BaseURL="https://api.anthropic.com/v1" → path /v1/chat/completions
+	req, _ := http.NewRequest(http.MethodPost, "https://api.anthropic.com/v1/chat/completions", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer sk-ant-test")
+	_, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+
+	// /v1/chat/completions → /v1/messages  (unchanged, no duplicate /v1)
+	if capturedPath != "/v1/messages" {
+		t.Errorf("path = %q, want /v1/messages", capturedPath)
+	}
+}
+
+// TestAnthropicDualAuthHeaders verifies that both x-api-key and Authorization
+// headers are sent — x-api-key for official Anthropic, Authorization: Bearer
+// for compatible proxies like z.ai.
+func TestAnthropicDualAuthHeaders(t *testing.T) {
+	var gotXAPIKey, gotAuth string
+	base := roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		gotXAPIKey = req.Header.Get("x-api-key")
+		gotAuth = req.Header.Get("Authorization")
+		ant := anthropicResponse{
+			ID: "msg_h", Type: "message", Role: "assistant", Model: "glm-5.1",
+			Content:    []anthropicResponseBlock{{Type: "text", Text: "ok"}},
+			StopReason: "end_turn", Usage: anthropicUsage{InputTokens: 3, OutputTokens: 2},
+		}
+		body, _ := json.Marshal(ant)
+		return &http.Response{
+			StatusCode: 200, Header: http.Header{"Content-Type": []string{"application/json"}},
+			Body: io.NopCloser(strings.NewReader(string(body))),
+		}, nil
+	})
+
+	transport := &anthropicTransport{base: base}
+	client := &http.Client{Transport: transport}
+
+	body := `{"model":"glm-5.1","messages":[{"role":"user","content":"hi"}]}`
+	req, _ := http.NewRequest(http.MethodPost, "https://api.z.ai/api/anthropic/v1/chat/completions", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer my-zai-key")
+	_, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+
+	if gotXAPIKey != "my-zai-key" {
+		t.Errorf("x-api-key = %q, want my-zai-key", gotXAPIKey)
+	}
+	if gotAuth != "Bearer my-zai-key" {
+		t.Errorf("Authorization = %q, want 'Bearer my-zai-key'", gotAuth)
 	}
 }
 

@@ -381,16 +381,29 @@ func (t *anthropicTransport) RoundTrip(req *http.Request) (*http.Response, error
 
 	// Rewrite the request for the Anthropic API.
 	clone := req.Clone(req.Context())
-	clone.URL.Path = strings.Replace(clone.URL.Path, "/chat/completions", "/messages", 1)
+
+	// Rewrite /chat/completions → /messages (Anthropic Messages API path).
+	// Also ensure /v1/ is present: base URLs like https://api.z.ai/api/anthropic
+	// (without /v1) cause go-openai to produce a bare /chat/completions path,
+	// which would land on /messages instead of the required /v1/messages.
+	newPath := strings.Replace(clone.URL.Path, "/chat/completions", "/messages", 1)
+	if !strings.Contains(newPath, "/v1/") && strings.HasSuffix(newPath, "/messages") {
+		newPath = newPath[:len(newPath)-len("/messages")] + "/v1/messages"
+	}
+	clone.URL.Path = newPath
+
 	clone.Body = io.NopCloser(bytes.NewReader(antBody))
 	clone.ContentLength = int64(len(antBody))
 	clone.Header = req.Header.Clone()
 
-	// Auth: replace Bearer token with x-api-key header.
+	// Auth: set x-api-key (official Anthropic API) while also keeping the
+	// Authorization: Bearer header intact. Anthropic-compatible proxies such as
+	// z.ai require Bearer auth whereas api.anthropic.com uses x-api-key;
+	// sending both headers satisfies either side without any config change.
 	if auth := clone.Header.Get("Authorization"); auth != "" {
 		apiKey := strings.TrimPrefix(auth, "Bearer ")
-		clone.Header.Del("Authorization")
 		clone.Header.Set("x-api-key", apiKey)
+		// Authorization header is intentionally kept for proxy compatibility.
 	}
 	clone.Header.Set("anthropic-version", anthropicAPIVersion)
 	clone.Header.Set("Content-Type", "application/json")
