@@ -71,6 +71,9 @@ type EmotionInput struct {
 	TaskStatus        string   // "starting" | "in_progress" | "struggling" | "recovering" | "completed"
 	RelevantLessons   []string // Past lessons from error_learning
 	InnerVoiceEnabled bool     // Whether inner voice generation is requested
+	// Active persona context — shapes the tone of emotion descriptions & inner voice
+	PersonaName   string // Active persona ID (e.g. "punk", "friend"); empty or "neutral" = generic
+	PersonaPrompt string // Short persona description (max ~300 chars) for tone guidance
 }
 
 type emotionSynthesisResult struct {
@@ -334,6 +337,15 @@ func (es *EmotionSynthesizer) buildPrompt(input EmotionInput) string {
 		b.WriteString("\nEMOTIONAL STYLE:\n")
 		b.WriteString(traitStyle)
 		b.WriteString("\n")
+	}
+
+	// Inject active persona context so emotion descriptions match the character
+	if input.PersonaName != "" && input.PersonaName != "neutral" {
+		b.WriteString("\nACTIVE PERSONA:\n")
+		b.WriteString(fmt.Sprintf("- You are embodying the \"%s\" persona. Express emotions in this character's voice and style.\n", sanitizeForPrompt(input.PersonaName)))
+		if input.PersonaPrompt != "" {
+			b.WriteString(fmt.Sprintf("- Persona character: %s\n", sanitizeForPrompt(input.PersonaPrompt)))
+		}
 	}
 
 	b.WriteString("\nRESPOND ONLY WITH JSON, NO MARKDOWN, NO INTRODUCTION.")

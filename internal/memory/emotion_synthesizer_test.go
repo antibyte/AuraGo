@@ -509,6 +509,54 @@ func TestInitEmotionTables_Idempotent(t *testing.T) {
 	}
 }
 
+func TestBuildPrompt_WithPersonaContext(t *testing.T) {
+	mock := &mockEmotionClient{}
+	es := newTestSynthesizer(mock)
+
+	t.Run("includes persona when set", func(t *testing.T) {
+		input := EmotionInput{
+			CurrentMood:   MoodPlayful,
+			Traits:        PersonalityTraits{TraitCuriosity: 0.7},
+			TimeOfDay:     "afternoon",
+			PersonaName:   "punk",
+			PersonaPrompt: "Direct, raw, no sugarcoating. Swearing encouraged.",
+		}
+		prompt := es.buildPrompt(input)
+		if !strings.Contains(prompt, "ACTIVE PERSONA:") {
+			t.Fatal("expected ACTIVE PERSONA section in prompt")
+		}
+		if !strings.Contains(prompt, "punk") {
+			t.Fatal("expected persona name 'punk' in prompt")
+		}
+		if !strings.Contains(prompt, "Direct, raw") {
+			t.Fatal("expected persona description in prompt")
+		}
+	})
+
+	t.Run("no persona section for neutral", func(t *testing.T) {
+		input := EmotionInput{
+			CurrentMood: MoodFocused,
+			TimeOfDay:   "morning",
+			PersonaName: "neutral",
+		}
+		prompt := es.buildPrompt(input)
+		if strings.Contains(prompt, "ACTIVE PERSONA:") {
+			t.Fatal("neutral persona should not produce ACTIVE PERSONA section")
+		}
+	})
+
+	t.Run("no persona section when empty", func(t *testing.T) {
+		input := EmotionInput{
+			CurrentMood: MoodFocused,
+			TimeOfDay:   "morning",
+		}
+		prompt := es.buildPrompt(input)
+		if strings.Contains(prompt, "ACTIVE PERSONA:") {
+			t.Fatal("empty persona should not produce ACTIVE PERSONA section")
+		}
+	})
+}
+
 // ── Constructor Tests ────────────────────────────────────────────────────────
 
 func TestNewEmotionSynthesizer_Defaults(t *testing.T) {

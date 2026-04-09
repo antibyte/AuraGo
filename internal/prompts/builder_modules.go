@@ -871,3 +871,42 @@ func GetCorePersonalityMeta(promptsDir, corePersonality string) memory.Personali
 
 	return m
 }
+
+// GetCorePersonalityPromptSummary returns a short summary of the active persona's
+// prompt text (the markdown body without YAML frontmatter), truncated to maxLen runes.
+// Used to inject persona context into emotion/inner-voice LLM prompts.
+func GetCorePersonalityPromptSummary(promptsDir, corePersonality string, maxLen int) string {
+	if corePersonality == "" || corePersonality == "neutral" {
+		return ""
+	}
+	if maxLen <= 0 {
+		maxLen = 300
+	}
+
+	profilePath := filepath.Join(promptsDir, "personalities", corePersonality+".md")
+
+	var raw string
+	if data, err := os.ReadFile(profilePath); err == nil {
+		raw = string(data)
+	} else if data, err := fs.ReadFile(promptsembed.FS, "personalities/"+corePersonality+".md"); err == nil {
+		raw = string(data)
+	} else {
+		return ""
+	}
+
+	mod, err := parsePromptModule(raw)
+	if err != nil {
+		return ""
+	}
+
+	body := strings.TrimSpace(mod.Content)
+	// Strip leading markdown header (e.g. "# Core Personality: Punk\n\n")
+	if idx := strings.Index(body, "\n"); idx > 0 && strings.HasPrefix(body, "#") {
+		body = strings.TrimSpace(body[idx+1:])
+	}
+	runes := []rune(body)
+	if len(runes) > maxLen {
+		body = string(runes[:maxLen]) + "…"
+	}
+	return body
+}

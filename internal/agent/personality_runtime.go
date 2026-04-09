@@ -12,6 +12,7 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/llm"
 	"aurago/internal/memory"
+	"aurago/internal/prompts"
 
 	"github.com/sashabaranov/go-openai"
 )
@@ -243,6 +244,8 @@ func applyPersonalityV2AnalysisResult(
 		TriggerType:     triggerType,
 		TriggerDetail:   triggerDetail,
 		InactivityHours: inactivityHours,
+		PersonaName:     cfg.Personality.CorePersonality,
+		PersonaPrompt:   prompts.GetCorePersonalityPromptSummary(cfg.Directories.PromptsDir, cfg.Personality.CorePersonality, 300),
 	}
 	esCtx, esCancel := context.WithTimeout(context.Background(), 15*time.Second)
 	_, _ = emotionSynthesizer.SynthesizeEmotion(esCtx, stm, esInput)
@@ -358,6 +361,8 @@ func launchAsyncPersonalityV2Analysis(
 				TriggerType:     triggerType,
 				TriggerDetail:   triggerDetail,
 				InactivityHours: inactivityHours,
+				PersonaName:     cfg.Personality.CorePersonality,
+				PersonaPrompt:   prompts.GetCorePersonalityPromptSummary(cfg.Directories.PromptsDir, cfg.Personality.CorePersonality, 300),
 			}
 			// Enrich with inner voice context only when rate/session/trigger gates pass
 			if shouldGenerateInnerVoice(cfg, consecutiveErrorCount, totalErrorCount, successCount, taskCompleted, isMission, isCoAgent) {

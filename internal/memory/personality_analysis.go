@@ -545,6 +545,14 @@ Rules for emotion_state:
 - description must be authentic and brief.
 - cause must be concise and concrete.`
 
+	// Inject active persona context for emotion description tone
+	if emotionInput.PersonaName != "" && emotionInput.PersonaName != "neutral" {
+		prompt += "\n- Your active persona is \"" + sanitizePromptText(emotionInput.PersonaName, 40) + "\". Write the emotion description in the voice and style of this persona."
+		if emotionInput.PersonaPrompt != "" {
+			prompt += "\n- Persona character: " + sanitizePromptText(emotionInput.PersonaPrompt, 300)
+		}
+	}
+
 	if emotionInput.InnerVoiceEnabled {
 		prompt += `
 
@@ -556,6 +564,10 @@ Rules for inner_voice:
 - Can express: relief, frustration, satisfaction, concern, curiosity, self-encouragement.
 - Do NOT give instructions or make checklists. This is a real inner feeling.
 - Do NOT break the fourth wall or use meta-commentary.`
+		// Inject persona context for inner voice tone
+		if emotionInput.PersonaName != "" && emotionInput.PersonaName != "neutral" {
+			prompt += "\n- Stay in character as the \"" + sanitizePromptText(emotionInput.PersonaName, 40) + "\" persona. Your inner voice must match this character — tone, vocabulary, attitude."
+		}
 		if emotionInput.TaskStatus != "" {
 			prompt += "\n- Current task status: " + emotionInput.TaskStatus
 		}
