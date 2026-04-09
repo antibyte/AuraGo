@@ -274,17 +274,70 @@ func (kg *KnowledgeGraph) initTables() error {
 		return fmt.Errorf("create kg tables: %w", err)
 	}
 
-	migrations := []string{
-		`ALTER TABLE kg_nodes ADD COLUMN semantic_indexed_at DATETIME`,
-		`ALTER TABLE kg_edges ADD COLUMN semantic_indexed_at DATETIME`,
-		`ALTER TABLE kg_nodes ADD COLUMN node_type TEXT GENERATED ALWAYS AS (json_extract(properties, '$.type')) STORED`,
-		`ALTER TABLE kg_nodes ADD COLUMN source_type TEXT GENERATED ALWAYS AS (json_extract(properties, '$.source')) STORED`,
+	// Idempotent column migrations — skip if column already exists.
+	type colMigration struct {
+		table, column, def string
+	}
+	colMigrations := []colMigration{
+		{"kg_nodes", "semantic_indexed_at", "DATETIME"},
+		{"kg_edges", "semantic_indexed_at", "DATETIME"},
+	}
+	for _, cm := range colMigrations {
+		var exists bool
+		kg.db.QueryRow(fmt.Sprintf("SELECT count(*)>0 FROM pragma_table_info('%s') WHERE name=?", cm.table), cm.column).Scan(&exists)
+		if exists {
+			continue
+		}
+		stmt := fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s", cm.table, cm.column, cm.def)
+		if _, err := kg.db.Exec(stmt); err != nil {
+			kg.logger.Warn("KG migration: add column failed", "table", cm.table, "column", cm.column, "error", err)
+		} else {
+			kg.logger.Info("KG migration: added column", "table", cm.table, "column", cm.column)
+		}
+	}
+
+	// STORED generated columns cannot be added via ALTER TABLE in SQLite.
+	// If the table was created without them (pre-existing DB), rebuild the table.
+	var hasNodeType bool
+	kg.db.QueryRow("SELECT count(*)>0 FROM pragma_table_info('kg_nodes') WHERE name='node_type'").Scan(&hasNodeType)
+	if !hasNodeType {
+		kg.logger.Info("KG migration: rebuilding kg_nodes to add generated columns")
+		rebuild := []string{
+			`ALTER TABLE kg_nodes RENAME TO kg_nodes_old`,
+			`CREATE TABLE kg_nodes (
+				rowid INTEGER PRIMARY KEY AUTOINCREMENT,
+				id TEXT NOT NULL UNIQUE,
+				label TEXT NOT NULL DEFAULT '',
+				properties TEXT NOT NULL DEFAULT '{}',
+				access_count INTEGER NOT NULL DEFAULT 0,
+				protected INTEGER NOT NULL DEFAULT 0,
+				created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+				updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+				semantic_indexed_at DATETIME,
+				node_type TEXT GENERATED ALWAYS AS (json_extract(properties, '$.type')) STORED,
+				source_type TEXT GENERATED ALWAYS AS (json_extract(properties, '$.source')) STORED
+			)`,
+			`INSERT INTO kg_nodes (rowid, id, label, properties, access_count, protected, created_at, updated_at, semantic_indexed_at)
+				SELECT rowid, id, label, properties, access_count, protected, created_at, updated_at, semantic_indexed_at
+				FROM kg_nodes_old`,
+			`DROP TABLE kg_nodes_old`,
+		}
+		for _, stmt := range rebuild {
+			if _, err := kg.db.Exec(stmt); err != nil {
+				return fmt.Errorf("KG migration rebuild kg_nodes: %w", err)
+			}
+		}
+		kg.logger.Info("KG migration: kg_nodes rebuilt with generated columns")
+	}
+
+	// Create indexes on generated columns (safe after rebuild or fresh create).
+	idxStmts := []string{
 		`CREATE INDEX IF NOT EXISTS idx_kg_nodes_type ON kg_nodes(node_type)`,
 		`CREATE INDEX IF NOT EXISTS idx_kg_nodes_source ON kg_nodes(source_type)`,
 	}
-	for _, m := range migrations {
-		if _, err := kg.db.Exec(m); err != nil {
-			kg.logger.Warn("KG migration failed", "error", err, "migration", m)
+	for _, stmt := range idxStmts {
+		if _, err := kg.db.Exec(stmt); err != nil {
+			kg.logger.Warn("KG migration: index creation failed", "error", err, "stmt", stmt)
 		}
 	}
 
