@@ -3,6 +3,7 @@ package commands
 import (
 	"strings"
 
+	"aurago/internal/i18n"
 	"aurago/internal/llm"
 )
 
@@ -36,19 +37,19 @@ func (c *CreditsCommand) Execute(args []string, ctx Context) (string, error) {
 	}
 
 	if !found {
-		return "ℹ️ /credits ist nur verfügbar wenn OpenRouter als LLM-Provider konfiguriert ist.\nAktueller Provider: " + ctx.Cfg.LLM.ProviderType, nil
+		return i18n.T(ctx.Lang, "backend.credits_unavailable", ctx.Cfg.LLM.ProviderType), nil
 	}
 
 	credits, err := llm.FetchOpenRouterCredits(apiKey, baseURL)
 	if err != nil {
-		return "❌ Fehler beim Abrufen der OpenRouter Credits: " + err.Error(), nil
+		return i18n.T(ctx.Lang, "backend.credits_error", err.Error()), nil
 	}
 
 	return credits.FormatCreditsText(), nil
 }
 
 func (c *CreditsCommand) Help() string {
-	return "Zeigt den aktuellen OpenRouter Kontostand und Verbrauch."
+	return i18n.T("de", "backend.credits_help")
 }
 
 func init() {

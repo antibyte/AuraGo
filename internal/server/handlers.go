@@ -194,6 +194,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 				Cfg:              s.Cfg,
 				PromptsDir:       s.Cfg.Directories.PromptsDir,
 				WarningsRegistry: s.WarningsRegistry,
+				Lang:             s.Cfg.Server.UILanguage,
 			}
 			cmdResult, isCommand, err := commands.Handle(lastUserMsg.Content, cmdCtx)
 			if err != nil {

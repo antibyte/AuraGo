@@ -10,6 +10,7 @@ import (
 	"aurago/internal/agent"
 	"aurago/internal/budget"
 	"aurago/internal/config"
+	"aurago/internal/i18n"
 	"aurago/internal/memory"
 	"aurago/internal/security"
 	"aurago/internal/warnings"
@@ -25,6 +26,7 @@ type Context struct {
 	Cfg              *config.Config
 	PromptsDir       string
 	WarningsRegistry *warnings.Registry
+	Lang             string // UI language for i18n
 }
 
 // Command defines the interface for a slash command.
@@ -50,9 +52,15 @@ func Handle(input string, ctx Context) (string, bool, error) {
 	cmdName := parts[0][1:] // Remove leading slash
 	args := parts[1:]
 
+	// Default to German if no language set
+	lang := ctx.Lang
+	if lang == "" {
+		lang = "de"
+	}
+
 	cmd, exists := registry[cmdName]
 	if !exists {
-		return "❌ Unbekannter Befehl. Tippe /help für eine Liste der Befehle.", true, nil
+		return i18n.T(lang, "backend.cmd_unknown", cmdName), true, nil
 	}
 
 	result, err := cmd.Execute(args, ctx)
@@ -71,11 +79,11 @@ func (c *ResetCommand) Execute(args []string, ctx Context) (string, error) {
 		return "", err
 	}
 	agent.ResetInnerVoiceState()
-	return "🧹 Chat-Verlauf und Kurzzeitgedächtnis wurden gelöscht.", nil
+	return i18n.T(ctx.Lang, "backend.cmd_reset_success"), nil
 }
 
 func (c *ResetCommand) Help() string {
-	return "Löscht den aktuellen Chat-Verlauf (Short-Term Memory)."
+	return i18n.T("de", "backend.cmd_reset_help")
 }
 
 // HelpCommand lists all available commands.
@@ -83,7 +91,7 @@ type HelpCommand struct{}
 
 func (c *HelpCommand) Execute(args []string, ctx Context) (string, error) {
 	var sb strings.Builder
-	sb.WriteString("📜 **Verfügbare Befehle:**\n\n")
+	sb.WriteString(i18n.T(ctx.Lang, "backend.cmd_help_header") + "\n\n")
 	for name, cmd := range registry {
 		sb.WriteString("• /" + name + ": " + cmd.Help() + "\n")
 	}
@@ -91,7 +99,7 @@ func (c *HelpCommand) Execute(args []string, ctx Context) (string, error) {
 }
 
 func (c *HelpCommand) Help() string {
-	return "Zeigt diese Hilfe an."
+	return i18n.T("de", "backend.cmd_help_help")
 }
 
 // StopCommand shuts down the agent.
@@ -99,11 +107,11 @@ type StopCommand struct{}
 
 func (c *StopCommand) Execute(args []string, ctx Context) (string, error) {
 	agent.InterruptSession("default")
-	return "🛑 AuraGo wurde angewiesen, die aktuelle Aktion zu unterbrechen.", nil
+	return i18n.T(ctx.Lang, "backend.cmd_stop_success"), nil
 }
 
 func (c *StopCommand) Help() string {
-	return "Unterbricht die aktuelle Aktion des Agenten."
+	return i18n.T("de", "backend.cmd_stop_help")
 }
 
 // RestartCommand restarts the agent.
@@ -114,11 +122,11 @@ func (c *RestartCommand) Execute(args []string, ctx Context) (string, error) {
 		time.Sleep(1 * time.Second)
 		os.Exit(42)
 	}()
-	return "🔄 AuraGo wird neu gestartet...", nil
+	return i18n.T(ctx.Lang, "backend.cmd_restart_success"), nil
 }
 
 func (c *RestartCommand) Help() string {
-	return "Startet den AuraGo-Server neu."
+	return i18n.T("de", "backend.cmd_restart_help")
 }
 
 // DebugCommand toggles the agent's debug mode (extra debug instructions in the system prompt).
@@ -135,7 +143,7 @@ func (c *DebugCommand) Execute(args []string, ctx Context) (string, error) {
 			enabled = false
 			agent.SetDebugMode(false)
 		default:
-			return "❌ Ungültiges Argument. Benutze `/debug on` oder `/debug off`.", nil
+			return i18n.T(ctx.Lang, "backend.cmd_debug_invalid"), nil
 		}
 	} else {
 		// No argument: toggle
@@ -143,13 +151,13 @@ func (c *DebugCommand) Execute(args []string, ctx Context) (string, error) {
 	}
 
 	if enabled {
-		return "🔍 **Agent Debug-Modus aktiviert.** Der Agent meldet Fehler jetzt mit detaillierten Informationen.", nil
+		return i18n.T(ctx.Lang, "backend.cmd_debug_enabled"), nil
 	}
-	return "🔇 **Agent Debug-Modus deaktiviert.** Der Agent verhält sich normal.", nil
+	return i18n.T(ctx.Lang, "backend.cmd_debug_disabled"), nil
 }
 
 func (c *DebugCommand) Help() string {
-	return "Aktiviert/deaktiviert den Agent-Debug-Modus (detaillierte Fehlermeldungen im System-Prompt)."
+	return i18n.T("de", "backend.cmd_debug_help")
 }
 
 // PersonalityCommand manages the agent's core personality.
@@ -166,18 +174,18 @@ func (c *PersonalityCommand) Execute(args []string, ctx Context) (string, error)
 		}
 
 		var sb strings.Builder
-		sb.WriteString("🎭 **Verfügbare Persönlichkeiten:**\n\n")
+		sb.WriteString(i18n.T(ctx.Lang, "backend.cmd_personality_header") + "\n\n")
 		for _, f := range files {
 			if !f.IsDir() && strings.HasSuffix(f.Name(), ".md") {
 				name := strings.TrimSuffix(f.Name(), ".md")
 				activeMarker := ""
 				if name == ctx.Cfg.Personality.CorePersonality {
-					activeMarker = " ✅ (aktiv)"
+					activeMarker = i18n.T(ctx.Lang, "backend.cmd_personality_active")
 				}
 				sb.WriteString("• " + name + activeMarker + "\n")
 			}
 		}
-		sb.WriteString("\nNutze `/personality <name>` zum Umstellen.")
+		sb.WriteString("\n" + i18n.T(ctx.Lang, "backend.cmd_personality_usage"))
 		return sb.String(), nil
 	}
 
@@ -185,7 +193,7 @@ func (c *PersonalityCommand) Execute(args []string, ctx Context) (string, error)
 	target := strings.ToLower(args[0])
 	profilePath := filepath.Join(personalitiesDir, target+".md")
 	if _, err := os.Stat(profilePath); os.IsNotExist(err) {
-		return "❌ Persönlichkeit '" + target + "' nicht gefunden.", nil
+		return i18n.T(ctx.Lang, "backend.cmd_personality_not_found", target), nil
 	}
 
 	ctx.Cfg.Personality.CorePersonality = target
@@ -197,11 +205,11 @@ func (c *PersonalityCommand) Execute(args []string, ctx Context) (string, error)
 		return "", err
 	}
 
-	return "🎭 Persönlichkeit auf **" + target + "** umgestellt. Die Änderung ist permanent.", nil
+	return i18n.T(ctx.Lang, "backend.cmd_personality_changed", target), nil
 }
 
 func (c *PersonalityCommand) Help() string {
-	return "Listet Persönlichkeiten auf oder wechselt sie (/personality <name>)."
+	return i18n.T("de", "backend.cmd_personality_help")
 }
 
 // VoiceCommand toggles voice output mode (TTS auto-play / voice notes).
@@ -218,20 +226,20 @@ func (c *VoiceCommand) Execute(args []string, ctx Context) (string, error) {
 			enabled = false
 			agent.SetVoiceMode(false)
 		default:
-			return "❌ Invalid argument. Use `/voice on` or `/voice off`.", nil
+			return i18n.T(ctx.Lang, "backend.cmd_voice_invalid"), nil
 		}
 	} else {
 		enabled = agent.ToggleVoiceMode()
 	}
 
 	if enabled {
-		return "🔊 **Voice mode enabled.** Short replies will be spoken via TTS.", nil
+		return i18n.T(ctx.Lang, "backend.cmd_voice_enabled"), nil
 	}
-	return "🔇 **Voice mode disabled.** Audio will not auto-play.", nil
+	return i18n.T(ctx.Lang, "backend.cmd_voice_disabled"), nil
 }
 
 func (c *VoiceCommand) Help() string {
-	return "Toggles voice output mode — when on, the agent uses TTS for short replies (/voice on|off)."
+	return i18n.T("de", "backend.cmd_voice_help")
 }
 
 func init() {

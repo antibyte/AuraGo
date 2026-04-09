@@ -2,6 +2,7 @@ package server
 
 import (
 	"aurago/internal/config"
+	"aurago/internal/i18n"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -22,7 +23,7 @@ import (
 func handleAuthStatus(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
-			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.http_method_not_allowed"), http.StatusMethodNotAllowed)
 			return
 		}
 		s.CfgMu.RLock()
@@ -83,7 +84,7 @@ func handleAuthLoginPage(s *Server, uiFS fs.FS) http.HandlerFunc {
 		}
 
 		if tmpl == nil {
-			jsonError(w, "Login template not available", http.StatusInternalServerError)
+			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.login_template_unavailable"), http.StatusInternalServerError)
 			return
 		}
 		data := map[string]interface{}{

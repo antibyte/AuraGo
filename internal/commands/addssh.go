@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	"aurago/internal/i18n"
 	"aurago/internal/services"
 )
 
@@ -29,11 +30,11 @@ func (c *AddSSHCommand) Execute(args []string, ctx Context) (string, error) {
 	ip := params["ip"]
 
 	if host == "" || user == "" {
-		return "❌ Fehler: 'host' und 'user' sind erforderlich. Beispiel: `/addssh host=1.2.3.4 user=root pass=secret`", nil
+		return i18n.T(ctx.Lang, "backend.addssh_host_user_required"), nil
 	}
 
 	if pass == "" && keypath == "" {
-		return "❌ Fehler: Entweder 'pass' oder 'keypath' muss angegeben werden.", nil
+		return i18n.T(ctx.Lang, "backend.addssh_pass_or_keypath_required"), nil
 	}
 
 	port := 22
@@ -51,11 +52,11 @@ func (c *AddSSHCommand) Execute(args []string, ctx Context) (string, error) {
 		return "", fmt.Errorf("registrierung fehlgeschlagen: %w", err)
 	}
 
-	return fmt.Sprintf("✅ Server %s erfolgreich registriert mit ID: %s", host, id), nil
+	return i18n.T(ctx.Lang, "backend.addssh_success", host, id), nil
 }
 
 func (c *AddSSHCommand) Help() string {
-	return "Registriert einen neuen SSH-Server. Syntax: /addssh host=NAME user=USER [ip=IP] [pass=PASS|keypath=PATH] [port=22] [tags=tag1,tag2]"
+	return i18n.T("de", "backend.addssh_help")
 }
 
 func init() {

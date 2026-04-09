@@ -77,6 +77,59 @@ func TestLoadI18NSetupKeys(t *testing.T) {
 	}
 }
 
+func TestLoadI18NBackendKeys(t *testing.T) {
+	uiFS, err := fs.Sub(ui.Content, ".")
+	if err != nil {
+		t.Fatal("failed to create UI sub-FS:", err)
+	}
+
+	i18n.Load(uiFS, slog.Default())
+
+	// Check that German (de) translations have backend keys
+	deJSON := string(i18n.GetJSON("de"))
+	var de map[string]string
+	if err := json.Unmarshal([]byte(deJSON), &de); err != nil {
+		t.Fatal("German translations JSON is invalid:", err)
+	}
+
+	backendMustHave := []string{
+		"backend.cmd_unknown",
+		"backend.cmd_reset_success",
+		"backend.cmd_help_header",
+		"backend.budget_disabled",
+		"backend.credits_unavailable",
+		"backend.addssh_host_user_required",
+		"backend.sudopwd_usage",
+		"backend.warnings_none",
+		"backend.http_method_not_allowed",
+		"backend.auth_too_many_login_attempts",
+		"backend.auth_invalid_credentials",
+	}
+
+	for _, key := range backendMustHave {
+		if de[key] == "" {
+			t.Errorf("key %q missing or empty in German backend translations", key)
+		} else {
+			t.Logf("  DE: %s = %q", key, de[key])
+		}
+	}
+
+	// Check English as fallback
+	enJSON := string(i18n.GetJSON("en"))
+	var en map[string]string
+	if err := json.Unmarshal([]byte(enJSON), &en); err != nil {
+		t.Fatal("English translations JSON is invalid:", err)
+	}
+
+	for _, key := range backendMustHave {
+		if en[key] == "" {
+			t.Errorf("key %q missing or empty in English backend translations", key)
+		} else {
+			t.Logf("  EN: %s = %q", key, en[key])
+		}
+	}
+}
+
 func TestSetupTemplateI18NInsertion(t *testing.T) {
 	uiFS, err := fs.Sub(ui.Content, ".")
 	if err != nil {

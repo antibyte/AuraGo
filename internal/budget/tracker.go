@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/i18n"
 	"aurago/internal/llm"
 )
 
@@ -463,18 +464,12 @@ func (t *Tracker) GetStatusJSON() string {
 // FormatStatusText returns a human-readable budget summary for /budget command.
 func (t *Tracker) FormatStatusText(lang string) string {
 	if t == nil {
-		if strings.Contains(strings.ToLower(lang), "de") || lang == "German" {
-			return "💰 Budget-System ist deaktiviert."
-		}
-		return "💰 Budget system is disabled."
+		return i18n.T(lang, "backend.budget_disabled")
 	}
 
 	bs := t.GetStatus()
 	if !bs.Enabled {
-		if strings.Contains(strings.ToLower(lang), "de") || lang == "German" {
-			return "💰 Budget-System ist deaktiviert."
-		}
-		return "💰 Budget system is disabled."
+		return i18n.T(lang, "backend.budget_disabled")
 	}
 
 	isDE := strings.Contains(strings.ToLower(lang), "de") || lang == "German"
@@ -482,11 +477,7 @@ func (t *Tracker) FormatStatusText(lang string) string {
 	var sb strings.Builder
 	pctInt := int(bs.Percentage * 100)
 
-	if isDE {
-		sb.WriteString(fmt.Sprintf("💰 **Budget:** $%.4f / $%.2f (%d%%)\n", bs.SpentUSD, bs.DailyLimit, pctInt))
-	} else {
-		sb.WriteString(fmt.Sprintf("💰 **Budget:** $%.4f / $%.2f (%d%%)\n", bs.SpentUSD, bs.DailyLimit, pctInt))
-	}
+	sb.WriteString(fmt.Sprintf("💰 **Budget:** $%.4f / $%.2f (%d%%)\n", bs.SpentUSD, bs.DailyLimit, pctInt))
 
 	// Per-model breakdown
 	for model, usage := range bs.Models {
@@ -499,11 +490,11 @@ func (t *Tracker) FormatStatusText(lang string) string {
 		sb.WriteString(fmt.Sprintf("├─ Modus: **%s**", bs.Enforcement))
 		switch bs.Enforcement {
 		case "warn":
-			sb.WriteString(" (nur Warnung)")
+			sb.WriteString(i18n.T(lang, "backend.budget_mode_warn_de"))
 		case "partial":
-			sb.WriteString(" (Co-Agents + Vision/STT gesperrt bei Überschreitung)")
+			sb.WriteString(i18n.T(lang, "backend.budget_mode_partial_de"))
 		case "full":
-			sb.WriteString(" (alles gesperrt bei Überschreitung)")
+			sb.WriteString(i18n.T(lang, "backend.budget_mode_full_de"))
 		}
 		sb.WriteString("\n")
 		sb.WriteString(fmt.Sprintf("└─ Reset: %s", bs.ResetTime))
@@ -511,28 +502,20 @@ func (t *Tracker) FormatStatusText(lang string) string {
 		sb.WriteString(fmt.Sprintf("├─ Mode: **%s**", bs.Enforcement))
 		switch bs.Enforcement {
 		case "warn":
-			sb.WriteString(" (warning only)")
+			sb.WriteString(i18n.T(lang, "backend.budget_mode_warn_en"))
 		case "partial":
-			sb.WriteString(" (co-agents + vision/STT blocked when exceeded)")
+			sb.WriteString(i18n.T(lang, "backend.budget_mode_partial_en"))
 		case "full":
-			sb.WriteString(" (all blocked when exceeded)")
+			sb.WriteString(i18n.T(lang, "backend.budget_mode_full_en"))
 		}
 		sb.WriteString("\n")
 		sb.WriteString(fmt.Sprintf("└─ Reset: %s", bs.ResetTime))
 	}
 
 	if bs.IsExceeded {
-		if isDE {
-			sb.WriteString("\n\n⛔ **Budget überschritten!**")
-		} else {
-			sb.WriteString("\n\n⛔ **Budget exceeded!**")
-		}
+		sb.WriteString("\n\n" + i18n.T(lang, "backend.budget_exceeded"))
 	} else if bs.IsWarning {
-		if isDE {
-			sb.WriteString("\n\n⚠️ **Budget-Warnung!**")
-		} else {
-			sb.WriteString("\n\n⚠️ **Budget warning!**")
-		}
+		sb.WriteString("\n\n" + i18n.T(lang, "backend.budget_warning"))
 	}
 
 	return sb.String()

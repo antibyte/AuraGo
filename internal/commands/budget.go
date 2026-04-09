@@ -1,14 +1,16 @@
 package commands
 
+import "aurago/internal/i18n"
+
 // BudgetCommand shows the current budget status.
 type BudgetCommand struct{}
 
 func (c *BudgetCommand) Execute(args []string, ctx Context) (string, error) {
 	if ctx.BudgetTracker == nil {
-		return "💰 Budget-Tracking ist nicht aktiviert.", nil
+		return i18n.T(ctx.Lang, "backend.budget_disabled"), nil
 	}
 
-	lang := "de"
+	lang := ctx.Lang
 	if len(args) > 0 && (args[0] == "en" || args[0] == "english") {
 		lang = "en"
 	}
@@ -17,7 +19,7 @@ func (c *BudgetCommand) Execute(args []string, ctx Context) (string, error) {
 }
 
 func (c *BudgetCommand) Help() string {
-	return "Zeigt den aktuellen Budget-Status (Tageskosten, Limit, Modelle)."
+	return i18n.T("de", "backend.budget_help")
 }
 
 func init() {
