@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"aurago/internal/i18n"
 	"aurago/ui"
 )
 
@@ -17,18 +18,19 @@ func TestLoadI18NSetupKeys(t *testing.T) {
 		t.Fatal("failed to create UI sub-FS:", err)
 	}
 
-	loadI18N(uiFS, slog.Default())
+	i18n.Load(uiFS, slog.Default())
 
-	if len(i18nLangJSON) == 0 {
+	langs := i18n.GetSupportedLanguages()
+	if len(langs) == 0 {
 		t.Fatal("no languages loaded at all")
 	}
 
-	t.Logf("Loaded %d languages", len(i18nLangJSON))
+	t.Logf("Loaded %d languages", len(langs))
 
 	// Check that German (de) translations exist and have setup keys
-	deJSON, ok := i18nLangJSON["de"]
-	if !ok {
-		t.Fatal("German translations not loaded; loaded languages:", langKeys(i18nLangJSON))
+	deJSON := string(i18n.GetJSON("de"))
+	if deJSON == "{}" || deJSON == "" {
+		t.Fatal("German translations not loaded; loaded languages:", langs)
 	}
 
 	var de map[string]string
@@ -61,8 +63,8 @@ func TestLoadI18NSetupKeys(t *testing.T) {
 	}
 
 	// Also check English as fallback
-	enJSON, ok := i18nLangJSON["en"]
-	if !ok {
+	enJSON := string(i18n.GetJSON("en"))
+	if enJSON == "{}" || enJSON == "" {
 		t.Fatal("English translations not loaded")
 	}
 	var en map[string]string
@@ -81,17 +83,17 @@ func TestSetupTemplateI18NInsertion(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	loadI18N(uiFS, slog.Default())
+	i18n.Load(uiFS, slog.Default())
 
 	tmpl, err := template.ParseFS(uiFS, "setup.html")
 	if err != nil {
 		t.Fatal("failed to parse setup.html template:", err)
 	}
 
-	lang := normalizeLang("de")
+	lang := i18n.NormalizeLang("de")
 	data := map[string]interface{}{
 		"Lang": lang,
-		"I18N": getI18NJSON(lang),
+		"I18N": i18n.GetJSON(lang),
 	}
 
 	var buf strings.Builder

@@ -2,7 +2,6 @@ package server
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"crypto/tls"
 	"database/sql"
@@ -24,6 +23,7 @@ import (
 	"aurago/internal/budget"
 	"aurago/internal/config"
 	"aurago/internal/fritzbox"
+	"aurago/internal/i18n"
 	"aurago/internal/invasion/bridge"
 	"aurago/internal/llm"
 	"aurago/internal/memory"
@@ -40,45 +40,10 @@ import (
 	a2apkg "aurago/internal/a2a"
 )
 
-// normalizeLang converts the config language string to an ISO code for the frontend
+// normalizeLang converts the config language string to an ISO code for the frontend.
+// Deprecated: Use i18n.NormalizeLang instead. This wrapper exists for backward compatibility.
 func normalizeLang(lang string) string {
-	l := strings.ToLower(strings.TrimSpace(lang))
-	switch {
-	case strings.Contains(l, "german") || strings.Contains(l, "deutsch") || l == "de":
-		return "de"
-	case strings.Contains(l, "english") || l == "en":
-		return "en"
-	case strings.Contains(l, "spanish") || strings.Contains(l, "español") || l == "es":
-		return "es"
-	case strings.Contains(l, "french") || strings.Contains(l, "français") || l == "fr":
-		return "fr"
-	case strings.Contains(l, "polish") || strings.Contains(l, "polski") || l == "pl":
-		return "pl"
-	case strings.Contains(l, "chinese") || strings.Contains(l, "mandarin") || l == "zh":
-		return "zh"
-	case strings.Contains(l, "hindi") || l == "hi":
-		return "hi"
-	case strings.Contains(l, "dutch") || strings.Contains(l, "nederlands") || l == "nl":
-		return "nl"
-	case strings.Contains(l, "italian") || strings.Contains(l, "italiano") || l == "it":
-		return "it"
-	case strings.Contains(l, "portuguese") || strings.Contains(l, "português") || l == "pt":
-		return "pt"
-	case strings.Contains(l, "danish") || strings.Contains(l, "dansk") || l == "da":
-		return "da"
-	case strings.Contains(l, "japanese") || strings.Contains(l, "日本語") || l == "ja":
-		return "ja"
-	case strings.Contains(l, "swedish") || strings.Contains(l, "svenska") || l == "sv":
-		return "sv"
-	case strings.Contains(l, "norwegian") || strings.Contains(l, "norsk") || l == "no":
-		return "no"
-	case strings.Contains(l, "czech") || strings.Contains(l, "čeština") || l == "cs":
-		return "cs"
-	case strings.Contains(l, "greek") || strings.Contains(l, "ελληνικά") || l == "el":
-		return "el"
-	default:
-		return "en" // Fallback
-	}
+	return i18n.NormalizeLang(lang)
 }
 
 // InternalAPIURL returns the base URL for internal (loopback) API calls.
@@ -101,129 +66,35 @@ func InternalAPIURL(cfg *config.Config) string {
 
 // i18nStore holds the parsed translations from ui/lang/ keyed by language code.
 // Each value is the raw JSON string for that language, ready for template injection.
+// Deprecated: These variables are kept for backward compatibility with tests.
+// Use the i18n package functions directly instead.
 var (
-	i18nMu       sync.RWMutex      // protects concurrent access to i18nLangJSON and i18nMetaJSON
-	i18nLangJSON map[string]string // lang -> JSON string of {key: translation, ...}
-	i18nMetaJSON string            // JSON string of {key: {options:[...], provider_ref:bool}, ...}
+	i18nMu       sync.RWMutex = sync.RWMutex{}
+	i18nLangJSON map[string]string
+	i18nMetaJSON string
 )
 
 // loadI18N reads ui/lang/*/<lang>.json from the embedded FS and prepares per-language JSON blobs.
-// Files are organized in category subdirectories (chat/, config/, help/, etc.)
-// Config files have an additional level: config/*/<lang>.json
-// Each <lang>.json contains a flat {key: translation} map.
-// The special file meta.json in the root holds field-option metadata.
+// Deprecated: Use i18n.Load instead. This wrapper exists for backward compatibility.
 func loadI18N(uiFS fs.FS, logger *slog.Logger) {
-	newLangJSON := make(map[string]string)
-	langData := make(map[string]map[string]string) // lang -> key -> translation
-	var newMetaJSON string
-
-	// Read root lang directory
-	entries, err := fs.ReadDir(uiFS, "lang")
-	if err != nil {
-		logger.Error("Failed to read lang/ directory", "error", err)
-		i18nMu.Lock()
-		i18nLangJSON = map[string]string{"en": "{}"}
-		i18nMetaJSON = "{}"
-		i18nMu.Unlock()
-		return
-	}
-
-	// Process meta.json from root
-	metaData, err := fs.ReadFile(uiFS, "lang/meta.json")
-	if err == nil {
-		newMetaJSON = string(metaData)
-	} else {
-		newMetaJSON = "{}"
-	}
-
-	// Process subdirectories recursively
-	var processDir func(path string, logger *slog.Logger)
-	processDir = func(dirPath string, logger *slog.Logger) {
-		entries, err := fs.ReadDir(uiFS, dirPath)
-		if err != nil {
-			logger.Warn("Failed to read directory", "path", dirPath, "error", err)
-			return
-		}
-
-		for _, e := range entries {
-			itemPath := dirPath + "/" + e.Name()
-
-			if e.IsDir() {
-				// Recurse into subdirectory
-				processDir(itemPath, logger)
-			} else if strings.HasSuffix(e.Name(), ".json") {
-				// Process JSON file
-				lang := strings.TrimSuffix(e.Name(), ".json")
-				data, err := fs.ReadFile(uiFS, itemPath)
-				if err != nil {
-					logger.Warn("Failed to read lang file", "file", itemPath, "error", err)
-					continue
-				}
-
-				// Parse JSON and merge into langData
-				var translations map[string]string
-				if err := json.Unmarshal(bytes.TrimPrefix(data, []byte("\xef\xbb\xbf")), &translations); err != nil {
-					logger.Warn("Failed to parse lang file", "file", itemPath, "error", err)
-					continue
-				}
-
-				if langData[lang] == nil {
-					langData[lang] = make(map[string]string)
-				}
-				for key, value := range translations {
-					langData[lang][key] = value
-				}
-			}
-		}
-	}
-
-	// Process all subdirectories in lang/
-	for _, e := range entries {
-		if e.IsDir() {
-			processDir("lang/"+e.Name(), logger)
-		}
-	}
-
-	// Convert merged data to JSON strings
-	for lang, translations := range langData {
-		jsonBytes, err := json.Marshal(translations)
-		if err != nil {
-			logger.Warn("Failed to marshal translations", "lang", lang, "error", err)
-			continue
-		}
-		newLangJSON[lang] = string(jsonBytes)
-	}
-
-	if len(newLangJSON) == 0 {
-		newLangJSON = map[string]string{"en": "{}"}
-	}
-
+	i18n.Load(uiFS, logger)
+	// Sync to legacy variables for backward compatibility with tests
 	i18nMu.Lock()
-	i18nLangJSON = newLangJSON
-	i18nMetaJSON = newMetaJSON
+	i18nLangJSON = nil // Force tests to use i18n package directly
+	i18nMetaJSON = ""
 	i18nMu.Unlock()
-
-	logger.Info("i18n loaded", "languages", len(newLangJSON))
 }
 
 // getI18NJSON returns the JSON string for the given language, falling back to "en".
+// Deprecated: Use i18n.GetJSON instead. This wrapper exists for backward compatibility.
 func getI18NJSON(lang string) template.JS {
-	i18nMu.RLock()
-	defer i18nMu.RUnlock()
-	if j, ok := i18nLangJSON[lang]; ok {
-		return template.JS(j)
-	}
-	if j, ok := i18nLangJSON["en"]; ok {
-		return template.JS(j)
-	}
-	return template.JS("{}")
+	return i18n.GetJSON(lang)
 }
 
 // getI18NMetaJSON returns the _meta section JSON for config_help metadata.
+// Deprecated: Use i18n.GetMetaJSON instead. This wrapper exists for backward compatibility.
 func getI18NMetaJSON() template.JS {
-	i18nMu.RLock()
-	defer i18nMu.RUnlock()
-	return template.JS(i18nMetaJSON)
+	return i18n.GetMetaJSON()
 }
 
 // Server holds the state and dependencies for the web server and socket bridge.
