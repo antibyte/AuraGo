@@ -75,6 +75,7 @@ func Load(path string) (*Config, error) {
 	cfg.Tools.KnowledgeGraph.PromptInjection = true
 	cfg.Tools.KnowledgeGraph.MaxPromptNodes = 5
 	cfg.Tools.KnowledgeGraph.MaxPromptChars = 800
+	cfg.Tools.KnowledgeGraph.RetrievalFusion = true
 	cfg.Tools.SecretsVault.Enabled = true
 	cfg.Tools.Scheduler.Enabled = true
 	cfg.Tools.Notes.Enabled = true

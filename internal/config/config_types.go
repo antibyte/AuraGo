@@ -1033,6 +1033,7 @@ type Config struct {
 			PromptInjection bool `yaml:"prompt_injection"` // inject relevant KG context into system prompt
 			MaxPromptNodes  int  `yaml:"max_prompt_nodes"` // max nodes to inject into prompt (default 5)
 			MaxPromptChars  int  `yaml:"max_prompt_chars"` // max chars for KG context in prompt (default 800)
+			RetrievalFusion bool `yaml:"retrieval_fusion"` // cross-reference RAG↔KG for bidirectional enrichment (default true)
 		} `yaml:"knowledge_graph"`
 		SecretsVault struct {
 			Enabled  bool `yaml:"enabled"`  // default true; disable to block secrets_vault

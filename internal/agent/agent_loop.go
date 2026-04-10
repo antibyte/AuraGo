@@ -914,6 +914,20 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 		}
 
+		// Retrieval Fusion: cross-reference RAG↔KG for bidirectional enrichment.
+		// When both RAG and KG produced results, enrich each with the other's findings.
+		if !runCfg.IsMission && cfg.Tools.KnowledgeGraph.Enabled && cfg.Tools.KnowledgeGraph.RetrievalFusion &&
+			flags.RetrievedMemories != "" && flags.KnowledgeContext != "" &&
+			longTermMem != nil && kg != nil {
+			fusionResult := applyRetrievalFusion(topMemories, flags.KnowledgeContext, longTermMem, kg, currentLogger)
+			if fusionResult.EnrichedMemories != "" {
+				flags.RetrievedMemories += "\n---\n" + fusionResult.EnrichedMemories
+			}
+			if fusionResult.EnrichedKGContext != "" {
+				flags.KnowledgeContext += "\n" + fusionResult.EnrichedKGContext
+			}
+		}
+
 		// Error Pattern Context: inject known errors when in error recovery state
 		if flags.IsErrorState && shortTermMem != nil {
 			errPatterns, err := shortTermMem.GetRecentErrors(5)
