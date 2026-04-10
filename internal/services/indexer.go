@@ -260,7 +260,7 @@ func (fi *FileIndexer) scanDirectory(dir, collection string) (totalFiles, indexe
 		seenPaths[path] = struct{}{}
 
 		// Check if file needs re-indexing (change detection via SQLite)
-		lastIndexed, _ := fi.stm.GetFileIndex(path)
+		lastIndexed, _ := fi.stm.GetFileIndex(path, collection)
 		if !info.ModTime().After(lastIndexed) {
 			return nil
 		}
@@ -455,7 +455,7 @@ func (fi *FileIndexer) cleanupDeletedTrackedFiles(dir, collection string, tracke
 }
 
 func (fi *FileIndexer) removeTrackedFile(path, collection string) error {
-	docIDs, err := fi.stm.GetFileEmbeddingDocIDs(path)
+	docIDs, err := fi.stm.GetFileEmbeddingDocIDs(path, collection)
 	if err != nil {
 		return fmt.Errorf("load tracked doc ids: %w", err)
 	}
@@ -467,7 +467,7 @@ func (fi *FileIndexer) removeTrackedFile(path, collection string) error {
 			return fmt.Errorf("delete memory meta %s: %w", docID, err)
 		}
 	}
-	if err := fi.stm.DeleteFileIndex(path); err != nil {
+	if err := fi.stm.DeleteFileIndex(path, collection); err != nil {
 		return fmt.Errorf("delete file index: %w", err)
 	}
 	return nil

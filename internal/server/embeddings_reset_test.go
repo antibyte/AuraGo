@@ -88,7 +88,7 @@ func TestApplyPendingEmbeddingsResetClearsVectorState(t *testing.T) {
 		t.Fatalf("expected recreated vector dir to be empty, got %d entries", len(entries))
 	}
 
-	lastIndexed, err := stm.GetFileIndex("knowledge/test.pdf")
+	lastIndexed, err := stm.GetFileIndex("knowledge/test.pdf", "file_index")
 	if err != nil {
 		t.Fatalf("GetFileIndex: %v", err)
 	}

@@ -119,7 +119,7 @@ func TestFileIndexerReplacesTrackedEmbeddingsOnReindex(t *testing.T) {
 		t.Fatalf("first scan errors = %v", errs)
 	}
 
-	firstIDs, err := stm.GetFileEmbeddingDocIDs(path)
+	firstIDs, err := stm.GetFileEmbeddingDocIDs(path, "file_index")
 	if err != nil {
 		t.Fatalf("GetFileEmbeddingDocIDs first: %v", err)
 	}
@@ -147,7 +147,7 @@ func TestFileIndexerReplacesTrackedEmbeddingsOnReindex(t *testing.T) {
 		t.Fatalf("deleted docs = %v, want [doc-1]", vdb.deleted)
 	}
 
-	secondIDs, err := stm.GetFileEmbeddingDocIDs(path)
+	secondIDs, err := stm.GetFileEmbeddingDocIDs(path, "file_index")
 	if err != nil {
 		t.Fatalf("GetFileEmbeddingDocIDs second: %v", err)
 	}
@@ -210,7 +210,7 @@ func TestFileIndexerRemovesEmbeddingsForDeletedFiles(t *testing.T) {
 		t.Fatalf("deleted docs = %v, want [doc-1]", vdb.deleted)
 	}
 
-	docIDs, err := stm.GetFileEmbeddingDocIDs(path)
+	docIDs, err := stm.GetFileEmbeddingDocIDs(path, "file_index")
 	if err != nil {
 		t.Fatalf("GetFileEmbeddingDocIDs after delete: %v", err)
 	}
@@ -218,7 +218,7 @@ func TestFileIndexerRemovesEmbeddingsForDeletedFiles(t *testing.T) {
 		t.Fatalf("expected tracked IDs removed after file delete, got %v", docIDs)
 	}
 
-	lastIndexed, err := stm.GetFileIndex(path)
+	lastIndexed, err := stm.GetFileIndex(path, "file_index")
 	if err != nil {
 		t.Fatalf("GetFileIndex after delete: %v", err)
 	}

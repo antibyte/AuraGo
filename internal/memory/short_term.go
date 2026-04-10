@@ -942,29 +942,39 @@ func (s *SQLiteMemory) PredictNextQuery(lastTool string, hour, weekday, limit in
 	return predictions, nil
 }
 
-// GetFileIndex returns the last modified time for a given file path.
-func (s *SQLiteMemory) GetFileIndex(path string) (time.Time, error) {
+// GetFileIndex returns the last modified time for a given file path within a collection.
+// For backward compatibility, if no entry exists for path+collection, falls back to
+// path-only lookup (handles pre-migration data with collection=”).
+func (s *SQLiteMemory) GetFileIndex(path, collection string) (time.Time, error) {
 	var lastMod time.Time
-	err := s.db.QueryRow("SELECT last_modified FROM file_indices WHERE file_path = ?", path).Scan(&lastMod)
+	// Try path+collection first (collection-aware)
+	err := s.db.QueryRow("SELECT last_modified FROM file_indices WHERE file_path = ? AND collection = ?", path, collection).Scan(&lastMod)
+	if err == nil {
+		return lastMod, nil
+	}
+	if err != sql.ErrNoRows {
+		return time.Time{}, err
+	}
+	// Fallback to path-only for backward compatibility with pre-migration data
+	err = s.db.QueryRow("SELECT last_modified FROM file_indices WHERE file_path = ? AND collection = ''", path).Scan(&lastMod)
 	if err == sql.ErrNoRows {
 		return time.Time{}, nil
 	}
 	return lastMod, err
 }
 
-// UpdateFileIndex updates the last modified time for a given file path.
+// UpdateFileIndex updates the last modified time for a given file path within a collection.
 func (s *SQLiteMemory) UpdateFileIndex(path, collection string, modTime time.Time) error {
 	_, err := s.db.Exec(`
 		INSERT INTO file_indices (file_path, collection, last_modified)
 		VALUES (?, ?, ?)
-		ON CONFLICT(file_path) DO UPDATE SET
-			last_modified = excluded.last_modified,
-			collection = excluded.collection
+		ON CONFLICT(file_path, collection) DO UPDATE SET
+			last_modified = excluded.last_modified
 	`, path, collection, modTime)
 	return err
 }
 
-// UpdateFileIndexWithDocs updates the last modified time for a given file path
+// UpdateFileIndexWithDocs updates the last modified time for a given file path within a collection
 // and replaces the tracked VectorDB document IDs generated from that file.
 func (s *SQLiteMemory) UpdateFileIndexWithDocs(path, collection string, modTime time.Time, docIDs []string) error {
 	tx, err := s.db.Begin()
@@ -976,14 +986,13 @@ func (s *SQLiteMemory) UpdateFileIndexWithDocs(path, collection string, modTime 
 	if _, err := tx.Exec(`
 		INSERT INTO file_indices (file_path, collection, last_modified)
 		VALUES (?, ?, ?)
-		ON CONFLICT(file_path) DO UPDATE SET
-			last_modified = excluded.last_modified,
-			collection = excluded.collection
+		ON CONFLICT(file_path, collection) DO UPDATE SET
+			last_modified = excluded.last_modified
 	`, path, collection, modTime); err != nil {
 		return err
 	}
 
-	if _, err := tx.Exec(`DELETE FROM file_embedding_docs WHERE file_path = ?`, path); err != nil {
+	if _, err := tx.Exec(`DELETE FROM file_embedding_docs WHERE file_path = ? AND collection = ?`, path, collection); err != nil {
 		return err
 	}
 
@@ -993,9 +1002,9 @@ func (s *SQLiteMemory) UpdateFileIndexWithDocs(path, collection string, modTime 
 			continue
 		}
 		if _, err := tx.Exec(`
-			INSERT INTO file_embedding_docs (file_path, doc_id)
-			VALUES (?, ?)
-		`, path, docID); err != nil {
+			INSERT INTO file_embedding_docs (file_path, collection, doc_id)
+			VALUES (?, ?, ?)
+		`, path, collection, docID); err != nil {
 			return err
 		}
 	}
@@ -1003,28 +1012,56 @@ func (s *SQLiteMemory) UpdateFileIndexWithDocs(path, collection string, modTime 
 	return tx.Commit()
 }
 
-// GetFileEmbeddingDocIDs returns the tracked VectorDB document IDs for a file path.
-func (s *SQLiteMemory) GetFileEmbeddingDocIDs(path string) ([]string, error) {
+// GetFileEmbeddingDocIDs returns the tracked VectorDB document IDs for a file path within a collection.
+// For backward compatibility, if no entry exists for path+collection, falls back to
+// path-only lookup (handles pre-migration data with collection=”).
+func (s *SQLiteMemory) GetFileEmbeddingDocIDs(path, collection string) ([]string, error) {
+	// Try path+collection first (collection-aware)
 	rows, err := s.db.Query(`
 		SELECT doc_id
 		FROM file_embedding_docs
-		WHERE file_path = ?
+		WHERE file_path = ? AND collection = ?
+		ORDER BY doc_id
+	`, path, collection)
+	if err != nil {
+		return nil, err
+	}
+	var docIDs []string
+	for rows.Next() {
+		var docID string
+		if err := rows.Scan(&docID); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		docIDs = append(docIDs, docID)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	// If we found docs, return them
+	if len(docIDs) > 0 {
+		return docIDs, nil
+	}
+	// Fallback to path-only for backward compatibility with pre-migration data
+	rows2, err := s.db.Query(`
+		SELECT doc_id
+		FROM file_embedding_docs
+		WHERE file_path = ? AND collection = ''
 		ORDER BY doc_id
 	`, path)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-
-	var docIDs []string
-	for rows.Next() {
+	defer rows2.Close()
+	for rows2.Next() {
 		var docID string
-		if err := rows.Scan(&docID); err != nil {
+		if err := rows2.Scan(&docID); err != nil {
 			return nil, err
 		}
 		docIDs = append(docIDs, docID)
 	}
-	return docIDs, rows.Err()
+	return docIDs, rows2.Err()
 }
 
 // ListIndexedFiles returns all tracked file paths for a given collection.
@@ -1052,18 +1089,19 @@ func (s *SQLiteMemory) ListIndexedFiles(collection string) ([]string, error) {
 }
 
 // DeleteFileIndex removes file-index metadata and tracked VectorDB document IDs
-// for a file path. This is used when a file is removed or before a full reindex.
-func (s *SQLiteMemory) DeleteFileIndex(path string) error {
+// for a file path within a specific collection. This is used when a file is removed
+// or before a full reindex.
+func (s *SQLiteMemory) DeleteFileIndex(path, collection string) error {
 	tx, err := s.db.Begin()
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 
-	if _, err := tx.Exec(`DELETE FROM file_embedding_docs WHERE file_path = ?`, path); err != nil {
+	if _, err := tx.Exec(`DELETE FROM file_embedding_docs WHERE file_path = ? AND collection = ?`, path, collection); err != nil {
 		return err
 	}
-	if _, err := tx.Exec(`DELETE FROM file_indices WHERE file_path = ?`, path); err != nil {
+	if _, err := tx.Exec(`DELETE FROM file_indices WHERE file_path = ? AND collection = ?`, path, collection); err != nil {
 		return err
 	}
 

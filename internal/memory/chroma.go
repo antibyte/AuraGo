@@ -234,7 +234,7 @@ func (cv *ChromemVectorDB) IndexDirectory(dir, collectionName string, stm *SQLit
 
 		// 3. Change detection
 		if !force && stm != nil {
-			lastIndexed, _ := stm.GetFileIndex(path)
+			lastIndexed, _ := stm.GetFileIndex(path, collectionName)
 			if !info.ModTime().After(lastIndexed) && collection.Count() > 0 {
 				cv.logger.Debug("File unchanged, skipping RAG indexing", "path", path)
 				continue
