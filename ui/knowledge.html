@@ -49,6 +49,8 @@
                 onclick="switchKCTab('appointments')" data-i18n="knowledge.tab_appointments">📅 Appointments</button>
             <button class="kc-tab" id="tab-todos" role="tab" aria-selected="false"
                 onclick="switchKCTab('todos')" data-i18n="knowledge.tab_todos">✅ To-Dos</button>
+            <button class="kc-tab" id="tab-filesync" role="tab" aria-selected="false"
+                onclick="switchKCTab('filesync')" data-i18n="knowledge.tab_filesync">📊 File Sync</button>
         </div>
 
         <!-- ═══════ CONTACTS PANEL ═══════ -->
@@ -244,6 +246,69 @@
                 <div class="empty-icon">✅</div>
                 <h3 data-i18n="knowledge.todos_empty_title">No To-Dos</h3>
                 <p data-i18n="knowledge.todos_empty_desc">Create your first to-do to get started.</p>
+            </div>
+        </div>
+        <!-- ═══════ FILE SYNC STATUS PANEL ═══════ -->
+        <div id="panel-filesync" class="kc-panel">
+            <div class="kc-panel-header">
+                <div class="kc-sync-header-row">
+                    <h3 class="kc-sync-title" data-i18n="knowledge.filesync_title">File Indexer → Knowledge Graph Sync</h3>
+                    <div class="kc-sync-actions">
+                        <button class="btn btn-secondary btn-sm" onclick="loadFileSyncStatus()" id="btn-fs-refresh">
+                            🔄 <span data-i18n="knowledge.filesync_refresh">Refresh</span>
+                        </button>
+                        <button class="btn btn-primary btn-sm" onclick="triggerFileSyncRescan()" id="btn-fs-rescan">
+                            🔍 <span data-i18n="knowledge.filesync_rescan">Rescan</span>
+                        </button>
+                    </div>
+                </div>
+                <p class="kc-sync-desc" data-i18n="knowledge.filesync_desc">Operational status of the file indexer and knowledge graph synchronization pipeline.</p>
+            </div>
+
+            <!-- Indexer Status Card -->
+            <div class="kc-sync-card" id="fs-indexer-card">
+                <div class="kc-sync-card-header">
+                    <span class="kc-sync-card-icon">📁</span>
+                    <span class="kc-sync-card-title" data-i18n="knowledge.filesync_indexer_title">File Indexer</span>
+                    <span class="kc-sync-status-dot" id="fs-indexer-dot">⚫</span>
+                    <span class="kc-sync-status-label" id="fs-indexer-status">—</span>
+                </div>
+                <div class="kc-sync-card-body" id="fs-indexer-body">
+                    <div class="kc-sync-loading" data-i18n="knowledge.filesync_loading">Loading status…</div>
+                </div>
+            </div>
+
+            <!-- KG Stats Card -->
+            <div class="kc-sync-card" id="fs-kg-card">
+                <div class="kc-sync-card-header">
+                    <span class="kc-sync-card-icon">🧠</span>
+                    <span class="kc-sync-card-title" data-i18n="knowledge.filesync_kg_title">Knowledge Graph (file_sync)</span>
+                </div>
+                <div class="kc-sync-card-body" id="fs-kg-body">
+                    <div class="kc-sync-loading" data-i18n="knowledge.filesync_loading">Loading status…</div>
+                </div>
+            </div>
+
+            <!-- Collections Table -->
+            <div class="kc-sync-card" id="fs-collections-card">
+                <div class="kc-sync-card-header">
+                    <span class="kc-sync-card-icon">📂</span>
+                    <span class="kc-sync-card-title" data-i18n="knowledge.filesync_collections_title">Collections</span>
+                </div>
+                <div class="kc-sync-card-body" id="fs-collections-body">
+                    <div class="kc-sync-loading" data-i18n="knowledge.filesync_loading">Loading status…</div>
+                </div>
+            </div>
+
+            <!-- Last Sync Card -->
+            <div class="kc-sync-card" id="fs-lastsync-card">
+                <div class="kc-sync-card-header">
+                    <span class="kc-sync-card-icon">⏱️</span>
+                    <span class="kc-sync-card-title" data-i18n="knowledge.filesync_last_sync_title">Last Synchronization</span>
+                </div>
+                <div class="kc-sync-card-body" id="fs-lastsync-body">
+                    <div class="kc-sync-loading" data-i18n="knowledge.filesync_loading">Loading status…</div>
+                </div>
             </div>
         </div>
     </div>
@@ -602,5 +667,6 @@
     <script src="/js/knowledge/main.js"></script>
     <script src="/js/knowledge/appointments.js"></script>
     <script src="/js/knowledge/todos.js"></script>
+    <script src="/js/knowledge/file_sync_status.js"></script>
 </body>
 </html>

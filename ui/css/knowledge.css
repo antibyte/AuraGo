@@ -978,3 +978,231 @@
 [data-theme="light"] .kc-filter-select {
     border-color: rgba(71, 85, 105, 0.14);
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   FILE SYNC STATUS – Operational View
+   ═══════════════════════════════════════════════════════════════ */
+
+.kc-sync-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.kc-sync-title {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.kc-sync-desc {
+    margin: 6px 0 0;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.kc-sync-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+/* Sync status cards */
+.kc-sync-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    margin-bottom: 16px;
+    box-shadow: var(--surface-shadow);
+    overflow: hidden;
+}
+
+.kc-sync-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 18px 10px;
+    border-bottom: 1px solid var(--border-subtle);
+    background: var(--bg-tertiary, var(--bg-secondary));
+}
+
+.kc-sync-card-icon {
+    font-size: 1.1rem;
+}
+
+.kc-sync-card-title {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    flex: 1;
+}
+
+.kc-sync-status-dot {
+    font-size: 0.85rem;
+}
+
+.kc-sync-status-label {
+    font-size: 0.82rem;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 10px;
+}
+
+.kc-sync-ok {
+    color: #10b981;
+    background: rgba(16, 185, 129, 0.12);
+}
+
+.kc-sync-err {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.12);
+}
+
+.kc-sync-warn {
+    color: #f59e0b;
+    background: rgba(245, 158, 11, 0.12);
+}
+
+.kc-sync-card-body {
+    padding: 14px 18px 18px;
+}
+
+/* Stat rows */
+.kc-sync-stat {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 0;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+}
+
+.kc-sync-stat-icon {
+    font-size: 0.9rem;
+    flex-shrink: 0;
+}
+
+.kc-sync-stat-label {
+    color: var(--text-secondary);
+    min-width: 140px;
+}
+
+.kc-sync-stat-value {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.kc-sync-stat-full {
+    margin-top: 8px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border-subtle);
+    font-weight: 600;
+}
+
+.kc-sync-stat-full .kc-sync-stat-label {
+    color: var(--text-primary);
+}
+
+/* Directory items */
+.kc-sync-dir-item {
+    padding: 3px 0 3px 28px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.kc-sync-dir-path {
+    font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
+    font-size: 0.82rem;
+    background: var(--bg-secondary);
+    padding: 2px 6px;
+    border-radius: 4px;
+    word-break: break-all;
+}
+
+/* Chip rows for entity types / collections */
+.kc-sync-chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 4px 0 4px 28px;
+}
+
+.kc-sync-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-primary);
+}
+
+.kc-sync-chip strong {
+    color: var(--accent);
+    font-weight: 600;
+}
+
+.kc-sync-chip-coll {
+    background: rgba(99, 102, 241, 0.08);
+    border-color: rgba(99, 102, 241, 0.2);
+}
+
+/* Loading / NA states */
+.kc-sync-loading,
+.kc-sync-na {
+    text-align: center;
+    padding: 16px 0;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+/* Error list */
+.kc-sync-errors {
+    margin-top: 10px;
+    padding: 10px 12px;
+    background: rgba(239, 68, 68, 0.06);
+    border: 1px solid rgba(239, 68, 68, 0.15);
+    border-radius: 8px;
+}
+
+.kc-sync-errors-title {
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: #ef4444;
+}
+
+.kc-sync-errors-list {
+    margin: 6px 0 0;
+    padding-left: 18px;
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+}
+
+.kc-sync-errors-list li {
+    margin-bottom: 2px;
+    word-break: break-word;
+}
+
+/* Sync table tweaks */
+.kc-sync-table {
+    font-size: 0.85rem;
+}
+
+.kc-sync-table td,
+.kc-sync-table th {
+    padding: 8px 12px;
+}
+
+/* Light theme overrides */
+[data-theme="light"] .kc-sync-chip-coll {
+    background: rgba(99, 102, 241, 0.06);
+}
+
+[data-theme="light"] .kc-sync-errors {
+    background: rgba(239, 68, 68, 0.04);
+}
