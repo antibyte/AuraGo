@@ -24,6 +24,18 @@ type FileSearchMatch struct {
 	Content string `json:"content"`
 }
 
+const (
+	// grepRecursiveMaxResults caps total matches across all files in grep_recursive.
+	grepRecursiveMaxResults = 500
+
+	// grepRecursiveMaxFileSize skips files larger than this before reading.
+	grepRecursiveMaxFileSize = 10 * 1024 * 1024 // 10 MB
+
+	// grepFileMaxMatchesPerFile caps matches per individual file to prevent
+	// pathological cases where a single large file produces thousands of matches.
+	grepFileMaxMatchesPerFile = 10000
+)
+
 // ExecuteFileSearch handles file search operations, sandboxed to workspaceDir.
 func ExecuteFileSearch(operation, pattern, filePath, glob, outputMode string, workspaceDir string) string {
 	encode := func(r FileSearchResult) string {
@@ -105,7 +117,6 @@ func fileGrepRecursive(glob, pattern, outputMode, workspaceDir string, encode fu
 	}
 
 	var allMatches []FileSearchMatch
-	maxResults := 500
 
 	err = filepath.Walk(workspaceDir, func(path string, info os.FileInfo, walkErr error) error {
 		if walkErr != nil {
@@ -118,8 +129,8 @@ func fileGrepRecursive(glob, pattern, outputMode, workspaceDir string, encode fu
 			}
 			return nil
 		}
-		if info.Size() > 10*1024*1024 {
-			return nil // skip files > 10MB
+		if info.Size() > grepRecursiveMaxFileSize {
+			return nil // skip files larger than limit
 		}
 
 		relPath, _ := filepath.Rel(workspaceDir, path)
@@ -134,7 +145,7 @@ func fileGrepRecursive(glob, pattern, outputMode, workspaceDir string, encode fu
 		}
 		allMatches = append(allMatches, fileMatches...)
 
-		if len(allMatches) >= maxResults {
+		if len(allMatches) >= grepRecursiveMaxResults {
 			return fmt.Errorf("max results reached")
 		}
 		return nil
@@ -144,8 +155,8 @@ func fileGrepRecursive(glob, pattern, outputMode, workspaceDir string, encode fu
 		return encode(FileSearchResult{Status: "error", Message: err.Error()})
 	}
 
-	if len(allMatches) >= maxResults {
-		allMatches = allMatches[:maxResults]
+	if len(allMatches) >= grepRecursiveMaxResults {
+		allMatches = allMatches[:grepRecursiveMaxResults]
 	}
 
 	if outputMode == "count" {
@@ -300,6 +311,9 @@ func grepFile(absPath string, re *regexp.Regexp, displayPath string) ([]FileSear
 				Line:    lineNum,
 				Content: strings.TrimRight(line, "\r\n"),
 			})
+			if len(matches) >= grepFileMaxMatchesPerFile {
+				break
+			}
 		}
 	}
 	if err := scanner.Err(); err != nil {

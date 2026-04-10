@@ -9,7 +9,23 @@ import (
 	"unicode/utf8"
 )
 
-const fileReaderAdvancedMaxChars = 24000
+const (
+	// fileReaderAdvancedMaxChars limits the character length of returned content
+	// to prevent excessive token usage in LLM context.
+	fileReaderAdvancedMaxChars = 24000
+
+	// searchContextMaxMatches caps the number of match results returned by searchContext
+	// to bound processing time and output size.
+	searchContextMaxMatches = 50
+
+	// searchContextMaxFileSize rejects files larger than this before opening them,
+	// preventing OOM and unbounded scan time in searchContext.
+	// 50 MB provides a generous boundary while protecting against pathological cases.
+	searchContextMaxFileSize = 50 * 1024 * 1024
+
+	// searchContextMaxContextLines caps the context window around each match.
+	searchContextMaxContextLines = 100
+)
 
 // FileReaderResult is the JSON response returned for file_reader_advanced operations.
 type FileReaderResult struct {
@@ -192,6 +208,9 @@ func searchContext(resolved, pattern string, contextLines int, encode func(FileR
 	if contextLines <= 0 {
 		contextLines = 3
 	}
+	if contextLines > searchContextMaxContextLines {
+		contextLines = searchContextMaxContextLines
+	}
 
 	if len(pattern) > 256 {
 		return encode(FileReaderResult{Status: "error", Message: "regex pattern too long (max 256 characters)"})
@@ -199,6 +218,23 @@ func searchContext(resolved, pattern string, contextLines int, encode func(FileR
 	re, err := regexp.Compile("(?i)" + pattern)
 	if err != nil {
 		return encode(FileReaderResult{Status: "error", Message: fmt.Sprintf("Invalid regex: %v", err)})
+	}
+
+	// Check file size before opening to prevent OOM on very large files
+	info, err := os.Stat(resolved)
+	if err != nil {
+		return encode(FileReaderResult{Status: "error", Message: fmt.Sprintf("Failed to stat file: %v", err)})
+	}
+	if info.Size() > searchContextMaxFileSize {
+		return encode(FileReaderResult{
+			Status:  "error",
+			Message: fmt.Sprintf("file too large for search_context (%d MB > %d MB limit). Use smart_file_read sample/head/tail to inspect large files, or narrow the file set.", info.Size()/(1024*1024), searchContextMaxFileSize/(1024*1024)),
+			Data: map[string]interface{}{
+				"size_bytes":    info.Size(),
+				"max_file_size": searchContextMaxFileSize,
+				"limit":         "file_size",
+			},
+		})
 	}
 
 	f, err := os.Open(resolved)
@@ -227,7 +263,6 @@ func searchContext(resolved, pattern string, contextLines int, encode func(FileR
 	var results []contextResult
 	var active []activeContext
 	before := make([]bufferedLine, 0, contextLines)
-	maxResults := 50
 	lineNum := 0
 	scanner := newLargeFileScanner(f)
 	flushActive := func() {
@@ -260,10 +295,13 @@ func searchContext(resolved, pattern string, contextLines int, encode func(FileR
 					EndLine:   pending.startLine + len(pending.lines) - 1,
 					Content:   mustClampFileReaderContent(strings.Join(pending.lines, "\n")),
 				})
-				if len(results) >= maxResults {
+				if len(results) >= searchContextMaxMatches {
 					return encode(FileReaderResult{Status: "success", Data: map[string]interface{}{
-						"matches": results,
-						"count":   len(results),
+						"matches":     results,
+						"count":       len(results),
+						"truncated":   true,
+						"limit":       "max_matches",
+						"limit_value": searchContextMaxMatches,
 					}})
 				}
 				continue
@@ -295,10 +333,13 @@ func searchContext(resolved, pattern string, contextLines int, encode func(FileR
 					EndLine:   pending.startLine + len(pending.lines) - 1,
 					Content:   mustClampFileReaderContent(strings.Join(pending.lines, "\n")),
 				})
-				if len(results) >= maxResults {
+				if len(results) >= searchContextMaxMatches {
 					return encode(FileReaderResult{Status: "success", Data: map[string]interface{}{
-						"matches": results,
-						"count":   len(results),
+						"matches":     results,
+						"count":       len(results),
+						"truncated":   true,
+						"limit":       "max_matches",
+						"limit_value": searchContextMaxMatches,
 					}})
 				}
 			} else {
@@ -321,8 +362,10 @@ func searchContext(resolved, pattern string, contextLines int, encode func(FileR
 	}
 
 	return encode(FileReaderResult{Status: "success", Data: map[string]interface{}{
-		"matches": results,
-		"count":   len(results),
+		"matches":   results,
+		"count":     len(results),
+		"truncated": false,
+		"limit":     "none",
 	}})
 }
 
