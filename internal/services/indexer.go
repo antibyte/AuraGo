@@ -394,19 +394,20 @@ func (fi *FileIndexer) scanDirectory(dir, collection string) (totalFiles, indexe
 			info.Name(), relPath, info.ModTime().Format("2006-01-02 15:04"))
 
 		// Store in VectorDB - use pre-computed embedding when available.
+		// Use collection-aware methods to route documents to the per-directory collection.
 		var docIDs []string
 		var storeErr error
 		if precomputedEmbedding != nil {
 			var docID string
 			docID, storeErr = fi.indexStoreDocWithRetry(func() (string, error) {
-				return fi.vectorDB.StoreDocumentWithEmbedding(concept, content, precomputedEmbedding)
+				return fi.vectorDB.StoreDocumentWithEmbeddingInCollection(concept, content, precomputedEmbedding, collection)
 			}, path)
 			if storeErr == nil && docID != "" {
 				docIDs = []string{docID}
 			}
 		} else {
 			docIDs, storeErr = fi.indexStoreWithRetry(func() ([]string, error) {
-				return fi.vectorDB.StoreDocument(concept, content)
+				return fi.vectorDB.StoreDocumentInCollection(concept, content, collection)
 			}, path)
 		}
 		if storeErr != nil {
@@ -415,7 +416,7 @@ func (fi *FileIndexer) scanDirectory(dir, collection string) (totalFiles, indexe
 			return nil
 		}
 
-		if err := fi.stm.UpdateFileIndexWithDocs(path, indexerCollection, info.ModTime(), docIDs); err != nil {
+		if err := fi.stm.UpdateFileIndexWithDocs(path, collection, info.ModTime(), docIDs); err != nil {
 			errors = append(errors, fmt.Sprintf("tracking error %s: %v", path, err))
 			fi.logger.Warn("[Indexer] Failed to persist file index tracking", "path", path, "error", err)
 			return nil

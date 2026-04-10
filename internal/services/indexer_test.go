@@ -29,11 +29,19 @@ func (f *fakeIndexerVectorDB) StoreDocument(concept, content string) ([]string, 
 	return []string{fmt.Sprintf("doc-%d", f.nextID)}, nil
 }
 
+func (f *fakeIndexerVectorDB) StoreDocumentInCollection(concept, content, collection string) ([]string, error) {
+	return f.StoreDocument(concept, content)
+}
+
 func (f *fakeIndexerVectorDB) StoreDocumentWithEmbedding(concept, content string, embedding []float32) (string, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.nextID++
 	return fmt.Sprintf("doc-%d", f.nextID), nil
+}
+
+func (f *fakeIndexerVectorDB) StoreDocumentWithEmbeddingInCollection(concept, content string, embedding []float32, collection string) (string, error) {
+	return f.StoreDocumentWithEmbedding(concept, content, embedding)
 }
 
 func (f *fakeIndexerVectorDB) StoreBatch(items []memory.ArchiveItem) ([]string, error) {
@@ -60,6 +68,14 @@ func (f *fakeIndexerVectorDB) DeleteDocument(id string) error {
 func (f *fakeIndexerVectorDB) Count() int       { return 0 }
 func (f *fakeIndexerVectorDB) IsDisabled() bool { return false }
 func (f *fakeIndexerVectorDB) Close() error     { return nil }
+
+func (f *fakeIndexerVectorDB) StoreCheatsheet(id, name, content string) error {
+	return nil
+}
+
+func (f *fakeIndexerVectorDB) DeleteCheatsheet(id string) error {
+	return nil
+}
 
 func TestFileIndexerReplacesTrackedEmbeddingsOnReindex(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))

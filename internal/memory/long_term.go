@@ -28,6 +28,10 @@ type ArchiveItem struct {
 type VectorDB interface {
 	StoreDocument(concept, content string) ([]string, error)
 	StoreDocumentWithEmbedding(concept, content string, embedding []float32) (string, error)
+	// StoreDocumentInCollection stores a document in a specific collection (used by FileIndexer).
+	StoreDocumentInCollection(concept, content, collection string) ([]string, error)
+	// StoreDocumentWithEmbeddingInCollection stores a document with pre-computed embedding in a specific collection.
+	StoreDocumentWithEmbeddingInCollection(concept, content string, embedding []float32, collection string) (string, error)
 	StoreBatch(items []ArchiveItem) ([]string, error)
 	SearchSimilar(query string, topK int, excludeCollections ...string) ([]string, []string, error)
 	// SearchMemoriesOnly searches only the aurago_memories collection.
@@ -353,6 +357,105 @@ func (cv *ChromemVectorDB) StoreDocumentWithDomain(concept, content, domain stri
 	return storedIDs, nil
 }
 
+// StoreDocumentInCollection stores a document in a specific collection.
+// This is used by the FileIndexer to route documents to per-directory collections.
+func (cv *ChromemVectorDB) StoreDocumentInCollection(concept, content, collection string) ([]string, error) {
+	return cv.storeDocumentInCollectionWithDomain(concept, content, collection, "")
+}
+
+// storeDocumentInCollectionWithDomain is the internal implementation for collection-aware storage.
+func (cv *ChromemVectorDB) storeDocumentInCollectionWithDomain(concept, content, collection, domain string) ([]string, error) {
+	if cv.disabled.Load() {
+		return nil, fmt.Errorf("VectorDB is disabled (embedding pipeline failed at startup)")
+	}
+	if collection == "" {
+		collection = "aurago_memories"
+	}
+
+	const maxContentBytes = 500 * 1024
+	if len(content) > maxContentBytes {
+		cv.logger.Warn("Document content exceeds 500 KB limit, truncating", "concept", concept, "bytes", len(content))
+		content = content[:maxContentBytes]
+	}
+
+	cv.mu.Lock()
+	defer cv.mu.Unlock()
+
+	col, err := cv.db.GetOrCreateCollection(collection, nil, cv.embeddingFunc)
+	if err != nil {
+		return nil, fmt.Errorf("get/create collection %s: %w", collection, err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	fullContent := concept + "\n\n" + content
+
+	metadata := map[string]string{
+		"concept":   concept,
+		"timestamp": fmt.Sprintf("%d", time.Now().Unix()),
+	}
+	if domain != "" {
+		metadata["domain"] = domain
+	}
+
+	// Small texts: store as a single document
+	if len(fullContent) <= 4000 {
+		docID := fmt.Sprintf("file_%d_%d", time.Now().UnixMilli(), cv.idCounter.Add(1))
+		doc := chromem.Document{
+			ID:       docID,
+			Metadata: metadata,
+			Content:  fullContent,
+		}
+		if err := col.AddDocument(ctx, doc); err != nil {
+			cv.logger.Error("Failed to store document in collection", "collection", collection, "error", err)
+			return nil, fmt.Errorf("failed to add document: %w", err)
+		}
+		cv.logger.Info("Stored document in collection", "collection", collection, "id", docID, "concept", concept)
+		return []string{docID}, nil
+	}
+
+	// Large texts: split into chunks and batch-store
+	const maxChunks = 200
+	chunks := chunkText(content, 3500, 200)
+	if len(chunks) > maxChunks {
+		cv.logger.Warn("Document produces too many chunks, capping", "concept", concept, "chunks", len(chunks), "max", maxChunks)
+		chunks = chunks[:maxChunks]
+	}
+	baseCounter := cv.idCounter.Add(int64(len(chunks)))
+
+	var docs []chromem.Document
+	var storedIDs []string
+	for i, chunk := range chunks {
+		docID := fmt.Sprintf("file_%d_%d_chunk_%d", time.Now().UnixMilli(), baseCounter-int64(len(chunks))+int64(i)+1, i)
+		chunkMeta := map[string]string{
+			"concept":     concept,
+			"chunk_index": fmt.Sprintf("%d/%d", i+1, len(chunks)),
+			"timestamp":   fmt.Sprintf("%d", time.Now().Unix()),
+		}
+		if domain != "" {
+			chunkMeta["domain"] = domain
+		}
+		docs = append(docs, chromem.Document{
+			ID:       docID,
+			Metadata: chunkMeta,
+			Content:  concept + "\n\n" + chunk,
+		})
+		storedIDs = append(storedIDs, docID)
+	}
+
+	// Batch-add all chunks in one call
+	chunkCtx, chunkCancel := context.WithTimeout(context.Background(), calculateBatchTimeout(len(docs)))
+	defer chunkCancel()
+	if err := col.AddDocuments(chunkCtx, docs, 1); err != nil {
+		cv.logger.Error("Failed to store chunked document in collection", "collection", collection, "error", err)
+		return nil, fmt.Errorf("failed to add chunked document: %w", err)
+	}
+
+	cv.logger.Info("Stored chunked document in collection", "collection", collection, "concept", concept, "chunks", len(chunks))
+	return storedIDs, nil
+}
+
 // StoreDocumentWithEmbedding stores a document with a pre-computed embedding vector.
 // This bypasses the text embedding function, allowing multimodal content (images, audio)
 // to be stored with externally computed embeddings.
@@ -388,6 +491,51 @@ func (cv *ChromemVectorDB) StoreDocumentWithEmbedding(concept, content string, e
 	}
 
 	cv.logger.Info("Stored multimodal document", "id", docID, "concept", concept)
+	return docID, nil
+}
+
+// StoreDocumentWithEmbeddingInCollection stores a document with a pre-computed embedding vector
+// in a specific collection. This is used by the FileIndexer for multimodal content.
+func (cv *ChromemVectorDB) StoreDocumentWithEmbeddingInCollection(concept, content string, embedding []float32, collection string) (string, error) {
+	if cv.disabled.Load() {
+		return "", fmt.Errorf("VectorDB is disabled (embedding pipeline failed at startup)")
+	}
+	if len(embedding) == 0 {
+		return "", fmt.Errorf("embedding vector is empty")
+	}
+	if collection == "" {
+		collection = "aurago_memories"
+	}
+
+	cv.mu.Lock()
+	defer cv.mu.Unlock()
+
+	col, err := cv.db.GetOrCreateCollection(collection, nil, cv.embeddingFunc)
+	if err != nil {
+		return "", fmt.Errorf("get/create collection %s: %w", collection, err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	docID := fmt.Sprintf("mm_%d_%d", time.Now().UnixMilli(), cv.idCounter.Add(1))
+	doc := chromem.Document{
+		ID: docID,
+		Metadata: map[string]string{
+			"concept":    concept,
+			"timestamp":  fmt.Sprintf("%d", time.Now().Unix()),
+			"multimodal": "true",
+		},
+		Content:   content,
+		Embedding: embedding,
+	}
+
+	if err := col.AddDocument(ctx, doc); err != nil {
+		cv.logger.Error("Failed to store multimodal document in collection", "collection", collection, "error", err, "concept", concept)
+		return "", fmt.Errorf("failed to add multimodal document: %w", err)
+	}
+
+	cv.logger.Info("Stored multimodal document in collection", "collection", collection, "id", docID, "concept", concept)
 	return docID, nil
 }
 
