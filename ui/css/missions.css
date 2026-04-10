@@ -47,6 +47,9 @@
     box-shadow:
         var(--surface-shadow),
         inset 0 1px 0 var(--surface-highlight);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
 }
 
 .status-card::before {
@@ -97,17 +100,27 @@
 
 /* pulse keyframe moved to animations.css */
 
-.status-label {
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--text-secondary);
-    margin-bottom: 4px;
+.status-icon {
+    font-size: 1.6rem;
+    line-height: 1;
+    margin-bottom: 6px;
+    opacity: 0.72;
+    display: block;
 }
 
 .status-value {
-    font-size: 1.1rem;
-    font-weight: 600;
+    font-size: 2.2rem;
+    font-weight: 700;
+    line-height: 1;
+    margin-bottom: 2px;
+}
+
+.status-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-secondary);
+    opacity: 0.85;
 }
 
 /* Queue Section */
@@ -379,26 +392,53 @@
 .missions-grid .mission-card.entering:nth-child(8) { animation-delay: 350ms; }
 
 .mission-header {
-    padding: 10px 14px;
+    padding: 12px 14px 10px;
     border-bottom: 1px solid var(--border-subtle);
     display: flex;
-    justify-content: space-between;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+    cursor: pointer;
+}
+
+.mission-header-top {
+    display: flex;
     align-items: center;
     gap: 8px;
     min-width: 0;
+    width: 100%;
 }
 
-/* Expandable Card Styles */
+.mission-header-spacer {
+    flex: 1;
+    min-width: 4px;
+}
+
+.mission-header-badges {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    padding-left: 26px;
+}
+
 .mission-card.card-expanded .mission-header {
     cursor: pointer;
 }
 
 .mission-card.card-expanded .card-toggle {
-    font-size: 0.8rem;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
     color: var(--text-secondary);
     transition: transform 0.2s ease;
-    width: 20px;
-    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mission-card.card-expanded .card-toggle svg {
+    width: 16px;
+    height: 16px;
 }
 
 .mission-card.card-expanded.expanded .card-toggle {
@@ -423,7 +463,7 @@
 
 .mission-name {
     font-weight: 600;
-    font-size: 0.9rem;
+    font-size: 1rem;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -433,7 +473,16 @@
 
 .mission-locked {
     color: var(--warning);
-    font-size: 0.85rem;
+    font-size: 0;
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.mission-locked svg {
+    width: 14px;
+    height: 14px;
+    color: var(--warning);
 }
 
 .mission-body {
@@ -477,9 +526,10 @@
 
 .mission-actions {
     display: flex;
-    gap: 6px;
-    flex-shrink: 1;
-    flex-wrap: wrap;
+    gap: 4px;
+    flex-shrink: 0;
+    flex-wrap: nowrap;
+    align-items: center;
 }
 
 /* Priority Badges — extend .badge base class; colors use CSS vars */
@@ -594,6 +644,80 @@
 .mission-option-meta {
     font-size: 0.75rem;
     color: var(--text-secondary);
+}
+
+/* Priority accent border on mission cards */
+.mission-card[data-priority="high"]   { border-left: 3px solid var(--danger); }
+.mission-card[data-priority="medium"] { border-left: 3px solid var(--warning); }
+.mission-card[data-priority="low"]    { border-left: 3px solid var(--success); }
+
+/* Mission card action buttons */
+.mc-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    border: 1px solid var(--border-subtle);
+    background: var(--bg-glass);
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    flex-shrink: 0;
+    padding: 0;
+    font-size: 0;
+}
+
+.mc-btn svg {
+    width: 14px;
+    height: 14px;
+}
+
+.mc-btn:hover:not(:disabled) {
+    background: rgba(148, 163, 184, 0.16);
+    color: var(--text-primary);
+    border-color: var(--border-accent);
+    transform: translateY(-1px);
+}
+
+.mc-btn:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.mc-btn.mc-btn-run {
+    background: linear-gradient(135deg, var(--accent), #0d9488);
+    border-color: transparent;
+    color: white;
+}
+
+.mc-btn.mc-btn-run:hover:not(:disabled) {
+    box-shadow: 0 4px 12px rgba(45, 212, 191, 0.4);
+    transform: translateY(-1px);
+    color: white;
+    background: linear-gradient(135deg, var(--accent), #0d9488);
+}
+
+.mc-btn.mc-btn-danger:hover:not(:disabled) {
+    border-color: var(--danger);
+    color: var(--danger);
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.mc-btn:disabled {
+    opacity: 0.38;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+[data-theme="light"] .mc-btn {
+    border-color: rgba(71, 85, 105, 0.14);
+    background: rgba(234, 242, 237, 0.88);
+}
+
+[data-theme="light"] .mc-btn.mc-btn-run {
+    background: linear-gradient(135deg, #0f766e, #0d9488);
+    border-color: transparent;
 }
 
 /* Execution Type Selector */

@@ -50,6 +50,19 @@ const icons = {
     error: '❌'
 };
 
+// Inline SVG icon set — heroicons style (20×20 viewBox, filled)
+const svgIcons = {
+    play: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M6.3 2.84A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.27l9.344-5.891a1.5 1.5 0 000-2.538L6.3 2.84z"/></svg>`,
+    edit: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M5.433 13.917l1.262-3.155A4 4 0 017.58 9.42l6.92-6.918a2.121 2.121 0 013 3l-6.92 6.918c-.383.383-.84.685-1.343.886l-3.154 1.262a.5.5 0 01-.65-.65z"/><path d="M3.5 5.75c0-.69.56-1.25 1.25-1.25H10A.75.75 0 0010 3H4.75A2.75 2.75 0 002 5.75v9.5A2.75 2.75 0 004.75 18h9.5A2.75 2.75 0 0017 15.25V10a.75.75 0 00-1.5 0v5.25c0 .69-.56 1.25-1.25 1.25h-9.5c-.69 0-1.25-.56-1.25-1.25v-9.5z"/></svg>`,
+    trash: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 10.23 1.482l.149-.022.841 10.518A2.75 2.75 0 007.596 19h4.807a2.75 2.75 0 002.742-2.53l.841-10.52.149.023a.75.75 0 00.23-1.482A41.03 41.03 0 0014 4.193V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4zM8.58 7.72a.75.75 0 00-1.5.06l.3 7.5a.75.75 0 101.5-.06l-.3-7.5zm4.34.06a.75.75 0 10-1.5-.06l-.3 7.5a.75.75 0 101.5.06l.3-7.5z" clip-rule="evenodd"/></svg>`,
+    copy: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M7 3.5A1.5 1.5 0 018.5 2h3.879a1.5 1.5 0 011.06.44l3.122 3.12A1.5 1.5 0 0117 6.622V12.5a1.5 1.5 0 01-1.5 1.5h-1v-3.379a3 3 0 00-.879-2.121L10.5 5.379A3 3 0 008.379 4.5H7v-1z"/><path d="M4.5 6A1.5 1.5 0 003 7.5v9A1.5 1.5 0 004.5 18h7a1.5 1.5 0 001.5-1.5v-5.879a1.5 1.5 0 00-.44-1.06L9.44 6.439A1.5 1.5 0 008.378 6H4.5z"/></svg>`,
+    lockIcon: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z" clip-rule="evenodd"/></svg>`,
+    cog: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M7.84 1.804A1 1 0 018.82 1h2.36a1 1 0 01.98.804l.331 1.652a6.993 6.993 0 011.929 1.115l1.598-.54a1 1 0 011.186.447l1.18 2.044a1 1 0 01-.205 1.251l-1.267 1.113a7.047 7.047 0 010 2.228l1.267 1.113a1 1 0 01.206 1.25l-1.18 2.045a1 1 0 01-1.187.447l-1.598-.54a6.993 6.993 0 01-1.929 1.115l-.33 1.652a1 1 0 01-.98.804H8.82a1 1 0 01-.98-.804l-.331-1.652a6.993 6.993 0 01-1.929-1.115l-1.598.54a1 1 0 01-1.186-.447l-1.18-2.044a1 1 0 01.205-1.251l1.267-1.114a7.05 7.05 0 010-2.227L1.821 7.773a1 1 0 01-.206-1.25l1.18-2.045a1 1 0 011.187-.447l1.598.54A6.993 6.993 0 017.51 3.456l.33-1.652zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/></svg>`,
+    info: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clip-rule="evenodd"/></svg>`,
+    refresh: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M15.312 11.424a5.5 5.5 0 01-9.201 2.466l-.312-.311h2.433a.75.75 0 000-1.5H3.989a.75.75 0 00-.75.75v4.242a.75.75 0 001.5 0v-2.43l.31.31a7 7 0 0011.712-3.138.75.75 0 00-1.449-.39zm1.23-3.723a.75.75 0 00.219-.53V2.929a.75.75 0 00-1.5 0V5.36l-.31-.31A7 7 0 003.239 8.188a.75.75 0 101.448.389A5.5 5.5 0 0113.89 6.11l.311.31h-2.432a.75.75 0 000 1.5h4.243a.75.75 0 00.53-.219z" clip-rule="evenodd"/></svg>`,
+    chevron: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.22 5.22a.75.75 0 011.06 0l4.25 4.25a.75.75 0 010 1.06l-4.25 4.25a.75.75 0 01-1.06-1.06L11.94 10 8.22 6.28a.75.75 0 010-1.06z" clip-rule="evenodd"/></svg>`,
+};
+
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     updateViewToggle();
@@ -293,14 +306,14 @@ function renderMissionCompact(mission) {
         <div class="card-compact" data-mission-id="${mid}" onclick="if(event.target.closest('.card-actions')) return; editMission(this.dataset.missionId)">
             <span class="card-icon" title="${escapeAttr(mission.execution_type)}">${typeIcon}</span>
             <span class="card-name">${escapeHtml(mission.name)}</span>
-            ${mission.locked ? `<span class="card-icon" title="${t('missions.card_locked_title')}">${icons.lock}</span>` : ''}
+            ${mission.locked ? `<span class="card-icon" title="${t('missions.card_locked_title')}">${svgIcons.lockIcon}</span>` : ''}
             <div class="card-badges">${statusBadge}${prepBadge}</div>
             <div class="card-actions" onclick="event.stopPropagation()">
-                <button class="btn btn-sm ${isRunning ? 'btn-secondary' : 'btn-primary'}" data-mission-id="${mid}" onclick="runMission(this.dataset.missionId)" title="${t('missions.card_btn_run_title')}" ${isRunning ? 'disabled' : ''}>${icons.play}</button>
+                <button class="mc-btn mc-btn-run" data-mission-id="${mid}" onclick="runMission(this.dataset.missionId)" title="${t('missions.card_btn_run_title')}" ${isRunning ? 'disabled' : ''}>${svgIcons.play}</button>
                 ${renderPrepButton(mission, isRunning)}
-                <button class="btn btn-sm btn-secondary" data-mission-id="${mid}" onclick="duplicateMission(this.dataset.missionId)" title="${t('missions.card_btn_duplicate_title')}">${icons.duplicate}</button>
-                <button class="btn btn-sm btn-secondary" data-mission-id="${mid}" onclick="editMission(this.dataset.missionId)" title="${t('missions.card_btn_edit_title')}">${icons.edit}</button>
-                <button class="btn btn-sm btn-danger" data-mission-id="${mid}" onclick="deleteMission(this.dataset.missionId)" title="${t('missions.card_btn_delete_title')}" ${mission.locked ? 'disabled' : ''}>${icons.delete || '🗑️'}</button>
+                <button class="mc-btn" data-mission-id="${mid}" onclick="duplicateMission(this.dataset.missionId)" title="${t('missions.card_btn_duplicate_title')}">${svgIcons.copy}</button>
+                <button class="mc-btn" data-mission-id="${mid}" onclick="editMission(this.dataset.missionId)" title="${t('missions.card_btn_edit_title')}">${svgIcons.edit}</button>
+                <button class="mc-btn mc-btn-danger" data-mission-id="${mid}" onclick="deleteMission(this.dataset.missionId)" title="${t('missions.card_btn_delete_title')}" ${mission.locked ? 'disabled' : ''}>${svgIcons.trash}</button>
             </div>
         </div>
     `;
@@ -316,7 +329,9 @@ function renderMissionGrid(mission, isFirstRender) {
     const mid = escapeAttr(mission.id);
     const priorityBadge = `<span class="badge badge-priority-${escapeAttr(mission.priority)}">${escapeHtml(mission.priority)}</span>`;
     const typeBadge = `<span class="badge badge-type-${escapeAttr(mission.execution_type)}">${escapeHtml(mission.execution_type)}</span>`;
-    const statusBadge = isRunning ? `<span class="badge badge-running">${t('missions.card_badge_running')}</span>` : '';
+    const statusBadge = isRunning
+        ? `<span class="badge badge-running">${t('missions.card_badge_running')}</span>`
+        : isQueued ? `<span class="badge badge-warning">${t('missions.card_badge_queued')}</span>` : '';
     const prepBadge = renderPrepBadge(mission);
 
     let triggerInfo = '';
@@ -325,21 +340,20 @@ function renderMissionGrid(mission, isFirstRender) {
     }
 
     const lastRun = mission.last_run ? formatTime(mission.last_run) : t('missions.card_last_run_never');
-    const resultIcon = mission.last_result === 'success' ? icons.success : mission.last_result === 'error' ? icons.error : '';
+    const resultIcon = mission.last_result === 'success' ? '✅' : mission.last_result === 'error' ? '❌' : '';
 
     return `
-        <div class="mission-card card-expanded ${statusClass}${isFirstRender ? ' entering' : ''}${isExpanded ? ' expanded' : ''}">
+        <div class="mission-card card-expanded ${statusClass}${isFirstRender ? ' entering' : ''}${isExpanded ? ' expanded' : ''}" data-priority="${escapeAttr(mission.priority)}">
             <div class="mission-header" data-mission-id="${mid}" onclick="toggleCardExpand(this.dataset.missionId)">
-                <span class="card-toggle">▶</span>
-                <div class="mission-title">
+                <div class="mission-header-top">
+                    <span class="card-toggle">${svgIcons.chevron}</span>
                     <span class="mission-name">${escapeHtml(mission.name)}</span>
-                    ${mission.locked ? `<span class="mission-locked" title="${t('missions.card_locked_title')}">${icons.lock}</span>` : ''}
+                    ${mission.locked ? `<span class="mission-locked" title="${t('missions.card_locked_title')}">${svgIcons.lockIcon}</span>` : ''}
+                    <span class="mission-header-spacer"></span>
+                    ${statusBadge}${prepBadge}
                 </div>
-                <div class="mission-badges">
-                    ${priorityBadge}
-                    ${typeBadge}
-                    ${statusBadge}
-                    ${prepBadge}
+                <div class="mission-header-badges">
+                    ${priorityBadge}${typeBadge}
                 </div>
             </div>
             <div class="card-body">
@@ -351,9 +365,7 @@ function renderMissionGrid(mission, isFirstRender) {
                         <div class="mission-log-toggle" onclick="missionToggleLog(this)">
                             📝 <span>${t('missions.card_view_log')}</span>
                         </div>
-                        <div class="mission-log-content is-hidden">
-                            ${escapeHtml(extractLastOutput(mission.last_output))}
-                        </div>
+                        <div class="mission-log-content is-hidden">${escapeHtml(extractLastOutput(mission.last_output))}</div>
                     </div>` : ''}
                 </div>
                 <div class="mission-footer">
@@ -362,11 +374,11 @@ function renderMissionGrid(mission, isFirstRender) {
                         <span>📊 ${t('missions.meta_run_count', { count: mission.run_count })}</span>
                     </div>
                     <div class="mission-actions">
-                        <button class="btn btn-sm ${isRunning ? 'btn-secondary' : 'btn-primary'}" data-mission-id="${mid}" onclick="runMission(this.dataset.missionId)" title="${t('missions.card_btn_run_title')}" ${isRunning ? 'disabled' : ''}>${icons.play}</button>
+                        <button class="mc-btn mc-btn-run" data-mission-id="${mid}" onclick="runMission(this.dataset.missionId)" title="${t('missions.card_btn_run_title')}" ${isRunning ? 'disabled' : ''}>${svgIcons.play}</button>
                         ${renderPrepButton(mission, isRunning)}
-                        <button class="btn btn-sm btn-secondary" data-mission-id="${mid}" onclick="duplicateMission(this.dataset.missionId)" title="${t('missions.card_btn_duplicate_title')}">${icons.duplicate}</button>
-                        <button class="btn btn-sm btn-secondary" data-mission-id="${mid}" onclick="editMission(this.dataset.missionId)" title="${t('missions.card_btn_edit_title')}">${icons.edit}</button>
-                        <button class="btn btn-sm btn-danger" data-mission-id="${mid}" onclick="deleteMission(this.dataset.missionId)" title="${t('missions.card_btn_delete_title')}" ${mission.locked ? 'disabled' : ''}>${icons.delete || '🗑️'}</button>
+                        <button class="mc-btn" data-mission-id="${mid}" onclick="duplicateMission(this.dataset.missionId)" title="${t('missions.card_btn_duplicate_title')}">${svgIcons.copy}</button>
+                        <button class="mc-btn" data-mission-id="${mid}" onclick="editMission(this.dataset.missionId)" title="${t('missions.card_btn_edit_title')}">${svgIcons.edit}</button>
+                        <button class="mc-btn mc-btn-danger" data-mission-id="${mid}" onclick="deleteMission(this.dataset.missionId)" title="${t('missions.card_btn_delete_title')}" ${mission.locked ? 'disabled' : ''}>${svgIcons.trash}</button>
                     </div>
                 </div>
             </div>
@@ -930,10 +942,10 @@ function renderPrepButton(mission, isRunning) {
     const mid = escapeAttr(mission.id);
 
     if (status === 'prepared') {
-        return `<button class="btn btn-sm btn-secondary" data-mission-id="${mid}" onclick="viewPreparedContext(this.dataset.missionId)" title="${t('missions.prep_view_title')}">📋</button>` +
-               `<button class="btn btn-sm btn-secondary" data-mission-id="${mid}" onclick="invalidatePreparation(this.dataset.missionId)" title="${t('missions.prep_btn_invalidate')}">🔄</button>`;
+        return `<button class="mc-btn" data-mission-id="${mid}" onclick="viewPreparedContext(this.dataset.missionId)" title="${t('missions.prep_view_title')}">${svgIcons.info}</button>` +
+               `<button class="mc-btn" data-mission-id="${mid}" onclick="invalidatePreparation(this.dataset.missionId)" title="${t('missions.prep_btn_invalidate')}">${svgIcons.refresh}</button>`;
     }
-    return `<button class="btn btn-sm btn-secondary" data-mission-id="${mid}" onclick="prepareMission(this.dataset.missionId)" title="${t('missions.prep_btn_prepare')}" ${isPreparing || isRunning ? 'disabled' : ''}>⚙️</button>`;
+    return `<button class="mc-btn" data-mission-id="${mid}" onclick="prepareMission(this.dataset.missionId)" title="${t('missions.prep_btn_prepare')}" ${isPreparing || isRunning ? 'disabled' : ''}>${svgIcons.cog}</button>`;
 }
 
 async function prepareMission(id) {
