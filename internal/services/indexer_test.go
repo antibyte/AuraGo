@@ -57,6 +57,9 @@ func (f *fakeIndexerVectorDB) SearchMemoriesOnly(query string, topK int) ([]stri
 }
 
 func (f *fakeIndexerVectorDB) GetByID(id string) (string, error) { return "", nil }
+func (f *fakeIndexerVectorDB) GetByIDFromCollection(id, collection string) (string, error) {
+	return "", nil
+}
 
 func (f *fakeIndexerVectorDB) DeleteDocument(id string) error {
 	f.mu.Lock()

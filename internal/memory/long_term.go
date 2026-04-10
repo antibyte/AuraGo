@@ -38,6 +38,9 @@ type VectorDB interface {
 	// Use this for lightweight lookups (e.g. predictive pre-fetch) that
 	// should not pay the cost of scanning tool_guides and documentation.
 	SearchMemoriesOnly(query string, topK int) ([]string, []string, error)
+	// GetByID retrieves a document from a specific collection by its ID.
+	// This is the collection-aware variant needed by the FileIndexer.
+	GetByIDFromCollection(id, collection string) (string, error)
 	GetByID(id string) (string, error)
 	DeleteDocument(id string) error
 	DeleteDocumentFromCollection(id, collection string) error
@@ -1051,6 +1054,9 @@ func (cv *ChromemVectorDB) SearchMemoriesOnly(query string, topK int) ([]string,
 }
 
 // GetByID retrieves a document's full content by its ID.
+// For FileIndexer documents (IDs starting with "file_" or "mm_"), it automatically
+// falls back to the file_index collection if not found in aurago_memories.
+// This maintains backward compatibility while supporting collection-aware FileIndexer lookups.
 func (cv *ChromemVectorDB) GetByID(id string) (string, error) {
 	if cv.disabled.Load() {
 		return "", fmt.Errorf("VectorDB is disabled")
@@ -1059,9 +1065,45 @@ func (cv *ChromemVectorDB) GetByID(id string) (string, error) {
 	defer cv.mu.RUnlock()
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
+
+	// Try aurago_memories first (backward compatible)
 	doc, err := cv.collection.GetByID(ctx, id)
+	if err == nil {
+		return doc.Content, nil
+	}
+
+	// For FileIndexer documents, fall back to file_index collection
+	// FileIndexer uses "file_" or "mm_" prefixes for document IDs
+	if strings.HasPrefix(id, "file_") || strings.HasPrefix(id, "mm_") {
+		fileIndexCol, colErr := cv.db.GetOrCreateCollection("file_index", nil, cv.embeddingFunc)
+		if colErr == nil {
+			doc, err = fileIndexCol.GetByID(ctx, id)
+			if err == nil {
+				return doc.Content, nil
+			}
+		}
+	}
+
+	return "", fmt.Errorf("document not found: %w", err)
+}
+
+// GetByIDFromCollection retrieves a document from a specific collection by its ID.
+func (cv *ChromemVectorDB) GetByIDFromCollection(id, collection string) (string, error) {
+	if cv.disabled.Load() {
+		return "", fmt.Errorf("VectorDB is disabled")
+	}
+	cv.mu.RLock()
+	defer cv.mu.RUnlock()
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	col, err := cv.db.GetOrCreateCollection(collection, nil, cv.embeddingFunc)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("get collection %s: %w", collection, err)
+	}
+	doc, err := col.GetByID(ctx, id)
+	if err != nil {
+		return "", fmt.Errorf("document not found in collection %s: %w", collection, err)
 	}
 	return doc.Content, nil
 }

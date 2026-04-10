@@ -33,10 +33,25 @@ func (v *hierarchyVectorDB) SearchMemoriesOnly(query string, topK int) ([]string
 	return nil, nil, nil
 }
 func (v *hierarchyVectorDB) GetByID(id string) (string, error) { return v.stored[id], nil }
-func (v *hierarchyVectorDB) DeleteDocument(id string) error    { delete(v.stored, id); return nil }
-func (v *hierarchyVectorDB) Count() int                        { return v.count }
-func (v *hierarchyVectorDB) IsDisabled() bool                  { return false }
-func (v *hierarchyVectorDB) Close() error                      { return nil }
+func (v *hierarchyVectorDB) GetByIDFromCollection(id, collection string) (string, error) {
+	return v.stored[id], nil
+}
+func (v *hierarchyVectorDB) DeleteDocument(id string) error { delete(v.stored, id); return nil }
+func (v *hierarchyVectorDB) DeleteDocumentFromCollection(id, collection string) error {
+	delete(v.stored, id)
+	return nil
+}
+func (v *hierarchyVectorDB) Count() int       { return v.count }
+func (v *hierarchyVectorDB) IsDisabled() bool { return false }
+func (v *hierarchyVectorDB) Close() error     { return nil }
+func (v *hierarchyVectorDB) StoreDocumentInCollection(concept, content, collection string) ([]string, error) {
+	return nil, nil
+}
+func (v *hierarchyVectorDB) StoreDocumentWithEmbeddingInCollection(concept, content string, embedding []float32, collection string) (string, error) {
+	return "", nil
+}
+func (v *hierarchyVectorDB) StoreCheatsheet(id, name, content string) error { return nil }
+func (v *hierarchyVectorDB) DeleteCheatsheet(id string) error               { return nil }
 
 func TestConsolidateEpisodicHierarchyPromotesLevelOneEpisodes(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))

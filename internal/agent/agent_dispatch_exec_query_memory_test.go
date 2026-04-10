@@ -40,11 +40,21 @@ func (f *fakeVectorDB) SearchMemoriesOnly(query string, topK int) ([]string, []s
 	return []string{"Vincenzo memory hit"}, []string{"mem-1"}, nil
 }
 
-func (f *fakeVectorDB) GetByID(id string) (string, error) { return "", nil }
-func (f *fakeVectorDB) DeleteDocument(id string) error    { return nil }
-func (f *fakeVectorDB) Count() int                        { return 1 }
-func (f *fakeVectorDB) IsDisabled() bool                  { return false }
-func (f *fakeVectorDB) Close() error                      { return nil }
+func (f *fakeVectorDB) GetByID(id string) (string, error)                           { return "", nil }
+func (f *fakeVectorDB) GetByIDFromCollection(id, collection string) (string, error) { return "", nil }
+func (f *fakeVectorDB) DeleteDocument(id string) error                              { return nil }
+func (f *fakeVectorDB) DeleteDocumentFromCollection(id, collection string) error    { return nil }
+func (f *fakeVectorDB) Count() int                                                  { return 1 }
+func (f *fakeVectorDB) IsDisabled() bool                                            { return false }
+func (f *fakeVectorDB) Close() error                                                { return nil }
+func (f *fakeVectorDB) StoreDocumentInCollection(concept, content, collection string) ([]string, error) {
+	return nil, nil
+}
+func (f *fakeVectorDB) StoreDocumentWithEmbeddingInCollection(concept, content string, embedding []float32, collection string) (string, error) {
+	return "", nil
+}
+func (f *fakeVectorDB) StoreCheatsheet(id, name, content string) error { return nil }
+func (f *fakeVectorDB) DeleteCheatsheet(id string) error               { return nil }
 
 func TestDispatchExecQueryMemoryUsesMemoriesOnlyForVectorDB(t *testing.T) {
 	cfg := &config.Config{}

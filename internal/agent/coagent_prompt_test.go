@@ -41,10 +41,24 @@ func (f *coAgentContextVectorDB) SearchMemoriesOnly(query string, topK int) ([]s
 }
 
 func (f *coAgentContextVectorDB) GetByID(id string) (string, error) { return "", nil }
-func (f *coAgentContextVectorDB) DeleteDocument(id string) error    { return nil }
-func (f *coAgentContextVectorDB) Count() int                        { return len(f.results) }
-func (f *coAgentContextVectorDB) IsDisabled() bool                  { return false }
-func (f *coAgentContextVectorDB) Close() error                      { return nil }
+func (f *coAgentContextVectorDB) GetByIDFromCollection(id, collection string) (string, error) {
+	return "", nil
+}
+func (f *coAgentContextVectorDB) DeleteDocument(id string) error { return nil }
+func (f *coAgentContextVectorDB) DeleteDocumentFromCollection(id, collection string) error {
+	return nil
+}
+func (f *coAgentContextVectorDB) Count() int       { return len(f.results) }
+func (f *coAgentContextVectorDB) IsDisabled() bool { return false }
+func (f *coAgentContextVectorDB) Close() error     { return nil }
+func (f *coAgentContextVectorDB) StoreDocumentInCollection(concept, content, collection string) ([]string, error) {
+	return nil, nil
+}
+func (f *coAgentContextVectorDB) StoreDocumentWithEmbeddingInCollection(concept, content string, embedding []float32, collection string) (string, error) {
+	return "", nil
+}
+func (f *coAgentContextVectorDB) StoreCheatsheet(id, name, content string) error { return nil }
+func (f *coAgentContextVectorDB) DeleteCheatsheet(id string) error               { return nil }
 
 func TestBuildContextSnapshotUsesMemoriesOnly(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
