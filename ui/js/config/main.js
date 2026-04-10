@@ -1433,7 +1433,8 @@ const SECTION_MODULES = {
     skill_manager: { m: 'skill_manager', fn: 'renderSkillManagerSection' },
     daemon_skills: { m: 'daemon_skills', fn: 'renderDaemonSkillsSection' },
     ollama: { m: 'ollama', fn: 'renderOllamaSection' },
-    mission_preparation: { m: 'mission_preparation', fn: 'renderMissionPreparationSection' }
+    mission_preparation: { m: 'mission_preparation', fn: 'renderMissionPreparationSection' },
+    mqtt: { m: 'mqtt', fn: 'renderMQTTSection' }
 };
 
 function loadModule(name) {

@@ -5569,6 +5569,70 @@ select.cfg-input option {
 .mcp-btn-cancel { background:var(--bg-tertiary); color:var(--text-primary); padding:0.45rem 1rem; }
 .mcp-btn-save { padding:0.45rem 1rem; }
 
+/* ── MQTT Messages ── */
+.cfg-messages-area {
+    margin-top: 0.75rem;
+    padding: 0.75rem;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.cfg-messages-list {
+    max-height: 300px;
+    overflow-y: auto;
+    font-size: 0.85rem;
+    margin-bottom: 0.75rem;
+}
+
+.cfg-message-item {
+    display: flex;
+    gap: 0.75rem;
+    padding: 0.4rem 0;
+    border-bottom: 1px solid var(--border-color);
+    align-items: flex-start;
+    flex-wrap: wrap;
+}
+
+.cfg-message-item:last-child {
+    border-bottom: none;
+}
+
+.cfg-message-time {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    white-space: nowrap;
+    min-width: 70px;
+}
+
+.cfg-message-topic {
+    color: var(--accent);
+    font-weight: 500;
+    word-break: break-all;
+    min-width: 120px;
+    max-width: 200px;
+}
+
+.cfg-message-payload {
+    color: var(--text-secondary);
+    word-break: break-all;
+    flex: 1;
+    font-family: monospace;
+    font-size: 0.8rem;
+}
+
+.cfg-empty-text {
+    color: var(--text-muted);
+    text-align: center;
+    padding: 1rem;
+}
+
+.cfg-error-text {
+    color: var(--color-error);
+    text-align: center;
+    padding: 1rem;
+}
+
 @media (max-width: 768px) {
     .cfg-content {
         padding: 1.1rem 0.85rem 5rem;
