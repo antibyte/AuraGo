@@ -304,17 +304,14 @@ func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string,
 		return selectedModules[i].Metadata.Priority < selectedModules[j].Metadata.Priority
 	})
 
-	// Calculate filter savings directly from filtered-out modules
+	// Calculate filter savings directly from filtered-out modules (O(n+m) via map)
+	selectedSet := make(map[string]bool, len(selectedModules))
+	for _, sm := range selectedModules {
+		selectedSet[sm.Metadata.ID] = true
+	}
 	rawFilteredOutChars := 0
 	for _, m := range modules {
-		included := false
-		for _, sm := range selectedModules {
-			if m.Metadata.ID == sm.Metadata.ID {
-				included = true
-				break
-			}
-		}
-		if !included {
+		if !selectedSet[m.Metadata.ID] {
 			rawFilteredOutChars += len(m.Content) + 2 // +2 mirrors the "\n\n" separator
 		}
 	}

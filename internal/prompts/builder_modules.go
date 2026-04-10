@@ -75,7 +75,7 @@ func loadPromptModules(dir string, logger *slog.Logger) []PromptModule {
 		mod := parseOrFallback(filename, content, logger)
 		// Return the correct metadata so the shadow test can log the version
 		mod.Metadata.Version = "optim-db"
-		moduleMap[filename] = mod
+		moduleMap[strings.ToLower(filename)] = mod
 	}
 
 	// 1. Seed from embedded FS (system prompts — tamper-proof in the binary)
@@ -92,7 +92,7 @@ func loadPromptModules(dir string, logger *slog.Logger) []PromptModule {
 		if err != nil {
 			return nil
 		}
-		moduleMap[path] = parseOrFallback(path, string(data), logger)
+		moduleMap[strings.ToLower(path)] = parseOrFallback(path, string(data), logger)
 		return nil
 	})
 
@@ -688,7 +688,7 @@ func PrepareDynamicGuidesWithStrategy(vdb memory.VectorDB, stm *memory.SQLiteMem
 		if len(guides) >= maxTotalGuides {
 			break
 		}
-		cleanPath := filepath.Clean(filepath.Join(toolsDir, tool+".md"))
+		cleanPath := strings.ToLower(filepath.Clean(filepath.Join(toolsDir, tool+".md")))
 		if !isToolPathSafe(cleanPath, toolsDir) {
 			if logger != nil {
 				logger.Warn("[ToolGuides] Rejected unsafe explicit tool path", "tool", tool)
@@ -725,7 +725,7 @@ func PrepareDynamicGuidesWithStrategy(vdb memory.VectorDB, stm *memory.SQLiteMem
 			if isSkipped(tool) {
 				continue
 			}
-			cleanPath := filepath.Clean(filepath.Join(toolsDir, tool+".md"))
+			cleanPath := strings.ToLower(filepath.Clean(filepath.Join(toolsDir, tool+".md")))
 			if !isToolPathSafe(cleanPath, toolsDir) {
 				continue
 			}
@@ -752,7 +752,10 @@ func PrepareDynamicGuidesWithStrategy(vdb memory.VectorDB, stm *memory.SQLiteMem
 				if isSkipped(extractToolName(p)) {
 					continue
 				}
-				cleanPath := filepath.Clean(p)
+				cleanPath := strings.ToLower(filepath.Clean(p))
+				if !isToolPathSafe(cleanPath, toolsDir) {
+					continue
+				}
 				if !guideMap[cleanPath] {
 					if content, ok := readToolGuide(cleanPath); ok {
 						guides = append(guides, content)
@@ -781,7 +784,7 @@ func PrepareDynamicGuidesWithStrategy(vdb memory.VectorDB, stm *memory.SQLiteMem
 	if !strategy.DisableStatisticalHeuristics && stm != nil && lastTool != "" && len(guides) < 3 {
 		nextTool, err := stm.GetTopTransition(lastTool)
 		if err == nil && nextTool != "" && !isSkipped(nextTool) {
-			cleanPath := filepath.Clean(filepath.Join(toolsDir, nextTool+".md"))
+			cleanPath := strings.ToLower(filepath.Clean(filepath.Join(toolsDir, nextTool+".md")))
 			if isToolPathSafe(cleanPath, toolsDir) && !guideMap[cleanPath] {
 				if content, ok := readToolGuide(cleanPath); ok {
 					guides = append(guides, content)
@@ -803,7 +806,7 @@ func PrepareDynamicGuidesWithStrategy(vdb memory.VectorDB, stm *memory.SQLiteMem
 			if isSkipped(tool) {
 				continue
 			}
-			cleanPath := filepath.Clean(filepath.Join(toolsDir, tool+".md"))
+			cleanPath := strings.ToLower(filepath.Clean(filepath.Join(toolsDir, tool+".md")))
 			if !isToolPathSafe(cleanPath, toolsDir) || guideMap[cleanPath] {
 				continue
 			}
@@ -815,10 +818,7 @@ func PrepareDynamicGuidesWithStrategy(vdb memory.VectorDB, stm *memory.SQLiteMem
 	}
 
 	// D. Limit: explicit requests get boosted allowance, capped at maxTotalGuides.
-	maxGuides := 3 + len(explicitTools)
-	if maxGuides > maxTotalGuides {
-		maxGuides = maxTotalGuides
-	}
+	maxGuides := maxTotalGuides
 	if len(guides) > maxGuides {
 		guides = guides[:maxGuides]
 	}
