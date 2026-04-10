@@ -499,6 +499,7 @@ indexing:
         - .log
         - .yaml
         - .yml
+    index_images: false                         # send images to Vision LLM for analysis and index results
 webdav:
     enabled: false
     auth_type: basic
