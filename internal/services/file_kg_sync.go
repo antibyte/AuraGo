@@ -3,6 +3,8 @@ package services
 import (
 	"fmt"
 	"log/slog"
+	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -66,7 +68,7 @@ func (s *FileKGSyncer) SyncAll(opts FileKGSyncOptions) FileKGSyncResult {
 	// Derive collections from config directories (same logic as FileIndexer).
 	collections := s.discoverCollections()
 	if len(collections) == 0 {
-		collections = []string{indexerCollection}
+		collections = []string{IndexerCollection}
 	}
 
 	for _, collection := range collections {
@@ -145,6 +147,9 @@ func (s *FileKGSyncer) SyncFile(path, collection string, opts FileKGSyncOptions)
 		s.logger.Debug("[FileKGSync] Skipping file: content too short", "path", path)
 		return result
 	}
+
+	// 1b. Prepare content based on file type for better extraction quality.
+	content = prepareContentForExtraction(path, content)
 
 	// 2. Build existing nodes context for the LLM (reuse IDs where possible).
 	existingNodesString := ""
@@ -260,7 +265,7 @@ func (s *FileKGSyncer) FindOrphans() ([]memory.Node, []memory.Edge, error) {
 	// Gather all active tracked files across all collections.
 	collections := s.discoverCollections()
 	if len(collections) == 0 {
-		collections = []string{indexerCollection}
+		collections = []string{IndexerCollection}
 	}
 	activeSet := make(map[string]struct{})
 	for _, col := range collections {
@@ -309,4 +314,79 @@ func (s *FileKGSyncer) resolveFileContent(path, collection string) (string, erro
 		parts = append(parts, content)
 	}
 	return strings.Join(parts, "\n\n"), nil
+}
+
+// maxContentBytes limits the prepared content sent to the LLM for KG extraction.
+// Approximately 8000 characters ≈ 2000 tokens, leaving room for the prompt and response.
+const maxContentBytes = 8000
+
+// headingRe matches Markdown ATX headings (# through ######).
+var headingRe = regexp.MustCompile(`(?m)^(#{1,6})\s+(.+)$`)
+
+// multiBlankLineRe matches 3 or more consecutive blank lines.
+var multiBlankLineRe = regexp.MustCompile(`\n{3,}`)
+
+// formFeedRe matches form-feed and vertical-tab characters common in PDF extractions.
+var formFeedRe = regexp.MustCompile(`[\x0b\x0c]`)
+
+// prepareContentForExtraction applies file-type-specific content preparation before
+// passing text to the KG extraction LLM. It is a pure text transformation that
+// does not invoke any LLM calls.
+//
+// Strategy:
+//   - Markdown (.md): Extract heading outline as structural context prefix.
+//   - PDF / DOCX (.pdf, .docx): Clean extraction artifacts (form-feeds, excess whitespace).
+//   - All types: Normalize whitespace and truncate to maxContentBytes if needed.
+func prepareContentForExtraction(filePath, content string) string {
+	ext := strings.ToLower(filepath.Ext(filePath))
+
+	switch ext {
+	case ".md":
+		content = prepareMarkdownContent(content)
+	case ".pdf", ".docx":
+		content = prepareDocumentExtractionContent(content)
+	}
+
+	// Universal cleanup: collapse excessive blank lines.
+	content = multiBlankLineRe.ReplaceAllString(content, "\n\n")
+
+	// Truncate if content exceeds the limit.
+	if len(content) > maxContentBytes {
+		content = content[:maxContentBytes] + "\n\n[... content truncated for extraction ...]"
+	}
+
+	return strings.TrimSpace(content)
+}
+
+// prepareMarkdownContent extracts the heading outline from Markdown content and
+// prepends it as structural context, helping the LLM understand document organization.
+func prepareMarkdownContent(content string) string {
+	matches := headingRe.FindAllStringSubmatch(content, -1)
+	if len(matches) == 0 {
+		return content
+	}
+
+	var outline strings.Builder
+	outline.WriteString("[Document Structure]\n")
+	for _, m := range matches {
+		level := len(m[1]) // number of # characters
+		title := strings.TrimSpace(m[2])
+		indent := strings.Repeat("  ", level-1)
+		outline.WriteString(fmt.Sprintf("%s- %s\n", indent, title))
+	}
+	outline.WriteString("\n[Content]\n")
+
+	return outline.String() + content
+}
+
+// prepareDocumentExtractionContent cleans common artifacts from PDF/DOCX text extraction,
+// such as form-feed characters, excessive whitespace, and broken line breaks.
+func prepareDocumentExtractionContent(content string) string {
+	// Remove form-feed and vertical-tab characters.
+	content = formFeedRe.ReplaceAllString(content, " ")
+
+	// Collapse runs of spaces (common in PDF column layouts).
+	content = regexp.MustCompile(` {3,}`).ReplaceAllString(content, " ")
+
+	return content
 }

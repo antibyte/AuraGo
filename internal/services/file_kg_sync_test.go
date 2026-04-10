@@ -3,6 +3,7 @@ package services
 import (
 	"log/slog"
 	"os"
+	"strings"
 	"testing"
 
 	"aurago/internal/config"
@@ -68,5 +69,174 @@ func TestFileKGSyncer_CleanupFile_DryRun(t *testing.T) {
 
 	if len(result.Errors) != 0 {
 		t.Errorf("expected no errors in dry-run, got %v", result.Errors)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Content preparation tests
+// ---------------------------------------------------------------------------
+
+func TestPrepareContent_Markdown_HeadingOutline(t *testing.T) {
+	input := `# My Server Setup
+
+Some intro text.
+
+## Hardware
+
+Details about the hardware.
+
+### Network
+
+Network config here.
+
+## Software
+
+Software details.`
+
+	result := prepareContentForExtraction("/docs/setup.md", input)
+
+	// Should contain structural outline.
+	if !strings.Contains(result, "[Document Structure]") {
+		t.Error("expected [Document Structure] prefix for Markdown files")
+	}
+	if !strings.Contains(result, "[Content]") {
+		t.Error("expected [Content] separator in Markdown preparation")
+	}
+	// Outline should list headings.
+	if !strings.Contains(result, "My Server Setup") {
+		t.Error("expected heading 'My Server Setup' in outline")
+	}
+	if !strings.Contains(result, "Hardware") {
+		t.Error("expected heading 'Hardware' in outline")
+	}
+	if !strings.Contains(result, "Network") {
+		t.Error("expected heading 'Network' in outline")
+	}
+	// Original content should still be present.
+	if !strings.Contains(result, "Details about the hardware.") {
+		t.Error("expected original content to be preserved")
+	}
+	// Indentation: level-3 heading should be indented.
+	if !strings.Contains(result, "    - Network") {
+		t.Error("expected level-3 heading 'Network' to be indented with 4 spaces")
+	}
+}
+
+func TestPrepareContent_Markdown_NoHeadings(t *testing.T) {
+	input := "Just some plain text without any headings at all."
+	result := prepareContentForExtraction("/docs/notes.md", input)
+
+	// Should NOT add structure prefix when no headings exist.
+	if strings.Contains(result, "[Document Structure]") {
+		t.Error("expected no structure prefix for Markdown without headings")
+	}
+	if result != input {
+		t.Errorf("expected content unchanged, got:\n%s", result)
+	}
+}
+
+func TestPrepareContent_PDF_CleansArtifacts(t *testing.T) {
+	// Simulate PDF extraction with form-feed and excessive spaces.
+	input := "Page 1 content\x0cPage 2 content   with   extra   spaces\x0bhere"
+	result := prepareContentForExtraction("/docs/manual.pdf", input)
+
+	if strings.Contains(result, "\x0c") {
+		t.Error("expected form-feed characters to be removed")
+	}
+	if strings.Contains(result, "\x0b") {
+		t.Error("expected vertical-tab characters to be removed")
+	}
+	if strings.Contains(result, "   ") {
+		t.Error("expected excessive spaces to be collapsed")
+	}
+	if !strings.Contains(result, "Page 1 content") {
+		t.Error("expected original text to be preserved")
+	}
+}
+
+func TestPrepareContent_DOCX_CleansArtifacts(t *testing.T) {
+	input := "Some   text   from   docx\x0cwith artifacts"
+	result := prepareContentForExtraction("/docs/report.docx", input)
+
+	if strings.Contains(result, "\x0c") {
+		t.Error("expected form-feed characters to be removed for DOCX")
+	}
+	if strings.Contains(result, "   ") {
+		t.Error("expected excessive spaces to be collapsed for DOCX")
+	}
+}
+
+func TestPrepareContent_Truncation(t *testing.T) {
+	// Create content exceeding the limit.
+	longContent := strings.Repeat("abcdefghijklmnopqrstuvwxyz", 400) // ~10,400 chars
+	result := prepareContentForExtraction("/docs/large.txt", longContent)
+
+	if len(result) > maxContentBytes+100 { // allow for truncation notice
+		t.Errorf("expected content to be truncated to ~%d chars, got %d", maxContentBytes, len(result))
+	}
+	if !strings.Contains(result, "[... content truncated for extraction ...]") {
+		t.Error("expected truncation notice in output")
+	}
+}
+
+func TestPrepareContent_TruncationPreservesShortContent(t *testing.T) {
+	input := "This is a short file that should pass through unchanged."
+	result := prepareContentForExtraction("/docs/short.txt", input)
+
+	if strings.Contains(result, "[... content truncated") {
+		t.Error("short content should not be truncated")
+	}
+	if result != input {
+		t.Errorf("expected content unchanged, got:\n%s", result)
+	}
+}
+
+func TestPrepareContent_WhitespaceNormalization(t *testing.T) {
+	input := "Line 1\n\n\n\n\nLine 2\n\n\n\n\n\nLine 3"
+	result := prepareContentForExtraction("/docs/messy.txt", input)
+
+	// Should collapse 3+ blank lines to 2 (one blank line between paragraphs).
+	if strings.Contains(result, "\n\n\n") {
+		t.Error("expected excessive blank lines to be collapsed")
+	}
+	if !strings.Contains(result, "Line 1") || !strings.Contains(result, "Line 3") {
+		t.Error("expected all content lines to be preserved")
+	}
+}
+
+func TestPrepareContent_PlainText_PassThrough(t *testing.T) {
+	input := "Hello world, this is a plain text file."
+	result := prepareContentForExtraction("/docs/readme.txt", input)
+
+	if result != input {
+		t.Errorf("expected plain text to pass through unchanged, got:\n%s", result)
+	}
+}
+
+func TestPrepareContent_EmptyContent(t *testing.T) {
+	result := prepareContentForExtraction("/docs/empty.md", "")
+	if result != "" {
+		t.Errorf("expected empty string for empty input, got:\n%s", result)
+	}
+}
+
+func TestPrepareContent_MarkdownOutline_Truncated(t *testing.T) {
+	// Markdown with many headings and long content should still be truncated.
+	var sb strings.Builder
+	sb.WriteString("# Main Title\n\n")
+	for i := 0; i < 500; i++ {
+		sb.WriteString("## Section ")
+		sb.WriteString(strings.Repeat("x", 20))
+		sb.WriteString("\n\n")
+		sb.WriteString(strings.Repeat("Content line here.\n", 10))
+	}
+
+	result := prepareContentForExtraction("/docs/huge.md", sb.String())
+	if len(result) > maxContentBytes+100 {
+		t.Errorf("expected Markdown content to be truncated, got %d chars", len(result))
+	}
+	// Structure prefix should still be present.
+	if !strings.Contains(result, "[Document Structure]") {
+		t.Error("expected document structure prefix even for truncated Markdown")
 	}
 }
