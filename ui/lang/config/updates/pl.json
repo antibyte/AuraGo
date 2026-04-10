@@ -8,7 +8,7 @@
   "config.updates.current": "Obecna",
   "config.updates.latest": "Najnowsza",
   "config.updates.up_to_date": "Aktualna",
-  "config.updates.changelog": "Changelog:",
+  "config.updates.changelog": "Dziennik zmian:",
   "config.updates.version": "Wersja",
   "config.updates.confirm_install": "Aktualizacja rozpocznie się teraz. AuraGo zrestartuje się automatycznie potem.\n\nProszę przeładować stronę po około 30–60 sekundach.",
   "config.updates.installing": "⏳ Instalowanie…",

@@ -267,7 +267,7 @@
   "dashboard.prompt_chart_format_savings": "Βελτιστοποίηση Μορφής",
   "dashboard.prompt_chart_optimized": "Βελτιστοποιημένο",
   "dashboard.prompt_chart_raw": "Ακατέργαστο",
-  "dashboard.prompt_chart_shed_savings": "Budget Shed",
+  "dashboard.prompt_chart_shed_savings": "Αποβολή προϋπολογισμού",
   "dashboard.prompt_history": "Ιστορικό Prompt",
   "dashboard.prompt_kpi_avg_guides": "Μέσοι Οδηγοί",
   "dashboard.prompt_kpi_avg_modules_loaded": "Ø Modules φορτωμένα",
@@ -276,7 +276,7 @@
   "dashboard.prompt_kpi_avg_raw_chars": "Μέσοι Ακατέργ. Χαρακτήρες",
   "dashboard.prompt_kpi_avg_saving_pct": "Μέση Εξοικονόμηση %",
   "dashboard.prompt_kpi_avg_tokens": "Μέσα Tokens",
-  "dashboard.prompt_kpi_budget_sheds": "Budget Sheds",
+  "dashboard.prompt_kpi_budget_sheds": "Αποβολές προϋπολογισμού",
   "dashboard.prompt_kpi_chars_saved": "Αποθηκευμένοι Χαρακτήρες",
   "dashboard.prompt_kpi_filter_rate": "Ποσοστό Φιλτραρίσματος Modules",
   "dashboard.prompt_kpi_filter_savings": "Εξοικονόμηση Φιλτραρίσματος Modules",
@@ -533,5 +533,5 @@
   "dashboard.daemons_uptime": "Χρόνος λειτουργίας",
   "dashboard.daemons_none": "Δεν έχουν ρυθμιστεί daemon skills",
   "dashboard.daemons_last_wakeup": "Τελευταία αφύπνιση",
-  "dashboard.quickstatus_daemons": "Daemons"
+  "dashboard.quickstatus_daemons": "Δαίμονες"
 }

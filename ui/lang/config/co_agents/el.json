@@ -9,7 +9,7 @@
   "config.co_agents.llm_desc": "Επιλέξτε provider για τους co-agents. Χρησιμοποιεί το κύριο LLM αν δεν οριστεί.",
   "config.co_agents.provider_label": "Provider",
   "config.co_agents.select_provider": "— Κύριο LLM (προεπιλογή) —",
-  "config.co_agents.cb_title": "Circuit Breaker",
+  "config.co_agents.cb_title": "Ασφαλής διακοπή",
   "config.co_agents.cb_desc": "Όρια ασφαλείας για την εκτέλεση co-agents.",
   "config.co_agents.cb_max_tool_calls": "Μέγ. κλήσεις εργαλείων",
   "config.co_agents.cb_timeout": "Timeout (δευτερόλεπτα)",

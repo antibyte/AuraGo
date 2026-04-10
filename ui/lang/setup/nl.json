@@ -97,7 +97,7 @@
   "setup.step0_native_functions_desc": "Uses the provider's native tool calls. <strong>Warning:</strong> Only enable if the model supports this (GPT-4, Claude, Gemini). Free-tier models often do NOT support this!",
   "setup.step0_native_functions_label": "Native Function Calling ⚠️",
   "setup.step0_provider_anthropic": "Anthropic",
-  "setup.step0_provider_custom": "Custom / Other",
+  "setup.step0_provider_custom": "Aangepast / Overig",
   "setup.step0_provider_google": "Google (Gemini)",
   "setup.step0_provider_hint": "OpenRouter wordt aanbevolen — biedt veel modellen inclusief gratis opties.",
   "setup.step0_provider_label": "Provider",

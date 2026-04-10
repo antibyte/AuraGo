@@ -533,5 +533,5 @@
   "dashboard.daemons_uptime": "Tiempo activo",
   "dashboard.daemons_none": "No hay daemon skills configurados",
   "dashboard.daemons_last_wakeup": "Última activación",
-  "dashboard.quickstatus_daemons": "Daemons"
+  "dashboard.quickstatus_daemons": "Demonios"
 }

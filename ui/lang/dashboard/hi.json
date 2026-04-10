@@ -533,5 +533,5 @@
   "dashboard.daemons_uptime": "अपटाइम",
   "dashboard.daemons_none": "कोई daemon skill कॉन्फ़िगर नहीं है",
   "dashboard.daemons_last_wakeup": "अंतिम जागरण",
-  "dashboard.quickstatus_daemons": "Daemons"
+  "dashboard.quickstatus_daemons": "डेमन"
 }

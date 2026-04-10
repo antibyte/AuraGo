@@ -267,7 +267,7 @@
   "dashboard.prompt_chart_format_savings": "Format opt.",
   "dashboard.prompt_chart_optimized": "Optimerad",
   "dashboard.prompt_chart_raw": "Rå",
-  "dashboard.prompt_chart_shed_savings": "Budget Shed",
+  "dashboard.prompt_chart_shed_savings": "Budget-shed",
   "dashboard.prompt_history": "Prompthistorik",
   "dashboard.prompt_kpi_avg_guides": "Snittguider",
   "dashboard.prompt_kpi_avg_modules_loaded": "Ø Moduler laddade",
@@ -276,7 +276,7 @@
   "dashboard.prompt_kpi_avg_raw_chars": "Snitt råa tecken",
   "dashboard.prompt_kpi_avg_saving_pct": "Snitt besparing %",
   "dashboard.prompt_kpi_avg_tokens": "Snitt token",
-  "dashboard.prompt_kpi_budget_sheds": "Budget Sheds",
+  "dashboard.prompt_kpi_budget_sheds": "Budget-sheds",
   "dashboard.prompt_kpi_chars_saved": "Tecken sparade",
   "dashboard.prompt_kpi_filter_rate": "Modulfiltrets rate",
   "dashboard.prompt_kpi_filter_savings": "Modulfilterbesparing",
@@ -533,5 +533,5 @@
   "dashboard.daemons_uptime": "Drifttid",
   "dashboard.daemons_none": "Inga daemon-skills konfigurerade",
   "dashboard.daemons_last_wakeup": "Senaste aktivering",
-  "dashboard.quickstatus_daemons": "Daemons"
+  "dashboard.quickstatus_daemons": "Daemoner"
 }

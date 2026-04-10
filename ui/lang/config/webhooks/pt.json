@@ -46,7 +46,7 @@
   "config.webhooks.signature_secret_label": "Signature Secret",
   "config.webhooks.sig_secret_placeholder": "HMAC Secret",
   "config.webhooks.field_mappings_label": "Field Mappings",
-  "config.webhooks.add_field_button": "+ Field",
+  "config.webhooks.add_field_button": "+ Campo",
   "config.webhooks.field_source_placeholder": "source (e.g. repository.full_name)",
   "config.webhooks.field_alias_placeholder": "alias (e.g. repo)",
   "config.webhooks.delivery_section": "Delivery",

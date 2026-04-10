@@ -533,5 +533,5 @@
   "dashboard.daemons_uptime": "Oppetid",
   "dashboard.daemons_none": "Ingen daemon-skills konfigurert",
   "dashboard.daemons_last_wakeup": "Siste aktivering",
-  "dashboard.quickstatus_daemons": "Daemons"
+  "dashboard.quickstatus_daemons": "Daemoner"
 }

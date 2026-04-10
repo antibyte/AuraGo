@@ -33,7 +33,7 @@
   "config.section.fallback_llm.desc": "Automatická LLM failover při chybách",
   "config.section.embeddings.label": "Ενσωματώσεις",
   "config.section.embeddings.desc": "Konfigurace vektorových embeddings",
-  "config.section.circuit_breaker.label": "Circuit Breaker",
+  "config.section.circuit_breaker.label": "Ασφαλής διακοπή",
   "config.section.circuit_breaker.desc": "Bezpečnostní limity a timeouty",
   "config.section.budget.label": "Προϋπολογισμός",
   "config.section.budget.desc": "Παρακολούθηση κόστους και όρια",

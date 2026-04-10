@@ -67,7 +67,7 @@
   "invasion.route": "Route (Rückkanal)",
   "invasion.route_config": "Route Config (JSON, optional)",
   "invasion.route_custom": "Custom",
-  "invasion.route_direct": "Direct",
+  "invasion.route_direct": "Direkt",
   "invasion.route_ssh_tunnel": "SSH Tunnel",
   "invasion.route_tailscale": "Tailscale",
   "invasion.route_wireguard": "WireGuard",

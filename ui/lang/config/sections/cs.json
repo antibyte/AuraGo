@@ -39,7 +39,7 @@
   "config.section.optimizations.group.tool_optimization": "🔧 Optimalizace nástrojů",
   "config.section.optimizations.group.safety_limits": "🛡️ Bezpečnostní limity a obnova",
   "config.section.optimizations.group.background_tasks": "🔄 Zpracování na pozadí",
-  "config.section.circuit_breaker.label": "Circuit Breaker",
+  "config.section.circuit_breaker.label": "Jistič",
   "config.section.circuit_breaker.desc": "Ochrana proti selhanim",
   "config.section.budget.label": "Rozpocet",
   "config.section.budget.desc": "Kontrola vydaju",

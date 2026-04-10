@@ -8,7 +8,7 @@
   "config.updates.current": "Τρέχον",
   "config.updates.latest": "Τελευταία",
   "config.updates.up_to_date": "Ενημερωμένο",
-  "config.updates.changelog": "Changelog:",
+  "config.updates.changelog": "Αρχείο αλλαγών:",
   "config.updates.version": "Έκδοση",
   "config.updates.confirm_install": "Η ενημέρωση θα ξεκινήσει τώρα. Το AuraGo θα επανεκκινήσει αυτόματα στη συνέχεια.\n\nΕπαναλάβετε τη φόρτωση της σελίδας μετά από περίπου 30–60 δευτερόλεπτα.",
   "config.updates.installing": "⏳ Εγκατάσταση…",

@@ -33,7 +33,7 @@
   "config.section.fallback_llm.desc": "Basculement automatique vers LLM de secours en cas d'erreurs",
   "config.section.embeddings.label": "Embeddings",
   "config.section.embeddings.desc": "Configuration des embeddings vectoriels",
-  "config.section.circuit_breaker.label": "Circuit Breaker",
+  "config.section.circuit_breaker.label": "Disjoncteur",
   "config.section.circuit_breaker.desc": "Limites de sécurité et timeouts",
   "config.section.budget.label": "Budget",
   "config.section.budget.desc": "Suivi des coûts et limites",

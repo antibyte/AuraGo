@@ -9,7 +9,7 @@
   "config.co_agents.llm_desc": "Wybierz dostawcę dla co-agentów. Wraca do głównego LLM, jeśli nie ustawiono.",
   "config.co_agents.provider_label": "Dostawca",
   "config.co_agents.select_provider": "— Główne LLM (domyślnie) —",
-  "config.co_agents.cb_title": "Circuit Breaker",
+  "config.co_agents.cb_title": "Bezpiecznik",
   "config.co_agents.cb_desc": "Limity bezpieczeństwa dla wykonywania co-agentów.",
   "config.co_agents.cb_max_tool_calls": "Maks. wywołań narzędzi",
   "config.co_agents.cb_timeout": "Timeout (sekundy)",

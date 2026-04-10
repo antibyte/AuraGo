@@ -33,7 +33,7 @@
   "config.section.fallback_llm.desc": "LLM de contingência",
   "config.section.embeddings.label": "Embeddings",
   "config.section.embeddings.desc": "Configurações de embeddings",
-  "config.section.circuit_breaker.label": "Circuit Breaker",
+  "config.section.circuit_breaker.label": "Disjuntor",
   "config.section.circuit_breaker.desc": "Proteção contra falhas",
   "config.section.budget.label": "Orçamento",
   "config.section.budget.desc": "Controle de gastos",

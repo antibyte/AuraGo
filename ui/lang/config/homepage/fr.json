@@ -47,7 +47,7 @@
   "config.homepage.workspace_autodetect_title": "Détecter le chemin depuis le conteneur homepage en cours d'exécution",
   "config.homepage.workspace_autodetect_loading": "Détection…",
   "config.homepage.workspace_autodetect_failed": "Détection automatique échouée — veuillez entrer le chemin manuellement.",
-  "config.homepage.circuit_breaker_title": "Circuit Breaker",
+  "config.homepage.circuit_breaker_title": "Disjoncteur",
   "config.homepage.circuit_breaker_desc": "L'outil homepage nécessite souvent de nombreux appels d'outils consécutifs. Ceci définit une limite séparée et plus élevée qui s'applique temporairement du premier appel homepage jusqu'à la fin de la chaîne d'actions en cours.",
   "config.homepage.circuit_breaker_max_calls": "Appels d'outils max.",
   "config.homepage.workspace_desc": "Set the absolute host path that is mounted into the homepage container as /workspace.",

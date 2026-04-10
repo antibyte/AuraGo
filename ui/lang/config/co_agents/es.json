@@ -9,7 +9,7 @@
   "config.co_agents.llm_desc": "Selecciona un proveedor para co-agentes. Recurre al LLM principal si no se establece.",
   "config.co_agents.provider_label": "Proveedor",
   "config.co_agents.select_provider": "— LLM principal (predeterminado) —",
-  "config.co_agents.cb_title": "Circuit Breaker",
+  "config.co_agents.cb_title": "Cortacircuitos",
   "config.co_agents.cb_desc": "Límites de seguridad para la ejecución de co-agentes.",
   "config.co_agents.cb_max_tool_calls": "Máx. llamadas a herramientas",
   "config.co_agents.cb_timeout": "Timeout (segundos)",

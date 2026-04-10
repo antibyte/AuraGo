@@ -47,7 +47,7 @@
   "config.homepage.workspace_autodetect_title": "Automaticky rozpoznat cestu k pracovnímu prostoru ze spuštěného kontejneru homepage",
   "config.homepage.workspace_autodetect_loading": "Rozpoznávání…",
   "config.homepage.workspace_autodetect_failed": "Automatické rozpoznání selhalo — zadejte cestu ručně.",
-  "config.homepage.circuit_breaker_title": "Circuit Breaker",
+  "config.homepage.circuit_breaker_title": "Jistič",
   "config.homepage.circuit_breaker_desc": "Nástroj homepage často vyžaduje mnoho po sobě jdoucích volání nástrojů. Toto nastavuje samostatný, vyšší limit, který platí dočasně od prvního volání homepage do konce aktuálního řetězce akcí.",
   "config.homepage.circuit_breaker_max_calls": "Max. volání nástrojů",
   "config.homepage.workspace_desc": "Set the absolute host path that is mounted into the homepage container as /workspace.",

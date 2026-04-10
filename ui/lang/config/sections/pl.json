@@ -33,7 +33,7 @@
   "config.section.fallback_llm.desc": "Automatyczny failover do zapasowego LLM przy błędach",
   "config.section.embeddings.label": "Embeddingi",
   "config.section.embeddings.desc": "Konfiguracja embeddingów wektorowych",
-  "config.section.circuit_breaker.label": "Circuit Breaker",
+  "config.section.circuit_breaker.label": "Bezpiecznik",
   "config.section.circuit_breaker.desc": "Limity bezpieczeństwa i timeouty",
   "config.section.budget.label": "Budżet",
   "config.section.budget.desc": "Śledzenie kosztów i limity",

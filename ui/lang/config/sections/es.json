@@ -33,7 +33,7 @@
   "config.section.fallback_llm.desc": "Conmutación automática de LLM ante errores",
   "config.section.embeddings.label": "Embeddings",
   "config.section.embeddings.desc": "Configuración de embeddings vectoriales",
-  "config.section.circuit_breaker.label": "Circuit Breaker",
+  "config.section.circuit_breaker.label": "Cortacircuitos",
   "config.section.circuit_breaker.desc": "Límites de seguridad y tiempos de espera",
   "config.section.budget.label": "Presupuesto",
   "config.section.budget.desc": "Seguimiento y límites de costos",

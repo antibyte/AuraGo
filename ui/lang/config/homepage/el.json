@@ -47,7 +47,7 @@
   "config.homepage.workspace_autodetect_title": "Αυτόματος εντοπισμός διαδρομής από το τρέχον container",
   "config.homepage.workspace_autodetect_loading": "Εντοπισμός…",
   "config.homepage.workspace_autodetect_failed": "Ο αυτόματος εντοπισμός απέτυχε — εισάγετε τη διαδρομή χειροκίνητα.",
-  "config.homepage.circuit_breaker_title": "Circuit Breaker",
+  "config.homepage.circuit_breaker_title": "Ασφαλής διακοπή",
   "config.homepage.circuit_breaker_desc": "Το εργαλείο ιστοσελίδας χρειάζεται συχνά πολλές διαδοχικές κλήσεις εργαλείων. Αυτό ορίζει ένα ξεχωριστό, υψηλότερο όριο που ισχύει προσωρινά από την πρώτη κλήση ιστοσελίδας μέχρι το τέλος της τρέχουσας αλυσίδας ενεργειών.",
   "config.homepage.circuit_breaker_max_calls": "Μέγ. κλήσεις εργαλείων",
   "config.homepage.workspace_desc": "Set the absolute host path that is mounted into the homepage container as /workspace.",

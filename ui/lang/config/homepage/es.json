@@ -47,7 +47,7 @@
   "config.homepage.workspace_autodetect_title": "Detectar la ruta del espacio de trabajo desde el contenedor en ejecución",
   "config.homepage.workspace_autodetect_loading": "Detectando…",
   "config.homepage.workspace_autodetect_failed": "Detección automática fallida — ingresa la ruta manualmente.",
-  "config.homepage.circuit_breaker_title": "Circuit Breaker",
+  "config.homepage.circuit_breaker_title": "Cortacircuitos",
   "config.homepage.circuit_breaker_desc": "La herramienta de homepage a menudo necesita muchas llamadas consecutivas. Esto establece un límite separado y más alto que se aplica temporalmente desde la primera llamada de homepage hasta el final de la cadena de acciones actual.",
   "config.homepage.circuit_breaker_max_calls": "Máx. llamadas de herramientas",
   "config.homepage.workspace_desc": "Set the absolute host path that is mounted into the homepage container as /workspace.",

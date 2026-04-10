@@ -9,7 +9,7 @@
   "config.co_agents.llm_desc": "Vyberte providera pro co-agenty. Pokud není nastaveno, použije se hlavní LLM.",
   "config.co_agents.provider_label": "Provider",
   "config.co_agents.select_provider": "— Hlavní LLM (výchozí) —",
-  "config.co_agents.cb_title": "Circuit Breaker",
+  "config.co_agents.cb_title": "Jistič",
   "config.co_agents.cb_desc": "Bezpečnostní limity pro provádění co-agentů.",
   "config.co_agents.cb_max_tool_calls": "Max. volání nástrojů",
   "config.co_agents.cb_timeout": "Timeout (sekundy)",

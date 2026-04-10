@@ -8,7 +8,7 @@
   "config.updates.current": "Corrente",
   "config.updates.latest": "Ultima",
   "config.updates.up_to_date": "Aggiornato",
-  "config.updates.changelog": "Changelog:",
+  "config.updates.changelog": "Registro modifiche:",
   "config.updates.version": "Versione",
   "config.updates.confirm_install": "L'aggiornamento inizierà ora. AuraGo si riavvierà automaticamente dopo.\n\nRicarica la pagina dopo circa 30–60 secondi.",
   "config.updates.installing": "⏳ Installazione in corso…",

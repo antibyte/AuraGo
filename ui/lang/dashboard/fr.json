@@ -267,7 +267,7 @@
   "dashboard.prompt_chart_format_savings": "Opt. format",
   "dashboard.prompt_chart_optimized": "Optimisé",
   "dashboard.prompt_chart_raw": "Brut",
-  "dashboard.prompt_chart_shed_savings": "Budget Shed",
+  "dashboard.prompt_chart_shed_savings": "Shed de budget",
   "dashboard.prompt_history": "Historique des Prompts",
   "dashboard.prompt_kpi_avg_guides": "Moy. Guides",
   "dashboard.prompt_kpi_avg_modules_loaded": "Ø Modules chargés",
@@ -276,7 +276,7 @@
   "dashboard.prompt_kpi_avg_raw_chars": "Moy. Car. Bruts",
   "dashboard.prompt_kpi_avg_saving_pct": "Moy. Économie %",
   "dashboard.prompt_kpi_avg_tokens": "Moy. Tokens",
-  "dashboard.prompt_kpi_budget_sheds": "Budget Sheds",
+  "dashboard.prompt_kpi_budget_sheds": "Sheds de budget",
   "dashboard.prompt_kpi_chars_saved": "Caractères économisés",
   "dashboard.prompt_kpi_filter_rate": "Taux filtre modules",
   "dashboard.prompt_kpi_filter_savings": "Économies filtre modules",
@@ -533,5 +533,5 @@
   "dashboard.daemons_uptime": "Disponibilité",
   "dashboard.daemons_none": "Aucun skill daemon configuré",
   "dashboard.daemons_last_wakeup": "Dernier réveil",
-  "dashboard.quickstatus_daemons": "Daemons"
+  "dashboard.quickstatus_daemons": "Démons"
 }
