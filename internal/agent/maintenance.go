@@ -572,33 +572,12 @@ func runBatchedMaintenanceSummaryAndKG(cfg *config.Config, logger *slog.Logger, 
 	return true
 }
 
-// extractKGEntities performs nightly batch entity extraction from the past 24h of messages.
-// Uses an LLM call to extract entities and relationships, then bulk-adds to the knowledge graph.
-func extractKGEntities(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, stm *memory.SQLiteMemory, kg *memory.KnowledgeGraph) {
-	today := time.Now().Format("2006-01-02")
-
-	// Collect recent messages across all sessions.
-	messages, err := stm.GetRecentMessagesAcrossSessions(100)
-	if err != nil || len(messages) == 0 {
-		logger.Debug("[KG] No recent messages for entity extraction")
-		return
-	}
-	entries, _ := stm.GetJournalEntries(today, today, nil, 30)
-	turns, _ := stm.GetActivityTurnsForDate(today, 20)
-
-	conversationExcerpt := buildKGExtractionInput(messages, entries, turns)
-	if len(conversationExcerpt) < 50 {
-		logger.Debug("[KG] Not enough conversation content for entity extraction")
-		return
-	}
-
-	existingNodesString := ""
-	if existingNodes, err := kg.GetAllNodes(150); err == nil && len(existingNodes) > 0 {
-		var contexts []string
-		for _, n := range existingNodes {
-			contexts = append(contexts, fmt.Sprintf("- ID: %s, Label: %s", n.ID, n.Label))
-		}
-		existingNodesString = "Existing Nodes (reuse IDs if possible):\n" + strings.Join(contexts, "\n") + "\n\n"
+// extractKGFromText performs source-agnostic entity extraction from arbitrary text.
+// It builds the LLM prompt, executes the extraction call, parses the response, and returns
+// nodes and edges. This function does not interact with the knowledge graph directly.
+func extractKGFromText(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, inputText string, existingNodesString string) ([]memory.Node, []memory.Edge, error) {
+	if len(inputText) < 50 {
+		return nil, nil, fmt.Errorf("input text too short for extraction")
 	}
 
 	prompt := fmt.Sprintf(`Extract entities and relationships from this conversation.
@@ -630,12 +609,11 @@ JSON:
 }
 
 Inputs:
-%s%s`, existingNodesString, conversationExcerpt)
+%s%s`, existingNodesString, inputText)
 
 	kgClient, kgModel := resolveHelperBackedLLM(cfg, client, cfg.LLM.Model)
 	if kgClient == nil || kgModel == "" {
-		logger.Warn("[KG] Entity extraction skipped: no helper/main LLM available")
-		return
+		return nil, nil, fmt.Errorf("no helper/main LLM available")
 	}
 
 	kgCtx, kgCancel := context.WithTimeout(context.Background(), 60*time.Second)
@@ -656,11 +634,9 @@ Inputs:
 		nil,
 	)
 	if err != nil || len(resp.Choices) == 0 {
-		logger.Warn("[KG] Entity extraction LLM call failed", "error", err, "model", kgModel)
-		return
+		return nil, nil, fmt.Errorf("LLM call failed: %w", err)
 	}
 
-	// Parse the LLM response
 	rawJSON := trimJSONResponse(resp.Choices[0].Message.Content)
 
 	var extracted struct {
@@ -668,11 +644,49 @@ Inputs:
 		Edges []memory.Edge `json:"edges"`
 	}
 	if err := json.Unmarshal([]byte(rawJSON), &extracted); err != nil {
-		logger.Warn("[KG] Failed to parse entity extraction JSON", "error", err, "raw_len", len(rawJSON))
+		return nil, nil, fmt.Errorf("JSON parse failed: %w", err)
+	}
+
+	return extracted.Nodes, extracted.Edges, nil
+}
+
+// extractKGEntities performs nightly batch entity extraction from the past 24h of messages.
+// Uses an LLM call to extract entities and relationships, then bulk-adds to the knowledge graph.
+// This is a conversation-specific adapter around extractKGFromText.
+func extractKGEntities(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, stm *memory.SQLiteMemory, kg *memory.KnowledgeGraph) {
+	today := time.Now().Format("2006-01-02")
+
+	// Collect recent messages across all sessions.
+	messages, err := stm.GetRecentMessagesAcrossSessions(100)
+	if err != nil || len(messages) == 0 {
+		logger.Debug("[KG] No recent messages for entity extraction")
+		return
+	}
+	entries, _ := stm.GetJournalEntries(today, today, nil, 30)
+	turns, _ := stm.GetActivityTurnsForDate(today, 20)
+
+	conversationExcerpt := buildKGExtractionInput(messages, entries, turns)
+	if len(conversationExcerpt) < 50 {
+		logger.Debug("[KG] Not enough conversation content for entity extraction")
 		return
 	}
 
-	storeKGExtraction(logger, kg, extracted.Nodes, extracted.Edges)
+	existingNodesString := ""
+	if existingNodes, err := kg.GetAllNodes(150); err == nil && len(existingNodes) > 0 {
+		var contexts []string
+		for _, n := range existingNodes {
+			contexts = append(contexts, fmt.Sprintf("- ID: %s, Label: %s", n.ID, n.Label))
+		}
+		existingNodesString = "Existing Nodes (reuse IDs if possible):\n" + strings.Join(contexts, "\n") + "\n\n"
+	}
+
+	nodes, edges, err := extractKGFromText(cfg, logger, client, conversationExcerpt, existingNodesString)
+	if err != nil {
+		logger.Warn("[KG] Entity extraction failed", "error", err)
+		return
+	}
+
+	storeKGExtraction(logger, kg, nodes, edges)
 }
 
 const helperConsolidationBatchSize = 2
