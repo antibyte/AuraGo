@@ -39,7 +39,7 @@
   "config.a2a.ra_api_key": "API key voor deze agent…",
   "config.a2a.ra_bearer": "Bearer token voor deze agent…",
   "config.a2a.test_btn": "Test A2A-server",
-  "config.a2a.test_btn_short": "Test",
+  "config.a2a.test_btn_short": "Testen",
   "config.a2a.testing": "Testen…",
   "config.a2a.test_ok": "Server draait",
   "config.a2a.test_fail": "Server draait niet",

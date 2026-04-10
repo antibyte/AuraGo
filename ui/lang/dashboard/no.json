@@ -521,7 +521,7 @@
   "dashboard.opt_rejected_mutations": "Rejected Mutations",
   "dashboard.opt_total_trace_events": "Total Trace Events",
   "dashboard.opt_global_success_rate": "Global Success Rate",
-  "dashboard.daemons_title": "Daemon Skills",
+  "dashboard.daemons_title": "Daemon-ferdigheter",
   "dashboard.daemons_total": "Totalt",
   "dashboard.daemons_running": "Kjører",
   "dashboard.daemons_stopped": "Stoppet",

@@ -62,7 +62,7 @@
   "config.webhooks.action_edit": "编辑",
   "config.webhooks.action_delete": "删除",
   "config.webhooks.tab_webhooks": "Webhooks",
-  "config.webhooks.tab_tokens": "Tokens",
+  "config.webhooks.tab_tokens": "令牌",
   "config.webhooks.tab_log": "日志",
   "config.webhooks.config_enabled_label": "已启用",
   "config.webhooks.max_payload_label": "最大 Payload 大小 (字节)",

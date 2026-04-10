@@ -20,7 +20,7 @@
   "config.mcp.card_command": "Command:",
   "config.mcp.card_args": "Args:",
   "config.mcp.card_env_vars": "Env vars:",
-  "config.mcp.card_edit_tooltip": "Edit",
+  "config.mcp.card_edit_tooltip": "Bearbeiten",
   "config.mcp.card_delete_tooltip": "Delete",
   "config.mcp.field_name": "Name",
   "config.mcp.field_command": "Command",

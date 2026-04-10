@@ -61,7 +61,7 @@
   "truenas.pool_size": "Größe",
   "truenas.pool_allocated": "Belegt",
   "truenas.pool_free": "Frei",
-  "truenas.pool_degraded": "DEGRADED",
+  "truenas.pool_degraded": "DEGRADIERT",
   "truenas.pool_all_ok": "Alle OK",
   "truenas.scrub_running": "Scrub läuft...",
   "truenas.scrub_start": "Scrub starten",

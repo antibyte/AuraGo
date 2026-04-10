@@ -6,7 +6,7 @@
   "config.nav.missions": "Missioni",
   "config.nav.config": "Config",
   "config.nav.invasion": "Invasion",
-  "config.nav.logout": "Logout",
+  "config.nav.logout": "Esci",
   "config.save_bar.unsaved_changes": "Modifiche non salvate",
   "config.save_bar.save_button": "💾 Salva",
   "config.save_bar.saving": "Salvataggio...",

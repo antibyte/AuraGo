@@ -52,7 +52,7 @@
   "config.homepage.circuit_breaker_max_calls": "最大ツール呼び出し数",
   "config.homepage.workspace_desc": "Set the absolute host path that is mounted into the homepage container as /workspace.",
   "config.homepage.workspace_relative_hint": "Inside homepage tool calls, keep project_dir and path relative to this workspace, for example 'my-site' or 'my-site/src/app/page.tsx'.",
-  "config.homepage.workspace_autodetect_success": "Workspace path detected successfully.",
+  "config.homepage.workspace_autodetect_success": "ワークスペースパスを正常に検出しました。",
   "config.homepage.allow_temporary_token_budget_overflow": "Allow temporary token budget overflow for homepage flows",
   "config.homepage.allow_temporary_token_budget_overflow_desc": "Temporarily raises the homepage system prompt budget relative to the homepage circuit breaker max calls while the current homepage action chain is active.",
   "config.homepage.token_budget_preview": "Homepage flows may temporarily use about {effective} prompt tokens instead of {base}, based on {homepage_calls}/{base_calls} allowed tool calls."

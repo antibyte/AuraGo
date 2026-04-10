@@ -16,7 +16,7 @@
   "config.sandbox.backend_label": "Backend",
   "config.sandbox.backend_docker": "Docker",
   "config.sandbox.backend_podman": "Podman",
-  "config.sandbox.image_label": "Container Image",
+  "config.sandbox.image_label": "Container-Image",
   "config.sandbox.docker_host_label": "Docker Host",
   "config.sandbox.timeout_label_full": "Timeout (Sekunden)",
   "config.sandbox.pool_size_label": "Pool Size",

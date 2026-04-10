@@ -9,7 +9,7 @@
   "config.security_proxy.btn_stop": "Stop",
   "config.security_proxy.btn_reload": "Genindlæs",
   "config.security_proxy.btn_destroy": "Fjern",
-  "config.security_proxy.btn_logs": "Logs",
+  "config.security_proxy.btn_logs": "Logfiler",
   "config.security_proxy.tls_title": "Domæne & TLS",
   "config.security_proxy.tls_desc": "Konfigurér domæne og Let's Encrypt TLS-certifikat. Lad domæne være tomt for kun-port tilstand.",
   "config.security_proxy.domain_label": "Domæne",
@@ -45,5 +45,5 @@
   "config.security_proxy.docker_title": "Docker",
   "config.security_proxy.docker_host_label": "Docker Host",
   "config.security_proxy.docker_host_hint": "lad stå tomt for auto-detektion",
-  "config.security_proxy.logs_title": "Container logs"
+  "config.security_proxy.logs_title": "Container-logfiler"
 }

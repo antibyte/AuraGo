@@ -12,7 +12,7 @@
   "config.a2a.bindings_title": "Συνδέσεις πρωτοκόλλου",
   "config.a2a.grpc_port": "Θύρα gRPC:",
   "config.a2a.capabilities_title": "Δυνατότητες",
-  "config.a2a.streaming": "Streaming (SSE)",
+  "config.a2a.streaming": "Ροή (SSE)",
   "config.a2a.push_notifications": "Ειδοποιήσεις push",
   "config.a2a.skills_title": "Δεξιότητες",
   "config.a2a.skills_desc": "Διαφημιζόμενες δεξιότητες στην κάρτα πράκτορα. Αν είναι κενό, δημιουργείται μια προεπιλεγμένη δεξιότητα.",

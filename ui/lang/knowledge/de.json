@@ -77,7 +77,7 @@
   "knowledge.credentials_name_placeholder": "z.B. Proxmox SSH",
   "knowledge.credentials_type_label": "Typ",
   "knowledge.credentials_type_ssh": "SSH",
-  "knowledge.credentials_type_login": "Login",
+  "knowledge.credentials_type_login": "Anmelden",
   "knowledge.credentials_type_token": "Token / Schlüssel",
   "knowledge.credentials_host_label": "Host / IP",
   "knowledge.credentials_host_placeholder": "192.168.1.50",

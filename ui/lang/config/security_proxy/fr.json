@@ -9,7 +9,7 @@
   "config.security_proxy.btn_stop": "Arrêter",
   "config.security_proxy.btn_reload": "Recharger",
   "config.security_proxy.btn_destroy": "Supprimer",
-  "config.security_proxy.btn_logs": "Logs",
+  "config.security_proxy.btn_logs": "Journaux",
   "config.security_proxy.tls_title": "Domaine & TLS",
   "config.security_proxy.tls_desc": "Configurer le domaine et le certificat TLS Let's Encrypt. Laisser le domaine vide pour le mode port uniquement.",
   "config.security_proxy.domain_label": "Domaine",

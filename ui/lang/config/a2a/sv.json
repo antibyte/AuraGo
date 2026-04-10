@@ -12,7 +12,7 @@
   "config.a2a.bindings_title": "Protokollbindningar",
   "config.a2a.grpc_port": "gRPC-port:",
   "config.a2a.capabilities_title": "Funktioner",
-  "config.a2a.streaming": "Streaming (SSE)",
+  "config.a2a.streaming": "Strömning (SSE)",
   "config.a2a.push_notifications": "Push-notiser",
   "config.a2a.skills_title": "Färdigheter",
   "config.a2a.skills_desc": "Annonserade färdigheter i agentkortet. Om tomt skapas en standardfärdighet.",

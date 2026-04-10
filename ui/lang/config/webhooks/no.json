@@ -62,7 +62,7 @@
   "config.webhooks.action_edit": "Rediger",
   "config.webhooks.action_delete": "Slett",
   "config.webhooks.tab_webhooks": "Webhooks",
-  "config.webhooks.tab_tokens": "Tokens",
+  "config.webhooks.tab_tokens": "Token",
   "config.webhooks.tab_log": "Logg",
   "config.webhooks.config_enabled_label": "Aktivert",
   "config.webhooks.max_payload_label": "Maks nyttelaststørrelse (byte)",

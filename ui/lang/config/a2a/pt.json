@@ -12,7 +12,7 @@
   "config.a2a.bindings_title": "Vinculações de protocolo",
   "config.a2a.grpc_port": "Porta gRPC:",
   "config.a2a.capabilities_title": "Capacidades",
-  "config.a2a.streaming": "Streaming (SSE)",
+  "config.a2a.streaming": "Transmissão (SSE)",
   "config.a2a.push_notifications": "Notificações push",
   "config.a2a.skills_title": "Habilidades",
   "config.a2a.skills_desc": "Habilidades anunciadas no cartão do agente. Se vazio, uma habilidade padrão é criada.",

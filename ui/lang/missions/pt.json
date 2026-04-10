@@ -106,7 +106,7 @@
   "missions.filter_scheduled": "Agendada",
   "missions.filter_triggered": "Acionada",
   "missions.form_cheatsheets_hint": "As cheat sheets selecionadas serão incluídas como contexto quando a missão for executada.",
-  "missions.form_cheatsheets_label": "Cheat Sheets",
+  "missions.form_cheatsheets_label": "Folhas de dicas",
   "missions.form_cheatsheets_loading": "Carregando...",
   "missions.form_cheatsheets_none": "Nenhuma cheat sheet ativa",
   "missions.form_cron_hint": "Formato: minuto hora dia_mês mês dia_semana",

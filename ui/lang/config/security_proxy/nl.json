@@ -9,7 +9,7 @@
   "config.security_proxy.btn_stop": "Stoppen",
   "config.security_proxy.btn_reload": "Herladen",
   "config.security_proxy.btn_destroy": "Verwijderen",
-  "config.security_proxy.btn_logs": "Logs",
+  "config.security_proxy.btn_logs": "Logboeken",
   "config.security_proxy.tls_title": "Domein & TLS",
   "config.security_proxy.tls_desc": "Configureer het domein en Let's Encrypt TLS-certificaat. Laat domein leeg voor alleen-poort modus.",
   "config.security_proxy.domain_label": "Domein",
@@ -45,5 +45,5 @@
   "config.security_proxy.docker_title": "Docker",
   "config.security_proxy.docker_host_label": "Docker Host",
   "config.security_proxy.docker_host_hint": "leeg laten voor auto-detectie",
-  "config.security_proxy.logs_title": "Container logs"
+  "config.security_proxy.logs_title": "Containerlogboeken"
 }

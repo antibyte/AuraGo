@@ -12,7 +12,7 @@
   "config.a2a.bindings_title": "Liaisons protocolaires",
   "config.a2a.grpc_port": "Port gRPC :",
   "config.a2a.capabilities_title": "Capacités",
-  "config.a2a.streaming": "Streaming (SSE)",
+  "config.a2a.streaming": "Diffusion (SSE)",
   "config.a2a.push_notifications": "Notifications push",
   "config.a2a.skills_title": "Compétences",
   "config.a2a.skills_desc": "Compétences annoncées dans la carte agent. Si vide, une compétence par défaut est créée.",

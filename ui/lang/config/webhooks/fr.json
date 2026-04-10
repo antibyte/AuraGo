@@ -62,7 +62,7 @@
   "config.webhooks.action_edit": "Modifier",
   "config.webhooks.action_delete": "Supprimer",
   "config.webhooks.tab_webhooks": "Webhooks",
-  "config.webhooks.tab_tokens": "Tokens",
+  "config.webhooks.tab_tokens": "Jetons",
   "config.webhooks.tab_log": "Log",
   "config.webhooks.config_enabled_label": "Activé",
   "config.webhooks.max_payload_label": "Taille Max Payload (octets)",

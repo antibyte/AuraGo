@@ -12,7 +12,7 @@
   "config.a2a.bindings_title": "Protokolové vazby",
   "config.a2a.grpc_port": "gRPC port:",
   "config.a2a.capabilities_title": "Schopnosti",
-  "config.a2a.streaming": "Streaming (SSE)",
+  "config.a2a.streaming": "Streamování (SSE)",
   "config.a2a.push_notifications": "Push oznámení",
   "config.a2a.skills_title": "Dovednosti",
   "config.a2a.skills_desc": "Inzerované dovednosti v kartě agenta. Pokud jsou prázdné, vytvoří se výchozí dovednost.",

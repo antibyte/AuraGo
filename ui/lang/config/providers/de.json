@@ -45,7 +45,7 @@
   "config.providers.card_api_key": "API Key:",
   "config.providers.card_auth": "Auth:",
   "config.providers.card_id": "ID:",
-  "config.providers.card_edit_tooltip": "Edit",
+  "config.providers.card_edit_tooltip": "Bearbeiten",
   "config.providers.card_delete_tooltip": "Delete",
   "config.providers.field_id": "ID",
   "config.providers.field_name": "Name",
