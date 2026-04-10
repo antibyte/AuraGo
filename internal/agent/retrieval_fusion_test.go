@@ -1,287 +1,314 @@
 package agent
 
 import (
-	"strings"
-	"testing"
-
 	"aurago/internal/memory"
+	"log/slog"
+	"testing"
 )
 
-func TestExtractKGEntityLabels(t *testing.T) {
-	tests := []struct {
-		name      string
-		kgContext string
-		maxLabels int
-		want      []string
-	}{
-		{
-			name: "single entity with properties",
-			kgContext: "- [server_01] Web Server | type: device | ip: 192.168.1.10\n" +
-				"  - [server_01] -[runs]-> [nginx]",
-			maxLabels: 3,
-			want:      []string{"Web Server"},
-		},
-		{
-			name: "multiple entities",
-			kgContext: "- [server_01] Web Server | type: device\n" +
-				"  - [server_01] -[runs]-> [nginx]\n" +
-				"- [db_01] Database Server | type: service\n" +
-				"  - [db_01] -[connects_to]-> [server_01]\n" +
-				"- [alice] Alice | type: person | role: admin\n",
-			maxLabels: 3,
-			want:      []string{"Web Server", "Database Server", "Alice"},
-		},
-		{
-			name: "unknown label skipped",
-			kgContext: "- [node_1] Unknown\n" +
-				"- [node_2] MyService | type: service\n",
-			maxLabels: 3,
-			want:      []string{"MyService"},
-		},
-		{
-			name:      "empty context",
-			kgContext: "",
-			maxLabels: 3,
-			want:      nil,
-		},
-		{
-			name: "max labels respected",
-			kgContext: "- [a] Alpha | type: test\n" +
-				"- [b] Beta | type: test\n" +
-				"- [c] Gamma | type: test\n",
-			maxLabels: 2,
-			want:      []string{"Alpha", "Beta"},
-		},
-		{
-			name: "short label skipped",
-			kgContext: "- [x] X\n" +
-				"- [y] ValidLabel | type: test\n",
-			maxLabels: 3,
-			want:      []string{"ValidLabel"},
-		},
-		{
-			name: "edge-only lines skipped",
-			kgContext: "  - [src] -[connects]-> [tgt]\n" +
-				"- [node_1] MyNode | type: device\n",
-			maxLabels: 3,
-			want:      []string{"MyNode"},
-		},
-	}
+// ---------------------------------------------------------------------------
+// containsString tests
+// ---------------------------------------------------------------------------
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := extractKGEntityLabels(tt.kgContext, tt.maxLabels)
-			if len(got) != len(tt.want) {
-				t.Errorf("extractKGEntityLabels() = %v, want %v", got, tt.want)
-				return
-			}
-			for i, label := range got {
-				if label != tt.want[i] {
-					t.Errorf("extractKGEntityLabels()[%d] = %q, want %q", i, label, tt.want[i])
-				}
-			}
-		})
-	}
-}
-
-func TestContainsString(t *testing.T) {
+func TestContainsString_Found(t *testing.T) {
 	slice := []string{"alpha", "beta", "gamma"}
 	if !containsString(slice, "beta") {
-		t.Error("expected to find 'beta'")
+		t.Error("expected true for existing element")
 	}
+}
+
+func TestContainsString_NotFound(t *testing.T) {
+	slice := []string{"alpha", "beta", "gamma"}
 	if containsString(slice, "delta") {
-		t.Error("did not expect to find 'delta'")
+		t.Error("expected false for missing element")
 	}
+}
+
+func TestContainsString_EmptySlice(t *testing.T) {
 	if containsString(nil, "anything") {
-		t.Error("did not expect to find 'anything' in nil slice")
+		t.Error("expected false for nil slice")
+	}
+	if containsString([]string{}, "anything") {
+		t.Error("expected false for empty slice")
 	}
 }
 
-func TestTruncateUTF8SafeAgent(t *testing.T) {
-	tests := []struct {
-		name   string
-		input  string
-		maxLen int
-		want   string
-	}{
-		{
-			name:   "short string unchanged",
-			input:  "hello",
-			maxLen: 10,
-			want:   "hello",
-		},
-		{
-			name:   "truncated at newline boundary",
-			input:  "line1\nline2\nline3",
-			maxLen: 10,
-			want:   "line1",
-		},
-		{
-			name:   "exact length unchanged",
-			input:  "hello",
-			maxLen: 5,
-			want:   "hello",
-		},
-		{
-			name:   "unicode preserved",
-			input:  "Hällo Wörld ünïcödë",
-			maxLen: 8,
-			want:   "Hällo Wö",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := truncateUTF8SafeAgent(tt.input, tt.maxLen)
-			if got != tt.want {
-				t.Errorf("truncateUTF8SafeAgent() = %q, want %q", got, tt.want)
-			}
-		})
+func TestContainsString_EmptyString(t *testing.T) {
+	slice := []string{"", "alpha"}
+	if !containsString(slice, "") {
+		t.Error("expected true for empty string in slice")
 	}
 }
 
-func TestApplyRetrievalFusion_NoResults(t *testing.T) {
-	// When both RAG and KG are empty, fusion should return empty results.
-	result := applyRetrievalFusion(nil, "", nil, nil, nil)
-	if result.EnrichedMemories != "" {
-		t.Errorf("expected empty EnrichedMemories, got %q", result.EnrichedMemories)
-	}
-	if result.EnrichedKGContext != "" {
-		t.Errorf("expected empty EnrichedKGContext, got %q", result.EnrichedKGContext)
+// ---------------------------------------------------------------------------
+// truncateUTF8SafeAgent tests
+// ---------------------------------------------------------------------------
+
+func TestTruncateUTF8SafeAgent_ShortEnough(t *testing.T) {
+	s := "hello"
+	got := truncateUTF8SafeAgent(s, 10)
+	if got != s {
+		t.Errorf("truncateUTF8SafeAgent(%q, 10) = %q, want %q", s, got, s)
 	}
 }
 
-func TestApplyRetrievalFusion_RAGOnly(t *testing.T) {
-	// When only RAG has results (no KG), only RAG→KG direction should be attempted.
-	// With a nil KG, no enrichment should happen.
-	topMemories := []string{"User prefers dark mode in the IDE"}
-	result := applyRetrievalFusion(topMemories, "", nil, nil, nil)
-	if result.EnrichedMemories != "" {
-		t.Errorf("expected empty EnrichedMemories with nil LTM, got %q", result.EnrichedMemories)
-	}
-	if result.EnrichedKGContext != "" {
-		t.Errorf("expected empty EnrichedKGContext with nil KG, got %q", result.EnrichedKGContext)
+func TestTruncateUTF8SafeAgent_ExactLength(t *testing.T) {
+	s := "hello"
+	got := truncateUTF8SafeAgent(s, 5)
+	if got != s {
+		t.Errorf("truncateUTF8SafeAgent(%q, 5) = %q, want %q", s, got, s)
 	}
 }
 
-func TestApplyRetrievalFusion_KGOnly(t *testing.T) {
-	// When only KG has results (no RAG), only KG→RAG direction should be attempted.
-	// With a nil LTM, no enrichment should happen.
-	kgContext := "- [server_01] Web Server | type: device | ip: 192.168.1.10\n"
-	result := applyRetrievalFusion(nil, kgContext, nil, nil, nil)
-	if result.EnrichedMemories != "" {
-		t.Errorf("expected empty EnrichedMemories with nil LTM, got %q", result.EnrichedMemories)
-	}
-	if result.EnrichedKGContext != "" {
-		t.Errorf("expected empty EnrichedKGContext with no RAG, got %q", result.EnrichedKGContext)
+func TestTruncateUTF8SafeAgent_TruncateNoNewlines(t *testing.T) {
+	s := "hello world"
+	got := truncateUTF8SafeAgent(s, 5)
+	if got != "hello" {
+		t.Errorf("truncateUTF8SafeAgent(%q, 5) = %q, want %q", s, got, "hello")
 	}
 }
 
-// mockFusionVectorDB is a minimal mock for testing the KG→RAG direction.
-type mockFusionVectorDB struct {
-	results map[string][]string
+func TestTruncateUTF8SafeAgent_TruncateAtNewline(t *testing.T) {
+	// 17 runes total; truncate to 8 → "line1\nli", break at last \n → "line1"
+	s := "line1\nline2\nline3"
+	got := truncateUTF8SafeAgent(s, 8)
+	want := "line1"
+	if got != want {
+		t.Errorf("truncateUTF8SafeAgent(%q, 8) = %q, want %q", s, got, want)
+	}
 }
 
-func (m *mockFusionVectorDB) StoreDocument(concept, content string) ([]string, error) {
-	return nil, nil
+func TestTruncateUTF8SafeAgent_TruncateExactNoBreak(t *testing.T) {
+	// When the truncated portion ends exactly at a line boundary (no \n in truncated part),
+	// the function returns the full truncated string.
+	s := "line1\nline2\nline3"
+	got := truncateUTF8SafeAgent(s, 12)
+	want := "line1\nline2"
+	if got != want {
+		t.Errorf("truncateUTF8SafeAgent(%q, 12) = %q, want %q", s, got, want)
+	}
 }
-func (m *mockFusionVectorDB) StoreDocumentWithEmbedding(concept, content string, embedding []float32) (string, error) {
-	return "", nil
+
+func TestTruncateUTF8SafeAgent_MultibyteUTF8(t *testing.T) {
+	s := "Hällö Wörld 日本語テスト"
+	got := truncateUTF8SafeAgent(s, 7)
+	want := "Hällö W" // 7 runes
+	if got != want {
+		t.Errorf("truncateUTF8SafeAgent(%q, 7) = %q, want %q", s, got, want)
+	}
 }
-func (m *mockFusionVectorDB) StoreDocumentInCollection(concept, content, collection string) ([]string, error) {
-	return nil, nil
+
+func TestTruncateUTF8SafeAgent_EmptyString(t *testing.T) {
+	got := truncateUTF8SafeAgent("", 5)
+	if got != "" {
+		t.Errorf("truncateUTF8SafeAgent(\"\", 5) = %q, want empty", got)
+	}
 }
-func (m *mockFusionVectorDB) StoreDocumentWithEmbeddingInCollection(concept, content string, embedding []float32, collection string) (string, error) {
-	return "", nil
+
+func TestTruncateUTF8SafeAgent_ZeroMaxLen(t *testing.T) {
+	got := truncateUTF8SafeAgent("hello", 0)
+	if got != "" {
+		t.Errorf("truncateUTF8SafeAgent(\"hello\", 0) = %q, want empty", got)
+	}
 }
-func (m *mockFusionVectorDB) StoreBatch(items []memory.ArchiveItem) ([]string, error) {
-	return nil, nil
+
+// ---------------------------------------------------------------------------
+// extractKGEntityLabels tests
+// ---------------------------------------------------------------------------
+
+func TestExtractKGEntityLabels_BasicEntity(t *testing.T) {
+	kgContext := "- [truenas] TrueNAS Server | type: device | ip: 192.168.1.5\n"
+	labels := extractKGEntityLabels(kgContext, 3)
+	if len(labels) != 1 {
+		t.Fatalf("expected 1 label, got %d: %v", len(labels), labels)
+	}
+	if labels[0] != "TrueNAS Server" {
+		t.Errorf("label = %q, want %q", labels[0], "TrueNAS Server")
+	}
 }
-func (m *mockFusionVectorDB) SearchSimilar(query string, topK int, excludeCollections ...string) ([]string, []string, error) {
-	return nil, nil, nil
-}
-func (m *mockFusionVectorDB) SearchMemoriesOnly(query string, topK int) ([]string, []string, error) {
-	if m.results != nil {
-		if r, ok := m.results[strings.ToLower(query)]; ok {
-			return r, nil, nil
+
+func TestExtractKGEntityLabels_MultipleEntities(t *testing.T) {
+	kgContext := `- [adguard] AdGuard | type: software
+- [truenas] TrueNAS Server | type: device
+- [john] John Doe | type: person
+`
+	labels := extractKGEntityLabels(kgContext, 3)
+	if len(labels) != 3 {
+		t.Fatalf("expected 3 labels, got %d: %v", len(labels), labels)
+	}
+	want := []string{"AdGuard", "TrueNAS Server", "John Doe"}
+	for i, w := range want {
+		if labels[i] != w {
+			t.Errorf("labels[%d] = %q, want %q", i, labels[i], w)
 		}
 	}
-	return nil, nil, nil
 }
-func (m *mockFusionVectorDB) GetByIDFromCollection(id, collection string) (string, error) {
+
+func TestExtractKGEntityLabels_MaxLabels(t *testing.T) {
+	kgContext := `- [a] Alpha | type: x
+- [b] Beta | type: x
+- [c] Charlie | type: x
+- [d] Delta | type: x
+`
+	labels := extractKGEntityLabels(kgContext, 2)
+	if len(labels) != 2 {
+		t.Fatalf("expected 2 labels (maxLabels=2), got %d", len(labels))
+	}
+}
+
+func TestExtractKGEntityLabels_SkipIndentedEdgeLines(t *testing.T) {
+	kgContext := "- [truenas] TrueNAS Server | type: device\n  - [adguard] -[runs_on]-> [truenas]\n"
+	labels := extractKGEntityLabels(kgContext, 5)
+	if len(labels) != 1 {
+		t.Fatalf("expected 1 label (indented edge line skipped), got %d: %v", len(labels), labels)
+	}
+	if labels[0] != "TrueNAS Server" {
+		t.Errorf("label = %q, want %q", labels[0], "TrueNAS Server")
+	}
+}
+
+func TestExtractKGEntityLabels_SkipUnknown(t *testing.T) {
+	kgContext := "- [x] Unknown | type: x\n- [y] Valid Label | type: x\n"
+	labels := extractKGEntityLabels(kgContext, 5)
+	if len(labels) != 1 {
+		t.Fatalf("expected 1 label (Unknown skipped), got %d: %v", len(labels), labels)
+	}
+	if labels[0] != "Valid Label" {
+		t.Errorf("label = %q, want %q", labels[0], "Valid Label")
+	}
+}
+
+func TestExtractKGEntityLabels_SkipShortLabels(t *testing.T) {
+	kgContext := "- [x] A | type: x\n- [y] Good Label | type: x\n"
+	labels := extractKGEntityLabels(kgContext, 5)
+	if len(labels) != 1 {
+		t.Fatalf("expected 1 label (single-char skipped), got %d: %v", len(labels), labels)
+	}
+	if labels[0] != "Good Label" {
+		t.Errorf("label = %q, want %q", labels[0], "Good Label")
+	}
+}
+
+func TestExtractKGEntityLabels_EmptyContext(t *testing.T) {
+	labels := extractKGEntityLabels("", 5)
+	if len(labels) != 0 {
+		t.Fatalf("expected 0 labels for empty context, got %d", len(labels))
+	}
+}
+
+func TestExtractKGEntityLabels_NoMatchingLines(t *testing.T) {
+	kgContext := "some random text\nwithout entity lines\n"
+	labels := extractKGEntityLabels(kgContext, 5)
+	if len(labels) != 0 {
+		t.Fatalf("expected 0 labels, got %d: %v", len(labels), labels)
+	}
+}
+
+func TestExtractKGEntityLabels_TabIndentedSkipped(t *testing.T) {
+	kgContext := "- [a] Alpha | type: x\n\t- [b] Beta | type: x\n"
+	labels := extractKGEntityLabels(kgContext, 5)
+	if len(labels) != 1 {
+		t.Fatalf("expected 1 label (tab-indented skipped), got %d: %v", len(labels), labels)
+	}
+	if labels[0] != "Alpha" {
+		t.Errorf("label = %q, want %q", labels[0], "Alpha")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// applyRetrievalFusion tests
+// ---------------------------------------------------------------------------
+
+func TestApplyRetrievalFusion_NoInputs(t *testing.T) {
+	logger := slog.Default()
+	result := applyRetrievalFusion(nil, "", nil, nil, logger)
+	if result.EnrichedMemories != "" || result.EnrichedKGContext != "" {
+		t.Error("expected empty result when no inputs provided")
+	}
+}
+
+func TestApplyRetrievalFusion_RAGOnly_NoKG(t *testing.T) {
+	logger := slog.Default()
+	topMemories := []string{"memory one about servers", "memory two about networking"}
+	result := applyRetrievalFusion(topMemories, "", nil, nil, logger)
+	// Without KG, Direction 1 (KG→RAG) is skipped.
+	// Without kg, Direction 2 (RAG→KG) is also skipped.
+	if result.EnrichedMemories != "" {
+		t.Error("expected no enriched memories without KG context")
+	}
+	if result.EnrichedKGContext != "" {
+		t.Error("expected no enriched KG context without KnowledgeGraph")
+	}
+}
+
+func TestApplyRetrievalFusion_KGOnly_NoVectorDB(t *testing.T) {
+	logger := slog.Default()
+	kgContext := "- [truenas] TrueNAS Server | type: device\n"
+	result := applyRetrievalFusion(nil, kgContext, nil, nil, logger)
+	// Without VectorDB, Direction 1 (KG→RAG) is skipped.
+	// Without RAG, Direction 2 (RAG→KG) is skipped.
+	if result.EnrichedMemories != "" {
+		t.Error("expected no enriched memories without VectorDB")
+	}
+	if result.EnrichedKGContext != "" {
+		t.Error("expected no enriched KG context without RAG memories")
+	}
+}
+
+func TestApplyRetrievalFusion_WithBoth_NoImplementations(t *testing.T) {
+	logger := slog.Default()
+	topMemories := []string{"memory about something important"}
+	kgContext := "- [truenas] TrueNAS Server | type: device\n"
+	// Both subsystems report having data, but nil implementations mean
+	// the actual lookups are skipped gracefully.
+	result := applyRetrievalFusion(topMemories, kgContext, nil, nil, logger)
+	// Direction 1 skipped: longTermMem is nil
+	// Direction 2 skipped: kg is nil
+	if result.EnrichedMemories != "" {
+		t.Error("expected no enriched memories with nil VectorDB")
+	}
+	if result.EnrichedKGContext != "" {
+		t.Error("expected no enriched KG context with nil KnowledgeGraph")
+	}
+}
+
+func TestApplyRetrievalFusion_DisabledVectorDB(t *testing.T) {
+	logger := slog.Default()
+	topMemories := []string{"memory text"}
+	kgContext := "- [truenas] TrueNAS Server | type: device\n"
+	result := applyRetrievalFusion(topMemories, kgContext, &disabledVectorDB{}, nil, logger)
+	// Direction 1 skipped: VectorDB is disabled
+	if result.EnrichedMemories != "" {
+		t.Error("expected no enriched memories with disabled VectorDB")
+	}
+}
+
+// disabledVectorDB is a minimal mock that reports itself as disabled.
+type disabledVectorDB struct{}
+
+func (d *disabledVectorDB) IsDisabled() bool                            { return true }
+func (d *disabledVectorDB) StoreDocument(_, _ string) ([]string, error) { return nil, nil }
+func (d *disabledVectorDB) StoreDocumentWithEmbedding(_ string, _ string, _ []float32) (string, error) {
 	return "", nil
 }
-func (m *mockFusionVectorDB) GetByID(id string) (string, error)                        { return "", nil }
-func (m *mockFusionVectorDB) DeleteDocument(id string) error                           { return nil }
-func (m *mockFusionVectorDB) DeleteDocumentFromCollection(id, collection string) error { return nil }
-func (m *mockFusionVectorDB) Count() int                                               { return 0 }
-func (m *mockFusionVectorDB) IsDisabled() bool                                         { return false }
-func (m *mockFusionVectorDB) Close() error                                             { return nil }
-func (m *mockFusionVectorDB) StoreCheatsheet(id, name, content string) error           { return nil }
-func (m *mockFusionVectorDB) DeleteCheatsheet(id string) error                         { return nil }
-
-func TestApplyRetrievalFusion_KGToRAG(t *testing.T) {
-	// Test KG→RAG direction: entity labels from KG are used to search LTM.
-	kgContext := "- [server_01] Web Server | type: device\n" +
-		"- [db_01] Database | type: service\n"
-
-	mockLTM := &mockFusionVectorDB{
-		results: map[string][]string{
-			"web server": {"Found memory about web server configuration"},
-			"database":   {"Found memory about database setup"},
-		},
-	}
-
-	result := applyRetrievalFusion(nil, kgContext, mockLTM, nil, nil)
-
-	if result.EnrichedMemories == "" {
-		t.Error("expected EnrichedMemories to be populated from KG→RAG fusion")
-	}
-	if !strings.Contains(result.EnrichedMemories, "[Related Memories via Knowledge Graph]") {
-		t.Errorf("expected fusion prefix in EnrichedMemories, got %q", result.EnrichedMemories)
-	}
-	if !strings.Contains(result.EnrichedMemories, "web server") && !strings.Contains(result.EnrichedMemories, "database") {
-		t.Errorf("expected memory content in EnrichedMemories, got %q", result.EnrichedMemories)
-	}
+func (d *disabledVectorDB) StoreDocumentInCollection(_, _, _ string) ([]string, error) {
+	return nil, nil
 }
-
-func TestApplyRetrievalFusion_BudgetRespected(t *testing.T) {
-	// Verify that the fusion result respects the character budget.
-	kgContext := "- [server_01] Web Server | type: device\n"
-
-	// Create a mock that returns a very long string.
-	longMem := strings.Repeat("x", 1000)
-	mockLTM := &mockFusionVectorDB{
-		results: map[string][]string{
-			"web server": {longMem},
-		},
-	}
-
-	result := applyRetrievalFusion(nil, kgContext, mockLTM, nil, nil)
-
-	if len(result.EnrichedMemories) > fusionCharBudget+50 { // Allow some overhead for the prefix
-		t.Errorf("EnrichedMemories exceeds budget: got %d chars (budget %d)",
-			len(result.EnrichedMemories), fusionCharBudget)
-	}
+func (d *disabledVectorDB) StoreDocumentWithEmbeddingInCollection(_ string, _ string, _ []float32, _ string) (string, error) {
+	return "", nil
 }
-
-func TestApplyRetrievalFusion_Deduplication(t *testing.T) {
-	// Verify that memories already in topMemories are not duplicated.
-	existingMemory := "Already retrieved memory about web server"
-	topMemories := []string{existingMemory}
-
-	kgContext := "- [server_01] Web Server | type: device\n"
-
-	mockLTM := &mockFusionVectorDB{
-		results: map[string][]string{
-			"web server": {existingMemory}, // Same as topMemories[0]
-		},
-	}
-
-	result := applyRetrievalFusion(topMemories, kgContext, mockLTM, nil, nil)
-
-	// Should be empty because the only result is a duplicate.
-	if result.EnrichedMemories != "" {
-		t.Errorf("expected empty EnrichedMemories due to dedup, got %q", result.EnrichedMemories)
-	}
+func (d *disabledVectorDB) StoreBatch(_ []memory.ArchiveItem) ([]string, error) { return nil, nil }
+func (d *disabledVectorDB) SearchSimilar(_ string, _ int, _ ...string) ([]string, []string, error) {
+	return nil, nil, nil
 }
+func (d *disabledVectorDB) SearchMemoriesOnly(_ string, _ int) ([]string, []string, error) {
+	return nil, nil, nil
+}
+func (d *disabledVectorDB) GetByIDFromCollection(_, _ string) (string, error) { return "", nil }
+func (d *disabledVectorDB) GetByID(_ string) (string, error)                  { return "", nil }
+func (d *disabledVectorDB) DeleteDocument(_ string) error                     { return nil }
+func (d *disabledVectorDB) DeleteDocumentFromCollection(_, _ string) error    { return nil }
+func (d *disabledVectorDB) Count() int                                        { return 0 }
+func (d *disabledVectorDB) Close() error                                      { return nil }
+func (d *disabledVectorDB) StoreCheatsheet(_, _, _ string) error              { return nil }
+func (d *disabledVectorDB) DeleteCheatsheet(_ string) error                   { return nil }

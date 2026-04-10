@@ -28,7 +28,7 @@ type SQLiteMemory struct {
 // Use dbutil.Open() instead which handles corruption recovery.
 
 func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) {
-	db, err := dbutil.Open(dbPath)
+	db, err := dbutil.Open(dbPath, dbutil.WithCorruptionRecovery(logger))
 	if err != nil {
 		return nil, err
 	}

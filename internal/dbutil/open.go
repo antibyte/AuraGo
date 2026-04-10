@@ -12,13 +12,11 @@ import (
 // It applies WAL mode, synchronous=NORMAL, foreign_keys=ON, busy_timeout=5000,
 // and SetMaxOpenConns(1) by default. Options can override defaults.
 //
-// The function performs the following steps:
-// 1. Opens the database using sql.Open with driver "sqlite"
-// 2. Applies configuration options
-// 3. Sets connection pool limits
-// 4. Executes PRAGMA statements (journal_mode, synchronous, foreign_keys, busy_timeout)
-// 5. Runs integrity check
-// 6. If corruption is detected and recovery is enabled, rotates corrupted files and recreates the DB
+// When WithCorruptionRecovery is enabled and the initial open+configure step
+// fails (e.g. PRAGMA execution on a corrupted file), the function attempts
+// automatic recovery: corrupted files are rotated to .bak and a fresh database
+// is created. This handles the case where the file header is invalid and
+// PRAGMA statements cannot execute at all.
 //
 // Returns an error if any step fails. On failure, the database handle is closed.
 func Open(dbPath string, opts ...Option) (*sql.DB, error) {
@@ -28,6 +26,32 @@ func Open(dbPath string, opts ...Option) (*sql.DB, error) {
 		opt(&cfg)
 	}
 
+	db, err := openAndConfigure(dbPath, cfg)
+	if err != nil {
+		if !cfg.corruptionRecovery {
+			return nil, err
+		}
+		// PRAGMA or integrity check failure — attempt recovery.
+		if cfg.recoveryLogger != nil {
+			cfg.recoveryLogger.Error("SQLite open failed, attempting corruption recovery",
+				"path", dbPath, "error", err)
+		}
+		if recErr := recoverCorruptDB(dbPath, cfg.recoveryLogger); recErr != nil {
+			return nil, fmt.Errorf("%w (recovery also failed: %v)", err, recErr)
+		}
+		// Retry after recovery.
+		db, err = openAndConfigure(dbPath, cfg)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return db, nil
+}
+
+// openAndConfigure opens the database, applies connection settings and PRAGMAs,
+// and runs an integrity check. Returns an error if any step fails.
+func openAndConfigure(dbPath string, cfg config) (*sql.DB, error) {
 	// Open database.
 	// Embed _busy_timeout in the DSN so modernc.org/sqlite applies it to every
 	// new connection opened from the pool — not just the first one.  Without
@@ -55,36 +79,7 @@ func Open(dbPath string, opts ...Option) (*sql.DB, error) {
 		return nil, fmt.Errorf("failed to run integrity check: %w", err)
 	}
 
-	// Handle corruption if recovery is enabled
-	if corrupt && cfg.corruptionRecovery {
-		db.Close()
-		if err := recoverCorruptDB(dbPath, cfg.recoveryLogger); err != nil {
-			return nil, fmt.Errorf("corruption recovery failed: %w", err)
-		}
-
-		// Reopen the database after recovery
-		db, err = sql.Open("sqlite", dbPath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to reopen database after recovery: %w", err)
-		}
-
-		// Reapply settings
-		db.SetMaxOpenConns(cfg.maxOpenConns)
-		if err := applyPragmas(db, cfg); err != nil {
-			db.Close()
-			return nil, fmt.Errorf("failed to reapply PRAGMAs after recovery: %w", err)
-		}
-
-		// Recheck integrity
-		corrupt2, err := runIntegrityCheck(db)
-		if err != nil {
-			db.Close()
-			return nil, fmt.Errorf("failed to rerun integrity check after recovery: %w", err)
-		}
-		if corrupt2 {
-			return nil, fmt.Errorf("database still corrupted after recovery attempt")
-		}
-	} else if corrupt {
+	if corrupt {
 		db.Close()
 		return nil, fmt.Errorf("database integrity check failed")
 	}
@@ -140,8 +135,10 @@ func runIntegrityCheck(db *sql.DB) (bool, error) {
 // recoverCorruptDB handles database corruption by renaming corrupted files to .bak
 // and allowing a fresh database to be created.
 func recoverCorruptDB(dbPath string, logger *slog.Logger) error {
-	logger.Error("SQLite database is corrupted, attempting recovery",
-		"path", dbPath)
+	if logger != nil {
+		logger.Error("SQLite database is corrupted, attempting recovery",
+			"path", dbPath)
+	}
 
 	// Rotate all related files
 	for _, suffix := range []string{"", "-wal", "-shm"} {
@@ -149,13 +146,19 @@ func recoverCorruptDB(dbPath string, logger *slog.Logger) error {
 		if _, statErr := os.Stat(src); statErr == nil {
 			dst := src + ".bak"
 			if renErr := os.Rename(src, dst); renErr != nil {
-				logger.Warn("Could not rename corrupted DB file", "src", src, "error", renErr)
+				if logger != nil {
+					logger.Warn("Could not rename corrupted DB file", "src", src, "error", renErr)
+				}
 			} else {
-				logger.Warn("Renamed corrupted DB file", "src", src, "dst", dst)
+				if logger != nil {
+					logger.Warn("Renamed corrupted DB file", "src", src, "dst", dst)
+				}
 			}
 		}
 	}
 
-	logger.Info("Created fresh SQLite database after corruption recovery", "path", dbPath)
+	if logger != nil {
+		logger.Info("Created fresh SQLite database after corruption recovery", "path", dbPath)
+	}
 	return nil
 }

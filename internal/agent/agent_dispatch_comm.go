@@ -1774,26 +1774,6 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				return result
 			}
 			return unexpectedBuiltinActionError(tc.Action)
-			if !cfg.BraveSearch.Enabled {
-				return `Tool Output: {"status": "error", "message": "Brave Search integration is not enabled. Enable it in Settings › Brave Search."}`
-			}
-			queryStr := tc.Query
-			if queryStr == "" {
-				queryStr, _ = tc.Params["query"].(string)
-			}
-			count, ok := tc.Params["count"].(float64)
-			if !ok {
-				count = 10
-			}
-			country, _ := tc.Params["country"].(string)
-			if country == "" {
-				country = cfg.BraveSearch.Country
-			}
-			lang, _ := tc.Params["lang"].(string)
-			if lang == "" {
-				lang = cfg.BraveSearch.Lang
-			}
-			return tools.ExecuteBraveSearch(cfg.BraveSearch.APIKey, queryStr, int(count), country, lang)
 
 		default:
 			handled = false
