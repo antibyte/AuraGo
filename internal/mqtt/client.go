@@ -1,8 +1,11 @@
 package mqtt
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"log/slog"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -15,7 +18,7 @@ import (
 
 // ── Ring buffer for incoming messages ───────────────────────────────────────
 
-const maxBufferSize = 500
+var maxBufferSize = 500 // default, overridden via config
 
 type messageBuffer struct {
 	mu       sync.RWMutex
@@ -101,6 +104,12 @@ func StartClient(cfg *config.Config, log *slog.Logger) {
 	}
 
 	logger = log
+
+	// Set buffer size from config
+	if cfg.MQTT.Buffer.MaxMessages > 0 {
+		maxBufferSize = cfg.MQTT.Buffer.MaxMessages
+	}
+
 	logger.Info("[MQTT] Connecting", "broker", cfg.MQTT.Broker, "client_id", cfg.MQTT.ClientID)
 
 	opts := pahomqtt.NewClientOptions().
@@ -126,10 +135,57 @@ func StartClient(cfg *config.Config, log *slog.Logger) {
 		opts.SetPassword(cfg.MQTT.Password)
 	}
 
+	// Configure TLS if enabled
+	if cfg.MQTT.TLS.Enabled {
+		tlsConfig := &tls.Config{
+			InsecureSkipVerify: cfg.MQTT.TLS.InsecureSkipVerify,
+		}
+
+		// Load CA certificate if provided
+		if cfg.MQTT.TLS.CAFile != "" {
+			caCert, err := os.ReadFile(cfg.MQTT.TLS.CAFile)
+			if err != nil {
+				logger.Error("[MQTT] Failed to read CA certificate", "error", err, "file", cfg.MQTT.TLS.CAFile)
+				return
+			}
+			caCertPool, err := x509.SystemCertPool()
+			if err != nil {
+				logger.Error("[MQTT] Failed to get system cert pool", "error", err)
+				return
+			}
+			if caCertPool == nil {
+				caCertPool = x509.NewCertPool()
+			}
+			if !caCertPool.AppendCertsFromPEM(caCert) {
+				logger.Warn("[MQTT] No certificates appended from CA file")
+			}
+			tlsConfig.RootCAs = caCertPool
+		}
+
+		// Load client certificate and key if provided
+		if cfg.MQTT.TLS.CertFile != "" && cfg.MQTT.TLS.KeyFile != "" {
+			cert, err := tls.LoadX509KeyPair(cfg.MQTT.TLS.CertFile, cfg.MQTT.TLS.KeyFile)
+			if err != nil {
+				logger.Error("[MQTT] Failed to load client certificate", "error", err)
+				return
+			}
+			tlsConfig.Certificates = []tls.Certificate{cert}
+		}
+
+		opts.SetTLSConfig(tlsConfig)
+		logger.Info("[MQTT] TLS enabled", "ca_file", cfg.MQTT.TLS.CAFile,
+			"cert_file", cfg.MQTT.TLS.CertFile, "insecure_skip_verify", cfg.MQTT.TLS.InsecureSkipVerify)
+	}
+
+	connectTimeout := time.Duration(cfg.MQTT.ConnectTimeout) * time.Second
+	if connectTimeout <= 0 {
+		connectTimeout = 15 * time.Second
+	}
+
 	c := pahomqtt.NewClient(opts)
 	token := c.Connect()
 	go func() {
-		if token.WaitTimeout(15 * time.Second) {
+		if token.WaitTimeout(connectTimeout) {
 			if token.Error() != nil {
 				logger.Error("[MQTT] Failed to connect", "error", token.Error())
 				return
@@ -291,6 +347,11 @@ func IsConnected() bool {
 // BufferLen returns the number of messages currently held in the ring buffer.
 func BufferLen() int {
 	return len(buffer.Get("", 0))
+}
+
+// GetMessages returns buffered MQTT messages, optionally filtered by topic.
+func GetMessages(topic string, limit int) []tools.MQTTMessage {
+	return buffer.Get(topic, limit)
 }
 
 // topicMatches checks if an MQTT topic matches a filter pattern

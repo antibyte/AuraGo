@@ -495,12 +495,22 @@ whisper:
     provider: ""
 mqtt:
     enabled: false
-    broker: ""
+    broker: ""                      # e.g. tcp://localhost:1883 or mqtts://broker:8883
     client_id: aurago
     username: ""
     topics: []
     qos: 0
     relay_to_agent: false
+    connect_timeout: 15             # connection timeout in seconds
+    tls:
+        enabled: false
+        ca_file: ""                 # path to CA certificate file
+        cert_file: ""               # path to client certificate file
+        key_file: ""                # path to client key file
+        insecure_skip_verify: false  # skip TLS certificate verification (for testing only)
+    buffer:
+        max_messages: 500           # max messages to buffer (0 = use default 500)
+        max_age_hours: 0           # max age of messages before cleanup (0 = disabled)
 adguard:
     enabled: false
     readonly: false

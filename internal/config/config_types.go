@@ -127,6 +127,21 @@ type DocumentCreatorConfig struct {
 	Gotenberg GotenbergConfig `yaml:"gotenberg"`
 }
 
+// MQTTTLS holds TLS configuration for MQTT connections.
+type MQTTTLS struct {
+	Enabled            bool   `yaml:"enabled"`              // enable TLS encryption
+	CAFile             string `yaml:"ca_file"`              // path to CA certificate file
+	CertFile           string `yaml:"cert_file"`            // path to client certificate file
+	KeyFile            string `yaml:"key_file"`             // path to client key file
+	InsecureSkipVerify bool   `yaml:"insecure_skip_verify"` // skip TLS certificate verification (for testing only)
+}
+
+// MQTTBuffer holds message buffer configuration for MQTT.
+type MQTTBuffer struct {
+	MaxMessages int `yaml:"max_messages"`  // max messages to buffer (default: 500, 0 = use default)
+	MaxAgeHours int `yaml:"max_age_hours"` // max age of messages in hours before cleanup (0 = disabled)
+}
+
 type Config struct {
 	ConfigPath    string          `yaml:"-"`          // runtime-only: absolute path to the config file
 	Runtime       Runtime         `yaml:"-" json:"-"` // runtime-only: detected environment capabilities
@@ -152,34 +167,34 @@ type Config struct {
 			BehindProxy bool   `yaml:"behind_proxy"` // trust X-Forwarded-* headers
 		} `yaml:"https"`
 	} `yaml:"server"`
-		LLM struct {
-			Provider            string  `yaml:"provider"`           // provider entry ID (references Providers[].ID)
-			ProviderType        string  `yaml:"-"       json:"-"`   // resolved: openai, openrouter, ollama etc.
-			BaseURL             string  `yaml:"-"       json:"-"`   // resolved from provider entry
-			APIKey              string  `yaml:"-"       json:"-"`   // resolved from provider entry
-			Model               string  `yaml:"-"       json:"-"`   // resolved from provider entry
-			AccountID           string  `yaml:"-"       json:"-"`   // resolved from provider entry (workers-ai)
-			LegacyURL           string  `yaml:"base_url" json:"-"`  // legacy/compat: inline base URL from old config format
-			LegacyAPIKey        string  `yaml:"api_key"  json:"-"`  // legacy/compat: inline API key from old config format
-			LegacyModel         string  `yaml:"model"    json:"-"`  // legacy/compat: inline model from old config format
-			HelperEnabled       bool    `yaml:"helper_enabled"`     // enable the dedicated helper LLM for internal analysis/background tasks
-			HelperProvider      string  `yaml:"helper_provider"`    // provider entry ID for helper/background LLM tasks
-			HelperProviderType  string  `yaml:"-"         json:"-"` // resolved helper provider type
-			HelperBaseURL       string  `yaml:"-"         json:"-"` // resolved helper base URL
-			HelperAPIKey        string  `yaml:"-"         json:"-"` // resolved helper API key
-			HelperModel         string  `yaml:"helper_model"`       // optional helper model override (empty = provider default)
-			HelperResolvedModel string  `yaml:"-"         json:"-"` // resolved helper model
-			UseNativeFunctions  bool    `yaml:"use_native_functions"`
-			Temperature         float64 `yaml:"temperature"`        // 0.0–2.0; default 0.7; 0 = provider default
-			Multimodal          bool     `yaml:"multimodal"`         // enable image inputs (MultiContent) in the main chat loop
-			MultimodalProviderTypesExtra []string `yaml:"multimodal_provider_types_extra"` // extra provider types treated as multimodal-capable (in addition to built-ins)
-			StructuredOutputs   bool    `yaml:"structured_outputs"` // enable structured output mode (only for supported models)
-			AnthropicThinking   struct {
-				Enabled        bool     `yaml:"enabled"`
-				BudgetTokens   int      `yaml:"budget_tokens"`
-				ModelAllowlist []string `yaml:"model_allowlist"`
-			} `yaml:"anthropic_thinking"`
-		} `yaml:"llm"`
+	LLM struct {
+		Provider                     string   `yaml:"provider"`           // provider entry ID (references Providers[].ID)
+		ProviderType                 string   `yaml:"-"       json:"-"`   // resolved: openai, openrouter, ollama etc.
+		BaseURL                      string   `yaml:"-"       json:"-"`   // resolved from provider entry
+		APIKey                       string   `yaml:"-"       json:"-"`   // resolved from provider entry
+		Model                        string   `yaml:"-"       json:"-"`   // resolved from provider entry
+		AccountID                    string   `yaml:"-"       json:"-"`   // resolved from provider entry (workers-ai)
+		LegacyURL                    string   `yaml:"base_url" json:"-"`  // legacy/compat: inline base URL from old config format
+		LegacyAPIKey                 string   `yaml:"api_key"  json:"-"`  // legacy/compat: inline API key from old config format
+		LegacyModel                  string   `yaml:"model"    json:"-"`  // legacy/compat: inline model from old config format
+		HelperEnabled                bool     `yaml:"helper_enabled"`     // enable the dedicated helper LLM for internal analysis/background tasks
+		HelperProvider               string   `yaml:"helper_provider"`    // provider entry ID for helper/background LLM tasks
+		HelperProviderType           string   `yaml:"-"         json:"-"` // resolved helper provider type
+		HelperBaseURL                string   `yaml:"-"         json:"-"` // resolved helper base URL
+		HelperAPIKey                 string   `yaml:"-"         json:"-"` // resolved helper API key
+		HelperModel                  string   `yaml:"helper_model"`       // optional helper model override (empty = provider default)
+		HelperResolvedModel          string   `yaml:"-"         json:"-"` // resolved helper model
+		UseNativeFunctions           bool     `yaml:"use_native_functions"`
+		Temperature                  float64  `yaml:"temperature"`                     // 0.0–2.0; default 0.7; 0 = provider default
+		Multimodal                   bool     `yaml:"multimodal"`                      // enable image inputs (MultiContent) in the main chat loop
+		MultimodalProviderTypesExtra []string `yaml:"multimodal_provider_types_extra"` // extra provider types treated as multimodal-capable (in addition to built-ins)
+		StructuredOutputs            bool     `yaml:"structured_outputs"`              // enable structured output mode (only for supported models)
+		AnthropicThinking            struct {
+			Enabled        bool     `yaml:"enabled"`
+			BudgetTokens   int      `yaml:"budget_tokens"`
+			ModelAllowlist []string `yaml:"model_allowlist"`
+		} `yaml:"anthropic_thinking"`
+	} `yaml:"llm"`
 	Directories struct {
 		DataDir      string `yaml:"data_dir"`
 		WorkspaceDir string `yaml:"workspace_dir"`
@@ -327,14 +342,14 @@ type Config struct {
 			ErrorStreakMin  int  `yaml:"error_streak_min"`  // consecutive errors before triggering inner voice (default: 2)
 		} `yaml:"inner_voice"`
 	} `yaml:"personality"`
-		CircuitBreaker struct {
-			MaxToolCalls              int      `yaml:"max_tool_calls"`
-			LLMTimeoutSeconds         int      `yaml:"llm_timeout_seconds"`
-			LLMPerAttemptTimeoutSeconds int    `yaml:"llm_per_attempt_timeout_seconds"`
-			LLMStreamChunkTimeoutSeconds int   `yaml:"llm_stream_chunk_timeout_seconds"`
-			MaintenanceTimeoutMinutes int      `yaml:"maintenance_timeout_minutes"`
-			RetryIntervals            []string `yaml:"retry_intervals"`
-		} `yaml:"circuit_breaker"`
+	CircuitBreaker struct {
+		MaxToolCalls                 int      `yaml:"max_tool_calls"`
+		LLMTimeoutSeconds            int      `yaml:"llm_timeout_seconds"`
+		LLMPerAttemptTimeoutSeconds  int      `yaml:"llm_per_attempt_timeout_seconds"`
+		LLMStreamChunkTimeoutSeconds int      `yaml:"llm_stream_chunk_timeout_seconds"`
+		MaintenanceTimeoutMinutes    int      `yaml:"maintenance_timeout_minutes"`
+		RetryIntervals               []string `yaml:"retry_intervals"`
+	} `yaml:"circuit_breaker"`
 	Telegram struct {
 		UserID               int64  `yaml:"telegram_user_id"`
 		BotToken             string `yaml:"-" vault:"bot_token"` // vault-only
@@ -394,22 +409,22 @@ type Config struct {
 		Model             string `yaml:"model"`               // optional model override for nightly consolidation (empty = main llm model)
 	} `yaml:"consolidation"`
 	MemoryAnalysis struct {
-		Enabled               bool    `yaml:"enabled"`                // deprecated compatibility flag; memory analysis is now adaptive and always active
-		Preset                string  `yaml:"preset"`                 // deprecated compatibility field; rollout is now adaptive
-		RealTime              bool    `yaml:"real_time"`              // deprecated compatibility field; real-time extraction is now adaptive
+		Enabled               bool    `yaml:"enabled"`                 // deprecated compatibility flag; memory analysis is now adaptive and always active
+		Preset                string  `yaml:"preset"`                  // deprecated compatibility field; rollout is now adaptive
+		RealTime              bool    `yaml:"real_time"`               // deprecated compatibility field; real-time extraction is now adaptive
 		Provider              string  `yaml:"provider"       json:"-"` // legacy provider entry; helper-owned runtime prefers llm.helper_*
 		Model                 string  `yaml:"model"          json:"-"` // model override (optional)
-		AutoConfirm           float64 `yaml:"auto_confirm_threshold"` // confidence threshold for auto-store (default 0.92)
-		QueryExpansion        bool    `yaml:"query_expansion"`        // deprecated compatibility field; retrieval tuning is now adaptive
-		LLMReranking          bool    `yaml:"llm_reranking"`          // deprecated compatibility field; retrieval tuning is now adaptive
-		UnifiedMemoryBlock    bool    `yaml:"unified_memory_block"`   // deprecated compatibility field; unified memory context is always active
-		EffectivenessTracking bool    `yaml:"effectiveness_tracking"` // deprecated compatibility field; effectiveness tracking is always active
-		ProviderType          string  `yaml:"-" json:"-"`             // resolved
-		BaseURL               string  `yaml:"-" json:"-"`             // resolved
-		APIKey                string  `yaml:"-" json:"-"`             // resolved
-		ResolvedModel         string  `yaml:"-" json:"-"`             // resolved
-		WeeklyReflection      bool    `yaml:"weekly_reflection"`      // deprecated compatibility field; weekly reflection scheduling is always active
-		ReflectionDay         string  `yaml:"reflection_day"`         // day for weekly reflection (default "sunday")
+		AutoConfirm           float64 `yaml:"auto_confirm_threshold"`  // confidence threshold for auto-store (default 0.92)
+		QueryExpansion        bool    `yaml:"query_expansion"`         // deprecated compatibility field; retrieval tuning is now adaptive
+		LLMReranking          bool    `yaml:"llm_reranking"`           // deprecated compatibility field; retrieval tuning is now adaptive
+		UnifiedMemoryBlock    bool    `yaml:"unified_memory_block"`    // deprecated compatibility field; unified memory context is always active
+		EffectivenessTracking bool    `yaml:"effectiveness_tracking"`  // deprecated compatibility field; effectiveness tracking is always active
+		ProviderType          string  `yaml:"-" json:"-"`              // resolved
+		BaseURL               string  `yaml:"-" json:"-"`              // resolved
+		APIKey                string  `yaml:"-" json:"-"`              // resolved
+		ResolvedModel         string  `yaml:"-" json:"-"`              // resolved
+		WeeklyReflection      bool    `yaml:"weekly_reflection"`       // deprecated compatibility field; weekly reflection scheduling is always active
+		ReflectionDay         string  `yaml:"reflection_day"`          // day for weekly reflection (default "sunday")
 	} `yaml:"memory_analysis"`
 	LLMGuardian struct {
 		Enabled            bool              `yaml:"enabled"`               // enable LLM-based security checks before tool execution
@@ -977,17 +992,22 @@ type Config struct {
 		Username string `yaml:"username"`
 		Password string `yaml:"-" vault:"adguard_password"`
 	} `yaml:"adguard"`
+
 	MQTT struct {
-		Enabled      bool     `yaml:"enabled"`
-		ReadOnly     bool     `yaml:"readonly"` // true = only subscribe/get_messages/unsubscribe, block publish
-		Broker       string   `yaml:"broker"`   // e.g. tcp://localhost:1883
-		ClientID     string   `yaml:"client_id"`
-		Username     string   `yaml:"username"`
-		Password     string   `yaml:"-" json:"-"`
-		Topics       []string `yaml:"topics"`         // topics to subscribe to on connect
-		QoS          int      `yaml:"qos"`            // 0, 1, or 2
-		RelayToAgent bool     `yaml:"relay_to_agent"` // forward incoming messages to agent
+		Enabled        bool       `yaml:"enabled"`
+		ReadOnly       bool       `yaml:"readonly"` // true = only subscribe/get_messages/unsubscribe, block publish
+		Broker         string     `yaml:"broker"`   // e.g. tcp://localhost:1883, mqtts://broker:8883
+		ClientID       string     `yaml:"client_id"`
+		Username       string     `yaml:"username"`
+		Password       string     `yaml:"-" json:"-"`
+		Topics         []string   `yaml:"topics"`          // topics to subscribe to on connect
+		QoS            int        `yaml:"qos"`             // 0, 1, or 2
+		RelayToAgent   bool       `yaml:"relay_to_agent"`  // forward incoming messages to agent
+		ConnectTimeout int        `yaml:"connect_timeout"` // connection timeout in seconds (default: 15)
+		TLS            MQTTTLS    `yaml:"tls"`
+		Buffer         MQTTBuffer `yaml:"buffer"`
 	} `yaml:"mqtt"`
+
 	MCP struct {
 		Enabled bool        `yaml:"enabled"`
 		Servers []MCPServer `yaml:"servers"`
@@ -1047,8 +1067,8 @@ type Config struct {
 			Enabled bool `yaml:"enabled"` // enable wake_on_lan tool (send magic packet to devices with MAC address)
 		} `yaml:"wol"`
 		WebScraper struct {
-			Enabled         bool   `yaml:"enabled"`          // enable web_scraper (default true)
-			SummaryMode     bool   `yaml:"summary_mode"`     // send scraped content to a separate LLM for summarisation before returning to agent
+			Enabled         bool   `yaml:"enabled"`                   // enable web_scraper (default true)
+			SummaryMode     bool   `yaml:"summary_mode"`              // send scraped content to a separate LLM for summarisation before returning to agent
 			SummaryProvider string `yaml:"summary_provider" json:"-"` // legacy provider entry for summarisation; helper-owned runtime prefers llm.helper_*
 			// resolved fields (populated by ResolveProviders)
 			SummaryBaseURL string `yaml:"-" json:"-"`
@@ -1056,7 +1076,7 @@ type Config struct {
 			SummaryModel   string `yaml:"-" json:"-"`
 		} `yaml:"web_scraper"`
 		Wikipedia struct {
-			SummaryMode     bool   `yaml:"summary_mode"`     // summarise Wikipedia content via a separate LLM before returning to agent
+			SummaryMode     bool   `yaml:"summary_mode"`              // summarise Wikipedia content via a separate LLM before returning to agent
 			SummaryProvider string `yaml:"summary_provider" json:"-"` // legacy provider entry for summarisation; helper-owned runtime prefers llm.helper_*
 			// resolved fields (populated by ResolveProviders)
 			SummaryBaseURL string `yaml:"-" json:"-"`
@@ -1064,7 +1084,7 @@ type Config struct {
 			SummaryModel   string `yaml:"-" json:"-"`
 		} `yaml:"wikipedia"`
 		DDGSearch struct {
-			SummaryMode     bool   `yaml:"summary_mode"`     // summarise DDG search results via a separate LLM before returning to agent
+			SummaryMode     bool   `yaml:"summary_mode"`              // summarise DDG search results via a separate LLM before returning to agent
 			SummaryProvider string `yaml:"summary_provider" json:"-"` // legacy provider entry for summarisation; helper-owned runtime prefers llm.helper_*
 			// resolved fields (populated by ResolveProviders)
 			SummaryBaseURL string `yaml:"-" json:"-"`
@@ -1072,8 +1092,8 @@ type Config struct {
 			SummaryModel   string `yaml:"-" json:"-"`
 		} `yaml:"ddg_search"`
 		PDFExtractor struct {
-			Enabled         bool   `yaml:"enabled"`          // enable pdf_extractor (default true)
-			SummaryMode     bool   `yaml:"summary_mode"`     // summarise extracted PDF text via a separate LLM before returning to agent
+			Enabled         bool   `yaml:"enabled"`                   // enable pdf_extractor (default true)
+			SummaryMode     bool   `yaml:"summary_mode"`              // summarise extracted PDF text via a separate LLM before returning to agent
 			SummaryProvider string `yaml:"summary_provider" json:"-"` // legacy provider entry for summarisation; helper-owned runtime prefers llm.helper_*
 			// resolved fields (populated by ResolveProviders)
 			SummaryBaseURL string `yaml:"-" json:"-"`

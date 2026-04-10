@@ -60,9 +60,21 @@ mqtt:
   enabled: true
   broker: "tcp://localhost:1883"  # Or "mqtts://" for TLS
   username: ""  # Optional
-  password: ""  # Optional
+  password: ""  # Optional (stored in vault as mqtt_password)
   client_id: "aurago"  # MQTT client identifier
-  clean_session: true
+  topics: []  # topics to subscribe to on connect
+  qos: 0  # Quality of Service: 0, 1, or 2
+  relay_to_agent: false  # forward incoming messages to agent
+  connect_timeout: 15  # connection timeout in seconds
+  tls:
+    enabled: false  # enable TLS encryption
+    ca_file: ""  # path to CA certificate file
+    cert_file: ""  # path to client certificate file
+    key_file: ""  # path to client key file
+    insecure_skip_verify: false  # skip TLS certificate verification (for testing only)
+  buffer:
+    max_messages: 500  # max messages to buffer (0 = use default)
+    max_age_hours: 0  # max age of messages before cleanup (0 = disabled)
 ```
 
 ## Notes

@@ -374,18 +374,18 @@ func Load(path string) (*Config, error) {
 	if cfg.CircuitBreaker.MaxToolCalls <= 0 {
 		cfg.CircuitBreaker.MaxToolCalls = 10 // User specifically asked for 10
 	}
-		if cfg.CircuitBreaker.LLMTimeoutSeconds <= 0 {
-			cfg.CircuitBreaker.LLMTimeoutSeconds = 600 // 10 minutes
-		}
-		if cfg.CircuitBreaker.LLMPerAttemptTimeoutSeconds <= 0 {
-			cfg.CircuitBreaker.LLMPerAttemptTimeoutSeconds = 60
-		}
-		if cfg.CircuitBreaker.LLMStreamChunkTimeoutSeconds <= 0 {
-			cfg.CircuitBreaker.LLMStreamChunkTimeoutSeconds = 30
-		}
-		if cfg.CircuitBreaker.MaintenanceTimeoutMinutes <= 0 {
-			cfg.CircuitBreaker.MaintenanceTimeoutMinutes = 10
-		}
+	if cfg.CircuitBreaker.LLMTimeoutSeconds <= 0 {
+		cfg.CircuitBreaker.LLMTimeoutSeconds = 600 // 10 minutes
+	}
+	if cfg.CircuitBreaker.LLMPerAttemptTimeoutSeconds <= 0 {
+		cfg.CircuitBreaker.LLMPerAttemptTimeoutSeconds = 60
+	}
+	if cfg.CircuitBreaker.LLMStreamChunkTimeoutSeconds <= 0 {
+		cfg.CircuitBreaker.LLMStreamChunkTimeoutSeconds = 30
+	}
+	if cfg.CircuitBreaker.MaintenanceTimeoutMinutes <= 0 {
+		cfg.CircuitBreaker.MaintenanceTimeoutMinutes = 10
+	}
 	if len(cfg.CircuitBreaker.RetryIntervals) == 0 {
 		cfg.CircuitBreaker.RetryIntervals = []string{"10s", "2m", "10m"}
 	}
@@ -853,6 +853,12 @@ func Load(path string) (*Config, error) {
 	}
 	if cfg.MQTT.QoS < 0 || cfg.MQTT.QoS > 2 {
 		cfg.MQTT.QoS = 0
+	}
+	if cfg.MQTT.ConnectTimeout <= 0 {
+		cfg.MQTT.ConnectTimeout = 15
+	}
+	if cfg.MQTT.Buffer.MaxMessages <= 0 {
+		cfg.MQTT.Buffer.MaxMessages = 500
 	}
 	if cfg.MQTT.Password == "" {
 		if val := os.Getenv("MQTT_PASSWORD"); val != "" {
