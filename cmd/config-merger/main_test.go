@@ -569,14 +569,48 @@ func TestSanitizeMergedConfig_ValidArraysUntouched(t *testing.T) {
 			"allowed_paths": []interface{}{"/home", "/var"},
 		},
 		"indexing": map[string]interface{}{
+			// Bare string items — sanitize must convert them to {path: "..."} objects
 			"directories": []interface{}{"/docs"},
 		},
 	}
 
 	changed := sanitizeMergedConfig(m)
 
+	// Bare strings in indexing.directories must be fixed
+	if !changed {
+		t.Error("sanitizeMergedConfig should modify bare-string directory items")
+	}
+	idx, _ := asStringMap(m["indexing"])
+	dirs := idx["directories"].([]interface{})
+	if len(dirs) != 1 {
+		t.Errorf("directories len = %d, want 1", len(dirs))
+	}
+	dir0, ok := asStringMap(dirs[0])
+	if !ok || dir0["path"] != "/docs" {
+		t.Errorf("directories[0] = %v, want {path: /docs}", dirs[0])
+	}
+}
+
+func TestSanitizeMergedConfig_DirectoryObjectsUntouched(t *testing.T) {
+	// Properly formatted {path: ..., collection: ...} objects must NOT be modified
+	m := map[string]interface{}{
+		"indexing": map[string]interface{}{
+			"directories": []interface{}{
+				map[string]interface{}{"path": "./knowledge", "collection": "kb"},
+				map[string]interface{}{"path": "./docs", "collection": ""},
+			},
+		},
+	}
+
+	changed := sanitizeMergedConfig(m)
+
 	if changed {
-		t.Error("valid arrays should not be modified")
+		t.Error("properly formatted directory objects should not be modified")
+	}
+	idx, _ := asStringMap(m["indexing"])
+	dirs := idx["directories"].([]interface{})
+	if len(dirs) != 2 {
+		t.Errorf("directories len = %d, want 2", len(dirs))
 	}
 }
 

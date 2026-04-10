@@ -447,6 +447,18 @@ func sanitizeMergedConfig(m map[string]interface{}) bool {
 					log.Printf("sanitize: %s.%s should be an array, got %T — reset to []", af.section, af.key, val)
 					sec[af.key] = []interface{}{}
 					changed = true
+				} else if af.section == "indexing" && af.key == "directories" {
+					// indexing.directories entries must be {path: "...", collection: "..."} objects,
+					// not bare strings like "- ./knowledge". Fix each string item by wrapping it.
+					arr := val.([]interface{})
+					for i, item := range arr {
+						if _, isMap := asStringMap(item); !isMap {
+							// Bare string — convert to {path: item}
+							log.Printf("sanitize: indexing.directories[%d] is a bare string %q — wrapping as {{path: %q}}", i, item, item)
+							arr[i] = map[string]interface{}{"path": item}
+							changed = true
+						}
+					}
 				}
 			}
 		}
