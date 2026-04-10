@@ -112,7 +112,19 @@ type HomepageDeployConfig struct {
 
 // isValidHomepageURL validates that a URL is a well-formed HTTP(S) URL
 // and does not contain shell metacharacters that could lead to command injection.
+// Private / loopback IPs are rejected (SSRF protection for external URLs).
 func isValidHomepageURL(u string) bool {
+	return isValidHomepageURLInternal(u, false)
+}
+
+// isValidHomepageURLAllowPrivate is like isValidHomepageURL but permits private /
+// loopback IP addresses. Used for homepage operations (screenshot, lighthouse) that
+// intentionally target the local dev server (e.g. 192.168.x.x, localhost:3000).
+func isValidHomepageURLAllowPrivate(u string) bool {
+	return isValidHomepageURLInternal(u, true)
+}
+
+func isValidHomepageURLInternal(u string, allowPrivate bool) bool {
 	if u == "" {
 		return false
 	}
@@ -128,7 +140,6 @@ func isValidHomepageURL(u string) bool {
 			return false
 		}
 	}
-	// SSRF protection: reject private/loopback IPs
 	parsed, err := url.Parse(u)
 	if err != nil {
 		return false
@@ -137,7 +148,8 @@ func isValidHomepageURL(u string) bool {
 	if hostname == "" {
 		return false
 	}
-	if isPrivateHost(hostname) {
+	// SSRF protection: reject private/loopback IPs unless caller explicitly permits them
+	if !allowPrivate && isPrivateHost(hostname) {
 		return false
 	}
 	return true
@@ -796,7 +808,7 @@ func HomepageLighthouse(cfg HomepageConfig, url string, logger *slog.Logger) str
 	if url == "" {
 		return errJSON("url is required for lighthouse audit")
 	}
-	if !isValidHomepageURL(url) {
+	if !isValidHomepageURLAllowPrivate(url) {
 		return errJSON("invalid URL: must be a valid http:// or https:// URL without shell metacharacters")
 	}
 	logger.Info("[Homepage] Lighthouse", "url", url)
@@ -811,7 +823,7 @@ func HomepageScreenshot(ctx context.Context, cfg HomepageConfig, url, viewport s
 	if url == "" {
 		return errJSON("url is required for screenshot")
 	}
-	if !isValidHomepageURL(url) {
+	if !isValidHomepageURLAllowPrivate(url) {
 		return errJSON("invalid URL: must be a valid http:// or https:// URL without shell metacharacters")
 	}
 	if viewport == "" {
