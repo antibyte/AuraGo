@@ -12,6 +12,9 @@ import (
 	"aurago/internal/sandbox"
 )
 
+// shellKillWait is the time to wait after kill before giving up (for shell).
+const shellKillWait = 8 * time.Second
+
 var sudoPasswordPromptPattern = regexp.MustCompile(`^\[sudo\][^:\r\n]*:\s*`)
 
 // Security notes for shell execution:
@@ -59,33 +62,14 @@ func ExecuteShell(command, workspaceDir string) (string, string, error) {
 
 	slog.Debug("[ExecuteShell]", "command", command, "dir", cmd.Dir)
 
-	stdout := NewBoundedBuffer(1024 * 1024)
-	stderr := NewBoundedBuffer(1024 * 1024)
-	cmd.Stdout = stdout
-	cmd.Stderr = stderr
+	runner := NewForegroundRunner(cmd, ForegroundOptions{
+		Timeout:  GetForegroundTimeout(),
+		Graceful: true,
+		KillWait: shellKillWait,
+		ErrMsg:   "TIMEOUT: shell command exceeded %s limit",
+	})
 
-	if err := cmd.Start(); err != nil {
-		return "", "", err
-	}
-
-	done := make(chan error, 1)
-	go func() { done <- cmd.Wait() }()
-
-	timer := time.NewTimer(GetForegroundTimeout())
-	defer timer.Stop()
-
-	select {
-	case err := <-done:
-		return stdout.String(), stderr.String(), err
-	case <-timer.C:
-		// Two-stage kill: SIGTERM first (graceful), then SIGKILL after 2s
-		KillProcessTreeGraceful(cmd.Process.Pid, 2)
-		select {
-		case <-done:
-		case <-time.After(8 * time.Second):
-		}
-		return stdout.String(), stderr.String(), fmt.Errorf("TIMEOUT: shell command exceeded %s limit", GetForegroundTimeout())
-	}
+	return runner.Run()
 }
 
 // ExecuteShellBackground starts a command in the shell in the background and registers it.
@@ -107,7 +91,11 @@ func ExecuteShellBackground(command, workspaceDir string, registry *ProcessRegis
 
 	slog.Debug("[ExecuteShellBackground]", "command", command, "dir", cmd.Dir)
 
-	pid, err := registerManagedBackgroundProcess(cmd, registry, nil)
+	runner := NewBackgroundRunner(cmd, BackgroundOptions{
+		Registry: registry,
+	})
+
+	pid, err := runner.Run()
 	if err != nil {
 		return 0, fmt.Errorf("failed to start background shell process: %w", err)
 	}
@@ -131,34 +119,19 @@ func ExecuteSudo(command, workspaceDir, password string) (string, string, error)
 
 	slog.Debug("[ExecuteSudo]", "command", command, "dir", cmd.Dir)
 
-	stdout := NewBoundedBuffer(1024 * 1024)
-	stderr := NewBoundedBuffer(1024 * 1024)
-	cmd.Stdout = stdout
-	cmd.Stderr = stderr
+	runner := NewForegroundRunner(cmd, ForegroundOptions{
+		Timeout:  GetForegroundTimeout(),
+		Graceful: true,
+		KillWait: shellKillWait,
+		ErrMsg:   "TIMEOUT: sudo command exceeded %s limit",
+	})
 
-	if err := cmd.Start(); err != nil {
-		return "", "", err
+	stdout, stderr, err := runner.Run()
+	if err != nil {
+		// Apply sudo-specific stderr normalization for password prompt
+		stderr = normalizeSudoStderr(stderr)
 	}
-
-	done := make(chan error, 1)
-	go func() { done <- cmd.Wait() }()
-
-	timer := time.NewTimer(GetForegroundTimeout())
-	defer timer.Stop()
-
-	select {
-	case err := <-done:
-		stderrStr := normalizeSudoStderr(stderr.String())
-		return stdout.String(), stderrStr, err
-	case <-timer.C:
-		// Two-stage kill: SIGTERM first (graceful), then SIGKILL after 2s
-		KillProcessTreeGraceful(cmd.Process.Pid, 2)
-		select {
-		case <-done:
-		case <-time.After(8 * time.Second):
-		}
-		return stdout.String(), stderr.String(), fmt.Errorf("TIMEOUT: sudo command exceeded %s limit", GetForegroundTimeout())
-	}
+	return stdout, stderr, err
 }
 
 func normalizeSudoStderr(stderr string) string {

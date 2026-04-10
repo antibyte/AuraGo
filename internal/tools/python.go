@@ -315,32 +315,18 @@ func RunTool(name string, args []string, workspaceDir, toolsDir string) (string,
 
 	slog.Debug("[RunTool]", "cmd", pythonCmd, "args", cmd.Args)
 
-	stdout := NewBoundedBuffer(1024 * 1024)
-	stderr := NewBoundedBuffer(1024 * 1024)
-	cmd.Stdout = stdout
-	cmd.Stderr = stderr
+	runner := NewForegroundRunner(cmd, ForegroundOptions{
+		Timeout:  GetForegroundTimeout(),
+		Graceful: false,
+		KillWait: 10 * time.Second,
+	})
 
-	if err := cmd.Start(); err != nil {
-		return "", "", err
+	stdout, stderr, err := runner.Run()
+	if err != nil && strings.Contains(err.Error(), "TIMEOUT") {
+		// Reconstruct with the correct tool name in the error message
+		err = fmt.Errorf("TIMEOUT: tool '%s' exceeded %s limit and was killed", name, GetForegroundTimeout())
 	}
-
-	done := make(chan error, 1)
-	go func() { done <- cmd.Wait() }()
-
-	timer := time.NewTimer(GetForegroundTimeout())
-	defer timer.Stop()
-
-	select {
-	case err := <-done:
-		return stdout.String(), stderr.String(), err
-	case <-timer.C:
-		KillProcessTree(cmd.Process.Pid)
-		select {
-		case <-done:
-		case <-time.After(10 * time.Second):
-		}
-		return stdout.String(), stderr.String(), fmt.Errorf("TIMEOUT: tool '%s' exceeded %s limit and was killed", name, GetForegroundTimeout())
-	}
+	return stdout, stderr, err
 }
 
 // RunToolWithSecrets is like RunTool but injects vault secrets and credential secrets
@@ -359,34 +345,18 @@ func RunToolWithSecrets(name string, args []string, workspaceDir, toolsDir strin
 	InjectSecretsEnv(cmd, secrets)
 	InjectCredentialEnv(cmd, creds)
 
-	stdout := NewBoundedBuffer(1024 * 1024)
-	stderr := NewBoundedBuffer(1024 * 1024)
-	cmd.Stdout = stdout
-	cmd.Stderr = stderr
+	runner := NewForegroundRunner(cmd, ForegroundOptions{
+		Timeout:     GetForegroundTimeout(),
+		Graceful:    false,
+		ScrubOutput: true,
+		KillWait:    10 * time.Second,
+	})
 
-	if err := cmd.Start(); err != nil {
-		return "", "", err
+	stdout, stderr, err := runner.Run()
+	if err != nil && strings.Contains(err.Error(), "TIMEOUT") {
+		err = fmt.Errorf("TIMEOUT: tool '%s' exceeded %s limit and was killed", name, GetForegroundTimeout())
 	}
-
-	done := make(chan error, 1)
-	go func() { done <- cmd.Wait() }()
-
-	timer := time.NewTimer(GetForegroundTimeout())
-	defer timer.Stop()
-
-	select {
-	case err := <-done:
-		so, se := ScrubSecretOutput(stdout.String(), stderr.String())
-		return so, se, err
-	case <-timer.C:
-		KillProcessTree(cmd.Process.Pid)
-		select {
-		case <-done:
-		case <-time.After(10 * time.Second):
-		}
-		so, se := ScrubSecretOutput(stdout.String(), stderr.String())
-		return so, se, fmt.Errorf("TIMEOUT: tool '%s' exceeded %s limit and was killed", name, GetForegroundTimeout())
-	}
+	return stdout, stderr, err
 }
 
 // RunToolBackground starts a saved tool in the background and registers it in the process registry.
@@ -403,7 +373,11 @@ func RunToolBackground(name string, args []string, workspaceDir, toolsDir string
 
 	slog.Debug("[RunToolBackground]", "cmd", pythonCmd, "args", cmd.Args)
 
-	pid, err := registerManagedBackgroundProcess(cmd, registry, nil)
+	runner := NewBackgroundRunner(cmd, BackgroundOptions{
+		Registry: registry,
+	})
+
+	pid, err := runner.Run()
 	if err != nil {
 		return 0, fmt.Errorf("failed to start background tool: %w", err)
 	}
@@ -425,7 +399,11 @@ func RunToolBackgroundWithSecrets(name string, args []string, workspaceDir, tool
 	InjectSecretsEnv(cmd, secrets)
 	InjectCredentialEnv(cmd, creds)
 
-	pid, err := registerManagedBackgroundProcess(cmd, registry, nil)
+	runner := NewBackgroundRunner(cmd, BackgroundOptions{
+		Registry: registry,
+	})
+
+	pid, err := runner.Run()
 	if err != nil {
 		return 0, fmt.Errorf("failed to start background tool: %w", err)
 	}
@@ -449,32 +427,14 @@ func ExecutePython(code, workspaceDir, toolsDir string) (string, string, error) 
 	cmd.Dir = getAbsWorkspace(workspaceDir)
 	SetupCmd(cmd)
 
-	stdout := NewBoundedBuffer(1024 * 1024)
-	stderr := NewBoundedBuffer(1024 * 1024)
-	cmd.Stdout = stdout
-	cmd.Stderr = stderr
+	runner := NewForegroundRunner(cmd, ForegroundOptions{
+		Timeout:  GetForegroundTimeout(),
+		Graceful: false,
+		KillWait: 10 * time.Second,
+		ErrMsg:   "TIMEOUT: script exceeded %s limit and was killed",
+	})
 
-	if err := cmd.Start(); err != nil {
-		return "", "", err
-	}
-
-	done := make(chan error, 1)
-	go func() { done <- cmd.Wait() }()
-
-	timer := time.NewTimer(GetForegroundTimeout())
-	defer timer.Stop()
-
-	select {
-	case err := <-done:
-		return stdout.String(), stderr.String(), err
-	case <-timer.C:
-		KillProcessTree(cmd.Process.Pid)
-		select {
-		case <-done:
-		case <-time.After(10 * time.Second):
-		}
-		return stdout.String(), stderr.String(), fmt.Errorf("TIMEOUT: script exceeded %s limit and was killed", GetForegroundTimeout())
-	}
+	return runner.Run()
 }
 
 // ExecutePythonWithSecrets is like ExecutePython but injects vault secrets and credential secrets
@@ -493,34 +453,15 @@ func ExecutePythonWithSecrets(code, workspaceDir, toolsDir string, secrets map[s
 	InjectSecretsEnv(cmd, secrets)
 	InjectCredentialEnv(cmd, creds)
 
-	stdout := NewBoundedBuffer(1024 * 1024)
-	stderr := NewBoundedBuffer(1024 * 1024)
-	cmd.Stdout = stdout
-	cmd.Stderr = stderr
+	runner := NewForegroundRunner(cmd, ForegroundOptions{
+		Timeout:     GetForegroundTimeout(),
+		Graceful:    false,
+		ScrubOutput: true,
+		KillWait:    10 * time.Second,
+		ErrMsg:      "TIMEOUT: script exceeded %s limit and was killed",
+	})
 
-	if err := cmd.Start(); err != nil {
-		return "", "", err
-	}
-
-	done := make(chan error, 1)
-	go func() { done <- cmd.Wait() }()
-
-	timer := time.NewTimer(GetForegroundTimeout())
-	defer timer.Stop()
-
-	select {
-	case err := <-done:
-		so, se := ScrubSecretOutput(stdout.String(), stderr.String())
-		return so, se, err
-	case <-timer.C:
-		KillProcessTree(cmd.Process.Pid)
-		select {
-		case <-done:
-		case <-time.After(10 * time.Second):
-		}
-		so, se := ScrubSecretOutput(stdout.String(), stderr.String())
-		return so, se, fmt.Errorf("TIMEOUT: script exceeded %s limit and was killed", GetForegroundTimeout())
-	}
+	return runner.Run()
 }
 
 // ExecutePythonBackground starts a Python script in the background,
@@ -536,9 +477,14 @@ func ExecutePythonBackground(code, workspaceDir, toolsDir string, registry *Proc
 	cmd := exec.Command(pythonCmd, scriptPath)
 	cmd.Dir = getAbsWorkspace(workspaceDir)
 
-	pid, err := registerManagedBackgroundProcess(cmd, registry, func() {
-		os.Remove(scriptPath)
+	runner := NewBackgroundRunner(cmd, BackgroundOptions{
+		Registry: registry,
+		Cleanup: func() {
+			os.Remove(scriptPath)
+		},
 	})
+
+	pid, err := runner.Run()
 	if err != nil {
 		os.Remove(scriptPath)
 		return 0, fmt.Errorf("failed to start background process: %w", err)
@@ -560,9 +506,14 @@ func ExecutePythonBackgroundWithSecrets(code, workspaceDir, toolsDir string, reg
 	InjectSecretsEnv(cmd, secrets)
 	InjectCredentialEnv(cmd, creds)
 
-	pid, err := registerManagedBackgroundProcess(cmd, registry, func() {
-		os.Remove(scriptPath)
+	runner := NewBackgroundRunner(cmd, BackgroundOptions{
+		Registry: registry,
+		Cleanup: func() {
+			os.Remove(scriptPath)
+		},
 	})
+
+	pid, err := runner.Run()
 	if err != nil {
 		os.Remove(scriptPath)
 		return 0, fmt.Errorf("failed to start background process: %w", err)
