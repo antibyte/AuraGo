@@ -64,21 +64,23 @@ type queryCacheEntry struct {
 
 // ChromemVectorDB implements VectorDB using chromem-go with persistence.
 type ChromemVectorDB struct {
-	db            *chromem.DB
-	dataDir       string // persistent directory for the vector DB (used for version files)
-	collection    *chromem.Collection
-	logger        *slog.Logger
-	mu            sync.RWMutex // Protects indexing operations; reads use RLock
-	storeDocMu    sync.Mutex   // Serialises the dedup-check+store sequence in StoreDocumentWithDomain
-	embeddingFunc chromem.EmbeddingFunc
-	disabled      atomic.Bool  // Set when embedding pipeline fails; skips operations gracefully
-	idCounter     atomic.Int64 // Monotonic counter for collision-free document IDs
-	queryCache    map[string]queryCacheEntry
-	queryCacheMu  sync.RWMutex
-	queryCacheTTL time.Duration
-	indexing      atomic.Int32       // Counter: >0 while async indexing is in progress
-	dedupSem      chan struct{}      // semaphore to limit concurrent dedup checks
-	sfGroup       singleflight.Group // deduplicates concurrent embedding API calls for the same query
+	db                     *chromem.DB
+	dataDir                string // persistent directory for the vector DB (used for version files)
+	collection             *chromem.Collection
+	logger                 *slog.Logger
+	mu                     sync.RWMutex // Protects indexing operations; reads use RLock
+	storeDocMu             sync.Mutex   // Serialises the dedup-check+store sequence in StoreDocumentWithDomain
+	embeddingFunc          chromem.EmbeddingFunc
+	disabled               atomic.Bool  // Set when embedding pipeline fails; skips operations gracefully
+	idCounter              atomic.Int64 // Monotonic counter for collision-free document IDs
+	queryCache             map[string]queryCacheEntry
+	queryCacheMu           sync.RWMutex
+	queryCacheTTL          time.Duration
+	indexing               atomic.Int32       // Counter: >0 while async indexing is in progress
+	dedupSem               chan struct{}      // semaphore to limit concurrent dedup checks
+	sfGroup                singleflight.Group // deduplicates concurrent embedding API calls for the same query
+	fileIndexerCollections map[string]struct{}
+	fiColMu                sync.RWMutex
 }
 
 func (cv *ChromemVectorDB) Close() error {
@@ -206,14 +208,15 @@ func NewChromemVectorDB(cfg *config.Config, logger *slog.Logger) (*ChromemVector
 	}
 
 	vdb := &ChromemVectorDB{
-		db:            db,
-		dataDir:       dataDir,
-		collection:    collection,
-		logger:        logger,
-		embeddingFunc: embeddingFunc,
-		queryCache:    make(map[string]queryCacheEntry),
-		queryCacheTTL: 5 * time.Minute,
-		dedupSem:      make(chan struct{}, 4), // max 4 concurrent dedup checks to avoid rate limits
+		db:                     db,
+		dataDir:                dataDir,
+		collection:             collection,
+		logger:                 logger,
+		embeddingFunc:          embeddingFunc,
+		queryCache:             make(map[string]queryCacheEntry),
+		queryCacheTTL:          5 * time.Minute,
+		dedupSem:               make(chan struct{}, 4), // max 4 concurrent dedup checks to avoid rate limits
+		fileIndexerCollections: make(map[string]struct{}),
 	}
 
 	// Phase 29: Startup validation — test the embedding pipeline with retries
@@ -376,6 +379,9 @@ func (cv *ChromemVectorDB) storeDocumentInCollectionWithDomain(concept, content,
 		collection = "aurago_memories"
 	}
 
+	// Track this collection for FileIndexer document lookups
+	cv.registerFileIndexerCollection(collection)
+
 	const maxContentBytes = 500 * 1024
 	if len(content) > maxContentBytes {
 		cv.logger.Warn("Document content exceeds 500 KB limit, truncating", "concept", concept, "bytes", len(content))
@@ -512,6 +518,9 @@ func (cv *ChromemVectorDB) StoreDocumentWithEmbeddingInCollection(concept, conte
 	if collection == "" {
 		collection = "aurago_memories"
 	}
+
+	// Track this collection for FileIndexer document lookups
+	cv.registerFileIndexerCollection(collection)
 
 	cv.mu.Lock()
 	defer cv.mu.Unlock()
@@ -1072,12 +1081,26 @@ func (cv *ChromemVectorDB) GetByID(id string) (string, error) {
 		return doc.Content, nil
 	}
 
-	// For FileIndexer documents, fall back to file_index collection
-	// FileIndexer uses "file_" or "mm_" prefixes for document IDs
+	// For FileIndexer documents, fall back to all registered FileIndexer collections.
+	// FileIndexer uses "file_" or "mm_" prefixes for document IDs.
+	// Collections are registered via registerFileIndexerCollection when documents are stored.
 	if strings.HasPrefix(id, "file_") || strings.HasPrefix(id, "mm_") {
-		fileIndexCol, colErr := cv.db.GetOrCreateCollection("file_index", nil, cv.embeddingFunc)
-		if colErr == nil {
-			doc, err = fileIndexCol.GetByID(ctx, id)
+		cv.fiColMu.RLock()
+		collections := make([]string, 0, len(cv.fileIndexerCollections)+1)
+		collections = append(collections, "file_index") // always try default first
+		for col := range cv.fileIndexerCollections {
+			if col != "file_index" {
+				collections = append(collections, col)
+			}
+		}
+		cv.fiColMu.RUnlock()
+
+		for _, colName := range collections {
+			col, colErr := cv.db.GetOrCreateCollection(colName, nil, cv.embeddingFunc)
+			if colErr != nil {
+				continue
+			}
+			doc, err = col.GetByID(ctx, id)
 			if err == nil {
 				return doc.Content, nil
 			}
@@ -1085,6 +1108,15 @@ func (cv *ChromemVectorDB) GetByID(id string) (string, error) {
 	}
 
 	return "", fmt.Errorf("document not found: %w", err)
+}
+
+// registerFileIndexerCollection tracks a collection that contains FileIndexer documents.
+// This allows GetByID to find FileIndexer documents in custom per-directory collections
+// during the fallback lookup phase.
+func (cv *ChromemVectorDB) registerFileIndexerCollection(collection string) {
+	cv.fiColMu.Lock()
+	defer cv.fiColMu.Unlock()
+	cv.fileIndexerCollections[collection] = struct{}{}
 }
 
 // GetByIDFromCollection retrieves a document from a specific collection by its ID.
