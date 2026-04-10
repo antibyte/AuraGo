@@ -33,7 +33,7 @@
   "config.security_proxy.basic_auth_desc": "Exigir usuário e senha para acessar o proxy.",
   "config.security_proxy.basic_auth_enabled_label": "Ativar Basic Auth",
   "config.security_proxy.basic_auth_vault_hint": "Armazene credenciais no Vault de Segredos como 'proxy_basic_auth_user' e 'proxy_basic_auth_pass'.",
-  "config.security_proxy.geo_title": "Geo-Blocking",
+  "config.security_proxy.geo_title": "Bloqueio geográfico",
   "config.security_proxy.geo_desc": "Bloquear acesso com base na localização geográfica (requer banco MaxMind).",
   "config.security_proxy.geo_placeholder": "Geo-blocking estará disponível em uma atualização futura (V2).",
   "config.security_proxy.routes_title": "Rotas adicionais",

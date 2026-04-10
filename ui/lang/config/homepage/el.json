@@ -38,7 +38,7 @@
   "config.homepage.webserver_enabled": "Ενεργοποίηση τοπικού διακομιστή web (Caddy)",
   "config.homepage.webserver_internal_only": "Μόνο εσωτερική πρόσβαση (127.0.0.1)",
   "config.homepage.webserver_port": "Θύρα",
-  "config.homepage.webserver_domain": "Domain",
+  "config.homepage.webserver_domain": "Τομέας",
   "config.homepage.optional": "προαιρετικό",
   "config.homepage.workspace_title": "Χώρος εργασίας",
   "config.homepage.workspace_path": "Διαδρομή χώρου εργασίας",

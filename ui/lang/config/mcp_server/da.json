@@ -17,7 +17,7 @@
   "config.mcp_server.vscode_bridge_notice": "Enables a debugging-focused MCP preset with recommended tools and client setup helpers.",
   "config.mcp_server.vscode_config": "Klientkonfiguration",
   "config.mcp_server.vscode_config_desc": "Use this snippet to connect an MCP client to the live AuraGo instance.",
-  "config.mcp_server.vscode_bridge_tools": "Recommended bridge tools",
+  "config.mcp_server.vscode_bridge_tools": "Anbefalede bro-værktøjer",
   "config.mcp_server.client_selector": "Client",
   "config.mcp_server.copy_vscode_config": "Kopiér konfiguration",
   "config.mcp_server.open_client_link": "Åbn klientlink",

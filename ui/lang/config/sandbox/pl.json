@@ -21,7 +21,7 @@
   "config.sandbox.timeout_label_full": "Timeout (sekundy)",
   "config.sandbox.pool_size_label": "Rozmiar Puli",
   "config.sandbox.auto_install_label": "Auto-Instalacja llm-sandbox",
-  "config.shell_sandbox.title": "Shell Sandbox (Landlock)",
+  "config.shell_sandbox.title": "Piaskownica Shell (Landlock)",
   "config.shell_sandbox.desc": "Ogranicz polecenia shell za pomocą izolacji systemu plików Landlock w Linuxie i limitów zasobów. Tylko Linux (Jądro 5.13+).",
   "config.shell_sandbox.active": "Shell sandbox aktywny",
   "config.shell_sandbox.not_available": "Shell sandbox niedostępny",

@@ -111,7 +111,7 @@
   "dashboard.integration_discord": "Discord",
   "dashboard.integration_docker": "Docker",
   "dashboard.integration_email": "E-Mail",
-  "dashboard.integration_fallback_llm": "Fallback LLM",
+  "dashboard.integration_fallback_llm": "Fallback-LLM",
   "dashboard.integration_firewall": "Firewall",
   "dashboard.integration_fritzbox": "FritzBox",
   "dashboard.integration_github": "GitHub",

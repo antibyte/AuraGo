@@ -33,7 +33,7 @@
   "config.security_proxy.basic_auth_desc": "Requerir usuario y contraseña para acceder al proxy.",
   "config.security_proxy.basic_auth_enabled_label": "Activar Basic Auth",
   "config.security_proxy.basic_auth_vault_hint": "Almacenar credenciales en Secrets Vault como 'proxy_basic_auth_user' y 'proxy_basic_auth_pass'.",
-  "config.security_proxy.geo_title": "Geo-Blocking",
+  "config.security_proxy.geo_title": "Bloqueo geográfico",
   "config.security_proxy.geo_desc": "Bloquear acceso según ubicación geográfica (requiere base de datos MaxMind).",
   "config.security_proxy.geo_placeholder": "Geo-blocking estará disponible en una actualización futura (V2).",
   "config.security_proxy.routes_title": "Rutas adicionales",
@@ -43,7 +43,7 @@
   "config.security_proxy.route_domain": "Dominio",
   "config.security_proxy.route_upstream": "URL upstream",
   "config.security_proxy.docker_title": "Docker",
-  "config.security_proxy.docker_host_label": "Docker Host",
+  "config.security_proxy.docker_host_label": "Host Docker",
   "config.security_proxy.docker_host_hint": "dejar vacío para auto-detección",
   "config.security_proxy.logs_title": "Logs del contenedor"
 }

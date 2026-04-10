@@ -56,7 +56,7 @@
   "invasion.page_title": "AuraGo - Invasions-Kontrolle",
   "invasion.permanent": "Permanent (Systemd-Service)",
   "invasion.ph_egg_description": "Was macht dieser Sub-Agent?",
-  "invasion.ph_egg_name": "Analytics Agent",
+  "invasion.ph_egg_name": "Analyse-Agent",
   "invasion.ph_host": "192.168.1.100",
   "invasion.ph_nest_name": "Produktionsserver",
   "invasion.ph_nest_notes": "Optionale Notizen...",

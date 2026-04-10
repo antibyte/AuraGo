@@ -10,7 +10,7 @@
   "config.webhooks.choose_preset": "Kies preset",
   "config.webhooks.no_token": "Geen token",
   "config.webhooks.enabled_label": "Ingeschakeld",
-  "config.webhooks.preset_label": "Preset",
+  "config.webhooks.preset_label": "Προεπιλογή",
   "config.webhooks.description_label": "Beschrijving",
   "config.webhooks.sig_none": "Geen",
   "config.webhooks.mode_message": "Bericht",

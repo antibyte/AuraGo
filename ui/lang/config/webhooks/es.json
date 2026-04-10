@@ -10,7 +10,7 @@
   "config.webhooks.choose_preset": "Elegir preset",
   "config.webhooks.no_token": "Sin token",
   "config.webhooks.enabled_label": "Activado",
-  "config.webhooks.preset_label": "Preset",
+  "config.webhooks.preset_label": "Predeterminado",
   "config.webhooks.description_label": "Descripción",
   "config.webhooks.sig_none": "Ninguno",
   "config.webhooks.mode_message": "Enviar al agente",

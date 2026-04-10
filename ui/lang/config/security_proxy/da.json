@@ -33,7 +33,7 @@
   "config.security_proxy.basic_auth_desc": "Kræv brugernavn og adgangskode for at få adgang til proxyen.",
   "config.security_proxy.basic_auth_enabled_label": "Aktivér Basic Auth",
   "config.security_proxy.basic_auth_vault_hint": "Gem legitimationsoplysninger i Secrets Vault som 'proxy_basic_auth_user' og 'proxy_basic_auth_pass'.",
-  "config.security_proxy.geo_title": "Geo-Blocking",
+  "config.security_proxy.geo_title": "Geo-blokering",
   "config.security_proxy.geo_desc": "Blokér adgang baseret på geografisk placering (kræver MaxMind-database).",
   "config.security_proxy.geo_placeholder": "Geo-blocking vil være tilgængelig i en fremtidig opdatering (V2).",
   "config.security_proxy.routes_title": "Yderligere ruter",
@@ -43,7 +43,7 @@
   "config.security_proxy.route_domain": "Domæne",
   "config.security_proxy.route_upstream": "Upstream URL",
   "config.security_proxy.docker_title": "Docker",
-  "config.security_proxy.docker_host_label": "Docker Host",
+  "config.security_proxy.docker_host_label": "Docker-vært",
   "config.security_proxy.docker_host_hint": "lad stå tomt for auto-detektion",
   "config.security_proxy.logs_title": "Container-logfiler"
 }

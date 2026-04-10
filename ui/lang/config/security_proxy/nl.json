@@ -33,7 +33,7 @@
   "config.security_proxy.basic_auth_desc": "Gebruikersnaam en wachtwoord vereisen voor toegang tot de proxy.",
   "config.security_proxy.basic_auth_enabled_label": "Basic Auth inschakelen",
   "config.security_proxy.basic_auth_vault_hint": "Sla inloggegevens op in de Secrets Vault als 'proxy_basic_auth_user' en 'proxy_basic_auth_pass'.",
-  "config.security_proxy.geo_title": "Geo-Blocking",
+  "config.security_proxy.geo_title": "Geo-blokkering",
   "config.security_proxy.geo_desc": "Toegang blokkeren op basis van geografische locatie (vereist MaxMind-database).",
   "config.security_proxy.geo_placeholder": "Geo-blocking wordt beschikbaar in een toekomstige update (V2).",
   "config.security_proxy.routes_title": "Extra routes",
@@ -43,7 +43,7 @@
   "config.security_proxy.route_domain": "Domein",
   "config.security_proxy.route_upstream": "Upstream URL",
   "config.security_proxy.docker_title": "Docker",
-  "config.security_proxy.docker_host_label": "Docker Host",
+  "config.security_proxy.docker_host_label": "Docker-host",
   "config.security_proxy.docker_host_hint": "leeg laten voor auto-detectie",
   "config.security_proxy.logs_title": "Containerlogboeken"
 }

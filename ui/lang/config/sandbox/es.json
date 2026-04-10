@@ -21,7 +21,7 @@
   "config.sandbox.timeout_label_full": "Tiempo de espera (segundos)",
   "config.sandbox.pool_size_label": "Tamaño del Pool",
   "config.sandbox.auto_install_label": "Auto-Instalar llm-sandbox",
-  "config.shell_sandbox.title": "Shell Sandbox (Landlock)",
+  "config.shell_sandbox.title": "Sandbox de Shell (Landlock)",
   "config.shell_sandbox.desc": "Restringir comandos shell con aislamiento del sistema de archivos Landlock de Linux y límites de recursos. Solo Linux (Kernel 5.13+).",
   "config.shell_sandbox.active": "Shell sandbox activo",
   "config.shell_sandbox.not_available": "Shell sandbox no disponible",

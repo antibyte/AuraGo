@@ -29,7 +29,7 @@
   "config.memory_analysis.preset_desc": "Choose a safe rollout level instead of enabling every memory-analysis path at once.",
   "config.memory_analysis.preset_hint": "custom = keep manual flags",
   "config.memory_analysis.preset_full": "Full: reflection + query expansion + reranking + real-time",
-  "config.memory_analysis.preset_title": "Rollout Preset",
+  "config.memory_analysis.preset_title": "Preset di rollout",
   "config.memory_analysis.preset_custom": "Custom",
   "config.memory_analysis.provider_title": "Helper LLM",
   "config.memory_analysis.provider_label": "Helper LLM",

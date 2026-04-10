@@ -43,7 +43,7 @@
   "config.security_proxy.route_domain": "Doména",
   "config.security_proxy.route_upstream": "Upstream URL",
   "config.security_proxy.docker_title": "Docker",
-  "config.security_proxy.docker_host_label": "Docker host",
+  "config.security_proxy.docker_host_label": "Docker Host",
   "config.security_proxy.docker_host_hint": "ponechte prázdné pro automatickou detekci",
   "config.security_proxy.logs_title": "Protokoly kontejneru"
 }

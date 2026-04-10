@@ -38,7 +38,7 @@
   "config.homepage.webserver_enabled": "Lokalen Webserver aktivieren (Caddy)",
   "config.homepage.webserver_internal_only": "Nur intern erreichbar (127.0.0.1)",
   "config.homepage.webserver_port": "Port",
-  "config.homepage.webserver_domain": "Domain",
+  "config.homepage.webserver_domain": "Domäne",
   "config.homepage.optional": "optional",
   "config.homepage.workspace_title": "Arbeitsbereich",
   "config.homepage.workspace_path": "Arbeitsbereich-Pfad",

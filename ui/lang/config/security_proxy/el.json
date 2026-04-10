@@ -43,7 +43,7 @@
   "config.security_proxy.route_domain": "Τομέας",
   "config.security_proxy.route_upstream": "Upstream URL",
   "config.security_proxy.docker_title": "Docker",
-  "config.security_proxy.docker_host_label": "Docker host",
+  "config.security_proxy.docker_host_label": "Κεντρικός Docker",
   "config.security_proxy.docker_host_hint": "αφήστε κενό για αυτόματη ανίχνευση",
   "config.security_proxy.logs_title": "Αρχεία καταγραφής κοντέινερ"
 }
