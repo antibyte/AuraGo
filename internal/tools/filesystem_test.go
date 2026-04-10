@@ -2,6 +2,7 @@ package tools
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,7 +17,7 @@ func TestExecuteFilesystemReadFileRejectsBinaryContent(t *testing.T) {
 		t.Fatalf("write binary fixture: %v", err)
 	}
 
-	raw := ExecuteFilesystem("read_file", "image.png", "", "", nil, workdir)
+	raw := ExecuteFilesystem("read_file", "image.png", "", "", nil, workdir, 0, 0)
 	var result FSResult
 	if err := json.Unmarshal([]byte(raw), &result); err != nil {
 		t.Fatalf("unmarshal result: %v", err)
@@ -36,7 +37,7 @@ func TestExecuteFilesystemReadFileReturnsTextContent(t *testing.T) {
 		t.Fatalf("write text fixture: %v", err)
 	}
 
-	raw := ExecuteFilesystem("read_file", "notes.txt", "", "", nil, workdir)
+	raw := ExecuteFilesystem("read_file", "notes.txt", "", "", nil, workdir, 0, 0)
 	var result FSResult
 	if err := json.Unmarshal([]byte(raw), &result); err != nil {
 		t.Fatalf("unmarshal result: %v", err)
@@ -57,7 +58,7 @@ func TestExecuteFilesystemReadFileLargeFileIncludesGuidance(t *testing.T) {
 		t.Fatalf("write text fixture: %v", err)
 	}
 
-	raw := ExecuteFilesystem("read_file", "large.log", "", "", nil, workdir)
+	raw := ExecuteFilesystem("read_file", "large.log", "", "", nil, workdir, 0, 0)
 	var result FSResult
 	if err := json.Unmarshal([]byte(raw), &result); err != nil {
 		t.Fatalf("unmarshal result: %v", err)
@@ -76,7 +77,7 @@ func TestExecuteFilesystemResolveErrorIncludesPathContext(t *testing.T) {
 		t.Fatalf("mkdir workdir: %v", err)
 	}
 
-	raw := ExecuteFilesystem("read_file", "../../../etc/passwd", "", "", nil, workdir)
+	raw := ExecuteFilesystem("read_file", "../../../etc/passwd", "", "", nil, workdir, 0, 0)
 	var result FSResult
 	if err := json.Unmarshal([]byte(raw), &result); err != nil {
 		t.Fatalf("unmarshal result: %v", err)
@@ -105,7 +106,7 @@ func TestExecuteFilesystemReadErrorIncludesResolvedPath(t *testing.T) {
 		t.Fatalf("mkdir workdir: %v", err)
 	}
 
-	raw := ExecuteFilesystem("read_file", "missing.txt", "", "", nil, workdir)
+	raw := ExecuteFilesystem("read_file", "missing.txt", "", "", nil, workdir, 0, 0)
 	var result FSResult
 	if err := json.Unmarshal([]byte(raw), &result); err != nil {
 		t.Fatalf("unmarshal result: %v", err)
@@ -131,7 +132,7 @@ func TestExecuteFilesystemCopyFile(t *testing.T) {
 		t.Fatalf("write source: %v", err)
 	}
 
-	raw := ExecuteFilesystem("copy", "source.txt", "copies/destination.txt", "", nil, workdir)
+	raw := ExecuteFilesystem("copy", "source.txt", "copies/destination.txt", "", nil, workdir, 0, 0)
 	var result FSResult
 	if err := json.Unmarshal([]byte(raw), &result); err != nil {
 		t.Fatalf("unmarshal result: %v", err)
@@ -161,7 +162,7 @@ func TestExecuteFilesystemCopyBatchPartial(t *testing.T) {
 		{"file_path": "a.txt", "destination": "out/a.txt"},
 		{"file_path": "../../../etc/passwd", "destination": "out/passwd"},
 	}
-	raw := ExecuteFilesystem("copy_batch", "", "", "", items, workdir)
+	raw := ExecuteFilesystem("copy_batch", "", "", "", items, workdir, 0, 0)
 	var result FSResult
 	if err := json.Unmarshal([]byte(raw), &result); err != nil {
 		t.Fatalf("unmarshal result: %v", err)
@@ -194,7 +195,7 @@ func TestExecuteFilesystemDeleteBatch(t *testing.T) {
 		{"file_path": "a.txt"},
 		{"file_path": "b.txt"},
 	}
-	raw := ExecuteFilesystem("delete_batch", "", "", "", items, workdir)
+	raw := ExecuteFilesystem("delete_batch", "", "", "", items, workdir, 0, 0)
 	var result FSResult
 	if err := json.Unmarshal([]byte(raw), &result); err != nil {
 		t.Fatalf("unmarshal result: %v", err)
@@ -215,7 +216,7 @@ func TestExecuteFilesystemCreateDirBatch(t *testing.T) {
 		{"file_path": "one"},
 		{"file_path": "two/nested"},
 	}
-	raw := ExecuteFilesystem("create_dir_batch", "", "", "", items, workdir)
+	raw := ExecuteFilesystem("create_dir_batch", "", "", "", items, workdir, 0, 0)
 	var result FSResult
 	if err := json.Unmarshal([]byte(raw), &result); err != nil {
 		t.Fatalf("unmarshal result: %v", err)
@@ -253,5 +254,304 @@ func TestFilesystemRootsDetectAgentWorkspaceAncestor(t *testing.T) {
 	}
 	if projectRoot != wantProjectRoot {
 		t.Fatalf("projectRoot = %q, want %q", projectRoot, wantProjectRoot)
+	}
+}
+
+// listDirPaginationResult is the response structure for paginated list_dir
+type listDirPaginationResult struct {
+	Entries    []FileInfoEntry `json:"entries"`
+	TotalCount int             `json:"total_count"`
+	Truncated  bool            `json:"truncated"`
+	Limit      int             `json:"limit"`
+	Offset     int             `json:"offset"`
+	NextOffset *int            `json:"next_offset,omitempty"`
+}
+
+func TestExecuteFilesystemListDirSmallDirNoTruncation(t *testing.T) {
+	workdir := t.TempDir()
+	// Create a few files
+	for _, name := range []string{"a.txt", "b.txt", "c.txt"} {
+		if err := os.WriteFile(filepath.Join(workdir, name), []byte("content"), 0644); err != nil {
+			t.Fatalf("create file %s: %v", name, err)
+		}
+	}
+
+	raw := ExecuteFilesystem("list_dir", "", "", "", nil, workdir, 0, 0)
+	var result FSResult
+	if err := json.Unmarshal([]byte(raw), &result); err != nil {
+		t.Fatalf("unmarshal result: %v", err)
+	}
+	if result.Status != "success" {
+		t.Fatalf("status = %q, want success", result.Status)
+	}
+
+	data, ok := result.Data.(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected map response, got %T", result.Data)
+	}
+
+	entries, ok := data["entries"].([]interface{})
+	if !ok {
+		t.Fatalf("entries field missing or wrong type")
+	}
+	if len(entries) != 3 {
+		t.Fatalf("len(entries) = %d, want 3", len(entries))
+	}
+
+	if data["truncated"] != false {
+		t.Fatalf("truncated = %v, want false", data["truncated"])
+	}
+	if tc, ok := data["total_count"].(float64); !ok || int(tc) != 3 {
+		t.Fatalf("total_count = %v, want 3", data["total_count"])
+	}
+}
+
+func TestExecuteFilesystemListDirPaginationTruncation(t *testing.T) {
+	workdir := t.TempDir()
+	// Create 10 files
+	for i := 0; i < 10; i++ {
+		name := fmt.Sprintf("file%02d.txt", i)
+		if err := os.WriteFile(filepath.Join(workdir, name), []byte("content"), 0644); err != nil {
+			t.Fatalf("create file %s: %v", name, err)
+		}
+	}
+
+	// Request only 3 entries
+	raw := ExecuteFilesystem("list_dir", "", "", "", nil, workdir, 3, 0)
+	var result FSResult
+	if err := json.Unmarshal([]byte(raw), &result); err != nil {
+		t.Fatalf("unmarshal result: %v", err)
+	}
+	if result.Status != "success" {
+		t.Fatalf("status = %q, want success", result.Status)
+	}
+
+	data, ok := result.Data.(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected map response, got %T", result.Data)
+	}
+
+	entries, ok := data["entries"].([]interface{})
+	if !ok {
+		t.Fatalf("entries field missing or wrong type")
+	}
+	if len(entries) != 3 {
+		t.Fatalf("len(entries) = %d, want 3", len(entries))
+	}
+
+	if data["truncated"] != true {
+		t.Fatalf("truncated = %v, want true", data["truncated"])
+	}
+	if tc, ok := data["total_count"].(float64); !ok || int(tc) != 10 {
+		t.Fatalf("total_count = %v, want 10", data["total_count"])
+	}
+	if lim, ok := data["limit"].(float64); !ok || int(lim) != 3 {
+		t.Fatalf("limit = %v, want 3", data["limit"])
+	}
+	if off, ok := data["offset"].(float64); !ok || int(off) != 0 {
+		t.Fatalf("offset = %v, want 0", data["offset"])
+	}
+	nextOffset, ok := data["next_offset"]
+	if !ok {
+		t.Fatalf("next_offset missing when truncated=true")
+	}
+	if no, ok := nextOffset.(float64); !ok || int(no) != 3 {
+		t.Fatalf("next_offset = %v, want 3", nextOffset)
+	}
+}
+
+func TestExecuteFilesystemListDirPaginationOffset(t *testing.T) {
+	workdir := t.TempDir()
+	// Create 10 files
+	for i := 0; i < 10; i++ {
+		name := fmt.Sprintf("file%02d.txt", i)
+		if err := os.WriteFile(filepath.Join(workdir, name), []byte("content"), 0644); err != nil {
+			t.Fatalf("create file %s: %v", name, err)
+		}
+	}
+
+	// Request 3 entries starting at offset 5
+	raw := ExecuteFilesystem("list_dir", "", "", "", nil, workdir, 3, 5)
+	var result FSResult
+	if err := json.Unmarshal([]byte(raw), &result); err != nil {
+		t.Fatalf("unmarshal result: %v", err)
+	}
+	if result.Status != "success" {
+		t.Fatalf("status = %q, want success", result.Status)
+	}
+
+	data, ok := result.Data.(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected map response, got %T", result.Data)
+	}
+
+	entries, ok := data["entries"].([]interface{})
+	if !ok {
+		t.Fatalf("entries field missing or wrong type")
+	}
+	if len(entries) != 3 {
+		t.Fatalf("len(entries) = %d, want 3", len(entries))
+	}
+
+	if data["truncated"] != true {
+		t.Fatalf("truncated = %v, want true", data["truncated"])
+	}
+	if tc, ok := data["total_count"].(float64); !ok || int(tc) != 10 {
+		t.Fatalf("total_count = %v, want 10", data["total_count"])
+	}
+	if off, ok := data["offset"].(float64); !ok || int(off) != 5 {
+		t.Fatalf("offset = %v, want 5", data["offset"])
+	}
+	nextOffset, ok := data["next_offset"]
+	if !ok {
+		t.Fatalf("next_offset missing when more entries available")
+	}
+	if no, ok := nextOffset.(float64); !ok || int(no) != 8 {
+		t.Fatalf("next_offset = %v, want 8", nextOffset)
+	}
+}
+
+func TestExecuteFilesystemListDirPaginationLastPage(t *testing.T) {
+	workdir := t.TempDir()
+	// Create 10 files
+	for i := 0; i < 10; i++ {
+		name := fmt.Sprintf("file%02d.txt", i)
+		if err := os.WriteFile(filepath.Join(workdir, name), []byte("content"), 0644); err != nil {
+			t.Fatalf("create file %s: %v", name, err)
+		}
+	}
+
+	// Request 5 entries starting at offset 8 (last page with 2 entries)
+	raw := ExecuteFilesystem("list_dir", "", "", "", nil, workdir, 5, 8)
+	var result FSResult
+	if err := json.Unmarshal([]byte(raw), &result); err != nil {
+		t.Fatalf("unmarshal result: %v", err)
+	}
+	if result.Status != "success" {
+		t.Fatalf("status = %q, want success", result.Status)
+	}
+
+	data, ok := result.Data.(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected map response, got %T", result.Data)
+	}
+
+	entries, ok := data["entries"].([]interface{})
+	if !ok {
+		t.Fatalf("entries field missing or wrong type")
+	}
+	if len(entries) != 2 {
+		t.Fatalf("len(entries) = %d, want 2 (last page)", len(entries))
+	}
+
+	// Last page should not be truncated if we got all remaining
+	if data["truncated"] != false {
+		t.Fatalf("truncated = %v, want false on last page", data["truncated"])
+	}
+	if data["next_offset"] != nil {
+		t.Fatalf("next_offset should be nil on last page, got %v", data["next_offset"])
+	}
+}
+
+func TestExecuteFilesystemListDirSortingDeterministic(t *testing.T) {
+	workdir := t.TempDir()
+	// Create files with names that would sort differently case-sensitively
+	files := []string{"apple", "Banana", "cherry", "DATE", "elderberry"}
+	for _, name := range files {
+		if err := os.WriteFile(filepath.Join(workdir, name), []byte("content"), 0644); err != nil {
+			t.Fatalf("create file %s: %v", name, err)
+		}
+	}
+
+	// Request twice and verify order is the same
+	raw1 := ExecuteFilesystem("list_dir", "", "", "", nil, workdir, 10, 0)
+	raw2 := ExecuteFilesystem("list_dir", "", "", "", nil, workdir, 10, 0)
+
+	var result1, result2 FSResult
+	if err := json.Unmarshal([]byte(raw1), &result1); err != nil {
+		t.Fatalf("unmarshal result1: %v", err)
+	}
+	if err := json.Unmarshal([]byte(raw2), &result2); err != nil {
+		t.Fatalf("unmarshal result2: %v", err)
+	}
+
+	data1 := result1.Data.(map[string]interface{})
+	data2 := result2.Data.(map[string]interface{})
+
+	entries1 := data1["entries"].([]interface{})
+	entries2 := data2["entries"].([]interface{})
+
+	if len(entries1) != len(entries2) {
+		t.Fatalf("different number of entries: %d vs %d", len(entries1), len(entries2))
+	}
+
+	for i := 0; i < len(entries1); i++ {
+		e1 := entries1[i].(map[string]interface{})
+		e2 := entries2[i].(map[string]interface{})
+		if e1["name"] != e2["name"] {
+			t.Fatalf("entry %d differs: %q vs %q", i, e1["name"], e2["name"])
+		}
+	}
+}
+
+func TestExecuteFilesystemListDirDefaultLimit(t *testing.T) {
+	workdir := t.TempDir()
+	// Create 600 files
+	for i := 0; i < 600; i++ {
+		name := fmt.Sprintf("file%03d.txt", i)
+		if err := os.WriteFile(filepath.Join(workdir, name), []byte("content"), 0644); err != nil {
+			t.Fatalf("create file %s: %v", name, err)
+		}
+	}
+
+	// Request without explicit limit (0) - should use default 500
+	raw := ExecuteFilesystem("list_dir", "", "", "", nil, workdir, 0, 0)
+	var result FSResult
+	if err := json.Unmarshal([]byte(raw), &result); err != nil {
+		t.Fatalf("unmarshal result: %v", err)
+	}
+
+	data := result.Data.(map[string]interface{})
+
+	// Should be truncated since we have 600 entries but default limit is 500
+	if data["truncated"] != true {
+		t.Fatalf("truncated = %v, want true for 600 entries with default limit", data["truncated"])
+	}
+	if tc, ok := data["total_count"].(float64); !ok || int(tc) != 600 {
+		t.Fatalf("total_count = %v, want 600", data["total_count"])
+	}
+	if lim, ok := data["limit"].(float64); !ok || int(lim) != 500 {
+		t.Fatalf("limit = %v, want 500 (default)", data["limit"])
+	}
+}
+
+func TestExecuteFilesystemListDirMaxLimit(t *testing.T) {
+	workdir := t.TempDir()
+	// Create 1500 files
+	for i := 0; i < 1500; i++ {
+		name := fmt.Sprintf("file%04d.txt", i)
+		if err := os.WriteFile(filepath.Join(workdir, name), []byte("content"), 0644); err != nil {
+			t.Fatalf("create file %s: %v", name, err)
+		}
+	}
+
+	// Request with limit > maxLimit (1000)
+	raw := ExecuteFilesystem("list_dir", "", "", "", nil, workdir, 1500, 0)
+	var result FSResult
+	if err := json.Unmarshal([]byte(raw), &result); err != nil {
+		t.Fatalf("unmarshal result: %v", err)
+	}
+
+	data := result.Data.(map[string]interface{})
+
+	// Should be truncated since we have 1500 entries but max limit is 1000
+	if data["truncated"] != true {
+		t.Fatalf("truncated = %v, want true for 1500 entries", data["truncated"])
+	}
+	if tc, ok := data["total_count"].(float64); !ok || int(tc) != 1500 {
+		t.Fatalf("total_count = %v, want 1500", data["total_count"])
+	}
+	if lim, ok := data["limit"].(float64); !ok || int(lim) != 1000 {
+		t.Fatalf("limit = %v, want 1000 (max enforced)", data["limit"])
 	}
 }

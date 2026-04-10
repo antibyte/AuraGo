@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -397,25 +398,25 @@ func filesystemBatchResult(operation string, items []map[string]interface{}, wor
 			if path == "" || destination == "" {
 				single = FSResult{Status: "error", Message: "Each copy_batch item requires 'file_path' and 'destination'"}
 			} else {
-				single = executeFilesystemResult("copy", path, destination, "", nil, workspaceDir)
+				single = executeFilesystemResult("copy", path, destination, "", nil, workspaceDir, 0, 0)
 			}
 		case "move_batch":
 			if path == "" || destination == "" {
 				single = FSResult{Status: "error", Message: "Each move_batch item requires 'file_path' and 'destination'"}
 			} else {
-				single = executeFilesystemResult("move", path, destination, "", nil, workspaceDir)
+				single = executeFilesystemResult("move", path, destination, "", nil, workspaceDir, 0, 0)
 			}
 		case "delete_batch":
 			if path == "" {
 				single = FSResult{Status: "error", Message: "Each delete_batch item requires 'file_path'"}
 			} else {
-				single = executeFilesystemResult("delete", path, "", "", nil, workspaceDir)
+				single = executeFilesystemResult("delete", path, "", "", nil, workspaceDir, 0, 0)
 			}
 		case "create_dir_batch":
 			if path == "" {
 				single = FSResult{Status: "error", Message: "Each create_dir_batch item requires 'file_path'"}
 			} else {
-				single = executeFilesystemResult("create_dir", path, "", "", nil, workspaceDir)
+				single = executeFilesystemResult("create_dir", path, "", "", nil, workspaceDir, 0, 0)
 			}
 		default:
 			single = FSResult{Status: "error", Message: fmt.Sprintf("Unsupported batch operation: %s", operation)}
@@ -460,7 +461,7 @@ func filesystemBatchResult(operation string, items []map[string]interface{}, wor
 	}
 }
 
-func executeFilesystemResult(operation, path, destination, content string, items []map[string]interface{}, workspaceDir string) FSResult {
+func executeFilesystemResult(operation, path, destination, content string, items []map[string]interface{}, workspaceDir string, limit, offset int) FSResult {
 	originalOperation := operation
 	operation = normalizeFilesystemOperation(operation)
 
@@ -497,7 +498,65 @@ func executeFilesystemResult(operation, path, destination, content string, items
 				ModTime: mod,
 			})
 		}
-		return FSResult{Status: "success", Message: fmt.Sprintf("Listed %d entries", len(items)), Data: items}
+
+		// Apply pagination defaults and limits
+		const defaultLimit = 500
+		const maxLimit = 1000
+
+		// Apply defaults: if limit is 0, use defaultLimit
+		if limit <= 0 {
+			limit = defaultLimit
+		}
+		// Enforce maximum limit
+		if limit > maxLimit {
+			limit = maxLimit
+		}
+		// Ensure offset is not negative
+		if offset < 0 {
+			offset = 0
+		}
+
+		totalCount := len(items)
+
+		// Sort entries alphabetically by name for deterministic pagination
+		sort.Slice(items, func(i, j int) bool {
+			// Directories come before files when names are equal
+			if items[i].Name == items[j].Name {
+				return items[i].IsDir && !items[j].IsDir
+			}
+			return items[i].Name < items[j].Name
+		})
+
+		// Apply pagination
+		hasMore := false
+		nextOffset := 0
+		if offset >= len(items) {
+			items = []FileInfoEntry{}
+		} else {
+			end := offset + limit
+			if end < len(items) {
+				hasMore = true
+				nextOffset = offset + limit
+			}
+			if end > len(items) {
+				end = len(items)
+			}
+			items = items[offset:end]
+		}
+
+		// Build response with pagination metadata
+		responseData := map[string]interface{}{
+			"entries":     items,
+			"total_count": totalCount,
+			"truncated":   hasMore,
+			"limit":       limit,
+			"offset":      offset,
+		}
+		if hasMore {
+			responseData["next_offset"] = nextOffset
+		}
+
+		return FSResult{Status: "success", Message: fmt.Sprintf("Listed %d entries (of %d total)%s", len(items), totalCount, map[bool]string{true: " — use next_offset for more", false: ""}[hasMore]), Data: responseData}
 
 	case "create_dir":
 		if path == "" {
@@ -664,8 +723,8 @@ func executeFilesystemResult(operation, path, destination, content string, items
 }
 
 // ExecuteFilesystem handles all filesystem operations, sandboxed to workspaceDir.
-func ExecuteFilesystem(operation, path, destination, content string, items []map[string]interface{}, workspaceDir string) string {
-	result := executeFilesystemResult(operation, path, destination, content, items, workspaceDir)
+func ExecuteFilesystem(operation, path, destination, content string, items []map[string]interface{}, workspaceDir string, limit, offset int) string {
+	result := executeFilesystemResult(operation, path, destination, content, items, workspaceDir, limit, offset)
 	b, _ := json.Marshal(result)
 	return string(b)
 }

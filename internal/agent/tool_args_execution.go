@@ -163,6 +163,8 @@ type filesystemArgs struct {
 	Destination string
 	Content     string
 	Items       []map[string]interface{}
+	Limit       int
+	Offset      int
 }
 
 type fileEditorArgs struct {
@@ -675,6 +677,8 @@ func decodeFilesystemArgs(tc ToolCall) filesystemArgs {
 		FilePath:    firstNonEmptyToolString(tc.FilePath, tc.Path, toolArgString(tc.Params, "file_path", "path")),
 		Destination: firstNonEmptyToolString(tc.Destination, tc.Dest, toolArgString(tc.Params, "destination", "dest")),
 		Content:     firstNonEmptyToolString(tc.Content, toolArgString(tc.Params, "content")),
+		Limit:       toolArgInt(tc.Params, 0, "limit"),
+		Offset:      toolArgInt(tc.Params, 0, "offset"),
 	}
 	if len(tc.Items) > 0 {
 		req.Items = append([]map[string]interface{}(nil), tc.Items...)

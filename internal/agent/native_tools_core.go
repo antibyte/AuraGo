@@ -37,6 +37,8 @@ func buildCoreToolSchemas(ff ToolFeatureFlags, execSkillProps map[string]interfa
 							},
 						},
 						"preview": prop("boolean", "If true, only return first 100 lines (for read_file)"),
+						"limit":   prop("integer", "Maximum number of entries to return for list_dir (default: 500, max: 1000)"),
+						"offset":  prop("integer", "Number of entries to skip for list_dir pagination (default: 0)"),
 					}, "operation"),
 				)
 			}
@@ -50,6 +52,8 @@ func buildCoreToolSchemas(ff ToolFeatureFlags, execSkillProps map[string]interfa
 					},
 					"file_path": prop("string", "Path to the file or directory"),
 					"preview":   prop("boolean", "If true, only return first 100 lines (for read_file)"),
+					"limit":     prop("integer", "Maximum number of entries to return for list_dir (default: 500, max: 1000)"),
+					"offset":    prop("integer", "Number of entries to skip for list_dir pagination (default: 0)"),
 				}, "operation", "file_path"),
 			)
 		}(),

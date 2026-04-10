@@ -1333,7 +1333,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				}
 			}
 			logger.Info("LLM requested filesystem operation", "op", op, "path", fpath, "dest", fdest)
-			return tools.ExecuteFilesystem(op, fpath, fdest, req.Content, req.Items, cfg.Directories.WorkspaceDir)
+			return tools.ExecuteFilesystem(op, fpath, fdest, req.Content, req.Items, cfg.Directories.WorkspaceDir, req.Limit, req.Offset)
 
 		case "file_editor":
 			req := decodeFileEditorArgs(tc)

@@ -16,12 +16,12 @@ func TestNormalizeFilesystemOperationAliases(t *testing.T) {
 
 func TestExecuteFilesystemAcceptsReadAlias(t *testing.T) {
 	dir := t.TempDir()
-	result := ExecuteFilesystem("write_file", "note.txt", "", "hello", nil, dir)
+	result := ExecuteFilesystem("write_file", "note.txt", "", "hello", nil, dir, 0, 0)
 	if !strings.Contains(result, `"status":"success"`) {
 		t.Fatalf("write_file failed unexpectedly: %s", result)
 	}
 
-	aliasResult := ExecuteFilesystem("read", "note.txt", "", "", nil, dir)
+	aliasResult := ExecuteFilesystem("read", "note.txt", "", "", nil, dir, 0, 0)
 	if !strings.Contains(aliasResult, `"status":"success"`) {
 		t.Fatalf("read alias should succeed, got: %s", aliasResult)
 	}
