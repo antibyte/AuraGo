@@ -2521,3 +2521,126 @@ func (kg *KnowledgeGraph) MergeNodes(targetID, sourceID string) error {
 
 	return tx.Commit()
 }
+
+// DeleteNodesBySourceFile removes all nodes that have the given path in their
+// properties as "source_file" and are not protected. Returns the number of deleted nodes.
+func (kg *KnowledgeGraph) DeleteNodesBySourceFile(path string) (int, error) {
+	tx, err := kg.db.Begin()
+	if err != nil {
+		return 0, fmt.Errorf("begin delete nodes by source file: %w", err)
+	}
+	defer tx.Rollback()
+
+	// First, collect node IDs to delete (excluding protected nodes)
+	rows, err := tx.Query(`
+		SELECT id FROM kg_nodes
+		WHERE json_extract(properties, '$.source_file') = ?
+		  AND protected = 0
+	`, path)
+	if err != nil {
+		return 0, fmt.Errorf("query nodes by source file: %w", err)
+	}
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err == nil {
+			ids = append(ids, id)
+		}
+	}
+	rows.Close()
+
+	for _, id := range ids {
+		if _, err := tx.Exec("DELETE FROM kg_edges WHERE source = ? OR target = ?", id, id); err != nil {
+			kg.logger.Warn("DeleteNodesBySourceFile: failed to delete edges for node", "id", id, "error", err)
+		}
+		if _, err := tx.Exec("DELETE FROM kg_nodes WHERE id = ?", id); err != nil {
+			kg.logger.Warn("DeleteNodesBySourceFile: failed to delete node", "id", id, "error", err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("commit delete nodes by source file: %w", err)
+	}
+	return len(ids), nil
+}
+
+// DeleteEdgesBySourceFile removes all edges that have the given path in their
+// properties as "source_file". Returns the number of deleted edges.
+func (kg *KnowledgeGraph) DeleteEdgesBySourceFile(path string) (int, error) {
+	res, err := kg.db.Exec(`
+		DELETE FROM kg_edges
+		WHERE json_extract(properties, '$.source_file') = ?
+	`, path)
+	if err != nil {
+		return 0, fmt.Errorf("delete edges by source file: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	return int(n), nil
+}
+
+// FindOrphanedFileSyncEntities returns KG nodes and edges that have a
+// "source_file" property pointing to a file that is no longer tracked in the
+// given activeFiles slice. This is a lightweight way to detect stale graph
+// elements without maintaining a separate mapping table.
+func (kg *KnowledgeGraph) FindOrphanedFileSyncEntities(activeFiles []string) ([]Node, []Edge, error) {
+	activeMap := make(map[string]struct{}, len(activeFiles))
+	for _, f := range activeFiles {
+		activeMap[f] = struct{}{}
+	}
+
+	var orphanNodes []Node
+	nodeRows, err := kg.db.Query(`
+		SELECT id, label, properties, protected FROM kg_nodes
+		WHERE json_extract(properties, '$.source') = 'file_sync'
+		  AND json_extract(properties, '$.source_file') IS NOT NULL
+	`)
+	if err != nil {
+		return nil, nil, fmt.Errorf("query nodes for orphan check: %w", err)
+	}
+	defer nodeRows.Close()
+	for nodeRows.Next() {
+		var n Node
+		var propsJSON string
+		var protected int
+		if err := nodeRows.Scan(&n.ID, &n.Label, &propsJSON, &protected); err == nil {
+			n.Properties = decodeKnowledgeGraphNodeProperties(kg.logger, "FindOrphanedFileSyncEntities", n.ID, propsJSON, protected)
+			n.Protected = protected != 0
+			if sourceFile := n.Properties["source_file"]; sourceFile != "" {
+				if _, ok := activeMap[sourceFile]; !ok {
+					orphanNodes = append(orphanNodes, n)
+				}
+			}
+		}
+	}
+
+	var orphanEdges []Edge
+	edgeRows, err := kg.db.Query(`
+		SELECT source, target, relation, properties FROM kg_edges
+		WHERE json_extract(properties, '$.source') = 'file_sync'
+		  AND json_extract(properties, '$.source_file') IS NOT NULL
+	`)
+	if err != nil {
+		return nil, nil, fmt.Errorf("query edges for orphan check: %w", err)
+	}
+	defer edgeRows.Close()
+	for edgeRows.Next() {
+		var e Edge
+		var propsJSON string
+		if err := edgeRows.Scan(&e.Source, &e.Target, &e.Relation, &propsJSON); err == nil {
+			if err := json.Unmarshal([]byte(propsJSON), &e.Properties); err != nil {
+				kg.logger.Warn("FindOrphanedFileSyncEntities: corrupt edge properties JSON", "source", e.Source, "target", e.Target, "error", err)
+				e.Properties = make(map[string]string)
+			}
+			if e.Properties == nil {
+				e.Properties = make(map[string]string)
+			}
+			if sourceFile := e.Properties["source_file"]; sourceFile != "" {
+				if _, ok := activeMap[sourceFile]; !ok {
+					orphanEdges = append(orphanEdges, e)
+				}
+			}
+		}
+	}
+
+	return orphanNodes, orphanEdges, nil
+}

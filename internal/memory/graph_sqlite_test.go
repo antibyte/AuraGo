@@ -956,3 +956,86 @@ func TestQuoteIdentifier(t *testing.T) {
 		}
 	}
 }
+
+func TestKGDeleteNodesBySourceFile(t *testing.T) {
+	kg := newTestKG(t)
+
+	// Add nodes with source_file property
+	if err := kg.AddNode("n1", "Node 1", map[string]string{"source": "file_sync", "source_file": "/docs/a.txt"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := kg.AddNode("n2", "Node 2", map[string]string{"source": "file_sync", "source_file": "/docs/b.txt"}); err != nil {
+		t.Fatal(err)
+	}
+	// Protected node should not be deleted
+	if err := kg.AddNode("n3", "Node 3", map[string]string{"source": "file_sync", "source_file": "/docs/a.txt", "protected": "true"}); err != nil {
+		t.Fatal(err)
+	}
+
+	deleted, err := kg.DeleteNodesBySourceFile("/docs/a.txt")
+	if err != nil {
+		t.Fatalf("DeleteNodesBySourceFile: %v", err)
+	}
+	if deleted != 1 {
+		t.Errorf("expected 1 deleted node, got %d", deleted)
+	}
+
+	n, _, _ := kg.Stats()
+	if n != 2 {
+		t.Errorf("expected 2 remaining nodes, got %d", n)
+	}
+}
+
+func TestKGDeleteEdgesBySourceFile(t *testing.T) {
+	kg := newTestKG(t)
+
+	// Ensure nodes exist
+	_ = kg.AddNode("a", "A", nil)
+	_ = kg.AddNode("b", "B", nil)
+
+	if err := kg.AddEdge("a", "b", "rel1", map[string]string{"source": "file_sync", "source_file": "/docs/a.txt"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := kg.AddEdge("a", "b", "rel2", map[string]string{"source": "file_sync", "source_file": "/docs/b.txt"}); err != nil {
+		t.Fatal(err)
+	}
+
+	deleted, err := kg.DeleteEdgesBySourceFile("/docs/a.txt")
+	if err != nil {
+		t.Fatalf("DeleteEdgesBySourceFile: %v", err)
+	}
+	if deleted != 1 {
+		t.Errorf("expected 1 deleted edge, got %d", deleted)
+	}
+
+	_, edges, _ := kg.Stats()
+	if edges != 1 {
+		t.Errorf("expected 1 remaining edge, got %d", edges)
+	}
+}
+
+func TestKGFindOrphanedFileSyncEntities(t *testing.T) {
+	kg := newTestKG(t)
+
+	_ = kg.AddNode("n1", "Node 1", map[string]string{"source": "file_sync", "source_file": "/docs/active.txt"})
+	_ = kg.AddNode("n2", "Node 2", map[string]string{"source": "file_sync", "source_file": "/docs/orphan.txt"})
+	_ = kg.AddNode("n3", "Node 3", map[string]string{"source": "manual"})
+
+	_ = kg.AddNode("a", "A", nil)
+	_ = kg.AddNode("b", "B", nil)
+	_ = kg.AddEdge("a", "b", "rel1", map[string]string{"source": "file_sync", "source_file": "/docs/orphan.txt"})
+
+	orphanNodes, orphanEdges, err := kg.FindOrphanedFileSyncEntities([]string{"/docs/active.txt"})
+	if err != nil {
+		t.Fatalf("FindOrphanedFileSyncEntities: %v", err)
+	}
+	if len(orphanNodes) != 1 {
+		t.Errorf("expected 1 orphan node, got %d", len(orphanNodes))
+	}
+	if len(orphanEdges) != 1 {
+		t.Errorf("expected 1 orphan edge, got %d", len(orphanEdges))
+	}
+	if len(orphanNodes) > 0 && orphanNodes[0].ID != "n2" {
+		t.Errorf("expected orphan node n2, got %s", orphanNodes[0].ID)
+	}
+}

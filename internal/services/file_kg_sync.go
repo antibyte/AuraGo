@@ -217,6 +217,70 @@ func (s *FileKGSyncer) SyncFile(path, collection string, opts FileKGSyncOptions)
 	return result
 }
 
+// CleanupFile removes KG nodes and edges that were extracted from the given file.
+// It uses the lightweight source_file property annotation for evidence mapping.
+func (s *FileKGSyncer) CleanupFile(path, collection string, dryRun bool) FileKGSyncResult {
+	var result FileKGSyncResult
+	if s.kg == nil {
+		s.logger.Warn("[FileKGSync] KG not available, skipping cleanup", "path", path)
+		return result
+	}
+
+	if dryRun {
+		s.logger.Info("[FileKGSync] Dry-run: would cleanup file entities", "path", path, "collection", collection)
+		return result
+	}
+
+	deletedNodes, err := s.kg.DeleteNodesBySourceFile(path)
+	if err != nil {
+		s.logger.Warn("[FileKGSync] Failed to delete nodes by source file", "path", path, "error", err)
+		result.Errors = append(result.Errors, fmt.Sprintf("delete nodes for %s: %v", path, err))
+	}
+	deletedEdges, err := s.kg.DeleteEdgesBySourceFile(path)
+	if err != nil {
+		s.logger.Warn("[FileKGSync] Failed to delete edges by source file", "path", path, "error", err)
+		result.Errors = append(result.Errors, fmt.Sprintf("delete edges for %s: %v", path, err))
+	}
+
+	s.logger.Info("[FileKGSync] Cleaned up file entities", "path", path,
+		"deleted_nodes", deletedNodes, "deleted_edges", deletedEdges)
+	result.NodesExtracted = deletedNodes
+	result.EdgesExtracted = deletedEdges
+	return result
+}
+
+// FindOrphans returns KG nodes and edges whose source_file no longer matches
+// any tracked file in the STM. This is a lightweight orphan detection based on
+// the source_file property annotation.
+func (s *FileKGSyncer) FindOrphans() ([]memory.Node, []memory.Edge, error) {
+	if s.kg == nil || s.stm == nil {
+		return nil, nil, fmt.Errorf("KG or STM not available")
+	}
+
+	// Gather all active tracked files across all collections.
+	collections := s.discoverCollections()
+	if len(collections) == 0 {
+		collections = []string{indexerCollection}
+	}
+	activeSet := make(map[string]struct{})
+	for _, col := range collections {
+		files, err := s.stm.ListIndexedFiles(col)
+		if err != nil {
+			s.logger.Warn("[FileKGSync] Failed to list indexed files for orphan check", "collection", col, "error", err)
+			continue
+		}
+		for _, f := range files {
+			activeSet[f] = struct{}{}
+		}
+	}
+
+	var activeFiles []string
+	for f := range activeSet {
+		activeFiles = append(activeFiles, f)
+	}
+	return s.kg.FindOrphanedFileSyncEntities(activeFiles)
+}
+
 // resolveFileContent reconstructs the full text content of a file from its
 // tracked VectorDB document chunks.
 func (s *FileKGSyncer) resolveFileContent(path, collection string) (string, error) {

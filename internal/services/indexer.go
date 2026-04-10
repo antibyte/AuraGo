@@ -50,6 +50,7 @@ type FileIndexer struct {
 	embedderMu        sync.Mutex
 	cachedEmbedder    *memory.MultimodalEmbedder
 	cachedEmbedderKey string
+	kgSyncer          *FileKGSyncer
 }
 
 // NewFileIndexer creates a new file indexer service.
@@ -118,6 +119,14 @@ func (fi *FileIndexer) Stop() {
 	if fi.cancel != nil {
 		fi.cancel()
 	}
+}
+
+// SetKGSyncer attaches an optional FileKGSyncer so that file deletions can
+// trigger cleanup of the corresponding knowledge-graph entities.
+func (fi *FileIndexer) SetKGSyncer(syncer *FileKGSyncer) {
+	fi.mu.Lock()
+	defer fi.mu.Unlock()
+	fi.kgSyncer = syncer
 }
 
 // Status returns the current indexer status.
@@ -469,6 +478,15 @@ func (fi *FileIndexer) removeTrackedFile(path, collection string) error {
 	}
 	if err := fi.stm.DeleteFileIndex(path, collection); err != nil {
 		return fmt.Errorf("delete file index: %w", err)
+	}
+	// Clean up corresponding KG entities if a syncer is attached.
+	fi.mu.RLock()
+	syncer := fi.kgSyncer
+	fi.mu.RUnlock()
+	if syncer != nil {
+		if res := syncer.CleanupFile(path, collection, false); len(res.Errors) > 0 {
+			fi.logger.Warn("[Indexer] KG cleanup produced errors", "path", path, "errors", res.Errors)
+		}
 	}
 	return nil
 }
