@@ -30,7 +30,7 @@
 /* Status Bar */
 .status-bar {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: repeat(4, 1fr);
     gap: 16px;
     margin-bottom: 24px;
 }
@@ -960,7 +960,7 @@
         grid-template-columns: 1fr;
     }
     .status-bar {
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        grid-template-columns: repeat(2, 1fr);
         gap: 10px;
     }
     .trigger-type-selector {
@@ -1025,22 +1025,24 @@
 }
 
 @media (max-width: 480px) {
-    /* D-16: Status bar uses auto-fit — columns adapt 1-4 based on available width */
     .status-bar {
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        grid-template-columns: repeat(2, 1fr);
         gap: 8px;
     }
     .status-card {
-        padding: 10px 8px;
-        border-radius: 14px;
+        padding: 10px 12px;
+        border-radius: 12px;
+    }
+    .status-icon {
+        font-size: 1.2rem;
+        margin-bottom: 2px;
+    }
+    .status-value {
+        font-size: 1.6rem;
     }
     .status-label {
         font-size: 0.62rem;
-        margin-bottom: 2px;
-        letter-spacing: 0.03em;
-    }
-    .status-value {
-        font-size: 0.92rem;
+        letter-spacing: 0.04em;
     }
     .container {
         padding: 12px;
