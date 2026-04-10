@@ -1039,3 +1039,102 @@ func TestKGFindOrphanedFileSyncEntities(t *testing.T) {
 		t.Errorf("expected orphan node n2, got %s", orphanNodes[0].ID)
 	}
 }
+
+func TestKGGetNodesBySourceFile(t *testing.T) {
+	kg := newTestKG(t)
+
+	_ = kg.AddNode("n1", "Node 1", map[string]string{"source": "file_sync", "source_file": "/docs/report.md"})
+	_ = kg.AddNode("n2", "Node 2", map[string]string{"source": "file_sync", "source_file": "/docs/report.md"})
+	_ = kg.AddNode("n3", "Node 3", map[string]string{"source": "file_sync", "source_file": "/docs/other.md"})
+
+	nodes, err := kg.GetNodesBySourceFile("/docs/report.md", 10)
+	if err != nil {
+		t.Fatalf("GetNodesBySourceFile: %v", err)
+	}
+	if len(nodes) != 2 {
+		t.Errorf("expected 2 nodes, got %d", len(nodes))
+	}
+	for _, n := range nodes {
+		if n.Properties["source_file"] != "/docs/report.md" {
+			t.Errorf("expected source_file /docs/report.md, got %s", n.Properties["source_file"])
+		}
+	}
+}
+
+func TestKGGetEdgesBySourceFile(t *testing.T) {
+	kg := newTestKG(t)
+
+	_ = kg.AddNode("a", "A", nil)
+	_ = kg.AddNode("b", "B", nil)
+	_ = kg.AddNode("c", "C", nil)
+
+	_ = kg.AddEdge("a", "b", "rel1", map[string]string{"source": "file_sync", "source_file": "/docs/report.md"})
+	_ = kg.AddEdge("b", "c", "rel2", map[string]string{"source": "file_sync", "source_file": "/docs/report.md"})
+	_ = kg.AddEdge("a", "c", "rel3", map[string]string{"source": "file_sync", "source_file": "/docs/other.md"})
+
+	edges, err := kg.GetEdgesBySourceFile("/docs/report.md", 10)
+	if err != nil {
+		t.Fatalf("GetEdgesBySourceFile: %v", err)
+	}
+	if len(edges) != 2 {
+		t.Errorf("expected 2 edges, got %d", len(edges))
+	}
+	for _, e := range edges {
+		if e.Properties["source_file"] != "/docs/report.md" {
+			t.Errorf("expected source_file /docs/report.md, got %s", e.Properties["source_file"])
+		}
+	}
+}
+
+func TestKGGetSourceFilesByNodeID(t *testing.T) {
+	kg := newTestKG(t)
+
+	// Node with its own source_file
+	_ = kg.AddNode("n1", "Node 1", map[string]string{"source": "file_sync", "source_file": "/docs/owner.md"})
+
+	// Connected edges with different source_files
+	_ = kg.AddNode("n2", "Node 2", nil)
+	_ = kg.AddNode("n3", "Node 3", nil)
+	_ = kg.AddEdge("n1", "n2", "rel1", map[string]string{"source": "file_sync", "source_file": "/docs/edge1.md"})
+	_ = kg.AddEdge("n3", "n1", "rel2", map[string]string{"source": "file_sync", "source_file": "/docs/edge2.md"})
+	// Duplicate source_file should be deduplicated
+	_ = kg.AddEdge("n1", "n3", "rel3", map[string]string{"source": "file_sync", "source_file": "/docs/edge2.md"})
+
+	files, err := kg.GetSourceFilesByNodeID("n1", 10)
+	if err != nil {
+		t.Fatalf("GetSourceFilesByNodeID: %v", err)
+	}
+	if len(files) != 3 {
+		t.Errorf("expected 3 unique source files, got %d: %v", len(files), files)
+	}
+
+	expected := map[string]bool{
+		"/docs/owner.md": false,
+		"/docs/edge1.md": false,
+		"/docs/edge2.md": false,
+	}
+	for _, f := range files {
+		expected[f] = true
+	}
+	for f, found := range expected {
+		if !found {
+			t.Errorf("missing expected source file %s", f)
+		}
+	}
+}
+
+func TestKGGetSourceFilesByNodeID_Limit(t *testing.T) {
+	kg := newTestKG(t)
+
+	_ = kg.AddNode("n1", "Node 1", map[string]string{"source_file": "/docs/a.md"})
+	_ = kg.AddNode("n2", "Node 2", nil)
+	_ = kg.AddEdge("n1", "n2", "rel1", map[string]string{"source_file": "/docs/b.md"})
+
+	files, err := kg.GetSourceFilesByNodeID("n1", 1)
+	if err != nil {
+		t.Fatalf("GetSourceFilesByNodeID: %v", err)
+	}
+	if len(files) != 1 {
+		t.Errorf("expected 1 file due to limit, got %d", len(files))
+	}
+}

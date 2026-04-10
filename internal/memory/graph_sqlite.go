@@ -2644,3 +2644,129 @@ func (kg *KnowledgeGraph) FindOrphanedFileSyncEntities(activeFiles []string) ([]
 
 	return orphanNodes, orphanEdges, nil
 }
+
+// GetNodesBySourceFile returns all KG nodes that were extracted from the given file.
+// This relies on the source_file property annotation set by file-to-KG sync.
+func (kg *KnowledgeGraph) GetNodesBySourceFile(path string, limit int) ([]Node, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	rows, err := kg.db.Query(`
+		SELECT id, label, properties, protected FROM kg_nodes
+		WHERE json_extract(properties, '$.source_file') = ?
+		LIMIT ?
+	`, path, limit)
+	if err != nil {
+		return nil, fmt.Errorf("query nodes by source file: %w", err)
+	}
+	defer rows.Close()
+
+	var nodes []Node
+	for rows.Next() {
+		var n Node
+		var propsJSON string
+		var protected int
+		if err := rows.Scan(&n.ID, &n.Label, &propsJSON, &protected); err == nil {
+			n.Properties = decodeKnowledgeGraphNodeProperties(kg.logger, "GetNodesBySourceFile", n.ID, propsJSON, protected)
+			n.Protected = protected != 0
+			nodes = append(nodes, n)
+		}
+	}
+	return nodes, nil
+}
+
+// GetEdgesBySourceFile returns all KG edges that were extracted from the given file.
+// This relies on the source_file property annotation set by file-to-KG sync.
+func (kg *KnowledgeGraph) GetEdgesBySourceFile(path string, limit int) ([]Edge, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	rows, err := kg.db.Query(`
+		SELECT source, target, relation, properties FROM kg_edges
+		WHERE json_extract(properties, '$.source_file') = ?
+		LIMIT ?
+	`, path, limit)
+	if err != nil {
+		return nil, fmt.Errorf("query edges by source file: %w", err)
+	}
+	defer rows.Close()
+
+	var edges []Edge
+	for rows.Next() {
+		var e Edge
+		var propsJSON string
+		if err := rows.Scan(&e.Source, &e.Target, &e.Relation, &propsJSON); err == nil {
+			if err := json.Unmarshal([]byte(propsJSON), &e.Properties); err != nil {
+				kg.logger.Warn("GetEdgesBySourceFile: corrupt edge properties JSON", "source", e.Source, "target", e.Target, "error", err)
+				e.Properties = make(map[string]string)
+			}
+			if e.Properties == nil {
+				e.Properties = make(map[string]string)
+			}
+			edges = append(edges, e)
+		}
+	}
+	return edges, nil
+}
+
+// GetSourceFilesByNodeID resolves the source document paths associated with a node.
+// It checks the node's own source_file property as well as the source_file
+// properties of all connected edges, returning deduplicated paths.
+func (kg *KnowledgeGraph) GetSourceFilesByNodeID(nodeID string, limit int) ([]string, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	seen := make(map[string]struct{})
+	var files []string
+
+	// 1. Check the node's own properties
+	var nodePropsJSON string
+	err := kg.db.QueryRow("SELECT properties FROM kg_nodes WHERE id = ?", nodeID).Scan(&nodePropsJSON)
+	if err != nil && err != sql.ErrNoRows {
+		return nil, fmt.Errorf("query node properties: %w", err)
+	}
+	if err == nil && nodePropsJSON != "" {
+		var props map[string]string
+		if json.Unmarshal([]byte(nodePropsJSON), &props) == nil {
+			if sf := strings.TrimSpace(props["source_file"]); sf != "" {
+				seen[sf] = struct{}{}
+				files = append(files, sf)
+			}
+		}
+	}
+	if len(files) >= limit {
+		return files, nil
+	}
+
+	// 2. Check connected edges' properties
+	rows, err := kg.db.Query(`
+		SELECT properties FROM kg_edges
+		WHERE source = ? OR target = ?
+	`, nodeID, nodeID)
+	if err != nil {
+		return files, fmt.Errorf("query edges for node: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var propsJSON string
+		if err := rows.Scan(&propsJSON); err != nil {
+			continue
+		}
+		var props map[string]string
+		if json.Unmarshal([]byte(propsJSON), &props) != nil {
+			continue
+		}
+		if sf := strings.TrimSpace(props["source_file"]); sf != "" {
+			if _, ok := seen[sf]; !ok {
+				seen[sf] = struct{}{}
+				files = append(files, sf)
+				if len(files) >= limit {
+					break
+				}
+			}
+		}
+	}
+
+	return files, nil
+}
