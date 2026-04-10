@@ -289,6 +289,116 @@ func HomepageEditFile(cfg HomepageConfig, path, operation, old, new_, marker, co
 	return string(out)
 }
 
+// collapseSpaces replaces consecutive whitespace with a single space.
+func collapseSpaces(s string) string {
+	return strings.Join(strings.Fields(s), " ")
+}
+
+// whitespaceAwareReplace finds old in text with whitespace tolerance.
+// It tries exact match first, then falls back to a whitespace-collapsed match
+// where all runs of whitespace are normalized to single spaces.
+// Returns the edited text and whether whitespace normalization was used.
+func whitespaceAwareReplace(text, old, new_ string) (string, bool, error) {
+	// Fast path: exact match
+	if strings.Contains(text, old) {
+		count := strings.Count(text, old)
+		if count > 1 {
+			return "", false, fmt.Errorf("'old' text found %d times — must be unique for str_replace", count)
+		}
+		return strings.Replace(text, old, new_, 1), false, nil
+	}
+
+	// Slow path: whitespace-tolerant match
+	normText := collapseSpaces(text)
+	normOld := collapseSpaces(old)
+	normIdx := strings.Index(normText, normOld)
+	if normIdx < 0 {
+		return "", false, fmt.Errorf("'old' text not found in file")
+	}
+
+	// Find the corresponding position in the original text by scanning
+	// character-by-character through both normalized and original.
+	// This maps the whitespace-collapsed match position back to the real text.
+	origIdx := 0
+	normPos := 0
+	textRunes := []rune(text)
+	normRunes := []rune(normText)
+
+	for origIdx < len(textRunes) && normPos < normIdx {
+		r := textRunes[origIdx]
+		if r == '\n' {
+			// Lines in the normalized text are separated by single spaces;
+			// newlines in original collapse to a single space in normalized.
+			// Skip to next non-newline, consume the newline itself.
+			for origIdx < len(textRunes) && textRunes[origIdx] == '\n' {
+				origIdx++
+			}
+			// In normalized text, there is a single space between lines.
+			// Advance normPos past any space.
+			for normPos < len(normRunes) && normRunes[normPos] == ' ' {
+				normPos++
+			}
+			continue
+		}
+		// Skip consecutive whitespace in original — it becomes single space in normalized
+		if isSpace(r) {
+			for origIdx < len(textRunes) && isSpace(textRunes[origIdx]) && textRunes[origIdx] != '\n' {
+				origIdx++
+			}
+			// This run of whitespace (excluding newlines) → single space in normalized
+			normPos++
+			// In original text, skip all whitespace chars we already consumed
+			continue
+		}
+		// Non-whitespace char: must match
+		if normPos < len(normRunes) && textRunes[origIdx] == normRunes[normPos] {
+			origIdx++
+			normPos++
+		} else {
+			// Mismatch — this shouldn't happen if the algorithm is correct
+			break
+		}
+	}
+
+	// Now normIdx points into normText; find where that ends in the original.
+	// We need the END of the match in original text.
+	normEnd := normIdx + len(normOld)
+	origEnd := origIdx
+
+	// Advance origEnd in the original while the corresponding position in
+	// normalized is still within the match region.
+	normPos = normIdx
+	for origEnd < len(textRunes) && normPos < normEnd {
+		r := textRunes[origEnd]
+		if r == '\n' {
+			origEnd++
+			continue
+		}
+		if isSpace(r) {
+			for origEnd < len(textRunes) && isSpace(textRunes[origEnd]) && textRunes[origEnd] != '\n' {
+				origEnd++
+			}
+			normPos++
+			continue
+		}
+		if normPos < len(normRunes) && textRunes[origEnd] == normRunes[normPos] {
+			origEnd++
+			normPos++
+		} else {
+			break
+		}
+	}
+
+	// Do the replacement using original character indices
+	before := text[:origIdx]
+	after := text[origEnd:]
+	return before + new_ + after, true, nil
+}
+
+func isSpace(r rune) bool {
+	return r == ' ' || r == '\t' || r == '\r'
+}
+
 // applyHomepageEdit applies an editing operation to file content in memory.
 // Returns the edited content and an error JSON string (empty if success).
 func applyHomepageEdit(text, operation, old, new_, marker, content string, startLine, endLine int) (string, string) {
@@ -297,14 +407,15 @@ func applyHomepageEdit(text, operation, old, new_, marker, content string, start
 		if old == "" {
 			return "", errJSON("'old' text is required for str_replace")
 		}
-		count := strings.Count(text, old)
-		if count == 0 {
-			return "", errJSON("'old' text not found in file")
+		edited, usedNorm, err := whitespaceAwareReplace(text, old, new_)
+		if err != nil {
+			return "", errJSON("%s", err.Error())
 		}
-		if count > 1 {
-			return "", errJSON("'old' text found %d times — must be unique for str_replace", count)
+		if usedNorm {
+			logger := slog.Default()
+			logger.Info("[Homepage] str_replace: used whitespace-tolerant match (old text had whitespace differences)")
 		}
-		return strings.Replace(text, old, new_, 1), ""
+		return edited, ""
 
 	case "str_replace_all":
 		if old == "" {

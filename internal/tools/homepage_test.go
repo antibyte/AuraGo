@@ -601,6 +601,23 @@ func TestApplyHomepageEdit_StrReplace(t *testing.T) {
 	}
 }
 
+func TestApplyHomepageEdit_StrReplace_WhitespaceTolerance(t *testing.T) {
+	// Text has tabs/spaces mixed; agent provides normalized version
+	text := "func test() {\n\tfmt.Println(\"hello\")\n}"
+	// Agent provides same logical content but with spaces instead of tabs
+	agentOld := "func test() {\n    fmt.Println(\"hello\")\n}"
+	got, errStr := applyHomepageEdit(text, "str_replace", agentOld, "func test() {\n    fmt.Println(\"goodbye\")\n}", "", "", 0, 0)
+	if errStr != "" {
+		t.Fatalf("whitespace-tolerant str_replace failed: %s", errStr)
+	}
+	if !strings.Contains(got, "goodbye") {
+		t.Errorf("expected 'goodbye' in result, got: %s", got)
+	}
+	if strings.Contains(got, "hello") {
+		t.Errorf("expected 'hello' to be replaced, got: %s", got)
+	}
+}
+
 func TestApplyHomepageEdit_StrReplace_NotFound(t *testing.T) {
 	_, errStr := applyHomepageEdit("Hello", "str_replace", "Missing", "X", "", "", 0, 0)
 	if !strings.Contains(errStr, "not found") {
