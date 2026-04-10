@@ -694,6 +694,15 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		mux.HandleFunc("/api/indexing/rescan", handleIndexingRescan(s))
 		mux.HandleFunc("/api/indexing/directories", handleIndexingDirectories(s))
 
+		// FileIndexer→KG Debug/Inspection endpoints
+		mux.HandleFunc("/api/debug/kg-file-sync-stats", handleDebugKGFileSyncStats(s))
+		mux.HandleFunc("/api/debug/kg-orphans", handleDebugKGOrphans(s))
+		mux.HandleFunc("/api/debug/file-sync-status", handleDebugFileSyncStatus(s))
+		mux.HandleFunc("/api/debug/file-sync-last-run", handleDebugFileSyncLastRun(s))
+		mux.HandleFunc("/api/debug/kg-file-entities", handleDebugKGFileEntities(s))
+		mux.HandleFunc("/api/debug/kg-node-sources", handleDebugKGNodeSources(s))
+		mux.HandleFunc("/api/debug/kg-file-sync-cleanup", handleDebugKGFileSyncCleanup(s))
+
 		// Mission Control API endpoints (enhanced with triggers and queue)
 		mux.HandleFunc("/api/missions", func(w http.ResponseWriter, r *http.Request) {
 			switch r.Method {
