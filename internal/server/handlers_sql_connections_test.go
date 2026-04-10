@@ -48,8 +48,9 @@ func TestHandleSQLConnectionTestMasksDriverError(t *testing.T) {
 
 	handleSQLConnectionTest(s)(rec, req)
 
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	// A failed connection test should return 400 Bad Request with sanitized error
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusBadRequest, rec.Body.String())
 	}
 	body := rec.Body.String()
 	if !strings.Contains(body, "Connection test failed") || strings.Contains(strings.ToLower(body), "unable to open database file") {

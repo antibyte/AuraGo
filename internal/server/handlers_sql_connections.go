@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"aurago/internal/sqlconnections"
+	"aurago/internal/uid"
 )
 
 // handleSQLConnections handles GET (list) and POST (create) on /api/sql-connections.
@@ -55,7 +56,7 @@ func handleSQLConnections(s *Server) http.HandlerFunc {
 				req.SSLMode = "disable"
 			}
 
-			// Store credentials in vault
+			// Store credentials in vault with non-deterministic key
 			vaultKey := ""
 			if req.Username != "" || req.Password != "" {
 				credJSON, err := sqlconnections.MarshalCredentials(req.Username, req.Password)
@@ -63,7 +64,7 @@ func handleSQLConnections(s *Server) http.HandlerFunc {
 					jsonError(w, `{"error":"failed to marshal credentials"}`, http.StatusInternalServerError)
 					return
 				}
-				vaultKey = "sqlconn_" + req.Name
+				vaultKey = "sql_" + uid.New()
 				if s.Vault != nil {
 					if err := s.Vault.WriteSecret(vaultKey, credJSON); err != nil {
 						jsonError(w, `{"error":"failed to store credentials"}`, http.StatusInternalServerError)
@@ -145,6 +146,7 @@ func handleSQLConnectionByID(s *Server) http.HandlerFunc {
 				return
 			}
 			vaultKey := existing.VaultSecretID
+			oldVaultKey := vaultKey
 			if req.Username != "" || req.Password != "" {
 				credJSON, err := sqlconnections.MarshalCredentials(req.Username, req.Password)
 				if err != nil {
@@ -152,12 +154,16 @@ func handleSQLConnectionByID(s *Server) http.HandlerFunc {
 					return
 				}
 				if vaultKey == "" {
-					vaultKey = "sqlconn_" + req.Name
+					vaultKey = "sql_" + uid.New()
 				}
 				if s.Vault != nil {
 					if err := s.Vault.WriteSecret(vaultKey, credJSON); err != nil {
 						jsonError(w, `{"error":"failed to store credentials"}`, http.StatusInternalServerError)
 						return
+					}
+					// Delete old secret if key changed (credential rotation)
+					if oldVaultKey != "" && oldVaultKey != vaultKey {
+						_ = s.Vault.DeleteSecret(oldVaultKey)
 					}
 				}
 			}
@@ -236,7 +242,9 @@ func handleSQLConnectionTest(s *Server) http.HandlerFunc {
 
 		if err := s.SQLConnectionPool.TestConnection(rec); err != nil {
 			// Sanitize error message to prevent leaking driver-specific details
-			s.Logger.Warn("SQL connection test failed", "connection_id", id, "connection_name", rec.Name, "error", err)
+			if s.Logger != nil {
+				s.Logger.Warn("SQL connection test failed", "connection_id", id, "connection_name", rec.Name, "error", err)
+			}
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusBadRequest)
 			json.NewEncoder(w).Encode(map[string]interface{}{

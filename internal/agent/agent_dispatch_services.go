@@ -11,6 +11,7 @@ import (
 	"aurago/internal/meshcentral"
 	"aurago/internal/sqlconnections"
 	"aurago/internal/tools"
+	"aurago/internal/uid"
 )
 
 // dispatchServices handles media, infrastructure management, and platform tool calls
@@ -898,7 +899,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					sslMode = "disable"
 				}
 
-				// Store credentials in vault
+				// Store credentials in vault with non-deterministic key
 				vaultKey := ""
 				username := req.Username
 				password := req.Password
@@ -907,7 +908,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					if marshalErr != nil {
 						return fmt.Sprintf(`Tool Output: {"status":"error","message":"failed to marshal credentials: %s"}`, sqlconnections.SanitizeError(marshalErr))
 					}
-					vaultKey = "sqlconn_" + req.ConnectionName
+					vaultKey = "sql_" + uid.New()
 					if err := vault.WriteSecret(vaultKey, credJSON); err != nil {
 						return fmt.Sprintf(`Tool Output: {"status":"error","message":"failed to store credentials: %s"}`, err.Error())
 					}
@@ -969,14 +970,16 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					if marshalErr != nil {
 						return fmt.Sprintf(`Tool Output: {"status":"error","message":"failed to marshal credentials: %s"}`, sqlconnections.SanitizeError(marshalErr))
 					}
-					vaultKey := existing.VaultSecretID
-					if vaultKey == "" {
-						vaultKey = "sqlconn_" + req.ConnectionName
-					}
-					if err := vault.WriteSecret(vaultKey, credJSON); err != nil {
+					oldVaultKey := existing.VaultSecretID
+					newVaultKey := "sql_" + uid.New()
+					if err := vault.WriteSecret(newVaultKey, credJSON); err != nil {
 						return fmt.Sprintf(`Tool Output: {"status":"error","message":"failed to update credentials: %s"}`, err.Error())
 					}
-					existing.VaultSecretID = vaultKey
+					// Delete old secret after successful rotation
+					if oldVaultKey != "" {
+						_ = vault.DeleteSecret(oldVaultKey)
+					}
+					existing.VaultSecretID = newVaultKey
 				}
 
 				// Close existing pool connection to force reconnect with new settings
