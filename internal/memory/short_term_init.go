@@ -235,7 +235,7 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 func migrateFileIndexToCollectionAware(db *sql.DB, logger *slog.Logger) error {
 	// Check if new schema already exists (has collection column with NOT NULL constraint)
 	var hasNewSchema bool
-	err := db.QueryRow("SELECT count(*) > 0 FROM pragma_table_info('file_indices') WHERE name='collection' AND NOTNULL=1").Scan(&hasNewSchema)
+	err := db.QueryRow("SELECT count(*) > 0 FROM pragma_table_info('file_indices') WHERE name='collection' AND \"notnull\"=1").Scan(&hasNewSchema)
 	if err != nil {
 		logger.Warn("Failed to check file_indices schema", "error", err)
 		return nil // Non-fatal: skip migration
