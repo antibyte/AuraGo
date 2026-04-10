@@ -1,8 +1,11 @@
 package memory
 
 import (
+	"context"
 	"testing"
 	"time"
+
+	chromem "github.com/philippgille/chromem-go"
 )
 
 func TestExtractSimilarityScore(t *testing.T) {
@@ -98,6 +101,59 @@ func TestExtractSimilarityScoreOnRawContent(t *testing.T) {
 		if got := ExtractSimilarityScore(raw); got != 0 {
 			t.Errorf("ExtractSimilarityScore on raw content %q = %v, want 0 (no prefix)", raw, got)
 		}
+	}
+}
+
+// TestCountIncludesFileIndexerCollections verifies that Count() includes
+// documents from the default collection, tool_guides, documentation,
+// and registered FileIndexer collections.
+func TestCountIncludesFileIndexerCollections(t *testing.T) {
+	embeddingFunc := func(_ context.Context, _ string) ([]float32, error) {
+		return []float32{0.1, 0.2, 0.3}, nil
+	}
+
+	db := chromem.NewDB()
+	collection, err := db.GetOrCreateCollection("aurago_memories", nil, embeddingFunc)
+	if err != nil {
+		t.Fatalf("GetOrCreateCollection: %v", err)
+	}
+
+	cv := &ChromemVectorDB{
+		db:                     db,
+		collection:             collection,
+		embeddingFunc:          embeddingFunc,
+		fileIndexerCollections: make(map[string]struct{}),
+	}
+
+	// Add 1 doc to aurago_memories
+	if err := collection.AddDocument(context.Background(), chromem.Document{
+		ID:      "mem-1",
+		Content: "test memory",
+	}); err != nil {
+		t.Fatalf("add doc to aurago_memories: %v", err)
+	}
+
+	// Add 1 doc to tool_guides
+	tg, _ := db.GetOrCreateCollection("tool_guides", nil, embeddingFunc)
+	_ = tg.AddDocument(context.Background(), chromem.Document{ID: "tg-1", Content: "tool guide"})
+
+	// Add 1 doc to documentation
+	doc, _ := db.GetOrCreateCollection("documentation", nil, embeddingFunc)
+	_ = doc.AddDocument(context.Background(), chromem.Document{ID: "doc-1", Content: "documentation"})
+
+	// Add 1 doc to file_index (default FileIndexer collection)
+	fi, _ := db.GetOrCreateCollection("file_index", nil, embeddingFunc)
+	_ = fi.AddDocument(context.Background(), chromem.Document{ID: "file-1", Content: "file index"})
+
+	// Add 1 doc to a custom FileIndexer collection
+	cv.registerFileIndexerCollection("custom_docs")
+	ci, _ := db.GetOrCreateCollection("custom_docs", nil, embeddingFunc)
+	_ = ci.AddDocument(context.Background(), chromem.Document{ID: "custom-1", Content: "custom doc"})
+
+	got := cv.Count()
+	want := 5
+	if got != want {
+		t.Errorf("Count() = %d, want %d", got, want)
 	}
 }
 

@@ -105,7 +105,7 @@ func (cv *ChromemVectorDB) GetEmbeddingFunc() chromem.EmbeddingFunc {
 }
 
 // Count returns the total number of documents across all collections
-// (aurago_memories, tool_guides, documentation).
+// (aurago_memories, tool_guides, documentation, and file_indexer collections).
 // Returns the persisted count even when the embedding pipeline is disabled,
 // because counting does not require embeddings.
 func (cv *ChromemVectorDB) Count() int {
@@ -120,6 +120,25 @@ func (cv *ChromemVectorDB) Count() int {
 			total += col.Count()
 		}
 	}
+
+	// Include FileIndexer collections (file_index + registered custom collections)
+	cv.fiColMu.RLock()
+	fiCollections := make([]string, 0, len(cv.fileIndexerCollections)+1)
+	fiCollections = append(fiCollections, "file_index")
+	for col := range cv.fileIndexerCollections {
+		if col != "file_index" {
+			fiCollections = append(fiCollections, col)
+		}
+	}
+	cv.fiColMu.RUnlock()
+
+	for _, name := range fiCollections {
+		col, err := cv.db.GetOrCreateCollection(name, nil, cv.embeddingFunc)
+		if err == nil {
+			total += col.Count()
+		}
+	}
+
 	return total
 }
 
