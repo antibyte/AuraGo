@@ -266,6 +266,23 @@ func (m *SandboxManager) borrowConn() (sandboxConn, func(), error) {
 	return m.conn, cleanup, nil
 }
 
+// markUnhealthy closes the current connection and removes it from the pool.
+// This is used when a connection is suspected to be in a bad state (e.g., after timeout).
+// Safe to call multiple times.
+func (m *SandboxManager) markUnhealthy() {
+	m.sharedConnMu.Lock()
+	defer m.sharedConnMu.Unlock()
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.conn != nil {
+		m.logger.Warn("[Sandbox] Marking connection unhealthy and closing")
+		m.conn.close()
+		m.conn = nil
+	}
+}
+
 func registerSandboxSingleton(mgr *SandboxManager) {
 	sandboxMgrMu.Lock()
 	old := globalSandboxMgr
@@ -349,6 +366,11 @@ func (m *SandboxManager) ExecuteCode(code, language string, libraries []string, 
 	case res := <-ch:
 		return res.output, res.err
 	case <-ctx.Done():
+		// Timeout: close the connection to terminate the blocked goroutine
+		// and prevent reuse of a potentially corrupted connection.
+		// markUnhealthy is called asynchronously because close() may block
+		// waiting for the subprocess to exit.
+		go m.markUnhealthy()
 		return "", fmt.Errorf("TIMEOUT: sandbox execution exceeded %ds limit", timeoutSecs)
 	}
 }

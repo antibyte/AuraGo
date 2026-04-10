@@ -1,8 +1,10 @@
 package tools
 
 import (
+	"fmt"
 	"io"
 	"log/slog"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -21,6 +23,7 @@ type fakeSandboxConn struct {
 	blockExecute   bool
 	executeStartCh chan struct{}
 	releaseCh      chan struct{}
+	closeCh        chan struct{} // closed when close() is called to unblock any pending callTool
 }
 
 func (f *fakeSandboxConn) initialize(logger *slog.Logger) error {
@@ -48,6 +51,7 @@ func (f *fakeSandboxConn) callTool(toolName string, arguments map[string]interfa
 	blockExecute := f.blockExecute && toolName == "execute_code"
 	startCh := f.executeStartCh
 	releaseCh := f.releaseCh
+	closeCh := f.closeCh
 	f.mu.Unlock()
 
 	defer func() {
@@ -64,7 +68,11 @@ func (f *fakeSandboxConn) callTool(toolName string, arguments map[string]interfa
 			}
 		}
 		if releaseCh != nil {
-			<-releaseCh
+			select {
+			case <-releaseCh:
+			case <-closeCh:
+				return "", fmt.Errorf("connection closed")
+			}
 		}
 	}
 
@@ -83,6 +91,9 @@ func (f *fakeSandboxConn) close() {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.closeCnt++
+	if f.closeCh != nil {
+		close(f.closeCh)
+	}
 }
 
 func (f *fakeSandboxConn) markReady() {}
@@ -200,6 +211,7 @@ func TestSandboxManagerKeepAliveSerializesConcurrentCalls(t *testing.T) {
 		blockExecute:   true,
 		executeStartCh: make(chan struct{}, 2),
 		releaseCh:      make(chan struct{}),
+		closeCh:        make(chan struct{}),
 	}
 
 	mgr := &SandboxManager{
@@ -262,5 +274,190 @@ func TestSandboxManagerKeepAliveSerializesConcurrentCalls(t *testing.T) {
 	}
 	if conn.maxActiveCalls != 1 {
 		t.Fatalf("max active calls after completion = %d, want 1", conn.maxActiveCalls)
+	}
+}
+
+// TestSandboxManagerExecuteCodeTimeoutWithoutKeepAlive verifies that a timeout
+// returns an error and closes the connection when keepAlive is disabled.
+func TestSandboxManagerExecuteCodeTimeoutWithoutKeepAlive(t *testing.T) {
+	logger := testSandboxLogger()
+	conn := &fakeSandboxConn{
+		blockExecute:   true,
+		executeStartCh: make(chan struct{}, 1),
+		releaseCh:      make(chan struct{}), // will never be released
+		closeCh:        make(chan struct{}),
+	}
+
+	mgr := &SandboxManager{
+		logger: logger,
+		status: SandboxStatus{Ready: true},
+		cfg:    SandboxConfig{KeepAlive: false},
+		connFactory: func() (sandboxConn, error) {
+			return conn, nil
+		},
+	}
+
+	doneCh := make(chan error, 1)
+	go func() {
+		_, err := mgr.ExecuteCode(`print("blocking")`, "python", nil, 1) // 1 second timeout
+		doneCh <- err
+	}()
+
+	// Wait for the call to start
+	select {
+	case <-conn.executeStartCh:
+	case <-time.After(2 * time.Second):
+		t.Fatal("execute_code call did not start")
+	}
+
+	// Wait for timeout error
+	select {
+	case err := <-doneCh:
+		if err == nil {
+			t.Fatal("expected timeout error, got nil")
+		}
+		if !strings.Contains(err.Error(), "TIMEOUT") {
+			t.Fatalf("expected TIMEOUT error, got: %v", err)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("timeout did not occur within expected time")
+	}
+
+	// Verify connection was closed after timeout
+	conn.mu.Lock()
+	closeCnt := conn.closeCnt
+	conn.mu.Unlock()
+
+	if closeCnt != 1 {
+		t.Fatalf("close count = %d, want 1 (connection should be closed after timeout)", closeCnt)
+	}
+}
+
+// TestSandboxManagerExecuteCodeTimeoutWithKeepAlive verifies that a timeout
+// returns an error, closes the connection, and marks it unhealthy so the
+// next call creates a fresh connection.
+func TestSandboxManagerExecuteCodeTimeoutWithKeepAlive(t *testing.T) {
+	logger := testSandboxLogger()
+	conn := &fakeSandboxConn{
+		blockExecute:   true,
+		executeStartCh: make(chan struct{}, 1),
+		releaseCh:      make(chan struct{}), // will never be released
+		closeCh:        make(chan struct{}),
+	}
+
+	mgr := &SandboxManager{
+		logger: logger,
+		status: SandboxStatus{Ready: true},
+		cfg:    SandboxConfig{KeepAlive: true},
+		connFactory: func() (sandboxConn, error) {
+			return conn, nil
+		},
+	}
+
+	// First call should timeout
+	doneCh := make(chan error, 1)
+	go func() {
+		_, err := mgr.ExecuteCode(`print("blocking")`, "python", nil, 1) // 1 second timeout
+		doneCh <- err
+	}()
+
+	select {
+	case <-conn.executeStartCh:
+	case <-time.After(2 * time.Second):
+		t.Fatal("first execute_code call did not start")
+	}
+
+	select {
+	case err := <-doneCh:
+		if err == nil {
+			t.Fatal("expected timeout error, got nil")
+		}
+		if !strings.Contains(err.Error(), "TIMEOUT") {
+			t.Fatalf("expected TIMEOUT error, got: %v", err)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("timeout did not occur within expected time")
+	}
+
+	// Verify connection was marked unhealthy (closed)
+	// markUnhealthy runs asynchronously, so give it time to complete
+	time.Sleep(100 * time.Millisecond)
+
+	conn.mu.Lock()
+	closeCntAfterTimeout := conn.closeCnt
+	conn.mu.Unlock()
+
+	if closeCntAfterTimeout != 1 {
+		t.Fatalf("close count after timeout = %d, want 1", closeCntAfterTimeout)
+	}
+
+	// Reset for next call - create a fresh connection
+	newConn := &fakeSandboxConn{
+		blockExecute: false, // next call completes normally
+	}
+	var createdNewConn bool
+	origFactory := mgr.connFactory
+	mgr.connFactory = func() (sandboxConn, error) {
+		createdNewConn = true
+		return newConn, nil
+	}
+
+	// Second call should succeed with fresh connection
+	_, err := mgr.ExecuteCode(`print("ok")`, "python", nil, 5)
+	if err != nil {
+		t.Fatalf("second ExecuteCode failed: %v", err)
+	}
+	if !createdNewConn {
+		t.Fatal("expected new connection to be created after timeout, but old connection was reused")
+	}
+	if newConn.callCnt != 1 {
+		t.Fatalf("new conn call count = %d, want 1", newConn.callCnt)
+	}
+	mgr.connFactory = origFactory
+}
+
+// TestSandboxManagerTimeoutCleansUpGoroutine verifies that after a timeout,
+// the blocked goroutine is properly terminated when the connection is closed.
+func TestSandboxManagerTimeoutCleansUpGoroutine(t *testing.T) {
+	logger := testSandboxLogger()
+	conn := &fakeSandboxConn{
+		blockExecute:   true,
+		executeStartCh: make(chan struct{}, 1),
+		releaseCh:      make(chan struct{}, 1), // buffered so we can release it
+		closeCh:        make(chan struct{}),
+	}
+
+	mgr := &SandboxManager{
+		logger: logger,
+		status: SandboxStatus{Ready: true},
+		cfg:    SandboxConfig{KeepAlive: true},
+		connFactory: func() (sandboxConn, error) {
+			return conn, nil
+		},
+	}
+
+	activeCallsCh := make(chan int, 1)
+	go func() {
+		_, err := mgr.ExecuteCode(`print("blocking")`, "python", nil, 1)
+		if err != nil && strings.Contains(err.Error(), "TIMEOUT") {
+			// Wait a bit for cleanup
+			time.Sleep(100 * time.Millisecond)
+		}
+		conn.mu.Lock()
+		active := conn.activeCalls
+		conn.mu.Unlock()
+		activeCallsCh <- active
+	}()
+
+	select {
+	case <-conn.executeStartCh:
+	case <-time.After(2 * time.Second):
+		t.Fatal("execute_code call did not start")
+	}
+
+	// Wait for goroutine to finish (after timeout and cleanup)
+	activeAfterTimeout := <-activeCallsCh
+	if activeAfterTimeout != 0 {
+		t.Fatalf("active calls after timeout cleanup = %d, want 0 (goroutine should be terminated)", activeAfterTimeout)
 	}
 }
