@@ -270,7 +270,7 @@ func (s *Server) knowledgeDir() string {
 	s.CfgMu.RLock()
 	defer s.CfgMu.RUnlock()
 	if len(s.Cfg.Indexing.Directories) > 0 {
-		return s.Cfg.Indexing.Directories[0]
+		return s.Cfg.Indexing.Directories[0].Path
 	}
 	return ""
 }

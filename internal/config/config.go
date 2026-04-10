@@ -897,11 +897,11 @@ func Load(path string) (*Config, error) {
 		cfg.Indexing.Extensions = append([]string(nil), defaultIndexingExtensions...)
 	}
 	if len(cfg.Indexing.Directories) == 0 {
-		cfg.Indexing.Directories = []string{"./knowledge"}
+		cfg.Indexing.Directories = []IndexingDirectory{{Path: "./knowledge"}}
 	}
-	// Resolve indexing directories to absolute paths
-	for i, dir := range cfg.Indexing.Directories {
-		cfg.Indexing.Directories[i] = resolvePath(configDir, dir)
+	// Resolve indexing directory paths to absolute paths
+	for i := range cfg.Indexing.Directories {
+		cfg.Indexing.Directories[i].Path = resolvePath(configDir, cfg.Indexing.Directories[i].Path)
 	}
 
 	if cfg.GitHub.BaseURL == "" {

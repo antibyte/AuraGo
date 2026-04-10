@@ -24,6 +24,13 @@ type OAuthToken struct {
 	Expiry       string `json:"expiry"` // RFC3339
 }
 
+// IndexingDirectory describes a single directory to index with an optional custom collection name.
+// When Collection is empty, the default collection "file_index" is used.
+type IndexingDirectory struct {
+	Path       string `yaml:"path"`
+	Collection string `yaml:"collection"` // optional; empty = default "file_index"
+}
+
 // SpecialistConfig holds per-role configuration for a specialist co-agent.
 // Empty LLM.Provider inherits from co_agents.llm, which in turn falls back to the main LLM.
 type SpecialistConfig struct {
@@ -954,13 +961,15 @@ type Config struct {
 		NestID        string `yaml:"nest_id"`         // UUID of the nest this egg is deployed in
 		TLSSkipVerify bool   `yaml:"tls_skip_verify"` // skip TLS certificate verification (for self-signed certs)
 	} `yaml:"egg_mode"`
+
 	Indexing struct {
-		Enabled             bool     `yaml:"enabled"`
-		Directories         []string `yaml:"directories"`
-		PollIntervalSeconds int      `yaml:"poll_interval_seconds"` // default 60
-		Extensions          []string `yaml:"extensions"`            // default: .txt, .md, .json, .csv, .log, .yaml, .yml, .pdf, .docx, .xlsx, .pptx, .odt, .rtf
-		IndexImages         bool     `yaml:"index_images"`          // send images to Vision LLM for analysis and index results
+		Enabled             bool                `yaml:"enabled"`
+		Directories         []IndexingDirectory `yaml:"directories"`
+		PollIntervalSeconds int                 `yaml:"poll_interval_seconds"` // default 60
+		Extensions          []string            `yaml:"extensions"`            // default: .txt, .md, .json, .csv, .log, .yaml, .yml, .pdf, .docx, .xlsx, .pptx, .odt, .rtf
+		IndexImages         bool                `yaml:"index_images"`          // send images to Vision LLM for analysis and index results
 	} `yaml:"indexing"`
+
 	GitHub struct {
 		Enabled        bool     `yaml:"enabled"`
 		ReadOnly       bool     `yaml:"readonly"`        // true = only list/get/search, block create/delete/update

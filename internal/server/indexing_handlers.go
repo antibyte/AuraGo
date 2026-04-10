@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"aurago/internal/config"
+
 	"gopkg.in/yaml.v3"
 )
 
@@ -94,7 +95,7 @@ func handleIndexingDirectories(s *Server) http.HandlerFunc {
 			// Check for duplicates
 			s.CfgMu.RLock()
 			for _, d := range s.Cfg.Indexing.Directories {
-				if d == absPath {
+				if d.Path == absPath {
 					s.CfgMu.RUnlock()
 					jsonError(w, "Verzeichnis bereits in der Liste", http.StatusConflict)
 					return
@@ -109,7 +110,7 @@ func handleIndexingDirectories(s *Server) http.HandlerFunc {
 
 			// Update config
 			s.CfgMu.Lock()
-			s.Cfg.Indexing.Directories = append(s.Cfg.Indexing.Directories, absPath)
+			s.Cfg.Indexing.Directories = append(s.Cfg.Indexing.Directories, config.IndexingDirectory{Path: absPath})
 			s.CfgMu.Unlock()
 
 			// Persist to YAML
@@ -137,10 +138,10 @@ func handleIndexingDirectories(s *Server) http.HandlerFunc {
 			}
 
 			s.CfgMu.Lock()
-			newDirs := make([]string, 0, len(s.Cfg.Indexing.Directories))
+			newDirs := make([]config.IndexingDirectory, 0, len(s.Cfg.Indexing.Directories))
 			found := false
 			for _, d := range s.Cfg.Indexing.Directories {
-				if d == req.Path {
+				if d.Path == req.Path {
 					found = true
 					continue
 				}
@@ -186,17 +187,20 @@ func patchIndexingDirs(s *Server) error {
 	// Build relative paths for storage in YAML (cleaner than absolute)
 	configDir := filepath.Dir(configPath)
 	s.CfgMu.RLock()
-	dirs := make([]string, len(s.Cfg.Indexing.Directories))
+	dirs := make([]config.IndexingDirectory, len(s.Cfg.Indexing.Directories))
 	copy(dirs, s.Cfg.Indexing.Directories)
 	s.CfgMu.RUnlock()
 
 	relDirs := make([]interface{}, len(dirs))
 	for i, d := range dirs {
-		rel, err := filepath.Rel(configDir, d)
+		rel, err := filepath.Rel(configDir, d.Path)
 		if err != nil || strings.HasPrefix(rel, "..") {
 			relDirs[i] = d // keep absolute if can't relativize
 		} else {
-			relDirs[i] = "./" + filepath.ToSlash(rel)
+			relDirs[i] = config.IndexingDirectory{
+				Path:       "./" + filepath.ToSlash(rel),
+				Collection: d.Collection,
+			}
 		}
 	}
 

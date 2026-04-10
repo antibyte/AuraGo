@@ -20,7 +20,7 @@ func TestHandleKnowledgeUploadRejectsDisallowedExtension(t *testing.T) {
 
 	dir := t.TempDir()
 	cfg := &config.Config{}
-	cfg.Indexing.Directories = []string{dir}
+	cfg.Indexing.Directories = []config.IndexingDirectory{{Path: dir}}
 	s := &Server{Cfg: cfg, Logger: slog.Default()}
 
 	body := &bytes.Buffer{}
@@ -57,7 +57,7 @@ func TestHandleKnowledgeUploadRejectsOverwrite(t *testing.T) {
 	}
 
 	cfg := &config.Config{}
-	cfg.Indexing.Directories = []string{dir}
+	cfg.Indexing.Directories = []config.IndexingDirectory{{Path: dir}}
 	s := &Server{Cfg: cfg, Logger: slog.Default()}
 
 	body := &bytes.Buffer{}

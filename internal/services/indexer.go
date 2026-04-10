@@ -81,7 +81,11 @@ func (fi *FileIndexer) Start(ctx context.Context) {
 
 	fi.mu.Lock()
 	fi.status.Running = true
-	fi.status.Directories = fi.cfg.Indexing.Directories
+	dirPaths := make([]string, len(fi.cfg.Indexing.Directories))
+	for i, d := range fi.cfg.Indexing.Directories {
+		dirPaths[i] = d.Path
+	}
+	fi.status.Directories = dirPaths
 	fi.mu.Unlock()
 
 	// Ensure all configured directories exist
@@ -131,8 +135,8 @@ func (fi *FileIndexer) Rescan() {
 // ensureDirectories creates any missing configured directories.
 func (fi *FileIndexer) ensureDirectories() {
 	for _, dir := range fi.cfg.Indexing.Directories {
-		if err := os.MkdirAll(dir, 0755); err != nil {
-			fi.logger.Warn("[Indexer] Failed to create directory", "dir", dir, "error", err)
+		if err := os.MkdirAll(dir.Path, 0755); err != nil {
+			fi.logger.Warn("[Indexer] Failed to create directory", "dir", dir.Path, "error", err)
 		}
 	}
 }
@@ -155,9 +159,12 @@ func (fi *FileIndexer) scan() {
 
 	var totalFiles, indexedFiles int
 	var scanErrors []string
+	var dirPaths []string
 
-	for _, dir := range dirs {
-		nTotal, nIndexed, errs := fi.scanDirectory(dir)
+	for _, indexingDir := range dirs {
+		dirPaths = append(dirPaths, indexingDir.Path)
+		collection := getDirCollection(indexingDir)
+		nTotal, nIndexed, errs := fi.scanDirectory(indexingDir.Path, collection)
 		totalFiles += nTotal
 		indexedFiles += nIndexed
 		scanErrors = append(scanErrors, errs...)
@@ -171,7 +178,7 @@ func (fi *FileIndexer) scan() {
 	fi.status.LastScanAt = start
 	fi.status.LastScanDuration = duration.Round(time.Millisecond).String()
 	fi.status.Errors = scanErrors
-	fi.status.Directories = dirs
+	fi.status.Directories = dirPaths
 	fi.mu.Unlock()
 
 	if indexedFiles > 0 {
@@ -186,9 +193,18 @@ func (fi *FileIndexer) scan() {
 	}
 }
 
+// getDirCollection returns the collection name for an indexing directory.
+// Returns the configured collection, or the default "file_index" if none is set.
+func getDirCollection(dir config.IndexingDirectory) string {
+	if dir.Collection != "" {
+		return dir.Collection
+	}
+	return indexerCollection
+}
+
 // scanDirectory walks a single directory (recursively) and indexes supported files.
-func (fi *FileIndexer) scanDirectory(dir string) (totalFiles, indexedFiles int, errors []string) {
-	trackedPaths, trackedErr := fi.stm.ListIndexedFiles(indexerCollection)
+func (fi *FileIndexer) scanDirectory(dir, collection string) (totalFiles, indexedFiles int, errors []string) {
+	trackedPaths, trackedErr := fi.stm.ListIndexedFiles(collection)
 	if trackedErr != nil {
 		errors = append(errors, fmt.Sprintf("list indexed files %s: %v", dir, trackedErr))
 	}

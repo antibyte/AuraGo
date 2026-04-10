@@ -489,7 +489,8 @@ remote_control:
 indexing:
     enabled: true
     directories:
-        - ./knowledge
+        - path: ./knowledge
+          collection: ""                        # optional; empty = default collection "file_index"
     poll_interval_seconds: 60
     extensions:
         - .txt

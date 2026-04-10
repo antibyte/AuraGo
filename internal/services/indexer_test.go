@@ -80,7 +80,7 @@ func TestFileIndexerReplacesTrackedEmbeddingsOnReindex(t *testing.T) {
 	}
 
 	cfg := &config.Config{}
-	cfg.Indexing.Directories = []string{dir}
+	cfg.Indexing.Directories = []config.IndexingDirectory{{Path: dir}}
 	cfg.Indexing.Extensions = []string{".txt"}
 	cfg.Indexing.PollIntervalSeconds = 60
 
@@ -88,7 +88,7 @@ func TestFileIndexerReplacesTrackedEmbeddingsOnReindex(t *testing.T) {
 	vdb := &fakeIndexerVectorDB{}
 	fi := NewFileIndexer(cfg, cfgMu, vdb, stm, logger)
 
-	_, indexed, errs := fi.scanDirectory(dir)
+	_, indexed, errs := fi.scanDirectory(dir, "file_index")
 	if indexed != 1 {
 		t.Fatalf("first scan indexed = %d, want 1", indexed)
 	}
@@ -112,7 +112,7 @@ func TestFileIndexerReplacesTrackedEmbeddingsOnReindex(t *testing.T) {
 		t.Fatalf("Chtimes second version: %v", err)
 	}
 
-	_, indexed, errs = fi.scanDirectory(dir)
+	_, indexed, errs = fi.scanDirectory(dir, "file_index")
 	if indexed != 1 {
 		t.Fatalf("second scan indexed = %d, want 1", indexed)
 	}
@@ -152,7 +152,7 @@ func TestFileIndexerRemovesEmbeddingsForDeletedFiles(t *testing.T) {
 	}
 
 	cfg := &config.Config{}
-	cfg.Indexing.Directories = []string{dir}
+	cfg.Indexing.Directories = []config.IndexingDirectory{{Path: dir}}
 	cfg.Indexing.Extensions = []string{".txt"}
 	cfg.Indexing.PollIntervalSeconds = 60
 
@@ -160,7 +160,7 @@ func TestFileIndexerRemovesEmbeddingsForDeletedFiles(t *testing.T) {
 	vdb := &fakeIndexerVectorDB{}
 	fi := NewFileIndexer(cfg, cfgMu, vdb, stm, logger)
 
-	_, indexed, errs := fi.scanDirectory(dir)
+	_, indexed, errs := fi.scanDirectory(dir, "file_index")
 	if indexed != 1 {
 		t.Fatalf("initial scan indexed = %d, want 1", indexed)
 	}
@@ -172,7 +172,7 @@ func TestFileIndexerRemovesEmbeddingsForDeletedFiles(t *testing.T) {
 		t.Fatalf("Remove indexed file: %v", err)
 	}
 
-	total, indexed, errs := fi.scanDirectory(dir)
+	total, indexed, errs := fi.scanDirectory(dir, "file_index")
 	if total != 0 {
 		t.Fatalf("deleted-file scan total = %d, want 0", total)
 	}
