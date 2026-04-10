@@ -152,12 +152,17 @@ func buildToolingPolicy(cfg *config.Config, userQuery string) ToolingPolicy {
 	homepageEnabled := cfg.Homepage.Enabled && (dockerEnabled || cfg.Homepage.AllowLocalServer)
 	wolEnabled := cfg.Tools.WOL.Enabled && (!cfg.Runtime.IsDocker || cfg.Runtime.BroadcastOK)
 
-	useNativeFunctions := cfg.LLM.UseNativeFunctions || caps.AutoEnableNativeFunctions
+	// Auto-enable native function calling for known-capable models (DeepSeek, Anthropic,
+	// Nemotron), BUT only when the user has NOT explicitly disabled it via config.
+	// Explicit opt-out (use_native_functions: false) always wins over auto-detection.
+	autoEnabled := !cfg.LLM.UseNativeFunctions && caps.AutoEnableNativeFunctions
+	useNativeFunctions := cfg.LLM.UseNativeFunctions || autoEnabled
 	// Force JSON text mode for models known to emit tool calls in text content rather
 	// than proper API tool_calls (e.g. GLM/Zhipu, MiniMax). This ensures the prompt-based
 	// JSON extraction path is used regardless of what the config says.
 	if caps.DisableNativeFunctionCalling {
 		useNativeFunctions = false
+		autoEnabled = false
 	}
 	effectiveMaxToolGuides := cfg.Agent.MaxToolGuides
 	if effectiveMaxToolGuides <= 0 {
@@ -200,7 +205,7 @@ func buildToolingPolicy(cfg *config.Config, userQuery string) ToolingPolicy {
 		IntentFamily:               intentFamily,
 		FamilyTelemetry:            familyTelemetry,
 		UseNativeFunctions:         useNativeFunctions,
-		AutoEnabledNativeFunctions: !cfg.LLM.UseNativeFunctions && caps.AutoEnableNativeFunctions,
+		AutoEnabledNativeFunctions: autoEnabled,
 		StructuredOutputsRequested: cfg.LLM.StructuredOutputs,
 		StructuredOutputsEnabled:   cfg.LLM.StructuredOutputs && caps.SupportsStructuredOutputs,
 		ParallelToolCallsEnabled:   caps.SupportsParallelToolCalls,
