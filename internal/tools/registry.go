@@ -95,6 +95,24 @@ func (p *ProcessInfo) ReadOutput() string {
 	return p.Output.String()
 }
 
+// WriteSystemMessage writes a system/supervisor message to the output buffer.
+// Unlike direct buffer access, this method applies the same truncation logic
+// as Write() to ensure buffer size limits are respected.
+// The message is prefixed with a newline for separation from process output.
+func (p *ProcessInfo) WriteSystemMessage(msg string) error {
+	data := []byte("\n" + msg)
+	_, err := p.Write(data)
+	return err
+}
+
+// WriteSystemMessageBytes writes raw system/supervisor message bytes to the output buffer.
+// Unlike direct buffer access, this method applies the same truncation logic
+// as Write() to ensure buffer size limits are respected.
+func (p *ProcessInfo) WriteSystemMessageBytes(data []byte) error {
+	_, err := p.Write(data)
+	return err
+}
+
 // IsAlive returns whether the process is still marked as running.
 func (p *ProcessInfo) IsAlive() bool {
 	p.mu.Lock()

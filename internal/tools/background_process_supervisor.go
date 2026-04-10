@@ -74,7 +74,7 @@ func superviseBackgroundProcess(cmd *exec.Cmd, info *ProcessInfo, registry *Proc
 		info.State = ProcessStateTimedOut
 		info.TimedOut = true
 		info.ErrorReason = fmt.Sprintf("process exceeded background timeout of %s", timeout)
-		info.Output.WriteString(fmt.Sprintf("\n[process terminated after exceeding background timeout of %s]", timeout))
+		info.WriteSystemMessage(fmt.Sprintf("[process terminated after exceeding background timeout of %s]", timeout))
 	} else if err != nil {
 		// Extract exit code if available
 		if exitErr, ok := err.(*exec.ExitError); ok {
@@ -84,7 +84,7 @@ func superviseBackgroundProcess(cmd *exec.Cmd, info *ProcessInfo, registry *Proc
 		}
 		info.State = ProcessStateCrashed
 		info.ErrorReason = err.Error()
-		info.Output.WriteString(fmt.Sprintf("\n[process exited with error: %v]", err))
+		info.WriteSystemMessage(fmt.Sprintf("[process exited with error: %v]", err))
 	} else {
 		// Normal exit
 		info.State = ProcessStateExited
