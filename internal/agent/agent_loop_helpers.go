@@ -809,6 +809,7 @@ func trim422Messages(msgs []openai.ChatCompletionMessage) []openai.ChatCompletio
 	}
 
 	lastCompleteRound := -1
+	hasAnyEmptyID := false
 	for ri := len(rounds) - 1; ri >= 0; ri-- {
 		r := rounds[ri]
 		if len(r.toolResults) != len(r.assistant.ToolCalls) {
@@ -820,6 +821,7 @@ func trim422Messages(msgs []openai.ChatCompletionMessage) []openai.ChatCompletio
 		for _, tc := range r.assistant.ToolCalls {
 			if tc.ID == "" {
 				validIDs = false
+				hasAnyEmptyID = true
 				break
 			}
 		}
@@ -833,6 +835,32 @@ func trim422Messages(msgs []openai.ChatCompletionMessage) []openai.ChatCompletio
 	for sysEnd < len(nonToolMsgs) && nonToolMsgs[sysEnd].Role == openai.ChatMessageRoleSystem {
 		sysEnd++
 	}
+
+	// Nuclear option: if ALL rounds have empty/mismatched IDs, the LLM is
+	// consistently generating broken tool_call_ids. Strip ALL tool call history
+	// and give it a clean slate with only system + last user message, so it
+	// can't produce the same 400 error in an infinite loop.
+	if hasAnyEmptyID && lastCompleteRound < 0 {
+		// Keep only system messages + the last user message
+		var lastUserMsg *openai.ChatCompletionMessage
+		for i := len(nonToolMsgs) - 1; i >= 0; i-- {
+			if nonToolMsgs[i].Role == openai.ChatMessageRoleUser {
+				lastUserMsg = &nonToolMsgs[i]
+				break
+			}
+		}
+		trimmed := make([]openai.ChatCompletionMessage, 0, sysEnd+1)
+		trimmed = append(trimmed, nonToolMsgs[:sysEnd]...)
+		if lastUserMsg != nil {
+			trimmed = append(trimmed, *lastUserMsg)
+		}
+		trimmed = append(trimmed, openai.ChatCompletionMessage{
+			Role:    openai.ChatMessageRoleUser,
+			Content: "[The previous tool call history was cleared because all tool calls had empty IDs. Please summarise what you were doing and continue from the last user request.]",
+		})
+		return trimmed
+	}
+
 	conversation := nonToolMsgs[sysEnd:]
 	if len(conversation) > 4 {
 		conversation = conversation[len(conversation)-4:]
