@@ -34,6 +34,12 @@ const (
 	// grepFileMaxMatchesPerFile caps matches per individual file to prevent
 	// pathological cases where a single large file produces thousands of matches.
 	grepFileMaxMatchesPerFile = 10000
+
+	// grepPatternMaxChars limits regex pattern length to prevent ReDoS and excessive compilation time.
+	grepPatternMaxChars = 256
+
+	// grepFindMaxResults caps the number of files returned by the find operation.
+	grepFindMaxResults = 1000
 )
 
 // ExecuteFileSearch handles file search operations, sandboxed to workspaceDir.
@@ -81,8 +87,8 @@ func fileGrep(filePath, pattern, outputMode, workspaceDir string, encode func(Fi
 		return encode(FileSearchResult{Status: "error", Message: err.Error()})
 	}
 
-	if len(pattern) > 256 {
-		return encode(FileSearchResult{Status: "error", Message: "regex pattern too long (max 256 characters)"})
+	if len(pattern) > grepPatternMaxChars {
+		return encode(FileSearchResult{Status: "error", Message: fmt.Sprintf("regex pattern too long (max %d characters)", grepPatternMaxChars)})
 	}
 	re, err := regexp.Compile("(?i)" + pattern)
 	if err != nil {
@@ -108,8 +114,8 @@ func fileGrep(filePath, pattern, outputMode, workspaceDir string, encode func(Fi
 func fileGrepRecursive(glob, pattern, outputMode, workspaceDir string, encode func(FileSearchResult) string) string {
 	patterns := normalizeSearchGlobs(glob)
 
-	if len(pattern) > 256 {
-		return encode(FileSearchResult{Status: "error", Message: "regex pattern too long (max 256 characters)"})
+	if len(pattern) > grepPatternMaxChars {
+		return encode(FileSearchResult{Status: "error", Message: fmt.Sprintf("regex pattern too long (max %d characters)", grepPatternMaxChars)})
 	}
 	re, err := regexp.Compile("(?i)" + pattern)
 	if err != nil {
@@ -183,7 +189,6 @@ func fileFind(glob, workspaceDir string, encode func(FileSearchResult) string) s
 	patterns := normalizeSearchGlobs(glob)
 
 	var files []string
-	maxResults := 1000
 
 	err := filepath.Walk(workspaceDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -204,7 +209,7 @@ func fileFind(glob, workspaceDir string, encode func(FileSearchResult) string) s
 		}
 		files = append(files, relPath)
 
-		if len(files) >= maxResults {
+		if len(files) >= grepFindMaxResults {
 			return fmt.Errorf("max results reached")
 		}
 		return nil
@@ -212,8 +217,8 @@ func fileFind(glob, workspaceDir string, encode func(FileSearchResult) string) s
 	if err != nil && err.Error() != "max results reached" {
 		return encode(FileSearchResult{Status: "error", Message: err.Error()})
 	}
-	if len(files) >= maxResults {
-		files = files[:maxResults]
+	if len(files) >= grepFindMaxResults {
+		files = files[:grepFindMaxResults]
 	}
 
 	return encode(FileSearchResult{Status: "success", Data: map[string]interface{}{

@@ -29,6 +29,17 @@ const (
 	DefaultNetworkTimeout = 60 * time.Second
 )
 
+// Execution limits for package management and process output handling.
+const (
+	// pipInstallTimeout is the timeout for pip package installation operations.
+	// This allows generous time for downloads and compilation of large packages.
+	pipInstallTimeout = 180 * time.Second // 3 minutes
+
+	// processOutputBufferSize is the buffer size for capturing stdout/stderr from processes.
+	// 1 MB provides sufficient space for most tool outputs while preventing unbounded memory growth.
+	processOutputBufferSize = 1024 * 1024 // 1 MB
+)
+
 // TimeoutConfig holds the configured timeouts for all execution categories.
 // Use GetTimeoutConfig() to get the current configuration.
 type TimeoutConfig struct {
@@ -254,14 +265,14 @@ func createVenv(workspaceDir string, logger *slog.Logger) error {
 var validPackageName = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._\-]*(\[[\w,\s]+\])?([\s]*(==|!=|<=|>=|<|>|~=)[^\s;]+)?$`)
 
 // InstallPackage installs a Python package using the virtual environment's pip.
-// Has a generous 3-minute timeout for downloads and compilation.
+// Uses pipInstallTimeout for downloads and compilation.
 func InstallPackage(pkgName, workspaceDir string) (string, string, error) {
 	// Validate package name to prevent pip flag injection or path traversal.
 	pkgName = strings.TrimSpace(pkgName)
 	if !validPackageName.MatchString(pkgName) {
 		return "", "", fmt.Errorf("invalid package name %q: must match pip package name format", pkgName)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), pipInstallTimeout)
 	defer cancel()
 
 	pipCmd := GetPipBin(workspaceDir)
@@ -270,14 +281,14 @@ func InstallPackage(pkgName, workspaceDir string) (string, string, error) {
 
 	slog.Debug("[InstallPackage]", "cmd", pipCmd, "args", cmd.Args)
 
-	stdout := NewBoundedBuffer(1024 * 1024)
-	stderr := NewBoundedBuffer(1024 * 1024)
+	stdout := NewBoundedBuffer(processOutputBufferSize)
+	stderr := NewBoundedBuffer(processOutputBufferSize)
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 
 	err := cmd.Run()
 	if ctx.Err() == context.DeadlineExceeded {
-		return stdout.String(), stderr.String(), fmt.Errorf("TIMEOUT: pip install '%s' exceeded 3-minute limit", pkgName)
+		return stdout.String(), stderr.String(), fmt.Errorf("TIMEOUT: pip install '%s' exceeded %s limit", pkgName, pipInstallTimeout)
 	}
 	return stdout.String(), stderr.String(), err
 }
