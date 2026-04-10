@@ -94,7 +94,7 @@
   "setup.step0_model_error": "Modellnavn er påkrevd.",
   "setup.step0_model_label": "Modell",
   "setup.step0_model_placeholder": "f.eks. gpt-4o, claude-sonnet-4-20250514",
-  "setup.step0_native_functions_desc": "Uses the provider's native tool calls. <strong>Warning:</strong> Only enable if the model supports this (GPT-4, Claude, Gemini). Free-tier models often do NOT support this!",
+  "setup.step0_native_functions_desc": "Bruker leverandørens innebygde verktøykall. <strong>Advarsel:</strong> Aktiver kun hvis modellen støtter dette (GPT-4, Claude, Gemini). Gratis modeller støtter ofte IKKE dette!",
   "setup.step0_native_functions_label": "Native Function Calling ⚠️",
   "setup.step0_provider_anthropic": "Anthropic",
   "setup.step0_provider_custom": "Tilpasset / Annet",
