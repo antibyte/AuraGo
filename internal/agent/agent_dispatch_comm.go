@@ -462,9 +462,9 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				}
 				res, skillErr = tools.ExecuteSkillInSandbox(cfg.Directories.SkillsDir, cleanSkillName, args, secrets, creds, cfg.Tools.SkillTimeoutSeconds, logger)
 			} else if len(secrets) > 0 || len(creds) > 0 {
-				res, skillErr = tools.ExecuteSkillWithSecrets(cfg.Directories.SkillsDir, cfg.Directories.WorkspaceDir, skillName, args, secrets, creds)
+				res, skillErr = tools.ExecuteSkillWithSecrets(ctx, cfg.Directories.SkillsDir, cfg.Directories.WorkspaceDir, skillName, args, secrets, creds)
 			} else {
-				res, skillErr = tools.ExecuteSkill(cfg.Directories.SkillsDir, cfg.Directories.WorkspaceDir, skillName, args)
+				res, skillErr = tools.ExecuteSkill(ctx, cfg.Directories.SkillsDir, cfg.Directories.WorkspaceDir, skillName, args)
 			}
 			if skillErr != nil {
 				msg := fmt.Sprintf("Tool Output: ERROR executing skill: %s\nOutput: %s", security.Scrub(skillErr.Error()), security.Scrub(res))

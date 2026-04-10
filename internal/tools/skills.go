@@ -82,11 +82,16 @@ func DaemonManifestDefaults() DaemonManifest {
 }
 
 // ApplyDefaults fills zero-value fields with sensible defaults.
+// Note: RestartOnCrash is always set to the default (true) regardless of
+// previous value, as daemon skills should always restart on crash unless
+// explicitly disabled via configuration.
 func (d *DaemonManifest) ApplyDefaults() {
 	defaults := DaemonManifestDefaults()
 	if d.WakeRateLimitSeconds <= 0 {
 		d.WakeRateLimitSeconds = defaults.WakeRateLimitSeconds
 	}
+	// RestartOnCrash is intentionally always applied from defaults
+	// to ensure daemons are resilient by default
 	d.RestartOnCrash = defaults.RestartOnCrash
 	if d.MaxRestartAttempts <= 0 {
 		d.MaxRestartAttempts = defaults.MaxRestartAttempts
@@ -141,10 +146,12 @@ func ListSkills(skillsDir string) ([]SkillManifest, error) {
 		}
 	}
 
-	// Update cache
+	// Update cache with defensive copy to prevent race conditions
 	listSkillsCache.mu.Lock()
+	skillsCopy := make([]SkillManifest, len(skills))
+	copy(skillsCopy, skills)
 	listSkillsCache.entries[absDir] = skillsCacheEntry{
-		skills:    skills,
+		skills:    skillsCopy,
 		expiresAt: time.Now().Add(skillsCacheTTL),
 	}
 	listSkillsCache.mu.Unlock()
@@ -227,12 +234,15 @@ func buildSkillCommand(ctx context.Context, workspaceDir string, manifest SkillM
 	return exec.CommandContext(ctx, absExecPath)
 }
 
-func executePreparedSkill(workspaceDir, skillName string, manifest SkillManifest, absExecPath, argsString string, opts skillExecutionOptions) (string, error) {
+func executePreparedSkill(ctx context.Context, workspaceDir, skillName string, manifest SkillManifest, absExecPath, argsString string, opts skillExecutionOptions) (string, error) {
 	if opts.logInput {
 		slog.Debug("[ExecuteSkill] Prepared JSON input", "skill", skillName, "input", argsString)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), GetSkillTimeout())
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	ctx, cancel := context.WithTimeout(ctx, GetSkillTimeout())
 	defer cancel()
 
 	cmd := buildSkillCommand(ctx, workspaceDir, manifest, absExecPath)
@@ -289,24 +299,24 @@ func executePreparedSkill(workspaceDir, skillName string, manifest SkillManifest
 }
 
 // ExecuteSkill dynamically executes the requested skill script, routing Python scripts to the venv.
-func ExecuteSkill(skillsDir, workspaceDir, skillName string, argsJSON map[string]interface{}) (string, error) {
+func ExecuteSkill(ctx context.Context, skillsDir, workspaceDir, skillName string, argsJSON map[string]interface{}) (string, error) {
 	manifest, absExecPath, argsString, err := resolveSkillExecution(skillsDir, skillName, argsJSON)
 	if err != nil {
 		return "", err
 	}
 
-	return executePreparedSkill(workspaceDir, skillName, manifest, absExecPath, argsString, skillExecutionOptions{logInput: true})
+	return executePreparedSkill(ctx, workspaceDir, skillName, manifest, absExecPath, argsString, skillExecutionOptions{logInput: true})
 }
 
 // ExecuteSkillWithSecrets is like ExecuteSkill but injects vault secrets and credential secrets
 // as environment variables and scrubs secrets from the output.
-func ExecuteSkillWithSecrets(skillsDir, workspaceDir, skillName string, argsJSON map[string]interface{}, secrets map[string]string, creds []CredentialFields) (string, error) {
+func ExecuteSkillWithSecrets(ctx context.Context, skillsDir, workspaceDir, skillName string, argsJSON map[string]interface{}, secrets map[string]string, creds []CredentialFields) (string, error) {
 	manifest, absExecPath, argsString, err := resolveSkillExecution(skillsDir, skillName, argsJSON)
 	if err != nil {
 		return "", err
 	}
 
-	return executePreparedSkill(workspaceDir, skillName, manifest, absExecPath, argsString, skillExecutionOptions{
+	return executePreparedSkill(ctx, workspaceDir, skillName, manifest, absExecPath, argsString, skillExecutionOptions{
 		injectEnv: func(cmd *exec.Cmd) {
 			InjectSecretsEnv(cmd, secrets)
 			InjectCredentialEnv(cmd, creds)

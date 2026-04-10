@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -39,7 +40,7 @@ func TestExecuteSkill_RejectsOversizedArgs(t *testing.T) {
 	bigValue := strings.Repeat("x", maxSkillArgsBytes+1)
 	args := map[string]interface{}{"data": bigValue}
 
-	_, err := ExecuteSkill(skillsDir, workspaceDir, "big_args_test", args)
+	_, err := ExecuteSkill(context.Background(), skillsDir, workspaceDir, "big_args_test", args)
 	if err == nil {
 		t.Fatal("expected error for oversized args, got nil")
 	}
@@ -55,7 +56,7 @@ func TestExecuteSkillWithSecrets_RejectsOversizedArgs(t *testing.T) {
 	bigValue := strings.Repeat("x", maxSkillArgsBytes+1)
 	args := map[string]interface{}{"data": bigValue}
 
-	_, err := ExecuteSkillWithSecrets(skillsDir, workspaceDir, "big_args_test", args, nil, nil)
+	_, err := ExecuteSkillWithSecrets(context.Background(), skillsDir, workspaceDir, "big_args_test", args, nil, nil)
 	if err == nil {
 		t.Fatal("expected error for oversized args, got nil")
 	}
@@ -88,7 +89,7 @@ func TestExecuteSkillWrapsListSkillsError(t *testing.T) {
 	skillsDir := setupDummySkill(t)
 	workspaceDir := t.TempDir()
 	args := map[string]interface{}{"bad": func() {}}
-	_, err := ExecuteSkill(skillsDir, workspaceDir, "big_args_test", args)
+	_, err := ExecuteSkill(context.Background(), skillsDir, workspaceDir, "big_args_test", args)
 	if err == nil {
 		t.Fatal("expected marshal error")
 	}
@@ -105,7 +106,7 @@ func TestExecuteSkillWithSecretsWrapsListSkillsError(t *testing.T) {
 	skillsDir := setupDummySkill(t)
 	workspaceDir := t.TempDir()
 	args := map[string]interface{}{"bad": func() {}}
-	_, err := ExecuteSkillWithSecrets(skillsDir, workspaceDir, "big_args_test", args, nil, nil)
+	_, err := ExecuteSkillWithSecrets(context.Background(), skillsDir, workspaceDir, "big_args_test", args, nil, nil)
 	if err == nil {
 		t.Fatal("expected marshal error")
 	}
@@ -129,7 +130,7 @@ func TestExecuteSkillWithSecretsRejectsInvalidExecutablePath(t *testing.T) {
 		t.Fatalf("write manifest: %v", err)
 	}
 
-	_, err := ExecuteSkillWithSecrets(dir, t.TempDir(), "bad_path_skill", nil, nil, nil)
+	_, err := ExecuteSkillWithSecrets(context.Background(), dir, t.TempDir(), "bad_path_skill", nil, nil, nil)
 	if err == nil {
 		t.Fatal("expected invalid executable path error")
 	}
