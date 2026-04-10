@@ -1024,15 +1024,6 @@ type Config struct {
 			PromptInjection bool `yaml:"prompt_injection"` // inject relevant KG context into system prompt
 			MaxPromptNodes  int  `yaml:"max_prompt_nodes"` // max nodes to inject into prompt (default 5)
 			MaxPromptChars  int  `yaml:"max_prompt_chars"` // max chars for KG context in prompt (default 800)
-			Sync            struct {
-				Enabled         bool     `yaml:"enabled"`
-				IntervalMinutes int      `yaml:"interval_minutes"`
-				Sources         []string `yaml:"sources"`
-				DeviceLabel     string   `yaml:"device_label"`
-				StaleThreshold  int      `yaml:"stale_threshold"`
-				StaleTTLMinutes int      `yaml:"stale_ttl_minutes"`
-				DryRunOnStart   bool     `yaml:"dry_run_on_start"`
-			} `yaml:"sync"`
 		} `yaml:"knowledge_graph"`
 		SecretsVault struct {
 			Enabled  bool `yaml:"enabled"`  // default true; disable to block secrets_vault
