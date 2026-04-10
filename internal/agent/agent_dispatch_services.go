@@ -782,7 +782,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				}
 				result, err := sqlconnections.ExecuteQuery(ctx, sqlConnectionPool, sqlConnectionsDB, req.ConnectionName, req.SQLQuery, maxRows, queryTimeout)
 				if err != nil {
-					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, sqlconnections.SanitizeError(err))
 				}
 				b, _ := json.Marshal(map[string]interface{}{"status": "success", "result": result})
 				return "Tool Output: " + string(b)
@@ -792,14 +792,14 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				}
 				cols, err := sqlconnections.DescribeTable(ctx, sqlConnectionPool, sqlConnectionsDB, req.ConnectionName, req.TableName, queryTimeout)
 				if err != nil {
-					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, sqlconnections.SanitizeError(err))
 				}
 				b, _ := json.Marshal(map[string]interface{}{"status": "success", "table": req.TableName, "columns": cols})
 				return "Tool Output: " + string(b)
 			case "list_tables":
 				tables, err := sqlconnections.ListTables(ctx, sqlConnectionPool, sqlConnectionsDB, req.ConnectionName, queryTimeout)
 				if err != nil {
-					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, sqlconnections.SanitizeError(err))
 				}
 				b, _ := json.Marshal(map[string]interface{}{"status": "success", "tables": tables, "count": len(tables)})
 				return "Tool Output: " + string(b)
@@ -821,7 +821,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			case "list":
 				list, err := sqlconnections.List(sqlConnectionsDB)
 				if err != nil {
-					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, sqlconnections.SanitizeError(err))
 				}
 				// Redact sensitive fields before returning
 				type safeConn struct {
@@ -857,7 +857,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				}
 				c, err := sqlconnections.GetByName(sqlConnectionsDB, req.ConnectionName)
 				if err != nil {
-					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, sqlconnections.SanitizeError(err))
 				}
 				b, _ := json.Marshal(map[string]interface{}{
 					"status": "success", "id": c.ID, "name": c.Name, "driver": c.Driver,
@@ -901,7 +901,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				if username != "" || password != "" {
 					credJSON, marshalErr := sqlconnections.MarshalCredentials(username, password)
 					if marshalErr != nil {
-						return fmt.Sprintf(`Tool Output: {"status":"error","message":"failed to marshal credentials: %s"}`, marshalErr.Error())
+						return fmt.Sprintf(`Tool Output: {"status":"error","message":"failed to marshal credentials: %s"}`, sqlconnections.SanitizeError(marshalErr))
 					}
 					vaultKey = "sqlconn_" + req.ConnectionName
 					if err := vault.WriteSecret(vaultKey, credJSON); err != nil {
@@ -913,7 +913,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					req.ConnectionName, req.Driver, req.Host, req.Port, req.DatabaseName, req.Description,
 					allowRead, allowWrite, allowChange, allowDelete, vaultKey, sslMode)
 				if err != nil {
-					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, sqlconnections.SanitizeError(err))
 				}
 				return fmt.Sprintf(`Tool Output: {"status":"success","message":"Connection created","id":"%s","name":"%s"}`, id, req.ConnectionName)
 
@@ -923,7 +923,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				}
 				existing, err := sqlconnections.GetByName(sqlConnectionsDB, req.ConnectionName)
 				if err != nil {
-					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, sqlconnections.SanitizeError(err))
 				}
 				if req.Description != "" {
 					existing.Description = req.Description
@@ -959,7 +959,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				if username != "" || password != "" {
 					credJSON, marshalErr := sqlconnections.MarshalCredentials(username, password)
 					if marshalErr != nil {
-						return fmt.Sprintf(`Tool Output: {"status":"error","message":"failed to marshal credentials: %s"}`, marshalErr.Error())
+						return fmt.Sprintf(`Tool Output: {"status":"error","message":"failed to marshal credentials: %s"}`, sqlconnections.SanitizeError(marshalErr))
 					}
 					vaultKey := existing.VaultSecretID
 					if vaultKey == "" {
@@ -979,7 +979,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					existing.DatabaseName, existing.Description,
 					existing.AllowRead, existing.AllowWrite, existing.AllowChange, existing.AllowDelete,
 					existing.VaultSecretID, existing.SSLMode); err != nil {
-					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, sqlconnections.SanitizeError(err))
 				}
 				return fmt.Sprintf(`Tool Output: {"status":"success","message":"Connection updated","name":"%s"}`, req.ConnectionName)
 
@@ -989,11 +989,11 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				}
 				existing, err := sqlconnections.GetByName(sqlConnectionsDB, req.ConnectionName)
 				if err != nil {
-					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, sqlconnections.SanitizeError(err))
 				}
 				sqlConnectionPool.CloseConnection(existing.ID)
 				if err := sqlconnections.Delete(sqlConnectionsDB, existing.ID); err != nil {
-					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, sqlconnections.SanitizeError(err))
 				}
 				// Clean up vault secret
 				if existing.VaultSecretID != "" {
@@ -1007,10 +1007,10 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				}
 				rec, err := sqlconnections.GetByName(sqlConnectionsDB, req.ConnectionName)
 				if err != nil {
-					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, sqlconnections.SanitizeError(err))
 				}
 				if err := sqlConnectionPool.TestConnection(rec); err != nil {
-					return fmt.Sprintf(`Tool Output: {"status":"error","message":"Connection test failed: %s"}`, err.Error())
+					return fmt.Sprintf(`Tool Output: {"status":"error","message":"Connection test failed: %s"}`, sqlconnections.SanitizeError(err))
 				}
 				return fmt.Sprintf(`Tool Output: {"status":"success","message":"Connection test successful","name":"%s","driver":"%s"}`, req.ConnectionName, rec.Driver)
 
@@ -1028,7 +1028,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				}
 				dockerReq, err := sqlconnections.PrepareDockerDB(templateName, req.ConnectionName, dbName)
 				if err != nil {
-					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
+					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, sqlconnections.SanitizeError(err))
 				}
 				b, _ := json.Marshal(map[string]interface{}{
 					"status":  "success",

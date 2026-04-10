@@ -147,6 +147,54 @@ func CheckPermission(conn ConnectionRecord, stmt StatementType) error {
 	return nil
 }
 
+// SanitizeError returns a user-safe error message by stripping potentially sensitive
+// internal details (connection names, driver-specific messages, wrapped errors).
+func SanitizeError(err error) string {
+	if err == nil {
+		return "unknown error"
+	}
+	msg := err.Error()
+
+	// Strip connection name references that might leak internal naming
+	// e.g. "connection 'my-db' not found" -> "connection not found"
+	msg = stripConnectionRef(msg)
+
+	// Strip driver-specific error suffixes that might leak implementation details
+	// e.g. "failed to connect: driver error: ..." -> "failed to connect"
+	if idx := strings.Index(msg, ": driver"); idx > 0 {
+		msg = msg[:idx]
+	}
+
+	// Strip postgres/mysql error codes that might reveal server details
+	// e.g. "error: permission denied for table users" -> "permission denied"
+	if idx := strings.Index(msg, "pq: "); idx >= 0 {
+		msg = msg[idx+4:]
+	}
+	if idx := strings.Index(msg, "Error "); idx >= 0 && len(msg) > idx+6 && msg[idx+6] >= '0' && msg[idx+6] <= '9' {
+		// Strip MySQL error codes like "Error 1045"
+		rest := msg[idx+5:]
+		if len(rest) > 4 {
+			rest = strings.TrimLeft(rest[4:], " ")
+			if len(rest) > 0 && (rest[0] < '0' || rest[0] > '9') {
+				msg = msg[:idx] + rest
+			}
+		}
+	}
+
+	return msg
+}
+
+// stripConnectionRef removes connection name from error messages to prevent leaking
+// internal naming conventions while keeping the error meaningful.
+func stripConnectionRef(msg string) string {
+	// Pattern: "connection 'name'" or "connection 'name':"
+	re := strings.NewReplacer(
+		`connection '`, "connection '***'",
+		`connection "`, `connection "***"`,
+	)
+	return re.Replace(msg)
+}
+
 // firstKeyword extracts the first SQL keyword (uppercase).
 func firstKeyword(s string) string {
 	var b strings.Builder

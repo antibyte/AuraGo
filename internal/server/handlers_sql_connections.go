@@ -235,11 +235,13 @@ func handleSQLConnectionTest(s *Server) http.HandlerFunc {
 		}
 
 		if err := s.SQLConnectionPool.TestConnection(rec); err != nil {
+			// Sanitize error message to prevent leaking driver-specific details
+			s.Logger.Warn("SQL connection test failed", "connection_id", id, "connection_name", rec.Name, "error", err)
 			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusOK)
+			w.WriteHeader(http.StatusBadRequest)
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status":  "error",
-				"message": "Connection test failed",
+				"message": "Connection test failed. Check host, port, credentials, and database availability.",
 			})
 			return
 		}

@@ -359,7 +359,10 @@ async function sqlConnTest() {
         if (editId) {
             const resp = await fetch('/api/sql-connections/' + editId + '/test', { method: 'POST' });
             const data = await resp.json().catch(() => ({}));
-            if (!resp.ok) throw new Error(data.error || 'Test failed');
+            // Check both HTTP status and response status field
+            if (!resp.ok || data.status === 'error') {
+                throw new Error(data.message || (resp.ok ? 'Test failed' : 'Test failed with status ' + resp.status));
+            }
             successBox.textContent = '✅ ' + (data.message || t('config.sql_connections.test_success'));
         } else {
             errBox.textContent = t('config.sql_connections.save_before_test');
@@ -380,7 +383,10 @@ async function sqlConnTestExisting(id) {
     try {
         const resp = await fetch('/api/sql-connections/' + id + '/test', { method: 'POST' });
         const data = await resp.json().catch(() => ({}));
-        if (!resp.ok) throw new Error(data.error || 'Test failed');
+        // Check both HTTP status and response status field
+        if (!resp.ok || data.status === 'error') {
+            throw new Error(data.message || (resp.ok ? 'Test failed' : 'Test failed with status ' + resp.status));
+        }
         showToast(data.message || t('config.sql_connections.test_success'), 'success');
     } catch (e) {
         showToast(e.message || t('config.common.error'), 'error');

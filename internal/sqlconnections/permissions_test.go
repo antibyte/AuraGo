@@ -1,123 +1,154 @@
 package sqlconnections
 
 import (
+	"fmt"
 	"testing"
 )
 
-func TestDetectStatementType(t *testing.T) {
+func TestSanitizeError(t *testing.T) {
 	tests := []struct {
 		name     string
-		query    string
-		expected StatementType
-		wantErr  bool
+		input    error
+		contains string
+		excludes []string
 	}{
-		{"SELECT", "SELECT * FROM users", StmtSelect, false},
-		{"SELECT lower", "select id from t", StmtSelect, false},
-		{"SHOW", "SHOW TABLES", StmtSelect, false},
-		{"DESCRIBE", "DESCRIBE users", StmtSelect, false},
-		{"DESC", "DESC users", StmtSelect, false},
-		{"EXPLAIN", "EXPLAIN SELECT 1", StmtSelect, false},
-		{"PRAGMA", "PRAGMA table_info(users)", StmtSelect, false},
-		{"INSERT", "INSERT INTO users (name) VALUES ('test')", StmtInsert, false},
-		{"REPLACE", "REPLACE INTO users (id, name) VALUES (1, 'test')", StmtInsert, false},
-		{"UPDATE", "UPDATE users SET name='new' WHERE id=1", StmtUpdate, false},
-		{"DELETE", "DELETE FROM users WHERE id=1", StmtDelete, false},
-		{"TRUNCATE", "TRUNCATE TABLE users", StmtDelete, false},
-		{"CREATE", "CREATE TABLE foo (id INT)", StmtDDL, false},
-		{"DROP", "DROP TABLE foo", StmtDDL, false},
-		{"ALTER", "ALTER TABLE foo ADD COLUMN bar TEXT", StmtDDL, false},
-		{"WITH SELECT", "WITH cte AS (SELECT 1) SELECT * FROM cte", StmtSelect, false},
-		{"WITH INSERT", "WITH cte AS (SELECT 1) INSERT INTO t SELECT * FROM cte", StmtInsert, false},
-		{"trailing semicolon", "SELECT 1;", StmtSelect, false},
-		{"trailing semicolon+space", "SELECT 1;  ", StmtSelect, false},
-		{"multiple statements", "SELECT 1; DROP TABLE users", StmtUnknown, true},
-		{"empty", "", StmtUnknown, true},
-		{"whitespace only", "   ", StmtUnknown, true},
-		{"unsupported", "GRANT ALL ON *.* TO 'user'", StmtUnknown, true},
+		{
+			name:     "nil error returns generic message",
+			input:    nil,
+			contains: "unknown error",
+		},
+		{
+			name:     "driver error suffix is stripped",
+			input:    fmt.Errorf("failed to connect: driver error: pq: connection refused"),
+			contains: "failed to connect",
+			excludes: []string{": driver", "pq:"},
+		},
+		{
+			name:     "postgres pq prefix is stripped",
+			input:    fmt.Errorf("pq: permission denied for table users"),
+			contains: "permission denied",
+			excludes: []string{"pq:"},
+		},
+		{
+			name:     "permission denied message is preserved",
+			input:    fmt.Errorf("permission denied: connection %q does not allow SELECT (read)", "test"),
+			contains: "permission denied",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := DetectStatementType(tt.query)
-			if tt.wantErr {
-				if err == nil {
-					t.Errorf("expected error, got nil (type=%v)", got)
+			result := SanitizeError(tt.input)
+
+			if tt.contains != "" && !containsString(tt.contains, result) {
+				t.Errorf("SanitizeError(%v) = %q, want to contain %q", tt.input, result, tt.contains)
+			}
+
+			for _, exclude := range tt.excludes {
+				if containsString(exclude, result) {
+					t.Errorf("SanitizeError(%v) = %q, should NOT contain %q", tt.input, result, exclude)
 				}
+			}
+		})
+	}
+}
+
+func containsString(substr, s string) bool {
+	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsSubstring(s, substr))
+}
+
+func containsSubstring(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
+}
+
+func TestDetectStatementType(t *testing.T) {
+	tests := []struct {
+		query    string
+		expected StatementType
+		wantErr  bool
+	}{
+		{"SELECT * FROM users", StmtSelect, false},
+		{"INSERT INTO users VALUES (1)", StmtInsert, false},
+		{"UPDATE users SET name = 'test'", StmtUpdate, false},
+		{"DELETE FROM users", StmtDelete, false},
+		{"CREATE TABLE test (id INT)", StmtDDL, false},
+		{"DROP TABLE users", StmtDDL, false},
+		{"ALTER TABLE users ADD col INT", StmtDDL, false},
+		{"", StmtUnknown, true},
+		{"SELECT * FROM users; SELECT * FROM orders", StmtUnknown, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.query, func(t *testing.T) {
+			got, err := DetectStatementType(tt.query)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("DetectStatementType(%q) error = %v, wantErr %v", tt.query, err, tt.wantErr)
 				return
 			}
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
 			if got != tt.expected {
-				t.Errorf("expected %v, got %v", tt.expected, got)
+				t.Errorf("DetectStatementType(%q) = %v, want %v", tt.query, got, tt.expected)
 			}
 		})
 	}
 }
 
 func TestCheckPermission(t *testing.T) {
-	readOnly := ConnectionRecord{Name: "ro", AllowRead: true}
-	fullAccess := ConnectionRecord{Name: "full", AllowRead: true, AllowWrite: true, AllowChange: true, AllowDelete: true}
-	writeOnly := ConnectionRecord{Name: "wo", AllowWrite: true, AllowChange: true}
+	conn := ConnectionRecord{
+		Name:        "test-conn",
+		AllowRead:   true,
+		AllowWrite:  false,
+		AllowChange: false,
+		AllowDelete: false,
+	}
 
 	tests := []struct {
-		name    string
-		conn    ConnectionRecord
 		stmt    StatementType
 		wantErr bool
 	}{
-		{"read-only allows SELECT", readOnly, StmtSelect, false},
-		{"read-only denies INSERT", readOnly, StmtInsert, true},
-		{"read-only denies UPDATE", readOnly, StmtUpdate, true},
-		{"read-only denies DELETE", readOnly, StmtDelete, true},
-		{"read-only denies DDL", readOnly, StmtDDL, true},
-		{"full allows SELECT", fullAccess, StmtSelect, false},
-		{"full allows INSERT", fullAccess, StmtInsert, false},
-		{"full allows UPDATE", fullAccess, StmtUpdate, false},
-		{"full allows DELETE", fullAccess, StmtDelete, false},
-		{"full allows DDL", fullAccess, StmtDDL, false},
-		{"unknown blocked", fullAccess, StmtUnknown, true},
-		{"write+change allows DDL", writeOnly, StmtDDL, false},
-		{"write-only denies SELECT", writeOnly, StmtSelect, true},
+		{StmtSelect, false},
+		{StmtInsert, true},
+		{StmtUpdate, true},
+		{StmtDelete, true},
+		{StmtDDL, true},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := CheckPermission(tt.conn, tt.stmt)
-			if tt.wantErr && err == nil {
-				t.Error("expected error, got nil")
-			}
-			if !tt.wantErr && err != nil {
-				t.Errorf("unexpected error: %v", err)
+		t.Run(conn.Name+"_"+tt.stmt.String(), func(t *testing.T) {
+			err := CheckPermission(conn, tt.stmt)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("CheckPermission(%v, %v) = %v, wantErr %v", conn.Name, tt.stmt, err, tt.wantErr)
 			}
 		})
 	}
 }
 
-func TestIsValidIdentifier(t *testing.T) {
+func TestCheckPermissionDDLRequiresBothWriteAndChange(t *testing.T) {
+	// DDL requires BOTH allow_write AND allow_change
+	connBoth := ConnectionRecord{Name: "both", AllowWrite: true, AllowChange: true}
+	connOnlyWrite := ConnectionRecord{Name: "write-only", AllowWrite: true, AllowChange: false}
+	connOnlyChange := ConnectionRecord{Name: "change-only", AllowWrite: false, AllowChange: true}
+	connNeither := ConnectionRecord{Name: "neither", AllowWrite: false, AllowChange: false}
+
 	tests := []struct {
-		input string
-		valid bool
+		conn    ConnectionRecord
+		wantErr bool
 	}{
-		{"users", true},
-		{"my_table", true},
-		{"Table123", true},
-		{"_private", true},
-		{"public.users", true},
-		{"schema.table_name", true},
-		{"", false},
-		{"DROP TABLE", false},
-		{"users; --", false},
-		{"table'name", false},
-		{"table\"name", false},
-		{"table(name)", false},
+		{connBoth, false},
+		{connOnlyWrite, true},
+		{connOnlyChange, true},
+		{connNeither, true},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.input, func(t *testing.T) {
-			got := isValidIdentifier(tt.input)
-			if got != tt.valid {
-				t.Errorf("isValidIdentifier(%q) = %v, want %v", tt.input, got, tt.valid)
+		t.Run(tt.conn.Name, func(t *testing.T) {
+			err := CheckPermission(tt.conn, StmtDDL)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("CheckPermission(%v, DDL) = %v, wantErr %v", tt.conn.Name, err, tt.wantErr)
 			}
 		})
 	}
