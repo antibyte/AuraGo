@@ -1055,17 +1055,40 @@ func fixCommonConfigIssues(data []byte) []byte {
 	// Fix 1: Normalize indentation (convert tabs to 4 spaces)
 	content = regexp.MustCompile(`\t`).ReplaceAllString(content, "    ")
 
-	// Note: budget.models validation is now handled by config-merger's
-	// sanitizeMergedConfig() which properly checks if items are maps.
-	// The old regex-based fix here was incorrectly triggering on valid YAML.
-
 	// Fix 2: Remove trailing whitespace
 	content = regexp.MustCompile(`[ \t]+$`).ReplaceAllString(content, "")
 
 	// Fix 3: Ensure consistent line endings
 	content = regexp.MustCompile(`\r\n`).ReplaceAllString(content, "\n")
 
+	// Fix 4: indexing.directories uses []IndexingDirectory{{path, collection}}.
+	// Legacy configs often have bare strings like "- ./knowledge" which fail
+	// yaml.Unmarshal. Convert them to "- path: ./knowledge".
+	content = fixBareStringDirectoryItems(content)
+
 	return []byte(content)
+}
+
+// fixBareStringDirectoryItems converts bare string items in indexing.directories
+// from "- ./knowledge" to "- path: ./knowledge".
+func fixBareStringDirectoryItems(content string) string {
+	// This regex matches a YAML list item that is a bare string (path value).
+	// (?m) enables multiline mode so ^/$ match line boundaries.
+	// Pattern:
+	//   ^(\s*-\s+)       - start of line, dash, whitespace (captured as $1)
+	//   (\.\.?|/|\w)     - value starts with . / or alphanumeric (captured $2)
+	//   ([^\n:]*)$       - rest of the value, no colons allowed (captured $3)
+	// Since $ anchors to line end, "- path: value" won't match because
+	// the colon after "path" makes [^\n:]* stop before the value.
+	re := regexp.MustCompile(`(?m)^(\s*-\s+)(\.\.?|/|\w)([^\n:]*)$`)
+	return re.ReplaceAllStringFunc(content, func(match string) string {
+		// Convert "- ./knowledge" → "- path: ./knowledge"
+		parts := re.FindStringSubmatch(match)
+		if len(parts) == 4 {
+			return parts[1] + "path: " + parts[2] + parts[3]
+		}
+		return match
+	})
 }
 
 func resolvePath(baseDir, targetPath string) string {

@@ -40,6 +40,7 @@ type VectorDB interface {
 	SearchMemoriesOnly(query string, topK int) ([]string, []string, error)
 	GetByID(id string) (string, error)
 	DeleteDocument(id string) error
+	DeleteDocumentFromCollection(id, collection string) error
 	Count() int
 	IsDisabled() bool
 	Close() error
@@ -392,8 +393,9 @@ func (cv *ChromemVectorDB) storeDocumentInCollectionWithDomain(concept, content,
 	fullContent := concept + "\n\n" + content
 
 	metadata := map[string]string{
-		"concept":   concept,
-		"timestamp": fmt.Sprintf("%d", time.Now().Unix()),
+		"concept":     concept,
+		"timestamp":   fmt.Sprintf("%d", time.Now().Unix()),
+		"source_type": "file_indexer",
 	}
 	if domain != "" {
 		metadata["domain"] = domain
@@ -432,6 +434,7 @@ func (cv *ChromemVectorDB) storeDocumentInCollectionWithDomain(concept, content,
 			"concept":     concept,
 			"chunk_index": fmt.Sprintf("%d/%d", i+1, len(chunks)),
 			"timestamp":   fmt.Sprintf("%d", time.Now().Unix()),
+			"source_type": "file_indexer",
 		}
 		if domain != "" {
 			chunkMeta["domain"] = domain
@@ -522,9 +525,10 @@ func (cv *ChromemVectorDB) StoreDocumentWithEmbeddingInCollection(concept, conte
 	doc := chromem.Document{
 		ID: docID,
 		Metadata: map[string]string{
-			"concept":    concept,
-			"timestamp":  fmt.Sprintf("%d", time.Now().Unix()),
-			"multimodal": "true",
+			"concept":     concept,
+			"timestamp":   fmt.Sprintf("%d", time.Now().Unix()),
+			"multimodal":  "true",
+			"source_type": "file_indexer",
 		},
 		Content:   content,
 		Embedding: embedding,
@@ -1111,6 +1115,8 @@ func (cv *ChromemVectorDB) searchTopSimilarityScore(concept string) float32 {
 }
 
 // DeleteDocument removes a specific document from the VectorDB by its ID.
+// Note: This deletes from the default collection (aurago_memories).
+// Use DeleteDocumentFromCollection for collection-specific deletion.
 func (cv *ChromemVectorDB) DeleteDocument(id string) error {
 	if cv.disabled.Load() {
 		return fmt.Errorf("VectorDB is disabled")
@@ -1120,6 +1126,22 @@ func (cv *ChromemVectorDB) DeleteDocument(id string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	return cv.collection.Delete(ctx, nil, nil, id)
+}
+
+// DeleteDocumentFromCollection removes a specific document from a named collection.
+func (cv *ChromemVectorDB) DeleteDocumentFromCollection(id, collection string) error {
+	if cv.disabled.Load() {
+		return fmt.Errorf("VectorDB is disabled")
+	}
+	cv.mu.Lock()
+	defer cv.mu.Unlock()
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	col, err := cv.db.GetOrCreateCollection(collection, nil, cv.embeddingFunc)
+	if err != nil {
+		return fmt.Errorf("get collection %s: %w", collection, err)
+	}
+	return col.Delete(ctx, nil, nil, id)
 }
 
 // getQueryEmbedding returns a cached embedding for the query string, or computes a new one.

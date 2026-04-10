@@ -65,6 +65,10 @@ func (f *fakeIndexerVectorDB) DeleteDocument(id string) error {
 	return nil
 }
 
+func (f *fakeIndexerVectorDB) DeleteDocumentFromCollection(id, collection string) error {
+	return f.DeleteDocument(id)
+}
+
 func (f *fakeIndexerVectorDB) Count() int       { return 0 }
 func (f *fakeIndexerVectorDB) IsDisabled() bool { return false }
 func (f *fakeIndexerVectorDB) Close() error     { return nil }

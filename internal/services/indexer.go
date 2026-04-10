@@ -212,7 +212,7 @@ func (fi *FileIndexer) scanDirectory(dir, collection string) (totalFiles, indexe
 
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		fi.logger.Debug("[Indexer] Directory does not exist, skipping", "dir", dir)
-		errors = append(errors, fi.cleanupDeletedTrackedFiles(dir, trackedPaths, seenPaths)...)
+		errors = append(errors, fi.cleanupDeletedTrackedFiles(dir, collection, trackedPaths, seenPaths)...)
 		return 0, 0, errors
 	}
 
@@ -383,7 +383,7 @@ func (fi *FileIndexer) scanDirectory(dir, collection string) (totalFiles, indexe
 			return nil
 		}
 
-		if err := fi.removeTrackedFile(path); err != nil {
+		if err := fi.removeTrackedFile(path, collection); err != nil {
 			errors = append(errors, fmt.Sprintf("cleanup error %s: %v", path, err))
 			fi.logger.Warn("[Indexer] Failed to remove stale embeddings before reindex", "path", path, "error", err)
 			return nil
@@ -431,11 +431,11 @@ func (fi *FileIndexer) scanDirectory(dir, collection string) (totalFiles, indexe
 		errors = append(errors, fmt.Sprintf("walk error %s: %v", dir, err))
 	}
 
-	errors = append(errors, fi.cleanupDeletedTrackedFiles(dir, trackedPaths, seenPaths)...)
+	errors = append(errors, fi.cleanupDeletedTrackedFiles(dir, collection, trackedPaths, seenPaths)...)
 	return totalFiles, indexedFiles, errors
 }
 
-func (fi *FileIndexer) cleanupDeletedTrackedFiles(dir string, trackedPaths []string, seenPaths map[string]struct{}) []string {
+func (fi *FileIndexer) cleanupDeletedTrackedFiles(dir, collection string, trackedPaths []string, seenPaths map[string]struct{}) []string {
 	var errors []string
 	for _, trackedPath := range trackedPaths {
 		if !isPathWithinDir(trackedPath, dir) {
@@ -444,7 +444,7 @@ func (fi *FileIndexer) cleanupDeletedTrackedFiles(dir string, trackedPaths []str
 		if _, ok := seenPaths[trackedPath]; ok {
 			continue
 		}
-		if err := fi.removeTrackedFile(trackedPath); err != nil {
+		if err := fi.removeTrackedFile(trackedPath, collection); err != nil {
 			errors = append(errors, fmt.Sprintf("deleted file cleanup %s: %v", trackedPath, err))
 			fi.logger.Warn("[Indexer] Failed to remove deleted file embeddings", "path", trackedPath, "error", err)
 			continue
@@ -454,14 +454,14 @@ func (fi *FileIndexer) cleanupDeletedTrackedFiles(dir string, trackedPaths []str
 	return errors
 }
 
-func (fi *FileIndexer) removeTrackedFile(path string) error {
+func (fi *FileIndexer) removeTrackedFile(path, collection string) error {
 	docIDs, err := fi.stm.GetFileEmbeddingDocIDs(path)
 	if err != nil {
 		return fmt.Errorf("load tracked doc ids: %w", err)
 	}
 	for _, docID := range docIDs {
-		if err := fi.vectorDB.DeleteDocument(docID); err != nil {
-			return fmt.Errorf("delete vector doc %s: %w", docID, err)
+		if err := fi.vectorDB.DeleteDocumentFromCollection(docID, collection); err != nil {
+			return fmt.Errorf("delete vector doc %s from collection %s: %w", docID, collection, err)
 		}
 		if err := fi.stm.DeleteMemoryMeta(docID); err != nil {
 			return fmt.Errorf("delete memory meta %s: %w", docID, err)
