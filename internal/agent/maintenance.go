@@ -497,7 +497,7 @@ func storeDailySummaryText(stm *memory.SQLiteMemory, logger *slog.Logger, today 
 	}
 }
 
-func storeKGExtraction(logger *slog.Logger, kg *memory.KnowledgeGraph, nodes []memory.Node, edges []memory.Edge) {
+func storeKGExtraction(logger *slog.Logger, kg *memory.KnowledgeGraph, nodes []memory.Node, edges []memory.Edge, contentLength int) {
 	if kg == nil {
 		return
 	}
@@ -506,12 +506,22 @@ func storeKGExtraction(logger *slog.Logger, kg *memory.KnowledgeGraph, nodes []m
 		return
 	}
 
+	// Compute extraction confidence based on heuristics.
+	confidenceScore := kgextraction.ComputeConfidence(kgextraction.ConfidenceInput{
+		SourceType:    "auto_extraction",
+		ContentLength: contentLength,
+		NodeCount:     len(nodes),
+		EdgeCount:     len(edges),
+	})
+	confidenceStr := kgextraction.FormatConfidence(confidenceScore)
+
 	for i := range nodes {
 		if nodes[i].Properties == nil {
 			nodes[i].Properties = make(map[string]string)
 		}
 		nodes[i].Properties["source"] = "auto_extraction"
 		nodes[i].Properties["extracted_at"] = time.Now().Format("2006-01-02")
+		nodes[i].Properties["confidence"] = confidenceStr
 	}
 	for i := range edges {
 		if edges[i].Properties == nil {
@@ -519,6 +529,7 @@ func storeKGExtraction(logger *slog.Logger, kg *memory.KnowledgeGraph, nodes []m
 		}
 		edges[i].Properties["source"] = "auto_extraction"
 		edges[i].Properties["extracted_at"] = time.Now().Format("2006-01-02")
+		edges[i].Properties["confidence"] = confidenceStr
 	}
 
 	if err := kg.BulkMergeExtractedEntities(nodes, edges); err != nil {
@@ -526,7 +537,7 @@ func storeKGExtraction(logger *slog.Logger, kg *memory.KnowledgeGraph, nodes []m
 		return
 	}
 
-	logger.Info("[KG] Nightly entity extraction complete", "nodes", len(nodes), "edges", len(edges))
+	logger.Info("[KG] Nightly entity extraction complete", "nodes", len(nodes), "edges", len(edges), "confidence", confidenceStr)
 }
 
 func runBatchedMaintenanceSummaryAndKG(cfg *config.Config, logger *slog.Logger, stm *memory.SQLiteMemory, kg *memory.KnowledgeGraph) bool {
@@ -581,7 +592,7 @@ func runBatchedMaintenanceSummaryAndKG(cfg *config.Config, logger *slog.Logger, 
 	}
 
 	storeDailySummaryText(stm, logger, today, entries, result.DailySummary)
-	storeKGExtraction(logger, kg, result.KGExtraction.Nodes, result.KGExtraction.Edges)
+	storeKGExtraction(logger, kg, result.KGExtraction.Nodes, result.KGExtraction.Edges, len(conversationInput))
 	return true
 }
 
@@ -621,7 +632,7 @@ func extractKGEntities(cfg *config.Config, logger *slog.Logger, client llm.ChatC
 		return
 	}
 
-	storeKGExtraction(logger, kg, nodes, edges)
+	storeKGExtraction(logger, kg, nodes, edges, len(conversationExcerpt))
 }
 
 const helperConsolidationBatchSize = 2

@@ -149,6 +149,9 @@ func (s *FileKGSyncer) SyncFile(path, collection string, opts FileKGSyncOptions)
 	}
 
 	// 1b. Prepare content based on file type for better extraction quality.
+	// Track original length before preparation for confidence scoring.
+	originalLength := len(content)
+	wasTruncated := originalLength > maxContentBytes
 	content = prepareContentForExtraction(path, content)
 
 	// 2. Build existing nodes context for the LLM (reuse IDs where possible).
@@ -176,7 +179,18 @@ func (s *FileKGSyncer) SyncFile(path, collection string, opts FileKGSyncOptions)
 		return result
 	}
 
-	// 4. Annotate with source metadata (minimal evidence link for first draft).
+	// 3b. Compute extraction confidence based on heuristics.
+	confidenceScore := kgextraction.ComputeConfidence(kgextraction.ConfidenceInput{
+		SourceType:    "file_sync",
+		FilePath:      path,
+		ContentLength: originalLength,
+		NodeCount:     len(nodes),
+		EdgeCount:     len(edges),
+		WasTruncated:  wasTruncated,
+	})
+	confidenceStr := kgextraction.FormatConfidence(confidenceScore)
+
+	// 4. Annotate with source metadata and confidence (minimal evidence link for first draft).
 	now := time.Now().Format("2006-01-02")
 	for i := range nodes {
 		if nodes[i].Properties == nil {
@@ -185,6 +199,7 @@ func (s *FileKGSyncer) SyncFile(path, collection string, opts FileKGSyncOptions)
 		nodes[i].Properties["source"] = "file_sync"
 		nodes[i].Properties["source_file"] = path
 		nodes[i].Properties["extracted_at"] = now
+		nodes[i].Properties["confidence"] = confidenceStr
 		if collection != "" {
 			nodes[i].Properties["collection"] = collection
 		}
@@ -196,6 +211,7 @@ func (s *FileKGSyncer) SyncFile(path, collection string, opts FileKGSyncOptions)
 		edges[i].Properties["source"] = "file_sync"
 		edges[i].Properties["source_file"] = path
 		edges[i].Properties["extracted_at"] = now
+		edges[i].Properties["confidence"] = confidenceStr
 		if collection != "" {
 			edges[i].Properties["collection"] = collection
 		}
