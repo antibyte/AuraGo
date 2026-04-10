@@ -427,6 +427,13 @@ sqlite:
 # Supports PostgreSQL, MySQL/MariaDB, and SQLite
 sql_connections:
     enabled: false
+    # Global read-only mode: block all INSERT, UPDATE, DELETE, and DDL queries
+    # regardless of connection-level permissions (default: false)
+    readonly: false
+    # Allow the agent to create, update, and delete SQL connections.
+    # When false (default), the agent can only list, get, and test connections.
+    # Enable this only if you trust the agent with connection management.
+    allow_management: false
     # Maximum number of open connections per database
     max_pool_size: 5
     # Connection timeout in seconds

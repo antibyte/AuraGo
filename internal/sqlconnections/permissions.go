@@ -69,6 +69,11 @@ func stripSQLComments(s string) string {
 
 // DetectStatementType parses the leading keyword(s) of a SQL string to classify it.
 // Only single statements are allowed — semicolons are rejected.
+//
+// SECURITY NOTE: This function is conservative — ambiguous or unknown statements
+// are blocked rather than allowed. Edge cases like PRAGMA, EXPLAIN variants,
+// CTEs with unknown inner DML, and administrative commands are treated as
+// potentially dangerous and blocked.
 func DetectStatementType(query string) (StatementType, error) {
 	trimmed := strings.TrimSpace(stripSQLComments(query))
 	if trimmed == "" {
@@ -88,10 +93,33 @@ func DetectStatementType(query string) (StatementType, error) {
 	keyword := firstKeyword(trimmed)
 
 	switch keyword {
-	case "SELECT", "SHOW", "DESCRIBE", "DESC", "EXPLAIN", "PRAGMA":
+	case "SELECT":
+		// Check for EXPLAIN SELECT (still read-only)
+		if isExplainQuery(trimmed) {
+			return StmtSelect, nil
+		}
 		return StmtSelect, nil
+
+	case "SHOW", "DESCRIBE", "DESC":
+		// SHOW and DESCRIBE are informational (read-only)
+		return StmtSelect, nil
+
+	case "EXPLAIN":
+		// EXPLAIN without SELECT is ambiguous — block conservatively.
+		// Some databases use EXPLAIN for analyzing INSERT/UPDATE/DELETE plans.
+		if isExplainSelectOnly(trimmed) {
+			return StmtSelect, nil
+		}
+		return StmtUnknown, fmt.Errorf("EXPLAIN for non-SELECT statements is not allowed")
+
+	case "PRAGMA":
+		// PRAGMA can modify database state (e.g., PRAGMA auto_vacuum=1).
+		// Block conservatively — most PRAGMA usage is informational only.
+		return StmtUnknown, fmt.Errorf("PRAGMA statements are not allowed for security reasons")
+
 	case "WITH":
-		// Common Table Expression — check if it leads to SELECT or a write statement
+		// Common Table Expression — conservatively analyze the inner statement.
+		// If we cannot definitively determine it's SELECT, block it.
 		inner := cteLeadingDML(trimmed)
 		switch inner {
 		case "SELECT":
@@ -103,19 +131,55 @@ func DetectStatementType(query string) (StatementType, error) {
 		case "DELETE":
 			return StmtDelete, nil
 		default:
-			return StmtSelect, nil // conservative: treat unknown CTE as read
+			// Conservative: block unknown CTE rather than assuming read-only
+			return StmtUnknown, fmt.Errorf("ambiguous CTE statement — only SELECT/CTE/INSERT/UPDATE/DELETE allowed")
 		}
+
 	case "INSERT", "REPLACE":
 		return StmtInsert, nil
 	case "UPDATE":
 		return StmtUpdate, nil
-	case "DELETE", "TRUNCATE":
+	case "DELETE":
 		return StmtDelete, nil
+	case "TRUNCATE":
+		// TRUNCATE is DDL (not just DML) — requires allow_write AND allow_change
+		return StmtDDL, nil
 	case "CREATE", "DROP", "ALTER":
 		return StmtDDL, nil
+
+		// Administrative commands — block these as they are not typical SQL queries
+	case "VACUUM", "ANALYZE", "REINDEX", "OPTIMIZE", "CHECK", "REPAIR":
+		return StmtDDL, nil
+
+	case "USE", "SET", "RESET", "START", "COMMIT", "ROLLBACK", "BEGIN":
+		// Session/state-modifying commands are not standard data queries
+		return StmtUnknown, fmt.Errorf("administrative statements (USE/SET/RESET/etc.) are not allowed")
+
+	case "CALL":
+		// Stored procedure calls can have side effects — block conservatively
+		return StmtUnknown, fmt.Errorf("CALL statements are not allowed")
+
+	case "GRANT", "REVOKE", "DENY":
+		// Permission changes are DDL-like
+		return StmtDDL, nil
+
 	default:
 		return StmtUnknown, fmt.Errorf("unsupported SQL statement: %s", keyword)
 	}
+}
+
+// isExplainQuery checks if the query is EXPLAIN SELECT (or EXPLAIN QUERY PLAN).
+func isExplainQuery(query string) bool {
+	upper := strings.ToUpper(query)
+	return strings.HasPrefix(upper, "EXPLAIN ") || strings.HasPrefix(upper, "EXPLAIN/")
+}
+
+// isExplainSelectOnly checks if this is EXPLAIN SELECT or EXPLAIN QUERY PLAN only.
+func isExplainSelectOnly(query string) bool {
+	upper := strings.TrimSpace(strings.ToUpper(query))
+	// EXPLAIN SELECT ... or EXPLAIN QUERY PLAN ...
+	return strings.HasPrefix(upper, "EXPLAIN SELECT") ||
+		strings.HasPrefix(upper, "EXPLAIN QUERY PLAN")
 }
 
 // CheckPermission verifies that the connection allows the given statement type.

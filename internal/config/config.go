@@ -215,6 +215,8 @@ func Load(path string) (*Config, error) {
 
 	// SQL Connections defaults: disabled by default; agent must opt-in.
 	cfg.SQLConnections.Enabled = false
+	cfg.SQLConnections.ReadOnly = false        // global read-only off by default
+	cfg.SQLConnections.AllowManagement = false // agent cannot manage connections by default
 	cfg.SQLConnections.MaxPoolSize = 5
 	cfg.SQLConnections.ConnectionTimeoutSec = 30
 	cfg.SQLConnections.QueryTimeoutSec = 120

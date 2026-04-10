@@ -72,15 +72,69 @@ func TestDetectStatementType(t *testing.T) {
 		expected StatementType
 		wantErr  bool
 	}{
+		// Basic SELECT variants
 		{"SELECT * FROM users", StmtSelect, false},
+		{"SELECT id, name FROM users WHERE id = 1", StmtSelect, false},
+		{"WITH cte AS (SELECT id FROM users) SELECT * FROM cte", StmtSelect, false},
+
+		// INSERT/UPDATE/DELETE
 		{"INSERT INTO users VALUES (1)", StmtInsert, false},
+		{"INSERT INTO users (id, name) VALUES (1, 'test')", StmtInsert, false},
+		{"REPLACE INTO users VALUES (1, 'test')", StmtInsert, false},
 		{"UPDATE users SET name = 'test'", StmtUpdate, false},
+		{"UPDATE users SET name = 'test' WHERE id = 1", StmtUpdate, false},
 		{"DELETE FROM users", StmtDelete, false},
+		{"DELETE FROM users WHERE id = 1", StmtDelete, false},
+
+		// DDL
 		{"CREATE TABLE test (id INT)", StmtDDL, false},
 		{"DROP TABLE users", StmtDDL, false},
 		{"ALTER TABLE users ADD col INT", StmtDDL, false},
+		{"TRUNCATE TABLE users", StmtDDL, false},
+
+		// CTE with write operations (conservative: unknown CTEs are blocked)
+		{"WITH cte AS (SELECT id FROM users) INSERT INTO logs SELECT id FROM cte", StmtInsert, false},
+		{"WITH cte AS (SELECT id FROM users) UPDATE users SET name='x' WHERE id IN (SELECT id FROM cte)", StmtUpdate, false},
+		{"WITH cte AS (SELECT id FROM users) DELETE FROM users WHERE id IN (SELECT id FROM cte)", StmtDelete, false},
+
+		// SHOW/DESCRIBE (read-only)
+		{"SHOW TABLES", StmtSelect, false},
+		{"DESCRIBE users", StmtSelect, false},
+		{"DESC users", StmtSelect, false},
+
+		// EXPLAIN (conservative: EXPLAIN SELECT only)
+		{"EXPLAIN SELECT * FROM users", StmtSelect, false},
+		{"EXPLAIN QUERY PLAN SELECT * FROM users", StmtSelect, false},
+
+		// Blocked: empty, multi-statement, PRAGMA, administrative commands
 		{"", StmtUnknown, true},
 		{"SELECT * FROM users; SELECT * FROM orders", StmtUnknown, true},
+		{"SELECT * FROM users; DROP TABLE users", StmtUnknown, true},
+		{"PRAGMA table_info(users)", StmtUnknown, true},
+		{"PRAGMA foreign_keys=ON", StmtUnknown, true},
+
+		// Administrative commands (blocked)
+		{"SET SESSION wait_timeout = 60", StmtUnknown, true},
+		{"USE mydb", StmtUnknown, true},
+		{"BEGIN", StmtUnknown, true},
+		{"COMMIT", StmtUnknown, true},
+		{"ROLLBACK", StmtUnknown, true},
+		{"CALL my_proc()", StmtUnknown, true},
+
+		// EXPLAIN for non-SELECT (blocked)
+		{"EXPLAIN INSERT INTO users VALUES (1)", StmtUnknown, true},
+		{"EXPLAIN UPDATE users SET name='x'", StmtUnknown, true},
+		{"EXPLAIN DELETE FROM users", StmtUnknown, true},
+
+		// Maintenance commands (treated as DDL)
+		{"VACUUM", StmtDDL, false},
+		{"ANALYZE", StmtDDL, false},
+		{"REINDEX", StmtDDL, false},
+		{"OPTIMIZE TABLE users", StmtDDL, false},
+
+		// Permission changes (DDL)
+		{"GRANT SELECT ON users TO 'user'", StmtDDL, false},
+		{"REVOKE SELECT ON users FROM 'user'", StmtDDL, false},
 	}
 
 	for _, tt := range tests {

@@ -79,6 +79,7 @@ func appendEdgeToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai.To
 		tools = append(tools, tool("sql_query",
 			"Execute a SQL query against a registered database connection. Supports SELECT, INSERT, UPDATE, DELETE, and DDL statements. "+
 				"Permissions are enforced per connection (read/write/change/delete). "+
+				"When global SQL read-only mode is enabled (sql_connections.readonly), all mutating queries are blocked regardless of connection permissions. "+
 				"Use operation 'query' to run SQL, 'describe' to get table structure, 'list_tables' to list all tables.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
@@ -93,7 +94,8 @@ func appendEdgeToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai.To
 		))
 
 		tools = append(tools, tool("manage_sql_connections",
-			"Manage external database connections. Create, update, delete, list, and test database connections. "+
+			"Manage external database connections. By default, the agent can only list, get, and test connections. "+
+				"Creating, updating, and deleting connections requires explicit administrator enablement via sql_connections.allow_management. "+
 				"Supports PostgreSQL, MySQL/MariaDB, and SQLite. Credentials are stored securely in the vault. "+
 				"Use 'docker_create' to spin up a new database container via Docker.",
 			schema(map[string]interface{}{

@@ -780,7 +780,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				if req.SQLQuery == "" {
 					return `Tool Output: {"status":"error","message":"'sql_query' is required for query operation"}`
 				}
-				result, err := sqlconnections.ExecuteQuery(ctx, sqlConnectionPool, sqlConnectionsDB, req.ConnectionName, req.SQLQuery, maxRows, queryTimeout)
+				result, err := sqlconnections.ExecuteQuery(ctx, sqlConnectionPool, sqlConnectionsDB, req.ConnectionName, req.SQLQuery, maxRows, queryTimeout, cfg.SQLConnections.ReadOnly)
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, sqlconnections.SanitizeError(err))
 				}
@@ -869,6 +869,10 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return "Tool Output: " + string(b)
 
 			case "create":
+				// Agent Management Policy: require explicit allow_management
+				if !cfg.SQLConnections.AllowManagement {
+					return `Tool Output: {"status":"error","message":"SQL connection management is disabled. Administrator must enable sql_connections.allow_management in config to allow creating connections."}`
+				}
 				if req.ConnectionName == "" || req.Driver == "" {
 					return `Tool Output: {"status":"error","message":"'connection_name' and 'driver' are required for create"}`
 				}
@@ -918,6 +922,10 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return fmt.Sprintf(`Tool Output: {"status":"success","message":"Connection created","id":"%s","name":"%s"}`, id, req.ConnectionName)
 
 			case "update":
+				// Agent Management Policy: require explicit allow_management
+				if !cfg.SQLConnections.AllowManagement {
+					return `Tool Output: {"status":"error","message":"SQL connection management is disabled. Administrator must enable sql_connections.allow_management in config to allow updating connections."}`
+				}
 				if req.ConnectionName == "" {
 					return `Tool Output: {"status":"error","message":"'connection_name' is required for update"}`
 				}
@@ -984,6 +992,10 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return fmt.Sprintf(`Tool Output: {"status":"success","message":"Connection updated","name":"%s"}`, req.ConnectionName)
 
 			case "delete":
+				// Agent Management Policy: require explicit allow_management
+				if !cfg.SQLConnections.AllowManagement {
+					return `Tool Output: {"status":"error","message":"SQL connection management is disabled. Administrator must enable sql_connections.allow_management in config to allow deleting connections."}`
+				}
 				if req.ConnectionName == "" {
 					return `Tool Output: {"status":"error","message":"'connection_name' is required for delete"}`
 				}
@@ -1015,6 +1027,10 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return fmt.Sprintf(`Tool Output: {"status":"success","message":"Connection test successful","name":"%s","driver":"%s"}`, req.ConnectionName, rec.Driver)
 
 			case "docker_create":
+				// Agent Management Policy: require explicit allow_management
+				if !cfg.SQLConnections.AllowManagement {
+					return `Tool Output: {"status":"error","message":"SQL connection management is disabled. Administrator must enable sql_connections.allow_management in config to allow creating connections via docker."}`
+				}
 				if req.ConnectionName == "" {
 					return `Tool Output: {"status":"error","message":"'connection_name' is required for docker_create"}`
 				}

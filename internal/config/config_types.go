@@ -1206,6 +1206,8 @@ type Config struct {
 	} `yaml:"n8n"`
 	SQLConnections struct {
 		Enabled              bool `yaml:"enabled"`
+		ReadOnly             bool `yaml:"readonly"`         // global read-only: block all mutating queries regardless of connection permissions
+		AllowManagement      bool `yaml:"allow_management"` // allow agent to create/update/delete connections (default: false)
 		MaxPoolSize          int  `yaml:"max_pool_size"`
 		ConnectionTimeoutSec int  `yaml:"connection_timeout_sec"`
 		QueryTimeoutSec      int  `yaml:"query_timeout_sec"`

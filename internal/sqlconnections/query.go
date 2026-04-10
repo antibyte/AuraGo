@@ -18,7 +18,9 @@ type QueryResult struct {
 }
 
 // ExecuteQuery runs a SQL query on the given connection with permission checks.
-func ExecuteQuery(ctx context.Context, pool *ConnectionPool, metaDB *sql.DB, connName string, query string, maxRows int, queryTimeout time.Duration) (*QueryResult, error) {
+// If globalReadOnly is true, all mutating queries (INSERT/UPDATE/DELETE/DDL) are blocked
+// regardless of connection-level permissions.
+func ExecuteQuery(ctx context.Context, pool *ConnectionPool, metaDB *sql.DB, connName string, query string, maxRows int, queryTimeout time.Duration, globalReadOnly bool) (*QueryResult, error) {
 	rec, err := GetByName(metaDB, connName)
 	if err != nil {
 		return nil, fmt.Errorf("connection '%s' not found: %w", connName, err)
@@ -27,6 +29,11 @@ func ExecuteQuery(ctx context.Context, pool *ConnectionPool, metaDB *sql.DB, con
 	stmtType, err := DetectStatementType(query)
 	if err != nil {
 		return nil, fmt.Errorf("invalid query: %w", err)
+	}
+
+	// Global read-only enforcement: block all mutating queries
+	if globalReadOnly && stmtType != StmtSelect {
+		return nil, fmt.Errorf("global SQL read-only mode is enabled — %s queries are blocked", stmtType.String())
 	}
 
 	if err := CheckPermission(rec, stmtType); err != nil {
