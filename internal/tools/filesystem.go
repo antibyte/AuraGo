@@ -16,6 +16,11 @@ import (
 // maxWriteBytes limits write_file content size to prevent agent-triggered OOM.
 const maxWriteBytes = 100 * 1024 * 1024 // 100 MB
 
+// looksLikeBinaryFile detects binary content using multiple heuristics:
+// 1. Null-byte scan (most reliable indicator for typical binary files)
+// 2. http.DetectContentType for MIME-based detection
+// 3. UTF-8 validity check as fallback
+// 4. Extension allowlist for known text formats
 func looksLikeBinaryFile(path string, data []byte) bool {
 	if len(data) == 0 {
 		return false
@@ -24,6 +29,16 @@ func looksLikeBinaryFile(path string, data []byte) bool {
 	if len(sample) > 512 {
 		sample = sample[:512]
 	}
+
+	// Primary check: null bytes are a strong indicator of binary content
+	// This catches most binary files (images, executables, compressed data)
+	for _, b := range sample {
+		if b == 0 {
+			return true
+		}
+	}
+
+	// Secondary check: MIME type detection
 	contentType := http.DetectContentType(sample)
 	switch contentType {
 	case "application/json", "application/xml", "image/svg+xml", "application/javascript":
@@ -32,11 +47,15 @@ func looksLikeBinaryFile(path string, data []byte) bool {
 	if strings.HasPrefix(contentType, "text/") {
 		return false
 	}
+
+	// Extension allowlist for known text formats
 	ext := strings.ToLower(filepath.Ext(path))
 	switch ext {
-	case ".txt", ".md", ".json", ".yaml", ".yml", ".xml", ".html", ".htm", ".css", ".js", ".ts", ".tsx", ".jsx", ".go", ".py", ".sh", ".ps1", ".sql", ".csv", ".svg":
+	case ".txt", ".md", ".json", ".yaml", ".yml", ".xml", ".html", ".htm", ".css", ".js", ".ts", ".tsx", ".jsx", ".go", ".py", ".sh", ".ps1", ".psm1", ".psd1", ".sql", ".csv", ".svg", ".toml", ".ini", ".cfg", ".conf", ".log", ".env", ".gitignore", ".dockerignore", ".editorconfig":
 		return false
 	}
+
+	// Fallback: check UTF-8 validity
 	return !utf8.Valid(sample)
 }
 

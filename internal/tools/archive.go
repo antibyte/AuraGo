@@ -24,6 +24,15 @@ type archiveResult struct {
 // maxExtractSize is the cumulative uncompressed data limit (1 GB).
 const maxExtractSize int64 = 1 << 30
 
+// maxArchiveEntries limits the number of entries to prevent zip bomb-style attacks.
+const maxArchiveEntries = 100000
+
+// maxCompressionRatio is the maximum allowed uncompressed/compressed size ratio.
+// A ratio above this is suspicious and may indicate a zip bomb (e.g., highly compressed data).
+// 1000:1 is a conservative limit that allows legitimate highly-compressed files while
+// blocking extreme cases like 1000000:1 decompression bombs.
+const maxCompressionRatio = 1000
+
 // ExecuteArchive handles archive operations: create, extract, list.
 //
 //	operation  – "create", "extract", or "list"
@@ -281,6 +290,11 @@ func extractZip(archivePath, targetDir string) ([]string, error) {
 	}
 	defer r.Close()
 
+	// Entry count limit to prevent zip bombs
+	if len(r.File) > maxArchiveEntries {
+		return nil, fmt.Errorf("archive contains too many entries (%d), maximum allowed is %d", len(r.File), maxArchiveEntries)
+	}
+
 	if err := os.MkdirAll(targetDir, 0o750); err != nil {
 		return nil, err
 	}
@@ -309,6 +323,14 @@ func extractZip(archivePath, targetDir string) ([]string, error) {
 				return nil, err
 			}
 			continue
+		}
+
+		// Compression ratio check to detect zip bombs
+		if f.CompressedSize64 > 0 && f.UncompressedSize64 > 0 {
+			ratio := f.UncompressedSize64 / f.CompressedSize64
+			if ratio > maxCompressionRatio {
+				return nil, fmt.Errorf("archive contains entry with extreme compression ratio (%d:1), suspected zip bomb", ratio)
+			}
 		}
 
 		// Size limit check
@@ -355,6 +377,13 @@ func extractTarGz(archivePath, targetDir string) ([]string, error) {
 	}
 	defer f.Close()
 
+	// Get compressed file size for ratio calculation
+	compressedInfo, err := f.Stat()
+	if err != nil {
+		return nil, fmt.Errorf("stat archive: %w", err)
+	}
+	compressedSize := compressedInfo.Size()
+
 	gzr, err := gzip.NewReader(f)
 	if err != nil {
 		return nil, fmt.Errorf("gzip reader: %w", err)
@@ -372,6 +401,7 @@ func extractTarGz(archivePath, targetDir string) ([]string, error) {
 
 	var files []string
 	var totalBytes int64
+	var entryCount int
 	for {
 		header, err := tr.Next()
 		if err == io.EOF {
@@ -379,6 +409,12 @@ func extractTarGz(archivePath, targetDir string) ([]string, error) {
 		}
 		if err != nil {
 			return nil, err
+		}
+
+		// Entry count limit to prevent zip bombs
+		entryCount++
+		if entryCount > maxArchiveEntries {
+			return nil, fmt.Errorf("archive contains too many entries (%d), maximum allowed is %d", entryCount, maxArchiveEntries)
 		}
 
 		name := filepath.FromSlash(header.Name)
@@ -420,7 +456,25 @@ func extractTarGz(archivePath, targetDir string) ([]string, error) {
 			files = append(files, name)
 		}
 	}
+
+	// Final compression ratio check for tar.gz (total uncompressed vs compressed)
+	// This catches zip-bomb style archives where the entire stream decompresses to massive size
+	if compressedSize > 0 && totalBytes > 0 {
+		// Use int64 division carefully to avoid overflow
+		ratio := totalBytes
+		if ratio/Int64ToInt(compressedSize) > maxCompressionRatio {
+			return nil, fmt.Errorf("archive has extreme compression ratio (%d:1), suspected decompression bomb", ratio/Int64ToInt(compressedSize))
+		}
+	}
 	return files, nil
+}
+
+// Int64ToInt safely converts int64 to int for ratio calculations
+func Int64ToInt(v int64) int64 {
+	if v > 1<<30 {
+		return 1 << 30 // cap at reasonable maximum to prevent overflow
+	}
+	return v
 }
 
 // ── List ─────────────────────────────────────────────────────────────────────

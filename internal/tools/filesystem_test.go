@@ -50,6 +50,64 @@ func TestExecuteFilesystemReadFileReturnsTextContent(t *testing.T) {
 	}
 }
 
+// looksLikeBinaryFile tests
+func TestLooksLikeBinaryFileWithNullBytes(t *testing.T) {
+	// Null bytes should be detected as binary
+	binaryData := []byte("hello\x00world")
+	if !looksLikeBinaryFile("test.txt", binaryData) {
+		t.Error("data with null byte should be detected as binary")
+	}
+}
+
+func TestLooksLikeBinaryFileWithUTF8Text(t *testing.T) {
+	// Valid UTF-8 text should not be detected as binary
+	textData := []byte("hello world with unicode: äöü")
+	if looksLikeBinaryFile("test.txt", textData) {
+		t.Error("valid UTF-8 text should not be detected as binary")
+	}
+}
+
+func TestLooksLikeBinaryFileWithKnownTextExtensions(t *testing.T) {
+	textData := []byte("some content")
+
+	// Known text extensions should return false
+	for _, ext := range []string{".txt", ".md", ".log", ".csv", ".ini", ".cfg", ".conf", ".env"} {
+		if looksLikeBinaryFile("file"+ext, textData) {
+			t.Errorf("extension %s should be detected as text", ext)
+		}
+	}
+}
+
+func TestLooksLikeBinaryFileWithBinaryExtension(t *testing.T) {
+	// Longer binary data with PNG header should be detected as binary
+	// Include null byte to ensure binary detection
+	binaryData := []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D}
+	if !looksLikeBinaryFile("file.png", binaryData) {
+		t.Error("PNG header with null byte should be detected as binary")
+	}
+}
+
+func TestLooksLikeBinaryFileEmptyData(t *testing.T) {
+	// Empty data should return false
+	if looksLikeBinaryFile("test.txt", []byte{}) {
+		t.Error("empty data should not be detected as binary")
+	}
+}
+
+func TestLooksLikeBinaryFilePowerShellExtensions(t *testing.T) {
+	textData := []byte("$var = Get-Process")
+	// PowerShell files should be detected as text
+	if looksLikeBinaryFile("script.ps1", textData) {
+		t.Error("PowerShell script should be detected as text")
+	}
+	if looksLikeBinaryFile("module.psm1", textData) {
+		t.Error("PowerShell module should be detected as text")
+	}
+	if looksLikeBinaryFile("manifest.psd1", textData) {
+		t.Error("PowerShell manifest should be detected as text")
+	}
+}
+
 func TestExecuteFilesystemReadFileLargeFileIncludesGuidance(t *testing.T) {
 	workdir := t.TempDir()
 	path := filepath.Join(workdir, "large.log")
