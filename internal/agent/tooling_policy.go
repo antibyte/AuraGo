@@ -88,7 +88,10 @@ func resolveModelCapabilities(cfg *config.Config) ModelCapabilities {
 	lowerModel := strings.ToLower(model)
 	isOllama := lowerProvider == "ollama"
 	isDeepSeek := strings.Contains(lowerModel, "deepseek")
-	isAnthropic := lowerProvider == "anthropic" || strings.Contains(lowerModel, "claude")
+	// isAnthropic is true only for actual Claude/Anthropic models, NOT for third-party models
+	// that use the Anthropic API protocol (type: anthropic) such as Kimi-for-coding or GLM variants.
+	// Using lowerProvider alone would incorrectly flag any model using the Anthropic SDK.
+	isAnthropic := strings.Contains(lowerModel, "claude")
 	isNemotron := strings.Contains(lowerModel, "nemotron")
 
 	// Models from providers known to NOT support OpenAI-style strict structured outputs
@@ -152,18 +155,14 @@ func buildToolingPolicy(cfg *config.Config, userQuery string) ToolingPolicy {
 	homepageEnabled := cfg.Homepage.Enabled && (dockerEnabled || cfg.Homepage.AllowLocalServer)
 	wolEnabled := cfg.Tools.WOL.Enabled && (!cfg.Runtime.IsDocker || cfg.Runtime.BroadcastOK)
 
-	// Auto-enable native function calling for known-capable models (DeepSeek, Anthropic,
-	// Nemotron), BUT only when the user has NOT explicitly disabled it via config.
-	// Explicit opt-out (use_native_functions: false) always wins over auto-detection.
-	autoEnabled := !cfg.LLM.UseNativeFunctions && caps.AutoEnableNativeFunctions
-	useNativeFunctions := cfg.LLM.UseNativeFunctions || autoEnabled
+	useNativeFunctions := cfg.LLM.UseNativeFunctions || caps.AutoEnableNativeFunctions
 	// Force JSON text mode for models known to emit tool calls in text content rather
 	// than proper API tool_calls (e.g. GLM/Zhipu, MiniMax). This ensures the prompt-based
 	// JSON extraction path is used regardless of what the config says.
 	if caps.DisableNativeFunctionCalling {
 		useNativeFunctions = false
-		autoEnabled = false
 	}
+	autoEnabled := !cfg.LLM.UseNativeFunctions && caps.AutoEnableNativeFunctions
 	effectiveMaxToolGuides := cfg.Agent.MaxToolGuides
 	if effectiveMaxToolGuides <= 0 {
 		effectiveMaxToolGuides = 5
@@ -205,7 +204,7 @@ func buildToolingPolicy(cfg *config.Config, userQuery string) ToolingPolicy {
 		IntentFamily:               intentFamily,
 		FamilyTelemetry:            familyTelemetry,
 		UseNativeFunctions:         useNativeFunctions,
-		AutoEnabledNativeFunctions: autoEnabled,
+		AutoEnabledNativeFunctions: autoEnabled && useNativeFunctions, // only true if it actually was auto-enabled
 		StructuredOutputsRequested: cfg.LLM.StructuredOutputs,
 		StructuredOutputsEnabled:   cfg.LLM.StructuredOutputs && caps.SupportsStructuredOutputs,
 		ParallelToolCallsEnabled:   caps.SupportsParallelToolCalls,
