@@ -1071,18 +1071,17 @@ func fixCommonConfigIssues(data []byte) []byte {
 
 // fixBareStringDirectoryItems converts bare string items in indexing.directories
 // from "- ./knowledge" to "- path: ./knowledge".
+// Only bare list items that look like paths (starting with ./  ../  /) are converted.
+// Regular list items like "- .txt" or "- value" are left untouched.
 func fixBareStringDirectoryItems(content string) string {
-	// This regex matches a YAML list item that is a bare string (path value).
 	// (?m) enables multiline mode so ^/$ match line boundaries.
-	// Pattern:
-	//   ^(\s*-\s+)       - start of line, dash, whitespace (captured as $1)
-	//   (\.\.?|/|\w)     - value starts with . / or alphanumeric (captured $2)
-	//   ([^\n:]*)$       - rest of the value, no colons allowed (captured $3)
-	// Since $ anchors to line end, "- path: value" won't match because
-	// the colon after "path" makes [^\n:]* stop before the value.
-	re := regexp.MustCompile(`(?m)^(\s*-\s+)(\.\.?|/|\w)([^\n:]*)$`)
+	// The pattern matches bare list items that are clearly paths:
+	//   - ./something   (relative path)  → group 2 = "./"  group 3 = "something"
+	//   - ../something  (parent-relative) → group 2 = "../" group 3 = "something"
+	//   - /something    (absolute path)  → group 2 = "/"   group 3 = "something"
+	// Items like "- .txt" won't match because `.` followed by `t` doesn't form ./ or ../.
+	re := regexp.MustCompile(`(?m)^(\s*-\s+)(\./|../|/)([^\n]*)$`)
 	return re.ReplaceAllStringFunc(content, func(match string) string {
-		// Convert "- ./knowledge" → "- path: ./knowledge"
 		parts := re.FindStringSubmatch(match)
 		if len(parts) == 4 {
 			return parts[1] + "path: " + parts[2] + parts[3]
