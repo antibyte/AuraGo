@@ -424,6 +424,7 @@ func (cv *ChromemVectorDB) storeDocumentInCollectionWithDomain(concept, content,
 		"concept":     concept,
 		"timestamp":   fmt.Sprintf("%d", time.Now().Unix()),
 		"source_type": "file_indexer",
+		"collection":  collection,
 	}
 	if domain != "" {
 		metadata["domain"] = domain
@@ -463,6 +464,7 @@ func (cv *ChromemVectorDB) storeDocumentInCollectionWithDomain(concept, content,
 			"chunk_index": fmt.Sprintf("%d/%d", i+1, len(chunks)),
 			"timestamp":   fmt.Sprintf("%d", time.Now().Unix()),
 			"source_type": "file_indexer",
+			"collection":  collection,
 		}
 		if domain != "" {
 			chunkMeta["domain"] = domain
@@ -560,6 +562,7 @@ func (cv *ChromemVectorDB) StoreDocumentWithEmbeddingInCollection(concept, conte
 			"timestamp":   fmt.Sprintf("%d", time.Now().Unix()),
 			"multimodal":  "true",
 			"source_type": "file_indexer",
+			"collection":  collection,
 		},
 		Content:   content,
 		Embedding: embedding,

@@ -2,6 +2,8 @@ package memory
 
 import (
 	"context"
+	"io"
+	"log/slog"
 	"testing"
 	"time"
 
@@ -164,5 +166,97 @@ func TestSearchTopSimilarityScoreDisabled(t *testing.T) {
 	cv.disabled.Store(true)
 	if got := cv.searchTopSimilarityScore("any concept"); got != 0 {
 		t.Errorf("searchTopSimilarityScore on disabled VectorDB = %v, want 0", got)
+	}
+}
+
+// TestStoreDocumentInCollectionPersistsCollectionMetadata verifies that
+// collection-aware storage persists the collection name in document metadata.
+func TestStoreDocumentInCollectionPersistsCollectionMetadata(t *testing.T) {
+	embeddingFunc := func(_ context.Context, _ string) ([]float32, error) {
+		return []float32{0.1, 0.2, 0.3}, nil
+	}
+
+	db := chromem.NewDB()
+	collection, err := db.GetOrCreateCollection("aurago_memories", nil, embeddingFunc)
+	if err != nil {
+		t.Fatalf("GetOrCreateCollection: %v", err)
+	}
+
+	cv := &ChromemVectorDB{
+		db:                     db,
+		collection:             collection,
+		embeddingFunc:          embeddingFunc,
+		fileIndexerCollections: make(map[string]struct{}),
+		logger:                 slog.New(slog.NewTextHandler(io.Discard, nil)),
+	}
+
+	// Store a small document in a custom collection
+	ids, err := cv.StoreDocumentInCollection("test concept", "test content", "custom_collection")
+	if err != nil {
+		t.Fatalf("StoreDocumentInCollection: %v", err)
+	}
+	if len(ids) != 1 {
+		t.Fatalf("expected 1 doc ID, got %d", len(ids))
+	}
+
+	// Verify the document in the custom collection has the collection metadata
+	col, err := db.GetOrCreateCollection("custom_collection", nil, embeddingFunc)
+	if err != nil {
+		t.Fatalf("GetOrCreateCollection custom_collection: %v", err)
+	}
+	doc, err := col.GetByID(context.Background(), ids[0])
+	if err != nil {
+		t.Fatalf("GetByID: %v", err)
+	}
+	if got, want := doc.Metadata["collection"], "custom_collection"; got != want {
+		t.Errorf("metadata collection = %q, want %q", got, want)
+	}
+	if got, want := doc.Metadata["source_type"], "file_indexer"; got != want {
+		t.Errorf("metadata source_type = %q, want %q", got, want)
+	}
+}
+
+// TestStoreDocumentWithEmbeddingInCollectionPersistsCollectionMetadata verifies that
+// collection-aware multimodal storage persists the collection name in document metadata.
+func TestStoreDocumentWithEmbeddingInCollectionPersistsCollectionMetadata(t *testing.T) {
+	embeddingFunc := func(_ context.Context, _ string) ([]float32, error) {
+		return []float32{0.1, 0.2, 0.3}, nil
+	}
+
+	db := chromem.NewDB()
+	collection, err := db.GetOrCreateCollection("aurago_memories", nil, embeddingFunc)
+	if err != nil {
+		t.Fatalf("GetOrCreateCollection: %v", err)
+	}
+
+	cv := &ChromemVectorDB{
+		db:                     db,
+		collection:             collection,
+		embeddingFunc:          embeddingFunc,
+		fileIndexerCollections: make(map[string]struct{}),
+		logger:                 slog.New(slog.NewTextHandler(io.Discard, nil)),
+	}
+
+	id, err := cv.StoreDocumentWithEmbeddingInCollection("test concept", "test content", []float32{0.4, 0.5, 0.6}, "mm_custom_collection")
+	if err != nil {
+		t.Fatalf("StoreDocumentWithEmbeddingInCollection: %v", err)
+	}
+
+	col, err := db.GetOrCreateCollection("mm_custom_collection", nil, embeddingFunc)
+	if err != nil {
+		t.Fatalf("GetOrCreateCollection mm_custom_collection: %v", err)
+	}
+	doc, err := col.GetByID(context.Background(), id)
+	if err != nil {
+		t.Fatalf("GetByID: %v", err)
+	}
+	if got, want := doc.Metadata["collection"], "mm_custom_collection"; got != want {
+		t.Errorf("metadata collection = %q, want %q", got, want)
+	}
+	if got, want := doc.Metadata["source_type"], "file_indexer"; got != want {
+		t.Errorf("metadata source_type = %q, want %q", got, want)
+	}
+	if got, want := doc.Metadata["multimodal"], "true"; got != want {
+		t.Errorf("metadata multimodal = %q, want %q", got, want)
 	}
 }
