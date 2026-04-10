@@ -450,7 +450,14 @@ func handleMeshCentralTest(s *Server) http.HandlerFunc {
 			return
 		}
 
-		mc := meshcentral.NewClient(url, username, password, loginToken, s.Cfg.MeshCentral.Insecure)
+		mc, err := meshcentral.NewClient(url, username, password, loginToken, s.Cfg.MeshCentral.Insecure)
+		if err != nil {
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"status":  "error",
+				"message": fmt.Sprintf("Invalid configuration: %v", err),
+			})
+			return
+		}
 		if err := mc.Connect(); err != nil {
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status":  "error",

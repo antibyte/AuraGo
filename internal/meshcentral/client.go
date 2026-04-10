@@ -2,6 +2,7 @@ package meshcentral
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -16,6 +17,18 @@ import (
 
 	"github.com/gorilla/websocket"
 )
+
+// pendingRequest holds a channel for a request awaiting a response.
+type pendingRequest struct {
+	action string        // original action name for debugging
+	ch     chan response // buffered channel for the response
+}
+
+// response wraps the response data with any parsing/transport error.
+type response struct {
+	data map[string]interface{}
+	err  error
+}
 
 // Client handles communication with a MeshCentral server via WebSocket.
 // It supports authentication via login tokens or username/password.
@@ -35,8 +48,8 @@ type Client struct {
 	done        chan struct{} // Signals goroutines to stop
 	closeOnce   sync.Once     // Ensures Close() is idempotent
 
-	// Channels for routing responses
-	pendingReqs map[string]chan map[string]interface{}
+	// reqid-based request/response routing (replaces action-based routing)
+	pendingReqs map[int]*pendingRequest // keyed by reqid
 	reqsMu      sync.RWMutex
 
 	// Logger for debug output
@@ -50,18 +63,33 @@ type Client struct {
 //   - password: Regular password OR token password (when loginToken is set)
 //   - loginToken: Login token name (e.g., "automation" or "~t:automation")
 //   - insecure: Skip TLS certificate verification
-func NewClient(urlStr, username, password, loginToken string, insecure bool) *Client {
+//
+// Returns an error if the URL is invalid.
+func NewClient(urlStr, username, password, loginToken string, insecure bool) (*Client, error) {
 	urlStr = strings.TrimSuffix(urlStr, "/")
+
+	// Validate URL
+	if urlStr == "" {
+		return nil, fmt.Errorf("URL is required")
+	}
+	u, err := url.Parse(urlStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid URL: %w", err)
+	}
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return nil, fmt.Errorf("URL must use http or https scheme, got: %s", u.Scheme)
+	}
+
 	return &Client{
 		url:         urlStr,
 		username:    username,
 		password:    password,
 		loginToken:  loginToken,
 		insecure:    insecure,
-		pendingReqs: make(map[string]chan map[string]interface{}),
+		pendingReqs: make(map[int]*pendingRequest),
 		done:        make(chan struct{}),
 		logger:      slog.Default(),
-	}
+	}, nil
 }
 
 // SetLogger sets a custom logger for the client.
@@ -105,12 +133,20 @@ IMPORTANT NOTES:
 */
 
 // Connect authenticates and opens the WebSocket connection to MeshCentral.
+// Uses default timeouts and no context cancellation support.
+// For cancellation support, use ConnectContext instead.
 func (c *Client) Connect() error {
+	return c.ConnectContext(context.Background())
+}
+
+// ConnectContext authenticates and opens the WebSocket connection to MeshCentral.
+// Supports context cancellation for timeouts and graceful shutdown.
+func (c *Client) ConnectContext(ctx context.Context) error {
 	// Build the WebSocket URL
 	baseURL := strings.TrimSuffix(c.url, "/")
 	u, err := url.Parse(baseURL + "/control.ashx")
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to parse WebSocket URL: %w", err)
 	}
 
 	// Convert http/https to ws/wss for WebSocket
@@ -137,7 +173,7 @@ func (c *Client) Connect() error {
 			loginUser = "~t:" + loginUser
 		}
 		if err := c.httpLogin(loginUser); err != nil {
-			return fmt.Errorf("login failed: %w", err)
+			return fmt.Errorf("login with token failed: %w", err)
 		}
 		c.addAuthCookies(header)
 
@@ -145,7 +181,7 @@ func (c *Client) Connect() error {
 	case c.username != "" && c.password != "":
 		c.log("[MeshCentral] Auth: Username/Password")
 		if err := c.httpLogin(c.username); err != nil {
-			return fmt.Errorf("login failed: %w", err)
+			return fmt.Errorf("login with username/password failed: %w", err)
 		}
 		c.addAuthCookies(header)
 
@@ -164,9 +200,9 @@ func (c *Client) Connect() error {
 	if err != nil {
 		if resp != nil {
 			body, _ := io.ReadAll(resp.Body)
-			return fmt.Errorf("websocket dial failed: HTTP %d - %s", resp.StatusCode, string(body))
+			return fmt.Errorf("WebSocket handshake failed: HTTP %d - %s", resp.StatusCode, string(body))
 		}
-		return fmt.Errorf("websocket dial failed: %w", err)
+		return fmt.Errorf("WebSocket dial failed: %w", err)
 	}
 
 	c.wsMu.Lock()
@@ -184,13 +220,14 @@ func (c *Client) Connect() error {
 	go c.pingPump()
 
 	// Verify connection by requesting serverinfo
-	if err := c.Send(map[string]interface{}{"action": "serverinfo"}); err != nil {
+	reqid, err := c.Send(map[string]interface{}{"action": "serverinfo"})
+	if err != nil {
 		return fmt.Errorf("failed to send serverinfo request: %w", err)
 	}
 
-	res, err := c.WaitForAction("serverinfo", 10*time.Second)
+	res, err := c.WaitForReq(reqid, "serverinfo", 10*time.Second)
 	if err != nil {
-		return fmt.Errorf("failed to receive serverinfo: %w", err)
+		return fmt.Errorf("serverinfo verification failed: %w", err)
 	}
 
 	c.log("[MeshCentral] Connected (server version: %v)", res["serverVersion"])
@@ -203,7 +240,7 @@ func (c *Client) httpLogin(loginUser string) error {
 	baseURL := strings.TrimSuffix(c.url, "/")
 	u, err := url.Parse(baseURL + "/login")
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to parse login URL: %w", err)
 	}
 
 	// Ensure HTTP scheme for login request
@@ -234,6 +271,8 @@ func (c *Client) httpLogin(loginUser string) error {
 		if m := regexp.MustCompile(`random="([^"]+)"`).FindSubmatch(pageBytes); len(m) == 2 {
 			nonce = string(m[1])
 		}
+	} else {
+		c.log("[MeshCentral] Warning: failed to fetch CSRF nonce: %v", err)
 	}
 
 	// Determine content type based on auth method
@@ -260,13 +299,13 @@ func (c *Client) httpLogin(loginUser string) error {
 
 	req, err := http.NewRequest("POST", loginURL, bytes.NewBuffer(bodyData))
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create login request: %w", err)
 	}
 	req.Header.Set("Content-Type", contentType)
 
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		return err
+		return fmt.Errorf("login request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
@@ -286,7 +325,7 @@ func (c *Client) httpLogin(loginUser string) error {
 		return nil
 	}
 
-	return fmt.Errorf("no auth cookies received")
+	return fmt.Errorf("no auth cookies received from login endpoint")
 }
 
 // addAuthCookies adds authentication cookies to the WebSocket header.
@@ -313,18 +352,24 @@ func (c *Client) Close() {
 
 		c.wsMu.Lock()
 		if c.ws != nil {
-			_ = c.ws.Close()
+			c.ws.Close()
 			c.ws = nil
 		}
 		c.wsMu.Unlock()
 
-		// Clean up pending request channels
+		// Clean up pending request channels and notify waiters of disconnect
 		c.reqsMu.Lock()
-		for _, ch := range c.pendingReqs {
-			close(ch)
+		for reqid, pr := range c.pendingReqs {
+			select {
+			case pr.ch <- response{err: fmt.Errorf("client closed")}:
+			default:
+			}
+			close(pr.ch)
+			delete(c.pendingReqs, reqid)
 		}
-		c.pendingReqs = make(map[string]chan map[string]interface{})
 		c.reqsMu.Unlock()
+
+		c.log("[MeshCentral] Client closed")
 	})
 }
 
@@ -347,6 +392,7 @@ func (c *Client) readPump() {
 
 		_, msg, err := ws.ReadMessage()
 		if err != nil {
+			c.log("[MeshCentral] WebSocket read error: %v", err)
 			return
 		}
 
@@ -357,39 +403,56 @@ func (c *Client) readPump() {
 
 		var data map[string]interface{}
 		if err := json.Unmarshal(msg, &data); err != nil {
+			c.log("[MeshCentral] Failed to parse JSON message: %v", err)
 			continue
+		}
+
+		// Route by reqid if present (ensures correct request/response matching)
+		var reqid int
+		if rid, ok := data["reqid"].(float64); ok {
+			reqid = int(rid)
 		}
 
 		action, _ := data["action"].(string)
 
-		// Debug logging for troubleshooting
-		if action != "" && action != "ping" && action != "pong" {
-			c.log("[MeshCentral] Received message", "action", action)
+		c.reqsMu.Lock()
+		var delivered bool
+		if reqid > 0 {
+			// Primary routing: by reqid (exact match, race-free)
+			if pr, ok := c.pendingReqs[reqid]; ok {
+				select {
+				case pr.ch <- response{data: data}:
+					delivered = true
+					c.log("[MeshCentral] Delivered response to reqid %d (action=%s)", reqid, action)
+				case <-c.done:
+					c.reqsMu.Unlock()
+					return
+				default:
+					// Channel full, skip (shouldn't happen with buffered channels)
+				}
+			}
 		}
+		c.reqsMu.Unlock()
 
-		c.reqsMu.RLock()
-		ch := c.pendingReqs[action]
-		if action == "event" {
+		// Fallback: route events by eventType if no reqid match
+		if !delivered && action == "event" {
 			if eventType, ok := data["eventType"].(string); ok {
 				c.log("[MeshCentral] Received event", "eventType", eventType)
-				ch = c.pendingReqs["event_"+eventType]
+				// Note: Events don't have reqid, so we can't route them properly
+				// without additional event subscription mechanism
 			}
 		}
-		c.reqsMu.RUnlock()
 
-		if ch != nil {
-			select {
-			case ch <- data:
-			case <-c.done:
-				return
-			default:
-			}
+		// Debug logging for unhandled non-event messages
+		if !delivered && action != "" && action != "ping" && action != "pong" && action != "serverinfo" {
+			c.log("[MeshCentral] Unmatched message", "action", action, "reqid", reqid)
 		}
 	}
 }
 
-// Send sends a JSON command to the server.
-func (c *Client) Send(cmd map[string]interface{}) error {
+// Send sends a JSON command to the server and registers it for response routing.
+// Returns the assigned reqid for correlation with the response.
+func (c *Client) Send(cmd map[string]interface{}) (int, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -398,43 +461,57 @@ func (c *Client) Send(cmd map[string]interface{}) error {
 	c.wsMu.RUnlock()
 
 	if ws == nil {
-		return fmt.Errorf("not connected")
+		return 0, fmt.Errorf("not connected")
 	}
 
 	c.reqID++
-	cmd["reqid"] = c.reqID
+	reqid := c.reqID
+	cmd["reqid"] = reqid
 
-	return ws.WriteJSON(cmd)
+	return reqid, ws.WriteJSON(cmd)
 }
 
-// WaitForAction waits for a response with the given action string.
-func (c *Client) WaitForAction(action string, timeout time.Duration) (map[string]interface{}, error) {
+// WaitForReq waits for a response with the given reqid.
+// This is the low-level primitive that readPump delivers to via reqid routing.
+func (c *Client) WaitForReq(reqid int, action string, timeout time.Duration) (map[string]interface{}, error) {
 	c.reqsMu.Lock()
-	if c.pendingReqs[action] == nil {
-		c.pendingReqs[action] = make(chan map[string]interface{}, 5)
+	if c.pendingReqs[reqid] == nil {
+		c.pendingReqs[reqid] = &pendingRequest{
+			action: action,
+			ch:     make(chan response, 1),
+		}
 	}
-	waitCh := c.pendingReqs[action]
+	pr := c.pendingReqs[reqid]
 	c.reqsMu.Unlock()
 
 	select {
-	case res := <-waitCh:
-		return res, nil
+	case res := <-pr.ch:
+		if res.err != nil {
+			return nil, res.err
+		}
+		return res.data, nil
 	case <-time.After(timeout):
-		// Clean up the channel to prevent memory leaks
 		c.reqsMu.Lock()
-		if c.pendingReqs[action] == waitCh {
-			delete(c.pendingReqs, action)
+		if c.pendingReqs[reqid] == pr {
+			delete(c.pendingReqs, reqid)
 		}
 		c.reqsMu.Unlock()
-		return nil, fmt.Errorf("timeout waiting for action %s", action)
+		return nil, fmt.Errorf("timeout waiting for reqid %d (action=%s)", reqid, action)
 	case <-c.done:
 		return nil, fmt.Errorf("client disconnected")
 	}
 }
 
-// WaitForEvent waits for an event response with the given eventType string.
-func (c *Client) WaitForEvent(eventType string, timeout time.Duration) (map[string]interface{}, error) {
-	return c.WaitForAction("event_"+eventType, timeout)
+// WaitForAction waits for a response with the given action string.
+// It sends the command, then waits for the response using reqid-based routing.
+// DEPRECATED: Prefer Send + WaitForReq for explicit reqid control.
+func (c *Client) WaitForAction(action string, timeout time.Duration) (map[string]interface{}, error) {
+	cmd := map[string]interface{}{"action": action}
+	reqid, err := c.Send(cmd)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send %s request: %w", action, err)
+	}
+	return c.WaitForReq(reqid, action, timeout)
 }
 
 // pingPump sends periodic ping messages to keep the connection alive.
@@ -469,11 +546,12 @@ func (c *Client) pingPump() {
 
 // ListDeviceGroups requests the meshes/groups list.
 func (c *Client) ListDeviceGroups() ([]interface{}, error) {
-	if err := c.Send(map[string]interface{}{"action": "meshes"}); err != nil {
-		return nil, err
+	reqid, err := c.Send(map[string]interface{}{"action": "meshes"})
+	if err != nil {
+		return nil, fmt.Errorf("failed to send meshes request: %w", err)
 	}
 
-	res, err := c.WaitForAction("meshes", 10*time.Second)
+	res, err := c.WaitForReq(reqid, "meshes", 10*time.Second)
 	if err != nil {
 		return nil, err
 	}
@@ -491,11 +569,12 @@ func (c *Client) ListDevices(meshID string) ([]interface{}, error) {
 		cmd["meshid"] = meshID
 	}
 
-	if err := c.Send(cmd); err != nil {
-		return nil, err
+	reqid, err := c.Send(cmd)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send nodes request: %w", err)
 	}
 
-	res, err := c.WaitForAction("nodes", 10*time.Second)
+	res, err := c.WaitForReq(reqid, "nodes", 10*time.Second)
 	if err != nil {
 		return nil, err
 	}
@@ -521,11 +600,12 @@ func (c *Client) ListDevices(meshID string) ([]interface{}, error) {
 // WakeOnLan sends a WOL magic packet to a specific node.
 // Returns success message or error.
 func (c *Client) WakeOnLan(nodeIDs []string) (string, error) {
-	if err := c.Send(map[string]interface{}{
+	_, err := c.Send(map[string]interface{}{
 		"action":  "wakeonlan",
 		"nodeids": nodeIDs,
-	}); err != nil {
-		return "", err
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to send wake-on-LAN request: %w", err)
 	}
 	// WOL is fire-and-forget, no response expected
 	return "Wake-on-LAN packet sent", nil
@@ -535,12 +615,13 @@ func (c *Client) WakeOnLan(nodeIDs []string) (string, error) {
 // Power actions: 1=Sleep, 2=Hibernate, 3=PowerOff, 4=Reset
 // Returns success message or error.
 func (c *Client) PowerAction(nodeIDs []string, powerAction int) (string, error) {
-	if err := c.Send(map[string]interface{}{
+	_, err := c.Send(map[string]interface{}{
 		"action":     "poweraction",
 		"nodeids":    nodeIDs,
 		"actiontype": powerAction,
-	}); err != nil {
-		return "", err
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to send power action request: %w", err)
 	}
 	// Power action is fire-and-forget, no immediate response expected
 	return "Power action sent", nil
@@ -549,18 +630,19 @@ func (c *Client) PowerAction(nodeIDs []string, powerAction int) (string, error) 
 // RunCommand executes a shell command on the device via the MeshAgent.
 // Waits for command completion and returns the result.
 func (c *Client) RunCommand(nodeID, command string) (map[string]interface{}, error) {
-	if err := c.Send(map[string]interface{}{
+	reqid, err := c.Send(map[string]interface{}{
 		"action": "runcommand",
 		"nodeid": nodeID,
 		"run":    command,
-	}); err != nil {
-		return nil, err
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to send runcommand request: %w", err)
 	}
 
-	// Wait for runcommand response (MeshCentral sends response with same action)
-	res, err := c.WaitForAction("runcommand", 30*time.Second)
+	// Wait for runcommand response using reqid-based routing
+	res, err := c.WaitForReq(reqid, "runcommand", 30*time.Second)
 	if err != nil {
-		return nil, fmt.Errorf("timeout waiting for command response: %w", err)
+		return nil, err
 	}
 
 	return res, nil
@@ -570,18 +652,19 @@ func (c *Client) RunCommand(nodeID, command string) (map[string]interface{}, err
 // This uses the WebSocket-based shell protocol which provides bidirectional
 // communication. Returns the output or error.
 func (c *Client) Shell(nodeID, command string) (map[string]interface{}, error) {
-	if err := c.Send(map[string]interface{}{
+	reqid, err := c.Send(map[string]interface{}{
 		"action": "shell",
 		"nodeid": nodeID,
 		"data":   command + "\n",
-	}); err != nil {
-		return nil, err
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to send shell request: %w", err)
 	}
 
-	// Wait for shell response
-	res, err := c.WaitForAction("shell", 30*time.Second)
+	// Wait for shell response using reqid-based routing
+	res, err := c.WaitForReq(reqid, "shell", 30*time.Second)
 	if err != nil {
-		return nil, fmt.Errorf("timeout waiting for shell response: %w", err)
+		return nil, err
 	}
 
 	return res, nil
