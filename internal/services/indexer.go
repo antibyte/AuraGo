@@ -2,8 +2,10 @@ package services
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,6 +18,12 @@ import (
 )
 
 const indexerCollection = "file_index"
+
+// Retry constants for indexing operations (aligned with KnowledgeGraph retry pattern).
+const (
+	indexingRetryMaxAttempts = 3
+	indexingRetryBackoffBase = 250 * time.Millisecond
+)
 
 // IndexerStatus holds runtime statistics for the file indexer.
 type IndexerStatus struct {
@@ -257,7 +265,9 @@ func (fi *FileIndexer) scanDirectory(dir string) (totalFiles, indexedFiles int, 
 				errors = append(errors, fmt.Sprintf("multimodal embedder unavailable for %s", path))
 				return nil
 			}
-			vec, embedErr := embedder.EmbedFile(context.Background(), path)
+			vec, embedErr := fi.indexEmbedWithRetry(func() ([]float32, error) {
+				return embedder.EmbedFile(context.Background(), path)
+			}, path, "multimodal")
 			if embedErr != nil {
 				errors = append(errors, fmt.Sprintf("multimodal embed error %s: %v", path, embedErr))
 				fi.logger.Warn("[Indexer] Multimodal embedding failed", "path", path, "error", embedErr)
@@ -277,7 +287,30 @@ func (fi *FileIndexer) scanDirectory(dir string) (totalFiles, indexedFiles int, 
 					"Dateiname: %s, Pfad: %s", info.Name(), relPath,
 			)
 
-			analysis, _, _, visionErr := tools.AnalyzeImageWithPrompt(path, prompt, fi.cfg)
+			var analysis string
+			var visionErr error
+			for attempt := 1; attempt <= indexingRetryMaxAttempts; attempt++ {
+				var a string
+				var w, h int
+				a, w, h, visionErr = tools.AnalyzeImageWithPrompt(path, prompt, fi.cfg)
+				if visionErr == nil {
+					if attempt > 1 {
+						fi.logger.Info("[Indexer] Vision retry successful", "path", path, "attempt", attempt)
+					}
+					analysis = a
+					_ = w
+					_ = h
+					break
+				}
+
+				if attempt == indexingRetryMaxAttempts || !shouldRetryIndexingErr(visionErr) {
+					break
+				}
+
+				backoff := time.Duration(attempt*attempt) * indexingRetryBackoffBase
+				fi.logger.Warn("[Indexer] Vision analysis failed, retrying", "path", path, "attempt", attempt, "backoff", backoff, "error", visionErr)
+				time.Sleep(backoff)
+			}
 			if visionErr != nil {
 				errors = append(errors, fmt.Sprintf("vision error %s: %v", path, visionErr))
 				fi.logger.Warn("[Indexer] Vision analysis failed", "path", path, "error", visionErr)
@@ -307,7 +340,9 @@ func (fi *FileIndexer) scanDirectory(dir string) (totalFiles, indexedFiles int, 
 			if multimodal && ext == ".pdf" && len(strings.TrimSpace(content)) < 10 {
 				embedder := fi.getMultimodalEmbedder()
 				if embedder != nil {
-					vec, embedErr := embedder.EmbedFile(context.Background(), path)
+					vec, embedErr := fi.indexEmbedWithRetry(func() ([]float32, error) {
+						return embedder.EmbedFile(context.Background(), path)
+					}, path, "pdf-fallback")
 					if embedErr == nil {
 						precomputedEmbedding = vec
 						content = fmt.Sprintf("PDF (gescannt): %s (Pfad: %s)", info.Name(), relPath)
@@ -346,14 +381,17 @@ func (fi *FileIndexer) scanDirectory(dir string) (totalFiles, indexedFiles int, 
 		var docIDs []string
 		var storeErr error
 		if precomputedEmbedding != nil {
-			docID, err := fi.vectorDB.StoreDocumentWithEmbedding(concept, content, precomputedEmbedding)
-			if err != nil {
-				storeErr = err
-			} else if docID != "" {
+			var docID string
+			docID, storeErr = fi.indexStoreDocWithRetry(func() (string, error) {
+				return fi.vectorDB.StoreDocumentWithEmbedding(concept, content, precomputedEmbedding)
+			}, path)
+			if storeErr == nil && docID != "" {
 				docIDs = []string{docID}
 			}
 		} else {
-			docIDs, storeErr = fi.vectorDB.StoreDocument(concept, content)
+			docIDs, storeErr = fi.indexStoreWithRetry(func() ([]string, error) {
+				return fi.vectorDB.StoreDocument(concept, content)
+			}, path)
 		}
 		if storeErr != nil {
 			errors = append(errors, fmt.Sprintf("index error %s: %v", path, storeErr))
@@ -434,6 +472,33 @@ func isPathWithinDir(path, dir string) bool {
 	return rel == "." || (rel != ".." && !strings.HasPrefix(rel, ".."+string(os.PathSeparator)))
 }
 
+// shouldRetryIndexingErr determines if an indexing error is transient and worth retrying.
+// Mirrors the logic used in KnowledgeGraph retrySemanticEmbedding.
+func shouldRetryIndexingErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+	var netErr net.Error
+	if errors.As(err, &netErr) && (netErr.Timeout() || netErr.Temporary()) {
+		return true
+	}
+	// Best-effort handling for provider-side throttling / transient upstream issues.
+	msg := strings.ToLower(err.Error())
+	if strings.Contains(msg, "rate limit") || strings.Contains(msg, "too many requests") {
+		return true
+	}
+	if strings.Contains(msg, " 429 ") || strings.Contains(msg, "429") {
+		return true
+	}
+	if strings.Contains(msg, " 5") && strings.Contains(msg, "http") {
+		return true
+	}
+	return false
+}
+
 // getMultimodalEmbedder creates a MultimodalEmbedder from the current config.
 // Returns nil if the embedding provider is not configured.
 func (fi *FileIndexer) getMultimodalEmbedder() *memory.MultimodalEmbedder {
@@ -459,4 +524,79 @@ func (fi *FileIndexer) getMultimodalEmbedder() *memory.MultimodalEmbedder {
 	fi.cachedEmbedder = embedder
 	fi.cachedEmbedderKey = cacheKey
 	return embedder
+}
+
+// indexEmbedWithRetry calls the provided embedding function with exponential backoff retry.
+// It retries up to indexingRetryMaxAttempts times on transient errors (network timeouts,
+// rate limits, 5xx HTTP errors). Returns the embedding vector on success.
+func (fi *FileIndexer) indexEmbedWithRetry(fn func() ([]float32, error), path, op string) ([]float32, error) {
+	var lastErr error
+	for attempt := 1; attempt <= indexingRetryMaxAttempts; attempt++ {
+		vec, err := fn()
+		if err == nil {
+			if attempt > 1 {
+				fi.logger.Info("[Indexer] Retry successful", "op", op, "path", path, "attempt", attempt)
+			}
+			return vec, nil
+		}
+		lastErr = err
+
+		if attempt == indexingRetryMaxAttempts || !shouldRetryIndexingErr(err) {
+			return nil, err
+		}
+
+		backoff := time.Duration(attempt*attempt) * indexingRetryBackoffBase
+		fi.logger.Warn("[Indexer] Embedding failed, retrying", "op", op, "path", path, "attempt", attempt, "backoff", backoff, "error", err)
+		time.Sleep(backoff)
+	}
+	return nil, lastErr
+}
+
+// indexStoreWithRetry calls the provided VectorDB store function with exponential backoff retry.
+// It retries up to indexingRetryMaxAttempts times on transient errors. Returns the doc IDs on success.
+func (fi *FileIndexer) indexStoreWithRetry(fn func() ([]string, error), path string) ([]string, error) {
+	var lastErr error
+	for attempt := 1; attempt <= indexingRetryMaxAttempts; attempt++ {
+		docIDs, err := fn()
+		if err == nil {
+			if attempt > 1 {
+				fi.logger.Info("[Indexer] Store retry successful", "path", path, "attempt", attempt)
+			}
+			return docIDs, nil
+		}
+		lastErr = err
+
+		if attempt == indexingRetryMaxAttempts || !shouldRetryIndexingErr(err) {
+			return nil, err
+		}
+
+		backoff := time.Duration(attempt*attempt) * indexingRetryBackoffBase
+		fi.logger.Warn("[Indexer] Store failed, retrying", "path", path, "attempt", attempt, "backoff", backoff, "error", err)
+		time.Sleep(backoff)
+	}
+	return nil, lastErr
+}
+
+// indexStoreDocWithRetry is like indexStoreWithRetry but for single document ID return.
+func (fi *FileIndexer) indexStoreDocWithRetry(fn func() (string, error), path string) (string, error) {
+	var lastErr error
+	for attempt := 1; attempt <= indexingRetryMaxAttempts; attempt++ {
+		docID, err := fn()
+		if err == nil {
+			if attempt > 1 {
+				fi.logger.Info("[Indexer] Store retry successful", "path", path, "attempt", attempt)
+			}
+			return docID, nil
+		}
+		lastErr = err
+
+		if attempt == indexingRetryMaxAttempts || !shouldRetryIndexingErr(err) {
+			return "", err
+		}
+
+		backoff := time.Duration(attempt*attempt) * indexingRetryBackoffBase
+		fi.logger.Warn("[Indexer] Store failed, retrying", "path", path, "attempt", attempt, "backoff", backoff, "error", err)
+		time.Sleep(backoff)
+	}
+	return "", lastErr
 }

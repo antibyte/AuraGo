@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log/slog"
@@ -200,5 +201,30 @@ func TestFileIndexerRemovesEmbeddingsForDeletedFiles(t *testing.T) {
 	}
 	if !lastIndexed.IsZero() {
 		t.Fatalf("expected file index removed after file delete, got %v", lastIndexed)
+	}
+}
+
+func TestShouldRetryIndexingErr(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{"nil error", nil, false},
+		{"rate limit error", fmt.Errorf("rate limit exceeded"), true},
+		{"too many requests", fmt.Errorf("too many requests"), true},
+		{"429 in message", fmt.Errorf("request failed with 429"), true},
+		{"5xx http error", fmt.Errorf("http 500 internal server error"), true},
+		{"context deadline", context.DeadlineExceeded, true},
+		{"permanent error", fmt.Errorf("file not found"), false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := shouldRetryIndexingErr(tt.err)
+			if got != tt.want {
+				t.Errorf("shouldRetryIndexingErr(%v) = %v, want %v", tt.err, got, tt.want)
+			}
+		})
 	}
 }
