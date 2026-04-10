@@ -24,7 +24,7 @@
   "config.webhooks.saved": "Webhook ulozen",
   "config.webhooks.delete_confirm": "Delete webhook: ",
   "config.webhooks.deleted": "Webhook smazan",
-  "config.webhooks.loading": "Loading webhooks...",
+  "config.webhooks.loading": "Carregando webhooks...",
   "config.webhooks.log_empty": "No webhook events yet.",
   "config.webhooks.log_loading": "Loading...",
   "config.webhooks.log_col_time": "Time",

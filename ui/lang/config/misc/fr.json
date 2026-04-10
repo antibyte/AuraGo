@@ -59,7 +59,7 @@
   "config.embeddings.reset_point_memories": "Stored conversation memories in the vector database will be deleted and rebuilt only when new content is archived again.",
   "config.embeddings.reset_cancel": "Annuler",
   "config.embeddings.reset_continue": "Delete old embeddings",
-  "config.embeddings.reset_confirm_final": "Really delete the existing embeddings and rebuild them after restart?",
+  "config.embeddings.reset_confirm_final": "Vraiment supprimer the existing embeddings and rebuild them after restart ?",
   "config.embeddings.reset_cancelled": "Embedding change aborted. Nothing was saved.",
   "config.embeddings.reset_restarting": "Old embeddings scheduled for deletion. AuraGo is restarting now…",
   "config.embeddings.reset_pending_warning": "Embedding change saved. The old embeddings are still present until you confirm deletion and restart.",

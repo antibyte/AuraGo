@@ -54,7 +54,7 @@
   "config.providers.field_model": "Modell",
   "config.providers.field_api_key": "API-nyckel",
   "config.providers.field_auth_url": "Auktoriserings-URL",
-  "config.providers.field_token_url": "Token URL",
+  "config.providers.field_token_url": "Token-URL",
   "config.providers.field_client_id": "Klient-ID",
   "config.providers.field_client_secret": "Klienthemlighet",
   "config.providers.field_scopes": "Omfattningar",

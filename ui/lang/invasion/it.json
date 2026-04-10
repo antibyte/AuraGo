@@ -5,7 +5,7 @@
   "invasion.access_type": "Tipo Accesso",
   "invasion.active": "Attivo",
   "invasion.allowed_tools": "Tool Consentiti (Array JSON, vuoto = default)",
-  "invasion.api_key": "API Key",
+  "invasion.api_key": "Chiave API",
   "invasion.apikey_set": "API Key già impostata. Lascia vuoto per mantenerla.",
   "invasion.assign_egg": "Assegna Egg",
   "invasion.badge_llm_inherit": "Eredita LLM",
