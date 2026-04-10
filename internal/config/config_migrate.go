@@ -709,6 +709,21 @@ func (c *Config) ApplyVaultSecrets(vault SecretReader) {
 	apply("pushover_app_token", &c.Notifications.Pushover.AppToken)
 
 	// ── Auth ──
+	// Log a diagnostic warning when auth is enabled but the password hash cannot be read
+	// from the vault. Distinguish between decrypt failure (wrong master key) and simply
+	// not found (password never configured).
+	if c.Auth.Enabled {
+		if _, authErr := vault.ReadSecret("auth_password_hash"); authErr != nil {
+			errStr := authErr.Error()
+			if strings.Contains(errStr, "decrypt") || strings.Contains(errStr, "cipher") || strings.Contains(errStr, "GCM") || strings.Contains(errStr, "ciphertext") {
+				slog.Error("[Config] Vault decryption failed for auth_password_hash — AURAGO_MASTER_KEY may not match the vault. Server will enter LOCKDOWN.",
+					"error", authErr)
+			} else if !strings.Contains(errStr, "not found") {
+				slog.Warn("[Config] Unexpected vault error reading auth_password_hash", "error", authErr)
+			}
+			// "secret not found" is expected on fresh installs — no log needed.
+		}
+	}
 	apply("auth_password_hash", &c.Auth.PasswordHash)
 	apply("auth_session_secret", &c.Auth.SessionSecret)
 	apply("auth_totp_secret", &c.Auth.TOTPSecret)

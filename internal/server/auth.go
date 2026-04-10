@@ -457,9 +457,25 @@ func authMiddleware(s *Server, next http.Handler) http.Handler {
 		// Only the minimal endpoints required to set a password remain accessible.
 		// There is NO bypass — auth.enabled = true means the server is protected, period.
 		if enabled && passwordHash == "" {
-			s.Logger.Error("[Auth] LOCKDOWN: auth.enabled is true but no password is set in the vault. " +
-				"All requests are blocked except the password-setup endpoints. " +
-				"Set a password via /config (local network only) or the /api/auth/password endpoint.")
+			// Diagnose WHY the password is missing: wrong master key (decrypt failure)
+			// vs. password simply never set.
+			vaultDiag := "password was never set"
+			if s.Vault != nil {
+				if _, vaultErr := s.Vault.ReadSecret("auth_password_hash"); vaultErr != nil {
+					errStr := vaultErr.Error()
+					if strings.Contains(errStr, "decrypt") || strings.Contains(errStr, "cipher") || strings.Contains(errStr, "GCM") {
+						vaultDiag = "VAULT DECRYPTION FAILED — master key mismatch or corrupted vault: " + errStr
+					} else if strings.Contains(errStr, "not found") {
+						vaultDiag = "key 'auth_password_hash' not found in vault (password never set)"
+					} else {
+						vaultDiag = "vault read error: " + errStr
+					}
+				}
+			}
+			s.Logger.Error("[Auth] LOCKDOWN: auth.enabled is true but no password is set in the vault. "+
+				"All requests are blocked except the password-setup endpoints. "+
+				"Set a password via /config (local network only) or the /api/auth/password endpoint.",
+				"diagnosis", vaultDiag)
 			if isAllowedWithoutPassword(r.URL.Path) {
 				next.ServeHTTP(w, r)
 				return
