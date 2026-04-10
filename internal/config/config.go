@@ -221,6 +221,8 @@ func Load(path string) (*Config, error) {
 	cfg.SQLConnections.ConnectionTimeoutSec = 30
 	cfg.SQLConnections.QueryTimeoutSec = 120
 	cfg.SQLConnections.MaxResultRows = 1000
+	cfg.SQLConnections.RateLimitWindowSec = 1 // per-connection rate limit: 1 second between accesses (0 = disabled)
+	cfg.SQLConnections.IdleTTLSec = 600       // idle TTL: 10 minutes before connection eviction
 
 	// Danger-zone capabilities default to false (opt-in) for new installations.
 	// Existing configs with explicit true/false values will be read from YAML unchanged.

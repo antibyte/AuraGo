@@ -1212,6 +1212,10 @@ type Config struct {
 		ConnectionTimeoutSec int  `yaml:"connection_timeout_sec"`
 		QueryTimeoutSec      int  `yaml:"query_timeout_sec"`
 		MaxResultRows        int  `yaml:"max_result_rows"`
+		// Rate limiting: minimum seconds between accesses per connection (0 = disabled)
+		RateLimitWindowSec int `yaml:"rate_limit_window_sec"`
+		// Idle TTL: how long to keep idle connections before evicting them (in seconds, 0 = use default)
+		IdleTTLSec int `yaml:"idle_ttl_sec"`
 	} `yaml:"sql_connections"`
 	GoogleWorkspace struct {
 		Enabled       bool   `yaml:"enabled"`

@@ -442,6 +442,13 @@ sql_connections:
     query_timeout_sec: 120
     # Maximum number of rows returned per query
     max_result_rows: 1000
+    # Per-connection rate limiting: minimum seconds between accesses per connection
+    # Helps prevent overwhelming external databases with rapid successive queries
+    # Set to 0 to disable rate limiting (default: 1 second)
+    rate_limit_window_sec: 1
+    # Idle connection TTL: evict connections after this many seconds of inactivity
+    # Set to 0 to use default (10 minutes)
+    idle_ttl_sec: 600
 
 telegram:
     bot_token: ""

@@ -517,6 +517,16 @@ func main() {
 			cfg.SQLConnections.ConnectionTimeoutSec,
 			appLog,
 		)
+		// Configure rate limiting: minimum seconds between accesses per connection
+		if cfg.SQLConnections.RateLimitWindowSec > 0 {
+			sqlConnectionPool.SetRateLimit(cfg.SQLConnections.RateLimitWindowSec)
+			appLog.Info("SQL connection pool rate limiting enabled", "window_sec", cfg.SQLConnections.RateLimitWindowSec)
+		}
+		// Configure idle TTL: how long to keep idle connections before eviction
+		if cfg.SQLConnections.IdleTTLSec > 0 {
+			sqlConnectionPool.SetIdleTTL(time.Duration(cfg.SQLConnections.IdleTTLSec) * time.Second)
+			appLog.Info("SQL connection pool idle TTL configured", "idle_ttl_sec", cfg.SQLConnections.IdleTTLSec)
+		}
 		defer sqlConnectionPool.CloseAll()
 	}
 
