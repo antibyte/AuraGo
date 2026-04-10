@@ -1107,6 +1107,12 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
 				}
+				// Index cheatsheet in vector DB for semantic search (best-effort)
+				if dc.LongTermMem != nil {
+					if storeErr := dc.LongTermMem.StoreCheatsheet(sheet.ID, sheet.Name, sheet.Content); storeErr != nil {
+						dc.Logger.Warn("Failed to index cheatsheet in vector DB", "cs_id", sheet.ID, "error", storeErr)
+					}
+				}
 				data, _ := json.Marshal(map[string]interface{}{"status": "ok", "message": "Cheat sheet created.", "cheatsheet": sheet})
 				return fmt.Sprintf("Tool Output: %s", string(data))
 			case "update":
@@ -1128,6 +1134,12 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
 				}
+				// Update cheatsheet in vector DB (best-effort)
+				if dc.LongTermMem != nil {
+					if storeErr := dc.LongTermMem.StoreCheatsheet(sheet.ID, sheet.Name, sheet.Content); storeErr != nil {
+						dc.Logger.Warn("Failed to update cheatsheet in vector DB", "cs_id", sheet.ID, "error", storeErr)
+					}
+				}
 				data, _ := json.Marshal(map[string]interface{}{"status": "ok", "message": "Cheat sheet updated.", "cheatsheet": sheet})
 				return fmt.Sprintf("Tool Output: %s", string(data))
 			case "delete":
@@ -1136,6 +1148,12 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				}
 				if err := tools.CheatsheetDelete(cheatsheetDB, req.ID); err != nil {
 					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
+				}
+				// Remove cheatsheet from vector DB (best-effort)
+				if dc.LongTermMem != nil {
+					if delErr := dc.LongTermMem.DeleteCheatsheet(req.ID); delErr != nil {
+						dc.Logger.Warn("Failed to delete cheatsheet from vector DB", "cs_id", req.ID, "error", delErr)
+					}
 				}
 				return `Tool Output: {"status":"ok","message":"Cheat sheet deleted."}`
 			case "attach":

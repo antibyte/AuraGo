@@ -39,6 +39,13 @@ type VectorDB interface {
 	Count() int
 	IsDisabled() bool
 	Close() error
+	// StoreCheatsheet stores a cheatsheet in the vector DB with cs_id metadata.
+	// The cheatsheet is stored with auto-chunking for large content and uses
+	// the cheatsheet ID as the unique document identifier for upsert semantics.
+	StoreCheatsheet(id, name, content string) error
+	// DeleteCheatsheet removes all vector entries associated with a cheatsheet ID
+	// by using the cs_id metadata filter.
+	DeleteCheatsheet(id string) error
 }
 
 // queryCacheEntry stores a pre-computed query embedding with a timestamp for TTL expiry.
@@ -382,6 +389,117 @@ func (cv *ChromemVectorDB) StoreDocumentWithEmbedding(concept, content string, e
 
 	cv.logger.Info("Stored multimodal document", "id", docID, "concept", concept)
 	return docID, nil
+}
+
+// StoreCheatsheet stores a cheatsheet document with its ID as a unique identifier.
+// It uses the cheatsheet ID in the document ID for upsert semantics: calling
+// StoreCheatsheet again for the same ID will replace the existing document.
+// The cheatsheet is stored with cs_type="cheatsheet" metadata for filtering.
+func (cv *ChromemVectorDB) StoreCheatsheet(id, name, content string) error {
+	if cv.disabled.Load() {
+		return fmt.Errorf("VectorDB is disabled (embedding pipeline failed at startup)")
+	}
+	if id == "" {
+		return fmt.Errorf("cheatsheet ID is required")
+	}
+
+	cv.mu.Lock()
+	defer cv.mu.Unlock()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	// First delete any existing cheatsheet docs with this ID (upsert semantics)
+	if err := cv.collection.Delete(ctx, map[string]string{"cs_type": "cheatsheet", "cs_id": id}, nil); err != nil {
+		cv.logger.Warn("Failed to delete existing cheatsheet docs before store", "cs_id", id, "error", err)
+		// Continue anyway - we'll just add without deleting first
+	}
+
+	fullContent := name + "\n\n" + content
+
+	metadata := map[string]string{
+		"cs_type":   "cheatsheet",
+		"cs_id":     id,
+		"cs_name":   name,
+		"timestamp": fmt.Sprintf("%d", time.Now().Unix()),
+	}
+
+	// Small texts: store as a single document
+	if len(fullContent) <= 4000 {
+		docID := fmt.Sprintf("cs_%s", id)
+		doc := chromem.Document{
+			ID:       docID,
+			Metadata: metadata,
+			Content:  fullContent,
+		}
+		if err := cv.collection.AddDocument(ctx, doc); err != nil {
+			cv.logger.Error("Failed to store cheatsheet in vector DB", "error", err, "cs_id", id)
+			return fmt.Errorf("failed to add cheatsheet document: %w", err)
+		}
+		cv.logger.Info("Stored cheatsheet in vector DB", "id", docID, "cs_id", id, "cs_name", name)
+		return nil
+	}
+
+	// Large texts: split into chunks and batch-store
+	const maxChunks = 50 // cheatsheets are smaller than general docs
+	chunks := chunkText(content, 3500, 200)
+	if len(chunks) > maxChunks {
+		cv.logger.Warn("Cheatsheet produces too many chunks, capping", "cs_id", id, "chunks", len(chunks), "max", maxChunks)
+		chunks = chunks[:maxChunks]
+	}
+
+	var docs []chromem.Document
+	for i, chunk := range chunks {
+		docID := fmt.Sprintf("cs_%s_chunk_%d", id, i)
+		chunkMeta := map[string]string{
+			"cs_type":     "cheatsheet",
+			"cs_id":       id,
+			"cs_name":     name,
+			"chunk_index": fmt.Sprintf("%d/%d", i+1, len(chunks)),
+			"timestamp":   fmt.Sprintf("%d", time.Now().Unix()),
+		}
+		docs = append(docs, chromem.Document{
+			ID:       docID,
+			Metadata: chunkMeta,
+			Content:  name + " (" + fmt.Sprintf("%d/%d", i+1, len(chunks)) + ")\n\n" + chunk,
+		})
+	}
+
+	// Batch-add all chunks in one call (sequential embedding to avoid rate limits)
+	chunkCtx, chunkCancel := context.WithTimeout(context.Background(), calculateBatchTimeout(len(docs)))
+	defer chunkCancel()
+	if err := cv.collection.AddDocuments(chunkCtx, docs, 1); err != nil {
+		cv.logger.Error("Failed to store chunked cheatsheet", "error", err, "cs_id", id, "chunks", len(chunks))
+		return fmt.Errorf("failed to add chunked cheatsheet (%d chunks): %w", len(chunks), err)
+	}
+
+	cv.logger.Info("Stored chunked cheatsheet in vector DB", "cs_id", id, "cs_name", name, "chunks", len(chunks))
+	return nil
+}
+
+// DeleteCheatsheet removes all vector entries associated with a cheatsheet ID
+// by using the cs_id metadata filter.
+func (cv *ChromemVectorDB) DeleteCheatsheet(id string) error {
+	if cv.disabled.Load() {
+		return fmt.Errorf("VectorDB is disabled")
+	}
+	if id == "" {
+		return fmt.Errorf("cheatsheet ID is required")
+	}
+
+	cv.mu.Lock()
+	defer cv.mu.Unlock()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	if err := cv.collection.Delete(ctx, map[string]string{"cs_type": "cheatsheet", "cs_id": id}, nil); err != nil {
+		cv.logger.Error("Failed to delete cheatsheet from vector DB", "cs_id", id, "error", err)
+		return fmt.Errorf("failed to delete cheatsheet documents: %w", err)
+	}
+
+	cv.logger.Info("Deleted cheatsheet from vector DB", "cs_id", id)
+	return nil
 }
 
 // chunkText splits a large text into smaller segments of roughly chunkSize characters,

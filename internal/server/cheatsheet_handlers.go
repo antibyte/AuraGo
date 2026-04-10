@@ -70,6 +70,12 @@ func handleCheatSheets(s *Server) http.HandlerFunc {
 				jsonLoggedError(w, s.Logger, http.StatusBadRequest, "Failed to create cheat sheet", "Failed to create cheat sheet", err, "name", body.Name)
 				return
 			}
+			// Index cheatsheet in vector DB for semantic search (best-effort, non-blocking)
+			if s.LongTermMem != nil {
+				if storeErr := s.LongTermMem.StoreCheatsheet(sheet.ID, sheet.Name, sheet.Content); storeErr != nil {
+					s.Logger.Warn("Failed to index cheatsheet in vector DB", "cs_id", sheet.ID, "error", storeErr)
+				}
+			}
 			w.WriteHeader(http.StatusCreated)
 			writeJSON(w, sheet)
 
@@ -125,6 +131,12 @@ func handleCheatSheetByID(s *Server) http.HandlerFunc {
 				jsonLoggedError(w, s.Logger, http.StatusBadRequest, "Failed to update cheat sheet", "Failed to update cheat sheet", err, "cheatsheet_id", id)
 				return
 			}
+			// Update cheatsheet in vector DB (best-effort, non-blocking)
+			if s.LongTermMem != nil {
+				if storeErr := s.LongTermMem.StoreCheatsheet(sheet.ID, sheet.Name, sheet.Content); storeErr != nil {
+					s.Logger.Warn("Failed to update cheatsheet in vector DB", "cs_id", sheet.ID, "error", storeErr)
+				}
+			}
 			writeJSON(w, sheet)
 
 			// Invalidate mission preparations that reference this cheatsheet
@@ -140,6 +152,12 @@ func handleCheatSheetByID(s *Server) http.HandlerFunc {
 				}
 				jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to delete cheat sheet", "Failed to delete cheat sheet", err, "cheatsheet_id", id)
 				return
+			}
+			// Remove cheatsheet from vector DB (best-effort, non-blocking)
+			if s.LongTermMem != nil {
+				if delErr := s.LongTermMem.DeleteCheatsheet(id); delErr != nil {
+					s.Logger.Warn("Failed to delete cheatsheet from vector DB", "cs_id", id, "error", delErr)
+				}
 			}
 			writeJSON(w, map[string]string{"status": "deleted"})
 
