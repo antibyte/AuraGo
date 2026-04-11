@@ -1659,7 +1659,13 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		// sanitized string means the entire response was inside <think> blocks, and feeding raw
 		// think-block language to the detector causes spurious WARN / recovery loops.
 		announcementContent := parsedToolResp.SanitizedContent
-		isAnnouncement := announcementContent != "" && !parsedToolResp.IsFinished && !tc.IsTool && cfg.Agent.AnnouncementDetector.Enabled && isAnnouncementOnlyResponse(announcementContent, tc, useNativePath, lastResponseWasTool, lastUserMsg)
+		// Skip announcement detection after XML-fallback tool chains (e.g. MiniMax minimax:tool_call).
+		// When the model used XML format and one or more tools already ran, the next text response
+		// is a completion summary — not a true announcement.  Forcing another corrective LLM call
+		// would only cause further XML-format responses and a noticeable "hang" from slow MiniMax
+		// round-trips.
+		xmlFallbackPostToolChain := xmlFallbackCount > 0 && lastResponseWasTool
+		isAnnouncement := announcementContent != "" && !parsedToolResp.IsFinished && !tc.IsTool && cfg.Agent.AnnouncementDetector.Enabled && !xmlFallbackPostToolChain && isAnnouncementOnlyResponse(announcementContent, tc, useNativePath, lastResponseWasTool, lastUserMsg)
 		if isAnnouncement && announcementCount < cfg.Agent.AnnouncementDetector.MaxRetries {
 			announcementCount++
 			currentLogger.Warn("[Sync] Announcement-only response detected, requesting immediate tool call", "attempt", announcementCount, "content_preview", Truncate(announcementContent, 120))
