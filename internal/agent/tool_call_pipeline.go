@@ -230,7 +230,18 @@ func recoverFromEmptyResponseWithPolicy(policy RecoveryPolicy, resp openai.ChatC
 	// but produced no actual output.  Without this check the raw content is non-empty
 	// (it holds the think tags), bypassing the empty-response recovery and silently
 	// ending the agent loop with no user-visible output.
-	effectivelyEmpty := strings.TrimSpace(content) == "" || strings.TrimSpace(security.StripThinkingTags(content)) == ""
+	strippedContent := strings.TrimSpace(security.StripThinkingTags(content))
+	effectivelyEmpty := strings.TrimSpace(content) == "" || strippedContent == ""
+	// Also treat unclosed <think> blocks as effectively empty.  This happens when the
+	// model hits its token limit mid-reasoning: the response begins with <think> but
+	// no closing </think> is emitted.  StripThinkingTags requires a closing tag, so
+	// the raw <think>… text remains after stripping and the check above misses it.
+	if !effectivelyEmpty {
+		lowerStripped := strings.ToLower(strippedContent)
+		if strings.HasPrefix(lowerStripped, "<think") && !strings.Contains(lowerStripped, "</think") {
+			effectivelyEmpty = true
+		}
+	}
 	if *emptyRetried || !effectivelyEmpty || len(resp.Choices) == 0 || len(resp.Choices[0].Message.ToolCalls) > 0 || len(req.Messages) < policy.minMessagesForEmptyRetry() {
 		return false
 	}
