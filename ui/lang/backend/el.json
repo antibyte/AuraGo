@@ -166,7 +166,7 @@
   "backend.stream_error_recovery_announcement_no_action": "Ανακοίνωση χωρίς ενέργεια εντοπίστηκε, ζητείται κλήση εργαλείου...",
   "backend.stream_error_recovery_fence_json": "Κλήση εργαλείου τυλιγμένη σε φράχτη, ζητείται ακατέργαστο JSON...",
   "backend.stream_error_recovery_incomplete_tag": "Εντοπίστηκε ελλιπής ετικέτα κλήσης εργαλείου, ζητείται σωστή κλήση εργαλείου...",
-  "backend.stream_error_recovery_xml_in_native_mode": "<tool_call> XML detected in native mode, requesting function call...",
+  "backend.stream_error_recovery_xml_in_native_mode": "<tool_call> XML εντοπίστηκε σε εγγενή λειτουργία, ζητώντας κλήση λειτουργίας...",
   "backend.stream_coding_executing": "Εκτέλεση σεναρίου Python...",
   "backend.stream_done": "Η απάντηση ολοκληρώθηκε.",
   "backend.stream_error_recovery_loopback": "Συγγνώμη, παρουσιάστηκε σφάλμα κατά την επεξεργασία του μηνύματός σας.",

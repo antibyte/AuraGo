@@ -166,7 +166,7 @@
   "backend.stream_error_recovery_announcement_no_action": "कार्रवाई के बिना घोषणा पाई गई, टूल कॉल का अनुरोध किया जा रहा है...",
   "backend.stream_error_recovery_fence_json": "टूल कॉल बाड़ में लिपटा हुआ, रॉ JSON का अनुरोध किया जा रहा है...",
   "backend.stream_error_recovery_incomplete_tag": "अपूर्ण टूल कॉल टैग पाया गया, उचित टूल कॉल का अनुरोध किया जा रहा है...",
-  "backend.stream_error_recovery_xml_in_native_mode": "<tool_call> XML detected in native mode, requesting function call...",
+  "backend.stream_error_recovery_xml_in_native_mode": "<tool_call> नेटिव मोड में XML का पता चला, फंक्शन कॉल का अनुरोध...",
   "backend.stream_coding_executing": "Python स्क्रिप्ट निष्पादित हो रही है...",
   "backend.stream_done": "उत्तर पूर्ण।",
   "backend.stream_error_recovery_loopback": "क्षमा करें, आपका संदेश प्रोसेस करते समय त्रुटि हुई।",

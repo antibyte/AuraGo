@@ -166,7 +166,7 @@
   "backend.stream_error_recovery_announcement_no_action": "Ogłoszenie bez działania wykryte, żądanie wywołania narzędzia...",
   "backend.stream_error_recovery_fence_json": "Wywołanie narzędzia opakowane w ogrodzenie, żądanie surowego JSON...",
   "backend.stream_error_recovery_incomplete_tag": "Wykryto niepełny tag wywołania narzędzia, żądanie poprawnego wywołania...",
-  "backend.stream_error_recovery_xml_in_native_mode": "<tool_call> XML detected in native mode, requesting function call...",
+  "backend.stream_error_recovery_xml_in_native_mode": "<tool_call> XML wykryty w trybie natywnym, żądanie wywołania funkcji...",
   "backend.stream_coding_executing": "Wykonywanie skryptu Python...",
   "backend.stream_done": "Odpowiedź zakończona.",
   "backend.stream_error_recovery_loopback": "Przepraszam, wystąpił błąd podczas przetwarzania wiadomości.",

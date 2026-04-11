@@ -166,7 +166,7 @@
   "backend.stream_error_recovery_announcement_no_action": "Meddelande utan åtgärd upptäckt, begär verktygsanrop...",
   "backend.stream_error_recovery_fence_json": "Verktygsanrop inlindat i stängsel, begär rå JSON...",
   "backend.stream_error_recovery_incomplete_tag": "Ofullständig verktygsanrop-tagg upptäckt, begär korrekt verktygsanrop...",
-  "backend.stream_error_recovery_xml_in_native_mode": "<tool_call> XML detected in native mode, requesting function call...",
+  "backend.stream_error_recovery_xml_in_native_mode": "<tool_call> XML upptäckt i nativt läge, begär funktionsanrop...",
   "backend.stream_coding_executing": "Kör Python-skript...",
   "backend.stream_done": "Svar slutfört.",
   "backend.stream_error_recovery_loopback": "Beklagar, ett fel uppstod vid bearbetning av ditt meddelande.",

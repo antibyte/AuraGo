@@ -166,7 +166,7 @@
   "backend.stream_error_recovery_announcement_no_action": "Anúncio sem ação detectado, solicitando chamada de ferramenta...",
   "backend.stream_error_recovery_fence_json": "Chamada de ferramenta envolvida em cerca, solicitando JSON bruto...",
   "backend.stream_error_recovery_incomplete_tag": "Tag de chamada de ferramenta incompleta detectada, solicitando chamada correta...",
-  "backend.stream_error_recovery_xml_in_native_mode": "<tool_call> XML detected in native mode, requesting function call...",
+  "backend.stream_error_recovery_xml_in_native_mode": "<tool_call> XML detectado em modo nativo, solicitando chamada de função...",
   "backend.stream_coding_executing": "Executando script Python...",
   "backend.stream_done": "Resposta concluída.",
   "backend.stream_error_recovery_loopback": "Desculpe, ocorreu um erro ao processar sua mensagem.",

@@ -166,7 +166,7 @@
   "backend.stream_error_recovery_announcement_no_action": "Aankondiging zonder actie gedetecteerd, tool-aanroep aangevraagd...",
   "backend.stream_error_recovery_fence_json": "Tool-aanroep ingepakt in hek, ruwe JSON aangevraagd...",
   "backend.stream_error_recovery_incomplete_tag": "Onvolledige tool-aanroep-tag gedetecteerd, correcte tool-aanroep aangevraagd...",
-  "backend.stream_error_recovery_xml_in_native_mode": "<tool_call> XML detected in native mode, requesting function call...",
+  "backend.stream_error_recovery_xml_in_native_mode": "<tool_call> XML gedetecteerd in native modus, vraag om functieaanroep...",
   "backend.stream_coding_executing": "Python-script uitvoeren...",
   "backend.stream_done": "Antwoord voltooid.",
   "backend.stream_error_recovery_loopback": "Sorry, er is een fout opgetreden bij het verwerken van uw bericht.",

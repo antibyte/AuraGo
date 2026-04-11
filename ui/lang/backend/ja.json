@@ -166,7 +166,7 @@
   "backend.stream_error_recovery_announcement_no_action": "アクションのないアナウンスを検出、ツール呼び出しを要求中...",
   "backend.stream_error_recovery_fence_json": "ツール呼び出しがフェンスで囲まれています、Raw JSONを要求中...",
   "backend.stream_error_recovery_incomplete_tag": "不完全なツール呼び出しタグを検出、適切なツール呼び出しを要求中...",
-  "backend.stream_error_recovery_xml_in_native_mode": "<tool_call> XML detected in native mode, requesting function call...",
+  "backend.stream_error_recovery_xml_in_native_mode": "<tool_call> ネイティブモードでXMLが検出されました、関数呼び出しを要求中...",
   "backend.stream_coding_executing": "Pythonスクリプトを実行中...",
   "backend.stream_done": "応答が完了しました。",
   "backend.stream_error_recovery_loopback": "申し訳ありません、メッセージの処理中にエラーが発生しました。",

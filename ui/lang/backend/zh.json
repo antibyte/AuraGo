@@ -166,7 +166,7 @@
   "backend.stream_error_recovery_announcement_no_action": "检测到无操作公告，正在请求工具调用...",
   "backend.stream_error_recovery_fence_json": "工具调用被包裹在围栏中，正在请求原始 JSON...",
   "backend.stream_error_recovery_incomplete_tag": "检测到不完整的工具调用标签，正在请求正确的工具调用...",
-  "backend.stream_error_recovery_xml_in_native_mode": "<tool_call> XML detected in native mode, requesting function call...",
+  "backend.stream_error_recovery_xml_in_native_mode": "<tool_call> 在原生模式下检测到XML，请求函数调用...",
   "backend.stream_coding_executing": "正在执行 Python 脚本...",
   "backend.stream_done": "响应已完成。",
   "backend.stream_error_recovery_loopback": "抱歉，处理您的消息时遇到错误。",

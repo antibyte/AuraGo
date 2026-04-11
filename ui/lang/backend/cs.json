@@ -166,7 +166,7 @@
   "backend.stream_error_recovery_announcement_no_action": "Oznámení bez akce zjištěno, vyžaduje se volání nástroje...",
   "backend.stream_error_recovery_fence_json": "Volání nástroje zabaleno v plotu, vyžaduji raw JSON...",
   "backend.stream_error_recovery_incomplete_tag": "Neúplná značka volání nástroje detekována, vyžaduji správné volání nástroje...",
-  "backend.stream_error_recovery_xml_in_native_mode": "<tool_call> XML detected in native mode, requesting function call...",
+  "backend.stream_error_recovery_xml_in_native_mode": "<tool_call> XML detekován v nativním režimu, požadavek na volání funkce...",
   "backend.stream_coding_executing": "Spouští se Python skript...",
   "backend.stream_done": "Odpověď dokončena.",
   "backend.stream_error_recovery_loopback": "Omlouvám se, došlo k chybě při zpracování vaší zprávy.",

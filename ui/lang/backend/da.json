@@ -166,7 +166,7 @@
   "backend.stream_error_recovery_announcement_no_action": "Meddelelse uden handling registreret, anmoder om værktøjskald...",
   "backend.stream_error_recovery_fence_json": "Værktøjskald indpakket i hegn, anmoder om rå JSON...",
   "backend.stream_error_recovery_incomplete_tag": "Ufuldstændig værktøjskald-tag opdaget, anmoder om korrekt værktøjskald...",
-  "backend.stream_error_recovery_xml_in_native_mode": "<tool_call> XML detected in native mode, requesting function call...",
+  "backend.stream_error_recovery_xml_in_native_mode": "<tool_call> XML registreret i native tilstand, anmoder om funktionskald...",
   "backend.stream_coding_executing": "Kører Python-script...",
   "backend.stream_done": "Svar fuldført.",
   "backend.stream_error_recovery_loopback": "Beklager, der opstod en fejl ved behandling af din besked.",

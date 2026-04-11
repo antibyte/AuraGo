@@ -166,7 +166,7 @@
   "backend.stream_error_recovery_announcement_no_action": "Kunngjøring uten handling oppdaget, ber om verktøykall...",
   "backend.stream_error_recovery_fence_json": "Verktøykall pakket inn i gjerde, ber om rå JSON...",
   "backend.stream_error_recovery_incomplete_tag": "Ufullstendig verktøykall-tag oppdaget, ber om korrekt verktøykall...",
-  "backend.stream_error_recovery_xml_in_native_mode": "<tool_call> XML detected in native mode, requesting function call...",
+  "backend.stream_error_recovery_xml_in_native_mode": "<tool_call> XML oppdaget i nativ modus, ber om funksjonskall...",
   "backend.stream_coding_executing": "Kjører Python-skript...",
   "backend.stream_done": "Svar fullført.",
   "backend.stream_error_recovery_loopback": "Beklager, det oppstod en feil ved behandling av meldingen din.",
