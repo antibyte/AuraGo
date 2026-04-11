@@ -421,10 +421,14 @@ func ReapplyAnsibleToken(dockerHost string, sidecarCfg AnsibleSidecarConfig, log
 
 	logger.Info("[Ansible] Reapplying token — recreating sidecar container", "container", containerName)
 
-	// Stop (best-effort, ignore errors if already stopped)
-	dockerRequest(dockerCfg, "POST", "/containers/"+containerName+"/stop?t=5", "") //nolint:errcheck
-	// Remove (best-effort)
-	dockerRequest(dockerCfg, "DELETE", "/containers/"+containerName, "") //nolint:errcheck
+	// Stop container (best-effort, errors expected if already stopped)
+	if _, code, err := dockerRequest(dockerCfg, "POST", "/containers/"+containerName+"/stop?t=5", ""); err != nil {
+		logger.Warn("[Ansible] Failed to stop container (may already be stopped)", "container", containerName, "code", code, "error", err)
+	}
+	// Remove container (best-effort)
+	if _, code, err := dockerRequest(dockerCfg, "DELETE", "/containers/"+containerName, ""); err != nil {
+		logger.Warn("[Ansible] Failed to remove container (may already be removed)", "container", containerName, "code", code, "error", err)
+	}
 
 	// Recreate with updated token
 	EnsureAnsibleSidecarRunning(dockerHost, sidecarCfg, logger)

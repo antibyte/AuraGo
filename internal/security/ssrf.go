@@ -53,11 +53,31 @@ func isPrivateIP(ip net.IP) bool {
 	return false
 }
 
+// allowSSRFLoopback checks the AURAGO_SSRF_ALLOW_LOOPBACK environment variable.
+// This is an ESCAPE HATCH for development and testing only.
+//
+// SECURITY WARNING: Setting AURAGO_SSRF_ALLOW_LOOPBACK=1 or =true DISABLES
+// SSRF protection for loopback addresses (127.0.0.0/8, ::1). This allows the
+// agent to access services bound to localhost, such as development servers,
+// database admin panels, or internal APIs that should not be exposed publicly.
+//
+// RISKS WHEN ENABLED:
+// - Agent could access internal admin interfaces (e.g., Redis, MongoDB admin panels)
+// - Agent could reach local development APIs that may have security vulnerabilities
+// - Bypasses defense-in-depth against SSRF attacks
+//
+// PRODUCTION: This flag MUST NOT be enabled in production environments.
+// DEVELOPMENT ONLY: Only enable for local development where you intentionally
+// need the agent to access local services (e.g., a local web server running on
+// localhost for testing purposes).
 func allowSSRFLoopback() bool {
 	v := strings.TrimSpace(os.Getenv("AURAGO_SSRF_ALLOW_LOOPBACK"))
 	return v == "1" || strings.EqualFold(v, "true")
 }
 
+// isAllowedPrivateIP checks if an IP address is allowed based on SSRF protections.
+// When AURAGO_SSRF_ALLOW_LOOPBACK is set, only loopback addresses are permitted
+// (RFC1918 private addresses and link-local addresses remain blocked).
 func isAllowedPrivateIP(ip net.IP) bool {
 	// Escape hatch for tests/dev: allow loopback only (still blocks RFC1918 and link-local).
 	if allowSSRFLoopback() && ip != nil && ip.IsLoopback() {

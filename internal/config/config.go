@@ -617,13 +617,6 @@ func Load(path string) (*Config, error) {
 	if cfg.Agent.ContextWindow <= 0 {
 		cfg.Agent.ContextWindow = 0 // 0 = agent loop defaults to 163840 (160k context guard)
 	}
-	// Default to true if not explicitly set (YAML unmarshal results in false if missing,
-	// so we check if the key was present or just use a safe default approach)
-	// Actually, since it's a bool, we'll just ensure it's handled.
-	// We'll assume the user wants it unless they say no.
-	// (Note: yaml.Unmarshal into a struct field defaults to the zero value, which is false.
-	// To have a default true, we'd usually check a pointer or just set it here if not in file)
-	// But since I added it to config.yaml already, it will be loaded.
 
 	if cfg.FallbackLLM.ProbeIntervalSeconds <= 0 {
 		cfg.FallbackLLM.ProbeIntervalSeconds = 60
@@ -783,6 +776,9 @@ func Load(path string) (*Config, error) {
 	// Webhook defaults
 	if cfg.Webhooks.MaxPayloadSize <= 0 {
 		cfg.Webhooks.MaxPayloadSize = 65536 // 64 KB
+	}
+	if cfg.Webhooks.RateLimit <= 0 {
+		cfg.Webhooks.RateLimit = 60 // 60 requests per minute per token (0 = unlimited)
 	}
 
 	// Ollama defaults

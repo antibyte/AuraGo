@@ -876,6 +876,8 @@ func securityHeadersMiddleware(next http.Handler, tlsActive, behindProxy bool) h
 		// NOTE: unsafe-inline is required for inline scripts in the SPA.
 		// NOTE: unsafe-eval is required by Tailwind CSS JIT and CodeMirror 6.
 		// Removing either would require a full frontend rewrite.
+		// TODO: Replace unsafe-inline with nonce-based CSP to improve security.
+		// TODO: Evaluate if unsafe-eval can be removed by migrating CodeMirror to a CSP-compliant build.
 		csp := "default-src 'self'; " +
 			"script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com; " +
 			"style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; " +
