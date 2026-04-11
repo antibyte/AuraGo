@@ -31,9 +31,9 @@ agent:
     allow_network_requests: false
     allow_remote_shell: false
     allow_self_update: false
-    # ── Standard API access ── enabled by default
-    allow_mcp: true
-    allow_web_scraper: true
+    # ── Standard API access ── disabled by default for fresh installs (must be explicitly enabled)
+    allow_mcp: false
+    allow_web_scraper: false
     # ── Adaptive tool filtering (reduces token usage for tool schemas) ──
     adaptive_tools:
         enabled: false                                              # enable adaptive filtering

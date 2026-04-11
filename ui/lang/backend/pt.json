@@ -1,4 +1,4 @@
-{
+ {
   "backend.cmd_unknown": "❌ Comando desconhecido. Digite /help para ver a lista de comandos.",
   "backend.cmd_reset_success": "🧹 O histórico do chat e a memória de curto prazo foram eliminados.",
   "backend.cmd_reset_help": "Elimina o histórico atual do chat (memória de curto prazo).",
