@@ -10,6 +10,7 @@
     "setup.header_subtitle": "Configuración Rápida",
     "setup.https_warning": "Está utilizando una conexión HTTP sin cifrar. Las claves API pueden transmitirse de forma insegura.",
     "setup.language_cs": "Čeština",
+    "setup.language_custom": "Personalizado",
     "setup.language_da": "Dansk",
     "setup.language_de": "Deutsch",
     "setup.language_el": "Ελληνικά",

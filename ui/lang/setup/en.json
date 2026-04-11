@@ -10,6 +10,7 @@
     "setup.header_subtitle": "Quick Setup",
     "setup.https_warning": "You are using an unencrypted HTTP connection. API keys may be transmitted insecurely.",
     "setup.language_cs": "Čeština",
+    "setup.language_custom": "Custom",
     "setup.language_da": "Dansk",
     "setup.language_de": "Deutsch",
     "setup.language_el": "Ελληνικά",

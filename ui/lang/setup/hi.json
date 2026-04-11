@@ -10,6 +10,7 @@
   "setup.header_subtitle": "त्वरित सेटअप",
   "setup.https_warning": "आप एक अनएन्क्रिप्टेड HTTP कनेक्शन का उपयोग कर रहे हैं। API कुंजियाँ असुरक्षित रूप से प्रसारित हो सकती हैं।",
   "setup.language_cs": "चेक",
+  "setup.language_custom": "कस्टम",
   "setup.language_da": "डेनिश",
   "setup.language_de": "जर्मन",
   "setup.language_el": "यूनानी",

@@ -15,9 +15,9 @@
   "config.jellyfin.connection_failed": "Αποτυχία σύνδεσης",
   "config.jellyfin.test_ok": "Επιτυχής σύνδεση",
   "config.jellyfin.test_fail": "Αποτυχία σύνδεσης",
-  "config.jellyfin.apikey_empty": "Please enter an API key first.",
-  "config.jellyfin.apikey_saved": "API key saved to vault.",
-  "config.jellyfin.apikey_save_failed": "Failed to save API key to vault.",
+  "config.jellyfin.apikey_empty": "Παρακαλώ εισάγετε πρώτα ένα API key.",
+  "config.jellyfin.apikey_saved": "Το API key αποθηκεύτηκε στο vault.",
+  "config.jellyfin.apikey_save_failed": "Αποτυχία αποθήκευσης API key στο vault.",
   "help.jellyfin.enabled": "Ενεργοποιεί την ενσωμάτωση Jellyfin. Ο πράκτορας μπορεί να περιηγηθεί σε βιβλιοθήκες, να αναζητήσει μέσα, να ελέγξει αναπαραγωγή και να διαχειριστεί τον διακομιστή μέσων.",
   "help.jellyfin.readonly": "Σε λειτουργία μόνο ανάγνωσης, ο πράκτορας μπορεί μόνο να προβάλλει δεδομένα. Ο έλεγχος αναπαραγωγής και η ανανέωση βιβλιοθήκης είναι μπλοκαρισμένα.",
   "help.jellyfin.allow_destructive": "Επιτρέπει τη διαγραφή στοιχείων πολυμέσων από τον διακομιστή Jellyfin.",
@@ -25,5 +25,5 @@
   "help.jellyfin.insecure_ssl": "Αποδέχεται αυτο-υπογεγραμμένα ή μη έγκυρα πιστοποιητικά (μόνο για περιβάλλοντα δοκιμών).",
   "help.jellyfin.host": "Όνομα κεντρικού υπολογιστή ή διεύθυνση IP του διακομιστή Jellyfin (π.χ. jellyfin.local ή 192.168.1.100).",
   "help.jellyfin.port": "Θύρα του διακομιστή Jellyfin (προεπιλογή: 8096).",
-  "help.jellyfin.api_key": "API key for the Jellyfin API. Create one under Dashboard → API Keys in Jellyfin."
+  "help.jellyfin.api_key": "API key για το Jellyfin API. Δημιουργήστε ένα στο Dashboard → API Keys στο Jellyfin."
 }

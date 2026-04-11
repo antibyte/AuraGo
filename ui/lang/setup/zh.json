@@ -10,6 +10,7 @@
   "setup.header_subtitle": "快速设置",
   "setup.https_warning": "您正在使用未加密的HTTP连接。API密钥可能会以不安全的方式传输。",
   "setup.language_cs": "Čeština",
+  "setup.language_custom": "自定义",
   "setup.language_da": "Dansk",
   "setup.language_de": "Deutsch",
   "setup.language_el": "Ελληνικά",

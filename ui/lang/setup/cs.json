@@ -10,6 +10,7 @@
   "setup.header_subtitle": "Rychlé nastavení",
   "setup.https_warning": "Používáte nešifrované HTTP připojení. API klíče mohou být přenášeny nezabezpečeně.",
   "setup.language_cs": "Čeština",
+  "setup.language_custom": "Vlastní",
   "setup.language_da": "Dánština",
   "setup.language_de": "Němčina",
   "setup.language_el": "Řečtina",

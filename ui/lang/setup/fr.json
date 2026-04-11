@@ -10,6 +10,7 @@
   "setup.header_subtitle": "Configuration Rapide",
   "setup.https_warning": "Vous utilisez une connexion HTTP non chiffrée. Les clés API peuvent être transmises de manière non sécurisée.",
   "setup.language_cs": "Tchèque",
+  "setup.language_custom": "Personnalisé",
   "setup.language_da": "Danois",
   "setup.language_de": "Allemand",
   "setup.language_el": "Grec",
