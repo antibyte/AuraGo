@@ -93,7 +93,7 @@
   "skills.field_dependencies": "依存関係",
   "skills.test_title": "スキルをテスト",
   "skills.test_args_label": "JSON入力",
-  "skills.test_output_label": "Output",
+  "skills.test_output_label": "出力",
   "skills.import_title": "スキルバンドルをインポート",
   "skills.import_file_label": "バンドルファイル",
   "skills.import_hint": "エクスポートされた.aurago-skill.jsonバンドルを選択。",

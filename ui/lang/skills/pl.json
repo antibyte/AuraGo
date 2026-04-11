@@ -93,7 +93,7 @@
   "skills.field_dependencies": "Zależności",
   "skills.test_title": "Testuj umiejętność",
   "skills.test_args_label": "Wejście JSON",
-  "skills.test_output_label": "Output",
+  "skills.test_output_label": "Wyjście",
   "skills.import_title": "Importuj pakiet umiejętności",
   "skills.import_file_label": "Plik pakietu",
   "skills.import_hint": "Wybierz wyeksportowany pakiet .aurago-skill.json.",

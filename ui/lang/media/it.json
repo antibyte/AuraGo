@@ -1,17 +1,15 @@
 {
-  "media": {
-    "title": "📁 Vista multimediale",
-    "subtitle": "Vista multimediale",
-    "search_placeholder": "Cerca media...",
-    "tab_images": "🖼️ Immagini",
-    "tab_audio": "🎵 Audio",
-    "tab_documents": "📄 Documenti",
-    "empty_audio": "Nessun file audio ancora. Chiedi all'agente di inviare un file audio!",
-    "empty_documents": "Nessun documento ancora. Chiedi all'agente di creare o inviare un documento!",
-    "doc_open": "Apri",
-    "audio_type_tts": "Sintesi vocale",
-    "audio_type_audio": "File audio",
-    "audio_type_music": "Musica",
-    "file_not_available": "File non disponibile"
-  }
+  "media.title": "📁 Vista multimediale",
+  "media.subtitle": "Vista multimediale",
+  "media.search_placeholder": "Cerca media...",
+  "media.tab_images": "🖼️ Immagini",
+  "media.tab_audio": "🎵 Audio",
+  "media.tab_documents": "📄 Documenti",
+  "media.empty_audio": "Nessun file audio ancora. Chiedi all'agente di inviare un file audio!",
+  "media.empty_documents": "Nessun documento ancora. Chiedi all'agente di creare o inviare un documento!",
+  "media.doc_open": "Apri",
+  "media.audio_type_tts": "Sintesi vocale",
+  "media.audio_type_audio": "File audio",
+  "media.audio_type_music": "Musica",
+  "media.file_not_available": "File non disponibile"
 }

@@ -93,7 +93,7 @@
   "skills.field_dependencies": "Závislosti",
   "skills.test_title": "Otestovat dovednost",
   "skills.test_args_label": "JSON vstup",
-  "skills.test_output_label": "Output",
+  "skills.test_output_label": "Výstup",
   "skills.import_title": "Importovat balíček dovedností",
   "skills.import_file_label": "Soubor balíčku",
   "skills.import_hint": "Vyberte exportovaný balíček .aurago-skill.json.",
