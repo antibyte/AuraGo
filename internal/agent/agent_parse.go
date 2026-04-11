@@ -594,6 +594,31 @@ func ParseToolCall(content string) ToolCall {
 				parsed.XMLFallbackDetected = true
 				return parsed
 			}
+			// Fallback: model sent standard JSON inside [TOOL_CALL]...[/TOOL_CALL]
+			// (e.g. [TOOL_CALL]{"tool": "docker_exec", "container": "caddy"}[/TOOL_CALL])
+			trimmedBlock := strings.TrimSpace(block)
+			if strings.HasPrefix(trimmedBlock, "{") {
+				normalized := normalizeTagsInJSON(trimmedBlock)
+				var tmp ToolCall
+				if json.Unmarshal([]byte(normalized), &tmp) == nil {
+					// Promote "tool" key to Action if Action is empty
+					if tmp.Action == "" && tmp.Tool != "" {
+						tmp.Action = tmp.Tool
+					}
+					if tmp.Action == "" && tmp.ToolCallAction != "" {
+						tmp.Action = tmp.ToolCallAction
+					}
+					if tmp.Action == "" && tmp.Name != "" {
+						tmp.Action = tmp.Name
+					}
+					if tmp.Action != "" {
+						tmp.IsTool = true
+						tmp.XMLFallbackDetected = true
+						tmp.RawJSON = trimmedBlock
+						return tmp
+					}
+				}
+			}
 		}
 	}
 
