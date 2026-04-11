@@ -268,7 +268,7 @@
   "help.tools.form_automation.enabled": "Abilita il tool di automazione moduli (form_automation). Usa un browser Chromium headless per compilare, inviare e ispezionare moduli web. Richiede tools.web_capture.enabled: true.",
   "help.tools.upnp_scan.enabled": "Abilita il tool di scansione UPnP (upnp_scan). Scopre i dispositivi UPnP/SSDP sulla rete locale: router, Smart TV, NAS, media renderer, stampanti e dispositivi IoT.",
   "help.tools.python_secret_injection.enabled": "Consente agli strumenti Python (execute_python, execute_sandbox, execute_skill, run_tool) di richiedere segreti dal vault tramite il parametro vault_keys. I segreti vengono iniettati come variabili d'ambiente AURAGO_SECRET_&lt;KEY&gt;. Solo i segreti creati dall'utente o dall'agente sono accessibili — i segreti di sistema e integrazione sono bloccati. Disabilitato per impostazione predefinita per sicurezza.",
-  "help.tts.elevenlabs.api_key": "ElevenLabs API Key.",
+  "help.tts.elevenlabs.api_key": "Chiave API ElevenLabs.",
   "help.tts.elevenlabs.model_id": "ElevenLabs Model ID, es. 'eleven_multilingual_v2'.",
   "help.tts.elevenlabs.voice_id": "ElevenLabs Voice ID dello speaker.",
   "help.tts.language": "Codice lingua BCP-47 per Google TTS, es. 'de' o 'en'.",

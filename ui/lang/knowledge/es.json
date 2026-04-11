@@ -86,7 +86,7 @@
   "knowledge.credentials_password_label": "Contraseña",
   "knowledge.credentials_password_placeholder": "Opcional – almacenado solo en vault",
   "knowledge.credentials_password_stored": "Contraseña ya almacenada en vault.",
-  "knowledge.credentials_token_label": "Token / API Key",
+  "knowledge.credentials_token_label": "Token / Clave API",
   "knowledge.credentials_token_placeholder": "Pega token o API key aquí...",
   "knowledge.credentials_token_stored": "Token ya almacenado en vault.",
   "knowledge.credentials_host_optional_hint": "Opcional para este tipo de credencial",

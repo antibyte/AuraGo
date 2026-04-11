@@ -324,7 +324,7 @@
   "dashboard.tooling_telemetry_failure_count": "{{fails}} fallos / {{calls}} llamadas",
   "dashboard.tooling_telemetry_failure_rate_short": "Fallo {{pct}}%",
   "dashboard.tooling_telemetry_failure_tools": "Herramientas con muchos fallos",
-  "dashboard.tooling_telemetry_fallback_rate_short": "Fallback {{pct}}%",
+  "dashboard.tooling_telemetry_fallback_rate_short": "Respaldo {{pct}}%",
   "dashboard.tooling_telemetry_family_automation": "Automatización",
   "dashboard.tooling_telemetry_family_coding": "Codificación",
   "dashboard.tooling_telemetry_family_communication": "Comunicación",

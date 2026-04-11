@@ -375,7 +375,7 @@
   "dashboard.tooling_telemetry_recovery_identical_tool_error_blocked": "Errore identico ripetuto bloccato",
   "dashboard.tooling_telemetry_recovery_provider_422_aborted": "Retry 422 esauriti",
   "dashboard.tooling_telemetry_recovery_provider_422_recovered": "Recuperato da provider 422",
-  "dashboard.tooling_telemetry_recovery_rate_short": "Recovery {{pct}}%",
+  "dashboard.tooling_telemetry_recovery_rate_short": "Recupero {{pct}}%",
   "dashboard.tooling_telemetry_recovery_tool_output_truncated": "Output strumento troncato",
   "dashboard.tooling_telemetry_scopes": "Segmenti Modello",
   "dashboard.tooling_telemetry_status_mixed": "Misto",

@@ -202,7 +202,7 @@
   "missions.trigger_info_any_nest": "Dowolne gniazdo",
   "missions.trigger_info_device_connected_prefix": "Połączono:",
   "missions.trigger_info_device_disconnected_prefix": "Rozłączono:",
-  "missions.trigger_info_egg_prefix": "Egg:",
+  "missions.trigger_info_egg_prefix": "Jajko:",
   "missions.trigger_info_folder_prefix": "Folder:",
   "missions.trigger_info_fritzbox_any": "Dowolne zdarzenie",
   "missions.trigger_info_fritzbox_prefix": "Fritz!Box:",

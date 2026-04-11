@@ -86,7 +86,7 @@
   "knowledge.credentials_password_label": "Password",
   "knowledge.credentials_password_placeholder": "Opzionale – memorizzato solo nel vault",
   "knowledge.credentials_password_stored": "Password già memorizzata nel vault.",
-  "knowledge.credentials_token_label": "Token / API Key",
+  "knowledge.credentials_token_label": "Token / Chiave API",
   "knowledge.credentials_token_placeholder": "Incolla token o API key qui...",
   "knowledge.credentials_token_stored": "Token già memorizzato nel vault.",
   "knowledge.credentials_host_optional_hint": "Opzionale per questo tipo di credenziale",

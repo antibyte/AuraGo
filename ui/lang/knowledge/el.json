@@ -86,7 +86,7 @@
   "knowledge.credentials_password_label": "Κωδικός",
   "knowledge.credentials_password_placeholder": "Προαιρετικό – αποθηκεύεται μόνο στο vault",
   "knowledge.credentials_password_stored": "Ο κωδικός έχει ήδη αποθηκευτεί στο vault.",
-  "knowledge.credentials_token_label": "Token / API Key",
+  "knowledge.credentials_token_label": "Διακριτικό / Κλειδί API",
   "knowledge.credentials_token_placeholder": "Επικολλήστε token ή API key εδώ...",
   "knowledge.credentials_token_stored": "Το token έχει ήδη αποθηκευτεί στο vault.",
   "knowledge.credentials_host_optional_hint": "Προαιρετικό για αυτόν τον τύπο διαπιστευτηρίων",

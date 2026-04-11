@@ -324,7 +324,7 @@
   "dashboard.tooling_telemetry_failure_count": "{{fails}} αποτυχίες / {{calls}} κλήσεις",
   "dashboard.tooling_telemetry_failure_rate_short": "Αποτυχία {{pct}}%",
   "dashboard.tooling_telemetry_failure_tools": "Εργαλεία με πολλές αποτυχίες",
-  "dashboard.tooling_telemetry_fallback_rate_short": "Fallback {{pct}}%",
+  "dashboard.tooling_telemetry_fallback_rate_short": "Εναλλακτική {{pct}}%",
   "dashboard.tooling_telemetry_family_automation": "Αυτοματοποίηση",
   "dashboard.tooling_telemetry_family_coding": "Προγραμματισμός",
   "dashboard.tooling_telemetry_family_communication": "Επικοινωνία",
