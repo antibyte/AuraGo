@@ -1,15 +1,17 @@
 {
-  "media.title": "📁 Mediaoverzicht",
-  "media.subtitle": "Mediaoverzicht",
-  "media.search_placeholder": "Media zoeken...",
-  "media.tab_images": "🖼️ Afbeeldingen",
-  "media.tab_audio": "🎵 Audio",
-  "media.tab_documents": "📄 Documenten",
-  "media.empty_audio": "Nog geen audiobestanden. Vraag de agent een audiobestand te sturen!",
-  "media.empty_documents": "Nog geen documenten. Vraag de agent een document te maken of te sturen!",
-  "media.doc_open": "Openen",
-  "media.audio_type_tts": "Tekst-naar-spraak",
-  "media.audio_type_audio": "Audiobestand",
-  "media.audio_type_music": "Muziek",
-  "media.file_not_available": "Bestand niet beschikbaar"
+  "media": {
+    "title": "📁 Mediaoverzicht",
+    "subtitle": "Mediaoverzicht",
+    "search_placeholder": "Media zoeken...",
+    "tab_images": "🖼️ Afbeeldingen",
+    "tab_audio": "🎵 Audio",
+    "tab_documents": "📄 Documenten",
+    "empty_audio": "Nog geen audiobestanden. Vraag de agent een audiobestand te sturen!",
+    "empty_documents": "Nog geen documenten. Vraag de agent een document te maken of te sturen!",
+    "doc_open": "Openen",
+    "audio_type_tts": "Tekst-naar-spraak",
+    "audio_type_audio": "Audiobestand",
+    "audio_type_music": "Muziek",
+    "file_not_available": "Bestand niet beschikbaar"
+  }
 }
