@@ -83,7 +83,7 @@
   "invasion.testing": "Test in corso...",
   "invasion.title": "Invasion Control",
   "invasion.type_name_confirm": "Digita il nome per confermare:",
-  "invasion.username": "Username",
+  "invasion.username": "Nome utente",
   "invasion.validate_first": "Salva prima, poi testa la connessione.",
   "invasion.will_delete_egg": "verrà eliminato permanentemente. La API key associata verrà rimossa dal vault.",
   "invasion.will_delete_nest": "verrà eliminato permanentemente. Il secret associato verrà rimosso dal vault.",
