@@ -160,7 +160,7 @@
   "setup.step2_v2_url_label": "Basis-URL",
   "setup.step2_v2_url_placeholder": "La stå tom for å bruke hovedleverandørens URL",
   "setup.step2_web_config_desc": "Rediger konfigurasjon via nettleseren (på /config).",
-  "setup.step2_web_config_label": "Web Config UI",
+  "setup.step2_web_config_label": "Webkonfigurasjon-UI",
   "setup.step3_badge": "🛡️ Rettigheter",
   "setup.step3_description": "Hva tillater du agenten din?",
   "setup.step3_level1_desc": "Kun minimale rettigheter. Skrivebeskyttet, ingen shell, ingen Python, ingen filskriving.",

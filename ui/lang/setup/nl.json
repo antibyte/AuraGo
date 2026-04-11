@@ -160,7 +160,7 @@
   "setup.step2_v2_url_label": "Basis-URL",
   "setup.step2_v2_url_placeholder": "Laat leeg om de URL van de hoofdprovider te gebruiken",
   "setup.step2_web_config_desc": "Configuratie bewerken via de browser (op /config).",
-  "setup.step2_web_config_label": "Web Config UI",
+  "setup.step2_web_config_label": "Webconfiguratie-UI",
   "setup.step3_badge": "🛡️ Rechten",
   "setup.step3_description": "Wat sta je je agent toe?",
   "setup.step3_level1_desc": "Alleen minimale rechten. Alleen-lezen, geen shell, geen Python, geen bestandsschrijven.",

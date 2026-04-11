@@ -160,7 +160,7 @@
   "setup.step2_v2_url_label": "Βασικό URL",
   "setup.step2_v2_url_placeholder": "Αφήστε κενό για χρήση του URL του κύριου παρόχου",
   "setup.step2_web_config_desc": "Επεξεργασία ρύθμισης μέσω του προγράμματος περιήγησης (στο /config).",
-  "setup.step2_web_config_label": "Web Config UI",
+  "setup.step2_web_config_label": "UI διαμόρφωσης web",
   "setup.step3_badge": "🛡️ Δικαιώματα",
   "setup.step3_description": "Τι επιτρέπεις στον πράκτορά σου;",
   "setup.step3_level1_desc": "Μόνο ελάχιστα δικαιώματα. Μόνο ανάγνωση, χωρίς shell, Python ή εγγραφή αρχείων.",

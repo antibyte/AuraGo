@@ -160,7 +160,7 @@
   "setup.step2_v2_url_label": "URL base",
   "setup.step2_v2_url_placeholder": "Lasciare vuoto per usare l'URL del provider principale",
   "setup.step2_web_config_desc": "Modifica la configurazione via browser (su /config).",
-  "setup.step2_web_config_label": "Web Config UI",
+  "setup.step2_web_config_label": "UI configurazione web",
   "setup.step3_badge": "🛡️ Permessi",
   "setup.step3_description": "Cosa permetti al tuo agente?",
   "setup.step3_level1_desc": "Solo permessi minimi. Sola lettura, niente shell, niente Python, niente scrittura file.",

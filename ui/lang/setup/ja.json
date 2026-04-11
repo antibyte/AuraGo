@@ -160,7 +160,7 @@
   "setup.step2_v2_url_label": "ベースURL",
   "setup.step2_v2_url_placeholder": "メインプロバイダーURLを使用する場合は空欄",
   "setup.step2_web_config_desc": "ブラウザ (/config) から設定を編集。",
-  "setup.step2_web_config_label": "Web Config UI",
+  "setup.step2_web_config_label": "Web設定UI",
   "setup.step3_badge": "🛡️ 権限",
   "setup.step3_description": "エージェントに何を許可しますか？",
   "setup.step3_level1_desc": "最小限の権限のみ。読み取り専用、シェルなし、Pythonなし、ファイル書き込みなし。",

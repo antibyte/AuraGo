@@ -160,7 +160,7 @@
   "setup.step2_v2_url_label": "Bas-URL",
   "setup.step2_v2_url_placeholder": "Lämna tomt för att använda huvudleverantörens URL",
   "setup.step2_web_config_desc": "Redigera konfiguration via webbläsaren (på /config).",
-  "setup.step2_web_config_label": "Web Config UI",
+  "setup.step2_web_config_label": "Webbkonfigurations-UI",
   "setup.step3_badge": "🛡️ Behörigheter",
   "setup.step3_description": "Vad tillåter du din agent?",
   "setup.step3_level1_desc": "Endast minimala behörigheter. Skrivskyddad, inget shell, ingen Python, ingen filskrivning.",

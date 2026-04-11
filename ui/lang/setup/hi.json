@@ -160,7 +160,7 @@
   "setup.step2_v2_url_label": "बेस URL",
   "setup.step2_v2_url_placeholder": "मुख्य प्रदाता URL उपयोग करने के लिए खाली छोड़ें",
   "setup.step2_web_config_desc": "ब्राउज़र के माध्यम से कॉन्फ़िगरेशन संपादित करें (/config पर)।",
-  "setup.step2_web_config_label": "Web Config UI",
+  "setup.step2_web_config_label": "वेब कॉन्फिग UI",
   "setup.step3_badge": "🛡️ अनुमतियाँ",
   "setup.step3_description": "आप अपने एजेंट को क्या करने की अनुमति देते हैं?",
   "setup.step3_level1_desc": "केवल न्यूनतम अनुमतियाँ। केवल पढ़ने के लिए, कोई शेल नहीं, कोई Python नहीं, कोई फ़ाइल लेखन नहीं।",

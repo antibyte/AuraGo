@@ -160,7 +160,7 @@
   "setup.step2_v2_url_label": "Základní URL",
   "setup.step2_v2_url_placeholder": "Ponechte prázdné pro použití URL hlavního poskytovatele",
   "setup.step2_web_config_desc": "Upravit konfiguraci přes prohlížeč (na /config).",
-  "setup.step2_web_config_label": "Web Config UI",
+  "setup.step2_web_config_label": "Webové konfigurační rozhraní",
   "setup.step3_badge": "🛡️ Oprávnění",
   "setup.step3_description": "Co svému agentovi dovolíš?",
   "setup.step3_level1_desc": "Pouze minimální oprávnění. Pouze čtení, žádný shell, žádný Python, žádný zápis souborů.",
