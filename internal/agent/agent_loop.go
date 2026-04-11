@@ -1629,11 +1629,13 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				feedbackMsg = "ERROR: You emitted a bare <tool_call> or <minimax:tool_call> tag but did not produce an actual tool call. You MUST use the native function-calling mechanism to invoke tools. Do NOT output any XML tags in text — use the structured function call API instead."
 			} else if incompleteToolCallCount >= 2 {
 				// Escalate on second attempt — be very explicit about <minimax:tool_call> specifically
-				feedbackMsg = "CRITICAL ERROR: You sent '<minimax:tool_call>' or '<tool_call>' as raw text again. This is not a valid tool call format. Do NOT output any XML tags at all. Your ENTIRE response must consist of ONLY a raw JSON object, starting with '{'. Example for reading a file: {\"action\": \"read_file\", \"file_path\": \"/etc/caddy/Caddyfile\"}"
+				feedbackMsg = "CRITICAL ERROR: You sent '<minimax:tool_call>' or '<tool_call>' as raw text again. This is not a valid tool call format. Do NOT output any XML tags at all. Output a raw JSON object starting with '{'. Example: {\"action\": \"read_file\", \"file_path\": \"/etc/caddy/Caddyfile\"}"
 			} else {
 				feedbackMsg = "ERROR: You emitted a bare <tool_call> or <minimax:tool_call> tag but did not include the JSON body. Do NOT output XML tags. Output ONLY the raw JSON tool call object — no XML tags, no explanation, no preamble. Example: {\"action\": \"system_metrics\"}"
 			}
-			feedbackMsg += " If there is nothing left to do, respond with <done/> to signal completion."
+			// Note: Do NOT suggest <done/> here — the model confuses a transient format
+			// error with task completion and prematurely stops (sends <done/> instead of retrying).
+			feedbackMsg += " Retry the SAME tool call now — output only the JSON object directly."
 			feedbackMsg = applyEmotionRecoveryNudge(feedbackMsg, emotionPolicy)
 			id, err = shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, feedbackMsg, false, true)
 			if err != nil {

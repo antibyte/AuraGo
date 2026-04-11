@@ -698,7 +698,7 @@ func (m *helperLLMManager) AnalyzeTurn(ctx context.Context, userRequest, assista
 	}
 
 	cacheKey := m.helperCacheKey("analyze_turn_v2", m.model, userPrompt)
-	raw, err := m.requestJSONResponse(ctx, "analyze_turn", cacheKey, helperTurnBatchPrompt, userPrompt, 1400)
+	raw, err := m.requestJSONResponse(ctx, "analyze_turn", cacheKey, helperTurnBatchPrompt, userPrompt, 1800)
 	if err != nil {
 		return helperTurnBatchResult{}, fmt.Errorf("helper turn batch llm call: %w", err)
 	}

@@ -19,7 +19,6 @@ import (
 	"time"
 
 	"aurago/internal/remote"
-	"aurago/internal/security"
 
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
@@ -379,26 +378,23 @@ func HomepageWebServerStart(cfg HomepageConfig, projectDir, buildDir string, log
 		return errJSON("Failed to start web server: code=%d err=%v", startCode, startErr)
 	}
 
-	// Health-check: wait for Caddy to be ready before returning success
-	healthURL := fmt.Sprintf("http://localhost:%d/", port)
-	var lastHealthErr error
-	for i := 0; i < 10; i++ {
-		client, err := security.NewSSRFProtectedHTTPClientForURL(healthURL, 5*time.Second)
-		if err != nil {
-			lastHealthErr = err
-			time.Sleep(500 * time.Millisecond)
-			continue
-		}
-		resp, err := client.Get(healthURL)
+	// Health-check: wait for Caddy to be ready using a plain TCP dial.
+	// We avoid the SSRF-protected HTTP client here because localhost/127.0.0.1 is
+	// intentionally blocked by SSRF protection — the container binds to the host
+	// loopback, which is only reachable from the server process itself.
+	healthAddr := fmt.Sprintf("127.0.0.1:%d", port)
+	healthOK := false
+	for i := 0; i < 20; i++ {
+		conn, err := net.DialTimeout("tcp", healthAddr, 500*time.Millisecond)
 		if err == nil {
-			resp.Body.Close()
+			conn.Close()
+			healthOK = true
 			break
 		}
-		lastHealthErr = err
 		time.Sleep(500 * time.Millisecond)
 	}
-	if lastHealthErr != nil {
-		logger.Warn("[Homepage] Web server started but health-check failed", "err", lastHealthErr)
+	if !healthOK {
+		logger.Warn("[Homepage] Web server started but TCP health-check timed out", "addr", healthAddr)
 	}
 
 	logger.Info("[Homepage] Web server started", "port", port, "domain", cfg.WebServerDomain)
@@ -890,6 +886,19 @@ func HomepagePublishToLocal(cfg HomepageConfig, projectDir string, logger *slog.
 		// Skipping detectBuildDir avoids accidentally serving a stale sub-directory
 		// (e.g. an old dist/ created by a previous manual copy).
 		buildDir = "."
+
+		// Detect framework projects that need a dev server instead of static serving.
+		// If this is a React/Next.js/Vite project without a build script, warn the agent.
+		if cfg.WorkspacePath != "" {
+			projectRoot := filepath.Join(cfg.WorkspacePath, projectDir)
+			// Any project with a package.json but no build script is likely a framework
+			// project that cannot be served as raw source (TSX/JSX files won't run in a browser).
+			pkgJSON := filepath.Join(projectRoot, "package.json")
+			if _, err := os.Stat(pkgJSON); err == nil {
+				logger.Warn("[Homepage] publish_local: Node.js project has no 'build' script — source files served as-is; for React/Next.js/Vite projects use the 'dev' operation to run the dev server instead",
+					"project_dir", projectDir)
+			}
+		}
 	}
 
 	// Start/restart web server with detected (or project root) directory
