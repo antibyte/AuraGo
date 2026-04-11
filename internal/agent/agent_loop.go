@@ -1690,41 +1690,14 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		if midTaskTextOnly && announcementCount < cfg.Agent.AnnouncementDetector.MaxRetries {
 			announcementCount++
 			currentLogger.Warn("[Sync] Mid-task text-only response without <done/> — requesting tool call or completion signal", "attempt", announcementCount, "content_preview", Truncate(announcementContent, 120))
-			broker.Send("error_recovery", i18n.T(cfg.Server.UILanguage, "backend.stream_error_recovery_announcement_no_action"))
-
-			id, err := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleAssistant, content, false, true)
-			if err != nil {
-				currentLogger.Error("Failed to persist assistant message to SQLite", "error", err)
-			}
-			if sessionID == "default" {
-				historyManager.Add(openai.ChatMessageRoleAssistant, content, id, false, true)
-			}
-
-			var feedbackMsg string
-			if useNativeFunctions {
-				feedbackMsg = "ERROR: Your last response was text-only — it contained neither a tool call nor the <done/> completion signal. " +
-					"If you want to call a tool, use the native function-calling mechanism NOW. " +
-					"If your task is genuinely complete, state the final result and append <done/> at the very end."
-			} else {
-				feedbackMsg = "ERROR: Your last response was text-only — it contained neither a tool call (raw JSON starting with {) nor the <done/> completion signal. " +
-					"If you want to call a tool, output the raw JSON object NOW (starting with {). " +
-					"If your task is genuinely complete, state the final result and append <done/> at the very end."
-			}
-			if len(recentTools) > 0 {
-				lastTool := recentTools[len(recentTools)-1]
-				feedbackMsg += fmt.Sprintf(" NOTE: '%s' already ran successfully this turn — do NOT call it again. Continue with the next step.", lastTool)
-			}
-			feedbackMsg = applyEmotionRecoveryNudge(feedbackMsg, emotionPolicy)
-			id, err = shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, feedbackMsg, false, true)
-			if err != nil {
-				currentLogger.Error("Failed to persist feedback message to SQLite", "error", err)
-			}
-			if sessionID == "default" {
-				historyManager.Add(openai.ChatMessageRoleUser, feedbackMsg, id, false, true)
-			}
-
-			req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: content})
-			req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: feedbackMsg})
+			feedbackMsg := applyEmotionRecoveryNudge(FormatAnnouncementFeedback(useNativeFunctions, recentTools), emotionPolicy)
+			msgs := recoverySession.PersistRecoveryMessages(PersistRecoveryParams{
+				SessionID:        sessionID,
+				AssistantContent: content,
+				FeedbackMsg:      feedbackMsg,
+				BrokerEventType:  "error_recovery",
+			}, shortTermMem, historyManager)
+			req.Messages = append(req.Messages, msgs...)
 			continue
 		}
 

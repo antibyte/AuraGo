@@ -185,3 +185,22 @@ func FormatBareXMLInNativeModeFeedback() string {
 func FormatMissedToolInFenceFeedback() string {
 	return "ERROR: Your response contained explanation text and/or markdown fences (```json). Tool calls MUST be a raw JSON object ONLY - no explanation before or after, no markdown, no fences. Output ONLY the JSON object, starting with { and ending with }. Example: {\"action\": \"<tool_name>\", \"<param>\": \"<value>\"}"
 }
+
+// FormatAnnouncementFeedback returns the feedback message for text-only mid-task responses.
+func FormatAnnouncementFeedback(useNativeFunctions bool, recentTools []string) string {
+	var feedbackMsg string
+	if useNativeFunctions {
+		feedbackMsg = "ERROR: Your last response was text-only — it contained neither a tool call nor the <done/> completion signal. " +
+			"If you want to call a tool, use the native function-calling mechanism NOW. " +
+			"If your task is genuinely complete, state the final result and append <done/> at the very end."
+	} else {
+		feedbackMsg = "ERROR: Your last response was text-only — it contained neither a tool call (raw JSON starting with {) nor the <done/> completion signal. " +
+			"If you want to call a tool, output the raw JSON object NOW (starting with {). " +
+			"If your task is genuinely complete, state the final result and append <done/> at the very end."
+	}
+	if len(recentTools) > 0 {
+		lastTool := recentTools[len(recentTools)-1]
+		feedbackMsg += fmt.Sprintf(" NOTE: '%s' already ran successfully this turn — do NOT call it again. Continue with the next step.", lastTool)
+	}
+	return feedbackMsg
+}
