@@ -69,8 +69,10 @@ func handleStreamingResponse(
 	const xmlToolCallPrefix = "<tool_call"      // matches <tool_call> and <tool_call\n> variants
 	const actionTagPrefix = "<action>"          // bare <action>toolname</action> emitted by some models
 	const toolResponsePrefix = "<tool_response" // model hallucinating a tool response XML block
-	// holdLen must cover the longest tag prefix minus 1
-	const doneTagHoldLen = len(minimaxToolCallPrefix) - 1 // 16 bytes (≥ len("<done/>")-1 = 6)
+	// holdLen must cover the longest tag prefix so that it is never split across
+	// the send/hold boundary.  With holdLen == P the entire P-byte prefix stays
+	// in the hold buffer until the next chunk arrives, guaranteeing detection.
+	const doneTagHoldLen = len(minimaxToolCallPrefix) // 17 bytes (≥ all other prefixes)
 	const doneTagStreamBufMaxLen = 8192                   // max buffer to prevent unbounded growth
 	doneTagStreamBuf := ""
 	xmlToolCallSuppressed := false // once true, suppress all remaining stream chunks

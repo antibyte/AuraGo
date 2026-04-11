@@ -1519,9 +1519,13 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			// Strip the <action>...</action> block (and everything after it) before
 			// persisting to SQLite so the raw XML never appears in history / chat UI.
 			// The streaming filter already hides it in real-time; this keeps storage clean.
-			displayContent := content
-			if idx := strings.Index(strings.ToLower(displayContent), "<action>"); idx != -1 {
-				displayContent = strings.TrimSpace(displayContent[:idx])
+			displayContent := security.StripThinkingTags(content)
+			// Strip XML tool call markers so they never appear in the chat history.
+			for _, marker := range []string{"minimax:tool_call", "<action>", "<invoke", "<tool_call"} {
+				if idx := strings.Index(strings.ToLower(displayContent), marker); idx != -1 {
+					displayContent = strings.TrimSpace(displayContent[:idx])
+					break
+				}
 			}
 			if displayContent != "" {
 				id, err := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleAssistant, displayContent, false, true)
@@ -1830,6 +1834,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 						histContent = textPart
 					}
 				}
+			}
+			// Strip bare minimax:tool_call prefix that may remain after JSON stripping.
+			if strings.HasPrefix(strings.ToLower(strings.TrimSpace(histContent)), "minimax:tool_call") {
+				histContent = fmt.Sprintf(`{"action":"%s"}`, tc.Action)
 			}
 
 			// Tool-call turn messages are operational scaffolding, not user-facing chat history.
