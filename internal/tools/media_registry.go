@@ -145,15 +145,21 @@ func RegisterMedia(db *sql.DB, item MediaItem) (int64, bool, error) {
 	// Only applies when hash is non-empty (partial deduplication for items without hash).
 	var res sql.Result
 	if item.Hash != "" {
+		// SQLite's ON CONFLICT(col) upsert syntax does not support partial unique indexes
+		// (WHERE clause), so we use an explicit check-then-insert instead.
+		var existingID int64
+		checkErr := db.QueryRow("SELECT id FROM media_items WHERE hash = ? AND deleted = 0 LIMIT 1", item.Hash).Scan(&existingID)
+		if checkErr == nil {
+			// Already registered — update file_path if it changed and return as skipped.
+			_, _ = db.Exec("UPDATE media_items SET updated_at = datetime('now'), file_path = COALESCE(NULLIF(?, ''), file_path) WHERE id = ?", item.FilePath, existingID)
+			return existingID, true, nil
+		}
+		// Not found — fall through to the plain INSERT below.
 		res, err = db.Exec(`INSERT INTO media_items
 			(media_type, source_tool, filename, file_path, web_path, file_size, format, provider, model,
 			 prompt, description, tags, duration_ms, generation_time_ms, cost_estimate, source_image,
 			 quality, style, size, language, voice_id, hash)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-			ON CONFLICT(hash) DO UPDATE SET
-				updated_at = datetime('now'),
-				file_path = COALESCE(NULLIF(excluded.file_path, ''), file_path)
-			WHERE hash = excluded.hash AND deleted = 0`,
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			item.MediaType, item.SourceTool, item.Filename, item.FilePath, item.WebPath, item.FileSize,
 			item.Format, item.Provider, item.Model, item.Prompt, item.Description, string(tagsJSON),
 			item.DurationMs, item.GenerationTimeMs, item.CostEstimate, item.SourceImage,
@@ -176,11 +182,9 @@ func RegisterMedia(db *sql.DB, item MediaItem) (int64, bool, error) {
 		return 0, false, fmt.Errorf("failed to insert media item: %w", err)
 	}
 	id, _ := res.LastInsertId()
-	rowsAffected, _ := res.RowsAffected()
-	// When ON CONFLICT triggers an UPDATE, SQLite returns RowsAffected=1 but
-	// LastInsertId=0 (no new row was created).  Detect this as a skip.
-	skipped := item.Hash != "" && id == 0 && rowsAffected <= 1
-	return id, skipped, nil
+	// For the hash path the early return handles the "already exists" case, so
+	// we never reach this point with a duplicate — id is always the new row ID.
+	return id, false, nil
 }
 
 func inferMediaType(filename, filePath string) string {
