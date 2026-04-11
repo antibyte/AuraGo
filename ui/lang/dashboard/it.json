@@ -489,7 +489,7 @@
   "dashboard.knowledge_nodes": "Nodi",
   "dashboard.knowledge_recent_edges": "Archi",
   "dashboard.knowledge_recent_nodes": "Nodi",
-  "dashboard.knowledge_results_title": "KG Explorer",
+  "dashboard.knowledge_results_title": "Esploratore KG",
   "dashboard.knowledge_search_button": "Cerca",
   "dashboard.knowledge_search_empty": "Nessuna voce KG corrispondente trovata.",
   "dashboard.knowledge_search_hint": "Cerca nodi, relazioni e proprietà.",

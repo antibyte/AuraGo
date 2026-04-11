@@ -87,7 +87,7 @@
   "missions.card_no_output": "Ingen utdata genererad ännu.",
   "missions.card_run_count_suffix": "execuções",
   "missions.card_trigger_label": "Gatilho",
-  "missions.card_view_log": "View Log",
+  "missions.card_view_log": "Visa logg",
   "missions.confirm_delete": "Vill du verkligen ta bort uppdraget \"{{name}}\"?",
   "missions.cron_preset_daily_9am": "Dagligen kl. 9:00",
   "missions.cron_preset_daily_midnight": "Dagligen vid midnatt",
