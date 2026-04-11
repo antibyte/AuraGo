@@ -262,7 +262,7 @@
   "help.tools.stop_process.enabled": "Povoluje tools.",
   "help.tools.web_scraper.enabled": "Povoluje tools.",
   "help.tools.web_scraper.summary_mode": "Indien ingeschakeld, wordt gescrapte inhoud samengevat via de centrale Helper LLM. Dit vermindert tokens, batcht helperwerk waar mogelijk en verhardt tegen prompt-injectie.",
-  "help.tools.web_scraper.summary_provider": "Legacy compatibility field. Web summaries now use the central Helper LLM from the LLM settings.",
+  "help.tools.web_scraper.summary_provider": "Legacy-compatibiliteitsveld. Websamenvattingen gebruiken nu de centrale Helper LLM uit de LLM-instellingen.",
   "help.tools.wol.enabled": "Povoluje tools.",
   "help.tools.network_scan.enabled": "Schakelt het mDNS-netwerkscan-hulpmiddel in (mdns_scan). Ontdekt apparaten op het lokale netwerk via Bonjour/ZeroConf.",
   "help.tools.form_automation.enabled": "Schakelt het formulierautomatiserings-hulpmiddel in (form_automation). Gebruikt een headless Chromium-browser om webformulieren in te vullen en in te dienen. Vereist tools.web_capture.enabled: true.",

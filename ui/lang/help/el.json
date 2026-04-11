@@ -262,7 +262,7 @@
   "help.tools.stop_process.enabled": "Povoluje tools.",
   "help.tools.web_scraper.enabled": "Povoluje tools.",
   "help.tools.web_scraper.summary_mode": "Όταν ενεργοποιηθεί, το αποκομμένο περιεχόμενο συνοψίζεται μέσω του κεντρικού Helper LLM. Αυτό μειώνει τα tokens, ομαδοποιεί τη βοηθητική εργασία όπου είναι δυνατό και θωρακίζει ενάντια στην prompt injection.",
-  "help.tools.web_scraper.summary_provider": "Legacy compatibility field. Web summaries now use the central Helper LLM from the LLM settings.",
+  "help.tools.web_scraper.summary_provider": "Πεδίο συμβατότητας κληρονομικότητας. Οι συνόψεις ιστού τώρα χρησιμοποιούν το κεντρικό Helper LLM από τις ρυθμίσεις LLM.",
   "help.tools.wol.enabled": "Povoluje tools.",
   "help.tools.network_scan.enabled": "Ενεργοποιεί το εργαλείο mDNS σάρωσης δικτύου (mdns_scan). Ανακαλύπτει συσκευές στο τοπικό δίκτυο μέσω Bonjour/ZeroConf.",
   "help.tools.form_automation.enabled": "Ενεργοποιεί το εργαλείο αυτοματισμού φόρμας (form_automation). Χρήση headless Chromium για συμπλήρωση και υποβολή φόρμας. Απαιτεί tools.web_capture.enabled: true.",

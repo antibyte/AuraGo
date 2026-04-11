@@ -262,7 +262,7 @@
   "help.tools.stop_process.enabled": "Abilita la possibilità di fermare i processi. Quando disabilitato, l'agente può solo elencare i processi.",
   "help.tools.web_scraper.enabled": "Quando disabilitato, la skill web_scraper è bloccata. L'agente non potrà recuperare siti web esterni.",
   "help.tools.web_scraper.summary_mode": "Quando abilitato, il contenuto scrape viene riassunto tramite l'LLM Helper centrale. Questo riduce i token, elabora in batch il lavoro helper ove possibile e rende più robusto contro l'iniezione di prompt.",
-  "help.tools.web_scraper.summary_provider": "Legacy compatibility field. Web summaries now use the central Helper LLM from the LLM settings.",
+  "help.tools.web_scraper.summary_provider": "Campo di compatibilità legacy. I riepiloghi web ora utilizzano l'Helper LLM centrale dalle impostazioni LLM.",
   "help.tools.wol.enabled": "Abilita il tool Wake-on-LAN. L'agente può inviare un magic packet per svegliare dispositivi che hanno un indirizzo MAC registrato nel device manager. Richiede che i dispositivi supportino WOL e siano raggiungibili sulla rete locale.",
   "help.tools.network_scan.enabled": "Abilita il tool di scansione rete mDNS (mdns_scan). Scopre i dispositivi sulla rete locale annunciati tramite Bonjour/ZeroConf: Raspberry Pi, NAS, stampanti, dispositivi Apple e altro.",
   "help.tools.form_automation.enabled": "Abilita il tool di automazione moduli (form_automation). Usa un browser Chromium headless per compilare, inviare e ispezionare moduli web. Richiede tools.web_capture.enabled: true.",

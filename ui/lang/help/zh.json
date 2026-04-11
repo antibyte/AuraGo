@@ -262,7 +262,7 @@
   "help.tools.stop_process.enabled": "启用停止进程的能力。禁用后，代理只能列出进程。",
   "help.tools.web_scraper.enabled": "禁用后，web_scraper 技能将被阻止。代理将无法获取外部网站。",
   "help.tools.web_scraper.summary_mode": "启用时，抓取的内容通过中央 Helper LLM 进行摘要。这减少了令牌，尽可能批量处理辅助工作，并加强防止提示注入。",
-  "help.tools.web_scraper.summary_provider": "Legacy compatibility field. Web summaries now use the central Helper LLM from the LLM settings.",
+  "help.tools.web_scraper.summary_provider": "遗留兼容性字段。Web摘要现在使用LLM设置中的中央Helper LLM。",
   "help.tools.wol.enabled": "启用 LAN 唤醒工具。代理可以发送魔术数据包来唤醒在设备管理器中注册了 MAC 地址的设备。要求设备支持 WOL 并且可在本地网络上访问。",
   "help.tools.network_scan.enabled": "启用 mDNS 网络扫描工具 (mdns_scan)。通过 Bonjour/ZeroConf 发现本地网络上的设备，包括 Raspberry Pi、NAS、打印机、Apple 设备等。",
   "help.tools.form_automation.enabled": "启用表单自动化工具 (form_automation)。使用无头 Chromium 浏览器填写、提交和检查网页表单。需要 tools.web_capture.enabled: true。",

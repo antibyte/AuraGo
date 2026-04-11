@@ -262,7 +262,7 @@
   "help.tools.stop_process.enabled": "प्रक्रियाओं को रोकने की क्षमता सक्षम बनाता है. अक्षम होने पर, एजेंट केवल प्रक्रियाओं को सूचीबद्ध कर सकता है।",
   "help.tools.web_scraper.enabled": "अक्षम होने पर, वेब_स्क्रेपर कौशल अवरुद्ध हो जाता है। एजेंट बाहरी वेबसाइटें नहीं ला पाएगा.",
   "help.tools.web_scraper.summary_mode": "सक्षम होने पर, स्क्रैप की गई सामग्री केंद्रीय सहायक LLM के माध्यम से सारांशित होती है। यह टोकन कम करता है, जहाँ संभव हो सहायक कार्य बैच करता है, और प्रॉम्प्ट इंजेक्शन के खिलाफ मजबूत करता है।",
-  "help.tools.web_scraper.summary_provider": "Legacy compatibility field. Web summaries now use the central Helper LLM from the LLM settings.",
+  "help.tools.web_scraper.summary_provider": "लेगसी कम्पैटिबिलिटी फ़ील्ड। वेब सारांश अब LLM सेटिंग्स से केंद्रीय Helper LLM का उपयोग करते हैं।",
   "help.tools.wol.enabled": "वेक-ऑन-लैन टूल को सक्षम करता है। एजेंट उन डिवाइसों को जगाने के लिए एक जादुई पैकेट भेज सकता है जिनका मैक पता डिवाइस मैनेजर में पंजीकृत है। WOL का समर्थन करने वाले और स्थानीय नेटवर्क पर पहुंच योग्य होने वाले उपकरणों की आवश्यकता है।",
   "help.tools.network_scan.enabled": "mDNS नेटवर्क स्कैन टूल (mdns_scan) सक्षम करता है। Bonjour/ZeroConf के माध्यम से लोकल नेटवर्क पर डिवाइस खोजता है।",
   "help.tools.form_automation.enabled": "फॉर्म ऑटोमेशन टूल (form_automation) सक्षम करता है। हेडलेस Chromium ब्राउज़र से वेब फॉर्म भरता और सबमिट करता है। tools.web_capture.enabled: true आवश्यक है।",

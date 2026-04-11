@@ -262,7 +262,7 @@
   "help.tools.stop_process.enabled": "Povoluje tools.",
   "help.tools.web_scraper.enabled": "Povoluje tools.",
   "help.tools.web_scraper.summary_mode": "Quando ativado, o conteúdo extraído é resumido através do LLM Helper central. Isso reduz tokens, processa em lote o trabalho do helper quando possível e fortalece contra injeção de prompts.",
-  "help.tools.web_scraper.summary_provider": "Legacy compatibility field. Web summaries now use the central Helper LLM from the LLM settings.",
+  "help.tools.web_scraper.summary_provider": "Campo de compatibilidade com versões anteriores. Os resumos da web agora usam o Helper LLM central das configurações de LLM.",
   "help.tools.wol.enabled": "Povoluje tools.",
   "help.tools.network_scan.enabled": "Activa a ferramenta de scan de rede mDNS (mdns_scan). Descobre dispositivos na rede local anunciados via Bonjour/ZeroConf.",
   "help.tools.form_automation.enabled": "Activa a ferramenta de automação de formulários (form_automation). Usa um navegador Chromium sem interface para preencher e enviar formulários web. Requer tools.web_capture.enabled: true.",

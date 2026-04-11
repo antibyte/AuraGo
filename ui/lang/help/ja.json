@@ -262,7 +262,7 @@
   "help.tools.stop_process.enabled": "プロセスを停止する機能を有効にします。無効にすると、エージェントはプロセスのリストのみを実行できます。",
   "help.tools.web_scraper.enabled": "無効にすると、web_scraper スキルはブロックされます。エージェントは外部 Web サイトを取得できません。",
   "help.tools.web_scraper.summary_mode": "有効な場合、スクレイプされたコンテンツは中央Helper LLMを通じて要約されます。これによりトークンが削減され、可能な限りヘルパー作業がバッチ処理され、プロンプトインジェクションに対して強化されます。",
-  "help.tools.web_scraper.summary_provider": "Legacy compatibility field. Web summaries now use the central Helper LLM from the LLM settings.",
+  "help.tools.web_scraper.summary_provider": "レガシー互換性フィールド。WebサマリーはLLM設定からの中央Helper LLMを使用するようになりました。",
   "help.tools.wol.enabled": "Wake-on-LAN ツールを有効にします。エージェントはマジック パケットを送信して、デバイス マネージャーに登録されている MAC アドレスを持つデバイスをウェイクアップできます。デバイスが WOL をサポートし、ローカル ネットワーク上で到達可能である必要があります。",
   "help.tools.network_scan.enabled": "mDNS ネットワーク スキャン ツール (mdns_scan) を有効にします。Bonjour/ZeroConf 経由でローカル ネットワーク上のデバイス (Raspberry Pi、NAS、プリンター、Apple デバイスなど) を検出します。",
   "help.tools.form_automation.enabled": "フォーム オートメーション ツール (form_automation) を有効にします。ヘッドレス Chromium ブラウザを使用して Web フォームへの入力・送信・検査を行います。tools.web_capture.enabled: true が必要です。",

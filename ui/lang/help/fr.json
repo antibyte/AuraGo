@@ -262,7 +262,7 @@
   "help.tools.stop_process.enabled": "Permet d'arrêter les processus. Lorsqu'il est désactivé, l'agent peut uniquement répertorier les processus.",
   "help.tools.web_scraper.enabled": "Lorsqu'elle est désactivée, la compétence web_scraper est bloquée. L'agent ne pourra pas récupérer de sites Web externes.",
   "help.tools.web_scraper.summary_mode": "Lorsqu'activé, le contenu scrapé est résumé via le LLM Helper centralisé. Cela réduit les tokens, regroupe le travail d'assistance lorsque possible et renforce contre l'injection de prompts.",
-  "help.tools.web_scraper.summary_provider": "Legacy compatibility field. Web summaries now use the central Helper LLM from the LLM settings.",
+  "help.tools.web_scraper.summary_provider": "Champ de compatibilité hérité. Les résumés Web utilisent désormais le Helper LLM central des paramètres LLM.",
   "help.tools.wol.enabled": "Active l'outil Wake-on-LAN. L'agent peut envoyer un paquet magique pour réveiller les appareils dont l'adresse MAC est enregistrée dans le gestionnaire de périphériques. Nécessite que les appareils prennent en charge WOL et soient accessibles sur le réseau local.",
   "help.tools.network_scan.enabled": "Active l'outil de scan réseau mDNS (mdns_scan). Découvre les appareils sur le réseau local annoncés via Bonjour/ZeroConf — Raspberry Pis, NAS, imprimantes, appareils Apple, etc.",
   "help.tools.form_automation.enabled": "Active l'outil d'automatisation de formulaires (form_automation). Utilise un navigateur Chromium sans interface pour remplir, soumettre et inspecter des formulaires web. Nécessite tools.web_capture.enabled: true.",

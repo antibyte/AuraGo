@@ -262,7 +262,7 @@
   "help.tools.stop_process.enabled": "Povoluje tools.",
   "help.tools.web_scraper.enabled": "Povoluje tools.",
   "help.tools.web_scraper.summary_mode": "När aktiverat sammanfattas skrapat innehåll via den centrala Helper LLM. Detta minskar tokens, batchar hjälparbete där möjligt och härdar mot prompt-injektion.",
-  "help.tools.web_scraper.summary_provider": "Legacy compatibility field. Web summaries now use the central Helper LLM from the LLM settings.",
+  "help.tools.web_scraper.summary_provider": "Legacy-kompatibilitetsfält. Webböversikter använder nu den centrala Helper LLM från LLM-inställningarna.",
   "help.tools.wol.enabled": "Povoluje tools.",
   "help.tools.network_scan.enabled": "Aktiverar mDNS nätverksskanningsverktyget (mdns_scan). Identifierar enheter på det lokala nätverket via Bonjour/ZeroConf.",
   "help.tools.form_automation.enabled": "Aktiverar formulärautomatiseringsverktyget (form_automation). Använder en headless Chromium-webbläsare för att fylla i och skicka in webbformulär. Kräver tools.web_capture.enabled: true.",
