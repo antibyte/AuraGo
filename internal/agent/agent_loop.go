@@ -1823,7 +1823,18 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				currentLogger.Error("Failed to persist tool-call message to SQLite", "error", err)
 			}
 			if sessionID == "default" {
-				historyManager.Add(openai.ChatMessageRoleAssistant, histContent, id, false, isMsgInternal)
+				if useNativePath {
+					// Persist the real assistant tool_calls message so a restart can rebuild a valid
+					// OpenAI-style tool round. Persisting only a synthetic JSON placeholder breaks
+					// providers once role=tool results appear in the next request.
+					nativeMsg := nativeAssistantMsg
+					if nativeMsg.Role == "" {
+						nativeMsg.Role = openai.ChatMessageRoleAssistant
+					}
+					historyManager.AddMessage(nativeMsg, id, false, isMsgInternal)
+				} else {
+					historyManager.Add(openai.ChatMessageRoleAssistant, histContent, id, false, isMsgInternal)
+				}
 			}
 
 			// For SSE: send only the JSON representation of the tool call.
@@ -2020,7 +2031,15 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				currentLogger.Error("Failed to persist tool-result message to SQLite", "error", err)
 			}
 			if sessionID == "default" {
-				historyManager.Add(toolResultPersistRole, resultContent, id, false, true)
+				if toolResultPersistRole == openai.ChatMessageRoleTool {
+					historyManager.AddMessage(openai.ChatCompletionMessage{
+						Role:       openai.ChatMessageRoleTool,
+						Content:    resultContent,
+						ToolCallID: tc.NativeCallID,
+					}, id, false, true)
+				} else {
+					historyManager.Add(toolResultPersistRole, resultContent, id, false, true)
+				}
 			}
 
 			// Phase 1: Lifecycle Handover check
@@ -2123,15 +2142,16 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					if bErr != nil {
 						currentLogger.Error("Failed to persist batched tool-call message", "error", bErr)
 					}
-					if sessionID == "default" {
-						historyManager.Add(openai.ChatMessageRoleAssistant, bHistContent, bID, false, true)
-					}
 					bID, bErr = shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleTool, bResult, false, true)
 					if bErr != nil {
 						currentLogger.Error("Failed to persist batched tool-result message", "error", bErr)
 					}
 					if sessionID == "default" {
-						historyManager.Add(openai.ChatMessageRoleTool, bResult, bID, false, true)
+						historyManager.AddMessage(openai.ChatCompletionMessage{
+							Role:       openai.ChatMessageRoleTool,
+							Content:    bResult,
+							ToolCallID: btc.NativeCallID,
+						}, bID, false, true)
 					}
 
 					req.Messages = append(req.Messages, openai.ChatCompletionMessage{

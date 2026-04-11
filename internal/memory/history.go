@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/sashabaranov/go-openai"
@@ -314,6 +315,95 @@ func (hm *HistoryManager) Get() []openai.ChatCompletionMessage {
 		copied[i] = msg
 	}
 	return copied
+}
+
+// GetForLLM returns a sanitized message history that is safe to send to OpenAI-style
+// providers with native tool calling enabled.
+//
+// It removes dangling role=tool messages that would cause 400 errors like
+// "tool_call_id not found" / "tool result's tool id not found" when:
+// - tool results are persisted without ToolCallID, or
+// - tool results no longer match any preceding assistant tool_calls (e.g. after restart).
+//
+// The repair is conservative: it never mutates hm.Messages; it only filters/normalizes
+// the returned slice.
+func (hm *HistoryManager) GetForLLM() []openai.ChatCompletionMessage {
+	hm.mu.Lock()
+	defer hm.mu.Unlock()
+
+	var repaired []openai.ChatCompletionMessage
+
+	// outstanding tool_call_ids that must be satisfied by subsequent role=tool messages.
+	outstanding := make(map[string]struct{})
+	inToolRound := false
+
+	closeToolRound := func() {
+		if inToolRound {
+			inToolRound = false
+			clear(outstanding)
+		}
+	}
+
+	for _, stored := range hm.Messages {
+		msg := stored.ChatCompletionMessage
+
+		if len(msg.MultiContent) > 0 {
+			msg.MultiContent = append([]openai.ChatMessagePart(nil), msg.MultiContent...)
+		}
+		if len(msg.ToolCalls) > 0 {
+			msg.ToolCalls = append([]openai.ToolCall(nil), msg.ToolCalls...)
+		}
+
+		switch msg.Role {
+		case openai.ChatMessageRoleTool:
+			// role=tool is only valid immediately after an assistant tool_calls message,
+			// and must reference a known ToolCallID.
+			if !inToolRound {
+				continue
+			}
+			id := strings.TrimSpace(msg.ToolCallID)
+			if id == "" {
+				continue
+			}
+			if _, ok := outstanding[id]; !ok {
+				continue
+			}
+			delete(outstanding, id)
+			repaired = append(repaired, msg)
+		case openai.ChatMessageRoleAssistant:
+			// Any assistant message closes an open tool round unless it starts a new one.
+			closeToolRound()
+
+			// Validate tool_calls IDs. If any are empty, drop tool_calls entirely to avoid
+			// providers rejecting the payload even if we later filter tool results.
+			if len(msg.ToolCalls) > 0 {
+				valid := true
+				for _, tc := range msg.ToolCalls {
+					if strings.TrimSpace(tc.ID) == "" {
+						valid = false
+						break
+					}
+				}
+				if !valid {
+					msg.ToolCalls = nil
+				}
+			}
+
+			repaired = append(repaired, msg)
+			if len(msg.ToolCalls) > 0 {
+				inToolRound = true
+				for _, tc := range msg.ToolCalls {
+					outstanding[strings.TrimSpace(tc.ID)] = struct{}{}
+				}
+			}
+		default:
+			// Any non-tool message closes an open tool round.
+			closeToolRound()
+			repaired = append(repaired, msg)
+		}
+	}
+
+	return repaired
 }
 
 func (hm *HistoryManager) GetAll() []HistoryMessage {

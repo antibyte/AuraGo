@@ -242,7 +242,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 		}
 
 		// 2. Rebuild the Context
-		recentMessages := s.HistoryManager.Get()
+		recentMessages := s.HistoryManager.GetForLLM()
 
 		// Phase 33: Recursive Context Compression (Character Based)
 		charLimit := s.Cfg.Agent.MemoryCompressionCharLimit
