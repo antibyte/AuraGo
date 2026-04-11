@@ -98,14 +98,14 @@ function renderSheetCompact(s) {
     const creatorIcon = s.created_by === 'agent' ? '🤖' : '';
 
     return `
-        <div class="card-compact" onclick="if(event.target.closest('.card-actions')) return; openEdit('${esc(s.id)}')">
+        <div class="card-compact" onclick="if(event.target.closest('.card-actions')) return; openEdit('${escJs(s.id)}')">
             <span class="card-icon" title="${s.active ? t('cheatsheets.active') : t('cheatsheets.inactive')}">${statusIcon}</span>
             <span class="card-name">${esc(s.name)}</span>
             ${creatorIcon ? `<span class="card-icon" title="Created by Agent">${creatorIcon}</span>` : ''}
             <div class="card-actions" onclick="event.stopPropagation()">
-                <button class="btn btn-sm btn-secondary" onclick="openEdit('${esc(s.id)}')" title="${esc(t('cheatsheets.edit'))}">✏️</button>
-                <button class="btn btn-sm ${s.active ? 'btn-secondary' : 'btn-primary'}" onclick="toggleActive('${esc(s.id)}', ${!s.active})" title="${s.active ? esc(t('cheatsheets.deactivate')) : esc(t('cheatsheets.activate'))}">${s.active ? '⏸️' : '▶️'}</button>
-                <button class="btn btn-sm btn-danger" onclick="requestDelete('${esc(s.id)}', '${esc(s.name)}')" title="${esc(t('cheatsheets.delete'))}">🗑️</button>
+                <button class="btn btn-sm btn-secondary" onclick="openEdit('${escJs(s.id)}')" title="${esc(t('cheatsheets.edit'))}">✏️</button>
+                <button class="btn btn-sm ${s.active ? 'btn-secondary' : 'btn-primary'}" onclick="toggleActive('${escJs(s.id)}', ${!s.active})" title="${s.active ? esc(t('cheatsheets.deactivate')) : esc(t('cheatsheets.activate'))}">${s.active ? '⏸️' : '▶️'}</button>
+                <button class="btn btn-sm btn-danger" onclick="requestDelete('${escJs(s.id)}', '${esc(s.name)}')" title="${esc(t('cheatsheets.delete'))}">🗑️</button>
             </div>
         </div>
     `;
@@ -128,7 +128,7 @@ function renderSheetGrid(s) {
 
     return `
         <div class="card card-expanded ${isExpanded ? 'expanded' : ''}">
-            <div class="card-header" onclick="toggleCardExpand('${esc(s.id)}')">
+            <div class="card-header" onclick="toggleCardExpand('${escJs(s.id)}')">
                 <span class="card-toggle">▶</span>
                 <div>
                     <div class="card-title">${esc(s.name)}</div>
@@ -139,9 +139,9 @@ function renderSheetGrid(s) {
             <div class="card-body">
                 <div class="card-preview">${preview || '<em>' + esc(t('cheatsheets.no_content')) + '</em>'}</div>
                 <div class="card-actions">
-                    <button class="btn btn-primary btn-sm" onclick="openEdit('${esc(s.id)}')">${esc(t('cheatsheets.edit'))}</button>
-                    <button class="btn btn-secondary btn-sm" onclick="toggleActive('${esc(s.id)}', ${!s.active})">${s.active ? esc(t('cheatsheets.deactivate')) : esc(t('cheatsheets.activate'))}</button>
-                    <button class="btn btn-danger btn-sm" onclick="requestDelete('${esc(s.id)}', '${esc(s.name)}')">${esc(t('cheatsheets.delete'))}</button>
+                    <button class="btn btn-primary btn-sm" onclick="openEdit('${escJs(s.id)}')">${esc(t('cheatsheets.edit'))}</button>
+                    <button class="btn btn-secondary btn-sm" onclick="toggleActive('${escJs(s.id)}', ${!s.active})">${s.active ? esc(t('cheatsheets.deactivate')) : esc(t('cheatsheets.activate'))}</button>
+                    <button class="btn btn-danger btn-sm" onclick="requestDelete('${escJs(s.id)}', '${esc(s.name)}')">${esc(t('cheatsheets.delete'))}</button>
                 </div>
             </div>
         </div>

@@ -1321,7 +1321,7 @@ function connectSSE() {
         } else if (_thinkingContent) {
             // After thinking ended: rebuild with thinking block + new response text
             const label = typeof t === 'function' ? t('chat.thinking_label') : 'Reasoning';
-            const detailsHtml = '<details class="thinking-block"><summary>🧠 ' + label + '</summary><div class="thinking-content">' + _thinkingContent + '</div></details>';
+            const detailsHtml = '<details class="thinking-block"><summary>🧠 ' + label + '</summary><div class="thinking-content">' + escapeHtml(_thinkingContent) + '</div></details>';
             bubble.innerHTML = detailsHtml + '\n\n' + escapeHtml(_streamingContent);
         } else {
             bubble.textContent = _streamingContent;
@@ -1350,7 +1350,7 @@ function connectSSE() {
             _thinkingContent = '';
             const label = typeof t === 'function' ? t('chat.thinking_label') : 'Reasoning';
             const detailsHtml = '<details class="thinking-block"><summary>🧠 ' + label + '</summary><div class="thinking-content"></div></details>';
-            bubble.innerHTML = _streamingContent + detailsHtml;
+            bubble.innerHTML = escapeHtml(_streamingContent) + detailsHtml;
             _thinkingDiv = bubble.querySelector('.thinking-content');
         } else if (payload.state === 'delta' && _thinkingDiv) {
             _thinkingContent += payload.content || '';

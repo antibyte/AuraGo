@@ -657,6 +657,21 @@ function escAttr(text) {
 }
 
 /**
+ * Escape text for safe usage in JavaScript string literals (e.g., onclick handlers)
+ * @param {string} text
+ * @returns {string}
+ */
+function escJs(text) {
+    if (!text) return '';
+    return String(text)
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, "\\'")
+        .replace(/"/g, '\\"')
+        .replace(/</g, '\\x3c')
+        .replace(/>/g, '\\x3e');
+}
+
+/**
  * Format a date relative to now
  * @param {string|Date} date
  * @returns {string}

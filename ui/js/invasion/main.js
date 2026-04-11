@@ -126,13 +126,13 @@ function renderNests() {
                     ${telBadge}
                 </div>
                 <div class="card-actions">
-                    <button class="btn btn-sm btn-secondary" onclick="editNest('${n.id}')">✏️ ${t('invasion.edit')}</button>
-                    ${canHatch ? `<button class="btn btn-sm btn-primary" onclick="hatchNest('${n.id}')">${t('invasion.hatch')}</button>` : ''}
-                    ${canStop ? `<button class="btn btn-sm btn-danger" onclick="stopNest('${n.id}')">${t('invasion.stop_egg')}</button>` : ''}
-                    <button class="btn btn-sm btn-secondary" onclick="toggleNest('${n.id}', ${!n.active})">
+                    <button class="btn btn-sm btn-secondary" onclick="editNest('${escJs(n.id)}')">✏️ ${t('invasion.edit')}</button>
+                    ${canHatch ? `<button class="btn btn-sm btn-primary" onclick="hatchNest('${escJs(n.id)}')">${t('invasion.hatch')}</button>` : ''}
+                    ${canStop ? `<button class="btn btn-sm btn-danger" onclick="stopNest('${escJs(n.id)}')">${t('invasion.stop_egg')}</button>` : ''}
+                    <button class="btn btn-sm btn-secondary" onclick="toggleNest('${escJs(n.id)}', ${!n.active})">
                         ${n.active ? '⏸️' : '▶️'} ${n.active ? t('invasion.inactive') : t('invasion.active')}
                     </button>
-                    <button class="btn btn-sm btn-danger" onclick="requestDelete('nest','${n.id}','${esc(n.name)}')">🗑️</button>
+                    <button class="btn btn-sm btn-danger" onclick="requestDelete('nest','${escJs(n.id)}','${esc(n.name)}')">🗑️</button>
                 </div>
             </div>`;
     }).join('');
@@ -165,11 +165,11 @@ function renderEggs() {
                     ${e.include_vault ? '<span class="badge badge-vault">' + t('invasion.badge_vault') + '</span>' : ''}
                 </div>
                 <div class="card-actions">
-                    <button class="btn btn-sm btn-secondary" onclick="editEgg('${e.id}')">✏️ ${t('invasion.edit')}</button>
-                    <button class="btn btn-sm btn-secondary" onclick="toggleEgg('${e.id}', ${!e.active})">
+                    <button class="btn btn-sm btn-secondary" onclick="editEgg('${escJs(e.id)}')">✏️ ${t('invasion.edit')}</button>
+                    <button class="btn btn-sm btn-secondary" onclick="toggleEgg('${escJs(e.id)}', ${!e.active})">
                         ${e.active ? '⏸️' : '▶️'} ${e.active ? t('invasion.inactive') : t('invasion.active')}
                     </button>
-                    <button class="btn btn-sm btn-danger" onclick="requestDelete('egg','${e.id}','${esc(e.name)}')">🗑️</button>
+                    <button class="btn btn-sm btn-danger" onclick="requestDelete('egg','${escJs(e.id)}','${esc(e.name)}')">🗑️</button>
                 </div>
             </div>
         `).join('');
