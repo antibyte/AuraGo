@@ -1,12 +1,12 @@
 ================================================================================
 ANALYSIS OF REMAINING UNTRANSLATED VALUES
 ================================================================================
-Total unique values: 575
-Total occurrences: 4032
+Total unique values: 567
+Total occurrences: 3942
 
-1. USER-FACING UI LABELS: 117 values (517 occ)
+1. USER-FACING UI LABELS: 112 values (453 occ)
 ------------------------------------------------------------
-  [ 38] Error:
+  [ 16] Error:
   [ 15] HTTPS / TLS
   [ 15] TLS / SSL
   [ 15] ✓
@@ -21,20 +21,14 @@ Total occurrences: 4032
   [ 10] Test:
   [  9] Auto-Install llm-sandbox
   [  9] Env vars:
-  [  8] Hatching…
-  [  8] Parse {{count}}
-  [  8] Route (Back-Channel)
   [  7] API Key:
   [  7] Auth
   [  7] Base URL:
-  [  7] Core Personality
   [  7] Input $/M
   [  7] MCP save failed:
   [  7] Multimodal (Gemini / LLM)
   [  7] Output $/M
-  [  6] Available at
   [  6] Model:
-  [  6] Permanent (Systemd Service)
   [  6] Webhook:
   [  5] Delivered
   [  5] Delivery
@@ -110,6 +104,7 @@ Total occurrences: 4032
   [  1] Name *
   [  1] New Email Account
   [  1] Parallel sub-agents
+  [  1] Parse {{count}}
   [  1] Prompt / Task
   [  1] Retrieval {{count}}
   [  1] Route Config (JSON, optional)
@@ -158,7 +153,7 @@ Total occurrences: 4032
   [ 14] Requirements for HTTPS and Funnel
   ... and 70 more
 
-3. SHORT UI LABELS: 161 values (571 occ)
+3. SHORT UI LABELS: 158 values (545 occ)
 ------------------------------------------------------------
   [ 26] Offline
   [ 21] Status
@@ -166,32 +161,30 @@ Total occurrences: 4032
   [ 15] Total
   [ 12] Budget
   [ 12] Error
-  [ 12] Prompt
+  [ 11] Prompt
   [ 11] Test
   [ 10] Embeddings
   [ 10] Format
   [ 10] Pools
   [ 10] Web Config UI
-  [  9] E-Mail
   [  9] Mode
   [  9] Tokens
-  [  8] Email
-  [  8] Journal
-  [  8] Permanent
+  [  8] E-Mail
   [  8] Plan
   [  8] Version
   [  8] Vision
   [  7] Burst
   [  7] Comma-separated values
+  [  7] Email
   [  7] Messenger
-  [  7] Show free models only
   [  7] Tunnel
-  [  7] not required
   [  6] Designer
   [  6] Feedback
   [  6] Homepage
+  [  6] Journal
   [  6] Logging
   [  6] Manual
+  [  6] Permanent
   [  6] Start
   [  5] Highlights
   [  5] Immediate
@@ -199,7 +192,6 @@ Total occurrences: 4032
   [  5] Media
   [  5] Notify (SSE only)
   [  5] Stop
-  [  5] Total Runs
   [  4] Database
   [  4] Disk
   [  4] Embeddings ✗
@@ -541,5 +533,5 @@ Total occurrences: 4032
 ================================================================================
 SUMMARY: SHOULD BE TRANSLATED
 ================================================================================
-Translatable: 420 values (2213 occurrences)
+Translatable: 412 values (2123 occurrences)
 Do NOT translate: 155 values (1819 occurrences)
