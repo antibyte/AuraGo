@@ -94,8 +94,8 @@ ENV CI=true
 ENV NODE_ENV=development
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 # Lighthouse needs CHROME_PATH pointing to the Playwright-bundled Chromium binary.
-# The base image installs browsers under /ms-playwright/chromium-<ver>/chrome-linux/chrome.
-RUN CHROME_BIN=$(find /ms-playwright -name chrome -path '*/chrome-linux/chrome' 2>/dev/null | head -1) && \
+# The base image installs under /ms-playwright/chromium-<ver>/chrome-linux/chrome or chrome-linux64/chrome.
+RUN CHROME_BIN=$(find /ms-playwright -name chrome -path '*/chrome-linux*/chrome' -type f 2>/dev/null | head -1) && \
     if [ -n "$CHROME_BIN" ]; then echo "export CHROME_PATH=$CHROME_BIN" >> /etc/profile.d/chrome.sh && \
     ln -sf "$CHROME_BIN" /usr/local/bin/chrome; fi
 ENV CHROME_PATH=/usr/local/bin/chrome
@@ -192,6 +192,27 @@ func extractHostFromURL(rawURL string) string {
 		return ""
 	}
 	return parsed.Hostname()
+}
+
+// rewriteLocalhostForContainer rewrites localhost / 127.0.0.1 URLs to
+// host.docker.internal so that Chrome running inside the homepage container
+// can reach services (e.g. Caddy) listening on the Docker host.
+func rewriteLocalhostForContainer(u string) string {
+	parsed, err := url.Parse(u)
+	if err != nil {
+		return u
+	}
+	host := parsed.Hostname()
+	if host == "localhost" || host == "127.0.0.1" || host == "::1" {
+		port := parsed.Port()
+		if port != "" {
+			parsed.Host = "host.docker.internal:" + port
+		} else {
+			parsed.Host = "host.docker.internal"
+		}
+		return parsed.String()
+	}
+	return u
 }
 
 // sanitizeProjectDir validates a project directory name for use in shell commands.
@@ -482,6 +503,7 @@ func HomepageInit(cfg HomepageConfig, logger *slog.Logger) string {
 		"User":  currentUser,
 		"HostConfig": map[string]interface{}{
 			"Binds":         []string{workspaceMount},
+			"ExtraHosts":    []string{"host.docker.internal:host-gateway"},
 			"RestartPolicy": map[string]string{"Name": "unless-stopped"},
 		},
 	}
@@ -628,7 +650,7 @@ func HomepageInitProject(cfg HomepageConfig, framework, name, template string, l
 		// --eslint flag tells create-next-app to set up ESLint, but ESLint v9+ flat config
 		// requires @eslint/js as an explicit dependency.  We append a post-install step
 		// with --legacy-peer-deps to avoid version conflicts between @eslint/js and eslint.
-		cmd = fmt.Sprintf("npx --yes create-next-app@latest %s --ts --tailwind --app --src-dir --no-import-alias --eslint && cd %s && npm install --save-dev --legacy-peer-deps @eslint/js", name, name)
+		cmd = fmt.Sprintf("npx --yes create-next-app@latest %s --ts --tailwind --app --src-dir --no-import-alias --eslint && cd %s && npm install --save-dev --legacy-peer-deps @eslint/js@^9.0.0", name, name)
 	case "vite", "react":
 		cmd = fmt.Sprintf("npx --yes create-vite@latest %s -- --template react-ts", name)
 	case "astro":
@@ -835,17 +857,19 @@ func HomepageLighthouse(cfg HomepageConfig, url string, logger *slog.Logger) str
 	// are not silently swallowed.  CHROME_PATH is set in the Dockerfile to the
 	// Playwright-bundled Chromium; we also auto-detect it at runtime in case
 	// the image was rebuilt without the env var.
+	// Rewrite localhost URLs so Chrome inside the container can reach the Caddy web server on the host.
+	containerURL := rewriteLocalhostForContainer(url)
 	cmd := fmt.Sprintf(`LHERR=$(mktemp); `+
 		`if [ -z "$CHROME_PATH" ] || [ ! -x "$CHROME_PATH" ]; then `+
-		`  CHROME_PATH=$(find /ms-playwright -name chrome -path '*/chrome-linux/chrome' 2>/dev/null | head -1); `+
+		`  CHROME_PATH=$(find /ms-playwright -name chrome -path '*/chrome-linux*/chrome' -type f 2>/dev/null | head -1); `+
 		`  export CHROME_PATH; `+
 		`fi; `+
-		`lighthouse "%s" --output json --chrome-flags="--headless --no-sandbox --disable-gpu" 2>"$LHERR" | `+
+		`lighthouse "%s" --output json --chrome-flags="--headless --no-sandbox --disable-gpu --disable-dev-shm-usage --no-first-run --single-process" 2>"$LHERR" | `+
 		`jq '{performance: .categories.performance.score, accessibility: .categories.accessibility.score, bestPractices: .categories["best-practices"].score, seo: .categories.seo.score, fcp: .audits["first-contentful-paint"].displayValue, lcp: .audits["largest-contentful-paint"].displayValue, cls: .audits["cumulative-layout-shift"].displayValue, tbt: .audits["total-blocking-time"].displayValue, errorsInConsole: .audits["errors-in-console"].score, consoleErrors: (.audits["errors-in-console"].details.items // [] | length)}' > /tmp/lh_result.json; `+
 		`if [ ! -s /tmp/lh_result.json ] || grep -q 'null' /tmp/lh_result.json && ! grep -q '"performance"' /tmp/lh_result.json; then `+
 		`  echo '{"status":"error","message":"Lighthouse produced no results. Chrome may have failed to start or the URL was unreachable.","chrome_path":"'"$CHROME_PATH"'","stderr":"'"$(tail -20 "$LHERR" | tr '"' "'" | tr '\n' ' ')"'"}'; `+
 		`else cat /tmp/lh_result.json; fi; `+
-		`rm -f "$LHERR" /tmp/lh_result.json`, url)
+		`rm -f "$LHERR" /tmp/lh_result.json`, containerURL)
 	return DockerExec(dockerCfg, homepageContainerName, cmd, "")
 }
 
@@ -878,8 +902,10 @@ func HomepageScreenshot(ctx context.Context, cfg HomepageConfig, url, viewport s
 
 	// Use npx playwright screenshot CLI — works reliably in the Playwright base image
 	// without requiring a global npm install of the playwright package.
+	// Rewrite localhost URLs so Chrome inside the container can reach the host.
+	containerURL := rewriteLocalhostForContainer(url)
 	script := fmt.Sprintf(`npx playwright screenshot --browser=chromium --viewport-size=%s,%s --full-page "%s" /workspace/_screenshot.png 2>&1 && echo '\n{"status":"ok","file":"/workspace/_screenshot.png","message":"screenshot saved"}'`,
-		width, height, url)
+		width, height, containerURL)
 
 	result := homepageDockerExecFunc(dockerCfg, homepageContainerName, script, "")
 
