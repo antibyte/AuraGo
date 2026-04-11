@@ -62,7 +62,7 @@ type dockerAvailabilityEntry struct {
 const dockerAvailabilityCacheTTL = 10 * time.Second
 
 // homepageDockerfile is the embedded Dockerfile for the dev container.
-const homepageDockerfile = `FROM mcr.microsoft.com/playwright:v1.58.2-noble
+const homepageDockerfile = `FROM mcr.microsoft.com/playwright:v1.59.1-noble
 WORKDIR /workspace
 ARG CLOUDFLARED_VERSION=2026.3.0
 RUN set -eux; \
