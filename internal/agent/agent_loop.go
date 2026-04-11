@@ -154,7 +154,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	missedToolCount := 0
 	announcementCount := 0
 	incompleteToolCallCount := 0
-	orphanedToolCallCount := 0
+	orphanedBracketTagCount := 0 // for [TOOL_CALL] without [/TOOL_CALL] (path 7)
+	orphanedXMLTagCount := 0     // for <tool_call> XML in native mode (path 8)
 	invalidNativeToolCount := 0
 	sessionTokens := 0
 	recoveryPolicy := buildRecoveryPolicy(cfg)
@@ -1357,6 +1358,32 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			currentLogger.Info("[Sync] Native tool call detected", "function", tc.Action, "id", nativeCall.ID, "forced", !cfg.LLM.UseNativeFunctions)
 		} else if parsedToolResp.ParseSource == ToolCallParseSourceReasoningCleanJSON {
 			currentLogger.Info("[Sync] Tool call detected after stripping reasoning tags", "function", tc.Action)
+			// Validate that the extracted action name is a known builtin or custom tool.
+			// Models sometimes include JSON tool calls in their <think> reasoning blocks that
+			// reference non-existent tools (e.g. docker_exec, docker_list_containers).
+			// Dispatching these wastes a round-trip and causes spurious WARN logs.
+			// Only apply this check for reasoning-extracted calls because native and
+			// text-mode calls went through the user's explicit instruction flow.
+			if tc.IsTool && tc.Action != "" {
+				knownActions := allBuiltinToolNameSet()
+				if manifest != nil {
+					if customTools, loadErr := manifest.Load(); loadErr == nil {
+						for name := range customTools {
+							knownActions[name] = struct{}{}
+						}
+					}
+				}
+				if _, known := knownActions[tc.Action]; !known {
+					currentLogger.Warn("[Sync] Dropping reasoning-extracted tool call: action not in known tool set", "action", tc.Action)
+					parsedToolResp.ToolCall.IsTool = false
+					tc = parsedToolResp.ToolCall
+					// Also discard any pending calls from the same reasoning block
+					if len(parsedToolResp.PendingToolCalls) > 0 {
+						currentLogger.Warn("[Sync] Dropping pending tool calls from same reasoning block", "count", len(parsedToolResp.PendingToolCalls))
+						parsedToolResp.PendingToolCalls = nil
+					}
+				}
+			}
 		}
 		if len(parsedToolResp.PendingToolCalls) > 0 {
 			pendingTCs = append(pendingTCs, parsedToolResp.PendingToolCalls...)
@@ -1725,7 +1752,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			//   prematurely instead of retrying. If the task is genuinely complete, the model should
 			//   state the final result directly to the user.
 			feedbackMsg += " If the task is genuinely complete and no more tool calls are needed, " +
-				"state the final result to the user — do NOT output <done/>."
+				"state the final result directly to the user."
 			feedbackMsg = applyEmotionRecoveryNudge(feedbackMsg, emotionPolicy)
 			id, err = shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, feedbackMsg, false, true)
 			if err != nil {
@@ -1756,7 +1783,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				historyManager.Add(openai.ChatMessageRoleAssistant, content, id, false, true)
 			}
 
-			feedbackMsg := "ERROR: Your response contained explanation text and/or markdown fences (```json). Tool calls MUST be a raw JSON object ONLY - no explanation before or after, no markdown, no fences. Output ONLY the JSON object, starting with { and ending with }. Example: {\"action\": \"co_agent\", \"operation\": \"spawn\", \"task\": \"...\"}"
+			feedbackMsg := "ERROR: Your response contained explanation text and/or markdown fences (```json). Tool calls MUST be a raw JSON object ONLY - no explanation before or after, no markdown, no fences. Output ONLY the JSON object, starting with { and ending with }. Example: {\"action\": \"<tool_name>\", \"<param>\": \"<value>\"}"
 			feedbackMsg = applyEmotionRecoveryNudge(feedbackMsg, emotionPolicy)
 			id, err = shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, feedbackMsg, false, true)
 			if err != nil {
@@ -1773,13 +1800,13 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 		// Recovery: LLM output literal "[TOOL_CALL]" tag without a closing "[/TOOL_CALL]"
 		// or valid tool call payload — it intended to call a tool but failed to produce one.
-		if !tc.IsTool && !useNativePath && orphanedToolCallCount < 2 {
+		if !tc.IsTool && !useNativePath && orphanedBracketTagCount < 2 {
 			lowerForTagCheck := strings.ToLower(content)
 			hasOpenTag := strings.Contains(lowerForTagCheck, "[tool_call]")
 			hasCloseTag := strings.Contains(lowerForTagCheck, "[/tool_call]")
 			if hasOpenTag && !hasCloseTag {
-				orphanedToolCallCount++
-				currentLogger.Warn("[Sync] Orphaned [TOOL_CALL] tag detected without closing tag, requesting corrective tool call", "attempt", orphanedToolCallCount, "content_preview", Truncate(content, 150))
+				orphanedBracketTagCount++
+				currentLogger.Warn("[Sync] Orphaned [TOOL_CALL] tag detected without closing tag, requesting corrective tool call", "attempt", orphanedBracketTagCount, "content_preview", Truncate(content, 150))
 				broker.Send("error_recovery", i18n.T(cfg.Server.UILanguage, "backend.stream_error_recovery_incomplete_tag"))
 
 				id, err := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleAssistant, content, false, true)
@@ -1816,11 +1843,11 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		// on XML-format tool calls falls back to that format after receiving a corrective prompt.
 		// The bare tag is already stripped from the SSE stream, but we still need a corrective
 		// retry so the model produces an actual native call.
-		if !tc.IsTool && useNativeFunctions && orphanedToolCallCount < 2 {
+		if !tc.IsTool && useNativeFunctions && orphanedXMLTagCount < 2 {
 			lowerContent := strings.ToLower(parsedToolResp.SanitizedContent + content)
 			if strings.Contains(lowerContent, "<tool_call") || strings.Contains(lowerContent, "minimax:tool_call") {
-				orphanedToolCallCount++
-				currentLogger.Warn("[Sync] Bare <tool_call> XML in native mode, requesting native function call", "attempt", orphanedToolCallCount, "content_preview", Truncate(content, 150))
+				orphanedXMLTagCount++
+				currentLogger.Warn("[Sync] Bare <tool_call> XML in native mode, requesting native function call", "attempt", orphanedXMLTagCount, "content_preview", Truncate(content, 150))
 				broker.Send("error_recovery", i18n.T(cfg.Server.UILanguage, "backend.stream_error_recovery_xml_in_native_mode"))
 
 				id, err := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleAssistant, content, false, true)

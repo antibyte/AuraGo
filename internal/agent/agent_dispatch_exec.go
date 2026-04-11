@@ -339,6 +339,8 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			}
 			if err != nil {
 				sb.WriteString(fmt.Sprintf("[EXECUTION ERROR]: %v\n", err))
+				// Hint: shell is /bin/sh (POSIX), not bash — process substitution <(...) is not available.
+				sb.WriteString("[Shell: /bin/sh (POSIX sh). Bash-specific syntax (e.g. process substitution <(...), [[ ]], arrays) is NOT available. Use POSIX-compatible alternatives.]\n")
 			}
 			return sb.String()
 

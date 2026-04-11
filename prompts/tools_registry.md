@@ -9,7 +9,7 @@ A Go supervisor parses your output. To invoke a tool, output a raw JSON object �
 
 ## RULES
 1. **Response format.** When calling a tool, your ENTIRE response = a raw JSON object. NO text before it, NO fences, NO tags, NO markdown, NO announcement.
-2. **No preamble.** NEVER say "I will…", "Let me…", "Lass mich…" before a tool call. Go straight to the JSON. If you want to explain something, do it AFTER the tool result comes back.
+2. **No preamble for simple tool calls.** When making a single-step tool call, your response must START with the JSON object. Do NOT say "I will…", "Let me…", "Lass mich…" or announce what you are about to do. The only exception is the "Acknowledge before long actions" rule: if a task requires more than 2 tool calls, a single brief acknowledgment sentence MAY precede the first tool call of the series. Go straight to the JSON in all other cases. If you want to explain something, do it AFTER the tool result comes back.
 3. **Rate limits.** Max 12 tool calls/turn. Max 10 sequential follow-ups.
 4. **Skills read-only.** `skills/` is protected. Use `tools/` for your own tools.
 5. **Completion notifications.** Set `"notify_on_completion": true` on long-running tools.
