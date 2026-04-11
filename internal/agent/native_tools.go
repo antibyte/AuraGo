@@ -426,6 +426,10 @@ func BuildNativeToolSchemas(skillsDir string, manifest *tools.Manifest, ff ToolF
 		default:
 			params["required"] = []string{"_todo"}
 		}
+		// CHANGE LOG 2026-04-11: OpenAI strict mode requires additionalProperties: false
+		// on every object schema. The go-openai library does not auto-add this, so we
+		// inject it here. Only affects strict-mode requests; non-strict calls ignore it.
+		params["additionalProperties"] = false
 	}
 
 	if logger != nil {

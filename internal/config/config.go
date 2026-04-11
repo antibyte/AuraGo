@@ -491,8 +491,12 @@ func Load(path string) (*Config, error) {
 		cfg.Agent.OptimizerEnabled = true
 	}
 	// Adaptive tools defaults
+	// CHANGE LOG 2026-04-11: Reduced default from 60 to 16 based on research showing
+	// function-calling accuracy degrades significantly beyond ~20 tools (OpenAI, Anthropic, Barres et al. 2025).
+	// 60 was too permissive; new users without explicit config would send 50-150 schemas.
+	// Existing configs with explicit values are preserved. MaxTools=0 disables the cap (not recommended).
 	if cfg.Agent.AdaptiveTools.MaxTools <= 0 && cfg.Agent.AdaptiveTools.Enabled {
-		cfg.Agent.AdaptiveTools.MaxTools = 60
+		cfg.Agent.AdaptiveTools.MaxTools = 16
 	}
 	if cfg.Agent.AdaptiveTools.DecayHalfLifeDays <= 0 {
 		cfg.Agent.AdaptiveTools.DecayHalfLifeDays = 7.0
