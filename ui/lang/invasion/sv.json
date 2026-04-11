@@ -61,7 +61,7 @@
   "invasion.ph_nest_name": "Productie Server",
   "invasion.ph_nest_notes": "Optionele notities...",
   "invasion.ph_secret": "Wachtwoord of SSH Private Key...",
-  "invasion.ph_username": "deploy",
+  "invasion.ph_username": "Distribuera",
   "invasion.port": "Port",
   "invasion.provider": "Provider",
   "invasion.route": "Rutt (bakåt-kanal)",

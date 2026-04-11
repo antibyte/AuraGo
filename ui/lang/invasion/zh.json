@@ -61,7 +61,7 @@
   "invasion.ph_nest_name": "生产服务器",
   "invasion.ph_nest_notes": "可选备注...",
   "invasion.ph_secret": "密码或 SSH 私钥...",
-  "invasion.ph_username": "deploy",
+  "invasion.ph_username": "部署",
   "invasion.port": "端口",
   "invasion.provider": "提供商",
   "invasion.route": "路由 (回传通道)",

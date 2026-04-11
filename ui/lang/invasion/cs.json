@@ -61,7 +61,7 @@
   "invasion.ph_nest_name": "Produkční Server",
   "invasion.ph_nest_notes": "Volitelné poznámky...",
   "invasion.ph_secret": "Heslo nebo SSH Private Key...",
-  "invasion.ph_username": "deploy",
+  "invasion.ph_username": "Nasadit",
   "invasion.port": "Port",
   "invasion.provider": "Poskytovatel",
   "invasion.route": "Směrování (zpětný kanál)",

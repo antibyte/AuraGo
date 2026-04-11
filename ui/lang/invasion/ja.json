@@ -61,7 +61,7 @@
   "invasion.ph_nest_name": "本番サーバー",
   "invasion.ph_nest_notes": "オプションのメモ…",
   "invasion.ph_secret": "パスワードまたは SSH 秘密鍵…",
-  "invasion.ph_username": "deploy",
+  "invasion.ph_username": "デプロイ",
   "invasion.port": "ポート",
   "invasion.provider": "プロバイダ",
   "invasion.route": "ルート (バックチャネル)",

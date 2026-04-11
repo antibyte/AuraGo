@@ -61,7 +61,7 @@
   "invasion.ph_nest_name": "Servidor de Produção",
   "invasion.ph_nest_notes": "Notas opcionais...",
   "invasion.ph_secret": "Senha ou Chave Privada SSH...",
-  "invasion.ph_username": "deploy",
+  "invasion.ph_username": "Implantar",
   "invasion.port": "Porta",
   "invasion.provider": "Provedor",
   "invasion.route": "Rota (Canal de Retorno)",
