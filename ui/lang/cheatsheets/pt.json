@@ -1,7 +1,7 @@
 {
   "cheatsheets.activate": "Ativar",
   "cheatsheets.active": "Ativo",
-  "cheatsheets.cancel": "Cancel",
+  "cheatsheets.cancel": "Cancelar",
   "cheatsheets.confirm_delete": "Confirmar exclusão",
   "cheatsheets.content": "Conteúdo (remarcação)",
   "cheatsheets.create_new": "Nova folha de dicas",
@@ -23,7 +23,7 @@
   "cheatsheets.saved": "Folha de dicas salva!",
   "cheatsheets.subtitle": "Folha de dicas",
   "cheatsheets.tab_edit": "Editar",
-  "cheatsheets.tab_preview": "visualização",
+  "cheatsheets.tab_preview": "Visualização",
   "cheatsheets.title": "Folha de dicas",
   "cheatsheets.attachments": "Anexos",
   "cheatsheets.characters": "caracteres",

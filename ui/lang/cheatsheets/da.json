@@ -1,7 +1,7 @@
 {
   "cheatsheets.activate": "Aktiver",
   "cheatsheets.active": "Aktiv",
-  "cheatsheets.cancel": "Ophæve",
+  "cheatsheets.cancel": "Annuller",
   "cheatsheets.confirm_delete": "Bekræft sletning",
   "cheatsheets.content": "Indhold (Markdown)",
   "cheatsheets.create_new": "Nyt snydeark",
@@ -19,7 +19,7 @@
   "cheatsheets.name_required": "Navn er påkrævet.",
   "cheatsheets.no_content": "Intet indhold",
   "cheatsheets.page_title": "AuraGo - snydeark",
-  "cheatsheets.save": "Spare",
+  "cheatsheets.save": "Gem",
   "cheatsheets.saved": "Snydeark gemt!",
   "cheatsheets.subtitle": "Snydeark",
   "cheatsheets.tab_edit": "Redigere",

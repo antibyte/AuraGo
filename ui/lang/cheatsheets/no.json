@@ -1,7 +1,7 @@
 {
   "cheatsheets.activate": "Aktiver",
   "cheatsheets.active": "Aktiv",
-  "cheatsheets.cancel": "Kansellere",
+  "cheatsheets.cancel": "Avbryt",
   "cheatsheets.confirm_delete": "Bekreft sletting",
   "cheatsheets.content": "Innhold (Markdown)",
   "cheatsheets.create_new": "Ny jukseark",
@@ -19,7 +19,7 @@
   "cheatsheets.name_required": "Navn er påkrevd.",
   "cheatsheets.no_content": "Ikke noe innhold",
   "cheatsheets.page_title": "AuraGo - jukseark",
-  "cheatsheets.save": "Spare",
+  "cheatsheets.save": "Lagre",
   "cheatsheets.saved": "Jukseark lagret!",
   "cheatsheets.subtitle": "Jukseark",
   "cheatsheets.tab_edit": "Redigere",
