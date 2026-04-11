@@ -182,7 +182,7 @@
   "missions.trigger_egg_hatched": "🥚 Egg schiuso",
   "missions.trigger_egg_hatched_hint": "Attivato quando un egg è stato installato con successo su un nest.",
   "missions.trigger_egg_select_label": "Egg (vuoto = qualsiasi egg)",
-  "missions.trigger_email_folder_inbox": "Inbox",
+  "missions.trigger_email_folder_inbox": "Posta in arrivo",
   "missions.trigger_email_folder_label": "Cartella",
   "missions.trigger_email_folder_sent": "Inviata",
   "missions.trigger_email_from_label": "Mittente contiene (opzionale)",

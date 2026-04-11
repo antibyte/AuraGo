@@ -131,7 +131,7 @@
   "knowledge.appointments_desc_label": "Beskrivelse",
   "knowledge.appointments_desc_placeholder": "Valgfri beskrivelse...",
   "knowledge.appointments_datetime_label": "Dato og tid",
-  "knowledge.appointments_notify_label": "Notification",
+  "knowledge.appointments_notify_label": "Notifikation",
   "knowledge.appointments_notify_hint": "Efterlad tom for ingen notifikation",
   "knowledge.appointments_wake_agent": "Væk agent på notifikationstidspunktet",
   "knowledge.appointments_instruction_label": "Agent-instruktion",

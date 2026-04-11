@@ -73,7 +73,7 @@
   "setup.profile_zai_glm_coding_pricing": "कोडिंग प्लान – शामिल मॉडल",
   "setup.provider_ollama_key_placeholder": "आवश्यक नहीं",
   "setup.skip_button": "Skip ✕",
-  "setup.skip_button_title": "Skip setup",
+  "setup.skip_button_title": "सेटअप छोड़ें",
   "setup.step0_admin_password_confirm_error": "पासवर्ड मेल नहीं खाते।",
   "setup.step0_admin_password_confirm_label": "पासवर्ड की पुष्टि करें",
   "setup.step0_admin_password_confirm_placeholder": "पासवर्ड दोहराएं",

@@ -73,7 +73,7 @@
   "setup.profile_zai_glm_coding_pricing": "Kodplan – inkluderade modeller",
   "setup.provider_ollama_key_placeholder": "ej obligatoriskt",
   "setup.skip_button": "Skip ✕",
-  "setup.skip_button_title": "Skip setup",
+  "setup.skip_button_title": "Hoppa över konfiguration",
   "setup.step0_admin_password_confirm_error": "Lösenorden stämmer inte överens.",
   "setup.step0_admin_password_confirm_label": "Bekräfta lösenord",
   "setup.step0_admin_password_confirm_placeholder": "Upprepa lösenord",

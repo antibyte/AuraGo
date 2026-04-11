@@ -451,7 +451,7 @@
   "dashboard.knowledge_editor_hint": "Modifiez les propriétés en tant qu'objet JSON avec des paires clé/valeur simples.",
   "dashboard.knowledge_editor_invalid": "Les propriétés doivent être un JSON valide représentant un objet.",
   "dashboard.knowledge_editor_invalid_title": "Propriétés invalides",
-  "dashboard.knowledge_editor_label": "Label",
+  "dashboard.knowledge_editor_label": "Étiquette",
   "dashboard.knowledge_editor_properties": "Propriétés",
   "dashboard.knowledge_editor_title": "Modifier le nœud",
   "dashboard.knowledge_mutation_failed": "La mise à jour du nœud a échoué.",

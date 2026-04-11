@@ -69,7 +69,7 @@
   "truenas.dataset_compression": "圧縮",
   "truenas.snapshot_ago": "ago",
   "truenas.share_guest": "ゲスト許可",
-  "truenas.share_timemachine": "Time Machine",
+  "truenas.share_timemachine": "タイムマシン",
   "truenas.status_disabled": "無効",
   "truenas.status_online": "オンライン",
   "truenas.status_error_prefix": "エラー:",

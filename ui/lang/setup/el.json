@@ -73,7 +73,7 @@
   "setup.profile_zai_glm_coding_pricing": "Πλάνο κωδικοποίησης – περιλαμβανόμενα μοντέλα",
   "setup.provider_ollama_key_placeholder": "δεν απαιτείται",
   "setup.skip_button": "Skip ✕",
-  "setup.skip_button_title": "Skip setup",
+  "setup.skip_button_title": "Παράλειψη ρύθμισης",
   "setup.step0_admin_password_confirm_error": "Οι κωδικοί δεν ταιριάζουν.",
   "setup.step0_admin_password_confirm_label": "Επιβεβαίωση κωδικού",
   "setup.step0_admin_password_confirm_placeholder": "Επαναλάβετε τον κωδικό",

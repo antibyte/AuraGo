@@ -73,7 +73,7 @@
   "setup.profile_zai_glm_coding_pricing": "Kodeplan – inkluderede modeller",
   "setup.provider_ollama_key_placeholder": "ikke påkrævet",
   "setup.skip_button": "Skip ✕",
-  "setup.skip_button_title": "Skip setup",
+  "setup.skip_button_title": "Spring opsætning over",
   "setup.step0_admin_password_confirm_error": "Adgangskoderne stemmer ikke overens.",
   "setup.step0_admin_password_confirm_label": "Bekræft adgangskode",
   "setup.step0_admin_password_confirm_placeholder": "Gentag adgangskode",

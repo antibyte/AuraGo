@@ -339,7 +339,7 @@
   "dashboard.tooling_telemetry_family_risk_high": "高风险",
   "dashboard.tooling_telemetry_family_risk_low": "低风险",
   "dashboard.tooling_telemetry_family_risk_medium": "中风险",
-  "dashboard.tooling_telemetry_family_shell": "Shell",
+  "dashboard.tooling_telemetry_family_shell": "终端",
   "dashboard.tooling_telemetry_family_web": "Web",
   "dashboard.tooling_telemetry_model_comparison": "模型比较",
   "dashboard.tooling_telemetry_no_failures": "暂无跟踪的故障工具",

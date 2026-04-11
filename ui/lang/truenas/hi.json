@@ -69,7 +69,7 @@
   "truenas.dataset_compression": "संपीडन",
   "truenas.snapshot_ago": "ago",
   "truenas.share_guest": "अतिथि अनुमत",
-  "truenas.share_timemachine": "Time Machine",
+  "truenas.share_timemachine": "टाइम मशीन",
   "truenas.status_disabled": "अक्षम",
   "truenas.status_online": "ऑनलाइन",
   "truenas.status_error_prefix": "त्रुटि:",

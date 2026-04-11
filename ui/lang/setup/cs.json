@@ -73,7 +73,7 @@
   "setup.profile_zai_glm_coding_pricing": "Kódovací plán – zahrnuté modely",
   "setup.provider_ollama_key_placeholder": "nepovinné",
   "setup.skip_button": "Skip ✕",
-  "setup.skip_button_title": "Skip setup",
+  "setup.skip_button_title": "Přeskočit nastavení",
   "setup.step0_admin_password_confirm_error": "Hesla se neshodují.",
   "setup.step0_admin_password_confirm_label": "Potvrďte heslo",
   "setup.step0_admin_password_confirm_placeholder": "Zopakujte heslo",

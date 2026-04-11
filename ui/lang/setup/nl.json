@@ -73,7 +73,7 @@
   "setup.profile_zai_glm_coding_pricing": "Codeerplan – inbegrepen modellen",
   "setup.provider_ollama_key_placeholder": "niet vereist",
   "setup.skip_button": "Skip ✕",
-  "setup.skip_button_title": "Skip setup",
+  "setup.skip_button_title": "Setup overslaan",
   "setup.step0_admin_password_confirm_error": "Wachtwoorden komen niet overeen.",
   "setup.step0_admin_password_confirm_label": "Wachtwoord bevestigen",
   "setup.step0_admin_password_confirm_placeholder": "Wachtwoord herhalen",
