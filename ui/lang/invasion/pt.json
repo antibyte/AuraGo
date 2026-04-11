@@ -41,7 +41,7 @@
   "invasion.hatch_running": "Executando",
   "invasion.hatch_stopped": "Parado",
   "invasion.hatching_started": "Choca iniciada…",
-  "invasion.host": "Host",
+  "invasion.host": "Anfitrião",
   "invasion.inactive": "Inativo",
   "invasion.include_vault": "Transferir Vault",
   "invasion.inherit_llm": "Herdar LLM do Master",

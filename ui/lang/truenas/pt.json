@@ -32,7 +32,7 @@
   "truenas.empty_datasets": "Nenhum conjuntos de dados encontrado",
   "truenas.empty_snapshots": "Nenhum snapshots encontrado",
   "truenas.empty_shares": "Nenhum SMB shares encontrado",
-  "truenas.label_host": "Host",
+  "truenas.label_host": "Anfitrião",
   "truenas.hint_host": "Nome do host ou endereço IP do seu servidor TrueNAS",
   "truenas.label_apikey": "Chave API",
   "truenas.hint_apikey": "Create an API key under System → API Keys in TrueNAS",

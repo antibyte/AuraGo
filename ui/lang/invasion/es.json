@@ -41,7 +41,7 @@
   "invasion.hatch_running": "En ejecución",
   "invasion.hatch_stopped": "Detenido",
   "invasion.hatching_started": "Eclosión iniciada...",
-  "invasion.host": "Host",
+  "invasion.host": "Anfitrión",
   "invasion.inactive": "Inactivo",
   "invasion.include_vault": "Transferir Vault",
   "invasion.inherit_llm": "Heredar LLM del Master",

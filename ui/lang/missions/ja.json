@@ -213,7 +213,7 @@
   "missions.trigger_info_only_on_success": "(成功時のみ)",
   "missions.trigger_info_subject_prefix": "件名:",
   "missions.trigger_info_unknown_mission": "不明なミッション",
-  "missions.trigger_info_webhook_prefix": "Webhook:",
+  "missions.trigger_info_webhook_prefix": "Webhook：",
   "missions.trigger_info_webhook_unknown": "不明",
   "missions.trigger_info_when_completed": "「{{name}}」完了時",
   "missions.trigger_mission_completed": "✅ ミッション完了",

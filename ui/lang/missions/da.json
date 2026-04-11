@@ -148,7 +148,7 @@
   "missions.queue_waiting_since": "Aguardando desde",
   "missions.status_queue": "Fila",
   "missions.status_running": "Executando",
-  "missions.status_total": "Total",
+  "missions.status_total": "I alt",
   "missions.status_triggered": "Acionada",
   "missions.time_days_ago": "for {{n}} dage siden",
   "missions.time_hours_ago": "for {{n}} timer siden",
