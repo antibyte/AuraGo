@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"aurago/internal/remote"
+	"aurago/internal/security"
 
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
@@ -382,7 +383,13 @@ func HomepageWebServerStart(cfg HomepageConfig, projectDir, buildDir string, log
 	healthURL := fmt.Sprintf("http://localhost:%d/", port)
 	var lastHealthErr error
 	for i := 0; i < 10; i++ {
-		resp, err := http.Get(healthURL)
+		client, err := security.NewSSRFProtectedHTTPClientForURL(healthURL, 5*time.Second)
+		if err != nil {
+			lastHealthErr = err
+			time.Sleep(500 * time.Millisecond)
+			continue
+		}
+		resp, err := client.Get(healthURL)
 		if err == nil {
 			resp.Body.Close()
 			break

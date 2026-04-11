@@ -450,7 +450,9 @@ func handleCronAPI(s *Server) http.HandlerFunc {
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
-			w.Write([]byte(result)) //nolint:errcheck
+			if _, err := w.Write([]byte(result)); err != nil {
+				s.Logger.Debug("failed to write cron remove response", "error", err)
+			}
 
 		case http.MethodPut:
 			var body struct {
@@ -474,7 +476,9 @@ func handleCronAPI(s *Server) http.HandlerFunc {
 				return
 			}
 			w.Header().Set("Content-Type", "application/json")
-			w.Write([]byte(result)) //nolint:errcheck
+			if _, err := w.Write([]byte(result)); err != nil {
+				s.Logger.Debug("failed to write cron update response", "error", err)
+			}
 
 		default:
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)

@@ -239,6 +239,8 @@ func handleMACLookup(s *Server) http.HandlerFunc {
 
 		result := tools.LookupMACAddress(strings.TrimSpace(req.IP), "")
 		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(result)) //nolint:errcheck
+		if _, err := w.Write([]byte(result)); err != nil {
+			s.Logger.Debug("failed to write mac_lookup response", "error", err)
+		}
 	}
 }

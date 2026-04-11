@@ -49,6 +49,7 @@ func ExecuteShell(command, workspaceDir string) (string, string, error) {
 	absWorkDir := getAbsWorkspace(workspaceDir)
 
 	if runtime.GOOS == "windows" {
+		slog.Warn("Shell execution is running WITHOUT sandbox protection on Windows. Commands execute with full user privileges.")
 		cmd = exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-Command", command)
 	} else if sb := sandbox.Get(); sb.Available() {
 		cmd = sb.PrepareCommand(command, absWorkDir)
@@ -78,6 +79,7 @@ func ExecuteShellBackground(command, workspaceDir string, registry *ProcessRegis
 	absWorkDir := getAbsWorkspace(workspaceDir)
 
 	if runtime.GOOS == "windows" {
+		slog.Warn("Shell execution is running WITHOUT sandbox protection on Windows. Commands execute with full user privileges.")
 		cmd = exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-Command", command)
 	} else if sb := sandbox.Get(); sb.Available() {
 		cmd = sb.PrepareCommand(command, absWorkDir)
