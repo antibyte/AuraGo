@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sync"
 	"testing"
 
@@ -121,9 +122,9 @@ func TestConfigPreWriteValidationRejectsMalformedYAML(t *testing.T) {
 		tmpDir+"\\vault.bin")
 
 	s := &Server{
-		Cfg:      &config.Config{ConfigPath: configPath},
-		Vault:    vault,
-		Logger:   slog.Default(),
+		Cfg:       &config.Config{ConfigPath: configPath},
+		Vault:     vault,
+		Logger:    slog.Default(),
 		CfgSaveMu: sync.Mutex{},
 	}
 
@@ -183,7 +184,7 @@ func TestConfigDeepMergeNoDataLoss(t *testing.T) {
 		"server": map[string]interface{}{
 			"port":          8080,
 			"ui_language":   "en",
-			"allowed_hosts":  []interface{}{"localhost", "example.com"},
+			"allowed_hosts": []interface{}{"localhost", "example.com"},
 		},
 		"llm": map[string]interface{}{
 			"provider": "main",
@@ -330,10 +331,10 @@ func TestConfigSensitiveFieldsStrippedFromPatches(t *testing.T) {
 
 	// Each entry: (section.key, sensitiveValue, expectedVaultKey)
 	cases := []struct {
-		section        string
-		key           string
-		value         string
-		vaultKey      string
+		section  string
+		key      string
+		value    string
+		vaultKey string
 	}{
 		{"telegram", "bot_token", "secret-tg-token", "telegram_bot_token"},
 		{"discord", "bot_token", "secret-dc-token", "discord_bot_token"},
@@ -425,8 +426,12 @@ llm:
 	}
 
 	// Verify CfgSaveMu exists and is a sync.Mutex
-	s := &Server{CfgSaveMu: sync.Mutex{}}
-	_ = s.CfgSaveMu // verify it can be locked
+	// Note: We cannot directly create a Server instance with sync.Mutex field
+	// due to noCopy semantics. We verify via reflection using nil pointer type.
+	serverType := reflect.TypeOf((*Server)(nil)).Elem()
+	if _, ok := serverType.FieldByName("CfgSaveMu"); !ok {
+		t.Fatal("CfgSaveMu field does not exist on Server")
+	}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

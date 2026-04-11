@@ -423,11 +423,14 @@ func Start(cfg *config.Config, logger *slog.Logger, accessLogger *slog.Logger, l
 			req.Header.Set("X-Internal-Token", s.internalToken)
 			req.Header.Set("X-Mission-ID", missionID)
 
+			// SECURITY: This client is ONLY used for internal loopback API calls.
+			// InternalAPIURL always returns 127.0.0.1, so InsecureSkipVerify is safe here.
+			// This client must never be used for external connections.
 			client := &http.Client{
 				Timeout: 35 * time.Minute, // Must exceed the 30-minute agent loop timeout
 				Transport: &http.Transport{
 					TLSClientConfig: &tls.Config{
-						InsecureSkipVerify: true, // Localhost self-signed certs
+						InsecureSkipVerify: true, // SECURE: Only for 127.0.0.1 internal API
 					},
 				},
 			}

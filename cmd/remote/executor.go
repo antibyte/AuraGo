@@ -32,6 +32,29 @@ func NewExecutor(logger *slog.Logger) *Executor {
 	return &Executor{logger: logger}
 }
 
+// dangerousCommandPatterns contains regex patterns for commands that are
+// blocked from execution on remote devices regardless of privileges.
+var dangerousCommandPatterns = []*regexp.Regexp{
+	regexp.MustCompile(`(?i)^\s*rm\s+-rf\s+/\s*$`),     // rm -rf / (Unix complete deletion)
+	regexp.MustCompile(`(?i)^\s*del\s+/s\s+/q\s+C:\\`), // del /s /q C:\ (Windows recursive delete)
+	regexp.MustCompile(`(?i)^\s*format\s+`),            // format command (disk formatting)
+	regexp.MustCompile(`(?i)^\s*mkfs`),                 // mkfs (filesystem creation)
+	regexp.MustCompile(`(?i)^\s*dd\s+if=`),             // dd if= (direct disk writing)
+	regexp.MustCompile(`(?i)^\s*shred`),                // shred (secure deletion)
+	regexp.MustCompile(`(?i)^\s*dd\s+.*of=/dev/`),      // dd to disk device
+}
+
+// isCommandBlocked checks if a command matches any dangerous pattern.
+// Returns the matched pattern description if blocked, empty string otherwise.
+func isCommandBlocked(command string) string {
+	for _, pattern := range dangerousCommandPatterns {
+		if pattern.MatchString(command) {
+			return "command matches blocked dangerous pattern"
+		}
+	}
+	return ""
+}
+
 // Execute runs a command and returns the result.
 func (e *Executor) Execute(cmd remote.CommandPayload, readOnly bool, allowedPaths []string) remote.ResultPayload {
 	result := remote.ResultPayload{
@@ -366,6 +389,15 @@ func (e *Executor) shellExec(command, workDir string, timeout time.Duration) (st
 	if command == "" {
 		return "", fmt.Errorf("command is required")
 	}
+
+	// Security: Check for dangerous commands before execution
+	if blocked := isCommandBlocked(command); blocked != "" {
+		e.logger.Warn("[shellExec] blocked dangerous command", "reason", blocked, "command", command)
+		return "", fmt.Errorf("command blocked: %s", blocked)
+	}
+
+	// Log every command execution for audit trail
+	e.logger.Info("[shellExec] executing remote command", "command", command, "workDir", workDir, "timeout", timeout)
 
 	var cmd *exec.Cmd
 	if runtime.GOOS == "windows" {

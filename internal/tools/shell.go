@@ -17,6 +17,32 @@ const shellKillWait = 8 * time.Second
 
 var sudoPasswordPromptPattern = regexp.MustCompile(`^\[sudo\][^:\r\n]*:\s*`)
 
+// dangerousCommandPatterns contains regex patterns for commands that are
+// blocked from execution regardless of privileges. These are patterns that
+// would cause irreversible destruction or security compromise.
+// The allow_shell config option must be set to true to enable shell execution.
+// NOTE: allow_shell defaults to false in config.
+var dangerousCommandPatterns = []*regexp.Regexp{
+	regexp.MustCompile(`(?i)^\s*rm\s+-rf\s+/\s*$`),     // rm -rf / (Unix complete deletion)
+	regexp.MustCompile(`(?i)^\s*del\s+/s\s+/q\s+C:\\`), // del /s /q C:\ (Windows recursive delete)
+	regexp.MustCompile(`(?i)^\s*format\s+`),            // format command (disk formatting)
+	regexp.MustCompile(`(?i)^\s*mkfs`),                 // mkfs (filesystem creation)
+	regexp.MustCompile(`(?i)^\s*dd\s+if=`),             // dd if= (direct disk writing)
+	regexp.MustCompile(`(?i)^\s*shred`),                // shred (secure deletion)
+	regexp.MustCompile(`(?i)^\s*dd\s+.*of=/dev/`),      // dd to disk device
+}
+
+// isCommandBlocked checks if a command matches any dangerous pattern.
+// Returns the matched pattern description if blocked, empty string otherwise.
+func isCommandBlocked(command string) string {
+	for _, pattern := range dangerousCommandPatterns {
+		if pattern.MatchString(command) {
+			return "command matches blocked dangerous pattern"
+		}
+	}
+	return ""
+}
+
 // Security notes for shell execution:
 //
 // Shell command execution is an intentional, core agent capability.
@@ -30,10 +56,15 @@ var sudoPasswordPromptPattern = regexp.MustCompile(`^\[sudo\][^:\r\n]*:\s*`)
 //   - All processes are killed on timeout via KillProcessTree.
 //   - Bounded stdout/stderr buffers prevent memory exhaustion.
 //   - PowerShell on Windows runs with -NoProfile -NonInteractive.
+//   - Dangerous commands are blocked via pattern matching.
+//
+// IMPORTANT: The allow_shell config option controls whether shell execution is
+// permitted. It MUST be set to false by default (the config system enforces this).
+// Shell execution should only be enabled in trusted home-lab environments.
 //
 // Residual risks:
 //   - On Windows and non-Landlock Linux: sandbox unavailable, full shell access.
-//   - The allow_shell config toggle controls whether shell execution is permitted.
+//   - Pattern matching may not catch all variations of dangerous commands.
 //   - Users must trust the LLM provider when shell is enabled.
 //
 // If you need stricter isolation, consider:
@@ -45,6 +76,12 @@ var sudoPasswordPromptPattern = regexp.MustCompile(`^\[sudo\][^:\r\n]*:\s*`)
 // avoiding the Windows issue where exec.CommandContext only kills the parent shell but not grandchildren
 // (e.g., an ssh process spawned by powershell that holds pipes open indefinitely).
 func ExecuteShell(command, workspaceDir string) (string, string, error) {
+	// Security: Check for dangerous commands before execution
+	if blocked := isCommandBlocked(command); blocked != "" {
+		slog.Warn("[ExecuteShell] blocked dangerous command", "reason", blocked, "command", command)
+		return "", "", fmt.Errorf("command blocked: %s", blocked)
+	}
+
 	var cmd *exec.Cmd
 	absWorkDir := getAbsWorkspace(workspaceDir)
 
@@ -75,6 +112,12 @@ func ExecuteShell(command, workspaceDir string) (string, string, error) {
 
 // ExecuteShellBackground starts a command in the shell in the background and registers it.
 func ExecuteShellBackground(command, workspaceDir string, registry *ProcessRegistry) (int, error) {
+	// Security: Check for dangerous commands before execution
+	if blocked := isCommandBlocked(command); blocked != "" {
+		slog.Warn("[ExecuteShellBackground] blocked dangerous command", "reason", blocked, "command", command)
+		return 0, fmt.Errorf("command blocked: %s", blocked)
+	}
+
 	var cmd *exec.Cmd
 	absWorkDir := getAbsWorkspace(workspaceDir)
 
@@ -110,6 +153,12 @@ func ExecuteShellBackground(command, workspaceDir string, registry *ProcessRegis
 func ExecuteSudo(command, workspaceDir, password string) (string, string, error) {
 	if runtime.GOOS == "windows" {
 		return "", "", fmt.Errorf("execute_sudo is not supported on Windows")
+	}
+
+	// Security: Check for dangerous commands before execution
+	if blocked := isCommandBlocked(command); blocked != "" {
+		slog.Warn("[ExecuteSudo] blocked dangerous command", "reason", blocked, "command", command)
+		return "", "", fmt.Errorf("command blocked: %s", blocked)
 	}
 
 	// sudo -S reads the password from stdin; -n would fail if a password is needed.
