@@ -1,7 +1,9 @@
 package tools
 
 import (
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -90,6 +92,12 @@ func seedOneFile(db *sql.DB, srcDir, dataDir string, e seedEntry, logger *slog.L
 		return fmt.Errorf("stat %s: %w", dst, err)
 	}
 
+	// Compute file hash for deduplication — prevents duplicate rows on every restart.
+	fileHash, err := computeMediaFileHash(dst)
+	if err != nil {
+		logger.Warn("SeedWelcomeMedia: could not hash file, deduplication may fail", "path", dst, "error", err)
+	}
+
 	item := MediaItem{
 		MediaType:        e.MediaType,
 		SourceTool:       "seed",
@@ -107,6 +115,7 @@ func seedOneFile(db *sql.DB, srcDir, dataDir string, e seedEntry, logger *slog.L
 		Quality:          e.Quality,
 		GenerationTimeMs: e.GenerationTimeMs,
 		CostEstimate:     e.CostEstimate,
+		Hash:             fileHash,
 	}
 	id, skipped, regErr := RegisterMedia(db, item)
 	if regErr != nil {
@@ -137,4 +146,18 @@ func copyFile(src, dst string) error {
 		return err
 	}
 	return out.Sync()
+}
+
+// computeMediaFileHash returns the SHA-256 hex digest of a file.
+func computeMediaFileHash(path string) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
 }

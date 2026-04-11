@@ -96,15 +96,9 @@ func InitMediaRegistryDB(dbPath string) (*sql.DB, error) {
 }
 
 func repairLegacyMediaTypes(db *sql.DB) error {
-	// Check if already migrated using user_version
-	version, err := dbutil.GetUserVersion(db)
-	if err != nil {
-		return fmt.Errorf("check media schema version: %w", err)
-	}
-	if version >= 1 {
-		// Already migrated
-		return nil
-	}
+	// Always run: fix media_type for items where the file extension doesn't match the
+	// stored media_type (e.g. a .pdf stored as "image").  The UPDATE is idempotent
+	// (WHERE clause skips items that already have the correct type).
 
 	repairs := []struct {
 		mediaType string
@@ -130,8 +124,7 @@ func repairLegacyMediaTypes(db *sql.DB) error {
 		}
 	}
 
-	// Mark as done
-	return dbutil.SetUserVersion(db, 1)
+	return nil
 }
 
 // RegisterMedia inserts a new media item. Returns the ID. Uses ON CONFLICT for hash deduplication.
@@ -183,7 +176,11 @@ func RegisterMedia(db *sql.DB, item MediaItem) (int64, bool, error) {
 		return 0, false, fmt.Errorf("failed to insert media item: %w", err)
 	}
 	id, _ := res.LastInsertId()
-	return id, false, nil
+	rowsAffected, _ := res.RowsAffected()
+	// When ON CONFLICT triggers an UPDATE, SQLite returns RowsAffected=1 but
+	// LastInsertId=0 (no new row was created).  Detect this as a skip.
+	skipped := item.Hash != "" && id == 0 && rowsAffected <= 1
+	return id, skipped, nil
 }
 
 func inferMediaType(filename, filePath string) string {
