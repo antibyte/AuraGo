@@ -355,7 +355,7 @@
   "dashboard.tooling_telemetry_policy_adjustments_total": "Policy-justeringer",
   "dashboard.tooling_telemetry_policy_conservative_profile_applied": "Konservativ profil aktiv",
   "dashboard.tooling_telemetry_policy_events": "Policy-signaler",
-  "dashboard.tooling_telemetry_policy_events_short": "Policy {{count}}",
+  "dashboard.tooling_telemetry_policy_events_short": "Politi {{count}}",
   "dashboard.tooling_telemetry_retrieval_avg_share": "Gjennomsnittlig minne-prompt-andel",
   "dashboard.tooling_telemetry_retrieval_events": "Hentingsmålinger",
   "dashboard.tooling_telemetry_retrieval_events_short": "Henting {{count}}",

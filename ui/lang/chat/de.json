@@ -84,7 +84,7 @@
   "chat.thinking_only_done": "Fertig.",
   "chat.todo_panel_title": "📋 Aufgabenliste",
   "chat.token_counter_default": "0 Token",
-  "chat.token_counter_format": "{{count}} tok",
+  "chat.token_counter_format": "{{count}} Tok",
   "chat.tool_call_label": "Tool-Aufruf",
   "chat.tool_output_label": "Tool-Ausgabe",
   "chat.trait_affinity": "Zuneigung",

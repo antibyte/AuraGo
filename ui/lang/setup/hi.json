@@ -143,7 +143,7 @@
   "setup.step1_whisper_provider_openai": "OpenAI",
   "setup.step1_whisper_provider_openrouter": "OpenRouter",
   "setup.step2_badge": "🎨 वैकल्पिक",
-  "setup.step2_core_personality_default": "Friendly (friend)",
+  "setup.step2_core_personality_default": "मैत्रीपूर्ण (मित्र)",
   "setup.step2_core_personality_hint": "Base personality — affects tone and communication style. Custom personalities can be created as .md files.",
   "setup.step2_core_personality_label": "मुख्य व्यक्तित्व",
   "setup.step2_description": "AuraGo के व्यक्तित्व और केंद्रीय सहायक LLM को ठीक करें। सहायक LLM का उपयोग आंतरिक विश्लेषण, रखरखाव और सहायक सुविधाओं के लिए किया जाता है और इसे बाद में कॉन्फ़िगरेशन इंटरफ़ेस में बदला जा सकता है।",

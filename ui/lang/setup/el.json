@@ -143,7 +143,7 @@
   "setup.step1_whisper_provider_openai": "OpenAI",
   "setup.step1_whisper_provider_openrouter": "OpenRouter",
   "setup.step2_badge": "🎨 Προαιρετικό",
-  "setup.step2_core_personality_default": "Friendly (friend)",
+  "setup.step2_core_personality_default": "Φιλικό (φίλος)",
   "setup.step2_core_personality_hint": "Base personality — affects tone and communication style. Custom personalities can be created as .md files.",
   "setup.step2_core_personality_label": "Βασική προσωπικότητα",
   "setup.step2_description": "Λεπτομερής ρύθμιση της προσωπικότητας του AuraGo και του κεντρικού Βοηθητικού LLM. Το Βοηθητικό LLM χρησιμοποιείται για εσωτερικές αναλύσεις, συντήρηση και βοηθητικές λειτουργίες και μπορεί να αλλάξει αργότερα στη διεπαφή διαμόρφωσης.",

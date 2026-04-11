@@ -112,7 +112,7 @@
   "dashboard.integration_docker": "Docker",
   "dashboard.integration_email": "E-mail",
   "dashboard.integration_fallback_llm": "Záložní LLM",
-  "dashboard.integration_firewall": "Firewall",
+  "dashboard.integration_firewall": "Brána firewall",
   "dashboard.integration_fritzbox": "FritzBox",
   "dashboard.integration_github": "GitHub",
   "dashboard.integration_google_workspace": "Google Workspace",

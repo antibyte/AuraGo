@@ -197,7 +197,7 @@
   "dashboard.memory_notes": "Σημειώσεις",
   "dashboard.memory_show_core_facts": "Εμφάνιση βασικών γεγονότων",
   "dashboard.memory_title": "Μνήμη",
-  "dashboard.operations_api_tokens": "{{n}} API Tokens",
+  "dashboard.operations_api_tokens": "{{n}} Διακριτικά API",
   "dashboard.operations_buffered": "{{n}} σε buffer",
   "dashboard.operations_chars_count": "{{n}}k χαρακτήρες",
   "dashboard.operations_cheatsheets": "Φύλλα Εξαπάτησης",
