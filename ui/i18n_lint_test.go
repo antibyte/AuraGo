@@ -277,6 +277,294 @@ func TestTranslations_MultimodalKeysAreTranslated(t *testing.T) {
 	}
 }
 
+// TestTranslations_AllKeysPresentInAllLanguages verifies that all translation keys
+// present in en.json are also present in all other language files.
+func TestTranslations_AllKeysPresentInAllLanguages(t *testing.T) {
+	t.Parallel()
+
+	langs := []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"}
+	langDir := filepath.Join("lang")
+
+	// Find all subdirectories in lang/
+	entries, err := os.ReadDir(langDir)
+	if err != nil {
+		t.Skipf("ui/lang/ directory not found, skipping test: %v", err)
+	}
+
+	// Collect all translation directories (including nested ones like config/*/)
+	var transDirs []string
+
+	var walkDir func(path string)
+	walkDir = func(path string) {
+		entries, err := os.ReadDir(path)
+		if err != nil {
+			return
+		}
+		for _, e := range entries {
+			if !e.IsDir() {
+				continue
+			}
+			subPath := filepath.Join(path, e.Name())
+			// Check if this directory has an en.json file
+			enFile := filepath.Join(subPath, "en.json")
+			if _, err := os.Stat(enFile); err == nil {
+				transDirs = append(transDirs, subPath)
+			}
+			// Recursively check subdirectories
+			walkDir(subPath)
+		}
+	}
+
+	// Start with top-level directories
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		dirPath := filepath.Join(langDir, e.Name())
+		enFile := filepath.Join(dirPath, "en.json")
+		if _, err := os.Stat(enFile); err == nil {
+			transDirs = append(transDirs, dirPath)
+		}
+		// Also walk subdirectories
+		walkDir(dirPath)
+	}
+
+	if len(transDirs) == 0 {
+		t.Skip("No translation directories with en.json found")
+	}
+
+	var failures []string
+
+	for _, transDir := range transDirs {
+		relDir, _ := filepath.Rel("lang", transDir)
+		if relDir == "." {
+			relDir = "lang"
+		}
+
+		// Read en.json as reference
+		enFile := filepath.Join(transDir, "en.json")
+		enMap, err := readJSONFileMap(enFile)
+		if err != nil {
+			failures = append(failures, fmt.Sprintf("Failed to read %s: %v", enFile, err))
+			continue
+		}
+
+		// Collect all keys from en.json (including nested ones)
+		var collectKeys func(prefix string, m map[string]any, keys *[]string)
+		collectKeys = func(prefix string, m map[string]any, keys *[]string) {
+			for k, v := range m {
+				fullKey := k
+				if prefix != "" {
+					fullKey = prefix + "." + k
+				}
+				if nested, ok := v.(map[string]any); ok {
+					collectKeys(fullKey, nested, keys)
+				} else {
+					*keys = append(*keys, fullKey)
+				}
+			}
+		}
+
+		var enKeys []string
+		collectKeys("", enMap, &enKeys)
+
+		// Check each non-English language
+		for _, lang := range langs {
+			if lang == "en" {
+				continue
+			}
+
+			langFile := filepath.Join(transDir, lang+".json")
+			langMap, err := readJSONFileMap(langFile)
+			if err != nil {
+				failures = append(failures, fmt.Sprintf("Missing file %s: %v", langFile, err))
+				continue
+			}
+
+			// Collect all keys from the language file
+			var langKeys []string
+			collectKeys("", langMap, &langKeys)
+
+			// Build a set for quick lookup
+			langKeySet := make(map[string]bool)
+			for _, k := range langKeys {
+				langKeySet[k] = true
+			}
+
+			// Find missing keys
+			var missingKeys []string
+			for _, key := range enKeys {
+				if !langKeySet[key] {
+					missingKeys = append(missingKeys, key)
+				}
+			}
+
+			if len(missingKeys) > 0 {
+				failures = append(failures, fmt.Sprintf("Directory %s, language %s: missing %d keys: %v", relDir, lang, len(missingKeys), missingKeys))
+			}
+		}
+	}
+
+	if len(failures) > 0 {
+		t.Errorf("Found %d translation completeness issues:\n%s", len(failures), strings.Join(failures, "\n"))
+	}
+}
+
+// TestTranslations_NoNestedStructures verifies that all translation JSON files
+// contain flat string values (no nested objects) except for meta.json.
+func TestTranslations_NoNestedStructures(t *testing.T) {
+	t.Parallel()
+
+	langDir := filepath.Join("lang")
+	metaFile := filepath.Join(langDir, "meta.json")
+
+	var failures []string
+
+	var checkFile func(path string)
+	checkFile = func(path string) {
+		content, err := os.ReadFile(path)
+		if err != nil {
+			failures = append(failures, fmt.Sprintf("Failed to read %s: %v", path, err))
+			return
+		}
+
+		var m map[string]any
+		if err := json.Unmarshal(content, &m); err != nil {
+			failures = append(failures, fmt.Sprintf("Invalid JSON in %s: %v", path, err))
+			return
+		}
+
+		// Check for nested structures
+		var checkNested func(prefix string, v any)
+		checkNested = func(prefix string, v any) {
+			switch val := v.(type) {
+			case map[string]any:
+				for k, nestedV := range val {
+					newKey := k
+					if prefix != "" {
+						newKey = prefix + "." + k
+					}
+					if _, ok := nestedV.(map[string]any); ok {
+						failures = append(failures, fmt.Sprintf("Nested structure found at %s in %s", newKey, path))
+					} else {
+						checkNested(newKey, nestedV)
+					}
+				}
+			case []any:
+				// Arrays are also considered nested structures
+				failures = append(failures, fmt.Sprintf("Array found at %s in %s", prefix, path))
+			}
+		}
+
+		checkNested("", m)
+	}
+
+	var walkDir func(path string)
+	walkDir = func(path string) {
+		entries, err := os.ReadDir(path)
+		if err != nil {
+			return
+		}
+		for _, e := range entries {
+			fullPath := filepath.Join(path, e.Name())
+			if e.IsDir() {
+				walkDir(fullPath)
+			} else if strings.HasSuffix(e.Name(), ".json") {
+				// Skip meta.json
+				absMeta, _ := filepath.Abs(metaFile)
+				absPath, _ := filepath.Abs(fullPath)
+				if absPath == absMeta {
+					continue
+				}
+				checkFile(fullPath)
+			}
+		}
+	}
+
+	walkDir(langDir)
+
+	if len(failures) > 0 {
+		t.Errorf("Found %d files with nested structures:\n%s", len(failures), strings.Join(failures, "\n"))
+	}
+}
+
+// TestTranslations_AllLanguageFilesExist verifies that all translation directories
+// containing en.json also contain all 16 language files.
+func TestTranslations_AllLanguageFilesExist(t *testing.T) {
+	t.Parallel()
+
+	langs := []string{"cs", "da", "de", "el", "en", "es", "fr", "hi", "it", "ja", "nl", "no", "pl", "pt", "sv", "zh"}
+	langDir := filepath.Join("lang")
+
+	// Find all subdirectories in lang/
+	entries, err := os.ReadDir(langDir)
+	if err != nil {
+		t.Skipf("ui/lang/ directory not found, skipping test: %v", err)
+	}
+
+	// Collect all translation directories (including nested ones like config/*/)
+	var transDirs []string
+
+	var walkDir func(path string)
+	walkDir = func(path string) {
+		entries, err := os.ReadDir(path)
+		if err != nil {
+			return
+		}
+		for _, e := range entries {
+			if !e.IsDir() {
+				continue
+			}
+			subPath := filepath.Join(path, e.Name())
+			// Check if this directory has an en.json file
+			enFile := filepath.Join(subPath, "en.json")
+			if _, err := os.Stat(enFile); err == nil {
+				transDirs = append(transDirs, subPath)
+			}
+			// Recursively check subdirectories
+			walkDir(subPath)
+		}
+	}
+
+	// Start with top-level directories
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		dirPath := filepath.Join(langDir, e.Name())
+		enFile := filepath.Join(dirPath, "en.json")
+		if _, err := os.Stat(enFile); err == nil {
+			transDirs = append(transDirs, dirPath)
+		}
+		// Also walk subdirectories
+		walkDir(dirPath)
+	}
+
+	if len(transDirs) == 0 {
+		t.Skip("No translation directories with en.json found")
+	}
+
+	var failures []string
+
+	for _, transDir := range transDirs {
+		relDir, _ := filepath.Rel("lang", transDir)
+		if relDir == "." {
+			relDir = "lang"
+		}
+
+		for _, lang := range langs {
+			langFile := filepath.Join(transDir, lang+".json")
+			if _, err := os.Stat(langFile); os.IsNotExist(err) {
+				failures = append(failures, fmt.Sprintf("Directory %s: missing file %s.json", relDir, lang))
+			}
+		}
+	}
+
+	if len(failures) > 0 {
+		t.Errorf("Found %d missing language files:\n%s", len(failures), strings.Join(failures, "\n"))
+	}
+}
+
 func readJSONFileMap(path string) (map[string]any, error) {
 	b, err := os.ReadFile(path)
 	if err != nil {
