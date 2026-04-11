@@ -788,8 +788,8 @@ func TestRewriteLocalhostForContainer(t *testing.T) {
 		{"http://localhost:8080", "http://host.docker.internal:8080"},
 		{"http://127.0.0.1:3000/path", "http://host.docker.internal:3000/path"},
 		{"https://localhost:443/foo", "https://host.docker.internal:443/foo"},
-		{"http://192.168.1.100:8080", "http://192.168.1.100:8080"},       // not rewritten
-		{"https://example.com", "https://example.com"},                   // not rewritten
+		{"http://192.168.1.100:8080", "http://192.168.1.100:8080"}, // not rewritten
+		{"https://example.com", "https://example.com"},             // not rewritten
 		{"http://localhost/no-port", "http://host.docker.internal/no-port"},
 	}
 	for _, tt := range tests {
