@@ -179,6 +179,15 @@ func isPrivateIP(ip net.IP) bool {
 	return ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast()
 }
 
+// extractHostFromURL extracts the hostname from a URL string.
+func extractHostFromURL(rawURL string) string {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return ""
+	}
+	return parsed.Hostname()
+}
+
 // sanitizeProjectDir validates a project directory name for use in shell commands.
 // It rejects path traversal, shell metacharacters, and absolute paths.
 func sanitizeProjectDir(projectDir string) error {
@@ -610,7 +619,10 @@ func HomepageInitProject(cfg HomepageConfig, framework, name, template string, l
 	var cmd string
 	switch strings.ToLower(framework) {
 	case "next", "nextjs", "next.js":
-		cmd = fmt.Sprintf("npx --yes create-next-app@latest %s --ts --tailwind --app --src-dir --no-import-alias --eslint", name)
+		// --eslint flag tells create-next-app to set up ESLint, but ESLint v9+ flat config
+		// requires @eslint/js as an explicit dependency.  We append a post-install step
+		// so that linting works out of the box.
+		cmd = fmt.Sprintf("npx --yes create-next-app@latest %s --ts --tailwind --app --src-dir --no-import-alias --eslint && cd %s && npm install --save-dev @eslint/js", name, name)
 	case "vite", "react":
 		cmd = fmt.Sprintf("npx --yes create-vite@latest %s -- --template react-ts", name)
 	case "astro":
@@ -813,8 +825,10 @@ func HomepageLighthouse(cfg HomepageConfig, url string, logger *slog.Logger) str
 	}
 	logger.Info("[Homepage] Lighthouse", "url", url)
 	dockerCfg := DockerConfig{Host: cfg.DockerHost}
-	// Run lighthouse with JSON output, extract key scores
-	cmd := fmt.Sprintf(`lighthouse "%s" --output json --chrome-flags="--headless --no-sandbox --disable-gpu" 2>/dev/null | jq '{performance: .categories.performance.score, accessibility: .categories.accessibility.score, bestPractices: .categories["best-practices"].score, seo: .categories.seo.score, fcp: .audits["first-contentful-paint"].displayValue, lcp: .audits["largest-contentful-paint"].displayValue, cls: .audits["cumulative-layout-shift"].displayValue, tbt: .audits["total-blocking-time"].displayValue, errorsInConsole: .audits["errors-in-console"].score, consoleErrors: (.audits["errors-in-console"].details.items // [] | length)}'`, url)
+	// Run lighthouse with JSON output, capture stderr in a temp file so errors
+	// are not silently swallowed.  Extract key scores via jq; if the result is
+	// empty (lighthouse crashed / Chrome failed), return stderr as error.
+	cmd := fmt.Sprintf(`LHERR=$(mktemp) && lighthouse "%s" --output json --chrome-flags="--headless --no-sandbox --disable-gpu" 2>"$LHERR" | jq '{performance: .categories.performance.score, accessibility: .categories.accessibility.score, bestPractices: .categories["best-practices"].score, seo: .categories.seo.score, fcp: .audits["first-contentful-paint"].displayValue, lcp: .audits["largest-contentful-paint"].displayValue, cls: .audits["cumulative-layout-shift"].displayValue, tbt: .audits["total-blocking-time"].displayValue, errorsInConsole: .audits["errors-in-console"].score, consoleErrors: (.audits["errors-in-console"].details.items // [] | length)}' > /tmp/lh_result.json; if [ ! -s /tmp/lh_result.json ] || grep -q 'null' /tmp/lh_result.json && ! grep -q '"performance"' /tmp/lh_result.json; then echo '{"status":"error","message":"Lighthouse produced no results. This usually means Chrome failed to start or the URL was unreachable inside the container.","stderr":"'"$(tail -20 "$LHERR" | tr '"' "'" | tr '\n' ' ')"'"}'; else cat /tmp/lh_result.json; fi; rm -f "$LHERR" /tmp/lh_result.json`, url)
 	return DockerExec(dockerCfg, homepageContainerName, cmd, "")
 }
 
@@ -862,6 +876,12 @@ const {chromium} = require('playwright');
 	if strings.Contains(result, "Cannot find module 'playwright'") || strings.Contains(result, "MODULE_NOT_FOUND") {
 		if logger != nil {
 			logger.Warn("[Homepage] Playwright missing in homepage container, falling back to web_capture")
+		}
+		// The WebCapture fallback enforces SSRF protection which blocks private/local IPs.
+		// Detect this case and return a helpful error instead of a generic SSRF block.
+		if isPrivateHost(extractHostFromURL(url)) {
+			return errJSON("Cannot take screenshot of local URL %q: Playwright is not installed in the homepage container and the fallback screenshot tool blocks private IPs (SSRF protection). "+
+				"Fix: run homepage exec 'npm i -g playwright && npx playwright install chromium' to install Playwright in the container, then retry.", url)
 		}
 		return homepageWebCaptureFunc(ctx, "screenshot", url, "", true, "agent_workspace/workdir")
 	}
