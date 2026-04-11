@@ -1637,46 +1637,24 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		if parsedToolResp.IncompleteToolCall && !tc.IsTool && incompleteToolCallCount < 3 {
 			incompleteToolCallCount++
 			currentLogger.Warn("[Sync] Incomplete <tool_call> tag detected, nudging model to emit actual tool call", "attempt", incompleteToolCallCount)
-			broker.Send("error_recovery", i18n.T(cfg.Server.UILanguage, "backend.stream_error_recovery_incomplete_tool_call"))
-
-			id, err := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleAssistant, content, false, true)
-			if err != nil {
-				currentLogger.Error("Failed to persist assistant message to SQLite", "error", err)
+			feedbackMsg := applyEmotionRecoveryNudge(FormatIncompleteToolCallFeedback(useNativeFunctions, incompleteToolCallCount), emotionPolicy)
+			msgs := recoverySession.PersistRecoveryMessages(PersistRecoveryParams{
+				SessionID:        sessionID,
+				AssistantContent: content,
+				FeedbackMsg:      feedbackMsg,
+				BrokerEventType:  "error_recovery",
+			}, shortTermMem, historyManager)
+			// Override the assistant message in req.Messages with cleaned content
+			// (strip bare XML tool tags so the model does not repeat the invalid format).
+			if len(msgs) > 0 {
+				cleanedContent := bareToolCallTagRe.ReplaceAllString(content, "")
+				cleanedContent = strings.TrimSpace(cleanedContent)
+				if cleanedContent == "" {
+					cleanedContent = parsedToolResp.SanitizedContent
+				}
+				msgs[0].Content = cleanedContent
 			}
-			if sessionID == "default" {
-				historyManager.Add(openai.ChatMessageRoleAssistant, content, id, false, true)
-			}
-
-			var feedbackMsg string
-			if useNativeFunctions {
-				feedbackMsg = "ERROR: You emitted a bare <tool_call> or <minimax:tool_call> tag but did not produce an actual tool call. You MUST use the native function-calling mechanism to invoke tools. Do NOT output any XML tags in text — use the structured function call API instead."
-			} else if incompleteToolCallCount >= 2 {
-				// Escalate on second attempt - be very explicit about tool_call tags
-				// CHANGE LOG 2026-04-11: Removed concrete example tool names to prevent hallucination.
-				// Models that understand the format don't need examples; models that don't won't be helped.
-				feedbackMsg = "CRITICAL ERROR: You sent '<tool_call>' as raw text again. This is not a valid tool call format. Do NOT output any XML tags at all. Output a raw JSON object starting with '{'."
-			} else {
-				// CHANGE LOG 2026-04-11: Removed concrete example tool names to prevent hallucination.
-				feedbackMsg = "ERROR: You emitted a bare <tool_call> tag but did not include the JSON body. Do NOT output XML tags. Output ONLY the raw JSON tool call object - no XML tags, no explanation, no preamble."
-			}
-			feedbackMsg = applyEmotionRecoveryNudge(feedbackMsg, emotionPolicy)
-			id, err = shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, feedbackMsg, false, true)
-			if err != nil {
-				currentLogger.Error("Failed to persist incomplete tool call feedback message to SQLite", "error", err)
-			}
-			if sessionID == "default" {
-				historyManager.Add(openai.ChatMessageRoleUser, feedbackMsg, id, false, true)
-			}
-
-			// Strip bare XML tool tags from the assistant message before adding to context,
-			// so the model does not learn to repeat the same invalid format.
-			cleanedContent := bareToolCallTagRe.ReplaceAllString(content, "")
-			cleanedContent = strings.TrimSpace(cleanedContent)
-			if cleanedContent == "" {
-				cleanedContent = parsedToolResp.SanitizedContent
-			}
-			req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: cleanedContent})
-			req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: feedbackMsg})
+			req.Messages = append(req.Messages, msgs...)
 			lastResponseWasTool = false
 			continue
 		}
@@ -1756,28 +1734,14 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			(strings.Contains(content, `"action"`) || strings.Contains(content, `'action'`)) {
 			missedToolCount++
 			currentLogger.Warn("[Sync] Missed tool call in fence, sending corrective feedback", "attempt", missedToolCount, "content_preview", Truncate(content, 150))
-			broker.Send("error_recovery", i18n.T(cfg.Server.UILanguage, "backend.stream_error_recovery_fence_json"))
-
-			id, err := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleAssistant, content, false, true)
-			if err != nil {
-				currentLogger.Error("Failed to persist assistant message to SQLite", "error", err)
-			}
-			if sessionID == "default" {
-				historyManager.Add(openai.ChatMessageRoleAssistant, content, id, false, true)
-			}
-
-			feedbackMsg := "ERROR: Your response contained explanation text and/or markdown fences (```json). Tool calls MUST be a raw JSON object ONLY - no explanation before or after, no markdown, no fences. Output ONLY the JSON object, starting with { and ending with }. Example: {\"action\": \"<tool_name>\", \"<param>\": \"<value>\"}"
-			feedbackMsg = applyEmotionRecoveryNudge(feedbackMsg, emotionPolicy)
-			id, err = shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, feedbackMsg, false, true)
-			if err != nil {
-				currentLogger.Error("Failed to persist feedback message to SQLite", "error", err)
-			}
-			if sessionID == "default" {
-				historyManager.Add(openai.ChatMessageRoleUser, feedbackMsg, id, false, true)
-			}
-
-			req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: content})
-			req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: feedbackMsg})
+			feedbackMsg := applyEmotionRecoveryNudge(FormatMissedToolInFenceFeedback(), emotionPolicy)
+			msgs := recoverySession.PersistRecoveryMessages(PersistRecoveryParams{
+				SessionID:        sessionID,
+				AssistantContent: content,
+				FeedbackMsg:      feedbackMsg,
+				BrokerEventType:  "error_recovery",
+			}, shortTermMem, historyManager)
+			req.Messages = append(req.Messages, msgs...)
 			continue
 		}
 

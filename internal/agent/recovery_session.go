@@ -180,3 +180,8 @@ func FormatOrphanedBracketTagFeedback(useNativeFunctions bool) string {
 func FormatBareXMLInNativeModeFeedback() string {
 	return "ERROR: Your response contained a literal  XML tag but no actual function call was made. You MUST use the native function-calling mechanism — do not write XML tags. Call the function directly using the tool call interface now."
 }
+
+// FormatMissedToolInFenceFeedback returns the feedback message for tool calls wrapped in markdown fences.
+func FormatMissedToolInFenceFeedback() string {
+	return "ERROR: Your response contained explanation text and/or markdown fences (```json). Tool calls MUST be a raw JSON object ONLY - no explanation before or after, no markdown, no fences. Output ONLY the JSON object, starting with { and ending with }. Example: {\"action\": \"<tool_name>\", \"<param>\": \"<value>\"}"
+}
