@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"encoding/json"
 	"strings"
 )
 
@@ -229,5 +230,62 @@ func ClassifyToolCallProblem(
 	}
 
 	// No problem detected
+	return ToolCallProblem{}
+}
+
+// ValidateToolCall performs post-parsing schema validation.
+// Returns a ToolCallProblem if validation fails, or an empty problem if valid.
+//
+// Validation rules:
+//   - If IsTool is true, Action must be non-empty
+//   - If NativeArgsMalformed is true, it's a schema error
+//   - If RawJSON is non-empty but parsing failed (IsTool false), it's likely a schema issue
+func ValidateToolCall(tc ToolCall) ToolCallProblem {
+	// If IsTool is set, Action MUST be present
+	if tc.IsTool && tc.Action == "" {
+		return ToolCallProblem{
+			Category:   RecoveryCategorySchemaError,
+			SubType:    "missing_action_field",
+			RetryCount: 0,
+			MaxRetries: 2,
+			Retryable:  true,
+			Suggestion: "Parsed tool call is missing the 'action' field",
+		}
+	}
+
+	// If native args are malformed, it's a schema error
+	if tc.NativeArgsMalformed {
+		return ToolCallProblem{
+			Category:   RecoveryCategorySchemaError,
+			SubType:    "malformed_native_args",
+			RetryCount: 0,
+			MaxRetries: 2,
+			Retryable:  true,
+			Suggestion: "Native function arguments JSON is malformed",
+		}
+	}
+
+	// If we have raw JSON but didn't successfully parse as a tool, that's suspicious
+	// This could indicate the model sent valid JSON but with wrong field names
+	if tc.RawJSON != "" && !tc.IsTool {
+		// Check if RawJSON looks like a tool call but with non-standard field names
+		normalized := normalizeTagsInJSON(tc.RawJSON)
+		var check ToolCall
+		if json.Unmarshal([]byte(normalized), &check) == nil {
+			// JSON parsed but didn't have required fields
+			if check.Action == "" && check.Name == "" && check.ToolCallAction == "" {
+				return ToolCallProblem{
+					Category:   RecoveryCategorySchemaError,
+					SubType:    "unrecognized_json_structure",
+					RetryCount: 0,
+					MaxRetries: 2,
+					Retryable:  true,
+					Suggestion: "JSON parsed but no recognized tool call fields found",
+				}
+			}
+		}
+	}
+
+	// Valid tool call
 	return ToolCallProblem{}
 }
