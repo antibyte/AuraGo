@@ -416,7 +416,7 @@
   "dashboard.helper_llm_requests": "Anmodninger",
   "dashboard.helper_llm_cache_hits": "Cache-truffere",
   "dashboard.helper_llm_llm_calls": "LLM kald",
-  "dashboard.helper_llm_fallbacks": "Fallbacks",
+  "dashboard.helper_llm_fallbacks": "Failovers",
   "dashboard.helper_llm_operation_empty": "Ingen helper operationer registreret endnu.",
   "dashboard.helper_llm_operation_last": "Sidste detalje",
   "dashboard.helper_llm_operation_analyze_turn": "Tur analyse",
