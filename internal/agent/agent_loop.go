@@ -1446,6 +1446,22 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 		currentLogger.Debug("[Sync] Tool detection", "is_tool", tc.IsTool, "action", tc.Action, "raw_code", tc.RawCodeDetected)
 
+		// CHANGE LOG 2026-04-11: Telemetry overlay for RecoveryClassifier.
+		// Classifies the current tool call attempt for observability. This does NOT
+		// change behavior — it only logs the category for future migration planning.
+		// When the ConsolidatedRecoveryHandler is fully integrated, this overlay will
+		// replace the 7+ individual feedback loops below.
+		if !tc.IsTool {
+			problem := ClassifyToolCallProblem(tc, content, parsedToolResp, useNativeFunctions)
+			if problem.Category != RecoveryCategoryNone {
+				RecordToolRecoveryEventForScope(telemetryScope, "classifier_"+problem.Category.String()+"_"+problem.SubType)
+				currentLogger.Debug("[RecoveryClassifier] Problem detected",
+					"category", problem.Category.String(),
+					"subtype", problem.SubType,
+					"retryable", problem.Retryable)
+			}
+		}
+
 		// Clear explicit tools after they've been consumed (they were injected this iteration)
 		if len(explicitTools) > 0 {
 			explicitTools = explicitTools[:0]
