@@ -131,7 +131,7 @@
   "missions.form_priority_medium": "🟡 Medium",
   "missions.form_prompt_label": "Prompt / Taak",
   "missions.form_prompt_placeholder": "Beschrijf de taak voor de agent...",
-  "missions.heading": "🎯 Mission Control",
+  "missions.heading": "🎯 Missiecontrole",
   "missions.logo_subtitle": "MISSIES",
   "missions.meta_run_count": "{{count}}x uitgevoerd",
   "missions.modal_btn_cancel": "Annuleren",

@@ -24,7 +24,7 @@
   "chat.credits_tooltip_payg": "OpenRouter: ${{usage}} forbrugt (pay-as-you-go)",
   "chat.credits_tooltip_used_limit": "OpenRouter: ${{usage}} forbrugt / ${{limit}} grænse",
   "chat.debug_pill": "debug",
-  "chat.debug_pill_on": "🔍 debug",
+  "chat.debug_pill_on": "🔍 fejlfinding",
   "chat.debug_pill_title": "Skift fejlretningstilstand (/debug til|fra)",
   "chat.error_connection": "⚠️ Forbindelsesfejl:",
   "chat.error_timeout": "⚠️ Timeout: Agenten tog for lang tid. Prøv venligst igen.",

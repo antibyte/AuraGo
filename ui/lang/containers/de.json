@@ -15,7 +15,7 @@
   "containers.btn_stop": "⏹ Stoppen",
   "containers.btn_restart": "🔄 Neustarten",
   "containers.btn_unpause": "▶ Fortsetzen",
-  "containers.btn_logs": "📄 Logs",
+  "containers.btn_logs": "📄 Protokolle",
   "containers.btn_inspect": "🔍 Details",
   "containers.btn_remove": "🗑 Entfernen",
   "containers.logs_title": "Container-Logs",

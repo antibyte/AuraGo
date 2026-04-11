@@ -15,7 +15,7 @@
   "containers.btn_stop": "⏹ Stoppen",
   "containers.btn_restart": "🔄 Herstarten",
   "containers.btn_unpause": "▶ Hervatten",
-  "containers.btn_logs": "📄 Logs",
+  "containers.btn_logs": "📄 Logboeken",
   "containers.btn_inspect": "🔍 Inspecteren",
   "containers.btn_remove": "🗑 Verwijderen",
   "containers.logs_title": "Container-logs",

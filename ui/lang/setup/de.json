@@ -91,7 +91,7 @@
   "setup.step0_description": "AuraGo benötigt mindestens eine LLM-Anbindung um zu funktionieren. Wähle deinen Provider und trage den API-Key ein.",
   "setup.step0_language_heading": "🌐 Sprache",
   "setup.step0_language_label": "Sprache",
-  "setup.step0_model_browse": "🌐 Browse",
+  "setup.step0_model_browse": "🌐 Durchsuchen",
   "setup.step0_model_error": "Modellname wird benötigt.",
   "setup.step0_model_label": "Modell",
   "setup.step0_model_placeholder": "z.B. gpt-4o, claude-sonnet-4-20250514",

@@ -131,7 +131,7 @@
   "missions.form_priority_medium": "🟡 Moyenne",
   "missions.form_prompt_label": "Prompt / Tâche",
   "missions.form_prompt_placeholder": "Décrivez la tâche pour l'agent...",
-  "missions.heading": "🎯 Mission Control",
+  "missions.heading": "🎯 Contrôle des missions",
   "missions.logo_subtitle": "MISSIONS",
   "missions.meta_run_count": "{{count}}x exécutée",
   "missions.modal_btn_cancel": "Annuler",

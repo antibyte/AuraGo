@@ -131,7 +131,7 @@
   "setup.step1_vision_provider_ollama": "Ollama",
   "setup.step1_vision_provider_openai": "OpenAI",
   "setup.step1_vision_provider_openrouter": "OpenRouter",
-  "setup.step1_whisper_heading": "🎤 Speech-to-Text (Whisper)",
+  "setup.step1_whisper_heading": "🎤 Mowa na tekst (Whisper)",
   "setup.step1_whisper_mode_label": "Tryb",
   "setup.step1_whisper_mode_local": "Lokalny (Ollama)",
   "setup.step1_whisper_mode_multimodal": "Multimodalny (Gemini / LLM)",

@@ -49,7 +49,7 @@
   "dashboard.budget_llm_avg_title": "Ø Token-Verbrauch / Anfrage",
   "dashboard.budget_llm_avg_xlabel": "Token / Anfrage",
   "dashboard.budget_openrouter_credits": "OpenRouter Guthaben",
-  "dashboard.budget_reset_in": "↯ Reset in {{hours}}h {{minutes}}m",
+  "dashboard.budget_reset_in": "↯ Zurücksetzen in {{hours}}h {{minutes}}m",
   "dashboard.budget_sublabel": "von {{amount}}",
   "dashboard.budget_title": "Budget & Tokens",
   "dashboard.budget_warning": "Warnung",
