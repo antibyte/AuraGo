@@ -178,7 +178,7 @@
   "dashboard.memory_curator_no_stale": "Inga inaktuella minneskandidater",
   "dashboard.memory_curator_title": "Minneshälsa",
   "dashboard.memory_embeddings": "Embeddingar",
-  "dashboard.memory_embeddings_disabled": "Embeddings ✗",
+  "dashboard.memory_embeddings_disabled": "Inbäddningar ✗",
   "dashboard.memory_episodic": "Episoder",
   "dashboard.memory_episodic_agent_user": "användare, agent",
   "dashboard.memory_episodic_empty": "Inga nyliga episoder ännu",
