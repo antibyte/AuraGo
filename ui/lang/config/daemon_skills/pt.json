@@ -1,7 +1,7 @@
 {
   "config.daemon_skills.enabled_label": "Ativado",
   "config.daemon_skills.max_concurrent_daemons_label": "Daemons simultâneos máx.",
-  "config.daemon_skills.global_rate_limit_secs_label": "Limite de taxa global (segundos)",
+  "config.daemon_skills.global_rate_limit_secs_label": "Global Rate Limit (seconds)",
   "config.daemon_skills.max_wakeups_per_hour_label": "Despertares máx. por hora",
   "config.daemon_skills.max_budget_per_hour_label": "Orçamento máx. por hora (USD)",
   "help.daemon_skills.enabled": "Ativar ou desativar as skills daemon globalmente",

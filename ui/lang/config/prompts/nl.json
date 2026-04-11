@@ -1,6 +1,6 @@
 {
-  "config.prompts.additional_prompt_title": "Aanvullende Systeem Prompt",
-  "config.prompts.additional_prompt_label": "Aanvullende instructies (altijd toegevoegd aan het einde van de systeem prompt)",
+  "config.prompts.additional_prompt_title": "Additional System Prompt",
+  "config.prompts.additional_prompt_label": "Additional instructions (always appended at the end of the system prompt)",
   "config.prompts.personalities_title": "Persoonlijkheidsprofielen",
   "config.prompts.active_label": "Actief: ",
   "config.prompts.new_personality": "Nieuwe Persoonlijkheid",
@@ -21,7 +21,7 @@
   "config.prompts.conflict_neutral": "Neutraal (feitelijk, gebalanceerd)",
   "config.prompts.conflict_submissive": "Onderdanig (toegevend, harmonie-zoekend)",
   "config.prompts.conflict_assertive": "Assertief (direct, confronterend)",
-  "config.prompts.prompt_text_label": "📝 Prompt tekst (Markdown, zonder metadata)",
+  "config.prompts.prompt_text_label": "📝 Prompt text (Markdown, without metadata)",
   "config.prompts.metadata_hint": "Metadata wordt automatisch toegevoegd bij het opslaan.",
   "config.prompts.save": "Opslaan",
   "config.prompts.set_active": "Actief Instellen",
@@ -34,6 +34,6 @@
   "config.prompts.name_required": "Naam is verplicht.",
   "config.prompts.saved": "Opgeslagen.",
   "config.prompts.setting_active": "Actief instellen...",
-  "config.prompts.delete_confirm": "Persoonlijkheid \"{name}\" echt verwijderen?",
+  "config.prompts.delete_confirm": "Really delete personality \"{name}\"?",
   "config.prompts.deleting": "Verwijderen..."
 }

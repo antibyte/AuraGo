@@ -11,7 +11,7 @@
   "help.skill_manager.allow_uploads": "Tillat opplasting av nye Python-ferdighetsfiler",
   "help.skill_manager.read_only": "Når aktivert, forhindres alle endringer i ferdigheter (ingen opplasting, sletting eller veksling)",
   "help.skill_manager.require_scan": "Kjør en sikkerhetssjekk på opplastede ferdigheter før aktivering",
-  "help.skill_manager.require_sandbox": "Når aktivert, kan ferdigheter kun kjøres i den sandboxed container-miljøen. Dette forhindrer direkte systemtilgang.",
+  "help.skill_manager.require_sandbox": "When enabled, skills can only be executed inside the sandboxed container environment. This prevents direct access to the system.",
   "help.skill_manager.auto_enable_clean": "Aktiver automatisk ferdigheter som passerer sikkerhetssjekken uten advarsler",
   "help.skill_manager.scan_with_guardian": "Bruk LLM Guardian til å gjennomgå opplastet ferdighetskode for sikkerhetsproblemer",
   "help.skill_manager.max_upload_size_mb": "Maksimal tillatt filstørrelse for ferdighetsopplastinger i megabyte"

@@ -1,7 +1,7 @@
 {
   "config.security.panel_title": "Sikkerhetsrevisjon",
   "config.security.no_issues": "Ingen sikkerhetsproblemer funnet",
-  "config.security.fix_all_auto": "Fiks {n} automatisk løsbart/løsbare problem(er)",
+  "config.security.fix_all_auto": "Fix {n} auto-fixable issue(s)",
   "config.security.fix_now": "Fiks nå",
   "config.security.applying": "Bruker…",
   "config.security.severity.critical": "KRITISK",

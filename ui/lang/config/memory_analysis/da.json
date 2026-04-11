@@ -1,7 +1,7 @@
 {
   "config.memory_analysis.enabled_label": "Hukommelsesanalyse aktiveret:",
   "config.memory_analysis.disabled_notice": "Hukommelsesanalyse er deaktiveret",
-  "config.memory_analysis.auto_notice": "Adaptiv memory-strategi er altid aktiv",
+  "config.memory_analysis.auto_notice": "Adaptive memory strategy is always active",
   "config.memory_analysis.auto_desc": "AuraGo aktiverer automatisk samlet memory-kontekst, effektivitetsmåling, realtidsudtræk, query expansion og reranking baseret på live memory-sundhed og retrieval-kvalitet.",
   "config.memory_analysis.select_provider": "— Hoved-LLM (standard) —",
   "config.memory_analysis.model_label": "Model",

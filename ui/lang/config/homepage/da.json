@@ -42,7 +42,7 @@
   "config.homepage.optional": "valgfrit",
   "config.homepage.workspace_title": "Arbejdsområde",
   "config.homepage.workspace_path": "Arbejdsområdesti",
-  "config.homepage.workspace_path_missing_warning": "Webserveren er aktiveret, men arbejdsområdestien er ikke angivet. Angiv den absolutte værtsti til dit projekt (f.eks. /home/aurago/aurago/agent_workspace/homepage) eller brug automatisk registrering.",
+  "config.homepage.workspace_path_missing_warning": "The web server is enabled but no workspace path is set. Enter the absolute host path to your homepage project (e.g. /home/aurago/aurago/agent_workspace/homepage) or click Auto-detect to find it automatically.",
   "config.homepage.workspace_autodetect_btn": "Auto-registrer",
   "config.homepage.workspace_autodetect_title": "Registrer automatisk arbejdsområdestien fra den kørende homepage-container",
   "config.homepage.workspace_autodetect_loading": "Registrerer…",

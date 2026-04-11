@@ -9,11 +9,11 @@
   "config.llm_guardian.model_label": "Μοντέλο",
   "config.llm_guardian.model_hint": "κενό = προεπιλογή παρόχου",
   "config.llm_guardian.level_title": "Επίπεδο προστασίας",
-  "config.llm_guardian.level_desc": "Ελέγχει ποιες κλήσεις εργαλείων αποστέλλονται στο Guardian για έλεγχο. Υψηλότερα επίπεδα ελέγχουν περισσότερες λειτουργίες αλλά κοστίζουν περισσότερα tokens.",
+  "config.llm_guardian.level_desc": "Controls which tool calls are sent to the Guardian for review. Higher levels check more operations but cost more tokens.",
   "config.llm_guardian.level_label": "Προεπιλεγμένο επίπεδο",
   "config.llm_guardian.level_off": "Απενεργοποιημένο — Χωρίς ελέγχους LLM",
   "config.llm_guardian.level_low": "Χαμηλό — Μόνο εργαλεία υψηλού κινδύνου (shell, sudo, python)",
-  "config.llm_guardian.level_medium": "Μεσαίο — Όλα τα εργαλεία + εξωτερικά API",
+  "config.llm_guardian.level_medium": "Medium — All tools + external APIs",
   "config.llm_guardian.level_high": "Υψηλό — Κάθε κλήση εργαλείου ελέγχεται",
   "config.llm_guardian.failsafe_title": "Συμπεριφορά ασφαλείας",
   "config.llm_guardian.failsafe_desc": "Τι συμβαίνει όταν το Guardian LLM δεν είναι διαθέσιμο ή επιστρέφει σφάλμα (timeout, όριο ρυθμού κ.λπ.).",
@@ -33,7 +33,7 @@
   "config.llm_guardian.clarification_desc": "Όταν ενεργοποιηθεί, ο πράκτορας μπορεί να παρέχει αιτιολόγηση εάν μια κλήση εργαλείου αποκλειστεί. Ο Guardian επαναξιολογεί το αίτημα μία φορά με την αιτιολόγηση πριν λάβει την τελική απόφαση.",
   "config.llm_guardian.clarification_label": "Να επιτρέπεται η διευκρίνιση πράκτορα",
   "config.llm_guardian.scan_title": "Σάρωση περιεχομένου",
-  "config.llm_guardian.scan_desc": "Χρησιμοποιεί τον Guardian LLM για σάρωση εισερχόμενου περιεχομένου (email, webhooks) για ένεση prompt, phishing και επιθέσεις κοινωνικής μηχανικής — πέρα από τα ενσωματωμένα μοτίβα regex.",
+  "config.llm_guardian.scan_desc": "Use the Guardian LLM to scan incoming content (emails, webhooks) for prompt injection, phishing, and social engineering attacks — beyond the built-in regex patterns.",
   "config.llm_guardian.scan_emails_label": "Σάρωση εισερχόμενων email",
   "config.llm_guardian.scan_documents_label": "Σάρωση webhook payloads"
 }

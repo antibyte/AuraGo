@@ -19,7 +19,7 @@
   "config.devices.mac_address": "MAC-adresse",
   "config.devices.mac_hint": "valgfritt, nødvendig for Wake-on-LAN",
   "config.devices.tags_hint": "kommadelt",
-  "config.devices.tags_placeholder": "f.eks. produksjon, linux, docker",
+  "config.devices.tags_placeholder": "e.g. production, linux, docker",
   "config.devices.vault_read_only": "skrivebeskyttet",
   "config.devices.new_device": "＋ Ny enhet",
   "config.devices.name_required": "Navn er påkrevd.",

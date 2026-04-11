@@ -1,7 +1,7 @@
 {
   "config.adguard.enabled_label": "Ενεργοποιημένο",
   "config.adguard.readonly_label": "Λειτουργία μόνο ανάγνωσης",
-  "config.adguard.url_label": "URL AdGuard Home",
+  "config.adguard.url_label": "AdGuard Home URL",
   "config.adguard.username_label": "Όνομα χρήστη",
   "config.adguard.password_label": "Κωδικός (Vault)",
   "config.adguard.password_placeholder": "Εισάγετε κωδικό…",
@@ -22,7 +22,7 @@
   "config.adguard.password_save_failed": "Αποτυχία αποθήκευσης κωδικού στο vault.",
   "help.adguard.enabled": "Ενεργοποιεί την ενσωμάτωση AdGuard Home. Ο πράκτορας μπορεί να ρωτά στατιστικά DNS, να διαχειρίζεται φίλτρα, επαναγραφές, αποκλεισμένες υπηρεσίες και άλλα.",
   "help.adguard.readonly": "Σε λειτουργία μόνο ανάγνωσης, ο πράκτορας μπορεί μόνο να διαβάζει δεδομένα. Όλες οι λειτουργίες εγγραφής αποκλείονται.",
-  "help.adguard.url": "Βασικό URL της εγκατάστασης AdGuard Home (π.χ. http://192.168.1.1:3000).",
+  "help.adguard.url": "Base URL of your AdGuard Home instance (e.g. http://192.168.1.1:3000).",
   "help.adguard.username": "Όνομα χρήστη για πιστοποίηση. Αφήστε κενό αν η πιστοποίηση είναι απενεργοποιημένη.",
   "help.adguard.password": "Κωδικός για πιστοποίηση. Αποθηκεύεται με ασφάλεια στο κρυπτογραφημένο vault."
 }

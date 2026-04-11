@@ -3,7 +3,7 @@
   "config.onedrive.readonly_label": "Skrivebeskyttet modus",
   "config.onedrive.readonly_hint": "Når aktiv, er kun leseoperasjoner tillatt (ingen opplasting, sletting, flytting, kopiering eller deling)",
   "config.onedrive.auth_title": "Autentisering",
-  "config.onedrive.auth_desc": "OneDrive bruker Microsofts Device Code Flow for autentisering. Registrer en offentlig klientapplikasjon i Azure App-registreringer og lim inn klient-ID nedenfor.",
+  "config.onedrive.auth_desc": "OneDrive uses Microsoft's Device Code Flow for authentication. Register a public client application in Azure App Registrations and paste the Client ID below. No client secret is required for public clients.",
   "config.onedrive.client_id_label": "Applikasjons- (klient-) ID",
   "config.onedrive.client_id_hint": "Fra Azure Portal → App-registreringer → Din app → Oversikt",
   "config.onedrive.tenant_id_label": "Leietaker-ID",
@@ -22,8 +22,8 @@
   "config.onedrive.auth_declined": "Autorisasjonen ble avvist av brukeren",
   "config.onedrive.auth_disconnected": "Frakoblet",
   "config.onedrive.auth_not_connected": "Ikke tilkoblet — klikk på Koble til for å autorisere",
-  "config.onedrive.token_expired": "token utløpt",
-  "config.onedrive.has_refresh": "oppdateringstoken tilgjengelig",
+  "config.onedrive.token_expired": "token expired",
+  "config.onedrive.has_refresh": "refresh token available",
   "config.onedrive.test_success": "Tilkobling vellykket",
   "config.onedrive.test_failed": "Tilkoblingstest mislyktes"
 }

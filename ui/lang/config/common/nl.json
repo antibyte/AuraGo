@@ -1,6 +1,6 @@
 {
   "config.header.restart_full": "↻ Herstarten",
-  "config.header.restart_tooltip": "AuraGo Service Herstarten",
+  "config.header.restart_tooltip": "Restart AuraGo Service",
   "config.nav.chat": "Chat",
   "config.nav.dashboard": "Dashboard",
   "config.nav.missions": "Missies",
@@ -15,7 +15,7 @@
   "config.save_bar.error": "Fout",
   "config.toggle.active": "Actief",
   "config.toggle.inactive": "Inactief",
-  "config.field.no_provider": "— geen provider —",
+  "config.field.no_provider": "— no provider —",
   "config.field.disabled": "🚫 uitgeschakeld",
   "config.field.comma_separated": "Comma-separated values",
   "config.field.json_array_hint": "JSON array (objects with name, input_per_million, output_per_million)",

@@ -31,7 +31,7 @@
   "config.fritzbox.polling_enabled": "Achtergrond polling inschakelen",
   "config.fritzbox.polling_interval": "Interval:",
   "config.fritzbox.polling_seconds": "seconden",
-  "help.fritzbox.enabled": "Schakelt de Fritz!Box-integratie in. De agent kan dan systeeminformatie opvragen, WLAN beheren, bellijsten lezen, Smart Home-apparaten bedienen en meer.",
+  "help.fritzbox.enabled": "Enables the Fritz!Box integration. The agent can then query system info, manage WLAN, read call lists, control Smart Home devices, and more.",
   "help.fritzbox.host": "Hostnaam of IP-adres van uw Fritz!Box (standaard: fritz.box).",
   "help.fritzbox.port": "TR-064 besturingspoort (standaard: 49000). Niet wijzigen tenzij u een aangepaste configuratie heeft.",
   "help.fritzbox.https": "HTTPS gebruiken voor TR-064-verbindingen (aanbevolen). Schakel alleen uit als uw Fritz!Box geen geldig certificaat heeft.",

@@ -11,7 +11,7 @@
   "config.sql_connections.empty": "Ingen databaseforbindelser konfigureret.",
   "config.sql_connections.loading": "⏳ Indlæser forbindelser…",
   "config.sql_connections.name_label": "Forbindelsesnavn",
-  "config.sql_connections.name_placeholder": "f.eks. Produktions-DB",
+  "config.sql_connections.name_placeholder": "e.g. Production DB",
   "config.sql_connections.driver_label": "Databasetype",
   "config.sql_connections.port_label": "Port",
   "config.sql_connections.host_label": "Vært",

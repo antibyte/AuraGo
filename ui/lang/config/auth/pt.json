@@ -31,5 +31,5 @@
   "config.auth.invalid_code": "Código inválido.",
   "config.auth.network_error": "Erro de rede.",
   "config.auth.login_first": "Por favor, faça login primeiro.",
-  "config.auth.totp_disable_confirm": "Realmente desativar a proteção TOTP?"
+  "config.auth.totp_disable_confirm": "Really disable TOTP protection?"
 }

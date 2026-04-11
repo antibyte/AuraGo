@@ -22,6 +22,6 @@
   "config.indexing.index_images_label": "Afbeeldingen indexeren",
   "config.indexing.index_images_desc": "Wanneer ingeschakeld, worden afbeeldingsbestanden (.jpg, .png, .gif, .webp, .bmp) naar de Vision LLM gestuurd.",
   "config.indexing.image_notice_title": "Opmerking over afbeeldingsindexering",
-  "config.indexing.image_notice_desc": "Afbeeldingsanalyse via Vision LLM kan aanzienlijke API kosten veroorzaken bij het indexeren van veel afbeeldingen.",
+  "config.indexing.image_notice_desc": "Image analysis via Vision LLM can cause significant API costs when indexing many images. Each image is sent individually to the LLM and generates token costs. Recommendation: Only index folders with relevant images.",
   "config.indexing.remove_confirm": "Map verwijderen?"
 }

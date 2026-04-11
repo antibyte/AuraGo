@@ -1,9 +1,9 @@
 {
   "help.config.firewall.mode": "Vælg driftstilstand. I tilstanden <span style=\"color:var(--accent);\">skrivebeskyttet</span> kan agenten kun se reglerne. I <span style=\"color:var(--warning);\">vagt</span>-tilstand kan den også ændre dem, og en baggrundsløkke overvåger aktivt for eksterne regelændringer.",
-  "help.config.firewall.poll_interval_seconds": "Hvor ofte (i sekunder) vagttilstanden tjekker for ændringer af firewallreglerne for at informere agenten.",
-  "config.firewall.os_banner": "🚫 Firewall-værktøjet er udelukkende tilgængeligt på Linux (iptables / ufw). Det er i øjeblikket deaktiveret for dette operativsystem.",
+  "help.config.firewall.poll_interval_seconds": "How often (in seconds) the guard mode checks for firewall rule edits to inform the agent.",
+  "config.firewall.os_banner": "🚫 The Firewall Tool is exclusively available on Linux (iptables / ufw). It is currently disabled for this operating system.",
   "config.firewall.enable_label": "Aktiver Firewall-værktøj",
-  "config.firewall.enable_help": "Tillader AI-agenten at interagere med systemets firewall for at læse eller ændre regler.",
+  "config.firewall.enable_help": "Allows the AI agent to interact with the system firewall to read or modify rules.",
   "config.firewall.active": "Aktiv",
   "config.firewall.inactive": "Inaktiv"
 }

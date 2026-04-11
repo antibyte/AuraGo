@@ -1,7 +1,7 @@
 {
   "config.koofr.enabled_label": "Ativado",
   "config.koofr.readonly_label": "Somente leitura",
-  "config.koofr.base_url_label": "URL base",
+  "config.koofr.base_url_label": "Base URL",
   "config.koofr.username_label": "Nome de usuário",
   "config.koofr.app_password_label": "Senha de app (Vault)",
   "config.koofr.app_password_placeholder": "Digite a senha de app…",

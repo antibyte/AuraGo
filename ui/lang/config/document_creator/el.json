@@ -10,12 +10,12 @@
   "config.document_creator.gotenberg_timeout_label": "Χρονικό όριο",
   "config.document_creator.seconds": "δευτερόλεπτα",
   "config.document_creator.test_gotenberg": "Δοκιμή σύνδεσης",
-  "config.document_creator.url_required": "Απαιτείται URL Gotenberg",
+  "config.document_creator.url_required": "Gotenberg URL is required",
   "config.document_creator.test_ok": "Επιτυχής σύνδεση",
   "config.document_creator.test_degraded": "Υποβαθμισμένη υπηρεσία",
   "config.document_creator.test_fail": "Αποτυχία σύνδεσης",
   "help.document_creator.backend": "Το Maroto είναι μια καθαρή βιβλιοθήκη PDF σε Go χωρίς εξωτερικές εξαρτήσεις. Το Gotenberg είναι μια υπηρεσία Docker με πλήρη μετατροπή εγγράφων, στιγμιότυπα και υποστήριξη μορφών Office.",
   "help.document_creator.output_dir": "Κατάλογος αποθήκευσης δημιουργημένων εγγράφων.",
-  "help.document_creator.gotenberg_url": "Βασικό URL της υπηρεσίας Gotenberg (π.χ. http://gotenberg:3000).",
+  "help.document_creator.gotenberg_url": "Base URL of the Gotenberg service (e.g. http://gotenberg:3000).",
   "help.document_creator.gotenberg_timeout": "Μέγιστος χρόνος αναμονής σε δευτερόλεπτα για τη δημιουργία εγγράφου."
 }

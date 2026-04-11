@@ -26,7 +26,7 @@
   "config.chromecast.desc_placeholder": "Descrição opcional…",
   "config.chromecast.name_required": "O nome do dispositivo é obrigatório.",
   "config.chromecast.ip_required": "O endereço IP é obrigatório.",
-  "config.chromecast.cancel": "Cancelar",
+  "config.chromecast.cancel": "Cancel",
   "config.chromecast.save": "Salvar",
   "config.chromecast.edit_tooltip": "Editar",
   "config.chromecast.delete_tooltip": "Excluir",

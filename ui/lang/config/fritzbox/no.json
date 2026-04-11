@@ -31,9 +31,9 @@
   "config.fritzbox.polling_enabled": "Aktiver polling i bakgrunnen",
   "config.fritzbox.polling_interval": "Intervall:",
   "config.fritzbox.polling_seconds": "sekunder",
-  "help.fritzbox.enabled": "Aktiverer Fritz!Box-integrasjonen. Agenten kan da forespørre systeminformasjon, administrere WLAN, lese anropslister, kontrollere Smart Home-enheter og mer.",
+  "help.fritzbox.enabled": "Enables the Fritz!Box integration. The agent can then query system info, manage WLAN, read call lists, control Smart Home devices, and more.",
   "help.fritzbox.host": "Vertsnavn eller IP-adresse til Fritz!Box (standard: fritz.box).",
-  "help.fritzbox.port": "TR-064 kontrollport (standard: 49000). Ikke endre med mindre du har en tilpasset konfigurasjon.",
+  "help.fritzbox.port": "TR-064 control port (default: 49000). Do not change unless you have a custom configuration.",
   "help.fritzbox.https": "Bruk HTTPS for TR-064-tilkoblinger (anbefalt). Deaktiver kun hvis Fritz!Box ikke har et gyldig sertifikat.",
   "help.fritzbox.username": "Brukernavn for Fritz!Box-innlogging. La stå tomt for å bruke standardadministratorkontoen uten brukernavn.",
   "help.fritzbox.password": "Fritz!Box innloggingspassord. Lagret sikkert i det krypterte hvelvet."

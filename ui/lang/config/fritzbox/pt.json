@@ -31,7 +31,7 @@
   "config.fritzbox.polling_enabled": "Ativar sondagem em segundo plano",
   "config.fritzbox.polling_interval": "Intervalo:",
   "config.fritzbox.polling_seconds": "segundos",
-  "help.fritzbox.enabled": "Ativa a integração Fritz!Box. O agente pode então consultar informações do sistema, gerir WLAN, ler listas de chamadas, controlar dispositivos Smart Home e mais.",
+  "help.fritzbox.enabled": "Enables the Fritz!Box integration. The agent can then query system info, manage WLAN, read call lists, control Smart Home devices, and more.",
   "help.fritzbox.host": "Nome do host ou endereço IP do Fritz!Box (padrão: fritz.box).",
   "help.fritzbox.port": "Porta de controle TR-064 (padrão: 49000). Não altere a menos que tenha uma configuração personalizada.",
   "help.fritzbox.https": "Usar HTTPS para conexões TR-064 (recomendado). Desative apenas se o Fritz!Box não tiver um certificado válido.",

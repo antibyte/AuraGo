@@ -9,7 +9,7 @@
   "config.tokens.activated": "Το διακριτικό ενεργοποιήθηκε",
   "config.tokens.deactivated": "Το διακριτικό απενεργοποιήθηκε",
   "config.tokens.delete_confirm": "Διαγραφή διακριτικού:",
-  "config.tokens.deleted": "Token διαγράφηκε",
+  "config.tokens.deleted": "Token deleted",
   "config.tokens.scopes_label": "Πεδίο εφαρμογής:",
   "config.tokens.toggle_disable": "Απενεργοποίηση",
   "config.tokens.toggle_enable": "Καθιστώ ικανό"

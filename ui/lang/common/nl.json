@@ -34,7 +34,7 @@
   "common.yes": "Ja",
   "login.btn_submit": "Registreren →",
   "login.error_failed": "Inloggen mislukt.",
-  "login.error_network": "Netwerkfout. Probeer het opnieuw.",
+  "login.error_network": "Network error. Please try again.",
   "login.password_label": "wachtwoord",
   "login.password_show": "Wachtwoord tonen",
   "login.subtitle": "Log in om door te gaan",

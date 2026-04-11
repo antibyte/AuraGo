@@ -9,7 +9,7 @@
   "config.mission_preparation.auto_prepare_scheduled_label": "Forbered planlagte missioner automatisk",
   "help.mission_preparation.enabled": "Aktiver LLM-baseret foranalyse af missioner før udførelse",
   "help.mission_preparation.provider": "Tilsidesæt LLM-udbyderen til analysen. Lad stå tom for hovedudbyderen.",
-  "help.mission_preparation.timeout_seconds": "Maksimal tid i sekunder for en enkelt forberedelsesanalyse",
+  "help.mission_preparation.timeout_seconds": "Maximum time in seconds for a single preparation analysis",
   "help.mission_preparation.max_essential_tools": "Maksimalt antal værktøjer der inkluderes i analysen",
   "help.mission_preparation.cache_expiry_hours": "Hvor længe en forberedelse forbliver gyldig før opdatering",
   "help.mission_preparation.min_confidence": "Minimumstillidsscore (0-1) krævet for at bruge en forberedelse",

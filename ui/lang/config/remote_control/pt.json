@@ -10,7 +10,7 @@
   "config.remote_control.security_desc": "Controle o registo de dispositivos e o registo de auditoria.",
   "config.remote_control.auto_approve_label": "Aprovar automaticamente novos dispositivos (⚠️ apenas em redes de confiança)",
   "config.remote_control.audit_log_label": "Ativar registo de auditoria",
-  "config.remote_control.limits_title": "Limites",
+  "config.remote_control.limits_title": "Limits",
   "config.remote_control.limits_desc": "Definir restrições de recursos para operações remotas.",
   "config.remote_control.max_file_size_label": "Tamanho máx. de ficheiro (MB)",
   "config.remote_control.allowed_paths_label": "Caminhos permitidos",
@@ -22,11 +22,11 @@
   "config.remote_control.status_connected": "Ligado",
   "config.remote_control.status_offline": "Offline",
   "config.remote_control.download_title": "Download do cliente",
-  "config.remote_control.download_desc": "Baixe um binário de agente personalizado pré-configurado com um token de inscrição para esta instância do AuraGo. Escolha a plataforma do dispositivo de destino.",
+  "config.remote_control.download_desc": "Download a personalized agent binary pre-configured with an enrollment token for this AuraGo instance. Choose the platform of the target device.",
   "config.remote_control.download_name_label": "Nome do dispositivo (opcional)",
   "config.remote_control.download_name_placeholder": "ex. meu-laptop",
   "config.remote_control.loading_platforms": "Carregando plataformas disponíveis…",
   "config.remote_control.no_platforms": "Nenhum binário de cliente disponível. Execute make_deploy.sh primeiro.",
-  "config.remote_control.ssh_insecure_host_key_label": "Permitir chave de host SSH insegura (⚠️ desativa proteção MITM, usar apenas em redes confiáveis)",
+  "config.remote_control.ssh_insecure_host_key_label": "Allow insecure SSH host key (⚠️ disables MITM protection, use only on trusted networks)",
   "config.remote_control.platforms_error": "Não foi possível carregar a lista de plataformas."
 }

@@ -1,8 +1,8 @@
 {
   "gallery.title": "🎨 Galeria de imagens",
   "gallery.subtitle": "Galeria de imagens",
-  "gallery.search_placeholder": "Pesquisar prompts...",
-  "gallery.all_providers": "Todos os provedores",
+  "gallery.search_placeholder": "Search prompts...",
+  "gallery.all_providers": "All Providers",
   "gallery.loading": "Carregando...",
   "gallery.empty": "Ainda não há imagens. Gere sua primeira imagem pelo chat!",
   "gallery.images": "imagens",

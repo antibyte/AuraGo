@@ -42,7 +42,7 @@
   "config.homepage.optional": "optioneel",
   "config.homepage.workspace_title": "Werkruimte",
   "config.homepage.workspace_path": "Werkruimtepad",
-  "config.homepage.workspace_path_missing_warning": "De webserver is ingeschakeld maar er is geen werkruimtepad ingesteld. Voer het absolute hostpad in naar uw project (bijv. /home/aurago/aurago/agent_workspace/homepage) of gebruik automatische detectie.",
+  "config.homepage.workspace_path_missing_warning": "The web server is enabled but no workspace path is set. Enter the absolute host path to your homepage project (e.g. /home/aurago/aurago/agent_workspace/homepage) or click Auto-detect to find it automatically.",
   "config.homepage.workspace_autodetect_btn": "Auto-detect",
   "config.homepage.workspace_autodetect_title": "Werkruimtepad automatisch detecteren vanuit de actieve homepage-container",
   "config.homepage.workspace_autodetect_loading": "Detecteren…",

@@ -8,7 +8,7 @@
   "config.webhooks.click_to_copy": "Klik om te kopiëren",
   "config.webhooks.edit_webhook": "Webhook Bewerken",
   "config.webhooks.choose_preset": "Kies preset",
-  "config.webhooks.no_token": "Geen token",
+  "config.webhooks.no_token": "No token",
   "config.webhooks.enabled_label": "Ingeschakeld",
   "config.webhooks.preset_label": "Προεπιλογή",
   "config.webhooks.description_label": "Beschrijving",

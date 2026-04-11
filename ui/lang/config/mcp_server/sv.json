@@ -4,8 +4,8 @@
   "config.mcp_server.require_auth": "Kräv autentisering",
   "config.mcp_server.allowed_tools": "Tillåtna verktyg",
   "config.mcp_server.allowed_tools_desc": "Verktyg exponerade via MCP-ändpunkten. Lämna tomt för att exponera alla.",
-  "config.mcp_server.token": "Bearer-token",
-  "config.mcp_server.generate_token": "Generera token",
+  "config.mcp_server.token": "Bearer token",
+  "config.mcp_server.generate_token": "Generate token",
   "config.mcp_server.endpoint_url": "Ändpunkts-URL",
   "config.mcp_server.no_tools_warning": "Inga verktyg aktiverade.",
   "config.mcp_server.auth_warning": "Autentisering inaktiverad. Alla med nätverksåtkomst kan anropa dina verktyg.",
@@ -23,6 +23,6 @@
   "config.mcp_server.open_client_link": "Öppna klientlänk",
   "config.mcp_server.vscode_token_hint": "Generate a bearer token before connecting an external MCP client.",
   "config.mcp_server.copy_url": "Kopiera URL",
-  "config.mcp_server.copy_token": "Kopiera token",
+  "config.mcp_server.copy_token": "Copy token",
   "config.mcp_server.copied": "Kopierat!"
 }

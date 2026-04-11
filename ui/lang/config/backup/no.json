@@ -1,7 +1,7 @@
 {
   "config.backup.tab_create": "📦 Backup Maken",
   "config.backup.tab_import": "📥 Backup Importeren",
-  "config.backup.create_desc": "Oppretter et <strong>.ago</strong>-arkiv (ZIP) med konfigurasjon, prompts, data og ferdigheter. Med passord inkluderes alle vault-hemmeligheter (API-nøkler, tokens) sikkert — ideelt for migrering til en ny instans (f.eks. med systemd-injeksjon).",
+  "config.backup.create_desc": "Creates an <strong>.ago</strong> archive (ZIP) with config, prompts, data and skills. When a password is set, all vault secrets (API keys, tokens) are also securely included — ideal for migrating to a new instance (e.g. with systemd-injected master key).",
   "config.backup.include_vectordb": "VectorDB opnemen (embeddings — kan groot zijn)",
   "config.backup.include_workdir": "Workdir opnemen (agent_workspace/workdir)",
   "config.backup.password_label": "🔒 Wachtwoord (optioneel)",
@@ -10,7 +10,7 @@
   "config.backup.create_download": "⬇️ Backup Maken & Downloaden",
   "config.backup.creating": "⏳ Backup maken…",
   "config.backup.downloaded": "Gedownload: ",
-  "config.backup.import_warning": "<strong>Belangrijk:</strong> Importeren overschrijft bestaande bestanden. Config, prompts en data worden vervangen. Een herstart wordt aanbevolen na importeren.",
+  "config.backup.import_warning": "<strong>Important:</strong> Import overwrites existing files. Config, prompts and data will be replaced. A restart is recommended after import.",
   "config.backup.select_file": "Selecteer .ago bestand",
   "config.backup.import_password_label": "🔒 Wachtwoord (alleen voor versleutelde backups)",
   "config.backup.decryption_placeholder": "Decryptie wachtwoord…",
@@ -21,6 +21,6 @@
   "config.backup.decryption_failed": "Decryptie mislukt — verkeerd wachtwoord?",
   "config.backup.import_success": "Importeren succesvol",
   "config.backup.restart_now": "Nu herstarten",
-  "config.backup.no_password_warning": "⚠️ Uten passord lagres ingen API-nøkler, innloggingspassord eller tokens. Sett alltid et passord for en komplett migrering.",
-  "config.backup.vault_included_hint": "🔐 Vault-hemmeligheter (API-nøkler, innloggingspassord, tokens) inkluderes."
+  "config.backup.no_password_warning": "⚠️ Without a password, no API keys, login password or tokens will be backed up. Always set a password for a complete migration.",
+  "config.backup.vault_included_hint": "🔐 Vault secrets (API keys, login password, tokens) will be included."
 }

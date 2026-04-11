@@ -22,7 +22,7 @@
   "config.remote_control.status_connected": "Verbonden",
   "config.remote_control.status_offline": "Offline",
   "config.remote_control.download_title": "Client downloaden",
-  "config.remote_control.download_desc": "Download een gepersonaliseerde agent-binary, vooraf geconfigureerd met een inschrijvingstoken voor deze AuraGo-instantie. Kies het platform van het doelapparaat.",
+  "config.remote_control.download_desc": "Download a personalized agent binary pre-configured with an enrollment token for this AuraGo instance. Choose the platform of the target device.",
   "config.remote_control.download_name_label": "Apparaatnaam (optioneel)",
   "config.remote_control.download_name_placeholder": "bijv. mijn-laptop",
   "config.remote_control.loading_platforms": "Beschikbare platforms laden…",

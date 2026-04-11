@@ -1,7 +1,7 @@
 {
   "config.security.panel_title": "Beveiligingsaudit",
   "config.security.no_issues": "Geen beveiligingsproblemen gevonden",
-  "config.security.fix_all_auto": "{n} automatisch oplosbaar probleem/problemen verhelpen",
+  "config.security.fix_all_auto": "Fix {n} auto-fixable issue(s)",
   "config.security.fix_now": "Nu verhelpen",
   "config.security.applying": "Bezig met toepassen…",
   "config.security.severity.critical": "KRITIEK",

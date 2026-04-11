@@ -16,7 +16,7 @@
   "config.devices.mac_address": "MAC Adres",
   "config.devices.mac_hint": "optioneel, vereist voor Wake-on-LAN",
   "config.devices.tags_hint": "komma-gescheiden",
-  "config.devices.tags_placeholder": "bijv. productie, linux, docker",
+  "config.devices.tags_placeholder": "e.g. production, linux, docker",
   "config.devices.vault_read_only": "alleen-lezen",
   "config.devices.edit_device": "✏️ Apparaat Bewerken",
   "config.devices.new_device": "＋ Nieuw Apparaat",

@@ -33,7 +33,7 @@
   "config.shell_sandbox.disabled_desc": "Inschakelen om shell-opdrachten te beperken met Landlock bestandssysteem-isolatie en resource-limieten.",
   "config.shell_sandbox.max_memory": "Max. geheugen (MB)",
   "config.shell_sandbox.max_cpu": "Max. CPU-tijd (seconden)",
-  "config.shell_sandbox.max_procs": "Max. processen",
+  "config.shell_sandbox.max_procs": "Max Processes",
   "config.shell_sandbox.max_fsize": "Max. bestandsgrootte (MB)",
   "config.shell_sandbox.system_caps": "Systeemmogelijkheden",
   "config.shell_sandbox.in_docker": "Docker gedetecteerd",

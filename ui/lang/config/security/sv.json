@@ -1,7 +1,7 @@
 {
   "config.security.panel_title": "Säkerhetsgranskning",
   "config.security.no_issues": "Inga säkerhetsproblem hittades",
-  "config.security.fix_all_auto": "Åtgärda {n} automatiskt åtgärdbart/åtgärdbara problem",
+  "config.security.fix_all_auto": "Fix {n} auto-fixable issue(s)",
   "config.security.fix_now": "Åtgärda nu",
   "config.security.applying": "Tillämpar…",
   "config.security.severity.critical": "KRITISK",

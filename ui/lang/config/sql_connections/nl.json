@@ -11,7 +11,7 @@
   "config.sql_connections.empty": "Geen databaseverbindingen geconfigureerd.",
   "config.sql_connections.loading": "⏳ Verbindingen laden…",
   "config.sql_connections.name_label": "Verbindingsnaam",
-  "config.sql_connections.name_placeholder": "bijv. Productie DB",
+  "config.sql_connections.name_placeholder": "e.g. Production DB",
   "config.sql_connections.driver_label": "Databasetype",
   "config.sql_connections.port_label": "Poort",
   "config.sql_connections.host_label": "Host",

@@ -1,5 +1,5 @@
 {
-  "config.updates.warning_banner": "Opdateringen erstatter binære filer, prompter og UI-filer. <strong>Din konfiguration og data er bevaret.</strong> AuraGo genstarter efter opdateringen.",
+  "config.updates.warning_banner": "The update replaces binaries, prompts and UI files. <strong>Your configuration and data are preserved.</strong> AuraGo will restart after the update.",
   "config.updates.check_button": "🔍 Søg efter opdateringer",
   "config.updates.install_button": "⬆️ Installer opdatering",
   "config.updates.checking": "⏳ Tjekker…",

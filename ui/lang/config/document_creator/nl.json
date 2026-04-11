@@ -10,12 +10,12 @@
   "config.document_creator.gotenberg_timeout_label": "Timeout",
   "config.document_creator.seconds": "seconden",
   "config.document_creator.test_gotenberg": "Verbinding testen",
-  "config.document_creator.url_required": "Gotenberg URL is vereist",
+  "config.document_creator.url_required": "Gotenberg URL is required",
   "config.document_creator.test_ok": "Verbinding geslaagd",
-  "config.document_creator.test_degraded": "Service verslechterd",
+  "config.document_creator.test_degraded": "Service degraded",
   "config.document_creator.test_fail": "Verbinding mislukt",
-  "help.document_creator.backend": "Maroto is een pure Go PDF-bibliotheek zonder externe afhankelijkheden. Gotenberg is een Docker-service met volledige documentconversie, screenshots en Office-formaat ondersteuning.",
+  "help.document_creator.backend": "Maroto is a pure Go PDF library with no external dependencies. Gotenberg is a Docker service with full document conversion, screenshots, and office format support.",
   "help.document_creator.output_dir": "Map waar gegenereerde documenten worden opgeslagen.",
-  "help.document_creator.gotenberg_url": "Basis-URL van de Gotenberg-service (bijv. http://gotenberg:3000).",
+  "help.document_creator.gotenberg_url": "Base URL of the Gotenberg service (e.g. http://gotenberg:3000).",
   "help.document_creator.gotenberg_timeout": "Maximale wachttijd in seconden voor documentgeneratie."
 }

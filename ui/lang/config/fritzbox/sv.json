@@ -31,10 +31,10 @@
   "config.fritzbox.polling_enabled": "Aktivera bakgrundspolling",
   "config.fritzbox.polling_interval": "Intervall:",
   "config.fritzbox.polling_seconds": "sekunder",
-  "help.fritzbox.enabled": "Aktiverar Fritz!Box-integrationen. Agenten kan sedan fråga systeminformation, hantera WLAN, läsa samtalslistor, styra Smart Home-enheter och mer.",
+  "help.fritzbox.enabled": "Enables the Fritz!Box integration. The agent can then query system info, manage WLAN, read call lists, control Smart Home devices, and more.",
   "help.fritzbox.host": "Värdnamn eller IP-adress för din Fritz!Box (standard: fritz.box).",
-  "help.fritzbox.port": "TR-064 styrport (standard: 49000). Ändra inte om du inte har en anpassad konfiguration.",
-  "help.fritzbox.https": "Använd HTTPS för TR-064-anslutningar (rekommenderas). Inaktivera endast om din Fritz!Box inte har ett giltigt certifikat.",
+  "help.fritzbox.port": "TR-064 control port (default: 49000). Do not change unless you have a custom configuration.",
+  "help.fritzbox.https": "Use HTTPS for TR-064 connections (recommended). Disable only if your Fritz!Box does not have a valid certificate.",
   "help.fritzbox.username": "Användarnamn för Fritz!Box-inloggning. Lämna tomt för att använda standardadministratörskontot utan användarnamn.",
   "help.fritzbox.password": "Fritz!Box inloggningslösenord. Lagras säkert i det krypterade valvet."
 }
