@@ -1532,6 +1532,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				AssistantContent: content,
 				FeedbackMsg:      feedbackMsg,
 				BrokerEventType:  "error_recovery",
+				I18nKey:          "backend.stream_error_recovery_raw_code",
 			}, shortTermMem, historyManager)
 			req.Messages = append(req.Messages, msgs...)
 			continue
@@ -1624,6 +1625,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				FeedbackMsg:          feedbackMsg,
 				BrokerEventType:      "error_recovery",
 				SkipAssistantPersist: true,
+				I18nKey:              "backend.stream_error_recovery_invalid_native",
 			}, shortTermMem, historyManager)
 			req.Messages = append(req.Messages, msgs...)
 			lastResponseWasTool = false
@@ -1643,6 +1645,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				AssistantContent: content,
 				FeedbackMsg:      feedbackMsg,
 				BrokerEventType:  "error_recovery",
+				I18nKey:          "backend.stream_error_recovery_incomplete_tool_call",
 			}, shortTermMem, historyManager)
 			// Override the assistant message in req.Messages with cleaned content
 			// (strip bare XML tool tags so the model does not repeat the invalid format).
@@ -1696,6 +1699,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				AssistantContent: content,
 				FeedbackMsg:      feedbackMsg,
 				BrokerEventType:  "error_recovery",
+				I18nKey:          "backend.stream_error_recovery_announcement_no_action",
 			}, shortTermMem, historyManager)
 			req.Messages = append(req.Messages, msgs...)
 			continue
@@ -1713,6 +1717,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				AssistantContent: content,
 				FeedbackMsg:      feedbackMsg,
 				BrokerEventType:  "error_recovery",
+				I18nKey:          "backend.stream_error_recovery_fence_json",
 			}, shortTermMem, historyManager)
 			req.Messages = append(req.Messages, msgs...)
 			continue
@@ -1733,6 +1738,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					AssistantContent: content,
 					FeedbackMsg:      feedbackMsg,
 					BrokerEventType:  "error_recovery",
+					I18nKey:          "backend.stream_error_recovery_incomplete_tag",
 				}, shortTermMem, historyManager)
 				req.Messages = append(req.Messages, msgs...)
 				continue
@@ -1755,6 +1761,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				AssistantContent: content,
 				FeedbackMsg:      feedbackMsg,
 				BrokerEventType:  "error_recovery",
+				I18nKey:          "backend.stream_error_recovery_xml_in_native_mode",
 			}, shortTermMem, historyManager)
 			req.Messages = append(req.Messages, msgs...)
 			continue
