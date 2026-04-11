@@ -1,7 +1,10 @@
 package agent
 
 import (
+	"aurago/internal/config"
 	"encoding/json"
+	"fmt"
+	"log/slog"
 	"strings"
 )
 
@@ -288,4 +291,174 @@ func ValidateToolCall(tc ToolCall) ToolCallProblem {
 
 	// Valid tool call
 	return ToolCallProblem{}
+}
+
+// ConsolidatedRecoveryHandler replaces the 7+ separate feedback loops in agent_loop.go
+// with a single unified handler. It uses the RecoveryClassifier to categorize issues
+// and applies consistent retry logic.
+//
+// This handler MUST produce the same behavior as the original feedback loops to avoid
+// regressions. The feedback messages are preserved verbatim from the original code.
+type ConsolidatedRecoveryHandler struct {
+	registry parseProblemRegistry
+	cfg      *config.Config
+	broker   FeedbackBroker
+	logger   *slog.Logger
+}
+
+func newConsolidatedRecoveryHandler(cfg *config.Config, broker FeedbackBroker, logger *slog.Logger) *ConsolidatedRecoveryHandler {
+	return &ConsolidatedRecoveryHandler{
+		cfg:    cfg,
+		broker: broker,
+		logger: logger,
+	}
+}
+
+// RecoveryResult contains the outcome of HandleRecovery.
+type RecoveryResult struct {
+	ShouldRecover bool            // true if a recovery was triggered
+	Recovered     bool            // true if recovery was successful (retry happened)
+	Problem       ToolCallProblem // the problem that was handled
+	ContinueLoop  bool            // true if the agent loop should continue to next iteration
+}
+
+// HandleRecovery analyzes the current state and decides if a recovery should be triggered.
+// It replaces the 7+ separate feedback loops in agent_loop.go:
+//
+// Original loops replaced:
+// 1. rawCodeCount (max 2) - Raw Code Detection
+// 2. xmlFallbackCount (max 2) - XML Fallback Detection
+// 3. invalidNativeToolCount (max 2) - Invalid Native Tool Args
+// 4. incompleteToolCallCount (max 3) - Incomplete Tool Call
+// 5. announcementCount (max configurable) - Announcement-only Response
+// 6. missedToolCount (max 2) - Missed Tool Call in Fence
+// 7. orphanedToolCallCount (max 2) - Orphaned [TOOL_CALL] tag + Bare XML in Native Mode
+func (h *ConsolidatedRecoveryHandler) HandleRecovery(
+	tc ToolCall,
+	content string,
+	parsedToolResp ParsedToolResponse,
+	useNativeFunctions bool,
+	announcementContent string,
+	useNativePath bool,
+	lastResponseWasTool bool,
+	lastUserMsg string,
+	recentTools []string,
+) RecoveryResult {
+	result := RecoveryResult{}
+
+	// First, classify the problem
+	problem := ClassifyToolCallProblem(tc, content, parsedToolResp, useNativeFunctions)
+	if problem.Category == RecoveryCategoryNone {
+		return result
+	}
+
+	// Record the problem in the registry and get updated retry count
+	switch problem.Category {
+	case RecoveryCategoryFormatError:
+		problem = h.registry.RecordFormatError(problem.SubType)
+	case RecoveryCategorySchemaError:
+		problem = h.registry.RecordSchemaError(problem.SubType)
+	case RecoveryCategoryEmptyResponse:
+		problem = h.registry.RecordEmptyResponse()
+	}
+
+	result.Problem = problem
+
+	// Check if we've exceeded max retries for this category
+	if !problem.ShouldRetry() {
+		h.logger.Warn("[ConsolidatedRecovery] Max retries exceeded for category",
+			"category", problem.Category.String(),
+			"subtype", problem.SubType,
+			"retry_count", problem.RetryCount)
+		return result
+	}
+
+	result.ShouldRecover = true
+	result.ContinueLoop = true
+
+	// Generate and send the appropriate feedback message
+	feedbackMsg := h.buildFeedbackMessage(problem, tc, useNativeFunctions, useNativePath, lastResponseWasTool, recentTools)
+	if feedbackMsg != "" {
+		h.broker.Send("error_recovery", feedbackMsg)
+	}
+
+	h.logger.Warn("[ConsolidatedRecovery] Recovery triggered",
+		"category", problem.Category.String(),
+		"subtype", problem.SubType,
+		"retry_count", problem.RetryCount,
+		"max_retries", problem.MaxRetries)
+
+	result.Recovered = true
+	return result
+}
+
+// buildFeedbackMessage generates the feedback message for a given problem.
+// Messages are preserved verbatim from the original feedback loops to maintain compatibility.
+func (h *ConsolidatedRecoveryHandler) buildFeedbackMessage(
+	problem ToolCallProblem,
+	tc ToolCall,
+	useNativeFunctions bool,
+	useNativePath bool,
+	lastResponseWasTool bool,
+	recentTools []string,
+) string {
+	switch problem.SubType {
+	case "raw_code":
+		return "ERROR: You sent raw Python code instead of a JSON tool call. My supervisor only understands JSON tool calls. Please wrap your code in a valid JSON object: {\"action\": \"save_tool\", \"name\": \"script.py\", \"description\": \"...\", \"code\": \"<your python code with \\n escaped>\"}."
+
+	case "incomplete_tool_call":
+		if useNativeFunctions {
+			return "ERROR: You emitted a bare <tool_call> or <minimax:tool_call> tag but did not produce an actual tool call. You MUST use the native function-calling mechanism to invoke tools. Do NOT output any XML tags in text — use the structured function call API instead."
+		}
+		if problem.RetryCount >= 2 {
+			return "CRITICAL ERROR: You sent '<tool_call>' as raw text again. This is not a valid tool call format. Do NOT output any XML tags at all. Output a raw JSON object starting with '{'."
+		}
+		return "ERROR: You emitted a bare <tool_call> tag but did not include the JSON body. Do NOT output XML tags. Output ONLY the raw JSON tool call object - no XML tags, no explanation, no preamble."
+
+	case "orphaned_bracket_tag":
+		if useNativeFunctions {
+			return "ERROR: Your response contained the literal text \"[TOOL_CALL]\" but no actual function call was made. You MUST use the native function-calling mechanism to invoke a tool. Do NOT write [TOOL_CALL] as text — call the function directly using the tool call interface."
+		}
+		return "ERROR: Your response contained the literal text \"[TOOL_CALL]\" but no valid tool call JSON. Do NOT write [TOOL_CALL] as text. Your ENTIRE response must be ONLY the raw JSON tool call — no explanation, no tags. Output the JSON tool call NOW."
+
+	case "bare_xml_in_native_mode":
+		return "ERROR: Your response contained a literal <tool_call> XML tag but no actual function call was made. You MUST use the native function-calling mechanism — do not write XML tags. Call the function directly using the tool call interface now."
+
+	case "xml_fallback_format":
+		// This is informational - the tool will still execute
+		return fmt.Sprintf(
+			"NOTE: You called '%s' using a proprietary XML format (minimax:tool_call). "+
+				"The tool has already been executed and the action is COMPLETE — do NOT repeat it. "+
+				"Continue with the next step of the task. "+
+				"For future calls, always use the native function-calling API instead. "+
+				"If a tool is not in your current tool list, you can still call it directly by name — "+
+				"the system accepts all enabled tools. Use discover_tools to find available tools.",
+			tc.Action)
+
+	case "invalid_native_args":
+		recoveryTool := tc.Action
+		if strings.TrimSpace(recoveryTool) == "" {
+			recoveryTool = "the requested tool"
+		} else {
+			recoveryTool = Truncate(strings.ReplaceAll(strings.ReplaceAll(recoveryTool, "\n", " "), "\r", " "), 80)
+		}
+		return fmt.Sprintf(
+			"ERROR: Your last native function call for %q had invalid function arguments JSON and was discarded. Emit the function call again with valid JSON arguments only. Do not include source code, XML/HTML, or prose inside the function name or outside the JSON arguments.",
+			recoveryTool)
+
+	case "tool_in_fence":
+		return "ERROR: Your response contained explanation text and/or markdown fences (```json). Tool calls MUST be a raw JSON object ONLY - no explanation before or after, no markdown, no fences. Output ONLY the JSON object, starting with { and ending with }. Example: {\"action\": \"co_agent\", \"operation\": \"spawn\", \"task\": \"...\"}"
+
+	case "announcement_only":
+		msg := "ERROR: You announced what you were going to do but did not output a tool call. When executing a task, your ENTIRE response must be ONLY the raw JSON tool call — no explanation before it. Output the JSON tool call NOW."
+		if lastResponseWasTool && len(recentTools) > 0 {
+			lastTool := recentTools[len(recentTools)-1]
+			msg += fmt.Sprintf(" IMPORTANT: '%s' already completed successfully in this turn. Do NOT call it again. Your next action must be a DIFFERENT tool that continues your plan.", lastTool)
+		}
+		// Note: <done/> suggestion was removed from announcement recovery
+		msg += " If the task is genuinely complete and no more tool calls are needed, state the final result to the user — do NOT output <done/>."
+		return msg
+	}
+
+	return ""
 }
