@@ -2770,3 +2770,143 @@ func (kg *KnowledgeGraph) GetSourceFilesByNodeID(nodeID string, limit int) ([]st
 
 	return files, nil
 }
+
+// FileSyncStats holds statistics for file_sync source entities in the KG.
+type FileSyncStats struct {
+	NodeCount    int            `json:"node_count"`
+	EdgeCount    int            `json:"edge_count"`
+	ByEntityType map[string]int `json:"by_entity_type"`
+	ByCollection map[string]int `json:"by_collection"`
+}
+
+// GetFileSyncStats returns KG statistics filtered to source="file_sync".
+func (kg *KnowledgeGraph) GetFileSyncStats() (*FileSyncStats, error) {
+	stats := &FileSyncStats{
+		ByEntityType: make(map[string]int),
+		ByCollection: make(map[string]int),
+	}
+
+	// Count nodes with source="file_sync"
+	kg.db.QueryRow(`
+		SELECT COUNT(*) FROM kg_nodes
+		WHERE json_extract(properties, '$.source') = 'file_sync'
+	`).Scan(&stats.NodeCount)
+
+	// Count edges with source="file_sync"
+	kg.db.QueryRow(`
+		SELECT COUNT(*) FROM kg_edges
+		WHERE json_extract(properties, '$.source') = 'file_sync'
+	`).Scan(&stats.EdgeCount)
+
+	// Group nodes by entity type
+	typeRows, err := kg.db.Query(`
+		SELECT COALESCE(NULLIF(json_extract(properties, '$.type'), ''), 'untyped') AS t, COUNT(*)
+		FROM kg_nodes
+		WHERE json_extract(properties, '$.source') = 'file_sync'
+		GROUP BY t
+	`)
+	if err == nil {
+		defer typeRows.Close()
+		for typeRows.Next() {
+			var t string
+			var c int
+			if typeRows.Scan(&t, &c) == nil {
+				stats.ByEntityType[t] = c
+			}
+		}
+	}
+
+	// Group nodes by collection
+	collRows, err := kg.db.Query(`
+		SELECT COALESCE(NULLIF(json_extract(properties, '$.collection'), ''), 'default') AS c, COUNT(*)
+		FROM kg_nodes
+		WHERE json_extract(properties, '$.source') = 'file_sync'
+		GROUP BY c
+	`)
+	if err == nil {
+		defer collRows.Close()
+		for collRows.Next() {
+			var c string
+			var cnt int
+			if collRows.Scan(&c, &cnt) == nil {
+				stats.ByCollection[c] = cnt
+			}
+		}
+	}
+
+	return stats, nil
+}
+
+// KGCollectionStats holds statistics for a specific collection's file sync entities.
+type KGCollectionStats struct {
+	NodeCount  int        `json:"node_count"`
+	EdgeCount  int        `json:"edge_count"`
+	FileCount  int        `json:"file_count"`
+	LastSyncAt *time.Time `json:"last_sync_at,omitempty"`
+}
+
+// GetCollectionFileSyncStats returns statistics for file_sync entities in a specific collection.
+func (kg *KnowledgeGraph) GetCollectionFileSyncStats(collection string) (*KGCollectionStats, error) {
+	stats := &KGCollectionStats{}
+
+	// Count nodes with source="file_sync" and matching collection
+	kg.db.QueryRow(`
+		SELECT COUNT(*) FROM kg_nodes
+		WHERE json_extract(properties, '$.source') = 'file_sync'
+		AND json_extract(properties, '$.collection') = ?
+	`, collection).Scan(&stats.NodeCount)
+
+	// Count edges with source="file_sync" and matching collection
+	kg.db.QueryRow(`
+		SELECT COUNT(*) FROM kg_edges
+		WHERE json_extract(properties, '$.source') = 'file_sync'
+		AND json_extract(properties, '$.collection') = ?
+	`, collection).Scan(&stats.EdgeCount)
+
+	// Count unique source files
+	kg.db.QueryRow(`
+		SELECT COUNT(DISTINCT json_extract(properties, '$.source_file')) FROM kg_nodes
+		WHERE json_extract(properties, '$.source') = 'file_sync'
+		AND json_extract(properties, '$.collection') = ?
+	`, collection).Scan(&stats.FileCount)
+
+	// Get most recent extracted_at
+	var lastSync string
+	err := kg.db.QueryRow(`
+		SELECT MAX(json_extract(properties, '$.extracted_at')) FROM kg_nodes
+		WHERE json_extract(properties, '$.source') = 'file_sync'
+		AND json_extract(properties, '$.collection') = ?
+	`, collection).Scan(&lastSync)
+	if err == nil && lastSync != "" {
+		if t, err := time.Parse("2006-01-02", lastSync); err == nil {
+			stats.LastSyncAt = &t
+		}
+	}
+
+	return stats, nil
+}
+
+// GetLastFileSyncTime returns the most recent sync time for a collection (or global if collection is empty).
+func (kg *KnowledgeGraph) GetLastFileSyncTime(collection string) (*time.Time, error) {
+	var lastSync string
+	var query string
+	var args []interface{}
+
+	if collection == "" {
+		query = `SELECT MAX(json_extract(properties, '$.extracted_at')) FROM kg_nodes WHERE json_extract(properties, '$.source') = 'file_sync'`
+	} else {
+		query = `SELECT MAX(json_extract(properties, '$.extracted_at')) FROM kg_nodes WHERE json_extract(properties, '$.source') = 'file_sync' AND json_extract(properties, '$.collection') = ?`
+		args = append(args, collection)
+	}
+
+	err := kg.db.QueryRow(query, args...).Scan(&lastSync)
+	if err != nil || lastSync == "" {
+		return nil, err
+	}
+
+	t, err := time.Parse("2006-01-02", lastSync)
+	if err != nil {
+		return nil, fmt.Errorf("parse last sync time: %w", err)
+	}
+	return &t, nil
+}

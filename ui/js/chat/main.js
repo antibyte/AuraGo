@@ -871,6 +871,15 @@ function escapeHtml(str) {
         .replace(/"/g, '&quot;');
 }
 
+function escapeAttr(s) {
+    return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
 function isSafeHref(url, allowRelative = true) {
     if (!url || typeof url !== 'string') return false;
     const trimmed = url.trim();

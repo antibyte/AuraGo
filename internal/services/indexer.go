@@ -17,7 +17,8 @@ import (
 	"aurago/internal/tools"
 )
 
-const indexerCollection = "file_index"
+// IndexerCollection is the default collection name for file indexing.
+const IndexerCollection = "file_index"
 
 // Retry constants for indexing operations (aligned with KnowledgeGraph retry pattern).
 const (
@@ -208,7 +209,7 @@ func getDirCollection(dir config.IndexingDirectory) string {
 	if dir.Collection != "" {
 		return dir.Collection
 	}
-	return indexerCollection
+	return IndexerCollection
 }
 
 // scanDirectory walks a single directory (recursively) and indexes supported files.

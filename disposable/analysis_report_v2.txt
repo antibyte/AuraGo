@@ -1,0 +1,545 @@
+================================================================================
+ANALYSIS OF REMAINING UNTRANSLATED VALUES
+================================================================================
+Total unique values: 575
+Total occurrences: 4032
+
+1. USER-FACING UI LABELS: 117 values (517 occ)
+------------------------------------------------------------
+  [ 38] Error:
+  [ 15] HTTPS / TLS
+  [ 15] TLS / SSL
+  [ 15] ✓
+  [ 12] 587 = STARTTLS, 465 = SSL/TLS.
+  [ 12] Firewall
+  [ 11] {{count}} tok
+  [ 10] API Token
+  [ 10] Args:
+  [ 10] Auth:
+  [ 10] Content-Types
+  [ 10] Fallback {{pct}}%
+  [ 10] Test:
+  [  9] Auto-Install llm-sandbox
+  [  9] Env vars:
+  [  8] Hatching…
+  [  8] Parse {{count}}
+  [  8] Route (Back-Channel)
+  [  7] API Key:
+  [  7] Auth
+  [  7] Base URL:
+  [  7] Core Personality
+  [  7] Input $/M
+  [  7] MCP save failed:
+  [  7] Multimodal (Gemini / LLM)
+  [  7] Output $/M
+  [  6] Available at
+  [  6] Model:
+  [  6] Permanent (Systemd Service)
+  [  6] Webhook:
+  [  5] Delivered
+  [  5] Delivery
+  [  5] Field Mappings
+  [  5] Fires:
+  [  5] Max Payload Size (bytes)
+  [  5] Mode:
+  [  5] Prompt Template
+  [  5] Signature Algo
+  [  5] Signature Header
+  [  5] Signature Secret
+  [  5] Upstream URL
+  [  4] Delete webhook:
+  [  4] Egg:
+  [  4] Fallbacks
+  [  4] Nest:
+  [  4] No webhook events yet.
+  [  4] Policy {{count}}
+  [  4] Relation
+  [  4] Scopes:
+  [  4] Slug (URL path)
+  [  4] Slug is required
+  [  4] Streaming (SSE)
+  [  4] ✔ set
+  [  3] API Key from Google AI Studio.
+  [  3] API Key starts with sk-...
+  [  3] API Key starts with sk-ant-...
+  [  3] API Key starts with sk-or-...
+  [  3] Base URL must not be empty.
+  [  3] Code
+  [  3] Fail-Safe
+  [  3] Interval:
+  [  3] Net ↑
+  [  3] Net ↓
+  [  3] Password (Vault)
+  [  3] Really revoke OAuth token?
+  [  3] Revoke Token
+  [  3] SMTP (Send)
+  [  3] Token / API Key
+  [  3] Topic:
+  [  3] expires
+  [  3] {{n}} Repositories
+  [  3] •••••••• (unchanged)
+  [  2] ElevenLabs API Key.
+  [  2] Friendly (friend)
+  [  2] Geo-Blocking
+  [  2] Gmail — Send
+  [  2] Input (k)
+  [  2] Input:
+  [  2] Output (k)
+  [  2] Output:
+  [  2] Recovery {{count}}
+  [  2] Recovery {{pct}}%
+  [  2] Tools {{count}}
+  [  2] {{n}} API Tokens
+  [  1] API Base URL
+  [  1] Auto-detect
+  [  1] Backup & Restore
+  [  1] Command:
+  [  1] Context:
+  [  1] Document Creator
+  [  1] FREE
+  [  1] Find MAC
+  [  1] Folder:
+  [  1] From Address
+  [  1] IMAP (Receive)
+  [  1] Interval (seconds)
+  [  1] Maintenance mode and lifeboat
+  [  1] Memory {{pct}}%
+  [  1] Mission queued
+  [  1] Mobile
+  [  1] Name (optional)
+  [  1] Name *
+  [  1] New Email Account
+  [  1] Parallel sub-agents
+  [  1] Prompt / Task
+  [  1] Retrieval {{count}}
+  [  1] Route Config (JSON, optional)
+  [  1] Shell Sandbox (Landlock)
+  [  1] Task Prompt *
+  [  1] Token URL
+  [  1] Token name:
+  [  1] Topic Filter *
+  [  1] gRPC Port:
+  [  1] secret(s) in vault
+  [  1] {count} Nodes
+  [  1] {{count}}x executed
+  [  1] ❌ error
+
+2. CONFIG DESCRIPTIONS: 100 values (990 occ)
+------------------------------------------------------------
+  [ 28] Legacy compatibility field. Helper-owned personality analysis now uses the central Helper LLM from t
+  [ 14] <tool_call> XML detected in native mode, requesting function call...
+  [ 14] Allow temporary token budget overflow for homepage flows
+  [ 14] Changing the embeddings model or provider can make existing embeddings incompatible. AuraGo can dele
+  [ 14] Choose a safe rollout level instead of enabling every memory-analysis path at once.
+  [ 14] Enable it to let the agent analyze conversations and extract memory-worthy content. AuraGo uses the 
+  [ 14] Enables a debugging-focused MCP preset with recommended tools and client setup helpers.
+  [ 14] Existing long-term memory vectors may no longer match the new embeddings model.
+  [ 14] Expose AuraGo securely on the public internet via Tailscale Funnel. AuraGo login stays active.
+  [ 14] Expose Homepage over Tailscale
+  [ 14] Full: reflection + query expansion + reranking + real-time
+  [ 14] Funnel additionally needs Tailscale Funnel to be enabled for this tailnet and node. Funnel only appl
+  [ 14] Funnel only applies to the AuraGo web UI exposure on port 443.
+  [ 14] Generate a bearer token before connecting an external MCP client.
+  [ 14] Generate a token here and enter it as the Bearer token in your n8n AuraGo credential.
+  [ 14] Generate images from text prompts using AI
+  [ 14] HTTPS over Tailscale needs MagicDNS plus HTTPS certificates to be enabled for this node in the Tails
+  [ 14] Homepage exposure is enabled. If no URL appears, make sure the Homepage web server is running and Ta
+  [ 14] Homepage exposure needs the Homepage web server to be enabled first.
+  [ 14] Homepage flows may temporarily use about {effective} prompt tokens instead of {base}, based on {home
+  [ 14] Inside homepage tool calls, keep project_dir and path relative to this workspace, for example 'my-si
+  [ 14] Legacy compatibility field. Web summaries now use the central Helper LLM from the LLM settings.
+  [ 14] Maximum number of messages to buffer. Oldest messages are discarded when the limit is reached. Defau
+  [ 14] Maximum requests per second from n8n. Set to 0 for unlimited.
+  [ 14] Memory analysis uses the central Helper LLM from the LLM settings. If it is disabled, this feature c
+  [ 14] Normal: reflection + query expansion
+  [ 14] Publishes the Homepage/Caddy web server on your tailnet via HTTPS on port 8443.
+  [ 14] Registers a new SSH server. Syntax: /addssh host=NAME user=USER [ip=IP] [pass=PASS|keypath=PATH] [po
+  [ 14] Require Bearer token authentication for all n8n requests (strongly recommended).
+  [ 14] Requirements for HTTPS and Funnel
+  ... and 70 more
+
+3. SHORT UI LABELS: 161 values (571 occ)
+------------------------------------------------------------
+  [ 26] Offline
+  [ 21] Status
+  [ 18] Online
+  [ 15] Total
+  [ 12] Budget
+  [ 12] Error
+  [ 12] Prompt
+  [ 11] Test
+  [ 10] Embeddings
+  [ 10] Format
+  [ 10] Pools
+  [ 10] Web Config UI
+  [  9] E-Mail
+  [  9] Mode
+  [  9] Tokens
+  [  8] Email
+  [  8] Journal
+  [  8] Permanent
+  [  8] Plan
+  [  8] Version
+  [  8] Vision
+  [  7] Burst
+  [  7] Comma-separated values
+  [  7] Messenger
+  [  7] Show free models only
+  [  7] Tunnel
+  [  7] not required
+  [  6] Designer
+  [  6] Feedback
+  [  6] Homepage
+  [  6] Logging
+  [  6] Manual
+  [  6] Start
+  [  5] Highlights
+  [  5] Immediate
+  [  5] Inbox Watcher
+  [  5] Media
+  [  5] Notify (SSE only)
+  [  5] Stop
+  [  5] Total Runs
+  [  4] Database
+  [  4] Disk
+  [  4] Embeddings ✗
+  [  4] Label
+  [  4] Log only
+  [  4] Neutral
+  [  4] Preset
+  [  4] Start Scrub
+  [  4] Time
+  [  4] Vault
+  [  4] alias (e.g. repo)
+  [  4] e.g. GitHub Push
+  [  4] e.g. X-Hub-Signature-256
+  [  4] e.g. github-push
+  [  4] source (e.g. repository.full_name)
+  [  3] Edges
+  [  3] Local
+  [  3] Local (Ollama)
+  [  3] Messages
+  [  3] Navigation
+  [  3] Notes
+  [  3] Permissions
+  [  3] Query Models
+  [  3] Session
+  [  3] Start Tunnel
+  [  2] Budget & Tokens
+  [  2] Communication
+  [  2] Compression
+  [  2] Datasets
+  [  2] Details
+  [  2] Download
+  [  2] Folder
+  [  2] Format Opt.
+  [  2] Full
+  [  2] Inbox
+  [  2] Indexer
+  [  2] KG Explorer
+  [  2] Limits
+  [  2] Login
+  [  2] Master Key
+  [  2] Max Tools
+  [  2] Nodes
+  [  2] Notification
+  [  2] Notifications
+  [  2] Open
+  [  2] Optional
+  [  2] Performance
+  [  2] Providers
+  [  2] Send
+  [  2] Snapshots
+  [  2] Updates
+  [  2] Upload Skill
+  [  2] Uptime
+  [  2] Valence
+  [  2] Web Scraper
+  [  1] ACTIVE
+  [  1] Agent Status
+  [  1] Cache Rate
+  [  1] Cache hits
+  [  1] Collection
+  [  1] Collections
+  [  1] Command
+  [  1] Date
+  [  1] Direct
+  [  1] Disable
+  [  1] Download PNG
+  [  1] Download SVG
+  [  1] Enable
+  [  1] Enabled
+  [  1] Graph Edges
+  [  1] Graph Nodes
+  [  1] Headers
+  [  1] Hostname
+  [  1] Idle
+  [  1] Images
+  [  1] Infrastructure
+  [  1] Locked
+  [  1] Logs
+  [  1] Maintenance
+  [  1] Medium
+  [  1] Medium risk
+  [  1] Memory Health
+  [  1] Never
+  [  1] Parameters
+  [  1] Permissions (Scopes)
+  [  1] Personality V2
+  [  1] Profiling
+  [  1] Public
+  [  1] RAG Batch
+  [  1] Rate Limiting
+  [  1] Recoveries
+  [  1] Researcher
+  [  1] Rollback
+  [  1] Run now
+  [  1] Scopes
+  [  1] Secrets
+  [  1] Shed Rate
+  [  1] Skill Code
+  [  1] Skill Details
+  [  1] Skills
+  [  1] Speech
+  [  1] Stable
+  [  1] Topics
+  [  1] Tracked
+  [  1] Transfer Vault
+  [  1] Types
+  [  1] Update Available
+  [  1] Upload
+  [  1] User
+  [  1] Vault Keys
+  [  1] View Log
+  [  1] Watch Folder
+  [  1] Watch enabled
+  [  1] Web Config & Login
+  [  1] d ago
+  [  1] h ago
+  [  1] just now
+  [  1] m ago
+  [  1] optional
+  [  1] user, agent
+  [  1] x executed
+
+4. EMOJI UI LABELS: 34 values (108 occ)
+------------------------------------------------------------
+  [ 15] 💳 ${{amount}}
+  [  8] 🔐 OAuth2 Authorization Code
+  [  8] 🪝 Webhook
+  [  7] 🆓 This model is free
+  [  7] 🔑 API Key
+  [  7] 🥚 Hatch
+  [  6] 🎵 Audio
+  [  5] 🎯 Mission Control
+  [  5] 🏡 Smart Home
+  [  5] 🖥️ System
+  [  3] 🎤 Speech-to-Text (Whisper)
+  [  3] 🔍 Filter…
+  [  3] 🔒 Lockout (min)
+  [  2] ▶ Start
+  [  2] ⚡ Trigger
+  [  2] ⬇ Download
+  [  2] 📄 Logs
+  [  2] 🟡 Medium
+  [  1] ↯ Reset in {{hours}}h {{minutes}}m
+  [  1] ↻ Restart
+  [  1] ⏳ Checking…
+  [  1] ⏹ Stop
+  [  1] ⚠️ Danger Zone
+  [  1] ⬆️ Install Update
+  [  1] 🌅 **System Briefing:**
+  [  1] 🌐 Browse
+  [  1] 🎨 Optional
+  [  1] 📄 Documents
+  [  1] 📊 Token & Context
+  [  1] 🔍 debug
+  [  1] 🔐 Secrets
+  [  1] 🖱️ Manual
+  [  1] 🖼️ Images
+  [  1] 🛡️ Permissions
+
+5. CONFIG SECTIONS: 8 values (27 occ)
+------------------------------------------------------------
+  [  7] Co-Agents
+  [  6] Agent & AI
+  [  4] Server & System
+  [  3] Smart Home
+  [  2] Environment Variables
+  [  2] LLM Provider
+  [  2] Prompts & Personas
+  [  1] Domain & TLS
+
+6. BRAND NAMES (DO NOT TRANSLATE): 132 values (1582 occ)
+------------------------------------------------------------
+  [ 68] Helper LLM
+  [ 47] LLM Guardian
+  [ 46] Agent
+  [ 42] Tailscale
+  [ 40] Webhooks
+  [ 35] AI Gateway
+  [ 30] OneDrive
+  [ 30] Paperless-ngx
+  [ 29] Ansible
+  [ 29] Google Workspace
+  [ 29] Koofr
+  [ 29] MeshCentral
+  [ 29] Proxmox
+  [ 29] Rocket.Chat
+  [ 29] Telegram
+  [ 29] WebDAV
+  [ 29] Webhook
+  [ 26] Home Assistant
+  [ 21] Cloudflare Tunnel
+  [ 21] MCP Server
+  [ 20] Brave Search
+  [ 20] Ollama (local)
+  [ 17] Invasion Control
+  [ 15] AdGuard
+  [ 15] AdGuard Home
+  [ 15] Basic Auth
+  [ 15] Circuit Breaker
+  [ 15] Connector Token
+  [ 15] Fritz!Box
+  [ 15] FritzBox
+  [ 15] GZIP
+  [ 15] Google (Gemini)
+  [ 15] Jellyfin
+  [ 15] Kimi Code
+  [ 15] Personal Access Token
+  [ 15] Piper TTS
+  [ 15] Python
+  [ 15] SMB:
+  [ 15] Tailscale Funnel
+  [ 15] Time Machine
+  [ 15] TrueNAS
+  [ 15] Whisper API (OpenAI)
+  [ 15] WireGuard
+  [ 15] Ελληνικά
+  [ 14] AuraGo API Token for n8n
+  [ 14] Microsoft OneDrive cloud storage integration
+  [ 14] n8n workflow automation integration
+  [ 13] Alibaba Coding Plan
+  [ 13] Fritz!Box:
+  [ 13] MiniMax Coding Plan
+  [ 13] Quality of Service (QoS)
+  [ 13] Time Machine support (Mac)
+  [ 13] Z AI GLM Coding Plan
+  [ 12] Cloudflare Account ID
+  [ 12] Daemon
+  [ 12] Docker API
+  [ 12] Host / IP
+  [ 11] Bootstrap
+  [ 11] Shell
+  [ 10] Paperless-ngx URL
+  [  9] AuraGo - Invasion Control
+  [  9] Dansk
+  [  9] Deutsch
+  [  9] English
+  [  9] Español
+  [  9] Français
+  [  9] Gotenberg URL
+  [  9] Italiano
+  [  9] Native Function Calling ⚠️
+  [  9] Nederlands
+  [  9] Norsk
+  [  9] Ollama URL
+  [  9] Polski
+  [  9] Português
+  [  9] Svenska
+  [  9] Čeština
+  [  9] हिन्दी
+  [  9] 中文
+  [  9] 日本語
+  [  8] AdGuard Home URL
+  [  8] HMAC Secret
+  [  8] SSH Tunnel
+  [  8] Security Proxy
+  [  7] Docker (Remote)
+  [  7] Remote Shell (execute_remote_shell)
+  [  7] TrueNAS Host
+  [  5] AuraGo - Mission Control
+  [  5] AuraGo – Dashboard
+  [  5] IMAP Host
+  [  5] Login Guard
+  [  4] AuraGo – Mission Control
+  [  4] Bearer Token
+  [  4] Daemons
+  [  4] IMAP Port
+  [  4] Jellyfin Host
+  [  4] OAuth2 Client ID
+  [  4] OAuth2 Client Secret
+  [  4] SMTP Host
+  [  4] SMTP Port
+  [  4] TR-064 Port
+  [  4] Text-to-Speech
+  [  4] WebDAV URL
+  [  4] Whisper speech-to-text
+  [  3] Dev Container
+  [  3] Docker (Local)
+  [  3] VS Code debug bridge
+  [  2] ACME Email (Let's Encrypt)
+  [  2] Bearer Token (Vault)
+  [  2] Bearer token
+  [  2] Discord bot integration
+  [  2] Docker Host
+  [  2] Docker Image
+  [  2] Egg Port
+  [  2] GPU Backend
+  [  2] GitHub Repositories
+  [  2] Gotenberg (Docker sidecar)
+  [  2] HTTPS Port
+  [  2] Telegram bot integration
+  [  1] A2A Server
+  [  1] ACME Email
+  [  1] AuraGo Interface
+  [  1] AuraGo – Configuration
+  [  1] Background
+  [  1] Coder
+  [  1] Coding
+  [  1] HTTP Port
+  [  1] Koofr cloud storage
+  [  1] Rocket.Chat bot integration
+  [  1] SSE Clients
+  [  1] SSH Private Key
+  [  1] Smart home integration
+  [  1] WebDAV cloud sync
+
+7. TECHNICAL (DO NOT TRANSLATE): 18 values (184 occ)
+------------------------------------------------------------
+  [ 15] 192.168.1.100
+  [ 15] 192.168.1.50
+  [ 15] ping failed: {0} — ensure the process has permission to send ICMP packets (root / CAP_NET_RAW on Lin
+  [ 15] requests, pyyaml
+  [ 15] root
+  [ 14] admin password is required
+  [ 14] admin password must be a string
+  [ 14] admin password must be at least 8 characters long
+  [ 14] auth.enabled must be a boolean
+  [ 13] application/json
+  [ 12] tokens
+  [ 12] used
+  [  7] my_skill
+  [  5] commit(s)
+  [  1] debug
+  [  1] images
+  [  1] running
+  [  1] runs
+
+8. ALREADY GERMAN: 3 values (45 occ)
+------------------------------------------------------------
+  [ 15] (Co-Agents + Vision/STT gesperrt bei Überschreitung)
+  [ 15] (alles gesperrt bei Überschreitung)
+  [ 15] (nur Warnung)
+
+9. PLACEHOLDERS: 2 values (8 occ)
+------------------------------------------------------------
+  [  7] (free only)
+  [  1] https://hooks.slack.com/services/...
+
+
+================================================================================
+SUMMARY: SHOULD BE TRANSLATED
+================================================================================
+Translatable: 420 values (2213 occurrences)
+Do NOT translate: 155 values (1819 occurrences)
