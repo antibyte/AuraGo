@@ -1343,6 +1343,12 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		lastActivity = time.Now() // LLM activity
 
 		parsedToolResp := parseToolResponse(resp, currentLogger, telemetryScope)
+		// Strip the <done/> completion signal from the raw content that gets persisted
+		// to history. The streaming layer already filters it from SSE deltas, but the
+		// assembled content still contains it and would appear in the chat on reload.
+		if parsedToolResp.IsFinished {
+			content = strings.TrimSpace(strings.ReplaceAll(content, "<done/>", ""))
+		}
 		tc := parsedToolResp.ToolCall
 		useNativePath := parsedToolResp.UseNativePath
 		nativeAssistantMsg := parsedToolResp.NativeAssistantMsg
