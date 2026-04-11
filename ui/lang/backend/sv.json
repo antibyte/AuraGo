@@ -1,4 +1,4 @@
-ebc{
+{
   "backend.cmd_unknown": "❌ Okänt kommando. Skriv /help för en lista över kommandon.",
   "backend.cmd_reset_success": "🧹 Chatt historik och korttidsminne har raderats.",
   "backend.cmd_reset_help": "Tar bort den aktuella chatt historiken (korttidsminne).",
