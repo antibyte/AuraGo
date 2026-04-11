@@ -677,7 +677,13 @@ func ParseToolCall(content string) ToolCall {
 			invNameStart := invStart + 13
 			invEndChar := strings.Index(lowerContent[invNameStart:], ">")
 			if invEndChar != -1 {
-				tc.Action = strings.Trim(strings.TrimSpace(content[invNameStart:invNameStart+invEndChar]), "\"'")
+				rawName := content[invNameStart : invNameStart+invEndChar]
+				// Some models emit <invoke name="execute_shell","command":"..."> —
+				// extract only the first quoted or unquoted token as the action name.
+				if idx := strings.IndexAny(rawName, "\","); idx > 0 {
+					rawName = rawName[:idx]
+				}
+				tc.Action = strings.Trim(strings.TrimSpace(rawName), "\"'")
 				if tc.Action != "" {
 					tc.IsTool = true
 					tc.XMLFallbackDetected = true
