@@ -68,7 +68,7 @@
   "knowledge.credentials_edit": "Redigera åtkomstuppgift",
   "knowledge.credentials_empty_title": "Inga åtkomstuppgifter ännu",
   "knowledge.credentials_empty_desc": "Lagra SSH-åtkomstdata med vault-skyddade hemligheter.",
-  "knowledge.credentials_col_name": "Name",
+  "knowledge.credentials_col_name": "Namn",
   "knowledge.credentials_col_type": "Typ",
   "knowledge.credentials_col_host": "Värd / IP",
   "knowledge.credentials_col_username": "Användarnamn",

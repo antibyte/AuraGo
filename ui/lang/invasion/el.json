@@ -41,7 +41,7 @@
   "invasion.hatch_running": "Εκτελείται",
   "invasion.hatch_stopped": "Σταμάτησε",
   "invasion.hatching_started": "Το Hatching ξεκίνησε…",
-  "invasion.host": "Host",
+  "invasion.host": "Κεντρικός υπολογιστής",
   "invasion.inactive": "Ανενεργό",
   "invasion.include_vault": "Vault Overdragen",
   "invasion.inherit_llm": "LLM overerven van Master",

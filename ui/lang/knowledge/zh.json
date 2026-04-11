@@ -68,7 +68,7 @@
   "knowledge.credentials_edit": "编辑访问凭据",
   "knowledge.credentials_empty_title": "暂无访问凭据",
   "knowledge.credentials_empty_desc": "使用保险库保护的密钥存储SSH访问数据。",
-  "knowledge.credentials_col_name": "Name",
+  "knowledge.credentials_col_name": "名称",
   "knowledge.credentials_col_type": "类型",
   "knowledge.credentials_col_host": "主机 / IP",
   "knowledge.credentials_col_username": "用户名",

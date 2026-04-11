@@ -32,7 +32,7 @@
   "truenas.empty_datasets": "Ingen datasæt fundet",
   "truenas.empty_snapshots": "Ingen snapshots fundet",
   "truenas.empty_shares": "Ingen SMB shares fundet",
-  "truenas.label_host": "Host",
+  "truenas.label_host": "Vært",
   "truenas.hint_host": "Hostname eller IP-adresse på din TrueNAS server",
   "truenas.label_apikey": "API Nøgle",
   "truenas.hint_apikey": "Opret en API nøgle under System → API Nøgler i TrueNAS",

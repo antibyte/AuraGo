@@ -32,7 +32,7 @@
   "truenas.empty_datasets": "Nenalezeny žádné datasety",
   "truenas.empty_snapshots": "Nenalezeny žádné snímky",
   "truenas.empty_shares": "Nenalezena žádná SMB sdílení",
-  "truenas.label_host": "Host",
+  "truenas.label_host": "Hostitel",
   "truenas.hint_host": "Název hostitele nebo IP adresa vašeho TrueNAS serveru",
   "truenas.label_apikey": "API klíč",
   "truenas.hint_apikey": "Vytvořte API klíč v Systém → API klíče v TrueNAS",
