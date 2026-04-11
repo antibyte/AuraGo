@@ -1714,16 +1714,24 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		// sanitized string means the entire response was inside <think> blocks, and feeding raw
 		// think-block language to the detector causes spurious WARN / recovery loops.
 		announcementContent := parsedToolResp.SanitizedContent
-		// Skip announcement detection after XML-fallback tool chains (e.g. MiniMax minimax:tool_call).
+		// Skip structural check after XML-fallback tool chains (e.g. MiniMax minimax:tool_call).
 		// When the model used XML format and one or more tools already ran, the next text response
-		// is a completion summary — not a true announcement.  Forcing another corrective LLM call
-		// would only cause further XML-format responses and a noticeable "hang" from slow MiniMax
-		// round-trips.
+		// is a completion summary — not a missed action.
 		xmlFallbackPostToolChain := xmlFallbackCount > 0 && lastResponseWasTool
-		isAnnouncement := announcementContent != "" && !parsedToolResp.IsFinished && !tc.IsTool && cfg.Agent.AnnouncementDetector.Enabled && !xmlFallbackPostToolChain && isAnnouncementOnlyResponse(announcementContent, tc, useNativePath, lastResponseWasTool, lastUserMsg)
-		if isAnnouncement && announcementCount < cfg.Agent.AnnouncementDetector.MaxRetries {
+
+		// Language-agnostic recovery: if the PREVIOUS iteration was a tool call (mid-task)
+		// and the model now outputs only text without <done/> and without a new tool call,
+		// it is stuck. This replaces the language-heuristic announcement detector with a
+		// pure structural check: the model MUST either emit a tool call (JSON) or signal
+		// completion (<done/>). No keyword lists, no language detection needed.
+		midTaskTextOnly := announcementContent != "" &&
+			!parsedToolResp.IsFinished &&
+			!tc.IsTool &&
+			lastResponseWasTool &&
+			!xmlFallbackPostToolChain
+		if midTaskTextOnly && announcementCount < cfg.Agent.AnnouncementDetector.MaxRetries {
 			announcementCount++
-			currentLogger.Warn("[Sync] Announcement-only response detected, requesting immediate tool call", "attempt", announcementCount, "content_preview", Truncate(announcementContent, 120))
+			currentLogger.Warn("[Sync] Mid-task text-only response without <done/> — requesting tool call or completion signal", "attempt", announcementCount, "content_preview", Truncate(announcementContent, 120))
 			broker.Send("error_recovery", i18n.T(cfg.Server.UILanguage, "backend.stream_error_recovery_announcement_no_action"))
 
 			id, err := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleAssistant, content, false, true)
@@ -1736,23 +1744,18 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 			var feedbackMsg string
 			if useNativeFunctions {
-				feedbackMsg = "ERROR: You announced what you were going to do but did not call a tool. You MUST use the native function-calling mechanism to invoke a tool — do not include any text before or after the function call."
+				feedbackMsg = "ERROR: Your last response was text-only — it contained neither a tool call nor the <done/> completion signal. " +
+					"If you want to call a tool, use the native function-calling mechanism NOW. " +
+					"If your task is genuinely complete, state the final result and append <done/> at the very end."
 			} else {
-				feedbackMsg = "ERROR: You announced what you were going to do but did not output a tool call. When executing a task, your ENTIRE response must be ONLY the raw JSON tool call — no explanation before it. Output the JSON tool call NOW."
+				feedbackMsg = "ERROR: Your last response was text-only — it contained neither a tool call (raw JSON starting with {) nor the <done/> completion signal. " +
+					"If you want to call a tool, output the raw JSON object NOW (starting with {). " +
+					"If your task is genuinely complete, state the final result and append <done/> at the very end."
 			}
-			// If the previous iteration was a successful tool call, explicitly warn not to repeat it.
-			// Without this hint the LLM may re-call the same tool (e.g. generate_music a second time)
-			// instead of proceeding to the NEXT planned step.
-			if lastResponseWasTool && len(recentTools) > 0 {
+			if len(recentTools) > 0 {
 				lastTool := recentTools[len(recentTools)-1]
-				feedbackMsg += fmt.Sprintf(" IMPORTANT: '%s' already completed successfully in this turn. Do NOT call it again. Your next action must be a DIFFERENT tool that continues your plan.", lastTool)
+				feedbackMsg += fmt.Sprintf(" NOTE: '%s' already ran successfully this turn — do NOT call it again. Continue with the next step.", lastTool)
 			}
-			// CHANGE LOG 2026-04-11:
-			// - Removed <done/> suggestion. Models interpret <done/> as an escape hatch and give up
-			//   prematurely instead of retrying. If the task is genuinely complete, the model should
-			//   state the final result directly to the user.
-			feedbackMsg += " If the task is genuinely complete and no more tool calls are needed, " +
-				"state the final result directly to the user."
 			feedbackMsg = applyEmotionRecoveryNudge(feedbackMsg, emotionPolicy)
 			id, err = shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, feedbackMsg, false, true)
 			if err != nil {

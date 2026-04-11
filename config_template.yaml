@@ -56,7 +56,7 @@ agent:
         wait_default_timeout_secs: 600                              # default timeout for wait_for_event tasks
     # ── Announcement detector ──
     announcement_detector:
-        enabled: true                                               # detect and suppress "I will now do X" announcements without action
+        enabled: false                                              # detect and suppress "I will now do X" announcements without action
     # ── Tool guide injection ──
     max_tool_guides: 5                                              # max tool guide documents injected into prompt (default: 5)
     budget:
