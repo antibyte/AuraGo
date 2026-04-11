@@ -351,7 +351,7 @@
   "dashboard.tooling_telemetry_parse_native": "Native verktygsanrop",
   "dashboard.tooling_telemetry_parse_reasoning_clean_json": "JSON efter reasoning-städning",
   "dashboard.tooling_telemetry_parse_sources": "Parse-källor",
-  "dashboard.tooling_telemetry_parse_sources_short": "Parse {{count}}",
+  "dashboard.tooling_telemetry_parse_sources_short": "Analysera {{count}}",
   "dashboard.tooling_telemetry_policy_adjustments_total": "Policy-justeringar",
   "dashboard.tooling_telemetry_policy_conservative_profile_applied": "Konservativ profil aktiv",
   "dashboard.tooling_telemetry_policy_events": "Policy-signaler",

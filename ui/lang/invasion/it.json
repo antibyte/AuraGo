@@ -64,7 +64,7 @@
   "invasion.ph_username": "deploy",
   "invasion.port": "Porta",
   "invasion.provider": "Provider",
-  "invasion.route": "Route (Back-Channel)",
+  "invasion.route": "Percorso (canale inverso)",
   "invasion.route_config": "Config Route (JSON, opzionale)",
   "invasion.route_custom": "Personalizzato",
   "invasion.route_direct": "Diretto",

@@ -110,7 +110,7 @@
   "dashboard.integration_co_agents": "Συν-Πράκτορες",
   "dashboard.integration_discord": "Discord",
   "dashboard.integration_docker": "Docker",
-  "dashboard.integration_email": "E-Mail",
+  "dashboard.integration_email": "Ηλεκτρονικό ταχυδρομείο",
   "dashboard.integration_fallback_llm": "Εναλλακτικό LLM",
   "dashboard.integration_firewall": "Τείχος προστασίας",
   "dashboard.integration_fritzbox": "FritzBox",

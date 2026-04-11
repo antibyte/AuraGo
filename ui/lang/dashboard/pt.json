@@ -351,7 +351,7 @@
   "dashboard.tooling_telemetry_parse_native": "Chamadas de ferramentas nativas",
   "dashboard.tooling_telemetry_parse_reasoning_clean_json": "JSON após limpeza de raciocínio",
   "dashboard.tooling_telemetry_parse_sources": "Fontes de Parsing",
-  "dashboard.tooling_telemetry_parse_sources_short": "Parse {{count}}",
+  "dashboard.tooling_telemetry_parse_sources_short": "Analisar {{count}}",
   "dashboard.tooling_telemetry_policy_adjustments_total": "Ajustes de Política",
   "dashboard.tooling_telemetry_policy_conservative_profile_applied": "Perfil conservador ativo",
   "dashboard.tooling_telemetry_policy_events": "Sinais de Política",
