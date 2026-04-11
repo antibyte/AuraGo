@@ -165,6 +165,10 @@ Returns up to 200 files, excluding node_modules, .next, and .git.
 ```
 
 ### dev — Start the dev server
+Starts the dev server (e.g. `npm run dev`) in the background. When the Caddy web container is running and a `project_dir` is specified, a reverse_proxy route is automatically registered so the app is accessible through the Caddy web server at `/<project_dir>/`.
+
+The dev container and Caddy web container are connected via a shared Docker network (`aurago-homepage-net`), allowing Caddy to forward requests to the dev server. Proxy routes are persisted in the workspace (`.aurago-proxy-routes.json`) and survive container restarts.
+
 ```json
 {"action": "homepage", "operation": "dev", "project_dir": "my-site"}
 ```
@@ -244,6 +248,35 @@ For local publishing, the Caddy container serves files from:
 - container name: `aurago-homepage-web`
 - document root: `/srv`
 - config path: `/etc/caddy/Caddyfile`
+
+### Shared Docker Network
+
+Both the dev container (`aurago-homepage`) and the Caddy web container (`aurago-homepage-web`) are connected to a shared Docker network (`aurago-homepage-net`). This enables:
+
+1. **Static file serving** — Caddy serves build output from `/srv` (default)
+2. **Reverse proxy to dev servers** — When a dev server is started via the `dev` operation, Caddy automatically proxies `/<project_dir>/*` to the dev container. This makes Next.js, Vite, and other framework dev servers accessible through the same Caddy URL without needing a separate port.
+
+Proxy routes are persisted in the workspace as `.aurago-proxy-routes.json` and are automatically included when Caddy starts or reloads.
+
+### Caddy Config with Proxy Routes
+
+The generated Caddyfile uses `handle` blocks for proxy routes (matched first) and a default `handle` for static file serving:
+
+```
+:80 {
+    root * /srv
+    encode gzip
+
+    handle /phaser-demo* {
+        reverse_proxy aurago-homepage:3000
+    }
+
+    handle {
+        file_server
+        try_files {path} /index.html
+    }
+}
+```
 
 Do **not** assume `/var/www/html`. Use `publish_local` or `webserver_start` instead of manual `docker cp` to guessed paths.
 
@@ -446,6 +479,17 @@ The `deploy_netlify` operation scans all HTML and CSS files, detects `/files/gen
 1. Verify port is not in use: `netstat -tlnp | grep 8080`
 2. Check firewall rules: `sudo ufw allow 8080`
 3. Try different port in config: `homepage.webserver_port: 8081`
+
+### Dev Server Returns 404 via Caddy
+
+**Problem:** The dev server runs inside the container but Caddy returns 404 for `/<project_dir>/` paths.
+
+**Cause:** The Caddy and dev containers must be on the same Docker network (`aurago-homepage-net`) for Caddy to reach the dev server by container name.
+
+**Solutions:**
+1. Restart the dev container (`homepage stop` + `homepage start`) — it auto-connects to the shared network
+2. Restart the Caddy web server (`webserver_stop` + `webserver_start`) — it also auto-connects
+3. Verify both containers are on the network: `docker network inspect aurago-homepage-net`
 
 ### Status Shows "running": false
 

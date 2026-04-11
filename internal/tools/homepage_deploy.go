@@ -107,7 +107,10 @@ func HomepageOptimizeImages(cfg HomepageConfig, projectDir string, logger *slog.
 	return DockerExec(dockerCfg, homepageContainerName, cmd, "")
 }
 
-// HomepageDev starts the dev server in the container.
+// HomepageDev starts the dev server in the container and registers a reverse
+// proxy route in the Caddy web container so the app is accessible at
+// http://<host>:<port>/<projectDir>/.  If the Caddy web container is running
+// its config is reloaded automatically.
 func HomepageDev(cfg HomepageConfig, projectDir string, port int, logger *slog.Logger) string {
 	if projectDir == "" {
 		projectDir = "."
@@ -122,9 +125,36 @@ func HomepageDev(cfg HomepageConfig, projectDir string, port int, logger *slog.L
 	}
 	logger.Info("[Homepage] Dev server start", "dir", projectDir, "port", port)
 	dockerCfg := DockerConfig{Host: cfg.DockerHost}
-	// Start dev server in background (detached)
+
+	ensureHomepageNetwork(dockerCfg, logger)
+	connectContainerToNetwork(dockerCfg, homepageContainerName, logger)
+
 	cmd := fmt.Sprintf("cd /workspace/%s && nohup npm run dev -- --port %d > /tmp/dev-server.log 2>&1 &", projectDir, port)
-	return DockerExec(dockerCfg, homepageContainerName, cmd, "")
+	startResult := DockerExec(dockerCfg, homepageContainerName, cmd, "")
+
+	if cfg.WorkspacePath != "" && projectDir != "." {
+		route := ProxyRoute{
+			Path:        "/" + projectDir,
+			Port:        port,
+			StripPrefix: false,
+		}
+		if err := RegisterProxyRoute(cfg.WorkspacePath, route); err != nil {
+			logger.Warn("[Homepage] Failed to persist proxy route", "error", err)
+		} else {
+			logger.Info("[Homepage] Registered proxy route", "path", route.Path, "port", port)
+		}
+
+		webInspect, webCode, _ := dockerRequest(dockerCfg, "GET", "/containers/"+homepageWebContainer+"/json", "")
+		if webCode == 200 {
+			_ = webInspect
+			routes := loadProxyRoutes(cfg.WorkspacePath)
+			if err := rewriteCaddyfileWithProxyRoutes(cfg, dockerCfg, routes, logger); err != nil {
+				logger.Warn("[Homepage] Failed to update Caddy proxy routes", "error", err)
+			}
+		}
+	}
+
+	return startResult
 }
 
 // ─── Deployment via SFTP/SCP ──────────────────────────────────────────────
@@ -323,8 +353,9 @@ func HomepageWebServerStart(cfg HomepageConfig, projectDir, buildDir string, log
 		DockerContainerAction(dockerCfg, homepageWebContainer, "remove", true)
 	}
 
-	// Generate Caddyfile
-	caddyfile := homepageCaddyfile(cfg.WebServerDomain, port)
+	// Generate Caddyfile (with proxy routes if any)
+	routes := loadProxyRoutes(cfg.WorkspacePath)
+	caddyfile := buildCaddyfileWithProxies(cfg.WebServerDomain, port, routes)
 
 	// Write Caddyfile to workspace
 	caddyfilePath := filepath.Join(cfg.WorkspacePath, ".aurago-Caddyfile")
@@ -377,6 +408,9 @@ func HomepageWebServerStart(cfg HomepageConfig, projectDir, buildDir string, log
 	if startErr != nil || (startCode != 204 && startCode != 304) {
 		return errJSON("Failed to start web server: code=%d err=%v", startCode, startErr)
 	}
+
+	ensureHomepageNetwork(dockerCfg, logger)
+	connectContainerToNetwork(dockerCfg, homepageWebContainer, logger)
 
 	// Health-check: wait for Caddy to be ready using a plain TCP dial.
 	// We avoid the SSRF-protected HTTP client here because localhost/127.0.0.1 is

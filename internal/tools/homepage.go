@@ -485,7 +485,9 @@ func HomepageInit(cfg HomepageConfig, logger *slog.Logger) string {
 				return okJSON("Dev container already running", "container", homepageContainerName)
 			}
 		}
-		// Start existing stopped container
+		ensureHomepageNetwork(dockerCfg, logger)
+		connectContainerToNetwork(dockerCfg, homepageContainerName, logger)
+
 		_, startCode, startErr := dockerRequest(dockerCfg, "POST", "/containers/"+homepageContainerName+"/start", "")
 		if startErr != nil || (startCode != 204 && startCode != 304) {
 			return errJSON("Failed to start existing container: code=%d err=%v", startCode, startErr)
@@ -521,6 +523,9 @@ func HomepageInit(cfg HomepageConfig, logger *slog.Logger) string {
 	if startErr != nil || (startCode != 204 && startCode != 304) {
 		return errJSON("Failed to start container: code=%d err=%v", startCode, startErr)
 	}
+
+	ensureHomepageNetwork(dockerCfg, logger)
+	connectContainerToNetwork(dockerCfg, homepageContainerName, logger)
 
 	logger.Info("[Homepage] Dev container initialized and running", "container", homepageContainerName)
 	return okJSON("Dev container initialized and running", "container", homepageContainerName)
@@ -614,6 +619,7 @@ func HomepageDestroy(cfg HomepageConfig, logger *slog.Logger) string {
 	DockerContainerAction(dockerCfg, homepageWebContainer, "stop", false)
 	DockerContainerAction(dockerCfg, homepageWebContainer, "remove", true)
 	DockerRemoveImage(dockerCfg, homepageImageName, true)
+	DockerRemoveNetwork(dockerCfg, homepageNetworkName)
 
 	return okJSON("Homepage environment destroyed")
 }
