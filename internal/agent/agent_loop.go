@@ -1627,15 +1627,15 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			var feedbackMsg string
 			if useNativeFunctions {
 				feedbackMsg = "ERROR: You emitted a bare <tool_call> or <minimax:tool_call> tag but did not produce an actual tool call. You MUST use the native function-calling mechanism to invoke tools. Do NOT output any XML tags in text — use the structured function call API instead."
-			} else if incompleteToolCallCount >= 2 {
-				// Escalate on second attempt — be very explicit about <minimax:tool_call> specifically
-				feedbackMsg = "CRITICAL ERROR: You sent '<minimax:tool_call>' or '<tool_call>' as raw text again. This is not a valid tool call format. Do NOT output any XML tags at all. Output a raw JSON object starting with '{'. Example: {\"action\": \"read_file\", \"file_path\": \"/etc/caddy/Caddyfile\"}"
+			} else if 			} else if incompleteToolCallCount >= 2 {
+				// Escalate on second attempt - be very explicit about tool_call tags
+				// CHANGE LOG 2026-04-11: Removed concrete example tool names to prevent hallucination.
+				// Models that understand the format don't need examples; models that don't won't be helped.
+				feedbackMsg = "CRITICAL ERROR: You sent '<tool_call>' as raw text again. This is not a valid tool call format. Do NOT output any XML tags at all. Output a raw JSON object starting with '{'."
 			} else {
-				feedbackMsg = "ERROR: You emitted a bare <tool_call> or <minimax:tool_call> tag but did not include the JSON body. Do NOT output XML tags. Output ONLY the raw JSON tool call object — no XML tags, no explanation, no preamble. Example: {\"action\": \"system_metrics\"}"
+				// CHANGE LOG 2026-04-11: Removed concrete example tool names to prevent hallucination.
+				feedbackMsg = "ERROR: You emitted a bare <tool_call> tag but did not include the JSON body. Do NOT output XML tags. Output ONLY the raw JSON tool call object - no XML tags, no explanation, no preamble."
 			}
-			// Note: Do NOT suggest <done/> here — the model confuses a transient format
-			// error with task completion and prematurely stops (sends <done/> instead of retrying).
-			feedbackMsg += " Retry the SAME tool call now — output only the JSON object directly."
 			feedbackMsg = applyEmotionRecoveryNudge(feedbackMsg, emotionPolicy)
 			id, err = shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, feedbackMsg, false, true)
 			if err != nil {
@@ -1704,7 +1704,12 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				lastTool := recentTools[len(recentTools)-1]
 				feedbackMsg += fmt.Sprintf(" IMPORTANT: '%s' already completed successfully in this turn. Do NOT call it again. Your next action must be a DIFFERENT tool that continues your plan.", lastTool)
 			}
-			feedbackMsg += " If there is nothing left to do, respond with <done/> to signal completion."
+			// CHANGE LOG 2026-04-11:
+			// - Removed <done/> suggestion. Models interpret <done/> as an escape hatch and give up
+			//   prematurely instead of retrying. If the task is genuinely complete, the model should
+			//   state the final result directly to the user.
+			feedbackMsg += " If the task is genuinely complete and no more tool calls are needed, " +
+				"state the final result to the user — do NOT output <done/>."
 			feedbackMsg = applyEmotionRecoveryNudge(feedbackMsg, emotionPolicy)
 			id, err = shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, feedbackMsg, false, true)
 			if err != nil {

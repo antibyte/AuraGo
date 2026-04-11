@@ -337,12 +337,27 @@ func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string,
 	// takes precedence over any sync-JSON protocol described in static prompt modules.
 	// Without this, strictly instruction-following models (e.g. Nemotron) may revert
 	// to outputting raw JSON text after the first tool result turn.
+	//
+	// CHANGE LOG 2026-04-11:
+	// - Clarified preamble rule: single-step tool calls → no preamble; multi-step tasks
+	//   where "Acknowledge before long actions" applies → brief 1-sentence acknowledgment OK
+	//   before the first tool call of a chain.
+	// - Removed the misleading "JSON protocol is a fallback" phrasing — the fallback is
+	//   still described in TOOL EXECUTION PROTOCOL for non-native providers, but native
+	//   sessions must never mix both protocols in their output.
 	if flags.NativeToolsEnabled {
 		finalPrompt.WriteString("## TOOL CALLING MODE\n")
 		finalPrompt.WriteString("This session uses the **native function calling API**. " +
 			"ALWAYS invoke tools via the API tool-call mechanism. " +
-			"NEVER output raw JSON objects as tool invocations — the JSON protocol " +
-			"in the TOOL EXECUTION PROTOCOL section is a fallback for non-native sessions only.\n\n")
+			"NEVER output raw JSON objects as tool invocations — that protocol " +
+			"is for non-native sessions only.\n\n")
+		finalPrompt.WriteString("**Preamble rule:** When calling a tool as a single-step action, " +
+			"your response must START with the tool call directly. Do NOT announce " +
+			"what you are about to do (no \"I will…\", \"Let me…\", \"Lass mich…\"). " +
+			"If you want to explain something, do it AFTER the tool result comes back. " +
+			"The only exception is for multi-step tasks where the \"Acknowledge before long actions\" " +
+			"rule in your behavioral rules applies — then a brief 1-sentence acknowledgment " +
+			"may precede the first tool call of the chain.\n\n")
 	}
 
 	// Language Instruction
