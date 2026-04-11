@@ -112,11 +112,13 @@ func resolveModelCapabilities(cfg *config.Config) ModelCapabilities {
 	// GLM (Zhipu) and MiniMax models emit tool calls as proprietary XML/JSON text
 	// content rather than proper OpenAI-compatible API tool_calls. Force JSON text
 	// mode for these so the prompt-based JSON extraction path is used instead.
+	// Note: MiniMax M2.7+ supports native function calling — only disable for
+	// older MiniMax models (abab prefix) and the legacy minimax-text series.
 	isGLMFamily := strings.HasPrefix(lowerModel, "glm-") ||
 		strings.Contains(lowerModel, "/glm-") ||
 		strings.Contains(lowerModel, "zhipuai/") ||
-		strings.HasPrefix(lowerModel, "minimax") ||
-		strings.HasPrefix(lowerModel, "abab")
+		strings.HasPrefix(lowerModel, "abab") ||
+		(strings.HasPrefix(lowerModel, "minimax") && !strings.Contains(lowerModel, "m2.7") && !strings.Contains(lowerModel, "minimax-m1") && !strings.Contains(lowerModel, "/text-"))
 
 	return ModelCapabilities{
 		ProviderType:                 providerType,
