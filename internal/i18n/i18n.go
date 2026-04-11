@@ -10,6 +10,7 @@ import (
 	"html/template"
 	"io/fs"
 	"log/slog"
+	"sort"
 	"strings"
 	"sync"
 )
@@ -134,6 +135,27 @@ func (s *Store) load(uiFS fs.FS, logger *slog.Logger) {
 
 	if len(newLangJSON) == 0 {
 		newLangJSON = map[string]string{"en": "{}"}
+	}
+
+	// Validate translation coverage: log missing keys in non-English languages.
+	if enData, ok := langData["en"]; ok && len(enData) > 0 {
+		for lang, translations := range langData {
+			if lang == "en" || lang == "_meta" {
+				continue
+			}
+			var missing []string
+			for key := range enData {
+				if _, found := translations[key]; !found {
+					missing = append(missing, key)
+				}
+			}
+			if len(missing) > 0 {
+				sort.Strings(missing)
+				logger.Debug("i18n: missing translation keys",
+					"lang", lang, "missing_count", len(missing),
+					"sample", truncateMissingKeys(missing, 10))
+			}
+		}
 	}
 
 	s.mu.Lock()
@@ -329,4 +351,12 @@ func (s *Store) HasKey(lang, key string) bool {
 	}
 
 	return false
+}
+
+// truncateMissingKeys returns a comma-separated preview of the first n keys.
+func truncateMissingKeys(keys []string, n int) string {
+	if len(keys) <= n {
+		return strings.Join(keys, ", ")
+	}
+	return strings.Join(keys[:n], ", ") + fmt.Sprintf(" (+%d more)", len(keys)-n)
 }

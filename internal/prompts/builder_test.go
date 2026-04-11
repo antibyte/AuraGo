@@ -56,6 +56,36 @@ memory entry 1
 	}
 }
 
+func TestBudgetShed_HardTruncateWhenCoreExceedsBudget(t *testing.T) {
+	prompt := strings.Repeat("word ", 5000)
+
+	flags := ContextFlags{
+		Tier:        "minimal",
+		TokenBudget: 10,
+	}
+
+	logger := slog.Default()
+	result, shedSections := budgetShed(prompt, flags, "", "", time.Now(), logger)
+
+	if !strings.Contains(result, "[BUDGET TRUNCATED]") {
+		t.Errorf("expected hard-truncate marker, got result len=%d", len(result))
+	}
+
+	foundHardTruncate := false
+	for _, s := range shedSections {
+		if s == "HARD_TRUNCATE" {
+			foundHardTruncate = true
+		}
+	}
+	if !foundHardTruncate {
+		t.Errorf("expected HARD_TRUNCATE in shedSections, got: %v", shedSections)
+	}
+
+	if len(result) >= len(prompt) {
+		t.Errorf("expected result to be shorter than original, got len=%d vs orig=%d", len(result), len(prompt))
+	}
+}
+
 func TestBudgetShed_UnifiedMemoryRemovesUserProfile(t *testing.T) {
 	// Test with UnifiedMemoryBlock enabled
 	prompt := `# SYSTEM IDENTITY

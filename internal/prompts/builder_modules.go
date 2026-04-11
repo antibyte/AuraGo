@@ -553,11 +553,11 @@ func evictGuideCacheLocked() {
 }
 
 // readToolGuide reads a tool guide file with caching.
-// Guides exceeding 8KB are truncated to prevent prompt bloat.
+// Guides exceeding the token limit are truncated to prevent prompt bloat.
 // It first tries the on-disk path (allowing user overrides), then falls back
 // to the embedded FS baked into the binary.
 func readToolGuide(path string) (string, bool) {
-	const maxGuideBytes = 8192
+	const maxGuideTokens = 2048
 
 	guideCacheMu.RLock()
 	cached, ok := guideCache[path]
@@ -583,7 +583,7 @@ func readToolGuide(path string) (string, bool) {
 		if !ok {
 			return "", false
 		}
-		content := truncateGuide(string(data), maxGuideBytes)
+		content := truncateGuide(string(data), maxGuideTokens)
 		guideCacheMu.Lock()
 		evictGuideCacheLocked()
 		guideCache[path] = guideCacheEntry{content: content} // zero mtime = from embed
@@ -591,7 +591,7 @@ func readToolGuide(path string) (string, bool) {
 		return content, true
 	}
 
-	content := truncateGuide(string(data), maxGuideBytes)
+	content := truncateGuide(string(data), maxGuideTokens)
 	info, err := os.Stat(path)
 	if err == nil {
 		guideCacheMu.Lock()
@@ -626,18 +626,40 @@ func readToolGuideEmbed(osPath string) ([]byte, bool) {
 	return data, true
 }
 
-// truncateGuide trims whitespace and limits content to maxBytes, preserving UTF-8 rune boundaries.
-func truncateGuide(raw string, maxBytes int) string {
+// truncateGuide trims whitespace and limits content to maxTokens using the
+// shared tiktoken-based CountTokens function.  When truncation is needed the
+// content is cut at the last newline boundary before the limit so that
+// sentences/sections remain intact.
+func truncateGuide(raw string, maxTokens int) string {
 	content := strings.TrimSpace(raw)
-	if len(content) > maxBytes {
-		// Step back from the byte limit until we land on a rune boundary.
-		trunc := maxBytes
-		for trunc > 0 && !isRuneBoundary(content, trunc) {
-			trunc--
-		}
-		content = content[:trunc] + "\n[...truncated]"
+	if CountTokens(content) <= maxTokens {
+		return content
 	}
-	return content
+
+	// Binary search for the longest rune-length prefix that fits in maxTokens.
+	lo, hi := 0, len(content)
+	for lo < hi {
+		mid := lo + (hi-lo)/2
+		// Step back to a rune boundary
+		for mid > lo && !isRuneBoundary(content, mid) {
+			mid--
+		}
+		if CountTokens(content[:mid]) <= maxTokens {
+			lo = mid + 1
+		} else {
+			hi = mid
+		}
+	}
+	cut := lo - 1
+	if cut <= 0 {
+		return content[:min(200, len(content))] + "\n[...truncated]"
+	}
+
+	// Try to cut at the last newline before the cut point for cleaner output.
+	if idx := strings.LastIndex(content[:cut], "\n"); idx > cut/2 {
+		cut = idx
+	}
+	return content[:cut] + "\n[...truncated]"
 }
 
 // isRuneBoundary reports whether byte index i is at the start of a UTF-8 rune in s.
@@ -860,6 +882,11 @@ func GetCorePersonalityMeta(promptsDir, corePersonality string) memory.Personali
 	}
 
 	m := mod.Metadata.Meta.Normalized()
+
+	if err := mod.Metadata.Meta.Validate(); err != nil {
+		slog.Warn("[Personality] Invalid personality metadata detected",
+			"profile", corePersonality, "error", err)
+	}
 
 	// Update cache
 	info, err := os.Stat(profilePath)

@@ -1,6 +1,7 @@
 package security
 
 import (
+	"html"
 	"log/slog"
 	"regexp"
 	"strings"
@@ -196,14 +197,16 @@ func prepareGuardianScanText(text string, maxScanBytes, scanEdgeBytes int) (stri
 // ── External Data Isolation ─────────────────────────────────────────────────
 
 // IsolateExternalData wraps content in <external_data> tags for safe LLM ingestion.
-// Any existing <external_data> tags in the content are escaped to prevent nesting attacks.
+// All HTML special characters in the content are escaped so that no nested or
+// pre-encoded tags can break out of the isolation boundary.  This prevents
+// double-encoding bypass attacks where pre-encoded entities like
+// &lt;/external_data&gt; would pass through a partial escaper unchanged and
+// potentially be decoded by the downstream LLM.
 func IsolateExternalData(content string) string {
 	if content == "" {
 		return ""
 	}
-	// Escape any existing tags to prevent premature tag closure
-	safe := strings.ReplaceAll(content, "</external_data>", "&lt;/external_data&gt;")
-	safe = strings.ReplaceAll(safe, "<external_data>", "&lt;external_data&gt;")
+	safe := html.EscapeString(content)
 	return "<external_data>\n" + safe + "\n</external_data>"
 }
 

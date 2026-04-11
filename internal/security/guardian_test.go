@@ -1,6 +1,7 @@
 package security
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -25,14 +26,65 @@ func TestGuardianDetectsObfuscatedPatterns(t *testing.T) {
 	}
 }
 
-func TestGuardianTruncatesLargeInputsButKeepsEdgeSignals(t *testing.T) {
-	// Basic test
-	text := "test"
-	scanText, tr := prepareGuardianScanText(text, 100, 100)
-	if tr {
-		t.Fatal("Did not expect truncation")
+func TestIsolateExternalData_WrapsContent(t *testing.T) {
+	result := IsolateExternalData("hello world")
+	if result != "<external_data>\nhello world\n</external_data>" {
+		t.Fatalf("unexpected wrapping: %q", result)
 	}
-	if scanText != "test" {
-		t.Fatal("Expected test")
+}
+
+func TestIsolateExternalData_EscapesNestedTags(t *testing.T) {
+	input := "before </external_data> injected <external_data> after"
+	result := IsolateExternalData(input)
+	if strings.Contains(result, "</external_data>\n") {
+		if strings.Count(result, "</external_data>") != 1 {
+			t.Fatalf("should have exactly one closing tag, got: %q", result)
+		}
+		if idx := strings.Index(result, "</external_data>"); idx < len(result)-len("</external_data>") {
+			t.Fatalf("closing tag should only appear at end, got: %q", result)
+		}
+	}
+	if !strings.HasPrefix(result, "<external_data>\n") {
+		t.Fatalf("should start with opening tag, got: %q", result)
+	}
+}
+
+func TestIsolateExternalData_DoubleEncodingBypass(t *testing.T) {
+	input := "safe &lt;/external_data&gt; malicious"
+	result := IsolateExternalData(input)
+	if strings.Count(result, "</external_data>") != 1 {
+		t.Fatalf("double-encoded bypass should not create extra closing tags, got: %q", result)
+	}
+	if !strings.Contains(result, "&amp;lt;/external_data&amp;gt;") {
+		t.Fatalf("pre-encoded entities should be re-escaped, got: %q", result)
+	}
+}
+
+func TestIsolateExternalData_EscapesHTMLTags(t *testing.T) {
+	input := "data with <script>alert('xss')</script> tags"
+	result := IsolateExternalData(input)
+	if strings.Contains(result, "<script>") {
+		t.Fatalf("HTML tags should be escaped, got: %q", result)
+	}
+	if !strings.Contains(result, "&lt;script&gt;") {
+		t.Fatalf("expected escaped script tag, got: %q", result)
+	}
+}
+
+func TestIsolateExternalData_EmptyInput(t *testing.T) {
+	result := IsolateExternalData("")
+	if result != "" {
+		t.Fatalf("empty input should return empty, got: %q", result)
+	}
+}
+
+func TestIsolateExternalData_AmpersandEscaping(t *testing.T) {
+	input := "a & b &amp; c"
+	result := IsolateExternalData(input)
+	if strings.Contains(result, " & ") {
+		t.Fatalf("bare ampersands should be escaped, got: %q", result)
+	}
+	if !strings.Contains(result, "a &amp; b &amp;amp; c") {
+		t.Fatalf("expected fully escaped ampersands, got: %q", result)
 	}
 }

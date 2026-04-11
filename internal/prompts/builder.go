@@ -279,7 +279,50 @@ type PromptModule struct {
 // BuildSystemPrompt concatenates the required and conditional markdown
 // files found in the promptsDir to formulate a final System Role string.
 // It respects the Tier and TokenBudget settings for context-aware optimization.
+//
+// The build is guarded by an internal timeout (buildPromptTimeout) so that
+// unexpectedly slow file I/O or token counting cannot block the agent loop
+// indefinitely.  On timeout a minimal fallback prompt is returned.
 func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string, logger *slog.Logger) string {
+	type result struct {
+		prompt string
+	}
+	ch := make(chan result, 1)
+	go func() {
+		ch <- result{prompt: buildSystemPromptInner(promptsDir, flags, coreMemory, logger)}
+	}()
+
+	select {
+	case r := <-ch:
+		return r.prompt
+	case <-time.After(buildPromptTimeout):
+		logger.Warn("[Prompt] BuildSystemPrompt timed out, using fallback",
+			"timeout", buildPromptTimeout)
+		return fallbackSystemPrompt(flags, coreMemory)
+	}
+}
+
+// buildPromptTimeout is the maximum time BuildSystemPrompt may take before
+// falling back to a minimal prompt.
+const buildPromptTimeout = 30 * time.Second
+
+// fallbackSystemPrompt returns a minimal system prompt when the full build
+// times out or fails catastrophically.
+func fallbackSystemPrompt(flags ContextFlags, coreMemory string) string {
+	var sb strings.Builder
+	sb.WriteString("You are AuraGo, an AI assistant.\n")
+	sb.WriteString("Respond in " + flags.SystemLanguage + ".\n")
+	now := time.Now().Format(time.RFC1123)
+	sb.WriteString("Current time: " + now + "\n")
+	if coreMemory != "" {
+		sb.WriteString("\nCore Memory:\n" + coreMemory + "\n")
+	}
+	return sb.String()
+}
+
+// buildSystemPromptInner contains the actual prompt-building logic, extracted
+// from BuildSystemPrompt so it can run in a goroutine with a timeout.
+func buildSystemPromptInner(promptsDir string, flags ContextFlags, coreMemory string, logger *slog.Logger) string {
 	var finalPrompt strings.Builder
 	finalPrompt.Grow(32768) // Pre-allocate ~32KB to reduce reallocs
 
@@ -639,6 +682,13 @@ func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string,
 	optimized, saved := OptimizePrompt(rawPrompt)
 	finalTokens := CountTokens(optimized)
 
+	// 7b. Post-shed verification: warn if prompt still exceeds budget after all shedding.
+	if flags.TokenBudget > 0 && finalTokens > flags.TokenBudget {
+		logger.Warn("[Budget] Prompt still exceeds token budget after shedding",
+			"tokens", finalTokens, "budget", flags.TokenBudget,
+			"shed_sections", shedSections, "optimized_len", len(optimized))
+	}
+
 	logger.Debug("System prompt built", "raw_len", rawLen, "optimized_len", len(optimized), "saved_chars", saved, "tier", flags.Tier, "tokens", finalTokens)
 
 	// 8. Record build metrics for dashboard
@@ -813,6 +863,22 @@ func budgetShed(prompt string, flags ContextFlags, personalityContent, coreMemor
 			shedList = append(shedList, "# YOUR PERSONALITY")
 			logger.Debug("[Budget] Shed personality profile", "new_tokens", tokens)
 		}
+	}
+
+	// Final hard-truncate: if the mandatory core content alone exceeds the budget,
+	// truncate the raw string so that CountTokens(result) <= budget.  This is a
+	// last-resort safety net — the prompt will be degraded but the LLM call won't
+	// fail with a context-window overflow.
+	if tokens > flags.TokenBudget {
+		logger.Warn("[Budget] Hard-truncating prompt (mandatory content exceeds budget)",
+			"tokens", tokens, "budget", flags.TokenBudget)
+		// Approximate: keep roughly budget*4 chars (conservative char/4 heuristic)
+		maxChars := flags.TokenBudget * 4
+		if maxChars > 0 && len(result) > maxChars {
+			result = result[:maxChars] + "\n\n[BUDGET TRUNCATED]"
+		}
+		tokens = CountTokens(result)
+		shedList = append(shedList, "HARD_TRUNCATE")
 	}
 
 	return result, shedList
