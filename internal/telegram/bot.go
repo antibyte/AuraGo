@@ -30,7 +30,7 @@ import (
 
 // StartLongPolling initializes the Telegram bot in Long Polling mode.
 // It runs in a background goroutine and processes incoming messages.
-func StartLongPolling(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManagerV2 *tools.MissionManagerV2) {
+func StartLongPolling(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, guardian *security.Guardian) {
 	if cfg.Telegram.BotToken == "" {
 		logger.Warn("Telegram Bot Token is missing, skipping Long Polling start.")
 		return
@@ -89,13 +89,13 @@ func StartLongPolling(cfg *config.Config, logger *slog.Logger, client llm.ChatCl
 			workerSem <- struct{}{}
 			go func(upd tgbotapi.Update) {
 				defer func() { <-workerSem }()
-				processUpdate(bot, upd, cfg, logger, client, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, missionManagerV2)
+				processUpdate(bot, upd, cfg, logger, client, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, missionManagerV2, guardian)
 			}(update)
 		}
 	}()
 }
 
-func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManagerV2 *tools.MissionManagerV2) {
+func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, guardian *security.Guardian) {
 	// Maintenance check: Inform the user but allow the tool-based interaction
 	inMaintenance := tools.IsBusy()
 	if inMaintenance {
@@ -251,6 +251,12 @@ func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Con
 		}
 	}
 
+	if guardian != nil {
+		if scan := guardian.ScanForInjection(inputText); scan.Level >= security.ThreatHigh {
+			logger.Warn("[Telegram] Prompt injection detected in message",
+				"user_id", msg.From.ID, "level", scan.Level, "patterns", scan.Patterns)
+		}
+	}
 	inputText = security.IsolateExternalData(inputText)
 
 	// Authorized text found (either native or transcribed)

@@ -29,6 +29,7 @@ type ExecutorDeps struct {
 	ShortTermMem *memory.SQLiteMemory
 	LongTermMem  memory.VectorDB
 	Vault        *security.Vault
+	Guardian     *security.Guardian
 	Registry     *tools.ProcessRegistry
 	Manifest     *tools.Manifest
 	KG           *memory.KnowledgeGraph
@@ -63,6 +64,15 @@ func (e *Executor) Execute(ctx context.Context, execCtx *a2asrv.ExecutorContext)
 			yield(evt, nil)
 			return
 		}
+
+		// Scan for prompt injection in incoming A2A messages
+		if e.deps.Guardian != nil {
+			if scan := e.deps.Guardian.ScanForInjection(userText); scan.Level >= security.ThreatHigh {
+				logger.Warn("[A2A] Prompt injection detected in incoming message",
+					"task_id", execCtx.TaskID, "level", scan.Level, "patterns", scan.Patterns)
+			}
+		}
+		userText = security.IsolateExternalData(userText)
 
 		// Emit working status
 		workingEvt := a2a.NewStatusUpdateEvent(execCtx, a2a.TaskStateWorking, nil)

@@ -16,6 +16,7 @@ import (
 
 	"aurago/internal/agent"
 	"aurago/internal/config"
+	"aurago/internal/security"
 	"aurago/internal/tools"
 
 	openai "github.com/sashabaranov/go-openai"
@@ -205,6 +206,15 @@ func handleN8nChat(s *Server) http.HandlerFunc {
 			n8nWriteError(w, http.StatusBadRequest, "Message is required", "validation_error")
 			return
 		}
+
+		// Scan incoming message for prompt injection before processing
+		if s.Guardian != nil {
+			if scan := s.Guardian.ScanForInjection(req.Message); scan.Level >= security.ThreatHigh {
+				s.Logger.Warn("[n8n] Prompt injection detected in incoming message",
+					"level", scan.Level, "patterns", scan.Patterns)
+			}
+		}
+		req.Message = security.IsolateExternalData(req.Message)
 
 		start := time.Now()
 

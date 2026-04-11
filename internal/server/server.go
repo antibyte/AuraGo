@@ -699,6 +699,7 @@ func Start(cfg *config.Config, logger *slog.Logger, accessLogger *slog.Logger, l
 				ShortTermMem: shortTermMem,
 				LongTermMem:  longTermMem,
 				Vault:        vault,
+				Guardian:     s.Guardian,
 				Registry:     registry,
 				Manifest:     tools.NewManifest(cfg.Directories.ToolsDir),
 				KG:           kg,

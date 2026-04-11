@@ -40,7 +40,7 @@ func setSession(s *discordgo.Session) {
 }
 
 // StartBot initializes the Discord bot and begins listening for messages.
-func StartBot(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManagerV2 *tools.MissionManagerV2) {
+func StartBot(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, guardian *security.Guardian) {
 	if !cfg.Discord.Enabled || cfg.Discord.BotToken == "" {
 		if cfg.Discord.Enabled {
 			logger.Warn("[Discord] Bot token is missing, skipping Discord start.")
@@ -58,7 +58,7 @@ func StartBot(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, sh
 	dg.Identify.Intents = discordgo.IntentsGuildMessages | discordgo.IntentsDirectMessages | discordgo.IntentsMessageContent
 
 	dg.AddHandler(func(s *discordgo.Session, m *discordgo.MessageCreate) {
-		handleMessage(s, m, cfg, logger, client, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, missionManagerV2)
+		handleMessage(s, m, cfg, logger, client, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, missionManagerV2, guardian)
 	})
 
 	if err := dg.Open(); err != nil {
@@ -255,7 +255,7 @@ func ListGuildChannels(guildID string, logger *slog.Logger) ([]*discordgo.Channe
 
 // ── Message Handler ─────────────────────────────────────────────────────────
 
-func handleMessage(s *discordgo.Session, m *discordgo.MessageCreate, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManagerV2 *tools.MissionManagerV2) {
+func handleMessage(s *discordgo.Session, m *discordgo.MessageCreate, cfg *config.Config, logger *slog.Logger, client llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, missionManagerV2 *tools.MissionManagerV2, guardian *security.Guardian) {
 	// Ignore own messages
 	if m.Author.ID == s.State.User.ID {
 		return
@@ -344,6 +344,12 @@ func handleMessage(s *discordgo.Session, m *discordgo.MessageCreate, cfg *config
 		}
 	}
 
+	if guardian != nil {
+		if scan := guardian.ScanForInjection(inputText); scan.Level >= security.ThreatHigh {
+			logger.Warn("[Discord] Prompt injection detected in message",
+				"user", m.Author.Username, "level", scan.Level, "patterns", scan.Patterns)
+		}
+	}
 	inputText = security.IsolateExternalData(inputText)
 
 	// Show typing indicator

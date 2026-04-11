@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/security"
 
 	"github.com/sashabaranov/go-openai"
 )
@@ -88,7 +89,7 @@ func transcribeWhisper(filePath string, cfg *config.Config) (string, float64, er
 		return "", 0.0, fmt.Errorf("whisper transcription failed: %w", err)
 	}
 
-	return resp.Text, 0.0, nil
+	return security.IsolateExternalData(resp.Text), 0.0, nil
 }
 
 // transcribeMultimodal uses a multimodal LLM (e.g. Gemini) via OpenRouter for transcription.
@@ -218,5 +219,5 @@ func transcribeMultimodal(filePath string, cfg *config.Config) (string, float64,
 		return "", 0.0, fmt.Errorf("no transcription received in response")
 	}
 
-	return result.Choices[0].Message.Content, 0.0, nil
+	return security.IsolateExternalData(result.Choices[0].Message.Content), 0.0, nil
 }

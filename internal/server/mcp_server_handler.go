@@ -12,6 +12,7 @@ import (
 
 	"aurago/internal/agent"
 	"aurago/internal/config"
+	"aurago/internal/security"
 	"aurago/internal/tools"
 )
 
@@ -272,6 +273,13 @@ func mcpCallTool(ctx context.Context, s *Server, params json.RawMessage) mcpCall
 	// Marshal arguments into JSON and unmarshal into ToolCall to populate fields
 	if len(p.Arguments) > 0 {
 		argBytes, _ := json.Marshal(p.Arguments)
+		// Scan marshaled arguments for prompt injection before dispatch
+		if s.Guardian != nil {
+			if scan := s.Guardian.ScanForInjection(string(argBytes)); scan.Level >= security.ThreatHigh {
+				s.Logger.Warn("[MCP] Prompt injection detected in tool arguments",
+					"tool", p.Name, "level", scan.Level, "patterns", scan.Patterns)
+			}
+		}
 		json.Unmarshal(argBytes, &tc)
 		// Ensure Action stays correct after unmarshal
 		tc.Action = p.Name
