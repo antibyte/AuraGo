@@ -43,4 +43,3 @@ func messageText(msg openai.ChatCompletionMessage) string {
 	}
 	return out
 }
-

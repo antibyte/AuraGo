@@ -799,17 +799,17 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 
 func llmHotReloadChanged(oldCfg config.Config, newCfg config.Config) bool {
 	type llmFingerprint struct {
-		Provider                   string
-		LegacyURL                  string
-		LegacyAPIKey               string
-		LegacyModel                string
-		HelperEnabled              bool
-		HelperProvider             string
-		HelperModel                string
-		UseNativeFunctions         bool
-		Temperature                float64
-		StructuredOutputs          bool
-		Multimodal                 bool
+		Provider                     string
+		LegacyURL                    string
+		LegacyAPIKey                 string
+		LegacyModel                  string
+		HelperEnabled                bool
+		HelperProvider               string
+		HelperModel                  string
+		UseNativeFunctions           bool
+		Temperature                  float64
+		StructuredOutputs            bool
+		Multimodal                   bool
 		MultimodalProviderTypesExtra []string
 	}
 	oldFP := llmFingerprint{

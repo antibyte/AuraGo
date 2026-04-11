@@ -1,3 +1,4 @@
+# SECURITY: This script handles sensitive data. Do not echo secrets.
 # make_release.ps1 — Build all release artifacts and publish to GitHub Releases
 # Requires: PowerShell 5.1+, Go 1.26+, GitHub CLI (gh), tar
 

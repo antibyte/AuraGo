@@ -39,4 +39,3 @@ func (c *tokenCountCache) Count(text string) int {
 	}
 	return v
 }
-

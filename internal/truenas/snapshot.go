@@ -10,24 +10,24 @@ import (
 
 // Snapshot represents a ZFS snapshot.
 type Snapshot struct {
-	ID       int64  `json:"id"`
-	Name     string `json:"name"`       // Full name: "tank/dataset@snapshot-name"
-	Dataset  string `json:"dataset"`    // Parent dataset
+	ID           int64  `json:"id"`
+	Name         string `json:"name"`          // Full name: "tank/dataset@snapshot-name"
+	Dataset      string `json:"dataset"`       // Parent dataset
 	SnapshotName string `json:"snapshot_name"` // Just the part after @
-	Type     string `json:"type"`       // SNAPSHOT
-	
+	Type         string `json:"type"`          // SNAPSHOT
+
 	// Properties
 	Properties SnapshotProperties `json:"properties"`
-	
+
 	// Replication info
 	Replication *ReplicationInfo `json:"replication,omitempty"`
-	
+
 	// Metadata
 	Retention struct {
-		Value string `json:"value"`
-		Parsed int   `json:"parsed"`
+		Value  string `json:"value"`
+		Parsed int    `json:"parsed"`
 	} `json:"retention,omitempty"`
-	
+
 	// Creation time from ZFS
 	RawCreation struct {
 		Timestamp int64 `json:"$date"`
@@ -36,10 +36,10 @@ type Snapshot struct {
 
 // SnapshotProperties contains snapshot properties.
 type SnapshotProperties struct {
-	Used       SnapshotValue `json:"used"`
-	Referenced SnapshotValue `json:"referenced"`
+	Used          SnapshotValue `json:"used"`
+	Referenced    SnapshotValue `json:"referenced"`
 	CompressRatio SnapshotValue `json:"compressratio,omitempty"`
-	Clones     int           `json:"clones,omitempty"` // Number of dependent clones
+	Clones        int           `json:"clones,omitempty"` // Number of dependent clones
 }
 
 // SnapshotValue wraps a numeric property.
@@ -51,7 +51,7 @@ type SnapshotValue struct {
 
 // ReplicationInfo contains replication status.
 type ReplicationInfo struct {
-	State       string `json:"state"`
+	State        string `json:"state"`
 	LastSnapshot string `json:"last_snapshot,omitempty"`
 }
 
@@ -78,7 +78,7 @@ func (c *Client) ListSnapshots(ctx context.Context, datasetFilter string) ([]Sna
 	if datasetFilter != "" {
 		// TrueNAS API doesn't have direct query params, we filter client-side
 	}
-	
+
 	var snapshots []Snapshot
 	if err := c.Get(ctx, endpoint, &snapshots); err != nil {
 		return nil, fmt.Errorf("list snapshots: %w", err)
@@ -110,12 +110,12 @@ func (c *Client) GetSnapshot(ctx context.Context, name string) (*Snapshot, error
 
 // CreateSnapshotRequest contains parameters for creating a snapshot.
 type CreateSnapshotRequest struct {
-	Dataset        string `json:"dataset"`
-	Name           string `json:"name"`
-	Recursive      bool   `json:"recursive,omitempty"`
-	VmwareSync     bool   `json:"vmware_sync,omitempty"`
-	NamingSchema   string `json:"naming_schema,omitempty"` // e.g., "auto-%Y-%m-%d_%H-%M"
-	Retention      int    `json:"retention,omitempty"`     // in days
+	Dataset      string `json:"dataset"`
+	Name         string `json:"name"`
+	Recursive    bool   `json:"recursive,omitempty"`
+	VmwareSync   bool   `json:"vmware_sync,omitempty"`
+	NamingSchema string `json:"naming_schema,omitempty"` // e.g., "auto-%Y-%m-%d_%H-%M"
+	Retention    int    `json:"retention,omitempty"`     // in days
 }
 
 // CreateSnapshot creates a new snapshot.
@@ -158,9 +158,9 @@ func (c *Client) DeleteSnapshot(ctx context.Context, name string) error {
 func (c *Client) RollbackSnapshot(ctx context.Context, snapshotName string, force bool) error {
 	encoded := url.PathEscape(snapshotName)
 	body := map[string]bool{
-		"force": force,
-		"recursive": false,
-		"recursive_clones": false,
+		"force":              force,
+		"recursive":          false,
+		"recursive_clones":   false,
 		"recursive_rollback": false,
 	}
 
@@ -175,9 +175,9 @@ func (c *Client) RollbackSnapshot(ctx context.Context, snapshotName string, forc
 func (c *Client) RollbackSnapshotRecursive(ctx context.Context, snapshotName string, force bool) error {
 	encoded := url.PathEscape(snapshotName)
 	body := map[string]bool{
-		"force": force,
-		"recursive": true,
-		"recursive_clones": true,
+		"force":              force,
+		"recursive":          true,
+		"recursive_clones":   true,
 		"recursive_rollback": true,
 	}
 
@@ -190,7 +190,7 @@ func (c *Client) RollbackSnapshotRecursive(ctx context.Context, snapshotName str
 // CloneSnapshot clones a snapshot to a new dataset.
 func (c *Client) CloneSnapshot(ctx context.Context, snapshotName, newDataset string) error {
 	body := map[string]string{
-		"snapshot": snapshotName,
+		"snapshot":    snapshotName,
 		"dataset_dst": newDataset,
 	}
 
@@ -240,7 +240,7 @@ func (c *Client) GetSnapshotHoldTags(ctx context.Context, snapshotName string) (
 }
 
 // BulkDeleteSnapshots deletes multiple snapshots.
-func (c *Client) BulkDeleteSnapshots(ctx context.Context, snapshotNames []string) (map[string]error) {
+func (c *Client) BulkDeleteSnapshots(ctx context.Context, snapshotNames []string) map[string]error {
 	results := make(map[string]error)
 	for _, name := range snapshotNames {
 		results[name] = c.DeleteSnapshot(ctx, name)

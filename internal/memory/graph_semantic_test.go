@@ -55,4 +55,3 @@ func TestKGSemanticUpsertDoesNotDeleteOnEmbeddingFailure(t *testing.T) {
 		t.Fatalf("expected existing document content to remain, got %q", doc.Content)
 	}
 }
-

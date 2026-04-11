@@ -30,4 +30,3 @@ func TestMessageText_MultiContentTextAndImage(t *testing.T) {
 		t.Fatalf("expected %q, got %q", "hello\n[image]", got)
 	}
 }
-

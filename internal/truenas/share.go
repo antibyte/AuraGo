@@ -7,34 +7,34 @@ import (
 
 // SMBShare represents an SMB share configuration.
 type SMBShare struct {
-	ID              int64  `json:"id"`
-	Path            string `json:"path"`
-	PathSuffix      string `json:"path_suffix,omitempty"`
-	Name            string `json:"name"`
-	Purpose         string `json:"purpose,omitempty"`
-	Comment         string `json:"comment,omitempty"`
-	HostsAllow      []string `json:"hostsallow,omitempty"`
-	HostsDeny       []string `json:"hostsdeny,omitempty"`
-	Enabled         bool   `json:"enabled"`
-	
+	ID         int64    `json:"id"`
+	Path       string   `json:"path"`
+	PathSuffix string   `json:"path_suffix,omitempty"`
+	Name       string   `json:"name"`
+	Purpose    string   `json:"purpose,omitempty"`
+	Comment    string   `json:"comment,omitempty"`
+	HostsAllow []string `json:"hostsallow,omitempty"`
+	HostsDeny  []string `json:"hostsdeny,omitempty"`
+	Enabled    bool     `json:"enabled"`
+
 	// Access controls
-	ACL            []SMBACLEntry `json:"acl,omitempty"`
-	
+	ACL []SMBACLEntry `json:"acl,omitempty"`
+
 	// SMB options
-	GuestOK          bool `json:"guestok,omitempty"`
-	Browseable       bool `json:"browseable,omitempty"`
-	ReadOnly         bool `json:"ro,omitempty"`
-	ShowHiddenFiles  bool `json:"showhiddenfiles,omitempty"`
-	HomeShare        bool `json:"home_share,omitempty"`
-	Timemachine      bool `json:"timemachine,omitempty"`
-	RecycleBin       bool `json:"recyclebin,omitempty"`
-	ShadowCopy       bool `json:"shadowcopy,omitempty"`
-	DurabilityHandle bool `json:"durablehandle,omitempty"`
+	GuestOK          bool   `json:"guestok,omitempty"`
+	Browseable       bool   `json:"browseable,omitempty"`
+	ReadOnly         bool   `json:"ro,omitempty"`
+	ShowHiddenFiles  bool   `json:"showhiddenfiles,omitempty"`
+	HomeShare        bool   `json:"home_share,omitempty"`
+	Timemachine      bool   `json:"timemachine,omitempty"`
+	RecycleBin       bool   `json:"recyclebin,omitempty"`
+	ShadowCopy       bool   `json:"shadowcopy,omitempty"`
+	DurabilityHandle bool   `json:"durablehandle,omitempty"`
 	StreamSupport    string `json:"streams,omitempty"` // native, ro, disabled
-	
+
 	// VSS/Aux
-	VFSObjects       []string `json:"vfsobjects,omitempty"`
-	Auxiliary        string   `json:"auxsmbconf,omitempty"`
+	VFSObjects []string `json:"vfsobjects,omitempty"`
+	Auxiliary  string   `json:"auxsmbconf,omitempty"`
 }
 
 // ListSMBShares returns all SMB shares.
@@ -106,24 +106,24 @@ func (c *Client) DeleteSMBShare(ctx context.Context, id int64) error {
 
 // NFSShare represents an NFS share configuration.
 type NFSShare struct {
-	ID        int64    `json:"id"`
-	Path      string   `json:"path"`
-	Comment   string   `json:"comment,omitempty"`
-	Enabled   bool     `json:"enabled"`
-	
+	ID      int64  `json:"id"`
+	Path    string `json:"path"`
+	Comment string `json:"comment,omitempty"`
+	Enabled bool   `json:"enabled"`
+
 	// Client access
-	Networks  []string `json:"networks,omitempty"`
-	Hosts     []string `json:"hosts,omitempty"`
-	
+	Networks []string `json:"networks,omitempty"`
+	Hosts    []string `json:"hosts,omitempty"`
+
 	// Options
-	ReadOnly       bool     `json:"ro,omitempty"`
-	Quiet          bool     `json:"quiet,omitempty"`
-	MaprootUser    string   `json:"maproot_user,omitempty"`
-	MaprootGroup   string   `json:"maproot_group,omitempty"`
-	MapallUser     string   `json:"mapall_user,omitempty"`
-	MapallGroup    string   `json:"mapall_group,omitempty"`
-	Security       []string `json:"security,omitempty"` // SYS, KRB5, KRB5I, KRB5P
-	
+	ReadOnly     bool     `json:"ro,omitempty"`
+	Quiet        bool     `json:"quiet,omitempty"`
+	MaprootUser  string   `json:"maproot_user,omitempty"`
+	MaprootGroup string   `json:"maproot_group,omitempty"`
+	MapallUser   string   `json:"mapall_user,omitempty"`
+	MapallGroup  string   `json:"mapall_group,omitempty"`
+	Security     []string `json:"security,omitempty"` // SYS, KRB5, KRB5I, KRB5P
+
 	// Advanced
 	Aliases []string `json:"aliases,omitempty"`
 }
@@ -226,12 +226,12 @@ func (c *Client) GetSharesForPath(ctx context.Context, path string) (*ShareInfo,
 
 // SMBACLEntry represents an SMB ACL entry.
 type SMBACLEntry struct {
-	Domain        string   `json:"domain,omitempty"`
-	Name          string   `json:"name"`
-	Permission    string   `json:"permission"`      // READ, CHANGE, FULL_CONTROL
-	Aeftype       string   `json:"ae_type"`         // ALLOWED, DENIED
-	Aewho         string   `json:"ae_who"`          // USER, GROUP, OWNER, EVERYONE
-	Aeflags       []string `json:"ae_flags,omitempty"`
+	Domain     string   `json:"domain,omitempty"`
+	Name       string   `json:"name"`
+	Permission string   `json:"permission"` // READ, CHANGE, FULL_CONTROL
+	Aeftype    string   `json:"ae_type"`    // ALLOWED, DENIED
+	Aewho      string   `json:"ae_who"`     // USER, GROUP, OWNER, EVERYONE
+	Aeflags    []string `json:"ae_flags,omitempty"`
 }
 
 // DeleteSharesForPath removes all shares for a given path.

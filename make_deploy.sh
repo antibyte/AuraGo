@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 #
+# SECURITY: This script handles sensitive data. Do not echo secrets.
+#
 # make_deploy.sh — Build AuraGo deployment artifacts for Linux, macOS, Windows.
 #
 # Output in bin/ (Linux release binaries, committed to git):

@@ -44,12 +44,12 @@ var knownContextWindows = []struct {
 
 	// ── Kimi / Moonshot AI (api.moonshot.cn) ─────────────────────────────────
 	// kimi-k2 variants with 256K window before base kimi-k2 (128K)
-	{"kimi-k2.5", 262_144},         // kimi-k2.5: 256K
-	{"kimi-k2-thinking", 262_144},  // kimi-k2-thinking / kimi-k2-thinking-turbo: 256K
-	{"kimi-k2-turbo", 262_144},     // kimi-k2-turbo-preview: 256K
-	{"kimi-k2-0905", 262_144},      // kimi-k2-0905-preview: 256K
-	{"kimi-k2", 131_072},           // base kimi-k2 / kimi-k2-0711-preview: 128K
-	{"kimi-for-coding", 131_072},    // kimi-for-coding: 128K (OpenRouter)
+	{"kimi-k2.5", 262_144},        // kimi-k2.5: 256K
+	{"kimi-k2-thinking", 262_144}, // kimi-k2-thinking / kimi-k2-thinking-turbo: 256K
+	{"kimi-k2-turbo", 262_144},    // kimi-k2-turbo-preview: 256K
+	{"kimi-k2-0905", 262_144},     // kimi-k2-0905-preview: 256K
+	{"kimi-k2", 131_072},          // base kimi-k2 / kimi-k2-0711-preview: 128K
+	{"kimi-for-coding", 131_072},  // kimi-for-coding: 128K (OpenRouter)
 	{"moonshot-v1-128k", 131_072},
 	{"moonshot-v1-32k", 32_768},
 	{"moonshot-v1-8k", 8_192},

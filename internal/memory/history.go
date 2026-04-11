@@ -28,16 +28,16 @@ type HistoryMessage struct {
 // methods that, when promoted via embedding, silently drop the Pinned, IsInternal,
 // and ID fields. By defining explicit methods on HistoryMessage we take full control.
 type historyMessageDisk struct {
-	Role         string               `json:"role"`
-	Content      string               `json:"content,omitempty"`
+	Role         string                   `json:"role"`
+	Content      string                   `json:"content,omitempty"`
 	MultiContent []openai.ChatMessagePart `json:"multi_content,omitempty"`
-	Name         string               `json:"name,omitempty"`
-	FunctionCall *openai.FunctionCall `json:"function_call,omitempty"`
-	ToolCalls    []openai.ToolCall    `json:"tool_calls,omitempty"`
-	ToolCallID   string               `json:"tool_call_id,omitempty"`
-	Pinned       bool                 `json:"pinned"`
-	IsInternal   bool                 `json:"is_internal"`
-	ID           int64                `json:"id"`
+	Name         string                   `json:"name,omitempty"`
+	FunctionCall *openai.FunctionCall     `json:"function_call,omitempty"`
+	ToolCalls    []openai.ToolCall        `json:"tool_calls,omitempty"`
+	ToolCallID   string                   `json:"tool_call_id,omitempty"`
+	Pinned       bool                     `json:"pinned"`
+	IsInternal   bool                     `json:"is_internal"`
+	ID           int64                    `json:"id"`
 }
 
 // MarshalJSON serialises all fields including Pinned, IsInternal, and ID.
@@ -236,9 +236,9 @@ func (hm *HistoryManager) AddMessage(msg openai.ChatCompletionMessage, id int64,
 	hm.mu.Lock()
 	hm.Messages = append(hm.Messages, HistoryMessage{
 		ChatCompletionMessage: msg,
-		ID:                   id,
-		Pinned:               pinned,
-		IsInternal:           isInternal,
+		ID:                    id,
+		Pinned:                pinned,
+		IsInternal:            isInternal,
 	})
 	// For ephemeral (co-agent) history, enforce a message-count ceiling to
 	// prevent unbounded memory growth in long-running co-agent loops.

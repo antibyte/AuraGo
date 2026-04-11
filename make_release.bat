@@ -1,4 +1,5 @@
 @echo off
+REM SECURITY: This script handles sensitive data. Do not echo secrets.
 REM make_release.bat -- Build all release artifacts and publish to GitHub Releases
 REM
 REM Usage:

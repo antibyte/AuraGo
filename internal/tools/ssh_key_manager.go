@@ -163,16 +163,13 @@ func (m *SSHKeyManager) Revoke(searchString string) (bool, error) {
 	return true, nil
 }
 
-
 // Deploy copies the generated agent key to a remote server.
 func (m *SSHKeyManager) Deploy(privatePEM string, targetHost string, username string, port int) error {
-// A placeholder for logic to copy to authorized_keys of a remote server (which requires password/key auth usually)
-return fmt.Errorf("deploy not fully implemented natively without initial auth, agent should use file operations")
+	// A placeholder for logic to copy to authorized_keys of a remote server (which requires password/key auth usually)
+	return fmt.Errorf("deploy not fully implemented natively without initial auth, agent should use file operations")
 }
 
 // Rotate generates a new key, deploys it, and revokes the old one.
 func (m *SSHKeyManager) Rotate(comment string) (string, string, error) {
-    return m.Generate("Rotated-"+comment, true)
+	return m.Generate("Rotated-"+comment, true)
 }
-
-

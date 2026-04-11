@@ -9,15 +9,29 @@ deploy/
 .git/
 .gitignore
 .vscode/
+.idea/
+.DS_Store
+Thumbs.db
 
 # Developer-only config (contains real credentials – keep out of image)
+.env
+.env.*
 config_debug.yaml
+config.yaml
+config_*.yaml
+!config_template.yaml
 
 # Runtime data (should be mounted as volumes, not baked in)
 data/
 log/
 agent_workspace/workdir/
 agent_workspace/tools/
+
+# Reports (may contain sensitive data)
+reports/
+
+# Disposable working files
+disposable/
 
 # Sensitive skill credentials
 agent_workspace/skills/token.json

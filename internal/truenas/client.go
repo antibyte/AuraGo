@@ -226,17 +226,17 @@ func (c *Client) Health(ctx context.Context) (*SystemInfo, error) {
 
 // SystemInfo represents TrueNAS system information.
 type SystemInfo struct {
-	Version    string `json:"version"`
-	BuildTime  string `json:"buildtime"`
-	Hostname   string `json:"hostname"`
-	PhysMem    int64  `json:"physmem"`
-	Model      string `json:"model"`
-	Cores      int    `json:"cores"`
-	PhysicalCores int `json:"physical_cores"`
-	LoadAverage []float64 `json:"loadavg"`
-	Uptime     string `json:"uptime"`
-	SystemSerial string `json:"system_serial"`
-	SystemProduct string `json:"system_product"`
+	Version       string    `json:"version"`
+	BuildTime     string    `json:"buildtime"`
+	Hostname      string    `json:"hostname"`
+	PhysMem       int64     `json:"physmem"`
+	Model         string    `json:"model"`
+	Cores         int       `json:"cores"`
+	PhysicalCores int       `json:"physical_cores"`
+	LoadAverage   []float64 `json:"loadavg"`
+	Uptime        string    `json:"uptime"`
+	SystemSerial  string    `json:"system_serial"`
+	SystemProduct string    `json:"system_product"`
 }
 
 // IsSCALE returns true if the TrueNAS instance is SCALE.
@@ -273,13 +273,13 @@ func (c *Client) ListAlerts(ctx context.Context) ([]Alert, error) {
 
 // Alert represents a TrueNAS system alert.
 type Alert struct {
-	ID          string `json:"id"`
-	Level       string `json:"level"`       // INFO, WARNING, ERROR, CRITICAL
-	Title       string `json:"title"`
-	Message     string `json:"message"`
-	Date        string `json:"date"`
-	Dismissed   bool   `json:"dismissed"`
-	Source      string `json:"source"`
+	ID        string `json:"id"`
+	Level     string `json:"level"` // INFO, WARNING, ERROR, CRITICAL
+	Title     string `json:"title"`
+	Message   string `json:"message"`
+	Date      string `json:"date"`
+	Dismissed bool   `json:"dismissed"`
+	Source    string `json:"source"`
 }
 
 // DismissAlert dismisses an alert by ID.

@@ -1,4 +1,4 @@
-﻿package optimizer
+package optimizer
 
 import (
 	"database/sql"

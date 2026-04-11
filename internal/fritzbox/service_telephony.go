@@ -418,7 +418,7 @@ func tamAudioURLCandidates(rawURL, trURL string) []string {
 	}
 
 	candidates := make([]string, 0, 8)
-	
+
 	processURL := func(baseString string) {
 		add(baseString, &candidates)
 		u, err := url.Parse(baseString)

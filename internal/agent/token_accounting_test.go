@@ -110,4 +110,3 @@ func TestApplyTokenEstimationFallback_NoFallbackWhenTotalProvided(t *testing.T) 
 		t.Fatalf("unexpected tokens: prompt=%d completion=%d total=%d", promptTokens, completionTokens, totalTokens)
 	}
 }
-

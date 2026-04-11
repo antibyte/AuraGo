@@ -25,4 +25,3 @@ func applyTokenEstimationFallback(promptTokens, completionTokens, totalTokens in
 	totalTokens = promptTokens + completionTokens
 	return promptTokens, completionTokens, totalTokens, "fallback_estimate", true
 }
-

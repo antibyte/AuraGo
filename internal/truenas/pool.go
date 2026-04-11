@@ -8,56 +8,56 @@ import (
 
 // Pool represents a ZFS storage pool.
 type Pool struct {
-	ID       int64  `json:"id"`
-	Name     string `json:"name"`
-	GUID     string `json:"guid"`
-	Path     string `json:"path"`
-	Status   string `json:"status"`   // ONLINE, DEGRADED, FAULTED, etc.
-	Healthy  bool   `json:"healthy"`
-	Warning  bool   `json:"warning"`
-	Scan     Scan   `json:"scan"`
+	ID       int64    `json:"id"`
+	Name     string   `json:"name"`
+	GUID     string   `json:"guid"`
+	Path     string   `json:"path"`
+	Status   string   `json:"status"` // ONLINE, DEGRADED, FAULTED, etc.
+	Healthy  bool     `json:"healthy"`
+	Warning  bool     `json:"warning"`
+	Scan     Scan     `json:"scan"`
 	Topology Topology `json:"topology"`
 	Size     PoolSize `json:"size"`
 }
 
 // Scan represents pool scrub/resilver status.
 type Scan struct {
-	Function   string  `json:"function"`   // SCRUB, RESILVER
-	State      string  `json:"state"`      // SCANNING, FINISHED, CANCELED
-	StartTime  string  `json:"start_time"`
-	EndTime    string  `json:"end_time"`
-	Percentage float64 `json:"percentage"`
-	BytesToProcess int64 `json:"bytes_to_process"`
-	BytesProcessed int64 `json:"bytes_processed"`
-	Errors     int     `json:"errors"`
+	Function       string  `json:"function"` // SCRUB, RESILVER
+	State          string  `json:"state"`    // SCANNING, FINISHED, CANCELED
+	StartTime      string  `json:"start_time"`
+	EndTime        string  `json:"end_time"`
+	Percentage     float64 `json:"percentage"`
+	BytesToProcess int64   `json:"bytes_to_process"`
+	BytesProcessed int64   `json:"bytes_processed"`
+	Errors         int     `json:"errors"`
 }
 
 // Topology represents pool device topology.
 type Topology struct {
-	Data   []VDev `json:"data"`
-	Cache  []VDev `json:"cache,omitempty"`
-	Log    []VDev `json:"log,omitempty"`
-	Spare  []VDev `json:"spare,omitempty"`
+	Data    []VDev `json:"data"`
+	Cache   []VDev `json:"cache,omitempty"`
+	Log     []VDev `json:"log,omitempty"`
+	Spare   []VDev `json:"spare,omitempty"`
 	Special []VDev `json:"special,omitempty"` // Metadata vdevs (SCALE)
-	Dedup  []VDev `json:"dedup,omitempty"`   // Dedup vdevs (SCALE 23.10+)
+	Dedup   []VDev `json:"dedup,omitempty"`   // Dedup vdevs (SCALE 23.10+)
 }
 
 // VDev represents a virtual device.
 type VDev struct {
-	Type     string `json:"type"`      // RAIDZ1, RAIDZ2, MIRROR, STRIPE, etc.
-	Name     string `json:"name"`
-	Path     string `json:"path,omitempty"`
-	Status   string `json:"status"`    // ONLINE, DEGRADED, UNAVAIL, etc.
-	GUID     string `json:"guid"`
-	Children []VDev `json:"children,omitempty"`
-	Disk     string `json:"disk,omitempty"` // Underlying disk name
+	Type     string    `json:"type"` // RAIDZ1, RAIDZ2, MIRROR, STRIPE, etc.
+	Name     string    `json:"name"`
+	Path     string    `json:"path,omitempty"`
+	Status   string    `json:"status"` // ONLINE, DEGRADED, UNAVAIL, etc.
+	GUID     string    `json:"guid"`
+	Children []VDev    `json:"children,omitempty"`
+	Disk     string    `json:"disk,omitempty"` // Underlying disk name
 	Stats    VDevStats `json:"stats,omitempty"`
 }
 
 // VDevStats contains device statistics.
 type VDevStats struct {
-	ReadErrors  int64 `json:"read_errors"`
-	WriteErrors int64 `json:"write_errors"`
+	ReadErrors     int64 `json:"read_errors"`
+	WriteErrors    int64 `json:"write_errors"`
 	ChecksumErrors int64 `json:"checksum_errors"`
 }
 
@@ -151,16 +151,16 @@ func (c *Client) GetPoolDisks(ctx context.Context, poolID int64) ([]Disk, error)
 
 // Disk represents a physical disk.
 type Disk struct {
-	Name        string `json:"name"`
-	Serial      string `json:"serial"`
-	Model       string `json:"model"`
-	Size        int64  `json:"size"`
-	Type        string `json:"type"`        // HDD, SSD, NVME
-	Pool        string `json:"pool,omitempty"`
-	Description string `json:"description"`
+	Name         string `json:"name"`
+	Serial       string `json:"serial"`
+	Model        string `json:"model"`
+	Size         int64  `json:"size"`
+	Type         string `json:"type"` // HDD, SSD, NVME
+	Pool         string `json:"pool,omitempty"`
+	Description  string `json:"description"`
 	TransferMode string `json:"transfermode"`
-	HMSEnabled  bool   `json:"hmr_enabled"`
-	RotationRate int   `json:"rotationrate"` // 0 for SSDs
+	HMSEnabled   bool   `json:"hmr_enabled"`
+	RotationRate int    `json:"rotationrate"` // 0 for SSDs
 }
 
 // IsSSD returns true if the disk is an SSD.
@@ -170,15 +170,15 @@ func (d *Disk) IsSSD() bool {
 
 // CreatePoolRequest contains parameters for creating a new pool.
 type CreatePoolRequest struct {
-	Name     string       `json:"name"`
-	Encryption bool       `json:"encryption,omitempty"`
-	Topology PoolTopology `json:"topology"`
-	Options  PoolOptions  `json:"options,omitempty"`
+	Name       string       `json:"name"`
+	Encryption bool         `json:"encryption,omitempty"`
+	Topology   PoolTopology `json:"topology"`
+	Options    PoolOptions  `json:"options,omitempty"`
 }
 
 // PoolTopology defines the pool layout.
 type PoolTopology struct {
-	Data []PoolVDev `json:"data"`
+	Data  []PoolVDev `json:"data"`
 	Cache []PoolVDev `json:"cache,omitempty"`
 	Log   []PoolVDev `json:"log,omitempty"`
 	Spare []PoolVDev `json:"spare,omitempty"`
@@ -186,7 +186,7 @@ type PoolTopology struct {
 
 // PoolVDev represents a vdev configuration.
 type PoolVDev struct {
-	Type string   `json:"type"` // RAIDZ1, RAIDZ2, RAIDZ3, MIRROR, STRIPE
+	Type  string   `json:"type"` // RAIDZ1, RAIDZ2, RAIDZ3, MIRROR, STRIPE
 	Disks []string `json:"disks"`
 }
 
@@ -226,7 +226,7 @@ func (c *Client) DeletePool(ctx context.Context, poolID int64, confirm bool) err
 		"cascade": true,
 		"confirm": true,
 	}
-	
+
 	resp, err := c.request(ctx, http.MethodDelete, fmt.Sprintf("/pool/id/%d", poolID), body)
 	if err != nil {
 		return fmt.Errorf("delete pool %d: %w", poolID, err)
@@ -251,9 +251,9 @@ func (c *Client) FindPoolsToImport(ctx context.Context) ([]ImportablePool, error
 
 // ImportablePool represents a pool that can be imported.
 type ImportablePool struct {
-	Name     string `json:"name"`
-	GUID     string `json:"guid"`
-	Status   string `json:"status"`
+	Name     string   `json:"name"`
+	GUID     string   `json:"guid"`
+	Status   string   `json:"status"`
 	Topology Topology `json:"topology"`
 }
 
@@ -263,7 +263,7 @@ func (c *Client) ImportPool(ctx context.Context, guidOrName string, enableEncryp
 		"guid":              guidOrName,
 		"enable_encryption": enableEncryption,
 	}
-	
+
 	var pool Pool
 	if err := c.Post(ctx, "/pool/import_pool", body, &pool); err != nil {
 		return nil, fmt.Errorf("import pool %s: %w", guidOrName, err)

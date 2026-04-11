@@ -293,7 +293,7 @@ func TestDeepMergeNoDuplicateKeys(t *testing.T) {
 	dst := map[string]interface{}{
 		"tools": map[string]interface{}{
 			"daemon_skills": map[string]interface{}{
-				"enabled": true,
+				"enabled":                true,
 				"max_concurrent_daemons": 5,
 			},
 		},
@@ -359,28 +359,28 @@ func TestConfigSchemaConsistency(t *testing.T) {
 
 	// Sections that are at root level (top-level YAML keys)
 	rootLevelSections := map[string]bool{
-		"agent":           true,
-		"auth":            true,
-		"server":          true,
-		"llm":             true,
-		"providers":       true,
-		"tools":           true,
-		"budget":          true,
-		"docker":          true,
-		"discord":         true,
-		"telegram":        true,
-		"rocketchat":      true,
-		"tailscale":       true,
-		"fritzbox":        true,
+		"agent":            true,
+		"auth":             true,
+		"server":           true,
+		"llm":              true,
+		"providers":        true,
+		"tools":            true,
+		"budget":           true,
+		"docker":           true,
+		"discord":          true,
+		"telegram":         true,
+		"rocketchat":       true,
+		"tailscale":        true,
+		"fritzbox":         true,
 		"home_assistant":   true,
-		"ollama":          true,
-		"proxmox":         true,
-		"ddg_search":      true,
-		"brave_search":    true,
-		"webhooks":        true,
+		"ollama":           true,
+		"proxmox":          true,
+		"ddg_search":       true,
+		"brave_search":     true,
+		"webhooks":         true,
 		"invasion_control": true,
-		"mqtt":            true,
-		"security_proxy":  true,
+		"mqtt":             true,
+		"security_proxy":   true,
 	}
 
 	testCases := []struct {
