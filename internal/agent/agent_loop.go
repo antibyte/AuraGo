@@ -1627,7 +1627,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			var feedbackMsg string
 			if useNativeFunctions {
 				feedbackMsg = "ERROR: You emitted a bare <tool_call> or <minimax:tool_call> tag but did not produce an actual tool call. You MUST use the native function-calling mechanism to invoke tools. Do NOT output any XML tags in text — use the structured function call API instead."
-			} else if 			} else if incompleteToolCallCount >= 2 {
+			} else if incompleteToolCallCount >= 2 {
 				// Escalate on second attempt - be very explicit about tool_call tags
 				// CHANGE LOG 2026-04-11: Removed concrete example tool names to prevent hallucination.
 				// Models that understand the format don't need examples; models that don't won't be helped.
