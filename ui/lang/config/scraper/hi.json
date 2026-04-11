@@ -3,8 +3,8 @@
     "config.web_scraper.disabled_notice":  "वेब स्क्रैपर अक्षम है",
     "config.web_scraper.disabled_desc":  "एजेंट को बाहरी वेब पेज लाने और उनकी सामग्री का विश्लेषण करने की अनुमति देने के लिए उपरोक्त टॉगल सक्षम करें।",
     "config.web_scraper.summary_mode":  "सारांश मोड",
-    "config.web_scraper.empty_main_llm":  "खाली = मुख्य एलएलएम",
-    "config.web_scraper.use_main_llm":  "— मुख्य एलएलएम का उपयोग करें —",
+    "config.web_scraper.empty_main_llm":  "खाली = मुख्य LLM",
+    "config.web_scraper.use_main_llm":  "— मुख्य LLM का उपयोग करें —",
     "config.web_scraper.summary_provider":  "Helper LLM",
-    "config.web_scraper.summary_desc":  "Scraped web pages are summarized through the central Helper LLM when it is enabled. The agent receives the cleaned summary instead of the full page content.\u003cbr\u003e\u003cstrong\u003eBenefits:\u003c/strong\u003e saves tokens, reduces duplicate helper calls and hardens the system against prompt injection from external content."
+    "config.web_scraper.summary_desc":  "स्क्रैप किए गए वेब पेज को केंद्रीय Helper LLM के माध्यम से सारांशित किया जाता है जब यह सक्षम होता है। एजेंट को पूर्ण पेज सामग्री के बजाय साफ सारांश प्राप्त होता है।<br><strong>लाभ:</strong> टोकन बचाता है, डुप्लिकेट helper कॉल को कम करता है और बाहरी सामग्री से प्रॉम्प्ट इंजेक्शन के खिलाफ सिस्टम को मजबूत करता है।"
 }

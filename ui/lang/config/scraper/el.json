@@ -1,10 +1,10 @@
 {
-    "config.web_scraper.enabled_label":  "Web Scraper povolen:",
-    "config.web_scraper.disabled_notice":  "Web Scraper je zakázán",
-    "config.web_scraper.disabled_desc":  "Povolte přepínač výše, aby mohl agent načítat externí webové stránky a analyzovat jejich obsah.",
-    "config.web_scraper.summary_mode":  "Režim shrnutí",
-    "config.web_scraper.empty_main_llm":  "prázdné = hlavní LLM",
-    "config.web_scraper.use_main_llm":  "— Použít hlavní LLM —",
+    "config.web_scraper.enabled_label":  "Web Scraper ενεργοποιημένο:",
+    "config.web_scraper.disabled_notice":  "Ο Web Scraper είναι απενεργοποιημένος",
+    "config.web_scraper.disabled_desc":  "Ενεργοποιήστε τον διακόπτη παραπάνω για να επιτρέψετε στον agent να φέρνει εξωτερικές ιστοσελίδες και να αναλύει το περιεχόμενό τους.",
+    "config.web_scraper.summary_mode":  "Λειτουργία Περίληψης",
+    "config.web_scraper.empty_main_llm":  "κενό = κύριο LLM",
+    "config.web_scraper.use_main_llm":  "— Χρήση κύριου LLM —",
     "config.web_scraper.summary_provider":  "Helper LLM",
-    "config.web_scraper.summary_desc":  "Scraped web pages are summarized through the central Helper LLM when it is enabled. The agent receives the cleaned summary instead of the full page content.\u003cbr\u003e\u003cstrong\u003eBenefits:\u003c/strong\u003e saves tokens, reduces duplicate helper calls and hardens the system against prompt injection from external content."
+    "config.web_scraper.summary_desc":  "Οι αποξεσμένες ιστοσελίδες συνοψίζονται μέσω του κεντρικού Helper LLM όταν είναι ενεργοποιημένο. Ο agent λαμβάνει την καθαρισμένη περίληψη αντί του πλήρους περιεχομένου της σελίδας.<br><strong>Οφέλη:</strong> εξοικονομεί tokens, μειώνει τις διπλότυπες κλήσεις helper και θωρακίζει το σύστημα κατά του prompt injection από εξωτερικό περιεχόμενο."
 }

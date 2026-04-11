@@ -6,5 +6,5 @@
     "config.web_scraper.empty_main_llm":  "prázdné = hlavní LLM",
     "config.web_scraper.use_main_llm":  "— Použít hlavní LLM —",
     "config.web_scraper.summary_provider":  "Helper LLM",
-    "config.web_scraper.summary_desc":  "Scraped web pages are summarized through the central Helper LLM when it is enabled. The agent receives the cleaned summary instead of the full page content.\u003cbr\u003e\u003cstrong\u003eBenefits:\u003c/strong\u003e saves tokens, reduces duplicate helper calls and hardens the system against prompt injection from external content."
+    "config.web_scraper.summary_desc":  "Scrapeované webové stránky jsou shrnuty prostřednictvím centrálního Helper LLM, pokud je povolen. Agent místo úplného obsahu stránky obdrží vyčištěné shrnutí.<br><strong>Výhody:</strong> šetří tokeny, snižuje duplicitní volání helperu a posiluje systém proti prompt injection z externího obsahu."
 }

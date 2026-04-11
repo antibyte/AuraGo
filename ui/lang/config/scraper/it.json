@@ -1,10 +1,10 @@
 {
     "config.web_scraper.enabled_label":  "Web Scraper abilitato:",
     "config.web_scraper.disabled_notice":  "Web Scraper disabilitato",
-    "config.web_scraper.disabled_desc":  "Abilita il toggle sopra per permettere all\u0027agente di recuperare pagine web esterne e analizzarne il contenuto.",
+    "config.web_scraper.disabled_desc":  "Abilita il toggle sopra per permettere all'agente di recuperare pagine web esterne e analizzarne il contenuto.",
     "config.web_scraper.summary_mode":  "Modalità Riepilogo",
     "config.web_scraper.empty_main_llm":  "vuoto = LLM principale",
     "config.web_scraper.use_main_llm":  "— Usa LLM principale —",
     "config.web_scraper.summary_provider":  "Helper LLM",
-    "config.web_scraper.summary_desc":  "Scraped web pages are summarized through the central Helper LLM when it is enabled. The agent receives the cleaned summary instead of the full page content.\u003cbr\u003e\u003cstrong\u003eBenefits:\u003c/strong\u003e saves tokens, reduces duplicate helper calls and hardens the system against prompt injection from external content."
+    "config.web_scraper.summary_desc":  "Le pagine web estratte vengono riepilogate attraverso l'Helper LLM centrale quando è abilitato. L'agente riceve il riepilogo pulito invece del contenuto completo della pagina.<br><strong>Vantaggi:</strong> risparmia token, riduce le chiamate helper duplicate e rafforza il sistema contro l'iniezione di prompt da contenuto esterno."
 }

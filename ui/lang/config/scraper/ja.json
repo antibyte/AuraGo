@@ -1,10 +1,10 @@
 {
-    "config.web_scraper.enabled_label":  "Web スクレイパーが有効になっている場合:",
-    "config.web_scraper.disabled_notice":  "Webスクレイパーが無効になっています",
-    "config.web_scraper.disabled_desc":  "上のトグルを有効にすると、エージェントが外部 Web ページを取得してそのコンテンツを分析できるようになります。",
+    "config.web_scraper.enabled_label":  "Webスクレイパーが有効:",
+    "config.web_scraper.disabled_notice":  "Webスクレイパーが無効",
+    "config.web_scraper.disabled_desc":  "上のトグルを有効にすると、エージェントが外部Webページを取得してそのコンテンツを分析できるようになります。",
     "config.web_scraper.summary_mode":  "サマリーモード",
-    "config.web_scraper.empty_main_llm":  "空 = メイン LLM",
-    "config.web_scraper.use_main_llm":  "— メイン LLM を使用する —",
+    "config.web_scraper.empty_main_llm":  "空 = メインLLM",
+    "config.web_scraper.use_main_llm":  "— メインLLMを使用 —",
     "config.web_scraper.summary_provider":  "Helper LLM",
-    "config.web_scraper.summary_desc":  "Scraped web pages are summarized through the central Helper LLM when it is enabled. The agent receives the cleaned summary instead of the full page content.\u003cbr\u003e\u003cstrong\u003eBenefits:\u003c/strong\u003e saves tokens, reduces duplicate helper calls and hardens the system against prompt injection from external content."
+    "config.web_scraper.summary_desc":  "スクレイピングされたWebページは、有効にすると 중앙Helper LLMを通じて要約されます。エージェントは、完全なページコンテンツではなく、クリーンな要約を受け取ります。<br><strong>利点：</strong>トークンを節約し、重複したヘルパー呼び出しを減らし、外部コンテンツからのプロンプトインジェクションからシステムを強化します。"
 }

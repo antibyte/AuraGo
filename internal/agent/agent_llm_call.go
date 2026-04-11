@@ -73,7 +73,7 @@ func handleStreamingResponse(
 	// the send/hold boundary.  With holdLen == P the entire P-byte prefix stays
 	// in the hold buffer until the next chunk arrives, guaranteeing detection.
 	const doneTagHoldLen = len(minimaxToolCallPrefix) // 17 bytes (≥ all other prefixes)
-	const doneTagStreamBufMaxLen = 8192                   // max buffer to prevent unbounded growth
+	const doneTagStreamBufMaxLen = 8192               // max buffer to prevent unbounded growth
 	doneTagStreamBuf := ""
 	xmlToolCallSuppressed := false // once true, suppress all remaining stream chunks
 	type recvResult struct {

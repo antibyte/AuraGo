@@ -1,10 +1,10 @@
 {
     "config.web_scraper.enabled_label":  "网页抓取已启用：",
     "config.web_scraper.disabled_notice":  "网页抓取已禁用",
-    "config.web_scraper.disabled_desc":  "启用上面的切换以允许代理获取外部网页并分析其内容。",
+    "config.web_scraper.disabled_desc":  "启用上面的开关以允许代理获取外部网页并分析其内容。",
     "config.web_scraper.summary_mode":  "摘要模式",
     "config.web_scraper.empty_main_llm":  "空 = 主 LLM",
     "config.web_scraper.use_main_llm":  "— 使用主 LLM —",
     "config.web_scraper.summary_provider":  "Helper LLM",
-    "config.web_scraper.summary_desc":  "Scraped web pages are summarized through the central Helper LLM when it is enabled. The agent receives the cleaned summary instead of the full page content.\u003cbr\u003e\u003cstrong\u003eBenefits:\u003c/strong\u003e saves tokens, reduces duplicate helper calls and hardens the system against prompt injection from external content."
+    "config.web_scraper.summary_desc":  "当启用时，爬取的网页会通过中央Helper LLM进行摘要处理。代理会收到清洁的摘要而不是完整的页面内容。<br><strong>好处：</strong>节省tokens，减少重复的helper调用，并加强系统抵御外部内容的prompt注入。"
 }

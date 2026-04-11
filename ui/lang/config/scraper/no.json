@@ -1,10 +1,10 @@
 {
-    "config.web_scraper.enabled_label":  "Web Scraper ingeschakeld:",
-    "config.web_scraper.disabled_notice":  "Web Scraper is uitgeschakeld",
-    "config.web_scraper.disabled_desc":  "Schakel de toggle hierboven in om de agent toe te staan externe webpaginas op te halen en te analyseren.",
-    "config.web_scraper.summary_mode":  "Samenvattingsmodus",
-    "config.web_scraper.empty_main_llm":  "leeg = hoofd LLM",
-    "config.web_scraper.use_main_llm":  "— Gebruik hoofd LLM —",
+    "config.web_scraper.enabled_label":  "Web Scraper aktivert:",
+    "config.web_scraper.disabled_notice":  "Web Scraper er deaktivert",
+    "config.web_scraper.disabled_desc":  "Aktiver bryteren ovenfor for å la agenten hente eksterne nettsider og analysere innholdet deres.",
+    "config.web_scraper.summary_mode":  "Sammendragsmodus",
+    "config.web_scraper.empty_main_llm":  "tom = hoved-LLM",
+    "config.web_scraper.use_main_llm":  "— Bruk hoved-LLM —",
     "config.web_scraper.summary_provider":  "Helper LLM",
-    "config.web_scraper.summary_desc":  "Scraped web pages are summarized through the central Helper LLM when it is enabled. The agent receives the cleaned summary instead of the full page content.\u003cbr\u003e\u003cstrong\u003eBenefits:\u003c/strong\u003e saves tokens, reduces duplicate helper calls and hardens the system against prompt injection from external content."
+    "config.web_scraper.summary_desc":  "Skrapede nettsider oppsummeres gjennom den sentrale Helper LLM når den er aktivert. Agenten mottar det rensede sammendraget i stedet for full sideinnhold.<br><strong>Fordeler:</strong> sparer tokens, reduserer dupliserte helper-kall og herder systemet mot prompt-injeksjon fra eksternt innhold."
 }

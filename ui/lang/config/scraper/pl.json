@@ -6,5 +6,5 @@
     "config.web_scraper.empty_main_llm":  "puste = główny LLM",
     "config.web_scraper.use_main_llm":  "— Użyj głównego LLM —",
     "config.web_scraper.summary_provider":  "Helper LLM",
-    "config.web_scraper.summary_desc":  "Scraped web pages are summarized through the central Helper LLM when it is enabled. The agent receives the cleaned summary instead of the full page content.\u003cbr\u003e\u003cstrong\u003eBenefits:\u003c/strong\u003e saves tokens, reduces duplicate helper calls and hardens the system against prompt injection from external content."
+    "config.web_scraper.summary_desc":  "Zeskrobane strony internetowe są podsumowywane przez centralny Helper LLM, gdy jest włączony. Agent otrzymuje oczyszczone podsumowanie zamiast pełnej zawartości strony.<br><strong>Korzyści:</strong> oszczędza tokeny, zmniejsza duplikaty wywołań helpera i wzmacnia system przed wstrzykiwaniem promptów z zewnętrznej zawartości."
 }
