@@ -445,6 +445,7 @@ func buildPromptContextFlags(runCfg RunConfig, policy ToolingPolicy, opts prompt
 		SpecialistsStatus:        opts.SpecialistsStatus,
 		SpecialistsSuggestion:    opts.SpecialistsSuggestion,
 		NativeToolsEnabled:       policy.UseNativeFunctions,
+		IsTextModeModel:          !policy.UseNativeFunctions && policy.Capabilities.DisableNativeFunctionCalling,
 	}
 }
 

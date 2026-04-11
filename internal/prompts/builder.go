@@ -105,6 +105,7 @@ type ContextFlags struct {
 	IsCoAgent          bool     // True if the current LLM call is for a co-agent
 	IsEgg              bool     // True if this instance runs in egg worker mode
 	NativeToolsEnabled bool     // True when native function calling API is active
+	IsTextModeModel    bool     // True for models that emit tool calls as text (MiniMax, GLM)
 	// Specialist co-agent fields
 	SpecialistsAvailable  bool   // True if at least one specialist is enabled
 	SpecialistsStatus     string // Dynamic status text listing enabled specialists
@@ -345,6 +346,9 @@ func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string,
 	// - Removed the misleading "JSON protocol is a fallback" phrasing — the fallback is
 	//   still described in TOOL EXECUTION PROTOCOL for non-native providers, but native
 	//   sessions must never mix both protocols in their output.
+	// CHANGE LOG 2026-04-11: Model-class-specific tool calling prompts.
+	// Native API models get the standard native prompt. Text-mode models (MiniMax, GLM)
+	// get an explicit JSON format prompt because they cannot use the native function calling API.
 	if flags.NativeToolsEnabled {
 		finalPrompt.WriteString("## TOOL CALLING MODE\n")
 		finalPrompt.WriteString("This session uses the **native function calling API**. " +
@@ -358,6 +362,27 @@ func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string,
 			"The only exception is for multi-step tasks where the \"Acknowledge before long actions\" " +
 			"rule in your behavioral rules applies — then a brief 1-sentence acknowledgment " +
 			"may precede the first tool call of the chain.\n\n")
+	} else if flags.IsTextModeModel {
+		// Text-mode models (MiniMax, GLM, etc.) emit tool calls as text content.
+		// They need explicit JSON format instructions since they cannot use the
+		// native function calling API. This prompt section is critical for reliable
+		// tool dispatch with these models.
+		finalPrompt.WriteString("## TOOL CALLING MODE (TEXT JSON)\n")
+		finalPrompt.WriteString("You MUST invoke tools by outputting a single raw JSON object " +
+			"as your ENTIRE response. Do NOT wrap it in markdown fences, XML tags, or code blocks. " +
+			"Do NOT add any explanation before or after the JSON.\n\n")
+		finalPrompt.WriteString("Required format:\n" +
+			"{\"action\": \"tool_name\", \"param1\": \"value1\", \"param2\": \"value2\"}\n\n")
+		finalPrompt.WriteString("**Critical rules:**\n" +
+			"- The JSON object must be the ONLY content in your response\n" +
+			"- Use the `action` field for the tool name (not `tool`, `tool_call`, or `name`)\n" +
+			"- Do NOT use [TOOL_CALL] tags, <tool_call XML, or minimax:tool_call markers\n" +
+			"- Do NOT announce what you are about to do before the JSON (no preamble)\n" +
+			"- If you need to call multiple tools, output one tool call per turn — " +
+			"the system will return the result and you can call the next tool\n\n")
+		finalPrompt.WriteString("**Preamble rule:** Same as native mode — when calling a tool as a " +
+			"single-step action, your response must be ONLY the JSON object. " +
+			"For multi-step tasks, a brief 1-sentence acknowledgment may precede the JSON.\n\n")
 	}
 
 	// Language Instruction
