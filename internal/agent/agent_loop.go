@@ -159,6 +159,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	invalidNativeToolCount := 0
 	sessionTokens := 0
 	recoveryPolicy := buildRecoveryPolicy(cfg)
+	recoverySession := NewRecoverySessionState(logger, broker, cfg)
 	emptyRetried := false // Prevents infinite retry on persistent empty responses
 	retry422Count := 0    // Counts consecutive 422 retries — capped to prevent infinite loops
 	stepsSinceLastFeedback := 0
@@ -1525,28 +1526,14 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		if tc.RawCodeDetected && rawCodeCount < 2 {
 			rawCodeCount++
 			currentLogger.Warn("[Sync] Raw code detected, sending corrective feedback", "attempt", rawCodeCount)
-			broker.Send("error_recovery", i18n.T(cfg.Server.UILanguage, "backend.stream_error_recovery_raw_code"))
-
-			id, err := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleAssistant, content, false, true)
-			if err != nil {
-				currentLogger.Error("Failed to persist assistant message to SQLite", "error", err)
-			}
-			if sessionID == "default" {
-				historyManager.Add(openai.ChatMessageRoleAssistant, content, id, false, true)
-			}
-
-			feedbackMsg := "ERROR: You sent raw Python code instead of a JSON tool call. My supervisor only understands JSON tool calls. Please wrap your code in a valid JSON object: {\"action\": \"save_tool\", \"name\": \"script.py\", \"description\": \"...\", \"code\": \"<your python code with \\n escaped>\"}."
-			feedbackMsg = applyEmotionRecoveryNudge(feedbackMsg, emotionPolicy)
-			id, err = shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, feedbackMsg, false, true)
-			if err != nil {
-				currentLogger.Error("Failed to persist feedback message to SQLite", "error", err)
-			}
-			if sessionID == "default" {
-				historyManager.Add(openai.ChatMessageRoleUser, feedbackMsg, id, false, true)
-			}
-
-			req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: content})
-			req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: feedbackMsg})
+			feedbackMsg := applyEmotionRecoveryNudge(FormatRawCodeFeedback(), emotionPolicy)
+			msgs := recoverySession.PersistRecoveryMessages(PersistRecoveryParams{
+				SessionID:        sessionID,
+				AssistantContent: content,
+				FeedbackMsg:      feedbackMsg,
+				BrokerEventType:  "error_recovery",
+			}, shortTermMem, historyManager)
+			req.Messages = append(req.Messages, msgs...)
 			continue
 		}
 
@@ -1625,27 +1612,20 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				"attempt", invalidNativeToolCount,
 				"action", tc.Action,
 				"error", tc.NativeArgsError)
-			broker.Send("error_recovery", i18n.T(cfg.Server.UILanguage, "backend.stream_error_recovery_invalid_native"))
-
 			recoveryTool := tc.Action
 			if strings.TrimSpace(recoveryTool) == "" {
 				recoveryTool = "the requested tool"
 			} else {
 				recoveryTool = Truncate(strings.ReplaceAll(strings.ReplaceAll(recoveryTool, "\n", " "), "\r", " "), 80)
 			}
-			feedbackMsg := fmt.Sprintf(
-				"ERROR: Your last native function call for %q had invalid function arguments JSON and was discarded. Emit the function call again with valid JSON arguments only. Do not include source code, XML/HTML, or prose inside the function name or outside the JSON arguments.",
-				recoveryTool,
-			)
-			feedbackMsg = applyEmotionRecoveryNudge(feedbackMsg, emotionPolicy)
-			id, err := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, feedbackMsg, false, true)
-			if err != nil {
-				currentLogger.Error("Failed to persist invalid-native-tool feedback message", "error", err)
-			}
-			if sessionID == "default" {
-				historyManager.Add(openai.ChatMessageRoleUser, feedbackMsg, id, false, true)
-			}
-			req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: feedbackMsg})
+			feedbackMsg := applyEmotionRecoveryNudge(FormatInvalidNativeToolFeedback(recoveryTool), emotionPolicy)
+			msgs := recoverySession.PersistRecoveryMessages(PersistRecoveryParams{
+				SessionID:            sessionID,
+				FeedbackMsg:          feedbackMsg,
+				BrokerEventType:      "error_recovery",
+				SkipAssistantPersist: true,
+			}, shortTermMem, historyManager)
+			req.Messages = append(req.Messages, msgs...)
 			lastResponseWasTool = false
 			continue
 		}
@@ -1810,33 +1790,14 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			if hasOpenTag && !hasCloseTag {
 				orphanedBracketTagCount++
 				currentLogger.Warn("[Sync] Orphaned [TOOL_CALL] tag detected without closing tag, requesting corrective tool call", "attempt", orphanedBracketTagCount, "content_preview", Truncate(content, 150))
-				broker.Send("error_recovery", i18n.T(cfg.Server.UILanguage, "backend.stream_error_recovery_incomplete_tag"))
-
-				id, err := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleAssistant, content, false, true)
-				if err != nil {
-					currentLogger.Error("Failed to persist assistant message to SQLite", "error", err)
-				}
-				if sessionID == "default" {
-					historyManager.Add(openai.ChatMessageRoleAssistant, content, id, false, true)
-				}
-
-				var feedbackMsg string
-				if useNativeFunctions {
-					feedbackMsg = "ERROR: Your response contained the literal text \"[TOOL_CALL]\" but no actual function call was made. You MUST use the native function-calling mechanism to invoke a tool. Do NOT write [TOOL_CALL] as text — call the function directly using the tool call interface."
-				} else {
-					feedbackMsg = "ERROR: Your response contained the literal text \"[TOOL_CALL]\" but no valid tool call JSON. Do NOT write [TOOL_CALL] as text. Your ENTIRE response must be ONLY the raw JSON tool call — no explanation, no tags. Output the JSON tool call NOW."
-				}
-				feedbackMsg = applyEmotionRecoveryNudge(feedbackMsg, emotionPolicy)
-				id, err = shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, feedbackMsg, false, true)
-				if err != nil {
-					currentLogger.Error("Failed to persist feedback message to SQLite", "error", err)
-				}
-				if sessionID == "default" {
-					historyManager.Add(openai.ChatMessageRoleUser, feedbackMsg, id, false, true)
-				}
-
-				req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: content})
-				req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: feedbackMsg})
+				feedbackMsg := applyEmotionRecoveryNudge(FormatOrphanedBracketTagFeedback(useNativeFunctions), emotionPolicy)
+				msgs := recoverySession.PersistRecoveryMessages(PersistRecoveryParams{
+					SessionID:        sessionID,
+					AssistantContent: content,
+					FeedbackMsg:      feedbackMsg,
+					BrokerEventType:  "error_recovery",
+				}, shortTermMem, historyManager)
+				req.Messages = append(req.Messages, msgs...)
 				continue
 			}
 		}
@@ -1851,29 +1812,15 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			if strings.Contains(lowerContent, "<tool_call") || strings.Contains(lowerContent, "minimax:tool_call") {
 				orphanedXMLTagCount++
 				currentLogger.Warn("[Sync] Bare <tool_call> XML in native mode, requesting native function call", "attempt", orphanedXMLTagCount, "content_preview", Truncate(content, 150))
-				broker.Send("error_recovery", i18n.T(cfg.Server.UILanguage, "backend.stream_error_recovery_xml_in_native_mode"))
-
-				id, err := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleAssistant, content, false, true)
-				if err != nil {
-					currentLogger.Error("Failed to persist assistant message to SQLite", "error", err)
-				}
-				if sessionID == "default" {
-					historyManager.Add(openai.ChatMessageRoleAssistant, content, id, false, true)
-				}
-
-				feedbackMsg := "ERROR: Your response contained a literal <tool_call> XML tag but no actual function call was made. You MUST use the native function-calling mechanism — do not write XML tags. Call the function directly using the tool call interface now."
-				feedbackMsg = applyEmotionRecoveryNudge(feedbackMsg, emotionPolicy)
-				id, err = shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, feedbackMsg, false, true)
-				if err != nil {
-					currentLogger.Error("Failed to persist feedback message to SQLite", "error", err)
-				}
-				if sessionID == "default" {
-					historyManager.Add(openai.ChatMessageRoleUser, feedbackMsg, id, false, true)
-				}
-
-				req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: content})
-				req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: feedbackMsg})
-				continue
+			feedbackMsg := applyEmotionRecoveryNudge(FormatBareXMLInNativeModeFeedback(), emotionPolicy)
+			msgs := recoverySession.PersistRecoveryMessages(PersistRecoveryParams{
+				SessionID:        sessionID,
+				AssistantContent: content,
+				FeedbackMsg:      feedbackMsg,
+				BrokerEventType:  "error_recovery",
+			}, shortTermMem, historyManager)
+			req.Messages = append(req.Messages, msgs...)
+			continue
 			}
 		}
 
