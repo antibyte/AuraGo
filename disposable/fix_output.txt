@@ -1,4 +1,0 @@
-Old section length: 980 bytes
-New section length: 818 bytes
-File size change: 111210 -> 111048 bytes (-162)
-Successfully patched agent_loop.go
