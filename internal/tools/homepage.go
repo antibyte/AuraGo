@@ -93,6 +93,12 @@ RUN npm install -g \
 ENV CI=true
 ENV NODE_ENV=development
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+# Lighthouse needs CHROME_PATH pointing to the Playwright-bundled Chromium binary.
+# The base image installs browsers under /ms-playwright/chromium-<ver>/chrome-linux/chrome.
+RUN CHROME_BIN=$(find /ms-playwright -name chrome -path '*/chrome-linux/chrome' 2>/dev/null | head -1) && \
+    if [ -n "$CHROME_BIN" ]; then echo "export CHROME_PATH=$CHROME_BIN" >> /etc/profile.d/chrome.sh && \
+    ln -sf "$CHROME_BIN" /usr/local/bin/chrome; fi
+ENV CHROME_PATH=/usr/local/bin/chrome
 EXPOSE 3000
 CMD ["tail", "-f", "/dev/null"]
 `
@@ -621,8 +627,8 @@ func HomepageInitProject(cfg HomepageConfig, framework, name, template string, l
 	case "next", "nextjs", "next.js":
 		// --eslint flag tells create-next-app to set up ESLint, but ESLint v9+ flat config
 		// requires @eslint/js as an explicit dependency.  We append a post-install step
-		// so that linting works out of the box.
-		cmd = fmt.Sprintf("npx --yes create-next-app@latest %s --ts --tailwind --app --src-dir --no-import-alias --eslint && cd %s && npm install --save-dev @eslint/js", name, name)
+		// with --legacy-peer-deps to avoid version conflicts between @eslint/js and eslint.
+		cmd = fmt.Sprintf("npx --yes create-next-app@latest %s --ts --tailwind --app --src-dir --no-import-alias --eslint && cd %s && npm install --save-dev --legacy-peer-deps @eslint/js", name, name)
 	case "vite", "react":
 		cmd = fmt.Sprintf("npx --yes create-vite@latest %s -- --template react-ts", name)
 	case "astro":
@@ -826,9 +832,20 @@ func HomepageLighthouse(cfg HomepageConfig, url string, logger *slog.Logger) str
 	logger.Info("[Homepage] Lighthouse", "url", url)
 	dockerCfg := DockerConfig{Host: cfg.DockerHost}
 	// Run lighthouse with JSON output, capture stderr in a temp file so errors
-	// are not silently swallowed.  Extract key scores via jq; if the result is
-	// empty (lighthouse crashed / Chrome failed), return stderr as error.
-	cmd := fmt.Sprintf(`LHERR=$(mktemp) && lighthouse "%s" --output json --chrome-flags="--headless --no-sandbox --disable-gpu" 2>"$LHERR" | jq '{performance: .categories.performance.score, accessibility: .categories.accessibility.score, bestPractices: .categories["best-practices"].score, seo: .categories.seo.score, fcp: .audits["first-contentful-paint"].displayValue, lcp: .audits["largest-contentful-paint"].displayValue, cls: .audits["cumulative-layout-shift"].displayValue, tbt: .audits["total-blocking-time"].displayValue, errorsInConsole: .audits["errors-in-console"].score, consoleErrors: (.audits["errors-in-console"].details.items // [] | length)}' > /tmp/lh_result.json; if [ ! -s /tmp/lh_result.json ] || grep -q 'null' /tmp/lh_result.json && ! grep -q '"performance"' /tmp/lh_result.json; then echo '{"status":"error","message":"Lighthouse produced no results. This usually means Chrome failed to start or the URL was unreachable inside the container.","stderr":"'"$(tail -20 "$LHERR" | tr '"' "'" | tr '\n' ' ')"'"}'; else cat /tmp/lh_result.json; fi; rm -f "$LHERR" /tmp/lh_result.json`, url)
+	// are not silently swallowed.  CHROME_PATH is set in the Dockerfile to the
+	// Playwright-bundled Chromium; we also auto-detect it at runtime in case
+	// the image was rebuilt without the env var.
+	cmd := fmt.Sprintf(`LHERR=$(mktemp); `+
+		`if [ -z "$CHROME_PATH" ] || [ ! -x "$CHROME_PATH" ]; then `+
+		`  CHROME_PATH=$(find /ms-playwright -name chrome -path '*/chrome-linux/chrome' 2>/dev/null | head -1); `+
+		`  export CHROME_PATH; `+
+		`fi; `+
+		`lighthouse "%s" --output json --chrome-flags="--headless --no-sandbox --disable-gpu" 2>"$LHERR" | `+
+		`jq '{performance: .categories.performance.score, accessibility: .categories.accessibility.score, bestPractices: .categories["best-practices"].score, seo: .categories.seo.score, fcp: .audits["first-contentful-paint"].displayValue, lcp: .audits["largest-contentful-paint"].displayValue, cls: .audits["cumulative-layout-shift"].displayValue, tbt: .audits["total-blocking-time"].displayValue, errorsInConsole: .audits["errors-in-console"].score, consoleErrors: (.audits["errors-in-console"].details.items // [] | length)}' > /tmp/lh_result.json; `+
+		`if [ ! -s /tmp/lh_result.json ] || grep -q 'null' /tmp/lh_result.json && ! grep -q '"performance"' /tmp/lh_result.json; then `+
+		`  echo '{"status":"error","message":"Lighthouse produced no results. Chrome may have failed to start or the URL was unreachable.","chrome_path":"'"$CHROME_PATH"'","stderr":"'"$(tail -20 "$LHERR" | tr '"' "'" | tr '\n' ' ')"'"}'; `+
+		`else cat /tmp/lh_result.json; fi; `+
+		`rm -f "$LHERR" /tmp/lh_result.json`, url)
 	return DockerExec(dockerCfg, homepageContainerName, cmd, "")
 }
 
@@ -859,29 +876,23 @@ func HomepageScreenshot(ctx context.Context, cfg HomepageConfig, url, viewport s
 	}
 	dockerCfg := DockerConfig{Host: cfg.DockerHost}
 
-	// Use a Node.js one-liner with Playwright
-	script := fmt.Sprintf(`node -e "
-const {chromium} = require('playwright');
-(async()=>{
-  const b = await chromium.launch({args:['--no-sandbox']});
-  const p = await b.newPage();
-  await p.setViewportSize({width:%s,height:%s});
-  await p.goto('%s',{waitUntil:'networkidle'});
-  await p.screenshot({path:'/workspace/_screenshot.png',fullPage:true});
-  await b.close();
-  console.log('screenshot saved to /workspace/_screenshot.png');
-})();"`, width, height, url)
+	// Use npx playwright screenshot CLI — works reliably in the Playwright base image
+	// without requiring a global npm install of the playwright package.
+	script := fmt.Sprintf(`npx playwright screenshot --browser=chromium --viewport-size=%s,%s --full-page "%s" /workspace/_screenshot.png 2>&1 && echo '\n{"status":"ok","file":"/workspace/_screenshot.png","message":"screenshot saved"}'`,
+		width, height, url)
 
 	result := homepageDockerExecFunc(dockerCfg, homepageContainerName, script, "")
-	if strings.Contains(result, "Cannot find module 'playwright'") || strings.Contains(result, "MODULE_NOT_FOUND") {
+
+	// If npx playwright is not available at all, fall back to WebCapture.
+	if strings.Contains(result, "Cannot find module") || strings.Contains(result, "MODULE_NOT_FOUND") ||
+		strings.Contains(result, "command not found") || strings.Contains(result, "not found") && strings.Contains(result, "npx") {
 		if logger != nil {
-			logger.Warn("[Homepage] Playwright missing in homepage container, falling back to web_capture")
+			logger.Warn("[Homepage] Playwright CLI not available, falling back to web_capture")
 		}
 		// The WebCapture fallback enforces SSRF protection which blocks private/local IPs.
-		// Detect this case and return a helpful error instead of a generic SSRF block.
 		if isPrivateHost(extractHostFromURL(url)) {
-			return errJSON("Cannot take screenshot of local URL %q: Playwright is not installed in the homepage container and the fallback screenshot tool blocks private IPs (SSRF protection). "+
-				"Fix: run homepage exec 'npm i -g playwright && npx playwright install chromium' to install Playwright in the container, then retry.", url)
+			return errJSON("Cannot take screenshot of local URL %q: Playwright is not available in the homepage container and the fallback screenshot tool blocks private IPs (SSRF protection). "+
+				"Fix: rebuild the homepage container (homepage rebuild) which uses a Playwright base image with browsers pre-installed.", url)
 		}
 		return homepageWebCaptureFunc(ctx, "screenshot", url, "", true, "agent_workspace/workdir")
 	}

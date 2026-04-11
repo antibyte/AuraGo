@@ -378,6 +378,22 @@ func HomepageWebServerStart(cfg HomepageConfig, projectDir, buildDir string, log
 		return errJSON("Failed to start web server: code=%d err=%v", startCode, startErr)
 	}
 
+	// Health-check: wait for Caddy to be ready before returning success
+	healthURL := fmt.Sprintf("http://localhost:%d/", port)
+	var lastHealthErr error
+	for i := 0; i < 10; i++ {
+		resp, err := http.Get(healthURL)
+		if err == nil {
+			resp.Body.Close()
+			break
+		}
+		lastHealthErr = err
+		time.Sleep(500 * time.Millisecond)
+	}
+	if lastHealthErr != nil {
+		logger.Warn("[Homepage] Web server started but health-check failed", "err", lastHealthErr)
+	}
+
 	logger.Info("[Homepage] Web server started", "port", port, "domain", cfg.WebServerDomain)
 	url := fmt.Sprintf("http://localhost:%d", port)
 	if cfg.WebServerDomain != "" {
