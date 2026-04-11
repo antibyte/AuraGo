@@ -1611,7 +1611,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		// This happens with some providers (MiniMax, OpenRouter) where the model
 		// tries to use XML-style tool calling but only outputs the tag marker.
 		// Handle this independently of the announcement detector.
-		if parsedToolResp.IncompleteToolCall && !tc.IsTool && incompleteToolCallCount < 2 {
+		if parsedToolResp.IncompleteToolCall && !tc.IsTool && incompleteToolCallCount < 3 {
 			incompleteToolCallCount++
 			currentLogger.Warn("[Sync] Incomplete <tool_call> tag detected, nudging model to emit actual tool call", "attempt", incompleteToolCallCount)
 			broker.Send("error_recovery", i18n.T(cfg.Server.UILanguage, "backend.stream_error_recovery_incomplete_tool_call"))
@@ -1626,9 +1626,12 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 			var feedbackMsg string
 			if useNativeFunctions {
-				feedbackMsg = "ERROR: You emitted a bare <tool_call> tag but did not produce an actual tool call. You MUST use the native function-calling mechanism to invoke tools. Do NOT output <tool_call> tags in text — use the structured function call API instead."
+				feedbackMsg = "ERROR: You emitted a bare <tool_call> or <minimax:tool_call> tag but did not produce an actual tool call. You MUST use the native function-calling mechanism to invoke tools. Do NOT output any XML tags in text — use the structured function call API instead."
+			} else if incompleteToolCallCount >= 2 {
+				// Escalate on second attempt — be very explicit about <minimax:tool_call> specifically
+				feedbackMsg = "CRITICAL ERROR: You sent '<minimax:tool_call>' or '<tool_call>' as raw text again. This is not a valid tool call format. Do NOT output any XML tags at all. Your ENTIRE response must consist of ONLY a raw JSON object, starting with '{'. Example for reading a file: {\"action\": \"read_file\", \"file_path\": \"/etc/caddy/Caddyfile\"}"
 			} else {
-				feedbackMsg = "ERROR: You emitted a bare <tool_call> tag but did not include the JSON body. Output ONLY the raw JSON tool call object — no XML tags, no explanation. Example: {\"action\": \"system_metrics\"}"
+				feedbackMsg = "ERROR: You emitted a bare <tool_call> or <minimax:tool_call> tag but did not include the JSON body. Do NOT output XML tags. Output ONLY the raw JSON tool call object — no XML tags, no explanation, no preamble. Example: {\"action\": \"system_metrics\"}"
 			}
 			feedbackMsg += " If there is nothing left to do, respond with <done/> to signal completion."
 			feedbackMsg = applyEmotionRecoveryNudge(feedbackMsg, emotionPolicy)
@@ -1640,7 +1643,14 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				historyManager.Add(openai.ChatMessageRoleUser, feedbackMsg, id, false, true)
 			}
 
-			req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: content})
+			// Strip bare XML tool tags from the assistant message before adding to context,
+			// so the model does not learn to repeat the same invalid format.
+			cleanedContent := bareToolCallTagRe.ReplaceAllString(content, "")
+			cleanedContent = strings.TrimSpace(cleanedContent)
+			if cleanedContent == "" {
+				cleanedContent = parsedToolResp.SanitizedContent
+			}
+			req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: cleanedContent})
 			req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: feedbackMsg})
 			lastResponseWasTool = false
 			continue
