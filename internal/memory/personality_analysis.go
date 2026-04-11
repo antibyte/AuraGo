@@ -571,6 +571,9 @@ Rules for inner_voice:
 		// Inject persona context for inner voice tone
 		if emotionInput.PersonaName != "" && emotionInput.PersonaName != "neutral" {
 			prompt += "\n- Stay in character as the \"" + sanitizePromptText(emotionInput.PersonaName, 40) + "\" persona. Your inner voice must match this character — tone, vocabulary, attitude."
+			if emotionInput.PersonaPrompt != "" {
+				prompt += "\n- Persona character: " + sanitizePromptText(emotionInput.PersonaPrompt, 300)
+			}
 		}
 		if emotionInput.TaskStatus != "" {
 			prompt += "\n- Current task status: " + emotionInput.TaskStatus
