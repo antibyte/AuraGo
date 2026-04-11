@@ -1785,7 +1785,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		// retry so the model produces an actual native call.
 		if !tc.IsTool && useNativeFunctions && orphanedToolCallCount < 2 {
 			lowerContent := strings.ToLower(parsedToolResp.SanitizedContent + content)
-			if strings.Contains(lowerContent, "<tool_call") {
+			if strings.Contains(lowerContent, "<tool_call") || strings.Contains(lowerContent, "minimax:tool_call") {
 				orphanedToolCallCount++
 				currentLogger.Warn("[Sync] Bare <tool_call> XML in native mode, requesting native function call", "attempt", orphanedToolCallCount, "content_preview", Truncate(content, 150))
 				broker.Send("error_recovery", i18n.T(cfg.Server.UILanguage, "backend.stream_error_recovery_xml_in_native_mode"))

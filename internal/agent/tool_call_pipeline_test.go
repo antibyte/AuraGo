@@ -511,6 +511,10 @@ func TestParseToolResponseBareToolCallTag(t *testing.T) {
 			name:    "bare minimax:tool_call marker",
 			content: "<think>thinking</think>\nEinen Moment...\nminimax:tool_call",
 		},
+		{
+			name:    "minimax:tool_call with junk log data after it",
+			content: "Lass mich das reparieren:\nminimax:tool_call           log : app-page.runtime.dev.js:35:16871\n    at aw (node_modules/next/dist/compiled/next-server)",
+		},
 	}
 
 	for _, tt := range tests {

@@ -13,7 +13,7 @@ import (
 
 // bareToolCallTagRe matches bare <tool_call>, </tool_call>, <tool_call/>, or
 // minimax:tool_call markers that have no JSON body following them.
-var bareToolCallTagRe = regexp.MustCompile(`(?i)</?tool_call/?>|minimax:tool_call\s*$`)
+var bareToolCallTagRe = regexp.MustCompile(`(?i)</?tool_call/?>|minimax:tool_call`)
 
 type ToolCallParseSource string
 

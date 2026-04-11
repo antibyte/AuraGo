@@ -186,30 +186,17 @@ func handleStreamingResponse(
 						doneTagStreamBuf = doneTagStreamBuf[len(doneTagStreamBuf)-doneTagHoldLen:]
 					}
 					toSend = strings.ReplaceAll(toSend, doneTagStr, "")
-					if idx := strings.Index(strings.ToLower(toSend), minimaxToolCallPrefix); idx != -1 {
-						toSend = toSend[:idx]
-						xmlToolCallSuppressed = true
-						doneTagStreamBuf = ""
-					}
-					if !xmlToolCallSuppressed {
-						if idx := strings.Index(strings.ToLower(toSend), xmlToolCallPrefix); idx != -1 {
-							toSend = toSend[:idx]
+					// Check combined toSend+holdBuffer for prefixes so that a prefix
+					// straddling the send/hold boundary is still detected and suppressed.
+					combined := strings.ToLower(toSend + doneTagStreamBuf)
+					for _, prefix := range []string{minimaxToolCallPrefix, xmlToolCallPrefix, actionTagPrefix, toolResponsePrefix} {
+						if idx := strings.Index(combined, prefix); idx != -1 {
+							if idx < len(toSend) {
+								toSend = toSend[:idx]
+							}
 							xmlToolCallSuppressed = true
 							doneTagStreamBuf = ""
-						}
-					}
-					if !xmlToolCallSuppressed {
-						if idx := strings.Index(strings.ToLower(toSend), actionTagPrefix); idx != -1 {
-							toSend = toSend[:idx]
-							xmlToolCallSuppressed = true
-							doneTagStreamBuf = ""
-						}
-					}
-					if !xmlToolCallSuppressed {
-						if idx := strings.Index(strings.ToLower(toSend), toolResponsePrefix); idx != -1 {
-							toSend = toSend[:idx]
-							xmlToolCallSuppressed = true
-							doneTagStreamBuf = ""
+							break
 						}
 					}
 					if toSend != "" {
