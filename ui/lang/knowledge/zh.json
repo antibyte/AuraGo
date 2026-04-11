@@ -164,7 +164,7 @@
   "knowledge.todos_priority_medium": "中",
   "knowledge.todos_priority_high": "高",
   "knowledge.todos_due_label": "截止日期",
-  "knowledge.todos_due_hint": "Optional",
+  "knowledge.todos_due_hint": "可选",
   "knowledge.todos_title_required": "标题为必填项。",
   "knowledge.todos_delete_confirm": "确定要删除待办事项\"{name}\"吗？",
   "knowledge.todos_mark_done": "标记为已完成",

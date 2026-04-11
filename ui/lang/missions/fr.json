@@ -139,7 +139,7 @@
   "missions.modal_title_edit": "Modifier la Mission",
   "missions.modal_title_new": "Nouvelle Mission",
   "missions.page_title": "AuraGo - Mission Control",
-  "missions.queue_active_badge": "ACTIVE",
+  "missions.queue_active_badge": "ACTIF",
   "missions.queue_priority_prefix": "Priorité :",
   "missions.queue_remove_title": "Retirer de la file d'attente",
   "missions.queue_running_now": "En cours d'exécution...",

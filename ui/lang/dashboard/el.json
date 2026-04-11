@@ -178,7 +178,7 @@
   "dashboard.memory_curator_no_stale": "Χωρίς παλιές υποψηφιότητες μνήμης",
   "dashboard.memory_curator_title": "Υγεία Μνήμης",
   "dashboard.memory_embeddings": "Ενσωματώσεις",
-  "dashboard.memory_embeddings_disabled": "Embeddings ✗",
+  "dashboard.memory_embeddings_disabled": "Εμφυτεύματα ✗",
   "dashboard.memory_episodic": "Επεισόδια",
   "dashboard.memory_episodic_agent_user": "χρήστης, πράκτορας",
   "dashboard.memory_episodic_empty": "Δεν υπάρχουν ακόμη πρόσφατα επεισόδια",
