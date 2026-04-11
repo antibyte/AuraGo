@@ -163,7 +163,7 @@ func pollLoop(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, sh
 
 			logger.Info("[RocketChat] Received message", "user", msg.User.Username, "text_len", len(msg.Msg))
 
-				go processMessage(cfg, logger, client, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, channelID, msg, missionManagerV2, guardian)
+			go processMessage(cfg, logger, client, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, channelID, msg, missionManagerV2, guardian)
 		}
 	}
 }
