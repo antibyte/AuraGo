@@ -26,5 +26,15 @@
   "config.cloudflare_tunnel.expose_single_hint": "Token and Quick tunnels use a single origin URL. Only one service can be the tunnel destination. Use Named Tunnel for multi-service routing via separate hostnames.",
   "config.cloudflare_tunnel.expose_named_hint": "Named tunnels support multiple ingress rules — both services can be exposed simultaneously. Configure separate hostnames in the Custom Ingress rules.",
   "config.cloudflare_tunnel.loopback_label": "Loopback HTTP port for cloudflared (avoids TLS)",
-  "config.cloudflare_tunnel.loopback_hint": "Opens a plain HTTP port on 127.0.0.1 only. cloudflared connects to this instead of the HTTPS port — no certificate verification needed. The port is assigned automatically."
+  "config.cloudflare_tunnel.loopback_hint": "Opens a plain HTTP port on 127.0.0.1 only. cloudflared connects to this instead of the HTTPS port — no certificate verification needed. The port is assigned automatically.",
+  "config.cloudflare_tunnel.mode_auto": "Auto (Docker → Native)",
+  "config.cloudflare_tunnel.mode_docker": "Docker",
+  "config.cloudflare_tunnel.mode_native": "Native Binary",
+  "config.cloudflare_tunnel.auth_connector_token": "Connector Token",
+  "config.cloudflare_tunnel.auth_named_tunnel": "Named Tunnel",
+  "config.cloudflare_tunnel.auth_quick_tunnel": "Quick Tunnel (TryCloudflare)",
+  "config.cloudflare_tunnel.log_info": "Info",
+  "config.cloudflare_tunnel.log_debug": "Debug",
+  "config.cloudflare_tunnel.log_warn": "Warn",
+  "config.cloudflare_tunnel.log_error": "Error"
 }
