@@ -1,14 +1,15 @@
 {
-  "config.security.panel_title": "Beveiligingsaudit",
-  "config.security.no_issues": "Geen beveiligingsproblemen gevonden",
+  "config.security.applying": "Bezig met toepassen…",
   "config.security.fix_all_auto": "Fix {n} auto-fixable issue(s)",
   "config.security.fix_now": "Nu verhelpen",
-  "config.security.applying": "Bezig met toepassen…",
-  "config.security.severity.critical": "KRITIEK",
-  "config.security.severity.warning": "WAARSCHUWING",
-  "config.security.severity.info": "INFO",
-  "config.security.modal.title": "Beveiligingswaarschuwing",
+  "config.security.modal.apply": "Correcties toepassen",
   "config.security.modal.desc": "Deze wijziging heeft kritieke beveiligingsproblemen geïntroduceerd. Automatische correcties nu toepassen?",
   "config.security.modal.later": "Later controleren",
-  "config.security.modal.apply": "Correcties toepassen"
+  "config.security.modal.title": "Beveiligingswaarschuwing",
+  "config.security.no_issues": "Geen beveiligingsproblemen gevonden",
+  "config.security.panel_title": "Beveiligingsaudit",
+  "config.security.severity.critical": "KRITIEK",
+  "config.security.severity.info": "INFO",
+  "config.security.severity.warning": "WAARSCHUWING",
+  "config.security.status_success": "✅"
 }

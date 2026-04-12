@@ -1,14 +1,15 @@
 {
-  "config.security.panel_title": "Controllo sicurezza",
-  "config.security.no_issues": "Nessun problema di sicurezza trovato",
+  "config.security.applying": "Applicazione in corso…",
   "config.security.fix_all_auto": "Correggi {n} problema/i automaticamente",
   "config.security.fix_now": "Correggi ora",
-  "config.security.applying": "Applicazione in corso…",
-  "config.security.severity.critical": "CRITICO",
-  "config.security.severity.warning": "AVVERTIMENTO",
-  "config.security.severity.info": "INFO",
-  "config.security.modal.title": "Avviso di sicurezza",
+  "config.security.modal.apply": "Applica correzioni",
   "config.security.modal.desc": "Questa modifica ha introdotto problemi di sicurezza critici. Applicare le correzioni automatiche ora?",
   "config.security.modal.later": "Controlla più tardi",
-  "config.security.modal.apply": "Applica correzioni"
+  "config.security.modal.title": "Avviso di sicurezza",
+  "config.security.no_issues": "Nessun problema di sicurezza trovato",
+  "config.security.panel_title": "Controllo sicurezza",
+  "config.security.severity.critical": "CRITICO",
+  "config.security.severity.info": "INFO",
+  "config.security.severity.warning": "AVVERTIMENTO",
+  "config.security.status_success": "✅"
 }

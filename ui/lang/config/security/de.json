@@ -1,14 +1,15 @@
 {
-  "config.security.panel_title": "Sicherheitsaudit",
-  "config.security.no_issues": "Keine Sicherheitsprobleme gefunden",
+  "config.security.applying": "Wird angewendet…",
   "config.security.fix_all_auto": "{n} automatisch behebbare Problem(e) lösen",
   "config.security.fix_now": "Jetzt beheben",
-  "config.security.applying": "Wird angewendet…",
-  "config.security.severity.critical": "KRITISCH",
-  "config.security.severity.warning": "WARNUNG",
-  "config.security.severity.info": "INFO",
-  "config.security.modal.title": "Sicherheitswarnung",
+  "config.security.modal.apply": "Korrekturen anwenden",
   "config.security.modal.desc": "Diese Änderung hat kritische Sicherheitsprobleme eingeführt. Automatische Korrekturen jetzt anwenden?",
   "config.security.modal.later": "Später prüfen",
-  "config.security.modal.apply": "Korrekturen anwenden"
+  "config.security.modal.title": "Sicherheitswarnung",
+  "config.security.no_issues": "Keine Sicherheitsprobleme gefunden",
+  "config.security.panel_title": "Sicherheitsaudit",
+  "config.security.severity.critical": "KRITISCH",
+  "config.security.severity.info": "INFO",
+  "config.security.severity.warning": "WARNUNG",
+  "config.security.status_success": "✅"
 }

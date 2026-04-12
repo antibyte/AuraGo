@@ -111,7 +111,7 @@ async function dcTestGotenberg() {
     var btn = document.getElementById('dc-test-btn');
     var result = document.getElementById('dc-test-result');
     btn.disabled = true;
-    result.textContent = '⏳ ...';
+    result.textContent = t('config.document_creator.loading');
     result.className = 'dc-test-result';
 
     try {
@@ -120,14 +120,14 @@ async function dcTestGotenberg() {
         if (resp.ok && body.status === 'success') {
             result.className = 'dc-test-result is-success';
             var backendInfo = body.active_backend ? ' (backend: ' + body.active_backend + ')' : '';
-            result.textContent = '✅ ' + t('config.document_creator.test_ok') + backendInfo;
+            result.textContent = t('config.document_creator.status_success') + ' ' + t('config.document_creator.test_ok') + backendInfo;
         } else {
             result.className = 'dc-test-result is-danger';
-            result.textContent = '❌ ' + (body.message || ('HTTP ' + resp.status));
+            result.textContent = t('config.document_creator.status_error') + ' ' + (body.message || ('HTTP ' + resp.status));
         }
     } catch (e) {
         result.className = 'dc-test-result is-danger';
-        result.textContent = '❌ ' + e.message;
+        result.textContent = t('config.document_creator.status_error') + ' ' + e.message;
     } finally {
         btn.disabled = false;
     }

@@ -1,14 +1,15 @@
 {
-  "config.security.panel_title": "Säkerhetsgranskning",
-  "config.security.no_issues": "Inga säkerhetsproblem hittades",
+  "config.security.applying": "Tillämpar…",
   "config.security.fix_all_auto": "Fix {n} auto-fixable issue(s)",
   "config.security.fix_now": "Åtgärda nu",
-  "config.security.applying": "Tillämpar…",
-  "config.security.severity.critical": "KRITISK",
-  "config.security.severity.warning": "VARNING",
-  "config.security.severity.info": "INFO",
-  "config.security.modal.title": "Säkerhetsvarning",
+  "config.security.modal.apply": "Tillämpa korrigeringar",
   "config.security.modal.desc": "Den här ändringen introducerade kritiska säkerhetsproblem. Tillämpa automatiska korrigeringar nu?",
   "config.security.modal.later": "Granska senare",
-  "config.security.modal.apply": "Tillämpa korrigeringar"
+  "config.security.modal.title": "Säkerhetsvarning",
+  "config.security.no_issues": "Inga säkerhetsproblem hittades",
+  "config.security.panel_title": "Säkerhetsgranskning",
+  "config.security.severity.critical": "KRITISK",
+  "config.security.severity.info": "INFO",
+  "config.security.severity.warning": "VARNING",
+  "config.security.status_success": "✅"
 }

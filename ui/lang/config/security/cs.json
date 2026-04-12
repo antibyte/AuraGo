@@ -1,14 +1,15 @@
 {
-  "config.security.panel_title": "Bezpečnostní audit",
-  "config.security.no_issues": "Žádné bezpečnostní problémy nenalezeny",
+  "config.security.applying": "Používám…",
   "config.security.fix_all_auto": "Opravit {n} automaticky opravitelný/opravitelné problém(y)",
   "config.security.fix_now": "Opravit nyní",
-  "config.security.applying": "Používám…",
-  "config.security.severity.critical": "KRITICKÉ",
-  "config.security.severity.warning": "VAROVÁNÍ",
-  "config.security.severity.info": "INFO",
-  "config.security.modal.title": "Bezpečnostní upozornění",
+  "config.security.modal.apply": "Použít opravy",
   "config.security.modal.desc": "Tato změna zavedla kritické bezpečnostní problémy. Použít automatické opravy nyní?",
   "config.security.modal.later": "Zkontrolovat později",
-  "config.security.modal.apply": "Použít opravy"
+  "config.security.modal.title": "Bezpečnostní upozornění",
+  "config.security.no_issues": "Žádné bezpečnostní problémy nenalezeny",
+  "config.security.panel_title": "Bezpečnostní audit",
+  "config.security.severity.critical": "KRITICKÉ",
+  "config.security.severity.info": "INFO",
+  "config.security.severity.warning": "VAROVÁNÍ",
+  "config.security.status_success": "✅"
 }

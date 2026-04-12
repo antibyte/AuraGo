@@ -1,14 +1,15 @@
 {
-  "config.security.panel_title": "Auditoria de segurança",
-  "config.security.no_issues": "No security issues found",
+  "config.security.applying": "Aplicando…",
   "config.security.fix_all_auto": "Fix {n} auto-fixable issue(s)",
   "config.security.fix_now": "Corrigir agora",
-  "config.security.applying": "Aplicando…",
-  "config.security.severity.critical": "CRÍTICO",
-  "config.security.severity.warning": "AVISO",
-  "config.security.severity.info": "INFO",
-  "config.security.modal.title": "Alerta de segurança",
+  "config.security.modal.apply": "Aplicar correções",
   "config.security.modal.desc": "This change introduced critical security issues. Apply automatic fixes now?",
   "config.security.modal.later": "Rever mais tarde",
-  "config.security.modal.apply": "Aplicar correções"
+  "config.security.modal.title": "Alerta de segurança",
+  "config.security.no_issues": "No security issues found",
+  "config.security.panel_title": "Auditoria de segurança",
+  "config.security.severity.critical": "CRÍTICO",
+  "config.security.severity.info": "INFO",
+  "config.security.severity.warning": "AVISO",
+  "config.security.status_success": "✅"
 }

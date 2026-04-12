@@ -1,14 +1,15 @@
 {
-  "config.security.panel_title": "Security Audit",
-  "config.security.no_issues": "No security issues found",
+  "config.security.applying": "Applying…",
   "config.security.fix_all_auto": "Fix {n} auto-fixable issue(s)",
   "config.security.fix_now": "Fix Now",
-  "config.security.applying": "Applying…",
-  "config.security.severity.critical": "CRITICAL",
-  "config.security.severity.warning": "WARNING",
-  "config.security.severity.info": "INFO",
-  "config.security.modal.title": "Security Alert",
+  "config.security.modal.apply": "Apply Fixes",
   "config.security.modal.desc": "This change introduced critical security issues. Apply automatic fixes now?",
   "config.security.modal.later": "Review Later",
-  "config.security.modal.apply": "Apply Fixes"
+  "config.security.modal.title": "Security Alert",
+  "config.security.no_issues": "No security issues found",
+  "config.security.panel_title": "Security Audit",
+  "config.security.severity.critical": "CRITICAL",
+  "config.security.severity.info": "INFO",
+  "config.security.severity.warning": "WARNING",
+  "config.security.status_success": "✅"
 }

@@ -111,7 +111,7 @@ async function renderWebConfigSection(section) {
 
     if (authStatus.totp_enabled) {
         html += `<div class="auth-totp-active-row">
-                    <span class="auth-totp-active-text">✅ ${t('config.auth.totp_active')}</span>
+                    <span class="auth-totp-active-text">${t('config.auth.status_success')} ${t('config.auth.totp_active')}</span>
                     <button onclick="authTOTPDisable()" class="auth-totp-disable-btn">
                         ${t('config.auth.totp_disable')}
                     </button>
@@ -275,7 +275,7 @@ async function loadSecurityAuditPanel() {
 function renderSecurityAuditPanel(panel, hints) {
     if (!hints.length) {
         panel.innerHTML = `<div class="auth-sec-ok">
-            ✅ ${t('config.security.no_issues')}
+            ${t('config.security.status_success')} ${t('config.security.no_issues')}
         </div>`;
         return;
     }

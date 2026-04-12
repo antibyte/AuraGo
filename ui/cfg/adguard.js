@@ -58,7 +58,7 @@ function renderAdGuardSection(section) {
         html += '<input class="field-input adg-password-input" type="password" id="adg-password" placeholder="' + t('config.adguard.password_placeholder') + '">';
         html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
         html += '</div>';
-    html += '<button class="btn-save adg-save-btn" onclick="adgSavePassword()">💾 ' + t('config.adguard.save_vault') + '</button>';
+    html += '<button class="btn-save adg-save-btn" onclick="adgSavePassword()">' + t('config.adguard.save_icon') + ' ' + t('config.adguard.save_vault') + '</button>';
     html += '</div></div>';
 
     // ── Test connection button ──
@@ -140,7 +140,7 @@ function adgTestConnection() {
     const btn = document.getElementById('adg-test-btn');
     const result = document.getElementById('adg-test-result');
     if (btn) btn.disabled = true;
-    if (result) { result.textContent = '⏳ ...'; result.className = 'adg-test-result'; }
+    if (result) { result.textContent = t('config.adguard.loading'); result.className = 'adg-test-result'; }
 
     fetch('/api/adguard/test', { method: 'POST' })
         .then(r => r.json())
@@ -149,18 +149,18 @@ function adgTestConnection() {
             if (!result) return;
             if (res.status === 'ok') {
                 result.className = 'adg-test-result is-success';
-                result.textContent = '✅ ' + t('config.adguard.test_ok');
+                result.textContent = t('config.adguard.status_success') + ' ' + t('config.adguard.test_ok');
                 adgCheckStatus();
             } else {
                 result.className = 'adg-test-result is-danger';
-                result.textContent = '❌ ' + (res.message || t('config.adguard.test_fail'));
+                result.textContent = t('config.adguard.status_error') + ' ' + (res.message || t('config.adguard.test_fail'));
             }
         })
         .catch(() => {
             if (btn) btn.disabled = false;
             if (result) {
                 result.className = 'adg-test-result is-danger';
-                result.textContent = '❌ ' + t('config.adguard.test_fail');
+                result.textContent = t('config.adguard.status_error') + ' ' + t('config.adguard.test_fail');
             }
         });
 }

@@ -1,14 +1,15 @@
 {
-  "config.security.panel_title": "安全审计",
-  "config.security.no_issues": "未发现安全问题",
+  "config.security.applying": "应用中…",
   "config.security.fix_all_auto": "修复 {n} 个可自动修复的问题",
   "config.security.fix_now": "立即修复",
-  "config.security.applying": "应用中…",
-  "config.security.severity.critical": "严重",
-  "config.security.severity.warning": "警告",
-  "config.security.severity.info": "提示",
-  "config.security.modal.title": "安全警报",
+  "config.security.modal.apply": "应用修复",
   "config.security.modal.desc": "此更改引入了严重的安全问题。现在应用自动修复？",
   "config.security.modal.later": "稍后审查",
-  "config.security.modal.apply": "应用修复"
+  "config.security.modal.title": "安全警报",
+  "config.security.no_issues": "未发现安全问题",
+  "config.security.panel_title": "安全审计",
+  "config.security.severity.critical": "严重",
+  "config.security.severity.info": "提示",
+  "config.security.severity.warning": "警告",
+  "config.security.status_success": "✅"
 }

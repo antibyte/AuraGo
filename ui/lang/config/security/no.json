@@ -1,14 +1,15 @@
 {
-  "config.security.panel_title": "Sikkerhetsrevisjon",
-  "config.security.no_issues": "Ingen sikkerhetsproblemer funnet",
+  "config.security.applying": "Bruker…",
   "config.security.fix_all_auto": "Fix {n} auto-fixable issue(s)",
   "config.security.fix_now": "Fiks nå",
-  "config.security.applying": "Bruker…",
-  "config.security.severity.critical": "KRITISK",
-  "config.security.severity.warning": "ADVARSEL",
-  "config.security.severity.info": "INFO",
-  "config.security.modal.title": "Sikkerhetsvarsel",
+  "config.security.modal.apply": "Bruk rettelser",
   "config.security.modal.desc": "Denne endringen introduserte kritiske sikkerhetsproblemer. Bruk automatiske rettelser nå?",
   "config.security.modal.later": "Gjennomgå senere",
-  "config.security.modal.apply": "Bruk rettelser"
+  "config.security.modal.title": "Sikkerhetsvarsel",
+  "config.security.no_issues": "Ingen sikkerhetsproblemer funnet",
+  "config.security.panel_title": "Sikkerhetsrevisjon",
+  "config.security.severity.critical": "KRITISK",
+  "config.security.severity.info": "INFO",
+  "config.security.severity.warning": "ADVARSEL",
+  "config.security.status_success": "✅"
 }
