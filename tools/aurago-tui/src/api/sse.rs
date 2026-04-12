@@ -25,10 +25,11 @@ pub enum SseEvent {
 pub async fn connect_sse(
     client: Client,
     url: String,
+    origin: String,
     cookie: Option<String>,
     tx: tokio::sync::mpsc::UnboundedSender<SseEvent>,
 ) {
-    let mut req = client.get(&url);
+    let mut req = client.get(&url).header("Origin", origin);
     if let Some(c) = cookie {
         req = req.header("Cookie", c);
     }

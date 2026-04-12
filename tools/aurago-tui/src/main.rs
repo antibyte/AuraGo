@@ -398,11 +398,12 @@ async fn start_chat_session(client: &ApiClient, tx: UnboundedSender<AppEvent>) {
     // Start SSE stream
     let url = client.sse_url("/events");
     let c = client.client.clone();
+    let origin = client.base_url.clone();
     let cookie = client.get_session_cookie();
     let (sse_tx, mut sse_rx) = mpsc::unbounded_channel::<sse::SseEvent>();
 
     tokio::spawn(async move {
-        sse::connect_sse(c, url, cookie, sse_tx).await;
+        sse::connect_sse(c, url, origin, cookie, sse_tx).await;
     });
 
     let tx2 = tx.clone();
