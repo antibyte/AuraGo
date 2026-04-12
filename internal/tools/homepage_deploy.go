@@ -24,6 +24,48 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
+// webserverStateFile stores the last-used project/build directory so that
+// auto-start on boot can restore the previous Caddy configuration instead of
+// always falling back to the workspace root.
+const webserverStateFile = ".aurago-webserver-state.json"
+
+// webserverState holds the persisted Caddy web server configuration.
+type webserverState struct {
+	ProjectDir string `json:"project_dir,omitempty"`
+	BuildDir   string `json:"build_dir,omitempty"`
+}
+
+// saveWebserverState persists the project/build configuration so it survives
+// container restarts and server reboots.
+func saveWebserverState(workspacePath, projectDir, buildDir string) error {
+	if workspacePath == "" {
+		return nil
+	}
+	state := webserverState{ProjectDir: projectDir, BuildDir: buildDir}
+	data, err := json.MarshalIndent(state, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal webserver state: %w", err)
+	}
+	return os.WriteFile(filepath.Join(workspacePath, webserverStateFile), data, 0644)
+}
+
+// loadWebserverState reads the previously saved project/build configuration.
+// Returns ("", "") when no state file exists or it is invalid.
+func loadWebserverState(workspacePath string) (projectDir, buildDir string) {
+	if workspacePath == "" {
+		return "", ""
+	}
+	data, err := os.ReadFile(filepath.Join(workspacePath, webserverStateFile))
+	if err != nil {
+		return "", ""
+	}
+	var state webserverState
+	if err := json.Unmarshal(data, &state); err != nil {
+		return "", ""
+	}
+	return state.ProjectDir, state.BuildDir
+}
+
 func decorateHomepageBuildFailure(raw string, projectDir string) string {
 	trimmed := strings.TrimSpace(extractOutput(raw))
 	if trimmed == "" {
@@ -275,6 +317,51 @@ func HomepageWebServerStart(cfg HomepageConfig, projectDir, buildDir string, log
 			return errJSON("%v", err)
 		}
 	}
+	// If both projectDir and buildDir are empty (auto-start scenario),
+	// try to restore the last persisted state so that a project-specific
+	// Caddy configuration survives container restarts.
+	if projectDir == "" && buildDir == "" {
+		if savedProject, savedBuild := loadWebserverState(cfg.WorkspacePath); savedProject != "" {
+			savedPath := filepath.Join(cfg.WorkspacePath, savedProject, savedBuild)
+			if _, statErr := os.Stat(savedPath); statErr == nil {
+				if logger != nil {
+					logger.Info("[Homepage] Restoring last published project for web server",
+						"project_dir", savedProject, "build_dir", savedBuild)
+				}
+				projectDir = savedProject
+				buildDir = savedBuild
+			} else {
+				if logger != nil {
+					logger.Warn("[Homepage] Saved webserver state points to missing path, falling back to auto-detect",
+						"saved_path", savedPath, "error", statErr)
+				}
+			}
+		}
+	}
+
+	// If still no projectDir after state restoration, we're about to serve the
+	// workspace root. Detect Next.js sub-projects that need special handling
+	// (either a dev server proxy route or a static export via publish_local).
+	if projectDir == "" && cfg.WorkspacePath != "" && logger != nil {
+		entries, readErr := os.ReadDir(cfg.WorkspacePath)
+		if readErr == nil {
+			for _, entry := range entries {
+				if !entry.IsDir() {
+					continue
+				}
+				subProject := filepath.Join(cfg.WorkspacePath, entry.Name())
+				if isNextJsProject(subProject) {
+					outDir := filepath.Join(subProject, "out")
+					if _, outErr := os.Stat(outDir); outErr != nil {
+						logger.Warn("[Homepage] Next.js project detected in workspace but no static export found — serve via 'homepage dev' or 'homepage publish_local'",
+							"project", entry.Name(),
+							"hint", "Use publish_local to build a static export, or start a dev server with homepage dev to serve via reverse proxy")
+					}
+				}
+			}
+		}
+	}
+
 	if buildDir == "" {
 		buildDir = detectBuildDir(cfg, projectDir)
 	}
@@ -309,6 +396,9 @@ func HomepageWebServerStart(cfg HomepageConfig, projectDir, buildDir string, log
 		// Check if already running
 		if c, dialErr := net.DialTimeout("tcp", fmt.Sprintf("localhost:%d", port), time.Second); dialErr == nil {
 			c.Close()
+			if saveErr := saveWebserverState(cfg.WorkspacePath, projectDir, buildDir); saveErr != nil {
+				logger.Info("[Homepage] Could not persist webserver state (Python fallback already running)", "error", saveErr)
+			}
 			return okJSON("Web server already running (Python fallback)",
 				"url", fmt.Sprintf("http://localhost:%d", port),
 				"served_url", fmt.Sprintf("http://localhost:%d", port),
@@ -325,6 +415,9 @@ func HomepageWebServerStart(cfg HomepageConfig, projectDir, buildDir string, log
 		}
 
 		logger.Info("[Homepage] Web server started (Python fallback)", "url", url, "pid", pid)
+		if saveErr := saveWebserverState(cfg.WorkspacePath, projectDir, buildDir); saveErr != nil {
+			logger.Info("[Homepage] Could not persist webserver state (Python fallback)", "error", saveErr)
+		}
 		return okJSON("Web server started (Python fallback)",
 			"url", url,
 			"served_url", url,
@@ -450,6 +543,9 @@ func HomepageWebServerStart(cfg HomepageConfig, projectDir, buildDir string, log
 	}
 	if lanIP != "" && !cfg.WebServerInternalOnly {
 		args = append(args, "lan_url", fmt.Sprintf("http://%s:%d", lanIP, port))
+	}
+	if saveErr := saveWebserverState(cfg.WorkspacePath, projectDir, buildDir); saveErr != nil {
+		logger.Warn("[Homepage] Could not persist webserver state", "error", saveErr)
 	}
 	return okJSON("Web server started", args...)
 }
