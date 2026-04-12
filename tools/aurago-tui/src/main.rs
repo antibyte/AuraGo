@@ -33,6 +33,8 @@ use ui::theme::Theme;
 struct Args {
     #[arg(short, long, default_value = "http://localhost:8080")]
     url: String,
+    #[arg(long, help = "Skip TLS certificate verification (insecure)")]
+    insecure: bool,
 }
 
 #[tokio::main]
@@ -50,7 +52,7 @@ async fn main() -> Result<()> {
         ..AppState::default()
     }));
 
-    let client = match ApiClient::new(&cfg.server_url) {
+    let client = match ApiClient::new(&cfg.server_url, args.insecure) {
         Ok(c) => c,
         Err(e) => {
             restore_terminal(&mut terminal)?;

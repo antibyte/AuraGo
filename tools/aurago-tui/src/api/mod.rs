@@ -16,10 +16,14 @@ pub struct ApiClient {
 }
 
 impl ApiClient {
-    pub fn new(base_url: &str) -> Result<Self> {
-        let client = ClientBuilder::new()
+    pub fn new(base_url: &str, insecure: bool) -> Result<Self> {
+        let mut builder = ClientBuilder::new()
             .cookie_store(true)
-            .timeout(Duration::from_secs(30))
+            .timeout(Duration::from_secs(30));
+        if insecure {
+            builder = builder.danger_accept_invalid_certs(true);
+        }
+        let client = builder
             .build()
             .context("Failed to build HTTP client")?;
         let mut url = base_url.to_string();
