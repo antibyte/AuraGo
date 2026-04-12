@@ -46,7 +46,7 @@ function renderTTSSection(section) {
     html += '<input class="field-input" type="password" id="tts-elevenlabs-api-key" value="" placeholder="' + escapeAttr(hasElevenLabsKey ? '••••••••' : 'sk-...') + '">';
     html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
     html += '</div>';
-    html += '<button class="btn-save" style="padding:0.45rem 1rem;font-size:0.82rem;white-space:nowrap;" onclick="ttsSaveElevenLabsKey()">'+t('config.tts.icon_save')+'</button>';
+    html += '<button class="btn-save" style="padding:0.45rem 1rem;font-size:0.82rem;white-space:nowrap;" onclick="ttsSaveElevenLabsKey()">💾</button>';
     html += '</div>';
     html += '</div>';
 
@@ -73,7 +73,7 @@ function renderTTSSection(section) {
     html += '<input class="field-input" type="password" id="tts-minimax-api-key" value="" placeholder="' + escapeAttr(hasMiniMaxKey ? '••••••••' : 'Enter MiniMax API key') + '">';
     html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
     html += '</div>';
-    html += '<button class="btn-save" style="padding:0.45rem 1rem;font-size:0.82rem;white-space:nowrap;" onclick="ttsSaveMiniMaxKey()">'+t('config.tts.icon_save')+'</button>';
+    html += '<button class="btn-save" style="padding:0.45rem 1rem;font-size:0.82rem;white-space:nowrap;" onclick="ttsSaveMiniMaxKey()">💾</button>';
     html += '</div>';
     html += '</div>';
 
@@ -166,7 +166,7 @@ function renderTTSSection(section) {
     } else {
         const banner = document.getElementById('piper-status-banner');
         if (banner) {
-            banner.textContent = t('config.tts.status_disabled') + ' ' + t('config.tts.piper_status_disabled');
+            banner.textContent = '⚪ ' + t('config.tts.piper_status_disabled');
             banner.style.background = 'var(--bg-tertiary)';
         }
     }
@@ -246,31 +246,31 @@ function piperCheckStatus() {
     if (!banner) return;
     banner.style.background = 'var(--bg-tertiary)';
     banner.style.color = 'var(--text-secondary)';
-    banner.textContent = t('config.tts.status_loading') + ' ' + t('config.tts.piper_checking');
+    banner.textContent = '⏳ ' + t('config.tts.piper_checking');
 
     fetch('/api/piper/status')
         .then(r => r.json())
         .then(res => {
             if (res.status === 'disabled') {
-                banner.textContent = t('config.tts.status_disabled') + ' ' + t('config.tts.piper_status_disabled');
+                banner.textContent = '⚪ ' + t('config.tts.piper_status_disabled');
                 banner.style.background = 'var(--bg-tertiary)';
             } else if (res.status === 'running') {
-                banner.textContent = t('config.tts.status_running') + ' ' + t('config.tts.piper_status_running');
+                banner.textContent = '🟢 ' + t('config.tts.piper_status_running');
                 banner.style.background = 'rgba(72,199,142,0.1)';
                 banner.style.color = '#48c78e';
                 if (res.voice) banner.textContent += ' — ' + res.voice;
             } else if (res.status === 'stopped') {
-                banner.textContent = t('config.tts.status_stopped') + ' ' + t('config.tts.piper_status_stopped');
+                banner.textContent = '🟡 ' + t('config.tts.piper_status_stopped');
                 banner.style.background = 'rgba(255,183,77,0.1)';
                 banner.style.color = '#ffb74d';
             } else {
-                banner.textContent = t('config.tts.status_error_red') + ' ' + t('config.tts.piper_status_error') + (res.error ? ': ' + res.error : '');
+                banner.textContent = '🔴 ' + t('config.tts.piper_status_error') + (res.error ? ': ' + res.error : '');
                 banner.style.background = 'rgba(255,82,82,0.08)';
                 banner.style.color = '#ff5252';
             }
         })
         .catch(() => {
-            banner.textContent = t('config.tts.status_error_red') + ' ' + t('config.tts.piper_status_error');
+            banner.textContent = '🔴 ' + t('config.tts.piper_status_error');
             banner.style.background = 'rgba(255,82,82,0.08)';
             banner.style.color = '#ff5252';
         });
