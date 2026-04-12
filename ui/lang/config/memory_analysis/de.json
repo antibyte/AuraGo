@@ -34,5 +34,9 @@
   "config.memory_analysis.provider_title": "Hilfs-LLM",
   "config.memory_analysis.provider_label": "Hilfs-LLM",
   "config.memory_analysis.disabled_desc": "Aktiviere dies, damit der Agent Gespr\\u00e4che analysieren und speicherw\\u00fcrdige Inhalte extrahieren kann. AuraGo nutzt daf\\u00fcr den zentralen Helper-Pfad \\u00fcber das Hilfs-LLM, wenn er verf\\u00fcgbar ist.",
-  "config.memory_analysis.provider_desc": "Die Ged\\u00e4chtnisanalyse nutzt das zentrale Hilfs-LLM aus den LLM-Einstellungen. Ist es deaktiviert, kann dieser Bereich den dedizierten gebatchten Helper-Pfad nicht nutzen."
+  "config.memory_analysis.provider_desc": "Die Ged\\u00e4chtnisanalyse nutzt das zentrale Hilfs-LLM aus den LLM-Einstellungen. Ist es deaktiviert, kann dieser Bereich den dedizierten gebatchten Helper-Pfad nicht nutzen.",
+  "config.memory_analysis.query_expansion_label": "Query Expansion",
+  "config.memory_analysis.llm_reranking_label": "LLM Reranking",
+  "config.memory_analysis.unified_block_label": "Unified Memory Block",
+  "config.memory_analysis.effectiveness_label": "Effektivit\\u00e4ts-Tracking"
 }

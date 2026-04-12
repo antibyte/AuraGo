@@ -1034,14 +1034,94 @@ select.cfg-input option {
     display: flex;
     gap: 0.75rem;
     align-items: flex-start;
-    background: rgba(245, 158, 11, 0.1);
-    border: 1px solid rgba(245, 158, 11, 0.25);
+    background: rgba(var(--accent-rgb, 45, 212, 191), 0.08);
+    border: 1px solid rgba(var(--accent-rgb, 45, 212, 191), 0.2);
     border-radius: 12px;
     padding: 1rem;
     margin-top: 1rem;
     font-size: var(--text-sm);
     overflow-wrap: anywhere;
 }
+
+/* ── Memory Analysis Section Styles ────────────────────── */
+.ma-intro-notice {
+    display: flex;
+    gap: 0.85rem;
+    align-items: flex-start;
+    background: rgba(var(--accent-rgb, 45, 212, 191), 0.08);
+    border: 1px solid rgba(var(--accent-rgb, 45, 212, 191), 0.2);
+    border-radius: 12px;
+    padding: 0.9rem 1rem;
+    margin-bottom: 1.5rem;
+}
+.ma-intro-notice .ma-notice-icon { font-size: 1.2rem; line-height: 1; padding-top: 0.05rem; }
+.ma-intro-notice .ma-notice-body strong { font-weight: 600; font-size: 0.9rem; color: var(--text-primary); display: block; margin-bottom: 0.2rem; }
+.ma-intro-notice .ma-notice-body p { font-size: 0.82rem; color: var(--text-secondary); line-height: 1.55; margin: 0; }
+
+.ma-block {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    padding: 1rem 1.1rem;
+    margin-bottom: 1rem;
+}
+.ma-block-header {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border-subtle);
+}
+.ma-block-icon { font-size: 1.2rem; line-height: 1; padding-top: 0.05rem; flex-shrink: 0; }
+.ma-block-text { flex: 1; }
+.ma-block-title { font-weight: 600; font-size: 0.92rem; color: var(--text-primary); margin-bottom: 0.2rem; }
+.ma-block-desc { font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5; }
+.ma-block-controls { display: flex; flex-direction: column; gap: 0.65rem; }
+
+.ma-toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.35rem 0;
+}
+.ma-label-text { font-size: 0.88rem; color: var(--text-primary); flex: 1; }
+
+.ma-threshold-wrap { padding: 0.25rem 0; }
+.ma-threshold-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 0.4rem;
+}
+.ma-threshold-slider {
+    flex: 1;
+    height: 4px;
+    appearance: none;
+    background: var(--bg-tertiary);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+}
+.ma-threshold-slider::-webkit-slider-thumb {
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    box-shadow: 0 0 6px rgba(var(--accent-rgb, 45, 212, 191), 0.4);
+}
+.ma-threshold-value {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--accent);
+    min-width: 2.5rem;
+    text-align: right;
+    font-family: var(--font-mono, monospace);
+}
+.ma-input-spaced { margin-top: 0.4rem; }
 
 .wh-tabs {
     display: flex;
