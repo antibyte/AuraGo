@@ -82,14 +82,14 @@ function mcpServerRenderCards() {
                     🔌 ${escapeAttr(s.name || '—')}${enabledBadge}
                 </div>
                 <div class="mcp-card-actions">
-                    <button onclick="mcpServerEdit(${idx})" class="mcp-card-btn mcp-card-btn-edit" title="Edit">✏️</button>
-                    <button onclick="mcpServerDelete(${idx})" class="mcp-card-btn mcp-card-btn-delete" title="Delete">🗑️</button>
+                    <button onclick="mcpServerEdit(${idx})" class="mcp-card-btn mcp-card-btn-edit" title="${t('config.mcp.card_edit_tooltip')}">✏️</button>
+                    <button onclick="mcpServerDelete(${idx})" class="mcp-card-btn mcp-card-btn-delete" title="${t('config.mcp.card_delete_tooltip')}">🗑️</button>
                 </div>
             </div>
             <div class="mcp-card-grid">
-                <div><span class="mcp-grid-label">Command:</span> <code>${escapeAttr(s.command || '—')}</code></div>
-                <div><span class="mcp-grid-label">Args:</span> ${argsStr ? '<code>' + escapeAttr(argsStr) + '</code>' : '—'}</div>
-                <div><span class="mcp-grid-label">Env vars:</span> ${envCount}</div>
+                <div><span class="mcp-grid-label">${t('config.mcp.card_command')}</span> <code>${escapeAttr(s.command || '—')}</code></div>
+                <div><span class="mcp-grid-label">${t('config.mcp.card_args')}</span> ${argsStr ? '<code>' + escapeAttr(argsStr) + '</code>' : '—'}</div>
+                <div><span class="mcp-grid-label">${t('config.mcp.card_env_vars')}</span> ${envCount}</div>
             </div>
         </div>`;
     });
@@ -123,19 +123,19 @@ function mcpServerShowModal(data, idx) {
     <div class="mcp-modal-box">
         <div class="mcp-modal-title">${isEdit ? t('config.mcp.edit_server') : t('config.mcp.new_server')}</div>
         <label class="mcp-modal-label">
-            <span class="mcp-modal-label-text">Name</span>
+            <span class="mcp-modal-label-text">${t('config.mcp.field_name')}</span>
             <input id="mcp-m-name" class="field-input cfg-input-full" value="${escapeAttr(data.name)}" placeholder="my-server">
         </label>
         <label class="mcp-modal-label">
-            <span class="mcp-modal-label-text">Command</span>
+            <span class="mcp-modal-label-text">${t('config.mcp.field_command')}</span>
             <input id="mcp-m-command" class="field-input cfg-input-full" value="${escapeAttr(data.command)}" placeholder="npx">
         </label>
         <label class="mcp-modal-label">
-            <span class="mcp-modal-label-text">Args <small class="mcp-modal-hint">(${t('config.mcp.args_hint')})</small></span>
+            <span class="mcp-modal-label-text">${t('config.mcp.field_args_label') || 'Args'} <small class="mcp-modal-hint">(${t('config.mcp.args_hint')})</small></span>
             <textarea id="mcp-m-args" class="field-input mcp-modal-textarea" rows="3" placeholder="-y\n@my/mcp-server">${escapeAttr(argsStr)}</textarea>
         </label>
         <label class="mcp-modal-label">
-            <span class="mcp-modal-label-text">Environment Variables <small class="mcp-modal-hint">(KEY=VALUE, ${t('config.mcp.env_hint')})</small></span>
+            <span class="mcp-modal-label-text">${t('config.mcp.field_environment')} <small class="mcp-modal-hint">(KEY=VALUE, ${t('config.mcp.env_hint')})</small></span>
             <textarea id="mcp-m-env" class="field-input mcp-modal-textarea" rows="3" placeholder="API_KEY=xxx\nDEBUG=1">${escapeAttr(envStr)}</textarea>
         </label>
         <label class="mcp-modal-check-row">

@@ -24,6 +24,7 @@
   "config.mcp.card_delete_tooltip": "Delete",
   "config.mcp.field_name": "Name",
   "config.mcp.field_command": "Command",
+  "config.mcp.field_args_label": "Args",
   "config.mcp.field_environment": "Environment Variables",
   "config.mcp.save_failed": "MCP save failed: "
 }

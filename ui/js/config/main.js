@@ -716,7 +716,7 @@ function _initArrayChipFields() {
             const values = parse();
             row.innerHTML = values.map(v => {
                 const safe = escapeHtml(v);
-                return `<span class="cfg-chip" data-chip="${escapeAttr(v)}">${safe}<button type="button" class="cfg-chip-x" data-chip-x="${escapeAttr(v)}" title="Remove">✕</button></span>`;
+                return `<span class="cfg-chip" data-chip="${escapeAttr(v)}">${safe}<button type="button" class="cfg-chip-x" data-chip-x="${escapeAttr(v)}" title="${t('config.field.remove')}">✕</button></span>`;
             }).join('');
         }
 
@@ -798,7 +798,7 @@ function renderField(fullPath, key, value, parentPath, fieldSchema) {
         const help = helpTexts[fullPath];
         const helpText = help ? (help[lang] || help['en'] || '') : '';
         let h = '<div class="field-group">';
-        h += '<div class="field-label">Master Key <span class="cfg-sensitive-icon">🔒</span></div>';
+        h += '<div class="field-label">' + t('config.server.master_key_label') + ' <span class="cfg-sensitive-icon">🔒</span></div>';
         if (helpText) h += '<div class="field-help">' + helpText + '</div>';
         if (vaultExists) {
             h += '<div class="password-wrap">';
@@ -880,7 +880,7 @@ function renderField(fullPath, key, value, parentPath, fieldSchema) {
         if (hasCustom) {
             const hiddenCls = isCustomVal ? '' : ' is-hidden';
             const customVal = isCustomVal ? value : '';
-            html += '<input class="field-input cfg-custom-input' + hiddenCls + '" type="text" data-custom-for="' + fullPath + '" value="' + escapeAttr(customVal) + '" placeholder="Type custom value..." oninput="markDirty()">';
+            html += '<input class="field-input cfg-custom-input' + hiddenCls + '" type="text" data-custom-for="' + fullPath + '" value="' + escapeAttr(customVal) + '" placeholder="${t('config.field.custom_value_placeholder')}" oninput="markDirty()">';
         }
     } else if (isSensitive) {
         const displayVal = (value === '••••••••' || !value) ? '' : value;
@@ -909,8 +909,8 @@ function renderField(fullPath, key, value, parentPath, fieldSchema) {
             html += `<div class="cfg-array-chips" data-array-path="${escapeAttr(fullPath)}">
                 <div class="cfg-chip-row" data-chip-row="1"></div>
                 <div class="cfg-chip-input-row">
-                    <input class="field-input cfg-chip-input" type="text" placeholder="ollama">
-                    <button type="button" class="cfg-btn cfg-btn-sm cfg-chip-add-btn" title="Add">+</button>
+                    <input class="field-input cfg-chip-input" type="text" placeholder="${t('config.field.placeholder_example')}">
+                    <button type="button" class="cfg-btn cfg-btn-sm cfg-chip-add-btn" title="${t('config.field.add')}">+</button>
                 </div>
                 <input class="field-input is-hidden" type="text" data-path="${escapeAttr(fullPath)}" data-type="array" value="${escapeAttr(joined)}">
             </div>`;
