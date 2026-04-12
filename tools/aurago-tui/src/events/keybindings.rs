@@ -1,0 +1,55 @@
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+#[derive(Debug, Clone)]
+pub enum Action {
+    Quit,
+    SendMessage,
+    NewLine,
+    ScrollUp,
+    ScrollDown,
+    ScrollTop,
+    ScrollBottom,
+    ToggleHelp,
+    ToggleTheme,
+    ToggleSidebar,
+    ClearChat,
+    Logout,
+    Backspace,
+    DeleteChar,
+    CursorLeft,
+    CursorRight,
+    CursorStart,
+    CursorEnd,
+    Type(char),
+    None,
+}
+
+pub fn map_key(key: KeyEvent, in_sidebar: bool) -> Action {
+    match key.code {
+        KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => Action::Quit,
+        KeyCode::Char('q') if !in_sidebar => Action::Quit,
+        KeyCode::Esc => Action::ToggleHelp,
+        KeyCode::Char('?') => Action::ToggleHelp,
+        KeyCode::Enter if key.modifiers.contains(KeyModifiers::SHIFT) => Action::NewLine,
+        KeyCode::Enter => Action::SendMessage,
+        KeyCode::Up if key.modifiers.contains(KeyModifiers::CONTROL) => Action::ScrollTop,
+        KeyCode::Down if key.modifiers.contains(KeyModifiers::CONTROL) => Action::ScrollBottom,
+        KeyCode::Up => Action::ScrollUp,
+        KeyCode::Down => Action::ScrollDown,
+        KeyCode::Char('l') if key.modifiers.contains(KeyModifiers::CONTROL) => Action::ClearChat,
+        KeyCode::Char('o') if key.modifiers.contains(KeyModifiers::CONTROL) => Action::Logout,
+        KeyCode::Char('r') if key.modifiers.contains(KeyModifiers::CONTROL) => Action::ScrollBottom,
+        KeyCode::Char('t') if key.modifiers.contains(KeyModifiers::CONTROL) => Action::ToggleTheme,
+        KeyCode::Tab => Action::ToggleSidebar,
+        KeyCode::Backspace => Action::Backspace,
+        KeyCode::Delete => Action::DeleteChar,
+        KeyCode::Left if key.modifiers.contains(KeyModifiers::CONTROL) => Action::CursorStart,
+        KeyCode::Right if key.modifiers.contains(KeyModifiers::CONTROL) => Action::CursorEnd,
+        KeyCode::Left => Action::CursorLeft,
+        KeyCode::Right => Action::CursorRight,
+        KeyCode::Home => Action::CursorStart,
+        KeyCode::End => Action::CursorEnd,
+        KeyCode::Char(c) => Action::Type(c),
+        _ => Action::None,
+    }
+}

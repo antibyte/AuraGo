@@ -120,3 +120,7 @@ disposable/
 disposable/linux
 macos
 windows
+
+diff.txt
+
+*.orig
