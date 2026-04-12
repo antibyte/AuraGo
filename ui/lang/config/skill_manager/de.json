@@ -14,5 +14,8 @@
   "help.skill_manager.require_sandbox": "Wenn aktiviert, können Fähigkeiten nur noch in der Sandbox-Containerumgebung ausgeführt werden. Dies verhindert direkten Systemzugriff.",
   "help.skill_manager.auto_enable_clean": "Fähigkeiten automatisch aktivieren, die den Sicherheitsscan ohne Warnungen bestehen",
   "help.skill_manager.scan_with_guardian": "LLM Guardian verwenden, um hochgeladenen Fähigkeitscode auf Sicherheitsprobleme zu prüfen",
-  "help.skill_manager.max_upload_size_mb": "Maximale erlaubte Dateigröße für Fähigkeits-Uploads in Megabyte"
+  "help.skill_manager.max_upload_size_mb": "Maximale erlaubte Dateigröße für Fähigkeits-Uploads in Megabyte",
+  "config.skill_manager.tool_bridge_header": "Python Tool Bridge",
+  "config.skill_manager.tool_bridge_enabled_label": "Aktiviert",
+  "config.skill_manager.tool_bridge_allowed_tools_label": "Erlaubte Tools (kommagetrennt)"
 }

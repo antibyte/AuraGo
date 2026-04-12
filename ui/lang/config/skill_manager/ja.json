@@ -14,5 +14,8 @@
   "help.skill_manager.require_sandbox": "有効にすると、スキルはサンドボックス化されたコンテナ環境内でのみ実行できます。これによりシステムへの直接アクセスが防止されます。",
   "help.skill_manager.auto_enable_clean": "警告なしでセキュリティスキャンに合格したスキルを自動的に有効にする",
   "help.skill_manager.scan_with_guardian": "LLM Guardianを使用してアップロードされたスキルコードのセキュリティ問題を確認する",
-  "help.skill_manager.max_upload_size_mb": "スキルアップロードの最大許容ファイルサイズ（メガバイト）"
+  "help.skill_manager.max_upload_size_mb": "スキルアップロードの最大許容ファイルサイズ（メガバイト）",
+  "config.skill_manager.tool_bridge_header": "Python Tool Bridge",
+  "config.skill_manager.tool_bridge_enabled_label": "有効",
+  "config.skill_manager.tool_bridge_allowed_tools_label": "許可ツール（カンマ区切り）"
 }

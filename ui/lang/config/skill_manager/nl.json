@@ -14,5 +14,8 @@
   "help.skill_manager.require_sandbox": "Wanneer ingeschakeld, kunnen vaardigheden alleen worden uitgevoerd in de sandboxed containeromgeving. Dit voorkomt directe toegang tot het systeem.",
   "help.skill_manager.auto_enable_clean": "Vaardigheden automatisch inschakelen die de beveiligingsscan zonder waarschuwingen doorstaan",
   "help.skill_manager.scan_with_guardian": "LLM Guardian gebruiken om geüploade vaardigheidscode te controleren op beveiligingsproblemen",
-  "help.skill_manager.max_upload_size_mb": "Maximale toegestane bestandsgrootte voor vaardigheidsuploads in megabytes"
+  "help.skill_manager.max_upload_size_mb": "Maximale toegestane bestandsgrootte voor vaardigheidsuploads in megabytes",
+  "config.skill_manager.tool_bridge_header": "Python Tool Bridge",
+  "config.skill_manager.tool_bridge_enabled_label": "Ingeschakeld",
+  "config.skill_manager.tool_bridge_allowed_tools_label": "Toegestane tools (kommagescheiden)"
 }

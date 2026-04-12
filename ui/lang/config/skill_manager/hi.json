@@ -14,5 +14,8 @@
   "help.skill_manager.require_sandbox": "सक्षम होने पर, कौशल केवल sandboxed कंटेनर वातावरण में ही चलाए जा सकते हैं। यह सीधे सिस्टम तक पहुंच को रोकता है।",
   "help.skill_manager.auto_enable_clean": "बिना चेतावनी के सुरक्षा स्कैन पास करने वाले कौशल को स्वचालित रूप से सक्षम करें",
   "help.skill_manager.scan_with_guardian": "अपलोड किए गए कौशल कोड की सुरक्षा समस्याओं के लिए LLM Guardian का उपयोग करें",
-  "help.skill_manager.max_upload_size_mb": "कौशल अपलोड के लिए अनुमत अधिकतम फ़ाइल आकार मेगाबाइट में"
+  "help.skill_manager.max_upload_size_mb": "कौशल अपलोड के लिए अनुमत अधिकतम फ़ाइल आकार मेगाबाइट में",
+  "config.skill_manager.tool_bridge_header": "Python Tool Bridge",
+  "config.skill_manager.tool_bridge_enabled_label": "सक्षम",
+  "config.skill_manager.tool_bridge_allowed_tools_label": "अनुमत टूल्स (अल्पविराम से अलग)"
 }

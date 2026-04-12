@@ -92,6 +92,30 @@ function renderSkillManagerSection(section) {
     html += '<input class="field-input" type="number" min="1" max="50" data-path="skill_manager.max_upload_size_mb" value="' + escapeAttr(data.max_upload_size_mb || 1) + '">';
     html += '</div>';
 
+    // ── Python Tool Bridge ──────────────────────────────────────────────────
+    const bridgeData = (configData['tools'] || {})['python_tool_bridge'] || {};
+    const bridgeEnabled = bridgeData.enabled === true;
+    const bridgeAllowedTools = Array.isArray(bridgeData.allowed_tools) ? bridgeData.allowed_tools.join(', ') : (bridgeData.allowed_tools || '');
+
+    html += '<div class="section-divider"></div>';
+    html += '<div class="section-sub-header">🔌 ' + t('config.skill_manager.tool_bridge_header') + '</div>';
+
+    const helpBridgeEnabled = t('help.tools.python_tool_bridge.enabled');
+    html += '<div class="field-group">';
+    html += '<div class="field-label">' + t('config.skill_manager.tool_bridge_enabled_label') + '</div>';
+    if (helpBridgeEnabled) html += '<div class="field-help">' + helpBridgeEnabled + '</div>';
+    html += '<div class="toggle-wrap">';
+    html += '<div class="toggle' + (bridgeEnabled ? ' on' : '') + '" data-path="tools.python_tool_bridge.enabled" onclick="toggleBool(this)"></div>';
+    html += '<span class="toggle-label">' + (bridgeEnabled ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
+    html += '</div></div>';
+
+    const helpBridgeTools = t('help.tools.python_tool_bridge.allowed_tools');
+    html += '<div class="field-group">';
+    html += '<div class="field-label">' + t('config.skill_manager.tool_bridge_allowed_tools_label') + '</div>';
+    if (helpBridgeTools) html += '<div class="field-help">' + helpBridgeTools + '</div>';
+    html += '<input class="field-input" type="text" data-path="tools.python_tool_bridge.allowed_tools" data-type="array" placeholder="z.B. proxmox, docker_management" value="' + escapeAttr(bridgeAllowedTools) + '">';
+    html += '</div>';
+
     html += '</div>';
     document.getElementById('content').innerHTML = html;
     attachChangeListeners();

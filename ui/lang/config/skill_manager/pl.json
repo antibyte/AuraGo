@@ -14,5 +14,8 @@
   "help.skill_manager.require_sandbox": "Po włączeniu umiejętności mogą być uruchamiane tylko w środowisku kontenerowym sandbox. Zapobiega to bezpośredniemu dostępowi do systemu.",
   "help.skill_manager.auto_enable_clean": "Automatycznie włącz umiejętności, które przejdą skanowanie bezpieczeństwa bez ostrzeżeń",
   "help.skill_manager.scan_with_guardian": "Użyj LLM Guardian do sprawdzenia przesłanego kodu umiejętności pod kątem problemów bezpieczeństwa",
-  "help.skill_manager.max_upload_size_mb": "Maksymalny dozwolony rozmiar pliku dla przesyłania umiejętności w megabajtach"
+  "help.skill_manager.max_upload_size_mb": "Maksymalny dozwolony rozmiar pliku dla przesyłania umiejętności w megabajtach",
+  "config.skill_manager.tool_bridge_header": "Python Tool Bridge",
+  "config.skill_manager.tool_bridge_enabled_label": "Włączono",
+  "config.skill_manager.tool_bridge_allowed_tools_label": "Dozwolone narzędzia (oddzielone przecinkami)"
 }

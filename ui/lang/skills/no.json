@@ -74,7 +74,7 @@
   "skills.btn_edit_internal_tools": "Verktøy",
   "skills.internal_tools_modal_title": "Tildel interne verktøy",
   "skills.internal_tools_modal_desc": "Velg de native AuraGo-verktøyene som denne ferdigheten kan kalle via verktøybroen ved kjøring.",
-  "skills.internal_tools_bridge_disabled": "Python Tool Bridge er ikke aktivert eller ingen verktøy er konfigurert. Aktiver det under Innstillinger → Agent.",
+  "skills.internal_tools_bridge_disabled": "Python Tool Bridge er ikke aktivert, eller det er ikke konfigurert noen verktøy. Aktiver det under Innstillinger → 🧩 Skill Manager.",
   "skills.internal_tools_save_success": "Interne verktøy oppdatert",
   "skills.btn_edit_secrets": "Rediger hemmeligheter",
   "skills.vault_modal_title": "Tilordne hemmeligheter",

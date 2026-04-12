@@ -14,5 +14,8 @@
   "help.skill_manager.require_sandbox": "Quando ativado, as habilidades só podem ser executadas dentro do ambiente de contentor sandboxed. Isto impede o acesso direto ao sistema.",
   "help.skill_manager.auto_enable_clean": "Ativar automaticamente as habilidades que passam na verificação de segurança sem avisos",
   "help.skill_manager.scan_with_guardian": "Usar o LLM Guardian para verificar o código das habilidades carregadas",
-  "help.skill_manager.max_upload_size_mb": "Tamanho máximo permitido para carregamentos de habilidades em megabytes"
+  "help.skill_manager.max_upload_size_mb": "Tamanho máximo permitido para carregamentos de habilidades em megabytes",
+  "config.skill_manager.tool_bridge_header": "Python Tool Bridge",
+  "config.skill_manager.tool_bridge_enabled_label": "Ativado",
+  "config.skill_manager.tool_bridge_allowed_tools_label": "Ferramentas permitidas (separadas por vírgula)"
 }

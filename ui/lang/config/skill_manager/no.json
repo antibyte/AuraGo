@@ -14,5 +14,8 @@
   "help.skill_manager.require_sandbox": "When enabled, skills can only be executed inside the sandboxed container environment. This prevents direct access to the system.",
   "help.skill_manager.auto_enable_clean": "Aktiver automatisk ferdigheter som passerer sikkerhetssjekken uten advarsler",
   "help.skill_manager.scan_with_guardian": "Bruk LLM Guardian til å gjennomgå opplastet ferdighetskode for sikkerhetsproblemer",
-  "help.skill_manager.max_upload_size_mb": "Maksimal tillatt filstørrelse for ferdighetsopplastinger i megabyte"
+  "help.skill_manager.max_upload_size_mb": "Maksimal tillatt filstørrelse for ferdighetsopplastinger i megabyte",
+  "config.skill_manager.tool_bridge_header": "Python Tool Bridge",
+  "config.skill_manager.tool_bridge_enabled_label": "Aktivert",
+  "config.skill_manager.tool_bridge_allowed_tools_label": "Tillatte verktøy (kommaseparert)"
 }

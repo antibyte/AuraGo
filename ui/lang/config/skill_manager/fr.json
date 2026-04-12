@@ -14,5 +14,8 @@
   "help.skill_manager.require_sandbox": "Lorsqu'activé, les compétences ne peuvent être exécutées que dans l'environnement de conteneur sandbox. Cela empêche l'accès direct au système.",
   "help.skill_manager.auto_enable_clean": "Activer automatiquement les compétences qui passent l'analyse de sécurité sans avertissements",
   "help.skill_manager.scan_with_guardian": "Utiliser le LLM Guardian pour vérifier le code des compétences téléchargées",
-  "help.skill_manager.max_upload_size_mb": "Taille maximale autorisée pour les téléchargements de compétences en mégaoctets"
+  "help.skill_manager.max_upload_size_mb": "Taille maximale autorisée pour les téléchargements de compétences en mégaoctets",
+  "config.skill_manager.tool_bridge_header": "Python Tool Bridge",
+  "config.skill_manager.tool_bridge_enabled_label": "Activé",
+  "config.skill_manager.tool_bridge_allowed_tools_label": "Outils autorisés (séparés par virgule)"
 }

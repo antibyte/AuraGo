@@ -74,7 +74,7 @@
   "skills.btn_edit_internal_tools": "Herramientas",
   "skills.internal_tools_modal_title": "Asignar herramientas internas",
   "skills.internal_tools_modal_desc": "Selecciona las herramientas nativas de AuraGo que este skill puede llamar a través del tool bridge en tiempo de ejecución.",
-  "skills.internal_tools_bridge_disabled": "El Python Tool Bridge no está habilitado o no hay herramientas configuradas. Actívalo en Configuración → Agent.",
+  "skills.internal_tools_bridge_disabled": "El Python Tool Bridge no está activado o no hay herramientas configuradas. Actívalo en Configuración → 🧩 Skill Manager.",
   "skills.internal_tools_save_success": "Herramientas internas actualizadas",
   "skills.btn_edit_secrets": "Editar secretos",
   "skills.vault_modal_title": "Asignar secretos",

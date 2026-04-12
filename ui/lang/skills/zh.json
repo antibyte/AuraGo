@@ -74,7 +74,7 @@
   "skills.btn_edit_internal_tools": "工具",
   "skills.internal_tools_modal_title": "分配内部工具",
   "skills.internal_tools_modal_desc": "选择此技能在运行时可通过工具桥调用的AuraGo原生工具。",
-  "skills.internal_tools_bridge_disabled": "Python工具桥未启用或未配置任何工具。请在设置 → Agent中启用它。",
+  "skills.internal_tools_bridge_disabled": "Python Tool Bridge 未启用或未配置任何工具。请在设置 → 🧩 Skill Manager 中启用。",
   "skills.internal_tools_save_success": "内部工具已更新",
   "skills.btn_edit_secrets": "编辑密钥",
   "skills.vault_modal_title": "分配密钥",

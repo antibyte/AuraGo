@@ -74,7 +74,7 @@
   "skills.btn_edit_internal_tools": "Verktyg",
   "skills.internal_tools_modal_title": "Tilldela interna verktyg",
   "skills.internal_tools_modal_desc": "Välj de inbyggda AuraGo-verktygen som denna skill får anropa via tool bridge vid körning.",
-  "skills.internal_tools_bridge_disabled": "Python Tool Bridge är inte aktiverat eller inga verktyg är konfigurerade. Aktivera det under Inställningar → Agent.",
+  "skills.internal_tools_bridge_disabled": "Python Tool Bridge är inte aktiverad eller inga verktyg är konfigurerade. Aktivera det under Inställningar → 🧩 Skill Manager.",
   "skills.internal_tools_save_success": "Interna verktyg uppdaterade",
   "skills.btn_edit_secrets": "Redigera hemligheter",
   "skills.vault_modal_title": "Tilldela hemligheter",
