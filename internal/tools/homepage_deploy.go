@@ -66,6 +66,136 @@ func loadWebserverState(workspacePath string) (projectDir, buildDir string) {
 	return state.ProjectDir, state.BuildDir
 }
 
+// findServableProject scans the workspace for a project directory that already
+// has a servable static build output (out/, dist/, build/ — NOT .next/ which is
+// a server-side bundle). Returns (projectDir, buildDir) for the best candidate.
+// Returns ("", "") when no suitable project is found or when multiple candidates
+// exist (ambiguous — the user must choose via publish_local).
+//
+// It also checks the workspace root itself for a build output.
+func findServableProject(workspacePath string) (projectDir, buildDir string) {
+	if workspacePath == "" {
+		return "", ""
+	}
+
+	type candidate struct {
+		projectDir string
+		buildDir   string
+	}
+	var candidates []candidate
+
+	// Check workspace root itself first
+	for _, dir := range []string{"out", "dist", "build"} {
+		p := filepath.Join(workspacePath, dir)
+		if s, err := os.Stat(p); err == nil && s.IsDir() {
+			candidates = append(candidates, candidate{"", dir})
+			break
+		}
+	}
+
+	// Check immediate subdirectories
+	entries, err := os.ReadDir(workspacePath)
+	if err != nil {
+		return "", ""
+	}
+	for _, entry := range entries {
+		if !entry.IsDir() || strings.HasPrefix(entry.Name(), ".") {
+			continue
+		}
+		subDir := filepath.Join(workspacePath, entry.Name())
+		for _, dir := range []string{"out", "dist", "build"} {
+			p := filepath.Join(subDir, dir)
+			if s, err := os.Stat(p); err == nil && s.IsDir() {
+				candidates = append(candidates, candidate{entry.Name(), dir})
+				break
+			}
+		}
+	}
+
+	if len(candidates) == 1 {
+		return candidates[0].projectDir, candidates[0].buildDir
+	}
+
+	return "", ""
+}
+
+// autoExportNextJsProject attempts to automatically configure and build a
+// Next.js project for static export during auto-start. Returns true if an
+// out/ directory was successfully produced. This is a best-effort operation.
+func autoExportNextJsProject(cfg HomepageConfig, projectDir string, logger *slog.Logger) bool {
+	if cfg.WorkspacePath == "" || projectDir == "" {
+		return false
+	}
+	projectRoot := filepath.Join(cfg.WorkspacePath, projectDir)
+	if !isNextJsProject(projectRoot) {
+		return false
+	}
+
+	// Already has static export
+	outDir := filepath.Join(projectRoot, "out")
+	if s, err := os.Stat(outDir); err == nil && s.IsDir() {
+		return true
+	}
+
+	// Patch Next.js config for static export
+	if patched := ensureNextJsStaticExport(projectRoot, logger); patched {
+		if logger != nil {
+			logger.Info("[Homepage] auto-export: Patched Next.js config for static export", "project", projectDir)
+		}
+	}
+
+	// Build the project inside the dev container
+	buildResult := HomepageBuild(cfg, projectDir, logger)
+	var br map[string]interface{}
+	if json.Unmarshal([]byte(buildResult), &br) == nil {
+		if s, _ := br["status"].(string); s == "ok" {
+			// Check if out/ was produced
+			if s, err := os.Stat(outDir); err == nil && s.IsDir() {
+				if logger != nil {
+					logger.Info("[Homepage] auto-export: Static export produced successfully", "project", projectDir)
+				}
+				return true
+			}
+		}
+	}
+
+	if logger != nil {
+		logger.Warn("[Homepage] auto-export: Could not produce static export — use 'homepage dev' or 'homepage publish_local'", "project", projectDir)
+	}
+	return false
+}
+
+// findNextJsProjectWithoutExport scans the workspace for a single Next.js
+// subdirectory that does NOT have an out/ directory. Used during auto-start
+// to trigger automatic static export. Returns "" when zero or multiple
+// candidates are found.
+func findNextJsProjectWithoutExport(workspacePath string) string {
+	if workspacePath == "" {
+		return ""
+	}
+	entries, err := os.ReadDir(workspacePath)
+	if err != nil {
+		return ""
+	}
+	var candidates []string
+	for _, entry := range entries {
+		if !entry.IsDir() || strings.HasPrefix(entry.Name(), ".") {
+			continue
+		}
+		subDir := filepath.Join(workspacePath, entry.Name())
+		if isNextJsProject(subDir) {
+			outDir := filepath.Join(subDir, "out")
+			if _, err := os.Stat(outDir); err != nil {
+				candidates = append(candidates, entry.Name())
+			}
+		}
+	}
+	if len(candidates) == 1 {
+		return candidates[0]
+	}
+	return ""
+}
+
 func decorateHomepageBuildFailure(raw string, projectDir string) string {
 	trimmed := strings.TrimSpace(extractOutput(raw))
 	if trimmed == "" {
@@ -339,25 +469,33 @@ func HomepageWebServerStart(cfg HomepageConfig, projectDir, buildDir string, log
 		}
 	}
 
-	// If still no projectDir after state restoration, we're about to serve the
-	// workspace root. Detect Next.js sub-projects that need special handling
-	// (either a dev server proxy route or a static export via publish_local).
-	if projectDir == "" && cfg.WorkspacePath != "" && logger != nil {
-		entries, readErr := os.ReadDir(cfg.WorkspacePath)
-		if readErr == nil {
-			for _, entry := range entries {
-				if !entry.IsDir() {
-					continue
-				}
-				subProject := filepath.Join(cfg.WorkspacePath, entry.Name())
-				if isNextJsProject(subProject) {
-					outDir := filepath.Join(subProject, "out")
-					if _, outErr := os.Stat(outDir); outErr != nil {
-						logger.Warn("[Homepage] Next.js project detected in workspace but no static export found — serve via 'homepage dev' or 'homepage publish_local'",
-							"project", entry.Name(),
-							"hint", "Use publish_local to build a static export, or start a dev server with homepage dev to serve via reverse proxy")
-					}
-				}
+	// If still no projectDir after state restoration, scan the workspace for
+	// projects with servable static build outputs (out/, dist/, build/).
+	if projectDir == "" && buildDir == "" && cfg.WorkspacePath != "" {
+		if foundProject, foundBuild := findServableProject(cfg.WorkspacePath); foundProject != "" {
+			if logger != nil {
+				logger.Info("[Homepage] Auto-detected project with servable build output",
+					"project_dir", foundProject, "build_dir", foundBuild)
+			}
+			projectDir = foundProject
+			buildDir = foundBuild
+		}
+	}
+
+	// If still nothing, look for a single Next.js project without static export
+	// and attempt automatic export (best-effort — requires Docker/dev container).
+	if projectDir == "" && buildDir == "" && cfg.WorkspacePath != "" {
+		if nextProject := findNextJsProjectWithoutExport(cfg.WorkspacePath); nextProject != "" {
+			if logger != nil {
+				logger.Info("[Homepage] Found Next.js project without static export, attempting auto-export",
+					"project_dir", nextProject)
+			}
+			if autoExportNextJsProject(cfg, nextProject, logger) {
+				projectDir = nextProject
+				buildDir = "out"
+			} else if logger != nil {
+				logger.Warn("[Homepage] Auto-export failed — use 'homepage publish_local' or 'homepage dev' to serve this project",
+					"project", nextProject)
 			}
 		}
 	}
@@ -1223,6 +1361,18 @@ func detectBuildDir(cfg HomepageConfig, projectDir string) string {
 			for _, dir := range []string{"out", "dist", "build", ".next", "public"} {
 				p := filepath.Join(cfg.WorkspacePath, projectDir, dir)
 				if s, err := os.Stat(p); err == nil && s.IsDir() {
+					// Skip .next for Next.js projects unless it contains an index.html.
+					// A bare .next/ is a server-side build that Caddy cannot serve.
+					if dir == ".next" {
+						projectRoot := filepath.Join(cfg.WorkspacePath, projectDir)
+						if isNextJsProject(projectRoot) {
+							indexPath := filepath.Join(p, "index.html")
+							if _, idxErr := os.Stat(indexPath); idxErr != nil {
+								// .next exists but has no index.html — server-side build, skip
+								continue
+							}
+						}
+					}
 					return dir
 				}
 			}
@@ -1234,6 +1384,17 @@ func detectBuildDir(cfg HomepageConfig, projectDir string) string {
 	dockerCfg := DockerConfig{Host: cfg.DockerHost}
 	// Try common build output directories
 	for _, dir := range []string{"out", "dist", "build", ".next", "public"} {
+		// Skip .next for Next.js projects unless it contains servable content.
+		if dir == ".next" && cfg.WorkspacePath != "" {
+			projectRoot := filepath.Join(cfg.WorkspacePath, projectDir)
+			if isNextJsProject(projectRoot) {
+				checkResult := DockerExec(dockerCfg, homepageContainerName,
+					fmt.Sprintf("test -f /workspace/%s/.next/index.html && echo HAS_INDEX", projectDir), "")
+				if !strings.Contains(checkResult, "HAS_INDEX") {
+					continue
+				}
+			}
+		}
 		result := DockerExec(dockerCfg, homepageContainerName, fmt.Sprintf("test -d /workspace/%s/%s && echo yes", projectDir, dir), "")
 		if strings.Contains(result, "yes") {
 			return dir
