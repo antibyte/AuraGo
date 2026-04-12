@@ -11,5 +11,10 @@
   "help.daemon_skills.max_budget_per_hour": "Maximala LLM-kostnader (i USD) som daemon-uppvakningar kan förbruka per timme",
   "config.daemon_skills.status_title": "Körande daemons",
   "config.daemon_skills.no_daemons": "Inga daemon-färdigheter konfigurerade",
-  "config.daemon_skills.load_error": "Kunde inte läsa in daemon-status"
+  "config.daemon_skills.load_error": "Kunde inte läsa in daemon-status",
+  "config.daemon_skills.status_running": "Kör",
+  "config.daemon_skills.status_stopped": "Stoppad",
+  "config.daemon_skills.status_starting": "Startar",
+  "config.daemon_skills.status_crashed": "Kraschat",
+  "config.daemon_skills.status_disabled": "Inaktiverad"
 }

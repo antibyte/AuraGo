@@ -11,5 +11,10 @@
   "help.daemon_skills.max_budget_per_hour": "Maximale LLM-Kosten (in USD), die Daemon-Aufweck-Vorgänge pro Stunde verbrauchen können",
   "config.daemon_skills.status_title": "Laufende Daemons",
   "config.daemon_skills.no_daemons": "Keine Daemon-Skills konfiguriert",
-  "config.daemon_skills.load_error": "Daemon-Status konnte nicht geladen werden"
+  "config.daemon_skills.load_error": "Daemon-Status konnte nicht geladen werden",
+  "config.daemon_skills.status_running": "Läuft",
+  "config.daemon_skills.status_stopped": "Gestoppt",
+  "config.daemon_skills.status_starting": "Startet",
+  "config.daemon_skills.status_crashed": "Abgestürzt",
+  "config.daemon_skills.status_disabled": "Deaktiviert"
 }

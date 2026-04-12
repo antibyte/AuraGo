@@ -11,5 +11,10 @@
   "help.daemon_skills.max_budget_per_hour": "Maksymalny koszt LLM (w USD) jaki wybudzenia daemonów mogą pochłonąć na godzinę",
   "config.daemon_skills.status_title": "Działające daemony",
   "config.daemon_skills.no_daemons": "Brak skonfigurowanych skilli daemon",
-  "config.daemon_skills.load_error": "Nie udało się załadować stanu daemonu"
+  "config.daemon_skills.load_error": "Nie udało się załadować stanu daemonu",
+  "config.daemon_skills.status_running": "Działa",
+  "config.daemon_skills.status_stopped": "Zatrzymany",
+  "config.daemon_skills.status_starting": "Uruchamianie",
+  "config.daemon_skills.status_crashed": "Awaria",
+  "config.daemon_skills.status_disabled": "Wyłączony"
 }

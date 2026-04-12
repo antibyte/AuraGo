@@ -11,5 +11,10 @@
   "help.daemon_skills.max_budget_per_hour": "Costo LLM massimo (in USD) che i risvegli daemon possono consumare per ora",
   "config.daemon_skills.status_title": "Daemon in esecuzione",
   "config.daemon_skills.no_daemons": "Nessuno skill daemon configurato",
-  "config.daemon_skills.load_error": "Impossibile caricare lo stato del daemon"
+  "config.daemon_skills.load_error": "Impossibile caricare lo stato del daemon",
+  "config.daemon_skills.status_running": "In esecuzione",
+  "config.daemon_skills.status_stopped": "Fermato",
+  "config.daemon_skills.status_starting": "Avvio",
+  "config.daemon_skills.status_crashed": "Arresto anomalo",
+  "config.daemon_skills.status_disabled": "Disattivato"
 }

@@ -11,5 +11,10 @@
   "help.daemon_skills.max_budget_per_hour": "Μέγιστο κόστος LLM (σε USD) που μπορούν να καταναλώσουν οι αφυπνίσεις daemon ανά ώρα",
   "config.daemon_skills.status_title": "Ενεργοί daemons",
   "config.daemon_skills.no_daemons": "Δεν έχουν διαμορφωθεί daemon skills",
-  "config.daemon_skills.load_error": "Αποτυχία φόρτωσης κατάστασης daemon"
+  "config.daemon_skills.load_error": "Αποτυχία φόρτωσης κατάστασης daemon",
+  "config.daemon_skills.status_running": "Ενεργός",
+  "config.daemon_skills.status_stopped": "Σταματημένος",
+  "config.daemon_skills.status_starting": "Εκκίνηση",
+  "config.daemon_skills.status_crashed": "Κατέρρευσε",
+  "config.daemon_skills.status_disabled": "Απενεργοποιημένος"
 }

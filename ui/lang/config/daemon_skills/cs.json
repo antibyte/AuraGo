@@ -11,5 +11,10 @@
   "help.daemon_skills.max_budget_per_hour": "Maximální náklady LLM (v USD), které mohou probuzení daemony spotřebovat za hodinu",
   "config.daemon_skills.status_title": "Běžící daemony",
   "config.daemon_skills.no_daemons": "Žádné daemon skills nenastaveny",
-  "config.daemon_skills.load_error": "Nepodařilo se načíst stav daemonu"
+  "config.daemon_skills.load_error": "Nepodařilo se načíst stav daemonu",
+  "config.daemon_skills.status_running": "Běží",
+  "config.daemon_skills.status_stopped": "Zastaveno",
+  "config.daemon_skills.status_starting": "Startuje",
+  "config.daemon_skills.status_crashed": "Zhroucen",
+  "config.daemon_skills.status_disabled": "Zakázáno"
 }

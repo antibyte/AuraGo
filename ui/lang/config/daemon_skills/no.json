@@ -11,5 +11,10 @@
   "help.daemon_skills.max_budget_per_hour": "Maksimale LLM-kostnader (i USD) som daemon-oppvåkninger kan forbruke per time",
   "config.daemon_skills.status_title": "Kjørende daemoner",
   "config.daemon_skills.no_daemons": "Ingen daemon-ferdigheter konfigurert",
-  "config.daemon_skills.load_error": "Kunne ikke laste daemon-status"
+  "config.daemon_skills.load_error": "Kunne ikke laste daemon-status",
+  "config.daemon_skills.status_running": "Kjører",
+  "config.daemon_skills.status_stopped": "Stoppet",
+  "config.daemon_skills.status_starting": "Starter",
+  "config.daemon_skills.status_crashed": "Krasjet",
+  "config.daemon_skills.status_disabled": "Deaktivert"
 }

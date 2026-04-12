@@ -11,5 +11,10 @@
   "help.daemon_skills.max_budget_per_hour": "Coût LLM maximum (en USD) que les réveils daemon peuvent consommer par heure",
   "config.daemon_skills.status_title": "Daemons en cours",
   "config.daemon_skills.no_daemons": "Aucune skill daemon configurée",
-  "config.daemon_skills.load_error": "Échec du chargement de l'état du daemon"
+  "config.daemon_skills.load_error": "Échec du chargement de l'état du daemon",
+  "config.daemon_skills.status_running": "En cours",
+  "config.daemon_skills.status_stopped": "Arrêté",
+  "config.daemon_skills.status_starting": "Démarrage",
+  "config.daemon_skills.status_crashed": "Planté",
+  "config.daemon_skills.status_disabled": "Désactivé"
 }

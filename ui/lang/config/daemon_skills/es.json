@@ -11,5 +11,10 @@
   "help.daemon_skills.max_budget_per_hour": "Costo máximo LLM (en USD) que los despertares daemon pueden consumir por hora",
   "config.daemon_skills.status_title": "Daemons en ejecución",
   "config.daemon_skills.no_daemons": "No hay skills daemon configurados",
-  "config.daemon_skills.load_error": "Error al cargar el estado del daemon"
+  "config.daemon_skills.load_error": "Error al cargar el estado del daemon",
+  "config.daemon_skills.status_running": "Ejecutando",
+  "config.daemon_skills.status_stopped": "Detenido",
+  "config.daemon_skills.status_starting": "Iniciando",
+  "config.daemon_skills.status_crashed": "Colapsado",
+  "config.daemon_skills.status_disabled": "Desactivado"
 }

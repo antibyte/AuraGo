@@ -11,5 +11,10 @@
   "help.daemon_skills.max_budget_per_hour": "守护进程唤醒每小时可消耗的最大LLM成本（USD）",
   "config.daemon_skills.status_title": "运行中的守护进程",
   "config.daemon_skills.no_daemons": "未配置守护进程技能",
-  "config.daemon_skills.load_error": "无法加载守护进程状态"
+  "config.daemon_skills.load_error": "无法加载守护进程状态",
+  "config.daemon_skills.status_running": "运行中",
+  "config.daemon_skills.status_stopped": "已停止",
+  "config.daemon_skills.status_starting": "启动中",
+  "config.daemon_skills.status_crashed": "已崩溃",
+  "config.daemon_skills.status_disabled": "已禁用"
 }

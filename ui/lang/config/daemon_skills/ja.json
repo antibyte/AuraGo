@@ -11,5 +11,10 @@
   "help.daemon_skills.max_budget_per_hour": "デーモンウェイクアップが1時間に消費できる最大LLMコスト（USD）",
   "config.daemon_skills.status_title": "実行中のデーモン",
   "config.daemon_skills.no_daemons": "デーモンスキルが設定されていません",
-  "config.daemon_skills.load_error": "デーモンの状態の読み込みに失敗しました"
+  "config.daemon_skills.load_error": "デーモンの状態の読み込みに失敗しました",
+  "config.daemon_skills.status_running": "実行中",
+  "config.daemon_skills.status_stopped": "停止",
+  "config.daemon_skills.status_starting": "起動中",
+  "config.daemon_skills.status_crashed": "クラッシュ",
+  "config.daemon_skills.status_disabled": "無効"
 }
