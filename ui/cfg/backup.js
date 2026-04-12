@@ -72,7 +72,7 @@ function renderBackupSection(section) {
     <!-- Import panel -->
     <div class="wh-panel backup-panel" id="backup-panel-import">
         <div class="backup-warning-box">
-            ⚠️ ${t('config.backup.import_warning')}
+            ${t('config.backup.import_warning')}
         </div>
 
         <div class="field-group backup-field-group-file">
@@ -150,9 +150,9 @@ async function backupCreate() {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        backupSetStatus(status, 'is-success', '✅ ' + t('config.backup.downloaded') + filename);
+        backupSetStatus(status, 'is-success', t('config.backup.status_success') + t('config.backup.downloaded') + filename);
     } catch (e) {
-        backupSetStatus(status, 'is-danger', '❌ ' + e.message);
+        backupSetStatus(status, 'is-danger', t('config.backup.status_error') + ' ' + e.message);
     } finally {
         btn.disabled = false;
     }
@@ -184,12 +184,12 @@ async function backupImport() {
             let msg = data.message || data.error || 'Unknown error';
             if (data.error === 'password_required') msg = t('config.backup.password_required');
             if (data.error === 'decryption_failed') msg = t('config.backup.decryption_failed');
-            backupSetStatus(status, 'is-danger', '❌ ' + msg);
+            backupSetStatus(status, 'is-danger', t('config.backup.status_error') + ' ' + msg);
         } else {
             backupSetStatus(status, 'is-muted', '');
             result.classList.remove('is-hidden');
             result.innerHTML = `<div class="backup-import-success-box">
-                <div class="backup-import-success-title">✅ ${t('config.backup.import_success')}</div>
+                <div class="backup-import-success-title">${t('config.backup.status_success')} ${t('config.backup.import_success')}</div>
                 <div class="backup-import-success-message">${data.message}</div>
                 <button class="btn-save backup-restart-btn" onclick="restartAuraGo()">
                     ↻ ${t('config.backup.restart_now')}
@@ -197,7 +197,7 @@ async function backupImport() {
             </div>`;
         }
     } catch (e) {
-        backupSetStatus(status, 'is-danger', '❌ ' + e.message);
+        backupSetStatus(status, 'is-danger', t('config.backup.status_error') + ' ' + e.message);
     } finally {
         btn.disabled = false;
     }
