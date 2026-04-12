@@ -653,10 +653,10 @@ function ogShowModal(idx) {
             <div class="wh-form-row og-form-split">
                 <div><label>${t('config.webhooks.og_method')}</label>
                     <select id="og-f-method" class="field-select">
-                        <option value="GET" ${method === 'GET' ? 'selected' : ''}>GET</option>
-                        <option value="POST" ${method === 'POST' ? 'selected' : ''}>POST</option>
-                        <option value="PUT" ${method === 'PUT' ? 'selected' : ''}>PUT</option>
-                        <option value="DELETE" ${method === 'DELETE' ? 'selected' : ''}>DELETE</option>
+                        <option value="GET" ${method === 'GET' ? 'selected' : ''}>${t('config.webhooks.method_get')}</option>
+                        <option value="POST" ${method === 'POST' ? 'selected' : ''}>${t('config.webhooks.method_post')}</option>
+                        <option value="PUT" ${method === 'PUT' ? 'selected' : ''}>${t('config.webhooks.method_put')}</option>
+                        <option value="DELETE" ${method === 'DELETE' ? 'selected' : ''}>${t('config.webhooks.method_delete')}</option>
                     </select>
                 </div>
                 <div class="og-col-url"><label>${t('config.webhooks.og_url')}</label>
