@@ -1650,11 +1650,13 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 
 			// Auto-register in media registry
 			if mediaRegistryDB != nil {
+				imgPath := filepath.Join(cfg.Directories.DataDir, "generated_images", result.Filename)
+				imgHash, _ := tools.ComputeMediaFileHash(imgPath)
 				if regID, dup, regErr := tools.RegisterMedia(mediaRegistryDB, tools.MediaItem{
 					MediaType:        "image",
 					SourceTool:       "generate_image",
 					Filename:         result.Filename,
-					FilePath:         filepath.Join(cfg.Directories.DataDir, "generated_images", result.Filename),
+					FilePath:         imgPath,
 					WebPath:          result.WebPath,
 					Format:           "png",
 					Provider:         result.Provider,
@@ -1667,6 +1669,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 					GenerationTimeMs: int64(result.DurationMs),
 					CostEstimate:     result.CostEstimate,
 					Tags:             []string{"auto-generated"},
+					Hash:             imgHash,
 				}); regErr != nil {
 					logger.Warn("Auto-register image in media registry failed", "filename", result.Filename, "error", regErr)
 				} else if !dup {
@@ -1850,6 +1853,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 					if fi, fiErr := os.Stat(parsed.FilePath); fiErr == nil {
 						fileSize = fi.Size()
 					}
+					docHash, _ := tools.ComputeMediaFileHash(parsed.FilePath)
 					if regID, dup, regErr := tools.RegisterMedia(mediaRegistryDB, tools.MediaItem{
 						MediaType:   mediaType,
 						SourceTool:  "document_creator",
@@ -1860,6 +1864,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 						Format:      strings.TrimPrefix(filepath.Ext(parsed.Filename), "."),
 						Description: req.Title,
 						Tags:        []string{"auto-generated"},
+						Hash:        docHash,
 					}); regErr != nil {
 						logger.Warn("Auto-register document in media registry failed", "filename", parsed.Filename, "error", regErr)
 					} else if !dup {

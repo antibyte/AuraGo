@@ -183,6 +183,8 @@ func GenerateMusicResult(ctx context.Context, cfg *config.Config, mediaDB *sql.D
 		if title == "" {
 			title = truncateString(params.Prompt, 100)
 		}
+		// Compute file hash for deduplication
+		fileHash, _ := ComputeMediaFileHash(result.FilePath)
 		regID, _, regErr := RegisterMedia(mediaDB, MediaItem{
 			MediaType:   "music",
 			SourceTool:  "generate_music",
@@ -197,6 +199,7 @@ func GenerateMusicResult(ctx context.Context, cfg *config.Config, mediaDB *sql.D
 			Description: title,
 			DurationMs:  result.DurationMs,
 			Tags:        tags,
+			Hash:        fileHash,
 		})
 		if regErr != nil {
 			logger.Warn("Failed to register music in media registry", "error", regErr)

@@ -95,6 +95,13 @@ func handleSendAudio(req sendMediaArgs, cfg *config.Config, logger *slog.Logger,
 		fileSize = fileInfo.Size()
 	}
 
+	// Compute file hash for deduplication — prevents duplicate entries when the
+	// same audio file is sent multiple times or after a restart.
+	fileHash := ""
+	if hash, hashErr := tools.ComputeMediaFileHash(localPath); hashErr == nil {
+		fileHash = hash
+	}
+
 	if mediaRegistryDB != nil {
 		if regID, dup, regErr := tools.RegisterMedia(mediaRegistryDB, tools.MediaItem{
 			MediaType:   "audio",
@@ -106,6 +113,7 @@ func handleSendAudio(req sendMediaArgs, cfg *config.Config, logger *slog.Logger,
 			Format:      strings.TrimPrefix(filepath.Ext(filename), "."),
 			Description: title,
 			Tags:        []string{"agent-sent"},
+			Hash:        fileHash,
 		}); regErr != nil {
 			logger.Warn("Auto-register audio in media registry failed", "filename", filename, "error", regErr)
 		} else if !dup {

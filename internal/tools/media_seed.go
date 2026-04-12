@@ -93,7 +93,7 @@ func seedOneFile(db *sql.DB, srcDir, dataDir string, e seedEntry, logger *slog.L
 	}
 
 	// Compute file hash for deduplication — prevents duplicate rows on every restart.
-	fileHash, err := computeMediaFileHash(dst)
+	fileHash, err := ComputeMediaFileHash(dst)
 	if err != nil {
 		logger.Warn("SeedWelcomeMedia: could not hash file, deduplication may fail", "path", dst, "error", err)
 	}
@@ -148,8 +148,10 @@ func copyFile(src, dst string) error {
 	return out.Sync()
 }
 
-// computeMediaFileHash returns the SHA-256 hex digest of a file.
-func computeMediaFileHash(path string) (string, error) {
+// ComputeMediaFileHash returns the SHA-256 hex digest of a file.
+// Exported so other packages (e.g. send_audio, music_generation) can use it
+// for hash-based deduplication when registering media items.
+func ComputeMediaFileHash(path string) (string, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return "", err

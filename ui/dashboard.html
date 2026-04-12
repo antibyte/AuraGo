@@ -411,6 +411,44 @@
       </div>
     </div>
 
+    <!-- 7c. File Indexer → KG Sync -->
+    <div class="dash-card dash-full-width" id="card-filesync">
+      <div class="dash-card-header">
+        <span class="card-icon">📊</span>
+        <span data-i18n="dashboard.filesync_title">File Indexer → Knowledge Graph Sync</span>
+        <div class="kc-sync-header-row" style="margin-left:auto;display:flex;gap:.5rem;align-items:center;">
+          <span class="kc-sync-status-dot" id="fs-indexer-dot" style="font-size:.75rem;">⚫</span>
+          <span class="kc-sync-status-label" id="fs-indexer-status">—</span>
+          <button class="btn btn-secondary btn-sm" onclick="loadFileSyncStatus()" id="btn-fs-refresh-dash" data-i18n="knowledge.filesync_refresh">🔄 Refresh</button>
+          <button class="btn btn-primary btn-sm" onclick="triggerFileSyncRescan()" id="btn-fs-rescan-dash" data-i18n="knowledge.filesync_rescan">🔍 Rescan</button>
+        </div>
+      </div>
+      <div class="dash-card-body">
+        <div class="fs-dash-grid">
+          <!-- Indexer Status -->
+          <div class="fs-dash-col" id="fs-dash-indexer">
+            <div class="fs-dash-section-title">📁 <span data-i18n="knowledge.filesync_indexer_title">File Indexer</span></div>
+            <div class="fs-dash-body" id="fs-indexer-body"><div class="kc-sync-loading">Loading…</div></div>
+          </div>
+          <!-- KG Stats -->
+          <div class="fs-dash-col" id="fs-dash-kg">
+            <div class="fs-dash-section-title">🧠 <span data-i18n="knowledge.filesync_kg_title">Knowledge Graph</span></div>
+            <div class="fs-dash-body" id="fs-kg-body"><div class="kc-sync-loading">Loading…</div></div>
+          </div>
+          <!-- Collections -->
+          <div class="fs-dash-col" id="fs-dash-colls">
+            <div class="fs-dash-section-title">📂 <span data-i18n="knowledge.filesync_collections_title">Collections</span></div>
+            <div class="fs-dash-body" id="fs-collections-body"><div class="kc-sync-loading">Loading…</div></div>
+          </div>
+          <!-- Last Sync -->
+          <div class="fs-dash-col" id="fs-dash-lastsync">
+            <div class="fs-dash-section-title">⏱️ <span data-i18n="knowledge.filesync_last_sync_title">Last Synchronization</span></div>
+            <div class="fs-dash-body" id="fs-lastsync-body"><div class="kc-sync-loading">Loading…</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- 7b. LLM Guardian Security -->
     <div class="dash-card is-hidden" id="card-guardian">
       <div class="dash-card-header"><span class="card-icon">🛡️</span> <span data-i18n="dashboard.guardian_title">LLM Guardian</span></div>
@@ -581,6 +619,7 @@
   </div><!-- #tab-system -->
 
   <script src="/js/dashboard/main.js" defer></script>
+  <script src="/js/knowledge/file_sync_status.js" defer></script>
 
   <!-- Core-Facts Modal -->
   <div class="cf-overlay" id="cfOverlay">

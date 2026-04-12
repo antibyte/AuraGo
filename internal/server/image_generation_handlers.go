@@ -53,11 +53,13 @@ func handleImageGenerationTest(s *Server) http.HandlerFunc {
 		tools.SaveGeneratedImage(s.ImageGalleryDB, result)
 
 		if s.MediaRegistryDB != nil {
+			imgPath := filepath.Join(cfg.Directories.DataDir, "generated_images", result.Filename)
+			imgHash, _ := tools.ComputeMediaFileHash(imgPath)
 			tools.RegisterMedia(s.MediaRegistryDB, tools.MediaItem{
 				MediaType:        "image",
 				SourceTool:       "generate_image",
 				Filename:         result.Filename,
-				FilePath:         filepath.Join(cfg.Directories.DataDir, "generated_images", result.Filename),
+				FilePath:         imgPath,
 				WebPath:          result.WebPath,
 				Format:           "png",
 				Provider:         result.Provider,
@@ -70,6 +72,7 @@ func handleImageGenerationTest(s *Server) http.HandlerFunc {
 				GenerationTimeMs: int64(result.DurationMs),
 				CostEstimate:     result.CostEstimate,
 				Tags:             []string{"auto-generated"},
+				Hash:             imgHash,
 			})
 		}
 

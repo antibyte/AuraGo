@@ -84,6 +84,12 @@ func handleSendDocument(req sendMediaArgs, cfg *config.Config, logger *slog.Logg
 		fileSize = fileInfo.Size()
 	}
 
+	// Compute file hash for deduplication
+	fileHash := ""
+	if hash, hashErr := tools.ComputeMediaFileHash(localPath); hashErr == nil {
+		fileHash = hash
+	}
+
 	if mediaRegistryDB != nil {
 		if regID, dup, regErr := tools.RegisterMedia(mediaRegistryDB, tools.MediaItem{
 			MediaType:   "document",
@@ -95,6 +101,7 @@ func handleSendDocument(req sendMediaArgs, cfg *config.Config, logger *slog.Logg
 			Format:      ext,
 			Description: title,
 			Tags:        []string{"agent-sent"},
+			Hash:        fileHash,
 		}); regErr != nil {
 			logger.Warn("Auto-register document in media registry failed", "filename", filename, "error", regErr)
 		} else if !dup {

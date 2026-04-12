@@ -91,6 +91,10 @@ func InitMediaRegistryDB(dbPath string) (*sql.DB, error) {
 		db.Close()
 		return nil, fmt.Errorf("failed to repair legacy media types: %w", err)
 	}
+	if err := cleanupTTSMediaEntries(db); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("failed to clean up TTS media entries: %w", err)
+	}
 
 	return db, nil
 }
@@ -124,6 +128,20 @@ func repairLegacyMediaTypes(db *sql.DB) error {
 		}
 	}
 
+	return nil
+}
+
+// cleanupTTSMediaEntries removes TTS entries from the media registry since TTS files
+// are ephemeral and managed by the TTS cache cleanup, not the media view.
+func cleanupTTSMediaEntries(db *sql.DB) error {
+	res, err := db.Exec("UPDATE media_items SET deleted = 1, updated_at = CURRENT_TIMESTAMP WHERE media_type = 'tts' AND deleted = 0")
+	if err != nil {
+		return fmt.Errorf("failed to soft-delete TTS media entries: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n > 0 {
+		_, _ = db.Exec("DELETE FROM media_items WHERE media_type = 'tts' AND deleted = 1")
+	}
 	return nil
 }
 
