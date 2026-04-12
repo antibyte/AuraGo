@@ -463,6 +463,7 @@
   "dashboard.system_uptime": "Doba provozu",
   "dashboard.tab_agent": "Agent",
   "dashboard.tab_knowledge": "Znalostní graf",
+  "dashboard.tab_filesync": "File Sync",
   "dashboard.tab_overview": "Přehled",
   "dashboard.tab_system": "Systém",
   "dashboard.tab_user": "Uživatel",

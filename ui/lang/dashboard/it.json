@@ -463,6 +463,7 @@
   "dashboard.system_uptime": "Tempo di funzionamento",
   "dashboard.tab_agent": "Agente",
   "dashboard.tab_knowledge": "Grafeo della Conoscenza",
+  "dashboard.tab_filesync": "File Sync",
   "dashboard.tab_overview": "Panoramica",
   "dashboard.tab_system": "Sistema",
   "dashboard.tab_user": "Utente",

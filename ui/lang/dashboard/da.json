@@ -463,6 +463,7 @@
   "dashboard.system_uptime": "Oppetid",
   "dashboard.tab_agent": "Agent",
   "dashboard.tab_knowledge": "Videnskab",
+  "dashboard.tab_filesync": "File Sync",
   "dashboard.tab_overview": "Oversigt",
   "dashboard.tab_system": "System",
   "dashboard.tab_user": "Bruger",

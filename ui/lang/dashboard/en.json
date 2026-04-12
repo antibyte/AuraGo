@@ -319,6 +319,7 @@
   "dashboard.tab_system": "System",
   "dashboard.tab_user": "User",
   "dashboard.tab_knowledge": "Knowledge Graph",
+  "dashboard.tab_filesync": "File Sync",
   "dashboard.tooling_telemetry_active_policy_signal": "Active Policy Signal",
   "dashboard.tooling_telemetry_empty": "No telemetry yet",
   "dashboard.tooling_telemetry_failure_count": "{{fails}} fails / {{calls}} calls",

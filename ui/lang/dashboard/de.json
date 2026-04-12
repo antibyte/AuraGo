@@ -466,6 +466,7 @@
   "dashboard.tab_overview": "Übersicht",
   "dashboard.tab_system": "System",
   "dashboard.tab_user": "Benutzer",
+  "dashboard.tab_filesync": "Datei-Sync",
   "dashboard.tooling_telemetry_active_policy_signal": "Aktives Policy-Signal",
   "dashboard.tooling_telemetry_empty": "Noch keine Telemetrie",
   "dashboard.tooling_telemetry_failure_count": "{{fails}} Fehler / {{calls}} Aufrufe",

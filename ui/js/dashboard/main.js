@@ -94,7 +94,7 @@
 
         const TabState = { active: 'overview', loaded: {} };
         const KnowledgeGraphState = { nodes: [], edges: [], importantNodes: [], importantEdges: [], stats: null, focusNodeId: '', focusPayload: null, editingNodeId: '', editingEdgeKey: '', showAll: false, filterType: '', filterSource: '' };
-        const VALID_TABS = ['overview', 'agent', 'user', 'knowledge', 'system'];
+        const VALID_TABS = ['overview', 'agent', 'user', 'knowledge', 'filesync', 'system'];
         function dashSetHidden(el, hidden) {
             if (!el) return;
             el.classList.toggle('is-hidden', hidden);
@@ -118,6 +118,9 @@
             if (tabId === 'knowledge' && TabState.loaded[tabId]) {
                 loadTabKnowledge();
             }
+            if (tabId === 'filesync' && TabState.loaded[tabId]) {
+                loadFileSyncStatus();
+            }
             if (!TabState.loaded[tabId]) {
                 loadTabContent(tabId);
             }
@@ -130,6 +133,7 @@
                 case 'agent':    return loadTabAgent();
                 case 'user':     return loadTabUser();
                 case 'knowledge': return loadTabKnowledge();
+                case 'filesync':  return loadFileSyncStatus();
                 case 'system':   return loadTabSystem();
             }
         }
@@ -290,8 +294,6 @@
             renderLogs(logResults);
             scrollLogsToBottom();
             renderGitHubRepos(githubRepos);
-            // Load file sync status for the dashboard card
-            loadFileSyncStatus();
         }
 
         function renderKnowledgeGraphSummary(nodes, edges, stats) {

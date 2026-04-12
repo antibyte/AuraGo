@@ -463,6 +463,7 @@
   "dashboard.system_uptime": "Bedrijfstijd",
   "dashboard.tab_agent": "Agent",
   "dashboard.tab_knowledge": "Kennisgraaf",
+  "dashboard.tab_filesync": "File Sync",
   "dashboard.tab_overview": "Overzicht",
   "dashboard.tab_system": "Systeem",
   "dashboard.tab_user": "Gebruiker",

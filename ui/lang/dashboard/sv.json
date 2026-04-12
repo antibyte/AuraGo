@@ -463,6 +463,7 @@
   "dashboard.system_uptime": "Drifttid",
   "dashboard.tab_agent": "Agent",
   "dashboard.tab_knowledge": "Kunskapsgraf",
+  "dashboard.tab_filesync": "File Sync",
   "dashboard.tab_overview": "Översikt",
   "dashboard.tab_system": "System",
   "dashboard.tab_user": "Användare",

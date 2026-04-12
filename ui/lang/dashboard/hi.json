@@ -463,6 +463,7 @@
   "dashboard.system_uptime": "अपटाइम",
   "dashboard.tab_agent": "एजेंट",
   "dashboard.tab_knowledge": "ज्ञान ग्राफ",
+  "dashboard.tab_filesync": "File Sync",
   "dashboard.tab_overview": "अवलोकन",
   "dashboard.tab_system": "सिस्टम",
   "dashboard.tab_user": "उपयोगकर्ता",

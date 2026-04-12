@@ -463,6 +463,7 @@
   "dashboard.system_uptime": "Χρόνος Λειτουργίας",
   "dashboard.tab_agent": "Πράκτορας",
   "dashboard.tab_knowledge": "Γράφος Γνώσης",
+  "dashboard.tab_filesync": "File Sync",
   "dashboard.tab_overview": "Επισκόπηση",
   "dashboard.tab_system": "Σύστημα",
   "dashboard.tab_user": "Χρήστης",

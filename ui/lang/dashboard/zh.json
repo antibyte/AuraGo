@@ -463,6 +463,7 @@
   "dashboard.system_uptime": "运行时间",
   "dashboard.tab_agent": "智能体",
   "dashboard.tab_knowledge": "知识图谱",
+  "dashboard.tab_filesync": "File Sync",
   "dashboard.tab_overview": "概览",
   "dashboard.tab_system": "系统",
   "dashboard.tab_user": "用户",

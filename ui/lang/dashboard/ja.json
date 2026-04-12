@@ -463,6 +463,7 @@
   "dashboard.system_uptime": "稼働時間",
   "dashboard.tab_agent": "エージェント",
   "dashboard.tab_knowledge": "ナレッジグラフ",
+  "dashboard.tab_filesync": "File Sync",
   "dashboard.tab_overview": "概要",
   "dashboard.tab_system": "システム",
   "dashboard.tab_user": "ユーザー",
