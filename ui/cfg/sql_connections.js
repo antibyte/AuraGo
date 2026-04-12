@@ -55,30 +55,30 @@ function renderSQLConnectionsSection(section) {
                 <div class="field-group">
                     <div class="field-label">${t('config.sql_connections.driver_label')} *</div>
                     <select id="sqlconn-field-driver" class="field-input sql-select-compact" onchange="sqlConnDriverChanged()">
-                        <option value="postgres">PostgreSQL</option>
-                        <option value="mysql">MySQL / MariaDB</option>
-                        <option value="sqlite">SQLite</option>
+                        <option value="postgres">${t('config.sql_connections.driver_postgres')}</option>
+                        <option value="mysql">${t('config.sql_connections.driver_mysql')}</option>
+                        <option value="sqlite">${t('config.sql_connections.driver_sqlite')}</option>
                     </select>
                 </div>
                 <div class="field-group">
                     <div class="field-label">${t('config.sql_connections.port_label')}</div>
-                    <input type="number" id="sqlconn-field-port" class="field-input" placeholder="5432">
+                    <input type="number" id="sqlconn-field-port" class="field-input" placeholder="${t('config.sql_connections.port_postgres')}">
                 </div>
             </div>
 
             <div class="sqlconn-grid-host" id="sqlconn-host-row">
                 <div class="field-group">
                     <div class="field-label">${t('config.sql_connections.host_label')}</div>
-                    <input type="text" id="sqlconn-field-host" class="field-input" placeholder="localhost">
+                    <input type="text" id="sqlconn-field-host" class="field-input" placeholder="${t('config.sql_connections.host_placeholder')}">
                 </div>
                 <div class="field-group">
                     <div class="field-label">${t('config.sql_connections.ssl_mode_label')}</div>
                     <select id="sqlconn-field-ssl" class="field-input sql-select-compact">
-                        <option value="">Default</option>
-                        <option value="disable">Disable</option>
-                        <option value="require">Require</option>
-                        <option value="verify-ca">Verify CA</option>
-                        <option value="verify-full">Verify Full</option>
+                        <option value="">${t('config.sql_connections.ssl_default')}</option>
+                        <option value="disable">${t('config.sql_connections.ssl_disable')}</option>
+                        <option value="require">${t('config.sql_connections.ssl_require')}</option>
+                        <option value="verify-ca">${t('config.sql_connections.ssl_verify_ca')}</option>
+                        <option value="verify-full">${t('config.sql_connections.ssl_verify_full')}</option>
                     </select>
                 </div>
             </div>
@@ -224,8 +224,8 @@ function sqlConnDriverChanged() {
     document.getElementById('sqlconn-host-row').classList.toggle('is-hidden', isSQLite);
     document.getElementById('sqlconn-creds-row').classList.toggle('is-hidden', isSQLite);
     const portInput = document.getElementById('sqlconn-field-port');
-    if (driver === 'postgres') portInput.placeholder = '5432';
-    else if (driver === 'mysql') portInput.placeholder = '3306';
+    if (driver === 'postgres') portInput.placeholder = t('config.sql_connections.port_postgres');
+    else if (driver === 'mysql') portInput.placeholder = t('config.sql_connections.port_mysql');
     else portInput.placeholder = '';
     const dbInput = document.getElementById('sqlconn-field-database');
     dbInput.placeholder = isSQLite ? t('config.sql_connections.sqlite_path_placeholder') : t('config.sql_connections.database_placeholder');
