@@ -6,6 +6,7 @@
   "config.document_creator.disabled_notice": "Tvůrce dokumentů je vypnutý",
   "config.document_creator.enabled_label": "Povoleno",
   "config.document_creator.gotenberg_timeout_label": "Časový limit",
+  "config.document_creator.gotenberg_title": "🐳 Gotenberg",
   "config.document_creator.gotenberg_url_label": "Gotenberg URL",
   "config.document_creator.loading": "Loading…",
   "config.document_creator.output_dir_label": "Výstupní adresář",

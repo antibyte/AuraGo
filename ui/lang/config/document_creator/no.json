@@ -6,6 +6,7 @@
   "config.document_creator.disabled_notice": "Dokumentskaper er deaktivert",
   "config.document_creator.enabled_label": "Aktivert",
   "config.document_creator.gotenberg_timeout_label": "Tidsavbrudd",
+  "config.document_creator.gotenberg_title": "🐳 Gotenberg",
   "config.document_creator.gotenberg_url_label": "Gotenberg URL",
   "config.document_creator.loading": "Laster…",
   "config.document_creator.output_dir_label": "Utdatakatalog",

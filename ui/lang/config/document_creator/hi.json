@@ -6,6 +6,7 @@
   "config.document_creator.disabled_notice": "दस्तावेज़ निर्माता अक्षम है",
   "config.document_creator.enabled_label": "सक्रिय",
   "config.document_creator.gotenberg_timeout_label": "समय सीमा",
+  "config.document_creator.gotenberg_title": "🐳 Gotenberg",
   "config.document_creator.gotenberg_url_label": "Gotenberg URL",
   "config.document_creator.loading": "लोड हो रहा है…",
   "config.document_creator.output_dir_label": "आउटपुट डायरेक्टरी",

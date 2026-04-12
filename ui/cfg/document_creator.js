@@ -57,7 +57,7 @@ async function renderDocumentCreatorSection(section) {
     // ── Gotenberg fields (conditional) ──
     var showGot = backend === 'gotenberg';
     html += '<div id="dc-gotenberg-fields" class="dc-gotenberg-box' + (showGot ? '' : ' is-hidden') + '">';
-    html += '<div class="dc-gotenberg-title">🐳 Gotenberg</div>';
+    html += '<div class="dc-gotenberg-title">' + t('config.document_creator.gotenberg_title') + '</div>';
 
     // URL
     html += '<div class="field-group">';

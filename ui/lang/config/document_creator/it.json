@@ -6,6 +6,7 @@
   "config.document_creator.disabled_notice": "Creatore documenti disabilitato",
   "config.document_creator.enabled_label": "Abilitato",
   "config.document_creator.gotenberg_timeout_label": "Timeout",
+  "config.document_creator.gotenberg_title": "🐳 Gotenberg",
   "config.document_creator.gotenberg_url_label": "URL Gotenberg",
   "config.document_creator.loading": "Caricamento…",
   "config.document_creator.output_dir_label": "Directory di output",

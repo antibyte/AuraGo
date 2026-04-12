@@ -6,6 +6,7 @@
   "config.document_creator.disabled_notice": "文档创建器已禁用",
   "config.document_creator.enabled_label": "已启用",
   "config.document_creator.gotenberg_timeout_label": "超时时间",
+  "config.document_creator.gotenberg_title": "🐳 Gotenberg",
   "config.document_creator.gotenberg_url_label": "Gotenberg URL",
   "config.document_creator.loading": "加载中…",
   "config.document_creator.output_dir_label": "输出目录",
