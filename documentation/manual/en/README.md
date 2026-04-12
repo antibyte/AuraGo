@@ -76,6 +76,9 @@ AuraGo is a fully autonomous AI agent shipped as a single portable binary with a
 21. [API Reference](21-api-reference.md) – Complete REST API documentation
 22. [Internal Tools](22-internal-tools.md) – All 100+ internal agent tools
 
+### Part 6: Internals
+23. [Internals](23-internals.md) – Architecture, modules, and internal workings
+
 ---
 
 ## Important Notes
@@ -136,6 +139,7 @@ A complete overview of all 100+ internal tools can be found in the [Internal Too
 | 2026-03 | **Added Cloudflare Tunnel, AI Gateway, Chromecast** |
 | 2026-03 | **Documented Network Tools, Web Capture, Form Automation** |
 | 2026-03 | **Added Skill Manager, Media Registry, Egg Mode** |
+| 2026-04 | **Chapter 23: Internals** – Architecture, modules, and internal workings documented |
 | 2026-04 | Documentation sync with current codebase: added chat commands (/voice, /warnings), cleaned up internal tools, corrected integrations, updated config references |
 | 2026-03 | **Added Chat Command /sudopwd** |
 

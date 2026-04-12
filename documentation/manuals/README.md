@@ -21,5 +21,6 @@ Dieser Ordner ist ein Einstiegspfad für Nutzer, die `documentation/manuals` erw
 | API-Referenz | [de/21-api-reference.md](../manual/de/21-api-reference.md) | [en/21-api-reference.md](../manual/en/21-api-reference.md) |
 | Troubleshooting | [de/16-troubleshooting.md](../manual/de/16-troubleshooting.md) | [en/16-troubleshooting.md](../manual/en/16-troubleshooting.md) |
 | FAQ | [de/faq.md](../manual/de/faq.md) | [en/faq.md](../manual/en/faq.md) |
+| **Interna** | [de/23-interna.md](../manual/de/23-interna.md) | [en/23-internals.md](../manual/en/23-internals.md) |
 
 > **Hinweis:** Die Handbücher werden fortlaufend aktualisiert und erweitert, um neue Funktionen und Integrationen abzubilden.
