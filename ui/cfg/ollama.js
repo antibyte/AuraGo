@@ -58,7 +58,7 @@ async function renderOllamaSection(section) {
     // ── Recreate button (shown when managed is enabled) ──
     html += '<div id="ollama-recreate-wrap" style="' + (managedEnabled ? '' : 'display:none;') + 'margin-top:1rem;">';
     html += '<button class="btn-save" style="padding:0.5rem 1.2rem;font-size:0.85rem;" onclick="ollamaManagedRecreate()">';
-    html += '🔄 ' + t('config.ollama.managed_recreate_btn') + '</button>';
+    html += t('config.ollama.icon_refresh') + ' ' + t('config.ollama.managed_recreate_btn') + '</button>';
     html += '<span id="ollama-recreate-status" style="margin-left:0.8rem;font-size:0.82rem;color:var(--text-secondary);"></span>';
     html += '</div>';
 
@@ -101,13 +101,13 @@ function ollamaManagedCheckStatus(enabled) {
     if (!banner) return;
 
     if (!enabled) {
-        banner.textContent = '⚪ ' + t('config.ollama.managed_status_disabled');
+        banner.textContent = t('config.ollama.status_disabled') + ' ' + t('config.ollama.managed_status_disabled');
         banner.style.background = 'var(--bg-tertiary)';
         banner.style.color = 'var(--text-secondary)';
         return;
     }
 
-    banner.textContent = '⏳ ' + t('config.ollama.managed_checking');
+    banner.textContent = t('config.ollama.status_loading') + ' ' + t('config.ollama.managed_checking');
     banner.style.background = 'var(--bg-tertiary)';
     banner.style.color = 'var(--text-secondary)';
 
@@ -115,29 +115,29 @@ function ollamaManagedCheckStatus(enabled) {
         .then(r => r.json())
         .then(res => {
             if (res.status === 'disabled') {
-                banner.textContent = '⚪ ' + t('config.ollama.managed_status_disabled');
+                banner.textContent = t('config.ollama.status_disabled') + ' ' + t('config.ollama.managed_status_disabled');
                 banner.style.background = 'var(--bg-tertiary)';
                 banner.style.color = 'var(--text-secondary)';
             } else if (res.running === true) {
-                banner.textContent = '🟢 ' + t('config.ollama.managed_status_running');
+                banner.textContent = t('config.ollama.status_running') + ' ' + t('config.ollama.managed_status_running');
                 banner.style.background = 'rgba(72,199,142,0.1)';
                 banner.style.color = '#48c78e';
             } else if (res.status === 'not_found') {
-                banner.innerHTML = '🔴 ' + t('config.ollama.managed_status_not_found');
+                banner.innerHTML = t('config.ollama.status_error_red') + ' ' + t('config.ollama.managed_status_not_found');
                 banner.style.background = 'rgba(255,82,82,0.08)';
                 banner.style.color = '#ff5252';
             } else if (res.running === false) {
-                banner.textContent = '🟡 ' + t('config.ollama.managed_status_stopped');
+                banner.textContent = t('config.ollama.status_stopped') + ' ' + t('config.ollama.managed_status_stopped');
                 banner.style.background = 'rgba(255,183,77,0.1)';
                 banner.style.color = '#ffb74d';
             } else {
-                banner.textContent = '🔴 ' + t('config.ollama.managed_status_error');
+                banner.textContent = t('config.ollama.status_error_red') + ' ' + t('config.ollama.managed_status_error');
                 banner.style.background = 'rgba(255,82,82,0.08)';
                 banner.style.color = '#ff5252';
             }
         })
         .catch(() => {
-            banner.textContent = '🔴 ' + t('config.ollama.managed_status_error');
+            banner.textContent = t('config.ollama.status_error_red') + ' ' + t('config.ollama.managed_status_error');
             banner.style.background = 'rgba(255,82,82,0.08)';
             banner.style.color = '#ff5252';
         });
@@ -146,22 +146,22 @@ function ollamaManagedCheckStatus(enabled) {
 // eslint-disable-next-line no-unused-vars
 async function ollamaManagedRecreate() {
     const statusEl = document.getElementById('ollama-recreate-status');
-    if (statusEl) statusEl.textContent = '⏳ ' + t('config.ollama.managed_recreating');
+    if (statusEl) statusEl.textContent = t('config.ollama.status_loading') + ' ' + t('config.ollama.managed_recreating');
 
     try {
         const resp = await fetch('/api/ollama/managed/recreate', { method: 'POST' });
         const data = await resp.json();
         if (data.status === 'ok') {
-            if (statusEl) statusEl.textContent = '✅ ' + t('config.ollama.managed_recreate_started');
+            if (statusEl) statusEl.textContent = t('config.ollama.status_success') + ' ' + t('config.ollama.managed_recreate_started');
             // Recheck status after a short delay to reflect new container state
             setTimeout(() => {
                 ollamaManagedCheckStatus(true);
                 if (statusEl) statusEl.textContent = '';
             }, 5000);
         } else {
-            if (statusEl) statusEl.textContent = '❌ ' + (data.message || t('common.error'));
+            if (statusEl) statusEl.textContent = t('config.ollama.status_error') + ' ' + (data.message || t('common.error'));
         }
     } catch (e) {
-        if (statusEl) statusEl.textContent = '❌ ' + t('common.error');
+        if (statusEl) statusEl.textContent = t('config.ollama.status_error') + ' ' + t('common.error');
     }
 }
