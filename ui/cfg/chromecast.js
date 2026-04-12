@@ -92,7 +92,7 @@ function renderChromecastSection(section) {
             <div class="cc-grid-ip-port">
                 <div class="field-group">
                     <div class="field-label">${t('config.chromecast.field_ip')}</div>
-                    <input type="text" id="cc-field-ip" class="field-input" placeholder="192.168.1.50">
+                    <input type="text" id="cc-field-ip" class="field-input" placeholder="${t('config.chromecast.ip_placeholder')}">
                 </div>
                 <div class="field-group">
                     <div class="field-label">Port</div>
@@ -179,7 +179,7 @@ async function ccDiscoverDevices() {
         const result = await resp.json();
 
         if (result.status !== 'success') {
-            throw new Error(result.message || 'Discovery failed');
+            throw new Error(result.message || t('config.chromecast.discovery_failed'));
         }
 
         const devices = result.devices || [];
@@ -214,7 +214,7 @@ async function ccDiscoverDevices() {
 
             const nameSpan = document.createElement('span');
             nameSpan.className = 'cc-discovery-name';
-            nameSpan.textContent = d.name || 'Unknown';
+            nameSpan.textContent = d.name || t('config.chromecast.unknown');
 
             const metaSpan = document.createElement('span');
             metaSpan.className = 'cc-discovery-meta';
