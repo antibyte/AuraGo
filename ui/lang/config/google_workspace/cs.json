@@ -48,5 +48,6 @@
   "config.google_workspace.oauth_manual_hint": "Pokud váš prohlížeč zobrazuje ERR_CONNECTION_REFUSED, zkopírujte celou adresu z adresního řádku a vložte ji níže pro dokončení autorizace.",
   "config.google_workspace.oauth_manual_btn": "Dokončit autorizaci",
   "config.google_workspace.oauth_manual_success": "Autorizace úspěšná",
-  "config.google_workspace.oauth_manual_failed": "Autorizace selhala: "
+  "config.google_workspace.oauth_manual_failed":
+  "config.google_workspace.testing": "⏳ Testování..." "Autorizace selhala: "
 }

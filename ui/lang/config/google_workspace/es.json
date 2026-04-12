@@ -48,5 +48,6 @@
   "config.google_workspace.oauth_manual_hint": "Si tu navegador muestra ERR_CONNECTION_REFUSED, copia la URL completa de la barra de direcciones y pégala abajo para completar la autorización.",
   "config.google_workspace.oauth_manual_btn": "Completar autorización",
   "config.google_workspace.oauth_manual_success": "Autorización exitosa",
-  "config.google_workspace.oauth_manual_failed": "Autorización fallida: "
+  "config.google_workspace.oauth_manual_failed":
+  "config.google_workspace.testing": "⏳ Probando..." "Autorización fallida: "
 }

@@ -48,5 +48,6 @@
   "config.google_workspace.oauth_manual_hint": "ブラウザに ERR_CONNECTION_REFUSED が表示された場合は、アドレスバーから完全なURLをコピーして、認証を完了するために下に貼り付けてください。",
   "config.google_workspace.oauth_manual_btn": "認証を完了する",
   "config.google_workspace.oauth_manual_success": "認証に成功しました",
-  "config.google_workspace.oauth_manual_failed": "認証に失敗しました: "
+  "config.google_workspace.oauth_manual_failed":
+  "config.google_workspace.testing": "⏳ テスト中..." "認証に失敗しました: "
 }
