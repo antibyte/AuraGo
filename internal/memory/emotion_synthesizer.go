@@ -272,12 +272,9 @@ func (es *EmotionSynthesizer) SynthesizeEmotion(ctx context.Context, stm *SQLite
 // emotionSynthesisKey generates a singleflight key from the EmotionInput context
 // so that concurrent calls with different inputs are not incorrectly deduplicated.
 func emotionSynthesisKey(input EmotionInput) string {
+	data, _ := json.Marshal(input)
 	h := sha256.New()
-	h.Write([]byte(input.UserMessage))
-	h.Write([]byte(input.TriggerType))
-	h.Write([]byte(input.TriggerDetail))
-	h.Write([]byte(input.TimeOfDay))
-	h.Write([]byte(input.TaskStatus))
+	h.Write(data)
 	return "synthesis_" + hex.EncodeToString(h.Sum(nil))[:16]
 }
 

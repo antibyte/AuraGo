@@ -11,15 +11,22 @@ import (
 // Variable parts such as paths, timestamps, and IDs are replaced with
 // stable placeholders so similar errors group together correctly.
 var (
-	reErrorPath      = regexp.MustCompile(`(/[a-zA-Z0-9_.\-/]+){2,}`)               // file/directory paths
-	reErrorTimestamp = regexp.MustCompile(`\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}`) // ISO timestamps
-	reErrorNumber    = regexp.MustCompile(`\b\d{4,}\b`)                             // long numbers / IDs
-	reErrorHex       = regexp.MustCompile(`\b[0-9a-fA-F]{8,}\b`)                    // hex digests / UUIDs
+	reErrorPath        = regexp.MustCompile(`(/[a-zA-Z0-9_.\-/]+){2,}`)                               // file/directory paths
+	reErrorPathWindows = regexp.MustCompile(`[A-Za-z]:\\[\\A-Za-z0-9_.\-\\]+|\\\\[A-Za-z0-9_.\-\\]+`) // Windows paths
+	reErrorTimestamp   = regexp.MustCompile(`\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}`)                 // ISO timestamps
+	reErrorNumber      = regexp.MustCompile(`\b\d{4,}\b`)                                             // long numbers / IDs
+	reErrorHex         = regexp.MustCompile(`\b[0-9a-fA-F]{8,}\b`)                                    // hex digests / UUIDs
 )
 
 // normalizeErrorMsg replaces variable parts of an error message with placeholders
 // so that semantically identical errors with different paths/IDs/timestamps match.
 func normalizeErrorMsg(msg string) string {
+	// Cap input length to prevent excessive regex processing
+	const maxErrorMsgLen = 10 * 1024 // 10KB
+	if len(msg) > maxErrorMsgLen {
+		msg = msg[:maxErrorMsgLen]
+	}
+	msg = reErrorPathWindows.ReplaceAllString(msg, "<PATH>")
 	msg = reErrorPath.ReplaceAllString(msg, "<PATH>")
 	msg = reErrorTimestamp.ReplaceAllString(msg, "<TIMESTAMP>")
 	msg = reErrorNumber.ReplaceAllString(msg, "<ID>")

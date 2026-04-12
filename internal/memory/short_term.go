@@ -172,6 +172,9 @@ func (s *SQLiteMemory) GetHoursSinceLastUserMessage(sessionID string) (float64, 
 // DeleteOldMessages archives messages to archived_messages before removing them.
 // Keeps only the most recent `keepN` messages for a given session.
 func (s *SQLiteMemory) DeleteOldMessages(sessionID string, keepN int) error {
+	if keepN <= 0 {
+		return fmt.Errorf("keepN must be positive, got %d", keepN)
+	}
 	// First find the ID of the oldest message we want to KEEP
 	query := `
 	SELECT id FROM messages 
@@ -202,7 +205,7 @@ func (s *SQLiteMemory) DeleteOldMessages(sessionID string, keepN int) error {
 	SELECT session_id, role, content, timestamp
 	FROM messages
 	WHERE session_id = ? AND id < ? AND role IN ('user', 'assistant')
-	ORDER BY timestamp ASC`
+	ORDER BY timestamp ASC, id ASC`
 	archRes, err := tx.Exec(archiveQuery, sessionID, oldestKeepID)
 	if err != nil {
 		return fmt.Errorf("failed to archive old messages: %w", err)
@@ -769,7 +772,7 @@ func (s *SQLiteMemory) GetAllMemoryMeta(limit int, offset int) ([]MemoryMeta, er
 	if offset < 0 {
 		offset = 0
 	}
-	query := `SELECT doc_id, access_count, last_accessed, last_event_at, extraction_confidence, verification_status, source_type, source_reliability, useful_count, useless_count, COALESCE(last_effectiveness_at, ''), protected, keep_forever FROM memory_meta LIMIT ? OFFSET ?;`
+	query := `SELECT doc_id, access_count, last_accessed, last_event_at, extraction_confidence, verification_status, source_type, source_reliability, useful_count, useless_count, COALESCE(last_effectiveness_at, ''), protected, keep_forever FROM memory_meta ORDER BY doc_id ASC LIMIT ? OFFSET ?;`
 	rows, err := s.db.Query(query, limit, offset)
 	if err != nil {
 		return nil, err

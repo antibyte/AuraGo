@@ -1290,6 +1290,21 @@ func truncateUTF8Safe(s string, maxLen int) string {
 // DeleteNode removes a node and all its connected edges.
 // Also cleans up the semantic index entries for the deleted node and its edges.
 func (kg *KnowledgeGraph) DeleteNode(id string) error {
+	// Collect connected edges for semantic cleanup before deleting from SQLite
+	var edgesToClean []Edge
+	if kg.semantic != nil {
+		rows, err := kg.db.Query("SELECT source, target, relation FROM kg_edges WHERE source = ? OR target = ?", id, id)
+		if err == nil {
+			for rows.Next() {
+				var src, tgt, rel string
+				if rows.Scan(&src, &tgt, &rel) == nil {
+					edgesToClean = append(edgesToClean, Edge{Source: src, Target: tgt, Relation: rel})
+				}
+			}
+			rows.Close()
+		}
+	}
+
 	tx, err := kg.db.Begin()
 	if err != nil {
 		return fmt.Errorf("begin delete node: %w", err)
@@ -1322,6 +1337,15 @@ func (kg *KnowledgeGraph) DeleteNode(id string) error {
 		kg.semantic.mu.Lock()
 		delete(kg.semantic.contentCache, id)
 		kg.semantic.mu.Unlock()
+
+		for _, e := range edgesToClean {
+			if err := kg.removeSemanticEdgeIndex(e.Source, e.Target, e.Relation); err != nil && kg.logger != nil {
+				kg.logger.Warn("DeleteNode: failed to remove semantic edge index", "source", e.Source, "target", e.Target, "relation", e.Relation, "error", err)
+			}
+		}
+		if err := kg.removeSemanticNodeIndex(id); err != nil && kg.logger != nil {
+			kg.logger.Warn("DeleteNode: failed to remove semantic node index", "node_id", id, "error", err)
+		}
 	}
 
 	return nil
@@ -1329,6 +1353,9 @@ func (kg *KnowledgeGraph) DeleteNode(id string) error {
 
 // DeleteEdge removes a specific edge.
 func (kg *KnowledgeGraph) DeleteEdge(source, target, relation string) error {
+	if err := kg.removeSemanticEdgeIndex(source, target, relation); err != nil && kg.logger != nil {
+		kg.logger.Warn("DeleteEdge: failed to remove semantic edge index", "source", source, "target", target, "relation", relation, "error", err)
+	}
 	_, err := kg.db.Exec("DELETE FROM kg_edges WHERE source = ? AND target = ? AND relation = ?",
 		source, target, relation)
 	if err != nil {

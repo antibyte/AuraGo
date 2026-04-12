@@ -129,7 +129,7 @@ func buildCaddyfileWithProxies(domain string, port int, routes []ProxyRoute) str
 	if domain != "" {
 		sb.WriteString(domain)
 	} else {
-		sb.WriteString(":80")
+		sb.WriteString(fmt.Sprintf(":%d", port))
 	}
 	sb.WriteString(" {\n")
 	sb.WriteString("\troot * /srv\n")

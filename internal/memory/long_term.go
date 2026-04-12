@@ -78,17 +78,25 @@ type ChromemVectorDB struct {
 	queryCacheTTL          time.Duration
 	indexing               atomic.Int32       // Counter: >0 while async indexing is in progress
 	dedupSem               chan struct{}      // semaphore to limit concurrent dedup checks
+	batchWg                sync.WaitGroup     // Tracks in-flight StoreBatch goroutines
 	sfGroup                singleflight.Group // deduplicates concurrent embedding API calls for the same query
 	fileIndexerCollections map[string]struct{}
 	fiColMu                sync.RWMutex
 }
 
 func (cv *ChromemVectorDB) Close() error {
-	// chromem-go v0.7.0 uses synchronous file-based persistence with no open file handles
-	// or background resources that require cleanup. Each write operation persists immediately.
-	// The DB struct holds only in-memory maps which are garbage-collected when references
-	// are dropped. This no-op satisfies the VectorDB interface.
-	cv.logger.Debug("Closing VectorDB (chromem-go uses synchronous writes, no cleanup needed)")
+	cv.logger.Debug("Closing VectorDB, waiting for in-flight batch operations...")
+	done := make(chan struct{})
+	go func() {
+		cv.batchWg.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+		cv.logger.Debug("All in-flight batch operations completed")
+	case <-time.After(10 * time.Second):
+		cv.logger.Warn("Close timed out waiting for in-flight StoreBatch goroutines")
+	}
 	return nil
 }
 
@@ -297,12 +305,6 @@ func (cv *ChromemVectorDB) StoreDocumentWithDomain(concept, content, domain stri
 		return nil, fmt.Errorf("VectorDB is disabled (embedding pipeline failed at startup)")
 	}
 
-	const maxContentBytes = 500 * 1024 // 500 KB per document
-	if len(content) > maxContentBytes {
-		cv.logger.Warn("Document content exceeds 500 KB limit, truncating", "concept", concept, "bytes", len(content))
-		content = content[:maxContentBytes]
-	}
-
 	// Deduplication: serialise check+store so two concurrent calls for the
 	// same concept cannot both pass the similarity gate before either is stored.
 	cv.storeDocMu.Lock()
@@ -312,6 +314,17 @@ func (cv *ChromemVectorDB) StoreDocumentWithDomain(concept, content, domain stri
 		return nil, nil
 	}
 	defer cv.storeDocMu.Unlock()
+	return cv.storeDocumentLocked(concept, content, domain)
+}
+
+// storeDocumentLocked stores a document in aurago_memories.
+// The caller must hold cv.storeDocMu.
+func (cv *ChromemVectorDB) storeDocumentLocked(concept, content, domain string) ([]string, error) {
+	const maxContentBytes = 500 * 1024 // 500 KB per document
+	if len(content) > maxContentBytes {
+		cv.logger.Warn("Document content exceeds 500 KB limit, truncating", "concept", concept, "bytes", len(content))
+		content = content[:maxContentBytes]
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -760,13 +773,14 @@ func (cv *ChromemVectorDB) StoreBatch(items []ArchiveItem) ([]string, error) {
 
 	const maxBatchItemBytes = 500 * 1024 // 500 KB per item
 
-	// Deduplication: run concept-similarity checks with bounded concurrency to avoid rate limiting.
-	type dedupResult struct {
-		idx  int
-		item ArchiveItem
-		keep bool
+	type batchResult struct {
+		idx int
+		ids []string
+		err error
 	}
-	resultsCh := make(chan dedupResult, len(items))
+
+	resultsCh := make(chan batchResult, len(items))
+	cv.batchWg.Add(len(items))
 	for i, item := range items {
 		if len(item.Content) > maxBatchItemBytes {
 			cv.logger.Warn("StoreBatch: item content exceeds 500 KB limit, truncating", "concept", item.Concept, "bytes", len(item.Content))
@@ -774,96 +788,52 @@ func (cv *ChromemVectorDB) StoreBatch(items []ArchiveItem) ([]string, error) {
 		}
 		i, item := i, item // capture
 		go func() {
+			defer cv.batchWg.Done()
+			sent := false
 			defer func() {
 				if rec := recover(); rec != nil {
-					cv.logger.Error("StoreBatch: dedup goroutine panicked", "panic", rec)
-					resultsCh <- dedupResult{idx: i, item: item, keep: true}
+					cv.logger.Error("StoreBatch: goroutine panicked", "panic", rec)
+					if !sent {
+						resultsCh <- batchResult{idx: i, err: fmt.Errorf("panic: %v", rec)}
+					}
 				}
 			}()
 			// Acquire semaphore to limit concurrent embedding calls
 			cv.dedupSem <- struct{}{}
 			defer func() { <-cv.dedupSem }()
 
+			cv.storeDocMu.Lock()
+			defer cv.storeDocMu.Unlock()
 			keep := true
 			if sim := cv.searchTopSimilarityScore(item.Concept); sim > 0.95 {
 				cv.logger.Debug("StoreBatch: skipping duplicate concept", "concept", item.Concept, "similarity", sim)
 				keep = false
 			}
-			resultsCh <- dedupResult{idx: i, item: item, keep: keep}
+			var ids []string
+			var err error
+			if keep {
+				ids, err = cv.storeDocumentLocked(item.Concept, item.Content, item.Domain)
+			}
+			resultsCh <- batchResult{idx: i, ids: ids, err: err}
+			sent = true
 		}()
-	}
-	// Collect results preserving original order
-	type indexedItem struct {
-		idx  int
-		item ArchiveItem
-	}
-	kept := make([]indexedItem, 0, len(items))
-	for range items {
-		r := <-resultsCh
-		if r.keep {
-			kept = append(kept, indexedItem{r.idx, r.item})
-		}
-	}
-	sort.Slice(kept, func(a, b int) bool { return kept[a].idx < kept[b].idx })
-	uniqueItems := make([]ArchiveItem, 0, len(kept))
-	for _, k := range kept {
-		uniqueItems = append(uniqueItems, k.item)
-	}
-
-	if len(uniqueItems) == 0 {
-		return nil, nil
 	}
 
 	var allIDs []string
-	var smallDocs []chromem.Document
-	var smallIDs []string
-
-	for _, item := range uniqueItems {
-		fullContent := buildContentString(item.Concept, item.Content)
-		metadata := map[string]string{
-			"concept":   item.Concept,
-			"timestamp": fmt.Sprintf("%d", time.Now().Unix()),
+	var firstErr error
+	for range items {
+		r := <-resultsCh
+		if r.err != nil && firstErr == nil {
+			firstErr = r.err
 		}
-		if item.Domain != "" {
-			metadata["domain"] = item.Domain
-		}
-
-		if len(fullContent) <= 4000 {
-			// Collect small docs for batch embedding
-			docID := fmt.Sprintf("mem_%d_%d", time.Now().UnixMilli(), cv.idCounter.Add(1))
-			smallDocs = append(smallDocs, chromem.Document{
-				ID:       docID,
-				Metadata: metadata,
-				Content:  fullContent,
-			})
-			smallIDs = append(smallIDs, docID)
-		} else {
-			// Large items need chunking — delegate to single-item store
-			ids, err := cv.StoreDocumentWithDomain(item.Concept, item.Content, item.Domain)
-			if err != nil {
-				cv.logger.Error("Failed to store large batch item", "concept", item.Concept, "error", err)
-				return allIDs, fmt.Errorf("failed to store batch item %q: %w", item.Concept, err)
-			}
-			allIDs = append(allIDs, ids...)
-		}
+		allIDs = append(allIDs, r.ids...)
 	}
 
-	// Batch-add all small documents in one parallel call
-	if len(smallDocs) > 0 {
-		concurrency := len(smallDocs)
-		if concurrency > 4 {
-			concurrency = 4
-		}
-		ctx, cancel := context.WithTimeout(context.Background(), calculateBatchTimeout(len(smallDocs)))
-		defer cancel()
-		if err := cv.collection.AddDocuments(ctx, smallDocs, concurrency); err != nil {
-			cv.logger.Error("Failed to batch-add documents", "error", err, "count", len(smallDocs))
-			return allIDs, fmt.Errorf("failed to batch-add %d documents: %w", len(smallDocs), err)
-		}
-		allIDs = append(allIDs, smallIDs...)
+	if firstErr != nil {
+		return allIDs, firstErr
 	}
 
-	cv.logger.Info("Stored batch in long-term memory", "count", len(items), "total_docs", len(allIDs), "batched_small", len(smallDocs))
+	cv.logger.Info("Stored batch in long-term memory", "count", len(items), "total_docs", len(allIDs))
 	return allIDs, nil
 }
 
@@ -1332,6 +1302,9 @@ func ExtractSimilarityScore(result string) float64 {
 // calculateBatchTimeout returns a dynamic timeout based on the number of documents.
 // Base: 30s + 2s per document, capped at 5 minutes.
 func calculateBatchTimeout(docCount int) time.Duration {
+	if docCount < 0 {
+		docCount = 0
+	}
 	timeout := 30*time.Second + time.Duration(docCount)*2*time.Second
 	if timeout > 5*time.Minute {
 		return 5 * time.Minute

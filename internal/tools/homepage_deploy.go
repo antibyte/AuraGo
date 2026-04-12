@@ -612,7 +612,7 @@ func HomepageWebServerStart(cfg HomepageConfig, projectDir, buildDir string, log
 				caddyfilePath + ":/etc/caddy/Caddyfile",
 			},
 			"PortBindings": map[string]interface{}{
-				"80/tcp": []map[string]interface{}{
+				fmt.Sprintf("%d/tcp", port): []map[string]interface{}{
 					{"HostIp": hostIP, "HostPort": fmt.Sprintf("%d", port)},
 				},
 			},
@@ -1414,15 +1414,13 @@ func homepageCaddyfile(domain string, port int) string {
 }
 `, domain)
 	}
-	// The container always binds host port → container port 80.
-	// Caddy must therefore listen on :80 regardless of the host-side port.
-	return `:80 {
+	return fmt.Sprintf(`:%d {
     root * /srv
     file_server
     encode gzip
     try_files {path} /index.html
 }
-`
+`, port)
 }
 
 func okJSON(message string, kvPairs ...string) string {

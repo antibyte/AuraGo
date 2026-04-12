@@ -205,6 +205,16 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 	if _, err := db.Exec(schema); err != nil {
 		return nil, fmt.Errorf("failed to create sqlite schema: %w", err)
 	}
+
+	// Migration: add unique constraint on fact to prevent duplicates.
+	// First remove any existing duplicates, keeping the newest entry for each fact.
+	_, _ = db.Exec(`
+		DELETE FROM core_memory WHERE id NOT IN (
+			SELECT MAX(id) FROM core_memory GROUP BY fact
+		)
+	`)
+	_, _ = db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_core_memory_fact_unique ON core_memory(fact)`)
+
 	if _, err := db.Exec(conflictSchema); err != nil {
 		return nil, fmt.Errorf("failed to create conflict schema: %w", err)
 	}

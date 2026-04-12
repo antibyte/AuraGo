@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 	"time"
@@ -222,6 +223,9 @@ func (s *SQLiteMemory) InsertEpisodicMemoryWithDetails(eventDate, title, summary
 	actionStatus := strings.TrimSpace(meta.ActionStatus)
 	triggerQuery := strings.TrimSpace(meta.TriggerQuery)
 	resolvedAt := strings.TrimSpace(meta.ResolvedAt)
+	if math.IsNaN(meta.EmotionalValence) || math.IsInf(meta.EmotionalValence, 0) {
+		meta.EmotionalValence = 0
+	}
 	if meta.EmotionalValence > 1 {
 		meta.EmotionalValence = 1
 	}
