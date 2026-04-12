@@ -220,8 +220,8 @@ async function renderHomepageSection(section) {
         html += `<label class="hp-label-block">
             <span class="hp-input-label">${t('config.homepage.deploy_method')}</span>
             <select class="cfg-input hp-input-top" data-path="homepage.deploy_method" onchange="setNestedValue(configData,'homepage.deploy_method',this.value);setDirty(true)">
-                <option value="sftp" ${(cfg.deploy_method || 'sftp') === 'sftp' ? 'selected' : ''}>SFTP</option>
-                <option value="scp" ${cfg.deploy_method === 'scp' ? 'selected' : ''}>SCP</option>
+                <option value="sftp" ${(cfg.deploy_method || 'sftp') === 'sftp' ? 'selected' : ''}>${t('config.homepage.deploy_method_sftp')}</option>
+                <option value="scp" ${cfg.deploy_method === 'scp' ? 'selected' : ''}>${t('config.homepage.deploy_method_scp')}</option>
             </select>
         </label>`;
 

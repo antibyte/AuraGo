@@ -55,5 +55,7 @@
   "config.homepage.workspace_autodetect_success": "Workspace-Pfad erfolgreich erkannt.",
   "config.homepage.allow_temporary_token_budget_overflow": "Temporäre Token-Budget-Überschreitung für Homepage-Flows erlauben",
   "config.homepage.allow_temporary_token_budget_overflow_desc": "Erhöht das Homepage-Systemprompt-Budget temporär relativ zu den Homepage-Circuit-Breaker-Aufrufen, solange die aktuelle Homepage-Aktionskette aktiv ist.",
-  "config.homepage.token_budget_preview": "Homepage-Flows dürfen temporär ungefähr {effective} Prompt-Tokens statt {base} nutzen, basierend auf {homepage_calls}/{base_calls} erlaubten Tool-Aufrufen."
+  "config.homepage.token_budget_preview": "Homepage-Flows dürfen temporär ungefähr {effective} Prompt-Tokens statt {base} nutzen, basierend auf {homepage_calls}/{base_calls} erlaubten Tool-Aufrufen.",
+  "config.homepage.deploy_method_sftp": "SFTP",
+  "config.homepage.deploy_method_scp": "SCP"
 }

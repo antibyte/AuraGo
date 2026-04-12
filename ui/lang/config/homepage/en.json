@@ -55,5 +55,7 @@
   "config.homepage.workspace_autodetect_success": "Workspace path detected successfully.",
   "config.homepage.allow_temporary_token_budget_overflow": "Allow temporary token budget overflow for homepage flows",
   "config.homepage.allow_temporary_token_budget_overflow_desc": "Temporarily raises the homepage system prompt budget relative to the homepage circuit breaker max calls while the current homepage action chain is active.",
-  "config.homepage.token_budget_preview": "Homepage flows may temporarily use about {effective} prompt tokens instead of {base}, based on {homepage_calls}/{base_calls} allowed tool calls."
+  "config.homepage.token_budget_preview": "Homepage flows may temporarily use about {effective} prompt tokens instead of {base}, based on {homepage_calls}/{base_calls} allowed tool calls.",
+  "config.homepage.deploy_method_sftp": "SFTP",
+  "config.homepage.deploy_method_scp": "SCP"
 }
