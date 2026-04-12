@@ -59,21 +59,21 @@ async function renderSandboxSection(section) {
     html += `<div class="sb-grid-2col">`;
 
     html += `<label class="sb-field-label">
-        <span class="sb-field-caption">Backend</span>
+        <span class="sb-field-caption">${t('config.sandbox.backend_label')}</span>
         <select class="field-input sb-field-input" data-path="sandbox.backend" onchange="setNestedValue(configData,'sandbox.backend',this.value);setDirty(true)">
-            <option value="docker" ${sbCfg.backend === 'docker' || !sbCfg.backend ? 'selected' : ''}>Docker</option>
-            <option value="podman" ${sbCfg.backend === 'podman' ? 'selected' : ''}>Podman</option>
+            <option value="docker" ${sbCfg.backend === 'docker' || !sbCfg.backend ? 'selected' : ''}>${t('config.sandbox.backend_docker')}</option>
+            <option value="podman" ${sbCfg.backend === 'podman' ? 'selected' : ''}>${t('config.sandbox.backend_podman')}</option>
         </select>
     </label>`;
 
     html += `<label class="sb-field-label">
-        <span class="sb-field-caption">Container Image</span>
+        <span class="sb-field-caption">${t('config.sandbox.image_label')}</span>
         <input class="field-input sb-field-input" data-path="sandbox.image" value="${escapeAttr(sbCfg.image || 'python:3.11-slim')}"
             onchange="setNestedValue(configData,'sandbox.image',this.value);setDirty(true)">
     </label>`;
 
     html += `<label class="sb-field-label">
-        <span class="sb-field-caption">Docker Host <small class="sb-field-hint">(${t('config.sandbox.empty_auto')})</small></span>
+        <span class="sb-field-caption">${t('config.sandbox.docker_host_label')} <small class="sb-field-hint">(${t('config.sandbox.empty_auto')})</small></span>
         <input class="field-input sb-field-input" data-path="sandbox.docker_host" value="${escapeAttr(sbCfg.docker_host || '')}" placeholder="unix:///var/run/docker.sock"
             onchange="setNestedValue(configData,'sandbox.docker_host',this.value);setDirty(true)">
     </label>`;
