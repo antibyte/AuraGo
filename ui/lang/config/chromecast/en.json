@@ -33,6 +33,7 @@
   "config.chromecast.no_devices": "No Chromecast devices registered. Use \"Discover Devices\" to find them on your network.",
   "config.chromecast.no_devices_found": "No Chromecast devices found on the network. Make sure your devices are powered on and connected to the same network.",
   "config.chromecast.port_label": "Port",
+  "config.chromecast.port_placeholder": "8009",
   "config.chromecast.request_failed": "Request failed",
   "config.chromecast.save": "Save",
   "config.chromecast.tts_port_label": "TTS Port",

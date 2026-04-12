@@ -20,10 +20,10 @@ function renderTTSSection(section) {
     html += '<div class="field-help">' + t('config.tts.provider_help') + '</div>';
     html += '<select class="field-input" data-path="tts.provider" onchange="ttsProviderChanged(this.value)">';
     html += '<option value=""' + (currentProvider === '' ? ' selected' : '') + '>— ' + t('config.tts.provider_none') + ' —</option>';
-    html += '<option value="google"' + (currentProvider === 'google' ? ' selected' : '') + '>Google TTS</option>';
-    html += '<option value="elevenlabs"' + (currentProvider === 'elevenlabs' ? ' selected' : '') + '>ElevenLabs</option>';
-    html += '<option value="minimax"' + (currentProvider === 'minimax' ? ' selected' : '') + '>MiniMax</option>';
-    html += '<option value="piper"' + (currentProvider === 'piper' ? ' selected' : '') + '>Piper (Local)</option>';
+    html += '<option value="google"' + (currentProvider === 'google' ? ' selected' : '') + '>' + t('config.tts.provider_google') + '</option>';
+    html += '<option value="elevenlabs"' + (currentProvider === 'elevenlabs' ? ' selected' : '') + '>' + t('config.tts.provider_elevenlabs') + '</option>';
+    html += '<option value="minimax"' + (currentProvider === 'minimax' ? ' selected' : '') + '>' + t('config.tts.provider_minimax') + '</option>';
+    html += '<option value="piper"' + (currentProvider === 'piper' ? ' selected' : '') + '>' + t('config.tts.provider_piper') + '</option>';
     html += '</select>';
     html += '</div>';
 
@@ -31,7 +31,7 @@ function renderTTSSection(section) {
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.tts.language_label') + '</div>';
     html += '<div class="field-help">' + t('config.tts.language_help') + '</div>';
-    html += '<input class="field-input" type="text" data-path="tts.language" value="' + escapeAttr(data.language || '') + '" placeholder="de">';
+    html += '<input class="field-input" type="text" data-path="tts.language" value="' + escapeAttr(data.language || '') + '" placeholder="' + t('config.tts.language_placeholder') + '">';
     html += '</div>';
 
     // ── ElevenLabs fields (shown when provider=elevenlabs) ──
@@ -40,10 +40,10 @@ function renderTTSSection(section) {
     html += '<div style="font-weight:600;font-size:0.92rem;color:var(--accent);border-bottom:1px solid var(--border-subtle);padding-bottom:0.4rem;margin:1.5rem 0 0.8rem;">🎤 ElevenLabs</div>';
 
     html += '<div class="field-group">';
-    html += '<div class="field-label">API Key</div>';
+    html += '<div class="field-label">' + t('config.tts.elevenlabs_api_key_label') + '</div>';
     html += '<div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">';
     html += '<div class="password-wrap" style="flex:1;min-width:240px;">';
-    html += '<input class="field-input" type="password" id="tts-elevenlabs-api-key" value="" placeholder="' + escapeAttr(hasElevenLabsKey ? '••••••••' : 'sk-...') + '">';
+    html += '<input class="field-input" type="password" id="tts-elevenlabs-api-key" value="" placeholder="' + escapeAttr(hasElevenLabsKey ? '••••••••' : t('config.tts.elevenlabs_api_key_placeholder')) + '">';
     html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
     html += '</div>';
     html += '<button class="btn-save" style="padding:0.45rem 1rem;font-size:0.82rem;white-space:nowrap;" onclick="ttsSaveElevenLabsKey()">💾</button>';
@@ -51,13 +51,13 @@ function renderTTSSection(section) {
     html += '</div>';
 
     html += '<div class="field-group">';
-    html += '<div class="field-label">Voice ID</div>';
-    html += '<input class="field-input" type="text" data-path="tts.elevenlabs.voice_id" value="' + escapeAttr(elData.voice_id || '') + '" placeholder="21m00Tcm4TlvDq8ikWAM">';
+    html += '<div class="field-label">' + t('config.tts.elevenlabs_voice_id_label') + '</div>';
+    html += '<input class="field-input" type="text" data-path="tts.elevenlabs.voice_id" value="' + escapeAttr(elData.voice_id || '') + '" placeholder="' + t('config.tts.elevenlabs_voice_id_placeholder') + '">';
     html += '</div>';
 
     html += '<div class="field-group">';
-    html += '<div class="field-label">Model ID</div>';
-    html += '<input class="field-input" type="text" data-path="tts.elevenlabs.model_id" value="' + escapeAttr(elData.model_id || '') + '" placeholder="eleven_monolingual_v1">';
+    html += '<div class="field-label">' + t('config.tts.elevenlabs_model_id_label') + '</div>';
+    html += '<input class="field-input" type="text" data-path="tts.elevenlabs.model_id" value="' + escapeAttr(elData.model_id || '') + '" placeholder="' + t('config.tts.elevenlabs_model_id_placeholder') + '">';
     html += '</div>';
     html += '</div>';
 
@@ -67,10 +67,10 @@ function renderTTSSection(section) {
     html += '<div style="font-weight:600;font-size:0.92rem;color:var(--accent);border-bottom:1px solid var(--border-subtle);padding-bottom:0.4rem;margin:1.5rem 0 0.8rem;">🎵 MiniMax TTS</div>';
 
     html += '<div class="field-group">';
-    html += '<div class="field-label">API Key</div>';
+    html += '<div class="field-label">' + t('config.tts.minimax_api_key_label') + '</div>';
     html += '<div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">';
     html += '<div class="password-wrap" style="flex:1;min-width:240px;">';
-    html += '<input class="field-input" type="password" id="tts-minimax-api-key" value="" placeholder="' + escapeAttr(hasMiniMaxKey ? '••••••••' : 'Enter MiniMax API key') + '">';
+    html += '<input class="field-input" type="password" id="tts-minimax-api-key" value="" placeholder="' + escapeAttr(hasMiniMaxKey ? '••••••••' : t('config.tts.minimax_api_key_placeholder')) + '">';
     html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
     html += '</div>';
     html += '<button class="btn-save" style="padding:0.45rem 1rem;font-size:0.82rem;white-space:nowrap;" onclick="ttsSaveMiniMaxKey()">💾</button>';
@@ -80,7 +80,7 @@ function renderTTSSection(section) {
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.tts.minimax_voice_id_label') + '</div>';
     html += '<div class="field-help">' + t('config.tts.minimax_voice_id_help') + '</div>';
-    html += '<input class="field-input" type="text" data-path="tts.minimax.voice_id" value="' + escapeAttr(mmData.voice_id || '') + '" placeholder="English_expressive_narrator">';
+    html += '<input class="field-input" type="text" data-path="tts.minimax.voice_id" value="' + escapeAttr(mmData.voice_id || '') + '" placeholder="' + t('config.tts.minimax_voice_id_placeholder') + '">';
     html += '</div>';
 
     html += '<div class="field-group">';
@@ -95,7 +95,7 @@ function renderTTSSection(section) {
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.tts.minimax_speed_label') + '</div>';
     html += '<div class="field-help">' + t('config.tts.minimax_speed_help') + '</div>';
-    html += '<input class="field-input" type="number" data-path="tts.minimax.speed" value="' + (mmData.speed || 1.0) + '" min="0.5" max="2.0" step="0.1" placeholder="1.0">';
+    html += '<input class="field-input" type="number" data-path="tts.minimax.speed" value="' + (mmData.speed || 1.0) + '" min="0.5" max="2.0" step="0.1" placeholder="' + t('config.tts.minimax_speed_placeholder') + '">';
     html += '</div>';
     html += '</div>';
 
@@ -183,7 +183,7 @@ function ttsSaveElevenLabsKey() {
     const input = document.getElementById('tts-elevenlabs-api-key');
     const value = input ? input.value.trim() : '';
     if (!value) {
-        showToast('ElevenLabs API key is required', 'warn');
+        showToast(t('config.tts.elevenlabs_api_key_required'), 'warn');
         return;
     }
 
@@ -195,7 +195,7 @@ function ttsSaveElevenLabsKey() {
         .then(r => r.json())
         .then(res => {
             if (res.status === 'ok' || res.success) {
-                showToast('ElevenLabs API key saved', 'success');
+                showToast(t('config.tts.elevenlabs_api_key_saved'), 'success');
                 if (input) {
                     input.value = '';
                     input.placeholder = '••••••••';
@@ -204,17 +204,17 @@ function ttsSaveElevenLabsKey() {
                 if (!configData.tts.elevenlabs) configData.tts.elevenlabs = {};
                 configData.tts.elevenlabs.api_key = '••••••••';
             } else {
-                showToast(res.message || 'Failed to save ElevenLabs API key', 'error');
+                showToast(res.message || t('config.tts.elevenlabs_api_key_save_failed'), 'error');
             }
         })
-        .catch(() => showToast('Failed to save ElevenLabs API key', 'error'));
+        .catch(() => showToast(t('config.tts.elevenlabs_api_key_save_failed'), 'error'));
 }
 
 function ttsSaveMiniMaxKey() {
     const input = document.getElementById('tts-minimax-api-key');
     const value = input ? input.value.trim() : '';
     if (!value) {
-        showToast(t('config.tts.minimax_api_key_required') || 'MiniMax API key is required', 'warn');
+        showToast(t('config.tts.minimax_api_key_required'), 'warn');
         return;
     }
 
@@ -226,7 +226,7 @@ function ttsSaveMiniMaxKey() {
         .then(r => r.json())
         .then(res => {
             if (res.status === 'ok' || res.success) {
-                showToast('MiniMax API key saved', 'success');
+                showToast(t('config.tts.minimax_api_key_saved'), 'success');
                 if (input) {
                     input.value = '';
                     input.placeholder = '••••••••';
@@ -235,10 +235,10 @@ function ttsSaveMiniMaxKey() {
                 if (!configData.tts.minimax) configData.tts.minimax = {};
                 configData.tts.minimax.api_key = '••••••••';
             } else {
-                showToast(res.message || 'Failed to save MiniMax API key', 'error');
+                showToast(res.message || t('config.tts.minimax_api_key_save_failed'), 'error');
             }
         })
-        .catch(() => showToast('Failed to save MiniMax API key', 'error'));
+        .catch(() => showToast(t('config.tts.minimax_api_key_save_failed'), 'error'));
 }
 
 function piperCheckStatus() {

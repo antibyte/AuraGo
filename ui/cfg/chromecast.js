@@ -95,8 +95,8 @@ function renderChromecastSection(section) {
                     <input type="text" id="cc-field-ip" class="field-input" placeholder="${t('config.chromecast.ip_placeholder')}">
                 </div>
                 <div class="field-group">
-                    <div class="field-label">Port</div>
-                    <input type="number" id="cc-field-port" class="field-input" placeholder="8009" value="8009">
+                    <div class="field-label">${t('config.chromecast.port_label')}</div>
+                    <input type="number" id="cc-field-port" class="field-input" placeholder="${t('config.chromecast.port_placeholder')}" value="8009">
                 </div>
             </div>
             <div class="field-group mt-sm">
