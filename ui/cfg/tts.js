@@ -87,8 +87,8 @@ function renderTTSSection(section) {
     html += '<div class="field-label">' + t('config.tts.minimax_model_label') + '</div>';
     html += '<div class="field-help">' + t('config.tts.minimax_model_help') + '</div>';
     html += '<select class="field-input" data-path="tts.minimax.model_id">';
-    html += '<option value="speech-2.8-hd"' + (mmData.model_id === 'speech-2.8-hd' || !mmData.model_id ? ' selected' : '') + '>speech-2.8-hd (High Quality)</option>';
-    html += '<option value="speech-2.8-turbo"' + (mmData.model_id === 'speech-2.8-turbo' ? ' selected' : '') + '>speech-2.8-turbo (Fast)</option>';
+    html += '<option value="speech-2.8-hd"' + (mmData.model_id === 'speech-2.8-hd' || !mmData.model_id ? ' selected' : '') + '>' + t('config.tts.minimax_model_hd') + '</option>';
+    html += '<option value="speech-2.8-turbo"' + (mmData.model_id === 'speech-2.8-turbo' ? ' selected' : '') + '>' + t('config.tts.minimax_model_turbo') + '</option>';
     html += '</select>';
     html += '</div>';
 

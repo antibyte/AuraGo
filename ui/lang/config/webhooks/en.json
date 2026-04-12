@@ -110,5 +110,11 @@
   "config.webhooks.test_prefix": "Test: ",
   "config.webhooks.toggle_active": "Active",
   "config.webhooks.toggle_inactive": "Inactive",
-  "config.webhooks.token_label": "Token"
+  "config.webhooks.token_label": "Token",
+  "config.webhooks.sig_sha256": "sha256",
+  "config.webhooks.sig_sha1": "sha1",
+  "config.webhooks.sig_plain": "plain",
+  "config.webhooks.param_type_string": "string",
+  "config.webhooks.param_type_number": "number",
+  "config.webhooks.param_type_boolean": "boolean"
 }

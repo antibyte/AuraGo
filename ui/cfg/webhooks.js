@@ -242,9 +242,9 @@ function whShowEditor(id) {
                     <label>${t('config.webhooks.signature_algo_label')}</label>
                     <select id="wh-f-sigalgo" class="field-select">
                         <option value="" ${!format.signature_algo ? 'selected' : ''}>— ${t('config.webhooks.sig_none')} —</option>
-                        <option value="sha256" ${format.signature_algo === 'sha256' ? 'selected' : ''}>sha256</option>
-                        <option value="sha1" ${format.signature_algo === 'sha1' ? 'selected' : ''}>sha1</option>
-                        <option value="plain" ${format.signature_algo === 'plain' ? 'selected' : ''}>plain</option>
+                        <option value="sha256" ${format.signature_algo === 'sha256' ? 'selected' : ''}>${t('config.webhooks.sig_sha256')}</option>
+                        <option value="sha1" ${format.signature_algo === 'sha1' ? 'selected' : ''}>${t('config.webhooks.sig_sha1')}</option>
+                        <option value="plain" ${format.signature_algo === 'plain' ? 'selected' : ''}>${t('config.webhooks.sig_plain')}</option>
                     </select>
                 </div>
                 <div class="wh-form-row">
@@ -702,9 +702,9 @@ function ogParamRow(idx, p) {
     return `<div class="og-param-row" data-idx="${idx}">
         <input class="field-input og-p-name" value="${esc(p.name || '')}" placeholder="${t('config.webhooks.og_param_name_placeholder')}">
         <select class="field-select og-p-type">
-            <option value="string" ${(p.type || 'string') === 'string' ? 'selected' : ''}>string</option>
-            <option value="number" ${p.type === 'number' ? 'selected' : ''}>number</option>
-            <option value="boolean" ${p.type === 'boolean' ? 'selected' : ''}>boolean</option>
+            <option value="string" ${(p.type || 'string') === 'string' ? 'selected' : ''}>${t('config.webhooks.param_type_string')}</option>
+            <option value="number" ${p.type === 'number' ? 'selected' : ''}>${t('config.webhooks.param_type_number')}</option>
+            <option value="boolean" ${p.type === 'boolean' ? 'selected' : ''}>${t('config.webhooks.param_type_boolean')}</option>
         </select>
         <input class="field-input og-p-desc og-p-desc-wide" value="${esc(p.description || '')}" placeholder="${t('config.webhooks.og_param_desc_placeholder')}">
         <div class="toggle-wrap og-toggle-wrap">

@@ -812,7 +812,7 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                     <div class="field-help">${t('config.providers.type_help')}</div>
                     <select class="field-select" id="prov-type">
                         ${['openai','openrouter','ollama','anthropic','google','minimax','workers-ai','custom'].map(typ =>
-                            `<option value="${typ}"${data.type === typ ? ' selected' : ''}>${typ}</option>`
+                            `<option value="${typ}"${data.type === typ ? ' selected' : ''}>${t('config.providers.type_' + typ.replace('-', '_'))}</option>`
                         ).join('')}
                     </select>
                 </div>

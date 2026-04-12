@@ -30,6 +30,8 @@
   "config.tts.minimax_voice_id_placeholder": "English_expressive_narrator",
   "config.tts.minimax_model_label": "Modell",
   "config.tts.minimax_model_help": "MiniMax TTS-Modell.",
+  "config.tts.minimax_model_hd": "speech-2.8-hd (Hohe Qualität)",
+  "config.tts.minimax_model_turbo": "speech-2.8-turbo (Schnell)",
   "config.tts.minimax_speed_label": "Geschwindigkeit",
   "config.tts.minimax_speed_help": "Wiedergabegeschwindigkeit (0,5 - 2,0).",
   "config.tts.minimax_speed_placeholder": "1.0",

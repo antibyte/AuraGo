@@ -111,4 +111,11 @@
   "config.webhooks.toggle_active": "Actif",
   "config.webhooks.toggle_inactive": "Inactif",
   "config.webhooks.token_label": "Token"
+
+  "config.webhooks.sig_sha256": "sha256",
+  "config.webhooks.sig_sha1": "sha1",
+  "config.webhooks.sig_plain": "plain",
+  "config.webhooks.param_type_string": "string",
+  "config.webhooks.param_type_number": "number",
+  "config.webhooks.param_type_boolean": "boolean"
 }
