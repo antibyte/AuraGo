@@ -162,6 +162,8 @@ server:
     port: 8088              # HTTP port
     bridge_address: ""      # Internal bridge for WebSocket
     max_body_bytes: 10485760          # Max request body size (10MB)
+    ui_language: "en"       # Default Web UI language
+    oauth_redirect_base_url: ""       # Base URL for OAuth callbacks (e.g. http://localhost:8088)
     https:
         enabled: false
         cert_mode: auto                     # "auto" (Let's Encrypt), "custom" (uploaded cert), "selfsigned" (auto-generated)
@@ -302,9 +304,8 @@ agent:
     allow_network_requests: false # api_request tool
     allow_remote_shell: false    # execute_remote_shell tool
     allow_self_update: false     # manage_updates tool
-    # Standard API access — enabled by default
-    allow_mcp: true              # MCP server connections
-    allow_web_scraper: true      # web scraper tool
+    allow_mcp: false             # MCP server connections
+    allow_web_scraper: false     # web scraper tool
     sudo_enabled: false          # execute_sudo tool (requires vault entry)
 ```
 
@@ -344,6 +345,15 @@ tools:
         enabled: true
     wol:
         enabled: true
+    journal:
+        enabled: true
+        readonly: false
+    daemon_skills:
+        enabled: true
+        max_concurrent_daemons: 3
+        global_rate_limit_secs: 60
+        max_wakeups_per_hour: 10
+        max_budget_per_hour_usd: 1.0
     web_capture:
         enabled: true
     network_ping:
@@ -411,10 +421,16 @@ Embeddings power AuraGo's long-term memory and semantic search.
 
 ```yaml
 embeddings:
-    provider: internal           # Provider ID or "internal"
-    internal_model: qwen/qwen3-embedding-8b
-    external_url: http://localhost:11434/v1
-    external_model: nomic-embed-text
+    provider: internal           # Provider ID, "internal", or "disabled"
+    internal_model: qwen/qwen3-embedding-8b   # legacy: model when using main LLM provider
+    external_url: http://localhost:11434/v1   # legacy: dedicated endpoint URL
+    external_model: nomic-embed-text          # legacy: dedicated endpoint model
+    multimodal: false
+    multimodal_format: auto
+    local_ollama:
+        enabled: false
+        model: nomic-embed-text
+        container_port: 11435
 ```
 
 ### Embedding Providers
@@ -443,27 +459,96 @@ The `personality` section controls AuraGo's personality engine, mood analysis, a
 
 ```yaml
 personality:
-    core_personality: friend           # active personality profile: friend, professional, punk, neutral, terminator
-    engine: true                       # enable personality engine (mood, micro-traits)
+    engine: friend                     # active personality profile: friend, professional, punk, neutral, terminator
     engine_v2: true                    # enable advanced V2 engine with async LLM mood analysis
     user_profiling: false              # auto-detect user preferences from conversation
     user_profiling_threshold: 2        # confirmations needed before injecting a trait into prompt
     emotion_synthesizer:
         enabled: false                 # enable emotion synthesis
+        min_interval_seconds: 60
         max_history_entries: 100       # max emotion history entries to keep
+        trigger_on_mood_change: true
+        trigger_always: false
+    inner_voice:
+        enabled: false                 # subconscious nudge engine
+        min_interval_secs: 60
+        max_per_session: 20
+        decay_turns: 3
+        error_streak_min: 2
 ```
 
 ### Personality Options Explained
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `core_personality` | `friend` | Base personality profile: `friend`, `professional`, `punk`, `neutral`, `terminator` |
-| `engine` | `true` | Enable V1 heuristic personality adaptation |
+| `engine` | `friend` | Base personality profile: `friend`, `professional`, `punk`, `neutral`, `terminator` |
 | `engine_v2` | `true` | Enable V2 LLM-based personality analysis |
 | `user_profiling` | `false` | Auto-detect user preferences from conversation history |
 | `user_profiling_threshold` | `2` | Confirmations needed before injecting a detected trait into the prompt |
 | `emotion_synthesizer.enabled` | `false` | Enable emotion synthesis for responses |
 | `emotion_synthesizer.max_history_entries` | `100` | Maximum emotion history entries to keep |
+| `inner_voice.enabled` | `false` | Subconscious nudge engine for subtle behavior hints |
+
+---
+
+## Co-Agents Configuration
+
+The `co_agents` section configures parallel sub-agents (specialists) that AuraGo can spawn for complex tasks.
+
+```yaml
+co_agents:
+    enabled: false
+    max_concurrent: 3
+    budget_quota_percent: 0            # daily budget share reserved for co-agents (0 = disabled)
+    max_context_hints: 5
+    max_context_hint_chars: 500
+    max_result_bytes: 50000
+    queue_when_busy: false
+    cleanup_interval_minutes: 10
+    cleanup_max_age_minutes: 30
+    llm:
+        provider: ""                   # provider ID for co-agent LLM calls
+    circuit_breaker:
+        max_tool_calls: 50
+        timeout_seconds: 120
+        max_tokens: 100000
+    retry_policy:
+        max_retries: 1
+        retry_delay_seconds: 5
+        retryable_error_patterns:
+            - "rate limit"
+            - "timeout"
+            - "temporary"
+    specialists:
+        researcher:
+            enabled: true
+            system_prompt: ""
+        coder:
+            enabled: true
+            system_prompt: ""
+        designer:
+            enabled: true
+            system_prompt: ""
+        security:
+            enabled: true
+            system_prompt: ""
+        writer:
+            enabled: true
+            system_prompt: ""
+```
+
+### Co-Agents Options Explained
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `enabled` | `false` | Enable parallel co-agent execution |
+| `max_concurrent` | `3` | Maximum simultaneous co-agents |
+| `budget_quota_percent` | `0` | Daily budget percentage reserved for co-agents |
+| `max_result_bytes` | `50000` | Truncate co-agent results after this many bytes |
+| `queue_when_busy` | `false` | Queue requests instead of rejecting when at capacity |
+| `circuit_breaker.max_tool_calls` | `50` | Maximum tool calls before aborting a co-agent |
+| `retry_policy.max_retries` | `1` | Retries for transient LLM failures |
+| `specialists.*.enabled` | `true` | Enable individual specialist types |
 
 ---
 
@@ -751,8 +836,8 @@ The blocks below are available for advanced and headless setups. Most can be con
 | `homepage` | Personal dashboard deploy. | `homepage:`<br>`  enabled: false`<br>`  allow_deploy: false`<br>`  allow_container_management: true`<br>`  webserver_port: 8080` |
 | `netlify` | Netlify site management. | `netlify:`<br>`  enabled: false`<br>`  readonly: false`<br>`  allow_deploy: true`<br>`  allow_site_management: false` |
 | `cloudflare_tunnel` | cloudflared integration. | `cloudflare_tunnel:`<br>`  enabled: false`<br>`  readonly: false`<br>`  mode: auto`<br>`  auto_start: true` |
-| `tailscale` | Tailscale VPN integration. | `tailscale:`<br>`  enabled: false`<br>`  readonly: false`<br>`  tailnet: ""`<br>`  tsnet:`<br>`    enabled: false` |
-| `fritzbox` | AVM Fritz!Box TR-064. | `fritzbox:`<br>`  enabled: false`<br>`  host: fritz.box`<br>`  port: 49000`<br>`  https: false` |
+| `tailscale` | Tailscale VPN integration. | `tailscale:`<br>`  enabled: false`<br>`  readonly: false`<br>`  tailnet: ""`<br>`  tsnet:`<br>`    enabled: false`<br>`    hostname: "aurago"`<br>`    serve_http: false`<br>`    expose_homepage: false`<br>`    funnel: false`<br>`    allow_http_fallback: false` |
+| `fritzbox` | AVM Fritz!Box TR-064. | `fritzbox:`<br>`  enabled: false`<br>`  host: fritz.box`<br>`  port: 49000`<br>`  https: true`<br>`  system:`<br>`    enabled: false`<br>`    readonly: false`<br>`  network:`<br>`    enabled: false`<br>`    readonly: false`<br>`  telephony:`<br>`    enabled: false`<br>`    polling:`<br>`      enabled: false` |
 | `google_workspace` | Gmail, Calendar, Drive. | `google_workspace:`<br>`  enabled: false`<br>`  readonly: false`<br>`  gmail: false`<br>`  calendar: false`<br>`  drive: false` |
 | `telnyx` | SMS and voice integration. | `telnyx:`<br>`  enabled: false`<br>`  readonly: false`<br>`  phone_number: ""`<br>`  messaging_profile_id: ""` |
 | `adguard` | AdGuard Home integration. | `adguard:`<br>`  enabled: false`<br>`  readonly: false`<br>`  url: ""`<br>`  username: ""` |
@@ -762,13 +847,21 @@ The blocks below are available for advanced and headless setups. Most can be con
 | `proxmox` | Proxmox VE integration. | `proxmox:`<br>`  enabled: false`<br>`  readonly: false`<br>`  url: ""`<br>`  token_id: ""` |
 | `meshcentral` | Remote desktop integration. | `meshcentral:`<br>`  enabled: false`<br>`  readonly: false`<br>`  url: ""`<br>`  username: ""` |
 | `ansible` | Ansible sidecar integration. | `ansible:`<br>`  enabled: false`<br>`  readonly: false`<br>`  mode: sidecar`<br>`  url: ""`<br>`  timeout: 300` |
-| `ollama` | Local Ollama management. | `ollama:`<br>`  enabled: false`<br>`  readonly: false`<br>`  url: ""`<br>`  managed_instance:`<br>`    enabled: false` |
+| `ollama` | Local Ollama management. | `ollama:`<br>`  enabled: false`<br>`  readonly: false`<br>`  url: ""`<br>`  managed_instance:`<br>`    enabled: false`<br>`    container_port: 11434`<br>`    use_host_gpu: false`<br>`    gpu_backend: auto`<br>`    default_models: []`<br>`    memory_limit: ""`<br>`    volume_path: ""` |
 | `rocketchat` | Rocket.Chat bot. | `rocketchat:`<br>`  enabled: false`<br>`  url: ""`<br>`  user_id: ""`<br>`  channel: ""` |
 | `github` | GitHub repository integration. | `github:`<br>`  enabled: false`<br>`  readonly: false`<br>`  owner: ""`<br>`  default_private: false` |
 | `tts` | Text-to-speech config. | `tts:`<br>`  provider: google`<br>`  language: en`<br>`  cache_max_files: 500` |
 | `notifications` | Push notification providers. | `notifications:`<br>`  ntfy:`<br>`    enabled: false`<br>`    url: ""`<br>`    topic: ""` |
-| `budget` | Token cost tracking. | `budget:`<br>`  enabled: false`<br>`  daily_limit_usd: 5`<br>`  enforcement: warn`<br>`  warning_threshold: 0.8` |
-| `fallback_llm` | Failover LLM. | `fallback_llm:`<br>`  enabled: false`<br>`  api_key: ""`<br>`  base_url: ""`<br>`  model: ""` |
+| `budget` | Token cost tracking. | `budget:`<br>`  enabled: false`<br>`  daily_limit_usd: 5`<br>`  enforcement: warn`<br>`  warning_threshold: 0.8`<br>`  default_cost:`<br>`    input_per_million: 1.0`<br>`    output_per_million: 3.0` |
+| `fallback_llm` | Failover LLM. | `fallback_llm:`<br>`  enabled: false`<br>`  provider: ""`<br>`  error_threshold: 2`<br>`  probe_interval_seconds: 60` |
+| `a2a` | Agent-to-Agent protocol. | `a2a:`<br>`  server:`<br>`    enabled: false`<br>`    port: 0`<br>`    base_path: "/a2a"`<br>`    agent_name: "AuraGo"`<br>`    streaming: true`<br>`  client:`<br>`    enabled: false`<br>`    remote_agents: []` |
+| `music_generation` | AI music generation. | `music_generation:`<br>`  enabled: false`<br>`  provider: ""`<br>`  model: ""`<br>`  max_daily: 0` |
+| `security_proxy` | Public-facing protection layer. | `security_proxy:`<br>`  enabled: false`<br>`  domain: ""`<br>`  rate_limiting:`<br>`    enabled: true`<br>`    requests_per_second: 10`<br>`  ip_filter:`<br>`    enabled: false`<br>`    mode: blocklist`<br>`  geo_blocking:`<br>`    enabled: false` |
+| `egg_mode` | Distributed cluster worker. | `egg_mode:`<br>`  enabled: false`<br>`  master_url: ""`<br>`  egg_id: ""`<br>`  nest_id: ""`<br>`  tls_skip_verify: false` |
+| `indexing` | File indexing for RAG. | `indexing:`<br>`  enabled: false`<br>`  poll_interval_seconds: 60`<br>`  index_images: false`<br>`  directories: []` |
+| `co_agents` | Parallel sub-agents. | `co_agents:`<br>`  enabled: false`<br>`  max_concurrent: 3`<br>`  budget_quota_percent: 0`<br>`  llm:`<br>`    provider: ""`<br>`  retry_policy:`<br>`    max_retries: 1`<br>`  specialists:`<br>`    researcher:`<br>`      enabled: true` |
+| `tools.daemon_skills` | Background daemon tools. | `tools:`<br>`  daemon_skills:`<br>`    enabled: false`<br>`    max_concurrent_daemons: 5` |
+| `journal` | Auto journal entries. | `journal:`<br>`  auto_entries: true`<br>`  daily_summary: true` |
 
 ---
 

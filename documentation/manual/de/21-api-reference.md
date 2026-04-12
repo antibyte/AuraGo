@@ -740,6 +740,139 @@ POST /api/embeddings/reset
 
 ---
 
+## A2A Protocol API
+
+### A2A Status
+```http
+GET /api/a2a/status
+```
+
+### Remote Agents
+```http
+GET /api/a2a/remote-agents
+POST /api/a2a/remote-agents
+PUT /api/a2a/remote-agents/{id}
+DELETE /api/a2a/remote-agents/{id}
+```
+
+### Agent Card
+```http
+GET /api/a2a/card
+```
+
+### A2A Test
+```http
+POST /api/a2a/test
+```
+
+---
+
+## Invasion Control API
+
+### Nests
+```http
+GET /api/invasion/nests
+```
+
+### Eggs
+```http
+GET /api/invasion/eggs
+POST /api/invasion/eggs
+PUT /api/invasion/eggs/{id}
+DELETE /api/invasion/eggs/{id}
+```
+
+### WebSocket
+```http
+WS /api/invasion/ws
+```
+
+---
+
+## Music Generation API
+
+### Test Connection
+```http
+POST /api/music-generation/test
+```
+
+---
+
+## Document Creator API
+
+### Test Gotenberg Connection
+```http
+POST /api/document-creator/test
+```
+
+---
+
+## Knowledge Graph API
+
+### Nodes
+```http
+GET /api/knowledge-graph/nodes
+POST /api/knowledge-graph/nodes
+```
+
+### Edges
+```http
+GET /api/knowledge-graph/edges
+POST /api/knowledge-graph/edges
+```
+
+### Node Detail
+```http
+GET /api/knowledge-graph/node/{id}
+POST /api/knowledge-graph/node/protect
+```
+
+### Edge Mutate
+```http
+POST /api/knowledge-graph/edge
+```
+
+### Search / Stats / Quality
+```http
+GET /api/knowledge-graph/search
+GET /api/knowledge-graph/stats
+GET /api/knowledge-graph/quality
+GET /api/knowledge-graph/important
+```
+
+---
+
+## Planner API
+
+### Pläne auflisten
+```http
+GET /api/plans
+```
+
+### Aktiven Plan abrufen
+```http
+GET /api/plans/active
+```
+
+### Plan verwalten
+```http
+GET /api/plans/{id}
+PUT /api/plans/{id}
+DELETE /api/plans/{id}
+```
+
+---
+
+## Helper LLM API
+
+### Stats
+```http
+GET /api/debug/helper-llm/stats
+GET /api/dashboard/helper-llm
+```
+
+---
+
 ## Notification API
 
 ### Benachrichtigungen

@@ -256,12 +256,27 @@ Access cloud storage through WebDAV-compatible services.
 4. Save and restart.
 
 ### YAML Reference
+
+**WebDAV:**
 ```yaml
 webdav:
     enabled: true
+    readonly: false
+    auth_type: basic
     url: "https://cloud.example.com/remote.php/dav/files/username/"
     username: "your_username"
 ```
+
+**Koofr:**
+```yaml
+koofr:
+    enabled: true
+    readonly: false
+    username: "your_username"
+    base_url: "https://app.koofr.net"
+```
+
+> 🔒 Passwords are stored in the Vault.
 
 ---
 
@@ -430,19 +445,37 @@ brave_search:
 
 ## MCP (Model Context Protocol)
 
-Connect external MCP servers or expose AuraGo as an MCP server.
+Connect external MCP servers (client) or expose AuraGo itself as an MCP server.
 
 ### Web UI Setup
 1. Open **Config → Integrations → MCP**.
-2. Enable the client and/or server.
-3. Add allowed tools and server commands as needed.
+2. Enable the client and/or server as needed.
+3. Add allowed tools and server commands.
 4. Save and restart.
 
-### YAML Reference
+### MCP Client
+Allows the agent to use tools from external MCP servers.
+
 ```yaml
 mcp:
     enabled: true
     allowed_tools: ["fetch", "filesystem"]
+    servers:
+        - name: "fetch-server"
+          command: "uvx"
+          args: ["mcp-server-fetch"]
+```
+
+### MCP Server
+Exposes AuraGo tools to external clients.
+
+```yaml
+mcp_server:
+    enabled: true
+    port: 8089
+    allowed_tools:
+        - "shell"
+        - "filesystem"
 ```
 
 ---
@@ -605,13 +638,14 @@ tools:
 
 ## AI Gateway Integration
 
-Route AI traffic through Cloudflare AI Gateway.
+Route and monitor AI traffic through Cloudflare AI Gateway.
 
 ### Web UI Setup
 1. Open **Config → Integrations → AI Gateway**.
 2. Enable the integration.
 3. Enter your **Account ID** and **Gateway ID**.
-4. Save and restart.
+4. Optionally enable `log_requests` for detailed logging.
+5. Save and restart.
 
 ### YAML Reference
 ```yaml
@@ -619,6 +653,7 @@ ai_gateway:
     enabled: true
     account_id: "YOUR_ACCOUNT_ID"
     gateway_id: "YOUR_GATEWAY_ID"
+    log_requests: false
 ```
 
 ---
@@ -678,47 +713,75 @@ Access Amazon S3 or compatible object storage.
 ```yaml
 s3:
     enabled: true
+    readonly: false
     endpoint: "s3.amazonaws.com"
     region: "us-east-1"
     bucket: "my-bucket"
+    use_path_style: false
+    insecure: false
 ```
+
+> 🔒 Access key and secret key are stored in the Vault as `s3_access_key` and `s3_secret_key`.
 
 ---
 
 ## SQL Connections Integration
 
-Connect to external SQL databases.
+Connect to external SQL databases (PostgreSQL, MySQL/MariaDB, SQLite).
 
 ### Web UI Setup
 1. Open **Config → Integrations → SQL Connections**.
 2. Enable the integration.
-3. Add a connection with **Driver**, **DSN**, and **Host**.
+3. Add a connection with **Driver**, **Host**, **Port**, and **Database**.
 4. Store credentials in the Vault.
-5. Save and restart.
+5. Adjust `max_result_rows` and timeouts as needed.
+6. Save and restart.
+
+> 💡 **Security:** Use dedicated read-only users when possible.
 
 ### YAML Reference
 ```yaml
 sql_connections:
     enabled: true
+    max_result_rows: 1000
+    connections:
+        - name: "production"
+          driver: "postgres"
+          host: "db.example.com"
+          port: 5432
+          database: "aurago"
+          username: "aurago_readonly"
+          password_vault_key: "sql_prod_password"
+          read_only: true
+          max_pool_size: 5
+          connect_timeout: 10
+          query_timeout: 30
 ```
 
 ---
 
 ## OneDrive Integration
 
-Access Microsoft OneDrive files.
+Access Microsoft OneDrive files via Microsoft Graph API.
 
 ### Web UI Setup
 1. Open **Config → Integrations → OneDrive**.
 2. Enable the integration.
 3. Enter your Azure AD **Client ID** and **Tenant ID**.
-4. Save and restart.
+4. Start OAuth2 authentication from the Web UI.
+5. Save and restart.
 
 ### YAML Reference
 ```yaml
 onedrive:
     enabled: true
     client_id: "YOUR_CLIENT_ID"
+    tenant_id: "common"
+    client_secret_vault_key: "onedrive_client_secret"
+    graph_scopes:
+        - "Files.Read"
+        - "Files.ReadWrite"
+    upload_folder: "AuraGo"
 ```
 
 ---
@@ -730,14 +793,20 @@ Deploy a personal start-page dashboard.
 ### Web UI Setup
 1. Open **Config → Integrations → Homepage**.
 2. Enable the integration.
-3. Configure deployment host, path, and webserver options.
-4. Save and restart.
+3. Configure deployment host, user, and target path.
+4. Optionally enable the local webserver (`allow_local_server`).
+5. Save and restart.
 
 ### YAML Reference
 ```yaml
 homepage:
     enabled: true
+    deploy_host: "server.example.com"
+    deploy_user: "deploy"
+    deploy_path: "/var/www/homepage"
+    webserver_config_path: "/etc/nginx/sites-available/homepage"
     allow_deploy: true
+    allow_local_server: false
 ```
 
 ---
@@ -759,9 +828,19 @@ AuraGo can manage the `cloudflared` container automatically.
 ```yaml
 cloudflare_tunnel:
     enabled: true
+    mode: auto
+    auth_method: token
     account_id: "YOUR_ACCOUNT_ID"
+    tunnel_name: "aurago"
     tunnel_id: "YOUR_TUNNEL_ID"
+    expose_web_ui: true
+    expose_homepage: false
+    loopback_port: 18080
+    metrics_port: 0
+    log_level: info
 ```
+
+> 🔒 The connector token is stored in the Vault as `cloudflare_tunnel_token`.
 
 ---
 
@@ -858,6 +937,11 @@ Text-to-speech and speech-to-text.
 tts:
     provider: google
     language: en
+    cache_retention_hours: 24
+    cache_max_files: 100
+    piper:
+        voice: "en_US-lessac-high"
+        container_port: 10200
 whisper:
     provider: openai
 ```
@@ -952,6 +1036,165 @@ Infrastructure automation via Ansible.
 ansible:
     enabled: true
     api_url: "http://ansible-api:5000"
+```
+
+## A2A Protocol Integration
+
+AuraGo supports the Google A2A (Agent-to-Agent) protocol for communication between AI agents.
+
+### Web UI Setup
+1. Open **Config → Integrations → A2A**.
+2. Enable the server and configure the agent card.
+3. Add remote agents for cross-agent collaboration.
+4. Save and restart.
+
+### YAML Reference
+```yaml
+a2a:
+  server:
+    enabled: true
+    port: 0
+    base_path: "/a2a"
+    agent_name: "AuraGo"
+    streaming: true
+    push_notifications: true
+    bindings:
+      rest: true
+      json_rpc: true
+      grpc: true
+      grpc_port: 50051
+  client:
+    enabled: true
+    remote_agents: []
+  auth:
+    api_key_enabled: true
+    bearer_enabled: true
+```
+
+## Music Generation Integration
+
+AI music generation via supported providers.
+
+### Web UI Setup
+1. Open **Config → Integrations → Music Generation**.
+2. Enable the integration and set the provider and daily limits.
+3. Save and restart.
+
+### YAML Reference
+```yaml
+music_generation:
+  enabled: true
+  provider: ""
+  model: ""
+  max_daily: 10
+```
+
+## Firewall Integration
+
+Linux firewall monitoring and management (iptables/ufw).
+
+### Web UI Setup
+1. Open **Config → Integrations → Firewall**.
+2. Enable the integration and choose the mode.
+3. Save and restart.
+
+### YAML Reference
+```yaml
+firewall:
+  enabled: true
+  mode: "readonly"
+  poll_interval_seconds: 60
+```
+
+## Invasion Control Integration
+
+Remote deployment system for AuraGo worker instances (eggs) across nests.
+
+### Web UI Setup
+1. Open **Config → Invasion Control**.
+2. Manage nests and deploy eggs.
+3. Monitor status and send tasks remotely.
+
+### YAML Reference
+```yaml
+invasion_control:
+  enabled: true
+  readonly: false
+```
+
+## Document Creator (Gotenberg) Integration
+
+PDF creation and document conversion. Supports the built-in Maroto backend or an external Gotenberg sidecar.
+
+### Web UI Setup
+1. Open **Config → Integrations → Document Creator**.
+2. Choose the backend (maroto or gotenberg).
+3. Configure the output directory and sidecar URL if needed.
+4. Save and restart.
+
+### YAML Reference
+```yaml
+tools:
+  document_creator:
+    enabled: true
+    backend: "maroto"
+    output_dir: "data/documents"
+    gotenberg:
+      url: "http://gotenberg:3000"
+      timeout: 120
+```
+
+---
+
+## Security Proxy
+
+Protection layer for publicly reachable AuraGo instances with rate limiting, IP filtering, and geo-blocking.
+
+### Web UI Setup
+1. Open **Config → Integrations → Security Proxy**.
+2. Enable the proxy.
+3. Configure rate limiting (requests per minute).
+4. Optionally define allowed/blocked IPs or countries.
+5. Save and restart.
+
+### YAML Reference
+```yaml
+security_proxy:
+    enabled: true
+    domain: "aurago.example.com"
+    rate_limiting:
+        enabled: true
+        requests_per_minute: 60
+    ip_filter:
+        enabled: false
+        allowed_ips: []
+        blocked_ips: []
+    geo_blocking:
+        enabled: false
+        blocked_countries: []
+```
+
+---
+
+## Egg Mode (Invasion Control)
+
+Connect multiple AuraGo instances into a distributed nest (cluster). Individual instances are called "eggs".
+
+### Web UI Setup
+1. Open **Config → Integrations → Egg Mode**.
+2. Enable **Egg Mode**.
+3. Enter the **Master URL** of the main instance.
+4. Optionally set **Egg ID** and **Nest ID**.
+5. Save and restart.
+
+### YAML Reference
+```yaml
+egg_mode:
+    enabled: false
+    master_url: "https://master.aurago.local:8088"
+    egg_id: "egg-01"
+    nest_id: "nest-main"
+    api_key_vault_key: "egg_api_key"
 ```
 
 ---

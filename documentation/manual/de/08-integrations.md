@@ -178,8 +178,10 @@ VM- und Container-Verwaltung.
 ```yaml
 proxmox:
   enabled: true
+  readonly: false
   url: "https://proxmox.example.com:8006"
   node: "pve"
+  token_id: "user@pam!tokenname"
 ```
 
 ## Webhooks
@@ -332,8 +334,11 @@ Verwalte ZFS-Storage-Pools, Datasets, Snapshots und Shares.
 ```yaml
 truenas:
   enabled: true
+  readonly: false
   host: "truenas.local"
+  port: 443
   use_https: true
+  allow_destructive: false
 ```
 
 ## FritzBox Integration
@@ -367,7 +372,7 @@ adguard:
 
 Verbindung mit der n8n Workflow-Automatisierungsplattform.
 
-**Web-UI:** Config → Integrationen → n8n → Base-URL und API-Key eingeben.
+**Web-UI:** Config → Integrationen → n8n → Webhook Base-URL und erlaubte Tools/Scopes konfigurieren.
 
 > 💡 AuraGo bietet einen offiziellen n8n Community Node: `@antibyte/n8n-nodes-aurago`
 
@@ -375,7 +380,13 @@ Verbindung mit der n8n Workflow-Automatisierungsplattform.
 ```yaml
 n8n:
   enabled: true
-  base_url: "https://n8n.deinedomain.com"
+  readonly: false
+  webhook_base_url: "https://n8n.deinedomain.com/webhook"
+  allowed_events: ["message", "tool_result"]
+  require_token: true
+  allowed_tools: ["*"]
+  rate_limit_rps: 10
+  scopes: ["chat", "tools", "memory"]
 ```
 
 ## Notifications
@@ -419,16 +430,35 @@ virustotal:
 
 ## MCP (Model Context Protocol)
 
-Verbinde externe MCP-Server oder stelle AuraGo als MCP-Server bereit.
+Verbinde externe MCP-Server (Client) oder stelle AuraGo selbst als MCP-Server bereit.
 
-**Web-UI:** Config → Integrationen → MCP → Allowed Tools auswählen und Server-Konfiguration hinzufügen.
+**Web-UI:** Config → Integrationen → MCP → Client/Server konfigurieren.
 
-### YAML-Referenz
+### MCP-Client
+Erlaubt dem Agenten, Tools von externen MCP-Servern zu nutzen.
+
 ```yaml
 mcp:
   enabled: true
   allowed_tools:
     - "fetch"
+    - "filesystem"
+  servers:
+    - name: "fetch-server"
+      command: "uvx"
+      args: ["mcp-server-fetch"]
+```
+
+### MCP-Server
+Stellt AuraGo-Tools für externe Clients bereit.
+
+```yaml
+mcp_server:
+  enabled: true
+  port: 8089
+  allowed_tools:
+    - "shell"
+    - "filesystem"
 ```
 
 ## SQL Connections – Externe Datenbanken
@@ -449,6 +479,18 @@ Verbinde AuraGo mit PostgreSQL, MySQL/MariaDB oder SQLite.
 sql_connections:
   enabled: true
   max_result_rows: 1000
+  connections:
+    - name: "produktion"
+      driver: "postgres"
+      host: "db.example.com"
+      port: 5432
+      database: "aurago"
+      username: "aurago_readonly"
+      password_vault_key: "sql_prod_password"
+      read_only: true
+      max_pool_size: 5
+      connect_timeout: 10
+      query_timeout: 30
 ```
 
 ## S3-kompatible Cloud Storage
@@ -474,26 +516,47 @@ s3:
 
 Zugriff auf Microsoft OneDrive über Microsoft Graph API.
 
-**Web-UI:** Config → Integrationen → OneDrive → Client ID und Tenant ID eingeben. Die OAuth2-Authentifizierung läuft über die Web-UI.
+### Einrichtung in der Web-UI
+1. Öffne **Config → Integrationen → OneDrive**.
+2. Aktiviere die Integration.
+3. Trage **Client ID** und **Tenant ID** ein.
+4. Starte die OAuth2-Authentifizierung über die Web-UI.
+5. Speichere und starte neu.
 
 ### YAML-Referenz
 ```yaml
 onedrive:
   enabled: true
+  client_id: "YOUR_CLIENT_ID"
   tenant_id: "common"
+  client_secret_vault_key: "onedrive_client_secret"
+  graph_scopes:
+    - "Files.Read"
+    - "Files.ReadWrite"
+  upload_folder: "AuraGo"
 ```
 
 ## Homepage Integration
 
 Erstelle und deploye persönliche Startseiten/Dashboards.
 
-**Web-UI:** Config → Integrationen → Homepage → Deployment-Host, Benutzer und Zielpfad konfigurieren.
+### Einrichtung in der Web-UI
+1. Öffne **Config → Integrationen → Homepage**.
+2. Aktiviere die Integration.
+3. Konfiguriere Deployment-Host, Benutzer und Zielpfad.
+4. Optional: Aktiviere lokalen Webserver (`allow_local_server`).
+5. Speichere und starte neu.
 
 ### YAML-Referenz
 ```yaml
 homepage:
   enabled: true
   deploy_host: "server.example.com"
+  deploy_user: "deploy"
+  deploy_path: "/var/www/homepage"
+  webserver_config_path: "/etc/nginx/sites-available/homepage"
+  allow_deploy: true
+  allow_local_server: false
 ```
 
 ## Cloudflare Tunnel
@@ -523,12 +586,20 @@ cloudflare_tunnel:
 
 Routing und Monitoring für LLM-Traffic über Cloudflare AI Gateway.
 
-**Web-UI:** Config → Integrationen → AI Gateway → Account ID und Gateway ID eingeben.
+### Einrichtung in der Web-UI
+1. Öffne **Config → Integrationen → AI Gateway**.
+2. Aktiviere die Integration.
+3. Trage **Account ID** und **Gateway ID** ein.
+4. Optional: Aktiviere `log_requests` für detailliertes Logging.
+5. Speichere und starte neu.
 
 ### YAML-Referenz
 ```yaml
 ai_gateway:
   enabled: true
+  account_id: "YOUR_ACCOUNT_ID"
+  gateway_id: "YOUR_GATEWAY_ID"
+  log_requests: false
 ```
 
 ## Chromecast Integration
@@ -642,13 +713,15 @@ tools:
 
 Media-Server-Verwaltung.
 
-**Web-UI:** Config → Integrationen → Jellyfin → URL und Username eingeben. Passwort im Vault speichern.
+**Web-UI:** Config → Integrationen → Jellyfin → URL eingeben. API-Key im Vault speichern.
 
 ### YAML-Referenz
 ```yaml
 jellyfin:
   enabled: true
   url: "https://jellyfin.local:8096"
+  readonly: false
+  allow_destructive: false
 ```
 
 ## Image Generation
@@ -726,8 +799,155 @@ Sprachsynthese (TTS) und Spracherkennung.
 ### YAML-Referenz
 ```yaml
 tts:
-  enabled: true
   provider: "piper"
+  language: "de"
+  cache_retention_hours: 24
+  cache_max_files: 100
+  piper:
+    voice: "de_DE-thorsten-high"
+    container_port: 10200
+```
+
+## A2A Protocol
+
+AuraGo unterstützt das Google A2A (Agent-to-Agent) Protokoll für die Kommunikation zwischen KI-Agenten.
+
+**Web-UI:** Config → Integrationen → A2A → Server-Port, Agent Card und Remote Agents konfigurieren.
+
+### YAML-Referenz
+```yaml
+a2a:
+  server:
+    enabled: true
+    port: 0
+    base_path: "/a2a"
+    agent_name: "AuraGo"
+    streaming: true
+    push_notifications: true
+    bindings:
+      rest: true
+      json_rpc: true
+      grpc: true
+      grpc_port: 50051
+  client:
+    enabled: true
+    remote_agents: []
+  auth:
+    api_key_enabled: true
+    bearer_enabled: true
+```
+
+## Music Generation
+
+KI-Musik-Generierung über unterstützte Provider.
+
+**Web-UI:** Config → Integrationen → Music Generation → Provider und Limits einstellen.
+
+### YAML-Referenz
+```yaml
+music_generation:
+  enabled: true
+  provider: ""
+  model: ""
+  max_daily: 10
+```
+
+## Firewall
+
+Linux-Firewall-Überwachung und -Verwaltung (iptables/ufw).
+
+**Web-UI:** Config → Integrationen → Firewall → Modus und Polling-Intervall konfigurieren.
+
+### YAML-Referenz
+```yaml
+firewall:
+  enabled: true
+  mode: "readonly"
+  poll_interval_seconds: 60
+```
+
+## Invasion Control
+
+Remote-Deployment-System für AuraGo-Worker (Eggs) in verschiedenen Nests.
+
+**Web-UI:** Config → Invasion Control → Nests und Eggs verwalten.
+
+### YAML-Referenz
+```yaml
+invasion_control:
+  enabled: true
+  readonly: false
+```
+
+## Document Creator (Gotenberg)
+
+PDF-Erstellung und Dokumenten-Konvertierung. Unterstützt den eingebauten Maroto-Backend oder einen externen Gotenberg-Sidecar.
+
+**Web-UI:** Config → Integrationen → Document Creator → Backend wählen (maroto/gotenberg).
+
+### YAML-Referenz
+```yaml
+tools:
+  document_creator:
+    enabled: true
+    backend: "maroto"
+    output_dir: "data/documents"
+    gotenberg:
+      url: "http://gotenberg:3000"
+      timeout: 120
+```
+
+---
+
+## Security Proxy
+
+Schutzschicht für öffentlich erreichbare AuraGo-Instanzen mit Rate-Limiting, IP-Filter und Geo-Blocking.
+
+### Einrichtung in der Web-UI
+1. Öffne **Config → Integrationen → Security Proxy**.
+2. Aktiviere den Proxy.
+3. Konfiguriere Rate-Limiting (Requests pro Minute).
+4. Optional: Definiere erlaubte/blockierte IPs oder Länder.
+5. Speichere und starte neu.
+
+### YAML-Referenz
+```yaml
+security_proxy:
+  enabled: true
+  domain: "aurago.example.com"
+  rate_limiting:
+    enabled: true
+    requests_per_minute: 60
+  ip_filter:
+    enabled: false
+    allowed_ips: []
+    blocked_ips: []
+  geo_blocking:
+    enabled: false
+    blocked_countries: []
+```
+
+---
+
+## Egg Mode (Invasion Control)
+
+Verbinde mehrere AuraGo-Instanzen zu einem verteilten Nest (Cluster). Einzelne Instanzen werden als „Eggs“ bezeichnet.
+
+### Einrichtung in der Web-UI
+1. Öffne **Config → Integrationen → Egg Mode**.
+2. Aktiviere **Egg Mode**.
+3. Trage die **Master-URL** der Hauptinstanz ein.
+4. Optional: Vergebe **Egg ID** und **Nest ID**.
+5. Speichere und starte neu.
+
+### YAML-Referenz
+```yaml
+egg_mode:
+  enabled: false
+  master_url: "https://master.aurago.local:8088"
+  egg_id: "egg-01"
+  nest_id: "nest-main"
+  api_key_vault_key: "egg_api_key"
 ```
 
 ---

@@ -290,6 +290,8 @@
             renderLogs(logResults);
             scrollLogsToBottom();
             renderGitHubRepos(githubRepos);
+            // Load file sync status for the dashboard card
+            loadFileSyncStatus();
         }
 
         function renderKnowledgeGraphSummary(nodes, edges, stats) {

@@ -208,10 +208,10 @@ function showDisabledState() {
         } catch (_) { }
     }
 
-    function renderDaemonSettings(skill) {
+    function renderDaemonSettings(skill, daemon) {
         const isDaemon = skill.IsDaemon || skill.is_daemon;
         if (!isDaemon) return '';
-        const daemon = skill.daemon || skill.Daemon || {};
+        daemon = daemon || {};
         const wakeAgent = daemon.wake_agent !== false;
         const missionId = daemon.trigger_mission_id || '';
         const missionName = daemon.trigger_mission_name || '';
@@ -545,7 +545,7 @@ function showDisabledState() {
                 return `<code class="sk-vault-key-tag">${esc(k)}</code>`;
             }).join(' ') : `<span class="sk-vault-none">${t('skills.vault_none') || 'No secrets assigned'}</span>`}</span></div>
             </div>
-            ${renderDaemonSettings(s)}
+            ${renderDaemonSettings(s, data.daemon)}
             ${renderSkillHistory(detailVersions)}
             ${renderSkillAudit(detailAudit)}
             ${secHTML}`;

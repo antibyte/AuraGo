@@ -66,6 +66,9 @@ List available skill templates.
 ### `create_skill_from_template`
 Create a skill from a template (api_client, file_processor, data_transformer, scraper).
 
+### `golangci_lint`
+Run golangci-lint on Go code (code quality checks).
+
 ---
 
 ## Filesystem
@@ -232,6 +235,41 @@ Manage journal entries (events, milestones).
 | `tags` | string | Comma-separated tags |
 | `importance` | integer | 1-5 |
 
+### `secrets_vault`
+Store/retrieve encrypted secrets in the vault.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `operation` | enum | get, set, delete, list |
+| `key` | string | Secret name |
+| `value` | string | Secret value |
+
+### `cron_scheduler`
+Schedule recurring cron jobs.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `operation` | enum | add, list, remove, enable, disable |
+| `cron_expr` | string | Cron expression |
+| `task_prompt` | string | Task |
+| `label` | string | Label |
+
+### `manage_missions`
+Manage Mission Control background tasks.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `operation` | enum | add, list, update, delete, run |
+| `title` | string | Mission name |
+| `command` | string | Task prompt |
+| `cron_expr` | string | Cron expression |
+
+### `manage_daemon`
+Manage daemon skills (long-running background processes).
+
+### `context_manager`
+Manage session contexts and switch between them.
+
 ---
 
 ## Communication & Media
@@ -263,6 +301,9 @@ Generate AI images (text-to-image, image-to-image).
 
 ### `media_registry`
 Browse/manage media registry (images, TTS, audio).
+
+### `generate_music`
+Generate AI music (text-to-music).
 
 ---
 
@@ -304,6 +345,16 @@ Execute command on remote SSH server.
 | `server_id` | string | Server ID or hostname |
 | `command` | string | Command to execute |
 | `direction` | enum | upload, download (for file transfer) |
+
+### `transfer_remote_file`
+Transfer files to/from a remote SSH server.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `server_id` | string | Server ID or hostname |
+| `remote_path` | string | Path on remote server |
+| `local_path` | string | Local path |
+| `direction` | enum | upload, download |
 
 ### `remote_control`
 Control connected remote devices.
@@ -508,15 +559,6 @@ VirusTotal threat intelligence scan.
 ### `firewall`
 Manage Linux firewall (iptables/ufw).
 
-### `secrets_vault`
-Store/retrieve encrypted secrets.
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `operation` | enum | get, set, delete, list |
-| `key` | string | Secret name |
-| `value` | string | Secret value |
-
 ---
 
 ## Web & Scraping
@@ -629,26 +671,6 @@ Manage external database connections.
 
 ## Infrastructure
 
-### `manage_missions`
-Manage Mission Control background tasks.
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `operation` | enum | add, list, update, delete, run |
-| `title` | string | Mission name |
-| `command` | string | Task prompt |
-| `cron_expr` | string | Cron expression |
-
-### `cron_scheduler`
-Schedule recurring cron jobs.
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `operation` | enum | add, list, remove, enable, disable |
-| `cron_expr` | string | Cron expression |
-| `task_prompt` | string | Task |
-| `label` | string | Label |
-
 ### `invasion_control`
 Manage Invasion Control (remote deployment).
 
@@ -700,18 +722,14 @@ Initiate/control voice calls via Telnyx.
 ### `telnyx_manage`
 Manage Telnyx resources (numbers, balance, history).
 
-### `email`
-Send/receive emails.
+### `fetch_email`
+Fetch emails from registered accounts.
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `operation` | enum | fetch, send |
-| `to` | string | Recipient |
-| `subject` | string | Subject |
-| `body` | string | Message |
+### `send_email`
+Send emails via registered accounts.
 
-### `fetch_email` / `send_email` / `list_email_accounts`
-Detailed email operations.
+### `list_email_accounts`
+List registered email accounts.
 
 ### `mcp_call`
 Call external MCP (Model Context Protocol) servers.
@@ -739,6 +757,7 @@ Not all tools are available by default. Availability depends on **Tool Feature F
 - `dns_lookup`, `whois_lookup`
 - `detect_file_type`, `archive`
 - `pdf_operations`, `image_processing`
+- `tts`
 
 ### Danger Zone (Configurable Permissions)
 | Flag | Tools |
@@ -775,14 +794,11 @@ Not all tools are available by default. Availability depends on **Tool Feature F
 | `mcp_enabled` | `mcp_call` |
 | `sandbox_enabled` | `execute_sandbox` |
 | `meshcentral_enabled` | `meshcentral` |
-| `chromecast_enabled` | `chromecast`, `tts` |
-| `discord_enabled` | `discord_bridge` |
-| `notification_enabled` | `send_notification` |
+| `chromecast_enabled` | `chromecast` |
+| `discord_enabled` | `send_discord`, `fetch_discord`, `list_discord_channels` |
 | `jellyfin_enabled` | `jellyfin` |
-| `paperless_enabled` | `paperless` |
 | `truenas_enabled` | `truenas` |
 | `koofr_enabled` | `koofr` |
-| `github_projects_enabled` | `github_projects` |
 | `homepage_enabled` | `homepage`, `homepage_registry` |
 | `firewall_enabled` | `firewall` |
 | `email_enabled` | `fetch_email`, `send_email`, `list_email_accounts` |
@@ -792,8 +808,17 @@ Not all tools are available by default. Availability depends on **Tool Feature F
 | `network_scan_enabled` | `mdns_scan`, `mac_lookup` |
 | `network_ping_enabled` | `network_ping`, `port_scanner` |
 | `upnp_scan_enabled` | `upnp_scan` |
-| `form_automation_enabled` | `form_automation` |
+| `form_automation_enabled` | `form_automation` (requires `web_capture_enabled` as well) |
 | `sql_connections_enabled` | `sql_query`, `manage_sql_connections` |
+| `music_generation_enabled` | `generate_music` |
+| `golangci_lint_enabled` | `golangci_lint` |
+| `daemon_skills_enabled` | `manage_daemon` |
+| `remote_control_enabled` | `remote_control` |
+| `document_creator_enabled` | `document_creator` |
+| `web_capture_enabled` | `web_capture`, `web_performance_audit` |
+| `planner_enabled` | `manage_appointments`, `manage_todos` |
+| `media_registry_enabled` | `media_registry` |
+| `homepage_registry_enabled` | `homepage_registry` |
 
 ---
 
@@ -810,7 +835,7 @@ Not all tools are available by default. Availability depends on **Tool Feature F
 ## Additional Tools & Integrations
 
 ### `tts`
-Text-to-Speech synthesis via configurable providers (ElevenLabs, Piper, Wyoming).
+Text-to-Speech synthesis via configurable providers (ElevenLabs, Piper, MiniMax, Wyoming). Always available.
 
 ### `chromecast`
 Discover and control Chromecast devices on the network (Play, TTS, Discover).
@@ -833,59 +858,8 @@ Manage TrueNAS SCALE storage (pools, datasets, shares, snapshots).
 ### `jellyfin`
 Control Jellyfin Media Server (libraries, sessions, playback).
 
-### `paperless`
-Paperless-ngx document management (upload, search, tags, correspondents).
-
 ### `koofr`
 Koofr cloud storage file operations (list, upload, download, links).
 
-### `ollama_managed`
-Deploy and run Ollama as a managed Docker container.
-
-### `ollama_embeddings`
-Generate local embeddings via Ollama.
-
-### `github_projects`
-Manage GitHub Projects (Kanban boards) and issues.
-
 ### `pdf_extractor`
-Extract text and metadata from PDF files (including OCR support).
-
-### `missions_v2`
-Advanced Mission Control with triggers, conditions, and workflows.
-
-### `background_tasks`
-Manage background tasks (follow-ups, cron-prompts, event-waiting).
-
-### `discord_bridge`
-Send Discord messages and query channels.
-
-### `send_notification` / `notification`
-Send system notifications and push messages.
-
-### `media_seed`
-Prepare, tag, and manage media assets for projects.
-
-### `json_output`
-Format and validate structured JSON outputs.
-
-### `webdav`
-WebDAV file access (read, write, list, delete, move).
-
-### `skill_history`
-Retrieve and analyze skill execution history.
-
-### `skill_security`
-Run security checks on skills.
-
-### `skill_validation`
-Validate skills before execution.
-
-### `optimize_memory`
-Optimize memory system (deduplication, relevance scoring).
-
-### `manage_plan`
-Manage plans, schedules, and deadlines.
-
-### `handoff` / `initiate_handover` / `exit_lifeboat`
-Maintenance mode handover for Lifeboat updates and `execute_surgery`.
+Extract text and metadata from PDF files (including OCR support). Executed as a skill.

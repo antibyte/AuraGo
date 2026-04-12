@@ -77,6 +77,13 @@ invasion_control: # Remote Deployment
 indexing:         # Datei-Indexierung
 sandbox:          # Isolierte Ausführung
 notifications:    # Push-Benachrichtigungen
+personality:      # Persönlichkeit & Stimmung
+a2a:              # Agent-to-Agent Protokoll
+music_generation: # KI-Musikgenerierung
+security_proxy:   # Reverse Proxy & Schutz
+egg_mode:         # Cluster-Worker-Mode
+firewall:         # Firewall-Integration
+journal:          # Auto-Journaleinträge
 ```
 
 ---
@@ -128,6 +135,8 @@ server:
   host: "127.0.0.1"
   port: 8088
   max_body_bytes: 10485760
+  ui_language: "de"
+  oauth_redirect_base_url: ""
   https:
     enabled: false
     cert_mode: auto
@@ -140,6 +149,8 @@ server:
 | `host` | `127.0.0.1` | Bind-Adresse |
 | `port` | `8088` | HTTP-Port |
 | `max_body_bytes` | `10485760` | Maximale Request-Größe |
+| `ui_language` | `"de"` | Standard-Sprache der Web-UI |
+| `oauth_redirect_base_url` | `""` | Basis-URL für OAuth-Callbacks (z. B. `http://localhost:8088`) |
 
 ---
 
@@ -161,8 +172,8 @@ agent:
   allow_network_requests: true
   allow_remote_shell: true
   allow_self_update: true
-  allow_mcp: true
-  allow_web_scraper: true
+  allow_mcp: false            # bei Neuinstallationen standardmäßig false
+  allow_web_scraper: false    # bei Neuinstallationen standardmäßig false
   sudo_enabled: false
 ```
 
@@ -200,6 +211,15 @@ tools:
   scheduler:
     enabled: true
     readonly: false
+  journal:
+    enabled: true
+    readonly: false
+  daemon_skills:
+    enabled: true
+    max_concurrent_daemons: 3
+    global_rate_limit_secs: 60
+    max_wakeups_per_hour: 10
+    max_budget_per_hour_usd: 1.0
   web_scraper:
     enabled: true
     summary_mode: false
@@ -271,6 +291,76 @@ agent:
 
 ---
 
+## Personality – Persönlichkeit
+
+Unter *Config → Personality* lässt sich das Verhalten und die Stimmung von AuraGo anpassen.
+
+```yaml
+personality:
+  engine: friend
+  engine_v2: true
+  user_profiling: false
+  emotion_synthesizer:
+    enabled: false
+    max_history_entries: 100
+  inner_voice:
+    enabled: false
+    min_interval_secs: 60
+    max_per_session: 20
+```
+
+| Parameter | Standard | Beschreibung |
+|-----------|----------|--------------|
+| `engine` | `friend` | Basisprofil: `friend`, `professional`, `punk`, `neutral`, `terminator` |
+| `engine_v2` | `true` | LLM-basierte Stimmungsanalyse |
+| `user_profiling` | `false` | Präferenzen aus Gesprächen lernen |
+| `emotion_synthesizer.enabled` | `false` | Emotionssynthese für Antworten |
+| `inner_voice.enabled` | `false` | Unterbewusste Verhaltensanpassung |
+
+---
+
+## Co-Agents – Parallele Sub-Agenten
+
+Aktiviere spezialisierte Co-Agents für komplexe Aufgaben unter *Config → Co-Agents*.
+
+```yaml
+co_agents:
+  enabled: false
+  max_concurrent: 3
+  budget_quota_percent: 0
+  max_result_bytes: 50000
+  queue_when_busy: false
+  llm:
+    provider: ""
+  circuit_breaker:
+    max_tool_calls: 50
+    timeout_seconds: 120
+  retry_policy:
+    max_retries: 1
+    retry_delay_seconds: 5
+  specialists:
+    researcher:
+      enabled: true
+    coder:
+      enabled: true
+    designer:
+      enabled: true
+    security:
+      enabled: true
+    writer:
+      enabled: true
+```
+
+| Parameter | Standard | Beschreibung |
+|-----------|----------|--------------|
+| `enabled` | `false` | Co-Agents aktivieren |
+| `max_concurrent` | `3` | Maximale parallele Co-Agents |
+| `budget_quota_percent` | `0` | Tagesbudget-Reserve für Co-Agents |
+| `queue_when_busy` | `false` | Warteschlange statt Ablehnung bei voller Auslastung |
+| `retry_policy.max_retries` | `1` | Wiederholungen bei temporären Fehlern |
+
+---
+
 ## Weitere Konfigurationsblöcke (Übersicht)
 
 Die folgenden Blöcke können ebenfalls über die Web-UI oder ergänzend in `config.yaml` konfiguriert werden. Die wichtigsten Parameter sind hier kompakt zusammengefasst:
@@ -279,7 +369,12 @@ Die folgenden Blöcke können ebenfalls über die Web-UI oder ergänzend in `con
 |-------|-------|-------------------|
 | `telegram` | Telegram Bot | `telegram:\n  bot_token: "..."\n  telegram_user_id: 12345678` |
 | `discord` | Discord Bot | `discord:\n  enabled: true\n  bot_token: "..."\n  guild_id: "..."` |
-| `email` | E-Mail IMAP/SMTP | `email:\n  enabled: true\n  imap_host: imap.gmail.com\n  smtp_host: smtp.gmail.com` |
+| `email_accounts` | E-Mail IMAP/SMTP (Array) | `email_accounts:
+  - id: personal
+    name: Personal
+    imap_host: imap.gmail.com
+    smtp_host: smtp.gmail.com` |
+| `email` | *(Legacy)* E-Mail IMAP/SMTP | `email:\n  enabled: true\n  imap_host: imap.gmail.com\n  smtp_host: smtp.gmail.com` |
 | `home_assistant` | Home Assistant | `home_assistant:\n  enabled: true\n  url: "http://homeassistant.local:8123"` |
 | `docker` | Docker API | `docker:\n  enabled: true\n  host: "unix:///var/run/docker.sock"` |
 | `budget` | Kostenkontrolle | `budget:\n  enabled: false\n  daily_limit_usd: 5\n  enforcement: warn` |
@@ -292,13 +387,53 @@ Die folgenden Blöcke können ebenfalls über die Web-UI oder ergänzend in `con
 | `sandbox` | Isolierte Ausführung | `sandbox:\n  enabled: true\n  backend: docker\n  network_enabled: false` |
 | `notifications` | Push-Benachrichtigungen | `notifications:\n  ntfy:\n    enabled: false\n  pushover:\n    enabled: true` |
 | `tailscale` | Tailscale VPN | `tailscale:\n  enabled: false\n  tsnet:\n    enabled: false` |
-| `proxmox` / `meshcentral` / `ansible` / `ollama` | Infrastruktur | Jeweils `enabled: false`, `url: "", readonly: false` |
+| `ollama` | Lokale LLM-Verwaltung | `ollama:
+  enabled: false
+  url: ""
+  managed_instance:
+    enabled: false
+    container_port: 11434
+    use_host_gpu: false
+    gpu_backend: auto` |
+| `proxmox` / `meshcentral` / `ansible` | Infrastruktur | Jeweils `enabled: false`, `url: "", readonly: false` |
 | `github` | GitHub API | `github:\n  enabled: false\n  owner: ""` |
 | `s3` / `onedrive` / `webdav` / `koofr` | Cloud-Speicher | Jeweils `enabled: false`, Endpoint/Credentials in UI/Vault |
 | `paperless_ngx` | Dokumentenworkflow | `paperless_ngx:\n  enabled: false\n  url: ""` |
 | `telnyx` / `rocketchat` | Telefonie/Chat | `enabled: false`, Details über Web-UI |
 | `google_workspace` | Google APIs | `google_workspace:\n  enabled: false\n  gmail: false\n  drive: false` |
-| `egg_mode` / `invasion_control` | Verteilte Agenten | Siehe [Kapitel 12: Invasion Control](./12-invasion.md) |
+| `egg_mode` | Worker-Mode | `egg_mode:
+  enabled: false
+  master_url: ""
+  egg_id: ""
+  nest_id: ""` |
+| `invasion_control` | Remote Deployment | `invasion_control:
+  enabled: false
+  readonly: false` |
+| `security_proxy` | Reverse Proxy | `security_proxy:
+  enabled: false
+  domain: ""
+  rate_limiting:
+    enabled: true` |
+| `indexing` | Datei-Indexierung | `indexing:
+  enabled: false
+  poll_interval_seconds: 60
+  index_images: false` |
+| `a2a` | Agent-to-Agent | `a2a:
+  server:
+    enabled: false
+    port: 0
+  client:
+    enabled: false` |
+| `music_generation` | KI-Musik | `music_generation:
+  enabled: false
+  provider: ""
+  max_daily: 0` |
+| `firewall` | Firewall-Integration | `firewall:
+  enabled: false
+  mode: readonly` |
+| `journal` | Journaleinträge | `journal:
+  auto_entries: true
+  daily_summary: true` |
 
 > 📖 Für Details zu allen verfügbaren Parametern siehe `config_template.yaml` im Projektverzeichnis.
 
@@ -394,7 +529,7 @@ AuraGo validiert die Konfiguration beim Start:
 | `providers` | Zentrale LLM-Verwaltung |
 | `llm` | Haupt-LLM Auswahl |
 | `embeddings` | RAG/Langzeitgedächtnis |
-| `agent` | Verhalten & Persönlichkeit |
+| `agent` | Verhalten & Berechtigungen |
 | `tools.*` | Tool-Berechtigungen |
 | `server` | Web-UI Einstellungen |
 | `telegram/discord/email` | Integrationen |

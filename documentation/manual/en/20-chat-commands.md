@@ -18,6 +18,8 @@ AuraGo supports **Slash Commands** – commands that can be entered directly in 
 | `/personality [name]` | Lists or switches personalities | Always |
 | `/budget [en]` | Shows current budget status | If budget tracking enabled |
 | `/sudopwd <password>` | Stores sudo password in vault | Always |
+| `/voice [on/off]` | Toggles voice output (TTS) | Always |
+| `/warnings` | Lists active system warnings | Always |
 | `/addssh` | Registers a new SSH server | Always |
 | `/credits` | Shows OpenRouter credits and usage | OpenRouter only |
 
@@ -162,7 +164,7 @@ Displays the current budget status, including daily costs, limits, and models us
 
 **Syntax:**
 ```
-/budget [en]
+/budget [en|english]
 ```
 
 **Parameters:**
@@ -185,6 +187,33 @@ Models Used:
 ```
 
 > ℹ️ Budget tracking must be enabled in the configuration (`budget.enabled: true`).
+
+---
+
+### `/voice [on|off]`
+Toggles voice output (TTS). When no argument is given, the current state is toggled.
+
+**Syntax:**
+```
+/voice [on|off|1|0|true|false]
+```
+
+**Examples:**
+```
+/voice on      # Enable voice output
+/voice off     # Disable voice output
+/voice         # Toggle
+```
+
+---
+
+### `/warnings`
+Displays all active system warnings from the warnings registry with severity level (critical/warning/info).
+
+**Example:**
+```
+/warnings
+```
 
 ---
 
@@ -266,7 +295,7 @@ Used today: $0.42
 Remaining: $25.01
 ```
 
-> ℹ️ This command is only available when `llm.provider_type` is set to `openrouter`.
+> ℹ️ This command is only available when an OpenRouter provider is configured (primary LLM, helper LLM, or providers list).
 
 ---
 

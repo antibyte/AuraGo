@@ -18,6 +18,8 @@ AuraGo unterstützt sogenannte **Slash-Commands** – Befehle, die direkt im Cha
 | `/personality [name]` | Listet Persönlichkeiten auf oder wechselt sie | Immer |
 | `/budget [en]` | Zeigt den aktuellen Budget-Status | Wenn Budget-Tracking aktiv |
 | `/sudopwd <passwort>` | Speichert oder löscht (`--clear`) das sudo-Passwort im Vault | Immer |
+| `/voice [on/off]` | Schaltet Sprachausgabe (TTS) ein/aus | Immer |
+| `/warnings` | Zeigt aktive System-Warnungen an | Immer |
 | `/addssh` | Registriert einen neuen SSH-Server | Immer |
 | `/credits` | Zeigt OpenRouter Credits und Verbrauch | Nur bei OpenRouter |
 
@@ -162,7 +164,7 @@ Zeigt den aktuellen Budget-Status an, einschließlich der Tageskosten, des Limit
 
 **Syntax:**
 ```
-/budget [en]
+/budget [en|english]
 ```
 
 **Parameter:**
@@ -185,6 +187,33 @@ Verwendete Modelle:
 ```
 
 > ℹ️ Budget-Tracking muss in der Konfiguration aktiviert sein (`budget.enabled: true`).
+
+---
+
+### `/voice [on|off]`
+Schaltet die Sprachausgabe (TTS) ein oder aus. Wenn kein Argument angegeben wird, wird der aktuelle Zustand umgeschaltet.
+
+**Syntax:**
+```
+/voice [on|off|1|0|true|false]
+```
+
+**Beispiele:**
+```
+/voice on      # Sprachausgabe aktivieren
+/voice off     # Sprachausgabe deaktivieren
+/voice         # Umschalten
+```
+
+---
+
+### `/warnings`
+Zeigt alle aktiven System-Warnungen aus dem Warnungs-Registry mit Schweregrad (critical/warning/info) an.
+
+**Beispiel:**
+```
+/warnings
+```
 
 ---
 
@@ -266,7 +295,7 @@ Genutzter Betrag heute: $0.42
 Verbleibend: $25.01
 ```
 
-> ℹ️ Dieser Command ist nur verfügbar, wenn `llm.provider_type` auf `openrouter` gesetzt ist.
+> ℹ️ Dieser Command ist nur verfügbar, wenn ein OpenRouter-Provider konfiguriert ist (Haupt-LLM, Helper-LLM oder Provider-Liste).
 
 ---
 

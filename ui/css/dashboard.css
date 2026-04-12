@@ -3446,3 +3446,202 @@
     font-size: 0.82rem;
     margin-bottom: 10px;
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   FILE SYNC DASHBOARD CARD
+   ═══════════════════════════════════════════════════════════════ */
+
+.fs-dash-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+}
+
+@media (max-width: 1200px) {
+    .fs-dash-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 700px) {
+    .fs-dash-grid { grid-template-columns: 1fr; }
+}
+
+.fs-dash-col {
+    background: var(--card-bg);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.fs-dash-section-title {
+    padding: 10px 14px;
+    background: var(--bg-tertiary, var(--bg-secondary));
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.fs-dash-body {
+    padding: 12px 14px;
+    font-size: 0.82rem;
+}
+
+.fs-dash-body .kc-sync-stat {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 3px 0;
+    color: var(--text-primary);
+}
+
+.fs-dash-body .kc-sync-stat-icon {
+    font-size: 0.9rem;
+    flex-shrink: 0;
+}
+
+.fs-dash-body .kc-sync-stat-label {
+    color: var(--text-secondary);
+    min-width: 110px;
+}
+
+.fs-dash-body .kc-sync-stat-value {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.fs-dash-body .kc-sync-stat-full {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-subtle);
+    font-weight: 600;
+}
+
+.fs-dash-body .kc-sync-stat-full .kc-sync-stat-label {
+    color: var(--text-primary);
+}
+
+.fs-dash-body .kc-sync-dir-item {
+    padding: 3px 0 3px 24px;
+    font-size: 0.8rem;
+}
+
+.fs-dash-body .kc-sync-dir-path {
+    font-family: 'SF Mono', 'Cascadia Code', Consolas, monospace;
+    font-size: 0.78rem;
+    background: var(--bg-secondary);
+    padding: 1px 5px;
+    border-radius: 4px;
+    word-break: break-all;
+}
+
+.fs-dash-body .kc-sync-chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    padding: 4px 0 4px 20px;
+}
+
+.fs-dash-body .kc-sync-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: var(--surface-secondary, rgba(100,116,139,0.15));
+    border: 1px solid var(--border-subtle);
+    font-size: 0.78rem;
+    color: var(--text-primary);
+}
+
+.fs-dash-body .kc-sync-chip strong {
+    color: var(--accent);
+    font-weight: 600;
+}
+
+.fs-dash-body .kc-sync-chip-coll {
+    background: rgba(99, 102, 241, 0.08);
+    border-color: rgba(99, 102, 241, 0.2);
+}
+
+.fs-dash-body .kc-sync-loading,
+.fs-dash-body .kc-sync-na {
+    text-align: center;
+    padding: 14px 0;
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+}
+
+.fs-dash-body .kc-sync-errors {
+    margin-top: 8px;
+    padding: 8px 10px;
+    background: rgba(239, 68, 68, 0.06);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    border-radius: 6px;
+}
+
+.fs-dash-body .kc-sync-errors-title {
+    font-weight: 600;
+    font-size: 0.8rem;
+    color: #ef4444;
+}
+
+.fs-dash-body .kc-sync-errors-list {
+    margin: 4px 0 0;
+    padding-left: 16px;
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+}
+
+.fs-dash-body .kc-sync-errors-list li {
+    margin-bottom: 2px;
+    word-break: break-word;
+}
+
+.fs-dash-body .kc-sync-table {
+    font-size: 0.8rem;
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.fs-dash-body .kc-sync-table td,
+.fs-dash-body .kc-sync-table th {
+    padding: 6px 10px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.fs-dash-body .kc-sync-table tr:last-child td {
+    border-bottom: none;
+}
+
+.fs-dash-body .kc-name {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.kc-sync-ok {
+    color: #10b981;
+    background: rgba(16, 185, 129, 0.12);
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.kc-sync-err {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.12);
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.kc-sync-warn {
+    color: #f59e0b;
+    background: rgba(245, 158, 11, 0.12);
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}

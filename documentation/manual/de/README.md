@@ -2,9 +2,9 @@
 
 Willkommen zum AuraGo Benutzerhandbuch – deiner umfassenden Anleitung für den persönlichen KI-Agenten.
 
-> 📅 **Stand:** 28. März 2026  
+> 📅 **Stand:** 12. April 2026  
 > 🔄 **Version:** 2.x kompatibel  
-> 📝 **Letzte Aktualisierung:** Komplette Überarbeitung mit 15+ neuen Integrationen und Features
+> 📝 **Letzte Aktualisierung:** Dokumentations-Sync mit aktuellem Code-Stand (Chat-Commands, Tools, Integrationen, Config)
 
 ---
 
@@ -104,6 +104,8 @@ Die Konfiguration verwendet jetzt ein zentrales Provider-System für LLM-Verbind
 /debug on/off  - Debug-Modus umschalten
 /budget        - Kostenübersicht anzeigen
 /personality   - Persönlichkeit wechseln
+/voice         - Sprachausgabe ein-/ausschalten
+/warnings      - System-Warnungen anzeigen
 /sudo          - Sudo-Modus aktivieren (erfordert sudo_enabled)
 /sudopwd       - Sudo-Passwort im Vault speichern
 /journal       - Journal öffnen
@@ -134,7 +136,7 @@ Eine vollständige Übersicht aller 100+ internen Tools findest du im Abschnitt 
 | 2026-03 | **Cloudflare Tunnel, AI Gateway, Chromecast** hinzugefügt |
 | 2026-03 | **Netzwerk-Tools, Web Capture, Form Automation** dokumentiert |
 | 2026-03 | **Skill Manager, Media Registry, Egg Mode** ergänzt |
-| 2026-04 | Vollständige Dokumentations-Aktualisierung: Config-Blöcke korrigiert (Personality, Recovery, Adaptive Tools), 20+ neue Integrations-Abschnitte (Jellyfin, Image Generation, LLM Guardian, etc.), Chat-Commands bereinigt, interne Tools ergänzt |
+| 2026-04 | Dokumentations-Sync mit aktuellem Code-Stand: Chat-Commands ergänzt (/voice, /warnings), interne Tools bereinigt, Integrationen korrigiert, Config-Referenzen aktualisiert |
 | 2026-03 | **Chat-Commands /sudopwd** hinzugefügt |
 
 ---

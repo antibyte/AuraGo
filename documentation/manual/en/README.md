@@ -2,9 +2,9 @@
 
 Welcome to the AuraGo User Manual – your comprehensive guide to the personal AI agent.
 
-> 📅 **Updated:** March 28, 2026  
+> 📅 **Updated:** April 12, 2026  
 > 🔄 **Version:** 2.x compatible  
-> 📝 **Last Update:** Complete revision with 15+ new integrations and features
+> 📝 **Last Update:** Documentation sync with current codebase (chat commands, tools, integrations, config)
 
 ---
 
@@ -104,6 +104,8 @@ The configuration now uses a central provider system for LLM connections. See [C
 /debug on/off  - Toggle debug mode
 /budget        - Show cost overview
 /personality   - Switch personality
+/voice         - Toggle voice output
+/warnings      - Show system warnings
 /sudo          - Activate sudo mode (requires sudo_enabled)
 /sudopwd       - Store sudo password in vault
 /journal       - Open journal
@@ -134,7 +136,7 @@ A complete overview of all 100+ internal tools can be found in the [Internal Too
 | 2026-03 | **Added Cloudflare Tunnel, AI Gateway, Chromecast** |
 | 2026-03 | **Documented Network Tools, Web Capture, Form Automation** |
 | 2026-03 | **Added Skill Manager, Media Registry, Egg Mode** |
-| 2026-04 | Full documentation update: corrected config blocks (Personality, Recovery, Adaptive Tools), added 20+ integration sections (Jellyfin, Image Generation, LLM Guardian, etc.), cleaned up chat commands, expanded internal tools |
+| 2026-04 | Documentation sync with current codebase: added chat commands (/voice, /warnings), cleaned up internal tools, corrected integrations, updated config references |
 | 2026-03 | **Added Chat Command /sudopwd** |
 
 ---

@@ -2,7 +2,7 @@
 
 All settings live in a single `config.yaml` file in the project root directory. Copy `config.yaml`, fill in your values, and start AuraGo.
 
-> **Minimal required:** `llm.api_key` — everything else has sensible defaults.
+> **Minimal required:** At least one `providers` entry with `api_key`, and `llm.provider` referencing it — everything else has sensible defaults.
 
 ---
 
@@ -21,10 +21,15 @@ Primary LLM provider for all agent reasoning.
 
 | Key | Default | Description |
 |---|---|---|
-| `provider` | `"openrouter"` | Provider name (informational, no functional effect). |
-| `base_url` | `"https://openrouter.ai/api/v1"` | OpenAI-compatible API base URL. Works with OpenRouter, Ollama, LM Studio, vLLM, etc. |
-| `api_key` | `""` | **Required.** Your API key. |
-| `model` | `"arcee-ai/trinity-large-preview:free"` | Model identifier as used by the provider. |
+| `provider` | `""` | **Required.** Provider entry ID from the `providers` list. |
+| `use_native_functions` | `true` | Enable native function calling (tool use). |
+| `temperature` | `0.7` | Creativity/randomness (0.0–2.0). |
+| `structured_outputs` | `false` | Force structured JSON outputs (for supported models). |
+| `helper_enabled` | `false` | Enable dedicated helper LLM for internal analysis. |
+| `helper_provider` | `""` | Provider ID for helper LLM (smaller/cheaper recommended). |
+| `helper_model` | `""` | Model override for helper LLM. |
+
+> ⚠️ **Legacy:** `base_url`, `api_key`, and `model` under `llm` still work for backward compatibility, but the provider system (`providers` + `llm.provider`) is the recommended approach.
 
 ---
 
@@ -51,8 +56,23 @@ Core agent behaviour settings.
 | `max_tool_calls` | `12` | Maximum consecutive tool calls the agent can make per user request before aborting. Prevents runaway loops. |
 | `step_delay_seconds` | `0` | Pause (seconds) between tool calls. Useful to avoid rate-limiting (HTTP 429) errors with slow providers. |
 | `memory_compression_char_limit` | `50000` | Character threshold at which the agent compresses older messages in the prompt. Roughly 50% of the model's context window in tokens. |
-| `personality_engine` | `true` | Enables the heuristic mood & trait engine. The agent's tone subtly shifts based on interaction patterns. Zero extra LLM calls. |
-| `core_personality` | `"friend"` | Base personality template. Built-in options include `neutral`, `friend`, `professional`, `punk`, `psycho`, `mcp`, `terminator`. Custom profiles live in `prompts/personalities/*.md` and can define additional `meta` fields like `anchor_traits`, `decay_resistance`, and `thresholds` for advanced behaviour tuning. |
+| `adaptive_tools.enabled` | `false` | Enable adaptive tool filtering to reduce token usage. |
+| `adaptive_tools.max_tools` | `60` | Maximum tool schemas to send to the LLM. |
+| `recovery.max_provider_422_recoveries` | `3` | Automatic retries after provider 422 errors. |
+| `background_tasks.enabled` | `true` | Enable persistent background task execution. |
+
+## `personality`
+
+> 🆕 Moved from `agent` to its own top-level section in recent versions.
+
+| Key | Default | Description |
+|---|---|---|
+| `engine` | `true` | Enable heuristic mood & trait engine. |
+| `engine_v2` | `true` | Enable LLM-based mood analysis. |
+| `core_personality` | `"friend"` | Base personality template. |
+| `user_profiling` | `false` | Auto-detect user preferences from conversation. |
+| `emotion_synthesizer.enabled` | `false` | Enable emotion synthesis. |
+| `inner_voice.enabled` | `false` | Enable subconscious nudge engine. |
 | `system_prompt_token_budget` | `8192` | Soft cap on system prompt tokens. Auto-adjusted upward if the model's context window is detected and large enough. |
 | `context_window` | `0` | Model context window size in tokens. `0` = auto-detect from provider API at startup. Override if auto-detect fails. |
 | `use_native_functions` | `false` | `true` = send tool schemas via the OpenAI function-calling API. `false` = inject tools as text in the system prompt (more compatible with open-weight models). |
