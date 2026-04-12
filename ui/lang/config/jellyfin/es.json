@@ -6,6 +6,7 @@
   "config.jellyfin.insecure_label": "Aceptar Certificados Autofirmados",
   "config.jellyfin.host_label": "Host de Jellyfin",
   "config.jellyfin.port_label": "Puerto",
+  "config.jellyfin.product_name": "Jellyfin",
   "config.jellyfin.apikey_label": "Clave API (Vault)",
   "config.jellyfin.apikey_placeholder": "Introducir clave API…",
   "config.jellyfin.save_vault": "Guardar en Vault",

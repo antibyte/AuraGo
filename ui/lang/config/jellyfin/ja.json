@@ -6,6 +6,7 @@
   "config.jellyfin.insecure_label": "自己署名証明書を許可",
   "config.jellyfin.host_label": "Jellyfinホスト",
   "config.jellyfin.port_label": "ポート",
+  "config.jellyfin.product_name": "Jellyfin",
   "config.jellyfin.apikey_label": "APIキー（Vault）",
   "config.jellyfin.apikey_placeholder": "APIキーを入力…",
   "config.jellyfin.save_vault": "Vaultに保存",

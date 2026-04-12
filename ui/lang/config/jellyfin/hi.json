@@ -6,6 +6,7 @@
   "config.jellyfin.insecure_label": "स्व-हस्ताक्षरित प्रमाणपत्र स्वीकार करें",
   "config.jellyfin.host_label": "Jellyfin होस्ट",
   "config.jellyfin.port_label": "पोर्ट",
+  "config.jellyfin.product_name": "Jellyfin",
   "config.jellyfin.apikey_label": "API कुंजी (Vault)",
   "config.jellyfin.apikey_placeholder": "API कुंजी दर्ज करें…",
   "config.jellyfin.save_vault": "Vault में सहेजें",

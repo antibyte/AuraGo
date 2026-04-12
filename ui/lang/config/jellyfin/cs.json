@@ -6,6 +6,7 @@
   "config.jellyfin.insecure_label": "Přijmout Vlastní Certifikáty",
   "config.jellyfin.host_label": "Jellyfin Host",
   "config.jellyfin.port_label": "Port",
+  "config.jellyfin.product_name": "Jellyfin",
   "config.jellyfin.apikey_label": "API Klíč (Vault)",
   "config.jellyfin.apikey_placeholder": "Zadejte API klíč…",
   "config.jellyfin.save_vault": "Uložit do Vaultu",

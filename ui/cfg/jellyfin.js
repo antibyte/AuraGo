@@ -134,7 +134,7 @@ function jellyfinCheckStatus() {
                 return;
             }
             if (res.status === 'online') {
-                jellyfinSetBannerState(banner, 'success', '🟢 Jellyfin ' + (res.version || '') + ' — ' + (res.server_name || ''));
+                jellyfinSetBannerState(banner, 'success', '🟢 ' + t('config.jellyfin.product_name') + ' ' + (res.version || '') + ' — ' + (res.server_name || ''));
             }
         })
         .catch(() => {

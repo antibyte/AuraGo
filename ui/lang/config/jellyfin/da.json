@@ -6,6 +6,7 @@
   "config.jellyfin.insecure_label": "Accept Self-Signed Certificates",
   "config.jellyfin.host_label": "Jellyfin Vært",
   "config.jellyfin.port_label": "Port",
+  "config.jellyfin.product_name": "Jellyfin",
   "config.jellyfin.apikey_label": "API Key (Vault)",
   "config.jellyfin.apikey_placeholder": "Enter API Key…",
   "config.jellyfin.save_vault": "Gem i Vault",
