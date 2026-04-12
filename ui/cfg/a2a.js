@@ -28,7 +28,7 @@ function renderA2ASection(section) {
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.a2a.agent_name') + '</div>';
     html += '<div class="field-help">' + t('help.a2a.agent_name') + '</div>';
-    html += '<input class="field-input" type="text" data-path="a2a.server.agent_name" value="' + escapeAttr(srv.agent_name || 'AuraGo') + '" placeholder="AuraGo">';
+    html += '<input class="field-input" type="text" data-path="a2a.server.agent_name" value="' + escapeAttr(srv.agent_name || t('config.a2a.agent_name_placeholder')) + '" placeholder="' + escapeAttr(t('config.a2a.agent_name_placeholder')) + '">';
     html += '</div>';
 
     html += '<div class="field-group">';
@@ -38,13 +38,13 @@ function renderA2ASection(section) {
 
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.a2a.agent_version') + '</div>';
-    html += '<input class="field-input a2a-input-sm" type="text" data-path="a2a.server.agent_version" value="' + escapeAttr(srv.agent_version || '1.0.0') + '" placeholder="1.0.0">';
+    html += '<input class="field-input a2a-input-sm" type="text" data-path="a2a.server.agent_version" value="' + escapeAttr(srv.agent_version || t('config.a2a.agent_version_placeholder')) + '" placeholder="' + escapeAttr(t('config.a2a.agent_version_placeholder')) + '">';
     html += '</div>';
 
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.a2a.agent_url') + '</div>';
     html += '<div class="field-help">' + t('help.a2a.agent_url') + '</div>';
-    html += '<input class="field-input" type="text" data-path="a2a.server.agent_url" value="' + escapeAttr(srv.agent_url || '') + '" placeholder="https://my-agent.example.com">';
+    html += '<input class="field-input" type="text" data-path="a2a.server.agent_url" value="' + escapeAttr(srv.agent_url || '') + '" placeholder="' + escapeAttr(t('config.a2a.agent_url_placeholder')) + '">';
     html += '</div>';
 
     html += '<div class="field-group">';
@@ -64,17 +64,17 @@ function renderA2ASection(section) {
 
     html += '<div class="a2a-toggle-row">';
     html += '<div class="toggle toggle-sm' + (bindings.rest !== false ? ' on' : '') + '" data-path="a2a.server.bindings.rest" onclick="toggleBool(this)"></div>';
-    html += '<span class="a2a-toggle-label">REST (HTTP)</span>';
+    html += '<span class="a2a-toggle-label">' + t('config.a2a.rest_binding') + '</span>';
     html += '</div>';
 
     html += '<div class="a2a-toggle-row">';
     html += '<div class="toggle toggle-sm' + (bindings.jsonrpc ? ' on' : '') + '" data-path="a2a.server.bindings.jsonrpc" onclick="toggleBool(this)"></div>';
-    html += '<span class="a2a-toggle-label">JSON-RPC 2.0</span>';
+    html += '<span class="a2a-toggle-label">' + t('config.a2a.jsonrpc_binding') + '</span>';
     html += '</div>';
 
     html += '<div class="a2a-toggle-row">';
     html += '<div class="toggle toggle-sm' + (bindings.grpc ? ' on' : '') + '" data-path="a2a.server.bindings.grpc" onclick="toggleBool(this)"></div>';
-    html += '<span class="a2a-toggle-label">gRPC</span>';
+    html += '<span class="a2a-toggle-label">' + t('config.a2a.grpc_binding') + '</span>';
     html += '</div>';
 
     html += '<div class="a2a-port-row">';
