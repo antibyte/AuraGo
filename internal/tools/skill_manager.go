@@ -48,6 +48,7 @@ type SkillRegistryEntry struct {
 	Parameters     map[string]interface{} `json:"parameters,omitempty"`
 	Dependencies   []string          `json:"dependencies,omitempty"`
 	VaultKeys      []string          `json:"vault_keys,omitempty"`
+	InternalTools  []string          `json:"internal_tools,omitempty"`
 	Type           SkillType         `json:"type"`
 	CreatedAt      time.Time         `json:"created_at"`
 	UpdatedAt      time.Time         `json:"updated_at"`
@@ -213,6 +214,7 @@ func InitSkillsDB(dbPath string) (*sql.DB, error) {
 		"ALTER TABLE skills_registry ADD COLUMN daemon_restart_count INTEGER DEFAULT 0",
 		"ALTER TABLE skills_registry ADD COLUMN daemon_last_error TEXT DEFAULT ''",
 		"ALTER TABLE skills_registry ADD COLUMN daemon_auto_disabled INTEGER DEFAULT 0",
+		"ALTER TABLE skills_registry ADD COLUMN internal_tools TEXT",
 	}
 	for _, stmt := range migrations {
 		if _, err := db.Exec(stmt); err != nil && !strings.Contains(strings.ToLower(err.Error()), "duplicate column name") {
@@ -301,13 +303,17 @@ func (m *SkillManager) SyncFromDisk() error {
 			if vkErr != nil {
 				m.logger.Warn("Failed to marshal vault_keys", "name", manifest.Name, "error", vkErr)
 			}
+			internalTools, itErr := json.Marshal(manifest.InternalTools)
+			if itErr != nil {
+				m.logger.Warn("Failed to marshal internal_tools", "name", manifest.Name, "error", itErr)
+			}
 
 			_, err := m.db.Exec(`INSERT INTO skills_registry 
-				(id, name, type, description, executable, category, tags, parameters, dependencies, vault_keys, 
+				(id, name, type, description, executable, category, tags, parameters, dependencies, vault_keys, internal_tools,
 				 created_by, enabled, security_status, file_path, file_hash)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)`,
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)`,
 				id, manifest.Name, string(skillType), manifest.Description,
-				manifest.Executable, manifest.Category, mustJSONString(manifest.Tags), string(params), string(deps), string(vaultKeys),
+				manifest.Executable, manifest.Category, mustJSONString(manifest.Tags), string(params), string(deps), string(vaultKeys), string(internalTools),
 				string(skillType), string(SecurityPending), manifest.Executable, fileHash,
 			)
 			if err != nil {
@@ -318,6 +324,10 @@ func (m *SkillManager) SyncFromDisk() error {
 				m.runStaticScan(id, string(codeBytes))
 			}
 		} else if err == nil {
+			// Always refresh manifest-derived fields that are not user-editable
+			itJSON, _ := json.Marshal(manifest.InternalTools)
+			m.db.Exec("UPDATE skills_registry SET internal_tools = ? WHERE id = ?", string(itJSON), existingID)
+
 			if manifest.Executable == "__builtin__" {
 				m.db.Exec("UPDATE skills_registry SET type = ?, file_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
 					string(SkillTypeBuiltIn), fileHash, existingID)
@@ -395,7 +405,7 @@ func detectSkillType(name string, skillsDir string) SkillType {
 
 // ListSkillsFiltered returns skills from the registry with optional filters.
 func (m *SkillManager) ListSkillsFiltered(skillType, status, search string, enabledFilter *bool) ([]SkillRegistryEntry, error) {
-	query := "SELECT id, name, type, description, executable, category, tags, parameters, dependencies, vault_keys, " +
+	query := "SELECT id, name, type, description, executable, category, tags, parameters, dependencies, vault_keys, internal_tools, " +
 		"created_at, updated_at, created_by, enabled, security_status, security_report, last_scan_at, " +
 		"file_path, file_hash FROM skills_registry WHERE 1=1"
 	var args []interface{}
@@ -436,12 +446,12 @@ func (m *SkillManager) ListSkillsFiltered(skillType, status, search string, enab
 	var skills []SkillRegistryEntry
 	for rows.Next() {
 		var s SkillRegistryEntry
-		var params, deps, vaultKeys, secReport, tags sql.NullString
+		var params, deps, vaultKeys, internalToolsRaw, secReport, tags sql.NullString
 		var lastScan sql.NullTime
 		var enabled int
 
 		err := rows.Scan(&s.ID, &s.Name, &s.Type, &s.Description, &s.Executable, &s.Category, &tags,
-			&params, &deps, &vaultKeys,
+			&params, &deps, &vaultKeys, &internalToolsRaw,
 			&s.CreatedAt, &s.UpdatedAt, &s.CreatedBy, &enabled,
 			&s.SecurityStatus, &secReport, &lastScan,
 			&s.FilePath, &s.FileHash)
@@ -449,7 +459,7 @@ func (m *SkillManager) ListSkillsFiltered(skillType, status, search string, enab
 			m.logger.Warn("Failed to scan skill row", "error", err)
 			continue
 		}
-		m.populateSkillFromScan(&s, params, deps, vaultKeys, secReport, tags, lastScan, enabled)
+		m.populateSkillFromScan(&s, params, deps, vaultKeys, internalToolsRaw, secReport, tags, lastScan, enabled)
 		skills = append(skills, s)
 	}
 
@@ -481,15 +491,15 @@ func (m *SkillManager) ListSkillsFiltered(skillType, status, search string, enab
 // GetSkill retrieves a single skill from the registry by ID.
 func (m *SkillManager) GetSkill(id string) (*SkillRegistryEntry, error) {
 	var s SkillRegistryEntry
-	var params, deps, vaultKeys, secReport, tags sql.NullString
+	var params, deps, vaultKeys, internalToolsRaw, secReport, tags sql.NullString
 	var lastScan sql.NullTime
 	var enabled int
 
-	err := m.db.QueryRow(`SELECT id, name, type, description, executable, category, tags, parameters, dependencies, vault_keys,
+	err := m.db.QueryRow(`SELECT id, name, type, description, executable, category, tags, parameters, dependencies, vault_keys, internal_tools,
 		created_at, updated_at, created_by, enabled, security_status, security_report, last_scan_at,
 		file_path, file_hash FROM skills_registry WHERE id = ?`, id).
 		Scan(&s.ID, &s.Name, &s.Type, &s.Description, &s.Executable, &s.Category, &tags,
-			&params, &deps, &vaultKeys,
+			&params, &deps, &vaultKeys, &internalToolsRaw,
 			&s.CreatedAt, &s.UpdatedAt, &s.CreatedBy, &enabled,
 			&s.SecurityStatus, &secReport, &lastScan,
 			&s.FilePath, &s.FileHash)
@@ -500,7 +510,7 @@ func (m *SkillManager) GetSkill(id string) (*SkillRegistryEntry, error) {
 		return nil, fmt.Errorf("querying skill: %w", err)
 	}
 
-	m.populateSkillFromScan(&s, params, deps, vaultKeys, secReport, tags, lastScan, enabled)
+	m.populateSkillFromScan(&s, params, deps, vaultKeys, internalToolsRaw, secReport, tags, lastScan, enabled)
 
 	// Enrich with daemon info from manifest
 	manifestPath := filepath.Join(m.skillsDir, strings.TrimSuffix(s.Executable, filepath.Ext(s.Executable))+".json")
@@ -529,7 +539,7 @@ func (m *SkillManager) GetSkillCode(id string) (string, error) {
 }
 
 // populateSkillFromScan deserializes the scanned SQL columns into a SkillRegistryEntry.
-func (m *SkillManager) populateSkillFromScan(s *SkillRegistryEntry, params, deps, vaultKeys, secReport, tags sql.NullString, lastScan sql.NullTime, enabled int) {
+func (m *SkillManager) populateSkillFromScan(s *SkillRegistryEntry, params, deps, vaultKeys, internalTools, secReport, tags sql.NullString, lastScan sql.NullTime, enabled int) {
 	s.Enabled = enabled == 1
 	if params.Valid {
 		json.Unmarshal([]byte(params.String), &s.Parameters)
@@ -542,6 +552,9 @@ func (m *SkillManager) populateSkillFromScan(s *SkillRegistryEntry, params, deps
 	}
 	if vaultKeys.Valid {
 		json.Unmarshal([]byte(vaultKeys.String), &s.VaultKeys)
+	}
+	if internalTools.Valid {
+		json.Unmarshal([]byte(internalTools.String), &s.InternalTools)
 	}
 	if secReport.Valid {
 		var report SecurityReport

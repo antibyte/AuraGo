@@ -69,6 +69,8 @@
   "skills.delete_success": "Skill borttagen",
   "skills.toggle_success": "Skill uppdaterad",
   "skills.vault_keys_label": "Vault-nycklar",
+  "skills.internal_tools_label": "Interna verktyg",
+  "skills.internal_tools_none": "Inga interna verktyg",
   "skills.btn_edit_secrets": "Redigera hemligheter",
   "skills.vault_modal_title": "Tilldela hemligheter",
   "skills.vault_modal_desc": "Välj de vault-hemligheter som denna färdighet kommer att ta emot som miljövariabler vid körning.",

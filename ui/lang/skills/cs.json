@@ -69,6 +69,8 @@
   "skills.delete_success": "Skill smazán",
   "skills.toggle_success": "Skill aktualizován",
   "skills.vault_keys_label": "Klíče trezoru",
+  "skills.internal_tools_label": "Interní nástroje",
+  "skills.internal_tools_none": "Žádné interní nástroje",
   "skills.btn_edit_secrets": "Upravit tajemství",
   "skills.vault_modal_title": "Přiřadit tajemství",
   "skills.vault_modal_desc": "Vyberte tajemství trezoru, která tato dovednost obdrží za běhu jako proměnné prostředí.",

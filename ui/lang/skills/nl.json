@@ -69,6 +69,8 @@
   "skills.delete_success": "Skill verwijderd",
   "skills.toggle_success": "Skill bijgewerkt",
   "skills.vault_keys_label": "Vault-sleutels",
+  "skills.internal_tools_label": "Interne tools",
+  "skills.internal_tools_none": "Geen interne tools",
   "skills.btn_edit_secrets": "Geheimen bewerken",
   "skills.vault_modal_title": "Geheimen toewijzen",
   "skills.vault_modal_desc": "Select the vault secrets this skill will receive as environment variables at runtime.",

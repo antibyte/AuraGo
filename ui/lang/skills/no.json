@@ -69,6 +69,8 @@
   "skills.delete_success": "Skill slettet",
   "skills.toggle_success": "Skill oppdatert",
   "skills.vault_keys_label": "Vault-nøkler",
+  "skills.internal_tools_label": "Interne verktøy",
+  "skills.internal_tools_none": "Ingen interne verktøy",
   "skills.btn_edit_secrets": "Rediger hemmeligheter",
   "skills.vault_modal_title": "Tilordne hemmeligheter",
   "skills.vault_modal_desc": "Velg vault-hemmelighetene denne ferdigheten mottar som miljøvariabler under kjøring.",

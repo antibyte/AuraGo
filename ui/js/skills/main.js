@@ -340,6 +340,7 @@ function showDisabledState() {
         const tags = skill.Tags || skill.tags || [];
         const category = skill.Category || skill.category || '';
         const vaultKeys = skill.VaultKeys || skill.vault_keys || [];
+        const internalTools = skill.InternalTools || skill.internal_tools || [];
 
         const typeLabel = type.charAt(0).toUpperCase() + type.slice(1);
         const secBadge = renderSecurityBadge(secStatus);
@@ -373,6 +374,10 @@ function showDisabledState() {
         </div>`;
         }
 
+        const internalToolsRow = internalTools.length > 0
+            ? `<div class="sk-card-internal-tools"><span class="sk-internal-tools-label">⚙️ ${t('skills.internal_tools_label') || 'Internal Tools'}:</span> ${internalTools.map(tool => `<code class="sk-dep-tag sk-internal-tool-tag" title="${esc(tool)}">${esc(tool)}</code>`).join('')}</div>`
+            : '';
+
         return `
     <div class="sk-card ${enabledClass}" data-id="${id}" data-type="${type}" data-sec="${secStatus}">
         <div class="sk-card-header">
@@ -387,6 +392,7 @@ function showDisabledState() {
         ${metaRow}
         ${depTags}
         ${vaultRow}
+        ${internalToolsRow}
         ${renderDaemonActions(skill)}
         <div class="sk-card-actions">
             <button class="btn btn-sm btn-secondary" onclick="showDetail('${id}')" data-i18n="skills.btn_details">Details</button>
@@ -502,6 +508,7 @@ function showDisabledState() {
             const sec = s.SecurityReport || s.security_report;
             const deps = (s.Dependencies || s.dependencies || []);
             const vaultKeys = (s.VaultKeys || s.vault_keys || []);
+            const internalTools = (s.InternalTools || s.internal_tools || []);
             const tags = (s.Tags || s.tags || []);
             const category = (s.Category || s.category || '');
 
@@ -544,6 +551,7 @@ function showDisabledState() {
                 }
                 return `<code class="sk-vault-key-tag">${esc(k)}</code>`;
             }).join(' ') : `<span class="sk-vault-none">${t('skills.vault_none') || 'No secrets assigned'}</span>`}</span></div>
+                <div class="sk-detail-row"><span class="sk-detail-label">⚙️ ${t('skills.internal_tools_label') || 'Internal Tools'}:</span> <span>${internalTools.length > 0 ? internalTools.map(tool => `<code class="sk-dep-tag sk-internal-tool-tag">${esc(tool)}</code>`).join(' ') : `<span class="sk-vault-none">${t('skills.internal_tools_none') || 'No internal tools'}</span>`}</span></div>
             </div>
             ${renderDaemonSettings(s, data.daemon)}
             ${renderSkillHistory(detailVersions)}

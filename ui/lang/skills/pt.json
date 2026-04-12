@@ -69,6 +69,8 @@
   "skills.delete_success": "Skill excluído",
   "skills.toggle_success": "Skill atualizado",
   "skills.vault_keys_label": "Chaves do cofre",
+  "skills.internal_tools_label": "Ferramentas internas",
+  "skills.internal_tools_none": "Nenhuma ferramenta interna",
   "skills.btn_edit_secrets": "Editar segredos",
   "skills.vault_modal_title": "Atribuir segredos",
   "skills.vault_modal_desc": "Selecione os segredos do cofre que esta habilidade receberá como variáveis de ambiente em tempo de execução.",

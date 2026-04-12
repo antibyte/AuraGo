@@ -69,6 +69,8 @@
   "skills.delete_success": "技能已删除",
   "skills.toggle_success": "技能已更新",
   "skills.vault_keys_label": "保险库密钥",
+  "skills.internal_tools_label": "内部工具",
+  "skills.internal_tools_none": "无内部工具",
   "skills.btn_edit_secrets": "编辑密钥",
   "skills.vault_modal_title": "分配密钥",
   "skills.vault_modal_desc": "选择此技能在运行时将作为环境变量接收的保险库密钥。",

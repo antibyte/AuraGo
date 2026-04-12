@@ -319,6 +319,30 @@
     font-style: italic;
 }
 
+.sk-card-internal-tools {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-wrap: wrap;
+    margin-bottom: 4px;
+    font-size: 0.72rem;
+}
+
+.sk-internal-tools-label {
+    color: var(--text-muted, #888);
+    flex-shrink: 0;
+}
+
+.sk-internal-tool-tag {
+    background: #1a1f2a;
+    color: #8ab4e8;
+    border: 1px solid #2d3a4a;
+    font-family: monospace;
+    font-size: 0.72rem;
+    padding: 1px 6px;
+    border-radius: 3px;
+}
+
 .sk-vault-section-label {
     font-size: 0.7rem;
     font-weight: 600;

@@ -70,6 +70,8 @@
   "skills.toggle_success": "Skill updated",
   "skills.scan_complete": "Scan complete",
   "skills.vault_keys_label": "Vault Keys",
+  "skills.internal_tools_label": "Internal Tools",
+  "skills.internal_tools_none": "No internal tools",
   "skills.btn_edit_secrets": "Edit Secrets",
   "skills.vault_modal_title": "Assign Secrets",
   "skills.vault_modal_desc": "Select the vault secrets this skill will receive as environment variables at runtime.",

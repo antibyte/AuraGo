@@ -69,6 +69,8 @@
   "skills.delete_success": "Skill eliminato",
   "skills.toggle_success": "Skill aggiornato",
   "skills.vault_keys_label": "Chiavi vault",
+  "skills.internal_tools_label": "Strumenti interni",
+  "skills.internal_tools_none": "Nessuno strumento interno",
   "skills.btn_edit_secrets": "Modifica segreti",
   "skills.vault_modal_title": "Assegna segreti",
   "skills.vault_modal_desc": "Seleziona i segreti del vault che questa competenza riceverà come variabili di ambiente in fase di esecuzione.",

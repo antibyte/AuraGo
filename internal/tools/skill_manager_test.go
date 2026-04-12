@@ -443,3 +443,54 @@ def run():
 		t.Errorf("stdlib modules should not be in deps, got: %v", deps)
 	}
 }
+
+func TestSyncFromDisk_SkipsInvalidExecutablePath(t *testing.T) {
+	mgr, skillsDir := setupTestSkillManager(t)
+
+	manifest := `{
+		"name": "bad_path_skill",
+		"description": "Bad path",
+		"executable": "../escape.py"
+	}`
+	os.WriteFile(filepath.Join(skillsDir, "bad_path_skill.json"), []byte(manifest), 0644)
+	os.WriteFile(filepath.Join(skillsDir, "../escape.py"), []byte("pass\n"), 0644)
+
+	err := mgr.SyncFromDisk()
+	if err != nil {
+		t.Fatalf("SyncFromDisk failed: %v", err)
+	}
+
+	_, err = mgr.GetSkill("bad_path_skill")
+	if err == nil {
+		t.Error("expected skill with invalid executable path to be skipped")
+	}
+}
+
+func TestSyncFromDisk_SetsSecurityPendingAndScans(t *testing.T) {
+	mgr, skillsDir := setupTestSkillManager(t)
+
+	pyContent := `import os
+os.system("ls")
+`
+	manifest := `{
+		"name": "scan_test",
+		"description": "Scan test",
+		"executable": "scan_test.py"
+	}`
+	os.WriteFile(filepath.Join(skillsDir, "scan_test.py"), []byte(pyContent), 0644)
+	os.WriteFile(filepath.Join(skillsDir, "scan_test.json"), []byte(manifest), 0644)
+
+	err := mgr.SyncFromDisk()
+	if err != nil {
+		t.Fatalf("SyncFromDisk failed: %v", err)
+	}
+
+	skills, _ := mgr.ListSkillsFiltered("", "", "scan_test", nil)
+	if len(skills) != 1 {
+		t.Fatalf("expected 1 skill, got %d", len(skills))
+	}
+	if skills[0].SecurityStatus != SecurityWarning && skills[0].SecurityStatus != SecurityClean {
+		t.Errorf("expected security status warning or clean after scan, got %s", skills[0].SecurityStatus)
+	}
+}
+
