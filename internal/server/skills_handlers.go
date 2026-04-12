@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -114,11 +115,23 @@ func handleGetSkill(s *Server) http.HandlerFunc {
 			code, _ = s.SkillManager.GetSkillCode(id)
 		}
 
+		// Include daemon manifest config if this is a daemon skill
+		var daemonManifest interface{}
+		if skill.IsDaemon && skill.FilePath != "" {
+			if manifestData, err := os.ReadFile(skill.FilePath); err == nil {
+				var manifest tools.SkillManifest
+				if json.Unmarshal(manifestData, &manifest) == nil && manifest.Daemon != nil {
+					daemonManifest = manifest.Daemon
+				}
+			}
+		}
+
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"status": "ok",
 			"skill":  skill,
 			"code":   code,
+			"daemon": daemonManifest,
 		})
 	}
 }
