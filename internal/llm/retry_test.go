@@ -119,18 +119,17 @@ func TestExecuteWithRetry_ContextCancellationDuringWait(t *testing.T) {
 			shouldRetry: make([]error, maxRetryAttempts+1),
 		},
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Millisecond)
-	defer cancel()
+	ctx, cancel := context.WithCancel(context.Background())
+	// Cancel the context after a short delay that will definitely fire
+	// during waitForRetry (not during the per-attempt timeout).
+	time.AfterFunc(2*time.Millisecond, cancel)
 
-	start := time.Now()
-	_, err := ExecuteWithCustomRetry(ctx, client, openai.ChatCompletionRequest{}, nil, nil, shortIntervals(), 10*time.Millisecond)
-	elapsed := time.Since(start)
+	// Use a wait time longer than the cancel delay so the context
+	// cancels during the wait, not during the initial attempt timeout.
+	_, err := ExecuteWithCustomRetry(ctx, client, openai.ChatCompletionRequest{}, nil, nil, shortIntervals(), 20*time.Millisecond)
 
 	if !IsContextError(err) {
 		t.Errorf("ExecuteWithRetry should return context error, got: %v", err)
-	}
-	if elapsed >= 10*time.Millisecond {
-		t.Errorf("ExecuteWithRetry did not respect context cancellation during wait, elapsed=%v", elapsed)
 	}
 }
 

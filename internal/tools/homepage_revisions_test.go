@@ -160,7 +160,15 @@ func TestSQLNullInt64Scans(t *testing.T) {
 	}
 	defer db.Close()
 
-	revID, _ := CreateHomepageRevision(db, 0, "test-dir", "no project", "", "agent", 0, true, "")
+	// Insert NULL for project_id directly via raw SQL since
+	// CreateHomepageRevision cannot handle NULL with FK constraints enforced
+	// (passing projectID=0 fails FK check: no project with id=0 exists).
+	res, err := db.Exec(`INSERT INTO homepage_revisions (project_id, project_dir, message, reason, author, file_count, restorable, metadata_json) VALUES (NULL, ?, ?, ?, ?, ?, ?, ?)`,
+		"test-dir", "no project", "", "agent", 0, 1, "")
+	if err != nil {
+		t.Fatalf("failed to insert revision with NULL project_id: %v", err)
+	}
+	revID, _ := res.LastInsertId()
 	rev, err := GetHomepageRevision(db, revID)
 	if err != nil {
 		t.Fatalf("GetHomepageRevision failed: %v", err)

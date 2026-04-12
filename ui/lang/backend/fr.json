@@ -218,5 +218,8 @@
   "tools.dns_txt_lookup_failed": "Recherche TXT : {0}",
   "tools.dns_cname_lookup_failed": "Recherche CNAME : {0}",
   "tools.dns_ptr_lookup_failed": "Recherche PTR : {0}",
-  "tools.dns_partial_results": "résultats partiels"
+  "tools.dns_partial_results": "résultats partiels",
+  "backend.budget_mode_full_de": " (tout bloqué en cas de dépassement)",
+  "backend.budget_mode_partial_de": " (Co-Agents + Vision/STT bloqué en cas de dépassement)",
+  "backend.budget_mode_warn_de": " (avertissement uniquement)"
 }

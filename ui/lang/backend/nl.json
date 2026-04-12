@@ -218,5 +218,8 @@
   "tools.dns_txt_lookup_failed": "TXT-zoekactie: {0}",
   "tools.dns_cname_lookup_failed": "CNAME-zoekactie: {0}",
   "tools.dns_ptr_lookup_failed": "PTR-zoekactie: {0}",
-  "tools.dns_partial_results": "gedeeltelijke resultaten"
+  "tools.dns_partial_results": "gedeeltelijke resultaten",
+  "backend.budget_mode_full_de": " (alles geblokkeerd bij overschrijding)",
+  "backend.budget_mode_partial_de": " (Co-Agents + Vision/STT geblokkeerd bij overschrijding)",
+  "backend.budget_mode_warn_de": " (alleen waarschuwing)"
 }

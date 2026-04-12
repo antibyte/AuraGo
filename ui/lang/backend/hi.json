@@ -218,5 +218,8 @@
   "tools.dns_txt_lookup_failed": "TXT लुकअप: {0}",
   "tools.dns_cname_lookup_failed": "CNAME लुकअप: {0}",
   "tools.dns_ptr_lookup_failed": "PTR लुकअप: {0}",
-  "tools.dns_partial_results": "आंशिक परिणाम"
+  "tools.dns_partial_results": "आंशिक परिणाम",
+  "backend.budget_mode_full_de": " (सीमा पार करने पर सब कुछ अवरुद्ध)",
+  "backend.budget_mode_partial_de": " (Co-Agents + Vision/STT सीमा पार करने पर अवरुद्ध)",
+  "backend.budget_mode_warn_de": " (केवल चेतावनी)"
 }

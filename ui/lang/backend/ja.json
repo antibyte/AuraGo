@@ -218,5 +218,8 @@
   "tools.dns_txt_lookup_failed": "TXTルックアップ: {0}",
   "tools.dns_cname_lookup_failed": "CNAMEルックアップ: {0}",
   "tools.dns_ptr_lookup_failed": "PTRルックアップ: {0}",
-  "tools.dns_partial_results": "部分結果"
+  "tools.dns_partial_results": "部分結果",
+  "backend.budget_mode_full_de": " （超過時はすべてブロック）",
+  "backend.budget_mode_partial_de": " （超過時はCo-Agents + Vision/STT блокировано）",
+  "backend.budget_mode_warn_de": " （警告のみ）"
 }

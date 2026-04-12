@@ -153,7 +153,7 @@
   "help.llm.helper_enabled": "Aktiverar den dedikerade Helper LLM för intern analys och bakgrundsuppgifter. Om inaktiverad kommer många beroende hjälpfunktioner inte att fungera fullt ut.",
   "help.llm.helper_provider": "Leverantör från leverantörshantering för Helper LLM. Denna modell används för interna hjälparuppgifter och är separat från Guardian-modellen.",
   "help.llm.helper_model": "Valfri modellöverskridning för Helper LLM. En mindre, snabbare och billigare modell rekommenderas vanligtvis här.",
-  "help.llm.multimodal": "When enabled, AuraGo converts uploaded image attachments in chat into multimodal `image_url` parts for the main LLM request. Requires a vision-capable model/provider. Warning: images can significantly increase context/token usage and cost.",
+  "help.llm.multimodal": "När aktiverat konverterar AuraGo bilagor i chatten till multimodala `image_url`-delar för huvud-LLM-förfrågan. Kräver en visionskompetent modell/leverantör. Varning: bilder kan avsevärt öka kontext/token-användning och kostnader.",
   "help.llm.multimodal_provider_types_extra": "Valfri lista med extra leverantörstyper som ska behandlas som multimodala för bilder (t.ex. lägg till \"ollama\" om din Ollama-endpoint stöder image parts).",
   "help.llm.structured_outputs": "⚠️ Enables Structured Outputs (strict mode) for tool calls. ONLY enable for models that support this (e.g. GPT-4o, GPT-4o-mini). Incompatible models will return errors!",
   "help.llm.temperature": "Sampling teplota.",

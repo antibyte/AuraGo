@@ -218,5 +218,8 @@
   "tools.dns_txt_lookup_failed": "TXT dotaz: {0}",
   "tools.dns_cname_lookup_failed": "CNAME vyhledávání: {0}",
   "tools.dns_ptr_lookup_failed": "PTR vyhledávání: {0}",
-  "tools.dns_partial_results": "částečné výsledky"
+  "tools.dns_partial_results": "částečné výsledky",
+  "backend.budget_mode_full_de": " (vše zablokováno při překročení)",
+  "backend.budget_mode_partial_de": " (Co-Agents + Vision/STT blokováno při překročení)",
+  "backend.budget_mode_warn_de": " (pouze varování)"
 }

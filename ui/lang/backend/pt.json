@@ -1,4 +1,4 @@
- {
+{
   "backend.cmd_unknown": "❌ Comando desconhecido. Digite /help para ver a lista de comandos.",
   "backend.cmd_reset_success": "🧹 O histórico do chat e a memória de curto prazo foram eliminados.",
   "backend.cmd_reset_help": "Elimina o histórico atual do chat (memória de curto prazo).",
@@ -25,7 +25,7 @@
   "backend.budget_disabled": "💰 O sistema de orçamento está desativado.",
   "backend.budget_help": "Mostra o estado atual do orçamento (custos diários, limite, modelos).",
   "backend.budget_mode_warn_de": " (apenas aviso)",
-  "backend.budget_mode_partial_de": " (co-agentes + visão/STT bloqueados ao exceder)",
+  "backend.budget_mode_partial_de": " (Co-Agents + Vision/STT bloqueado ao exceder)",
   "backend.budget_mode_full_de": " (tudo bloqueado ao exceder)",
   "backend.budget_mode_warn_en": " (apenas aviso)",
   "backend.budget_mode_partial_en": " (co-agentes + visão/STT bloqueados ao exceder)",

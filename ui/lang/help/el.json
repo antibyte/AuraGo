@@ -153,7 +153,7 @@
   "help.llm.helper_enabled": "Ενεργοποιεί το αποκλειστικό Helper LLM για εσωτερική ανάλυση και εργασίες παρασκηνίου. Αν απενεργοποιηθεί, πολλές εξαρτώμενες βοηθητικές λειτουργίες δεν θα λειτουργούν πλήρως.",
   "help.llm.helper_provider": "Πάροχος από τη διαχείριση παρόχων για το Helper LLM. Αυτό το μοντέλο χρησιμοποιείται για εσωτερικές βοηθητικές εργασίες και είναι ξεχωριστό από το μοντέλο Guardian.",
   "help.llm.helper_model": "Προαιρετική παράκαμψη μοντέλου για το Helper LLM. Ένα μικρότερο, πιο γρήγορο και φθηνότερο μοντέλο συνιστάται συνήθως εδώ.",
-  "help.llm.multimodal": "When enabled, AuraGo converts uploaded image attachments in chat into multimodal `image_url` parts for the main LLM request. Requires a vision-capable model/provider. Warning: images can significantly increase context/token usage and cost.",
+  "help.llm.multimodal": "Όταν ενεργοποιηθεί, το AuraGo μετατρέπει τα συνημμένα εικόνες στη συνομιλία σε πολυτροπικά μέρη `image_url` για την κύρια αιτήση LLM. Απαιτεί ένα μοντέλο/πάροχο με δυνατότητα όρασης. Προειδοποίηση: οι εικόνες μπορούν να αυξήσουν σημαντικά τη χρήση context/token και το κόστος.",
   "help.llm.multimodal_provider_types_extra": "Προαιρετική λίστα με επιπλέον τύπους παρόχου που θα πρέπει να αντιμετωπίζονται ως πολυτροπικοί για εικόνες (π.χ. προσθέστε \"ollama\" αν το Ollama endpoint σας υποστηρίζει image parts).",
   "help.llm.structured_outputs": "Structured Outputs.",
   "help.llm.temperature": "Teplota.",

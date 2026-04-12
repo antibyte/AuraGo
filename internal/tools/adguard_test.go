@@ -63,6 +63,8 @@ func TestGetAdGuardClientInitializesOnce(t *testing.T) {
 
 func TestAdGuardRequestRejectsOversizeResponse(t *testing.T) {
 	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "1")
+	adguardClient = nil                                  // reset so getAdGuardClient() re-initializes with current env
+	adguardClientOnce = sync.Once{}                      // reset Once so the next call actually runs the init
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
