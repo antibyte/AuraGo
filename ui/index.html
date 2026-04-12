@@ -124,6 +124,30 @@
         <form id="chat-form" class="input-row">
             <input type="file" id="file-input" class="is-hidden" multiple>
             <button type="button" id="voice-btn" class="btn-voice btn-composer-primary" title="🎤">🎤</button>
+            <div id="composer-panel" class="composer-panel is-hidden">
+                <button type="button" id="clear-btn" class="composer-tool-btn" title="">
+                    <span class="tool-icon">✚</span>
+                    <span class="tool-label"></span>
+                </button>
+                <button type="button" id="upload-btn" class="composer-tool-btn" title="📎">
+                    <span class="tool-icon">📎</span>
+                    <span class="tool-label"></span>
+                </button>
+                <button type="button" id="push-btn" class="composer-tool-btn" title="🔔">
+                    <span class="tool-icon">🔔</span>
+                    <span class="tool-label"></span>
+                </button>
+                {{if .PersonalityEnabled}}
+                <button type="button" id="feedback-toggle-btn" class="composer-tool-btn" title="">
+                    <span class="tool-icon">🙂</span>
+                    <span class="tool-label"></span>
+                </button>
+                {{end}}
+                <button type="button" id="stop-btn" class="composer-tool-btn composer-tool-btn-danger" disabled title="■">
+                    <span class="tool-icon">■</span>
+                    <span class="tool-label"></span>
+                </button>
+            </div>
             <div class="input-wrap">
                 <textarea id="user-input" name="aura-chat-input" autocomplete="off" spellcheck="true" rows="1"
                     placeholder=""></textarea>
@@ -131,30 +155,6 @@
             <button type="submit" id="send-btn" class="btn-send btn-composer-primary" title="➤">➤</button>
             <button type="button" id="composer-more-btn" class="btn-more btn-composer-primary" title="" aria-expanded="false" aria-controls="composer-panel">⋯</button>
         </form>
-        <div id="composer-panel" class="composer-panel is-hidden">
-            <button type="button" id="clear-btn" class="composer-tool-btn" title="">
-                <span class="tool-icon">✚</span>
-                <span class="tool-label"></span>
-            </button>
-            <button type="button" id="upload-btn" class="composer-tool-btn" title="📎">
-                <span class="tool-icon">📎</span>
-                <span class="tool-label"></span>
-            </button>
-            <button type="button" id="push-btn" class="composer-tool-btn" title="🔔">
-                <span class="tool-icon">🔔</span>
-                <span class="tool-label"></span>
-            </button>
-            {{if .PersonalityEnabled}}
-            <button type="button" id="feedback-toggle-btn" class="composer-tool-btn" title="">
-                <span class="tool-icon">🙂</span>
-                <span class="tool-label"></span>
-            </button>
-            {{end}}
-            <button type="button" id="stop-btn" class="composer-tool-btn composer-tool-btn-danger" disabled title="■">
-                <span class="tool-icon">■</span>
-                <span class="tool-label"></span>
-            </button>
-        </div>
         {{if .PersonalityEnabled}}
         <div id="mood-feedback-row" class="mood-feedback-row is-hidden">
             <button type="button" class="mood-btn mood-positive" data-feedback="positive"

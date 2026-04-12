@@ -162,8 +162,16 @@ function chatSetHidden(el, hidden) {
     el.classList.toggle('is-hidden', hidden);
 }
 
+/* ── Desktop detection for inline footer buttons ── */
+const _desktopMQ = window.matchMedia('(min-width: 768px)');
+function isDesktopView() {
+    return _desktopMQ.matches;
+}
+
 function closeComposerPanel() {
     if (!composerMoreBtn || !composerPanel) return;
+    /* On desktop the panel is always visible – ignore close requests */
+    if (isDesktopView()) return;
     composerPanel.classList.add('is-hidden');
     composerMoreBtn.classList.remove('is-open');
     composerMoreBtn.setAttribute('aria-expanded', 'false');
@@ -175,6 +183,8 @@ function closeMoodFeedbackRow() {
 
 function toggleComposerPanel(forceOpen) {
     if (!composerMoreBtn || !composerPanel) return;
+    /* On desktop the panel is always visible – no toggle needed */
+    if (isDesktopView()) return;
     const shouldOpen = typeof forceOpen === 'boolean' ? forceOpen : composerPanel.classList.contains('is-hidden');
     composerPanel.classList.toggle('is-hidden', !shouldOpen);
     composerMoreBtn.classList.toggle('is-open', shouldOpen);
@@ -718,6 +728,7 @@ function appendMessage(role, text) {
     let finalHTML = displayContent;
     if (isTechnical) {
         finalHTML = `<pre>${escapeHtml(displayContent)}</pre>`;
+        finalHTML = replaceRedactedMarkers(finalHTML);
     } else {
         try {
             if (typeof window.markdownit !== 'undefined') {
@@ -782,6 +793,7 @@ function appendMessage(role, text) {
                     finalHTML = finalHTML.replace(new RegExp(`%%THINKING_BLOCK_${idx}%%`, 'g'), detailsHtml);
                 });
 
+                finalHTML = replaceRedactedMarkers(finalHTML);
                 finalHTML = sanitizeRenderedHTML(finalHTML);
 
                 // If the rendered content contains only thinking blocks with no visible
@@ -869,6 +881,25 @@ function escapeHtml(str) {
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;');
+}
+
+function replaceRedactedMarkers(html) {
+    const label = (typeof t === 'function') ? t('chat.redacted_label') : '[removed]';
+    return html
+        .replace(/\[redacted\]([^<]*)/gi, (match, reason) => {
+            const reasonText = reason.trim();
+            if (reasonText) {
+                return `<span class="redacted-badge" title="${escapeAttr(reasonText)}">${label}</span> <span class="redacted-reason">${escapeHtml(reasonText)}</span>`;
+            }
+            return `<span class="redacted-badge">${label}</span>`;
+        })
+        .replace(/\[sanitized\]([^<]*)/gi, (match, reason) => {
+            const reasonText = reason.trim();
+            if (reasonText) {
+                return `<span class="sanitized-badge" title="${escapeAttr(reasonText)}">${label}</span> <span class="redacted-reason">${escapeHtml(reasonText)}</span>`;
+            }
+            return `<span class="sanitized-badge">${label}</span>`;
+        });
 }
 
 function escapeAttr(s) {
@@ -1033,6 +1064,25 @@ if (composerMoreBtn && composerPanel) {
             closeMoodFeedbackRow();
         }
     });
+}
+
+/* ── Desktop: auto-open composer panel & handle resize ── */
+if (composerPanel) {
+    function applyDesktopComposerState() {
+        if (isDesktopView()) {
+            /* Ensure panel is visible on desktop */
+            composerPanel.classList.remove('is-hidden');
+        } else {
+            /* On mobile, start with panel hidden unless already open */
+            if (composerMoreBtn && !composerMoreBtn.classList.contains('is-open')) {
+                composerPanel.classList.add('is-hidden');
+            }
+        }
+    }
+    /* Apply on load */
+    applyDesktopComposerState();
+    /* React to viewport changes (e.g. resize, orientation change) */
+    _desktopMQ.addEventListener('change', applyDesktopComposerState);
 }
 
 if (feedbackToggleBtn && moodFeedbackRow) {

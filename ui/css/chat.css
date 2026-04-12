@@ -2977,6 +2977,75 @@
             .bubble {
                 max-width: min(80%, 38rem);
             }
+
+            /* ── Desktop inline tool buttons in footer ── */
+            .input-row {
+                display: flex;
+                gap: 0.3rem;
+                align-items: stretch;
+            }
+
+            /* Hide the ⋯ toggle button on desktop */
+            #composer-more-btn {
+                display: none;
+            }
+
+            /* Composer panel: inline static instead of absolute popover */
+            .composer-panel {
+                position: static;
+                transform: none;
+                left: auto;
+                bottom: auto;
+                display: flex;
+                flex-wrap: nowrap;
+                flex-direction: row;
+                gap: 0.2rem;
+                padding: 0;
+                margin: 0;
+                border: none;
+                background: transparent;
+                box-shadow: none;
+                backdrop-filter: none;
+                -webkit-backdrop-filter: none;
+                animation: none;
+                pointer-events: auto;
+                max-width: none;
+                width: auto;
+                z-index: auto;
+            }
+
+            /* Override is-hidden so panel is always visible on desktop */
+            .composer-panel.is-hidden {
+                display: flex;
+            }
+
+            /* Compact icon-only tool buttons on desktop */
+            .composer-panel .composer-tool-btn {
+                width: 36px;
+                height: 36px;
+                min-height: 36px;
+                min-width: 36px;
+                padding: 0;
+                justify-content: center;
+                gap: 0;
+                border-radius: 10px;
+                flex: 0 0 auto;
+            }
+
+            .composer-panel .composer-tool-btn .tool-icon {
+                font-size: 0.95rem;
+                width: auto;
+            }
+
+            /* Hide text labels on desktop – icon-only */
+            .composer-panel .composer-tool-btn .tool-label {
+                display: none;
+            }
+
+            /* Stop button stays compact but keeps danger styling */
+            .composer-panel .composer-tool-btn-danger {
+                border-radius: 10px;
+            }
         }
 
         /* ── Document card ─────────────────────────────────────── */
