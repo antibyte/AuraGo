@@ -59,8 +59,8 @@ function emailAccountRenderCards() {
                     <span class="em-card-id">ID: ${escapeAttr(a.id)}</span>
                 </div>
                 <div class="em-card-actions">
-                    <button onclick="emailAccountEdit(${idx})" class="em-card-btn em-card-btn-edit" title="Edit">✏️</button>
-                    <button onclick="emailAccountDelete(${idx})" class="em-card-btn em-card-btn-delete" title="Delete">🗑️</button>
+                    <button onclick="emailAccountEdit(${idx})" class="em-card-btn em-card-btn-edit" title="${t('config.email.edit_tooltip')}">✏️</button>
+                    <button onclick="emailAccountDelete(${idx})" class="em-card-btn em-card-btn-delete" title="${t('config.email.delete_tooltip')}">🗑️</button>
                 </div>
             </div>
             <div class="em-card-grid">
@@ -68,7 +68,7 @@ function emailAccountRenderCards() {
                 <div><span class="em-grid-label">SMTP:</span> ${escapeAttr(a.smtp_host || '—')}:${a.smtp_port || '—'}</div>
                 <div><span class="em-grid-label">${t('config.email.user')}:</span> ${escapeAttr(a.username || '—')}</div>
                 <div><span class="em-grid-label">${t('config.email.password')}:</span> ${maskedPw}</div>
-                <div><span class="em-grid-label">From:</span> ${escapeAttr(a.from_address || '—')}</div>
+                <div><span class="em-grid-label">${t('config.email.from_label')}:</span> ${escapeAttr(a.from_address || '—')}</div>
                 <div><span class="em-grid-label">${t('config.email.folder')}:</span> ${escapeAttr(a.watch_folder || 'INBOX')}</div>
             </div>
         </div>`;

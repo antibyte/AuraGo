@@ -41,5 +41,8 @@
   "config.email.account_enabled_label": "Account enabled",
   "config.email.account_enabled_help": "If disabled, the agent cannot use this account.",
   "config.email.allow_sending_label": "Allow sending emails",
-  "config.email.allow_sending_help": "If disabled, the agent can only read emails, not send them."
+  "config.email.allow_sending_help": "If disabled, the agent can only read emails, not send them.",
+  "config.email.edit_tooltip": "Edit",
+  "config.email.delete_tooltip": "Delete",
+  "config.email.from_label": "From"
 }
