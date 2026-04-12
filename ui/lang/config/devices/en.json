@@ -47,5 +47,13 @@
   "config.devices.find_mac_searching": "Searching ARP table…",
   "config.devices.find_mac_found": "Found: {mac}",
   "config.devices.find_mac_not_found": "Not found in ARP cache. Make sure the device is reachable.",
-  "config.devices.find_mac_error": "Lookup failed."
+  "config.devices.find_mac_error": "Lookup failed.",
+  "config.devices.field_name_label": "Name *",
+  "config.devices.field_port_label": "Port",
+  "config.devices.port_placeholder": "22",
+  "config.devices.ip_placeholder": "192.168.1.100",
+  "config.devices.username_placeholder": "root",
+  "config.devices.mac_placeholder": "AA:BB:CC:DD:EE:FF",
+  "config.devices.field_tags_label": "Tags",
+  "config.devices.field_vault_secret_id_label": "Vault Secret ID"
 }

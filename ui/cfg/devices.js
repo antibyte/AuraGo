@@ -49,38 +49,38 @@ function renderDevicesSection(section) {
             </div>
             <input type="hidden" id="device-edit-id">
             <div class="field-group devices-field-group-bottom">
-                <div class="field-label">Name *</div>
+                <div class="field-label">${t('config.devices.field_name_label')}</div>
                 <input type="text" id="device-field-name" class="field-input" placeholder="${t('config.devices.name_placeholder')}">
             </div>
             <div class="devices-grid devices-grid-two">
                 <div class="field-group">
                     <div class="field-label">${t('config.devices.type_label')}</div>
                     <select id="device-field-type" class="field-input devices-select-compact">
-                        <option value="server">Server</option>
-                        <option value="router">Router</option>
-                        <option value="switch">Switch</option>
-                        <option value="printer">Printer</option>
-                        <option value="nas">NAS</option>
-                        <option value="camera">Camera</option>
-                        <option value="iot">IoT</option>
-                        <option value="vm">VM</option>
-                        <option value="container">Container</option>
-                        <option value="generic">Generic</option>
+                        <option value="server">${t('config.devices.type_server')}</option>
+                        <option value="router">${t('config.devices.type_router')}</option>
+                        <option value="switch">${t('config.devices.type_switch')}</option>
+                        <option value="printer">${t('config.devices.type_printer')}</option>
+                        <option value="nas">${t('config.devices.type_nas')}</option>
+                        <option value="camera">${t('config.devices.type_camera')}</option>
+                        <option value="iot">${t('config.devices.type_iot')}</option>
+                        <option value="vm">${t('config.devices.type_vm')}</option>
+                        <option value="container">${t('config.devices.type_container')}</option>
+                        <option value="generic">${t('config.devices.type_generic')}</option>
                     </select>
                 </div>
                 <div class="field-group">
-                    <div class="field-label">Port</div>
-                    <input type="number" id="device-field-port" class="field-input" placeholder="22" value="22">
+                    <div class="field-label">${t('config.devices.field_port_label')}</div>
+                    <input type="number" id="device-field-port" class="field-input" placeholder="${t('config.devices.port_placeholder')}" value="22">
                 </div>
             </div>
             <div class="devices-grid devices-grid-ip-user">
                 <div class="field-group">
                     <div class="field-label">${t('config.devices.ip_address')}</div>
-                    <input type="text" id="device-field-ip" class="field-input" placeholder="192.168.1.100">
+                    <input type="text" id="device-field-ip" class="field-input" placeholder="${t('config.devices.ip_placeholder')}">
                 </div>
                 <div class="field-group">
                     <div class="field-label">${t('config.devices.username')}</div>
-                    <input type="text" id="device-field-username" class="field-input" placeholder="root">
+                    <input type="text" id="device-field-username" class="field-input" placeholder="${t('config.devices.username_placeholder')}">
                 </div>
             </div>
             <div class="field-group devices-field-group-top">
@@ -93,7 +93,7 @@ function renderDevicesSection(section) {
                     <span class="devices-field-hint">(${t('config.devices.mac_hint')})</span>
                 </div>
                 <div class="devices-mac-row">
-                    <input type="text" id="device-field-mac" class="field-input devices-mac-input" placeholder="AA:BB:CC:DD:EE:FF">
+                    <input type="text" id="device-field-mac" class="field-input devices-mac-input" placeholder="${t('config.devices.mac_placeholder')}">
                     <button id="device-find-mac-btn" class="btn-secondary devices-find-mac-btn" onclick="devicesFindMAC()" title="${t('config.devices.find_mac_tooltip')}">
                         🔍 ${t('config.devices.find_mac')}
                     </button>
@@ -101,11 +101,11 @@ function renderDevicesSection(section) {
                 <div id="device-mac-status" class="devices-mac-status is-hidden"></div>
             </div>
             <div class="field-group devices-field-group-top">
-                <div class="field-label">Tags <span class="devices-field-hint">(${t('config.devices.tags_hint')})</span></div>
+                <div class="field-label">${t('config.devices.field_tags_label')} <span class="devices-field-hint">(${t('config.devices.tags_hint')})</span></div>
                 <input type="text" id="device-field-tags" class="field-input" placeholder="${t('config.devices.tags_placeholder')}">
             </div>
             <div class="field-group devices-field-group-top">
-                <div class="field-label">Vault Secret ID <span class="devices-field-hint">(${t('config.devices.vault_read_only')})</span></div>
+                <div class="field-label">${t('config.devices.field_vault_secret_id_label')} <span class="devices-field-hint">(${t('config.devices.vault_read_only')})</span></div>
                 <input type="text" id="device-field-vault" class="field-input devices-vault-input" disabled>
             </div>
             <div id="device-modal-error" class="devices-modal-error is-hidden"></div>
