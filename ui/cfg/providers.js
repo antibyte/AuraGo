@@ -728,9 +728,9 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                         </div>
                     </div>
                     <div class="prov-provider-grid">
-                        <div><span class="prov-text-muted">Base URL:</span> ${escapeAttr(p.base_url || '—')}</div>
-                        <div><span class="prov-text-muted">Model:</span> ${escapeAttr(p.model || '—')}</div>
-                        <div><span class="prov-text-muted">${isOAuth ? 'Auth:' : 'API Key:'}</span> ${authInfo}</div>
+                        <div><span class="prov-text-muted">${t('config.providers.card_base_url')}</span> ${escapeAttr(p.base_url || '—')}</div>
+                        <div><span class="prov-text-muted">${t('config.providers.card_model')}</span> ${escapeAttr(p.model || '—')}</div>
+                        <div><span class="prov-text-muted">${isOAuth ? t('config.providers.card_auth') : t('config.providers.card_api_key')}</span> ${authInfo}</div>
                     </div>
                 </div>`;
             });
@@ -799,16 +799,16 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                     <button onclick="document.getElementById('provider-modal-overlay').remove()" class="prov-modal-close-btn">✕</button>
                 </div>
                 <div class="field-group">
-                    <div class="field-label">ID</div>
+                    <div class="field-label">${t('config.providers.field_id_label')}</div>
                     <div class="field-help">${t('config.providers.id_help')}</div>
-                    <input class="field-input ${data._editMode ? 'is-disabled' : ''}" id="prov-id" value="${escapeAttr(data.id || '')}" placeholder="my-provider" ${data._editMode ? 'disabled' : ''}>
+                    <input class="field-input ${data._editMode ? 'is-disabled' : ''}" id="prov-id" value="${escapeAttr(data.id || '')}" placeholder="${t('config.providers.id_placeholder')}" ${data._editMode ? 'disabled' : ''}>
                 </div>
                 <div class="field-group">
-                    <div class="field-label">Name</div>
+                    <div class="field-label">${t('config.providers.field_name')}</div>
                     <input class="field-input" id="prov-name" value="${escapeAttr(data.name || '')}" placeholder="${t('config.providers.display_name')}">
                 </div>
                 <div class="field-group">
-                    <div class="field-label">Type</div>
+                    <div class="field-label">${t('config.providers.field_type_label')}</div>
                     <div class="field-help">${t('config.providers.type_help')}</div>
                     <select class="field-select" id="prov-type">
                         ${['openai','openrouter','ollama','anthropic','google','minimax','workers-ai','custom'].map(typ =>
@@ -817,7 +817,7 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                     </select>
                 </div>
                 <div class="field-group">
-                    <div class="field-label">Base URL</div>
+                    <div class="field-label">${t('config.providers.field_base_url_label')}</div>
                     <input class="field-input ${(data.type || '') === 'workers-ai' ? 'is-disabled' : ''}" id="prov-url" value="${escapeAttr(data.base_url || '')}" placeholder="${PROVIDER_BASE_URLS[data.type] || PROVIDER_BASE_URLS.openrouter}" ${(data.type || '') === 'workers-ai' ? 'disabled' : ''}>
                     <div id="prov-url-auto-hint" class="prov-field-hint ${(data.type || '') === 'workers-ai' ? '' : 'is-hidden'}">${t('config.providers.workers_ai_url_auto')}</div>
                 </div>
@@ -826,11 +826,11 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                 <div id="prov-account-id-block" class="field-group ${(data.type || '') === 'workers-ai' ? '' : 'is-hidden'}">
                     <div class="field-label">${t('config.providers.account_id')}</div>
                     <div class="field-help">${t('config.providers.account_id_help')}</div>
-                    <input class="field-input" id="prov-account-id" value="${escapeAttr(data.account_id || '')}" placeholder="e.g. a1b2c3d4e5f6...">
+                    <input class="field-input" id="prov-account-id" value="${escapeAttr(data.account_id || '')}" placeholder="${t('config.providers.account_id_placeholder')}">
                 </div>
                 <div class="field-group">
-                    <div class="field-label">Model</div>
-                    <input class="field-input" id="prov-model" value="${escapeAttr(data.model || '')}" placeholder="gpt-4o / llama3 / ...">
+                    <div class="field-label">${t('config.providers.field_model_label')}</div>
+                    <input class="field-input" id="prov-model" value="${escapeAttr(data.model || '')}" placeholder="${t('config.providers.model_placeholder')}">
                 </div>
 
                 <!-- Ollama model query (only visible when type = ollama) -->
@@ -899,8 +899,8 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                 <div class="field-group prov-group-divider">
                     <div class="field-label">${t('config.providers.authentication')}</div>
                     <select class="field-select" id="prov-auth-type">
-                        <option value="api_key"${currentAuthType !== 'oauth2' ? ' selected' : ''}>🔑 API Key</option>
-                        <option value="oauth2"${currentAuthType === 'oauth2' ? ' selected' : ''}>🔐 OAuth2 Authorization Code</option>
+                        <option value="api_key"${currentAuthType !== 'oauth2' ? ' selected' : ''}>${t('config.providers.auth_type_api_key_option')}</option>
+                        <option value="oauth2"${currentAuthType === 'oauth2' ? ' selected' : ''}>${t('config.providers.auth_type_oauth2_option')}</option>
                     </select>
                 </div>
 
@@ -913,10 +913,10 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                         </select>
                     </div>
                     <div class="field-group">
-                        <div class="field-label">API Key</div>
+                        <div class="field-label">${t('config.providers.field_api_key_label')}</div>
                         <div id="prov-key-hint" class="prov-field-hint">${PROVIDER_HINTS[data.type || 'openai'] ? t(PROVIDER_HINTS[data.type || 'openai']) : t(PROVIDER_HINTS.openai)}</div>
                         <div class="password-wrap">
-                            <input class="field-input" id="prov-key" type="password" value="${escapeAttr(data.api_key === '••••••••' ? '' : (data.api_key || ''))}" placeholder="${data.api_key === '••••••••' ? t('config.providers.key_placeholder_existing') : 'sk-...'}" autocomplete="off">
+                            <input class="field-input" id="prov-key" type="password" value="${escapeAttr(data.api_key === '••••••••' ? '' : (data.api_key || ''))}" placeholder="${data.api_key === '••••••••' ? t('config.providers.key_placeholder_existing') : t('config.providers.api_key_placeholder')}" autocomplete="off">
                             <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
                         </div>
                         ${data.api_key === '••••••••' ? `<div class="prov-field-hint">${t('config.providers.keep_existing_key')}</div>` : ''}
@@ -926,23 +926,23 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                 <!-- OAuth2 section (visible when auth_type = oauth2) -->
                 <div id="prov-oauth-section" class="${isOAuth ? '' : 'is-hidden'}">
                     <div class="field-group">
-                        <div class="field-label">Authorization URL</div>
+                        <div class="field-label">${t('config.providers.field_auth_url_label')}</div>
                         <div class="field-help">${t('config.providers.oauth_auth_url_help')}</div>
-                        <input class="field-input" id="prov-oauth-auth-url" value="${escapeAttr(data.oauth_auth_url || '')}" placeholder="https://accounts.google.com/o/oauth2/v2/auth">
+                        <input class="field-input" id="prov-oauth-auth-url" value="${escapeAttr(data.oauth_auth_url || '')}" placeholder="${t('config.providers.auth_url_placeholder')}">
                     </div>
                     <div class="field-group">
-                        <div class="field-label">Token URL</div>
+                        <div class="field-label">${t('config.providers.field_token_url_label')}</div>
                         <div class="field-help">${t('config.providers.oauth_token_url_help')}</div>
-                        <input class="field-input" id="prov-oauth-token-url" value="${escapeAttr(data.oauth_token_url || '')}" placeholder="https://oauth2.googleapis.com/token">
+                        <input class="field-input" id="prov-oauth-token-url" value="${escapeAttr(data.oauth_token_url || '')}" placeholder="${t('config.providers.token_url_placeholder')}">
                     </div>
                     <div class="field-group">
-                        <div class="field-label">Client ID</div>
-                        <input class="field-input" id="prov-oauth-client-id" value="${escapeAttr(data.oauth_client_id || '')}" placeholder="123456789.apps.googleusercontent.com">
+                        <div class="field-label">${t('config.providers.field_client_id_label')}</div>
+                        <input class="field-input" id="prov-oauth-client-id" value="${escapeAttr(data.oauth_client_id || '')}" placeholder="${t('config.providers.client_id_placeholder')}">
                     </div>
                     <div class="field-group">
-                        <div class="field-label">Client Secret</div>
+                        <div class="field-label">${t('config.providers.field_client_secret_label')}</div>
                         <div class="password-wrap">
-                            <input class="field-input" id="prov-oauth-client-secret" type="password" value="${escapeAttr(data.oauth_client_secret === '••••••••' ? '' : (data.oauth_client_secret || ''))}" placeholder="${data.oauth_client_secret === '••••••••' ? t('config.providers.key_placeholder_existing') : 'GOCSPX-...'}" autocomplete="off">
+                            <input class="field-input" id="prov-oauth-client-secret" type="password" value="${escapeAttr(data.oauth_client_secret === '••••••••' ? '' : (data.oauth_client_secret || ''))}" placeholder="${data.oauth_client_secret === '••••••••' ? t('config.providers.key_placeholder_existing') : t('config.providers.client_secret_placeholder')}" autocomplete="off">
                             <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
                         </div>
                         ${data.oauth_client_secret === '••••••••' ? `<div class="prov-field-hint">${t('config.providers.keep_existing_secret')}</div>` : ''}
