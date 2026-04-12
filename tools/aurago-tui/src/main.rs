@@ -286,16 +286,28 @@ async fn run_app(
                     Action::CursorStart => {}
                     Action::CursorEnd => {}
                     Action::Type(c) => {
+                        // Robust backspace handling for terminals that send DEL/Ctrl+H as chars
+                        let is_backspace = c == '\u{7f}' || c == '\u{8}';
                         if app_lock.screen == Screen::Login {
                             if app_lock.login_focus_otp {
-                                if c.is_ascii_digit() && app_lock.login_totp.len() < 6 {
+                                if is_backspace {
+                                    app_lock.login_totp.pop();
+                                } else if c.is_ascii_digit() && app_lock.login_totp.len() < 6 {
                                     app_lock.login_totp.push(c);
                                 }
                             } else {
-                                app_lock.login_password.push(c);
+                                if is_backspace {
+                                    app_lock.login_password.pop();
+                                } else if !c.is_control() {
+                                    app_lock.login_password.push(c);
+                                }
                             }
                         } else {
-                            app_lock.chat_input.push(c);
+                            if is_backspace {
+                                app_lock.chat_input.pop();
+                            } else if c == '\n' || !c.is_control() {
+                                app_lock.chat_input.push(c);
+                            }
                         }
                     }
                     Action::None => {}

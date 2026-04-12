@@ -14,7 +14,7 @@ pub async fn login(client: &ApiClient, password: &str, totp_code: &str) -> Resul
         redirect: "/".to_string(),
     };
     let raw_resp = client
-        .request_raw(Method::POST, "/api/auth/login", Some(&req))
+        .request_raw(Method::POST, "/auth/login", Some(&req))
         .await?;
     // Extract and store session cookie manually for robustness
     if let Some(set_cookie) = raw_resp.headers().get("set-cookie") {
