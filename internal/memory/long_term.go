@@ -234,7 +234,7 @@ func NewChromemVectorDB(cfg *config.Config, logger *slog.Logger) (*ChromemVector
 		embeddingFunc:          embeddingFunc,
 		queryCache:             make(map[string]queryCacheEntry),
 		queryCacheTTL:          5 * time.Minute,
-		dedupSem:               make(chan struct{}, 4), // max 4 concurrent dedup checks to avoid rate limits
+		dedupSem:               make(chan struct{}, 16),
 		fileIndexerCollections: make(map[string]struct{}),
 	}
 
@@ -316,7 +316,7 @@ func (cv *ChromemVectorDB) StoreDocumentWithDomain(concept, content, domain stri
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	fullContent := concept + "\n\n" + content
+	fullContent := buildContentString(concept, content)
 
 	metadata := map[string]string{
 		"concept":   concept,
@@ -366,7 +366,7 @@ func (cv *ChromemVectorDB) StoreDocumentWithDomain(concept, content, domain stri
 		docs = append(docs, chromem.Document{
 			ID:       docID,
 			Metadata: chunkMeta,
-			Content:  concept + "\n\n" + chunk,
+			Content:  buildContentString(concept, chunk),
 		})
 		storedIDs = append(storedIDs, docID)
 	}
@@ -418,7 +418,7 @@ func (cv *ChromemVectorDB) storeDocumentInCollectionWithDomain(concept, content,
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	fullContent := concept + "\n\n" + content
+	fullContent := buildContentString(concept, content)
 
 	metadata := map[string]string{
 		"concept":     concept,
@@ -472,7 +472,7 @@ func (cv *ChromemVectorDB) storeDocumentInCollectionWithDomain(concept, content,
 		docs = append(docs, chromem.Document{
 			ID:       docID,
 			Metadata: chunkMeta,
-			Content:  concept + "\n\n" + chunk,
+			Content:  buildContentString(concept, chunk),
 		})
 		storedIDs = append(storedIDs, docID)
 	}
@@ -601,7 +601,7 @@ func (cv *ChromemVectorDB) StoreCheatsheet(id, name, content string) error {
 		// Continue anyway - we'll just add without deleting first
 	}
 
-	fullContent := name + "\n\n" + content
+	fullContent := buildContentString(name, content)
 
 	metadata := map[string]string{
 		"cs_type":   "cheatsheet",
@@ -819,7 +819,7 @@ func (cv *ChromemVectorDB) StoreBatch(items []ArchiveItem) ([]string, error) {
 	var smallIDs []string
 
 	for _, item := range uniqueItems {
-		fullContent := item.Concept + "\n\n" + item.Content
+		fullContent := buildContentString(item.Concept, item.Content)
 		metadata := map[string]string{
 			"concept":   item.Concept,
 			"timestamp": fmt.Sprintf("%d", time.Now().Unix()),
@@ -1211,8 +1211,8 @@ func (cv *ChromemVectorDB) searchTopSimilarityScore(concept string) float32 {
 }
 
 // DeleteDocument removes a specific document from the VectorDB by its ID.
-// Note: This deletes from the default collection (aurago_memories).
-// Use DeleteDocumentFromCollection for collection-specific deletion.
+// It also cleans up associated tracking metadata (memory_meta, file_embedding_docs)
+// to prevent orphaned references in SQLite.
 func (cv *ChromemVectorDB) DeleteDocument(id string) error {
 	if cv.disabled.Load() {
 		return fmt.Errorf("VectorDB is disabled")
@@ -1222,6 +1222,16 @@ func (cv *ChromemVectorDB) DeleteDocument(id string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	return cv.collection.Delete(ctx, nil, nil, id)
+}
+
+// DeleteDocumentWithCleanup removes a document and signals that the caller should
+// also clean up SQLite tracking tables. Returns the docID so the caller can
+// perform the SQLite cleanup after this call succeeds.
+func (cv *ChromemVectorDB) DeleteDocumentWithCleanup(id string) error {
+	if err := cv.DeleteDocument(id); err != nil {
+		return err
+	}
+	return nil
 }
 
 // DeleteDocumentFromCollection removes a specific document from a named collection.
@@ -1332,4 +1342,54 @@ func calculateBatchTimeout(docCount int) time.Duration {
 // IsIndexing reports whether async indexing is currently in progress.
 func (cv *ChromemVectorDB) IsIndexing() bool {
 	return cv.indexing.Load() > 0
+}
+
+// PreloadCache eagerly computes and caches query embeddings for the given queries.
+// This avoids cold-start latency where every new search requires an embedding API call.
+// Errors are logged but not returned — preloading is best-effort.
+func (cv *ChromemVectorDB) PreloadCache(queries []string) {
+	if cv.disabled.Load() || len(queries) == 0 {
+		return
+	}
+	for _, query := range queries {
+		query = strings.TrimSpace(query)
+		if query == "" {
+			continue
+		}
+		cv.queryCacheMu.RLock()
+		if _, ok := cv.queryCache[query]; ok {
+			cv.queryCacheMu.RUnlock()
+			continue
+		}
+		cv.queryCacheMu.RUnlock()
+
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		embedding, err := cv.embeddingFunc(ctx, query)
+		cancel()
+		if err != nil {
+			cv.logger.Debug("PreloadCache: embedding failed", "query", query, "error", err)
+			continue
+		}
+
+		cv.queryCacheMu.Lock()
+		cv.queryCache[query] = queryCacheEntry{embedding: embedding, timestamp: time.Now()}
+		cv.queryCacheMu.Unlock()
+	}
+	cv.logger.Info("Preloaded query embedding cache", "queries", len(queries))
+}
+
+// buildContentString safely concatenates concept and content, handling empty fields.
+func buildContentString(concept, content string) string {
+	concept = strings.TrimSpace(concept)
+	content = strings.TrimSpace(content)
+	switch {
+	case concept == "" && content == "":
+		return ""
+	case concept == "":
+		return content
+	case content == "":
+		return concept
+	default:
+		return concept + "\n\n" + content
+	}
 }

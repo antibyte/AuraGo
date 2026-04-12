@@ -318,6 +318,85 @@ func buildMemoryCuratorDryRun(metas []MemoryMeta, usage MemoryUsageStats) Memory
 	return report
 }
 
+// MemoryBudgetStats reports the current memory budget utilization.
+type MemoryBudgetStats struct {
+	TotalTracked int  `json:"total_tracked"`
+	KeepForever  int  `json:"keep_forever"`
+	Evictable    int  `json:"evictable"`
+	Protected    int  `json:"protected"`
+	OverBudget   bool `json:"over_budget"`
+	BudgetLimit  int  `json:"budget_limit"`
+}
+
+// EnforceMemoryBudget returns doc IDs that should be evicted to stay within budget.
+// It respects keep_forever and protected flags, and prioritizes eviction by:
+// 1. Stale unverified memories (oldest first)
+// 2. Low effectiveness memories
+// 3. Low access count memories
+// Returns the IDs to evict, or empty slice if within budget.
+func (s *SQLiteMemory) EnforceMemoryBudget(budget int) ([]string, error) {
+	if budget <= 0 {
+		return nil, nil
+	}
+
+	var total int
+	if err := s.db.QueryRow("SELECT COUNT(*) FROM memory_meta").Scan(&total); err != nil {
+		return nil, fmt.Errorf("count memory_meta: %w", err)
+	}
+
+	if total <= budget {
+		return nil, nil
+	}
+
+	overBy := total - budget
+	rows, err := s.db.Query(`
+		SELECT doc_id FROM memory_meta
+		WHERE keep_forever = 0 AND protected = 0
+		ORDER BY
+			CASE WHEN verification_status = 'contradicted' THEN 0 ELSE 1 END,
+			CASE WHEN verification_status = 'unverified' THEN 0 ELSE 1 END,
+			access_count ASC,
+			last_accessed ASC
+		LIMIT ?
+	`, overBy)
+	if err != nil {
+		return nil, fmt.Errorf("query eviction candidates: %w", err)
+	}
+	defer rows.Close()
+
+	var toEvict []string
+	for rows.Next() {
+		var docID string
+		if err := rows.Scan(&docID); err == nil {
+			toEvict = append(toEvict, docID)
+		}
+	}
+	return toEvict, rows.Err()
+}
+
+// GetMemoryBudgetStats returns current budget utilization statistics.
+func (s *SQLiteMemory) GetMemoryBudgetStats(budget int) (MemoryBudgetStats, error) {
+	stats := MemoryBudgetStats{BudgetLimit: budget}
+	if budget <= 0 {
+		budget = 0
+	}
+
+	err := s.db.QueryRow(`
+		SELECT
+			COUNT(*),
+			COALESCE(SUM(CASE WHEN keep_forever != 0 THEN 1 ELSE 0 END), 0),
+			COALESCE(SUM(CASE WHEN protected != 0 THEN 1 ELSE 0 END), 0),
+			COALESCE(SUM(CASE WHEN keep_forever = 0 AND protected = 0 THEN 1 ELSE 0 END), 0)
+		FROM memory_meta
+	`).Scan(&stats.TotalTracked, &stats.KeepForever, &stats.Protected, &stats.Evictable)
+	if err != nil {
+		return stats, fmt.Errorf("memory budget stats: %w", err)
+	}
+
+	stats.OverBudget = budget > 0 && stats.TotalTracked > budget
+	return stats, nil
+}
+
 func parseMemoryMetaTime(value string) time.Time {
 	value = strings.TrimSpace(value)
 	if value == "" {

@@ -25,6 +25,7 @@ func TestKGSemanticUpsertDoesNotDeleteOnEmbeddingFailure(t *testing.T) {
 		embeddingFunc: embeddingFunc,
 		queryCache:    make(map[string]queryCacheEntry),
 		queryCacheTTL: knowledgeGraphSemanticQueryCacheTTL,
+		contentCache:  make(map[string]string),
 	}
 
 	// Seed an existing document so we can verify it's not removed when the embedding

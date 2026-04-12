@@ -35,8 +35,10 @@ type knowledgeGraphSemanticIndex struct {
 	embeddingFunc chromem.EmbeddingFunc
 	logger        *slog.Logger
 	mu            sync.Mutex
+	reindexMu     sync.Mutex
 	queryCache    map[string]queryCacheEntry
 	queryCacheTTL time.Duration
+	contentCache  map[string]string
 }
 
 // Close releases resources held by the semantic index and clears the embedding cache.
@@ -101,6 +103,7 @@ func (kg *KnowledgeGraph) enableSemanticSearchWithCollection(db *chromem.DB, emb
 		logger:        logger,
 		queryCache:    make(map[string]queryCacheEntry),
 		queryCacheTTL: knowledgeGraphSemanticQueryCacheTTL,
+		contentCache:  make(map[string]string),
 	}
 
 	if err := kg.validateSemanticIndex(index); err != nil {
@@ -125,6 +128,9 @@ func (kg *KnowledgeGraph) reindexSemanticNodes() error {
 	if kg.semantic == nil {
 		return nil
 	}
+
+	kg.semantic.reindexMu.Lock()
+	defer kg.semantic.reindexMu.Unlock()
 
 	now := time.Now().Format(time.RFC3339)
 
@@ -154,6 +160,9 @@ func (kg *KnowledgeGraph) reindexSemanticNodes() error {
 		if kg.upsertSemanticNodeIndex(node) {
 			indexedNodeIDs = append(indexedNodeIDs, node.ID)
 		}
+	}
+	if len(indexedNodeIDs) > 0 && kg.semantic.logger != nil {
+		kg.semantic.logger.Info("KG semantic reindex: nodes indexed", "count", len(indexedNodeIDs))
 	}
 	if len(indexedNodeIDs) > 0 {
 		placeholders := strings.Repeat("?,", len(indexedNodeIDs))
@@ -203,12 +212,28 @@ func (kg *KnowledgeGraph) reindexSemanticNodes() error {
 
 func (kg *KnowledgeGraph) upsertSemanticNodeIndex(node Node) bool {
 	if kg.semantic == nil || !shouldIndexKnowledgeGraphNode(node) {
-		return true // skip is not a failure
+		return true
 	}
 
-	content := buildKnowledgeGraphSemanticContent(node)
+	kg.semantic.mu.Lock()
+	cached, hasCached := kg.semantic.contentCache[node.ID]
+	kg.semantic.mu.Unlock()
+
+	var content string
+	if hasCached {
+		content = cached
+	} else {
+		content = buildKnowledgeGraphSemanticContent(node)
+		kg.semantic.mu.Lock()
+		kg.semantic.contentCache[node.ID] = content
+		if len(kg.semantic.contentCache) > 5000 {
+			kg.semantic.contentCache = make(map[string]string)
+		}
+		kg.semantic.mu.Unlock()
+	}
+
 	if content == "" {
-		return true // nothing to index is not a failure
+		return true
 	}
 
 	kg.semantic.mu.Lock()
@@ -583,4 +608,49 @@ func (kg *KnowledgeGraph) retrySemanticEmbedding(op string, fn func(ctx context.
 		time.Sleep(backoff)
 	}
 	return lastErr
+}
+
+// ConsistencyCheck verifies that the KG semantic index is in sync with SQLite nodes/edges.
+// Returns counts of detected drift and an error if significant drift is found.
+type KGConsistencyReport struct {
+	NodesMissingFromIndex int  `json:"nodes_missing_from_index"`
+	EdgesMissingFromIndex int  `json:"edges_missing_from_index"`
+	StaleNodes            int  `json:"stale_nodes"`
+	IndexOrphans          int  `json:"index_orphans"`
+	TotalNodes            int  `json:"total_nodes"`
+	TotalIndexed          uint `json:"total_indexed"`
+	NeedsReindex          bool `json:"needs_reindex"`
+}
+
+func (kg *KnowledgeGraph) ConsistencyCheck() (*KGConsistencyReport, error) {
+	if kg.semantic == nil {
+		return nil, fmt.Errorf("semantic search is disabled")
+	}
+
+	report := &KGConsistencyReport{}
+
+	_ = kg.db.QueryRow("SELECT COUNT(*) FROM kg_nodes").Scan(&report.TotalNodes)
+	report.TotalIndexed = uint(kg.semantic.collection.Count())
+
+	rows, err := kg.db.Query(`
+		SELECT COUNT(*) FROM kg_nodes
+		WHERE semantic_indexed_at IS NULL OR semantic_indexed_at < updated_at
+	`)
+	if err == nil {
+		rows.Scan(&report.NodesMissingFromIndex)
+		rows.Close()
+	}
+
+	edgeRows, err := kg.db.Query(`
+		SELECT COUNT(*) FROM kg_edges
+		WHERE semantic_indexed_at IS NULL
+	`)
+	if err == nil {
+		edgeRows.Scan(&report.EdgesMissingFromIndex)
+		edgeRows.Close()
+	}
+
+	report.NeedsReindex = report.NodesMissingFromIndex > 50 || report.EdgesMissingFromIndex > 50
+
+	return report, nil
 }

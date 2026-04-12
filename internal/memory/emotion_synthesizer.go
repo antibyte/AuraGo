@@ -2,7 +2,9 @@ package memory
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -188,7 +190,8 @@ func (es *EmotionSynthesizer) SynthesizeEmotion(ctx context.Context, stm *SQLite
 	es.mu.RUnlock()
 
 	// Slow path: deduplicate concurrent LLM calls so only one runs at a time.
-	v, _, _ := es.sfGroup.Do("synthesis", func() (interface{}, error) {
+	sfKey := emotionSynthesisKey(input)
+	v, _, _ := es.sfGroup.Do(sfKey, func() (interface{}, error) {
 		// Re-check inside singleflight: a concurrent goroutine may have just completed.
 		es.mu.RLock()
 		if time.Since(es.lastCall) < es.minInterval && es.lastState != nil {
@@ -264,6 +267,18 @@ func (es *EmotionSynthesizer) SynthesizeEmotion(ctx context.Context, stm *SQLite
 		return nil, fmt.Errorf("emotion synthesis: unexpected nil result from singleflight")
 	}
 	return res.state, res.err
+}
+
+// emotionSynthesisKey generates a singleflight key from the EmotionInput context
+// so that concurrent calls with different inputs are not incorrectly deduplicated.
+func emotionSynthesisKey(input EmotionInput) string {
+	h := sha256.New()
+	h.Write([]byte(input.UserMessage))
+	h.Write([]byte(input.TriggerType))
+	h.Write([]byte(input.TriggerDetail))
+	h.Write([]byte(input.TimeOfDay))
+	h.Write([]byte(input.TaskStatus))
+	return "synthesis_" + hex.EncodeToString(h.Sum(nil))[:16]
 }
 
 // buildPrompt constructs the LLM prompt for emotion synthesis.

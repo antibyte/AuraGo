@@ -120,10 +120,22 @@ func (s *SQLiteMemory) GetCoreMemoryUpdatedAt() (time.Time, error) {
 const maxCoreMemoryFactLen = 10_000
 
 // AddCoreMemoryFact inserts a new fact and returns its assigned ID.
+// If an identical fact already exists, it updates the timestamp instead of creating a duplicate.
 func (s *SQLiteMemory) AddCoreMemoryFact(fact string) (int64, error) {
 	if len(fact) > maxCoreMemoryFactLen {
 		fact = fact[:maxCoreMemoryFactLen]
 	}
+
+	var existingID int64
+	err := s.db.QueryRow("SELECT id FROM core_memory WHERE fact = ? LIMIT 1", fact).Scan(&existingID)
+	if err == nil {
+		_, updateErr := s.db.Exec(
+			"UPDATE core_memory SET updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+			existingID,
+		)
+		return existingID, updateErr
+	}
+
 	res, err := s.db.Exec("INSERT INTO core_memory (fact) VALUES (?)", fact)
 	if err != nil {
 		return 0, err

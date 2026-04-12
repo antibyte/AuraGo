@@ -1755,16 +1755,16 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			if strings.Contains(lowerContent, "<tool_call") || strings.Contains(lowerContent, "minimax:tool_call") {
 				orphanedXMLTagCount++
 				currentLogger.Warn("[Sync] Bare <tool_call> XML in native mode, requesting native function call", "attempt", orphanedXMLTagCount, "content_preview", Truncate(content, 150))
-			feedbackMsg := applyEmotionRecoveryNudge(FormatBareXMLInNativeModeFeedback(), emotionPolicy)
-			msgs := recoverySession.PersistRecoveryMessages(PersistRecoveryParams{
-				SessionID:        sessionID,
-				AssistantContent: content,
-				FeedbackMsg:      feedbackMsg,
-				BrokerEventType:  "error_recovery",
-				I18nKey:          "backend.stream_error_recovery_xml_in_native_mode",
-			}, shortTermMem, historyManager)
-			req.Messages = append(req.Messages, msgs...)
-			continue
+				feedbackMsg := applyEmotionRecoveryNudge(FormatBareXMLInNativeModeFeedback(), emotionPolicy)
+				msgs := recoverySession.PersistRecoveryMessages(PersistRecoveryParams{
+					SessionID:        sessionID,
+					AssistantContent: content,
+					FeedbackMsg:      feedbackMsg,
+					BrokerEventType:  "error_recovery",
+					I18nKey:          "backend.stream_error_recovery_xml_in_native_mode",
+				}, shortTermMem, historyManager)
+				req.Messages = append(req.Messages, msgs...)
+				continue
 			}
 		}
 
@@ -1862,6 +1862,27 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 
 			if recoveryState.handleDuplicateToolCall(tc, &req, currentLogger, telemetryScope) {
+				// Native path: the assistant message with ToolCalls was already persisted to
+				// historyManager above. Inject a synthetic role=tool result so the history stays
+				// valid. Without this, the orphaned tool-call message causes API error 2013
+				// ("tool call result does not follow tool call") on the next request.
+				if useNativePath && tc.NativeCallID != "" {
+					syntheticResult := blockedToolOutputFromRequest(&req)
+					req.Messages = append(req.Messages, nativeAssistantMsg)
+					req.Messages = append(req.Messages, openai.ChatCompletionMessage{
+						Role:       openai.ChatMessageRoleTool,
+						Content:    syntheticResult,
+						ToolCallID: tc.NativeCallID,
+					})
+					resultID, _ := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleTool, syntheticResult, false, true)
+					if sessionID == "default" {
+						historyManager.AddMessage(openai.ChatCompletionMessage{
+							Role:       openai.ChatMessageRoleTool,
+							Content:    syntheticResult,
+							ToolCallID: tc.NativeCallID,
+						}, resultID, false, true)
+					}
+				}
 				lastResponseWasTool = false
 				continue
 			}

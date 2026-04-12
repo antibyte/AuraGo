@@ -332,8 +332,8 @@ func (hm *HistoryManager) GetForLLM() []openai.ChatCompletionMessage {
 	defer hm.mu.Unlock()
 
 	var repaired []openai.ChatCompletionMessage
+	droppedCount := 0
 
-	// outstanding tool_call_ids that must be satisfied by subsequent role=tool messages.
 	outstanding := make(map[string]struct{})
 	inToolRound := false
 
@@ -356,26 +356,24 @@ func (hm *HistoryManager) GetForLLM() []openai.ChatCompletionMessage {
 
 		switch msg.Role {
 		case openai.ChatMessageRoleTool:
-			// role=tool is only valid immediately after an assistant tool_calls message,
-			// and must reference a known ToolCallID.
 			if !inToolRound {
+				droppedCount++
 				continue
 			}
 			id := strings.TrimSpace(msg.ToolCallID)
 			if id == "" {
+				droppedCount++
 				continue
 			}
 			if _, ok := outstanding[id]; !ok {
+				droppedCount++
 				continue
 			}
 			delete(outstanding, id)
 			repaired = append(repaired, msg)
 		case openai.ChatMessageRoleAssistant:
-			// Any assistant message closes an open tool round unless it starts a new one.
 			closeToolRound()
 
-			// Validate tool_calls IDs. If any are empty, drop tool_calls entirely to avoid
-			// providers rejecting the payload even if we later filter tool results.
 			if len(msg.ToolCalls) > 0 {
 				valid := true
 				for _, tc := range msg.ToolCalls {
@@ -397,10 +395,28 @@ func (hm *HistoryManager) GetForLLM() []openai.ChatCompletionMessage {
 				}
 			}
 		default:
-			// Any non-tool message closes an open tool round.
 			closeToolRound()
 			repaired = append(repaired, msg)
 		}
+	}
+
+	// Safety net: if there are still outstanding (unmatched) tool-call IDs after the
+	// loop, the last assistant message with ToolCalls had no corresponding role=tool
+	// result — it is an orphan produced e.g. when the circuit breaker fired immediately
+	// after the assistant message was persisted. Drop that orphaned assistant message
+	// to prevent API error 2013 ("tool call result does not follow tool call").
+	if len(outstanding) > 0 {
+		for i := len(repaired) - 1; i >= 0; i-- {
+			if repaired[i].Role == openai.ChatMessageRoleAssistant && len(repaired[i].ToolCalls) > 0 {
+				repaired = append(repaired[:i], repaired[i+1:]...)
+				droppedCount++
+				break
+			}
+		}
+	}
+
+	if droppedCount > 0 {
+		slog.Debug("GetForLLM: dropped dangling tool messages", "dropped", droppedCount, "total_input", len(hm.Messages), "total_output", len(repaired))
 	}
 
 	return repaired

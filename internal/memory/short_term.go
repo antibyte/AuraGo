@@ -63,13 +63,44 @@ func (s *SQLiteMemory) GetRecentMessages(sessionID string, limit int) ([]openai.
 }
 
 // GetRecentMessagesAcrossSessions returns the most recent messages across all sessions
-// in chronological order.
+// in chronological order (newest sessions first, then chronological within).
 func (s *SQLiteMemory) GetRecentMessagesAcrossSessions(limit int) ([]openai.ChatCompletionMessage, error) {
 	query := `
 	SELECT role, content FROM (
 		SELECT role, content, timestamp, id
 		FROM messages
 		ORDER BY timestamp DESC, id DESC
+		LIMIT ?
+	) ORDER BY timestamp ASC, id ASC;`
+
+	return s.queryRecentMessages(query, limit)
+}
+
+// GetRecentMessagesGroupedBySession returns recent messages grouped by session,
+// with the newest sessions appearing first. Within each session, messages are
+// in chronological order. This provides a more intuitive cross-session recall
+// compared to GetRecentMessagesAcrossSessions which uses pure chronological order.
+func (s *SQLiteMemory) GetRecentMessagesGroupedBySession(limit int) ([]openai.ChatCompletionMessage, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	query := `
+	SELECT role, content FROM (
+		SELECT role, content, session_id, timestamp, id
+		FROM messages
+		WHERE (session_id, timestamp, id) IN (
+			SELECT session_id, timestamp, id FROM messages m1
+			WHERE timestamp >= (
+				SELECT MIN(m2.timestamp) FROM (
+					SELECT DISTINCT timestamp FROM messages
+					ORDER BY timestamp DESC
+					LIMIT 1 OFFSET (
+						SELECT GREATEST(0, COUNT(DISTINCT session_id) - 1) FROM messages
+					)
+				) m2
+			)
+		)
+		ORDER BY session_id DESC, timestamp ASC, id ASC
 		LIMIT ?
 	) ORDER BY timestamp ASC, id ASC;`
 
@@ -671,6 +702,64 @@ func (s *SQLiteMemory) DeleteMemoryMeta(docID string) error {
 	return err
 }
 
+// DeleteDocumentCleanup removes all SQLite tracking data for a deleted vector DB document.
+// This includes memory_meta, file_embedding_docs, and memory_conflicts references.
+func (s *SQLiteMemory) DeleteDocumentCleanup(docID string) error {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.Exec(`DELETE FROM memory_meta WHERE doc_id = ?`, docID); err != nil {
+		return fmt.Errorf("cleanup memory_meta: %w", err)
+	}
+	if _, err := tx.Exec(`DELETE FROM file_embedding_docs WHERE doc_id = ?`, docID); err != nil {
+		return fmt.Errorf("cleanup file_embedding_docs: %w", err)
+	}
+	if _, err := tx.Exec(`DELETE FROM memory_conflicts WHERE doc_id_left = ? OR doc_id_right = ?`, docID, docID); err != nil {
+		return fmt.Errorf("cleanup memory_conflicts: %w", err)
+	}
+	if _, err := tx.Exec(`DELETE FROM memory_usage_log WHERE memory_id = ?`, docID); err != nil {
+		return fmt.Errorf("cleanup memory_usage_log: %w", err)
+	}
+
+	return tx.Commit()
+}
+
+// GetUniversallyUsefulMemories returns memory IDs that were cited across multiple sessions,
+// indicating they are broadly useful regardless of context.
+func (s *SQLiteMemory) GetUniversallyUsefulMemories(minSessions int, limit int) ([]string, error) {
+	if minSessions <= 0 {
+		minSessions = 2
+	}
+	if limit <= 0 {
+		limit = 20
+	}
+	rows, err := s.db.Query(`
+		SELECT memory_id
+		FROM memory_usage_log
+		WHERE was_cited = 1
+		GROUP BY memory_id
+		HAVING COUNT(DISTINCT session_id) >= ?
+		ORDER BY COUNT(DISTINCT session_id) DESC, COUNT(*) DESC
+		LIMIT ?
+	`, minSessions, limit)
+	if err != nil {
+		return nil, fmt.Errorf("query universally useful memories: %w", err)
+	}
+	defer rows.Close()
+
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err == nil {
+			ids = append(ids, id)
+		}
+	}
+	return ids, rows.Err()
+}
+
 // GetAllMemoryMeta retrieves the metadata for all chunks to calculate forgetting priorities.
 // Uses pagination to avoid loading unbounded data into memory.
 func (s *SQLiteMemory) GetAllMemoryMeta(limit int, offset int) ([]MemoryMeta, error) {
@@ -682,6 +771,67 @@ func (s *SQLiteMemory) GetAllMemoryMeta(limit int, offset int) ([]MemoryMeta, er
 	}
 	query := `SELECT doc_id, access_count, last_accessed, last_event_at, extraction_confidence, verification_status, source_type, source_reliability, useful_count, useless_count, COALESCE(last_effectiveness_at, ''), protected, keep_forever FROM memory_meta LIMIT ? OFFSET ?;`
 	rows, err := s.db.Query(query, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var metas []MemoryMeta
+	for rows.Next() {
+		var m MemoryMeta
+		if err := rows.Scan(
+			&m.DocID,
+			&m.AccessCount,
+			&m.LastAccessed,
+			&m.LastEventAt,
+			&m.ExtractionConfidence,
+			&m.VerificationStatus,
+			&m.SourceType,
+			&m.SourceReliability,
+			&m.UsefulCount,
+			&m.UselessCount,
+			&m.LastEffectivenessAt,
+			&m.Protected,
+			&m.KeepForever,
+		); err != nil {
+			return nil, err
+		}
+		metas = append(metas, m)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows iteration: %w", err)
+	}
+	return metas, nil
+}
+
+// GetMemoryMetaAfter retrieves memory metadata using cursor-based (keyset) pagination.
+// Pass the last doc_id from the previous page as the cursor, or empty string for the first page.
+// This avoids the O(n) cost of OFFSET for large datasets.
+func (s *SQLiteMemory) GetMemoryMetaAfter(cursor string, limit int) ([]MemoryMeta, error) {
+	if limit <= 0 {
+		limit = 500
+	}
+
+	var rows *sql.Rows
+	var err error
+	if cursor == "" {
+		rows, err = s.db.Query(`
+			SELECT doc_id, access_count, last_accessed, last_event_at, extraction_confidence,
+			       verification_status, source_type, source_reliability, useful_count, useless_count,
+			       COALESCE(last_effectiveness_at, ''), protected, keep_forever
+			FROM memory_meta
+			ORDER BY doc_id ASC
+			LIMIT ?`, limit)
+	} else {
+		rows, err = s.db.Query(`
+			SELECT doc_id, access_count, last_accessed, last_event_at, extraction_confidence,
+			       verification_status, source_type, source_reliability, useful_count, useless_count,
+			       COALESCE(last_effectiveness_at, ''), protected, keep_forever
+			FROM memory_meta
+			WHERE doc_id > ?
+			ORDER BY doc_id ASC
+			LIMIT ?`, cursor, limit)
+	}
 	if err != nil {
 		return nil, err
 	}

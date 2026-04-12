@@ -1288,6 +1288,7 @@ func truncateUTF8Safe(s string, maxLen int) string {
 }
 
 // DeleteNode removes a node and all its connected edges.
+// Also cleans up the semantic index entries for the deleted node and its edges.
 func (kg *KnowledgeGraph) DeleteNode(id string) error {
 	tx, err := kg.db.Begin()
 	if err != nil {
@@ -1313,7 +1314,17 @@ func (kg *KnowledgeGraph) DeleteNode(id string) error {
 		return fmt.Errorf("delete node %s: %w", id, err)
 	}
 
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+
+	if kg.semantic != nil {
+		kg.semantic.mu.Lock()
+		delete(kg.semantic.contentCache, id)
+		kg.semantic.mu.Unlock()
+	}
+
+	return nil
 }
 
 // DeleteEdge removes a specific edge.

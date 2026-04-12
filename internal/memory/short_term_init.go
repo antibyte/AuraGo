@@ -138,6 +138,7 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 		next_retry_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	);
 	CREATE INDEX IF NOT EXISTS idx_archived_messages_consolidated ON archived_messages(consolidated);
+	CREATE INDEX IF NOT EXISTS idx_archived_messages_consolidation_candidates ON archived_messages(consolidated, consolidation_status, next_retry_at);
 
 	CREATE TABLE IF NOT EXISTS tool_usage_adaptive (
 		tool_name TEXT PRIMARY KEY,
