@@ -4363,8 +4363,8 @@ select.cfg-input option {
 }
 
 .backup-import-btn {
-    box-shadow: 0 2px 12px rgba(245, 158, 11, 0.25);
-    background: linear-gradient(135deg, #f59e0b, #d97706);
+    box-shadow: 0 2px 12px rgba(var(--accent-rgb, 45, 212, 191), 0.25);
+    background: linear-gradient(135deg, var(--accent), var(--accent-secondary, #0d9488));
 }
 
 .backup-status-text {
@@ -4897,15 +4897,15 @@ select.cfg-input option {
 }
 
 .emb-modal-panel {
-    border-color: rgba(245, 158, 11, 0.38);
+    border-color: rgba(var(--accent-rgb, 45, 212, 191), 0.38);
 }
 
 .emb-modal-title {
-    color: #f59e0b;
+    color: var(--accent);
 }
 
 .emb-modal-btn-danger {
-    background: linear-gradient(135deg, #f59e0b, #dc2626);
+    background: linear-gradient(135deg, var(--accent), var(--danger));
     color: #fff;
     border: none;
     font-weight: 700;
