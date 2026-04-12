@@ -42,22 +42,27 @@ async function renderMemoryAnalysisSection(section) {
                     <span class="ma-label-text">${t('config.memory_analysis.realtime_title')}</span>
                     <div class="toggle ${cfg.real_time ? 'on' : ''}" data-path="memory_analysis.real_time" onclick="toggleBool(this)"></div>
                 </div>
+                <div class="ma-help-text">${t('config.memory_analysis.realtime_help')}</div>
                 <div class="ma-toggle-row">
                     <span class="ma-label-text">${t('config.memory_analysis.query_expansion_label')}</span>
                     <div class="toggle ${cfg.query_expansion ? 'on' : ''}" data-path="memory_analysis.query_expansion" onclick="toggleBool(this)"></div>
                 </div>
+                <div class="ma-help-text">${t('config.memory_analysis.query_expansion_help')}</div>
                 <div class="ma-toggle-row">
                     <span class="ma-label-text">${t('config.memory_analysis.llm_reranking_label')}</span>
                     <div class="toggle ${cfg.llm_reranking ? 'on' : ''}" data-path="memory_analysis.llm_reranking" onclick="toggleBool(this)"></div>
                 </div>
+                <div class="ma-help-text">${t('config.memory_analysis.llm_reranking_help')}</div>
                 <div class="ma-toggle-row">
                     <span class="ma-label-text">${t('config.memory_analysis.unified_block_label')}</span>
                     <div class="toggle ${cfg.unified_memory_block ? 'on' : ''}" data-path="memory_analysis.unified_memory_block" onclick="toggleBool(this)"></div>
                 </div>
+                <div class="ma-help-text">${t('config.memory_analysis.unified_block_help')}</div>
                 <div class="ma-toggle-row">
                     <span class="ma-label-text">${t('config.memory_analysis.effectiveness_label')}</span>
                     <div class="toggle ${cfg.effectiveness_tracking ? 'on' : ''}" data-path="memory_analysis.effectiveness_tracking" onclick="toggleBool(this)"></div>
                 </div>
+                <div class="ma-help-text">${t('config.memory_analysis.effectiveness_help')}</div>
             </div>
         </div>
 

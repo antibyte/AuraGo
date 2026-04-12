@@ -1086,6 +1086,13 @@ select.cfg-input option {
     gap: 0.75rem;
     padding: 0.35rem 0;
 }
+.ma-help-text {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin: -0.2rem 0 0.6rem 0;
+    padding-left: 0.2rem;
+    line-height: 1.4;
+}
 .ma-label-text { font-size: 0.88rem; color: var(--text-primary); flex: 1; }
 
 .ma-threshold-wrap { padding: 0.25rem 0; }
