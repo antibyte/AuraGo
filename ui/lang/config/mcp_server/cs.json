@@ -24,5 +24,7 @@
   "config.mcp_server.vscode_token_hint": "Generate a bearer token before connecting an external MCP client.",
   "config.mcp_server.copy_url": "Kopírovat URL",
   "config.mcp_server.copy_token": "Kopírovat token",
-  "config.mcp_server.copied": "Zkopírováno!"
+  "config.mcp_server.copied": "Zkopírováno!",
+  "config.mcp_server.error_loading_tools": "Chyba při načítání nástrojů",
+  "config.mcp_server.error_loading_vscode_bridge": "Chyba při načítání informací o VS Code mostu"
 }

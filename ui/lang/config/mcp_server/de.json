@@ -24,5 +24,7 @@
   "config.mcp_server.vscode_token_hint": "Generieren Sie ein Bearer-Token, bevor Sie einen externen MCP-Client verbinden.",
   "config.mcp_server.copy_url": "URL kopieren",
   "config.mcp_server.copy_token": "Token kopieren",
-  "config.mcp_server.copied": "Kopiert!"
+  "config.mcp_server.copied": "Kopiert!",
+  "config.mcp_server.error_loading_tools": "Fehler beim Laden der Werkzeuge",
+  "config.mcp_server.error_loading_vscode_bridge": "Fehler beim Laden der VS Code Bridge-Informationen"
 }

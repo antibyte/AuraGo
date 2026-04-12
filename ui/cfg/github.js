@@ -135,8 +135,8 @@ function githubBuildRepoList(repos, allowedRepos) {
         const isAllowed = allowedSet.has(name);
         const isAgentCreated = repo.agent_created === true;
         const privBadge = isPrivate
-            ? `<span class="gh-badge gh-badge-private">🔒 private</span>`
-            : `<span class="gh-badge gh-badge-public">public</span>`;
+            ? `<span class="gh-badge gh-badge-private">🔒 ${t('config.github.badge_private')}</span>`
+            : `<span class="gh-badge gh-badge-public">${t('config.github.badge_public')}</span>`;
         const agentBadge = isAgentCreated
             ? `<span class="gh-badge gh-badge-agent">🤖 ${t('config.github.agent_badge')}</span>`
             : '';

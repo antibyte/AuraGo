@@ -147,7 +147,7 @@ async function renderLLMGuardianSection(section) {
         html += `<div class="lg-override-list">`;
         overrideKeys.forEach(toolName => {
             const toolLevel = overrides[toolName] || 'medium';
-            const desc = _guardianToolDescriptions[toolName] || '';
+            const desc = _guardianGetToolDesc(toolName);
             const riskIcon = _guardianHighRiskTools.has(toolName) ? '🔴' : (_guardianRiskyTools.has(toolName) ? '🟡' : '⚪');
             html += `<div class="lg-override-row">
                 <span class="lg-override-name" title="${escapeAttr(desc ? toolName + ' — ' + desc : toolName)}">${riskIcon} <strong>${escapeAttr(toolName)}</strong>${desc ? ' <span class="lg-override-desc">— ' + escapeAttr(desc) + '</span>' : ''}</span>
@@ -172,7 +172,7 @@ async function renderLLMGuardianSection(section) {
     if (_guardianToolList) {
         _guardianToolList.forEach(name => {
             if (!overrides[name]) {
-                const desc = _guardianToolDescriptions[name] || '';
+                const desc = _guardianGetToolDesc(name);
                 const riskIcon = _guardianHighRiskTools.has(name) ? '🔴' : (_guardianRiskyTools.has(name) ? '🟡' : '⚪');
                 const label = desc ? `${riskIcon} ${name} — ${desc}` : `${riskIcon} ${name}`;
                 html += `<option value="${escapeAttr(name)}" label="${escapeAttr(label)}">`;
@@ -241,6 +241,13 @@ const _guardianToolDescriptions = {
     media_registry: 'Media registry',
     homepage_registry: 'Homepage registry',
 };
+
+function _guardianGetToolDesc(toolName) {
+    const key = 'config.llm_guardian.tool_' + toolName;
+    const translated = t(key);
+    if (translated && translated !== key) return translated;
+    return _guardianToolDescriptions[toolName] || '';
+}
 
 const _guardianHighRiskTools = new Set([
     'execute_shell', 'execute_sudo', 'execute_python', 'execute_remote_shell', 'filesystem'

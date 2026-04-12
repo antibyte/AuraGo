@@ -220,6 +220,8 @@
   "config.github.agent_created_note": "Repos die der Agent selbst erstellt hat, sind immer zugänglich - auch ohne explizite Freigabe.",
   "config.github.agent_badge": "Agent",
   "config.github.agent_created_always_allowed": "Vom Agent erstellt - immer erlaubt",
+  "config.github.badge_private": "privat",
+  "config.github.badge_public": "öffentlich",
   "config.section.ai_gateway.label": "AI Gateway",
   "config.section.ai_gateway.desc": "LLM-Anfragen über Cloudflare AI Gateway leiten",
   "config.section.mcp_server.label": "MCP Server",

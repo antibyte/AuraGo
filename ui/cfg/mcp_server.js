@@ -167,7 +167,7 @@ async function mcpLoadToolList(allowed) {
         container.innerHTML = listHtml;
         mcpSyncAllowedToolsState();
     } catch (e) {
-        container.innerHTML = '<span class="mcp-srv-error">Error loading tools</span>';
+        container.innerHTML = '<span class="mcp-srv-error">' + t('config.mcp_server.error_loading_tools') + '</span>';
     }
 }
 
@@ -287,7 +287,7 @@ async function mcpLoadVSCodeBridgeInfo() {
         const firstBtn = container.querySelector('.mcp-client-btn');
         mcpSelectClientConfig('vscode', firstBtn);
     } catch (e) {
-        container.innerHTML = `<span class="mcp-srv-error">${esc(e.message || 'Failed to load VS Code bridge info')}</span>`;
+        container.innerHTML = `<span class="mcp-srv-error">${esc(e.message || t('config.mcp_server.error_loading_vscode_bridge'))}</span>`;
     }
 }
 

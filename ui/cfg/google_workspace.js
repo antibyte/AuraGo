@@ -286,7 +286,7 @@ async function gwTestConnection() {
     const btn = document.getElementById('gw-test-btn');
     const statusEl = document.getElementById('gw-oauth-status');
     btn.disabled = true;
-    btn.textContent = '⏳ Testing...';
+    btn.textContent = t('config.google_workspace.testing');
 
     try {
         const resp = await fetch('/api/google-workspace/test');
