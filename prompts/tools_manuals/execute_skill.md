@@ -37,6 +37,7 @@ Use `analyze_image` instead of `pdf_extractor` for PNG/JPG/WebP screenshots or p
 - Skills are Python scripts in `agent_workspace/skills/` with a `.json` manifest
 - New skills can be created via `create_skill_from_template` and are immediately usable
 - Skills run in a sandboxed Python environment with automatic venv activation and vault secret injection
+- **Vault secrets**: If a skill needs secrets (API keys, tokens), the user must store them in the vault and assign them to the skill via the Web UI. Always inform the user about required secrets.
 - Use `list_skills` (not `list_tools`) to discover available skills
 - Native AuraGo tools are **not** skills. Call native tools directly with their own `action` instead of wrapping them in `execute_skill`.
 - Example: use `{"action":"upnp_scan"}` directly, not `{"action":"execute_skill","skill":"upnp_scan"}`.

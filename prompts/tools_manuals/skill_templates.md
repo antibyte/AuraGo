@@ -92,6 +92,18 @@ After creation, use:
 {"action": "execute_skill", "skill": "weather_api", "skill_args": {"endpoint": "weather?q=Berlin", "method": "GET"}}
 ```
 
+### Vault Secrets — User Action Required
+
+When a skill uses `vault_keys`, the user must manually configure the secrets before the skill can work:
+
+1. **Store secret in vault**: Web UI → Settings → Secrets → New Secret (e.g. name: `API_KEY`, value: the actual key)
+2. **Assign secret to skill**: Web UI → Skills → select the skill → Assign Secrets → check the matching vault entries → Save
+
+**Always inform the user** which secrets they need to store and assign. Without this step, the skill will receive empty values and fail.
+
+Example message to the user:
+> I created the skill `weather_api`. It requires the vault secret `API_KEY`. Please store your OpenWeatherMap API key in the vault (Settings → Secrets) and then assign it to the skill (Skills → weather_api → Assign Secrets).
+
 ### Daemon Skill Templates
 
 Daemon skills are long-running background processes managed by the Daemon Supervisor. They run continuously and wake the agent when events occur.

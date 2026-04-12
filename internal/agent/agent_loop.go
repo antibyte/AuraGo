@@ -217,7 +217,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	workflowPlanCount := 0              // Prevent infinite workflow_plan loops
 	lastResponseWasTool := false        // True when the previous iteration was a tool call; suppresses announcement detector on completion messages
 	ragLastUserMsg := ""
-	ragToolIterationsSinceLastRefresh := ragRefreshAfterToolIterations
+	ragToolIterationsSinceLastRefresh := 0
 	pendingTCs := make([]ToolCall, 0) // Queued tool calls from multi-tool responses (processed without a new LLM call)
 	pendingSummaryBatch := map[string]string(nil)
 	usedMemoryDocIDs := make(map[string]int)
@@ -755,7 +755,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				}
 				flags.RetrievedMemories = strings.Join(topMemories, "\n---\n")
 				if flags.RetrievedMemories != "" {
-					retrievalPromptTokens += prompts.CountTokens(flags.RetrievedMemories)
+					retrievalPromptTokens += prompts.CountTokensForModel(flags.RetrievedMemories, req.Model)
 					RecordRetrievalEventForScope(telemetryScope, "rag_auto_hit")
 					RecordRetrievalEventForScope(telemetryScope, "rag_auto_source:ltm")
 				} else {
@@ -853,7 +853,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					}
 					if len(predictedResults) > 0 {
 						flags.PredictedMemories = strings.Join(predictedResults, "\n---\n")
-						retrievalPromptTokens += prompts.CountTokens(flags.PredictedMemories)
+						retrievalPromptTokens += prompts.CountTokensForModel(flags.PredictedMemories, req.Model)
 						RecordRetrievalEventForScope(telemetryScope, "rag_predictive_hit")
 						RecordRetrievalEventForScope(telemetryScope, "rag_predictive_source:ltm_predicted")
 						currentLogger.Debug("[Sync] Predictive RAG: Pre-fetched memories", "count", len(predictedResults), "predictions", predictions, "temporal_predictions", temporalPredictions)
@@ -863,6 +863,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				}
 			}
 
+		}
+
+		if len(usedMemoryDocIDs) > 500 {
+			usedMemoryDocIDs = make(map[string]int)
 		}
 
 		// For capability/availability queries, RAG was intentionally skipped.
@@ -1091,7 +1095,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			if budgetHint != "" {
 				sysPrompt += "\n\n" + budgetHint
 			}
-			sysPromptTokens = prompts.CountTokens(sysPrompt)
+			sysPromptTokens = prompts.CountTokensForModel(sysPrompt, req.Model)
 
 			if cacheKeyErr == nil && cacheKey != "" {
 				cachedSysPromptKey = cacheKey

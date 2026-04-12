@@ -475,9 +475,19 @@ func CreateSkillFromTemplate(skillsDir, templateName, skillName, description, ba
 		_ = mgr.SyncFromDisk()
 	}
 
-	return fmt.Sprintf("Skill '%s' created from template '%s'.\nFiles: %s, %s\nDependencies: %s\nUse execute_skill with skill='%s' to run it.",
+	result := fmt.Sprintf("Skill '%s' created from template '%s'.\nFiles: %s, %s\nDependencies: %s\nUse execute_skill with skill='%s' to run it.",
 		skillName, templateName, filepath.Base(jsonPath), filepath.Base(pyPath),
-		strings.Join(allDeps, ", "), skillName), nil
+		strings.Join(allDeps, ", "), skillName)
+
+	if len(vaultKeys) > 0 {
+		result += fmt.Sprintf("\n\n⚠️ IMPORTANT: This skill requires vault secrets: %s\n"+
+			"The user must store these secrets in the vault via the Web UI (Settings → Secrets) "+
+			"and then assign them to this skill in the Skill Manager (Skills → %s → Assign Secrets). "+
+			"Without this step, the skill will not have access to the required credentials.",
+			strings.Join(vaultKeys, ", "), skillName)
+	}
+
+	return result, nil
 }
 
 const apiClientTemplateBody = `import sys
