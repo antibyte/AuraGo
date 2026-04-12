@@ -137,17 +137,19 @@ func GetTimeoutConfig() TimeoutConfig {
 
 // ConfigureTimeouts sets package-level timeouts from configuration.
 // Values <= 0 are ignored (defaults are kept).
-// This function now supports all timeout categories including Sandbox and Network.
+// Deprecated: Use ConfigureAllTimeouts instead to set all categories including Sandbox and Network.
 func ConfigureTimeouts(pythonSeconds, skillSeconds, backgroundSeconds int) {
+	cfg := TimeoutConfig{}
 	if pythonSeconds > 0 {
-		foregroundTimeout.Store(int64(time.Duration(pythonSeconds) * time.Second))
+		cfg.Foreground = time.Duration(pythonSeconds) * time.Second
 	}
 	if skillSeconds > 0 {
-		skillTimeout.Store(int64(time.Duration(skillSeconds) * time.Second))
+		cfg.Skills = time.Duration(skillSeconds) * time.Second
 	}
 	if backgroundSeconds > 0 {
-		backgroundTimeout.Store(int64(time.Duration(backgroundSeconds) * time.Second))
+		cfg.Background = time.Duration(backgroundSeconds) * time.Second
 	}
+	ConfigureAllTimeouts(cfg)
 }
 
 // ConfigureAllTimeouts sets all timeout categories from a TimeoutConfig struct.

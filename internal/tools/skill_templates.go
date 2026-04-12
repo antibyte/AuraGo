@@ -14,10 +14,18 @@ import (
 type SkillTemplate struct {
 	Name         string            `json:"name"`
 	Description  string            `json:"description"`
-	Parameters   map[string]string `json:"parameters"`
+	Parameters   map[string]interface{} `json:"parameters"`
 	Dependencies []string          `json:"dependencies"`
 	IsDaemon     bool              `json:"is_daemon,omitempty"`
 	Code         string            `json:"-"`
+}
+
+func paramMap(m map[string]string) map[string]interface{} {
+	out := make(map[string]interface{}, len(m))
+	for k, v := range m {
+		out[k] = v
+	}
+	return out
 }
 
 func AvailableSkillTemplates() []SkillTemplate {
@@ -25,14 +33,14 @@ func AvailableSkillTemplates() []SkillTemplate {
 		{
 			Name:        "api_client",
 			Description: "REST API client with Bearer/Basic/API-Key auth, retry logic, pagination support, and vault key injection.",
-			Parameters: map[string]string{
+			Parameters: paramMap(map[string]string{
 				"endpoint":  "API endpoint path (appended to base URL)",
 				"method":    "HTTP method: GET, POST, PUT, DELETE, PATCH (default: GET)",
 				"body":      "JSON request body (optional, for POST/PUT/PATCH)",
 				"headers":   "Additional headers as JSON object (optional)",
 				"auth_type": "Auth type: bearer, basic, api_key, none (default: bearer)",
 				"max_pages": "Follow pagination links up to N pages (optional, default: 1)",
-			},
+			}),
 			Dependencies: []string{"requests"},
 			Code: composePythonSkillTemplate(apiClientTemplateBody, `{{.FunctionName}}(
         endpoint=args.get("endpoint", ""),
@@ -46,7 +54,7 @@ func AvailableSkillTemplates() []SkillTemplate {
 		{
 			Name:        "data_transformer",
 			Description: "Convert data between JSON, CSV, YAML, and XML formats with field filtering, sorting, and aggregation.",
-			Parameters: map[string]string{
+			Parameters: paramMap(map[string]string{
 				"input_path":    "Path to the input file",
 				"output_path":   "Path to the output file (optional, prints to stdout if omitted)",
 				"input_format":  "Input format: json, csv, yaml, xml",
@@ -54,7 +62,7 @@ func AvailableSkillTemplates() []SkillTemplate {
 				"fields":        "Comma-separated list of fields to include (optional)",
 				"sort_by":       "Field name to sort results by (optional)",
 				"limit":         "Maximum number of records to output (optional)",
-			},
+			}),
 			Dependencies: []string{"pyyaml"},
 			Code: composePythonSkillTemplate(dataTransformerTemplateBody, `{{.FunctionName}}(
         input_path=args.get("input_path", ""),
@@ -69,13 +77,13 @@ func AvailableSkillTemplates() []SkillTemplate {
 		{
 			Name:        "notification_sender",
 			Description: "Send notifications via Telegram, Discord, email (SMTP), or generic webhook. Supports message formatting and attachments.",
-			Parameters: map[string]string{
+			Parameters: paramMap(map[string]string{
 				"channel":  "Channel: telegram, discord, email, webhook",
 				"message":  "Notification message text",
 				"title":    "Message title or subject (optional)",
 				"attach":   "File path to attach (optional)",
 				"priority": "Priority level: low, normal, high (default: normal)",
-			},
+			}),
 			Dependencies: []string{"requests"},
 			Code: composePythonSkillTemplate(notificationSenderTemplateBody, `{{.FunctionName}}(
         channel=args.get("channel", "webhook"),
@@ -88,13 +96,13 @@ func AvailableSkillTemplates() []SkillTemplate {
 		{
 			Name:        "monitor_check",
 			Description: "Health check for HTTP endpoints, TCP ports, and DNS resolution. Returns latency, status, and pass/fail result.",
-			Parameters: map[string]string{
+			Parameters: paramMap(map[string]string{
 				"target":     "URL, host:port, or hostname to check",
 				"check_type": "Check type: http, tcp, dns (default: http)",
 				"timeout":    "Timeout in seconds (default: 10)",
 				"expected":   "Expected status code (HTTP) or resolved IP (DNS), optional",
 				"keyword":    "Keyword to search for in HTTP response body (optional)",
-			},
+			}),
 			Dependencies: []string{"requests"},
 			Code: composePythonSkillTemplate(monitorCheckTemplateBody, `{{.FunctionName}}(
         target=args.get("target", ""),
@@ -107,13 +115,13 @@ func AvailableSkillTemplates() []SkillTemplate {
 		{
 			Name:        "log_analyzer",
 			Description: "Parse and analyze log files: filter by time range, severity, pattern; extract errors and summarize statistics.",
-			Parameters: map[string]string{
+			Parameters: paramMap(map[string]string{
 				"log_path":    "Path to the log file",
 				"operation":   "Operation: summary, errors, search, tail, count_by_level",
 				"pattern":     "Regex pattern to search for (optional)",
 				"since":       `Time filter: "5m", "1h", "24h", "7d" (optional)`,
 				"max_results": "Maximum number of results to return (default: 100)",
-			},
+			}),
 			Dependencies: nil,
 			Code: composePythonSkillTemplate(logAnalyzerTemplateBody, `{{.FunctionName}}(
         log_path=args.get("log_path", ""),
@@ -126,12 +134,12 @@ func AvailableSkillTemplates() []SkillTemplate {
 		{
 			Name:        "docker_manager",
 			Description: "Manage Docker containers via the Docker Engine API: list, inspect, start, stop, restart, get logs and stats.",
-			Parameters: map[string]string{
+			Parameters: paramMap(map[string]string{
 				"action":    "Action: list, inspect, start, stop, restart, logs, stats",
 				"container": "Container name or ID (required for all actions except list)",
 				"tail":      "Number of log lines to return for logs action (default: 100)",
 				"all":       "Include stopped containers for list action (default: false)",
-			},
+			}),
 			Dependencies: []string{"requests"},
 			Code: composePythonSkillTemplate(dockerManagerTemplateBody, `{{.FunctionName}}(
         action=args.get("action", "list"),
@@ -143,13 +151,13 @@ func AvailableSkillTemplates() []SkillTemplate {
 		{
 			Name:        "backup_runner",
 			Description: "Backup files and directories as compressed archives with rotation, integrity check, and size reporting.",
-			Parameters: map[string]string{
+			Parameters: paramMap(map[string]string{
 				"action":  "Action: create, list, restore, cleanup",
 				"source":  "Source file or directory path to backup",
 				"output":  "Output archive path (default: auto-generated in backup directory)",
 				"keep":    "Number of backups to keep during cleanup (default: 5)",
 				"exclude": "Comma-separated glob patterns to exclude (optional)",
-			},
+			}),
 			Dependencies: nil,
 			Code: composePythonSkillTemplate(backupRunnerTemplateBody, `{{.FunctionName}}(
         action=args.get("action", "create"),
@@ -162,13 +170,13 @@ func AvailableSkillTemplates() []SkillTemplate {
 		{
 			Name:        "database_query",
 			Description: "Execute SQL queries against SQLite, PostgreSQL, or MySQL databases. Supports SELECT, INSERT, UPDATE, DELETE with parameterized queries.",
-			Parameters: map[string]string{
+			Parameters: paramMap(map[string]string{
 				"query":      "SQL query to execute",
 				"db_type":    "Database type: sqlite, postgresql, mysql (default: sqlite)",
 				"connection": "Database file path (SQLite) or connection string",
 				"params":     "Query parameters as JSON array (optional, for parameterized queries)",
 				"limit":      "Maximum rows to return for SELECT queries (default: 100)",
-			},
+			}),
 			Dependencies: nil,
 			Code: composePythonSkillTemplate(databaseQueryTemplateBody, `{{.FunctionName}}(
         query=args.get("query", ""),
@@ -181,13 +189,13 @@ func AvailableSkillTemplates() []SkillTemplate {
 		{
 			Name:        "ssh_executor",
 			Description: "Execute commands on remote hosts via SSH with key and password authentication. Returns structured output with exit codes.",
-			Parameters: map[string]string{
+			Parameters: paramMap(map[string]string{
 				"host":    "Target hostname or IP address",
 				"command": "Command to execute on the remote host",
 				"user":    "SSH username (default: current user)",
 				"port":    "SSH port (default: 22)",
 				"timeout": "Command timeout in seconds (default: 30)",
-			},
+			}),
 			Dependencies: []string{"paramiko"},
 			Code: composePythonSkillTemplate(sshExecutorTemplateBody, `{{.FunctionName}}(
         host=args.get("host", ""),
@@ -200,14 +208,14 @@ func AvailableSkillTemplates() []SkillTemplate {
 		{
 			Name:        "mqtt_publisher",
 			Description: "Publish and subscribe to MQTT topics for IoT device control and sensor data. Supports QoS levels and retained messages.",
-			Parameters: map[string]string{
+			Parameters: paramMap(map[string]string{
 				"action":  "Action: publish, subscribe",
 				"topic":   "MQTT topic path",
 				"payload": "Message payload to publish (optional for subscribe)",
 				"qos":     "QoS level: 0, 1, 2 (default: 0)",
 				"retain":  "Retain message on broker (default: false)",
 				"timeout": "Subscribe timeout in seconds (default: 5)",
-			},
+			}),
 			Dependencies: []string{"paho-mqtt"},
 			Code: composePythonSkillTemplate(mqttPublisherTemplateBody, `{{.FunctionName}}(
         action=args.get("action", "publish"),
@@ -223,12 +231,12 @@ func AvailableSkillTemplates() []SkillTemplate {
 			Name:        "daemon_monitor",
 			Description: "Long-running daemon that periodically checks a resource (disk, CPU, service, URL) and wakes the agent on threshold violations.",
 			IsDaemon:    true,
-			Parameters: map[string]string{
+			Parameters: paramMap(map[string]string{
 				"target":         "What to monitor (e.g. 'disk', 'cpu', 'url', 'service')",
 				"threshold":      "Alert threshold value (e.g. '90' for 90%)",
 				"interval":       "Check interval in seconds (default: 60)",
 				"alert_severity": "Severity when threshold exceeded: info, warning, critical (default: warning)",
-			},
+			}),
 			Dependencies: []string{},
 			Code:         composeDaemonSkillTemplate(daemonMonitorTemplateBody),
 		},
@@ -236,13 +244,13 @@ func AvailableSkillTemplates() []SkillTemplate {
 			Name:        "daemon_watcher",
 			Description: "Long-running daemon that watches a directory for file changes (created, modified, deleted) and wakes the agent on events.",
 			IsDaemon:    true,
-			Parameters: map[string]string{
+			Parameters: paramMap(map[string]string{
 				"watch_path": "Directory path to watch for changes",
 				"patterns":   "Comma-separated file patterns to match (e.g. '*.log,*.csv'); empty = all files",
 				"events":     "Comma-separated events: created, modified, deleted (default: all)",
 				"cooldown":   "Minimum seconds between alerts for the same file (default: 10)",
 				"recursive":  "Watch subdirectories recursively: true/false (default: true)",
-			},
+			}),
 			Dependencies: []string{},
 			Code:         composeDaemonSkillTemplate(daemonWatcherTemplateBody),
 		},
@@ -250,11 +258,11 @@ func AvailableSkillTemplates() []SkillTemplate {
 			Name:        "daemon_listener",
 			Description: "Long-running daemon that listens on a Unix domain socket or named pipe for external events and forwards them to the agent.",
 			IsDaemon:    true,
-			Parameters: map[string]string{
+			Parameters: paramMap(map[string]string{
 				"socket_path": "Path for the Unix domain socket or named pipe",
 				"protocol":    "Protocol: line (newline-delimited text) or json (JSON per line) (default: json)",
 				"max_clients": "Maximum concurrent connections (default: 5)",
-			},
+			}),
 			Dependencies: []string{},
 			Code:         composeDaemonSkillTemplate(daemonListenerTemplateBody),
 		},
@@ -262,13 +270,13 @@ func AvailableSkillTemplates() []SkillTemplate {
 			Name:        "daemon_mission",
 			Description: "Long-running daemon that monitors a backup directory or status file and emits events that can trigger a follow-up mission (configure trigger_mission_id in the daemon settings).",
 			IsDaemon:    true,
-			Parameters: map[string]string{
+			Parameters: paramMap(map[string]string{
 				"watch_dir":      "Directory to watch for backup files (e.g. /var/backups)",
 				"status_file":    "Path to a JSON status file with fields 'status' and 'message'; leave empty to use watch_dir",
 				"backup_pattern": "Glob pattern for backup files when watching a directory (default: *.backup)",
 				"check_interval": "Seconds between checks (default: 60)",
 				"cooldown":       "Minimum seconds between alerts for the same event (default: 300)",
-			},
+			}),
 			Dependencies: []string{},
 			Code:         composeDaemonSkillTemplate(daemonMissionTemplateBody),
 		},

@@ -132,3 +132,26 @@ Daemon skills are long-running background processes managed by the Daemon Superv
 ```
 
 After creation, configure daemon settings (wake_agent, trigger_mission_id, etc.) via the Web UI or daemon supervisor.
+
+### Tool Bridge — Calling Native Tools from Skills
+
+Skills can call native AuraGo tools (like `proxmox`, `docker_management`, `site_monitor`) directly via the Python tool bridge, avoiding LLM token costs for autonomous automation.
+
+**Requirements:**
+1. Enable bridge in config: `tools.python_tool_bridge.enabled: true`
+2. Whitelist tools in config: `tools.python_tool_bridge.allowed_tools: [proxmox, docker_management]`
+3. Add `internal_tools` to the skill manifest JSON: `"internal_tools": ["proxmox", "docker_management"]`
+
+**Usage in Python skill code:**
+```python
+from aurago_tools import AuraGoTools
+
+tools = AuraGoTools()
+if tools.is_available():
+    result = tools.call("proxmox", operation="list_vms")
+    print(result)  # {"status": "success", "result": "..."}
+```
+
+The SDK (`aurago_tools.py`) uses only Python stdlib and is auto-deployed to `agent_workspace/skills/`.
+
+**Always inform the user** which native tools the skill requires and that they need to enable and whitelist them in config.

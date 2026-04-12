@@ -268,6 +268,8 @@
   "help.tools.form_automation.enabled": "Aktiverar formulärautomatiseringsverktyget (form_automation). Använder en headless Chromium-webbläsare för att fylla i och skicka in webbformulär. Kräver tools.web_capture.enabled: true.",
   "help.tools.upnp_scan.enabled": "Aktiverar UPnP-skanningsverktyget (upnp_scan). Identifierar UPnP/SSDP-enheter på det lokala nätverket.",
   "help.tools.python_secret_injection.enabled": "Allows Python tools (execute_python, execute_sandbox, execute_skill, run_tool) to request vault secrets via the vault_keys parameter. Secrets are injected as AURAGO_SECRET_&lt;KEY&gt; environment variables. Only user/agent-created secrets are accessible — system and integration secrets are blocked. Disabled by default for security.",
+  "help.tools.python_tool_bridge.enabled": "Tillåter Python-skills att anropa inbyggda AuraGo-verktyg (t.ex. proxmox, docker_management) direkt via en intern HTTP-brygga. Skills måste deklarera nödvändiga verktyg i sitt manifest (fältet internal_tools) och verktygsnamnen måste vara vitlistade i python_tool_bridge.allowed_tools. Inaktiverat som standard av säkerhetsskäl.",
+  "help.tools.python_tool_bridge.allowed_tools": "Vitlista över inbyggda AuraGo-verktygsnamn som Python-skills får anropa via verktygsbryggan. Endast verktyg som listas här OCH i skillens internal_tools-manifestfält är tillgängliga. Lämna tomt för att blockera alla brygg-anrop. Exempel: [proxmox, docker_management, site_monitor]",
   "help.tts.elevenlabs.api_key": "ElevenLabs API Key.",
   "help.tts.elevenlabs.model_id": "ElevenLabs Model ID, e.g. 'eleven_multilingual_v2'.",
   "help.tts.elevenlabs.voice_id": "ElevenLabs Voice ID of the speaker.",

@@ -43,11 +43,12 @@ type ValidationResult struct {
 
 // dangerousPattern defines a regex-based detection rule for static analysis.
 type dangerousPattern struct {
-	Name     string
-	Regex    *regexp.Regexp
-	Severity string
-	Category string
-	Message  string
+	Name           string
+	Regex          *regexp.Regexp
+	Severity       string
+	Category       string
+	Message        string
+	SkipIfContains string // if non-empty, skip match when line contains this substring
 }
 
 // Compiled dangerous patterns for static Python code analysis.
@@ -193,6 +194,14 @@ var dangerousPatterns = []dangerousPattern{
 		Category: "exec",
 		Message:  "Multiprocessing in daemon skills may spawn untracked child processes",
 	},
+	{
+		Name:           "requests_no_timeout",
+		Regex:          regexp.MustCompile(`requests\.(get|post|put|delete|request|patch)\s*\(`),
+		Severity:       "warning",
+		Category:       "network",
+		Message:        "HTTP request without timeout can hang indefinitely",
+		SkipIfContains: "timeout",
+	},
 }
 
 // StaticCodeAnalysis scans Python source code for dangerous patterns.
@@ -203,6 +212,9 @@ func StaticCodeAnalysis(code string) []Finding {
 	for _, pattern := range dangerousPatterns {
 		for lineNum, line := range lines {
 			if pattern.Regex.MatchString(line) {
+				if pattern.SkipIfContains != "" && strings.Contains(line, pattern.SkipIfContains) {
+					continue
+				}
 				findings = append(findings, Finding{
 					Severity: pattern.Severity,
 					Category: pattern.Category,

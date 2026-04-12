@@ -268,6 +268,8 @@
   "help.tools.form_automation.enabled": "Schakelt het formulierautomatiserings-hulpmiddel in (form_automation). Gebruikt een headless Chromium-browser om webformulieren in te vullen en in te dienen. Vereist tools.web_capture.enabled: true.",
   "help.tools.upnp_scan.enabled": "Schakelt het UPnP-scan-hulpmiddel in (upnp_scan). Ontdekt UPnP/SSDP-apparaten op het lokale netwerk.",
   "help.tools.python_secret_injection.enabled": "Staat Python-tools (execute_python, execute_sandbox, execute_skill, run_tool) toe om vault-secrets aan te vragen via de vault_keys-parameter. Secrets worden geïnjecteerd als AURAGO_SECRET_&lt;KEY&gt;-omgevingsvariabelen. Alleen door de gebruiker of agent aangemaakte secrets zijn toegankelijk — systeem- en integratie-secrets zijn geblokkeerd. Standaard uitgeschakeld voor veiligheid.",
+  "help.tools.python_tool_bridge.enabled": "Staat Python-skills toe om native AuraGo-tools (bijv. proxmox, docker_management) rechtstreeks aan te roepen via een interne HTTP-bridge. Skills moeten vereiste tools declareren in hun manifest (veld internal_tools) en de toolnamen moeten op de whitelist staan in python_tool_bridge.allowed_tools. Standaard uitgeschakeld voor veiligheid.",
+  "help.tools.python_tool_bridge.allowed_tools": "Whitelist van native AuraGo-toolnamen die Python-skills via de tool-bridge mogen aanroepen. Alleen tools die hier EN in het internal_tools-veld van het skill-manifest staan zijn toegankelijk. Laat leeg om alle bridge-aanroepen te blokkeren. Voorbeeld: [proxmox, docker_management, site_monitor]",
   "help.tts.elevenlabs.api_key": "ElevenLabs API Key.",
   "help.tts.elevenlabs.model_id": "ElevenLabs Model ID, e.g. 'eleven_multilingual_v2'.",
   "help.tts.elevenlabs.voice_id": "ElevenLabs Voice ID of the speaker.",

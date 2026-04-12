@@ -36,6 +36,12 @@ type DaemonSupervisorConfig struct {
 	WorkspaceDir         string
 	SkillsDir            string
 	LogDir               string // defaults to data/daemon_logs
+
+	// Tool bridge (optional): supervisor passes these to daemon runners
+	BridgeEnabled      bool
+	BridgeURL          string
+	BridgeToken        string
+	BridgeAllowedTools []string // config-level whitelist
 }
 
 // DaemonSupervisor orchestrates all daemon skill processes.
@@ -185,6 +191,20 @@ func (s *DaemonSupervisor) startRunner(manifest SkillManifest) error {
 	daemon := *manifest.Daemon
 	daemon.ApplyDefaults()
 
+	// Compute tool bridge allowance for this daemon's manifest InternalTools
+	var bridgeTools []string
+	if s.config.BridgeEnabled && len(s.config.BridgeAllowedTools) > 0 && len(manifest.InternalTools) > 0 {
+		allowed := make(map[string]bool, len(s.config.BridgeAllowedTools))
+		for _, t := range s.config.BridgeAllowedTools {
+			allowed[t] = true
+		}
+		for _, t := range manifest.InternalTools {
+			if allowed[t] {
+				bridgeTools = append(bridgeTools, t)
+			}
+		}
+	}
+
 	runner := NewDaemonRunner(DaemonRunnerConfig{
 		SkillID:      skillID,
 		SkillName:    manifest.Name,
@@ -196,6 +216,9 @@ func (s *DaemonSupervisor) startRunner(manifest SkillManifest) error {
 		LogDir:       s.config.LogDir,
 		Logger:       s.logger,
 		WakeCh:       s.wakeCh,
+		BridgeURL:    s.config.BridgeURL,
+		BridgeToken:  s.config.BridgeToken,
+		BridgeTools:  bridgeTools,
 	})
 
 	// Register in the wake-up gate

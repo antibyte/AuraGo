@@ -64,6 +64,11 @@ type DaemonRunner struct {
 	// Wake-up channel: DaemonRunner sends wake-up messages here.
 	// DaemonSupervisor reads from this channel.
 	wakeCh chan<- daemonWakeEvent
+
+	// Tool bridge (optional)
+	bridgeURL   string
+	bridgeToken string
+	bridgeTools []string
 }
 
 // daemonWakeEvent is sent from a DaemonRunner to the supervisor when a wake_agent message arrives.
@@ -86,6 +91,11 @@ type DaemonRunnerConfig struct {
 	LogDir       string
 	Logger       *slog.Logger
 	WakeCh       chan<- daemonWakeEvent
+
+	// Tool bridge (optional): set by supervisor when bridge is enabled
+	BridgeURL   string
+	BridgeToken string
+	BridgeTools []string // intersection of manifest InternalTools with config AllowedTools
 }
 
 // NewDaemonRunner creates a new DaemonRunner for the given skill.
@@ -105,6 +115,9 @@ func NewDaemonRunner(cfg DaemonRunnerConfig) *DaemonRunner {
 		logDir:       cfg.LogDir,
 		logger:       cfg.Logger.With("daemon", cfg.SkillName, "skill_id", cfg.SkillID),
 		wakeCh:       cfg.WakeCh,
+		bridgeURL:    cfg.BridgeURL,
+		bridgeToken:  cfg.BridgeToken,
+		bridgeTools:  cfg.BridgeTools,
 	}
 }
 
@@ -194,6 +207,10 @@ func (r *DaemonRunner) startLocked() error {
 	)
 	for k, v := range r.config.Env {
 		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", k, v))
+	}
+	// Inject tool bridge env vars if the skill has allowed internal tools.
+	if len(r.bridgeTools) > 0 && r.bridgeURL != "" && r.bridgeToken != "" {
+		InjectToolBridgeEnv(cmd, r.bridgeURL, r.bridgeToken, r.bridgeTools)
 	}
 
 	stdinPipe, err := cmd.StdinPipe()

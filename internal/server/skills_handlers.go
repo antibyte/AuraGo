@@ -876,7 +876,7 @@ func handleTestSkill(s *Server) http.HandlerFunc {
 		secrets := loadPlainSkillSecrets(s, skill)
 		var output string
 		if len(secrets) > 0 {
-			output, err = tools.ExecuteSkillWithSecrets(r.Context(), s.Cfg.Directories.SkillsDir, s.Cfg.Directories.WorkspaceDir, skill.Name, req.Args, secrets, nil)
+			output, err = tools.ExecuteSkillWithSecrets(r.Context(), s.Cfg.Directories.SkillsDir, s.Cfg.Directories.WorkspaceDir, skill.Name, req.Args, secrets, nil, "", "", nil)
 		} else {
 			output, err = tools.ExecuteSkill(r.Context(), s.Cfg.Directories.SkillsDir, s.Cfg.Directories.WorkspaceDir, skill.Name, req.Args)
 		}

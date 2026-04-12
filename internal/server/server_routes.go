@@ -67,8 +67,12 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 				MaxBudgetPerHourUSD: s.Cfg.Tools.DaemonSkills.MaxBudgetPerHourUSD,
 				MaxWakeUpsPerHour:   s.Cfg.Tools.DaemonSkills.MaxWakeUpsPerHour,
 			},
-			WorkspaceDir: s.Cfg.Directories.WorkspaceDir,
-			SkillsDir:    s.Cfg.Directories.SkillsDir,
+			WorkspaceDir:       s.Cfg.Directories.WorkspaceDir,
+			SkillsDir:          s.Cfg.Directories.SkillsDir,
+			BridgeEnabled:      s.Cfg.Tools.PythonToolBridge.Enabled,
+			BridgeURL:          InternalAPIURL(s.Cfg) + "/api/internal/tool-bridge",
+			BridgeToken:        s.internalToken,
+			BridgeAllowedTools: s.Cfg.Tools.PythonToolBridge.AllowedTools,
 		}
 		s.DaemonSupervisor = tools.NewDaemonSupervisor(
 			dsCfg,
@@ -340,6 +344,9 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/n8n/memory/search", handleN8nMemorySearch(s))
 	mux.HandleFunc("/api/n8n/memory/store", handleN8nMemoryStore(s))
 	mux.HandleFunc("/api/n8n/missions", handleN8nMissionCreate(s))
+
+	// Internal Tool Bridge (loopback-only, for Python skills calling native tools)
+	mux.HandleFunc("/api/internal/tool-bridge/", handleToolBridgeExecute(s))
 
 	// Quick Setup wizard endpoints (always available — needed before config is complete)
 	mux.HandleFunc("/api/setup/profiles", handleSetupProfiles(s))

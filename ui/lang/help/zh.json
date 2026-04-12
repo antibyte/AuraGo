@@ -268,6 +268,8 @@
   "help.tools.form_automation.enabled": "启用表单自动化工具 (form_automation)。使用无头 Chromium 浏览器填写、提交和检查网页表单。需要 tools.web_capture.enabled: true。",
   "help.tools.upnp_scan.enabled": "启用 UPnP 扫描工具 (upnp_scan)。发现本地网络上的 UPnP/SSDP 设备，包括路由器、智能电视、NAS、媒体渲染器、打印机和 IoT 设备。",
   "help.tools.python_secret_injection.enabled": "允许 Python 工具 (execute_python, execute_sandbox, execute_skill, run_tool) 通过 vault_keys 参数请求 Vault 密钥。密钥作为 AURAGO_SECRET_&lt;KEY&gt; 环境变量注入。仅用户或代理创建的密钥可访问 — 系统和集成密钥被阻止。出于安全考虑，默认禁用。",
+  "help.tools.python_tool_bridge.enabled": "允许 Python 技能通过内部 HTTP 桥接直接调用原生 AuraGo 工具（如 proxmox、docker_management）。技能必须在其清单中声明所需工具（internal_tools 字段），并且工具名称必须在 python_tool_bridge.allowed_tools 的白名单中。出于安全考虑，默认禁用。",
+  "help.tools.python_tool_bridge.allowed_tools": "Python 技能可通过工具桥接调用的原生 AuraGo 工具名称白名单。仅此处列出且技能清单 internal_tools 字段中也列出的工具可访问。留空以阻止所有桥接调用。示例：[proxmox, docker_management, site_monitor]",
   "help.tts.elevenlabs.api_key": "ElevenLabs API 密钥。",
   "help.tts.elevenlabs.model_id": "ElevenLabs 型号 ID，例如'11_multilingual_v2'。",
   "help.tts.elevenlabs.voice_id": "ElevenLabs 发言者的语音 ID。",

@@ -45,7 +45,7 @@ type SkillRegistryEntry struct {
 	Executable     string            `json:"executable"`
 	Category       string            `json:"category,omitempty"`
 	Tags           []string          `json:"tags,omitempty"`
-	Parameters     map[string]string `json:"parameters,omitempty"`
+	Parameters     map[string]interface{} `json:"parameters,omitempty"`
 	Dependencies   []string          `json:"dependencies,omitempty"`
 	VaultKeys      []string          `json:"vault_keys,omitempty"`
 	Type           SkillType         `json:"type"`
@@ -266,35 +266,41 @@ func (m *SkillManager) SyncFromDisk() error {
 		return fmt.Errorf("listing skills from disk: %w", err)
 	}
 
-	// Build set of skill names found on disk
 	diskNames := make(map[string]struct{})
 	for _, manifest := range manifests {
 		diskNames[manifest.Name] = struct{}{}
 
-		// Compute file hash if executable exists
 		var fileHash string
-		// Validate executable path to prevent path traversal attacks
 		if filepath.IsAbs(manifest.Executable) || strings.Contains(manifest.Executable, "..") {
 			m.logger.Warn("Skipping skill with invalid executable path", "name", manifest.Name, "executable", manifest.Executable)
 			continue
 		}
 		execPath := filepath.Join(m.skillsDir, manifest.Executable)
-		if data, err := os.ReadFile(execPath); err == nil {
-			h := sha256.Sum256(data)
+		codeBytes, readErr := os.ReadFile(execPath)
+		if readErr == nil {
+			h := sha256.Sum256(codeBytes)
 			fileHash = hex.EncodeToString(h[:])
 		}
 
-		// Check if skill already exists in DB
 		var existingID string
-		err := m.db.QueryRow("SELECT id FROM skills_registry WHERE name = ?", manifest.Name).Scan(&existingID)
+		var existingHash string
+		err := m.db.QueryRow("SELECT id, file_hash FROM skills_registry WHERE name = ?", manifest.Name).Scan(&existingID, &existingHash)
 		if err == sql.ErrNoRows {
-			// Insert new skill
 			id := fmt.Sprintf("%s_%d", manifest.Name, time.Now().UnixMilli())
 			skillType := detectSkillType(manifest.Name, m.skillsDir)
 
-			deps, _ := json.Marshal(manifest.Dependencies)
-			params, _ := json.Marshal(manifest.Parameters)
-			vaultKeys, _ := json.Marshal(manifest.VaultKeys)
+			deps, depsErr := json.Marshal(manifest.Dependencies)
+			if depsErr != nil {
+				m.logger.Warn("Failed to marshal dependencies", "name", manifest.Name, "error", depsErr)
+			}
+			params, paramsErr := json.Marshal(manifest.Parameters)
+			if paramsErr != nil {
+				m.logger.Warn("Failed to marshal parameters", "name", manifest.Name, "error", paramsErr)
+			}
+			vaultKeys, vkErr := json.Marshal(manifest.VaultKeys)
+			if vkErr != nil {
+				m.logger.Warn("Failed to marshal vault_keys", "name", manifest.Name, "error", vkErr)
+			}
 
 			_, err := m.db.Exec(`INSERT INTO skills_registry 
 				(id, name, type, description, executable, category, tags, parameters, dependencies, vault_keys, 
@@ -302,20 +308,30 @@ func (m *SkillManager) SyncFromDisk() error {
 				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)`,
 				id, manifest.Name, string(skillType), manifest.Description,
 				manifest.Executable, manifest.Category, mustJSONString(manifest.Tags), string(params), string(deps), string(vaultKeys),
-				string(skillType), string(SecurityClean), manifest.Executable, fileHash,
+				string(skillType), string(SecurityPending), manifest.Executable, fileHash,
 			)
 			if err != nil {
 				m.logger.Warn("Failed to insert skill", "name", manifest.Name, "error", err)
+				continue
+			}
+			if readErr == nil {
+				m.runStaticScan(id, string(codeBytes))
 			}
 		} else if err == nil {
-			// Update type for __builtin__ executables (may have been stored as "agent" previously)
 			if manifest.Executable == "__builtin__" {
 				m.db.Exec("UPDATE skills_registry SET type = ?, file_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
 					string(SkillTypeBuiltIn), fileHash, existingID)
 			} else {
-				// Update hash if changed
-				m.db.Exec("UPDATE skills_registry SET file_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-					fileHash, existingID)
+				if existingHash != fileHash && fileHash != "" {
+					m.db.Exec("UPDATE skills_registry SET file_hash = ?, security_status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+						fileHash, string(SecurityPending), existingID)
+					if readErr == nil {
+						m.runStaticScan(existingID, string(codeBytes))
+					}
+				} else {
+					m.db.Exec("UPDATE skills_registry SET file_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+						fileHash, existingID)
+				}
 			}
 		}
 	}
@@ -333,6 +349,18 @@ func (m *SkillManager) SyncFromDisk() error {
 	m.daemonSkillsMu.Unlock()
 
 	return nil
+}
+
+// runStaticScan performs a lightweight static-analysis-only security scan.
+func (m *SkillManager) runStaticScan(id string, code string) {
+	report := &SecurityReport{
+		StaticAnalysis: StaticCodeAnalysis(code),
+		ScannedAt:      time.Now().UTC(),
+	}
+	status := DetermineSecurityStatus(report)
+	if err := m.UpdateSkillSecurity(id, status, report); err != nil {
+		m.logger.Warn("Failed to update security status after sync scan", "id", id, "error", err)
+	}
 }
 
 // detectSkillType guesses the type based on naming conventions.
@@ -421,28 +449,7 @@ func (m *SkillManager) ListSkillsFiltered(skillType, status, search string, enab
 			m.logger.Warn("Failed to scan skill row", "error", err)
 			continue
 		}
-		s.Enabled = enabled == 1
-		if params.Valid {
-			json.Unmarshal([]byte(params.String), &s.Parameters)
-		}
-		if deps.Valid {
-			json.Unmarshal([]byte(deps.String), &s.Dependencies)
-		}
-		if tags.Valid {
-			json.Unmarshal([]byte(tags.String), &s.Tags)
-		}
-		if vaultKeys.Valid {
-			json.Unmarshal([]byte(vaultKeys.String), &s.VaultKeys)
-		}
-		if secReport.Valid {
-			var report SecurityReport
-			if json.Unmarshal([]byte(secReport.String), &report) == nil {
-				s.SecurityReport = &report
-			}
-		}
-		if lastScan.Valid {
-			s.LastScanAt = &lastScan.Time
-		}
+		m.populateSkillFromScan(&s, params, deps, vaultKeys, secReport, tags, lastScan, enabled)
 		skills = append(skills, s)
 	}
 
@@ -493,28 +500,7 @@ func (m *SkillManager) GetSkill(id string) (*SkillRegistryEntry, error) {
 		return nil, fmt.Errorf("querying skill: %w", err)
 	}
 
-	s.Enabled = enabled == 1
-	if params.Valid {
-		json.Unmarshal([]byte(params.String), &s.Parameters)
-	}
-	if deps.Valid {
-		json.Unmarshal([]byte(deps.String), &s.Dependencies)
-	}
-	if tags.Valid {
-		json.Unmarshal([]byte(tags.String), &s.Tags)
-	}
-	if vaultKeys.Valid {
-		json.Unmarshal([]byte(vaultKeys.String), &s.VaultKeys)
-	}
-	if secReport.Valid {
-		var report SecurityReport
-		if json.Unmarshal([]byte(secReport.String), &report) == nil {
-			s.SecurityReport = &report
-		}
-	}
-	if lastScan.Valid {
-		s.LastScanAt = &lastScan.Time
-	}
+	m.populateSkillFromScan(&s, params, deps, vaultKeys, secReport, tags, lastScan, enabled)
 
 	// Enrich with daemon info from manifest
 	manifestPath := filepath.Join(m.skillsDir, strings.TrimSuffix(s.Executable, filepath.Ext(s.Executable))+".json")
@@ -540,6 +526,32 @@ func (m *SkillManager) GetSkillCode(id string) (string, error) {
 		return "", fmt.Errorf("reading skill code: %w", err)
 	}
 	return string(data), nil
+}
+
+// populateSkillFromScan deserializes the scanned SQL columns into a SkillRegistryEntry.
+func (m *SkillManager) populateSkillFromScan(s *SkillRegistryEntry, params, deps, vaultKeys, secReport, tags sql.NullString, lastScan sql.NullTime, enabled int) {
+	s.Enabled = enabled == 1
+	if params.Valid {
+		json.Unmarshal([]byte(params.String), &s.Parameters)
+	}
+	if deps.Valid {
+		json.Unmarshal([]byte(deps.String), &s.Dependencies)
+	}
+	if tags.Valid {
+		json.Unmarshal([]byte(tags.String), &s.Tags)
+	}
+	if vaultKeys.Valid {
+		json.Unmarshal([]byte(vaultKeys.String), &s.VaultKeys)
+	}
+	if secReport.Valid {
+		var report SecurityReport
+		if json.Unmarshal([]byte(secReport.String), &report) == nil {
+			s.SecurityReport = &report
+		}
+	}
+	if lastScan.Valid {
+		s.LastScanAt = &lastScan.Time
+	}
 }
 
 // UpdateVaultKeys updates the vault_keys list for an existing skill in the DB and on-disk manifest.

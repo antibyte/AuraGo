@@ -95,6 +95,55 @@ func sanitizeFetchedEmails(ctx context.Context, logger *slog.Logger, guardian *s
 
 // mergeSkillVaultKeys combines vault_keys from a skill manifest with vault_keys from the tool call.
 // Duplicates are removed. Returns nil if no keys.
+// resolveSkillBridgeTools returns the intersection of the skill manifest's InternalTools
+// with the config's PythonToolBridge.AllowedTools. Returns nil if the bridge is disabled
+// or if the skill hasn't declared any internal_tools.
+func resolveSkillBridgeTools(cfg *config.Config, skillsDir, skillName string) []string {
+	if !cfg.Tools.PythonToolBridge.Enabled || len(cfg.Tools.PythonToolBridge.AllowedTools) == 0 {
+		return nil
+	}
+	skills, err := tools.ListSkills(skillsDir)
+	if err != nil {
+		return nil
+	}
+	var manifestTools []string
+	for _, s := range skills {
+		if s.Name == skillName {
+			manifestTools = s.InternalTools
+			break
+		}
+	}
+	if len(manifestTools) == 0 {
+		return nil
+	}
+	allowed := make(map[string]bool, len(cfg.Tools.PythonToolBridge.AllowedTools))
+	for _, t := range cfg.Tools.PythonToolBridge.AllowedTools {
+		allowed[t] = true
+	}
+	var result []string
+	for _, t := range manifestTools {
+		if allowed[t] {
+			result = append(result, t)
+		}
+	}
+	return result
+}
+
+// toolBridgeURL constructs the loopback URL for the tool bridge endpoint.
+func toolBridgeURL(cfg *config.Config) string {
+	scheme := "http"
+	port := cfg.Server.Port
+	if cfg.Server.HTTPS.Enabled {
+		scheme = "https"
+		if cfg.Server.HTTPS.HTTPSPort > 0 {
+			port = cfg.Server.HTTPS.HTTPSPort
+		} else {
+			port = 443
+		}
+	}
+	return fmt.Sprintf("%s://127.0.0.1:%d/api/internal/tool-bridge", scheme, port)
+}
+
 func mergeSkillVaultKeys(skillsDir, skillName string, tcKeys []string) []string {
 	seen := make(map[string]bool, len(tcKeys))
 	var merged []string
@@ -253,7 +302,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			type templateInfo struct {
 				Name        string            `json:"name"`
 				Description string            `json:"description"`
-				Parameters  map[string]string `json:"parameters"`
+				Parameters  map[string]interface{} `json:"parameters"`
 			}
 			infos := make([]templateInfo, len(templates))
 			for i, t := range templates {
@@ -454,6 +503,17 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 					rejectedInfo = credRejInfo
 				}
 			}
+			// Resolve tool bridge: if the skill declares internal_tools and the bridge is enabled,
+			// compute the allowed intersection so the Python process can call native tools.
+			bridgeTools := resolveSkillBridgeTools(cfg, cfg.Directories.SkillsDir, cleanSkillName)
+			var bridgeURL, bridgeToken string
+			if len(bridgeTools) > 0 {
+				bridgeURL = toolBridgeURL(cfg)
+				if tok, _ := agentInternalToken.Load().(string); tok != "" {
+					bridgeToken = tok
+				}
+			}
+
 			var res string
 			var skillErr error
 			if cfg.Tools.SkillManager.RequireSandbox {
@@ -461,9 +521,9 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				if !tools.GetSandboxManager().IsReady() {
 					return fmt.Sprintf("Tool Output: [SANDBOX REQUIRED] Skill '%s' requires sandbox execution but the sandbox is not available. Please enable the sandbox in settings (sandbox.enabled: true) or disable 'Require Sandbox' in skill manager settings.", skillName)
 				}
-				res, skillErr = tools.ExecuteSkillInSandbox(cfg.Directories.SkillsDir, cleanSkillName, args, secrets, creds, cfg.Tools.SkillTimeoutSeconds, logger)
-			} else if len(secrets) > 0 || len(creds) > 0 {
-				res, skillErr = tools.ExecuteSkillWithSecrets(ctx, cfg.Directories.SkillsDir, cfg.Directories.WorkspaceDir, skillName, args, secrets, creds)
+				res, skillErr = tools.ExecuteSkillInSandbox(cfg.Directories.SkillsDir, cleanSkillName, args, secrets, creds, cfg.Tools.SkillTimeoutSeconds, logger, bridgeURL, bridgeToken, bridgeTools)
+			} else if len(secrets) > 0 || len(creds) > 0 || len(bridgeTools) > 0 {
+				res, skillErr = tools.ExecuteSkillWithSecrets(ctx, cfg.Directories.SkillsDir, cfg.Directories.WorkspaceDir, skillName, args, secrets, creds, bridgeURL, bridgeToken, bridgeTools)
 			} else {
 				res, skillErr = tools.ExecuteSkill(ctx, cfg.Directories.SkillsDir, cfg.Directories.WorkspaceDir, skillName, args)
 			}
@@ -1844,7 +1904,11 @@ func filterExecuteSkillArgs(skillsDir, skillName string, args map[string]interfa
 			break
 		}
 	}
-	if manifest == nil || len(manifest.Parameters) == 0 {
+	if manifest == nil {
+		return args
+	}
+	paramNames := tools.ExtractSkillParameterNames(manifest.Parameters)
+	if len(paramNames) == 0 {
 		return args
 	}
 
@@ -1874,8 +1938,8 @@ func filterExecuteSkillArgs(skillsDir, skillName string, args map[string]interfa
 		}
 	}
 
-	filtered := make(map[string]interface{}, len(manifest.Parameters))
-	for key := range manifest.Parameters {
+	filtered := make(map[string]interface{}, len(paramNames))
+	for _, key := range paramNames {
 		if v, ok := aliasArgs[key]; ok && !isEmptySkillArgValue(v) {
 			filtered[key] = v
 		}

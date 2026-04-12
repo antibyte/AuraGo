@@ -35,30 +35,17 @@ Das Manifest beschreibt den Skill für den Agenten:
   "name": "wetter_abfrage",
   "description": "Holt aktuelle Wetterdaten für eine Stadt",
   "parameters": {
-    "type": "object",
-    "properties": {
-      "stadt": {
-        "type": "string",
-        "description": "Name der Stadt"
-      },
-      "einheit": {
-        "type": "string",
-        "enum": ["celsius", "fahrenheit"],
-        "default": "celsius"
-      }
-    },
-    "required": ["stadt"]
+    "stadt": "Name der Stadt",
+    "einheit": "Temperatureinheit (celsius oder fahrenheit)"
   },
-  "returns": {
-    "type": "object",
-    "description": "Temperatur, Luftfeuchtigkeit und Wetterbeschreibung"
-  },
-  "entry_point": "wetter_abfrage.py",
-  "function": "main",
+  "returns": "Temperatur, Luftfeuchtigkeit und Wetterbeschreibung",
+  "executable": "wetter_abfrage.py",
   "dependencies": ["requests"],
   "vault_keys": ["openweather_api_key"]
 }
 ```
+
+> **Hinweis:** `parameters` kann auch ein vollständiges JSON Schema sein (mit `type`, `properties`, `required`, `enum`, etc.). Das vereinfachte Key→Description-Format oben wird automatisch unterstützt.
 
 **Felder erklärt:**
 
@@ -68,11 +55,9 @@ Das Manifest beschreibt den Skill für den Agenten:
 | `description` | Was macht der Skill (für den Agenten sichtbar) | Ja |
 | `parameters` | JSON Schema der Eingabeparameter | Ja |
 | `returns` | Beschreibung der Rückgabewerte | Nein |
-| `entry_point` | Python-Datei die ausgeführt wird | Ja |
-| `function` | Funktionsname im Python-Script (meist `main`) | Ja |
+| `executable` | Python-Datei die ausgeführt wird | Ja |
 | `dependencies` | Liste der pip-Pakete | Nein |
 | `vault_keys` | Liste der Vault-Secret-Namen | Nein |
-| `credential_ids` | Liste der Credential-IDs | Nein |
 
 ### Der Python-Code
 
@@ -228,17 +213,9 @@ api_key = os.environ.get('AURAGO_SECRET_OPENWEATHER_API_KEY')
   "name": "file_analyzer",
   "description": "Analysiert eine Textdatei und gibt Statistiken zurück",
   "parameters": {
-    "type": "object",
-    "properties": {
-      "dateipfad": {
-        "type": "string",
-        "description": "Pfad zur zu analysierenden Datei"
-      }
-    },
-    "required": ["dateipfad"]
+    "dateipfad": "Pfad zur zu analysierenden Datei"
   },
-  "entry_point": "file_analyzer.py",
-  "function": "main"
+  "executable": "file_analyzer.py"
 }
 ```
 
@@ -303,21 +280,10 @@ Agent: 🛠️ Skill: file_analyzer
   "name": "github_repo",
   "description": "Holt Informationen über ein GitHub Repository",
   "parameters": {
-    "type": "object",
-    "properties": {
-      "owner": {
-        "type": "string",
-        "description": "Repository Besitzer"
-      },
-      "repo": {
-        "type": "string",
-        "description": "Repository Name"
-      }
-    },
-    "required": ["owner", "repo"]
+    "owner": "Repository Besitzer",
+    "repo": "Repository Name"
   },
-  "entry_point": "github_repo.py",
-  "function": "main",
+  "executable": "github_repo.py",
   "dependencies": ["requests"],
   "vault_keys": ["gh_access_token"]
 }
@@ -380,27 +346,11 @@ if __name__ == "__main__":
   "name": "daten_konverter",
   "description": "Konvertiert Daten zwischen JSON, CSV und YAML",
   "parameters": {
-    "type": "object",
-    "properties": {
-      "daten": {
-        "type": "string",
-        "description": "Die zu konvertierenden Daten als String"
-      },
-      "von_format": {
-        "type": "string",
-        "enum": ["json", "csv", "yaml"],
-        "description": "Quellformat"
-      },
-      "zu_format": {
-        "type": "string",
-        "enum": ["json", "csv", "yaml"],
-        "description": "Zielformat"
-      }
-    },
-    "required": ["daten", "von_format", "zu_format"]
+    "daten": "Die zu konvertierenden Daten als String",
+    "von_format": "Quellformat (json, csv, yaml)",
+    "zu_format": "Zielformat (json, csv, yaml)"
   },
-  "entry_point": "daten_konverter.py",
-  "function": "main",
+  "executable": "daten_konverter.py",
   "dependencies": ["pyyaml", "pandas"]
 }
 ```
@@ -584,14 +534,8 @@ Agent: 📋 Verfügbare Templates:
 
 ### Skill aus Template erstellen
 
-```json
-{
-  "action": "create_skill_from_template",
-  "template": "api_client",
-  "name": "meine_api",
-  "description": "Meine API Integration",
-  "vault_keys": ["api_key"]
-}
+```
+Du: Erstelle einen Skill aus dem Template api_client mit dem Namen meine_api
 ```
 
 ---

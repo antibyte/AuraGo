@@ -2,6 +2,7 @@ package tools
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -23,10 +24,11 @@ import (
 // maxSkillArgsBytes limits the serialized size of skill arguments to prevent
 // denial of service via excessively large JSON payloads.
 const maxSkillArgsBytes = 10 * 1024 * 1024 // 10 MB
+const maxSkillOutputBytes = 10 * 1024 * 1024 // 10 MB
 const skillDependencyInstallTimeout = 10 * time.Minute
 
 // skillsCacheTTL is the time-to-live for the ListSkills cache.
-const skillsCacheTTL = 5 * time.Second
+const skillsCacheTTL = 30 * time.Second
 
 // skillsCacheEntry holds cached skill manifests and their expiration time.
 type skillsCacheEntry struct {
@@ -44,16 +46,40 @@ var listSkillsCache = struct {
 
 // SkillManifest represents the structure of a skill config file (.json).
 type SkillManifest struct {
-	Name         string            `json:"name"`
-	Description  string            `json:"description"`
-	Executable   string            `json:"executable"` // e.g., "scan.py" or "custom_tool.exe"
-	Category     string            `json:"category,omitempty"`
-	Tags         []string          `json:"tags,omitempty"`
-	Parameters   map[string]string `json:"parameters,omitempty"`   // map of arg name to description
-	Returns      string            `json:"returns,omitempty"`      // describes expected output format
-	Dependencies []string          `json:"dependencies,omitempty"` // pip packages required by this skill
-	VaultKeys    []string          `json:"vault_keys,omitempty"`   // vault secret keys this skill needs at runtime
-	Daemon       *DaemonManifest   `json:"daemon,omitempty"`       // if set, skill can run as a background daemon
+	Name          string            `json:"name"`
+	Description   string            `json:"description"`
+	Executable    string            `json:"executable"` // e.g., "scan.py" or "custom_tool.exe"
+	Category      string            `json:"category,omitempty"`
+	Tags          []string          `json:"tags,omitempty"`
+	Parameters    map[string]interface{} `json:"parameters,omitempty"` // parameter schema (legacy flat map or JSON Schema)
+	Returns       string            `json:"returns,omitempty"`        // describes expected output format
+	Dependencies  []string          `json:"dependencies,omitempty"`   // pip packages required by this skill
+	VaultKeys     []string          `json:"vault_keys,omitempty"`     // vault secret keys this skill needs at runtime
+	InternalTools []string          `json:"internal_tools,omitempty"` // AuraGo native tools this skill may call via tool bridge
+	Daemon        *DaemonManifest   `json:"daemon,omitempty"`         // if set, skill can run as a background daemon
+}
+
+// ExtractSkillParameterNames returns the list of parameter names from a skill
+// manifest. It supports both the legacy flat map (key = param name) and JSON
+// Schema objects that declare parameters under "properties".
+func ExtractSkillParameterNames(params map[string]interface{}) []string {
+	if params == nil {
+		return nil
+	}
+	if props, ok := params["properties"].(map[string]interface{}); ok {
+		names := make([]string, 0, len(props))
+		for k := range props {
+			names = append(names, k)
+		}
+		sort.Strings(names)
+		return names
+	}
+	names := make([]string, 0, len(params))
+	for k := range params {
+		names = append(names, k)
+	}
+	sort.Strings(names)
+	return names
 }
 
 // DaemonManifest holds configuration for a daemon skill.
@@ -238,6 +264,25 @@ func buildSkillCommand(ctx context.Context, workspaceDir string, manifest SkillM
 	return exec.CommandContext(ctx, absExecPath)
 }
 
+// limitWriter captures stdout/stderr up to a byte limit.
+type limitWriter struct {
+	buf      bytes.Buffer
+	limit    int
+	overflow bool
+}
+
+func (w *limitWriter) Write(p []byte) (int, error) {
+	if w.buf.Len()+len(p) > w.limit {
+		w.overflow = true
+		remaining := w.limit - w.buf.Len()
+		if remaining > 0 {
+			w.buf.Write(p[:remaining])
+		}
+		return len(p), nil
+	}
+	return w.buf.Write(p)
+}
+
 func executePreparedSkill(ctx context.Context, workspaceDir, skillName string, manifest SkillManifest, absExecPath, argsString string, opts skillExecutionOptions) (string, error) {
 	if opts.logInput {
 		slog.Debug("[ExecuteSkill] Prepared JSON input", "skill", skillName, "input", argsString)
@@ -261,9 +306,9 @@ func executePreparedSkill(ctx context.Context, workspaceDir, skillName string, m
 		return "", fmt.Errorf("failed to create stdin pipe: %w", err)
 	}
 
-	var outBuf strings.Builder
-	cmd.Stdout = &outBuf
-	cmd.Stderr = &outBuf
+	outBuf := &limitWriter{limit: maxSkillOutputBytes}
+	cmd.Stdout = outBuf
+	cmd.Stderr = outBuf
 
 	if err := cmd.Start(); err != nil {
 		return "", fmt.Errorf("failed to start skill execution: %w", err)
@@ -288,7 +333,10 @@ func executePreparedSkill(ctx context.Context, workspaceDir, skillName string, m
 	}
 
 	err = cmd.Wait()
-	output := outBuf.String()
+	output := outBuf.buf.String()
+	if outBuf.overflow {
+		output += fmt.Sprintf("\n[OUTPUT TRUNCATED: exceeded %d MB limit]", maxSkillOutputBytes/(1024*1024))
+	}
 	if opts.scrubOutput {
 		output = security.Scrub(output)
 	}
@@ -314,7 +362,7 @@ func ExecuteSkill(ctx context.Context, skillsDir, workspaceDir, skillName string
 
 // ExecuteSkillWithSecrets is like ExecuteSkill but injects vault secrets and credential secrets
 // as environment variables and scrubs secrets from the output.
-func ExecuteSkillWithSecrets(ctx context.Context, skillsDir, workspaceDir, skillName string, argsJSON map[string]interface{}, secrets map[string]string, creds []CredentialFields) (string, error) {
+func ExecuteSkillWithSecrets(ctx context.Context, skillsDir, workspaceDir, skillName string, argsJSON map[string]interface{}, secrets map[string]string, creds []CredentialFields, bridgeURL, bridgeToken string, bridgeTools []string) (string, error) {
 	manifest, absExecPath, argsString, err := resolveSkillExecution(skillsDir, skillName, argsJSON)
 	if err != nil {
 		return "", err
@@ -324,6 +372,9 @@ func ExecuteSkillWithSecrets(ctx context.Context, skillsDir, workspaceDir, skill
 		injectEnv: func(cmd *exec.Cmd) {
 			InjectSecretsEnv(cmd, secrets)
 			InjectCredentialEnv(cmd, creds)
+			if len(bridgeTools) > 0 && bridgeURL != "" && bridgeToken != "" {
+				InjectToolBridgeEnv(cmd, bridgeURL, bridgeToken, bridgeTools)
+			}
 		},
 		scrubOutput: true,
 	})
@@ -332,7 +383,10 @@ func ExecuteSkillWithSecrets(ctx context.Context, skillsDir, workspaceDir, skill
 // ExecuteSkillInSandbox executes a skill inside the sandboxed container environment.
 // It reads the skill code, injects secrets/creds, prepends the args, and runs via SandboxExecuteCode.
 // Returns error if sandbox is unavailable or skill not found.
-func ExecuteSkillInSandbox(skillsDir, skillName string, argsJSON map[string]interface{}, secrets map[string]string, creds []CredentialFields, timeoutSeconds int, logger *slog.Logger) (string, error) {
+func ExecuteSkillInSandbox(skillsDir, skillName string, argsJSON map[string]interface{}, secrets map[string]string, creds []CredentialFields, timeoutSeconds int, logger *slog.Logger, bridgeURL, bridgeToken string, bridgeTools []string) (string, error) {
+	if _, err := validateSkillName(skillName); err != nil {
+		return "", fmt.Errorf("invalid skill name: %w", err)
+	}
 	// Path traversal check: ensure the resolved path stays within skillsDir.
 	absSkillsDir, err := filepath.Abs(skillsDir)
 	if err != nil {
@@ -342,7 +396,8 @@ func ExecuteSkillInSandbox(skillsDir, skillName string, argsJSON map[string]inte
 	if err != nil {
 		return "", fmt.Errorf("invalid skill path: %w", err)
 	}
-	if !strings.HasPrefix(absExecPath, absSkillsDir+string(filepath.Separator)) {
+	rel, err := filepath.Rel(absSkillsDir, absExecPath)
+	if err != nil || strings.HasPrefix(rel, "..") {
 		return "", fmt.Errorf("skill path traversal detected for '%s'", skillName)
 	}
 	// Read skill code
@@ -370,7 +425,7 @@ func ExecuteSkillInSandbox(skillsDir, skillName string, argsJSON map[string]inte
 	// 3. The skill's if __name__ == "__main__" block will be skipped since we're executing as a module
 	// 4. We need to explicitly call the skill function
 
-	// Build secrets/creds prelude
+	// Build secrets/creds/bridge prelude
 	prelude := ""
 	if len(secrets) > 0 {
 		prelude += BuildSecretPrelude(secrets)
@@ -378,8 +433,14 @@ func ExecuteSkillInSandbox(skillsDir, skillName string, argsJSON map[string]inte
 	if len(creds) > 0 {
 		prelude += BuildCredentialPrelude(creds)
 	}
+	if len(bridgeTools) > 0 && bridgeURL != "" && bridgeToken != "" {
+		prelude += BuildToolBridgePrelude(bridgeURL, bridgeToken, bridgeTools)
+	}
 
-	fullCode := buildSandboxSkillExecCode(skillName, skillCode, argsBytes, prelude)
+	fullCode, err := buildSandboxSkillExecCode(skillName, skillCode, argsBytes, prelude)
+	if err != nil {
+		return "", err
+	}
 
 	// Execute via sandbox
 	if timeoutSeconds <= 0 {
@@ -392,12 +453,16 @@ func ExecuteSkillInSandbox(skillsDir, skillName string, argsJSON map[string]inte
 	return result, nil
 }
 
-func buildSandboxSkillExecCode(skillName, skillCode string, argsBytes []byte, prelude string) string {
-	mainIdx := strings.Index(skillCode, "if __name__")
-	if mainIdx > 0 {
-		skillCode = skillCode[:mainIdx]
+func buildSandboxSkillExecCode(skillName, skillCode string, argsBytes []byte, prelude string) (string, error) {
+	loc := mainBlockRe.FindStringIndex(skillCode)
+	if loc != nil {
+		skillCode = skillCode[:loc[0]]
 	}
 	funcName := toFunctionName(skillName)
+	funcPattern := regexp.MustCompile(`\bdef\s+` + regexp.QuoteMeta(funcName) + `\s*\(`)
+	if !funcPattern.MatchString(skillCode) {
+		return "", fmt.Errorf("skill '%s' does not define the expected function '%s'", skillName, funcName)
+	}
 	argsB64 := base64.StdEncoding.EncodeToString(argsBytes)
 	execCode := fmt.Sprintf(`import base64
 import json
@@ -406,7 +471,7 @@ args = json.loads(base64.b64decode(%q).decode("utf-8"))
 result = %s(**args)
 print(json.dumps(result, ensure_ascii=False))
 `, prelude, argsB64, funcName)
-	return skillCode + "\n" + execCode
+	return skillCode + "\n" + execCode, nil
 }
 
 // ProvisionSkillDependencies scans all skills and installs their pip dependencies into the venv.
@@ -459,6 +524,12 @@ func ProvisionSkillDependencies(skillsDir, workspaceDir string, logger *slog.Log
 
 // importRe matches Python import statements at the start of a line.
 var importRe = regexp.MustCompile(`^(?:import\s+(\w+)|from\s+(\w+)[\s.])`)
+
+// mainBlockRe matches the standard Python main guard block start.
+var mainBlockRe = regexp.MustCompile(`(?m)^if\s+__name__\s*==\s*['"]__main__['"]\s*:`)
+
+// funcDefRe matches a Python function definition.
+var funcDefRe = regexp.MustCompile(`\bdef\s+(%s)\s*\(`)
 
 // pythonStdlib contains common Python stdlib module names that never need pip install.
 var pythonStdlib = map[string]bool{
@@ -544,6 +615,7 @@ func extractImports(pyFilePath string) (map[string]bool, error) {
 
 	imports := make(map[string]bool)
 	scanner := bufio.NewScanner(f)
+	scanner.Buffer(make([]byte, 4096), 1024*1024) // 1 MB max token size
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		matches := importRe.FindStringSubmatch(line)

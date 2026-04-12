@@ -1126,6 +1126,10 @@ type Config struct {
 		PythonSecretInjection struct {
 			Enabled bool `yaml:"enabled"` // allow Python tools to request vault secrets via vault_keys parameter
 		} `yaml:"python_secret_injection"`
+		PythonToolBridge struct {
+			Enabled      bool     `yaml:"enabled"`       // allow Python skills to call internal AuraGo tools via loopback API (default: false)
+			AllowedTools []string `yaml:"allowed_tools"` // tools skills may invoke; empty = none (must be explicitly listed)
+		} `yaml:"python_tool_bridge"`
 		PythonTimeoutSeconds     int `yaml:"python_timeout_seconds"`     // foreground Python/shell execution timeout (default: 30)
 		SkillTimeoutSeconds      int `yaml:"skill_timeout_seconds"`      // skill execution timeout (default: 120)
 		BackgroundTimeoutSeconds int `yaml:"background_timeout_seconds"` // background Python/shell/tool execution timeout (default: 3600)

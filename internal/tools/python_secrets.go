@@ -283,3 +283,34 @@ func BuildCredentialPrelude(creds []CredentialFields) string {
 	sb.WriteString("del _aurago_os\n")
 	return sb.String()
 }
+
+// InjectToolBridgeEnv adds the tool bridge URL, token, and allowed tools as environment variables
+// to the given exec.Cmd so Python skills can call native AuraGo tools.
+// The token is registered with the scrubber to prevent leaking.
+func InjectToolBridgeEnv(cmd *exec.Cmd, bridgeURL, bridgeToken string, allowedTools []string) {
+	if bridgeURL == "" || bridgeToken == "" {
+		return
+	}
+	if cmd.Env == nil {
+		cmd.Env = sandbox.FilterEnv(os.Environ())
+	}
+	cmd.Env = append(cmd.Env,
+		"AURAGO_TOOL_BRIDGE_URL="+bridgeURL,
+		"AURAGO_TOOL_BRIDGE_TOKEN="+bridgeToken,
+		"AURAGO_TOOL_BRIDGE_TOOLS="+strings.Join(allowedTools, ","),
+	)
+	security.RegisterSensitive(bridgeToken)
+}
+
+// BuildToolBridgePrelude generates a Python code snippet that sets the tool bridge
+// URL, token, and allowed tools as environment variables. Used for sandbox execution.
+func BuildToolBridgePrelude(bridgeURL, bridgeToken string, allowedTools []string) string {
+	if bridgeURL == "" || bridgeToken == "" {
+		return ""
+	}
+	security.RegisterSensitive(bridgeToken)
+	escapedToken := strings.ReplaceAll(bridgeToken, `\`, `\\`)
+	escapedToken = strings.ReplaceAll(escapedToken, `'`, `\'`)
+	return fmt.Sprintf("import os as _aurago_tb\n_aurago_tb.environ['AURAGO_TOOL_BRIDGE_URL'] = '%s'\n_aurago_tb.environ['AURAGO_TOOL_BRIDGE_TOKEN'] = '%s'\n_aurago_tb.environ['AURAGO_TOOL_BRIDGE_TOOLS'] = '%s'\ndel _aurago_tb\n",
+		bridgeURL, escapedToken, strings.Join(allowedTools, ","))
+}

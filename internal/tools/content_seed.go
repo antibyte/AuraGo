@@ -217,7 +217,7 @@ type skillSeedEntry struct {
 	Executable   string            `json:"executable"`
 	Category     string            `json:"category,omitempty"`
 	Tags         []string          `json:"tags,omitempty"`
-	Parameters   map[string]string `json:"parameters,omitempty"`
+	Parameters   map[string]interface{} `json:"parameters,omitempty"`
 	Returns      string            `json:"returns,omitempty"`
 	Dependencies []string          `json:"dependencies,omitempty"`
 	VaultKeys    []string          `json:"vault_keys,omitempty"`
