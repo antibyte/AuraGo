@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
 use reqwest::{Client, ClientBuilder, Method};
 use serde::{de::DeserializeOwned, Serialize};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 pub mod auth;
@@ -11,6 +12,7 @@ pub mod types;
 pub struct ApiClient {
     pub client: Client,
     pub base_url: String,
+    pub session_cookie: Arc<Mutex<Option<String>>>,
 }
 
 impl ApiClient {
@@ -24,7 +26,21 @@ impl ApiClient {
         while url.ends_with('/') {
             url.pop();
         }
-        Ok(Self { client, base_url: url })
+        Ok(Self {
+            client,
+            base_url: url,
+            session_cookie: Arc::new(Mutex::new(None)),
+        })
+    }
+
+    pub fn set_session_cookie(&self, cookie: String) {
+        if let Ok(mut guard) = self.session_cookie.lock() {
+            *guard = Some(cookie);
+        }
+    }
+
+    pub fn get_session_cookie(&self) -> Option<String> {
+        self.session_cookie.lock().ok().and_then(|g| g.clone())
     }
 
     pub async fn request<B, R>(&self, method: Method, path: &str, body: Option<&B>) -> Result<R>
@@ -37,6 +53,9 @@ impl ApiClient {
         if let Some(b) = body {
             req = req.json(b);
         }
+        if let Some(cookie) = self.get_session_cookie() {
+            req = req.header("Cookie", cookie);
+        }
         let resp = req.send().await.context("HTTP request failed")?;
         let status = resp.status();
         if !status.is_success() {
@@ -47,6 +66,27 @@ impl ApiClient {
         Ok(data)
     }
 
+    pub async fn request_raw<B>(&self, method: Method, path: &str, body: Option<&B>) -> Result<reqwest::Response>
+    where
+        B: Serialize,
+    {
+        let url = format!("{}{}", self.base_url, path);
+        let mut req = self.client.request(method, &url);
+        if let Some(b) = body {
+            req = req.json(b);
+        }
+        if let Some(cookie) = self.get_session_cookie() {
+            req = req.header("Cookie", cookie);
+        }
+        let resp = req.send().await.context("HTTP request failed")?;
+        let status = resp.status();
+        if !status.is_success() {
+            let text = resp.text().await.unwrap_or_default();
+            anyhow::bail!("HTTP {}: {}", status, text);
+        }
+        Ok(resp)
+    }
+
     pub async fn request_empty<B>(&self, method: Method, path: &str, body: Option<&B>) -> Result<()>
     where
         B: Serialize,
@@ -55,6 +95,9 @@ impl ApiClient {
         let mut req = self.client.request(method, &url);
         if let Some(b) = body {
             req = req.json(b);
+        }
+        if let Some(cookie) = self.get_session_cookie() {
+            req = req.header("Cookie", cookie);
         }
         let resp = req.send().await.context("HTTP request failed")?;
         let status = resp.status();

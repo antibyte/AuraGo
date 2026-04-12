@@ -13,9 +13,16 @@ pub async fn login(client: &ApiClient, password: &str, totp_code: &str) -> Resul
         totp_code: totp_code.to_string(),
         redirect: "/".to_string(),
     };
-    let resp = client
-        .request(Method::POST, "/api/auth/login", Some(&req))
+    let raw_resp = client
+        .request_raw(Method::POST, "/api/auth/login", Some(&req))
         .await?;
+    // Extract and store session cookie manually for robustness
+    if let Some(set_cookie) = raw_resp.headers().get("set-cookie") {
+        if let Ok(cookie_val) = set_cookie.to_str() {
+            client.set_session_cookie(cookie_val.to_string());
+        }
+    }
+    let resp = raw_resp.json::<LoginResponse>().await.context("Failed to decode login response")?;
     Ok(resp)
 }
 

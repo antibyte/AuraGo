@@ -25,9 +25,14 @@ pub enum SseEvent {
 pub async fn connect_sse(
     client: Client,
     url: String,
+    cookie: Option<String>,
     tx: tokio::sync::mpsc::UnboundedSender<SseEvent>,
 ) {
-    let resp = match client.get(&url).send().await {
+    let mut req = client.get(&url);
+    if let Some(c) = cookie {
+        req = req.header("Cookie", c);
+    }
+    let resp = match req.send().await {
         Ok(r) => r,
         Err(e) => {
             let _ = tx.send(SseEvent::Unknown(format!("SSE connect error: {}", e)));
