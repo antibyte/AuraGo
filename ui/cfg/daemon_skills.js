@@ -25,7 +25,7 @@ function renderDaemonSkillsSection(section) {
     // ── Max Concurrent Daemons ──
     var helpMax = t('help.daemon_skills.max_concurrent_daemons');
     html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.daemon_skills.max_concurrent_label') + '</div>';
+    html += '<div class="field-label">' + t('config.daemon_skills.max_concurrent_daemons_label') + '</div>';
     if (helpMax) html += '<div class="field-help">' + helpMax + '</div>';
     html += '<input type="number" class="field-input" data-path="tools.daemon_skills.max_concurrent_daemons" value="' + maxConc + '" min="1" max="20" step="1">';
     html += '</div>';
@@ -33,7 +33,7 @@ function renderDaemonSkillsSection(section) {
     // ── Global Rate Limit ──
     var helpRate = t('help.daemon_skills.global_rate_limit_secs');
     html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.daemon_skills.global_rate_limit_label') + '</div>';
+    html += '<div class="field-label">' + t('config.daemon_skills.global_rate_limit_secs_label') + '</div>';
     if (helpRate) html += '<div class="field-help">' + helpRate + '</div>';
     html += '<input type="number" class="field-input" data-path="tools.daemon_skills.global_rate_limit_secs" value="' + globalRate + '" min="10" max="3600" step="1">';
     html += '</div>';
@@ -41,7 +41,7 @@ function renderDaemonSkillsSection(section) {
     // ── Max Wake-ups per Hour ──
     var helpWake = t('help.daemon_skills.max_wakeups_per_hour');
     html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.daemon_skills.max_wakeups_label') + '</div>';
+    html += '<div class="field-label">' + t('config.daemon_skills.max_wakeups_per_hour_label') + '</div>';
     if (helpWake) html += '<div class="field-help">' + helpWake + '</div>';
     html += '<input type="number" class="field-input" data-path="tools.daemon_skills.max_wakeups_per_hour" value="' + maxWake + '" min="1" max="60" step="1">';
     html += '</div>';
@@ -49,7 +49,7 @@ function renderDaemonSkillsSection(section) {
     // ── Max Budget per Hour ──
     var helpBudget = t('help.daemon_skills.max_budget_per_hour');
     html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.daemon_skills.max_budget_label') + '</div>';
+    html += '<div class="field-label">' + t('config.daemon_skills.max_budget_per_hour_label') + '</div>';
     if (helpBudget) html += '<div class="field-help">' + helpBudget + '</div>';
     html += '<input type="number" class="field-input" data-path="tools.daemon_skills.max_budget_per_hour" value="' + maxBudget + '" min="0" max="100" step="0.01">';
     html += '</div>';

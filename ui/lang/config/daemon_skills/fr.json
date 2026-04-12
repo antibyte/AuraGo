@@ -9,5 +9,7 @@
   "help.daemon_skills.global_rate_limit_secs": "Secondes minimales entre les appels de réveil du daemon à l'agent",
   "help.daemon_skills.max_wakeups_per_hour": "Nombre maximum total de réveils de l'agent par tous les daemons par heure",
   "help.daemon_skills.max_budget_per_hour": "Coût LLM maximum (en USD) que les réveils daemon peuvent consommer par heure",
-  "config.daemon_skills.status_title": "Daemons en cours"
+  "config.daemon_skills.status_title": "Daemons en cours",
+  "config.daemon_skills.no_daemons": "Aucune skill daemon configurée",
+  "config.daemon_skills.load_error": "Échec du chargement de l'état du daemon"
 }

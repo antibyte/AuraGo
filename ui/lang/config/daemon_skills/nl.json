@@ -9,5 +9,7 @@
   "help.daemon_skills.global_rate_limit_secs": "Minimale seconden tussen daemon wake-up calls naar de agent",
   "help.daemon_skills.max_wakeups_per_hour": "Maximaal totaal aantal agent wake-ups van alle daemons per uur",
   "help.daemon_skills.max_budget_per_hour": "Maximale LLM-kosten (in USD) die daemon wake-ups per uur mogen verbruiken",
-  "config.daemon_skills.status_title": "Actieve daemons"
+  "config.daemon_skills.status_title": "Actieve daemons",
+  "config.daemon_skills.no_daemons": "Geen daemon-skills geconfigureerd",
+  "config.daemon_skills.load_error": "Kan daemon-status niet laden"
 }

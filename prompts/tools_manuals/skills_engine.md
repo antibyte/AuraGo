@@ -50,3 +50,4 @@ Discover and execute admin-managed skill plugins from the `skills/` directory. S
 - **Use existing skills**: Using an existing skill is strictly preferred over writing custom tools. Only create a custom tool if `list_skills` returns no suitable capability.
 - **Skill templates**: Available templates include `api_client`, `file_processor`, `data_transformer`, `scraper`, `example_use_vault_login`, `example_use_vault_token`.
 - **Supervisor features**: The skill supervisor handles venv activation, secret injection from vault, and output scrubbing automatically.
+- **WRONG paths**: Never use `execute_python` + manual file save to create reusable capabilities — they bypass vault injection and aren't registered. Never create a `manage_missions` mission for reusable code. Always use `create_skill_from_template` for new reusable Python skills.

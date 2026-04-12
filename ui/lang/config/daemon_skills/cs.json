@@ -9,5 +9,7 @@
   "help.daemon_skills.global_rate_limit_secs": "Minimální sekundy mezi voláními probuzení daemona agentovi",
   "help.daemon_skills.max_wakeups_per_hour": "Maximální celkový počet probuzení agenta ze všech daemonů za hodinu",
   "help.daemon_skills.max_budget_per_hour": "Maximální náklady LLM (v USD), které mohou probuzení daemony spotřebovat za hodinu",
-  "config.daemon_skills.status_title": "Běžící daemony"
+  "config.daemon_skills.status_title": "Běžící daemony",
+  "config.daemon_skills.no_daemons": "Žádné daemon skills nenastaveny",
+  "config.daemon_skills.load_error": "Nepodařilo se načíst stav daemonu"
 }

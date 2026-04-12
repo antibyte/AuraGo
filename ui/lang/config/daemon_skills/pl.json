@@ -9,5 +9,7 @@
   "help.daemon_skills.global_rate_limit_secs": "Minimalne sekundy między wywołaniami wybudzenia daemona do agenta",
   "help.daemon_skills.max_wakeups_per_hour": "Maksymalna łączna liczba wybudzeń agenta ze wszystkich daemonów na godzinę",
   "help.daemon_skills.max_budget_per_hour": "Maksymalny koszt LLM (w USD) jaki wybudzenia daemonów mogą pochłonąć na godzinę",
-  "config.daemon_skills.status_title": "Działające daemony"
+  "config.daemon_skills.status_title": "Działające daemony",
+  "config.daemon_skills.no_daemons": "Brak skonfigurowanych skilli daemon",
+  "config.daemon_skills.load_error": "Nie udało się załadować stanu daemonu"
 }
