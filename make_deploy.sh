@@ -57,9 +57,15 @@ sed \
 mkdir -p "$TMPDIR_RES/data/vectordb"
 mkdir -p "$TMPDIR_RES/log"
 
-# Bundle sample media assets for first-start seeding
+# Bundle sample assets for first-start seeding
 mkdir -p "$TMPDIR_RES/assets/media_samples"
 cp -r assets/media_samples/. "$TMPDIR_RES/assets/media_samples/"
+mkdir -p "$TMPDIR_RES/assets/mission_samples"
+cp -r assets/mission_samples/. "$TMPDIR_RES/assets/mission_samples/"
+mkdir -p "$TMPDIR_RES/assets/cheatsheet_samples"
+cp -r assets/cheatsheet_samples/. "$TMPDIR_RES/assets/cheatsheet_samples/"
+mkdir -p "$TMPDIR_RES/assets/skill_samples"
+cp -r assets/skill_samples/. "$TMPDIR_RES/assets/skill_samples/"
 
 # Pack
 tar -czf "$DEPLOY_DIR/$RESOURCES" -C "$TMPDIR_RES" .

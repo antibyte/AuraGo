@@ -177,7 +177,7 @@ func (s *Server) reinitBudgetTracker(cfg *config.Config) {
 	}
 }
 
-func Start(cfg *config.Config, logger *slog.Logger, accessLogger *slog.Logger, llmClient llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, remoteControlDB *sql.DB, mediaRegistryDB *sql.DB, homepageRegistryDB *sql.DB, contactsDB *sql.DB, plannerDB *sql.DB, sqlConnectionsDB *sql.DB, sqlConnectionPool *sqlconnections.ConnectionPool, backgroundTasks *tools.BackgroundTaskManager, warningsRegistry *warnings.Registry, isFirstStart bool, shutdownCh chan struct{}) error {
+func Start(cfg *config.Config, logger *slog.Logger, accessLogger *slog.Logger, llmClient llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, remoteControlDB *sql.DB, mediaRegistryDB *sql.DB, homepageRegistryDB *sql.DB, contactsDB *sql.DB, plannerDB *sql.DB, sqlConnectionsDB *sql.DB, sqlConnectionPool *sqlconnections.ConnectionPool, backgroundTasks *tools.BackgroundTaskManager, warningsRegistry *warnings.Registry, isFirstStart bool, shutdownCh chan struct{}, installDir string) error {
 	startLoginRecordCleaner(shutdownCh)
 	s := &Server{
 		Cfg:                cfg,
@@ -245,6 +245,8 @@ func Start(cfg *config.Config, logger *slog.Logger, accessLogger *slog.Logger, l
 				logger.Warn("Failed to sync skills from disk", "error", err)
 			}
 			logger.Info("Skill Manager initialized", "skills_dir", cfg.Directories.SkillsDir)
+			// Seed bundled example skills on first start (idempotent)
+			tools.SeedWelcomeSkills(s.SkillManager, cfg.Directories.SkillsDir, installDir, logger)
 		}
 	}
 
@@ -502,6 +504,14 @@ func Start(cfg *config.Config, logger *slog.Logger, accessLogger *slog.Logger, l
 
 	if err := s.MissionManagerV2.Start(); err != nil {
 		logger.Warn("Failed to start MissionManagerV2", "error", err)
+	} else {
+		// Seed bundled example missions on first start (idempotent)
+		tools.SeedWelcomeMissions(s.MissionManagerV2, installDir, logger)
+	}
+
+	// Seed bundled example cheat sheets on first start (idempotent)
+	if cheatsheetDB != nil {
+		tools.SeedWelcomeCheatsheets(cheatsheetDB, installDir, logger)
 	}
 
 	// Start Home Assistant Poller

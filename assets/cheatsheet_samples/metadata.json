@@ -1,0 +1,16 @@
+[
+  {
+    "id": "example-quickstart",
+    "name": "AuraGo Quickstart Guide",
+    "content": "When the user asks how AuraGo works, explain the following core concepts briefly:\n\n1. **Missions** – Automated tasks the agent can run on demand, on a schedule, or triggered by events (emails, webhooks, etc.).\n2. **Cheatsheets** – Reusable instructions you can activate to change the agent's behavior for specific topics.\n3. **Skills** – Python scripts or JSON integrations the agent can call as tools.\n4. **Memory** – The agent remembers past conversations (short-term) and important facts (long-term).\n5. **Safety** – Dangerous actions like shell commands or file writes can be toggled on/off in Settings.\n\nTip: You can create new missions and cheatsheets anytime from the Web UI.",
+    "active": true,
+    "created_by": "system"
+  },
+  {
+    "id": "example-prompting-tips",
+    "name": "Prompting Tips",
+    "content": "Tips for getting the best results from AuraGo:\n\n- **Be specific**: Instead of 'check server', say 'check disk space on the Ubuntu server at 192.168.1.10'.\n- **One task at a time**: Complex requests work best when broken into missions or sequential steps.\n- **Use cheatsheets**: If you often need the same context, create a cheatsheet and activate it.\n- **Verify outputs**: For critical operations (shell, file edits, remote SSH), always review the proposed commands before confirming.",
+    "active": true,
+    "created_by": "system"
+  }
+]

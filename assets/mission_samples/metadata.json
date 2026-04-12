@@ -1,0 +1,20 @@
+[
+  {
+    "id": "example-welcome-check",
+    "name": "Welcome: System Health Check",
+    "prompt": "Perform a quick system health check. Report CPU load, memory usage, disk space, and running Docker containers (if any). Keep the response friendly and concise, suitable for a first-time user.",
+    "execution_type": "manual",
+    "priority": "medium",
+    "enabled": true,
+    "locked": false
+  },
+  {
+    "id": "example-good-morning",
+    "name": "Example: Good Morning Briefing",
+    "prompt": "Create a short 'good morning' briefing. Mention the current date, a motivational quote, and suggest one productive task based on the user's mission history (if available).",
+    "execution_type": "manual",
+    "priority": "low",
+    "enabled": true,
+    "locked": false
+  }
+]

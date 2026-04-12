@@ -910,7 +910,7 @@ func main() {
 	// Register built-in warning producers (token budget fallback, vectordb, etc.).
 	warnings.RegisterBuiltinProducers(warningsRegistry, cfg, appLog)
 
-	if err := server.Start(cfg, appLog, webAccessLog, llmClient, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, remoteControlDB, mediaRegistryDB, homepageRegistryDB, contactsDB, plannerDB, sqlConnectionsDB, sqlConnectionPool, backgroundTaskManager, warningsRegistry, isFirstStart, shutdownCh); err != nil {
+	if err := server.Start(cfg, appLog, webAccessLog, llmClient, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, remoteControlDB, mediaRegistryDB, homepageRegistryDB, contactsDB, plannerDB, sqlConnectionsDB, sqlConnectionPool, backgroundTaskManager, warningsRegistry, isFirstStart, shutdownCh, installDir); err != nil {
 		appLog.Error("Server failed", "error", err)
 		os.Exit(1)
 	}
