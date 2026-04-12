@@ -243,6 +243,7 @@ func Start(cfg *config.Config, logger *slog.Logger, accessLogger *slog.Logger, l
 		} else {
 			s.SkillsDB = skillsDB
 			s.SkillManager = tools.NewSkillManager(skillsDB, cfg.Directories.SkillsDir, logger)
+			tools.SetDefaultSkillManager(s.SkillManager)
 			if err := s.SkillManager.SyncFromDisk(); err != nil {
 				logger.Warn("Failed to sync skills from disk", "error", err)
 			}

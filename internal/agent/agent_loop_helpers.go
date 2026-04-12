@@ -141,9 +141,18 @@ type streamingAccountingState struct {
 }
 
 func (s *streamingAccountingState) recordProviderUsage(prompt, completion int) {
-	s.providerPrompt = prompt
-	s.providerCompletion = completion
-	s.hasProviderUsage = true
+	// Providers may send usage across multiple chunks (e.g. prompt in one chunk,
+	// completion in another). Only overwrite non-zero values so earlier
+	// measurements are preserved.
+	if prompt > 0 {
+		s.providerPrompt = prompt
+	}
+	if completion > 0 {
+		s.providerCompletion = completion
+	}
+	if prompt > 0 || completion > 0 {
+		s.hasProviderUsage = true
+	}
 }
 
 type toolGuideSearcher interface {

@@ -1045,6 +1045,10 @@ func translateStreamEvents(reader io.Reader, writer io.Writer, model string, thi
 	var msgID string
 	var msgModel string
 
+	// Anthropic sends input_tokens in message_start and output_tokens in message_delta.
+	// We need to cache the start usage so the final delta can report complete usage.
+	var msgStartUsage *anthropicUsage
+
 	// Track tool call indices: block index → tool_calls array index
 	toolCallIndex := 0
 	// Track block index → tool name mapping for streaming
@@ -1081,6 +1085,9 @@ func translateStreamEvents(reader io.Reader, writer io.Writer, model string, thi
 			msgModel = evt.Message.Model
 			if msgModel == "" {
 				msgModel = model
+			}
+			if evt.Message.Usage.InputTokens > 0 || evt.Message.Usage.OutputTokens > 0 {
+				msgStartUsage = &evt.Message.Usage
 			}
 			// Emit initial chunk with role
 			chunk := openaiStreamChunk{
@@ -1201,10 +1208,14 @@ func translateStreamEvents(reader io.Reader, writer io.Writer, model string, thi
 				},
 			}
 			if evt.Usage != nil {
+				inputTokens := evt.Usage.InputTokens
+				if inputTokens == 0 && msgStartUsage != nil {
+					inputTokens = msgStartUsage.InputTokens
+				}
 				chunk.Usage = &openaiUsage{
-					PromptTokens:     evt.Usage.InputTokens,
+					PromptTokens:     inputTokens,
 					CompletionTokens: evt.Usage.OutputTokens,
-					TotalTokens:      evt.Usage.InputTokens + evt.Usage.OutputTokens,
+					TotalTokens:      inputTokens + evt.Usage.OutputTokens,
 				}
 			}
 			writeSSEChunk(writer, chunk)

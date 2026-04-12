@@ -143,5 +143,6 @@
   "pwa.notifications_denied": "Notifications push bloquées par le navigateur",
   "pwa.notifications_disabled": "Notifications push désactivées",
   "pwa.notifications_enabled": "Notifications push actives — cliquez pour désactiver",
-  "pwa.notifications_unavailable": "Notifications push non prises en charge"
+  "pwa.notifications_unavailable": "Notifications push non prises en charge",
+  "chat.redacted_label": "[supprimé]"
 }

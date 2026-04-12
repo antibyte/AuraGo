@@ -9,7 +9,7 @@
   "help.daemon_skills.global_rate_limit_secs": "Minimum sekunder mellom daemon-oppvåkningskall til agenten",
   "help.daemon_skills.max_wakeups_per_hour": "Maksimalt totalt antall agent-oppvåkninger fra alle daemoner per time",
   "help.daemon_skills.max_budget_per_hour": "Maksimale LLM-kostnader (i USD) som daemon-oppvåkninger kan forbruke per time",
-  "config.daemon_skills.status_title": "Kjørende daemoner",
+  "config.daemon_skills.status_title": "Kjørende daemoner (%d)",
   "config.daemon_skills.no_daemons": "Ingen daemon-ferdigheter konfigurert",
   "config.daemon_skills.load_error": "Kunne ikke laste daemon-status",
   "config.daemon_skills.status_running": "Kjører",

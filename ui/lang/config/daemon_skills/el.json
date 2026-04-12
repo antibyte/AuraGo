@@ -9,7 +9,7 @@
   "help.daemon_skills.global_rate_limit_secs": "Ελάχιστα δευτερόλεπτα μεταξύ κλήσεων αφύπνισης daemon στον agent",
   "help.daemon_skills.max_wakeups_per_hour": "Μέγιστος συνολικός αριθμός αφυπνίσεων agent από όλους τους daemons ανά ώρα",
   "help.daemon_skills.max_budget_per_hour": "Μέγιστο κόστος LLM (σε USD) που μπορούν να καταναλώσουν οι αφυπνίσεις daemon ανά ώρα",
-  "config.daemon_skills.status_title": "Ενεργοί daemons",
+  "config.daemon_skills.status_title": "Ενεργοί daemons (%d)",
   "config.daemon_skills.no_daemons": "Δεν έχουν διαμορφωθεί daemon skills",
   "config.daemon_skills.load_error": "Αποτυχία φόρτωσης κατάστασης daemon",
   "config.daemon_skills.status_running": "Ενεργός",

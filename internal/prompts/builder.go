@@ -202,6 +202,7 @@ type ContextFlags struct {
 	ToolsDir                 string // absolute path to agent_workspace/tools/ for custom tool scripts
 	SkillsDir                string // absolute path to agent_workspace/skills/ for skill plugins
 	UnifiedMemoryBlock       bool   // experimental: merge retrieval/activity/KG context into one prompt section
+	Model                    string // model identifier for token-counting accuracy
 	// SkipIntegrationTools lists tool names to exclude from the [ENABLED INTEGRATIONS]
 	// overview line (because they already have native OpenAI function schemas).
 	SkipIntegrationTools []string
@@ -537,7 +538,7 @@ func buildSystemPromptInner(promptsDir string, flags ContextFlags, coreMemory st
 	// Dynamic Outgoing Webhooks definition
 	if flags.WebhooksEnabled && flags.WebhooksDefinitions != "" && flags.Tier != "minimal" {
 		finalPrompt.WriteString("# OUTGOING WEBHOOKS\n")
-		finalPrompt.WriteString(flags.WebhooksDefinitions)
+		finalPrompt.WriteString(security.IsolateExternalData(flags.WebhooksDefinitions))
 		finalPrompt.WriteString("\n\n")
 	}
 
@@ -570,7 +571,7 @@ func buildSystemPromptInner(promptsDir string, flags ContextFlags, coreMemory st
 			"You do NOT need to explicitly save them - just have natural conversations and ask strategic follow-ups.\n")
 		if flags.UserProfileSummary != "" {
 			finalPrompt.WriteString("\n### Known User Profile\n")
-			finalPrompt.WriteString(flags.UserProfileSummary)
+			finalPrompt.WriteString(security.IsolateExternalData(flags.UserProfileSummary))
 		}
 		finalPrompt.WriteString("\n")
 		logger.Debug("User profiling prompt section injected", "hasSummary", flags.UserProfileSummary != "")
@@ -680,7 +681,7 @@ func buildSystemPromptInner(promptsDir string, flags ContextFlags, coreMemory st
 
 	// 7. Optimize after shedding — only minify what remains
 	optimized, saved := OptimizePrompt(rawPrompt)
-	finalTokens := CountTokens(optimized)
+	finalTokens := countTokensWithModel(optimized, flags.Model)
 
 	// 7b. Post-shed verification: warn if prompt still exceeds budget after all shedding.
 	if flags.TokenBudget > 0 && finalTokens > flags.TokenBudget {
@@ -725,7 +726,7 @@ func buildSystemPromptInner(promptsDir string, flags ContextFlags, coreMemory st
 // Shedding order (lowest value first):
 // 1. Tool Guides, 2. Predicted Memories, 3. User Profile, 4. Retrieved Memories (per-entry trim), 5. Personality self-awareness, 6. Personality profile
 func budgetShed(prompt string, flags ContextFlags, personalityContent, coreMemory string, now time.Time, logger *slog.Logger) (string, []string) {
-	tokens := CountTokens(prompt)
+	tokens := countTokensWithModel(prompt, flags.Model)
 	if tokens <= flags.TokenBudget {
 		return prompt, nil
 	}
@@ -733,81 +734,53 @@ func budgetShed(prompt string, flags ContextFlags, personalityContent, coreMemor
 	logger.Info("[Budget] Token budget exceeded, shedding content", "tokens", tokens, "budget", flags.TokenBudget)
 
 	var shedList []string
-
-	// Strategy: remove sections in priority order, re-counting only when content was actually removed.
-	// RETRIEVED MEMORIES is handled separately with per-entry progressive trimming.
-	shedHeaders := []string{"# TOOL GUIDES"}
-	if flags.UnifiedMemoryBlock {
-		shedHeaders = append(shedHeaders,
-			"## USER PROFILING",
-			"# UNIFIED MEMORY CONTEXT",
-		)
-	} else {
-		shedHeaders = append(shedHeaders,
-			"# PREDICTED CONTEXT",
-			"# LAST 7 DAYS OVERVIEW",
-			"## USER PROFILING",
-		)
-	}
-
 	result := prompt
 
-	// Sort sections by token size (largest first) for efficient shedding
-	type sectionSize struct {
+	// Shed sections in fixed priority order. Re-count tokens only when a section
+	// was actually removed. This avoids the expensive double token-counting that
+	// the previous size-sorting approach required.
+	shedTargets := []struct {
 		header string
-		tokens int
-		isLine bool // true if removed by line prefix instead of header
-	}
-	var sections []sectionSize
-	for _, header := range shedHeaders {
-		removed := removeSection(result, header)
-		if len(removed) < len(result) {
-			savedTokens := CountTokens(result) - CountTokens(removed)
-			sections = append(sections, sectionSize{header: header, tokens: savedTokens})
-		}
-	}
-	// Inner Voice (line-based)
-	if iv := removeSection(result, "### INNER VOICE"); len(iv) < len(result) {
-		sections = append(sections, sectionSize{header: "### INNER VOICE", tokens: CountTokens(result) - CountTokens(iv)})
-	}
-	// V1 Personality Line (line-based)
-	if v1 := removeLineByPrefix(result, "[Self:"); len(v1) < len(result) {
-		sections = append(sections, sectionSize{header: "V1 Personality Line", tokens: CountTokens(result) - CountTokens(v1), isLine: true})
-	}
-	// V2 Personality Block
-	if v2 := removeSection(result, "[SYSTEM DIRECTIVE - CURRENT STATE]"); len(v2) < len(result) {
-		sections = append(sections, sectionSize{header: "V2 Personality Block", tokens: CountTokens(result) - CountTokens(v2)})
-	}
-	// Personality Profile
-	if pp := removeSection(result, "# YOUR PERSONALITY"); len(pp) < len(result) {
-		sections = append(sections, sectionSize{header: "# YOUR PERSONALITY", tokens: CountTokens(result) - CountTokens(pp)})
+		isLine bool
+	}{
+		{"# TOOL GUIDES", false},
 	}
 
-	// Sort by token size descending (remove largest sections first)
-	sort.Slice(sections, func(i, j int) bool {
-		return sections[i].tokens > sections[j].tokens
-	})
+	if flags.UnifiedMemoryBlock {
+		shedTargets = append(shedTargets,
+			struct{ header string; isLine bool }{"## USER PROFILING", false},
+			struct{ header string; isLine bool }{"# UNIFIED MEMORY CONTEXT", false},
+		)
+	} else {
+		shedTargets = append(shedTargets,
+			struct{ header string; isLine bool }{"# PREDICTED CONTEXT", false},
+			struct{ header string; isLine bool }{"# LAST 7 DAYS OVERVIEW", false},
+			struct{ header string; isLine bool }{"## USER PROFILING", false},
+		)
+	}
 
-	for _, sec := range sections {
+	shedTargets = append(shedTargets,
+		struct{ header string; isLine bool }{"### INNER VOICE", false},
+		struct{ header string; isLine bool }{"[Self:", true},
+		struct{ header string; isLine bool }{"[SYSTEM DIRECTIVE - CURRENT STATE]", false},
+		struct{ header string; isLine bool }{"# YOUR PERSONALITY", false},
+	)
+
+	for _, target := range shedTargets {
 		if tokens <= flags.TokenBudget {
 			break
 		}
-		if sec.isLine {
-			before := len(result)
-			result = removeLineByPrefix(result, "[Self:")
-			if len(result) < before {
-				tokens = CountTokens(result)
-				shedList = append(shedList, sec.header)
-				logger.Debug("[Budget] Shed section", "header", sec.header, "tokens_saved", sec.tokens, "remaining_tokens", tokens)
-			}
+		before := len(result)
+		if target.isLine {
+			result = removeLineByPrefix(result, target.header)
 		} else {
-			before := len(result)
-			result = removeSection(result, sec.header)
-			if len(result) < before {
-				tokens = CountTokens(result)
-				shedList = append(shedList, sec.header)
-				logger.Debug("[Budget] Shed section", "header", sec.header, "tokens_saved", sec.tokens, "remaining_tokens", tokens)
-			}
+			result = removeSection(result, target.header)
+		}
+		if len(result) < before {
+			oldTokens := tokens
+			tokens = countTokensWithModel(result, flags.Model)
+			shedList = append(shedList, target.header)
+			logger.Debug("[Budget] Shed section", "header", target.header, "tokens_saved", oldTokens-tokens, "remaining_tokens", tokens)
 		}
 	}
 
@@ -815,53 +788,9 @@ func budgetShed(prompt string, flags ContextFlags, personalityContent, coreMemor
 	// instead of dropping the entire section at once.
 	if tokens > flags.TokenBudget && !flags.UnifiedMemoryBlock {
 		var trimmed bool
-		result, trimmed, tokens = trimRetrievedMemoriesSection(result, flags.TokenBudget, logger)
+		result, trimmed, tokens = trimRetrievedMemoriesSection(result, flags.TokenBudget, flags.Model, logger)
 		if trimmed {
 			shedList = append(shedList, "# RETRIEVED MEMORIES (partial)")
-		}
-	}
-
-	// Inner Voice: shed before personality lines
-	if tokens > flags.TokenBudget {
-		before := len(result)
-		result = removeSection(result, "### INNER VOICE")
-		if len(result) < before {
-			tokens = CountTokens(result)
-			shedList = append(shedList, "### INNER VOICE")
-			logger.Debug("[Budget] Shed inner voice", "new_tokens", tokens)
-		}
-	}
-
-	// Personality self-awareness line: [Self: ...] — not a markdown header, so remove by line prefix
-	if tokens > flags.TokenBudget {
-		before := len(result)
-		result = removeLineByPrefix(result, "[Self:")
-		if len(result) < before {
-			tokens = CountTokens(result)
-			shedList = append(shedList, "V1 Personality Line")
-			logger.Debug("[Budget] Shed V1 personality line", "new_tokens", tokens)
-		}
-	}
-
-	// V2 Personality self-awareness block
-	if tokens > flags.TokenBudget {
-		before := len(result)
-		result = removeSection(result, "[SYSTEM DIRECTIVE - CURRENT STATE]")
-		if len(result) < before {
-			tokens = CountTokens(result)
-			shedList = append(shedList, "V2 Personality Block")
-			logger.Debug("[Budget] Shed V2 personality block", "new_tokens", tokens)
-		}
-	}
-
-	// Last resort: remove personality profile
-	if tokens > flags.TokenBudget {
-		before := len(result)
-		result = removeSection(result, "# YOUR PERSONALITY")
-		if len(result) < before {
-			tokens = CountTokens(result)
-			shedList = append(shedList, "# YOUR PERSONALITY")
-			logger.Debug("[Budget] Shed personality profile", "new_tokens", tokens)
 		}
 	}
 
@@ -877,7 +806,7 @@ func budgetShed(prompt string, flags ContextFlags, personalityContent, coreMemor
 		if maxChars > 0 && len(result) > maxChars {
 			result = result[:maxChars] + "\n\n[BUDGET TRUNCATED]"
 		}
-		tokens = CountTokens(result)
+		tokens = countTokensWithModel(result, flags.Model)
 		shedList = append(shedList, "HARD_TRUNCATE")
 	}
 
@@ -889,13 +818,13 @@ func budgetShed(prompt string, flags ContextFlags, personalityContent, coreMemor
 // Entries are dropped from the back (lowest ranked) first. If all entries are removed, the section
 // header is also removed. Returns the (possibly trimmed) prompt, whether any trimming occurred, and
 // the token count after trimming.
-func trimRetrievedMemoriesSection(prompt string, budget int, logger *slog.Logger) (string, bool, int) {
+func trimRetrievedMemoriesSection(prompt string, budget int, model string, logger *slog.Logger) (string, bool, int) {
 	const header = "# RETRIEVED MEMORIES"
 	const sep = "\n---\n"
 
 	idx := strings.Index(prompt, header)
 	if idx < 0 {
-		return prompt, false, CountTokens(prompt)
+		return prompt, false, countTokensWithModel(prompt, model)
 	}
 
 	// Locate the section boundaries (same logic as removeSection)
@@ -903,9 +832,11 @@ func trimRetrievedMemoriesSection(prompt string, budget int, logger *slog.Logger
 	nextHeader := -1
 	for i := 0; i < len(rest); i++ {
 		if rest[i] == '\n' && i+1 < len(rest) && rest[i+1] == '#' {
-			if (i+2 < len(rest) && rest[i+2] == ' ') ||
-				(i+3 < len(rest) && rest[i+2] == '#' && rest[i+3] == ' ') ||
-				(i+4 < len(rest) && rest[i+2] == '#' && rest[i+3] == '#' && rest[i+4] == ' ') {
+			j := i + 1
+			for j < len(rest) && rest[j] == '#' {
+				j++
+			}
+			if j < len(rest) && rest[j] == ' ' {
 				nextHeader = i + 1
 				break
 			}
@@ -933,11 +864,11 @@ func trimRetrievedMemoriesSection(prompt string, budget int, logger *slog.Logger
 	entries = nonEmpty
 
 	trimmed := false
-	baseTokens := CountTokens(before+afterSection) + CountTokens(header) + CountTokens("\n\n")
-	sepTokens := CountTokens(sep)
+	baseTokens := countTokensWithModel(before+afterSection, model) + countTokensWithModel(header, model) + countTokensWithModel("\n\n", model)
+	sepTokens := countTokensWithModel(sep, model)
 	var entryTokens []int
 	for _, e := range entries {
-		entryTokens = append(entryTokens, CountTokens(e))
+		entryTokens = append(entryTokens, countTokensWithModel(e, model))
 	}
 	currentEntryCount := len(entries)
 	for currentEntryCount > 0 {
@@ -956,7 +887,7 @@ func trimRetrievedMemoriesSection(prompt string, budget int, logger *slog.Logger
 			keptEntries := entries[:currentEntryCount]
 			content := header + "\n" + strings.Join(keptEntries, sep) + "\n\n"
 			candidate := before + content + afterSection
-			return candidate, trimmed, tokens
+			return candidate, trimmed, countTokensWithModel(candidate, model)
 		}
 		currentEntryCount--
 		trimmed = true
@@ -965,7 +896,7 @@ func trimRetrievedMemoriesSection(prompt string, budget int, logger *slog.Logger
 	// All entries removed — strip the section header too
 	finalPrompt := strings.TrimRight(before, "\n ") + "\n\n" + afterSection
 	logger.Debug("[Budget] Removed all retrieved memories entries")
-	return finalPrompt, true, CountTokens(finalPrompt)
+	return finalPrompt, true, countTokensWithModel(finalPrompt, model)
 }
 
 func buildUnifiedMemoryContextBlock(flags ContextFlags) string {
@@ -1206,8 +1137,10 @@ func OptimizePrompt(raw string) (string, int) {
 		}
 	}
 
-	// Dump any unclosed buffer
+	// Dump any unclosed buffer — re-insert the opening fence so the JSON
+	// remains readable as a code block even when the closing ``` was truncated.
 	if len(jsonBuffer) > 0 {
+		result = append(result, "```json")
 		result = append(result, jsonBuffer...)
 	}
 
@@ -1340,6 +1273,15 @@ func CountTokensForModel(text string, model string) int {
 		return base
 	}
 	return int(float64(base) * mult)
+}
+
+// countTokensWithModel returns CountTokensForModel when model is set,
+// otherwise falls back to the generic CountTokens.
+func countTokensWithModel(text, model string) int {
+	if model != "" {
+		return CountTokensForModel(text, model)
+	}
+	return CountTokens(text)
 }
 
 // buildEnabledToolsOverview returns a compact one-liner listing enabled tools

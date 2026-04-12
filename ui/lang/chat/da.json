@@ -143,5 +143,6 @@
   "pwa.notifications_denied": "Push-meddelelser blokeret af browseren",
   "pwa.notifications_disabled": "Push-meddelelser deaktiveret",
   "pwa.notifications_enabled": "Push-meddelelser aktive - klik for at deaktivere",
-  "pwa.notifications_unavailable": "Push-meddelelser understøttes ikke"
+  "pwa.notifications_unavailable": "Push-meddelelser understøttes ikke",
+  "chat.redacted_label": "[fjernet]"
 }

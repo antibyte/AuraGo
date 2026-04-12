@@ -9,7 +9,7 @@
   "help.daemon_skills.global_rate_limit_secs": "守护进程唤醒代理之间的最小秒数",
   "help.daemon_skills.max_wakeups_per_hour": "所有守护进程每小时的最大代理唤醒总数",
   "help.daemon_skills.max_budget_per_hour": "守护进程唤醒每小时可消耗的最大LLM成本（USD）",
-  "config.daemon_skills.status_title": "运行中的守护进程",
+  "config.daemon_skills.status_title": "运行中的守护进程 (%d)",
   "config.daemon_skills.no_daemons": "未配置守护进程技能",
   "config.daemon_skills.load_error": "无法加载守护进程状态",
   "config.daemon_skills.status_running": "运行中",

@@ -143,5 +143,6 @@
   "pwa.notifications_denied": "プッシュ通知がブラウザによってブロックされています",
   "pwa.notifications_disabled": "プッシュ通知が無効になっています",
   "pwa.notifications_enabled": "プッシュ通知がアクティブ - クリックして無効にします",
-  "pwa.notifications_unavailable": "プッシュ通知はサポートされていません"
+  "pwa.notifications_unavailable": "プッシュ通知はサポートされていません",
+  "chat.redacted_label": "[削除済み]"
 }

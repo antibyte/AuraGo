@@ -224,15 +224,17 @@ func handleDaemonSkillSettings(s *Server) http.HandlerFunc {
 		case http.MethodPut:
 			var req struct {
 				WakeAgent          *bool  `json:"wake_agent,omitempty"`
-				TriggerMissionID   string `json:"trigger_mission_id,omitempty"`
-				TriggerMissionName string `json:"trigger_mission_name,omitempty"`
-				CheatsheetID       string `json:"cheatsheet_id,omitempty"`
-				CheatsheetName     string `json:"cheatsheet_name,omitempty"`
+				TriggerMissionID   string `json:"trigger_mission_id"`
+				TriggerMissionName string `json:"trigger_mission_name"`
+				CheatsheetID       string `json:"cheatsheet_id"`
+				CheatsheetName     string `json:"cheatsheet_name"`
 			}
 			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 				daemonJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "Invalid JSON"})
 				return
 			}
+
+			s.Logger.Info("DAEMON SETTINGS PUT", "skill_id", id, "mission_id", req.TriggerMissionID, "cheatsheet_id", req.CheatsheetID, "cheatsheetDB_nil", s.CheatsheetDB == nil)
 
 			if req.TriggerMissionID != "" {
 				if s.MissionManagerV2 == nil {

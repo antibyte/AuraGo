@@ -19,6 +19,7 @@ import (
 	"aurago/internal/contacts"
 	"aurago/internal/inventory"
 	"aurago/internal/memory"
+	"aurago/internal/prompts"
 	"aurago/internal/security"
 	"aurago/internal/services"
 	"aurago/internal/telnyx"
@@ -640,11 +641,11 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				return fmt.Sprintf("Tool Output: ERROR invalid tool name for manual lookup: '%s'", req.ToolName)
 			}
 			manualPath := filepath.Join(cfg.Directories.PromptsDir, "tools_manuals", cleanName+".md")
-			data, err := os.ReadFile(manualPath)
-			if err != nil {
-				return fmt.Sprintf("Tool Output: ERROR could not read manual for '%s': %v", req.ToolName, err)
+			content, ok := prompts.ReadToolGuide(manualPath)
+			if !ok {
+				return fmt.Sprintf("Tool Output: ERROR could not read manual for '%s'", req.ToolName)
 			}
-			return fmt.Sprintf("Tool Output: [MANUAL FOR %s]\n%s", req.ToolName, string(data))
+			return fmt.Sprintf("Tool Output: [MANUAL FOR %s]\n%s", req.ToolName, content)
 
 		case "execute_surgery":
 			if !isMaintenance {

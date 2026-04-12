@@ -1043,6 +1043,66 @@ func ptrFloat32(f float32) *float32 {
 	return &f
 }
 
+// TestAnthropicStreamMergesMessageStartUsage verifies that input_tokens from
+// message_start are preserved and merged with output_tokens from message_delta.
+func TestAnthropicStreamMergesMessageStartUsage(t *testing.T) {
+	events := []string{
+		`event: message_start`,
+		`data: {"type":"message_start","message":{"id":"msg_123","type":"message","role":"assistant","model":"claude-3-5-sonnet-latest","content":[],"stop_reason":null,"usage":{"input_tokens":42,"output_tokens":0}}}`,
+		`event: content_block_delta`,
+		`data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"hello"}}`,
+		`event: message_delta`,
+		`data: {"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"input_tokens":0,"output_tokens":7}}`,
+		`event: message_stop`,
+		`data: {}`,
+	}
+
+	resp := &http.Response{
+		StatusCode: 200,
+		Header:     http.Header{"Content-Type": []string{"text/event-stream"}},
+		Body:       io.NopCloser(strings.NewReader(buildAnthropicSSE(events))),
+	}
+
+	translated, err := translateAnthropicStream(resp, "claude-3-5-sonnet-latest", nil)
+	if err != nil {
+		t.Fatalf("translateAnthropicStream: %v", err)
+	}
+	defer translated.Body.Close()
+
+	body, _ := io.ReadAll(translated.Body)
+	lines := strings.Split(string(body), "\n")
+
+	var foundUsage bool
+	for _, line := range lines {
+		if !strings.HasPrefix(line, "data: ") {
+			continue
+		}
+		data := strings.TrimPrefix(line, "data: ")
+		if data == "[DONE]" {
+			break
+		}
+		var chunk openaiStreamChunk
+		if json.Unmarshal([]byte(data), &chunk) != nil {
+			continue
+		}
+		if chunk.Usage != nil {
+			foundUsage = true
+			if chunk.Usage.PromptTokens != 42 {
+				t.Errorf("prompt_tokens = %d, want 42", chunk.Usage.PromptTokens)
+			}
+			if chunk.Usage.CompletionTokens != 7 {
+				t.Errorf("completion_tokens = %d, want 7", chunk.Usage.CompletionTokens)
+			}
+			if chunk.Usage.TotalTokens != 49 {
+				t.Errorf("total_tokens = %d, want 49", chunk.Usage.TotalTokens)
+			}
+		}
+	}
+	if !foundUsage {
+		t.Fatal("expected usage chunk in translated stream")
+	}
+}
+
 func buildAnthropicSSE(events []string) string {
 	var sb strings.Builder
 	for _, e := range events {

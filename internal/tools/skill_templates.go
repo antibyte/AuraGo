@@ -470,6 +470,11 @@ func CreateSkillFromTemplate(skillsDir, templateName, skillName, description, ba
 
 	InvalidateSkillsCache(skillsDir)
 
+	// Sync to database so the skill is visible in the Web UI immediately.
+	if mgr := DefaultSkillManager(); mgr != nil {
+		_ = mgr.SyncFromDisk()
+	}
+
 	return fmt.Sprintf("Skill '%s' created from template '%s'.\nFiles: %s, %s\nDependencies: %s\nUse execute_skill with skill='%s' to run it.",
 		skillName, templateName, filepath.Base(jsonPath), filepath.Base(pyPath),
 		strings.Join(allDeps, ", "), skillName), nil

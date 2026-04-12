@@ -70,12 +70,15 @@ func loadPromptModules(dir string, logger *slog.Logger) []PromptModule {
 	if GetActivePromptOverrides != nil {
 		overrides = GetActivePromptOverrides()
 	}
+	optimizerKeys := make(map[string]bool, len(overrides))
 	for name, content := range overrides {
 		filename := name + ".md"
 		mod := parseOrFallback(filename, content, logger)
 		// Return the correct metadata so the shadow test can log the version
 		mod.Metadata.Version = "optim-db"
-		moduleMap[strings.ToLower(filename)] = mod
+		key := strings.ToLower(filename)
+		moduleMap[key] = mod
+		optimizerKeys[key] = true
 	}
 
 	// 1. Seed from embedded FS (system prompts — tamper-proof in the binary)
@@ -113,7 +116,11 @@ func loadPromptModules(dir string, logger *slog.Logger) []PromptModule {
 				logger.Warn("Failed to read prompt file", "path", path, "error", err)
 				continue
 			}
-			moduleMap[strings.ToLower(file.Name())] = parseOrFallback(file.Name(), string(data), logger)
+			key := strings.ToLower(file.Name())
+			if optimizerKeys[key] {
+				continue
+			}
+			moduleMap[key] = parseOrFallback(file.Name(), string(data), logger)
 		}
 	} else if len(moduleMap) == 0 {
 		logger.Error("Failed to read prompts directory and no embedded modules loaded", "path", dir, "error", err)

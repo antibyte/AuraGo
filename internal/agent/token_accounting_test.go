@@ -110,3 +110,107 @@ func TestApplyTokenEstimationFallback_NoFallbackWhenTotalProvided(t *testing.T) 
 		t.Fatalf("unexpected tokens: prompt=%d completion=%d total=%d", promptTokens, completionTokens, totalTokens)
 	}
 }
+
+func TestApplyTokenEstimationFallback_DerivesMissingPromptFromTotal(t *testing.T) {
+	req := openai.ChatCompletionRequest{
+		Model: "any",
+		Messages: []openai.ChatCompletionMessage{
+			{Role: openai.ChatMessageRoleUser, Content: "Hello."},
+		},
+	}
+
+	promptTokens, completionTokens, totalTokens, tokenSource, usedFallback := applyTokenEstimationFallback(
+		0,
+		20,
+		50,
+		"provider_usage",
+		req,
+		"ignored",
+	)
+
+	if usedFallback {
+		t.Fatalf("expected usedFallback=false")
+	}
+	if tokenSource != "provider_usage" {
+		t.Fatalf("expected tokenSource=provider_usage, got %q", tokenSource)
+	}
+	if promptTokens != 30 {
+		t.Fatalf("expected promptTokens=30, got %d", promptTokens)
+	}
+	if completionTokens != 20 {
+		t.Fatalf("expected completionTokens=20, got %d", completionTokens)
+	}
+	if totalTokens != 50 {
+		t.Fatalf("expected totalTokens=50, got %d", totalTokens)
+	}
+}
+
+func TestApplyTokenEstimationFallback_DerivesMissingCompletionFromTotal(t *testing.T) {
+	req := openai.ChatCompletionRequest{
+		Model: "any",
+		Messages: []openai.ChatCompletionMessage{
+			{Role: openai.ChatMessageRoleUser, Content: "Hello."},
+		},
+	}
+
+	promptTokens, completionTokens, totalTokens, tokenSource, usedFallback := applyTokenEstimationFallback(
+		10,
+		0,
+		50,
+		"provider_usage",
+		req,
+		"ignored",
+	)
+
+	if usedFallback {
+		t.Fatalf("expected usedFallback=false")
+	}
+	if tokenSource != "provider_usage" {
+		t.Fatalf("expected tokenSource=provider_usage, got %q", tokenSource)
+	}
+	if promptTokens != 10 {
+		t.Fatalf("expected promptTokens=10, got %d", promptTokens)
+	}
+	if completionTokens != 40 {
+		t.Fatalf("expected completionTokens=40, got %d", completionTokens)
+	}
+	if totalTokens != 50 {
+		t.Fatalf("expected totalTokens=50, got %d", totalTokens)
+	}
+}
+
+func TestApplyTokenEstimationFallback_OnlyTotalProvidedFallsBack(t *testing.T) {
+	req := openai.ChatCompletionRequest{
+		Model: "any",
+		Messages: []openai.ChatCompletionMessage{
+			{Role: openai.ChatMessageRoleUser, Content: "Hello world."},
+		},
+	}
+
+	expectedPrompt := estimateTokensForModel(messageText(req.Messages[0]), req.Model)
+
+	promptTokens, completionTokens, totalTokens, tokenSource, usedFallback := applyTokenEstimationFallback(
+		0,
+		0,
+		100,
+		"provider_usage",
+		req,
+		"ignored",
+	)
+
+	if !usedFallback {
+		t.Fatalf("expected usedFallback=true")
+	}
+	if tokenSource != "fallback_estimate" {
+		t.Fatalf("expected tokenSource=fallback_estimate, got %q", tokenSource)
+	}
+	if promptTokens != expectedPrompt {
+		t.Fatalf("expected promptTokens=%d, got %d", expectedPrompt, promptTokens)
+	}
+	if completionTokens != 100-expectedPrompt {
+		t.Fatalf("expected completionTokens=%d, got %d", 100-expectedPrompt, completionTokens)
+	}
+	if totalTokens != 100 {
+		t.Fatalf("expected totalTokens=100, got %d", totalTokens)
+	}
+}

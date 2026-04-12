@@ -143,5 +143,6 @@
   "pwa.notifications_denied": "पुश सूचनाएं ब्राउज़र द्वारा अवरुद्ध कर दी गईं",
   "pwa.notifications_disabled": "पुश सूचनाएँ अक्षम",
   "pwa.notifications_enabled": "पुश सूचनाएं सक्रिय - अक्षम करने के लिए क्लिक करें",
-  "pwa.notifications_unavailable": "पुश सूचनाएँ समर्थित नहीं हैं"
+  "pwa.notifications_unavailable": "पुश सूचनाएँ समर्थित नहीं हैं",
+  "chat.redacted_label": "[हटा दिया गया]"
 }

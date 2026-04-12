@@ -91,3 +91,32 @@ After creation, use:
 ```json
 {"action": "execute_skill", "skill": "weather_api", "skill_args": {"endpoint": "weather?q=Berlin", "method": "GET"}}
 ```
+
+### Daemon Skill Templates
+
+Daemon skills are long-running background processes managed by the Daemon Supervisor. They run continuously and wake the agent when events occur.
+
+**daemon_monitor** — Periodically checks a resource (disk, CPU, service, URL) and wakes the agent on threshold violations.
+- Params: `target`, `threshold`, `interval`, `alert_severity`
+
+**daemon_watcher** — Watches a directory for file changes and wakes the agent on create/modify/delete events.
+- Params: `watch_path`, `patterns`, `events`, `cooldown`, `recursive`
+
+**daemon_listener** — Listens on a Unix domain socket or named pipe for external events and forwards them to the agent.
+- Params: `socket_path`, `protocol`, `max_clients`
+
+**daemon_mission** — Monitors a backup directory or status file and emits events that can trigger a follow-up mission.
+- Params: `watch_dir`, `status_file`, `backup_pattern`, `check_interval`, `cooldown`
+
+#### Daemon Example
+
+```json
+{
+  "action": "create_skill_from_template",
+  "template": "daemon_monitor",
+  "name": "disk_monitor",
+  "description": "Alert when disk usage exceeds 90%"
+}
+```
+
+After creation, configure daemon settings (wake_agent, trigger_mission_id, etc.) via the Web UI or daemon supervisor.

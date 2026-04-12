@@ -143,5 +143,6 @@
   "chat.audio_failed_load": "Failed to load audio",
   "chat.audio_dismiss": "Dismiss",
   "chat.code_copy": "Copy",
-  "chat.code_copied": "Copied"
+  "chat.code_copied": "Copied",
+  "chat.redacted_label": "[removed]"
 }

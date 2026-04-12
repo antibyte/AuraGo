@@ -143,5 +143,6 @@
   "pwa.notifications_denied": "Push-varsler blokkert av nettleseren",
   "pwa.notifications_disabled": "Push-varsler er deaktivert",
   "pwa.notifications_enabled": "Push-varsler aktive – klikk for å deaktivere",
-  "pwa.notifications_unavailable": "Push-varsler støttes ikke"
+  "pwa.notifications_unavailable": "Push-varsler støttes ikke",
+  "chat.redacted_label": "[fjernet]"
 }

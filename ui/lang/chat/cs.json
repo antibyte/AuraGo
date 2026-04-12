@@ -143,5 +143,6 @@
   "pwa.notifications_denied": "Push oznámení blokována prohlížečem",
   "pwa.notifications_disabled": "Push oznámení jsou zakázána",
   "pwa.notifications_enabled": "Push upozornění jsou aktivní – kliknutím je deaktivujete",
-  "pwa.notifications_unavailable": "Push oznámení nejsou podporována"
+  "pwa.notifications_unavailable": "Push oznámení nejsou podporována",
+  "chat.redacted_label": "[odstraněno]"
 }

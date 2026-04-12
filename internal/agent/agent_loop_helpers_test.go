@@ -381,12 +381,19 @@ func TestStreamingAccountingState_RecordsProviderUsage(t *testing.T) {
 	}
 }
 
-func TestStreamingAccountingState_OverwritesOnMultipleRecords(t *testing.T) {
+func TestStreamingAccountingState_MergesNonZeroValuesOnMultipleRecords(t *testing.T) {
 	st := streamingAccountingState{}
-	st.recordProviderUsage(100, 50)
-	st.recordProviderUsage(200, 75)
-	if st.providerPrompt != 200 || st.providerCompletion != 75 {
-		t.Errorf("expected last record (200, 75), got (%d, %d)", st.providerPrompt, st.providerCompletion)
+	// First chunk: prompt only
+	st.recordProviderUsage(100, 0)
+	// Second chunk: completion only
+	st.recordProviderUsage(0, 75)
+	if st.providerPrompt != 100 || st.providerCompletion != 75 {
+		t.Errorf("expected merged record (100, 75), got (%d, %d)", st.providerPrompt, st.providerCompletion)
+	}
+	// Third chunk: both values updated
+	st.recordProviderUsage(200, 80)
+	if st.providerPrompt != 200 || st.providerCompletion != 80 {
+		t.Errorf("expected last record (200, 80), got (%d, %d)", st.providerPrompt, st.providerCompletion)
 	}
 }
 

@@ -143,5 +143,6 @@
   "pwa.notifications_denied": "Pushmeldingen geblokkeerd door browser",
   "pwa.notifications_disabled": "Pushmeldingen uitgeschakeld",
   "pwa.notifications_enabled": "Pushmeldingen actief: klik om uit te schakelen",
-  "pwa.notifications_unavailable": "Pushmeldingen worden niet ondersteund"
+  "pwa.notifications_unavailable": "Pushmeldingen worden niet ondersteund",
+  "chat.redacted_label": "[verwijderd]"
 }

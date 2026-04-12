@@ -9,7 +9,7 @@
   "help.daemon_skills.global_rate_limit_secs": "Minimum sekunder mellem daemon wake-up kald til agenten",
   "help.daemon_skills.max_wakeups_per_hour": "Maksimalt totalt antal agent wake-ups fra alle daemons pr. time",
   "help.daemon_skills.max_budget_per_hour": "Maksimale LLM-omkostninger (i USD) som daemon wake-ups kan forbruge pr. time",
-  "config.daemon_skills.status_title": "Kørende daemons",
+  "config.daemon_skills.status_title": "Kørende daemons (%d)",
   "config.daemon_skills.no_daemons": "Ingen daemon skills konfigureret",
   "config.daemon_skills.load_error": "Kunne ikke indlæse daemon-status",
   "config.daemon_skills.status_running": "Kører",

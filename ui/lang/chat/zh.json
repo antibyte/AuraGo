@@ -143,5 +143,6 @@
   "pwa.notifications_denied": "推送通知被浏览器阻止",
   "pwa.notifications_disabled": "推送通知已禁用",
   "pwa.notifications_enabled": "推送通知处于活动状态 — 单击以禁用",
-  "pwa.notifications_unavailable": "不支持推送通知"
+  "pwa.notifications_unavailable": "不支持推送通知",
+  "chat.redacted_label": "[已移除]"
 }

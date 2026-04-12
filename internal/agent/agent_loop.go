@@ -143,6 +143,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		SpecialistsStatus:     buildSpecialistsStatus(cfg),
 		SpecialistsSuggestion: buildSpecialistDelegationHint(cfg, initialUserMsg),
 	})
+	flags.Model = req.Model
 	logger.Debug("[Agent] Context flags initialised",
 		"token_budget", flags.TokenBudget,
 		"session_id", runCfg.SessionID,
@@ -285,6 +286,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		logger.Info("[NativeTools] DeepSeek detected, auto-enabling native function calling")
 	}
 
+	adaptiveFilteredTools := make([]string, 0)
+
 	if useNativeFunctions {
 		ff := buildToolFeatureFlags(runCfg, toolingPolicy)
 		ntSchemas := BuildNativeToolSchemas(cfg.Directories.SkillsDir, manifest, ff, logger)
@@ -324,6 +327,18 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 			if maxTools > 0 && len(prioritized) > 0 {
 				ntSchemas = filterToolSchemas(ntSchemas, prioritized, alwaysInclude, maxTools, logger)
+			}
+			// Track tools removed by adaptive filtering so their guides are also skipped
+			remainingSet := make(map[string]bool, len(ntSchemas))
+			for _, t := range ntSchemas {
+				if t.Function != nil {
+					remainingSet[t.Function.Name] = true
+				}
+			}
+			for _, t := range allSchemas {
+				if t.Function != nil && !remainingSet[t.Function.Name] {
+					adaptiveFilteredTools = append(adaptiveFilteredTools, t.Function.Name)
+				}
 			}
 		}
 		// Update discover_tools state so the agent can browse hidden tools
@@ -581,15 +596,18 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			RecentlyUsedTools: recentTools,
 			PredictedGuides:   explicitTools,
 		}
-		if preliminaryTier := prompts.DetermineTierAdaptive(preliminaryTierFlags); preliminaryTier != "minimal" {
+		if preliminaryTier := prompts.DetermineTierAdaptive(preliminaryTierFlags); preliminaryTier == "full" || len(explicitTools) > 0 {
 			// Build skip list: tools that already have native OpenAI function schemas
 			// should not also get their guide content (saves tokens, avoids redundancy).
-			skipTools := make([]string, 0, len(req.Tools))
+			// Also skip tools that were removed by adaptive filtering — injecting a guide
+			// for a tool that no longer has a schema causes model confusion.
+			skipTools := make([]string, 0, len(req.Tools)+len(adaptiveFilteredTools))
 			for _, t := range req.Tools {
 				if t.Function != nil {
 					skipTools = append(skipTools, t.Function.Name)
 				}
 			}
+			skipTools = append(skipTools, adaptiveFilteredTools...)
 			guideStrategy := toolingPolicy.EffectiveGuideStrategy
 			guideStrategy.SkipTools = skipTools
 			flags.PredictedGuides = prompts.PrepareDynamicGuidesWithStrategy(

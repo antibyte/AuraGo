@@ -73,6 +73,28 @@ type SkillManager struct {
 	daemonSkillsCache map[string]bool
 }
 
+var (
+	defaultSkillManagerMu sync.RWMutex
+	defaultSkillManager   *SkillManager
+)
+
+// SetDefaultSkillManager registers a global SkillManager instance so that
+// agent-side skill creation (CreateSkillFromTemplate) can automatically
+// sync new skills to the database without threading the manager through
+// the entire dispatch chain.
+func SetDefaultSkillManager(mgr *SkillManager) {
+	defaultSkillManagerMu.Lock()
+	defer defaultSkillManagerMu.Unlock()
+	defaultSkillManager = mgr
+}
+
+// DefaultSkillManager returns the globally registered SkillManager, or nil.
+func DefaultSkillManager() *SkillManager {
+	defaultSkillManagerMu.RLock()
+	defer defaultSkillManagerMu.RUnlock()
+	return defaultSkillManager
+}
+
 type SkillVersion struct {
 	SkillID    string    `json:"skill_id"`
 	Version    int       `json:"version"`

@@ -56,7 +56,7 @@ function renderDaemonSkillsSection(section) {
 
     // ── Live Daemon Status ──
     html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.daemon_skills.status_title') + '</div>';
+    html += '<div class="field-label" id="daemon-status-title">' + t('config.daemon_skills.status_title') + '</div>';
     html += '<div id="daemon-status-grid" class="daemon-status-grid"></div>';
     html += '</div>';
 
@@ -68,14 +68,18 @@ function renderDaemonSkillsSection(section) {
 
 async function loadDaemonStatus() {
     var grid = document.getElementById('daemon-status-grid');
+    var title = document.getElementById('daemon-status-title');
     if (!grid) return;
     try {
         var resp = await fetch('/api/daemons');
         var data = await resp.json();
         if (data.status !== 'ok' || !data.daemons || data.daemons.length === 0) {
             grid.innerHTML = '<div class="empty-state">' + (t('config.daemon_skills.no_daemons') || 'No daemon skills configured') + '</div>';
+            if (title) title.textContent = t('config.daemon_skills.status_title').replace('%d', '0');
             return;
         }
+        var runningCount = data.daemons.filter(function(d) { return d.status === 'running'; }).length;
+        if (title) title.textContent = t('config.daemon_skills.status_title').replace('%d', runningCount);
         var html = '';
         data.daemons.forEach(function(d) {
             var statusClass = 'daemon-status-' + (d.status || 'stopped');

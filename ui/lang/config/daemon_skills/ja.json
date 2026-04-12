@@ -9,7 +9,7 @@
   "help.daemon_skills.global_rate_limit_secs": "デーモンからエージェントへのウェイクアップコール間の最小秒数",
   "help.daemon_skills.max_wakeups_per_hour": "すべてのデーモンからの1時間あたりの最大エージェントウェイクアップ数",
   "help.daemon_skills.max_budget_per_hour": "デーモンウェイクアップが1時間に消費できる最大LLMコスト（USD）",
-  "config.daemon_skills.status_title": "実行中のデーモン",
+  "config.daemon_skills.status_title": "実行中のデーモン (%d)",
   "config.daemon_skills.no_daemons": "デーモンスキルが設定されていません",
   "config.daemon_skills.load_error": "デーモンの状態の読み込みに失敗しました",
   "config.daemon_skills.status_running": "実行中",

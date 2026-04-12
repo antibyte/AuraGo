@@ -39,6 +39,7 @@ type systemPromptCacheKey struct {
 	EmotionDescription     string   `json:"emotion_description"`
 	UserProfileSummary     string   `json:"user_profile_summary"`
 	MessageSource          string   `json:"message_source"`
+	Model                  string   `json:"model"`
 }
 
 func buildSystemPromptCacheKey(promptsDir string, flags prompts.ContextFlags, coreMemory, budgetHint string) (string, error) {
@@ -85,6 +86,7 @@ func buildSystemPromptCacheKey(promptsDir string, flags prompts.ContextFlags, co
 		EmotionDescription:     flags.EmotionDescription,
 		UserProfileSummary:     flags.UserProfileSummary,
 		MessageSource:          flags.MessageSource,
+		Model:                  flags.Model,
 	}
 	b, err := json.Marshal(key)
 	if err != nil {

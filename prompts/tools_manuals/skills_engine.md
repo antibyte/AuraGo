@@ -1,6 +1,6 @@
 # Skills Engine (`skills_engine`)
 
-Discover and execute admin-managed skill plugins from the `skills/` directory. Skills are pre-built Python utilities managed by the supervisor with automatic path resolution, venv activation, secret injection, and output scrubbing.
+Discover, create, and execute Python skills from the `skills/` directory. Skills are Python utilities with automatic path resolution, venv activation, vault secret injection, and output scrubbing. Skills can be pre-built, created by the agent from templates, or uploaded by the user.
 
 > **IMPORTANT:** Never run skills via `execute_shell` or `execute_python` directly. Always use `execute_skill` — guessing filesystem paths will fail.
 
@@ -48,6 +48,7 @@ Discover and execute admin-managed skill plugins from the `skills/` directory. S
 
 - **MANDATORY first step**: Call `list_skills` before writing custom Python code for web search, web scraping, API interactions, file conversion (PDF/Office), or database access.
 - **Use existing skills**: Using an existing skill is strictly preferred over writing custom tools. Only create a custom tool if `list_skills` returns no suitable capability.
-- **Skill templates**: Available templates include `api_client`, `file_processor`, `data_transformer`, `scraper`, `example_use_vault_login`, `example_use_vault_token`.
+- **Skill templates**: Use `list_skill_templates` to see all available templates. Common templates: `api_client`, `data_transformer`, `notification_sender`, `monitor_check`, `log_analyzer`, `docker_manager`, `backup_runner`, `database_query`, `ssh_executor`, `mqtt_publisher`. Daemon templates: `daemon_monitor`, `daemon_watcher`, `daemon_listener`, `daemon_mission`.
 - **Supervisor features**: The skill supervisor handles venv activation, secret injection from vault, and output scrubbing automatically.
+- **Skills are immediately available**: After `create_skill_from_template`, the skill is ready to use via `execute_skill` without any restart.
 - **WRONG paths**: Never use `execute_python` + manual file save to create reusable capabilities — they bypass vault injection and aren't registered. Never create a `manage_missions` mission for reusable code. Always use `create_skill_from_template` for new reusable Python skills.

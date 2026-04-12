@@ -179,9 +179,9 @@ func appendExecutionToolSchemas(tools []openai.Tool, ff ToolFeatureFlags, execut
 		))
 
 		tools = append(tools, tool("create_skill_from_template",
-			"Create a new Python skill from a built-in template. The skill is immediately usable via execute_skill. Available templates: api_client, file_processor, data_transformer, scraper.",
+			"Create a new Python skill from a built-in template. The skill is immediately usable via execute_skill. Use list_skill_templates to see all available templates.",
 			schema(map[string]interface{}{
-				"template":     prop("string", "Template to use: api_client, file_processor, data_transformer, scraper"),
+				"template":     prop("string", "Template name from list_skill_templates (e.g. api_client, data_transformer, monitor_check, docker_manager, daemon_monitor)"),
 				"name":         prop("string", "Unique name for the new skill (e.g. 'weather_api', 'log_parser')"),
 				"description":  prop("string", "What this skill does"),
 				"url":          prop("string", "Base URL for the API (api_client template only)"),
