@@ -294,6 +294,27 @@
         </div>
     </div>
 
+    <!-- INTERNAL TOOLS ASSIGNMENT MODAL -->
+    <div class="modal-overlay" id="internal-tools-modal">
+        <div class="modal modal--sm">
+            <div class="modal-header">
+                <h2 data-i18n="skills.internal_tools_modal_title">Assign Internal Tools</h2>
+                <button class="modal-close" onclick="closeInternalToolsModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="sk-vault-modal-desc" data-i18n="skills.internal_tools_modal_desc">Select the AuraGo native tools this skill may call via the tool bridge at runtime.</p>
+                <div id="internal-tools-list" class="sk-vault-key-list">
+                    <!-- Populated by JS -->
+                </div>
+                <p id="internal-tools-bridge-off" class="sk-vault-empty" style="display:none" data-i18n="skills.internal_tools_bridge_disabled">The Python Tool Bridge is not enabled or no tools are configured. Enable it in Settings → Agent.</p>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeInternalToolsModal()" data-i18n="common.btn_cancel">Cancel</button>
+                <button class="btn btn-primary" onclick="saveInternalTools()" data-i18n="skills.internal_tools_modal_save">Save</button>
+            </div>
+        </div>
+    </div>
+
     <!-- TEST MODAL -->
     <div class="modal-overlay" id="test-modal">
         <div class="modal modal-wide">

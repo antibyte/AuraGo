@@ -258,6 +258,7 @@ func handleUpdateSkill(s *Server) http.HandlerFunc {
 			Code           *string   `json:"code"`
 			RestoreVersion *int      `json:"restore_version"`
 			VaultKeys      []string  `json:"vault_keys"`
+			InternalTools  []string  `json:"internal_tools"`
 		}
 		if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&req); err != nil {
 			jsonError(w, "Invalid request body", http.StatusBadRequest)
@@ -326,6 +327,13 @@ func handleUpdateSkill(s *Server) http.HandlerFunc {
 		if req.VaultKeys != nil {
 			if err := s.SkillManager.UpdateVaultKeys(id, req.VaultKeys); err != nil {
 				jsonLoggedError(w, s.Logger, http.StatusBadRequest, "Failed to update skill vault keys", "Failed to update skill vault keys", err, "skill_id", id)
+				return
+			}
+		}
+
+		if req.InternalTools != nil {
+			if err := s.SkillManager.UpdateInternalTools(id, req.InternalTools); err != nil {
+				jsonLoggedError(w, s.Logger, http.StatusBadRequest, "Failed to update skill internal tools", "Failed to update skill internal tools", err, "skill_id", id)
 				return
 			}
 		}

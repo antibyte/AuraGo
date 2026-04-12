@@ -1253,6 +1253,21 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 			}
 		})
 		mux.HandleFunc("/api/skills/stats", handleSkillStats(s))
+		mux.HandleFunc("/api/skills/available-tools", func(w http.ResponseWriter, r *http.Request) {
+			if r.Method != http.MethodGet {
+				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+				return
+			}
+			tools := []string{}
+			if s.Cfg != nil && s.Cfg.Tools.PythonToolBridge.Enabled {
+				tools = s.Cfg.Tools.PythonToolBridge.AllowedTools
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"status": "ok",
+				"tools":  tools,
+			})
+		})
 		mux.HandleFunc("/api/skills", func(w http.ResponseWriter, r *http.Request) {
 			switch r.Method {
 			case http.MethodGet:

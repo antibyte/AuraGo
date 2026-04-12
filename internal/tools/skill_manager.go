@@ -39,27 +39,27 @@ const (
 
 // SkillRegistryEntry extends SkillManifest with metadata for the Skill Manager.
 type SkillRegistryEntry struct {
-	ID             string            `json:"id"`
-	Name           string            `json:"name"`
-	Description    string            `json:"description"`
-	Executable     string            `json:"executable"`
-	Category       string            `json:"category,omitempty"`
-	Tags           []string          `json:"tags,omitempty"`
+	ID             string                 `json:"id"`
+	Name           string                 `json:"name"`
+	Description    string                 `json:"description"`
+	Executable     string                 `json:"executable"`
+	Category       string                 `json:"category,omitempty"`
+	Tags           []string               `json:"tags,omitempty"`
 	Parameters     map[string]interface{} `json:"parameters,omitempty"`
-	Dependencies   []string          `json:"dependencies,omitempty"`
-	VaultKeys      []string          `json:"vault_keys,omitempty"`
-	InternalTools  []string          `json:"internal_tools,omitempty"`
-	Type           SkillType         `json:"type"`
-	CreatedAt      time.Time         `json:"created_at"`
-	UpdatedAt      time.Time         `json:"updated_at"`
-	CreatedBy      string            `json:"created_by"` // "agent", "user", "system"
-	Enabled        bool              `json:"enabled"`
-	SecurityStatus SecurityStatus    `json:"security_status"`
-	SecurityReport *SecurityReport   `json:"security_report,omitempty"`
-	LastScanAt     *time.Time        `json:"last_scan_at,omitempty"`
-	FilePath       string            `json:"file_path"`
-	FileHash       string            `json:"file_hash"`
-	IsDaemon       bool              `json:"is_daemon,omitempty"`
+	Dependencies   []string               `json:"dependencies,omitempty"`
+	VaultKeys      []string               `json:"vault_keys,omitempty"`
+	InternalTools  []string               `json:"internal_tools,omitempty"`
+	Type           SkillType              `json:"type"`
+	CreatedAt      time.Time              `json:"created_at"`
+	UpdatedAt      time.Time              `json:"updated_at"`
+	CreatedBy      string                 `json:"created_by"` // "agent", "user", "system"
+	Enabled        bool                   `json:"enabled"`
+	SecurityStatus SecurityStatus         `json:"security_status"`
+	SecurityReport *SecurityReport        `json:"security_report,omitempty"`
+	LastScanAt     *time.Time             `json:"last_scan_at,omitempty"`
+	FilePath       string                 `json:"file_path"`
+	FileHash       string                 `json:"file_hash"`
+	IsDaemon       bool                   `json:"is_daemon,omitempty"`
 }
 
 // SkillManager manages the skill registry and lifecycle.
@@ -598,6 +598,43 @@ func (m *SkillManager) UpdateVaultKeys(id string, keys []string) error {
 
 	m.logger.Info("Skill vault_keys updated", "id", id, "name", s.Name, "keys", keys)
 	m.recordSkillAudit(id, s.Name, "vault_keys_updated", "user", fmt.Sprintf("updated %d vault key bindings", len(keys)))
+	return nil
+}
+
+// UpdateInternalTools updates the internal_tools list for an existing skill in the DB and on-disk manifest.
+func (m *SkillManager) UpdateInternalTools(id string, toolNames []string) error {
+	s, err := m.GetSkill(id)
+	if err != nil {
+		return err
+	}
+
+	if toolNames == nil {
+		toolNames = []string{}
+	}
+	toolsJSON, err := json.Marshal(toolNames)
+	if err != nil {
+		return fmt.Errorf("serializing internal_tools: %w", err)
+	}
+
+	if _, err := m.db.Exec("UPDATE skills_registry SET internal_tools = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+		string(toolsJSON), id); err != nil {
+		return fmt.Errorf("updating internal_tools in db: %w", err)
+	}
+
+	// Also update the on-disk JSON manifest so the file stays in sync
+	manifestPath := filepath.Join(m.skillsDir, strings.TrimSuffix(s.Executable, filepath.Ext(s.Executable))+".json")
+	if raw, readErr := os.ReadFile(manifestPath); readErr == nil {
+		var manifest map[string]json.RawMessage
+		if jsonErr := json.Unmarshal(raw, &manifest); jsonErr == nil {
+			manifest["internal_tools"] = toolsJSON
+			if updated, marshalErr := json.MarshalIndent(manifest, "", "  "); marshalErr == nil {
+				_ = os.WriteFile(manifestPath, updated, 0o600)
+			}
+		}
+	}
+
+	m.logger.Info("Skill internal_tools updated", "id", id, "name", s.Name, "tools", toolNames)
+	m.recordSkillAudit(id, s.Name, "internal_tools_updated", "user", fmt.Sprintf("updated %d internal tool bindings", len(toolNames)))
 	return nil
 }
 

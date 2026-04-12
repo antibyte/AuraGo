@@ -253,7 +253,7 @@ function showDisabledState() {
             </div>
             <div class="sk-daemon-settings-help">${t('skills.daemon_settings_help') || 'When the daemon fires an event, the selected mission is triggered and the cheat sheet content is passed as working instructions.'}</div>
             <div class="sk-daemon-settings-actions">
-                <button class="btn btn-sm btn-primary" onclick="saveDaemonSettings('${esc(skill.ID || skill.id || '')}')">${t('common.save') || 'Save'}</button>
+                <button class="btn btn-sm btn-primary" onclick="saveDaemonSettings('${esc(skill.ID || skill.id || '')}')">${t('common.btn_save') || 'Save'}</button>
             </div>
         </div>`;
     }
@@ -370,6 +370,7 @@ function showDisabledState() {
                 : '';
             vaultRow = `<div class="sk-card-vault">
             <button class="btn btn-xs btn-secondary sk-vault-edit-btn" onclick="openVaultKeyModal('${id}')" title="${t('skills.btn_edit_secrets') || 'Edit Secrets'}">🔑 ${t('skills.btn_edit_secrets') || 'Secrets'}</button>
+            <button class="btn btn-xs btn-secondary sk-vault-edit-btn" onclick="openInternalToolsModal('${id}')" title="${t('skills.btn_edit_internal_tools') || 'Edit Internal Tools'}">⚙️ ${t('skills.btn_edit_internal_tools') || 'Tools'}</button>
             ${keyTags ? `<span class="sk-vault-keys">${keyTags}</span>` : ''}
         </div>`;
         }
@@ -1406,6 +1407,79 @@ function showDisabledState() {
             if (data.status === 'ok') {
                 showToast(t('skills.vault_save_success') || 'Secrets updated', 'success');
                 closeVaultKeyModal();
+                await loadSkills();
+            } else {
+                showToast(data.message || t('common.error'), 'error');
+            }
+        } catch (e) {
+            showToast(t('common.error') || 'Error', 'error');
+        }
+    }
+
+    // ── Internal Tools Assignment Modal ─────────────────────────────────────────
+
+    let internalToolsTargetId = '';
+
+    // eslint-disable-next-line no-unused-vars
+    async function openInternalToolsModal(id) {
+        internalToolsTargetId = id;
+        const listEl = document.getElementById('internal-tools-list');
+        const bridgeOffEl = document.getElementById('internal-tools-bridge-off');
+        listEl.innerHTML = `<p>${t('common.loading') || 'Loading...'}</p>`;
+        if (bridgeOffEl) bridgeOffEl.style.display = 'none';
+        document.getElementById('internal-tools-modal').classList.add('active');
+
+        try {
+            const [toolsResp, skillResp] = await Promise.all([
+                fetch('/api/skills/available-tools'),
+                fetch(`/api/skills/${encodeURIComponent(id)}`)
+            ]);
+            const toolsData = await toolsResp.json();
+            const skillData = await skillResp.json();
+
+            const availableTools = toolsData.tools || [];
+            const currentTools = skillData.skill ? (skillData.skill.InternalTools || skillData.skill.internal_tools || []) : [];
+
+            if (availableTools.length === 0) {
+                listEl.innerHTML = '';
+                if (bridgeOffEl) bridgeOffEl.style.display = '';
+                return;
+            }
+
+            listEl.innerHTML = availableTools.map(tool => {
+                const checked = currentTools.includes(tool) ? 'checked' : '';
+                return `<label class="sk-vault-checkbox-row">
+                    <input type="checkbox" class="sk-internal-tool-checkbox" value="${esc(tool)}" ${checked}>
+                    <code class="sk-dep-tag sk-internal-tool-tag">${esc(tool)}</code>
+                </label>`;
+            }).join('');
+        } catch (e) {
+            listEl.innerHTML = `<p class="sk-error">${t('common.error') || 'Error loading tools'}</p>`;
+        }
+    }
+
+    // eslint-disable-next-line no-unused-vars
+    function closeInternalToolsModal() {
+        document.getElementById('internal-tools-modal').classList.remove('active');
+        internalToolsTargetId = '';
+    }
+
+    // eslint-disable-next-line no-unused-vars
+    async function saveInternalTools() {
+        if (!internalToolsTargetId) return;
+        const checkboxes = document.querySelectorAll('#internal-tools-list .sk-internal-tool-checkbox:checked');
+        const selectedTools = Array.from(checkboxes).map(cb => cb.value);
+
+        try {
+            const resp = await fetch(`/api/skills/${encodeURIComponent(internalToolsTargetId)}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ internal_tools: selectedTools })
+            });
+            const data = await resp.json();
+            if (data.status === 'ok') {
+                showToast(t('skills.internal_tools_save_success') || 'Internal tools updated', 'success');
+                closeInternalToolsModal();
                 await loadSkills();
             } else {
                 showToast(data.message || t('common.error'), 'error');
