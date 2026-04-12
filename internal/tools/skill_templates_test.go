@@ -10,8 +10,8 @@ import (
 
 func TestAvailableSkillTemplates(t *testing.T) {
 	templates := AvailableSkillTemplates()
-	if len(templates) != 13 {
-		t.Fatalf("expected 13 templates, got %d", len(templates))
+	if len(templates) != 14 {
+		t.Fatalf("expected 14 templates, got %d", len(templates))
 	}
 	names := map[string]bool{}
 	for _, tmpl := range templates {
@@ -29,7 +29,7 @@ func TestAvailableSkillTemplates(t *testing.T) {
 		}
 		names[tmpl.Name] = true
 	}
-	for _, expected := range []string{"api_client", "data_transformer", "notification_sender", "monitor_check", "log_analyzer", "docker_manager", "backup_runner", "database_query", "ssh_executor", "mqtt_publisher"} {
+	for _, expected := range []string{"api_client", "data_transformer", "notification_sender", "monitor_check", "log_analyzer", "docker_manager", "backup_runner", "database_query", "ssh_executor", "mqtt_publisher", "daemon_monitor", "daemon_watcher", "daemon_listener", "daemon_mission"} {
 		if !names[expected] {
 			t.Errorf("missing expected template '%s'", expected)
 		}
