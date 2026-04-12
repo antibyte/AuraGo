@@ -880,7 +880,7 @@ function renderField(fullPath, key, value, parentPath, fieldSchema) {
         if (hasCustom) {
             const hiddenCls = isCustomVal ? '' : ' is-hidden';
             const customVal = isCustomVal ? value : '';
-            html += '<input class="field-input cfg-custom-input' + hiddenCls + '" type="text" data-custom-for="' + fullPath + '" value="' + escapeAttr(customVal) + '" placeholder="${t('config.field.custom_value_placeholder')}" oninput="markDirty()">';
+            html += `<input class="field-input cfg-custom-input${hiddenCls}" type="text" data-custom-for="${fullPath}" value="${escapeAttr(customVal)}" placeholder="${t('config.field.custom_value_placeholder')}" oninput="markDirty()">`;
         }
     } else if (isSensitive) {
         const displayVal = (value === '••••••••' || !value) ? '' : value;
