@@ -116,8 +116,9 @@ func handleGetSkill(s *Server) http.HandlerFunc {
 		}
 
 		// Include daemon manifest config if this is a daemon skill
+		// Check both skill.IsDaemon (DB) and manifest.Daemon (disk) since DB may be stale
 		var daemonManifest interface{}
-		if skill.IsDaemon && skill.FilePath != "" {
+		if skill.FilePath != "" {
 			if manifestData, err := os.ReadFile(skill.FilePath); err == nil {
 				var manifest tools.SkillManifest
 				if json.Unmarshal(manifestData, &manifest) == nil && manifest.Daemon != nil {
