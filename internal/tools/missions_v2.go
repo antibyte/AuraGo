@@ -121,11 +121,13 @@ type MissionV2 struct {
 
 // QueueItem represents a mission in the execution queue
 type QueueItem struct {
-	MissionID   string    `json:"mission_id"`
-	Priority    int       `json:"priority"` // 3=high, 2=medium, 1=low
-	EnqueuedAt  time.Time `json:"enqueued_at"`
-	TriggerType string    `json:"trigger_type,omitempty"`
-	TriggerData string    `json:"trigger_data,omitempty"` // JSON data from trigger
+	MissionID          string    `json:"mission_id"`
+	Priority           int       `json:"priority"` // 3=high, 2=medium, 1=low
+	EnqueuedAt         time.Time `json:"enqueued_at"`
+	TriggerType        string    `json:"trigger_type,omitempty"`
+	TriggerData        string    `json:"trigger_data,omitempty"`         // JSON data from trigger
+	ExtraCheatsheetIDs []string  `json:"extra_cheatsheet_ids,omitempty"` // transient cheatsheet IDs injected by daemon
+	ExtraPromptSuffix  string    `json:"extra_prompt_suffix,omitempty"`  // transient prompt augmentation from daemon
 }
 
 // MissionQueue manages the execution queue with priority sorting
@@ -144,34 +146,51 @@ func NewMissionQueue() *MissionQueue {
 
 // Enqueue adds a mission to the queue
 func (q *MissionQueue) Enqueue(missionID string, priority string, triggerType, triggerData string) {
-	q.mu.Lock()
-	defer q.mu.Unlock()
-
-	// Check if already queued
-	for _, item := range q.items {
-		if item.MissionID == missionID {
-			return // Already queued
-		}
-	}
-
-	prio := 2 // medium
-	switch priority {
-	case "high":
-		prio = 3
-	case "low":
-		prio = 1
-	}
-
-	item := QueueItem{
+	q.enqueueItem(QueueItem{
 		MissionID:   missionID,
-		Priority:    prio,
+		Priority:    prioFromString(priority),
 		EnqueuedAt:  time.Now(),
 		TriggerType: triggerType,
 		TriggerData: triggerData,
+	})
+}
+
+// EnqueueWithExtras adds a mission to the queue with transient daemon extras.
+func (q *MissionQueue) EnqueueWithExtras(missionID string, priority int, triggerType, triggerData string, extraCheatsheetIDs []string, extraPromptSuffix string) {
+	q.enqueueItem(QueueItem{
+		MissionID:          missionID,
+		Priority:           priority,
+		EnqueuedAt:         time.Now(),
+		TriggerType:        triggerType,
+		TriggerData:        triggerData,
+		ExtraCheatsheetIDs: extraCheatsheetIDs,
+		ExtraPromptSuffix:  extraPromptSuffix,
+	})
+}
+
+func (q *MissionQueue) enqueueItem(item QueueItem) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+
+	for _, existing := range q.items {
+		if existing.MissionID == item.MissionID {
+			return
+		}
 	}
 
 	q.items = append(q.items, item)
 	q.sort()
+}
+
+func prioFromString(p string) int {
+	switch p {
+	case "high":
+		return 3
+	case "low":
+		return 1
+	default:
+		return 2
+	}
 }
 
 // Dequeue removes and returns the next mission to run
@@ -568,6 +587,18 @@ func (m *MissionManagerV2) processNext() {
 		}
 	}
 
+	// Enhance prompt with transient daemon cheatsheet IDs
+	if len(item.ExtraCheatsheetIDs) > 0 && cheatsheetDB != nil {
+		if extra := CheatsheetGetMultiple(cheatsheetDB, item.ExtraCheatsheetIDs); extra != "" {
+			prompt += extra
+		}
+	}
+
+	// Enhance prompt with transient daemon prompt suffix
+	if item.ExtraPromptSuffix != "" {
+		prompt += item.ExtraPromptSuffix
+	}
+
 	// Enhance prompt with prepared context (advisory)
 	if preparedDB != nil {
 		if pm, err := GetPreparedMission(preparedDB, missionID); err == nil && pm != nil {
@@ -628,6 +659,13 @@ func (m *MissionManagerV2) OnMissionComplete(missionID, result, output string) {
 
 // TriggerMission manually triggers a mission (for webhooks, emails, etc.)
 func (m *MissionManagerV2) TriggerMission(missionID, triggerType, triggerData string) error {
+	return m.TriggerMissionWithOptions(missionID, triggerType, triggerData, nil, "")
+}
+
+// TriggerMissionWithOptions triggers a mission with optional transient daemon extras.
+// extraCheatsheetIDs are appended to the mission prompt in addition to the mission's own cheatsheets.
+// extraPromptSuffix is appended verbatim after cheatsheet expansion.
+func (m *MissionManagerV2) TriggerMissionWithOptions(missionID, triggerType, triggerData string, extraCheatsheetIDs []string, extraPromptSuffix string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -639,7 +677,7 @@ func (m *MissionManagerV2) TriggerMission(missionID, triggerType, triggerData st
 		return fmt.Errorf("mission is disabled")
 	}
 
-	m.queue.Enqueue(missionID, mission.Priority, triggerType, triggerData)
+	m.queue.EnqueueWithExtras(missionID, prioFromString(mission.Priority), triggerType, triggerData, extraCheatsheetIDs, extraPromptSuffix)
 	mission.Status = MissionStatusQueued
 	m.save()
 	return nil

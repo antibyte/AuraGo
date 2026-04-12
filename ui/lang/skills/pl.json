@@ -136,5 +136,13 @@
   "skills.daemon_reenable": "Włącz ponownie",
   "skills.daemon_action_ok": "Akcja daemona wykonana",
   "skills.daemon_action_failed": "Błąd demona",
-  "skills.daemon_disabled_hint": "Włącz daemon_skills w konfiguracji, aby uruchomić"
+  "skills.daemon_disabled_hint": "Włącz daemon_skills w konfiguracji, aby uruchomić",
+  "skills.daemon_settings_title": "Ustawienia Demona",
+  "skills.daemon_wake_agent": "Obudź Agenta",
+  "skills.daemon_trigger_mission": "Uruchom Misję",
+  "skills.daemon_cheatsheet": "Ściągawka",
+  "skills.daemon_no_mission": "Brak misji",
+  "skills.daemon_no_cheatsheet": "Brak ściągawki",
+  "skills.daemon_settings_help": "Gdy demon wywoła zdarzenie, wybrana misja zostanie uruchomiona, a zawartość ściągawki zostanie przekazana jako instrukcje robocze.",
+  "skills.daemon_settings_saved": "Ustawienia demona zapisane"
 }

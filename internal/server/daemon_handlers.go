@@ -1,8 +1,10 @@
 package server
 
 import (
+	"aurago/internal/tools"
 	"encoding/json"
 	"net/http"
+	"os"
 	"strings"
 )
 
@@ -159,6 +161,140 @@ func handleDaemonAction(s *Server) http.HandlerFunc {
 
 		default:
 			daemonJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "Unknown action: " + action})
+		}
+	}
+}
+
+// handleDaemonSkillSettings handles GET and PUT /api/skills/{id}/daemon
+// for reading and updating daemon-specific trigger_mission_id and cheatsheet_id.
+func handleDaemonSkillSettings(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !isDaemonAuthOK(s, r) {
+			daemonJSON(w, http.StatusUnauthorized, map[string]string{"status": "error", "message": "Unauthorized"})
+			return
+		}
+
+		id := extractSkillPathID(r.URL.Path, "/api/skills/")
+		if id == "" {
+			daemonJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "missing skill ID"})
+			return
+		}
+
+		if s.SkillManager == nil {
+			daemonJSON(w, http.StatusServiceUnavailable, map[string]string{"status": "error", "message": "Skill manager not initialized"})
+			return
+		}
+
+		skill, err := s.SkillManager.GetSkill(id)
+		if err != nil || skill == nil {
+			daemonJSON(w, http.StatusNotFound, map[string]string{"status": "error", "message": "Skill not found"})
+			return
+		}
+
+		manifestPath := skill.FilePath
+		if manifestPath == "" {
+			daemonJSON(w, http.StatusNotFound, map[string]string{"status": "error", "message": "Skill manifest path not found"})
+			return
+		}
+
+		manifestData, readErr := os.ReadFile(manifestPath)
+		if readErr != nil {
+			daemonJSON(w, http.StatusNotFound, map[string]string{"status": "error", "message": "Skill manifest not readable"})
+			return
+		}
+
+		var manifest tools.SkillManifest
+		if jsonErr := json.Unmarshal(manifestData, &manifest); jsonErr != nil {
+			daemonJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "Invalid manifest JSON"})
+			return
+		}
+
+		if manifest.Daemon == nil {
+			daemonJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "Skill is not a daemon skill"})
+			return
+		}
+
+		switch r.Method {
+		case http.MethodGet:
+			daemonJSON(w, http.StatusOK, map[string]interface{}{
+				"status": "ok",
+				"daemon": manifest.Daemon,
+			})
+
+		case http.MethodPut:
+			var req struct {
+				WakeAgent          *bool  `json:"wake_agent,omitempty"`
+				TriggerMissionID   string `json:"trigger_mission_id,omitempty"`
+				TriggerMissionName string `json:"trigger_mission_name,omitempty"`
+				CheatsheetID       string `json:"cheatsheet_id,omitempty"`
+				CheatsheetName     string `json:"cheatsheet_name,omitempty"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				daemonJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "Invalid JSON"})
+				return
+			}
+
+			if req.TriggerMissionID != "" {
+				if s.MissionManagerV2 == nil {
+					daemonJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "Missions not enabled"})
+					return
+				}
+				if m, ok := s.MissionManagerV2.Get(req.TriggerMissionID); !ok {
+					daemonJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "Referenced mission not found"})
+					return
+				} else {
+					req.TriggerMissionName = m.Name
+				}
+			}
+
+			if req.CheatsheetID != "" {
+				if s.CheatsheetDB == nil {
+					daemonJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "Cheatsheets not enabled"})
+					return
+				}
+				cs, csErr := tools.CheatsheetGet(s.CheatsheetDB, req.CheatsheetID)
+				if csErr != nil || !cs.Active {
+					daemonJSON(w, http.StatusBadRequest, map[string]string{"status": "error", "message": "Referenced cheatsheet not found or inactive"})
+					return
+				}
+				req.CheatsheetName = cs.Name
+			}
+
+			if req.WakeAgent != nil {
+				manifest.Daemon.WakeAgent = *req.WakeAgent
+			}
+			manifest.Daemon.TriggerMissionID = req.TriggerMissionID
+			manifest.Daemon.TriggerMissionName = req.TriggerMissionName
+			manifest.Daemon.CheatsheetID = req.CheatsheetID
+			manifest.Daemon.CheatsheetName = req.CheatsheetName
+
+			updated, marshalErr := json.MarshalIndent(manifest, "", "  ")
+			if marshalErr != nil {
+				daemonJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "Failed to serialize manifest"})
+				return
+			}
+			if writeErr := os.WriteFile(manifestPath, updated, 0644); writeErr != nil {
+				s.Logger.Error("Failed to save daemon skill settings", "skill_id", id, "error", writeErr)
+				daemonJSON(w, http.StatusInternalServerError, map[string]string{"status": "error", "message": "Failed to save settings"})
+				return
+			}
+
+			tools.InvalidateSkillsCache(s.Cfg.Directories.SkillsDir)
+
+			if s.DaemonSupervisor != nil {
+				if refreshErr := s.DaemonSupervisor.RefreshSkills(); refreshErr != nil {
+					s.Logger.Warn("Daemon refresh failed after settings update", "error", refreshErr)
+				}
+			}
+
+			s.Logger.Info("Daemon skill settings updated", "skill_id", id, "mission_id", req.TriggerMissionID, "cheatsheet_id", req.CheatsheetID)
+			daemonJSON(w, http.StatusOK, map[string]interface{}{
+				"status": "ok",
+				"daemon": manifest.Daemon,
+			})
+
+		default:
+			daemonJSON(w, http.StatusMethodNotAllowed, map[string]string{"status": "error", "message": "Method not allowed"})
 		}
 	}
 }

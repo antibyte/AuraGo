@@ -188,6 +188,106 @@ function showDisabledState() {
         }
     }
 
+    let daemonSettingsCache = { missions: [], cheatsheets: [] };
+
+    async function loadDaemonSettingsOptions() {
+        try {
+            const [mResp, csResp] = await Promise.all([
+                fetch('/api/missions/v2'),
+                fetch('/api/cheatsheets')
+            ]);
+            if (mResp.ok) {
+                const mData = await mResp.json();
+                daemonSettingsCache.missions = (mData.missions || []).filter(m => m.enabled);
+            }
+            if (csResp.ok) {
+                const csData = await csResp.json();
+                const csList = Array.isArray(csData) ? csData : (csData.cheatsheets || csData.items || []);
+                daemonSettingsCache.cheatsheets = csList.filter(c => c.active !== false);
+            }
+        } catch (_) { }
+    }
+
+    function renderDaemonSettings(skill) {
+        const isDaemon = skill.IsDaemon || skill.is_daemon;
+        if (!isDaemon) return '';
+        const daemon = skill.daemon || skill.Daemon || {};
+        const wakeAgent = daemon.wake_agent !== false;
+        const missionId = daemon.trigger_mission_id || '';
+        const missionName = daemon.trigger_mission_name || '';
+        const csId = daemon.cheatsheet_id || '';
+        const csName = daemon.cheatsheet_name || '';
+
+        const missionOpts = daemonSettingsCache.missions.map(m =>
+            `<option value="${esc(m.id)}" ${m.id === missionId ? 'selected' : ''}>${esc(m.name)}</option>`
+        ).join('');
+        const csOpts = daemonSettingsCache.cheatsheets.map(c =>
+            `<option value="${esc(c.id)}" ${c.id === csId ? 'selected' : ''}>${esc(c.name)}</option>`
+        ).join('');
+
+        return `
+        <div class="sk-daemon-settings-section">
+            <h4 class="sk-daemon-settings-title">👹 ${t('skills.daemon_settings_title') || 'Daemon Settings'}</h4>
+            <div class="sk-detail-grid">
+                <div class="sk-detail-row">
+                    <span class="sk-detail-label">${t('skills.daemon_wake_agent') || 'Wake Agent'}:</span>
+                    <label class="toggle-wrap compact">
+                        <div class="toggle${wakeAgent ? ' on' : ''}" id="daemon-wake-toggle" onclick="this.classList.toggle('on')"></div>
+                        <span class="toggle-label">${wakeAgent ? (t('config.toggle.active') || 'Active') : (t('config.toggle.inactive') || 'Inactive')}</span>
+                    </label>
+                </div>
+                <div class="sk-detail-row">
+                    <span class="sk-detail-label">${t('skills.daemon_trigger_mission') || 'Trigger Mission'}:</span>
+                    <select id="daemon-mission-select" class="field-input sk-daemon-select">
+                        <option value="">— ${t('skills.daemon_no_mission') || 'No mission'} —</option>
+                        ${missionOpts}
+                    </select>
+                </div>
+                <div class="sk-detail-row">
+                    <span class="sk-detail-label">${t('skills.daemon_cheatsheet') || 'Cheat Sheet'}:</span>
+                    <select id="daemon-cheatsheet-select" class="field-input sk-daemon-select">
+                        <option value="">— ${t('skills.daemon_no_cheatsheet') || 'No cheat sheet'} —</option>
+                        ${csOpts}
+                    </select>
+                </div>
+            </div>
+            <div class="sk-daemon-settings-help">${t('skills.daemon_settings_help') || 'When the daemon fires an event, the selected mission is triggered and the cheat sheet content is passed as working instructions.'}</div>
+            <div class="sk-daemon-settings-actions">
+                <button class="btn btn-sm btn-primary" onclick="saveDaemonSettings('${esc(skill.ID || skill.id || '')}')">${t('common.save') || 'Save'}</button>
+            </div>
+        </div>`;
+    }
+
+    // eslint-disable-next-line no-unused-vars
+    async function saveDaemonSettings(skillId) {
+        const wakeToggle = document.getElementById('daemon-wake-toggle');
+        const wakeAgent = wakeToggle && wakeToggle.classList.contains('on');
+        const missionId = (document.getElementById('daemon-mission-select') || {}).value || '';
+        const cheatsheetId = (document.getElementById('daemon-cheatsheet-select') || {}).value || '';
+
+        try {
+            const resp = await fetch(`/api/skills/${encodeURIComponent(skillId)}/daemon`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    wake_agent: wakeAgent,
+                    trigger_mission_id: missionId,
+                    cheatsheet_id: cheatsheetId
+                })
+            });
+            const data = await resp.json();
+            if (data.status === 'ok') {
+                showToast(t('skills.daemon_settings_saved') || 'Daemon settings saved', 'success');
+                showDetail(currentDetailId);
+                loadSkills();
+            } else {
+                showToast(data.message || t('common.error'), 'error');
+            }
+        } catch (e) {
+            showToast(t('common.error') || 'Error', 'error');
+        }
+    }
+
     function showDisabledState() {
         document.getElementById('sk-grid').style.display = 'none';
         document.getElementById('sk-empty').style.display = 'none';
@@ -395,6 +495,8 @@ function showDisabledState() {
                 return;
             }
             const s = data.skill;
+            const isDaemon = s.IsDaemon || s.is_daemon;
+            if (isDaemon) await loadDaemonSettingsOptions();
             detailVersions = versionsResp.ok ? ((await versionsResp.json()).versions || []) : [];
             detailAudit = auditResp.ok ? ((await auditResp.json()).audit || []) : [];
             const sec = s.SecurityReport || s.security_report;
@@ -443,6 +545,7 @@ function showDisabledState() {
                 return `<code class="sk-vault-key-tag">${esc(k)}</code>`;
             }).join(' ') : `<span class="sk-vault-none">${t('skills.vault_none') || 'No secrets assigned'}</span>`}</span></div>
             </div>
+            ${renderDaemonSettings(s)}
             ${renderSkillHistory(detailVersions)}
             ${renderSkillAudit(detailAudit)}
             ${secHTML}`;

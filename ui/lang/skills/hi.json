@@ -136,5 +136,13 @@
   "skills.daemon_reenable": "पुनः सक्षम करें",
   "skills.daemon_action_ok": "डेमॉन क्रिया निष्पादित",
   "skills.daemon_action_failed": "Daemon त्रुटि",
-  "skills.daemon_disabled_hint": "शुरू करने के लिए config में daemon_skills सक्षम करें"
+  "skills.daemon_disabled_hint": "शुरू करने के लिए config में daemon_skills सक्षम करें",
+  "skills.daemon_settings_title": "डेमन सेटिंग्स",
+  "skills.daemon_wake_agent": "एजेंट को जगाएं",
+  "skills.daemon_trigger_mission": "मिशन ट्रिगर करें",
+  "skills.daemon_cheatsheet": "चीट शीट",
+  "skills.daemon_no_mission": "कोई मिशन नहीं",
+  "skills.daemon_no_cheatsheet": "कोई चीट शीट नहीं",
+  "skills.daemon_settings_help": "जब डेमन एक इवेंट फायर करता है, तो चयनित मिशन ट्रिगर होता है और चीट शीट की सामग्री कार्य निर्देशों के रूप में पारित की जाती है।",
+  "skills.daemon_settings_saved": "डेमन सेटिंग्स सहेजी गईं"
 }

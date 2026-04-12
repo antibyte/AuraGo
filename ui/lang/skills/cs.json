@@ -136,5 +136,13 @@
   "skills.daemon_reenable": "Znovu povolit",
   "skills.daemon_action_ok": "Akce daemonu provedena",
   "skills.daemon_action_failed": "Chyba daemona",
-  "skills.daemon_disabled_hint": "Povolte daemon_skills v konfiguraci pro spuštění"
+  "skills.daemon_disabled_hint": "Povolte daemon_skills v konfiguraci pro spuštění",
+  "skills.daemon_settings_title": "Nastavení démona",
+  "skills.daemon_wake_agent": "Probudit agenta",
+  "skills.daemon_trigger_mission": "Spustit misi",
+  "skills.daemon_cheatsheet": "Tahák",
+  "skills.daemon_no_mission": "Žádná mise",
+  "skills.daemon_no_cheatsheet": "Bez taháku",
+  "skills.daemon_settings_help": "Když démon vyvolá událost, vybraná mise se spustí a obsah taháku se předá jako pracovní instrukce.",
+  "skills.daemon_settings_saved": "Nastavení démona uloženo"
 }

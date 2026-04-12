@@ -136,5 +136,13 @@
   "skills.daemon_reenable": "重新启用",
   "skills.daemon_action_ok": "守护进程操作已执行",
   "skills.daemon_action_failed": "守护进程错误",
-  "skills.daemon_disabled_hint": "在配置中启用 daemon_skills 以启动"
+  "skills.daemon_disabled_hint": "在配置中启用 daemon_skills 以启动",
+  "skills.daemon_settings_title": "守护进程设置",
+  "skills.daemon_wake_agent": "唤醒代理",
+  "skills.daemon_trigger_mission": "触发任务",
+  "skills.daemon_cheatsheet": "速查表",
+  "skills.daemon_no_mission": "无任务",
+  "skills.daemon_no_cheatsheet": "无速查表",
+  "skills.daemon_settings_help": "当守护进程触发事件时，所选任务将被启动，速查表的内容将作为工作指令传递。",
+  "skills.daemon_settings_saved": "守护进程设置已保存"
 }

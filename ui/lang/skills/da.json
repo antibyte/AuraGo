@@ -136,5 +136,13 @@
   "skills.daemon_reenable": "Genaktivér",
   "skills.daemon_action_ok": "Daemon-handling udført",
   "skills.daemon_action_failed": "Daemon fejl",
-  "skills.daemon_disabled_hint": "Aktivér daemon_skills i konfiguration for at starte"
+  "skills.daemon_disabled_hint": "Aktivér daemon_skills i konfiguration for at starte",
+  "skills.daemon_settings_title": "Daemon-indstillinger",
+  "skills.daemon_wake_agent": "Væk agent",
+  "skills.daemon_trigger_mission": "Udløs mission",
+  "skills.daemon_cheatsheet": "Snydeark",
+  "skills.daemon_no_mission": "Ingen mission",
+  "skills.daemon_no_cheatsheet": "Intet snydeark",
+  "skills.daemon_settings_help": "Når dæmonen udløser en begivenhed, udløses den valgte mission, og snydearkets indhold gives som arbejdsinstruktioner.",
+  "skills.daemon_settings_saved": "Daemon-indstillinger gemt"
 }

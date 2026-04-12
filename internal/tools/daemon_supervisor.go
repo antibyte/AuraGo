@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -50,10 +51,12 @@ type DaemonSupervisor struct {
 	stopped bool
 
 	// Dependencies
-	registry    *ProcessRegistry
-	taskManager *BackgroundTaskManager
-	broadcaster DaemonEventBroadcaster
-	logger      *slog.Logger
+	registry     *ProcessRegistry
+	taskManager  *BackgroundTaskManager
+	broadcaster  DaemonEventBroadcaster
+	logger       *slog.Logger
+	missionMgr   *MissionManagerV2
+	cheatsheetDB *sql.DB
 }
 
 // NewDaemonSupervisor creates a new DaemonSupervisor.
@@ -90,6 +93,16 @@ func NewDaemonSupervisor(
 // Gate returns the WakeUpGate for external configuration (e.g., REST API toggle).
 func (s *DaemonSupervisor) Gate() *WakeUpGate {
 	return s.gate
+}
+
+// SetMissionManager injects the MissionManagerV2 for daemon-triggered mission execution.
+func (s *DaemonSupervisor) SetMissionManager(mgr *MissionManagerV2) {
+	s.missionMgr = mgr
+}
+
+// SetCheatsheetDB injects the cheatsheet database for daemon working instruction injection.
+func (s *DaemonSupervisor) SetCheatsheetDB(db *sql.DB) {
+	s.cheatsheetDB = db
 }
 
 // Start discovers daemon skills and starts enabled ones, then begins the wake-up dispatcher.
@@ -351,7 +364,6 @@ func (s *DaemonSupervisor) wakeUpDispatcher() {
 func (s *DaemonSupervisor) handleWakeUp(event daemonWakeEvent) {
 	skillID := event.SkillID
 
-	// Check wake-up gate
 	allowed, denial := s.gate.Allow(skillID)
 	if !allowed {
 		s.logger.Info("Wake-up denied",
@@ -367,17 +379,12 @@ func (s *DaemonSupervisor) handleWakeUp(event daemonWakeEvent) {
 		}
 		s.mu.RUnlock()
 
-		// Check if circuit breaker should auto-disable
 		if s.gate.ShouldAutoDisable(skillID) {
 			s.autoDisableDaemon(skillID, "circuit breaker: too many wake-ups per hour")
 		}
 		return
 	}
 
-	// Build the prompt that the agent will see
-	prompt := s.buildWakeUpPrompt(event)
-
-	// Record the wake-up (cost is unknown until execution; record 0 for now)
 	s.gate.RecordWakeUp(skillID, 0)
 
 	s.mu.RLock()
@@ -386,23 +393,30 @@ func (s *DaemonSupervisor) handleWakeUp(event daemonWakeEvent) {
 	}
 	s.mu.RUnlock()
 
-	// Dispatch to BackgroundTaskManager
-	_, err := s.taskManager.ScheduleCronPrompt(prompt, BackgroundTaskScheduleOptions{
-		Source:      fmt.Sprintf("daemon:%s", skillID),
-		Description: fmt.Sprintf("Daemon wake-up from %s", event.SkillName),
-	})
-	if err != nil {
-		s.logger.Error("Failed to schedule daemon wake-up",
-			"skill_id", skillID,
-			"error", err,
-		)
-		return
+	// Look up the daemon manifest for trigger_mission_id / cheatsheet_id
+	var daemonCfg *DaemonManifest
+	s.mu.RLock()
+	if r, ok := s.runners[skillID]; ok {
+		daemonCfg = &r.config
+	}
+	s.mu.RUnlock()
+
+	triggerMissionID := ""
+	cheatsheetID := ""
+	if daemonCfg != nil {
+		triggerMissionID = daemonCfg.TriggerMissionID
+		cheatsheetID = daemonCfg.CheatsheetID
 	}
 
-	s.logger.Info("Daemon wake-up dispatched",
-		"skill_id", skillID,
-		"severity", event.Message.Severity,
-	)
+	// Path A: wake-agent (existing background prompt)
+	if daemonCfg == nil || daemonCfg.WakeAgent {
+		s.dispatchAgentWakeUp(event)
+	}
+
+	// Path B: trigger a mission
+	if triggerMissionID != "" && s.missionMgr != nil {
+		s.dispatchMissionTrigger(event, triggerMissionID, cheatsheetID)
+	}
 
 	// Broadcast SSE event
 	if s.broadcaster != nil {
@@ -414,6 +428,89 @@ func (s *DaemonSupervisor) handleWakeUp(event daemonWakeEvent) {
 			"timestamp":  time.Now().Format(time.RFC3339),
 		})
 	}
+}
+
+// dispatchAgentWakeUp schedules a background prompt via the task manager (existing behavior).
+func (s *DaemonSupervisor) dispatchAgentWakeUp(event daemonWakeEvent) {
+	prompt := s.buildWakeUpPrompt(event)
+	_, err := s.taskManager.ScheduleCronPrompt(prompt, BackgroundTaskScheduleOptions{
+		Source:      fmt.Sprintf("daemon:%s", event.SkillID),
+		Description: fmt.Sprintf("Daemon wake-up from %s", event.SkillName),
+	})
+	if err != nil {
+		s.logger.Error("Failed to schedule daemon wake-up",
+			"skill_id", event.SkillID,
+			"error", err,
+		)
+		return
+	}
+	s.logger.Info("Daemon wake-up dispatched",
+		"skill_id", event.SkillID,
+		"severity", event.Message.Severity,
+	)
+}
+
+// dispatchMissionTrigger queues a mission via MissionManagerV2, optionally injecting
+// the daemon-assigned cheatsheet as working instructions.
+func (s *DaemonSupervisor) dispatchMissionTrigger(event daemonWakeEvent, missionID, cheatsheetID string) {
+	triggerType := "daemon_wake"
+	triggerData := s.buildTriggerData(event, cheatsheetID)
+
+	var extraCSIDs []string
+	var extraPromptSuffix string
+	if cheatsheetID != "" && s.cheatsheetDB != nil {
+		sheet, err := CheatsheetGet(s.cheatsheetDB, cheatsheetID)
+		if err != nil || !sheet.Active {
+			s.logger.Warn("Daemon cheatsheet not found or inactive, skipping injection",
+				"cheatsheet_id", cheatsheetID,
+				"error", err,
+			)
+		} else {
+			extraPromptSuffix = fmt.Sprintf("\n\n[Daemon Working Instructions from Cheat Sheet: %q]\n%s", sheet.Name, sheet.Content)
+			for _, a := range sheet.Attachments {
+				extraPromptSuffix += fmt.Sprintf("\n\n[Cheat Sheet Attachment: %q]\n%s", a.Filename, a.Content)
+			}
+		}
+	}
+
+	if err := s.missionMgr.TriggerMissionWithOptions(missionID, triggerType, triggerData, extraCSIDs, extraPromptSuffix); err != nil {
+		s.logger.Error("Failed to trigger daemon mission",
+			"skill_id", event.SkillID,
+			"mission_id", missionID,
+			"error", err,
+		)
+		return
+	}
+	s.logger.Info("Daemon mission triggered",
+		"skill_id", event.SkillID,
+		"mission_id", missionID,
+		"cheatsheet_id", cheatsheetID,
+	)
+}
+
+// buildTriggerData produces a JSON string with daemon event metadata for the mission trigger.
+func (s *DaemonSupervisor) buildTriggerData(event daemonWakeEvent, cheatsheetID string) string {
+	data := map[string]string{
+		"source":     "daemon",
+		"skill_id":   event.SkillID,
+		"skill_name": event.SkillName,
+		"severity":   event.Message.Severity,
+		"message":    truncateString(event.Message.Message, 500),
+		"timestamp":  event.Timestamp.Format(time.RFC3339),
+	}
+	if cheatsheetID != "" {
+		data["cheatsheet_id"] = cheatsheetID
+	}
+	if event.Message.Data != nil {
+		const maxD = 2048
+		d := string(event.Message.Data)
+		if len(d) > maxD {
+			d = d[:maxD] + "... [truncated]"
+		}
+		data["data"] = d
+	}
+	b, _ := json.Marshal(data)
+	return string(b)
 }
 
 // buildWakeUpPrompt constructs the prompt that the agent loop will receive.

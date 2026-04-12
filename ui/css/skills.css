@@ -862,6 +862,35 @@
         0 0 0 1px var(--accent);
 }
 
+/* ── Daemon Settings Section ── */
+.sk-daemon-settings-section {
+    margin-top: 16px;
+    padding: 14px;
+    border: 1px solid var(--border, #374151);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--accent, #3b82f6) 5%, var(--surface-2, #1f2937));
+}
+.sk-daemon-settings-title {
+    margin: 0 0 10px 0;
+    font-size: 0.95rem;
+    color: var(--text-primary);
+}
+.sk-daemon-settings-help {
+    font-size: 0.8rem;
+    color: var(--text-secondary, #9ca3af);
+    margin-top: 10px;
+    line-height: 1.4;
+}
+.sk-daemon-settings-actions {
+    margin-top: 12px;
+    display: flex;
+    justify-content: flex-end;
+}
+.sk-daemon-select {
+    min-width: 200px;
+    max-width: 100%;
+}
+
 /* ── Responsive ── */
 @media (max-width: 768px) {
     .sk-status-bar { flex-wrap: wrap; gap: 8px; }

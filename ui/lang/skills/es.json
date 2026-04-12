@@ -136,5 +136,13 @@
   "skills.daemon_reenable": "Reactivar",
   "skills.daemon_action_ok": "Acción daemon ejecutada",
   "skills.daemon_action_failed": "Error de daemon",
-  "skills.daemon_disabled_hint": "Habilite daemon_skills en la configuración para iniciar"
+  "skills.daemon_disabled_hint": "Habilite daemon_skills en la configuración para iniciar",
+  "skills.daemon_settings_title": "Configuración del Demonio",
+  "skills.daemon_wake_agent": "Despertar Agente",
+  "skills.daemon_trigger_mission": "Activar Misión",
+  "skills.daemon_cheatsheet": "Hoja de Referencia",
+  "skills.daemon_no_mission": "Sin misión",
+  "skills.daemon_no_cheatsheet": "Sin hoja de referencia",
+  "skills.daemon_settings_help": "Cuando el demonio dispara un evento, la misión seleccionada se activa y el contenido de la hoja de referencia se pasa como instrucciones de trabajo.",
+  "skills.daemon_settings_saved": "Configuración del demonio guardada"
 }

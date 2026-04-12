@@ -136,5 +136,13 @@
   "skills.daemon_reenable": "Επανενεργοποίηση",
   "skills.daemon_action_ok": "Ενέργεια daemon εκτελέστηκε",
   "skills.daemon_action_failed": "Σφάλμα daemon",
-  "skills.daemon_disabled_hint": "Ενεργοποιήστε το daemon_skills στη ρύθμιση για εκκίνηση"
+  "skills.daemon_disabled_hint": "Ενεργοποιήστε το daemon_skills στη ρύθμιση για εκκίνηση",
+  "skills.daemon_settings_title": "Ρυθμίσεις Δαίμονα",
+  "skills.daemon_wake_agent": "Αφύπνιση Πράκτορα",
+  "skills.daemon_trigger_mission": "Ενεργοποίηση Αποστολής",
+  "skills.daemon_cheatsheet": "Φύλλο Εξαπάτησης",
+  "skills.daemon_no_mission": "Χωρίς αποστολή",
+  "skills.daemon_no_cheatsheet": "Χωρίς φύλλο εξαπάτησης",
+  "skills.daemon_settings_help": "Όταν ο δαίμονας ενεργοποιεί ένα συμβάν, η επιλεγμένη αποστολή ενεργοποιείται και το περιεχόμενο του φύλλου εξαπάτησης μεταβιβάζεται ως οδηγίες εργασίας.",
+  "skills.daemon_settings_saved": "Οι ρυθμίσεις του δαίμονα αποθηκεύτηκαν"
 }

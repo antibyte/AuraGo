@@ -136,5 +136,13 @@
   "skills.daemon_reenable": "Riattiva",
   "skills.daemon_action_ok": "Azione daemon eseguita",
   "skills.daemon_action_failed": "Errore daemon",
-  "skills.daemon_disabled_hint": "Abilita daemon_skills nella configurazione per avviare"
+  "skills.daemon_disabled_hint": "Abilita daemon_skills nella configurazione per avviare",
+  "skills.daemon_settings_title": "Impostazioni Demone",
+  "skills.daemon_wake_agent": "Sveglia Agente",
+  "skills.daemon_trigger_mission": "Attiva Missione",
+  "skills.daemon_cheatsheet": "Scheda di Trucchetti",
+  "skills.daemon_no_mission": "Nessuna missione",
+  "skills.daemon_no_cheatsheet": "Nessuna scheda",
+  "skills.daemon_settings_help": "Quando il demone attiva un evento, la missione selezionata viene attivata e il contenuto della scheda di trucchetti viene passato come istruzioni di lavoro.",
+  "skills.daemon_settings_saved": "Impostazioni del demone salvate"
 }

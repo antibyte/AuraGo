@@ -136,5 +136,13 @@
   "skills.daemon_reenable": "Réactiver",
   "skills.daemon_action_ok": "Action daemon exécutée",
   "skills.daemon_action_failed": "Erreur daemon",
-  "skills.daemon_disabled_hint": "Activez daemon_skills dans la config pour démarrer"
+  "skills.daemon_disabled_hint": "Activez daemon_skills dans la config pour démarrer",
+  "skills.daemon_settings_title": "Paramètres du Démon",
+  "skills.daemon_wake_agent": "Réveiller l'Agent",
+  "skills.daemon_trigger_mission": "Déclencher la Mission",
+  "skills.daemon_cheatsheet": "Aide-mémoire",
+  "skills.daemon_no_mission": "Aucune mission",
+  "skills.daemon_no_cheatsheet": "Aucun aide-mémoire",
+  "skills.daemon_settings_help": "Quand le démon déclenche un événement, la mission sélectionnée est activée et le contenu de l'aide-mémoire est transmis comme instructions de travail.",
+  "skills.daemon_settings_saved": "Paramètres du démon enregistrés"
 }

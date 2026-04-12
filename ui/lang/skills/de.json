@@ -136,5 +136,13 @@
   "skills.daemon_reenable": "Reaktivieren",
   "skills.daemon_action_ok": "Daemon-Aktion ausgeführt",
   "skills.daemon_action_failed": "Daemon-Fehler",
-  "skills.daemon_disabled_hint": "daemon_skills in der Konfiguration aktivieren um zu starten"
+  "skills.daemon_disabled_hint": "daemon_skills in der Konfiguration aktivieren um zu starten",
+  "skills.daemon_settings_title": "Daemon-Einstellungen",
+  "skills.daemon_wake_agent": "Agent benachrichtigen",
+  "skills.daemon_trigger_mission": "Mission auslösen",
+  "skills.daemon_cheatsheet": "Cheat-Sheet",
+  "skills.daemon_no_mission": "Keine Mission",
+  "skills.daemon_no_cheatsheet": "Kein Cheat-Sheet",
+  "skills.daemon_settings_help": "Wenn der Daemon ein Ereignis auslöst, wird die ausgewählte Mission gestartet und der Inhalt des Cheat-Sheets wird als Arbeitsanweisung übergeben.",
+  "skills.daemon_settings_saved": "Daemon-Einstellungen gespeichert"
 }

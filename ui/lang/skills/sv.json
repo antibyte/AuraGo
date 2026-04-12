@@ -136,5 +136,13 @@
   "skills.daemon_reenable": "Återaktivera",
   "skills.daemon_action_ok": "Daemon-åtgärd utförd",
   "skills.daemon_action_failed": "Daemon-fel",
-  "skills.daemon_disabled_hint": "Aktivera daemon_skills i konfigurationen för att starta"
+  "skills.daemon_disabled_hint": "Aktivera daemon_skills i konfigurationen för att starta",
+  "skills.daemon_settings_title": "Daemon-inställningar",
+  "skills.daemon_wake_agent": "Väck Agent",
+  "skills.daemon_trigger_mission": "Utlös Uppdrag",
+  "skills.daemon_cheatsheet": "Fusklapp",
+  "skills.daemon_no_mission": "Inget uppdrag",
+  "skills.daemon_no_cheatsheet": "Ingen fusklapp",
+  "skills.daemon_settings_help": "När daemonen utlöser en händelse aktiveras det valda uppdraget och innehållet i fusklappen skickas som arbetsinstruktioner.",
+  "skills.daemon_settings_saved": "Daemon-inställningar sparade"
 }

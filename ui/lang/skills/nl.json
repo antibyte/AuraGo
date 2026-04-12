@@ -136,5 +136,13 @@
   "skills.daemon_reenable": "Heractiveren",
   "skills.daemon_action_ok": "Daemon-actie uitgevoerd",
   "skills.daemon_action_failed": "Daemon fout",
-  "skills.daemon_disabled_hint": "Schakel daemon_skills in bij config om te starten"
+  "skills.daemon_disabled_hint": "Schakel daemon_skills in bij config om te starten",
+  "skills.daemon_settings_title": "Daemon-instellingen",
+  "skills.daemon_wake_agent": "Agent wekken",
+  "skills.daemon_trigger_mission": "Missie activeren",
+  "skills.daemon_cheatsheet": "Cheatsheet",
+  "skills.daemon_no_mission": "Geen missie",
+  "skills.daemon_no_cheatsheet": "Geen cheatsheet",
+  "skills.daemon_settings_help": "Wanneer de daemon een gebeurtenis activeert, wordt de geselecteerde missie geactiveerd en wordt de inhoud van het cheatsheet als werk instructies doorgegeven.",
+  "skills.daemon_settings_saved": "Daemon-instellingen opgeslagen"
 }

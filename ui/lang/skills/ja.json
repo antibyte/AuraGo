@@ -136,5 +136,13 @@
   "skills.daemon_reenable": "再有効化",
   "skills.daemon_action_ok": "デーモンアクション実行完了",
   "skills.daemon_action_failed": "デーモンエラー",
-  "skills.daemon_disabled_hint": "開始するには設定でdaemon_skillsを有効にしてください"
+  "skills.daemon_disabled_hint": "開始するには設定でdaemon_skillsを有効にしてください",
+  "skills.daemon_settings_title": "デーモン設定",
+  "skills.daemon_wake_agent": "エージェント起床",
+  "skills.daemon_trigger_mission": "ミッション起動",
+  "skills.daemon_cheatsheet": "チートシート",
+  "skills.daemon_no_mission": "ミッションなし",
+  "skills.daemon_no_cheatsheet": "チートシートなし",
+  "skills.daemon_settings_help": "デーモンがイベントを発生させると、選択されたミッションが起動し、チートシートの内容が作業指示として渡されます。",
+  "skills.daemon_settings_saved": "デーモン設定を保存しました"
 }

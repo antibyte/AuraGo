@@ -68,6 +68,10 @@ type DaemonManifest struct {
 	RestartCooldownSeconds     int               `json:"restart_cooldown_seconds,omitempty"`      // cooldown window for restart counting (default: 300)
 	HealthCheckIntervalSeconds int               `json:"health_check_interval_seconds,omitempty"` // process liveness check interval (default: 60)
 	Env                        map[string]string `json:"env,omitempty"`                           // extra environment variables
+	TriggerMissionID           string            `json:"trigger_mission_id,omitempty"`            // mission to trigger on daemon event
+	TriggerMissionName         string            `json:"trigger_mission_name,omitempty"`          // display name for UI
+	CheatsheetID               string            `json:"cheatsheet_id,omitempty"`                 // cheatsheet to inject as working instructions
+	CheatsheetName             string            `json:"cheatsheet_name,omitempty"`               // display name for UI
 }
 
 // DaemonManifestDefaults returns a DaemonManifest with sensible defaults applied.

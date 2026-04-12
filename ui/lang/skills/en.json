@@ -136,5 +136,13 @@
   "skills.daemon_reenable": "Re-enable",
   "skills.daemon_action_ok": "Daemon action executed",
   "skills.daemon_action_failed": "Daemon error",
-  "skills.daemon_disabled_hint": "Enable daemon_skills in config to start"
+  "skills.daemon_disabled_hint": "Enable daemon_skills in config to start",
+  "skills.daemon_settings_title": "Daemon Settings",
+  "skills.daemon_wake_agent": "Wake Agent",
+  "skills.daemon_trigger_mission": "Trigger Mission",
+  "skills.daemon_cheatsheet": "Cheat Sheet",
+  "skills.daemon_no_mission": "No mission",
+  "skills.daemon_no_cheatsheet": "No cheat sheet",
+  "skills.daemon_settings_help": "When the daemon fires an event, the selected mission is triggered and the cheat sheet content is passed as working instructions.",
+  "skills.daemon_settings_saved": "Daemon settings saved"
 }

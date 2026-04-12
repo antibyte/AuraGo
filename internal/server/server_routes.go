@@ -78,6 +78,8 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 			newDaemonSSEAdapter(sse),
 			s.Logger,
 		)
+		s.DaemonSupervisor.SetMissionManager(s.MissionManagerV2)
+		s.DaemonSupervisor.SetCheatsheetDB(s.CheatsheetDB)
 		if err := s.DaemonSupervisor.Start(); err != nil {
 			s.Logger.Error("Failed to start daemon supervisor", "error", err)
 		} else {
@@ -1242,7 +1244,6 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 			}
 		})
 		mux.HandleFunc("/api/skills/", func(w http.ResponseWriter, r *http.Request) {
-			// Check for /api/skills/{id}/verify
 			if strings.HasSuffix(r.URL.Path, "/verify") {
 				handleVerifySkill(s)(w, r)
 				return
@@ -1261,6 +1262,10 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 			}
 			if strings.HasSuffix(r.URL.Path, "/test") {
 				handleTestSkill(s)(w, r)
+				return
+			}
+			if strings.HasSuffix(r.URL.Path, "/daemon") {
+				handleDaemonSkillSettings(s)(w, r)
 				return
 			}
 			switch r.Method {

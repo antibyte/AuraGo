@@ -136,5 +136,13 @@
   "skills.daemon_reenable": "Reaktiver",
   "skills.daemon_action_ok": "Daemon-handling utført",
   "skills.daemon_action_failed": "Daemon feil",
-  "skills.daemon_disabled_hint": "Aktiver daemon_skills i konfigurasjon for å starte"
+  "skills.daemon_disabled_hint": "Aktiver daemon_skills i konfigurasjon for å starte",
+  "skills.daemon_settings_title": "Daemoninnstillinger",
+  "skills.daemon_wake_agent": "Vekk agent",
+  "skills.daemon_trigger_mission": "Utløs mission",
+  "skills.daemon_cheatsheet": "Jukselapp",
+  "skills.daemon_no_mission": "Ingen mission",
+  "skills.daemon_no_cheatsheet": "Ingen jukselapp",
+  "skills.daemon_settings_help": "Når daemonen utløser en hendelse, utløses den valgte missionen og innholdet i jukselappen gis som arbeidsinstruksjoner.",
+  "skills.daemon_settings_saved": "Daemoninnstillinger lagret"
 }
