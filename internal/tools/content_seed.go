@@ -293,6 +293,7 @@ func SeedWelcomeSkills(skillMgr *SkillManager, skillsDir, installDir string, log
 	}
 
 	if copied {
+		InvalidateSkillsCache(skillsDir)
 		if err := skillMgr.SyncFromDisk(); err != nil {
 			logger.Warn("SeedWelcomeSkills: SyncFromDisk failed after seeding", "error", err)
 		} else {

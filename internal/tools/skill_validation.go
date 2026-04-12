@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
@@ -24,6 +25,7 @@ var (
 	skillCategoryPattern   = regexp.MustCompile(`^[a-z][a-z0-9_-]{0,47}$`)
 	skillTagPattern        = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]{0,31}$`)
 	skillDependencyPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`)
+	skillExecutablePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,191}$`)
 	skillReservedNames     = map[string]struct{}{
 		"con": {}, "prn": {}, "aux": {}, "nul": {},
 		"com1": {}, "com2": {}, "com3": {}, "com4": {}, "com5": {}, "com6": {}, "com7": {}, "com8": {}, "com9": {},
@@ -60,6 +62,30 @@ func validateSkillName(name string) (string, error) {
 // ValidateSkillShortcutName validates a skill name coming from a native skill__ shortcut.
 func ValidateSkillShortcutName(name string) (string, error) {
 	return validateSkillName(name)
+}
+
+func validateSkillExecutable(executable string) error {
+	executable = strings.TrimSpace(executable)
+	if executable == "" {
+		return fmt.Errorf("skill executable is required")
+	}
+	// Must be a plain filename in the skills directory (no subdirs, no ADS/drive tricks).
+	if strings.ContainsAny(executable, `/\`) || strings.Contains(executable, "..") || strings.Contains(executable, ":") {
+		return fmt.Errorf("skill executable must be a relative filename inside the skills directory")
+	}
+	if filepath.Base(executable) != executable {
+		return fmt.Errorf("skill executable must be a relative filename inside the skills directory")
+	}
+	if !utf8.ValidString(executable) {
+		return fmt.Errorf("skill executable must be valid UTF-8")
+	}
+	if !isASCII(executable) {
+		return fmt.Errorf("skill executable must use ASCII characters")
+	}
+	if !skillExecutablePattern.MatchString(executable) {
+		return fmt.Errorf("skill executable contains invalid characters")
+	}
+	return nil
 }
 
 func validateSkillCode(code string) error {

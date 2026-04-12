@@ -224,13 +224,24 @@ func resolveSkillExecution(skillsDir, skillName string, argsJSON map[string]inte
 		return SkillManifest{}, "", "", fmt.Errorf("skill '%s' not found", skillName)
 	}
 
-	if filepath.IsAbs(manifest.Executable) || strings.Contains(manifest.Executable, "..") {
-		return SkillManifest{}, "", "", fmt.Errorf("skill '%s' has invalid executable path '%s': must be a relative filename inside the skills directory", skillName, manifest.Executable)
+	if manifest.Executable == "__builtin__" {
+		return SkillManifest{}, "", "", fmt.Errorf("skill '%s' is built-in and cannot be executed via execute_skill", skillName)
+	}
+	if err := validateSkillExecutable(manifest.Executable); err != nil {
+		return SkillManifest{}, "", "", fmt.Errorf("skill '%s' has invalid executable path '%s': %w", skillName, manifest.Executable, err)
 	}
 
+	absSkillsDir, err := filepath.Abs(skillsDir)
+	if err != nil {
+		return SkillManifest{}, "", "", fmt.Errorf("invalid skills directory: %w", err)
+	}
 	absExecPath, err := filepath.Abs(filepath.Join(skillsDir, manifest.Executable))
 	if err != nil {
 		return SkillManifest{}, "", "", fmt.Errorf("failed to resolve absolute path for skill '%s': %w", skillName, err)
+	}
+	rel, err := filepath.Rel(absSkillsDir, absExecPath)
+	if err != nil || strings.HasPrefix(rel, "..") {
+		return SkillManifest{}, "", "", fmt.Errorf("skill '%s' has invalid executable path '%s': skill path traversal detected", skillName, manifest.Executable)
 	}
 	if _, err := os.Stat(absExecPath); os.IsNotExist(err) {
 		return SkillManifest{}, "", "", fmt.Errorf("skill executable '%s' not found at %s", manifest.Executable, absExecPath)
@@ -285,7 +296,12 @@ func (w *limitWriter) Write(p []byte) (int, error) {
 
 func executePreparedSkill(ctx context.Context, workspaceDir, skillName string, manifest SkillManifest, absExecPath, argsString string, opts skillExecutionOptions) (string, error) {
 	if opts.logInput {
-		slog.Debug("[ExecuteSkill] Prepared JSON input", "skill", skillName, "input", argsString)
+		slog.Debug(
+			"[ExecuteSkill] Prepared JSON input",
+			"skill", skillName,
+			"arg_bytes", len(argsString),
+			"arg_keys", extractTopLevelJSONKeysForLog(argsString),
+		)
 	}
 
 	if ctx == nil {
@@ -341,13 +357,33 @@ func executePreparedSkill(ctx context.Context, workspaceDir, skillName string, m
 		output = security.Scrub(output)
 	}
 	if ctx.Err() == context.DeadlineExceeded {
-		return output, fmt.Errorf("TIMEOUT: skill '%s' exceeded 2-minute limit and was killed", skillName)
+		timeout := GetSkillTimeout()
+		return output, fmt.Errorf("TIMEOUT: skill '%s' exceeded %s limit and was killed", skillName, timeout.Round(time.Second))
 	}
 	if err != nil {
 		return output, fmt.Errorf("execution failed: %w", err)
 	}
 
 	return output, nil
+}
+
+func extractTopLevelJSONKeysForLog(argsString string) []string {
+	if strings.TrimSpace(argsString) == "" {
+		return nil
+	}
+	var m map[string]any
+	if err := json.Unmarshal([]byte(argsString), &m); err != nil {
+		return nil
+	}
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	if len(keys) > 20 {
+		return append(keys[:20], fmt.Sprintf("…(+%d)", len(keys)-20))
+	}
+	return keys
 }
 
 // ExecuteSkill dynamically executes the requested skill script, routing Python scripts to the venv.

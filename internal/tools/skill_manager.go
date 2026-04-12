@@ -273,15 +273,35 @@ func (m *SkillManager) SyncFromDisk() error {
 		diskNames[manifest.Name] = struct{}{}
 
 		var fileHash string
-		if filepath.IsAbs(manifest.Executable) || strings.Contains(manifest.Executable, "..") {
-			m.logger.Warn("Skipping skill with invalid executable path", "name", manifest.Name, "executable", manifest.Executable)
-			continue
-		}
-		execPath := filepath.Join(m.skillsDir, manifest.Executable)
-		codeBytes, readErr := os.ReadFile(execPath)
-		if readErr == nil {
-			h := sha256.Sum256(codeBytes)
-			fileHash = hex.EncodeToString(h[:])
+		var codeBytes []byte
+		readErr := error(nil)
+		if manifest.Executable != "__builtin__" {
+			if err := validateSkillExecutable(manifest.Executable); err != nil {
+				m.logger.Warn("Skipping skill with invalid executable path", "name", manifest.Name, "executable", manifest.Executable, "error", err)
+				continue
+			}
+			absSkillsDir, absErr := filepath.Abs(m.skillsDir)
+			if absErr != nil {
+				m.logger.Warn("Skipping skill due to invalid skills directory", "skills_dir", m.skillsDir, "error", absErr)
+				continue
+			}
+			absExecPath, absErr := filepath.Abs(filepath.Join(m.skillsDir, manifest.Executable))
+			if absErr != nil {
+				m.logger.Warn("Skipping skill due to invalid executable path", "name", manifest.Name, "executable", manifest.Executable, "error", absErr)
+				continue
+			}
+			rel, relErr := filepath.Rel(absSkillsDir, absExecPath)
+			if relErr != nil || strings.HasPrefix(rel, "..") {
+				m.logger.Warn("Skipping skill with path traversal executable", "name", manifest.Name, "executable", manifest.Executable)
+				continue
+			}
+
+			execPath := filepath.Join(m.skillsDir, manifest.Executable)
+			codeBytes, readErr = os.ReadFile(execPath)
+			if readErr == nil {
+				h := sha256.Sum256(codeBytes)
+				fileHash = hex.EncodeToString(h[:])
+			}
 		}
 
 		var existingID string
@@ -320,7 +340,7 @@ func (m *SkillManager) SyncFromDisk() error {
 				m.logger.Warn("Failed to insert skill", "name", manifest.Name, "error", err)
 				continue
 			}
-			if readErr == nil {
+			if readErr == nil && len(codeBytes) > 0 {
 				m.runStaticScan(id, string(codeBytes))
 			}
 		} else if err == nil {
@@ -335,7 +355,7 @@ func (m *SkillManager) SyncFromDisk() error {
 				if existingHash != fileHash && fileHash != "" {
 					m.db.Exec("UPDATE skills_registry SET file_hash = ?, security_status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
 						fileHash, string(SecurityPending), existingID)
-					if readErr == nil {
+					if readErr == nil && len(codeBytes) > 0 {
 						m.runStaticScan(existingID, string(codeBytes))
 					}
 				} else {
@@ -598,6 +618,7 @@ func (m *SkillManager) UpdateVaultKeys(id string, keys []string) error {
 
 	m.logger.Info("Skill vault_keys updated", "id", id, "name", s.Name, "keys", keys)
 	m.recordSkillAudit(id, s.Name, "vault_keys_updated", "user", fmt.Sprintf("updated %d vault key bindings", len(keys)))
+	InvalidateSkillsCache(m.skillsDir)
 	return nil
 }
 
@@ -635,6 +656,7 @@ func (m *SkillManager) UpdateInternalTools(id string, toolNames []string) error 
 
 	m.logger.Info("Skill internal_tools updated", "id", id, "name", s.Name, "tools", toolNames)
 	m.recordSkillAudit(id, s.Name, "internal_tools_updated", "user", fmt.Sprintf("updated %d internal tool bindings", len(toolNames)))
+	InvalidateSkillsCache(m.skillsDir)
 	return nil
 }
 
@@ -899,6 +921,7 @@ func (m *SkillManager) UpdateSkillMetadata(id, description, category string, tag
 		}
 	}
 	m.recordSkillAudit(id, skill.Name, "metadata_updated", updatedBy, fmt.Sprintf("category=%s tags=%s", category, strings.Join(tags, ",")))
+	InvalidateSkillsCache(m.skillsDir)
 	return nil
 }
 
