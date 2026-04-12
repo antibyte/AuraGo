@@ -1,9 +1,14 @@
 services:
   aurago:
-    # Pre-built image from GitHub Container Registry (recommended)
-    # Updated automatically on every push to main via GitHub Actions.
-    # Note: Using 'latest' for automatic updates. For reproducible deployments,
-    # pin to a specific version tag (e.g., ghcr.io/antibyte/aurago:v1.2.3).
+    # Pre-built image from GitHub Container Registry (recommended).
+    #
+    # Tag strategy:
+    #   v1.2.3   — stable release (recommended for production)
+    #   latest   — always points to the latest stable release
+    #   main     — current main branch (may contain unreleased changes)
+    #
+    # For reproducible deployments, pin to a specific version tag:
+    #   image: ghcr.io/antibyte/aurago:v1.2.3
     image: ghcr.io/antibyte/aurago:latest
 
     # --- Build from source (uncomment to build locally instead) ---
@@ -28,8 +33,9 @@ services:
 
     # --- Environment ---
     environment:
-      # Connect to Docker via socket (or proxy if docker-proxy service is enabled)
-      - DOCKER_HOST=unix:///var/run/docker.sock
+      # Connect to Docker via the docker-proxy service (recommended).
+      # If you prefer direct socket access (less secure), see the alternative below.
+      - DOCKER_HOST=tcp://docker-proxy:2375
 
     # --- Volumes ---
     volumes:
@@ -58,14 +64,12 @@ services:
       # This allows AuraGo to spawn egg containers on the host Docker daemon.
       #
       # SECURITY NOTE: Mounting the Docker socket grants root-equivalent access
-      # to the host. Only enable this if you trust AuraGo's agent completely.
+      # to the host. The docker-proxy service below is enabled by default and
+      # provides a safer alternative that only exposes the needed API subset.
       #
-      # RECOMMENDED: Use the docker-proxy service below instead for better security.
-      # To use the proxy:
-      #   1. Uncomment the docker-proxy service block below
-      #   2. Comment out the volume mount below
-      #   3. Change DOCKER_HOST above to: tcp://docker-proxy:2375
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # Only uncomment the line below if you explicitly need direct socket access
+      # AND have disabled the docker-proxy service further below.
+      # - /var/run/docker.sock:/var/run/docker.sock:ro
 
     # host.docker.internal resolves to the host machine from inside containers.
     # On Linux Docker Engine (non-Desktop) this is NOT injected automatically —
@@ -102,9 +106,9 @@ services:
         max-size: "10m"
         max-file: "3"
 
-    # --- Ansible sidecar dependency (uncomment together with the ansible block below) ---
-    # depends_on:
-    #   - ansible
+    depends_on:
+      docker-proxy:
+        condition: service_healthy
 
   # ============================================================================
   # Gotenberg Sidecar  — PDF creation, document conversion, screenshots
@@ -122,9 +126,7 @@ services:
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
-    # Use seccomp profile for Chromium sandbox instead of SYS_ADMIN.
-    # The default Docker seccomp profile allows enough syscalls for Chromium.
-    # SYS_ADMIN is overly broad and grants capabilities that are not needed.
+    # Drop all capabilities and only add what Gotenberg needs for file ownership.
     cap_drop:
       - ALL
     cap_add:
@@ -188,38 +190,37 @@ services:
   #   restart: unless-stopped
 
   # ============================================================================
-  # Docker Socket Proxy  (OPTIONAL — safer alternative to mounting the socket)
+  # Docker Socket Proxy  (ACTIVE — safer alternative to mounting the socket)
   # ============================================================================
   # Instead of mounting /var/run/docker.sock directly into the AuraGo container
-  # (which grants root-equivalent host access), you can use a socket proxy that
-  # only exposes the API subset AuraGo actually needs.
+  # (which grants root-equivalent host access), this proxy only exposes the API
+  # subset AuraGo actually needs. This is the default and recommended setup.
   #
-  # To use:
-  #   1. Uncomment the docker-proxy block below.
-  #   2. Comment out the docker.sock volume mount in the aurago service above.
-  #   3. Change DOCKER_HOST in aurago service to: tcp://docker-proxy:2375
-  # ============================================================================
-  # docker-proxy:
-  #   image: tecnativa/docker-socket-proxy
-  #   container_name: aurago_docker_proxy
-  #   restart: unless-stopped
-  #   volumes:
-  #     - /var/run/docker.sock:/var/run/docker.sock:ro
-  #   environment:
-  #     - CONTAINERS=1
-  #     - IMAGES=1
-  #     - NETWORKS=1
-  #     - VOLUMES=1
-  #     - POST=1          # allow start/stop/restart/create
-  #     - BUILD=0
-  #     - COMMIT=0
-  #     - EXEC=1          # needed for DockerExec
-  #     - SWARM=0
-  #   healthcheck:
-  #     test: ["CMD", "wget", "-q", "--spider", "http://localhost:2375/_ping"]
-  #     interval: 30s
-  #     timeout: 5s
-  #     retries: 3
+  # To switch to direct socket access (NOT recommended):
+  #   1. Uncomment the docker.sock volume mount in the aurago service above.
+  #   2. Change DOCKER_HOST in aurago service to: unix:///var/run/docker.sock
+  #   3. Comment out the docker-proxy service below and remove the depends_on.
+  docker-proxy:
+    image: tecnativa/docker-socket-proxy
+    container_name: aurago_docker_proxy
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - CONTAINERS=1
+      - IMAGES=1
+      - NETWORKS=1
+      - VOLUMES=1
+      - POST=1          # allow start/stop/restart/create
+      - BUILD=0
+      - COMMIT=0
+      - EXEC=1          # needed for DockerExec
+      - SWARM=0
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:2375/_ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
 volumes:
   aurago_data:

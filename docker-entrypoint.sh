@@ -30,19 +30,34 @@ normalize_file "$TEMPLATE_FILE"
 # We cannot remove a mounted directory, so just warn and continue.
 # All subsequent checks use [ -f "$USER_CONFIG" ] so a directory is safely ignored.
 if [ -d "$USER_CONFIG" ]; then
-    echo "[Entrypoint] WARNING: $USER_CONFIG is a directory (host file didn't exist at mount time)"
-    echo "[Entrypoint] Hint: on the host run 'touch config.yaml' before 'docker compose up'"
-    echo "[Entrypoint] Falling back to template config for this run"
+    echo "[Entrypoint] =========================================================="
+    echo "[Entrypoint] WARNING: $USER_CONFIG is a directory, not a file!"
+    echo "[Entrypoint]"
+    echo "[Entrypoint] This happens when the host file did not exist before"
+    echo "[Entrypoint] running 'docker compose up'. Docker auto-creates a"
+    echo "[Entrypoint] directory instead of a file for missing bind mounts."
+    echo "[Entrypoint]"
+    echo "[Entrypoint] Fix: stop the container and run these commands on the host:"
+    echo "[Entrypoint]   docker compose down"
+    echo "[Entrypoint]   rmdir config.yaml        # remove the auto-created directory"
+    echo "[Entrypoint]   touch config.yaml         # create an empty file"
+    echo "[Entrypoint]   docker compose up -d"
+    echo "[Entrypoint]"
+    echo "[Entrypoint] Falling back to the built-in template config for this run."
+    echo "[Entrypoint] Your settings will NOT be preserved across restarts until"
+    echo "[Entrypoint] you create a real config.yaml file on the host."
+    echo "[Entrypoint] =========================================================="
 fi
 
 if [ ! -f "$CONFIG_FILE" ]; then
     echo "[Entrypoint] No config.yaml found, creating initial configuration..."
     
     if [ -f "$USER_CONFIG" ]; then
-        echo "[Entrypoint] Using user-supplied config..."
+        echo "[Entrypoint] Using user-supplied config from $USER_CONFIG..."
         cp "$USER_CONFIG" "$CONFIG_FILE"
     elif [ -f "$TEMPLATE_FILE" ]; then
-        echo "[Entrypoint] Using default template..."
+        echo "[Entrypoint] No user config found — copying built-in template to $CONFIG_FILE"
+        echo "[Entrypoint] You can customize settings via the Web UI at http://localhost:8088"
         cp "$TEMPLATE_FILE" "$CONFIG_FILE"
     else
         echo "[Entrypoint] Creating minimal config..."

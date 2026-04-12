@@ -1,6 +1,19 @@
 # AuraGo Docker Installation Guide
 
-AuraGo provides a fully automated Docker deployment. You don't need to manually create config files or generate encryption keys — the container does it all for you on the first run.
+AuraGo provides a fully automated Docker deployment with a secure default configuration. The setup uses a Docker socket proxy for safe container management, persistent volumes for your data, and Docker Compose secrets for encryption keys.
+
+## Hardware Requirements
+
+| | Minimum | Recommended |
+|---|---------|-------------|
+| CPU | 2 cores | 4 cores |
+| RAM | 4 GB | 8 GB |
+| Disk | 10 GB | 20 GB+ |
+| Platform | Linux amd64/arm64 | Linux amd64/arm64 |
+
+> Docker images are built for **Linux only** (amd64 and arm64). macOS and Windows are not supported as Docker hosts — use the bare-metal installer instead.
+
+---
 
 ## 1. Standard Docker Compose Installation
 
@@ -35,16 +48,34 @@ The `docker-compose.yml` references this file as a Docker Compose secret. The ke
 docker compose up -d
 ```
 
-That's it! 
+That's it!
 - The `AURAGO_MASTER_KEY` is loaded from your `aurago_master.key` file via Docker Compose secrets.
-- A default `config.yaml` is created in your directory.
-- The Web UI is now available at `http://<your-server-ip>:8088`. 
+- A default config is generated inside the container from the built-in template.
+- The Docker socket proxy (`docker-proxy`) starts automatically and provides safe, filtered access to the host Docker daemon.
+- The Web UI is now available at `http://<your-server-ip>:8088`.
 
 Open the Web UI to finish setting up your LLM Provider and API keys!
 
 ---
 
-## 2. Installation via Dockge / Portainer
+## 2. Image Tags
+
+The AuraGo Docker image is published to GitHub Container Registry (`ghcr.io/antibyte/aurago`).
+
+| Tag | Description | Use Case |
+|-----|-------------|----------|
+| `latest` | Always points to the latest stable release | Production (default) |
+| `v1.2.3` | Pinned to a specific release | Reproducible deployments |
+| `main` | Current main branch build | Testing / pre-release |
+
+> **Recommendation:** For production, pin to a specific version tag. For example:
+> ```yaml
+> image: ghcr.io/antibyte/aurago:v1.2.3
+> ```
+
+---
+
+## 3. Installation via Dockge / Portainer
 
 If you use a Docker management stack like **Dockge** or **Portainer**, deployment is just a copy-paste away.
 
@@ -61,9 +92,9 @@ chmod 600 aurago_master.key
 ```
 
 ### Step 3: Deploy
-Deploy the stack. 
-- Dockge will pull the latest `aurago:latest` image.
-- On startup, the container automatically generates the `config.yaml` file (fixing Docker's default behavior of creating directories) and loads the master key from the Docker secret.
+Deploy the stack.
+- Dockge/Portainer will pull the image and start three containers: `aurago`, `aurago_docker_proxy`, and `aurago_gotenberg`.
+- On first start, the container automatically generates the config from the built-in template.
 - Persistent volumes for `/app/data` and `/app/agent_workspace/workdir` are automatically created.
 
 ### Step 4: Configure via Web UI
@@ -74,7 +105,66 @@ Access the Web UI at `http://<your-server-ip>:8088` and navigate to the **CONFIG
 
 ---
 
-## 3. Migrating an Existing Installation to Docker Secrets
+## 4. Docker Socket Security
+
+By default, the `docker-compose.yml` uses a **Docker socket proxy** (`tecnativa/docker-socket-proxy`) instead of mounting the Docker socket directly into the AuraGo container. This is a significant security improvement:
+
+| | Socket Proxy (default) | Direct Socket Mount |
+|---|---|---|
+| Host access | Filtered API subset only | Full root-equivalent access |
+| Risk if compromised | Limited to allowed operations | Complete host takeover |
+| Container management | Start, stop, inspect, exec | Everything (including privilege escalation) |
+
+### Switching to Direct Socket Access (NOT recommended)
+
+If you have a specific reason to bypass the proxy:
+
+1. In `docker-compose.yml`, comment out the `docker-proxy` service and the `depends_on` block.
+2. Uncomment the `docker.sock` volume mount in the `aurago` service.
+3. Change `DOCKER_HOST` in the `aurago` environment to `unix:///var/run/docker.sock`.
+4. Remove or comment out the `docker-proxy` service block.
+
+> **Warning:** Direct socket access grants root-equivalent access to the host machine. Only use this if you fully trust the AuraGo agent and all its tool calls.
+
+---
+
+## 5. Upgrading
+
+### Standard Upgrade
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+This pulls the latest image and restarts the container. Your data is preserved in Docker volumes:
+- `aurago_data` — config, memory, chat history, vault, vector DB
+- `aurago_workdir` — Python venv and generated tools
+
+### Clean Reinstall (Preserving Data)
+
+```bash
+# Stop everything
+docker compose down
+
+# Volumes are preserved by default. To verify:
+docker volume ls | grep aurago
+
+# Pull and restart
+docker compose pull
+docker compose up -d
+```
+
+### Nuclear Option (DESTROYS ALL DATA)
+
+```bash
+docker compose down -v   # -v removes volumes
+docker compose up -d     # start fresh
+```
+
+---
+
+## 6. Migrating an Existing Installation to Docker Secrets
 
 If you already have a running AuraGo container that stores the key in `data/.env`:
 
@@ -88,4 +178,31 @@ docker compose down && docker compose up -d
 
 # 3. (Optional) Remove the old .env from the volume
 docker compose exec aurago rm -f /app/data/.env
-```    
+```
+
+---
+
+## 7. Troubleshooting
+
+### Container exits immediately
+Check the logs:
+```bash
+docker compose logs aurago
+```
+Common causes: corrupt `config.yaml`, missing master key permissions.
+
+### config.yaml is a directory (not a file)
+Docker auto-creates a directory when the host file does not exist at mount time. Fix:
+```bash
+docker compose down
+rmdir config.yaml          # remove the auto-created directory
+touch config.yaml          # create an empty file
+docker compose up -d
+```
+
+### Healthcheck fails during first start
+The healthcheck has a 3-minute startup window (`start-period: 180s`) to allow for VectorDB initialization. On very slow systems this may not be enough. You can override it in `docker-compose.yml`:
+```yaml
+healthcheck:
+  start_period: 300s
+```

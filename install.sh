@@ -16,7 +16,7 @@ GITHUB_REPO="antibyte/AuraGo"
 REPO="https://github.com/${GITHUB_REPO}.git"
 INSTALL_DIR="${AURAGO_DIR:-$HOME/aurago}"
 SYSTEMD_SERVICE="aurago"
-GO_VERSION="1.26.0"
+GO_VERSION="1.26.1"
 GO_INSTALL_DIR="/usr/local"
 
 # ── UI & Typography ──────────────────────────────────────────────────────

@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"aurago/internal/agent"
@@ -151,6 +152,7 @@ type Server struct {
 	IsFirstStart    bool
 	StartedAt       time.Time     // server start time for uptime calculation
 	ShutdownCh      chan struct{} // signal channel for graceful shutdown
+	ready           atomic.Bool   // set to true once the server is accepting connections
 	firstStartDone  bool
 	muFirstStart    sync.Mutex
 	internalToken   string       // per-process crypto token for loopback auth
@@ -855,21 +857,28 @@ func (s *Server) serveWithShutdown(server, redirectServer, ttsServer *http.Serve
 
 	// Start main server
 	var err error
-	if server.TLSConfig != nil {
-		err = server.ListenAndServeTLS("", "")
-	} else {
-		err = server.ListenAndServe()
-	}
-
-	if err != nil && err != http.ErrServerClosed {
-		richErr := fmt.Errorf("server listen error: %w", err)
-		// Detect privileged port issue (ports < 1024 require root or CAP_NET_BIND_SERVICE)
-		if strings.Contains(err.Error(), "permission denied") || strings.Contains(err.Error(), "bind") {
+	ln, listenErr := net.Listen("tcp", server.Addr)
+	if listenErr != nil {
+		richErr := fmt.Errorf("server listen error: %w", listenErr)
+		if strings.Contains(listenErr.Error(), "permission denied") || strings.Contains(listenErr.Error(), "bind") {
 			richErr = fmt.Errorf("%w\n\nHint: Ports below 1024 (80, 443) require root privileges.\n"+
 				"To use HTTPS without root: set server.https.https_port to 8443 (or any high port) and\n"+
 				"server.https.http_port to 8080 in your config.yaml", richErr)
 		}
 		return richErr
+	}
+
+	s.ready.Store(true)
+	s.Logger.Info("Server ready — accepting connections", "addr", server.Addr)
+
+	if server.TLSConfig != nil {
+		err = server.ServeTLS(ln, "", "")
+	} else {
+		err = server.Serve(ln)
+	}
+
+	if err != nil && err != http.ErrServerClosed {
+		return fmt.Errorf("server error: %w", err)
 	}
 
 	s.Logger.Info("Server stopped gracefully")
@@ -981,7 +990,8 @@ func accessLogMiddleware(logger *slog.Logger, next http.Handler, behindProxy boo
 			strings.HasSuffix(path, ".woff") ||
 			strings.HasSuffix(path, ".svg") ||
 			strings.HasSuffix(path, ".map") ||
-			path == "/api/health"
+			path == "/api/health" ||
+			path == "/api/ready"
 		if skip {
 			next.ServeHTTP(w, r)
 			return

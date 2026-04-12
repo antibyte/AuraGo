@@ -305,6 +305,19 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 	})
 
+	// Readiness check — returns 503 until the server has finished initialization
+	// and is actively accepting connections. Used by Docker HEALTHCHECK and load balancers.
+	mux.HandleFunc("/api/ready", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if s.ready.Load() {
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(map[string]string{"status": "ready"})
+		} else {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			json.NewEncoder(w).Encode(map[string]string{"status": "initializing"})
+		}
+	})
+
 	// System warnings — returns runtime health warnings.
 	mux.HandleFunc("/api/warnings", handleWarnings(s))
 	mux.HandleFunc("/api/warnings/acknowledge", handleWarningsAcknowledge(s))
