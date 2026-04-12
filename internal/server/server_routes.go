@@ -1708,7 +1708,6 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	// this port is never reachable from the network.
 	s.CfgMu.RLock()
 	loopbackPort := s.Cfg.CloudflareTunnel.LoopbackPort
-	httpsActive := s.Cfg.Server.HTTPS.Enabled
 	s.CfgMu.RUnlock()
 	// Build a dynamic loopback handler: routes requests to either the Homepage caddy
 	// server or the Web UI depending on the current expose-target config, without
@@ -1739,7 +1738,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 			webUILoopbackHandler.ServeHTTP(w, r)
 		}
 	})
-	if loopbackPort > 0 && httpsActive {
+	if loopbackPort > 0 {
 		bindAddr := fmt.Sprintf("127.0.0.1:%d", loopbackPort)
 		ln, err := net.Listen("tcp4", bindAddr)
 		if err != nil {
