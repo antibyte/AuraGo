@@ -8,6 +8,7 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/memory"
 	"aurago/internal/prompts"
+	"aurago/internal/tools/outputcompress"
 
 	"github.com/sashabaranov/go-openai"
 )
@@ -83,6 +84,33 @@ func finalizeToolExecution(
 	limit := 0
 	if cfg != nil {
 		limit = cfg.Agent.ToolOutputLimit
+	}
+
+	// Compress tool output before applying truncation policy.
+	// This reduces token consumption by filtering, deduplicating, and
+	// summarising verbose outputs while preserving semantic content.
+	if !guardianBlocked && cfg != nil {
+		compCfg := outputcompress.Config{
+			Enabled:        cfg.Agent.OutputCompression.Enabled,
+			MinChars:       cfg.Agent.OutputCompression.MinChars,
+			PreserveErrors: cfg.Agent.OutputCompression.PreserveErrors,
+		}
+		// For zero-value config (user didn't set anything), enable with defaults
+		if !compCfg.Enabled && compCfg.MinChars == 0 {
+			compCfg = outputcompress.DefaultConfig()
+		}
+		var compStats outputcompress.CompressionStats
+		rawContent, compStats = outputcompress.Compress(tc.Action, tc.Command, rawContent, compCfg)
+		if compStats.Ratio < 1.0 {
+			logger.Debug("output compressed",
+				"tool", tc.Action,
+				"filter", compStats.FilterUsed,
+				"raw_chars", compStats.RawChars,
+				"compressed_chars", compStats.CompressedChars,
+				"ratio", fmt.Sprintf("%.2f", compStats.Ratio),
+			)
+			RecordScopedToolResultForTool(scope, "output_compression_used", true)
+		}
 	}
 
 	policyResult := applyToolOutputPolicy(rawContent, limit, scope)

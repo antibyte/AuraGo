@@ -296,7 +296,13 @@ type Config struct {
 			WaitPollIntervalSecs   int  `yaml:"wait_poll_interval_seconds"` // poll interval for wait_for_event tasks (default: 5)
 			WaitDefaultTimeoutSecs int  `yaml:"wait_default_timeout_secs"`  // default timeout for wait_for_event tasks (default: 600)
 		} `yaml:"background_tasks"`
-		MaxToolGuides int `yaml:"max_tool_guides"` // maximum tool guide documents injected into prompt (default: 5)
+			MaxToolGuides int `yaml:"max_tool_guides"` // maximum tool guide documents injected into prompt (default: 5)
+	
+			OutputCompression struct {
+				Enabled        bool `yaml:"enabled"`          // enable command-aware output compression (default: true)
+				MinChars       int  `yaml:"min_chars"`        // only compress outputs exceeding this size (default: 500)
+				PreserveErrors bool `yaml:"preserve_errors"`  // never compress error outputs (default: true)
+			} `yaml:"output_compression"`
 
 		AnnouncementDetector struct {
 			Enabled    bool `yaml:"enabled"`     // enable announcement-only response detection (default: true)

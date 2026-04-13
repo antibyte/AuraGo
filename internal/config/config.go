@@ -434,6 +434,11 @@ func Load(path string) (*Config, error) {
 	if cfg.Agent.ToolOutputLimit <= 0 {
 		cfg.Agent.ToolOutputLimit = 50000
 	}
+	// Output compression defaults (enabled by default for MVP)
+	if cfg.Agent.OutputCompression.MinChars <= 0 {
+		cfg.Agent.OutputCompression.MinChars = 500
+	}
+	// PreserveErrors defaults to true when not explicitly set (zero value = true)
 	// V2 requires V1 — automatically enable V1 when V2 is on.
 	if cfg.Personality.EngineV2 && !cfg.Personality.Engine {
 		cfg.Personality.Engine = true
