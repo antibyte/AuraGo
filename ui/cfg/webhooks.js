@@ -121,7 +121,7 @@ function whSwitchTab(btn, panelId) {
 /* ── Webhook List ── */
 function whRenderWebhookList() {
     let html = `<div class="wh-toolbar">
-                <span class="wh-count">${whWebhooks.length} / ${10} Webhooks</span>
+                <span class="wh-count">${whWebhooks.length} / ${10} ${t('config.webhooks.count_webhooks')}</span>
                 ${whWebhooks.length < 10 ? `<button class="wh-btn wh-btn-primary" onclick="whShowEditor(null)">+ ${t('config.webhooks.new_webhook')}</button>` : ''}
             </div>`;
 
@@ -422,7 +422,7 @@ async function whTestWebhook(id) {
 /* ── Token Management ── */
 function whRenderTokenList() {
     let html = `<div class="wh-toolbar">
-                <span class="wh-count">${whTokens.length} Tokens</span>
+                <span class="wh-count">${whTokens.length} ${t('config.webhooks.count_tokens')}</span>
                 <button class="wh-btn wh-btn-primary" onclick="whCreateToken()">+ ${t('config.tokens.new_token')}</button>
             </div>`;
     html += '<div id="wh-token-created" class="wh-token-reveal is-hidden"></div>';
@@ -558,8 +558,8 @@ async function whLoadLog() {
                         <td>${esc(e.webhook_name || e.webhook_id)}</td>
                         <td><span class="wh-badge ${statusClass}">${e.status_code}</span></td>
                         <td>${esc(e.source_ip || '')}</td>
-                        <td>${e.payload_size || 0} B</td>
-                        <td>${e.delivered ? '✓' : (e.error ? '✗ ' + esc(e.error) : '—')}</td>
+                        <td>${e.payload_size || 0} ${t('config.webhooks.payload_bytes')}</td>
+                        <td>${e.delivered ? t('config.webhooks.log_delivered') : (e.error ? t('config.webhooks.log_failed') + ' ' + esc(e.error) : t('config.webhooks.log_pending'))}</td>
                     </tr>`;
         }
         html += '</tbody></table>';
@@ -665,7 +665,7 @@ function ogShowModal(idx) {
             </div>
             <div class="wh-form-row">
                 <label>${t('config.webhooks.og_headers')} <small>${t('config.webhooks.og_headers_hint')}</small></label>
-                <textarea id="og-f-headers" class="field-input wh-textarea" rows="3" placeholder="Authorization: Bearer xxx">${esc(headersStr)}</textarea>
+                <textarea id="og-f-headers" class="field-input wh-textarea" rows="3" placeholder="${t('config.webhooks.og_headers_placeholder')}">${esc(headersStr)}</textarea>
             </div>
             <div class="wh-subsection-title wh-subsection-title-inline">
                 ${t('config.webhooks.og_parameters')}
@@ -680,7 +680,7 @@ function ogShowModal(idx) {
                     </select>
                 </div>
                 <div class="og-col-body"><label>${t('config.webhooks.og_body_template')}</label>
-                    <textarea id="og-f-body" class="field-input wh-textarea" rows="3" placeholder='{"text":"{{message}}"}' ${payloadType !== 'custom' ? 'disabled' : ''}>${esc(bodyTemplate)}</textarea>
+                    <textarea id="og-f-body" class="field-input wh-textarea" rows="3" placeholder="${t('config.webhooks.og_body_template_placeholder')}" ${payloadType !== 'custom' ? 'disabled' : ''}>${esc(bodyTemplate)}</textarea>
                 </div>
             </div>
         </div>

@@ -5728,4 +5728,132 @@ select.cfg-input option {
     .field-group {
         padding: 0.9rem 1rem;
     }
+
+    /* Webhooks mobile fixes */
+    .wh-tabs {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        gap: 0;
+    }
+
+    .wh-tab {
+        padding: 0.5rem 0.8rem;
+        font-size: var(--text-xs);
+        white-space: nowrap;
+    }
+
+    .wh-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.5rem;
+    }
+
+    .wh-count {
+        text-align: center;
+    }
+
+    .wh-btn-primary {
+        width: 100%;
+        text-align: center;
+    }
+
+    .wh-card-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+    .wh-card-actions {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .wh-card-meta {
+        flex-direction: column;
+        gap: 0.25rem 0;
+    }
+
+    .wh-form-row {
+        margin-bottom: 0.5rem;
+    }
+
+    .wh-editor-body {
+        padding: 0.75rem;
+    }
+
+    .wh-field-row {
+        flex-wrap: wrap;
+    }
+
+    .wh-field-row .field-input {
+        min-width: 100%;
+    }
+
+    .wh-subsection-title {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+    /* Outgoing webhooks modal mobile fixes */
+    .og-modal {
+        max-width: 100%;
+        max-height: 95vh;
+        border-radius: 12px;
+    }
+
+    .og-form-split {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .og-form-split > div {
+        width: 100%;
+    }
+
+    .og-col-url,
+    .og-col-body {
+        flex: 1 1 100%;
+    }
+
+    .og-param-row {
+        flex-wrap: wrap;
+        gap: 0.35rem;
+    }
+
+    .og-param-row .field-input,
+    .og-param-row .field-select {
+        min-width: 100%;
+    }
+
+    .og-toggle-wrap {
+        width: 100%;
+        justify-content: center;
+    }
+
+    /* Log table mobile */
+    .wh-log-table {
+        font-size: var(--text-xs);
+        display: block;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .wh-log-table th,
+    .wh-log-table td {
+        padding: 0.3rem 0.4rem;
+        white-space: nowrap;
+    }
+
+    /* Token list mobile */
+    .wh-card-wh-card-token .wh-card-meta-wh-card-meta-spaced {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    /* Outgoing toolbar mobile */
+    .wh-outgoing-wrap .wh-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
 }
