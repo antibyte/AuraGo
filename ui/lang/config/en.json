@@ -64,5 +64,9 @@
   "config.n8n.token_error": "Failed to load token",
   "config.n8n.token_generated": "New token generated successfully",
   "config.n8n.token_deleted": "Token deleted",
+  "config.n8n.webhook_url_placeholder": "https://n8n.example.com/webhook/",
+  "config.n8n.token_masked": "•••",
+  "config.n8n.token_generate_success": "✓ New token generated successfully",
+  "config.n8n.token_error_with_icon": "✗ Failed to load token",
   "help.n8n.enabled": "Enable the n8n integration to connect AuraGo with your n8n workflows via webhooks."
 }

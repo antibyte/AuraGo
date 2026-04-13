@@ -27,5 +27,9 @@
   "config.n8n.token_error": "Αποτυχία φόρτωσης διακριτικού",
   "config.n8n.token_generated": "Νέο διακριτικό δημιουργήθηκε επιτυχώς",
   "config.n8n.token_deleted": "Διακριτικό διαγράφηκε",
+  "config.n8n.webhook_url_placeholder": "https://n8n.example.com/webhook/",
+  "config.n8n.token_masked": "•••",
+  "config.n8n.token_generate_success": "✓ Νέο διακριτικό δημιουργήθηκε επιτυχώς",
+  "config.n8n.token_error_with_icon": "✗ Αποτυχία φόρτωσης διακριτικού",
   "help.n8n.enabled": "Ενεργοποιήστε την ενσωμάτωση n8n για να συνδέσετε το AuraGo με τα workflows σας στο n8n μέσω webhooks."
 }

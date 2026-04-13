@@ -27,5 +27,9 @@
   "config.n8n.token_error": "トークンの読み込みに失敗しました",
   "config.n8n.token_generated": "新しいトークンが正常に生成されました",
   "config.n8n.token_deleted": "トークンが削除されました",
+  "config.n8n.webhook_url_placeholder": "https://n8n.example.com/webhook/",
+  "config.n8n.token_masked": "•••",
+  "config.n8n.token_generate_success": "✓ 新しいトークンが正常に生成されました",
+  "config.n8n.token_error_with_icon": "✗ トークンの読み込みに失敗しました",
   "help.n8n.enabled": "webhookを通じてAuraGoをn8nワークフローに接続するには、n8n統合を有効にしてください。"
 }

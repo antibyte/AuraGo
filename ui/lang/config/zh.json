@@ -27,5 +27,9 @@
   "config.n8n.token_error": "加载令牌失败",
   "config.n8n.token_generated": "新令牌生成成功",
   "config.n8n.token_deleted": "令牌已删除",
+  "config.n8n.webhook_url_placeholder": "https://n8n.example.com/webhook/",
+  "config.n8n.token_masked": "•••",
+  "config.n8n.token_generate_success": "✓ 新令牌生成成功",
+  "config.n8n.token_error_with_icon": "✗ 加载令牌失败",
   "help.n8n.enabled": "启用 n8n 集成以通过 webhook 将 AuraGo 连接到您的 n8n 工作流。"
 }

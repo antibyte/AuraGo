@@ -27,5 +27,9 @@
   "config.n8n.token_error": "टोकन लोड करने में विफल",
   "config.n8n.token_generated": "नया टोकन सफलतापूर्वक जेनरेट किया गया",
   "config.n8n.token_deleted": "टोकन हटाया गया",
+  "config.n8n.webhook_url_placeholder": "https://n8n.example.com/webhook/",
+  "config.n8n.token_masked": "•••",
+  "config.n8n.token_generate_success": "✓ नया टोकन सफलतापूर्वक जेनरेट किया गया",
+  "config.n8n.token_error_with_icon": "✗ टोकन लोड करने में विफल",
   "help.n8n.enabled": "webhooks के माध्यम से AuraGo को अपने n8n Workflows से कनेक्ट करने के लिए n8n एकीकरण सक्षम करें।"
 }

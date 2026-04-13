@@ -27,5 +27,9 @@
   "config.n8n.token_error": "Échec du chargement du jeton",
   "config.n8n.token_generated": "Nouveau jeton généré avec succès",
   "config.n8n.token_deleted": "Jeton supprimé",
+  "config.n8n.webhook_url_placeholder": "https://n8n.example.com/webhook/",
+  "config.n8n.token_masked": "•••",
+  "config.n8n.token_generate_success": "✓ Nouveau jeton généré avec succès",
+  "config.n8n.token_error_with_icon": "✗ Échec du chargement du jeton",
   "help.n8n.enabled": "Activez l'intégration n8n pour connecter AuraGo à vos workflows n8n via des webhooks."
 }

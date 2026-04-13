@@ -47,7 +47,7 @@ async function renderN8nSection(section) {
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.n8n.webhook_url_label') + '</div>';
     html += '<div class="field-help">' + t('config.n8n.webhook_url_hint') + '</div>';
-    html += '<input class="field-input" type="url" data-path="n8n.webhook_base_url" value="' + escapeAttr(data.webhook_base_url || '') + '" placeholder="https://n8n.example.com/webhook/" oninput="markDirty()">';
+    html += '<input class="field-input" type="url" data-path="n8n.webhook_base_url" value="' + escapeAttr(data.webhook_base_url || '') + '" placeholder="' + t('config.n8n.webhook_url_placeholder') + '" oninput="markDirty()">';
     html += '</div>';
 
     // ── Rate limit ──
@@ -100,16 +100,16 @@ async function n8nGenerateToken() {
         const resp = await fetch('/api/n8n/token', { method: 'POST' });
         if (!resp.ok) throw new Error(resp.statusText);
         const data = await resp.json();
-        if (display) display.textContent = data.token || '•••';
+        if (display) display.textContent = data.token || t('config.n8n.token_masked');
         if (status) {
             status.className = 'n8n-token-status n8n-token-status-success';
-            status.textContent = '✓ ' + t('config.n8n.token_generated');
+            status.textContent = t('config.n8n.token_generate_success');
             setTimeout(() => { if (status) status.textContent = ''; }, 4000);
         }
     } catch (e) {
         if (status) {
             status.className = 'n8n-token-status n8n-token-status-error';
-            status.textContent = '✗ ' + t('config.n8n.token_error');
+            status.textContent = t('config.n8n.token_error_with_icon');
         }
     }
 }
@@ -129,7 +129,7 @@ async function n8nDeleteToken() {
     } catch (e) {
         if (status) {
             status.className = 'n8n-token-status n8n-token-status-error';
-            status.textContent = '✗ ' + t('config.n8n.token_error');
+            status.textContent = t('config.n8n.token_error_with_icon');
         }
     }
 }

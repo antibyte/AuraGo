@@ -27,5 +27,9 @@
   "config.n8n.token_error": "Nepodařilo se načíst token",
   "config.n8n.token_generated": "Nový token úspěšně vygenerován",
   "config.n8n.token_deleted": "Token smazán",
+  "config.n8n.webhook_url_placeholder": "https://n8n.example.com/webhook/",
+  "config.n8n.token_masked": "•••",
+  "config.n8n.token_generate_success": "✓ Nový token úspěšně vygenerován",
+  "config.n8n.token_error_with_icon": "✗ Nepodařilo se načíst token",
   "help.n8n.enabled": "Povolte integraci n8n pro propojení AuraGo s vašimi n8n workflow prostřednictvím webhooků."
 }
