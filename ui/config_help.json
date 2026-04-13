@@ -443,5 +443,343 @@
       "title": "PDF Extractor",
       "description": "Extract text content from PDF files. Summary mode sends extracted text through the central Helper LLM for focused summarisation"
     }
+  },
+  "a2a": {
+    "agent_name": {
+      "title": "Agent Name",
+      "description": "Public agent name shown in the Agent Card."
+    },
+    "agent_url": {
+      "title": "Agent URL (Override)",
+      "description": "Override the auto-detected agent URL. Use when behind a reverse proxy or on a custom domain."
+    },
+    "base_path": {
+      "title": "Base Path",
+      "description": "URL path prefix for A2A endpoints (default: /a2a)."
+    },
+    "client_enabled": {
+      "title": "Client Enabled",
+      "description": "Enable the A2A client to connect to and communicate with remote A2A agents."
+    },
+    "llm_provider": {
+      "title": "LLM Provider",
+      "description": "Select which LLM provider to use for A2A tasks. Leave empty to use the main LLM."
+    },
+    "port": {
+      "title": "Dedicated Port",
+      "description": "Set to 0 to share the main web server port. Set a number to run A2A on a dedicated port."
+    },
+    "server_enabled": {
+      "title": "Server Enabled",
+      "description": "Expose this AuraGo instance as an A2A-compatible agent that other agents can communicate with via the A2A protocol."
+    }
+  },
+  "daemon_skills": {
+    "enabled": {
+      "title": "Enabled",
+      "description": "Enable or disable daemon skills globally."
+    },
+    "global_rate_limit_secs": {
+      "title": "Global Rate Limit (seconds)",
+      "description": "Minimum seconds between daemon wake-up calls to the agent."
+    },
+    "max_budget_per_hour": {
+      "title": "Max Budget Per Hour",
+      "description": "Maximum LLM cost (in USD) that daemon wake-ups can consume per hour."
+    },
+    "max_concurrent_daemons": {
+      "title": "Max Concurrent Daemons",
+      "description": "Maximum number of daemons that can run simultaneously."
+    },
+    "max_wakeups_per_hour": {
+      "title": "Max Wakeups Per Hour",
+      "description": "Maximum total agent wake-ups from all daemons per hour."
+    }
+  },
+  "document_creator": {
+    "backend": {
+      "title": "Backend",
+      "description": "Maroto is a pure Go PDF library with no external dependencies. Gotenberg is a Docker service with full document conversion, screenshots, and office format support."
+    },
+    "gotenberg_timeout": {
+      "title": "Gotenberg Timeout",
+      "description": "Maximum time in seconds to wait for document generation."
+    },
+    "gotenberg_url": {
+      "title": "Gotenberg URL",
+      "description": "Base URL of the Gotenberg service (e.g. http://gotenberg:3000)."
+    },
+    "output_dir": {
+      "title": "Output Directory",
+      "description": "Directory where generated documents are saved."
+    }
+  },
+  "firewall": {
+    "firewall": {
+      "title": "Firewall Check Interval",
+      "description": "How often (in seconds) the guard mode checks for firewall rule edits to inform the agent."
+    }
+  },
+  "fritzbox": {
+    "enabled": {
+      "title": "Enabled",
+      "description": "Enables the Fritz!Box integration. The agent can query system info, manage WLAN, read call lists, control Smart Home devices, and more."
+    },
+    "host": {
+      "title": "Host",
+      "description": "Hostname or IP address of your Fritz!Box (default: fritz.box)."
+    },
+    "https": {
+      "title": "Use HTTPS",
+      "description": "Use HTTPS for TR-064 connections (recommended). Disable only if your Fritz!Box does not have a valid certificate."
+    },
+    "password": {
+      "title": "Password",
+      "description": "Fritz!Box login password. Stored securely in the encrypted vault."
+    },
+    "port": {
+      "title": "TR-064 Port",
+      "description": "TR-064 control port (default: 49000). Do not change unless you have a custom configuration."
+    },
+    "username": {
+      "title": "Username",
+      "description": "Fritz!Box login username. Leave empty to use the default admin account without a username."
+    }
+  },
+  "jellyfin": {
+    "enabled": {
+      "title": "Enabled",
+      "description": "Enables the Jellyfin integration. The agent can browse libraries, search media, control playback, and manage your media server."
+    },
+    "readonly": {
+      "title": "Read-Only Mode",
+      "description": "In read-only mode, the agent can only view data. Playback control and library refresh are blocked."
+    },
+    "allow_destructive": {
+      "title": "Allow Destructive",
+      "description": "Allows deleting media items from the Jellyfin server."
+    },
+    "use_https": {
+      "title": "Use HTTPS",
+      "description": "Uses HTTPS for the connection to the Jellyfin server."
+    },
+    "insecure_ssl": {
+      "title": "Insecure SSL",
+      "description": "Accepts self-signed or invalid certificates (for test environments only)."
+    },
+    "host": {
+      "title": "Host",
+      "description": "Hostname or IP address of your Jellyfin server (e.g. jellyfin.local or 192.168.1.100)."
+    },
+    "port": {
+      "title": "Port",
+      "description": "Port of the Jellyfin server (default: 8096)."
+    },
+    "api_key": {
+      "title": "API Key",
+      "description": "API key for the Jellyfin API. Create one under Dashboard → API Keys in Jellyfin."
+    }
+  },
+  "mission_preparation": {
+    "enabled": {
+      "title": "Enabled",
+      "description": "Enable LLM-based pre-analysis of missions before execution."
+    },
+    "provider": {
+      "title": "Provider",
+      "description": "Override the LLM provider for preparation analysis. Leave empty to use the main provider."
+    },
+    "timeout_seconds": {
+      "title": "Timeout (seconds)",
+      "description": "Maximum time in seconds for a single preparation analysis."
+    },
+    "max_essential_tools": {
+      "title": "Max Essential Tools",
+      "description": "Maximum number of tools to include in the preparation analysis."
+    },
+    "cache_expiry_hours": {
+      "title": "Cache Expiry (hours)",
+      "description": "How long a preparation remains valid before it needs to be refreshed."
+    },
+    "min_confidence": {
+      "title": "Min Confidence",
+      "description": "Minimum confidence score (0-1) required for a preparation to be used."
+    },
+    "auto_prepare_scheduled": {
+      "title": "Auto Prepare Scheduled",
+      "description": "Automatically prepare scheduled missions when they are created or modified."
+    }
+  },
+  "mqtt": {
+    "broker": {
+      "title": "Broker",
+      "description": "MQTT broker address in the format 'tcp://host:port' (e.g. 'tcp://localhost:1883') or 'ssl://host:port' for TLS."
+    },
+    "buffer_max_messages": {
+      "title": "Buffer Max Messages",
+      "description": "Maximum number of messages to buffer. Oldest messages are discarded when the limit is reached. Default: 500."
+    },
+    "client_id": {
+      "title": "Client ID",
+      "description": "Client ID for the broker connection. Default: 'aurago'. Must be unique per broker."
+    },
+    "connect_timeout": {
+      "title": "Connect Timeout",
+      "description": "Connection timeout in seconds. Default: 15."
+    },
+    "enabled": {
+      "title": "Enabled",
+      "description": "Enables the MQTT integration. Allows the agent to publish, receive, and subscribe to MQTT messages."
+    },
+    "qos": {
+      "title": "QoS",
+      "description": "Default Quality of Service level: 0 = at most once, 1 = at least once, 2 = exactly once."
+    },
+    "read_only": {
+      "title": "Read Only",
+      "description": "When enabled, the agent can only read MQTT messages but cannot publish, subscribe, or unsubscribe."
+    },
+    "relay_to_agent": {
+      "title": "Relay To Agent",
+      "description": "When enabled, incoming MQTT messages are relayed as context to the agent."
+    },
+    "tls_ca_file": {
+      "title": "TLS CA File",
+      "description": "Path to the CA certificate file for TLS verification (optional, for custom CAs)."
+    },
+    "tls_cert_file": {
+      "title": "TLS Cert File",
+      "description": "Path to the client certificate file for mutual TLS authentication (optional)."
+    },
+    "tls_enabled": {
+      "title": "TLS Enabled",
+      "description": "Enable TLS/SSL encryption for the MQTT connection."
+    },
+    "tls_insecure_skip_verify": {
+      "title": "TLS Skip Verify",
+      "description": "Skip TLS certificate verification. WARNING: Use only for testing with self-signed certificates."
+    },
+    "tls_key_file": {
+      "title": "TLS Key File",
+      "description": "Path to the client private key file for mutual TLS authentication (optional)."
+    },
+    "topics": {
+      "title": "Topics",
+      "description": "Comma-separated list of topics to subscribe to on startup (e.g. 'home/#, sensors/temperature')."
+    },
+    "username": {
+      "title": "Username",
+      "description": "Username for MQTT authentication (optional, depending on broker configuration)."
+    }
+  },
+  "skill_manager": {
+    "allow_uploads": {
+      "title": "Allow Uploads",
+      "description": "Allow uploading new Python skill files."
+    },
+    "auto_enable_clean": {
+      "title": "Auto Enable Clean",
+      "description": "Automatically enable skills that pass the security scan without warnings."
+    },
+    "enabled": {
+      "title": "Enabled",
+      "description": "Enable or disable the Skill Manager feature."
+    },
+    "max_upload_size_mb": {
+      "title": "Max Upload Size (MB)",
+      "description": "Maximum allowed file size for skill uploads in megabytes."
+    },
+    "read_only": {
+      "title": "Read Only",
+      "description": "When enabled, prevents all modifications to skills (no upload, delete, or toggle)."
+    },
+    "require_sandbox": {
+      "title": "Require Sandbox",
+      "description": "When enabled, skills can only be executed inside the sandboxed container environment. This prevents direct access to the system."
+    },
+    "require_scan": {
+      "title": "Require Scan",
+      "description": "Run a security scan on uploaded skills before enabling them."
+    },
+    "scan_with_guardian": {
+      "title": "Scan With Guardian",
+      "description": "Use the LLM Guardian to review uploaded skill code for security issues."
+    }
+  },
+  "telnyx": {
+    "enabled": {
+      "title": "Enabled",
+      "description": "Enable the Telnyx integration for SMS and voice calls. The agent can send/receive SMS and make phone calls."
+    },
+    "read_only": {
+      "title": "Read Only",
+      "description": "When active, the agent can only receive messages but cannot send SMS or initiate calls."
+    },
+    "api_key": {
+      "title": "API Key",
+      "description": "Your Telnyx API v2 key. Stored securely in the encrypted vault."
+    },
+    "phone_number": {
+      "title": "Phone Number",
+      "description": "Your Telnyx phone number in E.164 format (e.g. +15551234567)."
+    },
+    "messaging_profile_id": {
+      "title": "Messaging Profile ID",
+      "description": "Telnyx Messaging Profile ID for sending SMS/MMS."
+    },
+    "connection_id": {
+      "title": "Connection ID",
+      "description": "Telnyx Connection ID (TeXML App or Call Control App) for voice calls."
+    },
+    "webhook_path": {
+      "title": "Webhook Path",
+      "description": "URL path where Telnyx delivers webhook events. Must match your Telnyx portal settings."
+    },
+    "allowed_numbers": {
+      "title": "Allowed Numbers",
+      "description": "Comma-separated list of phone numbers (E.164) that may interact with the agent. Leave empty to allow all."
+    },
+    "call_timeout": {
+      "title": "Call Timeout",
+      "description": "Maximum call duration in seconds before automatic hangup (30–3600)."
+    },
+    "record_calls": {
+      "title": "Record Calls",
+      "description": "Automatically record all voice calls. Recordings are stored and accessible to the agent."
+    },
+    "relay_to_agent": {
+      "title": "Relay To Agent",
+      "description": "Forward incoming SMS and call transcriptions to the agent loop for processing."
+    }
+  },
+  "truenas": {
+    "allow_destructive": {
+      "title": "Allow Destructive",
+      "description": "Allows deleting datasets, snapshots, and rollback operations."
+    },
+    "api_key": {
+      "title": "API Key",
+      "description": "API key for the TrueNAS API. Create one under System → API Keys in TrueNAS."
+    },
+    "enabled": {
+      "title": "Enabled",
+      "description": "Enables the TrueNAS integration. The agent can manage pools, datasets, snapshots, and shares."
+    },
+    "host": {
+      "title": "Host",
+      "description": "Hostname or IP address of your TrueNAS server (e.g. truenas.local or 192.168.1.100)."
+    },
+    "insecure_ssl": {
+      "title": "Insecure SSL",
+      "description": "Accepts self-signed or invalid certificates (for test environments only)."
+    },
+    "readonly": {
+      "title": "Read-Only Mode",
+      "description": "In read-only mode, the agent can only view data. All write operations are blocked."
+    },
+    "use_https": {
+      "title": "Use HTTPS",
+      "description": "Uses HTTPS for the connection to the TrueNAS server (recommended)."
+    }
   }
 }

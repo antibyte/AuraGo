@@ -50,3 +50,4 @@
   "config.google_workspace.oauth_manual_success": "Authorization successful",
   "config.google_workspace.oauth_manual_failed": "Authorization failed: ",
   "config.google_workspace.testing": "⏳ Testing..."
+}
