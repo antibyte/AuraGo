@@ -271,7 +271,7 @@
   "config.section.whisper.label": "Tale",
   "config.tts.language_help": "BCP-47-språkkode (f.eks. de, en, fr)",
   "config.tts.language_label": "Språk",
-  "config.tts.minimax_api_key_required": "MiniMax API key is required",
+  "config.tts.minimax_api_key_required": "MiniMax API-nøkkel er påkrevd",
   "config.tts.minimax_model_help": "speech-2.8-hd (høy kvalitet) eller speech-2.8-turbo (raskere)",
   "config.tts.minimax_model_label": "Modell",
   "config.tts.minimax_speed_help": "Talehastighet 0,5–2,0 (standard 1,0)",
