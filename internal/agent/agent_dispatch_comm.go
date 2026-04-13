@@ -300,8 +300,8 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			logger.Info("LLM requested to list skill templates")
 			templates := tools.AvailableSkillTemplates()
 			type templateInfo struct {
-				Name        string            `json:"name"`
-				Description string            `json:"description"`
+				Name        string                 `json:"name"`
+				Description string                 `json:"description"`
 				Parameters  map[string]interface{} `json:"parameters"`
 			}
 			infos := make([]templateInfo, len(templates))
@@ -825,6 +825,11 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				scanResult = upnpAutoRegister(scanResult, inventoryDB, req.RegisterType, req.RegisterTags, req.OverwriteExisting, logger)
 			}
 			return "Tool Output: " + scanResult
+
+		case "send_telegram":
+			req := decodeSendTelegramArgs(tc)
+			logger.Info("LLM requested telegram message", "title", req.Title)
+			return "Tool Output: " + tools.SendNotification(cfg, logger, "telegram", req.Title, req.Message, req.Priority, nil, nil)
 
 		case "send_notification", "notification_center", "send_push_notification", "web_push":
 			req := decodeNotificationArgs(tc)

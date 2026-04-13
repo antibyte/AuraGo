@@ -314,6 +314,7 @@
   "help.tools.notes.read_only": "有効にすると、エージェントはメモの表示のみが可能になり、作成、更新、削除はできません。",
   "help.tools.python_secret_injection.enabled": "Pythonツール (execute_python, execute_sandbox, execute_skill, run_tool) がvault_keysパラメータを介してVaultシークレットを要求できるようにします。シークレットはAURAGO_SECRET_&lt;KEY&gt;環境変数として注入されます。ユーザーまたはエージェントが作成したシークレットのみアクセス可能 — システムおよび統合シークレットはブロックされます。セキュリティのためデフォルトで無効。",
   "help.tools.python_tool_bridge.allowed_tools": "ツールブリッジ経由で Python スキルが呼び出せるネイティブ AuraGo ツールを選択します。ツールはスキルのマニフェスト（internal_tools）にも宣言されている必要があります。空にするとすべてのブリッジ呼び出しがブロックされます。",
+  "help.tools.python_tool_bridge.allowed_sql_connections": "ツールブリッジ経由で sql_query を呼び出す際に、Python スキルが使用できる SQL 接続名を選択します。空にすると SQL ブリッジ呼び出しをブロックします。",
   "help.tools.python_tool_bridge.enabled": "PythonスキルがネイティブAuraGoツール（例：proximox、docker_management）を内部HTTPブリッジ経由で直接呼び出せるようにします。スキルはマニフェストで必要なツールを宣言し（internal_toolsフィールド）、ツール名はpython_tool_bridge.allowed_toolsでホワイトリストに登録する必要があります。セキュリティのためデフォルトで無効。",
   "help.tools.scheduler.enabled": "スケジューラ ツール (cron_scheduler) を有効にします。エージェントが定期的なタスクをスケジュールできるようにします。",
   "help.tools.scheduler.read_only": "有効にすると、エージェントはスケジュールされたジョブを表示することのみができますが、ジョブを追加または削除することはできません。",

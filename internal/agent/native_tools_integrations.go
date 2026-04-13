@@ -424,6 +424,17 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 		)
 	}
 
+	if ff.TelegramEnabled {
+		tools = append(tools, tool("send_telegram",
+			"Send a Telegram message to the configured default chat (telegram_user_id).",
+			schema(map[string]interface{}{
+				"message":  prop("string", "Message text to send"),
+				"title":    prop("string", "Optional title prefix"),
+				"priority": prop("string", "Priority label (normal/high)"),
+			}, "message"),
+		))
+	}
+
 	if ff.DiscordEnabled {
 		tools = append(tools,
 			tool("send_discord",

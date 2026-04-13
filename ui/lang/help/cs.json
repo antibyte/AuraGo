@@ -314,6 +314,7 @@
   "help.tools.notes.read_only": "Pouze pro cteni pro tools.",
   "help.tools.python_secret_injection.enabled": "Umožňuje nástrojům Python (execute_python, execute_sandbox, execute_skill, run_tool) vyžádat si tajemství z trezoru pomocí parametru vault_keys. Tajemství se vkládají jako proměnné prostředí AURAGO_SECRET_&lt;KEY&gt;. Přístupná jsou pouze tajemství vytvořená uživatelem nebo agentem — systémová a integrační tajemství jsou blokována. Ve výchozím nastavení z bezpečnostních důvodů zakázáno.",
   "help.tools.python_tool_bridge.allowed_tools": "Vyberte, které nativní nástroje AuraGo mohou Python dovednosti volat přes tool bridge. Nástroj musí být také uveden v manifestu skillu (internal_tools). Ponechte prázdné pro blokování všech bridge volání.",
+  "help.tools.python_tool_bridge.allowed_sql_connections": "Vyberte, jaké názvy SQL připojení mohou Python skilly použít při volání sql_query přes nástrojový bridge. Nechte prázdné pro zablokování SQL volání přes bridge.",
   "help.tools.python_tool_bridge.enabled": "Umožňuje Python skriptům volat nativní nástroje AuraGo (např. proxmox, docker_management) přímo přes interní HTTP bridge. Skripty musí deklarovat potřebné nástroje ve svém manifestu (pole internal_tools) a názvy nástrojů musí být povoleny v python_tool_bridge.allowed_tools. Ve výchozím nastavení z bezpečnostních důvodů zakázáno.",
   "help.tools.scheduler.enabled": "Planovac.",
   "help.tools.scheduler.read_only": "Pouze cteni planovace.",

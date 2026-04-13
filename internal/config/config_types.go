@@ -1129,6 +1129,9 @@ type Config struct {
 		PythonToolBridge struct {
 			Enabled      bool     `yaml:"enabled"`       // allow Python skills to call internal AuraGo tools via loopback API (default: false)
 			AllowedTools []string `yaml:"allowed_tools"` // tools skills may invoke; empty = none (must be explicitly listed)
+			// AllowedSQLConnections restricts sql_query tool usage for Python skills.
+			// Empty = block all SQL bridge calls (when sql_query is otherwise allowed).
+			AllowedSQLConnections []string `yaml:"allowed_sql_connections"`
 		} `yaml:"python_tool_bridge"`
 		PythonTimeoutSeconds     int `yaml:"python_timeout_seconds"`     // foreground Python/shell execution timeout (default: 30)
 		SkillTimeoutSeconds      int `yaml:"skill_timeout_seconds"`      // skill execution timeout (default: 120)

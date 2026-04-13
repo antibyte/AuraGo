@@ -110,6 +110,33 @@ func handleToolBridgeExecute(s *Server) http.HandlerFunc {
 			return
 		}
 
+		// Optional: per-tool extra allowlists
+		if toolName == "sql_query" {
+			// Require an explicit allowlist of connection names for SQL usage from Python skills.
+			allowedConnections := cfg.Tools.PythonToolBridge.AllowedSQLConnections
+			if len(allowedConnections) == 0 {
+				toolBridgeWriteError(w, http.StatusForbidden, "SQL tool bridge access is blocked (allowed_sql_connections is empty)")
+				return
+			}
+			connName, _ := req.Parameters["connection_name"].(string)
+			connName = strings.TrimSpace(connName)
+			if connName == "" {
+				toolBridgeWriteError(w, http.StatusBadRequest, "connection_name is required for sql_query")
+				return
+			}
+			okConn := false
+			for _, n := range allowedConnections {
+				if n == connName {
+					okConn = true
+					break
+				}
+			}
+			if !okConn {
+				toolBridgeWriteError(w, http.StatusForbidden, "SQL connection is not allowed for tool bridge")
+				return
+			}
+		}
+
 		// Set timeout default and cap
 		timeout := req.Timeout
 		if timeout <= 0 {

@@ -98,6 +98,7 @@ async function renderSkillManagerSection(section) {
     const bridgeData = (configData['tools'] || {})['python_tool_bridge'] || {};
     const bridgeEnabled = bridgeData.enabled === true;
     const bridgeAllowedTools = Array.isArray(bridgeData.allowed_tools) ? bridgeData.allowed_tools : [];
+    const bridgeAllowedSQL = Array.isArray(bridgeData.allowed_sql_connections) ? bridgeData.allowed_sql_connections : [];
 
     html += '<div class="section-divider"></div>';
     html += '<div class="section-sub-header">🔌 ' + t('config.skill_manager.tool_bridge_header') + '</div>';
@@ -116,6 +117,13 @@ async function renderSkillManagerSection(section) {
     html += '<div class="field-label">' + t('config.skill_manager.tool_bridge_allowed_tools_label') + '</div>';
     if (helpBridgeTools) html += '<div class="field-help">' + helpBridgeTools + '</div>';
     html += renderPythonToolBridgeAllowedToolsPicker(bridgeAllowedTools);
+    html += '</div>';
+
+    const helpBridgeSQL = t('help.tools.python_tool_bridge.allowed_sql_connections');
+    html += '<div class="field-group">';
+    html += '<div class="field-label">' + (t('config.skill_manager.tool_bridge_allowed_sql_connections_label') || 'Allowed Databases') + '</div>';
+    if (helpBridgeSQL) html += '<div class="field-help">' + helpBridgeSQL + '</div>';
+    html += renderPythonToolBridgeSQLConnectionsPicker(bridgeAllowedSQL);
     html += '</div>';
 
     html += '</div>';
@@ -145,6 +153,26 @@ function renderPythonToolBridgeAllowedToolsPicker(currentAllowedTools) {
             <div id="ptb-tools-status" class="ptb-tools-status">${t('config.skill_manager.tool_bridge_loading') || 'Loading…'}</div>
             <div id="ptb-tools-list" class="mcp-srv-tools-list"></div>
             <div id="ptb-tools-warning" class="ptb-tools-warning" style="display:none;"></div>
+        </div>
+    `;
+}
+
+function renderPythonToolBridgeSQLConnectionsPicker(currentAllowedSQL) {
+    const allowed = Array.isArray(currentAllowedSQL) ? currentAllowedSQL : [];
+    const allowedJSON = escapeAttr(JSON.stringify(allowed));
+    const tmpl = t('config.skill_manager.tool_bridge_selected_dbs') || '{n} selected';
+    const countText = String(tmpl).replace('{n}', String(allowed.length));
+
+    return `
+        <div class="ptb-sql-wrap">
+            <div class="ptb-sql-row">
+                <button class="btn btn-sm" onclick="ptbOpenSQLConnectionsModal()">
+                    ${t('config.skill_manager.tool_bridge_choose_dbs') || 'Choose…'}
+                </button>
+                <span id="ptb-sql-count" class="ptb-selected-count">${esc(countText)}</span>
+            </div>
+            <textarea class="cfg-input is-hidden" id="ptb-allowed-sql-state"
+                data-path="tools.python_tool_bridge.allowed_sql_connections" data-type="json" style="display:none;">${allowedJSON}</textarea>
         </div>
     `;
 }
@@ -236,6 +264,32 @@ function ptbSetAllowedTools(selected) {
     setDirty(true);
     ptbSyncCheckboxStates();
     ptbUpdateWarning();
+}
+
+function ptbGetAllowedSQLConnections() {
+    const el = document.getElementById('ptb-allowed-sql-state');
+    if (!el) return [];
+    try {
+        const parsed = JSON.parse(el.value || '[]');
+        return Array.isArray(parsed) ? parsed : [];
+    } catch (_) {
+        return [];
+    }
+}
+
+function ptbSetAllowedSQLConnections(selected) {
+    const el = document.getElementById('ptb-allowed-sql-state');
+    if (!el) return;
+    const uniq = Array.from(new Set((selected || []).map(s => String(s).trim()).filter(Boolean))).sort();
+    el.value = JSON.stringify(uniq);
+    setNestedValue(configData, 'tools.python_tool_bridge.allowed_sql_connections', uniq);
+    setDirty(true);
+
+    const countEl = document.getElementById('ptb-sql-count');
+    if (countEl) {
+        const tmpl = t('config.skill_manager.tool_bridge_selected_dbs') || '{n} selected';
+        countEl.textContent = String(tmpl).replace('{n}', String(uniq.length));
+    }
 }
 
 function ptbToggleGroup(groupKey) {
@@ -345,6 +399,113 @@ function ptbUpdateWarning() {
         warnEl.textContent = t('config.skill_manager.tool_bridge_none_selected') || 'No tools selected. Python skills will not be able to call any native tools.';
         return;
     }
+
+    // If SQL tool is selected, require explicit allowed SQL connections for the bridge.
+    if (selected.includes('sql_query')) {
+        const dbs = ptbGetAllowedSQLConnections();
+        if (!dbs.length) {
+            warnEl.style.display = '';
+            warnEl.textContent = t('config.skill_manager.tool_bridge_sql_none_selected') || 'sql_query is selected, but no databases are allowed. SQL bridge calls will be blocked.';
+            return;
+        }
+    }
     warnEl.style.display = 'none';
     warnEl.textContent = '';
+}
+
+async function ptbOpenSQLConnectionsModal() {
+    const existing = document.getElementById('ptb-sql-modal');
+    if (existing) existing.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'ptb-sql-modal';
+    modal.className = 'sec-modal-overlay';
+    modal.innerHTML = `
+        <div class="sec-modal-panel ptb-sql-modal-panel">
+            <div class="sec-modal-title">🗄️ ${t('config.skill_manager.tool_bridge_sql_modal_title') || 'Allowed Databases'}</div>
+            <div class="sec-modal-desc">${t('config.skill_manager.tool_bridge_sql_modal_desc') || 'Select which SQL connections Python skills may use via the tool bridge.'}</div>
+            <input id="ptb-sql-search" class="cfg-input ptb-tools-search" placeholder="${escapeAttr(t('config.skill_manager.tool_bridge_sql_search') || 'Search…')}" oninput="ptbFilterSQLModal()">
+            <div id="ptb-sql-list" class="mcp-srv-tools-list ptb-sql-list"></div>
+            <div class="sec-modal-actions">
+                <button id="ptb-sql-cancel" class="sec-modal-btn sec-modal-btn-skip">${t('common.btn_cancel') || 'Cancel'}</button>
+                <button id="ptb-sql-save" class="sec-modal-btn sec-modal-btn-apply">✓ ${t('common.btn_save') || 'Save'}</button>
+            </div>
+        </div>
+    `;
+
+    function close() { modal.remove(); }
+    modal.addEventListener('click', e => { if (e.target === modal) close(); });
+    document.body.appendChild(modal);
+
+    modal.querySelector('#ptb-sql-cancel').addEventListener('click', close);
+    modal.querySelector('#ptb-sql-save').addEventListener('click', () => {
+        const checked = Array.from(modal.querySelectorAll('.ptb-sql-cb')).filter(cb => cb.checked).map(cb => cb.value);
+        ptbSetAllowedSQLConnections(checked);
+        ptbUpdateWarning();
+        close();
+    });
+
+    await ptbLoadSQLConnectionsIntoModal();
+}
+
+async function ptbLoadSQLConnectionsIntoModal() {
+    const listEl = document.getElementById('ptb-sql-list');
+    if (!listEl) return;
+
+    listEl.innerHTML = `<div class="ptb-tools-status">${t('config.skill_manager.tool_bridge_loading') || 'Loading…'}</div>`;
+
+    try {
+        const resp = await fetch('/api/sql-connections');
+        if (!resp.ok) throw new Error('Failed to load sql connections');
+        const connections = await resp.json();
+
+        const selected = new Set(ptbGetAllowedSQLConnections());
+        const rows = Array.isArray(connections) ? connections : [];
+
+        if (!rows.length) {
+            listEl.innerHTML = `<div class="ptb-tools-status">${t('config.skill_manager.tool_bridge_sql_no_connections') || 'No SQL connections configured'}</div>`;
+            return;
+        }
+
+        // Sort by name
+        rows.sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base' }));
+
+        let html = '';
+        for (const c of rows) {
+            const name = c.name || '';
+            if (!name) continue;
+            const driver = c.driver || '';
+            const host = c.host || '';
+            const db = c.database_name || '';
+            const subtitle = [driver, host, db].filter(Boolean).join(' • ');
+            const checked = selected.has(name) ? 'checked' : '';
+
+            html += `
+                <label class="ptb-tool-item ptb-sql-item" data-ptb-search="${escapeAttr((name + ' ' + driver + ' ' + host + ' ' + db).toLowerCase())}">
+                    <input type="checkbox" class="ptb-sql-cb" value="${escapeAttr(name)}" ${checked}>
+                    <div class="ptb-tool-meta">
+                        <div class="ptb-tool-title">🗄️ ${esc(name)}</div>
+                        ${subtitle ? `<div class="ptb-tool-desc">${esc(subtitle)}</div>` : ''}
+                    </div>
+                </label>
+            `;
+        }
+        listEl.innerHTML = html;
+        ptbFilterSQLModal();
+    } catch (_) {
+        listEl.innerHTML = `<div class="ptb-tools-status">${t('config.skill_manager.tool_bridge_load_error') || 'Error loading tool list'}</div>`;
+    }
+}
+
+function ptbFilterSQLModal() {
+    const qEl = document.getElementById('ptb-sql-search');
+    const listEl = document.getElementById('ptb-sql-list');
+    if (!qEl || !listEl) return;
+
+    const q = (qEl.value || '').trim().toLowerCase();
+    const items = Array.from(listEl.querySelectorAll('.ptb-sql-item'));
+    items.forEach(it => {
+        const hay = it.getAttribute('data-ptb-search') || '';
+        it.style.display = (!q || hay.includes(q)) ? '' : 'none';
+    });
 }

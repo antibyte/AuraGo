@@ -118,6 +118,8 @@ type ToolFeatureFlags struct {
 	ChromecastEnabled bool
 	// Discord messaging
 	DiscordEnabled bool
+	// Telegram messaging
+	TelegramEnabled bool
 	// TrueNAS storage
 	TrueNASEnabled bool
 	// Koofr cloud storage

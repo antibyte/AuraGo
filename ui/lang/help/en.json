@@ -314,6 +314,7 @@
   "help.tools.notes.read_only": "When enabled, the agent can only view notes but cannot create, update, or delete them.",
   "help.tools.python_secret_injection.enabled": "Allows Python tools (execute_python, execute_sandbox, execute_skill, run_tool) to request vault secrets via the vault_keys parameter. Secrets are injected as AURAGO_SECRET_&lt;KEY&gt; environment variables. Only user/agent-created secrets are accessible — system and integration secrets are blocked. Disabled by default for security.",
   "help.tools.python_tool_bridge.allowed_tools": "Select which native AuraGo tools Python skills may call via the tool bridge. The tool must also be declared in the skill manifest (internal_tools). Leave empty to block all bridge calls.",
+  "help.tools.python_tool_bridge.allowed_sql_connections": "Select which SQL connection names Python skills may use when calling sql_query via the tool bridge. Leave empty to block SQL bridge calls.",
   "help.tools.python_tool_bridge.enabled": "Allows Python skills to call native AuraGo tools (e.g. proxmox, docker_management) directly via an internal HTTP bridge. Skills must declare required tools in their manifest (internal_tools field) and the tool names must be whitelisted in python_tool_bridge.allowed_tools. Disabled by default for security.",
   "help.tools.scheduler.enabled": "Enables the scheduler tool (cron_scheduler). Allows the agent to schedule recurring tasks.",
   "help.tools.scheduler.read_only": "When enabled, the agent can only view scheduled jobs but cannot add or remove them.",

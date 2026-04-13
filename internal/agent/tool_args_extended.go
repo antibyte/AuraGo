@@ -629,6 +629,12 @@ func decodeNotificationArgs(tc ToolCall) notificationArgs {
 	return req
 }
 
+func decodeSendTelegramArgs(tc ToolCall) notificationArgs {
+	req := decodeNotificationArgs(tc)
+	req.Channel = "telegram"
+	return req
+}
+
 func decodeEmailFetchArgs(tc ToolCall) emailFetchArgs {
 	return emailFetchArgs{
 		Account: firstNonEmptyToolString(tc.Account, toolArgString(tc.Params, "account")),

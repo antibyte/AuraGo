@@ -35,14 +35,18 @@ func pythonToolBridgeRecommendedGroups() []pythonToolBridgeGroupDef {
 	// NOTE: This does not enforce security. The actual enforcement still happens
 	// in the tool-bridge handler via config.Tools.PythonToolBridge.AllowedTools.
 	return []pythonToolBridgeGroupDef{
+		{Key: "web_scraper", Icon: "🕷️", ToolList: []string{"web_scraper", "site_crawler"}},
 		{Key: "proxmox", Icon: "🖥️", ToolList: []string{"proxmox"}},
 		{Key: "docker", Icon: "🐳", ToolList: []string{"docker"}},
 		{Key: "tailscale", Icon: "🔒", ToolList: []string{"tailscale"}},
 		{Key: "ansible", Icon: "⚙️", ToolList: []string{"ansible"}},
+		{Key: "fritzbox", Icon: "📡", ToolList: []string{"fritzbox_system", "fritzbox_network", "fritzbox_telephony", "fritzbox_smarthome", "fritzbox_storage", "fritzbox_tv"}},
 		{Key: "github", Icon: "🐙", ToolList: []string{"github"}},
 		{Key: "home_assistant", Icon: "🏠", ToolList: []string{"home_assistant"}},
+		{Key: "sql_connections", Icon: "🔗", ToolList: []string{"sql_query"}},
 		{Key: "mqtt", Icon: "📡", ToolList: []string{"mqtt_publish", "mqtt_subscribe", "mqtt_unsubscribe", "mqtt_get_messages"}},
 		{Key: "email", Icon: "✉️", ToolList: []string{"fetch_email", "send_email", "list_email_accounts"}},
+		{Key: "telegram", Icon: "📱", ToolList: []string{"send_telegram"}},
 		{Key: "discord", Icon: "💬", ToolList: []string{"send_discord", "fetch_discord", "list_discord_channels"}},
 		{Key: "webhooks", Icon: "🔗", ToolList: []string{"call_webhook", "manage_outgoing_webhooks"}},
 		{Key: "netlify", Icon: "🔺", ToolList: []string{"netlify"}},

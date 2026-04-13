@@ -4012,6 +4012,21 @@ select.cfg-input option {
     color: var(--warning, #ff9500);
 }
 
+.ptb-sql-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+}
+
+.ptb-sql-modal-panel {
+    width: min(860px, 92vw);
+}
+
+.ptb-sql-list {
+    margin-top: 0.6rem;
+}
+
 /* ── Telnyx config section ─────────────────────────── */
 .telnyx-api-row {
     display: flex;

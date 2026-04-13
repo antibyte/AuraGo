@@ -294,6 +294,7 @@ tools:
     python_tool_bridge:
         enabled: false                                     # allow Python skills to call native AuraGo tools via HTTP bridge (default: disabled)
         allowed_tools: []                                  # whitelist of native tool names skills may call; empty = none (explicit whitelist required)
+        allowed_sql_connections: []                         # SQL connection names allowed for sql_query via tool bridge; empty = block SQL bridge calls
     python_timeout_seconds: 30                             # foreground Python/shell execution timeout
     skill_timeout_seconds: 120                             # skill execution timeout
     background_timeout_seconds: 3600                       # background Python/shell/tool execution timeout before forced termination

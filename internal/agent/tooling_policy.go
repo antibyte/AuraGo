@@ -262,6 +262,7 @@ func resolveToolFeatureState(runCfg RunConfig, policy ToolingPolicy) resolvedToo
 		JellyfinEnabled:              cfg.Jellyfin.Enabled,
 		ChromecastEnabled:            cfg.Chromecast.Enabled,
 		DiscordEnabled:               cfg.Discord.Enabled,
+		TelegramEnabled:              cfg.Telegram.BotToken != "" && cfg.Telegram.UserID != 0,
 		TrueNASEnabled:               cfg.TrueNAS.Enabled,
 		KoofrEnabled:                 cfg.Koofr.Enabled,
 		ProxmoxEnabled:               cfg.Proxmox.Enabled,
