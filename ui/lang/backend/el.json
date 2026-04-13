@@ -24,12 +24,7 @@
   "backend.cmd_voice_help": "Εναλλάσσει τη λειτουργία φωνητικής εξόδου — όταν είναι ενεργή, ο πράκτορας χρησιμοποιεί TTS για σύντομες απαντήσεις (/voice on|off).",
   "backend.budget_disabled": "💰 Το σύστημα προϋπολογισμού είναι απενεργοποιημένο.",
   "backend.budget_help": "Εμφανίζει την τρέχουσα κατάσταση προϋπολογισμού (ημερήσια έξοδα, όριο, μοντέλα).",
-  "backend.budget_mode_warn_el": " (μόνο προειδοποίηση)",
-  "backend.budget_mode_partial_el": " (συν-πράκτορες + όραση/STT αποκλείονται κατά την υπέρβαση)",
-  "backend.budget_mode_full_el": " (όλα αποκλείονται κατά την υπέρβαση)",
-  "backend.budget_mode_warn_en": "(μόνο προειδοποίηση)",
-  "backend.budget_mode_partial_en": "(συν-πράκτορες + όραση/STT αποκλείονται κατά την υπέρβαση)",
-  "backend.budget_mode_full_en": "(όλα αποκλείονται κατά την υπέρβαση)",
+
   "backend.budget_exceeded": "⛔ **Υπέρβαση προϋπολογισμού!**",
   "backend.budget_warning": "⚠️ **Προειδοποίηση προϋπολογισμού!**",
   "backend.credits_unavailable": "ℹ️ Το /credits είναι διαθέσιμο μόνο όταν ο OpenRouter έχει ρυθμιστεί ως ο πάροχος LLM.\nΤρέχων πάροχος: {0}",

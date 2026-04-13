@@ -24,12 +24,7 @@
   "backend.cmd_voice_help": "Växlar röstutmatningsläge — när aktiverat, använder agenten TTS för korta svar (/voice on|off).",
   "backend.budget_disabled": "💰 Budgetsystemet är inaktiverat.",
   "backend.budget_help": "Visar aktuell budgetstatus (dagliga kostnader, gräns, modeller).",
-  "backend.budget_mode_warn_de": " (endast varning)",
-  "backend.budget_mode_partial_de": " (Co-Agents + Vision/STT blockerat vid överskridande)",
-  "backend.budget_mode_full_de": " (allt blockerat vid överskridande)",
-  "backend.budget_mode_warn_en": " (endast varning)",
-  "backend.budget_mode_partial_en": " (co-agenter + vision/STT blockerade vid överskridning)",
-  "backend.budget_mode_full_en": " (allt blockerat vid överskridning)",
+
   "backend.budget_exceeded": "⛔ **Budget överskriden!**",
   "backend.budget_warning": "⚠️ **Budgetvarning!**",
   "backend.credits_unavailable": "ℹ️ /credits är endast tillgängligt när OpenRouter är konfigurerat som LLM-leverantör.\nAktuell leverantör: {0}",

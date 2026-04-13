@@ -24,12 +24,6 @@
   "backend.cmd_voice_help": "Skifter taleoutput-tilstand — når aktiveret, bruger agenten TTS til korte svar (/voice on|off).",
   "backend.budget_disabled": "💰 Budgetsystemet er deaktiveret.",
   "backend.budget_help": "Viser den aktuelle budgetstatus (daglige omkostninger, grænse, modeller).",
-  "backend.budget_mode_warn_da": " (kun advarsel)",
-  "backend.budget_mode_partial_da": " (co-agenter + vision/STT blokeret ved overskridelse)",
-  "backend.budget_mode_full_da": " (alt blokeret ved overskridelse)",
-  "backend.budget_mode_warn_en": "(kun advarsel)",
-  "backend.budget_mode_partial_en": "(co-agenter + vision/STT blokeret ved overskridelse)",
-  "backend.budget_mode_full_en": "(alt blokeret ved overskridelse)",
   "backend.budget_exceeded": "⛔ **Budget overskredet!**",
   "backend.budget_warning": "⚠️ **Budgetadvarsel!**",
   "backend.credits_unavailable": "ℹ️ /credits er kun tilgængelig når OpenRouter er konfigureret som LLM-udbyder.\nAktuel udbyder: {0}",
@@ -218,8 +212,5 @@
   "tools.dns_txt_lookup_failed": "TXT-opslag: {0}",
   "tools.dns_cname_lookup_failed": "CNAME-opslag: {0}",
   "tools.dns_ptr_lookup_failed": "PTR-opslag: {0}",
-  "tools.dns_partial_results": "delvise resultater",
-  "backend.budget_mode_full_de": " (alt blokeret ved overskridelse)",
-  "backend.budget_mode_partial_de": " (Co-Agents + Vision/STT blokeret ved overskridelse)",
-  "backend.budget_mode_warn_de": " (kun advarsel)"
+  "tools.dns_partial_results": "delvise resultater"
 }

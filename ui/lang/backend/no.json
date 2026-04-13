@@ -24,12 +24,7 @@
   "backend.cmd_voice_help": "Veksler talemodus — når på, bruker agenten TTS for korte svar (/voice on|off).",
   "backend.budget_disabled": "💰 Budsjettystemet er deaktivert.",
   "backend.budget_help": "Viser gjeldende budsjettstatus (daglige kostnader, grense, modeller).",
-  "backend.budget_mode_warn_no": " (kun advarsel)",
-  "backend.budget_mode_partial_no": " (co-agenter + vision/STT blokkert ved overskridelse)",
-  "backend.budget_mode_full_no": " (alt blokkert ved overskridelse)",
-  "backend.budget_mode_warn_en": "(kun advarsel)",
-  "backend.budget_mode_partial_en": "(co-agenter + vision/STT blokkert ved overskridelse)",
-  "backend.budget_mode_full_en": "(alt blokkert ved overskridelse)",
+
   "backend.budget_exceeded": "⛔ **Budsjett overskredet!**",
   "backend.budget_warning": "⚠️ **Budsjettadvarsel!**",
   "backend.credits_unavailable": "ℹ️ /credits er kun tilgjengelig når OpenRouter er konfigurert som LLM-leverandør.\nGjeldende leverandør: {0}",
