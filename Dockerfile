@@ -1,13 +1,20 @@
 # ============================================================
 # Stage 1: Build
 # ============================================================
-FROM --platform=$BUILDPLATFORM golang:1.26.1-bookworm AS builder
+FROM --platform=$BUILDPLATFORM golang:1.26.2-bookworm AS builder
 
 # Injected by docker buildx for cross-compilation
 ARG TARGETOS=linux
 ARG TARGETARCH=amd64
 
 WORKDIR /src
+
+# Some modules are fetched via VCS when they are not available from the module proxy.
+# Ensure git is available so `go mod download` can resolve them reliably.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        git \
+        ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 # Download dependencies first (better layer caching)
 COPY go.mod go.sum ./

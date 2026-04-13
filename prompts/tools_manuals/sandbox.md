@@ -57,7 +57,7 @@ This is the **preferred** method for all code execution — it provides full iso
 |---|---|---|
 | Python | `python` (default) | python:3.11-slim |
 | JavaScript | `javascript` | node:18-slim |
-| Go | `go` | golang:1.26-alpine |
+| Go | `go` | golang:1.26.2-alpine |
 | Java | `java` | openjdk:17-slim |
 | C++ | `cpp` | gcc:13-bookworm |
 | R | `r` | r-base:latest |
