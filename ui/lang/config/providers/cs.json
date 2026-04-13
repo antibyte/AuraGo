@@ -86,6 +86,7 @@
   "config.providers.pricing_picker_selected": "vybráno",
   "config.providers.pricing_picker_select_all": "Vybrat vše viditelné",
   "config.providers.pricing_picker_import": "Importovat ({{count}})",
+  "config.providers.pricing_picker_import_btn": "Importovat",
   "config.providers.filter_models": "Filtrovat konfigurované modely...",
   "config.providers.no_filter_results": "Žádný model neodpovídá \"{{q}}\"",
   "config.providers.type_workers_ai": "workers-ai",

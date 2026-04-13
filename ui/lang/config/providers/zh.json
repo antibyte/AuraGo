@@ -82,6 +82,7 @@
   "config.providers.pricing_picker_selected": "已选择",
   "config.providers.pricing_picker_select_all": "选择所有可见项",
   "config.providers.pricing_picker_import": "导入 ({{count}})",
+  "config.providers.pricing_picker_import_btn": "导入",
   "config.providers.filter_models": "筛选已配置的模型...",
   "config.providers.no_filter_results": "没有模型匹配 \"{{q}}\"",
   "config.providers.type_workers_ai": "workers-ai",

@@ -82,6 +82,7 @@
   "config.providers.pricing_picker_selected": "चुने गए",
   "config.providers.pricing_picker_select_all": "सभी दृश्यमान चुनें",
   "config.providers.pricing_picker_import": "आयात करें ({{count}})",
+  "config.providers.pricing_picker_import_btn": "आयात करें",
   "config.providers.filter_models": "कॉन्फ़िगर किए गए मॉडल फ़िल्टर करें...",
   "config.providers.no_filter_results": "\"{{q}}\" से कोई मॉडल मेल नहीं खाता",
   "config.providers.type_workers_ai": "workers-ai",

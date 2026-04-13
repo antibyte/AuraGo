@@ -487,7 +487,7 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                             </label>
                             <div class="prov-pricing-actions">
                                 <button class="btn-save prov-btn-muted prov-btn-xs" onclick="document.getElementById('pricing-picker-overlay').remove()">${escapeHtml(t('config.providers.cancel'))}</button>
-                                <button class="btn-save prov-btn-xs" id="pp-confirm">${escapeHtml(t('config.providers.pricing_picker_import', { count: selCount }))}</button>
+                                <button class="btn-save prov-btn-xs" id="pp-confirm">${escapeHtml(t('config.providers.pricing_picker_import_btn'))}</button>
                             </div>
                         </div>
                     </div>`;
@@ -512,8 +512,6 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                     if (cb.checked) selected.add(cb.dataset.name); else selected.delete(cb.dataset.name);
                     const sc = document.getElementById('pp-sel-count');
                     if (sc) sc.textContent = selected.size + ' ' + (t('config.providers.pricing_picker_selected') || 'selected');
-                    const btn = document.getElementById('pp-confirm');
-                    if (btn) btn.textContent = (t('config.providers.pricing_picker_import') || 'Import') + ' (' + selected.size + ')';
                     const sa = document.getElementById('pp-select-all');
                     if (sa) { const v = getVisible(); sa.checked = v.length > 0 && v.every(m => selected.has(m.name)); }
                 });

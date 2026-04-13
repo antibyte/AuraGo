@@ -82,6 +82,7 @@
   "config.providers.pricing_picker_selected": "選択済み",
   "config.providers.pricing_picker_select_all": "すべての表示中を選択",
   "config.providers.pricing_picker_import": "インポート ({{count}})",
+  "config.providers.pricing_picker_import_btn": "インポート",
   "config.providers.filter_models": "設定済みモデルを絞り込む...",
   "config.providers.no_filter_results": "\"{{q}}\" に一致するモデルはありません",
   "config.providers.type_workers_ai": "workers-ai",

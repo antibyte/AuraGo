@@ -82,6 +82,7 @@
   "config.providers.pricing_picker_selected": "valda",
   "config.providers.pricing_picker_select_all": "Välj alla synliga",
   "config.providers.pricing_picker_import": "Importera ({{count}})",
+  "config.providers.pricing_picker_import_btn": "Importera",
   "config.providers.filter_models": "Filtrera konfigurerade modeller...",
   "config.providers.no_filter_results": "Inga modeller matchar \"{{q}}\"",
   "config.providers.type_workers_ai": "workers-ai",

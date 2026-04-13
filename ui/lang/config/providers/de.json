@@ -82,6 +82,7 @@
   "config.providers.pricing_picker_selected": "ausgewählt",
   "config.providers.pricing_picker_select_all": "Alle sichtbaren auswählen",
   "config.providers.pricing_picker_import": "Importieren ({{count}})",
+  "config.providers.pricing_picker_import_btn": "Importieren",
   "config.providers.filter_models": "Konfigurierte Modelle filtern...",
   "config.providers.no_filter_results": "Kein Modell stimmt mit \"{{q}}\" überein",
   "config.providers.type_workers_ai": "workers-ai",

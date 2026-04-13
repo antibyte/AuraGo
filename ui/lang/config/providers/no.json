@@ -82,6 +82,7 @@
   "config.providers.pricing_picker_selected": "valgt",
   "config.providers.pricing_picker_select_all": "Velg alle synlige",
   "config.providers.pricing_picker_import": "Importer ({{count}})",
+  "config.providers.pricing_picker_import_btn": "Importer",
   "config.providers.filter_models": "Filtrer konfigurerte modeller...",
   "config.providers.no_filter_results": "Ingen modeller samsvarer med \"{{q}}\"",
   "config.providers.type_workers_ai": "workers-ai",

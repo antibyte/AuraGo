@@ -86,6 +86,7 @@
   "config.providers.pricing_picker_selected": "επιλεγμένα",
   "config.providers.pricing_picker_select_all": "Επιλογή όλων των ορατών",
   "config.providers.pricing_picker_import": "Εισαγωγή ({{count}})",
+  "config.providers.pricing_picker_import_btn": "Εισαγωγή",
   "config.providers.filter_models": "Φιλτράρισμα διαμορφωμένων μοντέλων...",
   "config.providers.no_filter_results": "Κανένα μοντέλο δεν ταιριάζει με \"{{q}}\"",
   "config.providers.type_workers_ai": "workers-ai",
