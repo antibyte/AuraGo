@@ -195,7 +195,7 @@ async function odPoll(expiresAt) {
 }
 
 async function odDisconnect() {
-    if (!(await showConfirm(t('config.onedrive.disconnect_confirm_title', {default: t('config.onedrive.disconnect_btn') + '?'}), t('config.onedrive.disconnect_btn') + '?'))) return;
+    if (!(await showConfirm(t('config.onedrive.disconnect_confirm_title'), t('config.onedrive.disconnect_btn') + '?'))) return;
     try {
         await fetch('/api/onedrive/auth/revoke', { method: 'DELETE' });
         odSetStatus('⚪ ' + t('config.onedrive.auth_disconnected'), 'var(--text-secondary)');

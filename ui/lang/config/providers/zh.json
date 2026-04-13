@@ -99,5 +99,9 @@
   "config.providers.tokens_suffix": "令牌",
   "config.providers.meshcentral_test_title": "MeshCentral 连接测试",
   "config.providers.copy_key_label": "使用现有 API 密钥",
-  "config.providers.copy_key_none": "— 输入新密钥 —"
+  "config.providers.copy_key_none": "— 输入新密钥 —",
+  "config.providers.type_minimax": "minimax",
+  "config.providers.hint.minimax": "MiniMax API Key.",
+  "config.providers.delete_confirm_title": "Shanchu Gongyingshang",
+  "config.providers.revoke_confirm_title": "Chexiao OAuth Token"
 }

@@ -185,7 +185,7 @@
         }
 
         async function idxRemoveDir(path) {
-            if (!(await showConfirm(t('config.indexing.remove_confirm_title', {default: t('config.indexing.remove_confirm')}), t('config.indexing.remove_confirm')))) return;
+            if (!(await showConfirm(t('config.indexing.remove_confirm_title'), t('config.indexing.remove_confirm')))) return;
             try {
                 const resp = await fetch('/api/indexing/directories', {
                     method: 'DELETE',

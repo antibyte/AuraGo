@@ -325,7 +325,7 @@ async function devicesSave() {
 
 async function devicesDelete(id, name) {
     const msg = t('config.devices.delete_confirm', {name: name});
-    if (!(await showConfirm(t('config.devices.delete_confirm_title', {default: msg}), msg))) return;
+    if (!(await showConfirm(t('config.devices.delete_confirm_title'), msg))) return;
 
     try {
         const resp = await fetch('/api/devices/' + id, { method: 'DELETE' });

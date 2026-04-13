@@ -99,5 +99,9 @@
   "config.providers.tokens_suffix": "jetons",
   "config.providers.meshcentral_test_title": "Test de connexion MeshCentral",
   "config.providers.copy_key_label": "Utiliser une clé API existante",
-  "config.providers.copy_key_none": "— Saisir une nouvelle clé —"
+  "config.providers.copy_key_none": "— Saisir une nouvelle clé —",
+  "config.providers.type_minimax": "minimax",
+  "config.providers.hint.minimax": "API Key from MiniMax.",
+  "config.providers.delete_confirm_title": "Supprimer le Provider",
+  "config.providers.revoke_confirm_title": "Revoquer le Token OAuth"
 }

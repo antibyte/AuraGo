@@ -99,5 +99,9 @@
   "config.providers.tokens_suffix": "tokens",
   "config.providers.meshcentral_test_title": "MeshCentral-verbindingstest",
   "config.providers.copy_key_label": "Use existing API Key",
-  "config.providers.copy_key_none": "— Nieuwe sleutel invoeren —"
+  "config.providers.copy_key_none": "— Nieuwe sleutel invoeren —",
+  "config.providers.type_minimax": "minimax",
+  "config.providers.hint.minimax": "API Key from MiniMax.",
+  "config.providers.delete_confirm_title": "Provider Verwijderen",
+  "config.providers.revoke_confirm_title": "OAuth Token Intrekken"
 }

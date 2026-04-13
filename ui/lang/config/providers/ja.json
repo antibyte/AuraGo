@@ -99,5 +99,9 @@
   "config.providers.tokens_suffix": "トークン",
   "config.providers.meshcentral_test_title": "MeshCentral 接続テスト",
   "config.providers.copy_key_label": "既存のAPIキーを使用",
-  "config.providers.copy_key_none": "— 新しいキーを入力 —"
+  "config.providers.copy_key_none": "— 新しいキーを入力 —",
+  "config.providers.type_minimax": "minimax",
+  "config.providers.hint.minimax": "MiniMax API Key.",
+  "config.providers.delete_confirm_title": "Provider wo shakujo suru",
+  "config.providers.revoke_confirm_title": "OAuth Token wo shakka suru"
 }

@@ -237,7 +237,7 @@ async function authTOTPConfirm() {
 }
 
 async function authTOTPDisable() {
-    if (!(await showConfirm(t('config.auth.totp_disable_confirm_title', {default: t('config.auth.totp_disable_confirm')}), t('config.auth.totp_disable_confirm')))) return;
+    if (!(await showConfirm(t('config.auth.totp_disable_confirm_title'), t('config.auth.totp_disable_confirm')))) return;
     try {
         const resp = await fetch('/api/auth/totp', { method: 'DELETE' });
         const data = await resp.json();

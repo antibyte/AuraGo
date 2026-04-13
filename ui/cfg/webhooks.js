@@ -393,7 +393,7 @@ async function whSaveWebhook() {
 }
 
 async function whDeleteWebhook(id, name) {
-    if (!(await showConfirm(t('config.webhooks.delete_confirm_title', {default: t('config.webhooks.delete_confirm')}), t('config.webhooks.delete_confirm') + name + '?'))) return;
+    if (!(await showConfirm(t('config.webhooks.delete_confirm_title'), t('config.webhooks.delete_confirm') + name + '?'))) return;
     try {
         const resp = await fetch('/api/webhooks/' + id, { method: 'DELETE' });
         if (resp.ok) {
@@ -518,7 +518,7 @@ async function whToggleToken(id, enabled) {
 }
 
 async function whDeleteToken(id, name) {
-    if (!(await showConfirm(t('config.tokens.delete_confirm_title', {default: t('config.tokens.delete_confirm')}), t('config.tokens.delete_confirm') + name + '?'))) return;
+    if (!(await showConfirm(t('config.tokens.delete_confirm_title'), t('config.tokens.delete_confirm') + name + '?'))) return;
     try {
         const resp = await fetch('/api/tokens/' + id, { method: 'DELETE' });
         if (resp.ok) {
@@ -777,7 +777,7 @@ async function ogSave() {
 
 async function ogDelete(idx) {
     const name = ogWebhooks[idx]?.name || t('config.webhooks.og_unnamed');
-    if (!(await showConfirm(t('config.webhooks.og_delete_confirm_title', {default: t('config.webhooks.og_delete_confirm')}), t('config.webhooks.og_delete_confirm') + name + '?'))) return;
+    if (!(await showConfirm(t('config.webhooks.og_delete_confirm_title'), t('config.webhooks.og_delete_confirm') + name + '?'))) return;
     const newList = ogWebhooks.filter((_, i) => i !== idx);
     try {
         const resp = await fetch('/api/outgoing-webhooks', {

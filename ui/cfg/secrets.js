@@ -242,7 +242,7 @@
 
         async function secretsDelete(idx) {
             const s = secretsCache[idx];
-            if (!(await showConfirm(t('config.secrets.delete_confirm_title', {default: t('config.secrets.delete_confirm')}), t('config.secrets.delete_confirm', {key: s.key})))) return;
+            if (!(await showConfirm(t('config.secrets.delete_confirm_title'), t('config.secrets.delete_confirm', {key: s.key})))) return;
 
             try {
                 const resp = await fetch('/api/vault/secrets?key=' + encodeURIComponent(s.key), { method: 'DELETE' });

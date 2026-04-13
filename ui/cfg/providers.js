@@ -1118,7 +1118,7 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
             const revokeBtn = document.getElementById('prov-oauth-revoke-btn');
             if (revokeBtn) {
                 revokeBtn.onclick = async () => {
-                    if (!(await showConfirm(t('config.providers.revoke_confirm_title', {default: t('config.providers.revoke_confirm')}), t('config.providers.revoke_confirm')))) return;
+                    if (!(await showConfirm(t('config.providers.revoke_confirm_title'), t('config.providers.revoke_confirm')))) return;
                     try {
                         await fetch('/api/oauth/revoke?provider=' + encodeURIComponent(data.id), { method: 'DELETE' });
                         const statusEl = document.getElementById('prov-oauth-status');
@@ -1250,7 +1250,7 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
 
         async function providerDelete(idx) {
             const p = providersCache[idx];
-            if (!(await showConfirm(t('config.providers.delete_confirm_title', {default: t('config.providers.delete_confirm')}), t('config.providers.delete_confirm', { name: p.name || p.id })))) return;
+            if (!(await showConfirm(t('config.providers.delete_confirm_title'), t('config.providers.delete_confirm', { name: p.name || p.id })))) return;
             providersCache.splice(idx, 1);
             providerSave();
         }

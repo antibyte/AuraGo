@@ -108,7 +108,7 @@ async function updatesCheck() {
 
 async function updatesInstall() {
     const msg = t('config.updates.confirm_install');
-    if (!(await showConfirm(t('config.updates.confirm_install_title', {default: msg}), msg))) return;
+    if (!(await showConfirm(t('config.updates.confirm_install_title'), msg))) return;
 
     const installBtn = document.getElementById('updates-install-btn');
     const checkBtn = document.getElementById('updates-check-btn');

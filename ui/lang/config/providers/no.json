@@ -99,5 +99,9 @@
   "config.providers.tokens_suffix": "tokens",
   "config.providers.meshcentral_test_title": "MeshCentral-tilkoblingstest",
   "config.providers.copy_key_label": "Use existing API Key",
-  "config.providers.copy_key_none": "— Skriv inn ny nøkkel —"
+  "config.providers.copy_key_none": "— Skriv inn ny nøkkel —",
+  "config.providers.type_minimax": "minimax",
+  "config.providers.hint.minimax": "API Key from MiniMax.",
+  "config.providers.delete_confirm_title": "Slett Provider",
+  "config.providers.revoke_confirm_title": "Tilbakekall OAuth Token"
 }
