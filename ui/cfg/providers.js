@@ -948,9 +948,9 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                         ${data.oauth_client_secret === '••••••••' ? `<div class="prov-field-hint">${t('config.providers.keep_existing_secret')}</div>` : ''}
                     </div>
                     <div class="field-group">
-                        <div class="field-label">Scopes</div>
+                        <div class="field-label">${t('config.providers.field_scopes')}</div>
                         <div class="field-help">${t('config.providers.oauth_scopes_help')}</div>
-                        <input class="field-input" id="prov-oauth-scopes" value="${escapeAttr(data.oauth_scopes || '')}" placeholder="openid email https://www.googleapis.com/auth/cloud-platform">
+                        <input class="field-input" id="prov-oauth-scopes" value="${escapeAttr(data.oauth_scopes || '')}" placeholder="${t('config.providers.scopes_placeholder')}">
                     </div>
                     ${data._editMode && currentAuthType === 'oauth2' ? `
                     <div class="field-group prov-oauth-group">

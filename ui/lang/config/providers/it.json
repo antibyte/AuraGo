@@ -103,5 +103,6 @@
   "config.providers.type_minimax": "minimax",
   "config.providers.hint.minimax": "API Key from MiniMax.",
   "config.providers.delete_confirm_title": "Elimina Provider",
-  "config.providers.revoke_confirm_title": "Revoca Token OAuth"
+  "config.providers.revoke_confirm_title": "Revoca Token OAuth",
+  "config.providers.scopes_placeholder": "openid email https://www.googleapis.com/auth/cloud-platform"
 }

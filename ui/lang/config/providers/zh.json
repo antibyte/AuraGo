@@ -103,5 +103,6 @@
   "config.providers.type_minimax": "minimax",
   "config.providers.hint.minimax": "MiniMax API Key.",
   "config.providers.delete_confirm_title": "Shanchu Gongyingshang",
-  "config.providers.revoke_confirm_title": "Chexiao OAuth Token"
+  "config.providers.revoke_confirm_title": "Chexiao OAuth Token",
+  "config.providers.scopes_placeholder": "openid email https://www.googleapis.com/auth/cloud-platform"
 }

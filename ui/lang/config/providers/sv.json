@@ -103,5 +103,6 @@
   "config.providers.type_minimax": "minimax",
   "config.providers.hint.minimax": "API Key from MiniMax.",
   "config.providers.delete_confirm_title": "Ta bort Leverantor",
-  "config.providers.revoke_confirm_title": "Aterkalla OAuth Token"
+  "config.providers.revoke_confirm_title": "Aterkalla OAuth Token",
+  "config.providers.scopes_placeholder": "openid email https://www.googleapis.com/auth/cloud-platform"
 }

@@ -122,5 +122,6 @@
   "config.providers.type_minimax": "minimax",
   "config.providers.hint.minimax": "MiniMax API-Key.",
   "config.providers.delete_confirm_title": "Provider loeschen",
-  "config.providers.revoke_confirm_title": "OAuth-Token widerrufen"
+  "config.providers.revoke_confirm_title": "OAuth-Token widerrufen",
+  "config.providers.scopes_placeholder": "openid email https://www.googleapis.com/auth/cloud-platform"
 }

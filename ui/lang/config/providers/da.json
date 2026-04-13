@@ -103,5 +103,6 @@
   "config.providers.tokens_suffix": "tokens",
   "config.providers.meshcentral_test_title": "MeshCentral-forbindelsestest",
   "config.providers.copy_key_label": "Use existing API Key",
-  "config.providers.copy_key_none": "— Angiv ny nøgle —"
+  "config.providers.copy_key_none": "— Angiv ny nøgle —",
+  "config.providers.scopes_placeholder": "openid email https://www.googleapis.com/auth/cloud-platform"
 }

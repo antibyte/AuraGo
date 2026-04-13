@@ -5438,6 +5438,61 @@ select.cfg-input option {
 .prov-oauth-expiry { margin-left: 0.5rem; font-size: 0.72rem; color: var(--text-tertiary); }
 .prov-modal-actions { display: flex; justify-content: flex-end; gap: 0.6rem; margin-top: 1.2rem; }
 
+/* ── Provider Modal Mobile Fix ──────────────────────── */
+@media (max-width: 768px) {
+    .prov-modal-panel {
+        width: 98vw;
+        padding: 1rem;
+        max-height: 90vh;
+    }
+    .prov-model-pricing-head {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+    .prov-model-pricing-actions {
+        width: 100%;
+        justify-content: flex-start;
+    }
+    .prov-model-pricing-actions button {
+        min-height: 44px;
+        min-width: 44px;
+        padding: 0.4rem 0.8rem;
+    }
+    .prov-models-table-wrap {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    .prov-model-table {
+        min-width: 320px;
+    }
+    .prov-model-input-num {
+        width: 70px;
+        min-width: 60px;
+    }
+    .prov-model-input {
+        min-height: 36px;
+        font-size: 0.85rem;
+    }
+    .prov-model-del-btn {
+        min-height: 44px;
+        min-width: 44px;
+        font-size: 1rem;
+    }
+    .prov-modal-actions {
+        flex-direction: column-reverse;
+        gap: 0.5rem;
+    }
+    .prov-modal-actions button {
+        width: 100%;
+        min-height: 48px;
+    }
+    .prov-btn-xs {
+        min-height: 44px;
+        padding: 0.4rem 0.8rem;
+    }
+}
+
 /* ── Sandbox config section (sb-*) ─────────────────── */
 .sb-notice-success { border-color: var(--success); background: rgba(34, 197, 94, 0.08); }
 .sb-notice-warning { border-color: var(--warning); background: rgba(245, 158, 11, 0.08); }

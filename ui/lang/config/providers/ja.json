@@ -103,5 +103,6 @@
   "config.providers.type_minimax": "minimax",
   "config.providers.hint.minimax": "MiniMax API Key.",
   "config.providers.delete_confirm_title": "Provider wo shakujo suru",
-  "config.providers.revoke_confirm_title": "OAuth Token wo shakka suru"
+  "config.providers.revoke_confirm_title": "OAuth Token wo shakka suru",
+  "config.providers.scopes_placeholder": "openid email https://www.googleapis.com/auth/cloud-platform"
 }

@@ -103,5 +103,6 @@
   "config.providers.type_minimax": "minimax",
   "config.providers.hint.minimax": "MiniMax se API Key.",
   "config.providers.delete_confirm_title": "Provider Hataen",
-  "config.providers.revoke_confirm_title": "OAuth Token Revoke Karein"
+  "config.providers.revoke_confirm_title": "OAuth Token Revoke Karein",
+  "config.providers.scopes_placeholder": "openid email https://www.googleapis.com/auth/cloud-platform"
 }

@@ -103,5 +103,6 @@
   "config.providers.type_minimax": "minimax",
   "config.providers.hint.minimax": "API Key from MiniMax.",
   "config.providers.delete_confirm_title": "Provider Verwijderen",
-  "config.providers.revoke_confirm_title": "OAuth Token Intrekken"
+  "config.providers.revoke_confirm_title": "OAuth Token Intrekken",
+  "config.providers.scopes_placeholder": "openid email https://www.googleapis.com/auth/cloud-platform"
 }

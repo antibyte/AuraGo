@@ -122,5 +122,6 @@
   "config.providers.field_client_id_label": "Client ID",
   "config.providers.client_id_placeholder": "123456789.apps.googleusercontent.com",
   "config.providers.field_client_secret_label": "Client Secret",
-  "config.providers.client_secret_placeholder": "GOCSPX-..."
+  "config.providers.client_secret_placeholder": "GOCSPX-...",
+  "config.providers.scopes_placeholder": "openid email https://www.googleapis.com/auth/cloud-platform"
 }

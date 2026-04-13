@@ -103,5 +103,6 @@
   "config.providers.tokens_suffix": "tokens",
   "config.providers.meshcentral_test_title": "Δοκιμή σύνδεσης MeshCentral",
   "config.providers.copy_key_label": "Use existing API Key",
-  "config.providers.copy_key_none": "— Εισαγωγή νέου κλειδιού —"
+  "config.providers.copy_key_none": "— Εισαγωγή νέου κλειδιού —",
+  "config.providers.scopes_placeholder": "openid email https://www.googleapis.com/auth/cloud-platform"
 }
