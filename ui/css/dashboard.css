@@ -3645,3 +3645,40 @@
     font-size: 0.8rem;
     font-weight: 500;
 }
+
+/* ── Output Compression Card ─────────────────────────── */
+.compression-rank-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.compression-rank-item {
+    display: grid;
+    grid-template-columns: 120px 1fr auto;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: var(--text-xs, 0.75rem);
+}
+
+.compression-rank-name {
+    color: var(--text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.compression-rank-bar {
+    height: 6px;
+    border-radius: 3px;
+    background: var(--accent, #2dd4bf);
+    opacity: 0.5;
+    min-width: 4px;
+    transition: width 0.4s ease;
+}
+
+.compression-rank-val {
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}

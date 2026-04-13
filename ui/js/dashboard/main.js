@@ -139,16 +139,18 @@
         }
 
         async function loadTabOverview() {
-            const [system, budget, overview, credits, opt] = await Promise.all([
+            const [system, budget, overview, credits, opt, comp] = await Promise.all([
                 API.get('/api/dashboard/system'),
                 API.get('/api/budget'),
                 API.get('/api/dashboard/overview'),
                 API.get('/api/credits'),
                 API.get('/api/dashboard/optimization'),
+                API.get('/api/dashboard/compression'),
             ]);
             renderAgentBanner(overview, overview?.context?.total_chars);
             renderQuickStatus(overview);
             renderOptimizationStats(opt);
+            renderCompressionStats(comp);
             if (system) {
                 if (!Charts.cpu) Charts.cpu = createGauge('cpu-chart', system.cpu?.usage_percent || 0);
                 updateGauge(Charts.cpu, 'cpu-val', system.cpu?.usage_percent || 0);
@@ -3138,6 +3140,82 @@
                     <div class="stat-label">${s.lbl}</div>
                 </div>`
             ).join('');
+        }
+
+        // ── Output Compression Stats ───────────────────────────────────────────
+        function formatChars(n) {
+            if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
+            if (n >= 1_000) return (n / 1_000).toFixed(1) + 'K';
+            return String(n);
+        }
+
+        function renderCompressionStats(comp) {
+            const statsEl = document.getElementById('compression-stats');
+            const detailsEl = document.getElementById('compression-details');
+            const emptyEl = document.getElementById('compression-empty');
+            if (!statsEl || !comp) return;
+
+            const applied = comp.compressions_applied || 0;
+            const skipped = comp.compressions_skipped || 0;
+            const total = applied + skipped;
+
+            // No data yet
+            if (total === 0) {
+                if (statsEl) statsEl.innerHTML = '';
+                if (detailsEl) detailsEl.classList.add('is-hidden');
+                if (emptyEl) emptyEl.classList.remove('is-hidden');
+                return;
+            }
+            if (emptyEl) emptyEl.classList.add('is-hidden');
+            if (detailsEl) detailsEl.classList.remove('is-hidden');
+
+            const savedChars = comp.total_saved_chars || 0;
+            const ratio = comp.average_savings_ratio || 0;
+
+            const items = [
+                { lbl: t('dashboard.compression_saved_chars'), val: formatChars(savedChars) },
+                { lbl: t('dashboard.compression_savings_ratio'), val: (ratio * 100).toFixed(1) + '%' },
+                { lbl: t('dashboard.compression_applied'), val: applied },
+                { lbl: t('dashboard.compression_skipped'), val: skipped },
+            ];
+
+            statsEl.innerHTML = items.map(s =>
+                `<div class="stat-item">
+                    <div class="stat-value">${s.val}</div>
+                    <div class="stat-label">${s.lbl}</div>
+                </div>`
+            ).join('');
+
+            // Top tools
+            const toolsList = document.getElementById('compression-tools-list');
+            const toolsWrap = document.getElementById('compression-tools-wrap');
+            const topTools = (comp.top_tools || []).slice(0, 5);
+            if (toolsWrap) toolsWrap.classList.toggle('is-hidden', topTools.length === 0);
+            if (toolsList && topTools.length > 0) {
+                toolsList.innerHTML = topTools.map(e =>
+                    `<div class="compression-rank-item">
+                        <span class="compression-rank-name">${esc(e.tool)}</span>
+                        <span class="compression-rank-bar" style="width:${Math.max(4, (e.savings_ratio || 0) * 100)}%"></span>
+                        <span class="compression-rank-val">${formatChars(e.saved_chars)} (${(e.savings_ratio * 100).toFixed(0)}%)</span>
+                    </div>`
+                ).join('');
+            }
+
+            // Top filters
+            const filtersList = document.getElementById('compression-filters-list');
+            const filtersWrap = document.getElementById('compression-filters-wrap');
+            const topFilters = (comp.top_filters || []).slice(0, 5);
+            if (filtersWrap) filtersWrap.classList.toggle('is-hidden', topFilters.length === 0);
+            if (filtersList && topFilters.length > 0) {
+                const maxSaved = Math.max(1, topFilters[0].saved_chars || 1);
+                filtersList.innerHTML = topFilters.map(e =>
+                    `<div class="compression-rank-item">
+                        <span class="compression-rank-name">${esc(e.filter)}</span>
+                        <span class="compression-rank-bar" style="width:${Math.max(4, ((e.saved_chars || 0) / maxSaved) * 100)}%"></span>
+                        <span class="compression-rank-val">${formatChars(e.saved_chars)} ×${e.count || 0}</span>
+                    </div>`
+                ).join('');
+            }
         }
 
         function renderIntegrations(overview) {
