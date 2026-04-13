@@ -503,18 +503,21 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                     });
                 }
 
-                // Wire: checkboxes — update selection + footer counts without full re-render
-                document.querySelectorAll('#pricing-picker-list input[type=checkbox]').forEach(cb => {
-                    cb.addEventListener('change', () => {
+                // Wire: checkboxes via event delegation (survives re-renders)
+                const listEl = document.getElementById('pricing-picker-list');
+                if (listEl) {
+                    listEl.addEventListener('change', (e) => {
+                        const cb = e.target.closest('input[type=checkbox]');
+                        if (!cb || cb.id === 'pp-select-all') return; // skip select-all, handled separately
                         if (cb.checked) selected.add(cb.dataset.name); else selected.delete(cb.dataset.name);
                         const sc = document.getElementById('pp-sel-count');
-                        if (sc) sc.textContent = selected.size + ' ' + t('config.providers.pricing_picker_selected');
+                        if (sc) sc.textContent = selected.size + ' ' + (t('config.providers.pricing_picker_selected') || 'selected');
                         const btn = document.getElementById('pp-confirm');
-                        if (btn) btn.textContent = t('config.providers.pricing_picker_import', { count: selected.size });
+                        if (btn) btn.textContent = (t('config.providers.pricing_picker_import') || 'Import') + ' (' + selected.size + ')';
                         const sa = document.getElementById('pp-select-all');
                         if (sa) { const v = getVisible(); sa.checked = v.length > 0 && v.every(m => selected.has(m.name)); }
                     });
-                });
+                }
 
                 // Wire: select all
                 const saEl = document.getElementById('pp-select-all');
