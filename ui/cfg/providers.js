@@ -449,6 +449,18 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                 return q ? allPricing.filter(m => m.name.toLowerCase().includes(q)) : allPricing;
             }
 
+            // Wire: checkboxes via event delegation on OVERLAY — bound ONCE, outside renderPicker()
+            // This prevents handler leaks and works regardless of DOM attachment state
+            overlay.addEventListener('change', (e) => {
+                const cb = e.target.closest('input[type=checkbox]');
+                if (!cb || cb.id === 'pp-select-all') return; // skip select-all, handled separately
+                if (cb.checked) selected.add(cb.dataset.name); else selected.delete(cb.dataset.name);
+                const sc = overlay.querySelector('#pp-sel-count');
+                if (sc) sc.textContent = selected.size + ' ' + (t('config.providers.pricing_picker_selected') || 'selected');
+                const sa = overlay.querySelector('#pp-select-all');
+                if (sa) { const v = getVisible(); sa.checked = v.length > 0 && v.every(m => selected.has(m.name)); }
+            });
+
             function renderPicker() {
                 const visible = getVisible();
                 const selCount = selected.size;
@@ -492,8 +504,8 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                         </div>
                     </div>`;
 
-                // Wire: search
-                const searchEl = document.getElementById('pricing-picker-search');
+                // Wire: search — use overlay.querySelector (works on detached elements)
+                const searchEl = overlay.querySelector('#pricing-picker-search');
                 if (searchEl) {
                     searchEl.focus();
                     let debounce;
@@ -503,21 +515,8 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                     });
                 }
 
-                // Wire: checkboxes via event delegation on OVERLAY (survives innerHTML re-renders)
-                // Note: Handlers are bound ONCE on the overlay element (which never gets replaced),
-                // NOT on listEl (which is recreated each renderPicker() call via innerHTML)
-                overlay.addEventListener('change', (e) => {
-                    const cb = e.target.closest('input[type=checkbox]');
-                    if (!cb || cb.id === 'pp-select-all') return; // skip select-all, handled separately
-                    if (cb.checked) selected.add(cb.dataset.name); else selected.delete(cb.dataset.name);
-                    const sc = document.getElementById('pp-sel-count');
-                    if (sc) sc.textContent = selected.size + ' ' + (t('config.providers.pricing_picker_selected') || 'selected');
-                    const sa = document.getElementById('pp-select-all');
-                    if (sa) { const v = getVisible(); sa.checked = v.length > 0 && v.every(m => selected.has(m.name)); }
-                });
-
                 // Wire: select all
-                const saEl = document.getElementById('pp-select-all');
+                const saEl = overlay.querySelector('#pp-select-all');
                 if (saEl) {
                     saEl.addEventListener('change', () => {
                         getVisible().forEach(m => saEl.checked ? selected.add(m.name) : selected.delete(m.name));
@@ -525,8 +524,8 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                     });
                 }
 
-                // Wire: confirm
-                const confirmBtn = document.getElementById('pp-confirm');
+                // Wire: confirm (import button)
+                const confirmBtn = overlay.querySelector('#pp-confirm');
                 if (confirmBtn) {
                     confirmBtn.addEventListener('click', () => {
                         const toImport = allPricing.filter(m => selected.has(m.name));
@@ -542,8 +541,9 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                 }
             }
 
-            renderPicker();
+            // Append to DOM FIRST, then render (so overlay.querySelector works via getElementById fallback)
             document.body.appendChild(overlay);
+            renderPicker();
         }
 
         async function providerFetchPricing() {
