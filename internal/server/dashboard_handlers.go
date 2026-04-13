@@ -19,6 +19,7 @@ import (
 	"aurago/internal/mqtt"
 	"aurago/internal/prompts"
 	"aurago/internal/tools"
+	"aurago/internal/tools/outputcompress"
 )
 
 // ── Dashboard API Handlers ──────────────────────────────────────────────────
@@ -1470,5 +1471,15 @@ func handleDashboardErrors(s *Server) http.HandlerFunc {
 			"frequent": frequent,
 			"recent":   recent,
 		})
+	}
+}
+
+// handleDashboardCompression returns output compression statistics for the dashboard.
+// GET /api/dashboard/compression
+func handleDashboardCompression(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		snap := outputcompress.GetCompressionSnapshot()
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(snap)
 	}
 }

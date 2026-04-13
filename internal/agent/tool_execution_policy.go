@@ -109,7 +109,10 @@ func finalizeToolExecution(
 				"compressed_chars", compStats.CompressedChars,
 				"ratio", fmt.Sprintf("%.2f", compStats.Ratio),
 			)
+			outputcompress.RecordCompressionStats(compStats)
 			RecordScopedToolResultForTool(scope, "output_compression_used", true)
+		} else if compStats.FilterUsed == "none" || compStats.FilterUsed == "skipped-error" {
+			outputcompress.RecordCompressionSkipped()
 		}
 	}
 

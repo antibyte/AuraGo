@@ -750,3 +750,166 @@ func TestStripTimestamps_Bracketed(t *testing.T) {
 		t.Errorf("bracketed timestamps should be stripped, got %q", result)
 	}
 }
+
+// ─── Analytics Tests ─────────────────────────────────────────────────────────
+
+func TestAnalytics_RecordAndSnapshot(t *testing.T) {
+	ResetCompressionStats()
+
+	// Record some compression events
+	RecordCompressionStats(CompressionStats{
+		ToolName:        "execute_shell",
+		CommandHint:     "git status",
+		RawChars:        10000,
+		CompressedChars: 2000,
+		Ratio:           0.2,
+		FilterUsed:      "git-status",
+	})
+	RecordCompressionStats(CompressionStats{
+		ToolName:        "execute_shell",
+		CommandHint:     "docker ps",
+		RawChars:        5000,
+		CompressedChars: 1000,
+		Ratio:           0.2,
+		FilterUsed:      "docker-ps",
+	})
+	RecordCompressionStats(CompressionStats{
+		ToolName:        "execute_python",
+		CommandHint:     "",
+		RawChars:        8000,
+		CompressedChars: 4000,
+		Ratio:           0.5,
+		FilterUsed:      "python",
+	})
+
+	// Record a skip
+	RecordCompressionSkipped()
+	RecordCompressionSkipped()
+
+	snap := GetCompressionSnapshot()
+	if !snap.Enabled {
+		t.Error("snapshot should report enabled")
+	}
+	if snap.CompressionsApplied != 3 {
+		t.Errorf("expected 3 compressions, got %d", snap.CompressionsApplied)
+	}
+	if snap.CompressionsSkipped != 2 {
+		t.Errorf("expected 2 skips, got %d", snap.CompressionsSkipped)
+	}
+	if snap.TotalRawChars != 23000 {
+		t.Errorf("expected 23000 raw chars, got %d", snap.TotalRawChars)
+	}
+	if snap.TotalSavedChars != 16000 {
+		t.Errorf("expected 16000 saved chars, got %d", snap.TotalSavedChars)
+	}
+	if snap.TotalCompressedChars != 7000 {
+		t.Errorf("expected 7000 compressed chars, got %d", snap.TotalCompressedChars)
+	}
+	expectedRatio := float64(16000) / float64(23000)
+	if snap.AverageSavingsRatio < expectedRatio-0.01 || snap.AverageSavingsRatio > expectedRatio+0.01 {
+		t.Errorf("expected ratio ~%.3f, got %.3f", expectedRatio, snap.AverageSavingsRatio)
+	}
+
+	// Check top tools
+	if len(snap.TopTools) < 2 {
+		t.Errorf("expected at least 2 top tools, got %d", len(snap.TopTools))
+	}
+	if snap.TopTools[0].Tool != "execute_shell" {
+		t.Errorf("expected execute_shell as top tool, got %q", snap.TopTools[0].Tool)
+	}
+
+	// Check top filters
+	if len(snap.TopFilters) < 2 {
+		t.Errorf("expected at least 2 top filters, got %d", len(snap.TopFilters))
+	}
+}
+
+func TestAnalytics_IgnoresZeroSavings(t *testing.T) {
+	ResetCompressionStats()
+
+	RecordCompressionStats(CompressionStats{
+		ToolName:        "test",
+		RawChars:        1000,
+		CompressedChars: 1000,
+		Ratio:           1.0,
+		FilterUsed:      "generic",
+	})
+
+	snap := GetCompressionSnapshot()
+	if snap.CompressionsApplied != 0 {
+		t.Errorf("zero-savings should not be recorded, got %d", snap.CompressionsApplied)
+	}
+}
+
+func TestAnalytics_Reset(t *testing.T) {
+	ResetCompressionStats()
+
+	RecordCompressionStats(CompressionStats{
+		ToolName:        "test",
+		RawChars:        5000,
+		CompressedChars: 2000,
+		Ratio:           0.4,
+		FilterUsed:      "generic",
+	})
+
+	snap := GetCompressionSnapshot()
+	if snap.CompressionsApplied != 1 {
+		t.Error("should have 1 compression before reset")
+	}
+
+	ResetCompressionStats()
+	snap = GetCompressionSnapshot()
+	if snap.CompressionsApplied != 0 {
+		t.Error("should have 0 compressions after reset")
+	}
+	if snap.TotalRawChars != 0 {
+		t.Error("should have 0 raw chars after reset")
+	}
+}
+
+func TestAnalytics_TopToolsOrdering(t *testing.T) {
+	ResetCompressionStats()
+
+	// Tool A: 10000 raw → 5000 compressed = 5000 saved
+	RecordCompressionStats(CompressionStats{
+		ToolName: "tool_a", RawChars: 10000, CompressedChars: 5000, Ratio: 0.5, FilterUsed: "generic",
+	})
+	// Tool B: 20000 raw → 5000 compressed = 15000 saved
+	RecordCompressionStats(CompressionStats{
+		ToolName: "tool_b", RawChars: 20000, CompressedChars: 5000, Ratio: 0.25, FilterUsed: "generic",
+	})
+
+	snap := GetCompressionSnapshot()
+	if len(snap.TopTools) < 2 {
+		t.Fatalf("expected 2 top tools, got %d", len(snap.TopTools))
+	}
+	if snap.TopTools[0].Tool != "tool_b" {
+		t.Errorf("tool_b should be first (15000 saved), got %q with %d saved",
+			snap.TopTools[0].Tool, snap.TopTools[0].SavedChars)
+	}
+}
+
+func TestAnalytics_RecentCompressions(t *testing.T) {
+	ResetCompressionStats()
+
+	for i := 0; i < 25; i++ {
+		RecordCompressionStats(CompressionStats{
+			ToolName:        fmt.Sprintf("tool_%d", i),
+			RawChars:        1000 + i,
+			CompressedChars: 500,
+			Ratio:           0.5,
+			FilterUsed:      "generic",
+		})
+	}
+
+	snap := GetCompressionSnapshot()
+	// Recent should be limited to 20
+	if len(snap.RecentCompressions) > 20 {
+		t.Errorf("expected at most 20 recent, got %d", len(snap.RecentCompressions))
+	}
+	// Most recent should be tool_24
+	last := snap.RecentCompressions[len(snap.RecentCompressions)-1]
+	if last.ToolName != "tool_24" {
+		t.Errorf("expected last recent to be tool_24, got %q", last.ToolName)
+	}
+}
