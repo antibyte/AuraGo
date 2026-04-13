@@ -84,6 +84,7 @@
   "config.security_proxy.status_unknown": "Onbekende status",
   "config.security_proxy.tls_desc": "Configureer het domein en Let's Encrypt TLS-certificaat. Laat domein leeg voor alleen-poort modus.",
   "config.security_proxy.tls_title": "Domein \u0026 TLS",
+  "config.security_proxy.error_prefix": "Fout",
   "config.server.cert_status_error": "Laadfout",
   "config.server.cert_status_loading": "Laden…",
   "config.skill_manager.tool_bridge_header": "Python Tool Bridge",

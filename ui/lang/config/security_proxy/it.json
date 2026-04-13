@@ -84,6 +84,7 @@
   "config.security_proxy.status_unknown": "Stato sconosciuto",
   "config.security_proxy.tls_desc": "Configura il dominio e il certificato TLS Let's Encrypt. Lascia il dominio vuoto per la modalità solo porta.",
   "config.security_proxy.tls_title": "Dominio e TLS",
+  "config.security_proxy.error_prefix": "Errore",
   "config.server.cert_status_error": "Errore di caricamento",
   "config.server.cert_status_loading": "Caricamento…",
   "config.skill_manager.tool_bridge_header": "Python Tool Bridge",

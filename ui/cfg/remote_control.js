@@ -161,7 +161,7 @@ async function loadRemotePlatforms() {
         html += '</div>';
         container.innerHTML = html;
     } catch (e) {
-        container.innerHTML = `<span class="rc-error-text">Error: ${e.message}</span>`;
+        container.innerHTML = `<span class="rc-error-text">${t('config.remote_control.error_prefix')} ${e.message}</span>`;
     }
 }
 
@@ -202,6 +202,6 @@ async function loadRemoteDevices() {
         html += '</div>';
         container.innerHTML = html;
     } catch (e) {
-        container.innerHTML = `<span class="rc-error-text">Error: ${e.message}</span>`;
+        container.innerHTML = `<span class="rc-error-text">${t('config.remote_control.error_prefix')} ${e.message}</span>`;
     }
 }

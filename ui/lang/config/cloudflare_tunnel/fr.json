@@ -26,5 +26,8 @@
   "config.cloudflare_tunnel.expose_single_hint": "Les tunnels Token et Quick utilisent une seule URL d'origine. Un seul service peut être la destination du tunnel. Utilisez Named Tunnel pour le routage multi-services.",
   "config.cloudflare_tunnel.expose_named_hint": "Les Named Tunnels supportent plusieurs règles d'entrée — les deux services peuvent être exposés simultanément via des règles d'ingress personnalisées.",
   "config.cloudflare_tunnel.loopback_label": "Loopback HTTP port for cloudflared (avoids TLS)",
-  "config.cloudflare_tunnel.loopback_hint": "Opens a plain HTTP port on 127.0.0.1 only. cloudflared connects to this instead of the HTTPS port — no certificate verification needed. The port is assigned automatically."
+  "config.cloudflare_tunnel.loopback_hint": "Opens a plain HTTP port on 127.0.0.1 only. cloudflared connects to this instead of the HTTPS port — no certificate verification needed. The port is assigned automatically.",
+  "config.cloudflare_tunnel.error_prefix": "Erreur",
+  "config.cloudflare_tunnel.restarting": "Redémarrage du tunnel...",
+  "config.cloudflare_tunnel.restart_success": "Tunnel redémarré avec succès"
 }

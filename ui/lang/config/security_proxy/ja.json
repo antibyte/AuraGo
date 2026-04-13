@@ -84,6 +84,7 @@
   "config.security_proxy.status_unknown": "不明なステータス",
   "config.security_proxy.tls_desc": "ドメインとLet's Encrypt TLS証明書を設定します。ポートのみモードの場合はドメインを空にしてください。",
   "config.security_proxy.tls_title": "ドメインとTLS",
+  "config.security_proxy.error_prefix": "エラー",
   "config.server.cert_status_error": "読み込みエラー",
   "config.server.cert_status_loading": "読み込み中…",
   "config.skill_manager.tool_bridge_header": "Python Tool Bridge",

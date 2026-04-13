@@ -26,5 +26,8 @@
   "config.cloudflare_tunnel.expose_single_hint": "Token और Quick टनल एक ही मूल URL (--url) का उपयोग करते हैं। केवल एक सेवा टनल लक्ष्य हो सकती है। कई सेवाओं के लिए Named Tunnel का उपयोग करें।",
   "config.cloudflare_tunnel.expose_named_hint": "Named Tunnels कई ingress नियमों का समर्थन करते हैं। नीचे Custom Ingress नियमों में अलग-अलग होस्टनाम कॉन्फ़िगर करके दोनों सेवाओं को एक साथ प्रदर्शित किया जा सकता है।",
   "config.cloudflare_tunnel.loopback_label": "Loopback HTTP port for cloudflared (avoids TLS)",
-  "config.cloudflare_tunnel.loopback_hint": "Opens a plain HTTP port on 127.0.0.1 only. cloudflared connects to this instead of the HTTPS port — no certificate verification needed. The port is assigned automatically."
+  "config.cloudflare_tunnel.loopback_hint": "Opens a plain HTTP port on 127.0.0.1 only. cloudflared connects to this instead of the HTTPS port — no certificate verification needed. The port is assigned automatically.",
+  "config.cloudflare_tunnel.error_prefix": "त्रुटि",
+  "config.cloudflare_tunnel.restarting": "टनल पुनः आरंभ हो रहा है...",
+  "config.cloudflare_tunnel.restart_success": "टनल सफलतापूर्वक पुनः आरंभ हुआ"
 }

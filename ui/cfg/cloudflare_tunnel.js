@@ -227,14 +227,14 @@ function cloudflareTunnelSaveToken() {
 
 function cloudflareTunnelRestart() {
     const status = document.getElementById('cloudflare-tunnel-token-status');
-    if (status) { status.textContent = 'Restarting tunnel...'; status.className = 'cf-token-status is-pending'; }
+    if (status) { status.textContent = t('config.cloudflare_tunnel.restarting'); status.className = 'cf-token-status is-pending'; }
     fetch('/api/cloudflare-tunnel/restart', { method: 'POST' })
     .then(r => r.json())
     .then(data => {
         if (data.error) {
             if (status) { status.textContent = data.error; status.className = 'cf-token-status is-error'; }
         } else {
-            if (status) { status.textContent = 'Tunnel restarted successfully'; status.className = 'cf-token-status is-success'; }
+            if (status) { status.textContent = t('config.cloudflare_tunnel.restart_success'); status.className = 'cf-token-status is-success'; }
         }
     })
     .catch(err => {

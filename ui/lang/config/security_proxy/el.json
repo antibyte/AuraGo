@@ -84,6 +84,7 @@
   "config.security_proxy.status_unknown": "Άγνωστη κατάσταση",
   "config.security_proxy.tls_desc": "Ρυθμίστε τον τομέα και το πιστοποιητικό Let's Encrypt TLS. Αφήστε τον τομέα κενό για λειτουργία μόνο θύρας.",
   "config.security_proxy.tls_title": "Τομέας \u0026 TLS",
+  "config.security_proxy.error_prefix": "Σφάλμα",
   "config.server.cert_status_error": "Σφάλμα φόρτωσης",
   "config.server.cert_status_loading": "Φόρτωση…",
   "config.skill_manager.tool_bridge_header": "Python Tool Bridge",

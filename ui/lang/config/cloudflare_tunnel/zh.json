@@ -26,5 +26,8 @@
   "config.cloudflare_tunnel.expose_single_hint": "Token 和 Quick 隧道仅使用单一源 URL（--url），只能设置一个服务作为隧道目标。如需在不同主机名下路由多个服务，请使用 Named Tunnel。",
   "config.cloudflare_tunnel.expose_named_hint": "Named Tunnels 支持多个入站规则，可通过在下方 Custom Ingress 规则中配置独立主机名，同时暴露两个服务。",
   "config.cloudflare_tunnel.loopback_label": "Loopback HTTP port for cloudflared (avoids TLS)",
-  "config.cloudflare_tunnel.loopback_hint": "Opens a plain HTTP port on 127.0.0.1 only. cloudflared connects to this instead of the HTTPS port — no certificate verification needed. The port is assigned automatically."
+  "config.cloudflare_tunnel.loopback_hint": "Opens a plain HTTP port on 127.0.0.1 only. cloudflared connects to this instead of the HTTPS port — no certificate verification needed. The port is assigned automatically.",
+  "config.cloudflare_tunnel.error_prefix": "错误",
+  "config.cloudflare_tunnel.restarting": "正在重启隧道...",
+  "config.cloudflare_tunnel.restart_success": "隧道重启成功"
 }

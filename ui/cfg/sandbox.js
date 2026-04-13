@@ -96,7 +96,7 @@ async function renderSandboxSection(section) {
 
     html += `<div class="cfg-toggle-row-compact">
         <div class="toggle ${sbCfg.auto_install === true || sbCfg.auto_install === undefined ? 'on' : ''}" data-path="sandbox.auto_install" onclick="toggleBool(this)"></div>
-        <span class="cfg-toggle-label">Auto-Install llm-sandbox</span>
+        <span class="cfg-toggle-label">${t('config.sandbox.auto_install_label')}</span>
     </div>`;
 
     html += `<div class="cfg-toggle-row-compact">

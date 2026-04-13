@@ -26,5 +26,8 @@
   "config.cloudflare_tunnel.expose_single_hint": "Token a Quick tunely používají jednu zdrojovou URL (--url). Jako cíl tunelu lze nastavit pouze jednu službu. Pro směrování více služeb pod různými názvy hostitelů použijte Named Tunnel.",
   "config.cloudflare_tunnel.expose_named_hint": "Named Tunnely podporují více ingress pravidel. Obě služby lze vystavit současně konfigurací samostatných názvů hostitelů v pravidlech Custom Ingress níže.",
   "config.cloudflare_tunnel.loopback_label": "Loopback HTTP port for cloudflared (avoids TLS)",
-  "config.cloudflare_tunnel.loopback_hint": "Opens a plain HTTP port on 127.0.0.1 only. cloudflared connects to this instead of the HTTPS port — no certificate verification needed. The port is assigned automatically."
+  "config.cloudflare_tunnel.loopback_hint": "Opens a plain HTTP port on 127.0.0.1 only. cloudflared connects to this instead of the HTTPS port — no certificate verification needed. The port is assigned automatically.",
+  "config.cloudflare_tunnel.error_prefix": "Chyba",
+  "config.cloudflare_tunnel.restarting": "Restartuji tunnel...",
+  "config.cloudflare_tunnel.restart_success": "Tunnel úspěšně restartován"
 }

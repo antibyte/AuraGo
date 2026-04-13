@@ -36,5 +36,8 @@
   "config.cloudflare_tunnel.log_info": "Info",
   "config.cloudflare_tunnel.log_debug": "Debug",
   "config.cloudflare_tunnel.log_warn": "Warn",
-  "config.cloudflare_tunnel.log_error": "Error"
+  "config.cloudflare_tunnel.log_error": "Error",
+  "config.cloudflare_tunnel.error_prefix": "Error",
+  "config.cloudflare_tunnel.restarting": "Restarting tunnel...",
+  "config.cloudflare_tunnel.restart_success": "Tunnel restarted successfully"
 }

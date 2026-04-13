@@ -84,6 +84,7 @@
   "config.security_proxy.status_unknown": "未知状态",
   "config.security_proxy.tls_desc": "配置域名和 Let's Encrypt TLS 证书。留空域名以使用仅端口模式。",
   "config.security_proxy.tls_title": "域名与 TLS",
+  "config.security_proxy.error_prefix": "错误",
   "config.server.cert_status_error": "加载错误",
   "config.server.cert_status_loading": "加载中…",
   "config.skill_manager.tool_bridge_header": "Python Tool Bridge",

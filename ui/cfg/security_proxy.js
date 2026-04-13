@@ -244,7 +244,7 @@ async function _proxyFetchStatus() {
         }
     } catch(e) {
         const el = document.getElementById('proxy-status-info');
-        if (el) el.textContent = 'Error: ' + e.message;
+        if (el) el.textContent = t('config.security_proxy.error_prefix') + ' ' + e.message;
     }
 }
 
