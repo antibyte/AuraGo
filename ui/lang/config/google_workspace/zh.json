@@ -48,6 +48,6 @@
   "config.google_workspace.oauth_manual_hint": "如果您的浏览器显示 ERR_CONNECTION_REFUSED，请从地址栏复制完整的URL并粘贴到下方以完成授权。",
   "config.google_workspace.oauth_manual_btn": "完成授权",
   "config.google_workspace.oauth_manual_success": "授权成功",
-  "config.google_workspace.oauth_manual_failed":
-  "config.google_workspace.testing": "⏳ 测试中..." "授权失败："
+  "config.google_workspace.oauth_manual_failed": "授权失败：",
+  "config.google_workspace.testing": "⏳ 测试中..."
 }

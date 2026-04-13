@@ -48,6 +48,6 @@
   "config.google_workspace.oauth_manual_hint": "यदि आपका ब्राउज़र ERR_CONNECTION_REFUSED दिखाता है, तो एड्रेस बार से पूरा URL कॉपी करें और प्राधिकरण पूरा करने के लिए नीचे पेस्ट करें।",
   "config.google_workspace.oauth_manual_btn": "प्राधिकरण पूरा करें",
   "config.google_workspace.oauth_manual_success": "प्राधिकरण सफल",
-  "config.google_workspace.oauth_manual_failed":
-  "config.google_workspace.testing": "⏳ परीक्षण..." "प्राधिकरण विफल: "
+  "config.google_workspace.oauth_manual_failed": "प्राधिकरण विफल: ",
+  "config.google_workspace.testing": "⏳ परीक्षण..."
 }

@@ -3,9 +3,9 @@
   "config.google_workspace.readonly_label": "Modo somente leitura",
   "config.google_workspace.readonly_hint": "Quando ativo, apenas operações de leitura são permitidas (sem envio de e-mails, criação de eventos, edição de documentos, etc.)",
   "config.google_workspace.oauth_title": "Configuração OAuth2",
-  "config.google_workspace.oauth_desc": "Google Workspace uses OAuth2 for authentication. Create an OAuth2 client in the Google Cloud Console, set the redirect URI to your AuraGo URL + /api/oauth/callback, and paste the credentials below.",
-  "config.google_workspace.client_id_label": "OAuth2 Client ID",
-  "config.google_workspace.client_id_hint": "From Google Cloud Console → APIs & Services → Credentials",
+  "config.google_workspace.oauth_desc": "Google Workspace usa OAuth2 para autenticação. Crie um cliente OAuth2 na Google Cloud Console, defina o URI de redirecionamento para sua URL AuraGo + /api/oauth/callback, e cole as credenciais abaixo.",
+  "config.google_workspace.client_id_label": "ID do cliente OAuth2",
+  "config.google_workspace.client_id_hint": "Da Google Cloud Console → APIs e serviços → Credenciais",
   "config.google_workspace.client_secret_label": "Segredo do cliente OAuth2",
   "config.google_workspace.client_secret_hint": "Armazenado criptografado no vault. Cole o segredo e clique em Salvar.",
   "config.google_workspace.save_vault": "Salvar no Vault",
@@ -42,12 +42,12 @@
   "config.google_workspace.oauth_failed": "Falha na autorização",
   "config.google_workspace.oauth_disconnected": "Desconectado",
   "config.google_workspace.oauth_not_connected": "Não conectado — clique em Conectar para autorizar",
-  "config.google_workspace.token_expired": "token expired",
-  "config.google_workspace.has_refresh": "refresh token available",
-  "config.google_workspace.oauth_manual_title": "Browser redirect failed? Paste the URL here",
-  "config.google_workspace.oauth_manual_hint": "If your browser shows ERR_CONNECTION_REFUSED, copy the full address bar URL and paste it below to complete the authorization.",
+  "config.google_workspace.token_expired": "token expirado",
+  "config.google_workspace.has_refresh": "refresh token disponível",
+  "config.google_workspace.oauth_manual_title": "Redirecionamento do navegador falhou? Cole o URL aqui",
+  "config.google_workspace.oauth_manual_hint": "Se o seu navegador mostrar ERR_CONNECTION_REFUSED, copie o URL completo da barra de endereço e cole-o abaixo para concluir a autorização.",
   "config.google_workspace.oauth_manual_btn": "Concluir autorização",
   "config.google_workspace.oauth_manual_success": "Autorização bem-sucedida",
-  "config.google_workspace.oauth_manual_failed":
-  "config.google_workspace.testing": "⏳ Testando..." "Falha na autorização: "
+  "config.google_workspace.oauth_manual_failed": "Falha na autorização: ",
+  "config.google_workspace.testing": "⏳ Testando..."
 }
