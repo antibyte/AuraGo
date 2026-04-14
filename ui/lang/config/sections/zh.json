@@ -1,5 +1,5 @@
 {
-  "config.github.agent_badge": "Agent",
+  "config.github.agent_badge": "代理",
   "config.github.agent_created_always_allowed": "由代理创建 - 始终允许",
   "config.github.agent_created_note": "代理创建的仓库始终可访问——即使没有明确批准。",
   "config.github.allowed_repos_desc": "代理只能访问此处列出的仓库。代理自创的仓库始终被允许。如果列表为空，代理只能访问它自己创建的仓库。",
