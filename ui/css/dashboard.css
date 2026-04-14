@@ -118,7 +118,7 @@
         /* ── Dashboard Layout ────────────────────────────────── */
         .dash-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
             gap: 1.2rem;
             padding: 1.5rem;
             max-width: 1400px;
@@ -145,6 +145,10 @@
             box-shadow:
                 var(--surface-shadow),
                 inset 0 1px 0 var(--surface-highlight);
+        }
+
+        .dash-grid > .dash-card {
+            min-height: 180px;
         }
 
         .dash-card::before {
@@ -313,7 +317,7 @@
         /* ── Budget Panel ────────────────────────────────────── */
         .budget-layout {
             display: grid;
-            grid-template-columns: 180px 1fr;
+            grid-template-columns: minmax(140px, 1fr) 2fr;
             gap: 1.5rem;
             align-items: start;
         }
@@ -1611,6 +1615,78 @@
             }
         }
 
+        @media (max-width: 640px) {
+            .agent-banner-item {
+                white-space: normal;
+                flex: 1 1 calc(50% - 0.5rem);
+            }
+            .agent-banner {
+                gap: 0.5rem 1rem;
+                justify-content: center;
+            }
+            .agent-banner-sep {
+                display: none;
+            }
+            .mood-trigger-text {
+                white-space: normal;
+                max-width: 100%;
+                line-height: 1.4;
+            }
+            .journal-entry .je-title {
+                white-space: normal;
+                overflow-wrap: anywhere;
+            }
+            .error-pattern-msg {
+                white-space: normal;
+                overflow-wrap: anywhere;
+                display: -webkit-box;
+                -webkit-line-clamp: 2;
+                -webkit-box-orient: vertical;
+                overflow: hidden;
+            }
+            .log-line {
+                white-space: pre-wrap;
+                word-break: break-word;
+            }
+            .memory-health-summary,
+            .memory-curator-grid {
+                grid-template-columns: 1fr;
+            }
+            .memory-health-strategy-reason {
+                text-align: left;
+                max-width: 100%;
+            }
+            .memory-health-strategy-head,
+            .memory-health-strategy-reason-wrap {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.35rem;
+            }
+            .compression-rank-name {
+                white-space: normal;
+                overflow-wrap: anywhere;
+                min-width: 0;
+            }
+            .gauge-grid {
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
+            }
+            .gauge-item canvas {
+                max-width: 160px;
+                margin: 0 auto;
+            }
+            .cf-modal {
+                width: 96vw;
+                max-height: 88vh;
+            }
+            .cf-body {
+                padding: 0.6rem 0.9rem 1rem;
+            }
+            .cf-header {
+                padding: 0.9rem 0.9rem 0.6rem;
+            }
+        }
+
         @media (max-width: 480px) {
             .memory-stats-grid {
                 grid-template-columns: 1fr;
@@ -1621,11 +1697,35 @@
             }
 
             .profile-entry {
-                grid-template-columns: 1fr 1.5fr auto auto;
+                grid-template-columns: 1fr;
+                gap: 0.25rem;
+                padding: 0.5rem 0;
+            }
+            .profile-entry .profile-actions {
+                opacity: 1;
+                justify-content: flex-start;
             }
 
             .prompt-kpi-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-grid {
                 grid-template-columns: 1fr 1fr;
+            }
+
+            .ops-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .dash-tabs {
+                gap: 0.15rem;
+            }
+            .dash-tab {
+                flex: 1 1 auto;
+                justify-content: center;
+                min-width: 48px;
+                padding: 0.4rem 0.5rem;
             }
         }
         /* ── Core-Facts Modal ───────────────────────────────── */
@@ -3058,8 +3158,8 @@
 
         .knowledge-visual-svg {
             width: 100%;
-            min-width: 680px;
-            height: 360px;
+            min-width: 100%;
+            height: auto;
             display: block;
         }
 
@@ -3335,7 +3435,7 @@
     }
 
     .knowledge-visual-svg {
-        min-width: 560px;
+        min-width: 100%;
     }
 
     .knowledge-detail-grid {
