@@ -141,6 +141,35 @@ This pulls the latest image and restarts the container. Your data is preserved i
 - `aurago_data` — config, memory, chat history, vault, vector DB
 - `aurago_workdir` — Python venv and generated tools
 
+### Python Venv Considerations
+
+The `aurago_workdir` volume preserves the Python virtual environment across restarts. This is intentional for performance, but requires attention during upgrades:
+
+**When upgrading Python versions** (e.g., from Python 3.11 to 3.12):
+```bash
+# Stop container
+docker compose down
+
+# Remove the old venv (it will be recreated on next start)
+docker volume rm aurago_aurago_workdir
+
+# Restart with new image
+docker compose up -d
+```
+
+**If you encounter pip package issues** after an upgrade:
+```bash
+# Enter the container
+docker compose exec aurago bash
+
+# Remove and recreate venv
+rm -rf /app/agent_workspace/workdir/venv
+exit
+
+# Restart container to trigger venv recreation
+docker compose restart aurago
+```
+
 ### Clean Reinstall (Preserving Data)
 
 ```bash
@@ -206,3 +235,225 @@ The healthcheck has a 3-minute startup window (`start-period: 180s`) to allow fo
 healthcheck:
   start_period: 300s
 ```
+
+---
+
+## 6. Logging Configuration
+
+### Default Logging
+
+By default, AuraGo uses Docker's `json-file` logging driver with rotation:
+- Maximum file size: 10 MB
+- Maximum files: 3
+- Total maximum log size: ~30 MB per container
+
+### Alternative: Journald Logging (Linux)
+
+For better integration with system logging on Linux:
+
+```yaml
+    logging:
+      driver: journald
+      options:
+        tag: "aurago"
+```
+
+### Alternative: Syslog Logging
+
+For centralized log management:
+
+```yaml
+    logging:
+      driver: syslog
+      options:
+        syslog-address: "udp://localhost:514"
+        tag: "aurago"
+```
+
+### Viewing Logs
+
+```bash
+# Real-time logs
+docker compose logs -f aurago
+
+# Last 100 lines
+docker compose logs --tail=100 aurago
+
+# Logs from specific time
+docker compose logs --since="2024-01-01T00:00:00" aurago
+
+# Save logs to file
+docker compose logs aurago > aurago_logs.txt
+```
+
+---
+
+## 7. Network Configuration
+
+### Internal Network Isolation (Advanced)
+
+For enhanced security, you can isolate sidecars on an internal network:
+
+```yaml
+networks:
+  aurago_internal:
+    driver: bridge
+    internal: true
+  aurago_public:
+    driver: bridge
+
+services:
+  aurago:
+    networks:
+      - aurago_public
+      - aurago_internal
+  
+  gotenberg:
+    networks:
+      - aurago_internal
+    # Remove ports section - only accessible from aurago
+```
+
+This prevents external access to Gotenberg while allowing AuraGo to communicate with it.
+
+### Custom Port Configuration
+
+To change the default port (8088):
+
+1. Edit `docker-compose.yml`:
+```yaml
+    ports:
+      - "9090:8088"  # Host port 9090, container port stays 8088
+```
+
+2. Update environment variable if needed:
+```yaml
+    environment:
+      - AURAGO_SERVER_HOST=0.0.0.0
+```
+
+The container's internal port (8088) should not be changed.
+
+---
+
+## 8. Troubleshooting
+
+### Container Won't Start
+
+**Check logs:**
+```bash
+docker compose logs aurago
+```
+
+**Common issues:**
+
+1. **Master key not found**: Check if `aurago_master.key` exists and has correct permissions:
+   ```bash
+   ls -la aurago_master.key
+   # Should show: -rw------- (600)
+   ```
+
+2. **Port already in use**: Change host port in `docker-compose.yml`
+
+3. **Volume permission issues**:
+   ```bash
+   docker volume rm aurago_aurago_data
+   docker compose up -d
+   ```
+
+### Healthcheck Fails
+
+If the container is marked as unhealthy:
+
+1. **Wait longer**: Initial startup can take 3-5 minutes for VectorDB initialization
+2. **Check resource limits**: Increase memory if OOM kills occur
+3. **Verify config**: Invalid config.yaml can prevent startup
+
+```bash
+# Check health status
+docker compose ps
+
+# Inspect healthcheck
+docker inspect aurago | grep -A 10 Health
+```
+
+### Docker Proxy Issues
+
+If container management fails:
+
+1. **Verify proxy is running**:
+   ```bash
+   docker compose ps docker-proxy
+   ```
+
+2. **Test proxy health**:
+   ```bash
+   docker compose exec docker-proxy wget -q --spider http://localhost:2375/_ping
+   ```
+
+3. **Check permissions**: Ensure `/var/run/docker.sock` is accessible
+
+### Reset to Factory Defaults
+
+```bash
+# Stop and remove everything
+docker compose down
+docker volume rm aurago_aurago_data aurago_aurago_workdir
+
+# Remove master key (if you want to regenerate)
+rm aurago_master.key
+
+# Start fresh
+docker compose up -d
+```
+
+> **Warning**: This deletes all data including memories, chat history, and vault secrets!
+
+---
+
+## 9. Security Checklist
+
+- [ ] Master key created with `chmod 600` permissions
+- [ ] Master key backed up securely (password manager, encrypted storage)
+- [ ] Docker socket proxy enabled (not direct socket mount)
+- [ ] EXEC=0 in docker-proxy if DockerExec tool not needed
+- [ ] Resource limits configured appropriately for your hardware
+- [ ] SSH keys for Ansible are dedicated keys, not your personal keys
+- [ ] Regular security updates applied to host system
+- [ ] Firewall rules restrict access to port 8088 if needed
+- [ ] Logs reviewed periodically for suspicious activity
+
+---
+
+## 10. Production Deployment Recommendations
+
+For production environments:
+
+1. **Pin image version**: Don't use `latest`, use specific version tag
+   ```yaml
+   image: ghcr.io/antibyte/aurago:v1.2.3
+   ```
+
+2. **Enable Docker socket proxy restrictions**:
+   ```yaml
+   environment:
+     - EXEC=0  # Disable if not needed
+   ```
+
+3. **Configure backup strategy**:
+   - Backup `aurago_master.key` securely
+   - Regular backups of `aurago_data` volume
+   - Test restoration procedure
+
+4. **Monitor resource usage**:
+   ```bash
+   docker stats aurago
+   ```
+
+5. **Set up log aggregation**: Use journald or syslog driver
+
+6. **Network isolation**: Use internal networks for sidecars
+
+7. **Regular updates**: Subscribe to release notifications for security patches
+
+8. **Audit configuration**: Periodically review config.yaml for security settings

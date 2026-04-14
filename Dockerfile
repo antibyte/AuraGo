@@ -120,9 +120,10 @@ VOLUME ["/app/data", "/app/agent_workspace/workdir"]
 
 # ----- healthcheck -----
 # Uses Python (already in the image) to probe the ready endpoint.
-# start-period is generous to allow VectorDB init on slow hosts (2–5 min cold start).
+# start-period is generous to allow VectorDB init on slow hosts (can take 3-5 min).
 # The /api/ready endpoint only returns 200 once the server is fully initialized.
-HEALTHCHECK --interval=30s --timeout=10s --start-period=180s --retries=5 \
+# Increased start-period to 300s (5 min) for very slow hosts or large databases.
+HEALTHCHECK --interval=30s --timeout=10s --start-period=300s --retries=5 \
   CMD python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:8088/api/ready')" || exit 1
 
 # ----- entrypoint -----

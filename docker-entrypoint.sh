@@ -52,6 +52,13 @@ fi
 if [ ! -f "$CONFIG_FILE" ]; then
     echo "[Entrypoint] No config.yaml found, creating initial configuration..."
     
+    # Create backup of any existing config before overwriting (safety measure)
+    if [ -f "$CONFIG_FILE" ]; then
+        BACKUP_NAME="${CONFIG_FILE}.backup.$(date +%s)"
+        cp "$CONFIG_FILE" "$BACKUP_NAME" 2>/dev/null && \
+            echo "[Entrypoint] Backed up existing config to $BACKUP_NAME" || true
+    fi
+    
     if [ -f "$USER_CONFIG" ]; then
         echo "[Entrypoint] Using user-supplied config from $USER_CONFIG..."
         cp "$USER_CONFIG" "$CONFIG_FILE"
@@ -139,16 +146,22 @@ if [ -z "${AURAGO_MASTER_KEY:-}" ]; then
         NEW_KEY=$(tr -dc 'a-f0-9' < /dev/urandom | head -c 64)
         export AURAGO_MASTER_KEY="$NEW_KEY"
         
+        # Save to .env file (only if Docker secret not available)
         echo "AURAGO_MASTER_KEY=\"$NEW_KEY\"" > "$ENV_FILE"
         chmod 600 "$ENV_FILE"
         
+        # SECURITY: Don't log the actual key value
         echo "=========================================================================="
         echo "⚠️  IMPORTANT: A new Master Key was generated"
-        echo "   Saved to: $ENV_FILE"
-        echo "   For better security, use Docker Compose secrets instead:"
-        echo "   1. Copy the key: docker compose exec aurago cat /app/data/.env"
-        echo "   2. Save to host: echo '<key>' > aurago_master.key && chmod 600 aurago_master.key"
-        echo "   3. Add to docker-compose.yml — see documentation for details."
+        echo "   Saved to: $ENV_FILE (inside container volume)"
+        echo ""
+        echo "   BACKUP THIS KEY IMMEDIATELY:"
+        echo "   docker compose exec aurago sh -c 'cat /app/data/.env | grep AURAGO_MASTER_KEY'"
+        echo ""
+        echo "   For better security on next restart, use Docker Compose secrets:"
+        echo "   1. Save the key: echo '<your-key>' > aurago_master.key && chmod 600 aurago_master.key"
+        echo "   2. The docker-compose.yml already references this file as a secret"
+        echo "   3. Restart: docker compose down && docker compose up -d"
         echo "=========================================================================="
     fi
 fi

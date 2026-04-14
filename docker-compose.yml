@@ -90,6 +90,9 @@ services:
     # --- Resource limits (adjust to your hardware) ---
     # Without limits AuraGo may consume unlimited CPU/RAM, which can affect
     # host stability under heavy AI workloads. Tune to your machine.
+    #
+    # Note: These limits apply to the AuraGo container only.
+    # Gotenberg and other sidecars have separate limits.
     deploy:
       resources:
         limits:
@@ -119,6 +122,9 @@ services:
   # URL config:
   #   • AuraGo running in Docker:    http://gotenberg:3000   (default, internal)
   #   • AuraGo running bare-metal:   http://localhost:3000   (change in config)
+  #
+  # SECURITY: Gotenberg is only accessible from AuraGo container (internal network).
+  #           The localhost port binding is ONLY for bare-metal AuraGo installations.
   # ============================================================================
   gotenberg:
     image: gotenberg/gotenberg:8
@@ -134,6 +140,15 @@ services:
       - CAP_FOWNER
     # Increase /dev/shm for Chromium's shared memory usage (prevents crashes).
     shm_size: '256m'
+    # Resource limits: Gotenberg can consume significant RAM during PDF generation
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
     # Expose on localhost only — not accessible from outside the host.
     # Needed when AuraGo runs as a bare-metal service (not in Docker).
     ports:
@@ -162,8 +177,15 @@ services:
   # Quick start:
   #   1. Uncomment this block AND the depends_on block above.
   #   2. Create ./ansible/playbooks/ and ./ansible/inventory/hosts on the host.
-  #   3. Copy your SSH private key to ~/.ssh (already mounted read-only).
+  #   3. Mount specific SSH keys (see SECURITY NOTE below).
   #   4. Set ansible.enabled=true + ansible.token in config.yaml.
+  #
+  # SECURITY NOTE: Never mount your entire ~/.ssh directory. Instead:
+  #   - Create a dedicated SSH key for Ansible: ssh-keygen -t ed25519 -f ~/.ssh/aurago_ansible
+  #   - Mount only that key: - ~/.ssh/aurago_ansible:/home/ansibleuser/.ssh/id_ed25519:ro
+  #   - Mount only that key's pub: - ~/.ssh/aurago_ansible.pub:/home/ansibleuser/.ssh/id_ed25519.pub:ro
+  #   - Add public key to managed hosts' authorized_keys
+  #   - Optionally mount known_hosts: - ./ansible/known_hosts:/home/ansibleuser/.ssh/known_hosts:ro
   # ============================================================================
   # ansible:
   #   build:
@@ -183,10 +205,14 @@ services:
   #     - ./ansible/playbooks:/playbooks
   #     # Inventory directory — put your hosts file here:
   #     - ./ansible/inventory:/inventory
-  #     # SSH private key(s) for connecting to managed hosts:
-    #     - ~/.ssh:/home/ansibleuser/.ssh:ro
+  #     # SSH private key — MOUNT SPECIFIC KEY, NOT ENTIRE ~/.ssh (see SECURITY NOTE above)
+  #     # Example (recommended):
+  #     - ~/.ssh/aurago_ansible:/home/ansibleuser/.ssh/id_ed25519:ro
+  #     - ~/.ssh/aurago_ansible.pub:/home/ansibleuser/.ssh/id_ed25519.pub:ro
   #     # Optional: custom ansible.cfg
   #     # - ./ansible/ansible.cfg:/etc/ansible/ansible.cfg:ro
+  #     # Optional: known_hosts for host key verification
+  #     # - ./ansible/known_hosts:/home/ansibleuser/.ssh/known_hosts:ro
   #   restart: unless-stopped
 
   # ============================================================================
@@ -195,6 +221,12 @@ services:
   # Instead of mounting /var/run/docker.sock directly into the AuraGo container
   # (which grants root-equivalent host access), this proxy only exposes the API
   # subset AuraGo actually needs. This is the default and recommended setup.
+  #
+  # SECURITY NOTES:
+  #   - EXEC=1 is required for the DockerExec tool to run commands in containers
+  #   - POST=1 allows starting/stopping containers (needed for Invasion Control)
+  #   - Together these grant significant control — only use if you need these features
+  #   - If you don't need container exec, set EXEC=0 for improved security
   #
   # To switch to direct socket access (NOT recommended):
   #   1. Uncomment the docker.sock volume mount in the aurago service above.
@@ -211,16 +243,18 @@ services:
       - IMAGES=1
       - NETWORKS=1
       - VOLUMES=1
-      - POST=1          # allow start/stop/restart/create
+      - POST=1          # allow start/stop/restart/create (needed for Invasion Control)
       - BUILD=0
       - COMMIT=0
-      - EXEC=1          # needed for DockerExec
+      - EXEC=1          # needed for DockerExec tool — set to 0 if not used
       - SWARM=0
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:2375/_ping"]
+      # Enhanced healthcheck: verify both ping and container list API work
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:2375/_ping && wget -q --spider http://localhost:2375/containers/json?limit=1 || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
+      start_period: 30s
 
 volumes:
   aurago_data:
