@@ -857,6 +857,18 @@ async function initPWA() {
     // 1. Ensure the manifest and favicon set is present for all pages.
     ensureBrandIcons();
 
+    // Always expose getPushStatus so UI can query it immediately
+    window.getPushStatus = function () {
+        if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+            return { available: false, permission: 'default', reason: 'not-supported' };
+        }
+        if (!window._swRegistration) {
+            return { available: false, permission: 'default', reason: 'sw-failed' };
+        }
+        const permission = Notification.permission; // 'granted' | 'denied' | 'default'
+        return { available: true, permission };
+    };
+
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
         window._pushStatus = { available: false, reason: 'not-supported' };
         return;
@@ -875,11 +887,6 @@ async function initPWA() {
 
     // 3. Expose push status and opt-in helpers on window for use by the chat UI
     window._swRegistration = registration;
-
-    window.getPushStatus = function () {
-        const permission = Notification.permission; // 'granted' | 'denied' | 'default'
-        return { available: true, permission };
-    };
 
     window.requestPushPermission = async function () {
         if (Notification.permission === 'denied') {

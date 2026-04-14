@@ -1936,11 +1936,11 @@ function initPushUI() {
     function applyState() {
         btn.classList.remove('push-granted', 'push-denied', 'push-unavailable');
         if (!window.getPushStatus) {
-            // PWA not supported
+            // PWA init may still be in progress; keep button inactive but not permanently disabled
             btn.classList.add('push-unavailable');
-            btn.title = t('pwa.notifications_unavailable');
+            btn.title = t('pwa.btn_push_title');
             btn.disabled = true;
-            return;
+            return false;
         }
         const { available, permission } = window.getPushStatus();
         if (!available) {
@@ -1950,15 +1950,33 @@ function initPushUI() {
         } else if (permission === 'granted') {
             btn.classList.add('push-granted');
             btn.title = t('pwa.notifications_enabled');
+            btn.disabled = false;
         } else if (permission === 'denied') {
             btn.classList.add('push-denied');
             btn.title = t('pwa.notifications_denied');
+            btn.disabled = false;
         } else {
             btn.title = t('pwa.btn_push_title');
+            btn.disabled = false;
         }
+        return true;
     }
 
-    applyState();
+    // PWA init is async in shared.js; poll briefly until getPushStatus is ready
+    if (!applyState()) {
+        let attempts = 0;
+        const timer = setInterval(() => {
+            attempts++;
+            if (applyState() || attempts > 30) {
+                clearInterval(timer);
+                if (attempts > 30 && !window.getPushStatus) {
+                    btn.classList.add('push-unavailable');
+                    btn.title = t('pwa.notifications_unavailable');
+                    btn.disabled = true;
+                }
+            }
+        }, 100);
+    }
 
     // Re-evaluate once the Service Worker has finished registering
     // (initPWA is async and may complete after DOMContentLoaded)
