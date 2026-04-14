@@ -170,6 +170,8 @@ function applyI18n() {
     if (cheatsheetPickerSendBtn) cheatsheetPickerSendBtn.textContent = t('chat.cheatsheet_picker_send');
     const cheatsheetPickerTitle = document.querySelector('[data-i18n="chat.cheatsheet_picker_title"]');
     if (cheatsheetPickerTitle) cheatsheetPickerTitle.textContent = t('chat.cheatsheet_picker_title');
+    const cheatsheetPickerCloseX = document.getElementById('cheatsheet-picker-close-x');
+    if (cheatsheetPickerCloseX) cheatsheetPickerCloseX.setAttribute('aria-label', t('chat.close'));
     /* Lightbox */
     const lbc = document.getElementById('img-lightbox-close');
     if (lbc) lbc.title = t('chat.lightbox_close_title');
@@ -782,6 +784,7 @@ function appendMessage(role, text) {
         // Pre-emptively strip to see if there's any conversational text left
         let strippedContent = displayContent
             .replace(/<tool_call>[\s\S]*?<\/tool_call>/g, '')
+            .replace(/<done\s*\/?>/gi, '')
             .replace(/```(?:json)?\s*\{\s*"action"[\s\S]*?\}\s*```/g, '')
             .replace(/^```(?:json)?\n\{[\s\S]*?\}\n```$/gm, '')
             .replace(/^\{"action"\s*:[^\n]*\}\s*$/gm, '')  // inline single-line action JSON
@@ -1474,6 +1477,9 @@ function connectSSE() {
     let _inThinkingBlock = false;
     window.AuraSSE.on('llm_stream_delta', function (payload) {
         if (!payload || !payload.content) return;
+        // Strip LLM end-of-turn markers so they don't appear as visible text.
+        payload.content = payload.content.replace(/<done\s*\/?>/gi, '');
+        if (!payload.content) return;
         // Suppress tool-call JSON patterns in streamed content (same logic as backend filter).
         const trimmed = payload.content.trimStart();
         if (trimmed.length > 0 && trimmed[0] === '{' &&
