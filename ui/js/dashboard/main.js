@@ -364,21 +364,21 @@
             const candidates = Array.isArray(report?.duplicate_candidates) ? report.duplicate_candidates : [];
             if (!candidates.length) {
                 duplicates.innerHTML = `<div class="empty-state">${t('dashboard.knowledge_quality_empty_duplicates')}</div>`;
-                return;
+            } else {
+                duplicates.innerHTML = renderCollapsibleList(candidates, candidate => `
+                    <div class="knowledge-item">
+                        <div class="knowledge-item-head">
+                            <span class="knowledge-item-title">${escapeHtml(candidate.label || candidate.normalized_label || 'Node')}</span>
+                            <span class="knowledge-item-badge">${escapeHtml(t('dashboard.knowledge_quality_duplicate_count', { count: Number(candidate.count || 0) }))}</span>
+                        </div>
+                        <div class="knowledge-item-props">
+                            ${(Array.isArray(candidate.ids) ? candidate.ids : []).map(id => `
+                                <span class="knowledge-inline-link" data-kg-node-id="${escapeHtml(id || '')}">${escapeHtml(id || '')}</span>
+                            `).join('')}
+                        </div>
+                    </div>
+                `, 5);
             }
-            duplicates.innerHTML = candidates.map(candidate => `
-                <div class="knowledge-item">
-                    <div class="knowledge-item-head">
-                        <span class="knowledge-item-title">${escapeHtml(candidate.label || candidate.normalized_label || 'Node')}</span>
-                        <span class="knowledge-item-badge">${escapeHtml(t('dashboard.knowledge_quality_duplicate_count', { count: Number(candidate.count || 0) }))}</span>
-                    </div>
-                    <div class="knowledge-item-props">
-                        ${(Array.isArray(candidate.ids) ? candidate.ids : []).map(id => `
-                            <span class="knowledge-inline-link" data-kg-node-id="${escapeHtml(id || '')}">${escapeHtml(id || '')}</span>
-                        `).join('')}
-                    </div>
-                </div>
-            `).join('');
         }
 
         function renderKnowledgeGraphQualityNodeList(container, nodes, emptyKey) {
@@ -387,7 +387,7 @@
                 container.innerHTML = `<div class="empty-state">${t(emptyKey)}</div>`;
                 return;
             }
-            container.innerHTML = nodes.map(node => {
+            container.innerHTML = renderCollapsibleList(nodes, node => {
                 const props = renderKnowledgeProps(node.properties);
                 return `
                     <div class="knowledge-item clickable" data-kg-node-id="${escapeHtml(node.id || '')}">
@@ -398,7 +398,7 @@
                         ${props ? `<div class="knowledge-item-props">${props}</div>` : ''}
                     </div>
                 `;
-            }).join('');
+            }, 5);
         }
 
         function renderKnowledgeGraphLists(nodes, edges) {
@@ -412,7 +412,7 @@
                 container.innerHTML = `<div class="empty-state">${t('dashboard.knowledge_empty')}</div>`;
                 return;
             }
-            container.innerHTML = nodes.slice(0, 15).map(node => {
+            container.innerHTML = renderCollapsibleList(nodes, node => {
                 const props = renderKnowledgeProps(node.properties);
                 const score = node.importance_score;
                 const scoreBadge = (typeof score === 'number')
@@ -432,7 +432,7 @@
                         ${props ? `<div class="knowledge-item-props">${props}</div>` : ''}
                     </div>
                 `;
-            }).join('');
+            }, 8);
         }
 
         function renderKnowledgeEdgeList(container, edges) {
@@ -441,7 +441,7 @@
                 container.innerHTML = `<div class="empty-state">${t('dashboard.knowledge_empty')}</div>`;
                 return;
             }
-            container.innerHTML = edges.slice(0, 15).map(edge => {
+            container.innerHTML = renderCollapsibleList(edges, edge => {
                 const props = renderKnowledgeProps(edge.properties);
                 return `
                     <div class="knowledge-item">
@@ -452,7 +452,7 @@
                         ${props ? `<div class="knowledge-item-props">${props}</div>` : ''}
                     </div>
                 `;
-            }).join('');
+            }, 8);
         }
 
         function renderKnowledgeProps(properties) {
@@ -1512,7 +1512,7 @@
                     indexAxis: 'y',
                     scales: {
                         x: { grid: { color: cv('--border-subtle') }, ticks: { color: cv('--text-secondary') } },
-                        y: { grid: { display: false }, ticks: { color: cv('--text-primary'), font: { size: 11 } } },
+                        y: { grid: { display: false }, ticks: { color: cv('--text-primary'), font: { size: 11 }, autoSkip: false } },
                     }
                 }
             });
@@ -1527,6 +1527,21 @@
             const k = 1024, sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
             const i = Math.floor(Math.log(bytes) / Math.log(k));
             return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        }
+
+        function renderCollapsibleList(items, renderItem, limit = 5) {
+            if (!Array.isArray(items) || items.length === 0) return '';
+            if (items.length <= limit) return items.map(renderItem).join('');
+            const visible = items.slice(0, limit).map(renderItem).join('');
+            const hidden = items.slice(limit).map(renderItem).join('');
+            return `${visible}<div class="collapsible-hidden is-hidden">${hidden}</div><button type="button" class="collapsible-toggle" onclick="toggleCollapsible(this)">${esc(t('dashboard.show_more'))}</button>`;
+        }
+
+        function toggleCollapsible(btn) {
+            const hidden = btn.previousElementSibling;
+            const isHidden = hidden.classList.contains('is-hidden');
+            hidden.classList.toggle('is-hidden', !isHidden);
+            btn.textContent = isHidden ? t('dashboard.show_less') : t('dashboard.show_more');
         }
 
         function formatUptime(seconds) {
@@ -1716,7 +1731,7 @@
                 return;
             }
 
-            timelineList.innerHTML = entries.slice(0, 8).map(entry => {
+            timelineList.innerHTML = renderCollapsibleList(entries, entry => {
                 const ts = entry.timestamp ? new Date(entry.timestamp).toLocaleString([], { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
                 const moodLabel = t('dashboard.personality_mood_' + String(entry.primary_mood || 'neutral').toLowerCase());
                 const cause = entry.cause || entry.trigger_summary || t('dashboard.personality_no_trigger');
@@ -1731,7 +1746,7 @@
                         <div class="emotion-entry-desc">${escapeHtml(desc)}</div>
                     </div>
                 `;
-            }).join('');
+            }, 6);
             dashSetHidden(timelineEl, false);
         }
 
@@ -1814,7 +1829,7 @@
                 const suggestions = Array.isArray(curator.suggestions) ? curator.suggestions : [];
                 const stale = Array.isArray(curator.top_stale) ? curator.top_stale : [];
                 const overused = Array.isArray(curator.top_overused) ? curator.top_overused : [];
-                const conflictItems = conflicts.slice(0, 3);
+                const conflictItems = conflicts;
                 const facts = [
                     t('dashboard.memory_curator_fact_verification', { count: Number(curator.verification_backlog || 0) }),
                     t('dashboard.memory_curator_fact_low_confidence', { count: Number(curator.low_confidence || 0) }),
@@ -1824,16 +1839,16 @@
                 curatorEl.innerHTML = '<div class="memory-curator-grid">' +
                     '<div class="memory-curator-section"><div class="memory-curator-list">' + facts.map(item => `<div class="memory-curator-row">${esc(item)}</div>`).join('') + '</div></div>' +
                     '<div class="memory-curator-section"><div class="memory-curator-list">' +
-                    (suggestions.length ? suggestions.slice(0, 4).map(item => `<div class="memory-curator-row">${esc(item)}</div>`).join('') : `<div class="empty-state dash-empty-tight">${t('dashboard.memory_curator_empty')}</div>`) +
+                    (suggestions.length ? renderCollapsibleList(suggestions, item => `<div class="memory-curator-row">${esc(item)}</div>`, 4) : `<div class="empty-state dash-empty-tight">${t('dashboard.memory_curator_empty')}</div>`) +
                     '</div></div>' +
                     '<div class="memory-curator-section"><div class="memory-curator-list">' +
-                    (stale.length ? stale.slice(0, 3).map(item => `<div class="memory-curator-row mono">${esc(item)}</div>`).join('') : `<div class="memory-curator-row">${t('dashboard.memory_curator_no_stale')}</div>`) +
+                    (stale.length ? renderCollapsibleList(stale, item => `<div class="memory-curator-row mono">${esc(item)}</div>`, 3) : `<div class="memory-curator-row">${t('dashboard.memory_curator_no_stale')}</div>`) +
                     '</div></div>' +
                     '<div class="memory-curator-section"><div class="memory-curator-list">' +
-                    (overused.length ? overused.slice(0, 3).map(item => `<div class="memory-curator-row mono">${esc(item)}</div>`).join('') : `<div class="memory-curator-row">${t('dashboard.memory_curator_no_overused')}</div>`) +
+                    (overused.length ? renderCollapsibleList(overused, item => `<div class="memory-curator-row mono">${esc(item)}</div>`, 3) : `<div class="memory-curator-row">${t('dashboard.memory_curator_no_overused')}</div>`) +
                     '</div></div>' +
                     '<div class="memory-curator-section"><div class="memory-subsection-title">' + esc(t('dashboard.memory_conflicts_title')) + '</div><div class="memory-curator-list">' +
-                    (conflictItems.length ? conflictItems.map(item => `<div class="memory-curator-row"><span class="memory-conflict-pair mono">${esc(item.left_value || item.doc_id_left || '')} ↔ ${esc(item.right_value || item.doc_id_right || '')}</span><span>${esc(item.reason || '')}</span></div>`).join('') : `<div class="memory-curator-row">${t('dashboard.memory_conflicts_empty')}</div>`) +
+                    (conflictItems.length ? renderCollapsibleList(conflictItems, item => `<div class="memory-curator-row"><span class="memory-conflict-pair mono">${esc(item.left_value || item.doc_id_left || '')} ↔ ${esc(item.right_value || item.doc_id_right || '')}</span><span>${esc(item.reason || '')}</span></div>`, 3) : `<div class="memory-curator-row">${t('dashboard.memory_conflicts_empty')}</div>`) +
                     '</div></div>' +
                 '</div>';
             }
@@ -1844,7 +1859,7 @@
                 if (!cards.length && !pendingActions.length) {
                     episodicEl.innerHTML = `<div class="empty-state dash-empty-tight">${t('dashboard.memory_episodic_empty')}</div>`;
                 } else {
-                    const pendingHtml = '<div class="memory-episodic-subsection"><div class="memory-subsection-title">' + esc(t('dashboard.memory_pending_title')) + '</div>' + (pendingActions.length ? pendingActions.slice(0, 4).map(card => `
+                    const renderPendingCard = card => `
                         <div class="memory-episodic-item memory-episodic-item-pending">
                             <div class="memory-episodic-head">
                                 <span class="memory-episodic-title">${esc(card.title || '')}</span>
@@ -1852,9 +1867,8 @@
                             </div>
                             <div class="memory-episodic-summary">${esc(card.summary || '')}</div>
                             <div class="memory-episodic-meta"><span>${esc(card.event_date || '')}</span><span>${esc((card.trigger_query || t('dashboard.memory_pending_trigger')))}</span></div>
-                        </div>
-                    `).join('') : `<div class="empty-state dash-empty-tight">${t('dashboard.memory_pending_empty')}</div>`) + '</div>';
-                    const recentHtml = '<div class="memory-episodic-subsection"><div class="memory-subsection-title">' + esc(t('dashboard.memory_episodic_title')) + '</div>' + (cards.length ? cards.slice(0, 4).map(card => `
+                        </div>`;
+                    const renderRecentCard = card => `
                         <div class="memory-episodic-item">
                             <div class="memory-episodic-head">
                                 <span class="memory-episodic-title">${esc(card.title || '')}</span>
@@ -1865,8 +1879,9 @@
                                 <span>${esc(card.source || '')}</span>
                                 <span>${esc(Array.isArray(card.participants) && card.participants.length ? card.participants.join(', ') : t('dashboard.memory_episodic_agent_user'))}</span>
                             </div>
-                        </div>
-                    `).join('') : `<div class="empty-state dash-empty-tight">${t('dashboard.memory_episodic_empty')}</div>`) + '</div>';
+                        </div>`;
+                    const pendingHtml = '<div class="memory-episodic-subsection"><div class="memory-subsection-title">' + esc(t('dashboard.memory_pending_title')) + '</div>' + (pendingActions.length ? renderCollapsibleList(pendingActions, renderPendingCard, 4) : `<div class="empty-state dash-empty-tight">${t('dashboard.memory_pending_empty')}</div>`) + '</div>';
+                    const recentHtml = '<div class="memory-episodic-subsection"><div class="memory-subsection-title">' + esc(t('dashboard.memory_episodic_title')) + '</div>' + (cards.length ? renderCollapsibleList(cards, renderRecentCard, 4) : `<div class="empty-state dash-empty-tight">${t('dashboard.memory_episodic_empty')}</div>`) + '</div>';
                     episodicEl.innerHTML = '<div class="memory-episodic-list">' + pendingHtml + recentHtml + '</div>';
                 }
             }
@@ -1878,7 +1893,7 @@
                 container.innerHTML = '<div class="empty-state">' + t('dashboard.memory_no_milestones') + '</div>';
                 return;
             }
-            container.innerHTML = milestones.map(m => {
+            container.innerHTML = renderCollapsibleList(milestones, m => {
                 const d = new Date(m.timestamp);
                 const dateStr = d.toLocaleDateString([], { month: 'short', day: 'numeric' });
                 return `<div class="milestone-item">
@@ -1886,7 +1901,7 @@
             <span class="milestone-text">${esc(m.label)}${m.details ? ': ' + esc(m.details) : ''}</span>
             <span class="milestone-date">${dateStr}</span>
         </div>`;
-            }).join('');
+            }, 5);
         }
 
         function renderProfile(data) {
@@ -2552,7 +2567,7 @@
                 return;
             }
 
-            container.innerHTML = '<div class="tooling-telemetry-failure-list">' + failingTools.slice(0, 6).map(item => `
+            container.innerHTML = '<div class="tooling-telemetry-failure-list">' + renderCollapsibleList(failingTools, item => `
                 <div class="tooling-telemetry-failure-item">
                     <div>
                         <span class="tooling-telemetry-failure-tool">${esc(item.tool)}</span>
@@ -2560,7 +2575,7 @@
                     </div>
                     <span class="tooling-telemetry-failure-badge">${Number(item.failures).toLocaleString()}</span>
                 </div>
-            `).join('') + '</div>';
+            `, 6) + '</div>';
         }
 
         function toolingTelemetryFamilyLabel(key) {
@@ -2630,7 +2645,7 @@
                 return;
             }
 
-            container.innerHTML = '<div class="tooling-telemetry-family-list">' + ranked.slice(0, 6).map(item => {
+            container.innerHTML = '<div class="tooling-telemetry-family-list">' + renderCollapsibleList(ranked, item => {
                 const risk = item.failureRate >= 0.35 ? t('dashboard.tooling_telemetry_family_risk_high')
                     : item.failureRate >= 0.15 ? t('dashboard.tooling_telemetry_family_risk_medium')
                     : t('dashboard.tooling_telemetry_family_risk_low');
@@ -2646,7 +2661,7 @@
                         </div>
                     </div>
                 `;
-            }).join('') + '</div>';
+            }, 6) + '</div>';
         }
 
         function renderTelemetryScopes(container, scopes) {
@@ -2656,7 +2671,7 @@
                 return;
             }
 
-            container.innerHTML = '<div class="tooling-telemetry-scope-list">' + scopes.slice(0, 6).map(scope => {
+            container.innerHTML = '<div class="tooling-telemetry-scope-list">' + renderCollapsibleList(scopes, scope => {
                 const parseTotal = Object.values(scope.parse_sources || {}).reduce((sum, count) => sum + Number(count || 0), 0);
                 const recoveryTotal = Object.values(scope.recovery_events || {}).reduce((sum, count) => sum + Number(count || 0), 0);
                 const policyTotal = Object.values(scope.policy_events || {}).reduce((sum, count) => sum + Number(count || 0), 0);
@@ -2684,7 +2699,7 @@
                         </div>
                     </div>
                 `;
-            }).join('') + '</div>';
+            }, 6) + '</div>';
         }
 
         function toolingTelemetryScopeStatus(item) {
@@ -2749,7 +2764,7 @@
                 a.model.localeCompare(b.model)
             );
 
-            container.innerHTML = '<div class="tooling-telemetry-compare-list">' + comparison.slice(0, 6).map(item => {
+            container.innerHTML = '<div class="tooling-telemetry-compare-list">' + renderCollapsibleList(comparison, item => {
                 const status = toolingTelemetryScopeStatus(item);
                 return `
                     <div class="tooling-telemetry-compare-item">
@@ -2772,7 +2787,7 @@
                         </div>
                     </div>
                 `;
-            }).join('') + '</div>';
+            }, 6) + '</div>';
         }
 
         function renderToolingTelemetry(data) {
@@ -2895,24 +2910,21 @@
                 </span>
             </div>`;
 
-            let html = countInfo + '<div class="gh-repo-list">';
-            for (const r of repos) {
+            const renderRepo = r => {
                 const vis = r.private ? '<span class="gh-badge gh-badge-private">🔒 ' + t('dashboard.github_badge_private') + '</span>' : '<span class="gh-badge gh-badge-public">🌐 ' + t('dashboard.github_badge_public') + '</span>';
                 const tracked = r.tracked ? '<span class="gh-badge gh-badge-tracked">📌 ' + t('dashboard.github_badge_tracked') + '</span>' : '';
                 const lang = r.language ? `<span>💻 ${esc(r.language)}</span>` : '';
                 const updated = r.updated_at ? `<span>🕐 ${new Date(r.updated_at).toLocaleDateString()}</span>` : '';
                 const desc = r.description ? `<div class="gh-repo-desc">${esc(r.description)}</div>` : '';
-
-                html += `<div class="gh-repo">
+                return `<div class="gh-repo">
                     <a href="${esc(r.html_url)}" target="_blank" rel="noopener" class="gh-repo-name">
                         📦 ${esc(r.name)} ${vis} ${tracked}
                     </a>
                     ${desc}
                     <div class="gh-repo-meta">${lang} ${updated}</div>
                 </div>`;
-            }
-            html += '</div>';
-            container.innerHTML = html;
+            };
+            container.innerHTML = countInfo + '<div class="gh-repo-list">' + renderCollapsibleList(repos, renderRepo, 6) + '</div>';
         }
 
         // ══════════════════════════════════════════════════════════════════════════════
@@ -3366,7 +3378,7 @@
 
             const statusIcon = { running: '🟢', starting: '🟡', stopped: '⏹', error: '🔴', disabled: '⛔' };
 
-            const rowsHTML = daemons.map(d => {
+            const rowsHTML = renderCollapsibleList(daemons, d => {
                 const s = (d.status || 'stopped').toLowerCase();
                 const icon = statusIcon[s] || '⏹';
                 const name = esc(d.skill_name || d.skill_id || '?');
@@ -3418,7 +3430,7 @@
                         ${errHtml}
                     </div>
                 </div>`;
-            }).join('');
+            }, 5);
 
             listEl.innerHTML = alertHTML + rowsHTML;
         }
@@ -3523,7 +3535,7 @@
 
             operationsEl.innerHTML = `
                 <div class="helper-llm-operation-list">
-                    ${operations.map(([name, stats]) => `
+                    ${renderCollapsibleList(operations, ([name, stats]) => `
                         <div class="helper-llm-operation-item">
                             <div class="helper-llm-operation-head">
                                 <span class="helper-llm-operation-name">${escapeHtml(helperLLMOperationLabel(name))}</span>
@@ -3539,7 +3551,7 @@
                             ${helperLLMOperationDescription(name) ? `<div class="helper-llm-operation-detail">${escapeHtml(helperLLMOperationDescription(name))}</div>` : ''}
                             ${stats.last_detail ? `<div class="helper-llm-operation-detail">${t('dashboard.helper_llm_operation_last')}: ${escapeHtml(stats.last_detail)}</div>` : ''}
                         </div>
-                    `).join('')}
+                    `, 5)}
                 </div>`;
         }
 
@@ -3628,7 +3640,7 @@
                 el.innerHTML = `<div class="empty-state">${t('dashboard.journal_empty')}</div>`;
                 return;
             }
-            el.innerHTML = entries.slice(0, 15).map(e => {
+            el.innerHTML = renderCollapsibleList(entries, e => {
                 const icon = JOURNAL_ICONS[e.entry_type] || '📔';
                 const date = e.created_at ? new Date(e.created_at).toLocaleString(LANG, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
                 // tags is a JSON array from the backend; support both array and legacy comma-string
@@ -3644,7 +3656,7 @@
                         ${tags ? `<div class="je-tags">${tags}</div>` : ''}
                     </div>
                 </div>`;
-            }).join('');
+            }, 8);
         }
 
         function renderJournalSummary(summaries) {
@@ -3752,14 +3764,15 @@
             };
             // Deduplicate: show frequent, merge unique recents not already shown
             const shownIds = new Set();
+            frequent.forEach(p => shownIds.add(p.id));
             if (frequent.length > 0) {
                 html += `<div class="error-section-label">${t('dashboard.errors_frequent')}</div>`;
-                frequent.slice(0, 5).forEach(p => { html += renderItem(p); shownIds.add(p.id); });
+                html += renderCollapsibleList(frequent, renderItem, 5);
             }
             const newRecent = recent.filter(p => !shownIds.has(p.id));
             if (newRecent.length > 0) {
                 html += `<div class="error-section-label">${t('dashboard.errors_recent')}</div>`;
-                newRecent.slice(0, 5).forEach(p => { html += renderItem(p); });
+                html += renderCollapsibleList(newRecent, renderItem, 5);
             }
             list.innerHTML = html;
         }
