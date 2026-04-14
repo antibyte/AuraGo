@@ -3165,7 +3165,15 @@
             const statsEl = document.getElementById('compression-stats');
             const detailsEl = document.getElementById('compression-details');
             const emptyEl = document.getElementById('compression-empty');
+            const statusBadge = document.getElementById('compression-status-badge');
             if (!statsEl || !comp) return;
+
+            // Enabled Status Badge aktualisieren
+            if (statusBadge) {
+                const enabled = comp.enabled !== false;
+                statusBadge.className = `status-badge ${enabled ? 'is-active' : 'is-disabled'}`;
+                statusBadge.textContent = enabled ? t('dashboard.compression_enabled') : t('dashboard.compression_disabled');
+            }
 
             const applied = comp.compressions_applied || 0;
             const skipped = comp.compressions_skipped || 0;
@@ -3183,13 +3191,25 @@
 
             const savedChars = comp.total_saved_chars || 0;
             const ratio = comp.average_savings_ratio || 0;
+            const rawChars = comp.total_raw_chars || 0;
+            const compressedChars = comp.total_compressed_chars || 0;
+            const avgProcessing = comp.average_processing_ms || 0;
+            const errors = comp.errors_count || 0;
 
             const items = [
                 { lbl: t('dashboard.compression_saved_chars'), val: formatChars(savedChars) },
                 { lbl: t('dashboard.compression_savings_ratio'), val: (ratio * 100).toFixed(1) + '%' },
                 { lbl: t('dashboard.compression_applied'), val: applied },
                 { lbl: t('dashboard.compression_skipped'), val: skipped },
+                { lbl: t('dashboard.compression_raw_chars'), val: formatChars(rawChars) },
+                { lbl: t('dashboard.compression_compressed_chars'), val: formatChars(compressedChars) },
+                { lbl: t('dashboard.compression_avg_processing_ms'), val: avgProcessing.toFixed(2) + ' ms' },
             ];
+
+            // Errors nur anzeigen wenn > 0
+            if (errors > 0) {
+                items.push({ lbl: t('dashboard.compression_errors'), val: errors, class: 'is-error' });
+            }
 
             statsEl.innerHTML = items.map(s =>
                 `<div class="stat-item">

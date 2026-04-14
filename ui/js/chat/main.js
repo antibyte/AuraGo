@@ -12,6 +12,16 @@ const composerMoreBtn = document.getElementById('composer-more-btn');
 const composerPanel = document.getElementById('composer-panel');
 const feedbackToggleBtn = document.getElementById('feedback-toggle-btn');
 const moodFeedbackRow = document.getElementById('mood-feedback-row');
+const cheatsheetPickerBtn = document.getElementById('cheatsheet-picker-btn');
+
+const cheatsheetPickerOverlay = document.getElementById('cheatsheet-picker-overlay');
+const cheatsheetPickerList = document.getElementById('cheatsheet-picker-list');
+const cheatsheetPickerSendBtn = document.getElementById('cheatsheet-picker-send');
+const cheatsheetPickerCancelBtn = document.getElementById('cheatsheet-picker-cancel');
+const cheatsheetPickerCloseXBtn = document.getElementById('cheatsheet-picker-close-x');
+
+let cheatsheetPickerItems = [];
+let selectedCheatsheetId = '';
 
 
 /* ── Mood Feedback Buttons (insert emoji + personality feedback) ── */
@@ -106,6 +116,8 @@ function applyI18n() {
     if (clearBtnLabel) clearBtnLabel.textContent = t('chat.btn_clear');
     const uploadBtnLabel = document.querySelector('#upload-btn .tool-label');
     if (uploadBtnLabel) uploadBtnLabel.textContent = t('chat.upload_btn_title');
+    const cheatsheetBtnLabel = document.querySelector('#cheatsheet-picker-btn .tool-label');
+    if (cheatsheetBtnLabel) cheatsheetBtnLabel.textContent = t('chat.cheatsheet_picker_button');
     const pushBtnLabel = document.querySelector('#push-btn .tool-label');
     if (pushBtnLabel) pushBtnLabel.textContent = t('pwa.btn_push_title');
     const stopBtnLabel = document.querySelector('#stop-btn .tool-label');
@@ -135,6 +147,8 @@ function applyI18n() {
     /* Input area */
     updateChatInputPlaceholder();
     document.getElementById('upload-btn').title = t('chat.upload_btn_title');
+    const cheatsheetPickerButton = document.getElementById('cheatsheet-picker-btn');
+    if (cheatsheetPickerButton) cheatsheetPickerButton.title = t('chat.cheatsheet_picker_button_title');
     document.getElementById('send-btn').title = t('chat.send_btn_title');
     document.getElementById('stop-btn').title = t('chat.stop_btn_title');
     if (composerMoreBtn) composerMoreBtn.title = t('chat.more_actions_title');
@@ -152,6 +166,10 @@ function applyI18n() {
     /* Modal */
     document.getElementById('modal-cancel').textContent = t('common.btn_cancel');
     document.getElementById('modal-confirm').textContent = t('common.btn_ok');
+    if (cheatsheetPickerCancelBtn) cheatsheetPickerCancelBtn.textContent = t('chat.close');
+    if (cheatsheetPickerSendBtn) cheatsheetPickerSendBtn.textContent = t('chat.cheatsheet_picker_send');
+    const cheatsheetPickerTitle = document.querySelector('[data-i18n="chat.cheatsheet_picker_title"]');
+    if (cheatsheetPickerTitle) cheatsheetPickerTitle.textContent = t('chat.cheatsheet_picker_title');
     /* Lightbox */
     const lbc = document.getElementById('img-lightbox-close');
     if (lbc) lbc.title = t('chat.lightbox_close_title');
@@ -232,6 +250,72 @@ function showModal(title, message, isConfirm) {
 
 function showConfirm(title, msg) { return showModal(title, msg, true); }
 function showAlert(title, msg) { return showModal(title, msg, false); }
+
+function closeCheatsheetPicker() {
+    if (!cheatsheetPickerOverlay) return;
+    cheatsheetPickerOverlay.classList.remove('active');
+    selectedCheatsheetId = '';
+    if (cheatsheetPickerSendBtn) cheatsheetPickerSendBtn.disabled = true;
+}
+
+function renderCheatsheetPickerList() {
+    if (!cheatsheetPickerList) return;
+    const activeSheets = cheatsheetPickerItems.filter((sheet) => sheet && sheet.active !== false);
+    if (!activeSheets.length) {
+        cheatsheetPickerList.innerHTML = `<div class="cheatsheet-picker-empty">${escapeHtml(t('chat.cheatsheet_picker_empty'))}</div>`;
+        if (cheatsheetPickerSendBtn) cheatsheetPickerSendBtn.disabled = true;
+        return;
+    }
+
+    cheatsheetPickerList.innerHTML = activeSheets.map((sheet) => {
+        const previewText = String(sheet.content || '').replace(/\s+/g, ' ').trim();
+        const preview = previewText.length > 180 ? previewText.slice(0, 177) + '...' : previewText;
+        const checked = sheet.id === selectedCheatsheetId ? 'checked' : '';
+        return `
+            <label class="cheatsheet-picker-item">
+                <input type="radio" name="chat-cheatsheet-choice" value="${escapeAttr(sheet.id || '')}" ${checked}>
+                <div class="cheatsheet-picker-item-meta">
+                    <div class="cheatsheet-picker-item-name">${escapeHtml(sheet.name || t('chat.cheatsheet_picker_unnamed'))}</div>
+                    <div class="cheatsheet-picker-item-preview">${escapeHtml(preview || t('chat.cheatsheet_picker_no_content'))}</div>
+                </div>
+            </label>
+        `;
+    }).join('');
+
+    cheatsheetPickerList.querySelectorAll('input[name="chat-cheatsheet-choice"]').forEach((input) => {
+        input.addEventListener('change', () => {
+            selectedCheatsheetId = input.value;
+            if (cheatsheetPickerSendBtn) cheatsheetPickerSendBtn.disabled = !selectedCheatsheetId;
+        });
+    });
+    if (cheatsheetPickerSendBtn) cheatsheetPickerSendBtn.disabled = !selectedCheatsheetId;
+}
+
+async function openCheatsheetPicker() {
+    if (!cheatsheetPickerOverlay || !cheatsheetPickerList) return;
+    closeComposerPanel();
+    selectedCheatsheetId = '';
+    cheatsheetPickerOverlay.classList.add('active');
+    cheatsheetPickerList.innerHTML = `<div class="cheatsheet-picker-empty">${escapeHtml(t('chat.cheatsheet_picker_loading'))}</div>`;
+    if (cheatsheetPickerSendBtn) cheatsheetPickerSendBtn.disabled = true;
+
+    try {
+        const res = await fetch('/api/cheatsheets?active=true');
+        if (!res.ok) throw new Error(res.statusText || 'Failed to fetch cheatsheets');
+        const data = await res.json();
+        cheatsheetPickerItems = Array.isArray(data) ? data : [];
+        renderCheatsheetPickerList();
+    } catch (_error) {
+        cheatsheetPickerItems = [];
+        cheatsheetPickerList.innerHTML = `<div class="cheatsheet-picker-empty">${escapeHtml(t('chat.cheatsheet_picker_error'))}</div>`;
+    }
+}
+
+function buildCheatsheetAgentMessage(sheet) {
+    const title = sheet?.name || t('chat.cheatsheet_picker_unnamed');
+    const content = String(sheet?.content || '').trim();
+    return `${t('chat.cheatsheet_picker_prompt_prefix')} "${title}"\n\n<cheatsheet name="${title}">\n${content}\n</cheatsheet>\n\n${t('chat.cheatsheet_picker_prompt_suffix')}`;
+}
 
 /* ── Data ── */
 let conversation = [];
@@ -1043,6 +1127,37 @@ uploadBtn.addEventListener('click', () => {
     fileInput.click();
 });
 
+if (cheatsheetPickerBtn) {
+    cheatsheetPickerBtn.addEventListener('click', () => {
+        openCheatsheetPicker();
+    });
+}
+
+if (cheatsheetPickerCancelBtn) {
+    cheatsheetPickerCancelBtn.addEventListener('click', closeCheatsheetPicker);
+}
+if (cheatsheetPickerCloseXBtn) {
+    cheatsheetPickerCloseXBtn.addEventListener('click', closeCheatsheetPicker);
+}
+if (cheatsheetPickerOverlay) {
+    cheatsheetPickerOverlay.addEventListener('click', (event) => {
+        if (event.target === cheatsheetPickerOverlay) {
+            closeCheatsheetPicker();
+        }
+    });
+}
+if (cheatsheetPickerSendBtn) {
+    cheatsheetPickerSendBtn.addEventListener('click', async () => {
+        if (!selectedCheatsheetId) return;
+        const selectedSheet = cheatsheetPickerItems.find((sheet) => sheet && sheet.id === selectedCheatsheetId);
+        if (!selectedSheet) return;
+        closeCheatsheetPicker();
+        const messageForAgent = buildCheatsheetAgentMessage(selectedSheet);
+        const visibleMessage = `${t('chat.cheatsheet_picker_sent_prefix')} ${selectedSheet.name || t('chat.cheatsheet_picker_unnamed')}`;
+        await handleOutgoingMessage(messageForAgent, visibleMessage);
+    });
+}
+
 attachClear.addEventListener('click', () => {
     clearPendingAttachments();
 });
@@ -1062,6 +1177,7 @@ if (composerMoreBtn && composerPanel) {
         if (e.key === 'Escape') {
             closeComposerPanel();
             closeMoodFeedbackRow();
+            closeCheatsheetPicker();
         }
     });
 }
@@ -1127,14 +1243,15 @@ fileInput.addEventListener('change', async () => {
     }
 });
 
-/* ── Form submit ── */
-chatForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
+async function handleOutgoingMessage(inputMessage, displayMessageOverride = '') {
     closeComposerPanel();
     closeMoodFeedbackRow();
-    let message = userInput.value.trim();
+    let message = String(inputMessage || '').trim();
     if (!message && !pendingAttachments.length) return;
-    if (!message) message = t('chat.file_sent');
+    const hasTypedInput = message.length > 0;
+    if (!message) {
+        message = t('chat.file_sent');
+    }
 
     // Append attachment info for the agent
     let agentMessage = message;
@@ -1149,9 +1266,12 @@ chatForm.addEventListener('submit', async (e) => {
 
     // Show only the user's typed message in chat (not the agent path)
     // For /sudopwd, mask the password argument to avoid showing it in chat
-    const displayMessage = /^\/sudopwd\s+\S/i.test(message)
-        ? '/sudopwd ***'
-        : message;
+    let displayMessage = displayMessageOverride || message;
+    if (!displayMessageOverride && hasTypedInput) {
+        displayMessage = /^\/sudopwd\s+\S/i.test(message)
+            ? '/sudopwd ***'
+            : message;
+    }
     appendMessage('user', displayMessage);
     userInput.value = '';
     userInput.style.height = ''; // Reset height to CSS default (min-height from stylesheet)
@@ -1242,6 +1362,12 @@ chatForm.addEventListener('submit', async (e) => {
             stopBtn.disabled = true;
         }
     }
+}
+
+/* ── Form submit ── */
+chatForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    await handleOutgoingMessage(userInput.value.trim());
 });
 
 /* ── SSE (Server-Sent Events) ── */

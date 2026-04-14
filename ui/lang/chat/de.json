@@ -144,5 +144,17 @@
   "chat.audio_dismiss": "Schließen",
   "chat.code_copy": "Kopieren",
   "chat.code_copied": "Kopiert",
-  "chat.redacted_label": "[entfernt]"
+  "chat.redacted_label": "[entfernt]",
+  "chat.cheatsheet_picker_button": "Cheatsheet",
+  "chat.cheatsheet_picker_button_title": "Cheatsheet-Auswahl öffnen",
+  "chat.cheatsheet_picker_title": "Cheatsheet senden",
+  "chat.cheatsheet_picker_loading": "Cheatsheets werden geladen...",
+  "chat.cheatsheet_picker_empty": "Keine aktiven Cheatsheets vorhanden.",
+  "chat.cheatsheet_picker_error": "Cheatsheets konnten nicht geladen werden.",
+  "chat.cheatsheet_picker_send": "Senden",
+  "chat.cheatsheet_picker_sent_prefix": "Cheatsheet gesendet:",
+  "chat.cheatsheet_picker_unnamed": "Unbenanntes Cheatsheet",
+  "chat.cheatsheet_picker_no_content": "Kein Inhalt",
+  "chat.cheatsheet_picker_prompt_prefix": "Bitte nutze dieses Cheatsheet als Leitfaden:",
+  "chat.cheatsheet_picker_prompt_suffix": "Befolge diese Anweisungen, wenn es zur Aufgabe passt."
 }

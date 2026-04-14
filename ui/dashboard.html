@@ -179,7 +179,14 @@
 
     <!-- 5. Output Compression -->
     <div class="dash-card" id="card-compression">
-      <div class="dash-card-header"><span class="card-icon">🗜️</span> <span data-i18n="dashboard.compression_title">Output Compression</span> <span class="collapse-toggle" data-card="card-compression" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
+      <div class="dash-card-header">
+        <span class="card-icon">🗜️</span>
+        <span data-i18n="dashboard.compression_title">Output Compression</span>
+        <span class="status-badge" id="compression-status-badge">
+          <span data-i18n="dashboard.compression_enabled">Enabled</span>
+        </span>
+        <span class="collapse-toggle" data-card="card-compression" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span>
+      </div>
       <div class="dash-card-body">
         <div class="stats-grid" id="compression-stats"></div>
         <div id="compression-details" class="mt-sm">

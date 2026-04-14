@@ -144,5 +144,17 @@
   "chat.audio_dismiss": "Dismiss",
   "chat.code_copy": "Copy",
   "chat.code_copied": "Copied",
-  "chat.redacted_label": "[removed]"
+  "chat.redacted_label": "[removed]",
+  "chat.cheatsheet_picker_button": "Cheat Sheet",
+  "chat.cheatsheet_picker_button_title": "Open cheat sheet picker",
+  "chat.cheatsheet_picker_title": "Send Cheat Sheet",
+  "chat.cheatsheet_picker_loading": "Loading cheat sheets...",
+  "chat.cheatsheet_picker_empty": "No active cheat sheets available.",
+  "chat.cheatsheet_picker_error": "Failed to load cheat sheets.",
+  "chat.cheatsheet_picker_send": "Send",
+  "chat.cheatsheet_picker_sent_prefix": "Cheat sheet sent:",
+  "chat.cheatsheet_picker_unnamed": "Unnamed cheat sheet",
+  "chat.cheatsheet_picker_no_content": "No content",
+  "chat.cheatsheet_picker_prompt_prefix": "Please use this cheat sheet as guidance:",
+  "chat.cheatsheet_picker_prompt_suffix": "Follow these instructions where appropriate."
 }

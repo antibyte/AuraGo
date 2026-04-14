@@ -133,6 +133,10 @@
                     <span class="tool-icon">📎</span>
                     <span class="tool-label"></span>
                 </button>
+                <button type="button" id="cheatsheet-picker-btn" class="composer-tool-btn" title="📋">
+                    <span class="tool-icon">📋</span>
+                    <span class="tool-label"></span>
+                </button>
                 <button type="button" id="push-btn" class="composer-tool-btn" title="🔔">
                     <span class="tool-icon">🔔</span>
                     <span class="tool-label"></span>
@@ -173,6 +177,23 @@
         </div>
         <div id="attachments-panel" class="attachments-panel is-hidden"></div>
     </footer>
+
+    <!-- ── Cheatsheet Picker Modal ── -->
+    <div id="cheatsheet-picker-overlay" class="modal-overlay">
+        <div class="modal-card cheatsheet-picker-card">
+            <div class="modal-title cheatsheet-picker-title">
+                <span>📋 <span data-i18n="chat.cheatsheet_picker_title">Send Cheat Sheet</span></span>
+                <button id="cheatsheet-picker-close-x" class="btn-small" aria-label="Close">✕</button>
+            </div>
+            <div id="cheatsheet-picker-list" class="cheatsheet-picker-list">
+                <div class="cheatsheet-picker-empty" data-i18n="chat.cheatsheet_picker_loading">Loading cheat sheets...</div>
+            </div>
+            <div class="modal-actions">
+                <button id="cheatsheet-picker-cancel" class="modal-btn cancel" data-i18n="chat.close">Close</button>
+                <button id="cheatsheet-picker-send" class="modal-btn confirm" disabled data-i18n="chat.cheatsheet_picker_send">Send</button>
+            </div>
+        </div>
+    </div>
 
     <!-- ── Warnings Modal ── -->
     <div id="warnings-overlay" class="modal-overlay">
