@@ -2287,3 +2287,278 @@ func TestIsLogContent(t *testing.T) {
 		t.Error("expected JSON log content detected")
 	}
 }
+
+// ─── V8: Network Diagnostics Compressor Tests ────────────────────────────────
+
+func TestCompressPing_Success(t *testing.T) {
+	output := `PING google.com (142.250.80.46): 56 data bytes
+64 bytes from 142.250.80.46: icmp_seq=0 ttl=116 time=5.123 ms
+64 bytes from 142.250.80.46: icmp_seq=1 ttl=116 time=4.987 ms
+64 bytes from 142.250.80.46: icmp_seq=2 ttl=116 time=5.456 ms
+64 bytes from 142.250.80.46: icmp_seq=3 ttl=116 time=5.012 ms
+64 bytes from 142.250.80.46: icmp_seq=4 ttl=116 time=4.876 ms
+--- google.com ping statistics ---
+5 packets transmitted, 5 received, 0% packet loss
+round-trip min/avg/max = 4.876/5.090/5.456 ms`
+
+	result := compressPing(output)
+
+	if !strings.Contains(result, "PING google.com") {
+		t.Error("expected PING header")
+	}
+	if !strings.Contains(result, "5 packets transmitted, 5 received, 0% packet loss") {
+		t.Error("expected packet statistics")
+	}
+	if !strings.Contains(result, "round-trip") {
+		t.Error("expected RTT summary")
+	}
+	if strings.Contains(result, "icmp_seq=1") {
+		t.Error("individual ICMP lines should be removed")
+	}
+	if len(result) >= len(output) {
+		t.Errorf("expected compression: got %d >= %d", len(result), len(output))
+	}
+}
+
+func TestCompressPing_Timeout(t *testing.T) {
+	output := `PING unreachable.local (10.0.0.99): 56 data bytes
+Request timeout for icmp_seq 0
+Request timeout for icmp_seq 1
+Request timeout for icmp_seq 2
+--- unreachable.local ping statistics ---
+3 packets transmitted, 0 received, 100% packet loss`
+
+	result := compressPing(output)
+
+	if !strings.Contains(result, "100% packet loss") {
+		t.Error("expected packet loss in output")
+	}
+	if !strings.Contains(result, "Request timeout") {
+		t.Error("expected timeout error lines preserved")
+	}
+}
+
+func TestCompressPing_Unreachable(t *testing.T) {
+	output := `PING badhost (0.0.0.0): 56 data bytes
+ping: badhost: Name or service not known`
+
+	result := compressPing(output)
+
+	if !strings.Contains(result, "Name or service not known") {
+		t.Error("expected DNS error preserved")
+	}
+}
+
+func TestCompressPing_ShortOutput(t *testing.T) {
+	output := "PING host (1.2.3.4): 56 data bytes\n64 bytes from 1.2.3.4: icmp_seq=0 ttl=64 time=1.0 ms\n"
+	result := compressPing(output)
+
+	// Short output (<=4 lines) should be preserved
+	if result != output {
+		t.Errorf("expected short output preserved, got: %s", result)
+	}
+}
+
+func TestCompressDig_Large(t *testing.T) {
+	output := `; <<>> DiG 9.18.0 <<>> example.com ANY
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 12345
+;; flags: qr rd ra; QUERY: 1, ANSWER: 5, AUTHORITY: 4, ADDITIONAL: 3
+
+;; QUESTION SECTION:
+;example.com.			IN	ANY
+
+;; ANSWER SECTION:
+example.com.		3600	IN	A	93.184.216.34
+example.com.		3600	IN	A	93.184.216.35
+example.com.		3600	IN	A	93.184.216.36
+example.com.		3600	IN	AAAA	2606:2800:220:1:248:1893:25c8:1946
+example.com.		3600	IN	MX	10 mail.example.com.
+
+;; AUTHORITY SECTION:
+example.com.		86400	IN	NS	a.iana-servers.net.
+example.com.		86400	IN	NS	b.iana-servers.net.
+example.com.		86400	IN	NS	c.iana-servers.net.
+example.com.		86400	IN	NS	d.iana-servers.net.
+
+;; ADDITIONAL SECTION:
+mail.example.com.	3600	IN	A	10.0.0.1
+mail.example.com.	3600	IN	A	10.0.0.2
+mail.example.com.	3600	IN	AAAA	::1
+
+;; Query time: 42 msec
+;; SERVER: 8.8.8.8#53(8.8.8.8)
+;; MSG SIZE  rcvd: 256`
+
+	result := compressDig(output)
+
+	if !strings.Contains(result, "QUESTION SECTION") {
+		t.Error("expected question section")
+	}
+	if !strings.Contains(result, "ANSWER SECTION") {
+		t.Error("expected answer section")
+	}
+	if !strings.Contains(result, "example.com.		3600	IN	A	93.184.216.34") {
+		t.Error("expected answer records")
+	}
+	if !strings.Contains(result, "Query time") {
+		t.Error("expected query time")
+	}
+	// Authority section should be removed
+	if strings.Contains(result, "a.iana-servers.net") {
+		t.Error("authority section should be removed")
+	}
+	// Additional section should be removed
+	if strings.Contains(result, "mail.example.com.	3600	IN	A") {
+		t.Error("additional section should be removed")
+	}
+	if len(result) >= len(output) {
+		t.Errorf("expected compression: got %d >= %d", len(result), len(output))
+	}
+}
+
+func TestCompressDig_NXDOMAIN(t *testing.T) {
+	output := `; <<>> DiG 9.18.0 <<>> nonexistent.example.com
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NXDOMAIN, id: 54321
+
+;; QUESTION SECTION:
+;nonexistent.example.com.	IN	A
+
+;; AUTHORITY SECTION:
+example.com.		3600	IN	SOA	ns1.example.com. admin.example.com. 2024010101 3600 900 604800 86400
+
+;; Query time: 15 msec
+;; SERVER: 8.8.8.8#53(8.8.8.8)`
+
+	result := compressDig(output)
+
+	if !strings.Contains(result, "NXDOMAIN") {
+		t.Error("expected NXDOMAIN status preserved")
+	}
+}
+
+func TestCompressDig_ShortOutput(t *testing.T) {
+	output := `; <<>> DiG 9.18.0 <<>> example.com
+;; Answer: 93.184.216.34`
+	result := compressDig(output)
+
+	// Short output (<=10 lines) should be preserved
+	if result != output {
+		t.Errorf("expected short output preserved")
+	}
+}
+
+func TestCompressDNS_Nslookup(t *testing.T) {
+	output := "Server:\t\t8.8.8.8\nAddress:\t8.8.8.8#53\n\nNon-authoritative answer:\nName:\tgoogle.com\nAddress: 142.250.80.46\nName:\tgoogle.com\nAddress: 2606:2800:220:1:248:1893:25c8:1946\n"
+
+	result := compressDNS(output)
+
+	if !strings.Contains(result, "Server:") {
+		t.Errorf("expected server info, got: %s", result)
+	}
+	if !strings.Contains(result, "google.com") {
+		t.Error("expected answer")
+	}
+}
+
+func TestCompressDNS_ShortOutput(t *testing.T) {
+	output := "google.com has address 142.250.80.46\n"
+	result := compressDNS(output)
+
+	// Short output (<=5 lines) should be preserved
+	if result != output {
+		t.Errorf("expected short output preserved")
+	}
+}
+
+func TestCompressCurl_JSON(t *testing.T) {
+	var sb strings.Builder
+	sb.WriteString("{\n")
+	for i := 0; i < 40; i++ {
+		sb.WriteString(fmt.Sprintf(`  "field_%d": null,`, i) + "\n")
+	}
+	for i := 40; i < 60; i++ {
+		sb.WriteString(fmt.Sprintf(`  "field_%d": "value_%d",`, i, i) + "\n")
+	}
+	sb.WriteString("}")
+
+	result := compressCurl(sb.String())
+
+	// Should apply JSON compaction
+	if !strings.Contains(result, "omitted") {
+		t.Error("expected null field omission")
+	}
+	if len(result) >= len(sb.String()) {
+		t.Errorf("expected compression for JSON curl output")
+	}
+}
+
+func TestCompressCurl_HTML(t *testing.T) {
+	var sb strings.Builder
+	sb.WriteString("<!DOCTYPE html>\n<html>\n<head>\n<title>Test Page</title>\n</head>\n<body>\n")
+	for i := 0; i < 100; i++ {
+		sb.WriteString(fmt.Sprintf("<p>Paragraph %d with some content</p>\n", i))
+	}
+	sb.WriteString("</body>\n</html>")
+
+	result := compressCurl(sb.String())
+
+	if !strings.Contains(result, "Test Page") {
+		t.Error("expected title preserved")
+	}
+	if !strings.Contains(result, "HTML response") {
+		t.Error("expected HTML response note")
+	}
+	if len(result) >= len(sb.String()) {
+		t.Errorf("expected compression for HTML curl output")
+	}
+}
+
+func TestCompressCurl_Verbose(t *testing.T) {
+	output := "> GET /api/health HTTP/2\n> Host: example.com\n> User-Agent: curl/8.0\n> Accept: */*\n>\n< HTTP/2 200\n< content-type: application/json\n< date: Mon, 15 Jan 2024 10:30:00 GMT\n< server: nginx\n< x-request-id: abc123\n< x-cache: HIT\n< content-length: 42\n<\n{\"status\":\"ok\",\"uptime\":123456,\"version\":\"1.0.0\"}"
+
+	result := compressCurl(output)
+
+	if !strings.Contains(result, "HTTP/2 200") {
+		t.Errorf("expected HTTP status, got: %s", result)
+	}
+	if !strings.Contains(result, "content-type:") {
+		t.Error("expected content-type header")
+	}
+	if !strings.Contains(result, "status") {
+		t.Error("expected body preserved")
+	}
+}
+
+func TestCompressCurl_PlainText(t *testing.T) {
+	output := "Hello, this is a plain text response from a server.\nNothing special here.\n"
+	result := compressCurl(output)
+
+	// Plain text should go through generic compression
+	if !strings.Contains(result, "Hello") {
+		t.Error("expected content preserved")
+	}
+}
+
+func TestCompressShell_V8Routing(t *testing.T) {
+	tests := []struct {
+		command string
+		want    string
+	}{
+		{"ping google.com", "ping"},
+		{"ping6 ipv6.google.com", "ping"},
+		{"dig example.com", "dig"},
+		{"nslookup google.com", "nslookup"},
+		{"host google.com", "host"},
+		{"curl http://example.com", "curl"},
+		{"wget http://example.com", "curl"},
+	}
+	for _, tt := range tests {
+		_, filter := compressShellOutput(tt.command, strings.Repeat("line\n", 50))
+		if filter != tt.want {
+			t.Errorf("compressShellOutput(%q) filter = %q, want %q", tt.command, filter, tt.want)
+		}
+	}
+}
