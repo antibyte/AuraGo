@@ -24,6 +24,12 @@ type CompressionAggregate struct {
 	filterCount map[string]int64
 	filterSaved map[string]int64 // raw - compressed
 
+	// Processing time tracking
+	totalProcessingTimeMs int64
+
+	// Error tracking
+	errorsCount int64
+
 	// Recent compression events (ring buffer, last 100)
 	recent    []CompressionStats
 	recentMax int
@@ -38,6 +44,8 @@ type CompressionSnapshot struct {
 	AverageSavingsRatio  float64                  `json:"average_savings_ratio"`
 	CompressionsApplied  int64                    `json:"compressions_applied"`
 	CompressionsSkipped  int64                    `json:"compressions_skipped"`
+	AverageProcessingMs  float64                  `json:"average_processing_ms"`
+	ErrorsCount          int64                    `json:"errors_count"`
 	TopTools             []ToolCompressionEntry   `json:"top_tools"`
 	TopFilters           []FilterCompressionEntry `json:"top_filters"`
 	RecentCompressions   []CompressionStats       `json:"recent_compressions,omitempty"`
@@ -106,6 +114,12 @@ func (a *CompressionAggregate) record(stats CompressionStats) {
 	a.totalRawChars += int64(stats.RawChars)
 	a.totalCompressedChars += int64(stats.CompressedChars)
 	a.compressionsApplied++
+	a.totalProcessingTimeMs += stats.ProcessingTimeMs
+
+	// Track errors
+	if stats.ErrorOccurred {
+		a.errorsCount++
+	}
 
 	a.toolRawChars[stats.ToolName] += int64(stats.RawChars)
 	a.toolCompressedChars[stats.ToolName] += int64(stats.CompressedChars)
@@ -131,6 +145,11 @@ func (a *CompressionAggregate) snapshot() CompressionSnapshot {
 		ratio = float64(saved) / float64(a.totalRawChars)
 	}
 
+	avgProcessingMs := 0.0
+	if a.compressionsApplied > 0 {
+		avgProcessingMs = float64(a.totalProcessingTimeMs) / float64(a.compressionsApplied)
+	}
+
 	snap := CompressionSnapshot{
 		Enabled:              true,
 		TotalRawChars:        a.totalRawChars,
@@ -139,6 +158,8 @@ func (a *CompressionAggregate) snapshot() CompressionSnapshot {
 		AverageSavingsRatio:  ratio,
 		CompressionsApplied:  a.compressionsApplied,
 		CompressionsSkipped:  a.compressionsSkipped,
+		AverageProcessingMs:  avgProcessingMs,
+		ErrorsCount:          a.errorsCount,
 		TopTools:             a.buildTopTools(10),
 		TopFilters:           a.buildTopFilters(10),
 		RecentCompressions:   a.copyRecent(20),

@@ -362,37 +362,4 @@ func compressGitHubBranches(raw map[string]json.RawMessage) string {
 	return sb.String()
 }
 
-// ─── JSON helpers ────────────────────────────────────────────────────────────
-
-// jsonString extracts a string value from raw JSON bytes.
-func jsonString(raw json.RawMessage) string {
-	if raw == nil {
-		return ""
-	}
-	var s string
-	if err := json.Unmarshal(raw, &s); err != nil {
-		return ""
-	}
-	return s
-}
-
-// jsonInt extracts an int value from raw JSON bytes.
-func jsonInt(raw json.RawMessage) int {
-	if raw == nil {
-		return 0
-	}
-	var n int
-	if err := json.Unmarshal(raw, &n); err != nil {
-		return 0
-	}
-	return n
-}
-
-// rawToString converts a map of raw JSON back to a string.
-func rawToString(raw map[string]json.RawMessage) string {
-	b, err := json.Marshal(raw)
-	if err != nil {
-		return ""
-	}
-	return string(b)
-}
+// JSON helpers werden jetzt aus utils.go importiert (zentralisiert)

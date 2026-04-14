@@ -217,33 +217,4 @@ func compressFSBatch(raw, dataObj map[string]json.RawMessage) string {
 	return sb.String()
 }
 
-// formatFileSize returns a human-readable file size.
-func formatFileSize(bytes int64) string {
-	const (
-		KB = 1024
-		MB = KB * 1024
-		GB = MB * 1024
-	)
-	switch {
-	case bytes >= GB:
-		return fmt.Sprintf("%.1fGB", float64(bytes)/float64(GB))
-	case bytes >= MB:
-		return fmt.Sprintf("%.1fMB", float64(bytes)/float64(MB))
-	case bytes >= KB:
-		return fmt.Sprintf("%.1fKB", float64(bytes)/float64(KB))
-	default:
-		return fmt.Sprintf("%dB", bytes)
-	}
-}
-
-// jsonBool extracts a bool value from raw JSON bytes.
-func jsonBool(raw json.RawMessage) bool {
-	if raw == nil {
-		return false
-	}
-	var b bool
-	if err := json.Unmarshal(raw, &b); err != nil {
-		return false
-	}
-	return b
-}
+// formatFileSize wird jetzt aus utils.go importiert (zentraler JSON-Helper)

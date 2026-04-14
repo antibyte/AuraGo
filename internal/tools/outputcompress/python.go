@@ -13,8 +13,8 @@ func compressPythonOutput(output string) (string, string) {
 	result = DeduplicateLines(result)
 
 	lines := strings.Split(result, "\n")
-	if len(lines) > 100 {
-		result = TailFocus(result, 20, 50, 5)
+	if len(lines) > tailFocusCodeHead+tailFocusCodeTail+tailFocusCodeMinGap {
+		result = TailFocus(result, tailFocusCodeHead, tailFocusCodeTail, tailFocusCodeMinGap)
 	}
 
 	return result, "python"
@@ -89,27 +89,66 @@ func filterPythonTraceback(output string) string {
 	return result
 }
 
-// ─── API Output Filter ──────────────────────────────────────────────────────
-
-// compressAPIOutput applies JSON compaction for API tool outputs.
-// For Home Assistant, GitHub, SQL, filesystem, file_reader_advanced, and
-// smart_file_read tools, it routes to domain-specific compressors.
+// isUserCode determines if a traceback File line refers to user code.
 func isUserCode(fileLine string) bool {
-	// User code is typically in the workspace, not in site-packages or stdlib
+	// Non-user code patterns (library/framework code)
 	nonUserCode := []string{
 		"site-packages/",
 		"/usr/lib/python",
 		"/usr/local/lib/python",
 		"lib/python3.",
+		"lib/python2.",
 		"<frozen",
 		"__pycache__",
 		"/opt/homebrew/",
+		".local/lib/python",      // User-installed packages
+		"\\Lib\\site-packages\\", // Windows
+		"\\Python",               // Windows Python installs
 	}
+
+	// Virtualenv/venv/conda patterns
+	venvPatterns := []string{
+		".venv/",
+		"venv/",
+		"virtualenv/",
+		"conda/envs/",
+		".conda/envs/",
+		"\\venv\\",
+		"\\.venv\\",
+	}
+
+	// Check virtualenv patterns first
+	for _, pattern := range venvPatterns {
+		if strings.Contains(fileLine, pattern) {
+			return false
+		}
+	}
+
+	// Check standard non-user patterns
 	for _, pattern := range nonUserCode {
 		if strings.Contains(fileLine, pattern) {
 			return false
 		}
 	}
+
+	// Keep frames from current working directory or workspace
+	userCodeIndicators := []string{
+		"./",
+		"../",
+		"/workspace/",
+		"/src/",
+		"/app/",
+		"/code/",
+		"\\workspace\\",
+		"\\src\\",
+	}
+	for _, indicator := range userCodeIndicators {
+		if strings.Contains(fileLine, indicator) {
+			return true
+		}
+	}
+
+	// Default: assume it's user code if not clearly library code
 	return true
 }
 

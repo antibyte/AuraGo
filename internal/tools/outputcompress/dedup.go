@@ -2,8 +2,37 @@ package outputcompress
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"unicode"
+)
+
+// ─── TailFocus Konstanten ────────────────────────────────────────────────────
+// Konsistente Parameter für TailFocus-Funktionen
+const (
+	// Default: 30 head + 70 tail + 10 min gap = 110 lines threshold
+	tailFocusHeadDefault = 30
+	tailFocusTailDefault = 70
+	tailFocusMinGap      = 10
+
+	// Logs: 20 head + 80 tail (mehr Kontext am Ende wichtig)
+	tailFocusLogsHead   = 20
+	tailFocusLogsTail   = 80
+	tailFocusLogsMinGap = 5
+
+	// Code/Python: 25 head + 75 tail (Stacktrace braucht beides)
+	tailFocusCodeHead   = 25
+	tailFocusCodeTail   = 75
+	tailFocusCodeMinGap = 5
+
+	// API/JSON: 20 head + 50 tail (JSON-Struktur oft am Anfang)
+	tailFocusAPIHead   = 20
+	tailFocusAPITail   = 50
+	tailFocusAPIMinGap = 5
+
+	// Generic threshold: Ab wann TailFocus sinnvoll ist
+	// Berechnung: headDefault + tailDefault + minGap + 20% Puffer
+	minLinesForTailFocus = 150
 )
 
 // DeduplicateLines collapses consecutive identical lines into a single
@@ -29,14 +58,10 @@ func DeduplicateLines(input string) string {
 		}
 		sb.WriteString(prev)
 		sb.WriteByte('\n')
-		if count > 3 {
-			fmt.Fprintf(&sb, "  [%d identical lines omitted]\n", count-1)
-		} else if count > 1 {
-			// For small repeats (2-3), just keep them – not worth the marker overhead
-			for j := 1; j < count; j++ {
-				sb.WriteString(prev)
-				sb.WriteByte('\n')
-			}
+		// Marker ist ~35 chars: "  [X identical lines omitted]\n"
+		// Break-even bereits bei 2 Wiederholungen (2x 20-char lines = 40 chars)
+		if count > 1 {
+			fmt.Fprintf(&sb, "  [%d identical lines omitted]\n", count)
 		}
 		prev = lines[i]
 		count = 1
@@ -44,13 +69,8 @@ func DeduplicateLines(input string) string {
 
 	// Flush last group
 	sb.WriteString(prev)
-	if count > 3 {
-		fmt.Fprintf(&sb, "\n  [%d identical lines omitted]", count-1)
-	} else if count > 1 {
-		for j := 1; j < count; j++ {
-			sb.WriteByte('\n')
-			sb.WriteString(prev)
-		}
+	if count > 1 {
+		fmt.Fprintf(&sb, "\n  [%d identical lines omitted]", count)
 	}
 
 	return sb.String()
@@ -121,34 +141,24 @@ func TailFocus(input string, headLines, tailLines, minGap int) string {
 	return sb.String()
 }
 
-// StripANSI removes common ANSI escape sequences from the output.
+// ─── ANSI Escape Sequence Handling ───────────────────────────────────────────
+
+// ansiRegex matches all common ANSI escape sequences including:
+// - SGR codes (colors, styles): \x1b[0m, \x1b[31m, \x1b[1;31m
+// - 256 color codes: \x1b[38;5;NNm
+// - True color: \x1b[38;2;R;G;Bm
+// - Cursor movement: \x1b[H, \x1b[2J
+// - Window title: \x1b]0;title\x07
+// - Hyperlinks: \x1b]8;;url\x1b\\text\x1b]8;;\x1b\\
+var ansiRegex = regexp.MustCompile(`\x1b\[[0-9;?]*[a-zA-Z]|\x1b\][^\x07]*\x07|\x1b\\`)
+
+// StripANSI removes all ANSI escape sequences from the output.
 // Many shell commands produce coloured output that wastes tokens.
 func StripANSI(input string) string {
-	if !strings.Contains(input, "\x1b[") && !strings.Contains(input, "\033[") {
+	if !strings.ContainsAny(input, "\x1b\033") {
 		return input
 	}
-	var sb strings.Builder
-	sb.Grow(len(input))
-	i := 0
-	for i < len(input) {
-		if input[i] == '\x1b' || (i+1 < len(input) && input[i] == '\033') {
-			// Skip escape sequence: ESC [ ... letter
-			i++
-			if i < len(input) && input[i] == '[' {
-				i++
-				for i < len(input) && (input[i] < 'A' || input[i] > 'Z') && (input[i] < 'a' || input[i] > 'z') {
-					i++
-				}
-				if i < len(input) {
-					i++ // skip the terminating letter
-				}
-			}
-			continue
-		}
-		sb.WriteByte(input[i])
-		i++
-	}
-	return sb.String()
+	return ansiRegex.ReplaceAllString(input, "")
 }
 
 // compressGeneric applies the standard generic compression pipeline:
@@ -161,10 +171,10 @@ func compressGeneric(input string) string {
 	result = CollapseWhitespace(result)
 	result = DeduplicateLines(result)
 
-	// If still over 300 lines, apply tail-focus
+	// If still over threshold, apply tail-focus with default parameters
 	lines := strings.Count(result, "\n") + 1
-	if lines > 300 {
-		result = TailFocus(result, 50, 100, 10)
+	if lines > minLinesForTailFocus {
+		result = TailFocus(result, tailFocusHeadDefault, tailFocusTailDefault, tailFocusMinGap)
 	}
 
 	return result

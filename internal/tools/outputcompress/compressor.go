@@ -4,17 +4,24 @@
 package outputcompress
 
 import (
+	"regexp"
 	"strings"
+	"time"
 )
 
 // CompressionStats records how much a single compression pass saved.
 type CompressionStats struct {
-	ToolName        string  // tool that produced the output
-	CommandHint     string  // first token of the command (for shell tools)
-	RawChars        int     // character count before compression
-	CompressedChars int     // character count after compression
-	Ratio           float64 // CompressedChars / RawChars (0.0 = perfect compression, 1.0 = no change)
-	FilterUsed      string  // name of the filter that was applied
+	ToolName         string    // tool that produced the output
+	CommandHint      string    // first token of the command (for shell tools)
+	RawChars         int       // character count before compression
+	CompressedChars  int       // character count after compression
+	Ratio            float64   // CompressedChars / RawChars (0.0 = perfect compression, 1.0 = no change)
+	FilterUsed       string    // name of the filter that was applied
+	Timestamp        time.Time // when compression occurred
+	SessionID        string    // agent session identifier
+	ErrorOccurred    bool      // whether an error occurred during compression
+	ErrorMessage     string    // error message if ErrorOccurred is true
+	ProcessingTimeMs int64     // processing time in milliseconds
 }
 
 // Config controls compression behaviour.
@@ -46,17 +53,20 @@ func DefaultConfig() Config {
 // If cfg.Enabled is false or the output is shorter than cfg.MinChars, the
 // input is returned unchanged with Ratio=1.0.
 func Compress(toolName, command, output string, cfg Config) (string, CompressionStats) {
+	startTime := time.Now()
 	rawLen := len(output)
 	stats := CompressionStats{
 		ToolName:    toolName,
 		CommandHint: commandSignature(command),
 		RawChars:    rawLen,
 		FilterUsed:  "none",
+		Timestamp:   startTime,
 	}
 
 	if !cfg.Enabled || rawLen == 0 {
 		stats.CompressedChars = rawLen
 		stats.Ratio = 1.0
+		stats.ProcessingTimeMs = time.Since(startTime).Milliseconds()
 		return output, stats
 	}
 
@@ -64,6 +74,7 @@ func Compress(toolName, command, output string, cfg Config) (string, Compression
 	if rawLen < cfg.MinChars {
 		stats.CompressedChars = rawLen
 		stats.Ratio = 1.0
+		stats.ProcessingTimeMs = time.Since(startTime).Milliseconds()
 		return output, stats
 	}
 
@@ -72,6 +83,7 @@ func Compress(toolName, command, output string, cfg Config) (string, Compression
 		stats.CompressedChars = rawLen
 		stats.Ratio = 1.0
 		stats.FilterUsed = "skipped-error"
+		stats.ProcessingTimeMs = time.Since(startTime).Milliseconds()
 		return output, stats
 	}
 
@@ -100,6 +112,7 @@ func Compress(toolName, command, output string, cfg Config) (string, Compression
 	} else {
 		stats.Ratio = 1.0
 	}
+	stats.ProcessingTimeMs = time.Since(startTime).Milliseconds()
 	return result, stats
 }
 
@@ -245,16 +258,17 @@ func compressAPIOutput(toolName, output string) (string, string) {
 	result = DeduplicateLines(result)
 
 	lines := strings.Split(result, "\n")
-	if len(lines) > 100 {
-		result = TailFocus(result, 20, 50, 5)
+	if len(lines) > tailFocusAPIHead+tailFocusAPITail+tailFocusAPIMinGap {
+		result = TailFocus(result, tailFocusAPIHead, tailFocusAPITail, tailFocusAPIMinGap)
 	}
 
 	return result, "api"
 }
 
 // isErrorOutput detects common error markers in tool output.
+// Error outputs are never compressed to preserve debugging information.
 func isErrorOutput(output string) bool {
-	// Check for error markers that should never be compressed away
+	// Case-sensitive exact markers
 	errorMarkers := []string{
 		"[EXECUTION ERROR]",
 		"[PERMISSION DENIED]",
@@ -262,11 +276,32 @@ func isErrorOutput(output string) bool {
 		"fatal:",
 		"panic:",
 		"SIGSEGV",
+		"SIGBUS",
+		"SIGABRT",
 	}
 	for _, marker := range errorMarkers {
 		if strings.Contains(output, marker) {
 			return true
 		}
 	}
+
+	// Case-insensitive patterns (regex)
+	errorPatterns := []string{
+		`(?i)^error:`,
+		`(?i)^ERROR\s`,
+		`(?i)failed:`,
+		`(?i)failed to`,
+		`(?i)exception:`,
+		`(?i)traceback \(most recent call last\)`,
+		`(?i)unhandled exception`,
+		`(?i)permission denied`,
+		`(?i)access denied`,
+	}
+	for _, pattern := range errorPatterns {
+		if matched, _ := regexp.MatchString(pattern, output); matched {
+			return true
+		}
+	}
+
 	return false
 }

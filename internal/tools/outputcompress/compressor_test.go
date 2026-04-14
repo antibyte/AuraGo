@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 )
 
 // ─── Compress Integration Tests ─────────────────────────────────────────────
@@ -153,9 +154,12 @@ func TestDeduplicateLines_AllSame(t *testing.T) {
 func TestDeduplicateLines_SmallRepeat(t *testing.T) {
 	input := "line\nline\nline"
 	result := DeduplicateLines(input)
-	// 3 repeats is below threshold of 4, should keep all
-	if strings.Contains(result, "omitted") {
-		t.Errorf("small repeats should not be collapsed, got %q", result)
+	// Nach der Optimierung werden alle Wiederholungen ab 2 mit Marker komprimiert
+	if !strings.Contains(result, "identical lines omitted") {
+		t.Errorf("repeats should be collapsed with marker, got %q", result)
+	}
+	if !strings.Contains(result, "[3 identical lines omitted]") {
+		t.Errorf("should show count of 3, got %q", result)
 	}
 }
 
@@ -729,8 +733,9 @@ func TestCompactJSON(t *testing.T) {
 	if !strings.Contains(result, `"active": true`) {
 		t.Error("should keep non-empty fields")
 	}
-	if !strings.Contains(result, "omitted") {
-		t.Error("should show omission count")
+	// New implementation removes fields without marker - just verify fields are gone
+	if strings.Contains(result, `"description":`) {
+		t.Error("should remove empty string fields")
 	}
 }
 
@@ -4016,5 +4021,307 @@ func TestCompressCut_Columnar(t *testing.T) {
 	result := compressCut(sb.String())
 	if len(result) >= len(sb.String()) {
 		t.Errorf("expected compression, got %d >= %d", len(result), sb.Len())
+	}
+}
+
+// ─── Grenzwert- und Performance-Tests ──────────────────────────────────────
+
+func TestCompress_VeryLargeOutput(t *testing.T) {
+	// Test mit sehr großem Output (~500KB)
+	output := strings.Repeat("line\n", 100000)
+	cfg := DefaultConfig()
+
+	result, stats := Compress("execute_shell", "echo test", output, cfg)
+
+	if stats.Ratio > 0.5 {
+		t.Errorf("expected better compression for large output, got ratio %f", stats.Ratio)
+	}
+	if result == "" {
+		t.Error("result should not be empty")
+	}
+	if len(result) >= len(output) {
+		t.Errorf("expected compression, got %d >= %d", len(result), len(output))
+	}
+}
+
+func TestCompress_UnicodeOutput(t *testing.T) {
+	// Test mit Unicode/Emoji
+	output := "🎉 Test ✓ 中文 🚀\n" + strings.Repeat("line\n", 100)
+	cfg := DefaultConfig()
+
+	result, stats := Compress("execute_shell", "echo test", output, cfg)
+
+	if stats.Ratio >= 1.0 {
+		t.Errorf("expected some compression, got ratio %f", stats.Ratio)
+	}
+	if !strings.Contains(result, "🎉") {
+		t.Error("unicode emoji should be preserved")
+	}
+	if !strings.Contains(result, "✓") {
+		t.Error("unicode symbol should be preserved")
+	}
+	if !strings.Contains(result, "中文") {
+		t.Error("chinese characters should be preserved")
+	}
+}
+
+func TestCompress_SpecialCharacters(t *testing.T) {
+	// Test mit speziellen Zeichen
+	output := "Tab:\tBackspace:\bNewline:\nCarriage:\rNull:\x00\n" +
+		strings.Repeat("line\n", 100)
+	cfg := DefaultConfig()
+
+	result, stats := Compress("execute_shell", "echo test", output, cfg)
+
+	if stats.Ratio >= 1.0 {
+		t.Errorf("expected some compression, got ratio %f", stats.Ratio)
+	}
+	// Result should not be empty
+	if result == "" {
+		t.Error("result should not be empty")
+	}
+}
+
+func TestCompress_Performance(t *testing.T) {
+	// Performance-Test: Kompression sollte schnell sein
+	output := strings.Repeat("line\n", 10000) // ~50KB
+	cfg := DefaultConfig()
+
+	start := time.Now()
+	_, _ = Compress("execute_shell", "echo test", output, cfg)
+	elapsed := time.Since(start)
+
+	// Kompression sollte unter 100ms bleiben
+	if elapsed > 100*time.Millisecond {
+		t.Errorf("compression too slow: %v (expected < 100ms)", elapsed)
+	}
+}
+
+func TestCompress_Performance_Large(t *testing.T) {
+	// Performance-Test mit größerem Output
+	output := strings.Repeat("line\n", 100000) // ~500KB
+	cfg := DefaultConfig()
+
+	start := time.Now()
+	_, _ = Compress("execute_shell", "echo test", output, cfg)
+	elapsed := time.Since(start)
+
+	// Auch große Kompression sollte unter 500ms bleiben
+	if elapsed > 500*time.Millisecond {
+		t.Errorf("large compression too slow: %v (expected < 500ms)", elapsed)
+	}
+}
+
+func TestCompress_EmptyString(t *testing.T) {
+	cfg := DefaultConfig()
+	result, stats := Compress("execute_shell", "echo", "", cfg)
+
+	if result != "" {
+		t.Error("empty input should return empty output")
+	}
+	if stats.Ratio != 1.0 {
+		t.Errorf("expected ratio 1.0 for empty input, got %f", stats.Ratio)
+	}
+}
+
+func TestCompress_StatsFields(t *testing.T) {
+	output := strings.Repeat("line\n", 100)
+	cfg := DefaultConfig()
+
+	_, stats := Compress("execute_shell", "echo test", output, cfg)
+
+	// Alle neuen Felder sollten gesetzt sein
+	if stats.Timestamp.IsZero() {
+		t.Error("Timestamp should be set")
+	}
+	if stats.ProcessingTimeMs < 0 {
+		t.Errorf("ProcessingTimeMs should be non-negative, got %d", stats.ProcessingTimeMs)
+	}
+	if stats.ToolName != "execute_shell" {
+		t.Errorf("ToolName should be 'execute_shell', got %q", stats.ToolName)
+	}
+	// commandSignature extrahiert erste 2 Tokens
+	if stats.CommandHint != "echo test" {
+		t.Errorf("CommandHint should be 'echo test', got %q", stats.CommandHint)
+	}
+}
+
+func TestDeduplicateLines_AllDuplicates(t *testing.T) {
+	// Test wenn alle Zeilen identisch sind
+	input := strings.Repeat("same line\n", 100)
+	result := DeduplicateLines(input)
+
+	// Sollte nur einmal erscheinen mit Marker
+	if strings.Count(result, "same line") > 1 {
+		t.Errorf("expected single occurrence, got %d", strings.Count(result, "same line"))
+	}
+	if !strings.Contains(result, "identical lines omitted") {
+		t.Error("expected dedup marker")
+	}
+}
+
+func TestTailFocusConstants(t *testing.T) {
+	// Test dass die Konstanten konsistent sind
+	if tailFocusHeadDefault+tailFocusTailDefault+tailFocusMinGap > minLinesForTailFocus {
+		t.Error("minLinesForTailFocus should be >= sum of default head+tail+gap")
+	}
+	if tailFocusLogsHead+tailFocusLogsTail+tailFocusLogsMinGap > minLinesForTailFocus {
+		t.Error("logs threshold should be reasonable")
+	}
+	if tailFocusCodeHead+tailFocusCodeTail+tailFocusCodeMinGap > minLinesForTailFocus {
+		t.Error("code threshold should be reasonable")
+	}
+}
+
+func TestStripANSI_Comprehensive(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "SGR codes",
+			input:    "\x1b[31mred\x1b[0m \x1b[1mbold\x1b[22m",
+			expected: "red bold",
+		},
+		{
+			name:     "256 color",
+			input:    "\x1b[38;5;196mred\x1b[0m",
+			expected: "red",
+		},
+		{
+			name:     "True color",
+			input:    "\x1b[38;2;255;0;0mRGB red\x1b[0m",
+			expected: "RGB red",
+		},
+		{
+			name:     "Cursor movement",
+			input:    "\x1b[2J\x1b[HClear screen",
+			expected: "Clear screen",
+		},
+		{
+			name:     "Window title",
+			input:    "\x1b]0;Terminal Title\x07Content",
+			expected: "Content",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := StripANSI(tt.input)
+			if result != tt.expected {
+				t.Errorf("StripANSI(%q) = %q, want %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestIsErrorOutput_Extended(t *testing.T) {
+	tests := []struct {
+		name      string
+		output    string
+		wantError bool
+	}{
+		{"fatal error", "fatal: unable to access", true},
+		{"panic", "panic: runtime error", true},
+		{"error prefix", "error: file not found", true},
+		{"ERROR uppercase", "ERROR: permission denied", true},
+		{"failed to", "failed to connect", true},
+		{"exception", "exception: ValueError", true},
+		{"traceback", "Traceback (most recent call last)", true},
+		{"permission denied", "permission denied", true},
+		{"normal output", "success: operation completed", false},
+		{"warning", "warning: deprecated", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isErrorOutput(tt.output)
+			if result != tt.wantError {
+				t.Errorf("isErrorOutput(%q) = %v, want %v", tt.output, result, tt.wantError)
+			}
+		})
+	}
+}
+
+func TestCompactJSON_ProperParsing(t *testing.T) {
+	input := `{
+		"name": "test",
+		"value": null,
+		"empty": "",
+		"null_array": [],
+		"null_object": {},
+		"valid": "data"
+	}`
+
+	result := compactJSON(input)
+
+	// Should remove null, empty string, empty array, empty object
+	if strings.Contains(result, ": null") {
+		t.Error("null fields should be removed")
+	}
+	if strings.Contains(result, ": \"\"") {
+		t.Error("empty string fields should be removed")
+	}
+	if strings.Contains(result, ": []") {
+		t.Error("empty array fields should be removed")
+	}
+	if strings.Contains(result, ": {}") {
+		t.Error("empty object fields should be removed")
+	}
+	// Should keep valid data
+	if !strings.Contains(result, "valid") {
+		t.Error("valid fields should be kept")
+	}
+}
+
+func TestCompactJSON_InvalidFallback(t *testing.T) {
+	// Invalid JSON should use fallback
+	input := `{ invalid json }`
+	result := compactJSON(input)
+
+	// Should return input unchanged (fallback returns input for invalid JSON)
+	if !strings.Contains(result, "invalid json") {
+		t.Error("invalid JSON should be handled gracefully")
+	}
+}
+
+func TestRemoveEmptyValues_Nested(t *testing.T) {
+	input := map[string]interface{}{
+		"keep":         "value",
+		"null":         nil,
+		"empty_string": "",
+		"empty_array":  []interface{}{},
+		"empty_object": map[string]interface{}{},
+		"nested": map[string]interface{}{
+			"keep_nested": "value",
+			"null_nested": nil,
+		},
+		"array_with_empty": []interface{}{
+			"keep",
+			nil,
+			"",
+			[]interface{}{},
+		},
+	}
+
+	result := removeEmptyValues(input)
+
+	resultMap, ok := result.(map[string]interface{})
+	if !ok {
+		t.Fatal("result should be map")
+	}
+
+	if _, exists := resultMap["keep"]; !exists {
+		t.Error("should keep valid value")
+	}
+	if _, exists := resultMap["null"]; exists {
+		t.Error("should remove null")
+	}
+	if _, exists := resultMap["empty_string"]; exists {
+		t.Error("should remove empty string")
+	}
+	if _, exists := resultMap["nested"]; !exists {
+		t.Error("should keep nested object")
 	}
 }
