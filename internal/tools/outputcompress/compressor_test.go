@@ -593,7 +593,8 @@ func TestIsPythonTool(t *testing.T) {
 func TestIsAPITool(t *testing.T) {
 	apiTools := []string{"docker", "docker_compose", "proxmox", "homeassistant", "home_assistant",
 		"kubernetes", "api_request", "github", "sql_query",
-		"filesystem", "filesystem_op", "file_reader_advanced", "smart_file_read"}
+		"filesystem", "filesystem_op", "file_reader_advanced", "smart_file_read",
+		"list_processes", "read_process_logs", "manage_daemon", "manage_plan"}
 	for _, tool := range apiTools {
 		if !isAPITool(tool) {
 			t.Errorf("%q should be an API tool", tool)
@@ -3589,5 +3590,287 @@ func TestFormatFileSize(t *testing.T) {
 		if got != tt.want {
 			t.Errorf("formatFileSize(%d) = %q, want %q", tt.bytes, got, tt.want)
 		}
+	}
+}
+
+// ─── V10B: Process tool tests ──────────────────────────────────────────────
+
+func TestCompress_APIRouting_ProcessTools(t *testing.T) {
+	// Verify process tools are routed through API compressor
+	_, filter := compressAPIOutput("list_processes", "Tool Output: No active background processes.")
+	if filter != "proc-list" {
+		t.Errorf("expected proc-list, got %s", filter)
+	}
+	_, filter = compressAPIOutput("read_process_logs", "Tool Output: [LOGS for PID 123]\nhello")
+	if filter != "proc-logs" {
+		t.Errorf("expected proc-logs, got %s", filter)
+	}
+}
+	
+func TestCompressListProcesses_Empty(t *testing.T) {
+	input := "Tool Output: No active background processes."
+	result, filter := compressAPIOutput("list_processes", input)
+	if filter != "proc-list" {
+		t.Errorf("expected filter proc-list, got %s", filter)
+	}
+	if !strings.Contains(result, "No active processes") {
+		t.Errorf("expected empty message, got %q", result)
+	}
+}
+
+func TestCompressListProcesses_ManyProcesses(t *testing.T) {
+	var sb strings.Builder
+	sb.WriteString("Tool Output: Active processes:\n")
+	for i := 1; i <= 20; i++ {
+		fmt.Fprintf(&sb, "- PID: %d, Started: 2024-01-15T10:%02d:00Z\n", 10000+i, i)
+	}
+
+	result, filter := compressAPIOutput("list_processes", sb.String())
+	if filter != "proc-list" {
+		t.Errorf("expected filter proc-list, got %s", filter)
+	}
+	if !strings.Contains(result, "20 processes:") {
+		t.Errorf("expected count summary, got %q", result)
+	}
+	if !strings.Contains(result, "10001") || !strings.Contains(result, "10020") {
+		t.Errorf("expected PID numbers in output, got %q", result)
+	}
+	// Should NOT contain "Started:" timestamps
+	if strings.Contains(result, "Started:") {
+		t.Error("should not contain timestamps after compression")
+	}
+}
+
+func TestCompressReadProcessLogs_Large(t *testing.T) {
+	var sb strings.Builder
+	sb.WriteString("Tool Output: [LOGS for PID 12345]\n")
+	for i := 1; i <= 500; i++ {
+		fmt.Fprintf(&sb, "Log line %d: some output here\n", i)
+	}
+
+	result, filter := compressAPIOutput("read_process_logs", sb.String())
+	if filter != "proc-logs" {
+		t.Errorf("expected filter proc-logs, got %s", filter)
+	}
+	if !strings.Contains(result, "[PID 12345]") {
+		t.Errorf("expected PID info, got %q", result)
+	}
+	// Should be significantly shorter than input
+	if len(result) >= len(sb.String()) {
+		t.Errorf("expected compression, got %d >= %d", len(result), sb.Len())
+	}
+}
+
+func TestCompressReadProcessLogs_Duplicates(t *testing.T) {
+	var sb strings.Builder
+	sb.WriteString("Tool Output: [LOGS for PID 99]\n")
+	for i := 0; i < 100; i++ {
+		sb.WriteString("repeated line\n")
+	}
+	sb.WriteString("unique final line\n")
+
+	result, filter := compressAPIOutput("read_process_logs", sb.String())
+	if filter != "proc-logs" {
+		t.Errorf("expected filter proc-logs, got %s", filter)
+	}
+	if !strings.Contains(result, "duplicates removed") {
+		t.Errorf("expected dedup info, got %q", result)
+	}
+	if !strings.Contains(result, "unique final line") {
+		t.Error("expected unique final line preserved")
+	}
+}
+
+func TestCompressReadProcessLogs_Empty(t *testing.T) {
+	input := "Tool Output: [LOGS for PID 42]\n"
+	result, _ := compressAPIOutput("read_process_logs", input)
+	if !strings.Contains(result, "[PID 42]") {
+		t.Errorf("expected PID info, got %q", result)
+	}
+	if !strings.Contains(result, "empty") {
+		t.Errorf("expected empty indicator, got %q", result)
+	}
+}
+
+// ─── V10C: Agent status tool tests ─────────────────────────────────────────
+
+func TestCompress_APIRouting_AgentStatusTools(t *testing.T) {
+	_, filter := compressAPIOutput("manage_daemon", `Tool Output: {"status":"success","count":0,"daemons":[]}`)
+	if filter != "agent-daemon" {
+		t.Errorf("expected agent-daemon, got %s", filter)
+	}
+	_, filter = compressAPIOutput("manage_plan", `Tool Output: {"status":"success","count":0,"plans":[]}`)
+	if filter != "agent-plan" {
+		t.Errorf("expected agent-plan, got %s", filter)
+	}
+}
+
+func TestCompressDaemon_List(t *testing.T) {
+	daemons := []map[string]interface{}{
+		{"skill_id": "health-check", "status": "running", "uptime": "2h", "restart_count": 0},
+		{"skill_id": "backup-job", "status": "idle", "interval": "6h"},
+		{"skill_id": "monitor", "status": "running", "uptime": "30m", "restart_count": 3, "next_run": "2024-01-15T12:00:00Z"},
+	}
+	data, _ := json.Marshal(map[string]interface{}{
+		"status":  "success",
+		"count":   len(daemons),
+		"daemons": daemons,
+	})
+	input := "Tool Output: " + string(data)
+
+	result, filter := compressAPIOutput("manage_daemon", input)
+	if filter != "agent-daemon" {
+		t.Errorf("expected filter agent-daemon, got %s", filter)
+	}
+	if !strings.Contains(result, "3 daemons:") {
+		t.Errorf("expected count, got %q", result)
+	}
+	if !strings.Contains(result, "health-check") || !strings.Contains(result, "backup-job") {
+		t.Errorf("expected daemon names, got %q", result)
+	}
+	if !strings.Contains(result, "running") {
+		t.Errorf("expected status, got %q", result)
+	}
+}
+
+func TestCompressDaemon_Status(t *testing.T) {
+	data, _ := json.Marshal(map[string]interface{}{
+		"status": "success",
+		"daemon": map[string]interface{}{
+			"skill_id":      "health-check",
+			"status":        "running",
+			"uptime":        "2h",
+			"restart_count": 0,
+		},
+	})
+	input := "Tool Output: " + string(data)
+
+	result, filter := compressAPIOutput("manage_daemon", input)
+	if filter != "agent-daemon" {
+		t.Errorf("expected filter agent-daemon, got %s", filter)
+	}
+	if !strings.Contains(result, "health-check") {
+		t.Errorf("expected skill name, got %q", result)
+	}
+	if !strings.Contains(result, "running") {
+		t.Errorf("expected status, got %q", result)
+	}
+}
+
+func TestCompressDaemon_Error(t *testing.T) {
+	input := `Tool Output: {"status":"error","message":"'skill_id' is required for status"}`
+	result, filter := compressAPIOutput("manage_daemon", input)
+	if filter != "agent-status-error" {
+		t.Errorf("expected filter agent-status-error, got %s", filter)
+	}
+	if !strings.Contains(result, "error") {
+		t.Errorf("expected error preserved, got %q", result)
+	}
+}
+
+func TestCompressPlan_List(t *testing.T) {
+	plans := []map[string]interface{}{
+		{"id": "p1", "title": "Deploy app", "status": "active", "priority": 2.0,
+			"tasks": []interface{}{
+				map[string]interface{}{"title": "Build", "status": "done"},
+				map[string]interface{}{"title": "Test", "status": "pending"},
+			}},
+		{"id": "p2", "title": "Clean up", "status": "completed", "priority": 1.0,
+			"tasks": []interface{}{
+				map[string]interface{}{"title": "Remove old files", "status": "done"},
+			}},
+	}
+	data, _ := json.Marshal(map[string]interface{}{
+		"status": "success",
+		"count":  len(plans),
+		"plans":  plans,
+	})
+	input := "Tool Output: " + string(data)
+
+	result, filter := compressAPIOutput("manage_plan", input)
+	if filter != "agent-plan" {
+		t.Errorf("expected filter agent-plan, got %s", filter)
+	}
+	if !strings.Contains(result, "2 plans:") {
+		t.Errorf("expected count, got %q", result)
+	}
+	if !strings.Contains(result, "Deploy app") || !strings.Contains(result, "Clean up") {
+		t.Errorf("expected plan titles, got %q", result)
+	}
+	if !strings.Contains(result, "[active]") || !strings.Contains(result, "[completed]") {
+		t.Errorf("expected status brackets, got %q", result)
+	}
+}
+
+func TestCompressPlan_Get(t *testing.T) {
+	plan := map[string]interface{}{
+		"id":         "p1",
+		"title":      "Deploy app",
+		"status":     "active",
+		"priority":   2.0,
+		"created_at": "2024-01-15T10:00:00Z",
+		"tasks": []interface{}{
+			map[string]interface{}{"title": "Build", "status": "done"},
+			map[string]interface{}{"title": "Test", "status": "pending"},
+			map[string]interface{}{"title": "Deploy", "status": "pending"},
+		},
+	}
+	data, _ := json.Marshal(map[string]interface{}{
+		"status": "success",
+		"plan":   plan,
+	})
+	input := "Tool Output: " + string(data)
+
+	result, filter := compressAPIOutput("manage_plan", input)
+	if filter != "agent-plan" {
+		t.Errorf("expected filter agent-plan, got %s", filter)
+	}
+	if !strings.Contains(result, "[active] Deploy app") {
+		t.Errorf("expected title with status, got %q", result)
+	}
+	if !strings.Contains(result, "[done] Build") {
+		t.Errorf("expected task with status, got %q", result)
+	}
+	if !strings.Contains(result, "[pending] Test") {
+		t.Errorf("expected task with status, got %q", result)
+	}
+}
+
+func TestCompressPlan_Error(t *testing.T) {
+	input := `Tool Output: {"status":"error","message":"'title' is required for create"}`
+	result, filter := compressAPIOutput("manage_plan", input)
+	if filter != "agent-status-error" {
+		t.Errorf("expected filter agent-status-error, got %s", filter)
+	}
+	if !strings.Contains(result, "error") {
+		t.Errorf("expected error preserved, got %q", result)
+	}
+}
+
+func TestCompressDaemon_EmptyList(t *testing.T) {
+	data, _ := json.Marshal(map[string]interface{}{
+		"status":  "success",
+		"count":   0,
+		"daemons": []interface{}{},
+	})
+	input := "Tool Output: " + string(data)
+
+	result, _ := compressAPIOutput("manage_daemon", input)
+	if !strings.Contains(result, "No daemons") {
+		t.Errorf("expected empty message, got %q", result)
+	}
+}
+
+func TestCompressPlan_EmptyList(t *testing.T) {
+	data, _ := json.Marshal(map[string]interface{}{
+		"status": "success",
+		"count":  0,
+		"plans":  []interface{}{},
+	})
+	input := "Tool Output: " + string(data)
+
+	result, _ := compressAPIOutput("manage_plan", input)
+	if !strings.Contains(result, "No plans") {
+		t.Errorf("expected empty message, got %q", result)
 	}
 }

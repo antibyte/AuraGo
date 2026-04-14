@@ -141,7 +141,9 @@ func isAPITool(name string) bool {
 	switch name {
 	case "docker", "docker_compose", "proxmox", "homeassistant", "home_assistant",
 		"kubernetes", "api_request", "github", "sql_query",
-		"filesystem", "filesystem_op", "file_reader_advanced", "smart_file_read":
+		"filesystem", "filesystem_op", "file_reader_advanced", "smart_file_read",
+		"list_processes", "read_process_logs",
+		"manage_daemon", "manage_plan":
 		return true
 	}
 	return false
@@ -175,6 +177,16 @@ func isFileReaderTool(name string) bool {
 // isSmartFileTool returns true for smart_file_read tool name.
 func isSmartFileTool(name string) bool {
 	return name == "smart_file_read"
+}
+
+// isProcessTool returns true for process management tool names.
+func isProcessTool(name string) bool {
+	return name == "list_processes" || name == "read_process_logs"
+}
+
+// isAgentStatusTool returns true for agent status/management tool names.
+func isAgentStatusTool(name string) bool {
+	return name == "manage_daemon" || name == "manage_plan"
 }
 
 // isErrorOutput detects common error markers in tool output.

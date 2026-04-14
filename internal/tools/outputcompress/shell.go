@@ -2687,6 +2687,16 @@ func compressAPIOutput(toolName, output string) (string, string) {
 		return compressSmartFileOutput(output)
 	}
 
+	// Process tools have dedicated compressor
+	if isProcessTool(toolName) {
+		return compressProcessOutput(toolName, output)
+	}
+
+	// Agent status tools have dedicated compressor
+	if isAgentStatusTool(toolName) {
+		return compressAgentStatusOutput(toolName, output)
+	}
+
 	result := StripANSI(output)
 	result = CollapseWhitespace(result)
 
