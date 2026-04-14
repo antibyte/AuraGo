@@ -1,6 +1,7 @@
 package outputcompress
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
@@ -1817,5 +1818,472 @@ func TestCompressSSHDiag_Routing(t *testing.T) {
 		if filter != tt.want {
 			t.Errorf("compressShellOutput(%q) filter = %q, want %q", tt.command, filter, tt.want)
 		}
+	}
+}
+
+// ─── V7: Home Assistant Compressor Tests ─────────────────────────────────────
+
+// buildHAStatesJSON builds a HA get_states JSON envelope for testing.
+func buildHAStatesJSON(entities []map[string]interface{}) string {
+	envelope := map[string]interface{}{
+		"status": "success",
+		"count":  len(entities),
+		"states": entities,
+	}
+	data, _ := json.Marshal(envelope)
+	return string(data)
+}
+
+func TestCompressHAGetStates_Large(t *testing.T) {
+	var entities []map[string]interface{}
+	// Add 50 lights (30 on, 20 off)
+	for i := 0; i < 30; i++ {
+		entities = append(entities, map[string]interface{}{
+			"entity_id":     fmt.Sprintf("light.light_%d", i),
+			"state":         "on",
+			"friendly_name": fmt.Sprintf("Light %d", i),
+		})
+	}
+	for i := 30; i < 50; i++ {
+		entities = append(entities, map[string]interface{}{
+			"entity_id":     fmt.Sprintf("light.light_%d", i),
+			"state":         "off",
+			"friendly_name": fmt.Sprintf("Light %d", i),
+		})
+	}
+	// Add 20 sensors (all "measuring")
+	for i := 0; i < 20; i++ {
+		entities = append(entities, map[string]interface{}{
+			"entity_id":     fmt.Sprintf("sensor.temp_%d", i),
+			"state":         fmt.Sprintf("%.1f", 20.0+float64(i)*0.5),
+			"friendly_name": fmt.Sprintf("Temp Sensor %d", i),
+		})
+	}
+	// Add 2 unavailable entities
+	entities = append(entities, map[string]interface{}{
+		"entity_id":     "switch.garage",
+		"state":         "unavailable",
+		"friendly_name": "Garage Switch",
+	})
+	entities = append(entities, map[string]interface{}{
+		"entity_id":     "sensor.old_sensor",
+		"state":         "unknown",
+		"friendly_name": "Old Sensor",
+	})
+
+	output := buildHAStatesJSON(entities)
+	result, filter := compressHAOutput(output)
+
+	if filter != "ha-states" {
+		t.Errorf("expected ha-states filter, got %q", filter)
+	}
+	if !strings.Contains(result, "HA States: 72 entities") {
+		t.Errorf("expected entity count, got: %s", result[:min(200, len(result))])
+	}
+	if !strings.Contains(result, "3 domains") {
+		t.Errorf("expected domain count, got: %s", result[:min(200, len(result))])
+	}
+	if !strings.Contains(result, "light:") {
+		t.Error("expected light domain in summary")
+	}
+	if !strings.Contains(result, "sensor:") {
+		t.Error("expected sensor domain in summary")
+	}
+	if !strings.Contains(result, "30 on") {
+		t.Error("expected 30 lights on")
+	}
+	if !strings.Contains(result, "20 off") {
+		t.Error("expected 20 lights off")
+	}
+	if !strings.Contains(result, "Unavailable entities (2)") {
+		t.Error("expected 2 unavailable entities")
+	}
+	if !strings.Contains(result, "Garage Switch") {
+		t.Error("expected Garage Switch in unavailable list")
+	}
+	// Verify compression ratio
+	if len(result) >= len(output) {
+		t.Errorf("expected compression: got %d >= %d", len(result), len(output))
+	}
+}
+
+func TestCompressHAGetStates_Empty(t *testing.T) {
+	output := buildHAStatesJSON(nil)
+	result, filter := compressHAOutput(output)
+
+	if filter != "ha-states" {
+		t.Errorf("expected ha-states filter, got %q", filter)
+	}
+	if !strings.Contains(result, "0 entities") {
+		t.Errorf("expected 0 entities, got: %s", result)
+	}
+}
+
+func TestCompressHAGetState_Compact(t *testing.T) {
+	envelope := map[string]interface{}{
+		"status": "success",
+		"entity": map[string]interface{}{
+			"entity_id": "climate.living_room",
+			"state":     "heat",
+			"attributes": map[string]interface{}{
+				"friendly_name":       "Living Room Climate",
+				"temperature":         22.5,
+				"current_temperature": 21.0,
+				"hvac_mode":           "heat",
+				"hvac_action":         "heating",
+				"target_temp_high":    25.0,
+				"target_temp_low":     18.0,
+				"preset_mode":         "comfort",
+				"min_temp":            5.0,
+				"max_temp":            35.0,
+				"some_internal_attr":  "should_be_removed",
+				"another_useless":     42,
+			},
+			"last_changed": "2024-01-14T15:20:00.000000+00:00",
+			"last_updated": "2024-01-14T15:25:00.000000+00:00",
+			"context": map[string]interface{}{
+				"id":       "abc123",
+				"parent_id": nil,
+				"user_id":   nil,
+			},
+		},
+	}
+	data, _ := json.Marshal(envelope)
+	output := string(data)
+
+	result, filter := compressHAOutput(output)
+
+	if filter != "ha-state" {
+		t.Errorf("expected ha-state filter, got %q", filter)
+	}
+	if !strings.Contains(result, "Entity: climate.living_room") {
+		t.Error("expected entity_id")
+	}
+	if !strings.Contains(result, "State: heat") {
+		t.Error("expected state")
+	}
+	if !strings.Contains(result, "temperature: 22.5") {
+		t.Error("expected temperature attribute")
+	}
+	if !strings.Contains(result, "hvac_mode: heat") {
+		t.Error("expected hvac_mode attribute")
+	}
+	if strings.Contains(result, "some_internal_attr") {
+		t.Error("internal attribute should be filtered out")
+	}
+	if strings.Contains(result, "another_useless") {
+		t.Error("useless attribute should be filtered out")
+	}
+	if !strings.Contains(result, "attributes omitted") {
+		t.Error("expected omitted count")
+	}
+	if !strings.Contains(result, "Last changed:") {
+		t.Error("expected last_changed")
+	}
+	if strings.Contains(result, "context") {
+		t.Error("context should be removed")
+	}
+}
+
+func TestCompressHACallService(t *testing.T) {
+	envelope := map[string]interface{}{
+		"status":            "success",
+		"service":           "light.turn_on",
+		"affected_entities": []string{"light.living_room", "light.bedroom", "light.kitchen"},
+		"count":             3,
+	}
+	data, _ := json.Marshal(envelope)
+
+	result, filter := compressHAOutput(string(data))
+
+	if filter != "ha-call-service" {
+		t.Errorf("expected ha-call-service filter, got %q", filter)
+	}
+	if !strings.Contains(result, "✓ Service light.turn_on called successfully") {
+		t.Error("expected success message")
+	}
+	if !strings.Contains(result, "Affected entities (3)") {
+		t.Error("expected affected entities count")
+	}
+	if !strings.Contains(result, "light.living_room") {
+		t.Error("expected entity in list")
+	}
+}
+
+func TestCompressHAListServices_Large(t *testing.T) {
+	type svcEntry struct {
+		Domain   string   `json:"domain"`
+		Services []string `json:"services"`
+	}
+
+	// Create domains with varying service counts
+	var services []svcEntry
+	for i := 0; i < 20; i++ {
+		var svcNames []string
+		numSvcs := 5 + i*2 // 5,7,9,...43 services per domain
+		for j := 0; j < numSvcs; j++ {
+			svcNames = append(svcNames, fmt.Sprintf("service_%d", j))
+		}
+		services = append(services, svcEntry{
+			Domain:   fmt.Sprintf("domain_%02d", i),
+			Services: svcNames,
+		})
+	}
+
+	envelope := map[string]interface{}{
+		"status":   "success",
+		"count":    len(services),
+		"services": services,
+	}
+	data, _ := json.Marshal(envelope)
+
+	result, filter := compressHAOutput(string(data))
+
+	if filter != "ha-list-services" {
+		t.Errorf("expected ha-list-services filter, got %q", filter)
+	}
+	if !strings.Contains(result, "HA Services: 20 domains") {
+		t.Error("expected domain count")
+	}
+	// Domains with >15 services should show "+N more"
+	if !strings.Contains(result, " more") {
+		t.Error("expected truncation for domains with >15 services")
+	}
+	// Verify compression
+	if len(result) >= len(data) {
+		t.Errorf("expected compression: got %d >= %d", len(result), len(data))
+	}
+}
+
+func TestCompress_HA_Routing(t *testing.T) {
+	cfg := Config{Enabled: true, MinChars: 100, PreserveErrors: true, APICompression: true}
+
+	// Test that homeassistant tool name routes to HA compressor
+	states := buildHAStatesJSON([]map[string]interface{}{
+		{"entity_id": "light.test", "state": "on", "friendly_name": "Test Light"},
+	})
+	// Pad to exceed MinChars
+	for i := 0; i < 30; i++ {
+		states = strings.Replace(states, "]", fmt.Sprintf(",{\"entity_id\":\"sensor.p%d\",\"state\":\"%d\",\"friendly_name\":\"S%d\"}]", i, i, i), 1)
+	}
+
+	tests := []struct {
+		toolName string
+		want     string
+	}{
+		{"homeassistant", "ha-states"},
+		{"home_assistant", "ha-states"},
+	}
+	for _, tt := range tests {
+		_, stats := Compress(tt.toolName, "", states, cfg)
+		if stats.FilterUsed != tt.want {
+			t.Errorf("Compress(%q) filter = %q, want %q", tt.toolName, stats.FilterUsed, tt.want)
+		}
+	}
+}
+
+func TestCompress_HA_SubToggleOff(t *testing.T) {
+	cfg := Config{Enabled: true, MinChars: 100, PreserveErrors: true, APICompression: false}
+
+	states := buildHAStatesJSON([]map[string]interface{}{
+		{"entity_id": "light.test", "state": "on"},
+	})
+	// Pad to exceed MinChars
+	for i := 0; i < 30; i++ {
+		states += fmt.Sprintf(`{"entity_id":"sensor.p%d","state":"%d"}`, i, i)
+	}
+
+	_, stats := Compress("homeassistant", "", states, cfg)
+	if stats.FilterUsed != "generic" {
+		t.Errorf("expected generic filter with APICompression=false, got %q", stats.FilterUsed)
+	}
+}
+
+// ─── V7: Shell File/Log Compressor Tests ─────────────────────────────────────
+
+func TestCompressCatFile_LogContent(t *testing.T) {
+	var sb strings.Builder
+	for i := 0; i < 50; i++ {
+		sb.WriteString(fmt.Sprintf("2024-01-15 10:%02d:00 INFO  Processing request %d\n", i%60, i))
+	}
+	for i := 0; i < 10; i++ {
+		sb.WriteString(fmt.Sprintf("2024-01-15 11:%02d:00 ERROR Connection timeout %d\n", i, i))
+	}
+	output := sb.String()
+
+	result := compressCatFile(output)
+
+	// Should apply log compression (strip timestamps, deduplicate)
+	if len(result) >= len(output) {
+		t.Errorf("expected compression for log content: got %d >= %d", len(result), len(output))
+	}
+}
+
+func TestCompressCatFile_LargeNonLog(t *testing.T) {
+	var sb strings.Builder
+	for i := 0; i < 300; i++ {
+		sb.WriteString(fmt.Sprintf("This is line %d of a regular text file with some content.\n", i))
+	}
+	output := sb.String()
+
+	result := compressCatFile(output)
+
+	// Should apply tail focus for large non-log content
+	if len(result) >= len(output) {
+		t.Errorf("expected compression for large non-log content: got %d >= %d", len(result), len(output))
+	}
+}
+
+func TestCompressCatFile_SmallNonLog(t *testing.T) {
+	output := "Hello World\nThis is a small file\nWith just a few lines\n"
+	result := compressCatFile(output)
+
+	// Small non-log content should pass through mostly unchanged
+	if !strings.Contains(result, "Hello World") {
+		t.Error("expected content preserved for small non-log file")
+	}
+}
+
+func TestCompressTailHead_LogContent(t *testing.T) {
+	var sb strings.Builder
+	for i := 0; i < 30; i++ {
+		sb.WriteString(fmt.Sprintf("2024-01-15 10:%02d:00 INFO  Processing request %d\n", i, i))
+	}
+	output := sb.String()
+
+	result := compressTailHead(output)
+
+	// Should apply log compression
+	if len(result) >= len(output) {
+		t.Errorf("expected compression for log tail output: got %d >= %d", len(result), len(output))
+	}
+}
+
+func TestCompressTailHead_NonLog(t *testing.T) {
+	output := "Last 10 lines of a config file\nserver {\n    listen 80;\n}\n"
+	result := compressTailHead(output)
+
+	// Non-log tail output should pass through
+	if !strings.Contains(result, "listen 80") {
+		t.Error("expected content preserved for non-log tail output")
+	}
+}
+
+func TestCompressStat_MultiFile(t *testing.T) {
+	output := `  File: config.yaml
+	 Size: 2048       Blocks: 8        IO Block: 4096   regular file
+Device: 802h/2050d  Inode: 1234567    Links: 1
+Access: (0644/-rw-r--r--)  Uid: ( 1000/   user)   Gid: ( 1000/   user)
+Access: 2024-01-15 10:30:00.000000000 +0100
+Modify: 2024-01-14 15:20:00.000000000 +0100
+Change: 2024-01-14 15:20:00.000000000 +0100
+	Birth: 2024-01-10 08:00:00.000000000 +0100
+	 File: script.sh
+	 Size: 512        Blocks: 8        IO Block: 4096   regular file
+Device: 802h/2050d  Inode: 1234568    Links: 1
+Access: (0755/-rwxr-xr-x)  Uid: ( 1000/   user)   Gid: ( 1000/   user)
+Access: 2024-01-15 10:30:00.000000000 +0100
+Modify: 2024-01-15 09:00:00.000000000 +0100
+Change: 2024-01-15 09:00:00.000000000 +0100
+	Birth: 2024-01-10 08:00:00.000000000 +0100`
+
+	result := compressStat(output)
+
+	if !strings.Contains(result, "config.yaml:") {
+		t.Error("expected config.yaml in output")
+	}
+	if !strings.Contains(result, "2048B") {
+		t.Error("expected size in output")
+	}
+	if !strings.Contains(result, "-rw-r--r--") {
+		t.Error("expected permissions in output")
+	}
+	if !strings.Contains(result, "modified 2024-01-14 15:20:00") {
+		t.Error("expected modify time in output")
+	}
+	if !strings.Contains(result, "script.sh:") {
+		t.Error("expected script.sh in output")
+	}
+	if !strings.Contains(result, "-rwxr-xr-x") {
+		t.Error("expected executable permissions")
+	}
+	// Verify it's compact (2 lines instead of 16)
+	lines := strings.Count(result, "\n")
+	if lines > 3 {
+		t.Errorf("expected compact output (2-3 lines), got %d lines: %s", lines, result)
+	}
+}
+
+func TestCompressStat_SingleFile(t *testing.T) {
+	output := `  File: readme.txt
+	 Size: 128        Blocks: 8        IO Block: 4096   regular file
+Device: 802h/2050d  Inode: 1234569    Links: 1
+Access: (0644/-rw-r--r--)  Uid: ( 1000/   user)   Gid: ( 1000/   user)
+Access: 2024-01-15 10:30:00.000000000 +0100
+Modify: 2024-01-14 15:20:00.000000000 +0100
+Change: 2024-01-14 15:20:00.000000000 +0100
+	Birth: 2024-01-10 08:00:00.000000000 +0100`
+
+	result := compressStat(output)
+
+	if !strings.Contains(result, "readme.txt:") {
+		t.Error("expected readme.txt in output")
+	}
+	if !strings.Contains(result, "128B") {
+		t.Error("expected size")
+	}
+}
+
+func TestCompressStat_ShortOutput(t *testing.T) {
+	output := "  File: tiny.txt\n  Size: 10 Blocks: 8"
+	result := compressStat(output)
+
+	// Short output (<=3 lines) should be returned as-is
+	if result != output {
+		t.Errorf("expected short stat output preserved, got: %s", result)
+	}
+}
+
+func TestCompressShell_V7Routing(t *testing.T) {
+	tests := []struct {
+		command string
+		want    string
+	}{
+		{"cat /var/log/syslog", "cat"},
+		{"less /etc/config", "cat"},
+		{"more readme.txt", "cat"},
+		{"tail -f /var/log/syslog", "tail"},
+		{"head -20 file.txt", "head"},
+		{"stat config.yaml", "stat"},
+		{"file *", "file"},
+		{"wc -l *.go", "wc"},
+	}
+	for _, tt := range tests {
+		_, filter := compressShellOutput(tt.command, strings.Repeat("line\n", 50))
+		if filter != tt.want {
+			t.Errorf("compressShellOutput(%q) filter = %q, want %q", tt.command, filter, tt.want)
+		}
+	}
+}
+
+func TestIsLogContent(t *testing.T) {
+	// Log content
+	logOutput := "2024-01-15 10:30:00 INFO  Starting server\n2024-01-15 10:30:01 DEBUG Connected\n2024-01-15 10:30:02 ERROR Timeout\n"
+	if !isLogContent(logOutput) {
+		t.Error("expected log content detected")
+	}
+
+	// Non-log content
+	plainOutput := "Hello World\nThis is a config file\nWith some settings\n"
+	if isLogContent(plainOutput) {
+		t.Error("expected non-log content")
+	}
+
+	// JSON log format
+	jsonLog := `{"level":"info","msg":"started","ts":"2024-01-15T10:30:00Z"}
+{"level":"error","msg":"failed","ts":"2024-01-15T10:30:01Z"}
+{"level":"debug","msg":"retry","ts":"2024-01-15T10:30:02Z"}`
+	if !isLogContent(jsonLog) {
+		t.Error("expected JSON log content detected")
 	}
 }

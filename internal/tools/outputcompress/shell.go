@@ -102,6 +102,20 @@ func compressShellOutput(command, output string) (string, string) {
 	case bin == "uptime":
 		return compressGeneric(output), "uptime"
 
+	// ─── V7: File / Log viewing routes ───────────────────────────────
+	case bin == "cat" || bin == "less" || bin == "more":
+		return compressCatFile(output), "cat"
+	case bin == "tail":
+		return compressTailHead(output), "tail"
+	case bin == "head":
+		return compressTailHead(output), "head"
+	case bin == "stat":
+		return compressStat(output), "stat"
+	case bin == "file":
+		return compressGeneric(output), "file"
+	case bin == "wc":
+		return compressGeneric(output), "wc"
+
 	default:
 		return compressGeneric(output), "generic"
 	}
@@ -1190,7 +1204,7 @@ func compressAwsTable(output string) string {
 
 	// Try JSON compaction first
 	if strings.HasPrefix(strings.TrimSpace(result), "{") || strings.HasPrefix(strings.TrimSpace(result), "[") {
-		compacted, _ := compressAPIOutput(result)
+		compacted, _ := compressAPIOutput("", result)
 		return compacted
 	}
 
@@ -1940,6 +1954,192 @@ func parseFloat(s string) (float64, error) {
 	return strconv.ParseFloat(s, 64)
 }
 
+// ─── V7: File / Log viewing compressors ──────────────────────────────────────
+
+// isLogContent detects if output looks like log data by checking for
+// timestamp patterns or log level markers.
+func isLogContent(output string) bool {
+	lines := strings.Split(output, "\n")
+	sample := 20
+	if len(lines) < sample {
+		sample = len(lines)
+	}
+	logMarkers := 0
+	for i := 0; i < sample; i++ {
+		line := lines[i]
+		// Check for common log patterns (structured and unstructured)
+		if strings.Contains(line, "ERROR") || strings.Contains(line, "WARN") ||
+			strings.Contains(line, "INFO") || strings.Contains(line, "DEBUG") ||
+			strings.Contains(line, " level=") || strings.Contains(line, " lvl=") ||
+			strings.Contains(line, "msg=") || strings.Contains(line, "message=") ||
+			strings.Contains(line, `"level"`) || strings.Contains(line, `"msg"`) ||
+			strings.Contains(line, `"message"`) {
+			logMarkers++
+			continue
+		}
+		// Check for timestamp patterns at line start
+		trimmed := strings.TrimSpace(line)
+		if (len(trimmed) > 19 && (trimmed[4] == '-' && trimmed[7] == '-' &&
+			(trimmed[10] == 'T' || trimmed[10] == ' '))) ||
+			strings.HasPrefix(trimmed, "[20") {
+			logMarkers++
+		}
+	}
+	// If more than half the sampled lines look like logs, treat as log content
+	return logMarkers > sample/2
+}
+
+// compressCatFile compresses cat/less/more output.
+// For log-like content, applies log compression. For large output, uses tail focus.
+func compressCatFile(output string) string {
+	result := StripANSI(output)
+	result = CollapseWhitespace(result)
+
+	if isLogContent(result) {
+		return compressLogs(result)
+	}
+
+	lines := strings.Split(result, "\n")
+	if len(lines) > 200 {
+		return TailFocus(result, 20, 100, 5)
+	}
+
+	return compressGeneric(result)
+}
+
+// compressTailHead compresses tail/head output.
+// These commands already limit output by -n flag, so we only apply
+// log-specific compression for log-like content.
+func compressTailHead(output string) string {
+	result := StripANSI(output)
+	result = CollapseWhitespace(result)
+
+	if isLogContent(result) {
+		return compressLogs(result)
+	}
+
+	return compressGeneric(result)
+}
+
+// compressStat compresses stat output to a compact one-line-per-file summary.
+// Input format (GNU stat):
+//
+//	File: somefile.txt
+//	Size: 1234       Blocks: 8        IO Block: 4096   regular file
+//	Access: (0644/-rw-r--r--)  Uid: (1000/user)   Gid: (1000/user)
+//	Access: 2024-01-15 10:30:00.000000000 +0100
+//	Modify: 2024-01-14 15:20:00.000000000 +0100
+//	Change: 2024-01-14 15:20:00.000000000 +0100
+//	 Birth: 2024-01-10 08:00:00.000000000 +0100
+func compressStat(output string) string {
+	result := StripANSI(output)
+	result = CollapseWhitespace(result)
+
+	lines := strings.Split(result, "\n")
+	if len(lines) <= 3 {
+		return result // Short output, keep as-is
+	}
+
+	var sb strings.Builder
+	var currentFile string
+	var size, fileType, perms, modify string
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		// File name line
+		if strings.HasPrefix(trimmed, "File:") {
+			// Flush previous file
+			if currentFile != "" {
+				writeStatLine(&sb, currentFile, size, fileType, perms, modify)
+			}
+			currentFile = strings.TrimSpace(strings.TrimPrefix(trimmed, "File:"))
+			size = ""
+			fileType = ""
+			perms = ""
+			modify = ""
+			continue
+		}
+
+		// Size and type line: "Size: 1234       Blocks: 8        IO Block: 4096   regular file"
+		if strings.HasPrefix(trimmed, "Size:") {
+			parts := strings.Fields(trimmed)
+			for i, p := range parts {
+				if p == "Size:" && i+1 < len(parts) {
+					size = parts[i+1]
+				}
+			}
+			// File type is the last field(s) after IO Block value
+			// Find "IO Block:" and take what comes after its value
+			for i, p := range parts {
+				if p == "Block:" && i+2 < len(parts) {
+					// Everything after the IO Block value is the file type
+					fileType = strings.Join(parts[i+2:], " ")
+					// Remove trailing comma or space
+					fileType = strings.TrimRight(fileType, ", ")
+				}
+			}
+			continue
+		}
+
+		// Permissions line: "Access: (0644/-rw-r--r--)  Uid: ..."
+		if strings.HasPrefix(trimmed, "Access: (") {
+			// Extract permission string from parentheses
+			start := strings.Index(trimmed, "(")
+			end := strings.Index(trimmed, ")")
+			if start >= 0 && end > start {
+				permStr := trimmed[start+1 : end]
+				// Extract symbolic part after slash: "0644/-rw-r--r--" -> "-rw-r--r--"
+				if idx := strings.Index(permStr, "/"); idx >= 0 {
+					perms = permStr[idx+1:]
+				} else {
+					perms = permStr
+				}
+			}
+			continue
+		}
+
+		// Modify time line: "Modify: 2024-01-14 15:20:00.000000000 +0100"
+		if strings.HasPrefix(trimmed, "Modify:") {
+			modify = strings.TrimSpace(strings.TrimPrefix(trimmed, "Modify:"))
+			// Truncate nanoseconds: "2024-01-14 15:20:00.000000000 +0100" -> "2024-01-14 15:20:00"
+			if dotIdx := strings.Index(modify, "."); dotIdx > 0 {
+				modify = modify[:dotIdx]
+			}
+			continue
+		}
+	}
+
+	// Flush last file
+	if currentFile != "" {
+		writeStatLine(&sb, currentFile, size, fileType, perms, modify)
+	}
+
+	compressed := sb.String()
+	if compressed == "" {
+		return result
+	}
+	return compressed
+}
+
+// writeStatLine writes a compact one-line stat summary.
+func writeStatLine(sb *strings.Builder, file, size, fileType, perms, modify string) {
+	parts := []string{file + ":"}
+	if size != "" {
+		parts = append(parts, size+"B")
+	}
+	if fileType != "" {
+		parts = append(parts, fileType)
+	}
+	if perms != "" {
+		parts = append(parts, perms)
+	}
+	if modify != "" {
+		parts = append(parts, "modified "+modify)
+	}
+	sb.WriteString(strings.Join(parts, " ") + "\n")
+}
+
 // ─── Python Output Filter ───────────────────────────────────────────────────
 func compressPythonOutput(output string) (string, string) {
 	result := StripANSI(output)
@@ -2027,7 +2227,13 @@ func filterPythonTraceback(output string) string {
 // ─── API Output Filter ──────────────────────────────────────────────────────
 
 // compressAPIOutput applies JSON compaction for API tool outputs.
-func compressAPIOutput(output string) (string, string) {
+// For Home Assistant tools, it routes to domain-specific compressors.
+func compressAPIOutput(toolName, output string) (string, string) {
+	// Home Assistant has dedicated compressors
+	if isHATool(toolName) {
+		return compressHAOutput(output)
+	}
+
 	result := StripANSI(output)
 	result = CollapseWhitespace(result)
 

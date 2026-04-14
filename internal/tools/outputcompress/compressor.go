@@ -87,7 +87,7 @@ func Compress(toolName, command, output string, cfg Config) (string, Compression
 	case isPythonTool(toolName) && cfg.PythonCompression:
 		result, filter = compressPythonOutput(output)
 	case isAPITool(toolName) && cfg.APICompression:
-		result, filter = compressAPIOutput(output)
+		result, filter = compressAPIOutput(toolName, output)
 	default:
 		result = compressGeneric(output)
 		filter = "generic"
@@ -139,11 +139,16 @@ func isPythonTool(name string) bool {
 // isAPITool returns true for tools that return structured API responses.
 func isAPITool(name string) bool {
 	switch name {
-	case "docker", "docker_compose", "proxmox", "homeassistant",
+	case "docker", "docker_compose", "proxmox", "homeassistant", "home_assistant",
 		"kubernetes", "api_request":
 		return true
 	}
 	return false
+}
+
+// isHATool returns true for Home Assistant tool names.
+func isHATool(name string) bool {
+	return name == "homeassistant" || name == "home_assistant"
 }
 
 // isErrorOutput detects common error markers in tool output.
