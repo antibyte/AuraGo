@@ -2420,6 +2420,24 @@
             return labels[key] || key;
         }
 
+        function toolingTelemetryClassifierLabel(key) {
+            const labels = {
+                classifier_empty_response_announcement_only: t('dashboard.tooling_telemetry_classifier_empty_response_announcement_only'),
+                classifier_empty_response_no_output: t('dashboard.tooling_telemetry_classifier_empty_response_no_output'),
+                classifier_format_error_raw_code: t('dashboard.tooling_telemetry_classifier_format_error_raw_code'),
+                classifier_format_error_orphaned_bracket_tag: t('dashboard.tooling_telemetry_classifier_format_error_orphaned_bracket_tag'),
+                classifier_format_error_bare_xml_in_native_mode: t('dashboard.tooling_telemetry_classifier_format_error_bare_xml_in_native_mode'),
+                classifier_format_error_tool_in_fence: t('dashboard.tooling_telemetry_classifier_format_error_tool_in_fence'),
+                classifier_schema_error_incomplete_tool_call: t('dashboard.tooling_telemetry_classifier_schema_error_incomplete_tool_call'),
+                classifier_schema_error_xml_fallback_format: t('dashboard.tooling_telemetry_classifier_schema_error_xml_fallback_format'),
+                classifier_schema_error_invalid_native_args: t('dashboard.tooling_telemetry_classifier_schema_error_invalid_native_args'),
+                classifier_schema_error_missing_action_field: t('dashboard.tooling_telemetry_classifier_schema_error_missing_action_field'),
+                classifier_schema_error_malformed_native_args: t('dashboard.tooling_telemetry_classifier_schema_error_malformed_native_args'),
+                classifier_schema_error_unrecognized_json_structure: t('dashboard.tooling_telemetry_classifier_schema_error_unrecognized_json_structure'),
+            };
+            return labels[key] || key;
+        }
+
         function toolingTelemetryRecoveryLabel(key) {
             const labels = {
                 provider_422_recovered: t('dashboard.tooling_telemetry_recovery_provider_422_recovered'),
@@ -2430,7 +2448,11 @@
                 tool_output_truncated: t('dashboard.tooling_telemetry_recovery_tool_output_truncated'),
                 error_output_truncated_preserved: t('dashboard.tooling_telemetry_recovery_error_output_truncated_preserved'),
             };
-            return labels[key] || key;
+            if (labels[key]) return labels[key];
+            if (String(key || '').startsWith('classifier_')) {
+                return toolingTelemetryClassifierLabel(key);
+            }
+            return key;
         }
 
         function toolingTelemetryPolicyLabel(key) {
