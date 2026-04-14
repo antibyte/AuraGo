@@ -5,7 +5,6 @@ import (
 	"strings"
 )
 
-
 // ─── Python Output Filter ───────────────────────────────────────────────────
 func compressPythonOutput(output string) (string, string) {
 	result := StripANSI(output)

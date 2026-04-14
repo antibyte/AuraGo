@@ -5,7 +5,6 @@ import (
 	"strings"
 )
 
-
 // ─── Kubernetes Filters ─────────────────────────────────────────────────────
 
 func compressK8s(sub, output string) (string, string) {

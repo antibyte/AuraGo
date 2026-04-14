@@ -251,8 +251,8 @@ func compressHACallService(output string) string {
 // domains and limiting service names per domain.
 func compressHAListServices(output string) string {
 	var envelope struct {
-		Status string `json:"status"`
-		Count  int    `json:"count"`
+		Status   string `json:"status"`
+		Count    int    `json:"count"`
 		Services []struct {
 			Domain   string   `json:"domain"`
 			Services []string `json:"services"`

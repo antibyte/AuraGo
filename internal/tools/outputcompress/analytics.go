@@ -25,22 +25,22 @@ type CompressionAggregate struct {
 	filterSaved map[string]int64 // raw - compressed
 
 	// Recent compression events (ring buffer, last 100)
-	recent     []CompressionStats
-	recentMax  int
+	recent    []CompressionStats
+	recentMax int
 }
 
 // CompressionSnapshot is a read-only JSON-friendly snapshot of the aggregate.
 type CompressionSnapshot struct {
-	Enabled              bool                       `json:"enabled"`
-	TotalRawChars        int64                      `json:"total_raw_chars"`
-	TotalCompressedChars int64                      `json:"total_compressed_chars"`
-	TotalSavedChars      int64                      `json:"total_saved_chars"`
-	AverageSavingsRatio  float64                    `json:"average_savings_ratio"`
-	CompressionsApplied  int64                      `json:"compressions_applied"`
-	CompressionsSkipped  int64                      `json:"compressions_skipped"`
-	TopTools             []ToolCompressionEntry     `json:"top_tools"`
-	TopFilters           []FilterCompressionEntry   `json:"top_filters"`
-	RecentCompressions   []CompressionStats         `json:"recent_compressions,omitempty"`
+	Enabled              bool                     `json:"enabled"`
+	TotalRawChars        int64                    `json:"total_raw_chars"`
+	TotalCompressedChars int64                    `json:"total_compressed_chars"`
+	TotalSavedChars      int64                    `json:"total_saved_chars"`
+	AverageSavingsRatio  float64                  `json:"average_savings_ratio"`
+	CompressionsApplied  int64                    `json:"compressions_applied"`
+	CompressionsSkipped  int64                    `json:"compressions_skipped"`
+	TopTools             []ToolCompressionEntry   `json:"top_tools"`
+	TopFilters           []FilterCompressionEntry `json:"top_filters"`
+	RecentCompressions   []CompressionStats       `json:"recent_compressions,omitempty"`
 }
 
 // ToolCompressionEntry shows per-tool compression stats.

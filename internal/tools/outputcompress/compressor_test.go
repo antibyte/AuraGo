@@ -645,8 +645,8 @@ func TestIsContainerID(t *testing.T) {
 	}{
 		{"abc123def456", true},
 		{"a1b2c3d4e5f6", true},
-		{"ABC123def456", false}, // uppercase
-		{"short", false},        // too short
+		{"ABC123def456", false},  // uppercase
+		{"short", false},         // too short
 		{"g123456789012", false}, // 'g' is not hex
 		{"123456789012", true},
 	}
@@ -1945,7 +1945,7 @@ func TestCompressHAGetState_Compact(t *testing.T) {
 			"last_changed": "2024-01-14T15:20:00.000000+00:00",
 			"last_updated": "2024-01-14T15:25:00.000000+00:00",
 			"context": map[string]interface{}{
-				"id":       "abc123",
+				"id":        "abc123",
 				"parent_id": nil,
 				"user_id":   nil,
 			},
@@ -3502,14 +3502,14 @@ func TestCompressSF_Structure(t *testing.T) {
 		"status":  "success",
 		"message": "Detected structure for config.json",
 		"data": map[string]interface{}{
-			"path":            "config.json",
-			"size_bytes":      8192,
-			"mime":            "application/json",
-			"extension":       ".json",
-			"is_text_like":    true,
-			"format":          "json",
-			"root_type":       "object",
-			"top_level_keys":  []string{"server", "database", "logging", "auth", "cache", "features", "version"},
+			"path":           "config.json",
+			"size_bytes":     8192,
+			"mime":           "application/json",
+			"extension":      ".json",
+			"is_text_like":   true,
+			"format":         "json",
+			"root_type":      "object",
+			"top_level_keys": []string{"server", "database", "logging", "auth", "cache", "features", "version"},
 		},
 	})
 
@@ -3606,7 +3606,7 @@ func TestCompress_APIRouting_ProcessTools(t *testing.T) {
 		t.Errorf("expected proc-logs, got %s", filter)
 	}
 }
-	
+
 func TestCompressListProcesses_Empty(t *testing.T) {
 	input := "Tool Output: No active background processes."
 	result, filter := compressAPIOutput("list_processes", input)

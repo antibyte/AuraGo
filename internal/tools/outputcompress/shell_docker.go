@@ -5,7 +5,6 @@ import (
 	"strings"
 )
 
-
 // ─── Container Filters ──────────────────────────────────────────────────────
 
 func compressContainer(sub, output string) (string, string) {
