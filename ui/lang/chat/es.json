@@ -156,5 +156,14 @@
   "chat.cheatsheet_picker_unnamed": "Hoja de trucos sin nombre",
   "chat.cheatsheet_picker_no_content": "Sin contenido",
   "chat.cheatsheet_picker_prompt_prefix": "Por favor, utilice esta hoja de trucos como guía:",
-  "chat.cheatsheet_picker_prompt_suffix": "Siga estas instrucciones cuando sea apropiado."
+  "chat.cheatsheet_picker_prompt_suffix": "Siga estas instrucciones cuando sea apropiado.",
+  "chat.sessions_title": "Conversaciones",
+  "chat.sessions_new": "Nueva conversación",
+  "chat.sessions_empty": "Sin conversaciones.",
+  "chat.sessions_no_preview": "Sin mensajes",
+  "chat.sessions_delete": "Eliminar",
+  "chat.sessions_just_now": "Ahora mismo",
+  "chat.sessions_minutes_ago": "hace {n} min",
+  "chat.sessions_hours_ago": "hace {n} h",
+  "chat.sessions_days_ago": "hace {n} d"
 }

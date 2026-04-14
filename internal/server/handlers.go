@@ -175,6 +175,10 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 		if missionID != "" {
 			sessionID = "mission-" + missionID
 		}
+		// Support chat session switching via X-Session-ID header
+		if chatSessionID := r.Header.Get("X-Session-ID"); chatSessionID != "" {
+			sessionID = chatSessionID
+		}
 		unlockSession := lockSessionRequest(sessionID)
 		defer unlockSession()
 
@@ -239,14 +243,31 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 				// promotion happens only when building the outgoing LLM request.
 				s.HistoryManager.Add(lastUserMsg.Role, lastUserMsg.Content, id, false, false)
 			}
+			// Update session preview and touch timestamp
+			_ = s.ShortTermMem.UpdateChatSessionPreview(sessionID)
+			_ = s.ShortTermMem.TouchChatSession(sessionID)
 		}
 
 		// 2. Rebuild the Context
-		recentMessages := s.HistoryManager.GetForLLM()
+		// For non-default chat sessions, build context from SQLite instead of HistoryManager
+		var recentMessages []openai.ChatCompletionMessage
+		if sessionID == "default" {
+			recentMessages = s.HistoryManager.GetForLLM()
+		} else {
+			sessionMsgs, err := s.ShortTermMem.GetSessionMessages(sessionID)
+			if err != nil {
+				s.Logger.Error("Failed to load session messages for context", "session_id", sessionID, "error", err)
+			} else {
+				for _, m := range sessionMsgs {
+					recentMessages = append(recentMessages, m.ChatCompletionMessage)
+				}
+			}
+		}
 
 		// Phase 33: Recursive Context Compression (Character Based)
+		// Only applies to the default session which uses HistoryManager
 		charLimit := s.Cfg.Agent.MemoryCompressionCharLimit
-		if s.HistoryManager.TotalChars() >= charLimit {
+		if sessionID == "default" && s.HistoryManager.TotalChars() >= charLimit {
 			if ok, release := s.HistoryManager.TryLockCompression(); ok {
 				// Do NOT defer release() here — ownership transfers to the goroutine below.
 				// If no goroutine is spawned, release() is called explicitly at the end of the

@@ -156,5 +156,14 @@
   "chat.cheatsheet_picker_unnamed": "Ściąga bez nazwy",
   "chat.cheatsheet_picker_no_content": "Brak treści",
   "chat.cheatsheet_picker_prompt_prefix": "Proszę użyć tej ściągi jako wskazówki:",
-  "chat.cheatsheet_picker_prompt_suffix": "Postępuj zgodnie z tymi instrukcjami, gdzie to stosowne."
+  "chat.cheatsheet_picker_prompt_suffix": "Postępuj zgodnie z tymi instrukcjami, gdzie to stosowne.",
+  "chat.sessions_title": "Rozmowy",
+  "chat.sessions_new": "Nowa rozmowa",
+  "chat.sessions_empty": "Brak rozmów.",
+  "chat.sessions_no_preview": "Brak wiadomości",
+  "chat.sessions_delete": "Usuń",
+  "chat.sessions_just_now": "Właśnie teraz",
+  "chat.sessions_minutes_ago": "{n} min temu",
+  "chat.sessions_hours_ago": "{n} godz. temu",
+  "chat.sessions_days_ago": "{n} dni temu"
 }

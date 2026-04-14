@@ -156,5 +156,14 @@
   "chat.cheatsheet_picker_unnamed": "Naamloos spiekbriefje",
   "chat.cheatsheet_picker_no_content": "Geen inhoud",
   "chat.cheatsheet_picker_prompt_prefix": "Gebruik dit spiekbriefje als leidraad:",
-  "chat.cheatsheet_picker_prompt_suffix": "Volg deze instructies waar passend."
+  "chat.cheatsheet_picker_prompt_suffix": "Volg deze instructies waar passend.",
+  "chat.sessions_title": "Gesprekken",
+  "chat.sessions_new": "Nieuw gesprek",
+  "chat.sessions_empty": "Nog geen gesprekken.",
+  "chat.sessions_no_preview": "Geen berichten",
+  "chat.sessions_delete": "Verwijderen",
+  "chat.sessions_just_now": "Zojuist",
+  "chat.sessions_minutes_ago": "{n} min geleden",
+  "chat.sessions_hours_ago": "{n} uur geleden",
+  "chat.sessions_days_ago": "{n} dagen geleden"
 }

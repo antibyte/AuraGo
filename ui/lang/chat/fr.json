@@ -156,5 +156,14 @@
   "chat.cheatsheet_picker_unnamed": "Aide-mémoire sans nom",
   "chat.cheatsheet_picker_no_content": "Aucun contenu",
   "chat.cheatsheet_picker_prompt_prefix": "Veuillez utiliser cette aide-mémoire comme guide :",
-  "chat.cheatsheet_picker_prompt_suffix": "Suivez ces instructions lorsque cela est approprié."
+  "chat.cheatsheet_picker_prompt_suffix": "Suivez ces instructions lorsque cela est approprié.",
+  "chat.sessions_title": "Conversations",
+  "chat.sessions_new": "Nouvelle conversation",
+  "chat.sessions_empty": "Aucune conversation.",
+  "chat.sessions_no_preview": "Aucun message",
+  "chat.sessions_delete": "Supprimer",
+  "chat.sessions_just_now": "À l'instant",
+  "chat.sessions_minutes_ago": "il y a {n} min",
+  "chat.sessions_hours_ago": "il y a {n} h",
+  "chat.sessions_days_ago": "il y a {n} j"
 }

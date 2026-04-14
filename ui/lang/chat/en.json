@@ -156,5 +156,14 @@
   "chat.cheatsheet_picker_unnamed": "Unnamed cheat sheet",
   "chat.cheatsheet_picker_no_content": "No content",
   "chat.cheatsheet_picker_prompt_prefix": "Please use this cheat sheet as guidance:",
-  "chat.cheatsheet_picker_prompt_suffix": "Follow these instructions where appropriate."
+  "chat.cheatsheet_picker_prompt_suffix": "Follow these instructions where appropriate.",
+  "chat.sessions_title": "Conversations",
+  "chat.sessions_new": "New Conversation",
+  "chat.sessions_empty": "No conversations yet.",
+  "chat.sessions_no_preview": "No messages",
+  "chat.sessions_delete": "Delete",
+  "chat.sessions_just_now": "Just now",
+  "chat.sessions_minutes_ago": "{n} min ago",
+  "chat.sessions_hours_ago": "{n}h ago",
+  "chat.sessions_days_ago": "{n}d ago"
 }

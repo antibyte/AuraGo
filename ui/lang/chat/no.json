@@ -156,5 +156,14 @@
   "chat.cheatsheet_picker_unnamed": "Navnløst jukseark",
   "chat.cheatsheet_picker_no_content": "Intet innhold",
   "chat.cheatsheet_picker_prompt_prefix": "Bruk dette juksearket som veiledning:",
-  "chat.cheatsheet_picker_prompt_suffix": "Følg disse instruksjonene der det er passende."
+  "chat.cheatsheet_picker_prompt_suffix": "Følg disse instruksjonene der det er passende.",
+  "chat.sessions_title": "Samtaler",
+  "chat.sessions_new": "Ny samtale",
+  "chat.sessions_empty": "Ingen samtaler ennå.",
+  "chat.sessions_no_preview": "Ingen meldinger",
+  "chat.sessions_delete": "Slett",
+  "chat.sessions_just_now": "Akkurat nå",
+  "chat.sessions_minutes_ago": "{n} min siden",
+  "chat.sessions_hours_ago": "{n} t siden",
+  "chat.sessions_days_ago": "{n} d siden"
 }

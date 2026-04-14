@@ -156,5 +156,14 @@
   "chat.cheatsheet_picker_unnamed": "Foglio informativo senza nome",
   "chat.cheatsheet_picker_no_content": "Nessun contenuto",
   "chat.cheatsheet_picker_prompt_prefix": "Si prega di utilizzare questo foglio informativo come guida:",
-  "chat.cheatsheet_picker_prompt_suffix": "Segui queste istruzioni quando appropriato."
+  "chat.cheatsheet_picker_prompt_suffix": "Segui queste istruzioni quando appropriato.",
+  "chat.sessions_title": "Conversazioni",
+  "chat.sessions_new": "Nuova conversazione",
+  "chat.sessions_empty": "Nessuna conversazione.",
+  "chat.sessions_no_preview": "Nessun messaggio",
+  "chat.sessions_delete": "Elimina",
+  "chat.sessions_just_now": "Adesso",
+  "chat.sessions_minutes_ago": "{n} min fa",
+  "chat.sessions_hours_ago": "{n} ore fa",
+  "chat.sessions_days_ago": "{n} giorni fa"
 }

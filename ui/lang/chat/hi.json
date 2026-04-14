@@ -156,5 +156,14 @@
   "chat.cheatsheet_picker_unnamed": "अनाम चीट शीट",
   "chat.cheatsheet_picker_no_content": "कोई सामग्री नहीं",
   "chat.cheatsheet_picker_prompt_prefix": "कृपया इस चीट शीट का मार्गदर्शन के रूप में उपयोग करें:",
-  "chat.cheatsheet_picker_prompt_suffix": "जहाँ उपयुक्त हो, इन निर्देशों का पालन करें।"
+  "chat.cheatsheet_picker_prompt_suffix": "जहाँ उपयुक्त हो, इन निर्देशों का पालन करें।",
+  "chat.sessions_title": "बातचीत",
+  "chat.sessions_new": "नई बातचीत",
+  "chat.sessions_empty": "अभी तक कोई बातचीत नहीं।",
+  "chat.sessions_no_preview": "कोई संदेश नहीं",
+  "chat.sessions_delete": "हटाएं",
+  "chat.sessions_just_now": "अभी",
+  "chat.sessions_minutes_ago": "{n} मिनट पहले",
+  "chat.sessions_hours_ago": "{n} घंटे पहले",
+  "chat.sessions_days_ago": "{n} दिन पहले"
 }

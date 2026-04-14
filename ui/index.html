@@ -48,6 +48,7 @@
     <link rel="stylesheet" href="/css/chat.css">
     <link rel="stylesheet" href="/css/chat-modules.css">
     <link rel="stylesheet" href="/css/stt-overlay.css">
+    <link rel="stylesheet" href="/css/session-drawer.css">
     <link rel="stylesheet" href="/css/enhancements.css">
 </head>
 
@@ -59,6 +60,8 @@
             <span class="logo-wordmark-accent">AURA</span><span class="logo-wordmark-base">GO</span>
         </a>
         <div class="header-actions">
+            <!-- Session drawer toggle -->
+            <button id="session-toggle-btn" type="button" class="btn-session-toggle" title="">💬</button>
             <!-- Speaker toggle for TTS auto-play -->
             <button id="speaker-toggle" type="button" class="btn-speaker" title="">🔇</button>
             <!-- Theme toggle first (consistent across all pages) -->
@@ -103,6 +106,22 @@
     </header>
 
     <div id="radialMenuAnchor"></div>
+
+    <!-- ── Session Drawer (side panel) ── -->
+    <div id="session-backdrop" class="session-backdrop"></div>
+    <aside id="session-drawer" class="session-drawer">
+        <div class="session-drawer-header">
+            <span class="session-drawer-title" data-i18n="chat.sessions_title">Conversations</span>
+            <button type="button" id="session-drawer-close" class="session-drawer-close" aria-label="Close">✕</button>
+        </div>
+        <button type="button" id="session-new-btn" class="session-new-btn">
+            <span class="session-new-icon">✚</span>
+            <span data-i18n="chat.sessions_new">New Conversation</span>
+        </button>
+        <div id="session-list" class="session-list">
+            <div class="session-empty" data-i18n="chat.sessions_empty">No conversations yet.</div>
+        </div>
+    </aside>
 
     <main id="chat-box">
         <div id="chat-content">
@@ -233,6 +252,7 @@
     <script src="/js/chat/modules/drag-drop.js"></script>
     <script src="/js/chat/modules/mermaid-loader.js"></script>
     <script src="/js/chat/modules/warnings.js"></script>
+    <script src="/js/chat/modules/session-drawer.js"></script>
     <script src="/js/chat/main.js"></script>
 
     <!-- Image Lightbox Overlay -->

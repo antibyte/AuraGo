@@ -98,6 +98,8 @@ window.addEventListener('resize', updateChatInputPlaceholder);
 function applyI18n() {
     document.title = t('chat.page_title');
     /* Header pills & controls */
+    const sessionToggleBtn = document.getElementById('session-toggle-btn');
+    if (sessionToggleBtn) sessionToggleBtn.title = t('chat.sessions_title');
     document.getElementById('theme-toggle').title = t('common.toggle_theme');
     document.getElementById('speaker-toggle').title = speakerMode ? t('chat.speaker_on_title') : t('chat.speaker_off_title');
     document.getElementById('tokenCounter').textContent = t('chat.token_counter_default');
@@ -599,9 +601,61 @@ function hideTodoPanel() {
     chatSetHidden(panel, true);
 }
 
+/* ── Session-aware history loading ── */
+function getActiveSessionId() {
+    return (window.SessionDrawer && window.SessionDrawer.getActiveSessionId()) || 'default';
+}
+
+function buildHistoryUrl() {
+    const sid = getActiveSessionId();
+    if (sid && sid !== 'default') {
+        return '/history?session_id=' + encodeURIComponent(sid);
+    }
+    return '/history';
+}
+
+function buildClearUrl() {
+    const sid = getActiveSessionId();
+    if (sid && sid !== 'default') {
+        return '/clear?session_id=' + encodeURIComponent(sid);
+    }
+    return '/clear';
+}
+
+// Called by SessionDrawer when user switches to a different session
+window.onSessionSwitch = async function (sessionId) {
+    // Reload chat history for the new session
+    chatContent.innerHTML = '';
+    conversation = [];
+    hideTodoPanel();
+
+    try {
+        const url = sessionId && sessionId !== 'default'
+            ? '/history?session_id=' + encodeURIComponent(sessionId)
+            : '/history';
+        const res = await fetch(url);
+        if (res.ok) {
+            const history = await res.json();
+            if (history && history.length > 0) {
+                await renderHistoryMessagesBatched(history);
+            } else {
+                appendMessage('assistant', t('chat.greeting'));
+            }
+        }
+    } catch (err) {
+        console.error('Failed to load session history:', err);
+        appendMessage('assistant', t('chat.greeting'));
+    }
+};
+
 /* ── Load history & notifications ── */
 async function initPage() {
     applyI18n();
+
+    // Initialize session drawer
+    if (window.SessionDrawer) {
+        window.SessionDrawer.init();
+    }
 
     // Check auth status to show/hide logout button
     try {
@@ -618,7 +672,7 @@ async function initPage() {
     } catch (e) { /* auth endpoint unavailable, hide button */ }
 
     try {
-        const res = await fetch('/history');
+        const res = await fetch(buildHistoryUrl());
         if (res.ok) {
             const history = await res.json();
             if (history && history.length > 0) {
@@ -734,7 +788,7 @@ document.getElementById('clear-btn').addEventListener('click', async () => {
     );
     if (ok) {
         try {
-            const res = await fetch('/clear', { method: 'DELETE' });
+            const res = await fetch(buildClearUrl(), { method: 'DELETE' });
             if (res.ok) {
                 chatContent.innerHTML = '';
                 conversation = [];
@@ -1312,9 +1366,14 @@ async function handleOutgoingMessage(inputMessage, displayMessageOverride = '') 
         const timeoutId = setTimeout(() => controller.abort(), 10 * 60 * 1000); // 10 min
         let response;
         try {
+            const sessionHeaders = { 'Content-Type': 'application/json' };
+            const sid = getActiveSessionId();
+            if (sid && sid !== 'default') {
+                sessionHeaders['X-Session-ID'] = sid;
+            }
             response = await fetch('/v1/chat/completions', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: sessionHeaders,
                 body: JSON.stringify({
                     model: 'aurago',
                     messages: [{ role: 'user', content: message }]

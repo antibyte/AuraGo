@@ -183,7 +183,16 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 		count INTEGER DEFAULT 0,
 		last_updated DATETIME DEFAULT CURRENT_TIMESTAMP,
 		PRIMARY KEY (from_tool, to_tool)
-	);`
+	);
+
+	CREATE TABLE IF NOT EXISTS chat_sessions (
+		id TEXT PRIMARY KEY,
+		preview TEXT DEFAULT '',
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		last_active_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		message_count INTEGER DEFAULT 0
+	);
+	CREATE INDEX IF NOT EXISTS idx_chat_sessions_last_active ON chat_sessions(last_active_at DESC);`
 
 	conflictSchema := `
 	CREATE TABLE IF NOT EXISTS memory_conflicts (
@@ -234,6 +243,11 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 	}
 	if err := stm.InitPlanTables(); err != nil {
 		logger.Warn("Failed to initialize plan tables", "error", err)
+	}
+
+	// Ensure at least a default chat session exists (backward compatibility)
+	if err := stm.EnsureDefaultSession(); err != nil {
+		logger.Warn("Failed to ensure default chat session", "error", err)
 	}
 
 	return stm, nil

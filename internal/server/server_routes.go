@@ -327,6 +327,31 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/warnings/acknowledge", handleWarningsAcknowledge(s))
 
 	mux.HandleFunc("/v1/chat/completions", handleChatCompletions(s, sse))
+	mux.HandleFunc("/api/chat/sessions", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			handleListChatSessions(s)(w, r)
+		case http.MethodPost:
+			handleCreateChatSession(s)(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
+	mux.HandleFunc("/api/chat/sessions/", func(w http.ResponseWriter, r *http.Request) {
+		path := strings.TrimPrefix(r.URL.Path, "/api/chat/sessions/")
+		if path == "" {
+			http.Error(w, "Missing session ID", http.StatusBadRequest)
+			return
+		}
+		switch r.Method {
+		case http.MethodGet:
+			handleGetChatSession(s)(w, r)
+		case http.MethodDelete:
+			handleDeleteChatSession(s)(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
 	mux.HandleFunc("/api/memory/archive", handleArchiveMemory(s))
 	mux.HandleFunc("/api/upload", handleUpload(s))
 	mux.HandleFunc("/api/upload-voice", handleVoiceUpload(s))
@@ -920,6 +945,26 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 			return
 		}
 
+		// Support session-specific history via query parameter
+		sessionID := strings.TrimSpace(r.URL.Query().Get("session_id"))
+		if sessionID != "" && sessionID != "default" {
+			messages, err := s.ShortTermMem.GetSessionMessages(sessionID)
+			if err != nil {
+				s.Logger.Error("Failed to get session messages", "session_id", sessionID, "error", err)
+				http.Error(w, "Internal server error", http.StatusInternalServerError)
+				return
+			}
+			var filtered []memory.HistoryMessage
+			for _, m := range messages {
+				if !m.IsInternal {
+					filtered = append(filtered, m)
+				}
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(filtered)
+			return
+		}
+
 		all := s.HistoryManager.GetAll()
 		var filtered []memory.HistoryMessage
 		for _, m := range all {
@@ -973,6 +1018,17 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusUnauthorized)
 			w.Write([]byte(`{"error":"unauthorized","redirect":"/auth/login"}`))
+			return
+		}
+		// Support session-specific clear via query parameter
+		sessionID := strings.TrimSpace(r.URL.Query().Get("session_id"))
+		if sessionID != "" && sessionID != "default" {
+			if err := s.ShortTermMem.ClearSession(sessionID); err != nil {
+				s.Logger.Error("Failed to clear session", "session_id", sessionID, "error", err)
+				http.Error(w, "Internal server error", http.StatusInternalServerError)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
 			return
 		}
 		if err := s.HistoryManager.Clear(); err != nil {

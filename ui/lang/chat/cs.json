@@ -156,5 +156,14 @@
   "chat.cheatsheet_picker_unnamed": "Nepojmenovaný tahák",
   "chat.cheatsheet_picker_no_content": "Žádný obsah",
   "chat.cheatsheet_picker_prompt_prefix": "Použijte prosím tento tahák jako vodítko:",
-  "chat.cheatsheet_picker_prompt_suffix": "Postupujte podle těchto pokynů, kde je to vhodné."
+  "chat.cheatsheet_picker_prompt_suffix": "Postupujte podle těchto pokynů, kde je to vhodné.",
+  "chat.sessions_title": "Konverzace",
+  "chat.sessions_new": "Nová konverzace",
+  "chat.sessions_empty": "Zatím žádné konverzace.",
+  "chat.sessions_no_preview": "Žádné zprávy",
+  "chat.sessions_delete": "Smazat",
+  "chat.sessions_just_now": "Právě teď",
+  "chat.sessions_minutes_ago": "před {n} min",
+  "chat.sessions_hours_ago": "před {n} h",
+  "chat.sessions_days_ago": "před {n} d"
 }

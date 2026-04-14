@@ -156,5 +156,14 @@
   "chat.cheatsheet_picker_unnamed": "無名のチートシート",
   "chat.cheatsheet_picker_no_content": "内容なし",
   "chat.cheatsheet_picker_prompt_prefix": "このチートシートをガイドとして使用してください:",
-  "chat.cheatsheet_picker_prompt_suffix": "適切な場合は、これらの指示に従ってください。"
+  "chat.cheatsheet_picker_prompt_suffix": "適切な場合は、これらの指示に従ってください。",
+  "chat.sessions_title": "会話",
+  "chat.sessions_new": "新しい会話",
+  "chat.sessions_empty": "会話はまだありません。",
+  "chat.sessions_no_preview": "メッセージなし",
+  "chat.sessions_delete": "削除",
+  "chat.sessions_just_now": "たった今",
+  "chat.sessions_minutes_ago": "{n}分前",
+  "chat.sessions_hours_ago": "{n}時間前",
+  "chat.sessions_days_ago": "{n}日前"
 }

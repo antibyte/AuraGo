@@ -156,5 +156,14 @@
   "chat.cheatsheet_picker_unnamed": "Unavngivet snydeark",
   "chat.cheatsheet_picker_no_content": "Intet indhold",
   "chat.cheatsheet_picker_prompt_prefix": "Brug venligst dette snydeark som vejledning:",
-  "chat.cheatsheet_picker_prompt_suffix": "Følg disse instruktioner, hvor det er passende."
+  "chat.cheatsheet_picker_prompt_suffix": "Følg disse instruktioner, hvor det er passende.",
+  "chat.sessions_title": "Samtaler",
+  "chat.sessions_new": "Ny samtale",
+  "chat.sessions_empty": "Ingen samtaler endnu.",
+  "chat.sessions_no_preview": "Ingen beskeder",
+  "chat.sessions_delete": "Slet",
+  "chat.sessions_just_now": "Lige nu",
+  "chat.sessions_minutes_ago": "{n} min siden",
+  "chat.sessions_hours_ago": "{n} t siden",
+  "chat.sessions_days_ago": "{n} d siden"
 }

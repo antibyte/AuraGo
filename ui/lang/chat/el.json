@@ -156,5 +156,14 @@
   "chat.cheatsheet_picker_unnamed": "Ανώνυμο φύλλο εξαπάτησης",
   "chat.cheatsheet_picker_no_content": "Χωρίς περιεχόμενο",
   "chat.cheatsheet_picker_prompt_prefix": "Παρακαλώ χρησιμοποίησε αυτό το φύλλο εξαπάτησης ως οδηγό:",
-  "chat.cheatsheet_picker_prompt_suffix": "Ακολούθησε αυτές τις οδηγίες όπου είναι κατάλληλο."
+  "chat.cheatsheet_picker_prompt_suffix": "Ακολούθησε αυτές τις οδηγίες όπου είναι κατάλληλο.",
+  "chat.sessions_title": "Συνομιλίες",
+  "chat.sessions_new": "Νέα συνομιλία",
+  "chat.sessions_empty": "Δεν υπάρχουν συνομιλίες.",
+  "chat.sessions_no_preview": "Κανένα μήνυμα",
+  "chat.sessions_delete": "Διαγραφή",
+  "chat.sessions_just_now": "Μόλις τώρα",
+  "chat.sessions_minutes_ago": "{n} λεπ. πριν",
+  "chat.sessions_hours_ago": "{n} ώρες πριν",
+  "chat.sessions_days_ago": "{n} ημ. πριν"
 }

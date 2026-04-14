@@ -156,5 +156,14 @@
   "chat.cheatsheet_picker_unnamed": "Namnlöst fuskblad",
   "chat.cheatsheet_picker_no_content": "Inget innehåll",
   "chat.cheatsheet_picker_prompt_prefix": "Använd detta fuskblad som vägledning:",
-  "chat.cheatsheet_picker_prompt_suffix": "Följ dessa instruktioner där det är lämpligt."
+  "chat.cheatsheet_picker_prompt_suffix": "Följ dessa instruktioner där det är lämpligt.",
+  "chat.sessions_title": "Konversationer",
+  "chat.sessions_new": "Ny konversation",
+  "chat.sessions_empty": "Inga konversationer än.",
+  "chat.sessions_no_preview": "Inga meddelanden",
+  "chat.sessions_delete": "Ta bort",
+  "chat.sessions_just_now": "Just nu",
+  "chat.sessions_minutes_ago": "{n} min sedan",
+  "chat.sessions_hours_ago": "{n} tim sedan",
+  "chat.sessions_days_ago": "{n} dagar sedan"
 }
