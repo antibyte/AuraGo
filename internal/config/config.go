@@ -434,9 +434,25 @@ func Load(path string) (*Config, error) {
 	if cfg.Agent.ToolOutputLimit <= 0 {
 		cfg.Agent.ToolOutputLimit = 50000
 	}
-	// Output compression defaults (enabled by default for MVP)
+	// Output compression defaults (enabled by default).
+	// Uses yamlHasPath to distinguish "not configured" from "explicitly disabled".
+	if !yamlHasPath(data, "agent", "output_compression", "enabled") {
+		cfg.Agent.OutputCompression.Enabled = true
+	}
 	if cfg.Agent.OutputCompression.MinChars <= 0 {
 		cfg.Agent.OutputCompression.MinChars = 500
+	}
+	if !yamlHasPath(data, "agent", "output_compression", "preserve_errors") {
+		cfg.Agent.OutputCompression.PreserveErrors = true
+	}
+	if !yamlHasPath(data, "agent", "output_compression", "shell_compression") {
+		cfg.Agent.OutputCompression.ShellCompression = true
+	}
+	if !yamlHasPath(data, "agent", "output_compression", "python_compression") {
+		cfg.Agent.OutputCompression.PythonCompression = true
+	}
+	if !yamlHasPath(data, "agent", "output_compression", "api_compression") {
+		cfg.Agent.OutputCompression.APICompression = true
 	}
 	// PreserveErrors defaults to true when not explicitly set (zero value = true)
 	// V2 requires V1 — automatically enable V1 when V2 is on.

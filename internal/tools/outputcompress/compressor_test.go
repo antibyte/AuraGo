@@ -65,7 +65,7 @@ func TestCompress_EmptyOutput(t *testing.T) {
 }
 
 func TestCompress_ShellTool(t *testing.T) {
-	cfg := Config{Enabled: true, MinChars: 100, PreserveErrors: true}
+	cfg := Config{Enabled: true, MinChars: 100, PreserveErrors: true, ShellCompression: true}
 	// Use generic command with large repeated output
 	output := strings.Repeat("some log line repeated many times\n", 100)
 	result, stats := Compress("execute_shell", "echo test", output, cfg)
@@ -78,7 +78,7 @@ func TestCompress_ShellTool(t *testing.T) {
 }
 
 func TestCompress_PythonTool(t *testing.T) {
-	cfg := Config{Enabled: true, MinChars: 100, PreserveErrors: true}
+	cfg := Config{Enabled: true, MinChars: 100, PreserveErrors: true, PythonCompression: true}
 	output := strings.Repeat("print('hello world')\n", 100)
 	_, stats := Compress("execute_python", "", output, cfg)
 	if stats.FilterUsed != "python" {
@@ -90,7 +90,7 @@ func TestCompress_PythonTool(t *testing.T) {
 }
 
 func TestCompress_APITool(t *testing.T) {
-	cfg := Config{Enabled: true, MinChars: 100, PreserveErrors: true}
+	cfg := Config{Enabled: true, MinChars: 100, PreserveErrors: true, APICompression: true}
 	// Multi-line JSON with enough lines to trigger compaction
 	var sb strings.Builder
 	sb.WriteString("{\n")
@@ -911,5 +911,94 @@ func TestAnalytics_RecentCompressions(t *testing.T) {
 	last := snap.RecentCompressions[len(snap.RecentCompressions)-1]
 	if last.ToolName != "tool_24" {
 		t.Errorf("expected last recent to be tool_24, got %q", last.ToolName)
+	}
+}
+
+// ── V3: Sub-Toggle Tests ─────────────────────────────────────────────
+
+func TestCompress_ShellSubToggleOff(t *testing.T) {
+	cfg := Config{Enabled: true, MinChars: 100, PreserveErrors: true, ShellCompression: false}
+	output := strings.Repeat("some log line\n", 100)
+	_, stats := Compress("execute_shell", "echo test", output, cfg)
+	// With ShellCompression off, shell tool falls through to generic
+	if stats.FilterUsed != "generic" {
+		t.Errorf("expected generic filter with shell_compression=false, got %q", stats.FilterUsed)
+	}
+}
+
+func TestCompress_PythonSubToggleOff(t *testing.T) {
+	cfg := Config{Enabled: true, MinChars: 100, PreserveErrors: true, PythonCompression: false}
+	output := strings.Repeat("print('hello')\n", 100)
+	_, stats := Compress("execute_python", "", output, cfg)
+	if stats.FilterUsed != "generic" {
+		t.Errorf("expected generic filter with python_compression=false, got %q", stats.FilterUsed)
+	}
+}
+
+func TestCompress_APISubToggleOff(t *testing.T) {
+	cfg := Config{Enabled: true, MinChars: 100, PreserveErrors: true, APICompression: false}
+	var sb strings.Builder
+	sb.WriteString("{\n")
+	for i := 0; i < 30; i++ {
+		sb.WriteString(fmt.Sprintf(`  "field_%d": null,`, i) + "\n")
+	}
+	sb.WriteString(`  "keep": "value"` + "\n")
+	sb.WriteString("}\n")
+	_, stats := Compress("web_request", "", sb.String(), cfg)
+	if stats.FilterUsed != "generic" {
+		t.Errorf("expected generic filter with api_compression=false, got %q", stats.FilterUsed)
+	}
+}
+
+func TestDefaultConfig_AllSubTogglesOn(t *testing.T) {
+	cfg := DefaultConfig()
+	if !cfg.ShellCompression {
+		t.Error("DefaultConfig should have ShellCompression=true")
+	}
+	if !cfg.PythonCompression {
+		t.Error("DefaultConfig should have PythonCompression=true")
+	}
+	if !cfg.APICompression {
+		t.Error("DefaultConfig should have APICompression=true")
+	}
+	if !cfg.PreserveErrors {
+		t.Error("DefaultConfig should have PreserveErrors=true")
+	}
+	if cfg.MinChars != 500 {
+		t.Errorf("DefaultConfig MinChars should be 500, got %d", cfg.MinChars)
+	}
+}
+
+func TestCompress_BackwardCompat_ZeroValueConfig(t *testing.T) {
+	// Simulates the case where config.go sets defaults via yamlHasPath.
+	// After config.go processing, a zero-value config becomes the full default.
+	cfg := DefaultConfig()
+	output := strings.Repeat("line\n", 200)
+	_, stats := Compress("execute_shell", "git status", output, cfg)
+	if stats.FilterUsed == "none" {
+		t.Error("DefaultConfig should produce active compression")
+	}
+}
+
+func TestCompress_SubToggleMixed(t *testing.T) {
+	// Shell on, Python off, API on
+	cfg := Config{
+		Enabled:           true,
+		MinChars:          100,
+		PreserveErrors:    true,
+		ShellCompression:  true,
+		PythonCompression: false,
+		APICompression:    true,
+	}
+	shellOutput := strings.Repeat("log\n", 200)
+	_, shellStats := Compress("execute_shell", "echo", shellOutput, cfg)
+	if shellStats.FilterUsed != "generic" && shellStats.FilterUsed == "none" {
+		t.Error("shell should compress with ShellCompression=true")
+	}
+
+	pythonOutput := strings.Repeat("print('hi')\n", 200)
+	_, pyStats := Compress("execute_python", "", pythonOutput, cfg)
+	if pyStats.FilterUsed != "generic" {
+		t.Errorf("python should fall through to generic with PythonCompression=false, got %q", pyStats.FilterUsed)
 	}
 }

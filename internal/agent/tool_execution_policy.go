@@ -89,15 +89,16 @@ func finalizeToolExecution(
 	// Compress tool output before applying truncation policy.
 	// This reduces token consumption by filtering, deduplicating, and
 	// summarising verbose outputs while preserving semantic content.
+	// Config defaults are applied in config.go via yamlHasPath, so the
+	// zero-value heuristic is no longer needed here.
 	if !guardianBlocked && cfg != nil {
 		compCfg := outputcompress.Config{
-			Enabled:        cfg.Agent.OutputCompression.Enabled,
-			MinChars:       cfg.Agent.OutputCompression.MinChars,
-			PreserveErrors: cfg.Agent.OutputCompression.PreserveErrors,
-		}
-		// For zero-value config (user didn't set anything), enable with defaults
-		if !compCfg.Enabled && compCfg.MinChars == 0 {
-			compCfg = outputcompress.DefaultConfig()
+			Enabled:           cfg.Agent.OutputCompression.Enabled,
+			MinChars:          cfg.Agent.OutputCompression.MinChars,
+			PreserveErrors:    cfg.Agent.OutputCompression.PreserveErrors,
+			ShellCompression:  cfg.Agent.OutputCompression.ShellCompression,
+			PythonCompression: cfg.Agent.OutputCompression.PythonCompression,
+			APICompression:    cfg.Agent.OutputCompression.APICompression,
 		}
 		var compStats outputcompress.CompressionStats
 		rawContent, compStats = outputcompress.Compress(tc.Action, tc.Command, rawContent, compCfg)

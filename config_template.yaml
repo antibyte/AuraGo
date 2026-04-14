@@ -24,6 +24,19 @@ agent:
     adaptive_system_prompt_token_budget: true
     workflow_feedback: true
     sudo_enabled: false
+
+    # ── Output Compression ── reduces token consumption by filtering and
+    #    deduplicating verbose tool outputs before they enter the LLM context.
+    #    Enabled by default.  Compression runs BEFORE tool_output_limit truncation.
+    #    See documentation/output_compression.md for details.
+    output_compression:
+        enabled: true                # master toggle (default: true)
+        min_chars: 500               # only compress outputs exceeding this size (default: 500)
+        preserve_errors: true        # never compress outputs containing error markers (default: true)
+        shell_compression: true      # git, docker, kubectl, go test, pytest, grep, find, ls/tree filters
+        python_compression: true     # Python traceback frame filtering and output dedup
+        api_compression: true        # JSON null-field removal and compaction for API responses
+
     # ── Danger Zone ── disabled by default for fresh installs
     allow_shell: false
     allow_python: false

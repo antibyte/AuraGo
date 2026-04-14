@@ -299,9 +299,12 @@ type Config struct {
 			MaxToolGuides int `yaml:"max_tool_guides"` // maximum tool guide documents injected into prompt (default: 5)
 	
 			OutputCompression struct {
-				Enabled        bool `yaml:"enabled"`          // enable command-aware output compression (default: true)
-				MinChars       int  `yaml:"min_chars"`        // only compress outputs exceeding this size (default: 500)
-				PreserveErrors bool `yaml:"preserve_errors"`  // never compress error outputs (default: true)
+				Enabled           bool `yaml:"enabled"`             // master toggle for command-aware output compression (default: true)
+				MinChars          int  `yaml:"min_chars"`           // only compress outputs exceeding this size (default: 500)
+				PreserveErrors    bool `yaml:"preserve_errors"`     // never compress outputs that contain error markers (default: true)
+				ShellCompression  bool `yaml:"shell_compression"`   // enable shell-specific filters: git, docker, test, grep, find, ls (default: true)
+				PythonCompression bool `yaml:"python_compression"`  // enable python traceback filtering and output dedup (default: true)
+				APICompression    bool `yaml:"api_compression"`     // enable JSON compaction and null-field removal (default: true)
 			} `yaml:"output_compression"`
 
 		AnnouncementDetector struct {

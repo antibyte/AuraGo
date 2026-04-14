@@ -19,17 +19,23 @@ type CompressionStats struct {
 
 // Config controls compression behaviour.
 type Config struct {
-	Enabled       bool // master toggle (default: true)
-	MinChars      int  // only compress if output exceeds this many characters (default: 500)
-	PreserveErrors bool // never compress outputs that contain error markers (default: true)
+	Enabled           bool // master toggle (default: true)
+	MinChars          int  // only compress if output exceeds this many characters (default: 500)
+	PreserveErrors    bool // never compress outputs that contain error markers (default: true)
+	ShellCompression  bool // enable shell-specific filters: git, docker, test, grep, find, ls (default: true)
+	PythonCompression bool // enable python traceback filtering and output dedup (default: true)
+	APICompression    bool // enable JSON compaction and null-field removal (default: true)
 }
 
-// DefaultConfig returns the recommended MVP configuration.
+// DefaultConfig returns the recommended configuration with all compressors enabled.
 func DefaultConfig() Config {
 	return Config{
-		Enabled:       true,
-		MinChars:      500,
-		PreserveErrors: true,
+		Enabled:           true,
+		MinChars:          500,
+		PreserveErrors:    true,
+		ShellCompression:  true,
+		PythonCompression: true,
+		APICompression:    true,
 	}
 }
 
@@ -69,16 +75,18 @@ func Compress(toolName, command, output string, cfg Config) (string, Compression
 		return output, stats
 	}
 
-	// Pick filter based on tool name and command
+	// Pick filter based on tool name and command, respecting sub-toggles.
+	// When a sub-toggle is disabled, the output falls through to the
+	// generic compressor instead of the domain-specific one.
 	result := output
 	filter := "generic"
 
 	switch {
-	case isShellTool(toolName):
+	case isShellTool(toolName) && cfg.ShellCompression:
 		result, filter = compressShellOutput(command, output)
-	case isPythonTool(toolName):
+	case isPythonTool(toolName) && cfg.PythonCompression:
 		result, filter = compressPythonOutput(output)
-	case isAPITool(toolName):
+	case isAPITool(toolName) && cfg.APICompression:
 		result, filter = compressAPIOutput(output)
 	default:
 		result = compressGeneric(output)
