@@ -132,7 +132,7 @@ async function renderHomepageSection(section) {
                     <span>⚠️</span>
                     <div>
                         <strong>${t('config.homepage.status_inactive')}</strong><br>
-                        <small>Docker engine not reachable. Container management unavailable. Deploy via SSH/SFTP still works.</small>
+                        <small>${t('config.homepage.docker_engine_unavailable')}</small>
                     </div>
                 </div>`;
             }
@@ -283,13 +283,13 @@ async function renderHomepageSection(section) {
         html += `<div class="field-help hp-help-spaced">${t('config.homepage.webserver_desc')}</div>`;
 
         html += `<div class="cfg-toggle-row-compact">
-            <div class="toggle ${cfg.webserver_enabled ? 'on' : ''}" data-path="homepage.webserver_enabled" onclick="toggleBool(this)"></div>
             <span class="cfg-toggle-label">${t('config.homepage.webserver_enabled')}</span>
+            <div class="toggle ${cfg.webserver_enabled ? 'on' : ''}" data-path="homepage.webserver_enabled" onclick="toggleBool(this)"></div>
         </div>`;
 
         html += `<div class="cfg-toggle-row-compact">
-            <div class="toggle ${cfg.webserver_internal_only ? 'on' : ''}" data-path="homepage.webserver_internal_only" onclick="toggleBool(this)"></div>
             <span class="cfg-toggle-label">${t('config.homepage.webserver_internal_only')}</span>
+            <div class="toggle ${cfg.webserver_internal_only ? 'on' : ''}" data-path="homepage.webserver_internal_only" onclick="toggleBool(this)"></div>
         </div>`;
 
         html += `<div class="hp-grid-2col">`;
@@ -344,8 +344,8 @@ async function renderHomepageSection(section) {
         </label>`;
 
         html += `<div class="cfg-toggle-row-compact hp-toggle-mt">
-            <div class="toggle ${cfg.allow_temporary_token_budget_overflow ? 'on' : ''}" data-path="homepage.allow_temporary_token_budget_overflow" onclick="toggleBool(this)"></div>
             <span class="cfg-toggle-label">${t('config.homepage.allow_temporary_token_budget_overflow')}</span>
+            <div class="toggle ${cfg.allow_temporary_token_budget_overflow ? 'on' : ''}" data-path="homepage.allow_temporary_token_budget_overflow" onclick="toggleBool(this)"></div>
         </div>`;
         html += `<div class="field-help hp-help-mt-xs">${t('config.homepage.allow_temporary_token_budget_overflow_desc')}</div>`;
         if (cfg.allow_temporary_token_budget_overflow && basePromptBudget > 0) {
