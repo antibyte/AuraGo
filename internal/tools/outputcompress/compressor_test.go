@@ -2562,3 +2562,590 @@ func TestCompressShell_V8Routing(t *testing.T) {
 		}
 	}
 }
+
+// ─── V9A Tests ───────────────────────────────────────────────────────────────
+
+func TestCompressShell_V9A_Routing(t *testing.T) {
+	tests := []struct {
+		command string
+		want    string
+	}{
+		{"tar -czf archive.tar.gz .", "tar"},
+		{"tar -tf archive.tar", "tar"},
+		{"tar -xvf archive.tar", "tar"},
+		{"zip -r archive.zip dir/", "zip"},
+		{"unzip -l archive.zip", "unzip"},
+		{"unzip archive.zip", "unzip"},
+		{"rsync -avz src/ dest/", "rsync"},
+	}
+	for _, tt := range tests {
+		_, filter := compressShellOutput(tt.command, strings.Repeat("file\n", 50))
+		if filter != tt.want {
+			t.Errorf("compressShellOutput(%q) filter = %q, want %q", tt.command, filter, tt.want)
+		}
+	}
+}
+
+func TestCompressTar_LargeListing(t *testing.T) {
+	var sb strings.Builder
+	sb.WriteString("src/\n")
+	for i := 0; i < 50; i++ {
+		fmt.Fprintf(&sb, "src/module%d/main.go\n", i)
+		fmt.Fprintf(&sb, "src/module%d/util.go\n", i)
+	}
+	sb.WriteString("src/README.md\n")
+
+	input := sb.String()
+	result := compressTar(input)
+
+	// Should group by directory
+	if !strings.Contains(result, "src/") {
+		t.Error("expected directory grouping for src/")
+	}
+	// Output should be significantly shorter than input
+	if len(result) >= len(input) {
+		t.Errorf("expected compression: input=%d, output=%d", len(input), len(result))
+	}
+}
+
+func TestCompressTar_ShortListing(t *testing.T) {
+	output := "file1.txt\nfile2.txt\nfile3.txt\n"
+	result := compressTar(output)
+
+	// Short output should be returned as-is
+	if result != output {
+		t.Errorf("expected short output preserved, got: %s", result)
+	}
+}
+
+func TestCompressTar_Errors(t *testing.T) {
+	output := "tar: Error opening archive: No such file\nfile1.txt\nfile2.txt\n"
+	result := compressTar(output)
+
+	if !strings.Contains(result, "Error opening") {
+		t.Error("expected error preserved")
+	}
+}
+
+func TestCompressZip_LargeOutput(t *testing.T) {
+	var sb strings.Builder
+	sb.WriteString("  adding: src/main.go (deflated 45%)\n")
+	sb.WriteString("  adding: src/util.go (deflated 30%)\n")
+	sb.WriteString("  adding: src/config.go (stored 0%)\n")
+	for i := 0; i < 30; i++ {
+		fmt.Fprintf(&sb, "  adding: src/mod%d/app.go (deflated 25%%)\n", i)
+	}
+	sb.WriteString("  adding: README.md (stored 0%)\n")
+
+	input := sb.String()
+	result := compressZip(input)
+
+	// Should extract file paths without compression ratios
+	if strings.Contains(result, "deflated") {
+		t.Error("expected compression ratios removed")
+	}
+	// Should contain file paths (groupByDir format: "src/ (N): main.go, ...")
+	if !strings.Contains(result, "main.go") {
+		t.Error("expected main.go preserved")
+	}
+	if !strings.Contains(result, "src/") {
+		t.Error("expected src/ directory grouping")
+	}
+	// Output should be shorter than input
+	if len(result) >= len(input) {
+		t.Errorf("expected compression: input=%d, output=%d", len(input), len(result))
+	}
+}
+
+func TestCompressZip_UnzipListing(t *testing.T) {
+	output := "Archive:  archive.zip\n  Length      Date    Time    Name\n---------  ---------- -----   ----\n    12345  2024-01-15 10:30   src/main.go\n     5678  2024-01-15 10:30   src/util.go\n     9012  2024-01-15 10:30   README.md\n---------                     -------\n    27035                     3 files\n"
+
+	result := compressZip(output)
+
+	if !strings.Contains(result, "src/main.go") {
+		t.Error("expected file paths preserved")
+	}
+	if !strings.Contains(result, "3 files") {
+		t.Error("expected summary preserved")
+	}
+}
+
+func TestCompressRsync_LargeOutput(t *testing.T) {
+	var sb strings.Builder
+	sb.WriteString("sending incremental file list\n")
+	for i := 0; i < 40; i++ {
+		fmt.Fprintf(&sb, ">f++++++++x src/module%d/main.go\n", i)
+	}
+	sb.WriteString("sent 12,345 bytes  received 678 bytes  25,346.00 bytes/sec\n")
+	sb.WriteString("total size is 1,234,567  speedup is 98.76\n")
+
+	result := compressRsync(sb.String())
+
+	// Should keep summary
+	if !strings.Contains(result, "sending incremental file list") {
+		t.Error("expected 'sending' summary preserved")
+	}
+	if !strings.Contains(result, "total size") {
+		t.Error("expected total size summary preserved")
+	}
+	// Should group files by directory
+	if !strings.Contains(result, "src/") {
+		t.Error("expected src/ directory grouping")
+	}
+}
+
+func TestCompressRsync_Errors(t *testing.T) {
+	output := "rsync: link_stat \"/missing\" failed: No such file (2)\nrsync error: some errors could not be transferred\n"
+	result := compressRsync(output)
+
+	if !strings.Contains(result, "rsync:") {
+		t.Error("expected rsync error preserved")
+	}
+}
+
+func TestCompressGitHub_Repos(t *testing.T) {
+	type repo struct {
+		Name        string `json:"name"`
+		FullName    string `json:"full_name"`
+		Description string `json:"description"`
+		Private     bool   `json:"private"`
+		Language    string `json:"language"`
+		UpdatedAt   string `json:"updated_at"`
+		HTMLURL     string `json:"html_url"`
+		CloneURL    string `json:"clone_url"`
+	}
+
+	repos := make([]repo, 25)
+	for i := 0; i < 25; i++ {
+		repos[i] = repo{
+			Name:        fmt.Sprintf("repo%d", i),
+			FullName:    fmt.Sprintf("user/repo%d", i),
+			Description: fmt.Sprintf("Repository number %d with a somewhat long description", i),
+			Private:     i < 3,
+			Language:    "Go",
+			UpdatedAt:   "2024-01-15T10:30:00Z",
+			HTMLURL:     fmt.Sprintf("https://github.com/user/repo%d", i),
+			CloneURL:    fmt.Sprintf("https://github.com/user/repo%d.git", i),
+		}
+	}
+
+	data, _ := json.Marshal(map[string]interface{}{
+		"status": "ok",
+		"count":  len(repos),
+		"repos":  repos,
+	})
+	output := "Tool Output: " + string(data)
+
+	cfg := DefaultConfig()
+	result, stats := Compress("github", "", output, cfg)
+
+	if stats.FilterUsed != "github-repos" {
+		t.Errorf("expected filter github-repos, got %s", stats.FilterUsed)
+	}
+	if !strings.Contains(result, "25 repos") {
+		t.Error("expected repo count in output")
+	}
+	if !strings.Contains(result, "3 private") {
+		t.Error("expected private count")
+	}
+	if !strings.Contains(result, "+ 5 more") {
+		t.Error("expected truncation indicator")
+	}
+	if stats.Ratio >= 1.0 {
+		t.Errorf("expected compression, got ratio %.2f", stats.Ratio)
+	}
+}
+
+func TestCompressGitHub_Issues(t *testing.T) {
+	type issue struct {
+		Number    int      `json:"number"`
+		Title     string   `json:"title"`
+		State     string   `json:"state"`
+		User      string   `json:"user"`
+		Labels    []string `json:"labels"`
+		CreatedAt string   `json:"created_at"`
+		HTMLURL   string   `json:"html_url"`
+	}
+
+	issues := make([]issue, 30)
+	for i := 0; i < 30; i++ {
+		issues[i] = issue{
+			Number:    100 + i,
+			Title:     fmt.Sprintf("Bug: something broke in module %d", i),
+			State:     "open",
+			User:      "developer",
+			Labels:    []string{"bug", "priority-high"},
+			CreatedAt: "2024-01-15T10:30:00Z",
+			HTMLURL:   fmt.Sprintf("https://github.com/user/repo/issues/%d", 100+i),
+		}
+	}
+
+	data, _ := json.Marshal(map[string]interface{}{
+		"status": "ok",
+		"count":  len(issues),
+		"issues": issues,
+	})
+	output := "Tool Output: " + string(data)
+
+	cfg := DefaultConfig()
+	result, stats := Compress("github", "", output, cfg)
+
+	if stats.FilterUsed != "github-issues" {
+		t.Errorf("expected filter github-issues, got %s", stats.FilterUsed)
+	}
+	if !strings.Contains(result, "30 issues") {
+		t.Error("expected issue count")
+	}
+	if !strings.Contains(result, "#100") {
+		t.Error("expected issue number")
+	}
+	if !strings.Contains(result, "+ 5 more") {
+		t.Error("expected truncation")
+	}
+}
+
+func TestCompressGitHub_PRs(t *testing.T) {
+	type pr struct {
+		Number    int    `json:"number"`
+		Title     string `json:"title"`
+		State     string `json:"state"`
+		User      string `json:"user"`
+		Head      string `json:"head"`
+		Base      string `json:"base"`
+		CreatedAt string `json:"created_at"`
+	}
+
+	prs := []pr{
+		{Number: 42, Title: "Fix login bug", State: "open", User: "dev1", Head: "fix/login", Base: "main"},
+		{Number: 41, Title: "Add feature X", State: "closed", User: "dev2", Head: "feat/x", Base: "develop"},
+	}
+
+	data, _ := json.Marshal(map[string]interface{}{
+		"status":        "ok",
+		"count":         len(prs),
+		"pull_requests": prs,
+	})
+	output := "Tool Output: " + string(data)
+
+	// Call compressor directly (bypass MinChars threshold)
+	result, filter := compressAPIOutput("github", output)
+
+	if filter != "github-prs" {
+		t.Errorf("expected filter github-prs, got %s", filter)
+	}
+	if !strings.Contains(result, "2 PRs") {
+		t.Error("expected PR count")
+	}
+	if !strings.Contains(result, "fix/login → main") {
+		t.Error("expected branch info")
+	}
+}
+
+func TestCompressGitHub_Commits(t *testing.T) {
+	type commit struct {
+		SHA     string `json:"sha"`
+		Message string `json:"message"`
+		Author  string `json:"author"`
+		Date    string `json:"date"`
+	}
+
+	commits := make([]commit, 30)
+	for i := 0; i < 30; i++ {
+		commits[i] = commit{
+			SHA:     fmt.Sprintf("abc%d", i),
+			Message: fmt.Sprintf("Fix issue #%d with a detailed commit message", i),
+			Author:  "Developer",
+			Date:    "2024-01-15T10:30:00Z",
+		}
+	}
+
+	data, _ := json.Marshal(map[string]interface{}{
+		"status":  "ok",
+		"count":   len(commits),
+		"commits": commits,
+	})
+	output := "Tool Output: " + string(data)
+
+	cfg := DefaultConfig()
+	result, stats := Compress("github", "", output, cfg)
+
+	if stats.FilterUsed != "github-commits" {
+		t.Errorf("expected filter github-commits, got %s", stats.FilterUsed)
+	}
+	if !strings.Contains(result, "30 commits") {
+		t.Error("expected commit count")
+	}
+	if !strings.Contains(result, "+ 5 more") {
+		t.Error("expected truncation")
+	}
+}
+
+func TestCompressGitHub_WorkflowRuns(t *testing.T) {
+	type run struct {
+		ID         int    `json:"id"`
+		Name       string `json:"name"`
+		Status     string `json:"status"`
+		Conclusion string `json:"conclusion"`
+		Branch     string `json:"branch"`
+		CreatedAt  string `json:"created_at"`
+	}
+
+	runs := []run{
+		{ID: 123, Name: "CI", Status: "completed", Conclusion: "success", Branch: "main", CreatedAt: "2024-01-15T10:30:00Z"},
+		{ID: 122, Name: "Deploy", Status: "completed", Conclusion: "failure", Branch: "develop", CreatedAt: "2024-01-14T08:00:00Z"},
+	}
+
+	data, _ := json.Marshal(map[string]interface{}{
+		"status": "ok",
+		"count":  len(runs),
+		"runs":   runs,
+	})
+	output := "Tool Output: " + string(data)
+
+	// Call compressor directly (bypass MinChars threshold)
+	result, filter := compressAPIOutput("github", output)
+
+	if filter != "github-runs" {
+		t.Errorf("expected filter github-runs, got %s", filter)
+	}
+	if !strings.Contains(result, "2 workflow runs") {
+		t.Error("expected workflow run count")
+	}
+	if !strings.Contains(result, "completed/success") {
+		t.Error("expected status/conclusion")
+	}
+	if !strings.Contains(result, "completed/failure") {
+		t.Error("expected failure run")
+	}
+}
+
+func TestCompressGitHub_Error(t *testing.T) {
+	output := `Tool Output: {"status":"error","message":"GitHub API error (HTTP 401): Bad credentials"}`
+
+	// Call compressor directly (bypass MinChars threshold)
+	result, filter := compressAPIOutput("github", output)
+
+	if filter != "github-error" {
+		t.Errorf("expected filter github-error, got %s", filter)
+	}
+	if !strings.Contains(result, "error") {
+		t.Error("expected error preserved")
+	}
+}
+
+func TestCompressGitHub_Branches(t *testing.T) {
+	type branch struct {
+		Name      string `json:"name"`
+		Protected bool   `json:"protected"`
+	}
+
+	branches := make([]branch, 35)
+	for i := 0; i < 35; i++ {
+		branches[i] = branch{
+			Name:      fmt.Sprintf("feature/branch-%d", i),
+			Protected: i == 0,
+		}
+	}
+	branches[0] = branch{Name: "main", Protected: true}
+
+	data, _ := json.Marshal(map[string]interface{}{
+		"status":   "ok",
+		"branches": branches,
+	})
+	output := "Tool Output: " + string(data)
+
+	cfg := DefaultConfig()
+	result, stats := Compress("github", "", output, cfg)
+
+	if stats.FilterUsed != "github-branches" {
+		t.Errorf("expected filter github-branches, got %s", stats.FilterUsed)
+	}
+	if !strings.Contains(result, "branches") {
+		t.Error("expected branches header")
+	}
+	if !strings.Contains(result, "[protected]") {
+		t.Error("expected protected marker")
+	}
+	if !strings.Contains(result, "+ 5 more") {
+		t.Error("expected truncation")
+	}
+}
+
+func TestCompressSQL_QueryResult(t *testing.T) {
+	rows := make([]map[string]interface{}, 30)
+	for i := 0; i < 30; i++ {
+		rows[i] = map[string]interface{}{
+			"id":    i + 1,
+			"name":  fmt.Sprintf("user%d", i),
+			"email": fmt.Sprintf("user%d@example.com", i),
+		}
+	}
+
+	data, _ := json.Marshal(map[string]interface{}{
+		"status": "success",
+		"result": rows,
+	})
+	output := "Tool Output: " + string(data)
+
+	cfg := DefaultConfig()
+	result, stats := Compress("sql_query", "", output, cfg)
+
+	if stats.FilterUsed != "sql-query" {
+		t.Errorf("expected filter sql-query, got %s", stats.FilterUsed)
+	}
+	if !strings.Contains(result, "30 rows") {
+		t.Error("expected row count")
+	}
+	if !strings.Contains(result, "3 cols") {
+		t.Error("expected column count")
+	}
+	if !strings.Contains(result, "+ 10 more rows") {
+		t.Error("expected truncation")
+	}
+}
+
+func TestCompressSQL_QueryEmpty(t *testing.T) {
+	data, _ := json.Marshal(map[string]interface{}{
+		"status": "success",
+		"result": []map[string]interface{}{},
+	})
+	output := "Tool Output: " + string(data)
+
+	// Call compressor directly (bypass MinChars threshold)
+	result, filter := compressAPIOutput("sql_query", output)
+
+	if filter != "sql-query" {
+		t.Errorf("expected filter sql-query, got %s", filter)
+	}
+	if !strings.Contains(result, "0 rows") {
+		t.Errorf("expected '0 rows returned', got: %s", result)
+	}
+}
+
+func TestCompressSQL_Describe(t *testing.T) {
+	columns := []map[string]interface{}{
+		{"name": "id", "type": "INTEGER", "notnull": true, "pk": true},
+		{"name": "name", "type": "TEXT", "notnull": true, "pk": false},
+		{"name": "email", "type": "TEXT", "notnull": false, "pk": false, "unique": true},
+		{"name": "created_at", "type": "TIMESTAMP", "notnull": false, "pk": false, "default_value": "NOW()"},
+	}
+
+	data, _ := json.Marshal(map[string]interface{}{
+		"status":  "success",
+		"table":   "users",
+		"columns": columns,
+	})
+	output := "Tool Output: " + string(data)
+
+	// Call compressor directly (bypass MinChars threshold)
+	result, filter := compressAPIOutput("sql_query", output)
+
+	if filter != "sql-describe" {
+		t.Errorf("expected filter sql-describe, got %s", filter)
+	}
+	if !strings.Contains(result, "Table users") {
+		t.Error("expected table name")
+	}
+	if !strings.Contains(result, "4 columns") {
+		t.Error("expected column count")
+	}
+	if !strings.Contains(result, "PK") {
+		t.Error("expected PK marker")
+	}
+	if !strings.Contains(result, "NOT NULL") {
+		t.Error("expected NOT NULL marker")
+	}
+	if !strings.Contains(result, "UNIQUE") {
+		t.Error("expected UNIQUE marker")
+	}
+	if !strings.Contains(result, "DEFAULT") {
+		t.Error("expected DEFAULT marker")
+	}
+}
+
+func TestCompressSQL_ListTables(t *testing.T) {
+	tables := make([]string, 60)
+	for i := 0; i < 60; i++ {
+		tables[i] = fmt.Sprintf("table_%d", i)
+	}
+
+	data, _ := json.Marshal(map[string]interface{}{
+		"status": "success",
+		"tables": tables,
+		"count":  len(tables),
+	})
+	output := "Tool Output: " + string(data)
+
+	// Call compressor directly (bypass MinChars threshold)
+	result, filter := compressAPIOutput("sql_query", output)
+
+	if filter != "sql-list-tables" {
+		t.Errorf("expected filter sql-list-tables, got %s", filter)
+	}
+	if !strings.Contains(result, "60 tables") {
+		t.Error("expected table count")
+	}
+	if !strings.Contains(result, "+ 10 more") {
+		t.Error("expected truncation")
+	}
+}
+
+func TestCompressSQL_Error(t *testing.T) {
+	output := `Tool Output: {"status":"error","message":"'sql_query' is required for query operation"}`
+
+	// Call compressor directly (bypass MinChars threshold)
+	result, filter := compressAPIOutput("sql_query", output)
+
+	if filter != "sql-error" {
+		t.Errorf("expected filter sql-error, got %s", filter)
+	}
+	if !strings.Contains(result, "error") {
+		t.Error("expected error preserved")
+	}
+}
+
+func TestCompress_APIRouting_GitHubAndSQL(t *testing.T) {
+	// Verify github and sql_query are recognized as API tools
+	if !isAPITool("github") {
+		t.Error("expected 'github' to be an API tool")
+	}
+	if !isAPITool("sql_query") {
+		t.Error("expected 'sql_query' to be an API tool")
+	}
+	if !isGitHubTool("github") {
+		t.Error("expected isGitHubTool('github') = true")
+	}
+	if !isSQLTool("sql_query") {
+		t.Error("expected isSQLTool('sql_query') = true")
+	}
+}
+
+func TestCompressSQL_QueryResult_LargeValues(t *testing.T) {
+	rows := make([]map[string]interface{}, 5)
+	for i := 0; i < 5; i++ {
+		rows[i] = map[string]interface{}{
+			"id":          i + 1,
+			"description": strings.Repeat("x", 100), // long value
+		}
+	}
+
+	data, _ := json.Marshal(map[string]interface{}{
+		"status": "success",
+		"result": rows,
+	})
+	output := "Tool Output: " + string(data)
+
+	cfg := DefaultConfig()
+	result, stats := Compress("sql_query", "", output, cfg)
+
+	if stats.FilterUsed != "sql-query" {
+		t.Errorf("expected filter sql-query, got %s", stats.FilterUsed)
+	}
+	// Long values should be truncated
+	if strings.Contains(result, strings.Repeat("x", 100)) {
+		t.Error("expected long values to be truncated")
+	}
+	if !strings.Contains(result, "...") {
+		t.Error("expected truncation indicator")
+	}
+}

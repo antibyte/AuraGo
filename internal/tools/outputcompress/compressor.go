@@ -140,7 +140,7 @@ func isPythonTool(name string) bool {
 func isAPITool(name string) bool {
 	switch name {
 	case "docker", "docker_compose", "proxmox", "homeassistant", "home_assistant",
-		"kubernetes", "api_request":
+		"kubernetes", "api_request", "github", "sql_query":
 		return true
 	}
 	return false
@@ -149,6 +149,16 @@ func isAPITool(name string) bool {
 // isHATool returns true for Home Assistant tool names.
 func isHATool(name string) bool {
 	return name == "homeassistant" || name == "home_assistant"
+}
+
+// isGitHubTool returns true for GitHub tool names.
+func isGitHubTool(name string) bool {
+	return name == "github"
+}
+
+// isSQLTool returns true for SQL query tool names.
+func isSQLTool(name string) bool {
+	return name == "sql_query"
 }
 
 // isErrorOutput detects common error markers in tool output.
