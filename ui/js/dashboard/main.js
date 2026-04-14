@@ -3130,7 +3130,7 @@
                 },
                 {
                     lbl: t('dashboard.opt_global_success_rate'),
-                    val: `${opt.global_success_rate || 0}%`
+                    val: `${(opt.global_success_rate || 0).toFixed(1)}%`
                 }
             ];
 

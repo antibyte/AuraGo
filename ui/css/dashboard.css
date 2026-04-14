@@ -352,6 +352,12 @@
 
         .budget-bar-wrap {
             min-height: 150px;
+            min-width: 0;
+            overflow: hidden;
+        }
+
+        .budget-bar-wrap canvas {
+            max-width: 100% !important;
         }
 
         /* ── Personality Radar ────────────────────────────────── */
