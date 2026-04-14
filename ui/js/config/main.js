@@ -21,7 +21,8 @@ const SECTIONS = [
             { key: 'co_agents', icon: '🤖', label: t('config.section.co_agents.label'), desc: t('config.section.co_agents.desc') },
             { key: 'prompts_editor', icon: '🎭', label: t('config.section.prompts_editor.label'), desc: t('config.section.prompts_editor.desc') },
             { key: 'personality', icon: '🧬', label: t('config.section.personality.label'), desc: t('config.section.personality.desc') },
-            { key: 'vision', icon: '👁️', label: t('config.section.vision.label'), desc: t('config.section.vision.desc') }
+            { key: 'vision', icon: '👁️', label: t('config.section.vision.label'), desc: t('config.section.vision.desc') },
+            { key: 'output_compression', icon: '🗜️', label: t('config.section.output_compression.label'), desc: t('config.section.output_compression.desc') }
         ]
     },
     {
@@ -1422,6 +1423,7 @@ const SECTION_MODULES = {
     security_proxy: { m: 'security_proxy', fn: 'renderSecurityProxySection' },
     memory_analysis: { m: 'memory_analysis', fn: 'renderMemoryAnalysisSection' },
     llm_guardian: { m: 'llm_guardian', fn: 'renderLLMGuardianSection' },
+    output_compression: { m: 'output_compression', fn: 'renderOutputCompressionSection' },
     document_creator: { m: 'document_creator', fn: 'renderDocumentCreatorSection' },
     tailscale: { m: 'tailscale', fn: 'renderTailscaleSection' },
     server: { m: 'server', fn: 'renderServerSection' },
