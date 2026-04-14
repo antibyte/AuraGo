@@ -528,6 +528,20 @@ select.cfg-input option {
     margin-top: 0.2rem;
 }
 
+/* Prevent toggle from being squished by long text on mobile */
+.cfg-toggle-row > div:first-child,
+.cfg-toggle-row-highlight > div:first-child,
+.cfg-toggle-row-compact > div:first-child {
+    flex: 1;
+    min-width: 0;
+}
+
+.cfg-toggle-row .toggle,
+.cfg-toggle-row-highlight .toggle,
+.cfg-toggle-row-compact .toggle {
+    flex-shrink: 0;
+}
+
 /* Password field */
 .password-wrap {
     position: relative;
@@ -5901,6 +5915,13 @@ select.cfg-input option {
 
     .field-group {
         padding: 0.9rem 1rem;
+    }
+
+    /* Toggle rows: align toggle to top when label text wraps */
+    .cfg-toggle-row,
+    .cfg-toggle-row-highlight,
+    .cfg-toggle-row-compact {
+        align-items: flex-start;
     }
 
     /* Webhooks mobile fixes */
