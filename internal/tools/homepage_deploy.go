@@ -1356,7 +1356,8 @@ func looksLikeUUID(s string) bool {
 }
 
 func detectBuildDir(cfg HomepageConfig, projectDir string) string {
-	if !checkDockerAvailable(cfg.DockerHost) {
+	// Helper for local filesystem detection
+	detectLocal := func() string {
 		if cfg.WorkspacePath != "" {
 			for _, dir := range []string{"out", "dist", "build", ".next", "public"} {
 				p := filepath.Join(cfg.WorkspacePath, projectDir, dir)
@@ -1381,8 +1382,13 @@ func detectBuildDir(cfg HomepageConfig, projectDir string) string {
 		// This handles plain HTML projects that have no build step.
 		return "."
 	}
+
+	if !checkDockerAvailable(cfg.DockerHost) {
+		return detectLocal()
+	}
+
 	dockerCfg := DockerConfig{Host: cfg.DockerHost}
-	// Try common build output directories
+	// Try common build output directories via Docker first
 	for _, dir := range []string{"out", "dist", "build", ".next", "public"} {
 		// Skip .next for Next.js projects unless it contains servable content.
 		if dir == ".next" && cfg.WorkspacePath != "" {
@@ -1400,8 +1406,8 @@ func detectBuildDir(cfg HomepageConfig, projectDir string) string {
 			return dir
 		}
 	}
-	// No standard build dir found — serve project root directly.
-	return "."
+	// Fallback to local filesystem if container check yields nothing
+	return detectLocal()
 }
 
 func homepageCaddyfile(domain string, port int) string {

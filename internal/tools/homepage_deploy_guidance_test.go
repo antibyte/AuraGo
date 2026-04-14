@@ -1,11 +1,17 @@
 package tools
 
 import (
+	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 )
+
+func discardLogger() *slog.Logger {
+	return slog.New(slog.NewTextHandler(io.Discard, nil))
+}
 
 func TestDecorateHomepageBuildFailureMissingBuildScript(t *testing.T) {
 	raw := `{"status":"error","output":"npm error Missing script: \"build\""}`
@@ -20,7 +26,7 @@ func TestDecorateHomepageBuildFailureMissingBuildScript(t *testing.T) {
 
 func TestHomepageWebServerStartMissingSourcePathExplainsSrvRoot(t *testing.T) {
 	cfg := HomepageConfig{WorkspacePath: t.TempDir(), WebServerPort: 8080}
-	result := HomepageWebServerStart(cfg, "missing-site", ".", nil)
+	result := HomepageWebServerStart(cfg, "missing-site", ".", discardLogger())
 	if !strings.Contains(result, "aurago-homepage-web") {
 		t.Fatalf("expected Caddy container guidance, got: %s", result)
 	}
@@ -90,7 +96,7 @@ func TestHomepageWebServerStartRestoresSavedState(t *testing.T) {
 	cfg := HomepageConfig{WorkspacePath: dir, WebServerPort: 0}
 	// Since Docker is unavailable in tests, this should hit the error path
 	// but the important thing is it tries to use the restored state.
-	result := HomepageWebServerStart(cfg, "", "", nil)
+	result := HomepageWebServerStart(cfg, "", "", discardLogger())
 
 	// The function should either succeed (Python fallback) or give a Docker error,
 	// but NOT "Local publish source does not exist" since the restored path exists.
@@ -280,7 +286,7 @@ func TestFindServableProjectAutoDetectedByWebServerStart(t *testing.T) {
 
 	// No saved state — should auto-detect phaser-demo/out
 	cfg := HomepageConfig{WorkspacePath: dir, WebServerPort: 0}
-	result := HomepageWebServerStart(cfg, "", "", nil)
+	result := HomepageWebServerStart(cfg, "", "", discardLogger())
 
 	// Should not report "does not exist" because auto-detection finds phaser-demo/out
 	if strings.Contains(result, "does not exist") {

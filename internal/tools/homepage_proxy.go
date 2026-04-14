@@ -100,7 +100,9 @@ func ensureHomepageNetwork(dockerCfg DockerConfig, logger *slog.Logger) {
 		return
 	}
 	result := DockerCreateNetwork(dockerCfg, homepageNetworkName, "bridge")
-	logger.Info("[Homepage] Created shared Docker network", "network", homepageNetworkName, "result", truncateStr(result, 200))
+	if logger != nil {
+		logger.Info("[Homepage] Created shared Docker network", "network", homepageNetworkName, "result", truncateStr(result, 200))
+	}
 }
 
 // connectContainerToNetwork connects a container to the shared homepage network.
@@ -110,7 +112,9 @@ func connectContainerToNetwork(dockerCfg DockerConfig, containerName string, log
 	var r map[string]interface{}
 	if json.Unmarshal([]byte(result), &r) == nil {
 		if s, _ := r["status"].(string); s == "ok" {
-			logger.Info("[Homepage] Connected container to shared network", "container", containerName, "network", homepageNetworkName)
+			if logger != nil {
+				logger.Info("[Homepage] Connected container to shared network", "container", containerName, "network", homepageNetworkName)
+			}
 		}
 	}
 }

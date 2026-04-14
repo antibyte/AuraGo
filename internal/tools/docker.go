@@ -543,7 +543,9 @@ func PullImageWait(ctx context.Context, cfg DockerConfig, image string, logger *
 		}
 	}
 
-	logger.Info("Pulling Docker image", "image", image)
+	if logger != nil {
+		logger.Info("Pulling Docker image", "image", image)
+	}
 
 	// Build the pull request with the caller-supplied context so long pulls
 	// are not cut short by the 60-second client timeout.
@@ -570,7 +572,9 @@ func PullImageWait(ctx context.Context, cfg DockerConfig, image string, logger *
 		return fmt.Errorf("pull image %s: HTTP %d", image, resp.StatusCode)
 	}
 
-	logger.Info("Docker image pulled successfully", "image", image)
+	if logger != nil {
+		logger.Info("Docker image pulled successfully", "image", image)
+	}
 	return nil
 }
 
