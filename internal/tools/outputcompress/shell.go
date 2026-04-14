@@ -3,6 +3,7 @@ package outputcompress
 import (
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -22,6 +23,22 @@ func compressShellOutput(command, output string) (string, string) {
 	}
 
 	switch {
+	// ─── Composite commands (must come before simple bin matches) ─────
+	case bin == "docker" && sub == "compose":
+		// commandSignature() truncates to 2 tokens, so extract 3rd from raw command
+		composeSub := ""
+		rawParts := strings.Fields(command)
+		for i, p := range rawParts {
+			if p == "compose" && i+1 < len(rawParts) {
+				composeSub = rawParts[i+1]
+				break
+			}
+		}
+		return compressDockerCompose(composeSub, output)
+	case bin == "docker-compose" || bin == "docker_compose":
+		return compressDockerCompose(sub, output)
+
+	// ─── V1–V5 routes (unchanged) ────────────────────────────────────
 	case bin == "git":
 		return compressGit(sub, output)
 	case bin == "docker" || bin == "podman":
@@ -60,6 +77,31 @@ func compressShellOutput(command, output string) (string, string) {
 		return compressAws(sub, output)
 	case bin == "ansible" || bin == "ansible-playbook":
 		return compressAnsible(output), "ansible"
+
+	// ─── V6: Home-Lab / Infra routes ─────────────────────────────────
+	case bin == "helm":
+		return compressHelm(sub, output)
+	case bin == "terraform" || bin == "tf":
+		return compressTerraform(sub, output)
+	case bin == "df":
+		return compressDiskFree(output), "df"
+	case bin == "du":
+		return compressDiskUsage(output), "du"
+	case bin == "ps":
+		return compressProcessList(output), "ps"
+	case bin == "ss" || bin == "netstat":
+		return compressNetworkConnections(output), "netstat"
+	case bin == "ip" && (sub == "addr" || sub == "a" || sub == "address"):
+		return compressIpAddr(output), "ip-addr"
+	case bin == "ip" && (sub == "route" || sub == "r"):
+		return compressIpRoute(output), "ip-route"
+	case bin == "ip":
+		return compressGeneric(output), "ip-generic"
+	case bin == "free":
+		return compressGeneric(output), "free"
+	case bin == "uptime":
+		return compressGeneric(output), "uptime"
+
 	default:
 		return compressGeneric(output), "generic"
 	}
@@ -1240,6 +1282,662 @@ func compressAnsible(output string) string {
 		return result
 	}
 	return compressed
+}
+
+// ─── Docker Compose Filters ─────────────────────────────────────────────────
+
+// compressDockerCompose routes docker compose subcommands.
+func compressDockerCompose(sub string, output string) (string, string) {
+	switch sub {
+	case "ps":
+		return compressComposePs(output), "compose-ps"
+	case "logs":
+		return compressDockerLogs(output), "compose-logs"
+	case "config":
+		return compressComposeConfig(output), "compose-config"
+	case "events":
+		return compressComposeEvents(output), "compose-events"
+	case "images":
+		return compressComposePs(output), "compose-images" // similar table format
+	case "top":
+		return compressGeneric(output), "compose-top"
+	default:
+		return compressGeneric(output), "compose-generic"
+	}
+}
+
+// compressComposePs summarises docker compose ps output.
+func compressComposePs(output string) string {
+	result := StripANSI(output)
+	result = CollapseWhitespace(result)
+	lines := strings.Split(result, "\n")
+	if len(lines) <= 10 {
+		return result
+	}
+
+	running, stopped, other := 0, 0, 0
+	for _, line := range lines[1:] {
+		lower := strings.ToLower(line)
+		switch {
+		case strings.Contains(lower, "running") || strings.Contains(lower, "up"):
+			running++
+		case strings.Contains(lower, "stopped") || strings.Contains(lower, "exited") ||
+			strings.Contains(lower, "down") || strings.Contains(lower, "dead"):
+			stopped++
+		default:
+			other++
+		}
+	}
+
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("Services: %d Running, %d Stopped, %d Other\n", running, stopped, other))
+
+	// Include header + stopped/error services
+	if len(lines) > 0 {
+		sb.WriteString(lines[0] + "\n")
+	}
+	for _, line := range lines[1:] {
+		lower := strings.ToLower(line)
+		if strings.Contains(lower, "stopped") || strings.Contains(lower, "exited") ||
+			strings.Contains(lower, "down") || strings.Contains(lower, "dead") ||
+			strings.Contains(lower, "error") || strings.Contains(lower, "restart") {
+			sb.WriteString(line + "\n")
+		}
+	}
+	return sb.String()
+}
+
+// compressComposeConfig summarises docker compose config output.
+func compressComposeConfig(output string) string {
+	result := StripANSI(output)
+	result = CollapseWhitespace(result)
+	lines := strings.Split(result, "\n")
+	if len(lines) <= 20 {
+		return result
+	}
+
+	var sb strings.Builder
+	serviceCount := 0
+	networkCount := 0
+	volumeCount := 0
+	inServices := false
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "services:") {
+			inServices = true
+			sb.WriteString(line + "\n")
+			continue
+		}
+		if inServices {
+			// Detect individual service names (2-space indent + name + colon)
+			if strings.HasPrefix(line, "  ") && !strings.HasPrefix(line, "    ") && strings.HasSuffix(trimmed, ":") {
+				serviceCount++
+				sb.WriteString(line + "\n")
+			}
+			if strings.HasPrefix(trimmed, "networks:") || strings.HasPrefix(trimmed, "volumes:") {
+				inServices = false
+			}
+		}
+		if strings.HasPrefix(trimmed, "networks:") {
+			networkCount++
+			sb.WriteString(line + "\n")
+		}
+		if strings.HasPrefix(trimmed, "volumes:") {
+			volumeCount++
+			sb.WriteString(line + "\n")
+		}
+	}
+
+	sb.WriteString(fmt.Sprintf("\nConfig: %d services, %d networks, %d volumes (full config omitted)\n",
+		serviceCount, networkCount, volumeCount))
+	return sb.String()
+}
+
+// compressComposeEvents extracts key events from docker compose events output.
+func compressComposeEvents(output string) string {
+	result := StripANSI(output)
+	result = CollapseWhitespace(result)
+	result = stripTimestamps(result)
+	lines := strings.Split(result, "\n")
+	if len(lines) <= 10 {
+		return result
+	}
+
+	var sb strings.Builder
+	eventCount := 0
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+		lower := strings.ToLower(trimmed)
+		if strings.Contains(lower, "die") || strings.Contains(lower, "error") ||
+			strings.Contains(lower, "kill") || strings.Contains(lower, "stop") ||
+			strings.Contains(lower, "restart") || strings.Contains(lower, "health") {
+			sb.WriteString(line + "\n")
+		}
+		eventCount++
+	}
+
+	sb.WriteString(fmt.Sprintf("... %d total events\n", eventCount))
+	return sb.String()
+}
+
+// ─── Helm Filters ────────────────────────────────────────────────────────────
+
+// compressHelm routes helm subcommands.
+func compressHelm(sub string, output string) (string, string) {
+	switch sub {
+	case "list", "ls":
+		return compressHelmList(output), "helm-list"
+	case "status":
+		return compressHelmStatus(output), "helm-status"
+	case "history":
+		return compressHelmHistory(output), "helm-history"
+	case "get":
+		return compressGeneric(output), "helm-get"
+	case "repo":
+		return compressGeneric(output), "helm-repo"
+	default:
+		return compressGeneric(output), "helm-generic"
+	}
+}
+
+// compressHelmList summarises helm list output.
+func compressHelmList(output string) string {
+	result := StripANSI(output)
+	result = CollapseWhitespace(result)
+	lines := strings.Split(result, "\n")
+	if len(lines) <= 8 {
+		return result
+	}
+
+	deployed, failed, other := 0, 0, 0
+	for _, line := range lines[1:] {
+		lower := strings.ToLower(line)
+		switch {
+		case strings.Contains(lower, "deployed"):
+			deployed++
+		case strings.Contains(lower, "failed"):
+			failed++
+		default:
+			other++
+		}
+	}
+
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("Releases: %d Deployed, %d Failed, %d Other\n", deployed, failed, other))
+	if len(lines) > 0 {
+		sb.WriteString(lines[0] + "\n")
+	}
+	// Include failed releases
+	for _, line := range lines[1:] {
+		if strings.Contains(strings.ToLower(line), "failed") {
+			sb.WriteString(line + "\n")
+		}
+	}
+	return sb.String()
+}
+
+// compressHelmStatus extracts key info from helm status output.
+func compressHelmStatus(output string) string {
+	result := StripANSI(output)
+	result = CollapseWhitespace(result)
+	lines := strings.Split(result, "\n")
+
+	var sb strings.Builder
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "STATUS:") || strings.HasPrefix(trimmed, "REVISION:") ||
+			strings.HasPrefix(trimmed, "CHART:") || strings.HasPrefix(trimmed, "NAMESPACE:") ||
+			strings.HasPrefix(trimmed, "LAST DEPLOYED:") || strings.HasPrefix(trimmed, "NOTES:") {
+			sb.WriteString(line + "\n")
+			continue
+		}
+		// Resources section
+		if strings.HasPrefix(trimmed, "==>") || strings.HasPrefix(trimmed, "NAME:") ||
+			strings.HasPrefix(trimmed, "READY") {
+			sb.WriteString(line + "\n")
+		}
+	}
+	compressed := sb.String()
+	if len(compressed) < 50 {
+		return result
+	}
+	return compressed
+}
+
+// compressHelmHistory summarises helm history output.
+func compressHelmHistory(output string) string {
+	result := StripANSI(output)
+	result = CollapseWhitespace(result)
+	lines := strings.Split(result, "\n")
+	if len(lines) <= 10 {
+		return result
+	}
+
+	// Keep header + failed/superseded revisions
+	var sb strings.Builder
+	if len(lines) > 0 {
+		sb.WriteString(lines[0] + "\n")
+	}
+	for _, line := range lines[1:] {
+		lower := strings.ToLower(line)
+		if strings.Contains(lower, "failed") || strings.Contains(lower, "superseded") ||
+			strings.Contains(lower, "pending") || strings.Contains(lower, "rollback") {
+			sb.WriteString(line + "\n")
+		}
+	}
+	sb.WriteString(fmt.Sprintf("... %d total revisions\n", len(lines)-1))
+	return sb.String()
+}
+
+// ─── Terraform Filters ───────────────────────────────────────────────────────
+
+// compressTerraform routes terraform subcommands.
+func compressTerraform(sub string, output string) (string, string) {
+	switch sub {
+	case "plan":
+		return compressTerraformPlan(output), "tf-plan"
+	case "apply":
+		return compressTerraformApply(output), "tf-apply"
+	case "show":
+		return compressTerraformShow(output), "tf-show"
+	case "state":
+		return compressTerraformStateList(output), "tf-state"
+	case "output":
+		return compressTerraformOutput(output), "tf-output"
+	case "init":
+		return compressGeneric(output), "tf-init"
+	default:
+		return compressGeneric(output), "tf-generic"
+	}
+}
+
+// compressTerraformPlan extracts change summary from terraform plan output.
+func compressTerraformPlan(output string) string {
+	result := StripANSI(output)
+	result = CollapseWhitespace(result)
+
+	var sb strings.Builder
+	inChanges := false
+	for _, line := range strings.Split(result, "\n") {
+		trimmed := strings.TrimSpace(line)
+
+		// Plan summary line
+		if strings.Contains(trimmed, "Plan:") || strings.Contains(trimmed, "No changes") {
+			sb.WriteString(line + "\n")
+		}
+		// Change markers
+		if strings.Contains(trimmed, "will be created") || strings.Contains(trimmed, "will be destroyed") ||
+			strings.Contains(trimmed, "will be updated") || strings.Contains(trimmed, "will be replaced") {
+			sb.WriteString(line + "\n")
+			inChanges = true
+		}
+		// Resource addresses (indented under change markers)
+		if inChanges && (strings.HasPrefix(trimmed, "+ ") || strings.HasPrefix(trimmed, "- ") ||
+			strings.HasPrefix(trimmed, "~ ") || strings.HasPrefix(trimmed, "-/+ ")) {
+			sb.WriteString(line + "\n")
+		}
+		// Errors and warnings
+		if strings.Contains(strings.ToLower(trimmed), "error") ||
+			strings.Contains(strings.ToLower(trimmed), "warning") {
+			sb.WriteString(line + "\n")
+		}
+	}
+
+	compressed := sb.String()
+	if len(compressed) < 50 {
+		return result
+	}
+	return compressed
+}
+
+// compressTerraformApply extracts result summary from terraform apply output.
+func compressTerraformApply(output string) string {
+	result := StripANSI(output)
+	result = CollapseWhitespace(result)
+
+	var sb strings.Builder
+	for _, line := range strings.Split(result, "\n") {
+		trimmed := strings.TrimSpace(line)
+
+		// Apply result
+		if strings.Contains(trimmed, "Apply complete!") || strings.Contains(trimmed, "Resources:") {
+			sb.WriteString(line + "\n")
+		}
+		// Errors
+		if strings.Contains(strings.ToLower(trimmed), "error") {
+			sb.WriteString(line + "\n")
+		}
+		// Outputs section: "Outputs:" header or indented lines with " = "
+		if strings.HasPrefix(trimmed, "Outputs:") {
+			sb.WriteString(line + "\n")
+		} else if strings.Contains(trimmed, " = ") && !strings.Contains(trimmed, "Apply") {
+			sb.WriteString(line + "\n")
+		}
+	}
+
+	compressed := sb.String()
+	if len(compressed) < 50 {
+		return result
+	}
+	return compressed
+}
+
+// compressTerraformShow summarises terraform show output.
+func compressTerraformShow(output string) string {
+	result := StripANSI(output)
+	result = CollapseWhitespace(result)
+	lines := strings.Split(result, "\n")
+	if len(lines) <= 15 {
+		return result
+	}
+
+	var sb strings.Builder
+	resourceCount := 0
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		// Resource headers: resource "type" "name"
+		if strings.Contains(trimmed, "resource ") && strings.Contains(trimmed, "\"") {
+			sb.WriteString(line + "\n")
+			resourceCount++
+		}
+		// Data sources
+		if strings.Contains(trimmed, "data ") && strings.Contains(trimmed, "\"") {
+			sb.WriteString(line + "\n")
+		}
+		// Outputs
+		if strings.HasPrefix(trimmed, "output ") {
+			sb.WriteString(line + "\n")
+		}
+	}
+	sb.WriteString(fmt.Sprintf("\n... %d resources total\n", resourceCount))
+	return sb.String()
+}
+
+// compressTerraformStateList summarises terraform state list output.
+func compressTerraformStateList(output string) string {
+	result := StripANSI(output)
+	result = CollapseWhitespace(result)
+	lines := strings.Split(result, "\n")
+	if len(lines) <= 15 {
+		return result
+	}
+
+	// Group by resource type
+	types := make(map[string]int)
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		// Format: type.name or module.type.name
+		parts := strings.Split(line, ".")
+		var resType string
+		if len(parts) >= 2 && parts[0] == "module" && len(parts) >= 3 {
+			resType = parts[1]
+		} else if len(parts) >= 2 {
+			resType = parts[0]
+		} else {
+			resType = line
+		}
+		types[resType]++
+	}
+
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("%d resources in %d types:\n", len(lines), len(types)))
+	for typ, count := range types {
+		sb.WriteString(fmt.Sprintf("  %s: %d\n", typ, count))
+	}
+	return sb.String()
+}
+
+// compressTerraformOutput summarises terraform output output.
+func compressTerraformOutput(output string) string {
+	result := StripANSI(output)
+	result = CollapseWhitespace(result)
+	lines := strings.Split(result, "\n")
+	if len(lines) <= 10 {
+		return result
+	}
+
+	// Keep output names and values, truncate long values
+	var sb strings.Builder
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+		// Output format: name = "value" or name = value
+		if strings.Contains(trimmed, " = ") {
+			parts := strings.SplitN(trimmed, " = ", 2)
+			if len(parts) == 2 && len(parts[1]) > 200 {
+				sb.WriteString(parts[0] + " = " + parts[1][:200] + "... (truncated)\n")
+			} else {
+				sb.WriteString(line + "\n")
+			}
+		} else {
+			sb.WriteString(line + "\n")
+		}
+	}
+	return sb.String()
+}
+
+// ─── SSH Diagnostic Filters ──────────────────────────────────────────────────
+
+// compressDiskFree summarises df output, highlighting high-usage filesystems.
+func compressDiskFree(output string) string {
+	result := StripANSI(output)
+	result = CollapseWhitespace(result)
+	lines := strings.Split(result, "\n")
+	// Always apply high-usage filter; only skip for trivially small output
+	if len(lines) <= 2 {
+		return result
+	}
+
+	var sb strings.Builder
+	if len(lines) > 0 {
+		sb.WriteString(lines[0] + "\n") // header
+	}
+
+	highThreshold := 80.0
+	for _, line := range lines[1:] {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		// Parse use% field (typically last or second-to-last column)
+		fields := strings.Fields(line)
+		for _, f := range fields {
+			f = strings.TrimSuffix(f, "%")
+			pct, err := parseFloat(f)
+			if err == nil && pct >= highThreshold {
+				sb.WriteString(line + "\n")
+				break
+			}
+		}
+	}
+
+	if sb.Len() <= len(lines[0])+1 {
+		sb.WriteString("All filesystems below 80% usage\n")
+	}
+	return sb.String()
+}
+
+// compressDiskUsage summarises du output, showing largest directories.
+func compressDiskUsage(output string) string {
+	result := StripANSI(output)
+	result = CollapseWhitespace(result)
+	lines := strings.Split(result, "\n")
+	if len(lines) <= 10 {
+		return result
+	}
+
+	// Keep top 15 largest entries
+	var sb strings.Builder
+	limit := 15
+	if len(lines) < limit {
+		limit = len(lines)
+	}
+	for i := 0; i < limit; i++ {
+		sb.WriteString(lines[i] + "\n")
+	}
+	if len(lines) > limit {
+		sb.WriteString(fmt.Sprintf("... and %d more entries\n", len(lines)-limit))
+	}
+	return sb.String()
+}
+
+// compressProcessList summarises ps output, showing top processes.
+func compressProcessList(output string) string {
+	result := StripANSI(output)
+	result = CollapseWhitespace(result)
+	lines := strings.Split(result, "\n")
+	if len(lines) <= 15 {
+		return result
+	}
+
+	var sb strings.Builder
+	if len(lines) > 0 {
+		sb.WriteString(lines[0] + "\n") // header
+	}
+
+	// Keep first 20 processes + any with high CPU/memory
+	showCount := 0
+	for _, line := range lines[1:] {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		fields := strings.Fields(line)
+		highResource := false
+		for _, f := range fields {
+			f = strings.TrimSuffix(f, "%")
+			val, err := parseFloat(f)
+			if err == nil && val > 50 {
+				highResource = true
+				break
+			}
+		}
+		if showCount < 20 || highResource {
+			sb.WriteString(line + "\n")
+		}
+		showCount++
+	}
+	if showCount > 20 {
+		sb.WriteString(fmt.Sprintf("... %d total processes\n", showCount))
+	}
+	return sb.String()
+}
+
+// compressNetworkConnections summarises ss/netstat output.
+func compressNetworkConnections(output string) string {
+	result := StripANSI(output)
+	result = CollapseWhitespace(result)
+	lines := strings.Split(result, "\n")
+	if len(lines) <= 10 {
+		return result
+	}
+
+	var sb strings.Builder
+	if len(lines) > 0 {
+		sb.WriteString(lines[0] + "\n") // header
+	}
+
+	// Count by state
+	states := make(map[string]int)
+	for _, line := range lines[1:] {
+		lower := strings.ToLower(line)
+		var state string
+		switch {
+		case strings.Contains(lower, "listen"):
+			state = "LISTEN"
+		case strings.Contains(lower, "established"):
+			state = "ESTABLISHED"
+		case strings.Contains(lower, "time-wait") || strings.Contains(lower, "time_wait"):
+			state = "TIME-WAIT"
+		case strings.Contains(lower, "close-wait") || strings.Contains(lower, "close_wait"):
+			state = "CLOSE-WAIT"
+		default:
+			state = "OTHER"
+		}
+		states[state]++
+
+		// Always include LISTEN lines
+		if state == "LISTEN" {
+			sb.WriteString(line + "\n")
+		}
+	}
+
+	sb.WriteString(fmt.Sprintf("\nSummary: %d LISTEN, %d ESTABLISHED, %d TIME-WAIT, %d CLOSE-WAIT, %d OTHER\n",
+		states["LISTEN"], states["ESTABLISHED"], states["TIME-WAIT"], states["CLOSE-WAIT"], states["OTHER"]))
+	return sb.String()
+}
+
+// compressIpAddr summarises ip addr output.
+func compressIpAddr(output string) string {
+	result := StripANSI(output)
+	result = CollapseWhitespace(result)
+	lines := strings.Split(result, "\n")
+
+	var sb strings.Builder
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		// Interface headers (e.g., "2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP>")
+		if strings.Contains(line, ": ") && !strings.HasPrefix(trimmed, "link/") &&
+			!strings.HasPrefix(trimmed, "inet") {
+			sb.WriteString(line + "\n")
+			continue
+		}
+		// IP addresses
+		if strings.HasPrefix(trimmed, "inet ") || strings.HasPrefix(trimmed, "inet6 ") {
+			sb.WriteString(line + "\n")
+		}
+		// State info
+		if strings.Contains(strings.ToLower(trimmed), "state ") {
+			sb.WriteString(line + "\n")
+		}
+	}
+	compressed := sb.String()
+	if len(compressed) < 50 {
+		return result
+	}
+	return compressed
+}
+
+// compressIpRoute summarises ip route output.
+func compressIpRoute(output string) string {
+	result := StripANSI(output)
+	result = CollapseWhitespace(result)
+	lines := strings.Split(result, "\n")
+	if len(lines) <= 3 {
+		return result
+	}
+
+	var sb strings.Builder
+	defaultRoutes := 0
+	otherRoutes := 0
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+		if strings.HasPrefix(trimmed, "default ") {
+			sb.WriteString(line + "\n")
+			defaultRoutes++
+		} else {
+			otherRoutes++
+		}
+	}
+	sb.WriteString(fmt.Sprintf("... and %d other routes\n", otherRoutes))
+	return sb.String()
+}
+
+// parseFloat is a helper to strictly parse a float64 from a string.
+// Uses strconv.ParseFloat which rejects trailing characters like "200G".
+func parseFloat(s string) (float64, error) {
+	return strconv.ParseFloat(s, 64)
 }
 
 // ─── Python Output Filter ───────────────────────────────────────────────────

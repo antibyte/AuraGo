@@ -1453,3 +1453,369 @@ func TestCompressLogs_Routing(t *testing.T) {
 		}
 	}
 }
+
+// ── V6: Docker Compose Tests ──────────────────────────────────────────
+
+func TestCompressComposePs_Large(t *testing.T) {
+	var sb strings.Builder
+	sb.WriteString("NAME                IMAGE          COMMAND   SERVICE   STATUS          PORTS\n")
+	for i := 0; i < 20; i++ {
+		sb.WriteString(fmt.Sprintf("app-%d              nginx:latest   \"/bin/sh\" app-%d     Up 2 hours      0.0.0.0:808%d->80/tcp\n", i, i, i%10))
+	}
+	sb.WriteString("app-broken          redis:7        \"redis…\"  cache     Exited (1) 5m\n")
+	result := compressComposePs(sb.String())
+	if !strings.Contains(result, "Running") {
+		t.Error("should contain Running count")
+	}
+	if !strings.Contains(result, "Stopped") {
+		t.Error("should contain Stopped count")
+	}
+	if !strings.Contains(result, "app-broken") {
+		t.Error("should include stopped services")
+	}
+}
+
+func TestCompressComposeConfig_Large(t *testing.T) {
+	var sb strings.Builder
+	sb.WriteString("services:\n")
+	for i := 0; i < 30; i++ {
+		sb.WriteString(fmt.Sprintf("  service-%d:\n    image: app:%d\n    ports:\n      - \"808%d:80\"\n", i, i, i))
+	}
+	sb.WriteString("networks:\n  default:\n    driver: bridge\n")
+	sb.WriteString("volumes:\n  data:\n")
+	result := compressComposeConfig(sb.String())
+	if !strings.Contains(result, "services") {
+		t.Error("should mention services")
+	}
+	if !strings.Contains(result, "30 services") {
+		t.Error("should count services")
+	}
+}
+
+func TestCompressDockerCompose_Routing(t *testing.T) {
+	tests := []struct {
+		command string
+		want    string
+	}{
+		{"docker compose ps", "compose-ps"},
+		{"docker compose logs", "compose-logs"},
+		{"docker compose config", "compose-config"},
+		{"docker compose events", "compose-events"},
+		{"docker compose up -d", "compose-generic"},
+		{"docker-compose ps", "compose-ps"},
+		{"docker-compose logs -f", "compose-logs"},
+		{"docker_compose ps", "compose-ps"},
+	}
+	for _, tt := range tests {
+		_, filter := compressShellOutput(tt.command, strings.Repeat("line\n", 50))
+		if filter != tt.want {
+			t.Errorf("compressShellOutput(%q) filter = %q, want %q", tt.command, filter, tt.want)
+		}
+	}
+}
+
+// ── V6: Helm Tests ────────────────────────────────────────────────────
+
+func TestCompressHelmList_Large(t *testing.T) {
+	var sb strings.Builder
+	sb.WriteString("NAME            NAMESPACE       REVISION        STATUS          CHART                   APP VERSION\n")
+	for i := 0; i < 20; i++ {
+		sb.WriteString(fmt.Sprintf("app-%d           default         %d              deployed        chart-%d-1.0.%d        1.0.%d\n", i, i+1, i, i, i))
+	}
+	sb.WriteString("app-broken      default         3               failed          broken-1.0.0            1.0.0\n")
+	result := compressHelmList(sb.String())
+	if !strings.Contains(result, "Deployed") {
+		t.Error("should contain Deployed count")
+	}
+	if !strings.Contains(result, "Failed") {
+		t.Error("should contain Failed count")
+	}
+	if !strings.Contains(result, "app-broken") {
+		t.Error("should include failed releases")
+	}
+}
+
+func TestCompressHelmStatus(t *testing.T) {
+	output := `STATUS: deployed
+REVISION: 5
+CHART: nginx-ingress-4.0.1
+NAMESPACE: ingress-nginx
+LAST DEPLOYED: Mon Apr 13 12:00:00 2026
+NOTES:
+The nginx ingress controller has been installed.
+
+==> v1/Service
+NAME                          TYPE          CLUSTER-IP     EXTERNAL-IP   PORT(S)
+nginx-ingress-controller      LoadBalancer  10.0.0.1       pending       80:31234/TCP,443:31235/TCP
+READY   REASON
+`
+	result := compressHelmStatus(output)
+	if !strings.Contains(result, "STATUS:") {
+		t.Error("should contain STATUS field")
+	}
+	if !strings.Contains(result, "REVISION:") {
+		t.Error("should contain REVISION field")
+	}
+}
+
+func TestCompressHelm_Routing(t *testing.T) {
+	tests := []struct {
+		command string
+		want    string
+	}{
+		{"helm list", "helm-list"},
+		{"helm ls", "helm-list"},
+		{"helm status nginx", "helm-status"},
+		{"helm history nginx", "helm-history"},
+		{"helm get values nginx", "helm-get"},
+		{"helm repo update", "helm-repo"},
+		{"helm install nginx bitnami/nginx", "helm-generic"},
+	}
+	for _, tt := range tests {
+		_, filter := compressShellOutput(tt.command, strings.Repeat("line\n", 50))
+		if filter != tt.want {
+			t.Errorf("compressShellOutput(%q) filter = %q, want %q", tt.command, filter, tt.want)
+		}
+	}
+}
+
+// ── V6: Terraform Tests ───────────────────────────────────────────────
+
+func TestCompressTerraformPlan(t *testing.T) {
+	output := `Terraform will perform the following actions:
+
+  # aws_instance.web will be created
+  + resource "aws_instance" "web" {
+      + ami           = "ami-12345"
+      + instance_type = "t3.micro"
+    }
+
+  # aws_security_group.sg will be destroyed
+  - resource "aws_security_group" "sg" {
+      - name = "old-sg"
+    }
+
+  # aws_db_instance.db will be updated in-place
+  ~ resource "aws_db_instance" "db" {
+      ~ instance_class = "db.t3.small" -> "db.t3.medium"
+    }
+
+Plan: 1 to add, 1 to change, 1 to destroy.`
+	result := compressTerraformPlan(output)
+	if !strings.Contains(result, "Plan:") {
+		t.Error("should contain Plan summary")
+	}
+	if !strings.Contains(result, "will be created") {
+		t.Error("should contain creation notice")
+	}
+	if !strings.Contains(result, "will be destroyed") {
+		t.Error("should contain destruction notice")
+	}
+}
+
+func TestCompressTerraformApply(t *testing.T) {
+	output := `aws_instance.web: Creating...
+aws_instance.web: Still creating... [10s elapsed]
+aws_instance.web: Still creating... [20s elapsed]
+aws_instance.web: Creation complete after 30s [id=i-12345]
+
+Apply complete! Resources: 1 added, 0 changed, 0 destroyed.
+
+Outputs:
+
+  instance_ip = "10.0.0.1"
+  instance_id = "i-12345"`
+	result := compressTerraformApply(output)
+	if !strings.Contains(result, "Apply complete!") {
+		t.Error("should contain Apply complete")
+	}
+	if !strings.Contains(result, "instance_ip") {
+		t.Error("should contain outputs")
+	}
+}
+
+func TestCompressTerraformStateList(t *testing.T) {
+	var sb strings.Builder
+	for i := 0; i < 30; i++ {
+		sb.WriteString(fmt.Sprintf("aws_instance.web-%d\n", i))
+	}
+	for i := 0; i < 10; i++ {
+		sb.WriteString(fmt.Sprintf("aws_security_group.sg-%d\n", i))
+	}
+	for i := 0; i < 5; i++ {
+		sb.WriteString(fmt.Sprintf("module.networking.aws_vpc.main-%d\n", i))
+	}
+	result := compressTerraformStateList(sb.String())
+	if !strings.Contains(result, "resources") {
+		t.Error("should contain resource count")
+	}
+	if !strings.Contains(result, "aws_instance") {
+		t.Error("should group by resource type")
+	}
+}
+
+func TestCompressTerraform_Routing(t *testing.T) {
+	tests := []struct {
+		command string
+		want    string
+	}{
+		{"terraform plan", "tf-plan"},
+		{"terraform apply", "tf-apply"},
+		{"terraform show", "tf-show"},
+		{"terraform state list", "tf-state"},
+		{"terraform output", "tf-output"},
+		{"terraform init", "tf-init"},
+		{"terraform validate", "tf-generic"},
+		{"tf plan", "tf-plan"},
+		{"tf apply -auto-approve", "tf-apply"},
+	}
+	for _, tt := range tests {
+		_, filter := compressShellOutput(tt.command, strings.Repeat("line\n", 50))
+		if filter != tt.want {
+			t.Errorf("compressShellOutput(%q) filter = %q, want %q", tt.command, filter, tt.want)
+		}
+	}
+}
+
+// ── V6: SSH Diagnostic Tests ──────────────────────────────────────────
+
+func TestCompressDiskFree_HighUsage(t *testing.T) {
+	output := `Filesystem      Size  Used Avail Use% Mounted on
+/dev/sda1       100G   20G   80G  20% /
+/dev/sda2       500G  430G   70G  86% /data
+/dev/sdb1       200G   10G  190G   5% /backup
+tmpfs            16G   12G    4G  75% /dev/shm`
+	result := compressDiskFree(output)
+	if !strings.Contains(result, "86%") {
+		t.Error("should include high-usage filesystem")
+	}
+	if strings.Contains(result, "/backup") {
+		t.Error("should not include low-usage filesystem")
+	}
+}
+
+func TestCompressDiskFree_AllLow(t *testing.T) {
+	output := `Filesystem      Size  Used Avail Use% Mounted on
+/dev/sda1       100G   20G   80G  20% /
+/dev/sdb1       200G   10G  190G   5% /backup`
+	result := compressDiskFree(output)
+	if !strings.Contains(result, "below 80%") {
+		t.Error("should report all below threshold")
+	}
+}
+
+func TestCompressDiskUsage_Large(t *testing.T) {
+	var sb strings.Builder
+	for i := 0; i < 50; i++ {
+		sb.WriteString(fmt.Sprintf("%dM\t/path/dir-%d\n", 1000-i*20, i))
+	}
+	result := compressDiskUsage(sb.String())
+	if !strings.Contains(result, "more entries") {
+		t.Error("should truncate large output")
+	}
+}
+
+func TestCompressProcessList_Large(t *testing.T) {
+	var sb strings.Builder
+	sb.WriteString("PID   USER     %CPU  %MEM  COMMAND\n")
+	for i := 0; i < 50; i++ {
+		sb.WriteString(fmt.Sprintf("%d    user     %d.%d   %d.%d   process-%d\n", 1000+i, i%10, i%5, i%8, i%3, i))
+	}
+	sb.WriteString("9999  user     95.2  80.1   runaway-process\n")
+	result := compressProcessList(sb.String())
+	if !strings.Contains(result, "runaway-process") {
+		t.Error("should include high-resource process")
+	}
+	if !strings.Contains(result, "total processes") {
+		t.Error("should show total count")
+	}
+}
+
+func TestCompressNetworkConnections(t *testing.T) {
+	var sb strings.Builder
+	sb.WriteString("State      Recv-Q Send-Q  Local Address:Port  Peer Address:Port\n")
+	for i := 0; i < 5; i++ {
+		sb.WriteString(fmt.Sprintf("LISTEN     0      128     0.0.0.0:%d         0.0.0.0:*\n", 8000+i))
+	}
+	for i := 0; i < 30; i++ {
+		sb.WriteString(fmt.Sprintf("ESTAB      0      0       10.0.0.1:%d      10.0.0.2:%d\n", 40000+i, 80))
+	}
+	for i := 0; i < 10; i++ {
+		sb.WriteString(fmt.Sprintf("TIME-WAIT  0      0       10.0.0.1:%d      10.0.0.3:%d\n", 50000+i, 443))
+	}
+	result := compressNetworkConnections(sb.String())
+	if !strings.Contains(result, "LISTEN") {
+		t.Error("should contain LISTEN count")
+	}
+	if !strings.Contains(result, "ESTABLISHED") {
+		t.Error("should contain ESTABLISHED count")
+	}
+	if !strings.Contains(result, "TIME-WAIT") {
+		t.Error("should contain TIME-WAIT count")
+	}
+}
+
+func TestCompressIpAddr(t *testing.T) {
+	output := `1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 state UNKNOWN
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+    inet6 ::1/128 scope host
+2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 state UP
+    link/ether 02:42:ac:11:00:02 brd ff:ff:ff:ff:ff:ff
+    inet 172.17.0.2/16 brd 172.17.255.255 scope global eth0
+    inet6 fe80::42:acff:fe11:2/64 scope link
+3: docker0: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 state DOWN
+    link/ether 02:42:3a:5f:12:34 brd ff:ff:ff:ff:ff:ff
+    inet 172.18.0.1/16 brd 172.18.255.255 scope global docker0`
+	result := compressIpAddr(output)
+	if !strings.Contains(result, "eth0") {
+		t.Error("should contain interface name")
+	}
+	if !strings.Contains(result, "172.17.0.2") {
+		t.Error("should contain IP address")
+	}
+	if !strings.Contains(result, "docker0") {
+		t.Error("should contain all interfaces")
+	}
+}
+
+func TestCompressIpRoute(t *testing.T) {
+	output := `default via 10.0.0.1 dev eth0
+10.0.0.0/24 dev eth0 proto kernel scope link src 10.0.0.5
+172.17.0.0/16 dev docker0 proto kernel scope link src 172.17.0.1
+172.18.0.0/16 dev br-1 proto kernel scope link src 172.18.0.1
+192.168.1.0/24 dev wlan0 proto kernel scope link src 192.168.1.100`
+	result := compressIpRoute(output)
+	if !strings.Contains(result, "default") {
+		t.Error("should contain default route")
+	}
+	if !strings.Contains(result, "other routes") {
+		t.Error("should mention other routes")
+	}
+}
+
+func TestCompressSSHDiag_Routing(t *testing.T) {
+	tests := []struct {
+		command string
+		want    string
+	}{
+		{"df -h", "df"},
+		{"du -sh /*", "du"},
+		{"ps aux", "ps"},
+		{"ss -tulnp", "netstat"},
+		{"netstat -tulnp", "netstat"},
+		{"ip addr show", "ip-addr"},
+		{"ip a", "ip-addr"},
+		{"ip route show", "ip-route"},
+		{"ip r", "ip-route"},
+		{"ip link show", "ip-generic"},
+		{"free -h", "free"},
+		{"uptime", "uptime"},
+	}
+	for _, tt := range tests {
+		_, filter := compressShellOutput(tt.command, strings.Repeat("line\n", 50))
+		if filter != tt.want {
+			t.Errorf("compressShellOutput(%q) filter = %q, want %q", tt.command, filter, tt.want)
+		}
+	}
+}
