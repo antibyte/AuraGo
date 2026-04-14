@@ -207,6 +207,13 @@
             padding: 1.2rem;
         }
 
+        .dash-card-desc {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin: 0 0 0.75rem 0;
+            line-height: 1.5;
+        }
+
         .dash-full-width {
             grid-column: 1 / -1;
         }
