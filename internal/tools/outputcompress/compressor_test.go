@@ -1002,3 +1002,454 @@ func TestCompress_SubToggleMixed(t *testing.T) {
 		t.Errorf("python should fall through to generic with PythonCompression=false, got %q", pyStats.FilterUsed)
 	}
 }
+
+// ── V5: K8s Compressor Tests ──────────────────────────────────────────
+
+func TestCompressK8sLogs(t *testing.T) {
+	output := "2026-04-13T12:00:00Z [INFO] server started\n" +
+		strings.Repeat("2026-04-13T12:00:01Z [INFO] request ok\n", 60) +
+		"2026-04-13T12:01:00Z [ERROR] connection lost\n"
+	result := compressK8sLogs(output)
+	if !strings.Contains(result, "ERROR") {
+		t.Error("should preserve error lines")
+	}
+	if len(result) >= len(output) {
+		t.Errorf("expected compression for k8s logs: %d >= %d", len(result), len(output))
+	}
+}
+
+func TestCompressK8sGet_Small(t *testing.T) {
+	output := "NAME       READY   STATUS    RESTARTS   AGE\nnginx      1/1     Running   0          1h\nredis      1/1     Running   0          2h"
+	result := compressK8sGet(output)
+	// Small output (<=8 lines) should pass through
+	if !strings.Contains(result, "nginx") {
+		t.Error("small k8s get should preserve content")
+	}
+}
+
+func TestCompressK8sGet_Large(t *testing.T) {
+	var sb strings.Builder
+	sb.WriteString("NAME                       READY   STATUS      RESTARTS   AGE\n")
+	for i := 0; i < 20; i++ {
+		sb.WriteString(fmt.Sprintf("app-%d-abc   1/1     Running   0   %dh\n", i, i))
+	}
+	for i := 0; i < 5; i++ {
+		sb.WriteString(fmt.Sprintf("app-%d-def   0/1     Pending    0   %dm\n", i+20, i))
+	}
+	for i := 0; i < 3; i++ {
+		sb.WriteString(fmt.Sprintf("app-%d-ghi   0/1     CrashLoopBackOff   5   %dh\n", i+30, i))
+	}
+	result := compressK8sGet(sb.String())
+	if !strings.Contains(result, "Running") {
+		t.Error("should contain Running count")
+	}
+	if !strings.Contains(result, "Pending") {
+		t.Error("should contain Pending count")
+	}
+	if !strings.Contains(result, "Failed") {
+		t.Error("should contain Failed count for CrashLoopBackOff")
+	}
+	if !strings.Contains(result, "CrashLoopBackOff") {
+		t.Error("should include failed/pending lines for context")
+	}
+}
+
+func TestCompressK8sDescribe(t *testing.T) {
+	output := `Name:         nginx-deployment-abc123
+Namespace:    default
+Priority:     0
+Node:         node-1/10.0.0.1
+Labels:       app=nginx
+Status:       Running
+IP:           10.244.0.5
+Containers:
+	 nginx:
+	   Image:          nginx:latest
+	   Port:           80/TCP
+Conditions:
+	 Type           Status
+	 Ready          True
+	 PodScheduled   True
+Events:
+	 Type    Reason   Age   From       Message
+	 Normal  Pulled   5m    kubelet    Successfully pulled image
+	 Normal  Created  5m    kubelet    Created container
+	 Warning Failed   1m    kubelet    Error: ImagePullBackOff
+	 Warning BackOff  30s   kubelet    Back-off restarting failed container`
+	result := compressK8sDescribe(output)
+	if !strings.Contains(result, "Name:") {
+		t.Error("should contain Name field")
+	}
+	if !strings.Contains(result, "Status:") {
+		t.Error("should contain Status field")
+	}
+	if !strings.Contains(result, "Node:") {
+		t.Error("should contain Node field")
+	}
+	if !strings.Contains(result, "Warning") {
+		t.Error("should include warning events")
+	}
+	if !strings.Contains(result, "Ready") {
+		t.Error("should include Conditions")
+	}
+}
+
+func TestCompressK8s_Routing(t *testing.T) {
+	tests := []struct {
+		command string
+		want    string
+	}{
+		{"kubectl logs pod-1", "k8s-logs"},
+		{"kubectl get pods", "k8s-get"},
+		{"kubectl describe pod nginx", "k8s-describe"},
+		{"kubectl top nodes", "k8s-top"},
+		{"kubectl apply -f.yaml", "k8s-generic"},
+	}
+	for _, tt := range tests {
+		_, filter := compressShellOutput(tt.command, strings.Repeat("line\n", 50))
+		if filter != tt.want {
+			t.Errorf("compressShellOutput(%q) filter = %q, want %q", tt.command, filter, tt.want)
+		}
+	}
+}
+
+// ── V5: Systemctl Compressor Tests ────────────────────────────────────
+
+func TestCompressSystemctlStatus(t *testing.T) {
+	output := `● nginx.service - A high performance web server
+	    Loaded: loaded (/lib/systemd/system/nginx.service; enabled)
+	    Active: active (running) since Mon 2026-04-13 12:00:00 UTC; 2h ago
+	  Main PID: 1234 (nginx)
+	     Tasks: 5 (limit: 4915)
+	    Memory: 4.2M
+	       CPU: 1.234s
+	    CGroup: /system.slice/nginx.service
+	            ├─1234 "nginx: master process"
+	            └─1235 "nginx: worker process"
+
+    Apr 13 12:00:00 server nginx[1234]: start processing
+    Apr 13 12:00:01 server nginx[1234]: request handled
+    Apr 13 12:00:02 server nginx[1234]: request handled
+    Apr 13 12:30:00 server nginx[1234]: error: connection reset by peer
+    Apr 13 12:30:01 server nginx[1234]: warning: slow upstream response
+    Apr 13 13:00:00 server nginx[1234]: request handled
+    Apr 13 13:00:01 server nginx[1234]: request handled
+    Apr 13 13:00:02 server nginx[1234]: request handled
+    Apr 13 13:00:03 server nginx[1234]: request handled
+    Apr 13 13:00:04 server nginx[1234]: request handled`
+	result := compressSystemctlStatus(output)
+	if !strings.Contains(result, "Active:") {
+		t.Error("should contain Active field")
+	}
+	if !strings.Contains(result, "Main PID:") {
+		t.Error("should contain Main PID field")
+	}
+	if !strings.Contains(result, "Memory:") {
+		t.Error("should contain Memory field")
+	}
+	if !strings.Contains(result, "error") {
+		t.Error("should include error log lines")
+	}
+	if !strings.Contains(result, "warning") {
+		t.Error("should include warning log lines")
+	}
+}
+
+func TestCompressSystemctlList(t *testing.T) {
+	var sb strings.Builder
+	sb.WriteString("  UNIT                           LOAD   ACTIVE   SUB          DESCRIPTION\n")
+	for i := 0; i < 30; i++ {
+		sb.WriteString(fmt.Sprintf("  service-%d.service              loaded active   running      Service %d\n", i, i))
+	}
+	sb.WriteString("  broken.service                 loaded failed   failed       Broken Service\n")
+	result := compressSystemctlList(sb.String())
+	if !strings.Contains(result, "Running") {
+		t.Error("should contain Running count")
+	}
+	if !strings.Contains(result, "Failed") {
+		t.Error("should contain Failed count")
+	}
+	if !strings.Contains(result, "broken.service") {
+		t.Error("should include failed unit lines")
+	}
+}
+
+func TestCompressSystemctl_Routing(t *testing.T) {
+	tests := []struct {
+		command string
+		want    string
+	}{
+		{"systemctl status nginx", "systemctl-status"},
+		{"systemctl list-units", "systemctl-list"},
+		{"systemctl list-unit-files", "systemctl-list"},
+		{"systemctl restart nginx", "systemctl-generic"},
+	}
+	for _, tt := range tests {
+		_, filter := compressShellOutput(tt.command, strings.Repeat("line\n", 50))
+		if filter != tt.want {
+			t.Errorf("compressShellOutput(%q) filter = %q, want %q", tt.command, filter, tt.want)
+		}
+	}
+}
+
+// ── V5: JS/Test Compressor Tests ──────────────────────────────────────
+
+func TestCompressJsTest_WithFailures(t *testing.T) {
+	output := `PASS src/utils/helpers.test.js
+	 ✓ should add numbers (5ms)
+	 ✓ should subtract numbers (2ms)
+
+FAIL src/api/users.test.js
+	 ✕ should fetch users (15ms)
+	 ● Test suite failed to run
+	   TypeError: Cannot read properties of undefined (reading 'map')
+	     at Object.<anonymous> (src/api/users.test.js:5:32)
+
+Test Suites: 1 failed, 1 passed, 2 total
+Tests:       1 failed, 2 passed, 3 total
+Snapshots:   0 total
+Time:        2.5s`
+	result := compressJsTest(output)
+	if !strings.Contains(result, "FAIL") {
+		t.Error("should contain FAIL section")
+	}
+	if !strings.Contains(result, "failed") {
+		t.Error("should contain failure summary")
+	}
+	if !strings.Contains(result, "TypeError") {
+		t.Error("should contain error details")
+	}
+}
+
+func TestCompressJsTest_AllPass(t *testing.T) {
+	output := `PASS src/utils/helpers.test.js
+	 ✓ should add numbers (5ms)
+	 ✓ should subtract numbers (2ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       2 passed, 2 total
+Time:        1.2s`
+	result := compressJsTest(output)
+	if !strings.Contains(result, "passed") {
+		t.Error("should contain pass summary")
+	}
+}
+
+func TestCompressJsTest_Routing(t *testing.T) {
+	tests := []struct {
+		command string
+		want    string
+	}{
+		{"npm test", "npm-test"},
+		{"npm run test", "npm-test"},
+		{"npx vitest", "js-test"},
+		{"npx jest", "js-test"},
+		{"yarn test", "yarn-test"},
+		{"yarn jest", "yarn-test"},
+		{"pnpm test", "pnpm-test"},
+		{"pnpm run test", "pnpm-test"},
+	}
+	for _, tt := range tests {
+		_, filter := compressShellOutput(tt.command, strings.Repeat("line\n", 50))
+		if filter != tt.want {
+			t.Errorf("compressShellOutput(%q) filter = %q, want %q", tt.command, filter, tt.want)
+		}
+	}
+}
+
+// ── V5: Lint Compressor Tests ─────────────────────────────────────────
+
+func TestCompressLint_Small(t *testing.T) {
+	output := "src/main.go:10: syntax error"
+	result := compressLint(output)
+	// Small output (<=10 lines) should pass through
+	if !strings.Contains(result, "main.go") {
+		t.Error("small lint output should be unchanged")
+	}
+}
+
+func TestCompressLint_Large(t *testing.T) {
+	var sb strings.Builder
+	for i := 0; i < 20; i++ {
+		sb.WriteString(fmt.Sprintf("src/components/App.tsx:%d:10  E1001  Unexpected any  no-explicit-any\n", i+1))
+	}
+	for i := 0; i < 15; i++ {
+		sb.WriteString(fmt.Sprintf("src/utils/helpers.ts:%d:5  W2001  Missing return type  explicit-module-boundary-types\n", i+1))
+	}
+	sb.WriteString("\n✖ 35 problems (20 errors, 15 warnings)\n")
+	result := compressLint(sb.String())
+	if !strings.Contains(result, "issues") || !strings.Contains(result, "src/components/App.tsx") {
+		t.Error("should group by file with issue count")
+	}
+	if !strings.Contains(result, "problems") {
+		t.Error("should include summary line")
+	}
+}
+
+func TestCompressLint_Routing(t *testing.T) {
+	linters := []string{"eslint", "tsc", "ruff", "golangci-lint", "flake8", "pylint"}
+	for _, linter := range linters {
+		_, filter := compressShellOutput(linter+" --check src/", strings.Repeat("issue\n", 50))
+		if filter != "lint" {
+			t.Errorf("compressShellOutput(%q) filter = %q, want lint", linter, filter)
+		}
+	}
+}
+
+func TestExtractLintFile(t *testing.T) {
+	tests := []struct {
+		line string
+		want string
+	}{
+		{"src/main.go:10: syntax error", "src/main.go"},
+		{"./components/App.tsx:5:2  error  msg", "./components/App.tsx"},
+		{"no file reference here", ""},
+		{"3 problems found", ""},
+	}
+	for _, tt := range tests {
+		got := extractLintFile(tt.line)
+		if got != tt.want {
+			t.Errorf("extractLintFile(%q) = %q, want %q", tt.line, got, tt.want)
+		}
+	}
+}
+
+// ── V5: AWS Compressor Tests ──────────────────────────────────────────
+
+func TestCompressAwsTable_Small(t *testing.T) {
+	output := "INSTANCE_ID   TYPE       STATE\ni-12345       t3.micro   running"
+	result := compressAwsTable(output)
+	if !strings.Contains(result, "i-12345") {
+		t.Error("small AWS table should be unchanged")
+	}
+}
+
+func TestCompressAwsTable_Large(t *testing.T) {
+	var sb strings.Builder
+	sb.WriteString("INSTANCE_ID     TYPE       STATE       NAME\n")
+	for i := 0; i < 30; i++ {
+		sb.WriteString(fmt.Sprintf("i-%08d     t3.micro   running     app-%d\n", i, i))
+	}
+	sb.WriteString("i-99999999     t3.micro   stopped     legacy\n")
+	result := compressAwsTable(sb.String())
+	if !strings.Contains(result, "total rows") {
+		t.Error("should contain row summary")
+	}
+	if !strings.Contains(result, "stopped") {
+		t.Error("should include stopped/error rows")
+	}
+}
+
+func TestCompressAwsTable_JSON(t *testing.T) {
+	var sb strings.Builder
+	sb.WriteString("{\n")
+	for i := 0; i < 30; i++ {
+		sb.WriteString(fmt.Sprintf(`  "field_%d": null,`, i) + "\n")
+	}
+	sb.WriteString(`  "name": "test"` + "\n")
+	sb.WriteString("}")
+	result := compressAwsTable(sb.String())
+	// Should use JSON compaction
+	if strings.Contains(result, ": null") {
+		t.Error("should compact JSON and remove null fields")
+	}
+}
+
+func TestCompressAws_Routing(t *testing.T) {
+	tests := []struct {
+		command string
+		want    string
+	}{
+		{"aws ec2 describe-instances", "aws-ec2"},
+		{"aws s3 ls", "aws-s3"},
+		{"aws lambda list-functions", "aws-lambda"},
+		{"aws cloudformation describe-stacks", "aws-generic"},
+	}
+	for _, tt := range tests {
+		_, filter := compressShellOutput(tt.command, strings.Repeat("line\n", 50))
+		if filter != tt.want {
+			t.Errorf("compressShellOutput(%q) filter = %q, want %q", tt.command, filter, tt.want)
+		}
+	}
+}
+
+// ── V5: Ansible Compressor Tests ──────────────────────────────────────
+
+func TestCompressAnsible_Small(t *testing.T) {
+	output := "PLAY [webservers] **********************************************************\nTASK [Gathering Facts] *****************************************************\nok: [host1]\nPLAY RECAP *****************************************************************\nhost1 : ok=2  changed=0  unreachable=0  failed=0"
+	result := compressAnsible(output)
+	// Small output (<=10 lines) should pass through
+	if !strings.Contains(result, "PLAY") {
+		t.Error("small ansible output should be preserved")
+	}
+}
+
+func TestCompressAnsible_Large(t *testing.T) {
+	var sb strings.Builder
+	sb.WriteString("PLAY [webservers] **********************************************************\n")
+	sb.WriteString("TASK [Gathering Facts] *****************************************************\n")
+	for i := 0; i < 15; i++ {
+		sb.WriteString(fmt.Sprintf("ok: [host%d]\n", i))
+	}
+	sb.WriteString("TASK [Install nginx] *******************************************************\n")
+	for i := 0; i < 15; i++ {
+		sb.WriteString(fmt.Sprintf("changed: [host%d]\n", i))
+	}
+	sb.WriteString("TASK [Start nginx] *********************************************************\n")
+	sb.WriteString("fatal: [host5]: UNREACHABLE! => {\"changed\": false, \"msg\": \"Connection refused\"}\n")
+	for i := 0; i < 14; i++ {
+		if i != 5 {
+			sb.WriteString(fmt.Sprintf("changed: [host%d]\n", i))
+		}
+	}
+	sb.WriteString("PLAY RECAP *****************************************************************\n")
+	sb.WriteString("host0 : ok=3  changed=2  unreachable=0    failed=0\n")
+	sb.WriteString("host5 : ok=2  changed=1  unreachable=1    failed=1\n")
+	result := compressAnsible(sb.String())
+	if !strings.Contains(result, "PLAY") {
+		t.Error("should contain PLAY headers")
+	}
+	if !strings.Contains(result, "fatal") {
+		t.Error("should contain fatal/error lines")
+	}
+	if !strings.Contains(result, "PLAY RECAP") {
+		t.Error("should contain PLAY RECAP section")
+	}
+	if !strings.Contains(result, "Summary") {
+		t.Error("should contain summary counts")
+	}
+}
+
+func TestCompressAnsible_Routing(t *testing.T) {
+	tests := []struct {
+		command string
+		want    string
+	}{
+		{"ansible all -m ping", "ansible"},
+		{"ansible-playbook site.yml", "ansible"},
+	}
+	for _, tt := range tests {
+		_, filter := compressShellOutput(tt.command, strings.Repeat("line\n", 50))
+		if filter != tt.want {
+			t.Errorf("compressShellOutput(%q) filter = %q, want %q", tt.command, filter, tt.want)
+		}
+	}
+}
+
+// ── V5: Journalctl/Logs Routing Tests ─────────────────────────────────
+
+func TestCompressLogs_Routing(t *testing.T) {
+	tests := []struct {
+		command string
+		want    string
+	}{
+		{"journalctl -u nginx", "logs"},
+		{"logcli query '{app=\"nginx\"}'", "logs"},
+	}
+	for _, tt := range tests {
+		_, filter := compressShellOutput(tt.command, strings.Repeat("line\n", 50))
+		if filter != tt.want {
+			t.Errorf("compressShellOutput(%q) filter = %q, want %q", tt.command, filter, tt.want)
+		}
+	}
+}

@@ -35,9 +35,15 @@ func compressShellOutput(command, output string) (string, string) {
 	case bin == "cargo" && sub == "test":
 		return compressCargoTest(output), "cargo-test"
 	case bin == "npm" && (sub == "test" || sub == "run"):
-		return compressGeneric(output), "npm-test"
+		return compressJsTest(output), "npm-test"
 	case bin == "npx" && (sub == "vitest" || sub == "jest"):
-		return compressGeneric(output), "js-test"
+		return compressJsTest(output), "js-test"
+	case bin == "yarn" && (sub == "test" || sub == "jest"):
+		return compressJsTest(output), "yarn-test"
+	case bin == "pnpm" && (sub == "test" || sub == "run"):
+		return compressJsTest(output), "pnpm-test"
+	case bin == "eslint" || bin == "tsc" || bin == "ruff" || bin == "golangci-lint" || bin == "flake8" || bin == "pylint":
+		return compressLint(output), "lint"
 	case bin == "ls" || bin == "dir" || bin == "tree":
 		return compressLsTree(output), "ls-tree"
 	case bin == "find":
@@ -46,8 +52,14 @@ func compressShellOutput(command, output string) (string, string) {
 		return compressGrep(output), "grep"
 	case bin == "curl" || bin == "wget":
 		return compressGeneric(output), "curl"
+	case bin == "systemctl":
+		return compressSystemctl(sub, output)
 	case bin == "journalctl" || bin == "logcli" || strings.HasSuffix(bin, "log"):
 		return compressLogs(output), "logs"
+	case bin == "aws":
+		return compressAws(sub, output)
+	case bin == "ansible" || bin == "ansible-playbook":
+		return compressAnsible(output), "ansible"
 	default:
 		return compressGeneric(output), "generic"
 	}
@@ -436,12 +448,134 @@ func compressDockerLogs(output string) string {
 func compressK8s(sub, output string) (string, string) {
 	switch sub {
 	case "logs":
-		return compressDockerLogs(output), "k8s-logs" // same log compression
+		return compressK8sLogs(output), "k8s-logs"
 	case "get":
-		return compressGeneric(output), "k8s-get"
+		return compressK8sGet(output), "k8s-get"
+	case "describe":
+		return compressK8sDescribe(output), "k8s-describe"
+	case "top":
+		return compressGeneric(output), "k8s-top"
 	default:
 		return compressGeneric(output), "k8s-generic"
 	}
+}
+
+// compressK8sLogs applies log-specific compression with level grouping.
+func compressK8sLogs(output string) string {
+	result := StripANSI(output)
+	result = CollapseWhitespace(result)
+	result = stripTimestamps(result)
+	result = DeduplicateLines(result)
+
+	lines := strings.Split(result, "\n")
+	if len(lines) > 100 {
+		result = TailFocus(result, 10, 50, 5)
+	}
+	return result
+}
+
+// compressK8sGet summarises kubectl get output into status groups.
+func compressK8sGet(output string) string {
+	result := StripANSI(output)
+	result = CollapseWhitespace(result)
+	lines := strings.Split(result, "\n")
+	if len(lines) <= 8 {
+		return result
+	}
+
+	running, pending, failed, other := 0, 0, 0, 0
+	for _, line := range lines[1:] { // skip header
+		lower := strings.ToLower(line)
+		switch {
+		case strings.Contains(lower, "running"):
+			running++
+		case strings.Contains(lower, "pending") || strings.Contains(lower, "containercreating"):
+			pending++
+		case strings.Contains(lower, "error") || strings.Contains(lower, "crashloop") || strings.Contains(lower, "failed"):
+			failed++
+		default:
+			other++
+		}
+	}
+
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("Status Summary: %d Running, %d Pending, %d Failed, %d Other\n", running, pending, failed, other))
+
+	// Include failed/pending lines for context
+	for _, line := range lines[1:] {
+		lower := strings.ToLower(line)
+		if strings.Contains(lower, "error") || strings.Contains(lower, "crashloop") ||
+			strings.Contains(lower, "failed") || strings.Contains(lower, "pending") ||
+			strings.Contains(lower, "containercreating") {
+			sb.WriteString(line + "\n")
+		}
+	}
+	return sb.String()
+}
+
+// compressK8sDescribe extracts key information from kubectl describe output.
+func compressK8sDescribe(output string) string {
+	result := StripANSI(output)
+	result = CollapseWhitespace(result)
+	lines := strings.Split(result, "\n")
+
+	var sb strings.Builder
+	inEvents := false
+	inConditions := false
+	eventCount := 0
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		// Always include Name, Status, and key labels
+		if strings.HasPrefix(trimmed, "Name:") ||
+			strings.HasPrefix(trimmed, "Status:") ||
+			strings.HasPrefix(trimmed, "Node:") ||
+			strings.HasPrefix(trimmed, "Labels:") {
+			sb.WriteString(line + "\n")
+			continue
+		}
+
+		// Track Events section
+		if strings.HasPrefix(trimmed, "Events:") {
+			inEvents = true
+			inConditions = false
+			sb.WriteString(line + "\n")
+			continue
+		}
+		if strings.HasPrefix(trimmed, "Conditions:") {
+			inConditions = true
+			inEvents = false
+			sb.WriteString(line + "\n")
+			continue
+		}
+
+		// In Conditions section, include all lines
+		if inConditions && (strings.HasPrefix(trimmed, "Type") || strings.HasPrefix(trimmed, "Ready") ||
+			strings.HasPrefix(trimmed, "  ")) {
+			sb.WriteString(line + "\n")
+			continue
+		}
+
+		// In Events section, include warnings and last few events
+		if inEvents {
+			if strings.Contains(strings.ToLower(trimmed), "warning") || strings.Contains(strings.ToLower(trimmed), "error") {
+				sb.WriteString(line + "\n")
+			}
+			eventCount++
+		}
+	}
+
+	if eventCount > 10 && sb.Len() > 0 {
+		// Add summary if too many events
+		sb.WriteString(fmt.Sprintf("... and %d more events\n", eventCount-10))
+	}
+
+	compressed := sb.String()
+	if len(compressed) < 50 {
+		return result // too little extracted, return original
+	}
+	return compressed
 }
 
 // ─── Test Runner Filters ────────────────────────────────────────────────────
@@ -730,7 +864,385 @@ func compressLogs(output string) string {
 
 // ─── Python Output Filter ───────────────────────────────────────────────────
 
-// compressPythonOutput filters Python-specific noise.
+// ─── Systemctl Filter ───────────────────────────────────────────────────────
+
+// compressSystemctl handles systemctl status and related subcommands.
+func compressSystemctl(sub, output string) (string, string) {
+	switch sub {
+	case "status":
+		return compressSystemctlStatus(output), "systemctl-status"
+	case "list-units", "list-unit-files":
+		return compressSystemctlList(output), "systemctl-list"
+	case "journalctl":
+		return compressLogs(output), "journalctl"
+	default:
+		return compressGeneric(output), "systemctl-generic"
+	}
+}
+
+// compressSystemctlStatus extracts key fields from systemctl status output.
+func compressSystemctlStatus(output string) string {
+	result := StripANSI(output)
+	lines := strings.Split(result, "\n")
+
+	var sb strings.Builder
+	inLogs := false
+	logLines := 0
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		// Key fields to always include
+		if strings.HasPrefix(trimmed, "●") || strings.HasPrefix(trimmed, "Active:") ||
+			strings.HasPrefix(trimmed, "Main PID:") || strings.HasPrefix(trimmed, "Tasks:") ||
+			strings.HasPrefix(trimmed, "Memory:") || strings.HasPrefix(trimmed, "CPU:") ||
+			strings.HasPrefix(trimmed, "Loaded:") {
+			sb.WriteString(line + "\n")
+			continue
+		}
+
+		// Detect log section (indented lines after Process/Status)
+		if strings.HasPrefix(line, "    ") && trimmed != "" {
+			inLogs = true
+		} else if !strings.HasPrefix(line, " ") && trimmed != "" {
+			inLogs = false
+		}
+
+		if inLogs {
+			// Include error/warning lines from logs
+			lower := strings.ToLower(trimmed)
+			if strings.Contains(lower, "error") || strings.Contains(lower, "fail") ||
+				strings.Contains(lower, "warn") || strings.Contains(lower, "fatal") {
+				sb.WriteString(line + "\n")
+			}
+			logLines++
+		}
+	}
+
+	if logLines > 20 {
+		sb.WriteString(fmt.Sprintf("... and %d more log lines\n", logLines-20))
+	}
+
+	compressed := sb.String()
+	if len(compressed) < 50 {
+		return result
+	}
+	return compressed
+}
+
+// compressSystemctlList summarises systemctl list-units output.
+func compressSystemctlList(output string) string {
+	result := StripANSI(output)
+	lines := strings.Split(result, "\n")
+	if len(lines) <= 10 {
+		return result
+	}
+
+	running, failed, exited, other := 0, 0, 0, 0
+	for _, line := range lines[1:] {
+		lower := strings.ToLower(line)
+		switch {
+		case strings.Contains(lower, "running"):
+			running++
+		case strings.Contains(lower, "failed"):
+			failed++
+		case strings.Contains(lower, "exited"):
+			exited++
+		default:
+			other++
+		}
+	}
+
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("Summary: %d Running, %d Failed, %d Exited, %d Other\n", running, failed, exited, other))
+
+	// Include failed units
+	for _, line := range lines[1:] {
+		if strings.Contains(strings.ToLower(line), "failed") {
+			sb.WriteString(line + "\n")
+		}
+	}
+	return sb.String()
+}
+
+// ─── JS/Test Filter ─────────────────────────────────────────────────────────
+
+// compressJsTest extracts failures and summary from JS test runner output.
+func compressJsTest(output string) string {
+	result := StripANSI(output)
+	result = CollapseWhitespace(result)
+	lines := strings.Split(result, "\n")
+
+	var sb strings.Builder
+	failMode := false
+	testCount := 0
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		lower := strings.ToLower(trimmed)
+
+		// Detect FAIL sections
+		if strings.Contains(lower, "fail") && (strings.Contains(lower, "test") ||
+			strings.Contains(lower, "suite") || strings.Contains(lower, "●") ||
+			strings.Contains(lower, "✕") || strings.Contains(lower, "×")) {
+			failMode = true
+			sb.WriteString(line + "\n")
+			continue
+		}
+
+		// Continue FAIL context
+		if failMode {
+			if trimmed == "" || strings.HasPrefix(trimmed, "PASS") ||
+				strings.HasPrefix(lower, "test suite") || strings.Contains(lower, "test files") {
+				failMode = false
+			} else {
+				sb.WriteString(line + "\n")
+				continue
+			}
+		}
+
+		// Summary lines
+		if strings.Contains(lower, "test") && (strings.Contains(lower, "passed") ||
+			strings.Contains(lower, "failed") || strings.Contains(lower, "total") ||
+			strings.Contains(lower, "skipped") || strings.Contains(lower, "suites")) {
+			sb.WriteString(line + "\n")
+		}
+
+		// Error/stack traces
+		if strings.Contains(lower, "error") || strings.Contains(lower, "expected") ||
+			strings.Contains(lower, "assert") || strings.Contains(lower, "thrown") {
+			sb.WriteString(line + "\n")
+		}
+
+		testCount++
+	}
+
+	compressed := sb.String()
+	if len(compressed) < 50 {
+		return result
+	}
+	return compressed
+}
+
+// ─── Lint Filter ────────────────────────────────────────────────────────────
+
+// compressLint groups lint output by file/rule and extracts key findings.
+func compressLint(output string) string {
+	result := StripANSI(output)
+	result = CollapseWhitespace(result)
+	lines := strings.Split(result, "\n")
+	if len(lines) <= 10 {
+		return result
+	}
+
+	// Group by file
+	fileGroups := make(map[string][]string)
+	var order []string
+	var summary []string
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			continue
+		}
+
+		// Summary lines
+		lower := strings.ToLower(trimmed)
+		if strings.Contains(lower, "problem") || strings.Contains(lower, "error") ||
+			strings.Contains(lower, "warning") || strings.Contains(lower, "issue") ||
+			strings.Contains(lower, "found") || strings.Contains(lower, "total") {
+			summary = append(summary, trimmed)
+			continue
+		}
+
+		// Try to extract file path
+		file := extractLintFile(line)
+		if file != "" {
+			if _, exists := fileGroups[file]; !exists {
+				order = append(order, file)
+			}
+			fileGroups[file] = append(fileGroups[file], trimmed)
+		}
+	}
+
+	var sb strings.Builder
+
+	// Summary first
+	for _, s := range summary {
+		sb.WriteString(s + "\n")
+	}
+
+	if len(summary) > 0 && len(fileGroups) > 0 {
+		sb.WriteString("\n")
+	}
+
+	// Per-file: count + first 3 issues
+	for _, file := range order {
+		issues := fileGroups[file]
+		sb.WriteString(fmt.Sprintf("%s (%d issues)\n", file, len(issues)))
+		limit := 3
+		if len(issues) < limit {
+			limit = len(issues)
+		}
+		for i := 0; i < limit; i++ {
+			sb.WriteString("  " + issues[i] + "\n")
+		}
+		if len(issues) > 3 {
+			sb.WriteString(fmt.Sprintf("  ... and %d more\n", len(issues)-3))
+		}
+	}
+
+	compressed := sb.String()
+	if len(compressed) < 50 {
+		return result
+	}
+	return compressed
+}
+
+// extractLintFile tries to extract a file path from a lint output line.
+func extractLintFile(line string) string {
+	// Common patterns: "path/to/file.js:line:col" or "path/to/file.py:42"
+	for _, sep := range []string{":", " "} {
+		parts := strings.SplitN(line, sep, 2)
+		if len(parts) > 0 {
+			candidate := parts[0]
+			// Check if it looks like a file path
+			if strings.Contains(candidate, "/") || strings.Contains(candidate, "\\") ||
+				strings.Contains(candidate, ".") {
+				// Strip leading whitespace and common prefixes
+				candidate = strings.TrimSpace(candidate)
+				for _, prefix := range []string{"./", ".\\"} {
+					if strings.HasPrefix(candidate, prefix) {
+						return candidate
+					}
+				}
+				if strings.Contains(candidate, ".") && len(candidate) > 3 {
+					return candidate
+				}
+			}
+		}
+	}
+	return ""
+}
+
+// ─── AWS Filter ─────────────────────────────────────────────────────────────
+
+// compressAws handles AWS CLI output by subcommand.
+func compressAws(sub, output string) (string, string) {
+	switch sub {
+	case "ec2":
+		return compressAwsTable(output), "aws-ec2"
+	case "s3":
+		return compressAwsTable(output), "aws-s3"
+	case "lambda":
+		return compressAwsTable(output), "aws-lambda"
+	default:
+		return compressAwsTable(output), "aws-generic"
+	}
+}
+
+// compressAwsTable summarises AWS CLI table/JSON output.
+func compressAwsTable(output string) string {
+	result := StripANSI(output)
+	result = CollapseWhitespace(result)
+
+	// Try JSON compaction first
+	if strings.HasPrefix(strings.TrimSpace(result), "{") || strings.HasPrefix(strings.TrimSpace(result), "[") {
+		compacted, _ := compressAPIOutput(result)
+		return compacted
+	}
+
+	lines := strings.Split(result, "\n")
+	if len(lines) <= 8 {
+		return result
+	}
+
+	// For table output, keep header + count summary + error lines
+	var sb strings.Builder
+	if len(lines) > 0 {
+		sb.WriteString(lines[0] + "\n") // header
+	}
+
+	errorCount := 0
+	for _, line := range lines[1:] {
+		lower := strings.ToLower(line)
+		if strings.Contains(lower, "error") || strings.Contains(lower, "fail") ||
+			strings.Contains(lower, "terminated") || strings.Contains(lower, "stopped") {
+			sb.WriteString(line + "\n")
+			errorCount++
+		}
+	}
+
+	sb.WriteString(fmt.Sprintf("... %d total rows, %d with issues\n", len(lines)-1, errorCount))
+	return sb.String()
+}
+
+// ─── Ansible Filter ─────────────────────────────────────────────────────────
+
+// compressAnsible extracts task results and failures from Ansible output.
+func compressAnsible(output string) string {
+	result := StripANSI(output)
+	result = CollapseWhitespace(result)
+	lines := strings.Split(result, "\n")
+	if len(lines) <= 10 {
+		return result
+	}
+
+	var sb strings.Builder
+	changed, ok, failed, unreachable, skipped := 0, 0, 0, 0, 0
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		lower := strings.ToLower(trimmed)
+
+		// PLAY/PLAYBOOK headers
+		if strings.HasPrefix(trimmed, "PLAY") || strings.HasPrefix(trimmed, "PLAYBOOK") ||
+			strings.HasPrefix(trimmed, "TASK") {
+			sb.WriteString(line + "\n")
+			continue
+		}
+
+		// Failed/error/unreachable tasks
+		if strings.Contains(lower, "fatal") || strings.Contains(lower, "failed") ||
+			strings.Contains(lower, "unreachable") || strings.Contains(lower, "error") {
+			sb.WriteString(line + "\n")
+			continue
+		}
+
+		// Changed notifications
+		if strings.Contains(lower, "changed") {
+			changed++
+		}
+		if strings.Contains(lower, "ok") && !strings.Contains(lower, "ok=") {
+			ok++
+		}
+		if strings.Contains(lower, "failed") && !strings.Contains(lower, "failed=") {
+			failed++
+		}
+		if strings.Contains(lower, "unreachable") {
+			unreachable++
+		}
+		if strings.Contains(lower, "skipped") {
+			skipped++
+		}
+
+		// PLAY RECAP section
+		if strings.Contains(trimmed, "ok=") || strings.Contains(trimmed, "PLAY RECAP") {
+			sb.WriteString(line + "\n")
+		}
+	}
+
+	sb.WriteString(fmt.Sprintf("\nSummary: %d ok, %d changed, %d failed, %d unreachable, %d skipped\n",
+		ok, changed, failed, unreachable, skipped))
+
+	compressed := sb.String()
+	if len(compressed) < 50 {
+		return result
+	}
+	return compressed
+}
+
+// ─── Python Output Filter ───────────────────────────────────────────────────
 func compressPythonOutput(output string) (string, string) {
 	result := StripANSI(output)
 	result = CollapseWhitespace(result)
