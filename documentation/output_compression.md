@@ -55,12 +55,45 @@ agent:
 | `git diff` | Summary + hunks | Shows file-level summary + first 3 hunks |
 | `docker ps` | Hash stripping | Strips container ID hashes, keeps names and status |
 | `docker logs` | Timestamp + dedup | Strips timestamps, deduplicates, keeps tail |
+| `docker compose` | Per-subcommand | `ps` (hash strip), `config` (collapse), `events` (dedup) |
 | `go test` | Failure extraction | Extracts failing tests + summary line |
 | `pytest` | Failure extraction | Extracts failing tests + short summary |
 | `cargo test` | Failure extraction | Extracts failing tests + summary |
-| `grep` | Directory grouping | Groups matches by directory with counts |
+| `npm`/`yarn`/`pnpm` test | Failure extraction | Extracts failing tests + summary |
+| `eslint`/`tsc`/`ruff`/`golangci-lint` | Lint summary | Groups by severity, shows first N issues per group |
+| `grep`/`rg`/`ag` | Directory grouping | Groups matches by directory with counts |
 | `find` | Directory grouping | Groups results by directory |
-| `ls`/`tree` | Directory grouping | Groups entries by directory |
+| `ls`/`tree`/`dir` | Directory grouping | Groups entries by directory |
+| `curl`/`wget` | Content-aware | JSON compact, HTML strip tags, verbose header dedup |
+| `systemctl` | Status/list | `status` (key-value extract), `list-units` (tabular) |
+| `kubectl`/`k3s`/`k9s` | K8s-aware | `get` (tabular), `describe` (section dedup), `logs` (dedup+tail) |
+| `helm` | Per-subcommand | `list` (tabular), `status` (key-value), `history` (tabular) |
+| `terraform`/`tf` | Plan/apply/show | Plan summary, apply result, state list grouping |
+| `df` | Disk summary | Tabular with usage bars |
+| `du` | Directory grouping | Groups by directory with sizes |
+| `ps` | Process table | Strips header, keeps key columns |
+| `ss`/`netstat` | Connection table | Strips header, groups by state |
+| `ping`/`ping6` | Ping summary | Shows first/last + statistics |
+| `dig` | DNS summary | Shows answer section + query time |
+| `nslookup`/`host` | DNS summary | Shows answer section |
+| `cat`/`less`/`more` | Log-aware | Log content: dedup+tail; non-log: tail-focus |
+| `tail`/`head` | Log-aware | Log content: dedup+tail; non-log: tail-focus |
+| `stat` | Multi-file grouping | Groups by file, shows key fields |
+| `tar`/`zip`/`unzip` | Archive listing | Groups by directory, truncates long listings |
+| `rsync` | Transfer summary | Shows stats, groups transferred files by dir |
+| **Text pipelines** | | |
+| `sort` | Text pipeline | Dedup consecutive lines, tail-focus for large output |
+| `uniq` | Text pipeline | Collapse whitespace, tail-focus for large output |
+| `cut` | Text pipeline | Collapse whitespace, tail-focus for columnar data |
+| `sed` | Text pipeline | Dedup + tail-focus for large transformed output |
+| `awk`/`gawk`/`mawk` | Text pipeline | Dedup + tail-focus for large output |
+| `xargs` | Text pipeline | Dedup + tail-focus for large output |
+| `jq` | JSON minify | Minifies JSON via `json.Compact`, then dedup + tail-focus |
+| `tr` | Text pipeline | Collapse whitespace, dedup |
+| `column` | Text pipeline | Collapse whitespace, tail-focus |
+| `diff` | Diff summary | Reuses git-diff compression logic |
+| `comm` | Text pipeline | Collapse whitespace, dedup |
+| `paste` | Text pipeline | Collapse whitespace, dedup |
 
 ### Python Filters (`python_compression`)
 
@@ -71,10 +104,29 @@ agent:
 
 ### API Filters (`api_compression`)
 
-| Filter | What it does |
-|--------|-------------|
-| JSON compaction | Removes `null`, `""`, `[]`, `{}` fields from multi-line JSON |
-| Generic pipeline | ANSI strip → whitespace collapse → dedup → tail focus |
+| Tool | Filter | What it does |
+|------|--------|-------------|
+| Home Assistant | State list | Groups by domain, shows entity count per domain |
+| Home Assistant | Service list | Groups by domain, shows service count per domain |
+| GitHub | Repos/issues/PRs/commits | Tabular with key fields, truncates long lists |
+| SQL query | Result table | Shows column headers + rows, truncates large results |
+| `filesystem` | list_dir | Groups dirs first, shows file sizes, truncates at 50 entries |
+| `filesystem` | read_file | Preserves content, compacts wrapper metadata |
+| `filesystem` | batch | Summarizes succeeded items, details failed items |
+| `file_reader_advanced` | content | Preserves content, compacts line range wrapper |
+| `file_reader_advanced` | search_context | Shows match count, truncated line ranges, limit 15 matches |
+| `file_reader_advanced` | count_lines | Compacts to single line count |
+| `smart_file_read` | analyze | Compacts to essential metadata (path, size, mime, recommendation) |
+| `smart_file_read` | structure | Shows format, root type, top-level keys |
+| `smart_file_read` | sample/summarize | Preserves content, compacts wrapper |
+| `list_processes` | PID list | Compacts to count + comma-separated PIDs |
+| `read_process_logs` | Log body | Dedup + tail-focus on log content, shows PID header |
+| `manage_daemon` | Daemon list | Compact per-daemon status line (skill, status, uptime) |
+| `manage_daemon` | Daemon status | Single daemon compact format |
+| `manage_plan` | Plan list | Per-plan summary with status bracket, title, task progress |
+| `manage_plan` | Plan get | Tasks with status markers, priority, timestamps |
+| Generic API | JSON compaction | Removes `null`, `""`, `[]`, `{}` fields from multi-line JSON |
+| Generic API | Generic pipeline | ANSI strip → whitespace collapse → dedup → tail focus |
 
 ### Generic Fallback
 

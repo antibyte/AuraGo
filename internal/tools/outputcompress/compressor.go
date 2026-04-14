@@ -189,6 +189,69 @@ func isAgentStatusTool(name string) bool {
 	return name == "manage_daemon" || name == "manage_plan"
 }
 
+// compressAPIOutput applies JSON compaction for API tool outputs.
+// For Home Assistant, GitHub, SQL, filesystem, file_reader_advanced, and
+// smart_file_read tools, it routes to domain-specific compressors.
+func compressAPIOutput(toolName, output string) (string, string) {
+	// Home Assistant has dedicated compressors
+	if isHATool(toolName) {
+		return compressHAOutput(output)
+	}
+
+	// GitHub has dedicated compressors
+	if isGitHubTool(toolName) {
+		return compressGitHubOutput(output)
+	}
+
+	// SQL query has dedicated compressors
+	if isSQLTool(toolName) {
+		return compressSQLOutput(output)
+	}
+
+	// Filesystem tool has dedicated compressor
+	if isFilesystemTool(toolName) {
+		return compressFilesystemOutput(output)
+	}
+
+	// file_reader_advanced has dedicated compressor
+	if isFileReaderTool(toolName) {
+		return compressFileReaderOutput(output)
+	}
+
+	// smart_file_read has dedicated compressor
+	if isSmartFileTool(toolName) {
+		return compressSmartFileOutput(output)
+	}
+
+	// Process tools have dedicated compressor
+	if isProcessTool(toolName) {
+		return compressProcessOutput(toolName, output)
+	}
+
+	// Agent status tools have dedicated compressor
+	if isAgentStatusTool(toolName) {
+		return compressAgentStatusOutput(toolName, output)
+	}
+
+	result := StripANSI(output)
+	result = CollapseWhitespace(result)
+
+	// Try JSON compaction
+	if strings.HasPrefix(strings.TrimSpace(result), "{") ||
+		strings.HasPrefix(strings.TrimSpace(result), "[") {
+		result = compactJSON(result)
+	}
+
+	result = DeduplicateLines(result)
+
+	lines := strings.Split(result, "\n")
+	if len(lines) > 100 {
+		result = TailFocus(result, 20, 50, 5)
+	}
+
+	return result, "api"
+}
+
 // isErrorOutput detects common error markers in tool output.
 func isErrorOutput(output string) bool {
 	// Check for error markers that should never be compressed away
