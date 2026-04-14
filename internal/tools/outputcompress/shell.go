@@ -2654,7 +2654,8 @@ func filterPythonTraceback(output string) string {
 // ─── API Output Filter ──────────────────────────────────────────────────────
 
 // compressAPIOutput applies JSON compaction for API tool outputs.
-// For Home Assistant, GitHub, and SQL tools, it routes to domain-specific compressors.
+// For Home Assistant, GitHub, SQL, filesystem, file_reader_advanced, and
+// smart_file_read tools, it routes to domain-specific compressors.
 func compressAPIOutput(toolName, output string) (string, string) {
 	// Home Assistant has dedicated compressors
 	if isHATool(toolName) {
@@ -2669,6 +2670,21 @@ func compressAPIOutput(toolName, output string) (string, string) {
 	// SQL query has dedicated compressors
 	if isSQLTool(toolName) {
 		return compressSQLOutput(output)
+	}
+
+	// Filesystem tool has dedicated compressor
+	if isFilesystemTool(toolName) {
+		return compressFilesystemOutput(output)
+	}
+
+	// file_reader_advanced has dedicated compressor
+	if isFileReaderTool(toolName) {
+		return compressFileReaderOutput(output)
+	}
+
+	// smart_file_read has dedicated compressor
+	if isSmartFileTool(toolName) {
+		return compressSmartFileOutput(output)
 	}
 
 	result := StripANSI(output)

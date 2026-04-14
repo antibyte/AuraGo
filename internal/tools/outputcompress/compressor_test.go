@@ -591,13 +591,15 @@ func TestIsPythonTool(t *testing.T) {
 }
 
 func TestIsAPITool(t *testing.T) {
-	apiTools := []string{"docker", "docker_compose", "proxmox", "homeassistant", "kubernetes", "api_request"}
+	apiTools := []string{"docker", "docker_compose", "proxmox", "homeassistant", "home_assistant",
+		"kubernetes", "api_request", "github", "sql_query",
+		"filesystem", "filesystem_op", "file_reader_advanced", "smart_file_read"}
 	for _, tool := range apiTools {
 		if !isAPITool(tool) {
 			t.Errorf("%q should be an API tool", tool)
 		}
 	}
-	nonAPITools := []string{"execute_shell", "filesystem", "execute_python"}
+	nonAPITools := []string{"execute_shell", "execute_python", "execute_sudo"}
 	for _, tool := range nonAPITools {
 		if isAPITool(tool) {
 			t.Errorf("%q should not be an API tool", tool)
@@ -3147,5 +3149,445 @@ func TestCompressSQL_QueryResult_LargeValues(t *testing.T) {
 	}
 	if !strings.Contains(result, "...") {
 		t.Error("expected truncation indicator")
+	}
+}
+
+// ─── V10A Tests: Filesystem / File Reader / Smart File ──────────────────────
+
+func TestCompress_APIRouting_FileTools(t *testing.T) {
+	// Verify file tool families are recognized
+	if !isAPITool("filesystem") {
+		t.Error("expected 'filesystem' to be an API tool")
+	}
+	if !isAPITool("filesystem_op") {
+		t.Error("expected 'filesystem_op' to be an API tool")
+	}
+	if !isAPITool("file_reader_advanced") {
+		t.Error("expected 'file_reader_advanced' to be an API tool")
+	}
+	if !isAPITool("smart_file_read") {
+		t.Error("expected 'smart_file_read' to be an API tool")
+	}
+	if !isFilesystemTool("filesystem") {
+		t.Error("expected isFilesystemTool('filesystem') = true")
+	}
+	if !isFileReaderTool("file_reader_advanced") {
+		t.Error("expected isFileReaderTool('file_reader_advanced') = true")
+	}
+	if !isSmartFileTool("smart_file_read") {
+		t.Error("expected isSmartFileTool('smart_file_read') = true")
+	}
+}
+
+func TestCompressFS_ListDir_Large(t *testing.T) {
+	type entry struct {
+		Name    string `json:"name"`
+		IsDir   bool   `json:"is_dir"`
+		Size    int64  `json:"size"`
+		ModTime string `json:"modified"`
+	}
+
+	entries := make([]entry, 200)
+	for i := 0; i < 200; i++ {
+		isDir := i < 20
+		name := fmt.Sprintf("file_%04d.txt", i)
+		if isDir {
+			name = fmt.Sprintf("dir_%04d", i)
+		}
+		entries[i] = entry{
+			Name:    name,
+			IsDir:   isDir,
+			Size:    int64(i * 1024),
+			ModTime: "2024-01-15T10:30:00Z",
+		}
+	}
+
+	data, _ := json.Marshal(map[string]interface{}{
+		"status":  "success",
+		"message": "Listed 200 entries (of 200 total)",
+		"data": map[string]interface{}{
+			"entries":     entries,
+			"total_count": 200,
+			"truncated":   false,
+			"limit":       500,
+			"offset":      0,
+		},
+	})
+
+	result, filter := compressAPIOutput("filesystem", string(data))
+
+	if filter != "fs-list-dir" {
+		t.Errorf("expected filter fs-list-dir, got %s", filter)
+	}
+	if !strings.Contains(result, "200 entries") {
+		t.Error("expected entry count")
+	}
+	if !strings.Contains(result, "20 dirs") {
+		t.Error("expected dir count")
+	}
+	if !strings.Contains(result, "180 files") {
+		t.Error("expected file count")
+	}
+	if !strings.Contains(result, "+ 150 more") {
+		t.Error("expected truncation")
+	}
+}
+
+func TestCompressFS_ListDir_Paginated(t *testing.T) {
+	type entry struct {
+		Name  string `json:"name"`
+		IsDir bool   `json:"is_dir"`
+		Size  int64  `json:"size"`
+	}
+
+	entries := make([]entry, 10)
+	for i := 0; i < 10; i++ {
+		entries[i] = entry{Name: fmt.Sprintf("file_%d.txt", i), IsDir: false, Size: 1024}
+	}
+
+	data, _ := json.Marshal(map[string]interface{}{
+		"status":  "success",
+		"message": "Listed 10 entries (of 1500 total) — use next_offset for more",
+		"data": map[string]interface{}{
+			"entries":     entries,
+			"total_count": 1500,
+			"truncated":   true,
+			"limit":       10,
+			"offset":      0,
+			"next_offset": 10,
+		},
+	})
+
+	result, filter := compressAPIOutput("filesystem", string(data))
+
+	if filter != "fs-list-dir" {
+		t.Errorf("expected filter fs-list-dir, got %s", filter)
+	}
+	if !strings.Contains(result, "1500 entries") {
+		t.Error("expected total count")
+	}
+	if !strings.Contains(result, "paginated") {
+		t.Error("expected pagination indicator")
+	}
+}
+
+func TestCompressFS_ReadFile_PreservesContent(t *testing.T) {
+	content := "package main\n\nfunc main() {\n\tprintln(\"hello\")\n}\n"
+	data, _ := json.Marshal(map[string]interface{}{
+		"status":  "success",
+		"message": "Read 52 bytes",
+		"data":    content,
+	})
+
+	result, filter := compressAPIOutput("filesystem", string(data))
+
+	if filter != "fs-read-file" {
+		t.Errorf("expected filter fs-read-file, got %s", filter)
+	}
+	// Content must be preserved exactly
+	if !strings.Contains(result, content) {
+		t.Error("expected file content preserved")
+	}
+	if !strings.Contains(result, "Read 52 bytes") {
+		t.Error("expected message preserved")
+	}
+}
+
+func TestCompressFS_Batch_Partial(t *testing.T) {
+	items := make([]map[string]interface{}, 10)
+	for i := 0; i < 10; i++ {
+		status := "success"
+		msg := "OK"
+		if i == 3 || i == 7 {
+			status = "error"
+			msg = "Permission denied"
+		}
+		items[i] = map[string]interface{}{
+			"index":     i,
+			"file_path": fmt.Sprintf("/tmp/file_%d.txt", i),
+			"status":    status,
+			"message":   msg,
+		}
+	}
+
+	data, _ := json.Marshal(map[string]interface{}{
+		"status":  "partial",
+		"message": "copy_batch processed 10 items (8 succeeded, 2 failed)",
+		"data": map[string]interface{}{
+			"summary": map[string]int{
+				"requested": 10,
+				"succeeded": 8,
+				"failed":    2,
+			},
+			"results": items,
+		},
+	})
+
+	result, filter := compressAPIOutput("filesystem", string(data))
+
+	if filter != "fs-batch" {
+		t.Errorf("expected filter fs-batch, got %s", filter)
+	}
+	if !strings.Contains(result, "8 succeeded") {
+		t.Error("expected succeeded count")
+	}
+	if !strings.Contains(result, "2 failed") {
+		t.Error("expected failed count")
+	}
+	// Failed items should be shown
+	if !strings.Contains(result, "FAILED") {
+		t.Error("expected failed items shown")
+	}
+	// Succeeded items should be summarized
+	if !strings.Contains(result, "succeeded items omitted") {
+		t.Error("expected succeeded summary")
+	}
+}
+
+func TestCompressFS_Error(t *testing.T) {
+	output := `{"status":"error","message":"Failed to list directory: permission denied","data":{"error_code":"io_error"}}`
+
+	result, filter := compressAPIOutput("filesystem", output)
+
+	if filter != "fs-error" {
+		t.Errorf("expected filter fs-error, got %s", filter)
+	}
+	if !strings.Contains(result, "error") {
+		t.Error("expected error preserved")
+	}
+}
+
+func TestCompressFR_Content_PreservesContent(t *testing.T) {
+	content := "package main\n\nfunc main() {\n\tprintln(\"hello world\")\n}\n"
+	data, _ := json.Marshal(map[string]interface{}{
+		"status": "success",
+		"data": map[string]interface{}{
+			"start_line": 1,
+			"end_line":   5,
+			"total_read": 5,
+			"content":    content,
+			"truncated":  false,
+		},
+	})
+
+	result, filter := compressAPIOutput("file_reader_advanced", string(data))
+
+	if filter != "fr-content" {
+		t.Errorf("expected filter fr-content, got %s", filter)
+	}
+	// Content must be preserved
+	if !strings.Contains(result, content) {
+		t.Error("expected file content preserved")
+	}
+	if !strings.Contains(result, "Lines 1-5") {
+		t.Error("expected line range")
+	}
+}
+
+func TestCompressFR_SearchContext_ManyMatches(t *testing.T) {
+	type match struct {
+		MatchLine int    `json:"match_line"`
+		StartLine int    `json:"start_line"`
+		EndLine   int    `json:"end_line"`
+		Content   string `json:"content"`
+	}
+
+	matches := make([]match, 30)
+	for i := 0; i < 30; i++ {
+		matches[i] = match{
+			MatchLine: 10 + i*5,
+			StartLine: 8 + i*5,
+			EndLine:   12 + i*5,
+			Content:   fmt.Sprintf("Line with error: something went wrong at step %d", i),
+		}
+	}
+
+	data, _ := json.Marshal(map[string]interface{}{
+		"status": "success",
+		"data": map[string]interface{}{
+			"pattern":       "error",
+			"total_matches": 30,
+			"matches":       matches,
+		},
+	})
+
+	result, filter := compressAPIOutput("file_reader_advanced", string(data))
+
+	if filter != "fr-search" {
+		t.Errorf("expected filter fr-search, got %s", filter)
+	}
+	if !strings.Contains(result, "30 matches") {
+		t.Error("expected match count")
+	}
+	if !strings.Contains(result, "+ 15 more matches") {
+		t.Error("expected truncation")
+	}
+	if !strings.Contains(result, "L8-12:") {
+		t.Error("expected line range format")
+	}
+}
+
+func TestCompressFR_CountLines(t *testing.T) {
+	data, _ := json.Marshal(map[string]interface{}{
+		"status": "success",
+		"data": map[string]interface{}{
+			"lines": 12345,
+			"bytes": 67890,
+		},
+	})
+
+	_, filter := compressAPIOutput("file_reader_advanced", string(data))
+
+	if filter != "fr-count-lines" {
+		t.Errorf("expected filter fr-count-lines, got %s", filter)
+	}
+	// count_lines is already compact, should pass through
+}
+
+func TestCompressFR_Error(t *testing.T) {
+	output := `{"status":"error","message":"'file_path' is required"}`
+
+	result, filter := compressAPIOutput("file_reader_advanced", output)
+
+	if filter != "fr-error" {
+		t.Errorf("expected filter fr-error, got %s", filter)
+	}
+	if !strings.Contains(result, "error") {
+		t.Error("expected error preserved")
+	}
+}
+
+func TestCompressSF_Analyze(t *testing.T) {
+	data, _ := json.Marshal(map[string]interface{}{
+		"status":  "success",
+		"message": "Analyzed main.go",
+		"data": map[string]interface{}{
+			"path":              "main.go",
+			"size_bytes":        15360,
+			"line_count":        450,
+			"mime":              "text/plain",
+			"extension":         ".go",
+			"group":             "text",
+			"is_text_like":      true,
+			"is_large":          false,
+			"recommended_tool":  "file_reader_advanced",
+			"default_strategy":  "head_tail",
+			"next_steps":        []string{"Use file_reader_advanced read_lines"},
+			"detected_encoding": "utf-8",
+		},
+	})
+
+	result, filter := compressAPIOutput("smart_file_read", string(data))
+
+	if filter != "sf-analyze" {
+		t.Errorf("expected filter sf-analyze, got %s", filter)
+	}
+	if !strings.Contains(result, "main.go") {
+		t.Error("expected file name")
+	}
+	if !strings.Contains(result, "450 lines") {
+		t.Error("expected line count")
+	}
+	if !strings.Contains(result, "text/plain") {
+		t.Error("expected mime type")
+	}
+	if !strings.Contains(result, "Recommended: file_reader_advanced") {
+		t.Error("expected recommendation")
+	}
+}
+
+func TestCompressSF_Structure(t *testing.T) {
+	data, _ := json.Marshal(map[string]interface{}{
+		"status":  "success",
+		"message": "Detected structure for config.json",
+		"data": map[string]interface{}{
+			"path":            "config.json",
+			"size_bytes":      8192,
+			"mime":            "application/json",
+			"extension":       ".json",
+			"is_text_like":    true,
+			"format":          "json",
+			"root_type":       "object",
+			"top_level_keys":  []string{"server", "database", "logging", "auth", "cache", "features", "version"},
+		},
+	})
+
+	result, filter := compressAPIOutput("smart_file_read", string(data))
+
+	if filter != "sf-structure" {
+		t.Errorf("expected filter sf-structure, got %s", filter)
+	}
+	if !strings.Contains(result, "config.json") {
+		t.Error("expected file name")
+	}
+	if !strings.Contains(result, "JSON") && !strings.Contains(result, "json") {
+		t.Error("expected format")
+	}
+	if !strings.Contains(result, "Keys:") {
+		t.Error("expected keys listing")
+	}
+	if !strings.Contains(result, "server") {
+		t.Error("expected key names")
+	}
+}
+
+func TestCompressSF_Sample_PreservesContent(t *testing.T) {
+	content := "package main\n\nfunc main() {\n\tprintln(\"hello\")\n}\n"
+	data, _ := json.Marshal(map[string]interface{}{
+		"status":  "success",
+		"message": "Built head_tail sample from main.go",
+		"data": map[string]interface{}{
+			"path":              "main.go",
+			"size_bytes":        15360,
+			"sampling_strategy": "head_tail",
+			"sample_sections":   2,
+			"content":           content,
+			"next_steps":        []string{"Use file_reader_advanced"},
+		},
+	})
+
+	result, filter := compressAPIOutput("smart_file_read", string(data))
+
+	if filter != "sf-content" {
+		t.Errorf("expected filter sf-content, got %s", filter)
+	}
+	// Content must be preserved
+	if !strings.Contains(result, content) {
+		t.Error("expected content preserved")
+	}
+	if !strings.Contains(result, "head_tail") {
+		t.Error("expected strategy")
+	}
+}
+
+func TestCompressSF_Error(t *testing.T) {
+	output := `{"status":"error","message":"'file_path' is required"}`
+
+	result, filter := compressAPIOutput("smart_file_read", output)
+
+	if filter != "sf-error" {
+		t.Errorf("expected filter sf-error, got %s", filter)
+	}
+	if !strings.Contains(result, "error") {
+		t.Error("expected error preserved")
+	}
+}
+
+func TestFormatFileSize(t *testing.T) {
+	tests := []struct {
+		bytes int64
+		want  string
+	}{
+		{500, "500B"},
+		{1024, "1.0KB"},
+		{1536, "1.5KB"},
+		{1048576, "1.0MB"},
+		{1073741824, "1.0GB"},
+	}
+	for _, tt := range tests {
+		got := formatFileSize(tt.bytes)
+		if got != tt.want {
+			t.Errorf("formatFileSize(%d) = %q, want %q", tt.bytes, got, tt.want)
+		}
 	}
 }

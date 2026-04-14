@@ -140,7 +140,8 @@ func isPythonTool(name string) bool {
 func isAPITool(name string) bool {
 	switch name {
 	case "docker", "docker_compose", "proxmox", "homeassistant", "home_assistant",
-		"kubernetes", "api_request", "github", "sql_query":
+		"kubernetes", "api_request", "github", "sql_query",
+		"filesystem", "filesystem_op", "file_reader_advanced", "smart_file_read":
 		return true
 	}
 	return false
@@ -159,6 +160,21 @@ func isGitHubTool(name string) bool {
 // isSQLTool returns true for SQL query tool names.
 func isSQLTool(name string) bool {
 	return name == "sql_query"
+}
+
+// isFilesystemTool returns true for filesystem tool names.
+func isFilesystemTool(name string) bool {
+	return name == "filesystem" || name == "filesystem_op"
+}
+
+// isFileReaderTool returns true for file_reader_advanced tool name.
+func isFileReaderTool(name string) bool {
+	return name == "file_reader_advanced"
+}
+
+// isSmartFileTool returns true for smart_file_read tool name.
+func isSmartFileTool(name string) bool {
+	return name == "smart_file_read"
 }
 
 // isErrorOutput detects common error markers in tool output.
