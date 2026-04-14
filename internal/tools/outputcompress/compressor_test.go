@@ -3874,3 +3874,147 @@ func TestCompressPlan_EmptyList(t *testing.T) {
 		t.Errorf("expected empty message, got %q", result)
 	}
 }
+
+// ─── V9B: Text pipeline tests ──────────────────────────────────────────────
+
+func TestCompressShell_V9B_Routing(t *testing.T) {
+	tools := []struct {
+		cmd    string
+		filter string
+	}{
+		{"sort file.txt", "sort"},
+		{"uniq file.txt", "uniq"},
+		{"cut -d, -f1 file.csv", "cut"},
+		{"sed 's/old/new/g' file.txt", "sed"},
+		{"awk '{print $1}' file.txt", "awk"},
+		{"gawk '{print $1}' file.txt", "awk"},
+		{"xargs echo", "xargs"},
+		{"jq '.name'", "jq"},
+		{"tr 'a-z' 'A-Z'", "tr"},
+		{"column -t file.txt", "column"},
+		{"diff file1.txt file2.txt", "diff"},
+		{"comm file1.txt file2.txt", "comm"},
+		{"paste file1.txt file2.txt", "paste"},
+	}
+	for _, tt := range tools {
+		_, filter := compressShellOutput(tt.cmd, "some output line 1\nline 2\nline 3\n")
+		if filter != tt.filter {
+			t.Errorf("compressShellOutput(%q): expected filter %q, got %q", tt.cmd, tt.filter, filter)
+		}
+	}
+}
+
+func TestCompressSort_LargeOutput(t *testing.T) {
+	var sb strings.Builder
+	for i := 0; i < 500; i++ {
+		fmt.Fprintf(&sb, "line-%03d\n", i)
+	}
+	// Add many duplicates
+	for i := 0; i < 200; i++ {
+		sb.WriteString("duplicate-line\n")
+	}
+
+	result := compressSort(sb.String())
+	// Should be shorter than input
+	if len(result) >= len(sb.String()) {
+		t.Errorf("expected compression, got %d >= %d", len(result), sb.Len())
+	}
+	// Should have dedup marker or tail-focus
+	if strings.Contains(result, "duplicate-line") && strings.Count(result, "duplicate-line") > 1 {
+		// Consecutive duplicates should be removed
+		lines := strings.Split(result, "\n")
+		consecDupes := 0
+		for i := 1; i < len(lines); i++ {
+			if lines[i] == lines[i-1] && lines[i] == "duplicate-line" {
+				consecDupes++
+			}
+		}
+		if consecDupes > 5 {
+			t.Errorf("expected consecutive duplicates removed, found %d consecutive", consecDupes)
+		}
+	}
+}
+
+func TestCompressJq_JSON(t *testing.T) {
+	input := `{
+  "name": "test",
+  "items": [
+    {"id": 1, "value": "a"},
+    {"id": 2, "value": "b"},
+    {"id": 3, "value": "c"}
+  ],
+  "count": 3
+}`
+	result := compressJq(input)
+	// Should be compacted (no excessive whitespace)
+	if strings.Contains(result, "    ") {
+		t.Errorf("expected compacted JSON, got: %q", result)
+	}
+}
+
+func TestCompressJq_LargeArray(t *testing.T) {
+	var sb strings.Builder
+	sb.WriteString("[\n")
+	for i := 0; i < 300; i++ {
+		fmt.Fprintf(&sb, "  {\"id\": %d, \"name\": \"item-%d\", \"value\": \"some data here\"},\n", i, i)
+	}
+	sb.WriteString("]")
+
+	result := compressJq(sb.String())
+	if len(result) >= len(sb.String()) {
+		t.Errorf("expected compression, got %d >= %d", len(result), sb.Len())
+	}
+}
+
+func TestCompressSed_LargeOutput(t *testing.T) {
+	var sb strings.Builder
+	for i := 0; i < 500; i++ {
+		fmt.Fprintf(&sb, "processed line %d with some content\n", i)
+	}
+
+	result := compressSed(sb.String())
+	if len(result) >= len(sb.String()) {
+		t.Errorf("expected compression, got %d >= %d", len(result), sb.Len())
+	}
+}
+
+func TestCompressDiff_Output(t *testing.T) {
+	var sb strings.Builder
+	sb.WriteString("diff --git a/file1.txt b/file2.txt\n")
+	sb.WriteString("index abc1234..def5678 100644\n")
+	sb.WriteString("--- a/file1.txt\n")
+	sb.WriteString("+++ b/file2.txt\n")
+	sb.WriteString("@@ -1,5 +1,5 @@\n")
+	for i := 0; i < 100; i++ {
+		sb.WriteString(" context line that is the same\n")
+	}
+	sb.WriteString("-removed line\n")
+	sb.WriteString("+added line\n")
+
+	result := compressDiff(sb.String())
+	// Should compress the repeated context lines
+	if len(result) >= len(sb.String()) {
+		t.Errorf("expected compression, got %d >= %d", len(result), sb.Len())
+	}
+}
+
+func TestCompressTextPipeline_Short(t *testing.T) {
+	input := "line 1\nline 2\nline 3\n"
+	result := compressTextPipeline(input)
+	// Short output should pass through mostly unchanged
+	if len(result) == 0 {
+		t.Error("expected non-empty output")
+	}
+}
+
+func TestCompressCut_Columnar(t *testing.T) {
+	var sb strings.Builder
+	for i := 0; i < 300; i++ {
+		fmt.Fprintf(&sb, "col1-%d\tcol2-%d\tcol3-%d\n", i, i, i)
+	}
+
+	result := compressCut(sb.String())
+	if len(result) >= len(sb.String()) {
+		t.Errorf("expected compression, got %d >= %d", len(result), sb.Len())
+	}
+}

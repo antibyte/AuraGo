@@ -136,6 +136,32 @@ func compressShellOutput(command, output string) (string, string) {
 	case bin == "rsync":
 		return compressRsync(output), "rsync"
 
+	// ─── V9B: Text pipeline routes ─────────────────────────────────
+	case bin == "sort":
+		return compressSort(output), "sort"
+	case bin == "uniq":
+		return compressUniq(output), "uniq"
+	case bin == "cut":
+		return compressCut(output), "cut"
+	case bin == "sed":
+		return compressSed(output), "sed"
+	case bin == "awk" || bin == "gawk" || bin == "mawk":
+		return compressAwk(output), "awk"
+	case bin == "xargs":
+		return compressXargs(output), "xargs"
+	case bin == "jq":
+		return compressJq(output), "jq"
+	case bin == "tr":
+		return compressTr(output), "tr"
+	case bin == "column":
+		return compressColumn(output), "column"
+	case bin == "diff":
+		return compressDiff(output), "diff"
+	case bin == "comm":
+		return compressComm(output), "comm"
+	case bin == "paste":
+		return compressPaste(output), "paste"
+
 	default:
 		return compressGeneric(output), "generic"
 	}
