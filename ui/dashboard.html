@@ -84,7 +84,7 @@
 
     <!-- 1. System Health -->
     <div class="dash-card" id="card-system">
-      <div class="dash-card-header"><span class="card-icon">🖥️</span> <span data-i18n="dashboard.system_title">Systemstatus</span></div>
+      <div class="dash-card-header"><span class="card-icon">🖥️</span> <span data-i18n="dashboard.system_title">Systemstatus</span> <span class="collapse-toggle" data-card="card-system" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
       <div class="dash-card-body">
         <div class="gauge-grid">
           <div class="gauge-item">
@@ -128,7 +128,7 @@
 
     <!-- 2. Quick Status -->
     <div class="dash-card" id="card-quickstatus">
-      <div class="dash-card-header"><span class="card-icon">⚡</span> <span data-i18n="dashboard.quickstatus_title">Quick Status</span></div>
+      <div class="dash-card-header"><span class="card-icon">⚡</span> <span data-i18n="dashboard.quickstatus_title">Quick Status</span> <span class="collapse-toggle" data-card="card-quickstatus" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
       <div class="dash-card-body">
         <div class="qs-grid" id="qs-grid"></div>
       </div>
@@ -136,7 +136,7 @@
 
     <!-- 3. Budget & Tokens -->
     <div class="dash-card" id="card-budget">
-      <div class="dash-card-header"><span class="card-icon">💰</span> <span data-i18n="dashboard.budget_title">Budget & Tokens</span></div>
+      <div class="dash-card-header"><span class="card-icon">💰</span> <span data-i18n="dashboard.budget_title">Budget & Tokens</span> <span class="collapse-toggle" data-card="card-budget" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
       <div class="dash-card-body">
         <div id="budget-content">
           <div class="budget-badges" id="budget-badges"></div>
@@ -171,7 +171,7 @@
 
     <!-- 4. Optimization -->
     <div class="dash-card" id="card-optimization">
-      <div class="dash-card-header"><span class="card-icon">⚙️</span> <span data-i18n="dashboard.optimization_title">Optimization</span></div>
+      <div class="dash-card-header"><span class="card-icon">⚙️</span> <span data-i18n="dashboard.optimization_title">Optimization</span> <span class="collapse-toggle" data-card="card-optimization" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
       <div class="dash-card-body">
         <div class="stats-grid" id="opt-grid"></div>
       </div>
@@ -179,7 +179,7 @@
 
     <!-- 5. Output Compression -->
     <div class="dash-card" id="card-compression">
-      <div class="dash-card-header"><span class="card-icon">🗜️</span> <span data-i18n="dashboard.compression_title">Output Compression</span></div>
+      <div class="dash-card-header"><span class="card-icon">🗜️</span> <span data-i18n="dashboard.compression_title">Output Compression</span> <span class="collapse-toggle" data-card="card-compression" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
       <div class="dash-card-body">
         <div class="stats-grid" id="compression-stats"></div>
         <div id="compression-details" class="mt-sm">
@@ -205,7 +205,7 @@
 
     <!-- 3. Personality Traits + Mood Inline -->
     <div class="dash-card" id="card-personality">
-      <div class="dash-card-header"><span class="card-icon">🧠</span> <span data-i18n="dashboard.personality_title">Persönlichkeit</span></div>
+      <div class="dash-card-header"><span class="card-icon">🧠</span> <span data-i18n="dashboard.personality_title">Persönlichkeit</span> <span class="collapse-toggle" data-card="card-personality" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
       <div class="dash-card-body">
         <div id="personality-content" class="personality-layout">
           <canvas id="traits-chart"></canvas>
@@ -250,7 +250,7 @@
 
     <!-- 5. Memory & Knowledge -->
     <div class="dash-card" id="card-memory">
-      <div class="dash-card-header"><span class="card-icon">🧩</span> <span data-i18n="dashboard.memory_title">Gedächtnis</span></div>
+      <div class="dash-card-header"><span class="card-icon">🧩</span> <span data-i18n="dashboard.memory_title">Gedächtnis</span> <span class="collapse-toggle" data-card="card-memory" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
       <div class="dash-card-body">
         <div class="memory-stats-grid" id="memory-stats"></div>
         <div class="memory-bar-wrap">
@@ -283,7 +283,7 @@
 
     <!-- 6. User Profile -->
     <div class="dash-card" id="card-profile">
-      <div class="dash-card-header"><span class="card-icon">👤</span> <span data-i18n="dashboard.profile_title">Nutzerprofil</span></div>
+      <div class="dash-card-header"><span class="card-icon">👤</span> <span data-i18n="dashboard.profile_title">Nutzerprofil</span> <span class="collapse-toggle" data-card="card-profile" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
       <div class="dash-card-body">
         <input type="text" class="profile-search" id="profile-search" data-i18n-placeholder="dashboard.profile_search_placeholder" placeholder="Profil durchsuchen...">
         <div class="profile-scroll" id="profile-content"></div>
@@ -291,7 +291,7 @@
     </div>
 
     <div class="dash-card" id="card-activity-overview">
-      <div class="dash-card-header"><span class="card-icon">🗓️</span> <span data-i18n="dashboard.activity_overview_title">Last 7 Days</span></div>
+      <div class="dash-card-header"><span class="card-icon">🗓️</span> <span data-i18n="dashboard.activity_overview_title">Last 7 Days</span> <span class="collapse-toggle" data-card="card-activity-overview" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
       <div class="dash-card-body">
         <div id="activity-overview-summary" class="journal-summary"></div>
         <div id="activity-overview-highlights" class="journal-summary mt-xs"></div>
@@ -304,7 +304,7 @@
 
     <!-- 6b. Journal Timeline -->
     <div class="dash-card" id="card-journal">
-      <div class="dash-card-header"><span class="card-icon">📔</span> <span data-i18n="dashboard.journal_title">Journal</span></div>
+      <div class="dash-card-header"><span class="card-icon">📔</span> <span data-i18n="dashboard.journal_title">Journal</span> <span class="collapse-toggle" data-card="card-journal" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
       <div class="dash-card-body">
         <div class="journal-summary" id="journal-summary"></div>
         <!-- Sentiment Trend -->
@@ -428,6 +428,7 @@
     <div class="dash-card dash-full-width" id="card-filesync">
       <div class="dash-card-header">
         <span class="card-icon">📡</span> <span data-i18n="dashboard.filesync_title">Datei-Sync Status</span>
+        <span class="collapse-toggle" data-card="card-filesync" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span>
         <div style="margin-left:auto;display:flex;gap:.5rem;align-items:center;">
           <span class="kc-sync-status-dot" id="fs-indexer-dot" style="font-size:.75rem;">⚫</span>
           <span class="kc-sync-status-label" id="fs-indexer-status">—</span>
@@ -466,7 +467,7 @@
 
     <!-- 7. Operations Overview -->
     <div class="dash-card" id="card-operations">
-      <div class="dash-card-header"><span class="card-icon">⚙️</span> <span data-i18n="dashboard.operations_title">Betrieb & Dienste</span></div>
+      <div class="dash-card-header"><span class="card-icon">⚙️</span> <span data-i18n="dashboard.operations_title">Betrieb & Dienste</span> <span class="collapse-toggle" data-card="card-operations" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
       <div class="dash-card-body">
         <div class="ops-grid" id="ops-grid"></div>
         <div class="integration-grid" id="integration-grid"></div>
@@ -475,7 +476,7 @@
 
     <!-- 7b. LLM Guardian Security -->
     <div class="dash-card is-hidden" id="card-guardian">
-      <div class="dash-card-header"><span class="card-icon">🛡️</span> <span data-i18n="dashboard.guardian_title">LLM Guardian</span></div>
+      <div class="dash-card-header"><span class="card-icon">🛡️</span> <span data-i18n="dashboard.guardian_title">LLM Guardian</span> <span class="collapse-toggle" data-card="card-guardian" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
       <div class="dash-card-body">
         <div id="guardian-status"></div>
         <div id="guardian-metrics"></div>
@@ -483,7 +484,7 @@
     </div>
 
     <div class="dash-card" id="card-helper-llm">
-      <div class="dash-card-header"><span class="card-icon">🪶</span> <span data-i18n="dashboard.helper_llm_title">Helper LLM</span></div>
+      <div class="dash-card-header"><span class="card-icon">🪶</span> <span data-i18n="dashboard.helper_llm_title">Helper LLM</span> <span class="collapse-toggle" data-card="card-helper-llm" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
       <div class="dash-card-body">
         <div id="helper-llm-status"></div>
         <div id="helper-llm-metrics"></div>
@@ -493,7 +494,7 @@
 
     <!-- Daemon Skills Overview -->
     <div class="dash-card is-hidden" id="card-daemons">
-      <div class="dash-card-header"><span class="card-icon">👹</span> <span data-i18n="dashboard.daemons_title">Daemon Skills</span></div>
+      <div class="dash-card-header"><span class="card-icon">👹</span> <span data-i18n="dashboard.daemons_title">Daemon Skills</span> <span class="collapse-toggle" data-card="card-daemons" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
       <div class="dash-card-body">
         <div id="daemon-summary"></div>
         <div id="daemon-list"></div>

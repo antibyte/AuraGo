@@ -149,6 +149,7 @@
 
         .dash-grid > .dash-card {
             min-height: 180px;
+            align-self: start;
         }
 
         .dash-card::before {
