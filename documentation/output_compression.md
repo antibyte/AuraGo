@@ -201,11 +201,20 @@ DBG output compressed tool=execute_shell filter=git-status raw_chars=15000 compr
 
 ```
 internal/tools/outputcompress/
-├── compressor.go    # Config, Compress(), DefaultConfig(), routing logic
-├── dedup.go         # Generic pipeline: dedup, whitespace, tail-focus, ANSI strip
-├── shell.go         # Shell-specific filters (git, docker, test, grep, find, ls)
-├── analytics.go     # Thread-safe stats aggregator for dashboard
-└── compressor_test.go # 51+ tests
+├── compressor.go      # Config, Compress(), DefaultConfig(), routing logic
+├── dedup.go           # Generic pipeline: dedup, whitespace, tail-focus, ANSI strip
+├── shell.go           # Shell-specific filters (git, docker, k8s, test, grep, find, ls, curl, ping, etc.)
+├── text_pipeline.go   # Text processing pipeline (sort, uniq, cut, sed, awk, jq, xargs, tr, column, diff)
+├── filesystem.go      # Filesystem tool compressors (list_dir, read_file, batch)
+├── file_reader.go     # file_reader_advanced compressors (content, search_context, count_lines)
+├── smart_file.go      # smart_file_read compressors (analyze, structure, sample/summarize)
+├── process.go         # Process tool compressors (list_processes, read_process_logs)
+├── agent_status.go    # Agent status compressors (manage_daemon, manage_plan)
+├── github.go          # GitHub API compressors (repos, issues, PRs, commits, workflows)
+├── sql.go             # SQL query result compressors
+├── homeassistant.go   # Home Assistant compressors (states, services)
+├── analytics.go       # Thread-safe stats aggregator for dashboard
+└── compressor_test.go # 180+ tests
 ```
 
 Integration point: `internal/agent/tool_execution_policy.go` → `finalizeToolExecution()`
