@@ -97,6 +97,7 @@ func (b *SSEBroadcaster) BroadcastType(eventType SSEEventType, payload any) {
 }
 
 type LLMStreamDeltaPayload struct {
+	SessionID    string `json:"session_id,omitempty"`
 	Content      string `json:"content,omitempty"`
 	Reasoning    string `json:"reasoning,omitempty"`
 	ToolName     string `json:"tool_name,omitempty"`
@@ -106,16 +107,19 @@ type LLMStreamDeltaPayload struct {
 }
 
 type LLMStreamDonePayload struct {
+	SessionID    string `json:"session_id,omitempty"`
 	FinishReason string `json:"finish_reason,omitempty"`
 }
 
 type ThinkingBlockPayload struct {
-	Provider string `json:"provider,omitempty"`
-	Content  string `json:"content,omitempty"`
-	State    string `json:"state,omitempty"` // "start", "delta", "stop"
+	SessionID string `json:"session_id,omitempty"`
+	Provider  string `json:"provider,omitempty"`
+	Content   string `json:"content,omitempty"`
+	State     string `json:"state,omitempty"`
 }
 
 type TokenUpdatePayload struct {
+	SessionID        string `json:"session_id,omitempty"`
 	PromptTokens     int    `json:"prompt"`
 	CompletionTokens int    `json:"completion"`
 	TotalTokens      int    `json:"total"`
@@ -123,7 +127,7 @@ type TokenUpdatePayload struct {
 	GlobalTotal      int    `json:"global_total"`
 	IsEstimated      bool   `json:"is_estimated"`
 	IsFinal          bool   `json:"is_final"`
-	Source           string `json:"source,omitempty"` // "provider_usage", "tokenizer", "fallback_estimate"
+	Source           string `json:"source,omitempty"`
 }
 
 type ToolCallPreviewPayload struct {

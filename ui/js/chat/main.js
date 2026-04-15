@@ -620,6 +620,13 @@ function getActiveSessionId() {
     return (window.SessionDrawer && window.SessionDrawer.getActiveSessionId()) || 'default';
 }
 
+function isCurrentSession(payload) {
+    if (!payload) return true;
+    const sid = payload.session_id;
+    if (!sid) return true;
+    return sid === getActiveSessionId();
+}
+
 function buildHistoryUrl() {
     const sid = getActiveSessionId();
     if (sid && sid !== 'default') {
@@ -1553,6 +1560,7 @@ function connectSSE() {
     let _thinkingDiv = null;
     let _inThinkingBlock = false;
     window.AuraSSE.on('llm_stream_delta', function (payload) {
+        if (!isCurrentSession(payload)) return;
         if (!payload || !payload.content) return;
         // Strip LLM end-of-turn markers so they don't appear as visible text.
         payload.content = payload.content.replace(/<done\s*\/?>/gi, '');
@@ -1588,6 +1596,7 @@ function connectSSE() {
         chatBox.scrollTop = chatBox.scrollHeight;
     });
     window.AuraSSE.on('llm_stream_done', function (payload) {
+        if (!isCurrentSession(payload)) return;
         _streamingRow = null;
         _streamingContent = '';
         _thinkingContent = '';
@@ -1595,6 +1604,7 @@ function connectSSE() {
         _inThinkingBlock = false;
     });
     window.AuraSSE.on('thinking_block', function (payload) {
+        if (!isCurrentSession(payload)) return;
         if (!payload || !payload.state) return;
         if (!_streamingRow) {
             _streamingRow = document.createElement('div');
@@ -1623,6 +1633,7 @@ function connectSSE() {
 
     // Token update events - update the token counter pill
     window.AuraSSE.on('token_update', function (payload) {
+        if (!isCurrentSession(payload)) return;
         if (!payload) return;
         const tokenEl = document.getElementById('tokenCounter');
         if (!tokenEl) return;
@@ -1647,6 +1658,9 @@ function handleSSEMessage(e) {
         // and are handled by AuraSSE.on(...) handlers registered separately.
         // Skip them here — they are processed by typed event handlers.
         if (!data.event) return;
+
+        // Filter by session — ignore events from other sessions
+        if (data.session_id && data.session_id !== getActiveSessionId()) return;
 
         // Make the status bar visible early so floating icons can render
         if (data.event === 'thinking' || data.event === 'tool_start' || data.event === 'co_agent_spawn' || data.event === 'coding') {
