@@ -535,7 +535,15 @@ func HomepageInit(cfg HomepageConfig, logger *slog.Logger) string {
 func HomepageStart(cfg HomepageConfig, logger *slog.Logger) string {
 	dockerCfg := DockerConfig{Host: cfg.DockerHost}
 	logger.Info("[Homepage] Starting dev container")
-	return DockerContainerAction(dockerCfg, homepageContainerName, "start", false)
+	result := DockerContainerAction(dockerCfg, homepageContainerName, "start", false)
+	// If the container does not exist (e.g. after destroy), give an actionable hint.
+	var resp map[string]interface{}
+	if err := json.Unmarshal([]byte(result), &resp); err == nil {
+		if msg, _ := resp["message"].(string); strings.Contains(strings.ToLower(msg), "not found") {
+			return errJSON("Container '%s' not found — it was likely destroyed. Use homepage init to recreate the container and then homepage init_project to restore your projects.", homepageContainerName)
+		}
+	}
+	return result
 }
 
 // HomepageStop stops the dev container.
@@ -846,7 +854,32 @@ func HomepageInstallDeps(cfg HomepageConfig, projectDir string, packages []strin
 		}
 	}
 
-	return DockerExec(dockerCfg, homepageContainerName, fmt.Sprintf("cd /workspace/%s && %s 2>&1", projectDir, cmd), "")
+	return homepageDecorateInstallResult(DockerExec(dockerCfg, homepageContainerName, fmt.Sprintf("cd /workspace/%s && %s 2>&1", projectDir, cmd), ""))
+}
+
+// homepageDecorateInstallResult adds actionable hints for common npm install failures.
+func homepageDecorateInstallResult(result string) string {
+	// Parse the DockerExec JSON to inspect exit code and output
+	var resp map[string]interface{}
+	if err := json.Unmarshal([]byte(result), &resp); err != nil {
+		return result
+	}
+	exitCode, _ := resp["exit_code"].(float64)
+	if exitCode == 0 {
+		return result
+	}
+	output, _ := resp["output"].(string)
+	lower := strings.ToLower(output)
+	if strings.Contains(lower, "eacces") || strings.Contains(lower, "permission denied") {
+		// Return original output but annotate with a clear fix suggestion.
+		resp["message"] = "npm install failed with a permissions error (EACCES). " +
+			"The /workspace directory inside the container is not writable by the npm user. " +
+			"Fix: run 'homepage destroy' followed by 'homepage init' to recreate the container with correct permissions, " +
+			"then redo your project setup."
+		b, _ := json.Marshal(resp)
+		return string(b)
+	}
+	return result
 }
 
 // HomepageLighthouse runs a Lighthouse audit and returns a compact summary.

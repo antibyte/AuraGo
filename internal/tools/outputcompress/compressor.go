@@ -156,7 +156,8 @@ func isAPITool(name string) bool {
 		"kubernetes", "api_request", "github", "sql_query",
 		"filesystem", "filesystem_op", "file_reader_advanced", "smart_file_read",
 		"list_processes", "read_process_logs",
-		"manage_daemon", "manage_plan":
+		"manage_daemon", "manage_plan",
+		"homepage", "netlify":
 		return true
 	}
 	return false

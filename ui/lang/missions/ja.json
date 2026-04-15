@@ -78,6 +78,7 @@
   "mission.toast_name_req": "❌ 名前とプロンプトが必要です",
   "missions.btn_new_mission": "新規ミッション",
   "missions.card_badge_running": "実行中",
+  "missions.card_badge_queued": "待機中",
   "missions.card_btn_delete_title": "削除",
   "missions.card_btn_duplicate_title": "ミッションの重複",
   "missions.card_btn_edit_title": "編集",

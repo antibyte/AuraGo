@@ -78,6 +78,7 @@
   "mission.toast_name_req": "❌ नाम और संकेत आवश्यक हैं",
   "missions.btn_new_mission": "नया मिशन",
   "missions.card_badge_running": "चल रहा है",
+  "missions.card_badge_queued": "कतार में",
   "missions.card_btn_delete_title": "हटाएँ",
   "missions.card_btn_duplicate_title": "डुप्लिकेट मिशन",
   "missions.card_btn_edit_title": "संपादित करें",

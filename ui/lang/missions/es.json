@@ -78,6 +78,7 @@
   "mission.toast_name_req": "❌ Se requieren nombre y prompt",
   "missions.btn_new_mission": "Nueva Misión",
   "missions.card_badge_running": "en ejecución",
+  "missions.card_badge_queued": "En cola",
   "missions.card_btn_delete_title": "Eliminar",
   "missions.card_btn_duplicate_title": "Misión duplicada",
   "missions.card_btn_edit_title": "Editar",

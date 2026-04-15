@@ -78,6 +78,7 @@
   "mission.toast_name_req": "❌ Απαιτούνται όνομα και ερέθισμα",
   "missions.btn_new_mission": "Νέα Αποστολή",
   "missions.card_badge_running": "εκτελείται",
+  "missions.card_badge_queued": "Σε ουρά",
   "missions.card_btn_delete_title": "Διαγραφή",
   "missions.card_btn_duplicate_title": "Διπλή Αποστολή",
   "missions.card_btn_edit_title": "Επεξεργασία",

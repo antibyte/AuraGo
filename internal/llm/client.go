@@ -2,10 +2,12 @@ package llm
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"strings"
 
@@ -133,11 +135,44 @@ func NewClient(cfg *config.Config) *openai.Client {
 		}
 	}
 
-	if httpClient := buildLLMHTTPClient(cfg, providerType, aiGatewayToken); httpClient != nil {
+	if isLoopbackHTTPS(cfg.LLM.BaseURL) {
+		clientConfig.HTTPClient = &http.Client{Transport: loopbackHTTPSTransport()}
+	} else if httpClient := buildLLMHTTPClient(cfg, providerType, aiGatewayToken); httpClient != nil {
 		clientConfig.HTTPClient = httpClient
 	}
 
 	return openai.NewClientWithConfig(clientConfig)
+}
+
+// isLoopbackHTTPS returns true when the URL targets https://127.0.0.1 or https://localhost.
+// These addresses use a self-signed certificate and require a TLS-lenient transport.
+func isLoopbackHTTPS(rawURL string) bool {
+	lower := strings.ToLower(strings.TrimSpace(rawURL))
+	if !strings.HasPrefix(lower, "https://") {
+		return false
+	}
+	// Strip scheme and extract host
+	hostpart := lower[len("https://"):]
+	host := hostpart
+	if idx := strings.IndexByte(hostpart, '/'); idx != -1 {
+		host = hostpart[:idx]
+	}
+	// Remove port
+	h, _, err := net.SplitHostPort(host)
+	if err == nil {
+		host = h
+	}
+	return host == "127.0.0.1" || host == "::1" || host == "localhost"
+}
+
+// loopbackHTTPSTransport returns an http.Transport suitable for loopback HTTPS:
+// TLS certificate verification is skipped (self-signed cert) and HTTP/2 is
+// disabled (avoids "tls: bad record MAC" caused by h2 ALPN + self-signed TLS).
+func loopbackHTTPSTransport() *http.Transport {
+	return &http.Transport{
+		TLSClientConfig:   &tls.Config{InsecureSkipVerify: true}, // #nosec G402 — loopback only
+		ForceAttemptHTTP2: false,
+	}
 }
 
 // NewClientFromProvider creates an OpenAI-compatible client from explicit provider
@@ -164,7 +199,9 @@ func NewClientFromProvider(providerType, baseURL, apiKey string) *openai.Client 
 		clientConfig.BaseURL = u
 	}
 
-	if httpClient := buildLLMHTTPClient(nil, pt, ""); httpClient != nil {
+	if isLoopbackHTTPS(baseURL) {
+		clientConfig.HTTPClient = &http.Client{Transport: loopbackHTTPSTransport()}
+	} else if httpClient := buildLLMHTTPClient(nil, pt, ""); httpClient != nil {
 		clientConfig.HTTPClient = httpClient
 	}
 

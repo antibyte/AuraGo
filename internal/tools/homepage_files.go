@@ -282,7 +282,25 @@ func HomepageEditFile(cfg HomepageConfig, path, operation, old, new_, marker, co
 	if err := json.Unmarshal([]byte(result), &execResult); err == nil {
 		if status, ok := execResult["status"].(string); ok && status == "error" {
 			errMsg, _ := execResult["error"].(string)
-			return errJSON("edit file write failed for %s: %s", path, errMsg)
+			output, _ := execResult["output"].(string)
+			exitCode, _ := execResult["exit_code"].(float64)
+			details := errMsg
+			if details == "" && output != "" {
+				details = strings.TrimSpace(output)
+			}
+			if details == "" {
+				details = fmt.Sprintf("exit_code=%d (likely a permissions error inside the container — run homepage init to recreate the container)", int(exitCode))
+			}
+			return errJSON("edit file write failed for %s: %s", path, details)
+		}
+		// Also catch non-zero exit codes that don't set status=error
+		if exitCode, ok := execResult["exit_code"].(float64); ok && exitCode != 0 {
+			output, _ := execResult["output"].(string)
+			details := strings.TrimSpace(output)
+			if details == "" {
+				details = fmt.Sprintf("exit_code=%d (likely a permissions error — run homepage init to recreate the container)", int(exitCode))
+			}
+			return errJSON("edit file write failed for %s: %s", path, details)
 		}
 	}
 	out, _ := json.Marshal(map[string]interface{}{"status": "ok", "path": path, "operation": operation})

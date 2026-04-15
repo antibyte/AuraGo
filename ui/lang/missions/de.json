@@ -78,6 +78,7 @@
   "mission.toast_name_req": "❌ Name und Prompt werden benötigt",
   "missions.btn_new_mission": "Neue Mission",
   "missions.card_badge_running": "läuft",
+  "missions.card_badge_queued": "In Warteschlange",
   "missions.card_btn_delete_title": "Löschen",
   "missions.card_btn_duplicate_title": "Mission duplizieren",
   "missions.card_btn_edit_title": "Bearbeiten",

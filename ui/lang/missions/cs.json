@@ -78,6 +78,7 @@
   "mission.toast_name_req": "❌ Název a prompt jsou povinné",
   "missions.btn_new_mission": "Nová mise",
   "missions.card_badge_running": "běží",
+  "missions.card_badge_queued": "Ve frontě",
   "missions.card_btn_delete_title": "Smazat",
   "missions.card_btn_duplicate_title": "Duplicitní mise",
   "missions.card_btn_edit_title": "Upravit",

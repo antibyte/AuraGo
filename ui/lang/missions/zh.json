@@ -78,6 +78,7 @@
   "mission.toast_name_req": "❌ 需要名称和提示",
   "missions.btn_new_mission": "新建任务",
   "missions.card_badge_running": "运行中",
+  "missions.card_badge_queued": "排队中",
   "missions.card_btn_delete_title": "删除",
   "missions.card_btn_duplicate_title": "重复任务",
   "missions.card_btn_edit_title": "编辑",
