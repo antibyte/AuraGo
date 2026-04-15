@@ -34,12 +34,28 @@ window.SessionDrawer = (function () {
         return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
+    function parseDate(dateStr) {
+        if (!dateStr) return null;
+        // Strategy 1: Already valid ISO 8601 / RFC3339
+        let d = new Date(dateStr);
+        if (!isNaN(d.getTime())) return d;
+        // Strategy 2: SQLite format "2006-01-02 15:04:05" → add T and Z
+        d = new Date(dateStr.replace(' ', 'T') + 'Z');
+        if (!isNaN(d.getTime())) return d;
+        // Strategy 3: SQLite format without Z
+        d = new Date(dateStr.replace(' ', 'T'));
+        if (!isNaN(d.getTime())) return d;
+        // Strategy 4: Replace space with T, keep existing timezone info
+        d = new Date(dateStr.replace(' ', 'T').replace(/(\d{2}:\d{2}:\d{2})$/, '$1Z'));
+        if (!isNaN(d.getTime())) return d;
+        return null;
+    }
+
     function formatTimeAgo(dateStr) {
         if (!dateStr) return '';
         try {
-            // Backend returns "2006-01-02 15:04:05" (space-separated).
-            // Replace space with 'T' for proper ISO 8601 parsing.
-            const date = new Date(dateStr.replace(' ', 'T') + 'Z');
+            const date = parseDate(dateStr);
+            if (!date) return dateStr;
             const now = new Date();
             const diffMs = now - date;
             const diffMin = Math.floor(diffMs / 60000);

@@ -20,6 +20,24 @@ type ChatSession struct {
 // MaxChatSessions is the maximum number of chat sessions retained.
 const MaxChatSessions = 10
 
+// sqliteDatetimeToRFC3339 converts a SQLite datetime string
+// ("2006-01-02 15:04:05") to RFC 3339 ("2006-01-02T15:04:05Z").
+// If parsing fails, the original string is returned unchanged.
+func sqliteDatetimeToRFC3339(dt string) string {
+	if dt == "" {
+		return ""
+	}
+	// Already RFC3339?
+	if len(dt) > 0 && dt[len(dt)-1] == 'Z' || strings.Contains(dt, "T") {
+		return dt
+	}
+	t, err := time.Parse("2006-01-02 15:04:05", dt)
+	if err != nil {
+		return dt
+	}
+	return t.UTC().Format(time.RFC3339)
+}
+
 // CreateChatSession creates a new chat session and returns its ID.
 // It also runs rotation to ensure we don't exceed MaxChatSessions.
 func (s *SQLiteMemory) CreateChatSession() (*ChatSession, error) {
@@ -67,6 +85,8 @@ func (s *SQLiteMemory) ListChatSessions() ([]ChatSession, error) {
 		if err := rows.Scan(&sess.ID, &sess.Preview, &sess.CreatedAt, &sess.LastActiveAt, &sess.MessageCount); err != nil {
 			return nil, fmt.Errorf("failed to scan chat session: %w", err)
 		}
+		sess.CreatedAt = sqliteDatetimeToRFC3339(sess.CreatedAt)
+		sess.LastActiveAt = sqliteDatetimeToRFC3339(sess.LastActiveAt)
 		sessions = append(sessions, sess)
 	}
 	return sessions, rows.Err()
@@ -85,6 +105,8 @@ func (s *SQLiteMemory) GetChatSession(id string) (*ChatSession, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get chat session: %w", err)
 	}
+	sess.CreatedAt = sqliteDatetimeToRFC3339(sess.CreatedAt)
+	sess.LastActiveAt = sqliteDatetimeToRFC3339(sess.LastActiveAt)
 	return &sess, nil
 }
 
