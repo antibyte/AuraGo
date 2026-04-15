@@ -1998,12 +1998,14 @@ if (PERSONALITY_ENABLED) {
 }
 
 /* ── Push Notification Bell Button ── */
+const PUSH_MUTED_KEY = 'aurago-push-muted';
+
 function initPushUI() {
     const btn = document.getElementById('push-btn');
     if (!btn) return;
 
     function applyState() {
-        btn.classList.remove('push-granted', 'push-denied', 'push-unavailable');
+        btn.classList.remove('push-granted', 'push-denied', 'push-unavailable', 'push-muted');
         if (!window.getPushStatus) {
             // PWA init may still be in progress; keep button inactive but not permanently disabled
             btn.classList.add('push-unavailable');
@@ -2017,8 +2019,14 @@ function initPushUI() {
             btn.title = t('pwa.notifications_unavailable');
             btn.disabled = true;
         } else if (permission === 'granted') {
-            btn.classList.add('push-granted');
-            btn.title = t('pwa.notifications_enabled');
+            const muted = localStorage.getItem(PUSH_MUTED_KEY) === '1';
+            if (muted) {
+                btn.classList.add('push-muted');
+                btn.title = t('pwa.notifications_disabled');
+            } else {
+                btn.classList.add('push-granted');
+                btn.title = t('pwa.notifications_enabled');
+            }
             btn.disabled = false;
         } else if (permission === 'denied') {
             btn.classList.add('push-denied');
@@ -2066,9 +2074,15 @@ function initPushUI() {
         }
 
         if (status.permission === 'granted') {
-            // Toggle off — unsubscribe
-            if (window.revokePushPermission) {
-                await window.revokePushPermission();
+            const muted = localStorage.getItem(PUSH_MUTED_KEY) === '1';
+            if (muted) {
+                localStorage.removeItem(PUSH_MUTED_KEY);
+                if (window.requestPushPermission) await window.requestPushPermission();
+                applyState();
+                window.showToast ? window.showToast(t('pwa.notifications_enabled'), 'success') : null;
+            } else {
+                localStorage.setItem(PUSH_MUTED_KEY, '1');
+                if (window.revokePushPermission) await window.revokePushPermission();
                 applyState();
                 window.showToast ? window.showToast(t('pwa.notifications_disabled'), 'info') : null;
             }

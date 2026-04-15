@@ -2251,6 +2251,13 @@
             cursor: not-allowed;
         }
 
+        /* Notifications muted by user */
+        .btn-push.push-muted {
+            color: var(--text-muted, #888);
+            border-color: var(--border-subtle);
+            opacity: 0.6;
+        }
+
         .attachment-chip {
             max-width: 52rem;
             margin: 0;
