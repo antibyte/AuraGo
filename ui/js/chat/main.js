@@ -1613,14 +1613,7 @@ function connectSSE() {
         tokenEl.textContent = t('chat.token_counter_format', { count: session.toLocaleString() + est });
     });
 
-    // Check auth on SSE error (may indicate 401)
-    window.AuraSSE.on('_error', function () {
-        fetch('/api/auth/status', { credentials: 'same-origin' }).then(function (r) {
-            if (r.status === 401) {
-                window.location.href = '/auth/login?redirect=' + encodeURIComponent(window.location.pathname);
-            }
-        }).catch(function () { });
-    });
+    // Auth redirect on SSE failure is handled centrally in shared.js (AuraSSE)
 }
 
 // Start in connecting state until onopen fires

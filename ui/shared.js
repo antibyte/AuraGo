@@ -1071,7 +1071,8 @@ window.AuraSSE = (function () {
         _authRedirectInProgress = true;
         window.location.href = '/auth/login?redirect=' + encodeURIComponent(window.location.pathname);
     }
-    on('_error', function () {
+    if (!_typed['_error']) _typed['_error'] = [];
+    _typed['_error'].push(function () {
         _authErrorCount++;
         if (_authErrorTimer) clearTimeout(_authErrorTimer);
         _authErrorTimer = setTimeout(function () { _authErrorCount = 0; }, 5000);
