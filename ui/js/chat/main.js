@@ -427,6 +427,7 @@ let debugMode = _storedDebug !== null ? (_storedDebug === 'true') : (SHOW_TOOL_R
 function updateDebugPill() {
     const pill = document.getElementById('debug-pill');
     if (!pill) return;
+    if (!AGENT_DEBUG_MODE) { pill.style.display = 'none'; return; }
     if (debugMode) { pill.classList.add('debug-on'); pill.textContent = t('chat.debug_pill_on'); }
     else { pill.classList.remove('debug-on'); pill.textContent = t('chat.debug_pill'); }
 }
