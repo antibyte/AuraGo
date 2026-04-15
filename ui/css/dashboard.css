@@ -3499,10 +3499,13 @@
 .w-pct-51 { width: 51%; }
 
 /* ── Mission History Table ─────────────────────────────────────────────── */
+#mission-history-content { overflow-x: auto; }
 .mh-table {
     width: 100%;
+    min-width: 420px;
     border-collapse: collapse;
     font-size: 0.85rem;
+    table-layout: fixed;
 }
 .mh-table th {
     text-align: left;
@@ -3512,10 +3515,18 @@
     font-weight: 500;
     white-space: nowrap;
 }
+.mh-table th:nth-child(1) { width: 30%; }
+.mh-table th:nth-child(2) { width: 18%; }
+.mh-table th:nth-child(3) { width: 18%; }
+.mh-table th:nth-child(4) { width: 22%; }
+.mh-table th:nth-child(5) { width: 12%; }
 .mh-table td {
     padding: 0.4rem 0.6rem;
     border-bottom: 1px solid var(--border-color, #222);
     vertical-align: middle;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 .mh-table tbody tr:hover {
     background: var(--hover-bg, rgba(255,255,255,0.03));
