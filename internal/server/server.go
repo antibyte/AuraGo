@@ -65,6 +65,20 @@ func InternalAPIURL(cfg *config.Config) string {
 	return fmt.Sprintf("%s://127.0.0.1:%d", scheme, port)
 }
 
+// newInternalHTTPClient returns an http.Client configured for internal loopback
+// API calls. It skips TLS verification because InternalAPIURL always resolves
+// to 127.0.0.1 and the server may use a self-signed certificate.
+func newInternalHTTPClient(timeout time.Duration) *http.Client {
+	return &http.Client{
+		Timeout: timeout,
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true, // SECURE: Only for 127.0.0.1 internal API
+			},
+		},
+	}
+}
+
 // i18nStore holds the parsed translations from ui/lang/ keyed by language code.
 // Each value is the raw JSON string for that language, ready for template injection.
 // Deprecated: These variables are kept for backward compatibility with tests.
@@ -429,17 +443,7 @@ func Start(cfg *config.Config, logger *slog.Logger, accessLogger *slog.Logger, l
 			req.Header.Set("X-Internal-Token", s.internalToken)
 			req.Header.Set("X-Mission-ID", missionID)
 
-			// SECURITY: This client is ONLY used for internal loopback API calls.
-			// InternalAPIURL always returns 127.0.0.1, so InsecureSkipVerify is safe here.
-			// This client must never be used for external connections.
-			client := &http.Client{
-				Timeout: 35 * time.Minute, // Must exceed the 30-minute agent loop timeout
-				Transport: &http.Transport{
-					TLSClientConfig: &tls.Config{
-						InsecureSkipVerify: true, // SECURE: Only for 127.0.0.1 internal API
-					},
-				},
-			}
+			client := newInternalHTTPClient(35 * time.Minute) // Must exceed the 30-minute agent loop timeout
 			resp, err := client.Do(req)
 			if err != nil {
 				logger.Error("[MissionV2] Execution failed", "error", err, "mission_id", missionID)
@@ -590,7 +594,7 @@ func Start(cfg *config.Config, logger *slog.Logger, accessLogger *slog.Logger, l
 				req.Header.Set("X-Internal-FollowUp", "true")
 				req.Header.Set("X-Internal-Token", s.internalToken)
 
-				client := &http.Client{Timeout: 10 * time.Minute}
+				client := newInternalHTTPClient(10 * time.Minute)
 				if resp, err := client.Do(req); err != nil {
 					logger.Error("[FirewallGuard] Execution failed", "error", err)
 				} else {
@@ -698,7 +702,7 @@ func Start(cfg *config.Config, logger *slog.Logger, accessLogger *slog.Logger, l
 				req.Header.Set("Content-Type", "application/json")
 				req.Header.Set("X-Internal-FollowUp", "true")
 				req.Header.Set("X-Internal-Token", s.internalToken)
-				client := &http.Client{Timeout: 10 * time.Minute}
+				client := newInternalHTTPClient(10 * time.Minute)
 				if resp, err := client.Do(req); err != nil {
 					logger.Error("[FritzBox Poller] Loopback request failed", "error", err)
 				} else {
