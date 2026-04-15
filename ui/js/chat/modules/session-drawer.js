@@ -37,7 +37,9 @@ window.SessionDrawer = (function () {
     function formatTimeAgo(dateStr) {
         if (!dateStr) return '';
         try {
-            const date = new Date(dateStr + 'Z');
+            // Backend returns "2006-01-02 15:04:05" (space-separated).
+            // Replace space with 'T' for proper ISO 8601 parsing.
+            const date = new Date(dateStr.replace(' ', 'T') + 'Z');
             const now = new Date();
             const diffMs = now - date;
             const diffMin = Math.floor(diffMs / 60000);

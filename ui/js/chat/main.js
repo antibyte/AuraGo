@@ -177,6 +177,19 @@ function applyI18n() {
     /* Lightbox */
     const lbc = document.getElementById('img-lightbox-close');
     if (lbc) lbc.title = t('chat.lightbox_close_title');
+    /* Generic data-i18n attributes (drawer, etc.) */
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (key) el.textContent = t(key);
+    });
+    document.querySelectorAll('[data-i18n-title]').forEach(el => {
+        const key = el.getAttribute('data-i18n-title');
+        if (key) el.title = t(key);
+    });
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+        const key = el.getAttribute('data-i18n-placeholder');
+        if (key) el.placeholder = t(key);
+    });
 }
 
 function chatSetHidden(el, hidden) {
