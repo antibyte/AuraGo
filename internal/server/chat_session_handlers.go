@@ -81,7 +81,7 @@ func handleGetChatSession(s *Server) http.HandlerFunc {
 			return
 		}
 
-		// Get messages for this session
+		// Get messages for this session (already filtered: no internal messages)
 		messages, err := s.ShortTermMem.GetSessionMessages(sessionID)
 		if err != nil {
 			s.Logger.Error("Failed to get session messages", "error", err)
@@ -89,22 +89,18 @@ func handleGetChatSession(s *Server) http.HandlerFunc {
 			return
 		}
 
-		// Filter out internal messages for the UI
-		var filtered []memory.HistoryMessage
-		for _, m := range messages {
-			if !m.IsInternal {
-				filtered = append(filtered, m)
-			}
-		}
-		if filtered == nil {
-			filtered = []memory.HistoryMessage{}
+		// Update last_active_at when user views a session
+		_ = s.ShortTermMem.TouchChatSession(sessionID)
+
+		if messages == nil {
+			messages = []memory.HistoryMessage{}
 		}
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"status":   "ok",
 			"session":  sess,
-			"messages": filtered,
+			"messages": messages,
 		})
 	}
 }

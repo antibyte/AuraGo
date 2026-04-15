@@ -291,6 +291,7 @@ type MissionManagerV2 struct {
 	historyDB         *sql.DB                                  // mission execution history database
 	activeRunID       map[string]string                        // missionID → history run ID for in-progress tracking
 	onMissionComplete func(completedID, result, output string) // callback for mission completion
+	missionGuards     map[string]context.CancelFunc            // per-mission timeout guardian cancel functions
 }
 
 // EmailWatcherInterface for email trigger integration
@@ -312,13 +313,14 @@ type MQTTManagerInterface interface {
 func NewMissionManagerV2(dataDir string, cronMgr *CronManager) *MissionManagerV2 {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &MissionManagerV2{
-		file:        filepath.Join(dataDir, "missions_v2.json"),
-		missions:    make(map[string]*MissionV2),
-		queue:       NewMissionQueue(),
-		cron:        cronMgr,
-		ctx:         ctx,
-		cancel:      cancel,
-		activeRunID: make(map[string]string),
+		file:          filepath.Join(dataDir, "missions_v2.json"),
+		missions:      make(map[string]*MissionV2),
+		queue:         NewMissionQueue(),
+		cron:          cronMgr,
+		ctx:           ctx,
+		cancel:        cancel,
+		activeRunID:   make(map[string]string),
+		missionGuards: make(map[string]context.CancelFunc),
 	}
 }
 
@@ -463,9 +465,11 @@ func (m *MissionManagerV2) save() error {
 	// Atomic write: temp file + rename to prevent data loss on crash
 	tmp := m.file + ".tmp"
 	if err := os.WriteFile(tmp, data, 0644); err != nil {
+		slog.Error("[MissionV2] Failed to persist mission state", "error", err)
 		return fmt.Errorf("write temp file: %w", err)
 	}
 	if err := os.Rename(tmp, m.file); err != nil {
+		slog.Error("[MissionV2] Failed to persist mission state", "error", err)
 		return fmt.Errorf("rename temp file: %w", err)
 	}
 	return nil
@@ -645,12 +649,43 @@ func (m *MissionManagerV2) processNext() {
 	if item.TriggerData != "" {
 		prompt = fmt.Sprintf("%s\n\n[Trigger Context: %s]", prompt, item.TriggerData)
 	}
+	// Start timeout guardian to prevent permanent queue blocking if callback hangs
+	guardCtx, guardCancel := context.WithCancel(context.Background())
+	m.mu.Lock()
+	m.missionGuards[missionID] = guardCancel
+	m.mu.Unlock()
+
+	go func() {
+		timer := time.NewTimer(40 * time.Minute)
+		defer timer.Stop()
+		select {
+		case <-timer.C:
+			slog.Warn("[MissionV2] Mission execution timeout, releasing queue", "mission_id", missionID, "timeout", "40m")
+			m.OnMissionComplete(missionID, MissionResultError, "mission execution timeout exceeded (40m)")
+		case <-guardCtx.Done():
+			// Normal completion, guardian cancelled
+		case <-m.ctx.Done():
+			// System shutdown
+		}
+	}()
 	go callback(prompt, missionID)
 }
 
 // OnMissionComplete handles mission completion and triggers dependent missions
 func (m *MissionManagerV2) OnMissionComplete(missionID, result, output string) {
 	m.mu.Lock()
+
+	// Cancel timeout guardian if active
+	if cancel, ok := m.missionGuards[missionID]; ok {
+		cancel()
+		delete(m.missionGuards, missionID)
+	}
+
+	// Guard against double completion (e.g. timeout + normal completion race)
+	if mission, ok := m.missions[missionID]; ok && mission.Status != MissionStatusRunning {
+		m.mu.Unlock()
+		return
+	}
 
 	// Record mission completion in history
 	if runID, ok := m.activeRunID[missionID]; ok && m.historyDB != nil {

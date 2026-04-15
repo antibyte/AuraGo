@@ -224,8 +224,8 @@ func TestGetSessionMessages(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetSessionMessages: %v", err)
 	}
-	if len(msgs) != 3 {
-		t.Fatalf("expected 3 messages, got %d", len(msgs))
+	if len(msgs) != 2 {
+		t.Fatalf("expected 2 visible messages (internal filtered by SQL), got %d", len(msgs))
 	}
 	if msgs[0].Role != "user" || msgs[0].Content != "hello" {
 		t.Fatalf("unexpected first message: %+v", msgs[0])

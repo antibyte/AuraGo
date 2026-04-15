@@ -219,7 +219,7 @@ func (s *SQLiteMemory) RotateChatSessions() error {
 func (s *SQLiteMemory) GetSessionMessages(sessionID string) ([]HistoryMessage, error) {
 	rows, err := s.db.Query(
 		`SELECT id, role, content, is_pinned, is_internal FROM messages
-		 WHERE session_id = ?
+		 WHERE session_id = ? AND is_internal = 0
 		 ORDER BY timestamp ASC, id ASC`, sessionID,
 	)
 	if err != nil {

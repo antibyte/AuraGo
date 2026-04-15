@@ -11,28 +11,28 @@ import (
 
 // MissionRun represents a single mission execution record in the history.
 type MissionRun struct {
-	ID           string    `json:"id"`             // Unique run ID (auto-generated)
-	MissionID    string    `json:"mission_id"`     // Reference to the mission
-	MissionName  string    `json:"mission_name"`   // Snapshot of mission name at run time
-	TriggerType  string    `json:"trigger_type"`   // manual, cron, webhook, email, mqtt, daemon_wake, etc.
-	TriggerData  string    `json:"trigger_data"`   // JSON blob with trigger context
-	Status       string    `json:"status"`         // running, success, error
-	Output       string    `json:"output"`         // Truncated output (max 2000 chars)
-	ErrorMsg     string    `json:"error_msg"`      // Error message if status=error
-	StartedAt    time.Time `json:"started_at"`
-	CompletedAt  *time.Time `json:"completed_at,omitempty"`
-	DurationMS   int64     `json:"duration_ms"`    // Duration in milliseconds
+	ID          string     `json:"id"`           // Unique run ID (auto-generated)
+	MissionID   string     `json:"mission_id"`   // Reference to the mission
+	MissionName string     `json:"mission_name"` // Snapshot of mission name at run time
+	TriggerType string     `json:"trigger_type"` // manual, cron, webhook, email, mqtt, daemon_wake, etc.
+	TriggerData string     `json:"trigger_data"` // JSON blob with trigger context
+	Status      string     `json:"status"`       // running, success, error
+	Output      string     `json:"output"`       // Truncated output (max 2000 chars)
+	ErrorMsg    string     `json:"error_msg"`    // Error message if status=error
+	StartedAt   time.Time  `json:"started_at"`
+	CompletedAt *time.Time `json:"completed_at,omitempty"`
+	DurationMS  int64      `json:"duration_ms"` // Duration in milliseconds
 }
 
 // MissionHistoryFilter holds structured filter parameters for querying mission history.
 type MissionHistoryFilter struct {
-	MissionID   string `json:"mission_id,omitempty"`    // Filter by mission ID
-	Result      string `json:"result,omitempty"`        // Filter by result: success, error
-	TriggerType string `json:"trigger_type,omitempty"`  // Filter by trigger type
-	From        string `json:"from,omitempty"`          // ISO 8601 start date
-	To          string `json:"to,omitempty"`            // ISO 8601 end date
-	Limit       int    `json:"limit,omitempty"`         // Page size (default 10)
-	Offset      int    `json:"offset,omitempty"`        // Page offset
+	MissionID   string `json:"mission_id,omitempty"`   // Filter by mission ID
+	Result      string `json:"result,omitempty"`       // Filter by result: success, error
+	TriggerType string `json:"trigger_type,omitempty"` // Filter by trigger type
+	From        string `json:"from,omitempty"`         // ISO 8601 start date
+	To          string `json:"to,omitempty"`           // ISO 8601 end date
+	Limit       int    `json:"limit,omitempty"`        // Page size (default 10)
+	Offset      int    `json:"offset,omitempty"`       // Page offset
 }
 
 // MissionHistoryPage represents a paginated result of mission history entries.
@@ -157,12 +157,16 @@ func RecordMissionCompletion(db *sql.DB, runID, status, output string) error {
 		}
 	}
 
-	_, err := db.Exec(`
+	result, err := db.Exec(`
 		UPDATE mission_history SET status = ?, output = ?, completed_at = ?, duration_ms = ? WHERE id = ?`,
 		status, output, nowStr, durationMS, runID)
 
 	if err != nil {
 		return fmt.Errorf("failed to record mission completion: %w", err)
+	}
+
+	if n, _ := result.RowsAffected(); n == 0 {
+		slog.Warn("[MissionV2] RecordMissionCompletion updated 0 rows, run ID may not exist", "run_id", runID)
 	}
 
 	return nil
@@ -192,12 +196,16 @@ func RecordMissionError(db *sql.DB, runID, errorMsg string) error {
 		}
 	}
 
-	_, err := db.Exec(`
+	result, err := db.Exec(`
 		UPDATE mission_history SET status = 'error', error_msg = ?, completed_at = ?, duration_ms = ? WHERE id = ?`,
 		errorMsg, nowStr, durationMS, runID)
 
 	if err != nil {
 		return fmt.Errorf("failed to record mission error: %w", err)
+	}
+
+	if n, _ := result.RowsAffected(); n == 0 {
+		slog.Warn("[MissionV2] RecordMissionError updated 0 rows, run ID may not exist", "run_id", runID)
 	}
 
 	return nil
@@ -302,6 +310,10 @@ func QueryMissionHistory(db *sql.DB, filter MissionHistoryFilter) (*MissionHisto
 		run.ErrorMsg = errorMsg.String
 
 		entries = append(entries, run)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating mission history rows: %w", err)
 	}
 
 	return &MissionHistoryPage{
