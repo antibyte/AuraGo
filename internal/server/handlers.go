@@ -430,11 +430,13 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 		}
 
 		finalMessages := append([]openai.ChatCompletionMessage{}, recentMessages...)
-		if currentSummary := s.HistoryManager.GetSummary(); currentSummary != "" {
-			finalMessages = append([]openai.ChatCompletionMessage{{
-				Role:    openai.ChatMessageRoleSystem,
-				Content: "[CONTEXT_RECAP]: The following is a summary of previous relevant discussions for context. DO NOT echo or repeat this recap in your response:\n" + currentSummary,
-			}}, finalMessages...)
+		if sessionID == "default" {
+			if currentSummary := s.HistoryManager.GetSummary(); currentSummary != "" {
+				finalMessages = append([]openai.ChatCompletionMessage{{
+					Role:    openai.ChatMessageRoleSystem,
+					Content: "[CONTEXT_RECAP]: The following is a summary of previous relevant discussions for context. DO NOT echo or repeat this recap in your response:\n" + currentSummary,
+				}}, finalMessages...)
+			}
 		}
 
 		// First-start: inject a one-time naming prompt so the agent asks the user
