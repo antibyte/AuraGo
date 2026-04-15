@@ -81,7 +81,10 @@
   "dashboard.mh_col_duration": "Varaktighet",
   "dashboard.mh_empty": "Inga missionsexekveringar registrerade ännu.",
   "dashboard.mh_load_more": "Ladda mer",
-  "dashboard.core_facts_modal_add_placeholder": "Lägg till ny kärnfakt...",
+  "dashboard.mh_status_success": "framgång",
+  "dashboard.mh_status_error": "fel",
+  "dashboard.mh_status_running": "körs",
+  "dashboard.core_facts_modal_add_placeholder": "Lägg till ny kärnfakt..."
   "dashboard.core_facts_modal_cancel": "Avbryt",
   "dashboard.core_facts_modal_confirm_delete": "Vill du verkligen ta bort kärnfakt #{{id}}?",
   "dashboard.core_facts_modal_delete": "Ta bort",

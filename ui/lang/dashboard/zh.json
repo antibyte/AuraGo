@@ -81,7 +81,10 @@
   "dashboard.mh_col_duration": "持续时间",
   "dashboard.mh_empty": "暂无任务执行记录。",
   "dashboard.mh_load_more": "加载更多",
-  "dashboard.core_facts_modal_add_placeholder": "添加新核心事实...",
+  "dashboard.mh_status_success": "成功",
+  "dashboard.mh_status_error": "错误",
+  "dashboard.mh_status_running": "运行中",
+  "dashboard.core_facts_modal_add_placeholder": "添加新核心事实..."
   "dashboard.core_facts_modal_cancel": "取消",
   "dashboard.core_facts_modal_confirm_delete": "确定要删除核心事实 #{{id}} 吗？",
   "dashboard.core_facts_modal_delete": "删除",

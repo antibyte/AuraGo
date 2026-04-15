@@ -81,7 +81,10 @@
   "dashboard.mh_col_duration": "Durata",
   "dashboard.mh_empty": "Nessuna esecuzione di missione registrata.",
   "dashboard.mh_load_more": "Carica altro",
-  "dashboard.core_facts_modal_add_placeholder": "Aggiungi nuovo fatto…",
+  "dashboard.mh_status_success": "successo",
+  "dashboard.mh_status_error": "errore",
+  "dashboard.mh_status_running": "in esecuzione",
+  "dashboard.core_facts_modal_add_placeholder": "Aggiungi nuovo fatto…"
   "dashboard.core_facts_modal_cancel": "Annulla",
   "dashboard.core_facts_modal_confirm_delete": "Eliminare davvero il fatto #{{id}}?",
   "dashboard.core_facts_modal_delete": "Elimina",

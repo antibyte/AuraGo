@@ -81,7 +81,10 @@
   "dashboard.mh_col_duration": "Czas trwania",
   "dashboard.mh_empty": "Brak zarejestrowanych wykonań misji.",
   "dashboard.mh_load_more": "Wczytaj więcej",
-  "dashboard.core_facts_modal_add_placeholder": "Dodaj nowy podstawowy fakt…",
+  "dashboard.mh_status_success": "sukces",
+  "dashboard.mh_status_error": "błąd",
+  "dashboard.mh_status_running": "trwa",
+  "dashboard.core_facts_modal_add_placeholder": "Dodaj nowy podstawowy fakt…"
   "dashboard.core_facts_modal_cancel": "Anuluj",
   "dashboard.core_facts_modal_confirm_delete": "Czy na pewno usunąć podstawowy fakt #{{id}}?",
   "dashboard.core_facts_modal_delete": "Usuń",

@@ -81,7 +81,10 @@
   "dashboard.mh_col_duration": "Duration",
   "dashboard.mh_empty": "No mission executions recorded yet.",
   "dashboard.mh_load_more": "Load more",
-  "dashboard.core_facts_modal_add_placeholder": "Add new core fact…",
+  "dashboard.mh_status_success": "success",
+  "dashboard.mh_status_error": "error",
+  "dashboard.mh_status_running": "running",
+  "dashboard.core_facts_modal_add_placeholder": "Add new core fact…"
   "dashboard.core_facts_modal_cancel": "Cancel",
   "dashboard.core_facts_modal_confirm_delete": "Really delete core fact #{{id}}?",
   "dashboard.core_facts_modal_delete": "Delete",

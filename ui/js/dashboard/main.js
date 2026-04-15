@@ -3062,7 +3062,7 @@
                 const started = e.started_at ? new Date(e.started_at).toLocaleString(document.documentElement.lang || 'de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
                 tr.innerHTML = `
                     <td title="${esc(e.mission_id)}">${esc(e.mission_name || e.mission_id)}</td>
-                    <td><span class="mh-status ${statusCls}">${icon} ${esc(e.status)}</span></td>
+                    <td><span class="mh-status ${statusCls}">${icon} ${t('dashboard.mh_status_' + e.status) || esc(e.status)}</span></td>
                     <td><span class="mh-trigger">${trigIcon} ${esc(e.trigger_type || '—')}</span></td>
                     <td>${started}</td>
                     <td>${dur}</td>`;

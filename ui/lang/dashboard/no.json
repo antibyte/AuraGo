@@ -81,7 +81,10 @@
   "dashboard.mh_col_duration": "Varighet",
   "dashboard.mh_empty": "Ingen misjonskjøringer registrert ennå.",
   "dashboard.mh_load_more": "Last mer",
-  "dashboard.core_facts_modal_add_placeholder": "Legg til ny kjernefaktum…",
+  "dashboard.mh_status_success": "suksess",
+  "dashboard.mh_status_error": "feil",
+  "dashboard.mh_status_running": "kjører",
+  "dashboard.core_facts_modal_add_placeholder": "Legg til ny kjernefaktum…"
   "dashboard.core_facts_modal_cancel": "Avbryt",
   "dashboard.core_facts_modal_confirm_delete": "Vil du virkelig slette kjernefaktum #{{id}}?",
   "dashboard.core_facts_modal_delete": "Slett",

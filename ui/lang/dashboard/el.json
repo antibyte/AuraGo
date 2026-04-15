@@ -81,7 +81,10 @@
   "dashboard.mh_col_duration": "Διάρκεια",
   "dashboard.mh_empty": "Δεν έχουν καταγραφεί εκτελέσεις αποστολών ακόμα.",
   "dashboard.mh_load_more": "Φόρτωση περισσότερων",
-  "dashboard.core_facts_modal_add_placeholder": "Προσθήκη νέου βασικού γεγονότος…",
+  "dashboard.mh_status_success": "επιτυχία",
+  "dashboard.mh_status_error": "σφάλμα",
+  "dashboard.mh_status_running": "εκτελείται",
+  "dashboard.core_facts_modal_add_placeholder": "Προσθήκη νέου βασικού γεγονότος…"
   "dashboard.core_facts_modal_cancel": "Ακύρωση",
   "dashboard.core_facts_modal_confirm_delete": "Πραγματικά διαγραφή του βασικού γεγονότος #{{id}};",
   "dashboard.core_facts_modal_delete": "Διαγραφή",
