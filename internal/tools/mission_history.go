@@ -43,11 +43,22 @@ type MissionHistoryPage struct {
 	Offset  int           `json:"offset"`
 }
 
-// InitMissionHistoryDB initializes the mission history SQLite database.
+// InitMissionHistoryDB initializes the mission history SQLite database with
+// WAL journal mode, busy timeout and schema creation.
 func InitMissionHistoryDB(dbPath string) (*sql.DB, error) {
 	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open mission history database: %w", err)
+	}
+
+	// SQLite hardening: WAL mode for concurrent read/write, busy timeout for lock contention
+	if _, err := db.Exec("PRAGMA journal_mode=WAL"); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("failed to set WAL mode: %w", err)
+	}
+	if _, err := db.Exec("PRAGMA busy_timeout=5000"); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("failed to set busy_timeout: %w", err)
 	}
 
 	schema := `
@@ -75,6 +86,30 @@ func InitMissionHistoryDB(dbPath string) (*sql.DB, error) {
 	}
 
 	return db, nil
+}
+
+// ReconcileStaleRunningMarks marks all mission_history entries that are still
+// "running" but started more than maxAge ago as "error" with an abort message.
+// This should be called once at server startup to clean up zombie entries left
+// behind by crashes or unclean shutdowns.
+func ReconcileStaleRunningMarks(db *sql.DB, maxAge time.Duration, logger *slog.Logger) (int64, error) {
+	if db == nil {
+		return 0, nil
+	}
+	cutoff := time.Now().Add(-maxAge).Format(time.RFC3339)
+	result, err := db.Exec(`
+		UPDATE mission_history
+		SET status = 'error', error_msg = 'aborted: server restart', completed_at = ?
+		WHERE status = 'running' AND started_at < ?`,
+		time.Now().Format(time.RFC3339), cutoff)
+	if err != nil {
+		return 0, fmt.Errorf("failed to reconcile stale running entries: %w", err)
+	}
+	updated, _ := result.RowsAffected()
+	if updated > 0 {
+		logger.Info("[MissionHistory] Reconciled stale running entries", "updated", updated)
+	}
+	return updated, nil
 }
 
 // RecordMissionStart inserts a new mission run record with status "running".

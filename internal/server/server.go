@@ -511,6 +511,8 @@ func Start(cfg *config.Config, logger *slog.Logger, accessLogger *slog.Logger, l
 			s.MissionHistoryDB = histDB
 			s.MissionManagerV2.SetHistoryDB(histDB)
 			logger.Info("Mission execution history initialized")
+			// Reconcile zombie "running" entries left by previous crashes
+			tools.ReconcileStaleRunningMarks(histDB, 1*time.Hour, logger)
 		}
 	}
 

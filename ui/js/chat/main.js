@@ -389,7 +389,7 @@ async function renderHistoryMessagesBatched(history) {
  */
 async function tryRecoverFromHistory() {
     try {
-        const res = await fetch('/history');
+        const res = await fetch(buildHistoryUrl());
         if (!res.ok) return;
         const history = await res.json();
         if (!Array.isArray(history) || history.length === 0) return;
@@ -823,7 +823,11 @@ document.getElementById('stop-btn').addEventListener('click', async () => {
     );
     if (ok) {
         try {
-            const res = await fetch('/api/admin/stop', { method: 'POST' });
+            const sid = typeof getActiveSessionId === 'function' ? getActiveSessionId() : 'default';
+            const res = await fetch('/api/admin/stop', {
+                method: 'POST',
+                headers: { 'X-Session-ID': sid }
+            });
             if (res.ok) {
                 await showAlert(
                     t('chat.alert_stopped_title'),

@@ -259,7 +259,9 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 				s.Logger.Error("Failed to load session messages for context", "session_id", sessionID, "error", err)
 			} else {
 				for _, m := range sessionMsgs {
-					recentMessages = append(recentMessages, m.ChatCompletionMessage)
+					if !m.IsInternal {
+						recentMessages = append(recentMessages, m.ChatCompletionMessage)
+					}
 				}
 			}
 		}
@@ -618,9 +620,26 @@ func handleInterrupt(s *Server) http.HandlerFunc {
 			return
 		}
 
-		s.Logger.Warn("Stop requested via Web UI")
+		// Determine which session to interrupt.
+		// Prefer X-Session-ID header, fall back to JSON body, then "default".
+		sessionID := "default"
+		if sid := r.Header.Get("X-Session-ID"); sid != "" {
+			sessionID = sid
+		} else {
+			var body struct {
+				SessionID string `json:"session_id"`
+			}
+			if r.Body != nil {
+				_ = json.NewDecoder(r.Body).Decode(&body)
+				if body.SessionID != "" {
+					sessionID = body.SessionID
+				}
+			}
+		}
 
-		agent.InterruptSession("default")
+		s.Logger.Warn("Stop requested via Web UI", "session_id", sessionID)
+
+		agent.InterruptSession(sessionID)
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{

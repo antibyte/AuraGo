@@ -200,6 +200,29 @@ window.SessionDrawer = (function () {
         else open();
     }
 
+    // ── Ghost session guard ──
+    // Validate that the stored session ID still exists on the server.
+    // If it was rotated or deleted, fall back to "default".
+    async function validateStoredSession() {
+        if (activeSessionId === 'default') return;
+        try {
+            const res = await fetch('/api/chat/sessions/' + encodeURIComponent(activeSessionId), { credentials: 'same-origin' });
+            if (!res.ok) {
+                // Session no longer exists – fall back
+                activeSessionId = 'default';
+                localStorage.setItem('aurago-session-id', 'default');
+                return;
+            }
+            const data = await res.json();
+            if (!data.session) {
+                activeSessionId = 'default';
+                localStorage.setItem('aurago-session-id', 'default');
+            }
+        } catch (_) {
+            // Network error – keep current, don't block init
+        }
+    }
+
     // ── Init ──
     function init() {
         if (toggleBtn) {
@@ -214,6 +237,8 @@ window.SessionDrawer = (function () {
         if (newBtn) {
             newBtn.addEventListener('click', handleNewSession);
         }
+        // Validate stored session on page load
+        validateStoredSession();
     }
 
     // ── Public API ──

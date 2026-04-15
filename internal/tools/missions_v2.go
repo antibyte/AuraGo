@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sort"
@@ -657,10 +658,14 @@ func (m *MissionManagerV2) OnMissionComplete(missionID, result, output string) {
 		delete(m.activeRunID, missionID)
 		// Write history outside the lock to avoid contention
 		go func() {
+			var histErr error
 			if result == MissionResultSuccess || result == "success" {
-				_ = RecordMissionCompletion(hdb, runID, "success", output)
+				histErr = RecordMissionCompletion(hdb, runID, "success", output)
 			} else {
-				_ = RecordMissionError(hdb, runID, output)
+				histErr = RecordMissionError(hdb, runID, output)
+			}
+			if histErr != nil {
+				slog.Error("[MissionV2] Failed to record mission history", "run_id", runID, "error", histErr)
 			}
 		}()
 	}
@@ -672,7 +677,7 @@ func (m *MissionManagerV2) OnMissionComplete(missionID, result, output string) {
 		mission.LastResult = result
 		mission.LastOutput = truncateString(output, 500)
 		mission.RunCount++
-		m.save() // First save: persist completion state before triggering dependents
+		// (save deferred to end of method to avoid double write)
 	}
 
 	m.queue.Done()

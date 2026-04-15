@@ -28,7 +28,7 @@ func sqliteDatetimeToRFC3339(dt string) string {
 		return ""
 	}
 	// Already RFC3339?
-	if len(dt) > 0 && dt[len(dt)-1] == 'Z' || strings.Contains(dt, "T") {
+	if len(dt) > 0 && (dt[len(dt)-1] == 'Z' || strings.Contains(dt, "T")) {
 		return dt
 	}
 	t, err := time.Parse("2006-01-02 15:04:05", dt)
