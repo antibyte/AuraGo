@@ -31,7 +31,7 @@ window.SessionDrawer = (function () {
     }
 
     function escapeAttr(str) {
-        return String(str).replace(/&/g, '&').replace(/"/g, '"').replace(/'/g, ''').replace(/</g, '<').replace(/>/g, '>');
+        return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
     function formatTimeAgo(dateStr) {
@@ -56,7 +56,7 @@ window.SessionDrawer = (function () {
     // ── API calls ──
     async function fetchSessions() {
         try {
-            const res = await fetch('/api/chat/sessions');
+            const res = await fetch('/api/chat/sessions', { credentials: 'same-origin' });
             if (!res.ok) return;
             const data = await res.json();
             sessions = data.sessions || [];
@@ -67,7 +67,7 @@ window.SessionDrawer = (function () {
 
     async function createSession() {
         try {
-            const res = await fetch('/api/chat/sessions', { method: 'POST' });
+            const res = await fetch('/api/chat/sessions', { method: 'POST', credentials: 'same-origin' });
             if (!res.ok) return null;
             const data = await res.json();
             return data.session;
@@ -79,7 +79,7 @@ window.SessionDrawer = (function () {
 
     async function deleteSession(id) {
         try {
-            await fetch('/api/chat/sessions/' + encodeURIComponent(id), { method: 'DELETE' });
+            await fetch('/api/chat/sessions/' + encodeURIComponent(id), { method: 'DELETE', credentials: 'same-origin' });
         } catch (err) {
             console.error('Failed to delete session:', err);
         }

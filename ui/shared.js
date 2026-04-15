@@ -1063,6 +1063,8 @@ window.AuraSSE = (function () {
 
     // Auto-redirect to login on SSE auth failure
     var _authRedirectInProgress = false;
+    var _authErrorCount = 0;
+    var _authErrorTimer = null;
     function _redirectToLogin() {
         if (_authRedirectInProgress) return;
         if (window.location.pathname.indexOf('/login') !== -1 || window.location.pathname.indexOf('/setup') !== -1) return;
@@ -1070,6 +1072,11 @@ window.AuraSSE = (function () {
         window.location.href = '/auth/login?redirect=' + encodeURIComponent(window.location.pathname);
     }
     on('_error', function () {
+        _authErrorCount++;
+        if (_authErrorTimer) clearTimeout(_authErrorTimer);
+        _authErrorTimer = setTimeout(function () { _authErrorCount = 0; }, 5000);
+        // Only redirect after multiple consecutive auth errors (avoids false positives on temporary disconnects)
+        if (_authErrorCount < 3) return;
         fetch('/api/auth/status', { credentials: 'same-origin' }).then(function (r) {
             if (r.status === 401) _redirectToLogin();
         }).catch(function () {});
@@ -1091,24 +1098,6 @@ window.AuraSSE = (function () {
             var i = _legacy.indexOf(fn);
             if (i >= 0) _legacy.splice(i, 1);
         }
-    };
-}());
-
-// Global fetch wrapper: any 401 from API calls immediately redirects to login
-(function () {
-    var _redirectInProgress = false;
-    var origFetch = window.fetch;
-    window.fetch = function () {
-        return origFetch.apply(this, arguments).then(function (r) {
-            if (r.status === 401 && !_redirectInProgress) {
-                var path = window.location.pathname || '';
-                if (path.indexOf('/login') === -1 && path.indexOf('/setup') === -1) {
-                    _redirectInProgress = true;
-                    window.location.href = '/auth/login?redirect=' + encodeURIComponent(path);
-                }
-            }
-            return r;
-        });
     };
 }());
 
