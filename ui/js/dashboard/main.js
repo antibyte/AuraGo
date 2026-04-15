@@ -151,6 +151,7 @@
             renderQuickStatus(overview);
             renderOptimizationStats(opt);
             renderCompressionStats(comp);
+            loadMissionHistory();
             if (system) {
                 if (!Charts.cpu) Charts.cpu = createGauge('cpu-chart', system.cpu?.usage_percent || 0);
                 updateGauge(Charts.cpu, 'cpu-val', system.cpu?.usage_percent || 0);
@@ -3009,6 +3010,72 @@
         // ══════════════════════════════════════════════════════════════════════════════
         // OPERATIONS & INTEGRATIONS
         // ══════════════════════════════════════════════════════════════════════════════
+
+        // ═══ Mission History ═══════════════════════════════════════════════════════
+        let mhOffset = 0;
+        const MH_PAGE_SIZE = 10;
+
+        async function loadMissionHistory(append) {
+            try {
+                const url = `/api/dashboard/mission-history?limit=${MH_PAGE_SIZE}&offset=${mhOffset}`;
+                const resp = await fetch(url);
+                if (!resp.ok) return;
+                const data = await resp.json();
+                renderMissionHistory(data, append);
+            } catch (e) {
+                console.warn('Mission history load failed', e);
+            }
+        }
+
+        function renderMissionHistory(page, append) {
+            const tbody = document.getElementById('mission-history-tbody');
+            const emptyEl = document.getElementById('mission-history-empty');
+            const moreBtn = document.getElementById('mission-history-more');
+            if (!tbody) return;
+
+            const entries = page.entries || [];
+            if (!append) tbody.innerHTML = '';
+
+            if (entries.length === 0 && !append) {
+                if (emptyEl) emptyEl.style.display = '';
+                if (moreBtn) moreBtn.style.display = 'none';
+                return;
+            }
+            if (emptyEl) emptyEl.style.display = 'none';
+
+            const statusIcons = { success: '✅', error: '❌', running: '🔄' };
+            const triggerLabels = {
+                manual: '👆', cron: '⏰', webhook: '🔗', email: '📧',
+                mqtt: '📡', daemon_wake: '👹', mission_completed: '🔗',
+                system_startup: '🚀', egg_hatched: '🥚', nest_cleared: '🪺',
+                device_connected: '🔌', device_disconnected: '⚡',
+                fritzbox_call: '📞', budget_warning: '💰', budget_exceeded: '🚫',
+                home_assistant_state: '🏠',
+            };
+
+            entries.forEach(e => {
+                const tr = document.createElement('tr');
+                const statusCls = e.status === 'success' ? 'mh-status-success' : e.status === 'error' ? 'mh-status-error' : 'mh-status-running';
+                const icon = statusIcons[e.status] || '❓';
+                const trigIcon = triggerLabels[e.trigger_type] || '⚡';
+                const dur = e.duration_ms > 0 ? (e.duration_ms >= 60000 ? `${(e.duration_ms / 60000).toFixed(1)}m` : `${(e.duration_ms / 1000).toFixed(1)}s`) : '—';
+                const started = e.started_at ? new Date(e.started_at).toLocaleString(document.documentElement.lang || 'de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
+                tr.innerHTML = `
+                    <td title="${esc(e.mission_id)}">${esc(e.mission_name || e.mission_id)}</td>
+                    <td><span class="mh-status ${statusCls}">${icon} ${esc(e.status)}</span></td>
+                    <td><span class="mh-trigger">${trigIcon} ${esc(e.trigger_type || '—')}</span></td>
+                    <td>${started}</td>
+                    <td>${dur}</td>`;
+                tbody.appendChild(tr);
+            });
+
+            mhOffset += entries.length;
+            const hasMore = page.total > mhOffset;
+            if (moreBtn) {
+                moreBtn.style.display = hasMore ? '' : 'none';
+                moreBtn.onclick = () => loadMissionHistory(true);
+            }
+        }
 
         function renderOperations(overview) {
             if (!overview) return;

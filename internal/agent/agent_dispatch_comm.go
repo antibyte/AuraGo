@@ -1259,10 +1259,35 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "%v"}`, err)
 				}
 				return `Tool Output: {"status": "success", "message": "Mission scheduled for immediate execution by the background task queue"}`
-
-			default:
-				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Unknown operation: %s"}`, req.Operation)
-			}
+	
+			case "history":
+				if missionManagerV2 == nil {
+					return `Tool Output: {"status":"error","message":"Mission control storage not available"}`
+				}
+				historyDB := missionManagerV2.GetHistoryDB()
+				if historyDB == nil {
+					return `Tool Output: {"status":"error","message":"Mission history not available"}`
+				}
+				filter := tools.MissionHistoryFilter{
+					MissionID:   req.ID,
+					Result:      req.HistoryResult,
+					TriggerType: req.HistoryTriggerType,
+					From:        req.HistoryFrom,
+					To:          req.HistoryTo,
+					Limit:       req.Limit,
+				}
+				if filter.Limit <= 0 {
+					filter.Limit = 10
+				}
+				page, err := tools.QueryMissionHistory(historyDB, filter)
+				if err != nil {
+					return fmt.Sprintf(`Tool Output: {"status":"error","message":"History query failed: %v"}`, err)
+				}
+				return "Tool Output: " + tools.FormatMissionHistoryJSON(page)
+	
+				default:
+					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Unknown operation: %s"}`, req.Operation)
+				}
 
 		case "manage_daemon":
 			if !cfg.Tools.DaemonSkills.Enabled {

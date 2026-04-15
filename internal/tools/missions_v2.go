@@ -287,6 +287,8 @@ type MissionManagerV2 struct {
 	mqttMgr           MQTTManagerInterface
 	cheatsheetDB      *sql.DB
 	preparedDB        *sql.DB                                  // prepared missions database
+	historyDB         *sql.DB                                  // mission execution history database
+	activeRunID       map[string]string                        // missionID → history run ID for in-progress tracking
 	onMissionComplete func(completedID, result, output string) // callback for mission completion
 }
 
@@ -309,12 +311,13 @@ type MQTTManagerInterface interface {
 func NewMissionManagerV2(dataDir string, cronMgr *CronManager) *MissionManagerV2 {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &MissionManagerV2{
-		file:     filepath.Join(dataDir, "missions_v2.json"),
-		missions: make(map[string]*MissionV2),
-		queue:    NewMissionQueue(),
-		cron:     cronMgr,
-		ctx:      ctx,
-		cancel:   cancel,
+		file:        filepath.Join(dataDir, "missions_v2.json"),
+		missions:    make(map[string]*MissionV2),
+		queue:       NewMissionQueue(),
+		cron:        cronMgr,
+		ctx:         ctx,
+		cancel:      cancel,
+		activeRunID: make(map[string]string),
 	}
 }
 
@@ -358,6 +361,20 @@ func (m *MissionManagerV2) SetPreparedDB(db *sql.DB) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.preparedDB = db
+}
+
+// SetHistoryDB sets the mission execution history database
+func (m *MissionManagerV2) SetHistoryDB(db *sql.DB) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.historyDB = db
+}
+
+// GetHistoryDB returns the mission execution history database reference.
+func (m *MissionManagerV2) GetHistoryDB() *sql.DB {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.historyDB
 }
 
 // GetCheatsheetDB returns the cheatsheet database reference.
@@ -561,10 +578,25 @@ func (m *MissionManagerV2) processNext() {
 	callback := m.callback
 	prompt := mission.Prompt
 	missionID := mission.ID
+	missionName := mission.Name
 	cheatsheetIDs := mission.CheatsheetIDs
 	cheatsheetDB := m.cheatsheetDB
 	preparedDB := m.preparedDB
+	historyDB := m.historyDB
 	m.mu.Unlock()
+
+	// Record mission start in history
+	if historyDB != nil {
+		triggerType := item.TriggerType
+		if triggerType == "" {
+			triggerType = "manual"
+		}
+		if runID, err := RecordMissionStart(historyDB, missionID, missionName, triggerType, item.TriggerData); err == nil {
+			m.mu.Lock()
+			m.activeRunID[missionID] = runID
+			m.mu.Unlock()
+		}
+	}
 
 	if callback == nil {
 		// No callback set — mark mission as error and release queue
@@ -618,6 +650,20 @@ func (m *MissionManagerV2) processNext() {
 // OnMissionComplete handles mission completion and triggers dependent missions
 func (m *MissionManagerV2) OnMissionComplete(missionID, result, output string) {
 	m.mu.Lock()
+
+	// Record mission completion in history
+	if runID, ok := m.activeRunID[missionID]; ok && m.historyDB != nil {
+		hdb := m.historyDB
+		delete(m.activeRunID, missionID)
+		// Write history outside the lock to avoid contention
+		go func() {
+			if result == MissionResultSuccess || result == "success" {
+				_ = RecordMissionCompletion(hdb, runID, "success", output)
+			} else {
+				_ = RecordMissionError(hdb, runID, output)
+			}
+		}()
+	}
 	defer m.mu.Unlock()
 
 	// Update mission status

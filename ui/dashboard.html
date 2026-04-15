@@ -204,6 +204,33 @@
       </div>
     </div>
 
+    <!-- 6. Mission History -->
+    <div class="dash-card" id="card-mission-history">
+      <div class="dash-card-header">
+        <span class="card-icon">🚀</span>
+        <span data-i18n="dashboard.mission_history_title">Mission History</span>
+        <span class="collapse-toggle" data-card="card-mission-history" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span>
+      </div>
+      <div class="dash-card-body">
+        <div id="mission-history-content">
+          <table class="mh-table">
+            <thead>
+              <tr>
+                <th data-i18n="dashboard.mh_col_mission">Mission</th>
+                <th data-i18n="dashboard.mh_col_status">Status</th>
+                <th data-i18n="dashboard.mh_col_trigger">Trigger</th>
+                <th data-i18n="dashboard.mh_col_started">Gestartet</th>
+                <th data-i18n="dashboard.mh_col_duration">Dauer</th>
+              </tr>
+            </thead>
+            <tbody id="mission-history-tbody"></tbody>
+          </table>
+          <div id="mission-history-empty" class="empty-state" data-i18n="dashboard.mh_empty">Noch keine Mission-Ausführungen.</div>
+          <button id="mission-history-more" class="mh-more-btn" style="display:none" data-i18n="dashboard.mh_load_more">Mehr laden</button>
+        </div>
+      </div>
+    </div>
+
     </div><!-- .dash-grid tab-overview -->
   </div><!-- #tab-overview -->
 

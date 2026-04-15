@@ -181,6 +181,12 @@ type missionArgs struct {
 	Priority       int
 	Locked         bool
 	LockedProvided bool
+	// History filter fields (used when operation=history)
+	Limit              int
+	HistoryResult      string // filter by result: success, error
+	HistoryTriggerType string // filter by trigger type
+	HistoryFrom        string // ISO 8601 start date
+	HistoryTo          string // ISO 8601 end date
 }
 
 type notificationArgs struct {
@@ -598,13 +604,18 @@ func decodeDiscordMessageArgs(tc ToolCall) discordMessageArgs {
 
 func decodeMissionArgs(tc ToolCall) missionArgs {
 	req := missionArgs{
-		Operation: firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
-		ID:        firstNonEmptyToolString(tc.ID, toolArgString(tc.Params, "id")),
-		Title:     firstNonEmptyToolString(tc.Title, toolArgString(tc.Params, "title", "name")),
-		Command:   firstNonEmptyToolString(tc.Command, toolArgString(tc.Params, "command", "prompt")),
-		CronExpr:  firstNonEmptyToolString(tc.CronExpr, toolArgString(tc.Params, "cron_expr")),
-		Priority:  max(tc.Priority, toolArgInt(tc.Params, 0, "priority")),
-		Locked:    tc.Locked,
+		Operation:          firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		ID:                 firstNonEmptyToolString(tc.ID, toolArgString(tc.Params, "id")),
+		Title:              firstNonEmptyToolString(tc.Title, toolArgString(tc.Params, "title", "name")),
+		Command:            firstNonEmptyToolString(tc.Command, toolArgString(tc.Params, "command", "prompt")),
+		CronExpr:           firstNonEmptyToolString(tc.CronExpr, toolArgString(tc.Params, "cron_expr")),
+		Priority:           max(tc.Priority, toolArgInt(tc.Params, 0, "priority")),
+		Locked:             tc.Locked,
+		Limit:              toolArgInt(tc.Params, 0, "limit"),
+		HistoryResult:      toolArgString(tc.Params, "result"),
+		HistoryTriggerType: toolArgString(tc.Params, "trigger_type"),
+		HistoryFrom:        toolArgString(tc.Params, "from"),
+		HistoryTo:          toolArgString(tc.Params, "to"),
 	}
 	if locked, ok := toolArgBool(tc.Params, "locked"); ok {
 		req.Locked = locked

@@ -265,19 +265,24 @@ func appendMemoryToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai.
 
 	if ff.MissionsEnabled {
 		tools = append(tools, tool("manage_missions",
-			"Create, list, update, delete, or run background automation tasks (missions) in the Mission Control system. Use this to schedule recurring work for the agent or define on-demand jobs.",
+			"Create, list, update, delete, or run background automation tasks (missions) in the Mission Control system. Use this to schedule recurring work for the agent or define on-demand jobs. The 'history' operation retrieves past mission execution records with optional filters.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",
 					"description": "Mission operation",
-					"enum":        []string{"add", "list", "update", "delete", "run"},
+					"enum":        []string{"add", "list", "update", "delete", "run", "history"},
 				},
-				"title":     prop("string", "Name of the mission (required for add)"),
-				"command":   prop("string", "The task prompt that the agent will execute"),
-				"cron_expr": prop("string", "Optional cron expression for scheduling (e.g. '0 9 * * *' for daily at 9am)"),
-				"priority":  prop("integer", "Priority: 1=low, 2=medium (default), 3=high"),
-				"locked":    prop("boolean", "If true, the mission is locked and cannot be deleted until unlocked"),
-				"id":        prop("string", "Mission ID (required for update/delete/run)"),
+				"title":        prop("string", "Name of the mission (required for add)"),
+				"command":      prop("string", "The task prompt that the agent will execute"),
+				"cron_expr":    prop("string", "Optional cron expression for scheduling (e.g. '0 9 * * *' for daily at 9am)"),
+				"priority":     prop("integer", "Priority: 1=low, 2=medium (default), 3=high"),
+				"locked":       prop("boolean", "If true, the mission is locked and cannot be deleted until unlocked"),
+				"id":           prop("string", "Mission ID (required for update/delete/run, optional filter for history)"),
+				"limit":        prop("integer", "Number of history entries to return (default 10, for history operation)"),
+				"result":       prop("string", "Filter history by result: 'success' or 'error' (for history operation)"),
+				"trigger_type": prop("string", "Filter history by trigger type, e.g. 'manual', 'cron', 'webhook', 'email' (for history operation)"),
+				"from":         prop("string", "Filter history from date (ISO 8601, e.g. '2025-01-01T00:00:00Z', for history operation)"),
+				"to":           prop("string", "Filter history to date (ISO 8601, e.g. '2025-12-31T23:59:59Z', for history operation)"),
 			}, "operation"),
 		))
 	}

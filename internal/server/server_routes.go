@@ -724,6 +724,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		mux.HandleFunc("/api/dashboard/guardian", handleDashboardGuardian(s))
 		mux.HandleFunc("/api/dashboard/errors", handleDashboardErrors(s))
 		mux.HandleFunc("/api/dashboard/compression", handleDashboardCompression(s))
+		mux.HandleFunc("/api/dashboard/mission-history", handleDashboardMissionHistory(s))
 		mux.HandleFunc("/api/knowledge-graph/node", handleKnowledgeGraphNodeDetail(s))
 		mux.HandleFunc("/api/knowledge-graph/node/protect", handleKnowledgeGraphNodeProtect(s))
 		mux.HandleFunc("/api/knowledge-graph/edge", handleKnowledgeGraphEdgeMutate(s))
@@ -780,6 +781,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		mux.HandleFunc("/api/missions/v2/queue", handleMissionQueue(s))
 		mux.HandleFunc("/api/missions/v2/execution", handleMissionsV2ByExecution(s))
 		mux.HandleFunc("/api/missions/v2/dependencies", handleMissionDependencies(s))
+		mux.HandleFunc("/api/missions/v2/history", handleMissionV2History(s))
 		mux.HandleFunc("/api/missions/v2/", handleMissionV2ByID(s))
 	}
 

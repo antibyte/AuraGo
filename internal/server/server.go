@@ -145,6 +145,7 @@ type Server struct {
 	SkillManager       *tools.SkillManager   // Skill Manager for registry and security scanning
 	SkillsDB           *sql.DB               // Skills registry database
 	PreparedMissionsDB *sql.DB               // Prepared missions SQLite database
+	MissionHistoryDB   *sql.DB               // Mission execution history SQLite database
 	PreparationService *services.MissionPreparationService
 	WarningsRegistry   *warnings.Registry // Runtime warnings and health issues
 	DaemonSupervisor   *tools.DaemonSupervisor
@@ -498,6 +499,18 @@ func Start(cfg *config.Config, logger *slog.Logger, accessLogger *slog.Logger, l
 			s.PreparationService.SetAvailableTools(agent.ToolSummariesFromConfig(cfg))
 			s.PreparationService.Start(context.Background())
 			logger.Info("Mission preparation service initialized")
+		}
+	}
+
+	// Initialize Mission Execution History database
+	{
+		histDB, err := tools.InitMissionHistoryDB(cfg.Directories.DataDir + "/mission_history.db")
+		if err != nil {
+			logger.Error("Failed to initialize mission history DB", "error", err)
+		} else {
+			s.MissionHistoryDB = histDB
+			s.MissionManagerV2.SetHistoryDB(histDB)
+			logger.Info("Mission execution history initialized")
 		}
 	}
 
