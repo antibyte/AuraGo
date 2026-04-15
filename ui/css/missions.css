@@ -306,7 +306,6 @@
 /* Mission Grid */
 /* LAY-04: Unified card grid */
 .mission-grid,
-.missions-grid,
 .card-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -314,8 +313,24 @@
     align-items: start;
 }
 
+/* Missions masonry grid (prevents expanded cards from pushing full rows down) */
+.missions-grid {
+    columns: 4 280px;
+    column-gap: 20px; /* D-18: consistent 20px gap */
+}
+
+.missions-grid .mission-card {
+    break-inside: avoid;
+    margin-bottom: 20px; /* vertical gap between items */
+    width: 100%;
+    display: inline-flex; /* keep flex layout, but behave as an inline column item */
+    vertical-align: top;
+}
+
 .missions-grid > .empty-state {
-    grid-column: 1 / -1;
+    column-span: all;
+    width: 100%;
+    margin-bottom: 0;
 }
 
 .mission-card {
@@ -331,6 +346,22 @@
         inset 0 1px 0 var(--surface-highlight);
     display: flex;
     flex-direction: column;
+}
+
+.missions-grid.list-view {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    columns: auto;
+}
+
+.missions-grid.list-view .mission-card {
+    display: flex;
+    margin-bottom: 0;
+}
+
+.missions-grid.list-view > .empty-state {
+    column-span: none;
 }
 
 .mission-card.entering {
@@ -957,7 +988,7 @@
 /* Responsive */
 @media (max-width: 768px) {
     .missions-grid {
-        grid-template-columns: 1fr;
+        columns: 1;
     }
     .status-bar {
         grid-template-columns: repeat(2, 1fr);
