@@ -84,7 +84,7 @@
   "dashboard.mh_status_success": "úspěch",
   "dashboard.mh_status_error": "chyba",
   "dashboard.mh_status_running": "běží",
-  "dashboard.core_facts_modal_add_placeholder": "Přidat nový fakt..."
+  "dashboard.core_facts_modal_add_placeholder": "Přidat nový fakt...",
   "dashboard.core_facts_modal_cancel": "Zrušit",
   "dashboard.core_facts_modal_confirm_delete": "Opravdu smazat klíčový fakt #{{id}}?",
   "dashboard.core_facts_modal_delete": "Smazat",

@@ -84,7 +84,7 @@
   "dashboard.mh_status_success": "succes",
   "dashboard.mh_status_error": "fejl",
   "dashboard.mh_status_running": "kører",
-  "dashboard.core_facts_modal_add_placeholder": "Tilføj ny kernefakt..."
+  "dashboard.core_facts_modal_add_placeholder": "Tilføj ny kernefakt...",
   "dashboard.core_facts_modal_cancel": "Annuller",
   "dashboard.core_facts_modal_confirm_delete": "Slet virkelig kernefakt #{{id}}?",
   "dashboard.core_facts_modal_delete": "Slet",

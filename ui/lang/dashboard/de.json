@@ -84,7 +84,7 @@
   "dashboard.mh_status_success": "erfolgreich",
   "dashboard.mh_status_error": "Fehler",
   "dashboard.mh_status_running": "läuft",
-  "dashboard.core_facts_modal_add_placeholder": "Neuen Kernfakt hinzufügen…"
+  "dashboard.core_facts_modal_add_placeholder": "Neuen Kernfakt hinzufügen…",
   "dashboard.core_facts_modal_cancel": "Abbrechen",
   "dashboard.core_facts_modal_confirm_delete": "Kernfakt #{{id}} wirklich löschen?",
   "dashboard.core_facts_modal_delete": "Löschen",

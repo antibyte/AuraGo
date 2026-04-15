@@ -84,7 +84,7 @@
   "dashboard.mh_status_success": "सफल",
   "dashboard.mh_status_error": "त्रुटि",
   "dashboard.mh_status_running": "चल रहा है",
-  "dashboard.core_facts_modal_add_placeholder": "नया कोर तथ्य जोड़ें…"
+  "dashboard.core_facts_modal_add_placeholder": "नया कोर तथ्य जोड़ें…",
   "dashboard.core_facts_modal_cancel": "रद्द करें",
   "dashboard.core_facts_modal_confirm_delete": "क्या आप वाकई कोर तथ्य #{{id}} हटाना चाहते हैं?",
   "dashboard.core_facts_modal_delete": "हटाएं",

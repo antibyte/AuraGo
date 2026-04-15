@@ -84,7 +84,7 @@
   "dashboard.mh_status_success": "成功",
   "dashboard.mh_status_error": "エラー",
   "dashboard.mh_status_running": "実行中",
-  "dashboard.core_facts_modal_add_placeholder": "新しいコアファクトを追加…"
+  "dashboard.core_facts_modal_add_placeholder": "新しいコアファクトを追加…",
   "dashboard.core_facts_modal_cancel": "キャンセル",
   "dashboard.core_facts_modal_confirm_delete": "コアファクト #{{id}}を削除しますか？",
   "dashboard.core_facts_modal_delete": "削除",
