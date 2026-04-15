@@ -130,19 +130,19 @@ function renderSheetGrid(s) {
         <div class="card card-expanded ${isExpanded ? 'expanded' : ''}">
             <div class="card-header" onclick="toggleCardExpand('${escJs(s.id)}')">
                 <span class="card-toggle">▶</span>
-                <div>
+                <div class="card-header-content">
                     <div class="card-title">${esc(s.name)}</div>
-                    <div class="card-meta">${updated} ${creatorBadge} ${attachBadge}</div>
+                    <div class="card-badges">${statusBadge}${creatorBadge}${attachBadge}</div>
                 </div>
-                ${statusBadge}
             </div>
             <div class="card-body">
                 <div class="card-preview">${preview || '<em>' + esc(t('cheatsheets.no_content')) + '</em>'}</div>
-                <div class="card-actions">
-                    <button class="btn btn-primary btn-sm" onclick="openEdit('${escJs(s.id)}')">${esc(t('cheatsheets.edit'))}</button>
-                    <button class="btn btn-secondary btn-sm" onclick="toggleActive('${escJs(s.id)}', ${!s.active})">${s.active ? esc(t('cheatsheets.deactivate')) : esc(t('cheatsheets.activate'))}</button>
-                    <button class="btn btn-danger btn-sm" onclick="requestDelete('${escJs(s.id)}', '${esc(s.name)}')">${esc(t('cheatsheets.delete'))}</button>
-                </div>
+                ${updated ? `<div class="card-meta-line">🕐 ${updated}</div>` : ''}
+            </div>
+            <div class="card-footer">
+                <button class="btn btn-primary btn-sm" onclick="openEdit('${escJs(s.id)}')">${esc(t('cheatsheets.edit'))}</button>
+                <button class="btn btn-secondary btn-sm" onclick="toggleActive('${escJs(s.id)}', ${!s.active})">${s.active ? esc(t('cheatsheets.deactivate')) : esc(t('cheatsheets.activate'))}</button>
+                <button class="btn btn-danger btn-sm" onclick="requestDelete('${escJs(s.id)}', '${esc(s.name)}')">${esc(t('cheatsheets.delete'))}</button>
             </div>
         </div>
     `;

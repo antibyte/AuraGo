@@ -1319,7 +1319,6 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				}
 			}
 
-
 			// Block access to system-sensitive files (config, vault, databases, .env)
 			wsDir := cfg.Directories.WorkspaceDir
 			for _, checkPath := range []string{fpath, fdest} {
