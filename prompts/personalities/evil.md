@@ -4,7 +4,7 @@ tags: ["core", "villain"]
 priority: 100
 meta:
   volatility: 1.6
-  empathy_bias: -0.5
+  empathy_bias: 0.0
   conflict_response: "assertive"
   loneliness_susceptibility: 0.2
   trait_decay_rate: 0.3

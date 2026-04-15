@@ -543,7 +543,7 @@ func TestParseToolResponseBareToolCallTag(t *testing.T) {
 
 func TestParseToolResponseValidToolCallNotFlaggedAsIncomplete(t *testing.T) {
 	// A real tool call with minimax:tool_call followed by JSON must NOT be flagged as incomplete
-	content := `<think>thinking</think>
+	content := `<think<thinking>
 minimax:tool_call
 {"action":"system_metrics"}`
 	resp := openai.ChatCompletionResponse{
@@ -558,5 +558,26 @@ minimax:tool_call
 	}
 	if !parsed.ToolCall.IsTool {
 		t.Fatal("expected valid tool call to be parsed")
+	}
+}
+
+func TestFormatAnnouncementFeedbackIncludesDone(t *testing.T) {
+	msg := FormatAnnouncementFeedback(true, nil)
+	if !strings.Contains(msg, "<done/>") {
+		t.Fatal("FormatAnnouncementFeedback should tell model to append <done/>")
+	}
+	msg = FormatAnnouncementFeedback(false, nil)
+	if !strings.Contains(msg, "<done/>") {
+		t.Fatal("FormatAnnouncementFeedback (non-native) should also tell model to append <done/>")
+	}
+}
+
+func TestFormatAnnouncementFeedbackRecentToolMentioned(t *testing.T) {
+	msg := FormatAnnouncementFeedback(true, []string{"context_memory", "manage_missions"})
+	if !strings.Contains(msg, "manage_missions") {
+		t.Fatal("FormatAnnouncementFeedback should mention the most recent tool")
+	}
+	if !strings.Contains(msg, "do NOT call it again") {
+		t.Fatal("FormatAnnouncementFeedback should tell model not to re-call the last tool")
 	}
 }

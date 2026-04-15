@@ -1716,24 +1716,42 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		// it is stuck. This replaces the language-heuristic announcement detector with a
 		// pure structural check: the model MUST either emit a tool call (JSON) or signal
 		// completion (<done/>). No keyword lists, no language detection needed.
+		//
+		// However, when the model produces a substantive final response (i.e. it has enough
+		// content to be a real answer rather than a brief "I'll do X" announcement), we
+		// treat it as an implicit completion instead of triggering a recovery loop. Many
+		// providers don't reliably emit <done/> even when instructed to.
 		midTaskTextOnly := announcementContent != "" &&
 			!parsedToolResp.IsFinished &&
 			!tc.IsTool &&
 			lastResponseWasTool &&
 			!xmlFallbackPostToolChain
-		if midTaskTextOnly && announcementCount < cfg.Agent.AnnouncementDetector.MaxRetries {
-			announcementCount++
-			currentLogger.Warn("[Sync] Mid-task text-only response without <done/> — requesting tool call or completion signal", "attempt", announcementCount, "content_preview", Truncate(announcementContent, 120))
-			feedbackMsg := applyEmotionRecoveryNudge(FormatAnnouncementFeedback(useNativeFunctions, recentTools), emotionPolicy)
-			msgs := recoverySession.PersistRecoveryMessages(PersistRecoveryParams{
-				SessionID:        sessionID,
-				AssistantContent: content,
-				FeedbackMsg:      feedbackMsg,
-				BrokerEventType:  "error_recovery",
-				I18nKey:          "backend.stream_error_recovery_announcement_no_action",
-			}, shortTermMem, historyManager)
-			req.Messages = append(req.Messages, msgs...)
-			continue
+		if midTaskTextOnly {
+			// Heuristic: a substantive response (>300 chars) after a tool call is very likely
+			// a final answer the model forgot to terminate with <done/>. Treat it as complete
+			// rather than looping. Short responses are still treated as stuck announcements.
+			const midTaskSubstantiveThreshold = 300
+			if len(announcementContent) >= midTaskSubstantiveThreshold {
+				currentLogger.Info("[Sync] Mid-task text-only response without <done/> — treating as implicit completion (substantive content)", "content_len", len(announcementContent))
+				parsedToolResp.IsFinished = true
+				if !strings.Contains(content, "<done/>") {
+					content += "\n<done/>"
+				}
+				content = strings.TrimSpace(strings.ReplaceAll(content, "<done/>", ""))
+			} else if announcementCount < cfg.Agent.AnnouncementDetector.MaxRetries {
+				announcementCount++
+				currentLogger.Warn("[Sync] Mid-task text-only response without <done/> — requesting tool call or completion signal", "attempt", announcementCount, "content_preview", Truncate(announcementContent, 120))
+				feedbackMsg := applyEmotionRecoveryNudge(FormatAnnouncementFeedback(useNativeFunctions, recentTools), emotionPolicy)
+				msgs := recoverySession.PersistRecoveryMessages(PersistRecoveryParams{
+					SessionID:        sessionID,
+					AssistantContent: content,
+					FeedbackMsg:      feedbackMsg,
+					BrokerEventType:  "error_recovery",
+					I18nKey:          "backend.stream_error_recovery_announcement_no_action",
+				}, shortTermMem, historyManager)
+				req.Messages = append(req.Messages, msgs...)
+				continue
+			}
 		}
 
 		// Recovery: model wrapped tool call in markdown fence instead of bare JSON
