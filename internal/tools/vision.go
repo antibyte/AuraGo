@@ -29,7 +29,11 @@ func AnalyzeImageWithPrompt(filePath, prompt string, cfg *config.Config) (string
 
 	model := cfg.Vision.Model
 	if model == "" {
-		model = "google/gemini-2.5-flash-lite-preview-09-2025"
+		model = "google/gemini-2.0-flash-001"
+	}
+
+	if apiKey == "" {
+		return "", 0, 0, fmt.Errorf("vision API key is not configured — set vision.provider or vision.api_key in config, or ensure the main LLM API key is set as fallback")
 	}
 
 	// Read and base64-encode the image

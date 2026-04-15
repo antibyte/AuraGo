@@ -1308,6 +1308,18 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				op = "list_dir"
 			}
 
+			// For path-only ops (write_file, read_file, append, etc.) LLMs sometimes supply
+			// the target path as 'dest' / 'destination' instead of 'path'. Recover silently.
+			if fpath == "" && fdest != "" {
+				switch op {
+				case "write_file", "write", "read_file", "read", "append", "delete", "remove",
+					"mkdir", "create_dir", "create", "exists", "stat":
+					fpath = fdest
+					fdest = ""
+				}
+			}
+
+
 			// Block access to system-sensitive files (config, vault, databases, .env)
 			wsDir := cfg.Directories.WorkspaceDir
 			for _, checkPath := range []string{fpath, fdest} {

@@ -329,6 +329,8 @@
     box-shadow:
         var(--surface-shadow),
         inset 0 1px 0 var(--surface-highlight);
+    display: flex;
+    flex-direction: column;
 }
 
 .mission-card.entering {
@@ -393,11 +395,11 @@
 .missions-grid .mission-card.entering:nth-child(8) { animation-delay: 350ms; }
 
 .mission-header {
-    padding: 12px 14px 10px;
+    padding: 14px 14px 10px;
     border-bottom: 1px solid var(--border-subtle);
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
     min-width: 0;
     cursor: pointer;
 }
@@ -408,18 +410,14 @@
     gap: 8px;
     min-width: 0;
     width: 100%;
-    flex-wrap: wrap;
 }
 
-.mission-header-spacer {
-    flex: 1;
-    min-width: 4px;
-}
-
-.mission-header-badges {
+.mission-badges {
     display: flex;
-    gap: 4px;
     flex-wrap: wrap;
+    gap: 5px;
+    align-items: center;
+    min-width: 0;
     padding-left: 26px;
 }
 
@@ -449,10 +447,13 @@
 
 .mission-card.card-expanded .card-body {
     display: none;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
 }
 
 .mission-card.card-expanded.expanded .card-body {
-    display: block;
+    display: flex;
     animation: fadeIn 0.2s ease;
 }
 
@@ -491,7 +492,12 @@
 }
 
 .mission-body {
-    padding: 10px 14px;
+    padding: 12px 14px;
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 0;
 }
 
 .mission-prompt {
@@ -501,17 +507,18 @@
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
-    line-height: 1.4;
+    line-height: 1.45;
 }
 
 .mission-footer {
+    margin-top: auto;
     padding: 10px 14px;
     border-top: 1px solid var(--border-subtle);
     display: flex;
     justify-content: space-between;
     align-items: center;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: 10px;
     background: var(--bg-glass);
 }
 
@@ -575,21 +582,9 @@
     border-color: rgba(var(--warning-rgb, 251, 191, 36), 0.3);
 }
 
-/* Mission Grid Extra Classes */
-.mission-badges {
-    display: flex;
-    gap: 4px;
-    align-items: center;
-    flex-wrap: wrap;
-    min-width: 0;
-    overflow-wrap: break-word;
-}
-
-.mission-stats {
-    display: flex;
-    gap: 12px;
-    font-size: 0.8rem;
-    color: var(--text-secondary);
+.mission-badges .badge {
+    font-size: 0.72rem;
+    padding: 0.18rem 0.5rem;
 }
 
 .mission-log-wrapper {

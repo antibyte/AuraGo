@@ -994,7 +994,30 @@ func (m *helperLLMManager) SummarizeContentBatches(ctx context.Context, items []
 	if parseErr != nil {
 		return helperContentSummaryBatchResult{}, parseErr
 	}
-	validateHelperBatchIDs("content_summaries", items, result.Summaries, func(i helperContentSummaryBatchInput) string { return i.BatchID }, func(r helperContentSummaryBatchItem) string { return r.BatchID }, m)
+	missing := validateHelperBatchIDs("content_summaries", items, result.Summaries, func(i helperContentSummaryBatchInput) string { return i.BatchID }, func(r helperContentSummaryBatchItem) string { return r.BatchID }, m)
+
+	// Retry once for any batch IDs the model failed to return
+	if len(missing) > 0 {
+		missingSet := make(map[string]struct{}, len(missing))
+		for _, id := range missing {
+			missingSet[id] = struct{}{}
+		}
+		var retryItems []helperContentSummaryBatchInput
+		for _, item := range items {
+			if _, needsRetry := missingSet[strings.TrimSpace(item.BatchID)]; needsRetry {
+				retryItems = append(retryItems, item)
+			}
+		}
+		if len(retryItems) > 0 {
+			retryResult, retryErr := m.SummarizeContentBatches(ctx, retryItems)
+			if retryErr == nil {
+				result.Summaries = append(result.Summaries, retryResult.Summaries...)
+			} else if m.logger != nil {
+				m.logger.Warn("[HelperLLM] Retry for missing content summary batch IDs failed", "missing", missing, "err", retryErr)
+			}
+		}
+	}
+
 	m.observeBatchEfficiency("content_summaries", len(items), max(0, len(items)-1))
 	return result, nil
 }
@@ -1104,7 +1127,7 @@ func parseHelperRAGBatchResult(raw string) (helperRAGBatchResult, error) {
 	return result, nil
 }
 
-func validateHelperBatchIDs[I any, R any](operation string, inputs []I, results []R, inputID func(I) string, resultID func(R) string, m *helperLLMManager) {
+func validateHelperBatchIDs[I any, R any](operation string, inputs []I, results []R, inputID func(I) string, resultID func(R) string, m *helperLLMManager) []string {
 	expected := make(map[string]struct{}, len(inputs))
 	for _, in := range inputs {
 		expected[strings.TrimSpace(inputID(in))] = struct{}{}
@@ -1125,4 +1148,5 @@ func validateHelperBatchIDs[I any, R any](operation string, inputs []I, results 
 	if len(missing) > 0 && m != nil && m.logger != nil {
 		m.logger.Warn("[HelperLLM] Missing batch IDs in response", "operation", operation, "missing", missing)
 	}
+	return missing
 }

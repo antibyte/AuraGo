@@ -349,11 +349,9 @@ function renderMissionGrid(mission, isFirstRender) {
                     <span class="card-toggle">${svgIcons.chevron}</span>
                     <span class="mission-name">${escapeHtml(mission.name)}</span>
                     ${mission.locked ? `<span class="mission-locked" title="${t('missions.card_locked_title')}">${svgIcons.lockIcon}</span>` : ''}
-                    <span class="mission-header-spacer"></span>
-                    ${statusBadge}${prepBadge}
                 </div>
-                <div class="mission-header-badges">
-                    ${priorityBadge}${typeBadge}
+                <div class="mission-badges">
+                    ${priorityBadge}${typeBadge}${statusBadge}${prepBadge}
                 </div>
             </div>
             <div class="card-body">

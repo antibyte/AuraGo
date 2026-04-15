@@ -319,7 +319,7 @@ func (g *Guardian) SanitizeToolOutput(toolName, output string) string {
 // Returns the scan result for upstream decision-making.
 func (g *Guardian) ScanUserInput(text string) ScanResult {
 	scan := g.ScanForInjection(text)
-	if scan.Level >= ThreatMedium && g.logger != nil {
+	if scan.Level >= ThreatHigh && g.logger != nil {
 		g.logger.Warn("[Guardian] Suspicious user input detected",
 			"threat", scan.Level.String(), "patterns", scan.Patterns, "preview", truncateForLog(text, 200))
 	}
