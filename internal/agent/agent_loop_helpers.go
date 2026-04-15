@@ -892,7 +892,116 @@ func trim422Messages(msgs []openai.ChatCompletionMessage) []openai.ChatCompletio
 		Role:    openai.ChatMessageRoleUser,
 		Content: "[The previous tool call history was trimmed due to a provider error. Please summarise what you were doing and continue.]",
 	})
+
+	// Final pass: run the shared sanitizer to catch any remaining orphaned
+	// tool results that the round-based trimming above may have missed.
+	// If the sanitizer still finds problems, fall back to the nuclear option
+	// (strip ALL tool messages and keep only system + last user message).
+	if _, dropped := SanitizeToolMessages(trimmed); dropped > 0 {
+		// Nuclear fallback: strip everything except system + last user message
+		var lastUserMsg *openai.ChatCompletionMessage
+		for i := len(nonToolMsgs) - 1; i >= 0; i-- {
+			if nonToolMsgs[i].Role == openai.ChatMessageRoleUser {
+				lastUserMsg = &nonToolMsgs[i]
+				break
+			}
+		}
+		nuclear := make([]openai.ChatCompletionMessage, 0, sysEnd+2)
+		nuclear = append(nuclear, nonToolMsgs[:sysEnd]...)
+		if lastUserMsg != nil {
+			nuclear = append(nuclear, *lastUserMsg)
+		}
+		nuclear = append(nuclear, openai.ChatCompletionMessage{
+			Role:    openai.ChatMessageRoleUser,
+			Content: "[The previous tool call history was cleared due to persistent provider errors. Please summarise what you were doing and continue from the last user request.]",
+		})
+		return nuclear
+	}
+
 	return trimmed
+}
+
+// SanitizeToolMessages validates and repairs tool-call integrity in a message
+// slice. It ensures every role=tool message has a matching tool_call_id in a
+// preceding assistant message's ToolCalls, and strips unmatched tool calls
+// from assistant messages. This is the last line of defence before sending
+// messages to the LLM provider.
+//
+// Returns the (possibly modified) message slice and the number of dropped
+// messages.
+func SanitizeToolMessages(msgs []openai.ChatCompletionMessage) ([]openai.ChatCompletionMessage, int) {
+	if len(msgs) == 0 {
+		return msgs, 0
+	}
+
+	// Phase 1: collect all tool_call_ids from assistant messages and track
+	// which assistant message index owns each ID.
+	ownerOf := make(map[string]int) // tool_call_id → assistant message index
+	for i, m := range msgs {
+		if m.Role == openai.ChatMessageRoleAssistant {
+			for _, tc := range m.ToolCalls {
+				id := strings.TrimSpace(tc.ID)
+				if id != "" {
+					ownerOf[id] = i
+				}
+			}
+		}
+	}
+
+	// Phase 2: validate every role=tool message. Track which tool_call_ids
+	// are actually consumed by a tool result so we can detect orphaned calls.
+	dropped := 0
+	consumedIDs := make(map[string]bool)
+	validated := make([]openai.ChatCompletionMessage, 0, len(msgs))
+
+	for _, m := range msgs {
+		if m.Role == openai.ChatMessageRoleTool {
+			id := strings.TrimSpace(m.ToolCallID)
+			if id == "" {
+				// Empty tool_call_id — always invalid
+				dropped++
+				continue
+			}
+			if _, ok := ownerOf[id]; !ok {
+				// No matching tool call in any assistant message
+				dropped++
+				continue
+			}
+			consumedIDs[id] = true
+			validated = append(validated, m)
+			continue
+		}
+		validated = append(validated, m)
+	}
+
+	// Phase 3: strip unmatched tool calls from assistant messages.
+	// If an assistant message has ToolCalls whose IDs were never consumed by
+	// a tool result, those calls are orphaned and will cause API errors.
+	// Iterate backwards so removals don't shift unprocessed indices.
+	for i := len(validated) - 1; i >= 0; i-- {
+		m := validated[i]
+		if m.Role != openai.ChatMessageRoleAssistant || len(m.ToolCalls) == 0 {
+			continue
+		}
+		matched := make([]openai.ToolCall, 0, len(m.ToolCalls))
+		for _, tc := range m.ToolCalls {
+			id := strings.TrimSpace(tc.ID)
+			if id != "" && consumedIDs[id] {
+				matched = append(matched, tc)
+			}
+		}
+		if len(matched) != len(m.ToolCalls) {
+			if len(matched) == 0 && strings.TrimSpace(m.Content) == "" {
+				// Entire assistant message is orphaned tool calls with no content — drop it
+				validated = append(validated[:i], validated[i+1:]...)
+				dropped++
+			} else {
+				validated[i].ToolCalls = matched
+			}
+		}
+	}
+
+	return validated, dropped
 }
 
 var todoCheckboxLinePrefixes = []string{

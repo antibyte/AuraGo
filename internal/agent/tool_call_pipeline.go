@@ -140,7 +140,11 @@ func isUnprocessableProviderError(err error) bool {
 		(strings.Contains(msg, "400") &&
 			(strings.Contains(lowerMsg, "invalid function arguments json string") ||
 				strings.Contains(lowerMsg, "invalid params") ||
-				strings.Contains(lowerMsg, "tool_call_id")))
+				strings.Contains(lowerMsg, "tool_call_id") ||
+				strings.Contains(lowerMsg, "tool id") ||
+				strings.Contains(lowerMsg, "tool result"))) ||
+		// OpenRouter error code 2013: tool result's tool_call_id not found
+		strings.Contains(msg, "2013")
 }
 
 func recoverFrom422(err error, retryCount *int, req *openai.ChatCompletionRequest, logger *slog.Logger, broker FeedbackBroker, path string, scope AgentTelemetryScope) (bool, error) {

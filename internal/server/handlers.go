@@ -264,6 +264,16 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 					}
 				}
 			}
+			// Non-default sessions load raw messages from SQLite without the
+			// dangling-tool-result filtering that GetForLLM() provides.
+			// Apply the same sanitization to prevent API error 2013
+			// ("tool result's tool id not found").
+			if sanitized, dropped := agent.SanitizeToolMessages(recentMessages); dropped > 0 {
+				s.Logger.Warn("Sanitized orphaned tool messages in non-default session",
+					"session_id", sessionID, "dropped", dropped,
+					"before", len(recentMessages), "after", len(sanitized))
+				recentMessages = sanitized
+			}
 		}
 
 		// Phase 33: Recursive Context Compression (Character Based)

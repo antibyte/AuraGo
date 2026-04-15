@@ -1255,6 +1255,15 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 		broker.Send("thinking", "")
 
+		// Pre-send validation: ensure tool-call integrity before sending to the
+		// provider. This catches orphaned tool results that slipped through
+		// GetForLLM() or were introduced by context compression / trimming.
+		if sanitized, dropped := SanitizeToolMessages(req.Messages); dropped > 0 {
+			currentLogger.Warn("[PreSend] Sanitized orphaned tool messages before LLM call",
+				"dropped", dropped, "before", len(req.Messages), "after", len(sanitized))
+			req.Messages = sanitized
+		}
+
 		// ── Temperature: base from config + personality modulation ──
 		baseTemp := cfg.LLM.Temperature
 		if baseTemp <= 0 {
