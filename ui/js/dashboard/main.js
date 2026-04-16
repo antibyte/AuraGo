@@ -138,6 +138,13 @@
             }
         }
 
+        async function loadAgentBanner() {
+            const overview = await API.get('/api/dashboard/overview');
+            if (overview) {
+                renderAgentBanner(overview, overview?.context?.total_chars);
+            }
+        }
+
         async function loadTabOverview() {
             const [system, budget, overview, credits, opt, comp] = await Promise.all([
                 API.get('/api/dashboard/system'),
@@ -4072,6 +4079,11 @@
 
             // Start auto-refresh
             startAutoRefresh();
+
+            // Always load agent banner regardless of initial tab
+            if (initialTab !== 'overview') {
+                loadAgentBanner();
+            }
         }
 
         // ── Auto-Refresh ────────────────────────────────────────────────────────────
