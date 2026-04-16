@@ -54,48 +54,9 @@ func InitDB(dbPath string) (*sql.DB, error) {
 		return nil, fmt.Errorf("failed to open planner database: %w", err)
 	}
 
-	schema := `
-	CREATE TABLE IF NOT EXISTS appointments (
-		id TEXT PRIMARY KEY,
-		title TEXT NOT NULL,
-		description TEXT DEFAULT '',
-		date_time TEXT NOT NULL,
-		notification_at TEXT DEFAULT '',
-		wake_agent INTEGER DEFAULT 0,
-		agent_instruction TEXT DEFAULT '',
-		notified INTEGER DEFAULT 0,
-		status TEXT DEFAULT 'upcoming',
-		kg_node_id TEXT DEFAULT '',
-		created_at TEXT NOT NULL,
-		updated_at TEXT NOT NULL
-	);
-	CREATE INDEX IF NOT EXISTS idx_appointments_date ON appointments(date_time);
-	CREATE INDEX IF NOT EXISTS idx_appointments_status ON appointments(status);
-	CREATE INDEX IF NOT EXISTS idx_appointments_notification ON appointments(notification_at, notified);
-
-	CREATE TABLE IF NOT EXISTS todos (
-		id TEXT PRIMARY KEY,
-		title TEXT NOT NULL,
-		description TEXT DEFAULT '',
-		priority TEXT DEFAULT 'medium',
-		status TEXT DEFAULT 'open',
-		due_date TEXT DEFAULT '',
-		kg_node_id TEXT DEFAULT '',
-		created_at TEXT NOT NULL,
-		updated_at TEXT NOT NULL
-	);
-	CREATE INDEX IF NOT EXISTS idx_todos_status ON todos(status);
-	CREATE INDEX IF NOT EXISTS idx_todos_priority ON todos(priority);
-	CREATE INDEX IF NOT EXISTS idx_todos_due ON todos(due_date);
-	`
-	if _, err := db.Exec(schema); err != nil {
+	if err := initPlannerSchema(db); err != nil {
 		db.Close()
-		return nil, fmt.Errorf("failed to create planner schema: %w", err)
-	}
-
-	// Set schema version
-	if err := dbutil.SetUserVersion(db, 1); err != nil {
-		return nil, fmt.Errorf("set planner schema version: %w", err)
+		return nil, err
 	}
 
 	return db, nil

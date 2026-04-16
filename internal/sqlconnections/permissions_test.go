@@ -33,6 +33,13 @@ func TestSanitizeError(t *testing.T) {
 			name:     "permission denied message is preserved",
 			input:    fmt.Errorf("permission denied: connection %q does not allow SELECT (read)", "test"),
 			contains: "permission denied",
+			excludes: []string{"test"},
+		},
+		{
+			name:     "connection references are masked without corruption",
+			input:    fmt.Errorf("connection 'app_db' not found"),
+			contains: "connection '***' not found",
+			excludes: []string{"app_db", "'***'app_db"},
 		},
 	}
 

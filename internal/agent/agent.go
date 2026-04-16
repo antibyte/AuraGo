@@ -609,16 +609,17 @@ type ToolCall struct {
 	ContactAddress string `json:"address,omitempty"`      // contact postal address
 	Relationship   string `json:"relationship,omitempty"` // contact relationship type
 	// SQL Connections fields
-	ConnectionName string `json:"connection_name,omitempty"` // target database connection name
-	SQLQuery       string `json:"sql_query,omitempty"`       // SQL statement to execute
-	TableName      string `json:"table_name,omitempty"`      // table name for describe operations
-	DatabaseName   string `json:"database_name,omitempty"`   // database name or sqlite file path
-	SSLMode        string `json:"ssl_mode,omitempty"`        // SSL mode: disable, require, verify-ca, verify-full
-	AllowRead      *bool  `json:"allow_read,omitempty"`      // permission: SELECT
-	AllowWrite     *bool  `json:"allow_write,omitempty"`     // permission: INSERT
-	AllowChange    *bool  `json:"allow_change,omitempty"`    // permission: UPDATE
-	AllowDelete    *bool  `json:"allow_delete,omitempty"`    // permission: DELETE
-	DockerTemplate string `json:"docker_template,omitempty"` // docker template: postgres, mysql, mariadb
+	ConnectionName   string `json:"connection_name,omitempty"`   // target database connection name
+	SQLQuery         string `json:"sql_query,omitempty"`         // SQL statement to execute
+	TableName        string `json:"table_name,omitempty"`        // table name for describe operations
+	DatabaseName     string `json:"database_name,omitempty"`     // database name or sqlite file path
+	SSLMode          string `json:"ssl_mode,omitempty"`          // SSL mode: disable, require, verify-ca, verify-full
+	CredentialAction string `json:"credential_action,omitempty"` // keep, replace, delete for stored credentials
+	AllowRead        *bool  `json:"allow_read,omitempty"`        // permission: SELECT
+	AllowWrite       *bool  `json:"allow_write,omitempty"`       // permission: INSERT
+	AllowChange      *bool  `json:"allow_change,omitempty"`      // permission: UPDATE
+	AllowDelete      *bool  `json:"allow_delete,omitempty"`      // permission: DELETE
+	DockerTemplate   string `json:"docker_template,omitempty"`   // docker template: postgres, mysql, mariadb
 }
 
 func (tc *ToolCall) UnmarshalJSON(data []byte) error {

@@ -179,13 +179,13 @@ func TestCronManagerLoadsFromFile(t *testing.T) {
 	}
 	cronMgr.Stop()
 
-	// Verify file exists
-	data, err := os.ReadFile(filepath.Join(tmpDir, "crontab.json"))
+	// Verify sqlite store exists
+	data, err := os.ReadFile(filepath.Join(tmpDir, systemTaskStoreFile))
 	if err != nil {
-		t.Fatalf("crontab file not saved: %v", err)
+		t.Fatalf("system task store not saved: %v", err)
 	}
 	if len(data) == 0 {
-		t.Fatal("crontab file is empty")
+		t.Fatal("system task store is empty")
 	}
 
 	// Restart and check job is loaded

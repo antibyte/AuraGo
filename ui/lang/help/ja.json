@@ -15,6 +15,8 @@
   "help.agent.allow_self_update": "無効にすると、エージェントは manage_updates を実行できません (自動自己更新は行われません)。",
   "help.agent.allow_shell": "無効にすると、エージェントはすべてのexecute_shellリクエストをPERMISSION DENIEDエラーでブロックします。",
   "help.agent.allow_web_scraper": "非推奨 — 代わりに、「ツールとサービス」セクションの tools.web_scraper.enabled を使用してください。",
+  "help.agent.announcement_detector.enabled": "LLMが実際にツールを呼び出さずにアクションを宣言するだけの場合（例：「確認させてください…」）を検出し、実際の応答を得るために自動的に再試行します。",
+  "help.agent.announcement_detector.max_retries": "宣言のみの応答が検出された場合のユーザーターンあたりの最大修正再試行回数。エージェントはモデルに再度アクションの実行を要求します。デフォルト：2。",
   "help.agent.background_tasks.enabled": "メイン応答の送信後、エージェントが非同期フォローアップタスクを開始できるようにします。",
   "help.agent.background_tasks.follow_up_delay_seconds": "フォローアップタスク開始前のメイン応答後の待機時間（秒）。",
   "help.agent.background_tasks.http_timeout_seconds": "バックグラウンドタスク内のHTTPリクエストの最大待機時間。",

@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"aurago/internal/agent"
-	"aurago/internal/config"
 	"aurago/internal/security"
 	"aurago/internal/tools"
 )
@@ -242,25 +241,10 @@ func mcpCallTool(ctx context.Context, s *Server, params json.RawMessage) mcpCall
 		}
 	}
 
-	// Check tool is allowed
-	s.CfgMu.RLock()
-	cfg := s.Cfg
-	allowed := mcpEffectiveAllowedTools(cfg)
-	s.CfgMu.RUnlock()
-
-	if len(allowed) > 0 {
-		found := false
-		for _, name := range allowed {
-			if name == p.Name {
-				found = true
-				break
-			}
-		}
-		if !found {
-			return mcpCallToolResult{
-				Content: []mcpContent{{Type: "text", Text: fmt.Sprintf("Tool %q is not in the allowed list", p.Name)}},
-				IsError: true,
-			}
+	if !mcpToolAvailable(s, p.Name) {
+		return mcpCallToolResult{
+			Content: []mcpContent{{Type: "text", Text: fmt.Sprintf("Tool %q is not available in the current MCP runtime", p.Name)}},
+			IsError: true,
 		}
 	}
 
@@ -291,6 +275,9 @@ func mcpCallTool(ctx context.Context, s *Server, params json.RawMessage) mcpCall
 	toolCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 	defer cancel()
 
+	s.CfgMu.RLock()
+	cfg := s.Cfg
+	s.CfgMu.RUnlock()
 	manifest := tools.NewManifest(cfg.Directories.ToolsDir)
 	result := agent.DispatchToolCall(
 		toolCtx, &tc, &agent.DispatchContext{
@@ -321,7 +308,17 @@ func mcpCallTool(ctx context.Context, s *Server, params json.RawMessage) mcpCall
 	}
 }
 
-func mcpFeatureFlags(cfg *config.Config) agent.ToolFeatureFlags {
+func mcpToolAvailable(s *Server, toolName string) bool {
+	for _, tool := range mcpBuildToolList(s) {
+		if tool.Name == toolName {
+			return true
+		}
+	}
+	return false
+}
+
+func mcpFeatureFlags(s *Server) agent.ToolFeatureFlags {
+	cfg := s.Cfg
 	return agent.ToolFeatureFlags{
 		HomeAssistantEnabled:         cfg.HomeAssistant.Enabled,
 		DockerEnabled:                cfg.Docker.Enabled && (!cfg.Runtime.IsDocker || cfg.Runtime.DockerSocketOK),
@@ -354,7 +351,7 @@ func mcpFeatureFlags(cfg *config.Config) agent.ToolFeatureFlags {
 		RemoteControlEnabled:         cfg.RemoteControl.Enabled,
 		DiscordEnabled:               cfg.Discord.Enabled,
 		TelegramEnabled:              cfg.Telegram.BotToken != "" && cfg.Telegram.UserID != 0,
-		SQLConnectionsEnabled:        cfg.SQLConnections.Enabled,
+		SQLConnectionsEnabled:        cfg.SQLConnections.Enabled && s.SQLConnectionsDB != nil && s.SQLConnectionPool != nil,
 		MemoryEnabled:                cfg.Tools.Memory.Enabled,
 		KnowledgeGraphEnabled:        cfg.Tools.KnowledgeGraph.Enabled,
 		SecretsVaultEnabled:          cfg.Tools.SecretsVault.Enabled,

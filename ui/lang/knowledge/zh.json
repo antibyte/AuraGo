@@ -210,5 +210,6 @@
   "knowledge.filesync_no_sync_data": "无同步数据。",
   "knowledge.filesync_just_now": "刚刚",
   "knowledge.filesync_minutes_ago": "{n}分钟前",
-  "knowledge.filesync_hours_ago": "{n}小时前"
+  "knowledge.filesync_hours_ago": "{n}小时前",
+  "knowledge.todos_invalid_priority": "无效的待办优先级。"
 }

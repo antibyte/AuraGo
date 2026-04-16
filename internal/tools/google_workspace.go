@@ -458,7 +458,7 @@ func (c *GWorkspaceClient) CalendarCreate(title, description, startTime, endTime
 	if err != nil {
 		return gwErrJSON("Calendar create failed: %v", err)
 	}
-	if status != 200 {
+	if status != 200 && status != 201 {
 		return gwErrJSON("Calendar API error (HTTP %d): %s", status, string(data))
 	}
 

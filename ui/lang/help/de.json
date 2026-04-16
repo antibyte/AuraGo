@@ -15,6 +15,8 @@
   "help.agent.allow_self_update": "Wenn deaktiviert, kann der Agent manage_updates nicht mehr ausführen (keine automatischen Updates).",
   "help.agent.allow_shell": "Wenn deaktiviert, blockiert der Agent alle execute_shell-Anfragen mit einem PERMISSION DENIED-Fehler.",
   "help.agent.allow_web_scraper": "Veraltet — verwende stattdessen tools.web_scraper.enabled im Bereich 'Tools & Dienste'.",
+  "help.agent.announcement_detector.enabled": "Erkennt, wenn das LLM eine Aktion nur ankündigt (z.B. 'Ich prüfe das mal…'), ohne tatsächlich ein Tool aufzurufen, und versucht automatisch erneut, um eine echte Antwort zu erhalten.",
+  "help.agent.announcement_detector.max_retries": "Maximale Anzahl korrigierender Wiederholungsversuche pro Nutzer-Runde, wenn eine reine Ankündigungsantwort erkannt wird. Der Agent fordert das Modell erneut auf, die Aktion tatsächlich auszuführen. Standard: 2.",
   "help.agent.background_tasks.enabled": "Erlaubt dem Agent, asynchrone Folgeaufgaben zu starten, nachdem die Hauptantwort gesendet wurde.",
   "help.agent.background_tasks.follow_up_delay_seconds": "Wartezeit nach der Hauptantwort in Sekunden, bevor ein Folge-Task startet.",
   "help.agent.background_tasks.http_timeout_seconds": "Maximale Wartezeit für HTTP-Anfragen innerhalb von Hintergrund-Tasks.",

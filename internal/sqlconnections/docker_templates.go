@@ -13,6 +13,7 @@ type DockerTemplate struct {
 	DefaultPort  int               // container internal port
 	EnvVars      map[string]string // environment variables; PASSWORD_PLACEHOLDER is replaced at creation
 	VolumeSuffix string            // appended to "aurago_db_<name>_" for data volume
+	VolumeTarget string            // container path for persistent database data
 }
 
 // DockerDBRequest is the result of applying a template — ready for DockerCreateContainer.
@@ -43,6 +44,7 @@ var templates = map[string]DockerTemplate{
 			"POSTGRES_DB":       "DB_PLACEHOLDER",
 		},
 		VolumeSuffix: "pgdata",
+		VolumeTarget: "/var/lib/postgresql/data",
 	},
 	"mysql": {
 		Driver:      "mysql",
@@ -55,6 +57,7 @@ var templates = map[string]DockerTemplate{
 			"MYSQL_DATABASE":      "DB_PLACEHOLDER",
 		},
 		VolumeSuffix: "mysqldata",
+		VolumeTarget: "/var/lib/mysql",
 	},
 	"mariadb": {
 		Driver:      "mysql",
@@ -67,6 +70,7 @@ var templates = map[string]DockerTemplate{
 			"MARIADB_DATABASE":      "DB_PLACEHOLDER",
 		},
 		VolumeSuffix: "mariadbdata",
+		VolumeTarget: "/var/lib/mysql",
 	},
 }
 
@@ -114,7 +118,7 @@ func PrepareDockerDB(templateName, connectionName, databaseName string) (*Docker
 		Image:         tmpl.Image,
 		Env:           env,
 		Ports:         map[string]string{hostPort: hostPort},
-		Volumes:       []string{fmt.Sprintf("%s:/var/lib/%s", volumeName, tmpl.VolumeSuffix)},
+		Volumes:       []string{fmt.Sprintf("%s:%s", volumeName, tmpl.VolumeTarget)},
 		Restart:       "unless-stopped",
 		Driver:        tmpl.Driver,
 		Host:          "localhost",

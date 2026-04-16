@@ -85,11 +85,19 @@ var knownContextWindows = []struct {
 	{"o1", 200_000},
 
 	// ── DeepSeek (direct) ────────────────────────────────────────────────────
+	{"deepseek-v3.2", 131_072},
+	{"deepseek-v3.1", 131_072},
 	{"deepseek-v3", 131_072},
 	{"deepseek-r1", 131_072},
 	{"deepseek-chat", 131_072},
 
+	// ── GPT-OSS (OpenAI open-weight / Ollama Cloud) ──────────────────────────
+	{"gpt-oss:120b", 131_072},
+	{"gpt-oss:20b", 131_072},
+	{"gpt-oss", 131_072},
+
 	// ── Mistral (direct) ─────────────────────────────────────────────────────
+	{"mistral-large-3", 262_144},
 	{"mistral-large", 131_072},
 	{"mistral-small", 131_072},
 	{"mistral-medium", 131_072},

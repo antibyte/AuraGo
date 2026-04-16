@@ -210,5 +210,6 @@
   "knowledge.filesync_no_sync_data": "Δεν υπάρχουν διαθέσιμα δεδομένα συγχρονισμού.",
   "knowledge.filesync_just_now": "μόλις τώρα",
   "knowledge.filesync_minutes_ago": "{n} λεπ. πριν",
-  "knowledge.filesync_hours_ago": "{n}ω. πριν"
+  "knowledge.filesync_hours_ago": "{n}ω. πριν",
+  "knowledge.todos_invalid_priority": "Μη έγκυρη προτεραιότητα εργασίας."
 }

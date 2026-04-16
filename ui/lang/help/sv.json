@@ -15,6 +15,8 @@
   "help.agent.allow_self_update": "When disabled, the agent cannot run manage_updates (no automatic self-updates).",
   "help.agent.allow_shell": "When disabled, the agent blocks all execute_shell requests with a PERMISSION DENIED error.",
   "help.agent.allow_web_scraper": "Deprecated — use tools.web_scraper.enabled in the 'Tools & Services' section instead.",
+  "help.agent.announcement_detector.enabled": "Upptäcker när LLM bara tillkännager en åtgärd (t.ex. 'Låt mig kontrollera det…') utan att faktiskt anropa ett verktyg, och försöker automatiskt igen för att få ett riktigt svar.",
+  "help.agent.announcement_detector.max_retries": "Maximalt antal korrigerande försök per användaromgång när ett rent tillkännagivande svar upptäcks. Agenten ber modellen igen att faktiskt utföra åtgärden. Standard: 2.",
   "help.agent.background_tasks.enabled": "Låter agenten starta asynkrona uppföljningsuppgifter efter att huvudsvaret har skickats.",
   "help.agent.background_tasks.follow_up_delay_seconds": "Wait time after the main response in seconds before a follow-up task starts.",
   "help.agent.background_tasks.http_timeout_seconds": "Maximum wait time for HTTP requests within background tasks.",

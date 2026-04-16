@@ -16,6 +16,7 @@ func testBackgroundTaskLogger() *slog.Logger {
 func TestBackgroundTaskManagerFollowUpExecutesAndPersists(t *testing.T) {
 	dir := t.TempDir()
 	mgr := NewBackgroundTaskManager(dir, testBackgroundTaskLogger())
+	t.Cleanup(func() { _ = mgr.Close() })
 
 	executed := make(chan string, 1)
 	mgr.SetLoopbackExecutor(func(prompt string, timeout time.Duration) error {
@@ -50,8 +51,16 @@ func TestBackgroundTaskManagerFollowUpExecutesAndPersists(t *testing.T) {
 		t.Fatalf("task status = %q, want %q", stored.Status, BackgroundTaskStatusCompleted)
 	}
 
-	if _, err := os.Stat(filepath.Join(dir, "background_tasks.json")); err != nil {
-		t.Fatalf("expected persisted background_tasks.json: %v", err)
+	if _, err := os.Stat(filepath.Join(dir, systemTaskStoreFile)); err != nil {
+		t.Fatalf("expected persisted system task sqlite store: %v", err)
+	}
+	var tasks []*BackgroundTask
+	loaded, err := mgr.store.load(systemTaskNamespaceBackground, &tasks)
+	if err != nil {
+		t.Fatalf("load persisted background tasks: %v", err)
+	}
+	if !loaded || len(tasks) == 0 {
+		t.Fatal("expected background tasks to be persisted in sqlite store")
 	}
 }
 
@@ -59,6 +68,7 @@ func TestBackgroundTaskManagerWaitForEventFileChanged(t *testing.T) {
 	dir := t.TempDir()
 	logger := testBackgroundTaskLogger()
 	mgr := NewBackgroundTaskManager(dir, logger)
+	t.Cleanup(func() { _ = mgr.Close() })
 
 	target := filepath.Join(dir, "watch.txt")
 	if err := os.WriteFile(target, []byte("before"), 0o644); err != nil {
@@ -124,8 +134,39 @@ func TestBackgroundTaskManagerWaitForEventFileChanged(t *testing.T) {
 	}
 }
 
+func TestBackgroundTaskManagerWaitForEventWithoutPromptCompletes(t *testing.T) {
+	dir := t.TempDir()
+	mgr := NewBackgroundTaskManager(dir, testBackgroundTaskLogger())
+	t.Cleanup(func() { _ = mgr.Close() })
+
+	target := filepath.Join(dir, "watch-no-prompt.txt")
+	task, err := mgr.ScheduleWaitForEvent(WaitForEventTaskPayload{
+		EventType:           "file_changed",
+		FilePath:            target,
+		PollIntervalSeconds: 1,
+		TimeoutSeconds:      30,
+	}, BackgroundTaskScheduleOptions{Source: "wait_for_event", Description: "Wait without follow-up"})
+	if err != nil {
+		t.Fatalf("ScheduleWaitForEvent: %v", err)
+	}
+
+	if err := os.WriteFile(target, []byte("created"), 0o644); err != nil {
+		t.Fatalf("write watched file: %v", err)
+	}
+	mgr.processDueTasks()
+
+	completed, ok := mgr.GetTask(task.ID)
+	if !ok {
+		t.Fatalf("task %s missing after completion", task.ID)
+	}
+	if completed.Status != BackgroundTaskStatusCompleted {
+		t.Fatalf("final status = %q, want %q", completed.Status, BackgroundTaskStatusCompleted)
+	}
+}
+
 func TestBackgroundTaskManagerCheckWaitConditionReadsRegistryWithoutManagerLock(t *testing.T) {
 	mgr := NewBackgroundTaskManager(t.TempDir(), testBackgroundTaskLogger())
+	t.Cleanup(func() { _ = mgr.Close() })
 	registry := NewProcessRegistry(testBackgroundTaskLogger())
 	mgr.SetProcessRegistry(registry)
 

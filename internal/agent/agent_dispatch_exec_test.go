@@ -13,6 +13,30 @@ import (
 	"aurago/internal/tools"
 )
 
+func TestDispatchExecManageScheduleBlocksEnableInReadOnlyMode(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Tools.Scheduler.Enabled = true
+	cfg.Tools.Scheduler.ReadOnly = true
+	cronManager := tools.NewCronManager(t.TempDir())
+	t.Cleanup(func() { _ = cronManager.Close() })
+
+	out, ok := dispatchExec(
+		context.Background(),
+		ToolCall{Action: "manage_schedule", Operation: "enable", Params: map[string]interface{}{"id": "job-1"}},
+		&DispatchContext{
+			Cfg:         cfg,
+			Logger:      slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError})),
+			CronManager: cronManager,
+		},
+	)
+	if !ok {
+		t.Fatal("expected dispatchExec to handle manage_schedule")
+	}
+	if !strings.Contains(out, "read-only mode") {
+		t.Fatalf("expected read-only error, got %s", out)
+	}
+}
+
 func TestDispatchExecListToolsClarifiesBuiltinSkills(t *testing.T) {
 	tmpDir := t.TempDir()
 	manifest := tools.NewManifest(filepath.Join(tmpDir, "tools"))

@@ -210,5 +210,6 @@
   "knowledge.filesync_no_sync_data": "同期データがありません。",
   "knowledge.filesync_just_now": "たった今",
   "knowledge.filesync_minutes_ago": "{n}分前",
-  "knowledge.filesync_hours_ago": "{n}時間前"
+  "knowledge.filesync_hours_ago": "{n}時間前",
+  "knowledge.todos_invalid_priority": "無効な To-Do 優先度です。"
 }

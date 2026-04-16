@@ -99,6 +99,7 @@ type BackgroundTaskSummary struct {
 type BackgroundTaskManager struct {
 	mu            sync.Mutex
 	file          string
+	store         *systemTaskStore
 	tasks         map[string]*BackgroundTask
 	logger        *slog.Logger
 	httpClient    *http.Client
@@ -132,8 +133,13 @@ func DefaultBackgroundTaskManager() *BackgroundTaskManager {
 
 func NewBackgroundTaskManager(dataDir string, logger *slog.Logger) *BackgroundTaskManager {
 	ctx, cancel := context.WithCancel(context.Background())
+	store, err := newSystemTaskStore(dataDir)
+	if err != nil && logger != nil {
+		logger.Warn("Failed to initialize system task store", "error", err)
+	}
 	mgr := &BackgroundTaskManager{
 		file:       filepath.Join(dataDir, "background_tasks.json"),
+		store:      store,
 		tasks:      make(map[string]*BackgroundTask),
 		logger:     logger,
 		httpClient: security.NewSSRFProtectedHTTPClient(5 * time.Second),
@@ -187,6 +193,16 @@ func (m *BackgroundTaskManager) Stop() {
 	m.shutdownOnce.Do(func() {
 		m.cancel()
 	})
+}
+
+func (m *BackgroundTaskManager) Close() error {
+	m.Stop()
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.store == nil {
+		return nil
+	}
+	return m.store.close()
 }
 
 func (m *BackgroundTaskManager) ScheduleFollowUp(prompt string, opts BackgroundTaskScheduleOptions) (*BackgroundTask, error) {
@@ -431,7 +447,7 @@ func (m *BackgroundTaskManager) executeWaitTask(task *BackgroundTask) {
 		return
 	}
 	pollInterval := time.Duration(maxInt(payload.PollIntervalSeconds, 5)) * time.Second
-	timeout := time.Duration(maxInt(payload.TimeoutSeconds, 600)) * time.Second
+	timeout := time.Duration(defaultIfZeroInt(payload.TimeoutSeconds, 600)) * time.Second
 	if payload.ScheduledAt.IsZero() {
 		payload.ScheduledAt = time.Now().UTC()
 	}
@@ -461,7 +477,12 @@ func (m *BackgroundTaskManager) executeWaitTask(task *BackgroundTask) {
 	}
 	promptTask := *task
 	promptTask.Type = BackgroundTaskTypeFollowUp
-	promptTask.Payload, _ = json.Marshal(FollowUpTaskPayload{Prompt: eventPrompt})
+	promptPayload, err := json.Marshal(FollowUpTaskPayload{Prompt: eventPrompt})
+	if err != nil {
+		m.failTask(task.ID, fmt.Sprintf("marshal follow-up payload: %v", err), true)
+		return
+	}
+	promptTask.Payload = promptPayload
 	m.executePromptTask(&promptTask)
 }
 
@@ -649,6 +670,30 @@ func (m *BackgroundTaskManager) enqueue(task *BackgroundTask) (*BackgroundTask, 
 }
 
 func (m *BackgroundTaskManager) load() error {
+	var tasks []*BackgroundTask
+	if m.store != nil {
+		loaded, err := m.store.load(systemTaskNamespaceBackground, &tasks)
+		if err != nil {
+			return err
+		}
+		if loaded {
+			for _, task := range tasks {
+				if task == nil {
+					continue
+				}
+				if task.Status == BackgroundTaskStatusRunning {
+					task.Status = BackgroundTaskStatusQueued
+					task.StartedAt = nil
+				}
+				if task.NextAttemptAt.IsZero() {
+					task.NextAttemptAt = time.Now().UTC()
+				}
+				m.tasks[task.ID] = task
+			}
+			return nil
+		}
+	}
+
 	if _, err := os.Stat(m.file); err != nil {
 		if os.IsNotExist(err) {
 			return nil
@@ -659,7 +704,6 @@ func (m *BackgroundTaskManager) load() error {
 	if err != nil {
 		return fmt.Errorf("read background tasks file: %w", err)
 	}
-	var tasks []*BackgroundTask
 	if err := json.Unmarshal(data, &tasks); err != nil {
 		return fmt.Errorf("parse background tasks file: %w", err)
 	}
@@ -676,10 +720,25 @@ func (m *BackgroundTaskManager) load() error {
 		}
 		m.tasks[task.ID] = task
 	}
+	if m.store != nil {
+		if err := m.store.save(systemTaskNamespaceBackground, tasks); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
 func (m *BackgroundTaskManager) saveLocked() error {
+	if m.store != nil {
+		tasks := make([]*BackgroundTask, 0, len(m.tasks))
+		for _, task := range m.tasks {
+			tasks = append(tasks, task)
+		}
+		sort.Slice(tasks, func(i, j int) bool {
+			return tasks[i].CreatedAt.Before(tasks[j].CreatedAt)
+		})
+		return m.store.save(systemTaskNamespaceBackground, tasks)
+	}
 	if err := os.MkdirAll(filepath.Dir(m.file), 0o750); err != nil {
 		return fmt.Errorf("ensure background task dir: %w", err)
 	}
@@ -720,6 +779,13 @@ func (t *BackgroundTask) DescriptionOrType() string {
 
 func maxInt(v, fallback int) int {
 	if v <= 0 {
+		return fallback
+	}
+	return v
+}
+
+func defaultIfZeroInt(v, fallback int) int {
+	if v == 0 {
 		return fallback
 	}
 	return v

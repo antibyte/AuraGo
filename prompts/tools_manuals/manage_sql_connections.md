@@ -28,6 +28,7 @@ Manage external database connections that the agent can query. Create, update, d
 | `username` | string | for create | Database username (stored in vault) |
 | `password` | string | for create | Database password (stored in vault) |
 | `ssl_mode` | string | for create | SSL mode: `disable`, `require`, `verify-ca`, `verify-full` |
+| `credential_action` | string | for update | Credential handling for updates: `keep`, `replace`, or `delete` |
 | `allow_read` | boolean | for create | Allow SELECT queries (default: true) |
 | `allow_write` | boolean | for create | Allow INSERT queries (default: false) |
 | `allow_change` | boolean | for create | Allow UPDATE queries (default: false) |
@@ -51,6 +52,11 @@ Manage external database connections that the agent can query. Create, update, d
 {"action": "manage_sql_connections", "operation": "test", "connection_name": "app_db"}
 ```
 
+**Delete stored credentials but keep the connection:**
+```json
+{"action": "manage_sql_connections", "operation": "update", "connection_name": "app_db", "credential_action": "delete"}
+```
+
 **Create a database via Docker:**
 ```json
 {"action": "manage_sql_connections", "operation": "docker_create", "connection_name": "test_pg", "docker_template": "postgres", "database_name": "testdb"}
@@ -72,6 +78,7 @@ Manage external database connections that the agent can query. Create, update, d
 ## Notes
 
 - **Credentials security**: Usernames and passwords are stored in the encrypted vault, never in plain text
+- **Credential updates**: Use `credential_action="replace"` together with `username` / `password`, or `credential_action="delete"` to remove stored credentials without deleting the connection
 - **Permission model**: Each connection has granular permissions (read, write, change, delete)
 - **SQLite**: For sqlite, use the file path as `database_name` and omit `host` and `port`
 - **Docker templates**: The `docker_create` operation returns configuration ready to use with the `docker` tool

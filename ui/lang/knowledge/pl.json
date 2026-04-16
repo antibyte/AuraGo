@@ -210,5 +210,6 @@
   "knowledge.filesync_no_sync_data": "Brak danych synchronizacji.",
   "knowledge.filesync_just_now": "właśnie teraz",
   "knowledge.filesync_minutes_ago": "{n} min temu",
-  "knowledge.filesync_hours_ago": "{n}g temu"
+  "knowledge.filesync_hours_ago": "{n}g temu",
+  "knowledge.todos_invalid_priority": "Nieprawidłowy priorytet zadania."
 }

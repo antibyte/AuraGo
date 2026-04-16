@@ -210,5 +210,6 @@
   "knowledge.filesync_no_sync_data": "No sync data available.",
   "knowledge.filesync_just_now": "just now",
   "knowledge.filesync_minutes_ago": "{n} min ago",
-  "knowledge.filesync_hours_ago": "{n}h ago"
+  "knowledge.filesync_hours_ago": "{n}h ago",
+  "knowledge.todos_invalid_priority": "Invalid to-do priority."
 }

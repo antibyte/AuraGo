@@ -15,6 +15,8 @@
   "help.agent.allow_self_update": "Quando desabilitado, o agente não pode executar manage_updates.",
   "help.agent.allow_shell": "Quando desabilitado, o agente bloqueia todas as chamadas execute_shell.",
   "help.agent.allow_web_scraper": "Deprecated — use tools.web_scraper.enabled in the 'Tools & Services' section instead.",
+  "help.agent.announcement_detector.enabled": "Detecta quando o LLM apenas anuncia uma ação (ex. 'Deixe-me verificar isso…') sem realmente chamar uma ferramenta, e tenta novamente automaticamente para obter uma resposta real.",
+  "help.agent.announcement_detector.max_retries": "Número máximo de tentativas corretivas por turno do utilizador quando é detectada uma resposta de apenas anúncio. O agente pede novamente ao modelo para executar a ação. Padrão: 2.",
   "help.agent.background_tasks.enabled": "Permite ao agente iniciar tarefas assíncronas de acompanhamento após o envio da resposta principal.",
   "help.agent.background_tasks.follow_up_delay_seconds": "Tempo de espera após a resposta principal em segundos antes de iniciar uma tarefa de acompanhamento.",
   "help.agent.background_tasks.http_timeout_seconds": "Tempo máximo de espera para solicitações HTTP em tarefas em segundo plano.",

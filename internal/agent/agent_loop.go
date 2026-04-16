@@ -352,7 +352,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		// Structured Outputs: set Strict=true on every tool definition so the
 		// provider uses constrained decoding for tool-call arguments.
 		// Only enable this for models that support structured outputs (e.g. GPT-4o,
-		// some OpenRouter models). Ollama does not support strict mode.
+		// some OpenRouter models). Ollama supports structured outputs via
+		// response_format, but does not yet honor Function.Strict=true in the
+		// OpenAI-compatible chat completions API, so we skip it to avoid sending
+		// an unsupported field.
 		if toolingPolicy.StructuredOutputsEnabled {
 			for i := range ntSchemas {
 				if ntSchemas[i].Function != nil {
@@ -361,7 +364,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 			logger.Info("[NativeTools] Structured outputs enabled (strict mode)")
 		} else if toolingPolicy.StructuredOutputsRequested && toolingPolicy.Capabilities.IsOllama {
-			logger.Warn("[NativeTools] Structured outputs not supported by Ollama, ignoring")
+			logger.Warn("[NativeTools] Strict tool definitions not supported by Ollama, ignoring strict mode")
 		}
 		req.Tools = ntSchemas
 		req.ToolChoice = "auto"

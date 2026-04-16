@@ -210,5 +210,6 @@
   "knowledge.filesync_no_sync_data": "Keine Sync-Daten verfügbar.",
   "knowledge.filesync_just_now": "gerade eben",
   "knowledge.filesync_minutes_ago": "vor {n} Min.",
-  "knowledge.filesync_hours_ago": "vor {n} Std."
+  "knowledge.filesync_hours_ago": "vor {n} Std.",
+  "knowledge.todos_invalid_priority": "Ungültige Aufgabenpriorität."
 }

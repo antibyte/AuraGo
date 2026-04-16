@@ -1,10 +1,12 @@
 package agent
 
 import (
+	"database/sql"
 	"testing"
 
 	"aurago/internal/config"
 	"aurago/internal/prompts"
+	"aurago/internal/sqlconnections"
 )
 
 func TestBuildToolingPolicyAutoEnablesNativeFunctionsForDeepSeek(t *testing.T) {
@@ -209,6 +211,38 @@ func TestBuildToolingPolicyReducesGuideBudgetForWeakScope(t *testing.T) {
 	if !policy.EffectiveGuideStrategy.DisableFrequencyHeuristics {
 		t.Fatal("expected conservative profile to disable frequency heuristics")
 	}
+}
+
+func TestBuildToolFeatureFlagsRequiresSQLPoolForSQLConnections(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.SQLConnections.Enabled = true
+
+	t.Run("disabled when pool missing", func(t *testing.T) {
+		runCfg := RunConfig{
+			Config:           cfg,
+			SessionID:        "default",
+			SQLConnectionsDB: &sql.DB{},
+		}
+
+		flags := buildToolFeatureFlags(runCfg, buildToolingPolicy(cfg, ""))
+		if flags.SQLConnectionsEnabled {
+			t.Fatal("expected SQL connections to stay disabled without an initialized pool")
+		}
+	})
+
+	t.Run("enabled when db and pool exist", func(t *testing.T) {
+		runCfg := RunConfig{
+			Config:            cfg,
+			SessionID:         "default",
+			SQLConnectionsDB:  &sql.DB{},
+			SQLConnectionPool: &sqlconnections.ConnectionPool{},
+		}
+
+		flags := buildToolFeatureFlags(runCfg, buildToolingPolicy(cfg, ""))
+		if !flags.SQLConnectionsEnabled {
+			t.Fatal("expected SQL connections to be enabled when db and pool are available")
+		}
+	})
 }
 
 func TestApplyTelemetryAwarePromptTierDowngradesFullToCompactForWeakScope(t *testing.T) {

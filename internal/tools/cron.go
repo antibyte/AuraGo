@@ -23,18 +23,25 @@ type CronManager struct {
 	mu           sync.Mutex
 	engine       *cron.Cron
 	file         string
+	store        *systemTaskStore
 	jobs         []CronJob
 	cronEntryIDs map[string]cron.EntryID
 	callback     func(prompt string)
 }
 
 func NewCronManager(dataDir string) *CronManager {
+	store, _ := newSystemTaskStore(dataDir)
 	return &CronManager{
-		engine:       cron.New(), // Standard 5-field cron (minute hour dom month dow)
+		engine:       cron.New(cron.WithParser(newCronParser())),
 		file:         filepath.Join(dataDir, "crontab.json"),
+		store:        store,
 		jobs:         []CronJob{},
 		cronEntryIDs: make(map[string]cron.EntryID),
 	}
+}
+
+func newCronParser() cron.Parser {
+	return cron.NewParser(cron.SecondOptional | cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow | cron.Descriptor)
 }
 
 func (m *CronManager) Start(callback func(prompt string)) error {
@@ -43,14 +50,12 @@ func (m *CronManager) Start(callback func(prompt string)) error {
 
 	m.callback = callback
 
-	// Load existing from JSON
-	data, err := os.ReadFile(m.file)
-	if err == nil {
-		if err := json.Unmarshal(data, &m.jobs); err != nil {
-			return fmt.Errorf("failed to parse %s: %w", m.file, err)
-		}
-	} else if !os.IsNotExist(err) {
-		return fmt.Errorf("failed to read %s: %w", m.file, err)
+	loaded, err := m.loadLocked()
+	if err != nil {
+		return err
+	}
+	if !loaded {
+		m.jobs = []CronJob{}
 	}
 
 	for _, job := range m.jobs {
@@ -88,7 +93,22 @@ func (m *CronManager) Stop() {
 	<-ctx.Done()
 }
 
+func (m *CronManager) Close() error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.store == nil {
+		return nil
+	}
+	return m.store.close()
+}
+
 func (m *CronManager) save() error {
+	if m.store != nil {
+		return m.store.save(systemTaskNamespaceCron, m.jobs)
+	}
+	if err := os.MkdirAll(filepath.Dir(m.file), 0o750); err != nil {
+		return fmt.Errorf("ensure cron dir: %w", err)
+	}
 	data, err := json.MarshalIndent(m.jobs, "", "  ")
 	if err != nil {
 		return err
@@ -101,6 +121,35 @@ func (m *CronManager) save() error {
 		return fmt.Errorf("rename temp cron file: %w", err)
 	}
 	return nil
+}
+
+func (m *CronManager) loadLocked() (bool, error) {
+	if m.store != nil {
+		loaded, err := m.store.load(systemTaskNamespaceCron, &m.jobs)
+		if err != nil {
+			return false, err
+		}
+		if loaded {
+			return true, nil
+		}
+	}
+
+	data, err := os.ReadFile(m.file)
+	if err == nil {
+		if err := json.Unmarshal(data, &m.jobs); err != nil {
+			return false, fmt.Errorf("failed to parse %s: %w", m.file, err)
+		}
+		if m.store != nil {
+			if err := m.store.save(systemTaskNamespaceCron, m.jobs); err != nil {
+				return false, err
+			}
+		}
+		return true, nil
+	}
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	return false, fmt.Errorf("failed to read %s: %w", m.file, err)
 }
 
 // GetJobs returns a copy of the current cron jobs slice.
@@ -125,7 +174,7 @@ func (m *CronManager) ManageSchedule(operation, id, expr, prompt string, lang st
 		}
 
 		// Parse check
-		parser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow | cron.Descriptor)
+		parser := newCronParser()
 		_, err := parser.Parse(expr)
 		if err != nil {
 			return fmt.Sprintf(`{"status": "error", "message": "%s"}`, i18n.T(lang, "tools.cron_invalid_expr", err)), nil

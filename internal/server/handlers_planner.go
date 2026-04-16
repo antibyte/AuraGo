@@ -108,7 +108,7 @@ func handleAppointmentByID(s *Server) http.HandlerFunc {
 			if _, ok := rawMap["description"]; ok {
 				existing.Description = patch.Description
 			}
-			if _, ok := rawMap["date_time"]; ok && patch.DateTime != "" {
+			if _, ok := rawMap["date_time"]; ok {
 				existing.DateTime = patch.DateTime
 			}
 			if _, ok := rawMap["notification_at"]; ok {

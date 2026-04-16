@@ -2,6 +2,7 @@ package sqlconnections
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"unicode"
 )
@@ -17,6 +18,8 @@ const (
 	StmtDelete                // DELETE, TRUNCATE
 	StmtDDL                   // CREATE, DROP, ALTER
 )
+
+var connRefRe = regexp.MustCompile(`connection ['"][^'"]+['"]`)
 
 // String returns a human-readable name for the statement type.
 func (s StatementType) String() string {
@@ -251,12 +254,7 @@ func SanitizeError(err error) string {
 // stripConnectionRef removes connection name from error messages to prevent leaking
 // internal naming conventions while keeping the error meaningful.
 func stripConnectionRef(msg string) string {
-	// Pattern: "connection 'name'" or "connection 'name':"
-	re := strings.NewReplacer(
-		`connection '`, "connection '***'",
-		`connection "`, `connection "***"`,
-	)
-	return re.Replace(msg)
+	return connRefRe.ReplaceAllString(msg, "connection '***'")
 }
 
 // firstKeyword extracts the first SQL keyword (uppercase).

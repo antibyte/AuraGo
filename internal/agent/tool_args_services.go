@@ -101,21 +101,22 @@ type homepageArgs struct {
 }
 
 type manageSQLConnectionsArgs struct {
-	Operation      string
-	ConnectionName string
-	Driver         string
-	Host           string
-	Port           int
-	DatabaseName   string
-	Description    string
-	SSLMode        string
-	AllowRead      *bool
-	AllowWrite     *bool
-	AllowChange    *bool
-	AllowDelete    *bool
-	Username       string
-	Password       string
-	DockerTemplate string
+	Operation        string
+	ConnectionName   string
+	Driver           string
+	Host             string
+	Port             int
+	DatabaseName     string
+	Description      string
+	SSLMode          string
+	CredentialAction string
+	AllowRead        *bool
+	AllowWrite       *bool
+	AllowChange      *bool
+	AllowDelete      *bool
+	Username         string
+	Password         string
+	DockerTemplate   string
 }
 
 type homeAssistantArgs struct {
@@ -386,21 +387,22 @@ func toolArgOptionalBool(args map[string]interface{}, keys ...string) *bool {
 
 func decodeManageSQLConnectionsArgs(tc ToolCall) manageSQLConnectionsArgs {
 	req := manageSQLConnectionsArgs{
-		Operation:      firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
-		ConnectionName: firstNonEmptyToolString(tc.ConnectionName, toolArgString(tc.Params, "connection_name")),
-		Driver:         firstNonEmptyToolString(tc.Driver, toolArgString(tc.Params, "driver")),
-		Host:           firstNonEmptyToolString(tc.Host, toolArgString(tc.Params, "host")),
-		Port:           firstNonEmptyInt(tc.Port, toolArgInt(tc.Params, 0, "port")),
-		DatabaseName:   firstNonEmptyToolString(tc.DatabaseName, toolArgString(tc.Params, "database_name")),
-		Description:    firstNonEmptyToolString(tc.Description, toolArgString(tc.Params, "description")),
-		SSLMode:        firstNonEmptyToolString(tc.SSLMode, toolArgString(tc.Params, "ssl_mode")),
-		Username:       firstNonEmptyToolString(tc.Username, toolArgString(tc.Params, "username", "user")),
-		Password:       firstNonEmptyToolString(tc.Password, toolArgString(tc.Params, "password", "pass")),
-		DockerTemplate: firstNonEmptyToolString(tc.DockerTemplate, toolArgString(tc.Params, "docker_template")),
-		AllowRead:      tc.AllowRead,
-		AllowWrite:     tc.AllowWrite,
-		AllowChange:    tc.AllowChange,
-		AllowDelete:    tc.AllowDelete,
+		Operation:        firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		ConnectionName:   firstNonEmptyToolString(tc.ConnectionName, toolArgString(tc.Params, "connection_name")),
+		Driver:           firstNonEmptyToolString(tc.Driver, toolArgString(tc.Params, "driver")),
+		Host:             firstNonEmptyToolString(tc.Host, toolArgString(tc.Params, "host")),
+		Port:             firstNonEmptyInt(tc.Port, toolArgInt(tc.Params, 0, "port")),
+		DatabaseName:     firstNonEmptyToolString(tc.DatabaseName, toolArgString(tc.Params, "database_name")),
+		Description:      firstNonEmptyToolString(tc.Description, toolArgString(tc.Params, "description")),
+		SSLMode:          firstNonEmptyToolString(tc.SSLMode, toolArgString(tc.Params, "ssl_mode")),
+		CredentialAction: firstNonEmptyToolString(tc.CredentialAction, toolArgString(tc.Params, "credential_action")),
+		Username:         firstNonEmptyToolString(tc.Username, toolArgString(tc.Params, "username", "user")),
+		Password:         firstNonEmptyToolString(tc.Password, toolArgString(tc.Params, "password", "pass")),
+		DockerTemplate:   firstNonEmptyToolString(tc.DockerTemplate, toolArgString(tc.Params, "docker_template")),
+		AllowRead:        tc.AllowRead,
+		AllowWrite:       tc.AllowWrite,
+		AllowChange:      tc.AllowChange,
+		AllowDelete:      tc.AllowDelete,
 	}
 	if req.AllowRead == nil {
 		req.AllowRead = toolArgOptionalBool(tc.Params, "allow_read")

@@ -210,5 +210,6 @@
   "knowledge.filesync_no_sync_data": "Nessun dato di sincronizzazione disponibile.",
   "knowledge.filesync_just_now": "adesso",
   "knowledge.filesync_minutes_ago": "{n} min fa",
-  "knowledge.filesync_hours_ago": "{n}h fa"
+  "knowledge.filesync_hours_ago": "{n}h fa",
+  "knowledge.todos_invalid_priority": "Priorità attività non valida."
 }

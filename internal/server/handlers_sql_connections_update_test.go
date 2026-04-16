@@ -219,3 +219,173 @@ func TestHandleSQLConnectionCreate(t *testing.T) {
 		t.Errorf("database = %q, want %q", rec2.DatabaseName, "/tmp/test.db")
 	}
 }
+
+func TestHandleSQLConnectionCreateUsesPermissionDefaults(t *testing.T) {
+	t.Parallel()
+
+	metaDB, err := sqlconnections.InitDB(filepath.Join(t.TempDir(), "sqlconnections.db"))
+	if err != nil {
+		t.Fatalf("InitDB() error = %v", err)
+	}
+	defer metaDB.Close()
+
+	s := &Server{
+		SQLConnectionsDB: metaDB,
+	}
+
+	payload := map[string]interface{}{
+		"name":          "Defaulted Conn",
+		"driver":        "sqlite",
+		"host":          "",
+		"port":          0,
+		"database_name": "/tmp/defaulted.db",
+		"description":   "sqlite conn",
+	}
+	body, _ := json.Marshal(payload)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/sql-connections", bytes.NewReader(body))
+	rec := httptest.NewRecorder()
+
+	handleSQLConnections(s)(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusCreated, rec.Body.String())
+	}
+
+	var result map[string]string
+	if err := json.Unmarshal(rec.Body.Bytes(), &result); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	stored, err := sqlconnections.GetByID(metaDB, result["id"])
+	if err != nil {
+		t.Fatalf("GetByID failed: %v", err)
+	}
+
+	if !stored.AllowRead {
+		t.Fatalf("allow_read = %v, want true", stored.AllowRead)
+	}
+	if stored.AllowWrite || stored.AllowChange || stored.AllowDelete {
+		t.Fatalf("unexpected defaults: write=%v change=%v delete=%v", stored.AllowWrite, stored.AllowChange, stored.AllowDelete)
+	}
+}
+
+func TestHandleSQLConnectionUpdatePreservesPermissionsWhenOmitted(t *testing.T) {
+	t.Parallel()
+
+	metaDB, err := sqlconnections.InitDB(filepath.Join(t.TempDir(), "sqlconnections.db"))
+	if err != nil {
+		t.Fatalf("InitDB() error = %v", err)
+	}
+	defer metaDB.Close()
+
+	id, err := sqlconnections.Create(
+		metaDB,
+		"Keep Perms",
+		"postgres",
+		"localhost",
+		5432,
+		"testdb",
+		"desc",
+		true,
+		true,
+		false,
+		true,
+		"",
+		"disable",
+	)
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+
+	s := &Server{
+		SQLConnectionsDB: metaDB,
+	}
+
+	payload := map[string]interface{}{
+		"name":          "Keep Perms",
+		"driver":        "postgres",
+		"host":          "db.internal",
+		"port":          5432,
+		"database_name": "testdb",
+		"description":   "updated desc",
+		"ssl_mode":      "disable",
+	}
+	body, _ := json.Marshal(payload)
+
+	req := httptest.NewRequest(http.MethodPut, "/api/sql-connections/"+id, bytes.NewReader(body))
+	rec := httptest.NewRecorder()
+
+	handleSQLConnectionByID(s)(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+
+	stored, err := sqlconnections.GetByID(metaDB, id)
+	if err != nil {
+		t.Fatalf("GetByID failed: %v", err)
+	}
+
+	if !stored.AllowRead || !stored.AllowWrite || stored.AllowChange || !stored.AllowDelete {
+		t.Fatalf("permissions changed unexpectedly: R=%v W=%v C=%v D=%v", stored.AllowRead, stored.AllowWrite, stored.AllowChange, stored.AllowDelete)
+	}
+}
+
+func TestHandleSQLConnectionUpdatePreservesNameWhenOmitted(t *testing.T) {
+	t.Parallel()
+
+	metaDB, err := sqlconnections.InitDB(filepath.Join(t.TempDir(), "sqlconnections.db"))
+	if err != nil {
+		t.Fatalf("InitDB() error = %v", err)
+	}
+	defer metaDB.Close()
+
+	id, err := sqlconnections.Create(
+		metaDB,
+		"Stable Name",
+		"postgres",
+		"localhost",
+		5432,
+		"testdb",
+		"desc",
+		true,
+		false,
+		false,
+		false,
+		"",
+		"disable",
+	)
+	if err != nil {
+		t.Fatalf("Create() error = %v", err)
+	}
+
+	s := &Server{SQLConnectionsDB: metaDB}
+
+	payload := map[string]interface{}{
+		"host":        "db.internal",
+		"description": "updated desc",
+	}
+	body, _ := json.Marshal(payload)
+
+	req := httptest.NewRequest(http.MethodPut, "/api/sql-connections/"+id, bytes.NewReader(body))
+	rec := httptest.NewRecorder()
+
+	handleSQLConnectionByID(s)(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+
+	stored, err := sqlconnections.GetByID(metaDB, id)
+	if err != nil {
+		t.Fatalf("GetByID failed: %v", err)
+	}
+
+	if stored.Name != "Stable Name" {
+		t.Fatalf("name = %q, want %q", stored.Name, "Stable Name")
+	}
+	if stored.Host != "db.internal" {
+		t.Fatalf("host = %q, want %q", stored.Host, "db.internal")
+	}
+}

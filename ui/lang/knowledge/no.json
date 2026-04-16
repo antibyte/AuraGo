@@ -210,5 +210,6 @@
   "knowledge.filesync_no_sync_data": "Ingen sync-data tilgjengelig.",
   "knowledge.filesync_just_now": "akkurat nå",
   "knowledge.filesync_minutes_ago": "{n} min siden",
-  "knowledge.filesync_hours_ago": "{n}t siden"
+  "knowledge.filesync_hours_ago": "{n}t siden",
+  "knowledge.todos_invalid_priority": "Ugyldig oppgaveprioritet."
 }

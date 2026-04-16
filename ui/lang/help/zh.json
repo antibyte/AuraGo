@@ -15,6 +15,8 @@
   "help.agent.allow_self_update": "禁用后，代理无法运行manage_updates（无自动自我更新）。",
   "help.agent.allow_shell": "禁用后，代理会阻止所有execute_shell 请求，并显示 PERMISSION DENIED 错误。",
   "help.agent.allow_web_scraper": "已弃用 — 请改用“工具和服务”部分中的tools.web_scraper.enabled。",
+  "help.agent.announcement_detector.enabled": "检测LLM仅宣布操作（例如'让我查一下…'）而未实际调用工具的情况，并自动重试以获取真正的响应。",
+  "help.agent.announcement_detector.max_retries": "检测到仅声明性响应时每次用户交互的最大纠正重试次数。代理会再次请求模型实际执行操作。默认值：2。",
   "help.agent.background_tasks.enabled": "允许代理在发送主响应后启动异步后续任务。",
   "help.agent.background_tasks.follow_up_delay_seconds": "主响应后等待多少秒再启动后续任务。",
   "help.agent.background_tasks.http_timeout_seconds": "后台任务中 HTTP 请求的最大等待时间。",

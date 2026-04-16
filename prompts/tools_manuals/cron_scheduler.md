@@ -4,7 +4,7 @@ Schedule tasks to run automatically at future times or on recurring intervals. S
 
 ## Cron Expression Format
 
-**This system uses 6-field cron expressions (with seconds):**
+**This system supports 6-field cron expressions with seconds and also accepts legacy 5-field expressions without seconds:**
 
 ```
 ┌─────────── second (0-59)
@@ -31,8 +31,8 @@ Schedule tasks to run automatically at future times or on recurring intervals. S
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `operation` | string | yes | `add`, `remove`, or `list` |
-| `id` | string | for `remove`; optional for `add` | Unique task identifier |
+| `operation` | string | yes | `add`, `remove`, `enable`, `disable`, or `list` |
+| `id` | string | for `remove`, `enable`, `disable`; optional for `add` | Unique task identifier |
 | `cron_expr` | string | for `add` | **6-field** cron expression (see format above) |
 | `task_prompt` | string | for `add` | Prompt to execute when the task triggers |
 
@@ -53,6 +53,7 @@ Schedule tasks to run automatically at future times or on recurring intervals. S
 ## Notes
 
 - **6-field format:** Unlike standard cron (5 fields), this uses seconds as the first field.
+- **Backward compatibility:** Existing 5-field entries still work and are interpreted without an explicit seconds field.
 - **One-time vs recurring:** Specific month/day combinations (e.g. `0 0 12 25 3 *`) run annually unless combined with conditions.
 - **Task prompts:** When triggered, the task_prompt is sent as a new message to the agent for execution.
 - **Due date reminders:** For to-do reminders, use `manage_notes` with `due_date` combined with a cron entry for notification timing.

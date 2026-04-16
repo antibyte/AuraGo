@@ -210,5 +210,6 @@
   "knowledge.filesync_no_sync_data": "Inga sync-data tillgängliga.",
   "knowledge.filesync_just_now": "just nu",
   "knowledge.filesync_minutes_ago": "{n} min sedan",
-  "knowledge.filesync_hours_ago": "{n}t sedan"
+  "knowledge.filesync_hours_ago": "{n}t sedan",
+  "knowledge.todos_invalid_priority": "Ogiltig uppgiftsprioritet."
 }

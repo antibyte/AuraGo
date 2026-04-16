@@ -17,6 +17,8 @@ type QueryResult struct {
 	Message      string                   `json:"message,omitempty"`
 }
 
+const defaultMaxResultRows = 1000
+
 // ExecuteQuery runs a SQL query on the given connection with permission checks.
 // If globalReadOnly is true, all mutating queries (INSERT/UPDATE/DELETE/DDL) are blocked
 // regardless of connection-level permissions.
@@ -57,6 +59,8 @@ func ExecuteQuery(ctx context.Context, pool *ConnectionPool, metaDB *sql.DB, con
 
 // executeSelect runs a SELECT-like query and returns columnar results.
 func executeSelect(ctx context.Context, db *sql.DB, query string, maxRows int) (*QueryResult, error) {
+	maxRows = effectiveMaxRows(maxRows)
+
 	rows, err := db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("query error: %w", err)
@@ -111,6 +115,13 @@ func executeSelect(ctx context.Context, db *sql.DB, query string, maxRows int) (
 	}, nil
 }
 
+func effectiveMaxRows(maxRows int) int {
+	if maxRows <= 0 {
+		return defaultMaxResultRows
+	}
+	return maxRows
+}
+
 // executeExec runs an INSERT/UPDATE/DELETE/DDL statement.
 func executeExec(ctx context.Context, db *sql.DB, query string) (*QueryResult, error) {
 	result, err := db.ExecContext(ctx, query)
@@ -146,16 +157,9 @@ func ListTables(ctx context.Context, pool *ConnectionPool, metaDB *sql.DB, connN
 	queryCtx, cancel := context.WithTimeout(ctx, queryTimeout)
 	defer cancel()
 
-	var query string
-	switch rec.Driver {
-	case "postgres":
-		query = "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name"
-	case "mysql":
-		query = "SHOW TABLES"
-	case "sqlite":
-		query = "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
-	default:
-		return nil, fmt.Errorf("unsupported driver: %s", rec.Driver)
+	query, err := listTablesStatement(rec.Driver)
+	if err != nil {
+		return nil, err
 	}
 
 	rows, err := db.QueryContext(queryCtx, query)
@@ -220,23 +224,40 @@ func DescribeTable(ctx context.Context, pool *ConnectionPool, metaDB *sql.DB, co
 	}
 }
 
+func listTablesStatement(driver string) (string, error) {
+	switch driver {
+	case "postgres":
+		return "SELECT table_name FROM information_schema.tables WHERE table_schema = current_schema() ORDER BY table_name", nil
+	case "mysql":
+		return "SHOW TABLES", nil
+	case "sqlite":
+		return "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name", nil
+	default:
+		return "", fmt.Errorf("unsupported driver: %s", driver)
+	}
+}
+
 func describePostgres(ctx context.Context, db *sql.DB, table string) ([]ColumnInfo, error) {
-	query := `SELECT column_name, data_type, is_nullable, column_default,
-		CASE WHEN pk.column_name IS NOT NULL THEN 'PRI' ELSE '' END as key
-		FROM information_schema.columns c
-		LEFT JOIN (
-			SELECT ku.column_name FROM information_schema.table_constraints tc
-			JOIN information_schema.key_column_usage ku ON tc.constraint_name = ku.constraint_name
-			WHERE tc.table_name = $1 AND tc.constraint_type = 'PRIMARY KEY'
-		) pk ON c.column_name = pk.column_name
-		WHERE c.table_name = $1 AND c.table_schema = 'public'
-		ORDER BY c.ordinal_position`
+	query := postgresDescribeTableStatement()
 	rows, err := db.QueryContext(ctx, query, table)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	return scanColumnInfo(rows)
+}
+
+func postgresDescribeTableStatement() string {
+	return `SELECT column_name, data_type, is_nullable, column_default,
+		CASE WHEN pk.column_name IS NOT NULL THEN 'PRI' ELSE '' END as key
+		FROM information_schema.columns c
+		LEFT JOIN (
+			SELECT ku.column_name FROM information_schema.table_constraints tc
+			JOIN information_schema.key_column_usage ku ON tc.constraint_name = ku.constraint_name AND tc.table_schema = ku.table_schema
+			WHERE tc.table_name = $1 AND tc.constraint_type = 'PRIMARY KEY' AND tc.table_schema = current_schema()
+		) pk ON c.column_name = pk.column_name
+		WHERE c.table_name = $1 AND c.table_schema = current_schema()
+		ORDER BY c.ordinal_position`
 }
 
 func describeMySQL(ctx context.Context, db *sql.DB, table string) ([]ColumnInfo, error) {

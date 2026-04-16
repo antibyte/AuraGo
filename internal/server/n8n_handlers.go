@@ -255,23 +255,8 @@ func handleN8nChat(s *Server) http.HandlerFunc {
 
 		ctx := context.Background()
 
+		toolSchemas := buildN8nToolSchemas(s, allowedTools)
 		manifest := tools.NewManifest(s.Cfg.Directories.ToolsDir)
-		ff := buildFeatureFlags(s.Cfg)
-		toolSchemas := agent.BuildNativeToolSchemas(s.Cfg.Directories.SkillsDir, manifest, ff, s.Logger)
-
-		if len(allowedTools) > 0 {
-			filteredSchemas := make([]openai.Tool, 0)
-			allowedSet := make(map[string]bool)
-			for _, name := range allowedTools {
-				allowedSet[name] = true
-			}
-			for _, schema := range toolSchemas {
-				if schema.Function != nil && allowedSet[schema.Function.Name] {
-					filteredSchemas = append(filteredSchemas, schema)
-				}
-			}
-			toolSchemas = filteredSchemas
-		}
 
 		// Build messages from the isolated n8n session store — does NOT touch the main HistoryManager.
 		messages := []openai.ChatCompletionMessage{
@@ -395,25 +380,7 @@ func handleN8nToolsList(s *Server) http.HandlerFunc {
 		cfg := s.Cfg
 		s.CfgMu.RUnlock()
 
-		manifest := tools.NewManifest(cfg.Directories.ToolsDir)
-		ff := buildFeatureFlags(cfg)
-		toolSchemas := agent.BuildNativeToolSchemas(cfg.Directories.SkillsDir, manifest, ff, s.Logger)
-
-		// Filter by allowed tools if configured
-		allowedTools := cfg.N8n.AllowedTools
-		if len(allowedTools) > 0 {
-			allowedSet := make(map[string]bool)
-			for _, name := range allowedTools {
-				allowedSet[name] = true
-			}
-			filtered := make([]openai.Tool, 0)
-			for _, schema := range toolSchemas {
-				if schema.Function != nil && allowedSet[schema.Function.Name] {
-					filtered = append(filtered, schema)
-				}
-			}
-			toolSchemas = filtered
-		}
+		toolSchemas := buildN8nToolSchemas(s, cfg.N8n.AllowedTools)
 
 		// Convert to n8n format
 		type toolInfo struct {
@@ -501,6 +468,11 @@ func handleN8nToolExecute(s *Server) http.HandlerFunc {
 				n8nWriteError(w, http.StatusForbidden, "Tool not in allowed list", "not_allowed")
 				return
 			}
+		}
+
+		if !n8nToolAvailable(s, toolName, allowedTools) {
+			n8nWriteError(w, http.StatusForbidden, "Tool is not available in the current n8n runtime", "not_available")
+			return
 		}
 
 		var req n8nToolExecuteRequest
@@ -1113,7 +1085,43 @@ func buildDefaultSystemPrompt(cfg *config.Config) string {
 	return fmt.Sprintf("You are %s, an AI assistant. Be helpful and concise.", cfg.Personality.CorePersonality)
 }
 
-func buildFeatureFlags(cfg *config.Config) agent.ToolFeatureFlags {
+func buildN8nToolSchemas(s *Server, allowedTools []string) []openai.Tool {
+	s.CfgMu.RLock()
+	cfg := s.Cfg
+	s.CfgMu.RUnlock()
+
+	manifest := tools.NewManifest(cfg.Directories.ToolsDir)
+	ff := buildFeatureFlags(s)
+	toolSchemas := agent.BuildNativeToolSchemas(cfg.Directories.SkillsDir, manifest, ff, s.Logger)
+	if len(allowedTools) == 0 {
+		return toolSchemas
+	}
+
+	allowedSet := make(map[string]bool, len(allowedTools))
+	for _, name := range allowedTools {
+		allowedSet[name] = true
+	}
+
+	filtered := make([]openai.Tool, 0, len(toolSchemas))
+	for _, schema := range toolSchemas {
+		if schema.Function != nil && allowedSet[schema.Function.Name] {
+			filtered = append(filtered, schema)
+		}
+	}
+	return filtered
+}
+
+func n8nToolAvailable(s *Server, toolName string, allowedTools []string) bool {
+	for _, schema := range buildN8nToolSchemas(s, allowedTools) {
+		if schema.Function != nil && schema.Function.Name == toolName {
+			return true
+		}
+	}
+	return false
+}
+
+func buildFeatureFlags(s *Server) agent.ToolFeatureFlags {
+	cfg := s.Cfg
 	return agent.ToolFeatureFlags{
 		HomeAssistantEnabled:         cfg.HomeAssistant.Enabled,
 		DockerEnabled:                cfg.Docker.Enabled && (!cfg.Runtime.IsDocker || cfg.Runtime.DockerSocketOK),
@@ -1152,6 +1160,7 @@ func buildFeatureFlags(cfg *config.Config) agent.ToolFeatureFlags {
 		InventoryEnabled:             cfg.Tools.Inventory.Enabled,
 		MemoryMaintenanceEnabled:     cfg.Tools.MemoryMaintenance.Enabled,
 		WOLEnabled:                   cfg.Tools.WOL.Enabled && cfg.Runtime.BroadcastOK,
+		SQLConnectionsEnabled:        cfg.SQLConnections.Enabled && s.SQLConnectionsDB != nil && s.SQLConnectionPool != nil,
 		AllowShell:                   cfg.Agent.AllowShell,
 		AllowPython:                  cfg.Agent.AllowPython,
 		AllowFilesystemWrite:         cfg.Agent.AllowFilesystemWrite,

@@ -210,5 +210,6 @@
   "knowledge.filesync_no_sync_data": "Dados de sincronização indisponíveis.",
   "knowledge.filesync_just_now": "agora mesmo",
   "knowledge.filesync_minutes_ago": "há {n} min",
-  "knowledge.filesync_hours_ago": "há {n}h"
+  "knowledge.filesync_hours_ago": "há {n}h",
+  "knowledge.todos_invalid_priority": "Prioridade de tarefa inválida."
 }

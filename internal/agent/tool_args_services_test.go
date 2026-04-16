@@ -109,21 +109,22 @@ func TestDecodeManageSQLConnectionsArgsUsesParamsFallback(t *testing.T) {
 	tc := ToolCall{
 		Action: "manage_sql_connections",
 		Params: map[string]interface{}{
-			"operation":       "create",
-			"connection_name": "analytics",
-			"driver":          "postgres",
-			"host":            "db.internal",
-			"port":            float64(5432),
-			"database_name":   "events",
-			"description":     "warehouse",
-			"ssl_mode":        "require",
-			"allow_read":      true,
-			"allow_write":     false,
-			"allow_change":    true,
-			"allow_delete":    false,
-			"username":        "reporter",
-			"password":        "secret",
-			"docker_template": "postgres",
+			"operation":         "create",
+			"connection_name":   "analytics",
+			"driver":            "postgres",
+			"host":              "db.internal",
+			"port":              float64(5432),
+			"database_name":     "events",
+			"description":       "warehouse",
+			"ssl_mode":          "require",
+			"credential_action": "delete",
+			"allow_read":        true,
+			"allow_write":       false,
+			"allow_change":      true,
+			"allow_delete":      false,
+			"username":          "reporter",
+			"password":          "secret",
+			"docker_template":   "postgres",
 		},
 	}
 
@@ -139,6 +140,9 @@ func TestDecodeManageSQLConnectionsArgsUsesParamsFallback(t *testing.T) {
 	}
 	if req.Description != "warehouse" || req.SSLMode != "require" {
 		t.Fatalf("unexpected description/ssl decode: %+v", req)
+	}
+	if req.CredentialAction != "delete" {
+		t.Fatalf("CredentialAction = %q, want delete", req.CredentialAction)
 	}
 	if req.AllowRead == nil || *req.AllowRead != true {
 		t.Fatalf("AllowRead = %#v, want true", req.AllowRead)

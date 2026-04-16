@@ -278,6 +278,7 @@ func TestHandleDashboardToolStatsContract(t *testing.T) {
 func TestHandleDashboardActivityContract(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 	mgr := tools.NewBackgroundTaskManager(t.TempDir(), logger)
+	t.Cleanup(func() { _ = mgr.Close() })
 	if _, err := mgr.ScheduleFollowUp("background diagnostic", tools.BackgroundTaskScheduleOptions{
 		Source:      "follow_up",
 		Description: "Autonomous follow-up",
@@ -460,7 +461,7 @@ func TestHandleDashboardOverviewContract(t *testing.T) {
 		t.Fatalf("failed to decode JSON: %v", err)
 	}
 
-	for _, key := range []string{"agent", "integrations", "missions", "context", "skills"} {
+	for _, key := range []string{"agent", "integrations", "missions", "context", "skills", "planner"} {
 		if _, ok := body[key]; !ok {
 			t.Fatalf("overview payload missing key %q", key)
 		}

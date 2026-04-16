@@ -15,6 +15,8 @@
   "help.agent.allow_self_update": "When disabled, the agent cannot run manage_updates (no automatic self-updates).",
   "help.agent.allow_shell": "When disabled, the agent blocks all execute_shell requests with a PERMISSION DENIED error.",
   "help.agent.allow_web_scraper": "Deprecated — use tools.web_scraper.enabled in the 'Tools & Services' section instead.",
+  "help.agent.announcement_detector.enabled": "Εντοπίζει πότε το LLM ανακοινώνει μόνο μια ενέργεια (π.χ. 'Ας ελέγξω αυτό…') χωρίς να καλέσει πραγματικά ένα εργαλείο, και δοκιμάζει αυτόματα ξανά για να λάβει μια πραγματική απάντηση.",
+  "help.agent.announcement_detector.max_retries": "Μέγιστος αριθμός διορθωτικών προσπαθειών ανά γύρο χρήστη όταν ανιχνεύεται μια απάντηση που είναι απλώς ανακοίνωση. Ο πράκτορας ζητά ξανά από το μοντέλο να εκτελέσει την ενέργεια. Προεπιλογή: 2.",
   "help.agent.background_tasks.enabled": "Επιτρέπει στον πράκτορα να ξεκινά ασύγχρονες εργασίες παρακολούθησης μετά την αποστολή της κύριας απάντησης.",
   "help.agent.background_tasks.follow_up_delay_seconds": "Χρόνος αναμονής μετά την κύρια απάντηση σε δευτερόλεπτα πριν ξεκινήσει μια εργασία παρακολούθησης.",
   "help.agent.background_tasks.http_timeout_seconds": "Μέγιστος χρόνος αναμονής για αιτήματα HTTP σε εργασίες παρασκηνίου.",

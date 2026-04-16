@@ -15,6 +15,8 @@
   "help.agent.allow_self_update": "Kdyz zakazano, zadne aktualizace.",
   "help.agent.allow_shell": "Kdyz zakazano, blokuje shell.",
   "help.agent.allow_web_scraper": "Verouderd — gebruik tools.web_scraper.enabled in de sectie \"Tools & Services\" in plaats hiervan.",
+  "help.agent.announcement_detector.enabled": "Zjišťuje, kdy LLM pouze oznámí akci (např. 'Dovolte mi to zkontrolovat…') bez skutečného volání nástroje, a automaticky se znovu pokusí získat skutečnou odpověď.",
+  "help.agent.announcement_detector.max_retries": "Maximální počet opravných pokusů za kolo uživatele, kdy je zjištěna pouhá oznámovací odpověď. Agent znovu vyzve model k provedení akce. Výchozí: 2.",
   "help.agent.background_tasks.enabled": "Umožňuje agentovi spouštět asynchronní navazující úkoly po odeslání hlavní odpovědi.",
   "help.agent.background_tasks.follow_up_delay_seconds": "Čekací doba po hlavní odpovědi v sekundách před spuštěním navazující úlohy.",
   "help.agent.background_tasks.http_timeout_seconds": "Maximální čekací doba pro HTTP požadavky v rámci úloh na pozadí.",

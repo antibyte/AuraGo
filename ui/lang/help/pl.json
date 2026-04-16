@@ -15,6 +15,8 @@
   "help.agent.allow_self_update": "Gdy wyłączone, agent nie może uruchamiać manage_updates (brak automatycznych aktualizacji).",
   "help.agent.allow_shell": "Gdy wyłączone, agent blokuje wszystkie żądania execute_shell z błędem PERMISSION DENIED.",
   "help.agent.allow_web_scraper": "Przestarzałe — użyj tools.web_scraper.enabled w sekcji 'Tools & Services' zamiast tego.",
+  "help.agent.announcement_detector.enabled": "Wykrywa, gdy LLM jedynie zapowiada akcję (np. 'Pozwól, że to sprawdzę…') bez faktycznego wywołania narzędzia, i automatycznie ponawia próbę, aby uzyskać prawdziwą odpowiedź.",
+  "help.agent.announcement_detector.max_retries": "Maksymalna liczba prób korygujących na turę użytkownika po wykryciu odpowiedzi będącej jedynie zapowiedzią. Agent ponownie prosi model o wykonanie akcji. Domyślnie: 2.",
   "help.agent.background_tasks.enabled": "Pozwala agentowi uruchamiać asynchroniczne zadania następcze po wysłaniu głównej odpowiedzi.",
   "help.agent.background_tasks.follow_up_delay_seconds": "Czas oczekiwania po głównej odpowiedzi w sekundach przed uruchomieniem zadania następczego.",
   "help.agent.background_tasks.http_timeout_seconds": "Maksymalny czas oczekiwania na żądania HTTP w zadaniach w tle.",

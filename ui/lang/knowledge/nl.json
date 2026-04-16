@@ -210,5 +210,6 @@
   "knowledge.filesync_no_sync_data": "Geen sync-data beschikbaar.",
   "knowledge.filesync_just_now": "zojuist",
   "knowledge.filesync_minutes_ago": "{n} min geleden",
-  "knowledge.filesync_hours_ago": "{n}u geleden"
+  "knowledge.filesync_hours_ago": "{n}u geleden",
+  "knowledge.todos_invalid_priority": "Ongeldige taakprioriteit."
 }

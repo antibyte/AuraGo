@@ -1158,6 +1158,8 @@ func handleDashboardOverview(s *Server) http.HandlerFunc {
 			}
 		}
 
+		plannerSummary := buildPlannerOverview(s)
+
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"agent":               agentInfo,
@@ -1175,6 +1177,7 @@ func handleDashboardOverview(s *Server) http.HandlerFunc {
 			"tunnel":              tunnelInfo,
 			"skills":              skillsSummary,
 			"daemons":             daemonsSummary,
+			"planner":             plannerSummary,
 		})
 	}
 }

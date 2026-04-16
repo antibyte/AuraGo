@@ -210,5 +210,6 @@
   "knowledge.filesync_no_sync_data": "Sync data nejsou k dispozici.",
   "knowledge.filesync_just_now": "právě teď",
   "knowledge.filesync_minutes_ago": "před {n} min",
-  "knowledge.filesync_hours_ago": "před {n} h"
+  "knowledge.filesync_hours_ago": "před {n} h",
+  "knowledge.todos_invalid_priority": "Neplatná priorita úkolu."
 }

@@ -42,9 +42,6 @@ func dispatchManageAppointments(tc ToolCall, db *sql.DB, kg planner.KnowledgeGra
 	case "get":
 		id, _ := tc.Params["id"].(string)
 		if id == "" {
-			id = tc.ID
-		}
-		if id == "" {
 			return `Tool Output: {"status":"error","message":"'id' is required for get operation"}`
 		}
 		a, err := planner.GetAppointment(db, id)
@@ -91,9 +88,7 @@ func dispatchManageAppointments(tc ToolCall, db *sql.DB, kg planner.KnowledgeGra
 			existing.Description = strParam(tc.Params, "description")
 		}
 		if _, ok := tc.Params["date_time"]; ok {
-			if v := strParam(tc.Params, "date_time"); v != "" {
-				existing.DateTime = v
-			}
+			existing.DateTime = strParam(tc.Params, "date_time")
 		}
 		if _, ok := tc.Params["notification_at"]; ok {
 			existing.NotificationAt = strParam(tc.Params, "notification_at")

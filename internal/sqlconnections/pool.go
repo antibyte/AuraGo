@@ -337,8 +337,12 @@ func (p *ConnectionPool) openConnection(rec ConnectionRecord) (*sql.DB, error) {
 		return nil, fmt.Errorf("failed to open %s connection: %w", rec.Driver, err)
 	}
 
-	db.SetMaxOpenConns(2)
-	db.SetMaxIdleConns(1)
+	maxOpenConns := p.maxConns
+	if maxOpenConns <= 0 {
+		maxOpenConns = 5
+	}
+	db.SetMaxOpenConns(maxOpenConns)
+	db.SetMaxIdleConns(defaultMaxIdleConns(maxOpenConns))
 	db.SetConnMaxLifetime(30 * time.Minute)
 	db.SetConnMaxIdleTime(5 * time.Minute)
 
@@ -351,6 +355,20 @@ func (p *ConnectionPool) openConnection(rec ConnectionRecord) (*sql.DB, error) {
 
 	logSafe(p.logger, "SQL connection opened", "id", rec.ID, "name", rec.Name, "driver", rec.Driver)
 	return db, nil
+}
+
+func defaultMaxIdleConns(maxOpenConns int) int {
+	if maxOpenConns <= 1 {
+		return 1
+	}
+	idleConns := maxOpenConns / 2
+	if idleConns < 1 {
+		idleConns = 1
+	}
+	if idleConns > 3 {
+		idleConns = 3
+	}
+	return idleConns
 }
 
 // BuildDSN constructs a data source name from connection metadata.

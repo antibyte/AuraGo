@@ -2,6 +2,7 @@ package sqlconnections
 
 import (
 	"database/sql"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -108,6 +109,27 @@ func TestConnectionPool_SetRateLimit(t *testing.T) {
 
 	// Should not panic
 	pool.SetRateLimit(2)
+}
+
+func TestDefaultMaxIdleConns(t *testing.T) {
+	tests := []struct {
+		maxOpen int
+		want    int
+	}{
+		{maxOpen: 0, want: 1},
+		{maxOpen: 1, want: 1},
+		{maxOpen: 2, want: 1},
+		{maxOpen: 5, want: 2},
+		{maxOpen: 10, want: 3},
+	}
+
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("max-open-%d", tt.maxOpen), func(t *testing.T) {
+			if got := defaultMaxIdleConns(tt.maxOpen); got != tt.want {
+				t.Fatalf("defaultMaxIdleConns(%d) = %d, want %d", tt.maxOpen, got, tt.want)
+			}
+		})
+	}
 }
 
 func TestConnectionPool_CloseConnection(t *testing.T) {

@@ -1811,7 +1811,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			}
 			if cfg.Tools.Scheduler.ReadOnly {
 				switch req.Operation {
-				case "add", "remove":
+				case "add", "remove", "enable", "disable":
 					return `Tool Output: {"status":"error","message":"Scheduler is in read-only mode. Disable tools.scheduler.read_only to allow changes."}`
 				}
 			}

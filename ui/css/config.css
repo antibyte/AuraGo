@@ -104,7 +104,7 @@
 /* Fritz!Box */
 .fb-feature-card { background:var(--card-bg); border:1px solid var(--border-subtle); border-radius:12px; padding:1rem; margin-bottom:0.8rem; }
 .fb-feature-title { font-weight:600; font-size:0.88rem; color:var(--text-primary); margin-bottom:0.7rem; }
-.fb-feature-toggles { display:flex; gap:1.5rem; flex-wrap:wrap; }
+.fb-feature-toggles { display:grid; grid-template-columns: 1fr 1fr; gap:1.5rem; }
 .fb-poll-input { width:90px; }
 .fb-hint { font-size:0.8rem; color:var(--text-tertiary); }
 
@@ -141,7 +141,8 @@
 .nf-status-ok { border-color:var(--success) !important; background:rgba(34,197,94,0.08) !important; }
 .nf-status-warn { border-color:var(--warning) !important; background:rgba(245,158,11,0.08) !important; }
 .nf-status-error { border-color:var(--danger) !important; background:rgba(239,68,68,0.08) !important; }
-.nf-grid-2col { display:grid; grid-template-columns:1fr 1fr; gap:0.6rem 1.2rem; }
+.nf-grid-2col { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:0.6rem 1.2rem; }
+.nf-grid-2col > .cfg-toggle-row-compact { min-width: 0; }
 .nf-grid-2col-wide { display:grid; grid-template-columns:1fr 1fr; gap:0.8rem 1.2rem; }
 .cfg-input-full { width:100%; margin-top:0.2rem; }
 .nf-token-box { margin-top:1.2rem; padding:0.8rem 1rem; border-radius:12px; border:1px solid var(--border-subtle); background:var(--card-bg); }
@@ -5609,7 +5610,8 @@ select.cfg-input option {
 .sb-notice-success { border-color: var(--success); background: rgba(34, 197, 94, 0.08); }
 .sb-notice-warning { border-color: var(--warning); background: rgba(245, 158, 11, 0.08); }
 .sb-grid-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem 1.2rem; margin-top: 1rem; }
-.sb-grid-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem 1.2rem; margin-top: 1rem; }
+.sb-grid-toggle { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.6rem 1.2rem; margin-top: 1rem; }
+.sb-grid-toggle > .cfg-toggle-row-compact { min-width: 0; }
 .sb-field-label { display: block; }
 .sb-field-caption { font-size: 0.78rem; color: var(--text-secondary); }
 .sb-field-hint { color: var(--text-tertiary); }
@@ -5935,6 +5937,21 @@ select.cfg-input option {
     .cfg-toggle-row-highlight,
     .cfg-toggle-row-compact {
         align-items: flex-start;
+    }
+
+    .fb-feature-toggles {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+    }
+
+    .sb-grid-toggle {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+    }
+
+    .nf-grid-2col {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
     }
 
     /* Webhooks mobile fixes */

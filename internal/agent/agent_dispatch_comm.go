@@ -598,9 +598,6 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if req.EventType == "" {
 				return "Tool Output: ERROR 'event_type' is required for wait_for_event"
 			}
-			if req.TaskPrompt == "" {
-				return "Tool Output: ERROR 'task_prompt' is required for wait_for_event"
-			}
 			bgMgr := tools.DefaultBackgroundTaskManager()
 			if bgMgr == nil {
 				logger.Error("Background task manager is unavailable for wait_for_event")

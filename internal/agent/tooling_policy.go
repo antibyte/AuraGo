@@ -94,9 +94,12 @@ func resolveModelCapabilities(cfg *config.Config) ModelCapabilities {
 	isAnthropic := strings.Contains(lowerModel, "claude")
 	isNemotron := strings.Contains(lowerModel, "nemotron")
 
-	// Models from providers known to NOT support OpenAI-style strict structured outputs
-	// (Function.Strict=true). These are mostly Chinese LLM providers with OpenAI-compatible
-	// APIs but without the strict-mode constraint decoding extension.
+	// Models from providers known to NOT support OpenAI-style strict mode on
+	// individual tool definitions (Function.Strict=true). Ollama supports
+	// structured outputs via response_format, but currently ignores the strict
+	// field in the OpenAI-compatible chat completions API. The other entries are
+	// Chinese LLM providers with OpenAI-compatible APIs but without the
+	// strict-mode constraint decoding extension.
 	isNoStrictStructuredOutputs := isOllama ||
 		strings.HasPrefix(lowerModel, "glm-") ||
 		strings.Contains(lowerModel, "/glm-") ||
@@ -320,7 +323,7 @@ func resolveToolFeatureState(runCfg RunConfig, policy ToolingPolicy) resolvedToo
 		FritzBoxTVEnabled:            cfg.FritzBox.Enabled && cfg.FritzBox.TV.Enabled,
 		TelnyxSMSEnabled:             cfg.Telnyx.Enabled && !cfg.Telnyx.ReadOnly,
 		TelnyxCallEnabled:            cfg.Telnyx.Enabled && !cfg.Telnyx.ReadOnly,
-		SQLConnectionsEnabled:        cfg.SQLConnections.Enabled && runCfg.SQLConnectionsDB != nil,
+		SQLConnectionsEnabled:        cfg.SQLConnections.Enabled && runCfg.SQLConnectionsDB != nil && runCfg.SQLConnectionPool != nil,
 		PythonSecretInjectionEnabled: cfg.Tools.PythonSecretInjection.Enabled,
 		DaemonSkillsEnabled:          cfg.Tools.DaemonSkills.Enabled,
 		AllowShell:                   cfg.Agent.AllowShell,

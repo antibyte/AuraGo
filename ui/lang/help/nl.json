@@ -15,6 +15,8 @@
   "help.agent.allow_self_update": "Wanneer uitgeschakeld, geen automatische updates.",
   "help.agent.allow_shell": "Wanneer uitgeschakeld, blokkeert de agent alle shell-opdrachten.",
   "help.agent.allow_web_scraper": "Deprecated — use tools.web_scraper.enabled in the 'Tools & Services' section instead.",
+  "help.agent.announcement_detector.enabled": "Detecteert wanneer het LLM alleen een actie aankondigt (bijv. 'Laat me dat controleren…') zonder daadwerkelijk een tool aan te roepen, en probeert automatisch opnieuw om een echte reactie te krijgen.",
+  "help.agent.announcement_detector.max_retries": "Maximum aantal corrigerende herstelpogingen per gebruikersbeurt wanneer een louter aankondigende reactie wordt gedetecteerd. De agent vraagt het model opnieuw om de actie daadwerkelijk uit te voeren. Standaard: 2.",
   "help.agent.background_tasks.enabled": "Stelt de agent in staat om asynchrone vervolgtaken te starten nadat het hoofdantwoord is verzonden.",
   "help.agent.background_tasks.follow_up_delay_seconds": "Wachttijd na het hoofdantwoord in seconden voordat een vervolgtaak start.",
   "help.agent.background_tasks.http_timeout_seconds": "Maximale wachttijd voor HTTP-verzoeken binnen achtergrondtaken.",

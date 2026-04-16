@@ -28,12 +28,14 @@ List all tables in a database.
 
 ## Permission Model
 Each connection has four independent permission flags:
-- **allow_read**: Permits SELECT, SHOW, DESCRIBE, EXPLAIN, PRAGMA queries.
+- **allow_read**: Permits SELECT, SHOW, DESCRIBE, and EXPLAIN SELECT queries.
 - **allow_write**: Permits INSERT statements. DDL operations (CREATE, ALTER) additionally require allow_change.
 - **allow_change**: Permits UPDATE statements. DDL operations additionally require allow_write.
 - **allow_delete**: Permits DELETE and TRUNCATE statements.
 
 **DDL note**: DDL statements (CREATE, ALTER, DROP) require both `allow_write` AND `allow_change` to be enabled.
+
+**Security note**: `PRAGMA` statements are blocked for safety because some variants can mutate database state.
 
 ## Best Practices
 - Always use `list_tables` first to discover available tables.

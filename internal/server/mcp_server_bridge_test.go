@@ -1,12 +1,14 @@
 package server
 
 import (
+	"database/sql"
 	"io"
 	"log/slog"
 	"strings"
 	"testing"
 
 	"aurago/internal/config"
+	"aurago/internal/sqlconnections"
 )
 
 func TestMCPEffectiveAllowedToolsUsesVSCodePreset(t *testing.T) {
@@ -89,4 +91,32 @@ func TestMCPBuildToolListIncludesAskAuraGoWhenBridgeEnabled(t *testing.T) {
 	}
 
 	t.Fatalf("ask_aurago not found in MCP tool list")
+}
+
+func TestMCPBuildToolListRequiresSQLRuntimeDependencies(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Directories.ToolsDir = t.TempDir()
+	cfg.Directories.SkillsDir = t.TempDir()
+	cfg.SQLConnections.Enabled = true
+
+	s := &Server{
+		Cfg:    cfg,
+		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	}
+
+	toolsWithoutRuntime := mcpBuildToolList(s)
+	for _, tool := range toolsWithoutRuntime {
+		if tool.Name == "sql_query" || tool.Name == "manage_sql_connections" {
+			t.Fatalf("unexpected SQL tool %q without runtime dependencies", tool.Name)
+		}
+	}
+
+	s.SQLConnectionsDB = &sql.DB{}
+	s.SQLConnectionPool = &sqlconnections.ConnectionPool{}
+	if !mcpToolAvailable(s, "sql_query") {
+		t.Fatal("expected sql_query to become available once runtime dependencies exist")
+	}
+	if mcpToolAvailable(s, "definitely_missing_tool") {
+		t.Fatal("unexpected availability for unknown MCP tool")
+	}
 }

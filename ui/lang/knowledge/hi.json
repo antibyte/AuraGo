@@ -210,5 +210,6 @@
   "knowledge.filesync_no_sync_data": "सिंक डेटा उपलब्ध नहीं है।",
   "knowledge.filesync_just_now": "अभी अभी",
   "knowledge.filesync_minutes_ago": "{n} मिनट पहले",
-  "knowledge.filesync_hours_ago": "{n} घंटे पहले"
+  "knowledge.filesync_hours_ago": "{n} घंटे पहले",
+  "knowledge.todos_invalid_priority": "अमान्य कार्य प्राथमिकता।"
 }

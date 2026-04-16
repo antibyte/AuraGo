@@ -281,6 +281,37 @@ func TestDispatchCommManageDaemonList(t *testing.T) {
 	}
 }
 
+func TestDispatchCommWaitForEventAllowsEmptyTaskPrompt(t *testing.T) {
+	bgMgr := tools.NewBackgroundTaskManager(t.TempDir(), slog.New(slog.NewTextHandler(io.Discard, nil)))
+	tools.SetDefaultBackgroundTaskManager(bgMgr)
+	t.Cleanup(func() {
+		tools.SetDefaultBackgroundTaskManager(nil)
+		_ = bgMgr.Close()
+	})
+
+	cfg := &config.Config{}
+	cfg.Agent.BackgroundTasks.Enabled = true
+	cfg.Agent.BackgroundTasks.WaitDefaultTimeoutSecs = 30
+	cfg.Agent.BackgroundTasks.WaitPollIntervalSecs = 5
+
+	out, ok := dispatchComm(context.Background(), ToolCall{
+		Action: "wait_for_event",
+		Params: map[string]interface{}{
+			"event_type": "http_available",
+			"url":        "http://127.0.0.1:65535",
+		},
+	}, &DispatchContext{
+		Cfg:    cfg,
+		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	})
+	if !ok {
+		t.Fatal("expected dispatchComm to handle wait_for_event")
+	}
+	if !strings.Contains(out, "scheduled as background task") {
+		t.Fatalf("expected wait_for_event to be scheduled, got %s", out)
+	}
+}
+
 func TestDispatchCommManageDaemonStatusMissingID(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Tools.DaemonSkills.Enabled = true

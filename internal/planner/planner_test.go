@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"aurago/internal/dbutil"
 )
 
 func testDB(t *testing.T) *sql.DB {
@@ -29,6 +31,89 @@ func TestInitDB(t *testing.T) {
 
 	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
 		t.Error("Expected database file to exist")
+	}
+}
+
+func TestInitDBMigratesLegacySchemaAndNormalizesValues(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "planner_legacy.db")
+	legacyDB, err := dbutil.Open(dbPath)
+	if err != nil {
+		t.Fatalf("open legacy planner db: %v", err)
+	}
+	defer legacyDB.Close()
+
+	legacySchema := `
+	CREATE TABLE appointments (
+		id TEXT PRIMARY KEY,
+		title TEXT NOT NULL,
+		description TEXT DEFAULT '',
+		date_time TEXT NOT NULL,
+		notification_at TEXT DEFAULT '',
+		wake_agent INTEGER DEFAULT 0,
+		agent_instruction TEXT DEFAULT '',
+		notified INTEGER DEFAULT 0,
+		status TEXT DEFAULT 'upcoming',
+		kg_node_id TEXT DEFAULT '',
+		created_at TEXT NOT NULL,
+		updated_at TEXT NOT NULL
+	);
+	CREATE TABLE todos (
+		id TEXT PRIMARY KEY,
+		title TEXT NOT NULL,
+		description TEXT DEFAULT '',
+		priority TEXT DEFAULT 'medium',
+		status TEXT DEFAULT 'open',
+		due_date TEXT DEFAULT '',
+		kg_node_id TEXT DEFAULT '',
+		created_at TEXT NOT NULL,
+		updated_at TEXT NOT NULL
+	);`
+	if _, err := legacyDB.Exec(legacySchema); err != nil {
+		t.Fatalf("create legacy schema: %v", err)
+	}
+	if _, err := legacyDB.Exec(`INSERT INTO appointments (id, title, description, date_time, status, created_at, updated_at) VALUES ('a1', 'Legacy appointment', '', '2026-04-20T10:00:00Z', 'invalid', '2026-04-16T00:00:00Z', '2026-04-16T00:00:00Z')`); err != nil {
+		t.Fatalf("insert legacy appointment: %v", err)
+	}
+	if _, err := legacyDB.Exec(`INSERT INTO todos (id, title, description, priority, status, due_date, created_at, updated_at) VALUES ('t1', 'Legacy todo', '', 'urgent', 'broken', '', '2026-04-16T00:00:00Z', '2026-04-16T00:00:00Z')`); err != nil {
+		t.Fatalf("insert legacy todo: %v", err)
+	}
+	if err := dbutil.SetUserVersion(legacyDB, 1); err != nil {
+		t.Fatalf("set legacy schema version: %v", err)
+	}
+	legacyDB.Close()
+
+	db, err := InitDB(dbPath)
+	if err != nil {
+		t.Fatalf("InitDB migration failed: %v", err)
+	}
+	defer db.Close()
+
+	version, err := dbutil.GetUserVersion(db)
+	if err != nil {
+		t.Fatalf("GetUserVersion: %v", err)
+	}
+	if version != plannerSchemaVersion {
+		t.Fatalf("schema version = %d, want %d", version, plannerSchemaVersion)
+	}
+
+	appointment, err := GetAppointment(db, "a1")
+	if err != nil {
+		t.Fatalf("GetAppointment migrated row: %v", err)
+	}
+	if appointment.Status != "upcoming" {
+		t.Fatalf("appointment status = %q, want upcoming", appointment.Status)
+	}
+
+	todo, err := GetTodo(db, "t1")
+	if err != nil {
+		t.Fatalf("GetTodo migrated row: %v", err)
+	}
+	if todo.Priority != "medium" {
+		t.Fatalf("todo priority = %q, want medium", todo.Priority)
+	}
+	if todo.Status != "open" {
+		t.Fatalf("todo status = %q, want open", todo.Status)
 	}
 }
 
@@ -193,6 +278,27 @@ func TestUpdateAppointment(t *testing.T) {
 	}
 	if updated.Status != "completed" {
 		t.Errorf("Expected status 'completed', got %q", updated.Status)
+	}
+}
+
+func TestUpdateAppointmentAllowsClearingDateTime(t *testing.T) {
+	db := testDB(t)
+	defer db.Close()
+
+	id, _ := CreateAppointment(db, Appointment{
+		Title:    "Flexible",
+		DateTime: "2025-07-01T10:00:00Z",
+	})
+
+	a, _ := GetAppointment(db, id)
+	a.DateTime = ""
+	if err := UpdateAppointment(db, *a); err != nil {
+		t.Fatalf("UpdateAppointment failed: %v", err)
+	}
+
+	updated, _ := GetAppointment(db, id)
+	if updated.DateTime != "" {
+		t.Fatalf("date_time = %q, want empty string", updated.DateTime)
 	}
 }
 

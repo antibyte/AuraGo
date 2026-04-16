@@ -97,7 +97,7 @@ function openTodoModal(todo) {
     document.getElementById('todo-title').value = todo ? todo.title : '';
     document.getElementById('todo-description').value = todo ? todo.description || '' : '';
     document.getElementById('todo-priority').value = todo ? todo.priority : 'medium';
-    document.getElementById('todo-due-date').value = todo && todo.due_date ? todo.due_date.split('T')[0] : '';
+    document.getElementById('todo-due-date').value = todo && todo.due_date ? toLocalDateInput(todo.due_date) : '';
 
     title.textContent = todo ? t('knowledge.todos_edit') : t('knowledge.todos_add');
     modal.classList.add('active');
@@ -115,7 +115,7 @@ async function saveTodo() {
         title: document.getElementById('todo-title').value.trim(),
         description: document.getElementById('todo-description').value.trim(),
         priority: document.getElementById('todo-priority').value,
-        due_date: dueVal ? dueVal + 'T00:00:00Z' : '',
+        due_date: fromLocalDateInput(dueVal),
     };
 
     if (!data.title) {
@@ -249,4 +249,22 @@ function formatTodoDate(iso) {
         const d = new Date(iso);
         return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
     } catch { return iso; }
+}
+
+function toLocalDateInput(iso) {
+    if (!iso) return '';
+    try {
+        const d = new Date(iso);
+        const pad = n => String(n).padStart(2, '0');
+        return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+    } catch { return ''; }
+}
+
+function fromLocalDateInput(val) {
+    if (!val) return '';
+    try {
+        const [year, month, day] = val.split('-').map(Number);
+        if (!year || !month || !day) return '';
+        return new Date(year, month - 1, day).toISOString();
+    } catch { return ''; }
 }
