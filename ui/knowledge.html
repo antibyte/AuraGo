@@ -239,6 +239,7 @@
                     </button>
                 </div>
             </div>
+            <div id="todos-summary" class="kc-todo-summary is-hidden"></div>
             <div id="todos-list" class="kc-todo-list"></div>
             <div class="empty-state is-hidden" id="todos-empty">
                 <div class="empty-icon">✅</div>
@@ -532,6 +533,26 @@
                     <input type="date" id="todo-due-date">
                     <small class="form-hint" data-i18n="knowledge.todos_due_hint">Optional</small>
                 </div>
+            </div>
+            <div class="form-group">
+                <label class="kc-toggle-label">
+                    <input type="checkbox" id="todo-remind-daily">
+                    <span data-i18n="knowledge.todos_remind_daily_label">Daily reminder by agent</span>
+                </label>
+                <small class="form-hint" data-i18n="knowledge.todos_remind_daily_hint">When enabled, the agent reminds you about open checklist points on the first contact of the day.</small>
+            </div>
+            <div class="form-group">
+                <div class="kc-section-header">
+                    <div>
+                        <label data-i18n="knowledge.todos_items_label">Checklist</label>
+                        <small class="form-hint" data-i18n="knowledge.todos_items_hint">Optional subtasks you can tick off one by one.</small>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-secondary" onclick="addTodoDraftItem()">
+                        <span>+</span> <span data-i18n="knowledge.todos_item_add">Add point</span>
+                    </button>
+                </div>
+                <div id="todo-items-editor" class="kc-todo-editor-list"></div>
+                <div id="todo-items-empty" class="kc-todo-editor-empty" data-i18n="knowledge.todos_items_empty">No checklist points yet. Add one if this task needs multiple steps.</div>
             </div>
             <div class="modal-actions">
                 <button class="btn btn-secondary" onclick="closeModal('todo-modal')" data-i18n="common.btn_cancel">Cancel</button>

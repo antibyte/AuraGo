@@ -193,6 +193,7 @@ type ContextFlags struct {
 	AdditionalPrompt         string // Extra instructions always appended at end of system prompt
 	SessionTodoItems         string // Session-scoped task list piggybacked on tool calls
 	HighPriorityNotes        string // Open high-priority notes injected as reminders
+	DailyTodoReminder        string // First-contact-of-day reminder for open planner todos
 	KnowledgeContext         string // Relevant KG entities injected from SearchForContext
 	ErrorPatternContext      string // Known error patterns with resolutions for agent learning
 	EmotionDescription       string // LLM-synthesized emotional state description (Emotion Synthesizer)
@@ -452,6 +453,13 @@ func buildSystemPromptInner(promptsDir string, flags ContextFlags, coreMemory st
 	if flags.HighPriorityNotes != "" {
 		finalPrompt.WriteString("### ACTIVE REMINDERS (high-priority notes) ###\n")
 		finalPrompt.WriteString(security.IsolateExternalData(flags.HighPriorityNotes))
+		finalPrompt.WriteString("\n\n")
+	}
+
+	if flags.DailyTodoReminder != "" {
+		finalPrompt.WriteString("### DAILY TODO REMINDER ###\n")
+		finalPrompt.WriteString("On this turn, start your reply with a brief proactive reminder about these open tasks before addressing the user's new message.\n")
+		finalPrompt.WriteString(security.IsolateExternalData(flags.DailyTodoReminder))
 		finalPrompt.WriteString("\n\n")
 	}
 

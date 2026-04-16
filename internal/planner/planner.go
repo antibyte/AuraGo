@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"reflect"
+	"sort"
 	"strings"
 	"time"
 
@@ -36,16 +38,38 @@ type Appointment struct {
 
 // Todo represents a to-do item.
 type Todo struct {
+	ID                  string     `json:"id"`
+	Title               string     `json:"title"`
+	Description         string     `json:"description,omitempty"`
+	Priority            string     `json:"priority"` // low, medium, high
+	Status              string     `json:"status"`   // open, in_progress, done
+	DueDate             string     `json:"due_date,omitempty"`
+	RemindDaily         bool       `json:"remind_daily"`
+	CompletedAt         string     `json:"completed_at,omitempty"`
+	LastDailyReminderAt string     `json:"last_daily_reminder_at,omitempty"`
+	Items               []TodoItem `json:"items,omitempty"`
+	ItemCount           int        `json:"item_count"`
+	DoneItemCount       int        `json:"done_item_count"`
+	ProgressPercent     int        `json:"progress_percent"`
+	KGNodeID            string     `json:"kg_node_id,omitempty"`
+	CreatedAt           string     `json:"created_at"`
+	UpdatedAt           string     `json:"updated_at"`
+}
+
+// TodoItem represents an optional checklist item inside a todo.
+type TodoItem struct {
 	ID          string `json:"id"`
+	TodoID      string `json:"todo_id,omitempty"`
 	Title       string `json:"title"`
 	Description string `json:"description,omitempty"`
-	Priority    string `json:"priority"` // low, medium, high
-	Status      string `json:"status"`   // open, in_progress, done
-	DueDate     string `json:"due_date,omitempty"`
-	KGNodeID    string `json:"kg_node_id,omitempty"`
-	CreatedAt   string `json:"created_at"`
-	UpdatedAt   string `json:"updated_at"`
+	Position    int    `json:"position"`
+	IsDone      bool   `json:"is_done"`
+	CompletedAt string `json:"completed_at,omitempty"`
+	CreatedAt   string `json:"created_at,omitempty"`
+	UpdatedAt   string `json:"updated_at,omitempty"`
 }
+
+const dailyTodoReminderMetaKey = "daily_todo_reminder_last_seen"
 
 // InitDB initializes the planner SQLite database with appointments and todos tables.
 func InitDB(dbPath string) (*sql.DB, error) {
@@ -330,15 +354,30 @@ func CreateTodo(db *sql.DB, t Todo) (string, error) {
 			return "", fmt.Errorf("invalid due_date format %q: must be RFC3339 (e.g. 2025-03-15T00:00:00Z) or date-only (e.g. 2025-03-15)", t.DueDate)
 		}
 	}
+	if err := prepareTodoForPersistence(&t, now); err != nil {
+		return "", err
+	}
 	t.KGNodeID = "todo_" + t.ID
 
-	_, err := db.Exec(
-		`INSERT INTO todos (id, title, description, priority, status, due_date, kg_node_id, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		t.ID, t.Title, t.Description, t.Priority, t.Status, t.DueDate, t.KGNodeID, t.CreatedAt, t.UpdatedAt,
+	tx, err := db.Begin()
+	if err != nil {
+		return "", fmt.Errorf("begin todo insert: %w", err)
+	}
+	defer tx.Rollback()
+
+	_, err = tx.Exec(
+		`INSERT INTO todos (id, title, description, priority, status, due_date, remind_daily, completed_at, last_daily_reminder_at, kg_node_id, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		t.ID, t.Title, t.Description, t.Priority, t.Status, t.DueDate, dbutil.BoolToInt(t.RemindDaily), t.CompletedAt, t.LastDailyReminderAt, t.KGNodeID, t.CreatedAt, t.UpdatedAt,
 	)
 	if err != nil {
 		return "", fmt.Errorf("failed to insert todo: %w", err)
+	}
+	if err := replaceTodoItemsTx(tx, t.ID, t.Items, now); err != nil {
+		return "", err
+	}
+	if err := tx.Commit(); err != nil {
+		return "", fmt.Errorf("commit todo insert: %w", err)
 	}
 	return t.ID, nil
 }
@@ -361,11 +400,20 @@ func UpdateTodo(db *sql.DB, t Todo) error {
 		}
 	}
 	t.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+	if err := prepareTodoForPersistence(&t, t.UpdatedAt); err != nil {
+		return err
+	}
 
-	res, err := db.Exec(
-		`UPDATE todos SET title=?, description=?, priority=?, status=?, due_date=?, updated_at=?
+	tx, err := db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin todo update: %w", err)
+	}
+	defer tx.Rollback()
+
+	res, err := tx.Exec(
+		`UPDATE todos SET title=?, description=?, priority=?, status=?, due_date=?, remind_daily=?, completed_at=?, last_daily_reminder_at=?, updated_at=?
 		 WHERE id=?`,
-		t.Title, t.Description, t.Priority, t.Status, t.DueDate, t.UpdatedAt, t.ID,
+		t.Title, t.Description, t.Priority, t.Status, t.DueDate, dbutil.BoolToInt(t.RemindDaily), t.CompletedAt, t.LastDailyReminderAt, t.UpdatedAt, t.ID,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to update todo: %w", err)
@@ -374,12 +422,29 @@ func UpdateTodo(db *sql.DB, t Todo) error {
 	if n == 0 {
 		return fmt.Errorf("todo not found: %s", t.ID)
 	}
+	if t.Items != nil {
+		if err := replaceTodoItemsTx(tx, t.ID, t.Items, t.UpdatedAt); err != nil {
+			return err
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit todo update: %w", err)
+	}
 	return nil
 }
 
 // DeleteTodo removes a todo by ID.
 func DeleteTodo(db *sql.DB, id string) error {
-	res, err := db.Exec("DELETE FROM todos WHERE id=?", id)
+	tx, err := db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin todo delete: %w", err)
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.Exec("DELETE FROM todo_items WHERE todo_id=?", id); err != nil {
+		return fmt.Errorf("failed to delete todo items: %w", err)
+	}
+	res, err := tx.Exec("DELETE FROM todos WHERE id=?", id)
 	if err != nil {
 		return fmt.Errorf("failed to delete todo: %w", err)
 	}
@@ -387,21 +452,32 @@ func DeleteTodo(db *sql.DB, id string) error {
 	if n == 0 {
 		return fmt.Errorf("todo not found: %s", id)
 	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit todo delete: %w", err)
+	}
 	return nil
 }
 
 // GetTodo returns a single todo by ID.
 func GetTodo(db *sql.DB, id string) (*Todo, error) {
 	row := db.QueryRow(
-		`SELECT id, title, description, priority, status, due_date, kg_node_id, created_at, updated_at
+		`SELECT id, title, description, priority, status, due_date, remind_daily, completed_at, last_daily_reminder_at, kg_node_id, created_at, updated_at
 		 FROM todos WHERE id=?`, id)
 	t := &Todo{}
-	if err := row.Scan(&t.ID, &t.Title, &t.Description, &t.Priority, &t.Status, &t.DueDate, &t.KGNodeID, &t.CreatedAt, &t.UpdatedAt); err != nil {
+	var remindDaily int
+	if err := row.Scan(&t.ID, &t.Title, &t.Description, &t.Priority, &t.Status, &t.DueDate, &remindDaily, &t.CompletedAt, &t.LastDailyReminderAt, &t.KGNodeID, &t.CreatedAt, &t.UpdatedAt); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, fmt.Errorf("todo not found: %s", id)
 		}
 		return nil, fmt.Errorf("failed to get todo: %w", err)
 	}
+	t.RemindDaily = remindDaily != 0
+	items, err := listTodoItems(db, t.ID)
+	if err != nil {
+		return nil, err
+	}
+	t.Items = items
+	ComputeTodoProgress(t)
 	return t, nil
 }
 
@@ -421,7 +497,7 @@ func ListTodos(db *sql.DB, query, status string) ([]Todo, error) {
 		args = append(args, status)
 	}
 
-	q := `SELECT id, title, description, priority, status, due_date, kg_node_id, created_at, updated_at FROM todos`
+	q := `SELECT id, title, description, priority, status, due_date, remind_daily, completed_at, last_daily_reminder_at, kg_node_id, created_at, updated_at FROM todos`
 	if len(conditions) > 0 {
 		q += " WHERE " + strings.Join(conditions, " AND ")
 	}
@@ -436,15 +512,252 @@ func ListTodos(db *sql.DB, query, status string) ([]Todo, error) {
 	var list []Todo
 	for rows.Next() {
 		var t Todo
-		if err := rows.Scan(&t.ID, &t.Title, &t.Description, &t.Priority, &t.Status, &t.DueDate, &t.KGNodeID, &t.CreatedAt, &t.UpdatedAt); err != nil {
+		var remindDaily int
+		if err := rows.Scan(&t.ID, &t.Title, &t.Description, &t.Priority, &t.Status, &t.DueDate, &remindDaily, &t.CompletedAt, &t.LastDailyReminderAt, &t.KGNodeID, &t.CreatedAt, &t.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("failed to scan todo: %w", err)
 		}
+		t.RemindDaily = remindDaily != 0
+		items, err := listTodoItems(db, t.ID)
+		if err != nil {
+			return nil, err
+		}
+		t.Items = items
+		ComputeTodoProgress(&t)
 		list = append(list, t)
 	}
 	if list == nil {
 		list = []Todo{}
 	}
 	return list, nil
+}
+
+// AddTodoItem adds a subtask to an existing todo.
+func AddTodoItem(db *sql.DB, todoID string, item TodoItem) (string, error) {
+	if strings.TrimSpace(todoID) == "" {
+		return "", fmt.Errorf("todo_id is required")
+	}
+	if _, err := GetTodo(db, todoID); err != nil {
+		return "", err
+	}
+	now := time.Now().UTC().Format(time.RFC3339)
+	items, err := listTodoItems(db, todoID)
+	if err != nil {
+		return "", err
+	}
+	item.ID = uid.New()
+	item.TodoID = todoID
+	if err := prepareTodoItem(&item, len(items), now); err != nil {
+		return "", err
+	}
+	_, err = db.Exec(
+		`INSERT INTO todo_items (id, todo_id, title, description, position, is_done, completed_at, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		item.ID, item.TodoID, item.Title, item.Description, item.Position, dbutil.BoolToInt(item.IsDone), item.CompletedAt, item.CreatedAt, item.UpdatedAt,
+	)
+	if err != nil {
+		return "", fmt.Errorf("failed to insert todo item: %w", err)
+	}
+	if err := syncTodoDerivedState(db, todoID, now); err != nil {
+		return "", err
+	}
+	return item.ID, nil
+}
+
+// UpdateTodoItem updates a subtask within a todo.
+func UpdateTodoItem(db *sql.DB, item TodoItem) error {
+	if strings.TrimSpace(item.ID) == "" {
+		return fmt.Errorf("item id is required")
+	}
+	if strings.TrimSpace(item.TodoID) == "" {
+		return fmt.Errorf("todo_id is required")
+	}
+	now := time.Now().UTC().Format(time.RFC3339)
+	if err := prepareTodoItem(&item, item.Position, now); err != nil {
+		return err
+	}
+	res, err := db.Exec(
+		`UPDATE todo_items SET title=?, description=?, position=?, is_done=?, completed_at=?, updated_at=?
+		 WHERE id=? AND todo_id=?`,
+		item.Title, item.Description, item.Position, dbutil.BoolToInt(item.IsDone), item.CompletedAt, item.UpdatedAt, item.ID, item.TodoID,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to update todo item: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("todo item not found: %s", item.ID)
+	}
+	return syncTodoDerivedState(db, item.TodoID, now)
+}
+
+// DeleteTodoItem removes a subtask from a todo.
+func DeleteTodoItem(db *sql.DB, todoID, itemID string) error {
+	res, err := db.Exec("DELETE FROM todo_items WHERE id=? AND todo_id=?", itemID, todoID)
+	if err != nil {
+		return fmt.Errorf("failed to delete todo item: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("todo item not found: %s", itemID)
+	}
+	return syncTodoDerivedState(db, todoID, time.Now().UTC().Format(time.RFC3339))
+}
+
+// ReorderTodoItems updates item positions inside a todo.
+func ReorderTodoItems(db *sql.DB, todoID string, itemIDs []string) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin todo item reorder: %w", err)
+	}
+	defer tx.Rollback()
+
+	for position, itemID := range itemIDs {
+		res, err := tx.Exec("UPDATE todo_items SET position=?, updated_at=? WHERE id=? AND todo_id=?", position, time.Now().UTC().Format(time.RFC3339), itemID, todoID)
+		if err != nil {
+			return fmt.Errorf("failed to reorder todo item: %w", err)
+		}
+		n, _ := res.RowsAffected()
+		if n == 0 {
+			return fmt.Errorf("todo item not found: %s", itemID)
+		}
+	}
+	if err := syncTodoDerivedStateTx(tx, todoID, time.Now().UTC().Format(time.RFC3339)); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit todo item reorder: %w", err)
+	}
+	return nil
+}
+
+// CompleteTodo marks a todo as done and optionally auto-completes all remaining items.
+func CompleteTodo(db *sql.DB, todoID string, completeItems bool) error {
+	todo, err := GetTodo(db, todoID)
+	if err != nil {
+		return err
+	}
+	now := time.Now().UTC().Format(time.RFC3339)
+	todo.Status = "done"
+	todo.UpdatedAt = now
+	if completeItems {
+		for index := range todo.Items {
+			todo.Items[index].IsDone = true
+			todo.Items[index].CompletedAt = now
+			todo.Items[index].UpdatedAt = now
+		}
+	}
+	return UpdateTodo(db, *todo)
+}
+
+// ClaimDailyTodoReminderTodos returns the current open todos with daily reminders
+// exactly once per calendar day and marks that day's reminder as already delivered.
+func ClaimDailyTodoReminderTodos(db *sql.DB, now time.Time) ([]Todo, error) {
+	if db == nil {
+		return nil, nil
+	}
+	tx, err := db.Begin()
+	if err != nil {
+		return nil, fmt.Errorf("begin daily todo reminder claim: %w", err)
+	}
+	defer tx.Rollback()
+
+	dayKey := reminderDayKey(now)
+	lastSeen, err := getPlannerMetaTx(tx, dailyTodoReminderMetaKey)
+	if err != nil {
+		return nil, err
+	}
+	if reminderMatchesDay(lastSeen, dayKey) {
+		if err := tx.Commit(); err != nil {
+			return nil, fmt.Errorf("commit daily todo reminder no-op: %w", err)
+		}
+		return []Todo{}, nil
+	}
+
+	rows, err := tx.Query(`
+		SELECT id, title, description, priority, status, due_date, remind_daily, completed_at, last_daily_reminder_at, kg_node_id, created_at, updated_at
+		FROM todos
+		WHERE remind_daily = 1 AND status IN ('open', 'in_progress')
+		ORDER BY CASE priority WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 4 END, due_date ASC, created_at ASC`)
+	if err != nil {
+		return nil, fmt.Errorf("list daily reminder todos: %w", err)
+	}
+	defer rows.Close()
+
+	todos := []Todo{}
+	for rows.Next() {
+		var todo Todo
+		var remindDaily int
+		if err := rows.Scan(&todo.ID, &todo.Title, &todo.Description, &todo.Priority, &todo.Status, &todo.DueDate, &remindDaily, &todo.CompletedAt, &todo.LastDailyReminderAt, &todo.KGNodeID, &todo.CreatedAt, &todo.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("scan daily reminder todo: %w", err)
+		}
+		todo.RemindDaily = remindDaily != 0
+		items, err := listTodoItemsTx(tx, todo.ID)
+		if err != nil {
+			return nil, err
+		}
+		todo.Items = items
+		ComputeTodoProgress(&todo)
+		if todo.Status == "done" {
+			continue
+		}
+		todos = append(todos, todo)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate daily reminder todos: %w", err)
+	}
+
+	if err := upsertPlannerMetaTx(tx, dailyTodoReminderMetaKey, dayKey); err != nil {
+		return nil, err
+	}
+
+	if len(todos) > 0 {
+		remindedAt := now.UTC().Format(time.RFC3339)
+		for _, todo := range todos {
+			if _, err := tx.Exec(`UPDATE todos SET last_daily_reminder_at=? WHERE id=?`, remindedAt, todo.ID); err != nil {
+				return nil, fmt.Errorf("mark todo reminder timestamp: %w", err)
+			}
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit daily todo reminder claim: %w", err)
+	}
+	return todos, nil
+}
+
+// BuildDailyTodoReminderText formats open reminder todos for prompt injection.
+func BuildDailyTodoReminderText(todos []Todo) string {
+	if len(todos) == 0 {
+		return ""
+	}
+	var builder strings.Builder
+	for _, todo := range todos {
+		builder.WriteString("- ")
+		builder.WriteString(strings.TrimSpace(todo.Title))
+		if todo.DueDate != "" {
+			builder.WriteString(" (due: ")
+			builder.WriteString(todo.DueDate)
+			builder.WriteString(")")
+		}
+		if todo.ItemCount > 0 {
+			builder.WriteString(fmt.Sprintf(" — %d/%d checklist items done", todo.DoneItemCount, todo.ItemCount))
+			openItems := make([]string, 0, 3)
+			for _, item := range todo.Items {
+				if !item.IsDone {
+					openItems = append(openItems, strings.TrimSpace(item.Title))
+					if len(openItems) == 3 {
+						break
+					}
+				}
+			}
+			if len(openItems) > 0 {
+				builder.WriteString("; open: ")
+				builder.WriteString(strings.Join(openItems, ", "))
+			}
+		}
+		builder.WriteString("\n")
+	}
+	return builder.String()
 }
 
 // ── Helpers ──
@@ -464,9 +777,321 @@ func scanAppointment(row *sql.Row) (*Appointment, error) {
 	return a, nil
 }
 
+// ComputeTodoProgress derives item counters and progress from the current todo state.
+func ComputeTodoProgress(t *Todo) {
+	if t == nil {
+		return
+	}
+	t.ItemCount = len(t.Items)
+	t.DoneItemCount = 0
+	for index := range t.Items {
+		if t.Items[index].IsDone {
+			t.DoneItemCount++
+		}
+	}
+	switch {
+	case t.ItemCount > 0:
+		if t.Status == "done" {
+			t.ProgressPercent = 100
+		} else {
+			t.ProgressPercent = int(float64(t.DoneItemCount) / float64(t.ItemCount) * 100)
+		}
+	case t.Status == "done":
+		t.ProgressPercent = 100
+	case t.Status == "in_progress":
+		t.ProgressPercent = 50
+	default:
+		t.ProgressPercent = 0
+	}
+}
+
+func prepareTodoForPersistence(t *Todo, now string) error {
+	if t == nil {
+		return nil
+	}
+	if t.Items != nil {
+		for index := range t.Items {
+			item := &t.Items[index]
+			if item.ID == "" {
+				item.ID = uid.New()
+			}
+			item.TodoID = t.ID
+			if err := prepareTodoItem(item, index, now); err != nil {
+				return err
+			}
+		}
+	}
+	sort.SliceStable(t.Items, func(i, j int) bool { return t.Items[i].Position < t.Items[j].Position })
+	if len(t.Items) > 0 {
+		doneCount := 0
+		for index := range t.Items {
+			if t.Items[index].IsDone {
+				doneCount++
+			}
+		}
+		switch {
+		case t.Status == "done":
+			for index := range t.Items {
+				t.Items[index].IsDone = true
+				if t.Items[index].CompletedAt == "" {
+					t.Items[index].CompletedAt = now
+				}
+				t.Items[index].UpdatedAt = now
+			}
+		case doneCount == len(t.Items):
+			t.Status = "done"
+		case doneCount > 0 && t.Status == "open":
+			t.Status = "in_progress"
+		case doneCount == 0 && t.Status == "done":
+			t.Status = "open"
+		}
+	}
+	if t.Status == "done" {
+		if t.CompletedAt == "" {
+			t.CompletedAt = now
+		}
+	} else {
+		t.CompletedAt = ""
+	}
+	ComputeTodoProgress(t)
+	return nil
+}
+
+func prepareTodoItem(item *TodoItem, defaultPosition int, now string) error {
+	if item == nil {
+		return nil
+	}
+	item.Title = strings.TrimSpace(item.Title)
+	if item.Title == "" {
+		return fmt.Errorf("todo item title is required")
+	}
+	if item.Position < 0 {
+		item.Position = defaultPosition
+	}
+	if item.CreatedAt == "" {
+		item.CreatedAt = now
+	}
+	item.UpdatedAt = now
+	if item.IsDone {
+		if item.CompletedAt == "" {
+			item.CompletedAt = now
+		}
+	} else {
+		item.CompletedAt = ""
+	}
+	return nil
+}
+
+func listTodoItems(db *sql.DB, todoID string) ([]TodoItem, error) {
+	rows, err := db.Query(
+		`SELECT id, todo_id, title, description, position, is_done, completed_at, created_at, updated_at
+		 FROM todo_items WHERE todo_id=? ORDER BY position ASC, created_at ASC`, todoID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list todo items: %w", err)
+	}
+	defer rows.Close()
+
+	items := []TodoItem{}
+	for rows.Next() {
+		var item TodoItem
+		var isDone int
+		if err := rows.Scan(&item.ID, &item.TodoID, &item.Title, &item.Description, &item.Position, &isDone, &item.CompletedAt, &item.CreatedAt, &item.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("failed to scan todo item: %w", err)
+		}
+		item.IsDone = isDone != 0
+		items = append(items, item)
+	}
+	return items, nil
+}
+
+func replaceTodoItemsTx(tx *sql.Tx, todoID string, items []TodoItem, now string) error {
+	if _, err := tx.Exec("DELETE FROM todo_items WHERE todo_id=?", todoID); err != nil {
+		return fmt.Errorf("failed to clear todo items: %w", err)
+	}
+	for index := range items {
+		item := items[index]
+		item.TodoID = todoID
+		if err := prepareTodoItem(&item, index, now); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(
+			`INSERT INTO todo_items (id, todo_id, title, description, position, is_done, completed_at, created_at, updated_at)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			item.ID, item.TodoID, item.Title, item.Description, item.Position, dbutil.BoolToInt(item.IsDone), item.CompletedAt, item.CreatedAt, item.UpdatedAt,
+		); err != nil {
+			return fmt.Errorf("failed to insert todo item: %w", err)
+		}
+	}
+	return nil
+}
+
+func touchTodoUpdatedAt(db *sql.DB, todoID, updatedAt string) error {
+	res, err := db.Exec("UPDATE todos SET updated_at=? WHERE id=?", updatedAt, todoID)
+	if err != nil {
+		return fmt.Errorf("failed to update todo timestamp: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("todo not found: %s", todoID)
+	}
+	return nil
+}
+
+func touchTodoUpdatedAtTx(tx *sql.Tx, todoID, updatedAt string) error {
+	res, err := tx.Exec("UPDATE todos SET updated_at=? WHERE id=?", updatedAt, todoID)
+	if err != nil {
+		return fmt.Errorf("failed to update todo timestamp: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("todo not found: %s", todoID)
+	}
+	return nil
+}
+
+func reminderDayKey(now time.Time) string {
+	if now.IsZero() {
+		now = time.Now()
+	}
+	return now.In(now.Location()).Format("2006-01-02")
+}
+
+func reminderMatchesDay(stored, dayKey string) bool {
+	stored = strings.TrimSpace(stored)
+	if stored == "" {
+		return false
+	}
+	if stored == dayKey {
+		return true
+	}
+	if parsed, err := time.Parse(time.RFC3339, stored); err == nil {
+		return parsed.Format("2006-01-02") == dayKey
+	}
+	return false
+}
+
+func syncTodoDerivedState(db *sql.DB, todoID, updatedAt string) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin todo state sync: %w", err)
+	}
+	defer tx.Rollback()
+
+	if err := syncTodoDerivedStateTx(tx, todoID, updatedAt); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit todo state sync: %w", err)
+	}
+	return nil
+}
+
+func syncTodoDerivedStateTx(tx *sql.Tx, todoID, updatedAt string) error {
+	todo, err := getTodoTx(tx, todoID)
+	if err != nil {
+		return err
+	}
+	items, err := listTodoItemsTx(tx, todoID)
+	if err != nil {
+		return err
+	}
+	todo.Items = items
+	todo.UpdatedAt = updatedAt
+	if err := prepareTodoForPersistence(todo, updatedAt); err != nil {
+		return err
+	}
+	res, err := tx.Exec(
+		`UPDATE todos SET status=?, completed_at=?, updated_at=? WHERE id=?`,
+		todo.Status, todo.CompletedAt, updatedAt, todoID,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to sync todo state: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("todo not found: %s", todoID)
+	}
+	for _, item := range todo.Items {
+		res, err := tx.Exec(
+			`UPDATE todo_items SET position=?, is_done=?, completed_at=?, updated_at=? WHERE id=? AND todo_id=?`,
+			item.Position, dbutil.BoolToInt(item.IsDone), item.CompletedAt, item.UpdatedAt, item.ID, todoID,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to sync todo item state: %w", err)
+		}
+		n, _ := res.RowsAffected()
+		if n == 0 {
+			return fmt.Errorf("todo item not found: %s", item.ID)
+		}
+	}
+	return nil
+}
+
+func getTodoTx(tx *sql.Tx, id string) (*Todo, error) {
+	row := tx.QueryRow(
+		`SELECT id, title, description, priority, status, due_date, remind_daily, completed_at, last_daily_reminder_at, kg_node_id, created_at, updated_at
+		 FROM todos WHERE id=?`, id,
+	)
+	t := &Todo{}
+	var remindDaily int
+	if err := row.Scan(&t.ID, &t.Title, &t.Description, &t.Priority, &t.Status, &t.DueDate, &remindDaily, &t.CompletedAt, &t.LastDailyReminderAt, &t.KGNodeID, &t.CreatedAt, &t.UpdatedAt); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("todo not found: %s", id)
+		}
+		return nil, fmt.Errorf("failed to get todo: %w", err)
+	}
+	t.RemindDaily = remindDaily != 0
+	return t, nil
+}
+
+func listTodoItemsTx(tx *sql.Tx, todoID string) ([]TodoItem, error) {
+	rows, err := tx.Query(
+		`SELECT id, todo_id, title, description, position, is_done, completed_at, created_at, updated_at
+		 FROM todo_items WHERE todo_id=? ORDER BY position ASC, created_at ASC`, todoID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list todo items: %w", err)
+	}
+	defer rows.Close()
+
+	items := []TodoItem{}
+	for rows.Next() {
+		var item TodoItem
+		var isDone int
+		if err := rows.Scan(&item.ID, &item.TodoID, &item.Title, &item.Description, &item.Position, &isDone, &item.CompletedAt, &item.CreatedAt, &item.UpdatedAt); err != nil {
+			return nil, fmt.Errorf("failed to scan todo item: %w", err)
+		}
+		item.IsDone = isDone != 0
+		items = append(items, item)
+	}
+	return items, nil
+}
+
+func getPlannerMetaTx(tx *sql.Tx, key string) (string, error) {
+	var value string
+	err := tx.QueryRow(`SELECT value FROM planner_meta WHERE key=?`, key).Scan(&value)
+	if err == sql.ErrNoRows {
+		return "", nil
+	}
+	if err != nil {
+		return "", fmt.Errorf("get planner meta %s: %w", key, err)
+	}
+	return value, nil
+}
+
+func upsertPlannerMetaTx(tx *sql.Tx, key, value string) error {
+	if _, err := tx.Exec(`
+		INSERT INTO planner_meta (key, value) VALUES (?, ?)
+		ON CONFLICT(key) DO UPDATE SET value=excluded.value
+	`, key, value); err != nil {
+		return fmt.Errorf("upsert planner meta %s: %w", key, err)
+	}
+	return nil
+}
+
 // SyncAppointmentToKG syncs a single appointment to the knowledge graph.
 func SyncAppointmentToKG(kg KnowledgeGraph, db *sql.DB, id string) error {
-	if kg == nil || db == nil {
+	if isNilKnowledgeGraph(kg) || db == nil {
 		return nil
 	}
 	a, err := GetAppointment(db, id)
@@ -490,7 +1115,7 @@ func SyncAppointmentToKG(kg KnowledgeGraph, db *sql.DB, id string) error {
 
 // SyncTodoToKG syncs a single todo to the knowledge graph.
 func SyncTodoToKG(kg KnowledgeGraph, db *sql.DB, id string) error {
-	if kg == nil || db == nil {
+	if isNilKnowledgeGraph(kg) || db == nil {
 		return nil
 	}
 	t, err := GetTodo(db, id)
@@ -502,12 +1127,20 @@ func SyncTodoToKG(kg KnowledgeGraph, db *sql.DB, id string) error {
 		"source":   "planner",
 		"priority": t.Priority,
 		"status":   t.Status,
+		"progress": fmt.Sprintf("%d", t.ProgressPercent),
 	}
 	if t.DueDate != "" {
 		props["due_date"] = t.DueDate
 	}
 	if t.Description != "" {
 		props["description"] = t.Description
+	}
+	if t.RemindDaily {
+		props["remind_daily"] = "true"
+	}
+	if t.ItemCount > 0 {
+		props["item_count"] = fmt.Sprintf("%d", t.ItemCount)
+		props["done_item_count"] = fmt.Sprintf("%d", t.DoneItemCount)
 	}
 	if err := kg.AddNode(t.KGNodeID, t.Title, props); err != nil {
 		return fmt.Errorf("failed to sync todo to KG: %w", err)
@@ -524,6 +1157,19 @@ func ToJSON(v interface{}) string {
 		return `{"error":` + string(msg) + `}`
 	}
 	return string(b)
+}
+
+func isNilKnowledgeGraph(kg KnowledgeGraph) bool {
+	if kg == nil {
+		return true
+	}
+	value := reflect.ValueOf(kg)
+	switch value.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+		return value.IsNil()
+	default:
+		return false
+	}
 }
 
 // Close closes the database connection.

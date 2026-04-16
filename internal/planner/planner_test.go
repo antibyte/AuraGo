@@ -4,7 +4,9 @@ import (
 	"database/sql"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 
 	"aurago/internal/dbutil"
 )
@@ -114,6 +116,62 @@ func TestInitDBMigratesLegacySchemaAndNormalizesValues(t *testing.T) {
 	}
 	if todo.Status != "open" {
 		t.Fatalf("todo status = %q, want open", todo.Status)
+	}
+	if todo.RemindDaily {
+		t.Fatal("migrated legacy todo should not enable daily reminder by default")
+	}
+	if todo.ItemCount != 0 || todo.DoneItemCount != 0 || todo.ProgressPercent != 0 {
+		t.Fatalf("legacy todo counters = items:%d done:%d progress:%d, want 0/0/0", todo.ItemCount, todo.DoneItemCount, todo.ProgressPercent)
+	}
+}
+
+func TestInitDBMigratesTodosToV3Fields(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "planner_v2.db")
+	db, err := dbutil.Open(dbPath)
+	if err != nil {
+		t.Fatalf("open planner db: %v", err)
+	}
+	defer db.Close()
+
+	if _, err := db.Exec(`
+		CREATE TABLE todos (
+			id TEXT PRIMARY KEY,
+			title TEXT NOT NULL,
+			description TEXT NOT NULL DEFAULT '',
+			priority TEXT NOT NULL DEFAULT 'medium',
+			status TEXT NOT NULL DEFAULT 'open',
+			due_date TEXT NOT NULL DEFAULT '',
+			kg_node_id TEXT NOT NULL DEFAULT '',
+			created_at TEXT NOT NULL,
+			updated_at TEXT NOT NULL
+		);
+	`); err != nil {
+		t.Fatalf("create v2 todos schema: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO todos (id, title, priority, status, created_at, updated_at) VALUES ('done1', 'Done todo', 'high', 'done', '2026-04-16T00:00:00Z', '2026-04-16T12:00:00Z')`); err != nil {
+		t.Fatalf("insert v2 todo: %v", err)
+	}
+	if err := dbutil.SetUserVersion(db, 2); err != nil {
+		t.Fatalf("set user version: %v", err)
+	}
+	db.Close()
+
+	migrated, err := InitDB(dbPath)
+	if err != nil {
+		t.Fatalf("InitDB migration failed: %v", err)
+	}
+	defer migrated.Close()
+
+	todo, err := GetTodo(migrated, "done1")
+	if err != nil {
+		t.Fatalf("GetTodo() error = %v", err)
+	}
+	if todo.CompletedAt != "2026-04-16T12:00:00Z" {
+		t.Fatalf("CompletedAt = %q, want updated_at backfill", todo.CompletedAt)
+	}
+	if todo.ProgressPercent != 100 {
+		t.Fatalf("ProgressPercent = %d, want 100", todo.ProgressPercent)
 	}
 }
 
@@ -453,6 +511,9 @@ func TestCreateTodoDefaults(t *testing.T) {
 	if todo.Priority != "medium" {
 		t.Errorf("Expected default priority 'medium', got %q", todo.Priority)
 	}
+	if todo.ProgressPercent != 0 {
+		t.Errorf("Expected default progress 0, got %d", todo.ProgressPercent)
+	}
 }
 
 func TestCreateTodoValidation(t *testing.T) {
@@ -502,6 +563,44 @@ func TestGetTodo(t *testing.T) {
 	}
 }
 
+func TestCreateTodoWithItemsComputesProgress(t *testing.T) {
+	db := testDB(t)
+	defer db.Close()
+
+	id, err := CreateTodo(db, Todo{
+		Title:       "Launch checklist",
+		RemindDaily: true,
+		Items: []TodoItem{
+			{Title: "Prepare assets", IsDone: true},
+			{Title: "Deploy preview"},
+			{Title: "Final QA"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("CreateTodo() error = %v", err)
+	}
+
+	todo, err := GetTodo(db, id)
+	if err != nil {
+		t.Fatalf("GetTodo() error = %v", err)
+	}
+	if !todo.RemindDaily {
+		t.Fatal("RemindDaily should persist")
+	}
+	if len(todo.Items) != 3 {
+		t.Fatalf("len(todo.Items) = %d, want 3", len(todo.Items))
+	}
+	if todo.ItemCount != 3 || todo.DoneItemCount != 1 {
+		t.Fatalf("counts = %d/%d, want 3/1", todo.ItemCount, todo.DoneItemCount)
+	}
+	if todo.ProgressPercent != 33 {
+		t.Fatalf("ProgressPercent = %d, want 33", todo.ProgressPercent)
+	}
+	if todo.Status != "in_progress" {
+		t.Fatalf("Status = %q, want in_progress", todo.Status)
+	}
+}
+
 func TestGetTodoNotFound(t *testing.T) {
 	db := testDB(t)
 	defer db.Close()
@@ -536,6 +635,47 @@ func TestUpdateTodo(t *testing.T) {
 	}
 	if updated.Priority != "high" {
 		t.Errorf("Expected 'high', got %q", updated.Priority)
+	}
+}
+
+func TestUpdateTodoDoneCompletesItems(t *testing.T) {
+	db := testDB(t)
+	defer db.Close()
+
+	id, err := CreateTodo(db, Todo{
+		Title: "Ship feature",
+		Items: []TodoItem{
+			{Title: "Backend"},
+			{Title: "Frontend", IsDone: true},
+		},
+	})
+	if err != nil {
+		t.Fatalf("CreateTodo() error = %v", err)
+	}
+
+	todo, err := GetTodo(db, id)
+	if err != nil {
+		t.Fatalf("GetTodo() error = %v", err)
+	}
+	todo.Status = "done"
+	if err := UpdateTodo(db, *todo); err != nil {
+		t.Fatalf("UpdateTodo() error = %v", err)
+	}
+
+	updated, err := GetTodo(db, id)
+	if err != nil {
+		t.Fatalf("GetTodo() error = %v", err)
+	}
+	if updated.CompletedAt == "" {
+		t.Fatal("CompletedAt should be set when todo is done")
+	}
+	if updated.ProgressPercent != 100 {
+		t.Fatalf("ProgressPercent = %d, want 100", updated.ProgressPercent)
+	}
+	for _, item := range updated.Items {
+		if !item.IsDone {
+			t.Fatalf("item %q should be done", item.Title)
+		}
 	}
 }
 
@@ -608,6 +748,158 @@ func TestListTodos(t *testing.T) {
 	searched, _ := ListTodos(db, "task", "")
 	if len(searched) != 1 {
 		t.Errorf("Expected 1 result for 'task', got %d", len(searched))
+	}
+}
+
+func TestAddUpdateDeleteTodoItem(t *testing.T) {
+	db := testDB(t)
+	defer db.Close()
+
+	id, err := CreateTodo(db, Todo{Title: "Checklist"})
+	if err != nil {
+		t.Fatalf("CreateTodo() error = %v", err)
+	}
+
+	itemID, err := AddTodoItem(db, id, TodoItem{Title: "First step"})
+	if err != nil {
+		t.Fatalf("AddTodoItem() error = %v", err)
+	}
+	todo, err := GetTodo(db, id)
+	if err != nil {
+		t.Fatalf("GetTodo() error = %v", err)
+	}
+	if len(todo.Items) != 1 {
+		t.Fatalf("len(todo.Items) = %d, want 1", len(todo.Items))
+	}
+
+	item := todo.Items[0]
+	item.ID = itemID
+	item.TodoID = id
+	item.IsDone = true
+	item.Title = "Updated step"
+	if err := UpdateTodoItem(db, item); err != nil {
+		t.Fatalf("UpdateTodoItem() error = %v", err)
+	}
+
+	updated, err := GetTodo(db, id)
+	if err != nil {
+		t.Fatalf("GetTodo() error = %v", err)
+	}
+	if updated.DoneItemCount != 1 || updated.ProgressPercent != 100 || updated.Status != "done" {
+		t.Fatalf("updated todo = status:%q done:%d progress:%d, want done/1/100", updated.Status, updated.DoneItemCount, updated.ProgressPercent)
+	}
+
+	if err := DeleteTodoItem(db, id, itemID); err != nil {
+		t.Fatalf("DeleteTodoItem() error = %v", err)
+	}
+	withoutItem, err := GetTodo(db, id)
+	if err != nil {
+		t.Fatalf("GetTodo() error = %v", err)
+	}
+	if len(withoutItem.Items) != 0 {
+		t.Fatalf("len(withoutItem.Items) = %d, want 0", len(withoutItem.Items))
+	}
+}
+
+func TestCompleteTodoOptionallyCompletesItems(t *testing.T) {
+	db := testDB(t)
+	defer db.Close()
+
+	id, err := CreateTodo(db, Todo{
+		Title: "Release",
+		Items: []TodoItem{
+			{Title: "Docs"},
+			{Title: "Tag release"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("CreateTodo() error = %v", err)
+	}
+
+	if err := CompleteTodo(db, id, true); err != nil {
+		t.Fatalf("CompleteTodo() error = %v", err)
+	}
+	todo, err := GetTodo(db, id)
+	if err != nil {
+		t.Fatalf("GetTodo() error = %v", err)
+	}
+	if todo.Status != "done" || todo.ProgressPercent != 100 {
+		t.Fatalf("todo status/progress = %q/%d, want done/100", todo.Status, todo.ProgressPercent)
+	}
+	for _, item := range todo.Items {
+		if !item.IsDone {
+			t.Fatalf("item %q should be done", item.Title)
+		}
+	}
+}
+
+func TestClaimDailyTodoReminderTodosOnlyOncePerDay(t *testing.T) {
+	db := testDB(t)
+	defer db.Close()
+
+	todoID, err := CreateTodo(db, Todo{
+		Title:       "Morning routine",
+		Priority:    "high",
+		Status:      "open",
+		RemindDaily: true,
+		Description: "Daily check",
+		Items: []TodoItem{
+			{Title: "Check backups"},
+			{Title: "Review logs", IsDone: true},
+		},
+	})
+	if err != nil {
+		t.Fatalf("CreateTodo() error = %v", err)
+	}
+	if _, err := CreateTodo(db, Todo{
+		Title:       "Silent task",
+		Priority:    "medium",
+		Status:      "open",
+		RemindDaily: false,
+	}); err != nil {
+		t.Fatalf("CreateTodo() second todo error = %v", err)
+	}
+
+	now := time.Date(2026, 4, 16, 9, 30, 0, 0, time.UTC)
+	first, err := ClaimDailyTodoReminderTodos(db, now)
+	if err != nil {
+		t.Fatalf("ClaimDailyTodoReminderTodos() first error = %v", err)
+	}
+	if len(first) != 1 {
+		t.Fatalf("len(first) = %d, want 1", len(first))
+	}
+	if first[0].ID != todoID {
+		t.Fatalf("first todo id = %q, want %q", first[0].ID, todoID)
+	}
+	if first[0].ItemCount != 2 || first[0].DoneItemCount != 1 {
+		t.Fatalf("first counts = %d/%d, want 2/1", first[0].ItemCount, first[0].DoneItemCount)
+	}
+
+	second, err := ClaimDailyTodoReminderTodos(db, now.Add(2*time.Hour))
+	if err != nil {
+		t.Fatalf("ClaimDailyTodoReminderTodos() second error = %v", err)
+	}
+	if len(second) != 0 {
+		t.Fatalf("len(second) = %d, want 0", len(second))
+	}
+
+	stored, err := GetTodo(db, todoID)
+	if err != nil {
+		t.Fatalf("GetTodo() error = %v", err)
+	}
+	if stored.LastDailyReminderAt == "" {
+		t.Fatal("expected last_daily_reminder_at to be set")
+	}
+
+	third, err := ClaimDailyTodoReminderTodos(db, now.Add(24*time.Hour))
+	if err != nil {
+		t.Fatalf("ClaimDailyTodoReminderTodos() third error = %v", err)
+	}
+	if len(third) != 1 {
+		t.Fatalf("len(third) = %d, want 1", len(third))
+	}
+	if got := BuildDailyTodoReminderText(third); !strings.Contains(got, "Morning routine") || !strings.Contains(got, "Check backups") {
+		t.Fatalf("BuildDailyTodoReminderText() = %q, want todo title and open item", got)
 	}
 }
 

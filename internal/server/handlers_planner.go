@@ -10,6 +10,14 @@ import (
 	"aurago/internal/planner"
 )
 
+type todoCompleteRequest struct {
+	CompleteItemsToo bool `json:"complete_items_too"`
+}
+
+type todoItemReorderRequest struct {
+	ItemIDs []string `json:"item_ids"`
+}
+
 // ── Appointments ──
 
 // handleAppointments handles GET (list) and POST (create) on /api/appointments.
@@ -222,10 +230,27 @@ func handleTodoByID(s *Server) http.HandlerFunc {
 			jsonError(w, `{"error":"planner database not initialized"}`, http.StatusServiceUnavailable)
 			return
 		}
-		id := strings.TrimPrefix(r.URL.Path, "/api/todos/")
-		if id == "" {
+		path := strings.TrimPrefix(r.URL.Path, "/api/todos/")
+		path = strings.Trim(path, "/")
+		if path == "" {
 			jsonError(w, `{"error":"missing todo id"}`, http.StatusBadRequest)
 			return
+		}
+		parts := strings.Split(path, "/")
+		id := parts[0]
+
+		if len(parts) > 1 {
+			switch parts[1] {
+			case "items":
+				handleTodoItemsByID(s, id, parts[2:])(w, r)
+				return
+			case "complete":
+				handleTodoComplete(s, id)(w, r)
+				return
+			default:
+				jsonError(w, `{"error":"todo not found"}`, http.StatusNotFound)
+				return
+			}
 		}
 
 		switch r.Method {
@@ -274,6 +299,16 @@ func handleTodoByID(s *Server) http.HandlerFunc {
 			if _, ok := rawTodoMap["due_date"]; ok {
 				existing.DueDate = patch.DueDate
 			}
+			if _, ok := rawTodoMap["remind_daily"]; ok {
+				existing.RemindDaily = patch.RemindDaily
+			}
+			if _, ok := rawTodoMap["items"]; ok {
+				if patch.Items == nil {
+					existing.Items = []planner.TodoItem{}
+				} else {
+					existing.Items = patch.Items
+				}
+			}
 			if err := planner.UpdateTodo(s.PlannerDB, *existing); err != nil {
 				status := http.StatusInternalServerError
 				if strings.Contains(err.Error(), "not found") {
@@ -315,6 +350,180 @@ func handleTodoByID(s *Server) http.HandlerFunc {
 			jsonError(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
 		}
 	}
+}
+
+func handleTodoItemsByID(s *Server, todoID string, parts []string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case len(parts) == 0:
+			if r.Method != http.MethodPost {
+				jsonError(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+				return
+			}
+			var item planner.TodoItem
+			if !decodePlannerJSON(w, r, &item) {
+				return
+			}
+			itemID, err := planner.AddTodoItem(s.PlannerDB, todoID, item)
+			if err != nil {
+				status := http.StatusBadRequest
+				if strings.Contains(err.Error(), "not found") {
+					status = http.StatusNotFound
+				}
+				jsonLoggedError(w, s.Logger, status, "Failed to add todo item", "Failed to add todo item", err, "todo_id", todoID)
+				return
+			}
+			syncTodoToKG(s.PlannerDB, todoID, s.KG, s.Logger)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusCreated)
+			json.NewEncoder(w).Encode(map[string]string{"id": itemID})
+
+		case len(parts) == 1 && parts[0] == "reorder":
+			if r.Method != http.MethodPost {
+				jsonError(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+				return
+			}
+			var payload todoItemReorderRequest
+			if !decodePlannerJSON(w, r, &payload) {
+				return
+			}
+			if len(payload.ItemIDs) == 0 {
+				jsonError(w, `{"error":"item_ids is required"}`, http.StatusBadRequest)
+				return
+			}
+			if err := planner.ReorderTodoItems(s.PlannerDB, todoID, payload.ItemIDs); err != nil {
+				status := http.StatusBadRequest
+				if strings.Contains(err.Error(), "not found") {
+					status = http.StatusNotFound
+				}
+				jsonLoggedError(w, s.Logger, status, "Failed to reorder todo items", "Failed to reorder todo items", err, "todo_id", todoID)
+				return
+			}
+			syncTodoToKG(s.PlannerDB, todoID, s.KG, s.Logger)
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]string{"status": "updated"})
+
+		case len(parts) == 1:
+			itemID := parts[0]
+			switch r.Method {
+			case http.MethodPut:
+				todo, err := planner.GetTodo(s.PlannerDB, todoID)
+				if err != nil {
+					jsonError(w, `{"error":"todo not found"}`, http.StatusNotFound)
+					return
+				}
+				item, found := plannerTodoItemByID(todo.Items, itemID)
+				if !found {
+					jsonError(w, `{"error":"todo item not found"}`, http.StatusNotFound)
+					return
+				}
+				var raw map[string]interface{}
+				body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
+				if err != nil {
+					jsonError(w, `{"error":"failed to read body"}`, http.StatusBadRequest)
+					return
+				}
+				if err := json.Unmarshal(body, &raw); err != nil {
+					jsonError(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
+					return
+				}
+				var patch planner.TodoItem
+				json.Unmarshal(body, &patch) //nolint:errcheck
+				if _, ok := raw["title"]; ok && patch.Title != "" {
+					item.Title = patch.Title
+				}
+				if _, ok := raw["description"]; ok {
+					item.Description = patch.Description
+				}
+				if _, ok := raw["position"]; ok {
+					item.Position = patch.Position
+				}
+				if _, ok := raw["is_done"]; ok {
+					item.IsDone = patch.IsDone
+				}
+				if err := planner.UpdateTodoItem(s.PlannerDB, item); err != nil {
+					status := http.StatusBadRequest
+					if strings.Contains(err.Error(), "not found") {
+						status = http.StatusNotFound
+					}
+					jsonLoggedError(w, s.Logger, status, "Failed to update todo item", "Failed to update todo item", err, "todo_id", todoID, "item_id", itemID)
+					return
+				}
+				syncTodoToKG(s.PlannerDB, todoID, s.KG, s.Logger)
+				w.Header().Set("Content-Type", "application/json")
+				json.NewEncoder(w).Encode(map[string]string{"status": "updated"})
+
+			case http.MethodDelete:
+				if err := planner.DeleteTodoItem(s.PlannerDB, todoID, itemID); err != nil {
+					status := http.StatusBadRequest
+					if strings.Contains(err.Error(), "not found") {
+						status = http.StatusNotFound
+					}
+					jsonLoggedError(w, s.Logger, status, "Failed to delete todo item", "Failed to delete todo item", err, "todo_id", todoID, "item_id", itemID)
+					return
+				}
+				syncTodoToKG(s.PlannerDB, todoID, s.KG, s.Logger)
+				w.Header().Set("Content-Type", "application/json")
+				json.NewEncoder(w).Encode(map[string]string{"status": "deleted"})
+
+			default:
+				jsonError(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+			}
+
+		default:
+			jsonError(w, `{"error":"todo item not found"}`, http.StatusNotFound)
+		}
+	}
+}
+
+func handleTodoComplete(s *Server, todoID string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			jsonError(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+			return
+		}
+
+		var payload todoCompleteRequest
+		if r.Body != nil && r.ContentLength != 0 {
+			if !decodePlannerJSON(w, r, &payload) {
+				return
+			}
+		}
+
+		if err := planner.CompleteTodo(s.PlannerDB, todoID, payload.CompleteItemsToo); err != nil {
+			status := http.StatusBadRequest
+			if strings.Contains(err.Error(), "not found") {
+				status = http.StatusNotFound
+			}
+			jsonLoggedError(w, s.Logger, status, "Failed to complete todo", "Failed to complete todo", err, "id", todoID)
+			return
+		}
+		syncTodoToKG(s.PlannerDB, todoID, s.KG, s.Logger)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{"status": "updated"})
+	}
+}
+
+func decodePlannerJSON(w http.ResponseWriter, r *http.Request, target interface{}) bool {
+	body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
+	if err != nil {
+		jsonError(w, `{"error":"failed to read body"}`, http.StatusBadRequest)
+		return false
+	}
+	if err := json.Unmarshal(body, target); err != nil {
+		jsonError(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
+		return false
+	}
+	return true
+}
+
+func plannerTodoItemByID(items []planner.TodoItem, itemID string) (planner.TodoItem, bool) {
+	for _, item := range items {
+		if item.ID == itemID {
+			return item, true
+		}
+	}
+	return planner.TodoItem{}, false
 }
 
 // ── KG sync helpers ──

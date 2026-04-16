@@ -114,6 +114,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 		}
 	}
+	dailyTodoReminder := dailyTodoReminderText(runCfg, initialUserMsg, time.Now(), logger)
 
 	toolingPolicy := buildToolingPolicy(cfg, initialUserMsg)
 	telemetryScope := AgentTelemetryScope{
@@ -1051,6 +1052,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				flags.HighPriorityNotes = sb.String()
 			}
 		}
+
+		flags.DailyTodoReminder = dailyTodoReminder
 
 		// Inject session todo list into system prompt context
 		flags.SessionTodoItems = sessionTodoList

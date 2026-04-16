@@ -8,7 +8,7 @@ import (
 	"aurago/internal/dbutil"
 )
 
-const plannerSchemaVersion = 2
+const plannerSchemaVersion = 4
 
 func initPlannerSchema(db *sql.DB) error {
 	version, err := dbutil.GetUserVersion(db)
@@ -29,8 +29,18 @@ func initPlannerSchema(db *sql.DB) error {
 		if err := createPlannerTables(db); err != nil {
 			return err
 		}
-	case version < plannerSchemaVersion:
+	case version < 2:
 		if err := migratePlannerToV2(db, hasAppointments, hasTodos); err != nil {
+			return err
+		}
+		fallthrough
+	case version < 3:
+		if err := migratePlannerToV3(db); err != nil {
+			return err
+		}
+		fallthrough
+	case version < plannerSchemaVersion:
+		if err := migratePlannerToV4(db); err != nil {
 			return err
 		}
 	default:
@@ -52,6 +62,30 @@ func plannerTableExists(db *sql.DB, table string) (bool, error) {
 		return false, fmt.Errorf("check planner table %s: %w", table, err)
 	}
 	return count > 0, nil
+}
+
+func plannerColumnExists(db *sql.DB, table, column string) (bool, error) {
+	rows, err := db.Query(`PRAGMA table_info(` + table + `)`)
+	if err != nil {
+		return false, fmt.Errorf("check planner column %s.%s: %w", table, column, err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var cid int
+		var name string
+		var dataType string
+		var notNull int
+		var defaultValue sql.NullString
+		var pk int
+		if err := rows.Scan(&cid, &name, &dataType, &notNull, &defaultValue, &pk); err != nil {
+			return false, fmt.Errorf("scan planner column %s.%s: %w", table, column, err)
+		}
+		if name == column {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func createPlannerTables(db *sql.DB) error {
@@ -143,6 +177,96 @@ func migratePlannerToV2(db *sql.DB, hasAppointments, hasTodos bool) error {
 	return nil
 }
 
+func migratePlannerToV3(db *sql.DB) error {
+	hasAppointments, err := plannerTableExists(db, "appointments")
+	if err != nil {
+		return err
+	}
+	hasTodos, err := plannerTableExists(db, "todos")
+	if err != nil {
+		return err
+	}
+	if !hasAppointments {
+		if _, err := db.Exec(`
+			CREATE TABLE IF NOT EXISTS appointments (
+				id TEXT PRIMARY KEY,
+				title TEXT NOT NULL,
+				description TEXT NOT NULL DEFAULT '',
+				date_time TEXT NOT NULL DEFAULT '',
+				notification_at TEXT NOT NULL DEFAULT '',
+				wake_agent INTEGER NOT NULL DEFAULT 0,
+				agent_instruction TEXT NOT NULL DEFAULT '',
+				notified INTEGER NOT NULL DEFAULT 0,
+				status TEXT NOT NULL DEFAULT 'upcoming' CHECK (status IN ('upcoming', 'completed', 'cancelled')),
+				kg_node_id TEXT NOT NULL DEFAULT '',
+				created_at TEXT NOT NULL,
+				updated_at TEXT NOT NULL
+			)`); err != nil {
+			return fmt.Errorf("create appointments table: %w", err)
+		}
+	}
+	if !hasTodos {
+		if _, err := db.Exec(plannerTablesSQL()); err != nil {
+			return fmt.Errorf("create planner schema v3: %w", err)
+		}
+		return nil
+	}
+
+	addColumnIfMissing := func(column, ddl string) error {
+		exists, err := plannerColumnExists(db, "todos", column)
+		if err != nil {
+			return err
+		}
+		if exists {
+			return nil
+		}
+		if _, err := db.Exec(ddl); err != nil {
+			return fmt.Errorf("add todos.%s: %w", column, err)
+		}
+		return nil
+	}
+
+	if err := addColumnIfMissing("remind_daily", `ALTER TABLE todos ADD COLUMN remind_daily INTEGER NOT NULL DEFAULT 0`); err != nil {
+		return err
+	}
+	if err := addColumnIfMissing("completed_at", `ALTER TABLE todos ADD COLUMN completed_at TEXT NOT NULL DEFAULT ''`); err != nil {
+		return err
+	}
+	if err := addColumnIfMissing("last_daily_reminder_at", `ALTER TABLE todos ADD COLUMN last_daily_reminder_at TEXT NOT NULL DEFAULT ''`); err != nil {
+		return err
+	}
+	if _, err := db.Exec(`UPDATE todos SET completed_at = COALESCE(updated_at, '') WHERE status = 'done' AND completed_at = ''`); err != nil {
+		return fmt.Errorf("backfill todos.completed_at: %w", err)
+	}
+	if _, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS todo_items (
+			id TEXT PRIMARY KEY,
+			todo_id TEXT NOT NULL,
+			title TEXT NOT NULL,
+			description TEXT NOT NULL DEFAULT '',
+			position INTEGER NOT NULL DEFAULT 0,
+			is_done INTEGER NOT NULL DEFAULT 0,
+			completed_at TEXT NOT NULL DEFAULT '',
+			created_at TEXT NOT NULL,
+			updated_at TEXT NOT NULL,
+			FOREIGN KEY (todo_id) REFERENCES todos(id) ON DELETE CASCADE
+		)`); err != nil {
+		return fmt.Errorf("create todo_items table: %w", err)
+	}
+	return ensurePlannerIndexes(db)
+}
+
+func migratePlannerToV4(db *sql.DB) error {
+	if _, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS planner_meta (
+			key TEXT PRIMARY KEY,
+			value TEXT NOT NULL DEFAULT ''
+		)`); err != nil {
+		return fmt.Errorf("create planner_meta table: %w", err)
+	}
+	return ensurePlannerIndexes(db)
+}
+
 func plannerTablesSQL() string {
 	return strings.TrimSpace(`
 		CREATE TABLE IF NOT EXISTS appointments (
@@ -166,9 +290,28 @@ func plannerTablesSQL() string {
 			priority TEXT NOT NULL DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high')),
 			status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'in_progress', 'done')),
 			due_date TEXT NOT NULL DEFAULT '',
+			remind_daily INTEGER NOT NULL DEFAULT 0,
+			completed_at TEXT NOT NULL DEFAULT '',
+			last_daily_reminder_at TEXT NOT NULL DEFAULT '',
 			kg_node_id TEXT NOT NULL DEFAULT '',
 			created_at TEXT NOT NULL,
 			updated_at TEXT NOT NULL
+		);
+		CREATE TABLE IF NOT EXISTS todo_items (
+			id TEXT PRIMARY KEY,
+			todo_id TEXT NOT NULL,
+			title TEXT NOT NULL,
+			description TEXT NOT NULL DEFAULT '',
+			position INTEGER NOT NULL DEFAULT 0,
+			is_done INTEGER NOT NULL DEFAULT 0,
+			completed_at TEXT NOT NULL DEFAULT '',
+			created_at TEXT NOT NULL,
+			updated_at TEXT NOT NULL,
+			FOREIGN KEY (todo_id) REFERENCES todos(id) ON DELETE CASCADE
+		);
+		CREATE TABLE IF NOT EXISTS planner_meta (
+			key TEXT PRIMARY KEY,
+			value TEXT NOT NULL DEFAULT ''
 		);
 	` + plannerIndexesSQL())
 }
@@ -181,5 +324,8 @@ func plannerIndexesSQL() string {
 		CREATE INDEX IF NOT EXISTS idx_todos_status ON todos(status);
 		CREATE INDEX IF NOT EXISTS idx_todos_priority ON todos(priority);
 		CREATE INDEX IF NOT EXISTS idx_todos_due ON todos(due_date);
+		CREATE INDEX IF NOT EXISTS idx_todos_remind_daily ON todos(remind_daily, status);
+		CREATE INDEX IF NOT EXISTS idx_todo_items_todo ON todo_items(todo_id);
+		CREATE INDEX IF NOT EXISTS idx_todo_items_order ON todo_items(todo_id, position);
 	`)
 }

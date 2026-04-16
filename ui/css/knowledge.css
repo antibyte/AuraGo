@@ -798,6 +798,56 @@
     gap: 6px;
 }
 
+.kc-todo-summary {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.kc-todo-summary-card {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 12px;
+    border: 1px solid var(--border-subtle);
+    background: var(--card-bg);
+    box-shadow: var(--surface-shadow), inset 0 1px 0 var(--surface-highlight);
+    text-align: left;
+    font: inherit;
+    cursor: pointer;
+    transition: border-color 0.2s, transform 0.2s;
+}
+
+.kc-todo-summary-card:hover {
+    border-color: var(--accent-dim);
+    transform: translateY(-1px);
+}
+
+.kc-todo-summary-card.is-active {
+    border-color: var(--accent);
+}
+
+.kc-todo-summary-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+}
+
+.kc-todo-summary-value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.kc-todo-summary-subtext {
+    margin-top: 4px;
+    font-size: 0.76rem;
+    color: var(--text-tertiary, var(--text-secondary));
+}
+
 .kc-todo-item {
     display: flex;
     align-items: flex-start;
@@ -893,6 +943,201 @@
     padding-top: 2px;
 }
 
+.kc-todo-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+}
+
+.kc-todo-check {
+    display: flex;
+    align-items: flex-start;
+}
+
+.kc-todo-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.kc-todo-progress-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 10px 0 8px;
+}
+
+.kc-todo-progress-bar {
+    position: relative;
+    flex: 1;
+    height: 8px;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.16);
+    overflow: hidden;
+}
+
+.kc-todo-progress-fill {
+    position: absolute;
+    inset: 0 auto 0 0;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, rgba(15, 143, 132, 0.75), rgba(45, 212, 191, 0.95));
+}
+
+.kc-todo-progress-text {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.kc-todo-subtasks {
+    margin-top: 8px;
+    border-top: 1px solid var(--border-subtle);
+    padding-top: 10px;
+}
+
+.kc-todo-subtasks summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    cursor: pointer;
+    list-style: none;
+    color: var(--text-secondary);
+    font-size: 0.84rem;
+    user-select: none;
+}
+
+.kc-todo-subtasks summary::-webkit-details-marker {
+    display: none;
+}
+
+.kc-todo-subtasks-count {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.kc-todo-subtasks-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.kc-todo-subtask {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: rgba(15, 23, 42, 0.18);
+    border: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.kc-todo-subtask input[type="checkbox"] {
+    margin-top: 2px;
+    width: 18px;
+    height: 18px;
+    accent-color: var(--accent);
+}
+
+.kc-todo-subtask-title {
+    flex: 1;
+    font-size: 0.87rem;
+    color: var(--text-primary);
+    line-height: 1.45;
+}
+
+.kc-todo-subtask-done .kc-todo-subtask-title {
+    text-decoration: line-through;
+    color: var(--text-secondary);
+}
+
+.kc-todo-subtask-desc {
+    display: block;
+    margin-top: 2px;
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+}
+
+.kc-todo-subtask-meta {
+    font-size: 0.74rem;
+    color: var(--text-tertiary, var(--text-secondary));
+}
+
+.kc-todo-reminder {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.kc-todo-editor-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.kc-todo-editor-item {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    padding: 12px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    background: rgba(15, 23, 42, 0.16);
+}
+
+.kc-todo-editor-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.kc-todo-editor-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.kc-todo-editor-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.79rem;
+    color: var(--text-secondary);
+}
+
+.kc-todo-editor-check input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--accent);
+}
+
+.kc-todo-editor-actions {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+}
+
+.kc-todo-editor-empty {
+    margin-top: 12px;
+    padding: 14px;
+    border: 1px dashed var(--border-subtle);
+    border-radius: 12px;
+    color: var(--text-secondary);
+    font-size: 0.84rem;
+    text-align: center;
+}
+
+.kc-section-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
 /* Priority badges */
 .kc-priority-badge {
     display: inline-block;
@@ -953,9 +1198,23 @@
         gap: 10px;
     }
 
+    .kc-todo-summary {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .kc-todo-header,
     .kc-todo-actions {
         flex-direction: column;
         gap: 4px;
+    }
+
+    .kc-todo-editor-item {
+        grid-template-columns: 1fr;
+    }
+
+    .kc-section-header {
+        flex-direction: column;
+        align-items: stretch;
     }
 
     .kc-filter-select {
@@ -967,6 +1226,10 @@
 /* Light theme additions */
 [data-theme="light"] .kc-appointment-card,
 [data-theme="light"] .kc-todo-item {
+    border-color: rgba(71, 85, 105, 0.14);
+}
+
+[data-theme="light"] .kc-todo-summary-card {
     border-color: rgba(71, 85, 105, 0.14);
 }
 

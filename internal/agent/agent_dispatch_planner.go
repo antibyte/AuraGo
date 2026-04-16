@@ -3,6 +3,7 @@ package agent
 import (
 	"database/sql"
 	"log/slog"
+	"sort"
 	"strings"
 
 	"aurago/internal/planner"
@@ -208,6 +209,8 @@ func dispatchManageTodos(tc ToolCall, db *sql.DB, kg planner.KnowledgeGraph, log
 			Priority:    strParam(tc.Params, "priority"),
 			Status:      strParam(tc.Params, "status"),
 			DueDate:     strParam(tc.Params, "due_date"),
+			RemindDaily: boolParam(tc.Params, "remind_daily"),
+			Items:       todoItemsParam(tc.Params, "items"),
 		}
 		id, err := planner.CreateTodo(db, t)
 		if err != nil {
@@ -244,6 +247,12 @@ func dispatchManageTodos(tc ToolCall, db *sql.DB, kg planner.KnowledgeGraph, log
 		if _, ok := tc.Params["due_date"]; ok {
 			existing.DueDate = strParam(tc.Params, "due_date")
 		}
+		if _, ok := tc.Params["remind_daily"]; ok {
+			existing.RemindDaily = boolParam(tc.Params, "remind_daily")
+		}
+		if _, ok := tc.Params["items"]; ok {
+			existing.Items = todoItemsParam(tc.Params, "items")
+		}
 		if err := planner.UpdateTodo(db, *existing); err != nil {
 			return plannerError(err)
 		}
@@ -270,6 +279,124 @@ func dispatchManageTodos(tc ToolCall, db *sql.DB, kg planner.KnowledgeGraph, log
 		kgNote := syncTodoToKG(db, id, kg, logger)
 		return "Tool Output: " + planner.ToJSON(map[string]interface{}{"status": "success", "message": "Todo status updated to " + status + kgNote, "id": id})
 
+	case "complete":
+		id, _ := tc.Params["id"].(string)
+		if id == "" {
+			return `Tool Output: {"status":"error","message":"'id' is required for complete operation"}`
+		}
+		if err := planner.CompleteTodo(db, id, boolParam(tc.Params, "complete_items_too")); err != nil {
+			return plannerError(err)
+		}
+		kgNote := syncTodoToKG(db, id, kg, logger)
+		return "Tool Output: " + planner.ToJSON(map[string]interface{}{"status": "success", "message": "Todo completed" + kgNote, "id": id})
+
+	case "add_item":
+		id, _ := tc.Params["id"].(string)
+		if id == "" {
+			return `Tool Output: {"status":"error","message":"'id' is required for add_item operation"}`
+		}
+		itemTitle := strParam(tc.Params, "item_title")
+		if itemTitle == "" {
+			return `Tool Output: {"status":"error","message":"'item_title' is required for add_item operation"}`
+		}
+		itemID, err := planner.AddTodoItem(db, id, planner.TodoItem{
+			Title:       itemTitle,
+			Description: strParam(tc.Params, "item_description"),
+			Position:    intParam(tc.Params, "item_position"),
+			IsDone:      boolParam(tc.Params, "item_is_done"),
+		})
+		if err != nil {
+			return plannerError(err)
+		}
+		kgNote := syncTodoToKG(db, id, kg, logger)
+		return "Tool Output: " + planner.ToJSON(map[string]interface{}{"status": "success", "message": "Todo item added" + kgNote, "id": id, "item_id": itemID})
+
+	case "update_item":
+		id, _ := tc.Params["id"].(string)
+		itemID := strParam(tc.Params, "item_id")
+		if id == "" || itemID == "" {
+			return `Tool Output: {"status":"error","message":"'id' and 'item_id' are required for update_item operation"}`
+		}
+		existing, err := planner.GetTodo(db, id)
+		if err != nil {
+			return plannerError(err)
+		}
+		item, found := todoItemByID(existing.Items, itemID)
+		if !found {
+			return plannerErrorMsg("todo item not found")
+		}
+		if _, ok := tc.Params["item_title"]; ok {
+			if value := strParam(tc.Params, "item_title"); value != "" {
+				item.Title = value
+			}
+		}
+		if _, ok := tc.Params["item_description"]; ok {
+			item.Description = strParam(tc.Params, "item_description")
+		}
+		if _, ok := tc.Params["item_position"]; ok {
+			item.Position = intParam(tc.Params, "item_position")
+		}
+		if _, ok := tc.Params["item_is_done"]; ok {
+			item.IsDone = boolParam(tc.Params, "item_is_done")
+		}
+		if err := planner.UpdateTodoItem(db, item); err != nil {
+			return plannerError(err)
+		}
+		kgNote := syncTodoToKG(db, id, kg, logger)
+		return "Tool Output: " + planner.ToJSON(map[string]interface{}{"status": "success", "message": "Todo item updated" + kgNote, "id": id, "item_id": itemID})
+
+	case "toggle_item":
+		id, _ := tc.Params["id"].(string)
+		itemID := strParam(tc.Params, "item_id")
+		if id == "" || itemID == "" {
+			return `Tool Output: {"status":"error","message":"'id' and 'item_id' are required for toggle_item operation"}`
+		}
+		existing, err := planner.GetTodo(db, id)
+		if err != nil {
+			return plannerError(err)
+		}
+		item, found := todoItemByID(existing.Items, itemID)
+		if !found {
+			return plannerErrorMsg("todo item not found")
+		}
+		if _, ok := tc.Params["item_is_done"]; ok {
+			item.IsDone = boolParam(tc.Params, "item_is_done")
+		} else {
+			item.IsDone = !item.IsDone
+		}
+		if err := planner.UpdateTodoItem(db, item); err != nil {
+			return plannerError(err)
+		}
+		kgNote := syncTodoToKG(db, id, kg, logger)
+		return "Tool Output: " + planner.ToJSON(map[string]interface{}{"status": "success", "message": "Todo item toggled" + kgNote, "id": id, "item_id": itemID, "item_is_done": item.IsDone})
+
+	case "delete_item":
+		id, _ := tc.Params["id"].(string)
+		itemID := strParam(tc.Params, "item_id")
+		if id == "" || itemID == "" {
+			return `Tool Output: {"status":"error","message":"'id' and 'item_id' are required for delete_item operation"}`
+		}
+		if err := planner.DeleteTodoItem(db, id, itemID); err != nil {
+			return plannerError(err)
+		}
+		kgNote := syncTodoToKG(db, id, kg, logger)
+		return "Tool Output: " + planner.ToJSON(map[string]interface{}{"status": "success", "message": "Todo item deleted" + kgNote, "id": id, "item_id": itemID})
+
+	case "reorder_items":
+		id, _ := tc.Params["id"].(string)
+		if id == "" {
+			return `Tool Output: {"status":"error","message":"'id' is required for reorder_items operation"}`
+		}
+		itemIDs := stringSliceParam(tc.Params, "item_ids")
+		if len(itemIDs) == 0 {
+			return `Tool Output: {"status":"error","message":"'item_ids' is required for reorder_items operation"}`
+		}
+		if err := planner.ReorderTodoItems(db, id, itemIDs); err != nil {
+			return plannerError(err)
+		}
+		kgNote := syncTodoToKG(db, id, kg, logger)
+		return "Tool Output: " + planner.ToJSON(map[string]interface{}{"status": "success", "message": "Todo items reordered" + kgNote, "id": id})
+
 	case "delete":
 		id, _ := tc.Params["id"].(string)
 		if id == "" {
@@ -289,7 +416,7 @@ func dispatchManageTodos(tc ToolCall, db *sql.DB, kg planner.KnowledgeGraph, log
 		return "Tool Output: " + planner.ToJSON(map[string]interface{}{"status": "success", "message": "Todo deleted", "id": id})
 
 	default:
-		return `Tool Output: {"status":"error","message":"Unknown operation. Use: list, get, add, update, delete, set_status"}`
+		return `Tool Output: {"status":"error","message":"Unknown operation. Use: list, get, add, update, delete, set_status, complete, add_item, update_item, toggle_item, delete_item, reorder_items"}`
 	}
 }
 
@@ -327,4 +454,118 @@ func boolParam(params map[string]interface{}, key string) bool {
 		return v
 	}
 	return false
+}
+
+func intParam(params map[string]interface{}, key string) int {
+	switch value := params[key].(type) {
+	case int:
+		return value
+	case int32:
+		return int(value)
+	case int64:
+		return int(value)
+	case float64:
+		return int(value)
+	default:
+		return 0
+	}
+}
+
+func stringSliceParam(params map[string]interface{}, key string) []string {
+	raw, ok := params[key]
+	if !ok || raw == nil {
+		return nil
+	}
+	switch value := raw.(type) {
+	case []string:
+		return append([]string(nil), value...)
+	case []interface{}:
+		result := make([]string, 0, len(value))
+		for _, entry := range value {
+			if text, ok := entry.(string); ok && strings.TrimSpace(text) != "" {
+				result = append(result, text)
+			}
+		}
+		return result
+	default:
+		return nil
+	}
+}
+
+func todoItemsParam(params map[string]interface{}, key string) []planner.TodoItem {
+	raw, ok := params[key]
+	if !ok || raw == nil {
+		return nil
+	}
+	var source []interface{}
+	switch value := raw.(type) {
+	case []interface{}:
+		source = value
+	case []map[string]interface{}:
+		source = make([]interface{}, 0, len(value))
+		for _, entry := range value {
+			source = append(source, entry)
+		}
+	default:
+		return nil
+	}
+
+	items := make([]planner.TodoItem, 0, len(source))
+	for index, entry := range source {
+		itemMap, ok := entry.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		title := strings.TrimSpace(strValue(itemMap["title"]))
+		if title == "" {
+			continue
+		}
+		items = append(items, planner.TodoItem{
+			ID:          strValue(itemMap["id"]),
+			Title:       title,
+			Description: strValue(itemMap["description"]),
+			Position:    intValueWithDefault(itemMap["position"], index),
+			IsDone:      boolValue(itemMap["is_done"]),
+		})
+	}
+	sort.SliceStable(items, func(i, j int) bool { return items[i].Position < items[j].Position })
+	return items
+}
+
+func todoItemByID(items []planner.TodoItem, itemID string) (planner.TodoItem, bool) {
+	for _, item := range items {
+		if item.ID == itemID {
+			return item, true
+		}
+	}
+	return planner.TodoItem{}, false
+}
+
+func strValue(raw interface{}) string {
+	if value, ok := raw.(string); ok {
+		return value
+	}
+	return ""
+}
+
+func boolValue(raw interface{}) bool {
+	if value, ok := raw.(bool); ok {
+		return value
+	}
+	return false
+}
+
+func intValueWithDefault(raw interface{}, fallback int) int {
+	switch value := raw.(type) {
+	case int:
+		return value
+	case int32:
+		return int(value)
+	case int64:
+		return int(value)
+	case float64:
+		return int(value)
+	default:
+		return fallback
+	}
 }
