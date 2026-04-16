@@ -59,5 +59,12 @@
   "config.sql_connections.test_tooltip": "Verbindung testen",
   "config.sql_connections.testing": "Teste…",
   "config.sql_connections.username_label": "Benutzername",
-  "config.sql_connections.username_placeholder": "Datenbankbenutzer"
+  "config.sql_connections.username_placeholder": "Datenbankbenutzer",
+  "config.sql_connections.settings_title": "Einstellungen",
+  "config.sql_connections.enabled_label": "SQL-Connections aktivieren",
+  "config.sql_connections.enabled_help": "Ermöglicht dem Agenten den Zugriff auf externe Datenbanken.",
+  "config.sql_connections.readonly_label": "Global nur lesend",
+  "config.sql_connections.readonly_help": "Blockiert alle schreibenden Operationen unabhängig von den Verbindungsberechtigungen.",
+  "config.sql_connections.allow_management_label": "Verwaltung erlauben",
+  "config.sql_connections.allow_management_help": "Erlaubt dem Agenten, Verbindungen zu erstellen, zu bearbeiten und zu löschen."
 }

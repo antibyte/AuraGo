@@ -138,6 +138,9 @@ func handleSQLConnectionByID(s *Server) http.HandlerFunc {
 				jsonError(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
 				return
 			}
+			if req.SSLMode == "" {
+				req.SSLMode = "disable"
+			}
 
 			// Update credentials if provided
 			existing, err := sqlconnections.GetByID(s.SQLConnectionsDB, id)

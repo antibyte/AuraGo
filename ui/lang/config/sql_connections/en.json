@@ -59,5 +59,12 @@
   "config.sql_connections.test_tooltip": "Test Connection",
   "config.sql_connections.testing": "Testing…",
   "config.sql_connections.username_label": "Username",
-  "config.sql_connections.username_placeholder": "Database user"
+  "config.sql_connections.username_placeholder": "Database user",
+  "config.sql_connections.settings_title": "Settings",
+  "config.sql_connections.enabled_label": "Enable SQL Connections",
+  "config.sql_connections.enabled_help": "Allows the agent to access external databases.",
+  "config.sql_connections.readonly_label": "Global read-only",
+  "config.sql_connections.readonly_help": "Blocks all write operations regardless of connection permissions.",
+  "config.sql_connections.allow_management_label": "Allow management",
+  "config.sql_connections.allow_management_help": "Allows the agent to create, edit, and delete connections."
 }

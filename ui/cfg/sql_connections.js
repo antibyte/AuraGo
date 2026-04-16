@@ -1,9 +1,47 @@
 let sqlConnCache = [];
 
+window.addEventListener('cfg:section-leave', function () {
+    const overlay = document.getElementById('sqlconn-modal-overlay');
+    if (overlay && !overlay.classList.contains('is-hidden')) {
+        sqlConnCloseModal();
+    }
+});
+
 function renderSQLConnectionsSection(section) {
     let html = '<div class="cfg-section active">';
     html += '<div class="section-header">' + section.icon + ' ' + section.label + '</div>';
     html += '<div class="section-desc">' + section.desc + '</div>';
+
+    const sqlCfg = configData['sql_connections'] || {};
+    const sqlEnabled = !!sqlCfg.enabled;
+    const sqlReadonly = !!sqlCfg.readonly;
+    const sqlAllowManagement = !!sqlCfg.allow_management;
+
+    html += `<div class="cfg-group-title cfg-group-title-top">${t('config.sql_connections.settings_title')}</div>`;
+    html += `<div class="field-group">
+        <div class="field-label">${t('config.sql_connections.enabled_label')}</div>
+        <div class="toggle-wrap">
+            <div class="toggle${sqlEnabled ? ' on' : ''}" data-path="sql_connections.enabled" onclick="toggleBool(this)"></div>
+            <span class="toggle-label">${sqlEnabled ? t('config.toggle.active') : t('config.toggle.inactive')}</span>
+        </div>
+        <div class="field-help">${t('config.sql_connections.enabled_help')}</div>
+    </div>`;
+    html += `<div class="field-group">
+        <div class="field-label">${t('config.sql_connections.readonly_label')}</div>
+        <div class="toggle-wrap">
+            <div class="toggle${sqlReadonly ? ' on' : ''}" data-path="sql_connections.readonly" onclick="toggleBool(this)"></div>
+            <span class="toggle-label">${sqlReadonly ? t('config.toggle.active') : t('config.toggle.inactive')}</span>
+        </div>
+        <div class="field-help">${t('config.sql_connections.readonly_help')}</div>
+    </div>`;
+    html += `<div class="field-group">
+        <div class="field-label">${t('config.sql_connections.allow_management_label')}</div>
+        <div class="toggle-wrap">
+            <div class="toggle${sqlAllowManagement ? ' on' : ''}" data-path="sql_connections.allow_management" onclick="toggleBool(this)"></div>
+            <span class="toggle-label">${sqlAllowManagement ? t('config.toggle.active') : t('config.toggle.inactive')}</span>
+        </div>
+        <div class="field-help">${t('config.sql_connections.allow_management_help')}</div>
+    </div>`;
 
     html += `
     <div class="sqlconn-toolbar">
@@ -169,6 +207,7 @@ async function sqlConnLoad() {
     }
     table.classList.remove('is-hidden');
     sqlConnRenderRows(sqlConnCache);
+    sqlConnApplyFilter();
 }
 
 function sqlConnRenderRows(connections) {
@@ -245,7 +284,7 @@ function sqlConnShowModal(id) {
         document.getElementById('sqlconn-field-name').value = c.name || '';
         document.getElementById('sqlconn-field-driver').value = c.driver || 'postgres';
         document.getElementById('sqlconn-field-host').value = c.host || '';
-        document.getElementById('sqlconn-field-port').value = c.port || '';
+        document.getElementById('sqlconn-field-port').value = (c.port !== undefined && c.port !== null) ? c.port : '';
         document.getElementById('sqlconn-field-database').value = c.database_name || '';
         document.getElementById('sqlconn-field-desc').value = c.description || '';
         document.getElementById('sqlconn-field-ssl').value = c.ssl_mode || '';

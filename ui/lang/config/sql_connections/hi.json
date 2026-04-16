@@ -59,5 +59,12 @@
   "config.sql_connections.test_tooltip": "कनेक्शन टेस्ट करें",
   "config.sql_connections.testing": "परीक्षण हो रहा है…",
   "config.sql_connections.username_label": "उपयोगकर्ता नाम",
-  "config.sql_connections.username_placeholder": "डेटाबेस उपयोगकर्ता"
+  "config.sql_connections.username_placeholder": "डेटाबेस उपयोगकर्ता",
+  "config.sql_connections.settings_title": "सेटिंग्स",
+  "config.sql_connections.enabled_label": "SQL कनेक्शन सक्षम करें",
+  "config.sql_connections.enabled_help": "एजेंट को बाहरी डेटाबेस तक पहुंचने की अनुमति देता है।",
+  "config.sql_connections.readonly_label": "वैश्विक केवल-पढ़ने योग्य",
+  "config.sql_connections.readonly_help": "कनेक्शन अनुमतियों की परवाह किए बिना सभी लेखन संचालन को अवरुद्ध करता है।",
+  "config.sql_connections.allow_management_label": "प्रबंधन की अनुमति दें",
+  "config.sql_connections.allow_management_help": "एजेंट को कनेक्शन बनाने, संपादित करने और हटाने की अनुमति देता है।"
 }

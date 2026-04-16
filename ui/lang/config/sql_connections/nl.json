@@ -59,5 +59,12 @@
   "config.sql_connections.test_tooltip": "Verbinding testen",
   "config.sql_connections.testing": "Testen…",
   "config.sql_connections.username_label": "Gebruikersnaam",
-  "config.sql_connections.username_placeholder": "Databasegebruiker"
+  "config.sql_connections.username_placeholder": "Databasegebruiker",
+  "config.sql_connections.settings_title": "Instellingen",
+  "config.sql_connections.enabled_label": "SQL-verbindingen inschakelen",
+  "config.sql_connections.enabled_help": "Staat de agent toe toegang te krijgen tot externe databases.",
+  "config.sql_connections.readonly_label": "Globaal alleen-lezen",
+  "config.sql_connections.readonly_help": "Blokkeert alle schrijfbewerkingen ongeacht de verbindingstoestemmingen.",
+  "config.sql_connections.allow_management_label": "Beheer toestaan",
+  "config.sql_connections.allow_management_help": "Staat de agent toe verbindingen te maken, bewerken en verwijderen."
 }

@@ -59,5 +59,12 @@
   "config.sql_connections.test_tooltip": "Otestovat připojení",
   "config.sql_connections.testing": "Testování…",
   "config.sql_connections.username_label": "Uživatelské jméno",
-  "config.sql_connections.username_placeholder": "Uživatel databáze"
+  "config.sql_connections.username_placeholder": "Uživatel databáze",
+  "config.sql_connections.settings_title": "Nastavení",
+  "config.sql_connections.enabled_label": "Povolit SQL připojení",
+  "config.sql_connections.enabled_help": "Umožňuje agentovi přístup k externím databázím.",
+  "config.sql_connections.readonly_label": "Globálně pouze pro čtení",
+  "config.sql_connections.readonly_help": "Blokuje všechny zápisové operace bez ohledu na oprávnění připojení.",
+  "config.sql_connections.allow_management_label": "Povolit správu",
+  "config.sql_connections.allow_management_help": "Umožňuje agentovi vytvářet, upravovat a mazat připojení."
 }

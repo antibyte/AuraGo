@@ -59,5 +59,12 @@
   "config.sql_connections.test_tooltip": "Test tilkobling",
   "config.sql_connections.testing": "Tester…",
   "config.sql_connections.username_label": "Brukernavn",
-  "config.sql_connections.username_placeholder": "Databasebruker"
+  "config.sql_connections.username_placeholder": "Databasebruker",
+  "config.sql_connections.settings_title": "Innstillinger",
+  "config.sql_connections.enabled_label": "Aktiver SQL-tilkoblinger",
+  "config.sql_connections.enabled_help": "Gir agenten tilgang til eksterne databaser.",
+  "config.sql_connections.readonly_label": "Global skrivebeskyttelse",
+  "config.sql_connections.readonly_help": "Blokkerer alle skriveoperasjoner uavhengig av tilkoblingstillatelser.",
+  "config.sql_connections.allow_management_label": "Tillat administrasjon",
+  "config.sql_connections.allow_management_help": "Gir agenten mulighet til å opprette, redigere og slette tilkoblinger."
 }
