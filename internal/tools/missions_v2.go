@@ -435,6 +435,21 @@ func (m *MissionManagerV2) Start() error {
 	// Setup triggers
 	m.setupTriggers()
 
+	// Setup cron schedules for enabled scheduled missions (ensures they survive restarts)
+	if m.cron != nil {
+		for _, mission := range m.missions {
+			if !mission.Enabled || mission.ExecutionType != ExecutionScheduled {
+				continue
+			}
+			if mission.Schedule != "" {
+				cronID := "mission_" + mission.ID
+				if _, err := m.cron.ManageSchedule("add", cronID, mission.Schedule, mission.Prompt, ""); err != nil {
+					slog.Warn("[MissionV2] Failed to register scheduled mission with cron", "mission_id", mission.ID, "schedule", mission.Schedule, "error", err)
+				}
+			}
+		}
+	}
+
 	// Start queue processor
 	go m.processQueue()
 
@@ -1008,7 +1023,9 @@ func (m *MissionManagerV2) Create(mission *MissionV2) error {
 	// Register with cron if scheduled
 	if mission.ExecutionType == ExecutionScheduled && mission.Schedule != "" {
 		cronID := "mission_" + mission.ID
-		m.cron.ManageSchedule("add", cronID, mission.Schedule, mission.Prompt, "")
+		if _, err := m.cron.ManageSchedule("add", cronID, mission.Schedule, mission.Prompt, ""); err != nil {
+			return fmt.Errorf("failed to register mission with cron: %w", err)
+		}
 	}
 
 	return m.save()
@@ -1049,7 +1066,9 @@ func (m *MissionManagerV2) Update(id string, updated *MissionV2) error {
 			m.registerTrigger(updated)
 		} else if updated.ExecutionType == ExecutionScheduled && updated.Schedule != "" {
 			cronID := "mission_" + id
-			m.cron.ManageSchedule("add", cronID, updated.Schedule, updated.Prompt, "")
+			if _, err := m.cron.ManageSchedule("add", cronID, updated.Schedule, updated.Prompt, ""); err != nil {
+				return fmt.Errorf("failed to register mission with cron: %w", err)
+			}
 		}
 	}
 

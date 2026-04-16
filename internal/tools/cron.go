@@ -30,7 +30,7 @@ type CronManager struct {
 
 func NewCronManager(dataDir string) *CronManager {
 	return &CronManager{
-		engine:       cron.New(cron.WithSeconds()), // Allow second-level precision if desired, or standard. Let's use standard + seconds for dev flexibility.
+		engine:       cron.New(), // Standard 5-field cron (minute hour dom month dow)
 		file:         filepath.Join(dataDir, "crontab.json"),
 		jobs:         []CronJob{},
 		cronEntryIDs: make(map[string]cron.EntryID),
@@ -125,7 +125,7 @@ func (m *CronManager) ManageSchedule(operation, id, expr, prompt string, lang st
 		}
 
 		// Parse check
-		parser := cron.NewParser(cron.Second | cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow | cron.Descriptor)
+		parser := cron.NewParser(cron.Minute | cron.Hour | cron.Dom | cron.Month | cron.Dow | cron.Descriptor)
 		_, err := parser.Parse(expr)
 		if err != nil {
 			return fmt.Sprintf(`{"status": "error", "message": "%s"}`, i18n.T(lang, "tools.cron_invalid_expr", err)), nil
@@ -135,6 +135,20 @@ func (m *CronManager) ManageSchedule(operation, id, expr, prompt string, lang st
 		if jobID == "" {
 			jobID = fmt.Sprintf("%d", time.Now().UnixNano())
 		}
+
+		// Idempotent add: remove existing job with same ID to avoid duplicates
+		if existingEntryID, exists := m.cronEntryIDs[jobID]; exists && jobID != "" {
+			m.engine.Remove(existingEntryID)
+			delete(m.cronEntryIDs, jobID)
+			filtered := []CronJob{}
+			for _, j := range m.jobs {
+				if j.ID != jobID {
+					filtered = append(filtered, j)
+				}
+			}
+			m.jobs = filtered
+		}
+
 		job := CronJob{
 			ID:         jobID,
 			CronExpr:   expr,
