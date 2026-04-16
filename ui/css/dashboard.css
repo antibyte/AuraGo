@@ -2097,7 +2097,7 @@
         .cron-edit-id { opacity: 0.6; cursor: default; }
         .cron-edit-textarea {
             resize: vertical;
-            min-height: 4.5rem;
+            min-height: 10rem;
             font-family: inherit;
         }
         .cron-form-actions {
