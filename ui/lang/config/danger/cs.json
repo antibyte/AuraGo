@@ -16,5 +16,7 @@
   "config.danger.self_update.title": "Samoaktualizace (manage_updates)",
   "config.danger.self_update.desc": "Umožňuje agentovi aktualizovat sebe a restartovat proces.",
   "config.danger.mcp.title": "MCP Server připojení (mcp_call)",
-  "config.danger.mcp.desc": "Umožňuje agentovi připojit se k externím MCP serverům a používat jejich nástroje. <strong style=\"color:#f87171;\">⚠ Přidejte pouze důvěryhodné servery!</strong>"
+  "config.danger.mcp.desc": "Umožňuje agentovi připojit se k externím MCP serverům a používat jejich nástroje. <strong style=\"color:#f87171;\">⚠ Přidejte pouze důvěryhodné servery!</strong>",
+  "config.danger.sudo_unrestricted.title": "Systémový zápis přes sudo",
+  "config.danger.sudo_unrestricted.desc": "Umožňuje agentovi zapisovat mimo instalační adresář pomocí sudo (např. /etc/). Vyžaduje odstranění ProtectSystem=strict z jednotky systemd služby."
 }

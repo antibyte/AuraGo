@@ -2,10 +2,13 @@ package config
 
 import (
 	"bytes"
+	"fmt"
 	"log/slog"
 	"net"
 	"os"
 	"os/exec"
+	"runtime"
+	"strings"
 	"time"
 )
 
@@ -18,7 +21,8 @@ type Runtime struct {
 	FirewallAccessOK bool `json:"firewall_access_ok"`
 	// NoNewPrivileges is true when the kernel flag PR_SET_NO_NEW_PRIVS is active.
 	// This prevents sudo (setuid escalation) from working regardless of config.
-	NoNewPrivileges bool `json:"no_new_privileges"`
+	NoNewPrivileges      bool `json:"no_new_privileges"`
+	ProtectSystemStrict  bool `json:"protect_system_strict"`
 }
 
 // FeatureAvailability describes whether a config section is usable
@@ -105,6 +109,16 @@ func ComputeFeatureAvailability(rt Runtime, sudoEnabled bool) map[string]Feature
 		firewallAvail := rt.FirewallAccessOK || sudoEnabled
 		avail["firewall"] = FeatureAvailability{Available: firewallAvail, Reason: boolReason(!firewallAvail, "iptables/ufw not accessible. Run as root, add NOPASSWD sudo for iptables, or enable sudo in the Danger Zone settings.")}
 		avail["sudo"] = FeatureAvailability{Available: true}
+	}
+
+	// Sudo unrestricted — available only when ProtectSystem=strict is NOT active.
+	if rt.ProtectSystemStrict {
+		avail["sudo_unrestricted"] = FeatureAvailability{
+			Available: false,
+			Reason:    "ProtectSystem=strict is active in the systemd unit. To allow system-wide sudo writes, run: sudo systemctl edit --full aurago, comment out or remove ProtectSystem=strict, then run: sudo systemctl daemon-reload && sudo systemctl restart aurago",
+		}
+	} else {
+		avail["sudo_unrestricted"] = FeatureAvailability{Available: true}
 	}
 
 	// Docker socket
@@ -259,6 +273,23 @@ func probeFirewall() bool {
 // probeNoNewPrivileges checks whether the kernel's no-new-privileges flag is
 // active for this process by reading /proc/self/status.  When set, sudo cannot
 // escalate privileges via the setuid bit.
+// probeProtectSystemStrict checks whether the process is running under
+// ProtectSystem=strict (or a similar read-only root mount) by attempting
+// to create a file in /etc. It immediately cleans up the test file.
+func probeProtectSystemStrict() bool {
+	if runtime.GOOS != "linux" {
+		return false
+	}
+	testPath := fmt.Sprintf("/etc/.aurago_rw_test_%d", os.Getpid())
+	f, err := os.Create(testPath)
+	if err != nil {
+		return strings.Contains(err.Error(), "read-only file system")
+	}
+	f.Close()
+	_ = os.Remove(testPath)
+	return false
+}
+
 func probeNoNewPrivileges() bool {
 	data, err := os.ReadFile("/proc/self/status")
 	if err != nil {

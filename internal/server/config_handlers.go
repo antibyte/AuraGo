@@ -394,6 +394,12 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				needsRestart = true
 				restartReasons = append(restartReasons, "Daemon Skills")
 			}
+			if oldCfg.Agent.SudoUnrestricted != newCfg.Agent.SudoUnrestricted {
+				if newCfg.Agent.SudoUnrestricted && newCfg.Runtime.ProtectSystemStrict {
+					needsRestart = true
+					restartReasons = append(restartReasons, "Sudo system-wide write access (systemd unit update required)")
+				}
+			}
 
 			// Apply hot-reload: copy all new fields into the live config pointer
 			savedPath := s.Cfg.ConfigPath

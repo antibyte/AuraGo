@@ -16,5 +16,7 @@
   "config.danger.self_update.title": "Self-Update (manage_updates)",
   "config.danger.self_update.desc": "Allows the agent to update itself and restart the process.",
   "config.danger.mcp.title": "MCP Server Connections (mcp_call)",
-  "config.danger.mcp.desc": "Allows the agent to connect to external MCP servers and use their tools. <strong style=\"color:#f87171;\">⚠ Only add trusted servers!</strong>"
+  "config.danger.mcp.desc": "Allows the agent to connect to external MCP servers and use their tools. <strong style=\"color:#f87171;\">⚠ Only add trusted servers!</strong>",
+  "config.danger.sudo_unrestricted.title": "Παγκόσμια Πρόσβαση Εγγραφής Sudo",
+  "config.danger.sudo_unrestricted.desc": "Επιτρέπει στον πράκτορα να γράφει εκτός του καταλόγου εγκατάστασης χρησιμοποιώντας sudo (π.χ. /etc/). Απαιτεί την αφαίρεση του ProtectSystem=strict από τη μονάδα υπηρεσίας systemd."
 }

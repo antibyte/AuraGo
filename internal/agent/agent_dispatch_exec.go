@@ -367,6 +367,9 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if cfg.Runtime.NoNewPrivileges {
 				return `Tool Output: [PERMISSION DENIED] sudo is not available: the "no new privileges" flag is set on this system. Remove no-new-privileges from your container or systemd configuration to use sudo.`
 			}
+			if cfg.Agent.SudoUnrestricted && cfg.Runtime.ProtectSystemStrict {
+				return `Tool Output: [PERMISSION DENIED] sudo_unrestricted is enabled but ProtectSystem=strict is still active in the systemd unit. System-wide writes are blocked until you update the unit and restart AuraGo. Run: sudo systemctl edit --full aurago, comment out or remove ProtectSystem=strict, then run: sudo systemctl daemon-reload && sudo systemctl restart aurago`
+			}
 			req := decodeSudoExecutionArgs(tc)
 			if req.Command == "" {
 				return "Tool Output: [EXECUTION ERROR] 'command' is required for execute_sudo"

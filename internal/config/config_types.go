@@ -269,6 +269,7 @@ type Config struct {
 		CoreMemoryCapMode               string `yaml:"core_memory_cap_mode"`    // "soft" (default) | "hard"
 		ToolOutputLimit                 int    `yaml:"tool_output_limit"`       // max characters of a single tool result added to context (0 = unlimited, default: 50000)
 		SudoEnabled                     bool   `yaml:"sudo_enabled"`            // allow execute_sudo tool (password must be stored in vault as "sudo_password")
+		SudoUnrestricted                bool   `yaml:"sudo_unrestricted"`       // allow sudo to write outside the install directory (requires removing ProtectSystem=strict from systemd unit)
 		// ── Danger Zone: tool capability gates (all default true) ──
 		AllowShell           bool   `yaml:"allow_shell"`            // allow execute_shell
 		AllowPython          bool   `yaml:"allow_python"`           // allow execute_python / save_tool / execute_skill

@@ -16,5 +16,7 @@
   "config.danger.self_update.title": "Selbst-Update (manage_updates)",
   "config.danger.self_update.desc": "Erlaubt dem Agenten, sich selbst zu aktualisieren und neu zu starten.",
   "config.danger.mcp.title": "MCP Server-Verbindungen (mcp_call)",
-  "config.danger.mcp.desc": "Erlaubt dem Agenten, sich mit externen MCP-Servern zu verbinden und deren Tools zu nutzen. <strong style=\"color:#f87171;\">⚠ Nur vertrauenswürdige Server hinzufügen!</strong>"
+  "config.danger.mcp.desc": "Erlaubt dem Agenten, sich mit externen MCP-Servern zu verbinden und deren Tools zu nutzen. <strong style=\"color:#f87171;\">⚠ Nur vertrauenswürdige Server hinzufügen!</strong>",
+  "config.danger.sudo_unrestricted.title": "Systemweiter Sudo-Schreibzugriff",
+  "config.danger.sudo_unrestricted.desc": "Erlaubt dem Agenten, mit sudo auch außerhalb des Installationsverzeichnisses zu schreiben (z. B. /etc/). Erfordert das Entfernen von ProtectSystem=strict in der systemd-Service-Datei."
 }

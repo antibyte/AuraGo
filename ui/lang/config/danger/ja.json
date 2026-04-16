@@ -16,5 +16,7 @@
   "config.danger.self_update.title": "自己更新 (manage_updates)",
   "config.danger.self_update.desc": "エージェントが自身を更新し、プロセスを再起動できるようにします。",
   "config.danger.mcp.title": "MCP サーバー接続 (mcp_call)",
-  "config.danger.mcp.desc": "エージェントが外部 MCP サーバーに接続し、そのツールを使用できるようにします。 <strong style=\"color:#f87171;\">⚠ 信頼できるサーバーのみを追加してください。</strong>"
+  "config.danger.mcp.desc": "エージェントが外部 MCP サーバーに接続し、そのツールを使用できるようにします。 <strong style=\"color:#f87171;\">⚠ 信頼できるサーバーのみを追加してください。</strong>",
+  "config.danger.sudo_unrestricted.title": "システム全体のSudo書き込みアクセス",
+  "config.danger.sudo_unrestricted.desc": "エージェントがsudoを使用してインストールディレクトリ外（例: /etc/）に書き込めるようにします。systemdサービスユニットからProtectSystem=strictを削除する必要があります。"
 }

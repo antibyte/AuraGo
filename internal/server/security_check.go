@@ -545,6 +545,7 @@ func countDangerZoneCapabilities(cfg *config.Config) int {
 		cfg.Agent.AllowSelfUpdate,
 		cfg.Agent.AllowMCP && cfg.MCP.Enabled,
 		cfg.Agent.SudoEnabled,
+		cfg.Agent.SudoUnrestricted,
 	} {
 		if enabled {
 			count++

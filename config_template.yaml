@@ -24,6 +24,7 @@ agent:
     adaptive_system_prompt_token_budget: true
     workflow_feedback: true
     sudo_enabled: false
+    sudo_unrestricted: false  # allow sudo to write outside the install dir (requires removing ProtectSystem=strict from the systemd unit)
 
     # ── Output Compression ── reduces token consumption by filtering and
     #    deduplicating verbose tool outputs before they enter the LLM context.

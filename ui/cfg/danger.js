@@ -13,6 +13,14 @@
                     badge: 'execute_sudo'
                 },
                 {
+                    path: 'agent.sudo_unrestricted',
+                    val: agentCfg.sudo_unrestricted === true,
+                    icon: '🔓',
+                    title: t('config.danger.sudo_unrestricted.title'),
+                    desc: t('config.danger.sudo_unrestricted.desc'),
+                    badge: 'execute_sudo'
+                },
+                {
                     path: 'agent.allow_shell',
                     val: agentCfg.allow_shell === true,
                     icon: '🐚',
@@ -86,15 +94,21 @@
 
                 // Check if this specific capability is Docker-blocked
                 let capBlocked = false;
+                let capBlockedReason = '';
                 if (cap.path === 'agent.sudo_enabled') {
                     const sudoFa = (runtimeData.features || {}).sudo;
                     capBlocked = sudoFa && !sudoFa.available;
+                    capBlockedReason = sudoFa ? sudoFa.reason : '';
+                }
+                if (cap.path === 'agent.sudo_unrestricted') {
+                    const surFa = (runtimeData.features || {}).sudo_unrestricted;
+                    capBlocked = surFa && !surFa.available;
+                    capBlockedReason = surFa ? surFa.reason : '';
                 }
 
                 html += `<div class="danger-card">`;
                 if (capBlocked) {
-                    const sudoFa = (runtimeData.features || {}).sudo;
-                    html += `<div class="feature-unavailable-banner fub-blocked danger-fub"><span class="fub-icon">🚫</span><span>${escapeHtml(sudoFa.reason || t('config.feature_unavailable'))}</span></div>`;
+                    html += `<div class="feature-unavailable-banner fub-blocked danger-fub"><span class="fub-icon">🚫</span><span>${escapeHtml(capBlockedReason || t('config.feature_unavailable'))}</span></div>`;
                 }
                 html += `<div class="danger-card-header${capBlocked ? ' danger-card-header-blocked' : ''}">
                         <div>

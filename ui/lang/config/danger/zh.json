@@ -16,5 +16,7 @@
   "config.danger.self_update.title": "自我更新 (manage_updates)",
   "config.danger.self_update.desc": "允许代理更新自身并重启进程。",
   "config.danger.mcp.title": "MCP 服务器连接 (mcp_call)",
-  "config.danger.mcp.desc": "允许代理连接到外部 MCP 服务器并使用其工具。<strong style=\"color:#f87171;\">⚠ 仅添加受信任的服务器！</strong>"
+  "config.danger.mcp.desc": "允许代理连接到外部 MCP 服务器并使用其工具。<strong style=\"color:#f87171;\">⚠ 仅添加受信任的服务器！</strong>",
+  "config.danger.sudo_unrestricted.title": "系统级Sudo写入权限",
+  "config.danger.sudo_unrestricted.desc": "允许代理使用sudo在安装目录之外写入（例如 /etc/）。需要从systemd服务单元中移除ProtectSystem=strict。"
 }

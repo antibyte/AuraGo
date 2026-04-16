@@ -16,5 +16,7 @@
   "config.danger.self_update.title": "स्व-अद्यतन (manage_updates)",
   "config.danger.self_update.desc": "एजेंट को स्वयं को अपडेट करने और प्रक्रिया को पुनरारंभ करने की अनुमति देता है।",
   "config.danger.mcp.title": "एमसीपी सर्वर कनेक्शन (एमसीपी_कॉल)",
-  "config.danger.mcp.desc": "एजेंट को बाहरी एमसीपी सर्वर से जुड़ने और उनके टूल का उपयोग करने की अनुमति देता है। <strong style=\"color:#f87171;\">⚠केवल विश्वसनीय सर्वर ही जोड़ें!</strong>"
+  "config.danger.mcp.desc": "एजेंट को बाहरी एमसीपी सर्वर से जुड़ने और उनके टूल का उपयोग करने की अनुमति देता है। <strong style=\"color:#f87171;\">⚠केवल विश्वसनीय सर्वर ही जोड़ें!</strong>",
+  "config.danger.sudo_unrestricted.title": "सिस्टम-वाइड सुडो राइट एक्सेस",
+  "config.danger.sudo_unrestricted.desc": "एजेंट को इंस्टॉलेशन डायरेक्टरी के बाहर sudo का उपयोग करके लिखने की अनुमति देता है (उदा. /etc/)। systemd सेवा यूनिट से ProtectSystem=strict हटाने की आवश्यकता है।"
 }
