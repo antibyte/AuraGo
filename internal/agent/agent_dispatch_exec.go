@@ -1110,10 +1110,11 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
 				}
 				// Index cheatsheet in vector DB for semantic search (best-effort)
-				if dc.LongTermMem != nil {
-					if storeErr := dc.LongTermMem.StoreCheatsheet(sheet.ID, sheet.Name, sheet.Content); storeErr != nil {
-						dc.Logger.Warn("Failed to index cheatsheet in vector DB", "cs_id", sheet.ID, "error", storeErr)
-					}
+				if storeErr := tools.ReindexCheatsheetInVectorDB(cheatsheetDB, dc.LongTermMem, sheet.ID); storeErr != nil {
+					dc.Logger.Warn("Failed to index cheatsheet in vector DB", "cs_id", sheet.ID, "error", storeErr)
+				}
+				if dc.PreparationService != nil {
+					dc.PreparationService.InvalidateByCheatsheet(sheet.ID)
 				}
 				data, _ := json.Marshal(map[string]interface{}{"status": "ok", "message": "Cheat sheet created.", "cheatsheet": sheet})
 				return fmt.Sprintf("Tool Output: %s", string(data))
@@ -1137,10 +1138,11 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
 				}
 				// Update cheatsheet in vector DB (best-effort)
-				if dc.LongTermMem != nil {
-					if storeErr := dc.LongTermMem.StoreCheatsheet(sheet.ID, sheet.Name, sheet.Content); storeErr != nil {
-						dc.Logger.Warn("Failed to update cheatsheet in vector DB", "cs_id", sheet.ID, "error", storeErr)
-					}
+				if storeErr := tools.ReindexCheatsheetInVectorDB(cheatsheetDB, dc.LongTermMem, sheet.ID); storeErr != nil {
+					dc.Logger.Warn("Failed to update cheatsheet in vector DB", "cs_id", sheet.ID, "error", storeErr)
+				}
+				if dc.PreparationService != nil {
+					dc.PreparationService.InvalidateByCheatsheet(sheet.ID)
 				}
 				data, _ := json.Marshal(map[string]interface{}{"status": "ok", "message": "Cheat sheet updated.", "cheatsheet": sheet})
 				return fmt.Sprintf("Tool Output: %s", string(data))
@@ -1156,6 +1158,9 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 					if delErr := dc.LongTermMem.DeleteCheatsheet(req.ID); delErr != nil {
 						dc.Logger.Warn("Failed to delete cheatsheet from vector DB", "cs_id", req.ID, "error", delErr)
 					}
+				}
+				if dc.PreparationService != nil {
+					dc.PreparationService.InvalidateByCheatsheet(req.ID)
 				}
 				return `Tool Output: {"status":"ok","message":"Cheat sheet deleted."}`
 			case "attach":
@@ -1173,6 +1178,12 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				if err != nil {
 					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
 				}
+				if storeErr := tools.ReindexCheatsheetInVectorDB(cheatsheetDB, dc.LongTermMem, req.ID); storeErr != nil {
+					dc.Logger.Warn("Failed to re-index cheatsheet after attach", "cs_id", req.ID, "error", storeErr)
+				}
+				if dc.PreparationService != nil {
+					dc.PreparationService.InvalidateByCheatsheet(req.ID)
+				}
 				data, _ := json.Marshal(map[string]interface{}{"status": "ok", "message": "Attachment added.", "attachment": attachment})
 				return fmt.Sprintf("Tool Output: %s", string(data))
 			case "detach":
@@ -1184,6 +1195,12 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				}
 				if err := tools.CheatsheetAttachmentRemove(cheatsheetDB, req.ID, req.AttachmentID); err != nil {
 					return fmt.Sprintf(`Tool Output: {"status":"error","message":"%v"}`, err)
+				}
+				if storeErr := tools.ReindexCheatsheetInVectorDB(cheatsheetDB, dc.LongTermMem, req.ID); storeErr != nil {
+					dc.Logger.Warn("Failed to re-index cheatsheet after detach", "cs_id", req.ID, "error", storeErr)
+				}
+				if dc.PreparationService != nil {
+					dc.PreparationService.InvalidateByCheatsheet(req.ID)
 				}
 				return `Tool Output: {"status":"ok","message":"Attachment removed."}`
 			default:

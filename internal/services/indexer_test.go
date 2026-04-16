@@ -76,7 +76,7 @@ func (f *fakeIndexerVectorDB) Count() int       { return 0 }
 func (f *fakeIndexerVectorDB) IsDisabled() bool { return false }
 func (f *fakeIndexerVectorDB) Close() error     { return nil }
 
-func (f *fakeIndexerVectorDB) StoreCheatsheet(id, name, content string) error {
+func (f *fakeIndexerVectorDB) StoreCheatsheet(id, name, content string, attachments ...string) error {
 	return nil
 }
 

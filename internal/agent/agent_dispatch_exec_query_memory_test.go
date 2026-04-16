@@ -53,7 +53,7 @@ func (f *fakeVectorDB) StoreDocumentInCollection(concept, content, collection st
 func (f *fakeVectorDB) StoreDocumentWithEmbeddingInCollection(concept, content string, embedding []float32, collection string) (string, error) {
 	return "", nil
 }
-func (f *fakeVectorDB) StoreCheatsheet(id, name, content string) error { return nil }
+func (f *fakeVectorDB) StoreCheatsheet(id, name, content string, attachments ...string) error { return nil }
 func (f *fakeVectorDB) DeleteCheatsheet(id string) error               { return nil }
 
 func TestDispatchExecQueryMemoryUsesMemoriesOnlyForVectorDB(t *testing.T) {

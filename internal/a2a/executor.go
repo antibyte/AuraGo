@@ -123,9 +123,10 @@ func (e *Executor) Execute(ctx context.Context, execCtx *a2asrv.ExecutorContext)
 			Registry:        e.deps.Registry,
 			Manifest:        e.deps.Manifest,
 			CronManager:     nil, // A2A agents cannot manage cron
-			CoAgentRegistry: nil, // A2A agents cannot spawn co-agents
-			BudgetTracker:   e.deps.Budget,
-			SessionID:       sessionID,
+			CoAgentRegistry:    nil, // A2A agents cannot spawn co-agents
+			BudgetTracker:      e.deps.Budget,
+			PreparationService: nil,
+			SessionID:          sessionID,
 			IsMaintenance:   false,
 			MessageSource:   "a2a",
 		}

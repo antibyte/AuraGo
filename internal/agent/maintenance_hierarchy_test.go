@@ -50,7 +50,7 @@ func (v *hierarchyVectorDB) StoreDocumentInCollection(concept, content, collecti
 func (v *hierarchyVectorDB) StoreDocumentWithEmbeddingInCollection(concept, content string, embedding []float32, collection string) (string, error) {
 	return "", nil
 }
-func (v *hierarchyVectorDB) StoreCheatsheet(id, name, content string) error { return nil }
+func (v *hierarchyVectorDB) StoreCheatsheet(id, name, content string, attachments ...string) error { return nil }
 func (v *hierarchyVectorDB) DeleteCheatsheet(id string) error               { return nil }
 
 func TestConsolidateEpisodicHierarchyPromotesLevelOneEpisodes(t *testing.T) {

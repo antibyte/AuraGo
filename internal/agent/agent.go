@@ -18,6 +18,7 @@ import (
 	"aurago/internal/prompts"
 	"aurago/internal/remote"
 	"aurago/internal/security"
+	"aurago/internal/services"
 	"aurago/internal/sqlconnections"
 	"aurago/internal/tools"
 )
@@ -714,6 +715,7 @@ type RunConfig struct {
 	BudgetTracker      *budget.Tracker
 	DaemonSupervisor   *tools.DaemonSupervisor
 	LLMGuardian        *security.LLMGuardian
+	PreparationService *services.MissionPreparationService
 	SessionID          string
 	IsMaintenance      bool
 	SurgeryPlan        string

@@ -310,5 +310,5 @@ func (d *disabledVectorDB) DeleteDocument(_ string) error                     { 
 func (d *disabledVectorDB) DeleteDocumentFromCollection(_, _ string) error    { return nil }
 func (d *disabledVectorDB) Count() int                                        { return 0 }
 func (d *disabledVectorDB) Close() error                                      { return nil }
-func (d *disabledVectorDB) StoreCheatsheet(_, _, _ string) error              { return nil }
+func (d *disabledVectorDB) StoreCheatsheet(_, _, _ string, _ ...string) error   { return nil }
 func (d *disabledVectorDB) DeleteCheatsheet(_ string) error                   { return nil }

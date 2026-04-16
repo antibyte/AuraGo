@@ -71,10 +71,8 @@ func handleCheatSheets(s *Server) http.HandlerFunc {
 				return
 			}
 			// Index cheatsheet in vector DB for semantic search (best-effort, non-blocking)
-			if s.LongTermMem != nil {
-				if storeErr := s.LongTermMem.StoreCheatsheet(sheet.ID, sheet.Name, sheet.Content); storeErr != nil {
-					s.Logger.Warn("Failed to index cheatsheet in vector DB", "cs_id", sheet.ID, "error", storeErr)
-				}
+			if storeErr := tools.ReindexCheatsheetInVectorDB(s.CheatsheetDB, s.LongTermMem, sheet.ID); storeErr != nil {
+				s.Logger.Warn("Failed to index cheatsheet in vector DB", "cs_id", sheet.ID, "error", storeErr)
 			}
 			w.WriteHeader(http.StatusCreated)
 			writeJSON(w, sheet)
@@ -132,10 +130,8 @@ func handleCheatSheetByID(s *Server) http.HandlerFunc {
 				return
 			}
 			// Update cheatsheet in vector DB (best-effort, non-blocking)
-			if s.LongTermMem != nil {
-				if storeErr := s.LongTermMem.StoreCheatsheet(sheet.ID, sheet.Name, sheet.Content); storeErr != nil {
-					s.Logger.Warn("Failed to update cheatsheet in vector DB", "cs_id", sheet.ID, "error", storeErr)
-				}
+			if storeErr := tools.ReindexCheatsheetInVectorDB(s.CheatsheetDB, s.LongTermMem, sheet.ID); storeErr != nil {
+				s.Logger.Warn("Failed to update cheatsheet in vector DB", "cs_id", sheet.ID, "error", storeErr)
 			}
 			writeJSON(w, sheet)
 
@@ -297,6 +293,14 @@ func handleCheatSheetAttachments(s *Server) http.HandlerFunc {
 			w.WriteHeader(http.StatusCreated)
 			writeJSON(w, attachment)
 
+			// Re-index in vector DB and invalidate mission preparations
+			if storeErr := tools.ReindexCheatsheetInVectorDB(s.CheatsheetDB, s.LongTermMem, csID); storeErr != nil {
+				s.Logger.Warn("Failed to re-index cheatsheet after attachment add", "cs_id", csID, "error", storeErr)
+			}
+			if s.PreparationService != nil {
+				s.PreparationService.InvalidateByCheatsheet(csID)
+			}
+
 		default:
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
@@ -329,6 +333,14 @@ func handleCheatSheetAttachmentByID(s *Server) http.HandlerFunc {
 				return
 			}
 			writeJSON(w, map[string]string{"status": "deleted"})
+
+			// Re-index in vector DB and invalidate mission preparations
+			if storeErr := tools.ReindexCheatsheetInVectorDB(s.CheatsheetDB, s.LongTermMem, csID); storeErr != nil {
+				s.Logger.Warn("Failed to re-index cheatsheet after attachment remove", "cs_id", csID, "error", storeErr)
+			}
+			if s.PreparationService != nil {
+				s.PreparationService.InvalidateByCheatsheet(csID)
+			}
 
 		default:
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)

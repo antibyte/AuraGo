@@ -57,7 +57,7 @@ func (f *coAgentContextVectorDB) StoreDocumentInCollection(concept, content, col
 func (f *coAgentContextVectorDB) StoreDocumentWithEmbeddingInCollection(concept, content string, embedding []float32, collection string) (string, error) {
 	return "", nil
 }
-func (f *coAgentContextVectorDB) StoreCheatsheet(id, name, content string) error { return nil }
+func (f *coAgentContextVectorDB) StoreCheatsheet(id, name, content string, attachments ...string) error { return nil }
 func (f *coAgentContextVectorDB) DeleteCheatsheet(id string) error               { return nil }
 
 func TestBuildContextSnapshotUsesMemoriesOnly(t *testing.T) {

@@ -243,9 +243,10 @@ func runOperation(cfg *config.Config, statePath, planPath string, l *slog.Logger
 		Registry:        registry,
 		Manifest:        manifest,
 		CronManager:     cronManager,
-		CoAgentRegistry: nil,
-		BudgetTracker:   nil,
-		SessionID:       "lifeboat",
+		CoAgentRegistry:    nil,
+		BudgetTracker:      nil,
+		PreparationService: nil,
+		SessionID:          "lifeboat",
 		IsMaintenance:   true,
 		SurgeryPlan:     string(planContent),
 	}

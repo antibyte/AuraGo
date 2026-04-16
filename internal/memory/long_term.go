@@ -50,7 +50,7 @@ type VectorDB interface {
 	// StoreCheatsheet stores a cheatsheet in the vector DB with cs_id metadata.
 	// The cheatsheet is stored with auto-chunking for large content and uses
 	// the cheatsheet ID as the unique document identifier for upsert semantics.
-	StoreCheatsheet(id, name, content string) error
+	StoreCheatsheet(id, name, content string, attachments ...string) error
 	// DeleteCheatsheet removes all vector entries associated with a cheatsheet ID
 	// by using the cs_id metadata filter.
 	DeleteCheatsheet(id string) error
@@ -594,7 +594,7 @@ func (cv *ChromemVectorDB) StoreDocumentWithEmbeddingInCollection(concept, conte
 // It uses the cheatsheet ID in the document ID for upsert semantics: calling
 // StoreCheatsheet again for the same ID will replace the existing document.
 // The cheatsheet is stored with cs_type="cheatsheet" metadata for filtering.
-func (cv *ChromemVectorDB) StoreCheatsheet(id, name, content string) error {
+func (cv *ChromemVectorDB) StoreCheatsheet(id, name, content string, attachments ...string) error {
 	if cv.disabled.Load() {
 		return fmt.Errorf("VectorDB is disabled (embedding pipeline failed at startup)")
 	}
@@ -615,6 +615,12 @@ func (cv *ChromemVectorDB) StoreCheatsheet(id, name, content string) error {
 	}
 
 	fullContent := buildContentString(name, content)
+	if len(attachments) > 0 {
+		if fullContent != "" {
+			fullContent += "\n\n"
+		}
+		fullContent += "Attachments:\n" + strings.Join(attachments, "\n\n---\n\n")
+	}
 
 	metadata := map[string]string{
 		"cs_type":   "cheatsheet",

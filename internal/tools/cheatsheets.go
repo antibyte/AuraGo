@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"aurago/internal/dbutil"
+	"aurago/internal/memory"
 	"aurago/internal/uid"
 
 	_ "modernc.org/sqlite"
@@ -432,6 +433,23 @@ func CheatsheetAttachmentAdd(db *sql.DB, cheatsheetID, filename, source, content
 		CharCount:    charCount,
 		CreatedAt:    now,
 	}, nil
+}
+
+// ReindexCheatsheetInVectorDB loads the full cheatsheet (including attachments)
+// and updates its vector DB index. It is a no-op if vdb is nil.
+func ReindexCheatsheetInVectorDB(db *sql.DB, vdb memory.VectorDB, cheatsheetID string) error {
+	if vdb == nil {
+		return nil
+	}
+	cs, err := CheatsheetGet(db, cheatsheetID)
+	if err != nil {
+		return err
+	}
+	attachments := make([]string, len(cs.Attachments))
+	for i, a := range cs.Attachments {
+		attachments[i] = a.Content
+	}
+	return vdb.StoreCheatsheet(cs.ID, cs.Name, cs.Content, attachments...)
 }
 
 // CheatsheetAttachmentRemove removes an attachment by ID.

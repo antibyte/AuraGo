@@ -10,6 +10,7 @@ import (
 	"aurago/internal/memory"
 	"aurago/internal/remote"
 	"aurago/internal/security"
+	"aurago/internal/services"
 	"aurago/internal/sqlconnections"
 	"aurago/internal/tools"
 )
@@ -49,5 +50,6 @@ type DispatchContext struct {
 	CoAgentRegistry    *CoAgentRegistry
 	BudgetTracker      *budget.Tracker
 	DaemonSupervisor   *tools.DaemonSupervisor
+	PreparationService *services.MissionPreparationService
 	ExecutionTimeMs    int64
 }
