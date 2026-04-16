@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
+	"math/rand/v2"
 	"os"
 	"path/filepath"
 	"runtime/debug"
@@ -44,9 +45,12 @@ type coAgentLLMSelection struct {
 	Source  string
 }
 
+type coAgentProgressBroadcaster func(payload map[string]interface{})
+
 type coAgentBroker struct {
-	id       string
-	registry *CoAgentRegistry
+	id        string
+	registry  *CoAgentRegistry
+	broadcast coAgentProgressBroadcaster
 }
 
 func (b *coAgentBroker) Send(event, message string) {
@@ -55,19 +59,45 @@ func (b *coAgentBroker) Send(event, message string) {
 	}
 	parts := []string{strings.TrimSpace(event), strings.TrimSpace(message)}
 	b.registry.RecordEvent(b.id, strings.TrimSpace(strings.Join(parts, ": ")))
+	if event == "tool_start" || event == "tool_end" || event == "thinking" || event == "error_recovery" {
+		b.emitProgress()
+	}
 }
 
-func (b *coAgentBroker) SendJSON(jsonStr string) {}
+func (b *coAgentBroker) SendJSON(jsonStr string) {
+	if b == nil {
+		return
+	}
+	if b.registry != nil {
+		b.registry.RecordEvent(b.id, strings.TrimSpace(jsonStr))
+	}
+}
 
 func (b *coAgentBroker) SendLLMStreamDelta(content, toolName, toolID string, index int, finishReason string) {
 }
 
-func (b *coAgentBroker) SendLLMStreamDone(finishReason string) {}
+func (b *coAgentBroker) SendLLMStreamDone(finishReason string) {
+	b.emitProgress()
+}
 
 func (b *coAgentBroker) SendTokenUpdate(prompt, completion, total, sessionTotal, globalTotal int, isEstimated, isFinal bool, source string) {
+	if b != nil && b.registry != nil && isFinal {
+		b.emitProgress()
+	}
 }
 
 func (b *coAgentBroker) SendThinkingBlock(provider, content, state string) {
+}
+
+func (b *coAgentBroker) emitProgress() {
+	if b == nil || b.broadcast == nil || b.registry == nil {
+		return
+	}
+	status, err := b.registry.GetStatus(b.id)
+	if err != nil {
+		return
+	}
+	b.broadcast(status)
 }
 
 // SpawnCoAgent starts a co-agent goroutine and returns its ID.
@@ -90,6 +120,7 @@ func SpawnCoAgent(
 
 	req CoAgentRequest,
 	budgetTracker *budget.Tracker,
+	progressSink coAgentProgressBroadcaster,
 ) (string, CoAgentState, error) {
 	if !cfg.CoAgents.Enabled {
 		return "", "", fmt.Errorf("co-agent system is disabled — set co_agents.enabled=true in config.yaml")
@@ -138,27 +169,15 @@ func SpawnCoAgent(
 		return "", "", err
 	}
 
-	// 3. Build co-agent LLM client (specialist may use a different provider).
-	// Designer specialists sometimes get configured with image-only models such as
-	// Seedream/FLUX/Imagen. Those cannot run the normal chat+tool loop, so we
-	// transparently fall back to a text-capable co-agent/main model for reasoning
-	// while the specialist can still call the image_generation tool.
+	// 3. Select LLM model (lightweight — no client created yet).
 	coLLM, llmFallback := selectCoAgentLLMForRole(cfg, req.Specialist)
 	coModel := coLLM.Model
-	coClient := newCoAgentLLMClientForSelection(cfg, logger, req.Specialist, coLLM)
 
-	// 4. Build system prompt (specialist gets its own template)
-	var systemPrompt string
-	if req.Specialist != "" {
-		systemPrompt = buildSpecialistSystemPrompt(cfg, req.Specialist, req, longTermMem, shortTermMem, cheatsheetDB)
-	} else {
-		systemPrompt = buildCoAgentSystemPrompt(cfg, req, longTermMem, shortTermMem)
-	}
-
-	// 5. Ephemeral history manager (in-memory only)
+	// 4. Ephemeral history manager (in-memory only)
 	coHistoryMgr := memory.NewEphemeralHistoryManager()
 
-	// 6. Launch goroutine
+	// 5. Launch goroutine — expensive work (LLM client, config clone, prompt build)
+	// is deferred until after queue promotion so queued agents consume minimal resources.
 	go func() {
 		component := "co-agent"
 		if req.Specialist != "" {
@@ -181,7 +200,15 @@ func SpawnCoAgent(
 		coRegistry.RecordEvent(coID, "starting execution")
 		coLogger.Info("Co-Agent started", "task", truncateStr(req.Task, 100), "model", coModel, "timeout", timeout, "specialist", req.Specialist)
 
-		// Deep-copy config with co-agent overrides so nested slices and maps are not shared.
+		coClient := newCoAgentLLMClientForSelection(cfg, logger, req.Specialist, coLLM)
+
+		var systemPrompt string
+		if req.Specialist != "" {
+			systemPrompt = buildSpecialistSystemPrompt(cfg, req.Specialist, req, longTermMem, shortTermMem, cheatsheetDB)
+		} else {
+			systemPrompt = buildCoAgentSystemPrompt(cfg, req, longTermMem, shortTermMem)
+		}
+
 		coCfg := deepClone(*cfg)
 
 		// Apply circuit breaker: specialist overrides → co_agents defaults
@@ -198,12 +225,11 @@ func SpawnCoAgent(
 			}
 		}
 		coCfg.CircuitBreaker.MaxToolCalls = maxToolCalls
-		coCfg.Personality.Engine = false // No personality influence
-		coCfg.LLM.Model = coModel        // Use co-agent model for loop
+		coCfg.Personality.Engine = false
+		coCfg.LLM.Model = coModel
+		coCfg.Agent.SystemPromptTokenBudget = 6000
 		if maxTokensBudget > 0 {
 			coCfg.Agent.SystemPromptTokenBudget = maxTokensBudget
-		} else {
-			coCfg.Agent.SystemPromptTokenBudget = 6000
 		}
 
 		llmReq := openai.ChatCompletionRequest{
@@ -214,27 +240,29 @@ func SpawnCoAgent(
 			},
 		}
 
-		broker := &coAgentBroker{id: coID, registry: coRegistry}
+		broker := &coAgentBroker{id: coID, registry: coRegistry, broadcast: progressSink}
 		sessionID := coID // Prefix "coagent-" enables blacklist in DispatchToolCall
 
 		runCfg := RunConfig{
-			Config:          &coCfg,
-			Logger:          coLogger,
-			LLMClient:       coClient,
-			ShortTermMem:    shortTermMem,
-			HistoryManager:  coHistoryMgr, // Ephemeral history
-			LongTermMem:     longTermMem,
-			KG:              kg,
-			InventoryDB:     inventoryDB,
-			Vault:           vault,
-			Registry:        procRegistry,
-			Manifest:        manifest,
-			CronManager:     nil, // cron_scheduler will be rejected
-			CoAgentRegistry: nil, // co-agents cannot spawn sub-agents
-			BudgetTracker:   budgetTracker,
-			SessionID:       sessionID,
-			IsMaintenance:   false,
-			SurgeryPlan:     "",
+			Config:            &coCfg,
+			Logger:            coLogger,
+			LLMClient:         coClient,
+			ShortTermMem:      shortTermMem,
+			HistoryManager:    coHistoryMgr,
+			LongTermMem:       longTermMem,
+			KG:                kg,
+			InventoryDB:       inventoryDB,
+			Vault:             vault,
+			Registry:          procRegistry,
+			Manifest:          manifest,
+			CronManager:       nil,
+			CoAgentRegistry:   nil,
+			BudgetTracker:     budgetTracker,
+			SessionID:         sessionID,
+			IsMaintenance:     false,
+			IsCoAgent:         true,
+			CoAgentSpecialist: req.Specialist,
+			SurgeryPlan:       "",
 		}
 
 		maxRetries := cfg.CoAgents.RetryPolicy.MaxRetries
@@ -244,10 +272,11 @@ func SpawnCoAgent(
 		for attempt := 0; attempt <= maxRetries; attempt++ {
 			if attempt > 0 {
 				coRegistry.RecordEvent(coID, fmt.Sprintf("retry %d/%d", attempt, maxRetries))
+				jitter := time.Duration(float64(delay) * (0.8 + rand.Float64()*0.4))
 				select {
 				case <-ctx.Done():
 					err = ctx.Err()
-				case <-time.After(delay):
+				case <-time.After(jitter):
 				}
 				if err != nil {
 					break
@@ -288,7 +317,11 @@ func SpawnCoAgent(
 		if maxCoAgentResultBytes > 0 && len(result) > maxCoAgentResultBytes {
 			coLogger.Warn("Co-Agent result truncated", "original_len", len(result))
 			notice := fmt.Sprintf("\n\n[Result truncated — exceeded %d bytes]", maxCoAgentResultBytes)
-			result = truncateUTF8ToLimit(result, maxCoAgentResultBytes, notice)
+			targetLen := maxCoAgentResultBytes - len(notice)
+			if targetLen < 0 {
+				targetLen = 0
+			}
+			result = truncateUTF8ToLimit(result, targetLen, notice)
 		}
 
 		if result != "" {

@@ -199,9 +199,9 @@ function sqlConnRenderRows(connections) {
             <td class="sql-td-desc" title="${escapeHtml(c.description || '')}">${escapeHtml(c.description || '—')}</td>
             <td class="sql-td">${permBadges || '—'}</td>
             <td class="sql-td-actions">
-                <button onclick="sqlConnTestExisting(${c.id})" class="sql-action-btn" title="${t('config.sql_connections.test_tooltip')}">🔌</button>
-                <button onclick="sqlConnShowModal(${c.id})" class="sql-action-btn" title="${t('config.sql_connections.edit_tooltip')}">✏️</button>
-                <button onclick="sqlConnDelete(${c.id},'${escapeHtml(c.name).replace(/'/g, "\\'")}')" class="sql-action-btn sql-action-btn-delete" title="${t('config.sql_connections.delete_tooltip')}">🗑️</button>
+                <button onclick="sqlConnTestExisting('${c.id}')" class="sql-action-btn" title="${t('config.sql_connections.test_tooltip')}">🔌</button>
+                <button onclick="sqlConnShowModal('${c.id}')" class="sql-action-btn" title="${t('config.sql_connections.edit_tooltip')}">✏️</button>
+                <button onclick="sqlConnDelete('${c.id}','${escapeHtml(c.name).replace(/'/g, "\\'")}')" class="sql-action-btn sql-action-btn-delete" title="${t('config.sql_connections.delete_tooltip')}">🗑️</button>
             </td>`;
         tbody.appendChild(tr);
     });

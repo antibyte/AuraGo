@@ -362,7 +362,7 @@ func buildPromptContextFlags(runCfg RunConfig, policy ToolingPolicy, opts prompt
 		TokenBudget:              config.CalculateAdaptiveSystemPromptTokenBudget(cfg),
 		IsDebugMode:              cfg.Agent.DebugMode || GetDebugMode(),
 		IsVoiceMode:              GetVoiceMode(),
-		IsCoAgent:                isCoAgentSession(runCfg.SessionID),
+		IsCoAgent:                runCfg.IsCoAgent || isCoAgentSession(runCfg.SessionID),
 		DiscordEnabled:           flags.DiscordEnabled,
 		EmailEnabled:             flags.EmailEnabled,
 		DockerEnabled:            flags.DockerEnabled,

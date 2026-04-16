@@ -29,6 +29,9 @@ func NewBridge(clientMgr *ClientManager, coRegistry *agent.CoAgentRegistry, logg
 
 // SpawnRemote sends a task to a remote A2A agent and tracks it in the co-agent registry.
 func (b *Bridge) SpawnRemote(ctx context.Context, agentID string, task string) (string, error) {
+	if b.coRegistry == nil {
+		return "", fmt.Errorf("co-agent registry not initialized")
+	}
 	if !b.clientMgr.IsAvailable(agentID) {
 		return "", fmt.Errorf("remote A2A agent %q is not available", agentID)
 	}

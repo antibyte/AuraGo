@@ -718,6 +718,9 @@ type RunConfig struct {
 	PreparationService *services.MissionPreparationService
 	SessionID          string
 	IsMaintenance      bool
+	IsCoAgent          bool
+	CoAgentSpecialist  string
+	ParentSessionID    string
 	SurgeryPlan        string
 	IsMission          bool   // true when triggered by a mission (skips RAG, personality, profiling)
 	MissionID          string // mission ID for logging/tracking
@@ -729,9 +732,9 @@ func dispatchInner(ctx context.Context, tc ToolCall, dc *DispatchContext) string
 	sessionID := dc.SessionID
 	logger := dc.Logger
 
-	// Co-Agent blacklist: co-agents (identified by sessionID prefix) cannot access secrets,
+	// Co-Agent blacklist: co-agents cannot access secrets,
 	// mutate memory-like stores, or orchestrate additional autonomous work.
-	isCoAgent := strings.HasPrefix(sessionID, "coagent-") || strings.HasPrefix(sessionID, "specialist-")
+	isCoAgent := dc.IsCoAgent || strings.HasPrefix(sessionID, "coagent-") || strings.HasPrefix(sessionID, "specialist-")
 	if isCoAgent {
 		switch tc.Action {
 		case "manage_memory", "core_memory":
@@ -782,7 +785,10 @@ func dispatchInner(ctx context.Context, tc ToolCall, dc *DispatchContext) string
 	}
 
 	// Specialist-specific tool restrictions (additional to the generic co-agent blacklist)
-	specialistRole := extractSpecialistRole(sessionID)
+	specialistRole := dc.CoAgentSpecialist
+	if specialistRole == "" {
+		specialistRole = extractSpecialistRole(sessionID)
+	}
 	if specialistRole != "" {
 		if blocked := checkSpecialistToolRestriction(specialistRole, tc.Action, tc.Operation); blocked != "" {
 			return blocked

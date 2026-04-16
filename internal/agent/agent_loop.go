@@ -202,9 +202,13 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			IsMaintenance: tools.IsBusy(), SurgeryPlan: surgeryPlan,
 			Guardian: guardian, LLMGuardian: llmGuardian,
 			SessionID: sessionID, CoAgentRegistry: coAgentRegistry,
-			BudgetTracker:      budgetTracker,
-			DaemonSupervisor:   runCfg.DaemonSupervisor,
-			PreparationService: runCfg.PreparationService,
+			IsCoAgent:           runCfg.IsCoAgent,
+			CoAgentSpecialist:   runCfg.CoAgentSpecialist,
+			ParentSessionID:     runCfg.ParentSessionID,
+			ParentIsMaintenance: runCfg.IsMaintenance,
+			BudgetTracker:       budgetTracker,
+			DaemonSupervisor:    runCfg.DaemonSupervisor,
+			PreparationService:  runCfg.PreparationService,
 		}
 	}
 
@@ -1450,6 +1454,12 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		localGlobalTotal := AddGlobalTokenCount(totalTokens)
 		localIsEstimated := tokenSource == "fallback_estimate"
 
+		if cfg.CoAgents.CircuitBreaker.MaxTokens > 0 && sessionTokens >= cfg.CoAgents.CircuitBreaker.MaxTokens {
+			currentLogger.Warn("[Sync] Co-agent token budget exceeded", "used", sessionTokens, "budget", cfg.CoAgents.CircuitBreaker.MaxTokens)
+			breakerMsg := fmt.Sprintf("CIRCUIT BREAKER: Token budget of %d reached (used: %d). You MUST now provide your final answer immediately.", cfg.CoAgents.CircuitBreaker.MaxTokens, sessionTokens)
+			req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: breakerMsg})
+		}
+
 		broker.SendTokenUpdate(promptTokens, completionTokens, totalTokens, sessionTokens, int(localGlobalTotal), localIsEstimated, true, tokenSource)
 
 		// Budget tracking: record cost and send status to UI
@@ -1459,7 +1469,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				actualModel = req.Model
 			}
 			budgetCategory := "chat"
-			if strings.HasPrefix(sessionID, "coagent-") || strings.HasPrefix(sessionID, "specialist-") {
+			if runCfg.IsCoAgent || strings.HasPrefix(sessionID, "coagent-") || strings.HasPrefix(sessionID, "specialist-") {
 				budgetCategory = "coagent"
 			}
 			crossedWarning := budgetTracker.RecordForCategory(budgetCategory, actualModel, promptTokens, completionTokens)

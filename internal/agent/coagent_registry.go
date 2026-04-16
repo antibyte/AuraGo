@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -108,6 +109,7 @@ type CoAgentRegistry struct {
 	mu              sync.RWMutex
 	agents          map[string]*CoAgentInfo
 	counter         int
+	runningCount    atomic.Int32
 	maxSlots        int
 	logger          *slog.Logger
 	cleanupInterval time.Duration
@@ -156,16 +158,7 @@ func (r *CoAgentRegistry) SetMaxSlots(n int) {
 }
 
 func (r *CoAgentRegistry) countRunningLocked() int {
-	running := 0
-	for _, a := range r.agents {
-		a.mu.Lock()
-		isRunning := a.State == CoAgentRunning
-		a.mu.Unlock()
-		if isRunning {
-			running++
-		}
-	}
-	return running
+	return int(r.runningCount.Load())
 }
 
 func (r *CoAgentRegistry) queuedAgentsLocked() []*CoAgentInfo {
@@ -224,6 +217,7 @@ func (r *CoAgentRegistry) promoteQueuedLocked() {
 		next.State = CoAgentRunning
 		next.QueuePosition = 0
 		next.mu.Unlock()
+		r.runningCount.Add(1)
 		next.recordEvent("started after queue")
 		next.signalStart()
 		r.logger.Info("Co-Agent promoted from queue", "id", next.ID)
@@ -283,6 +277,7 @@ func (r *CoAgentRegistry) RegisterWithPriority(prefix, task string, cancel conte
 		startCh:    make(chan struct{}),
 	}
 	if state == CoAgentRunning {
+		r.runningCount.Add(1)
 		info.signalStart()
 		info.recordEvent("started")
 	} else {
@@ -381,23 +376,27 @@ func (r *CoAgentRegistry) Complete(id, result string, tokensUsed, toolCalls int)
 	defer r.mu.Unlock()
 	if a, ok := r.agents[id]; ok {
 		a.mu.Lock()
+		wasRunning := a.State == CoAgentRunning
 		a.State = CoAgentCompleted
 		a.CompletedAt = time.Now()
 		a.Result = result
 		a.TokensUsed = tokensUsed
 		a.ToolCalls = toolCalls
 		a.mu.Unlock()
+		if wasRunning {
+			r.runningCount.Add(-1)
+		}
 		a.recordEvent("completed")
 		r.promoteQueuedLocked()
 	}
 }
 
-// Fail marks a co-agent as failed with an error message.
 func (r *CoAgentRegistry) Fail(id, errMsg string, tokensUsed, toolCalls int) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if a, ok := r.agents[id]; ok {
 		a.mu.Lock()
+		wasRunning := a.State == CoAgentRunning
 		a.State = CoAgentFailed
 		a.CompletedAt = time.Now()
 		a.Error = errMsg
@@ -405,6 +404,9 @@ func (r *CoAgentRegistry) Fail(id, errMsg string, tokensUsed, toolCalls int) {
 		a.TokensUsed = tokensUsed
 		a.ToolCalls = toolCalls
 		a.mu.Unlock()
+		if wasRunning {
+			r.runningCount.Add(-1)
+		}
 		a.recordEvent("failed")
 		a.signalStart()
 		r.promoteQueuedLocked()
@@ -425,9 +427,13 @@ func (r *CoAgentRegistry) Stop(id string) error {
 		a.mu.Unlock()
 		return fmt.Errorf("co-agent '%s' is not active (state: %s)", id, state)
 	}
+	wasRunning := a.State == CoAgentRunning
 	a.State = CoAgentCancelled
 	a.CompletedAt = time.Now()
 	a.mu.Unlock()
+	if wasRunning {
+		r.runningCount.Add(-1)
+	}
 	if a.Cancel != nil {
 		a.Cancel()
 	}
@@ -442,6 +448,7 @@ func (r *CoAgentRegistry) Stop(id string) error {
 func (r *CoAgentRegistry) StopAll() int {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	runningBefore := r.runningCount.Load()
 	count := 0
 	for _, a := range r.agents {
 		a.mu.Lock()
@@ -460,6 +467,8 @@ func (r *CoAgentRegistry) StopAll() int {
 			count++
 		}
 	}
+	r.runningCount.Store(0)
+	_ = runningBefore
 	r.promoteQueuedLocked()
 	r.logger.Info("All co-agents stopped", "count", count)
 	return count
