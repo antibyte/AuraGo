@@ -297,6 +297,17 @@
   "dashboard.knowledge_search_meta": "查询\"{{query}}\"：{{nodes}} 个节点，{{edges}} 条边",
   "dashboard.knowledge_search_placeholder": "搜索知识图谱...",
   "dashboard.knowledge_search_results": "搜索结果",
+  "dashboard.kg_col_count": "数量",
+  "dashboard.kg_col_id": "ID",
+  "dashboard.kg_col_kind": "类型",
+  "dashboard.kg_col_label": "标签",
+  "dashboard.kg_col_primary": "主要",
+  "dashboard.kg_col_relation": "关系",
+  "dashboard.kg_col_score": "分数",
+  "dashboard.kg_col_secondary": "次要",
+  "dashboard.kg_col_source": "来源",
+  "dashboard.kg_col_target": "目标",
+  "dashboard.kg_col_type": "类型",
   "dashboard.knowledge_title": "知识图谱",
   "dashboard.knowledge_types": "类型",
   "dashboard.knowledge_unprotected": "节点已取消保护。",
@@ -575,5 +586,8 @@
   "dashboard.tooling_telemetry_tool_calls_short": "工具 {{count}}",
   "dashboard.tooling_telemetry_tool_families": "工具家族",
   "dashboard.tooling_telemetry_tools_with_failures": "有故障的工具",
-  "dashboard.tooling_telemetry_total_events": "{{count}} 个事件"
+  "dashboard.tooling_telemetry_total_events": "{{count}} 个事件",
+  "dashboard.quickstatus_appointments": "日程",
+  "dashboard.quickstatus_todos": "待办事项",
+  "dashboard.quickstatus_plans": "计划"
 }

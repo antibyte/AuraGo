@@ -297,6 +297,17 @@
   "dashboard.knowledge_search_meta": "क्वेरी \"{{query}}\": {{nodes}} नोड्स, {{edges}} एज",
   "dashboard.knowledge_search_placeholder": "ज्ञान ग्राफ खोजें…",
   "dashboard.knowledge_search_results": "खोज परिणाम",
+  "dashboard.kg_col_count": "गिनती",
+  "dashboard.kg_col_id": "ID",
+  "dashboard.kg_col_kind": "प्रकार",
+  "dashboard.kg_col_label": "लेबल",
+  "dashboard.kg_col_primary": "प्राथमिक",
+  "dashboard.kg_col_relation": "संबंध",
+  "dashboard.kg_col_score": "अंक",
+  "dashboard.kg_col_secondary": "द्वितीयक",
+  "dashboard.kg_col_source": "स्रोत",
+  "dashboard.kg_col_target": "लक्ष्य",
+  "dashboard.kg_col_type": "प्रकार",
   "dashboard.knowledge_title": "ज्ञान ग्राफ",
   "dashboard.knowledge_types": "प्रकार",
   "dashboard.knowledge_unprotected": "नोड असुरक्षित।",
@@ -575,5 +586,8 @@
   "dashboard.tooling_telemetry_tool_calls_short": "टूल्स {{count}}",
   "dashboard.tooling_telemetry_tool_families": "टूल फैमिली",
   "dashboard.tooling_telemetry_tools_with_failures": "विफलताओं वाले टूल्स",
-  "dashboard.tooling_telemetry_total_events": "{{count}} इवेंट्स"
+  "dashboard.tooling_telemetry_total_events": "{{count}} इवेंट्स",
+  "dashboard.quickstatus_appointments": "अपॉइंटमेंट",
+  "dashboard.quickstatus_todos": "कार्य",
+  "dashboard.quickstatus_plans": "योजनाएँ"
 }

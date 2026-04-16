@@ -297,6 +297,17 @@
   "dashboard.knowledge_search_meta": "Ερώτημα \"{{query}}\": {{nodes}} κόμβοι, {{edges}} ακμές",
   "dashboard.knowledge_search_placeholder": "Αναζήτηση στον γράφο γνώσης…",
   "dashboard.knowledge_search_results": "Αποτελέσματα Αναζήτησης",
+  "dashboard.kg_col_count": "Αριθμός",
+  "dashboard.kg_col_id": "ID",
+  "dashboard.kg_col_kind": "Είδος",
+  "dashboard.kg_col_label": "Ετικέτα",
+  "dashboard.kg_col_primary": "Κύριο",
+  "dashboard.kg_col_relation": "Σχέση",
+  "dashboard.kg_col_score": "Βαθμολογία",
+  "dashboard.kg_col_secondary": "Δευτερεύον",
+  "dashboard.kg_col_source": "Πηγή",
+  "dashboard.kg_col_target": "Στόχος",
+  "dashboard.kg_col_type": "Τύπος",
   "dashboard.knowledge_title": "Γράφος Γνώσης",
   "dashboard.knowledge_types": "Τύποι",
   "dashboard.knowledge_unprotected": "Η προστασία του κόμβου καταργήθηκε.",
@@ -575,5 +586,8 @@
   "dashboard.tooling_telemetry_tool_calls_short": "Εργαλεία {{count}}",
   "dashboard.tooling_telemetry_tool_families": "Οικογένειες Εργαλείων",
   "dashboard.tooling_telemetry_tools_with_failures": "Εργαλεία με αποτυχίες",
-  "dashboard.tooling_telemetry_total_events": "{{count}} συμβάντα"
+  "dashboard.tooling_telemetry_total_events": "{{count}} συμβάντα",
+  "dashboard.quickstatus_appointments": "Ραντεβού",
+  "dashboard.quickstatus_todos": "Εργασίες",
+  "dashboard.quickstatus_plans": "Πλάνα"
 }

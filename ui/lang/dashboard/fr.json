@@ -297,6 +297,17 @@
   "dashboard.knowledge_search_meta": "Requête \"{{query}}\" : {{nodes}} nœuds, {{edges}} arêtes",
   "dashboard.knowledge_search_placeholder": "Rechercher dans le graphe de connaissances...",
   "dashboard.knowledge_search_results": "Résultats de recherche",
+  "dashboard.kg_col_count": "Nombre",
+  "dashboard.kg_col_id": "ID",
+  "dashboard.kg_col_kind": "Type",
+  "dashboard.kg_col_label": "Libellé",
+  "dashboard.kg_col_primary": "Principal",
+  "dashboard.kg_col_relation": "Relation",
+  "dashboard.kg_col_score": "Score",
+  "dashboard.kg_col_secondary": "Secondaire",
+  "dashboard.kg_col_source": "Source",
+  "dashboard.kg_col_target": "Cible",
+  "dashboard.kg_col_type": "Type",
   "dashboard.knowledge_title": "Graphe de Connaissances",
   "dashboard.knowledge_types": "Types",
   "dashboard.knowledge_unprotected": "Protection du nœud supprimée.",
@@ -575,5 +586,8 @@
   "dashboard.tooling_telemetry_tool_calls_short": "Outils {{count}}",
   "dashboard.tooling_telemetry_tool_families": "Familles d'outils",
   "dashboard.tooling_telemetry_tools_with_failures": "Outils avec échecs",
-  "dashboard.tooling_telemetry_total_events": "{{count}} événements"
+  "dashboard.tooling_telemetry_total_events": "{{count}} événements",
+  "dashboard.quickstatus_appointments": "Rendez-vous",
+  "dashboard.quickstatus_todos": "Tâches",
+  "dashboard.quickstatus_plans": "Plans"
 }

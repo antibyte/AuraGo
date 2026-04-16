@@ -297,6 +297,17 @@
   "dashboard.knowledge_search_meta": "Query \"{{query}}\": {{nodes}} knooppunten, {{edges}} verbindingen",
   "dashboard.knowledge_search_placeholder": "Kennisgraaf doorzoeken...",
   "dashboard.knowledge_search_results": "Zoekresultaten",
+  "dashboard.kg_col_count": "Aantal",
+  "dashboard.kg_col_id": "ID",
+  "dashboard.kg_col_kind": "Soort",
+  "dashboard.kg_col_label": "Label",
+  "dashboard.kg_col_primary": "Primair",
+  "dashboard.kg_col_relation": "Relatie",
+  "dashboard.kg_col_score": "Score",
+  "dashboard.kg_col_secondary": "Secundair",
+  "dashboard.kg_col_source": "Bron",
+  "dashboard.kg_col_target": "Doel",
+  "dashboard.kg_col_type": "Type",
   "dashboard.knowledge_title": "Kennisgraaf",
   "dashboard.knowledge_types": "Typen",
   "dashboard.knowledge_unprotected": "Knooppunt onbeschermd.",
@@ -575,5 +586,8 @@
   "dashboard.tooling_telemetry_tool_calls_short": "Tools {{count}}",
   "dashboard.tooling_telemetry_tool_families": "Tool-families",
   "dashboard.tooling_telemetry_tools_with_failures": "Tools met fouten",
-  "dashboard.tooling_telemetry_total_events": "{{count}} gebeurtenissen"
+  "dashboard.tooling_telemetry_total_events": "{{count}} gebeurtenissen",
+  "dashboard.quickstatus_appointments": "Afspraken",
+  "dashboard.quickstatus_todos": "Taken",
+  "dashboard.quickstatus_plans": "Plannen"
 }

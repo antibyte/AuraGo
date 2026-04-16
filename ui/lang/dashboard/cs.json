@@ -297,6 +297,17 @@
   "dashboard.knowledge_search_meta": "Dotaz \"{{query}}\": {{nodes}} uzlů, {{edges}} hran",
   "dashboard.knowledge_search_placeholder": "Hledat ve znalostním grafu...",
   "dashboard.knowledge_search_results": "Výsledky hledání",
+  "dashboard.kg_col_count": "Počet",
+  "dashboard.kg_col_id": "ID",
+  "dashboard.kg_col_kind": "Druh",
+  "dashboard.kg_col_label": "Štítek",
+  "dashboard.kg_col_primary": "Primární",
+  "dashboard.kg_col_relation": "Relace",
+  "dashboard.kg_col_score": "Skóre",
+  "dashboard.kg_col_secondary": "Sekundární",
+  "dashboard.kg_col_source": "Zdroj",
+  "dashboard.kg_col_target": "Cíl",
+  "dashboard.kg_col_type": "Typ",
   "dashboard.knowledge_title": "Znalostní graf",
   "dashboard.knowledge_types": "Typy",
   "dashboard.knowledge_unprotected": "Ochrana uzlu zrušena.",
@@ -575,5 +586,8 @@
   "dashboard.tooling_telemetry_tool_calls_short": "Nástroje {{count}}",
   "dashboard.tooling_telemetry_tool_families": "Rodiny nástrojů",
   "dashboard.tooling_telemetry_tools_with_failures": "Nástroje se selháními",
-  "dashboard.tooling_telemetry_total_events": "{{count}} událostí"
+  "dashboard.tooling_telemetry_total_events": "{{count}} událostí",
+  "dashboard.quickstatus_appointments": "Schůzky",
+  "dashboard.quickstatus_todos": "Úkoly",
+  "dashboard.quickstatus_plans": "Plány"
 }

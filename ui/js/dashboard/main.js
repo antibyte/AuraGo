@@ -93,7 +93,7 @@
         // ══════════════════════════════════════════════════════════════════════════════
 
         const TabState = { active: 'overview', loaded: {} };
-        const KnowledgeGraphState = { nodes: [], edges: [], importantNodes: [], importantEdges: [], stats: null, focusNodeId: '', focusPayload: null, editingNodeId: '', editingEdgeKey: '', showAll: false, filterType: '', filterSource: '' };
+        const KnowledgeGraphState = { nodes: [], edges: [], importantNodes: [], importantEdges: [], stats: null, focusNodeId: '', focusPayload: null, editingNodeId: '', editingEdgeKey: '', showAll: false, filterType: '', filterSource: '', modalKind: '', modalNodeId: '', modalTriggerEl: null };
         const VALID_TABS = ['overview', 'agent', 'user', 'knowledge', 'filesync', 'system'];
         function dashSetHidden(el, hidden) {
             if (!el) return;
@@ -366,19 +366,23 @@
             if (!candidates.length) {
                 duplicates.innerHTML = `<div class="empty-state">${t('dashboard.knowledge_quality_empty_duplicates')}</div>`;
             } else {
-                duplicates.innerHTML = renderCollapsibleList(candidates, candidate => `
-                    <div class="knowledge-item">
-                        <div class="knowledge-item-head">
-                            <span class="knowledge-item-title">${escapeHtml(candidate.label || candidate.normalized_label || 'Node')}</span>
-                            <span class="knowledge-item-badge">${escapeHtml(t('dashboard.knowledge_quality_duplicate_count', { count: Number(candidate.count || 0) }))}</span>
-                        </div>
-                        <div class="knowledge-item-props">
-                            ${(Array.isArray(candidate.ids) ? candidate.ids : []).map(id => `
-                                <span class="knowledge-inline-link" data-kg-node-id="${escapeHtml(id || '')}">${escapeHtml(id || '')}</span>
-                            `).join('')}
-                        </div>
-                    </div>
-                `, 5);
+                let html = '<table class="kg-table kg-table-compact"><thead><tr>' +
+                    `<th>${t('dashboard.kg_col_label')}</th>` +
+                    `<th>${t('dashboard.kg_col_count')}</th>` +
+                    `<th>ID</th>` +
+                    '</tr></thead><tbody>';
+                candidates.forEach(candidate => {
+                    const ids = (Array.isArray(candidate.ids) ? candidate.ids : []).map(id =>
+                        `<span class="kg-cell-link" data-kg-open-node="${esc(id || '')}">${esc(id || '')}</span>`
+                    ).join(', ');
+                    html += `<tr>
+                        <td>${esc(candidate.label || candidate.normalized_label || 'Node')}</td>
+                        <td class="text-secondary">${Number(candidate.count || 0)}</td>
+                        <td class="text-secondary">${ids || '—'}</td>
+                    </tr>`;
+                });
+                html += '</tbody></table>';
+                duplicates.innerHTML = html;
             }
         }
 
@@ -388,72 +392,81 @@
                 container.innerHTML = `<div class="empty-state">${t(emptyKey)}</div>`;
                 return;
             }
-            container.innerHTML = renderCollapsibleList(nodes, node => {
-                const props = renderKnowledgeProps(node.properties);
-                return `
-                    <div class="knowledge-item clickable" data-kg-node-id="${escapeHtml(node.id || '')}">
-                        <div class="knowledge-item-head">
-                            <span class="knowledge-item-title">${escapeHtml(node.label || node.id || 'Node')}</span>
-                            <span class="knowledge-item-badge">${escapeHtml(node.id || '')}</span>
-                        </div>
-                        ${props ? `<div class="knowledge-item-props">${props}</div>` : ''}
-                    </div>
-                `;
-            }, 5);
+            let html = '<table class="kg-table kg-table-compact"><thead><tr>' +
+                `<th>${t('dashboard.kg_col_label')}</th>` +
+                `<th>${t('dashboard.kg_col_type')}</th>` +
+                `<th>${t('dashboard.kg_col_id')}</th>` +
+                '</tr></thead><tbody>';
+            nodes.forEach(node => {
+                html += `<tr>
+                    <td class="kg-cell-link" data-kg-open-node="${esc(node.id || '')}">${esc(node.label || node.id || 'Node')}</td>
+                    <td class="text-secondary">${esc(node?.properties?.type || '—')}</td>
+                    <td class="text-secondary kg-cell-id">${esc(node.id || '')}</td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+            container.innerHTML = html;
         }
 
         function renderKnowledgeGraphLists(nodes, edges) {
-            renderKnowledgeNodeList(document.getElementById('knowledge-node-list'), nodes);
-            renderKnowledgeEdgeList(document.getElementById('knowledge-edge-list'), edges);
+            renderKnowledgeNodeTable(document.getElementById('knowledge-node-list'), nodes);
+            renderKnowledgeEdgeTable(document.getElementById('knowledge-edge-list'), edges);
         }
 
-        function renderKnowledgeNodeList(container, nodes) {
+        function renderKnowledgeNodeTable(container, nodes) {
             if (!container) return;
             if (!Array.isArray(nodes) || nodes.length === 0) {
                 container.innerHTML = `<div class="empty-state">${t('dashboard.knowledge_empty')}</div>`;
                 return;
             }
-            container.innerHTML = renderCollapsibleList(nodes, node => {
-                const props = renderKnowledgeProps(node.properties);
-                const score = node.importance_score;
-                const scoreBadge = (typeof score === 'number')
-                    ? `<span class="knowledge-item-badge knowledge-score-badge" title="${t('dashboard.knowledge_importance_score')}">${score}</span>`
-                    : '';
-                const typeBadge = node?.properties?.type
-                    ? `<span class="knowledge-type-dot" style="--dot-color: ${knowledgeGraphTypeColor(node.properties.type)}"></span>`
-                    : '';
-                return `
-                    <div class="knowledge-item clickable" data-kg-node-id="${escapeHtml(node.id || '')}">
-                        <div class="knowledge-item-head">
-                            ${typeBadge}
-                            <span class="knowledge-item-title">${escapeHtml(node.label || node.id || 'Node')}</span>
-                            <span class="knowledge-item-badge">${escapeHtml(node.id || '')}</span>
-                            ${scoreBadge}
-                        </div>
-                        ${props ? `<div class="knowledge-item-props">${props}</div>` : ''}
-                    </div>
-                `;
-            }, 8);
+            let html = `<table class="kg-table"><thead><tr>
+                <th>${t('dashboard.kg_col_label')}</th>
+                <th>${t('dashboard.kg_col_type')}</th>
+                <th>${t('dashboard.kg_col_id')}</th>
+                <th>${t('dashboard.kg_col_source')}</th>
+                <th>${t('dashboard.kg_col_score')}</th>
+                <th></th>
+            </tr></thead><tbody>`;
+            nodes.forEach(node => {
+                const typeColor = node?.properties?.type ? knowledgeGraphTypeColor(node.properties.type) : '';
+                const typeCell = typeColor
+                    ? `<td><span class="kg-type-badge" style="--badge-color:${typeColor}">${esc(node.properties.type)}</span></td>`
+                    : '<td class="text-secondary">—</td>';
+                const score = typeof node.importance_score === 'number' ? node.importance_score : '—';
+                const flags = node.protected ? '<span class="kg-flag-protected" title="Protected">🔒</span>' : '';
+                html += `<tr>
+                    <td class="kg-cell-link" data-kg-open-node="${esc(node.id || '')}">${esc(node.label || node.id || 'Node')}</td>
+                    ${typeCell}
+                    <td class="text-secondary kg-cell-id">${esc(node.id || '')}</td>
+                    <td class="text-secondary">${esc(node?.properties?.source || '—')}</td>
+                    <td class="text-secondary">${score}</td>
+                    <td>${flags}</td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+            container.innerHTML = html;
         }
 
-        function renderKnowledgeEdgeList(container, edges) {
+        function renderKnowledgeEdgeTable(container, edges) {
             if (!container) return;
             if (!Array.isArray(edges) || edges.length === 0) {
                 container.innerHTML = `<div class="empty-state">${t('dashboard.knowledge_empty')}</div>`;
                 return;
             }
-            container.innerHTML = renderCollapsibleList(edges, edge => {
-                const props = renderKnowledgeProps(edge.properties);
-                return `
-                    <div class="knowledge-item">
-                        <div class="knowledge-item-head">
-                            <span class="knowledge-item-title">${escapeHtml(edge.source || '')} → ${escapeHtml(edge.target || '')}</span>
-                            <span class="knowledge-item-badge">${escapeHtml(edge.relation || '')}</span>
-                        </div>
-                        ${props ? `<div class="knowledge-item-props">${props}</div>` : ''}
-                    </div>
-                `;
-            }, 8);
+            let html = `<table class="kg-table"><thead><tr>
+                <th>${t('dashboard.kg_col_relation')}</th>
+                <th>${t('dashboard.kg_col_source')}</th>
+                <th>${t('dashboard.kg_col_target')}</th>
+            </tr></thead><tbody>`;
+            edges.forEach(edge => {
+                html += `<tr>
+                    <td class="kg-cell-link">${esc(edge.relation || '')}</td>
+                    <td class="kg-cell-link" data-kg-open-node="${esc(edge.source || '')}">${esc(edge.source || '')}</td>
+                    <td class="kg-cell-link" data-kg-open-node="${esc(edge.target || '')}">${esc(edge.target || '')}</td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+            container.innerHTML = html;
         }
 
         function renderKnowledgeProps(properties) {
@@ -487,26 +500,31 @@
                 return;
             }
 
-            const nodeBlock = nodes.map(node => `
-                <div class="knowledge-item clickable" data-kg-node-id="${escapeHtml(node.id || '')}">
-                    <div class="knowledge-item-head">
-                        <span class="knowledge-item-title">${escapeHtml(node.label || node.id || 'Node')}</span>
-                        <span class="knowledge-item-badge">${escapeHtml(t('dashboard.knowledge_nodes'))}</span>
-                    </div>
-                    <div class="knowledge-item-meta">${escapeHtml(node.id || '')}</div>
-                    ${renderKnowledgeProps(node.properties) ? `<div class="knowledge-item-props">${renderKnowledgeProps(node.properties)}</div>` : ''}
-                </div>
-            `).join('');
-            const edgeBlock = edges.map(edge => `
-                <div class="knowledge-item">
-                    <div class="knowledge-item-head">
-                        <span class="knowledge-item-title">${escapeHtml(edge.source || '')} → ${escapeHtml(edge.target || '')}</span>
-                        <span class="knowledge-item-badge">${escapeHtml(edge.relation || '')}</span>
-                    </div>
-                    ${renderKnowledgeProps(edge.properties) ? `<div class="knowledge-item-props">${renderKnowledgeProps(edge.properties)}</div>` : ''}
-                </div>
-            `).join('');
-            results.innerHTML = nodeBlock + edgeBlock;
+            let html = '<table class="kg-table kg-table-search"><thead><tr>' +
+                `<th>${t('dashboard.kg_col_kind')}</th>` +
+                `<th>${t('dashboard.kg_col_primary')}</th>` +
+                `<th>${t('dashboard.kg_col_secondary')}</th>` +
+                `<th>${t('dashboard.kg_col_type')}</th>` +
+                '</tr></thead><tbody>';
+
+            nodes.forEach(node => {
+                html += `<tr>
+                    <td><span class="kg-kind-badge">${t('dashboard.knowledge_nodes')}</span></td>
+                    <td class="kg-cell-link" data-kg-open-node="${esc(node.id || '')}">${esc(node.label || node.id || 'Node')}</td>
+                    <td class="text-secondary">${esc(node.id || '')}</td>
+                    <td class="text-secondary">${esc(node?.properties?.type || '—')}</td>
+                </tr>`;
+            });
+            edges.forEach(edge => {
+                html += `<tr>
+                    <td><span class="kg-kind-badge">${t('dashboard.knowledge_edges')}</span></td>
+                    <td class="kg-cell-link">${esc(edge.relation || '')}</td>
+                    <td class="text-secondary">${esc(edge.source || '')} → ${esc(edge.target || '')}</td>
+                    <td class="text-secondary">—</td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+            results.innerHTML = html;
         }
 
         async function executeKnowledgeGraphSearch(query) {
@@ -515,9 +533,111 @@
         }
 
         function renderKnowledgeGraphDetailEmpty() {
-            const panel = document.getElementById('knowledge-detail-panel');
-            if (!panel) return;
-            panel.innerHTML = `<div class="empty-state">${t('dashboard.knowledge_detail_empty')}</div>`;
+        }
+
+        function openKGDetailModal(nodeID, triggerEl) {
+            const overlay = document.getElementById('kgDetailOverlay');
+            const body = document.getElementById('kgDetailBody');
+            if (!overlay || !body) return;
+            KnowledgeGraphState.modalNodeId = nodeID;
+            KnowledgeGraphState.modalTriggerEl = triggerEl || null;
+            body.innerHTML = `<div class="empty-state">${t('dashboard.knowledge_detail_loading')}</div>`;
+            overlay.classList.add('open');
+            loadKnowledgeGraphNodeDetail(nodeID);
+        }
+
+        function closeKGDetailModal() {
+            const overlay = document.getElementById('kgDetailOverlay');
+            if (!overlay) return;
+            overlay.classList.remove('open');
+            KnowledgeGraphState.modalNodeId = '';
+            KnowledgeGraphState.editingNodeId = '';
+            KnowledgeGraphState.editingEdgeKey = '';
+            const trigger = KnowledgeGraphState.modalTriggerEl;
+            if (trigger && typeof trigger.focus === 'function') {
+                setTimeout(() => trigger.focus(), 100);
+            }
+            KnowledgeGraphState.modalTriggerEl = null;
+        }
+
+        async function loadKnowledgeGraphNodeDetail(nodeID) {
+            const body = document.getElementById('kgDetailBody');
+            if (!body || !nodeID) return;
+
+            body.innerHTML = `<div class="empty-state">${t('dashboard.knowledge_detail_loading')}</div>`;
+            const payload = await API.get('/api/knowledge-graph/node?id=' + encodeURIComponent(nodeID) + '&limit=20');
+            const node = payload?.node;
+            const neighbors = Array.isArray(payload?.neighbors) ? payload.neighbors : [];
+            const edges = Array.isArray(payload?.edges) ? payload.edges : [];
+
+            if (!node) {
+                KnowledgeGraphState.focusNodeId = '';
+                KnowledgeGraphState.focusPayload = null;
+                KnowledgeGraphState.editingEdgeKey = '';
+                renderKnowledgeGraphVisual();
+                body.innerHTML = `<div class="empty-state">${t('dashboard.knowledge_detail_missing')}</div>`;
+                return;
+            }
+
+            KnowledgeGraphState.focusNodeId = node.id || nodeID;
+            KnowledgeGraphState.focusPayload = payload;
+            renderKnowledgeGraphVisual();
+
+            const isEditing = KnowledgeGraphState.editingNodeId === node.id;
+            const isProtected = !!node.protected;
+            const filteredNodeProperties = filterKnowledgeGraphEditableProperties(node.properties);
+            const editingEdge = edges.find(edge => knowledgeGraphEdgeIdentity(edge) === KnowledgeGraphState.editingEdgeKey) || null;
+
+            const nodeProps = Object.entries(filteredNodeProperties).map(([key, value]) => `
+                <div class="knowledge-detail-row"><strong>${escapeHtml(String(key))}</strong>: ${escapeHtml(String(value))}</div>
+            `).join('') || `<div class="knowledge-detail-row">${t('dashboard.knowledge_empty')}</div>`;
+
+            const neighborRows = neighbors.map(neighbor => `
+                <div class="knowledge-detail-row clickable" data-kg-open-node="${escapeHtml(neighbor.id || '')}"><strong>${escapeHtml(neighbor.label || neighbor.id || '')}</strong> <span class="knowledge-detail-id">${escapeHtml(neighbor.id || '')}</span></div>
+            `).join('') || `<div class="knowledge-detail-row">${t('dashboard.knowledge_detail_no_neighbors')}</div>`;
+
+            const edgeRows = edges.map(edge => `
+                <div class="knowledge-detail-row knowledge-edge-row">
+                    <div><strong>${escapeHtml(edge.relation || '')}</strong>: ${escapeHtml(edge.source || '')} → ${escapeHtml(edge.target || '')}</div>
+                    <div class="knowledge-detail-actions">
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="toggleKnowledgeGraphEdgeEdit('${escapeJsString(knowledgeGraphEdgeIdentity(edge))}')">${KnowledgeGraphState.editingEdgeKey === knowledgeGraphEdgeIdentity(edge) ? t('dashboard.knowledge_action_cancel') : t('dashboard.knowledge_action_edit')}</button>
+                        <button type="button" class="btn btn-danger btn-sm" onclick="deleteKnowledgeGraphEdge('${escapeJsString(edge.source || '')}', '${escapeJsString(edge.target || '')}', '${escapeJsString(edge.relation || '')}')">${t('dashboard.knowledge_edge_delete')}</button>
+                    </div>
+                </div>
+            `).join('') || `<div class="knowledge-detail-row">${t('dashboard.knowledge_detail_no_edges')}</div>`;
+
+            body.innerHTML = `
+                <div class="knowledge-detail-panel">
+                    <div class="knowledge-detail-head">
+                        <div>
+                            <div class="knowledge-detail-title">${escapeHtml(node.label || node.id || 'Node')}</div>
+                            <div class="knowledge-detail-id">${escapeHtml(node.id || '')}</div>
+                        </div>
+                        <div class="knowledge-detail-actions">
+                            ${isProtected ? `<span class="knowledge-item-badge knowledge-item-badge-protected">${t('dashboard.knowledge_detail_protected')}</span>` : ''}
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="toggleKnowledgeGraphEdit('${escapeJsString(node.id || '')}')">${isEditing ? t('dashboard.knowledge_action_cancel') : t('dashboard.knowledge_action_edit')}</button>
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="toggleKnowledgeGraphProtection('${escapeJsString(node.id || '')}', ${isProtected ? 'false' : 'true'})">${isProtected ? t('dashboard.knowledge_action_unprotect') : t('dashboard.knowledge_action_protect')}</button>
+                            <button type="button" class="btn btn-danger btn-sm" onclick="deleteKnowledgeGraphNode('${escapeJsString(node.id || '')}', '${escapeJsString(node.label || node.id || 'Node')}')">${t('dashboard.knowledge_action_delete')}</button>
+                        </div>
+                    </div>
+                    ${renderKnowledgeGraphNodeEditor(node, isEditing)}
+                    ${renderKnowledgeGraphEdgeEditor(editingEdge)}
+                    <div class="knowledge-detail-grid">
+                        <div class="knowledge-detail-section">
+                            <h4 class="card-section-title">${t('dashboard.knowledge_detail_properties')}</h4>
+                            <div class="knowledge-detail-list">${nodeProps}</div>
+                        </div>
+                        <div class="knowledge-detail-section">
+                            <h4 class="card-section-title">${t('dashboard.knowledge_detail_neighbors')}</h4>
+                            <div class="knowledge-detail-list">${neighborRows}</div>
+                        </div>
+                        <div class="knowledge-detail-section">
+                            <h4 class="card-section-title">${t('dashboard.knowledge_detail_edges')}</h4>
+                            <div class="knowledge-detail-list">${edgeRows}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
         }
 
         async function loadKnowledgeGraphNodeDetail(nodeID) {
@@ -604,7 +724,7 @@
             KnowledgeGraphState.editingNodeId = '';
             KnowledgeGraphState.editingEdgeKey = '';
             renderKnowledgeGraphVisual();
-            renderKnowledgeGraphDetailEmpty();
+            closeKGDetailModal();
         }
 
         function filterKnowledgeGraphEditableProperties(properties) {
@@ -847,6 +967,7 @@
             KnowledgeGraphState.focusNodeId = '';
             KnowledgeGraphState.focusPayload = null;
             if (typeof showToast === 'function') showToast(t('dashboard.knowledge_deleted'), 'success', 2500);
+            closeKGDetailModal();
             await loadTabKnowledge();
         }
 
@@ -3119,6 +3240,10 @@
             const sec = overview.security || {};
             const m = overview.missions || {};
             const sk = overview.skills || {};
+            const planner = overview.planner || {};
+            const appointments = planner.appointments || {};
+            const todos = planner.todos || {};
+            const plans = planner.plans || {};
             const integrations = overview.integrations || {};
             const visibleIntegrations = Object.entries(integrations).filter(([key]) => !HIDDEN_INTEGRATIONS.has(key));
             const activeInts = visibleIntegrations.filter(([, value]) => value).length;
@@ -3181,6 +3306,30 @@
                     status: integrations.helper_llm ? 'ok' : 'neutral',
                     info: ''
                 },
+                {
+                    icon: '📅',
+                    lbl: t('dashboard.quickstatus_appointments'),
+                    val: `${appointments.upcoming || 0} / ${appointments.total || 0}`,
+                    status: (appointments.upcoming || 0) > 0 ? 'ok' : 'neutral',
+                    info: '',
+                    href: '/knowledge'
+                },
+                {
+                    icon: '✅',
+                    lbl: t('dashboard.quickstatus_todos'),
+                    val: `${(todos.open || 0) + (todos.in_progress || 0)} / ${todos.total || 0}`,
+                    status: (todos.overdue || 0) > 0 ? 'warning' : (((todos.open || 0) + (todos.in_progress || 0)) > 0 ? 'ok' : 'neutral'),
+                    info: '',
+                    href: '/knowledge'
+                },
+                {
+                    icon: '🗺️',
+                    lbl: t('dashboard.quickstatus_plans'),
+                    val: plans.active || 0,
+                    status: (plans.blocked || 0) > 0 ? 'warning' : ((plans.active || 0) > 0 ? 'ok' : 'neutral'),
+                    info: plans.progress_pct ? `${plans.progress_pct}%` : '',
+                    href: '/plans'
+                },
             ];
 
             // Add daemon health item only when daemons are configured
@@ -3198,14 +3347,16 @@
                 });
             }
 
-            el.innerHTML = items.map(s =>
-                `<div class="qs-item ${s.status}">
+            el.innerHTML = items.map(s => {
+                const tag = s.href ? 'a' : 'div';
+                const href = s.href ? ` href="${s.href}"` : '';
+                return `<${tag} class="qs-item ${s.status}"${href}>
                     <div class="qs-icon">${s.icon}</div>
                     <div class="qs-label">${s.lbl}</div>
                     <div class="qs-val">${s.val}</div>
                     ${s.info ? `<div class="qs-info">${esc(s.info)}</div>` : ''}
-                </div>`
-            ).join('');
+                </${tag}>`;
+            }).join('');
         }
 
         function renderOptimizationStats(opt) {
@@ -3958,11 +4109,21 @@
                 knowledgeGraphReset.addEventListener('click', resetKnowledgeGraphFocus);
             }
             document.addEventListener('click', (e) => {
+                const nodeLink = e.target.closest('[data-kg-open-node]');
+                if (nodeLink) {
+                    const nodeID = nodeLink.getAttribute('data-kg-open-node');
+                    if (nodeID) {
+                        e.preventDefault();
+                        openKGDetailModal(nodeID, nodeLink);
+                    }
+                    return;
+                }
                 const nodeCard = e.target.closest('[data-kg-node-id]');
-                if (!nodeCard) return;
-                const nodeID = nodeCard.getAttribute('data-kg-node-id');
-                if (nodeID) {
-                    loadKnowledgeGraphNodeDetail(nodeID);
+                if (nodeCard) {
+                    const nodeID = nodeCard.getAttribute('data-kg-node-id');
+                    if (nodeID) {
+                        openKGDetailModal(nodeID, nodeCard);
+                    }
                 }
             });
 
@@ -4339,8 +4500,19 @@
             if (cfOverlay) cfOverlay.addEventListener('click', (e) => {
                 if (e.target === cfOverlay) closeCoreFactsModal();
             });
+
+            const kgCloseBtn = document.getElementById('kgDetailClose');
+            const kgOverlay = document.getElementById('kgDetailOverlay');
+            if (kgCloseBtn) kgCloseBtn.addEventListener('click', closeKGDetailModal);
+            if (kgOverlay) kgOverlay.addEventListener('click', (e) => {
+                if (e.target === kgOverlay) closeKGDetailModal();
+            });
+
             document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape' && cfOverlay.classList.contains('open')) closeCoreFactsModal();
+                if (e.key === 'Escape') {
+                    if (kgOverlay && kgOverlay.classList.contains('open')) { closeKGDetailModal(); return; }
+                    if (cfOverlay && cfOverlay.classList.contains('open')) closeCoreFactsModal();
+                }
             });
         });
 

@@ -297,6 +297,17 @@
   "dashboard.knowledge_search_meta": "クエリ \"{{query}}\": {{nodes}}ノード、{{edges}}エッジ",
   "dashboard.knowledge_search_placeholder": "ナレッジグラフを検索...",
   "dashboard.knowledge_search_results": "検索結果",
+  "dashboard.kg_col_count": "件数",
+  "dashboard.kg_col_id": "ID",
+  "dashboard.kg_col_kind": "種別",
+  "dashboard.kg_col_label": "ラベル",
+  "dashboard.kg_col_primary": "主要",
+  "dashboard.kg_col_relation": "リレーション",
+  "dashboard.kg_col_score": "スコア",
+  "dashboard.kg_col_secondary": "補助",
+  "dashboard.kg_col_source": "ソース",
+  "dashboard.kg_col_target": "ターゲット",
+  "dashboard.kg_col_type": "タイプ",
   "dashboard.knowledge_title": "ナレッジグラフ",
   "dashboard.knowledge_types": "タイプ",
   "dashboard.knowledge_unprotected": "ノードの保護が解除されました。",
@@ -575,5 +586,8 @@
   "dashboard.tooling_telemetry_tool_calls_short": "ツール {{count}}",
   "dashboard.tooling_telemetry_tool_families": "ツールファミリー",
   "dashboard.tooling_telemetry_tools_with_failures": "失敗があるツール",
-  "dashboard.tooling_telemetry_total_events": "{{count}}イベント"
+  "dashboard.tooling_telemetry_total_events": "{{count}}イベント",
+  "dashboard.quickstatus_appointments": "予定",
+  "dashboard.quickstatus_todos": "To-Do",
+  "dashboard.quickstatus_plans": "プラン"
 }

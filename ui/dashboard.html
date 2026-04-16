@@ -443,7 +443,7 @@
       </div>
     </div>
 
-    <div class="dash-card dash-full-width" id="card-knowledge-graph-detail">
+    <div class="dash-card dash-full-width" id="card-knowledge-graph-detail" style="display:none;">
       <div class="dash-card-header"><span class="card-icon">🧭</span> <span data-i18n="dashboard.knowledge_detail_title">Node Inspector</span> <span class="collapse-toggle" data-card="card-knowledge-graph-detail" data-i18n-title="dashboard.activity_collapse" title="Einklappen">▼</span></div>
       <div class="dash-card-body">
         <div id="knowledge-detail-panel" class="knowledge-detail-panel">
@@ -720,6 +720,19 @@
             <button class="cf-add-btn" id="cronEditSaveBtn" onclick="saveCronEdit()" data-i18n="dashboard.cron_edit_save">Speichern</button>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Knowledge Graph Detail Modal -->
+  <div class="cf-overlay" id="kgDetailOverlay">
+    <div class="cf-modal cf-modal-wide">
+      <div class="cf-header">
+        <span class="cf-title">🧭 <span data-i18n="dashboard.knowledge_detail_title">Node Inspector</span></span>
+        <button class="cf-close" id="kgDetailClose">&times;</button>
+      </div>
+      <div class="cf-body" id="kgDetailBody">
+        <div class="empty-state" data-i18n="dashboard.knowledge_detail_loading">Wird geladen…</div>
       </div>
     </div>
   </div>

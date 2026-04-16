@@ -297,6 +297,17 @@
   "dashboard.knowledge_search_meta": "Consulta \"{{query}}\": {{nodes}} nós, {{edges}} arestas",
   "dashboard.knowledge_search_placeholder": "Buscar no grafo de conhecimento...",
   "dashboard.knowledge_search_results": "Resultados da Busca",
+  "dashboard.kg_col_count": "Contagem",
+  "dashboard.kg_col_id": "ID",
+  "dashboard.kg_col_kind": "Tipo",
+  "dashboard.kg_col_label": "Rótulo",
+  "dashboard.kg_col_primary": "Principal",
+  "dashboard.kg_col_relation": "Relação",
+  "dashboard.kg_col_score": "Pontuação",
+  "dashboard.kg_col_secondary": "Secundário",
+  "dashboard.kg_col_source": "Origem",
+  "dashboard.kg_col_target": "Destino",
+  "dashboard.kg_col_type": "Tipo",
   "dashboard.knowledge_title": "Grafo de Conhecimento",
   "dashboard.knowledge_types": "Tipos",
   "dashboard.knowledge_unprotected": "Nó desprotegido.",
@@ -575,5 +586,8 @@
   "dashboard.tooling_telemetry_tool_calls_short": "Ferramentas {{count}}",
   "dashboard.tooling_telemetry_tool_families": "Famílias de Ferramentas",
   "dashboard.tooling_telemetry_tools_with_failures": "Ferramentas com falhas",
-  "dashboard.tooling_telemetry_total_events": "{{count}} eventos"
+  "dashboard.tooling_telemetry_total_events": "{{count}} eventos",
+  "dashboard.quickstatus_appointments": "Compromissos",
+  "dashboard.quickstatus_todos": "Tarefas",
+  "dashboard.quickstatus_plans": "Planos"
 }

@@ -297,6 +297,17 @@
   "dashboard.knowledge_search_meta": "Spørring \"{{query}}\": {{nodes}} noder, {{edges}} kanter",
   "dashboard.knowledge_search_placeholder": "Søk i kunnskapsgrafen...",
   "dashboard.knowledge_search_results": "Søkeresultater",
+  "dashboard.kg_col_count": "Antall",
+  "dashboard.kg_col_id": "ID",
+  "dashboard.kg_col_kind": "Type",
+  "dashboard.kg_col_label": "Etikett",
+  "dashboard.kg_col_primary": "Primær",
+  "dashboard.kg_col_relation": "Relasjon",
+  "dashboard.kg_col_score": "Poeng",
+  "dashboard.kg_col_secondary": "Sekundær",
+  "dashboard.kg_col_source": "Kilde",
+  "dashboard.kg_col_target": "Mål",
+  "dashboard.kg_col_type": "Type",
   "dashboard.knowledge_title": "Kunnskapsgraf",
   "dashboard.knowledge_types": "Typer",
   "dashboard.knowledge_unprotected": "Node ubeskyttet.",
@@ -575,5 +586,8 @@
   "dashboard.tooling_telemetry_tool_calls_short": "Verktøy {{count}}",
   "dashboard.tooling_telemetry_tool_families": "Verktøyfamilier",
   "dashboard.tooling_telemetry_tools_with_failures": "Verktøy med feil",
-  "dashboard.tooling_telemetry_total_events": "{{count}} hendelser"
+  "dashboard.tooling_telemetry_total_events": "{{count}} hendelser",
+  "dashboard.quickstatus_appointments": "Avtaler",
+  "dashboard.quickstatus_todos": "Oppgaver",
+  "dashboard.quickstatus_plans": "Planer"
 }

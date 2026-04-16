@@ -3522,6 +3522,112 @@
 .w-pct-50 { width: 50%; }
 .w-pct-51 { width: 51%; }
 
+/* ── Knowledge Graph Tables ─────────────────────────────────────────── */
+.kg-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+.kg-table {
+    width: 100%;
+    min-width: 480px;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+    table-layout: fixed;
+}
+.kg-table th {
+    text-align: left;
+    padding: 0.35rem 0.55rem;
+    border-bottom: 1px solid var(--border-color, #333);
+    color: var(--text-muted, #888);
+    font-weight: 500;
+    white-space: nowrap;
+    font-size: 0.78rem;
+}
+.kg-table td {
+    padding: 0.35rem 0.55rem;
+    border-bottom: 1px solid var(--border-color, rgba(255,255,255,0.04));
+    vertical-align: middle;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.kg-table tbody tr:hover {
+    background: var(--hover-bg, rgba(255,255,255,0.03));
+}
+.kg-table.kg-table-compact {
+    min-width: 320px;
+}
+.kg-table.kg-table-compact th:nth-child(1) { width: 35%; }
+.kg-table.kg-table-compact th:nth-child(2) { width: 25%; }
+.kg-table.kg-table-compact th:nth-child(3) { width: 40%; }
+.kg-table.kg-table-search th:nth-child(1) { width: 10%; }
+.kg-table.kg-table-search th:nth-child(2) { width: 30%; }
+.kg-table.kg-table-search th:nth-child(3) { width: 35%; }
+.kg-table.kg-table-search th:nth-child(4) { width: 25%; }
+
+.kg-cell-link {
+    color: var(--accent);
+    cursor: pointer;
+    font-weight: 500;
+    transition: color 0.15s ease;
+}
+.kg-cell-link:hover {
+    color: var(--text-primary);
+    text-decoration: underline;
+}
+.kg-cell-id {
+    font-family: 'SF Mono', 'Cascadia Code', Consolas, monospace;
+    font-size: 0.75rem;
+}
+.kg-type-badge {
+    display: inline-block;
+    padding: 0.1rem 0.4rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--badge-color, var(--accent)) 14%, transparent);
+    color: var(--badge-color, var(--text-secondary));
+    font-size: 0.72rem;
+    font-weight: 600;
+}
+.kg-kind-badge {
+    display: inline-block;
+    padding: 0.1rem 0.4rem;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    color: var(--text-secondary);
+    font-size: 0.72rem;
+    font-weight: 600;
+}
+.kg-flag-protected {
+    font-size: 0.75rem;
+}
+.text-secondary {
+    color: var(--text-secondary);
+}
+
+/* KG Modal - wider than core-facts modal */
+.cf-modal-wide {
+    width: min(780px, 94vw);
+    max-height: 88vh;
+}
+#kgDetailBody .knowledge-detail-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+#kgDetailBody .knowledge-detail-panel {
+    gap: 0.7rem;
+}
+
+@media (max-width: 768px) {
+    .kg-table { min-width: 320px; }
+    .cf-modal-wide { width: 98vw; max-height: 95vh; }
+    #kgDetailBody .knowledge-detail-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 480px) {
+    .kg-table th, .kg-table td { padding: 0.25rem 0.35rem; font-size: 0.75rem; }
+}
+
 /* ── Mission History Table ─────────────────────────────────────────────── */
 #mission-history-content { overflow-x: auto; }
 .mh-table {

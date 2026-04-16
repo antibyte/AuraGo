@@ -297,6 +297,17 @@
   "dashboard.knowledge_search_meta": "Fråga \"{{query}}\": {{nodes}} noder, {{edges}} kanter",
   "dashboard.knowledge_search_placeholder": "Sök i kunskapsgrafen...",
   "dashboard.knowledge_search_results": "Sökresultat",
+  "dashboard.kg_col_count": "Antal",
+  "dashboard.kg_col_id": "ID",
+  "dashboard.kg_col_kind": "Sort",
+  "dashboard.kg_col_label": "Etikett",
+  "dashboard.kg_col_primary": "Primär",
+  "dashboard.kg_col_relation": "Relation",
+  "dashboard.kg_col_score": "Poäng",
+  "dashboard.kg_col_secondary": "Sekundär",
+  "dashboard.kg_col_source": "Källa",
+  "dashboard.kg_col_target": "Mål",
+  "dashboard.kg_col_type": "Typ",
   "dashboard.knowledge_title": "Kunskapsgraf",
   "dashboard.knowledge_types": "Typer",
   "dashboard.knowledge_unprotected": "Nod oskyddad.",
@@ -575,5 +586,8 @@
   "dashboard.tooling_telemetry_tool_calls_short": "Verktyg {{count}}",
   "dashboard.tooling_telemetry_tool_families": "Verktygsfamiljer",
   "dashboard.tooling_telemetry_tools_with_failures": "Verktyg med fel",
-  "dashboard.tooling_telemetry_total_events": "{{count}} händelser"
+  "dashboard.tooling_telemetry_total_events": "{{count}} händelser",
+  "dashboard.quickstatus_appointments": "Möten",
+  "dashboard.quickstatus_todos": "Att göra",
+  "dashboard.quickstatus_plans": "Planer"
 }

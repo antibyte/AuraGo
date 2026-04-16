@@ -297,6 +297,17 @@
   "dashboard.knowledge_search_meta": "Forespørgsel \"{{query}}\": {{nodes}} noder, {{edges}} kanter",
   "dashboard.knowledge_search_placeholder": "Søg i vidensgraf...",
   "dashboard.knowledge_search_results": "Søgeresultater",
+  "dashboard.kg_col_count": "Antal",
+  "dashboard.kg_col_id": "ID",
+  "dashboard.kg_col_kind": "Slags",
+  "dashboard.kg_col_label": "Etiket",
+  "dashboard.kg_col_primary": "Primær",
+  "dashboard.kg_col_relation": "Relation",
+  "dashboard.kg_col_score": "Point",
+  "dashboard.kg_col_secondary": "Sekundær",
+  "dashboard.kg_col_source": "Kilde",
+  "dashboard.kg_col_target": "Mål",
+  "dashboard.kg_col_type": "Type",
   "dashboard.knowledge_title": "Vidensgraf",
   "dashboard.knowledge_types": "Typer",
   "dashboard.knowledge_unprotected": "Node ubeskyttet.",
@@ -575,5 +586,8 @@
   "dashboard.tooling_telemetry_tool_calls_short": "Værktøjer {{count}}",
   "dashboard.tooling_telemetry_tool_families": "Værktøjsfamilier",
   "dashboard.tooling_telemetry_tools_with_failures": "Værktøjer med fejl",
-  "dashboard.tooling_telemetry_total_events": "{{count}} hændelser"
+  "dashboard.tooling_telemetry_total_events": "{{count}} hændelser",
+  "dashboard.quickstatus_appointments": "Aftaler",
+  "dashboard.quickstatus_todos": "Opgaver",
+  "dashboard.quickstatus_plans": "Planer"
 }

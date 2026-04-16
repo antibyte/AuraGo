@@ -297,6 +297,17 @@
   "dashboard.knowledge_search_meta": "Suche \"{{query}}\": {{nodes}} Nodes, {{edges}} Edges",
   "dashboard.knowledge_search_placeholder": "Knowledge Graph durchsuchen...",
   "dashboard.knowledge_search_results": "Suchergebnisse",
+  "dashboard.kg_col_count": "Anzahl",
+  "dashboard.kg_col_id": "ID",
+  "dashboard.kg_col_kind": "Art",
+  "dashboard.kg_col_label": "Label",
+  "dashboard.kg_col_primary": "Primär",
+  "dashboard.kg_col_relation": "Relation",
+  "dashboard.kg_col_score": "Punkte",
+  "dashboard.kg_col_secondary": "Sekundär",
+  "dashboard.kg_col_source": "Quelle",
+  "dashboard.kg_col_target": "Ziel",
+  "dashboard.kg_col_type": "Typ",
   "dashboard.knowledge_title": "Wissensgraph",
   "dashboard.knowledge_types": "Typen",
   "dashboard.knowledge_unprotected": "Node-Schutz aufgehoben.",
@@ -575,5 +586,8 @@
   "dashboard.tooling_telemetry_tool_calls_short": "Tools {{count}}",
   "dashboard.tooling_telemetry_tool_families": "Toolfamilien",
   "dashboard.tooling_telemetry_tools_with_failures": "Tools mit Fehlern",
-  "dashboard.tooling_telemetry_total_events": "{{count}} Ereignisse"
+  "dashboard.tooling_telemetry_total_events": "{{count}} Ereignisse",
+  "dashboard.quickstatus_appointments": "Termine",
+  "dashboard.quickstatus_todos": "Aufgaben",
+  "dashboard.quickstatus_plans": "Pläne"
 }

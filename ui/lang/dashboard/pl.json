@@ -297,6 +297,17 @@
   "dashboard.knowledge_search_meta": "Zapytanie \"{{query}}\": {{nodes}} węzłów, {{edges}} krawędzi",
   "dashboard.knowledge_search_placeholder": "Szukaj w grafie wiedzy...",
   "dashboard.knowledge_search_results": "Wyniki wyszukiwania",
+  "dashboard.kg_col_count": "Liczba",
+  "dashboard.kg_col_id": "ID",
+  "dashboard.kg_col_kind": "Rodzaj",
+  "dashboard.kg_col_label": "Etykieta",
+  "dashboard.kg_col_primary": "Główny",
+  "dashboard.kg_col_relation": "Relacja",
+  "dashboard.kg_col_score": "Wynik",
+  "dashboard.kg_col_secondary": "Dodatkowy",
+  "dashboard.kg_col_source": "Źródło",
+  "dashboard.kg_col_target": "Cel",
+  "dashboard.kg_col_type": "Typ",
   "dashboard.knowledge_title": "Graf wiedzy",
   "dashboard.knowledge_types": "Typy",
   "dashboard.knowledge_unprotected": "Ochrona węzła usunięta.",
@@ -575,5 +586,8 @@
   "dashboard.tooling_telemetry_tool_calls_short": "Narzędzia {{count}}",
   "dashboard.tooling_telemetry_tool_families": "Rodziny narzędzi",
   "dashboard.tooling_telemetry_tools_with_failures": "Narzędzia z błędami",
-  "dashboard.tooling_telemetry_total_events": "{{count}} zdarzeń"
+  "dashboard.tooling_telemetry_total_events": "{{count}} zdarzeń",
+  "dashboard.quickstatus_appointments": "Spotkania",
+  "dashboard.quickstatus_todos": "Zadania",
+  "dashboard.quickstatus_plans": "Plany"
 }

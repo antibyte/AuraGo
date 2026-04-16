@@ -297,6 +297,17 @@
   "dashboard.knowledge_search_meta": "Consulta \"{{query}}\": {{nodes}} nodos, {{edges}} aristas",
   "dashboard.knowledge_search_placeholder": "Buscar en el grafo de conocimiento...",
   "dashboard.knowledge_search_results": "Resultados de búsqueda",
+  "dashboard.kg_col_count": "Cantidad",
+  "dashboard.kg_col_id": "ID",
+  "dashboard.kg_col_kind": "Tipo",
+  "dashboard.kg_col_label": "Etiqueta",
+  "dashboard.kg_col_primary": "Principal",
+  "dashboard.kg_col_relation": "Relación",
+  "dashboard.kg_col_score": "Puntuación",
+  "dashboard.kg_col_secondary": "Secundario",
+  "dashboard.kg_col_source": "Origen",
+  "dashboard.kg_col_target": "Destino",
+  "dashboard.kg_col_type": "Tipo",
   "dashboard.knowledge_title": "Grafo de conocimiento",
   "dashboard.knowledge_types": "Tipos",
   "dashboard.knowledge_unprotected": "Nodo desprotegido.",
@@ -575,5 +586,8 @@
   "dashboard.tooling_telemetry_tool_calls_short": "Herramientas {{count}}",
   "dashboard.tooling_telemetry_tool_families": "Familias de herramientas",
   "dashboard.tooling_telemetry_tools_with_failures": "Herramientas con fallos",
-  "dashboard.tooling_telemetry_total_events": "{{count}} eventos"
+  "dashboard.tooling_telemetry_total_events": "{{count}} eventos",
+  "dashboard.quickstatus_appointments": "Citas",
+  "dashboard.quickstatus_todos": "Tareas",
+  "dashboard.quickstatus_plans": "Planes"
 }

@@ -297,6 +297,17 @@
   "dashboard.knowledge_search_meta": "Query \"{{query}}\": {{nodes}} nodes, {{edges}} edges",
   "dashboard.knowledge_search_placeholder": "Search knowledge graph...",
   "dashboard.knowledge_search_results": "Search Results",
+  "dashboard.kg_col_count": "Count",
+  "dashboard.kg_col_id": "ID",
+  "dashboard.kg_col_kind": "Kind",
+  "dashboard.kg_col_label": "Label",
+  "dashboard.kg_col_primary": "Primary",
+  "dashboard.kg_col_relation": "Relation",
+  "dashboard.kg_col_score": "Score",
+  "dashboard.kg_col_secondary": "Secondary",
+  "dashboard.kg_col_source": "Source",
+  "dashboard.kg_col_target": "Target",
+  "dashboard.kg_col_type": "Type",
   "dashboard.knowledge_title": "Knowledge Graph",
   "dashboard.knowledge_types": "Types",
   "dashboard.knowledge_unprotected": "Node unprotected.",
@@ -575,5 +586,8 @@
   "dashboard.tooling_telemetry_tool_calls_short": "Tools {{count}}",
   "dashboard.tooling_telemetry_tool_families": "Tool Families",
   "dashboard.tooling_telemetry_tools_with_failures": "Tools with failures",
-  "dashboard.tooling_telemetry_total_events": "{{count}} events"
+  "dashboard.tooling_telemetry_total_events": "{{count}} events",
+  "dashboard.quickstatus_appointments": "Appointments",
+  "dashboard.quickstatus_todos": "To-Dos",
+  "dashboard.quickstatus_plans": "Plans"
 }
