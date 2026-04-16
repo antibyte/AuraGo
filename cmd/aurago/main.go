@@ -353,7 +353,7 @@ func main() {
 	// Initialize Knowledge Graph early so ApplyPendingEmbeddingsReset can use it
 	// instead of opening a separate database connection
 	kg, err := memory.NewKnowledgeGraph(
-		filepath.Join(cfg.Directories.DataDir, "knowledge_graph.db"),
+		cfg.SQLite.KnowledgeGraphPath,
 		filepath.Join(cfg.Directories.DataDir, "graph.json"),
 		appLog,
 	)
@@ -545,7 +545,7 @@ func main() {
 	cfg.ApplyOAuthTokens(vault)
 
 	// Web Push (PWA notifications) -- init after vault so VAPID keys can be stored/loaded
-	if _, err := push.NewManager(cfg.Directories.DataDir, vault, appLog); err != nil {
+	if _, err := push.NewManager(cfg.SQLite.PushPath, vault, appLog); err != nil {
 		appLog.Warn("Web Push manager initialization failed -- push notifications disabled", "error", err)
 	}
 
@@ -760,7 +760,7 @@ func main() {
 
 	// Phase 36: Native Knowledge Graph (SQLite-backed with FTS5)
 	// Note: KG was already initialized earlier for ApplyPendingEmbeddingsReset
-	optDB, optErr := optimizer.InitDB(filepath.Join(cfg.Directories.DataDir, "optimization.db"))
+	optDB, optErr := optimizer.InitDB(cfg.SQLite.OptimizationPath)
 	if optErr != nil {
 		appLog.Warn("Failed to initialize optimizer trace database", "error", optErr)
 	} else {

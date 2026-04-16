@@ -491,7 +491,7 @@ func Start(cfg *config.Config, logger *slog.Logger, accessLogger *slog.Logger, l
 
 	// Initialize Mission Preparation system
 	if cfg.MissionPreparation.Enabled {
-		prepDB, err := tools.InitPreparedMissionsDB(cfg.Directories.DataDir + "/prepared_missions.db")
+		prepDB, err := tools.InitPreparedMissionsDB(cfg.SQLite.PreparedMissionsPath)
 		if err != nil {
 			logger.Error("Failed to initialize prepared missions DB", "error", err)
 		} else {
@@ -508,7 +508,7 @@ func Start(cfg *config.Config, logger *slog.Logger, accessLogger *slog.Logger, l
 
 	// Initialize Mission Execution History database
 	{
-		histDB, err := tools.InitMissionHistoryDB(cfg.Directories.DataDir + "/mission_history.db")
+		histDB, err := tools.InitMissionHistoryDB(cfg.SQLite.MissionHistoryPath)
 		if err != nil {
 			logger.Error("Failed to initialize mission history DB", "error", err)
 		} else {

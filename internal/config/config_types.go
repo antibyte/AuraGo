@@ -227,6 +227,11 @@ type Config struct {
 		SiteMonitorPath      string `yaml:"site_monitor_path"`
 		SQLConnectionsPath   string `yaml:"sql_connections_path"`
 		SkillsPath           string `yaml:"skills_path"`
+		KnowledgeGraphPath   string `yaml:"knowledge_graph_path"`
+		OptimizationPath     string `yaml:"optimization_path"`
+		PreparedMissionsPath string `yaml:"prepared_missions_path"`
+		MissionHistoryPath   string `yaml:"mission_history_path"`
+		PushPath             string `yaml:"push_path"`
 	} `yaml:"sqlite"`
 	Embeddings struct {
 		Provider         string `yaml:"provider"`          // "disabled" or provider entry ID

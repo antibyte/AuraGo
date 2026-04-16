@@ -319,6 +319,26 @@ func Load(path string) (*Config, error) {
 		cfg.SQLite.SkillsPath = "./data/skills.db"
 	}
 	cfg.SQLite.SkillsPath = resolvePath(configDir, cfg.SQLite.SkillsPath)
+	if cfg.SQLite.KnowledgeGraphPath == "" {
+		cfg.SQLite.KnowledgeGraphPath = "./data/knowledge_graph.db"
+	}
+	cfg.SQLite.KnowledgeGraphPath = resolvePath(configDir, cfg.SQLite.KnowledgeGraphPath)
+	if cfg.SQLite.OptimizationPath == "" {
+		cfg.SQLite.OptimizationPath = "./data/optimization.db"
+	}
+	cfg.SQLite.OptimizationPath = resolvePath(configDir, cfg.SQLite.OptimizationPath)
+	if cfg.SQLite.PreparedMissionsPath == "" {
+		cfg.SQLite.PreparedMissionsPath = "./data/prepared_missions.db"
+	}
+	cfg.SQLite.PreparedMissionsPath = resolvePath(configDir, cfg.SQLite.PreparedMissionsPath)
+	if cfg.SQLite.MissionHistoryPath == "" {
+		cfg.SQLite.MissionHistoryPath = "./data/mission_history.db"
+	}
+	cfg.SQLite.MissionHistoryPath = resolvePath(configDir, cfg.SQLite.MissionHistoryPath)
+	if cfg.SQLite.PushPath == "" {
+		cfg.SQLite.PushPath = "./data/push.db"
+	}
+	cfg.SQLite.PushPath = resolvePath(configDir, cfg.SQLite.PushPath)
 
 	// Resolve logging directory
 	cfg.Logging.LogDir = resolvePath(configDir, cfg.Logging.LogDir)

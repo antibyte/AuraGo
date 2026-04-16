@@ -186,7 +186,7 @@ func runOperation(cfg *config.Config, statePath, planPath string, l *slog.Logger
 	cronManager := tools.NewCronManager(cfg.Directories.DataDir)
 	historyManager := memory.NewHistoryManager(filepath.Join(cfg.Directories.DataDir, "chat_history.json"))
 	kg, err := memory.NewKnowledgeGraph(
-		filepath.Join(cfg.Directories.DataDir, "knowledge_graph.db"),
+		cfg.SQLite.KnowledgeGraphPath,
 		filepath.Join(cfg.Directories.DataDir, "graph.json"),
 		l,
 	)

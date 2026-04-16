@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
-	"path/filepath"
 	"sync"
 
 	"aurago/internal/dbutil"
@@ -30,8 +29,7 @@ type PushSubscription struct {
 	Keys     map[string]string `json:"keys"` // p256dh and auth
 }
 
-func NewManager(dataDir string, vault *security.Vault, logger *slog.Logger) (*Manager, error) {
-	dbPath := filepath.Join(dataDir, "push.db")
+func NewManager(dbPath string, vault *security.Vault, logger *slog.Logger) (*Manager, error) {
 	db, err := dbutil.Open(dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open push db: %w", err)

@@ -437,18 +437,25 @@ server:
         http_port: 80
         behind_proxy: false
 sqlite:
+    short_term_path: ./data/short_term.db
+    long_term_path: ./data/long_term.db
     inventory_path: ./data/inventory.db
     invasion_path: ./data/invasion.db
     cheatsheet_path: ./data/cheatsheets.db
     image_gallery_path: ./data/image_gallery.db
     remote_control_path: ./data/remote_control.db
-    long_term_path: ./data/long_term.db
-    short_term_path: ./data/short_term.db
     media_registry_path: ./data/media_registry.db
     homepage_registry_path: ./data/homepage_registry.db
     contacts_path: ./data/contacts.db
+    planner_path: ./data/planner.db
     site_monitor_path: ./data/site_monitor.db
     sql_connections_path: ./data/sql_connections.db
+    skills_path: ./data/skills.db
+    knowledge_graph_path: ./data/knowledge_graph.db
+    optimization_path: ./data/optimization.db
+    prepared_missions_path: ./data/prepared_missions.db
+    mission_history_path: ./data/mission_history.db
+    push_path: ./data/push.db
 
 # SQL Connections — External database connections managed by the agent
 # Supports PostgreSQL, MySQL/MariaDB, and SQLite
