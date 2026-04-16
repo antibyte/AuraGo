@@ -4,11 +4,11 @@
 // SVG icons for password toggle (avoids emoji rendering issues)
 const EYE_OPEN_SVG = '<svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
 const EYE_CLOSED_SVG = '<svg viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
-const CFG_MASKED_SECRET = window.CFG_MASKED_SECRET || '••••••••';
+const cfgMaskedSecretFallback = '••••••••';
 
 if (typeof window.cfgIsMaskedSecret !== 'function') {
     window.cfgIsMaskedSecret = function (value) {
-        return value === CFG_MASKED_SECRET;
+        return value === cfgMaskedSecretFallback;
     };
 }
 if (typeof window.cfgSecretValue !== 'function') {
@@ -17,7 +17,7 @@ if (typeof window.cfgSecretValue !== 'function') {
     };
 }
 if (typeof window.cfgSecretPlaceholder !== 'function') {
-    window.cfgSecretPlaceholder = function (value, defaultPlaceholder = CFG_MASKED_SECRET) {
+    window.cfgSecretPlaceholder = function (value, defaultPlaceholder = cfgMaskedSecretFallback) {
         return window.cfgIsMaskedSecret(value) ? t('config.providers.key_placeholder_existing') : defaultPlaceholder;
     };
 }
@@ -30,7 +30,7 @@ if (typeof window.cfgMarkSecretStored !== 'function') {
         if (!configPath || typeof setNestedValue !== 'function') return;
         const paths = Array.isArray(configPath) ? configPath : [configPath];
         paths.forEach(path => {
-            if (path) setNestedValue(configData, path, CFG_MASKED_SECRET);
+            if (path) setNestedValue(configData, path, cfgMaskedSecretFallback);
         });
     };
 }
