@@ -294,6 +294,7 @@ function handleTodoDraftTitleKeydown(event, index) {
 }
 
 async function saveTodo() {
+    const saveButton = document.querySelector('#todo-modal .modal-actions .btn-primary');
     const id = document.getElementById('todo-id').value;
     const dueVal = document.getElementById('todo-due-date').value;
     const remindDailyInput = document.getElementById('todo-remind-daily');
@@ -317,12 +318,16 @@ async function saveTodo() {
 
     const existing = id ? allTodos.find(entry => entry.id === id) : null;
     data.status = existing ? existing.status : 'open';
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timeout = controller ? setTimeout(() => controller.abort(), 15000) : null;
 
     try {
+        if (saveButton) saveButton.disabled = true;
         const response = await fetch(id ? '/api/todos/' + encodeURIComponent(id) : '/api/todos', {
             method: id ? 'PUT' : 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data),
+            signal: controller ? controller.signal : undefined,
         });
         if (!response.ok) throw new Error(await response.text());
 
@@ -332,6 +337,9 @@ async function saveTodo() {
     } catch (error) {
         console.error('Save todo failed:', error);
         showToast(t('common.error') + ': ' + error.message, 'error');
+    } finally {
+        if (timeout) clearTimeout(timeout);
+        if (saveButton) saveButton.disabled = false;
     }
 }
 

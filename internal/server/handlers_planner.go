@@ -55,7 +55,7 @@ func handleAppointments(s *Server) http.HandlerFunc {
 				jsonLoggedError(w, s.Logger, http.StatusBadRequest, "Failed to create appointment", "Failed to create appointment", err)
 				return
 			}
-			syncAppointmentToKG(s.PlannerDB, id, s.KG, s.Logger)
+			syncAppointmentToKGAsync(s.PlannerDB, id, s.KG, s.Logger)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusCreated)
 			json.NewEncoder(w).Encode(map[string]string{"id": id})
@@ -144,7 +144,7 @@ func handleAppointmentByID(s *Server) http.HandlerFunc {
 				}
 				return
 			}
-			syncAppointmentToKG(s.PlannerDB, id, s.KG, s.Logger)
+			syncAppointmentToKGAsync(s.PlannerDB, id, s.KG, s.Logger)
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(map[string]string{"status": "updated"})
 
@@ -212,7 +212,7 @@ func handleTodos(s *Server) http.HandlerFunc {
 				jsonLoggedError(w, s.Logger, http.StatusBadRequest, "Failed to create todo", "Failed to create todo", err)
 				return
 			}
-			syncTodoToKG(s.PlannerDB, id, s.KG, s.Logger)
+			syncTodoToKGAsync(s.PlannerDB, id, s.KG, s.Logger)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusCreated)
 			json.NewEncoder(w).Encode(map[string]string{"id": id})
@@ -321,7 +321,7 @@ func handleTodoByID(s *Server) http.HandlerFunc {
 				}
 				return
 			}
-			syncTodoToKG(s.PlannerDB, id, s.KG, s.Logger)
+			syncTodoToKGAsync(s.PlannerDB, id, s.KG, s.Logger)
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(map[string]string{"status": "updated"})
 
@@ -373,7 +373,7 @@ func handleTodoItemsByID(s *Server, todoID string, parts []string) http.HandlerF
 				jsonLoggedError(w, s.Logger, status, "Failed to add todo item", "Failed to add todo item", err, "todo_id", todoID)
 				return
 			}
-			syncTodoToKG(s.PlannerDB, todoID, s.KG, s.Logger)
+			syncTodoToKGAsync(s.PlannerDB, todoID, s.KG, s.Logger)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusCreated)
 			json.NewEncoder(w).Encode(map[string]string{"id": itemID})
@@ -399,7 +399,7 @@ func handleTodoItemsByID(s *Server, todoID string, parts []string) http.HandlerF
 				jsonLoggedError(w, s.Logger, status, "Failed to reorder todo items", "Failed to reorder todo items", err, "todo_id", todoID)
 				return
 			}
-			syncTodoToKG(s.PlannerDB, todoID, s.KG, s.Logger)
+			syncTodoToKGAsync(s.PlannerDB, todoID, s.KG, s.Logger)
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(map[string]string{"status": "updated"})
 
@@ -449,7 +449,7 @@ func handleTodoItemsByID(s *Server, todoID string, parts []string) http.HandlerF
 					jsonLoggedError(w, s.Logger, status, "Failed to update todo item", "Failed to update todo item", err, "todo_id", todoID, "item_id", itemID)
 					return
 				}
-				syncTodoToKG(s.PlannerDB, todoID, s.KG, s.Logger)
+				syncTodoToKGAsync(s.PlannerDB, todoID, s.KG, s.Logger)
 				w.Header().Set("Content-Type", "application/json")
 				json.NewEncoder(w).Encode(map[string]string{"status": "updated"})
 
@@ -462,7 +462,7 @@ func handleTodoItemsByID(s *Server, todoID string, parts []string) http.HandlerF
 					jsonLoggedError(w, s.Logger, status, "Failed to delete todo item", "Failed to delete todo item", err, "todo_id", todoID, "item_id", itemID)
 					return
 				}
-				syncTodoToKG(s.PlannerDB, todoID, s.KG, s.Logger)
+				syncTodoToKGAsync(s.PlannerDB, todoID, s.KG, s.Logger)
 				w.Header().Set("Content-Type", "application/json")
 				json.NewEncoder(w).Encode(map[string]string{"status": "deleted"})
 
@@ -498,7 +498,7 @@ func handleTodoComplete(s *Server, todoID string) http.HandlerFunc {
 			jsonLoggedError(w, s.Logger, status, "Failed to complete todo", "Failed to complete todo", err, "id", todoID)
 			return
 		}
-		syncTodoToKG(s.PlannerDB, todoID, s.KG, s.Logger)
+		syncTodoToKGAsync(s.PlannerDB, todoID, s.KG, s.Logger)
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{"status": "updated"})
 	}
@@ -529,14 +529,22 @@ func plannerTodoItemByID(items []planner.TodoItem, itemID string) (planner.TodoI
 // ── KG sync helpers ──
 
 // syncAppointmentToKG syncs an appointment to the knowledge graph.
-func syncAppointmentToKG(db *sql.DB, id string, kg planner.KnowledgeGraph, logger interface{ Error(string, ...any) }) {
-	if err := planner.SyncAppointmentToKG(kg, db, id); err != nil {
-		logger.Error("Failed to sync appointment to KG", "error", err, "id", id)
-	}
+func syncAppointmentToKGAsync(db *sql.DB, id string, kg planner.KnowledgeGraph, logger interface{ Error(string, ...any) }) {
+	runPlannerKGSyncAsync(logger, func() error {
+		return planner.SyncAppointmentToKG(kg, db, id)
+	}, "Failed to sync appointment to KG", "id", id)
 }
 
-func syncTodoToKG(db *sql.DB, id string, kg planner.KnowledgeGraph, logger interface{ Error(string, ...any) }) {
-	if err := planner.SyncTodoToKG(kg, db, id); err != nil {
-		logger.Error("Failed to sync todo to KG", "error", err, "id", id)
-	}
+func syncTodoToKGAsync(db *sql.DB, id string, kg planner.KnowledgeGraph, logger interface{ Error(string, ...any) }) {
+	runPlannerKGSyncAsync(logger, func() error {
+		return planner.SyncTodoToKG(kg, db, id)
+	}, "Failed to sync todo to KG", "id", id)
+}
+
+func runPlannerKGSyncAsync(logger interface{ Error(string, ...any) }, syncFn func() error, message string, args ...any) {
+	go func() {
+		if err := syncFn(); err != nil {
+			logger.Error(message, append([]any{"error", err}, args...)...)
+		}
+	}()
 }

@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"aurago/internal/planner"
 )
@@ -20,6 +21,41 @@ func testPlannerServer(t *testing.T) (*Server, *sql.DB) {
 		t.Fatalf("planner.InitDB() error = %v", err)
 	}
 	return &Server{PlannerDB: db, Logger: slog.Default()}, db
+}
+
+func TestRunPlannerKGSyncAsyncReturnsImmediately(t *testing.T) {
+	t.Parallel()
+
+	started := make(chan struct{})
+	release := make(chan struct{})
+	done := make(chan struct{})
+
+	start := time.Now()
+	runPlannerKGSyncAsync(slog.Default(), func() error {
+		close(started)
+		<-release
+		close(done)
+		return nil
+	}, "test sync")
+	elapsed := time.Since(start)
+
+	if elapsed > 100*time.Millisecond {
+		t.Fatalf("runPlannerKGSyncAsync blocked for %s", elapsed)
+	}
+
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatal("async sync did not start")
+	}
+
+	close(release)
+
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("async sync did not complete")
+	}
 }
 
 func TestHandleTodoByIDUpdatesRemindDailyAndItems(t *testing.T) {
