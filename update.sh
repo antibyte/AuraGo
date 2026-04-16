@@ -101,6 +101,17 @@ case "$ARCH_RAW" in
 esac
 ok "Architecture: $ARCH_RAW → Go target: $GOARCH"
 
+# ── Sudo strategy ─────────────────────────────────────────────────────
+# When no TTY is attached (triggered from web UI / nohup), use sudo -n
+# so the command fails immediately instead of hanging on a password prompt.
+# When a TTY is available (manual terminal run), use plain sudo so the
+# user can enter a password interactively.
+if [ -t 0 ]; then
+    SUDO="sudo"
+else
+    SUDO="sudo -n"
+fi
+
 # ── Detect install mode ───────────────────────────────────────────────────
 # Binary-only installs (no .git directory) are fully supported.
 BINARY_ONLY=false
@@ -174,8 +185,8 @@ safe_restore_file() {
 
     # Last resort: sudo copy (for legacy root-owned files in user installs).
     if command -v sudo >/dev/null 2>&1; then
-        if sudo -n cp -fp "$src" "$dst" 2>/dev/null; then
-            sudo -n chown "$(id -u):$(id -g)" "$dst" 2>/dev/null || true
+        if $SUDO cp -fp "$src" "$dst" 2>/dev/null; then
+            $SUDO chown "$(id -u):$(id -g)" "$dst" 2>/dev/null || true
             return 0
         fi
     fi
@@ -190,8 +201,8 @@ copy_tree_merge() {
     # Ensure destination exists and is writable by the current user when possible.
     mkdir -p "$dst" 2>/dev/null || true
     if [ ! -w "$dst" ] && command -v sudo >/dev/null 2>&1; then
-        sudo -n chown -R "$(id -u):$(id -g)" "$dst" 2>/dev/null || true
-        sudo -n chmod -R u+rwX "$dst" 2>/dev/null || true
+        $SUDO chown -R "$(id -u):$(id -g)" "$dst" 2>/dev/null || true
+        $SUDO chmod -R u+rwX "$dst" 2>/dev/null || true
     fi
 
     if command -v rsync >/dev/null 2>&1; then
@@ -220,15 +231,15 @@ repair_worktree_permissions() {
         if [ -e "$abs" ]; then
             chmod u+rw "$abs" 2>/dev/null || true
             if [ ! -w "$abs" ] && command -v sudo >/dev/null 2>&1; then
-                sudo -n chown "$(id -u):$(id -g)" "$abs" 2>/dev/null || true
-                sudo -n chmod u+rw "$abs" 2>/dev/null || true
+                $SUDO chown "$(id -u):$(id -g)" "$abs" 2>/dev/null || true
+                $SUDO chmod u+rw "$abs" 2>/dev/null || true
             fi
         fi
 
         chmod u+rwx "$parent" 2>/dev/null || true
         if [ ! -w "$parent" ] && command -v sudo >/dev/null 2>&1; then
-            sudo -n chown "$(id -u):$(id -g)" "$parent" 2>/dev/null || true
-            sudo -n chmod u+rwx "$parent" 2>/dev/null || true
+            $SUDO chown "$(id -u):$(id -g)" "$parent" 2>/dev/null || true
+            $SUDO chmod u+rwx "$parent" 2>/dev/null || true
         fi
     done <<< "$changed"
 }
@@ -314,7 +325,7 @@ if $IN_AURAGO_CGROUP && [ -z "${_AU_ESCAPED:-}" ]; then
         fi
         # Fall back to a system scope via sudo (password-less sudo only).
         if command -v sudo >/dev/null 2>&1; then
-            if sudo -n systemd-run --scope --quiet -- /bin/bash "$0" "--escaped" "$@" 2>/dev/null; then
+            if $SUDO systemd-run --scope --quiet -- /bin/bash "$0" "--escaped" "$@" 2>/dev/null; then
                 exit 0
             fi
         fi
@@ -463,7 +474,7 @@ _kill_proc() {
 # Try to stop via systemd (needs sudo). If sudo fails, fall through to manual kill.
 if command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet aurago 2>/dev/null; then
     info "Stopping aurago systemd service..."
-    sudo -n systemctl stop aurago 2>/dev/null && sleep 2 && ok "systemd service stopped" || warn "sudo not available — falling back to manual kill"
+    $SUDO systemctl stop aurago 2>/dev/null && sleep 2 && ok "systemd service stopped" || warn "sudo not available — falling back to manual kill"
 fi
 # Always kill any remaining instances (covers manual starts, systemd restarts, etc.)
 _kill_proc "aurago"   "bin/aurago_linux" "bin/aurago"
@@ -755,11 +766,11 @@ if [ -f "$ENV_FILE" ] && grep -q "AURAGO_MASTER_KEY" "$ENV_FILE"; then
             if [ -z "${AURAGO_MASTER_KEY:-}" ]; then
                 warn "Could not read AURAGO_MASTER_KEY from .env — skipping migration."
             else
-                sudo -n mkdir -p "$CREDENTIAL_DIR"
-                sudo -n chmod 700 "$CREDENTIAL_DIR"
-                printf "AURAGO_MASTER_KEY=%s\n" "$AURAGO_MASTER_KEY" | sudo -n tee "$CREDENTIAL_FILE" > /dev/null
-                sudo -n chmod 600 "$CREDENTIAL_FILE"
-                sudo -n chown root:root "$CREDENTIAL_DIR" "$CREDENTIAL_FILE"
+                $SUDO mkdir -p "$CREDENTIAL_DIR"
+                $SUDO chmod 700 "$CREDENTIAL_DIR"
+                printf "AURAGO_MASTER_KEY=%s\n" "$AURAGO_MASTER_KEY" | $SUDO tee "$CREDENTIAL_FILE" > /dev/null
+                $SUDO chmod 600 "$CREDENTIAL_FILE"
+                $SUDO chown root:root "$CREDENTIAL_DIR" "$CREDENTIAL_FILE"
                 rm -f "$ENV_FILE"
                 ok "Master key moved to $CREDENTIAL_FILE (root-only, mode 0600)."
                 ok "Removed $ENV_FILE."
@@ -770,14 +781,14 @@ if [ -f "$ENV_FILE" ] && grep -q "AURAGO_MASTER_KEY" "$ENV_FILE"; then
                     if grep -q "EnvironmentFile=.*\.env" "$SVC_FILE" || grep -q "Environment=.*AURAGO_MASTER_KEY" "$SVC_FILE"; then
                         info "Updating systemd unit to use $CREDENTIAL_FILE ..."
                         # Replace EnvironmentFile pointing to .env
-                        sudo -n sed -i "s|EnvironmentFile=.*\.env|EnvironmentFile=${CREDENTIAL_FILE}|g" "$SVC_FILE"
+                        $SUDO sed -i "s|EnvironmentFile=.*\.env|EnvironmentFile=${CREDENTIAL_FILE}|g" "$SVC_FILE"
                         # Replace inline Environment= with EnvironmentFile=
-                        sudo -n sed -i "s|Environment=\"AURAGO_MASTER_KEY=.*\"|EnvironmentFile=${CREDENTIAL_FILE}|g" "$SVC_FILE"
+                        $SUDO sed -i "s|Environment=\"AURAGO_MASTER_KEY=.*\"|EnvironmentFile=${CREDENTIAL_FILE}|g" "$SVC_FILE"
                         # Remove dash prefix (fail-silent) if present
-                        sudo -n sed -i "s|EnvironmentFile=-|EnvironmentFile=|g" "$SVC_FILE"
+                        $SUDO sed -i "s|EnvironmentFile=-|EnvironmentFile=|g" "$SVC_FILE"
                         # Add security hardening if not already present
                         if ! grep -q "NoNewPrivileges" "$SVC_FILE"; then
-                            sudo -n sed -i "/^\[Install\]/i\\
+                            $SUDO sed -i "/^\[Install\]/i\\
 # Security hardening\\
 NoNewPrivileges=true\\
 ProtectSystem=strict\\
@@ -785,7 +796,7 @@ ReadWritePaths=${DIR} ${CREDENTIAL_DIR}\\
 ProtectHome=read-only\\
 PrivateTmp=true" "$SVC_FILE"
                         fi
-                        sudo -n systemctl daemon-reload
+                        $SUDO systemctl daemon-reload
                         ok "systemd unit updated and reloaded."
                     fi
                 fi
@@ -1017,8 +1028,8 @@ else
 fi
 
 # Ensure all binaries are executable. Try with sudo if needed.
-chmod +x "$DIR/bin/"* 2>/dev/null || sudo -n chmod +x "$DIR/bin/"* 2>/dev/null || true
-chmod +x "$DIR/"*.sh 2>/dev/null || sudo -n chmod +x "$DIR/"*.sh 2>/dev/null || true
+chmod +x "$DIR/bin/"* 2>/dev/null || $SUDO chmod +x "$DIR/bin/"* 2>/dev/null || true
+chmod +x "$DIR/"*.sh 2>/dev/null || $SUDO chmod +x "$DIR/"*.sh 2>/dev/null || true
 
 # ── Patch service file: ensure User= / Group= are set (migration for root-installs) ──
 SVC_FILE="/etc/systemd/system/aurago.service"
@@ -1036,10 +1047,10 @@ if [ -f "$SVC_FILE" ] && ! grep -q '^User=' "$SVC_FILE"; then
         _svc_group=$(id -gn "$_svc_user" 2>/dev/null || echo "$_svc_user")
         warn "Service file missing User= — was running as root. Patching to User=${_svc_user}..."
         # Insert User=/Group= after Type= line
-        sudo -n sed -i "/^Type=/a User=${_svc_user}\nGroup=${_svc_group}" "$SVC_FILE"
+        $SUDO sed -i "/^Type=/a User=${_svc_user}\nGroup=${_svc_group}" "$SVC_FILE"
         # Fix ownership of data and bin so the new user can write them
-        sudo -n chown -R "${_svc_user}:${_svc_group}" "${DIR}/data" "${DIR}/bin" "${DIR}/agent_workspace" 2>/dev/null || true
-        sudo -n systemctl daemon-reload
+        $SUDO chown -R "${_svc_user}:${_svc_group}" "${DIR}/data" "${DIR}/bin" "${DIR}/agent_workspace" 2>/dev/null || true
+        $SUDO systemctl daemon-reload
         ok "Service patched: now runs as ${_svc_user}:${_svc_group}. Data directory re-owned."
     else
         warn "Service file has no User= and could not determine a non-root user."
@@ -1056,7 +1067,7 @@ if $NO_RESTART; then
 elif command -v systemctl >/dev/null 2>&1 && systemctl list-unit-files aurago.service >/dev/null 2>&1; then
     info "Starting aurago systemd service..."
     # Try sudo first; if it fails (no password), fall back to nohup start
-    if sudo -n systemctl start aurago 2>/dev/null; then
+    if $SUDO systemctl start aurago 2>/dev/null; then
         sleep 2
         if systemctl is-active --quiet aurago 2>/dev/null; then
             ok "Service started successfully via systemd."
