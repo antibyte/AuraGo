@@ -220,8 +220,17 @@ func handleSQLConnectionByID(s *Server) http.HandlerFunc {
 // handleSQLConnectionTest handles POST on /api/sql-connections/{id}/test.
 func handleSQLConnectionTest(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if s.SQLConnectionsDB == nil || s.SQLConnectionPool == nil {
-			jsonError(w, `{"error":"SQL connections not initialized"}`, http.StatusServiceUnavailable)
+		if s.SQLConnectionsDB == nil {
+			jsonError(w, `{"error":"SQL connections database not initialized"}`, http.StatusServiceUnavailable)
+			return
+		}
+		if s.SQLConnectionPool == nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusServiceUnavailable)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"status":  "error",
+				"message": "SQL connections are not enabled. Enable them in Configuration → SQL Connections and save.",
+			})
 			return
 		}
 		if r.Method != http.MethodPost {

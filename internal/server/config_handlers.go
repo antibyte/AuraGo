@@ -6,6 +6,7 @@ import (
 	"aurago/internal/llm"
 	"aurago/internal/security"
 	"aurago/internal/services"
+	"aurago/internal/sqlconnections"
 	"aurago/internal/tools"
 	"context"
 	crand "crypto/rand"
@@ -608,6 +609,30 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			// Auto-start Piper TTS container if just enabled
 			if newCfg.TTS.Piper.Enabled && !oldCfg.TTS.Piper.Enabled {
 				go tools.EnsurePiperRunning(newCfg, s.Logger)
+			}
+
+			// Hot-reload SQL Connections pool: create when enabled, close when disabled.
+			if newCfg.SQLConnections.Enabled != oldCfg.SQLConnections.Enabled {
+				if newCfg.SQLConnections.Enabled && s.SQLConnectionsDB != nil && s.SQLConnectionPool == nil {
+					pool := sqlconnections.NewConnectionPool(
+						s.SQLConnectionsDB, s.Vault,
+						newCfg.SQLConnections.MaxPoolSize,
+						newCfg.SQLConnections.ConnectionTimeoutSec,
+						s.Logger,
+					)
+					if newCfg.SQLConnections.RateLimitWindowSec > 0 {
+						pool.SetRateLimit(newCfg.SQLConnections.RateLimitWindowSec)
+					}
+					if newCfg.SQLConnections.IdleTTLSec > 0 {
+						pool.SetIdleTTL(time.Duration(newCfg.SQLConnections.IdleTTLSec) * time.Second)
+					}
+					s.SQLConnectionPool = pool
+					s.Logger.Info("[Config UI] SQL connection pool created")
+				} else if !newCfg.SQLConnections.Enabled && s.SQLConnectionPool != nil {
+					s.SQLConnectionPool.CloseAll()
+					s.SQLConnectionPool = nil
+					s.Logger.Info("[Config UI] SQL connection pool closed")
+				}
 			}
 
 			// Ansible sidecar lifecycle management
