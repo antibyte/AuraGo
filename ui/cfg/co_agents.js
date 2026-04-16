@@ -185,7 +185,7 @@ function _coAgentPickCheatsheet(roleKey) {
     if (existingModal) existingModal.remove();
 
     var modal = document.createElement('div');
-    modal.className = 'modal-overlay';
+    modal.className = 'modal-overlay active';
     modal.id = modalId;
     modal.innerHTML = '<div class="modal"><div class="modal-header"><h2>' + escapeHtml(t('config.co_agents.spec_cheatsheet_modal_title')) + '</h2><button class="modal-close" onclick="document.getElementById(\'ca-cs-modal\').remove()">&times;</button></div><div class="ca-cs-list" id="ca-cs-list"><div class="ca-cs-loading">' + escapeHtml(t('config.co_agents.spec_cheatsheet_loading')) + '</div></div></div>';
     document.body.appendChild(modal);
