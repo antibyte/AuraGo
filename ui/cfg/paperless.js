@@ -4,6 +4,7 @@ function renderPaperlessSection(section) {
     const data = configData['paperless_ngx'] || {};
     const enabledOn = data.enabled === true;
     const readonlyOn = data.readonly === true;
+    const tokenPlaceholder = cfgSecretPlaceholder(data.api_token, '••••••••••••••••••••');
 
     let html = '<div class="cfg-section active">';
     html += '<div class="section-header">' + section.icon + ' ' + section.label + '</div>';
@@ -44,7 +45,7 @@ function renderPaperlessSection(section) {
     if (helpToken) html += '<div class="field-help">' + helpToken + '</div>';
     html += '<div class="pl-token-row">';
     html += '<div class="password-wrap pl-password-wrap">';
-    html += '<input class="field-input" type="password" id="paperless-token-input" placeholder="••••••••••••••••••••" autocomplete="off">';
+    html += '<input class="field-input" type="password" id="paperless-token-input" value="' + escapeAttr(cfgSecretValue(data.api_token)) + '" placeholder="' + escapeAttr(tokenPlaceholder) + '" autocomplete="off">';
     html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
     html += '</div>';
     html += '<button class="btn-save pl-save-btn" onclick="paperlessSaveToken()">💾 ' + t('config.paperless.save_vault') + '</button>';
@@ -75,7 +76,7 @@ function paperlessSaveToken() {
     .then(res => {
         if (res.status === 'ok' || res.success) {
             showToast(t('config.paperless.token_saved'), 'success');
-            if (input) input.value = '';
+            cfgMarkSecretStored(input, 'paperless_ngx.api_token');
             if (status) status.classList.add('is-hidden');
         } else {
             showToast(res.message || t('config.paperless.token_save_failed'), 'error');

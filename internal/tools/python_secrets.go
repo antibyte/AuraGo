@@ -38,6 +38,7 @@ var blockedSecretPrefixes = []string{
 	"mqtt_",
 	"ollama_managed_",
 	"jellyfin_",
+	"webhook_",
 	"music_minimax_",
 	"music_google_lyria_",
 }

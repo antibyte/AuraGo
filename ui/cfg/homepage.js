@@ -243,7 +243,7 @@ async function renderHomepageSection(section) {
         html += `<label class="hp-label-block">
             <span class="hp-input-label">${t('config.homepage.deploy_password')}  <small class="hp-lock-icon">🔐 vault</small></span>
             <div class="password-wrap hp-pw-wrap-mt">
-                <input class="field-input hp-w-full" type="password" id="hp-deploy-password" value="" placeholder="••••••••" autocomplete="off">
+                <input class="field-input hp-w-full" type="password" id="hp-deploy-password" value="${escapeAttr(cfgSecretValue(cfg.deploy_password))}" placeholder="${escapeAttr(cfgSecretPlaceholder(cfg.deploy_password))}" autocomplete="off">
                 <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
             </div>
         </label>`;
@@ -251,7 +251,7 @@ async function renderHomepageSection(section) {
         html += `<label class="hp-label-block">
             <span class="hp-input-label">${t('config.homepage.deploy_key')}  <small class="hp-lock-icon">🔐 vault</small></span>
             <div class="password-wrap hp-pw-wrap-mt">
-                <input class="field-input hp-w-full" type="password" id="hp-deploy-key" value="" placeholder="••••••••" autocomplete="off">
+                <input class="field-input hp-w-full" type="password" id="hp-deploy-key" value="${escapeAttr(cfgSecretValue(cfg.deploy_key))}" placeholder="${escapeAttr(cfgSecretPlaceholder(cfg.deploy_key))}" autocomplete="off">
                 <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
             </div>
         </label>`;
@@ -404,8 +404,8 @@ async function hpSaveCredentials() {
         hpSetStatusState(statusEl, 'error', '❌ ' + errors.join('; '));
     } else {
         hpSetStatusState(statusEl, 'success', '✅ ' + t('config.homepage.cred_saved', { count: saved }));
-        document.getElementById('hp-deploy-password').value = '';
-        document.getElementById('hp-deploy-key').value = '';
+        if (pw) cfgMarkSecretStored(document.getElementById('hp-deploy-password'), 'homepage.deploy_password');
+        if (key) cfgMarkSecretStored(document.getElementById('hp-deploy-key'), 'homepage.deploy_key');
     }
 }
 

@@ -1272,6 +1272,32 @@ function setHidden(el, hidden) {
     el.classList.toggle('is-hidden', hidden);
 }
 
+const CFG_MASKED_SECRET = '••••••••';
+
+function cfgIsMaskedSecret(value) {
+    return value === CFG_MASKED_SECRET;
+}
+
+function cfgSecretValue(value) {
+    return cfgIsMaskedSecret(value) ? '' : (value || '');
+}
+
+function cfgSecretPlaceholder(value, defaultPlaceholder = CFG_MASKED_SECRET) {
+    return cfgIsMaskedSecret(value) ? t('config.providers.key_placeholder_existing') : defaultPlaceholder;
+}
+
+function cfgMarkSecretStored(input, configPath) {
+    if (input) {
+        input.value = '';
+        input.placeholder = t('config.providers.key_placeholder_existing');
+    }
+    if (!configPath) return;
+    const paths = Array.isArray(configPath) ? configPath : [configPath];
+    paths.forEach(path => {
+        if (path) setNestedValue(configData, path, CFG_MASKED_SECRET);
+    });
+}
+
 async function vaultSave(key, value, statusEl) {
     const resp = await fetch('/api/vault/secrets', {
         method: 'POST',

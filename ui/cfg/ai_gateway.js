@@ -3,8 +3,7 @@
 function renderAIGatewaySection(section) {
     const gw = configData.ai_gateway || {};
     const enabled = gw.enabled === true;
-    const hasStoredToken = gw.token === '••••••••';
-    const tokenPlaceholder = hasStoredToken ? '••••••••' : t('config.ai_gateway.token_placeholder');
+    const tokenPlaceholder = cfgSecretPlaceholder(gw.token, t('config.ai_gateway.token_placeholder'));
 
     let html = '<div class="cfg-section active">';
     html += '<div class="section-header">' + section.icon + ' ' + section.label + '</div>';
@@ -50,7 +49,7 @@ function renderAIGatewaySection(section) {
     html += '<span class="ai-gw-label-text">' + t('config.ai_gateway.token') + '</span>';
     html += '<span class="field-help">' + t('help.ai_gateway.token') + '</span>';
     html += '<div class="password-wrap">';
-    html += '<input class="cfg-input ai-gw-input-spaced" type="password" data-path="ai_gateway.token" value="" placeholder="' + escapeAttr(tokenPlaceholder) + '" autocomplete="off">';
+    html += '<input class="cfg-input ai-gw-input-spaced" type="password" data-path="ai_gateway.token" value="' + escapeAttr(cfgSecretValue(gw.token)) + '" placeholder="' + escapeAttr(tokenPlaceholder) + '" autocomplete="off">';
     html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
     html += '</div>';
     html += '</label>';

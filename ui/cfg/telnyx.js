@@ -4,6 +4,7 @@ function renderTelnyxSection(section) {
     const data = configData['telnyx'] || {};
     const enabled = data.enabled === true;
     const readOnly = data.read_only === true;
+    const apiKeyPlaceholder = cfgSecretPlaceholder(data.api_key, t('config.telnyx.api_key_placeholder'));
 
     let html = '<div class="cfg-section active">';
     html += '<div class="section-header">' + section.icon + ' ' + section.label + '</div>';
@@ -33,7 +34,7 @@ function renderTelnyxSection(section) {
     html += '<div class="field-help">' + t('help.telnyx.api_key') + '</div>';
     html += '<div class="telnyx-api-row">';
         html += '<div class="password-wrap" style="flex:1;">';
-        html += '<input class="field-input telnyx-api-input" type="password" id="telnyx-api-key" placeholder="' + t('config.telnyx.api_key_placeholder') + '">';
+        html += '<input class="field-input telnyx-api-input" type="password" id="telnyx-api-key" value="' + escapeAttr(cfgSecretValue(data.api_key)) + '" placeholder="' + escapeAttr(apiKeyPlaceholder) + '">';
         html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
         html += '</div>';
     html += '<button class="btn btn-sm" onclick="saveTelnyxVault(\'api_key\')">' + t('config.telnyx.save_vault') + '</button>';
@@ -149,7 +150,7 @@ function saveTelnyxVault(field) {
         body: JSON.stringify({ key: 'telnyx_' + field, value: el.value.trim() })
     }).then(r => {
         if (r.ok) {
-            el.value = '';
+            cfgMarkSecretStored(el, 'telnyx.api_key');
             showToast(t('config.telnyx.vault_saved'), 'success');
         } else {
             showToast(t('config.telnyx.vault_failed'), 'error');

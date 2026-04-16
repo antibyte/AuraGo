@@ -214,6 +214,85 @@ tools:
 	}
 }
 
+func TestInjectVaultIndicatorsAddsAdditionalVaultBackedFields(t *testing.T) {
+	const masterKey = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+
+	vault, err := security.NewVault(masterKey, filepath.Join(t.TempDir(), "vault.bin"))
+	if err != nil {
+		t.Fatalf("NewVault() error = %v", err)
+	}
+
+	secrets := map[string]string{
+		"netlify_token":         "netlify-secret",
+		"telnyx_api_key":        "telnyx-secret",
+		"cloudflared_token":     "cloudflare-secret",
+		"a2a_api_key":           "a2a-secret",
+		"a2a_bearer_secret":     "a2a-bearer-secret",
+		"truenas_api_key":       "truenas-secret",
+		"jellyfin_api_key":      "jellyfin-secret",
+		"a2a_remote_agent1_api_key":      "remote-api-key",
+		"a2a_remote_agent1_bearer_token": "remote-bearer-token",
+	}
+	for key, value := range secrets {
+		if err := vault.WriteSecret(key, value); err != nil {
+			t.Fatalf("WriteSecret(%q) error = %v", key, err)
+		}
+	}
+
+	rawCfg := map[string]interface{}{
+		"netlify":           map[string]interface{}{},
+		"telnyx":            map[string]interface{}{},
+		"cloudflare_tunnel": map[string]interface{}{},
+		"a2a": map[string]interface{}{
+			"auth": map[string]interface{}{},
+			"client": map[string]interface{}{
+				"remote_agents": []interface{}{
+					map[string]interface{}{"id": "agent1"},
+				},
+			},
+		},
+		"truenas":  map[string]interface{}{},
+		"jellyfin": map[string]interface{}{},
+	}
+
+	injectVaultIndicators(rawCfg, vault)
+
+	assertMasked := func(path string) {
+		t.Helper()
+		parts := strings.Split(path, ".")
+		var current interface{} = rawCfg
+		for _, part := range parts {
+			m, ok := current.(map[string]interface{})
+			if !ok {
+				t.Fatalf("path %q missing at %q", path, part)
+			}
+			current = m[part]
+		}
+		if current != "••••••••" {
+			t.Fatalf("%s = %#v, want masked secret", path, current)
+		}
+	}
+
+	assertMasked("netlify.token")
+	assertMasked("telnyx.api_key")
+	assertMasked("cloudflare_tunnel.token")
+	assertMasked("a2a.auth.api_key")
+	assertMasked("a2a.auth.bearer_secret")
+	assertMasked("truenas.api_key")
+	assertMasked("jellyfin.api_key")
+
+	a2aSection := rawCfg["a2a"].(map[string]interface{})
+	clientSection := a2aSection["client"].(map[string]interface{})
+	remoteAgents := clientSection["remote_agents"].([]interface{})
+	remoteAgent := remoteAgents[0].(map[string]interface{})
+	if remoteAgent["api_key"] != "••••••••" {
+		t.Fatalf("remote agent api_key = %#v, want masked secret", remoteAgent["api_key"])
+	}
+	if remoteAgent["bearer_token"] != "••••••••" {
+		t.Fatalf("remote agent bearer_token = %#v, want masked secret", remoteAgent["bearer_token"])
+	}
+}
+
 // TestConfigSaveLoadNoDuplicateKeys verifies that saving and loading a config
 // does not produce duplicate YAML keys (which would cause parse errors).
 func TestConfigSaveLoadNoDuplicateKeys(t *testing.T) {

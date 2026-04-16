@@ -161,10 +161,10 @@ function emailAccountShowModal(title, data, onSave) {
         <div class="field-group">
             <div class="field-label">${t('config.email.password')}</div>
             <div class="password-wrap">
-                <input class="field-input" id="ea-password" type="password" value="${escapeAttr(data.password === '••••••••' ? '' : (data.password || ''))}" placeholder="${data.password === '••••••••' ? '••••••••  (' + t('config.email.password_unchanged') + ')' : ''}" autocomplete="off">
+                <input class="field-input" id="ea-password" type="password" value="${escapeAttr(cfgSecretValue(data.password))}" placeholder="${escapeAttr(cfgSecretPlaceholder(data.password, ''))}" autocomplete="off">
                 <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
             </div>
-            ${data.password === '••••••••' ? `<div class="em-pw-hint">${t('config.email.keep_password')}</div>` : ''}
+            ${cfgIsMaskedSecret(data.password) ? `<div class="em-pw-hint">${t('config.email.keep_password')}</div>` : ''}
         </div>
         <div class="field-group">
             <div class="field-label">${t('config.email.from_address')}</div>
@@ -213,7 +213,7 @@ function emailAccountShowModal(title, data, onSave) {
         const smtp_port = parseInt(document.getElementById('ea-smtp-port').value, 10) || 587;
         const username = document.getElementById('ea-username').value.trim();
         let password = document.getElementById('ea-password').value.trim();
-        if (!password && data.password === '••••••••') password = '••••••••';
+        if (!password && cfgIsMaskedSecret(data.password)) password = CFG_MASKED_SECRET;
         const from_address = document.getElementById('ea-from').value.trim();
         const watch_enabled = document.getElementById('ea-watch-enabled').checked;
         const watch_folder = document.getElementById('ea-watch-folder').value.trim() || 'INBOX';

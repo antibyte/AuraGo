@@ -4,7 +4,6 @@ function renderKoofrSection(section) {
     const data = configData.koofr || {};
     const enabled = data.enabled === true;
     const readonly = data.readonly === true;
-    const hasAppPassword = data.app_password === '••••••••';
 
     let html = '<div class="cfg-section active">';
     html += '<div class="section-header">' + section.icon + ' ' + section.label + '</div>';
@@ -43,7 +42,7 @@ function renderKoofrSection(section) {
     html += '<div class="field-help">' + t('help.koofr.app_password') + '</div>';
     html += '<div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">';
         html += '<div class="password-wrap" style="flex:1;min-width:240px;">';
-        html += '<input class="field-input" type="password" id="koofr-app-password" placeholder="' + escapeAttr(hasAppPassword ? '••••••••' : t('config.koofr.app_password_placeholder')) + '" style="flex:1;min-width:240px;">';
+        html += '<input class="field-input" type="password" id="koofr-app-password" value="' + escapeAttr(cfgSecretValue(data.app_password)) + '" placeholder="' + escapeAttr(cfgSecretPlaceholder(data.app_password, t('config.koofr.app_password_placeholder'))) + '" style="flex:1;min-width:240px;">';
         html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
         html += '</div>';
     html += '<button class="btn-save" style="padding:0.45rem 1rem;font-size:0.82rem;white-space:nowrap;" onclick="koofrSaveAppPassword()">💾 ' + t('config.koofr.save_vault') + '</button>';
@@ -70,12 +69,7 @@ function koofrSaveAppPassword() {
         .then(res => {
             if (res.status === 'ok' || res.success) {
                 showToast(t('config.koofr.app_password_saved'), 'success');
-                if (input) {
-                    input.value = '';
-                    input.placeholder = '••••••••';
-                }
-                if (!configData.koofr) configData.koofr = {};
-                configData.koofr.app_password = '••••••••';
+                cfgMarkSecretStored(input, 'koofr.app_password');
             } else {
                 showToast(res.message || t('config.koofr.app_password_save_failed'), 'error');
             }

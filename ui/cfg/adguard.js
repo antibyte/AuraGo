@@ -4,6 +4,7 @@ function renderAdGuardSection(section) {
     const data = configData['adguard'] || {};
     const enabledOn = data.enabled === true;
     const readonlyOn = data.readonly === true;
+    const passwordPlaceholder = cfgSecretPlaceholder(data.password, t('config.adguard.password_placeholder'));
 
     let html = '<div class="cfg-section active">';
     html += '<div class="section-header">' + section.icon + ' ' + section.label + '</div>';
@@ -55,7 +56,7 @@ function renderAdGuardSection(section) {
     if (helpPass) html += '<div class="field-help">' + helpPass + '</div>';
     html += '<div class="adg-password-row">';
         html += '<div class="password-wrap" style="flex:1;">';
-        html += '<input class="field-input adg-password-input" type="password" id="adg-password" placeholder="' + t('config.adguard.password_placeholder') + '">';
+        html += '<input class="field-input adg-password-input" type="password" id="adg-password" value="' + escapeAttr(cfgSecretValue(data.password)) + '" placeholder="' + escapeAttr(passwordPlaceholder) + '">';
         html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
         html += '</div>';
     html += '<button class="btn-save adg-save-btn" onclick="adgSavePassword()">' + t('config.adguard.save_icon') + ' ' + t('config.adguard.save_vault') + '</button>';
@@ -179,7 +180,7 @@ function adgSavePassword() {
     .then(res => {
         if (res.status === 'ok' || res.success) {
             showToast(t('config.adguard.password_saved'), 'success');
-            if (input) input.value = '';
+            cfgMarkSecretStored(input, 'adguard.password');
         } else {
             showToast(res.message || t('config.adguard.password_save_failed'), 'error');
         }

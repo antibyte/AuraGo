@@ -7,6 +7,8 @@ function renderA2ASection(section) {
     const bindings = srv.bindings || {};
     const skills = srv.skills || [];
     const remoteAgents = cli.remote_agents || [];
+    const authAPIKeyPlaceholder = cfgSecretPlaceholder(auth.api_key, t('config.a2a.api_key_placeholder'));
+    const authBearerPlaceholder = cfgSecretPlaceholder(auth.bearer_secret, t('config.a2a.bearer_placeholder'));
 
     let html = '<div class="cfg-section active">';
     html += '<div class="section-header">' + section.icon + ' ' + section.label + '</div>';
@@ -120,7 +122,7 @@ function renderA2ASection(section) {
     html += '<span class="a2a-toggle-label-bold">' + t('config.a2a.api_key_auth') + '</span>';
     html += '</div>';
     html += '<div class="a2a-field-row">';
-    html += '<input class="field-input a2a-input-flex" type="password" id="a2a-api-key" placeholder="' + escapeAttr(t('config.a2a.api_key_placeholder')) + '">';
+    html += '<input class="field-input a2a-input-flex" type="password" id="a2a-api-key" value="' + escapeAttr(cfgSecretValue(auth.api_key)) + '" placeholder="' + escapeAttr(authAPIKeyPlaceholder) + '">';
     html += '<button class="btn-save cfg-save-btn-sm" onclick="a2aSaveVault(\'a2a_api_key\', \'a2a-api-key\')">💾 ' + t('config.a2a.save_vault') + '</button>';
     html += '</div>';
     html += '<span id="a2a-api-key-status" class="a2a-status-text"></span>';
@@ -132,7 +134,7 @@ function renderA2ASection(section) {
     html += '<span class="a2a-toggle-label-bold">' + t('config.a2a.bearer_auth') + '</span>';
     html += '</div>';
     html += '<div class="a2a-field-row">';
-    html += '<input class="field-input a2a-input-flex" type="password" id="a2a-bearer-secret" placeholder="' + escapeAttr(t('config.a2a.bearer_placeholder')) + '">';
+    html += '<input class="field-input a2a-input-flex" type="password" id="a2a-bearer-secret" value="' + escapeAttr(cfgSecretValue(auth.bearer_secret)) + '" placeholder="' + escapeAttr(authBearerPlaceholder) + '">';
     html += '<button class="btn-save cfg-save-btn-sm" onclick="a2aSaveVault(\'a2a_bearer_secret\', \'a2a-bearer-secret\')">💾 ' + t('config.a2a.save_vault') + '</button>';
     html += '</div>';
     html += '<span id="a2a-bearer-status" class="a2a-status-text"></span>';
@@ -238,6 +240,8 @@ function a2aRemoveSkill(idx) {
 
 function a2aRemoteAgentCard(ra, idx) {
     var on = ra.enabled !== false;
+    var apiKeyPlaceholder = cfgSecretPlaceholder(ra.api_key, t('config.a2a.ra_api_key'));
+    var bearerPlaceholder = cfgSecretPlaceholder(ra.bearer_token, t('config.a2a.ra_bearer'));
     var h = '<div class="a2a-agent-card" data-ra-idx="' + idx + '">';
     h += '<div class="a2a-agent-header">';
     h += '<div class="a2a-agent-title-area">';
@@ -258,12 +262,12 @@ function a2aRemoteAgentCard(ra, idx) {
     h += '<input class="field-input a2a-input-full-mb" type="text" data-path="a2a.client.remote_agents.' + idx + '.card_url" value="' + escapeAttr(ra.card_url || '') + '" placeholder="https://agent.example.com/.well-known/agent-card.json">';
 
     h += '<div class="a2a-cred-row">';
-    h += '<input class="field-input a2a-input-flex" type="password" id="a2a-ra-apikey-' + idx + '" placeholder="' + escapeAttr(t('config.a2a.ra_api_key')) + '">';
+    h += '<input class="field-input a2a-input-flex" type="password" id="a2a-ra-apikey-' + idx + '" value="' + escapeAttr(cfgSecretValue(ra.api_key)) + '" placeholder="' + escapeAttr(apiKeyPlaceholder) + '">';
     h += '<button class="btn-save a2a-save-btn-xs" onclick="a2aSaveVault(\'a2a_remote_' + escapeAttr(ra.id || 'new') + '_api_key\', \'a2a-ra-apikey-' + idx + '\')">💾</button>';
     h += '<span id="a2a-ra-apikey-' + idx + '-status" class="a2a-status-xs"></span>';
     h += '</div>';
     h += '<div class="a2a-cred-row-last">';
-    h += '<input class="field-input a2a-input-flex" type="password" id="a2a-ra-bearer-' + idx + '" placeholder="' + escapeAttr(t('config.a2a.ra_bearer')) + '">';
+    h += '<input class="field-input a2a-input-flex" type="password" id="a2a-ra-bearer-' + idx + '" value="' + escapeAttr(cfgSecretValue(ra.bearer_token)) + '" placeholder="' + escapeAttr(bearerPlaceholder) + '">';
     h += '<button class="btn-save a2a-save-btn-xs" onclick="a2aSaveVault(\'a2a_remote_' + escapeAttr(ra.id || 'new') + '_bearer_token\', \'a2a-ra-bearer-' + idx + '\')">💾</button>';
     h += '<span id="a2a-ra-bearer-' + idx + '-status" class="a2a-status-xs"></span>';
     h += '</div>';
@@ -319,7 +323,27 @@ function a2aSaveVault(vaultKey, inputId) {
     .then(function(r) { return r.json(); })
     .then(function(res) {
         if (res.status === 'ok' || res.success) {
-            if (input) input.value = '';
+            if (vaultKey === 'a2a_api_key') {
+                cfgMarkSecretStored(input, 'a2a.auth.api_key');
+            } else if (vaultKey === 'a2a_bearer_secret') {
+                cfgMarkSecretStored(input, 'a2a.auth.bearer_secret');
+            } else if (vaultKey.startsWith('a2a_remote_') && vaultKey.endsWith('_api_key')) {
+                cfgMarkSecretStored(input);
+                var remoteAgentID = vaultKey.slice('a2a_remote_'.length, -'_api_key'.length);
+                var remoteAgents = (((configData || {}).a2a || {}).client || {}).remote_agents || [];
+                remoteAgents.forEach(function(agent) {
+                    if (agent && agent.id === remoteAgentID) agent.api_key = CFG_MASKED_SECRET;
+                });
+            } else if (vaultKey.startsWith('a2a_remote_') && vaultKey.endsWith('_bearer_token')) {
+                cfgMarkSecretStored(input);
+                var remoteBearerAgentID = vaultKey.slice('a2a_remote_'.length, -'_bearer_token'.length);
+                var bearerAgents = (((configData || {}).a2a || {}).client || {}).remote_agents || [];
+                bearerAgents.forEach(function(agent) {
+                    if (agent && agent.id === remoteBearerAgentID) agent.bearer_token = CFG_MASKED_SECRET;
+                });
+            } else {
+                cfgMarkSecretStored(input);
+            }
             if (statusEl) { statusEl.classList.remove('a2a-color-error'); statusEl.classList.add('a2a-color-success'); statusEl.textContent = '✓ ' + t('config.a2a.saved'); }
         } else {
             if (statusEl) { statusEl.classList.remove('a2a-color-success'); statusEl.classList.add('a2a-color-error'); statusEl.textContent = '✗ ' + (res.message || t('config.a2a.save_failed')); }

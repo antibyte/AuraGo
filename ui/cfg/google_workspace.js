@@ -56,7 +56,7 @@ async function renderGoogleWorkspaceSection(section) {
         <div class="field-hint">${t('config.google_workspace.client_secret_hint')}</div>
         <div style="display:flex;gap:0.5rem;align-items:center;">
             <div class="password-wrap" style="flex:1;">
-                <input class="field-input" type="password" id="gw-secret-input" placeholder="GOCSPX-••••••••••" autocomplete="off">
+                <input class="field-input" type="password" id="gw-secret-input" value="${escapeAttr(cfgSecretValue(data.client_secret))}" placeholder="${escapeAttr(cfgSecretPlaceholder(data.client_secret, 'GOCSPX-••••••••••'))}" autocomplete="off">
                     <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
             </div>
             <button class="btn-save" style="padding:0.45rem 1rem;font-size:0.82rem;white-space:nowrap;" onclick="gwSaveSecret()">💾 ${t('config.google_workspace.save_vault')}</button>
@@ -150,7 +150,7 @@ function gwSaveSecret() {
         if (res.status === 'ok' || res.success) {
             statusEl.style.color = 'var(--success)';
             statusEl.textContent = '✓ ' + t('config.google_workspace.secret_saved');
-            if (input) input.value = '';
+            cfgMarkSecretStored(input, 'google_workspace.client_secret');
         } else {
             statusEl.style.color = 'var(--danger)';
             statusEl.textContent = '✗ ' + (res.message || t('config.google_workspace.secret_save_failed'));

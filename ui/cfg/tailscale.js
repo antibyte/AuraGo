@@ -33,7 +33,7 @@ async function renderTailscaleSection(section) {
         <div class="ts-key-label">🔑 ${t('config.tailscale.api_key_label')}</div>
         <div class="cfg-secret-row">
             <div class="password-wrap ts-pw-wrap">
-                <input class="field-input cfg-input" type="password" id="ts-api-key-input" placeholder="tskey-api-••••••••" autocomplete="off">
+                <input class="field-input cfg-input" type="password" id="ts-api-key-input" value="${escapeAttr(cfgSecretValue(cfg.api_key))}" placeholder="${escapeAttr(cfgSecretPlaceholder(cfg.api_key, 'tskey-api-••••••••'))}" autocomplete="off">
                 <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
             </div>
             <button class="btn-save cfg-save-btn-sm" onclick="tsSaveApiKey()">💾 ${t('config.tailscale.save_vault')}</button>
@@ -116,7 +116,7 @@ async function renderTailscaleSection(section) {
             <div class="ts-key-label">🔑 ${t('config.tailscale.tsnet_auth_key_label')}</div>
             <div class="cfg-secret-row">
                 <div class="password-wrap ts-pw-wrap">
-                    <input class="field-input cfg-input" type="password" id="ts-auth-key-input" placeholder="tskey-auth-••••••••" autocomplete="off">
+                    <input class="field-input cfg-input" type="password" id="ts-auth-key-input" value="${escapeAttr(cfgSecretValue(tsnet.auth_key))}" placeholder="${escapeAttr(cfgSecretPlaceholder(tsnet.auth_key, 'tskey-auth-••••••••'))}" autocomplete="off">
                     <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
                 </div>
                 <button class="btn-save cfg-save-btn-sm" onclick="tsSaveAuthKey()">💾 ${t('config.tailscale.save_vault')}</button>
@@ -279,7 +279,7 @@ function tsSaveApiKey() {
     .then(res => {
         if (res.status === 'ok' || res.success) {
             if (statusEl) { statusEl.className = 'ts-key-status ts-color-success'; statusEl.textContent = '✓ ' + t('config.tailscale.key_saved'); }
-            if (input) input.value = '';
+            cfgMarkSecretStored(input, 'tailscale.api_key');
         } else {
             if (statusEl) { statusEl.className = 'ts-key-status ts-color-error'; statusEl.textContent = '✗ ' + (res.message || t('config.tailscale.key_save_failed')); }
         }
@@ -307,7 +307,7 @@ function tsSaveAuthKey() {
     .then(res => {
         if (res.status === 'ok' || res.success) {
             if (statusEl) { statusEl.className = 'ts-key-status ts-color-success'; statusEl.textContent = '✓ ' + t('config.tailscale.key_saved'); }
-            if (input) input.value = '';
+            cfgMarkSecretStored(input, 'tailscale.tsnet.auth_key');
         } else {
             if (statusEl) { statusEl.className = 'ts-key-status ts-color-error'; statusEl.textContent = '✗ ' + (res.message || t('config.tailscale.key_save_failed')); }
         }

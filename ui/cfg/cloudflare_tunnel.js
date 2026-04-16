@@ -149,7 +149,7 @@ async function renderCloudflareTunnelSection(section) {
         html += `<div class="field-group cf-token-group">
             <div class="field-label">${t('config.cloudflare_tunnel.token_label')}</div>
             <div class="cfg-password-row">
-                <input class="field-input cfg-password-input" type="password" id="cloudflare-tunnel-token" placeholder="${t('config.cloudflare_tunnel.token_placeholder')}">
+                <input class="field-input cfg-password-input" type="password" id="cloudflare-tunnel-token" value="${escapeAttr(cfgSecretValue(cfg.token))}" placeholder="${escapeAttr(cfgSecretPlaceholder(cfg.token, t('config.cloudflare_tunnel.token_placeholder')))}">
                 <button class="btn-save adg-save-btn" onclick="cloudflareTunnelSaveToken()">💾 ${t('config.cloudflare_tunnel.save_vault')}</button>
                 <button class="btn-save adg-save-btn cf-restart-btn" onclick="cloudflareTunnelRestart()">🔄 ${t('config.cloudflare_tunnel.start_tunnel')}</button>
             </div>
@@ -217,7 +217,7 @@ function cloudflareTunnelSaveToken() {
             if (status) { status.textContent = data.error; status.className = 'cf-token-status is-error'; }
         } else {
             if (status) { status.textContent = t('config.cloudflare_tunnel.token_saved'); status.className = 'cf-token-status is-success'; }
-            document.getElementById('cloudflare-tunnel-token').value = '';
+            cfgMarkSecretStored(document.getElementById('cloudflare-tunnel-token'), 'cloudflare_tunnel.token');
         }
     })
     .catch(err => {

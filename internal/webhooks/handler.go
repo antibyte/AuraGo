@@ -30,6 +30,7 @@ type Handler struct {
 	mu             gosync.RWMutex // protects maxPayloadSize and rateLimiter during hot-reload
 	manager        *Manager
 	tokenManager   *security.TokenManager
+	vault          *security.Vault
 	guardian       *security.Guardian
 	llmGuardian    *security.LLMGuardian
 	cfg            *config.Config
@@ -41,10 +42,11 @@ type Handler struct {
 }
 
 // NewHandler creates a webhook receiver handler.
-func NewHandler(manager *Manager, tokenManager *security.TokenManager, guardian *security.Guardian, llmGuardian *security.LLMGuardian, cfg *config.Config, logger *slog.Logger, serverPort int, maxPayloadSize int64, rateLimit int) *Handler {
+func NewHandler(manager *Manager, tokenManager *security.TokenManager, vault *security.Vault, guardian *security.Guardian, llmGuardian *security.LLMGuardian, cfg *config.Config, logger *slog.Logger, serverPort int, maxPayloadSize int64, rateLimit int) *Handler {
 	return &Handler{
 		manager:        manager,
 		tokenManager:   tokenManager,
+		vault:          vault,
 		guardian:       guardian,
 		llmGuardian:    llmGuardian,
 		cfg:            cfg,
@@ -103,6 +105,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.logEvent(wh.ID, wh.Name, 403, sourceIP, 0, false, "webhook disabled")
 		http.Error(w, `{"error":"webhook disabled"}`, http.StatusForbidden)
 		return
+	}
+	if wh.Format.SignatureSecret == "" && h.vault != nil {
+		if secret, err := h.vault.ReadSecret(SignatureSecretVaultKey(wh.ID)); err == nil && strings.TrimSpace(secret) != "" {
+			wh.Format.SignatureSecret = secret
+		}
 	}
 
 	// 2. Token validation

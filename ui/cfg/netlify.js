@@ -11,6 +11,7 @@ async function renderNetlifySection(section) {
     }
 
     const cfg = configData.netlify || {};
+    const tokenPlaceholder = cfgSecretPlaceholder(cfg.token);
     const nfEnabled = cfg.enabled === true;
     const st = nfStatusCache || {};
 
@@ -113,7 +114,7 @@ async function renderNetlifySection(section) {
     html += `<label>
         <span class="cfg-label">${t('config.netlify.token_label')}  <small class="hp-text-tertiary">🔐 vault</small></span>
         <div class="password-wrap">
-            <input class="field-input" type="password" id="nf-token" value="" placeholder="••••••••" autocomplete="off">
+            <input class="field-input" type="password" id="nf-token" value="${escapeAttr(cfgSecretValue(cfg.token))}" placeholder="${escapeAttr(tokenPlaceholder)}" autocomplete="off">
             <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
         </div>
     </label>`;
@@ -164,7 +165,7 @@ async function nfSaveToken() {
             if (statusEl) { statusEl.textContent = '❌ ' + txt; statusEl.className = 'cfg-status-text cfg-status-error'; }
         } else {
             if (statusEl) { statusEl.textContent = '✅ ' + t('config.netlify.token_saved'); statusEl.className = 'cfg-status-text cfg-status-success'; }
-            document.getElementById('nf-token').value = '';
+            cfgMarkSecretStored(document.getElementById('nf-token'), 'netlify.token');
             nfStatusCache = null;
         }
     } catch (e) {

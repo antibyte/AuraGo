@@ -7,6 +7,7 @@ function renderJellyfinSection(section) {
     const destructiveOn = data.allow_destructive === true;
     const httpsOn = data.use_https === true;
     const insecureOn = data.insecure_ssl === true;
+    const apiKeyPlaceholder = cfgSecretPlaceholder(data.api_key, t('config.jellyfin.apikey_placeholder'));
 
     let html = '<div class="cfg-section active">';
     html += '<div class="section-header">' + section.icon + ' ' + section.label + '</div>';
@@ -88,7 +89,7 @@ function renderJellyfinSection(section) {
     if (helpKey) html += '<div class="field-help">' + helpKey + '</div>';
     html += '<div class="adg-password-row">';
         html += '<div class="password-wrap" style="flex:1;">';
-        html += '<input class="field-input adg-password-input" type="password" id="jellyfin-apikey" placeholder="' + t('config.jellyfin.apikey_placeholder') + '">';
+        html += '<input class="field-input adg-password-input" type="password" id="jellyfin-apikey" value="' + escapeAttr(cfgSecretValue(data.api_key)) + '" placeholder="' + escapeAttr(apiKeyPlaceholder) + '">';
         html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
         html += '</div>';
     html += '<button class="btn-save adg-save-btn" onclick="jellyfinSaveKey()">💾 ' + t('config.jellyfin.save_vault') + '</button>';
@@ -179,7 +180,7 @@ function jellyfinSaveKey() {
     .then(res => {
         if (res.status === 'ok') {
             showToast(t('config.jellyfin.apikey_saved'), 'success');
-            document.getElementById('jellyfin-apikey').value = '';
+            cfgMarkSecretStored(document.getElementById('jellyfin-apikey'), 'jellyfin.api_key');
         } else {
             showToast(res.message || t('config.jellyfin.apikey_save_failed'), 'error');
         }

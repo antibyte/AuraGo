@@ -659,9 +659,9 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 			mux.HandleFunc("/api/webhooks", func(w http.ResponseWriter, r *http.Request) {
 				switch r.Method {
 				case http.MethodGet:
-					handleListWebhooks(s.WebhookManager)(w, r)
+					handleListWebhooks(s, s.WebhookManager)(w, r)
 				case http.MethodPost:
-					handleCreateWebhook(s.WebhookManager)(w, r)
+					handleCreateWebhook(s, s.WebhookManager)(w, r)
 				default:
 					http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 				}
@@ -681,9 +681,9 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 				}
 				switch r.Method {
 				case http.MethodPut:
-					handleUpdateWebhook(s.WebhookManager)(w, r)
+					handleUpdateWebhook(s, s.WebhookManager)(w, r)
 				case http.MethodDelete:
-					handleDeleteWebhook(s.WebhookManager)(w, r)
+					handleDeleteWebhook(s, s.WebhookManager)(w, r)
 				default:
 					http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 				}

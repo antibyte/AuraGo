@@ -7,6 +7,7 @@ async function renderMQTTSection(section) {
     const tls = data.tls || {};
     const buf = data.buffer || {};
     const tlsEnabled = tls.enabled === true;
+    const passwordPlaceholder = cfgSecretPlaceholder(data.password, t('config.mqtt.password_placeholder'));
 
     let html = `<div class="cfg-section active">
         <div class="section-header">${section.icon} ${section.label}</div>
@@ -52,7 +53,7 @@ async function renderMQTTSection(section) {
         <div class="field-help">${t('help.mqtt.password_help')}</div>
         <div class="cfg-field-row">
             <div class="password-wrap cfg-password-input">
-                <input class="field-input cfg-password-input" type="password" id="mqtt-password" placeholder="${t('config.mqtt.password_placeholder')}">
+                <input class="field-input cfg-password-input" type="password" id="mqtt-password" value="${escapeAttr(cfgSecretValue(data.password))}" placeholder="${escapeAttr(passwordPlaceholder)}">
                 <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
             </div>
             <button class="btn-save cfg-save-btn-sm" onclick="mqttSavePassword()">💾 ${t('config.mqtt.save_vault')}</button>
@@ -295,7 +296,7 @@ function mqttSavePassword() {
     .then(res => {
         if (res.status === 'ok' || res.success) {
             showToast(t('config.mqtt.password_saved'), 'success');
-            if (input) input.value = '';
+            cfgMarkSecretStored(input, 'mqtt.password');
         } else {
             showToast(res.message || t('config.mqtt.password_save_failed'), 'error');
         }

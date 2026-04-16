@@ -249,7 +249,7 @@ function whShowEditor(id) {
                 </div>
                 <div class="wh-form-row">
                     <label>${t('config.webhooks.signature_secret_label')}</label>
-                    <input id="wh-f-sigsec" class="field-input" type="password" value="${esc(format.signature_secret || '')}" placeholder="${t('config.webhooks.sig_secret_placeholder')}">
+                    <input id="wh-f-sigsec" class="field-input" type="password" data-has-secret="${cfgIsMaskedSecret(format.signature_secret) ? '1' : '0'}" value="${esc(cfgSecretValue(format.signature_secret))}" placeholder="${esc(cfgSecretPlaceholder(format.signature_secret, t('config.webhooks.sig_secret_placeholder')))}">
                 </div>
                 <div class="wh-subsection-title">
                     ${t('config.webhooks.field_mappings_label')}
@@ -330,6 +330,7 @@ function whApplyPreset(key) {
 
 function whCollectEditor() {
     const fields = [];
+    const sigInput = document.getElementById('wh-f-sigsec');
     document.querySelectorAll('#wh-fields-list .wh-field-row').forEach(row => {
         const src = row.querySelector('.wh-field-src')?.value?.trim();
         const alias = row.querySelector('.wh-field-alias')?.value?.trim();
@@ -347,7 +348,7 @@ function whCollectEditor() {
             description: document.getElementById('wh-f-desc').value.trim(),
             signature_header: document.getElementById('wh-f-sighdr').value.trim(),
             signature_algo: document.getElementById('wh-f-sigalgo').value,
-            signature_secret: document.getElementById('wh-f-sigsec').value,
+            signature_secret: sigInput && !sigInput.value && sigInput.dataset.hasSecret === '1' ? CFG_MASKED_SECRET : (sigInput ? sigInput.value : ''),
         },
         delivery: {
             mode: document.getElementById('wh-f-mode').value,

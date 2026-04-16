@@ -1,6 +1,7 @@
 function renderFritzBoxSection(section) {
     const data = configData['fritzbox'] || {};
     const enabled = data.enabled === true;
+    const passwordPlaceholder = cfgSecretPlaceholder(data.password, t('config.fritzbox.password_placeholder'));
 
     const sys = (data.system) || {};
     const net = (data.network) || {};
@@ -55,7 +56,7 @@ function renderFritzBoxSection(section) {
     html += '<div class="field-help">' + t('help.fritzbox.password') + '</div>';
     html += '<div class="cfg-field-row">';
     html += '<div class="password-wrap cfg-password-input">';
-    html += '<input class="field-input cfg-password-input" type="password" id="fb-password" placeholder="' + t('config.fritzbox.password_placeholder') + '">';
+    html += '<input class="field-input cfg-password-input" type="password" id="fb-password" value="' + escapeAttr(cfgSecretValue(data.password)) + '" placeholder="' + escapeAttr(passwordPlaceholder) + '">';
     html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
     html += '</div>';
     html += '<button class="btn-save cfg-save-btn-sm" onclick="fbSavePassword()">💾 ' + t('config.fritzbox.save_vault') + '</button>';
@@ -187,7 +188,7 @@ function fbSavePassword() {
     .then(res => {
         if (res.status === 'ok' || res.success) {
             showToast(t('config.fritzbox.password_saved'), 'success');
-            if (input) input.value = '';
+            cfgMarkSecretStored(input, 'fritzbox.password');
         } else {
             showToast(res.message || t('config.fritzbox.password_save_failed'), 'error');
         }

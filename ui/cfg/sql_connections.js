@@ -290,6 +290,7 @@ function sqlConnShowModal(id) {
         document.getElementById('sqlconn-field-ssl').value = c.ssl_mode || '';
         document.getElementById('sqlconn-field-username').value = '';
         document.getElementById('sqlconn-field-password').value = '';
+        document.getElementById('sqlconn-field-password').placeholder = c.vault_secret_id ? t('config.providers.key_placeholder_existing') : t('config.sql_connections.password_placeholder');
         document.getElementById('sqlconn-perm-read').checked = !!c.allow_read;
         document.getElementById('sqlconn-perm-write').checked = !!c.allow_write;
         document.getElementById('sqlconn-perm-change').checked = !!c.allow_change;
@@ -306,6 +307,7 @@ function sqlConnShowModal(id) {
         document.getElementById('sqlconn-field-ssl').value = '';
         document.getElementById('sqlconn-field-username').value = '';
         document.getElementById('sqlconn-field-password').value = '';
+        document.getElementById('sqlconn-field-password').placeholder = t('config.sql_connections.password_placeholder');
         document.getElementById('sqlconn-perm-read').checked = true;
         document.getElementById('sqlconn-perm-write').checked = false;
         document.getElementById('sqlconn-perm-change').checked = false;

@@ -15,6 +15,20 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+func webhookMaskSecrets(wh webhooks.Webhook, vault *security.Vault) webhooks.Webhook {
+	if strings.TrimSpace(wh.Format.SignatureSecret) != "" {
+		wh.Format.SignatureSecret = maskedKey
+		return wh
+	}
+	if vault == nil {
+		return wh
+	}
+	if secret, err := vault.ReadSecret(webhooks.SignatureSecretVaultKey(wh.ID)); err == nil && strings.TrimSpace(secret) != "" {
+		wh.Format.SignatureSecret = maskedKey
+	}
+	return wh
+}
+
 // --- Token Admin API Handlers ---
 
 func handleListTokens(tm *security.TokenManager) http.HandlerFunc {
@@ -128,18 +142,22 @@ func handleDeleteToken(tm *security.TokenManager) http.HandlerFunc {
 
 // --- Webhook Admin API Handlers ---
 
-func handleListWebhooks(mgr *webhooks.Manager) http.HandlerFunc {
+func handleListWebhooks(s *Server, mgr *webhooks.Manager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(mgr.List())
+		list := mgr.List()
+		for i := range list {
+			list[i] = webhookMaskSecrets(list[i], s.Vault)
+		}
+		json.NewEncoder(w).Encode(list)
 	}
 }
 
-func handleCreateWebhook(mgr *webhooks.Manager) http.HandlerFunc {
+func handleCreateWebhook(s *Server, mgr *webhooks.Manager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -155,18 +173,29 @@ func handleCreateWebhook(mgr *webhooks.Manager) http.HandlerFunc {
 			jsonError(w, "Invalid JSON", http.StatusBadRequest)
 			return
 		}
+		signatureSecret := strings.TrimSpace(wh.Format.SignatureSecret)
+		if signatureSecret != "" && s.Vault != nil {
+			wh.Format.SignatureSecret = ""
+		}
 		created, err := mgr.Create(wh)
 		if err != nil {
 			jsonError(w, "Failed to create webhook", http.StatusBadRequest)
 			return
 		}
+		if signatureSecret != "" && s.Vault != nil {
+			if err := s.Vault.WriteSecret(webhooks.SignatureSecretVaultKey(created.ID), signatureSecret); err != nil {
+				_ = mgr.Delete(created.ID)
+				jsonError(w, "Failed to store webhook secret", http.StatusInternalServerError)
+				return
+			}
+		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(created)
+		json.NewEncoder(w).Encode(webhookMaskSecrets(created, s.Vault))
 	}
 }
 
-func handleUpdateWebhook(mgr *webhooks.Manager) http.HandlerFunc {
+func handleUpdateWebhook(s *Server, mgr *webhooks.Manager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPut {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -181,6 +210,11 @@ func handleUpdateWebhook(mgr *webhooks.Manager) http.HandlerFunc {
 			jsonError(w, `{"error":"missing webhook id"}`, http.StatusBadRequest)
 			return
 		}
+		existing, err := mgr.Get(id)
+		if err != nil {
+			jsonError(w, "Webhook not found", http.StatusNotFound)
+			return
+		}
 		body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
 		if err != nil {
 			jsonError(w, "Failed to read body", http.StatusBadRequest)
@@ -191,6 +225,13 @@ func handleUpdateWebhook(mgr *webhooks.Manager) http.HandlerFunc {
 			jsonError(w, "Invalid JSON", http.StatusBadRequest)
 			return
 		}
+		signatureSecret := strings.TrimSpace(patch.Format.SignatureSecret)
+		keepExistingSecret := signatureSecret == maskedKey
+		if s.Vault != nil {
+			patch.Format.SignatureSecret = ""
+		} else if keepExistingSecret {
+			patch.Format.SignatureSecret = existing.Format.SignatureSecret
+		}
 		updated, err := mgr.Update(id, patch)
 		if err != nil {
 			if strings.Contains(strings.ToLower(err.Error()), "not found") {
@@ -200,12 +241,34 @@ func handleUpdateWebhook(mgr *webhooks.Manager) http.HandlerFunc {
 			jsonError(w, "Failed to update webhook", http.StatusBadRequest)
 			return
 		}
+		if s.Vault != nil {
+			vaultKey := webhooks.SignatureSecretVaultKey(id)
+			switch {
+			case keepExistingSecret:
+				if strings.TrimSpace(existing.Format.SignatureSecret) != "" {
+					if err := s.Vault.WriteSecret(vaultKey, existing.Format.SignatureSecret); err != nil {
+						jsonError(w, "Failed to store webhook secret", http.StatusInternalServerError)
+						return
+					}
+				}
+			case signatureSecret != "":
+				if err := s.Vault.WriteSecret(vaultKey, signatureSecret); err != nil {
+					jsonError(w, "Failed to store webhook secret", http.StatusInternalServerError)
+					return
+				}
+			default:
+				if err := s.Vault.DeleteSecret(vaultKey); err != nil {
+					jsonError(w, "Failed to delete webhook secret", http.StatusInternalServerError)
+					return
+				}
+			}
+		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(updated)
+		json.NewEncoder(w).Encode(webhookMaskSecrets(updated, s.Vault))
 	}
 }
 
-func handleDeleteWebhook(mgr *webhooks.Manager) http.HandlerFunc {
+func handleDeleteWebhook(s *Server, mgr *webhooks.Manager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodDelete {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -219,6 +282,9 @@ func handleDeleteWebhook(mgr *webhooks.Manager) http.HandlerFunc {
 		if err := mgr.Delete(id); err != nil {
 			jsonError(w, "Webhook not found", http.StatusNotFound)
 			return
+		}
+		if s.Vault != nil {
+			_ = s.Vault.DeleteSecret(webhooks.SignatureSecretVaultKey(id))
 		}
 		w.WriteHeader(http.StatusNoContent)
 	}

@@ -125,6 +125,38 @@ func injectVaultIndicators(rawCfg map[string]interface{}, vault *security.Vault)
 		}
 		m[parts[len(parts)-1]] = "••••••••"
 	}
+	injectDynamicVaultIndicators(rawCfg, vault)
+}
+
+func injectDynamicVaultIndicators(rawCfg map[string]interface{}, vault *security.Vault) {
+	a2aSection, ok := rawCfg["a2a"].(map[string]interface{})
+	if !ok {
+		return
+	}
+	clientSection, ok := a2aSection["client"].(map[string]interface{})
+	if !ok {
+		return
+	}
+	remoteAgents, ok := clientSection["remote_agents"].([]interface{})
+	if !ok {
+		return
+	}
+	for _, item := range remoteAgents {
+		agent, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		id := strings.TrimSpace(fmt.Sprint(agent["id"]))
+		if id == "" {
+			continue
+		}
+		if value, err := vault.ReadSecret("a2a_remote_" + id + "_api_key"); err == nil && strings.TrimSpace(value) != "" {
+			agent["api_key"] = "••••••••"
+		}
+		if value, err := vault.ReadSecret("a2a_remote_" + id + "_bearer_token"); err == nil && strings.TrimSpace(value) != "" {
+			agent["bearer_token"] = "••••••••"
+		}
+	}
 }
 
 func isVaultMappedPath(fullPath string) bool {

@@ -884,9 +884,9 @@ function renderField(fullPath, key, value, parentPath, fieldSchema) {
             html += `<input class="field-input cfg-custom-input${hiddenCls}" type="text" data-custom-for="${fullPath}" value="${escapeAttr(customVal)}" placeholder="${t('config.field.custom_value_placeholder')}" oninput="markDirty()">`;
         }
     } else if (isSensitive) {
-        const displayVal = (value === '••••••••' || !value) ? '' : value;
+        const displayVal = cfgSecretValue(value);
         html += '<div class="password-wrap">';
-        html += '<input class="field-input" type="password" data-path="' + fullPath + '" value="' + escapeAttr(displayVal) + '" placeholder="••••••••" autocomplete="off">';
+        html += '<input class="field-input" type="password" data-path="' + fullPath + '" value="' + escapeAttr(displayVal) + '" placeholder="' + escapeAttr(cfgSecretPlaceholder(value)) + '" autocomplete="off">';
         html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
         html += '</div>';
     } else if (fieldType === 'int' || fieldType === 'float') {

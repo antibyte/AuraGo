@@ -41,7 +41,7 @@ async function renderGitHubSection(section) {
         <div class="field-hint">${t('config.github.token_hint')}</div>
         <div class="cfg-password-row">
             <div class="password-wrap cfg-password-input">
-                <input class="field-input" type="password" id="github-token-input" placeholder="ghp_••••••••••••••••••••" autocomplete="off">
+                <input class="field-input" type="password" id="github-token-input" value="${escapeAttr(cfgSecretValue(data.token))}" placeholder="${escapeAttr(cfgSecretPlaceholder(data.token, 'ghp_••••••••••••••••••••'))}" autocomplete="off">
                     <button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">${EYE_OPEN_SVG}</button>
             </div>
             <button class="btn-save cfg-save-btn-sm" onclick="githubSaveToken()">💾 ${t('config.github.save_vault')}</button>
@@ -256,7 +256,7 @@ function githubSaveToken() {
                 statusEl.className = 'cfg-status-banner cfg-status-success';
                 statusEl.textContent = '✓ ' + t('config.github.token_saved'); 
             }
-            if (input) input.value = '';
+            cfgMarkSecretStored(input, 'github.token');
         } else {
             if (statusEl) { 
                 statusEl.className = 'cfg-status-banner cfg-status-error';

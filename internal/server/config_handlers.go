@@ -1139,6 +1139,13 @@ var vaultKeyMap = map[string]string{
 	"google_workspace.client_secret":   "google_workspace_client_secret",
 	"onedrive.client_secret":           "onedrive_client_secret",
 	"paperless_ngx.api_token":          "paperless_ngx_api_token",
+	"netlify.token":                    "netlify_token",
+	"telnyx.api_key":                   "telnyx_api_key",
+	"cloudflare_tunnel.token":          "cloudflared_token",
+	"a2a.auth.api_key":                 "a2a_api_key",
+	"a2a.auth.bearer_secret":           "a2a_bearer_secret",
+	"truenas.api_key":                  "truenas_api_key",
+	"jellyfin.api_key":                 "jellyfin_api_key",
 }
 
 // extractSecretsToVault walks a JSON patch map and moves sensitive values into the vault.

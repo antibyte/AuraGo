@@ -6,9 +6,7 @@ function renderTTSSection(section) {
     const piperEnabled = piperData.enabled === true;
     const currentProvider = data.provider || '';
     const elData = data.elevenlabs || {};
-    const hasElevenLabsKey = elData.api_key === '••••••••';
     const mmData = data.minimax || {};
-    const hasMiniMaxKey = mmData.api_key === '••••••••';
 
     let html = '<div class="cfg-section active">';
     html += '<div class="section-header">' + section.icon + ' ' + section.label + '</div>';
@@ -43,7 +41,7 @@ function renderTTSSection(section) {
     html += '<div class="field-label">' + t('config.tts.elevenlabs_api_key_label') + '</div>';
     html += '<div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">';
     html += '<div class="password-wrap" style="flex:1;min-width:240px;">';
-    html += '<input class="field-input" type="password" id="tts-elevenlabs-api-key" value="" placeholder="' + escapeAttr(hasElevenLabsKey ? '••••••••' : t('config.tts.elevenlabs_api_key_placeholder')) + '">';
+    html += '<input class="field-input" type="password" id="tts-elevenlabs-api-key" value="' + escapeAttr(cfgSecretValue(elData.api_key)) + '" placeholder="' + escapeAttr(cfgSecretPlaceholder(elData.api_key, t('config.tts.elevenlabs_api_key_placeholder'))) + '">';
     html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
     html += '</div>';
     html += '<button class="btn-save" style="padding:0.45rem 1rem;font-size:0.82rem;white-space:nowrap;" onclick="ttsSaveElevenLabsKey()">💾</button>';
@@ -70,7 +68,7 @@ function renderTTSSection(section) {
     html += '<div class="field-label">' + t('config.tts.minimax_api_key_label') + '</div>';
     html += '<div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">';
     html += '<div class="password-wrap" style="flex:1;min-width:240px;">';
-    html += '<input class="field-input" type="password" id="tts-minimax-api-key" value="" placeholder="' + escapeAttr(hasMiniMaxKey ? '••••••••' : t('config.tts.minimax_api_key_placeholder')) + '">';
+    html += '<input class="field-input" type="password" id="tts-minimax-api-key" value="' + escapeAttr(cfgSecretValue(mmData.api_key)) + '" placeholder="' + escapeAttr(cfgSecretPlaceholder(mmData.api_key, t('config.tts.minimax_api_key_placeholder'))) + '">';
     html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
     html += '</div>';
     html += '<button class="btn-save" style="padding:0.45rem 1rem;font-size:0.82rem;white-space:nowrap;" onclick="ttsSaveMiniMaxKey()">💾</button>';
@@ -196,13 +194,7 @@ function ttsSaveElevenLabsKey() {
         .then(res => {
             if (res.status === 'ok' || res.success) {
                 showToast(t('config.tts.elevenlabs_api_key_saved'), 'success');
-                if (input) {
-                    input.value = '';
-                    input.placeholder = '••••••••';
-                }
-                if (!configData.tts) configData.tts = {};
-                if (!configData.tts.elevenlabs) configData.tts.elevenlabs = {};
-                configData.tts.elevenlabs.api_key = '••••••••';
+                cfgMarkSecretStored(input, 'tts.elevenlabs.api_key');
             } else {
                 showToast(res.message || t('config.tts.elevenlabs_api_key_save_failed'), 'error');
             }
@@ -227,13 +219,7 @@ function ttsSaveMiniMaxKey() {
         .then(res => {
             if (res.status === 'ok' || res.success) {
                 showToast(t('config.tts.minimax_api_key_saved'), 'success');
-                if (input) {
-                    input.value = '';
-                    input.placeholder = '••••••••';
-                }
-                if (!configData.tts) configData.tts = {};
-                if (!configData.tts.minimax) configData.tts.minimax = {};
-                configData.tts.minimax.api_key = '••••••••';
+                cfgMarkSecretStored(input, 'tts.minimax.api_key');
             } else {
                 showToast(res.message || t('config.tts.minimax_api_key_save_failed'), 'error');
             }

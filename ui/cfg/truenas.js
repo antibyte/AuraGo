@@ -7,6 +7,7 @@ function renderTrueNASSection(section) {
     const destructiveOn = data.allow_destructive === true;
     const httpsOn = data.use_https !== false;
     const insecureOn = data.insecure_ssl === true;
+    const apiKeyPlaceholder = cfgSecretPlaceholder(data.api_key, t('config.truenas.apikey_placeholder'));
 
     let html = '<div class="cfg-section active">';
     html += '<div class="section-header">' + section.icon + ' ' + section.label + '</div>';
@@ -80,7 +81,7 @@ function renderTrueNASSection(section) {
     if (helpKey) html += '<div class="field-help">' + helpKey + '</div>';
     html += '<div class="adg-password-row">';
         html += '<div class="password-wrap" style="flex:1;">';
-        html += '<input class="field-input adg-password-input" type="password" id="truenas-apikey" placeholder="' + t('config.truenas.apikey_placeholder') + '">';
+        html += '<input class="field-input adg-password-input" type="password" id="truenas-apikey" value="' + escapeAttr(cfgSecretValue(data.api_key)) + '" placeholder="' + escapeAttr(apiKeyPlaceholder) + '">';
         html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
         html += '</div>';
     html += '<button class="btn-save adg-save-btn" onclick="truenasSaveKey()">💾 ' + t('config.truenas.save_vault') + '</button>';
@@ -176,7 +177,7 @@ function truenasSaveKey() {
     .then(res => {
         if (res.status === 'ok') {
             showToast(t('config.truenas.apikey_saved'), 'success');
-            document.getElementById('truenas-apikey').value = '';
+            cfgMarkSecretStored(document.getElementById('truenas-apikey'), 'truenas.api_key');
         } else {
             showToast(res.message || t('config.truenas.apikey_save_failed'), 'error');
         }

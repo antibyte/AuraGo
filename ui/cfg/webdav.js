@@ -8,12 +8,8 @@ function renderWebDAVSection(section) {
     const enabled = data.enabled === true;
     const readonly = data.readonly === true;
     const authType = data.auth_type === 'bearer' ? 'bearer' : 'basic';
-    const hasStoredSecret = authType === 'bearer'
-        ? data.token === '••••••••'
-        : data.password === '••••••••';
-    const placeholder = hasStoredSecret
-        ? '••••••••'
-        : (authType === 'bearer' ? t('config.webdav.token_placeholder') : t('config.webdav.password_placeholder'));
+    const secretValue = authType === 'bearer' ? data.token : data.password;
+    const placeholder = cfgSecretPlaceholder(secretValue, authType === 'bearer' ? t('config.webdav.token_placeholder') : t('config.webdav.password_placeholder'));
 
     let html = '<div class="cfg-section active">';
     html += '<div class="section-header">' + section.icon + ' ' + section.label + '</div>';
@@ -61,7 +57,7 @@ function renderWebDAVSection(section) {
     html += '<div class="field-help">' + (authType === 'bearer' ? t('help.webdav.token') : t('help.webdav.password')) + '</div>';
     html += '<div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">';
         html += '<div class="password-wrap" style="flex:1;min-width:240px;">';
-        html += '<input class="field-input" type="password" id="webdav-secret" placeholder="' + escapeAttr(placeholder) + '" style="flex:1;min-width:240px;">';
+        html += '<input class="field-input" type="password" id="webdav-secret" value="' + escapeAttr(cfgSecretValue(secretValue)) + '" placeholder="' + escapeAttr(placeholder) + '" style="flex:1;min-width:240px;">';
         html += '<button type="button" class="password-toggle" data-visible="false" onclick="togglePassword(this)">' + EYE_OPEN_SVG + '</button>';
         html += '</div>';
     html += '<button class="btn-save" style="padding:0.45rem 1rem;font-size:0.82rem;white-space:nowrap;" onclick="webdavSaveSecret()">💾 ' + t('config.webdav.save_vault') + '</button>';
@@ -89,16 +85,7 @@ function webdavSaveSecret() {
         .then(res => {
             if (res.status === 'ok' || res.success) {
                 showToast(authType === 'bearer' ? t('config.webdav.token_saved') : t('config.webdav.password_saved'), 'success');
-                if (input) {
-                    input.value = '';
-                    input.placeholder = '••••••••';
-                }
-                if (!configData.webdav) configData.webdav = {};
-                if (authType === 'bearer') {
-                    configData.webdav.token = '••••••••';
-                } else {
-                    configData.webdav.password = '••••••••';
-                }
+                cfgMarkSecretStored(input, authType === 'bearer' ? 'webdav.token' : 'webdav.password');
             } else {
                 showToast(res.message || (authType === 'bearer' ? t('config.webdav.token_save_failed') : t('config.webdav.password_save_failed')), 'error');
             }
