@@ -529,9 +529,9 @@ select.cfg-input option {
 }
 
 /* Prevent toggle from being squished by long text on mobile */
-.cfg-toggle-row > div:first-child,
-.cfg-toggle-row-highlight > div:first-child,
-.cfg-toggle-row-compact > div:first-child {
+.cfg-toggle-row > div:first-child:not(.toggle),
+.cfg-toggle-row-highlight > div:first-child:not(.toggle),
+.cfg-toggle-row-compact > div:first-child:not(.toggle) {
     flex: 1;
     min-width: 0;
 }
