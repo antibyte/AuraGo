@@ -135,6 +135,8 @@ co_agents:
     specialists:
         researcher:
             enabled: false
+            additional_prompt: ""
+            cheatsheet_id: ""
             llm:
                 provider: ""
             circuit_breaker:
@@ -143,6 +145,8 @@ co_agents:
                 max_tokens: 0
         coder:
             enabled: false
+            additional_prompt: ""
+            cheatsheet_id: ""
             llm:
                 provider: ""
             circuit_breaker:
@@ -151,6 +155,8 @@ co_agents:
                 max_tokens: 0
         designer:
             enabled: false
+            additional_prompt: ""
+            cheatsheet_id: ""
             llm:
                 provider: ""
             circuit_breaker:
@@ -159,6 +165,8 @@ co_agents:
                 max_tokens: 0
         security:
             enabled: false
+            additional_prompt: ""
+            cheatsheet_id: ""
             llm:
                 provider: ""
             circuit_breaker:
@@ -167,6 +175,8 @@ co_agents:
                 max_tokens: 0
         writer:
             enabled: false
+            additional_prompt: ""
+            cheatsheet_id: ""
             llm:
                 provider: ""
             circuit_breaker:

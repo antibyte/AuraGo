@@ -5661,6 +5661,19 @@ select.cfg-input option {
 .ca-small-num-wrap { display: block; }
 .ca-small-num-label { font-size: 0.72rem; color: var(--text-secondary); display: block; margin-bottom: 0.15rem; }
 .ca-small-num-input { width: 100%; }
+.ca-section-divider { border-top: 1px solid var(--border-subtle); margin: 0.8rem 0; }
+.ca-spec-textarea { width: 100%; margin-top: 0.2rem; font-family: inherit; font-size: 0.83rem; resize: vertical; background: var(--bg-primary); color: var(--text-primary); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 8px; }
+.ca-spec-textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-glow); }
+.ca-cheatsheet-field { margin-top: 0.6rem; }
+.ca-cheatsheet-row { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.2rem; }
+.ca-cheatsheet-name { font-size: 0.83rem; color: var(--text-primary); font-weight: 500; flex: 1; }
+.ca-cheatsheet-none { font-size: 0.78rem; color: var(--text-tertiary); flex: 1; }
+.ca-cs-list { max-height: 350px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+.ca-cs-loading, .ca-cs-empty { text-align: center; padding: 24px; color: var(--text-secondary); }
+.ca-cs-item { padding: 8px 12px; border-radius: 8px; cursor: pointer; transition: background 0.15s; display: flex; flex-direction: column; gap: 2px; }
+.ca-cs-item:hover { background: var(--bg-glass); }
+.ca-cs-item-name { font-size: 0.88rem; font-weight: 500; }
+.ca-cs-item-preview { font-size: 0.75rem; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ══════════════════════════════════════════════════════════════
    LIGHT THEME OVERRIDES

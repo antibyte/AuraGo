@@ -34,8 +34,10 @@ type IndexingDirectory struct {
 // SpecialistConfig holds per-role configuration for a specialist co-agent.
 // Empty LLM.Provider inherits from co_agents.llm, which in turn falls back to the main LLM.
 type SpecialistConfig struct {
-	Enabled bool `yaml:"enabled"`
-	LLM     struct {
+	Enabled          bool   `yaml:"enabled"`
+	AdditionalPrompt string `yaml:"additional_prompt,omitempty"`
+	CheatsheetID     string `yaml:"cheatsheet_id,omitempty"`
+	LLM              struct {
 		Provider     string `yaml:"provider"`         // provider entry ID (empty = inherit co_agents.llm)
 		ProviderType string `yaml:"-"       json:"-"` // resolved
 		BaseURL      string `yaml:"-"       json:"-"` // resolved
@@ -296,16 +298,16 @@ type Config struct {
 			WaitPollIntervalSecs   int  `yaml:"wait_poll_interval_seconds"` // poll interval for wait_for_event tasks (default: 5)
 			WaitDefaultTimeoutSecs int  `yaml:"wait_default_timeout_secs"`  // default timeout for wait_for_event tasks (default: 600)
 		} `yaml:"background_tasks"`
-			MaxToolGuides int `yaml:"max_tool_guides"` // maximum tool guide documents injected into prompt (default: 5)
-	
-			OutputCompression struct {
-				Enabled           bool `yaml:"enabled"`             // master toggle for command-aware output compression (default: true)
-				MinChars          int  `yaml:"min_chars"`           // only compress outputs exceeding this size (default: 500)
-				PreserveErrors    bool `yaml:"preserve_errors"`     // never compress outputs that contain error markers (default: true)
-				ShellCompression  bool `yaml:"shell_compression"`   // enable shell-specific filters: git, docker, test, grep, find, ls (default: true)
-				PythonCompression bool `yaml:"python_compression"`  // enable python traceback filtering and output dedup (default: true)
-				APICompression    bool `yaml:"api_compression"`     // enable JSON compaction and null-field removal (default: true)
-			} `yaml:"output_compression"`
+		MaxToolGuides int `yaml:"max_tool_guides"` // maximum tool guide documents injected into prompt (default: 5)
+
+		OutputCompression struct {
+			Enabled           bool `yaml:"enabled"`            // master toggle for command-aware output compression (default: true)
+			MinChars          int  `yaml:"min_chars"`          // only compress outputs exceeding this size (default: 500)
+			PreserveErrors    bool `yaml:"preserve_errors"`    // never compress outputs that contain error markers (default: true)
+			ShellCompression  bool `yaml:"shell_compression"`  // enable shell-specific filters: git, docker, test, grep, find, ls (default: true)
+			PythonCompression bool `yaml:"python_compression"` // enable python traceback filtering and output dedup (default: true)
+			APICompression    bool `yaml:"api_compression"`    // enable JSON compaction and null-field removal (default: true)
+		} `yaml:"output_compression"`
 
 		AnnouncementDetector struct {
 			Enabled    bool `yaml:"enabled"`     // enable announcement-only response detection (default: true)

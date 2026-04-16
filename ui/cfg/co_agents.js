@@ -131,6 +131,26 @@ function _renderSpecialistCard(role, spec) {
     html += '</div>';
     html += '<div class="ca-cb-hint">' + t('config.co_agents.spec_cb_hint') + '</div>';
 
+    html += '<div class="ca-section-divider"></div>';
+    html += '<div class="ca-cb-title">' + t('config.co_agents.spec_extra_title') + '</div>';
+
+    html += '<label class="ca-spec-label">';
+    html += '<span class="ca-spec-caption">' + t('config.co_agents.spec_additional_prompt_label') + '</span>';
+    html += '<textarea class="field-input ca-spec-textarea" rows="3" data-path="' + basePath + '.additional_prompt" placeholder="' + escapeAttr(t('config.co_agents.spec_additional_prompt_placeholder')) + '" oninput="setNestedValue(configData,\'' + basePath + '.additional_prompt\',this.value);setDirty(true)">' + escapeHtml(spec.additional_prompt || '') + '</textarea>';
+    html += '</label>';
+
+    html += '<div class="ca-cheatsheet-field" id="ca-cs-' + role.key + '">';
+    html += '<span class="ca-spec-caption">' + t('config.co_agents.spec_cheatsheet_label') + '</span>';
+    html += '<div class="ca-cheatsheet-row">';
+    if (spec.cheatsheet_id) {
+        html += '<span class="ca-cheatsheet-name" id="ca-cs-name-' + role.key + '">' + escapeHtml(spec._cheatsheet_name || spec.cheatsheet_id) + '</span>';
+        html += '<button class="btn btn-sm btn-secondary" onclick="_coAgentRemoveCheatsheet(\'' + role.key + '\')">' + t('config.co_agents.spec_cheatsheet_remove') + '</button>';
+    } else {
+        html += '<span class="ca-cheatsheet-none" id="ca-cs-name-' + role.key + '">' + t('config.co_agents.spec_cheatsheet_none') + '</span>';
+        html += '<button class="btn btn-sm btn-secondary" onclick="_coAgentPickCheatsheet(\'' + role.key + '\')">' + t('config.co_agents.spec_cheatsheet_pick') + '</button>';
+    }
+    html += '</div></div>';
+
     html += '</div>';
     html += '</div>';
     return html;
@@ -154,4 +174,53 @@ function _coAgentSmallNumber(path, label, value) {
         '<span class="ca-small-num-label">' + label + '</span>' +
         '<input class="field-input ca-small-num-input" type="number" min="0" data-path="' + path + '" value="' + value + '">' +
         '</label>';
+}
+
+var _coAgentCheatsheetCache = null;
+
+function _coAgentPickCheatsheet(roleKey) {
+    var basePath = 'co_agents.specialists.' + roleKey;
+    var modalId = 'ca-cs-modal';
+    var existingModal = document.getElementById(modalId);
+    if (existingModal) existingModal.remove();
+
+    var modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.id = modalId;
+    modal.innerHTML = '<div class="modal"><div class="modal-header"><h2>' + escapeHtml(t('config.co_agents.spec_cheatsheet_modal_title')) + '</h2><button class="modal-close" onclick="document.getElementById(\'ca-cs-modal\').remove()">&times;</button></div><div class="ca-cs-list" id="ca-cs-list"><div class="ca-cs-loading">' + escapeHtml(t('config.co_agents.spec_cheatsheet_loading')) + '</div></div></div>';
+    document.body.appendChild(modal);
+
+    fetch('/api/cheatsheets?active=true').then(function(r) { return r.json(); }).then(function(sheets) {
+        _coAgentCheatsheetCache = sheets || [];
+        var listEl = document.getElementById('ca-cs-list');
+        if (!_coAgentCheatsheetCache.length) {
+            listEl.innerHTML = '<div class="ca-cs-empty">' + escapeHtml(t('config.co_agents.spec_cheatsheet_empty')) + '</div>';
+            return;
+        }
+        listEl.innerHTML = _coAgentCheatsheetCache.map(function(s) {
+            return '<div class="ca-cs-item" onclick="_coAgentSelectCheatsheet(\'' + roleKey + '\',\'' + escapeAttr(s.id) + '\',\'' + escapeAttr(s.name || '') + '\')">' +
+                '<span class="ca-cs-item-name">' + escapeHtml(s.name) + '</span>' +
+                '<span class="ca-cs-item-preview">' + escapeHtml((s.content || '').substring(0, 80)) + '</span></div>';
+        }).join('');
+    }).catch(function() {
+        document.getElementById('ca-cs-list').innerHTML = '<div class="ca-cs-empty">' + escapeHtml(t('config.co_agents.spec_cheatsheet_error')) + '</div>';
+    });
+}
+
+function _coAgentSelectCheatsheet(roleKey, id, name) {
+    var basePath = 'co_agents.specialists.' + roleKey;
+    setNestedValue(configData, basePath + '.cheatsheet_id', id);
+    setNestedValue(configData, basePath + '._cheatsheet_name', name);
+    setDirty(true);
+    var modal = document.getElementById('ca-cs-modal');
+    if (modal) modal.remove();
+    renderCoAgentsSection(null);
+}
+
+function _coAgentRemoveCheatsheet(roleKey) {
+    var basePath = 'co_agents.specialists.' + roleKey;
+    setNestedValue(configData, basePath + '.cheatsheet_id', '');
+    setNestedValue(configData, basePath + '._cheatsheet_name', '');
+    setDirty(true);
+    renderCoAgentsSection(null);
 }

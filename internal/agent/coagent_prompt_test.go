@@ -161,7 +161,7 @@ func TestBuildSpecialistSystemPromptInjectsLeanContext(t *testing.T) {
 		Task:         "Design a compact status card",
 		Specialist:   "designer",
 		ContextHints: []string{"alpha", "beta", "gamma", "delta", "epsilon"},
-	}, vdb, stm)
+	}, vdb, stm, nil)
 
 	if !strings.Contains(prompt, "Language=de") {
 		t.Fatalf("prompt = %q, want system language injected", prompt)

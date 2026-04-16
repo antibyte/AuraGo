@@ -86,6 +86,7 @@ func SpawnCoAgent(
 	manifest *tools.Manifest,
 	kg *memory.KnowledgeGraph,
 	inventoryDB *sql.DB,
+	cheatsheetDB *sql.DB,
 
 	req CoAgentRequest,
 	budgetTracker *budget.Tracker,
@@ -149,7 +150,7 @@ func SpawnCoAgent(
 	// 4. Build system prompt (specialist gets its own template)
 	var systemPrompt string
 	if req.Specialist != "" {
-		systemPrompt = buildSpecialistSystemPrompt(cfg, req.Specialist, req, longTermMem, shortTermMem)
+		systemPrompt = buildSpecialistSystemPrompt(cfg, req.Specialist, req, longTermMem, shortTermMem, cheatsheetDB)
 	} else {
 		systemPrompt = buildCoAgentSystemPrompt(cfg, req, longTermMem, shortTermMem)
 	}
@@ -681,7 +682,7 @@ func buildCoAgentSystemPrompt(cfg *config.Config, req CoAgentRequest, ltm memory
 
 // buildSpecialistSystemPrompt assembles the system prompt for a specialist co-agent.
 // It loads the specialist-specific template, falling back to the generic co-agent template.
-func buildSpecialistSystemPrompt(cfg *config.Config, role string, req CoAgentRequest, ltm memory.VectorDB, stm *memory.SQLiteMemory) string {
+func buildSpecialistSystemPrompt(cfg *config.Config, role string, req CoAgentRequest, ltm memory.VectorDB, stm *memory.SQLiteMemory, cheatsheetDB *sql.DB) string {
 	tmplPath := filepath.Join(cfg.Directories.PromptsDir, "templates", "specialist_"+role+".md")
 	rawTmpl, ok := loadPromptTemplateExists(tmplPath)
 	if !ok {
@@ -692,7 +693,55 @@ func buildSpecialistSystemPrompt(cfg *config.Config, role string, req CoAgentReq
 	prompt := strings.ReplaceAll(tmpl, "{{LANGUAGE}}", cfg.Agent.SystemLanguage)
 	prompt = strings.ReplaceAll(prompt, "{{CONTEXT_SNAPSHOT}}", buildContextSnapshot(req, ltm, stm))
 	prompt = strings.ReplaceAll(prompt, "{{TASK}}", req.Task)
+
+	var extras strings.Builder
+	specCfg := specialistConfigByRole(cfg, role)
+	if specCfg != nil {
+		if specCfg.CheatsheetID != "" && cheatsheetDB != nil {
+			cs, err := tools.CheatsheetGet(cheatsheetDB, specCfg.CheatsheetID)
+			if err != nil {
+				slog.Warn("[Specialist] Cheatsheet not found", "role", role, "cheatsheet_id", specCfg.CheatsheetID, "error", err)
+			} else if cs != nil {
+				extras.WriteString("\n\n<cheatsheet name=\"")
+				extras.WriteString(cs.Name)
+				extras.WriteString("\">\n")
+				extras.WriteString(cs.Content)
+				for _, att := range cs.Attachments {
+					extras.WriteString("\n\n--- ")
+					extras.WriteString(att.Filename)
+					extras.WriteString(" ---\n")
+					extras.WriteString(att.Content)
+				}
+				extras.WriteString("\n</cheatsheet>")
+			}
+		}
+		if specCfg.AdditionalPrompt != "" {
+			extras.WriteString("\n\n")
+			extras.WriteString(specCfg.AdditionalPrompt)
+		}
+	}
+
+	if extras.Len() > 0 {
+		prompt += extras.String()
+	}
 	return prompt
+}
+
+func specialistConfigByRole(cfg *config.Config, role string) *config.SpecialistConfig {
+	switch role {
+	case "researcher":
+		return &cfg.CoAgents.Specialists.Researcher
+	case "coder":
+		return &cfg.CoAgents.Specialists.Coder
+	case "designer":
+		return &cfg.CoAgents.Specialists.Designer
+	case "security":
+		return &cfg.CoAgents.Specialists.Security
+	case "writer":
+		return &cfg.CoAgents.Specialists.Writer
+	default:
+		return nil
+	}
 }
 
 // stripYAMLFrontmatter removes YAML frontmatter (---...---) from the beginning of a string.
