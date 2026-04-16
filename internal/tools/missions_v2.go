@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 )
@@ -437,13 +438,19 @@ func (m *MissionManagerV2) Start() error {
 
 	// Setup cron schedules for enabled scheduled missions (ensures they survive restarts)
 	if m.cron != nil {
+		m.cron.RegisterRunner("mission", func(jobID, prompt string) {
+			missionID := strings.TrimPrefix(jobID, "mission_")
+			if missionID != "" {
+				m.TriggerMission(missionID, "cron", "")
+			}
+		})
 		for _, mission := range m.missions {
 			if !mission.Enabled || mission.ExecutionType != ExecutionScheduled {
 				continue
 			}
 			if mission.Schedule != "" {
 				cronID := "mission_" + mission.ID
-				if _, err := m.cron.ManageSchedule("add", cronID, mission.Schedule, mission.Prompt, ""); err != nil {
+				if _, err := m.cron.ManageScheduleWithSource("add", cronID, mission.Schedule, mission.Prompt, "", "mission"); err != nil {
 					slog.Warn("[MissionV2] Failed to register scheduled mission with cron", "mission_id", mission.ID, "schedule", mission.Schedule, "error", err)
 				}
 			}
@@ -1023,7 +1030,7 @@ func (m *MissionManagerV2) Create(mission *MissionV2) error {
 	// Register with cron if scheduled
 	if mission.ExecutionType == ExecutionScheduled && mission.Schedule != "" {
 		cronID := "mission_" + mission.ID
-		if _, err := m.cron.ManageSchedule("add", cronID, mission.Schedule, mission.Prompt, ""); err != nil {
+		if _, err := m.cron.ManageScheduleWithSource("add", cronID, mission.Schedule, mission.Prompt, "", "mission"); err != nil {
 			return fmt.Errorf("failed to register mission with cron: %w", err)
 		}
 	}
@@ -1066,7 +1073,7 @@ func (m *MissionManagerV2) Update(id string, updated *MissionV2) error {
 			m.registerTrigger(updated)
 		} else if updated.ExecutionType == ExecutionScheduled && updated.Schedule != "" {
 			cronID := "mission_" + id
-			if _, err := m.cron.ManageSchedule("add", cronID, updated.Schedule, updated.Prompt, ""); err != nil {
+			if _, err := m.cron.ManageScheduleWithSource("add", cronID, updated.Schedule, updated.Prompt, "", "mission"); err != nil {
 				return fmt.Errorf("failed to register mission with cron: %w", err)
 			}
 		}

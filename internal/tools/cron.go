@@ -4,6 +4,7 @@ import (
 	"aurago/internal/i18n"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sync"
@@ -17,6 +18,7 @@ type CronJob struct {
 	CronExpr   string `json:"cron_expr"`
 	TaskPrompt string `json:"task_prompt"`
 	Disabled   bool   `json:"disabled,omitempty"`
+	Source     string `json:"source,omitempty"`
 }
 
 type CronManager struct {
@@ -27,6 +29,7 @@ type CronManager struct {
 	jobs         []CronJob
 	cronEntryIDs map[string]cron.EntryID
 	callback     func(prompt string)
+	runners      map[string]func(jobID, prompt string)
 }
 
 func NewCronManager(dataDir string) *CronManager {
@@ -37,6 +40,7 @@ func NewCronManager(dataDir string) *CronManager {
 		store:        store,
 		jobs:         []CronJob{},
 		cronEntryIDs: make(map[string]cron.EntryID),
+		runners:      make(map[string]func(jobID, prompt string)),
 	}
 }
 
@@ -52,9 +56,9 @@ func (m *CronManager) Start(callback func(prompt string)) error {
 
 	loaded, err := m.loadLocked()
 	if err != nil {
-		return err
-	}
-	if !loaded {
+		slog.Warn("[CronManager] Failed to load persisted jobs; starting with empty job list", "error", err)
+		m.jobs = []CronJob{}
+	} else if !loaded {
 		m.jobs = []CronJob{}
 	}
 
@@ -66,17 +70,33 @@ func (m *CronManager) Start(callback func(prompt string)) error {
 	return nil
 }
 
+// RegisterRunner registers a source-specific runner for cron jobs.
+// When a job with a matching Source fires, the runner receives the job ID
+// and prompt instead of the global fallback callback.
+func (m *CronManager) RegisterRunner(source string, runner func(jobID, prompt string)) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.runners[source] = runner
+}
+
 // Unlocked scheduling logic — must be called with m.mu held.
 func (m *CronManager) scheduleInternal(job CronJob) error {
 	if job.Disabled {
 		return nil
-	} // Rebind job.TaskPrompt so the closure captures the correct string
-	prompt := job.TaskPrompt
-	// Caller already holds m.mu, so read m.callback directly (no nested lock).
-	callback := m.callback
+	}
 	entryID, err := m.engine.AddFunc(job.CronExpr, func() {
-		if callback != nil {
-			callback(prompt)
+		m.mu.Lock()
+		runner := m.runners[job.Source]
+		if runner == nil && m.callback != nil {
+			cb := m.callback
+			m.mu.Unlock()
+			cb(job.TaskPrompt)
+			return
+		}
+		j := job
+		m.mu.Unlock()
+		if runner != nil {
+			runner(j.ID, j.TaskPrompt)
 		}
 	})
 	if err != nil {
@@ -164,6 +184,11 @@ func (m *CronManager) GetJobs() []CronJob {
 // ManageSchedule handles cron job operations with i18n support.
 // The lang parameter is used for i18n of user-facing messages. If empty, English is used.
 func (m *CronManager) ManageSchedule(operation, id, expr, prompt string, lang string) (string, error) {
+	return m.ManageScheduleWithSource(operation, id, expr, prompt, lang, "")
+}
+
+// ManageScheduleWithSource is like ManageSchedule but allows setting a job source.
+func (m *CronManager) ManageScheduleWithSource(operation, id, expr, prompt string, lang string, source string) (string, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -202,6 +227,7 @@ func (m *CronManager) ManageSchedule(operation, id, expr, prompt string, lang st
 			ID:         jobID,
 			CronExpr:   expr,
 			TaskPrompt: prompt,
+			Source:     source,
 		}
 
 		if err := m.scheduleInternal(job); err != nil {
