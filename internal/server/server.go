@@ -65,10 +65,10 @@ func InternalAPIURL(cfg *config.Config) string {
 	return fmt.Sprintf("%s://127.0.0.1:%d", scheme, port)
 }
 
-// newInternalHTTPClient returns an http.Client configured for internal loopback
+// NewInternalHTTPClient returns an http.Client configured for internal loopback
 // API calls. It skips TLS verification because InternalAPIURL always resolves
 // to 127.0.0.1 and the server may use a self-signed certificate.
-func newInternalHTTPClient(timeout time.Duration) *http.Client {
+func NewInternalHTTPClient(timeout time.Duration) *http.Client {
 	return &http.Client{
 		Timeout: timeout,
 		Transport: &http.Transport{
@@ -443,7 +443,7 @@ func Start(cfg *config.Config, logger *slog.Logger, accessLogger *slog.Logger, l
 			req.Header.Set("X-Internal-Token", s.internalToken)
 			req.Header.Set("X-Mission-ID", missionID)
 
-			client := newInternalHTTPClient(35 * time.Minute) // Must exceed the 30-minute agent loop timeout
+			client := NewInternalHTTPClient(35 * time.Minute) // Must exceed the 30-minute agent loop timeout
 			resp, err := client.Do(req)
 			if err != nil {
 				logger.Error("[MissionV2] Execution failed", "error", err, "mission_id", missionID)
@@ -594,7 +594,7 @@ func Start(cfg *config.Config, logger *slog.Logger, accessLogger *slog.Logger, l
 				req.Header.Set("X-Internal-FollowUp", "true")
 				req.Header.Set("X-Internal-Token", s.internalToken)
 
-				client := newInternalHTTPClient(10 * time.Minute)
+				client := NewInternalHTTPClient(10 * time.Minute)
 				if resp, err := client.Do(req); err != nil {
 					logger.Error("[FirewallGuard] Execution failed", "error", err)
 				} else {
@@ -702,7 +702,7 @@ func Start(cfg *config.Config, logger *slog.Logger, accessLogger *slog.Logger, l
 				req.Header.Set("Content-Type", "application/json")
 				req.Header.Set("X-Internal-FollowUp", "true")
 				req.Header.Set("X-Internal-Token", s.internalToken)
-				client := newInternalHTTPClient(10 * time.Minute)
+				client := NewInternalHTTPClient(10 * time.Minute)
 				if resp, err := client.Do(req); err != nil {
 					logger.Error("[FritzBox Poller] Loopback request failed", "error", err)
 				} else {

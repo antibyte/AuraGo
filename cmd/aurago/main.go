@@ -628,7 +628,7 @@ func main() {
 		if err != nil {
 			return fmt.Errorf("marshal background loopback payload: %w", err)
 		}
-		client := &http.Client{Timeout: timeout}
+		client := server.NewInternalHTTPClient(timeout)
 		req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(body))
 		if err != nil {
 			return fmt.Errorf("create background loopback request: %w", err)
