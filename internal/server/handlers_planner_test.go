@@ -67,6 +67,55 @@ func TestHandleTodoByIDUpdatesRemindDailyAndItems(t *testing.T) {
 	}
 }
 
+func TestHandleTodosCreatesTodoWithChecklist(t *testing.T) {
+	t.Parallel()
+
+	server, db := testPlannerServer(t)
+	defer db.Close()
+
+	req := httptest.NewRequest(http.MethodPost, "/api/todos", strings.NewReader(`{
+		"title": "Planning task",
+		"description": "Prepare next milestone",
+		"priority": "high",
+		"status": "open",
+		"remind_daily": true,
+		"items": [
+			{"title": "Define scope"},
+			{"title": "Draft tasks", "is_done": true}
+		]
+	}`))
+	rec := httptest.NewRecorder()
+
+	handleTodos(server).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusCreated, rec.Body.String())
+	}
+
+	var payload map[string]string
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+	todoID := payload["id"]
+	if todoID == "" {
+		t.Fatal("missing todo id in create response")
+	}
+
+	todo, err := planner.GetTodo(db, todoID)
+	if err != nil {
+		t.Fatalf("planner.GetTodo() error = %v", err)
+	}
+	if !todo.RemindDaily {
+		t.Fatal("RemindDaily = false, want true")
+	}
+	if todo.ItemCount != 2 || todo.DoneItemCount != 1 {
+		t.Fatalf("items = %d/%d, want 2/1", todo.ItemCount, todo.DoneItemCount)
+	}
+	if todo.Status != "in_progress" {
+		t.Fatalf("status = %q, want in_progress", todo.Status)
+	}
+}
+
 func TestHandleTodoItemsEndpointsManageChecklist(t *testing.T) {
 	t.Parallel()
 

@@ -166,13 +166,16 @@ function renderTodoItems(todo, detailsOpen) {
 function openTodoModal(todo) {
     const modal = document.getElementById('todo-modal');
     const title = document.getElementById('todo-modal-title');
+    const remindDailyInput = document.getElementById('todo-remind-daily');
 
     document.getElementById('todo-id').value = todo ? todo.id : '';
     document.getElementById('todo-title').value = todo ? todo.title : '';
     document.getElementById('todo-description').value = todo ? todo.description || '' : '';
     document.getElementById('todo-priority').value = todo ? todo.priority : 'medium';
     document.getElementById('todo-due-date').value = todo && todo.due_date ? toLocalDateInput(todo.due_date) : '';
-    document.getElementById('todo-remind-daily').checked = !!(todo && todo.remind_daily);
+    if (remindDailyInput) {
+        remindDailyInput.checked = !!(todo && todo.remind_daily);
+    }
     todoDraftItems = normalizeTodoDraftItems(todo && Array.isArray(todo.items) ? todo.items : []);
     renderTodoDraftItems();
 
@@ -293,12 +296,13 @@ function handleTodoDraftTitleKeydown(event, index) {
 async function saveTodo() {
     const id = document.getElementById('todo-id').value;
     const dueVal = document.getElementById('todo-due-date').value;
+    const remindDailyInput = document.getElementById('todo-remind-daily');
     const data = {
         title: document.getElementById('todo-title').value.trim(),
         description: document.getElementById('todo-description').value.trim(),
         priority: document.getElementById('todo-priority').value,
         due_date: fromLocalDateInput(dueVal),
-        remind_daily: document.getElementById('todo-remind-daily').checked,
+        remind_daily: !!(remindDailyInput && remindDailyInput.checked),
         items: collectTodoDraftItems(),
     };
 
