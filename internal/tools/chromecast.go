@@ -28,7 +28,7 @@ type chromecastDevice struct {
 func ChromecastDiscover(logger *slog.Logger) string {
 	logger.Info("Starting Chromecast discovery via mDNS")
 
-	entries, err := mdnsQueryServices("_googlecast._tcp", 5*time.Second, logger)
+	entries, err := mdnsQueryServices("_googlecast._tcp", 15*time.Second, logger)
 	if err != nil {
 		return jsonErr("mDNS discovery failed: " + err.Error())
 	}
