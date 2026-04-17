@@ -162,7 +162,13 @@ func mdnsQueryServices(serviceType string, timeout time.Duration, logger *slog.L
 	entries := make(map[string]*mdnsEntry)
 	packetCount := 0
 
+	// Normalize service type to FQDN for filtering, e.g. "_googlecast._tcp.local."
+	serviceTypeFQDN := dns.Fqdn(serviceType)
+
 	// processDNS extracts mDNS entries from a raw DNS packet.
+	// Only PTR records whose Hdr.Name matches the queried service type are accepted.
+	// This prevents unsolicited Avahi/mDNS announcements for other services
+	// (Spotify Connect, AirPlay, etc.) from polluting the results.
 	processDNS := func(data []byte, n int, source string) {
 		var msg dns.Msg
 		if err := msg.Unpack(data[:n]); err != nil {
@@ -174,9 +180,16 @@ func mdnsQueryServices(serviceType string, timeout time.Duration, logger *slog.L
 
 		allRRs := append(msg.Answer, msg.Extra...)
 
-		// Collect PTR records to create entries.
+		// Collect PTR records — only for the service type we queried.
 		for _, rr := range allRRs {
 			if ptr, ok := rr.(*dns.PTR); ok {
+				// Only accept PTR records whose owner name is the queried service type.
+				// In mDNS, PTR answers look like:
+				//   _googlecast._tcp.local. PTR Google-Home._googlecast._tcp.local.
+				// So Hdr.Name must be our service type FQDN.
+				if !strings.EqualFold(dns.Fqdn(ptr.Hdr.Name), serviceTypeFQDN) {
+					continue
+				}
 				if _, exists := entries[ptr.Ptr]; !exists {
 					entries[ptr.Ptr] = &mdnsEntry{Name: ptr.Ptr}
 					logger.Info("mdns: discovered service", "name", ptr.Ptr, "via", source)
