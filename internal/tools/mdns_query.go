@@ -2,6 +2,7 @@
 package tools
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/miekg/dns"
+	"golang.org/x/net/ipv4"
 )
 
 const (
@@ -30,31 +32,54 @@ type mdnsEntry struct {
 // It joins the multicast group on the default-route LAN interface and uses
 // SO_REUSEADDR/SO_REUSEPORT so it can co-exist with system mDNS daemons.
 func mdnsQueryServices(serviceType string, timeout time.Duration, logger *slog.Logger) ([]*mdnsEntry, error) {
-	// Use net.ListenMulticastUDP like the old hashicorp/mdns library did.
-	// This creates a socket specifically for receiving multicast on the given
-	// interface, with proper multicast group subscription.
-	ipv4Group := net.UDPAddr{IP: net.ParseIP(mdnsIPv4Group), Port: mdnsPortNum}
-
+	// Find the LAN interface that carries the default route.
 	iface, err := defaultRouteInterface()
 	if err != nil {
 		return nil, fmt.Errorf("mdns: no suitable interface: %w", err)
 	}
-	logger.Info("mdns: listening on multicast interface", "interface", iface.Name, "index", iface.Index)
+	logger.Info("mdns: using interface", "interface", iface.Name, "index", iface.Index)
 
-	pc, err := net.ListenMulticastUDP("udp4", iface, &ipv4Group)
+	// Get the IP address of this interface to bind the receiving socket.
+	addrs, err := iface.Addrs()
 	if err != nil {
-		return nil, fmt.Errorf("mdns: ListenMulticastUDP: %w", err)
+		return nil, fmt.Errorf("mdns: interface addrs: %w", err)
+	}
+	var bindIP net.IP
+	for _, addr := range addrs {
+		if ipnet, ok := addr.(*net.IPNet); ok && ipnet.IP.IsGlobalUnicast() {
+			bindIP = ipnet.IP
+			break
+		}
+	}
+	if bindIP == nil {
+		return nil, fmt.Errorf("mdns: no suitable IP found on interface %s", iface.Name)
+	}
+	logger.Info("mdns: binding receive socket to", "ip", bindIP, "port", mdnsPortNum)
+
+	// Create a regular UDP socket bound to our LAN IP:5353.
+	// This receives BOTH unicast responses AND multicast (because we also join
+	// the multicast group on this socket). This is the key difference from
+	// net.ListenMulticastUDP which only receives multicast.
+	lc := net.ListenConfig{Control: mdnsSocketControl}
+	pc, err := lc.ListenPacket(context.Background(), "udp4", fmt.Sprintf("%s:%d", bindIP, mdnsPortNum))
+	if err != nil {
+		return nil, fmt.Errorf("mdns: bind: %w", err)
 	}
 	defer pc.Close()
 
-	// Set read deadline for the collection phase.
-	if err := pc.SetDeadline(time.Now().Add(timeout)); err != nil {
-		return nil, fmt.Errorf("mdns: set deadline: %w", err)
+	// Join the multicast group on this socket so we receive multicast queries too.
+	p4 := ipv4.NewPacketConn(pc)
+	group := &net.UDPAddr{IP: net.ParseIP(mdnsIPv4Group)}
+	if err := p4.JoinGroup(iface, group); err != nil {
+		logger.Info("mdns: JoinGroup failed", "error", err)
 	}
 
-	// Build and send the PTR query via unicast to the multicast address.
-	// We use a separate UDP socket for sending so the kernel picks the right
-	// source IP based on routing (like the old library did).
+	// Also set the outgoing multicast interface so our queries go via this interface.
+	if err := p4.SetMulticastInterface(iface); err != nil {
+		logger.Info("mdns: SetMulticastInterface failed", "error", err)
+	}
+
+	// Build the PTR query.
 	q := new(dns.Msg)
 	q.SetQuestion(dns.Fqdn(serviceType), dns.TypePTR)
 	q.RecursionDesired = false
@@ -64,6 +89,7 @@ func mdnsQueryServices(serviceType string, timeout time.Duration, logger *slog.L
 		return nil, fmt.Errorf("mdns: pack query: %w", err)
 	}
 
+	// Send via a separate dialed socket so kernel picks source IP via routing table.
 	sendConn, err := net.Dial("udp4", "224.0.0.251:5353")
 	if err != nil {
 		return nil, fmt.Errorf("mdns: dial send socket: %w", err)
@@ -72,6 +98,11 @@ func mdnsQueryServices(serviceType string, timeout time.Duration, logger *slog.L
 	sendConn.Close()
 	if err != nil {
 		return nil, fmt.Errorf("mdns: send query: %w", err)
+	}
+
+	// Set read deadline for the collection phase.
+	if err := pc.SetDeadline(time.Now().Add(timeout)); err != nil {
+		return nil, fmt.Errorf("mdns: set deadline: %w", err)
 	}
 
 	entries := make(map[string]*mdnsEntry)
