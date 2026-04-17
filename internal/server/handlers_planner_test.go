@@ -152,6 +152,58 @@ func TestHandleTodosCreatesTodoWithChecklist(t *testing.T) {
 	}
 }
 
+func TestHandleTodosListReturnsCreatedChecklistTodo(t *testing.T) {
+	t.Parallel()
+
+	server, db := testPlannerServer(t)
+	defer db.Close()
+
+	createReq := httptest.NewRequest(http.MethodPost, "/api/todos", strings.NewReader(`{
+		"title": "Visible task",
+		"priority": "medium",
+		"status": "open",
+		"items": [{"title":"First point"}]
+	}`))
+	createRec := httptest.NewRecorder()
+	handleTodos(server).ServeHTTP(createRec, createReq)
+
+	if createRec.Code != http.StatusCreated {
+		t.Fatalf("create status = %d, want %d; body=%s", createRec.Code, http.StatusCreated, createRec.Body.String())
+	}
+
+	listReq := httptest.NewRequest(http.MethodGet, "/api/todos", nil)
+	listRec := httptest.NewRecorder()
+	done := make(chan struct{})
+	go func() {
+		handleTodos(server).ServeHTTP(listRec, listReq)
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("GET /api/todos blocked after creating checklist todo")
+	}
+
+	if listRec.Code != http.StatusOK {
+		t.Fatalf("list status = %d, want %d; body=%s", listRec.Code, http.StatusOK, listRec.Body.String())
+	}
+
+	var todos []planner.Todo
+	if err := json.Unmarshal(listRec.Body.Bytes(), &todos); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+	if len(todos) != 1 {
+		t.Fatalf("len(todos) = %d, want 1; body=%s", len(todos), listRec.Body.String())
+	}
+	if todos[0].Title != "Visible task" {
+		t.Fatalf("title = %q, want %q", todos[0].Title, "Visible task")
+	}
+	if todos[0].ItemCount != 1 {
+		t.Fatalf("ItemCount = %d, want 1", todos[0].ItemCount)
+	}
+}
+
 func TestHandleTodoItemsEndpointsManageChecklist(t *testing.T) {
 	t.Parallel()
 

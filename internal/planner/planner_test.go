@@ -751,6 +751,48 @@ func TestListTodos(t *testing.T) {
 	}
 }
 
+func TestListTodosWithChecklistItemsDoesNotBlock(t *testing.T) {
+	db := testDB(t)
+	defer db.Close()
+
+	if _, err := CreateTodo(db, Todo{
+		Title:       "Checklist task",
+		Priority:    "high",
+		RemindDaily: true,
+		Items: []TodoItem{
+			{Title: "First"},
+			{Title: "Second", IsDone: true},
+		},
+	}); err != nil {
+		t.Fatalf("CreateTodo() error = %v", err)
+	}
+
+	resultCh := make(chan []Todo, 1)
+	errCh := make(chan error, 1)
+	go func() {
+		list, err := ListTodos(db, "", "")
+		if err != nil {
+			errCh <- err
+			return
+		}
+		resultCh <- list
+	}()
+
+	select {
+	case err := <-errCh:
+		t.Fatalf("ListTodos() error = %v", err)
+	case list := <-resultCh:
+		if len(list) != 1 {
+			t.Fatalf("len(list) = %d, want 1", len(list))
+		}
+		if list[0].ItemCount != 2 || list[0].DoneItemCount != 1 {
+			t.Fatalf("item counters = %d/%d, want 2/1", list[0].ItemCount, list[0].DoneItemCount)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("ListTodos() blocked while loading checklist items")
+	}
+}
+
 func TestAddUpdateDeleteTodoItem(t *testing.T) {
 	db := testDB(t)
 	defer db.Close()
@@ -900,6 +942,49 @@ func TestClaimDailyTodoReminderTodosOnlyOncePerDay(t *testing.T) {
 	}
 	if got := BuildDailyTodoReminderText(third); !strings.Contains(got, "Morning routine") || !strings.Contains(got, "Check backups") {
 		t.Fatalf("BuildDailyTodoReminderText() = %q, want todo title and open item", got)
+	}
+}
+
+func TestClaimDailyTodoReminderTodosWithChecklistItemsDoesNotBlock(t *testing.T) {
+	db := testDB(t)
+	defer db.Close()
+
+	if _, err := CreateTodo(db, Todo{
+		Title:       "Reminder task",
+		Priority:    "medium",
+		Status:      "open",
+		RemindDaily: true,
+		Items: []TodoItem{
+			{Title: "One"},
+			{Title: "Two", IsDone: true},
+		},
+	}); err != nil {
+		t.Fatalf("CreateTodo() error = %v", err)
+	}
+
+	resultCh := make(chan []Todo, 1)
+	errCh := make(chan error, 1)
+	go func() {
+		todos, err := ClaimDailyTodoReminderTodos(db, time.Date(2026, 4, 17, 8, 0, 0, 0, time.UTC))
+		if err != nil {
+			errCh <- err
+			return
+		}
+		resultCh <- todos
+	}()
+
+	select {
+	case err := <-errCh:
+		t.Fatalf("ClaimDailyTodoReminderTodos() error = %v", err)
+	case todos := <-resultCh:
+		if len(todos) != 1 {
+			t.Fatalf("len(todos) = %d, want 1", len(todos))
+		}
+		if todos[0].ItemCount != 2 || todos[0].DoneItemCount != 1 {
+			t.Fatalf("item counters = %d/%d, want 2/1", todos[0].ItemCount, todos[0].DoneItemCount)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("ClaimDailyTodoReminderTodos() blocked while loading checklist items")
 	}
 }
 

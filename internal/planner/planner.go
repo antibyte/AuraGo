@@ -507,23 +507,32 @@ func ListTodos(db *sql.DB, query, status string) ([]Todo, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to list todos: %w", err)
 	}
-	defer rows.Close()
-
-	var list []Todo
+	list := []Todo{}
 	for rows.Next() {
 		var t Todo
 		var remindDaily int
 		if err := rows.Scan(&t.ID, &t.Title, &t.Description, &t.Priority, &t.Status, &t.DueDate, &remindDaily, &t.CompletedAt, &t.LastDailyReminderAt, &t.KGNodeID, &t.CreatedAt, &t.UpdatedAt); err != nil {
+			rows.Close()
 			return nil, fmt.Errorf("failed to scan todo: %w", err)
 		}
 		t.RemindDaily = remindDaily != 0
-		items, err := listTodoItems(db, t.ID)
+		list = append(list, t)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, fmt.Errorf("iterate todos: %w", err)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, fmt.Errorf("close todo rows: %w", err)
+	}
+
+	for index := range list {
+		items, err := listTodoItems(db, list[index].ID)
 		if err != nil {
 			return nil, err
 		}
-		t.Items = items
-		ComputeTodoProgress(&t)
-		list = append(list, t)
+		list[index].Items = items
+		ComputeTodoProgress(&list[index])
 	}
 	if list == nil {
 		list = []Todo{}
@@ -681,16 +690,27 @@ func ClaimDailyTodoReminderTodos(db *sql.DB, now time.Time) ([]Todo, error) {
 	if err != nil {
 		return nil, fmt.Errorf("list daily reminder todos: %w", err)
 	}
-	defer rows.Close()
-
 	todos := []Todo{}
 	for rows.Next() {
 		var todo Todo
 		var remindDaily int
 		if err := rows.Scan(&todo.ID, &todo.Title, &todo.Description, &todo.Priority, &todo.Status, &todo.DueDate, &remindDaily, &todo.CompletedAt, &todo.LastDailyReminderAt, &todo.KGNodeID, &todo.CreatedAt, &todo.UpdatedAt); err != nil {
+			rows.Close()
 			return nil, fmt.Errorf("scan daily reminder todo: %w", err)
 		}
 		todo.RemindDaily = remindDaily != 0
+		todos = append(todos, todo)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, fmt.Errorf("iterate daily reminder todos: %w", err)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, fmt.Errorf("close daily reminder rows: %w", err)
+	}
+
+	filtered := make([]Todo, 0, len(todos))
+	for _, todo := range todos {
 		items, err := listTodoItemsTx(tx, todo.ID)
 		if err != nil {
 			return nil, err
@@ -700,11 +720,9 @@ func ClaimDailyTodoReminderTodos(db *sql.DB, now time.Time) ([]Todo, error) {
 		if todo.Status == "done" {
 			continue
 		}
-		todos = append(todos, todo)
+		filtered = append(filtered, todo)
 	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate daily reminder todos: %w", err)
-	}
+	todos = filtered
 
 	if err := upsertPlannerMetaTx(tx, dailyTodoReminderMetaKey, dayKey); err != nil {
 		return nil, err
