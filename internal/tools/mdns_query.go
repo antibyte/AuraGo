@@ -54,14 +54,14 @@ func mdnsQueryServices(serviceType string, timeout time.Duration, logger *slog.L
 	if bindIP == nil {
 		return nil, fmt.Errorf("mdns: no suitable IP found on interface %s", iface.Name)
 	}
-	logger.Info("mdns: binding receive socket to", "ip", bindIP, "port", mdnsPortNum)
+	logger.Info("mdns: binding receive socket to 0.0.0.0:5353 and joining multicast group on", "interface", iface.Name)
 
 	// Create a regular UDP socket bound to our LAN IP:5353.
 	// This receives BOTH unicast responses AND multicast (because we also join
 	// the multicast group on this socket). This is the key difference from
 	// net.ListenMulticastUDP which only receives multicast.
 	lc := net.ListenConfig{Control: mdnsSocketControl}
-	pc, err := lc.ListenPacket(context.Background(), "udp4", fmt.Sprintf("%s:%d", bindIP, mdnsPortNum))
+	pc, err := lc.ListenPacket(context.Background(), "udp4", "0.0.0.0:5353")
 	if err != nil {
 		return nil, fmt.Errorf("mdns: bind: %w", err)
 	}
