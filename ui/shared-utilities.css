@@ -1,0 +1,126 @@
+.is-hidden {
+    display: none;
+}
+
+/* Spacing utilities (Phase 1.1 form rhythm scale) */
+.mb-xs { margin-bottom: 0.35rem; }
+.mb-sm { margin-bottom: 0.75rem; }
+.mb-md { margin-bottom: 1rem; }
+.mb-lg { margin-bottom: 1.5rem; }
+.mt-xs { margin-top: 0.35rem; }
+.mt-sm { margin-top: 0.75rem; }
+.mt-md { margin-top: 1rem; }
+.mt-lg { margin-top: 1.5rem; }
+
+/* ── Glass Card utility ────────────────────────────────────── */
+.glass-card {
+    background: var(--bg-glass);
+    backdrop-filter: blur(16px) saturate(1.2);
+    -webkit-backdrop-filter: blur(16px) saturate(1.2);
+    border: 1px solid var(--border-subtle);
+    border-radius: 14px;
+    box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.08),
+        inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+}
+
+.glass-card:hover {
+    border-color: var(--border-accent);
+    box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.12),
+        0 0 0 3px var(--accent-dim),
+        inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    transform: translateY(-2px);
+}
+
+/* ── Skeleton loading shimmer ──────────────────────────────── */
+.skeleton {
+    background: linear-gradient(90deg,
+            var(--bg-glass) 25%,
+            rgba(255, 255, 255, 0.06) 37%,
+            var(--bg-glass) 63%);
+    background-size: 400% 100%;
+    animation: shimmer 1.4s ease infinite;
+    border-radius: 8px;
+}
+
+[data-theme="light"] .skeleton {
+    background: linear-gradient(90deg,
+            rgba(0, 0, 0, 0.04) 25%,
+            rgba(0, 0, 0, 0.08) 37%,
+            rgba(0, 0, 0, 0.04) 63%);
+    background-size: 400% 100%;
+}
+
+
+/* ── Fade In Animation ─────────────────────────────────────── */
+.fade-in {
+    animation: fadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ── Stagger Animation ─────────────────────────────────────── */
+.stagger-1 {
+    animation-delay: 0.05s;
+}
+
+.stagger-2 {
+    animation-delay: 0.1s;
+}
+
+.stagger-3 {
+    animation-delay: 0.15s;
+}
+
+.stagger-4 {
+    animation-delay: 0.2s;
+}
+
+.stagger-5 {
+    animation-delay: 0.25s;
+}
+
+/* ── Pulse Animation for Live Indicators ───────────────────── */
+.pulse-live {
+    position: relative;
+}
+
+.pulse-live::before {
+    content: '';
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    background: var(--success);
+    border-radius: 50%;
+    animation: pulseLive 2s ease-in-out infinite;
+}
+
+/* ── Bounce Animation ──────────────────────────────────────── */
+.bounce {
+    animation: bounce 2s ease-in-out infinite;
+}
+
+/* ── Slide In from Bottom ─────────────────────────────────── */
+.slide-in-bottom {
+    animation: slideInBottom 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ── Gradient Text ─────────────────────────────────────────── */
+.gradient-text {
+    background: linear-gradient(135deg, var(--accent), #0d9488);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* ── Focus Ring ────────────────────────────────────────────── */
+.focus-ring:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px var(--accent-dim);
+    border-color: var(--accent);
+}
+
+/* ── Hidden utility ────────────────────────────────────────── */
+.hidden {
+    display: none !important;
+}
