@@ -89,13 +89,15 @@ func mdnsQueryServices(serviceType string, timeout time.Duration, logger *slog.L
 			break // timeout or closed
 		}
 		packetCount++
-		logger.Info("mdns: received packet", "size", n, "packet_num", packetCount)
+		logger.Info("mdns: received packet", "size", n, "packet_num", packetCount, "hex", fmt.Sprintf("%x", rbuf[:n]))
 
 		var msg dns.Msg
 		if err := msg.Unpack(rbuf[:n]); err != nil {
 			logger.Info("mdns: unpack failed", "error", err)
 			continue
 		}
+
+		logger.Info("mdns: dns message received", "questions", len(msg.Question), "answers", len(msg.Answer), "extra", len(msg.Extra))
 
 		fqSvc := dns.Fqdn(serviceType)
 		allRRs := append(msg.Answer, msg.Extra...)
