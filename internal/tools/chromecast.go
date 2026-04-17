@@ -28,21 +28,29 @@ type chromecastDevice struct {
 func ChromecastDiscover(logger *slog.Logger) string {
 	logger.Info("Starting Chromecast discovery via mDNS")
 
-	entries, err := mdnsQueryServices("_googlecast._tcp", 15*time.Second, logger)
+	entries, err := mdnsQueryServices("_googlecast._tcp", 10*time.Second, logger)
 	if err != nil {
 		return jsonErr("mDNS discovery failed: " + err.Error())
 	}
 
 	var devices []chromecastDevice
 	for _, e := range entries {
+		// Skip entries from _googlezone._tcp (not Chromecast devices)
+		if strings.Contains(e.Name, "_googlezone") {
+			continue
+		}
 		ip := ""
 		if len(e.IPs) > 0 {
 			ip = e.IPs[0]
 		}
+		port := e.Port
+		if port == 0 {
+			port = 8009
+		}
 		devices = append(devices, chromecastDevice{
 			Name: strings.TrimSuffix(e.Name, "._googlecast._tcp.local."),
 			Addr: ip,
-			Port: e.Port,
+			Port: port,
 			UUID: strings.Join(e.TXTs, ", "),
 		})
 	}
