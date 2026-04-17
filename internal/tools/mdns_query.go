@@ -25,23 +25,37 @@ type mdnsEntry struct {
 	TXTs []string
 }
 
-// mdnsQueryServices sends a PTR query for serviceType over IPv4 mDNS multicast
+// mdnsQueryServices sends PTR queries for serviceType over IPv4 mDNS multicast
 // and collects responses for the given timeout duration.
 // It joins the multicast group on the default-route LAN interface and uses
 // SO_REUSEADDR/SO_REUSEPORT so it can co-exist with system mDNS daemons.
+// Multiple queries are sent to compensate for UDP packet loss.
 func mdnsQueryServices(serviceType string, timeout time.Duration, logger *slog.Logger) ([]*mdnsEntry, error) {
-	// Use net.ListenMulticastUDP with nil interface like the original
-	// hashicorp/mdns library. The OS manages multicast routing automatically.
+	// Select the correct LAN interface to avoid Docker/veth confusion.
+	iface, ifErr := defaultRouteInterface()
+	if ifErr != nil {
+		logger.Warn("mdns: could not determine default route interface, falling back to nil", "error", ifErr)
+	} else {
+		logger.Info("mdns: using interface for multicast", "interface", iface.Name)
+	}
+
 	ipv4Group := net.UDPAddr{IP: net.ParseIP(mdnsIPv4Group), Port: mdnsPortNum}
-	pc, err := net.ListenMulticastUDP("udp4", nil, &ipv4Group)
+	pc, err := net.ListenMulticastUDP("udp4", iface, &ipv4Group)
 	if err != nil {
-		return nil, fmt.Errorf("mdns: ListenMulticastUDP: %w", err)
+		// Fallback: try with nil interface if specific one failed
+		if iface != nil {
+			logger.Warn("mdns: ListenMulticastUDP with specific interface failed, retrying with nil", "error", err)
+			pc, err = net.ListenMulticastUDP("udp4", nil, &ipv4Group)
+		}
+		if err != nil {
+			return nil, fmt.Errorf("mdns: ListenMulticastUDP: %w", err)
+		}
 	}
 	defer pc.Close()
 
 	logger.Info("mdns: listening on multicast group 224.0.0.251:5353")
 
-	// Send query via a separate dialed socket so kernel picks source IP via routing.
+	// Build the query packet once.
 	q := new(dns.Msg)
 	q.SetQuestion(dns.Fqdn(serviceType), dns.TypePTR)
 	q.RecursionDesired = false
@@ -51,18 +65,33 @@ func mdnsQueryServices(serviceType string, timeout time.Duration, logger *slog.L
 		return nil, fmt.Errorf("mdns: pack query: %w", err)
 	}
 
+	// Send query via a separate dialed socket so kernel picks source IP via routing.
+	// Keep the socket open so unicast replies are received too.
 	sendConn, err := net.Dial("udp4", "224.0.0.251:5353")
 	if err != nil {
 		return nil, fmt.Errorf("mdns: dial send socket: %w", err)
 	}
-	_, err = sendConn.Write(buf)
-	sendConn.Close()
-	if err != nil {
-		return nil, fmt.Errorf("mdns: send query: %w", err)
-	}
+	defer sendConn.Close()
+
+	// Send multiple queries to compensate for UDP packet loss.
+	// Schedule: 0ms, 500ms, 1500ms, 3500ms (exponential backoff)
+	queryIntervals := []time.Duration{0, 500 * time.Millisecond, 1 * time.Second, 2 * time.Second}
+	go func() {
+		for i, delay := range queryIntervals {
+			if delay > 0 {
+				time.Sleep(delay)
+			}
+			if _, wErr := sendConn.Write(buf); wErr != nil {
+				logger.Warn("mdns: send query failed", "attempt", i+1, "error", wErr)
+			} else {
+				logger.Info("mdns: sent query", "attempt", i+1, "service", serviceType)
+			}
+		}
+	}()
 
 	// Set read deadline for the collection phase.
-	if err := pc.SetDeadline(time.Now().Add(timeout)); err != nil {
+	deadline := time.Now().Add(timeout)
+	if err := pc.SetDeadline(deadline); err != nil {
 		return nil, fmt.Errorf("mdns: set deadline: %w", err)
 	}
 
@@ -71,28 +100,27 @@ func mdnsQueryServices(serviceType string, timeout time.Duration, logger *slog.L
 	packetCount := 0
 
 	for {
-		n, _, err := pc.ReadFrom(rbuf)
-		if err != nil {
-			logger.Info("mdns: read loop ended", "packet_count", packetCount, "error", err)
+		n, _, readErr := pc.ReadFrom(rbuf)
+		if readErr != nil {
+			logger.Info("mdns: read loop ended", "packet_count", packetCount, "error", readErr)
 			break
 		}
 		packetCount++
-		logger.Info("mdns: received packet", "size", n, "packet_num", packetCount, "hex", fmt.Sprintf("%x", rbuf[:n]))
+		logger.Debug("mdns: received packet", "size", n, "packet_num", packetCount)
 
 		var msg dns.Msg
 		if err := msg.Unpack(rbuf[:n]); err != nil {
-			logger.Info("mdns: unpack failed", "error", err)
+			logger.Debug("mdns: unpack failed", "error", err)
 			continue
 		}
 
-		logger.Info("mdns: dns message received", "questions", len(msg.Question), "answers", len(msg.Answer), "extra", len(msg.Extra))
+		logger.Debug("mdns: dns message", "answers", len(msg.Answer), "extra", len(msg.Extra))
 
 		allRRs := append(msg.Answer, msg.Extra...)
 
 		// Collect PTR records first to create or update entries.
 		for _, rr := range allRRs {
 			if ptr, ok := rr.(*dns.PTR); ok {
-				// ptr.Ptr is the service instance name, e.g. "Google-Home-Mini-..._googlecast._tcp.local."
 				if _, exists := entries[ptr.Ptr]; !exists {
 					entries[ptr.Ptr] = &mdnsEntry{Name: ptr.Ptr}
 				}
