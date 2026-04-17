@@ -1381,7 +1381,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		broker.Send("done", i18n.T(cfg.Server.UILanguage, "backend.stream_done"))
 
 		memAnalysis := resolveMemoryAnalysisSettings(cfg, shortTermMem)
-		useBatchedTurnHelper := helperManager != nil && memAnalysis.Enabled && memAnalysis.RealTime && !isEmpty && shortTermMem != nil && !flags.IsCoAgent
+		useBatchedTurnHelper := helperManager != nil && memAnalysis.Enabled && memAnalysis.RealTime && !isEmpty && shortTermMem != nil && !flags.IsCoAgent && !flags.IsMission
 		useBatchedTurnPersonality := useBatchedTurnHelper && personalityEnabled && cfg.Personality.EngineV2
 
 		// Phase D: Final mood + trait update + milestone check at session end
@@ -1581,7 +1581,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}(lastUserMsg, content, sessionID, activityToolNames, activityToolSummaries, turnPersonalityInput, append([]openai.ChatCompletionMessage(nil), req.Messages...))
 		} else {
 			// Real-time memory analysis: async post-response extraction of memory-worthy content
-			if memAnalysis.Enabled && memAnalysis.RealTime && !isEmpty && shortTermMem != nil {
+			if memAnalysis.Enabled && memAnalysis.RealTime && !isEmpty && shortTermMem != nil && !flags.IsMission && !flags.IsCoAgent {
 				go func(userMsg, aResp, sid string) {
 					analysisCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 					defer cancel()

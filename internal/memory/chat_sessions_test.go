@@ -253,3 +253,21 @@ func TestEnsureDefaultSession(t *testing.T) {
 		t.Fatalf("EnsureDefaultSession idempotent: %v", err)
 	}
 }
+
+func TestCountInternalToolResultMessages(t *testing.T) {
+	stm := newTestSTM(t)
+
+	sess, _ := stm.CreateChatSession()
+	_, _ = stm.InsertMessage(sess.ID, "assistant", `{"action":"web_scraper"}`, false, true)
+	_, _ = stm.InsertMessage(sess.ID, "tool", `{"status":"success"}`, false, true)
+	_, _ = stm.InsertMessage(sess.ID, "user", `Tool Output: {"status":"success"}`, false, true)
+	_, _ = stm.InsertMessage(sess.ID, "user", "visible user text", false, false)
+
+	count, err := stm.CountInternalToolResultMessages(sess.ID)
+	if err != nil {
+		t.Fatalf("CountInternalToolResultMessages: %v", err)
+	}
+	if count != 2 {
+		t.Fatalf("expected 2 internal tool result messages, got %d", count)
+	}
+}

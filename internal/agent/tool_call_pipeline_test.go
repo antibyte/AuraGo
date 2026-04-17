@@ -581,3 +581,13 @@ func TestFormatAnnouncementFeedbackRecentToolMentioned(t *testing.T) {
 		t.Fatal("FormatAnnouncementFeedback should tell model not to re-call the last tool")
 	}
 }
+
+func TestFormatNonNativeToolCallFeedbackMentionsNativeAPI(t *testing.T) {
+	msg := FormatNonNativeToolCallFeedback("execute_skill")
+	if !strings.Contains(msg, "native function-calling API") {
+		t.Fatal("expected feedback to require the native function-calling API")
+	}
+	if !strings.Contains(msg, "execute_skill") {
+		t.Fatal("expected feedback to mention the affected tool name")
+	}
+}

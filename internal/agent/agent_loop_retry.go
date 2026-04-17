@@ -150,6 +150,29 @@ func handleAgentLoopRecoveries(s *agentLoopState, content string, tc ToolCall, p
 		return content, tc, true, false
 	}
 
+	if s.useNativeFunctions &&
+		tc.IsTool &&
+		!useNativePath &&
+		(parsedToolResp.ParseSource == ToolCallParseSourceReasoningCleanJSON || parsedToolResp.ParseSource == ToolCallParseSourceContentJSON) &&
+		s.invalidNativeToolCount < 2 {
+		s.invalidNativeToolCount++
+		currentLogger.Warn("[Sync] Non-native text tool call detected while native function calling is enabled, requesting corrected native function call",
+			"attempt", s.invalidNativeToolCount,
+			"action", tc.Action,
+			"source", parsedToolResp.ParseSource)
+		feedbackMsg := applyEmotionRecoveryNudge(FormatNonNativeToolCallFeedback(tc.Action), emotionPolicy)
+		msgs := s.recoverySession.PersistRecoveryMessages(PersistRecoveryParams{
+			SessionID:            sessionID,
+			FeedbackMsg:          feedbackMsg,
+			BrokerEventType:      "error_recovery",
+			SkipAssistantPersist: true,
+			I18nKey:              "backend.stream_error_recovery_invalid_native",
+		}, shortTermMem, historyManager)
+		s.req.Messages = append(s.req.Messages, msgs...)
+		s.lastResponseWasTool = false
+		return content, ToolCall{}, true, false
+	}
+
 	if parsedToolResp.IncompleteToolCall && !tc.IsTool && s.incompleteToolCallCount < 3 {
 		s.incompleteToolCallCount++
 		currentLogger.Warn("[Sync] Incomplete <tool_call> tag detected, nudging model to emit actual tool call", "attempt", s.incompleteToolCallCount)

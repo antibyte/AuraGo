@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"log/slog"
+	"strings"
 
 	"aurago/internal/mqtt"
 	"aurago/internal/tools"
@@ -64,4 +65,54 @@ func extractAssistantContent(body []byte) string {
 		return resp.Choices[0].Message.Content
 	}
 	return string(body)
+}
+
+// missionResponseLooksIncomplete flags assistant replies that resemble a
+// planning/progress update instead of a finished mission result. It is only
+// used when no tool execution was recorded for the mission session.
+func missionResponseLooksIncomplete(content string, toolResultCount int) bool {
+	if toolResultCount > 0 {
+		return false
+	}
+
+	trimmed := strings.TrimSpace(content)
+	if trimmed == "" {
+		return true
+	}
+
+	lower := strings.ToLower(trimmed)
+	if strings.Contains(lower, "```") && strings.Contains(lower, `"action"`) {
+		return true
+	}
+
+	progressMarkers := []string{
+		"the user is asking me to",
+		"let me ",
+		"now i need",
+		"i need to ",
+		"i should ",
+		"i will ",
+		"i'll ",
+		"i am going to",
+		"search is running",
+		"deploying",
+		"lass mich ",
+		"ich werde ",
+		"ich muss ",
+		"ich sollte ",
+		"jetzt werde ",
+		"jetzt prüfe ",
+		"jetzt suche ",
+		"jetzt erstelle ",
+		"jetzt deploye ",
+		"suche läuft",
+		"deploye",
+	}
+	for _, marker := range progressMarkers {
+		if strings.Contains(lower, marker) {
+			return true
+		}
+	}
+
+	return false
 }

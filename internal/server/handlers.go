@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -430,6 +431,15 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			VoiceOutputActive:  GetSpeakerMode(),
 		}
 
+		missionToolResultsBefore := 0
+		if missionID != "" && s.ShortTermMem != nil {
+			if count, err := s.ShortTermMem.CountInternalToolResultMessages(sessionID); err == nil {
+				missionToolResultsBefore = count
+			} else {
+				s.Logger.Debug("Failed to read pre-run mission tool result count", "session_id", sessionID, "error", err)
+			}
+		}
+
 		finalMessages := append([]openai.ChatCompletionMessage{}, recentMessages...)
 		if sessionID == "default" {
 			if currentSummary := s.HistoryManager.GetSummary(); currentSummary != "" {
@@ -546,6 +556,22 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 				resp.Choices[i].Message.Content = security.StripThinkingTags(
 					security.Scrub(resp.Choices[i].Message.Content),
 				)
+			}
+			if missionID != "" && s.ShortTermMem != nil {
+				missionToolResultsAfter := missionToolResultsBefore
+				if count, err := s.ShortTermMem.CountInternalToolResultMessages(sessionID); err == nil {
+					missionToolResultsAfter = count
+				} else {
+					s.Logger.Debug("Failed to read post-run mission tool result count", "session_id", sessionID, "error", err)
+				}
+				toolResultDelta := missionToolResultsAfter - missionToolResultsBefore
+				if toolResultDelta < 0 {
+					toolResultDelta = 0
+				}
+				w.Header().Set("X-Aurago-Mission-Tool-Results", strconv.Itoa(toolResultDelta))
+				if len(resp.Choices) > 0 && missionResponseLooksIncomplete(resp.Choices[0].Message.Content, toolResultDelta) {
+					w.Header().Set("X-Aurago-Mission-Suspicious-Completion", "true")
+				}
 			}
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(resp)

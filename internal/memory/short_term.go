@@ -62,6 +62,35 @@ func (s *SQLiteMemory) GetRecentMessages(sessionID string, limit int) ([]openai.
 	return s.queryRecentMessages(query, sessionID, limit)
 }
 
+// CountInternalToolResultMessages returns how many internal tool-result messages
+// were stored for the given session. Native tool calls persist results as
+// role=tool, while non-native fallback calls persist them as internal role=user
+// messages prefixed with Tool Output.
+func (s *SQLiteMemory) CountInternalToolResultMessages(sessionID string) (int, error) {
+	var count int
+	err := s.db.QueryRow(`
+		SELECT COUNT(*)
+		FROM messages
+		WHERE session_id = ?
+		  AND is_internal = 1
+		  AND (
+			role = 'tool'
+			OR (
+				role = 'user'
+				AND (
+					content LIKE 'Tool Output:%'
+					OR content LIKE '[Tool Output]%'
+				)
+			)
+		  )`,
+		sessionID,
+	).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("failed to count internal tool result messages: %w", err)
+	}
+	return count, nil
+}
+
 // GetRecentMessagesAcrossSessions returns the most recent messages across all sessions
 // in chronological order (newest sessions first, then chronological within).
 func (s *SQLiteMemory) GetRecentMessagesAcrossSessions(limit int) ([]openai.ChatCompletionMessage, error) {

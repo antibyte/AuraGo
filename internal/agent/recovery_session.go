@@ -163,6 +163,18 @@ func FormatInvalidNativeToolFeedback(toolName string) string {
 	)
 }
 
+// FormatNonNativeToolCallFeedback returns the feedback message for text/JSON
+// tool calls that were emitted while native function calling is enabled.
+func FormatNonNativeToolCallFeedback(toolName string) string {
+	if toolName == "" {
+		toolName = "the requested tool"
+	}
+	return fmt.Sprintf(
+		"ERROR: Your last response tried to call %q via plain text/JSON instead of the native function-calling API. Emit the tool call again using the native tool interface only. Do not write JSON, markdown fences, or reasoning text for tool invocation.",
+		toolName,
+	)
+}
+
 // FormatIncompleteToolCallFeedback returns the feedback message for incomplete tool call tags.
 func FormatIncompleteToolCallFeedback(useNativeFunctions bool, retryCount int) string {
 	if useNativeFunctions {

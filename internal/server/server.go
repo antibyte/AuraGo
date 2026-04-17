@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -461,10 +462,23 @@ func Start(cfg *config.Config, logger *slog.Logger, accessLogger *slog.Logger, l
 				return
 			}
 			if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-				logger.Info("[MissionV2] Mission executed successfully", "mission_id", missionID)
 				// Extract the assistant's text from the OpenAI-format response
 				output := extractAssistantContent(respBody)
-				s.MissionManagerV2.SetResult(missionID, "success", output)
+				toolResultCount, _ := strconv.Atoi(resp.Header.Get("X-Aurago-Mission-Tool-Results"))
+				suspiciousCompletion := strings.EqualFold(resp.Header.Get("X-Aurago-Mission-Suspicious-Completion"), "true")
+				if suspiciousCompletion {
+					logger.Warn("[MissionV2] Mission response looked incomplete, refusing success",
+						"mission_id", missionID,
+						"tool_results", toolResultCount)
+					s.MissionManagerV2.SetResult(
+						missionID,
+						"error",
+						"Mission response looked incomplete: no executed tools were recorded and the final assistant reply resembled a progress update instead of a finished result.\n\n"+output,
+					)
+				} else {
+					logger.Info("[MissionV2] Mission executed successfully", "mission_id", missionID, "tool_results", toolResultCount)
+					s.MissionManagerV2.SetResult(missionID, "success", output)
+				}
 			} else {
 				logger.Error("[MissionV2] Mission returned non-OK status", "status", resp.Status, "mission_id", missionID)
 				s.MissionManagerV2.SetResult(missionID, "error", string(respBody))
