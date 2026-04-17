@@ -233,6 +233,26 @@
             column-span: all;
         }
 
+        #tab-agent .dash-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.2rem;
+            columns: unset;
+            column-gap: unset;
+        }
+
+        #tab-agent .dash-grid > .dash-card {
+            display: block;
+            margin-bottom: 0;
+            break-inside: unset;
+        }
+
+        @media (max-width: 1024px) {
+            #tab-agent .dash-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
         /* ── Gauge Grid ──────────────────────────────────────── */
         .gauge-grid {
             display: grid;
