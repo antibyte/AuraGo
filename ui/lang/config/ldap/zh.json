@@ -2,7 +2,7 @@
   "config.ldap.base_dn_label": "基础DN",
   "config.ldap.bind_dn_label": "Bind DN",
   "config.ldap.bind_password_label": "Bind 密码（Vault）",
-  "config.ldap.bind_password_placeholder": "输入 bind 密码…",
+  "config.ldap.password_placeholder": "输入 bind 密码…",
   "config.ldap.enabled_label": "启用",
   "config.ldap.group_search_base_label": "组搜索基础",
   "config.ldap.host_label": "LDAP 服务器主机",

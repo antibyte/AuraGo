@@ -2,7 +2,7 @@
   "config.ldap.base_dn_label": "DN de base",
   "config.ldap.bind_dn_label": "Bind DN",
   "config.ldap.bind_password_label": "Mot de passe Bind (Vault)",
-  "config.ldap.bind_password_placeholder": "Saisir le mot de passe bind…",
+  "config.ldap.password_placeholder": "Saisir le mot de passe bind…",
   "config.ldap.enabled_label": "Activé",
   "config.ldap.group_search_base_label": "Base de Recherche de Groupes",
   "config.ldap.host_label": "Serveur LDAP",
