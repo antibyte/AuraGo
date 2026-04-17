@@ -320,17 +320,20 @@ func TestDispatchExecContextMemoryIncludesPlannerSummary(t *testing.T) {
 	plannerDB := newPlannerTestDB(t)
 	defer plannerDB.Close()
 
+	now := time.Now()
+
 	if _, err := planner.CreateTodo(plannerDB, planner.Todo{
 		Title:    "Prepare release notes",
 		Priority: "high",
 		Status:   "open",
-		DueDate:  "2026-04-17T09:00:00Z",
+		DueDate:  now.AddDate(0, 0, -1).Format(time.RFC3339),
 	}); err != nil {
 		t.Fatalf("CreateTodo: %v", err)
 	}
+	todayAtTen := time.Date(now.Year(), now.Month(), now.Day(), 10, 0, 0, 0, now.Location())
 	if _, err := planner.CreateAppointment(plannerDB, planner.Appointment{
 		Title:    "Release sync",
-		DateTime: "2026-04-17T10:00:00Z",
+		DateTime: todayAtTen.Format(time.RFC3339),
 		Status:   "upcoming",
 	}); err != nil {
 		t.Fatalf("CreateAppointment: %v", err)

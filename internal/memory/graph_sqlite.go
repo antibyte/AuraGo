@@ -115,7 +115,15 @@ type kgBFSLevel struct {
 }
 
 func NewKnowledgeGraph(dbPath string, jsonMigratePath string, logger *slog.Logger) (*KnowledgeGraph, error) {
-	db, err := dbutil.Open(dbPath, dbutil.WithMaxOpenConns(2))
+	maxOpenConns := 2
+	// SQLite in-memory databases are scoped to a single connection unless callers
+	// explicitly opt into a shared-cache DSN. The KG uses an async worker that may
+	// read/write on a different pooled connection, so plain ":memory:" must stay on
+	// one connection or tests and access counters observe different databases.
+	if strings.TrimSpace(dbPath) == ":memory:" {
+		maxOpenConns = 1
+	}
+	db, err := dbutil.Open(dbPath, dbutil.WithMaxOpenConns(maxOpenConns))
 	if err != nil {
 		return nil, fmt.Errorf("open knowledge graph db: %w", err)
 	}
