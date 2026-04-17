@@ -56,6 +56,10 @@ func mdnsQueryServices(serviceType string, timeout time.Duration, logger *slog.L
 		if err := p4.JoinGroup(iface, group); err != nil {
 			logger.Info("mdns: JoinGroup failed", "error", err)
 		}
+		// Also set outgoing multicast interface explicitly
+		if err := p4.SetMulticastInterface(iface); err != nil {
+			logger.Info("mdns: SetMulticastInterface failed", "error", err)
+		}
 	}
 
 	// Build the PTR query.
