@@ -126,17 +126,14 @@ func mdnsQueryServices(serviceType string, timeout time.Duration, logger *slog.L
 
 		logger.Info("mdns: dns message received", "questions", len(msg.Question), "answers", len(msg.Answer), "extra", len(msg.Extra))
 
-		fqSvc := dns.Fqdn(serviceType)
 		allRRs := append(msg.Answer, msg.Extra...)
 
 		// Collect PTR records first to create or update entries.
-		for _, rr := range msg.Answer {
+		for _, rr := range allRRs {
 			if ptr, ok := rr.(*dns.PTR); ok {
-				if strings.EqualFold(ptr.Hdr.Name, fqSvc) {
-					name := ptr.Ptr
-					if _, exists := entries[name]; !exists {
-						entries[name] = &mdnsEntry{Name: name}
-					}
+				// ptr.Ptr is the service instance name, e.g. "Google-Home-Mini-..._googlecast._tcp.local."
+				if _, exists := entries[ptr.Ptr]; !exists {
+					entries[ptr.Ptr] = &mdnsEntry{Name: ptr.Ptr}
 				}
 			}
 		}
