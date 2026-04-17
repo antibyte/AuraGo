@@ -2,9 +2,7 @@ package agent
 
 import (
 	"context"
-	"crypto/sha256"
 	"database/sql"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -114,7 +112,6 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 	llmClient := dc.LLMClient
 	vault := dc.Vault
 	registry := dc.Registry
-	manifest := dc.Manifest
 	cronManager := dc.CronManager
 	longTermMem := dc.LongTermMem
 	shortTermMem := dc.ShortTermMem
@@ -167,385 +164,34 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			return "Tool Output: [ERROR] Unknown operation: " + op
 
 		case "execute_sandbox":
-			if !cfg.Sandbox.Enabled {
-				return "Tool Output: [PERMISSION DENIED] execute_sandbox is disabled (sandbox.enabled: false)."
-			}
-			req := decodeSandboxExecutionArgs(tc)
-			if req.Code == "" {
-				return "Tool Output: [EXECUTION ERROR] 'code' field is empty. Provide the source code to execute."
-			}
-			lang := req.Language
-			if lang == "" {
-				lang = "python"
-			}
-			// Resolve vault secrets for injection
-			secrets, rejectedInfo := resolveVaultKeys(cfg, vault, req.VaultKeys, logger)
-			// Resolve credential secrets for injection
-			creds, credRejInfo := resolveCredentials(cfg, vault, inventoryDB, req.CredentialIDs, logger)
-			if credRejInfo != "" {
-				if rejectedInfo != "" {
-					rejectedInfo += "\n" + credRejInfo
-				} else {
-					rejectedInfo = credRejInfo
-				}
-			}
-			codeToRun := req.Code
-			if len(secrets) > 0 {
-				codeToRun = tools.BuildSecretPrelude(secrets) + codeToRun
-			}
-			if len(creds) > 0 {
-				codeToRun = tools.BuildCredentialPrelude(creds) + codeToRun
-			}
-			logger.Info("LLM requested sandbox execution", "language", lang, "code_len", len(req.Code), "libraries", len(req.Libraries))
-			result, err := tools.SandboxExecuteCode(codeToRun, lang, req.Libraries, cfg.Sandbox.TimeoutSeconds, logger)
-			if err != nil {
-				// Fall back to execute_python if sandbox not ready and Python is allowed
-				if cfg.Agent.AllowPython && lang == "python" {
-					logger.Warn("Sandbox execution failed, falling back to execute_python", "error", err)
-					var stdout, stderr string
-					var pyErr error
-					if len(secrets) > 0 || len(creds) > 0 {
-						stdout, stderr, pyErr = tools.ExecutePythonWithSecrets(req.Code, cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir, secrets, creds)
-					} else {
-						stdout, stderr, pyErr = tools.ExecutePython(req.Code, cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir)
-					}
-					// Scrub all outputs to prevent secret leakage via error messages/tracebacks
-					stdout = security.Scrub(stdout)
-					stderr = security.Scrub(stderr)
-					var sb strings.Builder
-					sb.WriteString("Tool Output (sandbox unavailable — ran via local Python):\n")
-					if rejectedInfo != "" {
-						sb.WriteString(rejectedInfo + "\n")
-					}
-					if stdout != "" {
-						sb.WriteString(fmt.Sprintf("STDOUT:\n%s\n", stdout))
-					}
-					if stderr != "" {
-						sb.WriteString(fmt.Sprintf("STDERR:\n%s\n", stderr))
-					}
-					if pyErr != nil {
-						sb.WriteString(fmt.Sprintf("[EXECUTION ERROR]: %s\n", security.Scrub(pyErr.Error())))
-					}
-					return sb.String()
-				}
-				return fmt.Sprintf("Tool Output: [EXECUTION ERROR] sandbox: %s", security.Scrub(err.Error()))
-			}
-			scrubbedResult := security.Scrub(result)
-			if rejectedInfo != "" {
-				return "Tool Output:\n" + rejectedInfo + "\n" + scrubbedResult
-			}
-			return "Tool Output:\n" + scrubbedResult
+			return dispatchShell(tc, dc)
 
 		case "execute_python":
-			if !cfg.Agent.AllowPython {
-				return "Tool Output: [PERMISSION DENIED] execute_python is disabled in Danger Zone settings (agent.allow_python: false)."
-			}
-			req := decodePythonExecutionArgs(tc)
-			logger.Info("LLM requested python execution", "code_len", len(req.Code), "background", req.Background)
-			if req.Code == "" {
-				return "Tool Output: [EXECUTION ERROR] 'code' field is empty. You MUST provide Python source code in the 'code' field. Do NOT use execute_python for SSH or remote tasks — use query_inventory / execute_remote_shell instead."
-			}
-			// Resolve vault secrets
-			secrets, rejectedInfo := resolveVaultKeys(cfg, vault, req.VaultKeys, logger)
-			// Resolve credential secrets
-			creds, credRejInfo := resolveCredentials(cfg, vault, inventoryDB, req.CredentialIDs, logger)
-			if credRejInfo != "" {
-				if rejectedInfo != "" {
-					rejectedInfo += "\n" + credRejInfo
-				} else {
-					rejectedInfo = credRejInfo
-				}
-			}
-			hasSecrets := len(secrets) > 0 || len(creds) > 0
-			if req.Background {
-				logger.Info("LLM requested background Python execution", "code_len", len(req.Code))
-				var pid int
-				var bgErr error
-				if hasSecrets {
-					pid, bgErr = tools.ExecutePythonBackgroundWithSecrets(req.Code, cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir, registry, secrets, creds)
-				} else {
-					pid, bgErr = tools.ExecutePythonBackground(req.Code, cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir, registry)
-				}
-				if bgErr != nil {
-					return fmt.Sprintf("Tool Output: [EXECUTION ERROR] starting background process: %v", bgErr)
-				}
-				msg := fmt.Sprintf("Tool Output: Process started in background. PID=%d. Use {\"action\": \"read_process_logs\", \"pid\": %d} to check output.", pid, pid)
-				if rejectedInfo != "" {
-					msg = rejectedInfo + "\n" + msg
-				}
-				return msg
-			}
-			logger.Debug("Executing Python (foreground)", "code_preview", Truncate(req.Code, 300))
-			logger.Info("LLM requested python execution", "code_len", len(req.Code))
-			var stdout, stderr string
-			var pyErr error
-			if hasSecrets {
-				stdout, stderr, pyErr = tools.ExecutePythonWithSecrets(req.Code, cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir, secrets, creds)
-			} else {
-				stdout, stderr, pyErr = tools.ExecutePython(req.Code, cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir)
-			}
-
-			// Always scrub sensitive values from Python output, regardless of whether
-			// vault keys were explicitly requested (defence-in-depth: the LLM may have
-			// recalled sensitive values from its context window and embedded them in code)
-			stdout = security.Scrub(stdout)
-			stderr = security.Scrub(stderr)
-
-			var sb strings.Builder
-			sb.WriteString("Tool Output:\n")
-			if rejectedInfo != "" {
-				sb.WriteString(rejectedInfo + "\n")
-			}
-			if stdout != "" {
-				sb.WriteString(fmt.Sprintf("STDOUT:\n%s\n", stdout))
-			}
-			if stderr != "" {
-				sb.WriteString(fmt.Sprintf("STDERR:\n%s\n", stderr))
-			}
-			if pyErr != nil {
-				sb.WriteString(fmt.Sprintf("[EXECUTION ERROR]: %s\n", security.Scrub(pyErr.Error())))
-			}
-			return sb.String()
+			return dispatchPython(tc, dc)
 
 		case "execute_shell":
-			if !cfg.Agent.AllowShell {
-				return "Tool Output: [PERMISSION DENIED] execute_shell is disabled in Danger Zone settings (agent.allow_shell: false)."
-			}
-			req := decodeShellExecutionArgs(tc)
-			// Block commands that attempt to read AURAGO_* environment variables (contains vault master key etc.)
-			if isBlockedEnvRead(req.Command) {
-				logger.Warn("[Security] Blocked attempt to read sensitive environment variable", "command", Truncate(req.Command, 200))
-				return "Tool Output: [PERMISSION DENIED] Reading AURAGO_ environment variables via shell is not permitted."
-			}
-			logger.Info("LLM requested shell execution", "command", Truncate(req.Command, 200), "background", req.Background)
-			if req.Background {
-				pid, err := tools.ExecuteShellBackground(req.Command, cfg.Directories.WorkspaceDir, registry)
-				if err != nil {
-					return fmt.Sprintf("Tool Output: [EXECUTION ERROR] starting background shell process: %v", err)
-				}
-				return fmt.Sprintf("Tool Output: Shell process started in background. PID=%d. Use {\"action\": \"read_process_logs\", \"pid\": %d} to check output.", pid, pid)
-			}
-			stdout, stderr, err := tools.ExecuteShell(req.Command, cfg.Directories.WorkspaceDir)
-			stdout = security.Scrub(stdout)
-			stderr = security.Scrub(stderr)
-
-			var sb strings.Builder
-			sb.WriteString("Tool Output:\n")
-			if stdout != "" {
-				sb.WriteString(fmt.Sprintf("STDOUT:\n%s\n", stdout))
-			}
-			if stderr != "" {
-				sb.WriteString(fmt.Sprintf("STDERR:\n%s\n", stderr))
-			}
-			if err != nil {
-				sb.WriteString(fmt.Sprintf("[EXECUTION ERROR]: %v\n", err))
-				// Hint: shell is /bin/sh (POSIX), not bash — process substitution <(...) is not available.
-				sb.WriteString("[Shell: /bin/sh (POSIX sh). Bash-specific syntax (e.g. process substitution <(...), [[ ]], arrays) is NOT available. Use POSIX-compatible alternatives.]\n")
-			}
-			return sb.String()
+			return dispatchShell(tc, dc)
 
 		case "service_manager":
-			if !cfg.Agent.AllowShell {
-				return "Tool Output: [PERMISSION DENIED] service_manager requires shell access (agent.allow_shell: false)."
-			}
-			operation := stringValueFromMap(tc.Params, "operation")
-			service := stringValueFromMap(tc.Params, "service")
-			if operation == "" || service == "" {
-				return "Tool Output: [ERROR] 'operation' and 'service' are required for service_manager."
-			}
-			sm := tools.NewServiceManager()
-			out, err := sm.ManageService(operation, service)
-			if err != nil {
-				return fmt.Sprintf("Tool Output: [ERROR] %v", err)
-			}
-			return fmt.Sprintf("Tool Output:\n%s", out)
+			return dispatchShell(tc, dc)
 
 		case "execute_sudo":
-			if !cfg.Agent.SudoEnabled {
-				return "Tool Output: [PERMISSION DENIED] execute_sudo is not enabled in config. Set agent.sudo_enabled: true and store the sudo password in the vault as 'sudo_password'."
-			}
-			if cfg.Runtime.NoNewPrivileges {
-				return `Tool Output: [PERMISSION DENIED] sudo is not available: the "no new privileges" flag is set on this system. Remove no-new-privileges from your container or systemd configuration to use sudo.`
-			}
-			if cfg.Agent.SudoUnrestricted && cfg.Runtime.ProtectSystemStrict {
-				return `Tool Output: [PERMISSION DENIED] sudo_unrestricted is enabled but ProtectSystem=strict is still active in the systemd unit. System-wide writes are blocked until you update the unit and restart AuraGo. Run: sudo systemctl edit --full aurago, comment out or remove ProtectSystem=strict, then run: sudo systemctl daemon-reload && sudo systemctl restart aurago`
-			}
-			req := decodeSudoExecutionArgs(tc)
-			if req.Command == "" {
-				return "Tool Output: [EXECUTION ERROR] 'command' is required for execute_sudo"
-			}
-			sudoPass, vaultErr := vault.ReadSecret("sudo_password")
-			if vaultErr != nil || sudoPass == "" {
-				return "Tool Output: [PERMISSION DENIED] sudo password not found in vault. Store it first: {\"action\": \"secrets_vault\", \"operation\": \"store\", \"key\": \"sudo_password\", \"value\": \"<password>\"}"
-			}
-			logger.Info("LLM requested sudo execution", "command", Truncate(req.Command, 200))
-			stdoutS, stderrS, errS := tools.ExecuteSudo(req.Command, cfg.Directories.WorkspaceDir, sudoPass)
-			stdoutS = security.Scrub(stdoutS)
-			stderrS = security.Scrub(stderrS)
-
-			var sbSudo strings.Builder
-			sbSudo.WriteString("Tool Output:\n")
-			if stdoutS != "" {
-				sbSudo.WriteString(fmt.Sprintf("STDOUT:\n%s\n", stdoutS))
-			}
-			if stderrS != "" {
-				sbSudo.WriteString(fmt.Sprintf("STDERR:\n%s\n", stderrS))
-			}
-			if errS != nil {
-				sbSudo.WriteString(fmt.Sprintf("[EXECUTION ERROR]: %v\n", errS))
-			}
-			return sbSudo.String()
+			return dispatchShell(tc, dc)
 
 		case "install_package":
-			if !cfg.Agent.AllowShell {
-				return "Tool Output: [PERMISSION DENIED] install_package is disabled in Danger Zone settings (agent.allow_shell: false)."
-			}
-			req := decodeInstallPackageArgs(tc)
-			logger.Info("LLM requested package installation", "package", req.Package)
-			if req.Package == "" {
-				return "Tool Output: [EXECUTION ERROR] 'package' is required for install_package"
-			}
-			stdout, stderr, err := tools.InstallPackage(req.Package, cfg.Directories.WorkspaceDir)
-
-			var sb strings.Builder
-			sb.WriteString("Tool Output:\n")
-			if stdout != "" {
-				sb.WriteString(fmt.Sprintf("STDOUT:\n%s\n", stdout))
-			}
-			if stderr != "" {
-				sb.WriteString(fmt.Sprintf("STDERR:\n%s\n", stderr))
-			}
-			if err != nil {
-				sb.WriteString(fmt.Sprintf("[EXECUTION ERROR]: %v\n", err))
-			}
-			return sb.String()
+			return dispatchShell(tc, dc)
 
 		case "save_tool":
-			if !cfg.Agent.AllowPython {
-				return "Tool Output: [PERMISSION DENIED] save_tool is disabled in Danger Zone settings (agent.allow_python: false)."
-			}
-			req := decodeSaveToolArgs(tc)
-			if req.Name == "" || req.Code == "" {
-				return "Tool Output: ERROR 'name' and 'code' are required for save_tool"
-			}
-			if collisionName, ok := customToolBuiltinCollisionName(req.Name, allBuiltinToolNameSet()); ok {
-				return fmt.Sprintf("Tool Output: ERROR custom tool name %q collides with built-in tool %q. Choose a different name.", req.Name, collisionName)
-			}
-			codeHash := sha256.Sum256([]byte(req.Code))
-			logger.Info("LLM requested tool persistence",
-				"name", req.Name,
-				"description", req.Description,
-				"code_size", len(req.Code),
-				"code_sha256", hex.EncodeToString(codeHash[:]),
-			)
-			if err := manifest.SaveTool(cfg.Directories.ToolsDir, req.Name, req.Description, req.Code); err != nil {
-				return fmt.Sprintf("Tool Output: ERROR saving tool: %v", err)
-			}
-			return fmt.Sprintf("Tool Output: Tool '%s' saved and registered successfully.", req.Name)
+			return dispatchPython(tc, dc)
 
 		case "list_tools":
-			logger.Info("LLM requested to list tools")
-			loaded, err := manifest.Load()
-			if err != nil {
-				return fmt.Sprintf("Tool Output: ERROR loading tool manifest: %v", err)
-			}
-			var sb strings.Builder
-			if len(loaded) == 0 {
-				sb.WriteString("Tool Output: No custom Python tools saved yet. Use 'save_tool' to create them.\n")
-			} else {
-				sb.WriteString("Tool Output: Saved Reusable Tools (Python):\n")
-				for k, v := range loaded {
-					sb.WriteString(fmt.Sprintf("- %s: %s\n", k, v))
-				}
-			}
-
-			sb.WriteString("\n[NOTE] 'list_tools' ONLY lists custom reusable Python tools saved in tools/manifest.json. It does NOT list built-in AuraGo tools or pre-built skills.\n")
-			sb.WriteString("[NOTE] For built-in skills/integrations such as 'virustotal_scan', 'brave_search', 'web_scraper', 'wikipedia_search', or 'pdf_extractor', use the direct built-in action if available in your prompt/tool list, or use {\"action\":\"list_skills\"} followed by {\"action\":\"execute_skill\", ...}. Do NOT assume an integration is unavailable just because it does not appear in 'list_tools'.\n")
-			sb.WriteString("[NOTE] Core capabilities like 'filesystem', 'execute_python', 'core_memory', 'query_memory', and other built-in tools are separate from custom tools. See your system prompt and tool manuals for details.")
-			return sb.String()
+			return dispatchPython(tc, dc)
 
 		case "discover_tools":
-			return handleDiscoverTools(tc, cfg, logger)
+			return dispatchPython(tc, dc)
 
 		case "run_tool":
-			if !cfg.Agent.AllowPython {
-				return "Tool Output: [PERMISSION DENIED] run_tool is disabled in Danger Zone settings (agent.allow_python: false)."
-			}
-			req := decodeRunToolArgs(tc)
-			if req.Name == "" {
-				return "Tool Output: ERROR 'name' is required for run_tool"
-			}
-			// Intercept LLM confusing Skills for Tools
-			toolPath := filepath.Join(cfg.Directories.ToolsDir, req.Name)
-			if _, err := os.Stat(toolPath); os.IsNotExist(err) {
-				skillCheckName := req.Name
-				if !strings.HasSuffix(skillCheckName, ".py") {
-					skillCheckName += ".py"
-				}
-				skillPath := filepath.Join(cfg.Directories.SkillsDir, skillCheckName)
-				if _, err2 := os.Stat(skillPath); err2 == nil {
-					skillBase := strings.TrimSuffix(skillCheckName, ".py")
-					return fmt.Sprintf("Tool Output: ERROR '%s' is a registered SKILL, not a generic tool. You MUST use {\"action\": \"execute_skill\", \"skill\": \"%s\", \"skill_args\": {\"arg1\": \"val1\"}} (JSON object) instead.", req.Name, skillBase)
-				}
-			}
-
-			if req.Background {
-				logger.Info("LLM requested background tool execution", "name", req.Name)
-				// Resolve vault secrets
-				secrets, rejInfo := resolveVaultKeys(cfg, vault, req.VaultKeys, logger)
-				// Resolve credential secrets
-				creds, credRejInfo := resolveCredentials(cfg, vault, inventoryDB, req.CredentialIDs, logger)
-				if credRejInfo != "" {
-					if rejInfo != "" {
-						rejInfo += "\n" + credRejInfo
-					} else {
-						rejInfo = credRejInfo
-					}
-				}
-				var pid int
-				var bgErr error
-				if len(secrets) > 0 || len(creds) > 0 {
-					pid, bgErr = tools.RunToolBackgroundWithSecrets(req.Name, req.Args, cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir, registry, secrets, creds)
-				} else {
-					pid, bgErr = tools.RunToolBackground(req.Name, req.Args, cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir, registry)
-				}
-				if bgErr != nil {
-					return fmt.Sprintf("Tool Output: ERROR starting background tool: %v", bgErr)
-				}
-				msg := fmt.Sprintf("Tool Output: Tool started in background. PID=%d. Use {\"action\": \"read_process_logs\", \"pid\": %d} to check output.", pid, pid)
-				if rejInfo != "" {
-					msg = rejInfo + "\n" + msg
-				}
-				return msg
-			}
-			logger.Info("LLM requested tool execution", "name", req.Name)
-			// Resolve vault secrets
-			secrets, rejectedInfo := resolveVaultKeys(cfg, vault, req.VaultKeys, logger)
-			// Resolve credential secrets
-			creds, credRejInfo := resolveCredentials(cfg, vault, inventoryDB, req.CredentialIDs, logger)
-			if credRejInfo != "" {
-				if rejectedInfo != "" {
-					rejectedInfo += "\n" + credRejInfo
-				} else {
-					rejectedInfo = credRejInfo
-				}
-			}
-			var stdout, stderr string
-			var runErr error
-			if len(secrets) > 0 || len(creds) > 0 {
-				stdout, stderr, runErr = tools.RunToolWithSecrets(req.Name, req.Args, cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir, secrets, creds)
-			} else {
-				stdout, stderr, runErr = tools.RunTool(req.Name, req.Args, cfg.Directories.WorkspaceDir, cfg.Directories.ToolsDir)
-			}
-			errStr := ""
-			if runErr != nil {
-				errStr = security.Scrub(runErr.Error())
-			}
-			result := fmt.Sprintf("Tool Output:\nSTDOUT:\n%s\nSTDERR:\n%s\nERROR:\n%s\n", security.Scrub(stdout), security.Scrub(stderr), errStr)
-			if rejectedInfo != "" {
-				result = rejectedInfo + "\n" + result
-			}
-			return result
+			return dispatchPython(tc, dc)
 
 		case "list_processes":
 			logger.Info("LLM requested process list")
@@ -1292,205 +938,40 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			return fmt.Sprintf(`Tool Output: {"status": "success", "message": "Secret '%s' stored safely."}`, req.Key)
 
 		case "archive":
-			req := decodeArchiveArgs(tc)
-			if !cfg.Agent.AllowFilesystemWrite && (strings.EqualFold(req.Operation, "create") || strings.EqualFold(req.Operation, "extract")) {
-				return "Tool Output: [PERMISSION DENIED] archive create/extract operations are disabled in Danger Zone settings (agent.allow_filesystem_write: false)."
-			}
-			logger.Info("LLM requested archive operation", "op", req.Operation, "path", req.FilePath, "target_dir", req.Destination)
-			return "Tool Output: " + tools.ExecuteArchive(cfg.Directories.WorkspaceDir, req.Operation, req.FilePath, req.Destination, req.SourceFiles, req.Format)
+			return dispatchFilesystem(ctx, tc, dc)
 
 		case "pdf_operations":
-			req := decodePDFOperationArgs(tc)
-			op := strings.ToLower(req.Operation)
-			if !cfg.Agent.AllowFilesystemWrite && (op == "merge" || op == "split" || op == "watermark" || op == "compress" || op == "encrypt" || op == "decrypt" || op == "fill_form" || op == "export_form" || op == "reset_form" || op == "lock_form") {
-				return "Tool Output: [PERMISSION DENIED] pdf_operations write operations are disabled in Danger Zone settings (agent.allow_filesystem_write: false)."
-			}
-			logger.Info("LLM requested PDF operation", "op", req.Operation, "path", req.FilePath)
-			return "Tool Output: " + tools.ExecutePDFOperations(cfg.Directories.WorkspaceDir, req.Operation, req.FilePath, req.OutputFile, req.Pages, req.Password, req.WatermarkText, req.SourceFiles)
+			return dispatchFilesystem(ctx, tc, dc)
 
 		case "image_processing":
-			req := decodeImageProcessingArgs(tc)
-			op := strings.ToLower(req.Operation)
-			if !cfg.Agent.AllowFilesystemWrite && op != "info" {
-				return "Tool Output: [PERMISSION DENIED] image_processing write operations are disabled in Danger Zone settings (agent.allow_filesystem_write: false)."
-			}
-			logger.Info("LLM requested image processing", "op", req.Operation, "path", req.FilePath)
-			return "Tool Output: " + tools.ExecuteImageProcessing(cfg.Directories.WorkspaceDir, req.Operation, req.FilePath, req.OutputFile, req.OutputFormat, req.Width, req.Height, req.QualityPct, req.CropX, req.CropY, req.CropWidth, req.CropHeight, req.Angle)
+			return dispatchFilesystem(ctx, tc, dc)
 
 		case "filesystem", "filesystem_op":
-			req := decodeFilesystemArgs(tc)
-			// Parameter robustness: handle 'path' and 'dest' aliases frequently hallucinated by LLMs
-			fpath := req.FilePath
-			fdest := req.Destination
-
-			op := strings.TrimSpace(strings.ToLower(req.Operation))
-			if op == "list" || op == "ls" {
-				op = "list_dir"
-			}
-
-			// For path-only ops (write_file, read_file, append, etc.) LLMs sometimes supply
-			// the target path as 'dest' / 'destination' instead of 'path'. Recover silently.
-			if fpath == "" && fdest != "" {
-				switch op {
-				case "write_file", "write", "read_file", "read", "append", "delete", "remove",
-					"mkdir", "create_dir", "create", "exists", "stat":
-					fpath = fdest
-					fdest = ""
-				}
-			}
-
-			// Block access to system-sensitive files (config, vault, databases, .env)
-			wsDir := cfg.Directories.WorkspaceDir
-			for _, checkPath := range []string{fpath, fdest} {
-				if isProtectedSystemPath(checkPath, wsDir, cfg) {
-					logger.Warn("LLM attempted filesystem access to protected system file — blocked",
-						"op", op, "path", checkPath)
-					return "Tool Output: [PERMISSION DENIED] Access to this file is not allowed. System configuration, database and credential files are off-limits."
-				}
-			}
-			for _, item := range req.Items {
-				for _, checkPath := range []string{
-					stringValueFromMap(item, "file_path", "path"),
-					stringValueFromMap(item, "destination", "dest"),
-				} {
-					if isProtectedSystemPath(checkPath, wsDir, cfg) {
-						logger.Warn("LLM attempted filesystem batch access to protected system file — blocked",
-							"op", op, "path", checkPath)
-						return "Tool Output: [PERMISSION DENIED] Access to this file is not allowed. System configuration, database and credential files are off-limits."
-					}
-				}
-			}
-
-			if !cfg.Agent.AllowFilesystemWrite {
-				writeOps := map[string]bool{
-					"write":            true,
-					"write_file":       true,
-					"append":           true,
-					"delete":           true,
-					"remove":           true,
-					"copy":             true,
-					"move":             true,
-					"rename":           true,
-					"mkdir":            true,
-					"create_dir":       true,
-					"create":           true,
-					"copy_batch":       true,
-					"move_batch":       true,
-					"delete_batch":     true,
-					"create_dir_batch": true,
-				}
-				if writeOps[op] {
-					return "Tool Output: [PERMISSION DENIED] filesystem write operations are disabled in Danger Zone settings (agent.allow_filesystem_write: false)."
-				}
-			}
-			logger.Info("LLM requested filesystem operation", "op", op, "path", fpath, "dest", fdest)
-			return tools.ExecuteFilesystem(op, fpath, fdest, req.Content, req.Items, cfg.Directories.WorkspaceDir, req.Limit, req.Offset)
+			return dispatchFilesystem(ctx, tc, dc)
 
 		case "file_editor":
-			req := decodeFileEditorArgs(tc)
-			fpath := req.FilePath
-
-			op := strings.TrimSpace(strings.ToLower(req.Operation))
-
-			// Block access to system-sensitive files
-			wsDir := cfg.Directories.WorkspaceDir
-			if isProtectedSystemPath(fpath, wsDir, cfg) {
-				logger.Warn("LLM attempted file_editor access to protected system file — blocked",
-					"op", op, "path", fpath)
-				return "Tool Output: [PERMISSION DENIED] Access to this file is not allowed. System configuration, database and credential files are off-limits."
-			}
-
-			if !cfg.Agent.AllowFilesystemWrite {
-				return "Tool Output: [PERMISSION DENIED] file_editor operations are disabled in Danger Zone settings (agent.allow_filesystem_write: false)."
-			}
-			logger.Info("LLM requested file_editor operation", "op", op, "path", fpath)
-			return tools.ExecuteFileEditor(op, fpath, req.Old, req.New, req.Marker, req.Content, req.StartLine, req.EndLine, req.LineCount, cfg.Directories.WorkspaceDir)
+			return dispatchFilesystem(ctx, tc, dc)
 
 		case "json_editor":
-			req := decodeJSONEditorArgs(tc)
-			fpath := req.FilePath
-			op := strings.TrimSpace(strings.ToLower(req.Operation))
-			wsDir := cfg.Directories.WorkspaceDir
-			if isProtectedSystemPath(fpath, wsDir, cfg) {
-				logger.Warn("LLM attempted json_editor access to protected system file — blocked",
-					"op", op, "path", fpath)
-				return "Tool Output: [PERMISSION DENIED] Access to this file is not allowed. System configuration, database and credential files are off-limits."
-			}
-			// Write operations need permission
-			switch op {
-			case "set", "delete", "format":
-				if !cfg.Agent.AllowFilesystemWrite {
-					return "Tool Output: [PERMISSION DENIED] json_editor write operations are disabled in Danger Zone settings (agent.allow_filesystem_write: false)."
-				}
-			}
-			logger.Info("LLM requested json_editor operation", "op", op, "path", fpath)
-			return tools.ExecuteJsonEditor(op, fpath, req.JsonPath, req.SetValue, req.Content, wsDir)
+			return dispatchFilesystem(ctx, tc, dc)
 
 		case "yaml_editor":
-			req := decodeYAMLEditorArgs(tc)
-			fpath := req.FilePath
-			op := strings.TrimSpace(strings.ToLower(req.Operation))
-			wsDir := cfg.Directories.WorkspaceDir
-			if isProtectedSystemPath(fpath, wsDir, cfg) {
-				logger.Warn("LLM attempted yaml_editor access to protected system file — blocked",
-					"op", op, "path", fpath)
-				return "Tool Output: [PERMISSION DENIED] Access to this file is not allowed. System configuration, database and credential files are off-limits."
-			}
-			switch op {
-			case "set", "delete":
-				if !cfg.Agent.AllowFilesystemWrite {
-					return "Tool Output: [PERMISSION DENIED] yaml_editor write operations are disabled in Danger Zone settings (agent.allow_filesystem_write: false)."
-				}
-			}
-			logger.Info("LLM requested yaml_editor operation", "op", op, "path", fpath)
-			return tools.ExecuteYamlEditor(op, fpath, req.JsonPath, req.SetValue, wsDir)
+			return dispatchFilesystem(ctx, tc, dc)
 
 		case "xml_editor":
-			req := decodeXMLEditorArgs(tc)
-			fpath := req.FilePath
-			op := strings.TrimSpace(strings.ToLower(req.Operation))
-			wsDir := cfg.Directories.WorkspaceDir
-			if isProtectedSystemPath(fpath, wsDir, cfg) {
-				logger.Warn("LLM attempted xml_editor access to protected system file — blocked",
-					"op", op, "path", fpath)
-				return "Tool Output: [PERMISSION DENIED] Access to this file is not allowed. System configuration, database and credential files are off-limits."
-			}
-			switch op {
-			case "set_text", "set_attribute", "add_element", "delete", "format":
-				if !cfg.Agent.AllowFilesystemWrite {
-					return "Tool Output: [PERMISSION DENIED] xml_editor write operations are disabled in Danger Zone settings (agent.allow_filesystem_write: false)."
-				}
-			}
-			logger.Info("LLM requested xml_editor operation", "op", op, "path", fpath)
-			return tools.ExecuteXmlEditor(op, fpath, req.XPath, req.SetValue, wsDir)
+			return dispatchFilesystem(ctx, tc, dc)
 
 		case "text_diff":
-			req := decodeTextDiffArgs(tc)
-			op := strings.TrimSpace(strings.ToLower(req.Operation))
-			logger.Info("LLM requested text_diff", "op", op)
-			return tools.ExecuteTextDiff(op, req.File1, req.File2, req.Text1, req.Text2, cfg.Directories.WorkspaceDir)
+			return dispatchFilesystem(ctx, tc, dc)
 
 		case "file_search":
-			req := decodeFileSearchArgs(tc)
-			op := strings.TrimSpace(strings.ToLower(req.Operation))
-			logger.Info("LLM requested file_search", "op", op, "pattern", req.Pattern)
-			return tools.ExecuteFileSearch(op, req.Pattern, req.FilePath, req.Glob, req.OutputMode, cfg.Directories.WorkspaceDir)
+			return dispatchFilesystem(ctx, tc, dc)
 
 		case "file_reader_advanced":
-			req := decodeAdvancedFileReadArgs(tc)
-			op := strings.TrimSpace(strings.ToLower(req.Operation))
-			logger.Info("LLM requested file_reader_advanced", "op", op, "path", req.FilePath)
-			return tools.ExecuteFileReaderAdvanced(op, req.FilePath, req.Pattern, req.StartLine, req.EndLine, req.LineCount, cfg.Directories.WorkspaceDir)
+			return dispatchFilesystem(ctx, tc, dc)
 
 		case "smart_file_read":
-			req := decodeSmartFileReadArgs(tc)
-			op := strings.TrimSpace(strings.ToLower(req.Operation))
-			logger.Info("LLM requested smart_file_read", "op", op, "path", req.FilePath, "strategy", req.SamplingStrategy)
-			return tools.ExecuteSmartFileRead(ctx, tools.ResolveSummaryLLMConfig(cfg, tools.SummaryLLMConfig{
-				APIKey:  cfg.LLM.APIKey,
-				BaseURL: cfg.LLM.BaseURL,
-				Model:   cfg.LLM.Model,
-			}), logger, op, req.FilePath, req.Query, req.SamplingStrategy, req.MaxTokens, req.LineCount, cfg.Directories.WorkspaceDir)
+			return dispatchFilesystem(ctx, tc, dc)
 
 		case "api_request":
 			if !cfg.Agent.AllowNetworkRequests {

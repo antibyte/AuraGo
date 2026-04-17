@@ -15,9 +15,17 @@ var dispatchStringPattern = regexp.MustCompile(`"([^"]+)"`)
 func TestBuiltinToolSchemasHaveDispatchCoverage(t *testing.T) {
 	dispatchFiles := []string{
 		"agent_dispatch_exec.go",
+		"dispatch_shell.go",
+		"dispatch_python.go",
+		"dispatch_filesystem.go",
 		"agent_dispatch_comm.go",
+		"dispatch_email.go",
+		"dispatch_messaging.go",
 		"agent_dispatch_services.go",
 		"agent_dispatch_infra.go",
+		"dispatch_network.go",
+		"dispatch_cloud.go",
+		"dispatch_platform.go",
 	}
 
 	handled := make(map[string]struct{})
