@@ -191,6 +191,20 @@ func mdnsQueryServices(serviceType string, timeout time.Duration, logger *slog.L
 
 		allRRs := append(msg.Answer, msg.Extra...)
 
+		// Diagnostic: log all PTR record names in this packet.
+		// Helps identify cases where devices respond with unexpected service types.
+		if len(allRRs) > 0 {
+			ptrNames := make([]string, 0, len(allRRs))
+			for _, rr := range allRRs {
+				if ptr, ok := rr.(*dns.PTR); ok {
+					ptrNames = append(ptrNames, ptr.Hdr.Name+" -> "+ptr.Ptr)
+				}
+			}
+			if len(ptrNames) > 0 {
+				logger.Info("mdns: packet PTRs", "source", source, "ptrs", ptrNames)
+			}
+		}
+
 		// Collect PTR records — only for the service type we queried.
 		for _, rr := range allRRs {
 			if ptr, ok := rr.(*dns.PTR); ok {
