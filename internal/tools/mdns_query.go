@@ -2,7 +2,6 @@
 package tools
 
 import (
-	"context"
 	"fmt"
 	"log/slog"
 	"net"
@@ -10,7 +9,6 @@ import (
 	"time"
 
 	"github.com/miekg/dns"
-	"golang.org/x/net/ipv4"
 )
 
 const (
@@ -32,54 +30,18 @@ type mdnsEntry struct {
 // It joins the multicast group on the default-route LAN interface and uses
 // SO_REUSEADDR/SO_REUSEPORT so it can co-exist with system mDNS daemons.
 func mdnsQueryServices(serviceType string, timeout time.Duration, logger *slog.Logger) ([]*mdnsEntry, error) {
-	// Find the LAN interface that carries the default route.
-	iface, err := defaultRouteInterface()
+	// Use net.ListenMulticastUDP with nil interface like the original
+	// hashicorp/mdns library. The OS manages multicast routing automatically.
+	ipv4Group := net.UDPAddr{IP: net.ParseIP(mdnsIPv4Group), Port: mdnsPortNum}
+	pc, err := net.ListenMulticastUDP("udp4", nil, &ipv4Group)
 	if err != nil {
-		return nil, fmt.Errorf("mdns: no suitable interface: %w", err)
-	}
-	logger.Info("mdns: using interface", "interface", iface.Name, "index", iface.Index)
-
-	// Get the IP address of this interface to bind the receiving socket.
-	addrs, err := iface.Addrs()
-	if err != nil {
-		return nil, fmt.Errorf("mdns: interface addrs: %w", err)
-	}
-	var bindIP net.IP
-	for _, addr := range addrs {
-		if ipnet, ok := addr.(*net.IPNet); ok && ipnet.IP.IsGlobalUnicast() {
-			bindIP = ipnet.IP
-			break
-		}
-	}
-	if bindIP == nil {
-		return nil, fmt.Errorf("mdns: no suitable IP found on interface %s", iface.Name)
-	}
-	logger.Info("mdns: binding receive socket to 0.0.0.0:5353 and joining multicast group on", "interface", iface.Name)
-
-	// Create a regular UDP socket bound to our LAN IP:5353.
-	// This receives BOTH unicast responses AND multicast (because we also join
-	// the multicast group on this socket). This is the key difference from
-	// net.ListenMulticastUDP which only receives multicast.
-	lc := net.ListenConfig{Control: mdnsSocketControl}
-	pc, err := lc.ListenPacket(context.Background(), "udp4", "0.0.0.0:5353")
-	if err != nil {
-		return nil, fmt.Errorf("mdns: bind: %w", err)
+		return nil, fmt.Errorf("mdns: ListenMulticastUDP: %w", err)
 	}
 	defer pc.Close()
 
-	// Join the multicast group on this socket so we receive multicast queries too.
-	p4 := ipv4.NewPacketConn(pc)
-	group := &net.UDPAddr{IP: net.ParseIP(mdnsIPv4Group)}
-	if err := p4.JoinGroup(iface, group); err != nil {
-		logger.Info("mdns: JoinGroup failed", "error", err)
-	}
+	logger.Info("mdns: listening on multicast group 224.0.0.251:5353")
 
-	// Also set the outgoing multicast interface so our queries go via this interface.
-	if err := p4.SetMulticastInterface(iface); err != nil {
-		logger.Info("mdns: SetMulticastInterface failed", "error", err)
-	}
-
-	// Build the PTR query.
+	// Send query via a separate dialed socket so kernel picks source IP via routing.
 	q := new(dns.Msg)
 	q.SetQuestion(dns.Fqdn(serviceType), dns.TypePTR)
 	q.RecursionDesired = false
@@ -89,7 +51,6 @@ func mdnsQueryServices(serviceType string, timeout time.Duration, logger *slog.L
 		return nil, fmt.Errorf("mdns: pack query: %w", err)
 	}
 
-	// Send via a separate dialed socket so kernel picks source IP via routing table.
 	sendConn, err := net.Dial("udp4", "224.0.0.251:5353")
 	if err != nil {
 		return nil, fmt.Errorf("mdns: dial send socket: %w", err)
