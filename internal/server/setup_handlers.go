@@ -428,6 +428,7 @@ func handleSetupTestConnection(s *Server) http.HandlerFunc {
 			ProviderType string `json:"provider_type"`
 			BaseURL      string `json:"base_url"`
 			APIKey       string `json:"api_key"`
+			AccountID    string `json:"account_id"`
 			Model        string `json:"model"`
 		}
 		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&req); err != nil {
@@ -440,7 +441,7 @@ func handleSetupTestConnection(s *Server) http.HandlerFunc {
 			return
 		}
 
-		client := llm.NewClientFromProvider(req.ProviderType, req.BaseURL, req.APIKey)
+		client := llm.NewClientFromProviderDetails(req.ProviderType, req.BaseURL, req.APIKey, req.AccountID)
 
 		ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
 		defer cancel()

@@ -39,6 +39,87 @@ const maskedKey = "••••••••"
 // The prefix is resolved in the PUT handler and never persisted.
 const copyFromPrefix = "__copy_from__"
 
+func normalizeProviderAuthType(authType string) string {
+	normalized := strings.ToLower(strings.TrimSpace(authType))
+	if normalized == "" {
+		return "api_key"
+	}
+	return normalized
+}
+
+type vaultMutation struct {
+	key    string
+	value  string
+	delete bool
+}
+
+type vaultSnapshot struct {
+	exists bool
+	value  string
+}
+
+func snapshotVaultSecrets(vault *security.Vault, keys []string) map[string]vaultSnapshot {
+	snapshots := make(map[string]vaultSnapshot, len(keys))
+	if vault == nil {
+		return snapshots
+	}
+	for _, key := range keys {
+		if _, seen := snapshots[key]; seen || strings.TrimSpace(key) == "" {
+			continue
+		}
+		value, err := vault.ReadSecret(key)
+		if err != nil {
+			snapshots[key] = vaultSnapshot{}
+			continue
+		}
+		snapshots[key] = vaultSnapshot{exists: true, value: value}
+	}
+	return snapshots
+}
+
+func restoreVaultSecrets(vault *security.Vault, snapshots map[string]vaultSnapshot) error {
+	if vault == nil {
+		return nil
+	}
+	for key, snapshot := range snapshots {
+		if snapshot.exists {
+			if err := vault.WriteSecret(key, snapshot.value); err != nil {
+				return fmt.Errorf("restore vault secret %s: %w", key, err)
+			}
+			continue
+		}
+		if err := vault.DeleteSecret(key); err != nil {
+			return fmt.Errorf("delete restored vault secret %s: %w", key, err)
+		}
+	}
+	return nil
+}
+
+func applyVaultMutations(vault *security.Vault, mutations []vaultMutation) (map[string]vaultSnapshot, error) {
+	if vault == nil || len(mutations) == 0 {
+		return nil, nil
+	}
+
+	keys := make([]string, 0, len(mutations))
+	for _, mutation := range mutations {
+		keys = append(keys, mutation.key)
+	}
+	snapshots := snapshotVaultSecrets(vault, keys)
+	for _, mutation := range mutations {
+		var err error
+		if mutation.delete {
+			err = vault.DeleteSecret(mutation.key)
+		} else {
+			err = vault.WriteSecret(mutation.key, mutation.value)
+		}
+		if err != nil {
+			_ = restoreVaultSecrets(vault, snapshots)
+			return nil, err
+		}
+	}
+	return snapshots, nil
+}
+
 // handleProviders dispatches GET / PUT for /api/providers.
 func handleProviders(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -61,17 +142,14 @@ func handleGetProviders(s *Server, w http.ResponseWriter, _ *http.Request) {
 
 	out := make([]providerJSON, len(providers))
 	for i, p := range providers {
-		apiKey := p.APIKey
-		if apiKey != "" {
+		authType := normalizeProviderAuthType(p.AuthType)
+		apiKey := ""
+		if authType != "oauth2" && p.APIKey != "" {
 			apiKey = maskedKey
 		}
-		clientSecret := p.OAuthClientSecret
-		if clientSecret != "" {
+		clientSecret := ""
+		if authType == "oauth2" && p.OAuthClientSecret != "" {
 			clientSecret = maskedKey
-		}
-		authType := p.AuthType
-		if authType == "" {
-			authType = "api_key"
 		}
 		out[i] = providerJSON{
 			ID:                p.ID,
@@ -107,23 +185,38 @@ func handlePutProviders(s *Server, w http.ResponseWriter, r *http.Request) {
 	s.CfgMu.RLock()
 	oldKeyMap := make(map[string]string, len(s.Cfg.Providers))
 	oldSecretMap := make(map[string]string, len(s.Cfg.Providers))
+	oldAuthTypeMap := make(map[string]string, len(s.Cfg.Providers))
 	oldProviderIDs := make([]string, len(s.Cfg.Providers))
 	for i, p := range s.Cfg.Providers {
-		oldKeyMap[p.ID] = p.APIKey
+		oldAuthTypeMap[p.ID] = normalizeProviderAuthType(p.AuthType)
+		if normalizeProviderAuthType(p.AuthType) != "oauth2" {
+			oldKeyMap[p.ID] = p.APIKey
+		}
 		oldSecretMap[p.ID] = p.OAuthClientSecret
 		oldProviderIDs[i] = p.ID
 	}
 	configPath := s.Cfg.ConfigPath
 	s.CfgMu.RUnlock()
+	if s.Vault != nil {
+		for _, id := range oldProviderIDs {
+			if secret, err := s.Vault.ReadSecret("provider_" + id + "_api_key"); err == nil {
+				oldKeyMap[id] = secret
+			}
+			if secret, err := s.Vault.ReadSecret("provider_" + id + "_oauth_client_secret"); err == nil {
+				oldSecretMap[id] = secret
+			}
+		}
+	}
 
 	if configPath == "" {
 		jsonError(w, "Config path not set", http.StatusInternalServerError)
 		return
 	}
 
-	// Convert to ProviderEntry slice; write secrets to vault, not YAML
+	// Convert to ProviderEntry slice and stage vault mutations; secrets stay in the vault, not YAML.
 	entries := make([]config.ProviderEntry, len(incoming))
 	seenIDs := make(map[string]bool, len(incoming))
+	vaultMutations := make([]vaultMutation, 0, len(incoming)*3)
 	for i, p := range incoming {
 		p.ID = strings.TrimSpace(p.ID)
 		if p.ID == "" {
@@ -136,54 +229,77 @@ func handlePutProviders(s *Server, w http.ResponseWriter, r *http.Request) {
 		}
 		seenIDs[p.ID] = true
 
+		authType := normalizeProviderAuthType(p.AuthType)
+
 		// ── API Key → vault ──
 		apiKey := p.APIKey
-		if apiKey == maskedKey {
-			// Unchanged — keep existing vault value
-			if old, ok := oldKeyMap[p.ID]; ok {
-				apiKey = old
-			}
-		} else if strings.HasPrefix(apiKey, copyFromPrefix) {
-			// User selected "copy from existing provider" in the UI.
-			sourceID := strings.TrimPrefix(apiKey, copyFromPrefix)
-			if s.Vault != nil {
-				copied, err := s.Vault.ReadSecret("provider_" + sourceID + "_api_key")
-				if err != nil || copied == "" {
-					s.Logger.Warn("[Providers] Copy-from source key not found in vault",
-						"source_id", sourceID, "target_id", p.ID)
-					apiKey = ""
-				} else {
-					s.Logger.Info("[Providers] Copied API key from source provider",
-						"source_id", sourceID, "target_id", p.ID)
-					apiKey = copied
+		if authType == "oauth2" {
+			apiKey = ""
+		} else {
+			if apiKey == maskedKey {
+				// Unchanged — keep existing vault value
+				if old, ok := oldKeyMap[p.ID]; ok {
+					apiKey = old
 				}
-			} else {
-				apiKey = ""
-			}
-		}
-		if apiKey != "" && apiKey != maskedKey && s.Vault != nil {
-			if err := s.Vault.WriteSecret("provider_"+p.ID+"_api_key", apiKey); err != nil {
-				s.Logger.Error("[Providers] Failed to write API key to vault", "id", p.ID, "error", err)
+			} else if strings.HasPrefix(apiKey, copyFromPrefix) {
+				// User selected "copy from existing provider" in the UI.
+				sourceID := strings.TrimPrefix(apiKey, copyFromPrefix)
+				if s.Vault != nil {
+					copied, err := s.Vault.ReadSecret("provider_" + sourceID + "_api_key")
+					if err != nil || copied == "" {
+						s.Logger.Warn("[Providers] Copy-from source key not found in vault",
+							"source_id", sourceID, "target_id", p.ID)
+						apiKey = ""
+					} else {
+						s.Logger.Info("[Providers] Copied API key from source provider",
+							"source_id", sourceID, "target_id", p.ID)
+						apiKey = copied
+					}
+				} else {
+					apiKey = ""
+				}
 			}
 		}
 
 		// ── OAuth Client Secret → vault ──
 		clientSecret := p.OAuthClientSecret
-		if clientSecret == maskedKey {
-			if old, ok := oldSecretMap[p.ID]; ok {
-				clientSecret = old
+		if authType == "oauth2" {
+			if clientSecret == maskedKey {
+				if old, ok := oldSecretMap[p.ID]; ok {
+					clientSecret = old
+				}
 			}
+		} else {
+			clientSecret = ""
 		}
-		if clientSecret != "" && clientSecret != maskedKey && s.Vault != nil {
-			if err := s.Vault.WriteSecret("provider_"+p.ID+"_oauth_client_secret", clientSecret); err != nil {
-				s.Logger.Error("[Providers] Failed to write OAuth secret to vault", "id", p.ID, "error", err)
+
+		if s.Vault != nil {
+			apiKeyVaultID := "provider_" + p.ID + "_api_key"
+			clientSecretVaultID := "provider_" + p.ID + "_oauth_client_secret"
+			oauthTokenVaultID := "oauth_" + p.ID
+
+			if authType == "oauth2" {
+				if oldAuthTypeMap[p.ID] != "oauth2" {
+					vaultMutations = append(vaultMutations, vaultMutation{key: apiKeyVaultID, delete: true})
+				}
+				if strings.TrimSpace(clientSecret) == "" {
+					vaultMutations = append(vaultMutations, vaultMutation{key: clientSecretVaultID, delete: true})
+				} else {
+					vaultMutations = append(vaultMutations, vaultMutation{key: clientSecretVaultID, value: clientSecret})
+				}
+			} else {
+				vaultMutations = append(vaultMutations,
+					vaultMutation{key: clientSecretVaultID, delete: true},
+					vaultMutation{key: oauthTokenVaultID, delete: true},
+				)
+				if strings.TrimSpace(apiKey) == "" {
+					vaultMutations = append(vaultMutations, vaultMutation{key: apiKeyVaultID, delete: true})
+				} else {
+					vaultMutations = append(vaultMutations, vaultMutation{key: apiKeyVaultID, value: apiKey})
+				}
 			}
 		}
 
-		authType := p.AuthType
-		if authType == "" {
-			authType = "api_key"
-		}
 		entries[i] = config.ProviderEntry{
 			ID:                p.ID,
 			Name:              p.Name,
@@ -210,9 +326,11 @@ func handlePutProviders(s *Server, w http.ResponseWriter, r *http.Request) {
 		}
 		for _, oldID := range oldProviderIDs {
 			if !newIDSet[oldID] {
-				_ = s.Vault.DeleteSecret("provider_" + oldID + "_api_key")
-				_ = s.Vault.DeleteSecret("provider_" + oldID + "_oauth_client_secret")
-				_ = s.Vault.DeleteSecret("oauth_" + oldID)
+				vaultMutations = append(vaultMutations,
+					vaultMutation{key: "provider_" + oldID + "_api_key", delete: true},
+					vaultMutation{key: "provider_" + oldID + "_oauth_client_secret", delete: true},
+					vaultMutation{key: "oauth_" + oldID, delete: true},
+				)
 				s.Logger.Info("[Providers] Cleaned up vault secrets for removed provider", "id", oldID)
 			}
 		}
@@ -253,11 +371,23 @@ func handlePutProviders(s *Server, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	vaultSnapshots, err := applyVaultMutations(s.Vault, vaultMutations)
+	if err != nil {
+		_ = config.WriteFileAtomic(configPath, data, 0o600)
+		s.Logger.Error("[Providers] Failed to update vault after config write", "error", err)
+		jsonError(w, "Failed to update provider secrets", http.StatusInternalServerError)
+		return
+	}
+
 	// Hot-reload
 	s.CfgMu.Lock()
 	newCfg, loadErr := config.Load(configPath)
 	if loadErr != nil {
 		s.CfgMu.Unlock()
+		_ = config.WriteFileAtomic(configPath, data, 0o600)
+		if restoreErr := restoreVaultSecrets(s.Vault, vaultSnapshots); restoreErr != nil {
+			s.Logger.Error("[Providers] Failed to restore vault after hot-reload failure", "error", restoreErr)
+		}
 		s.Logger.Error("[Providers] Hot-reload failed", "error", loadErr)
 		jsonError(w, "Saved but reload failed: "+loadErr.Error(), http.StatusInternalServerError)
 		return

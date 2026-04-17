@@ -12,23 +12,10 @@ import (
 	"strings"
 
 	"aurago/internal/config"
+	"aurago/internal/providerutil"
 
 	"github.com/sashabaranov/go-openai"
 )
-
-// normalizeBaseURL strips common endpoint suffixes that users often include
-// when pasting the full API URL.  The go-openai library appends
-// "/chat/completions" automatically, so any such suffix would be doubled.
-func normalizeBaseURL(u string) string {
-	u = strings.TrimRight(u, "/")
-	for _, suffix := range []string{"/chat/completions", "/v1/chat/completions"} {
-		if strings.HasSuffix(strings.ToLower(u), suffix) {
-			u = u[:len(u)-len(suffix)]
-			break
-		}
-	}
-	return u
-}
 
 // detectProviderURLMismatch checks if the provider type doesn't match known URL patterns
 // and returns a hint string if a mismatch is detected. Returns "" if no mismatch.
@@ -87,7 +74,7 @@ func NewClient(cfg *config.Config) *openai.Client {
 
 	// Override the BaseURL if provided in the configuration (crucial for Ollama/OpenRouter)
 	if cfg.LLM.BaseURL != "" {
-		baseURL := normalizeBaseURL(cfg.LLM.BaseURL)
+		baseURL := providerutil.NormalizeBaseURL(cfg.LLM.BaseURL)
 
 		// Ollama's OpenAI-compatible endpoint lives under /v1.  The go-openai
 		// library appends "/chat/completions" to BaseURL, so BaseURL must end
@@ -179,6 +166,13 @@ func loopbackHTTPSTransport() *http.Transport {
 // details (type, base URL, API key). Used by subsystems that resolve their own
 // provider (memory analysis, personality engine, etc.) instead of using the main LLM.
 func NewClientFromProvider(providerType, baseURL, apiKey string) *openai.Client {
+	return NewClientFromProviderDetails(providerType, baseURL, apiKey, "")
+}
+
+// NewClientFromProviderDetails creates an OpenAI-compatible client from
+// explicit provider details. This variant also supports provider-specific
+// metadata such as a Cloudflare Workers AI account ID.
+func NewClientFromProviderDetails(providerType, baseURL, apiKey, accountID string) *openai.Client {
 	pt := strings.ToLower(providerType)
 	isOllama := pt == "ollama"
 
@@ -189,7 +183,7 @@ func NewClientFromProvider(providerType, baseURL, apiKey string) *openai.Client 
 	clientConfig := openai.DefaultConfig(apiKey)
 
 	if baseURL != "" {
-		u := normalizeBaseURL(baseURL)
+		u := providerutil.NormalizeBaseURL(baseURL)
 		if isOllama {
 			u = strings.TrimRight(u, "/")
 			if !strings.HasSuffix(u, "/v1") {
@@ -197,6 +191,13 @@ func NewClientFromProvider(providerType, baseURL, apiKey string) *openai.Client 
 			}
 		}
 		clientConfig.BaseURL = u
+	}
+
+	if pt == "workers-ai" && strings.TrimSpace(accountID) != "" {
+		clientConfig.BaseURL = fmt.Sprintf(
+			"https://api.cloudflare.com/client/v4/accounts/%s/ai/v1",
+			strings.TrimSpace(accountID),
+		)
 	}
 
 	if isLoopbackHTTPS(baseURL) {

@@ -13,6 +13,7 @@ type HelperLLMConfig struct {
 	ProviderType string
 	BaseURL      string
 	APIKey       string
+	AccountID    string
 	Model        string
 }
 
@@ -29,6 +30,7 @@ func ResolveHelperLLM(cfg *config.Config) HelperLLMConfig {
 		ProviderType: strings.TrimSpace(cfg.LLM.HelperProviderType),
 		BaseURL:      strings.TrimSpace(cfg.LLM.HelperBaseURL),
 		APIKey:       strings.TrimSpace(cfg.LLM.HelperAPIKey),
+		AccountID:    strings.TrimSpace(cfg.LLM.HelperAccountID),
 		Model:        strings.TrimSpace(cfg.LLM.HelperResolvedModel),
 	}
 
@@ -51,8 +53,8 @@ func IsHelperLLMAvailable(cfg *config.Config) bool {
 // summarisation paths that can run on a cheaper model without quality loss.
 func ResolveHelperBackedClient(cfg *config.Config, fallbackClient ChatClient, fallbackModel string) (ChatClient, string) {
 	helperCfg := ResolveHelperLLM(cfg)
-	if helperCfg.Enabled && helperCfg.Model != "" {
-		client := NewClientFromProvider(helperCfg.ProviderType, helperCfg.BaseURL, helperCfg.APIKey)
+	if IsHelperLLMAvailable(cfg) {
+		client := NewClientFromProviderDetails(helperCfg.ProviderType, helperCfg.BaseURL, helperCfg.APIKey, helperCfg.AccountID)
 		if client != nil {
 			return client, helperCfg.Model
 		}

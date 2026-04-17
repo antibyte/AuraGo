@@ -7,6 +7,8 @@ import (
 	"os"
 	"strings"
 
+	"aurago/internal/providerutil"
+
 	"gopkg.in/yaml.v3"
 )
 
@@ -163,22 +165,6 @@ func (c *Config) MigrateEmailAccounts() {
 	c.EmailAccounts = append(c.EmailAccounts, acct)
 }
 
-// normalizeBaseURL strips trailing "/chat/completions" (and variants) from a
-// provider base URL.  The go-openai library automatically appends
-// "/chat/completions" to BaseURL, so users who paste the full endpoint URL
-// end up with a doubled path like ".../chat/completions/chat/completions".
-// Stripping the suffix here normalises the URL for all subsystems at once.
-func normalizeBaseURL(u string) string {
-	u = strings.TrimRight(u, "/")
-	for _, suffix := range []string{"/chat/completions", "/v1/chat/completions"} {
-		if strings.HasSuffix(strings.ToLower(u), suffix) {
-			u = u[:len(u)-len(suffix)]
-			break
-		}
-	}
-	return u
-}
-
 // knownProviderTypes is the set of valid provider type strings. An entry whose
 // Type field is not in this set most likely has a typo in the config file.
 var knownProviderTypes = map[string]bool{
@@ -204,7 +190,7 @@ func (c *Config) ResolveProviders() {
 			slog.Warn("[Config] Provider has unknown type — possible typo in config",
 				"provider_id", p.ID, "type", p.Type)
 		}
-		p.BaseURL = normalizeBaseURL(p.BaseURL)
+		p.BaseURL = providerutil.NormalizeBaseURL(p.BaseURL)
 	}
 
 	// ── LLM ──
@@ -215,7 +201,7 @@ func (c *Config) ResolveProviders() {
 		c.LLM.Model = p.Model
 		c.LLM.AccountID = p.AccountID
 	} else if c.LLM.LegacyAPIKey != "" {
-		c.LLM.BaseURL = normalizeBaseURL(c.LLM.LegacyURL)
+		c.LLM.BaseURL = providerutil.NormalizeBaseURL(c.LLM.LegacyURL)
 		c.LLM.APIKey = c.LLM.LegacyAPIKey
 		c.LLM.Model = c.LLM.LegacyModel
 		c.LLM.ProviderType = c.LLM.Provider // old value is the type string
@@ -226,6 +212,7 @@ func (c *Config) ResolveProviders() {
 			c.LLM.HelperProviderType = p.Type
 			c.LLM.HelperBaseURL = p.BaseURL
 			c.LLM.HelperAPIKey = p.APIKey
+			c.LLM.HelperAccountID = p.AccountID
 			if model := strings.TrimSpace(c.LLM.HelperModel); model != "" {
 				c.LLM.HelperResolvedModel = model
 			} else {
@@ -245,7 +232,7 @@ func (c *Config) ResolveProviders() {
 		c.FallbackLLM.Model = p.Model
 		c.FallbackLLM.AccountID = p.AccountID
 	} else if c.FallbackLLM.LegacyAPIKey != "" {
-		c.FallbackLLM.BaseURL = normalizeBaseURL(c.FallbackLLM.LegacyURL)
+		c.FallbackLLM.BaseURL = providerutil.NormalizeBaseURL(c.FallbackLLM.LegacyURL)
 		c.FallbackLLM.APIKey = c.FallbackLLM.LegacyAPIKey
 		c.FallbackLLM.Model = c.FallbackLLM.LegacyModel
 	}
@@ -258,7 +245,7 @@ func (c *Config) ResolveProviders() {
 			c.Vision.APIKey = p.APIKey
 			c.Vision.Model = p.Model
 		} else if c.Vision.LegacyAPIKey != "" || c.Vision.LegacyURL != "" {
-			c.Vision.BaseURL = normalizeBaseURL(c.Vision.LegacyURL)
+			c.Vision.BaseURL = providerutil.NormalizeBaseURL(c.Vision.LegacyURL)
 			c.Vision.APIKey = c.Vision.LegacyAPIKey
 			c.Vision.Model = c.Vision.LegacyModel
 		}
@@ -278,7 +265,7 @@ func (c *Config) ResolveProviders() {
 			c.Whisper.APIKey = p.APIKey
 			c.Whisper.Model = p.Model
 		} else if c.Whisper.LegacyAPIKey != "" || c.Whisper.LegacyURL != "" {
-			c.Whisper.BaseURL = normalizeBaseURL(c.Whisper.LegacyURL)
+			c.Whisper.BaseURL = providerutil.NormalizeBaseURL(c.Whisper.LegacyURL)
 			c.Whisper.APIKey = c.Whisper.LegacyAPIKey
 			c.Whisper.Model = c.Whisper.LegacyModel
 		}
@@ -329,7 +316,7 @@ func (c *Config) ResolveProviders() {
 			c.CoAgents.LLM.APIKey = p.APIKey
 			c.CoAgents.LLM.Model = p.Model
 		} else if c.CoAgents.LLM.LegacyAPIKey != "" || c.CoAgents.LLM.LegacyURL != "" {
-			c.CoAgents.LLM.BaseURL = normalizeBaseURL(c.CoAgents.LLM.LegacyURL)
+			c.CoAgents.LLM.BaseURL = providerutil.NormalizeBaseURL(c.CoAgents.LLM.LegacyURL)
 			c.CoAgents.LLM.APIKey = c.CoAgents.LLM.LegacyAPIKey
 			c.CoAgents.LLM.Model = c.CoAgents.LLM.LegacyModel
 		}
@@ -359,7 +346,7 @@ func (c *Config) ResolveProviders() {
 			c.A2A.LLM.APIKey = p.APIKey
 			c.A2A.LLM.Model = p.Model
 		} else if c.A2A.LLM.LegacyAPIKey != "" || c.A2A.LLM.LegacyURL != "" {
-			c.A2A.LLM.BaseURL = normalizeBaseURL(c.A2A.LLM.LegacyURL)
+			c.A2A.LLM.BaseURL = providerutil.NormalizeBaseURL(c.A2A.LLM.LegacyURL)
 			c.A2A.LLM.APIKey = c.A2A.LLM.LegacyAPIKey
 			c.A2A.LLM.Model = c.A2A.LLM.LegacyModel
 		}
@@ -595,6 +582,7 @@ func (c *Config) ApplyOAuthTokens(vault SecretReader) {
 	if vault == nil {
 		return
 	}
+	tokensByProvider := make(map[string]string)
 	for i := range c.Providers {
 		p := &c.Providers[i]
 		if p.AuthType != "oauth2" {
@@ -611,25 +599,62 @@ func (c *Config) ApplyOAuthTokens(vault SecretReader) {
 		if tok.AccessToken == "" {
 			continue
 		}
-		// Inject the access token as the API key for this provider
-		p.APIKey = tok.AccessToken
+		tokensByProvider[p.ID] = tok.AccessToken
 	}
 
-	// Re-resolve: copy updated APIKey from providers into the resolved slot fields.
-	// We only overwrite slots that reference an oauth2 provider.
+	// Re-resolve: copy updated OAuth access tokens into the resolved slot fields.
 	applyIfOAuth := func(providerID string, target *string) {
 		p := c.FindProvider(providerID)
-		if p != nil && p.AuthType == "oauth2" && p.APIKey != "" {
-			*target = p.APIKey
+		if p != nil && p.AuthType == "oauth2" {
+			if token := tokensByProvider[p.ID]; token != "" {
+				*target = token
+			}
+		}
+	}
+	applyIfHelperOAuth := func(providerID string) {
+		p := c.FindProvider(providerID)
+		if p == nil || p.AuthType != "oauth2" {
+			return
+		}
+		token := tokensByProvider[p.ID]
+		if token == "" {
+			return
+		}
+		c.LLM.HelperAPIKey = token
+		if c.Personality.V2ResolvedURL == c.LLM.HelperBaseURL && c.Personality.V2ResolvedModel == c.LLM.HelperResolvedModel {
+			c.Personality.V2ResolvedKey = token
+		}
+		if c.MemoryAnalysis.BaseURL == c.LLM.HelperBaseURL && c.MemoryAnalysis.ResolvedModel == c.LLM.HelperResolvedModel {
+			c.MemoryAnalysis.APIKey = token
+		}
+		for _, slot := range []struct {
+			baseURL *string
+			model   *string
+			apiKey  *string
+		}{
+			{&c.Tools.WebScraper.SummaryBaseURL, &c.Tools.WebScraper.SummaryModel, &c.Tools.WebScraper.SummaryAPIKey},
+			{&c.Tools.Wikipedia.SummaryBaseURL, &c.Tools.Wikipedia.SummaryModel, &c.Tools.Wikipedia.SummaryAPIKey},
+			{&c.Tools.DDGSearch.SummaryBaseURL, &c.Tools.DDGSearch.SummaryModel, &c.Tools.DDGSearch.SummaryAPIKey},
+			{&c.Tools.PDFExtractor.SummaryBaseURL, &c.Tools.PDFExtractor.SummaryModel, &c.Tools.PDFExtractor.SummaryAPIKey},
+		} {
+			if *slot.baseURL == c.LLM.HelperBaseURL && *slot.model == c.LLM.HelperResolvedModel {
+				*slot.apiKey = token
+			}
 		}
 	}
 	applyIfOAuth(c.LLM.Provider, &c.LLM.APIKey)
+	applyIfHelperOAuth(c.LLM.HelperProvider)
 	applyIfOAuth(c.FallbackLLM.Provider, &c.FallbackLLM.APIKey)
 	applyIfOAuth(c.Vision.Provider, &c.Vision.APIKey)
 	applyIfOAuth(c.Whisper.Provider, &c.Whisper.APIKey)
 	applyIfOAuth(c.Embeddings.Provider, &c.Embeddings.APIKey)
 	applyIfOAuth(c.CoAgents.LLM.Provider, &c.CoAgents.LLM.APIKey)
-	applyIfOAuth(c.Agent.LegacyPersonalityV2Provider, &c.Personality.V2ResolvedKey)
+	applyIfOAuth(c.Personality.V2Provider, &c.Personality.V2ResolvedKey)
+	applyIfOAuth(c.MemoryAnalysis.Provider, &c.MemoryAnalysis.APIKey)
+	applyIfOAuth(c.Tools.WebScraper.SummaryProvider, &c.Tools.WebScraper.SummaryAPIKey)
+	applyIfOAuth(c.Tools.Wikipedia.SummaryProvider, &c.Tools.Wikipedia.SummaryAPIKey)
+	applyIfOAuth(c.Tools.DDGSearch.SummaryProvider, &c.Tools.DDGSearch.SummaryAPIKey)
+	applyIfOAuth(c.Tools.PDFExtractor.SummaryProvider, &c.Tools.PDFExtractor.SummaryAPIKey)
 	// Additional slots that may use OAuth2 providers
 	applyIfOAuth(c.LLMGuardian.Provider, &c.LLMGuardian.APIKey)
 	applyIfOAuth(c.MissionPreparation.Provider, &c.MissionPreparation.APIKey)

@@ -599,3 +599,96 @@ tools:
 		t.Fatalf("expected web scraper summary helper path to stay unresolved without helper llm, got model=%q url=%q", cfg.Tools.WebScraper.SummaryModel, cfg.Tools.WebScraper.SummaryBaseURL)
 	}
 }
+
+func TestApplyOAuthTokensDoesNotOverwriteProviderStaticSecrets(t *testing.T) {
+	cfg := &Config{}
+	cfg.Providers = []ProviderEntry{
+		{
+			ID:       "oauth-provider",
+			Type:     "openai",
+			AuthType: "oauth2",
+			APIKey:   "",
+		},
+	}
+	cfg.LLM.Provider = "oauth-provider"
+	cfg.ResolveProviders()
+
+	vault := &testSecretVault{data: map[string]string{
+		"oauth_oauth-provider": `{"access_token":"oauth-access-token"}`,
+	}}
+	cfg.ApplyOAuthTokens(vault)
+
+	if cfg.Providers[0].APIKey != "" {
+		t.Fatalf("provider api key = %q, want empty static secret field", cfg.Providers[0].APIKey)
+	}
+	if cfg.LLM.APIKey != "oauth-access-token" {
+		t.Fatalf("resolved llm api key = %q, want oauth-access-token", cfg.LLM.APIKey)
+	}
+}
+
+func TestApplyOAuthTokensUpdatesHelperAndDerivedSubsystems(t *testing.T) {
+	cfg := &Config{}
+	cfg.Providers = []ProviderEntry{
+		{
+			ID:        "helper",
+			Type:      "workers-ai",
+			BaseURL:   "",
+			Model:     "@cf/meta/llama-3.1-8b-instruct",
+			AccountID: "cf-account",
+			AuthType:  "oauth2",
+		},
+	}
+	cfg.LLM.HelperEnabled = true
+	cfg.LLM.HelperProvider = "helper"
+	cfg.ResolveProviders()
+
+	if cfg.LLM.HelperAccountID != "cf-account" {
+		t.Fatalf("helper account id = %q, want cf-account", cfg.LLM.HelperAccountID)
+	}
+
+	cfg.Personality.V2ResolvedURL = cfg.LLM.HelperBaseURL
+	cfg.Personality.V2ResolvedModel = cfg.LLM.HelperResolvedModel
+	cfg.MemoryAnalysis.BaseURL = cfg.LLM.HelperBaseURL
+	cfg.MemoryAnalysis.ResolvedModel = cfg.LLM.HelperResolvedModel
+	cfg.Tools.WebScraper.SummaryBaseURL = cfg.LLM.HelperBaseURL
+	cfg.Tools.WebScraper.SummaryModel = cfg.LLM.HelperResolvedModel
+
+	vault := &testSecretVault{data: map[string]string{
+		"oauth_helper": `{"access_token":"helper-oauth-token"}`,
+	}}
+	cfg.ApplyOAuthTokens(vault)
+
+	if cfg.LLM.HelperAPIKey != "helper-oauth-token" {
+		t.Fatalf("helper api key = %q, want helper-oauth-token", cfg.LLM.HelperAPIKey)
+	}
+	if cfg.Personality.V2ResolvedKey != "helper-oauth-token" {
+		t.Fatalf("personality oauth key = %q, want helper-oauth-token", cfg.Personality.V2ResolvedKey)
+	}
+	if cfg.MemoryAnalysis.APIKey != "helper-oauth-token" {
+		t.Fatalf("memory analysis oauth key = %q, want helper-oauth-token", cfg.MemoryAnalysis.APIKey)
+	}
+	if cfg.Tools.WebScraper.SummaryAPIKey != "helper-oauth-token" {
+		t.Fatalf("web scraper summary oauth key = %q, want helper-oauth-token", cfg.Tools.WebScraper.SummaryAPIKey)
+	}
+}
+
+func TestApplyOAuthTokensUsesCurrentPersonalityProviderField(t *testing.T) {
+	cfg := &Config{}
+	cfg.Providers = []ProviderEntry{
+		{
+			ID:       "personality",
+			Type:     "openai",
+			AuthType: "oauth2",
+		},
+	}
+	cfg.Personality.V2Provider = "personality"
+
+	vault := &testSecretVault{data: map[string]string{
+		"oauth_personality": `{"access_token":"personality-token"}`,
+	}}
+	cfg.ApplyOAuthTokens(vault)
+
+	if cfg.Personality.V2ResolvedKey != "personality-token" {
+		t.Fatalf("personality resolved key = %q, want personality-token", cfg.Personality.V2ResolvedKey)
+	}
+}

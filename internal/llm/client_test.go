@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -143,5 +144,20 @@ func TestMiniMaxConvertSystemMessages_StructuredContentNoTextPart(t *testing.T) 
 	firstPart := parts[0].(map[string]interface{})
 	if firstPart["type"] != "text" || !strings.Contains(firstPart["text"].(string), "System prompt") {
 		t.Fatalf("first part = %v, want text part with system prompt", firstPart)
+	}
+}
+
+func TestNewClientFromProviderDetailsBuildsWorkersAIURLFromAccountID(t *testing.T) {
+	client := NewClientFromProviderDetails("workers-ai", "", "test-key", "cf-account")
+	if client == nil {
+		t.Fatal("expected workers-ai client")
+	}
+
+	configValue := reflect.ValueOf(client).Elem().FieldByName("config")
+	if !configValue.IsValid() {
+		t.Fatal("expected openai client config field")
+	}
+	if got := configValue.FieldByName("BaseURL").String(); got != "https://api.cloudflare.com/client/v4/accounts/cf-account/ai/v1" {
+		t.Fatalf("BaseURL = %q, want workers-ai account URL", got)
 	}
 }

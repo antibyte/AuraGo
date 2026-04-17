@@ -26,6 +26,7 @@ func TestResolveHelperLLMReturnsResolvedFields(t *testing.T) {
 	cfg.LLM.HelperProviderType = "openrouter"
 	cfg.LLM.HelperBaseURL = "https://openrouter.ai/api/v1"
 	cfg.LLM.HelperAPIKey = "secret"
+	cfg.LLM.HelperAccountID = "helper-account"
 	cfg.LLM.HelperResolvedModel = "google/gemini-2.0-flash-001"
 
 	got := ResolveHelperLLM(cfg)
@@ -44,6 +45,9 @@ func TestResolveHelperLLMReturnsResolvedFields(t *testing.T) {
 	}
 	if got.APIKey != "secret" {
 		t.Fatalf("APIKey = %q", got.APIKey)
+	}
+	if got.AccountID != "helper-account" {
+		t.Fatalf("AccountID = %q, want helper-account", got.AccountID)
 	}
 	if got.Model != "google/gemini-2.0-flash-001" {
 		t.Fatalf("Model = %q", got.Model)
@@ -102,7 +106,7 @@ func TestResolveHelperBackedClientFallsBackWhenModelEmpty(t *testing.T) {
 	}
 }
 
-func TestResolveHelperBackedClientFallsBackOnClientCreationFailure(t *testing.T) {
+func TestResolveHelperBackedClientFallsBackWhenProviderNotFullyResolved(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.LLM.HelperEnabled = true
 	cfg.LLM.HelperProviderType = "unknown_provider"
@@ -114,17 +118,18 @@ func TestResolveHelperBackedClientFallsBackOnClientCreationFailure(t *testing.T)
 	fallbackClient := &mockChatClient{}
 	client, model := ResolveHelperBackedClient(cfg, fallbackClient, cfg.LLM.Model)
 
-	if client == fallbackClient {
-		t.Fatal("expected new client, NewClientFromProvider always returns non-nil")
+	if client != fallbackClient {
+		t.Fatal("expected fallback client when helper provider id is missing")
 	}
-	if model != "cheap-model" {
-		t.Fatalf("model = %q, want cheap-model", model)
+	if model != "main-model" {
+		t.Fatalf("model = %q, want main-model", model)
 	}
 }
 
 func TestResolveHelperBackedClientReturnsHelperWhenAvailable(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.LLM.HelperEnabled = true
+	cfg.LLM.HelperProvider = "helper"
 	cfg.LLM.HelperProviderType = "openai"
 	cfg.LLM.HelperBaseURL = "https://api.openai.com/v1"
 	cfg.LLM.HelperAPIKey = "test-key"

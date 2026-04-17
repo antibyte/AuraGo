@@ -191,6 +191,7 @@ type Config struct {
 		HelperProviderType           string   `yaml:"-"         json:"-"` // resolved helper provider type
 		HelperBaseURL                string   `yaml:"-"         json:"-"` // resolved helper base URL
 		HelperAPIKey                 string   `yaml:"-"         json:"-"` // resolved helper API key
+		HelperAccountID              string   `yaml:"-"         json:"-"` // resolved helper account ID (workers-ai)
 		HelperModel                  string   `yaml:"helper_model"`       // optional helper model override (empty = provider default)
 		HelperResolvedModel          string   `yaml:"-"         json:"-"` // resolved helper model
 		UseNativeFunctions           bool     `yaml:"use_native_functions"`
