@@ -36,7 +36,29 @@ type mdnsEntry struct {
 // socket (ephemeral port). Per RFC 6762 §5.5, queries from port 5353 force
 // multicast responses; queries from other ports get unicast responses.
 // We read from both sockets to catch all replies.
+//
+// On Linux hosts running avahi-daemon, Linux load-balances port 5353 packets
+// across SO_REUSEPORT sockets, so a significant fraction of responses lands
+// in Avahi instead of this process. If avahi-browse is available, we delegate
+// to it for reliable results.
 func mdnsQueryServices(serviceType string, timeout time.Duration, logger *slog.Logger) ([]*mdnsEntry, error) {
+	// Prefer avahi-browse when available — avoids the SO_REUSEPORT packet loss
+	// problem on Linux hosts running avahi-daemon.
+	if avahiBrowseAvailable() {
+		res, err := mdnsQueryViaAvahi(serviceType, timeout, logger)
+		if err == nil {
+			return res, nil
+		}
+		logger.Warn("mdns: avahi-browse failed, falling back to native scan", "error", err)
+	}
+
+	return mdnsQueryNative(serviceType, timeout, logger)
+}
+
+// mdnsQueryNative is the pure-Go mDNS implementation used as fallback when
+// avahi-browse is not available (e.g. Windows, macOS without Homebrew avahi,
+// or Linux without avahi-daemon).
+func mdnsQueryNative(serviceType string, timeout time.Duration, logger *slog.Logger) ([]*mdnsEntry, error) {
 	// Select the correct LAN interface to avoid Docker/veth confusion.
 	iface, ifErr := defaultRouteInterface()
 	if ifErr != nil {
