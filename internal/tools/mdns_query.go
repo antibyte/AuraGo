@@ -162,13 +162,24 @@ func mdnsQueryServices(serviceType string, timeout time.Duration, logger *slog.L
 	entries := make(map[string]*mdnsEntry)
 	packetCount := 0
 
-	// Normalize service type to FQDN for filtering, e.g. "_googlecast._tcp.local."
-	serviceTypeFQDN := dns.Fqdn(serviceType)
+	// Normalize a service type string to a bare base for comparison,
+	// stripping trailing dots and ".local" suffix. This allows matching
+	// "_googlecast._tcp" (query form) against "_googlecast._tcp.local."
+	// (response Hdr.Name form) without false positives from other services.
+	normServiceType := func(s string) string {
+		s = strings.ToLower(s)
+		s = strings.TrimSuffix(s, ".")
+		s = strings.TrimSuffix(s, ".local")
+		s = strings.TrimSuffix(s, ".")
+		return s
+	}
+	serviceTypeBase := normServiceType(serviceType)
 
 	// processDNS extracts mDNS entries from a raw DNS packet.
-	// Only PTR records whose Hdr.Name matches the queried service type are accepted.
-	// This prevents unsolicited Avahi/mDNS announcements for other services
-	// (Spotify Connect, AirPlay, etc.) from polluting the results.
+	// Only PTR records whose Hdr.Name matches the queried service type (after
+	// stripping .local. suffix) are accepted. This prevents unsolicited
+	// Avahi/mDNS announcements for other services (Spotify Connect, AirPlay,
+	// etc.) from polluting the results.
 	processDNS := func(data []byte, n int, source string) {
 		var msg dns.Msg
 		if err := msg.Unpack(data[:n]); err != nil {
@@ -183,11 +194,9 @@ func mdnsQueryServices(serviceType string, timeout time.Duration, logger *slog.L
 		// Collect PTR records — only for the service type we queried.
 		for _, rr := range allRRs {
 			if ptr, ok := rr.(*dns.PTR); ok {
-				// Only accept PTR records whose owner name is the queried service type.
-				// In mDNS, PTR answers look like:
-				//   _googlecast._tcp.local. PTR Google-Home._googlecast._tcp.local.
-				// So Hdr.Name must be our service type FQDN.
-				if !strings.EqualFold(dns.Fqdn(ptr.Hdr.Name), serviceTypeFQDN) {
+				// Compare normalized base names so "_googlecast._tcp"
+				// matches "_googlecast._tcp.local." from device responses.
+				if normServiceType(ptr.Hdr.Name) != serviceTypeBase {
 					continue
 				}
 				if _, exists := entries[ptr.Ptr]; !exists {
