@@ -43,7 +43,7 @@ func MDNSScan(logger *slog.Logger, serviceType string, timeout int) string {
 
 	logger.Info("Starting MDNS scan", "service", serviceType, "timeout_seconds", timeout)
 
-	entries, err := mdnsQueryServices(serviceType, time.Duration(timeout)*time.Second)
+	entries, err := mdnsQueryServices(serviceType, time.Duration(timeout)*time.Second, logger)
 	if err != nil {
 		logger.Error("MDNS scan failed", "error", err)
 		return fmt.Sprintf(`{"status": "error", "message": "MDNS scan failed: %v"}`, err)

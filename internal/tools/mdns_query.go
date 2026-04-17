@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"log/slog"
+
 	"github.com/miekg/dns"
 	"golang.org/x/net/ipv4"
 )
@@ -30,7 +32,7 @@ type mdnsEntry struct {
 // and collects responses for the given timeout duration.
 // It joins the multicast group on the default-route LAN interface and uses
 // SO_REUSEADDR/SO_REUSEPORT so it can co-exist with system mDNS daemons.
-func mdnsQueryServices(serviceType string, timeout time.Duration) ([]*mdnsEntry, error) {
+func mdnsQueryServices(serviceType string, timeout time.Duration, logger *slog.Logger) ([]*mdnsEntry, error) {
 	lc := net.ListenConfig{Control: mdnsSocketControl}
 
 	pc, err := lc.ListenPacket(context.Background(), "udp4", "0.0.0.0:5353")
@@ -45,8 +47,15 @@ func mdnsQueryServices(serviceType string, timeout time.Duration) ([]*mdnsEntry,
 	// multicast routing, especially when Docker networks overlap the LAN subnet.
 	p4 := ipv4.NewPacketConn(pc)
 	group := &net.UDPAddr{IP: net.ParseIP(mdnsIPv4Group)}
-	if iface, err := defaultRouteInterface(); err == nil && iface != nil {
-		_ = p4.JoinGroup(iface, group)
+
+	iface, err := defaultRouteInterface()
+	if err != nil {
+		logger.Info("mdns: no default route interface, will attempt to join anyway", "error", err)
+	} else {
+		logger.Info("mdns: joining multicast group on interface", "interface", iface.Name, "index", iface.Index)
+		if err := p4.JoinGroup(iface, group); err != nil {
+			logger.Info("mdns: JoinGroup failed", "error", err)
+		}
 	}
 
 	// Build the PTR query.
@@ -71,15 +80,20 @@ func mdnsQueryServices(serviceType string, timeout time.Duration) ([]*mdnsEntry,
 
 	entries := make(map[string]*mdnsEntry) // keyed by full service instance name
 	rbuf := make([]byte, 65535)
+	packetCount := 0
 
 	for {
 		n, _, err := pc.ReadFrom(rbuf)
 		if err != nil {
+			logger.Info("mdns: read loop ended", "packet_count", packetCount, "error", err)
 			break // timeout or closed
 		}
+		packetCount++
+		logger.Info("mdns: received packet", "size", n, "packet_num", packetCount)
 
 		var msg dns.Msg
 		if err := msg.Unpack(rbuf[:n]); err != nil {
+			logger.Info("mdns: unpack failed", "error", err)
 			continue
 		}
 
@@ -130,6 +144,7 @@ func mdnsQueryServices(serviceType string, timeout time.Duration) ([]*mdnsEntry,
 	for _, e := range entries {
 		result = append(result, e)
 	}
+	logger.Info("mdns: discovery complete", "entries_found", len(result), "packets_received", packetCount)
 	return result, nil
 }
 
