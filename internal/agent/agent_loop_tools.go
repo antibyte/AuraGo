@@ -110,8 +110,9 @@ func processPendingToolCalls(s *agentLoopState, ctx context.Context, lastUserMsg
 	if sessionID == "default" {
 		historyManager.Add(openai.ChatMessageRoleUser, pResultContent, id, false, true)
 	}
+	followUpContent := toolResultFollowUpContent(ptc, pResultContent, s.runCfg.VoiceOutputActive || GetVoiceMode())
 	s.req.Messages = append(s.req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: ptcJSON})
-	s.req.Messages = append(s.req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: pResultContent})
+	s.req.Messages = append(s.req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: followUpContent})
 	s.lastResponseWasTool = true
 	return true
 }
@@ -500,7 +501,8 @@ func executeAgentToolTurn(
 		if !xmlFallbackHandledThisTurn {
 			s.req.Messages = append(s.req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: content})
 		}
-		s.req.Messages = append(s.req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: resultContent})
+		followUpContent := toolResultFollowUpContent(tc, resultContent, s.runCfg.VoiceOutputActive || GetVoiceMode())
+		s.req.Messages = append(s.req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: followUpContent})
 	}
 
 	if strings.Contains(resultContent, "[LIFEBOAT_EXIT_SIGNAL]") {

@@ -524,6 +524,19 @@ func isToolError(resultContent string) bool {
 	return false
 }
 
+// toolResultFollowUpContent returns the message that should be fed back into the
+// LLM after a non-native tool call. Most tools can reuse the raw output, but TTS
+// in voice mode is special: feeding the raw success payload back as a user turn
+// makes the model think a new user event happened, which can trigger another TTS
+// call and create a self-sustaining voice loop.
+func toolResultFollowUpContent(tc ToolCall, resultContent string, voiceModeActive bool) string {
+	if tc.Action != "tts" || !voiceModeActive || isToolError(resultContent) {
+		return resultContent
+	}
+
+	return "Internal note: the previous `tts` call succeeded and the audio has already been played to the user. This is not a new user message. Do not call `tts` again for the same reply. If your spoken reply is complete, finish with `<done/>`. If you still need on-screen text, provide it once and end with `<done/>`."
+}
+
 // extractErrorMessage pulls the error message from a tool output for error learning.
 func extractErrorMessage(resultContent string) string {
 	// Try to extract from JSON "message" field

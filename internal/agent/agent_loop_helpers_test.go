@@ -2,6 +2,7 @@ package agent
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -244,6 +245,42 @@ func TestFilterToolSchemas_EmptyFrequentFallsBackToDropped(t *testing.T) {
 	// Both tools land in 'dropped', then are added via remaining-slots fill-up
 	if len(result) != 2 {
 		t.Errorf("expected 2 tools from fill-up, got %d", len(result))
+	}
+}
+
+func TestToolResultFollowUpContent_TTSSuccessInVoiceModeGetsLoopGuard(t *testing.T) {
+	tc := ToolCall{Action: "tts"}
+	result := `Tool Output: {"status":"success","file":"hello.mp3"}`
+
+	got := toolResultFollowUpContent(tc, result, true)
+
+	if got == result {
+		t.Fatal("expected TTS success in voice mode to be replaced with a loop guard note")
+	}
+	if !strings.Contains(got, "Do not call `tts` again") {
+		t.Fatalf("expected loop guard note to warn against repeated TTS calls, got %q", got)
+	}
+}
+
+func TestToolResultFollowUpContent_TTSErrorKeepsRawOutput(t *testing.T) {
+	tc := ToolCall{Action: "tts"}
+	result := `Tool Output: {"status":"error","message":"boom"}`
+
+	got := toolResultFollowUpContent(tc, result, true)
+
+	if got != result {
+		t.Fatalf("expected TTS error output to pass through unchanged, got %q", got)
+	}
+}
+
+func TestToolResultFollowUpContent_TTSSuccessOutsideVoiceModeKeepsRawOutput(t *testing.T) {
+	tc := ToolCall{Action: "tts"}
+	result := `Tool Output: {"status":"success","file":"hello.mp3"}`
+
+	got := toolResultFollowUpContent(tc, result, false)
+
+	if got != result {
+		t.Fatalf("expected non-voice TTS output to pass through unchanged, got %q", got)
 	}
 }
 
