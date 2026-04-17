@@ -1,6 +1,8 @@
 package memory
 
 import (
+	"database/sql"
+	"errors"
 	"fmt"
 	"regexp"
 	"time"
@@ -180,7 +182,10 @@ func (s *SQLiteMemory) LookupErrorResolution(toolName, errorMsg string) (string,
 		toolName, errorMsg,
 	).Scan(&resolution)
 	if err != nil {
-		return "", nil // no resolution found is not an error
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", nil
+		}
+		return "", fmt.Errorf("lookup error resolution: %w", err)
 	}
 	return resolution, nil
 }

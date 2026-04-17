@@ -258,25 +258,33 @@ func NewSQLiteMemory(dbPath string, logger *slog.Logger) (*SQLiteMemory, error) 
 // This allows the same file path to be tracked independently in multiple collections.
 // For backward compatibility, existing records get collection=”.
 func migrateFileIndexToCollectionAware(db *sql.DB, logger *slog.Logger) error {
-	// Check if new schema already exists (has collection column with NOT NULL constraint)
 	var hasNewSchema bool
 	err := db.QueryRow("SELECT count(*) > 0 FROM pragma_table_info('file_indices') WHERE name='collection' AND \"notnull\"=1").Scan(&hasNewSchema)
 	if err != nil {
 		logger.Warn("Failed to check file_indices schema", "error", err)
-		return nil // Non-fatal: skip migration
+		return nil
 	}
 	if hasNewSchema {
-		return nil // Already migrated
+		return nil
 	}
 
 	logger.Info("Migrating file_indices to collection-aware schema")
 
-	// Check if old schema has data
 	var oldCount int
 	db.QueryRow("SELECT COUNT(*) FROM file_indices").Scan(&oldCount)
 
-	// Create new tables with composite PK
-	if _, err := db.Exec(`
+	tx, err := db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin file-index migration transaction: %w", err)
+	}
+	rollback := true
+	defer func() {
+		if rollback {
+			tx.Rollback()
+		}
+	}()
+
+	if _, err := tx.Exec(`
 		CREATE TABLE IF NOT EXISTS file_indices_new (
 			file_path TEXT NOT NULL,
 			collection TEXT NOT NULL DEFAULT '',
@@ -286,7 +294,7 @@ func migrateFileIndexToCollectionAware(db *sql.DB, logger *slog.Logger) error {
 		return fmt.Errorf("create file_indices_new: %w", err)
 	}
 
-	if _, err := db.Exec(`
+	if _, err := tx.Exec(`
 		CREATE TABLE IF NOT EXISTS file_embedding_docs_new (
 			file_path TEXT NOT NULL,
 			collection TEXT NOT NULL DEFAULT '',
@@ -297,14 +305,13 @@ func migrateFileIndexToCollectionAware(db *sql.DB, logger *slog.Logger) error {
 		return fmt.Errorf("create file_embedding_docs_new: %w", err)
 	}
 
-	// Copy data (collection defaults to '' for backward compatibility)
-	if _, err := db.Exec(`
+	if _, err := tx.Exec(`
 		INSERT INTO file_indices_new (file_path, collection, last_modified)
 		SELECT file_path, COALESCE(collection, ''), last_modified FROM file_indices`); err != nil {
 		return fmt.Errorf("copy file_indices data: %w", err)
 	}
 
-	if _, err := db.Exec(`
+	if _, err := tx.Exec(`
 		INSERT INTO file_embedding_docs_new (file_path, collection, doc_id, created_at)
 		SELECT fed.file_path, COALESCE(fi.collection, ''), fed.doc_id, fed.created_at
 		FROM file_embedding_docs fed
@@ -312,24 +319,27 @@ func migrateFileIndexToCollectionAware(db *sql.DB, logger *slog.Logger) error {
 		return fmt.Errorf("copy file_embedding_docs data: %w", err)
 	}
 
-	// Drop old tables and rename new ones
-	if _, err := db.Exec("DROP TABLE file_embedding_docs"); err != nil {
+	if _, err := tx.Exec("DROP TABLE file_embedding_docs"); err != nil {
 		return fmt.Errorf("drop old file_embedding_docs: %w", err)
 	}
-	if _, err := db.Exec("DROP TABLE file_indices"); err != nil {
+	if _, err := tx.Exec("DROP TABLE file_indices"); err != nil {
 		return fmt.Errorf("drop old file_indices: %w", err)
 	}
-	if _, err := db.Exec("ALTER TABLE file_indices_new RENAME TO file_indices"); err != nil {
+	if _, err := tx.Exec("ALTER TABLE file_indices_new RENAME TO file_indices"); err != nil {
 		return fmt.Errorf("rename file_indices_new: %w", err)
 	}
-	if _, err := db.Exec("ALTER TABLE file_embedding_docs_new RENAME TO file_embedding_docs"); err != nil {
+	if _, err := tx.Exec("ALTER TABLE file_embedding_docs_new RENAME TO file_embedding_docs"); err != nil {
 		return fmt.Errorf("rename file_embedding_docs_new: %w", err)
 	}
 
-	// Recreate index
-	if _, err := db.Exec("CREATE INDEX IF NOT EXISTS idx_file_embedding_docs_path ON file_embedding_docs(file_path, collection)"); err != nil {
+	if _, err := tx.Exec("CREATE INDEX IF NOT EXISTS idx_file_embedding_docs_path ON file_embedding_docs(file_path, collection)"); err != nil {
 		logger.Warn("Failed to create idx_file_embedding_docs_path", "error", err)
 	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit file-index migration: %w", err)
+	}
+	rollback = false
 
 	logger.Info("Migrated file_indices to collection-aware schema", "records", oldCount)
 	return nil
@@ -366,23 +376,26 @@ func applySQLiteMemoryMigrations(db *sql.DB, logger *slog.Logger) error {
 
 	errs = append(errs, migrateAddColumn(db, logger, "tool_transitions", "last_updated", "DATETIME DEFAULT ''"))
 
-	// Migration: file_indices and file_embedding_docs to use composite PK (file_path, collection)
-	// This enables proper collection-aware tracking where the same file path can exist in multiple collections.
 	if err := migrateFileIndexToCollectionAware(db, logger); err != nil {
 		errs = append(errs, err)
 	}
 
-	const shortTermSchemaVersion = 9
-	var currentVer int
-	if err := db.QueryRow("PRAGMA user_version").Scan(&currentVer); err != nil {
-		logger.Warn("Failed to read schema version", "error", err)
-	} else if currentVer != shortTermSchemaVersion {
-		if _, err := db.Exec(fmt.Sprintf("PRAGMA user_version = %d", shortTermSchemaVersion)); err != nil {
-			logger.Warn("Failed to update schema version", "error", err)
+	joinedErr := errors.Join(errs...)
+	if joinedErr == nil {
+		const shortTermSchemaVersion = 9
+		var currentVer int
+		if err := db.QueryRow("PRAGMA user_version").Scan(&currentVer); err != nil {
+			logger.Warn("Failed to read schema version", "error", err)
+		} else if currentVer != shortTermSchemaVersion {
+			if _, err := db.Exec(fmt.Sprintf("PRAGMA user_version = %d", shortTermSchemaVersion)); err != nil {
+				logger.Warn("Failed to update schema version", "error", err)
+			}
 		}
+	} else {
+		logger.Warn("Skipping schema version bump due to migration errors", "errors", joinedErr)
 	}
 
-	return errors.Join(errs...)
+	return joinedErr
 }
 
 func migrateAddColumn(db *sql.DB, logger *slog.Logger, table, column, definition string) error {

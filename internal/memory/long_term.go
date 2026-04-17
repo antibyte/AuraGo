@@ -646,8 +646,8 @@ func (cv *ChromemVectorDB) StoreCheatsheet(id, name, content string, attachments
 	}
 
 	// Large texts: split into chunks and batch-store
-	const maxChunks = 50 // cheatsheets are smaller than general docs
-	chunks := chunkText(content, 3500, 200)
+	const maxChunks = 50
+	chunks := chunkText(fullContent, 3500, 200)
 	if len(chunks) > maxChunks {
 		cv.logger.Warn("Cheatsheet produces too many chunks, capping", "cs_id", id, "chunks", len(chunks), "max", maxChunks)
 		chunks = chunks[:maxChunks]

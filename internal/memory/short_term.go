@@ -85,22 +85,18 @@ func (s *SQLiteMemory) GetRecentMessagesGroupedBySession(limit int) ([]openai.Ch
 		limit = 20
 	}
 	query := `
-	SELECT role, content FROM (
-		SELECT role, content, session_id, timestamp, id
+	WITH ranked_sessions AS (
+		SELECT session_id, MAX(timestamp) AS latest_ts
 		FROM messages
-		WHERE (session_id, timestamp, id) IN (
-			SELECT session_id, timestamp, id FROM messages m1
-			WHERE timestamp >= (
-				SELECT MIN(m2.timestamp) FROM (
-					SELECT DISTINCT timestamp FROM messages
-					ORDER BY timestamp DESC
-					LIMIT 1 OFFSET (
-						SELECT GREATEST(0, COUNT(DISTINCT session_id) - 1) FROM messages
-					)
-				) m2
-			)
-		)
-		ORDER BY session_id DESC, timestamp ASC, id ASC
+		GROUP BY session_id
+		ORDER BY latest_ts DESC
+		LIMIT 5
+	)
+	SELECT role, content FROM (
+		SELECT m.role, m.content, m.session_id, m.timestamp, m.id
+		FROM messages m
+		INNER JOIN ranked_sessions rs ON m.session_id = rs.session_id
+		ORDER BY rs.latest_ts DESC, m.timestamp ASC, m.id ASC
 		LIMIT ?
 	) ORDER BY timestamp ASC, id ASC;`
 

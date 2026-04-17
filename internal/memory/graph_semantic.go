@@ -62,11 +62,9 @@ func (kg *KnowledgeGraph) EnableSemanticSearch(cfg *config.Config) error {
 		return nil
 	}
 
-	db, err := chromem.NewPersistentDB(cfg.Directories.VectorDBDir, false)
-	if err != nil {
-		return fmt.Errorf("open semantic vector db: %w", err)
-	}
-	return kg.enableSemanticSearchWithCollection(db, embeddingFunc, kg.logger)
+	_ = embeddingFunc
+	kg.logger.Warn("EnableSemanticSearch: non-shared path is deprecated, use EnableSemanticSearchShared instead; skipping")
+	return nil
 }
 
 // EnableSemanticSearchShared reuses an already-open chromem.DB and its embedding
@@ -224,7 +222,18 @@ func (kg *KnowledgeGraph) reindexSemanticNodes() error {
 		}
 		if len(edges) > 0 {
 			kg.semantic.reindexMu.Lock()
-			_, _ = kg.db.Exec(`UPDATE kg_edges SET semantic_indexed_at = ? WHERE semantic_indexed_at IS NULL`, now)
+			edgePlaceholders := make([]string, len(edges))
+			edgeArgs := make([]interface{}, 0, len(edges)+1)
+			edgeArgs = append(edgeArgs, now)
+			for i, edge := range edges {
+				edgePlaceholders[i] = "(? IS NOT NULL AND source = ? AND target = ? AND relation = ?)"
+				edgeArgs = append(edgeArgs, now, edge.Source, edge.Target, edge.Relation)
+			}
+			// Update both NULL and stale edges by matching their exact identity
+			_, _ = kg.db.Exec(
+				`UPDATE kg_edges SET semantic_indexed_at = ? WHERE `+strings.Join(edgePlaceholders, " OR "),
+				edgeArgs...,
+			)
 			kg.semantic.reindexMu.Unlock()
 		}
 	}

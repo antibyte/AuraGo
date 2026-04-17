@@ -133,7 +133,9 @@ func (hm *HistoryManager) backgroundSaver() {
 			if !ok {
 				return
 			}
-			hm.save()
+			if err := hm.save(); err != nil {
+				slog.Error("Failed to save history to disk", "error", err)
+			}
 		}
 	}
 }

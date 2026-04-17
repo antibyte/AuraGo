@@ -136,11 +136,19 @@ func (s *SQLiteMemory) AddCoreMemoryFact(fact string) (int64, error) {
 		return existingID, updateErr
 	}
 
-	res, err := s.db.Exec("INSERT INTO core_memory (fact) VALUES (?)", fact)
+	res, err := s.db.Exec("INSERT OR IGNORE INTO core_memory (fact) VALUES (?)", fact)
 	if err != nil {
 		return 0, err
 	}
-	return res.LastInsertId()
+	id, err := res.LastInsertId()
+	if err != nil {
+		return 0, err
+	}
+	if id == 0 {
+		err := s.db.QueryRow("SELECT id FROM core_memory WHERE fact = ? LIMIT 1", fact).Scan(&existingID)
+		return existingID, err
+	}
+	return id, nil
 }
 
 // UpdateCoreMemoryFact overwrites an existing entry's text by ID.

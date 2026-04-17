@@ -110,7 +110,7 @@ func (kg *KnowledgeGraph) SuggestRelations(limit int) string {
 				"source_label": label1,
 				"target":       id2,
 				"target_label": label2,
-				"reason":       "same_type",
+				"reason":       reason,
 			})
 		}
 	}

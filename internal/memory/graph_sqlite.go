@@ -2392,7 +2392,6 @@ func (kg *KnowledgeGraph) GetSubgraph(centerNodeID string, maxDepth int) ([]Node
 		if batchErr != nil {
 			kg.logger.Warn("GetSubgraph: batch edge query failed", "error", batchErr)
 		} else {
-			defer batchRows.Close()
 			for batchRows.Next() {
 				var e Edge
 				var propsJSON string
@@ -2406,8 +2405,6 @@ func (kg *KnowledgeGraph) GetSubgraph(centerNodeID string, maxDepth int) ([]Node
 						allEdges[edgeKey] = e
 						discoveredEdges = append(discoveredEdges, e)
 					}
-					// visited already contains all levelNodeIDs, so this correctly
-					// identifies only new (not-yet-seen) neighbor nodes.
 					if !visited[e.Source] {
 						neighborIDs = append(neighborIDs, e.Source)
 					}
@@ -2416,6 +2413,7 @@ func (kg *KnowledgeGraph) GetSubgraph(centerNodeID string, maxDepth int) ([]Node
 					}
 				}
 			}
+			batchRows.Close()
 		}
 
 		if len(neighborIDs) == 0 {
