@@ -9,8 +9,6 @@ import (
 	"aurago/internal/sqlconnections"
 	"aurago/internal/tools"
 	"context"
-	crand "crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -111,7 +109,7 @@ func handleGetConfig(s *Server) http.HandlerFunc {
 		maskSensitiveFields(rawCfg)
 
 		// Inject masked indicators for vault-only secrets so the UI
-		// shows “••••••••” for fields that have a value stored in the vault.
+		// shows "••••••••" for fields that have a value stored in the vault.
 		injectVaultIndicators(rawCfg, s.Vault)
 		// Inject feature availability flags so the UI can gray out
 		// sections that are not functional in the current runtime.
@@ -895,54 +893,6 @@ var sensitiveKeys = map[string]bool{
 	"shared_key":     true, // egg mode shared AES key — never expose
 }
 
-// handleVaultStatus returns whether the vault is available.
-// The vault is available when s.Vault != nil (i.e. AURAGO_MASTER_KEY was
-// provided at startup). The vault.bin file is created lazily on the first
-// write, so checking for file existence would yield a false negative on a
-// fresh installation where no secrets have been stored yet.
-func handleVaultStatus(s *Server) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]bool{"exists": s.Vault != nil})
-	}
-}
-
-// handleVaultDelete deletes vault.bin (and its lockfile).
-func handleVaultDelete(s *Server) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodDelete {
-			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-
-		vaultPath := filepath.Join(s.Cfg.Directories.DataDir, "vault.bin")
-		lockPath := vaultPath + ".lock"
-
-		// Delete vault files
-		if err := os.Remove(vaultPath); err != nil && !os.IsNotExist(err) {
-			s.Logger.Error("[Vault] Failed to delete vault file", "error", err)
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]string{"message": "Vault-Datei konnte nicht gelöscht werden."})
-			return
-		}
-		os.Remove(lockPath) // best-effort
-
-		// Update in-memory config
-		s.CfgMu.Lock()
-		s.Cfg.Server.MasterKey = ""
-		s.CfgMu.Unlock()
-
-		s.Logger.Info("[Vault] Vault deleted via Web UI")
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{"status": "ok", "message": "Vault gelöscht."})
-	}
-}
-
 // maskSensitiveFields recursively masks sensitive string values in a config map.
 func maskSensitiveFields(m map[string]interface{}) {
 	for key, val := range m {
@@ -1215,193 +1165,4 @@ func extractRecursive(m map[string]interface{}, prefix string, vault *security.V
 		}
 	}
 	return firstErr
-}
-
-// handleSecurityHints returns the current list of security hints for the running config.
-// Requires an active session (auth-gated via server_routes.go WebConfig.Enabled block).
-func handleSecurityHints(s *Server) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-		s.CfgMu.RLock()
-		hints := CheckSecurity(s.Cfg)
-		facing := isInternetFacing(s.Cfg)
-		s.CfgMu.RUnlock()
-
-		// Build a serialisable view (strip FixPatch — applied server-side only)
-		type hintView struct {
-			ID          string `json:"id"`
-			Severity    string `json:"severity"`
-			Title       string `json:"title"`
-			Description string `json:"description"`
-			AutoFixable bool   `json:"auto_fixable"`
-		}
-		views := make([]hintView, len(hints))
-		for i, h := range hints {
-			views[i] = hintView{
-				ID:          h.ID,
-				Severity:    h.Severity,
-				Title:       h.Title,
-				Description: h.Description,
-				AutoFixable: h.AutoFixable,
-			}
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"hints":           views,
-			"internet_facing": facing,
-		})
-	}
-}
-
-// handleSecurityHarden applies auto-fixable hardening patches selected by the user.
-// Expects JSON body: {"ids": ["auth_disabled", "n8n_no_token", ...]}.
-func handleSecurityHarden(s *Server) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-		var req struct {
-			IDs []string `json:"ids"`
-		}
-		if err := json.NewDecoder(io.LimitReader(r.Body, 1<<16)).Decode(&req); err != nil {
-			jsonError(w, "Invalid JSON", http.StatusBadRequest)
-			return
-		}
-		applied, err := ApplyHardening(s, req.IDs)
-		if err != nil {
-			s.Logger.Error("[Security] Hardening failed", "error", err)
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]interface{}{"error": "Failed to apply hardening"})
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"applied": applied,
-			"message": fmt.Sprintf("%d hardening measure(s) applied.", len(applied)),
-		})
-	}
-}
-
-// handleAnsibleGenerateToken generates a cryptographically secure random token,
-// saves it to the vault, and (if the sidecar is already running) recreates the
-// container so the new token is active immediately.
-func handleAnsibleGenerateToken(s *Server) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-
-		// Generate a 32-byte cryptographically secure random token
-		b := make([]byte, 32)
-		if _, err := crand.Read(b); err != nil {
-			s.Logger.Error("[Ansible] Failed to generate token", "error", err)
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(map[string]string{"error": "Failed to generate token"})
-			return
-		}
-		token := hex.EncodeToString(b)
-
-		// Persist to vault
-		if s.Vault != nil {
-			if err := s.Vault.WriteSecret("ansible_token", token); err != nil {
-				s.Logger.Error("[Ansible] Failed to save token to vault", "error", err)
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusInternalServerError)
-				json.NewEncoder(w).Encode(map[string]string{"error": "Failed to save token to vault"})
-				return
-			}
-			s.Logger.Info("[Config] Secret saved to vault", "key", "ansible_token")
-		}
-
-		// Update live config
-		s.CfgMu.Lock()
-		s.Cfg.Ansible.Token = token
-		cfg := *s.Cfg
-		s.CfgMu.Unlock()
-
-		// If sidecar is enabled, recreate the container with the new token
-		if cfg.Ansible.Enabled && cfg.Ansible.Mode == "sidecar" {
-			inventoryDir := ""
-			if cfg.Ansible.DefaultInventory != "" {
-				inventoryDir = filepath.Dir(cfg.Ansible.DefaultInventory)
-			}
-			go tools.ReapplyAnsibleToken(cfg.Docker.Host, tools.AnsibleSidecarConfig{
-				Token:         token,
-				Timeout:       cfg.Ansible.Timeout,
-				Image:         cfg.Ansible.Image,
-				ContainerName: cfg.Ansible.ContainerName,
-				PlaybooksDir:  cfg.Ansible.PlaybooksDir,
-				InventoryDir:  inventoryDir,
-				AutoBuild:     cfg.Ansible.AutoBuild,
-				DockerfileDir: cfg.Ansible.DockerfileDir,
-			}, s.Logger)
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{
-			"status": "ok",
-			"token":  token,
-		})
-	}
-}
-
-// handleOllamaManagedStatus returns the current status of the managed Ollama container.
-func handleOllamaManagedStatus(s *Server) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-		s.CfgMu.RLock()
-		dockerHost := s.Cfg.Docker.Host
-		managed := s.Cfg.Ollama.ManagedInstance.Enabled
-		s.CfgMu.RUnlock()
-
-		w.Header().Set("Content-Type", "application/json")
-		if !managed {
-			json.NewEncoder(w).Encode(map[string]interface{}{"status": "disabled"})
-			return
-		}
-		result := tools.OllamaManagedContainerStatus(dockerHost)
-		w.Write([]byte(result))
-	}
-}
-
-// handleOllamaManagedRecreate calls EnsureOllamaManagedRunning to create/start
-// the managed Ollama container. This allows the user to recover after the
-// container was manually deleted via the container management page.
-func handleOllamaManagedRecreate(s *Server) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-		s.CfgMu.RLock()
-		cfg := *s.Cfg
-		s.CfgMu.RUnlock()
-
-		if !cfg.Ollama.ManagedInstance.Enabled {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "Managed Ollama instance is not enabled."})
-			return
-		}
-
-		s.Logger.Info("[Config UI] Ollama managed container recreate requested via Web UI")
-		go tools.EnsureOllamaManagedRunning(&cfg, s.Logger)
-
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{
-			"status":  "ok",
-			"message": "Container creation started in background.",
-		})
-	}
 }
