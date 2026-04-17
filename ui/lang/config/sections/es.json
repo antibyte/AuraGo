@@ -171,6 +171,8 @@
   "config.section.jellyfin.label": "Jellyfin",
   "config.section.koofr.desc": "Almacenamiento cloud Koofr",
   "config.section.koofr.label": "Koofr",
+  "config.section.ldap.desc": "LDAP/Active Directory integration for user and group queries",
+  "config.section.ldap.label": "LDAP / AD",
   "config.section.llm.desc": "Configuración avanzada del modelo de lenguaje",
   "config.section.llm.label": "Configuración LLM",
   "config.section.llm_guardian.desc": "Capa de seguridad basada en LLM para validación de llamadas a herramientas",

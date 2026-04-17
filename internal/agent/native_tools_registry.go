@@ -86,6 +86,7 @@ func allBuiltinToolFeatureFlags() ToolFeatureFlags {
 		FritzBoxTelephonyEnabled: true, FritzBoxSmartHomeEnabled: true, FritzBoxStorageEnabled: true,
 		FritzBoxTVEnabled: true, TelnyxSMSEnabled: true, TelnyxCallEnabled: true,
 		SQLConnectionsEnabled: true, PythonSecretInjectionEnabled: true,
+		LDAPEnabled: true,
 	}
 }
 
@@ -203,6 +204,7 @@ func ToolNamesFromConfig(cfg *config.Config) []string {
 		AllowNetworkRequests:         cfg.Agent.AllowNetworkRequests,
 		AllowRemoteShell:             cfg.Agent.AllowRemoteShell,
 		AllowSelfUpdate:              cfg.Agent.AllowSelfUpdate,
+		LDAPEnabled:                  cfg.LDAP.Enabled,
 	}
 	return builtinToolNames(ff)
 }
@@ -290,6 +292,7 @@ func ToolSummariesFromConfig(cfg *config.Config) []string {
 		AllowNetworkRequests:         cfg.Agent.AllowNetworkRequests,
 		AllowRemoteShell:             cfg.Agent.AllowRemoteShell,
 		AllowSelfUpdate:              cfg.Agent.AllowSelfUpdate,
+		LDAPEnabled:                  cfg.LDAP.Enabled,
 	}
 	schemas := builtinToolSchemas(ff)
 	summaries := make([]string, 0, len(schemas))

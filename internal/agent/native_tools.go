@@ -140,6 +140,8 @@ type ToolFeatureFlags struct {
 	PythonSecretInjectionEnabled bool
 	// Daemon skills
 	DaemonSkillsEnabled bool
+	// LDAP integration
+	LDAPEnabled bool
 }
 
 // NativeToolCallToToolCall converts an OpenAI native ToolCall response to AuraGo's ToolCall struct.

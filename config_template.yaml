@@ -790,6 +790,17 @@ mcp_server:
     allowed_tools: []
     require_auth: true
     vscode_debug_bridge: false
+ldap:
+    enabled: false
+    readonly: true                         # when enabled, only search/authenticate are allowed; mutations require explicit configuration
+    host: ""                               # LDAP server hostname or IP
+    port: 636                              # LDAPS port (default: 636); use 389 for plain LDAP
+    use_tls: true                         # use LDAPS (recommended); set false for plain LDAP on port 389
+    insecure_skip_verify: false           # skip TLS certificate verification (for self-signed certs only)
+    base_dn: ""                           # base DN for all searches (e.g. "dc=example,dc=com")
+    bind_dn: ""                            # service account DN for binding (e.g. "cn=admin,dc=example,dc=com")
+    user_search_base: ""                  # subtree for user searches (default: base_dn)
+    group_search_base: ""                 # subtree for group searches (default: base_dn)
 notifications:
     ntfy:
         enabled: false

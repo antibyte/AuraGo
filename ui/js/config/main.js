@@ -151,7 +151,8 @@ const SECTIONS = [
             { key: 'mqtt', icon: '📡', label: t('config.section.mqtt.label'), desc: t('config.section.mqtt.desc') },
             { key: 'chromecast', icon: '📺', label: t('config.section.chromecast.label'), desc: t('config.section.chromecast.desc') },
             { key: 'adguard', icon: '🛡️', label: t('config.section.adguard.label'), desc: t('config.section.adguard.desc') },
-            { key: 'fritzbox', icon: '📡', label: t('config.section.fritzbox.label'), desc: t('config.section.fritzbox.desc') }
+            { key: 'fritzbox', icon: '📡', label: t('config.section.fritzbox.label'), desc: t('config.section.fritzbox.desc') },
+            { key: 'ldap', icon: '📇', label: t('config.section.ldap.label'), desc: t('config.section.ldap.desc') }
         ]
     },
     {
@@ -1441,6 +1442,7 @@ const SECTION_MODULES = {
     chromecast: { m: 'chromecast', fn: 'renderChromecastSection' },
     adguard: { m: 'adguard', fn: 'renderAdGuardSection' },
     fritzbox: { m: 'fritzbox', fn: 'renderFritzBoxSection' },
+    ldap: { m: 'ldap', fn: 'renderLDAPSection' },
     webdav: { m: 'webdav', fn: 'renderWebDAVSection' },
     koofr: { m: 'koofr', fn: 'renderKoofrSection' },
     telnyx: { m: 'telnyx', fn: 'renderTelnyxSection' },

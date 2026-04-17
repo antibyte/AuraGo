@@ -211,6 +211,14 @@ func Load(path string) (*Config, error) {
 	// OneDrive defaults: "common" tenant allows both personal and work accounts.
 	cfg.OneDrive.TenantID = "common"
 
+	// LDAP defaults: disabled by default, read-only when enabled.
+	cfg.LDAP.Enabled = false
+	cfg.LDAP.ReadOnly = true
+	cfg.LDAP.UseTLS = true
+	cfg.LDAP.Port = 636
+	cfg.LDAP.ConnectTimeout = 10
+	cfg.LDAP.RequestTimeout = 30
+
 	// WebDAV defaults: use classic Basic Auth unless explicitly switched to Bearer.
 	cfg.WebDAV.AuthType = "basic"
 

@@ -1305,6 +1305,9 @@ type Config struct {
 	// Jellyfin media server integration
 	Jellyfin JellyfinConfig `yaml:"jellyfin"`
 
+	// LDAP/Active Directory integration
+	LDAP LDAPConfig `yaml:"ldap"`
+
 	// gwProvider is a synthetic ProviderEntry used by FindProvider for Google Workspace OAuth.
 	gwProvider ProviderEntry `yaml:"-" json:"-"`
 }
@@ -1348,6 +1351,23 @@ type JellyfinConfig struct {
 	InsecureSSL      bool   `yaml:"insecure_ssl"`      // skip TLS verification for self-signed certs
 	ConnectTimeout   int    `yaml:"connect_timeout"`   // connection timeout in seconds (default: 30)
 	RequestTimeout   int    `yaml:"request_timeout"`   // request timeout in seconds (default: 60)
+}
+
+// LDAPConfig holds configuration for LDAP/Active Directory integration.
+type LDAPConfig struct {
+	Enabled            bool   `yaml:"enabled"`
+	ReadOnly           bool   `yaml:"readonly"`             // true = only search/authenticate, block mutations
+	Host               string `yaml:"host"`                 // LDAP server hostname or IP
+	Port               int    `yaml:"port"`                 // LDAPS port (default: 636) or LDAP port (default: 389)
+	UseTLS             bool   `yaml:"use_tls"`              // use LDAPS (default: true)
+	InsecureSkipVerify bool   `yaml:"insecure_skip_verify"` // skip TLS certificate verification (default: false)
+	BaseDN             string `yaml:"base_dn"`              // base DN for searches (e.g. "dc=example,dc=com")
+	BindDN             string `yaml:"bind_dn"`              // service account DN for binding
+	BindPassword       string `yaml:"-" json:"-"`           // vault-only: ldap_bind_password
+	UserSearchBase     string `yaml:"user_search_base"`     // subtree for user searches (default: BaseDN)
+	GroupSearchBase    string `yaml:"group_search_base"`    // subtree for group searches (default: BaseDN)
+	ConnectTimeout     int    `yaml:"connect_timeout"`      // connection timeout in seconds (default: 10)
+	RequestTimeout     int    `yaml:"request_timeout"`      // request timeout in seconds (default: 30)
 }
 
 // A2ASkill describes a skill advertised in the A2A Agent Card.

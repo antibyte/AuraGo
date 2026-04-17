@@ -171,6 +171,8 @@
   "config.section.jellyfin.label": "Jellyfin",
   "config.section.koofr.desc": "Koofr integrace",
   "config.section.koofr.label": "Koofr",
+  "config.section.ldap.desc": "LDAP/Active Directory integration for user and group queries",
+  "config.section.ldap.label": "LDAP / AD",
   "config.section.llm.desc": "Nastaveni jazykoveho modelu",
   "config.section.llm.label": "LLM",
   "config.section.llm_guardian.desc": "Bezpečnostní vrstva založená na LLM pro validaci volání nástrojů",

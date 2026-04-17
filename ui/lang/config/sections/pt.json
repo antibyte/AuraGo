@@ -171,6 +171,8 @@
   "config.section.jellyfin.label": "Jellyfin",
   "config.section.koofr.desc": "Integração com Koofr",
   "config.section.koofr.label": "Koofr",
+  "config.section.ldap.desc": "LDAP/Active Directory integration for user and group queries",
+  "config.section.ldap.label": "LDAP / AD",
   "config.section.llm.desc": "Configurações do modelo de linguagem",
   "config.section.llm.label": "LLM",
   "config.section.llm_guardian.desc": "Camada de segurança baseada em LLM para validação de chamadas de ferramentas",

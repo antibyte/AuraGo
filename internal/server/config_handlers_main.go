@@ -1102,6 +1102,7 @@ var vaultKeyMap = map[string]string{
 	"a2a.auth.bearer_secret":           "a2a_bearer_secret",
 	"truenas.api_key":                  "truenas_api_key",
 	"jellyfin.api_key":                 "jellyfin_api_key",
+	"ldap.bind_password":               "ldap_bind_password",
 }
 
 // extractSecretsToVault walks a JSON patch map and moves sensitive values into the vault.
