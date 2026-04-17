@@ -508,15 +508,19 @@ func authMiddleware(s *Server, next http.Handler) http.Handler {
 		// the X-Internal-FollowUp header together with a per-process crypto token.
 		// Both checks are required: IP prevents token leakage from outside, token prevents
 		// any local process from bypassing auth without knowledge of the token.
-		if r.Header.Get("X-Internal-FollowUp") == "true" {
-			host, _, _ := net.SplitHostPort(r.RemoteAddr)
-			if host == "127.0.0.1" || host == "::1" || strings.HasPrefix(host, "127.") {
-				tok := s.internalToken
-				if tok != "" && hmac.Equal([]byte(r.Header.Get("X-Internal-Token")), []byte(tok)) {
-					next.ServeHTTP(w, r)
-					return
-				}
-			}
+		if r.Header.Get("X-Internal-FollowUp") == "true" && isValidInternalLoopbackToken(r, s.internalToken) {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// Python tool bridge requests are also internal loopback calls and authenticate
+		// via the same per-process X-Internal-Token. Without this exception the generic
+		// auth middleware intercepts /api/internal/tool-bridge/* first and returns the
+		// login redirect 401 before the dedicated tool-bridge handler can validate the
+		// token itself.
+		if strings.HasPrefix(r.URL.Path, "/api/internal/tool-bridge/") && isValidInternalLoopbackToken(r, s.internalToken) {
+			next.ServeHTTP(w, r)
+			return
 		}
 
 		if IsAuthenticated(r, secret) {
@@ -550,6 +554,21 @@ func authMiddleware(s *Server, next http.Handler) http.Handler {
 		}
 		http.Redirect(w, r, target, http.StatusTemporaryRedirect)
 	})
+}
+
+func isValidInternalLoopbackToken(r *http.Request, token string) bool {
+	if r == nil || token == "" {
+		return false
+	}
+	host, _, _ := net.SplitHostPort(r.RemoteAddr)
+	if host != "127.0.0.1" && host != "::1" && !strings.HasPrefix(host, "127.") {
+		return false
+	}
+	reqTok := r.Header.Get("X-Internal-Token")
+	if reqTok == "" {
+		return false
+	}
+	return hmac.Equal([]byte(reqTok), []byte(token))
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────

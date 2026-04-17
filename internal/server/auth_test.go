@@ -215,6 +215,48 @@ func TestAuthMiddlewareLoopbackFollowUpBypassRequiresLoopbackRemoteAddr(t *testi
 	}
 }
 
+func TestAuthMiddlewareToolBridgeBypassRequiresLoopbackInternalToken(t *testing.T) {
+	t.Parallel()
+
+	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
+	s.Cfg.Auth.Enabled = true
+	s.Cfg.Auth.SessionSecret = "0123456789abcdef0123456789abcdef"
+	s.Cfg.Auth.PasswordHash = "configured"
+	s.internalToken = "test-secret-token"
+
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	})
+	handler := authMiddleware(s, next)
+
+	externalReq := httptest.NewRequest(http.MethodPost, "/api/internal/tool-bridge/proxmox", nil)
+	externalReq.Header.Set("X-Internal-Token", "test-secret-token")
+	externalReq.RemoteAddr = "10.0.0.42:1234"
+	externalRec := httptest.NewRecorder()
+	handler.ServeHTTP(externalRec, externalReq)
+	if externalRec.Code != http.StatusUnauthorized {
+		t.Fatalf("external tool-bridge status = %d, want 401", externalRec.Code)
+	}
+
+	loopbackReq := httptest.NewRequest(http.MethodPost, "/api/internal/tool-bridge/proxmox", nil)
+	loopbackReq.Header.Set("X-Internal-Token", "test-secret-token")
+	loopbackReq.RemoteAddr = "127.0.0.1:1234"
+	loopbackRec := httptest.NewRecorder()
+	handler.ServeHTTP(loopbackRec, loopbackReq)
+	if loopbackRec.Code != http.StatusNoContent {
+		t.Fatalf("loopback tool-bridge with valid token status = %d, want 204", loopbackRec.Code)
+	}
+
+	wrongTokenReq := httptest.NewRequest(http.MethodPost, "/api/internal/tool-bridge/proxmox", nil)
+	wrongTokenReq.Header.Set("X-Internal-Token", "wrong-token")
+	wrongTokenReq.RemoteAddr = "127.0.0.1:1234"
+	wrongTokenRec := httptest.NewRecorder()
+	handler.ServeHTTP(wrongTokenRec, wrongTokenReq)
+	if wrongTokenRec.Code != http.StatusUnauthorized {
+		t.Fatalf("loopback tool-bridge with wrong token status = %d, want 401", wrongTokenRec.Code)
+	}
+}
+
 // TestCheckCSRFOriginValidOrigin verifies that a matching Origin header is accepted.
 func TestCheckCSRFOriginValidOrigin(t *testing.T) {
 	t.Parallel()
