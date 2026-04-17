@@ -895,5 +895,48 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 		}, "path"),
 	))
 
+	if ff.LDAPEnabled {
+		tools = append(tools, tool("ldap",
+			"Query and authenticate against an LDAP/Active Directory server. "+
+				"Search for users and groups, retrieve user/group details, list all users or groups, "+
+				"authenticate credentials, and manage entries when LDAP read-only mode is disabled. "+
+				"Supports LDAP (port 389) and LDAPS (port 636).",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "LDAP operation to perform",
+					"enum": []string{
+						"search", "get_user", "list_users", "get_group", "list_groups",
+						"authenticate", "test_connection",
+						"add_user", "update_user", "delete_user",
+						"add_group", "update_group", "delete_group",
+					},
+				},
+				"base_dn":    prop("string", "Base DN to search from (defaults to the configured base_dn). Used for search."),
+				"filter":     prop("string", "LDAP search filter (e.g. '(objectClass=user)', '(cn=John)'). Used for search."),
+				"username":   prop("string", "Username to look up for get_user."),
+				"group_name": prop("string", "Group name to look up for get_group."),
+				"user_dn":    prop("string", "User DN for authenticate. 'dn' is also accepted as an alias."),
+				"dn":         prop("string", "Full distinguished name for add/update/delete operations. May also be used as the authenticate DN."),
+				"password":   prop("string", "Password for authenticate."),
+				"attributes": map[string]interface{}{
+					"type":        "array",
+					"description": "List of LDAP attributes to return for search (e.g. ['cn', 'mail', 'memberOf']).",
+					"items":       map[string]interface{}{"type": "string"},
+				},
+				"entry_attributes": map[string]interface{}{
+					"type":                 "object",
+					"description":          "Attribute map for add_user/add_group. Values should be strings or arrays of strings. Include directory-specific objectClass values explicitly.",
+					"additionalProperties": true,
+				},
+				"changes": map[string]interface{}{
+					"type":                 "object",
+					"description":          "Attribute map for update_user/update_group. Non-empty arrays replace an attribute; an empty array deletes it.",
+					"additionalProperties": true,
+				},
+			}, "operation"),
+		))
+	}
+
 	return tools
 }

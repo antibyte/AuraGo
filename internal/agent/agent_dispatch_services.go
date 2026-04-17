@@ -762,6 +762,55 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 		case "manage_sql_connections":
 			return handleManageSQLConnectionsTool(ctx, tc, dc)
 
+		case "ldap":
+			if !cfg.LDAP.Enabled {
+				return `Tool Output: {"status": "error", "message": "LDAP integration is not enabled in config.yaml."}`
+			}
+			req := decodeLDAPArgs(tc)
+			logger.Info("LLM requested LDAP operation", "op", req.Operation)
+			if cfg.LDAP.ReadOnly {
+				switch req.Operation {
+				case "add_user", "update_user", "delete_user", "add_group", "update_group", "delete_group":
+					return `Tool Output: {"status":"error","message":"LDAP is in read-only mode."}`
+				}
+			}
+			args := make(map[string]interface{})
+			if req.BaseDN != "" {
+				args["base_dn"] = req.BaseDN
+			}
+			if req.Filter != "" {
+				args["filter"] = req.Filter
+			}
+			if req.Username != "" {
+				args["username"] = req.Username
+			}
+			if req.GroupName != "" {
+				args["group_name"] = req.GroupName
+			}
+			if req.UserDN != "" {
+				args["user_dn"] = req.UserDN
+			}
+			if req.DN != "" {
+				args["dn"] = req.DN
+			}
+			if req.Password != "" {
+				args["password"] = req.Password
+			}
+			if len(req.Attributes) > 0 {
+				attrs := make([]interface{}, len(req.Attributes))
+				for i, a := range req.Attributes {
+					attrs[i] = a
+				}
+				args["attributes"] = attrs
+			}
+			if len(req.EntryAttributes) > 0 {
+				args["entry_attributes"] = req.EntryAttributes
+			}
+			if len(req.Changes) > 0 {
+				args["changes"] = req.Changes
+			}
+			return "Tool Output: " + tools.LDAP(cfg, vault, req.Operation, args, logger)
+
 		default:
 			handled = false
 			return ""

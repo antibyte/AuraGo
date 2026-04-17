@@ -67,6 +67,7 @@ var blockedSecretExact = map[string]struct{}{
 	"github_token":                {},
 	"rocketchat_auth_token":       {},
 	"mqtt_password":               {},
+	"ldap_bind_password":          {},
 	"adguard_password":            {},
 	"netlify_token":               {},
 	"pushover_user_key":           {},
