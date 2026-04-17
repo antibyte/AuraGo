@@ -193,6 +193,7 @@ type ContextFlags struct {
 	AdditionalPrompt         string // Extra instructions always appended at end of system prompt
 	SessionTodoItems         string // Session-scoped task list piggybacked on tool calls
 	HighPriorityNotes        string // Open high-priority notes injected as reminders
+	PlannerContext           string // Trigger-based planner context with open todos and upcoming appointments
 	DailyTodoReminder        string // First-contact-of-day reminder for open planner todos
 	KnowledgeContext         string // Relevant KG entities injected from SearchForContext
 	ErrorPatternContext      string // Known error patterns with resolutions for agent learning
@@ -453,6 +454,12 @@ func buildSystemPromptInner(promptsDir string, flags ContextFlags, coreMemory st
 	if flags.HighPriorityNotes != "" {
 		finalPrompt.WriteString("### ACTIVE REMINDERS (high-priority notes) ###\n")
 		finalPrompt.WriteString(security.IsolateExternalData(flags.HighPriorityNotes))
+		finalPrompt.WriteString("\n\n")
+	}
+
+	if flags.PlannerContext != "" {
+		finalPrompt.WriteString("### PLANNER CONTEXT ###\n")
+		finalPrompt.WriteString(security.IsolateExternalData(flags.PlannerContext))
 		finalPrompt.WriteString("\n\n")
 	}
 
@@ -756,22 +763,49 @@ func budgetShed(prompt string, flags ContextFlags, personalityContent, coreMemor
 
 	if flags.UnifiedMemoryBlock {
 		shedTargets = append(shedTargets,
-			struct{ header string; isLine bool }{"## USER PROFILING", false},
-			struct{ header string; isLine bool }{"# UNIFIED MEMORY CONTEXT", false},
+			struct {
+				header string
+				isLine bool
+			}{"## USER PROFILING", false},
+			struct {
+				header string
+				isLine bool
+			}{"# UNIFIED MEMORY CONTEXT", false},
 		)
 	} else {
 		shedTargets = append(shedTargets,
-			struct{ header string; isLine bool }{"# PREDICTED CONTEXT", false},
-			struct{ header string; isLine bool }{"# LAST 7 DAYS OVERVIEW", false},
-			struct{ header string; isLine bool }{"## USER PROFILING", false},
+			struct {
+				header string
+				isLine bool
+			}{"# PREDICTED CONTEXT", false},
+			struct {
+				header string
+				isLine bool
+			}{"# LAST 7 DAYS OVERVIEW", false},
+			struct {
+				header string
+				isLine bool
+			}{"## USER PROFILING", false},
 		)
 	}
 
 	shedTargets = append(shedTargets,
-		struct{ header string; isLine bool }{"### INNER VOICE", false},
-		struct{ header string; isLine bool }{"[Self:", true},
-		struct{ header string; isLine bool }{"[SYSTEM DIRECTIVE - CURRENT STATE]", false},
-		struct{ header string; isLine bool }{"# YOUR PERSONALITY", false},
+		struct {
+			header string
+			isLine bool
+		}{"### INNER VOICE", false},
+		struct {
+			header string
+			isLine bool
+		}{"[Self:", true},
+		struct {
+			header string
+			isLine bool
+		}{"[SYSTEM DIRECTIVE - CURRENT STATE]", false},
+		struct {
+			header string
+			isLine bool
+		}{"# YOUR PERSONALITY", false},
 	)
 
 	for _, target := range shedTargets {

@@ -69,7 +69,39 @@ type TodoItem struct {
 	UpdatedAt   string `json:"updated_at,omitempty"`
 }
 
+// PromptSnapshotOptions controls how much planner data is included in prompt injections.
+type PromptSnapshotOptions struct {
+	TodoLimit         int
+	AppointmentLimit  int
+	AppointmentWindow time.Duration
+}
+
+// PromptSnapshot is a compact planner summary intended for prompt injection.
+type PromptSnapshot struct {
+	GeneratedAt       time.Time     `json:"generated_at"`
+	OpenTodoCount     int           `json:"open_todo_count"`
+	OverdueTodoCount  int           `json:"overdue_todo_count"`
+	Todos             []Todo        `json:"todos"`
+	Appointments      []Appointment `json:"appointments"`
+	AppointmentWindow time.Duration `json:"appointment_window"`
+}
+
+// DailyReminderSnapshot is the planner summary used for the once-per-day proactive reminder.
+type DailyReminderSnapshot struct {
+	GeneratedAt      time.Time    `json:"generated_at"`
+	OpenTodoCount    int          `json:"open_todo_count"`
+	OverdueTodoCount int          `json:"overdue_todo_count"`
+	Todos            []Todo       `json:"todos"`
+	NextAppointment  *Appointment `json:"next_appointment,omitempty"`
+}
+
 const dailyTodoReminderMetaKey = "daily_todo_reminder_last_seen"
+
+const (
+	defaultPromptTodoLimit        = 10
+	defaultPromptAppointmentLimit = 5
+	defaultReminderTodoLimit      = 4
+)
 
 // InitDB initializes the planner SQLite database with appointments and todos tables.
 func InitDB(dbPath string) (*sql.DB, error) {
@@ -122,6 +154,220 @@ func normalizeDateInput(s string) string {
 		return s + "T00:00:00Z"
 	}
 	return s // return unchanged; validation will catch the error
+}
+
+func priorityRank(priority string) int {
+	switch strings.ToLower(strings.TrimSpace(priority)) {
+	case "high":
+		return 0
+	case "medium":
+		return 1
+	case "low":
+		return 2
+	default:
+		return 3
+	}
+}
+
+func parsePlannerTime(value string) (time.Time, bool) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return time.Time{}, false
+	}
+	if ts, err := time.Parse(time.RFC3339, value); err == nil {
+		return ts, true
+	}
+	if ts, err := time.Parse("2006-01-02", value); err == nil {
+		return ts, true
+	}
+	return time.Time{}, false
+}
+
+func isTodoOpenStatus(status string) bool {
+	return status == "open" || status == "in_progress"
+}
+
+func isTodoOverdue(todo Todo, now time.Time) bool {
+	if !isTodoOpenStatus(todo.Status) {
+		return false
+	}
+	due, ok := parsePlannerTime(todo.DueDate)
+	if !ok {
+		return false
+	}
+	return due.Before(now)
+}
+
+func sortTodosForSnapshot(todos []Todo, now time.Time) {
+	sort.SliceStable(todos, func(i, j int) bool {
+		leftOverdue := isTodoOverdue(todos[i], now)
+		rightOverdue := isTodoOverdue(todos[j], now)
+		if leftOverdue != rightOverdue {
+			return leftOverdue
+		}
+
+		leftPriority := priorityRank(todos[i].Priority)
+		rightPriority := priorityRank(todos[j].Priority)
+		if leftPriority != rightPriority {
+			return leftPriority < rightPriority
+		}
+
+		leftDue, leftHasDue := parsePlannerTime(todos[i].DueDate)
+		rightDue, rightHasDue := parsePlannerTime(todos[j].DueDate)
+		if leftHasDue != rightHasDue {
+			return leftHasDue
+		}
+		if leftHasDue && !leftDue.Equal(rightDue) {
+			return leftDue.Before(rightDue)
+		}
+
+		leftCreated, leftHasCreated := parsePlannerTime(todos[i].CreatedAt)
+		rightCreated, rightHasCreated := parsePlannerTime(todos[j].CreatedAt)
+		if leftHasCreated && rightHasCreated && !leftCreated.Equal(rightCreated) {
+			return leftCreated.Before(rightCreated)
+		}
+
+		return todos[i].Title < todos[j].Title
+	})
+}
+
+func normalizePromptSnapshotOptions(opts PromptSnapshotOptions) PromptSnapshotOptions {
+	if opts.TodoLimit <= 0 {
+		opts.TodoLimit = defaultPromptTodoLimit
+	}
+	if opts.AppointmentLimit <= 0 {
+		opts.AppointmentLimit = defaultPromptAppointmentLimit
+	}
+	if opts.AppointmentWindow <= 0 {
+		opts.AppointmentWindow = 48 * time.Hour
+	}
+	return opts
+}
+
+func collectOpenTodos(list []Todo, now time.Time, limit int) ([]Todo, int, int) {
+	filtered := make([]Todo, 0, len(list))
+	overdueCount := 0
+	for _, todo := range list {
+		if !isTodoOpenStatus(todo.Status) {
+			continue
+		}
+		if isTodoOverdue(todo, now) {
+			overdueCount++
+		}
+		filtered = append(filtered, todo)
+	}
+	sortTodosForSnapshot(filtered, now)
+	openCount := len(filtered)
+	if limit > 0 && len(filtered) > limit {
+		filtered = filtered[:limit]
+	}
+	return filtered, openCount, overdueCount
+}
+
+func collectUpcomingAppointments(list []Appointment, start, end time.Time, limit int) []Appointment {
+	filtered := make([]Appointment, 0, len(list))
+	for _, appointment := range list {
+		if appointment.Status != "upcoming" {
+			continue
+		}
+		when, ok := parsePlannerTime(appointment.DateTime)
+		if !ok {
+			continue
+		}
+		if when.Before(start) {
+			continue
+		}
+		if !end.IsZero() && when.After(end) {
+			continue
+		}
+		filtered = append(filtered, appointment)
+	}
+	sort.SliceStable(filtered, func(i, j int) bool {
+		left, _ := parsePlannerTime(filtered[i].DateTime)
+		right, _ := parsePlannerTime(filtered[j].DateTime)
+		if !left.Equal(right) {
+			return left.Before(right)
+		}
+		return filtered[i].Title < filtered[j].Title
+	})
+	if limit > 0 && len(filtered) > limit {
+		filtered = filtered[:limit]
+	}
+	return filtered
+}
+
+// BuildPromptSnapshot returns a compact planner snapshot for prompt injection.
+func BuildPromptSnapshot(db *sql.DB, now time.Time, opts PromptSnapshotOptions) (PromptSnapshot, error) {
+	snapshot := PromptSnapshot{GeneratedAt: now.UTC()}
+	if db == nil {
+		return snapshot, nil
+	}
+	opts = normalizePromptSnapshotOptions(opts)
+
+	todos, err := ListTodos(db, "", "")
+	if err != nil {
+		return snapshot, err
+	}
+	snapshot.Todos, snapshot.OpenTodoCount, snapshot.OverdueTodoCount = collectOpenTodos(todos, now, opts.TodoLimit)
+
+	appointments, err := ListAppointments(db, "", "upcoming")
+	if err != nil {
+		return snapshot, err
+	}
+	snapshot.AppointmentWindow = opts.AppointmentWindow
+	snapshot.Appointments = collectUpcomingAppointments(appointments, now, now.Add(opts.AppointmentWindow), opts.AppointmentLimit)
+	return snapshot, nil
+}
+
+// BuildPromptContextText formats a planner snapshot for system-prompt injection.
+func BuildPromptContextText(snapshot PromptSnapshot) string {
+	if snapshot.OpenTodoCount == 0 && len(snapshot.Appointments) == 0 {
+		return ""
+	}
+
+	var builder strings.Builder
+	if snapshot.OpenTodoCount > 0 {
+		builder.WriteString(fmt.Sprintf("Open todos: %d", snapshot.OpenTodoCount))
+		if snapshot.OverdueTodoCount > 0 {
+			builder.WriteString(fmt.Sprintf(" (%d overdue)", snapshot.OverdueTodoCount))
+		}
+		builder.WriteString("\n")
+		for _, todo := range snapshot.Todos {
+			builder.WriteString("- [")
+			builder.WriteString(strings.ToUpper(strings.TrimSpace(todo.Priority)))
+			builder.WriteString("] ")
+			builder.WriteString(strings.TrimSpace(todo.Title))
+			if todo.Status == "in_progress" {
+				builder.WriteString(" (in progress)")
+			}
+			if todo.DueDate != "" {
+				builder.WriteString(" (due: ")
+				builder.WriteString(todo.DueDate)
+				builder.WriteString(")")
+			}
+			builder.WriteString("\n")
+		}
+	}
+
+	if len(snapshot.Appointments) > 0 {
+		if builder.Len() > 0 {
+			builder.WriteString("\n")
+		}
+		hours := int(snapshot.AppointmentWindow.Hours())
+		if hours <= 0 {
+			hours = 48
+		}
+		builder.WriteString(fmt.Sprintf("Upcoming appointments (next %dh):\n", hours))
+		for _, appointment := range snapshot.Appointments {
+			builder.WriteString("- ")
+			builder.WriteString(strings.TrimSpace(appointment.DateTime))
+			builder.WriteString(": ")
+			builder.WriteString(strings.TrimSpace(appointment.Title))
+			builder.WriteString("\n")
+		}
+	}
+
+	return strings.TrimSpace(builder.String())
 }
 
 // CreateAppointment adds a new appointment and returns its ID.
@@ -658,124 +904,170 @@ func CompleteTodo(db *sql.DB, todoID string, completeItems bool) error {
 	return UpdateTodo(db, *todo)
 }
 
-// ClaimDailyTodoReminderTodos returns the current open todos with daily reminders
-// exactly once per calendar day and marks that day's reminder as already delivered.
-func ClaimDailyTodoReminderTodos(db *sql.DB, now time.Time) ([]Todo, error) {
+// ClaimDailyReminderSnapshot returns the planner summary for the once-per-day proactive reminder.
+func ClaimDailyReminderSnapshot(db *sql.DB, now time.Time) (DailyReminderSnapshot, error) {
+	snapshot := DailyReminderSnapshot{GeneratedAt: now.UTC()}
 	if db == nil {
-		return nil, nil
+		return snapshot, nil
 	}
 	tx, err := db.Begin()
 	if err != nil {
-		return nil, fmt.Errorf("begin daily todo reminder claim: %w", err)
+		return snapshot, fmt.Errorf("begin daily planner reminder claim: %w", err)
 	}
 	defer tx.Rollback()
 
 	dayKey := reminderDayKey(now)
 	lastSeen, err := getPlannerMetaTx(tx, dailyTodoReminderMetaKey)
 	if err != nil {
-		return nil, err
+		return snapshot, err
 	}
 	if reminderMatchesDay(lastSeen, dayKey) {
 		if err := tx.Commit(); err != nil {
-			return nil, fmt.Errorf("commit daily todo reminder no-op: %w", err)
+			return snapshot, fmt.Errorf("commit daily planner reminder no-op: %w", err)
 		}
-		return []Todo{}, nil
+		return snapshot, nil
 	}
 
 	rows, err := tx.Query(`
 		SELECT id, title, description, priority, status, due_date, remind_daily, completed_at, last_daily_reminder_at, kg_node_id, created_at, updated_at
 		FROM todos
-		WHERE remind_daily = 1 AND status IN ('open', 'in_progress')
+		WHERE status IN ('open', 'in_progress')
 		ORDER BY CASE priority WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 4 END, due_date ASC, created_at ASC`)
 	if err != nil {
-		return nil, fmt.Errorf("list daily reminder todos: %w", err)
+		return snapshot, fmt.Errorf("list daily reminder todos: %w", err)
 	}
-	todos := []Todo{}
+	allTodos := []Todo{}
 	for rows.Next() {
 		var todo Todo
 		var remindDaily int
 		if err := rows.Scan(&todo.ID, &todo.Title, &todo.Description, &todo.Priority, &todo.Status, &todo.DueDate, &remindDaily, &todo.CompletedAt, &todo.LastDailyReminderAt, &todo.KGNodeID, &todo.CreatedAt, &todo.UpdatedAt); err != nil {
 			rows.Close()
-			return nil, fmt.Errorf("scan daily reminder todo: %w", err)
+			return snapshot, fmt.Errorf("scan daily reminder todo: %w", err)
 		}
 		todo.RemindDaily = remindDaily != 0
-		todos = append(todos, todo)
+		allTodos = append(allTodos, todo)
 	}
 	if err := rows.Err(); err != nil {
 		rows.Close()
-		return nil, fmt.Errorf("iterate daily reminder todos: %w", err)
+		return snapshot, fmt.Errorf("iterate daily reminder todos: %w", err)
 	}
 	if err := rows.Close(); err != nil {
-		return nil, fmt.Errorf("close daily reminder rows: %w", err)
+		return snapshot, fmt.Errorf("close daily reminder rows: %w", err)
 	}
 
-	filtered := make([]Todo, 0, len(todos))
-	for _, todo := range todos {
-		items, err := listTodoItemsTx(tx, todo.ID)
+	for index := range allTodos {
+		items, err := listTodoItemsTx(tx, allTodos[index].ID)
 		if err != nil {
-			return nil, err
+			return snapshot, err
 		}
-		todo.Items = items
-		ComputeTodoProgress(&todo)
-		if todo.Status == "done" {
-			continue
-		}
-		filtered = append(filtered, todo)
+		allTodos[index].Items = items
+		ComputeTodoProgress(&allTodos[index])
 	}
-	todos = filtered
+	snapshot.Todos, snapshot.OpenTodoCount, snapshot.OverdueTodoCount = collectOpenTodos(allTodos, now, defaultReminderTodoLimit)
+
+	appointmentRows, err := tx.Query(`
+		SELECT id, title, description, date_time, notification_at, wake_agent, agent_instruction, notified, status, kg_node_id, created_at, updated_at
+		FROM appointments
+		WHERE status = 'upcoming'
+		ORDER BY date_time ASC`)
+	if err != nil {
+		return snapshot, fmt.Errorf("list daily reminder appointments: %w", err)
+	}
+	appointments := make([]Appointment, 0, 8)
+	for appointmentRows.Next() {
+		var appointment Appointment
+		var wakeAgent, notified int
+		if err := appointmentRows.Scan(&appointment.ID, &appointment.Title, &appointment.Description, &appointment.DateTime, &appointment.NotificationAt,
+			&wakeAgent, &appointment.AgentInstruction, &notified, &appointment.Status, &appointment.KGNodeID, &appointment.CreatedAt, &appointment.UpdatedAt); err != nil {
+			appointmentRows.Close()
+			return snapshot, fmt.Errorf("scan daily reminder appointment: %w", err)
+		}
+		appointment.WakeAgent = wakeAgent != 0
+		appointment.Notified = notified != 0
+		appointments = append(appointments, appointment)
+	}
+	if err := appointmentRows.Err(); err != nil {
+		appointmentRows.Close()
+		return snapshot, fmt.Errorf("iterate daily reminder appointments: %w", err)
+	}
+	if err := appointmentRows.Close(); err != nil {
+		return snapshot, fmt.Errorf("close daily reminder appointment rows: %w", err)
+	}
+	upcomingAppointments := collectUpcomingAppointments(appointments, now, now.Add(24*time.Hour), 1)
+	if len(upcomingAppointments) > 0 {
+		nextAppointment := upcomingAppointments[0]
+		snapshot.NextAppointment = &nextAppointment
+	}
 
 	if err := upsertPlannerMetaTx(tx, dailyTodoReminderMetaKey, dayKey); err != nil {
-		return nil, err
+		return snapshot, err
 	}
 
-	if len(todos) > 0 {
+	if len(allTodos) > 0 {
 		remindedAt := now.UTC().Format(time.RFC3339)
-		for _, todo := range todos {
+		for _, todo := range allTodos {
 			if _, err := tx.Exec(`UPDATE todos SET last_daily_reminder_at=? WHERE id=?`, remindedAt, todo.ID); err != nil {
-				return nil, fmt.Errorf("mark todo reminder timestamp: %w", err)
+				return snapshot, fmt.Errorf("mark todo reminder timestamp: %w", err)
 			}
 		}
 	}
 
 	if err := tx.Commit(); err != nil {
-		return nil, fmt.Errorf("commit daily todo reminder claim: %w", err)
+		return snapshot, fmt.Errorf("commit daily planner reminder claim: %w", err)
 	}
-	return todos, nil
+	return snapshot, nil
 }
 
-// BuildDailyTodoReminderText formats open reminder todos for prompt injection.
-func BuildDailyTodoReminderText(todos []Todo) string {
-	if len(todos) == 0 {
+// ClaimDailyTodoReminderTodos keeps the legacy todo-only reminder API for compatibility.
+func ClaimDailyTodoReminderTodos(db *sql.DB, now time.Time) ([]Todo, error) {
+	snapshot, err := ClaimDailyReminderSnapshot(db, now)
+	if err != nil {
+		return nil, err
+	}
+	return snapshot.Todos, nil
+}
+
+// BuildDailyPlannerReminderText formats the once-per-day planner reminder for prompt injection.
+func BuildDailyPlannerReminderText(snapshot DailyReminderSnapshot) string {
+	if snapshot.OpenTodoCount == 0 && snapshot.NextAppointment == nil {
 		return ""
 	}
 	var builder strings.Builder
-	for _, todo := range todos {
-		builder.WriteString("- ")
-		builder.WriteString(strings.TrimSpace(todo.Title))
-		if todo.DueDate != "" {
-			builder.WriteString(" (due: ")
-			builder.WriteString(todo.DueDate)
-			builder.WriteString(")")
-		}
-		if todo.ItemCount > 0 {
-			builder.WriteString(fmt.Sprintf(" — %d/%d checklist items done", todo.DoneItemCount, todo.ItemCount))
-			openItems := make([]string, 0, 3)
-			for _, item := range todo.Items {
-				if !item.IsDone {
-					openItems = append(openItems, strings.TrimSpace(item.Title))
-					if len(openItems) == 3 {
-						break
-					}
-				}
+	builder.WriteString(fmt.Sprintf("You currently have %d open todos", snapshot.OpenTodoCount))
+	if snapshot.OverdueTodoCount > 0 {
+		builder.WriteString(fmt.Sprintf(", %d of them overdue", snapshot.OverdueTodoCount))
+	}
+	builder.WriteString(".\n")
+
+	if len(snapshot.Todos) > 0 {
+		builder.WriteString("Top open todos:\n")
+		for _, todo := range snapshot.Todos {
+			builder.WriteString("- ")
+			builder.WriteString(strings.TrimSpace(todo.Title))
+			if todo.DueDate != "" {
+				builder.WriteString(" (due: ")
+				builder.WriteString(todo.DueDate)
+				builder.WriteString(")")
 			}
-			if len(openItems) > 0 {
-				builder.WriteString("; open: ")
-				builder.WriteString(strings.Join(openItems, ", "))
+			if todo.Status == "in_progress" {
+				builder.WriteString(" (in progress)")
 			}
+			builder.WriteString("\n")
 		}
+	}
+
+	if snapshot.NextAppointment != nil {
+		if builder.Len() > 0 {
+			builder.WriteString("\n")
+		}
+		builder.WriteString("Next appointment within 24h:\n- ")
+		builder.WriteString(strings.TrimSpace(snapshot.NextAppointment.DateTime))
+		builder.WriteString(": ")
+		builder.WriteString(strings.TrimSpace(snapshot.NextAppointment.Title))
 		builder.WriteString("\n")
 	}
-	return builder.String()
+
+	return strings.TrimSpace(builder.String())
 }
 
 // ── Helpers ──

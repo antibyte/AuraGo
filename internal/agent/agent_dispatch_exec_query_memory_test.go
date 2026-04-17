@@ -11,6 +11,7 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/memory"
+	"aurago/internal/planner"
 )
 
 type fakeVectorDB struct {
@@ -53,8 +54,10 @@ func (f *fakeVectorDB) StoreDocumentInCollection(concept, content, collection st
 func (f *fakeVectorDB) StoreDocumentWithEmbeddingInCollection(concept, content string, embedding []float32, collection string) (string, error) {
 	return "", nil
 }
-func (f *fakeVectorDB) StoreCheatsheet(id, name, content string, attachments ...string) error { return nil }
-func (f *fakeVectorDB) DeleteCheatsheet(id string) error               { return nil }
+func (f *fakeVectorDB) StoreCheatsheet(id, name, content string, attachments ...string) error {
+	return nil
+}
+func (f *fakeVectorDB) DeleteCheatsheet(id string) error { return nil }
 
 func TestDispatchExecQueryMemoryUsesMemoriesOnlyForVectorDB(t *testing.T) {
 	cfg := &config.Config{}
@@ -274,6 +277,81 @@ func TestDispatchExecContextMemorySupportsVectorAliasSources(t *testing.T) {
 	}
 	if !strings.Contains(out, "Vincenzo memory hit") {
 		t.Fatalf("output = %q, want vector memory hit", out)
+	}
+}
+
+func TestDispatchExecQueryMemoryIncludesPlannerSource(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Tools.Memory.Enabled = true
+	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
+	plannerDB := newPlannerTestDB(t)
+	defer plannerDB.Close()
+
+	if _, err := planner.CreateTodo(plannerDB, planner.Todo{
+		Title:       "Server backup audit",
+		Description: "Review the backup schedule",
+		Priority:    "high",
+		Status:      "open",
+		DueDate:     "2026-04-18T00:00:00Z",
+	}); err != nil {
+		t.Fatalf("CreateTodo: %v", err)
+	}
+
+	out, ok := dispatchExec(
+		context.Background(),
+		ToolCall{Action: "query_memory", Query: "what is open", Sources: []string{"planner"}},
+		&DispatchContext{Cfg: cfg, Logger: logger, PlannerDB: plannerDB},
+	)
+	if !ok {
+		t.Fatal("expected dispatchExec to handle query_memory")
+	}
+	if !strings.Contains(out, `"source":"planner"`) {
+		t.Fatalf("output = %q, want planner source", out)
+	}
+	if !strings.Contains(out, "Server backup audit") {
+		t.Fatalf("output = %q, want planner todo hit", out)
+	}
+}
+
+func TestDispatchExecContextMemoryIncludesPlannerSummary(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Tools.Memory.Enabled = true
+	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
+	plannerDB := newPlannerTestDB(t)
+	defer plannerDB.Close()
+
+	if _, err := planner.CreateTodo(plannerDB, planner.Todo{
+		Title:    "Prepare release notes",
+		Priority: "high",
+		Status:   "open",
+		DueDate:  "2026-04-17T09:00:00Z",
+	}); err != nil {
+		t.Fatalf("CreateTodo: %v", err)
+	}
+	if _, err := planner.CreateAppointment(plannerDB, planner.Appointment{
+		Title:    "Release sync",
+		DateTime: "2026-04-17T10:00:00Z",
+		Status:   "upcoming",
+	}); err != nil {
+		t.Fatalf("CreateAppointment: %v", err)
+	}
+
+	out, ok := dispatchExec(
+		context.Background(),
+		ToolCall{Action: "context_memory", Query: "what is on today", Sources: []string{"planner"}, TimeRange: "today"},
+		&DispatchContext{Cfg: cfg, Logger: logger, PlannerDB: plannerDB},
+	)
+	if !ok {
+		t.Fatal("expected dispatchExec to handle context_memory")
+	}
+	if !strings.Contains(out, `"source":"planner"`) {
+		t.Fatalf("output = %q, want planner source", out)
+	}
+	if !strings.Contains(out, `"type":"planner_summary"`) {
+		t.Fatalf("output = %q, want planner summary result", out)
+	}
+	if !strings.Contains(out, "Release sync") {
+		t.Fatalf("output = %q, want appointment hit", out)
 	}
 }
 

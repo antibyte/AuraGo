@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"sort"
@@ -8,6 +9,7 @@ import (
 	"time"
 
 	"aurago/internal/memory"
+	"aurago/internal/planner"
 )
 
 type memorySourceResult struct {
@@ -34,6 +36,14 @@ type contextMemoryResult struct {
 	Reasoning string  `json:"reasoning,omitempty"`
 	Date      string  `json:"date,omitempty"`
 	DocID     string  `json:"doc_id,omitempty"`
+}
+
+type plannerMemoryPayload struct {
+	Summary          string                `json:"summary,omitempty"`
+	OpenTodoCount    int                   `json:"open_todo_count,omitempty"`
+	OverdueTodoCount int                   `json:"overdue_todo_count,omitempty"`
+	Todos            []planner.Todo        `json:"todos,omitempty"`
+	Appointments     []planner.Appointment `json:"appointments,omitempty"`
 }
 
 func isActivityFocusedQuery(query string) bool {
@@ -95,6 +105,32 @@ func appendActivityRollupResults(stm *memory.SQLiteMemory, days int, combined *[
 	}
 }
 
+func appendPlannerResults(plannerDB *sql.DB, query, timeRange string, limit int, combined *[]memorySourceResult, errors *[]string) {
+	if plannerDB == nil {
+		return
+	}
+	result, err := searchPlannerMemory(plannerDB, query, timeRange, time.Now(), limit, limit)
+	if err != nil {
+		*errors = append(*errors, fmt.Sprintf("planner: %v", err))
+		return
+	}
+	if result.Summary == "" && len(result.Todos) == 0 && len(result.Appointments) == 0 {
+		return
+	}
+	payload := plannerMemoryPayload{
+		Summary:          result.Summary,
+		OpenTodoCount:    result.OpenTodoCount,
+		OverdueTodoCount: result.OverdueTodoCount,
+		Todos:            result.Todos,
+		Appointments:     result.Appointments,
+	}
+	count := len(result.Todos) + len(result.Appointments)
+	if result.Summary != "" {
+		count++
+	}
+	*combined = append(*combined, memorySourceResult{Source: "planner", Count: count, Data: payload})
+}
+
 func normalizeMemorySourceMap(sources []string, defaults map[string]bool) map[string]bool {
 	if len(sources) == 0 {
 		copied := make(map[string]bool, len(defaults))
@@ -115,6 +151,9 @@ func normalizeMemorySourceMap(sources []string, defaults map[string]bool) map[st
 		"knowledge_graph": "kg",
 		"ltm":             "ltm",
 		"vector_db":       "ltm",
+		"planner":         "planner",
+		"todos":           "planner",
+		"appointments":    "planner",
 		"error_patterns":  "error_patterns",
 	}
 
@@ -133,7 +172,7 @@ func normalizeMemorySourceMap(sources []string, defaults map[string]bool) map[st
 	return normalized
 }
 
-func gatherMemorySourceResults(searchContent string, tc ToolCall, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, kg *memory.KnowledgeGraph, perSourceLimit int, defaults map[string]bool, sourceLabels map[string]string, includeActivityRollups bool) memorySearchBundle {
+func gatherMemorySourceResults(searchContent string, tc ToolCall, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, kg *memory.KnowledgeGraph, plannerDB *sql.DB, perSourceLimit int, defaults map[string]bool, sourceLabels map[string]string, includeActivityRollups bool) memorySearchBundle {
 	bundle := memorySearchBundle{
 		Results:   make([]memorySourceResult, 0, 8),
 		Errors:    make([]string, 0, 4),
@@ -213,6 +252,16 @@ func gatherMemorySourceResults(searchContent string, tc ToolCall, shortTermMem *
 		}
 	}
 
+	if bundle.SourceMap["planner"] && plannerDB != nil {
+		appendPlannerResults(plannerDB, searchContent, tc.TimeRange, perSourceLimit, &bundle.Results, &bundle.Errors)
+		if len(bundle.Results) > 0 {
+			lastIdx := len(bundle.Results) - 1
+			if bundle.Results[lastIdx].Source == "planner" {
+				bundle.Results[lastIdx].Source = labelFor("planner")
+			}
+		}
+	}
+
 	if bundle.SourceMap["core"] && shortTermMem != nil && hasSemanticQuery {
 		facts, err := shortTermMem.GetCoreMemoryFacts()
 		if err != nil {
@@ -258,7 +307,7 @@ func gatherMemorySourceResults(searchContent string, tc ToolCall, shortTermMem *
 	return bundle
 }
 
-func executeQueryMemory(tc ToolCall, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, kg *memory.KnowledgeGraph) (string, error) {
+func executeQueryMemory(tc ToolCall, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, kg *memory.KnowledgeGraph, plannerDB *sql.DB) (string, error) {
 	searchContent := tc.Content
 	if searchContent == "" {
 		searchContent = tc.Query
@@ -273,9 +322,10 @@ func executeQueryMemory(tc ToolCall, shortTermMem *memory.SQLiteMemory, longTerm
 		shortTermMem,
 		longTermMem,
 		kg,
+		plannerDB,
 		tc.Limit,
-		map[string]bool{"activity": true, "ltm": true, "kg": true, "journal": true, "episodic": true, "notes": true, "core": true, "error_patterns": true},
-		map[string]string{"activity": "activity", "ltm": "vector_db", "kg": "knowledge_graph", "journal": "journal", "episodic": "episodic", "notes": "notes", "core": "core_memory", "error_patterns": "error_patterns"},
+		map[string]bool{"activity": true, "ltm": true, "kg": true, "journal": true, "episodic": true, "notes": true, "planner": true, "core": true, "error_patterns": true},
+		map[string]string{"activity": "activity", "ltm": "vector_db", "kg": "knowledge_graph", "journal": "journal", "episodic": "episodic", "notes": "notes", "planner": "planner", "core": "core_memory", "error_patterns": "error_patterns"},
 		true,
 	)
 
@@ -303,8 +353,8 @@ func executeQueryMemory(tc ToolCall, shortTermMem *memory.SQLiteMemory, longTerm
 	return "Tool Output: " + string(raw), nil
 }
 
-func executeContextMemoryQuery(tc ToolCall, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, kg *memory.KnowledgeGraph) (string, error) {
-	if shortTermMem == nil && longTermMem == nil && kg == nil {
+func executeContextMemoryQuery(tc ToolCall, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, kg *memory.KnowledgeGraph, plannerDB *sql.DB) (string, error) {
+	if shortTermMem == nil && longTermMem == nil && kg == nil && plannerDB == nil {
 		return `Tool Output: {"status":"error","message":"short-term memory unavailable"}`, nil
 	}
 
@@ -337,7 +387,7 @@ func executeContextMemoryQuery(tc ToolCall, shortTermMem *memory.SQLiteMemory, l
 	}
 
 	sourceMap := normalizeMemorySourceMap(tc.Sources, map[string]bool{
-		"activity": true, "journal": true, "notes": true, "core": true, "kg": true, "ltm": true,
+		"activity": true, "journal": true, "notes": true, "planner": true, "core": true, "kg": true, "ltm": true,
 	})
 
 	results := make([]contextMemoryResult, 0, 20)
@@ -377,9 +427,10 @@ func executeContextMemoryQuery(tc ToolCall, shortTermMem *memory.SQLiteMemory, l
 		shortTermMem,
 		longTermMem,
 		kg,
+		plannerDB,
 		perSourceLimit,
-		map[string]bool{"activity": true, "journal": true, "notes": true, "core": true, "kg": true, "ltm": true},
-		map[string]string{"activity": "activity", "journal": "journal", "notes": "notes", "core": "core", "kg": "kg", "ltm": "ltm"},
+		map[string]bool{"activity": true, "journal": true, "notes": true, "planner": true, "core": true, "kg": true, "ltm": true},
+		map[string]string{"activity": "activity", "journal": "journal", "notes": "notes", "planner": "planner", "core": "core", "kg": "kg", "ltm": "ltm"},
 		false,
 	)
 
@@ -408,6 +459,32 @@ func executeContextMemoryQuery(tc ToolCall, shortTermMem *memory.SQLiteMemory, l
 			}
 			for _, note := range notes {
 				addResult("notes", "note", note.Title+" | "+note.Content, note.DueDate, "Open or stored note matched the query", "", 0.88)
+			}
+		case "planner":
+			payload, ok := result.Data.(plannerMemoryPayload)
+			if !ok {
+				continue
+			}
+			if payload.Summary != "" {
+				addResult("planner", "planner_summary", payload.Summary, "", "Structured planner overview for active tasks and appointments", "", 0.93)
+			}
+			for _, todo := range payload.Todos {
+				content := todo.Title
+				if strings.TrimSpace(todo.Description) != "" {
+					content += " | " + todo.Description
+				}
+				if todo.DueDate != "" {
+					content += " | due: " + todo.DueDate
+				}
+				addResult("planner", "todo", content, todo.DueDate, "Open planner todo matched the query or active time window", todo.ID, 0.91)
+			}
+			for _, appointment := range payload.Appointments {
+				content := appointment.Title
+				if strings.TrimSpace(appointment.Description) != "" {
+					content += " | " + appointment.Description
+				}
+				content += " | at: " + appointment.DateTime
+				addResult("planner", "appointment", content, appointment.DateTime, "Relevant planner appointment matched the query or active time window", appointment.ID, 0.9)
 			}
 		case "core":
 			facts, ok := result.Data.([]memory.CoreMemoryFact)

@@ -883,7 +883,6 @@ func TestClaimDailyTodoReminderTodosOnlyOncePerDay(t *testing.T) {
 		Title:       "Morning routine",
 		Priority:    "high",
 		Status:      "open",
-		RemindDaily: true,
 		Description: "Daily check",
 		Items: []TodoItem{
 			{Title: "Check backups"},
@@ -894,27 +893,39 @@ func TestClaimDailyTodoReminderTodosOnlyOncePerDay(t *testing.T) {
 		t.Fatalf("CreateTodo() error = %v", err)
 	}
 	if _, err := CreateTodo(db, Todo{
-		Title:       "Silent task",
-		Priority:    "medium",
-		Status:      "open",
-		RemindDaily: false,
+		Title:    "Silent task",
+		Priority: "medium",
+		Status:   "open",
 	}); err != nil {
 		t.Fatalf("CreateTodo() second todo error = %v", err)
 	}
+	if _, err := CreateAppointment(db, Appointment{
+		Title:    "Morning standup",
+		DateTime: "2026-04-16T10:00:00Z",
+		Status:   "upcoming",
+	}); err != nil {
+		t.Fatalf("CreateAppointment() error = %v", err)
+	}
 
 	now := time.Date(2026, 4, 16, 9, 30, 0, 0, time.UTC)
-	first, err := ClaimDailyTodoReminderTodos(db, now)
+	firstSnapshot, err := ClaimDailyReminderSnapshot(db, now)
 	if err != nil {
-		t.Fatalf("ClaimDailyTodoReminderTodos() first error = %v", err)
+		t.Fatalf("ClaimDailyReminderSnapshot() first error = %v", err)
 	}
-	if len(first) != 1 {
-		t.Fatalf("len(first) = %d, want 1", len(first))
+	if len(firstSnapshot.Todos) != 2 {
+		t.Fatalf("len(firstSnapshot.Todos) = %d, want 2", len(firstSnapshot.Todos))
 	}
-	if first[0].ID != todoID {
-		t.Fatalf("first todo id = %q, want %q", first[0].ID, todoID)
+	if firstSnapshot.Todos[0].ID != todoID {
+		t.Fatalf("first todo id = %q, want %q", firstSnapshot.Todos[0].ID, todoID)
 	}
-	if first[0].ItemCount != 2 || first[0].DoneItemCount != 1 {
-		t.Fatalf("first counts = %d/%d, want 2/1", first[0].ItemCount, first[0].DoneItemCount)
+	if firstSnapshot.Todos[0].ItemCount != 2 || firstSnapshot.Todos[0].DoneItemCount != 1 {
+		t.Fatalf("first counts = %d/%d, want 2/1", firstSnapshot.Todos[0].ItemCount, firstSnapshot.Todos[0].DoneItemCount)
+	}
+	if firstSnapshot.NextAppointment == nil || firstSnapshot.NextAppointment.Title != "Morning standup" {
+		t.Fatalf("next appointment = %#v, want Morning standup", firstSnapshot.NextAppointment)
+	}
+	if firstSnapshot.OpenTodoCount != 2 {
+		t.Fatalf("OpenTodoCount = %d, want 2", firstSnapshot.OpenTodoCount)
 	}
 
 	second, err := ClaimDailyTodoReminderTodos(db, now.Add(2*time.Hour))
@@ -937,11 +948,16 @@ func TestClaimDailyTodoReminderTodosOnlyOncePerDay(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ClaimDailyTodoReminderTodos() third error = %v", err)
 	}
-	if len(third) != 1 {
-		t.Fatalf("len(third) = %d, want 1", len(third))
+	if len(third) != 2 {
+		t.Fatalf("len(third) = %d, want 2", len(third))
 	}
-	if got := BuildDailyTodoReminderText(third); !strings.Contains(got, "Morning routine") || !strings.Contains(got, "Check backups") {
-		t.Fatalf("BuildDailyTodoReminderText() = %q, want todo title and open item", got)
+	thirdSnapshot, err := ClaimDailyReminderSnapshot(db, now.Add(48*time.Hour))
+	if err != nil {
+		t.Fatalf("ClaimDailyReminderSnapshot() fourth error = %v", err)
+	}
+	got := BuildDailyPlannerReminderText(thirdSnapshot)
+	if !strings.Contains(got, "Morning routine") || !strings.Contains(got, "open todos") {
+		t.Fatalf("BuildDailyPlannerReminderText() = %q, want todo title and summary", got)
 	}
 }
 
@@ -950,10 +966,9 @@ func TestClaimDailyTodoReminderTodosWithChecklistItemsDoesNotBlock(t *testing.T)
 	defer db.Close()
 
 	if _, err := CreateTodo(db, Todo{
-		Title:       "Reminder task",
-		Priority:    "medium",
-		Status:      "open",
-		RemindDaily: true,
+		Title:    "Reminder task",
+		Priority: "medium",
+		Status:   "open",
 		Items: []TodoItem{
 			{Title: "One"},
 			{Title: "Two", IsDone: true},
@@ -985,6 +1000,50 @@ func TestClaimDailyTodoReminderTodosWithChecklistItemsDoesNotBlock(t *testing.T)
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("ClaimDailyTodoReminderTodos() blocked while loading checklist items")
+	}
+}
+
+func TestBuildPromptSnapshotSortsOverdueAndLimitsResults(t *testing.T) {
+	db := testDB(t)
+	defer db.Close()
+
+	now := time.Date(2026, 4, 17, 8, 0, 0, 0, time.UTC)
+	entries := []Todo{
+		{Title: "Medium later", Priority: "medium", Status: "open", DueDate: "2026-04-18T12:00:00Z"},
+		{Title: "High overdue", Priority: "high", Status: "open", DueDate: "2026-04-16T12:00:00Z"},
+		{Title: "Low overdue", Priority: "low", Status: "open", DueDate: "2026-04-16T18:00:00Z"},
+		{Title: "No due", Priority: "high", Status: "in_progress"},
+	}
+	for _, todo := range entries {
+		if _, err := CreateTodo(db, todo); err != nil {
+			t.Fatalf("CreateTodo(%q): %v", todo.Title, err)
+		}
+	}
+	if _, err := CreateAppointment(db, Appointment{Title: "Inside window", DateTime: "2026-04-18T07:00:00Z", Status: "upcoming"}); err != nil {
+		t.Fatalf("CreateAppointment inside: %v", err)
+	}
+	if _, err := CreateAppointment(db, Appointment{Title: "Outside window", DateTime: "2026-04-20T09:00:00Z", Status: "upcoming"}); err != nil {
+		t.Fatalf("CreateAppointment outside: %v", err)
+	}
+
+	snapshot, err := BuildPromptSnapshot(db, now, PromptSnapshotOptions{TodoLimit: 3, AppointmentLimit: 5, AppointmentWindow: 48 * time.Hour})
+	if err != nil {
+		t.Fatalf("BuildPromptSnapshot() error = %v", err)
+	}
+	if snapshot.OpenTodoCount != 4 {
+		t.Fatalf("OpenTodoCount = %d, want 4", snapshot.OpenTodoCount)
+	}
+	if snapshot.OverdueTodoCount != 2 {
+		t.Fatalf("OverdueTodoCount = %d, want 2", snapshot.OverdueTodoCount)
+	}
+	if len(snapshot.Todos) != 3 {
+		t.Fatalf("len(snapshot.Todos) = %d, want 3", len(snapshot.Todos))
+	}
+	if snapshot.Todos[0].Title != "High overdue" || snapshot.Todos[1].Title != "Low overdue" {
+		t.Fatalf("todo order = %q, %q, want overdue todos first", snapshot.Todos[0].Title, snapshot.Todos[1].Title)
+	}
+	if len(snapshot.Appointments) != 1 || snapshot.Appointments[0].Title != "Inside window" {
+		t.Fatalf("appointments = %#v, want only inside-window appointment", snapshot.Appointments)
 	}
 }
 

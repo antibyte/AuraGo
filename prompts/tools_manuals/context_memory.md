@@ -1,6 +1,6 @@
 ## Tool: Context Memory (`context_memory`)
 
-Context-aware memory search across all storage layers. Combines Long-Term Memory (VectorDB), Knowledge Graph, Journal, and Notes into a single intelligent query.
+Context-aware memory search across all storage layers. Combines Long-Term Memory (VectorDB), Knowledge Graph, Journal, Notes, and the Planner into a single intelligent query.
 
 Use this when `query_memory` is not enough — specifically when you need **relationships, connections, or time-scoped** results rather than isolated facts.
 
@@ -20,7 +20,7 @@ Use this when `query_memory` is not enough — specifically when you need **rela
 |-----------|------|---------|-------------|
 | `query` | string | required | Natural-language search query |
 | `context_depth` | string | `"normal"` | `shallow` / `normal` / `deep` |
-| `sources` | array | `["activity", "journal", "notes", "core", "kg", "ltm"]` | Which layers to search |
+| `sources` | array | `["activity", "journal", "notes", "planner", "core", "kg", "ltm"]` | Which layers to search |
 | `time_range` | string | `"all"` | `all` / `today` / `last_week` / `last_month` |
 | `include_related` | boolean | `true` | Expand to connected KG neighbours |
 
@@ -39,6 +39,7 @@ Use this when `query_memory` is not enough — specifically when you need **rela
 | `kg` | Knowledge Graph | Relationships, entities, topology |
 | `journal` | Journal entries | Milestones, reflections, events |
 | `notes` | Notes / to-dos | Current tasks, bookmarks |
+| `planner` | Structured planner data | Active todos, due work, appointments, agenda |
 | `core` | Core Memory | Preferences, identity facts |
 
 ### Examples
@@ -78,6 +79,12 @@ Use this when `query_memory` is not enough — specifically when you need **rela
 
 ```json
 {"action": "context_memory", "query": "server IP", "context_depth": "shallow", "sources": ["core", "kg"]}
+```
+
+#### Agenda / planning overview
+
+```json
+{"action": "context_memory", "query": "what is on today", "time_range": "today", "sources": ["planner"]}
 ```
 
 ### Combined Results
@@ -125,14 +132,18 @@ The tool returns a **combined ranked result** across all queried sources:
 
 2. **Restrict sources for focus**
    - Technical questions → `["ltm", "notes"]`
-   - Timeline / organisational → `["activity", "journal", "notes"]`
-   - Full picture → `["activity", "ltm", "kg", "journal", "notes", "core"]`
+   - Timeline / organisational → `["activity", "journal", "notes", "planner"]`
+   - Full picture → `["activity", "ltm", "kg", "journal", "notes", "planner", "core"]`
 
 3. **Use time range for recency**
    - "What did we do yesterday?" → `"last_week"`
-   - Open to-dos right now → `"today"`
+   - Open planner to-dos and today's appointments → `"today"` with `sources: ["planner"]`
    - Historical reference → `"all"`
 
-4. **Related entities for context**
+4. **Planner vs. notes**
+   - `planner` is for the structured task/calendar system
+   - `notes` is for temporary bookmarks, scratch reminders, and non-calendar note-taking
+
+5. **Related entities for context**
    - `include_related: true` finds connected nodes automatically
    - e.g. searching "Docker" also surfaces "AuraGo" if linked in KG

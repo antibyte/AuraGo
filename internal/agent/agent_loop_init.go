@@ -98,6 +98,8 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 			}
 		}
 	}
+	isFirstTurn := isFirstUserMessageInSession(req.Messages)
+	plannerContext := plannerPromptContextText(runCfg, initialUserMsg, time.Now(), isFirstTurn, logger)
 	dailyTodoReminder := dailyTodoReminderText(runCfg, initialUserMsg, time.Now(), logger)
 
 	toolingPolicy := buildToolingPolicy(cfg, initialUserMsg)
@@ -341,6 +343,7 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 	s.telemetryScope = telemetryScope
 	s.initialUserMsg = initialUserMsg
 	s.dailyTodoReminder = dailyTodoReminder
+	s.plannerContext = plannerContext
 	s.baseAdditionalPrompt = baseAdditionalPrompt
 	s.toolCallCount = toolCallCount
 	s.rawCodeCount = rawCodeCount

@@ -127,3 +127,18 @@ some activity`
 		t.Errorf("expected ## USER PROFILING to be removed from result")
 	}
 }
+
+func TestBuildSystemPromptIncludesPlannerContext(t *testing.T) {
+	flags := ContextFlags{
+		SystemLanguage: "en",
+		PlannerContext: "Open todos: 2\n- [HIGH] Patch planner\nUpcoming appointments (next 48h):\n- 2026-04-18T09:00:00Z: Review",
+	}
+
+	prompt := buildSystemPromptInner("", flags, "", slog.Default())
+	if !strings.Contains(prompt, "### PLANNER CONTEXT ###") {
+		t.Fatalf("prompt = %q, want planner context header", prompt)
+	}
+	if !strings.Contains(prompt, "Open todos: 2") {
+		t.Fatalf("prompt = %q, want planner context content", prompt)
+	}
+}

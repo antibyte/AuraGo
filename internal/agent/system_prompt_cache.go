@@ -26,6 +26,7 @@ type systemPromptCacheKey struct {
 	InnerVoice             string   `json:"inner_voice"`
 	PredictedGuidesHash    string   `json:"predicted_guides_hash"`
 	HighPriorityNotes      string   `json:"high_priority_notes"`
+	PlannerContext         string   `json:"planner_context"`
 	DailyTodoReminder      string   `json:"daily_todo_reminder"`
 	SessionTodoItems       string   `json:"session_todo_items"`
 	WebhooksDefinitions    string   `json:"webhooks_definitions"`
@@ -74,6 +75,7 @@ func buildSystemPromptCacheKey(promptsDir string, flags prompts.ContextFlags, co
 		InnerVoice:             flags.InnerVoice,
 		PredictedGuidesHash:    predictedGuidesHash,
 		HighPriorityNotes:      flags.HighPriorityNotes,
+		PlannerContext:         flags.PlannerContext,
 		DailyTodoReminder:      flags.DailyTodoReminder,
 		SessionTodoItems:       flags.SessionTodoItems,
 		WebhooksDefinitions:    flags.WebhooksDefinitions,

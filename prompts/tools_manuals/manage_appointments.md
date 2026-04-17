@@ -4,6 +4,8 @@ Create, read, update, and delete appointments. Appointments are stored in the pl
 
 When an appointment has a notification time and `wake_agent` is enabled, the agent will be woken up at that time to execute the optional `agent_instruction`.
 
+Use appointments for structured calendar entries. For quick notes without a fixed date/time, use `manage_notes` or `manage_todos` instead.
+
 ### Parameters
 
 | Parameter | Type | Required | Description |
@@ -41,6 +43,12 @@ When an appointment has a notification time and `wake_agent` is enabled, the age
 {"action": "manage_appointments", "operation": "list", "status": "upcoming"}
 ```
 
+#### Check today before committing time
+
+```json
+{"action": "manage_appointments", "operation": "list", "status": "upcoming", "query": "meeting"}
+```
+
 #### Search appointments
 
 ```json
@@ -58,3 +66,9 @@ When an appointment has a notification time and `wake_agent` is enabled, the age
 ```json
 {"action": "manage_appointments", "operation": "delete", "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"}
 ```
+
+## Usage Notes
+
+- For questions like "what is on today?" or "what is next?", inspect planner appointments before answering from memory.
+- Before scheduling something new, check whether a related appointment already exists to avoid duplicates.
+- If the user mentions a concrete time or date, prefer `manage_appointments` over a free-form note.

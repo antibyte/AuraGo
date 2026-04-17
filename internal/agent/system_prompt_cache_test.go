@@ -63,6 +63,11 @@ func TestBuildSystemPromptCacheKey_DifferentFlags(t *testing.T) {
 			wantNewKey: true,
 		},
 		{
+			name:       "PlannerContext changes cache key",
+			modify:     func(f *prompts.ContextFlags) { f.PlannerContext = "Open todos: 2" },
+			wantNewKey: true,
+		},
+		{
 			name:       "SessionTodoItems changes cache key",
 			modify:     func(f *prompts.ContextFlags) { f.SessionTodoItems = "task1, task2" },
 			wantNewKey: true,

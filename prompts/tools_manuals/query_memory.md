@@ -11,6 +11,7 @@ Search **ALL** memory subsystems at once with a single natural-language query. T
 | `knowledge_graph` | Entities (people, devices, services) and relationships | "Who owns the NAS?", "What services run on prod?" |
 | `journal` | Events, milestones, learnings (manual + auto-generated) | "What happened last Tuesday?", "When did we set up Docker?" |
 | `notes` | Tasks, to-dos, bookmarks, reminders | "Any open tasks?", "What was that URL?" |
+| `planner` | Structured todos and appointments from the planner system | "What is open?", "What is on today?", "Any deadlines?" |
 | `core_memory` | Permanent user facts (name, preferences, constraints) | "What language does the user prefer?" |
 | `error_patterns` | Tool errors and learned resolutions | "Has this SSH error happened before?" |
 
@@ -19,7 +20,7 @@ Search **ALL** memory subsystems at once with a single natural-language query. T
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `query` | string | yes | Natural-language query describing what you need to recall |
-| `sources` | array | no | Limit to specific sources (default: searches all). Options: `activity`, `vector_db`, `knowledge_graph`, `journal`, `notes`, `core_memory`, `error_patterns` |
+| `sources` | array | no | Limit to specific sources (default: searches all). Options: `activity`, `vector_db`, `knowledge_graph`, `journal`, `notes`, `planner`, `core_memory`, `error_patterns` |
 | `limit` | integer | no | Max results per source (default 5) |
 
 ### Examples
@@ -39,9 +40,15 @@ Search **ALL** memory subsystems at once with a single natural-language query. T
 {"action": "query_memory", "query": "SSH connection refused", "sources": ["error_patterns"]}
 ```
 
+**Planner overview:**
+```json
+{"action": "query_memory", "query": "what is open", "sources": ["planner"]}
+```
+
 ### Tips
 - **Start broad** — don't restrict sources unless you're getting too many irrelevant results
 - Notes and journal entries are included automatically — no need to search them separately
+- Use `planner` for the structured task/calendar system. Use `notes` for short-lived bookmarks and scratch reminders.
 - Error patterns track tool failures and known resolutions; always check here before retrying a failed operation
 - **Memory-first discipline**: Before troubleshooting any problem or debugging any error, run a `query_memory` search first. You may have already solved the exact same issue — reusing a past solution is faster and more reliable than rediscovering it. Search across `error_patterns`, `journal`, and `cheatsheets` for relevant prior resolutions.
 
@@ -66,5 +73,6 @@ The system automatically enriches each turn with memory before you even issue a 
 - **PREDICTED CONTEXT** — memories pre-fetched based on recent tool usage patterns (full tier only)
 - **RELEVANT KNOWLEDGE** — KG entities related to the current message, injected via `SearchForContext`
 - **ACTIVE REMINDERS** — high-priority open notes always shown
+- **PLANNER CONTEXT** — open planner todos and near-term appointments, injected only on planner-relevant turns or at session start
 
 This means: in many cases you already have the relevant context **without calling any tool**. Only call `query_memory` when the injected context is incomplete or you need something specific.

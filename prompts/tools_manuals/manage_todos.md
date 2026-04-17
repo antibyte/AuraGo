@@ -2,6 +2,8 @@
 
 Create, read, update, and delete to-do items. Todos are stored in the planner database and automatically synced to the Knowledge Graph.
 
+Use this for the structured planner system. For temporary scratch reminders, bookmarks, or short-lived notes, use `manage_notes` instead.
+
 ### Parameters
 
 | Parameter | Type | Required | Description |
@@ -45,6 +47,12 @@ Create, read, update, and delete to-do items. Todos are stored in the planner da
 {"action": "manage_todos", "operation": "list", "status": "open"}
 ```
 
+#### Search before taking on more work
+
+```json
+{"action": "manage_todos", "operation": "list", "query": "backup"}
+```
+
 #### Mark a todo as in progress
 
 ```json
@@ -62,3 +70,9 @@ Create, read, update, and delete to-do items. Todos are stored in the planner da
 ```json
 {"action": "manage_todos", "operation": "delete", "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"}
 ```
+
+### Usage Notes
+
+- Before accepting or creating new structured work, check whether a related planner todo already exists.
+- For agenda or deadline questions, combine planner todos with `manage_appointments` or `context_memory` using `sources: ["planner"]`.
+- Prefer setting `priority` and `due_date` when the user gives urgency or timing information.

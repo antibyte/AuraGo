@@ -12,14 +12,14 @@ func dailyTodoReminderText(runCfg RunConfig, initialUserMsg string, now time.Tim
 	if !shouldInjectDailyTodoReminder(runCfg, initialUserMsg) {
 		return ""
 	}
-	todos, err := planner.ClaimDailyTodoReminderTodos(runCfg.PlannerDB, now)
+	snapshot, err := planner.ClaimDailyReminderSnapshot(runCfg.PlannerDB, now)
 	if err != nil {
 		if logger != nil {
 			logger.Warn("Failed to claim daily todo reminder", "error", err)
 		}
 		return ""
 	}
-	return planner.BuildDailyTodoReminderText(todos)
+	return planner.BuildDailyPlannerReminderText(snapshot)
 }
 
 func shouldInjectDailyTodoReminder(runCfg RunConfig, initialUserMsg string) bool {

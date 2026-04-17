@@ -116,6 +116,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 	longTermMem := dc.LongTermMem
 	shortTermMem := dc.ShortTermMem
 	kg := dc.KG
+	plannerDB := dc.PlannerDB
 	inventoryDB := dc.InventoryDB
 	cheatsheetDB := dc.CheatsheetDB
 	imageGalleryDB := dc.ImageGalleryDB
@@ -232,7 +233,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if !cfg.Tools.Memory.Enabled {
 				return `Tool Output: {"status":"error","message":"Memory tools are disabled. Set tools.memory.enabled=true in config.yaml."}`
 			}
-			result, err := executeQueryMemory(tc, shortTermMem, longTermMem, kg)
+			result, err := executeQueryMemory(tc, shortTermMem, longTermMem, kg, plannerDB)
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status":"error","message":"query_memory failed: %v"}`, err)
 			}
@@ -242,7 +243,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if !cfg.Tools.Memory.Enabled {
 				return `Tool Output: {"status":"error","message":"Memory tools are disabled. Set tools.memory.enabled=true in config.yaml."}`
 			}
-			result, err := executeContextMemoryQuery(tc, shortTermMem, longTermMem, kg)
+			result, err := executeContextMemoryQuery(tc, shortTermMem, longTermMem, kg, plannerDB)
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status":"error","message":"context_memory failed: %v"}`, err)
 			}

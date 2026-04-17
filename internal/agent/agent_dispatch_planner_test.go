@@ -56,8 +56,8 @@ func TestDispatchManageTodosSupportsChecklistOperations(t *testing.T) {
 	addItemResp := dispatchManageTodos(ToolCall{
 		Operation: "add_item",
 		Params: map[string]interface{}{
-			"id":          todoID,
-			"item_title":  "Publish binaries",
+			"id":           todoID,
+			"item_title":   "Publish binaries",
 			"item_is_done": false,
 		},
 	}, db, nil, slog.Default())
@@ -70,8 +70,8 @@ func TestDispatchManageTodosSupportsChecklistOperations(t *testing.T) {
 	toggleResp := dispatchManageTodos(ToolCall{
 		Operation: "toggle_item",
 		Params: map[string]interface{}{
-			"id":          todoID,
-			"item_id":     itemID,
+			"id":           todoID,
+			"item_id":      itemID,
 			"item_is_done": true,
 		},
 	}, db, nil, slog.Default())
@@ -112,10 +112,9 @@ func TestDailyTodoReminderTextOnlyOnEligibleFirstContact(t *testing.T) {
 	defer db.Close()
 
 	if _, err := planner.CreateTodo(db, planner.Todo{
-		Title:       "Daily review",
-		Priority:    "medium",
-		Status:      "open",
-		RemindDaily: true,
+		Title:    "Daily review",
+		Priority: "medium",
+		Status:   "open",
 		Items: []planner.TodoItem{
 			{Title: "Inbox zero"},
 		},
@@ -127,8 +126,8 @@ func TestDailyTodoReminderTextOnlyOnEligibleFirstContact(t *testing.T) {
 	runCfg := RunConfig{PlannerDB: db, MessageSource: "web_chat"}
 
 	first := dailyTodoReminderText(runCfg, "Guten Morgen", now, slog.Default())
-	if !strings.Contains(first, "Daily review") {
-		t.Fatalf("first reminder = %q, want todo title", first)
+	if !strings.Contains(first, "You currently have 1 open todos") || !strings.Contains(first, "Daily review") {
+		t.Fatalf("first reminder = %q, want summary and todo title", first)
 	}
 
 	second := dailyTodoReminderText(runCfg, "Noch mal hallo", now.Add(time.Hour), slog.Default())
