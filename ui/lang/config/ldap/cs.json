@@ -1,4 +1,5 @@
 {
+  "config.ldap.base_dn_label": "Základní DN",
   "config.ldap.bind_dn_label": "Bind DN",
   "config.ldap.bind_password_label": "Bind Password (Vault)",
   "config.ldap.bind_password_placeholder": "Zadejte bind heslo…",

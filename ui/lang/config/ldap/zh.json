@@ -1,4 +1,5 @@
 {
+  "config.ldap.base_dn_label": "基础DN",
   "config.ldap.bind_dn_label": "Bind DN",
   "config.ldap.bind_password_label": "Bind 密码（Vault）",
   "config.ldap.bind_password_placeholder": "输入 bind 密码…",
