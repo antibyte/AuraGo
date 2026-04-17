@@ -73,7 +73,7 @@ function renderTodoSummary() {
 
 function summaryCard(icon, label, value, subtext, filterValue, isActive) {
     return `
-        <button type="button" class="kc-todo-summary-card ${isActive ? 'is-active' : ''}" onclick="applyTodoSummaryFilter(${quoteJS(filterValue || '')})">
+        <button type="button" class="kc-todo-summary-card ${isActive ? 'is-active' : ''}" onclick='applyTodoSummaryFilter(${quoteJS(filterValue || "")})'>
             <div class="kc-todo-summary-label"><span>${icon}</span><span>${esc(label)}</span></div>
             <div class="kc-todo-summary-value">${esc(String(value))}</div>
             <div class="kc-todo-summary-subtext">${esc(subtext || '')}</div>
@@ -107,7 +107,7 @@ function renderTodoCard(todo) {
         <div class="kc-todo-header">
             <div class="kc-todo-check">
                 <input type="checkbox" ${isDone ? 'checked' : ''}
-                    onchange="toggleTodoStatus(${quoteJS(todo.id)}, this.checked)"
+                    onchange='toggleTodoStatus(${quoteJS(todo.id)}, this.checked)'
                     title="${isDone ? esc(t('knowledge.todos_reopen')) : esc(t('knowledge.todos_mark_done'))}">
             </div>
             <div class="kc-todo-main">
@@ -132,9 +132,9 @@ function renderTodoCard(todo) {
                 ${hasItems ? renderTodoItems(todo, detailsOpen) : ''}
             </div>
             <div class="kc-todo-actions">
-                ${!isDone && todo.status !== 'in_progress' ? `<button class="btn btn-sm btn-secondary" onclick="setTodoInProgress(${quoteJS(todo.id)})" title="${esc(t('knowledge.todos_start'))}">▶️</button>` : ''}
-                <button class="btn btn-sm btn-secondary" onclick="editTodo(${quoteJS(todo.id)})" title="${esc(t('common.btn_edit'))}">✏️</button>
-                <button class="btn btn-sm btn-danger" onclick="askDeleteTodo(${quoteJS(todo.id)}, ${quoteJS(todo.title)})" title="${esc(t('common.btn_delete'))}">🗑️</button>
+                ${!isDone && todo.status !== 'in_progress' ? `<button class="btn btn-sm btn-secondary" onclick='setTodoInProgress(${quoteJS(todo.id)})' title="${esc(t('knowledge.todos_start'))}">▶️</button>` : ''}
+                <button class="btn btn-sm btn-secondary" onclick='editTodo(${quoteJS(todo.id)})' title="${esc(t('common.btn_edit'))}">✏️</button>
+                <button class="btn btn-sm btn-danger" onclick='askDeleteTodo(${quoteJS(todo.id)}, ${quoteJS(todo.title)})' title="${esc(t('common.btn_delete'))}">🗑️</button>
             </div>
         </div>
     </div>`;
@@ -144,7 +144,7 @@ function renderTodoItems(todo, detailsOpen) {
     const items = (todo.items || []).map(item => `
         <label class="kc-todo-subtask ${item.is_done ? 'kc-todo-subtask-done' : ''}">
             <input type="checkbox" ${item.is_done ? 'checked' : ''}
-                onchange="toggleTodoItem(${quoteJS(todo.id)}, ${quoteJS(item.id)}, this.checked)">
+                onchange='toggleTodoItem(${quoteJS(todo.id)}, ${quoteJS(item.id)}, this.checked)'>
             <span class="kc-todo-subtask-title">
                 ${esc(item.title)}
                 ${item.description ? `<span class="kc-todo-subtask-desc">${esc(item.description)}</span>` : ''}
