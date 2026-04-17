@@ -28,7 +28,7 @@ type mdnsEntry struct {
 
 // mdnsQueryServices sends a PTR query for serviceType over IPv4 mDNS multicast
 // and collects responses for the given timeout duration.
-// It joins the multicast group on all multicast-capable interfaces and uses
+// It joins the multicast group on the default-route LAN interface and uses
 // SO_REUSEADDR/SO_REUSEPORT so it can co-exist with system mDNS daemons.
 func mdnsQueryServices(serviceType string, timeout time.Duration) ([]*mdnsEntry, error) {
 	lc := net.ListenConfig{Control: mdnsSocketControl}
@@ -39,15 +39,14 @@ func mdnsQueryServices(serviceType string, timeout time.Duration) ([]*mdnsEntry,
 	}
 	defer pc.Close()
 
-	// Join the multicast group on every multicast-capable interface.
+	// Join the multicast group on the interface that carries the default route
+	// (i.e. the LAN interface), not on every multicast-capable interface.
+	// Joining on 30+ Docker veth/bridge interfaces can confuse the kernel's
+	// multicast routing, especially when Docker networks overlap the LAN subnet.
 	p4 := ipv4.NewPacketConn(pc)
 	group := &net.UDPAddr{IP: net.ParseIP(mdnsIPv4Group)}
-	ifaces, _ := net.Interfaces()
-	for _, iface := range ifaces {
-		if iface.Flags&net.FlagMulticast != 0 {
-			ifc := iface // shadow for loop variable safety
-			_ = p4.JoinGroup(&ifc, group)
-		}
+	if iface, err := defaultRouteInterface(); err == nil && iface != nil {
+		_ = p4.JoinGroup(iface, group)
 	}
 
 	// Build the PTR query.
@@ -141,4 +140,54 @@ func mdnsAppendUniq(slice []string, item string) []string {
 		}
 	}
 	return append(slice, item)
+}
+
+// defaultRouteInterface returns the network interface that carries the default
+// route (i.e. the primary LAN interface). This avoids joining multicast on Docker
+// veth/bridge interfaces which can cause kernel multicast routing confusion.
+func defaultRouteInterface() (*net.Interface, error) {
+	// Find the interface with the default route by checking routing tables.
+	// The default route interface is typically the one with 0.0.0.0/0 or via a gateway.
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return nil, err
+	}
+
+	// Try to find interface via routing - look for default route in system
+	// Use dial to trigger routing table lookup and get the interface used
+	conn, err := net.Dial("udp4", "1.1.1.1:53")
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+
+	localAddr := conn.LocalAddr().(*net.UDPAddr)
+	for _, iface := range ifaces {
+		addrs, err := iface.Addrs()
+		if err != nil {
+			continue
+		}
+		for _, addr := range addrs {
+			if ipnet, ok := addr.(*net.IPNet); ok && ipnet.IP.Equal(localAddr.IP) {
+				return &iface, nil
+			}
+		}
+	}
+
+	// Fallback: return the first non-loopback, non-docker interface with multicast
+	for _, iface := range ifaces {
+		if iface.Flags&net.FlagLoopback != 0 {
+			continue
+		}
+		if iface.Flags&net.FlagMulticast == 0 {
+			continue
+		}
+		// Skip Docker interfaces
+		if strings.HasPrefix(iface.Name, "docker") || strings.HasPrefix(iface.Name, "veth") || strings.HasPrefix(iface.Name, "br-") {
+			continue
+		}
+		return &iface, nil
+	}
+
+	return nil, fmt.Errorf("no suitable interface found")
 }
