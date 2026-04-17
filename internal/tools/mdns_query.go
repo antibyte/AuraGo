@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/miekg/dns"
+	"golang.org/x/net/ipv4"
 )
 
 const (
@@ -58,6 +59,19 @@ func mdnsQueryServices(serviceType string, timeout time.Duration, logger *slog.L
 	}
 	defer mcastConn.Close()
 
+	// Wrap with ipv4.PacketConn to explicitly control outgoing multicast interface,
+	// TTL, and loopback. Without this, the kernel picks the outgoing interface via
+	// routing table — which can be Docker/VPN/wrong interface, and packets never
+	// reach chromecasts on the LAN.
+	mcastP := ipv4.NewPacketConn(mcastConn)
+	if iface != nil {
+		if mifErr := mcastP.SetMulticastInterface(iface); mifErr != nil {
+			logger.Warn("mdns: SetMulticastInterface failed on mcast socket", "error", mifErr)
+		}
+	}
+	_ = mcastP.SetMulticastTTL(255) // RFC 6762: mDNS packets SHOULD have TTL 255
+	_ = mcastP.SetMulticastLoopback(true)
+
 	logger.Info("mdns: listening on multicast group 224.0.0.251:5353")
 
 	// Build the query packet once.
@@ -72,12 +86,39 @@ func mdnsQueryServices(serviceType string, timeout time.Duration, logger *slog.L
 
 	// Create a unicast socket for sending and receiving unicast replies.
 	// Devices may unicast responses back to the ephemeral source port.
-	ucastConn, err := net.ListenPacket("udp4", ":0")
-	if err != nil {
-		logger.Warn("mdns: could not create unicast listener, unicast replies will be missed", "error", err)
+	// Bind to the selected interface's IP if possible, so the source address
+	// in outgoing packets is on the LAN (not a Docker/VPN address).
+	var bindAddr string
+	if iface != nil {
+		if addrs, aErr := iface.Addrs(); aErr == nil {
+			for _, a := range addrs {
+				if ipn, ok := a.(*net.IPNet); ok && ipn.IP.To4() != nil && !ipn.IP.IsLoopback() {
+					bindAddr = ipn.IP.String() + ":0"
+					break
+				}
+			}
+		}
 	}
+	if bindAddr == "" {
+		bindAddr = ":0"
+	}
+	ucastConn, err := net.ListenPacket("udp4", bindAddr)
+	if err != nil {
+		logger.Warn("mdns: could not create unicast listener, unicast replies will be missed", "error", err, "bindAddr", bindAddr)
+		// Retry with wildcard
+		ucastConn, err = net.ListenPacket("udp4", ":0")
+		if err != nil {
+			logger.Warn("mdns: could not create wildcard unicast listener either", "error", err)
+		}
+	}
+	var ucastP *ipv4.PacketConn
 	if ucastConn != nil {
 		defer ucastConn.Close()
+		ucastP = ipv4.NewPacketConn(ucastConn)
+		if iface != nil {
+			_ = ucastP.SetMulticastInterface(iface)
+		}
+		_ = ucastP.SetMulticastTTL(255)
 	}
 
 	dst := &net.UDPAddr{IP: net.ParseIP(mdnsIPv4Group), Port: mdnsPortNum}
