@@ -2,16 +2,13 @@
 package tools
 
 import (
-	"context"
 	"fmt"
+	"log/slog"
 	"net"
 	"strings"
 	"time"
 
-	"log/slog"
-
 	"github.com/miekg/dns"
-	"golang.org/x/net/ipv4"
 )
 
 const (
@@ -33,36 +30,31 @@ type mdnsEntry struct {
 // It joins the multicast group on the default-route LAN interface and uses
 // SO_REUSEADDR/SO_REUSEPORT so it can co-exist with system mDNS daemons.
 func mdnsQueryServices(serviceType string, timeout time.Duration, logger *slog.Logger) ([]*mdnsEntry, error) {
-	lc := net.ListenConfig{Control: mdnsSocketControl}
-
-	pc, err := lc.ListenPacket(context.Background(), "udp4", "0.0.0.0:5353")
-	if err != nil {
-		return nil, fmt.Errorf("mdns: bind :5353: %w", err)
-	}
-	defer pc.Close()
-
-	// Join the multicast group on the interface that carries the default route
-	// (i.e. the LAN interface), not on every multicast-capable interface.
-	// Joining on 30+ Docker veth/bridge interfaces can confuse the kernel's
-	// multicast routing, especially when Docker networks overlap the LAN subnet.
-	p4 := ipv4.NewPacketConn(pc)
-	group := &net.UDPAddr{IP: net.ParseIP(mdnsIPv4Group)}
+	// Use net.ListenMulticastUDP like the old hashicorp/mdns library did.
+	// This creates a socket specifically for receiving multicast on the given
+	// interface, with proper multicast group subscription.
+	ipv4Group := net.UDPAddr{IP: net.ParseIP(mdnsIPv4Group), Port: mdnsPortNum}
 
 	iface, err := defaultRouteInterface()
 	if err != nil {
-		logger.Info("mdns: no default route interface, will attempt to join anyway", "error", err)
-	} else {
-		logger.Info("mdns: joining multicast group on interface", "interface", iface.Name, "index", iface.Index)
-		if err := p4.JoinGroup(iface, group); err != nil {
-			logger.Info("mdns: JoinGroup failed", "error", err)
-		}
-		// Also set outgoing multicast interface explicitly
-		if err := p4.SetMulticastInterface(iface); err != nil {
-			logger.Info("mdns: SetMulticastInterface failed", "error", err)
-		}
+		return nil, fmt.Errorf("mdns: no suitable interface: %w", err)
+	}
+	logger.Info("mdns: listening on multicast interface", "interface", iface.Name, "index", iface.Index)
+
+	pc, err := net.ListenMulticastUDP("udp4", iface, &ipv4Group)
+	if err != nil {
+		return nil, fmt.Errorf("mdns: ListenMulticastUDP: %w", err)
+	}
+	defer pc.Close()
+
+	// Set read deadline for the collection phase.
+	if err := pc.SetDeadline(time.Now().Add(timeout)); err != nil {
+		return nil, fmt.Errorf("mdns: set deadline: %w", err)
 	}
 
-	// Build the PTR query.
+	// Build and send the PTR query via unicast to the multicast address.
+	// We use a separate UDP socket for sending so the kernel picks the right
+	// source IP based on routing (like the old library did).
 	q := new(dns.Msg)
 	q.SetQuestion(dns.Fqdn(serviceType), dns.TypePTR)
 	q.RecursionDesired = false
@@ -72,17 +64,17 @@ func mdnsQueryServices(serviceType string, timeout time.Duration, logger *slog.L
 		return nil, fmt.Errorf("mdns: pack query: %w", err)
 	}
 
-	dst := &net.UDPAddr{IP: net.ParseIP(mdnsIPv4Group), Port: mdnsPortNum}
-	if _, err := pc.WriteTo(buf, dst); err != nil {
+	sendConn, err := net.Dial("udp4", "224.0.0.251:5353")
+	if err != nil {
+		return nil, fmt.Errorf("mdns: dial send socket: %w", err)
+	}
+	_, err = sendConn.Write(buf)
+	sendConn.Close()
+	if err != nil {
 		return nil, fmt.Errorf("mdns: send query: %w", err)
 	}
 
-	// Collect responses until timeout.
-	if err := pc.SetDeadline(time.Now().Add(timeout)); err != nil {
-		return nil, fmt.Errorf("mdns: set deadline: %w", err)
-	}
-
-	entries := make(map[string]*mdnsEntry) // keyed by full service instance name
+	entries := make(map[string]*mdnsEntry)
 	rbuf := make([]byte, 65535)
 	packetCount := 0
 
@@ -90,7 +82,7 @@ func mdnsQueryServices(serviceType string, timeout time.Duration, logger *slog.L
 		n, _, err := pc.ReadFrom(rbuf)
 		if err != nil {
 			logger.Info("mdns: read loop ended", "packet_count", packetCount, "error", err)
-			break // timeout or closed
+			break
 		}
 		packetCount++
 		logger.Info("mdns: received packet", "size", n, "packet_num", packetCount, "hex", fmt.Sprintf("%x", rbuf[:n]))
