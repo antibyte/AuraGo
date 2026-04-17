@@ -16,7 +16,6 @@ import (
 	"aurago/internal/memory"
 	"aurago/internal/prompts"
 	"aurago/internal/security"
-	"aurago/internal/services/optimizer"
 	"aurago/internal/tools"
 
 	"github.com/sashabaranov/go-openai"
@@ -29,6 +28,129 @@ const maxConcurrentAgentLoops = 8
 
 var agentLoopLimiter = make(chan struct{}, maxConcurrentAgentLoops)
 
+// agentLoopState holds the mutable state for a single ExecuteAgentLoop invocation.
+type agentLoopState struct {
+	ctx    context.Context
+	stream bool
+	broker FeedbackBroker
+	runCfg RunConfig
+	req    openai.ChatCompletionRequest
+	flags  prompts.ContextFlags
+
+	initialUserMsg       string
+	dailyTodoReminder    string
+	baseAdditionalPrompt string
+	toolGuidesDir        string
+	toolingPolicy        ToolingPolicy
+	telemetryScope       AgentTelemetryScope
+
+	toolCallCount           int
+	rawCodeCount            int
+	xmlFallbackCount        int
+	missedToolCount         int
+	announcementCount       int
+	incompleteToolCallCount int
+	orphanedBracketTagCount int
+	orphanedXMLTagCount     int
+	invalidNativeToolCount  int
+	sessionTokens           int
+	retry422Count           int
+	stepsSinceLastFeedback  int
+	workflowPlanCount       int
+
+	emptyRetried        bool
+	homepageUsedInChain bool
+	lastResponseWasTool bool
+	coreMemDirty        bool
+	personalityEnabled  bool
+
+	isMaintenance                     bool
+	currentLogger                     *slog.Logger
+	lastTool                          string
+	lastActivity                      time.Time
+	lastUserMsg                       string
+	ragLastUserMsg                    string
+	ragToolIterationsSinceLastRefresh int
+	sessionTodoList                   string
+
+	sessionUsedTools    map[string]bool
+	recentTools         []string
+	explicitTools       []string
+	pendingTCs          []ToolCall
+	pendingSummaryBatch map[string]string
+	usedMemoryDocIDs    map[string]int
+	turnToolNames       []string
+	turnToolSummaries   []string
+
+	coreMemCache       string
+	coreMemUpdatedAt   time.Time
+	coreMemLoadedAt    time.Time
+	tokenCache         *tokenCountCache
+	detectedCtxWindow  int
+	lastCompressionMsg int
+
+	cachedSysPromptKey    string
+	cachedSysPrompt       string
+	cachedSysPromptTokens int
+	cachedSysPromptAt     time.Time
+
+	emotionSynthesizer *memory.EmotionSynthesizer
+	meta               memory.PersonalityMeta
+
+	recoveryPolicy  RecoveryPolicy
+	recoverySession *RecoverySessionState
+	recoveryState   toolRecoveryState
+
+	helperManager *helperLLMManager
+	guardian      *security.Guardian
+	llmGuardian   *security.LLMGuardian
+
+	useNativeFunctions    bool
+	adaptiveFilteredTools []string
+}
+
+// makeDispatchContext builds a DispatchContext from the current loop state.
+func (s *agentLoopState) makeDispatchContext(currentLogger *slog.Logger) *DispatchContext {
+	return &DispatchContext{
+		Cfg:                 s.runCfg.Config,
+		Logger:              s.currentLogger,
+		LLMClient:           s.runCfg.LLMClient,
+		Vault:               s.runCfg.Vault,
+		Registry:            s.runCfg.Registry,
+		Manifest:            s.runCfg.Manifest,
+		CronManager:         s.runCfg.CronManager,
+		MissionManagerV2:    s.runCfg.MissionManagerV2,
+		LongTermMem:         s.runCfg.LongTermMem,
+		ShortTermMem:        s.runCfg.ShortTermMem,
+		KG:                  s.runCfg.KG,
+		InventoryDB:         s.runCfg.InventoryDB,
+		InvasionDB:          s.runCfg.InvasionDB,
+		CheatsheetDB:        s.runCfg.CheatsheetDB,
+		ImageGalleryDB:      s.runCfg.ImageGalleryDB,
+		MediaRegistryDB:     s.runCfg.MediaRegistryDB,
+		HomepageRegistryDB:  s.runCfg.HomepageRegistryDB,
+		ContactsDB:          s.runCfg.ContactsDB,
+		PlannerDB:           s.runCfg.PlannerDB,
+		SQLConnectionsDB:    s.runCfg.SQLConnectionsDB,
+		SQLConnectionPool:   s.runCfg.SQLConnectionPool,
+		RemoteHub:           s.runCfg.RemoteHub,
+		HistoryMgr:          s.runCfg.HistoryManager,
+		IsMaintenance:       tools.IsBusy(),
+		SurgeryPlan:         s.runCfg.SurgeryPlan,
+		Guardian:            s.guardian,
+		LLMGuardian:         s.llmGuardian,
+		SessionID:           s.runCfg.SessionID,
+		CoAgentRegistry:     s.runCfg.CoAgentRegistry,
+		IsCoAgent:           s.runCfg.IsCoAgent,
+		CoAgentSpecialist:   s.runCfg.CoAgentSpecialist,
+		ParentSessionID:     s.runCfg.ParentSessionID,
+		ParentIsMaintenance: s.runCfg.IsMaintenance,
+		BudgetTracker:       s.runCfg.BudgetTracker,
+		DaemonSupervisor:    s.runCfg.DaemonSupervisor,
+		PreparationService:  s.runCfg.PreparationService,
+	}
+}
+
 // ExecuteAgentLoop executes the multi-turn reasoning and tool execution loop.
 // It supports both synchronous returns and asynchronous streaming via the broker.
 func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, runCfg RunConfig, stream bool, broker FeedbackBroker) (openai.ChatCompletionResponse, error) {
@@ -39,341 +161,66 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		return openai.ChatCompletionResponse{}, ctx.Err()
 	}
 
-	cfg := runCfg.Config
-	logger := runCfg.Logger
-	client := runCfg.LLMClient
-	shortTermMem := runCfg.ShortTermMem
-	historyManager := runCfg.HistoryManager
-	longTermMem := runCfg.LongTermMem
-	kg := runCfg.KG
-	inventoryDB := runCfg.InventoryDB
-	invasionDB := runCfg.InvasionDB
-	cheatsheetDB := runCfg.CheatsheetDB
-	imageGalleryDB := runCfg.ImageGalleryDB
-	mediaRegistryDB := runCfg.MediaRegistryDB
-	homepageRegistryDB := runCfg.HomepageRegistryDB
-	contactsDB := runCfg.ContactsDB
-	plannerDB := runCfg.PlannerDB
-	sqlConnectionsDB := runCfg.SQLConnectionsDB
-	sqlConnectionPool := runCfg.SQLConnectionPool
-	remoteHub := runCfg.RemoteHub
-	vault := runCfg.Vault
-	registry := runCfg.Registry
-	manifest := runCfg.Manifest
-	cronManager := runCfg.CronManager
-	missionManagerV2 := runCfg.MissionManagerV2
-	coAgentRegistry := runCfg.CoAgentRegistry
-	budgetTracker := runCfg.BudgetTracker
-	sessionID := runCfg.SessionID
-	isMaintenance := runCfg.IsMaintenance
-	surgeryPlan := runCfg.SurgeryPlan
+	s := initAgentLoopState(req, runCfg, broker)
 
-	if shortTermMem != nil {
-		InitializeAgentTelemetryPersistence(shortTermMem)
-	}
+	cfg := s.runCfg.Config
+	logger := s.runCfg.Logger
+	client := s.runCfg.LLMClient
+	shortTermMem := s.runCfg.ShortTermMem
+	historyManager := s.runCfg.HistoryManager
+	longTermMem := s.runCfg.LongTermMem
+	kg := s.runCfg.KG
+	registry := s.runCfg.Registry
+	manifest := s.runCfg.Manifest
+	budgetTracker := s.runCfg.BudgetTracker
+	sessionID := s.runCfg.SessionID
 
-	// Load persistent adaptive tool usage data on first run
-	if cfg.Agent.AdaptiveTools.Enabled && shortTermMem != nil {
-		if entries, err := shortTermMem.LoadToolUsageAdaptive(); err == nil && len(entries) > 0 {
-			converted := make([]prompts.ToolUsageEntry, len(entries))
-			for i, e := range entries {
-				converted[i] = prompts.ToolUsageEntry{ToolName: e.ToolName, TotalCount: e.TotalCount, SuccessCount: e.SuccessCount, LastUsed: e.LastUsed}
-			}
-			prompts.LoadAdaptiveToolState(converted)
-			logger.Info("[AdaptiveTools] Loaded persistent tool usage", "tools_tracked", len(entries))
-		}
-	}
+	// Mutable state aliases from init
+	personalityEnabled := s.personalityEnabled
+	emotionSynthesizer := s.emotionSynthesizer
+	isMaintenance := s.isMaintenance
+	flags := s.flags
+	toolingPolicy := s.toolingPolicy
+	telemetryScope := s.telemetryScope
+	initialUserMsg := s.initialUserMsg
+	dailyTodoReminder := s.dailyTodoReminder
+	baseAdditionalPrompt := s.baseAdditionalPrompt
 
-	var webhooksDef strings.Builder
-	if cfg.Webhooks.Enabled && len(cfg.Webhooks.Outgoing) > 0 {
-		for _, w := range cfg.Webhooks.Outgoing {
-			webhooksDef.WriteString(fmt.Sprintf("- **%s**: %s\n", w.Name, w.Description))
-			if len(w.Parameters) > 0 {
-				webhooksDef.WriteString("  Parameters:\n")
-				for _, p := range w.Parameters {
-					reqStr := ""
-					if p.Required {
-						reqStr = " (required)"
-					}
-					webhooksDef.WriteString(fmt.Sprintf("    - `%s` [%s]%s: %s\n", p.Name, p.Type, reqStr, p.Description))
-				}
-			}
-		}
-	}
-
-	initialUserMsg := ""
-	if len(req.Messages) > 0 {
-		for i := len(req.Messages) - 1; i >= 0; i-- {
-			if req.Messages[i].Role == openai.ChatMessageRoleUser {
-				txt := strings.TrimSpace(messageText(req.Messages[i]))
-				if txt == "" {
-					continue
-				}
-				initialUserMsg = txt
-				break
-			}
-		}
-	}
-	dailyTodoReminder := dailyTodoReminderText(runCfg, initialUserMsg, time.Now(), logger)
-
-	toolingPolicy := buildToolingPolicy(cfg, initialUserMsg)
-	telemetryScope := AgentTelemetryScope{
-		ProviderType: toolingPolicy.Capabilities.ProviderType,
-		Model:        toolingPolicy.Capabilities.Model,
-	}
-	if toolingPolicy.TelemetryProfile != "default" {
-		eventName := "conservative_profile_applied"
-		if toolingPolicy.TelemetryProfile == "family_guarded" && toolingPolicy.IntentFamily != "" {
-			eventName = "family_guarded_" + toolingPolicy.IntentFamily
-		}
-		RecordToolPolicyEventForScope(telemetryScope, eventName)
-		logger.Info("[ToolingPolicy] Telemetry-aware conservative profile active",
-			"provider", telemetryScope.ProviderType,
-			"model", telemetryScope.Model,
-			"tool_calls", toolingPolicy.TelemetrySnapshot.ToolCalls,
-			"failure_rate", toolingPolicy.TelemetrySnapshot.FailureRate,
-			"intent_family", toolingPolicy.IntentFamily,
-			"family_failure_rate", toolingPolicy.FamilyTelemetry.FailureRate,
-			"max_tool_guides", toolingPolicy.EffectiveMaxToolGuides)
-	}
-	flags := buildPromptContextFlags(runCfg, toolingPolicy, promptContextOptions{
-		IsMaintenanceMode:     isMaintenance,
-		SurgeryPlan:           surgeryPlan,
-		WebhooksDefinitions:   webhooksDef.String(),
-		SpecialistsAvailable:  specialistsAvailable(cfg),
-		SpecialistsStatus:     buildSpecialistsStatus(cfg),
-		SpecialistsSuggestion: buildSpecialistDelegationHint(cfg, initialUserMsg),
-	})
-	flags.Model = req.Model
-	logger.Debug("[Agent] Context flags initialised",
-		"token_budget", flags.TokenBudget,
-		"session_id", runCfg.SessionID,
-	)
-	baseAdditionalPrompt := flags.AdditionalPrompt
-	toolCallCount := 0
-	rawCodeCount := 0
-	xmlFallbackCount := 0
-	missedToolCount := 0
-	announcementCount := 0
-	incompleteToolCallCount := 0
-	orphanedBracketTagCount := 0 // for [TOOL_CALL] without [/TOOL_CALL] (path 7)
-	orphanedXMLTagCount := 0     // for <tool_call> XML in native mode (path 8)
-	invalidNativeToolCount := 0
-	sessionTokens := 0
-	recoveryPolicy := buildRecoveryPolicy(cfg)
-	recoverySession := NewRecoverySessionState(logger, broker, cfg)
-	emptyRetried := false // Prevents infinite retry on persistent empty responses
-	retry422Count := 0    // Counts consecutive 422 retries — capped to prevent infinite loops
-	stepsSinceLastFeedback := 0
-	homepageUsedInChain := false // Elevated circuit breaker once homepage tool is first used
-	// sessionUsedTools tracks every tool called in this conversation so AdaptiveTools
-	// always re-includes them next turn (Option 3: context-based alwaysInclude expansion).
-	sessionUsedTools := make(map[string]bool)
-
-	// Guardian: prompt injection defense
-	guardian := security.NewGuardianWithOptions(logger, security.GuardianOptions{
-		MaxScanBytes:  cfg.Guardian.MaxScanBytes,
-		ScanEdgeBytes: cfg.Guardian.ScanEdgeBytes,
-		Preset:        cfg.Guardian.PromptSec.Preset,
-		Spotlight:     cfg.Guardian.PromptSec.Spotlight,
-		Canary:        cfg.Guardian.PromptSec.Canary,
-	})
-	tools.ConfigureTimeouts(cfg.Tools.PythonTimeoutSeconds, cfg.Tools.SkillTimeoutSeconds, cfg.Tools.BackgroundTimeoutSeconds)
-
-	// LLM Guardian: AI-powered pre-execution tool call security
-	// Use the shared instance from RunConfig (so metrics are visible to the dashboard),
-	// falling back to a fresh instance for callers that don't provide one.
-	llmGuardian := runCfg.LLMGuardian
-	if llmGuardian == nil {
-		llmGuardian = security.NewLLMGuardian(cfg, logger)
-	}
-
-	makeDispatchContext := func(currentLogger *slog.Logger) *DispatchContext {
-		return &DispatchContext{
-			Cfg: cfg, Logger: currentLogger, LLMClient: client, Vault: vault,
-			Registry: registry, Manifest: manifest, CronManager: cronManager,
-			MissionManagerV2: missionManagerV2, LongTermMem: longTermMem,
-			ShortTermMem: shortTermMem, KG: kg, InventoryDB: inventoryDB,
-			InvasionDB: invasionDB, CheatsheetDB: cheatsheetDB,
-			ImageGalleryDB: imageGalleryDB, MediaRegistryDB: mediaRegistryDB,
-			HomepageRegistryDB: homepageRegistryDB, ContactsDB: contactsDB,
-			PlannerDB:        plannerDB,
-			SQLConnectionsDB: sqlConnectionsDB, SQLConnectionPool: sqlConnectionPool,
-			RemoteHub: remoteHub, HistoryMgr: historyManager,
-			IsMaintenance: tools.IsBusy(), SurgeryPlan: surgeryPlan,
-			Guardian: guardian, LLMGuardian: llmGuardian,
-			SessionID: sessionID, CoAgentRegistry: coAgentRegistry,
-			IsCoAgent:           runCfg.IsCoAgent,
-			CoAgentSpecialist:   runCfg.CoAgentSpecialist,
-			ParentSessionID:     runCfg.ParentSessionID,
-			ParentIsMaintenance: runCfg.IsMaintenance,
-			BudgetTracker:       budgetTracker,
-			DaemonSupervisor:    runCfg.DaemonSupervisor,
-			PreparationService:  runCfg.PreparationService,
-		}
-	}
-
-	var currentLogger *slog.Logger = logger
-	helperManager := newHelperLLMManager(cfg, logger)
-	lastActivity := time.Now()
-	lastTool := ""
-	recoveryState := newToolRecoveryStateWithPolicy(recoveryPolicy)
-	recentTools := make([]string, 0, 5) // Track last 5 tools for lazy schema injection
-	explicitTools := make([]string, 0)  // Explicit tool guides requested via <workflow_plan> tag
-	workflowPlanCount := 0              // Prevent infinite workflow_plan loops
-	lastResponseWasTool := false        // True when the previous iteration was a tool call; suppresses announcement detector on completion messages
-	ragLastUserMsg := ""
-	ragToolIterationsSinceLastRefresh := 0
-	pendingTCs := make([]ToolCall, 0) // Queued tool calls from multi-tool responses (processed without a new LLM call)
-	pendingSummaryBatch := map[string]string(nil)
-	usedMemoryDocIDs := make(map[string]int)
-	turnToolNames := make([]string, 0, 8)
-	turnToolSummaries := make([]string, 0, 12)
-
-	// Context compression: tracks message count at last compression for cooldown
-	lastCompressionMsg := 0
-
-	// Core memory cache: read once, invalidate on manage_memory calls
-	// and when the DB updated_at timestamp changes (external modifications).
-	// TTL soft-failsafe: if neither dirty nor version-changed, still re-check
-	// after coreMemCacheTTL to catch external modifications that didn't update
-	// the MAX(updated_at) in a detectable way.
-	coreMemCache := ""
-	coreMemUpdatedAt := time.Time{}
-	coreMemLoadedAt := time.Time{}
-	coreMemDirty := true // Force initial load
-	tokenCache := newTokenCountCache(4096)
-	detectedCtxWindow := 0
+	sessionTokens := s.sessionTokens
+	recoveryPolicy := s.recoveryPolicy
+	recoveryState := s.recoveryState
+	emptyRetried := s.emptyRetried
+	retry422Count := s.retry422Count
+	homepageUsedInChain := s.homepageUsedInChain
+	helperManager := s.helperManager
+	lastActivity := s.lastActivity
+	lastTool := s.lastTool
+	recentTools := s.recentTools
+	explicitTools := s.explicitTools
+	lastResponseWasTool := s.lastResponseWasTool
+	ragLastUserMsg := s.ragLastUserMsg
+	ragToolIterationsSinceLastRefresh := s.ragToolIterationsSinceLastRefresh
+	pendingTCs := s.pendingTCs
+	usedMemoryDocIDs := s.usedMemoryDocIDs
+	turnToolNames := s.turnToolNames
+	turnToolSummaries := s.turnToolSummaries
+	lastCompressionMsg := s.lastCompressionMsg
+	coreMemCache := s.coreMemCache
+	coreMemUpdatedAt := s.coreMemUpdatedAt
+	coreMemLoadedAt := s.coreMemLoadedAt
+	coreMemDirty := s.coreMemDirty
+	tokenCache := s.tokenCache
+	detectedCtxWindow := s.detectedCtxWindow
+	cachedSysPromptKey := s.cachedSysPromptKey
+	cachedSysPrompt := s.cachedSysPrompt
+	cachedSysPromptTokens := s.cachedSysPromptTokens
+	cachedSysPromptAt := s.cachedSysPromptAt
+	sessionTodoList := s.sessionTodoList
+	toolGuidesDir := s.toolGuidesDir
+	useNativeFunctions := s.useNativeFunctions
+	adaptiveFilteredTools := s.adaptiveFilteredTools
 
 	const systemPromptCacheTTL = 30 * time.Second
-	cachedSysPromptKey := ""
-	cachedSysPrompt := ""
-	cachedSysPromptTokens := 0
-	cachedSysPromptAt := time.Time{}
-
-	// Session-scoped todo list piggybacked on tool calls
-	sessionTodoList := ""
-
-	// Phase D: Personality Engine (opt-in)
-	personalityEnabled := cfg.Personality.Engine
-	if personalityEnabled && shortTermMem != nil {
-		if err := shortTermMem.InitPersonalityTables(); err != nil {
-			logger.Error("[Personality] Failed to init tables, disabling", "error", err)
-			personalityEnabled = false
-		}
-	}
-
-	// Emotion Synthesizer (requires Personality Engine V2)
-	var emotionSynthesizer *memory.EmotionSynthesizer
-	if cfg.Personality.EmotionSynthesizer.Enabled && personalityEnabled && cfg.Personality.EngineV2 {
-		// Reuse V2 client setup — prefer resolved provider fields, fall back to legacy inline fields
-		esClient := resolvePersonalityAnalyzerClient(cfg, client)
-		esModel := resolvePersonalityModel(cfg)
-		emotionSynthesizer = memory.NewEmotionSynthesizer(
-			esClient,
-			esModel,
-			cfg.Personality.EmotionSynthesizer.MinIntervalSecs,
-			cfg.Personality.EmotionSynthesizer.MaxHistoryEntries,
-			cfg.Agent.SystemLanguage,
-			currentLogger,
-		)
-		logger.Info("[EmotionSynthesizer] Initialized", "model", esModel, "interval_secs", cfg.Personality.EmotionSynthesizer.MinIntervalSecs)
-		if cfg.Personality.InnerVoice.Enabled {
-			logger.Info("[InnerVoice] Enabled", "min_interval_secs", cfg.Personality.InnerVoice.MinIntervalSecs, "max_per_session", cfg.Personality.InnerVoice.MaxPerSession, "decay_turns", cfg.Personality.InnerVoice.DecayTurns)
-		}
-	}
-
-	// Native function calling: build tool schemas once and attach to request
-	toolGuidesDir := filepath.Join(cfg.Directories.PromptsDir, "tools_manuals")
-
-	// Auto-detect DeepSeek and enable native function calling
-	useNativeFunctions := toolingPolicy.UseNativeFunctions
-	if toolingPolicy.AutoEnabledNativeFunctions {
-		logger.Info("[NativeTools] DeepSeek detected, auto-enabling native function calling")
-	}
-
-	adaptiveFilteredTools := make([]string, 0)
-
-	if useNativeFunctions {
-		ff := buildToolFeatureFlags(runCfg, toolingPolicy)
-		ntSchemas := BuildNativeToolSchemas(cfg.Directories.SkillsDir, manifest, ff, logger)
-		allSchemas := make([]openai.Tool, len(ntSchemas))
-		copy(allSchemas, ntSchemas)
-
-		// Adaptive tool filtering: remove rarely-used tools to save tokens
-		if cfg.Agent.AdaptiveTools.Enabled && shortTermMem != nil {
-			halfLife := cfg.Agent.AdaptiveTools.DecayHalfLifeDays
-			if halfLife <= 0 {
-				halfLife = 7.0
-			}
-			frequent := prompts.GetFrequentToolsWeighted(0, halfLife, cfg.Agent.AdaptiveTools.WeightSuccessRate) // 0 = all scored tools
-			var guideSearcher toolGuideSearcher
-			if gs, ok := longTermMem.(toolGuideSearcher); ok {
-				guideSearcher = gs
-			}
-			prioritized := buildAdaptiveToolPriority(ntSchemas, frequent, initialUserMsg, guideSearcher, logger)
-			maxTools := cfg.Agent.AdaptiveTools.MaxTools
-
-			alwaysInclude := make([]string, len(cfg.Agent.AdaptiveTools.AlwaysInclude))
-			copy(alwaysInclude, cfg.Agent.AdaptiveTools.AlwaysInclude)
-			if GetVoiceMode() {
-				alwaysInclude = append(alwaysInclude, "tts", "send_audio")
-			}
-			if ff.MusicGenerationEnabled {
-				alwaysInclude = append(alwaysInclude, "generate_music")
-			}
-			if ff.ImageGenerationEnabled {
-				alwaysInclude = append(alwaysInclude, "generate_image")
-			}
-			// Re-include every tool that was actually called in this conversation so the
-			// model can continue using tools it already relied on (Option 3: session context).
-			for tool := range sessionUsedTools {
-				alwaysInclude = append(alwaysInclude, tool)
-			}
-
-			if maxTools > 0 && len(prioritized) > 0 {
-				ntSchemas = filterToolSchemas(ntSchemas, prioritized, alwaysInclude, maxTools, logger)
-			}
-			// Track tools removed by adaptive filtering so their guides are also skipped
-			remainingSet := make(map[string]bool, len(ntSchemas))
-			for _, t := range ntSchemas {
-				if t.Function != nil {
-					remainingSet[t.Function.Name] = true
-				}
-			}
-			for _, t := range allSchemas {
-				if t.Function != nil && !remainingSet[t.Function.Name] {
-					adaptiveFilteredTools = append(adaptiveFilteredTools, t.Function.Name)
-				}
-			}
-		}
-		// Update discover_tools state so the agent can browse hidden tools
-		SetDiscoverToolsState(allSchemas, ntSchemas, cfg.Directories.PromptsDir)
-
-		// Structured Outputs: set Strict=true on every tool definition so the
-		// provider uses constrained decoding for tool-call arguments.
-		// Only enable this for models that support structured outputs (e.g. GPT-4o,
-		// some OpenRouter models). Ollama supports structured outputs via
-		// response_format, but does not yet honor Function.Strict=true in the
-		// OpenAI-compatible chat completions API, so we skip it to avoid sending
-		// an unsupported field.
-		if toolingPolicy.StructuredOutputsEnabled {
-			for i := range ntSchemas {
-				if ntSchemas[i].Function != nil {
-					ntSchemas[i].Function.Strict = true
-				}
-			}
-			logger.Info("[NativeTools] Structured outputs enabled (strict mode)")
-		} else if toolingPolicy.StructuredOutputsRequested && toolingPolicy.Capabilities.IsOllama {
-			logger.Warn("[NativeTools] Strict tool definitions not supported by Ollama, ignoring strict mode")
-		}
-		req.Tools = ntSchemas
-		req.ToolChoice = "auto"
-		if toolingPolicy.ParallelToolCallsEnabled {
-			req.ParallelToolCalls = true
-		}
-		logger.Info("[NativeTools] Native function calling enabled", "tool_count", len(ntSchemas), "parallel", toolingPolicy.ParallelToolCallsEnabled)
-	}
 
 	loopIterationCount := 0
 	for {
@@ -382,7 +229,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 		// Safety: prevent infinite loops
 		if loopIterationCount > maxLoopIterations {
-			currentLogger.Error("[Sync] Maximum loop iterations exceeded — aborting to prevent infinite loop", "iterations", loopIterationCount)
+			s.currentLogger.Error("[Sync] Maximum loop iterations exceeded — aborting to prevent infinite loop", "iterations", loopIterationCount)
 			broker.Send("error_recovery", i18n.T(cfg.Server.UILanguage, "backend.stream_error_recovery_loop_exceeded", maxLoopIterations))
 			return openai.ChatCompletionResponse{}, fmt.Errorf("agent loop exceeded maximum iterations: %d", maxLoopIterations)
 		}
@@ -398,7 +245,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 		// Check for user interrupt
 		if checkAndClearInterrupt(sessionID) {
-			currentLogger.Warn("[Sync] User interrupted the agent — stopping immediately")
+			s.currentLogger.Warn("[Sync] User interrupted the agent — stopping immediately")
 			broker.Send("thinking", i18n.T(cfg.Server.UILanguage, "backend.stream_thinking_stopped_by_user"))
 			stopContent := "⏹ Stopped."
 			// Persist the stop event so the agent remembers it was stopped
@@ -426,7 +273,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 		// Revive logic: If idle in lifeboat for too long, poke the agent
 		if isMaintenance && time.Since(lastActivity) > time.Duration(cfg.CircuitBreaker.MaintenanceTimeoutMinutes)*time.Minute {
-			currentLogger.Warn("[Sync] Lifeboat idle for too long, injecting revive prompt", "minutes", cfg.CircuitBreaker.MaintenanceTimeoutMinutes)
+			s.currentLogger.Warn("[Sync] Lifeboat idle for too long, injecting revive prompt", "minutes", cfg.CircuitBreaker.MaintenanceTimeoutMinutes)
 			reviveMsg := "You are idle in the lifeboat. finish your tasks or change back to the supervisor."
 			req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: reviveMsg})
 			lastActivity = time.Now() // Reset timer
@@ -437,17 +284,17 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		flags.IsMaintenanceMode = isMaintenance
 
 		// Caching the logger to avoid opening file on every iteration (leaking FDs)
-		if isMaintenance && currentLogger == nil {
+		if isMaintenance && s.currentLogger == nil {
 			logPath := filepath.Join(cfg.Logging.LogDir, "lifeboat.log")
 			if l, err := loggerPkg.SetupWithFile(true, logPath, true); err == nil {
-				currentLogger = l.Logger
+				s.currentLogger = l.Logger
 			}
 		}
-		if currentLogger == nil {
-			currentLogger = logger
+		if s.currentLogger == nil {
+			s.currentLogger = logger
 		}
 
-		currentLogger.Debug("[Sync] Agent loop iteration starting", "is_maintenance", isMaintenance, "lock_exists", tools.IsBusy())
+		s.currentLogger.Debug("[Sync] Agent loop iteration starting", "is_maintenance", isMaintenance, "lock_exists", tools.IsBusy())
 
 		if lastResponseWasTool {
 			ragToolIterationsSinceLastRefresh++
@@ -460,93 +307,19 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 		// Process queued tool calls from multi-tool responses (skip LLM for these)
 		if len(pendingTCs) > 0 {
-			dispatchCtx := makeDispatchContext(currentLogger)
-			if helperManager != nil && len(pendingSummaryBatch) == 0 {
-				pendingSummaryBatch = maybeBuildPendingSummaryBatch(ctx, pendingTCs, dispatchCtx, helperManager, lastUserMsg)
+			if processPendingToolCalls(s, ctx, lastUserMsg) {
+				pendingTCs = s.pendingTCs
+				homepageUsedInChain = s.homepageUsedInChain
+				turnToolNames = s.turnToolNames
+				turnToolSummaries = s.turnToolSummaries
+				lastActivity = s.lastActivity
+				sessionTodoList = s.sessionTodoList
+				coreMemDirty = s.coreMemDirty
+				recentTools = s.recentTools
+				lastResponseWasTool = s.lastResponseWasTool
+				req = s.req
+				continue
 			}
-
-			ptc := pendingTCs[0]
-			pendingTCs = pendingTCs[1:]
-			toolCallCount++
-			if ptc.Action == "homepage" || ptc.Action == "homepage_tool" {
-				homepageUsedInChain = true
-			}
-			broker.Send("thinking", fmt.Sprintf("[%d] Running %s...", toolCallCount, ptc.Action))
-			ptcJSON := ptc.RawJSON
-			if ptcJSON == "" {
-				ptcJSON = fmt.Sprintf(`{"action":"%s"}`, ptc.Action)
-			}
-			id, idErr := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleAssistant, ptcJSON, false, true)
-			if idErr != nil {
-				currentLogger.Error("Failed to persist queued tool-call message", "error", idErr)
-			}
-			if sessionID == "default" {
-				historyManager.Add(openai.ChatMessageRoleAssistant, ptcJSON, id, false, true)
-			}
-			broker.Send("tool_call", ptcJSON)
-			broker.Send("tool_start", ptc.Action)
-			// Record in session set so AdaptiveTools keeps this tool in schema next turn.
-			if ptc.Action != "" {
-				sessionUsedTools[ptc.Action] = true
-			}
-			pResultContent := ""
-			if precomputed, ok := pendingSummaryBatch[pendingSummaryBatchKey(ptc)]; ok {
-				pResultContent = precomputed
-				delete(pendingSummaryBatch, pendingSummaryBatchKey(ptc))
-				if len(pendingSummaryBatch) == 0 {
-					pendingSummaryBatch = nil
-				}
-			} else if recoveryState.handleDuplicateToolCall(ptc, &req, currentLogger, telemetryScope) {
-				pResultContent = blockedToolOutputFromRequest(&req)
-			} else {
-				pResultContent = DispatchToolCall(ctx, &ptc, dispatchCtx, lastUserMsg)
-			}
-			policyResult := finalizeToolExecution(ptc, pResultContent, ptc.GuardianBlocked, cfg, shortTermMem, sessionID, &recoveryState, &req, currentLogger, telemetryScope, optimizer.GetToolPromptVersion(ptc.Action), dispatchCtx.ExecutionTimeMs)
-			pResultContent = policyResult.Content
-			trackActivityTool(&turnToolNames, &turnToolSummaries, ptc.Action, pResultContent)
-			recordPlanToolProgress(shortTermMem, sessionID, ptc, pResultContent, currentLogger)
-			broker.Send("tool_output", pResultContent)
-			emitMediaSSEEvents(broker, ptc.Action, pResultContent, cfg.Directories.DataDir)
-			broker.Send("tool_end", ptc.Action)
-			lastActivity = time.Now()
-			// Update session todo from piggybacked _todo field
-			if ptc.Todo != "" {
-				sessionTodoList = string(ptc.Todo)
-				broker.Send("todo_update", sessionTodoList)
-			}
-			if ptc.Action == "manage_plan" {
-				emitSessionPlanUpdate(broker, shortTermMem, sessionID, currentLogger)
-			}
-			if ptc.Action == "manage_memory" || ptc.Action == "core_memory" {
-				coreMemDirty = true
-			}
-			// Track recent tools for journal auto-trigger (keep last 5, dedup)
-			{
-				found := false
-				for _, rt := range recentTools {
-					if rt == ptc.Action {
-						found = true
-						break
-					}
-				}
-				if !found {
-					recentTools = append(recentTools, ptc.Action)
-					if len(recentTools) > 5 {
-						recentTools = recentTools[len(recentTools)-5:]
-					}
-				}
-			}
-			id, idErr = shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, pResultContent, false, true)
-			if idErr != nil {
-				currentLogger.Error("Failed to persist queued tool-result message", "error", idErr)
-			}
-			if sessionID == "default" {
-				historyManager.Add(openai.ChatMessageRoleUser, pResultContent, id, false, true)
-			}
-			req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: ptcJSON})
-			req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: pResultContent})
-			lastResponseWasTool = true
-			continue
 		}
 
 		// Load Personality Meta
@@ -556,10 +329,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 
 		// Circuit breaker - berechne Basis-Limit (Tool-spezifische Anpassungen erfolgen später wenn tc bekannt ist)
-		effectiveMaxCalls := calculateEffectiveMaxCalls(cfg, ToolCall{}, homepageUsedInChain, personalityEnabled, shortTermMem, currentLogger)
+		effectiveMaxCalls := calculateEffectiveMaxCalls(cfg, ToolCall{}, homepageUsedInChain, personalityEnabled, shortTermMem, s.currentLogger)
 
-		if toolCallCount >= effectiveMaxCalls {
-			currentLogger.Warn("[Sync] Circuit breaker triggered", "count", toolCallCount, "limit", effectiveMaxCalls)
+		if s.toolCallCount >= effectiveMaxCalls {
+			s.currentLogger.Warn("[Sync] Circuit breaker triggered", "count", s.toolCallCount, "limit", effectiveMaxCalls)
 			breakerMsg := fmt.Sprintf("CIRCUIT BREAKER: You have reached the maximum of %d consecutive tool calls. You MUST now summarize your progress and respond to the user with a final answer.", effectiveMaxCalls)
 			req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: breakerMsg})
 		}
@@ -629,7 +402,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				explicitTools,
 				toolingPolicy.EffectiveMaxToolGuides,
 				guideStrategy,
-				currentLogger,
+				s.currentLogger,
 			)
 		} else {
 			flags.PredictedGuides = nil
@@ -648,7 +421,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			useHelperRAGBatch := helperManager != nil && ragSettings.Enabled && ragSettings.QueryExpansion && ragSettings.LLMReranking
 			ragQuery := lastUserMsg
 			if useHelperRAGBatch {
-				ragQuery = expandQueryForRAG(ctx, cfg, currentLogger, lastUserMsg, shortTermMem)
+				ragQuery = expandQueryForRAG(ctx, cfg, s.currentLogger, lastUserMsg, shortTermMem)
 			}
 			ragLastUserMsg = lastUserMsg
 			ragToolIterationsSinceLastRefresh = 0
@@ -673,11 +446,11 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					batchCancel()
 					if batchErr != nil {
 						helperManager.ObserveFallback("rag_batch", batchErr.Error())
-						ragQuery = expandQueryForRAG(ctx, cfg, currentLogger, lastUserMsg, shortTermMem)
+						ragQuery = expandQueryForRAG(ctx, cfg, s.currentLogger, lastUserMsg, shortTermMem)
 						memories, docIDs, err = longTermMem.SearchMemoriesOnly(ragQuery, 6)
 						if err == nil {
 							ranked = rankMemoryCandidates(memories, docIDs, shortTermMem, usedMemoryDocIDs, time.Now())
-							ranked = rerankWithLLM(ctx, cfg, currentLogger, ranked, lastUserMsg, shortTermMem)
+							ranked = rerankWithLLM(ctx, cfg, s.currentLogger, ranked, lastUserMsg, shortTermMem)
 						} else {
 							ranked = nil
 						}
@@ -700,11 +473,11 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 								}
 							}
 						}
-						ranked = applyHelperRAGScores(currentLogger, ranked, batchResult)
+						ranked = applyHelperRAGScores(s.currentLogger, ranked, batchResult)
 					}
 				} else {
 					// LLM re-ranking: blend LLM relevance scores with policy-ranked scores
-					ranked = rerankWithLLM(ctx, cfg, currentLogger, ranked, lastUserMsg, shortTermMem)
+					ranked = rerankWithLLM(ctx, cfg, s.currentLogger, ranked, lastUserMsg, shortTermMem)
 				}
 
 				// For short queries (<40 chars), apply a softer score filtering to
@@ -726,7 +499,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 						filtered = ranked[:1]
 					}
 					if len(filtered) < len(ranked) {
-						currentLogger.Debug("[RAG] Short-query filter applied", "before", len(ranked), "after", len(filtered))
+						s.currentLogger.Debug("[RAG] Short-query filter applied", "before", len(ranked), "after", len(filtered))
 					}
 					ranked = filtered
 				}
@@ -742,7 +515,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				wantsDeepDetails := wantsDetailedMemory(lastUserMsg)
 				for _, r := range ranked {
 					if !shouldServeRAGMemory(r.text) {
-						currentLogger.Debug("[RAG] Dropped stale transient memory", "preview", Truncate(r.text, 80))
+						s.currentLogger.Debug("[RAG] Dropped stale transient memory", "preview", Truncate(r.text, 80))
 						continue
 					}
 					compactText := compactMemoryForPrompt(r.text, 260)
@@ -770,7 +543,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				} else {
 					RecordRetrievalEventForScope(telemetryScope, "rag_auto_filtered_out")
 				}
-				currentLogger.Debug("[Sync] RAG: Retrieved memories (recency-boosted)", "count", len(ranked))
+				s.currentLogger.Debug("[Sync] RAG: Retrieved memories (recency-boosted)", "count", len(ranked))
 			} else {
 				RecordRetrievalEventForScope(telemetryScope, "rag_auto_miss")
 			}
@@ -865,7 +638,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 						retrievalPromptTokens += prompts.CountTokensForModel(flags.PredictedMemories, req.Model)
 						RecordRetrievalEventForScope(telemetryScope, "rag_predictive_hit")
 						RecordRetrievalEventForScope(telemetryScope, "rag_predictive_source:ltm_predicted")
-						currentLogger.Debug("[Sync] Predictive RAG: Pre-fetched memories", "count", len(predictedResults), "predictions", predictions, "temporal_predictions", temporalPredictions)
+						s.currentLogger.Debug("[Sync] Predictive RAG: Pre-fetched memories", "count", len(predictedResults), "predictions", predictions, "temporal_predictions", temporalPredictions)
 					} else {
 						RecordRetrievalEventForScope(telemetryScope, "rag_predictive_miss")
 					}
@@ -886,7 +659,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				"The authoritative source is the CURRENT TOOL SCHEMA in this context — NOT past memory entries. " +
 				"Memory about tool availability is always considered potentially stale. " +
 				"If you are unsure whether a tool is present, inspect the tool list directly or attempt to use the tool."
-			currentLogger.Debug("[RAG] Capability query: injecting live-state policy hint")
+			s.currentLogger.Debug("[RAG] Capability query: injecting live-state policy hint")
 		}
 
 		// Inject lightweight recent-day anchors and episodic cards, even when
@@ -943,7 +716,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			kgContext := kg.SearchForContext(lastUserMsg, maxNodes, maxChars)
 			if kgContext != "" {
 				flags.KnowledgeContext = kgContext
-				currentLogger.Debug("[Sync] KG: Injected knowledge context", "chars", len(kgContext))
+				s.currentLogger.Debug("[Sync] KG: Injected knowledge context", "chars", len(kgContext))
 			}
 		}
 
@@ -952,7 +725,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		if !runCfg.IsMission && cfg.Tools.KnowledgeGraph.Enabled && cfg.Tools.KnowledgeGraph.RetrievalFusion &&
 			flags.RetrievedMemories != "" && flags.KnowledgeContext != "" &&
 			longTermMem != nil && kg != nil {
-			fusionResult := applyRetrievalFusion(topMemories, flags.KnowledgeContext, longTermMem, kg, currentLogger)
+			fusionResult := applyRetrievalFusion(topMemories, flags.KnowledgeContext, longTermMem, kg, s.currentLogger)
 			if fusionResult.EnrichedMemories != "" {
 				flags.RetrievedMemories += "\n---\n" + fusionResult.EnrichedMemories
 			}
@@ -982,7 +755,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		if !runCfg.IsMission && personalityEnabled && shortTermMem != nil {
 			if cfg.Personality.EngineV2 {
 				// V2 Feature: Narrative Events based on Milestones & Loneliness
-				processBehavioralEvents(shortTermMem, &req.Messages, sessionID, meta, currentLogger)
+				processBehavioralEvents(shortTermMem, &req.Messages, sessionID, meta, s.currentLogger)
 			}
 			flags.PersonalityLine = shortTermMem.GetPersonalityLineWithMeta(cfg.Personality.EngineV2, meta)
 
@@ -996,7 +769,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				tickInnerVoiceTurn()
 				if iv, ivCategory := getInnerVoiceForPrompt(cfg.Personality.InnerVoice.DecayTurns); iv != "" {
 					flags.InnerVoice = iv
-					currentLogger.Info("[InnerVoice] Injecting inner voice into system prompt",
+					s.currentLogger.Info("[InnerVoice] Injecting inner voice into system prompt",
 						"category", ivCategory,
 						"content", iv)
 				}
@@ -1025,7 +798,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			adjustedTier := applyTelemetryAwarePromptTier(toolingPolicy, flags, flags.Tier)
 			if adjustedTier != flags.Tier {
 				RecordToolPolicyEventForScope(telemetryScope, "prompt_tier_compact")
-				currentLogger.Info("[ToolingPolicy] Telemetry-aware prompt tier adjustment",
+				s.currentLogger.Info("[ToolingPolicy] Telemetry-aware prompt tier adjustment",
 					"provider", telemetryScope.ProviderType,
 					"model", telemetryScope.Model,
 					"from", flags.Tier,
@@ -1069,7 +842,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		} else {
 			flags.AdditionalPrompt = mergeAdditionalPrompt(baseAdditionalPrompt, emotionPolicy.PromptHint)
 		}
-		flags.TokenBudget = calculateEffectivePromptTokenBudget(cfg, ToolCall{}, homepageUsedInChain, currentLogger)
+		flags.TokenBudget = calculateEffectivePromptTokenBudget(cfg, ToolCall{}, homepageUsedInChain, s.currentLogger)
 		recordRetrievalPromptTelemetry(telemetryScope, retrievalPromptTokens, flags.TokenBudget)
 
 		// Skip integrations that already have native schemas in the overview
@@ -1102,7 +875,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			sysPrompt = cachedSysPrompt
 			sysPromptTokens = cachedSysPromptTokens
 		} else {
-			sysPrompt = prompts.BuildSystemPrompt(cfg.Directories.PromptsDir, flags, coreMemCache, currentLogger)
+			sysPrompt = prompts.BuildSystemPrompt(cfg.Directories.PromptsDir, flags, coreMemCache, s.currentLogger)
 			if budgetHint != "" {
 				sysPrompt += "\n\n" + budgetHint
 			}
@@ -1121,7 +894,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 		}
 
-		currentLogger.Debug("[Sync] System prompt ready",
+		s.currentLogger.Debug("[Sync] System prompt ready",
 			"cache_hit", cacheHit,
 			"length", len(sysPrompt),
 			"tier", flags.Tier,
@@ -1145,7 +918,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		ctxWindow := cfg.Agent.ContextWindow
 		if ctxWindow <= 0 {
 			if detectedCtxWindow == 0 {
-				detectedCtxWindow = llm.DetectContextWindow(cfg.LLM.BaseURL, cfg.LLM.APIKey, req.Model, cfg.LLM.ProviderType, currentLogger)
+				detectedCtxWindow = llm.DetectContextWindow(cfg.LLM.BaseURL, cfg.LLM.APIKey, req.Model, cfg.LLM.ProviderType, s.currentLogger)
 			}
 			if detectedCtxWindow > 0 {
 				ctxWindow = detectedCtxWindow
@@ -1172,10 +945,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 			var compRes CompressHistoryResult
 			req.Messages, lastCompressionMsg, compRes = CompressHistory(
-				ctx, req.Messages, maxHistoryTokens, compressionModel, compressionClient, lastCompressionMsg, currentLogger,
+				ctx, req.Messages, maxHistoryTokens, compressionModel, compressionClient, lastCompressionMsg, s.currentLogger,
 			)
 			if compRes.Compressed {
-				currentLogger.Debug("[Compression] History compressed", "dropped", compRes.DroppedCount, "summary_tokens", compRes.SummaryTokens)
+				s.currentLogger.Debug("[Compression] History compressed", "dropped", compRes.DroppedCount, "summary_tokens", compRes.SummaryTokens)
 			}
 		}
 
@@ -1194,7 +967,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 		if totalMsgTokens > maxHistoryTokens && len(req.Messages) > 2 {
 			broker.Send("thinking", "Trimming context window...")
-			currentLogger.Warn("[ContextGuard] Token limit exceeded before LLM call — trimming history",
+			s.currentLogger.Warn("[ContextGuard] Token limit exceeded before LLM call — trimming history",
 				"tokens", totalMsgTokens, "limit", maxHistoryTokens, "messages", len(req.Messages))
 			sysMsg := req.Messages[0]
 			lastMsg := req.Messages[len(req.Messages)-1]
@@ -1225,7 +998,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 			req.Messages = append(trimmedMessages, append(mid, lastMsg)...)
 			req.Messages = trim422Messages(req.Messages)
-			currentLogger.Info("[ContextGuard] History trimmed",
+			s.currentLogger.Info("[ContextGuard] History trimmed",
 				"remaining_messages", len(req.Messages), "estimated_tokens", totalMsgTokens, "dropped_messages", len(droppedMessages))
 		}
 
@@ -1235,8 +1008,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			// Keep conversation logs in the original logger (stdout) to avoid pollution of technical log
 			lastMsgText := messageText(lastMsg)
 			logger.Info("[LLM Request]", "role", lastMsg.Role, "content_len", len(lastMsgText), "preview", Truncate(lastMsgText, 200))
-			currentLogger.Info("[LLM Request Redirected]", "role", lastMsg.Role, "content_len", len(lastMsgText))
-			currentLogger.Debug("[LLM Full History]", "messages_count", len(req.Messages))
+			s.currentLogger.Info("[LLM Request Redirected]", "role", lastMsg.Role, "content_len", len(lastMsgText))
+			s.currentLogger.Debug("[LLM Full History]", "messages_count", len(req.Messages))
 		}
 
 		// Prompt log: append full request JSON to prompts.log when enabled
@@ -1258,7 +1031,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					Messages:   req.Messages,
 				}
 				if err := json.NewEncoder(f).Encode(entry); err != nil {
-					currentLogger.Warn("[PromptLog] Failed to encode entry", "error", err)
+					s.currentLogger.Warn("[PromptLog] Failed to encode entry", "error", err)
 				}
 				f.Close()
 			}
@@ -1270,7 +1043,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		// provider. This catches orphaned tool results that slipped through
 		// GetForLLM() or were introduced by context compression / trimming.
 		if sanitized, dropped := SanitizeToolMessages(req.Messages); dropped > 0 {
-			currentLogger.Warn("[PreSend] Sanitized orphaned tool messages before LLM call",
+			s.currentLogger.Warn("[PreSend] Sanitized orphaned tool messages before LLM call",
 				"dropped", dropped, "before", len(req.Messages), "after", len(sanitized))
 			req.Messages = sanitized
 		}
@@ -1302,7 +1075,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 		req.Temperature = float32(effectiveTemp)
 		if tempDelta != 0 || creativeDelta != 0 {
-			currentLogger.Debug("[Temperature] Modulation applied", "base", baseTemp, "personality_delta", tempDelta, "creative_delta", creativeDelta, "effective", effectiveTemp)
+			s.currentLogger.Debug("[Temperature] Modulation applied", "base", baseTemp, "personality_delta", tempDelta, "creative_delta", creativeDelta, "effective", effectiveTemp)
 		}
 
 		// Budget check: block if daily budget exceeded and enforcement = full
@@ -1324,7 +1097,6 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 		var resp openai.ChatCompletionResponse
 		var content string
-		var err error
 		var promptTokens, completionTokens, totalTokens int
 		var tokenSource string
 
@@ -1336,7 +1108,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			if llmTimeout > 0 && chunkIdleTimeout > llmTimeout {
 				chunkIdleTimeout = llmTimeout
 			}
-			result := handleStreamingResponse(llmCtx, req, client, emptyRetried, recoveryPolicy, currentLogger, broker, telemetryScope, cancelResp, chunkIdleTimeout)
+			result := handleStreamingResponse(llmCtx, req, client, emptyRetried, recoveryPolicy, s.currentLogger, broker, telemetryScope, cancelResp, chunkIdleTimeout)
 			if result.recoveryContinue {
 				continue
 			}
@@ -1350,7 +1122,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			totalTokens = result.totalTokens
 			tokenSource = result.tokenSource
 		} else {
-			result := handleSyncLLMCall(llmCtx, req, client, emptyRetried, recoveryPolicy, currentLogger, broker, telemetryScope, cancelResp, &retry422Count)
+			result := handleSyncLLMCall(llmCtx, req, client, emptyRetried, recoveryPolicy, s.currentLogger, broker, telemetryScope, cancelResp, &retry422Count)
 			if result.recoveryContinue {
 				continue
 			}
@@ -1367,7 +1139,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 		retry422Count = 0 // reset on successful LLM response
 
-		if recoverFromEmptyResponseWithPolicy(recoveryPolicy, resp, content, &req, &emptyRetried, currentLogger, broker, telemetryScope) {
+		if recoverFromEmptyResponseWithPolicy(recoveryPolicy, resp, content, &req, &emptyRetried, s.currentLogger, broker, telemetryScope) {
 			continue
 		}
 		emptyRetried = false // reset only after confirmed non-empty response
@@ -1383,10 +1155,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		// Conversation log to stdout
 		logger.Info("[LLM Response]", "content_len", len(content), "preview", Truncate(content, 200))
 		// Activity log to file
-		currentLogger.Info("[LLM Response Received]", "content_len", len(content))
+		s.currentLogger.Info("[LLM Response Received]", "content_len", len(content))
 		lastActivity = time.Now() // LLM activity
 
-		parsedToolResp := parseToolResponse(resp, currentLogger, telemetryScope)
+		parsedToolResp := parseToolResponse(resp, s.currentLogger, telemetryScope)
 		// Strip the <done/> completion signal from the raw content that gets persisted
 		// to history. The streaming layer already filters it from SSE deltas, but the
 		// assembled content still contains it and would appear in the chat on reload.
@@ -1398,9 +1170,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		nativeAssistantMsg := parsedToolResp.NativeAssistantMsg
 		if parsedToolResp.ParseSource == ToolCallParseSourceNative {
 			nativeCall := resp.Choices[0].Message.ToolCalls[0]
-			currentLogger.Info("[Sync] Native tool call detected", "function", tc.Action, "id", nativeCall.ID, "forced", !cfg.LLM.UseNativeFunctions)
+			s.currentLogger.Info("[Sync] Native tool call detected", "function", tc.Action, "id", nativeCall.ID, "forced", !cfg.LLM.UseNativeFunctions)
 		} else if parsedToolResp.ParseSource == ToolCallParseSourceReasoningCleanJSON {
-			currentLogger.Info("[Sync] Tool call detected after stripping reasoning tags", "function", tc.Action)
+			s.currentLogger.Info("[Sync] Tool call detected after stripping reasoning tags", "function", tc.Action)
 			// Validate that the extracted action name is a known builtin or custom tool.
 			// Models sometimes include JSON tool calls in their <think> reasoning blocks that
 			// reference non-existent tools (e.g. docker_exec, docker_list_containers).
@@ -1417,12 +1189,12 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					}
 				}
 				if _, known := knownActions[tc.Action]; !known {
-					currentLogger.Warn("[Sync] Dropping reasoning-extracted tool call: action not in known tool set", "action", tc.Action)
+					s.currentLogger.Warn("[Sync] Dropping reasoning-extracted tool call: action not in known tool set", "action", tc.Action)
 					parsedToolResp.ToolCall.IsTool = false
 					tc = parsedToolResp.ToolCall
 					// Also discard any pending calls from the same reasoning block
 					if len(parsedToolResp.PendingToolCalls) > 0 {
-						currentLogger.Warn("[Sync] Dropping pending tool calls from same reasoning block", "count", len(parsedToolResp.PendingToolCalls))
+						s.currentLogger.Warn("[Sync] Dropping pending tool calls from same reasoning block", "count", len(parsedToolResp.PendingToolCalls))
 						parsedToolResp.PendingToolCalls = nil
 					}
 				}
@@ -1430,7 +1202,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 		if len(parsedToolResp.PendingToolCalls) > 0 {
 			pendingTCs = append(pendingTCs, parsedToolResp.PendingToolCalls...)
-			currentLogger.Info("[MultiTool] Queued additional tool calls from response", "count", len(parsedToolResp.PendingToolCalls), "source", parsedToolResp.ParseSource)
+			s.currentLogger.Info("[MultiTool] Queued additional tool calls from response", "count", len(parsedToolResp.PendingToolCalls), "source", parsedToolResp.ParseSource)
 		}
 
 		// Unified token accounting: sync path uses provider usage directly.
@@ -1453,7 +1225,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		)
 		if usedFallbackEstimate {
 			SetGlobalTokenEstimated(true)
-			currentLogger.Warn("[TokenEstimation] Provider returned zero tokens — falling back to estimation which may be inaccurate", "model", req.Model)
+			s.currentLogger.Warn("[TokenEstimation] Provider returned zero tokens — falling back to estimation which may be inaccurate", "model", req.Model)
 		}
 
 		sessionTokens += totalTokens
@@ -1461,7 +1233,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		localIsEstimated := tokenSource == "fallback_estimate"
 
 		if cfg.CoAgents.CircuitBreaker.MaxTokens > 0 && sessionTokens >= cfg.CoAgents.CircuitBreaker.MaxTokens {
-			currentLogger.Warn("[Sync] Co-agent token budget exceeded", "used", sessionTokens, "budget", cfg.CoAgents.CircuitBreaker.MaxTokens)
+			s.currentLogger.Warn("[Sync] Co-agent token budget exceeded", "used", sessionTokens, "budget", cfg.CoAgents.CircuitBreaker.MaxTokens)
 			breakerMsg := fmt.Sprintf("CIRCUIT BREAKER: Token budget of %d reached (used: %d). You MUST now provide your final answer immediately.", cfg.CoAgents.CircuitBreaker.MaxTokens, sessionTokens)
 			req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: breakerMsg})
 		}
@@ -1520,7 +1292,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 		}
 
-		currentLogger.Debug("[Sync] Tool detection", "is_tool", tc.IsTool, "action", tc.Action, "raw_code", tc.RawCodeDetected)
+		s.currentLogger.Debug("[Sync] Tool detection", "is_tool", tc.IsTool, "action", tc.Action, "raw_code", tc.RawCodeDetected)
 
 		// CHANGE LOG 2026-04-11: Telemetry overlay for RecoveryClassifier.
 		// Classifies the current tool call attempt for observability. This does NOT
@@ -1531,743 +1303,45 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			problem := ClassifyToolCallProblem(tc, content, parsedToolResp, useNativeFunctions)
 			if problem.Category != RecoveryCategoryNone {
 				RecordToolRecoveryEventForScope(telemetryScope, "classifier_"+problem.Category.String()+"_"+problem.SubType)
-				currentLogger.Debug("[RecoveryClassifier] Problem detected",
+				s.currentLogger.Debug("[RecoveryClassifier] Problem detected",
 					"category", problem.Category.String(),
 					"subtype", problem.SubType,
 					"retryable", problem.Retryable)
 			}
 		}
 
-		// Clear explicit tools after they've been consumed (they were injected this iteration)
-		if len(explicitTools) > 0 {
-			explicitTools = explicitTools[:0]
-		}
-
-		// Detect <workflow_plan>["tool1","tool2"]</workflow_plan> in the response
-		if workflowPlanCount < 10 {
-			if parsed, stripped := parseWorkflowPlan(content); len(parsed) > 0 {
-				workflowPlanCount++
-				explicitTools = parsed
-				currentLogger.Info("[Sync] Workflow plan detected, loading tool guides", "tools", parsed, "attempt", workflowPlanCount)
-				broker.Send("workflow_plan", strings.Join(parsed, ", "))
-
-				// Store the stripped content as assistant message
-				strippedContent := strings.TrimSpace(stripped)
-				if strippedContent != "" {
-					id, err := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleAssistant, strippedContent, false, false)
-					if err != nil {
-						currentLogger.Error("Failed to persist workflow plan message", "error", err)
-					}
-					if sessionID == "default" {
-						historyManager.Add(openai.ChatMessageRoleAssistant, strippedContent, id, false, false)
-					}
-					req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: strippedContent})
-				}
-
-				// Inject a system nudge so the agent knows the guides are available
-				nudge := fmt.Sprintf("Tool manuals loaded for: %s. Proceed with your plan.", strings.Join(parsed, ", "))
-				req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: nudge})
-				continue
-			}
-		}
-
-		if tc.RawCodeDetected && rawCodeCount < 2 {
-			rawCodeCount++
-			currentLogger.Warn("[Sync] Raw code detected, sending corrective feedback", "attempt", rawCodeCount)
-			feedbackMsg := applyEmotionRecoveryNudge(FormatRawCodeFeedback(), emotionPolicy)
-			msgs := recoverySession.PersistRecoveryMessages(PersistRecoveryParams{
-				SessionID:        sessionID,
-				AssistantContent: content,
-				FeedbackMsg:      feedbackMsg,
-				BrokerEventType:  "error_recovery",
-				I18nKey:          "backend.stream_error_recovery_raw_code",
-			}, shortTermMem, historyManager)
-			req.Messages = append(req.Messages, msgs...)
+		content, tc, shouldContinue, xmlFallbackHandled := handleAgentLoopRecoveries(s, content, tc, parsedToolResp, useNativePath, emotionPolicy)
+		if shouldContinue {
+			explicitTools = s.explicitTools
+			lastResponseWasTool = s.lastResponseWasTool
+			req = s.req
 			continue
 		}
-
-		// XML fallback format detected (e.g. minimax:tool_call): the tool was already
-		// parsed and will execute, but we send corrective feedback so the model uses
-		// the native function-calling API on subsequent turns.
-		if tc.XMLFallbackDetected && xmlFallbackCount < 2 {
-			xmlFallbackCount++
-			currentLogger.Warn("[Sync] XML fallback tool call detected, sending corrective feedback",
-				"attempt", xmlFallbackCount, "action", tc.Action)
-			broker.Send("error_recovery", i18n.T(cfg.Server.UILanguage, "backend.stream_error_recovery_xml_format"))
-
-			// Strip the <action>...</action> block (and everything after it) before
-			// persisting to SQLite so the raw XML never appears in history / chat UI.
-			// The streaming filter already hides it in real-time; this keeps storage clean.
-			displayContent := security.StripThinkingTags(content)
-			// Strip XML tool call markers so they never appear in the chat history.
-			for _, marker := range []string{"minimax:tool_call", "<action>", "<invoke", "<tool_call"} {
-				if idx := strings.Index(strings.ToLower(displayContent), marker); idx != -1 {
-					displayContent = strings.TrimSpace(displayContent[:idx])
-					break
-				}
-			}
-			if displayContent != "" {
-				id, err := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleAssistant, displayContent, false, true)
-				if err != nil {
-					currentLogger.Error("Failed to persist assistant message to SQLite", "error", err)
-				}
-				if sessionID == "default" {
-					historyManager.Add(openai.ChatMessageRoleAssistant, displayContent, id, false, true)
-				}
-			}
-
-			// Large XML fallback payloads (e.g. a full write_file with kilobytes of code)
-			// balloon the context and cause the next LLM call to return empty.
-			const xmlFallbackContentMaxBytes = 500
-
-			xmlFeedback := fmt.Sprintf(
-				"NOTE: You called '%s' using a proprietary XML format (minimax:tool_call). "+
-					"The tool has already been executed and the action is COMPLETE — do NOT repeat it. "+
-					"Continue with the next step of the task. "+
-					"For future calls, always use the native function-calling API instead. "+
-					"If a tool is not in your current tool list, you can still call it directly by name — "+
-					"the system accepts all enabled tools. Use discover_tools to find available tools.",
-				tc.Action)
-			if len(content) > xmlFallbackContentMaxBytes {
-				xmlFeedback += " IMPORTANT: To edit existing files, use the `file_editor` tool with" +
-					" `str_replace` or `insert_after` — it modifies only the targeted section and" +
-					" never requires sending the complete file content."
-			}
-			xmlFeedback = applyEmotionRecoveryNudge(xmlFeedback, emotionPolicy)
-			var id int64
-			id, err = shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, xmlFeedback, false, true)
-			if err != nil {
-				currentLogger.Error("Failed to persist XML feedback message to SQLite", "error", err)
-			}
-			if sessionID == "default" {
-				historyManager.Add(openai.ChatMessageRoleUser, xmlFeedback, id, false, true)
-			}
-
-			// Replace verbatim content in req.Messages with a compact representation so
-			// the corrective feedback cycle does not destroy the remaining context budget.
-			xmlAssistantContent := content
-			if len(xmlAssistantContent) > xmlFallbackContentMaxBytes {
-				xmlAssistantContent = fmt.Sprintf(`{"action":"%s"}`, tc.Action)
-			}
-			req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: xmlAssistantContent})
-			req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: xmlFeedback})
+		if xmlFallbackHandled {
 			xmlFallbackHandledThisTurn = true
-			// Don't continue — fall through so the tool is actually executed this turn.
-		}
-
-		if useNativePath && tc.NativeArgsMalformed && invalidNativeToolCount < 2 {
-			invalidNativeToolCount++
-			currentLogger.Warn("[Sync] Invalid native tool call detected, requesting corrected function call",
-				"attempt", invalidNativeToolCount,
-				"action", tc.Action,
-				"error", tc.NativeArgsError)
-			recoveryTool := tc.Action
-			if strings.TrimSpace(recoveryTool) == "" {
-				recoveryTool = "the requested tool"
-			} else {
-				recoveryTool = Truncate(strings.ReplaceAll(strings.ReplaceAll(recoveryTool, "\n", " "), "\r", " "), 80)
-			}
-			feedbackMsg := applyEmotionRecoveryNudge(FormatInvalidNativeToolFeedback(recoveryTool), emotionPolicy)
-			msgs := recoverySession.PersistRecoveryMessages(PersistRecoveryParams{
-				SessionID:            sessionID,
-				FeedbackMsg:          feedbackMsg,
-				BrokerEventType:      "error_recovery",
-				SkipAssistantPersist: true,
-				I18nKey:              "backend.stream_error_recovery_invalid_native",
-			}, shortTermMem, historyManager)
-			req.Messages = append(req.Messages, msgs...)
-			lastResponseWasTool = false
-			continue
-		}
-
-		// Recovery: model emitted a bare <tool_call> tag without any JSON body.
-		// This happens with some providers (MiniMax, OpenRouter) where the model
-		// tries to use XML-style tool calling but only outputs the tag marker.
-		// Handle this independently of the announcement detector.
-		if parsedToolResp.IncompleteToolCall && !tc.IsTool && incompleteToolCallCount < 3 {
-			incompleteToolCallCount++
-			currentLogger.Warn("[Sync] Incomplete <tool_call> tag detected, nudging model to emit actual tool call", "attempt", incompleteToolCallCount)
-			feedbackMsg := applyEmotionRecoveryNudge(FormatIncompleteToolCallFeedback(useNativeFunctions, incompleteToolCallCount), emotionPolicy)
-			msgs := recoverySession.PersistRecoveryMessages(PersistRecoveryParams{
-				SessionID:        sessionID,
-				AssistantContent: content,
-				FeedbackMsg:      feedbackMsg,
-				BrokerEventType:  "error_recovery",
-				I18nKey:          "backend.stream_error_recovery_incomplete_tool_call",
-			}, shortTermMem, historyManager)
-			// Override the assistant message in req.Messages with cleaned content
-			// (strip bare XML tool tags so the model does not repeat the invalid format).
-			if len(msgs) > 0 {
-				cleanedContent := bareToolCallTagRe.ReplaceAllString(content, "")
-				cleanedContent = strings.TrimSpace(cleanedContent)
-				if cleanedContent == "" {
-					cleanedContent = parsedToolResp.SanitizedContent
-				}
-				msgs[0].Content = cleanedContent
-			}
-			req.Messages = append(req.Messages, msgs...)
-			lastResponseWasTool = false
-			continue
-		}
-
-		// Recovery: model announced a next action but did not emit the tool call yet.
-		// Use sanitized content (think-tags stripped) to avoid false positives from
-		// reasoning-only language inside <think> blocks triggering the forward-cue detector.
-		// Skip detection entirely when:
-		// - The LLM explicitly signaled completion via <done/>
-		// - A valid tool call was successfully parsed (native, bracket, or JSON) — even if
-		//   the sanitized content only shows an acknowledgment prefix (e.g. "Alles klar,
-		//   ich schau mir die Version an!" followed by [TOOL_CALL]{...}[/TOOL_CALL] where
-		//   StripThinkingTags removed the [/TOOL_CALL] closing tag)
-		// IMPORTANT: do NOT fall back to raw content when SanitizedContent is empty — an empty
-		// sanitized string means the entire response was inside <think> blocks, and feeding raw
-		// think-block language to the detector causes spurious WARN / recovery loops.
-		announcementContent := parsedToolResp.SanitizedContent
-		// Skip structural check after XML-fallback tool chains (e.g. MiniMax minimax:tool_call).
-		// When the model used XML format and one or more tools already ran, the next text response
-		// is a completion summary — not a missed action.
-		xmlFallbackPostToolChain := xmlFallbackCount > 0 && lastResponseWasTool
-
-		// Language-agnostic recovery: if the PREVIOUS iteration was a tool call (mid-task)
-		// and the model now outputs only text without <done/> and without a new tool call,
-		// it is stuck. This replaces the language-heuristic announcement detector with a
-		// pure structural check: the model MUST either emit a tool call (JSON) or signal
-		// completion (<done/>). No keyword lists, no language detection needed.
-		//
-		// However, when the model produces a substantive final response (i.e. it has enough
-		// content to be a real answer rather than a brief "I'll do X" announcement), we
-		// treat it as an implicit completion instead of triggering a recovery loop. Many
-		// providers don't reliably emit <done/> even when instructed to.
-		midTaskTextOnly := announcementContent != "" &&
-			!parsedToolResp.IsFinished &&
-			!tc.IsTool &&
-			lastResponseWasTool &&
-			!xmlFallbackPostToolChain
-		if midTaskTextOnly {
-			// Heuristic: a substantive response (>300 chars) after a tool call is very likely
-			// a final answer the model forgot to terminate with <done/>. Treat it as complete
-			// rather than looping. Short responses are still treated as stuck announcements.
-			const midTaskSubstantiveThreshold = 300
-			if len(announcementContent) >= midTaskSubstantiveThreshold {
-				currentLogger.Info("[Sync] Mid-task text-only response without <done/> — treating as implicit completion (substantive content)", "content_len", len(announcementContent))
-				parsedToolResp.IsFinished = true
-				if !strings.Contains(content, "<done/>") {
-					content += "\n<done/>"
-				}
-				content = strings.TrimSpace(strings.ReplaceAll(content, "<done/>", ""))
-			} else if announcementCount < cfg.Agent.AnnouncementDetector.MaxRetries {
-				announcementCount++
-				currentLogger.Warn("[Sync] Mid-task text-only response without <done/> — requesting tool call or completion signal", "attempt", announcementCount, "content_preview", Truncate(announcementContent, 120))
-				feedbackMsg := applyEmotionRecoveryNudge(FormatAnnouncementFeedback(useNativeFunctions, recentTools), emotionPolicy)
-				msgs := recoverySession.PersistRecoveryMessages(PersistRecoveryParams{
-					SessionID:        sessionID,
-					AssistantContent: content,
-					FeedbackMsg:      feedbackMsg,
-					BrokerEventType:  "error_recovery",
-					I18nKey:          "backend.stream_error_recovery_announcement_no_action",
-				}, shortTermMem, historyManager)
-				req.Messages = append(req.Messages, msgs...)
-				continue
-			}
-		}
-
-		// Recovery: model wrapped tool call in markdown fence instead of bare JSON
-		if !tc.IsTool && !tc.RawCodeDetected && missedToolCount < 2 &&
-			(strings.Contains(content, "```") || strings.Contains(content, "{")) &&
-			(strings.Contains(content, `"action"`) || strings.Contains(content, `'action'`)) {
-			missedToolCount++
-			currentLogger.Warn("[Sync] Missed tool call in fence, sending corrective feedback", "attempt", missedToolCount, "content_preview", Truncate(content, 150))
-			feedbackMsg := applyEmotionRecoveryNudge(FormatMissedToolInFenceFeedback(), emotionPolicy)
-			msgs := recoverySession.PersistRecoveryMessages(PersistRecoveryParams{
-				SessionID:        sessionID,
-				AssistantContent: content,
-				FeedbackMsg:      feedbackMsg,
-				BrokerEventType:  "error_recovery",
-				I18nKey:          "backend.stream_error_recovery_fence_json",
-			}, shortTermMem, historyManager)
-			req.Messages = append(req.Messages, msgs...)
-			continue
-		}
-
-		// Recovery: LLM output literal "[TOOL_CALL]" tag without a closing "[/TOOL_CALL]"
-		// or valid tool call payload — it intended to call a tool but failed to produce one.
-		if !tc.IsTool && !useNativePath && orphanedBracketTagCount < 2 {
-			lowerForTagCheck := strings.ToLower(content)
-			hasOpenTag := strings.Contains(lowerForTagCheck, "[tool_call]")
-			hasCloseTag := strings.Contains(lowerForTagCheck, "[/tool_call]")
-			if hasOpenTag && !hasCloseTag {
-				orphanedBracketTagCount++
-				currentLogger.Warn("[Sync] Orphaned [TOOL_CALL] tag detected without closing tag, requesting corrective tool call", "attempt", orphanedBracketTagCount, "content_preview", Truncate(content, 150))
-				feedbackMsg := applyEmotionRecoveryNudge(FormatOrphanedBracketTagFeedback(useNativeFunctions), emotionPolicy)
-				msgs := recoverySession.PersistRecoveryMessages(PersistRecoveryParams{
-					SessionID:        sessionID,
-					AssistantContent: content,
-					FeedbackMsg:      feedbackMsg,
-					BrokerEventType:  "error_recovery",
-					I18nKey:          "backend.stream_error_recovery_incomplete_tag",
-				}, shortTermMem, historyManager)
-				req.Messages = append(req.Messages, msgs...)
-				continue
-			}
-		}
-
-		// Recovery: model emitted literal <tool_call> XML in native function-calling mode but
-		// did not actually produce a function call.  This happens when a model that was trained
-		// on XML-format tool calls falls back to that format after receiving a corrective prompt.
-		// The bare tag is already stripped from the SSE stream, but we still need a corrective
-		// retry so the model produces an actual native call.
-		if !tc.IsTool && useNativeFunctions && orphanedXMLTagCount < 2 {
-			lowerContent := strings.ToLower(parsedToolResp.SanitizedContent + content)
-			if strings.Contains(lowerContent, "<tool_call") || strings.Contains(lowerContent, "minimax:tool_call") {
-				orphanedXMLTagCount++
-				currentLogger.Warn("[Sync] Bare <tool_call> XML in native mode, requesting native function call", "attempt", orphanedXMLTagCount, "content_preview", Truncate(content, 150))
-				feedbackMsg := applyEmotionRecoveryNudge(FormatBareXMLInNativeModeFeedback(), emotionPolicy)
-				msgs := recoverySession.PersistRecoveryMessages(PersistRecoveryParams{
-					SessionID:        sessionID,
-					AssistantContent: content,
-					FeedbackMsg:      feedbackMsg,
-					BrokerEventType:  "error_recovery",
-					I18nKey:          "backend.stream_error_recovery_xml_in_native_mode",
-				}, shortTermMem, historyManager)
-				req.Messages = append(req.Messages, msgs...)
-				continue
-			}
+			req = s.req
 		}
 
 		// Berechne effektives Limit neu mit bekanntem tc (für Tool-spezifische Anpassungen)
-		effectiveMaxCallsWithTool := calculateEffectiveMaxCalls(cfg, tc, homepageUsedInChain, personalityEnabled, shortTermMem, currentLogger)
+		effectiveMaxCallsWithTool := calculateEffectiveMaxCalls(cfg, tc, homepageUsedInChain, personalityEnabled, shortTermMem, s.currentLogger)
 
-		if tc.IsTool && toolCallCount < effectiveMaxCallsWithTool {
-			toolCallCount++
-			if tc.Action == "homepage" || tc.Action == "homepage_tool" {
-				homepageUsedInChain = true
+		if tc.IsTool && s.toolCallCount < effectiveMaxCallsWithTool {
+			resp, err, shouldContinue := executeAgentToolTurn(s, ctx, tc, resp, content, useNativePath, nativeAssistantMsg, lastUserMsg, triggerValue, xmlFallbackHandledThisTurn)
+			if !shouldContinue {
+				return resp, err
 			}
-			broker.Send("thinking", fmt.Sprintf("[%d] Running %s...", toolCallCount, tc.Action))
-
-			// Persist tool call to history: native path synthesizes a text representation
-			histContent := content
-
-			// Strip <think> reasoning blocks — never store/display them in history.
-			histContent = security.StripThinkingTags(histContent)
-
-			// When the LLM mixes conversational text with a trailing JSON tool call
-			// (e.g. "Build erfolgreich!\n\n{"tool_call":"deploy",...}"), keep only the
-			// text portion so the raw JSON never appears as a chat message.
-			if !useNativePath {
-				if jsonIdx := strings.Index(histContent, "{"); jsonIdx > 0 {
-					textPart := strings.TrimSpace(histContent[:jsonIdx])
-					if textPart != "" {
-						histContent = textPart
-					}
-				}
-			}
-			// Strip bare minimax:tool_call prefix that may remain after JSON stripping.
-			if strings.HasPrefix(strings.ToLower(strings.TrimSpace(histContent)), "minimax:tool_call") {
-				histContent = fmt.Sprintf(`{"action":"%s"}`, tc.Action)
-			}
-
-			// Tool-call turn messages are operational scaffolding, not user-facing chat history.
-			// They are shown live via SSE/debug UI and should not reappear as normal chat bubbles
-			// after a reload, even when the model added prose before the tool call.
-			isMsgInternal := true
-
-			if useNativePath && histContent == "" && len(nativeAssistantMsg.ToolCalls) > 0 {
-				nc := nativeAssistantMsg.ToolCalls[0]
-				histContent = fmt.Sprintf("{\"action\": \"%s\"}", nc.Function.Name)
-				if nc.Function.Arguments != "" && len(nc.Function.Arguments) > 2 {
-					args := strings.TrimSpace(nc.Function.Arguments)
-					if strings.HasPrefix(args, "{") && strings.HasSuffix(args, "}") {
-						inner := args[1 : len(args)-1]
-						if inner != "" {
-							histContent = fmt.Sprintf("{\"action\": \"%s\", %s}", nc.Function.Name, inner)
-						}
-					}
-				}
-			}
-			id, err := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleAssistant, histContent, false, isMsgInternal)
-			if err != nil {
-				currentLogger.Error("Failed to persist tool-call message to SQLite", "error", err)
-			}
-			if sessionID == "default" {
-				if useNativePath {
-					// Persist the real assistant tool_calls message so a restart can rebuild a valid
-					// OpenAI-style tool round. Persisting only a synthetic JSON placeholder breaks
-					// providers once role=tool results appear in the next request.
-					nativeMsg := nativeAssistantMsg
-					if nativeMsg.Role == "" {
-						nativeMsg.Role = openai.ChatMessageRoleAssistant
-					}
-					historyManager.AddMessage(nativeMsg, id, false, isMsgInternal)
-				} else {
-					historyManager.Add(openai.ChatMessageRoleAssistant, histContent, id, false, isMsgInternal)
-				}
-			}
-
-			// For SSE: send only the JSON representation of the tool call.
-			// In the non-native (legacy JSON) path the LLM response may include
-			// conversational preamble text before the JSON object. Sending that
-			// preamble would cause the UI to render it as a spurious assistant
-			// message. We therefore always send the raw JSON (or a minimal
-			// synthetic fallback), never the preamble text.
-			// In the native function-calling path histContent is already the
-			// synthetic JSON we built above, so no change is needed there.
-			sseToolContent := histContent
-			if !useNativePath {
-				if tc.RawJSON != "" {
-					sseToolContent = tc.RawJSON
-				} else {
-					sseToolContent = fmt.Sprintf(`{"action":"%s"}`, tc.Action)
-				}
-			}
-			broker.Send("tool_call", sseToolContent)
-			broker.Send("tool_start", tc.Action)
-
-			// Record the tool in the session set so AdaptiveTools keeps it in schema next turn.
-			if tc.Action != "" {
-				sessionUsedTools[tc.Action] = true
-			}
-
-			if recoveryState.handleDuplicateToolCall(tc, &req, currentLogger, telemetryScope) {
-				// Native path: the assistant message with ToolCalls was already persisted to
-				// historyManager above. Inject a synthetic role=tool result so the history stays
-				// valid. Without this, the orphaned tool-call message causes API error 2013
-				// ("tool call result does not follow tool call") on the next request.
-				if useNativePath && tc.NativeCallID != "" {
-					syntheticResult := blockedToolOutputFromRequest(&req)
-					req.Messages = append(req.Messages, nativeAssistantMsg)
-					req.Messages = append(req.Messages, openai.ChatCompletionMessage{
-						Role:       openai.ChatMessageRoleTool,
-						Content:    syntheticResult,
-						ToolCallID: tc.NativeCallID,
-					})
-					resultID, _ := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleTool, syntheticResult, false, true)
-					if sessionID == "default" {
-						historyManager.AddMessage(openai.ChatCompletionMessage{
-							Role:       openai.ChatMessageRoleTool,
-							Content:    syntheticResult,
-							ToolCallID: tc.NativeCallID,
-						}, resultID, false, true)
-					}
-				}
-				lastResponseWasTool = false
-				continue
-			}
-
-			if tc.Action == "execute_python" {
-				flags.RequiresCoding = true
-				broker.Send("coding", i18n.T(cfg.Server.UILanguage, "backend.stream_coding_executing"))
-			}
-
-			// Co-agent spawn: send a dedicated status event with a task preview
-			if (tc.Action == "co_agent" || tc.Action == "co_agents") &&
-				(tc.Operation == "spawn" || tc.Operation == "start" || tc.Operation == "create") {
-				taskPreview := tc.Task
-				if taskPreview == "" {
-					taskPreview = tc.Content
-				}
-				if len(taskPreview) > 80 {
-					taskPreview = taskPreview[:80] + "…"
-				}
-				broker.Send("co_agent_spawn", taskPreview)
-			}
-
-			dispatchCtx := makeDispatchContext(currentLogger)
-			resultContent := DispatchToolCall(ctx, &tc, dispatchCtx, lastUserMsg)
-			policyResult := finalizeToolExecution(tc, resultContent, tc.GuardianBlocked, cfg, shortTermMem, sessionID, &recoveryState, &req, currentLogger, telemetryScope, optimizer.GetToolPromptVersion(tc.Action), dispatchCtx.ExecutionTimeMs)
-			resultContent = policyResult.Content
-			trackActivityTool(&turnToolNames, &turnToolSummaries, tc.Action, resultContent)
-			recordPlanToolProgress(shortTermMem, sessionID, tc, resultContent, currentLogger)
-
-			broker.Send("tool_output", resultContent)
-			emitMediaSSEEvents(broker, tc.Action, resultContent, cfg.Directories.DataDir)
-
-			broker.Send("tool_end", tc.Action)
-			lastActivity = time.Now() // Tool activity
-			lastResponseWasTool = true
-
-			// Update session todo from piggybacked _todo field
-			if tc.Todo != "" {
-				sessionTodoList = string(tc.Todo)
-				broker.Send("todo_update", sessionTodoList)
-			}
-			if tc.Action == "manage_plan" {
-				emitSessionPlanUpdate(broker, shortTermMem, sessionID, currentLogger)
-			}
-
-			// Invalidate core memory cache when it was modified
-			if tc.Action == "manage_memory" {
-				coreMemDirty = true
-			}
-
-			// Record transition
-			if lastTool != "" {
-				_ = shortTermMem.RecordToolTransition(lastTool, tc.Action)
-			}
-			lastTool = tc.Action
-			// Track recent tools for lazy schema injection (keep last 5, dedup)
-			found := false
-			for _, rt := range recentTools {
-				if rt == tc.Action {
-					found = true
-					break
-				}
-			}
-			if !found {
-				recentTools = append(recentTools, tc.Action)
-				if len(recentTools) > 5 {
-					recentTools = recentTools[len(recentTools)-5:]
-				}
-			}
-
-			// Proactive Workflow Feedback (Phase: Keep the user engaged during long chains)
-			if cfg.Agent.WorkflowFeedback && !flags.IsCoAgent && sessionID == "default" {
-				stepsSinceLastFeedback++
-				if stepsSinceLastFeedback >= 4 {
-					stepsSinceLastFeedback = 0
-					feedbackPhrases := []string{
-						"Ich brauche noch einen Moment, bin aber dran...",
-						"Die Analyse läuft noch, einen Augenblick bitte...",
-						"Ich suche noch nach weiteren Informationen...",
-						"Bin gleich fertig mit der Bearbeitung...",
-						"Das dauert einen Moment länger als erwartet, bleib dran...",
-						"Ich verarbeite die Daten noch...",
-					}
-					// Simple pseudo-random selection based on time
-					phrase := feedbackPhrases[time.Now().Unix()%int64(len(feedbackPhrases))]
-					broker.Send("progress", phrase)
-				}
-			}
-
-			// Phase D: Mood detection after each tool call
-			if personalityEnabled && shortTermMem != nil {
-				triggerInfo := moodTrigger()
-				if strings.Contains(resultContent, "ERROR") || strings.Contains(resultContent, "error") {
-					triggerInfo = moodTrigger() + " [tool error]"
-				}
-
-				if cfg.Personality.EngineV2 {
-					// ── V2: Asynchronous LLM-Based Mood Analysis ──
-					recentMsgs := req.Messages
-					toolEmotionTrigger, toolEmotionDetail := detectToolEmotionTrigger(tc, recoveryState.ConsecutiveErrorCount, toolCallCount-recoveryState.ConsecutiveErrorCount)
-					launchAsyncPersonalityV2Analysis(
-						cfg,
-						currentLogger,
-						client,
-						shortTermMem,
-						emotionSynthesizer,
-						recentMsgs,
-						triggerInfo,
-						toolEmotionTrigger,
-						toolEmotionDetail,
-						0,
-						"Tool Result",
-						resultContent,
-						meta,
-						cfg.Personality.UserProfiling,
-						recoveryState.ConsecutiveErrorCount,
-						recoveryState.TotalErrorCount,
-						toolCallCount-recoveryState.ConsecutiveErrorCount,
-						flags.IsMission,
-						flags.IsCoAgent,
-					)
-
-				} else {
-					// ── V1: Synchronous Heuristic-Based Mood Analysis ──
-					mood, traitDeltas := memory.DetectMood(lastUserMsg, resultContent, meta)
-					// O-08: Apply emotion bias from synthesizer to contextualize V1 detection.
-					if emotionSynthesizer != nil {
-						traits, _ := shortTermMem.GetTraits()
-						mood = memory.ApplyEmotionBias(mood, emotionSynthesizer.GetLastEmotion(), traits)
-					}
-					_ = shortTermMem.LogMood(mood, triggerInfo)
-					for trait, delta := range traitDeltas {
-						_ = shortTermMem.UpdateTrait(trait, delta)
-					}
-				}
-				flags.PersonalityLine = shortTermMem.GetPersonalityLineWithMeta(cfg.Personality.EngineV2, meta)
-
-				// Emotion Synthesizer: update flags with latest emotion if available
-				if emotionDescription := latestEmotionDescription(shortTermMem, emotionSynthesizer); emotionDescription != "" {
-					flags.EmotionDescription = emotionDescription
-				}
-			}
-
-			if tc.NotifyOnCompletion {
-				resultContent = fmt.Sprintf(
-					"[TOOL COMPLETION NOTIFICATION]\nAction: %s\nStatus: Completed\nTimestamp: %s\nOutput:\n%s",
-					tc.Action,
-					time.Now().Format(time.RFC3339),
-					resultContent,
-				)
-			}
-			// Make sure errors from execute_python trigger recovery mode
-			if tc.Action == "execute_python" {
-				if strings.Contains(resultContent, "[EXECUTION ERROR]") || strings.Contains(resultContent, "TIMEOUT") {
-					flags.IsErrorState = true
-					broker.Send("error_recovery", "Script error detected, retrying...")
-				} else {
-					flags.IsErrorState = false
-				}
-			}
-			toolResultPersistRole := openai.ChatMessageRoleTool
-			if !useNativePath {
-				toolResultPersistRole = openai.ChatMessageRoleUser
-			}
-			id, err = shortTermMem.InsertMessage(sessionID, toolResultPersistRole, resultContent, false, true)
-			if err != nil {
-				currentLogger.Error("Failed to persist tool-result message to SQLite", "error", err)
-			}
-			if sessionID == "default" {
-				if toolResultPersistRole == openai.ChatMessageRoleTool {
-					historyManager.AddMessage(openai.ChatCompletionMessage{
-						Role:       openai.ChatMessageRoleTool,
-						Content:    resultContent,
-						ToolCallID: tc.NativeCallID,
-					}, id, false, true)
-				} else {
-					historyManager.Add(toolResultPersistRole, resultContent, id, false, true)
-				}
-			}
-
-			// Phase 1: Lifecycle Handover check
-			if strings.Contains(resultContent, "Maintenance Mode activated") {
-				currentLogger.Info("Handover sentinel detected, Sidecar taking over...")
-				// We return the response so the user sees the handover message,
-				// and the loop terminates. The process stays alive in "busy" mode
-				// until the sidecar triggers a reload.
-				if len(resp.Choices) == 0 {
-					return resp, nil
-				}
-				id, err := shortTermMem.InsertMessage(sessionID, resp.Choices[0].Message.Role, content, false, false)
-				if err != nil {
-					currentLogger.Error("Failed to persist handover message to SQLite", "error", err)
-				}
-				if sessionID == "default" {
-					historyManager.Add(resp.Choices[0].Message.Role, content, id, false, false)
-				}
-				return resp, nil
-			}
-
-			if useNativePath {
-				// Native path: use proper role=tool format so the LLM gets structured multi-turn context
-				req.Messages = append(req.Messages, nativeAssistantMsg)
-				req.Messages = append(req.Messages, openai.ChatCompletionMessage{
-					Role:       openai.ChatMessageRoleTool,
-					Content:    resultContent,
-					ToolCallID: tc.NativeCallID,
-				})
-
-				// Execute batched native tool calls inline.
-				// The OpenAI API requires ALL role=tool responses to be present before
-				// the next API call when the assistant message contains multiple tool_calls.
-				var nativePendingSummaryBatch map[string]string
-				nativeDispatchCtx := makeDispatchContext(currentLogger)
-				for len(pendingTCs) > 0 && pendingTCs[0].NativeCallID != "" {
-					if helperManager != nil && len(nativePendingSummaryBatch) == 0 {
-						nativePendingSummaryBatch = maybeBuildPendingSummaryBatch(ctx, pendingTCs, nativeDispatchCtx, helperManager, lastUserMsg)
-					}
-
-					btc := pendingTCs[0]
-					pendingTCs = pendingTCs[1:]
-					toolCallCount++
-					if btc.Action == "homepage" || btc.Action == "homepage_tool" {
-						homepageUsedInChain = true
-					}
-					broker.Send("thinking", fmt.Sprintf("[%d] Running %s (batched)...", toolCallCount, btc.Action))
-					broker.Send("tool_start", btc.Action)
-					// Record in session set so AdaptiveTools keeps this tool in schema next turn.
-					if btc.Action != "" {
-						sessionUsedTools[btc.Action] = true
-					}
-
-					bResult := ""
-					if precomputed, ok := nativePendingSummaryBatch[pendingSummaryBatchKey(btc)]; ok {
-						bResult = precomputed
-						delete(nativePendingSummaryBatch, pendingSummaryBatchKey(btc))
-						if len(nativePendingSummaryBatch) == 0 {
-							nativePendingSummaryBatch = nil
-						}
-					} else if recoveryState.handleDuplicateToolCall(btc, &req, currentLogger, telemetryScope) {
-						bResult = blockedToolOutputFromRequest(&req)
-					} else {
-						bResult = DispatchToolCall(ctx, &btc, nativeDispatchCtx, lastUserMsg)
-					}
-					policyResult := finalizeToolExecution(btc, bResult, btc.GuardianBlocked, cfg, shortTermMem, sessionID, &recoveryState, &req, currentLogger, telemetryScope, optimizer.GetToolPromptVersion(btc.Action), nativeDispatchCtx.ExecutionTimeMs)
-					bResult = policyResult.Content
-					trackActivityTool(&turnToolNames, &turnToolSummaries, btc.Action, bResult)
-					recordPlanToolProgress(shortTermMem, sessionID, btc, bResult, currentLogger)
-					broker.Send("tool_output", bResult)
-					broker.Send("tool_end", btc.Action)
-					if btc.Action == "manage_plan" {
-						emitSessionPlanUpdate(broker, shortTermMem, sessionID, currentLogger)
-					}
-					lastActivity = time.Now()
-
-					if btc.Action == "manage_memory" || btc.Action == "core_memory" {
-						coreMemDirty = true
-					}
-					// Track recent tools for journal auto-trigger (keep last 5, dedup)
-					{
-						found := false
-						for _, rt := range recentTools {
-							if rt == btc.Action {
-								found = true
-								break
-							}
-						}
-						if !found {
-							recentTools = append(recentTools, btc.Action)
-							if len(recentTools) > 5 {
-								recentTools = recentTools[len(recentTools)-5:]
-							}
-						}
-					}
-
-					// Persist batched call to history
-					bHistContent := fmt.Sprintf(`{"action": "%s"}`, btc.Action)
-					bID, bErr := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleAssistant, bHistContent, false, true)
-					if bErr != nil {
-						currentLogger.Error("Failed to persist batched tool-call message", "error", bErr)
-					}
-					bID, bErr = shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleTool, bResult, false, true)
-					if bErr != nil {
-						currentLogger.Error("Failed to persist batched tool-result message", "error", bErr)
-					}
-					if sessionID == "default" {
-						historyManager.AddMessage(openai.ChatCompletionMessage{
-							Role:       openai.ChatMessageRoleTool,
-							Content:    bResult,
-							ToolCallID: btc.NativeCallID,
-						}, bID, false, true)
-					}
-
-					req.Messages = append(req.Messages, openai.ChatCompletionMessage{
-						Role:       openai.ChatMessageRoleTool,
-						Content:    bResult,
-						ToolCallID: btc.NativeCallID,
-					})
-				}
-			} else {
-				if !xmlFallbackHandledThisTurn {
-					req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: content})
-				}
-				req.Messages = append(req.Messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: resultContent})
-			}
-
-			// Support early exit for Lifeboat
-			if strings.Contains(resultContent, "[LIFEBOAT_EXIT_SIGNAL]") {
-				currentLogger.Info("[Sync] Early exit signal received, stopping loop.")
-				return resp, nil
-			}
-
-			// 429 Mitigation: Add a delay between turns to respect rate limits (controlled by config)
-			select {
-			case <-time.After(time.Duration(cfg.Agent.StepDelaySeconds) * time.Second):
-				// Continue to next turn
-			case <-ctx.Done():
-				return resp, ctx.Err()
-			}
-			lastResponseWasTool = true
+			// Sync modified state back to local aliases for the next iteration
+			homepageUsedInChain = s.homepageUsedInChain
+			lastResponseWasTool = s.lastResponseWasTool
+			lastActivity = s.lastActivity
+			coreMemDirty = s.coreMemDirty
+			recentTools = s.recentTools
+			turnToolNames = s.turnToolNames
+			turnToolSummaries = s.turnToolSummaries
+			req = s.req
+			flags = s.flags
+			lastTool = s.lastTool
+			pendingTCs = s.pendingTCs
 			continue
 		}
 
@@ -2275,7 +1349,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		if content == "" {
 			content = "[Empty Response]"
 		}
-		currentLogger.Debug("[Sync] Final answer", "content_len", len(content), "content_preview", Truncate(content, 200))
+		s.currentLogger.Debug("[Sync] Final answer", "content_len", len(content), "content_preview", Truncate(content, 200))
 
 		// Don't persist [Empty Response] as a real message — it pollutes future context
 		isEmpty := content == "[Empty Response]"
@@ -2290,13 +1364,13 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		if !isEmpty {
 			id, err := shortTermMem.InsertMessage(sessionID, resp.Choices[0].Message.Role, content, false, false)
 			if err != nil {
-				currentLogger.Error("Failed to persist final-answer message to SQLite", "error", err)
+				s.currentLogger.Error("Failed to persist final-answer message to SQLite", "error", err)
 			}
 			if sessionID == "default" {
 				historyManager.Add(resp.Choices[0].Message.Role, content, id, false, false)
 			}
 		} else {
-			currentLogger.Warn("[Sync] Skipping history persistence for empty response")
+			s.currentLogger.Warn("[Sync] Skipping history persistence for empty response")
 		}
 		// Fire "done" AFTER the message is persisted so that the UI can reliably
 		// fall back to /history if the HTTP response was lost (e.g. page refresh
@@ -2313,7 +1387,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				if !useBatchedTurnPersonality {
 					launchAsyncPersonalityV2Analysis(
 						cfg,
-						currentLogger,
+						s.currentLogger,
 						client,
 						shortTermMem,
 						emotionSynthesizer,
@@ -2328,7 +1402,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 						cfg.Personality.UserProfiling,
 						recoveryState.ConsecutiveErrorCount,
 						recoveryState.TotalErrorCount,
-						toolCallCount-recoveryState.ConsecutiveErrorCount,
+						s.toolCallCount-recoveryState.ConsecutiveErrorCount,
 						flags.IsMission,
 						flags.IsCoAgent,
 					)
@@ -2351,14 +1425,14 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			usefulIDs, uselessIDs := assessMemoryEffectiveness(content, turnMemoryCandidates)
 			for _, memoryID := range usefulIDs {
 				if err := shortTermMem.RecordMemoryEffectiveness(memoryID, true); err != nil {
-					currentLogger.Debug("Failed to record useful memory effectiveness", "memory_id", memoryID, "error", err)
+					s.currentLogger.Debug("Failed to record useful memory effectiveness", "memory_id", memoryID, "error", err)
 					continue
 				}
 				RecordRetrievalEventForScope(telemetryScope, "memory_effectiveness_useful")
 			}
 			for _, memoryID := range uselessIDs {
 				if err := shortTermMem.RecordMemoryEffectiveness(memoryID, false); err != nil {
-					currentLogger.Debug("Failed to record useless memory effectiveness", "memory_id", memoryID, "error", err)
+					s.currentLogger.Debug("Failed to record useless memory effectiveness", "memory_id", memoryID, "error", err)
 					continue
 				}
 				RecordRetrievalEventForScope(telemetryScope, "memory_effectiveness_useless")
@@ -2376,7 +1450,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				contextHistory, userHistory := buildPersonalityHistories(req.Messages, "Assistant Response", content)
 				_, previousEmotion := resolveHelperEmotionBatchState(cfg, emotionSynthesizer)
 				traits, _ := shortTermMem.GetTraits()
-				batchSuccessCount := toolCallCount - recoveryState.ConsecutiveErrorCount
+				batchSuccessCount := s.toolCallCount - recoveryState.ConsecutiveErrorCount
 				batchTaskCompleted := recoveryState.ConsecutiveErrorCount == 0 && batchSuccessCount > 0
 				batchIVEnabled := shouldGenerateInnerVoice(cfg, recoveryState.ConsecutiveErrorCount, recoveryState.TotalErrorCount, batchSuccessCount, batchTaskCompleted, flags.IsMission, flags.IsCoAgent)
 				turnPersonalityInput = &helperTurnPersonalityInput{
@@ -2402,11 +1476,11 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				batchResult, err := helperManager.AnalyzeTurn(analysisCtx, userMsg, aResp, toolNames, toolSummaries, personalityInput)
 				if err != nil {
 					helperManager.ObserveFallback("analyze_turn", err.Error())
-					currentLogger.Warn("[HelperLLM] Batched turn analysis failed, falling back", "error", err)
+					s.currentLogger.Warn("[HelperLLM] Batched turn analysis failed, falling back", "error", err)
 					if useBatchedTurnPersonality {
 						launchAsyncPersonalityV2Analysis(
 							cfg,
-							currentLogger,
+							s.currentLogger,
 							client,
 							shortTermMem,
 							emotionSynthesizer,
@@ -2421,15 +1495,15 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 							cfg.Personality.UserProfiling,
 							recoveryState.ConsecutiveErrorCount,
 							recoveryState.TotalErrorCount,
-							toolCallCount-recoveryState.ConsecutiveErrorCount,
+							s.toolCallCount-recoveryState.ConsecutiveErrorCount,
 							flags.IsMission,
 							flags.IsCoAgent,
 						)
 					}
-					runMemoryAnalysis(analysisCtx, cfg, currentLogger, shortTermMem, kg, longTermMem, userMsg, aResp, sid)
+					runMemoryAnalysis(analysisCtx, cfg, s.currentLogger, shortTermMem, kg, longTermMem, userMsg, aResp, sid)
 					captureActivityTurn(
 						cfg,
-						currentLogger,
+						s.currentLogger,
 						shortTermMem,
 						kg,
 						sid,
@@ -2444,14 +1518,14 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					return
 				}
 
-				applyMemoryAnalysisResult(cfg, currentLogger, shortTermMem, longTermMem, sid, batchResult.MemoryAnalysis)
+				applyMemoryAnalysisResult(cfg, s.currentLogger, shortTermMem, longTermMem, sid, batchResult.MemoryAnalysis)
 				if useBatchedTurnPersonality {
 					if personalityResult, ok := normalizeHelperTurnPersonalityResult(batchResult.PersonalityAnalysis, meta); ok {
 						_, previousEmotion := resolveHelperEmotionBatchState(cfg, emotionSynthesizer)
 						v2FailCount.Store(0)
 						applyPersonalityV2AnalysisResult(
 							cfg,
-							currentLogger,
+							s.currentLogger,
 							shortTermMem,
 							emotionSynthesizer,
 							previousEmotion,
@@ -2461,14 +1535,14 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 							userInactivityHours,
 							cfg.Personality.UserProfiling,
 							recoveryState.ConsecutiveErrorCount,
-							toolCallCount-recoveryState.ConsecutiveErrorCount,
+							s.toolCallCount-recoveryState.ConsecutiveErrorCount,
 							personalityResult,
 						)
 					} else {
 						helperManager.ObserveFallback("analyze_turn_personality", "personality_payload_invalid")
 						launchAsyncPersonalityV2Analysis(
 							cfg,
-							currentLogger,
+							s.currentLogger,
 							client,
 							shortTermMem,
 							emotionSynthesizer,
@@ -2483,7 +1557,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 							cfg.Personality.UserProfiling,
 							recoveryState.ConsecutiveErrorCount,
 							recoveryState.TotalErrorCount,
-							toolCallCount-recoveryState.ConsecutiveErrorCount,
+							s.toolCallCount-recoveryState.ConsecutiveErrorCount,
 							flags.IsMission,
 							flags.IsCoAgent,
 						)
@@ -2508,7 +1582,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				go func(userMsg, aResp, sid string) {
 					analysisCtx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 					defer cancel()
-					runMemoryAnalysis(analysisCtx, cfg, currentLogger, shortTermMem, kg, longTermMem, userMsg, aResp, sid)
+					runMemoryAnalysis(analysisCtx, cfg, s.currentLogger, shortTermMem, kg, longTermMem, userMsg, aResp, sid)
 				}(lastUserMsg, content, sessionID)
 			}
 
@@ -2517,7 +1591,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				activityToolSummaries := append([]string(nil), turnToolSummaries...)
 				go captureActivityTurn(
 					cfg,
-					currentLogger,
+					s.currentLogger,
 					shortTermMem,
 					kg,
 					sessionID,
@@ -2533,7 +1607,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 
 		// Journal auto-trigger: create entries for significant tool chains
-		JournalAutoTrigger(cfg, shortTermMem, currentLogger, sessionID, recentTools, lastUserMsg)
+		JournalAutoTrigger(cfg, shortTermMem, s.currentLogger, sessionID, recentTools, lastUserMsg)
 
 		// Weekly reflection: async trigger if configured and due
 		// Guard: only run once per day by checking if a reflection entry already exists today.
@@ -2544,9 +1618,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				go func() {
 					reflCtx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 					defer cancel()
-					_, err := generateMemoryReflection(reflCtx, cfg, currentLogger, shortTermMem, kg, longTermMem, client, "recent")
+					_, err := generateMemoryReflection(reflCtx, cfg, s.currentLogger, shortTermMem, kg, longTermMem, client, "recent")
 					if err != nil {
-						currentLogger.Warn("Weekly reflection failed", "error", err)
+						s.currentLogger.Warn("Weekly reflection failed", "error", err)
 					}
 				}()
 			}
