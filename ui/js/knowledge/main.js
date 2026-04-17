@@ -11,6 +11,7 @@ let allCredentials = [];
 let contactSearchTimer = null;
 let previewResetTimer = null;
 let pendingCredentialCertificateText = '';
+const knowledgeActiveTabKey = 'aurago-knowledge-active-tab';
 
 // PDF preview state
 let pdfDoc = null;
@@ -28,12 +29,14 @@ document.addEventListener('DOMContentLoaded', () => {
     loadFiles();
     loadDevices();
     loadCredentials();
+    restoreKnowledgeTab();
 });
 
 // ═══════════════════════════════════════════════════════════════
 // TAB SWITCHING
 // ═══════════════════════════════════════════════════════════════
 function switchKCTab(tab) {
+    if (!tab) return;
     document.querySelectorAll('.kc-tab').forEach(t => {
         t.classList.remove('active');
         t.setAttribute('aria-selected', 'false');
@@ -43,6 +46,11 @@ function switchKCTab(tab) {
     document.getElementById('tab-' + tab).classList.add('active');
     document.getElementById('tab-' + tab).setAttribute('aria-selected', 'true');
     document.getElementById('panel-' + tab).classList.add('active');
+    try {
+        localStorage.setItem(knowledgeActiveTabKey, tab);
+    } catch (error) {
+        console.debug('Failed to persist knowledge tab:', error);
+    }
 
     if (tab === 'appointments' && typeof loadAppointments === 'function') {
         loadAppointments();
@@ -73,6 +81,19 @@ function switchKCTab(tab) {
             });
         }
     }
+}
+
+function restoreKnowledgeTab() {
+    let tab = 'contacts';
+    try {
+        const saved = localStorage.getItem(knowledgeActiveTabKey);
+        if (saved && document.getElementById('tab-' + saved) && document.getElementById('panel-' + saved)) {
+            tab = saved;
+        }
+    } catch (error) {
+        console.debug('Failed to restore knowledge tab:', error);
+    }
+    switchKCTab(tab);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -888,21 +909,25 @@ function askDeleteCredential(id, name) {
 async function confirmDelete() {
     const id = document.getElementById('delete-target-id').value;
     const type = document.getElementById('delete-target-type').value;
+    const deleteButton = document.querySelector('#delete-modal .btn-danger');
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timeout = controller ? setTimeout(() => controller.abort(), 15000) : null;
 
     try {
+        if (deleteButton) deleteButton.disabled = true;
         let resp;
         if (type === 'contact') {
-            resp = await fetch('/api/contacts/' + encodeURIComponent(id), { method: 'DELETE' });
+            resp = await fetch('/api/contacts/' + encodeURIComponent(id), { method: 'DELETE', signal: controller ? controller.signal : undefined });
         } else if (type === 'device') {
-            resp = await fetch('/api/devices/' + encodeURIComponent(id), { method: 'DELETE' });
+            resp = await fetch('/api/devices/' + encodeURIComponent(id), { method: 'DELETE', signal: controller ? controller.signal : undefined });
         } else if (type === 'credential') {
-            resp = await fetch('/api/credentials/' + encodeURIComponent(id), { method: 'DELETE' });
+            resp = await fetch('/api/credentials/' + encodeURIComponent(id), { method: 'DELETE', signal: controller ? controller.signal : undefined });
         } else if (type === 'appointment') {
-            resp = await fetch('/api/appointments/' + encodeURIComponent(id), { method: 'DELETE' });
+            resp = await fetch('/api/appointments/' + encodeURIComponent(id), { method: 'DELETE', signal: controller ? controller.signal : undefined });
         } else if (type === 'todo') {
-            resp = await fetch('/api/todos/' + encodeURIComponent(id), { method: 'DELETE' });
+            resp = await fetch('/api/todos/' + encodeURIComponent(id), { method: 'DELETE', signal: controller ? controller.signal : undefined });
         } else {
-            resp = await fetch('/api/knowledge/' + encodeURIComponent(id), { method: 'DELETE' });
+            resp = await fetch('/api/knowledge/' + encodeURIComponent(id), { method: 'DELETE', signal: controller ? controller.signal : undefined });
         }
         if (!resp.ok) {
             const err = await resp.text();
@@ -919,6 +944,9 @@ async function confirmDelete() {
     } catch (e) {
         console.error('Delete failed:', e);
         showToast(t('common.error') + ': ' + e.message, 'error');
+    } finally {
+        if (timeout) clearTimeout(timeout);
+        if (deleteButton) deleteButton.disabled = false;
     }
 }
 

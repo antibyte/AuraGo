@@ -304,3 +304,34 @@ func TestHandleTodoCompleteMarksItemsDone(t *testing.T) {
 		t.Fatalf("status/items = %q/%d, want done/2", todo.Status, todo.DoneItemCount)
 	}
 }
+
+func TestHandleTodoDeleteRemovesChecklistTodo(t *testing.T) {
+	t.Parallel()
+
+	server, db := testPlannerServer(t)
+	defer db.Close()
+
+	todoID, err := planner.CreateTodo(db, planner.Todo{
+		Title:    "Delete me",
+		Priority: "medium",
+		Status:   "open",
+		Items: []planner.TodoItem{
+			{Title: "Subtask"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("planner.CreateTodo() error = %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodDelete, "/api/todos/"+todoID, nil)
+	rec := httptest.NewRecorder()
+	handleTodoByID(server).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("delete status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+
+	if _, err := planner.GetTodo(db, todoID); err == nil {
+		t.Fatal("planner.GetTodo() succeeded after delete, want not found")
+	}
+}

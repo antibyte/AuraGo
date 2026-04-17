@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"reflect"
 	"strings"
 
 	"aurago/internal/planner"
@@ -328,8 +329,9 @@ func handleTodoByID(s *Server) http.HandlerFunc {
 		case http.MethodDelete:
 			// Remove from KG before deleting from DB to avoid orphaned nodes
 			t, _ := planner.GetTodo(s.PlannerDB, id)
-			if t != nil && t.KGNodeID != "" && s.KG != nil {
-				_ = s.KG.DeleteNode(t.KGNodeID)
+			kgNodeID := ""
+			if t != nil {
+				kgNodeID = t.KGNodeID
 			}
 			if err := planner.DeleteTodo(s.PlannerDB, id); err != nil {
 				status := http.StatusInternalServerError
@@ -343,6 +345,7 @@ func handleTodoByID(s *Server) http.HandlerFunc {
 				}
 				return
 			}
+			deleteTodoFromKGAsync(s.KG, kgNodeID, s.Logger)
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(map[string]string{"status": "deleted"})
 
@@ -547,4 +550,28 @@ func runPlannerKGSyncAsync(logger interface{ Error(string, ...any) }, syncFn fun
 			logger.Error(message, append([]any{"error", err}, args...)...)
 		}
 	}()
+}
+
+func deleteTodoFromKGAsync(kg planner.KnowledgeGraph, nodeID string, logger interface{ Error(string, ...any) }) {
+	if strings.TrimSpace(nodeID) == "" || isNilPlannerKnowledgeGraph(kg) {
+		return
+	}
+	go func() {
+		if err := kg.DeleteNode(nodeID); err != nil {
+			logger.Error("Failed to delete todo from KG", "error", err, "node_id", nodeID)
+		}
+	}()
+}
+
+func isNilPlannerKnowledgeGraph(kg planner.KnowledgeGraph) bool {
+	if kg == nil {
+		return true
+	}
+	value := reflect.ValueOf(kg)
+	switch value.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+		return value.IsNil()
+	default:
+		return false
+	}
 }

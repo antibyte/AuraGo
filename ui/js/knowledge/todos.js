@@ -184,8 +184,33 @@ function openTodoModal(todo) {
 }
 
 function editTodo(id) {
-    const todo = allTodos.find(entry => entry.id === id);
-    if (todo) openTodoModal(todo);
+    fetchTodoAndOpenModal(id).catch(error => {
+        console.error('Load todo for edit failed:', error);
+        showToast(t('common.error') + ': ' + error.message, 'error');
+    });
+}
+
+async function fetchTodoAndOpenModal(id) {
+    const localTodo = allTodos.find(entry => entry.id === id);
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timeout = controller ? setTimeout(() => controller.abort(), 10000) : null;
+    try {
+        const response = await fetch('/api/todos/' + encodeURIComponent(id), {
+            signal: controller ? controller.signal : undefined,
+        });
+        if (!response.ok) throw new Error(await response.text());
+        const todo = await response.json();
+        openTodoModal(todo);
+    } catch (error) {
+        if (localTodo) {
+            openTodoModal(localTodo);
+            showToast((t('common.warning') || 'Warning') + ': ' + error.message, 'warning');
+            return;
+        }
+        throw error;
+    } finally {
+        if (timeout) clearTimeout(timeout);
+    }
 }
 
 function addTodoDraftItem(item) {
@@ -398,11 +423,14 @@ async function toggleTodoItem(todoID, itemID, checked) {
 }
 
 async function patchTodo(id, payload) {
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timeout = controller ? setTimeout(() => controller.abort(), 15000) : null;
     try {
         const response = await fetch('/api/todos/' + encodeURIComponent(id), {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
+            signal: controller ? controller.signal : undefined,
         });
         if (!response.ok) throw new Error(await response.text());
         showToast(t('common.success'), 'success');
@@ -410,6 +438,8 @@ async function patchTodo(id, payload) {
     } catch (error) {
         console.error('Update todo failed:', error);
         showToast(t('common.error') + ': ' + error.message, 'error');
+    } finally {
+        if (timeout) clearTimeout(timeout);
     }
 }
 
