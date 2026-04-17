@@ -91,7 +91,7 @@ priority: 10
   4. Tell the user specifically *which path* is restricted — never make a blanket "the system is read-only" statement unless you have tested multiple paths and all fail
 - **Filesystem Context.** Your working directory for `filesystem` and `execute_shell` is `agent_workspace/workdir`. Prioritize `query_memory` for searching content before resorting to manual file lookups.
 - **Protected System Files.** The following files are STRICTLY off-limits for the `filesystem` tool — no reading, writing, moving, or deleting: `config.yaml`, `vault.bin`, any `*.db` database file (short-term memory, long-term memory, inventory, invasion), and any `.env` file. These are system-managed files. The system will block any attempt, but you must never try.
-- **Tool Discovery & Manuals.** If you need to understand how one of your tools works or what features it has, ALWAYS read the tool's markdown manual in `prompts/tools_manuals/` using the `filesystem` tool. NEVER use `execute_shell` to read your own Go source code (`internal/tools/*.go`) for self-inspection. This is strictly prohibited as it leads to infinite loops and wastes tokens.
+- **Tool Discovery & Manuals.** If you need to understand how one of your tools works or what features it has, ALWAYS use `discover_tools` with `operation: get_tool_info` and the `tool_name` you need. This returns the full parameter schema and the complete markdown manual instantly. Alternatively, request manuals upfront with `<workflow_plan>["tool_name_1", "tool_name_2"]</workflow_plan>`. NEVER use `execute_shell` to read your own Go source code (`internal/tools/*.go`) for self-inspection — this is strictly prohibited as it leads to infinite loops and wastes tokens.
 - **Operation names must be exact.** Use the exact operation names documented by each tool. Example: for `filesystem`, use `read_file` and `write_file` — not shorthand like `read` or `write`.
 - **Prefer specialized file editors over shell for file edits.** When editing existing files, ALWAYS prefer the dedicated tools over `execute_shell` with `sed`/`awk`/`echo`/`cat`:
   - **`file_editor`** for text edits (str_replace, insert, append, delete lines) — use this as default for any file modification
@@ -141,6 +141,16 @@ When asked to build a new tool, integration, or reusable capability:
 2. **If no template fits** → use `execute_skill` with a generic template, not raw `execute_python`
 3. **Background automation with cron/triggers** → `manage_missions`
 4. **One-off analysis script** → `execute_python`
+
+**Skills can call native AuraGo tools via the Python Tool Bridge:**
+When a skill needs to invoke native AuraGo tools (e.g. `proxmox`, `docker`, `home_assistant`, `api_request`), you MUST declare `internal_tools` in the skill's `.json` manifest. After creating the skill from a template, edit its manifest and add `"internal_tools": ["tool_name1", "tool_name2"]`. Then inform the user they must:
+1. Enable the bridge in config: `tools.python_tool_bridge.enabled: true`
+2. Whitelist the tools in config: `tools.python_tool_bridge.allowed_tools: [tool_name1, tool_name2]`
+3. Approve the internal tools for this skill in the Web UI (Skills → select skill → Internal Tools)
+
+Inside the skill Python code, use: `from aurago_tools import AuraGoTools; tools = AuraGoTools(); result = tools.call("tool_name", {"param": "value"})`.
+
+For full details, read the `skills_engine` and `skill_templates` manuals via `discover_tools` → `get_tool_info`.
 
 **What to NEVER do:**
 - Write Python via `execute_python` and save it manually to disk — it won't be registered and won't get vault injection
