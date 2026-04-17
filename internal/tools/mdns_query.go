@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/miekg/dns"
@@ -29,7 +30,11 @@ type mdnsEntry struct {
 // and collects responses for the given timeout duration.
 // It joins the multicast group on the default-route LAN interface and uses
 // SO_REUSEADDR/SO_REUSEPORT so it can co-exist with system mDNS daemons.
-// Multiple queries are sent to compensate for UDP packet loss.
+//
+// Queries are sent from BOTH the multicast socket (port 5353) and a unicast
+// socket (ephemeral port). Per RFC 6762 §5.5, queries from port 5353 force
+// multicast responses; queries from other ports get unicast responses.
+// We read from both sockets to catch all replies.
 func mdnsQueryServices(serviceType string, timeout time.Duration, logger *slog.Logger) ([]*mdnsEntry, error) {
 	// Select the correct LAN interface to avoid Docker/veth confusion.
 	iface, ifErr := defaultRouteInterface()
@@ -40,18 +45,18 @@ func mdnsQueryServices(serviceType string, timeout time.Duration, logger *slog.L
 	}
 
 	ipv4Group := net.UDPAddr{IP: net.ParseIP(mdnsIPv4Group), Port: mdnsPortNum}
-	pc, err := net.ListenMulticastUDP("udp4", iface, &ipv4Group)
+	mcastConn, err := net.ListenMulticastUDP("udp4", iface, &ipv4Group)
 	if err != nil {
 		// Fallback: try with nil interface if specific one failed
 		if iface != nil {
 			logger.Warn("mdns: ListenMulticastUDP with specific interface failed, retrying with nil", "error", err)
-			pc, err = net.ListenMulticastUDP("udp4", nil, &ipv4Group)
+			mcastConn, err = net.ListenMulticastUDP("udp4", nil, &ipv4Group)
 		}
 		if err != nil {
 			return nil, fmt.Errorf("mdns: ListenMulticastUDP: %w", err)
 		}
 	}
-	defer pc.Close()
+	defer mcastConn.Close()
 
 	logger.Info("mdns: listening on multicast group 224.0.0.251:5353")
 
@@ -65,64 +70,75 @@ func mdnsQueryServices(serviceType string, timeout time.Duration, logger *slog.L
 		return nil, fmt.Errorf("mdns: pack query: %w", err)
 	}
 
-	// Send query via a separate dialed socket so kernel picks source IP via routing.
-	// Keep the socket open so unicast replies are received too.
-	sendConn, err := net.Dial("udp4", "224.0.0.251:5353")
+	// Create a unicast socket for sending and receiving unicast replies.
+	// Devices may unicast responses back to the ephemeral source port.
+	ucastConn, err := net.ListenPacket("udp4", ":0")
 	if err != nil {
-		return nil, fmt.Errorf("mdns: dial send socket: %w", err)
+		logger.Warn("mdns: could not create unicast listener, unicast replies will be missed", "error", err)
 	}
-	defer sendConn.Close()
+	if ucastConn != nil {
+		defer ucastConn.Close()
+	}
 
-	// Send multiple queries to compensate for UDP packet loss.
-	// Schedule: 0ms, 500ms, 1500ms, 3500ms (exponential backoff)
-	queryIntervals := []time.Duration{0, 500 * time.Millisecond, 1 * time.Second, 2 * time.Second}
+	dst := &net.UDPAddr{IP: net.ParseIP(mdnsIPv4Group), Port: mdnsPortNum}
+	deadline := time.Now().Add(timeout)
+
+	// Send multiple queries from both sockets to maximize discovery reliability.
+	// Schedule: 0ms, 250ms, 750ms, 2000ms (exponential backoff)
+	queryIntervals := []time.Duration{0, 250 * time.Millisecond, 500 * time.Millisecond, 1250 * time.Millisecond}
 	go func() {
 		for i, delay := range queryIntervals {
 			if delay > 0 {
 				time.Sleep(delay)
 			}
-			if _, wErr := sendConn.Write(buf); wErr != nil {
-				logger.Warn("mdns: send query failed", "attempt", i+1, "error", wErr)
+			// Send from multicast socket (source port 5353).
+			// Per RFC 6762 §5.5, responses to queries from port 5353 MUST be multicast.
+			if _, wErr := mcastConn.WriteTo(buf, dst); wErr != nil {
+				logger.Warn("mdns: multicast send failed", "attempt", i+1, "error", wErr)
 			} else {
-				logger.Info("mdns: sent query", "attempt", i+1, "service", serviceType)
+				logger.Info("mdns: sent query via multicast socket", "attempt", i+1, "service", serviceType)
+			}
+			// Also send from unicast socket (ephemeral port).
+			// Some devices respond faster via unicast, and this catches devices
+			// that ignore multicast queries on busy networks.
+			if ucastConn != nil {
+				if _, wErr := ucastConn.WriteTo(buf, dst); wErr != nil {
+					logger.Warn("mdns: unicast send failed", "attempt", i+1, "error", wErr)
+				}
 			}
 		}
 	}()
 
-	// Set read deadline for the collection phase.
-	deadline := time.Now().Add(timeout)
-	if err := pc.SetDeadline(deadline); err != nil {
+	// Set read deadline for both sockets.
+	if err := mcastConn.SetDeadline(deadline); err != nil {
 		return nil, fmt.Errorf("mdns: set deadline: %w", err)
 	}
+	if ucastConn != nil {
+		_ = ucastConn.SetDeadline(deadline)
+	}
 
+	var mu sync.Mutex
 	entries := make(map[string]*mdnsEntry)
-	rbuf := make([]byte, 65535)
 	packetCount := 0
 
-	for {
-		n, _, readErr := pc.ReadFrom(rbuf)
-		if readErr != nil {
-			logger.Info("mdns: read loop ended", "packet_count", packetCount, "error", readErr)
-			break
-		}
-		packetCount++
-		logger.Debug("mdns: received packet", "size", n, "packet_num", packetCount)
-
+	// processDNS extracts mDNS entries from a raw DNS packet.
+	processDNS := func(data []byte, n int, source string) {
 		var msg dns.Msg
-		if err := msg.Unpack(rbuf[:n]); err != nil {
-			logger.Debug("mdns: unpack failed", "error", err)
-			continue
+		if err := msg.Unpack(data[:n]); err != nil {
+			return
 		}
 
-		logger.Debug("mdns: dns message", "answers", len(msg.Answer), "extra", len(msg.Extra))
+		mu.Lock()
+		defer mu.Unlock()
 
 		allRRs := append(msg.Answer, msg.Extra...)
 
-		// Collect PTR records first to create or update entries.
+		// Collect PTR records to create entries.
 		for _, rr := range allRRs {
 			if ptr, ok := rr.(*dns.PTR); ok {
 				if _, exists := entries[ptr.Ptr]; !exists {
 					entries[ptr.Ptr] = &mdnsEntry{Name: ptr.Ptr}
+					logger.Info("mdns: discovered service", "name", ptr.Ptr, "via", source)
 				}
 			}
 		}
@@ -155,11 +171,49 @@ func mdnsQueryServices(serviceType string, timeout time.Duration, logger *slog.L
 		}
 	}
 
+	// Read from unicast socket in a separate goroutine.
+	var wg sync.WaitGroup
+	if ucastConn != nil {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			ubuf := make([]byte, 65535)
+			for {
+				n, _, readErr := ucastConn.ReadFrom(ubuf)
+				if readErr != nil {
+					return
+				}
+				mu.Lock()
+				packetCount++
+				mu.Unlock()
+				processDNS(ubuf, n, "unicast")
+			}
+		}()
+	}
+
+	// Read from multicast socket in the main goroutine.
+	rbuf := make([]byte, 65535)
+	for {
+		n, _, readErr := mcastConn.ReadFrom(rbuf)
+		if readErr != nil {
+			break
+		}
+		mu.Lock()
+		packetCount++
+		mu.Unlock()
+		processDNS(rbuf, n, "multicast")
+	}
+
+	// Wait for unicast reader to finish (deadline will end it).
+	wg.Wait()
+
+	mu.Lock()
 	result := make([]*mdnsEntry, 0, len(entries))
 	for _, e := range entries {
 		result = append(result, e)
 	}
 	logger.Info("mdns: discovery complete", "entries_found", len(result), "packets_received", packetCount)
+	mu.Unlock()
 	return result, nil
 }
 
