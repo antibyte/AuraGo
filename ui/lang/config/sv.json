@@ -109,5 +109,12 @@
   "config.heartbeat.interval_4h": "4 timmar",
   "config.heartbeat.interval_6h": "6 timmar",
   "config.heartbeat.interval_12h": "12 timmar",
-  "config.heartbeat.info_banner": "Heartbeat väcker agenten i de konfigurerade tidsfönstren för att kontrollera i bakgrunden om något behöver uppmärksamhet."
+  "config.heartbeat.info_banner": "Heartbeat väcker agenten i de konfigurerade tidsfönstren för att kontrollera i bakgrunden om något behöver uppmärksamhet.",
+  "help.heartbeat.enabled": "Aktiverar Heartbeat-schemaläggaren som väcker agenten periodiskt.",
+  "help.heartbeat.check_tasks": "Kontrollerar öppna uppgifter och uppdrag vid varje heartbeat.",
+  "help.heartbeat.check_appointments": "Kontrollerar kommande möten och påminnelser vid varje heartbeat.",
+  "help.heartbeat.check_emails": "Kontrollerar konfigurerade e-postkonton för nya meddelanden vid varje heartbeat.",
+  "help.heartbeat.additional_prompt": "Anpassade instruktioner som agenten ska överväga vid varje heartbeat-uppvaknande.",
+  "help.heartbeat.day_time_window": "Dagtidsfönster med eget kontrollintervall.",
+  "help.heartbeat.night_time_window": "Nattidsfönster med eget (vanligtvis längre) kontrollintervall."
 }

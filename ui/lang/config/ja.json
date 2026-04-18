@@ -109,5 +109,12 @@
   "config.heartbeat.interval_4h": "4時間",
   "config.heartbeat.interval_6h": "6時間",
   "config.heartbeat.interval_12h": "12時間",
-  "config.heartbeat.info_banner": "Heartbeatは設定された時間帯でエージェントを起こし、バックグラウンドで注意が必要な事項がないか確認します。"
+  "config.heartbeat.info_banner": "Heartbeatは設定された時間帯でエージェントを起こし、バックグラウンドで注意が必要な事項がないか確認します。",
+  "help.heartbeat.enabled": "定期的にエージェントを起こすHeartbeatスケジューラを有効にします。",
+  "help.heartbeat.check_tasks": "各Heartbeatで未完了のタスクとミッションを確認します。",
+  "help.heartbeat.check_appointments": "各Heartbeatで今後の予定とリマインダーを確認します。",
+  "help.heartbeat.check_emails": "各Heartbeatで設定済みのメールアカウントに新着メールがないか確認します。",
+  "help.heartbeat.additional_prompt": "エージェントが毎回のHeartbeat起動時に考慮すべきカスタム指示です。",
+  "help.heartbeat.day_time_window": "独自の確認間隔を持つ昼間の時間帯。",
+  "help.heartbeat.night_time_window": "独自の（通常は長い）確認間隔を持つ夜間の時間帯。"
 }

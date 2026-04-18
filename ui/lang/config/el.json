@@ -109,5 +109,12 @@
   "config.heartbeat.interval_4h": "4 ώρες",
   "config.heartbeat.interval_6h": "6 ώρες",
   "config.heartbeat.interval_12h": "12 ώρες",
-  "config.heartbeat.info_banner": "Το Heartbeat ξυπνά τον πράκτορα στα διαμορφωμένα χρονικά παράθυρα για να ελέγξει στο παρασκήνιο αν κάτι χρειάζεται προσοχή."
+  "config.heartbeat.info_banner": "Το Heartbeat ξυπνά τον πράκτορα στα διαμορφωμένα χρονικά παράθυρα για να ελέγξει στο παρασκήνιο αν κάτι χρειάζεται προσοχή.",
+  "help.heartbeat.enabled": "Ενεργοποιεί τον προγραμματιστή Heartbeat που ξυπνά περιοδικά τον πράκτορα.",
+  "help.heartbeat.check_tasks": "Έλεγχος για ανοιχτές εργασίες και αποστολές σε κάθε heartbeat.",
+  "help.heartbeat.check_appointments": "Έλεγχος για επερχόμενα ραντεβού και υπενθυμίσεις σε κάθε heartbeat.",
+  "help.heartbeat.check_emails": "Έλεγχος διαμορφωμένων λογαριασμών email για νέα μηνύματα σε κάθε heartbeat.",
+  "help.heartbeat.additional_prompt": "Προσαρμοσμένες οδηγίες που ο πράκτορας θα λάβει υπόψη σε κάθε αφύπνιση heartbeat.",
+  "help.heartbeat.day_time_window": "Περίοδος ημέρας με δικό της διάστημα ελέγχου.",
+  "help.heartbeat.night_time_window": "Περίοδος νύχτας με δικό της (συνήθως μεγαλύτερο) διάστημα ελέγχου."
 }

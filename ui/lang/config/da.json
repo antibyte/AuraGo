@@ -109,5 +109,12 @@
   "config.heartbeat.interval_4h": "4 timer",
   "config.heartbeat.interval_6h": "6 timer",
   "config.heartbeat.interval_12h": "12 timer",
-  "config.heartbeat.info_banner": "Heartbeat vækker agenten i de konfigurerede tidsvinduer for at tjekke i baggrunden, om noget kræver opmærksomhed."
+  "config.heartbeat.info_banner": "Heartbeat vækker agenten i de konfigurerede tidsvinduer for at tjekke i baggrunden, om noget kræver opmærksomhed.",
+  "help.heartbeat.enabled": "Aktiver Heartbeat-planlæggeren, der periodisk vækker agenten.",
+  "help.heartbeat.check_tasks": "Tjek for åbne opgaver og missioner ved hvert heartbeat.",
+  "help.heartbeat.check_appointments": "Tjek for kommende aftaler og påmindelser ved hvert heartbeat.",
+  "help.heartbeat.check_emails": "Tjek konfigurerede e-mail-konti for nye beskeder ved hvert heartbeat.",
+  "help.heartbeat.additional_prompt": "Brugerdefinerede instruktioner, som agenten skal overveje ved hvert heartbeat-opvågning.",
+  "help.heartbeat.day_time_window": "Dagtidsperiode med eget tjekinterval.",
+  "help.heartbeat.night_time_window": "Nattidsperiode med eget (normalt længere) tjekinterval."
 }

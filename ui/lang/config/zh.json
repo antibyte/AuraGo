@@ -109,5 +109,12 @@
   "config.heartbeat.interval_4h": "4 小时",
   "config.heartbeat.interval_6h": "6 小时",
   "config.heartbeat.interval_12h": "12 小时",
-  "config.heartbeat.info_banner": "Heartbeat 在配置的时间窗口内唤醒代理，在后台检查是否有需要注意的事项。"
+  "config.heartbeat.info_banner": "Heartbeat 在配置的时间窗口内唤醒代理，在后台检查是否有需要注意的事项。",
+  "help.heartbeat.enabled": "启用 Heartbeat 调度器，定期唤醒代理。",
+  "help.heartbeat.check_tasks": "每次心跳时检查未完成的任务和任务。",
+  "help.heartbeat.check_appointments": "每次心跳时检查即将到来的约会和提醒。",
+  "help.heartbeat.check_emails": "每次心跳时检查配置的电子邮件帐户是否有新邮件。",
+  "help.heartbeat.additional_prompt": "代理在每次心跳唤醒时应考虑的自定义说明。",
+  "help.heartbeat.day_time_window": "具有自己的检查间隔的白天时段。",
+  "help.heartbeat.night_time_window": "具有自己的（通常更长）检查间隔的夜间时段。"
 }

@@ -109,5 +109,12 @@
   "config.heartbeat.interval_4h": "4 hodiny",
   "config.heartbeat.interval_6h": "6 hodin",
   "config.heartbeat.interval_12h": "12 hodin",
-  "config.heartbeat.info_banner": "Heartbeat probouzí agenta v nakonfigurovaných časových oknech, aby na pozadí zkontroloval, zda něco nevyžaduje pozornost."
+  "config.heartbeat.info_banner": "Heartbeat probouzí agenta v nakonfigurovaných časových oknech, aby na pozadí zkontroloval, zda něco nevyžaduje pozornost.",
+  "help.heartbeat.enabled": "Povolit plánovač Heartbeat, který periodicky budí agenta.",
+  "help.heartbeat.check_tasks": "Kontrolovat otevřené úkoly a mise při každém heartbeatu.",
+  "help.heartbeat.check_appointments": "Kontrolovat nadcházející schůzky a připomínky při každém heartbeatu.",
+  "help.heartbeat.check_emails": "Kontrolovat nakonfigurované e-mailové účty na nové zprávy při každém heartbeatu.",
+  "help.heartbeat.additional_prompt": "Vlastní pokyny, které má agent zvážit při každém probuzení heartbeatem.",
+  "help.heartbeat.day_time_window": "Denní období s vlastním intervalem kontroly.",
+  "help.heartbeat.night_time_window": "Noční období s vlastním (obvykle delším) intervalem kontroly."
 }

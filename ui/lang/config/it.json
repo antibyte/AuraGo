@@ -109,5 +109,12 @@
   "config.heartbeat.interval_4h": "4 ore",
   "config.heartbeat.interval_6h": "6 ore",
   "config.heartbeat.interval_12h": "12 ore",
-  "config.heartbeat.info_banner": "Heartbeat sveglia l'agente nelle finestre temporali configurate per controllare in background se qualcosa richiede attenzione."
+  "config.heartbeat.info_banner": "Heartbeat sveglia l'agente nelle finestre temporali configurate per controllare in background se qualcosa richiede attenzione.",
+  "help.heartbeat.enabled": "Attiva il pianificatore Heartbeat che sveglia periodicamente l'agente.",
+  "help.heartbeat.check_tasks": "Controlla attività e missioni aperte ad ogni heartbeat.",
+  "help.heartbeat.check_appointments": "Controlla appuntamenti e promemoria imminenti ad ogni heartbeat.",
+  "help.heartbeat.check_emails": "Controlla gli account e-mail configurati per nuovi messaggi ad ogni heartbeat.",
+  "help.heartbeat.additional_prompt": "Istruzioni personalizzate che l'agente deve considerare ad ogni sveglia del heartbeat.",
+  "help.heartbeat.day_time_window": "Periodo diurno con il proprio intervallo di controllo.",
+  "help.heartbeat.night_time_window": "Periodo notturno con il proprio (solitamente più lungo) intervallo di controllo."
 }

@@ -109,5 +109,12 @@
   "config.heartbeat.interval_4h": "4 uur",
   "config.heartbeat.interval_6h": "6 uur",
   "config.heartbeat.interval_12h": "12 uur",
-  "config.heartbeat.info_banner": "Heartbeat wekt de agent in de geconfigureerde tijdvensters om op de achtergrond te controleren of er aandacht nodig is."
+  "config.heartbeat.info_banner": "Heartbeat wekt de agent in de geconfigureerde tijdvensters om op de achtergrond te controleren of er aandacht nodig is.",
+  "help.heartbeat.enabled": "Schakel de Heartbeat-planner in die de agent periodiek wakker maakt.",
+  "help.heartbeat.check_tasks": "Controleer op open taken en missies bij elke heartbeat.",
+  "help.heartbeat.check_appointments": "Controleer op komende afspraken en herinneringen bij elke heartbeat.",
+  "help.heartbeat.check_emails": "Controleer geconfigureerde e-mailaccounts op nieuwe berichten bij elke heartbeat.",
+  "help.heartbeat.additional_prompt": "Aangepaste instructies die de agent moet overwegen bij elke heartbeat-wakker-wording.",
+  "help.heartbeat.day_time_window": "Dagperiode met eigen controle-interval.",
+  "help.heartbeat.night_time_window": "Nachtperiode met eigen (meestal langer) controle-interval."
 }

@@ -109,5 +109,12 @@
   "config.heartbeat.interval_4h": "4 घंटे",
   "config.heartbeat.interval_6h": "6 घंटे",
   "config.heartbeat.interval_12h": "12 घंटे",
-  "config.heartbeat.info_banner": "Heartbeat कॉन्फ़िगर किए गए समय विंडो में एजेंट को जगाता है ताकि पृष्ठभूमि में जांच सके कि क्या किसी चीज़ पर ध्यान देने की आवश्यकता है।"
+  "config.heartbeat.info_banner": "Heartbeat कॉन्फ़िगर किए गए समय विंडो में एजेंट को जगाता है ताकि पृष्ठभूमि में जांच सके कि क्या किसी चीज़ पर ध्यान देने की आवश्यकता है।",
+  "help.heartbeat.enabled": "Heartbeat शेड्यूलर सक्षम करें जो समय-समय पर एजेंट को जगाता है।",
+  "help.heartbeat.check_tasks": "प्रत्येक heartbeat पर खुले कार्यों और मिशनों की जांच करें।",
+  "help.heartbeat.check_appointments": "प्रत्येक heartbeat पर आगामी नियुक्तियों और अनुस्मारकों की जांच करें।",
+  "help.heartbeat.check_emails": "प्रत्येक heartbeat पर कॉन्फ़िगर किए गए ईमेल खातों में नए संदेशों की जांच करें।",
+  "help.heartbeat.additional_prompt": "एजेंट के लिए कस्टम निर्देश जो हर heartbeat-जागरण पर विचार करे।",
+  "help.heartbeat.day_time_window": "अपने स्वयं के जांच अंतराल के साथ दिन का समय।",
+  "help.heartbeat.night_time_window": "अपने स्वयं के (आमतौर पर लंबे) जांच अंतराल के साथ रात का समय।"
 }

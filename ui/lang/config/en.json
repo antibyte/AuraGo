@@ -109,5 +109,12 @@
   "config.heartbeat.interval_4h": "4 hours",
   "config.heartbeat.interval_6h": "6 hours",
   "config.heartbeat.interval_12h": "12 hours",
-  "config.heartbeat.info_banner": "Heartbeat wakes the agent in configured time windows to check in the background if anything needs attention."
+  "config.heartbeat.info_banner": "Heartbeat wakes the agent in configured time windows to check in the background if anything needs attention.",
+  "help.heartbeat.enabled": "Enable the heartbeat scheduler to wake the agent periodically.",
+  "help.heartbeat.check_tasks": "Check for open tasks and missions during each heartbeat.",
+  "help.heartbeat.check_appointments": "Check for upcoming appointments and reminders during each heartbeat.",
+  "help.heartbeat.check_emails": "Check configured email accounts for new messages during each heartbeat.",
+  "help.heartbeat.additional_prompt": "Custom instructions for the agent to consider on every heartbeat wake-up.",
+  "help.heartbeat.day_time_window": "Daytime period with its own check interval.",
+  "help.heartbeat.night_time_window": "Nighttime period with its own (usually longer) check interval."
 }
