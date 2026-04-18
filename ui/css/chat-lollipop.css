@@ -549,3 +549,23 @@
         animation: none !important;
     }
 }
+
+/* Defensive foreground compositing: keeps live chat rows above ambient layers on browsers
+   that struggle with fixed overlays, filters, and theme transitions. */
+[data-theme="lollipop"] #chat-content,
+[data-theme="lollipop"] .greeting-row,
+[data-theme="lollipop"] .msg-row,
+[data-theme="lollipop"] .tool-output-row,
+[data-theme="lollipop"] .avatar,
+[data-theme="lollipop"] .bubble,
+[data-theme="lollipop"] .typing-indicator,
+[data-theme="lollipop"] .typing-dots {
+    position: relative;
+    z-index: 5;
+    transform: translateZ(0);
+}
+
+[data-theme="lollipop"] #chat-box::before,
+[data-theme="lollipop"] #chat-box::after {
+    z-index: 0;
+}
