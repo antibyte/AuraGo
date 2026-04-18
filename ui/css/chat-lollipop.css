@@ -6,9 +6,9 @@
     --accent-warm: #f3b563;
     --accent-dim: rgba(230, 92, 165, 0.2);
     --accent-glow: rgba(230, 92, 165, 0.24);
-    --bg-primary: #f0d2df;
-    --bg-secondary: rgba(244, 224, 235, 0.96);
-    --bg-tertiary: rgba(238, 208, 223, 0.97);
+    --bg-primary: #e7b8cc;
+    --bg-secondary: rgba(235, 202, 220, 0.96);
+    --bg-tertiary: rgba(226, 186, 208, 0.97);
     --bg-glass: linear-gradient(180deg, rgba(249, 236, 243, 0.94), rgba(237, 210, 225, 0.94));
     --header-bg: rgba(242, 219, 232, 0.92);
     --modal-bg: rgba(121, 83, 108, 0.16);
@@ -49,10 +49,10 @@
 
 [data-theme="lollipop"] body {
     background:
-        radial-gradient(circle at 12% 12%, rgba(240, 160, 206, 0.7), transparent 24%),
-        radial-gradient(circle at 86% 10%, rgba(182, 160, 247, 0.46), transparent 22%),
+        radial-gradient(circle at 12% 12%, rgba(232, 123, 187, 0.76), transparent 24%),
+        radial-gradient(circle at 86% 10%, rgba(173, 146, 241, 0.42), transparent 22%),
         radial-gradient(circle at 50% 100%, rgba(126, 220, 183, 0.18), transparent 28%),
-        linear-gradient(180deg, #f4dce8 0%, #ecc6d8 48%, #f0d4c4 100%);
+        linear-gradient(180deg, #ebc6d9 0%, #df9fbe 48%, #e6b39f 100%);
     color: var(--text-primary);
 }
 
@@ -179,11 +179,11 @@
     position: relative;
     z-index: 1;
     background:
-        linear-gradient(180deg, rgba(255, 244, 249, 0.26), transparent 18%, transparent 84%, rgba(246, 221, 233, 0.2) 100%),
-        radial-gradient(circle at 18% 14%, rgba(237, 140, 193, 0.48), transparent 22%),
-        radial-gradient(circle at 84% 18%, rgba(178, 151, 243, 0.3), transparent 20%),
+        linear-gradient(180deg, rgba(255, 238, 246, 0.18), transparent 16%, transparent 84%, rgba(223, 171, 198, 0.24) 100%),
+        radial-gradient(circle at 18% 14%, rgba(232, 111, 177, 0.56), transparent 22%),
+        radial-gradient(circle at 84% 18%, rgba(170, 141, 238, 0.34), transparent 20%),
         radial-gradient(circle at 50% 100%, rgba(126, 220, 183, 0.12), transparent 26%),
-        linear-gradient(180deg, #f0cedd 0%, #e6b6cb 100%);
+        linear-gradient(180deg, #e2a8c1 0%, #cf86a8 100%);
 }
 
 [data-theme="lollipop"] #chat-box::before {
