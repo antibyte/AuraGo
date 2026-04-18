@@ -3,6 +3,7 @@ package heartbeat
 import (
 	"log/slog"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"aurago/internal/config"
@@ -17,6 +18,7 @@ type Scheduler struct {
 	stopCh  chan struct{}
 	wg      sync.WaitGroup
 	lastRun time.Time
+	running atomic.Bool // true while a heartbeat runner is executing
 }
 
 // New creates a new heartbeat scheduler.
@@ -26,37 +28,55 @@ func New(cfg *config.Config, logger *slog.Logger, runner func(prompt string)) *S
 		cfg:    cfg,
 		logger: logger,
 		runner: runner,
-		stopCh: make(chan struct{}),
 	}
 }
 
 // Start begins the heartbeat scheduler loop.
+// If the scheduler is already running it is stopped cleanly first.
 func (s *Scheduler) Start() {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 
+	// If a loop is already running, close its channel and wait for it to exit
+	// before starting a new one.
 	if s.stopCh != nil {
+		ch := s.stopCh
+		s.stopCh = nil
+		s.mu.Unlock()
+
 		select {
-		case <-s.stopCh:
+		case <-ch:
 			// already closed
 		default:
-			close(s.stopCh)
+			close(ch)
 		}
+		s.wg.Wait()
+
+		s.mu.Lock()
 	}
-	s.stopCh = make(chan struct{})
 
 	if !s.cfg.Heartbeat.Enabled {
+		s.mu.Unlock()
 		s.logger.Info("Heartbeat scheduler disabled")
 		return
 	}
 
+	ch := make(chan struct{})
+	s.stopCh = ch
 	s.wg.Add(1)
-	go s.loop()
+	go s.loop(ch)
+
+	// Copy log values while still holding the lock to avoid races.
+	dayWindow := s.cfg.Heartbeat.DayTimeWindow.Start + "-" + s.cfg.Heartbeat.DayTimeWindow.End
+	dayInterval := s.cfg.Heartbeat.DayTimeWindow.Interval
+	nightWindow := s.cfg.Heartbeat.NightTimeWindow.Start + "-" + s.cfg.Heartbeat.NightTimeWindow.End
+	nightInterval := s.cfg.Heartbeat.NightTimeWindow.Interval
+	s.mu.Unlock()
+
 	s.logger.Info("Heartbeat scheduler started",
-		"day_window", s.cfg.Heartbeat.DayTimeWindow.Start+"-"+s.cfg.Heartbeat.DayTimeWindow.End,
-		"day_interval", s.cfg.Heartbeat.DayTimeWindow.Interval,
-		"night_window", s.cfg.Heartbeat.NightTimeWindow.Start+"-"+s.cfg.Heartbeat.NightTimeWindow.End,
-		"night_interval", s.cfg.Heartbeat.NightTimeWindow.Interval,
+		"day_window", dayWindow,
+		"day_interval", dayInterval,
+		"night_window", nightWindow,
+		"night_interval", nightInterval,
 	)
 }
 
@@ -64,28 +84,30 @@ func (s *Scheduler) Start() {
 func (s *Scheduler) Stop() {
 	s.mu.Lock()
 	ch := s.stopCh
+	s.stopCh = nil
 	s.mu.Unlock()
 
 	if ch != nil {
 		select {
 		case <-ch:
+			// already closed
 		default:
 			close(ch)
 		}
+		s.wg.Wait()
 	}
-	s.wg.Wait()
 }
 
 // Restart updates the configuration and restarts the scheduler.
 func (s *Scheduler) Restart(cfg *config.Config) {
+	s.Stop()
 	s.mu.Lock()
 	s.cfg = cfg
 	s.mu.Unlock()
-	s.Stop()
 	s.Start()
 }
 
-func (s *Scheduler) loop() {
+func (s *Scheduler) loop(stopCh chan struct{}) {
 	defer s.wg.Done()
 
 	// Run immediately on start if within an active window
@@ -96,7 +118,7 @@ func (s *Scheduler) loop() {
 
 	for {
 		select {
-		case <-s.stopCh:
+		case <-stopCh:
 			return
 		case <-ticker.C:
 			s.checkAndRun()
@@ -107,6 +129,7 @@ func (s *Scheduler) loop() {
 func (s *Scheduler) checkAndRun() {
 	s.mu.RLock()
 	cfg := s.cfg
+	lastRun := s.lastRun
 	s.mu.RUnlock()
 
 	if !cfg.Heartbeat.Enabled {
@@ -122,7 +145,15 @@ func (s *Scheduler) checkAndRun() {
 	intervalDur := parseInterval(interval)
 
 	// Check if enough time has passed since last run
-	if !s.lastRun.IsZero() && now.Sub(s.lastRun) < intervalDur {
+	if !lastRun.IsZero() && now.Sub(lastRun) < intervalDur {
+		return
+	}
+
+	// Prevent overlapping executions.
+	if !s.running.CompareAndSwap(false, true) {
+		s.logger.Debug("Heartbeat skipped: previous run still active",
+			"time", now.Format("15:04"),
+		)
 		return
 	}
 
@@ -139,5 +170,8 @@ func (s *Scheduler) checkAndRun() {
 	)
 
 	// Run asynchronously to avoid blocking the scheduler
-	go s.runner(prompt)
+	go func() {
+		defer s.running.Store(false)
+		s.runner(prompt)
+	}()
 }
