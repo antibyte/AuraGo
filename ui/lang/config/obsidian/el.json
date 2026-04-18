@@ -26,5 +26,9 @@
   "help.obsidian.port": "Θύρα του plugin Obsidian Local REST API (προεπιλογή: 27124)",
   "help.obsidian.use_https": "Χρήση σύνδεσης HTTPS (συνιστάται, προεπιλογή: true)",
   "help.obsidian.insecure_ssl": "Αποδοχή αυτο-υπογεγραμμένων πιστοποιητικών (προεπιλογή: true)",
-  "help.obsidian.api_key": "Κλειδί API από τις ρυθμίσεις του plugin Obsidian Local REST API"
+  "help.obsidian.api_key": "Κλειδί API από τις ρυθμίσεις του plugin Obsidian Local REST API",
+  "config.obsidian.connect_timeout_label": "Connect Timeout",
+  "config.obsidian.request_timeout_label": "Request Timeout",
+  "help.obsidian.connect_timeout": "Χρονικό όριο σύνδεσης σε δευτερόλεπτα (προεπιλογή: 10)",
+  "help.obsidian.request_timeout": "Χρονικό όριο αιτήματος σε δευτερόλεπτα (προεπιλογή: 30)"
 }

@@ -26,5 +26,9 @@
   "help.obsidian.port": "Obsidian Local REST API 插件的端口（默认：27124）",
   "help.obsidian.use_https": "使用 HTTPS 连接（推荐，默认：true）",
   "help.obsidian.insecure_ssl": "接受自签名证书（默认：true）",
-  "help.obsidian.api_key": "来自 Obsidian Local REST API 插件设置的 API 密钥"
+  "help.obsidian.api_key": "来自 Obsidian Local REST API 插件设置的 API 密钥",
+  "config.obsidian.connect_timeout_label": "Connect Timeout",
+  "config.obsidian.request_timeout_label": "Request Timeout",
+  "help.obsidian.connect_timeout": "连接超时秒数（默认：10）",
+  "help.obsidian.request_timeout": "请求超时秒数（默认：30）"
 }

@@ -26,5 +26,9 @@
   "help.obsidian.port": "Port pluginu Obsidian Local REST API (výchozí: 27124)",
   "help.obsidian.use_https": "Použít připojení HTTPS (doporučeno, výchozí: true)",
   "help.obsidian.insecure_ssl": "Přijmout samopodepsané certifikáty (výchozí: true)",
-  "help.obsidian.api_key": "API klíč z nastavení pluginu Obsidian Local REST API"
+  "help.obsidian.api_key": "API klíč z nastavení pluginu Obsidian Local REST API",
+  "config.obsidian.connect_timeout_label": "Connect Timeout",
+  "config.obsidian.request_timeout_label": "Request Timeout",
+  "help.obsidian.connect_timeout": "Timeout připojení v sekundách (výchozí: 10)",
+  "help.obsidian.request_timeout": "Timeout požadavku v sekundách (výchozí: 30)"
 }

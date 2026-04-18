@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"sync"
 	"time"
+	"unicode/utf8"
 
 	"aurago/internal/config"
 	"aurago/internal/obsidian"
@@ -15,6 +17,16 @@ import (
 
 const defaultObsidianRequestTimeout = 30 * time.Second
 const maxObsidianContentSize = 50 * 1024 // 50KB
+
+var obsidianClientCache sync.Map
+
+func obsidianClientCacheKey(cfg config.ObsidianConfig) string {
+	scheme := "http"
+	if cfg.UseHTTPS {
+		scheme = "https"
+	}
+	return fmt.Sprintf("%s://%s:%d", scheme, cfg.Host, cfg.Port)
+}
 
 func obsidianRequestContext(cfg config.ObsidianConfig) (context.Context, context.CancelFunc) {
 	timeout := time.Duration(cfg.RequestTimeout) * time.Second
@@ -89,12 +101,22 @@ func DispatchObsidianTool(operation string, params map[string]string, cfg *confi
 }
 
 func newObsidianClient(cfg config.ObsidianConfig, vault *security.Vault) (*obsidian.Client, error) {
-	return obsidian.NewClient(cfg, vault)
+	key := obsidianClientCacheKey(cfg)
+	if client, ok := obsidianClientCache.Load(key); ok {
+		return client.(*obsidian.Client), nil
+	}
+	client, err := obsidian.NewClient(cfg, vault)
+	if err != nil {
+		return nil, err
+	}
+	obsidianClientCache.Store(key, client)
+	return client, nil
 }
 
 func wrapExternalContent(content string) string {
-	if len(content) > maxObsidianContentSize {
-		content = content[:maxObsidianContentSize] + "\n... (truncated)"
+	if utf8.RuneCountInString(content) > maxObsidianContentSize {
+		runes := []rune(content)
+		content = string(runes[:maxObsidianContentSize]) + "\n... (truncated)"
 	}
 	return "<external_data>" + content + "</external_data>"
 }

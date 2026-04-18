@@ -82,6 +82,22 @@ function renderObsidianSection(section) {
     html += '<span class="toggle-label">' + (insecureOn ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
     html += '</div></div>';
 
+    // ── Connect Timeout ──
+    const helpConnectTimeout = t('help.obsidian.connect_timeout');
+    html += '<div class="field-group">';
+    html += '<div class="field-label">' + (t('config.obsidian.connect_timeout_label') || 'Connect Timeout') + '</div>';
+    if (helpConnectTimeout) html += '<div class="field-help">' + helpConnectTimeout + '</div>';
+    html += '<input class="field-input" type="number" data-path="obsidian.connect_timeout" value="' + escapeAttr(data.connect_timeout || '10') + '" placeholder="10">';
+    html += '</div>';
+
+    // ── Request Timeout ──
+    const helpRequestTimeout = t('help.obsidian.request_timeout');
+    html += '<div class="field-group">';
+    html += '<div class="field-label">' + (t('config.obsidian.request_timeout_label') || 'Request Timeout') + '</div>';
+    if (helpRequestTimeout) html += '<div class="field-help">' + helpRequestTimeout + '</div>';
+    html += '<input class="field-input" type="number" data-path="obsidian.request_timeout" value="' + escapeAttr(data.request_timeout || '30') + '" placeholder="30">';
+    html += '</div>';
+
     // ── API Key (vault) ──
     const helpKey = t('help.obsidian.api_key');
     html += '<div class="field-group">';

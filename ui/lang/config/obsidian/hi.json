@@ -26,5 +26,9 @@
   "help.obsidian.port": "Obsidian Local REST API प्लगइन का पोर्ट (डिफ़ॉल्ट: 27124)",
   "help.obsidian.use_https": "HTTPS कनेक्शन का उपयोग करें (अनुशंसित, डिफ़ॉल्ट: true)",
   "help.obsidian.insecure_ssl": "स्व-हस्ताक्षरित प्रमाणपत्र स्वीकार करें (डिफ़ॉल्ट: true)",
-  "help.obsidian.api_key": "Obsidian Local REST API प्लगइन सेटिंग्स से API कुंजी"
+  "help.obsidian.api_key": "Obsidian Local REST API प्लगइन सेटिंग्स से API कुंजी",
+  "config.obsidian.connect_timeout_label": "Connect Timeout",
+  "config.obsidian.request_timeout_label": "Request Timeout",
+  "help.obsidian.connect_timeout": "कनेक्शन टाइमआउट सेकंड में (डिफ़ॉल्ट: 10)",
+  "help.obsidian.request_timeout": "अनुरोध टाइमआउट सेकंड में (डिफ़ॉल्ट: 30)"
 }

@@ -3,9 +3,7 @@ package obsidian
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 )
 
@@ -21,19 +19,11 @@ func (c *Client) ReadPeriodicNote(ctx context.Context, period string) (*NoteJSON
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("read response: %w", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API error %d: %s", resp.StatusCode, string(body))
-	}
-
 	var note NoteJSON
-	if err := json.Unmarshal(body, &note); err != nil {
-		return nil, fmt.Errorf("decode periodic note: %w", err)
+	if err := decodeJSONResponse(resp, &note); err != nil {
+		return nil, fmt.Errorf("read periodic note: %w", err)
 	}
+	// API returns the note with populated path
 	return &note, nil
 }
 
@@ -49,12 +39,7 @@ func (c *Client) CreatePeriodicNote(ctx context.Context, period, content string)
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("API error %d: %s", resp.StatusCode, string(body))
-	}
-
-	return nil
+	return decodeJSONResponse(resp, nil)
 }
 
 // PatchPeriodicNote appends/prepends/replaces content on the current periodic note.
@@ -72,10 +57,5 @@ func (c *Client) PatchPeriodicNote(ctx context.Context, period, content, operati
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("API error %d: %s", resp.StatusCode, string(body))
-	}
-
-	return nil
+	return decodeJSONResponse(resp, nil)
 }

@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"sync"
 	"time"
 
 	"aurago/internal/config"
@@ -23,6 +24,12 @@ type Client struct {
 	baseURL    string
 	apiKey     string
 	httpClient *http.Client
+}
+
+var clientCache sync.Map
+
+func clientCacheKey(baseURL, apiKey string) string {
+	return fmt.Sprintf("%s|%s", baseURL, apiKey)
 }
 
 // NewClient creates a new Obsidian client from configuration.
@@ -60,6 +67,11 @@ func NewClient(cfg config.ObsidianConfig, vault *security.Vault) (*Client, error
 		return nil, fmt.Errorf("Obsidian API key is required (set in vault as 'obsidian_api_key')")
 	}
 
+	cacheKey := clientCacheKey(baseURL, apiKey)
+	if client, ok := clientCache.Load(cacheKey); ok {
+		return client.(*Client), nil
+	}
+
 	tlsConfig := &tls.Config{
 		InsecureSkipVerify: cfg.InsecureSSL,
 	}
@@ -79,7 +91,7 @@ func NewClient(cfg config.ObsidianConfig, vault *security.Vault) (*Client, error
 		KeepAlive: 30 * time.Second,
 	}
 
-	return &Client{
+	client := &Client{
 		baseURL: baseURL,
 		apiKey:  apiKey,
 		httpClient: &http.Client{
@@ -91,7 +103,9 @@ func NewClient(cfg config.ObsidianConfig, vault *security.Vault) (*Client, error
 				ResponseHeaderTimeout: 30 * time.Second,
 			},
 		},
-	}, nil
+	}
+	clientCache.Store(cacheKey, client)
+	return client, nil
 }
 
 // request performs an HTTP request to the Obsidian Local REST API.

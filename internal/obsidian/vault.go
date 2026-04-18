@@ -69,24 +69,7 @@ func (c *Client) ReadNote(ctx context.Context, path string) (*NoteJSON, error) {
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("read response: %w", err)
-	}
-
-	if resp.StatusCode == http.StatusNotFound {
-		return nil, fmt.Errorf("note not found: %s", path)
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API error %d: %s", resp.StatusCode, string(body))
-	}
-
-	var note NoteJSON
-	if err := json.Unmarshal(body, &note); err != nil {
-		return nil, fmt.Errorf("decode note: %w", err)
-	}
-	note.Path = path
-	return &note, nil
+	return decodeNoteResponse(resp, path)
 }
 
 // ReadNoteSection reads a specific section of a note using sub-document targeting.
@@ -105,21 +88,7 @@ func (c *Client) ReadNoteSection(ctx context.Context, path, targetType, target s
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("read response: %w", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API error %d: %s", resp.StatusCode, string(body))
-	}
-
-	var note NoteJSON
-	if err := json.Unmarshal(body, &note); err != nil {
-		return nil, fmt.Errorf("decode note section: %w", err)
-	}
-	note.Path = path
-	return &note, nil
+	return decodeNoteResponse(resp, path)
 }
 
 // CreateNote creates a new note with the given content.

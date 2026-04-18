@@ -3,6 +3,7 @@ package obsidian
 import (
 	"context"
 	"fmt"
+	"net/url"
 )
 
 // SearchSimple performs a full-text search across the vault.
@@ -15,7 +16,7 @@ func (c *Client) SearchSimple(ctx context.Context, query string, contextLength i
 		contextLength = 100
 	}
 
-	endpoint := fmt.Sprintf("/search/simple/?query=%s&contextLength=%d", encodePath(query), contextLength)
+	endpoint := fmt.Sprintf("/search/simple/?query=%s&contextLength=%d", url.QueryEscape(query), contextLength)
 
 	resp, err := c.request(ctx, "POST", endpoint, nil, map[string]string{
 		"Accept": "application/json",

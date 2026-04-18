@@ -26,5 +26,9 @@
   "help.obsidian.port": "Port of the Obsidian Local REST API plugin (default: 27124)",
   "help.obsidian.use_https": "Use HTTPS connection (recommended, default: true)",
   "help.obsidian.insecure_ssl": "Accept self-signed certificates (default: true)",
-  "help.obsidian.api_key": "API key from the Obsidian Local REST API plugin settings"
+  "help.obsidian.api_key": "API key from the Obsidian Local REST API plugin settings",
+  "config.obsidian.connect_timeout_label": "Connect Timeout",
+  "config.obsidian.request_timeout_label": "Request Timeout",
+  "help.obsidian.connect_timeout": "Connection timeout in seconds (default: 10)",
+  "help.obsidian.request_timeout": "Request timeout in seconds (default: 30)"
 }

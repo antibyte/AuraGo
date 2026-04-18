@@ -26,5 +26,9 @@
   "help.obsidian.port": "Puerto del plugin Obsidian Local REST API (predeterminado: 27124)",
   "help.obsidian.use_https": "Usar conexión HTTPS (recomendado, predeterminado: true)",
   "help.obsidian.insecure_ssl": "Aceptar certificados autofirmados (predeterminado: true)",
-  "help.obsidian.api_key": "Clave API de la configuración del plugin Obsidian Local REST API"
+  "help.obsidian.api_key": "Clave API de la configuración del plugin Obsidian Local REST API",
+  "config.obsidian.connect_timeout_label": "Connect Timeout",
+  "config.obsidian.request_timeout_label": "Request Timeout",
+  "help.obsidian.connect_timeout": "Tiempo de espera de conexión en segundos (predeterminado: 10)",
+  "help.obsidian.request_timeout": "Tiempo de espera de solicitud en segundos (predeterminado: 30)"
 }
