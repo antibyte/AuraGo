@@ -461,7 +461,8 @@ a.logo {
     height: 16px;
     border-radius: 8px;
     background: var(--error, #ef4444);
-    color: #fff;
+    color: var(--warnings-badge-text, #fff) !important;
+    -webkit-text-fill-color: var(--warnings-badge-text, #fff) !important;
     font-size: 0.65rem;
     font-weight: 700;
     display: flex;
@@ -471,6 +472,9 @@ a.logo {
     line-height: 1;
     pointer-events: none;
     transition: background 0.3s ease;
+    border: 1px solid var(--warnings-badge-border, rgba(15, 23, 42, 0.18));
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.2);
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.28);
 }
 .warnings-badge.seen {
     background: var(--text-secondary, #6b7280);

@@ -3732,6 +3732,21 @@ html[data-theme="retro-crt"]::before {
     --theme-option-color: var(--crt-text);
 }
 
+[data-theme="retro-crt"] .warnings-badge {
+    background: rgba(3, 11, 3, 0.96) !important;
+    color: var(--crt-bright) !important;
+    -webkit-text-fill-color: var(--crt-bright) !important;
+    border-color: rgba(45, 222, 12, 0.5) !important;
+    box-shadow:
+        0 0 0 1px rgba(18, 138, 6, 0.2),
+        0 0 10px rgba(45, 222, 12, 0.18) !important;
+    text-shadow: 0 0 8px rgba(95, 255, 58, 0.35) !important;
+}
+
+[data-theme="retro-crt"] .warnings-badge.seen {
+    background: rgba(8, 20, 8, 0.96) !important;
+}
+
 [data-theme="retro-crt"] .chat-theme-btn,
 [data-theme="retro-crt"] .btn-session-toggle,
 [data-theme="retro-crt"] .btn-speaker,
