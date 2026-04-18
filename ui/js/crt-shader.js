@@ -35,10 +35,10 @@
             float distort = 1.0 + r2 * 0.8;        // barrel strength
             vec2 curved = cc * distort + 0.5;
 
-            /* Outside curved screen → black border */
+            /* Outside curved screen → keep transparent so the effect never hides chat content */
             if (curved.x < 0.0 || curved.x > 1.0 ||
                 curved.y < 0.0 || curved.y > 1.0) {
-                gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+                gl_FragColor = vec4(0.0, 0.0, 0.0, 0.0);
                 return;
             }
 
@@ -67,7 +67,7 @@
             vec3 phosphor = vec3(0.12, 0.55, 0.06);
 
             /* Final color: mostly transparent with subtle green phosphor + darkening at edges */
-            float alpha = (1.0 - vignette) * 0.35 + glow;
+            float alpha = (1.0 - vignette) * 0.16 + glow;
             alpha *= corner;
 
             gl_FragColor = vec4(phosphor * glow, alpha);
