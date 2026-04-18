@@ -103,7 +103,8 @@ function applyI18n() {
     /* Header pills & controls */
     const sessionToggleBtn = document.getElementById('session-toggle-btn');
     if (sessionToggleBtn) sessionToggleBtn.title = t('chat.sessions_title');
-    document.getElementById('theme-toggle').title = t('common.toggle_theme');
+    const themeToggleEl = document.getElementById('theme-toggle');
+    if (themeToggleEl) themeToggleEl.title = t('common.toggle_theme');
     document.getElementById('speaker-toggle').title = speakerMode ? t('chat.speaker_on_title') : t('chat.speaker_off_title');
     document.getElementById('tokenCounter').textContent = t('chat.token_counter_default');
     document.getElementById('budgetPill').title = t('chat.budget_pill_title');

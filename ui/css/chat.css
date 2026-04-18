@@ -3795,24 +3795,51 @@
 
 /* ── CRT Messages ── */
 [data-theme="retro-crt"] .bubble {
-    background: var(--crt-surface);
-    border: 1px solid var(--crt-border);
+    background: rgba(5, 20, 5, 0.9);
+    border: 1px solid var(--crt-dim);
     color: var(--crt-text);
     border-radius: 4px;
-    box-shadow: 0 0 10px var(--crt-glow);
+    box-shadow: 0 0 12px var(--crt-glow), inset 0 0 8px rgba(95, 255, 58, 0.03);
+    text-shadow: 0 0 6px var(--crt-glow);
 }
 
 [data-theme="retro-crt"] .bubble.user {
-    background: var(--crt-dark);
-    border-color: var(--crt-dim);
-    box-shadow: 0 0 6px rgba(0, 0, 0, 0.4);
-    color: var(--crt-text-dim);
+    background: rgba(10, 35, 8, 0.95);
+    border-color: var(--crt-medium);
+    box-shadow: 0 0 8px rgba(0, 0, 0, 0.5), inset 0 0 6px rgba(95, 255, 58, 0.04);
+    color: var(--crt-text);
 }
 
 [data-theme="retro-crt"] .bubble.bot {
-    background: var(--crt-surface);
-    border-color: var(--crt-border);
-    box-shadow: 0 0 14px var(--crt-glow);
+    background: rgba(5, 20, 5, 0.9);
+    border-color: var(--crt-dim);
+    box-shadow: 0 0 16px var(--crt-glow), inset 0 0 10px rgba(95, 255, 58, 0.03);
+}
+
+/* ── CRT Emoji / Icon green filter ── */
+[data-theme="retro-crt"] .logo-icon,
+[data-theme="retro-crt"] .mood-emoji,
+[data-theme="retro-crt"] .mood-emoji-lg,
+[data-theme="retro-crt"] .warnings-icon,
+[data-theme="retro-crt"] .avatar,
+[data-theme="retro-crt"] .greeting-icon,
+[data-theme="retro-crt"] .floating-icon,
+[data-theme="retro-crt"] .queue-item-icon,
+[data-theme="retro-crt"] .drag-drop-icon,
+[data-theme="retro-crt"] .composer-tool-btn,
+[data-theme="retro-crt"] .btn-session-toggle,
+[data-theme="retro-crt"] .btn-speaker,
+[data-theme="retro-crt"] .chat-theme-icon,
+[data-theme="retro-crt"] .chat-theme-option-icon {
+    filter: grayscale(100%) brightness(1.8) sepia(100%) hue-rotate(70deg) saturate(2.5);
+}
+
+/* ── CRT Footer emoji filter ── */
+[data-theme="retro-crt"] .app-footer .composer-tool-btn,
+[data-theme="retro-crt"] .app-footer .btn-send,
+[data-theme="retro-crt"] .app-footer .btn-upload,
+[data-theme="retro-crt"] .app-footer .btn-more {
+    filter: grayscale(100%) brightness(1.8) sepia(100%) hue-rotate(70deg) saturate(2.5);
 }
 
 /* ── CRT Text & Typography ── */
@@ -4206,6 +4233,7 @@
 /* ── Layer 1: Vignette + curvature + phosphor bleed ── */
 [data-theme="retro-crt"] #chat-box {
     border-radius: 8px;
+    overflow: hidden;
 }
 
 [data-theme="retro-crt"] #chat-box::before {
@@ -4216,13 +4244,14 @@
     z-index: 10;
     border-radius: inherit;
     /* Strong vignette — dark edges, clear center */
-    box-shadow: inset 0 0 100px rgba(0, 0, 0, 0.7), inset 0 0 180px rgba(0, 0, 0, 0.4);
+    box-shadow: inset 0 0 80px rgba(0, 0, 0, 0.8), inset 0 0 150px rgba(0, 0, 0, 0.5);
     /* Barrel-curvature hint via radial gradient */
     background: radial-gradient(
         ellipse at 50% 50%,
-        transparent 50%,
-        rgba(0, 0, 0, 0.2) 75%,
-        rgba(0, 0, 0, 0.65) 100%
+        transparent 40%,
+        rgba(0, 0, 0, 0.15) 60%,
+        rgba(0, 0, 0, 0.45) 80%,
+        rgba(0, 0, 0, 0.75) 100%
     );
 }
 
@@ -4234,25 +4263,16 @@
     pointer-events: none;
     z-index: 11;
     border-radius: inherit;
-    /* Visible scanlines — stronger for authentic CRT look */
-    background: repeating-linear-gradient(
-        to bottom,
-        transparent 0px,
-        transparent 2px,
-        rgba(0, 0, 0, 0.12) 2px,
-        rgba(0, 0, 0, 0.12) 3px
-    );
-    /* Fine phosphor noise texture */
+    /* Strong visible scanlines for authentic CRT look */
     background-image:
         repeating-linear-gradient(
             to bottom,
             transparent 0px,
-            transparent 2px,
-            rgba(0, 0, 0, 0.07) 2px,
-            rgba(0, 0, 0, 0.07) 4px
-        ),
-        url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
-    background-blend-mode: overlay;
+            transparent 1px,
+            rgba(0, 0, 0, 0.25) 1px,
+            rgba(0, 0, 0, 0.25) 2px
+        );
+    background-size: 100% 2px;
 }
 
 /* ── Animated signal shimmer on #chat-box (CSS only, GPU friendly) ── */
