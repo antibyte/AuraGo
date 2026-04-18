@@ -175,8 +175,9 @@ async function renderHomepageSection(section) {
     }
 
     if (dockerEnabled) {
-        html += `<div class="hp-section-title hp-section-title-sm-top">🔐 ${t('config.homepage.permissions_title')}</div>`;
-        html += `<div class="field-help hp-help-spaced">${t('config.homepage.permissions_desc')}</div>`;
+        html += `<div class="field-group">
+            <div class="field-group-title">🔐 ${t('config.homepage.permissions_title')}</div>
+            <div class="field-group-desc">${t('config.homepage.permissions_desc')}</div>`;
 
         html += `<div class="hp-grid-two hp-grid-tight">`;
 
@@ -191,11 +192,13 @@ async function renderHomepageSection(section) {
         </div>`;
 
         html += `</div>`;
+        html += `</div>`;
     }
 
     if (dockerEnabled) {
-        html += `<div class="hp-section-title hp-section-title-lg-top">🚀 ${t('config.homepage.deploy_title')}</div>`;
-        html += `<div class="field-help hp-help-spaced">${t('config.homepage.deploy_desc')}</div>`;
+        html += `<div class="field-group">
+            <div class="field-group-title">🚀 ${t('config.homepage.deploy_title')}</div>
+            <div class="field-group-desc">${t('config.homepage.deploy_desc')}</div>`;
 
         html += `<div class="hp-grid-two hp-grid-wide">`;
 
@@ -276,11 +279,13 @@ async function renderHomepageSection(section) {
                 <div id="hp-test-msg" class="hp-test-msg"></div>
             </div>
         </div>`;
+        html += `</div>`;
     }
 
     if (dockerEnabled) {
-        html += `<div class="hp-section-title hp-section-title-lg-top">🖥️ ${t('config.homepage.webserver_title')}</div>`;
-        html += `<div class="field-help hp-help-spaced">${t('config.homepage.webserver_desc')}</div>`;
+        html += `<div class="field-group">
+            <div class="field-group-title">🖥️ ${t('config.homepage.webserver_title')}</div>
+            <div class="field-group-desc">${t('config.homepage.webserver_desc')}</div>`;
 
         html += `<div class="cfg-toggle-row-compact">
             <span class="cfg-toggle-label">${t('config.homepage.webserver_enabled')}</span>
@@ -307,11 +312,13 @@ async function renderHomepageSection(section) {
         </label>`;
 
         html += `</div>`;
+        html += `</div>`;
     }
 
     if (dockerEnabled) {
-        html += `<div class="hp-section-title hp-section-title-lg-top">📁 ${t('config.homepage.workspace_title')}</div>`;
-        html += `<div class="field-help hp-help-mb-sm">${t('config.homepage.workspace_desc')}</div>`;
+        html += `<div class="field-group">
+            <div class="field-group-title">📁 ${t('config.homepage.workspace_title')}</div>
+            <div class="field-group-desc">${t('config.homepage.workspace_desc')}</div>`;
 
         if (cfg.webserver_enabled && !cfg.workspace_path) {
             html += `<div class="hp-warning-box">
@@ -331,11 +338,13 @@ async function renderHomepageSection(section) {
             </div>
         </label>`;
         html += `<div class="field-help hp-help-mt-sm">${t('config.homepage.workspace_relative_hint')}</div>`;
+        html += `</div>`;
     }
 
     if (dockerEnabled) {
-        html += `<div class="hp-section-title hp-section-title-lg-top">⚡ ${t('config.homepage.circuit_breaker_title')}</div>`;
-        html += `<div class="field-help hp-help-spaced">${t('config.homepage.circuit_breaker_desc')}</div>`;
+        html += `<div class="field-group">
+            <div class="field-group-title">⚡ ${t('config.homepage.circuit_breaker_title')}</div>
+            <div class="field-group-desc">${t('config.homepage.circuit_breaker_desc')}</div>`;
 
         html += `<label class="hp-label-sm">
             <span class="hp-input-label">${t('config.homepage.circuit_breaker_max_calls')}</span>
@@ -356,6 +365,7 @@ async function renderHomepageSection(section) {
                 homepage_calls: homepageToolCalls
             })}</div>`;
         }
+        html += `</div>`;
     }
 
     html += `</div>`;
