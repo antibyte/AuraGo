@@ -145,6 +145,7 @@
 
 [data-theme="dark-sun"] .chat-theme-dropdown,
 [data-theme="dark-sun"] .mood-panel {
+    --theme-option-color: #f0dfd2;
     border: 1px solid rgba(132, 58, 28, 0.5);
     background: linear-gradient(180deg, rgba(20, 11, 9, 0.98), rgba(9, 5, 4, 0.98));
     box-shadow:
@@ -155,22 +156,11 @@
 
 [data-theme="dark-sun"] .chat-theme-option {
     border-radius: 10px;
-    color: #f0dfd2;
-}
-
-[data-theme="dark-sun"] .chat-theme-dropdown .chat-theme-option,
-[data-theme="dark-sun"] .chat-theme-dropdown .chat-theme-option:hover,
-[data-theme="dark-sun"] .chat-theme-dropdown .chat-theme-option.active,
-[data-theme="dark-sun"] .chat-theme-dropdown .chat-theme-option-icon,
-[data-theme="dark-sun"] .chat-theme-dropdown .chat-theme-option-label {
-    color: #f0dfd2 !important;
-    -webkit-text-fill-color: #f0dfd2 !important;
 }
 
 [data-theme="dark-sun"] .chat-theme-option:hover,
 [data-theme="dark-sun"] .chat-theme-option.active {
     background: linear-gradient(90deg, rgba(78, 28, 16, 0.92), rgba(43, 16, 11, 0.96));
-    color: #f0dfd2;
 }
 
 [data-theme="dark-sun"] .app-header .pill {

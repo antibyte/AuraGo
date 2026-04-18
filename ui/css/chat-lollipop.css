@@ -145,6 +145,7 @@
 
 [data-theme="lollipop"] .chat-theme-dropdown,
 [data-theme="lollipop"] .mood-panel {
+    --theme-option-color: var(--strong-color);
     border: 1px solid rgba(214, 123, 176, 0.62);
     background:
         linear-gradient(180deg, rgba(255, 247, 252, 0.99), rgba(242, 221, 233, 0.97));
@@ -155,18 +156,6 @@
 
 [data-theme="lollipop"] .chat-theme-option {
     border-radius: 12px;
-    color: var(--text-primary);
-}
-
-[data-theme="lollipop"] .chat-theme-dropdown .chat-theme-option,
-[data-theme="lollipop"] .chat-theme-dropdown .chat-theme-option:hover,
-[data-theme="lollipop"] .chat-theme-dropdown .chat-theme-option.active,
-[data-theme="lollipop"] .chat-theme-dropdown .chat-theme-option-icon,
-[data-theme="lollipop"] .chat-theme-dropdown .chat-theme-option-label {
-    color: var(--strong-color) !important;
-    -webkit-text-fill-color: var(--strong-color) !important;
-    font-family: 'Inter', system-ui, sans-serif !important;
-    text-shadow: none !important;
 }
 
 [data-theme="lollipop"] .chat-theme-option:hover,
@@ -198,15 +187,55 @@
 [data-theme="lollipop"] #chat-box::before {
     display: block;
     z-index: 1;
-    opacity: 0.6;
-    background-image:
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='14' r='9' fill='%23f3a6cf'/%3E%3Ccircle cx='18' cy='28' r='9' fill='%23f7c1dc'/%3E%3Ccircle cx='46' cy='28' r='9' fill='%23f4b1d5'/%3E%3Ccircle cx='24' cy='44' r='9' fill='%23ef95c3'/%3E%3Ccircle cx='40' cy='44' r='9' fill='%23f7c7a3'/%3E%3Ccircle cx='32' cy='30' r='7' fill='%23f7e48a'/%3E%3C/svg%3E"),
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='14' r='8' fill='%23d6b4ff'/%3E%3Ccircle cx='18' cy='28' r='8' fill='%23e7d3ff'/%3E%3Ccircle cx='46' cy='28' r='8' fill='%23cfa7ff'/%3E%3Ccircle cx='24' cy='44' r='8' fill='%23efc2ff'/%3E%3Ccircle cx='40' cy='44' r='8' fill='%23f4b5da'/%3E%3Ccircle cx='32' cy='30' r='6' fill='%23fff0a8'/%3E%3C/svg%3E"),
-        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cellipse cx='24' cy='9' rx='6' ry='10' fill='%23ffd6ea'/%3E%3Cellipse cx='9' cy='24' rx='10' ry='6' fill='%23f4a4d3'/%3E%3Cellipse cx='39' cy='24' rx='10' ry='6' fill='%23f6c1a3'/%3E%3Cellipse cx='18' cy='38' rx='7' ry='9' fill='%23e3c3ff'/%3E%3Cellipse cx='30' cy='38' rx='7' ry='9' fill='%23f2b7d8'/%3E%3Ccircle cx='24' cy='24' r='6' fill='%23fff0a0'/%3E%3C/svg%3E");
-    background-repeat: repeat-y, repeat-y, repeat-y;
-    background-size: 88px 110px, 74px 92px, 58px 72px;
-    background-position: 10% -18%, 55% -42%, 88% -24%;
-    animation: lollipopFlowersFall 30s linear infinite;
+    opacity: 0.78;
+    background:
+        linear-gradient(180deg, rgba(255, 250, 253, 0.26), transparent 20%, transparent 82%, rgba(245, 214, 229, 0.16) 100%),
+        radial-gradient(circle at 16% 14%, rgba(246, 169, 213, 0.22), transparent 18%),
+        radial-gradient(circle at 84% 16%, rgba(201, 175, 255, 0.2), transparent 18%),
+        radial-gradient(circle at 48% 96%, rgba(137, 224, 188, 0.12), transparent 20%),
+        radial-gradient(circle, var(--lollipop-dot) 0 1.1px, transparent 1.2px);
+    background-size: auto, auto, auto, auto, 18px 18px;
+    background-position: 0 0, 0 0, 0 0, 0 0, 0 0;
+}
+
+[data-theme="lollipop"] #lollipop-petal-layer {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 2;
+}
+
+[data-theme="lollipop"] .lollipop-petal {
+    position: absolute;
+    top: -18%;
+    left: var(--petal-left, 50%);
+    width: var(--petal-size, 64px);
+    height: var(--petal-size, 64px);
+    opacity: var(--petal-opacity, 0.72);
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: contain;
+    filter: drop-shadow(0 8px 12px rgba(168, 84, 128, 0.12));
+    transform: translate3d(0, 0, 0) rotate(var(--petal-rotate-start, 0deg)) scale(var(--petal-scale, 1));
+    animation: lollipopPetalFall var(--petal-duration, 20s) linear var(--petal-delay, 0s) infinite;
+    will-change: transform, opacity;
+}
+
+[data-theme="lollipop"] .lollipop-petal.blossom-a {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='14' r='9' fill='%23f3a6cf'/%3E%3Ccircle cx='18' cy='28' r='9' fill='%23f7c1dc'/%3E%3Ccircle cx='46' cy='28' r='9' fill='%23f4b1d5'/%3E%3Ccircle cx='24' cy='44' r='9' fill='%23ef95c3'/%3E%3Ccircle cx='40' cy='44' r='9' fill='%23f7c7a3'/%3E%3Ccircle cx='32' cy='30' r='7' fill='%23f7e48a'/%3E%3C/svg%3E");
+}
+
+[data-theme="lollipop"] .lollipop-petal.blossom-b {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='14' r='8' fill='%23d6b4ff'/%3E%3Ccircle cx='18' cy='28' r='8' fill='%23e7d3ff'/%3E%3Ccircle cx='46' cy='28' r='8' fill='%23cfa7ff'/%3E%3Ccircle cx='24' cy='44' r='8' fill='%23efc2ff'/%3E%3Ccircle cx='40' cy='44' r='8' fill='%23f4b5da'/%3E%3Ccircle cx='32' cy='30' r='6' fill='%23fff0a8'/%3E%3C/svg%3E");
+}
+
+[data-theme="lollipop"] .lollipop-petal.blossom-c {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cellipse cx='24' cy='9' rx='6' ry='10' fill='%23ffd6ea'/%3E%3Cellipse cx='9' cy='24' rx='10' ry='6' fill='%23f4a4d3'/%3E%3Cellipse cx='39' cy='24' rx='10' ry='6' fill='%23f6c1a3'/%3E%3Cellipse cx='18' cy='38' rx='7' ry='9' fill='%23e3c3ff'/%3E%3Cellipse cx='30' cy='38' rx='7' ry='9' fill='%23f2b7d8'/%3E%3Ccircle cx='24' cy='24' r='6' fill='%23fff0a0'/%3E%3C/svg%3E");
+}
+
+[data-theme="lollipop"] .lollipop-petal.blossom-d {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 56 56'%3E%3Ccircle cx='28' cy='12' r='8' fill='%23f8bad9'/%3E%3Ccircle cx='15' cy='25' r='8' fill='%23e7c4ff'/%3E%3Ccircle cx='41' cy='25' r='8' fill='%23f6c8ae'/%3E%3Ccircle cx='20' cy='39' r='8' fill='%23f19dcb'/%3E%3Ccircle cx='36' cy='39' r='8' fill='%23c7f2d9'/%3E%3Ccircle cx='28' cy='27' r='6' fill='%23fff0ad'/%3E%3C/svg%3E");
 }
 
 [data-theme="lollipop"] #chat-box::after {
@@ -554,19 +583,28 @@
     }
 }
 
-@keyframes lollipopFlowersFall {
+@keyframes lollipopPetalFall {
     from {
-        background-position: 10% -18%, 55% -42%, 88% -24%;
+        transform: translate3d(0, -12%, 0) rotate(var(--petal-rotate-start, 0deg)) scale(var(--petal-scale, 1));
+        opacity: calc(var(--petal-opacity, 0.72) * 0.7);
     }
-    to {
-        background-position: 4% 122%, 62% 136%, 84% 128%;
+    18% {
+        opacity: var(--petal-opacity, 0.72);
+    }
+    100% {
+        transform: translate3d(var(--petal-drift, 28px), 128%, 0) rotate(var(--petal-rotate-end, 220deg)) scale(var(--petal-scale, 1));
+        opacity: calc(var(--petal-opacity, 0.72) * 0.22);
     }
 }
 
 @media (max-width: 767px) {
     [data-theme="lollipop"] #chat-box::before {
-        opacity: 0.36;
-        background-size: 62px 78px, 54px 68px, 44px 56px;
+        opacity: 0.52;
+        background-size: auto, auto, auto, auto, 15px 15px;
+    }
+
+    [data-theme="lollipop"] .lollipop-petal {
+        filter: drop-shadow(0 6px 8px rgba(168, 84, 128, 0.1));
     }
 
     [data-theme="lollipop"] .bubble {
@@ -575,9 +613,13 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    [data-theme="lollipop"] #chat-box::before,
+    [data-theme="lollipop"] .lollipop-petal,
     [data-theme="lollipop"] body::after {
         animation: none !important;
+    }
+
+    [data-theme="lollipop"] #lollipop-petal-layer {
+        display: none !important;
     }
 }
 

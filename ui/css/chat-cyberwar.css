@@ -152,6 +152,7 @@
 
 [data-theme="cyberwar"] .chat-theme-dropdown,
 [data-theme="cyberwar"] .mood-panel {
+    --theme-option-color: #d8e6ff;
     border: 1px solid rgba(104, 241, 255, 0.18);
     background:
         linear-gradient(180deg, rgba(12, 24, 58, 0.92), rgba(6, 13, 31, 0.96));
@@ -164,17 +165,7 @@
 [data-theme="cyberwar"] .chat-theme-option {
     position: relative;
     border-radius: 10px;
-    color: #d8e6ff;
     overflow: hidden;
-}
-
-[data-theme="cyberwar"] .chat-theme-dropdown .chat-theme-option,
-[data-theme="cyberwar"] .chat-theme-dropdown .chat-theme-option:hover,
-[data-theme="cyberwar"] .chat-theme-dropdown .chat-theme-option.active,
-[data-theme="cyberwar"] .chat-theme-dropdown .chat-theme-option-icon,
-[data-theme="cyberwar"] .chat-theme-dropdown .chat-theme-option-label {
-    color: #d8e6ff !important;
-    -webkit-text-fill-color: #d8e6ff !important;
 }
 
 [data-theme="cyberwar"] .chat-theme-option::before {
@@ -189,7 +180,6 @@
 [data-theme="cyberwar"] .chat-theme-option:hover,
 [data-theme="cyberwar"] .chat-theme-option.active {
     background: linear-gradient(90deg, rgba(84, 247, 255, 0.14), rgba(139, 125, 255, 0.12));
-    color: #d8e6ff;
 }
 
 [data-theme="cyberwar"] .chat-theme-option:hover::before,

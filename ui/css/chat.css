@@ -36,6 +36,7 @@
         }
 
         .chat-theme-dropdown {
+            --theme-option-color: var(--text-primary);
             position: absolute;
             top: calc(100% + 6px);
             right: 0;
@@ -60,7 +61,7 @@
             border-radius: 7px;
             border: none;
             background: transparent;
-            color: var(--text-primary);
+            color: var(--theme-option-color);
             font-size: 0.8rem;
             font-family: inherit;
             cursor: pointer;
@@ -72,7 +73,7 @@
         .chat-theme-dropdown .chat-theme-option,
         .chat-theme-dropdown .chat-theme-option:hover,
         .chat-theme-dropdown .chat-theme-option.active {
-            color: var(--text-primary) !important;
+            color: var(--theme-option-color) !important;
         }
 
         .chat-theme-option:hover {
@@ -96,6 +97,7 @@
             color: inherit !important;
             -webkit-text-fill-color: currentColor !important;
             background: none !important;
+            font-family: inherit !important;
             text-shadow: none !important;
         }
 
@@ -3660,13 +3662,8 @@ html[data-theme="retro-crt"]::before {
     border-color: transparent transparent rgba(2, 12, 2, 0.96) transparent;
 }
 
-[data-theme="retro-crt"] .chat-theme-dropdown .chat-theme-option,
-[data-theme="retro-crt"] .chat-theme-dropdown .chat-theme-option:hover,
-[data-theme="retro-crt"] .chat-theme-dropdown .chat-theme-option.active,
-[data-theme="retro-crt"] .chat-theme-dropdown .chat-theme-option-icon,
-[data-theme="retro-crt"] .chat-theme-dropdown .chat-theme-option-label {
-    color: var(--crt-text) !important;
-    -webkit-text-fill-color: var(--crt-text) !important;
+[data-theme="retro-crt"] .chat-theme-dropdown {
+    --theme-option-color: var(--crt-text);
 }
 
 [data-theme="retro-crt"] .chat-theme-btn,
