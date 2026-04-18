@@ -398,8 +398,6 @@ var authBypassPrefixes = []string{
 	"/shared-components.css",
 	"/shared-animations.css",
 	"/shared.js",
-	"/css/",
-	"/js/",
 	"/css/login.css",
 	"/js/login/",
 	// Static media files (audio, images, documents) require authentication.
@@ -441,8 +439,6 @@ var noPasswordPrefixes = []string{
 	"/shared-components.css",
 	"/shared-animations.css",
 	"/shared.js",
-	"/css/",
-	"/js/",
 	"/css/login.css",
 	"/js/login/",
 }
