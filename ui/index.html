@@ -32,12 +32,12 @@
     <link id="hljs-theme" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Oxanium:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/shared-variables.css">
     <link rel="stylesheet" href="/shared-utilities.css">
     <link rel="stylesheet" href="/shared-components.css">
     <link rel="stylesheet" href="/shared-animations.css">
-    <script src="/shared.js?v=7"></script>
+    <script src="/shared.js?v=8"></script>
     <script>
         const SYSTEM_LANG = "{{.Lang}}";
         const SHOW_TOOL_RESULTS = {{.ShowToolResults }};
@@ -53,6 +53,7 @@
     <link rel="stylesheet" href="/css/stt-overlay.css">
     <link rel="stylesheet" href="/css/session-drawer.css?v=3">
     <link rel="stylesheet" href="/css/enhancements.css">
+    <link rel="stylesheet" href="/css/chat-cyberwar.css">
 </head>
 
 <body class="h-screen h-[100dvh] flex flex-col">
@@ -84,6 +85,10 @@
                     <button type="button" class="chat-theme-option" data-theme="retro-crt" role="option">
                         <span class="chat-theme-option-icon">▣</span>
                         <span class="chat-theme-option-label" data-i18n="chat.theme_retro_crt">Retro CRT</span>
+                    </button>
+                    <button type="button" class="chat-theme-option" data-theme="cyberwar" role="option">
+                        <span class="chat-theme-option-icon">✦</span>
+                        <span class="chat-theme-option-label" data-i18n="chat.theme_cyberwar">Cyberwar</span>
                     </button>
                 </div>
             </div>
@@ -278,6 +283,7 @@
     <script src="/js/chat/chat-messages.js"></script>
     <script src="/js/chat/chat-streaming.js"></script>
     <script src="/js/chat/chat-history.js"></script>
+    <script src="/js/chat/cyberwar-shader.js"></script>
 
     <!-- Image Lightbox Overlay -->
     <div id="img-lightbox">

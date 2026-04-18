@@ -7,6 +7,12 @@ class MermaidRenderer {
         this.queue = [];
         this.renderedDiagrams = new Map();
         this.zoomLevels = new Map();
+
+        window.addEventListener('aurago:themechange', () => {
+            if (window.mermaid) {
+                this.initMermaid();
+            }
+        });
     }
 
     // Lazy load Mermaid library
@@ -38,21 +44,76 @@ class MermaidRenderer {
 
     initMermaid() {
         if (window.mermaid) {
-            window.mermaid.initialize({
-                startOnLoad: false,
-                theme: document.documentElement.getAttribute('data-theme') === 'light' ? 'default' : 'dark',
-                securityLevel: 'strict',
-                fontFamily: 'Inter, system-ui, sans-serif',
-                flowchart: {
-                    curve: 'basis',
-                    padding: 15
-                },
-                sequence: {
-                    diagramMarginX: 50,
-                    diagramMarginY: 10
-                }
-            });
+            window.mermaid.initialize(this.getThemeConfig());
         }
+    }
+
+    getThemeConfig() {
+        const theme = document.documentElement.getAttribute('data-theme');
+        const baseConfig = {
+            startOnLoad: false,
+            securityLevel: 'strict',
+            fontFamily: theme === 'cyberwar'
+                ? '"Oxanium", "Inter", system-ui, sans-serif'
+                : 'Inter, system-ui, sans-serif',
+            flowchart: {
+                curve: 'basis',
+                padding: 15
+            },
+            sequence: {
+                diagramMarginX: 50,
+                diagramMarginY: 10
+            }
+        };
+
+        if (theme === 'light') {
+            return {
+                ...baseConfig,
+                startOnLoad: false,
+                theme: 'default'
+            };
+        }
+
+        if (theme === 'cyberwar') {
+            return {
+                ...baseConfig,
+                theme: 'base',
+                themeVariables: {
+                    background: '#071128',
+                    primaryColor: '#122955',
+                    primaryTextColor: '#eef7ff',
+                    primaryBorderColor: '#54f7ff',
+                    lineColor: '#54f7ff',
+                    secondaryColor: '#1d1443',
+                    tertiaryColor: '#160f34',
+                    mainBkg: '#0a1535',
+                    secondBkg: '#121f47',
+                    tertiaryBkg: '#091126',
+                    clusterBkg: '#091126',
+                    clusterBorder: '#68f1ff',
+                    edgeLabelBackground: '#091126',
+                    nodeTextColor: '#eef7ff',
+                    textColor: '#d7e6ff',
+                    actorBkg: '#101d42',
+                    actorBorder: '#8b7dff',
+                    actorTextColor: '#eef7ff',
+                    signalColor: '#54f7ff',
+                    signalTextColor: '#eef7ff',
+                    labelBoxBkgColor: '#111d44',
+                    labelBoxBorderColor: '#68f1ff',
+                    noteBkgColor: '#261348',
+                    noteBorderColor: '#ff47c8',
+                    noteTextColor: '#f8dcff',
+                    activationBorderColor: '#54f7ff',
+                    activationBkgColor: '#0f2550'
+                }
+            };
+        }
+
+        return {
+            ...baseConfig,
+            theme: 'dark'
+        };
     }
 
     // Process all mermaid code blocks in a container

@@ -1172,7 +1172,8 @@ function initPushUI() {
 const THEME_ICONS = {
     'dark': '◐',
     'light': '☀',
-    'retro-crt': '▣'
+    'retro-crt': '▣',
+    'cyberwar': '✦'
 };
 
 function initChatThemePicker() {

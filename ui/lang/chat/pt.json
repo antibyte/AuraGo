@@ -168,5 +168,6 @@
   "chat.sessions_days_ago": "{n} dias atrás",
   "chat.theme_standard": "Padrão",
   "chat.theme_light": "Claro",
-  "chat.theme_retro_crt": "Retro CRT"
+  "chat.theme_retro_crt": "Retro CRT",
+  "chat.theme_cyberwar": "Ciberguerra"
 }

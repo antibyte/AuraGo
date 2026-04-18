@@ -321,8 +321,8 @@ function injectRadialMenu() {
 // THEME MANAGEMENT
 // ═══════════════════════════════════════════════════════════════
 
-// Supported chat themes: 'dark' (standard), 'light', 'retro-crt'
-const CHAT_THEMES = ['dark', 'light', 'retro-crt'];
+// Supported chat themes: 'dark' (standard), 'light', 'retro-crt', 'cyberwar'
+const CHAT_THEMES = ['dark', 'light', 'retro-crt', 'cyberwar'];
 const DEFAULT_CHAT_THEME = 'dark';
 
 // Debounce lock: prevents double-click from toggling back immediately
@@ -376,13 +376,13 @@ function getCurrentChatTheme() {
 
 /**
  * Swap highlight.js theme stylesheet based on active theme.
- * dark → github-dark, light → github, retro-crt → github-dark with phosphor overlay via CSS
+ * dark → github-dark, light → github, retro-crt/cyberwar → github-dark with CSS enhancement layers
  */
 function _updateHljsTheme(theme) {
     var link = document.getElementById('hljs-theme');
     if (!link) return;
     var base = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/';
-    // retro-crt uses the dark base; CRT-specific coloring is handled in chat.css
+    // retro-crt and cyberwar use the dark base; theme-specific coloring is handled in CSS.
     if (theme === 'light') {
         link.href = base + 'github.min.css';
     } else {

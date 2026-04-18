@@ -168,5 +168,6 @@
   "chat.sessions_days_ago": "před {n} d",
   "chat.theme_standard": "Standardní",
   "chat.theme_light": "Světlý",
-  "chat.theme_retro_crt": "Retro CRT"
+  "chat.theme_retro_crt": "Retro CRT",
+  "chat.theme_cyberwar": "Kyberválka"
 }

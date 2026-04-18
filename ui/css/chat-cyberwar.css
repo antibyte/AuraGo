@@ -1,0 +1,721 @@
+[data-theme="cyberwar"] {
+    color-scheme: dark;
+    --accent: #54f7ff;
+    --accent-secondary: #8b7dff;
+    --accent-tertiary: #ff47c8;
+    --accent-warm: #ffb347;
+    --accent-lime: #bbff00;
+    --accent-dim: rgba(84, 247, 255, 0.16);
+    --accent-glow: rgba(84, 247, 255, 0.34);
+    --bg-primary: #040816;
+    --bg-secondary: rgba(8, 15, 33, 0.92);
+    --bg-tertiary: rgba(11, 23, 53, 0.88);
+    --bg-glass: linear-gradient(180deg, rgba(18, 35, 78, 0.46), rgba(6, 14, 31, 0.7));
+    --header-bg: rgba(5, 12, 28, 0.72);
+    --modal-bg: rgba(2, 6, 18, 0.68);
+    --modal-surface: rgba(7, 15, 35, 0.92);
+    --modal-border: rgba(130, 186, 255, 0.22);
+    --sidebar-bg: rgba(7, 15, 35, 0.92);
+    --card-bg: rgba(10, 20, 46, 0.78);
+    --code-bg: rgba(4, 11, 30, 0.92);
+    --inline-code-bg: rgba(84, 247, 255, 0.1);
+    --input-bg: rgba(8, 16, 36, 0.96);
+    --input-border: rgba(104, 241, 255, 0.24);
+    --text-primary: #eef7ff;
+    --text-secondary: #a7bcda;
+    --strong-color: #ffffff;
+    --border-subtle: rgba(122, 167, 255, 0.14);
+    --border-accent: rgba(84, 247, 255, 0.4);
+    --user-bubble: linear-gradient(145deg, rgba(73, 46, 255, 0.88), rgba(255, 71, 200, 0.82));
+    --user-bubble-tail: rgba(255, 71, 200, 0.84);
+    --user-bubble-shadow: rgba(255, 71, 200, 0.24);
+    --bot-bubble: linear-gradient(180deg, rgba(13, 25, 62, 0.9), rgba(6, 13, 31, 0.94));
+    --bot-bubble-tail: rgba(10, 20, 48, 0.92);
+    --surface-shadow: 0 24px 60px rgba(2, 6, 23, 0.52);
+    --surface-shadow-strong: 0 34px 90px rgba(0, 0, 0, 0.6);
+    --surface-highlight: rgba(255, 255, 255, 0.1);
+    --page-orb-1: rgba(84, 247, 255, 0.16);
+    --page-orb-2: rgba(139, 125, 255, 0.15);
+    --page-orb-3: rgba(255, 71, 200, 0.12);
+    --page-orb-opacity: 1;
+    --chat-image-opacity: 0.08;
+    --bg-logo-filter: saturate(1.2) contrast(1.06) hue-rotate(-12deg);
+    --cyber-panel: linear-gradient(180deg, rgba(14, 28, 64, 0.92), rgba(6, 13, 31, 0.94));
+    --cyber-gloss: linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.02) 38%, transparent 45%);
+    --cyber-border: linear-gradient(135deg, rgba(84, 247, 255, 0.7), rgba(139, 125, 255, 0.55), rgba(255, 71, 200, 0.7));
+    --cyber-grid: rgba(109, 140, 255, 0.08);
+}
+
+[data-theme="cyberwar"] body {
+    background:
+        radial-gradient(circle at 14% 18%, rgba(84, 247, 255, 0.12), transparent 24%),
+        radial-gradient(circle at 84% 12%, rgba(139, 125, 255, 0.18), transparent 28%),
+        radial-gradient(circle at 50% 120%, rgba(255, 71, 200, 0.12), transparent 36%),
+        linear-gradient(180deg, #020611 0%, #040816 32%, #071128 100%);
+    color: var(--text-primary);
+}
+
+[data-theme="cyberwar"] body::before {
+    display: block;
+    z-index: -1;
+    background:
+        repeating-linear-gradient(90deg, rgba(102, 139, 255, 0.08) 0 1px, transparent 1px 120px),
+        repeating-linear-gradient(0deg, rgba(102, 139, 255, 0.06) 0 1px, transparent 1px 96px),
+        linear-gradient(135deg, rgba(84, 247, 255, 0.08), transparent 30%, rgba(255, 71, 200, 0.05) 70%, transparent 100%);
+    opacity: 0.38;
+    mix-blend-mode: screen;
+    animation: cyberwarAmbientGrid 28s linear infinite;
+}
+
+[data-theme="cyberwar"] body::after {
+    opacity: 1;
+    filter: blur(16px) saturate(1.25);
+    animation: cyberwarOrbDrift 20s ease-in-out infinite alternate;
+}
+
+[data-theme="cyberwar"] .app-header {
+    background:
+        linear-gradient(180deg, rgba(13, 26, 59, 0.9), rgba(4, 11, 27, 0.92)),
+        var(--header-bg);
+    border-bottom: 1px solid rgba(104, 241, 255, 0.2);
+    box-shadow:
+        0 10px 36px rgba(0, 0, 0, 0.42),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08),
+        inset 0 -1px 0 rgba(84, 247, 255, 0.08);
+    backdrop-filter: blur(24px) saturate(1.25);
+    -webkit-backdrop-filter: blur(24px) saturate(1.25);
+}
+
+[data-theme="cyberwar"] .app-header::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+        linear-gradient(110deg, transparent 0%, rgba(255, 255, 255, 0.12) 18%, transparent 34%),
+        linear-gradient(90deg, transparent, rgba(84, 247, 255, 0.18), transparent 68%);
+    opacity: 0.8;
+    animation: cyberwarSweep 6.4s linear infinite;
+}
+
+[data-theme="cyberwar"] .app-header::after {
+    height: 2px;
+    opacity: 0.92;
+    background: linear-gradient(90deg,
+        transparent 0%,
+        rgba(84, 247, 255, 0.95) 18%,
+        rgba(139, 125, 255, 0.95) 50%,
+        rgba(255, 71, 200, 0.95) 82%,
+        transparent 100%);
+    box-shadow:
+        0 0 16px rgba(84, 247, 255, 0.45),
+        0 0 22px rgba(255, 71, 200, 0.18);
+}
+
+[data-theme="cyberwar"] .logo span:first-of-type {
+    background: linear-gradient(135deg, #7cf8ff, #8b7dff 48%, #ff47c8);
+    -webkit-background-clip: text;
+    background-clip: text;
+    text-shadow:
+        0 0 24px rgba(84, 247, 255, 0.32),
+        0 0 44px rgba(139, 125, 255, 0.22);
+}
+
+[data-theme="cyberwar"] .chat-theme-btn,
+[data-theme="cyberwar"] .btn-session-toggle,
+[data-theme="cyberwar"] .btn-speaker,
+[data-theme="cyberwar"] .btn-warnings,
+[data-theme="cyberwar"] .select-personality,
+[data-theme="cyberwar"] .mood-toggle,
+[data-theme="cyberwar"] .btn-header,
+[data-theme="cyberwar"] .btn-header-link,
+[data-theme="cyberwar"] #logout-btn {
+    background:
+        var(--cyber-gloss),
+        linear-gradient(180deg, rgba(18, 35, 78, 0.64), rgba(6, 14, 31, 0.84));
+    border: 1px solid rgba(104, 241, 255, 0.18);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.12),
+        inset 0 -1px 0 rgba(84, 247, 255, 0.08),
+        0 10px 24px rgba(0, 0, 0, 0.28);
+    color: var(--text-primary);
+}
+
+[data-theme="cyberwar"] .chat-theme-btn:hover,
+[data-theme="cyberwar"] .btn-session-toggle:hover,
+[data-theme="cyberwar"] .btn-speaker:hover,
+[data-theme="cyberwar"] .btn-warnings:hover,
+[data-theme="cyberwar"] .select-personality:hover,
+[data-theme="cyberwar"] .mood-toggle:hover,
+[data-theme="cyberwar"] .btn-header:hover,
+[data-theme="cyberwar"] .btn-header-link:hover,
+[data-theme="cyberwar"] #logout-btn:hover {
+    border-color: rgba(104, 241, 255, 0.45);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.14),
+        inset 0 -1px 0 rgba(84, 247, 255, 0.14),
+        0 0 0 1px rgba(84, 247, 255, 0.1),
+        0 0 22px rgba(84, 247, 255, 0.18),
+        0 14px 30px rgba(0, 0, 0, 0.34);
+    color: #ffffff;
+}
+
+[data-theme="cyberwar"] .chat-theme-icon,
+[data-theme="cyberwar"] .personality-chevron,
+[data-theme="cyberwar"] .mood-chevron {
+    color: #c7d9ff;
+}
+
+[data-theme="cyberwar"] .chat-theme-dropdown,
+[data-theme="cyberwar"] .mood-panel {
+    border: 1px solid rgba(104, 241, 255, 0.18);
+    background:
+        linear-gradient(180deg, rgba(12, 24, 58, 0.92), rgba(6, 13, 31, 0.96));
+    box-shadow:
+        0 20px 55px rgba(0, 0, 0, 0.42),
+        0 0 0 1px rgba(84, 247, 255, 0.08),
+        0 0 28px rgba(84, 247, 255, 0.12);
+}
+
+[data-theme="cyberwar"] .chat-theme-option {
+    position: relative;
+    border-radius: 10px;
+    color: #d8e6ff;
+    overflow: hidden;
+}
+
+[data-theme="cyberwar"] .chat-theme-option::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+    transform: translateX(-100%);
+    transition: transform 0.35s ease;
+}
+
+[data-theme="cyberwar"] .chat-theme-option:hover,
+[data-theme="cyberwar"] .chat-theme-option.active {
+    background: linear-gradient(90deg, rgba(84, 247, 255, 0.14), rgba(139, 125, 255, 0.12));
+    color: #ffffff;
+}
+
+[data-theme="cyberwar"] .chat-theme-option:hover::before,
+[data-theme="cyberwar"] .chat-theme-option.active::before {
+    transform: translateX(100%);
+}
+
+[data-theme="cyberwar"] .app-header .pill {
+    background:
+        linear-gradient(180deg, rgba(18, 35, 78, 0.76), rgba(8, 16, 38, 0.88));
+    border: 1px solid rgba(104, 241, 255, 0.22);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.1),
+        0 0 24px rgba(84, 247, 255, 0.08);
+    color: #eff7ff;
+}
+
+[data-theme="cyberwar"] #chat-box {
+    background:
+        radial-gradient(circle at 18% 12%, rgba(84, 247, 255, 0.08), transparent 28%),
+        radial-gradient(circle at 82% 22%, rgba(139, 125, 255, 0.1), transparent 30%),
+        radial-gradient(circle at 50% 120%, rgba(255, 71, 200, 0.08), transparent 38%),
+        linear-gradient(180deg, #040816 0%, #050a19 100%);
+    background-size: 120% 120%;
+    animation: cyberwarViewportShift 22s ease-in-out infinite alternate;
+}
+
+[data-theme="cyberwar"] #chat-box::before {
+    background:
+        linear-gradient(180deg, rgba(4, 8, 22, 0.78), transparent 18%, transparent 82%, rgba(4, 8, 22, 0.58)),
+        linear-gradient(90deg, transparent, rgba(84, 247, 255, 0.05), transparent 64%);
+    opacity: 0.95;
+}
+
+[data-theme="cyberwar"] #chat-box::after {
+    opacity: 0.12;
+    filter: saturate(1.6) contrast(1.08) blur(1px);
+}
+
+[data-theme="cyberwar"] #chat-content {
+    padding-top: 1.85rem;
+    padding-bottom: 2.35rem;
+}
+
+[data-theme="cyberwar"] .greeting-icon,
+[data-theme="cyberwar"] .avatar.bot,
+[data-theme="cyberwar"] .avatar.human {
+    background:
+        var(--cyber-gloss),
+        linear-gradient(180deg, rgba(18, 35, 78, 0.7), rgba(8, 16, 38, 0.92));
+    border: 1px solid rgba(104, 241, 255, 0.24);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.12),
+        0 0 18px rgba(84, 247, 255, 0.12),
+        0 14px 24px rgba(0, 0, 0, 0.32);
+}
+
+[data-theme="cyberwar"] .avatar.human {
+    border-color: rgba(255, 71, 200, 0.22);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.12),
+        0 0 18px rgba(255, 71, 200, 0.12),
+        0 14px 24px rgba(0, 0, 0, 0.32);
+}
+
+[data-theme="cyberwar"] .greeting-icon {
+    animation: cyberwarFloat 5s ease-in-out infinite;
+}
+
+[data-theme="cyberwar"] .greeting-text,
+[data-theme="cyberwar"] .mood-emotion,
+[data-theme="cyberwar"] .zoom-level,
+[data-theme="cyberwar"] .session-item-meta,
+[data-theme="cyberwar"] .session-empty {
+    color: #b5c8e8;
+}
+
+[data-theme="cyberwar"] .msg-row {
+    animation: cyberwarMaterialize 0.46s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+[data-theme="cyberwar"] .bubble {
+    border: 1px solid rgba(122, 167, 255, 0.18);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.08),
+        inset 0 -1px 0 rgba(84, 247, 255, 0.06),
+        0 14px 28px rgba(0, 0, 0, 0.32);
+    overflow: hidden;
+}
+
+[data-theme="cyberwar"] .bubble::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+        linear-gradient(115deg, rgba(255, 255, 255, 0.12), transparent 22%, transparent 68%, rgba(84, 247, 255, 0.06)),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 30%);
+    pointer-events: none;
+}
+
+[data-theme="cyberwar"] .bubble.bot {
+    background: var(--bot-bubble);
+    border-color: rgba(104, 241, 255, 0.22);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.1),
+        inset 0 -1px 0 rgba(84, 247, 255, 0.08),
+        0 0 0 1px rgba(84, 247, 255, 0.05),
+        0 16px 28px rgba(0, 0, 0, 0.34),
+        0 0 28px rgba(84, 247, 255, 0.08);
+}
+
+[data-theme="cyberwar"] .bubble.bot::before {
+    border-color: transparent transparent var(--bot-bubble-tail) transparent;
+    filter: drop-shadow(-1px 0 0 rgba(104, 241, 255, 0.2));
+}
+
+[data-theme="cyberwar"] .bubble.user {
+    border-color: rgba(255, 71, 200, 0.3);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.12),
+        0 0 0 1px rgba(255, 71, 200, 0.08),
+        0 18px 32px rgba(19, 11, 38, 0.48),
+        0 0 34px rgba(255, 71, 200, 0.12);
+}
+
+[data-theme="cyberwar"] .bubble.user::before {
+    border-color: transparent transparent var(--user-bubble-tail) transparent;
+    filter: drop-shadow(1px 0 0 rgba(255, 71, 200, 0.22));
+}
+
+[data-theme="cyberwar"] .bubble.technical,
+[data-theme="cyberwar"] .tool-output-block .tool-output-content,
+[data-theme="cyberwar"] .code-block-wrapper,
+[data-theme="cyberwar"] .mermaid-container {
+    background:
+        linear-gradient(180deg, rgba(7, 15, 35, 0.96), rgba(3, 8, 20, 0.98));
+    border-color: rgba(104, 241, 255, 0.22);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.08),
+        0 16px 34px rgba(0, 0, 0, 0.38);
+}
+
+[data-theme="cyberwar"] .tool-output-block summary,
+[data-theme="cyberwar"] .copy-btn,
+[data-theme="cyberwar"] .mermaid-btn,
+[data-theme="cyberwar"] .session-item-count {
+    background:
+        linear-gradient(180deg, rgba(18, 35, 78, 0.72), rgba(8, 16, 38, 0.88));
+    border: 1px solid rgba(104, 241, 255, 0.2);
+    color: #dff6ff;
+}
+
+[data-theme="cyberwar"] .tool-output-block summary:hover,
+[data-theme="cyberwar"] .copy-btn:hover,
+[data-theme="cyberwar"] .mermaid-btn:hover {
+    background:
+        linear-gradient(135deg, rgba(84, 247, 255, 0.28), rgba(139, 125, 255, 0.24));
+    border-color: rgba(104, 241, 255, 0.46);
+    color: #ffffff;
+    box-shadow: 0 0 18px rgba(84, 247, 255, 0.18);
+}
+
+[data-theme="cyberwar"] .code-header,
+[data-theme="cyberwar"] .line-numbers {
+    background: rgba(84, 247, 255, 0.05);
+    border-color: rgba(104, 241, 255, 0.14);
+}
+
+[data-theme="cyberwar"] .code-lang {
+    color: #7ff8ff;
+    letter-spacing: 0.12em;
+    font-family: 'Oxanium', 'Inter', system-ui, sans-serif;
+}
+
+[data-theme="cyberwar"] .hljs,
+[data-theme="cyberwar"] .code-content,
+[data-theme="cyberwar"] .code-content pre {
+    background: transparent;
+    color: #eef7ff;
+}
+
+[data-theme="cyberwar"] code:not(pre code) {
+    background: rgba(84, 247, 255, 0.1);
+    color: #9bf7ff;
+    border: 1px solid rgba(84, 247, 255, 0.16);
+    border-radius: 7px;
+    padding: 0.08rem 0.35rem;
+}
+
+[data-theme="cyberwar"] .app-footer {
+    background:
+        linear-gradient(180deg, rgba(6, 13, 31, 0.92), rgba(3, 8, 20, 0.98));
+    border-top: 1px solid rgba(104, 241, 255, 0.14);
+    box-shadow:
+        0 -12px 40px rgba(0, 0, 0, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(24px) saturate(1.25);
+}
+
+[data-theme="cyberwar"] .input-wrap textarea,
+[data-theme="cyberwar"] .composer-panel,
+[data-theme="cyberwar"] .mood-feedback-row,
+[data-theme="cyberwar"] .attachment-chip,
+[data-theme="cyberwar"] .attachments-panel {
+    background:
+        var(--cyber-gloss),
+        linear-gradient(180deg, rgba(15, 29, 66, 0.8), rgba(6, 13, 31, 0.92));
+    border: 1px solid rgba(104, 241, 255, 0.22);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.1),
+        inset 0 -1px 0 rgba(84, 247, 255, 0.06),
+        0 16px 38px rgba(0, 0, 0, 0.34);
+}
+
+[data-theme="cyberwar"] .input-row:focus-within .input-wrap {
+    transform: translateY(-2px);
+}
+
+[data-theme="cyberwar"] .input-wrap textarea {
+    color: var(--text-primary);
+    border-radius: 16px;
+}
+
+[data-theme="cyberwar"] .input-wrap textarea:hover,
+[data-theme="cyberwar"] .input-wrap textarea:focus {
+    border-color: rgba(104, 241, 255, 0.44);
+    box-shadow:
+        0 0 0 1px rgba(84, 247, 255, 0.18),
+        0 0 0 4px rgba(84, 247, 255, 0.08),
+        0 0 28px rgba(84, 247, 255, 0.14);
+}
+
+[data-theme="cyberwar"] .input-wrap textarea::placeholder {
+    color: rgba(189, 210, 237, 0.66);
+}
+
+[data-theme="cyberwar"] .btn-send,
+[data-theme="cyberwar"] .btn-voice,
+[data-theme="cyberwar"] .btn-more,
+[data-theme="cyberwar"] .composer-tool-btn,
+[data-theme="cyberwar"] .mood-btn,
+[data-theme="cyberwar"] .session-new-btn,
+[data-theme="cyberwar"] .session-drawer-close,
+[data-theme="cyberwar"] #img-lightbox-close,
+[data-theme="cyberwar"] .modal-btn,
+[data-theme="cyberwar"] .scroll-to-bottom-btn {
+    position: relative;
+    overflow: hidden;
+    background:
+        var(--cyber-gloss),
+        linear-gradient(180deg, rgba(19, 37, 82, 0.82), rgba(8, 16, 38, 0.94));
+    border: 1px solid rgba(104, 241, 255, 0.2);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.12),
+        inset 0 -1px 0 rgba(84, 247, 255, 0.08),
+        0 12px 26px rgba(0, 0, 0, 0.28);
+    color: #f6fbff;
+}
+
+[data-theme="cyberwar"] .btn-send {
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.16), transparent 34%),
+        linear-gradient(135deg, #54f7ff 0%, #7b7dff 52%, #ff47c8 100%);
+    color: #07111f;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.28),
+        0 0 22px rgba(84, 247, 255, 0.2),
+        0 16px 30px rgba(0, 0, 0, 0.32);
+}
+
+[data-theme="cyberwar"] .btn-send:hover,
+[data-theme="cyberwar"] .btn-voice:hover,
+[data-theme="cyberwar"] .btn-more:hover,
+[data-theme="cyberwar"] .btn-more.is-open,
+[data-theme="cyberwar"] .composer-tool-btn:hover,
+[data-theme="cyberwar"] .mood-btn:hover,
+[data-theme="cyberwar"] .session-new-btn:hover,
+[data-theme="cyberwar"] .session-drawer-close:hover,
+[data-theme="cyberwar"] #img-lightbox-close:hover,
+[data-theme="cyberwar"] .modal-btn:hover,
+[data-theme="cyberwar"] .scroll-to-bottom-btn:hover {
+    border-color: rgba(104, 241, 255, 0.5);
+    transform: translateY(-1px);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.16),
+        0 0 26px rgba(84, 247, 255, 0.18),
+        0 16px 30px rgba(0, 0, 0, 0.34);
+}
+
+[data-theme="cyberwar"] .composer-tool-btn-danger,
+[data-theme="cyberwar"] .composer-tool-btn-danger:hover:not(:disabled) {
+    border-color: rgba(255, 92, 136, 0.42);
+    color: #ffd4dc;
+    background:
+        linear-gradient(180deg, rgba(101, 22, 53, 0.82), rgba(55, 10, 30, 0.94));
+}
+
+[data-theme="cyberwar"] .mood-btn.mood-positive:hover {
+    border-color: rgba(187, 255, 0, 0.72);
+    background: linear-gradient(180deg, rgba(92, 122, 0, 0.7), rgba(29, 41, 0, 0.92));
+    box-shadow: 0 0 20px rgba(187, 255, 0, 0.2);
+}
+
+[data-theme="cyberwar"] .mood-btn.mood-negative:hover {
+    border-color: rgba(255, 179, 71, 0.72);
+    background: linear-gradient(180deg, rgba(125, 80, 0, 0.72), rgba(52, 31, 0, 0.94));
+    box-shadow: 0 0 20px rgba(255, 179, 71, 0.2);
+}
+
+[data-theme="cyberwar"] .mood-btn.mood-angry:hover {
+    border-color: rgba(255, 94, 128, 0.72);
+    background: linear-gradient(180deg, rgba(108, 18, 53, 0.72), rgba(53, 8, 26, 0.94));
+    box-shadow: 0 0 20px rgba(255, 94, 128, 0.22);
+}
+
+[data-theme="cyberwar"] .session-backdrop,
+[data-theme="cyberwar"] .mermaid-modal-overlay,
+[data-theme="cyberwar"] #img-lightbox,
+[data-theme="cyberwar"] .modal-overlay {
+    background:
+        radial-gradient(circle at top, rgba(84, 247, 255, 0.08), transparent 32%),
+        rgba(2, 6, 18, 0.74);
+    backdrop-filter: blur(10px);
+}
+
+[data-theme="cyberwar"] .session-drawer,
+[data-theme="cyberwar"] .modal-card,
+[data-theme="cyberwar"] .mermaid-modal-content {
+    position: relative;
+    overflow: hidden;
+    background:
+        linear-gradient(180deg, rgba(9, 18, 42, 0.94), rgba(4, 9, 22, 0.98));
+    border: 1px solid rgba(104, 241, 255, 0.18);
+    box-shadow:
+        0 30px 70px rgba(0, 0, 0, 0.46),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08),
+        0 0 0 1px rgba(84, 247, 255, 0.06);
+}
+
+[data-theme="cyberwar"] .session-drawer::before,
+[data-theme="cyberwar"] .modal-card::before,
+[data-theme="cyberwar"] .mermaid-modal-content::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border-radius: inherit;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 24%),
+        linear-gradient(130deg, rgba(84, 247, 255, 0.05), transparent 42%, rgba(255, 71, 200, 0.04) 100%);
+}
+
+[data-theme="cyberwar"] .session-drawer-header,
+[data-theme="cyberwar"] .modal-title {
+    border-bottom-color: rgba(104, 241, 255, 0.14);
+}
+
+[data-theme="cyberwar"] .session-new-btn {
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.12), transparent 32%),
+        linear-gradient(135deg, rgba(84, 247, 255, 0.92), rgba(139, 125, 255, 0.82));
+    color: #07111f;
+}
+
+[data-theme="cyberwar"] .session-item {
+    border: 1px solid transparent;
+    border-radius: 12px;
+}
+
+[data-theme="cyberwar"] .session-item:hover {
+    background: linear-gradient(90deg, rgba(84, 247, 255, 0.1), rgba(139, 125, 255, 0.08));
+    border-color: rgba(104, 241, 255, 0.12);
+}
+
+[data-theme="cyberwar"] .session-item.session-active {
+    background: linear-gradient(90deg, rgba(84, 247, 255, 0.14), rgba(255, 71, 200, 0.1));
+    border-color: rgba(104, 241, 255, 0.26);
+    box-shadow: 0 0 20px rgba(84, 247, 255, 0.08);
+}
+
+[data-theme="cyberwar"] .session-item-preview,
+[data-theme="cyberwar"] .session-drawer-title,
+[data-theme="cyberwar"] .modal-title,
+[data-theme="cyberwar"] .modal-body,
+[data-theme="cyberwar"] .mermaid-error .error-title,
+[data-theme="cyberwar"] .mermaid-error .error-message {
+    color: #eef7ff;
+}
+
+[data-theme="cyberwar"] .session-item-delete:hover {
+    color: #ffffff;
+    background: linear-gradient(180deg, rgba(97, 15, 46, 0.78), rgba(46, 7, 22, 0.94));
+}
+
+[data-theme="cyberwar"] .scroll-to-bottom-btn.has-new {
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.12), transparent 34%),
+        linear-gradient(135deg, rgba(84, 247, 255, 0.92), rgba(255, 71, 200, 0.82));
+    color: #07111f;
+    animation: cyberwarPulse 1.8s infinite;
+}
+
+[data-theme="cyberwar"] #img-lightbox img {
+    border: 1px solid rgba(104, 241, 255, 0.22);
+    box-shadow:
+        0 24px 80px rgba(0, 0, 0, 0.56),
+        0 0 38px rgba(84, 247, 255, 0.12);
+}
+
+[data-theme="cyberwar"] .drag-drop-overlay {
+    background: rgba(4, 8, 22, 0.82);
+}
+
+[data-theme="cyberwar"] .mermaid-diagram svg {
+    filter: drop-shadow(0 0 18px rgba(84, 247, 255, 0.12));
+}
+
+@keyframes cyberwarAmbientGrid {
+    from {
+        transform: translate3d(0, 0, 0);
+    }
+    to {
+        transform: translate3d(80px, 48px, 0);
+    }
+}
+
+@keyframes cyberwarOrbDrift {
+    from {
+        transform: scale(1) translate3d(0, 0, 0);
+    }
+    to {
+        transform: scale(1.08) translate3d(0, -1.5%, 0);
+    }
+}
+
+@keyframes cyberwarSweep {
+    0% {
+        transform: translateX(-55%);
+        opacity: 0;
+    }
+    12%,
+    60% {
+        opacity: 0.78;
+    }
+    100% {
+        transform: translateX(65%);
+        opacity: 0;
+    }
+}
+
+@keyframes cyberwarViewportShift {
+    from {
+        background-position: 0% 0%;
+    }
+    to {
+        background-position: 100% 100%;
+    }
+}
+
+@keyframes cyberwarMaterialize {
+    0% {
+        opacity: 0;
+        transform: translateY(16px) scale(0.96);
+        filter: saturate(1.35) brightness(1.15);
+    }
+    55% {
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(0) scale(1);
+        filter: none;
+    }
+}
+
+@keyframes cyberwarFloat {
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-4px);
+    }
+}
+
+@keyframes cyberwarPulse {
+    0%,
+    100% {
+        box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.16),
+            0 0 26px rgba(84, 247, 255, 0.14),
+            0 18px 30px rgba(0, 0, 0, 0.34);
+    }
+    50% {
+        box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.22),
+            0 0 34px rgba(255, 71, 200, 0.2),
+            0 18px 30px rgba(0, 0, 0, 0.34);
+    }
+}
+
+@media (max-width: 767px) {
+    [data-theme="cyberwar"] .app-header::before,
+    [data-theme="cyberwar"] body::before {
+        opacity: 0.22;
+    }
+
+    [data-theme="cyberwar"] .bubble {
+        max-width: min(88%, 38rem);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    [data-theme="cyberwar"] body::before,
+    [data-theme="cyberwar"] body::after,
+    [data-theme="cyberwar"] .app-header::before,
+    [data-theme="cyberwar"] #chat-box,
+    [data-theme="cyberwar"] .greeting-icon,
+    [data-theme="cyberwar"] .msg-row,
+    [data-theme="cyberwar"] .scroll-to-bottom-btn.has-new {
+        animation: none !important;
+    }
+}

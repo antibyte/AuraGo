@@ -168,5 +168,6 @@
   "chat.sessions_days_ago": "{n} ημ. πριν",
   "chat.theme_standard": "Τυπικό",
   "chat.theme_light": "Φωτεινό",
-  "chat.theme_retro_crt": "Retro CRT"
+  "chat.theme_retro_crt": "Retro CRT",
+  "chat.theme_cyberwar": "Κυβερνοπόλεμος"
 }

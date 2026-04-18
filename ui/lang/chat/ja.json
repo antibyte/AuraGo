@@ -168,5 +168,6 @@
   "chat.sessions_days_ago": "{n}日前",
   "chat.theme_standard": "スタンダード",
   "chat.theme_light": "ライト",
-  "chat.theme_retro_crt": "レトロCRT"
+  "chat.theme_retro_crt": "レトロCRT",
+  "chat.theme_cyberwar": "サイバーウォー"
 }
