@@ -1,193 +1,173 @@
-# Plan: Beteiligte Personen für Termine in der Wissenszentrale
+# Plan: Knowledge Appointments Participants
+
+## Kurzbewertung des geprüften Stands
+
+Die Idee aus dem bisherigen Bericht ist richtig, aber der Stand im Code ist bereits weiter als der alte Entwurf:
+
+- Das Datenmodell wurde in [internal/planner/planner.go](internal/planner/planner.go) um `contact_ids` und `participants` erweitert.
+- Die Migration für `appointment_contacts` existiert bereits in [internal/planner/planner_schema.go](internal/planner/planner_schema.go).
+- API, Modal, Kartenansicht und Übersetzungen wurden schon teilweise angepasst.
+
+Offen sind jetzt vor allem die Punkte, die für ein sicheres Merge wichtig sind:
+
+- fehlende Validierung und Transaktionssicherheit beim Speichern von Teilnehmern
+- mögliche verwaiste Datensätze beim Löschen von Terminen
+- fehlende Tests für Migration, CRUD und Handler
+- UI/UX-Lücken und kleine Inkonsistenzen im Picker
+
+Dieser Plan ersetzt deshalb den alten Architektur-Entwurf durch einen konkreten Restarbeitsplan.
 
 ## Ziel
 
-Neue und bestehende Termine in der Wissenszentrale sollen ein zusätzliches Feld für beteiligte Personen erhalten. Dieses Feld erlaubt die Mehrfachauswahl aus dem bestehenden Adressbuch. Die Auswahl muss im Termin-Modal sauber bedienbar sein und die gewählten Personen sollen in der Termin-Karte sichtbar erscheinen.
+Termine in der Wissenszentrale sollen Beteiligte aus dem Adressbuch zuverlässig speichern, korrekt wieder ausliefern und im UI sauber bedienbar anzeigen, ohne Inkonsistenzen zwischen Planner, Contacts-DB und Frontend zu erzeugen.
 
-## Bestandsaufnahme
+## Nicht-Ziel für diesen Schritt
 
-- Termine werden aktuell im Planner-Modell ohne Kontaktverknüpfung gespeichert.
-- Die Termin-API verarbeitet Create, Update, Get, List und Delete.
-- Das UI für die Wissenszentrale besitzt bereits getrennte Bereiche für Kontakte und Termine.
-- Kontakte sind bereits über eine eigene API und ein eigenes Datenmodell verfügbar.
+- keine neue Terminfilterung nach Beteiligten
+- keine automatische Knowledge-Graph-Kanten für Teilnehmer
+- keine Erstellung neuer Kontakte direkt aus dem Termin-Modal
 
-## Geplanter Lösungsansatz
+## Befunde aus der Prüfung
 
-### 1. Datenmodell
+### Backend
 
-Eine relationale Zuordnung zwischen Terminen und Kontakten ist die robusteste Erweiterung.
+- [internal/server/handlers_planner.go](internal/server/handlers_planner.go) speichert Teilnehmer aktuell nachgelagert und schluckt Fehler nur als Warnung.
+- [internal/planner/planner_appointment_contacts.go](internal/planner/planner_appointment_contacts.go) dedupliziert IDs, validiert aber nicht, ob Kontakte wirklich existieren.
+- [internal/planner/planner.go](internal/planner/planner.go) löscht Termine, bereinigt aber die Join-Tabelle nicht explizit.
+- Die Enrichment-Logik arbeitet funktional, macht aber mehrfach Einzelabfragen pro Termin.
 
-- Neue Join-Tabelle für Termin-Kontakt-Beziehungen
-- Mehrfachzuordnung pro Termin
-- Eindeutigkeit pro Termin-Kontakt-Paar, damit keine Duplikate entstehen
-- Legacy-Termine bleiben ohne Beteiligte weiterhin gültig
+### Frontend
 
-Vorgeschlagene Struktur:
+- [ui/knowledge.html](ui/knowledge.html) und [ui/js/knowledge/appointments.js](ui/js/knowledge/appointments.js) haben den Picker bereits, aber noch ohne vollständige UX-Politur.
+- Die Suche berücksichtigt aktuell Name, Mail und Telefon, jedoch nicht Beziehung.
+- Der Empty-State im Picker nutzt noch einen Kontakt-Text statt eines teilnehmerspezifischen Texts.
+- Styling und Zustände funktionieren grob, sollten aber noch gegen bestehende Design-Tokens und Mobile-Verhalten geprüft werden.
 
-- `appointment_contacts`
-  - `appointment_id`
-  - `contact_id`
-  - optional `position` nur falls später Sortierung im UI erhalten bleiben soll
+### Qualitätssicherung
 
-### 2. Planner-Schema und Migration
+- In [internal/planner/planner_test.go](internal/planner/planner_test.go) fehlen Tests für `appointment_contacts`.
+- Für die Planner-HTTP-Handler gibt es derzeit keine gezielten Tests für Teilnehmer-Payloads.
 
-Das Planner-Schema sollte um eine neue Migration erweitert werden, die ausschließlich die Zuordnungstabelle und passende Indizes ergänzt.
+## Umsetzungsplan
 
-- Neue Migrationsstufe nach der aktuellen Planner-Version
-- Erstellung von `appointment_contacts`
-- Fremdschlüssel zu Terminen und Kontakten nur dann direkt verwenden, wenn die DB-Grenzen der bestehenden Struktur das zuverlässig erlauben
-- Alternativ relationale Konsistenz im Anwendungscode absichern
-- Index auf `appointment_id`
-- Index auf `contact_id`
-- Unique-Constraint auf `appointment_id + contact_id`
+### Phase 1: Datenintegrität absichern
 
-### 3. Backend-Modellierung
+Ziel: Keine stillen Teilfehler mehr zwischen Termin und Teilnehmer-Zuordnung.
 
-Das Terminmodell sollte um zwei getrennte Sichten ergänzt werden:
+Arbeitspakete:
 
-- `contact_ids` für das Schreiben und Patchen
-- `participants` für die lesbare Anzeige im UI
+1. Schreibpfad für Termine und Teilnehmer atomar machen.
+2. `contact_ids` vor dem Persistieren gegen die Contacts-DB validieren.
+3. Doppelte und leere IDs weiterhin serverseitig bereinigen.
+4. Klare 4xx-Fehler für ungültige oder nicht mehr vorhandene Kontakte zurückgeben.
+5. Löschpfad so anpassen, dass `appointment_contacts` beim Entfernen eines Termins sauber bereinigt wird.
 
-Empfohlene Struktur im API-Output:
+Betroffene Dateien:
 
-- `contact_ids: []string`
-- `participants: []ParticipantSummary`
+- [internal/planner/planner.go](internal/planner/planner.go)
+- [internal/planner/planner_appointment_contacts.go](internal/planner/planner_appointment_contacts.go)
+- [internal/server/handlers_planner.go](internal/server/handlers_planner.go)
 
-`ParticipantSummary` sollte mindestens enthalten:
+Abnahme:
 
-- `id`
-- `name`
-- optional `relationship`
-- optional `email`
+- Ein Termin wird nur dann erstellt oder aktualisiert, wenn auch seine Teilnehmer-Zuordnungen erfolgreich gespeichert wurden.
+- Ein gelöschter Termin hinterlässt keine verwaisten Zeilen in `appointment_contacts`.
+- Ungültige `contact_ids` führen zu einem verständlichen API-Fehler statt zu stiller Teilfunktion.
 
-Damit bleibt das UI einfach, da es nicht selbst IDs gegen Kontakte auflösen muss.
+### Phase 2: Lesepfade und Datenanreicherung härten
 
-### 4. API-Verhalten
+Ziel: Konsistente API-Antworten bei vertretbarer Komplexität.
 
-Für [internal/server/handlers_planner.go](internal/server/handlers_planner.go:24) und die Planner-Logik:
+Arbeitspakete:
 
-- `POST /api/appointments` akzeptiert `contact_ids`
-- `PUT /api/appointments/{id}` akzeptiert `contact_ids`
-- `GET /api/appointments` liefert Teilnehmerdaten aus
-- `GET /api/appointments/{id}` liefert Teilnehmerdaten aus
-- Beim Update wird die Zuordnungsliste atomar ersetzt
-- Ungültige oder nicht vorhandene Kontakt-IDs werden validiert und klar zurückgemeldet
+1. Enrichment so umbauen, dass Kontaktdaten möglichst gebündelt statt pro Termin mehrfach geladen werden.
+2. API-Antworten für `GET /api/appointments` und `GET /api/appointments/{id}` konsistent halten.
+3. Verhalten definieren, wenn Contacts-DB nicht verfügbar ist:
+   - mindestens `contact_ids` aus Planner weiterhin liefern
+   - `participants` sauber leer oder mit klaren Placeholdern zurückgeben
+4. Reihenfolge der ausgewählten Teilnehmer stabil halten.
 
-### 5. UI- und UX-Konzept für das Termin-Modal
+Betroffene Dateien:
 
-Für perfekte UX sollte das neue Feld nicht als gewöhnliches Mehrfach-Select umgesetzt werden, sondern als suchbare Token-Auswahl.
+- [internal/planner/planner_appointment_contacts.go](internal/planner/planner_appointment_contacts.go)
+- [internal/server/handlers_planner.go](internal/server/handlers_planner.go)
 
-Empfohlenes Verhalten:
+Abnahme:
 
-- Neues Feldbereich unter Beschreibung oder direkt unter Datum, mit klarer Beschriftung wie Beteiligte Personen
-- Klick auf das Feld öffnet eine kompakte Suchliste mit Kontakten
-- Tippen filtert lokal nach Name, E-Mail, Telefon und Beziehung
-- Auswahl erzeugt sofort sichtbare Chips
-- Jeder Chip besitzt Entfernen-Aktion
-- Bereits ausgewählte Kontakte verschwinden aus der Vorschlagsliste oder werden als ausgewählt markiert
-- Leerer Zustand erklärt kurz, dass Personen aus dem Adressbuch gewählt werden können
-- Keine Pflichtauswahl, also Termin kann weiterhin ohne Beteiligte gespeichert werden
+- Listen- und Detailansicht liefern dieselbe Teilnehmerlogik.
+- Fehlende Kontakte führen nicht zu kaputten Responses.
+- Mehrere Termine mit Teilnehmern erzeugen keine unnötige N+1-Last.
 
-Empfohlene UI-Bausteine in [ui/knowledge.html](ui/knowledge.html) und [ui/js/knowledge/appointments.js](ui/js/knowledge/appointments.js:19):
+### Phase 3: UI und UX finalisieren
 
-- Suchinput für Kontakte
-- Dropdown oder Popover mit Trefferliste
-- Chip-Liste der ausgewählten Personen
-- Hidden State im JS für `selectedParticipantIds`
-- Wiederverwendung geladener Kontaktdaten aus [ui/js/knowledge/main.js](ui/js/knowledge/main.js:108), damit keine unnötigen Requests entstehen
+Ziel: Der Picker soll sich wie ein fertiges Produkt verhalten, nicht wie ein technischer Proof of Concept.
 
-### 6. Darstellung in Termin-Karten
+Arbeitspakete:
 
-Die Karten im Terminbereich sollten Beteiligte nur dann zeigen, wenn welche vorhanden sind.
+1. Teilnehmer-Suche um `relationship` ergänzen.
+2. Eigenen Empty-State und Fehlertext für den Picker verwenden.
+3. Darstellung der Teilnehmer in Termin-Karten visuell sauber einpassen.
+4. Inline-Styles im Chip-Empty-State vermeiden und in CSS überführen.
+5. Prüfen, dass Bearbeiten, Entfernen und erneutes Öffnen des Modals keinen stale State hinterlassen.
+6. Mobile-Verhalten für Dropdown, Chips und Kartenansicht prüfen.
 
-Empfohlene Darstellung:
+Betroffene Dateien:
 
-- Zusätzliche Meta-Zeile oder eigener kompakter Abschnitt
-- Anzeige von 1 bis 3 Namen direkt
-- Bei mehr Personen kompakte Verdichtung wie `Anna, Ben, Carla +2`
-- Vollständige Liste im Edit-Modal nach Öffnen des Termins
+- [ui/knowledge.html](ui/knowledge.html)
+- [ui/js/knowledge/appointments.js](ui/js/knowledge/appointments.js)
+- [ui/css/knowledge.css](ui/css/knowledge.css)
+- [ui/lang/knowledge/de.json](ui/lang/knowledge/de.json)
+- [ui/lang/knowledge/en.json](ui/lang/knowledge/en.json)
+- weitere Dateien unter `ui/lang/knowledge/`
 
-Ziel ist hohe Informationsdichte ohne visuelle Überladung.
+Abnahme:
 
-### 7. Verhalten bei Sonderfällen
+- Teilnehmer können hinzufügen, entfernen und beim Editieren korrekt wiedersehen.
+- Keine Duplikate im Picker.
+- Termin-Karten zeigen Teilnehmer kompakt und stabil an.
+- Das Verhalten funktioniert auch auf kleinen Screens.
 
-- Legacy-Termine ohne Beteiligte bleiben vollständig funktionsfähig
-- Doppelte Kontakt-IDs werden vor dem Speichern dedupliziert
-- Gelöschte Kontakte werden bei bestehenden Terminen beim Lesen still bereinigt oder als nicht mehr verfügbar behandelt
-- Leere `contact_ids` entfernen alle Zuordnungen
-- Fehlertexte müssen UI-freundlich und nicht technisch formuliert sein
+### Phase 4: Tests und Merge-Sicherheit
 
-### 8. Such- und Anzeige-Logik im Frontend
+Ziel: Die Änderung wird gegen Regressionen abgesichert.
 
-Der erste Schritt sollte keine neue Terminfilterung nach Personen einführen, aber die Oberfläche sollte dafür offen gestaltet werden.
+Arbeitspakete:
 
-- Termin-Suche bleibt zunächst titel- und beschreibungsbasiert
-- Beteiligte werden in Karten sichtbar gemacht
-- Modal lädt beim Editieren vorhandene Teilnehmer direkt vorbefüllt
+1. Planner-Tests für Migration nach V5 ergänzen.
+2. Tests für `SetAppointmentContacts`, `GetAppointmentContactIDs` und Delete-Cleanup ergänzen.
+3. Handler-Tests für `POST`, `PUT`, `GET list`, `GET detail` mit Teilnehmerdaten ergänzen.
+4. Negativtests für ungültige `contact_ids` ergänzen.
+5. Wenn praktikabel, einen kleinen Frontend-Smoke-Test oder dokumentierte manuelle UAT-Schritte festhalten.
 
-### 9. Knowledge-Graph-Auswirkung
+Betroffene Dateien:
 
-Für die erste Ausbaustufe ist keine zwingende Graph-Verknüpfung nötig. Der Plan sollte Implementierung so vorbereiten, dass später Beziehungen wie `participates_in` ergänzt werden können, ohne das UI neu zu bauen.
+- [internal/planner/planner_test.go](internal/planner/planner_test.go)
+- neue Tests in [internal/server](internal/server)
 
-### 10. Übersetzungen
+Abnahme:
 
-Neue Texte müssen in allen unterstützten Sprachen ergänzt werden, mindestens für:
+- Migrationstest bestätigt das neue Schema.
+- CRUD-Tests decken Teilnehmer-Zuordnungen mit ab.
+- Fehlerfälle sind automatisiert abgesichert.
 
-- Feldlabel Beteiligte Personen
-- Such-Placeholder
-- Leerer Zustand im Picker
-- Hinweistext zur Mehrfachauswahl
-- Fehlertext bei ungültiger Personenauswahl
-- Kartenlabel für Teilnehmer
+## Empfohlene Reihenfolge
 
-### 11. Tests
+1. Phase 1 zuerst abschließen, weil sonst stille Datenfehler möglich bleiben.
+2. Danach Phase 2, damit API-Verhalten und Lesepfade stabil werden.
+3. Anschließend Phase 3 für UI-Polish und konsistente Texte.
+4. Phase 4 parallel zum Abschluss der jeweiligen Backend- und UI-Arbeiten einziehen, spätestens aber vor Merge vollständig abschließen.
 
-Backend:
+## Risiken und Entscheidungen
 
-- Migration erstellt Join-Tabelle korrekt
-- Create speichert Teilnehmerzuordnungen
-- Update ersetzt Teilnehmerzuordnungen korrekt
-- Get und List liefern Teilnehmerdaten korrekt aus
-- Leere oder ungültige Kontaktlisten werden korrekt behandelt
+- Da Planner- und Contacts-Daten getrennt liegen, sind klassische Foreign Keys vermutlich nicht zuverlässig nutzbar. Integrität muss daher im Anwendungscode erzwungen werden.
+- Wenn Kontakte nachträglich gelöscht werden, muss bewusst entschieden werden, ob die API Placeholder zurückgibt oder Zuordnungen aktiv bereinigt.
+- Wenn die Änderung ohne zusätzliche Handler-Tests gemerged wird, ist das Risiko für stille Regressionsfehler hoch.
 
-Frontend:
+## Definition of Done
 
-- Modal befüllt bestehende Teilnehmer korrekt
-- Mehrfachauswahl verhindert Duplikate
-- Entfernen von Chips aktualisiert den Payload korrekt
-- Kartenanzeige rendert verdichtet und stabil
-
-## Empfohlene Implementierungsreihenfolge
-
-1. Planner-Datenmodell in [internal/planner/planner.go](internal/planner/planner.go:23) erweitern
-2. Migration in [internal/planner/planner_schema.go](internal/planner/planner_schema.go:259) ergänzen
-3. CRUD-Helfer für Termin-Kontakt-Zuordnungen im Planner ergänzen
-4. API-Handler in [internal/server/handlers_planner.go](internal/server/handlers_planner.go:24) auf `contact_ids` und `participants` erweitern
-5. UI-Struktur in [ui/knowledge.html](ui/knowledge.html) um den Picker ergänzen
-6. Appointment-Logik in [ui/js/knowledge/appointments.js](ui/js/knowledge/appointments.js:87) um Mehrfachauswahl, Vorbelegung und Payload erweitern
-7. Karten-Rendering in [ui/js/knowledge/appointments.js](ui/js/knowledge/appointments.js:37) für Teilnehmeranzeige verbessern
-8. Sprachdateien für alle unterstützten Sprachen ergänzen
-9. Planner- und Server-Tests erweitern
-
-## UX-Skizze
-
-```mermaid
-flowchart TD
-    A[Termin Modal öffnen] --> B[Kontaktfeld fokussieren]
-    B --> C[Adressbuch lokal durchsuchen]
-    C --> D[Kontakt auswählen]
-    D --> E[Chip wird sichtbar]
-    E --> F[Weitere Kontakte hinzufügen]
-    F --> G[Termin speichern]
-    G --> H[API speichert contact_ids]
-    H --> I[Termin Karte zeigt Beteiligte]
-```
-
-## Abgrenzung für diese Änderung
-
-Nicht Teil des ersten Schritts:
-
-- Neue Kontakte direkt aus dem Termin-Modal anlegen
-- Filterung der Terminliste nach Beteiligten
-- Vollständige Knowledge-Graph-Beziehungsmodellierung zwischen Kontakt und Termin
-
+- Termine speichern Teilnehmer zuverlässig über `contact_ids`.
+- API liefert stabile `participants`-Daten für Liste und Detail.
+- Löschen hinterlässt keine verwaisten Zuordnungen.
+- Picker funktioniert beim Anlegen und Bearbeiten ohne State-Fehler.
+- Übersetzungen sind in allen `knowledge`-Sprachdateien vorhanden.
+- Relevante Planner- und Handler-Tests sind grün.
