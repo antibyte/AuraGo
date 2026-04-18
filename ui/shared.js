@@ -321,51 +321,85 @@ function injectRadialMenu() {
 // THEME MANAGEMENT
 // ═══════════════════════════════════════════════════════════════
 
+// Supported chat themes: 'dark' (standard), 'light', 'retro-crt'
+const CHAT_THEMES = ['dark', 'light', 'retro-crt'];
+const DEFAULT_CHAT_THEME = 'dark';
+
 // Debounce lock: prevents double-click from toggling back immediately
 let _themeToggleLock = false;
 
 /**
- * Toggle between dark and light theme
+ * Set the active chat theme by name.
+ * @param {string} theme - One of CHAT_THEMES
+ */
+function setChatTheme(theme) {
+    if (!CHAT_THEMES.includes(theme)) {
+        console.warn('[AuraGo] Unknown chat theme:', theme);
+        return;
+    }
+    const html = document.documentElement;
+    const current = html.getAttribute('data-theme') || DEFAULT_CHAT_THEME;
+    if (current === theme) return;
+
+    html.setAttribute('data-theme', theme);
+    localStorage.setItem('aurago-theme', theme);
+    _updateHljsTheme(theme);
+
+    // Notify other components (e.g. charts) that the theme changed
+    try {
+        window.dispatchEvent(new CustomEvent('aurago:themechange', { detail: { theme: theme } }));
+    } catch (_) { }
+}
+
+/**
+ * Cycle to the next theme in CHAT_THEMES.
+ * Legacy wrapper for the old binary toggle behavior.
  */
 function toggleTheme() {
     if (_themeToggleLock) return;
     _themeToggleLock = true;
     setTimeout(function () { _themeToggleLock = false; }, 400);
 
-    const html = document.documentElement;
-    const current = html.getAttribute('data-theme') || 'dark';
-    const next = current === 'dark' ? 'light' : 'dark';
-    html.setAttribute('data-theme', next);
-    localStorage.setItem('aurago-theme', next);
-    _updateHljsTheme(next);
-
-    // Notify other components (e.g. charts) that the theme changed
-    try {
-        window.dispatchEvent(new CustomEvent('aurago:themechange', { detail: { theme: next } }));
-    } catch (_) { }
+    const current = document.documentElement.getAttribute('data-theme') || DEFAULT_CHAT_THEME;
+    const idx = CHAT_THEMES.indexOf(current);
+    const next = CHAT_THEMES[(idx + 1) % CHAT_THEMES.length];
+    setChatTheme(next);
 }
 
 /**
- * Swap highlight.js theme stylesheet between github-dark and github
+ * Get the current chat theme name.
+ * @returns {string}
+ */
+function getCurrentChatTheme() {
+    return document.documentElement.getAttribute('data-theme') || DEFAULT_CHAT_THEME;
+}
+
+/**
+ * Swap highlight.js theme stylesheet based on active theme.
+ * dark → github-dark, light → github, retro-crt → github-dark with phosphor overlay via CSS
  */
 function _updateHljsTheme(theme) {
     var link = document.getElementById('hljs-theme');
     if (!link) return;
     var base = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/';
-    link.href = theme === 'light' ? base + 'github.min.css' : base + 'github-dark.min.css';
+    // retro-crt uses the dark base; CRT-specific coloring is handled in chat.css
+    if (theme === 'light') {
+        link.href = base + 'github.min.css';
+    } else {
+        link.href = base + 'github-dark.min.css';
+    }
 }
 
 /**
- * Initialize theme from localStorage on page load
+ * Initialize theme from localStorage on page load.
  */
 function initTheme() {
     if (window._themeInitialized) return;
     window._themeInitialized = true;
     const saved = localStorage.getItem('aurago-theme');
-    if (saved) {
-        document.documentElement.setAttribute('data-theme', saved);
-        _updateHljsTheme(saved);
-    }
+    const theme = (saved && CHAT_THEMES.includes(saved)) ? saved : DEFAULT_CHAT_THEME;
+    document.documentElement.setAttribute('data-theme', theme);
+    _updateHljsTheme(theme);
 }
 
 // ═══════════════════════════════════════════════════════════════

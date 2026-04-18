@@ -1,6 +1,90 @@
 /* AuraGo – index page styles */
 /* Extracted from index.html */
 
+        /* ═══════════════════════════════════════════════════════════════
+           CHAT THEME PICKER
+           ═══════════════════════════════════════════════════════════════ */
+
+        .chat-theme-picker {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .chat-theme-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            border: 1px solid var(--border-subtle);
+            background: var(--bg-glass);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .chat-theme-btn:hover {
+            background: var(--bg-glass-hover, rgba(128, 128, 128, 0.12));
+            border-color: var(--border-accent);
+        }
+
+        .chat-theme-icon {
+            line-height: 1;
+            user-select: none;
+        }
+
+        .chat-theme-dropdown {
+            position: absolute;
+            top: calc(100% + 6px);
+            right: 0;
+            min-width: 160px;
+            border-radius: 10px;
+            border: 1px solid var(--border-subtle);
+            background: var(--modal-surface);
+            backdrop-filter: blur(20px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2), 0 0 0 1px var(--border-subtle);
+            z-index: 900;
+            padding: 4px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .chat-theme-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 10px;
+            border-radius: 7px;
+            border: none;
+            background: transparent;
+            color: var(--text-primary);
+            font-size: 0.8rem;
+            font-family: inherit;
+            cursor: pointer;
+            text-align: left;
+            transition: background 0.15s;
+            width: 100%;
+        }
+
+        .chat-theme-option:hover {
+            background: var(--bg-glass-hover, rgba(128, 128, 128, 0.1));
+        }
+
+        .chat-theme-option.active {
+            background: var(--bg-glass-active, rgba(128, 128, 128, 0.15));
+            font-weight: 600;
+        }
+
+        .chat-theme-option-icon {
+            font-size: 0.9rem;
+            line-height: 1;
+            width: 18px;
+            text-align: center;
+        }
+
         /* ── Page-specific: Chat Interface ─────────────────── */
 
         body {
@@ -3419,4 +3503,626 @@
 
 [data-theme="light"] #img-lightbox {
     background: rgba(30, 41, 59, 0.7);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   RETRO CRT THEME — Retro terminal green phosphor display
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── CRT Design Tokens ── */
+[data-theme="retro-crt"] {
+    /* Phosphor green luminance palette */
+    --crt-bright:   #39ff14;
+    --crt-medium:   #22cc0a;
+    --crt-dim:      #0f7a07;
+    --crt-dark:     #073d03;
+    --crt-bg:       #030a02;
+    --crt-surface:  #050f04;
+    --crt-glow:     rgba(57, 255, 20, 0.18);
+    --crt-glow-strong: rgba(57, 255, 20, 0.45);
+    --crt-border:   #0f7a07;
+    --crt-text:     #39ff14;
+    --crt-text-dim: #1a8a06;
+    --crt-text-muted: #0f5504;
+    --crt-scanline: rgba(0, 0, 0, 0.08);
+    --crt-noise:    rgba(57, 255, 20, 0.03);
+
+    /* Map CRT tokens to theme variables */
+    --bg-primary:    var(--crt-bg);
+    --bg-secondary:   var(--crt-surface);
+    --bg-glass:      rgba(5, 15, 4, 0.85);
+    --bg-glass-hover: rgba(15, 40, 10, 0.9);
+    --bg-glass-active: rgba(20, 60, 15, 0.95);
+    --bg-glass-hover: rgba(15, 40, 10, 0.9);
+    --bg-glass-active: rgba(20, 60, 15, 0.95);
+    --text-primary:  var(--crt-text);
+    --text-secondary: var(--crt-text-dim);
+    --text-muted:    var(--crt-text-muted);
+    --border-subtle: var(--crt-border);
+    --border-accent: var(--crt-medium);
+    --accent:        var(--crt-bright);
+    --accent-secondary: var(--crt-medium);
+    --accent-dim:    var(--crt-glow);
+    --modal-surface: rgba(3, 10, 2, 0.96);
+    --shadow-color:  rgba(0, 0, 0, 0.8);
+
+    color-scheme: dark;
+}
+
+/* ── CRT Base Surface ── */
+[data-theme="retro-crt"] body {
+    background-color: var(--crt-bg);
+}
+
+/* ── CRT Header ── */
+[data-theme="retro-crt"] .app-header {
+    background-color: var(--crt-surface);
+    border-bottom-color: var(--crt-border);
+}
+
+[data-theme="retro-crt"] .app-header::after {
+    background: linear-gradient(90deg,
+        transparent 0%,
+        var(--crt-medium) 20%,
+        var(--crt-bright) 50%,
+        var(--crt-medium) 80%,
+        transparent 100%);
+    opacity: 0.4;
+}
+
+[data-theme="retro-crt"] .logo span:first-of-type {
+    background: linear-gradient(135deg, var(--crt-bright), var(--crt-medium));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 0 20px var(--crt-glow);
+}
+
+/* ── CRT Chat Area ── */
+[data-theme="retro-crt"] #chat-box {
+    background-color: var(--crt-bg);
+    background-image: none;
+}
+
+/* ── CRT Messages ── */
+[data-theme="retro-crt"] .bubble {
+    background: var(--crt-surface);
+    border: 1px solid var(--crt-border);
+    color: var(--crt-text);
+    border-radius: 4px;
+    box-shadow: 0 0 8px var(--crt-glow);
+}
+
+[data-theme="retro-crt"] .bubble.user {
+    background: var(--crt-dark);
+    border-color: var(--crt-dim);
+    box-shadow: none;
+}
+
+[data-theme="retro-crt"] .bubble.bot {
+    background: var(--crt-surface);
+    border-color: var(--crt-border);
+    box-shadow: 0 0 12px var(--crt-glow);
+}
+
+/* ── CRT Text & Typography ── */
+[data-theme="retro-crt"] p,
+[data-theme="retro-crt"] li,
+[data-theme="retro-crt"] span {
+    color: var(--crt-text);
+}
+
+[data-theme="retro-crt"] a {
+    color: var(--crt-bright);
+    text-decoration: underline;
+    text-decoration-color: var(--crt-dim);
+}
+
+[data-theme="retro-crt"] h1,
+[data-theme="retro-crt"] h2,
+[data-theme="retro-crt"] h3,
+[data-theme="retro-crt"] h4 {
+    color: var(--crt-bright);
+    text-shadow: 0 0 10px var(--crt-glow-strong);
+}
+
+/* ── CRT Code Blocks ── */
+[data-theme="retro-crt"] .code-block,
+[data-theme="retro-crt"] pre,
+[data-theme="retro-crt"] code {
+    background: var(--crt-dark) !important;
+    border: 1px solid var(--crt-border);
+    color: var(--crt-bright) !important;
+    border-radius: 4px;
+    box-shadow: 0 0 10px var(--crt-glow);
+    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+}
+
+[data-theme="retro-crt"] .code-header {
+    background: var(--crt-dark);
+    border-bottom-color: var(--crt-border);
+    color: var(--crt-text-dim);
+}
+
+/* CRT highlight.js overrides — keep syntax readable on phosphor green */
+[data-theme="retro-crt"] .hljs {
+    background: var(--crt-dark) !important;
+    color: var(--crt-bright) !important;
+}
+
+[data-theme="retro-crt"] .hljs-keyword,
+[data-theme="retro-crt"] .hljs-selector-tag,
+[data-theme="retro-crt"] .hljs-built_in {
+    color: var(--crt-bright);
+    text-shadow: 0 0 6px var(--crt-glow-strong);
+}
+
+[data-theme="retro-crt"] .hljs-string,
+[data-theme="retro-crt"] .hljs-attr {
+    color: var(--crt-medium);
+}
+
+[data-theme="retro-crt"] .hljs-comment {
+    color: var(--crt-text-muted);
+    font-style: italic;
+}
+
+[data-theme="retro-crt"] .hljs-number,
+[data-theme="retro-crt"] .hljs-literal {
+    color: var(--crt-bright);
+}
+
+[data-theme="retro-crt"] .hljs-function,
+[data-theme="retro-crt"] .hljs-title {
+    color: var(--crt-bright);
+    text-shadow: 0 0 8px var(--crt-glow-strong);
+}
+
+/* ── CRT Composer / Input ── */
+[data-theme="retro-crt"] #chat-form,
+[data-theme="retro-crt"] .input-wrap {
+    background-color: var(--crt-surface);
+    border-top-color: var(--crt-border);
+}
+
+[data-theme="retro-crt"] .input-wrap textarea {
+    background: var(--crt-dark);
+    border-color: var(--crt-border);
+    color: var(--crt-text);
+}
+
+[data-theme="retro-crt"] .input-wrap textarea:focus {
+    border-color: var(--crt-medium);
+    box-shadow: 0 0 10px var(--crt-glow);
+    background: var(--crt-surface);
+    outline: none;
+}
+
+[data-theme="retro-crt"] .btn-send {
+    background: var(--crt-dark);
+    border-color: var(--crt-border);
+    color: var(--crt-bright);
+    box-shadow: 0 0 8px var(--crt-glow);
+}
+
+[data-theme="retro-crt"] .btn-send:hover {
+    background: var(--crt-dim);
+    border-color: var(--crt-medium);
+    box-shadow: 0 0 14px var(--crt-glow-strong);
+}
+
+[data-theme="retro-crt"] .btn-voice,
+[data-theme="retro-crt"] .btn-upload,
+[data-theme="retro-crt"] .btn-more {
+    background: var(--crt-dark);
+    border-color: var(--crt-border);
+    color: var(--crt-text-dim);
+}
+
+[data-theme="retro-crt"] .btn-voice:hover,
+[data-theme="retro-crt"] .btn-upload:hover,
+[data-theme="retro-crt"] .btn-more:hover {
+    border-color: var(--crt-medium);
+    color: var(--crt-text);
+    box-shadow: 0 0 8px var(--crt-glow);
+}
+
+/* ── CRT Composer Panel ── */
+[data-theme="retro-crt"] .composer-panel {
+    background: var(--crt-surface);
+    border-color: var(--crt-border);
+}
+
+[data-theme="retro-crt"] .composer-tool-btn {
+    color: var(--crt-text-dim);
+    border-color: var(--crt-border);
+}
+
+[data-theme="retro-crt"] .composer-tool-btn:hover {
+    background: var(--crt-dark);
+    border-color: var(--crt-medium);
+    color: var(--crt-bright);
+}
+
+/* ── CRT Status Pills ── */
+[data-theme="retro-crt"] .pill {
+    background: var(--crt-dark);
+    border-color: var(--crt-border);
+    color: var(--crt-text-dim);
+}
+
+[data-theme="retro-crt"] .pill-tokens {
+    color: var(--crt-text-dim);
+}
+
+[data-theme="retro-crt"] .pill-active {
+    background: var(--crt-dark);
+    border-color: var(--crt-medium);
+    color: var(--crt-bright);
+    box-shadow: 0 0 8px var(--crt-glow);
+}
+
+/* ── CRT Mood Widget ── */
+[data-theme="retro-crt"] .mood-toggle {
+    background: var(--crt-dark);
+    border-color: var(--crt-border);
+    color: var(--crt-text-dim);
+}
+
+[data-theme="retro-crt"] .mood-toggle:hover {
+    border-color: var(--crt-medium);
+    color: var(--crt-text);
+}
+
+[data-theme="retro-crt"] .mood-panel {
+    background: var(--crt-surface);
+    border-color: var(--crt-border);
+    box-shadow: 0 0 16px var(--crt-glow);
+}
+
+/* ── CRT Session Drawer ── */
+[data-theme="retro-crt"] .session-drawer {
+    background: var(--crt-surface);
+    border-color: var(--crt-border);
+    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.6);
+}
+
+[data-theme="retro-crt"] .session-drawer-header {
+    background: var(--crt-dark);
+    border-bottom-color: var(--crt-border);
+    color: var(--crt-text-dim);
+}
+
+[data-theme="retro-crt"] .session-item {
+    color: var(--crt-text-dim);
+    border-bottom-color: var(--crt-border);
+}
+
+[data-theme="retro-crt"] .session-item:hover {
+    background: var(--crt-dark);
+    color: var(--crt-text);
+}
+
+[data-theme="retro-crt"] .session-item.active {
+    background: var(--crt-dim);
+    color: var(--crt-bright);
+    box-shadow: inset 0 0 8px var(--crt-glow);
+}
+
+[data-theme="retro-crt"] .session-new-btn {
+    background: var(--crt-dark);
+    border-color: var(--crt-border);
+    color: var(--crt-text-dim);
+}
+
+[data-theme="retro-crt"] .session-new-btn:hover {
+    background: var(--crt-dim);
+    border-color: var(--crt-medium);
+    color: var(--crt-bright);
+}
+
+/* ── CRT Modals & Overlays ── */
+[data-theme="retro-crt"] .modal-overlay {
+    background: rgba(3, 10, 2, 0.85);
+    backdrop-filter: blur(4px);
+}
+
+[data-theme="retro-crt"] .modal-card {
+    background: var(--crt-surface);
+    border: 1px solid var(--crt-border);
+    border-radius: 6px;
+    box-shadow: 0 0 24px var(--crt-glow), 0 0 60px rgba(0, 0, 0, 0.6);
+    color: var(--crt-text);
+}
+
+[data-theme="retro-crt"] .modal-title {
+    background: var(--crt-dark);
+    border-bottom-color: var(--crt-border);
+    color: var(--crt-text-dim);
+}
+
+[data-theme="retro-crt"] .modal-btn {
+    border-color: var(--crt-border);
+    color: var(--crt-text-dim);
+}
+
+[data-theme="retro-crt"] .modal-btn.confirm {
+    background: var(--crt-dark);
+    border-color: var(--crt-medium);
+    color: var(--crt-bright);
+}
+
+[data-theme="retro-crt"] .modal-btn.confirm:hover {
+    background: var(--crt-dim);
+    box-shadow: 0 0 10px var(--crt-glow);
+}
+
+[data-theme="retro-crt"] .modal-btn.cancel:hover {
+    background: var(--crt-dark);
+}
+
+/* ── CRT Drag & Drop ── */
+[data-theme="retro-crt"] .drag-drop-overlay {
+    background: rgba(3, 10, 2, 0.7);
+    border: 2px dashed var(--crt-medium);
+    color: var(--crt-bright);
+}
+
+[data-theme="retro-crt"] .drag-drop-overlay-text {
+    color: var(--crt-text-dim);
+}
+
+/* ── CRT Voice Recorder Overlay ── */
+[data-theme="retro-crt"] .stt-overlay {
+    background: rgba(3, 10, 2, 0.88);
+}
+
+[data-theme="retro-crt"] .stt-ring {
+    border-color: var(--crt-medium);
+}
+
+[data-theme="retro-crt"] .stt-ring::before {
+    border-color: var(--crt-bright);
+}
+
+/* ── CRT Cheatsheet Picker ── */
+[data-theme="retro-crt"] .cheatsheet-picker-card {
+    background: var(--crt-surface);
+    border-color: var(--crt-border);
+    box-shadow: 0 0 24px var(--crt-glow);
+}
+
+[data-theme="retro-crt"] .cheatsheet-item {
+    border-bottom-color: var(--crt-border);
+    color: var(--crt-text-dim);
+}
+
+[data-theme="retro-crt"] .cheatsheet-item:hover {
+    background: var(--crt-dark);
+    color: var(--crt-text);
+}
+
+[data-theme="retro-crt"] .cheatsheet-item.selected {
+    background: var(--crt-dim);
+    color: var(--crt-bright);
+    border-left: 3px solid var(--crt-bright);
+}
+
+/* ── CRT Warnings Panel ── */
+[data-theme="retro-crt"] .warnings-panel {
+    background: var(--crt-surface);
+    border-color: var(--crt-border);
+}
+
+[data-theme="retro-crt"] .warning-item {
+    border-bottom-color: var(--crt-border);
+    color: var(--crt-text-dim);
+}
+
+[data-theme="retro-crt"] .warning-item.warning {
+    border-left: 3px solid var(--crt-medium);
+}
+
+[data-theme="retro-crt"] .warning-item.error {
+    border-left: 3px solid var(--crt-bright);
+}
+
+/* ── CRT Greeting ── */
+[data-theme="retro-crt"] .greeting-row {
+    color: var(--crt-text-dim);
+}
+
+[data-theme="retro-crt"] .greeting-icon {
+    background: var(--crt-dark);
+    border-color: var(--crt-border);
+    color: var(--crt-bright);
+    box-shadow: 0 0 20px var(--crt-glow);
+}
+
+[data-theme="retro-crt"] .greeting-text {
+    color: var(--crt-text-dim);
+}
+
+/* ── CRT Agent Status ── */
+[data-theme="retro-crt"] .status-pill {
+    background: var(--crt-dark);
+    border-color: var(--crt-border);
+    color: var(--crt-text-dim);
+}
+
+[data-theme="retro-crt"] .pulsing-dot {
+    background: var(--crt-bright);
+    box-shadow: 0 0 8px var(--crt-glow-strong);
+}
+
+/* ── CRT Selection ── */
+[data-theme="retro-crt"] ::selection {
+    background: rgba(57, 255, 20, 0.25);
+    color: var(--crt-bright);
+}
+
+[data-theme="retro-crt"] ::-moz-selection {
+    background: rgba(57, 255, 20, 0.25);
+    color: var(--crt-bright);
+}
+
+/* ── CRT Focus States ── */
+[data-theme="retro-crt"] *:focus-visible {
+    outline: 2px solid var(--crt-medium);
+    outline-offset: 2px;
+}
+
+/* ── CRT Mermaid Diagrams ── */
+[data-theme="retro-crt"] .mermaid-diagram svg {
+    filter: drop-shadow(0 0 4px var(--crt-glow));
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   CRT SCREEN SIMULATION — Progressive overlay layers on #chat-box
+   Uses pointer-events: none so interactions are never blocked
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── Layer 1: Vignette + subtle glass curvature ── */
+[data-theme="retro-crt"] #chat-box::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 10;
+    border-radius: inherit;
+    /* Soft vignette toward edges */
+    box-shadow: inset 0 0 80px rgba(0, 0, 0, 0.6), inset 0 0 120px rgba(0, 0, 0, 0.3);
+    /* Very subtle barrel-curvature hint via radial gradient */
+    background: radial-gradient(
+        ellipse at 50% 50%,
+        transparent 55%,
+        rgba(0, 0, 0, 0.25) 80%,
+        rgba(0, 0, 0, 0.55) 100%
+    );
+}
+
+/* ── Layer 2: Scanlines + noise shimmer ── */
+[data-theme="retro-crt"] #chat-box::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 11;
+    border-radius: inherit;
+    /* Horizontal scanlines — very low opacity for readability */
+    background: repeating-linear-gradient(
+        to bottom,
+        transparent 0px,
+        transparent 2px,
+        rgba(0, 0, 0, 0.07) 2px,
+        rgba(0, 0, 0, 0.07) 4px
+    );
+    /* Fine phosphor noise texture */
+    background-image:
+        repeating-linear-gradient(
+            to bottom,
+            transparent 0px,
+            transparent 2px,
+            rgba(0, 0, 0, 0.07) 2px,
+            rgba(0, 0, 0, 0.07) 4px
+        ),
+        url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    background-blend-mode: overlay;
+}
+
+/* ── Animated signal shimmer on #chat-box (CSS only, GPU friendly) ── */
+@keyframes crt-shimmer {
+    0%   { opacity: 0.015; }
+    50%  { opacity: 0.03; }
+    100% { opacity: 0.015; }
+}
+
+[data-theme="retro-crt"] #chat-box {
+    animation: crt-shimmer 4s ease-in-out infinite;
+}
+
+/* ── Reduced-motion fallback: no animation ── */
+@media (prefers-reduced-motion: reduce) {
+    [data-theme="retro-crt"] #chat-box {
+        animation: none;
+    }
+}
+
+/* ── CRT glow on bright text elements ── */
+[data-theme="retro-crt"] h1,
+[data-theme="retro-crt"] h2,
+[data-theme="retro-crt"] h3,
+[data-theme="retro-crt"] h4,
+[data-theme="retro-crt"] .bubble.bot,
+[data-theme="retro-crt"] strong,
+[data-theme="retro-crt"] em {
+    text-shadow: 0 0 8px var(--crt-glow), 0 0 20px rgba(57, 255, 20, 0.2);
+}
+
+/* ── CRT cursor / caret simulation ── */
+[data-theme="retro-crt"] .typing-cursor {
+    display: inline-block;
+    width: 8px;
+    height: 1em;
+    background: var(--crt-bright);
+    box-shadow: 0 0 6px var(--crt-glow-strong);
+    animation: crt-blink 1s step-end infinite;
+    vertical-align: text-bottom;
+    margin-left: 2px;
+}
+
+@keyframes crt-blink {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    [data-theme="retro-crt"] .typing-cursor {
+        animation: none;
+        opacity: 1;
+    }
+}
+
+/* ── CRT Avatar / Bot Icon ── */
+[data-theme="retro-crt"] .avatar.bot {
+    background: var(--crt-dark);
+    border-color: var(--crt-border);
+    color: var(--crt-bright);
+    box-shadow: 0 0 12px var(--crt-glow);
+}
+
+/* ── CRT Scrollbar ── */
+[data-theme="retro-crt"] ::-webkit-scrollbar {
+    width: 6px;
+}
+
+[data-theme="retro-crt"] ::-webkit-scrollbar-track {
+    background: var(--crt-dark);
+}
+
+[data-theme="retro-crt"] ::-webkit-scrollbar-thumb {
+    background: var(--crt-dim);
+    border-radius: 3px;
+}
+
+[data-theme="retro-crt"] ::-webkit-scrollbar-thumb:hover {
+    background: var(--crt-medium);
+}
+
+/* ── CRT Mobile / small screen: reduce intensity ── */
+@media (max-width: 640px) {
+    [data-theme="retro-crt"] #chat-box::before {
+        box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.5);
+    }
+
+    [data-theme="retro-crt"] #chat-box::after {
+        /* Denser, more visible scanlines on mobile compensate for glare */
+        background: repeating-linear-gradient(
+            to bottom,
+            transparent 0px,
+            transparent 1px,
+            rgba(0, 0, 0, 0.1) 1px,
+            rgba(0, 0, 0, 0.1) 3px
+        );
+    }
 }

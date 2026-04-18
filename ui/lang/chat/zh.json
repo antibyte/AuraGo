@@ -165,5 +165,8 @@
   "chat.sessions_just_now": "刚刚",
   "chat.sessions_minutes_ago": "{n}分钟前",
   "chat.sessions_hours_ago": "{n}小时前",
-  "chat.sessions_days_ago": "{n}天前"
+  "chat.sessions_days_ago": "{n}天前",
+  "chat.theme_standard": "标准",
+  "chat.theme_light": "浅色",
+  "chat.theme_retro_crt": "复古CRT"
 }

@@ -165,5 +165,8 @@
   "chat.sessions_just_now": "Zojuist",
   "chat.sessions_minutes_ago": "{n} min geleden",
   "chat.sessions_hours_ago": "{n} uur geleden",
-  "chat.sessions_days_ago": "{n} dagen geleden"
+  "chat.sessions_days_ago": "{n} dagen geleden",
+  "chat.theme_standard": "Standaard",
+  "chat.theme_light": "Licht",
+  "chat.theme_retro_crt": "Retro CRT"
 }

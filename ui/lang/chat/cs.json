@@ -165,5 +165,8 @@
   "chat.sessions_just_now": "Právě teď",
   "chat.sessions_minutes_ago": "před {n} min",
   "chat.sessions_hours_ago": "před {n} h",
-  "chat.sessions_days_ago": "před {n} d"
+  "chat.sessions_days_ago": "před {n} d",
+  "chat.theme_standard": "Standardní",
+  "chat.theme_light": "Světlý",
+  "chat.theme_retro_crt": "Retro CRT"
 }

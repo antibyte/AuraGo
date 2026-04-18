@@ -1167,12 +1167,93 @@ function initPushUI() {
     });
 }
 
+/* ── Chat Theme Picker ── */
+const THEME_ICONS = {
+    'dark': '◐',
+    'light': '☀',
+    'retro-crt': '▣'
+};
+
+function initChatThemePicker() {
+    const picker = document.getElementById('chat-theme-picker');
+    const btn = document.getElementById('chat-theme-btn');
+    const dropdown = document.getElementById('chat-theme-dropdown');
+    const icon = document.getElementById('chat-theme-icon');
+    if (!picker || !btn || !dropdown || !icon) return;
+    if (picker.dataset.initialized === 'true') return;
+    picker.dataset.initialized = 'true';
+
+    function _refreshIcon(theme) {
+        icon.textContent = THEME_ICONS[theme] || '◐';
+    }
+
+    function _selectOption(theme) {
+        setChatTheme(theme);
+        _refreshIcon(theme);
+        dropdown.hidden = true;
+        btn.setAttribute('aria-expanded', 'false');
+        // Mark active option
+        dropdown.querySelectorAll('.chat-theme-option').forEach(opt => {
+            opt.classList.toggle('active', opt.dataset.theme === theme);
+        });
+    }
+
+    btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isOpen = !dropdown.hidden;
+        dropdown.hidden = isOpen;
+        btn.setAttribute('aria-expanded', String(!isOpen));
+    });
+
+    dropdown.querySelectorAll('.chat-theme-option').forEach(opt => {
+        opt.addEventListener('click', () => {
+            const theme = opt.dataset.theme;
+            if (theme) _selectOption(theme);
+        });
+    });
+
+    // Close on outside click
+    document.addEventListener('click', (e) => {
+        if (!picker.contains(e.target)) {
+            dropdown.hidden = true;
+            btn.setAttribute('aria-expanded', 'false');
+        }
+    });
+
+    // Escape key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !dropdown.hidden) {
+            dropdown.hidden = true;
+            btn.setAttribute('aria-expanded', 'false');
+            btn.focus();
+        }
+    });
+
+    // Sync icon with current theme on init
+    _refreshIcon(getCurrentChatTheme());
+    _selectOption(getCurrentChatTheme());
+
+    // React to external theme changes (e.g. aurago:themechange)
+    window.addEventListener('aurago:themechange', (e) => {
+        const theme = e.detail && e.detail.theme;
+        if (theme) {
+            _refreshIcon(theme);
+            dropdown.querySelectorAll('.chat-theme-option').forEach(opt => {
+                opt.classList.toggle('active', opt.dataset.theme === theme);
+            });
+        }
+    });
+}
+
 /* ── Initialize Chat Modules ── */
 document.addEventListener('DOMContentLoaded', () => {
     // Smart Scroller
     if (window.SmartScroller) {
         window.SmartScroller.init(document.getElementById('chat-box'));
     }
+
+    // Chat Theme Picker
+    initChatThemePicker();
     
     // Code Blocks
     if (window.CodeBlocks) {

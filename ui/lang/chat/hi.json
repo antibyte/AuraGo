@@ -165,5 +165,8 @@
   "chat.sessions_just_now": "अभी",
   "chat.sessions_minutes_ago": "{n} मिनट पहले",
   "chat.sessions_hours_ago": "{n} घंटे पहले",
-  "chat.sessions_days_ago": "{n} दिन पहले"
+  "chat.sessions_days_ago": "{n} दिन पहले",
+  "chat.theme_standard": "मानक",
+  "chat.theme_light": "हल्का",
+  "chat.theme_retro_crt": "रेट्रो CRT"
 }

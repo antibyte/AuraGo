@@ -165,5 +165,8 @@
   "chat.sessions_just_now": "Właśnie teraz",
   "chat.sessions_minutes_ago": "{n} min temu",
   "chat.sessions_hours_ago": "{n} godz. temu",
-  "chat.sessions_days_ago": "{n} dni temu"
+  "chat.sessions_days_ago": "{n} dni temu",
+  "chat.theme_standard": "Standardowy",
+  "chat.theme_light": "Jasny",
+  "chat.theme_retro_crt": "Retro CRT"
 }

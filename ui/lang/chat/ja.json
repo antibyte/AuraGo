@@ -165,5 +165,8 @@
   "chat.sessions_just_now": "たった今",
   "chat.sessions_minutes_ago": "{n}分前",
   "chat.sessions_hours_ago": "{n}時間前",
-  "chat.sessions_days_ago": "{n}日前"
+  "chat.sessions_days_ago": "{n}日前",
+  "chat.theme_standard": "スタンダード",
+  "chat.theme_light": "ライト",
+  "chat.theme_retro_crt": "レトロCRT"
 }

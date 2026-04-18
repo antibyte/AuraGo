@@ -165,5 +165,8 @@
   "chat.sessions_just_now": "Μόλις τώρα",
   "chat.sessions_minutes_ago": "{n} λεπ. πριν",
   "chat.sessions_hours_ago": "{n} ώρες πριν",
-  "chat.sessions_days_ago": "{n} ημ. πριν"
+  "chat.sessions_days_ago": "{n} ημ. πριν",
+  "chat.theme_standard": "Τυπικό",
+  "chat.theme_light": "Φωτεινό",
+  "chat.theme_retro_crt": "Retro CRT"
 }
