@@ -142,7 +142,8 @@ const SECTIONS = [
             { key: 'github', icon: '🐙', label: t('config.section.github.label'), desc: t('config.section.github.desc') },
             { key: 'google_workspace', icon: '📊', label: t('config.section.google_workspace.label'), desc: t('config.section.google_workspace.desc') },
             { key: 'paperless_ngx', icon: '📄', label: t('config.section.paperless_ngx.label'), desc: t('config.section.paperless_ngx.desc') },
-            { key: 'n8n', icon: '🔀', label: t('config.section.n8n.label'), desc: t('config.section.n8n.desc') }
+            { key: 'n8n', icon: '🔀', label: t('config.section.n8n.label'), desc: t('config.section.n8n.desc') },
+            { key: 'obsidian', icon: '📝', label: t('config.section.obsidian.label'), desc: t('config.section.obsidian.desc') }
         ]
     },
     {
@@ -161,7 +162,6 @@ const SECTIONS = [
         items: [
             { key: 'truenas', icon: '💾', label: t('config.section.truenas.label'), desc: t('config.section.truenas.desc') },
             { key: 'jellyfin', icon: '🎬', label: t('config.section.jellyfin.label'), desc: t('config.section.jellyfin.desc') },
-            { key: 'obsidian', icon: '📝', label: t('config.section.obsidian.label'), desc: t('config.section.obsidian.desc') },
             { key: 'tailscale', icon: '🔒', label: t('config.section.tailscale.label'), desc: t('config.section.tailscale.desc') },
             { key: 'proxmox', icon: '🖥️', label: t('config.section.proxmox.label'), desc: t('config.section.proxmox.desc') },
             { key: 'remote_control', icon: '📡', label: t('config.section.remote_control.label'), desc: t('config.section.remote_control.desc') },

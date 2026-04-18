@@ -3724,6 +3724,63 @@
     background: var(--crt-dark);
 }
 
+/* ── CRT btn-header (for logout and other header buttons) ── */
+[data-theme="retro-crt"] .btn-header {
+    background: var(--crt-dark);
+    border-color: var(--crt-border);
+    color: var(--crt-text-dim);
+}
+
+[data-theme="retro-crt"] .btn-header:hover {
+    background: var(--crt-dim);
+    border-color: var(--crt-medium);
+    color: var(--crt-text);
+}
+
+/* ── CRT Emoji Buttons (session, speaker, warnings, mood) ── */
+[data-theme="retro-crt"] .btn-session-toggle,
+[data-theme="retro-crt"] .btn-speaker,
+[data-theme="retro-crt"] .warnings-btn,
+[data-theme="retro-crt"] .mood-toggle {
+    color: var(--crt-text-dim);
+}
+
+[data-theme="retro-crt"] .btn-session-toggle:hover,
+[data-theme="retro-crt"] .btn-speaker:hover {
+    background: var(--crt-dark);
+    color: var(--crt-text);
+}
+
+[data-theme="retro-crt"] .warnings-btn:hover {
+    background: var(--crt-dark);
+    color: var(--crt-text);
+}
+
+/* ── CRT Emoji Icons inside buttons ── */
+[data-theme="retro-crt"] .warnings-icon,
+[data-theme="retro-crt"] .mood-emoji,
+[data-theme="retro-crt"] .mood-emoji-lg,
+[data-theme="retro-crt"] .logo-icon {
+    color: var(--crt-text);
+}
+
+/* ── CRT Mood chevron and text ── */
+[data-theme="retro-crt"] .mood-chevron,
+[data-theme="retro-crt"] #moodText {
+    color: var(--crt-text-dim);
+}
+
+/* ── CRT Additional Header Elements ── */
+[data-theme="retro-crt"] .chat-theme-icon {
+    color: var(--crt-text);
+}
+
+[data-theme="retro-crt"] .credits-pill-action,
+[data-theme="retro-crt"] .warnings-badge {
+    color: var(--crt-text);
+    background: var(--crt-dark);
+}
+
 /* ── CRT Footer ── */
 [data-theme="retro-crt"] .app-footer {
     background-color: var(--crt-surface);
