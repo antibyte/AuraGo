@@ -144,6 +144,42 @@ type ToolFeatureFlags struct {
 	LDAPEnabled bool
 }
 
+// injectAdditionalPropertiesRec recursively sets additionalProperties: false
+// on all object-typed nodes in a JSON Schema, but only if the node does NOT
+// already have an explicit additionalProperties value. This preserves intentional
+// open-schema fields like call_webhook.parameters and ldap.attributes.
+func injectAdditionalPropertiesRec(m map[string]interface{}) {
+	if typ, ok := m["type"]; ok && typ == "object" {
+		// Only set additionalProperties: false if it is not already explicitly set.
+		// An explicit value can be true, false, or a JSON Schema object.
+		if _, alreadySet := m["additionalProperties"]; !alreadySet {
+			m["additionalProperties"] = false
+		}
+	}
+	// Walk properties
+	if props, ok := m["properties"].(map[string]interface{}); ok {
+		for _, v := range props {
+			if child, ok := v.(map[string]interface{}); ok {
+				injectAdditionalPropertiesRec(child)
+			}
+		}
+	}
+	// Walk items (for arrays of objects)
+	if items, ok := m["items"].(map[string]interface{}); ok {
+		injectAdditionalPropertiesRec(items)
+	}
+	// Walk anyOf, allOf, oneOf
+	for _, key := range []string{"anyOf", "allOf", "oneOf"} {
+		if arr, ok := m[key].([]interface{}); ok {
+			for _, v := range arr {
+				if child, ok := v.(map[string]interface{}); ok {
+					injectAdditionalPropertiesRec(child)
+				}
+			}
+		}
+	}
+}
+
 // NativeToolCallToToolCall converts an OpenAI native ToolCall response to AuraGo's ToolCall struct.
 // Arguments JSON is unmarshalled directly into the struct fields.
 func NativeToolCallToToolCall(native openai.ToolCall, logger *slog.Logger) ToolCall {
@@ -433,7 +469,7 @@ func BuildNativeToolSchemas(skillsDir string, manifest *tools.Manifest, ff ToolF
 		// CHANGE LOG 2026-04-11: OpenAI strict mode requires additionalProperties: false
 		// on every object schema. The go-openai library does not auto-add this, so we
 		// inject it here. Only affects strict-mode requests; non-strict calls ignore it.
-		params["additionalProperties"] = false
+		injectAdditionalPropertiesRec(params)
 	}
 
 	if logger != nil {

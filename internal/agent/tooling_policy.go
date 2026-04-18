@@ -250,15 +250,28 @@ func BuildPromptContextFlags(runCfg RunConfig, policy ToolingPolicy, opts Prompt
 	return buildPromptContextFlags(runCfg, policy, opts)
 }
 
-func resolveToolFeatureState(runCfg RunConfig, policy ToolingPolicy) resolvedToolFeatureState {
-	cfg := runCfg.Config
+// buildToolFlagsFromConfig builds ToolFeatureFlags from a config struct.
+// This is the canonical config-only source for all ToolFeatureFlags.
+// It uses cfg.Runtime values (which are set at startup) for environment-aware decisions
+// but does NOT check database/runtime handle availability.
+//
+// Use resolveToolFeatureState (which calls this helper) when runtime handle availability
+// needs to be factored in (e.g. db != nil checks).
+func buildToolFlagsFromConfig(cfg *config.Config) ToolFeatureFlags {
 	if cfg == nil {
-		return resolvedToolFeatureState{}
+		return ToolFeatureFlags{}
 	}
 
-	toolFlags := ToolFeatureFlags{
+	// Compute policy-derived flags using the same logic as buildToolingPolicy.
+	// These values already incorporate cfg.Runtime.IsDocker checks.
+	dockerEnabled := cfg.Docker.Enabled && (!cfg.Runtime.IsDocker || cfg.Runtime.DockerSocketOK)
+	sandboxEnabled := cfg.Sandbox.Enabled && (!cfg.Runtime.IsDocker || cfg.Runtime.DockerSocketOK)
+	homepageEnabled := cfg.Homepage.Enabled && (dockerEnabled || cfg.Homepage.AllowLocalServer)
+	wolEnabled := cfg.Tools.WOL.Enabled && (!cfg.Runtime.IsDocker || cfg.Runtime.BroadcastOK)
+
+	return ToolFeatureFlags{
 		HomeAssistantEnabled:         cfg.HomeAssistant.Enabled,
-		DockerEnabled:                policy.DockerEnabled,
+		DockerEnabled:                dockerEnabled,
 		CoAgentEnabled:               cfg.CoAgents.Enabled,
 		SudoEnabled:                  cfg.Agent.SudoEnabled && !cfg.Runtime.IsDocker && !cfg.Runtime.NoNewPrivileges,
 		WebhooksEnabled:              cfg.Webhooks.Enabled,
@@ -272,15 +285,15 @@ func resolveToolFeatureState(runCfg RunConfig, policy ToolingPolicy) resolvedToo
 		OllamaEnabled:                cfg.Ollama.Enabled,
 		TailscaleEnabled:             cfg.Tailscale.Enabled,
 		AnsibleEnabled:               cfg.Ansible.Enabled,
-		InvasionControlEnabled:       cfg.InvasionControl.Enabled && runCfg.InvasionDB != nil,
+		InvasionControlEnabled:       cfg.InvasionControl.Enabled,
 		GitHubEnabled:                cfg.GitHub.Enabled,
 		MQTTEnabled:                  cfg.MQTT.Enabled,
 		AdGuardEnabled:               cfg.AdGuard.Enabled,
 		MCPEnabled:                   cfg.MCP.Enabled && cfg.Agent.AllowMCP,
-		SandboxEnabled:               policy.SandboxEnabled,
+		SandboxEnabled:               sandboxEnabled,
 		MeshCentralEnabled:           cfg.MeshCentral.Enabled,
-		HomepageEnabled:              policy.HomepageEnabled,
-		HomepageAllowLocalServer:     policy.HomepageAllowLocalServer,
+		HomepageEnabled:              homepageEnabled,
+		HomepageAllowLocalServer:     cfg.Homepage.AllowLocalServer,
 		NetlifyEnabled:               cfg.Netlify.Enabled,
 		FirewallEnabled:              cfg.Firewall.Enabled && (cfg.Runtime.FirewallAccessOK || (cfg.Agent.SudoEnabled && !cfg.Runtime.IsDocker)),
 		EmailEnabled:                 cfg.Email.Enabled || len(cfg.EmailAccounts) > 0,
@@ -291,7 +304,7 @@ func resolveToolFeatureState(runCfg RunConfig, policy ToolingPolicy) resolvedToo
 		GolangciLintEnabled:          cfg.GolangciLint.Enabled,
 		ImageGenerationEnabled:       cfg.ImageGeneration.Enabled,
 		MusicGenerationEnabled:       cfg.MusicGeneration.Enabled,
-		RemoteControlEnabled:         cfg.RemoteControl.Enabled && runCfg.RemoteHub != nil,
+		RemoteControlEnabled:         cfg.RemoteControl.Enabled,
 		MemoryEnabled:                cfg.Tools.Memory.Enabled,
 		KnowledgeGraphEnabled:        cfg.Tools.KnowledgeGraph.Enabled,
 		SecretsVaultEnabled:          cfg.Tools.SecretsVault.Enabled,
@@ -302,28 +315,28 @@ func resolveToolFeatureState(runCfg RunConfig, policy ToolingPolicy) resolvedToo
 		StopProcessEnabled:           cfg.Tools.StopProcess.Enabled,
 		InventoryEnabled:             cfg.Tools.Inventory.Enabled,
 		MemoryMaintenanceEnabled:     cfg.Tools.MemoryMaintenance.Enabled,
-		WOLEnabled:                   policy.WOLEnabled,
-		MediaRegistryEnabled:         cfg.MediaRegistry.Enabled && runCfg.MediaRegistryDB != nil,
-		HomepageRegistryEnabled:      cfg.Homepage.Enabled && runCfg.HomepageRegistryDB != nil,
-		ContactsEnabled:              cfg.Tools.Contacts.Enabled && runCfg.ContactsDB != nil,
-		MemoryAnalysisEnabled:        resolveMemoryAnalysisSettings(cfg, runCfg.ShortTermMem).Enabled,
+		WOLEnabled:                   wolEnabled,
+		MediaRegistryEnabled:         cfg.MediaRegistry.Enabled,
+		HomepageRegistryEnabled:      cfg.Homepage.Enabled,
+		ContactsEnabled:              cfg.Tools.Contacts.Enabled,
+		MemoryAnalysisEnabled:        cfg.MemoryAnalysis.Enabled,
 		DocumentCreatorEnabled:       cfg.Tools.DocumentCreator.Enabled,
 		WebCaptureEnabled:            cfg.Tools.WebCapture.Enabled,
 		NetworkPingEnabled:           cfg.Tools.NetworkPing.Enabled,
-		WebScraperEnabled:            cfg.Tools.WebScraper.Enabled,
+		WebScraperEnabled:           cfg.Tools.WebScraper.Enabled,
 		S3Enabled:                    cfg.S3.Enabled,
 		NetworkScanEnabled:           cfg.Tools.NetworkScan.Enabled,
 		FormAutomationEnabled:        cfg.Tools.FormAutomation.Enabled,
 		UPnPScanEnabled:              cfg.Tools.UPnPScan.Enabled,
 		FritzBoxSystemEnabled:        cfg.FritzBox.Enabled && cfg.FritzBox.System.Enabled,
 		FritzBoxNetworkEnabled:       cfg.FritzBox.Enabled && cfg.FritzBox.Network.Enabled,
-		FritzBoxTelephonyEnabled:     cfg.FritzBox.Enabled && cfg.FritzBox.Telephony.Enabled,
-		FritzBoxSmartHomeEnabled:     cfg.FritzBox.Enabled && cfg.FritzBox.SmartHome.Enabled,
+		FritzBoxTelephonyEnabled:    cfg.FritzBox.Enabled && cfg.FritzBox.Telephony.Enabled,
+		FritzBoxSmartHomeEnabled:    cfg.FritzBox.Enabled && cfg.FritzBox.SmartHome.Enabled,
 		FritzBoxStorageEnabled:       cfg.FritzBox.Enabled && cfg.FritzBox.Storage.Enabled,
-		FritzBoxTVEnabled:            cfg.FritzBox.Enabled && cfg.FritzBox.TV.Enabled,
-		TelnyxSMSEnabled:             cfg.Telnyx.Enabled && !cfg.Telnyx.ReadOnly,
-		TelnyxCallEnabled:            cfg.Telnyx.Enabled && !cfg.Telnyx.ReadOnly,
-		SQLConnectionsEnabled:        cfg.SQLConnections.Enabled && runCfg.SQLConnectionsDB != nil && runCfg.SQLConnectionPool != nil,
+		FritzBoxTVEnabled:           cfg.FritzBox.Enabled && cfg.FritzBox.TV.Enabled,
+		TelnyxSMSEnabled:            cfg.Telnyx.Enabled && !cfg.Telnyx.ReadOnly,
+		TelnyxCallEnabled:           cfg.Telnyx.Enabled && !cfg.Telnyx.ReadOnly,
+		SQLConnectionsEnabled:        cfg.SQLConnections.Enabled,
 		PythonSecretInjectionEnabled: cfg.Tools.PythonSecretInjection.Enabled,
 		DaemonSkillsEnabled:          cfg.Tools.DaemonSkills.Enabled,
 		AllowShell:                   cfg.Agent.AllowShell,
@@ -332,7 +345,29 @@ func resolveToolFeatureState(runCfg RunConfig, policy ToolingPolicy) resolvedToo
 		AllowNetworkRequests:         cfg.Agent.AllowNetworkRequests,
 		AllowRemoteShell:             cfg.Agent.AllowRemoteShell,
 		AllowSelfUpdate:              cfg.Agent.AllowSelfUpdate,
+		LDAPEnabled:                  cfg.LDAP.Enabled,
 	}
+}
+
+func resolveToolFeatureState(runCfg RunConfig, policy ToolingPolicy) resolvedToolFeatureState {
+	cfg := runCfg.Config
+	if cfg == nil {
+		return resolvedToolFeatureState{}
+	}
+
+	// Use the shared config-only helper as the base.
+	// Then apply runtime-specific conditions that require database handles or runtime context.
+	toolFlags := buildToolFlagsFromConfig(cfg)
+
+	// Apply runtime handle availability checks (these are the ONLY runtime conditions).
+	// All other flags (config-based, cfg.Runtime-based) are already set by buildToolFlagsFromConfig.
+	toolFlags.InvasionControlEnabled = cfg.InvasionControl.Enabled && runCfg.InvasionDB != nil
+	toolFlags.RemoteControlEnabled = cfg.RemoteControl.Enabled && runCfg.RemoteHub != nil
+	toolFlags.MediaRegistryEnabled = cfg.MediaRegistry.Enabled && runCfg.MediaRegistryDB != nil
+	toolFlags.HomepageRegistryEnabled = cfg.Homepage.Enabled && runCfg.HomepageRegistryDB != nil
+	toolFlags.ContactsEnabled = cfg.Tools.Contacts.Enabled && runCfg.ContactsDB != nil
+	toolFlags.SQLConnectionsEnabled = cfg.SQLConnections.Enabled && runCfg.SQLConnectionsDB != nil && runCfg.SQLConnectionPool != nil
+	toolFlags.MemoryAnalysisEnabled = resolveMemoryAnalysisSettings(cfg, runCfg.ShortTermMem).Enabled
 
 	return resolvedToolFeatureState{
 		ToolFlags:           toolFlags,
@@ -344,6 +379,8 @@ func resolveToolFeatureState(runCfg RunConfig, policy ToolingPolicy) resolvedToo
 		UnifiedMemoryBlock:  resolveMemoryAnalysisSettings(cfg, runCfg.ShortTermMem).UnifiedMemoryBlock,
 	}
 }
+
+
 
 func buildPromptContextFlags(runCfg RunConfig, policy ToolingPolicy, opts promptContextOptions) prompts.ContextFlags {
 	cfg := runCfg.Config
