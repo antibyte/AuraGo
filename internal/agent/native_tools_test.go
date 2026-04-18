@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"aurago/internal/config"
 	"aurago/internal/tools"
 	promptsembed "aurago/prompts"
 
@@ -687,5 +688,168 @@ func TestToolFeatureFlagsKeyChangesWhenFlagsChange(t *testing.T) {
 	}
 	if base.Key() == changed.Key() {
 		t.Fatal("expected different feature flags to produce different cache keys")
+	}
+}
+
+// TestInjectAdditionalPropertiesRecPreservesExplicitTrue verifies that
+// injectAdditionalPropertiesRec does NOT overwrite explicitly set
+// additionalProperties:true values (e.g. call_webhook.parameters).
+func TestInjectAdditionalPropertiesRecPreservesExplicitTrue(t *testing.T) {
+	schema := map[string]interface{}{
+		"type": "object",
+		"properties": map[string]interface{}{
+			"webhook_name": map[string]interface{}{"type": "string"},
+			"parameters": map[string]interface{}{
+				"type":                 "object",
+				"additionalProperties":  true, // explicit: must be preserved
+			},
+		},
+	}
+
+	injectAdditionalPropertiesRec(schema)
+
+	params := schema["properties"].(map[string]interface{})["parameters"].(map[string]interface{})
+	if params["additionalProperties"] != true {
+		t.Fatalf("expected additionalProperties=true to be preserved, got %v", params["additionalProperties"])
+	}
+
+	// Top-level should also get additionalProperties:false
+	if schema["additionalProperties"] != false {
+		t.Fatalf("expected additionalProperties=false on top-level, got %v", schema["additionalProperties"])
+	}
+}
+
+// TestInjectAdditionalPropertiesRecPreservesSchemaObject verifies that
+// a schema-level additionalProperties (i.e. {"type": "string"}) is preserved.
+func TestInjectAdditionalPropertiesRecPreservesSchemaObject(t *testing.T) {
+	schema := map[string]interface{}{
+		"type": "object",
+		"properties": map[string]interface{}{
+			"headers": map[string]interface{}{
+				"type":                 "object",
+				"additionalProperties":  map[string]interface{}{"type": "string"},
+			},
+		},
+	}
+
+	injectAdditionalPropertiesRec(schema)
+
+	headers := schema["properties"].(map[string]interface{})["headers"].(map[string]interface{})
+	if _, ok := headers["additionalProperties"].(map[string]interface{}); !ok {
+		t.Fatalf("expected additionalProperties schema object to be preserved, got %v", headers["additionalProperties"])
+	}
+}
+
+// TestBuildToolFlagsFromConfigProducesConsistentResults verifies that
+// buildToolFlagsFromConfig returns consistent values for all config-only flags.
+func TestBuildToolFlagsFromConfigProducesConsistentResults(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.HomeAssistant.Enabled = true
+	cfg.Docker.Enabled = true
+	cfg.CoAgents.Enabled = true
+	cfg.Agent.SudoEnabled = true
+	cfg.Agent.AllowShell = true
+	cfg.Agent.AllowPython = true
+	cfg.Agent.AllowFilesystemWrite = true
+	cfg.Agent.AllowNetworkRequests = true
+	cfg.Agent.AllowRemoteShell = true
+	cfg.Agent.AllowSelfUpdate = true
+	cfg.Webhooks.Enabled = true
+	cfg.Proxmox.Enabled = true
+	cfg.Ollama.Enabled = true
+	cfg.Tailscale.Enabled = true
+	cfg.Ansible.Enabled = true
+	cfg.InvasionControl.Enabled = true
+	cfg.GitHub.Enabled = true
+	cfg.MQTT.Enabled = true
+	cfg.AdGuard.Enabled = true
+	cfg.MCP.Enabled = true
+	cfg.Agent.AllowMCP = true
+	cfg.Sandbox.Enabled = true
+	cfg.MeshCentral.Enabled = true
+	cfg.Homepage.Enabled = true
+	cfg.Netlify.Enabled = true
+	cfg.Firewall.Enabled = true
+	cfg.Runtime.IsDocker = false
+	cfg.Runtime.DockerSocketOK = true
+	cfg.Runtime.NoNewPrivileges = false
+	cfg.Runtime.FirewallAccessOK = false
+	cfg.Email.Enabled = true
+	cfg.EmailAccounts = nil
+	cfg.CloudflareTunnel.Enabled = true
+	cfg.GoogleWorkspace.Enabled = true
+	cfg.OneDrive.Enabled = true
+	cfg.VirusTotal.Enabled = true
+	cfg.GolangciLint.Enabled = true
+	cfg.ImageGeneration.Enabled = true
+	cfg.MusicGeneration.Enabled = true
+	cfg.RemoteControl.Enabled = true
+	cfg.Tools.Memory.Enabled = true
+	cfg.Tools.KnowledgeGraph.Enabled = true
+	cfg.Tools.SecretsVault.Enabled = true
+	cfg.Tools.Scheduler.Enabled = true
+	cfg.Tools.Notes.Enabled = true
+	cfg.Tools.Journal.Enabled = true
+	cfg.Tools.Missions.Enabled = true
+	cfg.Tools.StopProcess.Enabled = true
+	cfg.Tools.Inventory.Enabled = true
+	cfg.Tools.MemoryMaintenance.Enabled = true
+	cfg.Tools.WOL.Enabled = true
+	cfg.MediaRegistry.Enabled = true
+	cfg.Tools.Contacts.Enabled = true
+	cfg.Tools.Planner.Enabled = true
+	cfg.MemoryAnalysis.Enabled = true
+	cfg.Tools.DocumentCreator.Enabled = true
+	cfg.Tools.WebCapture.Enabled = true
+	cfg.Tools.NetworkPing.Enabled = true
+	cfg.Tools.WebScraper.Enabled = true
+	cfg.S3.Enabled = true
+	cfg.Tools.NetworkScan.Enabled = true
+	cfg.Tools.FormAutomation.Enabled = true
+	cfg.Tools.UPnPScan.Enabled = true
+	cfg.Jellyfin.Enabled = true
+	cfg.Chromecast.Enabled = true
+	cfg.Discord.Enabled = true
+	cfg.Telegram.BotToken = "test"
+	cfg.Telegram.UserID = 12345
+	cfg.TrueNAS.Enabled = true
+	cfg.Koofr.Enabled = true
+	cfg.FritzBox.Enabled = true
+	cfg.FritzBox.System.Enabled = true
+	cfg.FritzBox.Network.Enabled = true
+	cfg.FritzBox.Telephony.Enabled = true
+	cfg.FritzBox.SmartHome.Enabled = true
+	cfg.FritzBox.Storage.Enabled = true
+	cfg.FritzBox.TV.Enabled = true
+	cfg.Telnyx.Enabled = true
+	cfg.Telnyx.ReadOnly = false
+	cfg.SQLConnections.Enabled = true
+	cfg.Tools.PythonSecretInjection.Enabled = true
+	cfg.Tools.DaemonSkills.Enabled = true
+	cfg.LDAP.Enabled = true
+
+	ff := buildToolFlagsFromConfig(cfg)
+
+	// Verify key flags that previously had drift issues
+	if !ff.DockerEnabled {
+		t.Error("expected DockerEnabled=true")
+	}
+	if !ff.SudoEnabled {
+		t.Error("expected SudoEnabled=true")
+	}
+	if !ff.SandboxEnabled {
+		t.Error("expected SandboxEnabled=true")
+	}
+	if !ff.HomepageEnabled {
+		t.Error("expected HomepageEnabled=true")
+	}
+	if !ff.WOLEnabled {
+		t.Error("expected WOLEnabled=true")
+	}
+	if !ff.LDAPEnabled {
+		t.Error("expected LDAPEnabled=true")
+	}
+	if !ff.RemoteControlEnabled {
+		t.Error("expected RemoteControlEnabled=true")
 	}
 }
