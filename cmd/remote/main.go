@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"log/slog"
 	"net/url"
@@ -161,10 +162,48 @@ func loadTrailerConfig() *remote.BinaryConfig {
 	if err != nil {
 		return nil
 	}
-	data, err := os.ReadFile(exePath)
+
+	// Only read the last 1MB + trailer overhead to find the config trailer
+	// This is much more efficient than reading the entire binary
+	const maxTrailerSize = 1<<20 + 64 // 1MB + overhead
+	fi, err := os.Stat(exePath)
 	if err != nil {
 		return nil
 	}
+
+	// If file is small enough, read it all
+	if fi.Size() <= maxTrailerSize*2 {
+		data, err := os.ReadFile(exePath)
+		if err != nil {
+			return nil
+		}
+		cfg, err := remote.ParseBinaryTrailer(data)
+		if err != nil {
+			return nil
+		}
+		return cfg
+	}
+
+	// Read only the tail of the file
+	file, err := os.Open(exePath)
+	if err != nil {
+		return nil
+	}
+	defer file.Close()
+
+	// Seek to position: file size - maxTrailerSize
+	_, err = file.Seek(-maxTrailerSize, io.SeekEnd)
+	if err != nil {
+		return nil
+	}
+
+	data := make([]byte, maxTrailerSize)
+	n, err := file.Read(data)
+	if err != nil && err != io.EOF {
+		return nil
+	}
+	data = data[:n]
+
 	cfg, err := remote.ParseBinaryTrailer(data)
 	if err != nil {
 		return nil

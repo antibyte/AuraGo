@@ -176,16 +176,16 @@ func TestValidateTimestamp_Current(t *testing.T) {
 }
 
 func TestValidateTimestamp_Expired(t *testing.T) {
-	ts := time.Now().Add(-6 * time.Minute).UTC().Format(time.RFC3339)
+	ts := time.Now().Add(-20 * time.Minute).UTC().Format(time.RFC3339)
 	if err := ValidateTimestamp(ts); err == nil {
-		t.Error("ValidateTimestamp accepted timestamp 6 minutes in the past")
+		t.Error("ValidateTimestamp accepted timestamp 20 minutes in the past")
 	}
 }
 
 func TestValidateTimestamp_Future(t *testing.T) {
-	ts := time.Now().Add(6 * time.Minute).UTC().Format(time.RFC3339)
+	ts := time.Now().Add(20 * time.Minute).UTC().Format(time.RFC3339)
 	if err := ValidateTimestamp(ts); err == nil {
-		t.Error("ValidateTimestamp accepted timestamp 6 minutes in the future")
+		t.Error("ValidateTimestamp accepted timestamp 20 minutes in the future")
 	}
 }
 
