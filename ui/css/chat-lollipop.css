@@ -184,7 +184,7 @@
 }
 
 [data-theme="lollipop"] #chat-box {
-    isolation: isolate;
+    isolation: auto;
     position: relative;
     z-index: 1;
     background:
@@ -195,15 +195,11 @@
 }
 
 [data-theme="lollipop"] #chat-box::before {
-    background:
-        linear-gradient(180deg, rgba(255, 247, 251, 0.62), transparent 16%, transparent 86%, rgba(255, 248, 240, 0.52)),
-        radial-gradient(circle at top, rgba(255, 255, 255, 0.52), transparent 48%);
-    opacity: 0.95;
+    display: none;
 }
 
 [data-theme="lollipop"] #chat-box::after {
-    opacity: 0.08;
-    filter: saturate(0.88) brightness(1.04);
+    display: none;
 }
 
 [data-theme="lollipop"] #chat-content {
@@ -563,9 +559,4 @@
     position: relative;
     z-index: 5;
     transform: translateZ(0);
-}
-
-[data-theme="lollipop"] #chat-box::before,
-[data-theme="lollipop"] #chat-box::after {
-    z-index: 0;
 }

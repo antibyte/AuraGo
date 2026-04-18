@@ -194,7 +194,7 @@
 }
 
 [data-theme="dark-sun"] #chat-box {
-    isolation: isolate;
+    isolation: auto;
     position: relative;
     z-index: 1;
     background:
@@ -207,15 +207,11 @@
 }
 
 [data-theme="dark-sun"] #chat-box::before {
-    background:
-        linear-gradient(180deg, rgba(4, 3, 2, 0.7), transparent 16%, transparent 82%, rgba(10, 5, 4, 0.58)),
-        radial-gradient(circle at 50% 0%, rgba(255, 133, 45, 0.08), transparent 28%);
-    opacity: 0.96;
+    display: none;
 }
 
 [data-theme="dark-sun"] #chat-box::after {
-    opacity: 0.08;
-    filter: saturate(0.8) brightness(0.7);
+    display: none;
 }
 
 [data-theme="dark-sun"] #chat-content {
@@ -711,9 +707,4 @@
     position: relative;
     z-index: 5;
     transform: translateZ(0);
-}
-
-[data-theme="dark-sun"] #chat-box::before,
-[data-theme="dark-sun"] #chat-box::after {
-    z-index: 0;
 }

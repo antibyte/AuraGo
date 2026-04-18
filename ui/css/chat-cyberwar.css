@@ -218,7 +218,7 @@
 }
 
 [data-theme="cyberwar"] #chat-box {
-    isolation: isolate;
+    isolation: auto;
     position: relative;
     z-index: 1;
     background:
@@ -231,15 +231,11 @@
 }
 
 [data-theme="cyberwar"] #chat-box::before {
-    background:
-        linear-gradient(180deg, rgba(4, 8, 22, 0.78), transparent 18%, transparent 82%, rgba(4, 8, 22, 0.58)),
-        linear-gradient(90deg, transparent, rgba(84, 247, 255, 0.05), transparent 64%);
-    opacity: 0.95;
+    display: none;
 }
 
 [data-theme="cyberwar"] #chat-box::after {
-    opacity: 0.12;
-    filter: saturate(1.6) contrast(1.08) blur(1px);
+    display: none;
 }
 
 [data-theme="cyberwar"] #chat-content {
@@ -749,9 +745,4 @@
     position: relative;
     z-index: 5;
     transform: translateZ(0);
-}
-
-[data-theme="cyberwar"] #chat-box::before,
-[data-theme="cyberwar"] #chat-box::after {
-    z-index: 0;
 }
