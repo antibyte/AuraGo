@@ -37,6 +37,9 @@ func handleAppointments(s *Server) http.HandlerFunc {
 				jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to list appointments", "Failed to list appointments", err)
 				return
 			}
+			if s.ContactsDB != nil {
+				_ = planner.EnrichAppointmentsWithContacts(s.PlannerDB, s.ContactsDB, list)
+			}
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(list)
 
@@ -51,10 +54,18 @@ func handleAppointments(s *Server) http.HandlerFunc {
 				jsonError(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
 				return
 			}
+			contactIDs := a.ContactIDs
+			a.ContactIDs = nil
+			a.Participants = nil
 			id, err := planner.CreateAppointment(s.PlannerDB, a)
 			if err != nil {
 				jsonLoggedError(w, s.Logger, http.StatusBadRequest, "Failed to create appointment", "Failed to create appointment", err)
 				return
+			}
+			if len(contactIDs) > 0 {
+				if err := planner.SetAppointmentContacts(s.PlannerDB, id, contactIDs); err != nil {
+					s.Logger.Warn("Failed to set appointment contacts", "appointment_id", id, "error", err)
+				}
 			}
 			syncAppointmentToKGAsync(s.PlannerDB, id, s.KG, s.Logger)
 			w.Header().Set("Content-Type", "application/json")
@@ -86,6 +97,9 @@ func handleAppointmentByID(s *Server) http.HandlerFunc {
 			if err != nil {
 				jsonError(w, `{"error":"appointment not found"}`, http.StatusNotFound)
 				return
+			}
+			if s.ContactsDB != nil {
+				_ = planner.EnrichAppointmentWithContacts(s.PlannerDB, s.ContactsDB, a)
 			}
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(a)
@@ -144,6 +158,12 @@ func handleAppointmentByID(s *Server) http.HandlerFunc {
 					jsonLoggedError(w, s.Logger, status, "Failed to update appointment", "Failed to update appointment", err, "id", id)
 				}
 				return
+			}
+			// Handle contact_ids update: if the key is present, replace all associations.
+			if _, ok := rawMap["contact_ids"]; ok {
+				if err := planner.SetAppointmentContacts(s.PlannerDB, id, patch.ContactIDs); err != nil {
+					s.Logger.Warn("Failed to update appointment contacts", "appointment_id", id, "error", err)
+				}
 			}
 			syncAppointmentToKGAsync(s.PlannerDB, id, s.KG, s.Logger)
 			w.Header().Set("Content-Type", "application/json")

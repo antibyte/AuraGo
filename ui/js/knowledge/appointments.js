@@ -6,6 +6,7 @@
 // ═══════════════════════════════════════════════════════════════
 let allAppointments = [];
 let appointmentSearchTimer = null;
+let selectedParticipantIds = []; // { id, name, email }
 
 // ═══════════════════════════════════════════════════════════════
 // LOAD & RENDER
@@ -71,6 +72,7 @@ function renderAppointments() {
                 </div>
             </div>
             ${a.description ? `<p class="kc-appointment-desc">${esc(a.description)}</p>` : ''}
+            ${a.participants && a.participants.length ? `<div class="kc-appointment-participants">${renderAppointmentParticipantsInline(a.participants)}</div>` : ''}
             <div class="kc-appointment-meta">
                 <span class="kc-appointment-meta-item">📅 ${dt}</span>
                 ${notify ? `<span class="kc-appointment-meta-item">🔔 ${notify}</span>` : ''}
@@ -95,6 +97,17 @@ function openAppointmentModal(appointment) {
     document.getElementById('appointment-notification').value = appointment && appointment.notification_at ? toLocalInput(appointment.notification_at) : '';
     document.getElementById('appointment-wake-agent').checked = appointment ? appointment.wake_agent : false;
     document.getElementById('appointment-instruction').value = appointment ? appointment.agent_instruction || '' : '';
+
+    // Initialize participants
+    selectedParticipantIds = [];
+    if (appointment && appointment.participants) {
+        appointment.participants.forEach(p => {
+            selectedParticipantIds.push({ id: p.id, name: p.name, email: p.email || '' });
+        });
+    }
+    renderParticipantChips();
+    document.getElementById('appointment-participant-search').value = '';
+    hideParticipantDropdown();
 
     toggleAgentInstruction();
 
@@ -126,6 +139,7 @@ async function saveAppointment() {
         notification_at: fromLocalInput(document.getElementById('appointment-notification').value),
         wake_agent: document.getElementById('appointment-wake-agent').checked,
         agent_instruction: document.getElementById('appointment-instruction').value.trim(),
+        contact_ids: selectedParticipantIds.map(p => p.id),
     };
 
     if (!data.title) {
@@ -251,3 +265,129 @@ function fromLocalInput(val) {
         return new Date(val).toISOString();
     } catch { return ''; }
 }
+
+// ═══════════════════════════════════════════════════════════════
+// PARTICIPANTS
+// ═══════════════════════════════════════════════════════════════
+
+function renderParticipantChips() {
+    const container = document.getElementById('appointment-participant-chips');
+    if (!container) return;
+    if (selectedParticipantIds.length === 0) {
+        container.innerHTML = '<span style="color:var(--text-secondary);font-size:0.82rem;line-height:1.6">' + esc(t('knowledge.appointments_participants_empty') || 'No participants added') + '</span>';
+        return;
+    }
+    container.innerHTML = selectedParticipantIds.map(p => {
+        const initial = p.name ? p.name.charAt(0).toUpperCase() : '?';
+        return `<span class="kc-chip">
+            <span class="kc-chip-avatar">${esc(initial)}</span>
+            <span>${esc(p.name)}</span>
+            <button class="kc-chip-remove" onclick="removeParticipantChip('${esc(p.id)}')" title="${esc(t('common.btn_remove') || 'Remove')}">&times;</button>
+        </span>`;
+    }).join('');
+}
+
+function renderAppointmentParticipantsInline(participants) {
+    if (!participants || participants.length === 0) return '';
+    const maxVisible = 3;
+    const visible = participants.slice(0, maxVisible);
+    const names = visible.map(p => esc(p.name)).join(', ');
+    if (participants.length <= maxVisible) {
+        return `<span class="kc-appointment-participants-inline">👥 ${names}</span>`;
+    }
+    const remaining = participants.length - maxVisible;
+    return `<span class="kc-appointment-participants-inline">👥 ${names} +${remaining}</span>`;
+}
+
+function removeParticipantChip(id) {
+    selectedParticipantIds = selectedParticipantIds.filter(p => p.id !== id);
+    renderParticipantChips();
+}
+
+let participantSearchTimer = null;
+
+function onParticipantSearchInput() {
+    clearTimeout(participantSearchTimer);
+    participantSearchTimer = setTimeout(filterParticipantSuggestions, 150);
+}
+
+async function filterParticipantSuggestions() {
+    const input = document.getElementById('appointment-participant-search');
+    const dropdown = document.getElementById('appointment-participant-dropdown');
+    if (!input || !dropdown) return;
+
+    const q = (input.value || '').trim().toLowerCase();
+
+    if (q === '') {
+        hideParticipantDropdown();
+        return;
+    }
+
+    // Load contacts if not already loaded
+    if (typeof allContacts === 'undefined' || !allContacts || allContacts.length === 0) {
+        try {
+            const r = await fetch('/api/contacts');
+            if (r.ok) allContacts = await r.json();
+        } catch { allContacts = []; }
+    }
+
+    const selectedIds = new Set(selectedParticipantIds.map(p => p.id));
+    const matches = (allContacts || []).filter(c => {
+        if (selectedIds.has(c.id)) return false;
+        const name = (c.name || '').toLowerCase();
+        const email = (c.email || '').toLowerCase();
+        const phone = (c.phone || '').toLowerCase();
+        return name.includes(q) || email.includes(q) || phone.includes(q);
+    }).slice(0, 8);
+
+    if (matches.length === 0) {
+        dropdown.innerHTML = `<div class="kc-picker-empty">${esc(t('knowledge.contacts_empty_title') || 'No contacts found')}</div>`;
+    } else {
+        dropdown.innerHTML = matches.map(c => {
+            const initial = c.name ? c.name.charAt(0).toUpperCase() : '?';
+            const meta = [c.email, c.relationship].filter(Boolean).join(' · ');
+            return `<div class="kc-picker-item" onclick="addParticipantFromPicker('${esc(c.id)}', '${esc(c.name)}', '${esc(c.email || '')}')">
+                <div class="kc-picker-item-avatar">${esc(initial)}</div>
+                <div class="kc-picker-item-info">
+                    <div class="kc-picker-item-name">${esc(c.name)}</div>
+                    ${meta ? `<div class="kc-picker-item-meta">${esc(meta)}</div>` : ''}
+                </div>
+            </div>`;
+        }).join('');
+    }
+    dropdown.classList.remove('is-hidden');
+}
+
+function addParticipantFromPicker(id, name, email) {
+    if (selectedParticipantIds.some(p => p.id === id)) return;
+    selectedParticipantIds.push({ id, name, email });
+    renderParticipantChips();
+    const input = document.getElementById('appointment-participant-search');
+    if (input) input.value = '';
+    hideParticipantDropdown();
+}
+
+function hideParticipantDropdown() {
+    const dropdown = document.getElementById('appointment-participant-dropdown');
+    if (dropdown) dropdown.classList.add('is-hidden');
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', function(e) {
+    const section = document.getElementById('appointment-participants-section');
+    if (section && !section.contains(e.target)) {
+        hideParticipantDropdown();
+    }
+});
+
+// ═══════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════
+
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('appointment-participant-search');
+    if (searchInput) {
+        searchInput.addEventListener('input', onParticipantSearchInput);
+        searchInput.addEventListener('focus', onParticipantSearchInput);
+    }
+});

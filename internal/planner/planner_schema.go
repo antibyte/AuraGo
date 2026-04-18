@@ -8,7 +8,7 @@ import (
 	"aurago/internal/dbutil"
 )
 
-const plannerSchemaVersion = 4
+const plannerSchemaVersion = 5
 
 func initPlannerSchema(db *sql.DB) error {
 	version, err := dbutil.GetUserVersion(db)
@@ -39,8 +39,13 @@ func initPlannerSchema(db *sql.DB) error {
 			return err
 		}
 		fallthrough
-	case version < plannerSchemaVersion:
+	case version < 4:
 		if err := migratePlannerToV4(db); err != nil {
+			return err
+		}
+		fallthrough
+	case version < plannerSchemaVersion:
+		if err := migratePlannerToV5(db); err != nil {
 			return err
 		}
 	default:
@@ -265,6 +270,30 @@ func migratePlannerToV4(db *sql.DB) error {
 		return fmt.Errorf("create planner_meta table: %w", err)
 	}
 	return ensurePlannerIndexes(db)
+}
+
+func migratePlannerToV5(db *sql.DB) error {
+	hasContacts, err := plannerTableExists(db, "appointment_contacts")
+	if err != nil {
+		return err
+	}
+	if !hasContacts {
+		if _, err := db.Exec(`
+			CREATE TABLE IF NOT EXISTS appointment_contacts (
+				appointment_id TEXT NOT NULL,
+				contact_id TEXT NOT NULL,
+				UNIQUE(appointment_id, contact_id)
+			)`); err != nil {
+			return fmt.Errorf("create appointment_contacts table: %w", err)
+		}
+	}
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_appointment_contacts_appointment ON appointment_contacts(appointment_id)`); err != nil {
+		return fmt.Errorf("create appointment_contacts appointment index: %w", err)
+	}
+	if _, err := db.Exec(`CREATE INDEX IF NOT EXISTS idx_appointment_contacts_contact ON appointment_contacts(contact_id)`); err != nil {
+		return fmt.Errorf("create appointment_contacts contact index: %w", err)
+	}
+	return nil
 }
 
 func plannerTablesSQL() string {

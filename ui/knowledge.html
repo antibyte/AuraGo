@@ -493,6 +493,19 @@
                     <span data-i18n="knowledge.appointments_wake_agent">Wake agent at notification time</span>
                 </label>
             </div>
+            <div class="form-group" id="appointment-participants-section">
+                <label data-i18n="knowledge.appointments_participants_label">Participants</label>
+                <div id="appointment-participant-chips" class="kc-chip-list"></div>
+                <div class="kc-picker-input-wrap">
+                    <input type="text" id="appointment-participant-search"
+                        class="kc-picker-search"
+                        autocomplete="off"
+                        placeholder="Search contacts..." data-i18n-placeholder="knowledge.appointments_participants_search">
+                    <div id="appointment-participant-dropdown" class="kc-picker-dropdown is-hidden"></div>
+                </div>
+                <input type="hidden" id="appointment-contact-ids">
+                <small class="form-hint" data-i18n="knowledge.appointments_participants_hint">Add people from your address book</small>
+            </div>
             <div class="form-group is-hidden" id="agent-instruction-group">
                 <label data-i18n="knowledge.appointments_instruction_label">Agent Instruction</label>
                 <textarea id="appointment-instruction" rows="2"

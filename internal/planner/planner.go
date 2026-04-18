@@ -20,20 +20,30 @@ type KnowledgeGraph interface {
 	DeleteNode(id string) error
 }
 
+// ParticipantSummary is a compact contact reference embedded in appointments.
+type ParticipantSummary struct {
+	ID           string `json:"id"`
+	Name         string `json:"name"`
+	Relationship string `json:"relationship,omitempty"`
+	Email        string `json:"email,omitempty"`
+}
+
 // Appointment represents a calendar appointment.
 type Appointment struct {
-	ID               string `json:"id"`
-	Title            string `json:"title"`
-	Description      string `json:"description,omitempty"`
-	DateTime         string `json:"date_time"`
-	NotificationAt   string `json:"notification_at,omitempty"`
-	WakeAgent        bool   `json:"wake_agent"`
-	AgentInstruction string `json:"agent_instruction,omitempty"`
-	Notified         bool   `json:"notified"`
-	Status           string `json:"status"` // upcoming, completed, cancelled
-	KGNodeID         string `json:"kg_node_id,omitempty"`
-	CreatedAt        string `json:"created_at"`
-	UpdatedAt        string `json:"updated_at"`
+	ID               string               `json:"id"`
+	Title            string               `json:"title"`
+	Description      string               `json:"description,omitempty"`
+	DateTime         string               `json:"date_time"`
+	NotificationAt   string               `json:"notification_at,omitempty"`
+	WakeAgent        bool                 `json:"wake_agent"`
+	AgentInstruction string               `json:"agent_instruction,omitempty"`
+	Notified         bool                 `json:"notified"`
+	Status           string               `json:"status"` // upcoming, completed, cancelled
+	KGNodeID         string               `json:"kg_node_id,omitempty"`
+	ContactIDs       []string             `json:"contact_ids"`
+	Participants     []ParticipantSummary `json:"participants"`
+	CreatedAt        string               `json:"created_at"`
+	UpdatedAt        string               `json:"updated_at"`
 }
 
 // Todo represents a to-do item.
