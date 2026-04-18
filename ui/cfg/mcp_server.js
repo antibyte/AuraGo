@@ -35,6 +35,11 @@ async function renderMCPServerSection(section) {
         <div><small>${t('config.mcp_server.info')}</small></div>
     </div>`;
 
+    // General settings card
+    html += `<div class="field-group">
+        <div class="field-group-title">⚙️ ${t('config.mcp_server.general_title')}</div>
+        <div class="field-group-desc">${t('config.mcp_server.general_desc')}</div>`;
+
     // Enabled toggle
     html += `<div class="mcp-srv-toggle-row">
         <span class="mcp-srv-toggle-label">${t('config.mcp_server.enabled_label')}</span>
@@ -80,8 +85,14 @@ async function renderMCPServerSection(section) {
         </div>`;
     }
 
-    // Endpoint URL (read-only display)
+    html += `</div>`;
+
+    // Connection card
     if (effectiveEnabled) {
+        html += `<div class="field-group">
+            <div class="field-group-title">🔗 ${t('config.mcp_server.connection_title')}</div>
+            <div class="field-group-desc">${t('config.mcp_server.connection_desc')}</div>`;
+
         const proto = location.protocol;
         const host = location.host;
         const endpointUrl = proto + '//' + host + '/mcp';
@@ -94,38 +105,40 @@ async function renderMCPServerSection(section) {
                 </div>
             </label>
         </div>`;
+
+        // Token section (only when auth enabled)
+        if (effectiveRequireAuth) {
+            html += `<div class="mcp-srv-block" id="mcp-token-section">
+                <label class="mcp-srv-field-label">
+                    <span class="mcp-srv-caption">${t('config.mcp_server.token')}</span>
+                    <div class="mcp-srv-action-row">
+                        <input class="cfg-input mcp-srv-token-input" id="mcp-token-value" value="" readonly placeholder="••••••••">
+                        <button class="btn" id="mcp-gen-token" onclick="mcpGenerateToken()">${t('config.mcp_server.generate_token')}</button>
+                        <button class="btn" id="mcp-copy-token" onclick="navigator.clipboard.writeText(document.getElementById('mcp-token-value').value).then(()=>{this.textContent='${escapeAttr(t('config.mcp_server.copied'))}';setTimeout(()=>{this.textContent='${escapeAttr(t('config.mcp_server.copy_token'))}'},1500)})">${t('config.mcp_server.copy_token')}</button>
+                    </div>
+                </label>
+            </div>`;
+            // Load existing token
+            mcpLoadToken();
+        }
+
+        if (vscodeBridge) {
+            html += `<div class="mcp-srv-block">
+                <label class="mcp-srv-field-label">
+                    <span class="mcp-srv-caption">${t('config.mcp_server.vscode_config')}</span>
+                    <div class="mcp-srv-tools-desc">${t('config.mcp_server.vscode_config_desc')}</div>
+                    <div id="mcp-vscode-bridge-config" class="mcp-srv-tools-list"></div>
+                </label>
+            </div>`;
+        }
+
+        html += `</div>`;
     }
 
-    // Token section (only when auth enabled)
-    if (effectiveRequireAuth && effectiveEnabled) {
-        html += `<div class="mcp-srv-block" id="mcp-token-section">
-            <label class="mcp-srv-field-label">
-                <span class="mcp-srv-caption">${t('config.mcp_server.token')}</span>
-                <div class="mcp-srv-action-row">
-                    <input class="cfg-input mcp-srv-token-input" id="mcp-token-value" value="" readonly placeholder="••••••••">
-                    <button class="btn" id="mcp-gen-token" onclick="mcpGenerateToken()">${t('config.mcp_server.generate_token')}</button>
-                    <button class="btn" id="mcp-copy-token" onclick="navigator.clipboard.writeText(document.getElementById('mcp-token-value').value).then(()=>{this.textContent='${escapeAttr(t('config.mcp_server.copied'))}';setTimeout(()=>{this.textContent='${escapeAttr(t('config.mcp_server.copy_token'))}'},1500)})">${t('config.mcp_server.copy_token')}</button>
-                </div>
-            </label>
-        </div>`;
-        // Load existing token
-        mcpLoadToken();
-    }
-
-    if (vscodeBridge) {
-        html += `<div class="mcp-srv-block">
-            <label class="mcp-srv-field-label">
-                <span class="mcp-srv-caption">${t('config.mcp_server.vscode_config')}</span>
-                <div class="mcp-srv-tools-desc">${t('config.mcp_server.vscode_config_desc')}</div>
-                <div id="mcp-vscode-bridge-config" class="mcp-srv-tools-list"></div>
-            </label>
-        </div>`;
-    }
-
-    // Allowed tools
-    html += `<div class="mcp-srv-tools-wrap">
-        <span class="mcp-srv-tools-title">${t('config.mcp_server.allowed_tools')}</span>
-        <div class="mcp-srv-tools-desc">${t('config.mcp_server.allowed_tools_desc')}</div>
+    // Allowed tools card
+    html += `<div class="field-group">
+        <div class="field-group-title">🛠️ ${t('config.mcp_server.allowed_tools')}</div>
+        <div class="field-group-desc">${t('config.mcp_server.allowed_tools_desc')}</div>
         <textarea class="cfg-input is-hidden" id="mcp-allowed-tools-state" data-path="mcp_server.allowed_tools" data-type="json" style="display:none;">${escapeHtml(JSON.stringify(effectiveAllowedTools))}</textarea>
         <div id="mcp-tools-list" class="mcp-srv-tools-list"></div>
     </div>`;

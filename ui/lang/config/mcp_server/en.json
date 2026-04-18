@@ -26,5 +26,9 @@
   "config.mcp_server.copy_token": "Copy token",
   "config.mcp_server.copied": "Copied!",
   "config.mcp_server.error_loading_tools": "Error loading tools",
-  "config.mcp_server.error_loading_vscode_bridge": "Failed to load VS Code bridge info"
+  "config.mcp_server.error_loading_vscode_bridge": "Failed to load VS Code bridge info",
+  "config.mcp_server.general_title": "General",
+  "config.mcp_server.general_desc": "Enable the MCP server and configure basic settings.",
+  "config.mcp_server.connection_title": "Connection",
+  "config.mcp_server.connection_desc": "Endpoint and authentication settings for the MCP server."
 }

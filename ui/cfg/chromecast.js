@@ -40,8 +40,9 @@ function renderChromecastSection(section) {
     html += '</div>';
 
     // ── Devices section ──
-    html += '<div class="cc-section-title">📺 ' + t('config.chromecast.devices_title') + '</div>';
-    html += '<div class="field-help cc-section-help">' + t('config.chromecast.devices_desc') + '</div>';
+    html += '<div class="field-group">';
+    html += '<div class="field-group-title">📺 ' + t('config.chromecast.devices_title') + '</div>';
+    html += '<div class="field-group-desc">' + t('config.chromecast.devices_desc') + '</div>';
 
     // Action buttons row
     html += '<div class="cc-actions-row">';
@@ -111,6 +112,7 @@ function renderChromecastSection(section) {
         </div>
     </div>`;
 
+    html += '</div>';
     html += '</div>';
     document.getElementById('content').innerHTML = html;
     ccLoadDevices();
