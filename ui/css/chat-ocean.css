@@ -189,9 +189,13 @@
 [data-theme="ocean"] #chat-box::before {
     display: block;
     background:
+        radial-gradient(circle at 26% 24%, rgba(130, 205, 227, 0.14) 0, rgba(130, 205, 227, 0.1) 1px, transparent 2px, transparent 70px),
+        radial-gradient(circle at 74% 54%, rgba(113, 188, 214, 0.12) 0, rgba(113, 188, 214, 0.08) 1px, transparent 2px, transparent 92px),
+        radial-gradient(circle at 50% 82%, rgba(102, 170, 201, 0.11) 0, rgba(102, 170, 201, 0.07) 1px, transparent 2px, transparent 80px),
         linear-gradient(180deg, rgba(6, 15, 25, 0.14) 0%, transparent 18%, transparent 82%, rgba(6, 15, 25, 0.12) 100%),
         radial-gradient(circle, rgba(110, 183, 208, 0.08) 0 1px, transparent 1.1px);
-    background-size: auto, 18px 18px;
+    background-size: 220px 220px, 260px 260px, 240px 240px, auto, 18px 18px;
+    animation: oceanFallbackRipples 13s ease-in-out infinite alternate;
     opacity: 0.9;
 }
 
@@ -203,9 +207,9 @@
 
 [data-theme="ocean"] #ocean-overlay {
     z-index: 2 !important;
-    opacity: 0.94 !important;
+    opacity: 1 !important;
     mix-blend-mode: screen !important;
-    filter: saturate(1.04) brightness(1.04) !important;
+    filter: saturate(1.18) brightness(1.12) !important;
 }
 
 [data-theme="ocean"] #chat-content {
@@ -588,6 +592,15 @@
     }
 }
 
+@keyframes oceanFallbackRipples {
+    from {
+        background-position: 18% 10%, 82% 46%, 48% 78%, 0 0, 0 0;
+    }
+    to {
+        background-position: 24% 16%, 76% 52%, 52% 84%, 0 0, 0 0;
+    }
+}
+
 @media (max-width: 767px) {
     [data-theme="ocean"] #chat-box::before {
         background-size: auto, 14px 14px;
@@ -601,6 +614,7 @@
 
 @media (prefers-reduced-motion: reduce) {
     [data-theme="ocean"] #chat-box,
+    [data-theme="ocean"] #chat-box::before,
     [data-theme="ocean"] .msg-row,
     [data-theme="ocean"] .scroll-to-bottom-btn.has-new {
         animation: none !important;

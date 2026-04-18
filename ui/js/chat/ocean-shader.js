@@ -61,26 +61,30 @@
             p.x *= u_res.x / max(u_res.y, 1.0);
             float dist = length(p);
             float envelope = exp(-dist * radius);
-            return sin(dist * frequency - u_time * speed + phase) * envelope;
+            float wave = sin(dist * frequency - u_time * speed + phase);
+            float rings = smoothstep(0.42, 0.98, wave) + smoothstep(-1.0, -0.68, wave) * 0.55;
+            return rings * envelope;
         }
 
         void main() {
             vec2 uv = v_uv;
             float t = u_time;
 
-            vec2 c1 = vec2(0.28 + sin(t * 0.07) * 0.05, 0.24 + cos(t * 0.09) * 0.03);
-            vec2 c2 = vec2(0.73 + cos(t * 0.05) * 0.04, 0.58 + sin(t * 0.06) * 0.04);
-            vec2 c3 = vec2(0.49 + sin(t * 0.04) * 0.03, 0.84 + cos(t * 0.08) * 0.03);
+            vec2 c1 = vec2(0.24 + sin(t * 0.07) * 0.05, 0.22 + cos(t * 0.09) * 0.03);
+            vec2 c2 = vec2(0.76 + cos(t * 0.05) * 0.04, 0.54 + sin(t * 0.06) * 0.04);
+            vec2 c3 = vec2(0.48 + sin(t * 0.04) * 0.03, 0.82 + cos(t * 0.08) * 0.03);
+            vec2 c4 = vec2(0.58 + cos(t * 0.06) * 0.03, 0.34 + sin(t * 0.05) * 0.03);
 
-            float r1 = ripple(uv, c1, 8.0, 52.0, 0.9, 0.3);
-            float r2 = ripple(uv, c2, 7.2, 46.0, 0.75, 1.6);
-            float r3 = ripple(uv, c3, 8.8, 44.0, 0.82, 2.8);
-            float rippleField = r1 + r2 + r3;
+            float r1 = ripple(uv, c1, 6.0, 56.0, 0.95, 0.3);
+            float r2 = ripple(uv, c2, 5.6, 49.0, 0.78, 1.6);
+            float r3 = ripple(uv, c3, 6.2, 46.0, 0.86, 2.8);
+            float r4 = ripple(uv, c4, 6.4, 52.0, 0.72, 4.1);
+            float rippleField = r1 + r2 + r3 + r4;
 
             float caustic = fbm(vec2(uv.x * 3.4 + t * 0.05, uv.y * 7.4 - t * 0.03));
-            float shimmer = sin((uv.y + caustic * 0.08) * 28.0 - t * 0.42) * 0.5 + 0.5;
-            float horizon = smoothstep(0.0, 0.16, uv.y) * (1.0 - smoothstep(0.72, 1.0, uv.y));
-            float sideFade = smoothstep(0.02, 0.2, uv.x) * smoothstep(0.02, 0.2, 1.0 - uv.x);
+            float shimmer = sin((uv.y + caustic * 0.1) * 28.0 - t * 0.42) * 0.5 + 0.5;
+            float horizon = smoothstep(0.0, 0.08, uv.y) * (1.0 - smoothstep(0.88, 1.0, uv.y));
+            float sideFade = smoothstep(0.0, 0.08, uv.x) * smoothstep(0.0, 0.08, 1.0 - uv.x);
 
             vec3 aqua = vec3(0.48, 0.79, 0.9);
             vec3 blue = vec3(0.22, 0.46, 0.68);
@@ -88,18 +92,18 @@
 
             float softBand = fbm(vec2(uv.x * 2.2 - t * 0.02, uv.y * 4.8 + t * 0.01));
             vec3 color =
-                aqua * (0.06 + rippleField * 0.12) +
-                blue * (0.04 + softBand * 0.08) +
-                mist * (shimmer * 0.035 + max(rippleField, 0.0) * 0.05);
+                aqua * (0.08 + rippleField * 0.18) +
+                blue * (0.05 + softBand * 0.1) +
+                mist * (shimmer * 0.05 + rippleField * 0.08);
 
             float alpha =
-                0.03 +
-                max(rippleField, 0.0) * 0.09 +
-                softBand * 0.045 +
-                shimmer * 0.025;
+                0.05 +
+                rippleField * 0.16 +
+                softBand * 0.06 +
+                shimmer * 0.035;
 
             alpha *= horizon * sideFade;
-            alpha = clamp(alpha, 0.0, 0.16);
+            alpha = clamp(alpha, 0.0, 0.26);
 
             gl_FragColor = vec4(color, alpha);
         }
@@ -112,7 +116,7 @@
     function shouldRun() {
         return document.documentElement.getAttribute('data-theme') === 'ocean' &&
             !prefersReducedMotion() &&
-            window.innerWidth >= 700;
+            window.innerWidth >= 520;
     }
 
     function createShader(type, source) {
@@ -140,7 +144,7 @@
             height: '0',
             pointerEvents: 'none',
             zIndex: '2',
-            opacity: '0.92',
+            opacity: '1',
             mixBlendMode: 'screen',
             display: 'none'
         });
@@ -154,7 +158,7 @@
             alpha: true,
             antialias: false,
             premultipliedAlpha: false,
-            powerPreference: 'low-power'
+            powerPreference: 'high-performance'
         });
 
         if (!gl) {
