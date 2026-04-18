@@ -20,12 +20,24 @@ import (
 	tiktoken "github.com/pkoukk/tiktoken-go"
 )
 
+type tokenEncoder interface {
+	Encode(text string, allowedSpecial, disallowedSpecial []string) []int
+}
+
 // tiktokenEncoder is a cached BPE encoder for token counting.
 // Falls back to char/4 heuristic if the encoder cannot be initialized
 // (e.g. network unavailable for first-time BPE download).
 var (
-	tiktokenOnce     sync.Once
-	tiktokenEnc      *tiktoken.Tiktoken
+	tiktokenMu           sync.Mutex
+	tiktokenEnc          tokenEncoder
+	tiktokenInitDone     chan struct{}
+	tiktokenInitInFlight bool
+	tiktokenNextRetry    time.Time
+	tiktokenInitTimeout  = 10 * time.Second
+	tiktokenRetryBackoff = 30 * time.Second
+	tiktokenLoadEncoding = func() (tokenEncoder, error) {
+		return tiktoken.GetEncoding("cl100k_base")
+	}
 	tiktokenWarnOnce sync.Once
 )
 
@@ -301,7 +313,7 @@ func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string,
 	case <-time.After(buildPromptTimeout):
 		logger.Warn("[Prompt] BuildSystemPrompt timed out, using fallback",
 			"timeout", buildPromptTimeout)
-		return fallbackSystemPrompt(flags, coreMemory)
+		return fallbackSystemPrompt(promptsDir, flags, coreMemory, logger)
 	}
 }
 
@@ -311,16 +323,71 @@ const buildPromptTimeout = 30 * time.Second
 
 // fallbackSystemPrompt returns a minimal system prompt when the full build
 // times out or fails catastrophically.
-func fallbackSystemPrompt(flags ContextFlags, coreMemory string) string {
+func fallbackSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string, logger *slog.Logger) string {
 	var sb strings.Builder
-	sb.WriteString("You are AuraGo, an AI assistant.\n")
 	sb.WriteString("Respond in " + flags.SystemLanguage + ".\n")
 	now := time.Now().Format(time.RFC1123)
 	sb.WriteString("Current time: " + now + "\n")
+	if identity := loadCriticalFallbackModule(promptsDir, fallbackIdentityModule(flags), logger); identity != "" {
+		sb.WriteString("\n")
+		sb.WriteString(identity)
+		sb.WriteString("\n")
+	} else {
+		sb.WriteString("\nYou are AuraGo, an autonomous AI assistant.\n")
+	}
+	if rules := loadCriticalFallbackModule(promptsDir, "rules.md", logger); rules != "" {
+		sb.WriteString("\n")
+		sb.WriteString(rules)
+		sb.WriteString("\n")
+	}
 	if coreMemory != "" {
 		sb.WriteString("\nCore Memory:\n" + coreMemory + "\n")
 	}
 	return sb.String()
+}
+
+func fallbackIdentityModule(flags ContextFlags) string {
+	switch {
+	case flags.IsEgg:
+		return "egg_identity.md"
+	case flags.IsCoAgent:
+		return "coagent_identity.md"
+	default:
+		return "identity.md"
+	}
+}
+
+func loadCriticalFallbackModule(promptsDir, filename string, logger *slog.Logger) string {
+	if filename == "" {
+		return ""
+	}
+
+	if promptsDir != "" {
+		path := filepath.Join(promptsDir, filename)
+		if data, err := os.ReadFile(path); err == nil {
+			if mod, err := parsePromptModule(string(data)); err == nil {
+				return strings.TrimSpace(mod.Content)
+			}
+			if logger != nil {
+				logger.Debug("Fallback prompt module on disk has invalid frontmatter, using raw content",
+					"path", path)
+			}
+			return strings.TrimSpace(string(data))
+		}
+	}
+
+	if data, err := fs.ReadFile(promptsembed.FS, filename); err == nil {
+		if mod, err := parsePromptModule(string(data)); err == nil {
+			return strings.TrimSpace(mod.Content)
+		}
+		if logger != nil {
+			logger.Debug("Embedded fallback prompt module has invalid frontmatter, using raw content",
+				"file", filename)
+		}
+		return strings.TrimSpace(string(data))
+	}
+
+	return ""
 }
 
 // buildSystemPromptInner contains the actual prompt-building logic, extracted
@@ -843,11 +910,7 @@ func budgetShed(prompt string, flags ContextFlags, personalityContent, coreMemor
 	if tokens > flags.TokenBudget {
 		logger.Warn("[Budget] Hard-truncating prompt (mandatory content exceeds budget)",
 			"tokens", tokens, "budget", flags.TokenBudget)
-		// Approximate: keep roughly budget*4 chars (conservative char/4 heuristic)
-		maxChars := flags.TokenBudget * 4
-		if maxChars > 0 && len(result) > maxChars {
-			result = result[:maxChars] + "\n\n[BUDGET TRUNCATED]"
-		}
+		result = hardTruncateToBudget(result, flags.TokenBudget, flags.Model)
 		tokens = countTokensWithModel(result, flags.Model)
 		shedList = append(shedList, "HARD_TRUNCATE")
 	}
@@ -939,6 +1002,53 @@ func trimRetrievedMemoriesSection(prompt string, budget int, model string, logge
 	finalPrompt := strings.TrimRight(before, "\n ") + "\n\n" + afterSection
 	logger.Debug("[Budget] Removed all retrieved memories entries")
 	return finalPrompt, true, countTokensWithModel(finalPrompt, model)
+}
+
+func hardTruncateToBudget(prompt string, budget int, model string) string {
+	if budget <= 0 || prompt == "" {
+		return ""
+	}
+	if countTokensWithModel(prompt, model) <= budget {
+		return prompt
+	}
+
+	runes := []rune(prompt)
+	marker := "\n\n[BUDGET TRUNCATED]"
+
+	bestWithMarker, ok := longestPromptPrefixWithinBudget(runes, marker, budget, model)
+	if ok {
+		return bestWithMarker
+	}
+
+	bestWithoutMarker, ok := longestPromptPrefixWithinBudget(runes, "", budget, model)
+	if ok {
+		return bestWithoutMarker
+	}
+
+	if countTokensWithModel(marker, model) <= budget {
+		return marker
+	}
+	return ""
+}
+
+func longestPromptPrefixWithinBudget(runes []rune, suffix string, budget int, model string) (string, bool) {
+	lo, hi := 0, len(runes)
+	best := ""
+	found := false
+
+	for lo <= hi {
+		mid := (lo + hi) / 2
+		candidate := string(runes[:mid]) + suffix
+		if countTokensWithModel(candidate, model) <= budget {
+			best = candidate
+			found = true
+			lo = mid + 1
+			continue
+		}
+		hi = mid - 1
+	}
+
+	return best, found
 }
 
 func buildUnifiedMemoryContextBlock(flags ContextFlags) string {
@@ -1245,32 +1355,8 @@ func CountTokens(text string) int {
 	if text == "" {
 		return 0
 	}
-	tiktokenOnce.Do(func() {
-		type encResult struct {
-			enc *tiktoken.Tiktoken
-		}
-		ch := make(chan encResult, 1)
-		go func() {
-			enc, err := tiktoken.GetEncoding("cl100k_base")
-			if err != nil {
-				slog.Warn("[TokenCount] tiktoken init failed", "error", err)
-				ch <- encResult{}
-				return
-			}
-			ch <- encResult{enc: enc}
-		}()
-		select {
-		case r := <-ch:
-			tiktokenEnc = r.enc
-			if r.enc != nil {
-				slog.Info("[TokenCount] tiktoken encoder initialized")
-			}
-		case <-time.After(10 * time.Second):
-			slog.Warn("[TokenCount] tiktoken init timed out after 10s, using char/4 fallback")
-		}
-	})
-	if tiktokenEnc != nil {
-		return len(tiktokenEnc.Encode(text, nil, nil))
+	if enc := ensureTokenEncoder(); enc != nil {
+		return len(enc.Encode(text, nil, nil))
 	}
 	tiktokenWarnOnce.Do(func() {
 		slog.Warn("[TokenCount] tiktoken encoder unavailable, using char/4 fallback")
@@ -1283,6 +1369,69 @@ func CountTokens(text string) int {
 		return 1
 	}
 	return tokens
+}
+
+func ensureTokenEncoder() tokenEncoder {
+	tiktokenMu.Lock()
+	if tiktokenEnc != nil {
+		enc := tiktokenEnc
+		tiktokenMu.Unlock()
+		return enc
+	}
+
+	now := time.Now()
+	if !tiktokenNextRetry.IsZero() && now.Before(tiktokenNextRetry) {
+		tiktokenMu.Unlock()
+		return nil
+	}
+
+	done := tiktokenInitDone
+	if !tiktokenInitInFlight {
+		done = make(chan struct{})
+		tiktokenInitDone = done
+		tiktokenInitInFlight = true
+		loader := tiktokenLoadEncoding
+		go func(done chan struct{}) {
+			enc, err := loader()
+			tiktokenMu.Lock()
+			defer tiktokenMu.Unlock()
+			if err != nil {
+				tiktokenNextRetry = time.Now().Add(tiktokenRetryBackoff)
+				slog.Warn("[TokenCount] tiktoken init failed", "error", err, "retry_after", tiktokenRetryBackoff)
+			} else if enc != nil {
+				tiktokenEnc = enc
+				tiktokenNextRetry = time.Time{}
+				slog.Info("[TokenCount] tiktoken encoder initialized")
+			} else {
+				tiktokenNextRetry = time.Now().Add(tiktokenRetryBackoff)
+				slog.Warn("[TokenCount] tiktoken init returned nil encoder", "retry_after", tiktokenRetryBackoff)
+			}
+			tiktokenInitInFlight = false
+			close(done)
+		}(done)
+	}
+	timeout := tiktokenInitTimeout
+	tiktokenMu.Unlock()
+
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+
+	select {
+	case <-done:
+		tiktokenMu.Lock()
+		enc := tiktokenEnc
+		tiktokenMu.Unlock()
+		return enc
+	case <-timer.C:
+		tiktokenMu.Lock()
+		if tiktokenEnc == nil {
+			tiktokenNextRetry = time.Now().Add(tiktokenRetryBackoff)
+		}
+		tiktokenMu.Unlock()
+		slog.Warn("[TokenCount] tiktoken init timed out, using char/4 fallback",
+			"timeout", timeout, "retry_after", tiktokenRetryBackoff)
+		return nil
+	}
 }
 
 // tokenMultiplier returns a model-specific multiplier for token counting accuracy.
