@@ -64,9 +64,9 @@ async function renderGitHubSection(section) {
         </div>
     </div>`;
 
-    html += `<div class="cfg-section-block">
-        <div class="cfg-section-title">🔐 ${t('config.github.allowed_repos_title')}</div>
-        <div class="cfg-section-desc">
+    html += `<div class="field-group">
+        <div class="field-group-title">🔐 ${t('config.github.allowed_repos_title')}</div>
+        <div class="field-group-desc">
             ${t('config.github.allowed_repos_desc')}
         </div>`;
 

@@ -37,9 +37,9 @@ async function renderGoogleWorkspaceSection(section) {
     </div>`;
 
     // ── OAuth2 Setup ──
-    html += `<div style="margin-top:1.5rem;padding-top:1.2rem;border-top:1px solid var(--border-subtle);">
-        <div style="font-weight:600;font-size:0.95rem;color:var(--accent);margin-bottom:0.5rem;">🔐 ${t('config.google_workspace.oauth_title')}</div>
-        <div style="font-size:0.82rem;color:var(--text-secondary);line-height:1.6;margin-bottom:1rem;">
+    html += `<div class="field-group">
+        <div class="field-group-title">🔐 ${t('config.google_workspace.oauth_title')}</div>
+        <div class="field-group-desc">
             ${t('config.google_workspace.oauth_desc')}
         </div>`;
 
@@ -86,9 +86,9 @@ async function renderGoogleWorkspaceSection(section) {
     html += `</div>`; // close OAuth setup section
 
     // ── Scope Toggles ──
-    html += `<div style="margin-top:1.5rem;padding-top:1.2rem;border-top:1px solid var(--border-subtle);">
-        <div style="font-weight:600;font-size:0.95rem;color:var(--accent);margin-bottom:0.5rem;">📋 ${t('config.google_workspace.scopes_title')}</div>
-        <div style="font-size:0.82rem;color:var(--text-secondary);line-height:1.6;margin-bottom:1rem;">
+    html += `<div class="field-group">
+        <div class="field-group-title">📋 ${t('config.google_workspace.scopes_title')}</div>
+        <div class="field-group-desc">
             ${t('config.google_workspace.scopes_desc')}
         </div>`;
 
