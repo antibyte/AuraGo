@@ -179,6 +179,7 @@ a.logo {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    min-width: 0;
 }
 
 
@@ -2615,6 +2616,49 @@ div.toggle.toggle-sm.on::before {
 
 /* ── Responsive breakpoints ────────────────────────────────── */
 
+/* Narrow headers: keep actions on one horizontal track and let the row scroll */
+@media (max-width: 1100px) {
+    .app-header,
+    .cfg-header {
+        gap: 0.65rem;
+    }
+
+    .app-header .header-actions,
+    .cfg-header .header-actions {
+        flex: 1 1 auto;
+        min-width: 0;
+        flex-wrap: nowrap;
+        justify-content: flex-start;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding-right: 54px;
+        padding-bottom: 4px;
+        margin-bottom: -4px;
+        scroll-snap-type: x proximity;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+    }
+
+    .app-header .header-actions::-webkit-scrollbar,
+    .cfg-header .header-actions::-webkit-scrollbar {
+        display: none;
+    }
+
+    .app-header .header-actions > *,
+    .cfg-header .header-actions > * {
+        flex: 0 0 auto;
+        scroll-snap-align: start;
+    }
+
+    .app-header .header-actions::after,
+    .cfg-header .header-actions::after {
+        content: '';
+        display: block;
+        min-width: 54px;
+        flex-shrink: 0;
+    }
+}
+
 /* Mobile: radial menu handles navigation, hide old hamburger/overflow */
 @media (max-width: 767px) {
     .hamburger-btn {
@@ -2625,13 +2669,13 @@ div.toggle.toggle-sm.on::before {
         display: none !important;
     }
 
-    /* Let header actions wrap instead of forcing horizontal scrolling */
+    /* Keep the header actions scrollable in one row on small screens */
     .app-header .header-actions,
     .cfg-header .header-actions {
-        overflow: visible;
-        flex-wrap: wrap;
-        justify-content: flex-end;
-        row-gap: 0.35rem;
+        overflow-x: auto;
+        overflow-y: hidden;
+        flex-wrap: nowrap;
+        justify-content: flex-start;
         padding-right: 54px;
     }
 
