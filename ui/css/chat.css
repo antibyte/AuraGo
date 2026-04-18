@@ -3563,6 +3563,9 @@
     --crt-text:     #4dff28;
     --crt-text-dim: #2aad08;
     --crt-text-muted: #166004;
+    --crt-amber:    rgba(255, 158, 64, 0.2);
+    --crt-glass:    rgba(223, 255, 214, 0.05);
+    --crt-shadow:   rgba(0, 0, 0, 0.62);
 
     color-scheme: dark;
 }
@@ -3572,9 +3575,12 @@
    No white, no colors — only green luminance levels.
    WebGL shader (crt-shader.js) adds barrel distortion + scanlines on top. */
 [data-theme="retro-crt"] body {
-    background-color: #000;
+    background:
+        radial-gradient(circle at 50% 8%, rgba(95, 255, 58, 0.04), transparent 18%),
+        radial-gradient(circle at 50% 50%, rgba(18, 138, 6, 0.08), transparent 48%),
+        linear-gradient(180deg, #000600 0%, #010801 36%, #000400 100%);
     color: var(--crt-text);
-    filter: grayscale(100%) sepia(100%) hue-rotate(85deg) saturate(5) brightness(1.1) contrast(1.1);
+    filter: grayscale(100%) sepia(100%) hue-rotate(85deg) saturate(5.8) brightness(1.08) contrast(1.16);
 }
 
 /* ── Force ALL text to inherit green ── */
@@ -3598,12 +3604,20 @@ html[data-theme="retro-crt"]::after {
     pointer-events: none;
     z-index: 999999;
     background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.015), transparent 12%, transparent 76%, rgba(0, 0, 0, 0.16) 100%),
         radial-gradient(
             ellipse at 50% 50%,
-            transparent 58%,
-            rgba(0, 0, 0, 0.06) 72%,
-            rgba(0, 0, 0, 0.16) 86%,
-            rgba(0, 0, 0, 0.32) 100%
+            transparent 54%,
+            rgba(0, 0, 0, 0.04) 68%,
+            rgba(0, 0, 0, 0.18) 84%,
+            rgba(0, 0, 0, 0.42) 100%
+        ),
+        repeating-linear-gradient(
+            to bottom,
+            rgba(120, 255, 86, 0.018) 0px,
+            rgba(120, 255, 86, 0.018) 1px,
+            rgba(0, 0, 0, 0.0) 2px,
+            rgba(0, 0, 0, 0.0) 4px
         );
 }
 
@@ -3615,8 +3629,9 @@ html[data-theme="retro-crt"]::before {
     pointer-events: none;
     z-index: 999998;
     box-shadow:
-        inset 0 0 26px rgba(0, 0, 0, 0.18),
-        inset 0 0 56px rgba(0, 0, 0, 0.08);
+        inset 0 0 28px rgba(0, 0, 0, 0.2),
+        inset 0 0 84px rgba(0, 0, 0, 0.12),
+        inset 0 0 160px rgba(0, 0, 0, 0.08);
     border-radius: 8px;
 }
 
@@ -3635,10 +3650,61 @@ html[data-theme="retro-crt"]::before {
     animation: crt-flicker 0.15s infinite;
 }
 
+[data-theme="retro-crt"] #chat-box {
+    background:
+        radial-gradient(circle at 50% 0%, rgba(95, 255, 58, 0.05), transparent 24%),
+        radial-gradient(circle at 50% 50%, rgba(18, 138, 6, 0.06), transparent 56%),
+        linear-gradient(180deg, rgba(1, 7, 1, 0.98), rgba(0, 3, 0, 0.99));
+    box-shadow:
+        inset 0 0 0 1px rgba(95, 255, 58, 0.04),
+        inset 0 0 32px rgba(18, 138, 6, 0.08);
+}
+
+[data-theme="retro-crt"] #chat-box::before {
+    background:
+        radial-gradient(circle at 50% 8%, rgba(95, 255, 58, 0.04), transparent 20%),
+        linear-gradient(180deg, rgba(10, 18, 10, 0.12) 0%, transparent 18%, transparent 80%, rgba(0, 0, 0, 0.18) 100%),
+        repeating-linear-gradient(
+            to bottom,
+            rgba(95, 255, 58, 0.02) 0px,
+            rgba(95, 255, 58, 0.02) 1px,
+            rgba(0, 0, 0, 0.0) 2px,
+            rgba(0, 0, 0, 0.0) 4px
+        ),
+        repeating-linear-gradient(
+            to right,
+            rgba(95, 255, 58, 0.012) 0px,
+            rgba(95, 255, 58, 0.012) 1px,
+            rgba(0, 0, 0, 0.0) 2px,
+            rgba(0, 0, 0, 0.0) 6px
+        );
+    opacity: 1;
+}
+
+[data-theme="retro-crt"] #chat-content {
+    position: relative;
+    z-index: 1;
+    text-shadow:
+        0 0 5px rgba(95, 255, 58, 0.22),
+        0 0 12px rgba(95, 255, 58, 0.08);
+}
+
 /* ── CRT Phosphor Text Glow ── */
 [data-theme="retro-crt"] .bubble {
     text-shadow: 0 0 8px rgba(95, 255, 58, 0.35);
     border-radius: 4px;
+    position: relative;
+    overflow: hidden;
+}
+
+[data-theme="retro-crt"] .bubble::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+        linear-gradient(180deg, rgba(220, 255, 212, 0.03), transparent 24%),
+        linear-gradient(120deg, transparent 0%, transparent 72%, rgba(95, 255, 58, 0.035) 100%);
 }
 
 [data-theme="retro-crt"] .bubble.bot {
@@ -3724,6 +3790,49 @@ html[data-theme="retro-crt"]::before {
 
 [data-theme="retro-crt"] .btn-send {
     background: rgba(6, 22, 6, 0.98) !important;
+}
+
+[data-theme="retro-crt"] .app-header,
+[data-theme="retro-crt"] .app-footer,
+[data-theme="retro-crt"] .session-drawer,
+[data-theme="retro-crt"] .modal-card,
+[data-theme="retro-crt"] .mermaid-modal-content,
+[data-theme="retro-crt"] .input-wrap textarea,
+[data-theme="retro-crt"] .composer-panel,
+[data-theme="retro-crt"] .mood-feedback-row,
+[data-theme="retro-crt"] .attachment-chip,
+[data-theme="retro-crt"] .attachments-panel {
+    background:
+        linear-gradient(180deg, rgba(8, 18, 8, 0.98), rgba(2, 9, 2, 0.98)) !important;
+    border-color: rgba(45, 222, 12, 0.22) !important;
+    box-shadow:
+        inset 0 1px 0 rgba(210, 255, 197, 0.03),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.36),
+        0 0 0 1px rgba(18, 138, 6, 0.08),
+        0 18px 34px rgba(0, 0, 0, 0.28) !important;
+}
+
+[data-theme="retro-crt"] .app-header,
+[data-theme="retro-crt"] .app-footer,
+[data-theme="retro-crt"] .session-drawer,
+[data-theme="retro-crt"] .modal-card,
+[data-theme="retro-crt"] .mermaid-modal-content {
+    position: relative;
+}
+
+[data-theme="retro-crt"] .app-header::before,
+[data-theme="retro-crt"] .app-footer::before,
+[data-theme="retro-crt"] .session-drawer::before,
+[data-theme="retro-crt"] .modal-card::before,
+[data-theme="retro-crt"] .mermaid-modal-content::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border-radius: inherit;
+    background:
+        linear-gradient(180deg, rgba(221, 255, 214, 0.028), rgba(221, 255, 214, 0.0) 24%),
+        linear-gradient(90deg, rgba(95, 255, 58, 0.024), transparent 18%);
 }
 
 [data-theme="retro-crt"] h1,
