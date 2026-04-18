@@ -4,10 +4,10 @@
 function escapeHtmlTruenas(str) {
     if (str === null || str === undefined) return '';
     return String(str)
-        .replace(/&/g, '&')
-        .replace(/</g, '<')
-        .replace(/>/g, '>')
-        .replace(/"/g, '"')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
 }
 
@@ -43,6 +43,28 @@ class TrueNASUI {
         document.getElementById('snapshot-filter')?.addEventListener('change', () => this.loadSnapshots());
         document.querySelectorAll('[data-close-modal]').forEach(btn => {
             btn.addEventListener('click', () => this.closeModal());
+        });
+        document.addEventListener('click', (event) => {
+            const actionBtn = event.target.closest('[data-truenas-action]');
+            if (!actionBtn) return;
+
+            switch (actionBtn.dataset.truenasAction) {
+                case 'scrub-pool':
+                    this.scrubPool(actionBtn.dataset.poolId);
+                    break;
+                case 'delete-dataset':
+                    this.deleteDataset(actionBtn.dataset.name);
+                    break;
+                case 'rollback-snapshot':
+                    this.rollbackSnapshot(actionBtn.dataset.name);
+                    break;
+                case 'delete-snapshot':
+                    this.deleteSnapshot(actionBtn.dataset.name);
+                    break;
+                case 'delete-share':
+                    this.deleteShare(actionBtn.dataset.shareId);
+                    break;
+            }
         });
         
         // Forms
@@ -217,7 +239,7 @@ class TrueNASUI {
                             <div class="progress-fill ${usage > 90 ? 'danger' : usage > 70 ? 'warning' : ''}" style="width: ${usage}%"></div>
                         </div>
                         <div class="pool-actions">
-                            <button class="btn btn-secondary" data-pool-id="${escapeHtmlTruenas(pool.id)}" onclick="truenasUI.scrubPool(this.getAttribute('data-pool-id'))" ${pool.scan?.state === 'SCANNING' ? 'disabled' : ''}>
+                            <button class="btn btn-secondary" data-truenas-action="scrub-pool" data-pool-id="${escapeHtmlTruenas(pool.id)}" ${pool.scan?.state === 'SCANNING' ? 'disabled' : ''}>
                                 ${scrubLabel}
                             </button>
                         </div>
@@ -257,7 +279,7 @@ class TrueNASUI {
                             <p>${this.formatBytes(used)} / ${this.formatBytes(total)} ${t('truenas.dataset_used')} (${usage}%) • ${t('truenas.dataset_compression')}: ${escapeHtmlTruenas(ds.compression?.parsed || 'off')}</p>
                         </div>
                         <div class="dataset-actions">
-                            <button class="btn btn-danger" data-name="${escapeHtmlTruenas(ds.name)}" onclick="truenasUI.deleteDataset(this.getAttribute('data-name'))">${t('truenas.btn_delete')}</button>
+                            <button class="btn btn-danger" data-truenas-action="delete-dataset" data-name="${escapeHtmlTruenas(ds.name)}">${t('truenas.btn_delete')}</button>
                         </div>
                     </div>
                 `;
@@ -305,8 +327,8 @@ class TrueNASUI {
                             <p>${escapeHtmlTruenas(snap.dataset)} • ${this.formatBytes(snap.properties?.used?.parsed || 0)} • ${t('truenas.snapshot_ago')} ${age}</p>
                         </div>
                         <div class="snapshot-actions">
-                            <button class="btn btn-secondary" data-name="${escapeHtmlTruenas(snap.name)}" onclick="truenasUI.rollbackSnapshot(this.getAttribute('data-name'))">${t('truenas.btn_rollback')}</button>
-                            <button class="btn btn-danger" data-name="${escapeHtmlTruenas(snap.name)}" onclick="truenasUI.deleteSnapshot(this.getAttribute('data-name'))">${t('truenas.btn_delete')}</button>
+                            <button class="btn btn-secondary" data-truenas-action="rollback-snapshot" data-name="${escapeHtmlTruenas(snap.name)}">${t('truenas.btn_rollback')}</button>
+                            <button class="btn btn-danger" data-truenas-action="delete-snapshot" data-name="${escapeHtmlTruenas(snap.name)}">${t('truenas.btn_delete')}</button>
                         </div>
                     </div>
                 `;
@@ -340,7 +362,7 @@ class TrueNASUI {
                             <p>${escapeHtmlTruenas(share.path)}${guestLabel}${tmLabel}</p>
                         </div>
                         <div class="share-actions">
-                            <button class="btn btn-danger" data-share-id="${escapeHtmlTruenas(share.id)}" onclick="truenasUI.deleteShare(this.getAttribute('data-share-id'))">${t('truenas.btn_delete')}</button>
+                            <button class="btn btn-danger" data-truenas-action="delete-share" data-share-id="${escapeHtmlTruenas(share.id)}">${t('truenas.btn_delete')}</button>
                         </div>
                     </div>
                 `;
@@ -635,7 +657,9 @@ class TrueNASUI {
     showSuccess(elementId, message) {
         const el = document.getElementById(elementId);
         if (el) el.innerHTML = `<div class="alert success">${escapeHtmlTruenas(message)}</div>`;
-        setTimeout(() => el.innerHTML = '', 3000);
+        if (el) {
+            setTimeout(() => { el.innerHTML = ''; }, 3000);
+        }
     }
     
     formatBytes(bytes) {

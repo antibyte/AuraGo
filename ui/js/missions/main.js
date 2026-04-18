@@ -65,6 +65,7 @@ const svgIcons = {
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
+    bindMissionUI();
     updateViewToggle();
     loadData();
     // Live updates pushed via SSE — no more polling.
@@ -75,6 +76,92 @@ document.addEventListener('DOMContentLoaded', () => {
         render();
     });
 });
+
+function bindMissionUI() {
+    if (typeof window._auragoApplySharedI18n === 'function') {
+        window._auragoApplySharedI18n();
+    }
+
+    document.getElementById('open-mission-modal-btn')?.addEventListener('click', () => openMissionModal());
+    document.getElementById('mission-form')?.addEventListener('submit', (event) => event.preventDefault());
+    document.getElementById('cron-preset')?.addEventListener('change', (event) => applyCronPreset(event.target.value));
+    document.getElementById('mission-modal-cancel-btn')?.addEventListener('click', () => closeModal('modal'));
+    document.getElementById('mission-save-btn')?.addEventListener('click', saveMission);
+    document.getElementById('prep-modal-cancel-btn')?.addEventListener('click', () => closeModal('prep-modal'));
+
+    document.addEventListener('click', (event) => {
+        const filterBtn = event.target.closest('.tab[data-filter]');
+        if (filterBtn) {
+            filterMissions(filterBtn.dataset.filter);
+            return;
+        }
+
+        const viewBtn = event.target.closest('[data-view-mode]');
+        if (viewBtn) {
+            setViewMode(viewBtn.dataset.viewMode);
+            return;
+        }
+
+        const closeBtn = event.target.closest('[data-modal-close]');
+        if (closeBtn) {
+            closeModal(closeBtn.dataset.modalClose);
+            return;
+        }
+
+        const execType = event.target.closest('.exec-type-option[data-exec-type]');
+        if (execType) {
+            selectExecType(execType.dataset.execType);
+            return;
+        }
+
+        const triggerBtn = event.target.closest('.trigger-type-btn[data-trigger]');
+        if (triggerBtn) {
+            selectTriggerType(triggerBtn.dataset.trigger);
+            return;
+        }
+
+        const missionAction = event.target.closest('[data-mission-action]');
+        if (!missionAction) return;
+
+        if (missionAction.classList.contains('card-compact') && event.target.closest('.card-actions')) {
+            return;
+        }
+
+        const missionId = missionAction.dataset.missionId;
+        switch (missionAction.dataset.missionAction) {
+            case 'remove-from-queue':
+                removeFromQueue(missionId);
+                break;
+            case 'open-edit':
+                editMission(missionId);
+                break;
+            case 'run':
+                runMission(missionId);
+                break;
+            case 'duplicate':
+                duplicateMission(missionId);
+                break;
+            case 'delete':
+                deleteMission(missionId);
+                break;
+            case 'toggle-expand':
+                toggleCardExpand(missionId);
+                break;
+            case 'toggle-log':
+                missionToggleLog(missionAction);
+                break;
+            case 'view-prepared':
+                viewPreparedContext(missionId);
+                break;
+            case 'invalidate-prepared':
+                invalidatePreparation(missionId);
+                break;
+            case 'prepare':
+                prepareMission(missionId);
+                break;
+        }
+    });
+}
 
 // Show loading skeleton
 function showLoading() {
@@ -252,7 +339,7 @@ function renderQueue() {
                             <div class="queue-meta">${t('missions.queue_waiting_since')} ${formatTime(item.enqueued_at)} | ${t('missions.queue_priority_prefix')} ${mission.priority}</div>
                         </div>
                         ${triggerLabel ? `<span class="queue-trigger">${triggerLabel}</span>` : ''}
-                        <button class="icon-btn" data-mission-id="${escapeAttr(mission.id)}" onclick="removeFromQueue(this.dataset.missionId)" title="${t('missions.queue_remove_title')}">
+                        <button class="icon-btn" data-mission-action="remove-from-queue" data-mission-id="${escapeAttr(mission.id)}" title="${t('missions.queue_remove_title')}">
                             ${icons.stop}
                         </button>
                     </div>
@@ -303,17 +390,17 @@ function renderMissionCompact(mission) {
 
     const mid = escapeAttr(mission.id);
     return `
-        <div class="card-compact" data-mission-id="${mid}" onclick="if(event.target.closest('.card-actions')) return; editMission(this.dataset.missionId)">
+        <div class="card-compact" data-mission-id="${mid}" data-mission-action="open-edit">
             <span class="card-icon" title="${escapeAttr(mission.execution_type)}">${typeIcon}</span>
             <span class="card-name">${escapeHtml(mission.name)}</span>
             ${mission.locked ? `<span class="card-icon" title="${t('missions.card_locked_title')}">${svgIcons.lockIcon}</span>` : ''}
             <div class="card-badges">${statusBadge}${prepBadge}</div>
-            <div class="card-actions" onclick="event.stopPropagation()">
-                <button class="mc-btn mc-btn-run" data-mission-id="${mid}" onclick="runMission(this.dataset.missionId)" title="${t('missions.card_btn_run_title')}" ${isRunning ? 'disabled' : ''}>${svgIcons.play}</button>
+            <div class="card-actions">
+                <button class="mc-btn mc-btn-run" data-mission-action="run" data-mission-id="${mid}" title="${t('missions.card_btn_run_title')}" ${isRunning ? 'disabled' : ''}>${svgIcons.play}</button>
                 ${renderPrepButton(mission, isRunning)}
-                <button class="mc-btn" data-mission-id="${mid}" onclick="duplicateMission(this.dataset.missionId)" title="${t('missions.card_btn_duplicate_title')}">${svgIcons.copy}</button>
-                <button class="mc-btn" data-mission-id="${mid}" onclick="editMission(this.dataset.missionId)" title="${t('missions.card_btn_edit_title')}">${svgIcons.edit}</button>
-                <button class="mc-btn mc-btn-danger" data-mission-id="${mid}" onclick="deleteMission(this.dataset.missionId)" title="${t('missions.card_btn_delete_title')}" ${mission.locked ? 'disabled' : ''}>${svgIcons.trash}</button>
+                <button class="mc-btn" data-mission-action="duplicate" data-mission-id="${mid}" title="${t('missions.card_btn_duplicate_title')}">${svgIcons.copy}</button>
+                <button class="mc-btn" data-mission-action="open-edit" data-mission-id="${mid}" title="${t('missions.card_btn_edit_title')}">${svgIcons.edit}</button>
+                <button class="mc-btn mc-btn-danger" data-mission-action="delete" data-mission-id="${mid}" title="${t('missions.card_btn_delete_title')}" ${mission.locked ? 'disabled' : ''}>${svgIcons.trash}</button>
             </div>
         </div>
     `;
@@ -344,7 +431,7 @@ function renderMissionGrid(mission, isFirstRender) {
 
     return `
         <div class="mission-card card-expanded ${statusClass}${isFirstRender ? ' entering' : ''}${isExpanded ? ' expanded' : ''}" data-priority="${escapeAttr(mission.priority)}">
-            <div class="mission-header" data-mission-id="${mid}" onclick="toggleCardExpand(this.dataset.missionId)">
+            <div class="mission-header" data-mission-action="toggle-expand" data-mission-id="${mid}">
                 <div class="mission-header-top">
                     <span class="card-toggle">${svgIcons.chevron}</span>
                     <span class="mission-name">${escapeHtml(mission.name)}</span>
@@ -360,7 +447,7 @@ function renderMissionGrid(mission, isFirstRender) {
                     ${triggerInfo}
                     ${mission.last_output ? `
                     <div class="mission-log-wrapper">
-                        <div class="mission-log-toggle" onclick="missionToggleLog(this)">
+                        <div class="mission-log-toggle" data-mission-action="toggle-log">
                             📝 <span>${t('missions.card_view_log')}</span>
                         </div>
                         <div class="mission-log-content is-hidden">${escapeHtml(extractLastOutput(mission.last_output))}</div>
@@ -372,14 +459,14 @@ function renderMissionGrid(mission, isFirstRender) {
                         <span>📊 ${t('missions.meta_run_count', { count: mission.run_count })}</span>
                     </div>
                     <div class="mission-actions">
-                        <button class="mc-btn mc-btn-run" data-mission-id="${mid}" onclick="runMission(this.dataset.missionId)" title="${t('missions.card_btn_run_title')}" ${isRunning ? 'disabled' : ''}>${svgIcons.play}</button>
-                        ${renderPrepButton(mission, isRunning)}
-                        <button class="mc-btn" data-mission-id="${mid}" onclick="duplicateMission(this.dataset.missionId)" title="${t('missions.card_btn_duplicate_title')}">${svgIcons.copy}</button>
-                        <button class="mc-btn" data-mission-id="${mid}" onclick="editMission(this.dataset.missionId)" title="${t('missions.card_btn_edit_title')}">${svgIcons.edit}</button>
-                        <button class="mc-btn mc-btn-danger" data-mission-id="${mid}" onclick="deleteMission(this.dataset.missionId)" title="${t('missions.card_btn_delete_title')}" ${mission.locked ? 'disabled' : ''}>${svgIcons.trash}</button>
-                    </div>
+                    <button class="mc-btn mc-btn-run" data-mission-action="run" data-mission-id="${mid}" title="${t('missions.card_btn_run_title')}" ${isRunning ? 'disabled' : ''}>${svgIcons.play}</button>
+                    ${renderPrepButton(mission, isRunning)}
+                    <button class="mc-btn" data-mission-action="duplicate" data-mission-id="${mid}" title="${t('missions.card_btn_duplicate_title')}">${svgIcons.copy}</button>
+                    <button class="mc-btn" data-mission-action="open-edit" data-mission-id="${mid}" title="${t('missions.card_btn_edit_title')}">${svgIcons.edit}</button>
+                    <button class="mc-btn mc-btn-danger" data-mission-action="delete" data-mission-id="${mid}" title="${t('missions.card_btn_delete_title')}" ${mission.locked ? 'disabled' : ''}>${svgIcons.trash}</button>
                 </div>
             </div>
+        </div>
         </div>
     `;
 }
@@ -940,10 +1027,10 @@ function renderPrepButton(mission, isRunning) {
     const mid = escapeAttr(mission.id);
 
     if (status === 'prepared') {
-        return `<button class="mc-btn" data-mission-id="${mid}" onclick="viewPreparedContext(this.dataset.missionId)" title="${t('missions.prep_view_title')}">${svgIcons.info}</button>` +
-               `<button class="mc-btn" data-mission-id="${mid}" onclick="invalidatePreparation(this.dataset.missionId)" title="${t('missions.prep_btn_invalidate')}">${svgIcons.refresh}</button>`;
+    return `<button class="mc-btn" data-mission-action="view-prepared" data-mission-id="${mid}" title="${t('missions.prep_view_title')}">${svgIcons.info}</button>` +
+               `<button class="mc-btn" data-mission-action="invalidate-prepared" data-mission-id="${mid}" title="${t('missions.prep_btn_invalidate')}">${svgIcons.refresh}</button>`;
     }
-    return `<button class="mc-btn" data-mission-id="${mid}" onclick="prepareMission(this.dataset.missionId)" title="${t('missions.prep_btn_prepare')}" ${isPreparing || isRunning ? 'disabled' : ''}>${svgIcons.cog}</button>`;
+    return `<button class="mc-btn" data-mission-action="prepare" data-mission-id="${mid}" title="${t('missions.prep_btn_prepare')}" ${isPreparing || isRunning ? 'disabled' : ''}>${svgIcons.cog}</button>`;
 }
 
 async function prepareMission(id) {

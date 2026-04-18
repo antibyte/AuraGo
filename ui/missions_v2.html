@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="/shared-utilities.css">
     <link rel="stylesheet" href="/shared-components.css">
     <link rel="stylesheet" href="/shared-animations.css">
+    <link rel="stylesheet" href="/css/tokens.css">
     <script src="/shared.js?v=7"></script>
     <script>
         (function () { var th = localStorage.getItem('aurago-theme'); if (th) document.documentElement.setAttribute('data-theme', th); })();
@@ -27,15 +28,11 @@
             <a href="/" class="logo">
                 <div class="logo-icon">🚀</div>
                 <span class="logo-wordmark-accent">AURA</span><span class="logo-wordmark-base">GO</span>
-                <span class="logo-subtitle">
-                    <script>document.write(t('missions.logo_subtitle'))</script>
-                </span>
+                <span class="logo-subtitle" data-i18n="missions.logo_subtitle">Mission Control</span>
             </a>
         </div>
         <div class="header-actions">
-            <button id="theme-toggle" type="button" class="btn-theme">
-                <script>document.currentScript.parentElement.title = t('common.toggle_theme')</script>
-            </button>
+            <button id="theme-toggle" type="button" class="btn-theme" data-i18n-title="common.toggle_theme"></button>
         </div>
     </header>
 
@@ -44,21 +41,19 @@
     <div class="container">
         <!-- Page Header -->
         <div class="page-header">
-            <h1>
-                <script>document.write(t('missions.heading'))</script>
-            </h1>
+            <h1 data-i18n="missions.heading">Mission Control</h1>
             <div class="header-actions">
                 <div class="view-toggle" id="view-toggle">
-                    <button onclick="setViewMode('grid')" data-mode="grid" data-i18n-title="common.view_grid" data-i18n-aria-label="common.view_grid">
+                    <button type="button" data-view-mode="grid" data-mode="grid" data-i18n-title="common.view_grid" data-i18n-aria-label="common.view_grid">
                         <span class="view-toggle-glyph" aria-hidden="true">▦</span>
                     </button>
-                    <button onclick="setViewMode('list')" data-mode="list" data-i18n-title="common.view_list" data-i18n-aria-label="common.view_list">
+                    <button type="button" data-view-mode="list" data-mode="list" data-i18n-title="common.view_list" data-i18n-aria-label="common.view_list">
                         <span class="view-toggle-glyph" aria-hidden="true">☰</span>
                     </button>
                 </div>
-                <button class="btn btn-primary" onclick="openMissionModal()">
+                <button class="btn btn-primary" type="button" id="open-mission-modal-btn">
                     <span>+</span>
-                    <script>document.write(t('missions.btn_new_mission'))</script>
+                    <span data-i18n="missions.btn_new_mission">New Mission</span>
                 </button>
             </div>
         </div>
@@ -68,41 +63,31 @@
             <div class="status-card" id="status-total">
                 <div class="status-icon">📋</div>
                 <div class="status-value">-</div>
-                <div class="status-label">
-                    <script>document.write(t('missions.status_total'))</script>
-                </div>
+                <div class="status-label" data-i18n="missions.status_total">Total</div>
             </div>
             <div class="status-card" id="status-running">
                 <div class="status-icon">▶️</div>
                 <div class="status-value">-</div>
-                <div class="status-label">
-                    <script>document.write(t('missions.status_running'))</script>
-                </div>
+                <div class="status-label" data-i18n="missions.status_running">Running</div>
             </div>
             <div class="status-card" id="status-queued">
                 <div class="status-icon">⏳</div>
                 <div class="status-value">-</div>
-                <div class="status-label">
-                    <script>document.write(t('missions.status_queue'))</script>
-                </div>
+                <div class="status-label" data-i18n="missions.status_queue">Queue</div>
             </div>
             <div class="status-card" id="status-triggered">
                 <div class="status-icon">⚡</div>
                 <div class="status-value">-</div>
-                <div class="status-label">
-                    <script>document.write(t('missions.status_triggered'))</script>
-                </div>
+                <div class="status-label" data-i18n="missions.status_triggered">Triggered</div>
             </div>
         </div>
 
         <!-- Queue Section -->
-        <div class="queue-section is-hidden" id="queue-section">
+            <div class="queue-section is-hidden" id="queue-section">
             <div class="queue-header">
-                <h3>
-                    <script>document.write(t('missions.queue_title'))</script>
-                </h3>
+                <h3 data-i18n="missions.queue_title">Queue</h3>
                 <span class="badge badge-running">
-                    <script>document.write(t('missions.queue_serial_badge'))</script>
+                    <span data-i18n="missions.queue_serial_badge">Serial Queue</span>
                 </span>
             </div>
             <div class="queue-items" id="queue-items"></div>
@@ -110,17 +95,17 @@
 
         <!-- Tabs -->
         <div class="tabs">
-            <button class="tab active" onclick="filterMissions('all')" id="tab-all">
-                <script>document.write(t('missions.filter_all'))</script>
+            <button class="tab active" type="button" data-filter="all" id="tab-all">
+                <span data-i18n="missions.filter_all">All</span>
             </button>
-            <button class="tab" onclick="filterMissions('manual')" id="tab-manual">
-                <script>document.write(t('missions.filter_manual'))</script>
+            <button class="tab" type="button" data-filter="manual" id="tab-manual">
+                <span data-i18n="missions.filter_manual">Manual</span>
             </button>
-            <button class="tab" onclick="filterMissions('scheduled')" id="tab-scheduled">
-                <script>document.write(t('missions.filter_scheduled'))</script>
+            <button class="tab" type="button" data-filter="scheduled" id="tab-scheduled">
+                <span data-i18n="missions.filter_scheduled">Scheduled</span>
             </button>
-            <button class="tab" onclick="filterMissions('triggered')" id="tab-triggered">
-                <script>document.write(t('missions.filter_triggered'))</script>
+            <button class="tab" type="button" data-filter="triggered" id="tab-triggered">
+                <span data-i18n="missions.filter_triggered">Triggered</span>
             </button>
         </div>
 
@@ -137,93 +122,59 @@
         <div class="modal">
             <div class="modal-header">
                 <h2 id="modal-title"></h2>
-                <button class="modal-close" onclick="closeModal('modal')">&times;</button>
+                <button class="modal-close" type="button" data-modal-close="modal">&times;</button>
             </div>
             <div class="modal-body">
-                <form id="mission-form" onsubmit="return false;">
+                <form id="mission-form">
                     <input type="hidden" id="mission-id">
 
                     <div class="form-group">
-                        <label>
-                            <script>document.write(t('missions.form_name_label'))</script>
-                        </label>
-                        <input type="text" id="mission-name" required>
-                        <script>document.getElementById('mission-name').placeholder = t('missions.form_name_placeholder')</script>
+                        <label for="mission-name" data-i18n="missions.form_name_label">Mission Name</label>
+                        <input type="text" id="mission-name" required data-i18n-placeholder="missions.form_name_placeholder">
                     </div>
 
                     <div class="form-group">
-                        <label>
-                            <script>document.write(t('missions.form_prompt_label'))</script>
-                        </label>
-                        <textarea class="form-textarea" id="mission-prompt" required></textarea>
-                        <script>document.getElementById('mission-prompt').placeholder = t('missions.form_prompt_placeholder')</script>
+                        <label for="mission-prompt" data-i18n="missions.form_prompt_label">Prompt</label>
+                        <textarea class="form-textarea" id="mission-prompt" required data-i18n-placeholder="missions.form_prompt_placeholder"></textarea>
                     </div>
 
                     <div class="form-group">
-                        <label>
-                            <script>document.write(t('missions.form_cheatsheets_label'))</script>
-                        </label>
+                        <label for="cheatsheet-picker" data-i18n="missions.form_cheatsheets_label">Cheatsheets</label>
                         <div id="cheatsheet-picker" class="cheatsheet-picker">
-                            <div class="cheatsheet-picker-empty">
-                                <script>document.write(t('missions.form_cheatsheets_loading'))</script>
-                            </div>
+                            <div class="cheatsheet-picker-empty" data-i18n="missions.form_cheatsheets_loading">Loading cheatsheets...</div>
                         </div>
-                        <div class="form-hint">
-                            <script>document.write(t('missions.form_cheatsheets_hint'))</script>
-                        </div>
+                        <div class="form-hint" data-i18n="missions.form_cheatsheets_hint">Select optional cheatsheets for this mission.</div>
                     </div>
 
                     <div class="form-group">
-                        <label>
-                            <script>document.write(t('missions.form_priority_label'))</script>
-                        </label>
+                        <label for="mission-priority" data-i18n="missions.form_priority_label">Priority</label>
                         <select id="mission-priority" class="form-select">
-                            <option value="low">
-                                <script>document.write(t('missions.form_priority_low'))</script>
-                            </option>
-                            <option value="medium" selected>
-                                <script>document.write(t('missions.form_priority_medium'))</script>
-                            </option>
-                            <option value="high">
-                                <script>document.write(t('missions.form_priority_high'))</script>
-                            </option>
+                            <option value="low" data-i18n="missions.form_priority_low">Low</option>
+                            <option value="medium" selected data-i18n="missions.form_priority_medium">Medium</option>
+                            <option value="high" data-i18n="missions.form_priority_high">High</option>
                         </select>
                     </div>
 
                     <div class="form-group">
-                        <label>
-                            <script>document.write(t('missions.form_exec_type_label'))</script>
-                        </label>
+                            <label data-i18n="missions.form_exec_type_label">Execution Type</label>
                         <div class="exec-type-selector">
-                            <label class="exec-type-option" onclick="selectExecType('manual')">
+                            <label class="exec-type-option" data-exec-type="manual">
                                 <input type="radio" name="exec-type" value="manual" checked>
                                 <span class="exec-icon">👆</span>
-                                <span class="exec-label">
-                                    <script>document.write(t('missions.form_exec_manual_label'))</script>
-                                </span>
-                                <span class="exec-desc">
-                                    <script>document.write(t('missions.form_exec_manual_desc'))</script>
-                                </span>
+                                <span class="exec-label" data-i18n="missions.form_exec_manual_label">Manual</span>
+                                <span class="exec-desc" data-i18n="missions.form_exec_manual_desc">Run this mission on demand.</span>
                             </label>
-                            <label class="exec-type-option" onclick="selectExecType('scheduled')">
+                            <label class="exec-type-option" data-exec-type="scheduled">
                                 <input type="radio" name="exec-type" value="scheduled">
                                 <span class="exec-icon">📅</span>
-                                <span class="exec-label">
-                                    <script>document.write(t('missions.form_exec_scheduled_label'))</script>
-                                </span>
-                                <span class="exec-desc">
-                                    <script>document.write(t('missions.form_exec_scheduled_desc'))</script>
-                                </span>
+                                <span class="exec-label" data-i18n="missions.form_exec_scheduled_label">Scheduled</span>
+                                <span class="exec-desc" data-i18n="missions.form_exec_scheduled_desc">Run this mission on a cron schedule.</span>
                             </label>
-                            <label class="exec-type-option" onclick="selectExecType('triggered')">
+                            <label class="exec-type-option" data-exec-type="triggered">
                                 <input type="radio" name="exec-type" value="triggered">
                                 <span class="exec-icon">⚡</span>
-                                <span class="exec-label">
-                                    <script>document.write(t('missions.form_exec_triggered_label'))</script>
-                                </span>
-                                <span class="exec-desc">
-                                    <script>document.write(t('missions.form_exec_triggered_desc'))</script>
-                                </span>
+                                <span class="exec-label" data-i18n="missions.form_exec_triggered_label">Triggered</span>
+                                <span class="exec-desc" data-i18n="missions.form_exec_triggered_desc">Run this mission when an event occurs.</span>
                             </label>
                         </div>
                     </div>
@@ -231,120 +182,53 @@
                     <!-- Scheduled Config -->
                     <div id="config-scheduled" class="trigger-config is-hidden">
                         <div class="form-group">
-                            <label>
-                                <script>document.write(t('missions.form_cron_preset_label'))</script>
-                            </label>
-                            <select id="cron-preset" onchange="applyCronPreset(this.value)">
-                                <option value="">
-                                    <script>document.write(t('missions.form_cron_preset_custom'))</script>
-                                </option>
-                                <option value="*/5 * * * *">
-                                    <script>document.write(t('missions.cron_preset_every_5min'))</script>
-                                </option>
-                                <option value="*/15 * * * *">
-                                    <script>document.write(t('missions.cron_preset_every_15min'))</script>
-                                </option>
-                                <option value="*/30 * * * *">
-                                    <script>document.write(t('missions.cron_preset_every_30min'))</script>
-                                </option>
-                                <option value="0 * * * *">
-                                    <script>document.write(t('missions.cron_preset_every_hour'))</script>
-                                </option>
-                                <option value="0 */6 * * *">
-                                    <script>document.write(t('missions.cron_preset_every_6hours'))</script>
-                                </option>
-                                <option value="0 0 * * *">
-                                    <script>document.write(t('missions.cron_preset_daily_midnight'))</script>
-                                </option>
-                                <option value="0 9 * * *">
-                                    <script>document.write(t('missions.cron_preset_daily_9am'))</script>
-                                </option>
-                                <option value="0 9 * * 1">
-                                    <script>document.write(t('missions.cron_preset_weekly_monday'))</script>
-                                </option>
-                                <option value="0 0 1 * *">
-                                    <script>document.write(t('missions.cron_preset_monthly_first'))</script>
-                                </option>
+                            <label for="cron-preset" data-i18n="missions.form_cron_preset_label">Preset</label>
+                            <select id="cron-preset">
+                                <option value="" data-i18n="missions.form_cron_preset_custom">Custom</option>
+                                <option value="*/5 * * * *" data-i18n="missions.cron_preset_every_5min">Every 5 minutes</option>
+                                <option value="*/15 * * * *" data-i18n="missions.cron_preset_every_15min">Every 15 minutes</option>
+                                <option value="*/30 * * * *" data-i18n="missions.cron_preset_every_30min">Every 30 minutes</option>
+                                <option value="0 * * * *" data-i18n="missions.cron_preset_every_hour">Every hour</option>
+                                <option value="0 */6 * * *" data-i18n="missions.cron_preset_every_6hours">Every 6 hours</option>
+                                <option value="0 0 * * *" data-i18n="missions.cron_preset_daily_midnight">Daily at midnight</option>
+                                <option value="0 9 * * *" data-i18n="missions.cron_preset_daily_9am">Daily at 9 AM</option>
+                                <option value="0 9 * * 1" data-i18n="missions.cron_preset_weekly_monday">Weekly on Monday</option>
+                                <option value="0 0 1 * *" data-i18n="missions.cron_preset_monthly_first">Monthly on the first day</option>
                             </select>
                         </div>
                         <div class="form-group">
-                            <label>
-                                <script>document.write(t('missions.form_cron_label'))</script>
-                            </label>
-                            <input type="text" id="cron-schedule">
-                            <script>document.getElementById('cron-schedule').placeholder = t('missions.form_cron_placeholder')</script>
-                            <div class="form-hint">
-                                <script>document.write(t('missions.form_cron_hint'))</script>
-                            </div>
+                            <label for="cron-schedule" data-i18n="missions.form_cron_label">Cron Schedule</label>
+                            <input type="text" id="cron-schedule" data-i18n-placeholder="missions.form_cron_placeholder">
+                            <div class="form-hint" data-i18n="missions.form_cron_hint">Use standard cron syntax.</div>
                         </div>
                     </div>
 
                     <!-- Triggered Config -->
                     <div id="config-triggered" class="trigger-config is-hidden">
                         <div class="trigger-type-selector">
-                            <button type="button" class="trigger-type-btn" data-trigger="mission_completed"
-                                onclick="selectTriggerType('mission_completed')">
-                                <script>document.write(t('missions.trigger_mission_completed'))</script>
-                            </button>
-                            <button type="button" class="trigger-type-btn" data-trigger="email_received"
-                                onclick="selectTriggerType('email_received')">
-                                <script>document.write(t('missions.trigger_email_received'))</script>
-                            </button>
-                            <button type="button" class="trigger-type-btn" data-trigger="webhook"
-                                onclick="selectTriggerType('webhook')">
-                                <script>document.write(t('missions.trigger_webhook'))</script>
-                            </button>
-                            <button type="button" class="trigger-type-btn" data-trigger="egg_hatched"
-                                onclick="selectTriggerType('egg_hatched')">
-                                <script>document.write(t('missions.trigger_egg_hatched'))</script>
-                            </button>
-                            <button type="button" class="trigger-type-btn" data-trigger="nest_cleared"
-                                onclick="selectTriggerType('nest_cleared')">
-                                <script>document.write(t('missions.trigger_nest_cleared'))</script>
-                            </button>
-                            <button type="button" class="trigger-type-btn" data-trigger="mqtt_message"
-                                onclick="selectTriggerType('mqtt_message')">
-                                <script>document.write(t('missions.trigger_mqtt_message'))</script>
-                            </button>
-                            <button type="button" class="trigger-type-btn" data-trigger="system_startup"
-                                onclick="selectTriggerType('system_startup')">
-                                <script>document.write(t('missions.trigger_system_startup'))</script>
-                            </button>
-                            <button type="button" class="trigger-type-btn" data-trigger="device_connected"
-                                onclick="selectTriggerType('device_connected')">
-                                <script>document.write(t('missions.trigger_device_connected'))</script>
-                            </button>
-                            <button type="button" class="trigger-type-btn" data-trigger="device_disconnected"
-                                onclick="selectTriggerType('device_disconnected')">
-                                <script>document.write(t('missions.trigger_device_disconnected'))</script>
-                            </button>
-                            <button type="button" class="trigger-type-btn" data-trigger="fritzbox_call"
-                                onclick="selectTriggerType('fritzbox_call')">
-                                <script>document.write(t('missions.trigger_fritzbox_call'))</script>
-                            </button>
-                            <button type="button" class="trigger-type-btn" data-trigger="budget_warning"
-                                onclick="selectTriggerType('budget_warning')">
-                                <script>document.write(t('missions.trigger_budget_warning'))</script>
-                            </button>
-                            <button type="button" class="trigger-type-btn" data-trigger="budget_exceeded"
-                                onclick="selectTriggerType('budget_exceeded')">
-                                <script>document.write(t('missions.trigger_budget_exceeded'))</script>
-                            </button>
+                            <button type="button" class="trigger-type-btn" data-trigger="mission_completed" data-i18n="missions.trigger_mission_completed">Mission completed</button>
+                            <button type="button" class="trigger-type-btn" data-trigger="email_received" data-i18n="missions.trigger_email_received">Email received</button>
+                            <button type="button" class="trigger-type-btn" data-trigger="webhook" data-i18n="missions.trigger_webhook">Webhook</button>
+                            <button type="button" class="trigger-type-btn" data-trigger="egg_hatched" data-i18n="missions.trigger_egg_hatched">Egg hatched</button>
+                            <button type="button" class="trigger-type-btn" data-trigger="nest_cleared" data-i18n="missions.trigger_nest_cleared">Nest cleared</button>
+                            <button type="button" class="trigger-type-btn" data-trigger="mqtt_message" data-i18n="missions.trigger_mqtt_message">MQTT message</button>
+                            <button type="button" class="trigger-type-btn" data-trigger="system_startup" data-i18n="missions.trigger_system_startup">System startup</button>
+                            <button type="button" class="trigger-type-btn" data-trigger="device_connected" data-i18n="missions.trigger_device_connected">Device connected</button>
+                            <button type="button" class="trigger-type-btn" data-trigger="device_disconnected" data-i18n="missions.trigger_device_disconnected">Device disconnected</button>
+                            <button type="button" class="trigger-type-btn" data-trigger="fritzbox_call" data-i18n="missions.trigger_fritzbox_call">Fritz!Box call</button>
+                            <button type="button" class="trigger-type-btn" data-trigger="budget_warning" data-i18n="missions.trigger_budget_warning">Budget warning</button>
+                            <button type="button" class="trigger-type-btn" data-trigger="budget_exceeded" data-i18n="missions.trigger_budget_exceeded">Budget exceeded</button>
                         </div>
 
                         <!-- System Startup Trigger -->
                         <div id="trigger-system_startup" class="trigger-fields">
-                            <div class="form-hint form-hint-tight">
-                                <script>document.write(t('missions.trigger_system_startup_hint'))</script>
-                            </div>
+                            <div class="form-hint form-hint-tight" data-i18n="missions.trigger_system_startup_hint">This mission will run when AuraGo starts.</div>
                         </div>
 
                         <!-- Mission Completed Trigger -->
                         <div id="trigger-mission_completed" class="trigger-fields">
                             <div class="form-group">
-                                <label>
-                                    <script>document.write(t('missions.trigger_source_mission_label'))</script>
-                                </label>
+                                <label for="mission-selector" data-i18n="missions.trigger_source_mission_label">Source Mission</label>
                                 <div class="mission-selector" id="mission-selector"></div>
                             </div>
                             <div class="form-group">
@@ -352,9 +236,7 @@
                                     <input type="checkbox" id="require-success">
                                     <span class="slider"></span>
                                 </label>
-                                <span class="inline-note">
-                                    <script>document.write(t('missions.trigger_require_success'))</script>
-                                </span>
+                                <span class="inline-note" data-i18n="missions.trigger_require_success">Only trigger on success</span>
                             </div>
                         </div>
 
@@ -362,76 +244,48 @@
                         <div id="trigger-email_received" class="trigger-fields">
                             <div class="form-row">
                                 <div class="form-group">
-                                    <label>
-                                        <script>document.write(t('missions.trigger_email_folder_label'))</script>
-                                    </label>
+                                    <label for="email-folder" data-i18n="missions.trigger_email_folder_label">Folder</label>
                                     <select id="email-folder" class="form-select">
-                                        <option value="INBOX">
-                                            <script>document.write(t('missions.trigger_email_folder_inbox'))</script>
-                                        </option>
-                                        <option value="Sent">
-                                            <script>document.write(t('missions.trigger_email_folder_sent'))</script>
-                                        </option>
+                                        <option value="INBOX" data-i18n="missions.trigger_email_folder_inbox">Inbox</option>
+                                        <option value="Sent" data-i18n="missions.trigger_email_folder_sent">Sent</option>
                                     </select>
                                 </div>
                                 <div class="form-group">
-                                    <label>
-                                        <script>document.write(t('missions.trigger_email_subject_label'))</script>
-                                    </label>
-                                    <input type="text" id="email-subject">
-                                    <script>document.getElementById('email-subject').placeholder = t('missions.trigger_email_subject_placeholder')</script>
+                                    <label for="email-subject" data-i18n="missions.trigger_email_subject_label">Subject Contains</label>
+                                    <input type="text" id="email-subject" data-i18n-placeholder="missions.trigger_email_subject_placeholder">
                                 </div>
                             </div>
                             <div class="form-group">
-                                <label>
-                                    <script>document.write(t('missions.trigger_email_from_label'))</script>
-                                </label>
-                                <input type="text" id="email-from">
-                                <script>document.getElementById('email-from').placeholder = t('missions.trigger_email_from_placeholder')</script>
+                                <label for="email-from" data-i18n="missions.trigger_email_from_label">From Contains</label>
+                                <input type="text" id="email-from" data-i18n-placeholder="missions.trigger_email_from_placeholder">
                             </div>
                         </div>
 
                         <!-- Webhook Trigger -->
                         <div id="trigger-webhook" class="trigger-fields">
                             <div class="form-group">
-                                <label>
-                                    <script>document.write(t('missions.trigger_webhook_label'))</script>
-                                </label>
+                                <label for="webhook-select" data-i18n="missions.trigger_webhook_label">Webhook</label>
                                 <select id="webhook-select" class="form-select">
-                                    <option value="">
-                                        <script>document.write(t('missions.trigger_webhook_loading'))</script>
-                                    </option>
+                                    <option value="" data-i18n="missions.trigger_webhook_loading">Loading webhooks...</option>
                                 </select>
-                                <div class="form-hint">
-                                    <script>document.write(t('missions.trigger_webhook_hint'))</script>
-                                </div>
+                                <div class="form-hint" data-i18n="missions.trigger_webhook_hint">Choose which webhook should start this mission.</div>
                             </div>
                         </div>
 
                         <!-- Egg Hatched Trigger -->
                         <div id="trigger-egg_hatched" class="trigger-fields">
-                            <div class="form-hint form-hint-spaced">
-                                <script>document.write(t('missions.trigger_egg_hatched_hint'))</script>
-                            </div>
+                            <div class="form-hint form-hint-spaced" data-i18n="missions.trigger_egg_hatched_hint">React when a specific egg or any egg hatches.</div>
                             <div class="form-row">
                                 <div class="form-group">
-                                    <label>
-                                        <script>document.write(t('missions.trigger_egg_select_label'))</script>
-                                    </label>
+                                    <label for="egg-hatched-egg-select" data-i18n="missions.trigger_egg_select_label">Egg</label>
                                     <select id="egg-hatched-egg-select" class="form-select">
-                                        <option value="">
-                                            <script>document.write(t('missions.trigger_egg_any'))</script>
-                                        </option>
+                                        <option value="" data-i18n="missions.trigger_egg_any">Any egg</option>
                                     </select>
                                 </div>
                                 <div class="form-group">
-                                    <label>
-                                        <script>document.write(t('missions.trigger_nest_select_label'))</script>
-                                    </label>
+                                    <label for="egg-hatched-nest-select" data-i18n="missions.trigger_nest_select_label">Nest</label>
                                     <select id="egg-hatched-nest-select" class="form-select">
-                                        <option value="">
-                                            <script>document.write(t('missions.trigger_nest_any'))</script>
-                                        </option>
+                                        <option value="" data-i18n="missions.trigger_nest_any">Any nest</option>
                                     </select>
                                 </div>
                             </div>
@@ -439,129 +293,81 @@
 
                         <!-- Nest Cleared Trigger -->
                         <div id="trigger-nest_cleared" class="trigger-fields">
-                            <div class="form-hint form-hint-spaced">
-                                <script>document.write(t('missions.trigger_nest_cleared_hint'))</script>
-                            </div>
+                            <div class="form-hint form-hint-spaced" data-i18n="missions.trigger_nest_cleared_hint">React when a nest is cleared.</div>
                             <div class="form-group">
-                                <label>
-                                    <script>document.write(t('missions.trigger_nest_select_label'))</script>
-                                </label>
+                                <label for="nest-cleared-nest-select" data-i18n="missions.trigger_nest_select_label">Nest</label>
                                 <select id="nest-cleared-nest-select" class="form-select">
-                                    <option value="">
-                                        <script>document.write(t('missions.trigger_nest_any'))</script>
-                                    </option>
+                                    <option value="" data-i18n="missions.trigger_nest_any">Any nest</option>
                                 </select>
                             </div>
                         </div>
 
                         <!-- MQTT Message Trigger -->
                         <div id="trigger-mqtt_message" class="trigger-fields">
-                            <div class="form-hint form-hint-spaced">
-                                <script>document.write(t('missions.trigger_mqtt_hint'))</script>
+                            <div class="form-hint form-hint-spaced" data-i18n="missions.trigger_mqtt_hint">React to incoming MQTT messages.</div>
+                            <div class="form-group">
+                                <label for="mqtt-topic" data-i18n="missions.trigger_mqtt_topic_label">Topic</label>
+                                <input type="text" id="mqtt-topic" data-i18n-placeholder="missions.trigger_mqtt_topic_placeholder">
+                                <div class="form-hint" data-i18n="missions.trigger_mqtt_topic_hint">Use MQTT wildcards if needed.</div>
                             </div>
                             <div class="form-group">
-                                <label>
-                                    <script>document.write(t('missions.trigger_mqtt_topic_label'))</script>
-                                </label>
-                                <input type="text" id="mqtt-topic">
-                                <script>document.getElementById('mqtt-topic').placeholder = t('missions.trigger_mqtt_topic_placeholder')</script>
-                                <div class="form-hint">
-                                    <script>document.write(t('missions.trigger_mqtt_topic_hint'))</script>
-                                </div>
-                            </div>
-                            <div class="form-group">
-                                <label>
-                                    <script>document.write(t('missions.trigger_mqtt_payload_label'))</script>
-                                </label>
-                                <input type="text" id="mqtt-payload-contains">
-                                <script>document.getElementById('mqtt-payload-contains').placeholder = t('missions.trigger_mqtt_payload_placeholder')</script>
-                                <div class="form-hint">
-                                    <script>document.write(t('missions.trigger_mqtt_payload_hint'))</script>
-                                </div>
+                                <label for="mqtt-payload-contains" data-i18n="missions.trigger_mqtt_payload_label">Payload Contains</label>
+                                <input type="text" id="mqtt-payload-contains" data-i18n-placeholder="missions.trigger_mqtt_payload_placeholder">
+                                <div class="form-hint" data-i18n="missions.trigger_mqtt_payload_hint">Leave empty to match any payload.</div>
                             </div>
                         </div>
 
                         <!-- Device Connected Trigger -->
                         <div id="trigger-device_connected" class="trigger-fields">
-                            <div class="form-hint form-hint-spaced">
-                                <script>document.write(t('missions.trigger_device_connected_hint'))</script>
-                            </div>
+                            <div class="form-hint form-hint-spaced" data-i18n="missions.trigger_device_connected_hint">React when a device comes online.</div>
                             <div class="form-row">
                                 <div class="form-group">
-                                    <label>
-                                        <script>document.write(t('missions.trigger_device_id_label'))</script>
-                                    </label>
-                                    <input type="text" id="device-connected-id">
-                                    <script>document.getElementById('device-connected-id').placeholder = t('missions.trigger_device_id_placeholder')</script>
+                                        <label for="device-connected-id" data-i18n="missions.trigger_device_id_label">Device ID</label>
+                                    <input type="text" id="device-connected-id" data-i18n-placeholder="missions.trigger_device_id_placeholder">
                                 </div>
                                 <div class="form-group">
-                                    <label>
-                                        <script>document.write(t('missions.trigger_device_name_label'))</script>
-                                    </label>
-                                    <input type="text" id="device-connected-name">
-                                    <script>document.getElementById('device-connected-name').placeholder = t('missions.trigger_device_name_placeholder')</script>
+                                        <label for="device-connected-name" data-i18n="missions.trigger_device_name_label">Device Name</label>
+                                    <input type="text" id="device-connected-name" data-i18n-placeholder="missions.trigger_device_name_placeholder">
                                 </div>
                             </div>
                         </div>
 
                         <!-- Device Disconnected Trigger -->
                         <div id="trigger-device_disconnected" class="trigger-fields">
-                            <div class="form-hint form-hint-spaced">
-                                <script>document.write(t('missions.trigger_device_disconnected_hint'))</script>
-                            </div>
+                            <div class="form-hint form-hint-spaced" data-i18n="missions.trigger_device_disconnected_hint">React when a device goes offline.</div>
                             <div class="form-row">
                                 <div class="form-group">
-                                    <label>
-                                        <script>document.write(t('missions.trigger_device_id_label'))</script>
-                                    </label>
-                                    <input type="text" id="device-disconnected-id">
-                                    <script>document.getElementById('device-disconnected-id').placeholder = t('missions.trigger_device_id_placeholder')</script>
+                                        <label for="device-disconnected-id" data-i18n="missions.trigger_device_id_label">Device ID</label>
+                                    <input type="text" id="device-disconnected-id" data-i18n-placeholder="missions.trigger_device_id_placeholder">
                                 </div>
                                 <div class="form-group">
-                                    <label>
-                                        <script>document.write(t('missions.trigger_device_name_label'))</script>
-                                    </label>
-                                    <input type="text" id="device-disconnected-name">
-                                    <script>document.getElementById('device-disconnected-name').placeholder = t('missions.trigger_device_name_placeholder')</script>
+                                        <label for="device-disconnected-name" data-i18n="missions.trigger_device_name_label">Device Name</label>
+                                    <input type="text" id="device-disconnected-name" data-i18n-placeholder="missions.trigger_device_name_placeholder">
                                 </div>
                             </div>
                         </div>
 
                         <!-- Fritz!Box Call Trigger -->
                         <div id="trigger-fritzbox_call" class="trigger-fields">
-                            <div class="form-hint form-hint-spaced">
-                                <script>document.write(t('missions.trigger_fritzbox_call_hint'))</script>
-                            </div>
+                            <div class="form-hint form-hint-spaced" data-i18n="missions.trigger_fritzbox_call_hint">React to incoming calls or TAM messages.</div>
                             <div class="form-group">
-                                <label>
-                                    <script>document.write(t('missions.trigger_fritzbox_call_type_label'))</script>
-                                </label>
+                                <label for="fritzbox-call-type" data-i18n="missions.trigger_fritzbox_call_type_label">Call Type</label>
                                 <select id="fritzbox-call-type" class="form-select">
-                                    <option value="">
-                                        <script>document.write(t('missions.trigger_fritzbox_call_type_any'))</script>
-                                    </option>
-                                    <option value="call">
-                                        <script>document.write(t('missions.trigger_fritzbox_call_type_call'))</script>
-                                    </option>
-                                    <option value="tam_message">
-                                        <script>document.write(t('missions.trigger_fritzbox_call_type_tam'))</script>
-                                    </option>
+                                    <option value="" data-i18n="missions.trigger_fritzbox_call_type_any">Any type</option>
+                                    <option value="call" data-i18n="missions.trigger_fritzbox_call_type_call">Call</option>
+                                    <option value="tam_message" data-i18n="missions.trigger_fritzbox_call_type_tam">TAM message</option>
                                 </select>
                             </div>
                         </div>
 
                         <!-- Budget Warning Trigger -->
                         <div id="trigger-budget_warning" class="trigger-fields">
-                            <div class="form-hint form-hint-tight">
-                                <script>document.write(t('missions.trigger_budget_warning_hint'))</script>
-                            </div>
+                            <div class="form-hint form-hint-tight" data-i18n="missions.trigger_budget_warning_hint">Run this mission when the budget warning threshold is reached.</div>
                         </div>
 
                         <!-- Budget Exceeded Trigger -->
                         <div id="trigger-budget_exceeded" class="trigger-fields">
-                            <div class="form-hint form-hint-tight">
-                                <script>document.write(t('missions.trigger_budget_exceeded_hint'))</script>
-                            </div>
+                            <div class="form-hint form-hint-tight" data-i18n="missions.trigger_budget_exceeded_hint">Run this mission when the budget limit is exceeded.</div>
                         </div>
                     </div>
 
@@ -571,12 +377,8 @@
                             <span class="slider"></span>
                         </label>
                         <div>
-                            <div class="font-medium">
-                                <script>document.write(t('missions.form_lock_label'))</script>
-                            </div>
-                            <div class="form-hint">
-                                <script>document.write(t('missions.form_lock_hint'))</script>
-                            </div>
+                            <div class="font-medium" data-i18n="missions.form_lock_label">Lock Mission</div>
+                            <div class="form-hint" data-i18n="missions.form_lock_hint">Locked missions cannot be deleted.</div>
                         </div>
                     </div>
 
@@ -586,41 +388,31 @@
                             <span class="slider"></span>
                         </label>
                         <div>
-                            <div class="font-medium">
-                                <script>document.write(t('missions.prep_auto'))</script>
-                            </div>
-                            <div class="form-hint">
-                                <script>document.write(t('missions.prep_auto_hint'))</script>
-                            </div>
+                            <div class="font-medium" data-i18n="missions.prep_auto">Auto Prepare</div>
+                            <div class="form-hint" data-i18n="missions.prep_auto_hint">Prepare mission context automatically before runs.</div>
                         </div>
                     </div>
                 </form>
             </div>
             <div class="modal-actions">
-                <button type="button" class="btn btn-secondary" onclick="closeModal('modal')">
-                    <script>document.write(t('missions.modal_btn_cancel'))</script>
-                </button>
-                <button type="button" class="btn btn-primary" onclick="saveMission()">
-                    <script>document.write(t('missions.modal_btn_save'))</script>
-                </button>
+                <button type="button" class="btn btn-secondary" id="mission-modal-cancel-btn" data-i18n="missions.modal_btn_cancel">Cancel</button>
+                <button type="button" class="btn btn-primary" id="mission-save-btn" data-i18n="missions.modal_btn_save">Save Mission</button>
             </div>
         </div>
     </div>
 
     <!-- Prepared Context Viewer Modal -->
-    <div id="prep-modal" class="modal-overlay" onclick="if(event.target===this)closeModal('prep-modal')">
+    <div id="prep-modal" class="modal-overlay">
         <div class="modal" style="max-width:700px">
             <div class="modal-header">
                 <h2 id="prep-modal-title"></h2>
-                <button class="modal-close" onclick="closeModal('prep-modal')">&times;</button>
+                <button class="modal-close" type="button" data-modal-close="prep-modal">&times;</button>
             </div>
             <div class="modal-body">
                 <div id="prep-context-body" class="prep-context-content"></div>
             </div>
             <div class="modal-actions">
-                <button type="button" class="btn btn-secondary" onclick="closeModal('prep-modal')">
-                    <script>document.write(t('missions.modal_btn_cancel'))</script>
-                </button>
+                <button type="button" class="btn btn-secondary" id="prep-modal-cancel-btn" data-i18n="missions.modal_btn_cancel">Cancel</button>
             </div>
         </div>
     </div>
