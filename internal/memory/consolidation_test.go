@@ -142,9 +142,7 @@ func TestCleanOldArchivedMessages(t *testing.T) {
 		t.Fatalf("DeleteOldMessages: %v", err)
 	}
 
-	// With days=0, should clean everything (archived_at < now)
-	// Actually days=0 means "now" so nothing is older. Use days=0 — won't work.
-	// Instead, verify that with a large retain period, nothing is deleted.
+	// With a large retain period, nothing is deleted — even if consolidated.
 	cleaned, err := stm.CleanOldArchivedMessages(365)
 	if err != nil {
 		t.Fatalf("CleanOldArchivedMessages: %v", err)
@@ -153,10 +151,36 @@ func TestCleanOldArchivedMessages(t *testing.T) {
 		t.Errorf("Expected 0 cleaned (messages are fresh), got %d", cleaned)
 	}
 
-	// Manually backdate archived_at so cleanup will find them
+	// Unconsolidated rows must NOT be cleaned even when old.
 	_, err = stm.db.Exec("UPDATE archived_messages SET archived_at = datetime('now', '-60 days')")
 	if err != nil {
-		t.Fatalf("Backdate: %v", err)
+		t.Fatalf("Backdate unconsolidated: %v", err)
+	}
+	cleaned, err = stm.CleanOldArchivedMessages(30)
+	if err != nil {
+		t.Fatalf("CleanOldArchivedMessages: %v", err)
+	}
+	if cleaned != 0 {
+		t.Errorf("Expected 0 cleaned (not consolidated yet), got %d", cleaned)
+	}
+
+	// Mark all as successfully consolidated, then backdate again.
+	unconsolidated, err := stm.GetUnconsolidatedMessages(100)
+	if err != nil {
+		t.Fatalf("GetUnconsolidatedMessages: %v", err)
+	}
+	var ids []int64
+	for _, m := range unconsolidated {
+		ids = append(ids, m.ID)
+	}
+	if err := stm.MarkConsolidationSuccess(ids); err != nil {
+		t.Fatalf("MarkConsolidationSuccess: %v", err)
+	}
+
+	// Backdate so they become eligible for cleanup.
+	_, err = stm.db.Exec("UPDATE archived_messages SET archived_at = datetime('now', '-60 days')")
+	if err != nil {
+		t.Fatalf("Backdate consolidated: %v", err)
 	}
 
 	cleaned, err = stm.CleanOldArchivedMessages(30)
@@ -164,7 +188,7 @@ func TestCleanOldArchivedMessages(t *testing.T) {
 		t.Fatalf("CleanOldArchivedMessages: %v", err)
 	}
 	if cleaned == 0 {
-		t.Error("Expected some messages cleaned after backdating, got 0")
+		t.Error("Expected some messages cleaned after consolidation + backdating, got 0")
 	}
 
 	// Verify they're gone

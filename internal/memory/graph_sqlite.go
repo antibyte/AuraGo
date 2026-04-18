@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -66,6 +67,7 @@ type KnowledgeGraph struct {
 	closeOnce   sync.Once
 	wg          sync.WaitGroup
 	semantic    *knowledgeGraphSemanticIndex
+	droppedHits atomic.Int64 // count of access-queue hits dropped due to full channel
 }
 
 const knowledgeGraphWriteTimeout = 5 * time.Second
@@ -312,8 +314,15 @@ func (kg *KnowledgeGraph) enqueueAccessHit(hit knowledgeGraphAccessHit) {
 	select {
 	case kg.accessQueue <- hit:
 	default:
+		kg.droppedHits.Add(1)
 		kg.logger.Debug("KG access queue full, dropping update", "hit", hit)
 	}
+}
+
+// DroppedAccessHits returns the total number of access-counter updates that were
+// discarded because the async queue was full. Useful for diagnostics and health checks.
+func (kg *KnowledgeGraph) DroppedAccessHits() int64 {
+	return kg.droppedHits.Load()
 }
 
 func normalizeKnowledgeGraphProperties(properties map[string]string) map[string]string {

@@ -760,7 +760,8 @@ func recordConsolidationBatchEpisode(stm *memory.SQLiteMemory, batch []memory.Ar
 // consolidateSTMtoLTM extracts knowledge from archived STM messages and stores it in the VectorDB.
 // This bridges the gap between the sliding-window short-term memory and the persistent long-term memory.
 func consolidateSTMtoLTM(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, stm *memory.SQLiteMemory, ltm memory.VectorDB, kg *memory.KnowledgeGraph) {
-	archived, err := stm.GetConsolidationCandidates(cfg.Consolidation.MaxBatchMessages, 3)
+	// Atomically claim rows so concurrent runs cannot process the same messages.
+	archived, err := stm.ClaimConsolidationCandidates(cfg.Consolidation.MaxBatchMessages, 3)
 	if err != nil {
 		logger.Error("[Consolidation] Failed to fetch unconsolidated messages", "error", err)
 		return

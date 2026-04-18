@@ -367,7 +367,12 @@ func applySQLiteMemoryMigrations(db *sql.DB, logger *slog.Logger) error {
 	errs = append(errs, migrateAddColumn(db, logger, "archived_messages", "consolidation_last_error", "TEXT DEFAULT ''"))
 	errs = append(errs, migrateAddColumn(db, logger, "archived_messages", "next_retry_at", "DATETIME DEFAULT CURRENT_TIMESTAMP"))
 
-	if _, err := db.Exec("UPDATE archived_messages SET consolidation_status = 'pending' WHERE consolidated = 0 AND (consolidation_status IS NULL OR consolidation_status = '' OR consolidation_status NOT IN ('pending', 'failed', 'done'))"); err != nil {
+	// Reset stale in_progress rows back to pending (crash recovery from a previous
+	// consolidation run that was interrupted before completing).
+	if _, err := db.Exec("UPDATE archived_messages SET consolidation_status = 'pending' WHERE consolidated = 0 AND consolidation_status = 'in_progress'"); err != nil {
+		logger.Warn("Failed to reset stale in_progress consolidation rows", "error", err)
+	}
+	if _, err := db.Exec("UPDATE archived_messages SET consolidation_status = 'pending' WHERE consolidated = 0 AND (consolidation_status IS NULL OR consolidation_status = '' OR consolidation_status NOT IN ('pending', 'failed', 'in_progress', 'done'))"); err != nil {
 		logger.Warn("Failed to normalize consolidation_status pending rows", "error", err)
 	}
 	if _, err := db.Exec("UPDATE archived_messages SET consolidation_status = 'done' WHERE consolidated = 1 AND (consolidation_status IS NULL OR consolidation_status = '' OR consolidation_status != 'done')"); err != nil {

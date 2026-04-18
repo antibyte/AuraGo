@@ -196,15 +196,16 @@ func (s *SQLiteMemory) GetHoursSinceLastUserMessage(sessionID string) (float64, 
 
 // DeleteOldMessages archives messages to archived_messages before removing them.
 // Keeps only the most recent `keepN` messages for a given session.
+// Pinned messages (is_pinned = 1) are never archived or deleted.
 func (s *SQLiteMemory) DeleteOldMessages(sessionID string, keepN int) error {
 	if keepN <= 0 {
 		return fmt.Errorf("keepN must be positive, got %d", keepN)
 	}
 	// First find the ID of the oldest message we want to KEEP
 	query := `
-	SELECT id FROM messages 
-	WHERE session_id = ? 
-	ORDER BY timestamp DESC, id DESC 
+	SELECT id FROM messages
+	WHERE session_id = ?
+	ORDER BY timestamp DESC, id DESC
 	LIMIT 1 OFFSET ?;`
 
 	var oldestKeepID int
@@ -224,12 +225,12 @@ func (s *SQLiteMemory) DeleteOldMessages(sessionID string, keepN int) error {
 	}
 	defer tx.Rollback()
 
-	// Archive before deleting
+	// Archive before deleting (exclude pinned messages — they must never be archived)
 	archiveQuery := `
 	INSERT INTO archived_messages (session_id, role, content, original_timestamp)
 	SELECT session_id, role, content, timestamp
 	FROM messages
-	WHERE session_id = ? AND id < ? AND role IN ('user', 'assistant')
+	WHERE session_id = ? AND id < ? AND role IN ('user', 'assistant') AND is_pinned = 0
 	ORDER BY timestamp ASC, id ASC`
 	archRes, err := tx.Exec(archiveQuery, sessionID, oldestKeepID)
 	if err != nil {
@@ -237,8 +238,8 @@ func (s *SQLiteMemory) DeleteOldMessages(sessionID string, keepN int) error {
 	}
 	archived, _ := archRes.RowsAffected()
 
-	// Delete everything older than the cutoff
-	delQuery := `DELETE FROM messages WHERE session_id = ? AND id < ?`
+	// Delete everything older than the cutoff, but never delete pinned messages
+	delQuery := `DELETE FROM messages WHERE session_id = ? AND id < ? AND is_pinned = 0`
 	res, err := tx.Exec(delQuery, sessionID, oldestKeepID)
 	if err != nil {
 		return fmt.Errorf("failed to delete old messages: %w", err)
@@ -261,6 +262,8 @@ func (s *SQLiteMemory) GetUnconsolidatedMessages(limit int) ([]ArchivedMessage, 
 
 // GetConsolidationCandidates returns archived messages that should be processed now.
 // Includes pending messages and failed messages whose retry cooldown elapsed.
+// Deprecated: Prefer ClaimConsolidationCandidates which atomically claims rows to
+// prevent duplicate processing by concurrent consolidation runs.
 func (s *SQLiteMemory) GetConsolidationCandidates(limit int, maxRetries int) ([]ArchivedMessage, error) {
 	if limit <= 0 {
 		limit = 200
@@ -297,6 +300,108 @@ func (s *SQLiteMemory) GetConsolidationCandidates(limit int, maxRetries int) ([]
 		msgs = append(msgs, m)
 	}
 	return msgs, rows.Err()
+}
+
+// ClaimConsolidationCandidates atomically claims archived messages for consolidation.
+// It transitions matching rows from 'pending'/'failed' to 'in_progress' within a single
+// transaction, preventing concurrent consolidation runs from processing the same rows.
+// On success the caller owns the returned messages and must eventually call
+// MarkConsolidationSuccess or MarkConsolidationFailure to finalize them.
+func (s *SQLiteMemory) ClaimConsolidationCandidates(limit int, maxRetries int) ([]ArchivedMessage, error) {
+	if limit <= 0 {
+		limit = 200
+	}
+	if maxRetries <= 0 {
+		maxRetries = 3
+	}
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return nil, fmt.Errorf("begin claim tx: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Step 1: Find eligible row IDs
+	rows, err := tx.Query(`
+		SELECT id FROM archived_messages
+		WHERE consolidated = 0
+		  AND (
+		    consolidation_status = 'pending'
+		    OR (
+		      consolidation_status = 'failed'
+		      AND consolidation_retries < ?
+		      AND next_retry_at <= CURRENT_TIMESTAMP
+		    )
+		  )
+		ORDER BY original_timestamp ASC
+		LIMIT ?
+	`, maxRetries, limit)
+	if err != nil {
+		return nil, fmt.Errorf("query eligible ids: %w", err)
+	}
+	var ids []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			rows.Close()
+			return nil, fmt.Errorf("scan eligible id: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate eligible ids: %w", err)
+	}
+
+	if len(ids) == 0 {
+		_ = tx.Commit()
+		return nil, nil
+	}
+
+	// Step 2: Atomically claim these rows → in_progress
+	placeholders := make([]string, len(ids))
+	args := make([]interface{}, len(ids))
+	for i, id := range ids {
+		placeholders[i] = "?"
+		args[i] = id
+	}
+	claimQuery := fmt.Sprintf(
+		"UPDATE archived_messages SET consolidation_status = 'in_progress' WHERE id IN (%s)",
+		strings.Join(placeholders, ","),
+	)
+	if _, err := tx.Exec(claimQuery, args...); err != nil {
+		return nil, fmt.Errorf("claim rows: %w", err)
+	}
+
+	// Step 3: Fetch full row data for the claimed rows
+	fetchQuery := fmt.Sprintf(`
+		SELECT id, session_id, role, content, original_timestamp, consolidation_status, consolidation_retries
+		FROM archived_messages
+		WHERE id IN (%s)
+		ORDER BY original_timestamp ASC
+	`, strings.Join(placeholders, ","))
+	dataRows, err := tx.Query(fetchQuery, args...)
+	if err != nil {
+		return nil, fmt.Errorf("fetch claimed rows: %w", err)
+	}
+	defer dataRows.Close()
+
+	var msgs []ArchivedMessage
+	for dataRows.Next() {
+		var m ArchivedMessage
+		if err := dataRows.Scan(&m.ID, &m.SessionID, &m.Role, &m.Content, &m.Timestamp, &m.ConsolidationStatus, &m.ConsolidationRetries); err != nil {
+			return nil, fmt.Errorf("scan claimed: %w", err)
+		}
+		msgs = append(msgs, m)
+	}
+	if err := dataRows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate claimed: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit claim: %w", err)
+	}
+	return msgs, nil
 }
 
 // MarkConsolidated marks a batch of archived messages as consolidated.
@@ -355,9 +460,11 @@ func (s *SQLiteMemory) MarkConsolidationFailure(ids []int64, reason string) erro
 }
 
 // CleanOldArchivedMessages removes archived messages older than the given number of days.
+// Only successfully consolidated messages (consolidated = 1 AND consolidation_status = 'done')
+// are removed. Pending, failed, or in-progress rows are always retained to prevent data loss.
 func (s *SQLiteMemory) CleanOldArchivedMessages(days int) (int64, error) {
 	res, err := s.db.Exec(
-		"DELETE FROM archived_messages WHERE archived_at < datetime('now', ?)",
+		"DELETE FROM archived_messages WHERE consolidated = 1 AND consolidation_status = 'done' AND archived_at < datetime('now', ?)",
 		fmt.Sprintf("-%d days", days),
 	)
 	if err != nil {

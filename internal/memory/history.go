@@ -2,8 +2,10 @@ package memory
 
 import (
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -206,11 +208,36 @@ func (hm *HistoryManager) save() error {
 	if err != nil {
 		return err
 	}
-	// WriteFile is the slow part on Windows, now done completely outside the lock.
+	// Atomic write via temp file + rename to prevent corruption on crash.
+	// The temp file is created in the same directory to guarantee the rename
+	// is atomic (same filesystem on all platforms).
+	dir := filepath.Dir(hm.file)
+	tmpFile, err := os.CreateTemp(dir, ".history-*.tmp")
+	if err != nil {
+		return fmt.Errorf("create temp file: %w", err)
+	}
+	tmpName := tmpFile.Name()
+
+	if _, err := tmpFile.Write(data); err != nil {
+		tmpFile.Close()
+		os.Remove(tmpName)
+		return fmt.Errorf("write temp file: %w", err)
+	}
 	// 0600: owner read/write only — conversation history is sensitive.
-	// On Windows the ACL model differs and mode is advisory; the file will be created
-	// with default ACLs inherited from the parent directory.
-	return os.WriteFile(hm.file, data, 0600)
+	if err := tmpFile.Chmod(0600); err != nil {
+		tmpFile.Close()
+		os.Remove(tmpName)
+		return fmt.Errorf("chmod temp file: %w", err)
+	}
+	if err := tmpFile.Close(); err != nil {
+		os.Remove(tmpName)
+		return fmt.Errorf("close temp file: %w", err)
+	}
+	if err := os.Rename(tmpName, hm.file); err != nil {
+		os.Remove(tmpName)
+		return fmt.Errorf("rename temp→final: %w", err)
+	}
+	return nil
 }
 
 func (hm *HistoryManager) Add(role, content string, id int64, pinned bool, isInternal bool) error {
