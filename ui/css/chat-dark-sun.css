@@ -107,6 +107,22 @@
         0 0 40px rgba(120, 20, 6, 0.16);
 }
 
+[data-theme="dark-sun"] .logo span:first-of-type,
+[data-theme="dark-sun"] .session-drawer-title,
+[data-theme="dark-sun"] .modal-title,
+[data-theme="dark-sun"] .app-header .pill,
+[data-theme="dark-sun"] .chat-theme-btn,
+[data-theme="dark-sun"] .btn-session-toggle,
+[data-theme="dark-sun"] .btn-speaker,
+[data-theme="dark-sun"] .btn-warnings,
+[data-theme="dark-sun"] .select-personality,
+[data-theme="dark-sun"] .mood-toggle,
+[data-theme="dark-sun"] .btn-header,
+[data-theme="dark-sun"] .btn-header-link,
+[data-theme="dark-sun"] #logout-btn {
+    font-family: var(--darksun-font-ui);
+}
+
 [data-theme="dark-sun"] .chat-theme-btn,
 [data-theme="dark-sun"] .btn-session-toggle,
 [data-theme="dark-sun"] .btn-speaker,

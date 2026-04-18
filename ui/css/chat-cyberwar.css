@@ -107,6 +107,22 @@
         0 0 44px rgba(139, 125, 255, 0.22);
 }
 
+[data-theme="cyberwar"] .logo span:first-of-type,
+[data-theme="cyberwar"] .session-drawer-title,
+[data-theme="cyberwar"] .modal-title,
+[data-theme="cyberwar"] .app-header .pill,
+[data-theme="cyberwar"] .chat-theme-btn,
+[data-theme="cyberwar"] .btn-session-toggle,
+[data-theme="cyberwar"] .btn-speaker,
+[data-theme="cyberwar"] .btn-warnings,
+[data-theme="cyberwar"] .select-personality,
+[data-theme="cyberwar"] .mood-toggle,
+[data-theme="cyberwar"] .btn-header,
+[data-theme="cyberwar"] .btn-header-link,
+[data-theme="cyberwar"] #logout-btn {
+    font-family: var(--cyber-font-ui);
+}
+
 [data-theme="cyberwar"] .chat-theme-btn,
 [data-theme="cyberwar"] .btn-session-toggle,
 [data-theme="cyberwar"] .btn-speaker,

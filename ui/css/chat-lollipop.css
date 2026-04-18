@@ -54,6 +54,7 @@
         radial-gradient(circle at 50% 100%, rgba(126, 220, 183, 0.18), transparent 28%),
         linear-gradient(180deg, #ebc6d9 0%, #df9fbe 48%, #e6b39f 100%);
     color: var(--text-primary);
+    font-family: var(--lollipop-font-display);
 }
 
 [data-theme="lollipop"] body::before {
@@ -90,7 +91,17 @@
 }
 
 [data-theme="lollipop"] .logo span:first-of-type,
-[data-theme="lollipop"] .session-drawer-title {
+[data-theme="lollipop"] .session-drawer-title,
+[data-theme="lollipop"] .modal-title,
+[data-theme="lollipop"] .chat-theme-btn,
+[data-theme="lollipop"] .btn-session-toggle,
+[data-theme="lollipop"] .btn-speaker,
+[data-theme="lollipop"] .btn-warnings,
+[data-theme="lollipop"] .select-personality,
+[data-theme="lollipop"] .mood-toggle,
+[data-theme="lollipop"] .btn-header,
+[data-theme="lollipop"] .btn-header-link,
+[data-theme="lollipop"] #logout-btn {
     font-family: var(--lollipop-font-display);
     letter-spacing: 0.01em;
 }
