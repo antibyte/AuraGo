@@ -9,5 +9,7 @@
   "config.ai_gateway.disabled_desc": "Active el interruptor para enrutar las solicitudes LLM a través de Cloudflare AI Gateway para caché, limitación y análisis.",
   "config.ai_gateway.info": "Enruta todas las solicitudes API LLM a través de Cloudflare AI Gateway. Proporciona caché, limitación, registro y capacidades de respaldo. Los proveedores locales (Ollama) están excluidos.",
   "config.ai_gateway.token": "Token del gateway",
-  "config.ai_gateway.token_placeholder": "cf-aig-..."
+  "config.ai_gateway.token_placeholder": "cf-aig-...",
+  "config.ai_gateway.settings_title": "Configuración de conexión",
+  "config.ai_gateway.settings_desc": "Configure las credenciales de Cloudflare AI Gateway."
 }

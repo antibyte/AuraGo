@@ -9,5 +9,7 @@
   "config.ai_gateway.disabled_desc": "Włącz przełącznik, aby kierować żądania LLM przez Cloudflare AI Gateway.",
   "config.ai_gateway.info": "Kieruje wszystkie żądania API LLM przez Cloudflare AI Gateway. Zapewnia cache, limity, logowanie i failover. Lokalni dostawcy (Ollama) są wykluczeni.",
   "config.ai_gateway.token": "Token bramy",
-  "config.ai_gateway.token_placeholder": "cf-aig-..."
+  "config.ai_gateway.token_placeholder": "cf-aig-...",
+  "config.ai_gateway.settings_title": "Ustawienia połączenia",
+  "config.ai_gateway.settings_desc": "Skonfiguruj dane uwierzytelniające Cloudflare AI Gateway."
 }

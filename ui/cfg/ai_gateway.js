@@ -31,6 +31,10 @@ function renderAIGatewaySection(section) {
         html += '</div></div>';
     }
 
+    html += '<div class="field-group">';
+    html += '<div class="field-group-title">⚙️ ' + t('config.ai_gateway.settings_title') + '</div>';
+    html += '<div class="field-group-desc">' + t('config.ai_gateway.settings_desc') + '</div>';
+
     html += '<div class="ai-gw-grid">';
 
     html += '<label class="ai-gw-label">';
@@ -54,6 +58,7 @@ function renderAIGatewaySection(section) {
     html += '</div>';
     html += '</label>';
 
+    html += '</div>';
     html += '</div>';
     html += '</div>';
     document.getElementById('content').innerHTML = html;

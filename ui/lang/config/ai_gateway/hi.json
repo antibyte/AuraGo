@@ -9,5 +9,7 @@
   "config.ai_gateway.disabled_desc": "Cloudflare AI Gateway के माध्यम से LLM अनुरोधों को रूट करने के लिए टॉगल सक्षम करें।",
   "config.ai_gateway.info": "सभी LLM API अनुरोधों को Cloudflare AI Gateway के माध्यम से रूट करता है। कैशिंग, दर सीमा, लॉगिंग और फेलोवर प्रदान करता है। स्थानीय प्रदाता (Ollama) शामिल नहीं।",
   "config.ai_gateway.token": "गेटवे टोकन",
-  "config.ai_gateway.token_placeholder": "cf-aig-..."
+  "config.ai_gateway.token_placeholder": "cf-aig-...",
+  "config.ai_gateway.settings_title": "कनेक्शन सेटिंग्स",
+  "config.ai_gateway.settings_desc": "अपनी Cloudflare AI Gateway क्रेडेंशियल कॉन्फ़िगर करें।"
 }

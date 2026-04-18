@@ -9,5 +9,7 @@
   "config.ai_gateway.disabled_desc": "トグルを有効にして、Cloudflare AI Gateway経由でLLMリクエストをルーティングします。",
   "config.ai_gateway.info": "すべてのLLM APIリクエストをCloudflare AI Gateway経由でルーティング。キャッシュ、レート制限、ログ、フェイルオーバーを提供。ローカルプロバイダー（Ollama）は除外。",
   "config.ai_gateway.token": "ゲートウェイトークン",
-  "config.ai_gateway.token_placeholder": "cf-aig-..."
+  "config.ai_gateway.token_placeholder": "cf-aig-...",
+  "config.ai_gateway.settings_title": "接続設定",
+  "config.ai_gateway.settings_desc": "Cloudflare AI Gatewayの認証情報を設定します。"
 }

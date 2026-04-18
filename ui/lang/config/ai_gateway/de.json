@@ -9,5 +9,7 @@
   "config.ai_gateway.token_placeholder": "cf-aig-...",
   "config.ai_gateway.disabled_notice": "AI Gateway ist deaktiviert",
   "config.ai_gateway.disabled_desc": "Aktivieren Sie den Schalter, um LLM-Anfragen \u00fcber Cloudflare AI Gateway f\u00fcr Caching, Ratenbegrenzung und Analysen zu leiten.",
-  "config.ai_gateway.info": "Leitet alle LLM-API-Anfragen \u00fcber Cloudflare AI Gateway. Bietet Caching, Ratenbegrenzung, Protokollierung und Fallback-F\u00e4higkeiten. Lokale Anbieter (Ollama) sind ausgenommen."
+  "config.ai_gateway.info": "Leitet alle LLM-API-Anfragen über Cloudflare AI Gateway. Bietet Caching, Ratenbegrenzung, Protokollierung und Fallback-Fähigkeiten. Lokale Anbieter (Ollama) sind ausgenommen.",
+  "config.ai_gateway.settings_title": "Verbindungseinstellungen",
+  "config.ai_gateway.settings_desc": "Cloudflare AI Gateway Zugangsdaten konfigurieren."
 }
