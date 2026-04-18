@@ -86,21 +86,21 @@
             vec3 gold = vec3(1.0, 0.74, 0.28);
 
             vec3 color =
-                deep * 0.2 +
-                emberRed * corona * 0.95 +
-                orange * core * 0.8 +
-                gold * flare * 0.7 +
-                orange * heat * 0.08 +
-                gold * ember * 0.9;
+                deep * 0.22 +
+                emberRed * corona * 1.2 +
+                orange * core * 1.08 +
+                gold * flare * 0.96 +
+                orange * heat * 0.14 +
+                gold * ember * 1.25;
 
             color *= 1.0 - sunspots * 0.3;
 
             float alpha =
-                corona * 0.18 +
-                core * 0.08 +
-                flare * 0.18 +
-                ember * 0.12 +
-                heat * 0.03;
+                corona * 0.28 +
+                core * 0.14 +
+                flare * 0.28 +
+                ember * 0.2 +
+                heat * 0.06;
 
             float vignette = smoothstep(1.45, 0.25, dot(p, p));
             alpha *= vignette;
@@ -143,7 +143,7 @@
             height: '100vh',
             pointerEvents: 'none',
             zIndex: '0',
-            opacity: '0.92',
+            opacity: '1',
             mixBlendMode: 'screen',
             display: 'none'
         });

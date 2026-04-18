@@ -57,7 +57,7 @@
 
 [data-theme="cyberwar"] body::before {
     display: block;
-    z-index: -1;
+    z-index: -2;
     background:
         repeating-linear-gradient(90deg, rgba(102, 139, 255, 0.08) 0 1px, transparent 1px 120px),
         repeating-linear-gradient(0deg, rgba(102, 139, 255, 0.06) 0 1px, transparent 1px 96px),
@@ -68,12 +68,15 @@
 }
 
 [data-theme="cyberwar"] body::after {
+    z-index: -1;
     opacity: 1;
     filter: blur(16px) saturate(1.25);
     animation: cyberwarOrbDrift 20s ease-in-out infinite alternate;
 }
 
 [data-theme="cyberwar"] .app-header {
+    position: relative;
+    z-index: 1;
     background:
         linear-gradient(180deg, rgba(13, 26, 59, 0.9), rgba(4, 11, 27, 0.92)),
         var(--header-bg);
@@ -216,6 +219,8 @@
 
 [data-theme="cyberwar"] #chat-box {
     isolation: isolate;
+    position: relative;
+    z-index: 1;
     background:
         radial-gradient(circle at 18% 12%, rgba(84, 247, 255, 0.08), transparent 28%),
         radial-gradient(circle at 82% 22%, rgba(139, 125, 255, 0.1), transparent 30%),
@@ -239,7 +244,7 @@
 
 [data-theme="cyberwar"] #chat-content {
     position: relative;
-    z-index: 2;
+    z-index: 3;
     padding-top: 1.85rem;
     padding-bottom: 2.35rem;
 }
@@ -279,11 +284,15 @@
 
 [data-theme="cyberwar"] .msg-row {
     position: relative;
-    z-index: 2;
+    z-index: 3;
+    opacity: 1;
+    visibility: visible;
     animation: cyberwarMaterialize 0.46s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 [data-theme="cyberwar"] .bubble {
+    opacity: 1;
+    visibility: visible;
     border: 1px solid rgba(122, 167, 255, 0.18);
     box-shadow:
         inset 0 1px 0 rgba(255, 255, 255, 0.08),
@@ -392,6 +401,8 @@
 }
 
 [data-theme="cyberwar"] .app-footer {
+    position: relative;
+    z-index: 1;
     background:
         linear-gradient(180deg, rgba(6, 13, 31, 0.92), rgba(3, 8, 20, 0.98));
     border-top: 1px solid rgba(104, 241, 255, 0.14);

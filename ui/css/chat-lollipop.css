@@ -58,7 +58,7 @@
 
 [data-theme="lollipop"] body::before {
     display: block;
-    z-index: -1;
+    z-index: -2;
     background-image:
         radial-gradient(circle, var(--lollipop-dot) 0 1.2px, transparent 1.2px),
         radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.5) 0 1px, transparent 1px);
@@ -68,12 +68,15 @@
 }
 
 [data-theme="lollipop"] body::after {
+    z-index: -1;
     filter: blur(12px);
     opacity: 0.88;
     animation: lollipopDrift 26s ease-in-out infinite alternate;
 }
 
 [data-theme="lollipop"] .app-header {
+    position: relative;
+    z-index: 1;
     background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 241, 248, 0.86)),
         var(--header-bg);
@@ -182,6 +185,8 @@
 
 [data-theme="lollipop"] #chat-box {
     isolation: isolate;
+    position: relative;
+    z-index: 1;
     background:
         radial-gradient(circle at 18% 14%, rgba(255, 205, 229, 0.3), transparent 22%),
         radial-gradient(circle at 84% 18%, rgba(212, 195, 255, 0.24), transparent 20%),
@@ -203,7 +208,7 @@
 
 [data-theme="lollipop"] #chat-content {
     position: relative;
-    z-index: 2;
+    z-index: 3;
     padding-top: 1.7rem;
     padding-bottom: 2.25rem;
 }
@@ -233,10 +238,14 @@
 
 [data-theme="lollipop"] .msg-row {
     position: relative;
-    z-index: 2;
+    z-index: 3;
+    opacity: 1;
+    visibility: visible;
 }
 
 [data-theme="lollipop"] .bubble {
+    opacity: 1;
+    visibility: visible;
     border: 1px solid rgba(225, 187, 213, 0.62);
     box-shadow:
         inset 0 1px 0 rgba(255, 255, 255, 0.96),
@@ -333,6 +342,8 @@
 }
 
 [data-theme="lollipop"] .app-footer {
+    position: relative;
+    z-index: 1;
     background:
         linear-gradient(180deg, rgba(255, 250, 253, 0.98), rgba(255, 243, 249, 0.94));
     border-top: 1px solid rgba(233, 170, 210, 0.44);
