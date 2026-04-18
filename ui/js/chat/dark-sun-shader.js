@@ -7,6 +7,8 @@
     let animationId = null;
     let active = false;
     let uniforms = {};
+    let chatBox;
+    let resizeObserver = null;
 
     const VERT = `
         attribute vec2 a_pos;
@@ -54,56 +56,98 @@
             return value;
         }
 
-        void main() {
-            vec2 uv = v_uv;
-            vec2 p = uv * 2.0 - 1.0;
+        vec4 renderSun(vec2 uv, vec2 center, float radius, float phase, float side) {
+            vec2 p = uv - center;
             float aspect = u_res.x / max(u_res.y, 1.0);
-            p.x *= aspect;
+            p.x *= aspect * 0.72;
 
-            float t = u_time * 0.22;
-            float radius = length(p);
+            float t = u_time * (0.85 + phase * 0.08);
+            float dist = length(p);
             float angle = atan(p.y, p.x);
+            float pulse = 0.94 + 0.1 * sin(t * 1.5 + phase * 3.1);
 
-            float coronaNoise = fbm(vec2(angle * 1.5, radius * 3.5 - t * 2.4));
-            float corona = smoothstep(1.08, 0.18, radius) * coronaNoise;
-            float core = smoothstep(0.54, 0.04, radius);
+            float core = smoothstep(radius * pulse, radius * 0.16, dist);
+            float inner = smoothstep(radius * 1.55 * pulse, radius * 0.34, dist);
+            float coronaNoise = fbm(vec2(angle * 2.6 + phase * 4.0, dist * 8.5 - t * 2.2));
+            float corona = smoothstep(radius * 2.75 * pulse, radius * 0.74, dist) * (0.45 + coronaNoise * 0.9);
 
-            float flareA = exp(-28.0 * abs(p.y + sin(t * 1.4 + p.x * 6.0) * 0.05));
-            float flareB = exp(-36.0 * abs(p.x * 0.76 - p.y * 0.38 - sin(t * 0.7) * 0.15));
-            float flare = max(flareA * 0.42, flareB * 0.3);
+            float flareH = exp(-30.0 * abs(p.y + sin(t * 1.7 + p.x * 16.0) * 0.045));
+            float flareD = exp(-24.0 * abs(p.y * 0.78 - p.x * side * 0.42 - sin(t * 0.9 + phase) * 0.12));
+            float flare = flareH * 0.24 + flareD * 0.18;
 
-            float sunspots = smoothstep(0.48, 0.72, fbm(vec2(p * 8.0 + t * 0.8)));
-            float haze = fbm(vec2(p * 5.2 + vec2(t * 1.1, -t * 0.6)));
-            float heat = sin((uv.y + haze * 0.08 + t * 0.25) * u_res.y * 0.012) * 0.5 + 0.5;
-
-            vec2 emberCell = floor(uv * vec2(72.0, 42.0) + vec2(t * 12.0, -t * 8.0));
-            float emberSeed = hash(emberCell);
-            float ember = smoothstep(0.985, 1.0, emberSeed) * smoothstep(1.25, 0.16, radius);
+            float sunspots = smoothstep(0.52, 0.74, fbm(p * 18.0 + vec2(t * 0.55, -t * 0.35))) * inner;
+            float plume = fbm(vec2(p.x * 7.0 * side + t * 1.1, p.y * 4.5 - t * 0.7));
+            float rim = exp(-abs(dist - radius * pulse * 0.96) * 24.0) * (0.62 + plume * 0.55);
 
             vec3 deep = vec3(0.08, 0.02, 0.01);
-            vec3 emberRed = vec3(0.84, 0.2, 0.09);
-            vec3 orange = vec3(0.98, 0.45, 0.15);
-            vec3 gold = vec3(1.0, 0.74, 0.28);
+            vec3 ember = vec3(0.8, 0.18, 0.08);
+            vec3 orange = vec3(0.98, 0.43, 0.14);
+            vec3 gold = vec3(1.0, 0.76, 0.34);
 
             vec3 color =
-                deep * 0.22 +
-                emberRed * corona * 1.2 +
-                orange * core * 1.08 +
-                gold * flare * 0.96 +
-                orange * heat * 0.14 +
-                gold * ember * 1.25;
+                deep * 0.08 +
+                ember * corona * 0.92 +
+                orange * inner * 1.18 +
+                gold * core * 1.14 +
+                gold * rim * 0.55 +
+                orange * flare * 0.72;
 
-            color *= 1.0 - sunspots * 0.3;
+            color *= 1.0 - sunspots * 0.34;
 
             float alpha =
-                corona * 0.28 +
-                core * 0.14 +
-                flare * 0.28 +
-                ember * 0.2 +
-                heat * 0.06;
+                corona * 0.24 +
+                inner * 0.2 +
+                core * 0.16 +
+                rim * 0.12 +
+                flare * 0.24;
 
-            float vignette = smoothstep(1.45, 0.25, dot(p, p));
-            alpha *= vignette;
+            return vec4(color, alpha);
+        }
+
+        void main() {
+            vec2 uv = v_uv;
+            float t = u_time;
+            float edgeMask = pow(smoothstep(0.18, 0.92, abs(uv.x - 0.5) * 2.0), 1.08);
+
+            vec4 leftSun = renderSun(
+                uv,
+                vec2(-0.18 + sin(t * 0.08) * 0.012, 0.27 + sin(t * 0.19) * 0.024),
+                0.19,
+                0.15,
+                -1.0
+            );
+            vec4 rightSun = renderSun(
+                uv,
+                vec2(1.18 + cos(t * 0.07) * 0.012, 0.69 + cos(t * 0.17) * 0.022),
+                0.23,
+                1.9,
+                1.0
+            );
+
+            float haze = fbm(vec2(uv.y * 5.2 + t * 0.28, abs(uv.x - 0.5) * 9.0 - t * 0.46));
+            vec2 emberCell = floor(vec2(uv.x * 42.0, uv.y * 56.0) + vec2(t * 2.8, -t * 6.6));
+            float emberSeed = hash(emberCell);
+            float ember = smoothstep(0.986, 1.0, emberSeed) * edgeMask;
+
+            vec3 emberColor = vec3(1.0, 0.62, 0.22);
+            vec3 hazeColor = vec3(0.96, 0.28, 0.08) * haze * edgeMask * 0.08;
+
+            vec3 color =
+                (leftSun.rgb + rightSun.rgb) * edgeMask +
+                hazeColor +
+                emberColor * ember * 0.82;
+
+            float alpha =
+                (leftSun.a + rightSun.a) * edgeMask +
+                haze * edgeMask * 0.05 +
+                ember * 0.13;
+
+            float bounds =
+                smoothstep(0.0, 0.05, uv.x) *
+                smoothstep(0.0, 0.03, uv.y) *
+                smoothstep(0.0, 0.05, 1.0 - uv.x) *
+                smoothstep(0.0, 0.03, 1.0 - uv.y);
+            alpha *= bounds;
 
             gl_FragColor = vec4(color, alpha);
         }
@@ -138,12 +182,13 @@
         canvas.id = 'dark-sun-overlay';
         Object.assign(canvas.style, {
             position: 'fixed',
-            inset: '0',
-            width: '100vw',
-            height: '100vh',
+            top: '0',
+            left: '0',
+            width: '0',
+            height: '0',
             pointerEvents: 'none',
-            zIndex: '0',
-            opacity: '1',
+            zIndex: '2',
+            opacity: '0.96',
             mixBlendMode: 'screen',
             display: 'none'
         });
@@ -204,11 +249,29 @@
         return true;
     }
 
+    function updateBounds() {
+        if (!canvas || !chatBox) return false;
+        const rect = chatBox.getBoundingClientRect();
+        if (!rect.width || !rect.height) {
+            canvas.style.width = '0';
+            canvas.style.height = '0';
+            return false;
+        }
+
+        canvas.style.left = `${Math.round(rect.left)}px`;
+        canvas.style.top = `${Math.round(rect.top)}px`;
+        canvas.style.width = `${Math.round(rect.width)}px`;
+        canvas.style.height = `${Math.round(rect.height)}px`;
+        return true;
+    }
+
     function resize() {
-        if (!canvas || !gl) return;
+        if (!canvas || !gl || !updateBounds()) return;
         const dpr = Math.min(window.devicePixelRatio || 1, 2);
-        canvas.width = Math.floor(window.innerWidth * dpr);
-        canvas.height = Math.floor(window.innerHeight * dpr);
+        const width = Math.max(1, Math.round(canvas.getBoundingClientRect().width));
+        const height = Math.max(1, Math.round(canvas.getBoundingClientRect().height));
+        canvas.width = Math.floor(width * dpr);
+        canvas.height = Math.floor(height * dpr);
         gl.viewport(0, 0, canvas.width, canvas.height);
     }
 
@@ -256,6 +319,14 @@
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', init, { once: true });
             return;
+        }
+
+        chatBox = document.getElementById('chat-box');
+        if (typeof ResizeObserver !== 'undefined' && chatBox) {
+            resizeObserver = new ResizeObserver(() => {
+                if (active) resize();
+            });
+            resizeObserver.observe(chatBox);
         }
 
         window.addEventListener('aurago:themechange', sync);

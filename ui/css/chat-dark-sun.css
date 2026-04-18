@@ -203,6 +203,12 @@
     filter: var(--bg-logo-filter);
 }
 
+[data-theme="dark-sun"] #dark-sun-overlay {
+    z-index: 2 !important;
+    opacity: 0.96 !important;
+    mix-blend-mode: screen !important;
+}
+
 [data-theme="dark-sun"] #chat-content {
     position: relative;
     z-index: 3;
