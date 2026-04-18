@@ -124,6 +124,9 @@ function connectSSE() {
         } else {
             bubble.textContent = _streamingContent;
         }
+        if (window.decorateEmojiGlyphs) {
+            window.decorateEmojiGlyphs(bubble);
+        }
         chatBox.scrollTop = chatBox.scrollHeight;
     });
     window.AuraSSE.on('llm_stream_done', function (payload) {
@@ -151,6 +154,9 @@ function connectSSE() {
             const label = typeof t === 'function' ? t('chat.thinking_label') : 'Reasoning';
             const detailsHtml = '\u003cdetails class="thinking-block"\u003e\u003csummary\u003e\ud83e\udde0 ' + label + '\u003c/summary\u003e\u003cdiv class="thinking-content"\u003e\u003c/div\u003e\u003c/details\u003e';
             bubble.innerHTML = escapeHtml(_streamingContent) + detailsHtml;
+            if (window.decorateEmojiGlyphs) {
+                window.decorateEmojiGlyphs(bubble);
+            }
             _thinkingDiv = bubble.querySelector('.thinking-content');
         } else if (payload.state === 'delta' && _thinkingDiv) {
             _thinkingContent += payload.content || '';
