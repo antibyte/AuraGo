@@ -23,7 +23,7 @@ import (
 
 // maxSkillArgsBytes limits the serialized size of skill arguments to prevent
 // denial of service via excessively large JSON payloads.
-const maxSkillArgsBytes = 10 * 1024 * 1024 // 10 MB
+const maxSkillArgsBytes = 10 * 1024 * 1024   // 10 MB
 const maxSkillOutputBytes = 10 * 1024 * 1024 // 10 MB
 const skillDependencyInstallTimeout = 10 * time.Minute
 
@@ -46,17 +46,17 @@ var listSkillsCache = struct {
 
 // SkillManifest represents the structure of a skill config file (.json).
 type SkillManifest struct {
-	Name          string            `json:"name"`
-	Description   string            `json:"description"`
-	Executable    string            `json:"executable"` // e.g., "scan.py" or "custom_tool.exe"
-	Category      string            `json:"category,omitempty"`
-	Tags          []string          `json:"tags,omitempty"`
-	Parameters    map[string]interface{} `json:"parameters,omitempty"` // parameter schema (legacy flat map or JSON Schema)
-	Returns       string            `json:"returns,omitempty"`        // describes expected output format
-	Dependencies  []string          `json:"dependencies,omitempty"`   // pip packages required by this skill
-	VaultKeys     []string          `json:"vault_keys,omitempty"`     // vault secret keys this skill needs at runtime
-	InternalTools []string          `json:"internal_tools,omitempty"` // AuraGo native tools this skill may call via tool bridge
-	Daemon        *DaemonManifest   `json:"daemon,omitempty"`         // if set, skill can run as a background daemon
+	Name          string                 `json:"name"`
+	Description   string                 `json:"description"`
+	Executable    string                 `json:"executable"` // e.g., "scan.py" or "custom_tool.exe"
+	Category      string                 `json:"category,omitempty"`
+	Tags          []string               `json:"tags,omitempty"`
+	Parameters    map[string]interface{} `json:"parameters,omitempty"`     // parameter schema (legacy flat map or JSON Schema)
+	Returns       string                 `json:"returns,omitempty"`        // describes expected output format
+	Dependencies  []string               `json:"dependencies,omitempty"`   // pip packages required by this skill
+	VaultKeys     []string               `json:"vault_keys,omitempty"`     // vault secret keys this skill needs at runtime
+	InternalTools []string               `json:"internal_tools,omitempty"` // AuraGo native tools this skill may call via tool bridge
+	Daemon        *DaemonManifest        `json:"daemon,omitempty"`         // if set, skill can run as a background daemon
 }
 
 // ExtractSkillParameterNames returns the list of parameter names from a skill
@@ -243,8 +243,18 @@ func resolveSkillExecution(skillsDir, skillName string, argsJSON map[string]inte
 	if err != nil || strings.HasPrefix(rel, "..") {
 		return SkillManifest{}, "", "", fmt.Errorf("skill '%s' has invalid executable path '%s': skill path traversal detected", skillName, manifest.Executable)
 	}
-	if _, err := os.Stat(absExecPath); os.IsNotExist(err) {
-		return SkillManifest{}, "", "", fmt.Errorf("skill executable '%s' not found at %s", manifest.Executable, absExecPath)
+	fi, err := os.Lstat(absExecPath)
+	if err != nil {
+		return SkillManifest{}, "", "", fmt.Errorf("skill executable not accessible: %w", err)
+	}
+	if fi.Mode()&os.ModeSymlink != 0 {
+		return SkillManifest{}, "", "", fmt.Errorf("symlinks are not allowed in skills directory")
+	}
+	if _, err := os.Stat(absExecPath); err != nil {
+		if os.IsNotExist(err) {
+			return SkillManifest{}, "", "", fmt.Errorf("skill executable '%s' not found at %s", manifest.Executable, absExecPath)
+		}
+		return SkillManifest{}, "", "", fmt.Errorf("skill executable '%s' not accessible: %w", manifest.Executable, err)
 	}
 
 	if argsJSON == nil {
@@ -329,6 +339,12 @@ func executePreparedSkill(ctx context.Context, workspaceDir, skillName string, m
 	if err := cmd.Start(); err != nil {
 		return "", fmt.Errorf("failed to start skill execution: %w", err)
 	}
+	defer func() {
+		if cmd.Process != nil {
+			KillProcessTree(cmd.Process.Pid)
+		}
+		cmd.Wait()
+	}()
 	ApplySkillLimits(cmd.Process.Pid, 1024, int(GetSkillTimeout().Seconds()))
 
 	if opts.logInput {
@@ -435,6 +451,13 @@ func ExecuteSkillInSandbox(skillsDir, skillName string, argsJSON map[string]inte
 	rel, err := filepath.Rel(absSkillsDir, absExecPath)
 	if err != nil || strings.HasPrefix(rel, "..") {
 		return "", fmt.Errorf("skill path traversal detected for '%s'", skillName)
+	}
+	fi, err := os.Lstat(absExecPath)
+	if err != nil {
+		return "", fmt.Errorf("skill executable not accessible: %w", err)
+	}
+	if fi.Mode()&os.ModeSymlink != 0 {
+		return "", fmt.Errorf("symlinks are not allowed in skills directory")
 	}
 	// Read skill code
 	data, err := os.ReadFile(absExecPath)

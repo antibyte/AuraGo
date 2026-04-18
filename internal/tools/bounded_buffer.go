@@ -57,3 +57,11 @@ func (b *BoundedBuffer) String() string {
 	}
 	return s
 }
+
+// Reset clears the buffer contents and dropped flag.
+func (b *BoundedBuffer) Reset() {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.buf.Reset()
+	b.dropped = false
+}

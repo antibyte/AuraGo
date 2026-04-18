@@ -1,13 +1,14 @@
 <!DOCTYPE html>
-<html lang="{{.Lang}}" data-theme="dark">
+<html lang="{{.Lang}}" data-theme="dark" data-i18n-page-title="invasion.page_title">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title id="page-title">AuraGo - Invasion Control</title>
+    <title>AuraGo - Invasion Control</title>
     <link rel="stylesheet" href="/shared-variables.css">
     <link rel="stylesheet" href="/shared-utilities.css">
     <link rel="stylesheet" href="/shared-components.css">
     <link rel="stylesheet" href="/shared-animations.css">
+    <link rel="stylesheet" href="/css/tokens.css">
     <script src="/shared.js?v=7"></script>
     <script>
         (function () { var t = localStorage.getItem('aurago-theme'); if (t) document.documentElement.setAttribute('data-theme', t); })();
@@ -15,14 +16,16 @@
     <script>const I18N={{.I18N}};</script>
     <link rel="stylesheet" href="/css/invasion.css">
     <link rel="stylesheet" href="/css/enhancements.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
 <body>
-    <!-- Header -->
     <header class="app-header">
         <div class="header-left">
             <a href="/" class="logo">
                 <div class="logo-icon">🥚</div>
                 <span class="logo-wordmark-accent">AURA</span><span class="logo-wordmark-base">GO</span>
-                <span class="logo-subtitle"><script>document.write(t('invasion.logo_subtitle'))</script></span>
+                <span class="logo-subtitle" data-i18n="invasion.logo_subtitle">Invasion</span>
             </a>
         </div>
         <div class="header-actions">
@@ -33,32 +36,29 @@
     <div id="radialMenuAnchor"></div>
 
     <div class="container">
-        <!-- Page Header -->
         <div class="page-header">
-            <h1><script>document.write(t('invasion.title'))</script></h1>
-            <button class="btn btn-primary" id="btn-create" onclick="openCreateModal()">
-                <span>+</span> <span><script>document.write(t('invasion.create_new'))</script></span>
+            <h1 data-i18n="invasion.title">Invasion Control</h1>
+            <button class="btn btn-primary" id="btn-create" type="button">
+                <span>+</span> <span data-i18n="invasion.create_new">Create New</span>
             </button>
         </div>
 
-        <!-- Tabs -->
         <div class="media-tabs invasion-tabs">
-            <button class="media-tab invasion-tab active" data-tab="nests" onclick="switchTab('nests')">
-                🪺 <span><script>document.write(t('invasion.nests'))</script></span>
+            <button class="media-tab invasion-tab active" type="button" data-tab="nests">
+                🪺 <span data-i18n="invasion.nests">Nests</span>
             </button>
-            <button class="media-tab invasion-tab" data-tab="eggs" onclick="switchTab('eggs')">
-                🥚 <span><script>document.write(t('invasion.eggs'))</script></span>
+            <button class="media-tab invasion-tab" type="button" data-tab="eggs">
+                🥚 <span data-i18n="invasion.eggs">Eggs</span>
             </button>
         </div>
 
-        <!-- Content -->
         <div id="content-nests" class="tab-content">
             <div class="cards-grid" id="nests-grid"></div>
             <div class="empty-state is-hidden" id="nests-empty">
                 <div class="icon">🪺</div>
-                <p><script>document.write(t('invasion.no_nests'))</script></p>
-                <button class="btn btn-primary" onclick="openCreateModal()">
-                    <span><script>document.write(t('invasion.create_first_nest'))</script></span>
+                <p data-i18n="invasion.no_nests">No nests yet.</p>
+                <button class="btn btn-primary" type="button" data-action="open-create">
+                    <span data-i18n="invasion.create_first_nest">Create first nest</span>
                 </button>
             </div>
         </div>
@@ -67,85 +67,82 @@
             <div class="cards-grid" id="eggs-grid"></div>
             <div class="empty-state is-hidden" id="eggs-empty">
                 <div class="icon">🥚</div>
-                <p><script>document.write(t('invasion.no_eggs'))</script></p>
-                <button class="btn btn-primary" onclick="openCreateModal()">
-                    <span><script>document.write(t('invasion.create_first_egg'))</script></span>
+                <p data-i18n="invasion.no_eggs">No eggs yet.</p>
+                <button class="btn btn-primary" type="button" data-action="open-create">
+                    <span data-i18n="invasion.create_first_egg">Create first egg</span>
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- Nest Modal -->
     <div class="modal-overlay" id="nest-modal">
         <div class="modal">
             <div class="modal-header">
-                <h2 id="nest-modal-title"><script>document.write(t('invasion.create_nest'))</script></h2>
-                <button class="modal-close" onclick="closeModal('nest-modal')">&times;</button>
+                <h2 id="nest-modal-title" data-i18n="invasion.create_nest">Create Nest</h2>
+                <button class="modal-close" type="button" data-modal-close="nest-modal">&times;</button>
             </div>
             <input type="hidden" id="nest-id">
             <div class="form-group">
-                <label><script>document.write(t('invasion.name'))</script></label>
+                <label for="nest-name" data-i18n="invasion.name">Name</label>
                 <input type="text" id="nest-name" data-i18n-placeholder="invasion.ph_nest_name" placeholder="Produktionsserver">
             </div>
             <div class="form-group">
-                <label><script>document.write(t('invasion.notes'))</script></label>
+                <label for="nest-notes" data-i18n="invasion.notes">Notes</label>
                 <textarea id="nest-notes" data-i18n-placeholder="invasion.ph_nest_notes" placeholder="Optionale Notizen..." rows="2" class="resize-vertical"></textarea>
             </div>
             <div class="form-group">
-                <label><script>document.write(t('invasion.access_type'))</script></label>
-                <select id="nest-access-type" class="form-select" onchange="onAccessTypeChange()">
+                <label for="nest-access-type" data-i18n="invasion.access_type">Access Type</label>
+                <select id="nest-access-type" class="form-select">
                     <option value="ssh" data-i18n="invasion.access_ssh">SSH</option>
                     <option value="docker" data-i18n="invasion.access_docker">Docker API</option>
-                    <option value="local" data-i18n="invasion.access_local">Lokal</option>
+                    <option value="local" data-i18n="invasion.access_local">Local</option>
                 </select>
             </div>
             <div id="nest-remote-fields">
                 <div class="form-row">
                     <div class="form-group">
-                        <label><script>document.write(t('invasion.host'))</script></label>
+                        <label for="nest-host" data-i18n="invasion.host">Host</label>
                         <input type="text" id="nest-host" data-i18n-placeholder="invasion.ph_host" placeholder="192.168.1.100">
                     </div>
                     <div class="form-group">
-                        <label><script>document.write(t('invasion.port'))</script></label>
+                        <label for="nest-port" data-i18n="invasion.port">Port</label>
                         <input type="number" id="nest-port" value="22">
                     </div>
                 </div>
                 <div class="form-group">
-                    <label><script>document.write(t('invasion.username'))</script></label>
+                    <label for="nest-username" data-i18n="invasion.username">Username</label>
                     <input type="text" id="nest-username" data-i18n-placeholder="invasion.ph_username" placeholder="deploy">
                 </div>
                 <div class="form-group">
-                    <label id="nest-secret-label"><script>document.write(t('invasion.secret'))</script></label>
+                    <label for="nest-secret" id="nest-secret-label" data-i18n="invasion.secret">Secret</label>
                     <textarea id="nest-secret" data-i18n-placeholder="invasion.ph_secret" placeholder="Passwort oder SSH Private Key..." rows="3" class="resize-vertical"></textarea>
-                    <small id="nest-secret-hint" class="hint-subtle is-hidden">
-                        <script>document.write(t('invasion.secret_set'))</script>
-                    </small>
+                    <small id="nest-secret-hint" class="hint-subtle is-hidden" data-i18n="invasion.secret_set">Secret already stored</small>
                 </div>
             </div>
             <div class="form-group">
-                <label><script>document.write(t('invasion.assign_egg'))</script></label>
+                <label for="nest-egg-id" data-i18n="invasion.assign_egg">Assign Egg</label>
                 <select id="nest-egg-id" class="form-select">
-                    <option value="" data-i18n="invasion.no_egg">— Kein Egg —</option>
+                    <option value="" data-i18n="invasion.no_egg">— No Egg —</option>
                 </select>
             </div>
             <div class="form-group">
-                <label><script>document.write(t('invasion.deploy_method'))</script></label>
-                <select id="nest-deploy-method" class="form-select" onchange="onDeployMethodChange()">
+                <label for="nest-deploy-method" data-i18n="invasion.deploy_method">Deploy Method</label>
+                <select id="nest-deploy-method" class="form-select">
                     <option value="ssh" data-i18n="invasion.deploy_ssh">SSH</option>
                     <option value="docker_remote" data-i18n="invasion.deploy_docker_remote">Docker (Remote)</option>
-                    <option value="docker_local" data-i18n="invasion.deploy_docker_local">Docker (Lokal)</option>
+                    <option value="docker_local" data-i18n="invasion.deploy_docker_local">Docker (Local)</option>
                 </select>
-                <small id="deploy-docker-local-hint" class="hint-subtle is-hidden mt-xs"><script>document.write(t('invasion.docker_local_hint'))</script></small>
+                <small id="deploy-docker-local-hint" class="hint-subtle is-hidden mt-xs" data-i18n="invasion.docker_local_hint">Local Docker uses the host daemon directly.</small>
             </div>
             <div class="form-group">
-                <label><script>document.write(t('invasion.target_arch'))</script></label>
+                <label for="nest-target-arch" data-i18n="invasion.target_arch">Target Architecture</label>
                 <select id="nest-target-arch" class="form-select">
                     <option value="linux/amd64">linux/amd64</option>
                     <option value="linux/arm64">linux/arm64</option>
                 </select>
             </div>
             <div class="form-group">
-                <label><script>document.write(t('invasion.route'))</script></label>
+                <label for="nest-route" data-i18n="invasion.route">Route</label>
                 <select id="nest-route" class="form-select">
                     <option value="direct" data-i18n="invasion.route_direct">Direct</option>
                     <option value="ssh_tunnel" data-i18n="invasion.route_ssh_tunnel">SSH Tunnel</option>
@@ -155,7 +152,7 @@
                 </select>
             </div>
             <div class="form-group">
-                <label><script>document.write(t('invasion.route_config'))</script></label>
+                <label for="nest-route-config" data-i18n="invasion.route_config">Route Config</label>
                 <textarea id="nest-route-config" placeholder='{"tunnel_port":8443}' rows="2" class="resize-vertical"></textarea>
             </div>
             <div class="form-group">
@@ -164,67 +161,62 @@
                         <input type="checkbox" id="nest-active" checked>
                         <span class="slider"></span>
                     </label>
-                    <span class="toggle-label"><script>document.write(t('invasion.active'))</script></span>
+                    <span class="toggle-label" data-i18n="invasion.active">Active</span>
                 </div>
             </div>
             <div id="nest-validate-area" class="is-hidden">
-                <button class="btn btn-sm btn-secondary" id="btn-validate" onclick="validateNest()">
-                    <script>document.write(t('invasion.test_connection'))</script>
-                </button>
+                <button class="btn btn-sm btn-secondary" id="btn-validate" type="button" data-i18n="invasion.test_connection">Test Connection</button>
                 <div class="validate-result" id="validate-result"></div>
             </div>
             <div class="modal-actions">
-                <button class="btn btn-secondary" onclick="closeModal('nest-modal')"><script>document.write(t('invasion.cancel'))</script></button>
-                <button class="btn btn-primary" onclick="saveNest()"><script>document.write(t('invasion.save'))</script></button>
+                <button class="btn btn-secondary" id="nest-cancel-btn" type="button" data-i18n="invasion.cancel">Cancel</button>
+                <button class="btn btn-primary" id="nest-save-btn" type="button" data-i18n="invasion.save">Save</button>
             </div>
         </div>
     </div>
 
-    <!-- Egg Modal -->
     <div class="modal-overlay" id="egg-modal">
         <div class="modal">
             <div class="modal-header">
-                <h2 id="egg-modal-title"><script>document.write(t('invasion.create_egg'))</script></h2>
-                <button class="modal-close" onclick="closeModal('egg-modal')">&times;</button>
+                <h2 id="egg-modal-title" data-i18n="invasion.create_egg">Create Egg</h2>
+                <button class="modal-close" type="button" data-modal-close="egg-modal">&times;</button>
             </div>
             <input type="hidden" id="egg-id">
             <div class="form-group">
-                <label><script>document.write(t('invasion.name'))</script></label>
+                <label for="egg-name" data-i18n="invasion.name">Name</label>
                 <input type="text" id="egg-name" data-i18n-placeholder="invasion.ph_egg_name" placeholder="Analytics Agent">
             </div>
             <div class="form-group">
-                <label><script>document.write(t('invasion.description'))</script></label>
+                <label for="egg-description" data-i18n="invasion.description">Description</label>
                 <textarea id="egg-description" data-i18n-placeholder="invasion.ph_egg_description" placeholder="Was macht dieser Sub-Agent?" rows="2" class="resize-vertical"></textarea>
             </div>
             <div class="form-row">
                 <div class="form-group">
-                    <label><script>document.write(t('invasion.provider'))</script></label>
+                    <label for="egg-provider" data-i18n="invasion.provider">Provider</label>
                     <select id="egg-provider">
                         <option value=""></option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label><script>document.write(t('invasion.model'))</script></label>
+                    <label for="egg-model" data-i18n="invasion.model">Model</label>
                     <input type="text" id="egg-model" placeholder="gpt-4o-mini">
                 </div>
             </div>
             <div class="form-group">
-                <label><script>document.write(t('invasion.base_url'))</script></label>
+                <label for="egg-base-url" data-i18n="invasion.base_url">Base URL</label>
                 <input type="text" id="egg-base-url" placeholder="https://openrouter.ai/api/v1">
             </div>
             <div class="form-group">
-                <label><script>document.write(t('invasion.api_key'))</script></label>
+                <label for="egg-api-key" data-i18n="invasion.api_key">API Key</label>
                 <input type="password" id="egg-api-key" placeholder="sk-...">
-                <small id="egg-apikey-hint" class="hint-subtle is-hidden">
-                    <script>document.write(t('invasion.apikey_set'))</script>
-                </small>
+                <small id="egg-apikey-hint" class="hint-subtle is-hidden" data-i18n="invasion.apikey_set">API key already stored</small>
             </div>
             <div class="form-group">
-                <label><script>document.write(t('invasion.egg_port'))</script></label>
+                <label for="egg-port" data-i18n="invasion.egg_port">Egg Port</label>
                 <input type="number" id="egg-port" value="8099" min="1024" max="65535">
             </div>
             <div class="form-group">
-                <label><script>document.write(t('invasion.allowed_tools'))</script></label>
+                <label for="egg-allowed-tools" data-i18n="invasion.allowed_tools">Allowed Tools</label>
                 <input type="text" id="egg-allowed-tools" placeholder='["shell","python"]'>
             </div>
             <div class="form-group">
@@ -233,7 +225,7 @@
                         <input type="checkbox" id="egg-permanent">
                         <span class="slider"></span>
                     </label>
-                    <span class="toggle-label"><script>document.write(t('invasion.permanent'))</script></span>
+                    <span class="toggle-label" data-i18n="invasion.permanent">Permanent</span>
                 </div>
             </div>
             <div class="form-group">
@@ -242,7 +234,7 @@
                         <input type="checkbox" id="egg-include-vault">
                         <span class="slider"></span>
                     </label>
-                    <span class="toggle-label"><script>document.write(t('invasion.include_vault'))</script></span>
+                    <span class="toggle-label" data-i18n="invasion.include_vault">Include Vault</span>
                 </div>
             </div>
             <div class="form-group">
@@ -251,7 +243,7 @@
                         <input type="checkbox" id="egg-inherit-llm" checked>
                         <span class="slider"></span>
                     </label>
-                    <span class="toggle-label"><script>document.write(t('invasion.inherit_llm'))</script></span>
+                    <span class="toggle-label" data-i18n="invasion.inherit_llm">Inherit LLM</span>
                 </div>
             </div>
             <div class="form-group">
@@ -260,39 +252,32 @@
                         <input type="checkbox" id="egg-active" checked>
                         <span class="slider"></span>
                     </label>
-                    <span class="toggle-label"><script>document.write(t('invasion.active'))</script></span>
+                    <span class="toggle-label" data-i18n="invasion.active">Active</span>
                 </div>
             </div>
             <div class="modal-actions">
-                <button class="btn btn-secondary" onclick="closeModal('egg-modal')"><script>document.write(t('invasion.cancel'))</script></button>
-                <button class="btn btn-primary" onclick="saveEgg()"><script>document.write(t('invasion.save'))</script></button>
+                <button class="btn btn-secondary" id="egg-cancel-btn" type="button" data-i18n="invasion.cancel">Cancel</button>
+                <button class="btn btn-primary" id="egg-save-btn" type="button" data-i18n="invasion.save">Save</button>
             </div>
         </div>
     </div>
 
-    <!-- Delete Confirm Modal -->
     <div class="modal-overlay" id="delete-modal">
         <div class="modal">
             <div class="modal-header">
-                <h2 class="delete-modal-title">⚠️ <span><script>document.write(t('invasion.confirm_delete'))</script></span></h2>
-                <button class="modal-close" onclick="closeModal('delete-modal')">&times;</button>
+                <h2 class="delete-modal-title">⚠️ <span data-i18n="invasion.confirm_delete">Confirm Delete</span></h2>
+                <button class="modal-close" type="button" data-modal-close="delete-modal">&times;</button>
             </div>
             <p id="delete-message" class="delete-message"></p>
-            <p class="delete-modal-hint">
-                <script>document.write(t('invasion.type_name_confirm'))</script>
-            </p>
-            <input type="text" class="delete-confirm-input" id="delete-confirm-input"
-                   oninput="checkDeleteConfirm()" autocomplete="off">
+            <p class="delete-modal-hint" data-i18n="invasion.type_name_confirm">Type the exact name to confirm deletion.</p>
+            <input type="text" class="delete-confirm-input" id="delete-confirm-input" autocomplete="off">
             <div class="modal-actions">
-                <button class="btn btn-secondary" onclick="closeModal('delete-modal')"><script>document.write(t('invasion.cancel'))</script></button>
-                <button class="btn btn-danger" id="btn-delete-confirm" disabled onclick="confirmDelete()">
-                    <script>document.write(t('invasion.delete_permanent'))</script>
-                </button>
+                <button class="btn btn-secondary" id="delete-cancel-btn" type="button" data-i18n="invasion.cancel">Cancel</button>
+                <button class="btn btn-danger" id="btn-delete-confirm" type="button" disabled data-i18n="invasion.delete_permanent">Delete Permanently</button>
             </div>
         </div>
     </div>
 
-    <!-- Toast -->
     <div class="toast" id="toast"></div>
 
     <script src="/js/invasion/main.js"></script>

@@ -59,6 +59,7 @@ func handleStreamingResponse(
 		}
 		return streamingResponseResult{err: streamErr}
 	}
+	defer stm.Close()
 
 	var assembledResponse strings.Builder
 	var lastFinishReason string
@@ -113,8 +114,15 @@ func handleStreamingResponse(
 		case <-timer.C:
 			currentLogger.Warn("[Stream] No chunks received within idle timeout; aborting stream", "timeout", idleTimeout.String())
 			cancelResp()
+			stm.Close()
 			contextCancelled = true
-			_ = recvEg.Wait()
+			done := make(chan struct{})
+			go func() { _ = recvEg.Wait(); close(done) }()
+			select {
+			case <-done:
+			case <-time.After(10 * time.Second):
+				currentLogger.Error("[Stream] recvEg.Wait() hung after stream close")
+			}
 			ok = false
 		case rr, ok = <-recvCh:
 			if !ok {

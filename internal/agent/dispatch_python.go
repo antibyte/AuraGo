@@ -149,16 +149,25 @@ func dispatchPython(tc ToolCall, dc *DispatchContext) string {
 		}
 		// Intercept LLM confusing Skills for Tools
 		toolPath := filepath.Join(cfg.Directories.ToolsDir, req.Name)
-		if _, err := os.Stat(toolPath); os.IsNotExist(err) {
-			skillCheckName := req.Name
-			if !strings.HasSuffix(skillCheckName, ".py") {
-				skillCheckName += ".py"
+		// Check for symlinks to prevent path traversal
+		fi, err := os.Lstat(toolPath)
+		if err != nil {
+			if os.IsNotExist(err) {
+				skillCheckName := req.Name
+				if !strings.HasSuffix(skillCheckName, ".py") {
+					skillCheckName += ".py"
+				}
+				skillPath := filepath.Join(cfg.Directories.SkillsDir, skillCheckName)
+				if _, err2 := os.Stat(skillPath); err2 == nil {
+					skillBase := strings.TrimSuffix(skillCheckName, ".py")
+					return fmt.Sprintf("Tool Output: ERROR '%s' is a registered SKILL, not a generic tool. You MUST use {\"action\": \"execute_skill\", \"skill\": \"%s\", \"skill_args\": {\"arg1\": \"val1\"}} (JSON object) instead.", req.Name, skillBase)
+				}
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"Tool '%s' not found"}`, req.Name)
 			}
-			skillPath := filepath.Join(cfg.Directories.SkillsDir, skillCheckName)
-			if _, err2 := os.Stat(skillPath); err2 == nil {
-				skillBase := strings.TrimSuffix(skillCheckName, ".py")
-				return fmt.Sprintf("Tool Output: ERROR '%s' is a registered SKILL, not a generic tool. You MUST use {\"action\": \"execute_skill\", \"skill\": \"%s\", \"skill_args\": {\"arg1\": \"val1\"}} (JSON object) instead.", req.Name, skillBase)
-			}
+			return fmt.Sprintf(`Tool Output: {"status":"error","message":"Tool '%s' not accessible: %s"}`, req.Name, err)
+		}
+		if fi.Mode()&os.ModeSymlink != 0 {
+			return fmt.Sprintf(`Tool Output: {"status":"error","message":"symlinks are not allowed in tools directory"}`)
 		}
 
 		if req.Background {

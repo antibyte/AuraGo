@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"context"
 	"log/slog"
 	"os/exec"
 	"runtime"
@@ -23,7 +24,7 @@ func TestForegroundRunner_BasicExecution(t *testing.T) {
 		KillWait: 2 * time.Second,
 	})
 
-	stdout, stderr, err := runner.Run()
+	stdout, stderr, err := runner.Run(context.Background())
 	if err != nil {
 		t.Fatalf("ForegroundRunner.Run() error = %v, stderr = %s", err, stderr)
 	}
@@ -46,7 +47,7 @@ func TestForegroundRunner_TimeoutKillsProcess(t *testing.T) {
 		KillWait: 2 * time.Second,
 	})
 
-	stdout, stderr, err := runner.Run()
+	stdout, stderr, err := runner.Run(context.Background())
 	if err == nil {
 		t.Fatal("expected timeout error, got nil")
 	}
@@ -67,7 +68,7 @@ func TestForegroundRunner_CommandError(t *testing.T) {
 		KillWait: 2 * time.Second,
 	})
 
-	_, _, err := runner.Run()
+	_, _, err := runner.Run(context.Background())
 	if err == nil {
 		t.Fatal("expected error for nonexistent command, got nil")
 	}
@@ -128,7 +129,7 @@ func TestForegroundRunner_CustomErrMsg(t *testing.T) {
 		ErrMsg:   "CUSTOM TIMEOUT: process ran too long (%s)",
 	})
 
-	_, _, err := runner.Run()
+	_, _, err := runner.Run(context.Background())
 	if err == nil {
 		t.Fatal("expected timeout error, got nil")
 	}

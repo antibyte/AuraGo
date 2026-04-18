@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"context"
 	"fmt"
 	"os/exec"
 	"time"
@@ -48,9 +49,11 @@ func NewForegroundRunner(cmd *exec.Cmd, opts ForegroundOptions) *ForegroundRunne
 	}
 }
 
-// Run executes the command and waits for completion or timeout.
-// Returns stdout, stderr, and any error (including timeout error).
-func (r *ForegroundRunner) Run() (string, string, error) {
+// Run executes the command and waits for completion, timeout, or context cancellation.
+// Returns stdout, stderr, and any error (including timeout or context error).
+func (r *ForegroundRunner) Run(ctx context.Context) (string, string, error) {
+	r.stdout.Reset()
+	r.stderr.Reset()
 	r.cmd.Stdout = r.stdout
 	r.cmd.Stderr = r.stderr
 
@@ -71,6 +74,25 @@ func (r *ForegroundRunner) Run() (string, string, error) {
 			return out, errOut, err
 		}
 		return r.stdout.String(), r.stderr.String(), err
+	case <-ctx.Done():
+		if r.opts.Graceful {
+			KillProcessTreeGraceful(r.cmd.Process.Pid, 2)
+		} else {
+			KillProcessTree(r.cmd.Process.Pid)
+		}
+		select {
+		case <-done:
+		case <-time.After(r.opts.KillWait):
+			select {
+			case <-done:
+			case <-time.After(10 * time.Second):
+			}
+		}
+		if r.opts.ScrubOutput {
+			out, errOut := ScrubSecretOutput(r.stdout.String(), r.stderr.String())
+			return out, errOut, ctx.Err()
+		}
+		return r.stdout.String(), r.stderr.String(), ctx.Err()
 	case <-timer.C:
 		if r.opts.Graceful {
 			KillProcessTreeGraceful(r.cmd.Process.Pid, 2)
@@ -80,6 +102,10 @@ func (r *ForegroundRunner) Run() (string, string, error) {
 		select {
 		case <-done:
 		case <-time.After(r.opts.KillWait):
+			select {
+			case <-done:
+			case <-time.After(10 * time.Second):
+			}
 		}
 		errMsg := r.opts.ErrMsg
 		if errMsg == "" {

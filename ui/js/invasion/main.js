@@ -9,11 +9,73 @@ let deleteTarget = null; // { type: 'nest'|'egg', id, name }
 
 // ── Init ─────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-    document.title = t('invasion.page_title');
+    if (typeof window._auragoApplySharedI18n === 'function') {
+        window._auragoApplySharedI18n();
+    }
+    bindInvasionUI();
     loadProviders();
     loadNests();
     loadEggs();
 });
+
+function bindInvasionUI() {
+    document.getElementById('btn-create')?.addEventListener('click', openCreateModal);
+    document.getElementById('nest-access-type')?.addEventListener('change', onAccessTypeChange);
+    document.getElementById('nest-deploy-method')?.addEventListener('change', onDeployMethodChange);
+    document.getElementById('btn-validate')?.addEventListener('click', validateNest);
+    document.getElementById('nest-save-btn')?.addEventListener('click', saveNest);
+    document.getElementById('nest-cancel-btn')?.addEventListener('click', () => closeModal('nest-modal'));
+    document.getElementById('egg-save-btn')?.addEventListener('click', saveEgg);
+    document.getElementById('egg-cancel-btn')?.addEventListener('click', () => closeModal('egg-modal'));
+    document.getElementById('delete-cancel-btn')?.addEventListener('click', () => closeModal('delete-modal'));
+    document.getElementById('btn-delete-confirm')?.addEventListener('click', confirmDelete);
+    document.getElementById('delete-confirm-input')?.addEventListener('input', checkDeleteConfirm);
+
+    document.addEventListener('click', (event) => {
+        const tabBtn = event.target.closest('.invasion-tab[data-tab]');
+        if (tabBtn) {
+            switchTab(tabBtn.dataset.tab);
+            return;
+        }
+
+        const closeBtn = event.target.closest('[data-modal-close]');
+        if (closeBtn) {
+            closeModal(closeBtn.dataset.modalClose);
+            return;
+        }
+
+        const actionBtn = event.target.closest('[data-action]');
+        if (!actionBtn) return;
+
+        const { action, id, active, type, name } = actionBtn.dataset;
+        switch (action) {
+            case 'open-create':
+                openCreateModal();
+                break;
+            case 'edit-nest':
+                editNest(id);
+                break;
+            case 'edit-egg':
+                editEgg(id);
+                break;
+            case 'hatch-nest':
+                hatchNest(id);
+                break;
+            case 'stop-nest':
+                stopNest(id);
+                break;
+            case 'toggle-nest':
+                toggleNest(id, active === 'true');
+                break;
+            case 'toggle-egg':
+                toggleEgg(id, active === 'true');
+                break;
+            case 'request-delete':
+                requestDelete(type, id, name);
+                break;
+        }
+    });
+}
 
 async function loadProviders() {
     try {
@@ -39,7 +101,7 @@ async function loadProviders() {
 // ── Tabs ─────────────────────────────────────────────────
 function switchTab(tab) {
     currentTab = tab;
-    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+    document.querySelectorAll('.invasion-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
     document.getElementById('content-nests').classList.toggle('is-hidden', tab !== 'nests');
     document.getElementById('content-eggs').classList.toggle('is-hidden', tab !== 'eggs');
 }
@@ -126,13 +188,13 @@ function renderNests() {
                     ${telBadge}
                 </div>
                 <div class="card-actions">
-                    <button class="btn btn-sm btn-secondary" onclick="editNest('${escJs(n.id)}')">✏️ ${t('invasion.edit')}</button>
-                    ${canHatch ? `<button class="btn btn-sm btn-primary" onclick="hatchNest('${escJs(n.id)}')">${t('invasion.hatch')}</button>` : ''}
-                    ${canStop ? `<button class="btn btn-sm btn-danger" onclick="stopNest('${escJs(n.id)}')">${t('invasion.stop_egg')}</button>` : ''}
-                    <button class="btn btn-sm btn-secondary" onclick="toggleNest('${escJs(n.id)}', ${!n.active})">
+                    <button class="btn btn-sm btn-secondary" data-action="edit-nest" data-id="${escAttr(n.id)}">✏️ ${t('invasion.edit')}</button>
+                    ${canHatch ? `<button class="btn btn-sm btn-primary" data-action="hatch-nest" data-id="${escAttr(n.id)}">${t('invasion.hatch')}</button>` : ''}
+                    ${canStop ? `<button class="btn btn-sm btn-danger" data-action="stop-nest" data-id="${escAttr(n.id)}">${t('invasion.stop_egg')}</button>` : ''}
+                    <button class="btn btn-sm btn-secondary" data-action="toggle-nest" data-id="${escAttr(n.id)}" data-active="${String(!n.active)}">
                         ${n.active ? '⏸️' : '▶️'} ${n.active ? t('invasion.inactive') : t('invasion.active')}
                     </button>
-                    <button class="btn btn-sm btn-danger" onclick="requestDelete('nest','${escJs(n.id)}','${esc(n.name)}')">🗑️</button>
+                    <button class="btn btn-sm btn-danger" data-action="request-delete" data-type="nest" data-id="${escAttr(n.id)}" data-name="${escAttr(n.name)}">🗑️</button>
                 </div>
             </div>`;
     }).join('');
@@ -165,11 +227,11 @@ function renderEggs() {
                     ${e.include_vault ? '<span class="badge badge-vault">' + t('invasion.badge_vault') + '</span>' : ''}
                 </div>
                 <div class="card-actions">
-                    <button class="btn btn-sm btn-secondary" onclick="editEgg('${escJs(e.id)}')">✏️ ${t('invasion.edit')}</button>
-                    <button class="btn btn-sm btn-secondary" onclick="toggleEgg('${escJs(e.id)}', ${!e.active})">
+                    <button class="btn btn-sm btn-secondary" data-action="edit-egg" data-id="${escAttr(e.id)}">✏️ ${t('invasion.edit')}</button>
+                    <button class="btn btn-sm btn-secondary" data-action="toggle-egg" data-id="${escAttr(e.id)}" data-active="${String(!e.active)}">
                         ${e.active ? '⏸️' : '▶️'} ${e.active ? t('invasion.inactive') : t('invasion.active')}
                     </button>
-                    <button class="btn btn-sm btn-danger" onclick="requestDelete('egg','${escJs(e.id)}','${esc(e.name)}')">🗑️</button>
+                    <button class="btn btn-sm btn-danger" data-action="request-delete" data-type="egg" data-id="${escAttr(e.id)}" data-name="${escAttr(e.name)}">🗑️</button>
                 </div>
             </div>
         `).join('');
@@ -224,7 +286,7 @@ function openNestModal(nest = null) {
         openModal('nest-modal');
     } catch (err) {
         console.error('[IC] openNestModal error:', err);
-        showToast('Modal error: ' + err.message, 'error');
+        showToast((t('invasion.error') || t('common.error')) + ': ' + err.message, 'error');
     }
 }
 
@@ -271,9 +333,9 @@ function onAccessTypeChange() {
     const type = document.getElementById('nest-access-type').value;
     const remoteFields = document.getElementById('nest-remote-fields');
     if (type === 'local') {
-        remoteFields.classList.add('hidden');
+        remoteFields.classList.add('is-hidden');
     } else {
-        remoteFields.classList.remove('hidden');
+        remoteFields.classList.remove('is-hidden');
         if (type === 'docker') {
             document.getElementById('nest-port').value = document.getElementById('nest-port').value == 22 ? 2375 : document.getElementById('nest-port').value;
         } else {
@@ -455,16 +517,5 @@ async function confirmDelete() {
     } catch (e) { showToast(t('invasion.error') + ': ' + e.message, 'error'); }
     deleteTarget = null;
 }
-
-// ── Modal Helpers ────────────────────────────────────────
-function openModal(id) { document.getElementById(id).classList.add('active'); }
-function closeModal(id) { document.getElementById(id).classList.remove('active'); }
-
-// Close modal on overlay click
-document.querySelectorAll('.modal-overlay').forEach(overlay => {
-    overlay.addEventListener('click', (e) => {
-        if (e.target === overlay) overlay.classList.remove('active');
-    });
-});
 
 // ── esc() is now provided by shared.js ──

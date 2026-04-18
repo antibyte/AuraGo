@@ -21,6 +21,9 @@ class TrueNASUI {
     }
     
     init() {
+        if (typeof window._auragoApplySharedI18n === 'function') {
+            window._auragoApplySharedI18n();
+        }
         this.bindEvents();
         this.checkStatus();
         this.startHealthCheck();
@@ -29,7 +32,17 @@ class TrueNASUI {
     bindEvents() {
         // Tab Navigation
         document.querySelectorAll('.nav-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => this.switchTab(e.target.dataset.tab));
+            btn.addEventListener('click', () => this.switchTab(btn.dataset.tab));
+        });
+
+        document.getElementById('refresh-pools-btn')?.addEventListener('click', () => this.loadPools());
+        document.getElementById('create-dataset-btn')?.addEventListener('click', () => this.showCreateDataset());
+        document.getElementById('create-snapshot-btn')?.addEventListener('click', () => this.showCreateSnapshot());
+        document.getElementById('create-share-btn')?.addEventListener('click', () => this.showCreateShare());
+        document.getElementById('test-connection-btn')?.addEventListener('click', () => this.testConnection());
+        document.getElementById('snapshot-filter')?.addEventListener('change', () => this.loadSnapshots());
+        document.querySelectorAll('[data-close-modal]').forEach(btn => {
+            btn.addEventListener('click', () => this.closeModal());
         });
         
         // Forms
@@ -142,9 +155,9 @@ class TrueNASUI {
             
             // Alerts
             const activeAlerts = alerts.filter(a => !a.dismissed);
+            const alertsSection = document.getElementById('alerts-section');
             if (activeAlerts.length > 0) {
-                const alertsSection = document.getElementById('alerts-section');
-                alertsSection.style.display = 'block';
+                alertsSection.classList.remove('is-hidden');
                 const container = document.getElementById('alerts-container');
                 container.innerHTML = activeAlerts.map(a => `
                     <div class="alert-item ${escapeHtmlTruenas(a.level.toLowerCase())}">
@@ -153,6 +166,8 @@ class TrueNASUI {
                         <div class="alert-date">${new Date(a.date).toLocaleString()}</div>
                     </div>
                 `).join('');
+            } else if (alertsSection) {
+                alertsSection.classList.add('is-hidden');
             }
             
         } catch (err) {
@@ -403,7 +418,7 @@ class TrueNASUI {
     }
     
     async testConnection() {
-        const btn = document.querySelector('button[onclick="testConnection()"]');
+        const btn = document.getElementById('test-connection-btn');
         btn.disabled = true;
         btn.textContent = t('truenas.btn_testing');
         
@@ -664,11 +679,3 @@ const truenasUI = new TrueNASUI();
 // Clean up interval on page unload
 window.addEventListener('pagehide', () => truenasUI.destroy());
 
-// Global functions for onclick handlers
-function refreshPools() { truenasUI.loadPools(); }
-function showCreateDataset() { truenasUI.showCreateDataset(); }
-function showCreateSnapshot() { truenasUI.showCreateSnapshot(); }
-function showCreateShare() { truenasUI.showCreateShare(); }
-function closeModal() { truenasUI.closeModal(); }
-function testConnection() { truenasUI.testConnection(); }
-function filterSnapshots() { truenasUI.loadSnapshots(); }

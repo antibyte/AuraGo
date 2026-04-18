@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os/exec"
 	pathpkg "path"
+	"path/filepath"
 	"runtime"
 	"strings"
 )
@@ -26,6 +27,18 @@ func DockerCreateContainer(cfg DockerConfig, name, image string, env []string, p
 		}
 		exposedPorts[containerPort] = struct{}{}
 		portBindings[containerPort] = []map[string]string{{"HostPort": hostPort}}
+	}
+
+	// Validate volume bind mounts are within allowed paths
+	for _, bind := range volumes {
+		parts := strings.SplitN(bind, ":", 3)
+		if len(parts) >= 2 {
+			hostPath := filepath.Clean(parts[0])
+			// Block mounting the entire root filesystem
+			if hostPath == "/" || hostPath == "/mnt" || hostPath == "/hostfs" {
+				return errJSON("mounting root filesystem paths ('%s') is not allowed for security reasons", hostPath)
+			}
+		}
 	}
 
 	// Build volume binds
@@ -255,14 +268,10 @@ func dockerExecInternal(cfg DockerConfig, containerID, cmd, user string, env []s
 	}
 
 	shell := dockerDetectShell(cfg, containerID)
-	var cmdArray []string
-	if shell != "" {
-		cmdArray = []string{shell, "-c", cmd}
-	} else {
-		// Fallback to passing the command as separate arguments if no shell is found
-		// This split is naïve and only works for simple commands
-		cmdArray = strings.Fields(cmd)
+	if shell == "" {
+		shell = "/bin/sh"
 	}
+	cmdArray := []string{shell, "-c", cmd}
 
 	exitCode, outputStr, err := dockerExecRaw(cfg, containerID, cmdArray, user, env)
 	if err != nil {
@@ -636,6 +645,15 @@ var allowedComposeCommands = map[string]bool{
 func DockerCompose(cfg DockerConfig, file, cmd string) string {
 	if file == "" || cmd == "" {
 		return errJSON("file and command required")
+	}
+	// Validate compose file path
+	absFile, err := filepath.Abs(file)
+	if err != nil {
+		return errJSON("invalid compose file path: %v", err)
+	}
+	// Block path traversal attempts
+	if strings.Contains(absFile, "..") {
+		return errJSON("path traversal is not allowed in compose file paths")
 	}
 	parts := strings.Fields(cmd)
 	if len(parts) == 0 {

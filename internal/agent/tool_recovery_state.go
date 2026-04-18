@@ -287,6 +287,7 @@ func (s *toolRecoveryState) updateToolErrorState(tc ToolCall, resultContent stri
 	isToolError := containsToolError(resultContent) || hasSandboxFailure
 
 	// Async trace logging for optimization
+	consecutiveCount := s.ConsecutiveErrorCount
 	go func() {
 		errMsg := ""
 		if isToolError {
@@ -301,7 +302,7 @@ func (s *toolRecoveryState) updateToolErrorState(tc ToolCall, resultContent stri
 		}
 
 		// In the context of the recovery state, we might not always have exec time, passing 0 for now.
-		optimizer.LogToolTrace(tc.Action, !isToolError, s.ConsecutiveErrorCount, promptVersion, errMsg, execTimeMs)
+		optimizer.LogToolTrace(tc.Action, !isToolError, consecutiveCount, promptVersion, errMsg, execTimeMs)
 	}()
 
 	if isToolError {

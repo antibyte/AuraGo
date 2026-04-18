@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -12,6 +13,12 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/llm"
+)
+
+var (
+	decisionPattern   = regexp.MustCompile(`(?i)DECISION:`)
+	classifyPattern   = regexp.MustCompile(`(?i)CLASSIFY:`)
+	reClassifyPattern = regexp.MustCompile(`(?i)RE-CLASSIFY:`)
 )
 
 // GuardianLevel defines the protection intensity.
@@ -460,8 +467,8 @@ func buildGuardianPrompt(check GuardianCheck) string {
 			// Escape newlines and "DECISION:" to prevent prompt injection via parameter values.
 			v = strings.ReplaceAll(v, "\r", " ")
 			v = strings.ReplaceAll(v, "\n", " ")
-			v = strings.ReplaceAll(v, "DECISION:", "DECISION_")
-			v = strings.ReplaceAll(v, "CLASSIFY:", "CLASSIFY_")
+			v = decisionPattern.ReplaceAllString(v, "DECISION_")
+			v = classifyPattern.ReplaceAllString(v, "CLASSIFY_")
 			sb.WriteString(k)
 			sb.WriteString("=")
 			sb.WriteString(v)
@@ -683,9 +690,9 @@ func buildClarificationPrompt(check GuardianCheck) string {
 			// Escape newlines and delimiter keywords to prevent prompt injection via parameter values.
 			v = strings.ReplaceAll(v, "\r", " ")
 			v = strings.ReplaceAll(v, "\n", " ")
-			v = strings.ReplaceAll(v, "DECISION:", "DECISION_")
-			v = strings.ReplaceAll(v, "CLASSIFY:", "CLASSIFY_")
-			v = strings.ReplaceAll(v, "RE-CLASSIFY:", "RE-CLASSIFY_")
+			v = decisionPattern.ReplaceAllString(v, "DECISION_")
+			v = classifyPattern.ReplaceAllString(v, "CLASSIFY_")
+			v = reClassifyPattern.ReplaceAllString(v, "RE-CLASSIFY_")
 			sb.WriteString(k)
 			sb.WriteString("=")
 			sb.WriteString(v)
@@ -701,9 +708,9 @@ func buildClarificationPrompt(check GuardianCheck) string {
 		}
 		ctx = strings.ReplaceAll(ctx, "\r", " ")
 		ctx = strings.ReplaceAll(ctx, "\n", " ")
-		ctx = strings.ReplaceAll(ctx, "DECISION:", "DECISION_")
-		ctx = strings.ReplaceAll(ctx, "CLASSIFY:", "CLASSIFY_")
-		ctx = strings.ReplaceAll(ctx, "RE-CLASSIFY:", "RE-CLASSIFY_")
+		ctx = decisionPattern.ReplaceAllString(ctx, "DECISION_")
+		ctx = classifyPattern.ReplaceAllString(ctx, "CLASSIFY_")
+		ctx = reClassifyPattern.ReplaceAllString(ctx, "RE-CLASSIFY_")
 		sb.WriteString("CONTEXT: ")
 		sb.WriteString(ctx)
 		sb.WriteString("\n")
@@ -716,9 +723,9 @@ func buildClarificationPrompt(check GuardianCheck) string {
 	// Escape newlines and delimiter keywords to prevent forged verdicts via justification.
 	justification = strings.ReplaceAll(justification, "\r", " ")
 	justification = strings.ReplaceAll(justification, "\n", " ")
-	justification = strings.ReplaceAll(justification, "DECISION:", "DECISION_")
-	justification = strings.ReplaceAll(justification, "CLASSIFY:", "CLASSIFY_")
-	justification = strings.ReplaceAll(justification, "RE-CLASSIFY:", "RE-CLASSIFY_")
+	justification = decisionPattern.ReplaceAllString(justification, "DECISION_")
+	justification = classifyPattern.ReplaceAllString(justification, "CLASSIFY_")
+	justification = reClassifyPattern.ReplaceAllString(justification, "RE-CLASSIFY_")
 	sb.WriteString("AGENT JUSTIFICATION: ")
 	sb.WriteString(justification)
 	sb.WriteString("\n")
@@ -808,10 +815,8 @@ func buildContentScanPrompt(contentType string, content string) string {
 	sb.WriteString("\nCONTENT:\n")
 	// Escape delimiter keywords to prevent injected content from forging a CLASSIFY verdict.
 	content = strings.ReplaceAll(content, "\r", " ")
-	content = strings.ReplaceAll(content, "\nCLASSIFY:", " CLASSIFY_")
-	content = strings.ReplaceAll(content, "\nDECISION:", " DECISION_")
-	content = strings.ReplaceAll(content, "CLASSIFY:", "CLASSIFY_")
-	content = strings.ReplaceAll(content, "DECISION:", "DECISION_")
+	content = classifyPattern.ReplaceAllString(content, "CLASSIFY_")
+	content = decisionPattern.ReplaceAllString(content, "DECISION_")
 	sb.WriteString(content)
 	sb.WriteString("\nCLASSIFY:")
 	return sb.String()

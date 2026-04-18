@@ -8,18 +8,21 @@
     <link rel="stylesheet" href="/shared-utilities.css">
     <link rel="stylesheet" href="/shared-components.css">
     <link rel="stylesheet" href="/shared-animations.css">
+    <link rel="stylesheet" href="/css/tokens.css">
     <script src="/shared.js?v=7"></script>
     <script>(function(){var t=localStorage.getItem('aurago-theme');if(t)document.documentElement.setAttribute('data-theme',t);})();</script>
     <script>const I18N={{.I18N}};</script>
     <link rel="stylesheet" href="/css/truenas.css">
     <link rel="stylesheet" href="/css/enhancements.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <header class="app-header">
         <div class="header-left">
             <a href="/" class="logo">
                 <div class="logo-icon">🖥️</div>
-                <span style="color:var(--accent);">AURA</span><span style="color:var(--text-primary);">GO</span>
+                <span class="logo-wordmark-accent">AURA</span><span class="logo-wordmark-base">GO</span>
                 <span class="logo-subtitle" data-i18n="truenas.subtitle">TrueNAS</span>
             </a>
         </div>
@@ -76,7 +79,7 @@
                 </div>
 
                 <!-- Health Alerts -->
-                <div class="alerts-section" id="alerts-section" style="display: none;">
+                <div class="alerts-section is-hidden" id="alerts-section">
                     <h2 data-i18n="truenas.alerts_title">System Alerts</h2>
                     <div id="alerts-container"></div>
                 </div>
@@ -86,7 +89,7 @@
             <div id="tab-pools" class="tab-content">
                 <div class="section-header">
                     <h2 data-i18n="truenas.section_pools">Storage Pools</h2>
-                    <button class="btn btn-secondary" onclick="refreshPools()" data-i18n="truenas.btn_refresh">Refresh</button>
+                    <button class="btn btn-secondary" type="button" id="refresh-pools-btn" data-i18n="truenas.btn_refresh">Refresh</button>
                 </div>
                 <div id="pools-container" class="pools-grid">
                     <div class="loading"><span class="spinner"></span><span data-i18n="truenas.loading_pools">Loading pools...</span></div>
@@ -97,7 +100,7 @@
             <div id="tab-datasets" class="tab-content">
                 <div class="section-header">
                     <h2 data-i18n="truenas.nav_datasets">Datasets</h2>
-                    <button class="btn btn-primary" onclick="showCreateDataset()" data-i18n="truenas.btn_new_dataset">+ New Dataset</button>
+                    <button class="btn btn-primary" type="button" id="create-dataset-btn" data-i18n="truenas.btn_new_dataset">+ New Dataset</button>
                 </div>
                 <div id="datasets-container" class="datasets-list">
                     <div class="loading"><span class="spinner"></span><span data-i18n="truenas.loading_datasets">Loading datasets...</span></div>
@@ -109,10 +112,10 @@
                 <div class="section-header">
                     <h2 data-i18n="truenas.nav_snapshots">Snapshots</h2>
                     <div>
-                        <select id="snapshot-filter" onchange="filterSnapshots()">
+                        <select id="snapshot-filter">
                             <option value="" data-i18n="truenas.filter_all_datasets">All Datasets</option>
                         </select>
-                        <button class="btn btn-primary" onclick="showCreateSnapshot()" data-i18n="truenas.btn_create_snapshot">+ Create Snapshot</button>
+                        <button class="btn btn-primary" type="button" id="create-snapshot-btn" data-i18n="truenas.btn_create_snapshot">+ Create Snapshot</button>
                     </div>
                 </div>
                 <div id="snapshots-container" class="snapshots-list">
@@ -124,7 +127,7 @@
             <div id="tab-shares" class="tab-content">
                 <div class="section-header">
                     <h2 data-i18n="truenas.section_shares">SMB Shares</h2>
-                    <button class="btn btn-primary" onclick="showCreateShare()" data-i18n="truenas.btn_new_share">+ New Share</button>
+                    <button class="btn btn-primary" type="button" id="create-share-btn" data-i18n="truenas.btn_new_share">+ New Share</button>
                 </div>
                 <div id="shares-container" class="shares-list">
                     <div class="loading"><span class="spinner"></span><span data-i18n="truenas.loading_shares">Loading shares...</span></div>
@@ -169,7 +172,7 @@
                     </div>
 
                     <div class="form-actions">
-                        <button type="button" class="btn btn-secondary" onclick="testConnection()" data-i18n="truenas.btn_test_connection">Test Connection</button>
+                        <button type="button" class="btn btn-secondary" id="test-connection-btn" data-i18n="truenas.btn_test_connection">Test Connection</button>
                         <button type="submit" class="btn btn-primary" data-i18n="common.btn_save">Save</button>
                     </div>
                 </form>
@@ -201,7 +204,7 @@
                     <input type="number" id="dataset-quota" min="0" value="0">
                 </div>
                 <div class="form-actions">
-                    <button type="button" class="btn btn-secondary" onclick="closeModal()" data-i18n="common.btn_cancel">Cancel</button>
+                    <button type="button" class="btn btn-secondary" data-close-modal data-i18n="common.btn_cancel">Cancel</button>
                     <button type="submit" class="btn btn-primary" data-i18n="truenas.btn_create">Create</button>
                 </div>
             </form>
@@ -233,7 +236,7 @@
                     <input type="number" id="snapshot-retention" min="0" value="0">
                 </div>
                 <div class="form-actions">
-                    <button type="button" class="btn btn-secondary" onclick="closeModal()" data-i18n="common.btn_cancel">Cancel</button>
+                    <button type="button" class="btn btn-secondary" data-close-modal data-i18n="common.btn_cancel">Cancel</button>
                     <button type="submit" class="btn btn-primary" data-i18n="truenas.btn_create">Create</button>
                 </div>
             </form>
@@ -263,7 +266,7 @@
                     <label for="share-timemachine" data-i18n="truenas.label_timemachine">Time Machine support (Mac)</label>
                 </div>
                 <div class="form-actions">
-                    <button type="button" class="btn btn-secondary" onclick="closeModal()" data-i18n="common.btn_cancel">Cancel</button>
+                    <button type="button" class="btn btn-secondary" data-close-modal data-i18n="common.btn_cancel">Cancel</button>
                     <button type="submit" class="btn btn-primary" data-i18n="truenas.btn_create">Create</button>
                 </div>
             </form>

@@ -127,6 +127,9 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 	result := func() string {
 		switch tc.Action {
 		case "code_analysis":
+			if !cfg.Agent.AllowFilesystemWrite && !cfg.Agent.AllowShell {
+				return `Tool Output: {"status":"error","message":"code_analysis requires filesystem access to be enabled"}`
+			}
 			analyzer := tools.NewCodeAnalyzer()
 			op := stringValueFromMap(tc.Params, "operation")
 			target := stringValueFromMap(tc.Params, "target")
@@ -134,6 +137,12 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 
 			if op == "" || target == "" {
 				return "Tool Output: [ERROR] 'operation' and 'target' are required."
+			}
+
+			// Validate target path is within workspace
+			absTarget, err := filepath.Abs(target)
+			if err != nil || strings.HasPrefix(absTarget, "..") {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"invalid target path"}`)
 			}
 
 			if op == "structure" {
@@ -872,7 +881,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 					return `Tool Output: {"status": "error", "message": "'key' and 'value' are required for set_secret/store"}`
 				}
 				if isSystemSecret(req.Key) {
-					logger.Warn("LLM attempted to overwrite system-managed secret — access denied", "key", tc.Key)
+					logger.Warn("LLM attempted to overwrite system-managed secret — access denied", "key", req.Key)
 					return `Tool Output: {"status": "error", "message": "Access denied: this secret is managed by a system component and cannot be overwritten via secrets_vault."}`
 				}
 				err := vault.WriteSecret(req.Key, req.Value)
@@ -905,7 +914,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			}
 			// Block access to system-managed secrets
 			if isSystemSecret(req.Key) {
-				logger.Warn("LLM attempted to read system-managed secret — access denied", "key", tc.Key)
+				logger.Warn("LLM attempted to read system-managed secret — access denied", "key", req.Key)
 				return `Tool Output: {"status": "error", "message": "Access denied: this secret is managed by a system component and cannot be retrieved via secrets_vault."}`
 			}
 			secret, err := vault.ReadSecret(req.Key)
@@ -924,12 +933,12 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if cfg.Tools.SecretsVault.ReadOnly {
 				return `Tool Output: {"status":"error","message":"Secrets vault is in read-only mode. Disable tools.secrets_vault.read_only to allow changes."}`
 			}
-			logger.Info("LLM requested secret storage", "key", tc.Key)
+			logger.Info("LLM requested secret storage", "key", req.Key)
 			if req.Key == "" || req.Value == "" {
 				return `Tool Output: {"status": "error", "message": "'key' and 'value' are required for set_secret"}`
 			}
 			if isSystemSecret(req.Key) {
-				logger.Warn("LLM attempted to overwrite system-managed secret — access denied", "key", tc.Key)
+				logger.Warn("LLM attempted to overwrite system-managed secret — access denied", "key", req.Key)
 				return `Tool Output: {"status": "error", "message": "Access denied: this secret is managed by a system component and cannot be overwritten via secrets_vault."}`
 			}
 			err := vault.WriteSecret(req.Key, req.Value)
@@ -1246,13 +1255,15 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				if mErr != nil {
 					safeOutput = []byte(`""`)
 				}
-				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Remote execution failed", "output": %s, "error": "%v"}`, string(safeOutput), err)
+				scrubbed := security.Scrub(string(safeOutput))
+				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Remote execution failed", "output": %s, "error": "%v"}`, scrubbed, err)
 			}
 			safeOutput, mErr := json.Marshal(output)
 			if mErr != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Failed to serialize output: %v"}`, mErr)
 			}
-			return fmt.Sprintf(`Tool Output: {"status": "success", "output": %s}`, string(safeOutput))
+			scrubbed := security.Scrub(string(safeOutput))
+			return fmt.Sprintf(`Tool Output: {"status": "success", "output": %s}`, scrubbed)
 
 		case "transfer_remote_file":
 			if !cfg.Agent.AllowRemoteShell {
@@ -1269,7 +1280,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Invalid local path: %v"}`, err)
 			}
 			workspaceWorkdir := filepath.Join(cfg.Directories.WorkspaceDir, "workdir")
-			if !strings.HasPrefix(strings.ToLower(absLocal), strings.ToLower(workspaceWorkdir)) {
+			if absLocal != workspaceWorkdir && !strings.HasPrefix(absLocal, workspaceWorkdir+string(os.PathSeparator)) {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Permission denied: local_path must be within %s"}`, workspaceWorkdir)
 			}
 
@@ -1482,6 +1493,7 @@ func isBlockedEnvRead(command string) bool {
 		"getenvironmentvariable", "[system.environment]", "environ", "export",
 		"env ", " env", "/usr/bin/env",
 		"set ", "awk", "python", "ruby", "perl", "node ",
+		"hexdump", " od ", "od ", " busybox", "busybox ", " less ", " more ", "xxd ",
 		"cat /proc", "strings /proc", "/proc/self", "/proc/1/",
 	}
 	for _, p := range patterns {

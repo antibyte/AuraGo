@@ -334,7 +334,7 @@ func RunTool(name string, args []string, workspaceDir, toolsDir string) (string,
 		KillWait: 10 * time.Second,
 	})
 
-	stdout, stderr, err := runner.Run()
+	stdout, stderr, err := runner.Run(context.Background())
 	if err != nil && strings.Contains(err.Error(), "TIMEOUT") {
 		// Reconstruct with the correct tool name in the error message
 		err = fmt.Errorf("TIMEOUT: tool '%s' exceeded %s limit and was killed", name, GetForegroundTimeout())
@@ -365,7 +365,7 @@ func RunToolWithSecrets(name string, args []string, workspaceDir, toolsDir strin
 		KillWait:    10 * time.Second,
 	})
 
-	stdout, stderr, err := runner.Run()
+	stdout, stderr, err := runner.Run(context.Background())
 	if err != nil && strings.Contains(err.Error(), "TIMEOUT") {
 		err = fmt.Errorf("TIMEOUT: tool '%s' exceeded %s limit and was killed", name, GetForegroundTimeout())
 	}
@@ -447,7 +447,7 @@ func ExecutePython(code, workspaceDir, toolsDir string) (string, string, error) 
 		ErrMsg:   "TIMEOUT: script exceeded %s limit and was killed",
 	})
 
-	return runner.Run()
+	return runner.Run(context.Background())
 }
 
 // ExecutePythonWithSecrets is like ExecutePython but injects vault secrets and credential secrets
@@ -474,7 +474,7 @@ func ExecutePythonWithSecrets(code, workspaceDir, toolsDir string, secrets map[s
 		ErrMsg:      "TIMEOUT: script exceeded %s limit and was killed",
 	})
 
-	return runner.Run()
+	return runner.Run(context.Background())
 }
 
 // ExecutePythonBackground starts a Python script in the background,

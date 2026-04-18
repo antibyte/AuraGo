@@ -465,7 +465,7 @@ func stripDockerLogHeaders(raw []byte) string {
 	for len(raw) >= 8 {
 		// bytes 0: stream type (0=stdin, 1=stdout, 2=stderr)
 		// bytes 4-7: big-endian uint32 frame size
-		size := int(raw[4])<<24 | int(raw[5])<<16 | int(raw[6])<<8 | int(raw[7])
+		size := int(uint32(raw[4])<<24 | uint32(raw[5])<<16 | uint32(raw[6])<<8 | uint32(raw[7]))
 		raw = raw[8:]
 		if size > len(raw) {
 			size = len(raw)

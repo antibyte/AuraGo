@@ -24,6 +24,16 @@ func FilterEnv(env []string) []string {
 		"TOGETHER_API_KEY",
 		"TAILSCALE_API_KEY",
 		"ANSIBLE_API_TOKEN",
+		"AWS_SECRET_ACCESS_KEY",
+		"AWS_SESSION_TOKEN",
+		"AWS_SECURITY_TOKEN",
+		"AZURE_CLIENT_SECRET",
+		"AZURE_API_KEY",
+		"GOOGLE_APPLICATION_CREDENTIALS",
+		"GCP_SERVICE_ACCOUNT_KEY",
+		"GOOGLE_API_KEY",
+		"TF_VAR_",
+		"ANSIBLE_VAULT_",
 	}
 	var filtered []string
 	for _, e := range env {
