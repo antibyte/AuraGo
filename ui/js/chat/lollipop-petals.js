@@ -47,6 +47,7 @@
     }
 
     function rerollPetal(petal, immediate) {
+        const chatBox = document.getElementById(CHAT_BOX_ID);
         const duration = randomBetween(15, 28);
         const size = randomBetween(30, 78);
         const left = randomBetween(2, 94);
@@ -55,6 +56,7 @@
         const scale = randomBetween(0.72, 1.16);
         const rotationStart = randomBetween(-28, 28);
         const rotationEnd = rotationStart + randomBetween(150, 320);
+        const travel = (chatBox ? chatBox.clientHeight : window.innerHeight) + size + 140;
         const delay = immediate ? randomBetween(-duration, 0) : 0;
 
         petal.className = `lollipop-petal ${pick(BLOSSOM_CLASSES)}`;
@@ -67,6 +69,7 @@
         petal.style.setProperty('--petal-scale', scale.toFixed(2));
         petal.style.setProperty('--petal-rotate-start', `${rotationStart.toFixed(1)}deg`);
         petal.style.setProperty('--petal-rotate-end', `${rotationEnd.toFixed(1)}deg`);
+        petal.style.setProperty('--petal-travel', `${travel}px`);
         petal.style.zIndex = String(randomInt(1, 3));
     }
 

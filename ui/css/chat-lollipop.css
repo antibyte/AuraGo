@@ -41,9 +41,9 @@
     --bg-logo-filter: saturate(0.9) brightness(1.05);
     --lollipop-dot: rgba(230, 92, 165, 0.12);
     --lollipop-outline: rgba(214, 123, 176, 0.58);
-    --lollipop-panel: linear-gradient(180deg, rgba(253, 242, 248, 0.96), rgba(241, 220, 233, 0.96));
-    --lollipop-pill: linear-gradient(180deg, rgba(248, 217, 234, 0.98), rgba(235, 225, 255, 0.98));
-    --lollipop-gloss: linear-gradient(180deg, rgba(255, 255, 255, 0.52), rgba(255, 255, 255, 0) 40%);
+    --lollipop-panel: linear-gradient(180deg, rgba(248, 230, 240, 0.97), rgba(232, 205, 222, 0.97));
+    --lollipop-pill: linear-gradient(180deg, rgba(235, 196, 219, 0.98), rgba(219, 204, 244, 0.98));
+    --lollipop-gloss: linear-gradient(180deg, rgba(255, 255, 255, 0.38), rgba(255, 255, 255, 0) 38%);
     --lollipop-font-display: 'Baloo 2', 'Inter', system-ui, sans-serif;
 }
 
@@ -117,7 +117,8 @@
         var(--lollipop-pill);
     border: 1px solid rgba(233, 170, 210, 0.56);
     box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.94),
+        inset 0 1px 0 rgba(255, 255, 255, 0.86),
+        inset 0 -1px 0 rgba(171, 109, 146, 0.12),
         0 6px 16px rgba(216, 179, 202, 0.18);
     color: var(--text-primary);
 }
@@ -133,7 +134,8 @@
 [data-theme="lollipop"] #logout-btn:hover {
     border-color: rgba(239, 131, 188, 0.62);
     box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.96),
+        inset 0 1px 0 rgba(255, 255, 255, 0.9),
+        inset 0 -1px 0 rgba(171, 109, 146, 0.14),
         0 8px 20px rgba(216, 179, 202, 0.22);
     color: var(--strong-color);
 }
@@ -433,11 +435,12 @@
 [data-theme="lollipop"] .modal-btn,
 [data-theme="lollipop"] .scroll-to-bottom-btn {
     background:
-        var(--lollipop-gloss),
-        linear-gradient(180deg, rgba(253, 237, 245, 0.98), rgba(243, 216, 232, 0.96));
-    border: 1px solid rgba(214, 123, 176, 0.58);
+        linear-gradient(180deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0) 38%),
+        linear-gradient(180deg, rgba(240, 205, 224, 0.99), rgba(224, 194, 214, 0.98));
+    border: 1px solid rgba(198, 114, 161, 0.62);
     box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.98),
+        inset 0 1px 0 rgba(255, 255, 255, 0.82),
+        inset 0 -1px 0 rgba(158, 96, 133, 0.12),
         0 8px 18px rgba(179, 108, 145, 0.16);
     color: var(--strong-color);
 }
@@ -467,7 +470,8 @@
     transform: translateY(-1px);
     border-color: rgba(230, 92, 165, 0.54);
     box-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.98),
+        inset 0 1px 0 rgba(255, 255, 255, 0.88),
+        inset 0 -1px 0 rgba(158, 96, 133, 0.16),
         0 12px 24px rgba(179, 108, 145, 0.22);
 }
 
@@ -592,7 +596,7 @@
         opacity: var(--petal-opacity, 0.72);
     }
     100% {
-        transform: translate3d(var(--petal-drift, 28px), 128%, 0) rotate(var(--petal-rotate-end, 220deg)) scale(var(--petal-scale, 1));
+        transform: translate3d(var(--petal-drift, 28px), var(--petal-travel, calc(100vh + 180px)), 0) rotate(var(--petal-rotate-end, 220deg)) scale(var(--petal-scale, 1));
         opacity: calc(var(--petal-opacity, 0.72) * 0.22);
     }
 }
