@@ -44,6 +44,7 @@
     --cyber-gloss: linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.02) 38%, transparent 45%);
     --cyber-border: linear-gradient(135deg, rgba(84, 247, 255, 0.7), rgba(139, 125, 255, 0.55), rgba(255, 71, 200, 0.7));
     --cyber-grid: rgba(109, 140, 255, 0.08);
+    --cyber-font-ui: 'Oxanium', 'Inter', system-ui, sans-serif;
 }
 
 [data-theme="cyberwar"] body {
@@ -53,6 +54,7 @@
         radial-gradient(circle at 50% 120%, rgba(255, 71, 200, 0.12), transparent 36%),
         linear-gradient(180deg, #020611 0%, #040816 32%, #071128 100%);
     color: var(--text-primary);
+    font-family: var(--cyber-font-ui);
 }
 
 [data-theme="cyberwar"] body::before {

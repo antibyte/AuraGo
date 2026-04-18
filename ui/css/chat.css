@@ -8,6 +8,8 @@
         :root {
             --chat-lane-max-width: 52rem;
             --chat-bubble-max-width: min(80%, 38rem);
+            --chat-copy-font-size: 1rem;
+            --chat-input-font-size: 1rem;
         }
 
         .chat-theme-picker {
@@ -577,7 +579,7 @@
             padding: 0.8rem 1rem;
             max-width: var(--chat-bubble-max-width);
             line-height: 1.6;
-            font-size: 0.9rem;
+            font-size: var(--chat-copy-font-size);
             word-wrap: break-word;
             overflow-wrap: break-word;
         }
@@ -2018,7 +2020,7 @@
             border-radius: 14px;
             padding: 0.64rem 0.95rem;
             color: var(--text-primary);
-            font-size: 0.9rem;
+            font-size: var(--chat-input-font-size);
             font-family: inherit;
             transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
             outline: none;

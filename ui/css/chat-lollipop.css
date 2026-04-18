@@ -44,7 +44,7 @@
     --lollipop-panel: linear-gradient(180deg, rgba(248, 230, 240, 0.97), rgba(232, 205, 222, 0.97));
     --lollipop-pill: linear-gradient(180deg, rgba(235, 196, 219, 0.98), rgba(219, 204, 244, 0.98));
     --lollipop-gloss: linear-gradient(180deg, rgba(255, 255, 255, 0.38), rgba(255, 255, 255, 0) 38%);
-    --lollipop-font-display: 'Baloo 2', 'Inter', system-ui, sans-serif;
+    --lollipop-font-display: 'Indie Flower', 'Inter', system-ui, sans-serif;
 }
 
 [data-theme="lollipop"] body {
