@@ -3600,6 +3600,8 @@
     --crt-glass:    rgba(223, 255, 214, 0.05);
     --crt-shadow:   rgba(0, 0, 0, 0.62);
     --crt-font-ui:  'Sixtyfour', 'Inter', system-ui, sans-serif;
+    --chat-copy-font-size: 0.9rem;
+    --chat-input-font-size: 0.9rem;
 
     color-scheme: dark;
 }
@@ -3615,6 +3617,7 @@
         linear-gradient(180deg, #000600 0%, #010801 36%, #000400 100%);
     color: var(--crt-text);
     font-family: var(--crt-font-ui);
+    font-size: 0.9rem;
     filter: grayscale(100%) sepia(100%) hue-rotate(85deg) saturate(5.8) brightness(1.08) contrast(1.16);
 }
 
