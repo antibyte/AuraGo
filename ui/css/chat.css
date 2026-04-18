@@ -85,6 +85,12 @@
             text-align: center;
         }
 
+        .chat-theme-option-icon,
+        .chat-theme-option-label {
+            color: inherit !important;
+            -webkit-text-fill-color: inherit !important;
+        }
+
         /* ── Page-specific: Chat Interface ─────────────────── */
 
         body {
