@@ -19,6 +19,8 @@
   "config.obsidian.apikey_save_failed": "Kunne ikke lagre API-nøkkel",
   "config.obsidian.apikey_empty": "Vennligst skriv inn en API-nøkkel",
   "config.obsidian.product_name": "Obsidian",
+  "config.obsidian.connect_timeout_label": "Tilkoblingstimeout",
+  "config.obsidian.request_timeout_label": "Forespørselstimeout",
   "help.obsidian.enabled": "Aktiver Obsidian kunnskapshåndteringsintegrasjon",
   "help.obsidian.readonly": "Når aktivert, er bare leseoperasjoner tillatt",
   "help.obsidian.allow_destructive": "Tillat sletting av notater",
@@ -26,10 +28,7 @@
   "help.obsidian.port": "Port for Obsidian Local REST API-plugin (standard: 27124)",
   "help.obsidian.use_https": "Bruk HTTPS-tilkobling (anbefalt, standard: true)",
   "help.obsidian.insecure_ssl": "Aksepter selvsignerte sertifikater (standard: true)",
-  "help.obsidian.api_key": "API-nøkkel fra innstillingene for Obsidian Local REST API-plugin"
-},
-  "config.obsidian.connect_timeout_label": "Connect Timeout",
-  "config.obsidian.request_timeout_label": "Request Timeout",
-  "help.obsidian.connect_timeout": "Verbindingstimeout in seconden (standaard: 10)",
-  "help.obsidian.request_timeout": "Verzoek-timeout in seconden (standaard: 30)"
+  "help.obsidian.api_key": "API-nøkkel fra innstillingene for Obsidian Local REST API-plugin",
+  "help.obsidian.connect_timeout": "Tilkoblingstimeout i sekunder (standard: 10)",
+  "help.obsidian.request_timeout": "Forespørselstimeout i sekunder (standard: 30)"
 }

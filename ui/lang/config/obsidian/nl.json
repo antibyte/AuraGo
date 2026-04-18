@@ -19,6 +19,8 @@
   "config.obsidian.apikey_save_failed": "Opslaan van API-sleutel mislukt",
   "config.obsidian.apikey_empty": "Voer een API-sleutel in",
   "config.obsidian.product_name": "Obsidian",
+  "config.obsidian.connect_timeout_label": "Verbindingstime-out",
+  "config.obsidian.request_timeout_label": "Aanvraagtime-out",
   "help.obsidian.enabled": "Schakel de Obsidian kennisbeheer-integratie in",
   "help.obsidian.readonly": "Indien ingeschakeld, zijn alleen leesbewerkingen toegestaan",
   "help.obsidian.allow_destructive": "Sta het verwijderen van notities toe",
@@ -26,10 +28,7 @@
   "help.obsidian.port": "Poort van de Obsidian Local REST API-plugin (standaard: 27124)",
   "help.obsidian.use_https": "Gebruik HTTPS-verbinding (aanbevolen, standaard: true)",
   "help.obsidian.insecure_ssl": "Accepteer zelfondertekende certificaten (standaard: true)",
-  "help.obsidian.api_key": "API-sleutel uit de instellingen van de Obsidian Local REST API-plugin"
-},
-  "config.obsidian.connect_timeout_label": "Connect Timeout",
-  "config.obsidian.request_timeout_label": "Request Timeout",
-  "help.obsidian.connect_timeout": "Tilkoblingstidsavbrudd i sekunder (standard: 10)",
-  "help.obsidian.request_timeout": "Forespørsels-tidsavbrudd i sekunder (standard: 30)"
+  "help.obsidian.api_key": "API-sleutel uit de instellingen van de Obsidian Local REST API-plugin",
+  "help.obsidian.connect_timeout": "Verbindingstime-out in seconden (standaard: 10)",
+  "help.obsidian.request_timeout": "Aanvraagtime-out in seconden (standaard: 30)"
 }

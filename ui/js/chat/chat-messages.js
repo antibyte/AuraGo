@@ -1,5 +1,43 @@
 // AuraGo Chat — Message rendering & DOM utilities
 
+function containsLeakedToolMarkup(text) {
+    if (!text || typeof text !== 'string') return false;
+    return [
+        /<\/?tool_call[^>]*>/i,
+        /<\/?minimax:tool_call[^>]*>/i,
+        /(?:^|\n)\s*minimax:tool_call\s*(?:\n|$)/i,
+        /<invoke\b[^>]*>/i,
+        /<parameter\b[^>]*>/i,
+        /^\[Tool Output\]/im,
+        /^Tool Output:/im,
+        /\[Suggested next step\]/i,
+        /"(action|tool_call|tool_name)"\s*:/i
+    ].some((pattern) => pattern.test(text));
+}
+
+function stripLeakedToolMarkup(text) {
+    if (!text || typeof text !== 'string') return '';
+
+    return text
+        .replace(/<tool_call>[\s\S]*?<\/tool_call>/gi, '')
+        .replace(/<\/?tool_call[^>]*>/gi, '')
+        .replace(/<minimax:tool_call\b[^>]*>[\s\S]*?<\/minimax:tool_call>/gi, '')
+        .replace(/<\/?minimax:tool_call[^>]*>/gi, '')
+        .replace(/(?:^|\n)\s*minimax:tool_call\s*(?=\n|$)/gi, '\n')
+        .replace(/<invoke\b[^>]*>[\s\S]*?<\/invoke>/gi, '')
+        .replace(/<parameter\b[^>]*>[\s\S]*?<\/parameter>/gi, '')
+        .replace(/<\/?(invoke|parameter)\b[^>]*>/gi, '')
+        .replace(/<done\s*\/?>/gi, '')
+        .replace(/```(?:json)?\s*\{\s*"action"[\s\S]*?\}\s*```/gi, '')
+        .replace(/^```(?:json)?\n\{[\s\S]*?\}\n```$/gim, '')
+        .replace(/^\{"action"\s*:[^\n]*\}\s*$/gim, '')
+        .replace(/^\[Tool Output\]\s*$/gim, '')
+        .replace(/^Tool Output:.*$/gim, '')
+        .replace(/\n?\[Suggested next step\][\s\S]*$/i, '')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+}
+
 function appendMessage(role, text) {
     if (!text || typeof text !== 'string') text = '';
 
@@ -12,17 +50,9 @@ function appendMessage(role, text) {
     let displayContent = text;
     if (!isUser) {
         // Pre-emptively strip to see if there's any conversational text left
-        let strippedContent = displayContent
-            .replace(/<tool_call>[\s\S]*?<\/tool_call>/g, '')
-            .replace(/<done\s*\/?>/gi, '')
-            .replace(/```(?:json)?\s*\{\s*"action"[\s\S]*?\}\s*```/g, '')
-            .replace(/^```(?:json)?\n\{[\s\S]*?\}\n```$/gm, '')
-            .replace(/^\{"action"\s*:[^\n]*\}\s*$/gm, '')  // inline single-line action JSON
-            .replace(/^\[Tool Output\]\s*$/gm, '')           // [Tool Output] header lines
-            .replace(/^Tool Output:.*$/gm, '')
-            .trim();
+        const strippedContent = stripLeakedToolMarkup(displayContent);
 
-        if (!strippedContent && (text.includes('Tool Output:') || text.includes('{"action":'))) {
+        if (!strippedContent && containsLeakedToolMarkup(text)) {
             // Entire message was just a tool output or tool call with no other text
             isTechnical = true;
         } else {
@@ -197,7 +227,7 @@ function isDebugOnlyHistoryMessage(msg) {
     if (msg.role !== 'assistant' && msg.role !== 'system') return false;
     if (text === '[TOOL_CALL]') return true;
     if (/^\[TOOL_CALL\]/i.test(text)) return true;
-    if (/<tool_call>/i.test(text)) return true;
+    if (containsLeakedToolMarkup(text)) return true;
     if (/^\{[\s\S]*"(action|tool_call|tool_name)"\s*:/i.test(text)) return true;
     if (/^(Tool Output:|\[Tool Output\])/i.test(text)) return true;
 

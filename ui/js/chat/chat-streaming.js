@@ -99,6 +99,9 @@ function connectSSE() {
         if (!isCurrentSession(payload)) return;
         if (!payload || !payload.content) return;
         payload.content = payload.content.replace(/\u003cdone\s*\/?\u003e/gi, '');
+        if (typeof stripLeakedToolMarkup === 'function') {
+            payload.content = stripLeakedToolMarkup(payload.content);
+        }
         if (!payload.content) return;
         const trimmed = payload.content.trimStart();
         if (trimmed.length > 0 && trimmed[0] === '{' &&
@@ -225,13 +228,16 @@ function handleSSEMessage(e) {
             if (debugMode) {
                 appendToolOutput(data.detail, t('chat.tool_call_label'));
             }
-            const thinkingText = (data.detail || '')
+            let thinkingText = (data.detail || '')
                 .replace(/```json[\s\S]*?```/g, '')
                 .replace(/`[^`]*`/g, '')
                 .replace(/\{[\s\S]*"action"\s*:[\s\S]*/g, '')
                 .replace(/\{[\s\S]*"tool_call"\s*:[\s\S]*/g, '')
                 .replace(/\{[\s\S]*"tool_name"\s*:[\s\S]*/g, '')
                 .trim();
+            if (typeof stripLeakedToolMarkup === 'function') {
+                thinkingText = stripLeakedToolMarkup(thinkingText);
+            }
             if (thinkingText && thinkingText.split(/\s+/).filter(Boolean).length >= 6) {
                 appendMessage('assistant', thinkingText);
             }
