@@ -6082,3 +6082,103 @@ select.cfg-input option {
         align-items: stretch;
     }
 }
+
+/* ── Heartbeat section styles ── */
+
+.hb-section .hb-info-banner {
+    margin-bottom: 1rem;
+}
+
+.hb-options-wrap.is-disabled {
+    opacity: 0.5;
+    pointer-events: none;
+    filter: grayscale(0.6);
+    transition: opacity 0.2s ease, filter 0.2s ease;
+}
+
+.hb-toggles-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.hb-toggle-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 1rem;
+    border-radius: var(--radius-md, 8px);
+    background: var(--surface-2, rgba(255,255,255,0.03));
+    border: 1px solid var(--border-subtle, rgba(255,255,255,0.06));
+}
+
+.hb-toggle-card .field-label {
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+}
+
+.hb-windows-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-top: 0.5rem;
+}
+
+.hb-window-card {
+    border-radius: var(--radius-md, 8px);
+    padding: 1rem;
+    border: 1px solid var(--border-subtle, rgba(255,255,255,0.06));
+}
+
+.hb-day-card {
+    background: linear-gradient(135deg, rgba(251,191,36,0.08) 0%, rgba(245,158,11,0.04) 100%);
+    border-color: rgba(251,191,36,0.15);
+}
+
+.hb-night-card {
+    background: linear-gradient(135deg, rgba(99,102,241,0.08) 0%, rgba(79,70,229,0.04) 100%);
+    border-color: rgba(99,102,241,0.15);
+}
+
+.hb-window-title {
+    font-weight: 600;
+    font-size: 1rem;
+    margin-bottom: 0.75rem;
+    color: var(--text-primary, #e2e8f0);
+}
+
+.hb-window-fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+}
+
+.hb-window-fields .hb-field:last-child {
+    grid-column: 1 / -1;
+}
+
+.hb-field .field-label {
+    font-size: 0.8rem;
+    margin-bottom: 0.25rem;
+    color: var(--text-secondary, #94a3b8);
+}
+
+.hb-field input[type="time"] {
+    font-family: inherit;
+    padding: 0.5rem 0.75rem;
+}
+
+.hb-field select {
+    width: 100%;
+}
+
+@media (max-width: 640px) {
+    .hb-toggles-row {
+        grid-template-columns: 1fr;
+    }
+    .hb-windows-grid {
+        grid-template-columns: 1fr;
+    }
+}

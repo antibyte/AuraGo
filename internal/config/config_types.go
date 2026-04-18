@@ -151,6 +151,24 @@ type MQTTBuffer struct {
 	MaxAgeHours int `yaml:"max_age_hours"` // max age of messages in hours before cleanup (0 = disabled)
 }
 
+// HeartbeatTimeWindow defines a single time window with start/end time and interval.
+type HeartbeatTimeWindow struct {
+	Start    string `yaml:"start"`    // Format "HH:MM", e.g. "08:00"
+	End      string `yaml:"end"`      // Format "HH:MM", e.g. "22:00"
+	Interval string `yaml:"interval"` // "15m", "30m", "1h", "2h", "4h", "6h", "12h"
+}
+
+// HeartbeatConfig holds settings for the background wake-up scheduler.
+type HeartbeatConfig struct {
+	Enabled           bool                `yaml:"enabled"`
+	CheckTasks        bool                `yaml:"check_tasks"`
+	CheckAppointments bool                `yaml:"check_appointments"`
+	CheckEmails       bool                `yaml:"check_emails"`
+	AdditionalPrompt  string              `yaml:"additional_prompt,omitempty"`
+	DayTimeWindow     HeartbeatTimeWindow `yaml:"day_time_window"`
+	NightTimeWindow   HeartbeatTimeWindow `yaml:"night_time_window"`
+}
+
 type Config struct {
 	ConfigPath    string          `yaml:"-"`          // runtime-only: absolute path to the config file
 	Runtime       Runtime         `yaml:"-" json:"-"` // runtime-only: detected environment capabilities
@@ -334,6 +352,8 @@ type Config struct {
 		LegacyUserProfilingThreshold    int    `yaml:"user_profiling_threshold"   json:"-"`  // migrated → Personality.UserProfilingThreshold
 		LegacyEmotionSynthesizerEnabled bool   `yaml:"emotion_synthesizer_enabled" json:"-"` // not a real field – unused, kept for zero-value detection
 	} `yaml:"agent"`
+
+	Heartbeat HeartbeatConfig `yaml:"heartbeat"`
 
 	// Personality holds all settings related to the personality engine and user profiling.
 	// Fields were previously part of the Agent section.

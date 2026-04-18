@@ -781,5 +781,35 @@
       "title": "Use HTTPS",
       "description": "Uses HTTPS for the connection to the TrueNAS server (recommended)."
     }
+  },
+  "heartbeat": {
+    "enabled": {
+      "title": "Enable Heartbeat",
+      "description": "Periodically wakes the agent to check for open tasks, upcoming appointments, and new emails."
+    },
+    "check_tasks": {
+      "title": "Check Open Tasks",
+      "description": "Scans for open missions and to-dos during each heartbeat."
+    },
+    "check_appointments": {
+      "title": "Check Appointments",
+      "description": "Looks for upcoming calendar events and reminders during each heartbeat."
+    },
+    "check_emails": {
+      "title": "Check Emails",
+      "description": "Monitors configured email accounts for new messages during each heartbeat."
+    },
+    "additional_prompt": {
+      "title": "Additional Instructions",
+      "description": "Custom tasks or context you want the agent to consider on every heartbeat wake-up."
+    },
+    "day_time_window": {
+      "title": "Day Time Window",
+      "description": "Defines the daytime period with its own check interval."
+    },
+    "night_time_window": {
+      "title": "Night Time Window",
+      "description": "Defines the nighttime period with its own (usually longer) check interval."
+    }
   }
 }

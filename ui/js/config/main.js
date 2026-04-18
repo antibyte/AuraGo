@@ -42,6 +42,7 @@ const SECTIONS = [
         group: t('config.group.agent_ai'),
         items: [
             { key: 'agent', icon: '⚙️', label: t('config.section.agent.label'), desc: t('config.section.agent.desc') },
+            { key: 'heartbeat', icon: '💓', label: t('config.section.heartbeat.label'), desc: t('config.section.heartbeat.desc'), customRender: 'renderHeartbeatSection' },
             { key: 'optimizations', icon: '🚀', label: t('config.section.optimizations.label'), desc: t('config.section.optimizations.desc') },
             { key: 'providers', icon: '🔌', label: t('config.section.providers.label'), desc: t('config.section.providers.desc') },
             { key: 'llm', icon: '🧠', label: t('config.section.llm.label'), desc: t('config.section.llm.desc') },
@@ -1429,6 +1430,7 @@ function scheduleReloadWithRetry(delayMs) {
 /* ── Lazy module loader ── */
 const _moduleCache = {};
 const SECTION_MODULES = {
+    heartbeat: { m: 'heartbeat', fn: 'renderHeartbeatSection' },
     providers: { m: 'providers', fn: 'renderProvidersSection' },
     email: { m: 'email', fn: 'renderEmailSection' },
     mcp: { m: 'mcp', fn: 'renderMCPSection' },

@@ -25,6 +25,7 @@ import (
 	"aurago/internal/budget"
 	"aurago/internal/config"
 	"aurago/internal/fritzbox"
+	"aurago/internal/heartbeat"
 	"aurago/internal/i18n"
 	"aurago/internal/invasion/bridge"
 	"aurago/internal/llm"
@@ -146,6 +147,7 @@ type Server struct {
 	TsNetManager       *tsnetnode.Manager
 	tsNetHandler       http.Handler // stored so the UI can restart tsnet without a full server restart
 	FileIndexer        *services.FileIndexer
+	HeartbeatScheduler *heartbeat.Scheduler
 	CheatsheetDB       *sql.DB
 	ImageGalleryDB     *sql.DB
 	MediaRegistryDB    *sql.DB
@@ -257,6 +259,42 @@ func Start(opts StartOptions) error {
 		time.Duration(cfg.CoAgents.CleanupIntervalMins)*time.Minute,
 		time.Duration(cfg.CoAgents.CleanupMaxAgeMins)*time.Minute,
 	)
+
+	// Initialize Heartbeat scheduler
+	hbRunCfg := agent.RunConfig{
+		Config:             cfg,
+		Logger:             logger,
+		LLMClient:          llmClient,
+		ShortTermMem:       shortTermMem,
+		HistoryManager:     opts.HistoryManager,
+		LongTermMem:        longTermMem,
+		KG:                 kg,
+		InventoryDB:        inventoryDB,
+		InvasionDB:         opts.InvasionDB,
+		CheatsheetDB:       cheatsheetDB,
+		ImageGalleryDB:     opts.ImageGalleryDB,
+		MediaRegistryDB:    opts.MediaRegistryDB,
+		HomepageRegistryDB: opts.HomepageRegistryDB,
+		ContactsDB:         opts.ContactsDB,
+		PlannerDB:          opts.PlannerDB,
+		SQLConnectionsDB:   opts.SQLConnectionsDB,
+		SQLConnectionPool:  opts.SQLConnectionPool,
+		RemoteHub:          s.RemoteHub,
+		Vault:              vault,
+		Registry:           registry,
+		Manifest:           tools.NewManifest(cfg.Directories.ToolsDir),
+		CronManager:        opts.CronManager,
+		MissionManagerV2:   s.MissionManagerV2,
+		CoAgentRegistry:    s.CoAgentRegistry,
+		BudgetTracker:      s.BudgetTracker,
+		LLMGuardian:        s.LLMGuardian,
+		SessionID:          "heartbeat",
+		MessageSource:      "heartbeat",
+	}
+	s.HeartbeatScheduler = heartbeat.New(cfg, logger, func(prompt string) {
+		go agent.Loopback(hbRunCfg, prompt, agent.NoopBroker{})
+	})
+	s.HeartbeatScheduler.Start()
 
 	// Initialize Skill Manager (always; gated by config in handlers)
 	if cfg.Tools.SkillManager.Enabled {
@@ -913,6 +951,11 @@ func (s *Server) serveWithShutdown(server, redirectServer, ttsServer *http.Serve
 		// Shut down tsnet node
 		if s.TsNetManager != nil {
 			s.TsNetManager.Stop()
+		}
+
+		// Shut down Heartbeat scheduler
+		if s.HeartbeatScheduler != nil {
+			s.HeartbeatScheduler.Stop()
 		}
 
 		// Shut down MCP servers

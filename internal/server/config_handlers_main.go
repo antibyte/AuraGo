@@ -497,6 +497,14 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				}
 			}
 
+			// Hot-reload Heartbeat scheduler when heartbeat settings change
+			if oldCfg.Heartbeat != newCfg.Heartbeat {
+				if s.HeartbeatScheduler != nil {
+					s.HeartbeatScheduler.Restart(newCfg)
+					s.Logger.Info("[Config UI] Heartbeat scheduler restarted")
+				}
+			}
+
 			// Hot-reload File Indexer: start/stop based on enabled flag change
 			if oldCfg.Indexing.Enabled != newCfg.Indexing.Enabled {
 				if newCfg.Indexing.Enabled && s.FileIndexer == nil {

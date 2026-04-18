@@ -612,6 +612,27 @@ func Load(path string) (*Config, error) {
 	if cfg.Agent.BackgroundTasks.WaitDefaultTimeoutSecs <= 0 {
 		cfg.Agent.BackgroundTasks.WaitDefaultTimeoutSecs = 600
 	}
+
+	// Heartbeat defaults
+	if cfg.Heartbeat.DayTimeWindow.Start == "" {
+		cfg.Heartbeat.DayTimeWindow.Start = "08:00"
+	}
+	if cfg.Heartbeat.DayTimeWindow.End == "" {
+		cfg.Heartbeat.DayTimeWindow.End = "22:00"
+	}
+	if cfg.Heartbeat.DayTimeWindow.Interval == "" {
+		cfg.Heartbeat.DayTimeWindow.Interval = "1h"
+	}
+	if cfg.Heartbeat.NightTimeWindow.Start == "" {
+		cfg.Heartbeat.NightTimeWindow.Start = "22:00"
+	}
+	if cfg.Heartbeat.NightTimeWindow.End == "" {
+		cfg.Heartbeat.NightTimeWindow.End = "08:00"
+	}
+	if cfg.Heartbeat.NightTimeWindow.Interval == "" {
+		cfg.Heartbeat.NightTimeWindow.Interval = "4h"
+	}
+
 	if cfg.CoAgents.MaxConcurrent <= 0 {
 		cfg.CoAgents.MaxConcurrent = 3
 	}
