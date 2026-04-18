@@ -1169,6 +1169,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			content = strings.TrimSpace(strings.ReplaceAll(content, "<done/>", ""))
 		}
 		tc := parsedToolResp.ToolCall
+		tc = normalizeParsedToolShortcut(tc)
+		parsedToolResp.ToolCall = tc
 		useNativePath := parsedToolResp.UseNativePath
 		nativeAssistantMsg := parsedToolResp.NativeAssistantMsg
 		if parsedToolResp.ParseSource == ToolCallParseSourceNative {
@@ -1183,14 +1185,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			// Only apply this check for reasoning-extracted calls because native and
 			// text-mode calls went through the user's explicit instruction flow.
 			if tc.IsTool && tc.Action != "" {
-				knownActions := allBuiltinToolNameSet()
-				if manifest != nil {
-					if customTools, loadErr := manifest.Load(); loadErr == nil {
-						for name := range customTools {
-							knownActions[name] = struct{}{}
-						}
-					}
-				}
+				knownActions := knownReasoningExtractedActionSet(req.Tools, manifest)
 				if _, known := knownActions[tc.Action]; !known {
 					s.currentLogger.Warn("[Sync] Dropping reasoning-extracted tool call: action not in known tool set", "action", tc.Action)
 					parsedToolResp.ToolCall.IsTool = false
@@ -1204,6 +1199,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 		}
 		if len(parsedToolResp.PendingToolCalls) > 0 {
+			for i := range parsedToolResp.PendingToolCalls {
+				parsedToolResp.PendingToolCalls[i] = normalizeParsedToolShortcut(parsedToolResp.PendingToolCalls[i])
+			}
 			pendingTCs = append(pendingTCs, parsedToolResp.PendingToolCalls...)
 			s.currentLogger.Info("[MultiTool] Queued additional tool calls from response", "count", len(parsedToolResp.PendingToolCalls), "source", parsedToolResp.ParseSource)
 		}
