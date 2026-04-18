@@ -70,7 +70,7 @@
             const baseConfig = {
                 startOnLoad: false,
                 securityLevel: 'strict',
-                fontFamily: theme === 'cyberwar'
+                fontFamily: theme === 'cyberwar' || theme === 'dark-sun'
                     ? '"Oxanium", "Inter", system-ui, sans-serif'
                     : 'Inter, system-ui, sans-serif'
             };
@@ -115,6 +115,43 @@
                         noteTextColor: '#6a4f35',
                         activationBorderColor: '#d392c8',
                         activationBkgColor: '#fff0fb'
+                    }
+                });
+                return;
+            }
+
+            if (theme === 'dark-sun') {
+                window.mermaid.initialize({
+                    ...baseConfig,
+                    theme: 'base',
+                    themeVariables: {
+                        background: '#140b09',
+                        primaryColor: '#2c1611',
+                        primaryTextColor: '#f8e7d8',
+                        primaryBorderColor: '#f56d32',
+                        lineColor: '#ff8f3d',
+                        secondaryColor: '#1d120f',
+                        tertiaryColor: '#22120d',
+                        mainBkg: '#170d0a',
+                        secondBkg: '#21110d',
+                        tertiaryBkg: '#120907',
+                        clusterBkg: '#130908',
+                        clusterBorder: '#ff9b4c',
+                        edgeLabelBackground: '#1a0f0c',
+                        nodeTextColor: '#f6e7db',
+                        textColor: '#e6c8b4',
+                        actorBkg: '#24120e',
+                        actorBorder: '#ef6a2f',
+                        actorTextColor: '#f8e7d8',
+                        signalColor: '#ff9b4c',
+                        signalTextColor: '#f8e7d8',
+                        labelBoxBkgColor: '#24120e',
+                        labelBoxBorderColor: '#ef6a2f',
+                        noteBkgColor: '#2d1b12',
+                        noteBorderColor: '#ffb15f',
+                        noteTextColor: '#f7dfc8',
+                        activationBorderColor: '#ff7b35',
+                        activationBkgColor: '#2b120e'
                     }
                 });
                 return;

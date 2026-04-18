@@ -1174,7 +1174,8 @@ const THEME_ICONS = {
     'light': '☀',
     'retro-crt': '▣',
     'cyberwar': '✦',
-    'lollipop': '✿'
+    'lollipop': '✿',
+    'dark-sun': '☼'
 };
 
 function initChatThemePicker() {
