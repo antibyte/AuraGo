@@ -479,3 +479,4 @@ Die vorhandene Theme-Infrastruktur reicht aus, um Cyberwar sauber zu integrieren
 - optionalem WebGL-Atmosphärenlayer
 
 Wenn sauber umgesetzt, kann Cyberwar das visuell stärkste Theme der gesamten App werden.
+ 
