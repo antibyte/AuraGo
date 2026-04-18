@@ -1,0 +1,621 @@
+[data-theme="ocean"] {
+    color-scheme: dark;
+    --accent: #5fa9cf;
+    --accent-secondary: #76c6df;
+    --accent-tertiary: #8cd6e8;
+    --accent-warm: #9ac2dd;
+    --accent-dim: rgba(95, 169, 207, 0.16);
+    --accent-glow: rgba(118, 198, 223, 0.2);
+    --bg-primary: #071523;
+    --bg-secondary: rgba(11, 27, 42, 0.95);
+    --bg-tertiary: rgba(15, 36, 56, 0.94);
+    --bg-glass: linear-gradient(180deg, rgba(17, 39, 60, 0.94), rgba(8, 23, 36, 0.96));
+    --header-bg: rgba(9, 22, 34, 0.9);
+    --modal-bg: rgba(3, 11, 19, 0.68);
+    --modal-surface: rgba(12, 28, 44, 0.96);
+    --modal-border: rgba(92, 145, 178, 0.24);
+    --sidebar-bg: rgba(10, 24, 39, 0.96);
+    --card-bg: rgba(13, 31, 49, 0.94);
+    --code-bg: rgba(8, 22, 35, 0.94);
+    --inline-code-bg: rgba(111, 173, 205, 0.12);
+    --input-bg: rgba(10, 25, 38, 0.98);
+    --input-border: rgba(99, 144, 171, 0.42);
+    --text-primary: #e9f3fa;
+    --text-secondary: #a7bccd;
+    --strong-color: #f4fbff;
+    --border-subtle: rgba(99, 144, 171, 0.18);
+    --border-accent: rgba(118, 198, 223, 0.36);
+    --user-bubble: linear-gradient(145deg, rgba(28, 79, 114, 0.98), rgba(41, 112, 148, 0.96));
+    --user-bubble-tail: rgba(41, 112, 148, 0.96);
+    --user-bubble-shadow: rgba(71, 132, 170, 0.18);
+    --bot-bubble: linear-gradient(180deg, rgba(15, 34, 52, 0.98), rgba(8, 23, 36, 0.98));
+    --bot-bubble-tail: rgba(9, 25, 39, 0.98);
+    --surface-shadow: 0 20px 46px rgba(2, 11, 18, 0.32);
+    --surface-shadow-strong: 0 28px 70px rgba(1, 10, 17, 0.42);
+    --surface-highlight: rgba(206, 232, 245, 0.08);
+    --page-orb-1: rgba(61, 112, 155, 0.2);
+    --page-orb-2: rgba(85, 151, 181, 0.16);
+    --page-orb-3: rgba(121, 198, 223, 0.12);
+    --page-orb-opacity: 1;
+    --chat-image-opacity: 0.06;
+    --bg-logo-filter: saturate(0.78) brightness(0.78) contrast(1.06);
+    --ocean-panel: linear-gradient(180deg, rgba(18, 40, 61, 0.98), rgba(10, 24, 39, 0.98));
+    --ocean-panel-soft: linear-gradient(180deg, rgba(20, 46, 69, 0.96), rgba(11, 27, 42, 0.96));
+    --ocean-button: linear-gradient(180deg, rgba(23, 53, 78, 0.98), rgba(13, 31, 48, 0.98));
+    --ocean-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.02) 40%, transparent 54%);
+    --ocean-ripple: rgba(123, 204, 227, 0.14);
+}
+
+[data-theme="ocean"] body {
+    background:
+        radial-gradient(circle at 14% 18%, rgba(72, 123, 164, 0.18), transparent 22%),
+        radial-gradient(circle at 86% 12%, rgba(104, 181, 204, 0.14), transparent 24%),
+        radial-gradient(circle at 50% 112%, rgba(84, 140, 185, 0.16), transparent 30%),
+        linear-gradient(180deg, #040f1a 0%, #071523 36%, #0a1b2c 100%);
+    color: var(--text-primary);
+}
+
+[data-theme="ocean"] body::before,
+[data-theme="ocean"] body::after {
+    display: none;
+}
+
+[data-theme="ocean"] .app-header {
+    position: relative;
+    z-index: 120;
+    background:
+        linear-gradient(180deg, rgba(16, 34, 53, 0.94), rgba(8, 21, 33, 0.96)),
+        var(--header-bg);
+    border-bottom: 1px solid rgba(98, 145, 174, 0.2);
+    box-shadow:
+        0 10px 28px rgba(2, 10, 18, 0.22),
+        inset 0 1px 0 rgba(221, 239, 248, 0.05),
+        inset 0 -1px 0 rgba(86, 133, 164, 0.08);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+[data-theme="ocean"] .app-header::before {
+    display: none;
+}
+
+[data-theme="ocean"] .app-header::after {
+    height: 2px;
+    opacity: 0.8;
+    background: linear-gradient(90deg,
+        transparent 0%,
+        rgba(112, 184, 220, 0.62) 18%,
+        rgba(142, 209, 229, 0.74) 50%,
+        rgba(95, 148, 188, 0.62) 82%,
+        transparent 100%);
+    box-shadow: 0 0 20px rgba(118, 198, 223, 0.14);
+}
+
+[data-theme="ocean"] .logo span:first-of-type {
+    background: linear-gradient(135deg, #c6e8f7 0%, #86c8e3 42%, #5e9dc2 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 0 18px rgba(116, 190, 217, 0.12);
+}
+
+[data-theme="ocean"] .chat-theme-btn,
+[data-theme="ocean"] .btn-session-toggle,
+[data-theme="ocean"] .btn-speaker,
+[data-theme="ocean"] .btn-warnings,
+[data-theme="ocean"] .select-personality,
+[data-theme="ocean"] .mood-toggle,
+[data-theme="ocean"] .btn-header,
+[data-theme="ocean"] .btn-header-link,
+[data-theme="ocean"] #logout-btn {
+    background:
+        var(--ocean-sheen),
+        var(--ocean-button);
+    border: 1px solid rgba(91, 135, 162, 0.36);
+    box-shadow:
+        inset 0 1px 0 rgba(225, 241, 248, 0.06),
+        inset 0 -1px 0 rgba(6, 16, 26, 0.22),
+        0 8px 18px rgba(2, 10, 18, 0.18);
+    color: var(--text-primary);
+}
+
+[data-theme="ocean"] .chat-theme-btn:hover,
+[data-theme="ocean"] .btn-session-toggle:hover,
+[data-theme="ocean"] .btn-speaker:hover,
+[data-theme="ocean"] .btn-warnings:hover,
+[data-theme="ocean"] .select-personality:hover,
+[data-theme="ocean"] .mood-toggle:hover,
+[data-theme="ocean"] .btn-header:hover,
+[data-theme="ocean"] .btn-header-link:hover,
+[data-theme="ocean"] #logout-btn:hover {
+    border-color: rgba(118, 198, 223, 0.48);
+    box-shadow:
+        inset 0 1px 0 rgba(229, 243, 248, 0.08),
+        inset 0 -1px 0 rgba(8, 19, 29, 0.24),
+        0 12px 22px rgba(2, 10, 18, 0.22),
+        0 0 0 1px rgba(118, 198, 223, 0.06);
+    color: var(--strong-color);
+    transform: translateY(-1px);
+}
+
+[data-theme="ocean"] .chat-theme-icon,
+[data-theme="ocean"] .personality-chevron,
+[data-theme="ocean"] .mood-chevron {
+    color: #d8edf8;
+}
+
+[data-theme="ocean"] .chat-theme-dropdown,
+[data-theme="ocean"] .mood-panel {
+    --theme-option-color: #def1fb;
+    border: 1px solid rgba(91, 135, 162, 0.36);
+    background: linear-gradient(180deg, rgba(15, 34, 52, 0.98), rgba(9, 23, 35, 0.98));
+    box-shadow:
+        0 18px 46px rgba(2, 10, 18, 0.28),
+        inset 0 1px 0 rgba(229, 243, 248, 0.04),
+        0 0 0 1px rgba(118, 198, 223, 0.05);
+}
+
+[data-theme="ocean"] .chat-theme-option {
+    border-radius: 10px;
+}
+
+[data-theme="ocean"] .chat-theme-option:hover,
+[data-theme="ocean"] .chat-theme-option.active {
+    background: linear-gradient(90deg, rgba(25, 66, 95, 0.94), rgba(16, 45, 68, 0.94));
+}
+
+[data-theme="ocean"] .app-header .pill {
+    background: linear-gradient(180deg, rgba(21, 48, 72, 0.92), rgba(11, 27, 42, 0.92));
+    border: 1px solid rgba(91, 135, 162, 0.32);
+    box-shadow:
+        inset 0 1px 0 rgba(221, 239, 248, 0.06),
+        0 6px 16px rgba(2, 10, 18, 0.16);
+    color: #eaf5fb;
+}
+
+[data-theme="ocean"] #chat-box {
+    isolation: auto;
+    position: relative;
+    z-index: 1;
+    background:
+        radial-gradient(circle at 18% 14%, rgba(79, 128, 166, 0.14), transparent 22%),
+        radial-gradient(circle at 86% 18%, rgba(111, 180, 205, 0.11), transparent 22%),
+        radial-gradient(circle at 50% 105%, rgba(76, 138, 176, 0.12), transparent 26%),
+        linear-gradient(180deg, #071523 0%, #091b2d 100%);
+    background-size: 108% 108%;
+    animation: oceanBackdropDrift 18s ease-in-out infinite alternate;
+}
+
+[data-theme="ocean"] #chat-box::before {
+    display: block;
+    background:
+        linear-gradient(180deg, rgba(6, 15, 25, 0.14) 0%, transparent 18%, transparent 82%, rgba(6, 15, 25, 0.12) 100%),
+        radial-gradient(circle, rgba(110, 183, 208, 0.08) 0 1px, transparent 1.1px);
+    background-size: auto, 18px 18px;
+    opacity: 0.9;
+}
+
+[data-theme="ocean"] #chat-box::after {
+    display: block;
+    opacity: var(--chat-image-opacity);
+    filter: var(--bg-logo-filter);
+}
+
+[data-theme="ocean"] #ocean-overlay {
+    z-index: 2 !important;
+    opacity: 0.94 !important;
+    mix-blend-mode: screen !important;
+    filter: saturate(1.04) brightness(1.04) !important;
+}
+
+[data-theme="ocean"] #chat-content {
+    position: relative;
+    z-index: 3;
+    padding-top: 1.8rem;
+    padding-bottom: 2.35rem;
+}
+
+[data-theme="ocean"] .greeting-icon,
+[data-theme="ocean"] .avatar.bot,
+[data-theme="ocean"] .avatar.human {
+    background: linear-gradient(180deg, rgba(23, 51, 76, 0.98), rgba(10, 24, 38, 0.98));
+    border: 1px solid rgba(96, 145, 174, 0.34);
+    box-shadow:
+        inset 0 1px 0 rgba(224, 241, 248, 0.06),
+        0 12px 22px rgba(2, 10, 18, 0.2);
+}
+
+[data-theme="ocean"] .avatar.human {
+    border-color: rgba(86, 152, 188, 0.42);
+}
+
+[data-theme="ocean"] .greeting-text,
+[data-theme="ocean"] .mood-emotion,
+[data-theme="ocean"] .zoom-level,
+[data-theme="ocean"] .session-item-meta,
+[data-theme="ocean"] .session-empty {
+    color: var(--text-secondary);
+}
+
+[data-theme="ocean"] .msg-row {
+    position: relative;
+    z-index: 3;
+    opacity: 1;
+    visibility: visible;
+    animation: oceanMessageEnter 0.42s ease-out;
+}
+
+[data-theme="ocean"] .bubble {
+    opacity: 1;
+    visibility: visible;
+    border: 1px solid rgba(92, 141, 171, 0.34);
+    box-shadow:
+        inset 0 1px 0 rgba(226, 241, 248, 0.04),
+        0 14px 28px rgba(2, 10, 18, 0.2);
+}
+
+[data-theme="ocean"] .bubble::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+        linear-gradient(180deg, rgba(230, 243, 248, 0.02), transparent 24%),
+        linear-gradient(120deg, transparent 0%, transparent 68%, rgba(118, 198, 223, 0.03) 100%);
+}
+
+[data-theme="ocean"] .bubble.bot {
+    background: var(--bot-bubble);
+    color: var(--text-primary);
+}
+
+[data-theme="ocean"] .bubble.bot::before {
+    border-color: transparent transparent var(--bot-bubble-tail) transparent;
+}
+
+[data-theme="ocean"] .bubble.user {
+    background: var(--user-bubble);
+    color: #eff9ff;
+    box-shadow:
+        inset 0 1px 0 rgba(232, 244, 249, 0.08),
+        0 16px 30px rgba(14, 58, 92, 0.22);
+}
+
+[data-theme="ocean"] .bubble.user::before {
+    border-color: transparent transparent var(--user-bubble-tail) transparent;
+}
+
+[data-theme="ocean"] .bubble.technical,
+[data-theme="ocean"] .tool-output-block .tool-output-content,
+[data-theme="ocean"] .code-block-wrapper,
+[data-theme="ocean"] .mermaid-container {
+    background: linear-gradient(180deg, rgba(11, 27, 41, 0.98), rgba(7, 18, 29, 0.98));
+    border-color: rgba(88, 133, 160, 0.36);
+    box-shadow:
+        inset 0 1px 0 rgba(226, 241, 248, 0.04),
+        0 16px 28px rgba(2, 10, 18, 0.22);
+}
+
+[data-theme="ocean"] .tool-output-block summary,
+[data-theme="ocean"] .copy-btn,
+[data-theme="ocean"] .mermaid-btn,
+[data-theme="ocean"] .session-item-count {
+    background: linear-gradient(180deg, rgba(23, 51, 76, 0.98), rgba(11, 27, 41, 0.98));
+    border: 1px solid rgba(91, 135, 162, 0.38);
+    color: var(--text-primary);
+}
+
+[data-theme="ocean"] .tool-output-block summary:hover,
+[data-theme="ocean"] .copy-btn:hover,
+[data-theme="ocean"] .mermaid-btn:hover {
+    background: linear-gradient(180deg, rgba(28, 64, 94, 0.98), rgba(13, 32, 49, 0.98));
+    box-shadow: 0 10px 18px rgba(2, 10, 18, 0.2);
+}
+
+[data-theme="ocean"] .code-header,
+[data-theme="ocean"] .line-numbers {
+    background: rgba(14, 32, 48, 0.84);
+    border-color: rgba(84, 126, 152, 0.32);
+}
+
+[data-theme="ocean"] .code-lang {
+    color: #85cfe6;
+}
+
+[data-theme="ocean"] .hljs,
+[data-theme="ocean"] .code-content,
+[data-theme="ocean"] .code-content pre {
+    background: transparent;
+    color: #dcebf5;
+}
+
+[data-theme="ocean"] .hljs-keyword,
+[data-theme="ocean"] .hljs-selector-tag,
+[data-theme="ocean"] .hljs-literal {
+    color: #8ecae6;
+}
+
+[data-theme="ocean"] .hljs-string,
+[data-theme="ocean"] .hljs-attr {
+    color: #93d2c5;
+}
+
+[data-theme="ocean"] .hljs-title,
+[data-theme="ocean"] .hljs-function,
+[data-theme="ocean"] .hljs-section {
+    color: #79b3d8;
+}
+
+[data-theme="ocean"] code:not(pre code) {
+    background: rgba(118, 198, 223, 0.1);
+    color: #bae1f0;
+    border: 1px solid rgba(118, 198, 223, 0.14);
+    border-radius: 7px;
+    padding: 0.08rem 0.35rem;
+}
+
+[data-theme="ocean"] .app-footer {
+    position: relative;
+    z-index: 1;
+    background:
+        linear-gradient(180deg, rgba(13, 30, 46, 0.98), rgba(8, 21, 33, 0.99));
+    border-top: 1px solid rgba(91, 135, 162, 0.26);
+    box-shadow:
+        0 -12px 28px rgba(2, 10, 18, 0.22),
+        inset 0 1px 0 rgba(224, 241, 248, 0.04);
+    backdrop-filter: none;
+}
+
+[data-theme="ocean"] .input-row:focus-within .input-wrap {
+    transform: translateY(-1px);
+}
+
+[data-theme="ocean"] .input-wrap textarea,
+[data-theme="ocean"] .composer-panel,
+[data-theme="ocean"] .mood-feedback-row,
+[data-theme="ocean"] .attachment-chip,
+[data-theme="ocean"] .attachments-panel {
+    background: linear-gradient(180deg, rgba(16, 37, 57, 0.98), rgba(9, 24, 37, 0.99));
+    border: 1px solid rgba(89, 132, 158, 0.4);
+    box-shadow:
+        inset 0 1px 0 rgba(226, 241, 248, 0.05),
+        0 12px 22px rgba(2, 10, 18, 0.2);
+}
+
+[data-theme="ocean"] .input-wrap textarea:hover,
+[data-theme="ocean"] .input-wrap textarea:focus {
+    border-color: rgba(118, 198, 223, 0.56);
+    box-shadow:
+        inset 0 1px 0 rgba(226, 241, 248, 0.06),
+        0 0 0 3px rgba(118, 198, 223, 0.06),
+        0 12px 24px rgba(2, 10, 18, 0.22);
+}
+
+[data-theme="ocean"] .input-wrap textarea::placeholder {
+    color: rgba(167, 188, 205, 0.76);
+}
+
+[data-theme="ocean"] .btn-send,
+[data-theme="ocean"] .btn-voice,
+[data-theme="ocean"] .btn-more,
+[data-theme="ocean"] .composer-tool-btn,
+[data-theme="ocean"] .mood-btn,
+[data-theme="ocean"] .session-new-btn,
+[data-theme="ocean"] .session-drawer-close,
+[data-theme="ocean"] #img-lightbox-close,
+[data-theme="ocean"] .modal-btn,
+[data-theme="ocean"] .scroll-to-bottom-btn {
+    background:
+        var(--ocean-sheen),
+        linear-gradient(180deg, rgba(22, 51, 76, 0.99), rgba(11, 28, 43, 0.98));
+    border: 1px solid rgba(91, 135, 162, 0.4);
+    box-shadow:
+        inset 0 1px 0 rgba(226, 241, 248, 0.06),
+        inset 0 -1px 0 rgba(6, 16, 26, 0.22),
+        0 10px 20px rgba(2, 10, 18, 0.2);
+    color: var(--text-primary);
+}
+
+[data-theme="ocean"] .btn-send {
+    background:
+        linear-gradient(180deg, rgba(235, 246, 250, 0.12), rgba(235, 246, 250, 0) 36%),
+        linear-gradient(135deg, rgba(45, 109, 150, 0.98), rgba(73, 148, 191, 0.96), rgba(111, 188, 215, 0.94));
+    border-color: rgba(102, 169, 199, 0.6);
+    color: #f8fdff;
+    box-shadow:
+        inset 0 1px 0 rgba(240, 249, 252, 0.12),
+        0 14px 28px rgba(10, 52, 82, 0.26);
+}
+
+[data-theme="ocean"] .btn-send:hover,
+[data-theme="ocean"] .btn-voice:hover,
+[data-theme="ocean"] .btn-more:hover,
+[data-theme="ocean"] .btn-more.is-open,
+[data-theme="ocean"] .composer-tool-btn:hover,
+[data-theme="ocean"] .mood-btn:hover,
+[data-theme="ocean"] .session-new-btn:hover,
+[data-theme="ocean"] .session-drawer-close:hover,
+[data-theme="ocean"] #img-lightbox-close:hover,
+[data-theme="ocean"] .modal-btn:hover,
+[data-theme="ocean"] .scroll-to-bottom-btn:hover {
+    transform: translateY(-1px);
+    border-color: rgba(118, 198, 223, 0.5);
+    box-shadow:
+        inset 0 1px 0 rgba(226, 241, 248, 0.08),
+        inset 0 -1px 0 rgba(6, 16, 26, 0.24),
+        0 12px 24px rgba(2, 10, 18, 0.22);
+}
+
+[data-theme="ocean"] .composer-tool-btn-danger,
+[data-theme="ocean"] .composer-tool-btn-danger:hover:not(:disabled) {
+    background: linear-gradient(180deg, rgba(54, 36, 44, 0.98), rgba(27, 18, 22, 0.98));
+    border-color: rgba(157, 102, 122, 0.48);
+    color: #f6dce6;
+}
+
+[data-theme="ocean"] .session-backdrop,
+[data-theme="ocean"] .mermaid-modal-overlay,
+[data-theme="ocean"] #img-lightbox,
+[data-theme="ocean"] .modal-overlay {
+    background:
+        radial-gradient(circle at top, rgba(113, 188, 214, 0.08), transparent 28%),
+        rgba(4, 12, 20, 0.68);
+    backdrop-filter: blur(8px);
+}
+
+[data-theme="ocean"] .session-drawer,
+[data-theme="ocean"] .modal-card,
+[data-theme="ocean"] .mermaid-modal-content {
+    overflow: hidden;
+    background: linear-gradient(180deg, rgba(15, 34, 52, 0.98), rgba(9, 23, 36, 0.99));
+    border: 1px solid rgba(91, 135, 162, 0.34);
+    box-shadow:
+        0 26px 62px rgba(2, 10, 18, 0.3),
+        inset 0 1px 0 rgba(226, 241, 248, 0.05);
+}
+
+[data-theme="ocean"] .session-drawer {
+    position: fixed;
+    top: 0;
+    left: 0;
+}
+
+[data-theme="ocean"] .modal-card,
+[data-theme="ocean"] .mermaid-modal-content {
+    position: relative;
+}
+
+[data-theme="ocean"] .session-drawer::before,
+[data-theme="ocean"] .modal-card::before,
+[data-theme="ocean"] .mermaid-modal-content::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border-radius: inherit;
+    background:
+        linear-gradient(180deg, rgba(232, 245, 251, 0.04), rgba(232, 245, 251, 0) 24%),
+        linear-gradient(90deg, rgba(117, 194, 220, 0.03), transparent 22%);
+}
+
+[data-theme="ocean"] .session-drawer-header,
+[data-theme="ocean"] .modal-title {
+    border-bottom-color: rgba(91, 135, 162, 0.26);
+}
+
+[data-theme="ocean"] .session-item {
+    border: 1px solid transparent;
+    border-radius: 12px;
+}
+
+[data-theme="ocean"] .session-item:hover {
+    background: linear-gradient(90deg, rgba(18, 44, 66, 0.98), rgba(11, 30, 46, 0.98));
+    border-color: rgba(91, 135, 162, 0.24);
+}
+
+[data-theme="ocean"] .session-item.session-active {
+    background: linear-gradient(90deg, rgba(22, 53, 79, 0.98), rgba(13, 35, 54, 0.98));
+    border-color: rgba(118, 198, 223, 0.32);
+    box-shadow: 0 12px 22px rgba(2, 10, 18, 0.16);
+}
+
+[data-theme="ocean"] .session-item-preview,
+[data-theme="ocean"] .session-drawer-title,
+[data-theme="ocean"] .modal-title,
+[data-theme="ocean"] .modal-body,
+[data-theme="ocean"] .mermaid-error .error-title,
+[data-theme="ocean"] .mermaid-error .error-message {
+    color: var(--text-primary);
+}
+
+[data-theme="ocean"] .scroll-to-bottom-btn.has-new {
+    background:
+        linear-gradient(180deg, rgba(236, 247, 251, 0.12), rgba(236, 247, 251, 0) 32%),
+        linear-gradient(135deg, rgba(47, 112, 152, 0.98), rgba(82, 154, 193, 0.96), rgba(132, 205, 226, 0.94));
+    color: #f7fdff;
+    animation: oceanBeacon 2s ease-in-out infinite;
+}
+
+[data-theme="ocean"] #img-lightbox img {
+    border: 1px solid rgba(91, 135, 162, 0.36);
+    box-shadow: 0 24px 62px rgba(2, 10, 18, 0.28);
+}
+
+[data-theme="ocean"] .drag-drop-overlay {
+    background: rgba(8, 21, 33, 0.84);
+}
+
+[data-theme="ocean"] .mermaid-diagram svg {
+    filter: drop-shadow(0 0 16px rgba(118, 198, 223, 0.06));
+}
+
+[data-theme="ocean"] ::selection,
+[data-theme="ocean"] ::-moz-selection {
+    background: rgba(118, 198, 223, 0.18);
+}
+
+@keyframes oceanBackdropDrift {
+    from {
+        background-position: 0% 0%, 0% 0%, 0% 0%, 0% 0%;
+    }
+    to {
+        background-position: 2% -3%, -2% 2%, 1% 3%, 0% 0%;
+    }
+}
+
+@keyframes oceanMessageEnter {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes oceanBeacon {
+    0%, 100% {
+        box-shadow:
+            inset 0 1px 0 rgba(236, 247, 251, 0.12),
+            0 12px 24px rgba(10, 52, 82, 0.18);
+    }
+    50% {
+        box-shadow:
+            inset 0 1px 0 rgba(236, 247, 251, 0.16),
+            0 14px 28px rgba(10, 52, 82, 0.22),
+            0 0 18px rgba(118, 198, 223, 0.12);
+    }
+}
+
+@media (max-width: 767px) {
+    [data-theme="ocean"] #chat-box::before {
+        background-size: auto, 14px 14px;
+        opacity: 0.8;
+    }
+
+    [data-theme="ocean"] .bubble {
+        max-width: min(88%, 38rem);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    [data-theme="ocean"] #chat-box,
+    [data-theme="ocean"] .msg-row,
+    [data-theme="ocean"] .scroll-to-bottom-btn.has-new {
+        animation: none !important;
+    }
+}
+
+/* Defensive foreground compositing for browsers that struggle with fixed layers. */
+[data-theme="ocean"] #chat-content,
+[data-theme="ocean"] .greeting-row,
+[data-theme="ocean"] .msg-row,
+[data-theme="ocean"] .bubble,
+[data-theme="ocean"] .avatar,
+[data-theme="ocean"] #agentStatusContainer {
+    position: relative;
+    z-index: 3;
+    mix-blend-mode: normal !important;
+    filter: none !important;
+}
