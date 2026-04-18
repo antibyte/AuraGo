@@ -569,6 +569,53 @@ func TestTranslations_AllLanguageFilesExist(t *testing.T) {
 	}
 }
 
+func TestTranslations_AllJSONFilesParse(t *testing.T) {
+	t.Parallel()
+
+	langDir := filepath.Join("lang")
+	if _, err := os.Stat(langDir); err != nil {
+		t.Skipf("ui/lang/ directory not found, skipping test: %v", err)
+	}
+
+	var failures []string
+
+	var walkDir func(path string)
+	walkDir = func(path string) {
+		entries, err := os.ReadDir(path)
+		if err != nil {
+			failures = append(failures, fmt.Sprintf("Failed to read directory %s: %v", path, err))
+			return
+		}
+		for _, e := range entries {
+			fullPath := filepath.Join(path, e.Name())
+			if e.IsDir() {
+				walkDir(fullPath)
+				continue
+			}
+			if !strings.HasSuffix(strings.ToLower(e.Name()), ".json") {
+				continue
+			}
+
+			content, err := os.ReadFile(fullPath)
+			if err != nil {
+				failures = append(failures, fmt.Sprintf("Failed to read %s: %v", fullPath, err))
+				continue
+			}
+
+			var parsed any
+			if err := json.Unmarshal(content, &parsed); err != nil {
+				failures = append(failures, fmt.Sprintf("Invalid JSON in %s: %v", fullPath, err))
+			}
+		}
+	}
+
+	walkDir(langDir)
+
+	if len(failures) > 0 {
+		t.Errorf("Found %d invalid translation JSON files:\n%s", len(failures), strings.Join(failures, "\n"))
+	}
+}
+
 func readJSONFileMap(path string) (map[string]any, error) {
 	b, err := os.ReadFile(path)
 	if err != nil {
