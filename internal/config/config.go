@@ -233,6 +233,12 @@ func Load(path string) (*Config, error) {
 	cfg.SQLConnections.RateLimitWindowSec = 1 // per-connection rate limit: 1 second between accesses (0 = disabled)
 	cfg.SQLConnections.IdleTTLSec = 600       // idle TTL: 10 minutes before connection eviction
 
+	// Remote control defaults: disabled by default, mutable operations allowed
+	// unless readonly is explicitly enabled, and audit logging stays on.
+	cfg.RemoteControl.DiscoveryPort = 8092
+	cfg.RemoteControl.MaxFileSizeMB = 50
+	cfg.RemoteControl.AuditLog = true
+
 	// Danger-zone capabilities default to false (opt-in) for new installations.
 	// Existing configs with explicit true/false values will be read from YAML unchanged.
 	if err := yaml.Unmarshal(data, &cfg); err != nil {

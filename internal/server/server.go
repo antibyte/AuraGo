@@ -320,6 +320,8 @@ func Start(opts StartOptions) error {
 		s.RemoteHub = remote.NewRemoteHub(remoteControlDB, vault, logger)
 		s.RemoteHub.DefaultReadOnly = cfg.RemoteControl.ReadOnly
 		s.RemoteHub.AutoApprove = cfg.RemoteControl.AutoApprove
+		s.RemoteHub.MaxFileSizeMB = cfg.RemoteControl.MaxFileSizeMB
+		s.RemoteHub.AuditLogEnabled = cfg.RemoteControl.AuditLog
 		s.RemoteHub.OnConnect = func(deviceID, name string) {
 			s.MissionManagerV2.NotifyDeviceEvent("device_connected", deviceID, name)
 		}

@@ -27,6 +27,8 @@ const (
 	MsgError        = "error"         // both: protocol error
 )
 
+const DefaultMaxFileSizeMB = 50
+
 // ── Operations ──────────────────────────────────────────────────────────────
 
 const (
@@ -73,21 +75,25 @@ type RemoteMessage struct {
 
 // AuthPayload is sent by the remote during enrollment or reconnection.
 type AuthPayload struct {
-	Version  string `json:"version"`
-	Hostname string `json:"hostname,omitempty"`
-	OS       string `json:"os,omitempty"`
-	Arch     string `json:"arch,omitempty"`
-	IP       string `json:"ip,omitempty"`
-	Token    string `json:"token,omitempty"`     // enrollment token (empty = manual approval)
-	DeviceID string `json:"device_id,omitempty"` // set on reconnection
+	Version   string `json:"version"`
+	Hostname  string `json:"hostname,omitempty"`
+	OS        string `json:"os,omitempty"`
+	Arch      string `json:"arch,omitempty"`
+	IP        string `json:"ip,omitempty"`
+	Token     string `json:"token,omitempty"`      // legacy raw enrollment token (kept for backward compatibility)
+	TokenHash string `json:"token_hash,omitempty"` // SHA-256 hex of the enrollment token for authenticated bootstrap
+	DeviceID  string `json:"device_id,omitempty"`  // set on reconnection
 }
 
 // AuthResponsePayload is sent by the supervisor after enrollment/auth.
 type AuthResponsePayload struct {
-	Status    string `json:"status"`              // "enrolled", "authenticated", "pending", "rejected"
-	DeviceID  string `json:"device_id,omitempty"` // assigned device UUID
-	SharedKey string `json:"shared_key,omitempty"`
-	Message   string `json:"message,omitempty"`
+	Status        string   `json:"status"`              // "enrolled", "authenticated", "pending", "rejected"
+	DeviceID      string   `json:"device_id,omitempty"` // assigned device UUID
+	SharedKey     string   `json:"shared_key,omitempty"`
+	Message       string   `json:"message,omitempty"`
+	ReadOnly      *bool    `json:"read_only,omitempty"`
+	AllowedPaths  []string `json:"allowed_paths,omitempty"`
+	MaxFileSizeMB int      `json:"max_file_size_mb,omitempty"`
 }
 
 // HeartbeatPayload is sent periodically by the remote.
@@ -122,8 +128,9 @@ type ResultPayload struct {
 
 // ConfigUpdatePayload pushes configuration changes to the remote.
 type ConfigUpdatePayload struct {
-	ReadOnly     *bool    `json:"read_only,omitempty"`
-	AllowedPaths []string `json:"allowed_paths,omitempty"`
+	ReadOnly      *bool    `json:"read_only,omitempty"`
+	AllowedPaths  []string `json:"allowed_paths,omitempty"`
+	MaxFileSizeMB *int     `json:"max_file_size_mb,omitempty"`
 }
 
 // AckPayload acknowledges receipt of a message.
@@ -221,6 +228,13 @@ func NewMessage(msgType, deviceID, sharedKeyHex string, seq uint64, payload inte
 	return msg, nil
 }
 
+// NewAuthResponseMessage creates an auth response and signs it when a bootstrap
+// or device shared key is available. Manual approval flows may remain unsigned
+// because no trusted secret exists yet on either side.
+func NewAuthResponseMessage(deviceID, signingKeyHex string, payload AuthResponsePayload) (*RemoteMessage, error) {
+	return NewMessage(MsgAuthResponse, deviceID, signingKeyHex, 0, payload)
+}
+
 // MaxTimestampDrift is the maximum allowed clock drift for anti-replay.
 // 15 minutes accommodates typical home-lab setups where NTP sync may lag
 // (Windows re-syncs every 7 days by default, VMs can drift significantly).
@@ -250,4 +264,12 @@ func GenerateSharedKey() (string, error) {
 		return "", fmt.Errorf("failed to generate shared key: %w", err)
 	}
 	return hex.EncodeToString(b), nil
+}
+
+// DeriveEnrollmentAuthKey derives the authenticated-bootstrap signing key from
+// a raw enrollment token. The result is a 32-byte SHA-256 hex string suitable
+// for HMAC signing and stable lookup.
+func DeriveEnrollmentAuthKey(token string) string {
+	sum := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(sum[:])
 }

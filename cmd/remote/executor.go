@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 
 	"aurago/internal/remote"
@@ -25,12 +26,16 @@ import (
 
 // Executor handles command execution on the remote device.
 type Executor struct {
-	logger *slog.Logger
+	logger           *slog.Logger
+	mu               sync.RWMutex
+	maxFileSizeBytes int64
 }
 
 // NewExecutor creates a new command executor.
-func NewExecutor(logger *slog.Logger) *Executor {
-	return &Executor{logger: logger}
+func NewExecutor(logger *slog.Logger, maxFileSizeMB int) *Executor {
+	e := &Executor{logger: logger}
+	e.SetMaxFileSizeMB(maxFileSizeMB)
+	return e
 }
 
 // Execute runs a command and returns the result.
@@ -60,6 +65,11 @@ func (e *Executor) Execute(cmd remote.CommandPayload, readOnly bool, allowedPath
 			result.Error = err.Error()
 			return result
 		}
+		if err := e.validateFileReadSize(path); err != nil {
+			result.Status = "error"
+			result.Error = err.Error()
+			return result
+		}
 		data, err := os.ReadFile(path)
 		if err != nil {
 			result.Status = "error"
@@ -81,10 +91,20 @@ func (e *Executor) Execute(cmd remote.CommandPayload, readOnly bool, allowedPath
 			result.Error = err.Error()
 			return result
 		}
+		if err := e.validateEncodedWriteSize(content); err != nil {
+			result.Status = "error"
+			result.Error = err.Error()
+			return result
+		}
 		decoded, err := base64.StdEncoding.DecodeString(content)
 		if err != nil {
 			result.Status = "error"
 			result.Error = fmt.Sprintf("invalid base64 content: %v", err)
+			return result
+		}
+		if err := e.validateDecodedWriteSize(len(decoded)); err != nil {
+			result.Status = "error"
+			result.Error = err.Error()
 			return result
 		}
 		// Ensure parent directory exists
@@ -272,6 +292,53 @@ func (e *Executor) Execute(cmd remote.CommandPayload, readOnly bool, allowedPath
 	}
 
 	return result
+}
+
+func (e *Executor) SetMaxFileSizeMB(maxFileSizeMB int) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.maxFileSizeBytes = int64(normalizeMaxFileSizeMB(maxFileSizeMB)) * 1024 * 1024
+}
+
+func (e *Executor) maxFileSizeBytesSnapshot() int64 {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	if e.maxFileSizeBytes <= 0 {
+		return int64(remote.DefaultMaxFileSizeMB) * 1024 * 1024
+	}
+	return e.maxFileSizeBytes
+}
+
+func normalizeMaxFileSizeMB(maxFileSizeMB int) int {
+	if maxFileSizeMB <= 0 {
+		return remote.DefaultMaxFileSizeMB
+	}
+	return maxFileSizeMB
+}
+
+func (e *Executor) validateFileReadSize(path string) error {
+	info, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+	if info.Size() > e.maxFileSizeBytesSnapshot() {
+		return fmt.Errorf("file exceeds configured max_file_size_mb limit")
+	}
+	return nil
+}
+
+func (e *Executor) validateEncodedWriteSize(content string) error {
+	if base64.StdEncoding.DecodedLen(len(content)) > int(e.maxFileSizeBytesSnapshot()) {
+		return fmt.Errorf("file exceeds configured max_file_size_mb limit")
+	}
+	return nil
+}
+
+func (e *Executor) validateDecodedWriteSize(size int) error {
+	if int64(size) > e.maxFileSizeBytesSnapshot() {
+		return fmt.Errorf("file exceeds configured max_file_size_mb limit")
+	}
+	return nil
 }
 
 // CollectSysinfo gathers system information for heartbeats.

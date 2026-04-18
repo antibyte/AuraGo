@@ -190,6 +190,53 @@ indexing:
 	}
 }
 
+func TestLoadRemoteControlDefaults(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	if err := os.WriteFile(configPath, []byte("server:\n  ui_language: en\n"), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.RemoteControl.DiscoveryPort != 8092 {
+		t.Fatalf("discovery_port = %d, want 8092", cfg.RemoteControl.DiscoveryPort)
+	}
+	if cfg.RemoteControl.MaxFileSizeMB != 50 {
+		t.Fatalf("max_file_size_mb = %d, want 50", cfg.RemoteControl.MaxFileSizeMB)
+	}
+	if !cfg.RemoteControl.AuditLog {
+		t.Fatal("expected remote_control.audit_log to default to true")
+	}
+	if cfg.RemoteControl.ReadOnly {
+		t.Fatal("expected remote_control.readonly to default to false")
+	}
+}
+
+func TestLoadRemoteControlAuditLogExplicitFalsePreserved(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	configContent := `
+remote_control:
+  audit_log: false
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.RemoteControl.AuditLog {
+		t.Fatal("expected explicit remote_control.audit_log=false to be preserved")
+	}
+}
+
 func TestLoadAdaptiveSystemPromptTokenBudgetDefaultsToTrue(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "config_test")
 	if err != nil {

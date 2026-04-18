@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -31,7 +32,7 @@ func handleRemoteControl(tc ToolCall, cfg *config.Config, hub *remote.RemoteHub,
 	case "read_file":
 		return remoteReadFile(hub, tc, logger)
 	case "write_file":
-		return remoteWriteFile(hub, tc, logger)
+		return remoteWriteFile(cfg, hub, tc, logger)
 	case "list_files":
 		return remoteListFiles(hub, tc, logger)
 	case "sysinfo":
@@ -227,7 +228,7 @@ func remoteReadFile(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) str
 	return "Tool Output: " + string(data)
 }
 
-func remoteWriteFile(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
+func remoteWriteFile(cfg *config.Config, hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {
 	deviceID, err := resolveRemoteDevice(hub, tc)
 	if err != nil {
 		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
@@ -242,6 +243,9 @@ func remoteWriteFile(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) st
 	content := tc.Content
 	if content == "" {
 		return `Tool Output: {"status":"error","message":"'content' is required for write_file"}`
+	}
+	if err := validateRemoteWriteContentSize(cfg, content); err != nil {
+		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err.Error())
 	}
 
 	result, err := hub.SendCommand(deviceID, remote.CommandPayload{
@@ -263,6 +267,18 @@ func remoteWriteFile(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) st
 		"message": fmt.Sprintf("file written to %s on device", path),
 	})
 	return "Tool Output: " + string(data)
+}
+
+func validateRemoteWriteContentSize(cfg *config.Config, content string) error {
+	maxMB := cfg.RemoteControl.MaxFileSizeMB
+	if maxMB <= 0 {
+		maxMB = remote.DefaultMaxFileSizeMB
+	}
+	maxBytes := int64(maxMB) * 1024 * 1024
+	if int64(base64.StdEncoding.DecodedLen(len(content))) > maxBytes {
+		return fmt.Errorf("file exceeds remote_control.max_file_size_mb limit")
+	}
+	return nil
 }
 
 func remoteListFiles(hub *remote.RemoteHub, tc ToolCall, logger *slog.Logger) string {

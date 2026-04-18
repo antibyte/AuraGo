@@ -166,6 +166,39 @@ func TestNewMessageUnsigned(t *testing.T) {
 	}
 }
 
+func TestNewAuthResponseMessageSigned(t *testing.T) {
+	bootstrapKey := DeriveEnrollmentAuthKey("remote_bootstrap_token")
+	msg, err := NewAuthResponseMessage("dev-enroll", bootstrapKey, AuthResponsePayload{
+		Status:        "enrolled",
+		DeviceID:      "dev-enroll",
+		SharedKey:     "shared-key",
+		MaxFileSizeMB: DefaultMaxFileSizeMB,
+	})
+	if err != nil {
+		t.Fatalf("NewAuthResponseMessage: %v", err)
+	}
+	if msg.HMAC == "" {
+		t.Fatal("expected signed auth response")
+	}
+	ok, err := VerifyMessage(*msg, bootstrapKey)
+	if err != nil {
+		t.Fatalf("VerifyMessage: %v", err)
+	}
+	if !ok {
+		t.Fatal("expected auth response signature to verify")
+	}
+}
+
+func TestNewAuthResponseMessageUnsigned(t *testing.T) {
+	msg, err := NewAuthResponseMessage("", "", AuthResponsePayload{Status: "pending"})
+	if err != nil {
+		t.Fatalf("NewAuthResponseMessage: %v", err)
+	}
+	if msg.HMAC != "" {
+		t.Fatal("expected unsigned auth response when no signing key is available")
+	}
+}
+
 // ── Timestamp validation ────────────────────────────────────────────────────
 
 func TestValidateTimestamp_Current(t *testing.T) {

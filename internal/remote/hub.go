@@ -1,12 +1,11 @@
 package remote
 
 import (
-	"crypto/sha256"
 	"database/sql"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net"
 	"sync"
 	"time"
 
@@ -59,6 +58,10 @@ type RemoteHub struct {
 	// Config-driven defaults (set by caller after construction)
 	DefaultReadOnly bool // default read-only setting for newly enrolled devices
 	AutoApprove     bool // auto-approve devices with no enrollment token
+	MaxFileSizeMB   int
+	AuditLogEnabled bool
+
+	nonceCache *nonceReplayCache
 
 	// Callbacks
 	OnConnect    func(deviceID, name string)
@@ -69,11 +72,14 @@ type RemoteHub struct {
 // NewRemoteHub creates a new hub for managing remote connections.
 func NewRemoteHub(db *sql.DB, vault *security.Vault, logger *slog.Logger) *RemoteHub {
 	return &RemoteHub{
-		connections: make(map[string]*RemoteConnection),
-		pending:     make(map[string]chan *RemoteMessage),
-		db:          db,
-		vault:       vault,
-		logger:      logger,
+		connections:     make(map[string]*RemoteConnection),
+		pending:         make(map[string]chan *RemoteMessage),
+		db:              db,
+		vault:           vault,
+		logger:          logger,
+		MaxFileSizeMB:   DefaultMaxFileSizeMB,
+		AuditLogEnabled: true,
+		nonceCache:      newNonceReplayCache(MaxTimestampDrift, 10000),
 	}
 }
 
@@ -299,6 +305,15 @@ func (h *RemoteHub) HandleMessages(conn *RemoteConnection) {
 			}
 			continue
 		}
+		if h.nonceCache != nil && h.nonceCache.Seen(conn.DeviceID, msg.Nonce, time.Now().UTC()) {
+			h.logger.Warn("Nonce replay detected", "device_id", conn.DeviceID, "nonce", msg.Nonce)
+			errMsg, _ := NewMessage(MsgError, conn.DeviceID, conn.SharedKey, conn.NextSeq(),
+				ErrorPayload{Code: "replay", Message: "nonce replay detected"})
+			if errMsg != nil {
+				_ = conn.Send(errMsg)
+			}
+			continue
+		}
 
 		switch msg.Type {
 		case MsgHeartbeat:
@@ -327,7 +342,7 @@ func (h *RemoteHub) HandleMessages(conn *RemoteConnection) {
 					ch <- &msg
 				}
 				// Audit log
-				if h.db != nil {
+				if h.db != nil && h.AuditLogEnabled {
 					_ = LogAudit(h.db, conn.DeviceID, "result", result.CommandID, result.Status, result.DurationMs)
 				}
 			}
@@ -357,22 +372,22 @@ func (h *RemoteHub) HandleEnrollment(wsConn *websocket.Conn, msg RemoteMessage) 
 	if auth.DeviceID != "" {
 		device, err := GetDevice(h.db, auth.DeviceID)
 		if err != nil {
-			return h.sendAuthResponse(wsConn, "", "", "rejected", "unknown device")
+			return h.sendAuthResponse(wsConn, "", "", "", "rejected", "unknown device", nil, nil)
 		}
 		if device.Status == "revoked" {
-			return h.sendAuthResponse(wsConn, "", "", "rejected", "device has been revoked")
+			return h.sendAuthResponse(wsConn, "", "", "", "rejected", "device has been revoked", nil, nil)
 		}
 
 		// Verify shared key by looking up vault
 		storedKey, err := h.vault.ReadSecret("remote_shared_key_" + device.ID)
 		if err != nil {
-			return h.sendAuthResponse(wsConn, "", "", "rejected", "missing shared key")
+			return h.sendAuthResponse(wsConn, "", "", "", "rejected", "missing shared key", nil, nil)
 		}
 
 		// Verify the incoming message HMAC using stored key
 		ok, err := VerifyMessage(msg, storedKey)
 		if err != nil || !ok {
-			return h.sendAuthResponse(wsConn, "", "", "rejected", "authentication failed")
+			return h.sendAuthResponse(wsConn, storedKey, "", "", "rejected", "authentication failed", nil, nil)
 		}
 
 		// Authenticated — register connection
@@ -392,38 +407,53 @@ func (h *RemoteHub) HandleEnrollment(wsConn *websocket.Conn, msg RemoteMessage) 
 
 		// Do NOT echo back the shared key — the client already has it (it just used it to sign
 		// the auth message). Sending it here would transmit the key over the wire unnecessarily.
-		return h.sendAuthResponse(wsConn, "", device.ID, "authenticated", "")
+		return h.sendAuthResponse(wsConn, storedKey, "", device.ID, "authenticated", "", &conn.ReadOnly, conn.AllowedPaths)
 	}
 
 	// ── Case 2: Token-based enrollment ──
-	if auth.Token != "" {
-		tokenHash := hashTokenSHA256(auth.Token)
+	if auth.TokenHash != "" || auth.Token != "" {
+		tokenHash := auth.TokenHash
+		bootstrapKey := auth.TokenHash
+		if tokenHash == "" {
+			tokenHash = hashTokenSHA256(auth.Token)
+			bootstrapKey = DeriveEnrollmentAuthKey(auth.Token)
+		}
 		enrollment, err := GetEnrollmentByTokenHash(h.db, tokenHash)
 		if err != nil {
-			return h.sendAuthResponse(wsConn, "", "", "rejected", "invalid enrollment token")
+			return h.sendAuthResponse(wsConn, bootstrapKey, "", "", "rejected", "invalid enrollment token", nil, nil)
+		}
+		if msg.HMAC != "" {
+			ok, err := VerifyMessage(msg, bootstrapKey)
+			if err != nil || !ok {
+				return h.sendAuthResponse(wsConn, bootstrapKey, "", "", "rejected", "authentication failed", nil, nil)
+			}
 		}
 		if enrollment.Used {
 			// Recovery path: the client lost its stored config.json but still has the
 			// original personalized binary with the consumed token. Re-key the device
 			// so the client can reconnect without needing a fresh binary download.
 			if enrollment.UsedByDevice != "" {
-				return h.reKeyDevice(wsConn, auth, enrollment.UsedByDevice)
+				return h.reKeyDevice(wsConn, auth, enrollment.UsedByDevice, bootstrapKey)
 			}
-			return h.sendAuthResponse(wsConn, "", "", "rejected", "enrollment token already used")
+			return h.sendAuthResponse(wsConn, bootstrapKey, "", "", "rejected", "enrollment token already used", nil, nil)
 		}
 		// Check expiry
 		expiry, err := time.Parse(time.RFC3339, enrollment.ExpiresAt)
 		if err == nil && time.Now().After(expiry) {
-			return h.sendAuthResponse(wsConn, "", "", "rejected", "enrollment token expired")
+			return h.sendAuthResponse(wsConn, bootstrapKey, "", "", "rejected", "enrollment token expired", nil, nil)
 		}
 
-		return h.completeEnrollment(wsConn, auth, enrollment.ID, enrollment.DeviceName)
+		return h.completeEnrollment(wsConn, auth, enrollment.ID, enrollment.DeviceName, bootstrapKey)
 	}
 
 	// ── Case 3: Auto-approve or manual-approval (pending) ──
 	if h.AutoApprove {
-		// Auto-approve: treat like a token enrollment but without a token record.
-		return h.completeEnrollment(wsConn, auth, "", auth.Hostname)
+		// Auto-approve remains intentionally constrained to private or loopback
+		// origins. Public unauthenticated joins must still enter the approval flow.
+		if isTrustedAutoApproveRemoteAddr(wsConn.RemoteAddr()) {
+			return h.completeEnrollment(wsConn, auth, "", auth.Hostname, "")
+		}
+		h.logger.Warn("Auto-approve bypassed for untrusted remote origin", "remote_addr", wsConn.RemoteAddr().String(), "hostname", auth.Hostname)
 	}
 
 	deviceName := auth.Hostname
@@ -440,18 +470,18 @@ func (h *RemoteHub) HandleEnrollment(wsConn *websocket.Conn, msg RemoteMessage) 
 		ReadOnly:  h.DefaultReadOnly,
 	})
 	if err != nil {
-		return h.sendAuthResponse(wsConn, "", "", "rejected", "internal error")
+		return h.sendAuthResponse(wsConn, "", "", "", "rejected", "internal error", nil, nil)
 	}
 
 	h.logger.Info("New device pending approval", "device_id", deviceID, "hostname", auth.Hostname, "ip", auth.IP)
-	return h.sendAuthResponse(wsConn, "", deviceID, "pending", "awaiting approval in AuraGo UI")
+	return h.sendAuthResponse(wsConn, "", "", deviceID, "pending", "awaiting approval in AuraGo UI", nil, nil)
 }
 
 // completeEnrollment generates shared key, creates device, and sends credentials.
-func (h *RemoteHub) completeEnrollment(wsConn *websocket.Conn, auth AuthPayload, enrollmentID, deviceName string) error {
+func (h *RemoteHub) completeEnrollment(wsConn *websocket.Conn, auth AuthPayload, enrollmentID, deviceName, bootstrapSigningKey string) error {
 	sharedKey, err := GenerateSharedKey()
 	if err != nil {
-		return h.sendAuthResponse(wsConn, "", "", "rejected", "key generation failed")
+		return h.sendAuthResponse(wsConn, bootstrapSigningKey, "", "", "rejected", "key generation failed", nil, nil)
 	}
 
 	name := deviceName
@@ -474,7 +504,7 @@ func (h *RemoteHub) completeEnrollment(wsConn *websocket.Conn, auth AuthPayload,
 		SharedKeyHash: keyHash,
 	})
 	if err != nil {
-		return h.sendAuthResponse(wsConn, "", "", "rejected", "device registration failed")
+		return h.sendAuthResponse(wsConn, bootstrapSigningKey, "", "", "rejected", "device registration failed", nil, nil)
 	}
 
 	// Store shared key in vault
@@ -501,24 +531,24 @@ func (h *RemoteHub) completeEnrollment(wsConn *websocket.Conn, auth AuthPayload,
 	h.Register(deviceID, conn)
 	_ = UpdateDeviceStatus(h.db, deviceID, "connected")
 
-	return h.sendAuthResponse(wsConn, sharedKey, deviceID, "enrolled", "")
+	return h.sendAuthResponse(wsConn, bootstrapSigningKey, sharedKey, deviceID, "enrolled", "", &conn.ReadOnly, conn.AllowedPaths)
 }
 
 // reKeyDevice re-generates the shared key for an existing device.
 // This is the recovery path when the client's stored config was lost but the
 // original binary (with the consumed enrollment token) is still available.
-func (h *RemoteHub) reKeyDevice(wsConn *websocket.Conn, auth AuthPayload, deviceID string) error {
+func (h *RemoteHub) reKeyDevice(wsConn *websocket.Conn, auth AuthPayload, deviceID, bootstrapSigningKey string) error {
 	device, err := GetDevice(h.db, deviceID)
 	if err != nil {
-		return h.sendAuthResponse(wsConn, "", "", "rejected", "original device not found")
+		return h.sendAuthResponse(wsConn, bootstrapSigningKey, "", "", "rejected", "original device not found", nil, nil)
 	}
 	if device.Status == "revoked" {
-		return h.sendAuthResponse(wsConn, "", "", "rejected", "device has been revoked")
+		return h.sendAuthResponse(wsConn, bootstrapSigningKey, "", "", "rejected", "device has been revoked", nil, nil)
 	}
 
 	newKey, err := GenerateSharedKey()
 	if err != nil {
-		return h.sendAuthResponse(wsConn, "", "", "rejected", "key generation failed")
+		return h.sendAuthResponse(wsConn, bootstrapSigningKey, "", "", "rejected", "key generation failed", nil, nil)
 	}
 
 	device.SharedKeyHash = hashTokenSHA256(newKey)
@@ -528,7 +558,7 @@ func (h *RemoteHub) reKeyDevice(wsConn *websocket.Conn, auth AuthPayload, device
 	device.Arch = auth.Arch
 	device.IPAddress = auth.IP
 	if err := UpdateDevice(h.db, device); err != nil {
-		return h.sendAuthResponse(wsConn, "", "", "rejected", "device update failed")
+		return h.sendAuthResponse(wsConn, bootstrapSigningKey, "", "", "rejected", "device update failed", nil, nil)
 	}
 
 	if err := h.vault.WriteSecret("remote_shared_key_"+deviceID, newKey); err != nil {
@@ -551,7 +581,7 @@ func (h *RemoteHub) reKeyDevice(wsConn *websocket.Conn, auth AuthPayload, device
 
 	h.logger.Info("Device re-keyed after config loss", "device_id", deviceID, "name", device.Name)
 	// Send "enrolled" so the client saves the new shared key and device_id.
-	return h.sendAuthResponse(wsConn, newKey, deviceID, "enrolled", "")
+	return h.sendAuthResponse(wsConn, bootstrapSigningKey, newKey, deviceID, "enrolled", "", &conn.ReadOnly, conn.AllowedPaths)
 }
 
 // ApproveDevice approves a pending device and generates credentials.
@@ -596,27 +626,47 @@ func (h *RemoteHub) RejectDevice(deviceID string) error {
 	return DeleteDevice(h.db, deviceID)
 }
 
-func (h *RemoteHub) sendAuthResponse(wsConn *websocket.Conn, sharedKey, deviceID, status, message string) error {
+func (h *RemoteHub) sendAuthResponse(wsConn *websocket.Conn, signingKeyHex, sharedKey, deviceID, status, message string, readOnly *bool, allowedPaths []string) error {
 	resp := AuthResponsePayload{
-		Status:    status,
-		DeviceID:  deviceID,
-		SharedKey: sharedKey,
-		Message:   message,
+		Status:        status,
+		DeviceID:      deviceID,
+		SharedKey:     sharedKey,
+		Message:       message,
+		ReadOnly:      readOnly,
+		AllowedPaths:  allowedPaths,
+		MaxFileSizeMB: h.effectiveMaxFileSizeMB(),
 	}
-	payload, _ := json.Marshal(resp)
-	msg := &RemoteMessage{
-		Type:      MsgAuthResponse,
-		DeviceID:  deviceID,
-		MessageID: fmt.Sprintf("%d", time.Now().UnixNano()),
-		Timestamp: time.Now().UTC().Format(time.RFC3339),
-		Payload:   payload,
+	msg, err := NewAuthResponseMessage(deviceID, signingKeyHex, resp)
+	if err != nil {
+		return err
 	}
 	return wsConn.WriteJSON(msg)
 }
 
 func hashTokenSHA256(token string) string {
-	h := sha256.Sum256([]byte(token))
-	return hex.EncodeToString(h[:])
+	return DeriveEnrollmentAuthKey(token)
+}
+
+func (h *RemoteHub) effectiveMaxFileSizeMB() int {
+	if h.MaxFileSizeMB <= 0 {
+		return DefaultMaxFileSizeMB
+	}
+	return h.MaxFileSizeMB
+}
+
+func isTrustedAutoApproveRemoteAddr(addr net.Addr) bool {
+	if addr == nil {
+		return false
+	}
+	host := addr.String()
+	if parsedHost, _, err := net.SplitHostPort(host); err == nil {
+		host = parsedHost
+	}
+	ip := net.ParseIP(host)
+	if ip == nil {
+		return false
+	}
+	return ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast()
 }
 
 // ── Heartbeat monitor ───────────────────────────────────────────────────────

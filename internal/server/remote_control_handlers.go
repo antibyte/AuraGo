@@ -192,9 +192,11 @@ func handleRemoteDevice(s *Server) http.HandlerFunc {
 			// Push config update to connected device
 			if s.RemoteHub.IsConnected(deviceID) {
 				ro := device.ReadOnly
+				maxFileSizeMB := s.Cfg.RemoteControl.MaxFileSizeMB
 				_ = s.RemoteHub.SendConfigUpdate(deviceID, remote.ConfigUpdatePayload{
-					ReadOnly:     &ro,
-					AllowedPaths: device.AllowedPaths,
+					ReadOnly:      &ro,
+					AllowedPaths:  device.AllowedPaths,
+					MaxFileSizeMB: &maxFileSizeMB,
 				})
 			}
 

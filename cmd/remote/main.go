@@ -275,7 +275,7 @@ func (c *Client) send(msg *remote.RemoteMessage) error {
 
 // Run connects to the supervisor with auto-reconnect.
 func (c *Client) Run() {
-	c.executor = NewExecutor(c.logger)
+	c.executor = NewExecutor(c.logger, remote.DefaultMaxFileSizeMB)
 	backoff := 5 * time.Second
 	maxBackoff := 60 * time.Second
 
@@ -344,15 +344,20 @@ func (c *Client) connect() error {
 	// Send auth
 	hostname, _ := os.Hostname()
 	auth := remote.AuthPayload{
-		Version:  c.version,
-		Hostname: hostname,
-		OS:       runtime.GOOS,
-		Arch:     runtime.GOARCH,
-		Token:    c.cfg.EnrollToken,
-		DeviceID: c.cfg.DeviceID,
+		Version:   c.version,
+		Hostname:  hostname,
+		OS:        runtime.GOOS,
+		Arch:      runtime.GOARCH,
+		DeviceID:  c.cfg.DeviceID,
+		TokenHash: "",
+	}
+	authSigningKey := c.cfg.SharedKey
+	if c.cfg.DeviceID == "" && c.cfg.EnrollToken != "" {
+		auth.TokenHash = remote.DeriveEnrollmentAuthKey(c.cfg.EnrollToken)
+		authSigningKey = auth.TokenHash
 	}
 
-	msg, err := remote.NewMessage(remote.MsgAuth, c.cfg.DeviceID, c.cfg.SharedKey, c.nextSeq(), auth)
+	msg, err := remote.NewMessage(remote.MsgAuth, c.cfg.DeviceID, authSigningKey, c.nextSeq(), auth)
 	if err != nil {
 		conn.Close()
 		return fmt.Errorf("failed to create auth message: %w", err)
@@ -377,12 +382,17 @@ func (c *Client) connect() error {
 		conn.Close()
 		return fmt.Errorf("invalid auth response: %w", err)
 	}
+	if err := c.verifyAuthResponse(resp); err != nil {
+		conn.Close()
+		return err
+	}
 
 	var authResp remote.AuthResponsePayload
 	if err := json.Unmarshal(resp.Payload, &authResp); err != nil {
 		conn.Close()
 		return fmt.Errorf("invalid auth response payload: %w", err)
 	}
+	c.applyBootstrapSettings(authResp)
 
 	switch authResp.Status {
 	case "enrolled":
@@ -527,7 +537,55 @@ func (c *Client) handleConfigUpdate(msg remote.RemoteMessage) {
 		c.allowedPaths = update.AllowedPaths
 	}
 	c.stateMu.Unlock()
-	c.logger.Info("Config updated", "read_only", c.readOnly)
+	if update.MaxFileSizeMB != nil {
+		c.executor.SetMaxFileSizeMB(*update.MaxFileSizeMB)
+	}
+	c.logger.Info("Config updated", "read_only", c.readOnly, "max_file_size_mb", maxFileSizeFromUpdate(update.MaxFileSizeMB))
+}
+
+func (c *Client) verifyAuthResponse(resp remote.RemoteMessage) error {
+	verifyKey := ""
+	if c.cfg.SharedKey != "" {
+		verifyKey = c.cfg.SharedKey
+	} else if c.cfg.EnrollToken != "" {
+		verifyKey = remote.DeriveEnrollmentAuthKey(c.cfg.EnrollToken)
+	}
+
+	if verifyKey == "" {
+		return nil
+	}
+	if resp.HMAC == "" {
+		return fmt.Errorf("received unsigned auth response despite bootstrap key")
+	}
+	ok, err := remote.VerifyMessage(resp, verifyKey)
+	if err != nil {
+		return fmt.Errorf("failed to verify auth response: %w", err)
+	}
+	if !ok {
+		return fmt.Errorf("auth response signature verification failed")
+	}
+	return nil
+}
+
+func (c *Client) applyBootstrapSettings(authResp remote.AuthResponsePayload) {
+	c.stateMu.Lock()
+	if authResp.ReadOnly != nil {
+		c.readOnly = *authResp.ReadOnly
+	}
+	if authResp.AllowedPaths != nil {
+		c.allowedPaths = authResp.AllowedPaths
+	}
+	c.stateMu.Unlock()
+	if authResp.MaxFileSizeMB > 0 {
+		c.executor.SetMaxFileSizeMB(authResp.MaxFileSizeMB)
+	}
+}
+
+func maxFileSizeFromUpdate(v *int) int {
+	if v == nil {
+		return remote.DefaultMaxFileSizeMB
+	}
+	return *v
 }
 
 func (c *Client) handleRevoke() {
