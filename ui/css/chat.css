@@ -3532,45 +3532,29 @@
 }
 
 /* ── GLOBAL GREEN MONOCHROME FILTER ────────────────────────────────────
-   One filter on <body> converts ALL content to phosphor green.
+   One filter on <body> converts ALL rendered pixels to phosphor green.
    No white, no colors — only green luminance levels.
-   This handles logo, icons, emojis, text, backgrounds, borders — everything. */
+   WebGL shader (crt-shader.js) adds barrel distortion + scanlines on top. */
 [data-theme="retro-crt"] body {
     background-color: #000;
-    filter: grayscale(100%) sepia(100%) hue-rotate(80deg) saturate(4) brightness(1.15);
+    color: var(--crt-text);
+    filter: grayscale(100%) sepia(100%) hue-rotate(85deg) saturate(5) brightness(1.1) contrast(1.1);
 }
 
-/* ── Force stubborn white/gray elements to green ──
-   The global body filter handles most, but SVG fill and
-   -webkit-text-fill-color can bypass it. These ensure coverage. */
-[data-theme="retro-crt"] svg {
-    fill: currentColor;
-}
-[data-theme="retro-crt"] .logo-icon,
-[data-theme="retro-crt"] .logo span,
-[data-theme="retro-crt"] .logo a,
-[data-theme="retro-crt"] .btn-header,
-[data-theme="retro-crt"] .btn-header-link,
-[data-theme="retro-crt"] .btn-session-toggle,
-[data-theme="retro-crt"] .btn-speaker,
-[data-theme="retro-crt"] .btn-warnings,
-[data-theme="retro-crt"] .mood-toggle,
-[data-theme="retro-crt"] .mood-emoji,
-[data-theme="retro-crt"] .composer-tool-btn,
-[data-theme="retro-crt"] .chat-theme-btn,
-[data-theme="retro-crt"] .chat-theme-icon,
-[data-theme="retro-crt"] .chat-theme-option-icon,
-[data-theme="retro-crt"] .personality-chevron,
-[data-theme="retro-crt"] .warnings-icon,
-[data-theme="retro-crt"] .credits-pill-action,
-[data-theme="retro-crt"] .warnings-badge {
-    color: var(--crt-text) !important;
-    -webkit-text-fill-color: var(--crt-text) !important;
+/* ── Force ALL text to inherit green ── */
+[data-theme="retro-crt"] body * {
+    color: inherit !important;
+    -webkit-text-fill-color: inherit !important;
 }
 
-/* ── FULL-PAGE CRT OVERLAY ─────────────────────────────────────────────
-   Applied on html::after so it sits OUTSIDE body's filter context.
-   Scanlines & vignette remain pure black, not color-shifted. */
+/* ── Force SVGs to use currentColor ── */
+[data-theme="retro-crt"] svg,
+[data-theme="retro-crt"] svg * {
+    fill: currentColor !important;
+    stroke: currentColor !important;
+}
+
+/* ── CSS Vignette fallback (complements WebGL shader) ── */
 html[data-theme="retro-crt"]::after {
     content: '';
     position: fixed;
@@ -3578,65 +3562,41 @@ html[data-theme="retro-crt"]::after {
     pointer-events: none;
     z-index: 999999;
     background:
-        /* Layer 1: Subtle scanlines — thin dark lines with wider spacing */
-        repeating-linear-gradient(
-            to bottom,
-            transparent 0px,
-            transparent 2px,
-            rgba(0, 0, 0, 0.12) 2px,
-            rgba(0, 0, 0, 0.12) 3px
-        ),
-        /* Layer 2: Vignette — dark edges, clear center */
         radial-gradient(
             ellipse at 50% 50%,
-            transparent 40%,
-            rgba(0, 0, 0, 0.08) 55%,
-            rgba(0, 0, 0, 0.3) 75%,
+            transparent 45%,
+            rgba(0, 0, 0, 0.1) 60%,
+            rgba(0, 0, 0, 0.35) 80%,
             rgba(0, 0, 0, 0.7) 100%
         );
 }
 
-/* ── CRT Inner Shadow + Lens Effect (screen bezel + subtle barrel distortion) ── */
+/* ── CRT Inner Shadow (screen bezel) ── */
 html[data-theme="retro-crt"]::before {
     content: '';
     position: fixed;
     inset: 0;
     pointer-events: none;
     z-index: 999998;
-    border-radius: 8px;
     box-shadow:
-        inset 0 0 60px rgba(0, 0, 0, 0.4),
-        inset 0 0 150px rgba(0, 0, 0, 0.2);
-    /* Lens effect: subtle barrel distortion illusion via radial gradient
-       Brighter center simulates glass curvature, edges slightly darker */
-    background:
-        radial-gradient(
-            ellipse 70% 60% at 50% 50%,
-            rgba(95, 255, 58, 0.02) 0%,
-            transparent 60%
-        ),
-        radial-gradient(
-            ellipse at 50% 50%,
-            transparent 50%,
-            rgba(0, 0, 0, 0.06) 70%,
-            rgba(0, 0, 0, 0.15) 85%,
-            rgba(0, 0, 0, 0.3) 100%
-        );
+        inset 0 0 60px rgba(0, 0, 0, 0.35),
+        inset 0 0 120px rgba(0, 0, 0, 0.15);
+    border-radius: 8px;
 }
 
 /* ── CRT Subtle Flicker Animation ── */
 @keyframes crt-flicker {
-    0%   { opacity: 0.985; }
-    3%   { opacity: 1; }
-    6%   { opacity: 0.975; }
-    9%   { opacity: 1; }
-    50%  { opacity: 0.99; }
-    53%  { opacity: 1; }
-    100% { opacity: 0.985; }
+    0%   { opacity: 0.988; }
+    5%   { opacity: 1; }
+    10%  { opacity: 0.978; }
+    15%  { opacity: 1; }
+    50%  { opacity: 0.992; }
+    55%  { opacity: 1; }
+    100% { opacity: 0.988; }
 }
 
 [data-theme="retro-crt"] body {
-    animation: crt-flicker 0.12s infinite;
+    animation: crt-flicker 0.15s infinite;
 }
 
 /* ── CRT Phosphor Text Glow ── */
