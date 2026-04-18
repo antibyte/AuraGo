@@ -96,6 +96,7 @@
             color: inherit !important;
             -webkit-text-fill-color: currentColor !important;
             background: none !important;
+            text-shadow: none !important;
         }
 
         /* ── Page-specific: Chat Interface ─────────────────── */
@@ -3657,6 +3658,75 @@ html[data-theme="retro-crt"]::before {
 
 [data-theme="retro-crt"] .bubble.user::before {
     border-color: transparent transparent rgba(2, 12, 2, 0.96) transparent;
+}
+
+[data-theme="retro-crt"] .chat-theme-dropdown .chat-theme-option,
+[data-theme="retro-crt"] .chat-theme-dropdown .chat-theme-option:hover,
+[data-theme="retro-crt"] .chat-theme-dropdown .chat-theme-option.active,
+[data-theme="retro-crt"] .chat-theme-dropdown .chat-theme-option-icon,
+[data-theme="retro-crt"] .chat-theme-dropdown .chat-theme-option-label {
+    color: var(--crt-text) !important;
+    -webkit-text-fill-color: var(--crt-text) !important;
+}
+
+[data-theme="retro-crt"] .chat-theme-btn,
+[data-theme="retro-crt"] .btn-session-toggle,
+[data-theme="retro-crt"] .btn-speaker,
+[data-theme="retro-crt"] .btn-warnings,
+[data-theme="retro-crt"] .select-personality,
+[data-theme="retro-crt"] .mood-toggle,
+[data-theme="retro-crt"] .btn-header,
+[data-theme="retro-crt"] .btn-header-link,
+[data-theme="retro-crt"] #logout-btn,
+[data-theme="retro-crt"] .btn-send,
+[data-theme="retro-crt"] .btn-voice,
+[data-theme="retro-crt"] .btn-more,
+[data-theme="retro-crt"] .composer-tool-btn,
+[data-theme="retro-crt"] .mood-btn,
+[data-theme="retro-crt"] .session-new-btn,
+[data-theme="retro-crt"] .session-drawer-close,
+[data-theme="retro-crt"] .modal-btn,
+[data-theme="retro-crt"] .scroll-to-bottom-btn,
+[data-theme="retro-crt"] .copy-btn,
+[data-theme="retro-crt"] .mermaid-btn,
+[data-theme="retro-crt"] .tool-output-block summary {
+    background: rgba(4, 16, 4, 0.96) !important;
+    border: 1px solid rgba(45, 222, 12, 0.28) !important;
+    color: var(--crt-bright) !important;
+    -webkit-text-fill-color: var(--crt-bright) !important;
+    box-shadow:
+        inset 0 0 0 1px rgba(95, 255, 58, 0.05),
+        0 0 14px rgba(18, 138, 6, 0.12) !important;
+    text-shadow: 0 0 8px rgba(95, 255, 58, 0.22) !important;
+}
+
+[data-theme="retro-crt"] .btn-send:hover,
+[data-theme="retro-crt"] .btn-voice:hover,
+[data-theme="retro-crt"] .btn-more:hover,
+[data-theme="retro-crt"] .btn-more.is-open,
+[data-theme="retro-crt"] .composer-tool-btn:hover,
+[data-theme="retro-crt"] .mood-btn:hover,
+[data-theme="retro-crt"] .session-new-btn:hover,
+[data-theme="retro-crt"] .session-drawer-close:hover,
+[data-theme="retro-crt"] .modal-btn:hover,
+[data-theme="retro-crt"] .scroll-to-bottom-btn:hover,
+[data-theme="retro-crt"] .chat-theme-btn:hover,
+[data-theme="retro-crt"] .btn-session-toggle:hover,
+[data-theme="retro-crt"] .btn-speaker:hover,
+[data-theme="retro-crt"] .btn-warnings:hover,
+[data-theme="retro-crt"] .select-personality:hover,
+[data-theme="retro-crt"] .mood-toggle:hover,
+[data-theme="retro-crt"] .btn-header:hover,
+[data-theme="retro-crt"] .btn-header-link:hover,
+[data-theme="retro-crt"] #logout-btn:hover {
+    background: rgba(7, 24, 7, 0.98) !important;
+    border-color: rgba(95, 255, 58, 0.4) !important;
+    color: #b6ff9f !important;
+    -webkit-text-fill-color: #b6ff9f !important;
+}
+
+[data-theme="retro-crt"] .btn-send {
+    background: rgba(6, 22, 6, 0.98) !important;
 }
 
 [data-theme="retro-crt"] h1,

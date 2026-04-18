@@ -159,6 +159,15 @@
     color: var(--text-primary);
 }
 
+[data-theme="lollipop"] .chat-theme-dropdown .chat-theme-option,
+[data-theme="lollipop"] .chat-theme-dropdown .chat-theme-option:hover,
+[data-theme="lollipop"] .chat-theme-dropdown .chat-theme-option.active,
+[data-theme="lollipop"] .chat-theme-dropdown .chat-theme-option-icon,
+[data-theme="lollipop"] .chat-theme-dropdown .chat-theme-option-label {
+    color: var(--text-primary) !important;
+    -webkit-text-fill-color: var(--text-primary) !important;
+}
+
 [data-theme="lollipop"] .chat-theme-option:hover,
 [data-theme="lollipop"] .chat-theme-option.active {
     background: linear-gradient(90deg, rgba(255, 223, 240, 0.86), rgba(241, 235, 255, 0.96));

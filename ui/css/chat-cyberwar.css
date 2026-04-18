@@ -168,6 +168,15 @@
     overflow: hidden;
 }
 
+[data-theme="cyberwar"] .chat-theme-dropdown .chat-theme-option,
+[data-theme="cyberwar"] .chat-theme-dropdown .chat-theme-option:hover,
+[data-theme="cyberwar"] .chat-theme-dropdown .chat-theme-option.active,
+[data-theme="cyberwar"] .chat-theme-dropdown .chat-theme-option-icon,
+[data-theme="cyberwar"] .chat-theme-dropdown .chat-theme-option-label {
+    color: #d8e6ff !important;
+    -webkit-text-fill-color: #d8e6ff !important;
+}
+
 [data-theme="cyberwar"] .chat-theme-option::before {
     content: '';
     position: absolute;
@@ -180,7 +189,7 @@
 [data-theme="cyberwar"] .chat-theme-option:hover,
 [data-theme="cyberwar"] .chat-theme-option.active {
     background: linear-gradient(90deg, rgba(84, 247, 255, 0.14), rgba(139, 125, 255, 0.12));
-    color: #ffffff;
+    color: #d8e6ff;
 }
 
 [data-theme="cyberwar"] .chat-theme-option:hover::before,

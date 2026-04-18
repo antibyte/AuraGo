@@ -125,9 +125,13 @@
             );
 
             float haze = fbm(vec2(uv.y * 5.2 + t * 0.28, abs(uv.x - 0.5) * 9.0 - t * 0.46));
-            vec2 emberCell = floor(vec2(uv.x * 42.0, uv.y * 56.0) + vec2(t * 2.8, -t * 6.6));
+            vec2 emberGrid = vec2(uv.x * 34.0, uv.y * 46.0) + vec2(t * 1.8, -t * 4.2);
+            vec2 emberCell = floor(emberGrid);
+            vec2 emberLocal = fract(emberGrid) - 0.5;
             float emberSeed = hash(emberCell);
-            float ember = smoothstep(0.986, 1.0, emberSeed) * edgeMask;
+            float emberRadius = mix(0.08, 0.2, hash(emberCell + vec2(4.2, 9.1)));
+            float emberShape = smoothstep(emberRadius, emberRadius * 0.32, length(emberLocal));
+            float ember = smoothstep(0.972, 0.998, emberSeed) * emberShape * edgeMask;
 
             vec3 emberColor = vec3(1.0, 0.62, 0.22);
             vec3 hazeColor = vec3(0.96, 0.28, 0.08) * haze * edgeMask * 0.14;
