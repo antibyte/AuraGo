@@ -427,9 +427,9 @@
         }
 
         .select-personality {
-            font-size: 0.75rem;
+            font-size: 0.78rem;
             font-weight: 500;
-            padding: 0.35rem 1.5rem 0.35rem 0.7rem;
+            padding: 0 1.5rem 0 0.7rem;
             border-radius: 999px;
             border: 1px solid var(--border-subtle);
             background: var(--bg-glass);
@@ -439,8 +439,9 @@
             outline: none;
             max-width: 140px;
             height: 32px;
-            display: inline-flex;
-            align-items: center;
+            display: inline-block;
+            line-height: 30px;
+            vertical-align: middle;
             appearance: none;
             -webkit-appearance: none;
         }
@@ -1852,6 +1853,7 @@
         #agentStatusContainer {
             display: flex;
             align-items: center;
+            justify-content: center;
             gap: 0.75rem;
             max-width: var(--chat-lane-max-width);
             margin: 0 auto;
@@ -1868,8 +1870,9 @@
         .status-pill {
             display: flex;
             align-items: center;
+            justify-content: center;
             gap: 0.5rem;
-            font-size: 0.78rem;
+            font-size: 0.92rem;
             color: var(--accent);
             background: var(--accent-dim);
             padding: 0.35rem 0.8rem;
@@ -3150,7 +3153,7 @@
             }
 
             .status-pill {
-                font-size: var(--text-xs);
+                font-size: 0.84rem;
             }
 
             .modal-actions {

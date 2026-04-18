@@ -43,7 +43,7 @@ function spawnFloatingIcon(toolName) {
     const pillW = pill.offsetWidth;
     const randomX = Math.random() * Math.max(pillW - 16, 20);
     icon.style.left = randomX + 'px';
-    agentStatusDiv.appendChild(icon);
+    pill.appendChild(icon);
     icon.addEventListener('animationend', () => icon.remove());
 }
 
