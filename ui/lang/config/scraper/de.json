@@ -58,7 +58,7 @@
   "config.web_scraper.disabled_notice": "Web Scraper ist deaktiviert",
   "config.web_scraper.empty_main_llm": "leer = Haupt-LLM",
   "config.web_scraper.enabled_label": "Web Scraper aktiviert:",
-  "config.web_scraper.summary_desc": "Gescrapte Webseiten werden bei aktiviertem Hilfs-LLM \\u00fcber das zentrale Hilfs-LLM zusammengefasst. Der Agent erh\\u00e4lt die bereinigte Zusammenfassung statt des vollst\\u00e4ndigen Seiteninhalts.\u003cbr\u003e\u003cstrong\u003eVorteile:\u003c/strong\u003e spart Tokens, reduziert doppelte Helper-Aufrufe und h\\u00e4rtet gegen Prompt-Injection aus externen Inhalten.",
+  "config.web_scraper.summary_desc": "Gescrapte Webseiten werden bei aktiviertem Hilfs-LLM über das zentrale Hilfs-LLM zusammengefasst. Der Agent erhält die bereinigte Zusammenfassung statt des vollständigen Seiteninhalts.\u003cbr\u003e\u003cstrong\u003eVorteile:\u003c/strong\u003e spart Tokens, reduziert doppelte Helper-Aufrufe und härtet gegen Prompt-Injection aus externen Inhalten.",
   "config.web_scraper.summary_mode": "Zusammenfassungsmodus",
   "config.web_scraper.summary_provider": "Hilfs-LLM",
   "config.web_scraper.use_main_llm": "— Haupt-LLM verwenden —",

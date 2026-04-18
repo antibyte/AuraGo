@@ -58,7 +58,7 @@
   "config.web_scraper.disabled_notice": "Web Scraper är inaktiverad",
   "config.web_scraper.empty_main_llm": "tomt = huvud-LLM",
   "config.web_scraper.enabled_label": "Web Scraper aktiverad:",
-  "config.web_scraper.summary_desc": "Scraped web pages are summarized through the central Helper LLM when it is enabled. The agent receives the cleaned summary instead of the full page content.\u003cbr\u003e\u003cstrong\u003eBenefits:\u003c/strong\u003e saves tokens, reduces duplicate helper calls and hardens the system against prompt injection from external content.",
+  "config.web_scraper.summary_desc": "Skrapade webbsidor sammanfattas via den centrala Helper-LLM när den är aktiverad. Agenten tar emot den rensade sammanfattningen istället för det fullständiga sidinnehållet.\u003cbr\u003e\u003cstrong\u003eFördelar:\u003c/strong\u003e sparar tokens, minskar duplicerade helper-anrop och härdar systemet mot prompt-injektion från externt innehåll.",
   "config.web_scraper.summary_mode": "Sammanfattningsläge",
   "config.web_scraper.summary_provider": "Helper LLM",
   "config.web_scraper.use_main_llm": "— Använd huvud-LLM —",

@@ -58,7 +58,7 @@
   "config.web_scraper.disabled_notice": "Ο Web Scraper είναι απενεργοποιημένος",
   "config.web_scraper.empty_main_llm": "κενό = κύριο LLM",
   "config.web_scraper.enabled_label": "Web Scraper ενεργοποιημένο:",
-  "config.web_scraper.summary_desc": "Scraped web pages are summarized through the central Helper LLM when it is enabled. The agent receives the cleaned summary instead of the full page content.\u003cbr\u003e\u003cstrong\u003eBenefits:\u003c/strong\u003e saves tokens, reduces duplicate helper calls and hardens the system against prompt injection from external content.",
+  "config.web_scraper.summary_desc": "Οι σελίδες που έχουν υποβληθεί σε scraping συνοψίζονται μέσω του κεντρικού Helper LLM όταν είναι ενεργοποιημένο. Ο πράκτορας λαμβάνει την καθαρή σύνοψη αντί για το πλήρες περιεχόμενο της σελίδας.\u003cbr\u003e\u003cstrong\u003eΟφέλη:\u003c/strong\u003e εξοικονομεί tokens, μειώνει τις διπλές κλήσεις helper και ενισχύει το σύστημα έναντι της έγχυσης prompt από εξωτερικό περιεχόμενο.",
   "config.web_scraper.summary_mode": "Λειτουργία περίληψης",
   "config.web_scraper.summary_provider": "Helper LLM",
   "config.web_scraper.use_main_llm": "— Χρήση κύριου LLM —",
