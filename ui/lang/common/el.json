@@ -47,5 +47,10 @@
   "common.clipboard_copied": "Αντιγράφηκε στο πρόχειρο",
   "common.clipboard_failed": "Αποτυχία αντιγραφής",
   "common.language_update_failed": "Αποτυχία ενημέρωσης γλώσσας",
-  "common.server_connection_failed": "Αποτυχία σύνδεσης με διακομιστή"
+  "common.server_connection_failed": "Αποτυχία σύνδεσης με διακομιστή",
+  "login.page_title": "AuraGo – Σύνδεση",
+  "common.pagination_previous": "Προηγούμενο",
+  "common.pagination_next": "Επόμενο",
+  "common.view_list": "Προβολή λίστας",
+  "common.view_grid": "Προβολή πλέγματος"
 }

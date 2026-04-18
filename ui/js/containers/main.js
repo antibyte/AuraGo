@@ -299,10 +299,3 @@ function dockerErrMsg(msg) {
     }
     return text.length > 200 ? text.slice(0, 197) + '…' : text;
 }
-function showToast(msg, type) {
-    const el = document.createElement('div');
-    el.className = `ct-toast ${type}`;
-    el.textContent = msg;
-    document.body.appendChild(el);
-    setTimeout(() => el.remove(), 5000);
-}

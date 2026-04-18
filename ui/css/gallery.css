@@ -252,12 +252,12 @@
     background: var(--bg-glass);
 }
 
-.btn-danger {
+.btn-gallery-action.btn-danger {
     color: var(--danger);
     border-color: var(--danger);
 }
 
-.btn-danger:hover {
+.btn-gallery-action.btn-danger:hover {
     background: rgba(239, 68, 68, 0.1);
 }
 

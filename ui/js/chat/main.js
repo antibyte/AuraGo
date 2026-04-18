@@ -96,6 +96,9 @@ window.addEventListener('resize', updateChatInputPlaceholder);
 /* ── i18n — I18N and t() now provided by page head + shared.js ── */
 
 function applyI18n() {
+    if (typeof window._auragoApplySharedI18n === 'function') {
+        window._auragoApplySharedI18n();
+    }
     document.title = t('chat.page_title');
     /* Header pills & controls */
     const sessionToggleBtn = document.getElementById('session-toggle-btn');
@@ -226,47 +229,6 @@ function toggleComposerPanel(forceOpen) {
     composerMoreBtn.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
 }
 
-
-/* ── Modal (replaces confirm / alert) ── */
-function showModal(title, message, isConfirm) {
-    return new Promise(resolve => {
-        const overlay = document.getElementById('modal-overlay');
-        const titleEl = document.getElementById('modal-title');
-        const msgEl = document.getElementById('modal-message');
-        const confirmBtn = document.getElementById('modal-confirm');
-        const cancelBtn = document.getElementById('modal-cancel');
-
-        titleEl.textContent = title;
-        msgEl.textContent = message;
-        chatSetHidden(cancelBtn, !isConfirm);
-        overlay.classList.add('active');
-
-        function cleanup(result) {
-            overlay.classList.remove('active');
-            confirmBtn.removeEventListener('click', onConfirm);
-            cancelBtn.removeEventListener('click', onCancel);
-            overlay.removeEventListener('click', onOverlay);
-            document.removeEventListener('keydown', onKey);
-            resolve(result);
-        }
-
-        function onConfirm() { cleanup(true); }
-        function onCancel() { cleanup(false); }
-        function onOverlay(e) { if (e.target === overlay) cleanup(false); }
-        function onKey(e) {
-            if (e.key === 'Escape') cleanup(false);
-            if (e.key === 'Enter') cleanup(true);
-        }
-
-        confirmBtn.addEventListener('click', onConfirm);
-        cancelBtn.addEventListener('click', onCancel);
-        overlay.addEventListener('click', onOverlay);
-        document.addEventListener('keydown', onKey);
-    });
-}
-
-function showConfirm(title, msg) { return showModal(title, msg, true); }
-function showAlert(title, msg) { return showModal(title, msg, false); }
 
 function closeCheatsheetPicker() {
     if (!cheatsheetPickerOverlay) return;

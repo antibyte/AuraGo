@@ -48,7 +48,7 @@ async function loadGallery() {
         const data = await resp.json();
 
         if (data.status !== 'ok') {
-            grid.innerHTML = '<div class="gallery-empty"><div class="gallery-empty-icon">⚠️</div>' + (data.message || 'Error') + '</div>';
+            grid.innerHTML = '<div class="gallery-empty"><div class="gallery-empty-icon">⚠️</div>' + escapeHtml(data.message || t('common.error')) + '</div>';
             return;
         }
 
@@ -67,7 +67,7 @@ async function loadGallery() {
         renderGrid(galleryImages);
         updatePagination();
     } catch (e) {
-        grid.innerHTML = '<div class="gallery-empty"><div class="gallery-empty-icon">⚠️</div>' + e.message + '</div>';
+        grid.innerHTML = '<div class="gallery-empty"><div class="gallery-empty-icon">⚠️</div>' + escapeHtml(e.message || t('common.error')) + '</div>';
     }
 }
 
@@ -212,9 +212,9 @@ async function confirmDeleteGallery() {
             closeLightbox();
             loadGallery();
         } else {
-            showToast(data.message || 'Delete failed', 'error');
+            showToast(data.message || t('common.error'), 'error');
         }
     } catch (e) {
-        showToast(e.message, 'error');
+        showToast(e.message || t('common.error'), 'error');
     }
 }

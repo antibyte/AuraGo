@@ -47,5 +47,10 @@
   "common.clipboard_copied": "In Zwischenablage kopiert",
   "common.clipboard_failed": "Kopieren fehlgeschlagen",
   "common.language_update_failed": "Sprachänderung fehlgeschlagen",
-  "common.server_connection_failed": "Serververbindung fehlgeschlagen"
+  "common.server_connection_failed": "Serververbindung fehlgeschlagen",
+  "login.page_title": "AuraGo – Anmeldung",
+  "common.pagination_previous": "Zurück",
+  "common.pagination_next": "Weiter",
+  "common.view_list": "Listenansicht",
+  "common.view_grid": "Rasteransicht"
 }

@@ -28,6 +28,13 @@
             this.createUI();
         },
 
+        _t(key, fallback) {
+            if (typeof I18N !== 'undefined' && I18N['chat.' + key]) {
+                return I18N['chat.' + key];
+            }
+            return fallback || key;
+        },
+
         createUI() {
             // Create overlay for recording UI
             this.overlay = document.createElement('div');
@@ -38,17 +45,17 @@
                 <div class="voice-recorder-panel">
                     <div class="vr-header">
                         <div class="vr-pulse"></div>
-                        <span class="vr-status">Recording...</span>
+                        <span class="vr-status">${this._t('voice_recording', 'Recording...')}</span>
                         <span class="vr-timer">00:00</span>
                     </div>
                     <div class="vr-waveform">
                         <canvas width="300" height="60"></canvas>
                     </div>
                     <div class="vr-controls">
-                        <button class="vr-btn vr-cancel" title="Cancel">
+                        <button class="vr-btn vr-cancel" title="${this._t('voice_cancel', 'Cancel')}">
                             <span>✕</span>
                         </button>
-                        <button class="vr-btn vr-send" title="Send">
+                        <button class="vr-btn vr-send" title="${this._t('voice_send', 'Send')}">
                             <span>➤</span>
                         </button>
                     </div>
@@ -75,7 +82,7 @@
         async start() {
             // Check for browser support
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                this.onError('Voice recording not supported in this browser');
+                this.onError(this._t('voice_recording_error', 'Voice recording not supported in this browser'));
                 return;
             }
 
@@ -107,8 +114,8 @@
             } catch (err) {
                 console.error('[VoiceRecorder] Start failed:', err);
                 this.onError(err.name === 'NotAllowedError' 
-                    ? 'Microphone permission denied' 
-                    : 'Could not access microphone');
+                    ? this._t('voice_mic_denied', 'Microphone access denied. Please allow microphone permissions.')
+                    : this._t('voice_recording_error', 'Could not access microphone'));
             }
         },
 
@@ -132,7 +139,7 @@
 
             this.mediaRecorder.onerror = (e) => {
                 console.error('[VoiceRecorder] Error:', e);
-                this.onError('Recording error');
+                this.onError(this._t('voice_recording_error', 'Recording error'));
             };
         },
 
@@ -216,14 +223,14 @@
                     body: formData
                 });
                 
-                if (!res.ok) throw new Error('Upload failed');
+                if (!res.ok) throw new Error(this._t('voice_recording_error', 'Upload failed'));
                 
                 const data = await res.json();
                 this.onTranscription(data.transcription);
                 
             } catch (err) {
                 console.error('[VoiceRecorder] Upload failed:', err);
-                this.onError('Transcription failed');
+                this.onError(err.message || this._t('voice_recording_error', 'Transcription failed'));
             }
         },
 

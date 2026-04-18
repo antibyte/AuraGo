@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{.Lang}}" data-theme="dark">
+<html lang="{{.Lang}}" data-theme="dark" data-i18n-page-title="missions.page_title">
 
 <head>
     <meta charset="UTF-8">
@@ -13,9 +13,7 @@
         (function () { var th = localStorage.getItem('aurago-theme'); if (th) document.documentElement.setAttribute('data-theme', th); })();
         const I18N = {{.I18N }};
     </script>
-    <title>
-        <script>document.write(t('missions.page_title'))</script>
-    </title>
+    <title>AuraGo - Mission Control</title>
     <link rel="stylesheet" href="/css/missions.css">
     <link rel="stylesheet" href="/css/enhancements.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -51,10 +49,10 @@
             </h1>
             <div class="header-actions">
                 <div class="view-toggle" id="view-toggle">
-                    <button onclick="setViewMode('grid')" title="Grid View" data-mode="grid" aria-label="Grid View">
+                    <button onclick="setViewMode('grid')" data-mode="grid" data-i18n-title="common.view_grid" data-i18n-aria-label="common.view_grid">
                         <span class="view-toggle-glyph" aria-hidden="true">▦</span>
                     </button>
-                    <button onclick="setViewMode('list')" title="List View" data-mode="list" aria-label="List View">
+                    <button onclick="setViewMode('list')" data-mode="list" data-i18n-title="common.view_list" data-i18n-aria-label="common.view_list">
                         <span class="view-toggle-glyph" aria-hidden="true">☰</span>
                     </button>
                 </div>

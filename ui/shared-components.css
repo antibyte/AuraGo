@@ -2289,6 +2289,14 @@ div.toggle.toggle-sm.on::before {
     top: 440px;
 }
 
+.radial-item:nth-child(12) {
+    top: 480px;
+}
+
+.radial-item:nth-child(13) {
+    top: 520px;
+}
+
 .radial-menu.open .radial-item {
     opacity: 1;
     transform: scale(1) translate(0, 0);
@@ -2411,6 +2419,14 @@ div.toggle.toggle-sm.on::before {
     transition-delay: 0.33s;
 }
 
+.radial-menu.open .radial-item:nth-child(12) {
+    transition-delay: 0.36s;
+}
+
+.radial-menu.open .radial-item:nth-child(13) {
+    transition-delay: 0.39s;
+}
+
 /* Closing: reverse stagger */
 .radial-menu:not(.open) .radial-item:nth-child(1) {
     transition-delay: 0.18s;
@@ -2453,6 +2469,14 @@ div.toggle.toggle-sm.on::before {
 }
 
 .radial-menu:not(.open) .radial-item:nth-child(11) {
+    transition-delay: 0s;
+}
+
+.radial-menu:not(.open) .radial-item:nth-child(12) {
+    transition-delay: 0s;
+}
+
+.radial-menu:not(.open) .radial-item:nth-child(13) {
     transition-delay: 0s;
 }
 
@@ -2548,6 +2572,14 @@ div.toggle.toggle-sm.on::before {
     .radial-item:nth-child(11) {
         top: 550px;
     }
+
+    .radial-item:nth-child(12) {
+        top: 600px;
+    }
+
+    .radial-item:nth-child(13) {
+        top: 650px;
+    }
 }
 
 /* ── Tooltip ───────────────────────────────────────────────── */
@@ -2593,28 +2625,19 @@ div.toggle.toggle-sm.on::before {
         display: none !important;
     }
 
-    /* Allow remaining header items to scroll horizontally on mobile */
+    /* Let header actions wrap instead of forcing horizontal scrolling */
     .app-header .header-actions,
     .cfg-header .header-actions {
-        overflow-x: auto;
-        overflow-y: hidden;
-        -webkit-overflow-scrolling: touch;
-        scrollbar-width: none;
-        flex-wrap: nowrap;
-        /* trailing gap so last item isn't hidden behind the radial menu button */
+        overflow: visible;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        row-gap: 0.35rem;
         padding-right: 54px;
     }
 
-    .app-header .header-actions::-webkit-scrollbar,
-    .cfg-header .header-actions::-webkit-scrollbar {
-        display: none;
-    }
-
-    /* Prevent children from shrinking — they must keep their natural size
-       so the container scrolls rather than squishing them to nothing */
     .app-header .header-actions > *,
     .cfg-header .header-actions > * {
-        flex-shrink: 0;
+        flex: 0 0 auto;
     }
 
     /* Spacer after last item to clear the fixed radial-menu trigger button */

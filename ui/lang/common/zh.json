@@ -47,5 +47,10 @@
   "common.clipboard_copied": "已复制到剪贴板",
   "common.clipboard_failed": "复制失败",
   "common.language_update_failed": "更新语言失败",
-  "common.server_connection_failed": "连接服务器失败"
+  "common.server_connection_failed": "连接服务器失败",
+  "login.page_title": "AuraGo – 登录",
+  "common.pagination_previous": "上一页",
+  "common.pagination_next": "下一页",
+  "common.view_list": "列表视图",
+  "common.view_grid": "网格视图"
 }

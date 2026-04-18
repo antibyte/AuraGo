@@ -183,9 +183,13 @@ func TestFrontend_HTML_HardcodedGermanUIText(t *testing.T) {
 		"cheatsheets.html",
 		"invasion_control.html",
 		"knowledge.html",
+		"login.html",
+		"media.html",
+		"missions_v2.html",
 		"setup.html",
 		"skills.html",
 		"plans.html",
+		"truenas.html",
 	}
 
 	var failures []string

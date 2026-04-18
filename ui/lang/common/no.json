@@ -47,5 +47,10 @@
   "common.clipboard_copied": "Copied to clipboard",
   "common.clipboard_failed": "Kopiering mislyktes",
   "common.language_update_failed": "Kunne ikke oppdatere språk",
-  "common.server_connection_failed": "Tilkobling til server mislyktes"
+  "common.server_connection_failed": "Tilkobling til server mislyktes",
+  "login.page_title": "AuraGo – Innlogging",
+  "common.pagination_previous": "Forrige",
+  "common.pagination_next": "Neste",
+  "common.view_list": "Listevisning",
+  "common.view_grid": "Rutenettvisning"
 }

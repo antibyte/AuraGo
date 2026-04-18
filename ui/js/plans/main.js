@@ -431,8 +431,9 @@ function initSSE() {
 }
 
 function applyPlansI18n() {
-    applyI18n();
-    document.title = t('plans.page_title');
+    if (typeof window._auragoApplySharedI18n === 'function') {
+        window._auragoApplySharedI18n();
+    }
     const trigger = document.getElementById('radialTrigger');
     if (trigger) trigger.setAttribute('aria-label', t('common.nav_aria_label'));
     document.querySelectorAll('[data-i18n]').forEach((el) => {

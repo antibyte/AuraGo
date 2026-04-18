@@ -47,5 +47,10 @@
   "common.clipboard_copied": "Gekopieerd naar klembord",
   "common.clipboard_failed": "Kopiëren mislukt",
   "common.language_update_failed": "Taal bijwerken mislukt",
-  "common.server_connection_failed": "Verbinding met server mislukt"
+  "common.server_connection_failed": "Verbinding met server mislukt",
+  "login.page_title": "AuraGo – Inloggen",
+  "common.pagination_previous": "Vorige",
+  "common.pagination_next": "Volgende",
+  "common.view_list": "Lijstweergave",
+  "common.view_grid": "Rasterweergave"
 }

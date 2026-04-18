@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{.Lang}}" data-theme="dark">
+<html lang="{{.Lang}}" data-theme="dark" data-i18n-page-section="common.nav_gallery">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -51,9 +51,9 @@
         </div>
 
         <div id="gallery-pagination" class="gallery-pagination is-hidden">
-            <button id="gallery-prev" class="btn-gallery-nav" onclick="galleryPrev()">← Previous</button>
+            <button id="gallery-prev" class="btn-gallery-nav" onclick="galleryPrev()">← <span data-i18n="common.pagination_previous">Previous</span></button>
             <span id="gallery-page-info"></span>
-            <button id="gallery-next" class="btn-gallery-nav" onclick="galleryNext()">Next →</button>
+            <button id="gallery-next" class="btn-gallery-nav" onclick="galleryNext()"><span data-i18n="common.pagination_next">Next</span> →</button>
         </div>
     </div>
 
@@ -62,7 +62,7 @@
         <div class="modal-backdrop" onclick="closeModal('delete-modal')"></div>
         <div class="modal-content">
             <div class="modal-header">
-                <h3 data-i18n="common.confirm_delete">Confirm Delete</h3>
+                <h3 data-i18n="common.confirm_title">Confirm</h3>
                 <button class="modal-close" onclick="closeModal('delete-modal')">&times;</button>
             </div>
             <div class="modal-body">
@@ -71,8 +71,8 @@
                 <input type="hidden" id="delete-target-type">
             </div>
             <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeModal('delete-modal')" data-i18n="common.cancel">Cancel</button>
-                <button class="btn btn-danger" onclick="confirmDeleteGallery()" data-i18n="common.delete">Delete</button>
+                <button class="btn btn-secondary" onclick="closeModal('delete-modal')" data-i18n="common.btn_cancel">Cancel</button>
+                <button class="btn btn-danger" onclick="confirmDeleteGallery()" data-i18n="common.btn_delete">Delete</button>
             </div>
         </div>
     </div>

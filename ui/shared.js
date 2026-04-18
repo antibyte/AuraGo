@@ -95,7 +95,7 @@ function showModal(title, message, isConfirm = false, options = {}) {
         function onOverlay(e) { if (e.target === overlay) cleanup(false); }
         function onKey(e) {
             if (e.key === 'Escape') cleanup(false);
-            if (e.key === 'Enter' && !isConfirm) cleanup(true);
+            if (e.key === 'Enter') cleanup(true);
         }
         
         if (confirmBtn) confirmBtn.addEventListener('click', onConfirm);
@@ -186,14 +186,32 @@ function ensureBrandIcons() {
     });
 }
 
+function _applySharedPageTitle(dict) {
+    const root = document.documentElement;
+    if (!root || !dict) return;
+
+    const exactKey = root.getAttribute('data-i18n-page-title');
+    const sectionKey = root.getAttribute('data-i18n-page-section');
+    if (exactKey) {
+        const translated = dict[exactKey];
+        if (translated) document.title = translated;
+        return;
+    }
+    if (sectionKey) {
+        const translated = dict[sectionKey];
+        if (translated) document.title = `AuraGo – ${translated}`;
+    }
+}
+
 /**
  * Apply translations to all elements with data-i18n attributes.
  * Supports data-i18n-attr to set a specific attribute instead of textContent.
  * Only updates if a translation exists (does not overwrite with the raw key).
  */
-function applyI18n() {
+function _applySharedI18nBase() {
     const dict = typeof I18N !== 'undefined' ? I18N : null;
     if (!dict) return; // I18N not loaded yet — skip
+    _applySharedPageTitle(dict);
     document.querySelectorAll('[data-i18n]').forEach(el => {
         const key = el.getAttribute('data-i18n');
         const translated = dict[key];
@@ -204,6 +222,10 @@ function applyI18n() {
         } else {
             el.textContent = translated;
         }
+    });
+    document.querySelectorAll('[data-i18n-html]').forEach(el => {
+        const translated = dict[el.getAttribute('data-i18n-html')];
+        if (translated) el.innerHTML = translated.replace(/\n/g, '<br>');
     });
     // Also handle data-i18n-placeholder, data-i18n-title, data-i18n-aria-label.
     // Keep data-i18n-ph as a temporary compatibility alias during refactors.
@@ -225,6 +247,12 @@ function applyI18n() {
     });
 }
 
+function applyI18n() {
+    _applySharedI18nBase();
+}
+
+window._auragoApplySharedI18n = _applySharedI18nBase;
+
 // ═══════════════════════════════════════════════════════════════
 // RADIAL NAVIGATION MENU INJECTION
 // ═══════════════════════════════════════════════════════════════
@@ -243,12 +271,14 @@ function injectRadialMenu() {
     const pages = [
         { href: '/', icon: '💬', key: 'common.nav_chat' },
         { href: '/dashboard', icon: '📊', key: 'common.nav_dashboard' },
+        { href: '/plans', icon: '🗺️', key: 'common.nav_plans' },
         { href: '/missions', icon: '🚀', key: 'common.nav_missions' },
         { href: '/cheatsheets', icon: '📋', key: 'common.nav_cheatsheets' },
         { href: '/media', icon: '📁', key: 'common.nav_media' },
         { href: '/knowledge', icon: '📚', key: 'common.nav_knowledge' },
         { href: '/containers', icon: '🐳', key: 'common.nav_containers' },
         { href: '/skills', icon: '🧩', key: 'common.nav_skills' },
+        { href: '/truenas', icon: '🖥️', key: 'common.nav_truenas' },
         { href: '/config', icon: '⚙️', key: 'common.nav_config' },
         { href: '/invasion', icon: '🥚', key: 'common.nav_invasion' },
     ];
@@ -1255,7 +1285,7 @@ function initShared() {
     try { initModals(); } catch (e) { console.error('[AuraGo] initModals failed:', e); }
     try { initToggles(); } catch (e) { console.error('[AuraGo] initToggles failed:', e); }
     try { initThemeToggle(); } catch (e) { console.error('[AuraGo] initThemeToggle failed:', e); }
-    try { applyI18n(); } catch (e) { console.error('[AuraGo] applyI18n failed:', e); }
+    try { window._auragoApplySharedI18n(); } catch (e) { console.error('[AuraGo] applyI18n failed:', e); }
     try { injectLanguageSwitcher(); } catch (e) { console.error('[AuraGo] injectLanguageSwitcher failed:', e); }
     try { checkAuth(); } catch (e) { console.error('[AuraGo] checkAuth failed:', e); }
     try { initPWA(); } catch (e) { console.error('[AuraGo] initPWA failed:', e); }

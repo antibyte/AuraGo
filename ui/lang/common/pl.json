@@ -47,5 +47,10 @@
   "common.clipboard_copied": "Skopiowano do schowka",
   "common.clipboard_failed": "Kopiowanie nie powiodło się",
   "common.language_update_failed": "Nie udało się zmienić języka",
-  "common.server_connection_failed": "Nie udało się połączyć z serwerem"
+  "common.server_connection_failed": "Nie udało się połączyć z serwerem",
+  "login.page_title": "AuraGo – Logowanie",
+  "common.pagination_previous": "Poprzedni",
+  "common.pagination_next": "Następny",
+  "common.view_list": "Widok listy",
+  "common.view_grid": "Widok siatki"
 }

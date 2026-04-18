@@ -104,7 +104,7 @@ async function loadAudio() {
     if (isLoadingAudio) return;
     isLoadingAudio = true;
     const grid = document.getElementById('audio-grid');
-    grid.innerHTML = '<div class="gallery-loading">' + t('gallery.loading') + '</div>';
+    grid.innerHTML = '<div class="gallery-loading">' + t('common.loading') + '</div>';
 
     const params = new URLSearchParams({
         type: 'audio',
@@ -119,7 +119,7 @@ async function loadAudio() {
         const data = await resp.json();
 
         if (data.status !== 'ok') {
-            grid.innerHTML = '<div class="gallery-empty"><div class="gallery-empty-icon">⚠️</div>' + escapeHtml(data.message || 'Error') + '</div>';
+            grid.innerHTML = '<div class="gallery-empty"><div class="gallery-empty-icon">⚠️</div>' + escapeHtml(data.message || t('common.error')) + '</div>';
             return;
         }
 
@@ -135,7 +135,7 @@ async function loadAudio() {
         renderAudioGrid(audioItems);
         updateAudioPagination();
     } catch (e) {
-        grid.innerHTML = '<div class="gallery-empty"><div class="gallery-empty-icon">⚠️</div>' + escapeHtml(e.message) + '</div>';
+        grid.innerHTML = '<div class="gallery-empty"><div class="gallery-empty-icon">⚠️</div>' + escapeHtml(e.message || t('common.error')) + '</div>';
     } finally {
         isLoadingAudio = false;
     }
@@ -146,7 +146,7 @@ function renderAudioGrid(items) {
     grid.innerHTML = '';
 
     items.forEach(function (item) {
-        const title = item.description || item.filename || 'Audio';
+        const title = item.description || item.filename || t('media.audio_type_audio');
         const fmt = (item.format || '').toUpperCase();
         const date = item.created_at ? new Date(item.created_at).toLocaleDateString() : '';
         const typeIconMap = { tts: '🗣️', music: '🎶', audio: '🎵' };
@@ -238,7 +238,7 @@ function audioPrev() { audioOffset = Math.max(0, audioOffset - MEDIA_LIMIT); loa
 function audioNext() { audioOffset += MEDIA_LIMIT; loadAudio(); }
 
 async function deleteAudioItem(id) {
-    const confirmed = await showConfirm(t('gallery.confirm_delete_title') || 'Confirm Delete', t('gallery.confirm_delete'));
+    const confirmed = await showConfirm(t('common.confirm_title'), t('gallery.confirm_delete'));
     if (!confirmed) return;
     try {
         const resp = await fetch('/api/media/' + id, { method: 'DELETE' });
@@ -248,9 +248,9 @@ async function deleteAudioItem(id) {
             audioOffset = 0;
             loadAudio();
         } else {
-            await showAlert(t('gallery.delete_failed_title') || 'Delete Failed', data.message || 'Delete failed');
+            await showAlert(t('common.error'), data.message || t('common.error'));
         }
-    } catch (e) { await showAlert(t('gallery.error_title') || 'Error', e.message); }
+    } catch (e) { await showAlert(t('common.error'), e.message || t('common.error')); }
 }
 
 function openAudioModal(id) {
@@ -262,7 +262,7 @@ function openAudioModal(id) {
     const body = document.getElementById('audio-modal-body');
     body.innerHTML = '';
 
-    const title = item.description || item.filename || 'Audio';
+    const title = item.description || item.filename || t('media.audio_type_audio');
     const titleEl = document.createElement('div');
     titleEl.className = 'media-doc-row-title';
     titleEl.classList.add('media-modal-title');
@@ -280,7 +280,7 @@ function openAudioModal(id) {
     } else {
         const unavailEl = document.createElement('div');
         unavailEl.className = 'audio-error media-audio-unavailable';
-        unavailEl.textContent = '⚠️ ' + t('media.file_not_available');
+            unavailEl.textContent = '⚠️ ' + t('media.file_not_available');
         body.appendChild(unavailEl);
     }
 
@@ -311,7 +311,7 @@ function closeAudioModal(event) {
 
 async function audioDeleteCurrent() {
     if (currentAudioModalId === null) return;
-    const confirmed = await showConfirm(t('gallery.confirm_delete_title') || 'Confirm Delete', t('gallery.confirm_delete'));
+    const confirmed = await showConfirm(t('common.confirm_title'), t('gallery.confirm_delete'));
     if (!confirmed) return;
     try {
         const resp = await fetch('/api/media/' + currentAudioModalId, { method: 'DELETE' });
@@ -322,9 +322,9 @@ async function audioDeleteCurrent() {
             audioOffset = 0;
             loadAudio();
         } else {
-            await showAlert(t('gallery.delete_failed_title') || 'Delete Failed', data.message || 'Delete failed');
+            await showAlert(t('common.error'), data.message || t('common.error'));
         }
-    } catch (e) { await showAlert(t('gallery.error_title') || 'Error', e.message); }
+    } catch (e) { await showAlert(t('common.error'), e.message || t('common.error')); }
 }
 
 // ── Documents tab ─────────────────────────────────────────────────────────────
@@ -332,7 +332,7 @@ async function loadDocuments() {
     if (isLoadingDocs) return;
     isLoadingDocs = true;
     const list = document.getElementById('doc-list');
-    list.innerHTML = '<div class="gallery-loading">' + t('gallery.loading') + '</div>';
+    list.innerHTML = '<div class="gallery-loading">' + t('common.loading') + '</div>';
 
     const params = new URLSearchParams({
         type: 'document',
@@ -347,7 +347,7 @@ async function loadDocuments() {
         const data = await resp.json();
 
         if (data.status !== 'ok') {
-            list.innerHTML = '<div class="gallery-empty"><div class="gallery-empty-icon">⚠️</div>' + escapeHtml(data.message || 'Error') + '</div>';
+            list.innerHTML = '<div class="gallery-empty"><div class="gallery-empty-icon">⚠️</div>' + escapeHtml(data.message || t('common.error')) + '</div>';
             return;
         }
 
@@ -363,7 +363,7 @@ async function loadDocuments() {
         renderDocList(docItems);
         updateDocPagination();
     } catch (e) {
-        list.innerHTML = '<div class="gallery-empty"><div class="gallery-empty-icon">⚠️</div>' + escapeHtml(e.message) + '</div>';
+        list.innerHTML = '<div class="gallery-empty"><div class="gallery-empty-icon">⚠️</div>' + escapeHtml(e.message || t('common.error')) + '</div>';
     } finally {
         isLoadingDocs = false;
     }
@@ -393,7 +393,7 @@ function renderDocList(items) {
     const list = document.getElementById('doc-list');
     let html = '';
     items.forEach(function (item) {
-        const title = escapeHtml(item.description || item.filename || 'Document');
+        const title = escapeHtml(item.description || item.filename || t('media.tab_documents'));
         // Fall back to file extension when format field is empty (agent may not always set it)
         const fmt = item.format || (item.filename ? item.filename.split('.').pop() : '') || '';
         const icon = docFormatIconMedia(fmt);
@@ -437,7 +437,7 @@ function docPrev() { docOffset = Math.max(0, docOffset - MEDIA_LIMIT); loadDocum
 function docNext() { docOffset += MEDIA_LIMIT; loadDocuments(); }
 
 async function docDelete(id) {
-    const confirmed = await showConfirm(t('gallery.confirm_delete_title') || 'Confirm Delete', t('gallery.confirm_delete'));
+    const confirmed = await showConfirm(t('common.confirm_title'), t('gallery.confirm_delete'));
     if (!confirmed) return;
     try {
         const resp = await fetch('/api/media/' + id, { method: 'DELETE' });
@@ -447,9 +447,9 @@ async function docDelete(id) {
             docOffset = 0;
             loadDocuments();
         } else {
-            await showAlert(t('gallery.delete_failed_title') || 'Delete Failed', data.message || 'Delete failed');
+            await showAlert(t('common.error'), data.message || t('common.error'));
         }
-    } catch (e) { await showAlert(t('gallery.error_title') || 'Error', e.message); }
+    } catch (e) { await showAlert(t('common.error'), e.message || t('common.error')); }
 }
 
 // ── Helper same as gallery ────────────────────────────────────────────────────

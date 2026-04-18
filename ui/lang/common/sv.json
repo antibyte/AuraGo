@@ -47,5 +47,10 @@
   "common.clipboard_copied": "Kopierat till urklipp",
   "common.clipboard_failed": "Kopiering misslyckades",
   "common.language_update_failed": "Kunde inte uppdatera språk",
-  "common.server_connection_failed": "Kunde inte ansluta till server"
+  "common.server_connection_failed": "Kunde inte ansluta till server",
+  "login.page_title": "AuraGo – Inloggning",
+  "common.pagination_previous": "Föregående",
+  "common.pagination_next": "Nästa",
+  "common.view_list": "Listvy",
+  "common.view_grid": "Rutnätsvy"
 }

@@ -47,5 +47,10 @@
   "login.password_show": "Vis adgangskode",
   "login.subtitle": "Log venligst ind for at fortsætte",
   "login.totp_divider": "Authenticator kode",
-  "login.totp_label": "6-cifret kode"
+  "login.totp_label": "6-cifret kode",
+  "login.page_title": "AuraGo – Login",
+  "common.pagination_previous": "Forrige",
+  "common.pagination_next": "Næste",
+  "common.view_list": "Listevisning",
+  "common.view_grid": "Gittervisning"
 }

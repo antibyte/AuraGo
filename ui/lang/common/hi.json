@@ -47,5 +47,10 @@
   "common.clipboard_copied": "क्लिपबोर्ड पर कॉपी किया गया",
   "common.clipboard_failed": "कॉपी करने में विफल",
   "common.language_update_failed": "भाषा अपडेट करने में विफल",
-  "common.server_connection_failed": "सर्वर से कनेक्ट करने में विफल"
+  "common.server_connection_failed": "सर्वर से कनेक्ट करने में विफल",
+  "login.page_title": "AuraGo – लॉगिन",
+  "common.pagination_previous": "पिछला",
+  "common.pagination_next": "अगला",
+  "common.view_list": "सूची दृश्य",
+  "common.view_grid": "ग्रिड दृश्य"
 }

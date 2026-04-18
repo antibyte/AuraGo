@@ -47,5 +47,10 @@
   "login.password_show": "パスワードを表示",
   "login.subtitle": "続行するにはログインしてください",
   "login.totp_divider": "認証コード",
-  "login.totp_label": "6桁のコード"
+  "login.totp_label": "6桁のコード",
+  "login.page_title": "AuraGo – ログイン",
+  "common.pagination_previous": "前へ",
+  "common.pagination_next": "次へ",
+  "common.view_list": "リスト表示",
+  "common.view_grid": "グリッド表示"
 }

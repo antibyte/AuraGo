@@ -47,5 +47,10 @@
   "common.clipboard_copied": "Copiado al portapapeles",
   "common.clipboard_failed": "Error al copiar",
   "common.language_update_failed": "Error al actualizar idioma",
-  "common.server_connection_failed": "Error al conectar con el servidor"
+  "common.server_connection_failed": "Error al conectar con el servidor",
+  "login.page_title": "AuraGo – Inicio de sesión",
+  "common.pagination_previous": "Anterior",
+  "common.pagination_next": "Siguiente",
+  "common.view_list": "Vista de lista",
+  "common.view_grid": "Vista de cuadrícula"
 }

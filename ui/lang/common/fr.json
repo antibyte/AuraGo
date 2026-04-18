@@ -47,5 +47,10 @@
   "login.password_show": "Afficher le mot de passe",
   "login.subtitle": "Veuillez vous connecter pour continuer",
   "login.totp_divider": "Code d'authentification",
-  "login.totp_label": "Code à 6 chiffres"
+  "login.totp_label": "Code à 6 chiffres",
+  "login.page_title": "AuraGo – Connexion",
+  "common.pagination_previous": "Précédent",
+  "common.pagination_next": "Suivant",
+  "common.view_list": "Vue en liste",
+  "common.view_grid": "Vue en grille"
 }

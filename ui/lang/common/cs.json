@@ -47,5 +47,10 @@
   "common.clipboard_copied": "Zkopírováno do schránky",
   "common.clipboard_failed": "Kopírování selhalo",
   "common.language_update_failed": "Nepodařilo se změnit jazyk",
-  "common.server_connection_failed": "Připojení k serveru selhalo"
+  "common.server_connection_failed": "Připojení k serveru selhalo",
+  "login.page_title": "AuraGo – Přihlášení",
+  "common.pagination_previous": "Předchozí",
+  "common.pagination_next": "Další",
+  "common.view_list": "Zobrazení seznamu",
+  "common.view_grid": "Zobrazení mřížky"
 }

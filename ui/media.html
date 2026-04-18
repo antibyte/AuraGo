@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{.Lang}}" data-theme="dark">
+<html lang="{{.Lang}}" data-theme="dark" data-i18n-page-section="common.nav_media">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -65,9 +65,9 @@
                 <div class="gallery-loading" data-i18n="gallery.loading">Loading...</div>
             </div>
             <div id="gallery-pagination" class="gallery-pagination is-hidden">
-                <button id="gallery-prev" class="btn-gallery-nav" onclick="galleryPrev()">← Previous</button>
+                <button id="gallery-prev" class="btn-gallery-nav" onclick="galleryPrev()">← <span data-i18n="common.pagination_previous">Previous</span></button>
                 <span id="gallery-page-info"></span>
-                <button id="gallery-next" class="btn-gallery-nav" onclick="galleryNext()">Next →</button>
+                <button id="gallery-next" class="btn-gallery-nav" onclick="galleryNext()"><span data-i18n="common.pagination_next">Next</span> →</button>
             </div>
         </div>
 
@@ -76,9 +76,9 @@
                 <div class="gallery-loading" data-i18n="gallery.loading">Loading...</div>
             </div>
             <div id="audio-pagination" class="gallery-pagination is-hidden">
-                <button id="audio-prev" class="btn-gallery-nav" onclick="audioPrev()">← Previous</button>
+                <button id="audio-prev" class="btn-gallery-nav" onclick="audioPrev()">← <span data-i18n="common.pagination_previous">Previous</span></button>
                 <span id="audio-page-info"></span>
-                <button id="audio-next" class="btn-gallery-nav" onclick="audioNext()">Next →</button>
+                <button id="audio-next" class="btn-gallery-nav" onclick="audioNext()"><span data-i18n="common.pagination_next">Next</span> →</button>
             </div>
         </div>
 
@@ -87,9 +87,9 @@
                 <div class="gallery-loading" data-i18n="gallery.loading">Loading...</div>
             </div>
             <div id="doc-pagination" class="gallery-pagination is-hidden">
-                <button id="doc-prev" class="btn-gallery-nav" onclick="docPrev()">← Previous</button>
+                <button id="doc-prev" class="btn-gallery-nav" onclick="docPrev()">← <span data-i18n="common.pagination_previous">Previous</span></button>
                 <span id="doc-page-info"></span>
-                <button id="doc-next" class="btn-gallery-nav" onclick="docNext()">Next →</button>
+                <button id="doc-next" class="btn-gallery-nav" onclick="docNext()"><span data-i18n="common.pagination_next">Next</span> →</button>
             </div>
         </div>
     </div>

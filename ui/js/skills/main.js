@@ -1299,23 +1299,6 @@ function showDisabledState() {
             .filter(Boolean);
     }
 
-    // ── Toast helper ────────────────────────────────────────────────────────────
-
-    function showToast(msg, type) {
-        let c = document.getElementById('sk-toast-container');
-        if (!c) {
-            c = document.createElement('div');
-            c.id = 'sk-toast-container';
-            c.className = 'sk-toast-container';
-            document.body.appendChild(c);
-        }
-        const el = document.createElement('div');
-        el.className = `sk-toast sk-toast-${type || 'info'}`;
-        el.textContent = msg;
-        c.appendChild(el);
-        setTimeout(() => { el.classList.add('sk-toast-out'); setTimeout(() => el.remove(), 300); }, 3500);
-    }
-
     // ── Vault Key Assignment Modal ───────────────────────────────────────────────
 
     // eslint-disable-next-line no-unused-vars

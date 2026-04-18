@@ -47,5 +47,10 @@
   "common.clipboard_copied": "Copiato negli appunti",
   "common.clipboard_failed": "Copia fallita",
   "common.language_update_failed": "Aggiornamento lingua fallito",
-  "common.server_connection_failed": "Connessione al server fallita"
+  "common.server_connection_failed": "Connessione al server fallita",
+  "login.page_title": "AuraGo – Accesso",
+  "common.pagination_previous": "Precedente",
+  "common.pagination_next": "Successivo",
+  "common.view_list": "Vista elenco",
+  "common.view_grid": "Vista griglia"
 }
