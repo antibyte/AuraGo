@@ -3614,6 +3614,7 @@
         radial-gradient(circle at 50% 50%, rgba(18, 138, 6, 0.08), transparent 48%),
         linear-gradient(180deg, #000600 0%, #010801 36%, #000400 100%);
     color: var(--crt-text);
+    font-family: var(--crt-font-ui);
     filter: grayscale(100%) sepia(100%) hue-rotate(85deg) saturate(5.8) brightness(1.08) contrast(1.16);
 }
 
@@ -3878,6 +3879,21 @@ html[data-theme="retro-crt"]::before {
 [data-theme="retro-crt"] .modal-card,
 [data-theme="retro-crt"] .mermaid-modal-content {
     position: relative;
+}
+
+[data-theme="retro-crt"] #chat-content,
+[data-theme="retro-crt"] .greeting-text,
+[data-theme="retro-crt"] .mood-emotion,
+[data-theme="retro-crt"] .session-item,
+[data-theme="retro-crt"] .session-item-preview,
+[data-theme="retro-crt"] .modal-body,
+[data-theme="retro-crt"] .warnings-item,
+[data-theme="retro-crt"] .warnings-item-desc,
+[data-theme="retro-crt"] .thinking-block > summary,
+[data-theme="retro-crt"] .thinking-content,
+[data-theme="retro-crt"] .bubble,
+[data-theme="retro-crt"] .input-wrap textarea {
+    font-family: var(--crt-font-ui) !important;
 }
 
 [data-theme="retro-crt"] .logo span:first-of-type,
