@@ -1,0 +1,540 @@
+[data-theme="lollipop"] {
+    color-scheme: light;
+    --accent: #ef83bc;
+    --accent-secondary: #c7a2ff;
+    --accent-tertiary: #8fd9be;
+    --accent-warm: #f7c57b;
+    --accent-dim: rgba(239, 131, 188, 0.16);
+    --accent-glow: rgba(239, 131, 188, 0.18);
+    --bg-primary: #fff7fb;
+    --bg-secondary: rgba(255, 251, 255, 0.92);
+    --bg-tertiary: rgba(255, 241, 250, 0.96);
+    --bg-glass: linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(255, 243, 250, 0.86));
+    --header-bg: rgba(255, 245, 251, 0.88);
+    --modal-bg: rgba(121, 83, 108, 0.16);
+    --modal-surface: rgba(255, 250, 254, 0.98);
+    --modal-border: rgba(235, 171, 208, 0.45);
+    --sidebar-bg: rgba(255, 247, 251, 0.96);
+    --card-bg: rgba(255, 249, 253, 0.92);
+    --code-bg: rgba(245, 233, 247, 0.78);
+    --inline-code-bg: rgba(239, 131, 188, 0.12);
+    --input-bg: rgba(255, 252, 255, 0.98);
+    --input-border: rgba(223, 176, 208, 0.62);
+    --text-primary: #5d4758;
+    --text-secondary: #8c7485;
+    --strong-color: #4d384a;
+    --border-subtle: rgba(214, 180, 204, 0.46);
+    --border-accent: rgba(239, 131, 188, 0.4);
+    --user-bubble: linear-gradient(145deg, #ffd2e9, #ffdcb9);
+    --user-bubble-tail: #ffdcb9;
+    --user-bubble-shadow: rgba(239, 131, 188, 0.14);
+    --bot-bubble: linear-gradient(180deg, rgba(255, 251, 255, 0.98), rgba(246, 239, 255, 0.98));
+    --bot-bubble-tail: rgba(246, 239, 255, 0.98);
+    --surface-shadow: 0 18px 40px rgba(206, 166, 190, 0.18);
+    --surface-shadow-strong: 0 24px 58px rgba(206, 166, 190, 0.24);
+    --surface-highlight: rgba(255, 255, 255, 0.72);
+    --page-orb-1: rgba(255, 194, 225, 0.34);
+    --page-orb-2: rgba(204, 186, 255, 0.28);
+    --page-orb-3: rgba(184, 242, 220, 0.22);
+    --page-orb-opacity: 1;
+    --chat-image-opacity: 0.05;
+    --bg-logo-filter: saturate(0.9) brightness(1.05);
+    --lollipop-dot: rgba(239, 131, 188, 0.08);
+    --lollipop-outline: rgba(233, 170, 210, 0.52);
+    --lollipop-panel: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(255, 241, 248, 0.94));
+    --lollipop-pill: linear-gradient(180deg, rgba(255, 236, 247, 0.96), rgba(247, 242, 255, 0.96));
+    --lollipop-gloss: linear-gradient(180deg, rgba(255, 255, 255, 0.56), rgba(255, 255, 255, 0) 42%);
+    --lollipop-font-display: 'Baloo 2', 'Inter', system-ui, sans-serif;
+}
+
+[data-theme="lollipop"] body {
+    background:
+        radial-gradient(circle at 12% 12%, rgba(255, 205, 229, 0.56), transparent 24%),
+        radial-gradient(circle at 86% 10%, rgba(212, 195, 255, 0.42), transparent 22%),
+        radial-gradient(circle at 50% 100%, rgba(196, 244, 223, 0.32), transparent 28%),
+        linear-gradient(180deg, #fffafc 0%, #fff4f9 48%, #fff8ef 100%);
+    color: var(--text-primary);
+}
+
+[data-theme="lollipop"] body::before {
+    display: block;
+    z-index: -1;
+    background-image:
+        radial-gradient(circle, var(--lollipop-dot) 0 1.2px, transparent 1.2px),
+        radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.5) 0 1px, transparent 1px);
+    background-size: 18px 18px, 28px 28px;
+    background-position: 0 0, 8px 10px;
+    opacity: 0.55;
+}
+
+[data-theme="lollipop"] body::after {
+    filter: blur(12px);
+    opacity: 0.88;
+    animation: lollipopDrift 26s ease-in-out infinite alternate;
+}
+
+[data-theme="lollipop"] .app-header {
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(255, 241, 248, 0.86)),
+        var(--header-bg);
+    border-bottom: 1px solid rgba(233, 170, 210, 0.5);
+    box-shadow:
+        0 12px 28px rgba(212, 170, 197, 0.18),
+        inset 0 1px 0 rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(20px) saturate(1.05);
+    -webkit-backdrop-filter: blur(20px) saturate(1.05);
+}
+
+[data-theme="lollipop"] .app-header::after {
+    height: 2px;
+    opacity: 0.9;
+    background: linear-gradient(90deg,
+        transparent 0%,
+        rgba(239, 131, 188, 0.72) 18%,
+        rgba(199, 162, 255, 0.74) 50%,
+        rgba(143, 217, 190, 0.72) 82%,
+        transparent 100%);
+}
+
+[data-theme="lollipop"] .logo span:first-of-type,
+[data-theme="lollipop"] .session-drawer-title,
+[data-theme="lollipop"] .chat-theme-option[data-theme="lollipop"] .chat-theme-option-label {
+    font-family: var(--lollipop-font-display);
+    letter-spacing: 0.01em;
+}
+
+[data-theme="lollipop"] .logo span:first-of-type {
+    background: linear-gradient(135deg, #ef83bc, #c7a2ff 55%, #8fd9be);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+
+[data-theme="lollipop"] .chat-theme-btn,
+[data-theme="lollipop"] .btn-session-toggle,
+[data-theme="lollipop"] .btn-speaker,
+[data-theme="lollipop"] .btn-warnings,
+[data-theme="lollipop"] .select-personality,
+[data-theme="lollipop"] .mood-toggle,
+[data-theme="lollipop"] .btn-header,
+[data-theme="lollipop"] .btn-header-link,
+[data-theme="lollipop"] #logout-btn {
+    background:
+        var(--lollipop-gloss),
+        var(--lollipop-pill);
+    border: 1px solid rgba(233, 170, 210, 0.56);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.94),
+        0 6px 16px rgba(216, 179, 202, 0.18);
+    color: var(--text-primary);
+}
+
+[data-theme="lollipop"] .chat-theme-btn:hover,
+[data-theme="lollipop"] .btn-session-toggle:hover,
+[data-theme="lollipop"] .btn-speaker:hover,
+[data-theme="lollipop"] .btn-warnings:hover,
+[data-theme="lollipop"] .select-personality:hover,
+[data-theme="lollipop"] .mood-toggle:hover,
+[data-theme="lollipop"] .btn-header:hover,
+[data-theme="lollipop"] .btn-header-link:hover,
+[data-theme="lollipop"] #logout-btn:hover {
+    border-color: rgba(239, 131, 188, 0.62);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.96),
+        0 8px 20px rgba(216, 179, 202, 0.22);
+    color: var(--strong-color);
+}
+
+[data-theme="lollipop"] .chat-theme-icon {
+    color: #d666a8;
+    font-family: var(--lollipop-font-display);
+}
+
+[data-theme="lollipop"] .chat-theme-dropdown,
+[data-theme="lollipop"] .mood-panel {
+    border: 1px solid rgba(233, 170, 210, 0.58);
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(255, 244, 250, 0.96));
+    box-shadow:
+        0 20px 46px rgba(206, 166, 190, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.96);
+}
+
+[data-theme="lollipop"] .chat-theme-option {
+    border-radius: 12px;
+    color: var(--text-primary);
+}
+
+[data-theme="lollipop"] .chat-theme-option:hover,
+[data-theme="lollipop"] .chat-theme-option.active {
+    background: linear-gradient(90deg, rgba(255, 223, 240, 0.86), rgba(241, 235, 255, 0.96));
+}
+
+[data-theme="lollipop"] .app-header .pill {
+    background: var(--lollipop-pill);
+    border: 1px solid rgba(233, 170, 210, 0.48);
+    color: var(--strong-color);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.92),
+        0 4px 12px rgba(216, 179, 202, 0.14);
+}
+
+[data-theme="lollipop"] #chat-box {
+    isolation: isolate;
+    background:
+        radial-gradient(circle at 18% 14%, rgba(255, 205, 229, 0.3), transparent 22%),
+        radial-gradient(circle at 84% 18%, rgba(212, 195, 255, 0.24), transparent 20%),
+        radial-gradient(circle at 50% 100%, rgba(196, 244, 223, 0.22), transparent 26%),
+        linear-gradient(180deg, #fffafc 0%, #fff6fa 100%);
+}
+
+[data-theme="lollipop"] #chat-box::before {
+    background:
+        linear-gradient(180deg, rgba(255, 247, 251, 0.62), transparent 16%, transparent 86%, rgba(255, 248, 240, 0.52)),
+        radial-gradient(circle at top, rgba(255, 255, 255, 0.52), transparent 48%);
+    opacity: 0.95;
+}
+
+[data-theme="lollipop"] #chat-box::after {
+    opacity: 0.08;
+    filter: saturate(0.88) brightness(1.04);
+}
+
+[data-theme="lollipop"] #chat-content {
+    position: relative;
+    z-index: 2;
+    padding-top: 1.7rem;
+    padding-bottom: 2.25rem;
+}
+
+[data-theme="lollipop"] .greeting-icon,
+[data-theme="lollipop"] .avatar.bot,
+[data-theme="lollipop"] .avatar.human {
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(255, 239, 248, 0.9));
+    border: 1px solid rgba(233, 170, 210, 0.56);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.98),
+        0 10px 18px rgba(216, 179, 202, 0.18);
+}
+
+[data-theme="lollipop"] .avatar.human {
+    border-color: rgba(243, 184, 164, 0.64);
+}
+
+[data-theme="lollipop"] .greeting-text,
+[data-theme="lollipop"] .mood-emotion,
+[data-theme="lollipop"] .zoom-level,
+[data-theme="lollipop"] .session-item-meta,
+[data-theme="lollipop"] .session-empty {
+    color: var(--text-secondary);
+}
+
+[data-theme="lollipop"] .msg-row {
+    position: relative;
+    z-index: 2;
+}
+
+[data-theme="lollipop"] .bubble {
+    border: 1px solid rgba(225, 187, 213, 0.62);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.96),
+        0 10px 22px rgba(216, 179, 202, 0.14);
+}
+
+[data-theme="lollipop"] .bubble.bot {
+    background: var(--bot-bubble);
+    color: var(--text-primary);
+}
+
+[data-theme="lollipop"] .bubble.bot::before {
+    border-color: transparent transparent var(--bot-bubble-tail) transparent;
+}
+
+[data-theme="lollipop"] .bubble.user {
+    background: var(--user-bubble);
+    color: #553f4e;
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.76),
+        0 10px 22px rgba(239, 131, 188, 0.16);
+}
+
+[data-theme="lollipop"] .bubble.user::before {
+    border-color: transparent transparent var(--user-bubble-tail) transparent;
+}
+
+[data-theme="lollipop"] .bubble.technical,
+[data-theme="lollipop"] .tool-output-block .tool-output-content,
+[data-theme="lollipop"] .code-block-wrapper,
+[data-theme="lollipop"] .mermaid-container {
+    background:
+        linear-gradient(180deg, rgba(255, 250, 255, 0.96), rgba(247, 241, 253, 0.96));
+    border-color: rgba(199, 162, 255, 0.46);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.96),
+        0 10px 24px rgba(206, 166, 190, 0.12);
+}
+
+[data-theme="lollipop"] .tool-output-block summary,
+[data-theme="lollipop"] .copy-btn,
+[data-theme="lollipop"] .mermaid-btn,
+[data-theme="lollipop"] .session-item-count {
+    background: linear-gradient(180deg, rgba(255, 236, 247, 0.96), rgba(243, 238, 255, 0.96));
+    border: 1px solid rgba(233, 170, 210, 0.52);
+    color: var(--strong-color);
+}
+
+[data-theme="lollipop"] .tool-output-block summary:hover,
+[data-theme="lollipop"] .copy-btn:hover,
+[data-theme="lollipop"] .mermaid-btn:hover {
+    background: linear-gradient(180deg, rgba(255, 223, 240, 0.98), rgba(239, 232, 255, 0.98));
+    box-shadow: 0 8px 16px rgba(216, 179, 202, 0.18);
+}
+
+[data-theme="lollipop"] .code-header,
+[data-theme="lollipop"] .line-numbers {
+    background: rgba(245, 233, 247, 0.82);
+    border-color: rgba(213, 185, 221, 0.52);
+}
+
+[data-theme="lollipop"] .code-lang {
+    color: #ad6fc6;
+}
+
+[data-theme="lollipop"] .hljs {
+    background: transparent;
+    color: #4d3d4e;
+}
+
+[data-theme="lollipop"] .hljs-keyword,
+[data-theme="lollipop"] .hljs-selector-tag,
+[data-theme="lollipop"] .hljs-literal {
+    color: #b15cb2;
+}
+
+[data-theme="lollipop"] .hljs-string,
+[data-theme="lollipop"] .hljs-attr {
+    color: #4e9b78;
+}
+
+[data-theme="lollipop"] .hljs-title,
+[data-theme="lollipop"] .hljs-function,
+[data-theme="lollipop"] .hljs-section {
+    color: #d46d96;
+}
+
+[data-theme="lollipop"] code:not(pre code) {
+    background: rgba(239, 131, 188, 0.1);
+    color: #8f4f76;
+    border: 1px solid rgba(239, 131, 188, 0.18);
+    border-radius: 8px;
+    padding: 0.08rem 0.34rem;
+}
+
+[data-theme="lollipop"] .app-footer {
+    background:
+        linear-gradient(180deg, rgba(255, 250, 253, 0.98), rgba(255, 243, 249, 0.94));
+    border-top: 1px solid rgba(233, 170, 210, 0.44);
+    box-shadow:
+        0 -10px 26px rgba(216, 179, 202, 0.12),
+        inset 0 1px 0 rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(18px);
+}
+
+[data-theme="lollipop"] .input-row:focus-within .input-wrap {
+    transform: translateY(-1px);
+}
+
+[data-theme="lollipop"] .input-wrap textarea,
+[data-theme="lollipop"] .composer-panel,
+[data-theme="lollipop"] .mood-feedback-row,
+[data-theme="lollipop"] .attachment-chip,
+[data-theme="lollipop"] .attachments-panel {
+    background:
+        var(--lollipop-gloss),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(255, 242, 248, 0.96));
+    border: 1px solid rgba(223, 176, 208, 0.58);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.98),
+        0 10px 20px rgba(216, 179, 202, 0.14);
+}
+
+[data-theme="lollipop"] .input-wrap textarea:hover,
+[data-theme="lollipop"] .input-wrap textarea:focus {
+    border-color: rgba(239, 131, 188, 0.58);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.98),
+        0 0 0 3px rgba(239, 131, 188, 0.08),
+        0 12px 22px rgba(216, 179, 202, 0.18);
+}
+
+[data-theme="lollipop"] .input-wrap textarea::placeholder {
+    color: rgba(140, 116, 133, 0.82);
+}
+
+[data-theme="lollipop"] .btn-send,
+[data-theme="lollipop"] .btn-voice,
+[data-theme="lollipop"] .btn-more,
+[data-theme="lollipop"] .composer-tool-btn,
+[data-theme="lollipop"] .mood-btn,
+[data-theme="lollipop"] .session-new-btn,
+[data-theme="lollipop"] .session-drawer-close,
+[data-theme="lollipop"] #img-lightbox-close,
+[data-theme="lollipop"] .modal-btn,
+[data-theme="lollipop"] .scroll-to-bottom-btn {
+    background:
+        var(--lollipop-gloss),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(255, 238, 246, 0.94));
+    border: 1px solid rgba(233, 170, 210, 0.54);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.98),
+        0 8px 18px rgba(216, 179, 202, 0.14);
+    color: var(--strong-color);
+}
+
+[data-theme="lollipop"] .btn-send {
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.52), rgba(255, 255, 255, 0) 38%),
+        linear-gradient(135deg, #ef83bc 0%, #f9a7cb 56%, #f7c57b 100%);
+    color: #ffffff;
+    border-color: rgba(231, 130, 184, 0.56);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.36),
+        0 10px 20px rgba(239, 131, 188, 0.22);
+}
+
+[data-theme="lollipop"] .btn-send:hover,
+[data-theme="lollipop"] .btn-voice:hover,
+[data-theme="lollipop"] .btn-more:hover,
+[data-theme="lollipop"] .btn-more.is-open,
+[data-theme="lollipop"] .composer-tool-btn:hover,
+[data-theme="lollipop"] .mood-btn:hover,
+[data-theme="lollipop"] .session-new-btn:hover,
+[data-theme="lollipop"] .session-drawer-close:hover,
+[data-theme="lollipop"] #img-lightbox-close:hover,
+[data-theme="lollipop"] .modal-btn:hover,
+[data-theme="lollipop"] .scroll-to-bottom-btn:hover {
+    transform: translateY(-1px);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.98),
+        0 12px 22px rgba(216, 179, 202, 0.2);
+}
+
+[data-theme="lollipop"] .composer-tool-btn-danger,
+[data-theme="lollipop"] .composer-tool-btn-danger:hover:not(:disabled) {
+    background:
+        linear-gradient(180deg, rgba(255, 237, 240, 0.98), rgba(255, 225, 232, 0.96));
+    border-color: rgba(232, 146, 168, 0.52);
+    color: #b05976;
+}
+
+[data-theme="lollipop"] .session-backdrop,
+[data-theme="lollipop"] .mermaid-modal-overlay,
+[data-theme="lollipop"] #img-lightbox,
+[data-theme="lollipop"] .modal-overlay {
+    background:
+        radial-gradient(circle at top, rgba(255, 230, 242, 0.36), transparent 32%),
+        rgba(135, 103, 124, 0.18);
+    backdrop-filter: blur(8px);
+}
+
+[data-theme="lollipop"] .session-drawer,
+[data-theme="lollipop"] .modal-card,
+[data-theme="lollipop"] .mermaid-modal-content {
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(180deg, rgba(255, 253, 255, 0.98), rgba(255, 245, 251, 0.96));
+    border: 1px solid rgba(233, 170, 210, 0.54);
+    box-shadow:
+        0 28px 58px rgba(206, 166, 190, 0.22),
+        inset 0 1px 0 rgba(255, 255, 255, 0.98);
+}
+
+[data-theme="lollipop"] .session-drawer::before,
+[data-theme="lollipop"] .modal-card::before,
+[data-theme="lollipop"] .mermaid-modal-content::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border-radius: inherit;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.44), rgba(255, 255, 255, 0) 32%);
+}
+
+[data-theme="lollipop"] .session-drawer-header,
+[data-theme="lollipop"] .modal-title {
+    border-bottom-color: rgba(233, 170, 210, 0.4);
+}
+
+[data-theme="lollipop"] .session-item {
+    border: 1px solid transparent;
+    border-radius: 14px;
+}
+
+[data-theme="lollipop"] .session-item:hover {
+    background: linear-gradient(90deg, rgba(255, 233, 244, 0.92), rgba(243, 238, 255, 0.92));
+    border-color: rgba(233, 170, 210, 0.38);
+}
+
+[data-theme="lollipop"] .session-item.session-active {
+    background: linear-gradient(90deg, rgba(255, 224, 242, 0.94), rgba(245, 236, 255, 0.94));
+    border-color: rgba(239, 131, 188, 0.5);
+    box-shadow: 0 10px 18px rgba(216, 179, 202, 0.14);
+}
+
+[data-theme="lollipop"] .session-item-preview,
+[data-theme="lollipop"] .session-drawer-title,
+[data-theme="lollipop"] .modal-title,
+[data-theme="lollipop"] .modal-body,
+[data-theme="lollipop"] .mermaid-error .error-title,
+[data-theme="lollipop"] .mermaid-error .error-message {
+    color: var(--text-primary);
+}
+
+[data-theme="lollipop"] .scroll-to-bottom-btn.has-new {
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.46), rgba(255, 255, 255, 0) 34%),
+        linear-gradient(135deg, #ef83bc 0%, #f7b8d2 48%, #c7a2ff 100%);
+    color: #ffffff;
+}
+
+[data-theme="lollipop"] #img-lightbox img {
+    border: 1px solid rgba(233, 170, 210, 0.46);
+    box-shadow: 0 20px 52px rgba(206, 166, 190, 0.24);
+}
+
+[data-theme="lollipop"] .drag-drop-overlay {
+    background: rgba(255, 245, 251, 0.78);
+}
+
+[data-theme="lollipop"] ::selection,
+[data-theme="lollipop"] ::-moz-selection {
+    background: rgba(239, 131, 188, 0.18);
+}
+
+@keyframes lollipopDrift {
+    from {
+        transform: scale(1) translate3d(0, 0, 0);
+    }
+    to {
+        transform: scale(1.03) translate3d(0, -1.5%, 0);
+    }
+}
+
+@media (max-width: 767px) {
+    [data-theme="lollipop"] body::before {
+        opacity: 0.32;
+    }
+
+    [data-theme="lollipop"] .bubble {
+        max-width: min(88%, 38rem);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    [data-theme="lollipop"] body::after {
+        animation: none !important;
+    }
+}

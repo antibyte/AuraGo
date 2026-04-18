@@ -83,6 +83,43 @@
                 return;
             }
 
+            if (theme === 'lollipop') {
+                window.mermaid.initialize({
+                    ...baseConfig,
+                    theme: 'base',
+                    themeVariables: {
+                        background: '#fff8fd',
+                        primaryColor: '#ffe0f2',
+                        primaryTextColor: '#56384d',
+                        primaryBorderColor: '#f39cca',
+                        lineColor: '#ba81b2',
+                        secondaryColor: '#efe7ff',
+                        tertiaryColor: '#e3fff2',
+                        mainBkg: '#fff3fb',
+                        secondBkg: '#f5eeff',
+                        tertiaryBkg: '#effff6',
+                        clusterBkg: '#fff7dc',
+                        clusterBorder: '#f0b56c',
+                        edgeLabelBackground: '#fff9fd',
+                        nodeTextColor: '#56384d',
+                        textColor: '#5b4860',
+                        actorBkg: '#ffe6f4',
+                        actorBorder: '#e39bd2',
+                        actorTextColor: '#56384d',
+                        signalColor: '#ba81b2',
+                        signalTextColor: '#56384d',
+                        labelBoxBkgColor: '#fff0f9',
+                        labelBoxBorderColor: '#f39cca',
+                        noteBkgColor: '#fff8cf',
+                        noteBorderColor: '#ebb46b',
+                        noteTextColor: '#6a4f35',
+                        activationBorderColor: '#d392c8',
+                        activationBkgColor: '#fff0fb'
+                    }
+                });
+                return;
+            }
+
             if (theme === 'cyberwar') {
                 window.mermaid.initialize({
                     ...baseConfig,

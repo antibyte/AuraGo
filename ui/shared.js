@@ -321,8 +321,8 @@ function injectRadialMenu() {
 // THEME MANAGEMENT
 // ═══════════════════════════════════════════════════════════════
 
-// Supported chat themes: 'dark' (standard), 'light', 'retro-crt', 'cyberwar'
-const CHAT_THEMES = ['dark', 'light', 'retro-crt', 'cyberwar'];
+// Supported chat themes: 'dark' (standard), 'light', 'retro-crt', 'cyberwar', 'lollipop'
+const CHAT_THEMES = ['dark', 'light', 'retro-crt', 'cyberwar', 'lollipop'];
 const DEFAULT_CHAT_THEME = 'dark';
 
 // Debounce lock: prevents double-click from toggling back immediately
@@ -376,14 +376,14 @@ function getCurrentChatTheme() {
 
 /**
  * Swap highlight.js theme stylesheet based on active theme.
- * dark → github-dark, light → github, retro-crt/cyberwar → github-dark with CSS enhancement layers
+ * dark/retro-crt/cyberwar → github-dark, light/lollipop → github with CSS enhancement layers
  */
 function _updateHljsTheme(theme) {
     var link = document.getElementById('hljs-theme');
     if (!link) return;
     var base = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/';
-    // retro-crt and cyberwar use the dark base; theme-specific coloring is handled in CSS.
-    if (theme === 'light') {
+    // light and lollipop use the light base; deeper customization is handled in CSS.
+    if (theme === 'light' || theme === 'lollipop') {
         link.href = base + 'github.min.css';
     } else {
         link.href = base + 'github-dark.min.css';
