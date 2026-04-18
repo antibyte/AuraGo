@@ -123,6 +123,38 @@
     font-family: var(--darksun-font-ui);
 }
 
+[data-theme="dark-sun"] .logo span:first-of-type {
+    font-size: 1.3rem;
+}
+
+[data-theme="dark-sun"] .session-drawer-title,
+[data-theme="dark-sun"] .modal-title {
+    font-size: 1.4rem;
+}
+
+[data-theme="dark-sun"] .app-header .pill,
+[data-theme="dark-sun"] .chat-theme-btn,
+[data-theme="dark-sun"] .btn-session-toggle,
+[data-theme="dark-sun"] .btn-speaker,
+[data-theme="dark-sun"] .btn-warnings,
+[data-theme="dark-sun"] .select-personality,
+[data-theme="dark-sun"] .mood-toggle,
+[data-theme="dark-sun"] .btn-header,
+[data-theme="dark-sun"] .btn-header-link,
+[data-theme="dark-sun"] #logout-btn,
+[data-theme="dark-sun"] .btn-send,
+[data-theme="dark-sun"] .btn-voice,
+[data-theme="dark-sun"] .btn-more,
+[data-theme="dark-sun"] .composer-tool-btn,
+[data-theme="dark-sun"] .mood-btn,
+[data-theme="dark-sun"] .session-new-btn,
+[data-theme="dark-sun"] .session-drawer-close,
+[data-theme="dark-sun"] #img-lightbox-close,
+[data-theme="dark-sun"] .modal-btn,
+[data-theme="dark-sun"] .scroll-to-bottom-btn {
+    font-size: 1.14rem;
+}
+
 [data-theme="dark-sun"] .chat-theme-btn,
 [data-theme="dark-sun"] .btn-session-toggle,
 [data-theme="dark-sun"] .btn-speaker,

@@ -107,6 +107,38 @@
 }
 
 [data-theme="lollipop"] .logo span:first-of-type {
+    font-size: 1.35rem;
+}
+
+[data-theme="lollipop"] .session-drawer-title,
+[data-theme="lollipop"] .modal-title {
+    font-size: 1.45rem;
+}
+
+[data-theme="lollipop"] .app-header .pill,
+[data-theme="lollipop"] .chat-theme-btn,
+[data-theme="lollipop"] .btn-session-toggle,
+[data-theme="lollipop"] .btn-speaker,
+[data-theme="lollipop"] .btn-warnings,
+[data-theme="lollipop"] .select-personality,
+[data-theme="lollipop"] .mood-toggle,
+[data-theme="lollipop"] .btn-header,
+[data-theme="lollipop"] .btn-header-link,
+[data-theme="lollipop"] #logout-btn,
+[data-theme="lollipop"] .btn-send,
+[data-theme="lollipop"] .btn-voice,
+[data-theme="lollipop"] .btn-more,
+[data-theme="lollipop"] .composer-tool-btn,
+[data-theme="lollipop"] .mood-btn,
+[data-theme="lollipop"] .session-new-btn,
+[data-theme="lollipop"] .session-drawer-close,
+[data-theme="lollipop"] #img-lightbox-close,
+[data-theme="lollipop"] .modal-btn,
+[data-theme="lollipop"] .scroll-to-bottom-btn {
+    font-size: 1.18rem;
+}
+
+[data-theme="lollipop"] .logo span:first-of-type {
     background: linear-gradient(135deg, #ef83bc, #c7a2ff 55%, #8fd9be);
     -webkit-background-clip: text;
     background-clip: text;
