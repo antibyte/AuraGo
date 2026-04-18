@@ -740,6 +740,65 @@ func TestInjectAdditionalPropertiesRecPreservesSchemaObject(t *testing.T) {
 	}
 }
 
+func TestInjectAdditionalPropertiesRecHandlesCycles(t *testing.T) {
+	schema := map[string]interface{}{
+		"type": "object",
+	}
+	schema["properties"] = map[string]interface{}{
+		"self": schema,
+	}
+
+	injectAdditionalPropertiesRec(schema)
+
+	if schema["additionalProperties"] != false {
+		t.Fatalf("expected additionalProperties=false on cyclic schema root, got %v", schema["additionalProperties"])
+	}
+	self := schema["properties"].(map[string]interface{})["self"].(map[string]interface{})
+	if self["additionalProperties"] != false {
+		t.Fatalf("expected additionalProperties=false on cyclic child, got %v", self["additionalProperties"])
+	}
+}
+
+func TestBuildNativeToolSchemasInjectsTodoOnlyForBuiltinTools(t *testing.T) {
+	toolsDir := t.TempDir()
+	manifest := tools.NewManifest(toolsDir)
+	if err := manifest.Register("hello_custom", "Custom helper"); err != nil {
+		t.Fatalf("register custom tool: %v", err)
+	}
+
+	schemas := BuildNativeToolSchemas(t.TempDir(), manifest, ToolFeatureFlags{AllowShell: true}, nil)
+
+	var executeShellParams map[string]interface{}
+	var customParams map[string]interface{}
+	for _, toolSchema := range schemas {
+		if toolSchema.Function == nil {
+			continue
+		}
+		switch toolSchema.Function.Name {
+		case "execute_shell":
+			executeShellParams = toolSchema.Function.Parameters.(map[string]interface{})
+		case "tool__hello_custom":
+			customParams = toolSchema.Function.Parameters.(map[string]interface{})
+		}
+	}
+
+	if executeShellParams == nil {
+		t.Fatal("expected execute_shell schema")
+	}
+	if customParams == nil {
+		t.Fatal("expected custom tool schema")
+	}
+
+	builtinProps := executeShellParams["properties"].(map[string]interface{})
+	if _, ok := builtinProps["_todo"]; !ok {
+		t.Fatal("expected builtin tool schema to include _todo")
+	}
+	customProps := customParams["properties"].(map[string]interface{})
+	if _, ok := customProps["_todo"]; ok {
+		t.Fatal("did not expect custom tool schema to include _todo")
+	}
+}
+
 // TestBuildToolFlagsFromConfigProducesConsistentResults verifies that
 // buildToolFlagsFromConfig returns consistent values for all config-only flags.
 func TestBuildToolFlagsFromConfigProducesConsistentResults(t *testing.T) {

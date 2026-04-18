@@ -1,7 +1,6 @@
 package agent
 
 import (
-	"encoding/json"
 	"path/filepath"
 	"strings"
 
@@ -100,11 +99,93 @@ func builtinToolNames(ff ToolFeatureFlags) []string {
 }
 
 func (ff ToolFeatureFlags) Key() string {
-	encoded, err := json.Marshal(ff)
-	if err != nil {
-		return ""
+	parts := make([]string, 0, 96)
+	appendToolFeatureKeyPart := func(name string, enabled bool) {
+		if enabled {
+			parts = append(parts, name)
+		}
 	}
-	return string(encoded)
+
+	appendToolFeatureKeyPart("home_assistant", ff.HomeAssistantEnabled)
+	appendToolFeatureKeyPart("docker", ff.DockerEnabled)
+	appendToolFeatureKeyPart("co_agent", ff.CoAgentEnabled)
+	appendToolFeatureKeyPart("sudo", ff.SudoEnabled)
+	appendToolFeatureKeyPart("webhooks", ff.WebhooksEnabled)
+	appendToolFeatureKeyPart("proxmox", ff.ProxmoxEnabled)
+	appendToolFeatureKeyPart("ollama", ff.OllamaEnabled)
+	appendToolFeatureKeyPart("tailscale", ff.TailscaleEnabled)
+	appendToolFeatureKeyPart("ansible", ff.AnsibleEnabled)
+	appendToolFeatureKeyPart("invasion_control", ff.InvasionControlEnabled)
+	appendToolFeatureKeyPart("github", ff.GitHubEnabled)
+	appendToolFeatureKeyPart("mqtt", ff.MQTTEnabled)
+	appendToolFeatureKeyPart("adguard", ff.AdGuardEnabled)
+	appendToolFeatureKeyPart("mcp", ff.MCPEnabled)
+	appendToolFeatureKeyPart("sandbox", ff.SandboxEnabled)
+	appendToolFeatureKeyPart("meshcentral", ff.MeshCentralEnabled)
+	appendToolFeatureKeyPart("homepage", ff.HomepageEnabled)
+	appendToolFeatureKeyPart("netlify", ff.NetlifyEnabled)
+	appendToolFeatureKeyPart("firewall", ff.FirewallEnabled)
+	appendToolFeatureKeyPart("email", ff.EmailEnabled)
+	appendToolFeatureKeyPart("cloudflare_tunnel", ff.CloudflareTunnelEnabled)
+	appendToolFeatureKeyPart("google_workspace", ff.GoogleWorkspaceEnabled)
+	appendToolFeatureKeyPart("onedrive", ff.OneDriveEnabled)
+	appendToolFeatureKeyPart("virustotal", ff.VirusTotalEnabled)
+	appendToolFeatureKeyPart("golangci_lint", ff.GolangciLintEnabled)
+	appendToolFeatureKeyPart("image_generation", ff.ImageGenerationEnabled)
+	appendToolFeatureKeyPart("music_generation", ff.MusicGenerationEnabled)
+	appendToolFeatureKeyPart("remote_control", ff.RemoteControlEnabled)
+	appendToolFeatureKeyPart("allow_shell", ff.AllowShell)
+	appendToolFeatureKeyPart("allow_python", ff.AllowPython)
+	appendToolFeatureKeyPart("allow_filesystem_write", ff.AllowFilesystemWrite)
+	appendToolFeatureKeyPart("allow_network_requests", ff.AllowNetworkRequests)
+	appendToolFeatureKeyPart("allow_remote_shell", ff.AllowRemoteShell)
+	appendToolFeatureKeyPart("allow_self_update", ff.AllowSelfUpdate)
+	appendToolFeatureKeyPart("homepage_local_server", ff.HomepageAllowLocalServer)
+	appendToolFeatureKeyPart("memory", ff.MemoryEnabled)
+	appendToolFeatureKeyPart("knowledge_graph", ff.KnowledgeGraphEnabled)
+	appendToolFeatureKeyPart("secrets_vault", ff.SecretsVaultEnabled)
+	appendToolFeatureKeyPart("scheduler", ff.SchedulerEnabled)
+	appendToolFeatureKeyPart("notes", ff.NotesEnabled)
+	appendToolFeatureKeyPart("missions", ff.MissionsEnabled)
+	appendToolFeatureKeyPart("stop_process", ff.StopProcessEnabled)
+	appendToolFeatureKeyPart("inventory", ff.InventoryEnabled)
+	appendToolFeatureKeyPart("memory_maintenance", ff.MemoryMaintenanceEnabled)
+	appendToolFeatureKeyPart("wol", ff.WOLEnabled)
+	appendToolFeatureKeyPart("media_registry", ff.MediaRegistryEnabled)
+	appendToolFeatureKeyPart("homepage_registry", ff.HomepageRegistryEnabled)
+	appendToolFeatureKeyPart("contacts", ff.ContactsEnabled)
+	appendToolFeatureKeyPart("planner", ff.PlannerEnabled)
+	appendToolFeatureKeyPart("journal", ff.JournalEnabled)
+	appendToolFeatureKeyPart("memory_analysis", ff.MemoryAnalysisEnabled)
+	appendToolFeatureKeyPart("document_creator", ff.DocumentCreatorEnabled)
+	appendToolFeatureKeyPart("web_capture", ff.WebCaptureEnabled)
+	appendToolFeatureKeyPart("network_ping", ff.NetworkPingEnabled)
+	appendToolFeatureKeyPart("web_scraper", ff.WebScraperEnabled)
+	appendToolFeatureKeyPart("s3", ff.S3Enabled)
+	appendToolFeatureKeyPart("network_scan", ff.NetworkScanEnabled)
+	appendToolFeatureKeyPart("form_automation", ff.FormAutomationEnabled)
+	appendToolFeatureKeyPart("upnp_scan", ff.UPnPScanEnabled)
+	appendToolFeatureKeyPart("jellyfin", ff.JellyfinEnabled)
+	appendToolFeatureKeyPart("obsidian", ff.ObsidianEnabled)
+	appendToolFeatureKeyPart("chromecast", ff.ChromecastEnabled)
+	appendToolFeatureKeyPart("discord", ff.DiscordEnabled)
+	appendToolFeatureKeyPart("telegram", ff.TelegramEnabled)
+	appendToolFeatureKeyPart("truenas", ff.TrueNASEnabled)
+	appendToolFeatureKeyPart("koofr", ff.KoofrEnabled)
+	appendToolFeatureKeyPart("fritzbox_system", ff.FritzBoxSystemEnabled)
+	appendToolFeatureKeyPart("fritzbox_network", ff.FritzBoxNetworkEnabled)
+	appendToolFeatureKeyPart("fritzbox_telephony", ff.FritzBoxTelephonyEnabled)
+	appendToolFeatureKeyPart("fritzbox_smarthome", ff.FritzBoxSmartHomeEnabled)
+	appendToolFeatureKeyPart("fritzbox_storage", ff.FritzBoxStorageEnabled)
+	appendToolFeatureKeyPart("fritzbox_tv", ff.FritzBoxTVEnabled)
+	appendToolFeatureKeyPart("telnyx_sms", ff.TelnyxSMSEnabled)
+	appendToolFeatureKeyPart("telnyx_call", ff.TelnyxCallEnabled)
+	appendToolFeatureKeyPart("sql_connections", ff.SQLConnectionsEnabled)
+	appendToolFeatureKeyPart("python_secret_injection", ff.PythonSecretInjectionEnabled)
+	appendToolFeatureKeyPart("daemon_skills", ff.DaemonSkillsEnabled)
+	appendToolFeatureKeyPart("ldap", ff.LDAPEnabled)
+
+	return strings.Join(parts, "|")
 }
 
 func builtinToolNameSet(ff ToolFeatureFlags) map[string]struct{} {

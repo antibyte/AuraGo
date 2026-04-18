@@ -2,7 +2,6 @@ package agent
 
 import (
 	"context"
-	"fmt"
 
 	"aurago/internal/tools"
 )
@@ -180,5 +179,5 @@ func handleExecuteSkillBuiltinAction(ctx context.Context, dc *DispatchContext, s
 }
 
 func unexpectedBuiltinActionError(action string) string {
-	return fmt.Sprintf("Tool Output: ERROR builtin tool handler missing implementation for %q", action)
+	return formatToolExecError(newUnexpectedBuiltinActionToolExecError(action))
 }

@@ -312,6 +312,51 @@ func TestRecoverFromEmptyResponseWithPolicyHonorsMinMessages(t *testing.T) {
 	}
 }
 
+func TestTrimMessagesForEmptyResponsePreservesLastUserIntentAndLatestToolResult(t *testing.T) {
+	msgs := []openai.ChatCompletionMessage{
+		{Role: openai.ChatMessageRoleSystem, Content: "sys"},
+		{Role: openai.ChatMessageRoleSystem, Content: "summary"},
+		{Role: openai.ChatMessageRoleUser, Content: "older request"},
+		{Role: openai.ChatMessageRoleAssistant, Content: "planning"},
+		{Role: openai.ChatMessageRoleAssistant, ToolCalls: []openai.ToolCall{{
+			ID:   "call-1",
+			Type: openai.ToolTypeFunction,
+			Function: openai.FunctionCall{Name: "execute_shell", Arguments: `{"command":"pwd"}`},
+		}}},
+		{Role: openai.ChatMessageRoleTool, ToolCallID: "call-1", Content: "tool output"},
+		{Role: openai.ChatMessageRoleAssistant, Content: "post tool"},
+		{Role: openai.ChatMessageRoleUser, Content: "latest user intent"},
+		{Role: openai.ChatMessageRoleAssistant, Content: "tail a"},
+		{Role: openai.ChatMessageRoleAssistant, Content: "tail b"},
+		{Role: openai.ChatMessageRoleAssistant, Content: "tail c"},
+	}
+
+	trimmed, summary := trimMessagesForEmptyResponseWithSummary(msgs)
+
+	if !summary.PreservedLastUserIntent {
+		t.Fatal("expected summary to report preserved last user intent")
+	}
+	if !summary.PreservedLatestToolResult {
+		t.Fatal("expected summary to report preserved latest tool result")
+	}
+	foundTool := false
+	foundLatestUser := false
+	for _, msg := range trimmed {
+		if msg.Role == openai.ChatMessageRoleTool && msg.Content == "tool output" {
+			foundTool = true
+		}
+		if msg.Role == openai.ChatMessageRoleUser && msg.Content == "latest user intent" {
+			foundLatestUser = true
+		}
+	}
+	if !foundTool {
+		t.Fatal("expected trimmed context to keep latest tool result")
+	}
+	if !foundLatestUser {
+		t.Fatal("expected trimmed context to keep latest user intent")
+	}
+}
+
 func TestRecoverFromEmptyResponsePureThinkBlock(t *testing.T) {
 	req := openai.ChatCompletionRequest{
 		Messages: []openai.ChatCompletionMessage{

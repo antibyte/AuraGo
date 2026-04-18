@@ -3,7 +3,9 @@ package agent
 import (
 	"fmt"
 	"log/slog"
+	"reflect"
 	"regexp"
+	"sort"
 	"strings"
 
 	"aurago/internal/security"
@@ -34,6 +36,15 @@ type ParsedToolResponse struct {
 	UseNativePath      bool
 	NativeAssistantMsg openai.ChatCompletionMessage
 	ParseSource        ToolCallParseSource
+}
+
+type recoveryTrimSummary struct {
+	Trigger                   string
+	BeforeMessages            int
+	AfterMessages             int
+	LeadingSystemMessages     int
+	PreservedLastUserIntent   bool
+	PreservedLatestToolResult bool
 }
 
 func parseToolResponse(resp openai.ChatCompletionResponse, logger *slog.Logger, scope AgentTelemetryScope) ParsedToolResponse {
@@ -170,16 +181,30 @@ func recoverFrom422WithPolicy(policy RecoveryPolicy, err error, retryCount *int,
 	if broker != nil {
 		broker.Send("thinking", "Context error recovered — retrying...")
 	}
+	beforeTrim := req.Messages
 	req.Messages = trim422Messages(req.Messages)
+	trimSummary := summarizeRecoveryTrim("provider_422", beforeTrim, req.Messages)
 	if logger != nil {
-		logger.Info("["+path+"] Context trimmed after 422, retrying", "new_messages_count", len(req.Messages), "attempt", *retryCount)
+		logger.Info("["+path+"] Context trimmed after 422, retrying",
+			"attempt", *retryCount,
+			"trigger", trimSummary.Trigger,
+			"before_messages", trimSummary.BeforeMessages,
+			"after_messages", trimSummary.AfterMessages,
+			"leading_system_messages", trimSummary.LeadingSystemMessages,
+			"preserved_last_user_intent", trimSummary.PreservedLastUserIntent,
+			"preserved_latest_tool_result", trimSummary.PreservedLatestToolResult)
 	}
 	return true, nil
 }
 
 func trimMessagesForEmptyResponse(msgs []openai.ChatCompletionMessage) []openai.ChatCompletionMessage {
+	trimmed, _ := trimMessagesForEmptyResponseWithSummary(msgs)
+	return trimmed
+}
+
+func trimMessagesForEmptyResponseWithSummary(msgs []openai.ChatCompletionMessage) ([]openai.ChatCompletionMessage, recoveryTrimSummary) {
 	if len(msgs) == 0 {
-		return msgs
+		return msgs, recoveryTrimSummary{Trigger: "empty_response"}
 	}
 
 	// Always keep the system prompt (index 0, and optionally index 1 if also system).
@@ -206,22 +231,33 @@ func trimMessagesForEmptyResponse(msgs []openai.ChatCompletionMessage) []openai.
 
 	const keepTail = 4
 	if len(historyMsgs) <= keepTail {
-		return append(trimmed, historyMsgs...)
+		trimmed = append(trimmed, historyMsgs...)
+		return trimmed, summarizeRecoveryTrim("empty_response", msgs, trimmed)
 	}
 
 	tail := historyMsgs[len(historyMsgs)-keepTail:]
+	preservedIndexes := make([]int, 0, 2)
+	tailStart := len(historyMsgs) - keepTail
 
-	// If the last user message is already inside the tail window, nothing extra needed.
-	if lastUserIdx >= len(historyMsgs)-keepTail {
-		return append(trimmed, tail...)
+	if lastUserIdx >= 0 && lastUserIdx < tailStart {
+		preservedIndexes = append(preservedIndexes, lastUserIdx)
 	}
-
-	// Last user message is outside the tail — prepend it so the LLM retains the intent.
-	if lastUserIdx >= 0 {
-		return append(trimmed, append([]openai.ChatCompletionMessage{historyMsgs[lastUserIdx]}, tail...)...)
+	if lastToolIdx := findLastRoleIndex(historyMsgs, openai.ChatMessageRoleTool); lastToolIdx >= 0 && lastToolIdx < tailStart {
+		preservedIndexes = append(preservedIndexes, lastToolIdx)
 	}
-
-	return append(trimmed, tail...)
+	if len(preservedIndexes) > 1 {
+		sort.Ints(preservedIndexes)
+	}
+	lastIdx := -1
+	for _, idx := range preservedIndexes {
+		if idx == lastIdx {
+			continue
+		}
+		trimmed = append(trimmed, historyMsgs[idx])
+		lastIdx = idx
+	}
+	trimmed = append(trimmed, tail...)
+	return trimmed, summarizeRecoveryTrim("empty_response", msgs, trimmed)
 }
 
 func recoverFromEmptyResponse(resp openai.ChatCompletionResponse, content string, req *openai.ChatCompletionRequest, emptyRetried *bool, logger *slog.Logger, broker FeedbackBroker, scope AgentTelemetryScope) bool {
@@ -252,15 +288,94 @@ func recoverFromEmptyResponseWithPolicy(policy RecoveryPolicy, resp openai.ChatC
 
 	*emptyRetried = true
 	RecordToolRecoveryEventForScope(scope, "empty_response_recovered")
+	emptyReason := "empty_response"
+	if strings.TrimSpace(content) != "" && strippedContent == "" {
+		emptyReason = "reasoning_only_response"
+	} else if strings.HasPrefix(strings.ToLower(strings.TrimSpace(strippedContent)), "<think") {
+		emptyReason = "unclosed_reasoning_response"
+	}
 	if logger != nil {
-		logger.Warn("[Sync] Empty LLM response detected, trimming history and retrying", "messages_count", len(req.Messages))
+		logger.Warn("[Sync] Empty LLM response detected, trimming history and retrying",
+			"messages_count", len(req.Messages),
+			"trigger", emptyReason)
 	}
 	if broker != nil {
 		broker.Send("thinking", "Context too large, retrimming...")
 	}
-	req.Messages = trimMessagesForEmptyResponse(req.Messages)
+	var trimSummary recoveryTrimSummary
+	req.Messages, trimSummary = trimMessagesForEmptyResponseWithSummary(req.Messages)
 	if logger != nil {
-		logger.Info("[Sync] Retrying with trimmed context", "new_messages_count", len(req.Messages))
+		logger.Info("[Sync] Retrying with trimmed context",
+			"trigger", trimSummary.Trigger,
+			"before_messages", trimSummary.BeforeMessages,
+			"after_messages", trimSummary.AfterMessages,
+			"leading_system_messages", trimSummary.LeadingSystemMessages,
+			"preserved_last_user_intent", trimSummary.PreservedLastUserIntent,
+			"preserved_latest_tool_result", trimSummary.PreservedLatestToolResult)
 	}
 	return true
+}
+
+func findLastRoleIndex(msgs []openai.ChatCompletionMessage, role string) int {
+	for i := len(msgs) - 1; i >= 0; i-- {
+		if msgs[i].Role == role {
+			return i
+		}
+	}
+	return -1
+}
+
+func findLastMeaningfulUserMessage(msgs []openai.ChatCompletionMessage) (openai.ChatCompletionMessage, bool) {
+	for i := len(msgs) - 1; i >= 0; i-- {
+		if msgs[i].Role == openai.ChatMessageRoleUser && strings.TrimSpace(msgs[i].Content) != "" {
+			return msgs[i], true
+		}
+	}
+	return openai.ChatCompletionMessage{}, false
+}
+
+func findLastRoleMessage(msgs []openai.ChatCompletionMessage, role string) (openai.ChatCompletionMessage, bool) {
+	for i := len(msgs) - 1; i >= 0; i-- {
+		if msgs[i].Role == role {
+			return msgs[i], true
+		}
+	}
+	return openai.ChatCompletionMessage{}, false
+}
+
+func messageSliceContains(msgs []openai.ChatCompletionMessage, target openai.ChatCompletionMessage) bool {
+	for _, msg := range msgs {
+		if reflect.DeepEqual(msg, target) {
+			return true
+		}
+	}
+	return false
+}
+
+func countLeadingSystemMessages(msgs []openai.ChatCompletionMessage) int {
+	count := 0
+	for count < len(msgs) && msgs[count].Role == openai.ChatMessageRoleSystem {
+		count++
+	}
+	return count
+}
+
+func summarizeRecoveryTrim(trigger string, original, trimmed []openai.ChatCompletionMessage) recoveryTrimSummary {
+	summary := recoveryTrimSummary{
+		Trigger:               trigger,
+		BeforeMessages:        len(original),
+		AfterMessages:         len(trimmed),
+		LeadingSystemMessages: countLeadingSystemMessages(trimmed),
+	}
+	if lastUser, ok := findLastMeaningfulUserMessage(original); ok {
+		summary.PreservedLastUserIntent = messageSliceContains(trimmed, lastUser)
+	} else {
+		summary.PreservedLastUserIntent = true
+	}
+	if lastTool, ok := findLastRoleMessage(original, openai.ChatMessageRoleTool); ok {
+		summary.PreservedLatestToolResult = messageSliceContains(trimmed, lastTool)
+	} else {
+		summary.PreservedLatestToolResult = true
+	}
+	return summary
 }

@@ -7,6 +7,7 @@ package agent
 import (
 	"encoding/json"
 	"log/slog"
+	"reflect"
 	"regexp"
 	"strings"
 	"sync"
@@ -19,6 +20,16 @@ import (
 var nativeToolNamePattern = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 
 var builtinToolSchemaCache sync.Map
+
+var nativeMalformedArgFieldPatterns = map[string]*regexp.Regexp{
+	"prompt":    regexp.MustCompile(`"prompt"\s*:\s*"((?:[^"\\]|\\.)*)`),
+	"content":   regexp.MustCompile(`"content"\s*:\s*"((?:[^"\\]|\\.)*)`),
+	"query":     regexp.MustCompile(`"query"\s*:\s*"((?:[^"\\]|\\.)*)`),
+	"operation": regexp.MustCompile(`"operation"\s*:\s*"((?:[^"\\]|\\.)*)`),
+	"command":   regexp.MustCompile(`"command"\s*:\s*"((?:[^"\\]|\\.)*)`),
+	"code":      regexp.MustCompile(`"code"\s*:\s*"((?:[^"\\]|\\.)*)`),
+	"skill":     regexp.MustCompile(`"skill"\s*:\s*"((?:[^"\\]|\\.)*)`),
+}
 
 // prop creates a JSON Schema property entry.
 func prop(typ, description string) map[string]interface{} {
@@ -151,6 +162,19 @@ type ToolFeatureFlags struct {
 // already have an explicit additionalProperties value. This preserves intentional
 // open-schema fields like call_webhook.parameters and ldap.attributes.
 func injectAdditionalPropertiesRec(m map[string]interface{}) {
+	injectAdditionalPropertiesRecWithVisited(m, make(map[uintptr]struct{}))
+}
+
+func injectAdditionalPropertiesRecWithVisited(m map[string]interface{}, visited map[uintptr]struct{}) {
+	if len(m) == 0 {
+		return
+	}
+	ptr := reflect.ValueOf(m).Pointer()
+	if _, seen := visited[ptr]; seen {
+		return
+	}
+	visited[ptr] = struct{}{}
+
 	if typ, ok := m["type"]; ok && typ == "object" {
 		// Only set additionalProperties: false if it is not already explicitly set.
 		// An explicit value can be true, false, or a JSON Schema object.
@@ -162,24 +186,36 @@ func injectAdditionalPropertiesRec(m map[string]interface{}) {
 	if props, ok := m["properties"].(map[string]interface{}); ok {
 		for _, v := range props {
 			if child, ok := v.(map[string]interface{}); ok {
-				injectAdditionalPropertiesRec(child)
+				injectAdditionalPropertiesRecWithVisited(child, visited)
 			}
 		}
 	}
 	// Walk items (for arrays of objects)
 	if items, ok := m["items"].(map[string]interface{}); ok {
-		injectAdditionalPropertiesRec(items)
+		injectAdditionalPropertiesRecWithVisited(items, visited)
 	}
 	// Walk anyOf, allOf, oneOf
 	for _, key := range []string{"anyOf", "allOf", "oneOf"} {
 		if arr, ok := m[key].([]interface{}); ok {
 			for _, v := range arr {
 				if child, ok := v.(map[string]interface{}); ok {
-					injectAdditionalPropertiesRec(child)
+					injectAdditionalPropertiesRecWithVisited(child, visited)
 				}
 			}
 		}
 	}
+}
+
+func extractMalformedJSONStringField(rawArgs, key string) string {
+	re, ok := nativeMalformedArgFieldPatterns[key]
+	if !ok {
+		return ""
+	}
+	matches := re.FindStringSubmatch(rawArgs)
+	if len(matches) <= 1 {
+		return ""
+	}
+	return strings.ReplaceAll(strings.ReplaceAll(matches[1], `\"`, `"`), `\\`, `\`)
 }
 
 // NativeToolCallToToolCall converts an OpenAI native ToolCall response to AuraGo's ToolCall struct.
@@ -248,33 +284,26 @@ func NativeToolCallToToolCall(native openai.ToolCall, logger *slog.Logger) ToolC
 		// Fallback 2: for truncated/malformed JSON, extract known string fields via regex.
 		// LLMs occasionally return truncated JSON (e.g. connection reset, token limit).
 		// The beginning of the JSON is usually intact, so we can rescue key fields.
-		extractField := func(key string) string {
-			re := regexp.MustCompile(`"` + regexp.QuoteMeta(key) + `"\s*:\s*"((?:[^"\\]|\\.)*)`)
-			if m := re.FindStringSubmatch(native.Function.Arguments); len(m) > 1 {
-				return strings.ReplaceAll(strings.ReplaceAll(m[1], `\"`, `"`), `\\`, `\`)
-			}
-			return ""
-		}
 		if tc.Prompt == "" {
-			tc.Prompt = extractField("prompt")
+			tc.Prompt = extractMalformedJSONStringField(native.Function.Arguments, "prompt")
 		}
 		if tc.Content == "" {
-			tc.Content = extractField("content")
+			tc.Content = extractMalformedJSONStringField(native.Function.Arguments, "content")
 		}
 		if tc.Query == "" {
-			tc.Query = extractField("query")
+			tc.Query = extractMalformedJSONStringField(native.Function.Arguments, "query")
 		}
 		if tc.Operation == "" {
-			tc.Operation = extractField("operation")
+			tc.Operation = extractMalformedJSONStringField(native.Function.Arguments, "operation")
 		}
 		if tc.Command == "" {
-			tc.Command = extractField("command")
+			tc.Command = extractMalformedJSONStringField(native.Function.Arguments, "command")
 		}
 		if tc.Code == "" {
-			tc.Code = extractField("code")
+			tc.Code = extractMalformedJSONStringField(native.Function.Arguments, "code")
 		}
 		if name == "execute_skill" && tc.Skill == "" {
-			tc.Skill = extractField("skill")
+			tc.Skill = extractMalformedJSONStringField(native.Function.Arguments, "skill")
 		}
 		return tc
 	}
@@ -444,6 +473,7 @@ func BuildNativeToolSchemas(skillsDir string, manifest *tools.Manifest, ff ToolF
 		"type":        "string",
 		"description": "Session task list. '- [x] done' / '- [ ] pending', one per line. Update each call. Empty string if unused.",
 	}
+	builtinTodoNames := builtinToolNameSet(ff)
 	for i := range allTools {
 		if allTools[i].Function == nil || allTools[i].Function.Parameters == nil {
 			continue
@@ -456,17 +486,23 @@ func BuildNativeToolSchemas(skillsDir string, manifest *tools.Manifest, ff ToolF
 		if !ok {
 			continue
 		}
-		props["_todo"] = todoProperty
-		// Add _todo to "required" so strict-mode schemas remain valid.
-		// Tools that already declare a required array get _todo appended;
-		// tools without one get a new required array containing ["_todo"].
-		switch req := params["required"].(type) {
-		case []string:
-			params["required"] = append(req, "_todo")
-		case []interface{}:
-			params["required"] = append(req, "_todo")
-		default:
-			params["required"] = []string{"_todo"}
+		if _, injectTodo := builtinTodoNames[allTools[i].Function.Name]; injectTodo {
+			props["_todo"] = todoProperty
+			// Add _todo to "required" so strict-mode schemas remain valid.
+			// Tools that already declare a required array get _todo appended;
+			// tools without one get a new required array containing ["_todo"].
+			switch req := params["required"].(type) {
+			case []string:
+				if !containsRequiredString(req, "_todo") {
+					params["required"] = append(req, "_todo")
+				}
+			case []interface{}:
+				if !containsRequiredInterfaceString(req, "_todo") {
+					params["required"] = append(req, "_todo")
+				}
+			default:
+				params["required"] = []string{"_todo"}
+			}
 		}
 		// CHANGE LOG 2026-04-11: OpenAI strict mode requires additionalProperties: false
 		// on every object schema. The go-openai library does not auto-add this, so we
@@ -479,4 +515,22 @@ func BuildNativeToolSchemas(skillsDir string, manifest *tools.Manifest, ff ToolF
 	}
 
 	return allTools
+}
+
+func containsRequiredString(items []string, target string) bool {
+	for _, item := range items {
+		if item == target {
+			return true
+		}
+	}
+	return false
+}
+
+func containsRequiredInterfaceString(items []interface{}, target string) bool {
+	for _, item := range items {
+		if value, ok := item.(string); ok && value == target {
+			return true
+		}
+	}
+	return false
 }
