@@ -74,14 +74,21 @@
             vec2 cc = uv - 0.5;
             float aspect = u_res.x / max(u_res.y, 1.0);
             vec2 aspectCC = vec2(cc.x * aspect, cc.y);
+            float rollCenter = fract(t * 0.082 + u_activity * 0.035);
 
             float r2 = dot(aspectCC, aspectCC);
             float bow = 1.0 + r2 * 0.88 + r2 * r2 * 0.18;
             vec2 curved = cc * bow + 0.5;
 
+            float rollBand = exp(-abs(curved.y - rollCenter) * 34.0);
+            float syncSkew =
+                sin(curved.y * 90.0 + t * 5.8) * 0.0014 * u_motion +
+                sin(curved.y * 22.0 - t * 2.4) * 0.0011 * u_motion;
             float lineDrift =
                 sin(curved.y * u_res.y * 0.018 + t * 1.3) * 0.0018 * u_motion * (0.45 + u_activity * 0.8) +
-                (noise(vec2(curved.y * 140.0, t * 1.6)) - 0.5) * 0.002 * u_motion;
+                (noise(vec2(curved.y * 140.0, t * 1.6)) - 0.5) * 0.002 * u_motion +
+                rollBand * (0.0038 + u_activity * 0.0024) * u_motion +
+                syncSkew;
             curved.x += lineDrift;
 
             if (curved.x < 0.0 || curved.x > 1.0 || curved.y < 0.0 || curved.y > 1.0) {
@@ -96,6 +103,8 @@
             float grain = fbm(vec2(curved.x * u_res.x * 0.012, curved.y * u_res.y * 0.018 + t * 0.9));
             float staticNoise = (noise(vec2(curved * u_res * 0.32 + t * 0.6)) - 0.5);
             float signalShimmer = sin((curved.y + grain * 0.04) * 420.0 - t * 15.0) * 0.5 + 0.5;
+            float travelingLine = exp(-abs(curved.y - rollCenter) * 64.0) * (0.18 + u_activity * 0.16);
+            float lineHalo = exp(-abs(curved.y - rollCenter) * 20.0) * (0.08 + u_activity * 0.08);
 
             float dist = length(aspectCC * 1.12);
             float vignette = smoothstep(0.96, 0.2, dist);
@@ -107,7 +116,7 @@
             reflection += exp(-abs(curved.x - 0.76 + sin(t * 0.22) * 0.02) * 20.0) * 0.035;
 
             float phosphorGlow =
-                (0.06 + u_activity * 0.22 + u_theme_pulse * 0.18) *
+                (0.06 + u_activity * 0.22 + u_theme_pulse * 0.18 + travelingLine * 0.34 + lineHalo * 0.14) *
                 smoothstep(0.88, 0.08, dist) *
                 (0.72 + signalShimmer * 0.28);
 
@@ -122,6 +131,7 @@
             vec3 color =
                 phosphor * phosphorGlow * energy * 0.95 +
                 phosphor * staticNoise * 0.02 * vignette +
+                phosphor * travelingLine * 0.12 * vignette +
                 glass * reflection * vignette * 0.08 +
                 amber * fresnel * 0.018 * (0.6 + u_theme_pulse * 0.8);
 
@@ -129,6 +139,7 @@
                 (1.0 - vignette) * 0.22 +
                 phosphorGlow * 0.42 +
                 reflection * 0.18 +
+                travelingLine * 0.12 +
                 grain * 0.035;
             alpha *= corner;
             alpha = clamp(alpha, 0.0, 0.28 + u_activity * 0.05 + u_theme_pulse * 0.04);

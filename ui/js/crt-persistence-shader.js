@@ -46,10 +46,13 @@
             float aspect = u_res.x / max(u_res.y, 1.0);
             vec2 cc = vec2((uv.x - 0.5) * aspect, uv.y - 0.5);
             float dist = length(cc);
+            float rollCenter = fract(t * 0.095 + u_activity * 0.05);
 
             float sweepPos = fract(t * 0.07 + u_activity * 0.09);
             float sweep = band(uv.y, sweepPos, 18.0) * (0.22 + u_activity * 0.68);
             float secondarySweep = band(uv.y, fract(sweepPos + 0.32), 28.0) * u_activity * 0.18;
+            float travelingLine = band(uv.y, rollCenter, 54.0) * (0.1 + u_activity * 0.12);
+            float lineGlow = band(uv.y, rollCenter, 16.0) * (0.06 + u_activity * 0.09);
 
             float degaussRing = exp(-abs(dist - 0.56) * 22.0) * u_theme_pulse;
             float degaussCore = smoothstep(0.42, 0.0, dist) * u_theme_pulse * 0.12;
@@ -64,12 +67,15 @@
             vec3 amber = vec3(0.92, 0.58, 0.18);
 
             vec3 color =
-                phosphor * (sweep + secondarySweep + degaussCore * 0.65) +
+                phosphor * (sweep + secondarySweep + travelingLine + degaussCore * 0.65) +
+                vec3(0.8, 1.0, 0.74) * lineGlow * 0.08 +
                 amber * degaussRing * 0.18;
 
             float alpha =
                 sweep * 0.12 +
                 secondarySweep * 0.06 +
+                travelingLine * 0.08 +
+                lineGlow * 0.08 +
                 degaussRing * 0.11 +
                 degaussCore * 0.08 +
                 edgeSurge;
