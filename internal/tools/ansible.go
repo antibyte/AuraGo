@@ -7,11 +7,13 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -24,6 +26,10 @@ type AnsibleConfig struct {
 
 // ansibleHTTPClient is intentionally generous — playbook runs can take minutes.
 var ansibleHTTPClient = &http.Client{Timeout: 360 * time.Second}
+
+// ansibleClientPool caches per-timeout HTTP clients to avoid creating a new
+// client on every request. Safe for concurrent use via sync.Map.
+var ansibleClientPool sync.Map
 
 // ansibleRequest executes an authenticated HTTP request against the Ansible sidecar.
 func ansibleRequest(cfg AnsibleConfig, method, endpoint string, body interface{}) ([]byte, int, error) {
@@ -51,7 +57,14 @@ func ansibleRequest(cfg AnsibleConfig, method, endpoint string, body interface{}
 
 	client := ansibleHTTPClient
 	if cfg.Timeout > 0 {
-		client = &http.Client{Timeout: time.Duration(cfg.Timeout+60) * time.Second}
+		timeoutKey := cfg.Timeout
+		if cached, ok := ansibleClientPool.Load(timeoutKey); ok {
+			client = cached.(*http.Client)
+		} else {
+			newClient := &http.Client{Timeout: time.Duration(cfg.Timeout+60) * time.Second}
+			ansibleClientPool.Store(timeoutKey, newClient)
+			client = newClient
+		}
 	}
 
 	resp, err := client.Do(req)
@@ -97,7 +110,7 @@ func AnsibleListPlaybooks(cfg AnsibleConfig) string {
 func AnsibleListInventory(cfg AnsibleConfig, inventoryPath string) string {
 	endpoint := "/inventory"
 	if inventoryPath != "" {
-		endpoint += "?inventory=" + inventoryPath
+		endpoint += "?inventory=" + url.QueryEscape(inventoryPath)
 	}
 	data, code, err := ansibleRequest(cfg, "GET", endpoint, nil)
 	return ansibleResult(data, code, err)
@@ -318,10 +331,12 @@ func EnsureAnsibleSidecarRunning(dockerHost string, sidecarCfg AnsibleSidecarCon
 
 	// Build volume binds
 	var binds []string
-	// Mount SSH keys (read-only) so Ansible can reach managed hosts
+	// Mount SSH keys (read-only) so Ansible can reach managed hosts.
+	// The container runs as 'ansibleuser' (UID 1001), so keys must be
+	// mounted into /home/ansibleuser/.ssh — NOT /root/.ssh.
 	sshDir := ansibleSSHDir()
 	if sshDir != "" {
-		binds = append(binds, sshDir+":/root/.ssh:ro")
+		binds = append(binds, sshDir+":/home/ansibleuser/.ssh:ro")
 	}
 	if sidecarCfg.PlaybooksDir != "" {
 		binds = append(binds, sidecarCfg.PlaybooksDir+":/playbooks")
@@ -505,24 +520,32 @@ func AnsibleLocalStatus(cfg AnsibleLocalConfig) string {
 	return ansibleLocalResult(stdout, stderr, err)
 }
 
-// AnsibleLocalListPlaybooks lists *.yml and *.yaml files in PlaybooksDir.
+// AnsibleLocalListPlaybooks lists *.yml and *.yaml files in PlaybooksDir recursively.
+// This matches the sidecar behavior which also uses recursive globbing.
 func AnsibleLocalListPlaybooks(cfg AnsibleLocalConfig) string {
 	dir := cfg.PlaybooksDir
 	if dir == "" {
 		return `{"status":"error","message":"ansible.playbooks_dir is not configured"}`
 	}
-	patterns := []string{
-		filepath.Join(dir, "*.yml"),
-		filepath.Join(dir, "*.yaml"),
-	}
 	var files []string
-	for _, p := range patterns {
-		matches, err := filepath.Glob(p)
-		if err == nil {
-			for _, m := range matches {
-				files = append(files, filepath.Base(m))
+	err := filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return nil // skip unreadable entries
+		}
+		if d.IsDir() {
+			return nil
+		}
+		name := d.Name()
+		if strings.HasSuffix(name, ".yml") || strings.HasSuffix(name, ".yaml") {
+			rel, relErr := filepath.Rel(dir, path)
+			if relErr == nil {
+				files = append(files, rel)
 			}
 		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Sprintf(`{"status":"error","message":"failed to scan playbooks dir: %s"}`, err)
 	}
 	b, _ := json.Marshal(map[string]interface{}{"status": "ok", "playbooks": files, "directory": dir})
 	return string(b)
@@ -648,9 +671,10 @@ func AnsibleLocalGatherFacts(cfg AnsibleLocalConfig, hosts, inventoryPath string
 		args = append(args, "-i", inv)
 	}
 	stdout, stderr, err := ansibleRunCmd(cfg.Timeout, "ansible", args...)
-	// Truncate large fact output to avoid overwhelming the context window
-	if len(stdout) > 16384 {
-		stdout = truncateUTF8Safe(stdout, 16384) + "\n... [truncated]"
+	// Truncate large fact output to 8 KB to match sidecar behavior and avoid
+	// overwhelming the context window.
+	if len(stdout) > 8192 {
+		stdout = truncateUTF8Safe(stdout, 8192) + "\n... [truncated]"
 	}
 	return ansibleLocalResult(stdout, stderr, err)
 }

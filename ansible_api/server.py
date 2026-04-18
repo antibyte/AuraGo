@@ -18,8 +18,11 @@ Endpoints:
 import glob
 import json
 import os
+import signal
 import subprocess
+import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from socketserver import ThreadingMixIn
 from urllib.parse import parse_qs, urlparse
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -30,6 +33,7 @@ PLAYBOOKS_DIR     = os.environ.get("PLAYBOOKS_DIR", "/playbooks")
 DEFAULT_INVENTORY = os.environ.get("DEFAULT_INVENTORY", "/inventory/hosts")
 ANSIBLE_TIMEOUT   = int(os.environ.get("ANSIBLE_TIMEOUT", "300"))
 PORT              = int(os.environ.get("PORT", "5001"))
+MAX_BODY_SIZE     = int(os.environ.get("MAX_BODY_SIZE", str(2 * 1024 * 1024)))  # 2 MB default
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Helpers
@@ -94,6 +98,28 @@ def extra_vars_arg(extra_vars) -> str | None:
     return str(extra_vars)
 
 
+def safe_playbook_path(playbook: str) -> str | None:
+    """Resolve a playbook name to an absolute path inside PLAYBOOKS_DIR.
+
+    Returns None if the path escapes PLAYBOOKS_DIR (path traversal).
+    """
+    if not playbook:
+        return None
+    # Reject absolute paths that don't live under PLAYBOOKS_DIR
+    if os.path.isabs(playbook):
+        real = os.path.realpath(playbook)
+        base = os.path.realpath(PLAYBOOKS_DIR)
+        if not real.startswith(base + os.sep) and real != base:
+            return None
+        return real
+    # Relative path — join and verify it stays inside PLAYBOOKS_DIR
+    joined = os.path.realpath(os.path.join(PLAYBOOKS_DIR, playbook))
+    base = os.path.realpath(PLAYBOOKS_DIR)
+    if not joined.startswith(base + os.sep) and joined != base:
+        return None
+    return joined
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # HTTP Handler
 # ──────────────────────────────────────────────────────────────────────────────
@@ -114,12 +140,15 @@ class Handler(BaseHTTPRequestHandler):
 
     def read_json_body(self) -> dict:
         length = int(self.headers.get("Content-Length", 0))
-        if length > 0:
-            try:
-                return json.loads(self.rfile.read(length))
-            except Exception:
-                pass
-        return {}
+        if length <= 0:
+            return {}
+        if length > MAX_BODY_SIZE:
+            self.send_json(413, {"status": "error", "message": f"Request body too large (max {MAX_BODY_SIZE} bytes)"})
+            return {}
+        try:
+            return json.loads(self.rfile.read(length))
+        except Exception:
+            return {}
 
     def require_auth(self) -> bool:
         """Send 401 and return False if auth fails."""
@@ -222,8 +251,10 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(400, {"status": "error", "message": "'playbook' field is required"})
             return
 
-        if not os.path.isabs(playbook):
-            playbook = os.path.join(PLAYBOOKS_DIR, playbook)
+        playbook = safe_playbook_path(playbook)
+        if playbook is None:
+            self.send_json(400, {"status": "error", "message": "Playbook path is invalid or escapes the playbooks directory"})
+            return
 
         inv  = inventory_arg(body)
         cmd  = ["ansible-playbook", playbook, "-i", inv]
@@ -261,6 +292,16 @@ class Handler(BaseHTTPRequestHandler):
 
 
 # ──────────────────────────────────────────────────────────────────────────────
+# Threaded HTTP Server
+# ──────────────────────────────────────────────────────────────────────────────
+
+class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
+    """Handle each request in a separate thread so long-running playbook runs
+    do not block other requests (e.g. /status health checks)."""
+    daemon_threads = True
+
+
+# ──────────────────────────────────────────────────────────────────────────────
 # Entry point
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -268,7 +309,18 @@ if __name__ == "__main__":
     print(f"[ansible-api] Starting on 0.0.0.0:{PORT}", flush=True)
     print(f"[ansible-api] Playbooks : {PLAYBOOKS_DIR}", flush=True)
     print(f"[ansible-api] Inventory : {DEFAULT_INVENTORY}", flush=True)
+    print(f"[ansible-api] Max body  : {MAX_BODY_SIZE} bytes", flush=True)
     if not TOKEN:
         print("[ansible-api] WARNING: ANSIBLE_API_TOKEN not set — API is unauthenticated!", flush=True)
-    server = HTTPServer(("0.0.0.0", PORT), Handler)
+
+    server = ThreadedHTTPServer(("0.0.0.0", PORT), Handler)
+
+    # Graceful shutdown on SIGTERM / SIGINT
+    def _shutdown(signum, frame):
+        print("[ansible-api] Shutting down …", flush=True)
+        threading.Thread(target=server.shutdown).start()
+
+    signal.signal(signal.SIGTERM, _shutdown)
+    signal.signal(signal.SIGINT, _shutdown)
+
     server.serve_forever()

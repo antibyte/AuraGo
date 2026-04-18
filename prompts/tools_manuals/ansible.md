@@ -143,7 +143,7 @@ Uncomment the `ansible:` service block, then mount your playbooks and inventory:
 
 - `./ansible/playbooks` → `/playbooks`
 - `./ansible/inventory` → `/inventory`
-- `~/.ssh` → `/root/.ssh:ro`
+- `~/.ssh` → `/home/ansibleuser/.ssh:ro` (container runs as `ansibleuser`, not `root`)
 
 ```yaml
 ansible:
@@ -174,5 +174,7 @@ ansible:
 - In **local mode**, `inventory` parameter overrides `default_inventory` per request.
 - In **sidecar mode**, `inventory` parameter overrides the sidecar's `DEFAULT_INVENTORY` per request.
 - Playbook run output (stdout/stderr) is returned as-is from the ansible CLI.
-- Facts output is trimmed to 16 KB to avoid overwhelming the context window.
+- Facts output is trimmed to 8 KB to avoid overwhelming the context window.
+- Playbook paths are validated to prevent directory traversal (sidecar mode).
+- Playbooks are listed recursively in both local and sidecar modes.
 - `ansible.timeout` applies to both modes as the maximum seconds per command.
