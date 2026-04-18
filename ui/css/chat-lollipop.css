@@ -6,11 +6,11 @@
     --accent-warm: #f7c57b;
     --accent-dim: rgba(239, 131, 188, 0.16);
     --accent-glow: rgba(239, 131, 188, 0.18);
-    --bg-primary: #fff7fb;
-    --bg-secondary: rgba(255, 251, 255, 0.92);
-    --bg-tertiary: rgba(255, 241, 250, 0.96);
-    --bg-glass: linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(255, 243, 250, 0.86));
-    --header-bg: rgba(255, 245, 251, 0.88);
+    --bg-primary: #f6e4ed;
+    --bg-secondary: rgba(249, 238, 245, 0.94);
+    --bg-tertiary: rgba(245, 225, 237, 0.96);
+    --bg-glass: linear-gradient(180deg, rgba(252, 244, 248, 0.9), rgba(243, 226, 236, 0.9));
+    --header-bg: rgba(248, 233, 242, 0.9);
     --modal-bg: rgba(121, 83, 108, 0.16);
     --modal-surface: rgba(255, 250, 254, 0.98);
     --modal-border: rgba(235, 171, 208, 0.45);
@@ -49,10 +49,10 @@
 
 [data-theme="lollipop"] body {
     background:
-        radial-gradient(circle at 12% 12%, rgba(255, 205, 229, 0.56), transparent 24%),
-        radial-gradient(circle at 86% 10%, rgba(212, 195, 255, 0.42), transparent 22%),
-        radial-gradient(circle at 50% 100%, rgba(196, 244, 223, 0.32), transparent 28%),
-        linear-gradient(180deg, #fffafc 0%, #fff4f9 48%, #fff8ef 100%);
+        radial-gradient(circle at 12% 12%, rgba(245, 183, 216, 0.62), transparent 24%),
+        radial-gradient(circle at 86% 10%, rgba(206, 185, 245, 0.42), transparent 22%),
+        radial-gradient(circle at 50% 100%, rgba(196, 244, 223, 0.22), transparent 28%),
+        linear-gradient(180deg, #f8eaf2 0%, #f3dfe9 48%, #f7e5dd 100%);
     color: var(--text-primary);
 }
 
@@ -178,19 +178,19 @@
     position: relative;
     z-index: 1;
     background:
-        radial-gradient(circle at 18% 14%, rgba(249, 182, 215, 0.34), transparent 22%),
-        radial-gradient(circle at 84% 18%, rgba(204, 183, 248, 0.26), transparent 20%),
-        radial-gradient(circle at 50% 100%, rgba(196, 244, 223, 0.18), transparent 26%),
-        linear-gradient(180deg, #fdf0f6 0%, #f8e6ef 100%);
+        radial-gradient(circle at 18% 14%, rgba(241, 165, 203, 0.42), transparent 22%),
+        radial-gradient(circle at 84% 18%, rgba(196, 172, 240, 0.28), transparent 20%),
+        radial-gradient(circle at 50% 100%, rgba(196, 244, 223, 0.14), transparent 26%),
+        linear-gradient(180deg, #f5dfe9 0%, #eed0dc 100%);
 }
 
 [data-theme="lollipop"] #chat-box::before {
     display: block;
     background: linear-gradient(180deg,
-        rgba(255, 241, 248, 0.2) 0%,
+        rgba(249, 227, 238, 0.24) 0%,
         transparent 16%,
         transparent 86%,
-        rgba(255, 232, 241, 0.18) 100%);
+        rgba(244, 212, 227, 0.22) 100%);
     opacity: 1;
 }
 

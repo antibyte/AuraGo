@@ -107,19 +107,19 @@
         void main() {
             vec2 uv = v_uv;
             float t = u_time;
-            float edgeMask = pow(smoothstep(0.18, 0.92, abs(uv.x - 0.5) * 2.0), 1.08);
+            float edgeMask = pow(smoothstep(0.06, 1.0, abs(uv.x - 0.5) * 2.0), 0.9);
 
             vec4 leftSun = renderSun(
                 uv,
-                vec2(-0.18 + sin(t * 0.08) * 0.012, 0.27 + sin(t * 0.19) * 0.024),
-                0.19,
+                vec2(-0.08 + sin(t * 0.08) * 0.014, 0.28 + sin(t * 0.19) * 0.026),
+                0.29,
                 0.15,
                 -1.0
             );
             vec4 rightSun = renderSun(
                 uv,
-                vec2(1.18 + cos(t * 0.07) * 0.012, 0.69 + cos(t * 0.17) * 0.022),
-                0.23,
+                vec2(1.08 + cos(t * 0.07) * 0.014, 0.7 + cos(t * 0.17) * 0.024),
+                0.34,
                 1.9,
                 1.0
             );
@@ -130,17 +130,17 @@
             float ember = smoothstep(0.986, 1.0, emberSeed) * edgeMask;
 
             vec3 emberColor = vec3(1.0, 0.62, 0.22);
-            vec3 hazeColor = vec3(0.96, 0.28, 0.08) * haze * edgeMask * 0.08;
+            vec3 hazeColor = vec3(0.96, 0.28, 0.08) * haze * edgeMask * 0.14;
 
             vec3 color =
                 (leftSun.rgb + rightSun.rgb) * edgeMask +
                 hazeColor +
-                emberColor * ember * 0.82;
+                emberColor * ember * 1.15;
 
             float alpha =
-                (leftSun.a + rightSun.a) * edgeMask +
-                haze * edgeMask * 0.05 +
-                ember * 0.13;
+                (leftSun.a + rightSun.a) * edgeMask * 1.28 +
+                haze * edgeMask * 0.1 +
+                ember * 0.18;
 
             float bounds =
                 smoothstep(0.0, 0.05, uv.x) *
