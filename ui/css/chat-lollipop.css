@@ -28,8 +28,8 @@
     --user-bubble: linear-gradient(145deg, #f7a8d0, #f6c58d);
     --user-bubble-tail: #f6c58d;
     --user-bubble-shadow: rgba(230, 92, 165, 0.2);
-    --bot-bubble: linear-gradient(180deg, rgba(255, 247, 253, 0.98), rgba(239, 227, 250, 0.99));
-    --bot-bubble-tail: rgba(239, 227, 250, 0.99);
+    --bot-bubble: var(--user-bubble);
+    --bot-bubble-tail: var(--user-bubble-tail);
     --surface-shadow: 0 18px 40px rgba(179, 108, 145, 0.2);
     --surface-shadow-strong: 0 24px 58px rgba(179, 108, 145, 0.28);
     --surface-highlight: rgba(255, 255, 255, 0.72);
