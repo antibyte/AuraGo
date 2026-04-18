@@ -5,6 +5,11 @@
            CHAT THEME PICKER
            ═══════════════════════════════════════════════════════════════ */
 
+        :root {
+            --chat-lane-max-width: 52rem;
+            --chat-bubble-max-width: min(80%, 38rem);
+        }
+
         .chat-theme-picker {
             position: relative;
             display: inline-flex;
@@ -495,7 +500,7 @@
         }
 
         #chat-content {
-            max-width: 52rem;
+            max-width: var(--chat-lane-max-width);
             margin: 0 auto;
             padding: 1.5rem 1rem 2rem 1rem;
             display: flex;
@@ -570,7 +575,7 @@
         .bubble {
             position: relative;
             padding: 0.8rem 1rem;
-            max-width: min(80%, 38rem);
+            max-width: var(--chat-bubble-max-width);
             line-height: 1.6;
             font-size: 0.9rem;
             word-wrap: break-word;
@@ -1836,7 +1841,7 @@
             display: flex;
             align-items: center;
             gap: 0.75rem;
-            max-width: 52rem;
+            max-width: var(--chat-lane-max-width);
             margin: 0 auto;
             padding: 0.5rem 1rem;
             position: relative;
@@ -1987,7 +1992,7 @@
         }
 
         .input-row {
-            max-width: 52rem;
+            max-width: var(--chat-lane-max-width);
             margin: 0 auto;
             display: flex;
             gap: 0.35rem;
@@ -2392,7 +2397,7 @@
         }
 
         .attachment-chip {
-            max-width: 52rem;
+            max-width: var(--chat-lane-max-width);
             margin: 0;
             align-items: center;
             gap: 6px;
@@ -2430,7 +2435,7 @@
         }
 
         .attachments-panel {
-            max-width: 52rem;
+            max-width: var(--chat-lane-max-width);
             min-width: 18rem;
             background: color-mix(in srgb, var(--bg-secondary, #111827) 92%, var(--accent-dim) 8%);
             border: 1px solid var(--border-accent);
@@ -3181,7 +3186,7 @@
         /* Tablet and above (≥ 768px) */
         @media (min-width: 768px) {
             .bubble {
-                max-width: min(80%, 38rem);
+                max-width: var(--chat-bubble-max-width);
             }
 
             /* ── Desktop inline tool buttons in footer ── */
@@ -3251,6 +3256,19 @@
             /* Stop button stays compact but keeps danger styling */
             .composer-panel .composer-tool-btn-danger {
                 border-radius: 10px;
+            }
+        }
+
+        @media (min-width: 960px) {
+            :root {
+                --chat-lane-max-width: min(70vw, 88rem);
+                --chat-bubble-max-width: calc(100% - 4.75rem);
+            }
+
+            #chat-content,
+            #agentStatusContainer,
+            .input-row {
+                width: min(100%, var(--chat-lane-max-width));
             }
         }
 
