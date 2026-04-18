@@ -1,4 +1,4 @@
-/* AuraGo – index page styles */
+﻿/* AuraGo – index page styles */
 /* Extracted from index.html */
 
         /* ═══════════════════════════════════════════════════════════════
@@ -3505,13 +3505,16 @@
     background: rgba(30, 41, 59, 0.7);
 }
 
+
+
 /* ═══════════════════════════════════════════════════════════════════════
-   RETRO CRT THEME — Retro terminal green phosphor display
+   RETRO CRT THEME — Green phosphor monitor simulation
+   Global CSS filter converts entire page to monochrome green.
+   Full-page overlay adds authentic CRT scanlines & vignette.
    ═══════════════════════════════════════════════════════════════════════ */
 
 /* ── CRT Design Tokens ── */
 [data-theme="retro-crt"] {
-    /* Phosphor green luminance palette — adjusted for better contrast */
     --crt-bright:   #5fff3a;
     --crt-medium:   #2dde0c;
     --crt-dim:      #128a06;
@@ -3524,805 +3527,115 @@
     --crt-text:     #4dff28;
     --crt-text-dim: #2aad08;
     --crt-text-muted: #166004;
-    --crt-scanline: rgba(0, 0, 0, 0.1);
-    --crt-noise:    rgba(95, 255, 58, 0.04);
-
-    /* Map CRT tokens to theme variables */
-    --bg-primary:    var(--crt-bg);
-    --bg-secondary:   var(--crt-surface);
-    --bg-glass:      rgba(5, 15, 4, 0.85);
-    --bg-glass-hover: rgba(15, 40, 10, 0.9);
-    --bg-glass-active: rgba(20, 60, 15, 0.95);
-    --bg-glass-hover: rgba(15, 40, 10, 0.9);
-    --bg-glass-active: rgba(20, 60, 15, 0.95);
-    --text-primary:  var(--crt-text);
-    --text-secondary: var(--crt-text-dim);
-    --text-muted:    var(--crt-text-muted);
-    --border-subtle: var(--crt-border);
-    --border-accent: var(--crt-medium);
-    --accent:        var(--crt-bright);
-    --accent-secondary: var(--crt-medium);
-    --accent-dim:    var(--crt-glow);
-    --modal-surface: rgba(3, 10, 2, 0.96);
-    --shadow-color:  rgba(0, 0, 0, 0.8);
 
     color-scheme: dark;
 }
 
-/* ── CRT Base Surface ── */
+/* ── GLOBAL GREEN MONOCHROME FILTER ────────────────────────────────────
+   One filter on <body> converts ALL content to phosphor green.
+   No white, no colors — only green luminance levels.
+   This handles logo, icons, emojis, text, backgrounds, borders — everything. */
 [data-theme="retro-crt"] body {
-    background-color: var(--crt-bg);
+    background-color: #000;
+    filter: grayscale(100%) sepia(100%) hue-rotate(80deg) saturate(4) brightness(1.15);
 }
 
-/* ── CRT Header ── */
-[data-theme="retro-crt"] .app-header {
-    background-color: var(--crt-surface);
-    border-bottom-color: var(--crt-border);
+/* ── FULL-PAGE CRT OVERLAY ─────────────────────────────────────────────
+   Applied on html::after so it sits OUTSIDE body's filter context.
+   Scanlines & vignette remain pure black, not color-shifted. */
+html[data-theme="retro-crt"]::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 999999;
+    background:
+        /* Layer 1: Scanlines — visible horizontal dark lines */
+        repeating-linear-gradient(
+            to bottom,
+            transparent 0px,
+            transparent 1px,
+            rgba(0, 0, 0, 0.4) 1px,
+            rgba(0, 0, 0, 0.4) 2px
+        ),
+        /* Layer 2: Vignette — dark edges, clear center */
+        radial-gradient(
+            ellipse at 50% 50%,
+            transparent 35%,
+            rgba(0, 0, 0, 0.12) 55%,
+            rgba(0, 0, 0, 0.4) 75%,
+            rgba(0, 0, 0, 0.8) 100%
+        );
 }
 
-[data-theme="retro-crt"] .app-header::after {
-    background: linear-gradient(90deg,
-        transparent 0%,
-        var(--crt-medium) 20%,
-        var(--crt-bright) 50%,
-        var(--crt-medium) 80%,
-        transparent 100%);
-    opacity: 0.4;
+/* ── CRT Inner Shadow (screen bezel effect) ── */
+html[data-theme="retro-crt"]::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 999998;
+    box-shadow:
+        inset 0 0 80px rgba(0, 0, 0, 0.5),
+        inset 0 0 180px rgba(0, 0, 0, 0.25);
+    border-radius: 8px;
 }
 
-[data-theme="retro-crt"] .logo span:first-of-type {
-    background: linear-gradient(135deg, var(--crt-bright), var(--crt-medium));
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    text-shadow: 0 0 20px var(--crt-glow);
+/* ── CRT Subtle Flicker Animation ── */
+@keyframes crt-flicker {
+    0%   { opacity: 0.985; }
+    3%   { opacity: 1; }
+    6%   { opacity: 0.975; }
+    9%   { opacity: 1; }
+    50%  { opacity: 0.99; }
+    53%  { opacity: 1; }
+    100% { opacity: 0.985; }
 }
 
-/* ── CRT Header Actions ── */
-[data-theme="retro-crt"] .chat-theme-btn {
-    background: var(--crt-dark);
-    border-color: var(--crt-border);
-    color: var(--crt-bright);
-    box-shadow: 0 0 6px var(--crt-glow);
+[data-theme="retro-crt"] body {
+    animation: crt-flicker 0.12s infinite;
 }
 
-[data-theme="retro-crt"] .chat-theme-btn:hover {
-    background: var(--crt-dim);
-    border-color: var(--crt-medium);
-    box-shadow: 0 0 12px var(--crt-glow-strong);
-}
-
-[data-theme="retro-crt"] .chat-theme-dropdown {
-    background: var(--crt-surface);
-    border-color: var(--crt-border);
-    box-shadow: 0 0 16px var(--crt-glow);
-}
-
-[data-theme="retro-crt"] .chat-theme-option {
-    color: var(--crt-text);
-}
-
-[data-theme="retro-crt"] .chat-theme-option:hover {
-    background: var(--crt-dark);
-}
-
-[data-theme="retro-crt"] .chat-theme-option.active {
-    background: var(--crt-dim);
-    color: var(--crt-bright);
-}
-
-/* Old .btn-theme (if still referenced anywhere) */
-[data-theme="retro-crt"] .btn-theme {
-    background: var(--crt-dark);
-    border-color: var(--crt-border);
-    color: var(--crt-bright);
-}
-
-[data-theme="retro-crt"] .btn-theme::after {
-    color: var(--crt-bright);
-}
-
-[data-theme="retro-crt"] .btn-theme:hover {
-    background: var(--crt-dim);
-    border-color: var(--crt-medium);
-    transform: none;
-}
-
-[data-theme="retro-crt"] .btn-session-toggle,
-[data-theme="retro-crt"] .btn-speaker {
-    background: none;
-    color: var(--crt-text-dim);
-}
-
-[data-theme="retro-crt"] .btn-session-toggle:hover,
-[data-theme="retro-crt"] .btn-speaker:hover {
-    background: var(--crt-dark);
-    color: var(--crt-text);
-}
-
-[data-theme="retro-crt"] .select-personality {
-    background: var(--crt-dark);
-    border-color: var(--crt-border);
-    color: var(--crt-text-dim);
-}
-
-[data-theme="retro-crt"] .select-personality:hover {
-    border-color: var(--crt-medium);
-    color: var(--crt-text);
-}
-
-[data-theme="retro-crt"] .select-personality:focus {
-    border-color: var(--crt-medium);
-    box-shadow: 0 0 8px var(--crt-glow);
-}
-
-[data-theme="retro-crt"] .personality-chevron {
-    color: var(--crt-text-dim);
-}
-
-[data-theme="retro-crt"] .mood-toggle {
-    background: var(--crt-dark);
-    border-color: var(--crt-border);
-    color: var(--crt-text-dim);
-}
-
-[data-theme="retro-crt"] .mood-toggle:hover {
-    border-color: var(--crt-medium);
-    color: var(--crt-text);
-}
-
-[data-theme="retro-crt"] .mood-panel {
-    background: var(--crt-surface);
-    border-color: var(--crt-border);
-    box-shadow: 0 0 16px var(--crt-glow);
-}
-
-[data-theme="retro-crt"] .pill {
-    background: var(--crt-dark);
-    border-color: var(--crt-border);
-    color: var(--crt-text-dim);
-}
-
-[data-theme="retro-crt"] .pill-active {
-    background: var(--crt-dark);
-    border-color: var(--crt-medium);
-    color: var(--crt-bright);
-    box-shadow: 0 0 8px var(--crt-glow);
-}
-
-[data-theme="retro-crt"] .pill-tokens {
-    color: var(--crt-text-dim);
-}
-
-[data-theme="retro-crt"] .debug-pill {
-    background: var(--crt-dark);
-    border-color: var(--crt-border);
-    color: var(--crt-text-muted);
-}
-
-[data-theme="retro-crt"] .warnings-btn {
-    color: var(--crt-text-dim);
-}
-
-[data-theme="retro-crt"] .warnings-btn:hover {
-    color: var(--crt-text);
-    background: var(--crt-dark);
-}
-
-[data-theme="retro-crt"] .connection-pill {
-    background: var(--crt-dark);
-    border-color: var(--crt-border);
-    color: var(--crt-text-dim);
-}
-
-[data-theme="retro-crt"] .logout-btn {
-    color: var(--crt-text-dim);
-}
-
-[data-theme="retro-crt"] .logout-btn:hover {
-    color: var(--crt-text);
-    background: var(--crt-dark);
-}
-
-/* ── CRT btn-header (for logout and other header buttons) ── */
-[data-theme="retro-crt"] .btn-header {
-    background: var(--crt-dark);
-    border-color: var(--crt-border);
-    color: var(--crt-text-dim);
-}
-
-[data-theme="retro-crt"] .btn-header:hover {
-    background: var(--crt-dim);
-    border-color: var(--crt-medium);
-    color: var(--crt-text);
-}
-
-/* ── CRT Emoji Buttons (session, speaker, warnings, mood) ── */
-[data-theme="retro-crt"] .btn-session-toggle,
-[data-theme="retro-crt"] .btn-speaker,
-[data-theme="retro-crt"] .warnings-btn,
-[data-theme="retro-crt"] .mood-toggle {
-    color: var(--crt-text-dim);
-}
-
-[data-theme="retro-crt"] .btn-session-toggle:hover,
-[data-theme="retro-crt"] .btn-speaker:hover {
-    background: var(--crt-dark);
-    color: var(--crt-text);
-}
-
-[data-theme="retro-crt"] .warnings-btn:hover {
-    background: var(--crt-dark);
-    color: var(--crt-text);
-}
-
-/* ── CRT Emoji Icons inside buttons ── */
-[data-theme="retro-crt"] .warnings-icon,
-[data-theme="retro-crt"] .mood-emoji,
-[data-theme="retro-crt"] .mood-emoji-lg,
-[data-theme="retro-crt"] .logo-icon {
-    color: var(--crt-text);
-}
-
-/* ── CRT Mood chevron and text ── */
-[data-theme="retro-crt"] .mood-chevron,
-[data-theme="retro-crt"] #moodText {
-    color: var(--crt-text-dim);
-}
-
-/* ── CRT Additional Header Elements ── */
-[data-theme="retro-crt"] .chat-theme-icon {
-    color: var(--crt-text);
-}
-
-[data-theme="retro-crt"] .credits-pill-action,
-[data-theme="retro-crt"] .warnings-badge {
-    color: var(--crt-text);
-    background: var(--crt-dark);
-}
-
-/* ── CRT Footer ── */
-[data-theme="retro-crt"] .app-footer {
-    background-color: var(--crt-surface);
-    border-top-color: var(--crt-border);
-}
-
-/* ── CRT Chat Area ── */
-[data-theme="retro-crt"] #chat-box {
-    background-color: var(--crt-bg);
-    background-image: none;
-}
-
-/* ── CRT Messages ── */
+/* ── CRT Phosphor Text Glow ── */
 [data-theme="retro-crt"] .bubble {
-    background: rgba(5, 20, 5, 0.9);
-    border: 1px solid var(--crt-dim);
-    color: var(--crt-text);
+    text-shadow: 0 0 8px rgba(95, 255, 58, 0.35);
     border-radius: 4px;
-    box-shadow: 0 0 12px var(--crt-glow), inset 0 0 8px rgba(95, 255, 58, 0.03);
-    text-shadow: 0 0 6px var(--crt-glow);
-}
-
-[data-theme="retro-crt"] .bubble.user {
-    background: rgba(10, 35, 8, 0.95);
-    border-color: var(--crt-medium);
-    box-shadow: 0 0 8px rgba(0, 0, 0, 0.5), inset 0 0 6px rgba(95, 255, 58, 0.04);
-    color: var(--crt-text);
-}
-
-[data-theme="retro-crt"] .bubble.bot {
-    background: rgba(5, 20, 5, 0.9);
-    border-color: var(--crt-dim);
-    box-shadow: 0 0 16px var(--crt-glow), inset 0 0 10px rgba(95, 255, 58, 0.03);
-}
-
-/* ── CRT Emoji / Icon green filter ── */
-[data-theme="retro-crt"] .logo-icon,
-[data-theme="retro-crt"] .mood-emoji,
-[data-theme="retro-crt"] .mood-emoji-lg,
-[data-theme="retro-crt"] .warnings-icon,
-[data-theme="retro-crt"] .avatar,
-[data-theme="retro-crt"] .greeting-icon,
-[data-theme="retro-crt"] .floating-icon,
-[data-theme="retro-crt"] .queue-item-icon,
-[data-theme="retro-crt"] .drag-drop-icon,
-[data-theme="retro-crt"] .composer-tool-btn,
-[data-theme="retro-crt"] .btn-session-toggle,
-[data-theme="retro-crt"] .btn-speaker,
-[data-theme="retro-crt"] .chat-theme-icon,
-[data-theme="retro-crt"] .chat-theme-option-icon {
-    filter: grayscale(100%) brightness(1.8) sepia(100%) hue-rotate(70deg) saturate(2.5);
-}
-
-/* ── CRT Footer emoji filter ── */
-[data-theme="retro-crt"] .app-footer .composer-tool-btn,
-[data-theme="retro-crt"] .app-footer .btn-send,
-[data-theme="retro-crt"] .app-footer .btn-upload,
-[data-theme="retro-crt"] .app-footer .btn-more {
-    filter: grayscale(100%) brightness(1.8) sepia(100%) hue-rotate(70deg) saturate(2.5);
-}
-
-/* ── CRT Text & Typography ── */
-[data-theme="retro-crt"] p,
-[data-theme="retro-crt"] li,
-[data-theme="retro-crt"] span {
-    color: var(--crt-text);
-}
-
-[data-theme="retro-crt"] a {
-    color: var(--crt-bright);
-    text-decoration: underline;
-    text-decoration-color: var(--crt-dim);
 }
 
 [data-theme="retro-crt"] h1,
 [data-theme="retro-crt"] h2,
 [data-theme="retro-crt"] h3,
 [data-theme="retro-crt"] h4 {
-    color: var(--crt-bright);
-    text-shadow: 0 0 12px var(--crt-glow-strong), 0 0 30px rgba(95, 255, 58, 0.2);
+    text-shadow: 0 0 12px rgba(95, 255, 58, 0.5), 0 0 30px rgba(95, 255, 58, 0.2);
 }
 
-/* CRT glow on bright text elements */
-[data-theme="retro-crt"] h1,
-[data-theme="retro-crt"] h2,
-[data-theme="retro-crt"] h3,
-[data-theme="retro-crt"] h4,
-[data-theme="retro-crt"] .bubble.bot,
-[data-theme="retro-crt"] strong,
-[data-theme="retro-crt"] em {
-    text-shadow: 0 0 10px var(--crt-glow), 0 0 24px rgba(95, 255, 58, 0.25);
-}
-
-/* ── CRT Code Blocks ── */
+/* ── CRT Code Blocks — monospace terminal feel ── */
 [data-theme="retro-crt"] .code-block,
 [data-theme="retro-crt"] pre,
 [data-theme="retro-crt"] code {
-    background: var(--crt-dark) !important;
-    border: 1px solid var(--crt-border);
-    color: var(--crt-bright) !important;
     border-radius: 4px;
-    box-shadow: 0 0 10px var(--crt-glow);
     font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
 }
 
-[data-theme="retro-crt"] .code-header {
-    background: var(--crt-dark);
-    border-bottom-color: var(--crt-border);
-    color: var(--crt-text-dim);
-}
-
-/* CRT highlight.js overrides — keep syntax readable on phosphor green */
-[data-theme="retro-crt"] .hljs {
-    background: var(--crt-dark) !important;
-    color: var(--crt-bright) !important;
-}
-
-[data-theme="retro-crt"] .hljs-keyword,
-[data-theme="retro-crt"] .hljs-selector-tag,
-[data-theme="retro-crt"] .hljs-built_in {
-    color: var(--crt-bright);
-    text-shadow: 0 0 6px var(--crt-glow-strong);
-}
-
-[data-theme="retro-crt"] .hljs-string,
-[data-theme="retro-crt"] .hljs-attr {
-    color: var(--crt-medium);
-}
-
-[data-theme="retro-crt"] .hljs-comment {
-    color: var(--crt-text-muted);
-    font-style: italic;
-}
-
-[data-theme="retro-crt"] .hljs-number,
-[data-theme="retro-crt"] .hljs-literal {
-    color: var(--crt-bright);
-}
-
-[data-theme="retro-crt"] .hljs-function,
-[data-theme="retro-crt"] .hljs-title {
-    color: var(--crt-bright);
-    text-shadow: 0 0 8px var(--crt-glow-strong);
-}
-
-/* ── CRT Composer / Input ── */
-[data-theme="retro-crt"] #chat-form,
-[data-theme="retro-crt"] .input-wrap {
-    background-color: var(--crt-surface);
-    border-top-color: var(--crt-border);
-}
-
-[data-theme="retro-crt"] .input-wrap textarea {
-    background: var(--crt-dark);
-    border-color: var(--crt-border);
-    color: var(--crt-text);
-}
-
+/* ── CRT Input Focus Glow ── */
 [data-theme="retro-crt"] .input-wrap textarea:focus {
-    border-color: var(--crt-medium);
-    box-shadow: 0 0 10px var(--crt-glow);
-    background: var(--crt-surface);
+    box-shadow: 0 0 10px rgba(95, 255, 58, 0.3);
     outline: none;
-}
-
-[data-theme="retro-crt"] .btn-send {
-    background: var(--crt-dark);
-    border-color: var(--crt-border);
-    color: var(--crt-bright);
-    box-shadow: 0 0 8px var(--crt-glow);
-}
-
-[data-theme="retro-crt"] .btn-send:hover {
-    background: var(--crt-dim);
-    border-color: var(--crt-medium);
-    box-shadow: 0 0 14px var(--crt-glow-strong);
-}
-
-[data-theme="retro-crt"] .btn-voice,
-[data-theme="retro-crt"] .btn-upload,
-[data-theme="retro-crt"] .btn-more {
-    background: var(--crt-dark);
-    border-color: var(--crt-border);
-    color: var(--crt-text-dim);
-}
-
-[data-theme="retro-crt"] .btn-voice:hover,
-[data-theme="retro-crt"] .btn-upload:hover,
-[data-theme="retro-crt"] .btn-more:hover {
-    border-color: var(--crt-medium);
-    color: var(--crt-text);
-    box-shadow: 0 0 8px var(--crt-glow);
-}
-
-/* ── CRT Composer Panel ── */
-[data-theme="retro-crt"] .composer-panel {
-    background: var(--crt-surface);
-    border-color: var(--crt-border);
-}
-
-[data-theme="retro-crt"] .composer-tool-btn {
-    color: var(--crt-text-dim);
-    border-color: var(--crt-border);
-}
-
-[data-theme="retro-crt"] .composer-tool-btn:hover {
-    background: var(--crt-dark);
-    border-color: var(--crt-medium);
-    color: var(--crt-bright);
-}
-
-/* ── CRT Status Pills ── */
-[data-theme="retro-crt"] .pill {
-    background: var(--crt-dark);
-    border-color: var(--crt-border);
-    color: var(--crt-text-dim);
-}
-
-[data-theme="retro-crt"] .pill-tokens {
-    color: var(--crt-text-dim);
-}
-
-[data-theme="retro-crt"] .pill-active {
-    background: var(--crt-dark);
-    border-color: var(--crt-medium);
-    color: var(--crt-bright);
-    box-shadow: 0 0 8px var(--crt-glow);
-}
-
-/* ── CRT Mood Widget ── */
-[data-theme="retro-crt"] .mood-toggle {
-    background: var(--crt-dark);
-    border-color: var(--crt-border);
-    color: var(--crt-text-dim);
-}
-
-[data-theme="retro-crt"] .mood-toggle:hover {
-    border-color: var(--crt-medium);
-    color: var(--crt-text);
-}
-
-[data-theme="retro-crt"] .mood-panel {
-    background: var(--crt-surface);
-    border-color: var(--crt-border);
-    box-shadow: 0 0 16px var(--crt-glow);
-}
-
-/* ── CRT Session Drawer ── */
-[data-theme="retro-crt"] .session-drawer {
-    background: var(--crt-surface);
-    border-color: var(--crt-border);
-    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.6);
-}
-
-[data-theme="retro-crt"] .session-drawer-header {
-    background: var(--crt-dark);
-    border-bottom-color: var(--crt-border);
-    color: var(--crt-text-dim);
-}
-
-[data-theme="retro-crt"] .session-item {
-    color: var(--crt-text-dim);
-    border-bottom-color: var(--crt-border);
-}
-
-[data-theme="retro-crt"] .session-item:hover {
-    background: var(--crt-dark);
-    color: var(--crt-text);
-}
-
-[data-theme="retro-crt"] .session-item.active {
-    background: var(--crt-dim);
-    color: var(--crt-bright);
-    box-shadow: inset 0 0 8px var(--crt-glow);
-}
-
-[data-theme="retro-crt"] .session-new-btn {
-    background: var(--crt-dark);
-    border-color: var(--crt-border);
-    color: var(--crt-text-dim);
-}
-
-[data-theme="retro-crt"] .session-new-btn:hover {
-    background: var(--crt-dim);
-    border-color: var(--crt-medium);
-    color: var(--crt-bright);
-}
-
-/* ── CRT Modals & Overlays ── */
-[data-theme="retro-crt"] .modal-overlay {
-    background: rgba(3, 10, 2, 0.85);
-    backdrop-filter: blur(4px);
-}
-
-[data-theme="retro-crt"] .modal-card {
-    background: var(--crt-surface);
-    border: 1px solid var(--crt-border);
-    border-radius: 6px;
-    box-shadow: 0 0 24px var(--crt-glow), 0 0 60px rgba(0, 0, 0, 0.6);
-    color: var(--crt-text);
-}
-
-[data-theme="retro-crt"] .modal-title {
-    background: var(--crt-dark);
-    border-bottom-color: var(--crt-border);
-    color: var(--crt-text-dim);
-}
-
-[data-theme="retro-crt"] .modal-btn {
-    border-color: var(--crt-border);
-    color: var(--crt-text-dim);
-}
-
-[data-theme="retro-crt"] .modal-btn.confirm {
-    background: var(--crt-dark);
-    border-color: var(--crt-medium);
-    color: var(--crt-bright);
-}
-
-[data-theme="retro-crt"] .modal-btn.confirm:hover {
-    background: var(--crt-dim);
-    box-shadow: 0 0 10px var(--crt-glow);
-}
-
-[data-theme="retro-crt"] .modal-btn.cancel:hover {
-    background: var(--crt-dark);
-}
-
-/* ── CRT Drag & Drop ── */
-[data-theme="retro-crt"] .drag-drop-overlay {
-    background: rgba(3, 10, 2, 0.7);
-    border: 2px dashed var(--crt-medium);
-    color: var(--crt-bright);
-}
-
-[data-theme="retro-crt"] .drag-drop-overlay-text {
-    color: var(--crt-text-dim);
-}
-
-/* ── CRT Voice Recorder Overlay ── */
-[data-theme="retro-crt"] .stt-overlay {
-    background: rgba(3, 10, 2, 0.88);
-}
-
-[data-theme="retro-crt"] .stt-ring {
-    border-color: var(--crt-medium);
-}
-
-[data-theme="retro-crt"] .stt-ring::before {
-    border-color: var(--crt-bright);
-}
-
-/* ── CRT Cheatsheet Picker ── */
-[data-theme="retro-crt"] .cheatsheet-picker-card {
-    background: var(--crt-surface);
-    border-color: var(--crt-border);
-    box-shadow: 0 0 24px var(--crt-glow);
-}
-
-[data-theme="retro-crt"] .cheatsheet-item {
-    border-bottom-color: var(--crt-border);
-    color: var(--crt-text-dim);
-}
-
-[data-theme="retro-crt"] .cheatsheet-item:hover {
-    background: var(--crt-dark);
-    color: var(--crt-text);
-}
-
-[data-theme="retro-crt"] .cheatsheet-item.selected {
-    background: var(--crt-dim);
-    color: var(--crt-bright);
-    border-left: 3px solid var(--crt-bright);
-}
-
-/* ── CRT Warnings Panel ── */
-[data-theme="retro-crt"] .warnings-panel {
-    background: var(--crt-surface);
-    border-color: var(--crt-border);
-}
-
-[data-theme="retro-crt"] .warning-item {
-    border-bottom-color: var(--crt-border);
-    color: var(--crt-text-dim);
-}
-
-[data-theme="retro-crt"] .warning-item.warning {
-    border-left: 3px solid var(--crt-medium);
-}
-
-[data-theme="retro-crt"] .warning-item.error {
-    border-left: 3px solid var(--crt-bright);
-}
-
-/* ── CRT Greeting ── */
-[data-theme="retro-crt"] .greeting-row {
-    color: var(--crt-text-dim);
-}
-
-[data-theme="retro-crt"] .greeting-icon {
-    background: var(--crt-dark);
-    border-color: var(--crt-border);
-    color: var(--crt-bright);
-    box-shadow: 0 0 20px var(--crt-glow);
-}
-
-[data-theme="retro-crt"] .greeting-text {
-    color: var(--crt-text-dim);
-}
-
-/* ── CRT Agent Status ── */
-[data-theme="retro-crt"] .status-pill {
-    background: var(--crt-dark);
-    border-color: var(--crt-border);
-    color: var(--crt-text-dim);
-}
-
-[data-theme="retro-crt"] .pulsing-dot {
-    background: var(--crt-bright);
-    box-shadow: 0 0 8px var(--crt-glow-strong);
 }
 
 /* ── CRT Selection ── */
 [data-theme="retro-crt"] ::selection {
-    background: rgba(57, 255, 20, 0.25);
-    color: var(--crt-bright);
+    background: rgba(57, 255, 20, 0.3);
 }
 
 [data-theme="retro-crt"] ::-moz-selection {
-    background: rgba(57, 255, 20, 0.25);
-    color: var(--crt-bright);
+    background: rgba(57, 255, 20, 0.3);
 }
 
 /* ── CRT Focus States ── */
 [data-theme="retro-crt"] *:focus-visible {
-    outline: 2px solid var(--crt-medium);
+    outline: 2px solid rgba(45, 222, 12, 0.7);
     outline-offset: 2px;
-}
-
-/* ── CRT Mermaid Diagrams ── */
-[data-theme="retro-crt"] .mermaid-diagram svg {
-    filter: drop-shadow(0 0 4px var(--crt-glow));
-}
-
-/* ═══════════════════════════════════════════════════════════════════════
-   CRT SCREEN SIMULATION — Progressive overlay layers on #chat-box
-   Uses pointer-events: none so interactions are never blocked
-   ═══════════════════════════════════════════════════════════════════════ */
-
-/* ── Layer 1: Vignette + curvature + phosphor bleed ── */
-[data-theme="retro-crt"] #chat-box {
-    border-radius: 8px;
-    overflow: hidden;
-}
-
-[data-theme="retro-crt"] #chat-box::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    z-index: 10;
-    border-radius: inherit;
-    /* Strong vignette — dark edges, clear center */
-    box-shadow: inset 0 0 80px rgba(0, 0, 0, 0.8), inset 0 0 150px rgba(0, 0, 0, 0.5);
-    /* Barrel-curvature hint via radial gradient */
-    background: radial-gradient(
-        ellipse at 50% 50%,
-        transparent 40%,
-        rgba(0, 0, 0, 0.15) 60%,
-        rgba(0, 0, 0, 0.45) 80%,
-        rgba(0, 0, 0, 0.75) 100%
-    );
-}
-
-/* ── Layer 2: Scanlines + noise shimmer ── */
-[data-theme="retro-crt"] #chat-box::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    z-index: 11;
-    border-radius: inherit;
-    /* Strong visible scanlines for authentic CRT look */
-    background-image:
-        repeating-linear-gradient(
-            to bottom,
-            transparent 0px,
-            transparent 1px,
-            rgba(0, 0, 0, 0.25) 1px,
-            rgba(0, 0, 0, 0.25) 2px
-        );
-    background-size: 100% 2px;
-}
-
-/* ── Animated signal shimmer on #chat-box (CSS only, GPU friendly) ── */
-@keyframes crt-shimmer {
-    0%   { opacity: 0.015; }
-    50%  { opacity: 0.03; }
-    100% { opacity: 0.015; }
-}
-
-[data-theme="retro-crt"] #chat-box {
-    animation: crt-shimmer 4s ease-in-out infinite;
-}
-
-/* ── Reduced-motion fallback: no animation ── */
-@media (prefers-reduced-motion: reduce) {
-    [data-theme="retro-crt"] #chat-box {
-        animation: none;
-    }
-}
-
-/* ── CRT cursor / caret simulation ── */
-[data-theme="retro-crt"] .typing-cursor {
-    display: inline-block;
-    width: 8px;
-    height: 1em;
-    background: var(--crt-bright);
-    box-shadow: 0 0 6px var(--crt-glow-strong);
-    animation: crt-blink 1s step-end infinite;
-    vertical-align: text-bottom;
-    margin-left: 2px;
-}
-
-@keyframes crt-blink {
-    0%, 100% { opacity: 1; }
-    50%       { opacity: 0; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-    [data-theme="retro-crt"] .typing-cursor {
-        animation: none;
-        opacity: 1;
-    }
-}
-
-/* ── CRT Avatar / Bot Icon ── */
-[data-theme="retro-crt"] .avatar.bot {
-    background: var(--crt-dark);
-    border-color: var(--crt-border);
-    color: var(--crt-bright);
-    box-shadow: 0 0 12px var(--crt-glow);
 }
 
 /* ── CRT Scrollbar ── */
@@ -4331,32 +3644,35 @@
 }
 
 [data-theme="retro-crt"] ::-webkit-scrollbar-track {
-    background: var(--crt-dark);
+    background: rgba(2, 8, 2, 0.8);
 }
 
 [data-theme="retro-crt"] ::-webkit-scrollbar-thumb {
-    background: var(--crt-dim);
+    background: rgba(18, 138, 6, 0.6);
     border-radius: 3px;
 }
 
 [data-theme="retro-crt"] ::-webkit-scrollbar-thumb:hover {
-    background: var(--crt-medium);
+    background: rgba(45, 222, 12, 0.8);
 }
 
-/* ── CRT Mobile / small screen: reduce intensity ── */
-@media (max-width: 640px) {
-    [data-theme="retro-crt"] #chat-box::before {
-        box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.5);
-    }
+/* ── CRT Cursor Blink ── */
+[data-theme="retro-crt"] .typing-cursor {
+    animation: crt-blink 1s step-end infinite;
+}
 
-    [data-theme="retro-crt"] #chat-box::after {
-        /* Denser, more visible scanlines on mobile compensate for glare */
-        background: repeating-linear-gradient(
-            to bottom,
-            transparent 0px,
-            transparent 1px,
-            rgba(0, 0, 0, 0.1) 1px,
-            rgba(0, 0, 0, 0.1) 3px
-        );
+@keyframes crt-blink {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0; }
+}
+
+/* ── Reduced Motion ── */
+@media (prefers-reduced-motion: reduce) {
+    [data-theme="retro-crt"] body {
+        animation: none;
+    }
+    [data-theme="retro-crt"] .typing-cursor {
+        animation: none;
+        opacity: 1;
     }
 }
