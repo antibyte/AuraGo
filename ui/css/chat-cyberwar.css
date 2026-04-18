@@ -215,6 +215,7 @@
 }
 
 [data-theme="cyberwar"] #chat-box {
+    isolation: isolate;
     background:
         radial-gradient(circle at 18% 12%, rgba(84, 247, 255, 0.08), transparent 28%),
         radial-gradient(circle at 82% 22%, rgba(139, 125, 255, 0.1), transparent 30%),
@@ -237,6 +238,8 @@
 }
 
 [data-theme="cyberwar"] #chat-content {
+    position: relative;
+    z-index: 2;
     padding-top: 1.85rem;
     padding-bottom: 2.35rem;
 }
@@ -275,6 +278,8 @@
 }
 
 [data-theme="cyberwar"] .msg-row {
+    position: relative;
+    z-index: 2;
     animation: cyberwarMaterialize 0.46s cubic-bezier(0.16, 1, 0.3, 1);
 }
 

@@ -105,7 +105,7 @@
             width: '100vw',
             height: '100vh',
             pointerEvents: 'none',
-            zIndex: '5',
+            zIndex: '0',
             opacity: '0.78',
             mixBlendMode: 'screen',
             display: 'none'
