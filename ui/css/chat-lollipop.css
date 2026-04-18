@@ -178,19 +178,19 @@
     position: relative;
     z-index: 1;
     background:
-        radial-gradient(circle at 18% 14%, rgba(255, 205, 229, 0.3), transparent 22%),
-        radial-gradient(circle at 84% 18%, rgba(212, 195, 255, 0.24), transparent 20%),
-        radial-gradient(circle at 50% 100%, rgba(196, 244, 223, 0.22), transparent 26%),
-        linear-gradient(180deg, #fffafc 0%, #fff6fa 100%);
+        radial-gradient(circle at 18% 14%, rgba(249, 182, 215, 0.34), transparent 22%),
+        radial-gradient(circle at 84% 18%, rgba(204, 183, 248, 0.26), transparent 20%),
+        radial-gradient(circle at 50% 100%, rgba(196, 244, 223, 0.18), transparent 26%),
+        linear-gradient(180deg, #fdf0f6 0%, #f8e6ef 100%);
 }
 
 [data-theme="lollipop"] #chat-box::before {
     display: block;
     background: linear-gradient(180deg,
-        rgba(255, 247, 251, 0.18) 0%,
+        rgba(255, 241, 248, 0.2) 0%,
         transparent 16%,
         transparent 86%,
-        rgba(255, 248, 240, 0.14) 100%);
+        rgba(255, 232, 241, 0.18) 100%);
     opacity: 1;
 }
 
