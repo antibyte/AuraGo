@@ -476,7 +476,6 @@
 [data-theme="dark-sun"] .session-drawer,
 [data-theme="dark-sun"] .modal-card,
 [data-theme="dark-sun"] .mermaid-modal-content {
-    position: relative;
     overflow: hidden;
     background: linear-gradient(180deg, rgba(19, 10, 8, 0.98), rgba(8, 5, 4, 0.99));
     border: 1px solid rgba(132, 58, 28, 0.5);
@@ -484,6 +483,17 @@
         0 34px 78px rgba(0, 0, 0, 0.58),
         inset 0 1px 0 rgba(255, 176, 98, 0.06),
         inset 0 -1px 0 rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark-sun"] .session-drawer {
+    position: fixed;
+    top: 0;
+    left: 0;
+}
+
+[data-theme="dark-sun"] .modal-card,
+[data-theme="dark-sun"] .mermaid-modal-content {
+    position: relative;
 }
 
 [data-theme="dark-sun"] .session-drawer::before,

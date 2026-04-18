@@ -447,13 +447,23 @@
 [data-theme="lollipop"] .session-drawer,
 [data-theme="lollipop"] .modal-card,
 [data-theme="lollipop"] .mermaid-modal-content {
-    position: relative;
     overflow: hidden;
     background: linear-gradient(180deg, rgba(255, 253, 255, 0.98), rgba(255, 245, 251, 0.96));
     border: 1px solid rgba(233, 170, 210, 0.54);
     box-shadow:
         0 28px 58px rgba(206, 166, 190, 0.22),
         inset 0 1px 0 rgba(255, 255, 255, 0.98);
+}
+
+[data-theme="lollipop"] .session-drawer {
+    position: fixed;
+    top: 0;
+    left: 0;
+}
+
+[data-theme="lollipop"] .modal-card,
+[data-theme="lollipop"] .mermaid-modal-content {
+    position: relative;
 }
 
 [data-theme="lollipop"] .session-drawer::before,
