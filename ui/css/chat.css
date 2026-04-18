@@ -3599,6 +3599,7 @@
     --crt-amber:    rgba(255, 158, 64, 0.2);
     --crt-glass:    rgba(223, 255, 214, 0.05);
     --crt-shadow:   rgba(0, 0, 0, 0.62);
+    --crt-font-ui:  'Sixtyfour', 'Inter', system-ui, sans-serif;
 
     color-scheme: dark;
 }
@@ -3718,13 +3719,13 @@ html[data-theme="retro-crt"]::before {
     position: relative;
     z-index: 1;
     text-shadow:
-        0 0 5px rgba(95, 255, 58, 0.22),
-        0 0 12px rgba(95, 255, 58, 0.08);
+        0 0 4px rgba(95, 255, 58, 0.14),
+        0 0 9px rgba(95, 255, 58, 0.04);
 }
 
 /* ── CRT Phosphor Text Glow ── */
 [data-theme="retro-crt"] .bubble {
-    text-shadow: 0 0 8px rgba(95, 255, 58, 0.35);
+    text-shadow: 0 0 5px rgba(95, 255, 58, 0.2);
     border-radius: 4px;
     position: relative;
     overflow: hidden;
@@ -3745,7 +3746,7 @@ html[data-theme="retro-crt"]::before {
     border: 1px solid rgba(45, 222, 12, 0.22);
     box-shadow:
         inset 0 0 0 1px rgba(95, 255, 58, 0.04),
-        0 0 14px rgba(18, 138, 6, 0.12);
+        0 0 9px rgba(18, 138, 6, 0.08);
 }
 
 [data-theme="retro-crt"] .bubble.user {
@@ -3754,7 +3755,7 @@ html[data-theme="retro-crt"]::before {
     color: var(--crt-bright) !important;
     box-shadow:
         inset 0 0 0 1px rgba(95, 255, 58, 0.08),
-        0 0 18px rgba(45, 222, 12, 0.14);
+        0 0 12px rgba(45, 222, 12, 0.1);
 }
 
 [data-theme="retro-crt"] .bubble.user::before {
@@ -3783,8 +3784,8 @@ html[data-theme="retro-crt"]::before {
     border-color: rgba(45, 222, 12, 0.5) !important;
     box-shadow:
         0 0 0 1px rgba(18, 138, 6, 0.2),
-        0 0 10px rgba(45, 222, 12, 0.18) !important;
-    text-shadow: 0 0 8px rgba(95, 255, 58, 0.35) !important;
+        0 0 8px rgba(45, 222, 12, 0.14) !important;
+    text-shadow: 0 0 5px rgba(95, 255, 58, 0.22) !important;
 }
 
 [data-theme="retro-crt"] .warnings-badge.seen {
@@ -3816,10 +3817,11 @@ html[data-theme="retro-crt"]::before {
     border: 1px solid rgba(45, 222, 12, 0.28) !important;
     color: var(--crt-bright) !important;
     -webkit-text-fill-color: var(--crt-bright) !important;
+    font-family: var(--crt-font-ui) !important;
     box-shadow:
         inset 0 0 0 1px rgba(95, 255, 58, 0.05),
-        0 0 14px rgba(18, 138, 6, 0.12) !important;
-    text-shadow: 0 0 8px rgba(95, 255, 58, 0.22) !important;
+        0 0 10px rgba(18, 138, 6, 0.08) !important;
+    text-shadow: 0 0 5px rgba(95, 255, 58, 0.14) !important;
 }
 
 [data-theme="retro-crt"] .btn-send:hover,
@@ -3878,6 +3880,34 @@ html[data-theme="retro-crt"]::before {
     position: relative;
 }
 
+[data-theme="retro-crt"] .logo span:first-of-type,
+[data-theme="retro-crt"] .session-drawer-title,
+[data-theme="retro-crt"] .modal-title,
+[data-theme="retro-crt"] .app-header .pill,
+[data-theme="retro-crt"] .chat-theme-btn,
+[data-theme="retro-crt"] .btn-session-toggle,
+[data-theme="retro-crt"] .btn-speaker,
+[data-theme="retro-crt"] .btn-warnings,
+[data-theme="retro-crt"] .select-personality,
+[data-theme="retro-crt"] .mood-toggle,
+[data-theme="retro-crt"] .btn-header,
+[data-theme="retro-crt"] .btn-header-link,
+[data-theme="retro-crt"] #logout-btn,
+[data-theme="retro-crt"] .btn-send,
+[data-theme="retro-crt"] .btn-voice,
+[data-theme="retro-crt"] .btn-more,
+[data-theme="retro-crt"] .composer-tool-btn,
+[data-theme="retro-crt"] .mood-btn,
+[data-theme="retro-crt"] .session-new-btn,
+[data-theme="retro-crt"] .session-drawer-close,
+[data-theme="retro-crt"] .modal-btn,
+[data-theme="retro-crt"] .scroll-to-bottom-btn,
+[data-theme="retro-crt"] .copy-btn,
+[data-theme="retro-crt"] .mermaid-btn,
+[data-theme="retro-crt"] .tool-output-block summary {
+    font-family: var(--crt-font-ui) !important;
+}
+
 [data-theme="retro-crt"] .session-drawer {
     position: fixed;
 }
@@ -3901,7 +3931,7 @@ html[data-theme="retro-crt"]::before {
 [data-theme="retro-crt"] h2,
 [data-theme="retro-crt"] h3,
 [data-theme="retro-crt"] h4 {
-    text-shadow: 0 0 12px rgba(95, 255, 58, 0.5), 0 0 30px rgba(95, 255, 58, 0.2);
+    text-shadow: 0 0 8px rgba(95, 255, 58, 0.3), 0 0 18px rgba(95, 255, 58, 0.1);
 }
 
 /* ── CRT Code Blocks — monospace terminal feel ── */
