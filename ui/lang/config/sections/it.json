@@ -203,6 +203,8 @@
   "config.section.network_tools.label": "Strumenti di rete",
   "config.section.notifications.desc": "Canali notifica push",
   "config.section.notifications.label": "Notifiche",
+  "config.section.obsidian.desc": "Integrazione gestione della conoscenza Obsidian",
+  "config.section.obsidian.label": "Obsidian",
   "config.section.ollama.desc": "Gestione LLM locale",
   "config.section.ollama.label": "Ollama",
   "config.section.onedrive.desc": "Microsoft OneDrive cloud storage integration",

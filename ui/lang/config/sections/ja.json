@@ -203,6 +203,8 @@
   "config.section.network_tools.label": "ネットワークツール",
   "config.section.notifications.desc": "プッシュ通知チャネル",
   "config.section.notifications.label": "通知",
+  "config.section.obsidian.desc": "Obsidianナレッジ管理統合",
+  "config.section.obsidian.label": "Obsidian",
   "config.section.ollama.desc": "ローカル LLM 管理",
   "config.section.ollama.label": "Ollama",
   "config.section.onedrive.desc": "Microsoft OneDrive cloud storage integration",

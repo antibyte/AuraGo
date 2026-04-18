@@ -203,6 +203,8 @@
   "config.section.network_tools.label": "Netværksværktøjer",
   "config.section.notifications.desc": "Push-meddelelseskanaler",
   "config.section.notifications.label": "Meddelelser",
+  "config.section.obsidian.desc": "Obsidian videnstyringsintegration",
+  "config.section.obsidian.label": "Obsidian",
   "config.section.ollama.desc": "Lokal LLM ledelse",
   "config.section.ollama.label": "Ollama",
   "config.section.onedrive.desc": "Microsoft OneDrive cloud storage integration",

@@ -602,6 +602,33 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			logger.Info("LLM requested Jellyfin operation", "operation", req.Operation)
 			return "Tool Output: " + tools.DispatchJellyfinTool(req.Operation, req.params(), cfg, logger)
 
+		// ── Obsidian Knowledge Management ──
+		case "obsidian":
+			if !cfg.Obsidian.Enabled {
+				return `Tool Output: {"status":"error","message":"Obsidian integration is not enabled. Set obsidian.enabled=true in config.yaml."}`
+			}
+			req := decodeObsidianArgs(tc)
+			// Read-only check for mutating operations
+			if cfg.Obsidian.ReadOnly {
+				switch req.Operation {
+				case "create_note", "update_note", "patch_note", "execute_command", "open_in_obsidian":
+					return `Tool Output: {"status":"error","message":"Obsidian is in read-only mode. Disable obsidian.readonly to allow changes."}`
+				case "daily_note", "periodic_note":
+					if req.Content != "" {
+						return `Tool Output: {"status":"error","message":"Obsidian is in read-only mode. Disable obsidian.readonly to allow changes."}`
+					}
+				}
+			}
+			// Destructive operation check
+			if !cfg.Obsidian.AllowDestructive {
+				switch req.Operation {
+				case "delete_note":
+					return `Tool Output: {"status":"error","message":"Destructive Obsidian operations are disabled. Set obsidian.allow_destructive=true in config.yaml."}`
+				}
+			}
+			logger.Info("LLM requested Obsidian operation", "operation", req.Operation)
+			return "Tool Output: " + tools.DispatchObsidianTool(req.Operation, req.params(), cfg, vault, logger)
+
 		default:
 			handled = false
 			return ""

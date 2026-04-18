@@ -203,6 +203,8 @@
   "config.section.network_tools.label": "网络工具",
   "config.section.notifications.desc": "推送通知渠道",
   "config.section.notifications.label": "通知",
+  "config.section.obsidian.desc": "Obsidian知识管理集成",
+  "config.section.obsidian.label": "Obsidian",
   "config.section.ollama.desc": "本地 LLM 管理",
   "config.section.ollama.label": "Ollama",
   "config.section.onedrive.desc": "Microsoft OneDrive cloud storage integration",

@@ -38,6 +38,7 @@ var blockedSecretPrefixes = []string{
 	"mqtt_",
 	"ollama_managed_",
 	"jellyfin_",
+	"obsidian_",
 	"webhook_",
 	"music_minimax_",
 	"music_google_lyria_",
@@ -74,6 +75,7 @@ var blockedSecretExact = map[string]struct{}{
 	"pushover_app_token":          {},
 	"paperless_ngx_api_token":     {},
 	"jellyfin_api_key":            {},
+	"obsidian_api_key":            {},
 }
 
 // IsPythonAccessibleSecret returns true only if the vault key is a user/agent-created

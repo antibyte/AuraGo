@@ -203,6 +203,8 @@
   "config.section.network_tools.label": "Nettverksverktøy",
   "config.section.notifications.desc": "Push-varslingskanaler",
   "config.section.notifications.label": "Varsler",
+  "config.section.obsidian.desc": "Obsidian kunnskapshåndteringsintegrasjon",
+  "config.section.obsidian.label": "Obsidian",
   "config.section.ollama.desc": "Lokal LLM-ledelse",
   "config.section.ollama.label": "Ollama",
   "config.section.onedrive.desc": "Microsoft OneDrive cloud storage integration",

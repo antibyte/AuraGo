@@ -567,6 +567,17 @@ adguard:
     readonly: false
     url: ""
     username: ""
+obsidian:
+    enabled: false
+    read_only: false                # read-only mode: only read/search operations allowed
+    allow_destructive: false        # allow deleting notes
+    host: "127.0.0.1"              # hostname or IP of the machine running Obsidian
+    port: 27124                     # port of Obsidian Local REST API plugin
+    use_https: true                 # use HTTPS (recommended, default: true)
+    insecure_ssl: true              # accept self-signed certificates (default: true)
+    connect_timeout: 10             # connection timeout in seconds
+    request_timeout: 30             # request timeout in seconds
+    # API key is stored in the vault as obsidian_api_key
 telnyx:
     enabled: false
     readonly: false

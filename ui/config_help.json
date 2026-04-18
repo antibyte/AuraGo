@@ -580,6 +580,40 @@
       "description": "API key for the Jellyfin API. Create one under Dashboard → API Keys in Jellyfin."
     }
   },
+  "obsidian": {
+    "enabled": {
+      "title": "Enabled",
+      "description": "Enables the Obsidian integration. The agent can read, create, search, and manage notes in your Obsidian vault via the Local REST API plugin."
+    },
+    "readonly": {
+      "title": "Read-Only Mode",
+      "description": "In read-only mode, the agent can only read notes and search. Creating, updating, and deleting notes is blocked."
+    },
+    "allow_destructive": {
+      "title": "Allow Destructive",
+      "description": "Allows deleting notes from the Obsidian vault."
+    },
+    "use_https": {
+      "title": "Use HTTPS",
+      "description": "Uses HTTPS for the connection to Obsidian (default: true, recommended)."
+    },
+    "insecure_ssl": {
+      "title": "Insecure SSL",
+      "description": "Accepts self-signed certificates from the Obsidian Local REST API plugin (default: true)."
+    },
+    "host": {
+      "title": "Host",
+      "description": "Hostname or IP of the machine running Obsidian (default: 127.0.0.1)."
+    },
+    "port": {
+      "title": "Port",
+      "description": "Port of the Obsidian Local REST API plugin (default: 27124)."
+    },
+    "api_key": {
+      "title": "API Key",
+      "description": "API key from the Obsidian Local REST API plugin. Find it in Obsidian Settings → Local REST API."
+    }
+  },
   "mission_preparation": {
     "enabled": {
       "title": "Enabled",

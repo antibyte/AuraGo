@@ -1325,6 +1325,9 @@ type Config struct {
 	// Jellyfin media server integration
 	Jellyfin JellyfinConfig `yaml:"jellyfin"`
 
+	// Obsidian knowledge management via Local REST API plugin
+	Obsidian ObsidianConfig `yaml:"obsidian"`
+
 	// LDAP/Active Directory integration
 	LDAP LDAPConfig `yaml:"ldap"`
 
@@ -1371,6 +1374,20 @@ type JellyfinConfig struct {
 	InsecureSSL      bool   `yaml:"insecure_ssl"`      // skip TLS verification for self-signed certs
 	ConnectTimeout   int    `yaml:"connect_timeout"`   // connection timeout in seconds (default: 30)
 	RequestTimeout   int    `yaml:"request_timeout"`   // request timeout in seconds (default: 60)
+}
+
+// ObsidianConfig holds configuration for Obsidian integration via Local REST API plugin.
+type ObsidianConfig struct {
+	Enabled          bool   `yaml:"enabled"`
+	ReadOnly         bool   `yaml:"readonly"`          // true = only read/list/search, block create/update/delete
+	AllowDestructive bool   `yaml:"allow_destructive"` // allow note deletion
+	Host             string `yaml:"host"`              // Obsidian host (default: 127.0.0.1)
+	Port             int    `yaml:"port"`              // API port (default: 27124)
+	UseHTTPS         bool   `yaml:"use_https"`         // use HTTPS (default: true)
+	APIKey           string `yaml:"-" json:"-"`        // vault-only: obsidian_api_key
+	InsecureSSL      bool   `yaml:"insecure_ssl"`      // skip TLS verification for self-signed certs (default: true)
+	ConnectTimeout   int    `yaml:"connect_timeout"`   // connection timeout in seconds (default: 10)
+	RequestTimeout   int    `yaml:"request_timeout"`   // request timeout in seconds (default: 30)
 }
 
 // LDAPConfig holds configuration for LDAP/Active Directory integration.

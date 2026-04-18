@@ -203,6 +203,8 @@
   "config.section.network_tools.label": "Netwerktools",
   "config.section.notifications.desc": "Notificatie kanalen",
   "config.section.notifications.label": "Notificaties",
+  "config.section.obsidian.desc": "Obsidian kennisbeheer-integratie",
+  "config.section.obsidian.label": "Obsidian",
   "config.section.ollama.desc": "Ollama integratie",
   "config.section.ollama.label": "Ollama",
   "config.section.onedrive.desc": "Microsoft OneDrive cloud storage integration",

@@ -276,6 +276,7 @@ func buildToolFlagsFromConfig(cfg *config.Config) ToolFeatureFlags {
 		SudoEnabled:                  cfg.Agent.SudoEnabled && !cfg.Runtime.IsDocker && !cfg.Runtime.NoNewPrivileges,
 		WebhooksEnabled:              cfg.Webhooks.Enabled,
 		JellyfinEnabled:              cfg.Jellyfin.Enabled,
+		ObsidianEnabled:              cfg.Obsidian.Enabled,
 		ChromecastEnabled:            cfg.Chromecast.Enabled,
 		DiscordEnabled:               cfg.Discord.Enabled,
 		TelegramEnabled:              cfg.Telegram.BotToken != "" && cfg.Telegram.UserID != 0,
@@ -323,19 +324,19 @@ func buildToolFlagsFromConfig(cfg *config.Config) ToolFeatureFlags {
 		DocumentCreatorEnabled:       cfg.Tools.DocumentCreator.Enabled,
 		WebCaptureEnabled:            cfg.Tools.WebCapture.Enabled,
 		NetworkPingEnabled:           cfg.Tools.NetworkPing.Enabled,
-		WebScraperEnabled:           cfg.Tools.WebScraper.Enabled,
+		WebScraperEnabled:            cfg.Tools.WebScraper.Enabled,
 		S3Enabled:                    cfg.S3.Enabled,
 		NetworkScanEnabled:           cfg.Tools.NetworkScan.Enabled,
 		FormAutomationEnabled:        cfg.Tools.FormAutomation.Enabled,
 		UPnPScanEnabled:              cfg.Tools.UPnPScan.Enabled,
 		FritzBoxSystemEnabled:        cfg.FritzBox.Enabled && cfg.FritzBox.System.Enabled,
 		FritzBoxNetworkEnabled:       cfg.FritzBox.Enabled && cfg.FritzBox.Network.Enabled,
-		FritzBoxTelephonyEnabled:    cfg.FritzBox.Enabled && cfg.FritzBox.Telephony.Enabled,
-		FritzBoxSmartHomeEnabled:    cfg.FritzBox.Enabled && cfg.FritzBox.SmartHome.Enabled,
+		FritzBoxTelephonyEnabled:     cfg.FritzBox.Enabled && cfg.FritzBox.Telephony.Enabled,
+		FritzBoxSmartHomeEnabled:     cfg.FritzBox.Enabled && cfg.FritzBox.SmartHome.Enabled,
 		FritzBoxStorageEnabled:       cfg.FritzBox.Enabled && cfg.FritzBox.Storage.Enabled,
-		FritzBoxTVEnabled:           cfg.FritzBox.Enabled && cfg.FritzBox.TV.Enabled,
-		TelnyxSMSEnabled:            cfg.Telnyx.Enabled && !cfg.Telnyx.ReadOnly,
-		TelnyxCallEnabled:           cfg.Telnyx.Enabled && !cfg.Telnyx.ReadOnly,
+		FritzBoxTVEnabled:            cfg.FritzBox.Enabled && cfg.FritzBox.TV.Enabled,
+		TelnyxSMSEnabled:             cfg.Telnyx.Enabled && !cfg.Telnyx.ReadOnly,
+		TelnyxCallEnabled:            cfg.Telnyx.Enabled && !cfg.Telnyx.ReadOnly,
 		SQLConnectionsEnabled:        cfg.SQLConnections.Enabled,
 		PythonSecretInjectionEnabled: cfg.Tools.PythonSecretInjection.Enabled,
 		DaemonSkillsEnabled:          cfg.Tools.DaemonSkills.Enabled,
@@ -380,8 +381,6 @@ func resolveToolFeatureState(runCfg RunConfig, policy ToolingPolicy) resolvedToo
 	}
 }
 
-
-
 func buildPromptContextFlags(runCfg RunConfig, policy ToolingPolicy, opts promptContextOptions) prompts.ContextFlags {
 	cfg := runCfg.Config
 	if cfg == nil {
@@ -415,6 +414,7 @@ func buildPromptContextFlags(runCfg RunConfig, policy ToolingPolicy, opts prompt
 		GoogleWorkspaceEnabled:   flags.GoogleWorkspaceEnabled,
 		OneDriveEnabled:          flags.OneDriveEnabled,
 		JellyfinEnabled:          flags.JellyfinEnabled,
+		ObsidianEnabled:          flags.ObsidianEnabled,
 		TrueNASEnabled:           flags.TrueNASEnabled,
 		ProxmoxEnabled:           flags.ProxmoxEnabled,
 		OllamaEnabled:            flags.OllamaEnabled,

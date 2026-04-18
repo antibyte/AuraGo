@@ -187,6 +187,20 @@ type chromecastArgs struct {
 	Volume      float64
 }
 
+type obsidianArgs struct {
+	Operation     string
+	Path          string
+	Content       string
+	Query         string
+	TargetType    string
+	Target        string
+	PatchOp       string
+	Period        string
+	CommandID     string
+	Directory     string
+	ContextLength int
+}
+
 type jellyfinArgs struct {
 	Operation string
 	Query     string
@@ -282,6 +296,57 @@ func decodeChromecastArgs(tc ToolCall) chromecastArgs {
 		Language:    firstNonEmptyToolString(tc.Language, toolArgString(tc.Params, "language")),
 		Volume:      max(tc.Volume, toolArgFloat64(tc.Params, "volume")),
 	}
+}
+
+func decodeObsidianArgs(tc ToolCall) obsidianArgs {
+	return obsidianArgs{
+		Operation:     firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		Path:          firstNonEmptyToolString(tc.Path, tc.FilePath, toolArgString(tc.Params, "path")),
+		Content:       firstNonEmptyToolString(tc.Content, toolArgString(tc.Params, "content")),
+		Query:         firstNonEmptyToolString(tc.Query, toolArgString(tc.Params, "query")),
+		TargetType:    firstNonEmptyToolString(toolArgString(tc.Params, "target_type")),
+		Target:        firstNonEmptyToolString(tc.Target, toolArgString(tc.Params, "target")),
+		PatchOp:       firstNonEmptyToolString(toolArgString(tc.Params, "patch_op")),
+		Period:        firstNonEmptyToolString(toolArgString(tc.Params, "period")),
+		CommandID:     firstNonEmptyToolString(tc.Command, toolArgString(tc.Params, "command_id")),
+		Directory:     firstNonEmptyToolString(toolArgString(tc.Params, "directory")),
+		ContextLength: firstNonEmptyInt(toolArgInt(tc.Params, 0, "context_length")),
+	}
+}
+
+func (req obsidianArgs) params() map[string]string {
+	params := map[string]string{}
+	if req.Path != "" {
+		params["path"] = req.Path
+	}
+	if req.Content != "" {
+		params["content"] = req.Content
+	}
+	if req.Query != "" {
+		params["query"] = req.Query
+	}
+	if req.TargetType != "" {
+		params["target_type"] = req.TargetType
+	}
+	if req.Target != "" {
+		params["target"] = req.Target
+	}
+	if req.PatchOp != "" {
+		params["patch_op"] = req.PatchOp
+	}
+	if req.Period != "" {
+		params["period"] = req.Period
+	}
+	if req.CommandID != "" {
+		params["command_id"] = req.CommandID
+	}
+	if req.Directory != "" {
+		params["directory"] = req.Directory
+	}
+	if req.ContextLength > 0 {
+		params["context_length"] = fmt.Sprintf("%d", req.ContextLength)
+	}
+	return params
 }
 
 func decodeJellyfinArgs(tc ToolCall) jellyfinArgs {

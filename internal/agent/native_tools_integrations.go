@@ -306,6 +306,40 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 		))
 	}
 
+	if ff.ObsidianEnabled {
+		tools = append(tools, tool("obsidian",
+			"Interact with an Obsidian vault via the Local REST API plugin. "+
+				"Read, create, update, search, and manage notes in Obsidian. "+
+				"Supports sub-document targeting (headings, blocks, frontmatter), "+
+				"periodic notes (daily, weekly, monthly), full-text and Dataview DQL search, "+
+				"tag listing, command execution, and document structure maps.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "Operation to perform",
+					"enum": []string{
+						"health", "list_files", "read_note", "create_note",
+						"update_note", "patch_note", "delete_note",
+						"search", "search_dataview", "list_tags",
+						"daily_note", "periodic_note",
+						"list_commands", "execute_command",
+						"open_in_obsidian", "document_map",
+					},
+				},
+				"path":           prop("string", "File path relative to vault root (e.g. 'Notes/myfile.md')"),
+				"content":        prop("string", "Content for create/update/patch operations"),
+				"query":          prop("string", "Search query (for search/search_dataview)"),
+				"target_type":    map[string]interface{}{"type": "string", "description": "Sub-document target type for read/patch", "enum": []string{"heading", "block", "frontmatter"}},
+				"target":         prop("string", "Target name (heading name, block ID, frontmatter field)"),
+				"patch_op":       map[string]interface{}{"type": "string", "description": "Patch operation type", "enum": []string{"append", "prepend", "replace"}},
+				"period":         map[string]interface{}{"type": "string", "description": "Period for periodic notes", "enum": []string{"daily", "weekly", "monthly", "quarterly", "yearly"}},
+				"command_id":     prop("string", "Command ID to execute (from list_commands)"),
+				"directory":      prop("string", "Directory path for list_files (empty = vault root)"),
+				"context_length": map[string]interface{}{"type": "integer", "description": "Context length for search results (default: 100)"},
+			}, "operation"),
+		))
+	}
+
 	if ff.TrueNASEnabled {
 		tools = append(tools, tool("truenas",
 			"Manage TrueNAS storage system: check health, list/scrub storage pools, manage ZFS datasets and snapshots, "+

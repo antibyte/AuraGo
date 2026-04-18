@@ -203,6 +203,8 @@
   "config.section.network_tools.label": "नेटवर्क उपकरण",
   "config.section.notifications.desc": "पुश अधिसूचना चैनल",
   "config.section.notifications.label": "सूचनाएं",
+  "config.section.obsidian.desc": "Obsidian ज्ञान प्रबंधन एकीकरण",
+  "config.section.obsidian.label": "Obsidian",
   "config.section.ollama.desc": "स्थानीय एलएलएम प्रबंधन",
   "config.section.ollama.label": "ओलामा",
   "config.section.onedrive.desc": "Microsoft OneDrive cloud storage integration",

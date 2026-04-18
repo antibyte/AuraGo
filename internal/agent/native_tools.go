@@ -114,6 +114,8 @@ type ToolFeatureFlags struct {
 	UPnPScanEnabled          bool
 	// Jellyfin media server
 	JellyfinEnabled bool
+	// Obsidian knowledge management
+	ObsidianEnabled bool
 	// Chromecast / Google Cast
 	ChromecastEnabled bool
 	// Discord messaging

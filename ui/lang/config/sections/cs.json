@@ -203,6 +203,8 @@
   "config.section.network_tools.label": "Síťové nástroje",
   "config.section.notifications.desc": "Notifikacni kanaly",
   "config.section.notifications.label": "Notifikace",
+  "config.section.obsidian.desc": "Integrace správy znalostí Obsidian",
+  "config.section.obsidian.label": "Obsidian",
   "config.section.ollama.desc": "Ollama integrace",
   "config.section.ollama.label": "Ollama",
   "config.section.onedrive.desc": "Microsoft OneDrive cloud storage integration",

@@ -134,6 +134,7 @@ type ContextFlags struct {
 	GoogleWorkspaceEnabled   bool
 	OneDriveEnabled          bool
 	JellyfinEnabled          bool
+	ObsidianEnabled          bool
 	TrueNASEnabled           bool
 	ProxmoxEnabled           bool
 	OllamaEnabled            bool
@@ -1517,6 +1518,7 @@ func buildEnabledToolsOverview(flags ContextFlags) string {
 	add("discord", flags.DiscordEnabled)
 	add("truenas", flags.TrueNASEnabled)
 	add("jellyfin", flags.JellyfinEnabled)
+	add("obsidian", flags.ObsidianEnabled)
 	add("ollama", flags.OllamaEnabled)
 	add("sandbox", flags.SandboxEnabled)
 	add("webhooks", flags.WebhooksEnabled)

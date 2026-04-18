@@ -203,6 +203,8 @@
   "config.section.network_tools.label": "Εργαλεία Δικτύου",
   "config.section.notifications.desc": "Kanály push notifikací",
   "config.section.notifications.label": "Notifikace",
+  "config.section.obsidian.desc": "Ενσωμάτωση διαχείρισης γνώσης Obsidian",
+  "config.section.obsidian.label": "Obsidian",
   "config.section.ollama.desc": "Διαχείριση τοπικού LLM",
   "config.section.ollama.label": "Ollama",
   "config.section.onedrive.desc": "Microsoft OneDrive cloud storage integration",

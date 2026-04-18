@@ -150,6 +150,9 @@ func (s *Server) registerInfrastructureRoutes(mux *http.ServeMux, shutdownCh cha
 	registerJellyfinHandlers(mux, s)
 	s.Logger.Info("Jellyfin API registered at /api/jellyfin/...")
 
+	registerObsidianHandlers(mux, s)
+	s.Logger.Info("Obsidian API registered at /api/obsidian/...")
+
 	registerPreferencesHandlers(mux, s)
 	s.Logger.Info("Preferences API registered at /api/preferences")
 }
