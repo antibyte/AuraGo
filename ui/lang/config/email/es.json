@@ -41,5 +41,8 @@
   "config.email.account_enabled_label": "Cuenta activa",
   "config.email.account_enabled_help": "Si está desactivado, el agente no puede usar esta cuenta.",
   "config.email.allow_sending_label": "Permitir envío de correos",
-  "config.email.allow_sending_help": "Si está desactivado, el agente solo puede leer correos, no enviarlos."
+  "config.email.allow_sending_help": "Si está desactivado, el agente solo puede leer correos, no enviarlos.",
+  "config.email.edit_tooltip": "Editar",
+  "config.email.delete_tooltip": "Eliminar",
+  "config.email.from_label": "De"
 }

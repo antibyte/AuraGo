@@ -47,5 +47,13 @@
   "config.devices.find_mac_found": "Βρέθηκε: {mac}",
   "config.devices.find_mac_not_found": "Δεν βρέθηκε στη μνήμη cache ARP. Βεβαιωθείτε ότι η συσκευή είναι προσβάσιμη.",
   "config.devices.find_mac_error": "Η αναζήτηση απέτυχε.",
-  "config.devices.delete_failed": "Η διαγραφή απέτυχε"
+  "config.devices.delete_failed": "Η διαγραφή απέτυχε",
+  "config.devices.field_name_label": "Όνομα *",
+  "config.devices.field_port_label": "Λιμάνι",
+  "config.devices.port_placeholder": "22",
+  "config.devices.ip_placeholder": "192.168.1.100",
+  "config.devices.username_placeholder": "root",
+  "config.devices.mac_placeholder": "AA:BB:CC:DD:EE:FF",
+  "config.devices.field_tags_label": "Ετικέτες",
+  "config.devices.field_vault_secret_id_label": "Αναγνωριστικό μυστικού θησαυροφυλακίου"
 }

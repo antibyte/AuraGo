@@ -61,19 +61,21 @@ const (
 	DeliveryModeSilent DeliveryMode = "silent"
 )
 
-// DefaultPromptTemplate is the Go text/template used when none is configured.
-const DefaultPromptTemplate = `[Webhook: {{.WebhookName}}]
-Zeitpunkt: {{.Timestamp}}
-{{- if .Fields}}
-Daten:
-{{range $k, $v := .Fields}}- {{$k}}: {{$v}}
-{{end}}
-{{- else}}
+// DefaultPromptTemplate is the safe placeholder-based template used when none is configured.
+const DefaultPromptTemplate = `[Webhook: {{webhook_name}}]
+Zeitpunkt: {{timestamp}}
+Slug: {{slug}}
 Payload:
-{{.Payload}}
-{{- end}}`
+{{payload}}`
 
 // PromptData holds the variables available inside the prompt template.
+// Allowed placeholders are:
+//   - {{webhook_name}}
+//   - {{slug}}
+//   - {{payload}}
+//   - {{timestamp}}
+//   - {{field.<name>}}
+//   - {{header.<name>}}
 type PromptData struct {
 	WebhookName string
 	Slug        string

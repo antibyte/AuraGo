@@ -47,5 +47,13 @@
   "config.devices.find_mac_found": "Nalezeno: {mac}",
   "config.devices.find_mac_not_found": "Nenalezeno v ARP cache. Ujistěte se, že zařízení je dostupné.",
   "config.devices.find_mac_error": "Vyhledávání selhalo.",
-  "config.devices.delete_failed": "Smazání se nezdařilo"
+  "config.devices.delete_failed": "Smazání se nezdařilo",
+  "config.devices.field_name_label": "Jméno *",
+  "config.devices.field_port_label": "Přístav",
+  "config.devices.port_placeholder": "22",
+  "config.devices.ip_placeholder": "192.168.1.100",
+  "config.devices.username_placeholder": "root",
+  "config.devices.mac_placeholder": "AA:BB:CC:DD:EE:FF",
+  "config.devices.field_tags_label": "Štítky",
+  "config.devices.field_vault_secret_id_label": "ID tajemství trezoru"
 }

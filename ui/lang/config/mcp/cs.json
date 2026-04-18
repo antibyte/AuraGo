@@ -25,5 +25,6 @@
   "config.mcp.field_name": "Název",
   "config.mcp.field_command": "Příkaz",
   "config.mcp.field_environment": "Proměnné prostředí",
-  "config.mcp.save_failed": "MCP save failed: "
+  "config.mcp.save_failed": "MCP save failed: ",
+  "config.mcp.field_args_label": "Args"
 }

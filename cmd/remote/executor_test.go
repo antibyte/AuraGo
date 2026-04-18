@@ -1,0 +1,100 @@
+package main
+
+import (
+	"log/slog"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"aurago/internal/remote"
+)
+
+func TestExecutorValidatePathRequiresAllowedPaths(t *testing.T) {
+	t.Parallel()
+
+	executor := NewExecutor(slog.Default())
+	target := filepath.Join(t.TempDir(), "file.txt")
+	if err := executor.validatePath(target, nil); err == nil || !strings.Contains(err.Error(), "allowed_paths") {
+		t.Fatalf("validatePath() error = %v, want allowed_paths failure", err)
+	}
+}
+
+func TestExecutorValidatePathRejectsSymlinkEscape(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	outside := filepath.Join(t.TempDir(), "outside.txt")
+	if err := os.WriteFile(outside, []byte("secret"), 0o644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+	link := filepath.Join(root, "escape.txt")
+	if err := os.Symlink(outside, link); err != nil {
+		t.Skipf("symlink setup not supported: %v", err)
+	}
+
+	executor := NewExecutor(slog.Default())
+	err := executor.validatePath(link, []string{root})
+	if err == nil || !strings.Contains(err.Error(), "outside allowed directories") {
+		t.Fatalf("validatePath() error = %v, want outside allowed directories", err)
+	}
+}
+
+func TestExecutorFileReadDeniedWithoutAllowedPaths(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	target := filepath.Join(root, "data.txt")
+	if err := os.WriteFile(target, []byte("hello"), 0o644); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	executor := NewExecutor(slog.Default())
+	result := executor.Execute(remote.CommandPayload{
+		CommandID: "cmd-1",
+		Operation: remote.OpFileRead,
+		Args: map[string]interface{}{
+			"path": target,
+		},
+	}, false, nil)
+
+	if result.Status != "denied" || !strings.Contains(result.Error, "allowed_paths") {
+		t.Fatalf("status=%q error=%q, want denied allowed_paths error", result.Status, result.Error)
+	}
+}
+
+func TestExecutorFileSearchRequiresExplicitPath(t *testing.T) {
+	t.Parallel()
+
+	executor := NewExecutor(slog.Default())
+	result := executor.Execute(remote.CommandPayload{
+		CommandID: "cmd-2",
+		Operation: remote.OpFileSearch,
+		Args: map[string]interface{}{
+			"operation": "find",
+			"pattern":   "*.go",
+			"glob":      "*.go",
+		},
+	}, false, []string{t.TempDir()})
+
+	if result.Status != "denied" || !strings.Contains(result.Error, "path is required") {
+		t.Fatalf("status=%q error=%q, want explicit path failure", result.Status, result.Error)
+	}
+}
+
+func TestExecutorShellExecBlocksDangerousCommands(t *testing.T) {
+	t.Parallel()
+
+	executor := NewExecutor(slog.Default())
+	result := executor.Execute(remote.CommandPayload{
+		CommandID: "cmd-3",
+		Operation: remote.OpShellExec,
+		Args: map[string]interface{}{
+			"command": "rm -rf /",
+		},
+	}, false, []string{t.TempDir()})
+
+	if result.Status != "error" || !strings.Contains(result.Error, "command blocked") {
+		t.Fatalf("status=%q error=%q, want blocked shell command", result.Status, result.Error)
+	}
+}

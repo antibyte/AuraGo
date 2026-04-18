@@ -41,5 +41,8 @@
   "config.email.account_enabled_label": "Λογαριασμός ενεργός",
   "config.email.account_enabled_help": "Αν απενεργοποιηθεί, ο πράκτορας δεν μπορεί να χρησιμοποιήσει αυτόν τον λογαριασμό.",
   "config.email.allow_sending_label": "Επιτρέπεται η αποστολή email",
-  "config.email.allow_sending_help": "Αν απενεργοποιηθεί, ο πράκτορας μπορεί μόνο να διαβάζει email, όχι να τα στέλνει."
+  "config.email.allow_sending_help": "Αν απενεργοποιηθεί, ο πράκτορας μπορεί μόνο να διαβάζει email, όχι να τα στέλνει.",
+  "config.email.edit_tooltip": "Επεξεργασία",
+  "config.email.delete_tooltip": "Διαγραφή",
+  "config.email.from_label": "Από"
 }

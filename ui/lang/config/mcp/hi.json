@@ -25,5 +25,6 @@
   "config.mcp.field_name": "नाम",
   "config.mcp.field_command": "आदेश",
   "config.mcp.field_environment": "पर्यावरण चर",
-  "config.mcp.save_failed": "MCP सहेजना विफल:"
+  "config.mcp.save_failed": "MCP सहेजना विफल:",
+  "config.mcp.field_args_label": "तर्क"
 }

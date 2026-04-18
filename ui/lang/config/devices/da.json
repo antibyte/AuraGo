@@ -47,5 +47,13 @@
   "config.devices.find_mac_found": "Fundet: {mac}",
   "config.devices.find_mac_not_found": "Ikke fundet i ARP-cache. Sørg for at enheden er tilgængelig.",
   "config.devices.find_mac_error": "Opslag mislykkedes.",
-  "config.devices.delete_failed": "Sletning mislykkedes"
+  "config.devices.delete_failed": "Sletning mislykkedes",
+  "config.devices.field_name_label": "Navn *",
+  "config.devices.field_port_label": "Havn",
+  "config.devices.port_placeholder": "22",
+  "config.devices.ip_placeholder": "192.168.1.100",
+  "config.devices.username_placeholder": "root",
+  "config.devices.mac_placeholder": "AA:BB:CC:DD:EE:FF",
+  "config.devices.field_tags_label": "Tags",
+  "config.devices.field_vault_secret_id_label": "Vault-hemmeligheds-ID"
 }

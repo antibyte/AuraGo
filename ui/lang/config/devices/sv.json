@@ -47,5 +47,13 @@
   "config.devices.find_mac_found": "Hittad: {mac}",
   "config.devices.find_mac_not_found": "Hittades inte i ARP-cache. Kontrollera att enheten är nåbar.",
   "config.devices.find_mac_error": "Sökning misslyckades.",
-  "config.devices.delete_failed": "Det gick inte att ta bort"
+  "config.devices.delete_failed": "Det gick inte att ta bort",
+  "config.devices.field_name_label": "Namn *",
+  "config.devices.field_port_label": "Port",
+  "config.devices.port_placeholder": "22",
+  "config.devices.ip_placeholder": "192.168.1.100",
+  "config.devices.username_placeholder": "root",
+  "config.devices.mac_placeholder": "AA:BB:CC:DD:EE:FF",
+  "config.devices.field_tags_label": "Taggar",
+  "config.devices.field_vault_secret_id_label": "Vault-hemlighets-ID"
 }

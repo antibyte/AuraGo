@@ -212,5 +212,11 @@
   "tools.dns_txt_lookup_failed": "TXT-opslag: {0}",
   "tools.dns_cname_lookup_failed": "CNAME-opslag: {0}",
   "tools.dns_ptr_lookup_failed": "PTR-opslag: {0}",
-  "tools.dns_partial_results": "delvise resultater"
+  "tools.dns_partial_results": "delvise resultater",
+  "backend.budget_mode_warn_en": " (warning only)",
+  "backend.budget_mode_partial_en": " (co-agents + vision/STT blocked when exceeded)",
+  "backend.budget_mode_full_en": " (all blocked when exceeded)",
+  "backend.budget_mode_warn_de": " (nur Warnung)",
+  "backend.budget_mode_partial_de": " (Co-Agents + Vision/STT gesperrt bei Überschreitung)",
+  "backend.budget_mode_full_de": " (alles gesperrt bei Überschreitung)"
 }

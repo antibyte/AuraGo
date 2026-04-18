@@ -25,5 +25,6 @@
   "config.mcp.field_name": "Nombre",
   "config.mcp.field_command": "Comando",
   "config.mcp.field_environment": "Variables de Entorno",
-  "config.mcp.save_failed": "Error al guardar MCP: "
+  "config.mcp.save_failed": "Error al guardar MCP: ",
+  "config.mcp.field_args_label": "Args"
 }

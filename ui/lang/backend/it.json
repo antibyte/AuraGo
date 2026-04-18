@@ -24,7 +24,6 @@
   "backend.cmd_voice_help": "Attiva/disattiva la modalità di output vocale — quando attiva, l'agente usa TTS per risposte brevi (/voice on|off).",
   "backend.budget_disabled": "💰 Il sistema budget è disabilitato.",
   "backend.budget_help": "Mostra lo stato attuale del budget (costi giornalieri, limite, modelli).",
-
   "backend.budget_exceeded": "⛔ **Budget superato!**",
   "backend.budget_warning": "⚠️ **Avviso budget!**",
   "backend.credits_unavailable": "ℹ️ /credits è disponibile solo quando OpenRouter è configurato come provider LLM.\nProvider attuale: {0}",
@@ -216,5 +215,8 @@
   "tools.dns_partial_results": "risultati parziali",
   "backend.budget_mode_full_de": " (tutto bloccato al superamento)",
   "backend.budget_mode_partial_de": " (Co-Agents + Vision/STT bloccato al superamento)",
-  "backend.budget_mode_warn_de": " (solo avvertimento)"
+  "backend.budget_mode_warn_de": " (solo avvertimento)",
+  "backend.budget_mode_warn_en": " (warning only)",
+  "backend.budget_mode_partial_en": " (co-agents + vision/STT blocked when exceeded)",
+  "backend.budget_mode_full_en": " (all blocked when exceeded)"
 }

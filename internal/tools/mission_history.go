@@ -7,6 +7,8 @@ import (
 	"log/slog"
 	"strings"
 	"time"
+
+	"aurago/internal/uid"
 )
 
 // MissionRun represents a single mission execution record in the history.
@@ -118,7 +120,7 @@ func RecordMissionStart(db *sql.DB, missionID, missionName, triggerType, trigger
 		return "", fmt.Errorf("mission history database not available")
 	}
 
-	id := fmt.Sprintf("run_%d", time.Now().UnixNano())
+	id := "run_" + uid.New()
 	now := time.Now()
 
 	_, err := db.Exec(`

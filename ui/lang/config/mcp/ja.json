@@ -25,5 +25,6 @@
   "config.mcp.field_name": "名前",
   "config.mcp.field_command": "指示",
   "config.mcp.field_environment": "環境変数",
-  "config.mcp.save_failed": "MCP の保存に失敗しました:"
+  "config.mcp.save_failed": "MCP の保存に失敗しました:",
+  "config.mcp.field_args_label": "引数"
 }

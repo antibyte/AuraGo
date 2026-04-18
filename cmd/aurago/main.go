@@ -910,7 +910,35 @@ func main() {
 	// Register built-in warning producers (token budget fallback, vectordb, etc.).
 	warnings.RegisterBuiltinProducers(warningsRegistry, cfg, appLog)
 
-	if err := server.Start(cfg, appLog, webAccessLog, llmClient, shortTermMem, longTermMem, vault, registry, cronManager, historyManager, kg, inventoryDB, invasionDB, cheatsheetDB, imageGalleryDB, remoteControlDB, mediaRegistryDB, homepageRegistryDB, contactsDB, plannerDB, sqlConnectionsDB, sqlConnectionPool, backgroundTaskManager, warningsRegistry, isFirstStart, shutdownCh, installDir); err != nil {
+	if err := server.Start(server.StartOptions{
+		Cfg:                cfg,
+		Logger:             appLog,
+		AccessLogger:       webAccessLog,
+		LLMClient:          llmClient,
+		ShortTermMem:       shortTermMem,
+		LongTermMem:        longTermMem,
+		Vault:              vault,
+		Registry:           registry,
+		CronManager:        cronManager,
+		HistoryManager:     historyManager,
+		KG:                 kg,
+		InventoryDB:        inventoryDB,
+		InvasionDB:         invasionDB,
+		CheatsheetDB:       cheatsheetDB,
+		ImageGalleryDB:     imageGalleryDB,
+		RemoteControlDB:    remoteControlDB,
+		MediaRegistryDB:    mediaRegistryDB,
+		HomepageRegistryDB: homepageRegistryDB,
+		ContactsDB:         contactsDB,
+		PlannerDB:          plannerDB,
+		SQLConnectionsDB:   sqlConnectionsDB,
+		SQLConnectionPool:  sqlConnectionPool,
+		BackgroundTasks:    backgroundTaskManager,
+		WarningsRegistry:   warningsRegistry,
+		IsFirstStart:       isFirstStart,
+		ShutdownCh:         shutdownCh,
+		InstallDir:         installDir,
+	}); err != nil {
 		appLog.Error("Server failed", "error", err)
 		os.Exit(1)
 	}

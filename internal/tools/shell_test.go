@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"log/slog"
 	"os"
 	"runtime"
 	"strings"
@@ -55,5 +56,48 @@ func TestExecuteShellError(t *testing.T) {
 	_, _, err := ExecuteShell(command, workspaceDir)
 	if err == nil {
 		t.Error("expected error for non-existent command, got nil")
+	}
+}
+
+func TestValidateShellCommandPolicyBlocksDangerousCommands(t *testing.T) {
+	t.Parallel()
+
+	cases := []string{
+		"rm -rf /",
+		"echo ok && rm -rf /tmp/test",
+		"sudo ls -la",
+		"python -c \"import os; os.system('rm -rf /')\"",
+	}
+
+	for _, command := range cases {
+		if err := ValidateShellCommandPolicy(command); err == nil || !strings.Contains(err.Error(), "command blocked") {
+			t.Fatalf("ValidateShellCommandPolicy(%q) error = %v, want blocked", command, err)
+		}
+	}
+}
+
+func TestValidateShellCommandPolicyAllowsBenignCommands(t *testing.T) {
+	t.Parallel()
+
+	cases := []string{
+		"echo hello",
+		"Get-ChildItem",
+		"python script.py",
+	}
+
+	for _, command := range cases {
+		if err := ValidateShellCommandPolicy(command); err != nil {
+			t.Fatalf("ValidateShellCommandPolicy(%q) error = %v, want nil", command, err)
+		}
+	}
+}
+
+func TestExecuteShellBackgroundRejectsPrivilegeWrapper(t *testing.T) {
+	t.Parallel()
+
+	registry := NewProcessRegistry(slog.Default())
+	workspaceDir := t.TempDir()
+	if _, err := ExecuteShellBackground("sudo ls", workspaceDir, registry); err == nil || !strings.Contains(err.Error(), "command blocked") {
+		t.Fatalf("ExecuteShellBackground() error = %v, want blocked", err)
 	}
 }

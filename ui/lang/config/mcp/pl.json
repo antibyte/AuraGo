@@ -25,5 +25,6 @@
   "config.mcp.field_name": "Nazwa",
   "config.mcp.field_command": "Polecenie",
   "config.mcp.field_environment": "Zmienne Środowiskowe",
-  "config.mcp.save_failed": "Zapis MCP nieudany: "
+  "config.mcp.save_failed": "Zapis MCP nieudany: ",
+  "config.mcp.field_args_label": "Argumenty"
 }

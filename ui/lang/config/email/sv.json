@@ -41,5 +41,8 @@
   "config.email.account_enabled_label": "Konto aktivt",
   "config.email.account_enabled_help": "Om inaktiverad kan agenten inte använda det här kontot.",
   "config.email.allow_sending_label": "Tillåt att skicka e-post",
-  "config.email.allow_sending_help": "Om inaktiverad kan agenten bara läsa e-post, inte skicka."
+  "config.email.allow_sending_help": "Om inaktiverad kan agenten bara läsa e-post, inte skicka.",
+  "config.email.edit_tooltip": "Redigera",
+  "config.email.delete_tooltip": "Ta bort",
+  "config.email.from_label": "Från"
 }

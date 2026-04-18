@@ -41,5 +41,8 @@
   "config.email.account_enabled_label": "Konto aktiv",
   "config.email.account_enabled_help": "Hvis deaktivert, kan ikke agenten bruke denne kontoen.",
   "config.email.allow_sending_label": "Tillat sending av e-post",
-  "config.email.allow_sending_help": "Hvis deaktivert, kan agenten bare lese e-post, ikke sende."
+  "config.email.allow_sending_help": "Hvis deaktivert, kan agenten bare lese e-post, ikke sende.",
+  "config.email.edit_tooltip": "Rediger",
+  "config.email.delete_tooltip": "Slett",
+  "config.email.from_label": "Fra"
 }

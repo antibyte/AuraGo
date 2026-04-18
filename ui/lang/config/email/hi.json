@@ -41,5 +41,8 @@
   "config.email.account_enabled_label": "खाता सक्षम",
   "config.email.account_enabled_help": "यदि निष्क्रिय है, तो एजेंट इस खाते का उपयोग नहीं कर सकता।",
   "config.email.allow_sending_label": "ईमेल भेजने की अनुमति",
-  "config.email.allow_sending_help": "यदि निष्क्रिय है, तो एजेंट केवल ईमेल पढ़ सकता है, भेज नहीं सकता।"
+  "config.email.allow_sending_help": "यदि निष्क्रिय है, तो एजेंट केवल ईमेल पढ़ सकता है, भेज नहीं सकता।",
+  "config.email.edit_tooltip": "संपादन करना",
+  "config.email.delete_tooltip": "मिटाना",
+  "config.email.from_label": "से"
 }

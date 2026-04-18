@@ -25,5 +25,6 @@
   "config.mcp.field_name": "Όνομα",
   "config.mcp.field_command": "Εντολή",
   "config.mcp.field_environment": "Μεταβλητές Περιβάλλοντος",
-  "config.mcp.save_failed": "Αποτυχία αποθήκευσης MCP: "
+  "config.mcp.save_failed": "Αποτυχία αποθήκευσης MCP: ",
+  "config.mcp.field_args_label": "Ορίσματα"
 }

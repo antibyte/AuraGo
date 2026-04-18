@@ -47,5 +47,13 @@
   "config.devices.find_mac_found": "Encontrado: {mac}",
   "config.devices.find_mac_not_found": "Não encontrado no cache ARP. Certifique-se de que o dispositivo está acessível.",
   "config.devices.find_mac_error": "Pesquisa falhou.",
-  "config.devices.delete_failed": "Falha ao excluir"
+  "config.devices.delete_failed": "Falha ao excluir",
+  "config.devices.field_name_label": "Nome *",
+  "config.devices.field_port_label": "Porta",
+  "config.devices.port_placeholder": "22",
+  "config.devices.ip_placeholder": "192.168.1.100",
+  "config.devices.username_placeholder": "root",
+  "config.devices.mac_placeholder": "AA:BB:CC:DD:EE:FF",
+  "config.devices.field_tags_label": "Tags",
+  "config.devices.field_vault_secret_id_label": "ID do segredo do cofre"
 }

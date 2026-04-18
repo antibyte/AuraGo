@@ -36,5 +36,6 @@
   "config.chromecast.request_failed": "Request failed",
   "config.chromecast.save": "Αποθήκευση",
   "config.chromecast.tts_port_label": "Θύρα TTS",
-  "config.chromecast.unknown": "Unknown"
+  "config.chromecast.unknown": "Unknown",
+  "config.chromecast.port_placeholder": "8009"
 }

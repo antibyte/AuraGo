@@ -47,5 +47,13 @@
   "config.devices.find_mac_found": "मिला: {mac}",
   "config.devices.find_mac_not_found": "ARP कैश में नहीं मिला। सुनिश्चित करें कि डिवाइस पहुँचयोग्य है।",
   "config.devices.find_mac_error": "खोज विफल।",
-  "config.devices.delete_failed": "हटाना विफल"
+  "config.devices.delete_failed": "हटाना विफल",
+  "config.devices.field_name_label": "नाम *",
+  "config.devices.field_port_label": "पत्तन",
+  "config.devices.port_placeholder": "22",
+  "config.devices.ip_placeholder": "192.168.1.100",
+  "config.devices.username_placeholder": "root",
+  "config.devices.mac_placeholder": "AA:BB:CC:DD:EE:FF",
+  "config.devices.field_tags_label": "टैग",
+  "config.devices.field_vault_secret_id_label": "वॉल्ट सीक्रेट आईडी"
 }

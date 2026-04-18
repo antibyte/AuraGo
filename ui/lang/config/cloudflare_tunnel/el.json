@@ -29,5 +29,15 @@
   "config.cloudflare_tunnel.loopback_hint": "Opens a plain HTTP port on 127.0.0.1 only. cloudflared connects to this instead of the HTTPS port — no certificate verification needed. The port is assigned automatically.",
   "config.cloudflare_tunnel.error_prefix": "Σφάλμα",
   "config.cloudflare_tunnel.restarting": "Επανεκκίνηση τούνελ...",
-  "config.cloudflare_tunnel.restart_success": "Το τούνελ επανεκκινήθηκε επιτυχώς"
+  "config.cloudflare_tunnel.restart_success": "Το τούνελ επανεκκινήθηκε επιτυχώς",
+  "config.cloudflare_tunnel.mode_auto": "Αυτόματο (Docker → Native)",
+  "config.cloudflare_tunnel.mode_docker": "Docker",
+  "config.cloudflare_tunnel.mode_native": "Εγγενές δυαδικό",
+  "config.cloudflare_tunnel.auth_connector_token": "Token συνδέσμου",
+  "config.cloudflare_tunnel.auth_named_tunnel": "Ονοματισμένο τούνελ",
+  "config.cloudflare_tunnel.auth_quick_tunnel": "Γρήγορο τούνελ (TryCloudflare)",
+  "config.cloudflare_tunnel.log_info": "Πληροφορίες",
+  "config.cloudflare_tunnel.log_debug": "Debug",
+  "config.cloudflare_tunnel.log_warn": "Προειδοποίηση",
+  "config.cloudflare_tunnel.log_error": "Σφάλμα"
 }

@@ -29,5 +29,15 @@
   "config.cloudflare_tunnel.loopback_hint": "Opens a plain HTTP port on 127.0.0.1 only. cloudflared connects to this instead of the HTTPS port — no certificate verification needed. The port is assigned automatically.",
   "config.cloudflare_tunnel.error_prefix": "Błąd",
   "config.cloudflare_tunnel.restarting": "Uruchamianie tunelu ponownie...",
-  "config.cloudflare_tunnel.restart_success": "Tunel pomyślnie uruchomiony ponownie"
+  "config.cloudflare_tunnel.restart_success": "Tunel pomyślnie uruchomiony ponownie",
+  "config.cloudflare_tunnel.mode_auto": "Auto (Docker → Native)",
+  "config.cloudflare_tunnel.mode_docker": "Docker",
+  "config.cloudflare_tunnel.mode_native": "Natywny plik binarny",
+  "config.cloudflare_tunnel.auth_connector_token": "Token łącznika",
+  "config.cloudflare_tunnel.auth_named_tunnel": "Tunel nazwany",
+  "config.cloudflare_tunnel.auth_quick_tunnel": "Szybki tunel (TryCloudflare)",
+  "config.cloudflare_tunnel.log_info": "Informacje",
+  "config.cloudflare_tunnel.log_debug": "Debug",
+  "config.cloudflare_tunnel.log_warn": "Ostrzeżenie",
+  "config.cloudflare_tunnel.log_error": "Błąd"
 }

@@ -41,5 +41,8 @@
   "config.email.account_enabled_label": "账户已启用",
   "config.email.account_enabled_help": "如果禁用，代理无法使用此账户。",
   "config.email.allow_sending_label": "允许发送邮件",
-  "config.email.allow_sending_help": "如果禁用，代理只能读取邮件，不能发送。"
+  "config.email.allow_sending_help": "如果禁用，代理只能读取邮件，不能发送。",
+  "config.email.edit_tooltip": "编辑",
+  "config.email.delete_tooltip": "删除",
+  "config.email.from_label": "发件人"
 }

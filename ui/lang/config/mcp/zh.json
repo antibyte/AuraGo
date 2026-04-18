@@ -25,5 +25,6 @@
   "config.mcp.field_name": "名称",
   "config.mcp.field_command": "命令",
   "config.mcp.field_environment": "环境变量",
-  "config.mcp.save_failed": "MCP 保存失败："
+  "config.mcp.save_failed": "MCP 保存失败：",
+  "config.mcp.field_args_label": "参数"
 }

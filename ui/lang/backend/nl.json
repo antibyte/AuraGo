@@ -24,7 +24,6 @@
   "backend.cmd_voice_help": "Schakelt spraakuitvoermodus — indien aan, gebruikt de agent TTS voor korte antwoorden (/voice on|off).",
   "backend.budget_disabled": "💰 Budgetsysteem is uitgeschakeld.",
   "backend.budget_help": "Toont de huidige budgetstatus (dagelijkse kosten, limiet, modellen).",
-
   "backend.budget_exceeded": "⛔ **Budget overschreden!**",
   "backend.budget_warning": "⚠️ **Budgetwaarschuwing!**",
   "backend.credits_unavailable": "ℹ️ /credits is alleen beschikbaar wanneer OpenRouter is geconfigureerd als de LLM-provider.\nHuidige provider: {0}",
@@ -216,5 +215,8 @@
   "tools.dns_partial_results": "gedeeltelijke resultaten",
   "backend.budget_mode_full_de": " (alles geblokkeerd bij overschrijding)",
   "backend.budget_mode_partial_de": " (Co-Agents + Vision/STT geblokkeerd bij overschrijding)",
-  "backend.budget_mode_warn_de": " (alleen waarschuwing)"
+  "backend.budget_mode_warn_de": " (alleen waarschuwing)",
+  "backend.budget_mode_warn_en": " (warning only)",
+  "backend.budget_mode_partial_en": " (co-agents + vision/STT blocked when exceeded)",
+  "backend.budget_mode_full_en": " (all blocked when exceeded)"
 }

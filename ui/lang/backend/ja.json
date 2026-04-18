@@ -24,7 +24,6 @@
   "backend.cmd_voice_help": "音声出力モードを切り替え — オン時、エージェントは短い返答にTTSを使用します (/voice on|off)。",
   "backend.budget_disabled": "💰 予算システムは無効です。",
   "backend.budget_help": "現在の予算ステータスを表示します（日次コスト、制限、モデル）。",
-
   "backend.budget_exceeded": "⛔ **予算超過！**",
   "backend.budget_warning": "⚠️ **予算警告！**",
   "backend.credits_unavailable": "ℹ️ /creditsはOpenRouterがLLMプロバイダーとして設定されている場合のみ利用可能です。\n現在プロバイダー: {0}",
@@ -216,5 +215,8 @@
   "tools.dns_partial_results": "部分結果",
   "backend.budget_mode_full_de": " （超過時はすべてブロック）",
   "backend.budget_mode_partial_de": " （超過時はCo-Agents + Vision/STT блокировано）",
-  "backend.budget_mode_warn_de": " （警告のみ）"
+  "backend.budget_mode_warn_de": " （警告のみ）",
+  "backend.budget_mode_warn_en": " (warning only)",
+  "backend.budget_mode_partial_en": " (co-agents + vision/STT blocked when exceeded)",
+  "backend.budget_mode_full_en": " (all blocked when exceeded)"
 }

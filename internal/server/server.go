@@ -195,48 +195,55 @@ func (s *Server) reinitBudgetTracker(cfg *config.Config) {
 	}
 }
 
-func Start(cfg *config.Config, logger *slog.Logger, accessLogger *slog.Logger, llmClient llm.ChatClient, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, vault *security.Vault, registry *tools.ProcessRegistry, cronManager *tools.CronManager, historyManager *memory.HistoryManager, kg *memory.KnowledgeGraph, inventoryDB *sql.DB, invasionDB *sql.DB, cheatsheetDB *sql.DB, imageGalleryDB *sql.DB, remoteControlDB *sql.DB, mediaRegistryDB *sql.DB, homepageRegistryDB *sql.DB, contactsDB *sql.DB, plannerDB *sql.DB, sqlConnectionsDB *sql.DB, sqlConnectionPool *sqlconnections.ConnectionPool, backgroundTasks *tools.BackgroundTaskManager, warningsRegistry *warnings.Registry, isFirstStart bool, shutdownCh chan struct{}, installDir string) error {
+// StartOptions groups the server boot dependencies so startup wiring stays named and testable.
+type StartOptions struct {
+	Cfg                *config.Config
+	Logger             *slog.Logger
+	AccessLogger       *slog.Logger
+	LLMClient          llm.ChatClient
+	ShortTermMem       *memory.SQLiteMemory
+	LongTermMem        memory.VectorDB
+	Vault              *security.Vault
+	Registry           *tools.ProcessRegistry
+	CronManager        *tools.CronManager
+	HistoryManager     *memory.HistoryManager
+	KG                 *memory.KnowledgeGraph
+	InventoryDB        *sql.DB
+	InvasionDB         *sql.DB
+	CheatsheetDB       *sql.DB
+	ImageGalleryDB     *sql.DB
+	RemoteControlDB    *sql.DB
+	MediaRegistryDB    *sql.DB
+	HomepageRegistryDB *sql.DB
+	ContactsDB         *sql.DB
+	PlannerDB          *sql.DB
+	SQLConnectionsDB   *sql.DB
+	SQLConnectionPool  *sqlconnections.ConnectionPool
+	BackgroundTasks    *tools.BackgroundTaskManager
+	WarningsRegistry   *warnings.Registry
+	IsFirstStart       bool
+	ShutdownCh         chan struct{}
+	InstallDir         string
+}
+
+func Start(opts StartOptions) error {
+	cfg := opts.Cfg
+	logger := opts.Logger
+	llmClient := opts.LLMClient
+	shortTermMem := opts.ShortTermMem
+	longTermMem := opts.LongTermMem
+	vault := opts.Vault
+	registry := opts.Registry
+	kg := opts.KG
+	inventoryDB := opts.InventoryDB
+	cheatsheetDB := opts.CheatsheetDB
+	remoteControlDB := opts.RemoteControlDB
+	backgroundTasks := opts.BackgroundTasks
+	shutdownCh := opts.ShutdownCh
+	installDir := opts.InstallDir
+
 	startLoginRecordCleaner(shutdownCh)
-	s := &Server{
-		Cfg:                cfg,
-		Logger:             logger,
-		AccessLogger:       accessLogger,
-		LLMClient:          llmClient,
-		ShortTermMem:       shortTermMem,
-		LongTermMem:        longTermMem,
-		Vault:              vault,
-		Registry:           registry,
-		CronManager:        cronManager,
-		BackgroundTasks:    backgroundTasks,
-		HistoryManager:     historyManager,
-		KG:                 kg,
-		InventoryDB:        inventoryDB,
-		InvasionDB:         invasionDB,
-		CheatsheetDB:       cheatsheetDB,
-		ImageGalleryDB:     imageGalleryDB,
-		MediaRegistryDB:    mediaRegistryDB,
-		HomepageRegistryDB: homepageRegistryDB,
-		ContactsDB:         contactsDB,
-		PlannerDB:          plannerDB,
-		SQLConnectionsDB:   sqlConnectionsDB,
-		SQLConnectionPool:  sqlConnectionPool,
-		Guardian: security.NewGuardianWithOptions(logger, security.GuardianOptions{
-			MaxScanBytes:  cfg.Guardian.MaxScanBytes,
-			ScanEdgeBytes: cfg.Guardian.ScanEdgeBytes,
-			Preset:        cfg.Guardian.PromptSec.Preset,
-			Spotlight:     cfg.Guardian.PromptSec.Spotlight,
-			Canary:        cfg.Guardian.PromptSec.Canary,
-		}),
-		LLMGuardian:      security.NewLLMGuardian(cfg, logger),
-		CoAgentRegistry:  agent.NewCoAgentRegistry(cfg.CoAgents.MaxConcurrent, logger),
-		BudgetTracker:    budget.NewTracker(cfg, logger, cfg.Directories.DataDir),
-		IsFirstStart:     isFirstStart,
-		StartedAt:        time.Now(),
-		ShutdownCh:       shutdownCh,
-		MissionManagerV2: tools.NewMissionManagerV2(cfg.Directories.DataDir, cronManager),
-		EggHub:           bridge.NewEggHub(logger),
-		WarningsRegistry: warningsRegistry,
-	}
+	s := newServerFromOptions(opts)
 	// Retrieve the per-process loopback auth token from BackgroundTaskManager.
 	// It was generated in main() before server.Start() was called.
 	if backgroundTasks != nil {
@@ -796,6 +803,52 @@ func Start(cfg *config.Config, logger *slog.Logger, accessLogger *slog.Logger, l
 	}
 
 	return s.run(shutdownCh)
+}
+
+func newServerFromOptions(opts StartOptions) *Server {
+	cfg := opts.Cfg
+	logger := opts.Logger
+
+	return &Server{
+		Cfg:                cfg,
+		Logger:             logger,
+		AccessLogger:       opts.AccessLogger,
+		LLMClient:          opts.LLMClient,
+		ShortTermMem:       opts.ShortTermMem,
+		LongTermMem:        opts.LongTermMem,
+		Vault:              opts.Vault,
+		Registry:           opts.Registry,
+		CronManager:        opts.CronManager,
+		BackgroundTasks:    opts.BackgroundTasks,
+		HistoryManager:     opts.HistoryManager,
+		KG:                 opts.KG,
+		InventoryDB:        opts.InventoryDB,
+		InvasionDB:         opts.InvasionDB,
+		CheatsheetDB:       opts.CheatsheetDB,
+		ImageGalleryDB:     opts.ImageGalleryDB,
+		MediaRegistryDB:    opts.MediaRegistryDB,
+		HomepageRegistryDB: opts.HomepageRegistryDB,
+		ContactsDB:         opts.ContactsDB,
+		PlannerDB:          opts.PlannerDB,
+		SQLConnectionsDB:   opts.SQLConnectionsDB,
+		SQLConnectionPool:  opts.SQLConnectionPool,
+		Guardian: security.NewGuardianWithOptions(logger, security.GuardianOptions{
+			MaxScanBytes:  cfg.Guardian.MaxScanBytes,
+			ScanEdgeBytes: cfg.Guardian.ScanEdgeBytes,
+			Preset:        cfg.Guardian.PromptSec.Preset,
+			Spotlight:     cfg.Guardian.PromptSec.Spotlight,
+			Canary:        cfg.Guardian.PromptSec.Canary,
+		}),
+		LLMGuardian:      security.NewLLMGuardian(cfg, logger),
+		CoAgentRegistry:  agent.NewCoAgentRegistry(cfg.CoAgents.MaxConcurrent, logger),
+		BudgetTracker:    budget.NewTracker(cfg, logger, cfg.Directories.DataDir),
+		IsFirstStart:     opts.IsFirstStart,
+		StartedAt:        time.Now(),
+		ShutdownCh:       opts.ShutdownCh,
+		MissionManagerV2: tools.NewMissionManagerV2(cfg.Directories.DataDir, opts.CronManager),
+		EggHub:           bridge.NewEggHub(logger),
+		WarningsRegistry: opts.WarningsRegistry,
+	}
 }
 
 // runHTTP starts the server in HTTP mode (for local/LAN use)

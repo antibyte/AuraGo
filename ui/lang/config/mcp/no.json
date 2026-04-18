@@ -25,5 +25,6 @@
   "config.mcp.field_name": "Naam",
   "config.mcp.field_command": "Commando",
   "config.mcp.field_environment": "Omgevingsvariabelen",
-  "config.mcp.save_failed": "MCP save failed: "
+  "config.mcp.save_failed": "MCP save failed: ",
+  "config.mcp.field_args_label": "Args"
 }

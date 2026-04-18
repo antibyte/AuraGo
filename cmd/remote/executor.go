@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"aurago/internal/remote"
+	"aurago/internal/tools"
 
 	"github.com/beevik/etree"
 	"github.com/tidwall/gjson"
@@ -30,29 +31,6 @@ type Executor struct {
 // NewExecutor creates a new command executor.
 func NewExecutor(logger *slog.Logger) *Executor {
 	return &Executor{logger: logger}
-}
-
-// dangerousCommandPatterns contains regex patterns for commands that are
-// blocked from execution on remote devices regardless of privileges.
-var dangerousCommandPatterns = []*regexp.Regexp{
-	regexp.MustCompile(`(?i)^\s*rm\s+-rf\s+/\s*$`),     // rm -rf / (Unix complete deletion)
-	regexp.MustCompile(`(?i)^\s*del\s+/s\s+/q\s+C:\\`), // del /s /q C:\ (Windows recursive delete)
-	regexp.MustCompile(`(?i)^\s*format\s+`),            // format command (disk formatting)
-	regexp.MustCompile(`(?i)^\s*mkfs`),                 // mkfs (filesystem creation)
-	regexp.MustCompile(`(?i)^\s*dd\s+if=`),             // dd if= (direct disk writing)
-	regexp.MustCompile(`(?i)^\s*shred`),                // shred (secure deletion)
-	regexp.MustCompile(`(?i)^\s*dd\s+.*of=/dev/`),      // dd to disk device
-}
-
-// isCommandBlocked checks if a command matches any dangerous pattern.
-// Returns the matched pattern description if blocked, empty string otherwise.
-func isCommandBlocked(command string) string {
-	for _, pattern := range dangerousCommandPatterns {
-		if pattern.MatchString(command) {
-			return "command matches blocked dangerous pattern"
-		}
-	}
-	return ""
 }
 
 // Execute runs a command and returns the result.
@@ -160,6 +138,13 @@ func (e *Executor) Execute(cmd remote.CommandPayload, readOnly bool, allowedPath
 		if timeout == 0 {
 			timeout = 60 * time.Second
 		}
+		if strings.TrimSpace(workDir) != "" {
+			if err := e.validatePath(workDir, allowedPaths); err != nil {
+				result.Status = "denied"
+				result.Error = err.Error()
+				return result
+			}
+		}
 		output, err := e.shellExec(command, workDir, timeout)
 		if err != nil {
 			result.Status = "error"
@@ -245,11 +230,17 @@ func (e *Executor) Execute(cmd remote.CommandPayload, readOnly bool, allowedPath
 		path, _ := cmd.Args["path"].(string)
 		globPattern, _ := cmd.Args["glob"].(string)
 		outputMode, _ := cmd.Args["output_mode"].(string)
-		baseDir := "."
-		if len(allowedPaths) > 0 {
-			baseDir = allowedPaths[0]
+		if strings.TrimSpace(path) == "" {
+			result.Status = "denied"
+			result.Error = "path is required for file_search operations"
+			return result
 		}
-		output, err := e.fileSearch(op, pattern, path, globPattern, outputMode, baseDir)
+		if err := e.validatePath(path, allowedPaths); err != nil {
+			result.Status = "denied"
+			result.Error = err.Error()
+			return result
+		}
+		output, err := e.fileSearch(op, pattern, path, globPattern, outputMode, path)
 		if err != nil {
 			result.Status = "error"
 			result.Error = err.Error()
@@ -319,7 +310,7 @@ func (e *Executor) validatePath(path string, allowedPaths []string) error {
 
 	// Check against allowed paths
 	if len(allowedPaths) == 0 {
-		return nil // no restrictions
+		return fmt.Errorf("path operations are disabled until allowed_paths is configured")
 	}
 
 	for _, allowed := range allowedPaths {
@@ -391,9 +382,9 @@ func (e *Executor) shellExec(command, workDir string, timeout time.Duration) (st
 	}
 
 	// Security: Check for dangerous commands before execution
-	if blocked := isCommandBlocked(command); blocked != "" {
-		e.logger.Warn("[shellExec] blocked dangerous command", "reason", blocked, "command", command)
-		return "", fmt.Errorf("command blocked: %s", blocked)
+	if err := tools.ValidateShellCommandPolicy(command); err != nil {
+		e.logger.Warn("[shellExec] blocked shell command", "reason", err.Error(), "command", command)
+		return "", err
 	}
 
 	// Log every command execution for audit trail

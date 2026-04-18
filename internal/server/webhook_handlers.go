@@ -179,6 +179,10 @@ func handleCreateWebhook(s *Server, mgr *webhooks.Manager) http.HandlerFunc {
 		}
 		created, err := mgr.Create(wh)
 		if err != nil {
+			if strings.Contains(strings.ToLower(err.Error()), "prompt template") {
+				jsonError(w, err.Error(), http.StatusBadRequest)
+				return
+			}
 			jsonError(w, "Failed to create webhook", http.StatusBadRequest)
 			return
 		}
@@ -236,6 +240,10 @@ func handleUpdateWebhook(s *Server, mgr *webhooks.Manager) http.HandlerFunc {
 		if err != nil {
 			if strings.Contains(strings.ToLower(err.Error()), "not found") {
 				jsonError(w, "Webhook not found", http.StatusNotFound)
+				return
+			}
+			if strings.Contains(strings.ToLower(err.Error()), "prompt template") {
+				jsonError(w, err.Error(), http.StatusBadRequest)
 				return
 			}
 			jsonError(w, "Failed to update webhook", http.StatusBadRequest)

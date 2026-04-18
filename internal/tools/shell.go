@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"os/exec"
@@ -16,32 +17,6 @@ import (
 const shellKillWait = 8 * time.Second
 
 var sudoPasswordPromptPattern = regexp.MustCompile(`^\[sudo\][^:\r\n]*:\s*`)
-
-// dangerousCommandPatterns contains regex patterns for commands that are
-// blocked from execution regardless of privileges. These are patterns that
-// would cause irreversible destruction or security compromise.
-// The allow_shell config option must be set to true to enable shell execution.
-// NOTE: allow_shell defaults to false in config.
-var dangerousCommandPatterns = []*regexp.Regexp{
-	regexp.MustCompile(`(?i)^\s*rm\s+-rf\s+/\s*$`),     // rm -rf / (Unix complete deletion)
-	regexp.MustCompile(`(?i)^\s*del\s+/s\s+/q\s+C:\\`), // del /s /q C:\ (Windows recursive delete)
-	regexp.MustCompile(`(?i)^\s*format\s+`),            // format command (disk formatting)
-	regexp.MustCompile(`(?i)^\s*mkfs`),                 // mkfs (filesystem creation)
-	regexp.MustCompile(`(?i)^\s*dd\s+if=`),             // dd if= (direct disk writing)
-	regexp.MustCompile(`(?i)^\s*shred`),                // shred (secure deletion)
-	regexp.MustCompile(`(?i)^\s*dd\s+.*of=/dev/`),      // dd to disk device
-}
-
-// isCommandBlocked checks if a command matches any dangerous pattern.
-// Returns the matched pattern description if blocked, empty string otherwise.
-func isCommandBlocked(command string) string {
-	for _, pattern := range dangerousCommandPatterns {
-		if pattern.MatchString(command) {
-			return "command matches blocked dangerous pattern"
-		}
-	}
-	return ""
-}
 
 // Security notes for shell execution:
 //
@@ -77,9 +52,9 @@ func isCommandBlocked(command string) string {
 // (e.g., an ssh process spawned by powershell that holds pipes open indefinitely).
 func ExecuteShell(command, workspaceDir string) (string, string, error) {
 	// Security: Check for dangerous commands before execution
-	if blocked := isCommandBlocked(command); blocked != "" {
-		slog.Warn("[ExecuteShell] blocked dangerous command", "reason", blocked, "command", command)
-		return "", "", fmt.Errorf("command blocked: %s", blocked)
+	if err := ValidateShellCommandPolicy(command); err != nil {
+		slog.Warn("[ExecuteShell] blocked shell command", "reason", err.Error(), "command", command)
+		return "", "", err
 	}
 
 	var cmd *exec.Cmd
@@ -107,15 +82,15 @@ func ExecuteShell(command, workspaceDir string) (string, string, error) {
 		ErrMsg:   "TIMEOUT: shell command exceeded %s limit",
 	})
 
-	return runner.Run()
+	return runner.Run(context.Background())
 }
 
 // ExecuteShellBackground starts a command in the shell in the background and registers it.
 func ExecuteShellBackground(command, workspaceDir string, registry *ProcessRegistry) (int, error) {
 	// Security: Check for dangerous commands before execution
-	if blocked := isCommandBlocked(command); blocked != "" {
-		slog.Warn("[ExecuteShellBackground] blocked dangerous command", "reason", blocked, "command", command)
-		return 0, fmt.Errorf("command blocked: %s", blocked)
+	if err := ValidateShellCommandPolicy(command); err != nil {
+		slog.Warn("[ExecuteShellBackground] blocked shell command", "reason", err.Error(), "command", command)
+		return 0, err
 	}
 
 	var cmd *exec.Cmd
@@ -156,9 +131,9 @@ func ExecuteSudo(command, workspaceDir, password string) (string, string, error)
 	}
 
 	// Security: Check for dangerous commands before execution
-	if blocked := isCommandBlocked(command); blocked != "" {
-		slog.Warn("[ExecuteSudo] blocked dangerous command", "reason", blocked, "command", command)
-		return "", "", fmt.Errorf("command blocked: %s", blocked)
+	if err := ValidateShellCommandPolicy(command); err != nil {
+		slog.Warn("[ExecuteSudo] blocked shell command", "reason", err.Error(), "command", command)
+		return "", "", err
 	}
 
 	// sudo -S reads the password from stdin; -n would fail if a password is needed.
@@ -177,7 +152,7 @@ func ExecuteSudo(command, workspaceDir, password string) (string, string, error)
 		ErrMsg:   "TIMEOUT: sudo command exceeded %s limit",
 	})
 
-	stdout, stderr, err := runner.Run()
+	stdout, stderr, err := runner.Run(context.Background())
 	if err != nil {
 		// Apply sudo-specific stderr normalization for password prompt
 		stderr = normalizeSudoStderr(stderr)

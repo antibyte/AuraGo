@@ -41,5 +41,8 @@
   "config.email.account_enabled_label": "Account attivo",
   "config.email.account_enabled_help": "Se disabilitato, l'agente non può usare questo account.",
   "config.email.allow_sending_label": "Consenti invio email",
-  "config.email.allow_sending_help": "Se disabilitato, l'agente può solo leggere le email, non inviarle."
+  "config.email.allow_sending_help": "Se disabilitato, l'agente può solo leggere le email, non inviarle.",
+  "config.email.edit_tooltip": "Modifica",
+  "config.email.delete_tooltip": "Elimina",
+  "config.email.from_label": "Da"
 }

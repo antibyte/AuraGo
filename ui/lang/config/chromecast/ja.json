@@ -36,5 +36,6 @@
   "config.chromecast.request_failed": "Request failed",
   "config.chromecast.save": "保存",
   "config.chromecast.tts_port_label": "TTSポート",
-  "config.chromecast.unknown": "Unknown"
+  "config.chromecast.unknown": "Unknown",
+  "config.chromecast.port_placeholder": "8009"
 }

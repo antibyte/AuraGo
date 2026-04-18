@@ -41,5 +41,8 @@
   "config.email.account_enabled_label": "アカウント有効",
   "config.email.account_enabled_help": "無効にすると、エージェントはこのアカウントを使用できません。",
   "config.email.allow_sending_label": "メール送信を許可",
-  "config.email.allow_sending_help": "無効にすると、エージェントはメールを読むだけで、送信できません。"
+  "config.email.allow_sending_help": "無効にすると、エージェントはメールを読むだけで、送信できません。",
+  "config.email.edit_tooltip": "編集",
+  "config.email.delete_tooltip": "消去",
+  "config.email.from_label": "送信元"
 }

@@ -129,6 +129,9 @@ func (m *Manager) Create(w Webhook) (Webhook, error) {
 	if w.Delivery.PromptTemplate == "" {
 		w.Delivery.PromptTemplate = DefaultPromptTemplate
 	}
+	if err := ValidatePromptTemplate(w.Delivery.PromptTemplate); err != nil {
+		return Webhook{}, err
+	}
 	if len(w.Format.AcceptedContentTypes) == 0 {
 		w.Format.AcceptedContentTypes = []string{"application/json"}
 	}
@@ -191,6 +194,9 @@ func (m *Manager) Update(id string, patch Webhook) (Webhook, error) {
 			m.webhooks[i].Delivery.Mode = patch.Delivery.Mode
 		}
 		if patch.Delivery.PromptTemplate != "" {
+			if err := ValidatePromptTemplate(patch.Delivery.PromptTemplate); err != nil {
+				return Webhook{}, err
+			}
 			m.webhooks[i].Delivery.PromptTemplate = patch.Delivery.PromptTemplate
 		}
 		if patch.Delivery.Priority != "" {

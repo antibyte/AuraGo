@@ -41,5 +41,8 @@
   "config.email.account_enabled_label": "Account actief",
   "config.email.account_enabled_help": "Als uitgeschakeld, kan de agent dit account niet gebruiken.",
   "config.email.allow_sending_label": "E-mails verzenden toestaan",
-  "config.email.allow_sending_help": "Als uitgeschakeld, kan de agent alleen e-mails lezen, niet verzenden."
+  "config.email.allow_sending_help": "Als uitgeschakeld, kan de agent alleen e-mails lezen, niet verzenden.",
+  "config.email.edit_tooltip": "Bewerken",
+  "config.email.delete_tooltip": "Verwijderen",
+  "config.email.from_label": "Van"
 }

@@ -24,7 +24,6 @@
   "backend.cmd_voice_help": "切换语音输出模式 — 开启时，代理使用 TTS 进行简短回复（/voice on|off）。",
   "backend.budget_disabled": "💰 预算系统已禁用。",
   "backend.budget_help": "显示当前预算状态（每日成本、限额、模型）。",
-
   "backend.budget_exceeded": "⛔ **预算已超支！**",
   "backend.budget_warning": "⚠️ **预算警告！**",
   "backend.credits_unavailable": "ℹ️ /credits 仅在 OpenRouter 配置为 LLM 提供商时可用。\n当前提供商：{0}",
@@ -213,5 +212,11 @@
   "tools.dns_txt_lookup_failed": "TXT 查询：{0}",
   "tools.dns_cname_lookup_failed": "CNAME 查询：{0}",
   "tools.dns_ptr_lookup_failed": "PTR 查询：{0}",
-  "tools.dns_partial_results": "部分结果"
+  "tools.dns_partial_results": "部分结果",
+  "backend.budget_mode_warn_en": " (warning only)",
+  "backend.budget_mode_partial_en": " (co-agents + vision/STT blocked when exceeded)",
+  "backend.budget_mode_full_en": " (all blocked when exceeded)",
+  "backend.budget_mode_warn_de": " (nur Warnung)",
+  "backend.budget_mode_partial_de": " (Co-Agents + Vision/STT gesperrt bei Überschreitung)",
+  "backend.budget_mode_full_de": " (alles gesperrt bei Überschreitung)"
 }

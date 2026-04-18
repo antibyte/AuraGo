@@ -47,5 +47,13 @@
   "config.devices.find_mac_found": "Gevonden: {mac}",
   "config.devices.find_mac_not_found": "Niet gevonden in ARP-cache. Zorg ervoor dat het apparaat bereikbaar is.",
   "config.devices.find_mac_error": "Opzoeken mislukt.",
-  "config.devices.delete_failed": "Verwijderen mislukt"
+  "config.devices.delete_failed": "Verwijderen mislukt",
+  "config.devices.field_name_label": "Naam *",
+  "config.devices.field_port_label": "Poort",
+  "config.devices.port_placeholder": "22",
+  "config.devices.ip_placeholder": "192.168.1.100",
+  "config.devices.username_placeholder": "root",
+  "config.devices.mac_placeholder": "AA:BB:CC:DD:EE:FF",
+  "config.devices.field_tags_label": "Tags",
+  "config.devices.field_vault_secret_id_label": "Vault Secret-ID"
 }

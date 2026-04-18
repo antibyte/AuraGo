@@ -36,5 +36,6 @@
   "config.chromecast.request_failed": "Request failed",
   "config.chromecast.save": "Guardar",
   "config.chromecast.tts_port_label": "Puerto TTS",
-  "config.chromecast.unknown": "Unknown"
+  "config.chromecast.unknown": "Unknown",
+  "config.chromecast.port_placeholder": "8009"
 }

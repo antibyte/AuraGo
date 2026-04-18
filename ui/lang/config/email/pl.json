@@ -41,5 +41,8 @@
   "config.email.account_enabled_label": "Konto aktywne",
   "config.email.account_enabled_help": "Jeśli wyłączone, agent nie może używać tego konta.",
   "config.email.allow_sending_label": "Zezwól na wysyłanie e-maili",
-  "config.email.allow_sending_help": "Jeśli wyłączone, agent może tylko czytać e-maile, nie wysyłać."
+  "config.email.allow_sending_help": "Jeśli wyłączone, agent może tylko czytać e-maile, nie wysyłać.",
+  "config.email.edit_tooltip": "Edytuj",
+  "config.email.delete_tooltip": "Usuń",
+  "config.email.from_label": "Od"
 }

@@ -24,7 +24,6 @@
   "backend.cmd_voice_help": "वॉइस आउटपुट मोड टॉगल करता है — चालू होने पर, एजेंट छोटे उत्तरों के लिए TTS का उपयोग करता है (/voice on|off)।",
   "backend.budget_disabled": "💰 बजट प्रणाली अक्षम है।",
   "backend.budget_help": "वर्तमान बजट स्थिति दिखाता है (दैनिक लागत, सीमा, मॉडल)।",
-
   "backend.budget_exceeded": "⛔ **बजट पार हो गया!**",
   "backend.budget_warning": "⚠️ **बजट चेतावनी!**",
   "backend.credits_unavailable": "ℹ️ /credits केवल तब उपलब्ध है जब OpenRouter LLM प्रदाता के रूप में कॉन्फ़िगर हो।\nवर्तमान प्रदाता: {0}",
@@ -216,5 +215,8 @@
   "tools.dns_partial_results": "आंशिक परिणाम",
   "backend.budget_mode_full_de": " (सीमा पार करने पर सब कुछ अवरुद्ध)",
   "backend.budget_mode_partial_de": " (Co-Agents + Vision/STT सीमा पार करने पर अवरुद्ध)",
-  "backend.budget_mode_warn_de": " (केवल चेतावनी)"
+  "backend.budget_mode_warn_de": " (केवल चेतावनी)",
+  "backend.budget_mode_warn_en": " (warning only)",
+  "backend.budget_mode_partial_en": " (co-agents + vision/STT blocked when exceeded)",
+  "backend.budget_mode_full_en": " (all blocked when exceeded)"
 }

@@ -47,5 +47,13 @@
   "config.devices.find_mac_found": "已找到：{mac}",
   "config.devices.find_mac_not_found": "在ARP缓存中未找到。请确保设备可访问。",
   "config.devices.find_mac_error": "查找失败。",
-  "config.devices.delete_failed": "删除失败"
+  "config.devices.delete_failed": "删除失败",
+  "config.devices.field_name_label": "名称 *",
+  "config.devices.field_port_label": "端口",
+  "config.devices.port_placeholder": "22",
+  "config.devices.ip_placeholder": "192.168.1.100",
+  "config.devices.username_placeholder": "root",
+  "config.devices.mac_placeholder": "AA:BB:CC:DD:EE:FF",
+  "config.devices.field_tags_label": "标签",
+  "config.devices.field_vault_secret_id_label": "保险库密钥 ID"
 }

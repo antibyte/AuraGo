@@ -41,5 +41,8 @@
   "config.email.account_enabled_label": "Účet aktivní",
   "config.email.account_enabled_help": "Pokud je deaktivováno, agent nemůže tento účet používat.",
   "config.email.allow_sending_label": "Povolit odesílání e-mailů",
-  "config.email.allow_sending_help": "Pokud je deaktivováno, agent může pouze číst e-maily, nikoli odesílat."
+  "config.email.allow_sending_help": "Pokud je deaktivováno, agent může pouze číst e-maily, nikoli odesílat.",
+  "config.email.edit_tooltip": "Upravit",
+  "config.email.delete_tooltip": "Smazat",
+  "config.email.from_label": "Od"
 }

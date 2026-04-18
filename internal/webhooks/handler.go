@@ -13,7 +13,6 @@ import (
 	"net/http"
 	"strings"
 	gosync "sync"
-	"text/template"
 	"time"
 
 	"aurago/internal/config"
@@ -374,13 +373,6 @@ func extractHeaders(r *http.Request) map[string]string {
 
 func renderPrompt(wh Webhook, rawPayload string, fields map[string]interface{}, headers map[string]string) (string, error) {
 	tmplStr := wh.Delivery.PromptTemplate
-	if tmplStr == "" {
-		tmplStr = DefaultPromptTemplate
-	}
-	tmpl, err := template.New("webhook").Parse(tmplStr)
-	if err != nil {
-		return "", fmt.Errorf("invalid prompt template: %w", err)
-	}
 	data := PromptData{
 		WebhookName: wh.Name,
 		Slug:        wh.Slug,
@@ -389,11 +381,7 @@ func renderPrompt(wh Webhook, rawPayload string, fields map[string]interface{}, 
 		Headers:     headers,
 		Timestamp:   time.Now().UTC().Format(time.RFC3339),
 	}
-	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, data); err != nil {
-		return "", fmt.Errorf("template execution failed: %w", err)
-	}
-	return buf.String(), nil
+	return renderPromptTemplate(tmplStr, data)
 }
 
 func truncateStr(s string, maxLen int) string {

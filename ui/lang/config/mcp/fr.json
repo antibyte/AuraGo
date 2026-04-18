@@ -25,5 +25,6 @@
   "config.mcp.field_name": "Nom",
   "config.mcp.field_command": "Commande",
   "config.mcp.field_environment": "Variables d'Environnement",
-  "config.mcp.save_failed": "Échec de l'enregistrement MCP : "
+  "config.mcp.save_failed": "Échec de l'enregistrement MCP : ",
+  "config.mcp.field_args_label": "Args"
 }
