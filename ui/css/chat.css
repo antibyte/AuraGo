@@ -5,6 +5,16 @@
            CHAT THEME PICKER
            ═══════════════════════════════════════════════════════════════ */
 
+        @font-face {
+            font-family: 'Datatype';
+            font-style: normal;
+            font-display: swap;
+            font-weight: 400;
+            src:
+                url('https://cdn.jsdelivr.net/fontsource/fonts/datatype@latest/latin-400-normal.woff2') format('woff2'),
+                url('https://cdn.jsdelivr.net/fontsource/fonts/datatype@latest/latin-400-normal.woff') format('woff');
+        }
+
         :root {
             --chat-lane-max-width: 52rem;
             --chat-bubble-max-width: min(80%, 38rem);
@@ -3599,7 +3609,7 @@
     --crt-amber:    rgba(255, 158, 64, 0.2);
     --crt-glass:    rgba(223, 255, 214, 0.05);
     --crt-shadow:   rgba(0, 0, 0, 0.62);
-    --crt-font-ui:  'Sixtyfour', 'Inter', system-ui, sans-serif;
+    --crt-font-ui:  'Datatype', 'Inter', system-ui, sans-serif;
     --chat-copy-font-size: 0.9rem;
     --chat-input-font-size: 0.9rem;
 
