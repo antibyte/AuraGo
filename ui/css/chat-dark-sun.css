@@ -697,3 +697,31 @@
     z-index: 5;
     transform: none;
 }
+
+/* Safe theme mode: keep the palette, but fall back to the stable base chat rendering. */
+[data-theme="dark-sun"] #chat-content {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    filter: none !important;
+    mix-blend-mode: normal !important;
+}
+
+[data-theme="dark-sun"] .greeting-row,
+[data-theme="dark-sun"] .msg-row,
+[data-theme="dark-sun"] .tool-output-row,
+[data-theme="dark-sun"] .avatar,
+[data-theme="dark-sun"] .bubble,
+[data-theme="dark-sun"] .typing-indicator,
+[data-theme="dark-sun"] .typing-dots {
+    visibility: visible !important;
+    opacity: 1 !important;
+    filter: none !important;
+    mix-blend-mode: normal !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+[data-theme="dark-sun"] .bubble::after {
+    display: none !important;
+}

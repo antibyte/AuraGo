@@ -735,3 +735,31 @@
     z-index: 5;
     transform: none;
 }
+
+/* Safe theme mode: keep the palette, but fall back to the stable base chat rendering. */
+[data-theme="cyberwar"] #chat-content {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    filter: none !important;
+    mix-blend-mode: normal !important;
+}
+
+[data-theme="cyberwar"] .greeting-row,
+[data-theme="cyberwar"] .msg-row,
+[data-theme="cyberwar"] .tool-output-row,
+[data-theme="cyberwar"] .avatar,
+[data-theme="cyberwar"] .bubble,
+[data-theme="cyberwar"] .typing-indicator,
+[data-theme="cyberwar"] .typing-dots {
+    visibility: visible !important;
+    opacity: 1 !important;
+    filter: none !important;
+    mix-blend-mode: normal !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+[data-theme="cyberwar"] .bubble::after {
+    display: none !important;
+}
