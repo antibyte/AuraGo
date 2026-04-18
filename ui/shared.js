@@ -268,7 +268,7 @@ function injectRadialMenu() {
 
     // Detect current page from URL
     const path = window.location.pathname;
-    const pages = [
+    const allPages = [
         { href: '/', icon: '💬', key: 'common.nav_chat' },
         { href: '/dashboard', icon: '📊', key: 'common.nav_dashboard' },
         { href: '/plans', icon: '🗺️', key: 'common.nav_plans' },
@@ -282,6 +282,8 @@ function injectRadialMenu() {
         { href: '/config', icon: '⚙️', key: 'common.nav_config' },
         { href: '/invasion', icon: '🥚', key: 'common.nav_invasion' },
     ];
+    const hiddenRadialPages = new Set(['/plans', '/truenas']);
+    const pages = allPages.filter((page) => !hiddenRadialPages.has(page.href));
 
     const totalItems = pages.length + 1;
     const renderItem = (p, index) => {
