@@ -60,8 +60,41 @@ type musicDailyCounter struct {
 
 var musicCounter = &musicDailyCounter{}
 
+// musicCounterReserve atomically reserves one generation slot against the daily
+// limit. It increments the counter immediately so that concurrent requests
+// cannot exceed the limit (no TOCTOU race). If the API call later fails, call
+// musicCounterRelease to give the slot back.
+func musicCounterReserve(maxDaily int) (int, bool) {
+	musicCounter.mu.Lock()
+	defer musicCounter.mu.Unlock()
+
+	today := time.Now().Format("2006-01-02")
+	if musicCounter.date != today {
+		musicCounter.date = today
+		musicCounter.count = 0
+	}
+	if maxDaily > 0 && musicCounter.count >= maxDaily {
+		return musicCounter.count, false
+	}
+	musicCounter.count++
+	return musicCounter.count, true
+}
+
+// musicCounterRelease releases a previously reserved generation slot.
+// Call this when a generation fails (API error) so the slot is not consumed.
+func musicCounterRelease() {
+	musicCounter.mu.Lock()
+	defer musicCounter.mu.Unlock()
+
+	today := time.Now().Format("2006-01-02")
+	if musicCounter.date == today && musicCounter.count > 0 {
+		musicCounter.count--
+	}
+}
+
 // musicCounterCheck checks whether a new generation is within the daily limit.
-// Does NOT increment; call musicCounterMark() after a successful generation.
+// Does NOT increment; use musicCounterReserve for atomic check+increment.
+// Deprecated: use musicCounterReserve instead.
 func musicCounterCheck(maxDaily int) (int, bool) {
 	musicCounter.mu.Lock()
 	defer musicCounter.mu.Unlock()
@@ -78,6 +111,7 @@ func musicCounterCheck(maxDaily int) (int, bool) {
 }
 
 // musicCounterMark records one successful generation against today's quota.
+// Deprecated: use musicCounterReserve instead (it increments atomically).
 func musicCounterMark() {
 	musicCounter.mu.Lock()
 	defer musicCounter.mu.Unlock()
@@ -91,14 +125,9 @@ func musicCounterMark() {
 }
 
 // musicCounterIncrement checks and increments the daily counter.
-// Deprecated: use musicCounterCheck + musicCounterMark instead.
+// Deprecated: use musicCounterReserve instead.
 func musicCounterIncrement(maxDaily int) (int, bool) {
-	count, allowed := musicCounterCheck(maxDaily)
-	if allowed {
-		musicCounterMark()
-		return count + 1, true
-	}
-	return count, false
+	return musicCounterReserve(maxDaily)
 }
 
 // MusicCounterGet returns the current daily count (for display).
@@ -140,10 +169,10 @@ func GenerateMusicResult(ctx context.Context, cfg *config.Config, mediaDB *sql.D
 		return MusicGenResult{Status: "error", Error: "Music generation provider not configured. Set a provider in Settings > Music Generation."}
 	}
 
-	// Check daily limit — only increment AFTER a successful generation so that
-	// API errors (wrong model, plan restrictions, network failures) do not consume quota.
+	// Atomically reserve a daily quota slot. If the API call fails we release
+	// the slot back so that failures do not consume the limit.
 	if cfg.MusicGeneration.MaxDaily > 0 {
-		count, allowed := musicCounterCheck(cfg.MusicGeneration.MaxDaily)
+		count, allowed := musicCounterReserve(cfg.MusicGeneration.MaxDaily)
 		if !allowed {
 			return MusicGenResult{
 				Status: "error",
@@ -155,6 +184,7 @@ func GenerateMusicResult(ctx context.Context, cfg *config.Config, mediaDB *sql.D
 	// Ensure audio output directory exists
 	audioDir := filepath.Join(cfg.Directories.DataDir, "audio")
 	if err := os.MkdirAll(audioDir, 0755); err != nil {
+		musicCounterRelease() // release quota slot on failure
 		return MusicGenResult{Status: "error", Error: fmt.Sprintf("Failed to create audio directory: %v", err)}
 	}
 
@@ -165,12 +195,13 @@ func GenerateMusicResult(ctx context.Context, cfg *config.Config, mediaDB *sql.D
 	case "google", "google_lyria":
 		result = generateMusicGoogleLyria(ctx, apiKey, model, params, audioDir, logger)
 	default:
+		musicCounterRelease() // release quota slot on failure
 		return MusicGenResult{Status: "error", Error: fmt.Sprintf("Unknown music generation provider type: %q. Supported: minimax, google", providerType)}
 	}
 
-	// Mark successful generation against daily quota now that we know the call succeeded.
-	if result.Status == "ok" {
-		musicCounterMark()
+	// If the API call failed, release the reserved quota slot.
+	if result.Status != "ok" {
+		musicCounterRelease()
 	}
 
 	// Register in media registry
@@ -613,7 +644,7 @@ func TestMusicConnection(ctx context.Context, provider, apiKey string) (bool, st
 		}
 		return false, fmt.Sprintf("API returned status %d: %s", resp.StatusCode, truncateString(string(body), 200))
 
-	case "google_lyria":
+	case "google", "google_lyria":
 		// Use the model-listing endpoint — completely free and verifies the API key.
 		url := "https://generativelanguage.googleapis.com/v1beta/models"
 		req, err := http.NewRequestWithContext(ctx, "GET", url, nil)

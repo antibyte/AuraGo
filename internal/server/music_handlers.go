@@ -12,6 +12,11 @@ import (
 // handleMusicGenerationTest returns a handler that tests music generation API connectivity.
 func handleMusicGenerationTest(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet && r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
 		s.CfgMu.RLock()
 		cfg := s.Cfg
 		s.CfgMu.RUnlock()

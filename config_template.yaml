@@ -760,6 +760,11 @@ image_generation:
     default_style: "natural"
     prompt_enhancement: false
     max_monthly: 0
+music_generation:
+    enabled: false
+    provider: ""                   # references a ProviderEntry ID (type: minimax or google)
+    model: ""                      # model override (empty = use provider default, e.g. music-2.5+, lyria-3-clip-preview)
+    max_daily: 0                   # 0 = unlimited
 llm_guardian:
     enabled: false
     provider: ""
@@ -786,6 +791,16 @@ netlify:
     allow_site_management: false
     allow_env_management: false
     default_site_id: ""
+    team_slug: ""
+vercel:
+    enabled: false
+    readonly: false
+    allow_deploy: true
+    allow_project_management: false
+    allow_env_management: false
+    allow_domain_management: false
+    default_project_id: ""
+    team_id: ""
     team_slug: ""
 mcp:
     enabled: false
