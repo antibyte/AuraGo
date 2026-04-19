@@ -1,6 +1,6 @@
 {
   "config.vercel.allow_deploy": "Povolit nasazení",
-  "config.vercel.allow_domain_management": "Allow domain management",
+  "config.vercel.allow_domain_management": "Povolit správu domén",
   "config.vercel.allow_env_management": "Povolit správu proměnných prostředí",
   "config.vercel.allow_project_management": "Povolit správu stránek (vytvořit/upravit/smazat)",
   "config.vercel.connecting": "Připojuji…",

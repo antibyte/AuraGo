@@ -1,6 +1,6 @@
 {
   "config.vercel.allow_deploy": "डिप्लॉयमेंट की अनुमति दें",
-  "config.vercel.allow_domain_management": "Allow domain management",
+  "config.vercel.allow_domain_management": "डोमेन प्रबंधन की अनुमति दें",
   "config.vercel.allow_env_management": "एनवायरनमेंट वेरिएबल प्रबंधन की अनुमति दें",
   "config.vercel.allow_project_management": "साइट प्रबंधन की अनुमति दें (बनाएँ/अपडेट/हटाएँ)",
   "config.vercel.connecting": "कनेक्ट हो रहा है…",

@@ -333,5 +333,5 @@
   "config.tts.provider_minimax": "MiniMax",
   "config.tts.provider_none": "Žádný",
   "config.tts.provider_piper": "Piper (lokální)",
-  "config.section.vercel.desc": "Deploy and manage projects on Vercel"
+  "config.section.vercel.desc": "Nasazujte a spravujte projekty na Vercel"
 }

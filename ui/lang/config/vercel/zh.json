@@ -1,6 +1,6 @@
 {
   "config.vercel.allow_deploy": "允许部署",
-  "config.vercel.allow_domain_management": "Allow domain management",
+  "config.vercel.allow_domain_management": "允许域名管理",
   "config.vercel.allow_env_management": "允许环境变量管理",
   "config.vercel.allow_project_management": "允许站点管理（创建/更新/删除）",
   "config.vercel.connecting": "连接中…",

@@ -1,6 +1,6 @@
 {
   "config.vercel.allow_deploy": "Consentire i deploy",
-  "config.vercel.allow_domain_management": "Allow domain management",
+  "config.vercel.allow_domain_management": "Consentire la gestione dei domini",
   "config.vercel.allow_env_management": "Consentire la gestione delle variabili d'ambiente",
   "config.vercel.allow_project_management": "Consentire la gestione dei siti (crea/aggiorna/elimina)",
   "config.vercel.connecting": "Connessione…",

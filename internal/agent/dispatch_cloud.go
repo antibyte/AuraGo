@@ -311,12 +311,6 @@ func dispatchCloud(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 					return `Tool Output: {"status":"error","message":"Vercel is in read-only mode. Disable vercel.readonly to allow changes."}`
 				}
 			}
-			if !cfg.Vercel.AllowDeploy {
-				switch req.Operation {
-				case "assign_alias":
-					return `Tool Output: {"status":"error","message":"Vercel deploy actions are not allowed. Set vercel.allow_deploy=true in config.yaml."}`
-				}
-			}
 			if !cfg.Vercel.AllowProjectManagement {
 				switch req.Operation {
 				case "create_project", "update_project":

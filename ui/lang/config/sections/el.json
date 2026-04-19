@@ -333,5 +333,5 @@
   "config.tts.provider_minimax": "MiniMax",
   "config.tts.provider_none": "Κανένας",
   "config.tts.provider_piper": "Piper (τοπικό)",
-  "config.section.vercel.desc": "Deploy and manage projects on Vercel"
+  "config.section.vercel.desc": "Αναπτύξτε και διαχειριστείτε έργα στο Vercel"
 }

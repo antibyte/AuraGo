@@ -333,5 +333,5 @@
   "config.tts.provider_minimax": "MiniMax",
   "config.tts.provider_none": "なし",
   "config.tts.provider_piper": "Piper（ローカル）",
-  "config.section.vercel.desc": "Deploy and manage projects on Vercel"
+  "config.section.vercel.desc": "Vercelでプロジェクトをデプロイ・管理"
 }

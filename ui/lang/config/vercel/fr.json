@@ -1,6 +1,6 @@
 {
   "config.vercel.allow_deploy": "Autoriser les déploiements",
-  "config.vercel.allow_domain_management": "Allow domain management",
+  "config.vercel.allow_domain_management": "Autoriser la gestion des domaines",
   "config.vercel.allow_env_management": "Autoriser la gestion des variables d'environnement",
   "config.vercel.allow_project_management": "Autoriser la gestion des sites (créer/modifier/supprimer)",
   "config.vercel.connecting": "Connexion…",

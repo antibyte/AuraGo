@@ -1154,10 +1154,13 @@ func vercelHTTPCode(result map[string]interface{}) int {
 }
 
 func vercelScopeFlag(cfg VercelConfig) string {
-	if strings.TrimSpace(cfg.TeamSlug) == "" {
-		return ""
+	if id := strings.TrimSpace(cfg.TeamID); id != "" {
+		return " --scope " + shellSingleQuote(id)
 	}
-	return " --scope " + shellSingleQuote(strings.TrimSpace(cfg.TeamSlug))
+	if slug := strings.TrimSpace(cfg.TeamSlug); slug != "" {
+		return " --scope " + shellSingleQuote(slug)
+	}
+	return ""
 }
 
 func HomepageDeployVercel(cfg HomepageConfig, vcfg VercelConfig, projectDir, buildDir, projectID, target, alias, domain string, allowProjectManagement, allowDomainManagement bool, logger *slog.Logger) string {
