@@ -49,7 +49,7 @@ Unlike cloud AI services, AuraGo runs **on your hardware**, has **direct access 
 |---------|--------------|
 | **🧠 Personality Engine V2** | Learns your preferences, tech stack, and communication style — adapts to you over time |
 | **🛡️ LLM Guardian** | AI-powered security scanner monitors every tool call and external content for threats |
-| **⚡ Adaptive Tools** | Intelligently filters 50+ tools based on conversation context — saves tokens, improves accuracy |
+| **⚡ Adaptive Tools** | Intelligently filters 90+ tools based on conversation context — saves tokens, improves accuracy |
 | **📄 Document AI** | Create PDFs (invoices, reports) and extract text from documents with LLM analysis |
 | **🤖 Native Function Calling** | OpenAI-compatible tool calls with auto-detection for DeepSeek and other models |
 | **🔐 AES-256 Vault** | All secrets encrypted; Web UI with bcrypt passwords and TOTP 2FA |
@@ -107,11 +107,23 @@ go build -o aurago ./cmd/aurago
 |:---------:|:----:|:----------:|:-------------:|
 | ![Dashboard](documentation/screenshots/dashboard.png) | ![Chat](documentation/screenshots/chat.png) | ![Containers](documentation/screenshots/containers.png) | ![Config](documentation/screenshots/config.png) |
 
+### Theme Variants
+
+AuraGo supports customizable dark and light themes:
+
+| Theme 1 (Dark) | Theme 2 (Light) |
+|:---------------:|:---------------:|
+| ![Theme 1](documentation/screenshots/theme1.png) | ![Theme 2](documentation/screenshots/theme2.png) |
+
+| Theme 3 (Dark Variant) | Theme 4 (Light Variant) |
+|:----------------------:|:-----------------------:|
+| ![Theme 3](documentation/screenshots/theme3.png) | ![Theme 4](documentation/screenshots/theme4.png) |
+
 ---
 
 ## Capabilities at a Glance
 
-AuraGo includes **50+ built-in tools** across these categories:
+AuraGo includes **90+ built-in tools** across these categories:
 
 <details>
 <summary><b>🏠 Home Lab & Infrastructure</b> — Docker, Proxmox, Home Assistant, TrueNAS</summary>
