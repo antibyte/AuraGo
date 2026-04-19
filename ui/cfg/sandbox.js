@@ -22,6 +22,14 @@ async function renderSandboxSection(section) {
 
     if (sbBlocked) html += '<div class="feature-unavailable-fields">';
 
+    // ── General Card ──
+    html += `<div class="sb-card">
+        <div class="sb-card-header">
+            <span class="sb-card-icon">⚙️</span>
+            <span class="sb-card-title">${t('config.sandbox.card_general')}</span>
+        </div>
+        <div class="sb-card-body">`;
+
     if (sbEnabled && st.ready) {
         const langList = (st.languages || []).join(', ') || 'python';
         html += `<div class="wh-notice sb-notice-success">
@@ -55,6 +63,16 @@ async function renderSandboxSection(section) {
             </div>
         </div>`;
     }
+
+    html += `</div></div>`; // close sb-card-body & sb-card (General)
+
+    // ── Backend Configuration Card ──
+    html += `<div class="sb-card">
+        <div class="sb-card-header">
+            <span class="sb-card-icon">🐳</span>
+            <span class="sb-card-title">${t('config.sandbox.card_backend')}</span>
+        </div>
+        <div class="sb-card-body">`;
 
     html += `<div class="sb-grid-2col">`;
 
@@ -92,6 +110,16 @@ async function renderSandboxSection(section) {
 
     html += `</div>`;
 
+    html += `</div></div>`; // close sb-card-body & sb-card (Backend)
+
+    // ── Options Card ──
+    html += `<div class="sb-card">
+        <div class="sb-card-header">
+            <span class="sb-card-icon">🔧</span>
+            <span class="sb-card-title">${t('config.sandbox.card_options')}</span>
+        </div>
+        <div class="sb-card-body">`;
+
     html += `<div class="sb-grid-toggle">`;
 
     html += `<div class="cfg-toggle-row-compact">
@@ -111,14 +139,22 @@ async function renderSandboxSection(section) {
 
     html += `</div>`;
 
+    html += `</div></div>`; // close sb-card-body & sb-card (Options)
+
+    // ── System Status Card ──
     if (st.docker_available !== undefined) {
-        html += `<div class="sb-status-box">
-            <div class="sb-status-title">${t('config.sandbox.system_status')}</div>
-            <div class="sb-status-grid">
-                <div>${st.docker_available ? '✅' : '❌'} Docker</div>
-                <div>${st.python_available ? '✅' : '❌'} Python</div>
-                <div>${st.package_installed ? '✅' : '❌'} llm-sandbox</div>
-                <div>${st.ready ? '✅' : '❌'} ${t('config.sandbox.ready')}</div>
+        html += `<div class="sb-card">
+            <div class="sb-card-header">
+                <span class="sb-card-icon">📊</span>
+                <span class="sb-card-title">${t('config.sandbox.system_status')}</span>
+            </div>
+            <div class="sb-card-body">
+                <div class="sb-status-grid">
+                    <div>${st.docker_available ? '✅' : '❌'} Docker</div>
+                    <div>${st.python_available ? '✅' : '❌'} Python</div>
+                    <div>${st.package_installed ? '✅' : '❌'} llm-sandbox</div>
+                    <div>${st.ready ? '✅' : '❌'} ${t('config.sandbox.ready')}</div>
+                </div>
             </div>
         </div>`;
     }
@@ -139,6 +175,14 @@ async function renderSandboxSection(section) {
     html += `<div class="cfg-section active sb-section-mt">
         <div class="section-header">🛡️ ${t('config.shell_sandbox.title')}</div>
         <div class="section-desc">${t('config.shell_sandbox.desc')}</div>`;
+
+    // ── Shell Sandbox General Card ──
+    html += `<div class="sb-card">
+        <div class="sb-card-header">
+            <span class="sb-card-icon">🛡️</span>
+            <span class="sb-card-title">${t('config.sandbox.card_general')}</span>
+        </div>
+        <div class="sb-card-body">`;
 
     if (shSt.available && shEnabled) {
         html += `<div class="wh-notice sb-notice-success">
@@ -175,7 +219,19 @@ async function renderSandboxSection(section) {
                 <small>${t('config.shell_sandbox.disabled_desc')}</small>
             </div>
         </div>`;
-    } else {
+    }
+
+    html += `</div></div>`; // close sb-card-body & sb-card (Shell General)
+
+    // ── Shell Sandbox Resource Limits Card ──
+    if (shEnabled) {
+        html += `<div class="sb-card">
+            <div class="sb-card-header">
+                <span class="sb-card-icon">📏</span>
+                <span class="sb-card-title">${t('config.sandbox.card_resources')}</span>
+            </div>
+            <div class="sb-card-body">`;
+
         html += `<div class="sb-grid-2col">`;
 
         html += `<label class="sb-field-label">
@@ -203,16 +259,24 @@ async function renderSandboxSection(section) {
         </label>`;
 
         html += `</div>`;
+
+        html += `</div></div>`; // close sb-card-body & sb-card (Resources)
     }
 
+    // ── Shell Sandbox System Capabilities Card ──
     if (shSt.kernel || shSt.landlock_abi !== undefined) {
-        html += `<div class="sb-status-box">
-            <div class="sb-status-title">${t('config.shell_sandbox.system_caps')}</div>
-            <div class="sb-status-grid">
-                <div>${shSt.landlock_abi ? '✅' : '❌'} Landlock ABI v${shSt.landlock_abi || 0}</div>
-                <div>${shSt.in_docker ? '⚠️' : '✅'} ${shSt.in_docker ? t('config.shell_sandbox.in_docker') : t('config.shell_sandbox.native')}</div>
-                <div>🐧 Kernel ${escapeAttr(shSt.kernel || 'N/A')}</div>
-                <div>${shSt.available ? '✅' : '❌'} ${t('config.shell_sandbox.ready')}</div>
+        html += `<div class="sb-card">
+            <div class="sb-card-header">
+                <span class="sb-card-icon">📊</span>
+                <span class="sb-card-title">${t('config.shell_sandbox.system_caps')}</span>
+            </div>
+            <div class="sb-card-body">
+                <div class="sb-status-grid">
+                    <div>${shSt.landlock_abi ? '✅' : '❌'} Landlock ABI v${shSt.landlock_abi || 0}</div>
+                    <div>${shSt.in_docker ? '⚠️' : '✅'} ${shSt.in_docker ? t('config.shell_sandbox.in_docker') : t('config.shell_sandbox.native')}</div>
+                    <div>🐧 Kernel ${escapeAttr(shSt.kernel || 'N/A')}</div>
+                    <div>${shSt.available ? '✅' : '❌'} ${t('config.shell_sandbox.ready')}</div>
+                </div>
             </div>
         </div>`;
     }

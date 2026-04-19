@@ -5761,6 +5761,83 @@ select.cfg-input option {
 }
 
 /* ── Sandbox config section (sb-*) ─────────────────── */
+.sb-card {
+    background: var(--card-bg);
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    padding: 0;
+    margin-bottom: 1.2rem;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.sb-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg,
+            transparent,
+            rgba(45, 212, 191, 0.3),
+            transparent);
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.sb-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 50% 0%, rgba(45, 212, 191, 0.08), transparent 70%);
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+}
+
+.sb-card:hover {
+    border-color: var(--accent);
+    box-shadow:
+        0 20px 40px rgba(0, 0, 0, 0.3),
+        0 0 0 1px rgba(45, 212, 191, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    transform: translateY(-2px);
+}
+
+.sb-card:hover::before,
+.sb-card:hover::after {
+    opacity: 1;
+}
+
+.sb-card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.85rem 1rem 0;
+    margin-bottom: 0.2rem;
+}
+
+.sb-card-icon {
+    font-size: 1rem;
+    line-height: 1;
+}
+
+.sb-card-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: 0.01em;
+}
+
+.sb-card-body {
+    padding: 0.6rem 1rem 1rem;
+    position: relative;
+    z-index: 1;
+}
+
 .sb-notice-success { border-color: var(--success); background: rgba(34, 197, 94, 0.08); }
 .sb-notice-warning { border-color: var(--warning); background: rgba(245, 158, 11, 0.08); }
 .sb-grid-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem 1.2rem; margin-top: 1rem; }
