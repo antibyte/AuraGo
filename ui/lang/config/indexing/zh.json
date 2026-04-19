@@ -7,6 +7,8 @@
   "config.indexing.documents": "文档 (自动提取文本)",
   "config.indexing.enabled_desc": "启用自动文件索引。配置文件夹中的文件将转换为 embeddings，并可作为知识提供给代理。",
   "config.indexing.enabled_label": "启用索引",
+  "config.indexing.general_settings": "常规设置",
+  "config.indexing.advanced_settings": "高级设置",
   "config.indexing.errors": "错误",
   "config.indexing.files": "文件",
   "config.indexing.image_notice_desc": "通过 Vision LLM 分析图像可能会在索引大量图像时产生显著的 API 成本。每个图像都单独发送到 LLM 并产生令牌成本。建议：仅索引包含相关图像的文件夹。",

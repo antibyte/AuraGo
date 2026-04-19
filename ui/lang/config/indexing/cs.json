@@ -7,6 +7,8 @@
   "config.indexing.documents": "Dokumenty (text automaticky extrahován)",
   "config.indexing.enabled_desc": "Povoluje automatické indexování souborů. Soubory v nakonfigurovaných adresářích jsou převedeny na embeddings a dostupné agentovi jako znalosti.",
   "config.indexing.enabled_label": "Indexování povoleno",
+  "config.indexing.general_settings": "Obecná nastavení",
+  "config.indexing.advanced_settings": "Pokročilá nastavení",
   "config.indexing.errors": "chyby",
   "config.indexing.files": "Soubory",
   "config.indexing.image_notice_desc": "Analýza obrázků přes Vision LLM může způsobit významné API náklady při indexování mnoha obrázků.",

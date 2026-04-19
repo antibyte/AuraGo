@@ -16,6 +16,14 @@
 
             const isEnabled = status && status.enabled;
 
+            // ── General Settings Card ──
+            html += `<div class="idx-card">
+                <div class="idx-card-header">
+                    <span class="idx-card-icon">⚙️</span>
+                    <span class="idx-card-title">${t('config.indexing.general_settings')}</span>
+                </div>
+                <div class="idx-card-body">`;
+
             // Enabled toggle
             const enabledVal = configData.indexing && configData.indexing.enabled;
             html += `<div class="cfg-field idx-field-block">
@@ -50,11 +58,18 @@
                 </div>`;
             }
 
+            html += `</div></div>`; // close idx-card-body & idx-card (General Settings)
+
+            // ── Directories Card ──
+            html += `<div class="idx-card">
+                <div class="idx-card-header">
+                    <span class="idx-card-icon">📂</span>
+                    <span class="idx-card-title">${t('config.indexing.watched_dirs')}</span>
+                </div>
+                <div class="idx-card-body">`;
+
             // Directories list
             html += `<div class="idx-dirs-wrap">
-                <div class="idx-dirs-title">
-                    📂 ${t('config.indexing.watched_dirs')}
-                </div>
                 <div id="idx-dirs-list">`;
 
             // Fetch current directories from API
@@ -92,15 +107,21 @@
                 </div>
             </div>`;
 
+            html += `</div></div>`; // close idx-card-body & idx-card (Directories)
+
+            // ── File Types Card (reuse existing idx-types-card inside a card) ──
+            html += `<div class="idx-card">
+                <div class="idx-card-header">
+                    <span class="idx-card-icon">📋</span>
+                    <span class="idx-card-title">${t('config.indexing.supported_types')}</span>
+                </div>
+                <div class="idx-card-body">`;
+
             // Extensions info
             const exts = (configData.indexing && configData.indexing.extensions) || ['.txt', '.md', '.json', '.csv', '.log', '.yaml', '.yml', '.pdf', '.docx', '.xlsx', '.pptx', '.odt', '.rtf'];
             const docExts = ['.pdf', '.docx', '.xlsx', '.pptx', '.odt', '.rtf'];
             const imgExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'];
-            html += `<div class="idx-types-card">
-                <div class="idx-types-title">
-                    📋 ${t('config.indexing.supported_types')}
-                </div>
-                <div class="idx-types-subtitle">
+            html += `<div class="idx-types-subtitle">
                     ${t('config.indexing.text_files')}
                 </div>
                 <div class="idx-chip-row">
@@ -117,8 +138,17 @@
                 </div>
                 <div class="idx-chip-row idx-chip-row-last">
                     ${imgExts.map(e => '<span class="idx-chip idx-chip-img">' + e + '</span>').join('')}
+                </div>`;
+
+            html += `</div></div>`; // close idx-card-body & idx-card (File Types)
+
+            // ── Advanced Settings Card ──
+            html += `<div class="idx-card">
+                <div class="idx-card-header">
+                    <span class="idx-card-icon">🔧</span>
+                    <span class="idx-card-title">${t('config.indexing.advanced_settings')}</span>
                 </div>
-            </div>`;
+                <div class="idx-card-body">`;
 
             // Poll interval
             const poll = (configData.indexing && configData.indexing.poll_interval_seconds) || 60;
@@ -153,6 +183,8 @@
                     ${t('config.indexing.image_notice_desc')}
                 </div>
             </div>`;
+
+            html += `</div></div>`; // close idx-card-body & idx-card (Advanced Settings)
 
             html += '</div>';
             content.innerHTML = html;

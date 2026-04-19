@@ -7,6 +7,8 @@
   "config.indexing.documents": "Έγγραφα (το κείμενο εξάγεται αυτόματα)",
   "config.indexing.enabled_desc": "Ενεργοποιεί την αυτόματη ευρετηρίαση αρχείων. Τα αρχεία σε διαμορφωμένους φακέλους μετατρέπονται σε embeddings και είναι διαθέσιμα στον πράκτορα ως γνώση.",
   "config.indexing.enabled_label": "Ευρετηρίαση ενεργοποιημένη",
+  "config.indexing.general_settings": "Γενικές ρυθμίσεις",
+  "config.indexing.advanced_settings": "Προηγμένες ρυθμίσεις",
   "config.indexing.errors": "σφάλματα",
   "config.indexing.files": "Αρχεία",
   "config.indexing.image_notice_desc": "Η ανάλυση εικόνων μέσω Vision LLM μπορεί να προκαλέσει σημαντικό κόστος API κατά την ευρετηρίαση πολλών εικόνων. Κάθε εικόνα αποστέλλεται μεμονωμένα στο LLM και δημιουργεί κόστος σε tokens. Σύσταση: Ευρετηριοποιήστε μόνο φακέλους με σχετικές εικόνες.",

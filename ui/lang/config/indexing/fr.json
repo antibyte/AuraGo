@@ -7,6 +7,8 @@
   "config.indexing.documents": "Documents (texte extrait automatiquement)",
   "config.indexing.enabled_desc": "Active l'indexation automatique de fichiers. Les fichiers dans les dossiers configurés sont convertis en embeddings et disponibles pour l'agent comme base de connaissances.",
   "config.indexing.enabled_label": "Indexation activée",
+  "config.indexing.general_settings": "Paramètres généraux",
+  "config.indexing.advanced_settings": "Paramètres avancés",
   "config.indexing.errors": "erreurs",
   "config.indexing.files": "Fichiers",
   "config.indexing.image_notice_desc": "L'analyse d'images via Vision LLM peut entraîner des coûts API significatifs lors de l'indexation de nombreuses images. Chaque image est envoyée individuellement au LLM et génère des coûts en tokens. Recommandation : N'indexez que les dossiers contenant des images pertinentes.",

@@ -7,6 +7,8 @@
   "config.indexing.documents": "Documenten (tekst automatisch geëxtraheerd)",
   "config.indexing.enabled_desc": "Schakelt automatische bestandsindexering in. Bestanden in geconfigureerde mappen worden omgezet naar embeddings en beschikbaar voor de agent als kennis.",
   "config.indexing.enabled_label": "Indexering ingeschakeld",
+  "config.indexing.general_settings": "Algemene instellingen",
+  "config.indexing.advanced_settings": "Geavanceerde instellingen",
   "config.indexing.errors": "fouten",
   "config.indexing.files": "Bestanden",
   "config.indexing.image_notice_desc": "Image analysis via Vision LLM can cause significant API costs when indexing many images. Each image is sent individually to the LLM and generates token costs. Recommendation: Only index folders with relevant images.",

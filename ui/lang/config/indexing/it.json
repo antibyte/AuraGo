@@ -7,6 +7,8 @@
   "config.indexing.documents": "Documenti (testo estratto automaticamente)",
   "config.indexing.enabled_desc": "Abilita l'indicizzazione automatica dei file. I file nelle cartelle configurate vengono convertiti in embeddings e resi disponibili all'agente come knowledge.",
   "config.indexing.enabled_label": "Indicizzazione abilitata",
+  "config.indexing.general_settings": "Impostazioni generali",
+  "config.indexing.advanced_settings": "Impostazioni avanzate",
   "config.indexing.errors": "errori",
   "config.indexing.files": "File",
   "config.indexing.image_notice_desc": "L'analisi immagine via Vision LLM può causare costi API significativi quando si indicizzano molte immagini. Ogni immagine è inviata individualmente al LLM e genera costi token. Raccomandazione: Indicizza solo cartelle con immagini rilevanti.",
