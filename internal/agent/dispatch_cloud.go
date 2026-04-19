@@ -307,13 +307,13 @@ func dispatchCloud(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 			}
 			if cfg.Vercel.ReadOnly {
 				switch req.Operation {
-				case "create_project", "update_project", "set_env", "delete_env", "add_domain", "verify_domain", "assign_alias":
+				case "create_project", "update_project", "delete_project", "set_env", "delete_env", "add_domain", "verify_domain", "assign_alias", "rollback", "cancel_deploy":
 					return `Tool Output: {"status":"error","message":"Vercel is in read-only mode. Disable vercel.readonly to allow changes."}`
 				}
 			}
 			if !cfg.Vercel.AllowProjectManagement {
 				switch req.Operation {
-				case "create_project", "update_project":
+				case "create_project", "update_project", "delete_project":
 					return `Tool Output: {"status":"error","message":"Vercel project management is not allowed. Set vercel.allow_project_management=true in config.yaml."}`
 				}
 			}
@@ -321,6 +321,12 @@ func dispatchCloud(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 				switch req.Operation {
 				case "set_env", "delete_env":
 					return `Tool Output: {"status":"error","message":"Vercel environment variable management is not allowed. Set vercel.allow_env_management=true in config.yaml."}`
+				}
+			}
+			if !cfg.Vercel.AllowDeploy {
+				switch req.Operation {
+				case "rollback", "cancel_deploy":
+					return `Tool Output: {"status":"error","message":"Vercel deploy operations are not allowed. Set vercel.allow_deploy=true in config.yaml."}`
 				}
 			}
 			if !cfg.Vercel.AllowDomainManagement {
@@ -375,8 +381,20 @@ func dispatchCloud(ctx context.Context, tc ToolCall, dc *DispatchContext) (strin
 			case "assign_alias":
 				logger.Info("LLM requested Vercel assign alias", "deployment_id", req.DeploymentID, "alias", req.Alias)
 				return "Tool Output: " + tools.VercelAssignAlias(vcfg, req.DeploymentID, req.Alias)
+			case "delete_project":
+				logger.Info("LLM requested Vercel delete project", "project_id", req.ProjectID)
+				return "Tool Output: " + tools.VercelDeleteProject(vcfg, req.ProjectID)
+			case "rollback":
+				logger.Info("LLM requested Vercel rollback", "project_id", req.ProjectID, "deployment_id", req.DeploymentID)
+				return "Tool Output: " + tools.VercelRollback(vcfg, req.ProjectID, req.DeploymentID)
+			case "cancel_deploy":
+				logger.Info("LLM requested Vercel cancel deploy", "deployment_id", req.DeploymentID)
+				return "Tool Output: " + tools.VercelCancelDeploy(vcfg, req.DeploymentID)
+			case "get_env":
+				logger.Info("LLM requested Vercel get env var", "project_id", req.ProjectID, "key", req.EnvKey)
+				return "Tool Output: " + tools.VercelGetEnv(vcfg, req.ProjectID, req.EnvKey)
 			default:
-				return `Tool Output: {"status":"error","message":"Unknown vercel operation. Use: check_connection, list_projects, get_project, create_project, update_project, list_deployments, get_deployment, list_env, set_env, delete_env, list_domains, add_domain, verify_domain, list_aliases, assign_alias"}`
+				return `Tool Output: {"status":"error","message":"Unknown vercel operation. Use: check_connection, list_projects, get_project, create_project, update_project, delete_project, list_deployments, get_deployment, rollback, cancel_deploy, list_env, get_env, set_env, delete_env, list_domains, add_domain, verify_domain, list_aliases, assign_alias"}`
 			}
 
 		default:

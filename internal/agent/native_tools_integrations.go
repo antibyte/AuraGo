@@ -258,11 +258,11 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				"operation": map[string]interface{}{
 					"type":        "string",
 					"description": "Operation to perform",
-					"enum":        []string{"check_connection", "list_projects", "get_project", "create_project", "update_project", "list_deployments", "get_deployment", "list_env", "set_env", "delete_env", "list_domains", "add_domain", "verify_domain", "list_aliases", "assign_alias"},
+					"enum":        []string{"check_connection", "list_projects", "get_project", "create_project", "update_project", "delete_project", "list_deployments", "get_deployment", "rollback", "cancel_deploy", "list_env", "get_env", "set_env", "delete_env", "list_domains", "add_domain", "verify_domain", "list_aliases", "assign_alias"},
 				},
 				"project_id":       prop("string", "Vercel project ID or name (uses default_project_id if omitted)"),
 				"project_name":     prop("string", "Project name for create_project"),
-				"deployment_id":    prop("string", "Deployment ID for get_deployment, list_aliases, or assign_alias"),
+				"deployment_id":    prop("string", "Deployment ID for get_deployment, list_aliases, assign_alias, rollback, or cancel_deploy"),
 				"env_key":          prop("string", "Environment variable key"),
 				"env_value":        prop("string", "Environment variable value"),
 				"env_target":       prop("string", "Environment targets: production, preview, development, or comma-separated combination"),

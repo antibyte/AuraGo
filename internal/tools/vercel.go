@@ -816,3 +816,118 @@ func VercelAssignAlias(cfg VercelConfig, deploymentID, alias string) string {
 	})
 	return string(out)
 }
+
+func VercelDeleteProject(cfg VercelConfig, projectID string) string {
+	projectID = vercelResolveProjectID(cfg, projectID)
+	if projectID == "" {
+		return errJSON("project_id is required (or set default_project_id in config)")
+	}
+	data, code, err := vercelRequest(cfg, http.MethodDelete, "/v9/projects/"+url.PathEscape(projectID), nil)
+	if err != nil {
+		return errJSON("Failed to delete Vercel project: %v", err)
+	}
+	if code != http.StatusOK && code != http.StatusNoContent {
+		return vercelErrorResponse(code, data, "Failed to delete Vercel project")
+	}
+	out, _ := json.Marshal(map[string]interface{}{
+		"status":  "ok",
+		"message": "Vercel project deleted",
+		"project_id": projectID,
+	})
+	return string(out)
+}
+
+func VercelRollback(cfg VercelConfig, projectID, deploymentID string) string {
+	projectID = vercelResolveProjectID(cfg, projectID)
+	if projectID == "" {
+		return errJSON("project_id is required (or set default_project_id in config)")
+	}
+	deploymentID = strings.TrimSpace(deploymentID)
+	if deploymentID == "" {
+		return errJSON("deployment_id is required for rollback")
+	}
+	data, code, err := vercelRequest(cfg, http.MethodPost, "/v9/projects/"+url.PathEscape(projectID)+"/rollback/"+url.PathEscape(deploymentID), map[string]interface{}{})
+	if err != nil {
+		return errJSON("Failed to rollback Vercel deployment: %v", err)
+	}
+	if code != http.StatusOK && code != http.StatusCreated {
+		return vercelErrorResponse(code, data, "Failed to rollback Vercel deployment")
+	}
+
+	var resp map[string]interface{}
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return errJSON("Failed to parse Vercel rollback response: %v", err)
+	}
+	out, _ := json.Marshal(map[string]interface{}{
+		"status":       "ok",
+		"message":      "Rolled back to deployment " + deploymentID,
+		"deployment_id": deploymentID,
+		"project_id":   projectID,
+		"url":          strVal(resp, "url"),
+	})
+	return string(out)
+}
+
+func VercelCancelDeploy(cfg VercelConfig, deploymentID string) string {
+	deploymentID = strings.TrimSpace(deploymentID)
+	if deploymentID == "" {
+		return errJSON("deployment_id is required")
+	}
+	data, code, err := vercelRequest(cfg, http.MethodPatch, "/v12/deployments/"+url.PathEscape(deploymentID)+"/cancel", nil)
+	if err != nil {
+		return errJSON("Failed to cancel Vercel deployment: %v", err)
+	}
+	if code != http.StatusOK {
+		return vercelErrorResponse(code, data, "Failed to cancel Vercel deployment")
+	}
+
+	var resp map[string]interface{}
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return errJSON("Failed to parse Vercel cancel deploy response: %v", err)
+	}
+	out, _ := json.Marshal(map[string]interface{}{
+		"status":       "ok",
+		"message":      "Deployment cancelled",
+		"deployment_id": deploymentID,
+		"state":        strVal(resp, "state"),
+	})
+	return string(out)
+}
+
+func VercelGetEnv(cfg VercelConfig, projectID, key string) string {
+	projectID = vercelResolveProjectID(cfg, projectID)
+	if projectID == "" {
+		return errJSON("project_id is required (or set default_project_id in config)")
+	}
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return errJSON("env_key is required")
+	}
+
+	data, code, err := vercelRequest(cfg, http.MethodGet, "/v9/projects/"+url.PathEscape(projectID)+"/env/"+url.PathEscape(key), nil)
+	if err != nil {
+		return errJSON("Failed to get Vercel environment variable: %v", err)
+	}
+	if code != http.StatusOK {
+		return vercelErrorResponse(code, data, "Failed to get Vercel environment variable")
+	}
+
+	var resp map[string]interface{}
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return errJSON("Failed to parse Vercel environment variable: %v", err)
+	}
+
+	out, _ := json.Marshal(map[string]interface{}{
+		"status": "ok",
+		"env": map[string]interface{}{
+			"id":         strVal(resp, "id"),
+			"key":        strVal(resp, "key"),
+			"type":       strVal(resp, "type"),
+			"target":     resp["target"],
+			"git_branch": strVal(resp, "gitBranch"),
+			"created_at": resp["createdAt"],
+			"updated_at": resp["updatedAt"],
+		},
+	})
+	return string(out)
+}

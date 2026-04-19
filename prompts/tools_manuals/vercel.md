@@ -11,9 +11,13 @@ Manage Vercel projects, deployments, environment variables, domains, and aliases
 | `get_project` | Get detailed project information |
 | `create_project` | Create a new Vercel project |
 | `update_project` | Update project settings |
+| `delete_project` | Permanently delete a project |
 | `list_deployments` | List recent deployments for a project |
 | `get_deployment` | Get details about a specific deployment |
+| `rollback` | Roll back to a previous deployment |
+| `cancel_deploy` | Cancel a building deployment |
 | `list_env` | List project environment variables |
+| `get_env` | Get a specific environment variable |
 | `set_env` | Create or update an environment variable |
 | `delete_env` | Delete an environment variable |
 | `list_domains` | List project domains |
@@ -29,8 +33,8 @@ Manage Vercel projects, deployments, environment variables, domains, and aliases
 | `operation` | string | yes | One of the operations above |
 | `project_id` | string | for most project operations | Vercel project name or ID |
 | `project_name` | string | for create/update | Human-readable project name |
-| `deployment_id` | string | for get_deployment, list_aliases, assign_alias | Deployment ID |
-| `env_key` | string | for set_env, delete_env | Environment variable key |
+| `deployment_id` | string | for get_deployment, list_aliases, assign_alias, rollback, cancel_deploy | Deployment ID |
+| `env_key` | string | for get_env, set_env, delete_env | Environment variable key |
 | `env_value` | string | for set_env | Environment variable value |
 | `env_target` | string | for set_env | `production`, `preview`, `development`, or comma-separated values |
 | `domain` | string | for add_domain, verify_domain | Domain to manage |
@@ -59,6 +63,16 @@ Manage Vercel projects, deployments, environment variables, domains, and aliases
 **Set an environment variable:**
 ```json
 {"action": "vercel", "operation": "set_env", "project_id": "my-homepage", "env_key": "API_URL", "env_value": "https://api.example.com", "env_target": "production,preview"}
+```
+
+**Rollback to a previous deployment:**
+```json
+{"action": "vercel", "operation": "rollback", "project_id": "my-homepage", "deployment_id": "dpl_123"}
+```
+
+**Get an environment variable:**
+```json
+{"action": "vercel", "operation": "get_env", "project_id": "my-homepage", "env_key": "API_URL"}
 ```
 
 **Assign a custom domain to a deployment:**
