@@ -70,10 +70,8 @@ async function renderWebhooksSection(section) {
     }
 
     // Outgoing webhooks — always visible, independent of incoming webhook server
-    html += `<div class="wh-outgoing-wrap">
-        <div class="wh-section-title">
-            ${t('config.webhooks.tab_outgoing')}
-        </div>`;
+    html += `<div class="field-group">
+        <div class="field-group-title">${t('config.webhooks.tab_outgoing')}</div>`;
     html += ogRenderList();
     html += '</div>';
 
@@ -87,10 +85,8 @@ async function renderWebhooksSection(section) {
 function whRenderConfigSettings() {
     const wh = configData.webhooks || {};
     return `
-            <div class="wh-settings-wrap">
-                <div class="wh-section-title">
-                    ${t('config.webhooks.settings_title')}
-                </div>
+            <div class="field-group">
+                <div class="field-group-title">${t('config.webhooks.settings_title')}</div>
                 <div class="field-group">
                     <div class="field-label">${t('config.webhooks.config_enabled_label')}</div>
                     <div class="toggle-wrap">

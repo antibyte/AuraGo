@@ -61,8 +61,9 @@ async function renderNetlifySection(section) {
         </div>`;
     }
 
-    html += `<div class="cfg-section-title">🔐 ${t('config.netlify.permissions_title')}</div>`;
-    html += `<div class="field-help">${t('config.netlify.permissions_desc')}</div>`;
+    html += `<div class="field-group">`;
+    html += `<div class="field-group-title">🔐 ${t('config.netlify.permissions_title')}</div>`;
+    html += `<div class="field-group-desc">${t('config.netlify.permissions_desc')}</div>`;
 
     html += `<div class="nf-grid-2col">`;
 
@@ -88,8 +89,11 @@ async function renderNetlifySection(section) {
 
     html += `</div>`;
 
-    html += `<div class="cfg-section-title">🌐 ${t('config.netlify.site_config_title')}</div>`;
-    html += `<div class="field-help">${t('config.netlify.site_config_desc')}</div>`;
+    html += `</div>`;
+
+    html += `<div class="field-group">`;
+    html += `<div class="field-group-title">🌐 ${t('config.netlify.site_config_title')}</div>`;
+    html += `<div class="field-group-desc">${t('config.netlify.site_config_desc')}</div>`;
 
     html += `<div class="nf-grid-2col-wide">`;
 
@@ -107,9 +111,11 @@ async function renderNetlifySection(section) {
 
     html += `</div>`;
 
-    html += `<div class="nf-token-box">`;
-    html += `<div class="nf-box-title">🔑 ${t('config.netlify.token_title')}</div>`;
-    html += `<div class="field-help">${t('config.netlify.token_desc')}</div>`;
+    html += `</div>`;
+
+    html += `<div class="field-group">`;
+    html += `<div class="field-group-title">🔑 ${t('config.netlify.token_title')}</div>`;
+    html += `<div class="field-group-desc">${t('config.netlify.token_desc')}</div>`;
 
     html += `<label>
         <span class="cfg-label">${t('config.netlify.token_label')}  <small class="hp-text-tertiary">🔐 vault</small></span>
@@ -126,9 +132,11 @@ async function renderNetlifySection(section) {
 
     html += `</div>`;
 
-    html += `<div id="nf-test-block" class="nf-test-block">
-        <div class="nf-block-title">🔌 ${t('config.netlify.test_title')}</div>
-        <div class="cfg-section-desc">${t('config.netlify.test_desc')}</div>
+    html += `</div>`;
+
+    html += `<div class="field-group">
+        <div class="field-group-title">🔌 ${t('config.netlify.test_title')}</div>
+        <div class="field-group-desc">${t('config.netlify.test_desc')}</div>
         <div class="cfg-field-row">
             <button class="btn-save cfg-save-btn-sm" onclick="nfTestConnection()">${t('config.netlify.test_btn')}</button>
             <span id="nf-test-spinner" class="is-hidden cfg-status-text">⏳ ${t('config.netlify.connecting')}</span>
