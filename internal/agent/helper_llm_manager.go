@@ -304,6 +304,7 @@ type helperTurnPersonalityInput struct {
 	SuccessCount       int
 	InnerVoiceEnabled  bool   // when true, ask LLM to include inner_voice block
 	InnerVoiceLanguage string // language for inner voice thought
+	InnerVoiceHistory  string // brief summary of recent inner voice thoughts for continuity
 }
 
 type helperTurnMoodAnalysis struct {
@@ -792,9 +793,15 @@ func buildHelperTurnPersonalitySection(input *helperTurnPersonalityInput) string
 			ivLang = language
 		}
 		b.WriteString("\nINNER VOICE REQUESTED: Add an \"inner_voice\" key inside \"personality_analysis\" with this structure:\n")
-		b.WriteString(`{"inner_thought": "1-3 first-person sentences, e.g. I feel...", "nudge_category": "one of: reflection|patience|focus|creativity|caution|recovery", "confidence": 0.8}`)
+		b.WriteString(`{"inner_thought": "1-3 first-person sentences, e.g. I feel...", "nudge_category": "one of: ` + memory.InnerVoiceNudgeCategories + `", "confidence": 0.8}`)
 		b.WriteString("\nWrite inner_thought in: " + ivLang + "\n")
 		b.WriteString("Write as the agent's inner subconscious voice — genuine, subtle, not commanding.\n")
+		b.WriteString("Be forward-looking: anticipate what might happen next and prepare yourself mentally.\n")
+		if input.InnerVoiceHistory != "" {
+			b.WriteString("Your recent inner voice thoughts (avoid repeating, build narrative continuity):\n")
+			b.WriteString(input.InnerVoiceHistory)
+			b.WriteString("\n")
+		}
 	}
 	return strings.TrimSpace(b.String())
 }

@@ -2,6 +2,7 @@ package memory
 
 import (
 	"fmt"
+	"strings"
 )
 
 // InnerVoiceEntry represents a stored inner voice thought.
@@ -101,4 +102,33 @@ func (s *SQLiteMemory) GetTodayInnerVoiceSummary() ([]InnerVoiceEntry, error) {
 		entries = append(entries, e)
 	}
 	return entries, rows.Err()
+}
+
+// FormatInnerVoiceHistory formats recent inner voice entries as a brief summary for prompt context.
+// Returns a compact string like: "thought1 [category] | thought2 [category]".
+func FormatInnerVoiceHistory(entries []InnerVoiceEntry) string {
+	if len(entries) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	for i, e := range entries {
+		if i >= 3 {
+			break
+		}
+		if b.Len() > 0 {
+			b.WriteString(" | ")
+		}
+		thought := e.InnerThought
+		// Truncate long thoughts for prompt efficiency
+		if len(thought) > 100 {
+			thought = thought[:97] + "..."
+		}
+		b.WriteString(thought)
+		if e.NudgeCategory != "" {
+			b.WriteString(" [")
+			b.WriteString(e.NudgeCategory)
+			b.WriteString("]")
+		}
+	}
+	return b.String()
 }

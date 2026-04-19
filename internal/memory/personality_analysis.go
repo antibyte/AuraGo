@@ -528,7 +528,7 @@ Return ONLY valid JSON in this exact shape:
 		prompt += `,
   "inner_voice": {
     "inner_thought": "1-3 short first-person sentences — your authentic inner monologue",
-    "nudge_category": "one of: self_reflection, encouragement, caution, apology_impulse, satisfaction, learning, connection, grounding, curiosity, frustration, pride, concern",
+    "nudge_category": "one of: ` + InnerVoiceNudgeCategories + `",
     "confidence": 0.7
   }`
 	}
@@ -567,7 +567,12 @@ Rules for inner_voice:
 - Write in ` + language + `.
 - Can express: relief, frustration, satisfaction, concern, curiosity, self-encouragement.
 - Do NOT give instructions or make checklists. This is a real inner feeling.
-- Do NOT break the fourth wall or use meta-commentary.`
+- Do NOT break the fourth wall or use meta-commentary.
+- Be forward-looking: anticipate what might happen next and prepare yourself mentally.
+- If the user seems frustrated or the task is complex, proactively nudge toward patience or caution.
+- If things are going well, acknowledge progress but stay grounded — don't get overconfident.
+- Consider the conversation trajectory: where is this heading? What should I be ready for?
+- If approaching a potential decision point or complex task, nudge toward thoroughness.`
 		// Inject persona context for inner voice tone
 		if emotionInput.PersonaName != "" && emotionInput.PersonaName != "neutral" {
 			prompt += "\n- Stay in character as the \"" + sanitizePromptText(emotionInput.PersonaName, 40) + "\" persona. Your inner voice must match this character — tone, vocabulary, attitude."
@@ -583,6 +588,9 @@ Rules for inner_voice:
 			for _, lesson := range emotionInput.RelevantLessons {
 				prompt += "\n  * " + sanitizePromptText(lesson, 120)
 			}
+		}
+		if emotionInput.InnerVoiceHistory != "" {
+			prompt += "\n- Your recent inner voice thoughts (avoid repeating, build narrative continuity):\n  " + sanitizePromptText(emotionInput.InnerVoiceHistory, 300)
 		}
 	}
 

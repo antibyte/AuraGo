@@ -366,15 +366,26 @@ func launchAsyncPersonalityV2Analysis(
 			}
 			// Enrich with inner voice context only when rate/session/trigger gates pass
 			if shouldGenerateInnerVoice(cfg, consecutiveErrorCount, totalErrorCount, successCount, taskCompleted, isMission, isCoAgent) {
-				combinedInput.InnerVoiceEnabled = true
-				combinedInput.TaskStatus = deriveTaskStatus(consecutiveErrorCount, totalErrorCount, successCount)
-				// Lessons from error patterns
+				// Gather lessons from error patterns
+				var lessons []string
 				if errPatterns, lErr := stm.GetRecentErrors(3); lErr == nil {
 					for _, ep := range errPatterns {
 						if ep.Resolution != "" {
-							combinedInput.RelevantLessons = append(combinedInput.RelevantLessons, ep.Resolution)
+							lessons = append(lessons, ep.Resolution)
 						}
 					}
+				}
+				// Estimate conversation turns from recent messages available to the analyzer
+				conversationTurns := len(recentMsgs)
+				// Recovery attempts = total errors that were eventually resolved
+				recoveryAttempts := 0
+				if totalErrorCount > 0 && consecutiveErrorCount == 0 && successCount > 0 {
+					recoveryAttempts = totalErrorCount
+				}
+				enrichEmotionInputForInnerVoice(&combinedInput, conversationTurns, recoveryAttempts, consecutiveErrorCount, totalErrorCount, successCount, lessons)
+				// Add inner voice history for narrative continuity
+				if ivEntries, ivErr := stm.GetRecentInnerVoices(3); ivErr == nil && len(ivEntries) > 0 {
+					combinedInput.InnerVoiceHistory = memory.FormatInnerVoiceHistory(ivEntries)
 				}
 			}
 			result.Mood, result.AffinityDelta, result.TraitDeltas, result.ProfileUpdates, result.SynthesizedEmotion, result.InnerThought, result.NudgeCategory, err = stm.AnalyzeMoodV2WithEmotion(

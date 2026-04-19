@@ -1465,6 +1465,13 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				batchSuccessCount := s.toolCallCount - recoveryState.ConsecutiveErrorCount
 				batchTaskCompleted := recoveryState.ConsecutiveErrorCount == 0 && batchSuccessCount > 0
 				batchIVEnabled := shouldGenerateInnerVoice(cfg, recoveryState.ConsecutiveErrorCount, recoveryState.TotalErrorCount, batchSuccessCount, batchTaskCompleted, flags.IsMission, flags.IsCoAgent)
+				// Fetch inner voice history for narrative continuity
+				var batchIVHistory string
+				if batchIVEnabled && shortTermMem != nil {
+					if ivEntries, ivErr := shortTermMem.GetRecentInnerVoices(3); ivErr == nil && len(ivEntries) > 0 {
+						batchIVHistory = memory.FormatInnerVoiceHistory(ivEntries)
+					}
+				}
 				turnPersonalityInput = &helperTurnPersonalityInput{
 					RecentHistory:      contextHistory,
 					UserOnlyHistory:    userHistory,
@@ -1479,6 +1486,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					SuccessCount:       batchSuccessCount,
 					InnerVoiceEnabled:  batchIVEnabled,
 					InnerVoiceLanguage: cfg.Agent.SystemLanguage,
+					InnerVoiceHistory:  batchIVHistory,
 				}
 			}
 			go func(userMsg, aResp, sid string, toolNames, toolSummaries []string, personalityInput *helperTurnPersonalityInput, recentMsgs []openai.ChatCompletionMessage) {

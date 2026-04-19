@@ -54,6 +54,10 @@ const (
 	EmotionTriggerToolSuccessStreak EmotionTriggerType = "tool_success_streak"
 )
 
+// InnerVoiceNudgeCategories is the canonical set of nudge categories for the inner voice system.
+// This must be used consistently across all inner voice prompt paths to ensure valid categories.
+const InnerVoiceNudgeCategories = "reflection, patience, focus, creativity, caution, recovery, encouragement, grounding, curiosity, concern, satisfaction, anticipation"
+
 // EmotionInput collects the relevant data for emotion synthesis.
 type EmotionInput struct {
 	UserMessage        string            // Last user message
@@ -71,8 +75,9 @@ type EmotionInput struct {
 	ConversationTurns int      // Number of turns in this session
 	RecoveryAttempts  int      // How many times the agent corrected after errors
 	TaskStatus        string   // "starting" | "in_progress" | "struggling" | "recovering" | "completed"
-	RelevantLessons   []string // Past lessons from error_learning
-	InnerVoiceEnabled bool     // Whether inner voice generation is requested
+	RelevantLessons    []string // Past lessons from error_learning
+	InnerVoiceEnabled  bool     // Whether inner voice generation is requested
+	InnerVoiceHistory  string   // Brief summary of recent inner voice thoughts for continuity
 	// Active persona context — shapes the tone of emotion descriptions & inner voice
 	PersonaName   string // Active persona ID (e.g. "punk", "friend"); empty or "neutral" = generic
 	PersonaPrompt string // Short persona description (max ~300 chars) for tone guidance

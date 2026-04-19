@@ -3,6 +3,7 @@ package memory
 import (
 	"log/slog"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -140,3 +141,65 @@ func TestGetTodayInnerVoiceSummary_ReturnsToday(t *testing.T) {
 		t.Fatalf("unexpected thought: %q", entries[0].InnerThought)
 	}
 }
+
+func TestFormatInnerVoiceHistory_Empty(t *testing.T) {
+	result := FormatInnerVoiceHistory(nil)
+	if result != "" {
+		t.Fatalf("expected empty string for nil, got %q", result)
+	}
+	result = FormatInnerVoiceHistory([]InnerVoiceEntry{})
+	if result != "" {
+		t.Fatalf("expected empty string for empty slice, got %q", result)
+	}
+}
+
+func TestFormatInnerVoiceHistory_Formats(t *testing.T) {
+	entries := []InnerVoiceEntry{
+		{InnerThought: "Stay focused", NudgeCategory: "focus"},
+		{InnerThought: "Be patient with the user", NudgeCategory: "patience"},
+	}
+	result := FormatInnerVoiceHistory(entries)
+	if result == "" {
+		t.Fatal("expected non-empty result")
+	}
+	if !strings.Contains(result, "Stay focused") {
+		t.Fatalf("expected 'Stay focused' in result, got %q", result)
+	}
+	if !strings.Contains(result, "[focus]") {
+		t.Fatalf("expected '[focus]' in result, got %q", result)
+	}
+	if !strings.Contains(result, "[patience]") {
+		t.Fatalf("expected '[patience]' in result, got %q", result)
+	}
+}
+
+func TestFormatInnerVoiceHistory_Truncates(t *testing.T) {
+	longThought := ""
+	for i := 0; i < 200; i++ {
+		longThought += "x"
+	}
+	entries := []InnerVoiceEntry{
+		{InnerThought: longThought, NudgeCategory: "caution"},
+	}
+	result := FormatInnerVoiceHistory(entries)
+	if !strings.Contains(result, "...") {
+		t.Fatalf("expected truncation marker in result, got %q", result)
+	}
+}
+
+func TestFormatInnerVoiceHistory_LimitsToThree(t *testing.T) {
+	entries := []InnerVoiceEntry{
+		{InnerThought: "first", NudgeCategory: "a"},
+		{InnerThought: "second", NudgeCategory: "b"},
+		{InnerThought: "third", NudgeCategory: "c"},
+		{InnerThought: "fourth", NudgeCategory: "d"},
+	}
+	result := FormatInnerVoiceHistory(entries)
+	if strings.Contains(result, "fourth") {
+		t.Fatalf("expected only 3 entries, but 'fourth' appeared in result: %q", result)
+	}
+	if !strings.Contains(result, "first") {
+		t.Fatalf("expected 'first' in result, got %q", result)
+	}
+}
+

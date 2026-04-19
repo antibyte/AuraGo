@@ -103,10 +103,15 @@ func shouldGenerateInnerVoice(
 		return false
 	}
 
-	// Rate limiting
+	// Single lock acquisition to read all state consistently (avoids TOCTOU race between
+	// the two separate lock/unlock pairs that previously existed).
 	globalInnerVoiceState.mu.Lock()
 	elapsed := time.Since(globalInnerVoiceState.lastGenerated)
+	genCount := globalInnerVoiceState.generationCount
+	turnsSinceLast := globalInnerVoiceState.turnsSinceLast
 	globalInnerVoiceState.mu.Unlock()
+
+	// Rate limiting
 	minInterval := time.Duration(cfg.Personality.InnerVoice.MinIntervalSecs) * time.Second
 	if elapsed < minInterval {
 		return false
@@ -126,10 +131,6 @@ func shouldGenerateInnerVoice(
 	// Trigger: periodic — generate inner voice during normal conversation (no errors required).
 	// Fire when no thought has been generated yet this session, or when the current thought
 	// has aged past the decay threshold (meaning the last thought already faded from the prompt).
-	globalInnerVoiceState.mu.Lock()
-	genCount := globalInnerVoiceState.generationCount
-	turnsSinceLast := globalInnerVoiceState.turnsSinceLast
-	globalInnerVoiceState.mu.Unlock()
 	periodicThreshold := cfg.Personality.InnerVoice.DecayTurns
 	if periodicThreshold <= 0 {
 		periodicThreshold = 3
