@@ -253,3 +253,60 @@ func TestCompressHistory_FixedSystemPartsDoNotInflateThreshold(t *testing.T) {
 		t.Errorf("Result should be shorter after compression: got %d, had %d", len(result), len(messages))
 	}
 }
+
+// TestCompressHistory_SystemPromptSubtractedFromBudget verifies CRITICAL-1 fix:
+// The system prompt tokens must be subtracted from the available budget so that
+// compression triggers early enough even when the system prompt is large.
+func TestCompressHistory_SystemPromptSubtractedFromBudget(t *testing.T) {
+	// Build a scenario where:
+	//   system prompt = ~400 tokens
+	//   history       = ~500 tokens
+	//   maxHistory    = 800 tokens
+	// Without the fix: threshold = 800*0.8 = 640, history=500 < 640 → no compression
+	// With the fix:    available = 800-400 = 400, threshold = 400*0.8 = 320, history=500 > 320 → compression
+	systemPrompt := strings.Repeat("System instruction token. ", 100) // ~400 tokens
+	messages := []openai.ChatCompletionMessage{
+		{Role: openai.ChatMessageRoleSystem, Content: systemPrompt},
+	}
+	for i := 0; i < 12; i++ {
+		messages = append(messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: strings.Repeat("User message filler. ", 20)})
+		messages = append(messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: strings.Repeat("Reply filler. ", 20)})
+	}
+
+	client := &mockChatClient{response: "Compressed summary of conversation."}
+	result, _, res := CompressHistory(context.Background(), messages, 800, "test", client, 0, testLogger)
+
+	if !res.Compressed {
+		t.Error("Expected compression to trigger because system prompt reduces available budget")
+	}
+	if len(result) >= len(messages) {
+		t.Errorf("Result should be shorter after compression: got %d, had %d", len(result), len(messages))
+	}
+}
+
+// TestSummaryMaxTokensForCount verifies DESIGN-7 fix: increased limits.
+func TestSummaryMaxTokensForCount(t *testing.T) {
+	tests := []struct {
+		name     string
+		dropped  int
+		minToken int
+		maxToken int
+	}{
+		{"1 message", 1, 80, 80},
+		{"5 messages", 5, 150, 150},
+		{"10 messages", 10, 300, 300},
+		{"20 messages", 20, 600, 800},
+		{"50 messages", 50, 800, 800},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := summaryMaxTokensForCount(tt.dropped)
+			if got < tt.minToken {
+				t.Errorf("summaryMaxTokensForCount(%d) = %d, want >= %d", tt.dropped, got, tt.minToken)
+			}
+			if got > tt.maxToken {
+				t.Errorf("summaryMaxTokensForCount(%d) = %d, want <= %d", tt.dropped, got, tt.maxToken)
+			}
+		})
+	}
+}

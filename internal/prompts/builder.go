@@ -402,9 +402,12 @@ func buildSystemPromptInner(promptsDir string, flags *ContextFlags, coreMemory s
 	var finalPrompt strings.Builder
 	finalPrompt.Grow(32768) // Pre-allocate ~32KB to reduce reallocs
 
-	// Auto-determine tier if not set
-	if flags.Tier == "" {
-		flags.Tier = DetermineTierAdaptive(flags)
+	// Auto-determine tier if not set. Use a local copy to avoid mutating the
+	// caller's flags — when BuildSystemPrompt times out and returns the fallback
+	// prompt, the caller must not see a partially-modified Tier value.
+	tier := flags.Tier
+	if tier == "" {
+		tier = DetermineTierAdaptive(flags)
 	}
 
 	// 1. Load and parse all prompt modules
@@ -557,14 +560,14 @@ func buildSystemPromptInner(promptsDir string, flags *ContextFlags, coreMemory s
 		}
 	} else {
 		// RAG: Retrieved Long-Term Memories — skip in minimal tier
-		if flags.RecentActivityOverview != "" && flags.Tier != "minimal" {
+		if flags.RecentActivityOverview != "" && tier != "minimal" {
 			finalPrompt.WriteString("# LAST 7 DAYS OVERVIEW\n")
 			finalPrompt.WriteString(security.IsolateExternalData(flags.RecentActivityOverview))
 			finalPrompt.WriteString("\n\n")
 		}
 
 		// RAG: Retrieved Long-Term Memories — skip in minimal tier
-		if flags.RetrievedMemories != "" && flags.Tier != "minimal" {
+		if flags.RetrievedMemories != "" && tier != "minimal" {
 			finalPrompt.WriteString("# RETRIEVED MEMORIES\n")
 			finalPrompt.WriteString("**Critical**: Memories are snapshots of past observations and ARE FREQUENTLY OUTDATED. " +
 				"**Priority rule: fresh tool output always overrides memory.** " +
@@ -579,14 +582,14 @@ func buildSystemPromptInner(promptsDir string, flags *ContextFlags, coreMemory s
 		}
 
 		// Predictive RAG — only in full tier
-		if flags.PredictedMemories != "" && flags.Tier == "full" {
+		if flags.PredictedMemories != "" && tier == "full" {
 			finalPrompt.WriteString("# PREDICTED CONTEXT\n")
 			finalPrompt.WriteString(security.IsolateExternalData(flags.PredictedMemories))
 			finalPrompt.WriteString("\n\n")
 		}
 
 		// Knowledge Graph context — relevant entities and relationships
-		if flags.KnowledgeContext != "" && flags.Tier != "minimal" {
+		if flags.KnowledgeContext != "" && tier != "minimal" {
 			finalPrompt.WriteString("# RELEVANT KNOWLEDGE\n")
 			finalPrompt.WriteString(security.IsolateExternalData(flags.KnowledgeContext))
 			finalPrompt.WriteString("\n\n")
@@ -594,7 +597,7 @@ func buildSystemPromptInner(promptsDir string, flags *ContextFlags, coreMemory s
 	}
 
 	// Error Pattern Context — inject known error patterns during error recovery
-	if flags.ErrorPatternContext != "" && flags.Tier != "minimal" {
+	if flags.ErrorPatternContext != "" && tier != "minimal" {
 		finalPrompt.WriteString("# KNOWN ERROR PATTERNS\n")
 		finalPrompt.WriteString(security.IsolateExternalData(flags.ErrorPatternContext))
 		finalPrompt.WriteString("\n\n")
@@ -614,7 +617,7 @@ func buildSystemPromptInner(promptsDir string, flags *ContextFlags, coreMemory s
 
 	// Dynamic Tool Guides — only in full tier
 	posBeforeGuides := finalPrompt.Len()
-	if len(flags.PredictedGuides) > 0 && flags.Tier == "full" {
+	if len(flags.PredictedGuides) > 0 && tier == "full" {
 		finalPrompt.WriteString("# TOOL GUIDES\n")
 		for _, guide := range flags.PredictedGuides {
 			finalPrompt.WriteString(guide)
@@ -624,7 +627,7 @@ func buildSystemPromptInner(promptsDir string, flags *ContextFlags, coreMemory s
 	sectionGuides := finalPrompt.Len() - posBeforeGuides
 
 	// Dynamic Outgoing Webhooks definition
-	if flags.WebhooksEnabled && flags.WebhooksDefinitions != "" && flags.Tier != "minimal" {
+	if flags.WebhooksEnabled && flags.WebhooksDefinitions != "" && tier != "minimal" {
 		finalPrompt.WriteString("# OUTGOING WEBHOOKS\n")
 		finalPrompt.WriteString(security.IsolateExternalData(flags.WebhooksDefinitions))
 		finalPrompt.WriteString("\n\n")
@@ -778,12 +781,12 @@ func buildSystemPromptInner(promptsDir string, flags *ContextFlags, coreMemory s
 			"shed_sections", shedSections, "optimized_len", len(optimized))
 	}
 
-	logger.Debug("System prompt built", "raw_len", rawLen, "optimized_len", len(optimized), "saved_chars", saved, "tier", flags.Tier, "tokens", finalTokens)
+	logger.Debug("System prompt built", "raw_len", rawLen, "optimized_len", len(optimized), "saved_chars", saved, "tier", tier, "tokens", finalTokens)
 
 	// 8. Record build metrics for dashboard
 	RecordBuild(PromptBuildRecord{
 		Timestamp:     now,
-		Tier:          flags.Tier,
+		Tier:          tier,
 		RawLen:        rawLen,
 		OptimizedLen:  len(optimized),
 		FormatSavings: saved,
@@ -892,12 +895,23 @@ func budgetShed(prompt string, flags *ContextFlags, personalityContent, coreMemo
 			result = removeSection(result, target.header)
 		}
 		if len(result) < before {
-			oldTokens := tokens
-			tokens = countTokensWithModel(result, flags.Model)
+			// Estimate token savings from character reduction instead of
+			// re-counting the entire prompt on every iteration.  The average
+			// ratio is ~4 chars/token for English text; this avoids an
+			// O(n²) token-counting cascade across all shed steps.
+			charsSaved := before - len(result)
+			estimatedSaved := charsSaved / 4
+			if estimatedSaved < 1 {
+				estimatedSaved = 1
+			}
+			tokens -= estimatedSaved
 			shedList = append(shedList, target.header)
-			logger.Debug("[Budget] Shed section", "header", target.header, "tokens_saved", oldTokens-tokens, "remaining_tokens", tokens)
+			logger.Debug("[Budget] Shed section", "header", target.header, "chars_saved", charsSaved, "est_tokens_saved", estimatedSaved, "est_remaining_tokens", tokens)
 		}
 	}
+
+	// Accurate re-count after all section shedding (single O(n) pass).
+	tokens = countTokensWithModel(result, flags.Model)
 
 	// Token-aware Retrieved Memories trim: progressively remove individual entries (lowest ranked first)
 	// instead of dropping the entire section at once.
@@ -998,7 +1012,8 @@ func trimRetrievedMemoriesSection(prompt string, budget int, model string, logge
 			keptEntries := entries[:currentEntryCount]
 			content := header + "\n" + strings.Join(keptEntries, sep) + "\n\n"
 			candidate := before + content + afterSection
-			return candidate, trimmed, countTokensWithModel(candidate, model)
+			// Use the pre-computed running sum instead of re-counting the entire candidate.
+			return candidate, trimmed, tokens
 		}
 		// Subtract the last entry (and its separator) from the running total
 		totalContentTokens -= entryTokens[currentEntryCount-1]
@@ -1023,15 +1038,19 @@ func hardTruncateToBudget(prompt string, budget int, model string) string {
 		return prompt
 	}
 
-	runes := []rune(prompt)
+	// Work on byte level rather than rune level. BPE tokenizers operate on
+	// UTF-8 bytes, so splitting on byte boundaries produces more accurate
+	// truncation points than splitting on rune boundaries (where a single
+	// emoji rune can expand to 3-6 tokens).
+	bytes := []byte(prompt)
 	marker := "\n\n[BUDGET TRUNCATED]"
 
-	bestWithMarker, ok := longestPromptPrefixWithinBudget(runes, marker, budget, model)
+	bestWithMarker, ok := longestBytePrefixWithinBudget(bytes, marker, budget, model)
 	if ok {
 		return bestWithMarker
 	}
 
-	bestWithoutMarker, ok := longestPromptPrefixWithinBudget(runes, "", budget, model)
+	bestWithoutMarker, ok := longestBytePrefixWithinBudget(bytes, "", budget, model)
 	if ok {
 		return bestWithoutMarker
 	}
@@ -1042,14 +1061,17 @@ func hardTruncateToBudget(prompt string, budget int, model string) string {
 	return ""
 }
 
-func longestPromptPrefixWithinBudget(runes []rune, suffix string, budget int, model string) (string, bool) {
-	lo, hi := 0, len(runes)
+// longestBytePrefixWithinBudget performs a binary search over byte-sliced
+// prefixes of data, appending suffix, and returns the longest candidate whose
+// token count fits within budget.
+func longestBytePrefixWithinBudget(data []byte, suffix string, budget int, model string) (string, bool) {
+	lo, hi := 0, len(data)
 	best := ""
 	found := false
 
 	for lo <= hi {
 		mid := (lo + hi) / 2
-		candidate := string(runes[:mid]) + suffix
+		candidate := string(data[:mid]) + suffix
 		if countTokensWithModel(candidate, model) <= budget {
 			best = candidate
 			found = true
@@ -1105,22 +1127,36 @@ func buildUnifiedMemoryContextBlock(flags *ContextFlags) string {
 }
 
 // removeLineByPrefix removes all lines starting with the given prefix (and the following blank line).
+// It respects markdown code blocks: lines inside ``` or ~~~ fences are never removed.
 func removeLineByPrefix(text, prefix string) string {
 	lines := strings.Split(text, "\n")
 	var out []string
 	skipNext := false
-	for _, line := range lines {
+	inCodeBlock := false
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		// Track code-block boundaries (both ``` and ~~~)
+		if strings.HasPrefix(trimmed, "```") || strings.HasPrefix(trimmed, "~~~") {
+			inCodeBlock = !inCodeBlock
+			out = append(out, line)
+			continue
+		}
+		if inCodeBlock {
+			out = append(out, line)
+			skipNext = false
+			continue
+		}
 		if skipNext {
 			skipNext = false
 			if strings.TrimSpace(line) == "" {
 				continue // skip blank line after removed prefix line
 			}
 		}
-		trimmed := strings.TrimSpace(line)
 		if strings.HasPrefix(trimmed, prefix) {
 			skipNext = true
 			continue
 		}
+		_ = i
 		out = append(out, line)
 	}
 	return strings.TrimSpace(strings.Join(out, "\n"))
@@ -1207,8 +1243,12 @@ func OptimizePrompt(raw string) (string, int) {
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
 
-		// Toggle code block state on ``` delimiters
-		if strings.HasPrefix(trimmed, "```") {
+		// Toggle code block state on ``` and ~~~ delimiters
+		if strings.HasPrefix(trimmed, "```") || strings.HasPrefix(trimmed, "~~~") {
+			fencePrefix := "```"
+			if strings.HasPrefix(trimmed, "~~~") {
+				fencePrefix = "~~~"
+			}
 			if inCodeBlock {
 				// We are closing a code block
 				if codeBlockLang == "json" && len(jsonBuffer) > 0 {
@@ -1231,7 +1271,7 @@ func OptimizePrompt(raw string) (string, int) {
 			} else {
 				// We are opening a code block
 				inCodeBlock = true
-				codeBlockLang = strings.ToLower(strings.TrimPrefix(trimmed, "```"))
+				codeBlockLang = strings.ToLower(strings.TrimPrefix(trimmed, fencePrefix))
 				emptyLineCount = 0
 				result = append(result, line) // opening delimiter
 			}
@@ -1546,6 +1586,7 @@ func buildEnabledToolsOverview(flags *ContextFlags) string {
 	add("telnyx", flags.TelnyxEnabled)
 	add("a2a", flags.A2AEnabled)
 	add("co_agents", flags.CoAgentEnabled)
+	add("paperless_ngx", flags.PaperlessNGXEnabled)
 	if len(enabled) == 0 {
 		return ""
 	}

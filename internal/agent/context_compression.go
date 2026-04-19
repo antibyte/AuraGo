@@ -28,12 +28,12 @@ const compressionKeepTail = 6
 // It scales with the number of messages being compressed to allow richer
 // summaries for larger windows while staying compact for small ones.
 func summaryMaxTokensForCount(droppedMessages int) int {
-	tokens := 20 * droppedMessages
+	tokens := 30 * droppedMessages
 	if tokens < 80 {
 		tokens = 80
 	}
-	if tokens > 300 {
-		tokens = 300
+	if tokens > 800 {
+		tokens = 800
 	}
 	return tokens
 }
@@ -83,12 +83,20 @@ func CompressHistory(
 
 	// Calculate total tokens in the compressible window (exclude system message at index 0,
 	// which is never compressed and is counted separately in the prompt budget).
+	// Subtract system prompt tokens from the available budget so that compression triggers
+	// early enough to prevent the context guard from hard-trimming without a summary.
+	sysTokens := prompts.CountTokensForModel(messageText(messages[0]), model) + 4
+	availableForHistory := maxHistoryTokens - sysTokens
+	if availableForHistory < 0 {
+		availableForHistory = 0
+	}
+
 	totalTokens := 0
 	for _, m := range messages[1:] {
 		totalTokens += prompts.CountTokensForModel(messageText(m), model) + 4
 	}
 
-	threshold := int(float64(maxHistoryTokens) * compressionThresholdPct)
+	threshold := int(float64(availableForHistory) * compressionThresholdPct)
 	if totalTokens <= threshold {
 		result.TotalTokens = totalTokens
 		return messages, lastCompressionMsg, result

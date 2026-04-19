@@ -90,6 +90,10 @@ type agentLoopState struct {
 	detectedCtxWindow  int
 	lastCompressionMsg int
 
+	// Cached compression client/model resolved once per session instead of per loop iteration.
+	cachedCompressionClient llm.ChatClient
+	cachedCompressionModel  string
+
 	cachedSysPromptKey    string
 	cachedSysPrompt       string
 	cachedSysPromptTokens int
@@ -934,7 +938,11 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		if maxHistoryTokens < 4096 {
 			maxHistoryTokens = 4096
 		}
-		compressionClient, compressionModel := resolveHelperBackedLLM(cfg, client, cfg.LLM.Model)
+		// Resolve compression client/model once per session, not per iteration.
+		if s.cachedCompressionClient == nil && s.cachedCompressionModel == "" {
+			s.cachedCompressionClient, s.cachedCompressionModel = resolveHelperBackedLLM(cfg, client, cfg.LLM.Model)
+		}
+		compressionClient, compressionModel := s.cachedCompressionClient, s.cachedCompressionModel
 		var compRes CompressHistoryResult
 		if compressionClient != nil && compressionModel != "" {
 			// Pre-check threshold: use a cheap cached count to show UI feedback

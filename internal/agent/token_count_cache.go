@@ -1,6 +1,10 @@
 package agent
 
-import "aurago/internal/prompts"
+import (
+	"aurago/internal/prompts"
+	"hash/fnv"
+	"strconv"
+)
 
 type tokenCountCache struct {
 	maxEntries int
@@ -18,11 +22,21 @@ func newTokenCountCache(maxEntries int) *tokenCountCache {
 	}
 }
 
+// cacheHashKey produces a compact, collision-resistant hash key from text and model.
+// This avoids storing the full text as a map key, which caused significant memory
+// bloat when caching token counts for large tool outputs (50-100KB+).
+func cacheHashKey(text, model string) string {
+	h := fnv.New64a()
+	h.Write([]byte(text))
+	h.Write([]byte(model))
+	return strconv.FormatUint(h.Sum64(), 36)
+}
+
 func (c *tokenCountCache) Count(text, model string) int {
 	if text == "" {
 		return 0
 	}
-	key := text + "\x00" + model
+	key := cacheHashKey(text, model)
 	if v, ok := c.counts[key]; ok {
 		return v
 	}
