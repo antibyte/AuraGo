@@ -445,7 +445,11 @@
     }
 
     function drawGroundPile(width, height) {
-        if (gCount < 10) return;
+        let hasSand = false;
+        for (let i = 0; i < groundHeight.length; i++) {
+            if (groundHeight[i] > 0.5) { hasSand = true; break; }
+        }
+        if (!hasSand) return;
         ctx.beginPath();
         ctx.moveTo(0, height);
         for (let x = 0; x <= width; x += 2) {
@@ -555,22 +559,23 @@
     }
 
     function whirlGroundSand(width, height) {
-        const toWhirl = Math.min(gCount, Math.ceil(gCount * 0.12) + 3);
+        // Whirl a large chunk of ground sand back into the air
+        const toWhirl = Math.min(gCount, Math.ceil(gCount * 0.35) + 5);
         for (let i = 0; i < toWhirl && gCount > 0; i++) {
             const idx = Math.floor(rand(0, gCount));
             if (fCount >= MAX_FLYING) break;
 
             fx[fCount] = gx[idx];
-            fy[fCount] = gy[idx] - rand(8, 40);
-            fvx[fCount] = rand(STORM_WIND * 0.4, STORM_WIND * 0.9);
-            fvy[fCount] = rand(STORM_LIFT * 0.5, STORM_LIFT * 0.15);
+            fy[fCount] = gy[idx] - rand(10, 50);
+            fvx[fCount] = rand(STORM_WIND * 0.5, STORM_WIND * 1.1);
+            fvy[fCount] = rand(STORM_LIFT * 0.6, STORM_LIFT * 0.1);
             fs[fCount] = gs[idx];
-            fa[fCount] = Math.min(0.9, ga[idx] * 1.1);
+            fa[fCount] = Math.min(0.95, ga[idx] * 1.2);
             fd[fCount] = rand(0.8, 1.3);
             fk[fCount] = 0;
             fCount++;
 
-            removeGroundHeight(gx[idx], gs[idx] * 0.3);
+            removeGroundHeight(gx[idx], gs[idx] * 1.2);
 
             gx[idx] = gx[gCount - 1]; gy[idx] = gy[gCount - 1];
             gs[idx] = gs[gCount - 1]; ga[idx] = ga[gCount - 1];
@@ -583,6 +588,14 @@
         for (let i = 0; i < groundHeight.length; i++) {
             groundHeight[i] *= 0.9997;
             if (groundHeight[i] < 0.05) groundHeight[i] = 0;
+        }
+    }
+
+    function erodeGroundDuringStorm() {
+        // Aggressively flatten the sand pile during a storm
+        for (let i = 0; i < groundHeight.length; i++) {
+            groundHeight[i] *= 0.985;
+            if (groundHeight[i] < 0.3) groundHeight[i] = 0;
         }
     }
 
@@ -658,6 +671,7 @@
 
         if (stormActive) {
             whirlGroundSand(width, height);
+            erodeGroundDuringStorm();
             drawStormHaze(width, height, time);
         } else {
             decayGround();
