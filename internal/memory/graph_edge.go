@@ -55,13 +55,13 @@ func (kg *KnowledgeGraph) AddEdge(source, target, relation string, properties ma
 }
 
 func (kg *KnowledgeGraph) DeleteEdge(source, target, relation string) error {
-	if err := kg.removeSemanticEdgeIndex(source, target, relation); err != nil && kg.logger != nil {
-		kg.logger.Warn("DeleteEdge: failed to remove semantic edge index", "source", source, "target", target, "relation", relation, "error", err)
-	}
 	_, err := kg.db.Exec("DELETE FROM kg_edges WHERE source = ? AND target = ? AND relation = ?",
 		source, target, relation)
 	if err != nil {
 		return fmt.Errorf("delete edge: %w", err)
+	}
+	if err := kg.removeSemanticEdgeIndex(source, target, relation); err != nil && kg.logger != nil {
+		kg.logger.Warn("DeleteEdge: failed to remove semantic edge index", "source", source, "target", target, "relation", relation, "error", err)
 	}
 	return nil
 }

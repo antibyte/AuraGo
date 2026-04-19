@@ -4,7 +4,9 @@ import (
 	"log/slog"
 	"os"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"aurago/internal/config"
 	"aurago/internal/memory"
@@ -238,5 +240,47 @@ func TestPrepareContent_MarkdownOutline_Truncated(t *testing.T) {
 	// Structure prefix should still be present.
 	if !strings.Contains(result, "[Document Structure]") {
 		t.Error("expected document structure prefix even for truncated Markdown")
+	}
+}
+
+func TestFileKGSyncer_SyncCollectionAggregatesParallelResults(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	cfg := &config.Config{}
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	defer stm.Close()
+
+	for _, path := range []string{"/docs/a.md", "/docs/b.md", "/docs/c.md"} {
+		if err := stm.UpdateFileIndexWithDocs(path, IndexerCollection, time.Now(), []string{"doc-" + path}); err != nil {
+			t.Fatalf("UpdateFileIndexWithDocs(%s): %v", path, err)
+		}
+	}
+
+	var calls atomic.Int32
+	syncer := NewFileKGSyncer(cfg, logger, nil, nil, stm, nil)
+	syncer.syncFile = func(path, collection string, opts FileKGSyncOptions) FileKGSyncResult {
+		calls.Add(1)
+		return FileKGSyncResult{
+			FilesProcessed: 1,
+			NodesExtracted: 2,
+			EdgesExtracted: 1,
+			Errors:         []string{"warn:" + path},
+		}
+	}
+
+	result := syncer.SyncCollection(IndexerCollection, FileKGSyncOptions{})
+	if calls.Load() != 3 {
+		t.Fatalf("expected syncFile to be called 3 times, got %d", calls.Load())
+	}
+	if result.FilesProcessed != 3 {
+		t.Fatalf("expected 3 processed files, got %d", result.FilesProcessed)
+	}
+	if result.NodesExtracted != 6 || result.EdgesExtracted != 3 {
+		t.Fatalf("unexpected aggregate result: %#v", result)
+	}
+	if len(result.Errors) != 3 {
+		t.Fatalf("expected 3 aggregated errors, got %#v", result.Errors)
 	}
 }

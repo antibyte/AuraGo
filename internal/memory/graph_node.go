@@ -363,14 +363,7 @@ func (kg *KnowledgeGraph) GetRecentChanges(since time.Time) ([]Node, error) {
 		var propsJSON string
 		var protected int
 		if err := rows.Scan(&n.ID, &n.Label, &propsJSON, &protected); err == nil {
-			var props map[string]string
-			if propsJSON != "" {
-				if unmarshalErr := json.Unmarshal([]byte(propsJSON), &props); unmarshalErr != nil {
-					kg.logger.Warn("GetRecentChanges: corrupt node properties JSON", "id", n.ID, "error", unmarshalErr)
-					props = make(map[string]string)
-				}
-			}
-			n.Properties = sanitizeKnowledgeGraphNodeProperties(props, protected != 0)
+			n.Properties = decodeKnowledgeGraphNodeProperties(kg.logger, "GetRecentChanges", n.ID, propsJSON, protected)
 			n.Protected = protected != 0
 			nodes = append(nodes, n)
 		}
@@ -379,20 +372,51 @@ func (kg *KnowledgeGraph) GetRecentChanges(since time.Time) ([]Node, error) {
 }
 
 func (kg *KnowledgeGraph) MergeNodes(targetID, sourceID string) error {
+	targetID = strings.TrimSpace(targetID)
+	sourceID = strings.TrimSpace(sourceID)
+	if targetID == "" || sourceID == "" {
+		return fmt.Errorf("targetID and sourceID are required")
+	}
+	if targetID == sourceID {
+		return nil
+	}
+
 	tx, err := kg.db.Begin()
 	if err != nil {
 		return fmt.Errorf("begin merge nodes: %w", err)
 	}
 	defer tx.Rollback()
 
-	_, err = tx.Exec("UPDATE kg_edges SET target = ? WHERE target = ?", targetID, sourceID)
+	targetLabel, targetProps, targetProtected, targetFound, err := loadKnowledgeGraphNode(tx, targetID)
 	if err != nil {
-		return fmt.Errorf("update edges target: %w", err)
+		return fmt.Errorf("load target node %s: %w", targetID, err)
+	}
+	if !targetFound {
+		return fmt.Errorf("target node not found: %s", targetID)
 	}
 
-	_, err = tx.Exec("UPDATE kg_edges SET source = ? WHERE source = ?", targetID, sourceID)
+	sourceLabel, sourceProps, sourceProtected, sourceFound, err := loadKnowledgeGraphNode(tx, sourceID)
 	if err != nil {
-		return fmt.Errorf("update edges source: %w", err)
+		return fmt.Errorf("load source node %s: %w", sourceID, err)
+	}
+	if !sourceFound {
+		return fmt.Errorf("source node not found: %s", sourceID)
+	}
+
+	mergedLabel := mergeKnowledgeGraphLabel(targetLabel, sourceLabel)
+	mergedProtected := targetProtected != 0 || sourceProtected != 0
+	mergedProps := mergeKnowledgeGraphProperties(targetProps, sourceProps)
+	mergedProps = sanitizeKnowledgeGraphNodeProperties(mergedProps, mergedProtected)
+	propsJSON, err := json.Marshal(mergedProps)
+	if err != nil {
+		return fmt.Errorf("marshal merged node properties: %w", err)
+	}
+	if _, err := tx.Exec(`
+		UPDATE kg_nodes
+		SET label = ?, properties = ?, protected = ?, updated_at = CURRENT_TIMESTAMP
+		WHERE id = ?
+	`, mergedLabel, string(propsJSON), boolToInt(mergedProtected), targetID); err != nil {
+		return fmt.Errorf("update target node during merge: %w", err)
 	}
 
 	var sourceAccess int
@@ -404,12 +428,75 @@ func (kg *KnowledgeGraph) MergeNodes(targetID, sourceID string) error {
 		}
 	}
 
+	if _, err := tx.Exec("DELETE FROM kg_edges WHERE source = ? AND target = ?", targetID, targetID); err != nil {
+		return fmt.Errorf("delete pre-existing self edges: %w", err)
+	}
+	if _, err := tx.Exec(`
+		DELETE FROM kg_edges
+		WHERE source = ? AND EXISTS (
+			SELECT 1
+			FROM kg_edges existing
+			WHERE existing.source = ?
+			  AND existing.target = kg_edges.target
+			  AND existing.relation = kg_edges.relation
+		)
+	`, sourceID, targetID); err != nil {
+		return fmt.Errorf("delete outgoing edge collisions before merge: %w", err)
+	}
+	if _, err := tx.Exec(`
+		DELETE FROM kg_edges
+		WHERE target = ? AND EXISTS (
+			SELECT 1
+			FROM kg_edges existing
+			WHERE existing.target = ?
+			  AND existing.source = kg_edges.source
+			  AND existing.relation = kg_edges.relation
+		)
+	`, sourceID, targetID); err != nil {
+		return fmt.Errorf("delete incoming edge collisions before merge: %w", err)
+	}
+	if _, err := tx.Exec("UPDATE kg_edges SET target = ? WHERE target = ?", targetID, sourceID); err != nil {
+		return fmt.Errorf("update edges target: %w", err)
+	}
+	if _, err := tx.Exec("UPDATE kg_edges SET source = ? WHERE source = ?", targetID, sourceID); err != nil {
+		return fmt.Errorf("update edges source: %w", err)
+	}
+	if _, err := tx.Exec("DELETE FROM kg_edges WHERE source = ? AND target = ?", targetID, targetID); err != nil {
+		return fmt.Errorf("delete merged self edges: %w", err)
+	}
+	if _, err := tx.Exec(`
+		DELETE FROM kg_edges
+		WHERE rowid NOT IN (
+			SELECT MIN(rowid)
+			FROM kg_edges
+			GROUP BY source, target, relation
+		)
+	`); err != nil {
+		return fmt.Errorf("deduplicate merged edges: %w", err)
+	}
+
 	_, err = tx.Exec("DELETE FROM kg_nodes WHERE id = ?", sourceID)
 	if err != nil {
 		return fmt.Errorf("delete source node: %w", err)
 	}
 
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+
+	if err := kg.removeSemanticNodeIndex(sourceID); err != nil && kg.logger != nil {
+		kg.logger.Warn("MergeNodes: failed to remove source semantic node index", "source_id", sourceID, "error", err)
+	}
+	kg.upsertSemanticNodeIndex(Node{ID: targetID, Label: mergedLabel, Properties: mergedProps, Protected: mergedProtected})
+	incidentEdges, err := kg.GetImportantEdges(500, []string{targetID})
+	if err != nil {
+		return fmt.Errorf("reload merged incident edges: %w", err)
+	}
+	for _, edge := range incidentEdges {
+		kg.upsertSemanticEdgeIndex(edge)
+	}
+
+	return nil
 }
 
 func (kg *KnowledgeGraph) DeleteNodesBySourceFile(path string) (int, error) {

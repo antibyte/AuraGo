@@ -983,7 +983,13 @@ func consolidateEpisodicHierarchy(logger *slog.Logger, stm *memory.SQLiteMemory,
 				if participant == "" {
 					continue
 				}
-				_ = kg.AddEdge(participant, concept, "appears_in_memory_synthesis", map[string]string{"group": groupKey})
+				if err := kg.AddEdge(participant, concept, "appears_in_memory_synthesis", map[string]string{"group": groupKey}); err != nil {
+					logger.Warn("[Hierarchy] Failed to sync participant synthesis edge to KG",
+						"participant", participant,
+						"concept", concept,
+						"group", groupKey,
+						"error", err)
+				}
 			}
 		}
 		related := make([]string, 0, len(ids))
@@ -1315,8 +1321,19 @@ func SyncContactsToKnowledgeGraph(ctx context.Context, contactsDB *sql.DB, kg *m
 			relSlug := strings.ToLower(strings.ReplaceAll(relationship.String, " ", "_"))
 			relNodeID := "org_" + relSlug
 
-			_ = kg.AddNode(relNodeID, relationship.String, map[string]string{"type": "organization"})
-			_ = kg.AddEdge(nodeID, relNodeID, "belongs_to", nil)
+			if err := kg.AddNode(relNodeID, relationship.String, map[string]string{"type": "organization"}); err != nil {
+				logger.Warn("[Maintenance] Failed to sync relationship org node to KG",
+					"contact_node_id", nodeID,
+					"relationship_node_id", relNodeID,
+					"relationship", relationship.String,
+					"error", err)
+			} else if err := kg.AddEdge(nodeID, relNodeID, "belongs_to", nil); err != nil {
+				logger.Warn("[Maintenance] Failed to sync relationship edge to KG",
+					"contact_node_id", nodeID,
+					"relationship_node_id", relNodeID,
+					"relationship", relationship.String,
+					"error", err)
+			}
 		}
 	}
 }

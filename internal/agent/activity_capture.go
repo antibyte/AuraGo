@@ -117,14 +117,14 @@ func captureActivityTurn(cfg *config.Config, logger *slog.Logger, shortTermMem *
 	} else {
 		source = "runtime"
 	}
-	persistActivityTurn(shortTermMem, kg, sessionID, channel, userRequest, toolNames, isAutonomous, userRelevant, digest, source)
+	persistActivityTurn(shortTermMem, kg, logger, sessionID, channel, userRequest, toolNames, isAutonomous, userRelevant, digest, source)
 }
 
 func captureActivityTurnWithDigest(shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, sessionID, channel, userRequest string, toolNames []string, isAutonomous, userRelevant bool, digest memory.ActivityDigest, source string) {
-	persistActivityTurn(shortTermMem, kg, sessionID, channel, userRequest, toolNames, isAutonomous, userRelevant, digest, source)
+	persistActivityTurn(shortTermMem, kg, nil, sessionID, channel, userRequest, toolNames, isAutonomous, userRelevant, digest, source)
 }
 
-func persistActivityTurn(shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, sessionID, channel, userRequest string, toolNames []string, isAutonomous, userRelevant bool, digest memory.ActivityDigest, source string) {
+func persistActivityTurn(shortTermMem *memory.SQLiteMemory, kg *memory.KnowledgeGraph, logger *slog.Logger, sessionID, channel, userRequest string, toolNames []string, isAutonomous, userRelevant bool, digest memory.ActivityDigest, source string) {
 	if shortTermMem == nil {
 		return
 	}
@@ -167,11 +167,11 @@ func persistActivityTurn(shortTermMem *memory.SQLiteMemory, kg *memory.Knowledge
 		Source:           source,
 	})
 	if err == nil && kg != nil {
-		syncActivityTurnToKnowledgeGraph(kg, turnID, today, sessionID, channel, digest, source)
+		syncActivityTurnToKnowledgeGraph(kg, turnID, today, sessionID, channel, digest, source, logger)
 	}
 }
 
-func syncActivityTurnToKnowledgeGraph(kg *memory.KnowledgeGraph, turnID int64, date, sessionID, channel string, digest memory.ActivityDigest, source string) {
+func syncActivityTurnToKnowledgeGraph(kg *memory.KnowledgeGraph, turnID int64, date, sessionID, channel string, digest memory.ActivityDigest, source string, logger *slog.Logger) {
 	if kg == nil || turnID <= 0 {
 		return
 	}
@@ -188,12 +188,23 @@ func syncActivityTurnToKnowledgeGraph(kg *memory.KnowledgeGraph, turnID int64, d
 		if entityID == "" {
 			continue
 		}
-		_ = kg.AddNode(entityID, label, map[string]string{
+		if err := kg.AddNode(entityID, label, map[string]string{
 			"type":       "activity_entity",
 			"source":     "activity_turn",
 			"session_id": sessionID,
 			"last_seen":  date,
-		})
+		}); err != nil {
+			if logger != nil {
+				logger.Warn("[Activity] Failed to sync entity to knowledge graph",
+					"turn_id", turnID,
+					"entity_id", entityID,
+					"label", label,
+					"channel", channel,
+					"source", source,
+					"error", err)
+			}
+			continue
+		}
 		cleanEntities = append(cleanEntities, entityID)
 	}
 
@@ -203,7 +214,14 @@ func syncActivityTurnToKnowledgeGraph(kg *memory.KnowledgeGraph, turnID int64, d
 			if a > b {
 				a, b = b, a
 			}
-			_ = kg.IncrementCoOccurrence(a, b, date)
+			if err := kg.IncrementCoOccurrence(a, b, date); err != nil && logger != nil {
+				logger.Warn("[Activity] Failed to update KG co-occurrence",
+					"turn_id", turnID,
+					"entity_a", a,
+					"entity_b", b,
+					"date", date,
+					"error", err)
+			}
 		}
 	}
 }
@@ -214,20 +232,21 @@ func normalizeActivityEntityID(label string) string {
 		return ""
 	}
 
-	// Remove common stop words and punctuation chars that cause duplicates
-	label = strings.ReplaceAll(label, "-", "")
-	label = strings.ReplaceAll(label, " ", "")
-	label = strings.ReplaceAll(label, ".", "")
-	label = strings.ReplaceAll(label, "_", "")
-
 	var b strings.Builder
+	lastUnderscore := false
 	for _, r := range label {
 		switch {
 		case unicode.IsLetter(r) || unicode.IsDigit(r):
 			b.WriteRune(r)
+			lastUnderscore = false
+		case unicode.IsSpace(r) || r == '-' || r == '_' || r == '.':
+			if b.Len() > 0 && !lastUnderscore {
+				b.WriteByte('_')
+				lastUnderscore = true
+			}
 		}
 	}
-	return b.String()
+	return strings.Trim(b.String(), "_")
 }
 
 func buildActivityDigestWithConfiguredClient(ctx context.Context, cfg *config.Config, userRequest, assistantReply string, toolNames, toolSummaries []string) (memory.ActivityDigest, error) {

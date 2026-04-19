@@ -120,7 +120,7 @@ func TestCaptureActivityTurnWithDigestSyncsEntitiesToKnowledgeGraph(t *testing.T
 
 	foundEntity := false
 	for _, node := range nodes {
-		if node.ID == "backuphost" || node.ID == "proxmoxve" {
+		if node.ID == "backup_host" || node.ID == "proxmox_ve" {
 			foundEntity = true
 		}
 	}
@@ -148,5 +148,21 @@ func TestCaptureActivityTurnWithDigestSyncsEntitiesToKnowledgeGraph(t *testing.T
 	}
 	if forbiddenTurn {
 		t.Fatal("activity_turn_* nodes should no longer be created")
+	}
+}
+
+func TestNormalizeActivityEntityIDPreservesWordBoundaries(t *testing.T) {
+	tests := map[string]string{
+		"Docker Compose": "docker_compose",
+		"Docker-Compose": "docker_compose",
+		"Docker_Compose": "docker_compose",
+		"Proxmox VE":     "proxmox_ve",
+		"  ":             "",
+	}
+
+	for input, want := range tests {
+		if got := normalizeActivityEntityID(input); got != want {
+			t.Fatalf("normalizeActivityEntityID(%q) = %q, want %q", input, got, want)
+		}
 	}
 }

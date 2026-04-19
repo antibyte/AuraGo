@@ -237,6 +237,70 @@ func TestKGDeleteEdge(t *testing.T) {
 	}
 }
 
+func TestKGMergeNodesMovesEdgesAndMergesProperties(t *testing.T) {
+	kg := newTestKG(t)
+
+	if err := kg.AddNode("target", "Target Node", map[string]string{"type": "service", "source": "manual"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := kg.AddNode("source", "Source Node", map[string]string{"ip": "192.168.1.10", "protected": "true"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := kg.AddEdge("source", "peer", "connects_to", nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := kg.AddEdge("client", "source", "uses", nil); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := kg.MergeNodes("target", "source"); err != nil {
+		t.Fatalf("MergeNodes: %v", err)
+	}
+
+	sourceNode, err := kg.GetNode("source")
+	if err != nil {
+		t.Fatalf("GetNode(source): %v", err)
+	}
+	if sourceNode != nil {
+		t.Fatal("expected source node to be removed after merge")
+	}
+
+	targetNode, err := kg.GetNode("target")
+	if err != nil {
+		t.Fatalf("GetNode(target): %v", err)
+	}
+	if targetNode == nil {
+		t.Fatal("expected target node to remain after merge")
+	}
+	if targetNode.Properties["ip"] != "192.168.1.10" {
+		t.Fatalf("expected merged target to keep source properties, got %#v", targetNode.Properties)
+	}
+	if !targetNode.Protected {
+		t.Fatal("expected merged target node to become protected")
+	}
+
+	edges, err := kg.GetAllEdges(20)
+	if err != nil {
+		t.Fatalf("GetAllEdges: %v", err)
+	}
+	foundOutgoing := false
+	foundIncoming := false
+	for _, edge := range edges {
+		if edge.Source == "target" && edge.Target == "peer" && edge.Relation == "connects_to" {
+			foundOutgoing = true
+		}
+		if edge.Source == "client" && edge.Target == "target" && edge.Relation == "uses" {
+			foundIncoming = true
+		}
+		if edge.Source == "source" || edge.Target == "source" {
+			t.Fatalf("found stale edge still referencing source node: %#v", edge)
+		}
+	}
+	if !foundOutgoing || !foundIncoming {
+		t.Fatalf("expected merged edges to be rewired to target, got %#v", edges)
+	}
+}
+
 func TestKGUpdateEdge(t *testing.T) {
 	kg := newTestKG(t)
 
@@ -379,6 +443,33 @@ func TestKGSearchForContext(t *testing.T) {
 	}
 	if len(ctx) > 800 {
 		t.Errorf("context exceeds maxChars: %d", len(ctx))
+	}
+}
+
+func TestKGSearchForContextBatchesEdgesAcrossMultipleNodes(t *testing.T) {
+	kg := newTestKG(t)
+
+	if err := kg.AddNode("proxmox", "Proxmox", map[string]string{"type": "service"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := kg.AddNode("backup_server", "Backup Server", map[string]string{"type": "device"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := kg.AddNode("nas", "NAS", map[string]string{"type": "device"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := kg.AddEdge("proxmox", "backup_server", "replicates_to", nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := kg.AddEdge("backup_server", "nas", "stores_on", nil); err != nil {
+		t.Fatal(err)
+	}
+
+	ctx := kg.SearchForContext("backup", 3, 1000)
+	for _, needle := range []string{"backup_server", "replicates_to", "stores_on"} {
+		if !strings.Contains(ctx, needle) {
+			t.Fatalf("expected context to contain %q, got %q", needle, ctx)
+		}
 	}
 }
 

@@ -552,24 +552,25 @@ func (kg *KnowledgeGraph) getSemanticQueryEmbedding(query string) ([]float32, er
 		return existing.embedding, nil
 	}
 	kg.semantic.queryCache[query] = queryCacheEntry{embedding: embedding, timestamp: time.Now()}
-	// Evict stale entries when cache exceeds the size cap to prevent unbounded growth.
 	if len(kg.semantic.queryCache) > knowledgeGraphSemanticQueryCacheMaxSize {
 		now := time.Now()
+		var toDelete []string
+		var oldestKey string
+		var oldestTime time.Time
 		for k, v := range kg.semantic.queryCache {
 			if now.Sub(v.timestamp) > kg.semantic.queryCacheTTL {
-				delete(kg.semantic.queryCache, k)
+				toDelete = append(toDelete, k)
+			} else if oldestKey == "" || v.timestamp.Before(oldestTime) {
+				oldestKey = k
+				oldestTime = v.timestamp
 			}
 		}
-		// If still over cap after TTL eviction, clear the oldest half.
-		if len(kg.semantic.queryCache) > knowledgeGraphSemanticQueryCacheMaxSize {
-			count := 0
-			for k := range kg.semantic.queryCache {
+		if len(toDelete) > 0 {
+			for _, k := range toDelete {
 				delete(kg.semantic.queryCache, k)
-				count++
-				if count >= knowledgeGraphSemanticQueryCacheMaxSize/2 {
-					break
-				}
 			}
+		} else if oldestKey != "" {
+			delete(kg.semantic.queryCache, oldestKey)
 		}
 	}
 	return embedding, nil

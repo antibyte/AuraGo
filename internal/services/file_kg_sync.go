@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"aurago/internal/config"
@@ -39,6 +40,7 @@ type FileKGSyncer struct {
 	vectorDB  memory.VectorDB
 	stm       *memory.SQLiteMemory
 	kg        *memory.KnowledgeGraph
+	syncFile  func(path, collection string, opts FileKGSyncOptions) FileKGSyncResult
 }
 
 // NewFileKGSyncer creates a new file-to-KG sync service.
@@ -117,11 +119,46 @@ func (s *FileKGSyncer) SyncCollection(collection string, opts FileKGSyncOptions)
 		return result
 	}
 
-	for _, path := range files {
-		if opts.MaxFiles > 0 && result.FilesProcessed >= opts.MaxFiles {
-			break
+	if opts.MaxFiles > 0 && len(files) > opts.MaxFiles {
+		files = files[:opts.MaxFiles]
+	}
+
+	workerCount := s.fileSyncWorkerCount(len(files))
+	if workerCount <= 1 {
+		for _, path := range files {
+			fileResult := s.runSyncFile(path, collection, opts)
+			result.FilesProcessed += fileResult.FilesProcessed
+			result.FilesSkipped += fileResult.FilesSkipped
+			result.NodesExtracted += fileResult.NodesExtracted
+			result.EdgesExtracted += fileResult.EdgesExtracted
+			result.Errors = append(result.Errors, fileResult.Errors...)
 		}
-		fileResult := s.SyncFile(path, collection, opts)
+		return result
+	}
+
+	jobs := make(chan string)
+	results := make(chan FileKGSyncResult, len(files))
+	var wg sync.WaitGroup
+	for i := 0; i < workerCount; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for path := range jobs {
+				results <- s.runSyncFile(path, collection, opts)
+			}
+		}()
+	}
+
+	go func() {
+		for _, path := range files {
+			jobs <- path
+		}
+		close(jobs)
+		wg.Wait()
+		close(results)
+	}()
+
+	for fileResult := range results {
 		result.FilesProcessed += fileResult.FilesProcessed
 		result.FilesSkipped += fileResult.FilesSkipped
 		result.NodesExtracted += fileResult.NodesExtracted
@@ -236,6 +273,24 @@ func (s *FileKGSyncer) SyncFile(path, collection string, opts FileKGSyncOptions)
 	result.NodesExtracted += len(nodes)
 	result.EdgesExtracted += len(edges)
 	return result
+}
+
+func (s *FileKGSyncer) runSyncFile(path, collection string, opts FileKGSyncOptions) FileKGSyncResult {
+	if s.syncFile != nil {
+		return s.syncFile(path, collection, opts)
+	}
+	return s.SyncFile(path, collection, opts)
+}
+
+func (s *FileKGSyncer) fileSyncWorkerCount(fileCount int) int {
+	if fileCount <= 1 {
+		return fileCount
+	}
+	workerCount := 4
+	if fileCount < workerCount {
+		workerCount = fileCount
+	}
+	return workerCount
 }
 
 // CleanupFile removes KG nodes and edges that were extracted from the given file.
