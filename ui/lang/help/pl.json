@@ -233,7 +233,7 @@
   "help.ollama.read_only": "Gdy włączone, agent może tylko listować i pokazywać modele, ale nie może ich pobierać, usuwać, ładować ani wyładowywać.",
   "help.ollama.url": "URL API Ollama. Domyślnie: 'http://localhost:11434'.",
   "help.paperless_ngx.api_token": "Token API dla instancji Paperless-ngx. Przechowywany w sejfie.",
-  "help.paperless_ngx.enabled": "Enables the Paperless-ngx integration for document management.",
+  "help.paperless_ngx.enabled": "Włącza integrację Paperless-ngx do zarządzania dokumentami.",
   "help.paperless_ngx.read_only": "Po włączeniu agent może tylko wyszukiwać i czytać dokumenty, ale nie może ich przesyłać, aktualizować ani usuwać.",
   "help.paperless_ngx.url": "URL instancji Paperless-ngx (np. https://paperless.example.com).",
   "help.personality.core_personality": "Aktywny profil osobowości, np. neutral, punk, zen.",

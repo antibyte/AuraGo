@@ -347,6 +347,7 @@ func buildToolFlagsFromConfig(cfg *config.Config) ToolFeatureFlags {
 		AllowRemoteShell:             cfg.Agent.AllowRemoteShell,
 		AllowSelfUpdate:              cfg.Agent.AllowSelfUpdate,
 		LDAPEnabled:                  cfg.LDAP.Enabled,
+		PaperlessNGXEnabled:          cfg.PaperlessNGX.Enabled,
 	}
 }
 

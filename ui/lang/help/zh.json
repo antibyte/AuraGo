@@ -233,7 +233,7 @@
   "help.ollama.read_only": "启用后，代理只能列出和显示模型，但无法拉取、删除、加载或卸载它们。",
   "help.ollama.url": "Ollama API 的 URL。默认值：“http://localhost:11434”。",
   "help.paperless_ngx.api_token": "Paperless-ngx 实例的 API 令牌。存储在保管库中。",
-  "help.paperless_ngx.enabled": "Enables the Paperless-ngx integration for document management.",
+  "help.paperless_ngx.enabled": "启用 Paperless-ngx 文档管理集成。",
   "help.paperless_ngx.read_only": "启用时，代理只能搜索和阅读文档，但不能上传、更新或删除它们。",
   "help.paperless_ngx.url": "Paperless-ngx 实例的 URL（例如 https://paperless.example.com）。",
   "help.personality.core_personality": "活跃性格档案，例如 neutral、punk、zen。",

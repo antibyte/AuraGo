@@ -53,6 +53,12 @@ function renderPaperlessSection(section) {
     html += '<div id="paperless-token-status" class="pl-token-status is-hidden"></div>';
     html += '</div>';
 
+    // ── Test Connection ──
+    html += '<div class="field-group">';
+    html += '<button class="btn-save" onclick="paperlessTestConnection()" style="margin-top:4px">🔌 ' + t('config.paperless.test_connection') + '</button>';
+    html += '<div id="paperless-test-status" class="pl-token-status is-hidden" style="margin-top:6px"></div>';
+    html += '</div>';
+
     html += '</div>';
 
     document.getElementById('content').innerHTML = html;
@@ -83,4 +89,35 @@ function paperlessSaveToken() {
         }
     })
     .catch(() => showToast(t('config.paperless.token_save_failed'), 'error'));
+}
+
+function paperlessTestConnection() {
+    const statusEl = document.getElementById('paperless-test-status');
+    if (statusEl) {
+        statusEl.classList.remove('is-hidden');
+        statusEl.textContent = t('config.paperless.testing');
+        statusEl.style.color = 'var(--text-muted)';
+    }
+
+    fetch('/api/paperless/test', { method: 'POST' })
+    .then(r => r.json())
+    .then(res => {
+        if (statusEl) {
+            statusEl.classList.remove('is-hidden');
+            if (res.status === 'success') {
+                statusEl.textContent = '✅ ' + (res.message || t('config.paperless.test_success'));
+                statusEl.style.color = 'var(--success)';
+            } else {
+                statusEl.textContent = '❌ ' + (res.message || t('config.paperless.test_failed'));
+                statusEl.style.color = 'var(--error)';
+            }
+        }
+    })
+    .catch(() => {
+        if (statusEl) {
+            statusEl.classList.remove('is-hidden');
+            statusEl.textContent = '❌ ' + t('config.paperless.test_failed');
+            statusEl.style.color = 'var(--error)';
+        }
+    });
 }

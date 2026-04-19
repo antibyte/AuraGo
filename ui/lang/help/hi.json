@@ -233,7 +233,7 @@
   "help.ollama.read_only": "सक्षम होने पर, एजेंट केवल मॉडलों को सूचीबद्ध और दिखा सकता है, लेकिन उन्हें खींच, हटा, लोड या अनलोड नहीं कर सकता।",
   "help.ollama.url": "ओलामा एपीआई का यूआरएल। डिफ़ॉल्ट: 'http://localhost:11434'।",
   "help.paperless_ngx.api_token": "Paperless-ngx इंस्टेंस के लिए API टोकन। वॉल्ट में संग्रहीत।",
-  "help.paperless_ngx.enabled": "Enables the Paperless-ngx integration for document management.",
+  "help.paperless_ngx.enabled": "दस्तावेज़ प्रबंधन के लिए Paperless-ngx एकीकरण सक्षम करता है।",
   "help.paperless_ngx.read_only": "सक्षम होने पर, एजेंट केवल दस्तावेज़ खोज और पढ़ सकता है लेकिन अपलोड, अपडेट या हटाना नहीं कर सकता।",
   "help.paperless_ngx.url": "Paperless-ngx इंस्टेंस का URL (उदा. https://paperless.example.com)।",
   "help.personality.core_personality": "सक्रिय पर्सनैलिटी प्रोफाइल, जैसे neutral, punk, zen।",

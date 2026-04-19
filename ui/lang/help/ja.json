@@ -233,7 +233,7 @@
   "help.ollama.read_only": "有効にすると、エージェントはモデルのリストと表示のみを行うことができますが、モデルのプル、削除、ロード、アンロードはできません。",
   "help.ollama.url": "Ollama API の URL。デフォルト: 「http://localhost:11434」。",
   "help.paperless_ngx.api_token": "Paperless-ngxインスタンスのAPIトークン。ボールトに保存されます。",
-  "help.paperless_ngx.enabled": "Enables the Paperless-ngx integration for document management.",
+  "help.paperless_ngx.enabled": "ドキュメント管理のためのPaperless-ngx統合を有効にします。",
   "help.paperless_ngx.read_only": "有効な場合、エージェントはドキュメントの検索と読み取りのみ可能で、アップロード、更新、削除はできません。",
   "help.paperless_ngx.url": "Paperless-ngxインスタンスのURL（例：https://paperless.example.com）。",
   "help.personality.core_personality": "アクティブなパーソナリティプロファイル（例：neutral, punk, zen）。",

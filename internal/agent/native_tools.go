@@ -155,6 +155,8 @@ type ToolFeatureFlags struct {
 	DaemonSkillsEnabled bool
 	// LDAP integration
 	LDAPEnabled bool
+	// Paperless-ngx document management
+	PaperlessNGXEnabled bool
 }
 
 // injectAdditionalPropertiesRec recursively sets additionalProperties: false

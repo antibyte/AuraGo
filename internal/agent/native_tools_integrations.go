@@ -972,5 +972,26 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 		))
 	}
 
+	if ff.PaperlessNGXEnabled {
+		tools = append(tools, tool("paperless_ngx",
+			"Manage documents in Paperless-ngx. Search, read, upload, update metadata, delete documents, and list tags/correspondents/document types.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "Operation to perform",
+					"enum":        []string{"search", "get", "download", "upload", "update", "delete", "list_tags", "list_correspondents", "list_document_types"},
+				},
+				"document_id":  prop("string", "Document ID (required for get, download, update, delete)"),
+				"query":        prop("string", "Search query for full-text document search"),
+				"title":        prop("string", "Document title (for upload or update)"),
+				"content":      prop("string", "Document content text (for upload)"),
+				"tags":         prop("string", "Comma-separated tag names (for search filter, upload, or update)"),
+				"correspondent": prop("string", "Correspondent name (for search filter, upload, or update)"),
+				"document_type": prop("string", "Document type name (for search filter, upload, or update)"),
+				"limit":        map[string]interface{}{"type": "integer", "description": "Maximum number of search results (default: 25)"},
+			}, "operation"),
+		))
+	}
+
 	return tools
 }

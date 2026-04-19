@@ -184,6 +184,7 @@ func (ff ToolFeatureFlags) Key() string {
 	appendToolFeatureKeyPart("python_secret_injection", ff.PythonSecretInjectionEnabled)
 	appendToolFeatureKeyPart("daemon_skills", ff.DaemonSkillsEnabled)
 	appendToolFeatureKeyPart("ldap", ff.LDAPEnabled)
+	appendToolFeatureKeyPart("paperless_ngx", ff.PaperlessNGXEnabled)
 
 	return strings.Join(parts, "|")
 }

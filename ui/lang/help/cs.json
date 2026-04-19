@@ -233,7 +233,7 @@
   "help.ollama.read_only": "Pouze pro cteni pro ollama.",
   "help.ollama.url": "URL Ollama serveru.",
   "help.paperless_ngx.api_token": "API token pro instanci Paperless-ngx. Uloženo v trezoru.",
-  "help.paperless_ngx.enabled": "Enables the Paperless-ngx integration for document management.",
+  "help.paperless_ngx.enabled": "Aktivuje integraci Paperless-ngx pro správu dokumentů.",
   "help.paperless_ngx.read_only": "Pokud je povoleno, agent může pouze vyhledávat a číst dokumenty, ale nemůže je nahrávat, aktualizovat ani mazat.",
   "help.paperless_ngx.url": "URL instance Paperless-ngx (např. https://paperless.example.com).",
   "help.personality.core_personality": "Aktivní profil osobnosti, např. neutral, punk, zen.",

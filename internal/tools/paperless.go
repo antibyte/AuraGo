@@ -80,7 +80,73 @@ func wrapExternal(s string) string {
 	return security.IsolateExternalData(s)
 }
 
+// ── Name-to-ID resolution helpers ───────────────────────────────────
+
+// paperlessBuildNameIDMap fetches a list endpoint and returns a name→ID lookup map.
+func paperlessBuildNameIDMap(cfg PaperlessConfig, endpoint string) map[string]int {
+	result, err := paperlessJSON(cfg, endpoint+"?page_size=200")
+	if err != nil {
+		return nil
+	}
+	results, _ := result["results"].([]interface{})
+	m := make(map[string]int, len(results))
+	for _, r := range results {
+		obj, ok := r.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		name, _ := obj["name"].(string)
+		id, _ := obj["id"].(float64)
+		if name != "" {
+			m[strings.ToLower(name)] = int(id)
+		}
+	}
+	return m
+}
+
+// paperlessBuildIDNameMap fetches a list endpoint and returns an ID→name lookup map.
+func paperlessBuildIDNameMap(cfg PaperlessConfig, endpoint string) map[int]string {
+	result, err := paperlessJSON(cfg, endpoint+"?page_size=200")
+	if err != nil {
+		return nil
+	}
+	results, _ := result["results"].([]interface{})
+	m := make(map[int]string, len(results))
+	for _, r := range results {
+		obj, ok := r.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		name, _ := obj["name"].(string)
+		id, _ := obj["id"].(float64)
+		if name != "" {
+			m[int(id)] = name
+		}
+	}
+	return m
+}
+
 // ── Public operations ────────────────────────────────────────────────
+
+// PaperlessTestConnection tests connectivity to a Paperless-ngx instance.
+func PaperlessTestConnection(cfg PaperlessConfig) string {
+	if cfg.URL == "" {
+		return paperlessEncode(FSResult{Status: "error", Message: "Paperless-ngx URL is not configured"})
+	}
+	if cfg.APIToken == "" {
+		return paperlessEncode(FSResult{Status: "error", Message: "Paperless-ngx API token is not configured"})
+	}
+	// Hit a lightweight endpoint to verify URL + token
+	result, err := paperlessJSON(cfg, "tags/?page_size=1")
+	if err != nil {
+		return paperlessEncode(FSResult{Status: "error", Message: fmt.Sprintf("Connection failed: %v", err)})
+	}
+	count, _ := result["count"].(float64)
+	return paperlessEncode(FSResult{
+		Status:  "success",
+		Message: fmt.Sprintf("Connection successful (%d tags found)", int(count)),
+	})
+}
 
 // PaperlessSearch performs a full-text document search.
 // query is the search string; tags, correspondent, documentType are optional filters.
@@ -118,6 +184,9 @@ func PaperlessSearch(cfg PaperlessConfig, query, tags, correspondent, documentTy
 	count, _ := result["count"].(float64)
 	results, _ := result["results"].([]interface{})
 
+	// Build tag ID→name lookup to resolve numeric tag IDs to human-readable names.
+	tagLookup := paperlessBuildIDNameMap(cfg, "tags/")
+
 	type docSummary struct {
 		ID            interface{} `json:"id"`
 		Title         string      `json:"title"`
@@ -152,7 +221,13 @@ func PaperlessSearch(cfg PaperlessConfig, query, tags, correspondent, documentTy
 		}
 		if tagList, ok := doc["tags"].([]interface{}); ok {
 			for _, t := range tagList {
-				d.Tags = append(d.Tags, fmt.Sprintf("%v", t))
+				// Resolve numeric tag ID to name if possible
+				tagID, _ := t.(float64)
+				if name, found := tagLookup[int(tagID)]; found {
+					d.Tags = append(d.Tags, name)
+				} else {
+					d.Tags = append(d.Tags, fmt.Sprintf("%v", t))
+				}
 			}
 		}
 		docs = append(docs, d)
@@ -272,6 +347,8 @@ func PaperlessUpload(cfg PaperlessConfig, title, content, tags, correspondent, d
 }
 
 // PaperlessUpdate updates metadata on an existing document (PATCH).
+// The Paperless-ngx API expects integer IDs for correspondent, document_type,
+// and tags. Names are resolved to IDs via the list endpoints automatically.
 func PaperlessUpdate(cfg PaperlessConfig, documentID, title, tags, correspondent, documentType string) string {
 	if documentID == "" {
 		return paperlessEncode(FSResult{Status: "error", Message: "'document_id' is required for update"})
@@ -281,24 +358,60 @@ func PaperlessUpdate(cfg PaperlessConfig, documentID, title, tags, correspondent
 	if title != "" {
 		patch["title"] = title
 	}
+
+	// Resolve correspondent name → integer ID
 	if correspondent != "" {
-		patch["correspondent_name"] = correspondent
-	}
-	if documentType != "" {
-		patch["document_type_name"] = documentType
-	}
-	// Tags are passed as comma-separated names; Paperless expects tag IDs,
-	// but the API also supports tag names via the correspondent endpoint.
-	// We use the __name field approach for simplicity.
-	if tags != "" {
-		var tagNames []string
-		for _, t := range strings.Split(tags, ",") {
-			t = strings.TrimSpace(t)
-			if t != "" {
-				tagNames = append(tagNames, t)
+		corrMap := paperlessBuildNameIDMap(cfg, "correspondents/")
+		if id, ok := corrMap[strings.ToLower(correspondent)]; ok {
+			patch["correspondent"] = id
+		} else {
+			// Fallback: try as numeric ID directly
+			if id, err := strconv.Atoi(correspondent); err == nil {
+				patch["correspondent"] = id
+			} else {
+				return paperlessEncode(FSResult{Status: "error", Message: fmt.Sprintf("Correspondent '%s' not found", correspondent)})
 			}
 		}
-		patch["tags_names"] = tagNames
+	}
+
+	// Resolve document type name → integer ID
+	if documentType != "" {
+		dtMap := paperlessBuildNameIDMap(cfg, "document_types/")
+		if id, ok := dtMap[strings.ToLower(documentType)]; ok {
+			patch["document_type"] = id
+		} else {
+			if id, err := strconv.Atoi(documentType); err == nil {
+				patch["document_type"] = id
+			} else {
+				return paperlessEncode(FSResult{Status: "error", Message: fmt.Sprintf("Document type '%s' not found", documentType)})
+			}
+		}
+	}
+
+	// Resolve comma-separated tag names → integer IDs
+	if tags != "" {
+		tagMap := paperlessBuildNameIDMap(cfg, "tags/")
+		var tagIDs []int
+		var unresolved []string
+		for _, t := range strings.Split(tags, ",") {
+			t = strings.TrimSpace(t)
+			if t == "" {
+				continue
+			}
+			if id, ok := tagMap[strings.ToLower(t)]; ok {
+				tagIDs = append(tagIDs, id)
+			} else if id, err := strconv.Atoi(t); err == nil {
+				tagIDs = append(tagIDs, id)
+			} else {
+				unresolved = append(unresolved, t)
+			}
+		}
+		if len(unresolved) > 0 {
+			return paperlessEncode(FSResult{Status: "error", Message: fmt.Sprintf("Tags not found: %s", strings.Join(unresolved, ", "))})
+		}
+		if len(tagIDs) > 0 {
+			patch["tags"] = tagIDs
+		}
 	}
 
 	if len(patch) == 0 {

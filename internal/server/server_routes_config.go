@@ -138,6 +138,9 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	mux.HandleFunc("/api/fritzbox/status", handleFritzBoxStatus(s))
 	mux.HandleFunc("/api/fritzbox/test", handleFritzBoxTest(s))
 
+	// Paperless-ngx integration endpoints
+	mux.HandleFunc("/api/paperless/test", handlePaperlessTest(s))
+
 	// LDAP integration endpoints
 	mux.HandleFunc("/api/ldap/test", handleLDAPTest(s))
 
