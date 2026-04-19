@@ -1,5 +1,8 @@
 {
   "config.backup.create_desc": "Crea un archivio \u003cstrong\u003e.ago\u003c/strong\u003e (ZIP) con config, prompt, dati e skill. Con password, tutti i segreti del vault (chiavi API, token) vengono inclusi in modo cifrato — ideale per migrare a una nuova istanza (es. con iniezione systemd).",
+  "config.backup.card_create_title": "Contenuto del backup",
+  "config.backup.card_encryption_title": "Crittografia",
+  "config.backup.card_import_title": "Ripristina backup",
   "config.backup.create_download": "⬇️ Crea \u0026 Scarica Backup",
   "config.backup.creating": "⏳ Creazione backup in corso…",
   "config.backup.decryption_failed": "Decrittazione fallita — password errata?",

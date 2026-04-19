@@ -1,5 +1,8 @@
 {
-  "config.backup.create_desc": "Erstellt ein \u003cstrong\u003e.ago\u003c/strong\u003e-Archiv (ZIP) mit Konfiguration, Prompts, Daten und Skills. Mit Passwort werden auch alle Vault-Secrets (API-Schlüssel, Tokens) sicher verschlüsselt eingeschlossen — ideal für den Umzug auf eine neue Instanz (z. B. mit systemd-Injektion).",
+  "config.backup.create_desc": "Erstellt ein \u003cstrong\u003e.ago\u003c/strong\u003e-Archiv (ZIP) mit Konfiguration, Prompts, Daten und Skills. Mit Passwort werden auch alle Vault-Secrets (API-Schlüssel, Tokens) sicher verschlüsselt eingeschlossen — ideal für den Umzug auf eine neue Instanz (z. B. mit systemd-Injektion).",
+  "config.backup.card_create_title": "Backup-Inhalt",
+  "config.backup.card_encryption_title": "Verschlüsselung",
+  "config.backup.card_import_title": "Backup Wiederherstellen",
   "config.backup.create_download": "⬇️ Backup erstellen \u0026 herunterladen",
   "config.backup.creating": "⏳ Erstelle Backup…",
   "config.backup.decryption_failed": "Entschlüsselung fehlgeschlagen — falsches Passwort?",

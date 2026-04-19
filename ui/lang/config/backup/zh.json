@@ -1,5 +1,8 @@
 {
   "config.backup.create_desc": "创建包含配置、提示、数据和技能的 \u003cstrong\u003e.ago\u003c/strong\u003e 归档 (ZIP)。设置密码后，所有 vault 密钙（API 密钒、Token）也会被安全加密包含——适合迁移到新实例（如 systemd 注入主密钀）。",
+  "config.backup.card_create_title": "备份内容",
+  "config.backup.card_encryption_title": "加密",
+  "config.backup.card_import_title": "恢复备份",
   "config.backup.create_download": "⬇️ 创建并下载备份",
   "config.backup.creating": "⏳ 创建备份中…",
   "config.backup.decryption_failed": "解密失败 — 密码错误？",

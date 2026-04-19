@@ -1,5 +1,8 @@
 {
   "config.backup.create_desc": "設定、プロンプト、データ、スキルを包む \u003cstrong\u003e.ago\u003c/strong\u003e アーカイブ (ZIP) を作成します。パスワードを設定すると、vault secrets (APIキー、トークン) も安全に含まれます — systemd でマスターキーを注入する新しいインスタンスへの移行に最適です。",
+  "config.backup.card_create_title": "バックアップ内容",
+  "config.backup.card_encryption_title": "暗号化",
+  "config.backup.card_import_title": "バックアップを復元",
   "config.backup.create_download": "⬇️ バックアップの作成とダウンロード",
   "config.backup.creating": "⏳ バックアップを作成しています…",
   "config.backup.decryption_failed": "復号化に失敗しました — パスワードが間違っていますか?",

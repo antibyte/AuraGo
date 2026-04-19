@@ -34,31 +34,48 @@ function renderBackupSection(section) {
 
     <!-- Create panel -->
     <div class="wh-panel active backup-panel" id="backup-panel-create">
-        <div class="backup-note-card">
-            <div class="backup-note-text">
-                ${t('config.backup.create_desc')}
+
+        <div class="bck-card">
+            <div class="bck-card-header">
+                <span class="bck-card-icon">💾</span>
+                <span class="bck-card-title">${t('config.backup.card_create_title')}</span>
+            </div>
+            <div class="bck-card-body">
+                <div class="backup-note-card">
+                    <div class="backup-note-text">
+                        ${t('config.backup.create_desc')}
+                    </div>
+                </div>
+
+                <div class="backup-options-list">
+                    <label class="backup-option-row">
+                        <input type="checkbox" id="backup-opt-vectordb" class="backup-check-input">
+                        <span>${t('config.backup.include_vectordb')}</span>
+                    </label>
+                    <label class="backup-option-row">
+                        <input type="checkbox" id="backup-opt-workdir" class="backup-check-input">
+                        <span>${t('config.backup.include_workdir')}</span>
+                    </label>
+                </div>
             </div>
         </div>
 
-        <div class="backup-options-list">
-            <label class="backup-option-row">
-                <input type="checkbox" id="backup-opt-vectordb" class="backup-check-input">
-                <span>${t('config.backup.include_vectordb')}</span>
-            </label>
-            <label class="backup-option-row">
-                <input type="checkbox" id="backup-opt-workdir" class="backup-check-input">
-                <span>${t('config.backup.include_workdir')}</span>
-            </label>
-        </div>
-
-        <div class="field-group backup-field-group">
-            <div class="field-label">${t('config.backup.password_label')}</div>
-            <div class="field-hint backup-field-hint">${t('config.backup.password_hint')}</div>
-            <div class="password-wrap">
-                <input type="password" id="backup-password" class="field-input" placeholder="${t('config.backup.encryption_placeholder')}" autocomplete="new-password" oninput="backupUpdateVaultHint()">
-                <button type="button" class="password-toggle" onclick="togglePassword(this)" title="Toggle visibility">${EYE_OPEN_SVG}</button>
+        <div class="bck-card">
+            <div class="bck-card-header">
+                <span class="bck-card-icon">🔐</span>
+                <span class="bck-card-title">${t('config.backup.card_encryption_title')}</span>
             </div>
-            <div id="backup-vault-hint" class="backup-vault-hint is-warning">${t('config.backup.no_password_warning')}</div>
+            <div class="bck-card-body">
+                <div class="field-group backup-field-group">
+                    <div class="field-label">${t('config.backup.password_label')}</div>
+                    <div class="field-hint backup-field-hint">${t('config.backup.password_hint')}</div>
+                    <div class="password-wrap">
+                        <input type="password" id="backup-password" class="field-input" placeholder="${t('config.backup.encryption_placeholder')}" autocomplete="new-password" oninput="backupUpdateVaultHint()">
+                        <button type="button" class="password-toggle" onclick="togglePassword(this)" title="Toggle visibility">${EYE_OPEN_SVG}</button>
+                    </div>
+                    <div id="backup-vault-hint" class="backup-vault-hint is-warning">${t('config.backup.no_password_warning')}</div>
+                </div>
+            </div>
         </div>
 
         <div class="backup-actions-row">
@@ -71,20 +88,29 @@ function renderBackupSection(section) {
 
     <!-- Import panel -->
     <div class="wh-panel backup-panel" id="backup-panel-import">
-        <div class="backup-warning-box">
-            ${t('config.backup.import_warning')}
-        </div>
 
-        <div class="field-group backup-field-group-file">
-            <div class="field-label">${t('config.backup.select_file')}</div>
-            <input type="file" id="backup-import-file" accept=".ago" class="field-input backup-file-input">
-        </div>
+        <div class="bck-card">
+            <div class="bck-card-header">
+                <span class="bck-card-icon">📥</span>
+                <span class="bck-card-title">${t('config.backup.card_import_title')}</span>
+            </div>
+            <div class="bck-card-body">
+                <div class="backup-warning-box">
+                    ${t('config.backup.import_warning')}
+                </div>
 
-        <div class="field-group backup-field-group">
-            <div class="field-label">${t('config.backup.import_password_label')}</div>
-            <div class="password-wrap">
-                <input type="password" id="backup-import-password" class="field-input" placeholder="${t('config.backup.decryption_placeholder')}" autocomplete="off">
-                <button type="button" class="password-toggle" onclick="togglePassword(this)" title="Toggle visibility">${EYE_OPEN_SVG}</button>
+                <div class="field-group backup-field-group-file">
+                    <div class="field-label">${t('config.backup.select_file')}</div>
+                    <input type="file" id="backup-import-file" accept=".ago" class="field-input backup-file-input">
+                </div>
+
+                <div class="field-group backup-field-group">
+                    <div class="field-label">${t('config.backup.import_password_label')}</div>
+                    <div class="password-wrap">
+                        <input type="password" id="backup-import-password" class="field-input" placeholder="${t('config.backup.decryption_placeholder')}" autocomplete="off">
+                        <button type="button" class="password-toggle" onclick="togglePassword(this)" title="Toggle visibility">${EYE_OPEN_SVG}</button>
+                    </div>
+                </div>
             </div>
         </div>
 

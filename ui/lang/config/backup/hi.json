@@ -1,5 +1,8 @@
 {
   "config.backup.create_desc": "\u003cstrong\u003e.ago\u003c/strong\u003e संग्रह (ZIP) बनाता है जिसमें कॉन्फ़िगरेशन, प्रॉम्प्ट, डेटा और स्किल शामिल हैं। पासवर्ड सेट करने पर vault secrets (API कुंजियां, tokens) भी सुरक्षित रूप से शामिल होते हैं — नई इंस्टेंस पर माइग्रेशन के लिए आदर्श।",
+  "config.backup.card_create_title": "बैकअप सामग्री",
+  "config.backup.card_encryption_title": "एन्क्रिप्शन",
+  "config.backup.card_import_title": "बैकअप पुनर्स्थापित करें",
   "config.backup.create_download": "⬇️ बैकअप बनाएं और डाउनलोड करें",
   "config.backup.creating": "⏳ बैकअप बनाया जा रहा है…",
   "config.backup.decryption_failed": "डिक्रिप्शन विफल - गलत पासवर्ड?",

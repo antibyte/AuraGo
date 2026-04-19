@@ -4410,6 +4410,83 @@ select.cfg-input option {
 }
 
 /* backup section: phase 2 inline-style migration */
+.bck-card {
+    background: var(--card-bg);
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    padding: 0;
+    margin-bottom: 1.2rem;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.bck-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg,
+            transparent,
+            rgba(45, 212, 191, 0.3),
+            transparent);
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.bck-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 50% 0%, rgba(45, 212, 191, 0.08), transparent 70%);
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+}
+
+.bck-card:hover {
+    border-color: var(--accent);
+    box-shadow:
+        0 20px 40px rgba(0, 0, 0, 0.3),
+        0 0 0 1px rgba(45, 212, 191, 0.2),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    transform: translateY(-2px);
+}
+
+.bck-card:hover::before,
+.bck-card:hover::after {
+    opacity: 1;
+}
+
+.bck-card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.85rem 1rem 0;
+    margin-bottom: 0.2rem;
+}
+
+.bck-card-icon {
+    font-size: 1rem;
+    line-height: 1;
+}
+
+.bck-card-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: 0.01em;
+}
+
+.bck-card-body {
+    padding: 0.6rem 1rem 1rem;
+    position: relative;
+    z-index: 1;
+}
+
 .backup-tabs {
     margin-top: 1.5rem;
 }
