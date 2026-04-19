@@ -42,6 +42,30 @@ AuraGo ist ein vollständig autonomer KI-Agent, der als einzelne portable Binary
 
 ---
 
+## Screenshots
+
+AuraGo bietet eine anpassbare Dark/Light-Theme UI. Hier eine Vorschau der verschiedenen Looks:
+
+| Theme 1 (Dark) | Theme 2 (Light) |
+|----------------|-----------------|
+| ![Theme 1](../screenshots/theme1.png) | ![Theme 2](../screenshots/theme2.png) |
+
+| Theme 3 (Dark Variante) | Theme 4 (Light Variante) |
+|------------------------|------------------------|
+| ![Theme 3](../screenshots/theme3.png) | ![Theme 4](../screenshots/theme4.png) |
+
+### Haupt-Interface Screenshots
+
+| Chat-Interface | Dashboard |
+|----------------|-----------|
+| ![Chat](../screenshots/chat.png) | ![Dashboard](../screenshots/dashboard.png) |
+
+| Konfiguration | Container |
+|---------------|------------|
+| ![Config](../screenshots/config.png) | ![Container](../screenshots/containers.png) |
+
+---
+
 ## Handbuch-Struktur
 
 ### Teil 1: Grundlagen
