@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"aurago/internal/agent"
 	"aurago/internal/commands"
@@ -105,6 +106,20 @@ func StartBot(cfg *config.Config, logger *slog.Logger, client llm.ChatClient, sh
 	)
 }
 
+// StopBot gracefully closes the Discord websocket connection and clears the session.
+// Safe to call multiple times.
+func StopBot(logger *slog.Logger) {
+	s := GetSession()
+	if s == nil {
+		return
+	}
+	if err := s.Close(); err != nil {
+		logger.Warn("[Discord] Error closing session", "error", err)
+	}
+	setSession(nil)
+	logger.Info("[Discord] Bot disconnected")
+}
+
 // GetSession returns the active Discord session (for sending messages from tools).
 func GetSession() *discordgo.Session {
 	sessionMu.RLock()
@@ -125,14 +140,31 @@ func SendMessage(channelID, content string, logger *slog.Logger) error {
 	// Discord limit: 2000 chars per message
 	for len(content) > 0 {
 		chunk := content
-		if len(chunk) > 1990 {
-			// Try to cut at a newline
-			cutAt := strings.LastIndex(chunk[:1990], "\n")
-			if cutAt < 500 {
-				cutAt = 1990
+		if utf8.RuneCountInString(chunk) > 1990 {
+			// Try to cut at a newline first, respecting UTF-8 boundaries
+			runes := []rune(chunk)
+			cutAtRunes := 1990
+			cutAtBytes := len([]byte(string(runes[:cutAtRunes])))
+
+			// Look for a newline within the last 500 runes to avoid cutting mid-paragraph
+			newlineIdx := -1
+			searchStart := cutAtRunes - 500
+			if searchStart < 0 {
+				searchStart = 0
 			}
-			chunk = content[:cutAt]
-			content = content[cutAt:]
+			for i := cutAtRunes - 1; i >= searchStart; i-- {
+				if runes[i] == '\n' {
+					newlineIdx = i
+					break
+				}
+			}
+			if newlineIdx >= 0 {
+				cutAtRunes = newlineIdx + 1 // include the newline in the first chunk
+				cutAtBytes = len([]byte(string(runes[:cutAtRunes])))
+			}
+
+			chunk = content[:cutAtBytes]
+			content = content[cutAtBytes:]
 		} else {
 			content = ""
 		}
@@ -344,10 +376,13 @@ func handleMessage(s *discordgo.Session, m *discordgo.MessageCreate, cfg *config
 		}
 	}
 
+	// Security: Block prompt injection attempts (not just log them)
 	if guardian != nil {
 		if scan := guardian.ScanForInjection(inputText); scan.Level >= security.ThreatHigh {
-			logger.Warn("[Discord] Prompt injection detected in message",
+			logger.Warn("[Discord] Prompt injection BLOCKED — message discarded",
 				"user", m.Author.Username, "level", scan.Level, "patterns", scan.Patterns)
+			s.ChannelMessageSend(m.ChannelID, "⚠️ Your message was blocked by the security guardian.")
+			return
 		}
 	}
 	inputText = security.IsolateExternalData(inputText)
@@ -448,7 +483,7 @@ func processDiscordAttachment(att *discordgo.MessageAttachment, inputText string
 		return inputText
 	}
 	agentPath := "agent_workspace/workdir/attachments/" + filepath.Base(savedPath)
-	fileNote := "[DATEI ANGEHÄNGT]: " + agentPath
+	fileNote := "[FILE ATTACHED]: " + agentPath
 	if att.ContentType != "" {
 		fileNote += " (" + att.ContentType + ")"
 	}
@@ -616,13 +651,19 @@ func (b *DiscordBroker) Send(event, message string) {
 	if event == "tool_start" || event == "error_recovery" || event == "api_retry" {
 		b.logger.Info("[Discord Status]", "event", event, "message", message)
 		text := fmt.Sprintf("⚙️ **%s**: %s", strings.ToUpper(event), message)
-		b.session.ChannelMessageSend(b.channelID, text)
+		if _, err := b.session.ChannelMessageSend(b.channelID, text); err != nil {
+			b.logger.Warn("[Discord] Failed to send status event", "event", event, "error", err)
+		}
 	}
 	if event == "budget_warning" {
-		b.session.ChannelMessageSend(b.channelID, "⚠️ "+message)
+		if _, err := b.session.ChannelMessageSend(b.channelID, "⚠️ "+message); err != nil {
+			b.logger.Warn("[Discord] Failed to send budget warning", "error", err)
+		}
 	}
 	if event == "budget_blocked" {
-		b.session.ChannelMessageSend(b.channelID, "🚫 "+message)
+		if _, err := b.session.ChannelMessageSend(b.channelID, "🚫 "+message); err != nil {
+			b.logger.Warn("[Discord] Failed to send budget blocked message", "error", err)
+		}
 	}
 }
 

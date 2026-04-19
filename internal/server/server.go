@@ -24,6 +24,7 @@ import (
 	"aurago/internal/agent"
 	"aurago/internal/budget"
 	"aurago/internal/config"
+	"aurago/internal/discord"
 	"aurago/internal/fritzbox"
 	"aurago/internal/heartbeat"
 	"aurago/internal/i18n"
@@ -969,6 +970,8 @@ func (s *Server) serveWithShutdown(server, redirectServer, ttsServer *http.Serve
 		tools.ShutdownMCPManager()
 		// Shut down Sandbox
 		tools.ShutdownSandboxManager()
+		// Shut down Discord bot
+		discord.StopBot(s.Logger)
 		// Shut down Cloudflare Tunnel (Docker containers won't be killed by KillAll)
 		if tools.IsTunnelRunning() {
 			tunnelCfg := tools.CloudflareTunnelConfig{DockerHost: s.Cfg.Docker.Host}
