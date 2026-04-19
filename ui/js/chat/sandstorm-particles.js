@@ -1,7 +1,11 @@
 (function () {
     'use strict';
 
-    // ─── Configuration ───
+    // ═══════════════════════════════════════════════════════════════
+    //  SANDSTORM PARTICLE + WEBGL FOG ENGINE
+    // ═══════════════════════════════════════════════════════════════
+
+    // ─── 2D Particle Config ───
     const MAX_CLOUDS = 5;
     const MAX_FLYING = 320;
     const MAX_TRAILS = 35;
@@ -17,13 +21,106 @@
     const STORM_DURATION = 4000;
     const GROUND_RES = 3;
 
-    // ─── State ───
-    let canvas, ctx;
+    // ─── WebGL Fog Config ───
+    const FOG_VERTEX = `
+        attribute vec2 a_position;
+        void main() {
+            gl_Position = vec4(a_position, 0.0, 1.0);
+        }
+    `;
+
+    const FOG_FRAGMENT = `
+        precision mediump float;
+        uniform float u_time;
+        uniform vec2 u_resolution;
+        uniform float u_storm;
+
+        float hash(vec2 p) {
+            return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+        }
+
+        float noise(vec2 p) {
+            vec2 i = floor(p);
+            vec2 f = fract(p);
+            f = f * f * (3.0 - 2.0 * f);
+            float a = hash(i);
+            float b = hash(i + vec2(1.0, 0.0));
+            float c = hash(i + vec2(0.0, 1.0));
+            float d = hash(i + vec2(1.0, 1.0));
+            return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+        }
+
+        float fbm(vec2 p) {
+            float v = 0.0;
+            float a = 0.5;
+            for (int i = 0; i < 6; i++) {
+                v += a * noise(p);
+                p *= 2.03;
+                a *= 0.5;
+            }
+            return v;
+        }
+
+        void main() {
+            vec2 uv = gl_FragCoord.xy / u_resolution;
+            vec2 aspect = vec2(u_resolution.x / u_resolution.y, 1.0);
+
+            // Slow drifting fog coordinates
+            float t = u_time * 0.15;
+            vec2 q = vec2(
+                fbm(uv * aspect * 1.5 + vec2(t * 0.3, t * 0.15)),
+                fbm(uv * aspect * 1.5 + vec2(5.2, 1.3) + vec2(t * 0.2, t * 0.25))
+            );
+
+            vec2 r = vec2(
+                fbm(uv * aspect * 1.5 + 3.0 * q + vec2(1.7, 9.2) + t * 0.18),
+                fbm(uv * aspect * 1.5 + 3.0 * q + vec2(8.3, 2.8) + t * 0.22)
+            );
+
+            float f = fbm(uv * aspect * 1.5 + 2.0 * r);
+
+            // Storm turbulence boost
+            float stormT = u_storm * 0.6;
+            float stormNoise = fbm(uv * aspect * 3.0 + t * 1.5) * stormT;
+            f += stormNoise;
+
+            // Domain warped detail
+            float detail = fbm(uv * aspect * 4.0 + 5.0 * r + t * 0.1) * 0.3;
+            f += detail * (1.0 + stormT);
+
+            // Warm sand colors
+            vec3 c1 = vec3(0.88, 0.75, 0.52); // bright sand
+            vec3 c2 = vec3(0.72, 0.54, 0.32); // mid sand
+            vec3 c3 = vec3(0.52, 0.35, 0.20); // dark sand
+            vec3 c4 = vec3(0.35, 0.22, 0.12); // shadow
+
+            vec3 col = mix(c4, c3, smoothstep(0.0, 0.35, f));
+            col = mix(col, c2, smoothstep(0.35, 0.6, f));
+            col = mix(col, c1, smoothstep(0.6, 0.9, f));
+
+            // Storm color shift – more ochre/dust
+            col += vec3(0.06, 0.02, 0.0) * stormT;
+            col = clamp(col, 0.0, 1.0);
+
+            // Alpha: stronger near bottom, storm adds density
+            float alpha = f * 0.08;
+            alpha *= (0.5 + 0.5 * smoothstep(0.0, 0.6, 1.0 - uv.y)); // denser at bottom
+            alpha += u_storm * 0.04;
+            alpha = clamp(alpha, 0.0, 0.18);
+
+            gl_FragColor = vec4(col, alpha);
+        }
+    `;
+
+    // ─── Shared State ───
     let chatBox;
     let resizeObserver = null;
     let animationId = null;
     let active = false;
     let lastTime = 0;
+
+    // ─── 2D Canvas State ───
+    let canvas, ctx;
 
     // Flying particles
     let fx, fy, fvx, fvy, fs, fa, fd, fk;
@@ -33,7 +130,7 @@
     let tx, ty, tvx, tvy, tl, ta, td;
     let tCount = 0;
 
-    // Ground particles (sand piled on footer / bottom)
+    // Ground particles
     let gx, gy, gs, ga, gd;
     let gCount = 0;
 
@@ -49,6 +146,16 @@
     let stormEndTime = 0;
     let nextStormTime = 0;
 
+    // ─── WebGL Fog State ───
+    let fogCanvas, gl, fogProgram;
+    let uTime, uRes, uStorm;
+    let fogPositionBuffer;
+    let fogActive = false;
+
+    // ═══════════════════════════════════════════════════════════════
+    //  UTILITIES
+    // ═══════════════════════════════════════════════════════════════
+
     function prefersReducedMotion() {
         return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
     }
@@ -63,28 +170,93 @@
         return min + Math.random() * (max - min);
     }
 
+    // ═══════════════════════════════════════════════════════════════
+    //  CANVAS & WEBGL SETUP
+    // ═══════════════════════════════════════════════════════════════
+
     function ensureCanvas() {
         if (canvas) return;
         canvas = document.createElement('canvas');
         canvas.id = 'sandstorm-overlay';
         Object.assign(canvas.style, {
-            position: 'fixed',
-            top: '0',
-            left: '0',
-            width: '0',
-            height: '0',
-            pointerEvents: 'none',
-            zIndex: '2',
-            opacity: '1',
-            mixBlendMode: 'screen',
-            display: 'none'
+            position: 'fixed', top: '0', left: '0', width: '0', height: '0',
+            pointerEvents: 'none', zIndex: '2', opacity: '1',
+            mixBlendMode: 'screen', display: 'none'
         });
         document.body.appendChild(canvas);
         ctx = canvas.getContext('2d', { alpha: true, desynchronized: true });
     }
 
+    function initFogGL() {
+        if (fogCanvas) return true;
+
+        fogCanvas = document.createElement('canvas');
+        fogCanvas.id = 'sandstorm-fog';
+        Object.assign(fogCanvas.style, {
+            position: 'fixed', top: '0', left: '0', width: '0', height: '0',
+            pointerEvents: 'none', zIndex: '1', opacity: '1',
+            mixBlendMode: 'screen', display: 'none'
+        });
+        document.body.appendChild(fogCanvas);
+
+        gl = fogCanvas.getContext('webgl', {
+            alpha: true,
+            premultipliedAlpha: false,
+            antialias: false,
+            preserveDrawingBuffer: false
+        });
+        if (!gl) {
+            console.warn('[Sandstorm] WebGL not available, fog disabled');
+            return false;
+        }
+
+        const vs = gl.createShader(gl.VERTEX_SHADER);
+        gl.shaderSource(vs, FOG_VERTEX);
+        gl.compileShader(vs);
+        if (!gl.getShaderParameter(vs, gl.COMPILE_STATUS)) {
+            console.error('Fog VS error:', gl.getShaderInfoLog(vs));
+            return false;
+        }
+
+        const fs = gl.createShader(gl.FRAGMENT_SHADER);
+        gl.shaderSource(fs, FOG_FRAGMENT);
+        gl.compileShader(fs);
+        if (!gl.getShaderParameter(fs, gl.COMPILE_STATUS)) {
+            console.error('Fog FS error:', gl.getShaderInfoLog(fs));
+            return false;
+        }
+
+        fogProgram = gl.createProgram();
+        gl.attachShader(fogProgram, vs);
+        gl.attachShader(fogProgram, fs);
+        gl.linkProgram(fogProgram);
+        if (!gl.getProgramParameter(fogProgram, gl.LINK_STATUS)) {
+            console.error('Fog link error:', gl.getProgramInfoLog(fogProgram));
+            return false;
+        }
+
+        uTime = gl.getUniformLocation(fogProgram, 'u_time');
+        uRes = gl.getUniformLocation(fogProgram, 'u_resolution');
+        uStorm = gl.getUniformLocation(fogProgram, 'u_storm');
+
+        const posLoc = gl.getAttribLocation(fogProgram, 'a_position');
+        fogPositionBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, fogPositionBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+            -1, -1,  1, -1,  -1, 1,
+            -1,  1,  1, -1,   1, 1
+        ]), gl.STATIC_DRAW);
+        gl.enableVertexAttribArray(posLoc);
+        gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+
+        gl.enable(gl.BLEND);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+        return true;
+    }
+
     function updateBounds() {
-        if (!canvas || !chatBox) return false;
+        if (!chatBox) return false;
         const rect = chatBox.getBoundingClientRect();
         const footer = document.querySelector('.app-footer');
         let extraH = 0;
@@ -93,16 +265,29 @@
             extraH = Math.max(0, fr.bottom - rect.bottom);
         }
         if (!rect.width || !rect.height) {
-            canvas.style.width = '0';
-            canvas.style.height = '0';
+            if (canvas) { canvas.style.width = '0'; canvas.style.height = '0'; }
+            if (fogCanvas) { fogCanvas.style.width = '0'; fogCanvas.style.height = '0'; }
             return false;
         }
-        canvas.style.left = `${Math.round(rect.left)}px`;
-        canvas.style.top = `${Math.round(rect.top)}px`;
-        canvas.style.width = `${Math.round(rect.width)}px`;
-        canvas.style.height = `${Math.round(rect.height + extraH)}px`;
+        const left = `${Math.round(rect.left)}px`;
+        const top = `${Math.round(rect.top)}px`;
+        const w = `${Math.round(rect.width)}px`;
+        const h = `${Math.round(rect.height + extraH)}px`;
+
+        if (canvas) {
+            canvas.style.left = left; canvas.style.top = top;
+            canvas.style.width = w; canvas.style.height = h;
+        }
+        if (fogCanvas) {
+            fogCanvas.style.left = left; fogCanvas.style.top = top;
+            fogCanvas.style.width = w; fogCanvas.style.height = h;
+        }
         return true;
     }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  2D PARTICLE SYSTEM
+    // ═══════════════════════════════════════════════════════════════
 
     function initGround(width) {
         const buckets = Math.ceil(width / GROUND_RES) + 2;
@@ -134,7 +319,6 @@
         if (idx + 1 < groundHeight.length) groundHeight[idx + 1] = Math.max(0, groundHeight[idx + 1] - amount * 0.3);
     }
 
-    // ─── Spawners ───
     function spawnFlying(i, width, height, fromEdge) {
         fx[i] = fromEdge ? rand(-width * 0.2, -5) : rand(-width * 0.05, width * 1.02);
         fy[i] = fromEdge ? rand(-height * 0.35, height * 0.25) : rand(-height * 0.25, -5);
@@ -167,57 +351,39 @@
 
     function addToGround(x, y, size, alpha) {
         if (gCount >= MAX_GROUND) {
-            // Overwrite oldest
             gx[0] = x; gy[0] = y; gs[0] = size; ga[0] = alpha; gd[0] = rand(0, Math.PI * 2);
             addGroundHeight(x, size * 0.35);
             return;
         }
-        gx[gCount] = x;
-        gy[gCount] = y;
-        gs[gCount] = size;
-        ga[gCount] = alpha;
-        gd[gCount] = rand(0, Math.PI * 2);
+        gx[gCount] = x; gy[gCount] = y; gs[gCount] = size; ga[gCount] = alpha; gd[gCount] = rand(0, Math.PI * 2);
         gCount++;
         addGroundHeight(x, size * 0.35);
     }
 
-    // ─── Pools ───
     function rebuildPools(width, height) {
         const area = width * height;
         fCount = Math.max(50, Math.min(MAX_FLYING, Math.round(area / 7000)));
         tCount = Math.max(12, Math.min(MAX_TRAILS, Math.round(area / 30000)));
         cCount = Math.max(2, Math.min(MAX_CLOUDS, Math.round(area / 180000)));
 
-        fx = new Float32Array(MAX_FLYING);
-        fy = new Float32Array(MAX_FLYING);
-        fvx = new Float32Array(MAX_FLYING);
-        fvy = new Float32Array(MAX_FLYING);
-        fs = new Float32Array(MAX_FLYING);
-        fa = new Float32Array(MAX_FLYING);
-        fd = new Float32Array(MAX_FLYING);
-        fk = new Uint8Array(MAX_FLYING);
+        fx = new Float32Array(MAX_FLYING); fy = new Float32Array(MAX_FLYING);
+        fvx = new Float32Array(MAX_FLYING); fvy = new Float32Array(MAX_FLYING);
+        fs = new Float32Array(MAX_FLYING); fa = new Float32Array(MAX_FLYING);
+        fd = new Float32Array(MAX_FLYING); fk = new Uint8Array(MAX_FLYING);
 
-        tx = new Float32Array(MAX_TRAILS);
-        ty = new Float32Array(MAX_TRAILS);
-        tvx = new Float32Array(MAX_TRAILS);
-        tvy = new Float32Array(MAX_TRAILS);
-        tl = new Float32Array(MAX_TRAILS);
-        ta = new Float32Array(MAX_TRAILS);
+        tx = new Float32Array(MAX_TRAILS); ty = new Float32Array(MAX_TRAILS);
+        tvx = new Float32Array(MAX_TRAILS); tvy = new Float32Array(MAX_TRAILS);
+        tl = new Float32Array(MAX_TRAILS); ta = new Float32Array(MAX_TRAILS);
         td = new Float32Array(MAX_TRAILS);
 
-        gx = new Float32Array(MAX_GROUND);
-        gy = new Float32Array(MAX_GROUND);
-        gs = new Float32Array(MAX_GROUND);
-        ga = new Float32Array(MAX_GROUND);
+        gx = new Float32Array(MAX_GROUND); gy = new Float32Array(MAX_GROUND);
+        gs = new Float32Array(MAX_GROUND); ga = new Float32Array(MAX_GROUND);
         gd = new Float32Array(MAX_GROUND);
         gCount = 0;
 
-        cx = new Float32Array(MAX_CLOUDS);
-        cy = new Float32Array(MAX_CLOUDS);
-        cr = new Float32Array(MAX_CLOUDS);
-        ca = new Float32Array(MAX_CLOUDS);
-        cvx = new Float32Array(MAX_CLOUDS);
-        cvy = new Float32Array(MAX_CLOUDS);
+        cx = new Float32Array(MAX_CLOUDS); cy = new Float32Array(MAX_CLOUDS);
+        cr = new Float32Array(MAX_CLOUDS); ca = new Float32Array(MAX_CLOUDS);
+        cvx = new Float32Array(MAX_CLOUDS); cvy = new Float32Array(MAX_CLOUDS);
 
         for (let i = 0; i < fCount; i++) spawnFlying(i, width, height, false);
         for (let i = 0; i < tCount; i++) spawnTrail(i, width, height, false);
@@ -237,9 +403,23 @@
         canvas.height = Math.floor(h * dpr);
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         rebuildPools(w, h);
+
+        // Resize WebGL fog canvas
+        if (fogActive && gl && fogCanvas) {
+            const fogDpr = Math.min(window.devicePixelRatio || 1, 1.5);
+            const fRect = fogCanvas.getBoundingClientRect();
+            const fw = Math.max(1, Math.round(fRect.width));
+            const fh = Math.max(1, Math.round(fRect.height));
+            fogCanvas.width = Math.floor(fw * fogDpr);
+            fogCanvas.height = Math.floor(fh * fogDpr);
+            gl.viewport(0, 0, fogCanvas.width, fogCanvas.height);
+        }
     }
 
-    // ─── Drawing ───
+    // ═══════════════════════════════════════════════════════════════
+    //  2D DRAWING
+    // ═══════════════════════════════════════════════════════════════
+
     function drawClouds(width, height, time) {
         for (let i = 0; i < cCount; i++) {
             const g = ctx.createRadialGradient(cx[i], cy[i], 0, cx[i], cy[i], cr[i]);
@@ -266,7 +446,6 @@
 
     function drawGroundPile(width, height) {
         if (gCount < 10) return;
-
         ctx.beginPath();
         ctx.moveTo(0, height);
         for (let x = 0; x <= width; x += 2) {
@@ -296,9 +475,7 @@
     function drawGroundParticles() {
         for (let i = 0; i < gCount; i++) {
             const drift = Math.sin(gd[i] + performance.now() * 0.0008) * 0.25;
-            const x = gx[i] + drift;
-            const y = gy[i];
-            const s = gs[i];
+            const x = gx[i] + drift, y = gy[i], s = gs[i];
             ctx.fillStyle = `rgba(185, 148, 105, ${ga[i] * 0.85})`;
             ctx.fillRect(x, y, s, s);
             ctx.fillStyle = `rgba(215, 182, 138, ${ga[i] * 0.35})`;
@@ -329,7 +506,6 @@
             fx[i] += fvx[i] * fd[i] * dt * 2.4;
             fy[i] += fvy[i] * fd[i] * dt * 2.2;
 
-            // Ground collision
             const groundY = getGroundY(fx[i], height);
             if (!storm && fy[i] >= groundY - 2 && fvy[i] > 0) {
                 addToGround(fx[i], groundY - rand(0, 3), fs[i], fa[i]);
@@ -379,7 +555,6 @@
     }
 
     function whirlGroundSand(width, height) {
-        // Convert some ground particles back to flying during storm
         const toWhirl = Math.min(gCount, Math.ceil(gCount * 0.12) + 3);
         for (let i = 0; i < toWhirl && gCount > 0; i++) {
             const idx = Math.floor(rand(0, gCount));
@@ -397,10 +572,8 @@
 
             removeGroundHeight(gx[idx], gs[idx] * 0.3);
 
-            gx[idx] = gx[gCount - 1];
-            gy[idx] = gy[gCount - 1];
-            gs[idx] = gs[gCount - 1];
-            ga[idx] = ga[gCount - 1];
+            gx[idx] = gx[gCount - 1]; gy[idx] = gy[gCount - 1];
+            gs[idx] = gs[gCount - 1]; ga[idx] = ga[gCount - 1];
             gd[idx] = gd[gCount - 1];
             gCount--;
         }
@@ -429,7 +602,27 @@
         ctx.fillRect(0, 0, width, height);
     }
 
-    // ─── Render loop ───
+    // ═══════════════════════════════════════════════════════════════
+    //  WEBGL FOG RENDER
+    // ═══════════════════════════════════════════════════════════════
+
+    function renderFog(now) {
+        if (!fogActive || !gl) return;
+        const stormIntensity = stormActive
+            ? Math.min(1, (now - (stormEndTime - STORM_DURATION)) / 800) * Math.min(1, (STORM_DURATION - (now - (stormEndTime - STORM_DURATION))) / 900)
+            : 0;
+
+        gl.useProgram(fogProgram);
+        gl.uniform1f(uTime, now * 0.001);
+        gl.uniform2f(uRes, fogCanvas.width, fogCanvas.height);
+        gl.uniform1f(uStorm, stormIntensity);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  MAIN LOOP
+    // ═══════════════════════════════════════════════════════════════
+
     function render(time) {
         if (!active || !ctx) return;
         const rect = canvas.getBoundingClientRect();
@@ -448,6 +641,10 @@
             stormActive = false;
         }
 
+        // WebGL fog (rendered first, behind particles)
+        renderFog(time);
+
+        // 2D particles
         ctx.clearRect(0, 0, width, height);
 
         drawClouds(width, height, time);
@@ -473,8 +670,15 @@
         if (active || !shouldRun()) return;
         ensureCanvas();
         if (!ctx) return;
+
+        // Try to init WebGL fog (graceful fallback if it fails)
+        if (initFogGL()) {
+            fogActive = true;
+        }
+
         active = true;
         canvas.style.display = 'block';
+        if (fogCanvas) fogCanvas.style.display = 'block';
         resize();
         nextStormTime = performance.now() + rand(8000, 20000);
         lastTime = 0;
@@ -487,9 +691,8 @@
             window.cancelAnimationFrame(animationId);
             animationId = null;
         }
-        if (canvas) {
-            canvas.style.display = 'none';
-        }
+        if (canvas) canvas.style.display = 'none';
+        if (fogCanvas) fogCanvas.style.display = 'none';
     }
 
     function sync() {
@@ -499,6 +702,10 @@
             stop();
         }
     }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  INIT
+    // ═══════════════════════════════════════════════════════════════
 
     function init() {
         if (document.readyState === 'loading') {
@@ -517,10 +724,7 @@
 
         const footer = document.querySelector('.app-footer');
         if (footer && typeof ResizeObserver !== 'undefined') {
-            const footerObserver = new ResizeObserver(() => {
-                if (active) resize();
-            });
-            footerObserver.observe(footer);
+            new ResizeObserver(() => { if (active) resize(); }).observe(footer);
         }
 
         window.addEventListener('aurago:themechange', sync);
@@ -530,26 +734,18 @@
         });
 
         document.addEventListener('visibilitychange', () => {
-            if (document.hidden) {
-                stop();
-            } else {
-                sync();
-            }
+            if (document.hidden) stop(); else sync();
         });
 
         if (window.matchMedia) {
             const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
-            if (mq.addEventListener) {
-                mq.addEventListener('change', sync);
-            } else if (mq.addListener) {
-                mq.addListener(sync);
-            }
+            if (mq.addEventListener) mq.addEventListener('change', sync);
+            else if (mq.addListener) mq.addListener(sync);
         }
 
         if (typeof MutationObserver !== 'undefined') {
             new MutationObserver(sync).observe(document.documentElement, {
-                attributes: true,
-                attributeFilter: ['data-theme']
+                attributes: true, attributeFilter: ['data-theme']
             });
         }
 
