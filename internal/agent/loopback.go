@@ -14,6 +14,10 @@ import (
 
 var loopbackLimiter = make(chan struct{}, 8)
 
+func shouldPersistLoopbackHistory(sessionID string) bool {
+	return sessionID == "default"
+}
+
 // Loopback injects an external message into the agent loop synchronously.
 // Used by webhook-based integrations (e.g. Telnyx SMS) to relay incoming
 // messages through the full agent pipeline including tool execution.
@@ -52,7 +56,9 @@ func Loopback(runCfg RunConfig, message string, broker FeedbackBroker) {
 		logger.Error("[Loopback] Failed to insert message", "error", err)
 		return
 	}
-	historyManager.Add(openai.ChatMessageRoleUser, safeMessage, mid, false, false)
+	if shouldPersistLoopbackHistory(sessionID) {
+		historyManager.Add(openai.ChatMessageRoleUser, safeMessage, mid, false, false)
+	}
 
 	policy := buildToolingPolicy(cfg, "")
 	flags := buildPromptContextFlags(runCfg, policy, promptContextOptions{
