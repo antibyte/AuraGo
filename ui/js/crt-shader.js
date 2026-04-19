@@ -1,7 +1,8 @@
 /**
- * AuraGo CRT Shader — upgraded WebGL surface for premium retro CRT simulation
- * Handles: glass curvature, scanlines, slot-mask feel, vignette, analog shimmer,
- * line wobble, phosphor bloom energy and theme/activity pulse response.
+ * AuraGo CRT Shader — realistic CRT screen simulation overlay
+ * Effects: aperture grille, scanlines, barrel vignette, corner shadow,
+ * analog noise, flicker, hum bars, horizontal jitter, phosphor glow,
+ * glass reflections, traveling retrace line.
  */
 (function () {
     'use strict';
@@ -22,7 +23,6 @@
     const VERT = `
         attribute vec2 a_pos;
         varying vec2 v_uv;
-
         void main() {
             v_uv = a_pos * 0.5 + 0.5;
             gl_Position = vec4(a_pos, 0.0, 1.0);
@@ -45,106 +45,131 @@
         float noise(vec2 p) {
             vec2 i = floor(p);
             vec2 f = fract(p);
-
             float a = hash(i);
             float b = hash(i + vec2(1.0, 0.0));
             float c = hash(i + vec2(0.0, 1.0));
             float d = hash(i + vec2(1.0, 1.0));
-
             vec2 u = f * f * (3.0 - 2.0 * f);
-            return mix(a, b, u.x) +
-                (c - a) * u.y * (1.0 - u.x) +
-                (d - b) * u.x * u.y;
-        }
-
-        float fbm(vec2 p) {
-            float value = 0.0;
-            float amp = 0.5;
-            for (int i = 0; i < 5; i++) {
-                value += amp * noise(p);
-                p = p * 2.02 + vec2(5.17, 7.41);
-                amp *= 0.52;
-            }
-            return value;
+            return mix(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
         }
 
         void main() {
-            float t = u_time * (0.3 + 0.7 * u_motion);
+            float t = u_time;
             vec2 uv = v_uv;
             vec2 cc = uv - 0.5;
             float aspect = u_res.x / max(u_res.y, 1.0);
-            vec2 aspectCC = vec2(cc.x * aspect, cc.y);
-            float rollCenter = fract(t * 0.082 + u_activity * 0.035);
+            vec2 acc = vec2(cc.x * aspect, cc.y);
+            float dist = length(acc);
 
-            float r2 = dot(aspectCC, aspectCC);
-            float bow = 1.0 + r2 * 0.88 + r2 * r2 * 0.18;
+            // Barrel distortion
+            float r2 = dot(acc, acc);
+            float bow = 1.0 + r2 * 0.60 + r2 * r2 * 0.14;
             vec2 curved = cc * bow + 0.5;
 
-            float rollBand = exp(-abs(curved.y - rollCenter) * 34.0);
-            float syncSkew =
-                sin(curved.y * 90.0 + t * 5.8) * 0.0014 * u_motion +
-                sin(curved.y * 22.0 - t * 2.4) * 0.0011 * u_motion;
-            float lineDrift =
-                sin(curved.y * u_res.y * 0.018 + t * 1.3) * 0.0018 * u_motion * (0.45 + u_activity * 0.8) +
-                (noise(vec2(curved.y * 140.0, t * 1.6)) - 0.5) * 0.002 * u_motion +
-                rollBand * (0.0038 + u_activity * 0.0024) * u_motion +
-                syncSkew;
-            curved.x += lineDrift;
+            // Corner rounding
+            vec2 edgeDist = min(curved, 1.0 - curved);
+            float corner = smoothstep(0.0, 0.035, min(edgeDist.x, edgeDist.y));
 
-            if (curved.x < 0.0 || curved.x > 1.0 || curved.y < 0.0 || curved.y > 1.0) {
-                gl_FragColor = vec4(0.0, 0.0, 0.0, 0.0);
+            // Off-curve = dark bezel
+            if (curved.x < -0.01 || curved.x > 1.01 || curved.y < -0.01 || curved.y > 1.01) {
+                gl_FragColor = vec4(0.0, 0.0, 0.0, 0.92);
                 return;
             }
 
+            // ---- SCANLINES ----
             float scanY = curved.y * u_res.y;
-            float scan = 0.84 + 0.16 * sin(scanY * 3.14159 * 0.92 + t * 1.4);
-            float verticalMask = 0.95 + 0.05 * sin(curved.x * u_res.x * 0.18);
+            float scan = sin(scanY * 3.14159265) * 0.5 + 0.5;
+            float scanline = pow(scan, 1.45);
+            float scanDarken = 0.48 + 0.52 * scanline;
+            // Interlace alternation
+            float field = mod(floor(scanY * 0.5), 2.0);
+            float interlace = field < 1.0 ? 0.965 : 1.0;
+            scanDarken *= interlace;
 
-            float grain = fbm(vec2(curved.x * u_res.x * 0.012, curved.y * u_res.y * 0.018 + t * 0.9));
-            float staticNoise = (noise(vec2(curved * u_res * 0.32 + t * 0.6)) - 0.5);
-            float signalShimmer = sin((curved.y + grain * 0.04) * 420.0 - t * 15.0) * 0.5 + 0.5;
-            float travelingLine = exp(-abs(curved.y - rollCenter) * 64.0) * (0.18 + u_activity * 0.16);
-            float lineHalo = exp(-abs(curved.y - rollCenter) * 20.0) * (0.08 + u_activity * 0.08);
+            // ---- APERTURE GRILLE / SHADOW MASK ----
+            float maskX = curved.x * u_res.x;
+            float triad = fract(maskX / 3.0);
+            float aperture = 0.74 + 0.26 * smoothstep(0.30, 0.70, triad);
+            float slotY = fract(scanY * 0.5);
+            float slot = 0.84 + 0.16 * smoothstep(0.40, 0.60, slotY);
 
-            float dist = length(aspectCC * 1.12);
-            float vignette = smoothstep(0.96, 0.2, dist);
-            vec2 edgeDist = min(curved, 1.0 - curved);
-            float corner = smoothstep(0.0, 0.055, min(edgeDist.x, edgeDist.y));
-            float fresnel = pow(1.0 - max(0.0, vignette), 1.6);
+            // ---- VIGNETTE & CORNER DARKENING ----
+            float vignette = smoothstep(1.05, 0.18, dist * 1.18);
+            float cornerDark = (1.0 - corner) * 0.82;
 
-            float reflection = exp(-abs(curved.y - 0.14 - sin(t * 0.35) * 0.02) * 14.0) * (0.10 + u_theme_pulse * 0.12);
-            reflection += exp(-abs(curved.x - 0.76 + sin(t * 0.22) * 0.02) * 20.0) * 0.035;
+            // ---- ANALOG NOISE ----
+            float grain = noise(vec2(
+                floor(curved.x * u_res.x * 0.3),
+                floor(curved.y * u_res.y * 0.3)
+            ) + floor(t * 8.0) * 29.0);
+            grain = (grain - 0.5) * 0.065;
+            float staticNoise = (noise(curved * u_res * 0.5 + fract(t * 50.0) * 73.0) - 0.5) * 0.035;
 
-            float phosphorGlow =
-                (0.06 + u_activity * 0.22 + u_theme_pulse * 0.18 + travelingLine * 0.34 + lineHalo * 0.14) *
-                smoothstep(0.88, 0.08, dist) *
-                (0.72 + signalShimmer * 0.28);
+            // ---- FLICKER ----
+            float flicker = 0.92 + 0.08 * sin(t * 37.0) * sin(t * 23.0);
 
-            float energy = scan * verticalMask;
-            energy *= 0.82 + grain * 0.2 + staticNoise * 0.05;
-            energy *= vignette * corner;
+            // ---- HUM BARS (rolling bands) ----
+            float humPos = fract(t * 0.052);
+            float hum = exp(-abs(curved.y - humPos) * 26.0) * 0.11;
+            float humPos2 = fract(humPos + 0.43);
+            float hum2 = exp(-abs(curved.y - humPos2) * 38.0) * 0.055;
 
-            vec3 phosphor = vec3(0.14, 0.82, 0.08);
-            vec3 glass = vec3(0.72, 0.92, 0.78);
-            vec3 amber = vec3(0.54, 0.26, 0.08);
+            // ---- HORIZONTAL JITTER (sync instability) ----
+            float jitterLine = floor(scanY * 0.25);
+            float jitter = (noise(vec2(jitterLine, fract(t * 18.0) * 67.0)) - 0.5) * 0.003 * u_motion;
+            float jitterBand = exp(-abs(curved.y - fract(t * 0.11 + 0.3)) * 14.0) * 0.075 * u_motion;
 
-            vec3 color =
-                phosphor * phosphorGlow * energy * 0.95 +
-                phosphor * staticNoise * 0.02 * vignette +
-                phosphor * travelingLine * 0.12 * vignette +
-                glass * reflection * vignette * 0.08 +
-                amber * fresnel * 0.018 * (0.6 + u_theme_pulse * 0.8);
+            // ---- TRAVELING RETRACE LINE ----
+            float rollCenter = fract(t * 0.078 + u_activity * 0.038);
+            float rollBand = exp(-abs(curved.y - rollCenter) * 40.0);
+            float travelingLine = rollBand * (0.13 + u_activity * 0.20);
 
-            float alpha =
-                (1.0 - vignette) * 0.22 +
-                phosphorGlow * 0.42 +
-                reflection * 0.18 +
-                travelingLine * 0.12 +
-                grain * 0.035;
-            alpha *= corner;
-            alpha = clamp(alpha, 0.0, 0.28 + u_activity * 0.05 + u_theme_pulse * 0.04);
+            // ---- PHOSPHOR GLOW (additive energy) ----
+            float phosphorEnergy = (0.07 + u_activity * 0.22 + u_theme_pulse * 0.18 + travelingLine * 0.42);
+            phosphorEnergy *= smoothstep(0.92, 0.08, dist);
 
-            gl_FragColor = vec4(color, alpha);
+            // ---- GLASS REFLECTIONS ----
+            float refl1 = exp(-abs(curved.y - 0.11 - sin(t * 0.30) * 0.028) * 13.0) * 0.085;
+            float refl2 = exp(-abs(curved.x - 0.76 + cos(t * 0.20) * 0.028) * 20.0) * 0.04;
+            float refl3 = exp(-abs(curved.y - 0.89 + sin(t * 0.13) * 0.02) * 16.0) * 0.028;
+            float reflection = refl1 + refl2 + refl3;
+
+            // ---- EDGE CHROMATICS (brightness fringe for green theme) ----
+            float edgeFringe = pow(dist, 2.8) * 0.10;
+
+            // Combine all darkening
+            float darken = scanDarken * aperture * slot * vignette * flicker;
+            darken -= hum;
+            darken -= hum2;
+            darken += grain;
+            darken += staticNoise;
+            darken -= jitterBand;
+            darken = clamp(darken, 0.0, 1.0);
+
+            // Colors
+            vec3 phosphor = vec3(0.10, 0.88, 0.06);
+            vec3 glass = vec3(0.68, 0.95, 0.74);
+            vec3 amber = vec3(0.95, 0.50, 0.08);
+
+            // Darkening alpha
+            float darkAlpha = (1.0 - darken) * 0.30 + cornerDark * 0.85;
+            darkAlpha = clamp(darkAlpha, 0.0, 0.72);
+
+            // Glow
+            vec3 glow = phosphor * phosphorEnergy * 0.9;
+            glow += glass * reflection * vignette * 0.20;
+            glow += amber * edgeFringe * (0.5 + u_theme_pulse * 0.5);
+            glow += phosphor * travelingLine * 0.13 * vignette;
+
+            float glowAlpha = phosphorEnergy * 0.48 + reflection * 0.24 + travelingLine * 0.13;
+            glowAlpha = clamp(glowAlpha, 0.0, 0.40);
+
+            // Final output: normal alpha blending handles both darkening and brightening
+            vec3 finalColor = glow;
+            float finalAlpha = mix(darkAlpha, glowAlpha, 0.42);
+            finalAlpha = clamp(finalAlpha, 0.0, 0.68);
+
+            gl_FragColor = vec4(finalColor, finalAlpha);
         }
     `;
 
@@ -153,7 +178,7 @@
     }
 
     function motionLevel() {
-        return prefersReducedMotion() ? 0.15 : 1.0;
+        return prefersReducedMotion() ? 0.12 : 1.0;
     }
 
     function createShader(type, src) {
@@ -234,8 +259,7 @@
             height: '100vh',
             pointerEvents: 'none',
             zIndex: '999996',
-            imageRendering: 'auto',
-            mixBlendMode: 'screen'
+            imageRendering: 'auto'
         });
         document.documentElement.appendChild(canvas);
 
