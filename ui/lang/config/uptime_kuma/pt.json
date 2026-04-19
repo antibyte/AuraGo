@@ -13,6 +13,8 @@
   "config.uptime_kuma.insecure_ssl_label": "Permitir TLS autoassinado",
   "config.uptime_kuma.loading": "A carregar…",
   "config.uptime_kuma.poll_interval_label": "Intervalo de verificação (segundos)",
+  "config.uptime_kuma.relay_instruction_label": "Instrução em caso de falha",
+  "config.uptime_kuma.relay_instruction_placeholder": "Por exemplo: tente reiniciar o serviço uma vez e depois me informe o resultado.",
   "config.uptime_kuma.relay_to_agent_label": "Notificar o agente em falhas",
   "config.uptime_kuma.request_timeout_label": "Tempo limite da requisição (segundos)",
   "config.uptime_kuma.save_icon": "💾",
@@ -36,6 +38,7 @@
   "help.uptime_kuma.enabled": "Ativa a integração Uptime Kuma apenas para leitura. O agente pode inspecionar estados dos monitores e opcionalmente ser ativado quando um monitor muda de estado.",
   "help.uptime_kuma.insecure_ssl": "Ignorar a verificação do certificado TLS para certificados autoassinados. Utilize apenas em redes locais fidedignas.",
   "help.uptime_kuma.poll_interval_seconds": "Intervalo de verificação em segundo plano em segundos para deteção de falhas e transições de estado. Predefinição: 30.",
+  "help.uptime_kuma.relay_instruction": "Instrução opcional em texto livre que o AuraGo anexa a cada evento de falha encaminhado para que o agente saiba como deve reagir.",
   "help.uptime_kuma.relay_to_agent": "Quando ativado, o AuraGo acorda o agente exatamente uma vez por cada transição UP→DOWN ou DOWN→UP.",
   "help.uptime_kuma.request_timeout": "Tempo limite em segundos para solicitar o endpoint /metrics. Predefinição: 15."
 }

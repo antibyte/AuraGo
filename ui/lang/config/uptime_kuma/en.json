@@ -13,6 +13,8 @@
   "config.uptime_kuma.insecure_ssl_label": "Allow Self-Signed TLS",
   "config.uptime_kuma.loading": "Loading…",
   "config.uptime_kuma.poll_interval_label": "Poll Interval (seconds)",
+  "config.uptime_kuma.relay_instruction_label": "Outage Instruction",
+  "config.uptime_kuma.relay_instruction_placeholder": "For example: Try to restart the service once, then notify me with the result.",
   "config.uptime_kuma.relay_to_agent_label": "Notify Agent on Outage",
   "config.uptime_kuma.request_timeout_label": "Request Timeout (seconds)",
   "config.uptime_kuma.save_icon": "💾",
@@ -36,6 +38,7 @@
   "help.uptime_kuma.enabled": "Enables the read-only Uptime Kuma integration. The agent can inspect monitor states and optionally wake up when a monitor changes between up and down.",
   "help.uptime_kuma.insecure_ssl": "Skip TLS certificate verification for self-signed certificates. Only use this inside trusted local networks.",
   "help.uptime_kuma.poll_interval_seconds": "Background polling interval in seconds for outage detection and transition events. Default: 30.",
+  "help.uptime_kuma.relay_instruction": "Optional free-form instruction that AuraGo appends to every relayed outage event so the agent knows how it should react.",
   "help.uptime_kuma.relay_to_agent": "When enabled, AuraGo wakes the agent exactly once for each UP→DOWN or DOWN→UP transition.",
   "help.uptime_kuma.request_timeout": "Timeout in seconds for requesting the /metrics endpoint. Default: 15."
 }

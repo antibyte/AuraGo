@@ -13,6 +13,8 @@
   "config.uptime_kuma.insecure_ssl_label": "Self-signed TLS की अनुमति दें",
   "config.uptime_kuma.loading": "लोड हो रहा है…",
   "config.uptime_kuma.poll_interval_label": "पोल अंतराल (सेकंड)",
+  "config.uptime_kuma.relay_instruction_label": "आउटेज निर्देश",
+  "config.uptime_kuma.relay_instruction_placeholder": "उदाहरण: सेवा को एक बार रीस्टार्ट करने की कोशिश करो और फिर मुझे परिणाम बताओ।",
   "config.uptime_kuma.relay_to_agent_label": "डाउन होने पर एजेंट को सूचित करें",
   "config.uptime_kuma.request_timeout_label": "अनुरोध टाइमआउट (सेकंड)",
   "config.uptime_kuma.save_icon": "💾",
@@ -36,6 +38,7 @@
   "help.uptime_kuma.enabled": "केवल-पढ़ने योग्य Uptime Kuma एकीकरण सक्षम करता है। एजेंट मॉनिटर स्थितियों का निरीक्षण कर सकता है और वैकल्पिक रूप से स्थिति परिवर्तन पर सक्रिय हो सकता है।",
   "help.uptime_kuma.insecure_ssl": "स्व-हस्ताक्षरित प्रमाणपत्रों के लिए TLS प्रमाणपत्र सत्यापन छोड़ें। केवल विश्वसनीय स्थानीय नेटवर्क में उपयोग करें।",
   "help.uptime_kuma.poll_interval_seconds": "आउटेज डिटेक्शन और स्थिति परिवर्तन के लिए बैकग्राउंड पोलिंग अंतराल सेकंड में। डिफ़ॉल्ट: 30।",
+  "help.uptime_kuma.relay_instruction": "वैकल्पिक मुक्त-पाठ निर्देश जिसे AuraGo हर रिले किए गए आउटेज इवेंट के साथ जोड़ता है ताकि एजेंट को पता हो कि उसे कैसे प्रतिक्रिया देनी है।",
   "help.uptime_kuma.relay_to_agent": "सक्षम होने पर, AuraGo प्रत्येक UP→DOWN या DOWN→UP परिवर्तन के लिए एजेंट को ठीक एक बार सक्रिय करता है।",
   "help.uptime_kuma.request_timeout": "/metrics एंडपॉइंट के अनुरोध के लिए सेकंड में टाइमआउट। डिफ़ॉल्ट: 15।"
 }

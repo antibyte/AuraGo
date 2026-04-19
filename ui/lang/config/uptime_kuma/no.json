@@ -13,6 +13,8 @@
   "config.uptime_kuma.insecure_ssl_label": "Tillat selvsignert TLS",
   "config.uptime_kuma.loading": "Laster…",
   "config.uptime_kuma.poll_interval_label": "Pollingsintervall (sekunder)",
+  "config.uptime_kuma.relay_instruction_label": "Instruks ved nedetid",
+  "config.uptime_kuma.relay_instruction_placeholder": "For eksempel: Prøv å starte tjenesten på nytt én gang og gi meg deretter beskjed om resultatet.",
   "config.uptime_kuma.relay_to_agent_label": "Varsle agent ved nedetid",
   "config.uptime_kuma.request_timeout_label": "Forespørselstimeout (sekunder)",
   "config.uptime_kuma.save_icon": "💾",
@@ -36,6 +38,7 @@
   "help.uptime_kuma.enabled": "Aktiverer den skrivebeskyttede Uptime Kuma-integrasjonen. Agenten kan inspisere overvåkerstatuser og valgfritt vekkes når en overvåker endrer status.",
   "help.uptime_kuma.insecure_ssl": "Hopp over TLS-sertifikatverifikasjon for selvsignerte sertifikater. Bruk kun i tiltrodde lokale nettverk.",
   "help.uptime_kuma.poll_interval_seconds": "Bakgrunnspollingsintervall i sekunder for nedetidsdeteksjon og statusendringer. Standard: 30.",
+  "help.uptime_kuma.relay_instruction": "Valgfri fritekstinstruks som AuraGo legger ved hver videresendte nedetidshendelse slik at agenten vet hvordan den skal reagere.",
   "help.uptime_kuma.relay_to_agent": "Når aktivert, vekker AuraGo agenten nøyaktig én gang for hver UP→DOWN- eller DOWN→UP-overgang.",
   "help.uptime_kuma.request_timeout": "Timeout i sekunder for forespørsel til /metrics-endepunktet. Standard: 15."
 }

@@ -13,6 +13,8 @@
   "config.uptime_kuma.insecure_ssl_label": "Autoriser TLS auto-signé",
   "config.uptime_kuma.loading": "Chargement…",
   "config.uptime_kuma.poll_interval_label": "Intervalle de sondage (secondes)",
+  "config.uptime_kuma.relay_instruction_label": "Instruction en cas de panne",
+  "config.uptime_kuma.relay_instruction_placeholder": "Par exemple : essaie de redémarrer le service une fois, puis informe-moi du résultat.",
   "config.uptime_kuma.relay_to_agent_label": "Notifier l'agent en cas de panne",
   "config.uptime_kuma.request_timeout_label": "Délai d'attente (secondes)",
   "config.uptime_kuma.save_icon": "💾",
@@ -36,6 +38,7 @@
   "help.uptime_kuma.enabled": "Active l'intégration Uptime Kuma en lecture seule. L'agent peut inspecter les états des moniteurs et se réactiver lorsqu'un moniteur change d'état.",
   "help.uptime_kuma.insecure_ssl": "Ignorer la vérification du certificat TLS pour les certificats auto-signés. À utiliser uniquement dans des réseaux locaux de confiance.",
   "help.uptime_kuma.poll_interval_seconds": "Intervalle de sondage en arrière-plan en secondes pour la détection des pannes et les transitions d'état. Par défaut : 30.",
+  "help.uptime_kuma.relay_instruction": "Instruction libre facultative qu'AuraGo ajoute à chaque événement de panne relayé afin que l'agent sache comment réagir.",
   "help.uptime_kuma.relay_to_agent": "Lorsqu'activé, AuraGo réveille l'agent exactement une fois pour chaque transition UP→DOWN ou DOWN→UP.",
   "help.uptime_kuma.request_timeout": "Délai d'attente en secondes pour la requête vers le point d'accès /metrics. Par défaut : 15."
 }

@@ -13,6 +13,8 @@
   "config.uptime_kuma.insecure_ssl_label": "Zelfondertekende TLS toestaan",
   "config.uptime_kuma.loading": "Laden…",
   "config.uptime_kuma.poll_interval_label": "Polling-interval (seconden)",
+  "config.uptime_kuma.relay_instruction_label": "Instructie bij storing",
+  "config.uptime_kuma.relay_instruction_placeholder": "Bijvoorbeeld: Probeer de dienst één keer opnieuw te starten en laat me daarna weten wat het resultaat was.",
   "config.uptime_kuma.relay_to_agent_label": "Agent waarschuwen bij storing",
   "config.uptime_kuma.request_timeout_label": "Request-time-out (seconden)",
   "config.uptime_kuma.save_icon": "💾",
@@ -36,6 +38,7 @@
   "help.uptime_kuma.enabled": "Schakelt de alleen-lezen Uptime Kuma-integratie in. De agent kan monitorstatussen inzien en optioneel worden gewekt bij statuswijzigingen.",
   "help.uptime_kuma.insecure_ssl": "TLS-certificaatverificatie overslaan voor zelfondertekende certificaten. Gebruik dit alleen in vertrouwde lokale netwerken.",
   "help.uptime_kuma.poll_interval_seconds": "Achtergrond-pollinginterval in seconden voor storingdetectie en statusovergangen. Standaard: 30.",
+  "help.uptime_kuma.relay_instruction": "Optionele vrije tekst die AuraGo aan elk doorgestuurd storingsgebeurtenis toevoegt, zodat de agent weet hoe hij moet reageren.",
   "help.uptime_kuma.relay_to_agent": "Indien ingeschakeld, wekt AuraGo de agent exact één keer per UP→DOWN- of DOWN→UP-overgang.",
   "help.uptime_kuma.request_timeout": "Time-out in seconden voor het aanvragen van het /metrics-endpoint. Standaard: 15."
 }

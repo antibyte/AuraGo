@@ -13,6 +13,8 @@
   "config.uptime_kuma.insecure_ssl_label": "允许自签名 TLS",
   "config.uptime_kuma.loading": "加载中…",
   "config.uptime_kuma.poll_interval_label": "轮询间隔（秒）",
+  "config.uptime_kuma.relay_instruction_label": "故障处理指令",
+  "config.uptime_kuma.relay_instruction_placeholder": "例如：先尝试重启一次服务，然后把结果通知我。",
   "config.uptime_kuma.relay_to_agent_label": "故障时通知代理",
   "config.uptime_kuma.request_timeout_label": "请求超时（秒）",
   "config.uptime_kuma.save_icon": "💾",
@@ -36,6 +38,7 @@
   "help.uptime_kuma.enabled": "启用只读的 Uptime Kuma 集成。代理可以检查监控器状态，并可在状态变化时被唤醒。",
   "help.uptime_kuma.insecure_ssl": "跳过自签名证书的 TLS 证书验证。仅在可信的本地网络中使用。",
   "help.uptime_kuma.poll_interval_seconds": "后台轮询间隔（秒），用于故障检测和状态变更事件。默认值：30。",
+  "help.uptime_kuma.relay_instruction": "可选的自由文本说明，AuraGo 会把它附加到每一次转发的故障事件中，让代理知道应该如何响应。",
   "help.uptime_kuma.relay_to_agent": "启用后，AuraGo 会在每次 UP→DOWN 或 DOWN→UP 转换时唤醒代理一次。",
   "help.uptime_kuma.request_timeout": "请求 /metrics 端点的超时时间（秒）。默认值：15。"
 }

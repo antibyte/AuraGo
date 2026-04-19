@@ -13,6 +13,8 @@
   "config.uptime_kuma.insecure_ssl_label": "Povolit self-signed TLS",
   "config.uptime_kuma.loading": "Načítání…",
   "config.uptime_kuma.poll_interval_label": "Interval kontroly (sekundy)",
+  "config.uptime_kuma.relay_instruction_label": "Pokyn při výpadku",
+  "config.uptime_kuma.relay_instruction_placeholder": "Například: Zkus službu jednou restartovat a potom mě informuj o výsledku.",
   "config.uptime_kuma.relay_to_agent_label": "Upozornit agenta při výpadku",
   "config.uptime_kuma.request_timeout_label": "Časový limit požadavku (sekundy)",
   "config.uptime_kuma.save_icon": "💾",
@@ -36,6 +38,7 @@
   "help.uptime_kuma.enabled": "Povolí integraci Uptime Kuma pouze pro čtení. Agent může sledovat stavy monitorů a volitelně se probudit při změně stavu.",
   "help.uptime_kuma.insecure_ssl": "Přeskočit ověření TLS certifikátu pro selbstsignierte certifikáty. Používejte pouze v důvěryhodných lokálních sítích.",
   "help.uptime_kuma.poll_interval_seconds": "Interval dotazování na pozadí v sekundách pro detekci výpadků a změn stavu. Výchozí: 30.",
+  "help.uptime_kuma.relay_instruction": "Volitelný volný text, který AuraGo připojí ke každé předané události výpadku, aby agent věděl, jak má reagovat.",
   "help.uptime_kuma.relay_to_agent": "Pokud je povoleno, AuraGo probudí agenta právě jednou při každém přechodu UP→DOWN nebo DOWN→UP.",
   "help.uptime_kuma.request_timeout": "Časový limit v sekundách pro dotazování endpointu /metrics. Výchozí: 15."
 }

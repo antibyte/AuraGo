@@ -13,6 +13,8 @@
   "config.uptime_kuma.insecure_ssl_label": "Tillad selvsigneret TLS",
   "config.uptime_kuma.loading": "Indlæser…",
   "config.uptime_kuma.poll_interval_label": "Polling-interval (sekunder)",
+  "config.uptime_kuma.relay_instruction_label": "Instruktion ved nedbrud",
+  "config.uptime_kuma.relay_instruction_placeholder": "For eksempel: Prøv at genstarte tjenesten én gang og giv mig derefter resultatet.",
   "config.uptime_kuma.relay_to_agent_label": "Underret agent ved nedbrud",
   "config.uptime_kuma.request_timeout_label": "Timeout for forespørgsel (sekunder)",
   "config.uptime_kuma.save_icon": "💾",
@@ -36,6 +38,7 @@
   "help.uptime_kuma.enabled": "Aktiverer den skrivebeskyttede Uptime Kuma-integration. Agenten kan inspicere overvågerstatus og valgfrit vækkes når en overvåger skifter mellem oppe og nede.",
   "help.uptime_kuma.insecure_ssl": "Spring TLS-certifikatverifikation over for selvsignerede certifikater. Brug kun i betroede lokale netværk.",
   "help.uptime_kuma.poll_interval_seconds": "Baggrundspollingsinterval i sekunder for nedetidsdetektion og statusændringer. Standard: 30.",
+  "help.uptime_kuma.relay_instruction": "Valgfri fritekstinstruktion, som AuraGo føjer til hver videresendt nedbrudshændelse, så agenten ved, hvordan den skal reagere.",
   "help.uptime_kuma.relay_to_agent": "Når aktiveret, vækker AuraGo agenten præcis én gang for hver UP→DOWN- eller DOWN→UP-overgang.",
   "help.uptime_kuma.request_timeout": "Timeout i sekunder for anmodning til /metrics-endpointet. Standard: 15."
 }

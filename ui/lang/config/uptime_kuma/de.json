@@ -13,6 +13,8 @@
   "config.uptime_kuma.insecure_ssl_label": "Selbstsigniertes TLS erlauben",
   "config.uptime_kuma.loading": "Laden…",
   "config.uptime_kuma.poll_interval_label": "Abfrageintervall (Sekunden)",
+  "config.uptime_kuma.relay_instruction_label": "Anweisung bei Ausfall",
+  "config.uptime_kuma.relay_instruction_placeholder": "Zum Beispiel: Versuche den Dienst einmal neu zu starten und informiere mich danach über das Ergebnis.",
   "config.uptime_kuma.relay_to_agent_label": "Agent bei Ausfall benachrichtigen",
   "config.uptime_kuma.request_timeout_label": "Request-Timeout (Sekunden)",
   "config.uptime_kuma.save_icon": "💾",
@@ -36,6 +38,7 @@
   "help.uptime_kuma.enabled": "Aktiviert die schreibgeschützte Uptime-Kuma-Integration. Der Agent kann Monitorzustände abfragen und optional bei Statusänderungen benachrichtigt werden.",
   "help.uptime_kuma.insecure_ssl": "TLS-Zertifikatsprüfung für selbstsignierte Zertifikate überspringen. Nur in vertrauenswürdigen lokalen Netzwerken verwenden.",
   "help.uptime_kuma.poll_interval_seconds": "Hintergrund-Abfrageintervall in Sekunden zur Ausfallerkennung und Statusänderungs-Erkennung. Standard: 30.",
+  "help.uptime_kuma.relay_instruction": "Optionale Freitext-Anweisung, die AuraGo an jedes weitergeleitete Ausfall-Ereignis anhängt, damit der Agent weiß, wie er reagieren soll.",
   "help.uptime_kuma.relay_to_agent": "Wenn aktiviert, weckt AuraGo den Agenten genau einmal bei jedem UP→DOWN- oder DOWN→UP-Übergang.",
   "help.uptime_kuma.request_timeout": "Timeout in Sekunden für die Abfrage des /metrics-Endpunkts. Standard: 15."
 }

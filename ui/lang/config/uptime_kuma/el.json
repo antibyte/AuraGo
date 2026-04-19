@@ -13,6 +13,8 @@
   "config.uptime_kuma.insecure_ssl_label": "Να επιτρέπεται self-signed TLS",
   "config.uptime_kuma.loading": "Φόρτωση…",
   "config.uptime_kuma.poll_interval_label": "Διάστημα ελέγχου (δευτ.)",
+  "config.uptime_kuma.relay_instruction_label": "Οδηγία σε διακοπή",
+  "config.uptime_kuma.relay_instruction_placeholder": "Για παράδειγμα: Προσπάθησε να επανεκκινήσεις την υπηρεσία μία φορά και μετά ενημέρωσέ με για το αποτέλεσμα.",
   "config.uptime_kuma.relay_to_agent_label": "Ειδοποίηση πράκτορα σε βλάβη",
   "config.uptime_kuma.request_timeout_label": "Χρονικό όριο αιτήματος (δευτ.)",
   "config.uptime_kuma.save_icon": "💾",
@@ -36,6 +38,7 @@
   "help.uptime_kuma.enabled": "Ενεργοποιεί την ενσωμάτωση Uptime Kuma μόνο για ανάγνωση. Ο πράκτορας μπορεί να ελέγξει τις καταστάσεις monitor και προαιρετικά να ειδοποιηθεί όταν αλλάζει η κατάσταση.",
   "help.uptime_kuma.insecure_ssl": "Παράλειψη επαλήθευσης πιστοποιητικού TLS για αυτο-υπογεγραμμένα πιστοποιητικά. Χρησιμοποιήστε το μόνο σε αξιόπιστα τοπικά δίκτυα.",
   "help.uptime_kuma.poll_interval_seconds": "Διάστημα ελέγχου στο παρασκήνιο σε δευτερόλεπτα για ανίχνευση διακοπών και αλλαγών κατάστασης. Προεπιλογή: 30.",
+  "help.uptime_kuma.relay_instruction": "Προαιρετική ελεύθερη οδηγία κειμένου που το AuraGo προσθέτει σε κάθε προωθημένο συμβάν διακοπής, ώστε ο agent να γνωρίζει πώς να αντιδράσει.",
   "help.uptime_kuma.relay_to_agent": "Όταν ενεργοποιηθεί, το AuraGo ξυπνά τον πράκτορα ακριβώς μία φορά για κάθε μετάβαση UP→DOWN ή DOWN→UP.",
   "help.uptime_kuma.request_timeout": "Χρονικό όριο σε δευτερόλεπτα για αίτημα του endpoint /metrics. Προεπιλογή: 15."
 }

@@ -1109,6 +1109,18 @@ func (c *Config) Save(path string) error {
 	if webhooksSection, ok := rawCfg["webhooks"].(map[string]interface{}); ok {
 		webhooksSection["outgoing"] = c.Webhooks.Outgoing
 	}
+	if _, ok := rawCfg["uptime_kuma"]; !ok {
+		rawCfg["uptime_kuma"] = map[string]interface{}{}
+	}
+	if uptimeKumaSection, ok := rawCfg["uptime_kuma"].(map[string]interface{}); ok {
+		uptimeKumaSection["enabled"] = c.UptimeKuma.Enabled
+		uptimeKumaSection["base_url"] = c.UptimeKuma.BaseURL
+		uptimeKumaSection["insecure_ssl"] = c.UptimeKuma.InsecureSSL
+		uptimeKumaSection["request_timeout"] = c.UptimeKuma.RequestTimeout
+		uptimeKumaSection["poll_interval_seconds"] = c.UptimeKuma.PollIntervalSeconds
+		uptimeKumaSection["relay_to_agent"] = c.UptimeKuma.RelayToAgent
+		uptimeKumaSection["relay_instruction"] = c.UptimeKuma.RelayInstruction
+	}
 
 	// 3. Write back with all original fields (including API keys) intact
 	data, err := yaml.Marshal(rawCfg)

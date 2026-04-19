@@ -13,6 +13,8 @@
   "config.uptime_kuma.insecure_ssl_label": "自己署名TLSを許可",
   "config.uptime_kuma.loading": "読み込み中…",
   "config.uptime_kuma.poll_interval_label": "ポーリング間隔 (秒)",
+  "config.uptime_kuma.relay_instruction_label": "障害時の指示",
+  "config.uptime_kuma.relay_instruction_placeholder": "例: サービスを一度再起動して、その結果を私に知らせてください。",
   "config.uptime_kuma.relay_to_agent_label": "障害時にエージェントへ通知",
   "config.uptime_kuma.request_timeout_label": "リクエストタイムアウト (秒)",
   "config.uptime_kuma.save_icon": "💾",
@@ -36,6 +38,7 @@
   "help.uptime_kuma.enabled": "読み取り専用のUptime Kuma連携を有効にします。エージェントはモニターの状態を確認でき、状態変化時に通知を受け取ることができます。",
   "help.uptime_kuma.insecure_ssl": "自己署名証明書のTLS検証をスキップします。信頼できるローカルネットワーク内でのみ使用してください。",
   "help.uptime_kuma.poll_interval_seconds": "障害検出と状態変化のためのバックグラウンドポーリング間隔（秒）。デフォルト：30。",
+  "help.uptime_kuma.relay_instruction": "AuraGo が各障害イベント通知に追加する任意の自由記述指示です。エージェントがどう対応すべきか判断しやすくなります。",
   "help.uptime_kuma.relay_to_agent": "有効にすると、UP→DOWNまたはDOWN→UPの各変化に対してエージェントを1回だけ起動します。",
   "help.uptime_kuma.request_timeout": "/metricsエンドポイントへのリクエストのタイムアウト（秒）。デフォルト：15。"
 }
