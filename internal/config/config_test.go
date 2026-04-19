@@ -310,6 +310,9 @@ func TestLoadUptimeKumaDefaults(t *testing.T) {
 	if cfg.UptimeKuma.RelayToAgent {
 		t.Fatal("expected relay_to_agent to default to false")
 	}
+	if cfg.UptimeKuma.RelayInstruction != "" {
+		t.Fatalf("relay_instruction = %q, want empty string", cfg.UptimeKuma.RelayInstruction)
+	}
 }
 
 func TestApplyVaultSecretsLoadsUptimeKumaAPIKey(t *testing.T) {
@@ -334,6 +337,7 @@ func TestConfigSaveOmitsUptimeKumaAPIKey(t *testing.T) {
 	cfg.UptimeKuma.Enabled = true
 	cfg.UptimeKuma.BaseURL = "https://uptime.local"
 	cfg.UptimeKuma.APIKey = "uk2_should_not_be_serialized"
+	cfg.UptimeKuma.RelayInstruction = "Restart the service and inform me if that fails."
 
 	if err := cfg.Save(configPath); err != nil {
 		t.Fatalf("Save() error = %v", err)
@@ -345,6 +349,9 @@ func TestConfigSaveOmitsUptimeKumaAPIKey(t *testing.T) {
 	}
 	if strings.Contains(string(raw), "uk2_should_not_be_serialized") || strings.Contains(string(raw), "api_key:") {
 		t.Fatalf("expected uptime kuma API key to stay out of YAML, got:\n%s", string(raw))
+	}
+	if !strings.Contains(string(raw), "relay_instruction:") {
+		t.Fatalf("expected relay_instruction to be serialized, got:\n%s", string(raw))
 	}
 }
 

@@ -18,16 +18,17 @@ func newTokenCountCache(maxEntries int) *tokenCountCache {
 	}
 }
 
-func (c *tokenCountCache) Count(text string) int {
+func (c *tokenCountCache) Count(text, model string) int {
 	if text == "" {
 		return 0
 	}
-	if v, ok := c.counts[text]; ok {
+	key := text + "\x00" + model
+	if v, ok := c.counts[key]; ok {
 		return v
 	}
-	v := prompts.CountTokens(text)
-	c.counts[text] = v
-	c.order = append(c.order, text)
+	v := prompts.CountTokensForModel(text, model)
+	c.counts[key] = v
+	c.order = append(c.order, key)
 
 	// Coarse eviction: when the cache grows too large, drop the oldest half.
 	if len(c.counts) > c.maxEntries {

@@ -1386,6 +1386,7 @@ type UptimeKumaConfig struct {
 	RequestTimeout      int    `yaml:"request_timeout"`
 	PollIntervalSeconds int    `yaml:"poll_interval_seconds"`
 	RelayToAgent        bool   `yaml:"relay_to_agent"`
+	RelayInstruction    string `yaml:"relay_instruction"`
 }
 
 // JellyfinConfig holds configuration for Jellyfin media server integration.

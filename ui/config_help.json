@@ -230,6 +230,10 @@
     "relay_to_agent": {
       "title": "Notify Agent on Outage",
       "description": "When enabled, AuraGo wakes the agent exactly once for each UP→DOWN or DOWN→UP status transition."
+    },
+    "relay_instruction": {
+      "title": "Outage Instruction",
+      "description": "Optional free-form instruction that is included in every relayed Uptime Kuma transition event so the agent knows how to react."
     }
   },
   "homepage": {

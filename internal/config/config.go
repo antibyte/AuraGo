@@ -214,6 +214,7 @@ func Load(path string) (*Config, error) {
 	// Uptime Kuma defaults: disabled until explicitly configured.
 	cfg.UptimeKuma.RequestTimeout = 15
 	cfg.UptimeKuma.PollIntervalSeconds = 30
+	cfg.UptimeKuma.RelayInstruction = ""
 
 	// LDAP defaults: disabled by default, read-only when enabled.
 	cfg.LDAP.Enabled = false

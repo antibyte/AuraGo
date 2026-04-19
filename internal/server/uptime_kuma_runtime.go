@@ -32,11 +32,12 @@ func (s *Server) restartUptimeKumaPoller() {
 		OnTransition: func(event tools.UptimeKumaTransition) {
 			s.CfgMu.RLock()
 			relayEnabled := s.Cfg.UptimeKuma.RelayToAgent
+			relayInstruction := s.Cfg.UptimeKuma.RelayInstruction
 			s.CfgMu.RUnlock()
 			if !relayEnabled {
 				return
 			}
-			go agent.Loopback(s.buildUptimeKumaRunConfig(), formatUptimeKumaTransitionPrompt(event), agent.NoopBroker{})
+			go agent.Loopback(s.buildUptimeKumaRunConfig(), formatUptimeKumaTransitionPrompt(event, relayInstruction), agent.NoopBroker{})
 		},
 	})
 	poller.Start()
@@ -78,7 +79,7 @@ func (s *Server) buildUptimeKumaRunConfig() agent.RunConfig {
 	}
 }
 
-func formatUptimeKumaTransitionPrompt(event tools.UptimeKumaTransition) string {
+func formatUptimeKumaTransitionPrompt(event tools.UptimeKumaTransition, relayInstruction string) string {
 	monitorName := strings.TrimSpace(event.Monitor.MonitorName)
 	if monitorName == "" {
 		monitorName = "Unnamed monitor"
@@ -99,6 +100,13 @@ func formatUptimeKumaTransitionPrompt(event tools.UptimeKumaTransition) string {
 	)
 	if event.Monitor.ResponseTimeMS > 0 {
 		lines = append(lines, fmt.Sprintf("Response time: %d ms", event.Monitor.ResponseTimeMS))
+	}
+	if relayInstruction = strings.TrimSpace(relayInstruction); relayInstruction != "" {
+		lines = append(lines,
+			"",
+			"Configured outage instruction from the user:",
+			relayInstruction,
+		)
 	}
 	lines = append(lines, "Decide whether the user should be informed or whether a follow-up action is useful.")
 	return strings.Join(lines, "\n")

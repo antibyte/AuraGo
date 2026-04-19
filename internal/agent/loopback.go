@@ -63,7 +63,7 @@ func Loopback(runCfg RunConfig, message string, broker FeedbackBroker) {
 		SpecialistsSuggestion: buildSpecialistDelegationHint(runCfg.Config, safeMessage),
 	})
 	coreMem := shortTermMem.ReadCoreMemory()
-	sysPrompt := prompts.BuildSystemPrompt(cfg.Directories.PromptsDir, &flags, coreMem, logger)
+	sysPrompt, _ := prompts.BuildSystemPrompt(cfg.Directories.PromptsDir, &flags, coreMem, logger)
 
 	// Assemble messages
 	finalMessages := []openai.ChatCompletionMessage{

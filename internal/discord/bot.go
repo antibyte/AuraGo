@@ -505,26 +505,26 @@ func processDiscordMessage(s *discordgo.Session, m *discordgo.MessageCreate, inp
 
 	// Build RunConfig first so it can be used for prompt flag derivation
 	runCfg := agent.RunConfig{
-		Config:            cfg,
-		Logger:            logger,
-		LLMClient:         client,
-		ShortTermMem:      shortTermMem,
-		HistoryManager:    historyManager,
-		LongTermMem:       longTermMem,
-		KG:                kg,
-		InventoryDB:       inventoryDB,
-		Vault:             vault,
-		Registry:          registry,
-		Manifest:          manifest,
-		CronManager:       cronManager,
-		MissionManagerV2:  missionManagerV2,
+		Config:             cfg,
+		Logger:             logger,
+		LLMClient:          client,
+		ShortTermMem:       shortTermMem,
+		HistoryManager:     historyManager,
+		LongTermMem:        longTermMem,
+		KG:                 kg,
+		InventoryDB:        inventoryDB,
+		Vault:              vault,
+		Registry:           registry,
+		Manifest:           manifest,
+		CronManager:        cronManager,
+		MissionManagerV2:   missionManagerV2,
 		CoAgentRegistry:    nil,
 		BudgetTracker:      nil,
 		PreparationService: nil,
 		SessionID:          sessionID,
-		IsMaintenance:     tools.IsBusy(),
-		MessageSource:     "discord",
-		VoiceOutputActive: agent.GetVoiceMode(),
+		IsMaintenance:      tools.IsBusy(),
+		MessageSource:      "discord",
+		VoiceOutputActive:  agent.GetVoiceMode(),
 	}
 
 	// Build context flags via central factory
@@ -538,7 +538,7 @@ func processDiscordMessage(s *discordgo.Session, m *discordgo.MessageCreate, inp
 	})
 	coreMem := shortTermMem.ReadCoreMemory()
 
-	sysPrompt := prompts.BuildSystemPrompt(cfg.Directories.PromptsDir, &flags, coreMem, logger)
+	sysPrompt, _ := prompts.BuildSystemPrompt(cfg.Directories.PromptsDir, &flags, coreMem, logger)
 
 	// Assemble final messages for LLM
 	finalMessages := []openai.ChatCompletionMessage{

@@ -271,26 +271,26 @@ func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Con
 
 	// 1. Build RunConfig first so it can be used for prompt flag derivation
 	runCfg := agent.RunConfig{
-		Config:            cfg,
-		Logger:            logger,
-		LLMClient:         client,
-		ShortTermMem:      shortTermMem,
-		HistoryManager:    historyManager,
-		LongTermMem:       longTermMem,
-		KG:                nil,
-		InventoryDB:       inventoryDB,
-		Vault:             vault,
-		Registry:          registry,
-		Manifest:          manifest,
-		CronManager:       cronManager,
-		MissionManagerV2:  missionManagerV2,
+		Config:             cfg,
+		Logger:             logger,
+		LLMClient:          client,
+		ShortTermMem:       shortTermMem,
+		HistoryManager:     historyManager,
+		LongTermMem:        longTermMem,
+		KG:                 nil,
+		InventoryDB:        inventoryDB,
+		Vault:              vault,
+		Registry:           registry,
+		Manifest:           manifest,
+		CronManager:        cronManager,
+		MissionManagerV2:   missionManagerV2,
 		CoAgentRegistry:    nil,
 		BudgetTracker:      nil,
 		PreparationService: nil,
 		SessionID:          sessionID,
-		IsMaintenance:     tools.IsBusy(),
-		MessageSource:     "telegram",
-		VoiceOutputActive: agent.GetVoiceMode(),
+		IsMaintenance:      tools.IsBusy(),
+		MessageSource:      "telegram",
+		VoiceOutputActive:  agent.GetVoiceMode(),
 	}
 
 	// 2. Build context flags via central factory (keeps flags in sync with agent_loop)
@@ -304,7 +304,7 @@ func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Con
 	})
 	coreMem := shortTermMem.ReadCoreMemory()
 
-	sysPrompt := prompts.BuildSystemPrompt(cfg.Directories.PromptsDir, &flags, coreMem, logger)
+	sysPrompt, _ := prompts.BuildSystemPrompt(cfg.Directories.PromptsDir, &flags, coreMem, logger)
 
 	// 2. Assemble final messages for LLM
 	finalMessages := []openai.ChatCompletionMessage{

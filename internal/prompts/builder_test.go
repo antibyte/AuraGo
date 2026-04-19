@@ -186,7 +186,7 @@ func TestBuildSystemPromptIncludesPlannerContext(t *testing.T) {
 		PlannerContext: "Open todos: 2\n- [HIGH] Patch planner\nUpcoming appointments (next 48h):\n- 2026-04-18T09:00:00Z: Review",
 	}
 
-	prompt := buildSystemPromptInner("", &flags, "", slog.Default())
+	prompt, _ := buildSystemPromptInner("", &flags, "", slog.Default())
 	if !strings.Contains(prompt, "### PLANNER CONTEXT ###") {
 		t.Fatalf("prompt = %q, want planner context header", prompt)
 	}
@@ -198,7 +198,7 @@ func TestBuildSystemPromptIncludesPlannerContext(t *testing.T) {
 func TestFallbackSystemPromptIncludesEmbeddedSafetyRules(t *testing.T) {
 	flags := ContextFlags{SystemLanguage: "en"}
 
-	prompt := fallbackSystemPrompt("", &flags, "Remember this", slog.Default())
+	prompt, _ := fallbackSystemPrompt("", &flags, "Remember this", slog.Default())
 
 	if !strings.Contains(prompt, "# CORE IDENTITY") {
 		t.Fatalf("fallback prompt missing identity section: %q", prompt)

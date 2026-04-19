@@ -67,6 +67,12 @@ function renderUptimeKumaSection(section) {
     html += '</div></div>';
 
     html += '<div class="field-group">';
+    html += '<div class="field-label">' + t('config.uptime_kuma.relay_instruction_label') + '</div>';
+    html += '<div class="field-help">' + t('help.uptime_kuma.relay_instruction') + '</div>';
+    html += '<textarea class="field-input" rows="5" data-path="uptime_kuma.relay_instruction" placeholder="' + escapeAttr(t('config.uptime_kuma.relay_instruction_placeholder')) + '">' + escapeHtml(data.relay_instruction || '') + '</textarea>';
+    html += '</div>';
+
+    html += '<div class="field-group">';
     html += '<button class="btn-save adg-test-btn" onclick="uptimeKumaTestConnection()" id="uptime-kuma-test-btn">🔌 ' + t('config.uptime_kuma.test_btn') + '</button>';
     html += '<span id="uptime-kuma-test-result" class="adg-test-result"></span>';
     html += '</div>';

@@ -878,11 +878,11 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			sysPrompt = cachedSysPrompt
 			sysPromptTokens = cachedSysPromptTokens
 		} else {
-			sysPrompt = prompts.BuildSystemPrompt(cfg.Directories.PromptsDir, &flags, coreMemCache, s.currentLogger)
+			sysPrompt, sysPromptTokens = prompts.BuildSystemPrompt(cfg.Directories.PromptsDir, &flags, coreMemCache, s.currentLogger)
 			if budgetHint != "" {
 				sysPrompt += "\n\n" + budgetHint
+				sysPromptTokens += prompts.CountTokensForModel(budgetHint, req.Model) + 2
 			}
-			sysPromptTokens = prompts.CountTokensForModel(sysPrompt, req.Model)
 
 			if cacheKeyErr == nil && cacheKey != "" {
 				cachedSysPromptKey = cacheKey
@@ -935,18 +935,18 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			maxHistoryTokens = 4096
 		}
 		compressionClient, compressionModel := resolveHelperBackedLLM(cfg, client, cfg.LLM.Model)
+		var compRes CompressHistoryResult
 		if compressionClient != nil && compressionModel != "" {
-			// Pre-check threshold so we can show a feedback event before the potentially
-			// slow synchronous LLM call inside CompressHistory (up to 30 seconds).
+			// Pre-check threshold: use a cheap cached count to show UI feedback
+			// before the potentially slow synchronous LLM call inside CompressHistory.
 			compressionTokens := 0
 			for _, m := range req.Messages {
-				compressionTokens += tokenCache.Count(messageText(m)) + 4
+				compressionTokens += tokenCache.Count(messageText(m), req.Model) + 4
 			}
 			compressionThreshold := int(float64(maxHistoryTokens) * compressionThresholdPct)
 			if compressionTokens > compressionThreshold {
 				broker.Send("thinking", "Compressing context...")
 			}
-			var compRes CompressHistoryResult
 			req.Messages, lastCompressionMsg, compRes = CompressHistory(
 				ctx, req.Messages, maxHistoryTokens, compressionModel, compressionClient, lastCompressionMsg, s.currentLogger,
 			)
@@ -956,13 +956,16 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 
 		// ── Context window guard ──
-		// Count total tokens across all messages and trim old history if we would
-		// exceed the model's context window. We keep the system prompt (index 0) and
-		// always preserve the final user message so the model has something to answer.
-		// A 4096-token margin is reserved for the model's completion output.
-		totalMsgTokens := 0
-		for _, m := range req.Messages {
-			totalMsgTokens += prompts.CountTokensForModel(messageText(m), req.Model) + 4 // ~4 tokens overhead per message
+		// Use TotalTokens from CompressHistory when available (avoids re-counting
+		// all messages). Otherwise count from scratch for the fallback path.
+		totalMsgTokens := compRes.TotalTokens
+		if totalMsgTokens == 0 && len(req.Messages) > 1 {
+			for _, m := range req.Messages {
+				totalMsgTokens += prompts.CountTokensForModel(messageText(m), req.Model) + 4
+			}
+		} else {
+			// compRes.TotalTokens excludes system prompt — add it back
+			totalMsgTokens += sysPromptTokens + 4
 		}
 		if len(req.Tools) > 0 {
 			toolSchemaJSON, _ := json.Marshal(req.Tools)

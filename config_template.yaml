@@ -574,6 +574,7 @@ uptime_kuma:
     request_timeout: 15           # request timeout in seconds
     poll_interval_seconds: 30     # background poll interval for outage detection
     relay_to_agent: false         # wake the agent on UP/DOWN transitions
+    relay_instruction: ""         # optional instruction passed to the agent with outage transition events
     # API key is stored in the vault as uptime_kuma_api_key
 obsidian:
     enabled: false

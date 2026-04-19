@@ -43,6 +43,7 @@ type CompressHistoryResult struct {
 	Compressed    bool
 	DroppedCount  int
 	SummaryTokens int
+	TotalTokens   int // total message tokens (excl. system prompt) after compression
 }
 
 // CompressHistory checks whether the conversation history exceeds the compression
@@ -89,6 +90,7 @@ func CompressHistory(
 
 	threshold := int(float64(maxHistoryTokens) * compressionThresholdPct)
 	if totalTokens <= threshold {
+		result.TotalTokens = totalTokens
 		return messages, lastCompressionMsg, result
 	}
 
@@ -187,6 +189,13 @@ func CompressHistory(
 	result.Compressed = true
 	result.DroppedCount = len(compressible)
 	result.SummaryTokens = prompts.CountTokensForModel(summary, model)
+
+	// Compute total message tokens for the compressed result (excl. system prompt at index 0).
+	compressedTotal := result.SummaryTokens + 4 // summary message overhead
+	for _, m := range messages[tailStart:] {
+		compressedTotal += prompts.CountTokensForModel(messageText(m), model) + 4
+	}
+	result.TotalTokens = compressedTotal
 
 	logger.Info("[Compression] History compressed",
 		"dropped_messages", result.DroppedCount,

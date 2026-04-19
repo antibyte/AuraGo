@@ -301,18 +301,20 @@ type PromptModule struct {
 // The build is guarded by an internal timeout (buildPromptTimeout) so that
 // unexpectedly slow file I/O or token counting cannot block the agent loop
 // indefinitely.  On timeout a minimal fallback prompt is returned.
-func BuildSystemPrompt(promptsDir string, flags *ContextFlags, coreMemory string, logger *slog.Logger) string {
+func BuildSystemPrompt(promptsDir string, flags *ContextFlags, coreMemory string, logger *slog.Logger) (string, int) {
 	type result struct {
 		prompt string
+		tokens int
 	}
 	ch := make(chan result, 1)
 	go func() {
-		ch <- result{prompt: buildSystemPromptInner(promptsDir, flags, coreMemory, logger)}
+		p, t := buildSystemPromptInner(promptsDir, flags, coreMemory, logger)
+		ch <- result{prompt: p, tokens: t}
 	}()
 
 	select {
 	case r := <-ch:
-		return r.prompt
+		return r.prompt, r.tokens
 	case <-time.After(buildPromptTimeout):
 		logger.Warn("[Prompt] BuildSystemPrompt timed out, using fallback",
 			"timeout", buildPromptTimeout)
@@ -326,7 +328,7 @@ const buildPromptTimeout = 30 * time.Second
 
 // fallbackSystemPrompt returns a minimal system prompt when the full build
 // times out or fails catastrophically.
-func fallbackSystemPrompt(promptsDir string, flags *ContextFlags, coreMemory string, logger *slog.Logger) string {
+func fallbackSystemPrompt(promptsDir string, flags *ContextFlags, coreMemory string, logger *slog.Logger) (string, int) {
 	var sb strings.Builder
 	sb.WriteString("Respond in " + flags.SystemLanguage + ".\n")
 	now := time.Now().Format(time.RFC1123)
@@ -346,7 +348,8 @@ func fallbackSystemPrompt(promptsDir string, flags *ContextFlags, coreMemory str
 	if coreMemory != "" {
 		sb.WriteString("\nCore Memory:\n" + coreMemory + "\n")
 	}
-	return sb.String()
+	prompt := sb.String()
+	return prompt, countTokensWithModel(prompt, flags.Model)
 }
 
 func fallbackIdentityModule(flags *ContextFlags) string {
@@ -395,7 +398,7 @@ func loadCriticalFallbackModule(promptsDir, filename string, logger *slog.Logger
 
 // buildSystemPromptInner contains the actual prompt-building logic, extracted
 // from BuildSystemPrompt so it can run in a goroutine with a timeout.
-func buildSystemPromptInner(promptsDir string, flags *ContextFlags, coreMemory string, logger *slog.Logger) string {
+func buildSystemPromptInner(promptsDir string, flags *ContextFlags, coreMemory string, logger *slog.Logger) (string, int) {
 	var finalPrompt strings.Builder
 	finalPrompt.Grow(32768) // Pre-allocate ~32KB to reduce reallocs
 
@@ -803,7 +806,7 @@ func buildSystemPromptInner(promptsDir string, flags *ContextFlags, coreMemory s
 		},
 	})
 
-	return optimized
+	return optimized, finalTokens
 }
 
 // budgetShed progressively removes content sections until the prompt fits within the token budget.
