@@ -53,7 +53,7 @@
         float fbm(vec2 p) {
             float v = 0.0;
             float a = 0.5;
-            for (int i = 0; i < 6; i++) {
+            for (int i = 0; i < 5; i++) {
                 v += a * noise(p);
                 p *= 2.03;
                 a *= 0.5;
@@ -65,48 +65,46 @@
             vec2 uv = gl_FragCoord.xy / u_resolution;
             vec2 aspect = vec2(u_resolution.x / u_resolution.y, 1.0);
 
-            // Slow drifting fog coordinates
-            float t = u_time * 0.15;
+            // Much faster drift so fog is clearly animated
+            float t = u_time * 1.2;
             vec2 q = vec2(
-                fbm(uv * aspect * 1.5 + vec2(t * 0.3, t * 0.15)),
-                fbm(uv * aspect * 1.5 + vec2(5.2, 1.3) + vec2(t * 0.2, t * 0.25))
+                fbm(uv * aspect * 2.0 + vec2(t * 0.35, t * 0.18)),
+                fbm(uv * aspect * 2.0 + vec2(5.2, 1.3) + vec2(t * 0.22, t * 0.28))
             );
 
             vec2 r = vec2(
-                fbm(uv * aspect * 1.5 + 3.0 * q + vec2(1.7, 9.2) + t * 0.18),
-                fbm(uv * aspect * 1.5 + 3.0 * q + vec2(8.3, 2.8) + t * 0.22)
+                fbm(uv * aspect * 2.0 + 3.0 * q + vec2(1.7, 9.2) + t * 0.20),
+                fbm(uv * aspect * 2.0 + 3.0 * q + vec2(8.3, 2.8) + t * 0.24)
             );
 
-            float f = fbm(uv * aspect * 1.5 + 2.0 * r);
+            float f = fbm(uv * aspect * 2.0 + 2.0 * r);
 
-            // Storm turbulence boost
-            float stormT = u_storm * 0.6;
-            float stormNoise = fbm(uv * aspect * 3.0 + t * 1.5) * stormT;
+            // Storm turbulence
+            float stormT = u_storm * 0.8;
+            float stormNoise = fbm(uv * aspect * 4.0 + t * 2.0) * stormT;
             f += stormNoise;
 
-            // Domain warped detail
-            float detail = fbm(uv * aspect * 4.0 + 5.0 * r + t * 0.1) * 0.3;
+            float detail = fbm(uv * aspect * 5.0 + 5.0 * r + t * 0.15) * 0.35;
             f += detail * (1.0 + stormT);
 
-            // Warm sand colors
-            vec3 c1 = vec3(0.88, 0.75, 0.52); // bright sand
-            vec3 c2 = vec3(0.72, 0.54, 0.32); // mid sand
-            vec3 c3 = vec3(0.52, 0.35, 0.20); // dark sand
-            vec3 c4 = vec3(0.35, 0.22, 0.12); // shadow
+            // Brighter warm sand colors
+            vec3 c1 = vec3(0.95, 0.82, 0.58);
+            vec3 c2 = vec3(0.82, 0.62, 0.36);
+            vec3 c3 = vec3(0.62, 0.42, 0.24);
+            vec3 c4 = vec3(0.42, 0.28, 0.15);
 
-            vec3 col = mix(c4, c3, smoothstep(0.0, 0.35, f));
-            col = mix(col, c2, smoothstep(0.35, 0.6, f));
-            col = mix(col, c1, smoothstep(0.6, 0.9, f));
+            vec3 col = mix(c4, c3, smoothstep(0.0, 0.3, f));
+            col = mix(col, c2, smoothstep(0.3, 0.55, f));
+            col = mix(col, c1, smoothstep(0.55, 0.85, f));
 
-            // Storm color shift – more ochre/dust
-            col += vec3(0.06, 0.02, 0.0) * stormT;
+            col += vec3(0.08, 0.03, 0.0) * stormT;
             col = clamp(col, 0.0, 1.0);
 
-            // Alpha: stronger near bottom, storm adds density
-            float alpha = f * 0.08;
-            alpha *= (0.5 + 0.5 * smoothstep(0.0, 0.6, 1.0 - uv.y)); // denser at bottom
-            alpha += u_storm * 0.04;
-            alpha = clamp(alpha, 0.0, 0.18);
+            // Stronger alpha so fog is actually visible
+            float alpha = f * 0.25;
+            alpha *= (0.35 + 0.65 * smoothstep(0.0, 0.5, 1.0 - uv.y));
+            alpha += u_storm * 0.10;
+            alpha = clamp(alpha, 0.0, 0.50);
 
             gl_FragColor = vec4(col, alpha);
         }
@@ -194,7 +192,7 @@
         fogCanvas.id = 'sandstorm-fog';
         Object.assign(fogCanvas.style, {
             position: 'fixed', top: '0', left: '0', width: '0', height: '0',
-            pointerEvents: 'none', zIndex: '1', opacity: '1',
+            pointerEvents: 'none', zIndex: '2', opacity: '1',
             mixBlendMode: 'normal', display: 'none'
         });
         document.body.appendChild(fogCanvas);
@@ -621,14 +619,23 @@
 
     function renderFog(now) {
         if (!fogActive || !gl) return;
+
+        const elapsed = stormActive ? (now - (stormEndTime - STORM_DURATION)) : 0;
         const stormIntensity = stormActive
-            ? Math.min(1, (now - (stormEndTime - STORM_DURATION)) / 800) * Math.min(1, (STORM_DURATION - (now - (stormEndTime - STORM_DURATION))) / 900)
+            ? Math.min(1, elapsed / 800) * Math.min(1, (STORM_DURATION - elapsed) / 900)
             : 0;
 
         gl.useProgram(fogProgram);
         gl.uniform1f(uTime, now * 0.001);
         gl.uniform2f(uRes, fogCanvas.width, fogCanvas.height);
         gl.uniform1f(uStorm, stormIntensity);
+
+        // Re-bind buffer and attrib pointer to be safe
+        const posLoc = gl.getAttribLocation(fogProgram, 'a_position');
+        gl.bindBuffer(gl.ARRAY_BUFFER, fogPositionBuffer);
+        gl.enableVertexAttribArray(posLoc);
+        gl.vertexAttribPointer(posLoc, 2, gl.FLOAT, false, 0, 0);
+
         gl.drawArrays(gl.TRIANGLES, 0, 6);
     }
 
