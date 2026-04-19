@@ -195,6 +195,57 @@ func FetchEmails(host string, port int, username, password, folder string, count
 	return messages, nil
 }
 
+// FetchEmailsByUID connects to IMAP and fetches specific emails by their UIDs.
+// This is used by the EmailWatcher to fetch exactly the newly detected messages
+// instead of relying on sequence-number ranges which may return wrong emails.
+func FetchEmailsByUID(host string, port int, username, password, folder string, uids []uint32, logger *slog.Logger) ([]EmailMessage, error) {
+	if len(uids) == 0 {
+		return nil, nil
+	}
+	if len(uids) > 50 {
+		uids = uids[:50]
+	}
+
+	ic, err := imapDial(host, port)
+	if err != nil {
+		return nil, err
+	}
+	defer ic.Close()
+
+	if err := ic.login(username, password); err != nil {
+		return nil, err
+	}
+
+	if _, err := ic.selectFolder(folder); err != nil {
+		return nil, err
+	}
+
+	// Build UID set string: "123 456 789"
+	parts := make([]string, len(uids))
+	for i, uid := range uids {
+		parts[i] = strconv.FormatUint(uint64(uid), 10)
+	}
+	uidSet := strings.Join(parts, ",")
+
+	// UID FETCH by specific UIDs
+	lines, status, err := ic.command("UID FETCH %s (UID BODY[HEADER.FIELDS (FROM TO SUBJECT DATE)] BODY[TEXT])", uidSet)
+	if err != nil {
+		return nil, fmt.Errorf("IMAP UID FETCH failed: %w", err)
+	}
+	if !strings.Contains(status, "OK") {
+		return nil, fmt.Errorf("IMAP UID FETCH failed: %s", status)
+	}
+
+	messages := parseIMAPFetch(lines, logger)
+
+	// Sort by UID descending (newest first)
+	sort.Slice(messages, func(i, j int) bool {
+		return messages[i].UID > messages[j].UID
+	})
+
+	return messages, nil
+}
+
 // SearchUnseenUIDs returns UIDs of unseen messages in the given folder.
 func SearchUnseenUIDs(host string, port int, username, password, folder string) ([]uint32, error) {
 	ic, err := imapDial(host, port)

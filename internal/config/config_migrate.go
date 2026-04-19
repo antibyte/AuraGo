@@ -161,6 +161,7 @@ func (c *Config) MigrateEmailAccounts() {
 		WatchEnabled:  c.Email.WatchEnabled,
 		WatchInterval: c.Email.WatchInterval,
 		WatchFolder:   c.Email.WatchFolder,
+		ReadOnly:      c.Email.ReadOnly,
 	}
 	c.EmailAccounts = append(c.EmailAccounts, acct)
 }

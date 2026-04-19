@@ -130,9 +130,6 @@ func dispatchEmailCases(ctx context.Context, tc ToolCall, dc *DispatchContext) (
 		if !cfg.Email.Enabled && len(cfg.EmailAccounts) == 0 {
 			return `Tool Output: {"status": "error", "message": "Email is not enabled. Configure the email section in config.yaml or add email_accounts."}`, true
 		}
-		if cfg.Email.ReadOnly {
-			return `Tool Output: {"status":"error","message":"Email is in read-only mode. Disable email.read_only to allow sending."}`, true
-		}
 		req := decodeEmailSendArgs(tc)
 		var acct *config.EmailAccount
 		if req.Account != "" {

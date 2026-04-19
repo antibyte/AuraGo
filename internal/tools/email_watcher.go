@@ -3,6 +3,7 @@ package tools
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -179,11 +180,11 @@ func (ew *EmailWatcher) pollAccount(acct config.EmailAccount) {
 
 	ew.logger.Info("[EmailWatcher] New unseen emails detected", "account", acct.ID, "count", len(newUIDs))
 
-	// Fetch the new messages for a summary
-	messages, err := FetchEmails(
+	// Fetch the specific new messages by UID (not by sequence number)
+	messages, err := FetchEmailsByUID(
 		acct.IMAPHost, acct.IMAPPort,
 		acct.Username, acct.Password,
-		acct.WatchFolder, len(newUIDs),
+		acct.WatchFolder, newUIDs,
 		ew.logger,
 	)
 	if err != nil {
@@ -297,7 +298,11 @@ func (ew *EmailWatcher) notifyAgent(prompt string) {
 
 	payload, _ := json.Marshal(msg)
 
-	client := &http.Client{Timeout: 3 * time.Minute}
+	// Use custom transport to skip TLS verification for self-signed certs on loopback
+	transport := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+	client := &http.Client{Timeout: 3 * time.Minute, Transport: transport}
 	resp, err := client.Post(url, "application/json", bytes.NewBuffer(payload))
 	if err != nil {
 		ew.logger.Error("[EmailWatcher] Loopback notification failed", "error", err)
