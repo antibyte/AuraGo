@@ -321,8 +321,8 @@ function injectRadialMenu() {
 // THEME MANAGEMENT
 // ═══════════════════════════════════════════════════════════════
 
-// Supported chat themes: 'dark' (standard), 'light', 'retro-crt', 'cyberwar', 'lollipop', 'dark-sun', 'ocean'
-const CHAT_THEMES = ['dark', 'light', 'retro-crt', 'cyberwar', 'lollipop', 'dark-sun', 'ocean'];
+// Supported chat themes: 'dark' (standard), 'light', 'retro-crt', 'cyberwar', 'lollipop', 'dark-sun', 'ocean', 'sandstorm'
+const CHAT_THEMES = ['dark', 'light', 'retro-crt', 'cyberwar', 'lollipop', 'dark-sun', 'ocean', 'sandstorm'];
 const DEFAULT_CHAT_THEME = 'dark';
 
 // Debounce lock: prevents double-click from toggling back immediately
@@ -376,7 +376,7 @@ function getCurrentChatTheme() {
 
 /**
  * Swap highlight.js theme stylesheet based on active theme.
- * dark/retro-crt/cyberwar/dark-sun/ocean → github-dark, light/lollipop → github with CSS enhancement layers
+ * dark/retro-crt/cyberwar/dark-sun/ocean/sandstorm → github-dark, light/lollipop → github with CSS enhancement layers
  */
 function _updateHljsTheme(theme) {
     var link = document.getElementById('hljs-theme');

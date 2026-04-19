@@ -1176,7 +1176,8 @@ const THEME_ICONS = {
     'cyberwar': '✦',
     'lollipop': '✿',
     'dark-sun': '☼',
-    'ocean': '◌'
+    'ocean': '◌',
+    'sandstorm': '◍'
 };
 
 function initChatThemePicker() {

@@ -1,0 +1,587 @@
+[data-theme="sandstorm"] {
+    color-scheme: dark;
+    --accent: #d5ab72;
+    --accent-secondary: #c59155;
+    --accent-tertiary: #e2c89f;
+    --accent-warm: #f0d8b5;
+    --accent-dim: rgba(213, 171, 114, 0.16);
+    --accent-glow: rgba(224, 188, 132, 0.2);
+    --bg-primary: #1d140d;
+    --bg-secondary: rgba(37, 25, 16, 0.95);
+    --bg-tertiary: rgba(54, 38, 24, 0.94);
+    --bg-glass: linear-gradient(180deg, rgba(58, 42, 27, 0.96), rgba(29, 20, 13, 0.98));
+    --header-bg: rgba(39, 27, 18, 0.92);
+    --modal-bg: rgba(16, 11, 7, 0.72);
+    --modal-surface: rgba(41, 28, 18, 0.97);
+    --modal-border: rgba(200, 154, 95, 0.24);
+    --sidebar-bg: rgba(33, 23, 15, 0.97);
+    --card-bg: rgba(46, 32, 21, 0.95);
+    --code-bg: rgba(30, 21, 14, 0.96);
+    --inline-code-bg: rgba(221, 188, 143, 0.12);
+    --input-bg: rgba(34, 24, 16, 0.98);
+    --input-border: rgba(188, 145, 91, 0.36);
+    --text-primary: #f0dfc4;
+    --text-secondary: #c7af8e;
+    --strong-color: #fff4e2;
+    --border-subtle: rgba(184, 140, 86, 0.18);
+    --border-accent: rgba(213, 171, 114, 0.36);
+    --user-bubble: linear-gradient(145deg, rgba(156, 106, 55, 0.98), rgba(189, 140, 83, 0.96));
+    --user-bubble-tail: rgba(186, 136, 79, 0.96);
+    --bot-bubble: linear-gradient(180deg, rgba(58, 42, 27, 0.98), rgba(35, 24, 16, 0.98));
+    --bot-bubble-tail: rgba(42, 29, 19, 0.98);
+    --surface-shadow: 0 22px 44px rgba(9, 6, 4, 0.3);
+    --surface-shadow-strong: 0 30px 74px rgba(7, 5, 3, 0.4);
+    --surface-highlight: rgba(255, 238, 208, 0.06);
+    --chat-image-opacity: 0.07;
+    --bg-logo-filter: sepia(0.65) saturate(0.72) brightness(0.7) contrast(1.06);
+    --sandstorm-panel: linear-gradient(180deg, rgba(61, 44, 29, 0.98), rgba(34, 24, 16, 0.98));
+    --sandstorm-button: linear-gradient(180deg, rgba(70, 50, 31, 0.98), rgba(41, 29, 18, 0.98));
+}
+
+[data-theme="sandstorm"] body {
+    background:
+        radial-gradient(circle at 14% 10%, rgba(139, 92, 45, 0.18), transparent 24%),
+        radial-gradient(circle at 85% 18%, rgba(204, 164, 111, 0.12), transparent 26%),
+        radial-gradient(circle at 48% 118%, rgba(86, 56, 29, 0.2), transparent 32%),
+        linear-gradient(180deg, #140e09 0%, #1d140d 38%, #261a11 100%);
+    color: var(--text-primary);
+}
+
+[data-theme="sandstorm"] body::before,
+[data-theme="sandstorm"] body::after {
+    display: none;
+}
+
+[data-theme="sandstorm"] .app-header {
+    position: relative;
+    z-index: 120;
+    background:
+        linear-gradient(180deg, rgba(63, 45, 29, 0.94), rgba(31, 21, 14, 0.97)),
+        var(--header-bg);
+    border-bottom: 1px solid rgba(191, 145, 92, 0.18);
+    box-shadow:
+        0 10px 28px rgba(9, 6, 4, 0.22),
+        inset 0 1px 0 rgba(249, 233, 206, 0.05),
+        inset 0 -1px 0 rgba(98, 67, 39, 0.14);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+[data-theme="sandstorm"] .app-header::before,
+[data-theme="sandstorm"] .app-footer::before,
+[data-theme="sandstorm"] .bubble::after,
+[data-theme="sandstorm"] .session-drawer::before,
+[data-theme="sandstorm"] .modal-card::before,
+[data-theme="sandstorm"] .mermaid-modal-content::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border-radius: inherit;
+    background:
+        linear-gradient(180deg, rgba(242, 220, 185, 0.08), rgba(242, 220, 185, 0.02) 16%, transparent 32%),
+        radial-gradient(circle at 12% 18%, rgba(237, 209, 164, 0.08) 0 1px, transparent 1.3px),
+        radial-gradient(circle at 74% 12%, rgba(237, 209, 164, 0.07) 0 1px, transparent 1.2px),
+        linear-gradient(180deg, transparent 72%, rgba(112, 79, 45, 0.08) 100%);
+    background-size: auto, 22px 22px, 28px 28px, auto;
+    opacity: 0.9;
+}
+
+[data-theme="sandstorm"] .app-header::after {
+    height: 2px;
+    opacity: 0.85;
+    background: linear-gradient(90deg,
+        transparent 0%,
+        rgba(205, 160, 100, 0.52) 18%,
+        rgba(240, 208, 160, 0.72) 50%,
+        rgba(190, 138, 79, 0.5) 82%,
+        transparent 100%);
+    box-shadow: 0 0 18px rgba(212, 173, 117, 0.12);
+}
+
+[data-theme="sandstorm"] .logo span:first-of-type {
+    background: linear-gradient(135deg, #f2ddbb 0%, #d5ae79 42%, #ae7441 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+[data-theme="sandstorm"] .chat-theme-btn,
+[data-theme="sandstorm"] .btn-session-toggle,
+[data-theme="sandstorm"] .btn-speaker,
+[data-theme="sandstorm"] .btn-warnings,
+[data-theme="sandstorm"] .select-personality,
+[data-theme="sandstorm"] .mood-toggle,
+[data-theme="sandstorm"] .btn-header,
+[data-theme="sandstorm"] .btn-header-link,
+[data-theme="sandstorm"] #logout-btn {
+    background: var(--sandstorm-button);
+    border: 1px solid rgba(189, 144, 88, 0.34);
+    box-shadow:
+        inset 0 1px 0 rgba(245, 227, 198, 0.05),
+        inset 0 -1px 0 rgba(25, 17, 11, 0.24),
+        0 8px 18px rgba(11, 8, 5, 0.18);
+    color: var(--text-primary);
+}
+
+[data-theme="sandstorm"] .chat-theme-btn:hover,
+[data-theme="sandstorm"] .btn-session-toggle:hover,
+[data-theme="sandstorm"] .btn-speaker:hover,
+[data-theme="sandstorm"] .btn-warnings:hover,
+[data-theme="sandstorm"] .select-personality:hover,
+[data-theme="sandstorm"] .mood-toggle:hover,
+[data-theme="sandstorm"] .btn-header:hover,
+[data-theme="sandstorm"] .btn-header-link:hover,
+[data-theme="sandstorm"] #logout-btn:hover {
+    border-color: rgba(215, 173, 117, 0.48);
+    box-shadow:
+        inset 0 1px 0 rgba(248, 233, 207, 0.07),
+        inset 0 -1px 0 rgba(27, 18, 12, 0.26),
+        0 12px 24px rgba(11, 8, 5, 0.22);
+    color: var(--strong-color);
+    transform: translateY(-1px);
+}
+
+[data-theme="sandstorm"] .chat-theme-dropdown,
+[data-theme="sandstorm"] .mood-panel {
+    --theme-option-color: #f1debf;
+    border: 1px solid rgba(189, 144, 88, 0.3);
+    background: linear-gradient(180deg, rgba(55, 39, 25, 0.98), rgba(31, 21, 14, 0.98));
+    box-shadow:
+        0 18px 46px rgba(9, 6, 4, 0.3),
+        inset 0 1px 0 rgba(248, 233, 207, 0.04);
+}
+
+[data-theme="sandstorm"] .chat-theme-option:hover,
+[data-theme="sandstorm"] .chat-theme-option.active {
+    background: linear-gradient(90deg, rgba(82, 59, 37, 0.96), rgba(47, 33, 21, 0.96));
+}
+
+[data-theme="sandstorm"] .app-header .pill {
+    background: linear-gradient(180deg, rgba(67, 47, 30, 0.94), rgba(36, 25, 16, 0.94));
+    border: 1px solid rgba(185, 140, 87, 0.28);
+    box-shadow:
+        inset 0 1px 0 rgba(246, 230, 202, 0.05),
+        0 6px 16px rgba(9, 6, 4, 0.16);
+    color: #f0e0c5;
+}
+
+[data-theme="sandstorm"] #chat-box {
+    isolation: auto;
+    position: relative;
+    z-index: 1;
+    background:
+        radial-gradient(circle at 12% 18%, rgba(180, 133, 77, 0.12), transparent 22%),
+        radial-gradient(circle at 84% 15%, rgba(227, 195, 146, 0.1), transparent 24%),
+        radial-gradient(circle at 50% 108%, rgba(91, 61, 33, 0.18), transparent 28%),
+        linear-gradient(180deg, #1e140c 0%, #241811 52%, #2c1e15 100%);
+    background-size: 112% 112%;
+    animation: sandstormBackdropDrift 16s ease-in-out infinite alternate;
+}
+
+[data-theme="sandstorm"] #chat-box::before {
+    display: block;
+    background:
+        linear-gradient(110deg, rgba(235, 204, 158, 0.08), transparent 26%, transparent 70%, rgba(146, 101, 52, 0.06) 100%),
+        radial-gradient(circle, rgba(233, 204, 159, 0.08) 0 1px, transparent 1.2px),
+        radial-gradient(circle at 20% 12%, rgba(236, 208, 165, 0.14) 0, rgba(236, 208, 165, 0.08) 1px, transparent 2px, transparent 88px),
+        radial-gradient(circle at 74% 62%, rgba(189, 145, 90, 0.12) 0, rgba(189, 145, 90, 0.06) 1px, transparent 2px, transparent 96px);
+    background-size: auto, 16px 16px, 220px 220px, 260px 260px;
+    opacity: 0.82;
+    animation: sandstormDustSheet 18s linear infinite;
+}
+
+[data-theme="sandstorm"] #chat-box::after {
+    display: block;
+    opacity: var(--chat-image-opacity);
+    filter: var(--bg-logo-filter);
+}
+
+[data-theme="sandstorm"] #sandstorm-overlay {
+    z-index: 2 !important;
+    opacity: 1 !important;
+    mix-blend-mode: screen !important;
+    filter: saturate(0.92) brightness(1.05) !important;
+}
+
+[data-theme="sandstorm"] #chat-content,
+[data-theme="sandstorm"] .msg-row,
+[data-theme="sandstorm"] .bubble,
+[data-theme="sandstorm"] .avatar,
+[data-theme="sandstorm"] #agentStatusContainer {
+    position: relative;
+    z-index: 3;
+    mix-blend-mode: normal !important;
+    filter: none !important;
+}
+
+[data-theme="sandstorm"] #chat-content {
+    padding-top: 1.8rem;
+    padding-bottom: 2.35rem;
+}
+
+[data-theme="sandstorm"] .greeting-icon,
+[data-theme="sandstorm"] .avatar.bot,
+[data-theme="sandstorm"] .avatar.human {
+    background: linear-gradient(180deg, rgba(70, 50, 31, 0.98), rgba(34, 24, 16, 0.98));
+    border: 1px solid rgba(189, 144, 88, 0.32);
+    box-shadow:
+        inset 0 1px 0 rgba(246, 228, 198, 0.05),
+        0 12px 22px rgba(11, 8, 5, 0.2);
+}
+
+[data-theme="sandstorm"] .greeting-text,
+[data-theme="sandstorm"] .mood-emotion,
+[data-theme="sandstorm"] .zoom-level,
+[data-theme="sandstorm"] .session-item-meta,
+[data-theme="sandstorm"] .session-empty {
+    color: var(--text-secondary);
+}
+
+[data-theme="sandstorm"] .msg-row {
+    opacity: 1;
+    visibility: visible;
+    animation: sandstormMessageEnter 0.42s ease-out;
+}
+
+[data-theme="sandstorm"] .bubble {
+    opacity: 1;
+    visibility: visible;
+    border: 1px solid rgba(190, 145, 91, 0.28);
+    box-shadow:
+        inset 0 1px 0 rgba(247, 231, 203, 0.04),
+        0 14px 28px rgba(11, 8, 5, 0.22);
+}
+
+[data-theme="sandstorm"] .bubble.bot {
+    background: var(--bot-bubble);
+    color: var(--text-primary);
+}
+
+[data-theme="sandstorm"] .bubble.bot::before {
+    border-color: transparent transparent var(--bot-bubble-tail) transparent;
+}
+
+[data-theme="sandstorm"] .bubble.user {
+    background: var(--user-bubble);
+    color: #fff7ea;
+    box-shadow:
+        inset 0 1px 0 rgba(251, 238, 216, 0.08),
+        0 16px 30px rgba(68, 42, 19, 0.24);
+}
+
+[data-theme="sandstorm"] .bubble.user::before {
+    border-color: transparent transparent var(--user-bubble-tail) transparent;
+}
+
+[data-theme="sandstorm"] .bubble.technical,
+[data-theme="sandstorm"] .tool-output-block .tool-output-content,
+[data-theme="sandstorm"] .code-block-wrapper,
+[data-theme="sandstorm"] .mermaid-container {
+    background: linear-gradient(180deg, rgba(42, 29, 19, 0.98), rgba(28, 19, 12, 0.98));
+    border-color: rgba(186, 141, 87, 0.3);
+    box-shadow:
+        inset 0 1px 0 rgba(245, 227, 198, 0.04),
+        0 16px 28px rgba(11, 8, 5, 0.24);
+}
+
+[data-theme="sandstorm"] .tool-output-block summary,
+[data-theme="sandstorm"] .copy-btn,
+[data-theme="sandstorm"] .mermaid-btn,
+[data-theme="sandstorm"] .session-item-count {
+    background: linear-gradient(180deg, rgba(73, 52, 33, 0.98), rgba(39, 27, 17, 0.98));
+    border: 1px solid rgba(188, 144, 88, 0.32);
+    color: var(--text-primary);
+}
+
+[data-theme="sandstorm"] .tool-output-block summary:hover,
+[data-theme="sandstorm"] .copy-btn:hover,
+[data-theme="sandstorm"] .mermaid-btn:hover {
+    background: linear-gradient(180deg, rgba(83, 60, 38, 0.98), rgba(45, 31, 20, 0.98));
+    box-shadow: 0 10px 18px rgba(11, 8, 5, 0.2);
+}
+
+[data-theme="sandstorm"] .code-header,
+[data-theme="sandstorm"] .line-numbers {
+    background: rgba(45, 31, 20, 0.84);
+    border-color: rgba(170, 128, 77, 0.28);
+}
+
+[data-theme="sandstorm"] .hljs,
+[data-theme="sandstorm"] .code-content,
+[data-theme="sandstorm"] .code-content pre {
+    background: transparent;
+    color: #eadcc5;
+}
+
+[data-theme="sandstorm"] .hljs-keyword,
+[data-theme="sandstorm"] .hljs-selector-tag,
+[data-theme="sandstorm"] .hljs-literal {
+    color: #e9bf84;
+}
+
+[data-theme="sandstorm"] .hljs-string,
+[data-theme="sandstorm"] .hljs-attr {
+    color: #d8c08f;
+}
+
+[data-theme="sandstorm"] .hljs-title,
+[data-theme="sandstorm"] .hljs-function,
+[data-theme="sandstorm"] .hljs-section {
+    color: #f0d5ad;
+}
+
+[data-theme="sandstorm"] code:not(pre code) {
+    background: rgba(221, 188, 143, 0.1);
+    color: #f2ddbf;
+    border: 1px solid rgba(221, 188, 143, 0.12);
+    border-radius: 7px;
+    padding: 0.08rem 0.35rem;
+}
+
+[data-theme="sandstorm"] .app-footer {
+    position: relative;
+    z-index: 1;
+    background: linear-gradient(180deg, rgba(46, 32, 21, 0.98), rgba(28, 19, 12, 0.99));
+    border-top: 1px solid rgba(185, 140, 87, 0.22);
+    box-shadow:
+        0 -12px 28px rgba(9, 6, 4, 0.22),
+        inset 0 1px 0 rgba(245, 227, 198, 0.04);
+    backdrop-filter: none;
+}
+
+[data-theme="sandstorm"] .input-row:focus-within .input-wrap {
+    transform: translateY(-1px);
+}
+
+[data-theme="sandstorm"] .input-wrap textarea,
+[data-theme="sandstorm"] .composer-panel,
+[data-theme="sandstorm"] .mood-feedback-row,
+[data-theme="sandstorm"] .attachment-chip,
+[data-theme="sandstorm"] .attachments-panel {
+    background: linear-gradient(180deg, rgba(52, 37, 24, 0.98), rgba(31, 21, 14, 0.99));
+    border: 1px solid rgba(187, 144, 89, 0.36);
+    box-shadow:
+        inset 0 1px 0 rgba(245, 227, 198, 0.05),
+        0 12px 22px rgba(11, 8, 5, 0.2);
+}
+
+[data-theme="sandstorm"] .input-wrap textarea:hover,
+[data-theme="sandstorm"] .input-wrap textarea:focus {
+    border-color: rgba(214, 173, 117, 0.54);
+    box-shadow:
+        inset 0 1px 0 rgba(245, 227, 198, 0.06),
+        0 0 0 3px rgba(214, 173, 117, 0.05),
+        0 12px 24px rgba(11, 8, 5, 0.22);
+}
+
+[data-theme="sandstorm"] .input-wrap textarea::placeholder {
+    color: rgba(199, 175, 142, 0.78);
+}
+
+[data-theme="sandstorm"] .btn-send,
+[data-theme="sandstorm"] .btn-voice,
+[data-theme="sandstorm"] .btn-more,
+[data-theme="sandstorm"] .composer-tool-btn,
+[data-theme="sandstorm"] .mood-btn,
+[data-theme="sandstorm"] .session-new-btn,
+[data-theme="sandstorm"] .session-drawer-close,
+[data-theme="sandstorm"] #img-lightbox-close,
+[data-theme="sandstorm"] .modal-btn,
+[data-theme="sandstorm"] .scroll-to-bottom-btn {
+    background: linear-gradient(180deg, rgba(76, 54, 33, 0.99), rgba(41, 29, 18, 0.98));
+    border: 1px solid rgba(190, 146, 91, 0.38);
+    box-shadow:
+        inset 0 1px 0 rgba(246, 228, 198, 0.06),
+        inset 0 -1px 0 rgba(24, 16, 10, 0.22),
+        0 10px 20px rgba(11, 8, 5, 0.2);
+    color: var(--text-primary);
+}
+
+[data-theme="sandstorm"] .btn-send {
+    background:
+        linear-gradient(180deg, rgba(251, 238, 216, 0.12), rgba(251, 238, 216, 0) 36%),
+        linear-gradient(135deg, rgba(163, 112, 57, 0.98), rgba(198, 149, 93, 0.96), rgba(222, 186, 130, 0.94));
+    border-color: rgba(217, 176, 120, 0.56);
+    color: #fff9ee;
+    box-shadow:
+        inset 0 1px 0 rgba(252, 242, 224, 0.12),
+        0 14px 28px rgba(77, 49, 22, 0.26);
+}
+
+[data-theme="sandstorm"] .btn-send:hover,
+[data-theme="sandstorm"] .btn-voice:hover,
+[data-theme="sandstorm"] .btn-more:hover,
+[data-theme="sandstorm"] .btn-more.is-open,
+[data-theme="sandstorm"] .composer-tool-btn:hover,
+[data-theme="sandstorm"] .mood-btn:hover,
+[data-theme="sandstorm"] .session-new-btn:hover,
+[data-theme="sandstorm"] .session-drawer-close:hover,
+[data-theme="sandstorm"] #img-lightbox-close:hover,
+[data-theme="sandstorm"] .modal-btn:hover,
+[data-theme="sandstorm"] .scroll-to-bottom-btn:hover {
+    transform: translateY(-1px);
+    border-color: rgba(214, 173, 117, 0.5);
+    box-shadow:
+        inset 0 1px 0 rgba(246, 228, 198, 0.08),
+        inset 0 -1px 0 rgba(24, 16, 10, 0.24),
+        0 12px 24px rgba(11, 8, 5, 0.22);
+}
+
+[data-theme="sandstorm"] .composer-tool-btn-danger,
+[data-theme="sandstorm"] .composer-tool-btn-danger:hover:not(:disabled) {
+    background: linear-gradient(180deg, rgba(74, 39, 29, 0.98), rgba(35, 19, 15, 0.98));
+    border-color: rgba(170, 105, 86, 0.42);
+    color: #f7ddd0;
+}
+
+[data-theme="sandstorm"] .session-backdrop,
+[data-theme="sandstorm"] .mermaid-modal-overlay,
+[data-theme="sandstorm"] #img-lightbox,
+[data-theme="sandstorm"] .modal-overlay {
+    background:
+        radial-gradient(circle at top, rgba(219, 182, 130, 0.06), transparent 28%),
+        rgba(12, 8, 5, 0.72);
+    backdrop-filter: blur(8px);
+}
+
+[data-theme="sandstorm"] .session-drawer,
+[data-theme="sandstorm"] .modal-card,
+[data-theme="sandstorm"] .mermaid-modal-content {
+    overflow: hidden;
+    background: linear-gradient(180deg, rgba(54, 38, 24, 0.98), rgba(29, 20, 13, 0.99));
+    border: 1px solid rgba(189, 144, 88, 0.3);
+    box-shadow:
+        0 26px 62px rgba(9, 6, 4, 0.32),
+        inset 0 1px 0 rgba(246, 228, 198, 0.05);
+}
+
+[data-theme="sandstorm"] .session-drawer {
+    position: fixed;
+    top: 0;
+    left: 0;
+}
+
+[data-theme="sandstorm"] .modal-card,
+[data-theme="sandstorm"] .mermaid-modal-content {
+    position: relative;
+}
+
+[data-theme="sandstorm"] .session-drawer-header,
+[data-theme="sandstorm"] .modal-title {
+    border-bottom-color: rgba(189, 144, 88, 0.2);
+}
+
+[data-theme="sandstorm"] .session-item {
+    border: 1px solid transparent;
+    border-radius: 12px;
+}
+
+[data-theme="sandstorm"] .session-item:hover {
+    background: linear-gradient(90deg, rgba(73, 53, 34, 0.98), rgba(41, 29, 18, 0.98));
+    border-color: rgba(189, 144, 88, 0.22);
+}
+
+[data-theme="sandstorm"] .session-item.session-active {
+    background: linear-gradient(90deg, rgba(86, 63, 40, 0.98), rgba(48, 34, 21, 0.98));
+    border-color: rgba(214, 173, 117, 0.3);
+    box-shadow: 0 12px 22px rgba(11, 8, 5, 0.16);
+}
+
+[data-theme="sandstorm"] .session-item-preview,
+[data-theme="sandstorm"] .session-drawer-title,
+[data-theme="sandstorm"] .modal-title,
+[data-theme="sandstorm"] .modal-body,
+[data-theme="sandstorm"] .mermaid-error .error-title,
+[data-theme="sandstorm"] .mermaid-error .error-message {
+    color: var(--text-primary);
+}
+
+[data-theme="sandstorm"] .scroll-to-bottom-btn.has-new {
+    background:
+        linear-gradient(180deg, rgba(252, 241, 221, 0.12), rgba(252, 241, 221, 0) 32%),
+        linear-gradient(135deg, rgba(166, 114, 59, 0.98), rgba(204, 159, 102, 0.96), rgba(230, 198, 148, 0.94));
+    color: #fff9f0;
+    animation: sandstormBeacon 2.2s ease-in-out infinite;
+}
+
+[data-theme="sandstorm"] #img-lightbox img {
+    border: 1px solid rgba(189, 144, 88, 0.34);
+    box-shadow: 0 24px 62px rgba(11, 8, 5, 0.28);
+}
+
+[data-theme="sandstorm"] .drag-drop-overlay {
+    background: rgba(29, 20, 13, 0.84);
+}
+
+[data-theme="sandstorm"] .mermaid-diagram svg {
+    filter: drop-shadow(0 0 16px rgba(214, 173, 117, 0.06));
+}
+
+[data-theme="sandstorm"] ::selection,
+[data-theme="sandstorm"] ::-moz-selection {
+    background: rgba(214, 173, 117, 0.18);
+}
+
+@keyframes sandstormBackdropDrift {
+    from {
+        background-position: 0% 0%, 0% 0%, 0% 0%, 0% 0%;
+    }
+    to {
+        background-position: 3% -2%, -2% 3%, 1% 4%, 0% 0%;
+    }
+}
+
+@keyframes sandstormDustSheet {
+    from {
+        background-position: 0 0, 0 0, 12% 18%, 74% 62%;
+    }
+    to {
+        background-position: 0 0, 18px 8px, 16% 22%, 70% 58%;
+    }
+}
+
+@keyframes sandstormMessageEnter {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes sandstormBeacon {
+    0%, 100% {
+        box-shadow:
+            inset 0 1px 0 rgba(252, 241, 221, 0.12),
+            0 12px 24px rgba(77, 49, 22, 0.18);
+    }
+    50% {
+        box-shadow:
+            inset 0 1px 0 rgba(252, 241, 221, 0.16),
+            0 14px 28px rgba(77, 49, 22, 0.22),
+            0 0 18px rgba(214, 173, 117, 0.12);
+    }
+}
+
+@media (max-width: 767px) {
+    [data-theme="sandstorm"] #chat-box::before {
+        background-size: auto, 14px 14px, 180px 180px, 210px 210px;
+        opacity: 0.74;
+    }
+
+    [data-theme="sandstorm"] .bubble {
+        max-width: min(88%, 38rem);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    [data-theme="sandstorm"] #chat-box,
+    [data-theme="sandstorm"] #chat-box::before,
+    [data-theme="sandstorm"] .msg-row,
+    [data-theme="sandstorm"] .scroll-to-bottom-btn.has-new {
+        animation: none !important;
+    }
+}
