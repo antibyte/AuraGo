@@ -12,6 +12,10 @@ function renderObsidianSection(section) {
     let html = '<div class="cfg-section active">';
     html += '<div class="section-header">' + section.icon + ' ' + section.label + '</div>';
     html += '<div class="section-desc">' + section.desc + '</div>';
+    const setupHint = t('help.obsidian.setup_hint');
+    if (setupHint) {
+        html += '<div class="field-group"><div class="field-help">' + setupHint + '</div></div>';
+    }
 
     // ── Connection status banner ──
     html += '<div id="obsidian-status-banner" class="adg-status-banner">' + t('config.obsidian.checking') + '</div>';

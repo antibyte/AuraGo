@@ -19,6 +19,7 @@
   "config.obsidian.apikey_save_failed": "API कुंजी सहेजने में विफल",
   "config.obsidian.apikey_empty": "कृपया एक API कुंजी दर्ज करें",
   "config.obsidian.product_name": "Obsidian",
+  "help.obsidian.setup_hint": "इसके लिए Obsidian community plugin <strong>Local REST API</strong> चाहिए। इसे Obsidian में install और enable करें, फिर <strong>Settings → Local REST API</strong> से API key कॉपी करें। जब AuraGo और Obsidian एक ही मशीन पर चल रहे हों, तो <code>127.0.0.1</code> ही रखें। अगर AuraGo Docker, WSL या किसी दूसरे डिवाइस पर चल रहा है, तो उसकी जगह reachable host/IP इस्तेमाल करें; कुछ plugin setups में bind address को <code>127.0.0.1</code> से <code>0.0.0.0</code> में बदलना भी पड़ सकता है। इसे केवल trusted networks पर ही expose करें।",
   "help.obsidian.enabled": "Obsidian ज्ञान प्रबंधन एकीकरण सक्षम करें",
   "help.obsidian.readonly": "सक्षम होने पर, केवल पढ़ने के संचालन की अनुमति है",
   "help.obsidian.allow_destructive": "नोट्स को हटाने की अनुमति दें",

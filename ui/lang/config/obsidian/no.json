@@ -19,6 +19,7 @@
   "config.obsidian.apikey_save_failed": "Kunne ikke lagre API-nøkkel",
   "config.obsidian.apikey_empty": "Vennligst skriv inn en API-nøkkel",
   "config.obsidian.product_name": "Obsidian",
+  "help.obsidian.setup_hint": "Krever Obsidian community-pluginen <strong>Local REST API</strong>. Installer og aktiver den i Obsidian, og kopier deretter API-nøkkelen fra <strong>Innstillinger → Local REST API</strong>. Behold <code>127.0.0.1</code> når AuraGo og Obsidian kjører på samme maskin. Hvis AuraGo kjører i Docker, WSL eller på en annen enhet, bruk en vertsadresse/IP som kan nås i stedet; noen plugin-oppsett kan også kreve at bind-adressen endres fra <code>127.0.0.1</code> til <code>0.0.0.0</code>. Eksponer dette bare på nettverk du stoler på.",
   "config.obsidian.connect_timeout_label": "Tilkoblingstimeout",
   "config.obsidian.request_timeout_label": "Forespørselstimeout",
   "help.obsidian.enabled": "Aktiver Obsidian kunnskapshåndteringsintegrasjon",

@@ -53,3 +53,5 @@ The `patch_op` parameter controls how content is applied:
 
 Set in config.yaml under `obsidian:` section. API key stored in vault as `obsidian_api_key`.
 Requires the Obsidian Local REST API plugin (v3.6.1+).
+The standard local endpoint is `https://127.0.0.1:27124`.
+If AuraGo runs outside the Obsidian host (for example in Docker, WSL, or on another machine), configure `obsidian.host` to a reachable address and only expose the API beyond localhost on trusted networks.

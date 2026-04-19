@@ -19,6 +19,7 @@
   "config.obsidian.apikey_save_failed": "APIキーの保存に失敗しました",
   "config.obsidian.apikey_empty": "APIキーを入力してください",
   "config.obsidian.product_name": "Obsidian",
+  "help.obsidian.setup_hint": "Obsidian のコミュニティプラグイン <strong>Local REST API</strong> が必要です。Obsidian でインストールして有効化し、<strong>設定 → Local REST API</strong> から API キーをコピーしてください。AuraGo と Obsidian が同じマシンで動いている場合は <code>127.0.0.1</code> のままにします。AuraGo が Docker、WSL、または別のデバイスで動いている場合は、代わりに到達可能なホスト/IP を使用してください。プラグイン構成によっては、bind address を <code>127.0.0.1</code> から <code>0.0.0.0</code> に変更する必要がある場合もあります。公開するのは信頼できるネットワークだけにしてください。",
   "help.obsidian.enabled": "Obsidianナレッジ管理統合を有効にします",
   "help.obsidian.readonly": "有効にすると、読み取り操作のみが許可されます",
   "help.obsidian.allow_destructive": "ノートの削除を許可します",

@@ -580,7 +580,7 @@ obsidian:
     enabled: false
     read_only: false                # read-only mode: only read/search operations allowed
     allow_destructive: false        # allow deleting notes
-    host: "127.0.0.1"              # hostname or IP of the machine running Obsidian
+    host: "127.0.0.1"              # same machine: 127.0.0.1; Docker/WSL/remote: reachable Obsidian host/IP
     port: 27124                     # port of Obsidian Local REST API plugin
     use_https: true                 # use HTTPS (recommended, default: true)
     insecure_ssl: true              # accept self-signed certificates (default: true)

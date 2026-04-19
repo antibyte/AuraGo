@@ -617,7 +617,7 @@
   "obsidian": {
     "enabled": {
       "title": "Enabled",
-      "description": "Enables the Obsidian integration. The agent can read, create, search, and manage notes in your Obsidian vault via the Local REST API plugin."
+      "description": "Enables the Obsidian integration. Requires the Obsidian community plugin Local REST API so the agent can read, create, search, and manage notes in your vault."
     },
     "readonly": {
       "title": "Read-Only Mode",
@@ -637,7 +637,7 @@
     },
     "host": {
       "title": "Host",
-      "description": "Hostname or IP of the machine running Obsidian (default: 127.0.0.1)."
+      "description": "Hostname or IP of the machine running Obsidian (default: 127.0.0.1). Keep 127.0.0.1 when AuraGo and Obsidian run on the same machine; use a reachable host/IP for Docker, WSL, or remote setups."
     },
     "port": {
       "title": "Port",
@@ -645,7 +645,7 @@
     },
     "api_key": {
       "title": "API Key",
-      "description": "API key from the Obsidian Local REST API plugin. Find it in Obsidian Settings → Local REST API."
+      "description": "API key from the Obsidian Local REST API community plugin. Find it in Obsidian Settings → Local REST API."
     }
   },
   "mission_preparation": {

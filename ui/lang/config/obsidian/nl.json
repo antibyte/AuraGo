@@ -19,6 +19,7 @@
   "config.obsidian.apikey_save_failed": "Opslaan van API-sleutel mislukt",
   "config.obsidian.apikey_empty": "Voer een API-sleutel in",
   "config.obsidian.product_name": "Obsidian",
+  "help.obsidian.setup_hint": "Vereist de Obsidian-communityplugin <strong>Local REST API</strong>. Installeer en activeer deze in Obsidian en kopieer daarna de API-sleutel uit <strong>Instellingen → Local REST API</strong>. Laat <code>127.0.0.1</code> staan wanneer AuraGo en Obsidian op dezelfde machine draaien. Als AuraGo in Docker, WSL of op een ander apparaat draait, gebruik dan in plaats daarvan een bereikbaar host/IP-adres; sommige pluginconfiguraties vereisen mogelijk ook dat het bind-adres van <code>127.0.0.1</code> naar <code>0.0.0.0</code> wordt gewijzigd. Stel dit alleen bloot op vertrouwde netwerken.",
   "config.obsidian.connect_timeout_label": "Verbindingstime-out",
   "config.obsidian.request_timeout_label": "Aanvraagtime-out",
   "help.obsidian.enabled": "Schakel de Obsidian kennisbeheer-integratie in",

@@ -19,6 +19,7 @@
   "config.obsidian.apikey_save_failed": "Uložení API klíče se nezdařilo",
   "config.obsidian.apikey_empty": "Zadejte prosím API klíč",
   "config.obsidian.product_name": "Obsidian",
+  "help.obsidian.setup_hint": "Vyžaduje komunitní plugin Obsidian <strong>Local REST API</strong>. V Obsidianu jej nainstalujte a povolte, potom zkopírujte API klíč z <strong>Nastavení → Local REST API</strong>. Pokud AuraGo i Obsidian běží na stejném počítači, ponechte <code>127.0.0.1</code>. Pokud AuraGo běží v Dockeru, WSL nebo na jiném zařízení, použijte místo toho dosažitelný host/IP; některá nastavení pluginu mohou také vyžadovat změnu bind adresy z <code>127.0.0.1</code> na <code>0.0.0.0</code>. Zpřístupňujte to jen v důvěryhodných sítích.",
   "help.obsidian.enabled": "Povolit integraci správy znalostí Obsidian",
   "help.obsidian.readonly": "Pokud je povoleno, jsou povoleny pouze operace čtení",
   "help.obsidian.allow_destructive": "Povolit mazání poznámek",

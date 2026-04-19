@@ -19,6 +19,7 @@
   "config.obsidian.apikey_save_failed": "Fehler beim Speichern des API-Schlüssels",
   "config.obsidian.apikey_empty": "Bitte einen API-Schlüssel eingeben",
   "config.obsidian.product_name": "Obsidian",
+  "help.obsidian.setup_hint": "Benötigt das Obsidian-Community-Plugin <strong>Local REST API</strong>. Installiere und aktiviere es in Obsidian und kopiere dann den API-Schlüssel aus <strong>Einstellungen → Local REST API</strong>. Lass <code>127.0.0.1</code>, wenn AuraGo und Obsidian auf demselben Rechner laufen. Wenn AuraGo in Docker, WSL oder auf einem anderen Gerät läuft, verwende stattdessen einen erreichbaren Host bzw. eine IP; je nach Plugin-Setup muss zusätzlich die Bind-Adresse von <code>127.0.0.1</code> auf <code>0.0.0.0</code> geändert werden. Nur in vertrauenswürdigen Netzwerken freigeben.",
   "help.obsidian.enabled": "Aktiviert die Obsidian-Wissensmanagement-Integration",
   "help.obsidian.readonly": "Wenn aktiviert, sind nur Leseoperationen erlaubt",
   "help.obsidian.allow_destructive": "Erlaubt das Löschen von Notizen",
