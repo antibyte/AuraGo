@@ -252,7 +252,7 @@
         }
     }
 
-    function updateClouds(dt, width) {
+    function updateClouds(dt, width, height) {
         const wind = stormActive ? STORM_WIND * 0.25 : BASE_WIND * 0.15;
         for (let i = 0; i < cCount; i++) {
             cx[i] += (cvx[i] + wind) * dt;
@@ -451,7 +451,7 @@
         ctx.clearRect(0, 0, width, height);
 
         drawClouds(width, height, time);
-        updateClouds(dt, width);
+        updateClouds(dt, width, height);
 
         drawGroundPile(width, height);
         drawGroundParticles();
