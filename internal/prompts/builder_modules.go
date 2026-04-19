@@ -226,7 +226,7 @@ func parsePromptModule(raw string) (*PromptModule, error) {
 	}, nil
 }
 
-func filterModules(modules []PromptModule, flags ContextFlags) []PromptModule {
+func filterModules(modules []PromptModule, flags *ContextFlags) []PromptModule {
 	// Pre-allocate with estimated capacity (typically 50-70% of modules match)
 	filtered := make([]PromptModule, 0, len(modules))
 	for _, mod := range modules {
@@ -237,7 +237,7 @@ func filterModules(modules []PromptModule, flags ContextFlags) []PromptModule {
 	return filtered
 }
 
-func (m *PromptModule) ShouldInclude(flags ContextFlags) bool {
+func (m *PromptModule) ShouldInclude(flags *ContextFlags) bool {
 	// Mandatory tag always wins
 	for _, tag := range m.Metadata.Tags {
 		if tag == "mandatory" {

@@ -25,7 +25,18 @@ const compressionThresholdPct = 0.80
 const compressionKeepTail = 6
 
 // summaryMaxTokens caps the LLM response for the summary generation.
-const summaryMaxTokens = 300
+// It scales with the number of messages being compressed to allow richer
+// summaries for larger windows while staying compact for small ones.
+func summaryMaxTokensForCount(droppedMessages int) int {
+	tokens := 20 * droppedMessages
+	if tokens < 80 {
+		tokens = 80
+	}
+	if tokens > 300 {
+		tokens = 300
+	}
+	return tokens
+}
 
 // CompressHistoryResult describes what happened during a compression attempt.
 type CompressHistoryResult struct {
@@ -73,7 +84,7 @@ func CompressHistory(
 	// which is never compressed and is counted separately in the prompt budget).
 	totalTokens := 0
 	for _, m := range messages[1:] {
-		totalTokens += prompts.CountTokens(messageText(m)) + 4
+		totalTokens += prompts.CountTokensForModel(messageText(m), model) + 4
 	}
 
 	threshold := int(float64(maxHistoryTokens) * compressionThresholdPct)
@@ -139,7 +150,7 @@ func CompressHistory(
 		Messages: []openai.ChatCompletionMessage{
 			{Role: openai.ChatMessageRoleUser, Content: summaryPrompt},
 		},
-		MaxTokens:   summaryMaxTokens,
+		MaxTokens:   summaryMaxTokensForCount(len(compressible)),
 		Temperature: 0.2,
 	}
 
@@ -175,7 +186,7 @@ func CompressHistory(
 
 	result.Compressed = true
 	result.DroppedCount = len(compressible)
-	result.SummaryTokens = prompts.CountTokens(summary)
+	result.SummaryTokens = prompts.CountTokensForModel(summary, model)
 
 	logger.Info("[Compression] History compressed",
 		"dropped_messages", result.DroppedCount,

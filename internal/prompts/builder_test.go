@@ -85,7 +85,7 @@ memory entry 1
 	}
 
 	logger := slog.Default()
-	result, shedSections := budgetShed(prompt, flags, "", "", time.Now(), logger)
+	result, shedSections := budgetShed(prompt, &flags, "", "", time.Now(), logger)
 
 	// Check that ## USER PROFILING was shed
 	foundProfiling := false
@@ -117,7 +117,7 @@ func TestBudgetShed_HardTruncateWhenCoreExceedsBudget(t *testing.T) {
 	}
 
 	logger := slog.Default()
-	result, shedSections := budgetShed(prompt, flags, "", "", time.Now(), logger)
+	result, shedSections := budgetShed(prompt, &flags, "", "", time.Now(), logger)
 
 	if !strings.Contains(result, "[BUDGET TRUNCATED]") {
 		t.Errorf("expected hard-truncate marker, got result len=%d", len(result))
@@ -160,7 +160,7 @@ some activity`
 	}
 
 	logger := slog.Default()
-	result, shedSections := budgetShed(prompt, flags, "", "", time.Now(), logger)
+	result, shedSections := budgetShed(prompt, &flags, "", "", time.Now(), logger)
 
 	// Check that ## USER PROFILING was shed (under UnifiedMemoryBlock path)
 	foundProfiling := false
@@ -186,7 +186,7 @@ func TestBuildSystemPromptIncludesPlannerContext(t *testing.T) {
 		PlannerContext: "Open todos: 2\n- [HIGH] Patch planner\nUpcoming appointments (next 48h):\n- 2026-04-18T09:00:00Z: Review",
 	}
 
-	prompt := buildSystemPromptInner("", flags, "", slog.Default())
+	prompt := buildSystemPromptInner("", &flags, "", slog.Default())
 	if !strings.Contains(prompt, "### PLANNER CONTEXT ###") {
 		t.Fatalf("prompt = %q, want planner context header", prompt)
 	}
@@ -198,7 +198,7 @@ func TestBuildSystemPromptIncludesPlannerContext(t *testing.T) {
 func TestFallbackSystemPromptIncludesEmbeddedSafetyRules(t *testing.T) {
 	flags := ContextFlags{SystemLanguage: "en"}
 
-	prompt := fallbackSystemPrompt("", flags, "Remember this", slog.Default())
+	prompt := fallbackSystemPrompt("", &flags, "Remember this", slog.Default())
 
 	if !strings.Contains(prompt, "# CORE IDENTITY") {
 		t.Fatalf("fallback prompt missing identity section: %q", prompt)
@@ -298,13 +298,13 @@ func TestShouldIncludeMainAgentConditions(t *testing.T) {
 		},
 	}
 
-	if !mod.ShouldInclude(ContextFlags{}) {
+	if !mod.ShouldInclude(&ContextFlags{}) {
 		t.Fatal("expected main agent module to be included for default flags")
 	}
-	if mod.ShouldInclude(ContextFlags{IsCoAgent: true}) {
+	if mod.ShouldInclude(&ContextFlags{IsCoAgent: true}) {
 		t.Fatal("expected main agent module to be excluded for co-agent")
 	}
-	if mod.ShouldInclude(ContextFlags{IsEgg: true}) {
+	if mod.ShouldInclude(&ContextFlags{IsEgg: true}) {
 		t.Fatal("expected main agent module to be excluded for egg")
 	}
 }
@@ -327,7 +327,7 @@ func TestFilterModulesKeepsCoreModulesWithoutConditions(t *testing.T) {
 		},
 	}
 
-	filtered := filterModules(modules, ContextFlags{})
+	filtered := filterModules(modules, &ContextFlags{})
 	if len(filtered) != 1 || filtered[0].Metadata.ID != "core" {
 		t.Fatalf("unexpected filtered modules: %+v", filtered)
 	}

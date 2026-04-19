@@ -237,7 +237,7 @@ type ContextFlags struct {
 //   - PredictedGuides>0:  -1 (active guides are valuable, keep them)
 //
 // Tier mapping: score ≤3 → full, ≤6 → compact, >6 → minimal.
-func DetermineTierAdaptive(flags ContextFlags) string {
+func DetermineTierAdaptive(flags *ContextFlags) string {
 	score := 0
 
 	// Message count is the primary pressure towards compacting
@@ -301,7 +301,7 @@ type PromptModule struct {
 // The build is guarded by an internal timeout (buildPromptTimeout) so that
 // unexpectedly slow file I/O or token counting cannot block the agent loop
 // indefinitely.  On timeout a minimal fallback prompt is returned.
-func BuildSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string, logger *slog.Logger) string {
+func BuildSystemPrompt(promptsDir string, flags *ContextFlags, coreMemory string, logger *slog.Logger) string {
 	type result struct {
 		prompt string
 	}
@@ -326,7 +326,7 @@ const buildPromptTimeout = 30 * time.Second
 
 // fallbackSystemPrompt returns a minimal system prompt when the full build
 // times out or fails catastrophically.
-func fallbackSystemPrompt(promptsDir string, flags ContextFlags, coreMemory string, logger *slog.Logger) string {
+func fallbackSystemPrompt(promptsDir string, flags *ContextFlags, coreMemory string, logger *slog.Logger) string {
 	var sb strings.Builder
 	sb.WriteString("Respond in " + flags.SystemLanguage + ".\n")
 	now := time.Now().Format(time.RFC1123)
@@ -349,7 +349,7 @@ func fallbackSystemPrompt(promptsDir string, flags ContextFlags, coreMemory stri
 	return sb.String()
 }
 
-func fallbackIdentityModule(flags ContextFlags) string {
+func fallbackIdentityModule(flags *ContextFlags) string {
 	switch {
 	case flags.IsEgg:
 		return "egg_identity.md"
@@ -395,7 +395,7 @@ func loadCriticalFallbackModule(promptsDir, filename string, logger *slog.Logger
 
 // buildSystemPromptInner contains the actual prompt-building logic, extracted
 // from BuildSystemPrompt so it can run in a goroutine with a timeout.
-func buildSystemPromptInner(promptsDir string, flags ContextFlags, coreMemory string, logger *slog.Logger) string {
+func buildSystemPromptInner(promptsDir string, flags *ContextFlags, coreMemory string, logger *slog.Logger) string {
 	var finalPrompt strings.Builder
 	finalPrompt.Grow(32768) // Pre-allocate ~32KB to reduce reallocs
 
@@ -810,7 +810,7 @@ func buildSystemPromptInner(promptsDir string, flags ContextFlags, coreMemory st
 // Returns the trimmed prompt and the list of section headers that were shed.
 // Shedding order (lowest value first):
 // 1. Tool Guides, 2. Predicted Memories, 3. User Profile, 4. Retrieved Memories (per-entry trim), 5. Personality self-awareness, 6. Personality profile
-func budgetShed(prompt string, flags ContextFlags, personalityContent, coreMemory string, now time.Time, logger *slog.Logger) (string, []string) {
+func budgetShed(prompt string, flags *ContextFlags, personalityContent, coreMemory string, now time.Time, logger *slog.Logger) (string, []string) {
 	tokens := countTokensWithModel(prompt, flags.Model)
 	if tokens <= flags.TokenBudget {
 		return prompt, nil
@@ -975,19 +975,19 @@ func trimRetrievedMemoriesSection(prompt string, budget int, model string, logge
 	baseTokens := countTokensWithModel(before+afterSection, model) + countTokensWithModel(header, model) + countTokensWithModel("\n\n", model)
 	sepTokens := countTokensWithModel(sep, model)
 	var entryTokens []int
-	for _, e := range entries {
-		entryTokens = append(entryTokens, countTokensWithModel(e, model))
+	// Compute total content tokens with a running sum (O(n) instead of O(n²))
+	totalContentTokens := 0
+	for i, e := range entries {
+		t := countTokensWithModel(e, model)
+		entryTokens = append(entryTokens, t)
+		if i > 0 {
+			totalContentTokens += sepTokens
+		}
+		totalContentTokens += t
 	}
 	currentEntryCount := len(entries)
 	for currentEntryCount > 0 {
-		var contentTokens int
-		for i := 0; i < currentEntryCount; i++ {
-			if i > 0 {
-				contentTokens += sepTokens
-			}
-			contentTokens += entryTokens[i]
-		}
-		tokens := baseTokens + contentTokens
+		tokens := baseTokens + totalContentTokens
 		if tokens <= budget {
 			if trimmed {
 				logger.Debug("[Budget] Trimmed retrieved memories", "remaining_entries", currentEntryCount)
@@ -996,6 +996,11 @@ func trimRetrievedMemoriesSection(prompt string, budget int, model string, logge
 			content := header + "\n" + strings.Join(keptEntries, sep) + "\n\n"
 			candidate := before + content + afterSection
 			return candidate, trimmed, countTokensWithModel(candidate, model)
+		}
+		// Subtract the last entry (and its separator) from the running total
+		totalContentTokens -= entryTokens[currentEntryCount-1]
+		if currentEntryCount > 1 {
+			totalContentTokens -= sepTokens
 		}
 		currentEntryCount--
 		trimmed = true
@@ -1054,7 +1059,7 @@ func longestPromptPrefixWithinBudget(runes []rune, suffix string, budget int, mo
 	return best, found
 }
 
-func buildUnifiedMemoryContextBlock(flags ContextFlags) string {
+func buildUnifiedMemoryContextBlock(flags *ContextFlags) string {
 	sections := make([]string, 0, 4)
 
 	if flags.RecentActivityOverview != "" && flags.Tier != "minimal" {
@@ -1118,16 +1123,19 @@ func removeLineByPrefix(text, prefix string) string {
 	return strings.TrimSpace(strings.Join(out, "\n"))
 }
 
-// isInsideCodeBlock checks if position idx in text is inside a markdown code block (between ``` and ```).
+// isInsideCodeBlock checks if position idx in text is inside a markdown code block (between ``` / ~~~ fences).
 func isInsideCodeBlock(text string, idx int) bool {
 	openCount := 0
 	for i := 0; i < idx && i < len(text); i++ {
-		if text[i] == '`' {
-			if i+2 < len(text) && text[i] == '`' && text[i+1] == '`' && text[i+2] == '`' {
-				openCount++
-				i += 2
-				continue
-			}
+		if text[i] == '`' && i+2 < len(text) && text[i+1] == '`' && text[i+2] == '`' {
+			openCount++
+			i += 2
+			continue
+		}
+		if text[i] == '~' && i+2 < len(text) && text[i+1] == '~' && text[i+2] == '~' {
+			openCount++
+			i += 2
+			continue
 		}
 	}
 	return openCount%2 != 0
@@ -1297,6 +1305,7 @@ func OptimizePrompt(raw string) (string, int) {
 	if len(jsonBuffer) > 0 {
 		result = append(result, "```json")
 		result = append(result, jsonBuffer...)
+		result = append(result, "```")
 	}
 
 	optimized := strings.TrimSpace(strings.Join(result, "\n"))
@@ -1482,7 +1491,7 @@ func countTokensWithModel(text, model string) int {
 // that are not part of the core toolset (filesystem, shell, python, etc.).
 // This lets the agent know what integrations are available even when the
 // adaptive tool filter removes some tool schemas to save tokens.
-func buildEnabledToolsOverview(flags ContextFlags) string {
+func buildEnabledToolsOverview(flags *ContextFlags) string {
 	skipSet := make(map[string]bool, len(flags.SkipIntegrationTools))
 	for _, t := range flags.SkipIntegrationTools {
 		skipSet[t] = true

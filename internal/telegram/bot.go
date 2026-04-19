@@ -304,7 +304,7 @@ func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Con
 	})
 	coreMem := shortTermMem.ReadCoreMemory()
 
-	sysPrompt := prompts.BuildSystemPrompt(cfg.Directories.PromptsDir, flags, coreMem, logger)
+	sysPrompt := prompts.BuildSystemPrompt(cfg.Directories.PromptsDir, &flags, coreMem, logger)
 
 	// 2. Assemble final messages for LLM
 	finalMessages := []openai.ChatCompletionMessage{

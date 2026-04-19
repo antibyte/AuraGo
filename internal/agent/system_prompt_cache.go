@@ -42,9 +42,11 @@ type systemPromptCacheKey struct {
 	UserProfileSummary     string   `json:"user_profile_summary"`
 	MessageSource          string   `json:"message_source"`
 	Model                  string   `json:"model"`
+	IsTextModeModel        bool     `json:"is_text_mode_model"`
+	PersonalityLine        string   `json:"personality_line"`
 }
 
-func buildSystemPromptCacheKey(promptsDir string, flags prompts.ContextFlags, coreMemory, budgetHint string) (string, error) {
+func buildSystemPromptCacheKey(promptsDir string, flags *prompts.ContextFlags, coreMemory, budgetHint string) (string, error) {
 	enabledTools := collectEnabledTools(flags)
 	featureToggles := collectFeatureToggles(flags)
 
@@ -91,6 +93,8 @@ func buildSystemPromptCacheKey(promptsDir string, flags prompts.ContextFlags, co
 		UserProfileSummary:     flags.UserProfileSummary,
 		MessageSource:          flags.MessageSource,
 		Model:                  flags.Model,
+		IsTextModeModel:        flags.IsTextModeModel,
+		PersonalityLine:        flags.PersonalityLine,
 	}
 	b, err := json.Marshal(key)
 	if err != nil {
@@ -100,7 +104,7 @@ func buildSystemPromptCacheKey(promptsDir string, flags prompts.ContextFlags, co
 	return hex.EncodeToString(sum[:]), nil
 }
 
-func collectEnabledTools(flags prompts.ContextFlags) []string {
+func collectEnabledTools(flags *prompts.ContextFlags) []string {
 	var tools []string
 	if flags.DockerEnabled {
 		tools = append(tools, "docker")
@@ -301,7 +305,7 @@ func collectEnabledTools(flags prompts.ContextFlags) []string {
 	return tools
 }
 
-func collectFeatureToggles(flags prompts.ContextFlags) []string {
+func collectFeatureToggles(flags *prompts.ContextFlags) []string {
 	var toggles []string
 	if flags.AllowShell {
 		toggles = append(toggles, "allow_shell")

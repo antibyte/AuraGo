@@ -380,7 +380,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			RecentlyUsedTools: recentTools,
 			PredictedGuides:   explicitTools,
 		}
-		if preliminaryTier := prompts.DetermineTierAdaptive(preliminaryTierFlags); preliminaryTier == "full" || len(explicitTools) > 0 {
+		if preliminaryTier := prompts.DetermineTierAdaptive(&preliminaryTierFlags); preliminaryTier == "full" || len(explicitTools) > 0 {
 			// Build skip list: tools that already have native OpenAI function schemas
 			// should not also get their guide content (saves tokens, avoids redundancy).
 			// Also skip tools that were removed by adaptive filtering — injecting a guide
@@ -792,7 +792,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		// Adaptive tier: adjust prompt complexity based on conversation length and context signals
 		flags.MessageCount = len(req.Messages)
 		flags.RecentlyUsedTools = recentTools
-		flags.Tier = prompts.DetermineTierAdaptive(flags)
+		flags.Tier = prompts.DetermineTierAdaptive(&flags)
 		if runCfg.IsMission {
 			flags.IsMission = true
 			flags.Tier = "minimal"
@@ -864,7 +864,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 		keyFlags := flags
 		keyFlags.MessageCount = 0 // MessageCount only affects tier selection & metrics, not the prompt content.
-		cacheKey, cacheKeyErr := buildSystemPromptCacheKey(cfg.Directories.PromptsDir, keyFlags, coreMemCache, budgetHint)
+		cacheKey, cacheKeyErr := buildSystemPromptCacheKey(cfg.Directories.PromptsDir, &keyFlags, coreMemCache, budgetHint)
 		cacheHit := cacheKeyErr == nil &&
 			cacheKey != "" &&
 			cacheKey == cachedSysPromptKey &&
@@ -878,7 +878,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			sysPrompt = cachedSysPrompt
 			sysPromptTokens = cachedSysPromptTokens
 		} else {
-			sysPrompt = prompts.BuildSystemPrompt(cfg.Directories.PromptsDir, flags, coreMemCache, s.currentLogger)
+			sysPrompt = prompts.BuildSystemPrompt(cfg.Directories.PromptsDir, &flags, coreMemCache, s.currentLogger)
 			if budgetHint != "" {
 				sysPrompt += "\n\n" + budgetHint
 			}

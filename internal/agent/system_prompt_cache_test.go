@@ -12,7 +12,7 @@ func TestBuildSystemPromptCacheKey_DifferentFlags(t *testing.T) {
 		TokenBudget: 1000,
 		IsMission:   false,
 	}
-	baseKey, err := buildSystemPromptCacheKey("/prompts", baseFlags, "", "hint")
+	baseKey, err := buildSystemPromptCacheKey("/prompts", &baseFlags, "", "hint")
 	if err != nil {
 		t.Fatalf("failed to build base cache key: %v", err)
 	}
@@ -88,7 +88,7 @@ func TestBuildSystemPromptCacheKey_DifferentFlags(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			flags := baseFlags
 			tt.modify(&flags)
-			key, err := buildSystemPromptCacheKey("/prompts", flags, "", "hint")
+			key, err := buildSystemPromptCacheKey("/prompts", &flags, "", "hint")
 			if err != nil {
 				t.Fatalf("failed to build cache key: %v", err)
 			}

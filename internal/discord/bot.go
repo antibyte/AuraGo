@@ -538,7 +538,7 @@ func processDiscordMessage(s *discordgo.Session, m *discordgo.MessageCreate, inp
 	})
 	coreMem := shortTermMem.ReadCoreMemory()
 
-	sysPrompt := prompts.BuildSystemPrompt(cfg.Directories.PromptsDir, flags, coreMem, logger)
+	sysPrompt := prompts.BuildSystemPrompt(cfg.Directories.PromptsDir, &flags, coreMem, logger)
 
 	// Assemble final messages for LLM
 	finalMessages := []openai.ChatCompletionMessage{

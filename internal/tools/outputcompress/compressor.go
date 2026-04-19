@@ -267,6 +267,27 @@ func compressAPIOutput(toolName, output string) (string, string) {
 }
 
 // isErrorOutput detects common error markers in tool output.
+// errorRegexps contains pre-compiled regular expressions for error detection.
+// They are compiled once at package init to avoid repeated regexp.MatchString overhead.
+var errorRegexps = func() []*regexp.Regexp {
+	patterns := []string{
+		`(?i)^error:`,
+		`(?i)^ERROR\s`,
+		`(?i)failed:`,
+		`(?i)failed to`,
+		`(?i)exception:`,
+		`(?i)traceback \(most recent call last\)`,
+		`(?i)unhandled exception`,
+		`(?i)permission denied`,
+		`(?i)access denied`,
+	}
+	result := make([]*regexp.Regexp, len(patterns))
+	for i, p := range patterns {
+		result[i] = regexp.MustCompile(p)
+	}
+	return result
+}()
+
 // Error outputs are never compressed to preserve debugging information.
 func isErrorOutput(output string) bool {
 	// Case-sensitive exact markers
@@ -286,20 +307,9 @@ func isErrorOutput(output string) bool {
 		}
 	}
 
-	// Case-insensitive patterns (regex)
-	errorPatterns := []string{
-		`(?i)^error:`,
-		`(?i)^ERROR\s`,
-		`(?i)failed:`,
-		`(?i)failed to`,
-		`(?i)exception:`,
-		`(?i)traceback \(most recent call last\)`,
-		`(?i)unhandled exception`,
-		`(?i)permission denied`,
-		`(?i)access denied`,
-	}
-	for _, pattern := range errorPatterns {
-		if matched, _ := regexp.MatchString(pattern, output); matched {
+	// Case-insensitive patterns (pre-compiled regexps)
+	for _, re := range errorRegexps {
+		if re.MatchString(output) {
 			return true
 		}
 	}

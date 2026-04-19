@@ -61,7 +61,7 @@ func AskAuraGoBridge(ctx context.Context, runCfg RunConfig, message string) (str
 		SpecialistsSuggestion: buildSpecialistDelegationHint(runCfg.Config, message),
 	})
 	coreMem := shortTermMem.ReadCoreMemory()
-	sysPrompt := prompts.BuildSystemPrompt(cfg.Directories.PromptsDir, flags, coreMem, logger)
+	sysPrompt := prompts.BuildSystemPrompt(cfg.Directories.PromptsDir, &flags, coreMem, logger)
 
 	finalMessages := []openai.ChatCompletionMessage{
 		{Role: openai.ChatMessageRoleSystem, Content: sysPrompt},
