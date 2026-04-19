@@ -48,21 +48,21 @@ AuraGo comes with a customizable dark/light theme UI. Here's a preview of the di
 
 | Theme 1 (Dark) | Theme 2 (Light) |
 |----------------|-----------------|
-| ![Theme 1](../screenshots/theme1.png) | ![Theme 2](../screenshots/theme2.png) |
+| ![Theme 1](../../screenshots/theme1.png) | ![Theme 2](../../screenshots/theme2.png) |
 
 | Theme 3 (Dark Variant) | Theme 4 (Light Variant) |
 |------------------------|------------------------|
-| ![Theme 3](../screenshots/theme3.png) | ![Theme 4](../screenshots/theme4.png) |
+| ![Theme 3](../../screenshots/theme3.png) | ![Theme 4](../../screenshots/theme4.png) |
 
 ### Main Interface Screenshots
 
 | Chat Interface | Dashboard |
 |----------------|-----------|
-| ![Chat](../screenshots/chat.png) | ![Dashboard](../screenshots/dashboard.png) |
+| ![Chat](../../screenshots/chat.png) | ![Dashboard](../../screenshots/dashboard.png) |
 
 | Configuration | Containers |
 |---------------|------------|
-| ![Config](../screenshots/config.png) | ![Containers](../screenshots/containers.png) |
+| ![Config](../../screenshots/config.png) | ![Containers](../../screenshots/containers.png) |
 
 ---
 
