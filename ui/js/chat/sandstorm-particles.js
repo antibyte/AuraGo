@@ -195,7 +195,7 @@
         Object.assign(fogCanvas.style, {
             position: 'fixed', top: '0', left: '0', width: '0', height: '0',
             pointerEvents: 'none', zIndex: '1', opacity: '1',
-            mixBlendMode: 'screen', display: 'none'
+            mixBlendMode: 'normal', display: 'none'
         });
         document.body.appendChild(fogCanvas);
 
