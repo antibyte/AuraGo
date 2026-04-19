@@ -56,7 +56,7 @@ func getActiveWindow(now time.Time, hb config.HeartbeatConfig) (*config.Heartbea
 }
 
 func parseInterval(iv string) time.Duration {
-	switch iv {
+	switch strings.ToLower(strings.TrimSpace(iv)) {
 	case "15m":
 		return 15 * time.Minute
 	case "30m":
@@ -72,6 +72,9 @@ func parseInterval(iv string) time.Duration {
 	case "12h":
 		return 12 * time.Hour
 	default:
+		if parsed, err := time.ParseDuration(strings.TrimSpace(iv)); err == nil && parsed > 0 {
+			return parsed
+		}
 		return 1 * time.Hour
 	}
 }

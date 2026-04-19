@@ -1,7 +1,10 @@
 package heartbeat
 
 import (
+	"encoding/json"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -19,6 +22,10 @@ type Scheduler struct {
 	wg      sync.WaitGroup
 	lastRun time.Time
 	running atomic.Bool // true while a heartbeat runner is executing
+}
+
+type persistedState struct {
+	LastRun string `json:"last_run"`
 }
 
 // New creates a new heartbeat scheduler.
@@ -58,6 +65,10 @@ func (s *Scheduler) Start() {
 		s.mu.Unlock()
 		s.logger.Info("Heartbeat scheduler disabled")
 		return
+	}
+
+	if restored, ok := s.loadPersistedLastRunLocked(); ok {
+		s.lastRun = restored
 	}
 
 	ch := make(chan struct{})
@@ -160,6 +171,7 @@ func (s *Scheduler) checkAndRun() {
 	s.mu.Lock()
 	s.lastRun = now
 	s.mu.Unlock()
+	s.persistLastRun(now)
 
 	prompt := buildHeartbeatPrompt(cfg.Heartbeat, now)
 	s.logger.Info("Heartbeat wake-up triggered",
@@ -174,4 +186,67 @@ func (s *Scheduler) checkAndRun() {
 		defer s.running.Store(false)
 		s.runner(prompt)
 	}()
+}
+
+func (s *Scheduler) heartbeatStatePathLocked() string {
+	if s.cfg == nil || s.cfg.Directories.DataDir == "" {
+		return ""
+	}
+	return filepath.Join(s.cfg.Directories.DataDir, "heartbeat_state.json")
+}
+
+func (s *Scheduler) loadPersistedLastRunLocked() (time.Time, bool) {
+	statePath := s.heartbeatStatePathLocked()
+	if statePath == "" {
+		return time.Time{}, false
+	}
+
+	raw, err := os.ReadFile(statePath)
+	if err != nil {
+		return time.Time{}, false
+	}
+
+	var state persistedState
+	if err := json.Unmarshal(raw, &state); err != nil {
+		s.logger.Warn("Heartbeat scheduler state unreadable, ignoring", "path", statePath, "error", err)
+		return time.Time{}, false
+	}
+	if state.LastRun == "" {
+		return time.Time{}, false
+	}
+	lastRun, err := time.Parse(time.RFC3339Nano, state.LastRun)
+	if err != nil {
+		s.logger.Warn("Heartbeat scheduler state has invalid timestamp, ignoring", "path", statePath, "error", err)
+		return time.Time{}, false
+	}
+	return lastRun, true
+}
+
+func (s *Scheduler) persistLastRun(lastRun time.Time) {
+	s.mu.RLock()
+	statePath := s.heartbeatStatePathLocked()
+	s.mu.RUnlock()
+	if statePath == "" {
+		return
+	}
+	if err := os.MkdirAll(filepath.Dir(statePath), 0o755); err != nil {
+		s.logger.Warn("Failed to create heartbeat state directory", "path", filepath.Dir(statePath), "error", err)
+		return
+	}
+
+	payload, err := json.Marshal(persistedState{LastRun: lastRun.Format(time.RFC3339Nano)})
+	if err != nil {
+		s.logger.Warn("Failed to encode heartbeat scheduler state", "error", err)
+		return
+	}
+
+	tmpPath := statePath + ".tmp"
+	if err := os.WriteFile(tmpPath, payload, 0o600); err != nil {
+		s.logger.Warn("Failed to write heartbeat scheduler state", "path", tmpPath, "error", err)
+		return
+	}
+	if err := os.Rename(tmpPath, statePath); err != nil {
+		_ = os.Remove(tmpPath)
+		s.logger.Warn("Failed to finalize heartbeat scheduler state", "path", statePath, "error", err)
+	}
 }

@@ -215,3 +215,36 @@ func TestSchedulerRestartRace(t *testing.T) {
 		t.Error("runner was never called")
 	}
 }
+
+func TestSchedulerPersistsLastRunAcrossProcessRestart(t *testing.T) {
+	var called atomic.Int32
+	runner := func(prompt string) {
+		called.Add(1)
+	}
+
+	cfg := &config.Config{}
+	cfg.Directories.DataDir = t.TempDir()
+	cfg.Heartbeat.Enabled = true
+	cfg.Heartbeat.DayTimeWindow = config.HeartbeatTimeWindow{Start: "00:00", End: "23:59", Interval: "1h"}
+	cfg.Heartbeat.NightTimeWindow = config.HeartbeatTimeWindow{Start: "22:00", End: "08:00", Interval: "4h"}
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	first := New(cfg, logger, runner)
+	first.Start()
+	time.Sleep(50 * time.Millisecond)
+	first.Stop()
+
+	if called.Load() != 1 {
+		t.Fatalf("runner called %d times after first start, want 1", called.Load())
+	}
+
+	second := New(cfg, logger, runner)
+	second.Start()
+	time.Sleep(50 * time.Millisecond)
+	second.Stop()
+
+	if called.Load() != 1 {
+		t.Fatalf("runner called %d times after restart, want persisted state to suppress extra immediate run", called.Load())
+	}
+}

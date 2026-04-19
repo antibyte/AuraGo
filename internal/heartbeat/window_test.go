@@ -146,6 +146,8 @@ func TestParseInterval(t *testing.T) {
 		{"4h", 4 * time.Hour},
 		{"6h", 6 * time.Hour},
 		{"12h", 12 * time.Hour},
+		{" 4h ", 4 * time.Hour},
+		{"90m", 90 * time.Minute},
 		{"", 1 * time.Hour},    // default
 		{"xyz", 1 * time.Hour}, // default
 	}
