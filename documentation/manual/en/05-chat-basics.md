@@ -532,4 +532,4 @@ Agent: 🌤️ London Weather:
 
 ---
 
-> 🎓 **Next Chapter:** [Chapter 6: Tools](06-tools.md) – Explore AuraGo's 50+ built-in tools in detail.
+> 🎓 **Next Chapter:** [Chapter 6: Tools](06-tools.md) – Explore AuraGo's 90+ built-in tools in detail.

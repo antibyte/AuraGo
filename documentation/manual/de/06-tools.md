@@ -1,6 +1,6 @@
 # Kapitel 6: Werkzeuge
 
-AuraGo verfügt über **50+ eingebaute Werkzeuge**, die ihn von einem einfachen Chatbot zu einem autonomen Agenten machen.
+AuraGo verfügt über **90+ eingebaute Werkzeuge**, die ihn von einem einfachen Chatbot zu einem autonomen Agenten machen.
 
 ---
 
@@ -330,7 +330,7 @@ Erstellte Tools werden in `agent_workspace/tools/` gespeichert und sind sofort v
 
 | Kategorie | Highlights |
 |-----------|------------|
-| **50+ Tools** | Für nahezu jede Home-Lab-Aufgabe |
+| **90+ Tools** | Für nahezu jede Home-Lab-Aufgabe |
 | **Sicherheit** | Read-Only-Modus, Danger Zone, LLM Guardian |
 | **Flexibilität** | Dynamische Tool-Erstellung zur Laufzeit |
 | **Effizienz** | Adaptive Tools sparen Tokens |

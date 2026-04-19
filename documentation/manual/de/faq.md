@@ -11,7 +11,7 @@ Nutze die Installationsschritte aus [Kapitel 2](02-installation.md) und danach d
 Nein. Der Kern läuft als Single-Binary. Docker ist für Isolation und Sidecars (z. B. Gotenberg) empfohlen. Siehe [Docker Installation](../../docker_installation.md).
 
 ### Wie viele Tools gibt es aktuell?
-Die aktuelle Plattform dokumentiert 50+ integrierte Tools plus integrationsspezifische Funktionen. Siehe [Kapitel 6: Werkzeuge](06-tools.md).
+Die aktuelle Plattform dokumentiert 90+ integrierte Tools plus integrationsspezifische Funktionen. Siehe [Kapitel 6: Werkzeuge](06-tools.md).
 
 ## Sicherheit
 

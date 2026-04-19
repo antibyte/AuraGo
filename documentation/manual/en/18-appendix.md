@@ -940,7 +940,7 @@ Logs are automatically rotated when they reach 100MB:
 - Knowledge graph for structured facts
 - Web UI with real-time chat
 - Telegram and Discord integrations
-- 50+ built-in tools
+- 90+ built-in tools
 - AES-256-GCM encrypted vault
 - Personality engine V1
 - Co-agent system

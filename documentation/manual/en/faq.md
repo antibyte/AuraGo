@@ -11,7 +11,7 @@ Use the installation flow in [Chapter 2](02-installation.md) and then follow [Ch
 No. The core agent runs as a single binary. Docker is recommended for isolation and sidecars (for example Gotenberg). See [Docker Installation](../../docker_installation.md).
 
 ### How many tools are currently available?
-The current platform documents 50+ built-in tools and several integration-specific capabilities. See [Chapter 6: Tools](06-tools.md).
+The current platform documents 90+ built-in tools and several integration-specific capabilities. See [Chapter 6: Tools](06-tools.md).
 
 ## Security
 

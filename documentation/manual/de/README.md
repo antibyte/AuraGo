@@ -52,7 +52,7 @@ AuraGo ist ein vollständig autonomer KI-Agent, der als einzelne portable Binary
 5. [Chat-Grundlagen](05-chatgrundlagen.md) – Kommunikation
 
 ### Teil 2: Features im Detail
-6. [Werkzeuge](06-tools.md) – 50+ Tools nutzen
+6. [Werkzeuge](06-tools.md) – 90+ Tools nutzen
 7. [Konfiguration](07-konfiguration.md) – Feintuning mit Provider-System
 8. [Integrationen](08-integrations.md) – Telegram, Discord, Email, etc.
 9. [Gedächtnis & Wissen](09-memory.md) – Speicher verstehen

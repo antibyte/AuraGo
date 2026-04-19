@@ -1,6 +1,6 @@
 # Chapter 6: Tools
 
-AuraGo's **50+ built-in tools** transform it from a chatbot into an autonomous agent.
+AuraGo's **90+ built-in tools** transform it from a chatbot into an autonomous agent.
 
 ---
 
@@ -9,14 +9,17 @@ AuraGo's **50+ built-in tools** transform it from a chatbot into an autonomous a
 | Category | Tools | Danger Zone |
 |----------|-------|-------------|
 | **🗂️ Filesystem** | Read, write, delete files | Yes |
-| **🌐 Web & APIs** | Search, HTTP, scraping | No (partial) |
+| **🌐 Web & APIs** | Search, HTTP, scraping, screenshots | No (partial) |
 | **🐳 Docker** | Containers, images, networks | Yes |
 | **🖥️ Proxmox** | VMs, LXCs, snapshots | Yes |
 | **🏠 Smart Home** | Home Assistant, MQTT, Wake-on-LAN | Yes |
-| **☁️ Cloud** | Google Workspace, WebDAV, GitHub | No (partial) |
-| **📧 Communication** | Email, Telegram, Discord | No |
-| **🔧 System** | Metrics, processes, cron | Partial |
+| **☁️ Cloud** | Google Workspace, WebDAV, GitHub, S3, OneDrive | No (partial) |
+| **📧 Communication** | Email, Telegram, Discord, Telnyx | No |
+| **🔧 System** | Metrics, processes, cron, network tools | Partial |
 | **🧠 Memory** | Memory, notes, knowledge graph | No |
+| **🌐 Network** | Ping, port scan, mDNS, UPnP | No |
+| **🖥️ Remote** | SSH, Invasion Control, MeshCentral | Yes |
+| **📝 Documents** | PDF Creator/Extractor, Paperless NGX | No |
 
 ---
 
@@ -254,7 +257,7 @@ Created tools are saved to `agent_workspace/tools/` and available immediately.
 
 | Category | Highlights |
 |----------|------------|
-| **50+ Tools** | For nearly any home lab task |
+| **90+ Tools** | For nearly any home lab task |
 | **Security** | Read-only mode, Danger Zone, LLM Guardian |
 | **Flexibility** | Dynamic tool creation at runtime |
 | **Efficiency** | Adaptive Tools save tokens |
