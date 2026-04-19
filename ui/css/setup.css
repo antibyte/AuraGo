@@ -1049,6 +1049,22 @@
     border-style: dashed;
 }
 
+.profile-recommended-bubble {
+    position: absolute;
+    top: 10px;
+    right: -24px;
+    background: linear-gradient(135deg, #2dd4bf, #14b8a6);
+    color: #fff;
+    font-size: 0.6rem;
+    font-weight: 700;
+    padding: 3px 28px;
+    transform: rotate(45deg);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    pointer-events: none;
+    box-shadow: 0 2px 8px rgba(45, 212, 191, 0.4);
+}
+
 .profile-card-icon {
     font-size: 2rem;
     line-height: 1;

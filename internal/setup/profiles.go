@@ -31,6 +31,7 @@ type SetupProfile struct {
 	Features              ProfileFeatures `yaml:"features"               json:"features"`
 	Models                ProfileModels   `yaml:"models"                 json:"models"`
 	DefaultTrustLevel     int             `yaml:"default_trust_level"    json:"default_trust_level"`
+	Recommended           bool            `yaml:"recommended"            json:"recommended"`
 	TTS                   *ProfileTTS     `yaml:"tts,omitempty"          json:"tts,omitempty"`
 	ConfigPatch           map[string]any  `yaml:"config_patch,omitempty" json:"config_patch,omitempty"`
 }

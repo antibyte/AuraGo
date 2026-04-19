@@ -49,6 +49,7 @@ profiles:
     description: "MiniMax M2.5 coding-optimized models. Best value for creative + agentic code workflows."
     icon: "💻"
     sort_order: 2
+    recommended: true
     pricing_label: "Coding plan – included models"
     pricing_url: "https://www.minimaxi.com"
     key_url: "https://platform.minimaxi.com"

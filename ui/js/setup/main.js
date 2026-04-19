@@ -183,6 +183,7 @@ function renderProfileCards(list) {
              id="profile-card-${escapeAttr(p.id)}"
              onclick="selectProfile('${escapeAttr(p.id)}')">
             <div class="profile-check">✓</div>
+            ${p.recommended ? '<div class="profile-recommended-bubble">Recommended</div>' : ''}
             <div class="profile-card-icon">${escapeHtml(p.icon || (isCustom ? '⚙️' : '🤖'))}</div>
             <div class="profile-card-name">${escapeHtml(name)}</div>
             <div class="profile-card-description">${escapeHtml(desc)}</div>
