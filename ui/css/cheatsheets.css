@@ -59,6 +59,59 @@
     padding: 0 18px;
 }
 
+.sheet-groups-overview {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+}
+
+.sheet-group-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: 999px;
+    background: var(--bg-glass);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.sheet-group-pill strong,
+.sheet-group-count {
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+}
+
+.sheet-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+}
+
+.sheet-group {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.sheet-group-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.sheet-group-header h2 {
+    margin: 0;
+    font-size: 1.05rem;
+}
+
+.empty-state-inline {
+    padding: 20px 16px;
+}
+
 /* Cards Grid – Masonry in grid view, normal list in list view */
 .cards-grid {
     columns: 4 320px;
@@ -505,6 +558,9 @@
     .page-header .header-actions #btn-create {
         min-width: 0;
         justify-content: center;
+    }
+    .sheet-group-header {
+        align-items: flex-start;
     }
     .modal-wide {
         max-width: 95vw;

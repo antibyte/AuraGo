@@ -40,5 +40,11 @@
   "cheatsheets.attachment_added": "Archivo adjuntado.",
   "cheatsheets.attachment_removed": "Archivo eliminado.",
   "cheatsheets.attachments_added": "{{count}} archivo(s) adjuntado(s).",
-  "cheatsheets.no_knowledge_files": "No se encontraron archivos compatibles (.txt, .md)"
+  "cheatsheets.no_knowledge_files": "No se encontraron archivos compatibles (.txt, .md)",
+  "cheatsheets.empty_user": "Aún no hay hojas de trucos de usuario.",
+  "cheatsheets.group_user": "Usuario",
+  "cheatsheets.created_by_agent": "Creado por el agente",
+  "cheatsheets.created_by_user": "Creado por el usuario",
+  "cheatsheets.group_agent": "Agente",
+  "cheatsheets.empty_agent": "Aún no hay hojas de trucos del agente."
 }

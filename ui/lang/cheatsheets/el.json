@@ -40,5 +40,11 @@
   "cheatsheets.attachment_added": "Το συνημμένο προστέθηκε.",
   "cheatsheets.attachment_removed": "Το συνημμένο αφαιρέθηκε.",
   "cheatsheets.attachments_added": "{{count}} συνημμένα προστέθηκαν.",
-  "cheatsheets.no_knowledge_files": "Δεν βρέθηκαν συμβατά αρχεία (.txt, .md)"
+  "cheatsheets.no_knowledge_files": "Δεν βρέθηκαν συμβατά αρχεία (.txt, .md)",
+  "cheatsheets.empty_user": "Δεν υπάρχουν ακόμα φύλλα εξαπάτησης χρήστη.",
+  "cheatsheets.group_user": "Χρήστης",
+  "cheatsheets.created_by_agent": "Δημιουργήθηκε από τον πράκτορα",
+  "cheatsheets.created_by_user": "Δημιουργήθηκε από τον χρήστη",
+  "cheatsheets.group_agent": "Πράκτορας",
+  "cheatsheets.empty_agent": "Δεν υπάρχουν ακόμα φύλλα εξαπάτησης πράκτορα."
 }

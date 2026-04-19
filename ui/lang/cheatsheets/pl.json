@@ -40,5 +40,11 @@
   "cheatsheets.attachment_added": "Załącznik dodany.",
   "cheatsheets.attachment_removed": "Załącznik usunięty.",
   "cheatsheets.attachments_added": "{{count}} załącznik(ów) dodanych.",
-  "cheatsheets.no_knowledge_files": "Nie znaleziono kompatybilnych plików (.txt, .md)"
+  "cheatsheets.no_knowledge_files": "Nie znaleziono kompatybilnych plików (.txt, .md)",
+  "cheatsheets.empty_user": "Nie ma jeszcze ściągawek użytkownika.",
+  "cheatsheets.group_user": "Użytkownik",
+  "cheatsheets.created_by_agent": "Utworzone przez agenta",
+  "cheatsheets.created_by_user": "Utworzone przez użytkownika",
+  "cheatsheets.group_agent": "Agent",
+  "cheatsheets.empty_agent": "Nie ma jeszcze ściągawek agenta."
 }

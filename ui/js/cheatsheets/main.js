@@ -71,37 +71,69 @@ function toggleCardExpand(id) {
 
 // ── Render ───────────────────────────────────────────────
 function renderSheets() {
-    const grid = document.getElementById('sheets-grid');
     const empty = document.getElementById('sheets-empty');
+    const groups = document.getElementById('sheets-groups');
+    const overview = document.getElementById('sheets-groups-overview');
     const mode = getEffectiveViewMode();
+    const userSheets = sheetsData.filter(s => s.created_by !== 'agent');
+    const agentSheets = sheetsData.filter(s => s.created_by === 'agent');
 
     if (!sheetsData || sheetsData.length === 0) {
+        empty.classList.remove('is-hidden');
+        groups.classList.add('is-hidden');
+        overview.classList.add('is-hidden');
+        renderSheetGroup('user', [], mode);
+        renderSheetGroup('agent', [], mode);
+        return;
+    }
+    empty.classList.add('is-hidden');
+    groups.classList.remove('is-hidden');
+    overview.classList.remove('is-hidden');
+
+    renderSheetGroup('user', userSheets, mode);
+    renderSheetGroup('agent', agentSheets, mode);
+    setGroupCount('user', userSheets.length);
+    setGroupCount('agent', agentSheets.length);
+    updateViewToggle();
+}
+
+function renderSheetGroup(groupKey, sheets, mode) {
+    const grid = document.getElementById(`sheets-grid-${groupKey}`);
+    const empty = document.getElementById(`sheets-empty-${groupKey}`);
+    grid.classList.toggle('list-view', mode === 'list');
+
+    if (!sheets || sheets.length === 0) {
         grid.innerHTML = '';
         empty.classList.remove('is-hidden');
         return;
     }
+
     empty.classList.add('is-hidden');
+    grid.innerHTML = mode === 'list'
+        ? sheets.map(s => renderSheetCompact(s)).join('')
+        : sheets.map(s => renderSheetGrid(s)).join('');
+}
 
-    grid.classList.toggle('list-view', mode === 'list');
-
-    if (mode === 'list') {
-        grid.innerHTML = sheetsData.map(s => renderSheetCompact(s)).join('');
-    } else {
-        grid.innerHTML = sheetsData.map(s => renderSheetGrid(s)).join('');
-    }
-    updateViewToggle();
+function setGroupCount(groupKey, count) {
+    const badge = document.getElementById(`sheets-count-${groupKey}`);
+    const header = document.getElementById(`sheets-header-count-${groupKey}`);
+    if (badge) badge.textContent = count;
+    if (header) header.textContent = count;
 }
 
 // Compact List View
 function renderSheetCompact(s) {
     const statusIcon = s.active ? '🟢' : '⚪';
     const creatorIcon = s.created_by === 'agent' ? '🤖' : '';
+    const creatorTitle = s.created_by === 'agent'
+        ? esc(t('cheatsheets.created_by_agent') || 'Created by agent')
+        : esc(t('cheatsheets.created_by_user') || 'Created by user');
 
     return `
         <div class="card-compact" onclick="if(event.target.closest('.card-actions')) return; openEdit('${escJs(s.id)}')">
             <span class="card-icon" title="${s.active ? t('cheatsheets.active') : t('cheatsheets.inactive')}">${statusIcon}</span>
             <span class="card-name">${esc(s.name)}</span>
-            ${creatorIcon ? `<span class="card-icon" title="Created by Agent">${creatorIcon}</span>` : ''}
+            ${creatorIcon ? `<span class="card-icon" title="${creatorTitle}">${creatorIcon}</span>` : ''}
             <div class="card-actions" onclick="event.stopPropagation()">
                 <button class="btn btn-sm btn-secondary" onclick="openEdit('${escJs(s.id)}')" title="${esc(t('cheatsheets.edit'))}">✏️</button>
                 <button class="btn btn-sm ${s.active ? 'btn-secondary' : 'btn-primary'}" onclick="toggleActive('${escJs(s.id)}', ${!s.active})" title="${s.active ? esc(t('cheatsheets.deactivate')) : esc(t('cheatsheets.activate'))}">${s.active ? '⏸️' : '▶️'}</button>
@@ -118,7 +150,7 @@ function renderSheetGrid(s) {
         ? `<span class="badge badge-active">${esc(t('cheatsheets.active'))}</span>`
         : `<span class="badge badge-inactive">${esc(t('cheatsheets.inactive'))}</span>`;
     const creatorBadge = s.created_by === 'agent'
-        ? `<span class="badge badge-agent">🤖 Agent</span>`
+        ? `<span class="badge badge-agent">🤖 ${esc(t('cheatsheets.group_agent') || 'Agent')}</span>`
         : '';
     const attachBadge = (s.attachment_count > 0)
         ? `<span class="badge badge-attachment">📎 ${s.attachment_count}</span>`

@@ -40,5 +40,11 @@
   "cheatsheets.attachment_added": "附件已添加。",
   "cheatsheets.attachment_removed": "附件已移除。",
   "cheatsheets.attachments_added": "已添加 {{count}} 个附件。",
-  "cheatsheets.no_knowledge_files": "未找到兼容文件 (.txt, .md)"
+  "cheatsheets.no_knowledge_files": "未找到兼容文件 (.txt, .md)",
+  "cheatsheets.empty_user": "还没有用户备忘单。",
+  "cheatsheets.group_user": "用户",
+  "cheatsheets.created_by_agent": "由代理创建",
+  "cheatsheets.created_by_user": "由用户创建",
+  "cheatsheets.group_agent": "代理",
+  "cheatsheets.empty_agent": "还没有代理备忘单。"
 }

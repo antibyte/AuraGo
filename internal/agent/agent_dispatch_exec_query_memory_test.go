@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"log/slog"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -12,6 +13,7 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/memory"
 	"aurago/internal/planner"
+	"aurago/internal/tools"
 )
 
 type fakeVectorDB struct {
@@ -310,6 +312,35 @@ func TestDispatchExecQueryMemoryIncludesPlannerSource(t *testing.T) {
 	}
 	if !strings.Contains(out, "Server backup audit") {
 		t.Fatalf("output = %q, want planner todo hit", out)
+	}
+}
+
+func TestDispatchExecQueryMemoryIncludesCheatsheetSource(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Tools.Memory.Enabled = true
+	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
+	csDB, err := tools.InitCheatsheetDB(filepath.Join(t.TempDir(), "cheatsheets.db"))
+	if err != nil {
+		t.Fatalf("InitCheatsheetDB: %v", err)
+	}
+	t.Cleanup(func() { _ = csDB.Close() })
+	if _, err := tools.CheatsheetCreate(csDB, "Docker Recovery Workflow", "Check docker logs before restarting the service.", "agent"); err != nil {
+		t.Fatalf("CheatsheetCreate: %v", err)
+	}
+
+	out, ok := dispatchExec(
+		context.Background(),
+		ToolCall{Action: "query_memory", Query: "docker logs restart issue", Sources: []string{"cheatsheets"}},
+		&DispatchContext{Cfg: cfg, Logger: logger, CheatsheetDB: csDB},
+	)
+	if !ok {
+		t.Fatal("expected dispatchExec to handle query_memory")
+	}
+	if !strings.Contains(out, `"source":"cheatsheets"`) {
+		t.Fatalf("output = %q, want cheatsheets source", out)
+	}
+	if !strings.Contains(out, "Docker Recovery Workflow") {
+		t.Fatalf("output = %q, want cheatsheet hit", out)
 	}
 }
 

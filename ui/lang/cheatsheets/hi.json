@@ -40,5 +40,11 @@
   "cheatsheets.attachment_added": "अनुलग्नक जोड़ा गया।",
   "cheatsheets.attachment_removed": "अनुलग्नक हटाया गया।",
   "cheatsheets.attachments_added": "{{count}} अनुलग्नक जोड़े गए।",
-  "cheatsheets.no_knowledge_files": "कोई संगत फ़ाइलें नहीं मिलीं (.txt, .md)"
+  "cheatsheets.no_knowledge_files": "कोई संगत फ़ाइलें नहीं मिलीं (.txt, .md)",
+  "cheatsheets.empty_user": "अभी तक कोई उपयोगकर्ता चीट शीट नहीं।",
+  "cheatsheets.group_user": "उपयोगकर्ता",
+  "cheatsheets.created_by_agent": "एजेंट द्वारा बनाया गया",
+  "cheatsheets.created_by_user": "उपयोगकर्ता द्वारा बनाया गया",
+  "cheatsheets.group_agent": "एजेंट",
+  "cheatsheets.empty_agent": "अभी तक कोई एजेंट चीट शीट नहीं।"
 }

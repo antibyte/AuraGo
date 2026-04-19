@@ -212,6 +212,7 @@ type ContextFlags struct {
 	DailyTodoReminder        string // First-contact-of-day reminder for open planner todos
 	KnowledgeContext         string // Relevant KG entities injected from SearchForContext
 	ErrorPatternContext      string // Known error patterns with resolutions for agent learning
+	ReuseContext             string // Reuse-first lookup hints for non-trivial tasks
 	EmotionDescription       string // LLM-synthesized emotional state description (Emotion Synthesizer)
 	InnerVoice               string // Inner voice thought (1-3 sentences, first person, from Inner Voice System)
 	IsMission                bool   // true when this is a mission run — skips personality, profiling, emotion
@@ -600,6 +601,11 @@ func buildSystemPromptInner(promptsDir string, flags *ContextFlags, coreMemory s
 	if flags.ErrorPatternContext != "" && tier != "minimal" {
 		finalPrompt.WriteString("# KNOWN ERROR PATTERNS\n")
 		finalPrompt.WriteString(security.IsolateExternalData(flags.ErrorPatternContext))
+		finalPrompt.WriteString("\n\n")
+	}
+	if flags.ReuseContext != "" {
+		finalPrompt.WriteString("# REUSE-FIRST CONTEXT\n")
+		finalPrompt.WriteString(security.IsolateExternalData(flags.ReuseContext))
 		finalPrompt.WriteString("\n\n")
 	}
 	sectionMemories := finalPrompt.Len() - sectionModules

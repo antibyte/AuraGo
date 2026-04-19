@@ -40,5 +40,11 @@
   "cheatsheets.attachment_added": "Allegato aggiunto.",
   "cheatsheets.attachment_removed": "Allegato rimosso.",
   "cheatsheets.attachments_added": "{{count}} allegato/i aggiunto/i.",
-  "cheatsheets.no_knowledge_files": "Nessun file compatibile trovato (.txt, .md)"
+  "cheatsheets.no_knowledge_files": "Nessun file compatibile trovato (.txt, .md)",
+  "cheatsheets.empty_user": "Nessun foglietto utente ancora.",
+  "cheatsheets.group_user": "Utente",
+  "cheatsheets.created_by_agent": "Creato dall'agente",
+  "cheatsheets.created_by_user": "Creato dall'utente",
+  "cheatsheets.group_agent": "Agente",
+  "cheatsheets.empty_agent": "Nessun foglietto agente ancora."
 }

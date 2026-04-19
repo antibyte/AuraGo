@@ -40,5 +40,11 @@
   "cheatsheets.attachment_added": "Bijlage toegevoegd.",
   "cheatsheets.attachment_removed": "Bijlage verwijderd.",
   "cheatsheets.attachments_added": "{{count}} bijlage(n) toegevoegd.",
-  "cheatsheets.no_knowledge_files": "Geen compatibele bestanden gevonden (.txt, .md)"
+  "cheatsheets.no_knowledge_files": "Geen compatibele bestanden gevonden (.txt, .md)",
+  "cheatsheets.empty_user": "Nog geen gebruikersspiekbriefjes.",
+  "cheatsheets.group_user": "Gebruiker",
+  "cheatsheets.created_by_agent": "Gemaakt door agent",
+  "cheatsheets.created_by_user": "Gemaakt door gebruiker",
+  "cheatsheets.group_agent": "Agent",
+  "cheatsheets.empty_agent": "Nog geen agent-spiekbriefjes."
 }

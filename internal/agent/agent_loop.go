@@ -225,6 +225,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 	toolGuidesDir := s.toolGuidesDir
 	useNativeFunctions := s.useNativeFunctions
 	adaptiveFilteredTools := s.adaptiveFilteredTools
+	reuseLookup := ReuseLookupResult{}
+	lastReuseLookupMsg := ""
 
 	const systemPromptCacheTTL = 30 * time.Second
 
@@ -325,6 +327,20 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				lastResponseWasTool = s.lastResponseWasTool
 				req = s.req
 				continue
+			}
+		}
+
+		flags.ReuseContext = ""
+		if !runCfg.IsMission && !runCfg.IsCoAgent {
+			trimmedReuseQuery := strings.TrimSpace(lastUserMsg)
+			if trimmedReuseQuery != "" {
+				if trimmedReuseQuery != lastReuseLookupMsg {
+					reuseLookup = buildReuseLookup(trimmedReuseQuery, shortTermMem, s.runCfg.CheatsheetDB, s.currentLogger)
+					lastReuseLookupMsg = trimmedReuseQuery
+				}
+				if reuseLookup.Performed {
+					flags.ReuseContext = reuseLookup.Prompt
+				}
 			}
 		}
 
@@ -1632,6 +1648,13 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 		// Journal auto-trigger: create entries for significant tool chains
 		JournalAutoTrigger(cfg, shortTermMem, s.currentLogger, sessionID, recentTools, lastUserMsg)
+
+		if !isEmpty && !runCfg.IsMission && !runCfg.IsCoAgent {
+			evaluation := evaluateReusability(lastUserMsg, content, turnToolNames, turnToolSummaries, reuseLookup)
+			if err := applyReusabilityDecision(runCfg, s.currentLogger, evaluation); err != nil {
+				s.currentLogger.Warn("[ReuseFirst] Failed to apply reusability decision", "error", err, "reuse_decision", evaluation.Decision)
+			}
+		}
 
 		// Weekly reflection: async trigger if configured and due
 		// Guard: only run once per day by checking if a reflection entry already exists today.

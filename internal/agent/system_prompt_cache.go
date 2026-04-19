@@ -38,6 +38,7 @@ type systemPromptCacheKey struct {
 	SpecialistsStatus      string   `json:"specialists_status"`
 	KnowledgeContext       string   `json:"knowledge_context"`
 	ErrorPatternContext    string   `json:"error_pattern_context"`
+	ReuseContext           string   `json:"reuse_context"`
 	EmotionDescription     string   `json:"emotion_description"`
 	UserProfileSummary     string   `json:"user_profile_summary"`
 	MessageSource          string   `json:"message_source"`
@@ -89,6 +90,7 @@ func buildSystemPromptCacheKey(promptsDir string, flags *prompts.ContextFlags, c
 		SpecialistsStatus:      flags.SpecialistsStatus,
 		KnowledgeContext:       flags.KnowledgeContext,
 		ErrorPatternContext:    flags.ErrorPatternContext,
+		ReuseContext:           flags.ReuseContext,
 		EmotionDescription:     flags.EmotionDescription,
 		UserProfileSummary:     flags.UserProfileSummary,
 		MessageSource:          flags.MessageSource,

@@ -40,5 +40,11 @@
   "cheatsheets.attachment_added": "Anexo adicionado.",
   "cheatsheets.attachment_removed": "Anexo removido.",
   "cheatsheets.attachments_added": "{{count}} anexo(s) adicionado(s).",
-  "cheatsheets.no_knowledge_files": "Nenhum arquivo compatível encontrado (.txt, .md)"
+  "cheatsheets.no_knowledge_files": "Nenhum arquivo compatível encontrado (.txt, .md)",
+  "cheatsheets.empty_user": "Ainda não há folhas de dicas do utilizador.",
+  "cheatsheets.group_user": "Utilizador",
+  "cheatsheets.created_by_agent": "Criado pelo agente",
+  "cheatsheets.created_by_user": "Criado pelo utilizador",
+  "cheatsheets.group_agent": "Agente",
+  "cheatsheets.empty_agent": "Ainda não há folhas de dicas do agente."
 }

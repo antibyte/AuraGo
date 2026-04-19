@@ -40,5 +40,11 @@
   "cheatsheets.attachment_added": "Attachment added.",
   "cheatsheets.attachment_removed": "Attachment removed.",
   "cheatsheets.attachments_added": "{{count}} attachment(s) added.",
-  "cheatsheets.no_knowledge_files": "No compatible files found (.txt, .md)"
+  "cheatsheets.no_knowledge_files": "No compatible files found (.txt, .md)",
+  "cheatsheets.empty_user": "No user cheat sheets yet.",
+  "cheatsheets.group_user": "User",
+  "cheatsheets.created_by_agent": "Created by agent",
+  "cheatsheets.created_by_user": "Created by user",
+  "cheatsheets.group_agent": "Agent",
+  "cheatsheets.empty_agent": "No agent cheat sheets yet."
 }

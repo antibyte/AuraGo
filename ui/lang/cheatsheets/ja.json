@@ -40,5 +40,11 @@
   "cheatsheets.attachment_added": "添付ファイルを追加しました。",
   "cheatsheets.attachment_removed": "添付ファイルを削除しました。",
   "cheatsheets.attachments_added": "{{count}}件の添付ファイルを追加しました。",
-  "cheatsheets.no_knowledge_files": "互換性のあるファイルが見つかりません (.txt, .md)"
+  "cheatsheets.no_knowledge_files": "互換性のあるファイルが見つかりません (.txt, .md)",
+  "cheatsheets.empty_user": "まだユーザーのチートシートはありません。",
+  "cheatsheets.group_user": "ユーザー",
+  "cheatsheets.created_by_agent": "エージェントが作成",
+  "cheatsheets.created_by_user": "ユーザーが作成",
+  "cheatsheets.group_agent": "エージェント",
+  "cheatsheets.empty_agent": "まだエージェントのチートシートはありません。"
 }

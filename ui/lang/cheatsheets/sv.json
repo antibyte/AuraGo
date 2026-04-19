@@ -40,5 +40,11 @@
   "cheatsheets.attachment_added": "Bilaga tillagd.",
   "cheatsheets.attachment_removed": "Bilaga borttagen.",
   "cheatsheets.attachments_added": "{{count}} bilaga/bilagor tillagda.",
-  "cheatsheets.no_knowledge_files": "Inga kompatibla filer hittades (.txt, .md)"
+  "cheatsheets.no_knowledge_files": "Inga kompatibla filer hittades (.txt, .md)",
+  "cheatsheets.empty_user": "Inga användar-fuskblad ännu.",
+  "cheatsheets.group_user": "Användare",
+  "cheatsheets.created_by_agent": "Skapad av agenten",
+  "cheatsheets.created_by_user": "Skapad av användaren",
+  "cheatsheets.group_agent": "Agent",
+  "cheatsheets.empty_agent": "Inga agent-fuskblad ännu."
 }

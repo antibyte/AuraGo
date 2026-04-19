@@ -40,5 +40,11 @@
   "cheatsheets.attachment_added": "Vedhæftning tilføjet.",
   "cheatsheets.attachment_removed": "Vedhæftning fjernet.",
   "cheatsheets.attachments_added": "{{count}} vedhæftning(er) tilføjet.",
-  "cheatsheets.no_knowledge_files": "Ingen kompatible filer fundet (.txt, .md)"
+  "cheatsheets.no_knowledge_files": "Ingen kompatible filer fundet (.txt, .md)",
+  "cheatsheets.empty_user": "Ingen bruger-snydeark endnu.",
+  "cheatsheets.group_user": "Bruger",
+  "cheatsheets.created_by_agent": "Oprettet af agenten",
+  "cheatsheets.created_by_user": "Oprettet af brugeren",
+  "cheatsheets.group_agent": "Agent",
+  "cheatsheets.empty_agent": "Ingen agent-snydeark endnu."
 }

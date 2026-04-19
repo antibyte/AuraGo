@@ -10,6 +10,7 @@ import (
 
 	"aurago/internal/memory"
 	"aurago/internal/planner"
+	"aurago/internal/tools"
 )
 
 type memorySourceResult struct {
@@ -154,6 +155,8 @@ func normalizeMemorySourceMap(sources []string, defaults map[string]bool) map[st
 		"planner":         "planner",
 		"todos":           "planner",
 		"appointments":    "planner",
+		"cheatsheet":      "cheatsheets",
+		"cheatsheets":     "cheatsheets",
 		"error_patterns":  "error_patterns",
 	}
 
@@ -172,7 +175,7 @@ func normalizeMemorySourceMap(sources []string, defaults map[string]bool) map[st
 	return normalized
 }
 
-func gatherMemorySourceResults(searchContent string, tc ToolCall, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, kg *memory.KnowledgeGraph, plannerDB *sql.DB, perSourceLimit int, defaults map[string]bool, sourceLabels map[string]string, includeActivityRollups bool) memorySearchBundle {
+func gatherMemorySourceResults(searchContent string, tc ToolCall, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, kg *memory.KnowledgeGraph, plannerDB *sql.DB, cheatsheetDB *sql.DB, perSourceLimit int, defaults map[string]bool, sourceLabels map[string]string, includeActivityRollups bool) memorySearchBundle {
 	bundle := memorySearchBundle{
 		Results:   make([]memorySourceResult, 0, 8),
 		Errors:    make([]string, 0, 4),
@@ -262,6 +265,21 @@ func gatherMemorySourceResults(searchContent string, tc ToolCall, shortTermMem *
 		}
 	}
 
+	if bundle.SourceMap["cheatsheets"] && cheatsheetDB != nil && hasSemanticQuery {
+		hits := searchReusableCheatsheets(cheatsheetDB, searchContent, perSourceLimit)
+		if len(hits) > 0 {
+			sheets := make([]tools.CheatSheet, 0, len(hits))
+			for _, hit := range hits {
+				if hit.Cheatsheet != nil {
+					sheets = append(sheets, *hit.Cheatsheet)
+				}
+			}
+			if len(sheets) > 0 {
+				bundle.Results = append(bundle.Results, memorySourceResult{Source: labelFor("cheatsheets"), Count: len(sheets), Data: sheets})
+			}
+		}
+	}
+
 	if bundle.SourceMap["core"] && shortTermMem != nil && hasSemanticQuery {
 		facts, err := shortTermMem.GetCoreMemoryFacts()
 		if err != nil {
@@ -307,7 +325,7 @@ func gatherMemorySourceResults(searchContent string, tc ToolCall, shortTermMem *
 	return bundle
 }
 
-func executeQueryMemory(tc ToolCall, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, kg *memory.KnowledgeGraph, plannerDB *sql.DB) (string, error) {
+func executeQueryMemory(tc ToolCall, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, kg *memory.KnowledgeGraph, plannerDB *sql.DB, cheatsheetDB *sql.DB) (string, error) {
 	searchContent := tc.Content
 	if searchContent == "" {
 		searchContent = tc.Query
@@ -323,9 +341,10 @@ func executeQueryMemory(tc ToolCall, shortTermMem *memory.SQLiteMemory, longTerm
 		longTermMem,
 		kg,
 		plannerDB,
+		cheatsheetDB,
 		tc.Limit,
-		map[string]bool{"activity": true, "ltm": true, "kg": true, "journal": true, "episodic": true, "notes": true, "planner": true, "core": true, "error_patterns": true},
-		map[string]string{"activity": "activity", "ltm": "vector_db", "kg": "knowledge_graph", "journal": "journal", "episodic": "episodic", "notes": "notes", "planner": "planner", "core": "core_memory", "error_patterns": "error_patterns"},
+		map[string]bool{"activity": true, "ltm": true, "kg": true, "journal": true, "episodic": true, "notes": true, "planner": true, "core": true, "cheatsheets": true, "error_patterns": true},
+		map[string]string{"activity": "activity", "ltm": "vector_db", "kg": "knowledge_graph", "journal": "journal", "episodic": "episodic", "notes": "notes", "planner": "planner", "core": "core_memory", "cheatsheets": "cheatsheets", "error_patterns": "error_patterns"},
 		true,
 	)
 
@@ -353,8 +372,8 @@ func executeQueryMemory(tc ToolCall, shortTermMem *memory.SQLiteMemory, longTerm
 	return "Tool Output: " + string(raw), nil
 }
 
-func executeContextMemoryQuery(tc ToolCall, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, kg *memory.KnowledgeGraph, plannerDB *sql.DB) (string, error) {
-	if shortTermMem == nil && longTermMem == nil && kg == nil && plannerDB == nil {
+func executeContextMemoryQuery(tc ToolCall, shortTermMem *memory.SQLiteMemory, longTermMem memory.VectorDB, kg *memory.KnowledgeGraph, plannerDB *sql.DB, cheatsheetDB *sql.DB) (string, error) {
+	if shortTermMem == nil && longTermMem == nil && kg == nil && plannerDB == nil && cheatsheetDB == nil {
 		return `Tool Output: {"status":"error","message":"short-term memory unavailable"}`, nil
 	}
 
@@ -387,7 +406,7 @@ func executeContextMemoryQuery(tc ToolCall, shortTermMem *memory.SQLiteMemory, l
 	}
 
 	sourceMap := normalizeMemorySourceMap(tc.Sources, map[string]bool{
-		"activity": true, "journal": true, "notes": true, "planner": true, "core": true, "kg": true, "ltm": true,
+		"activity": true, "journal": true, "notes": true, "planner": true, "core": true, "kg": true, "ltm": true, "cheatsheets": true,
 	})
 
 	results := make([]contextMemoryResult, 0, 20)
@@ -428,9 +447,10 @@ func executeContextMemoryQuery(tc ToolCall, shortTermMem *memory.SQLiteMemory, l
 		longTermMem,
 		kg,
 		plannerDB,
+		cheatsheetDB,
 		perSourceLimit,
-		map[string]bool{"activity": true, "journal": true, "notes": true, "planner": true, "core": true, "kg": true, "ltm": true},
-		map[string]string{"activity": "activity", "journal": "journal", "notes": "notes", "planner": "planner", "core": "core", "kg": "kg", "ltm": "ltm"},
+		map[string]bool{"activity": true, "journal": true, "notes": true, "planner": true, "core": true, "kg": true, "ltm": true, "cheatsheets": true},
+		map[string]string{"activity": "activity", "journal": "journal", "notes": "notes", "planner": "planner", "core": "core", "kg": "kg", "ltm": "ltm", "cheatsheets": "cheatsheets"},
 		false,
 	)
 
@@ -510,6 +530,14 @@ func executeContextMemoryQuery(tc ToolCall, shortTermMem *memory.SQLiteMemory, l
 			}
 			for i, memText := range memories {
 				addResult("ltm", "document", memText, "", "Semantic long-term memory hit", "", 0.89-float64(i)*0.05)
+			}
+		case "cheatsheets":
+			sheets, ok := result.Data.([]tools.CheatSheet)
+			if !ok {
+				continue
+			}
+			for i, sheet := range sheets {
+				addResult("cheatsheets", "cheatsheet", sheet.Name+" | "+trimForPrompt(sheet.Content, 180), sheet.UpdatedAt, "Reusable cheatsheet matched the query", sheet.ID, 0.9-float64(i)*0.04)
 			}
 		}
 	}

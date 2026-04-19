@@ -40,5 +40,11 @@
   "cheatsheets.attachment_added": "Anhang hinzugefügt.",
   "cheatsheets.attachment_removed": "Anhang entfernt.",
   "cheatsheets.attachments_added": "{{count}} Anhang/Anhänge hinzugefügt.",
-  "cheatsheets.no_knowledge_files": "Keine kompatiblen Dateien gefunden (.txt, .md)"
+  "cheatsheets.no_knowledge_files": "Keine kompatiblen Dateien gefunden (.txt, .md)",
+  "cheatsheets.empty_user": "Noch keine Benutzer-Spickzettel.",
+  "cheatsheets.group_user": "Benutzer",
+  "cheatsheets.created_by_agent": "Vom Agent erstellt",
+  "cheatsheets.created_by_user": "Vom Benutzer erstellt",
+  "cheatsheets.group_agent": "Agent",
+  "cheatsheets.empty_agent": "Noch keine Agent-Spickzettel."
 }

@@ -56,12 +56,45 @@
             </div>
         </div>
 
-        <!-- Cards grid -->
-        <div class="cards-grid" id="sheets-grid"></div>
+        <div class="sheet-groups-overview is-hidden" id="sheets-groups-overview">
+            <div class="sheet-group-pill">
+                <span data-i18n="cheatsheets.group_user">User</span>
+                <strong id="sheets-count-user">0</strong>
+            </div>
+            <div class="sheet-group-pill">
+                <span data-i18n="cheatsheets.group_agent">Agent</span>
+                <strong id="sheets-count-agent">0</strong>
+            </div>
+        </div>
+
         <div class="empty-state is-hidden" id="sheets-empty">
             <div class="empty-icon">📋</div>
             <h3 data-i18n="cheatsheets.empty_title">No Cheat Sheets Yet</h3>
             <p data-i18n="cheatsheets.empty_desc">Create reusable workflow instructions for the agent.</p>
+        </div>
+        <div class="sheet-groups is-hidden" id="sheets-groups">
+            <section class="sheet-group">
+                <div class="sheet-group-header">
+                    <h2 data-i18n="cheatsheets.group_user">User</h2>
+                    <span class="sheet-group-count" id="sheets-header-count-user">0</span>
+                </div>
+                <div class="cards-grid" id="sheets-grid-user"></div>
+                <div class="empty-state empty-state-inline is-hidden" id="sheets-empty-user">
+                    <div class="empty-icon">👤</div>
+                    <p data-i18n="cheatsheets.empty_user">No user cheat sheets yet.</p>
+                </div>
+            </section>
+            <section class="sheet-group">
+                <div class="sheet-group-header">
+                    <h2 data-i18n="cheatsheets.group_agent">Agent</h2>
+                    <span class="sheet-group-count" id="sheets-header-count-agent">0</span>
+                </div>
+                <div class="cards-grid" id="sheets-grid-agent"></div>
+                <div class="empty-state empty-state-inline is-hidden" id="sheets-empty-agent">
+                    <div class="empty-icon">🤖</div>
+                    <p data-i18n="cheatsheets.empty_agent">No agent cheat sheets yet.</p>
+                </div>
+            </section>
         </div>
     </div>
 

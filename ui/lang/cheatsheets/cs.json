@@ -40,5 +40,11 @@
   "cheatsheets.attachment_added": "Příloha přidána.",
   "cheatsheets.attachment_removed": "Příloha odebrána.",
   "cheatsheets.attachments_added": "{{count}} příloh přidáno.",
-  "cheatsheets.no_knowledge_files": "Nebyly nalezeny žádné kompatibilní soubory (.txt, .md)"
+  "cheatsheets.no_knowledge_files": "Nebyly nalezeny žádné kompatibilní soubory (.txt, .md)",
+  "cheatsheets.empty_user": "Zatím žádné uživatelské cheaty.",
+  "cheatsheets.group_user": "Uživatel",
+  "cheatsheets.created_by_agent": "Vytvořil agent",
+  "cheatsheets.created_by_user": "Vytvořil uživatel",
+  "cheatsheets.group_agent": "Agent",
+  "cheatsheets.empty_agent": "Zatím žádné agentní cheaty."
 }

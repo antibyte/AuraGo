@@ -40,5 +40,11 @@
   "cheatsheets.attachment_added": "Pièce jointe ajoutée.",
   "cheatsheets.attachment_removed": "Pièce jointe supprimée.",
   "cheatsheets.attachments_added": "{{count}} pièce(s) jointe(s) ajoutée(s).",
-  "cheatsheets.no_knowledge_files": "Aucun fichier compatible trouvé (.txt, .md)"
+  "cheatsheets.no_knowledge_files": "Aucun fichier compatible trouvé (.txt, .md)",
+  "cheatsheets.empty_user": "Aucun aide-mémoire utilisateur pour le moment.",
+  "cheatsheets.group_user": "Utilisateur",
+  "cheatsheets.created_by_agent": "Créé par l'agent",
+  "cheatsheets.created_by_user": "Créé par l'utilisateur",
+  "cheatsheets.group_agent": "Agent",
+  "cheatsheets.empty_agent": "Aucun aide-mémoire agent pour le moment."
 }

@@ -1,4 +1,4 @@
- {
+{
   "cheatsheets.activate": "Aktiver",
   "cheatsheets.active": "Aktiv",
   "cheatsheets.cancel": "Avbryt",
@@ -40,5 +40,11 @@
   "cheatsheets.attachment_added": "Vedlegg lagt til.",
   "cheatsheets.attachment_removed": "Vedlegg fjernet.",
   "cheatsheets.attachments_added": "{{count}} vedlegg lagt til.",
-  "cheatsheets.no_knowledge_files": "Ingen kompatible filer funnet (.txt, .md)"
+  "cheatsheets.no_knowledge_files": "Ingen kompatible filer funnet (.txt, .md)",
+  "cheatsheets.empty_user": "Ingen bruker-jukseark ennå.",
+  "cheatsheets.group_user": "Bruker",
+  "cheatsheets.created_by_agent": "Opprettet av agenten",
+  "cheatsheets.created_by_user": "Opprettet av brukeren",
+  "cheatsheets.group_agent": "Agent",
+  "cheatsheets.empty_agent": "Ingen agent-jukseark ennå."
 }

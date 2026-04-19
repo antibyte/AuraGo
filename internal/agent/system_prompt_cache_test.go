@@ -68,6 +68,11 @@ func TestBuildSystemPromptCacheKey_DifferentFlags(t *testing.T) {
 			wantNewKey: true,
 		},
 		{
+			name:       "ReuseContext changes cache key",
+			modify:     func(f *prompts.ContextFlags) { f.ReuseContext = "reuse this cheatsheet first" },
+			wantNewKey: true,
+		},
+		{
 			name:       "SessionTodoItems changes cache key",
 			modify:     func(f *prompts.ContextFlags) { f.SessionTodoItems = "task1, task2" },
 			wantNewKey: true,
