@@ -242,7 +242,6 @@
     opacity: 1;
     visibility: visible;
     animation: sandstormMessageEnter 0.42s ease-out;
-    margin-bottom: 0.85rem;
 }
 
 [data-theme="sandstorm"] .bubble {
