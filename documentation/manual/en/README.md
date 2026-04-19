@@ -26,6 +26,8 @@ AuraGo is a fully autonomous AI agent shipped as a single portable binary with a
 | **🗄️ SQL Connections** | Direct database queries (PostgreSQL, MySQL) |
 | **📱 Chromecast** | Send TTS and media to Cast devices |
 | **🔍 Network Tools** | Ping, port scan, mDNS/UPnP discovery |
+| **📱 PWA & Mobile** | Installable as PWA with voice control and TTS for a native mobile experience |
+| **🎨 Built-in Themes** | Choose from Cyberwar, Retro CRT, Dark Sun, or Lollipop |
 
 ---
 

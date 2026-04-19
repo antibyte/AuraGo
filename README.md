@@ -53,6 +53,8 @@ Unlike cloud AI services, AuraGo runs **on your hardware**, has **direct access 
 | **📄 Document AI** | Create PDFs (invoices, reports) and extract text from documents with LLM analysis |
 | **🤖 Native Function Calling** | OpenAI-compatible tool calls with auto-detection for DeepSeek and other models |
 | **🔐 AES-256 Vault** | All secrets encrypted; Web UI with bcrypt passwords and TOTP 2FA |
+| **📱 PWA & Mobile** | Installable as PWA with voice control and TTS for a native mobile experience |
+| **🎨 Built-in Themes** | Choose from Cyberwar, Retro CRT, Dark Sun, or Lollipop |
 
 ---
 

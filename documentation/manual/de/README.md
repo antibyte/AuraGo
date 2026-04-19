@@ -26,6 +26,8 @@ AuraGo ist ein vollständig autonomer KI-Agent, der als einzelne portable Binary
 | **🗄️ SQL Connections** | Direkte Datenbank-Abfragen (PostgreSQL, MySQL) |
 | **📱 Chromecast** | TTS und Medien an Cast-Geräte senden |
 | **🔍 Netzwerk-Tools** | Ping, Port-Scan, mDNS/UPnP Discovery |
+| **📱 PWA & Mobile** | Installierbar als PWA mit Sprachsteuerung und TTS |
+| **🎨 Themes** | Wähle aus Cyberwar, Retro CRT, Dark Sun oder Lollipop |
 
 ---
 
