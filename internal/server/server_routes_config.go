@@ -128,6 +128,8 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	// AdGuard Home integration endpoints
 	mux.HandleFunc("/api/adguard/status", handleAdGuardStatus(s))
 	mux.HandleFunc("/api/adguard/test", handleAdGuardTest(s))
+	mux.HandleFunc("/api/uptime-kuma/status", handleUptimeKumaStatus(s))
+	mux.HandleFunc("/api/uptime-kuma/test", handleUptimeKumaTest(s))
 
 	// MQTT integration endpoints
 	mux.HandleFunc("/api/mqtt/status", handleMQTTStatus(s))

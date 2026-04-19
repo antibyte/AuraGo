@@ -223,13 +223,14 @@ func TestInjectVaultIndicatorsAddsAdditionalVaultBackedFields(t *testing.T) {
 	}
 
 	secrets := map[string]string{
-		"netlify_token":         "netlify-secret",
-		"telnyx_api_key":        "telnyx-secret",
-		"cloudflared_token":     "cloudflare-secret",
-		"a2a_api_key":           "a2a-secret",
-		"a2a_bearer_secret":     "a2a-bearer-secret",
-		"truenas_api_key":       "truenas-secret",
-		"jellyfin_api_key":      "jellyfin-secret",
+		"netlify_token":                  "netlify-secret",
+		"telnyx_api_key":                 "telnyx-secret",
+		"cloudflared_token":              "cloudflare-secret",
+		"uptime_kuma_api_key":            "uptime-kuma-secret",
+		"a2a_api_key":                    "a2a-secret",
+		"a2a_bearer_secret":              "a2a-bearer-secret",
+		"truenas_api_key":                "truenas-secret",
+		"jellyfin_api_key":               "jellyfin-secret",
 		"a2a_remote_agent1_api_key":      "remote-api-key",
 		"a2a_remote_agent1_bearer_token": "remote-bearer-token",
 	}
@@ -243,6 +244,7 @@ func TestInjectVaultIndicatorsAddsAdditionalVaultBackedFields(t *testing.T) {
 		"netlify":           map[string]interface{}{},
 		"telnyx":            map[string]interface{}{},
 		"cloudflare_tunnel": map[string]interface{}{},
+		"uptime_kuma":       map[string]interface{}{},
 		"a2a": map[string]interface{}{
 			"auth": map[string]interface{}{},
 			"client": map[string]interface{}{
@@ -276,6 +278,7 @@ func TestInjectVaultIndicatorsAddsAdditionalVaultBackedFields(t *testing.T) {
 	assertMasked("netlify.token")
 	assertMasked("telnyx.api_key")
 	assertMasked("cloudflare_tunnel.token")
+	assertMasked("uptime_kuma.api_key")
 	assertMasked("a2a.auth.api_key")
 	assertMasked("a2a.auth.bearer_secret")
 	assertMasked("truenas.api_key")

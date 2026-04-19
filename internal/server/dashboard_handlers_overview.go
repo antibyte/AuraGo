@@ -555,6 +555,7 @@ func handleDashboardOverview(s *Server) http.HandlerFunc {
 			"meshcentral":      cfg.MeshCentral.Enabled,
 			"a2a":              cfg.A2A.Server.Enabled,
 			"adguard":          cfg.AdGuard.Enabled,
+			"uptime_kuma":      cfg.UptimeKuma.Enabled,
 			"s3":               cfg.S3.Enabled,
 			"mcp":              cfg.MCP.Enabled,
 			"mcp_server":       cfg.MCPServer.Enabled,

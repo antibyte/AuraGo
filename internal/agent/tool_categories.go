@@ -94,6 +94,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"mqtt_get_messages", "Get received MQTT messages from subscriptions"},
 		{"wake_on_lan", "Send Wake-on-LAN magic packets to devices"},
 		{"adguard", "Manage AdGuard Home DNS: filtering, rewrites, DHCP, clients"},
+		{"uptime_kuma", "Read monitor health and outages from Uptime Kuma"},
 	},
 	"infrastructure": {
 		{"docker", "Manage Docker containers (list, start, stop, logs, exec, compose)"},

@@ -211,6 +211,10 @@ func Load(path string) (*Config, error) {
 	// OneDrive defaults: "common" tenant allows both personal and work accounts.
 	cfg.OneDrive.TenantID = "common"
 
+	// Uptime Kuma defaults: disabled until explicitly configured.
+	cfg.UptimeKuma.RequestTimeout = 15
+	cfg.UptimeKuma.PollIntervalSeconds = 30
+
 	// LDAP defaults: disabled by default, read-only when enabled.
 	cfg.LDAP.Enabled = false
 	cfg.LDAP.ReadOnly = true

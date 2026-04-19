@@ -263,6 +263,8 @@
   "config.section.tts.label": "テキスト読み上げ",
   "config.section.updates.desc": "AuraGo を最新バージョンにアップデート",
   "config.section.updates.label": "アップデート",
+  "config.section.uptime_kuma.desc": "Uptime Kuma メトリクス経由の読み取り専用監視",
+  "config.section.uptime_kuma.label": "Uptime Kuma",
   "config.section.virustotal.desc": "スキャン用 VirusTotal API",
   "config.section.virustotal.label": "VirusTotal",
   "config.section.vision.desc": "画像分析設定",

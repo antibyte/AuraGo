@@ -75,6 +75,7 @@ type ToolFeatureFlags struct {
 	GitHubEnabled           bool
 	MQTTEnabled             bool
 	AdGuardEnabled          bool
+	UptimeKumaEnabled       bool
 	MCPEnabled              bool
 	SandboxEnabled          bool
 	MeshCentralEnabled      bool

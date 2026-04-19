@@ -148,6 +148,7 @@ type Server struct {
 	tsNetHandler       http.Handler // stored so the UI can restart tsnet without a full server restart
 	FileIndexer        *services.FileIndexer
 	HeartbeatScheduler *heartbeat.Scheduler
+	UptimeKumaPoller   *tools.UptimeKumaPoller
 	CheatsheetDB       *sql.DB
 	ImageGalleryDB     *sql.DB
 	MediaRegistryDB    *sql.DB
@@ -295,6 +296,7 @@ func Start(opts StartOptions) error {
 		go agent.Loopback(hbRunCfg, prompt, agent.NoopBroker{})
 	})
 	s.HeartbeatScheduler.Start()
+	s.restartUptimeKumaPoller()
 
 	// Initialize Skill Manager (always; gated by config in handlers)
 	if cfg.Tools.SkillManager.Enabled {
@@ -958,6 +960,9 @@ func (s *Server) serveWithShutdown(server, redirectServer, ttsServer *http.Serve
 		// Shut down Heartbeat scheduler
 		if s.HeartbeatScheduler != nil {
 			s.HeartbeatScheduler.Stop()
+		}
+		if s.UptimeKumaPoller != nil {
+			s.UptimeKumaPoller.Stop()
 		}
 
 		// Shut down MCP servers

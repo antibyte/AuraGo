@@ -263,6 +263,8 @@
   "config.section.tts.label": "TTS",
   "config.section.updates.desc": "Automaticke aktualizace",
   "config.section.updates.label": "Aktualizace",
+  "config.section.uptime_kuma.desc": "Monitorování jen pro čtení přes metriky Uptime Kuma",
+  "config.section.uptime_kuma.label": "Uptime Kuma",
   "config.section.virustotal.desc": "VirusTotal integrace",
   "config.section.virustotal.label": "VirusTotal",
   "config.section.vision.desc": "Analyza obrazku",

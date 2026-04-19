@@ -65,7 +65,7 @@ func allBuiltinToolFeatureFlags() ToolFeatureFlags {
 		HomeAssistantEnabled: true, DockerEnabled: true, CoAgentEnabled: true, SudoEnabled: true,
 		WebhooksEnabled: true, ProxmoxEnabled: true, OllamaEnabled: true, TailscaleEnabled: true,
 		AnsibleEnabled: true, InvasionControlEnabled: true, GitHubEnabled: true, MQTTEnabled: true,
-		AdGuardEnabled: true, MCPEnabled: true, SandboxEnabled: true, MeshCentralEnabled: true,
+		AdGuardEnabled: true, UptimeKumaEnabled: true, MCPEnabled: true, SandboxEnabled: true, MeshCentralEnabled: true,
 		HomepageEnabled: true, NetlifyEnabled: true, FirewallEnabled: true, EmailEnabled: true,
 		CloudflareTunnelEnabled: true, GoogleWorkspaceEnabled: true, OneDriveEnabled: true,
 		VirusTotalEnabled: true, ImageGenerationEnabled: true, MusicGenerationEnabled: true, RemoteControlEnabled: true,
@@ -119,6 +119,7 @@ func (ff ToolFeatureFlags) Key() string {
 	appendToolFeatureKeyPart("github", ff.GitHubEnabled)
 	appendToolFeatureKeyPart("mqtt", ff.MQTTEnabled)
 	appendToolFeatureKeyPart("adguard", ff.AdGuardEnabled)
+	appendToolFeatureKeyPart("uptime_kuma", ff.UptimeKumaEnabled)
 	appendToolFeatureKeyPart("mcp", ff.MCPEnabled)
 	appendToolFeatureKeyPart("sandbox", ff.SandboxEnabled)
 	appendToolFeatureKeyPart("meshcentral", ff.MeshCentralEnabled)
@@ -214,7 +215,6 @@ func ToolNamesFromConfig(cfg *config.Config) []string {
 	return builtinToolNames(ff)
 }
 
-
 // ToolSummariesFromConfig returns tool names with short descriptions as
 // "name: description" strings. Used by the mission preparation service
 // so the LLM knows both the name and purpose of each available tool.
@@ -239,7 +239,6 @@ func ToolSummariesFromConfig(cfg *config.Config) []string {
 	}
 	return summaries
 }
-
 
 func customToolBuiltinCollisionName(name string, builtinNames map[string]struct{}) (string, bool) {
 	candidates := []string{strings.TrimSpace(name)}

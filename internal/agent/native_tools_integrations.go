@@ -658,6 +658,19 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 			}, "operation"),
 		))
 	}
+	if ff.UptimeKumaEnabled {
+		tools = append(tools, tool("uptime_kuma",
+			"Read monitor states from Uptime Kuma via its Prometheus metrics endpoint. Supports: summary, list_monitors, get_monitor.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "Operation to perform",
+					"enum":        []string{"summary", "list_monitors", "get_monitor"},
+				},
+				"monitor_name": prop("string", "Friendly monitor name for get_monitor"),
+			}, "operation"),
+		))
+	}
 	if ff.GoogleWorkspaceEnabled {
 		tools = append(tools, tool("google_workspace",
 			"Interact with Google Workspace services (Gmail, Calendar, Drive, Docs, Sheets). "+
@@ -981,14 +994,14 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 					"description": "Operation to perform",
 					"enum":        []string{"search", "get", "download", "upload", "update", "delete", "list_tags", "list_correspondents", "list_document_types"},
 				},
-				"document_id":  prop("string", "Document ID (required for get, download, update, delete)"),
-				"query":        prop("string", "Search query for full-text document search"),
-				"title":        prop("string", "Document title (for upload or update)"),
-				"content":      prop("string", "Document content text (for upload)"),
-				"tags":         prop("string", "Comma-separated tag names (for search filter, upload, or update)"),
+				"document_id":   prop("string", "Document ID (required for get, download, update, delete)"),
+				"query":         prop("string", "Search query for full-text document search"),
+				"title":         prop("string", "Document title (for upload or update)"),
+				"content":       prop("string", "Document content text (for upload)"),
+				"tags":          prop("string", "Comma-separated tag names (for search filter, upload, or update)"),
 				"correspondent": prop("string", "Correspondent name (for search filter, upload, or update)"),
 				"document_type": prop("string", "Document type name (for search filter, upload, or update)"),
-				"limit":        map[string]interface{}{"type": "integer", "description": "Maximum number of search results (default: 25)"},
+				"limit":         map[string]interface{}{"type": "integer", "description": "Maximum number of search results (default: 25)"},
 			}, "operation"),
 		))
 	}

@@ -505,6 +505,11 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				}
 			}
 
+			if oldCfg.UptimeKuma != newCfg.UptimeKuma {
+				s.restartUptimeKumaPoller()
+				s.Logger.Info("[Config UI] Uptime Kuma poller restarted")
+			}
+
 			// Hot-reload File Indexer: start/stop based on enabled flag change
 			if oldCfg.Indexing.Enabled != newCfg.Indexing.Enabled {
 				if newCfg.Indexing.Enabled && s.FileIndexer == nil {
@@ -1099,6 +1104,7 @@ var vaultKeyMap = map[string]string{
 	"notifications.pushover.user_key":  "pushover_user_key",
 	"notifications.pushover.app_token": "pushover_app_token",
 	"adguard.password":                 "adguard_password",
+	"uptime_kuma.api_key":              "uptime_kuma_api_key",
 	"egg_mode.shared_key":              "egg_shared_key",
 	"google_workspace.client_secret":   "google_workspace_client_secret",
 	"onedrive.client_secret":           "onedrive_client_secret",

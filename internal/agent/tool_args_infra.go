@@ -142,6 +142,11 @@ type adGuardArgs struct {
 	Hostname  string
 }
 
+type uptimeKumaArgs struct {
+	Operation   string
+	MonitorName string
+}
+
 type sqlQueryArgs struct {
 	Operation      string
 	ConnectionName string
@@ -295,6 +300,13 @@ func decodeChromecastArgs(tc ToolCall) chromecastArgs {
 		Text:        firstNonEmptyToolString(tc.Text, tc.Content, toolArgString(tc.Params, "text", "content")),
 		Language:    firstNonEmptyToolString(tc.Language, toolArgString(tc.Params, "language")),
 		Volume:      max(tc.Volume, toolArgFloat64(tc.Params, "volume")),
+	}
+}
+
+func decodeUptimeKumaArgs(tc ToolCall) uptimeKumaArgs {
+	return uptimeKumaArgs{
+		Operation:   firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		MonitorName: firstNonEmptyToolString(tc.Name, toolArgString(tc.Params, "monitor_name", "name")),
 	}
 }
 

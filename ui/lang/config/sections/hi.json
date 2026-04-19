@@ -263,6 +263,8 @@
   "config.section.tts.label": "टेक्स्ट-टू-स्पीच",
   "config.section.updates.desc": "Update AuraGo to the latest version",
   "config.section.updates.label": "अपडेट",
+  "config.section.uptime_kuma.desc": "Uptime Kuma metrics के माध्यम से केवल-पढ़ने योग्य मॉनिटरिंग",
+  "config.section.uptime_kuma.label": "Uptime Kuma",
   "config.section.virustotal.desc": "स्कैन के लिए वायरसटोटल एपीआई",
   "config.section.virustotal.label": "वायरसटोटल",
   "config.section.vision.desc": "छवि विश्लेषण विन्यास",

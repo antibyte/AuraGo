@@ -263,6 +263,8 @@
   "config.section.tts.label": "Synteza mowy",
   "config.section.updates.desc": "Aktualizuj AuraGo do najnowszej wersji",
   "config.section.updates.label": "Aktualizacje",
+  "config.section.uptime_kuma.desc": "Monitorowanie tylko do odczytu przez metryki Uptime Kuma",
+  "config.section.uptime_kuma.label": "Uptime Kuma",
   "config.section.virustotal.desc": "API VirusTotal do skanowania",
   "config.section.virustotal.label": "VirusTotal",
   "config.section.vision.desc": "Konfiguracja analizy obrazów",

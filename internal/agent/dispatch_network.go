@@ -359,6 +359,32 @@ func dispatchNetwork(ctx context.Context, tc ToolCall, dc *DispatchContext) (str
 				return fmt.Sprintf(`Tool Output: {"status":"error","message":"Unknown adguard operation '%s'. Use: status, stats, stats_top, query_log, query_log_clear, filtering_status, filtering_toggle, filtering_add_url, filtering_remove_url, filtering_refresh, filtering_set_rules, rewrite_list, rewrite_add, rewrite_delete, blocked_services_list, blocked_services_set, safebrowsing_status, safebrowsing_toggle, parental_status, parental_toggle, dhcp_status, dhcp_set_config, dhcp_add_lease, dhcp_remove_lease, clients, client_add, client_update, client_delete, dns_info, dns_config, test_upstream"}`, op)
 			}
 
+		case "uptime_kuma":
+			if !cfg.UptimeKuma.Enabled {
+				return `Tool Output: {"status":"error","message":"Uptime Kuma is not enabled. Configure the uptime_kuma section in config.yaml."}`
+			}
+			req := decodeUptimeKumaArgs(tc)
+			ukCfg := tools.UptimeKumaConfig{
+				BaseURL:        cfg.UptimeKuma.BaseURL,
+				APIKey:         cfg.UptimeKuma.APIKey,
+				InsecureSSL:    cfg.UptimeKuma.InsecureSSL,
+				RequestTimeout: cfg.UptimeKuma.RequestTimeout,
+			}
+			op := strings.ToLower(strings.TrimSpace(req.Operation))
+			switch op {
+			case "summary":
+				logger.Info("LLM requested Uptime Kuma summary")
+				return "Tool Output: " + tools.UptimeKumaSummaryJSON(context.Background(), ukCfg, logger)
+			case "list_monitors":
+				logger.Info("LLM requested Uptime Kuma monitor list")
+				return "Tool Output: " + tools.UptimeKumaListMonitorsJSON(context.Background(), ukCfg, logger)
+			case "get_monitor":
+				logger.Info("LLM requested Uptime Kuma monitor", "monitor_name", req.MonitorName)
+				return "Tool Output: " + tools.UptimeKumaGetMonitorJSON(context.Background(), ukCfg, req.MonitorName, logger)
+			default:
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"Unknown uptime_kuma operation '%s'. Use: summary, list_monitors, get_monitor"}`, op)
+			}
+
 		case "fritzbox", "fritzbox_system", "fritzbox_network", "fritzbox_telephony", "fritzbox_smarthome", "fritzbox_storage", "fritzbox_tv":
 			if !cfg.FritzBox.Enabled {
 				return `Tool Output: {"status":"error","message":"Fritz!Box integration is not enabled. Set fritzbox.enabled=true in config.yaml."}`
@@ -420,6 +446,7 @@ func dispatchNetwork(ctx context.Context, tc ToolCall, dc *DispatchContext) (str
 	}()
 	return result, handled
 }
+
 // mdnsAutoRegister parses the JSON result from MDNSScan, bulk-inserts every discovered
 // device into the inventory, and appends a registration summary to the result JSON.
 func mdnsAutoRegister(scanJSON string, db *sql.DB, deviceType string, tags []string, overwrite bool, logger *slog.Logger) string {

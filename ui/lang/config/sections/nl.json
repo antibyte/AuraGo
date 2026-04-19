@@ -263,6 +263,8 @@
   "config.section.tts.label": "TTS",
   "config.section.updates.desc": "Automatische updates",
   "config.section.updates.label": "Updates",
+  "config.section.uptime_kuma.desc": "Alleen-lezen monitoring via Uptime Kuma-metrics",
+  "config.section.uptime_kuma.label": "Uptime Kuma",
   "config.section.virustotal.desc": "VirusTotal integratie",
   "config.section.virustotal.label": "VirusTotal",
   "config.section.vision.desc": "Beeldanalyse",

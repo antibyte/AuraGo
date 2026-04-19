@@ -161,6 +161,7 @@ const SECTIONS = [
         group: t('config.group.network_remote'),
         items: [
             { key: 'truenas', icon: '💾', label: t('config.section.truenas.label'), desc: t('config.section.truenas.desc') },
+            { key: 'uptime_kuma', icon: '📈', label: t('config.section.uptime_kuma.label'), desc: t('config.section.uptime_kuma.desc') },
             { key: 'jellyfin', icon: '🎬', label: t('config.section.jellyfin.label'), desc: t('config.section.jellyfin.desc') },
             { key: 'tailscale', icon: '🔒', label: t('config.section.tailscale.label'), desc: t('config.section.tailscale.desc') },
             { key: 'proxmox', icon: '🖥️', label: t('config.section.proxmox.label'), desc: t('config.section.proxmox.desc') },
@@ -1444,6 +1445,7 @@ const SECTION_MODULES = {
     updates: { m: 'updates', fn: 'renderUpdatesSection' },
     chromecast: { m: 'chromecast', fn: 'renderChromecastSection' },
     adguard: { m: 'adguard', fn: 'renderAdGuardSection' },
+    uptime_kuma: { m: 'uptime_kuma', fn: 'renderUptimeKumaSection' },
     fritzbox: { m: 'fritzbox', fn: 'renderFritzBoxSection' },
     ldap: { m: 'ldap', fn: 'renderLDAPSection' },
     webdav: { m: 'webdav', fn: 'renderWebDAVSection' },

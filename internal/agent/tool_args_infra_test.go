@@ -386,6 +386,24 @@ func TestDecodeAdGuardArgsUsesParamsFallback(t *testing.T) {
 	}
 }
 
+func TestDecodeUptimeKumaArgsUsesParamsFallback(t *testing.T) {
+	tc := ToolCall{
+		Action: "uptime_kuma",
+		Params: map[string]interface{}{
+			"operation":    "get_monitor",
+			"monitor_name": "Main Website",
+		},
+	}
+
+	req := decodeUptimeKumaArgs(tc)
+	if req.Operation != "get_monitor" {
+		t.Fatalf("Operation = %q, want get_monitor", req.Operation)
+	}
+	if req.MonitorName != "Main Website" {
+		t.Fatalf("MonitorName = %q, want Main Website", req.MonitorName)
+	}
+}
+
 func TestDecodeSQLQueryArgsUsesParamsFallback(t *testing.T) {
 	tc := ToolCall{
 		Action: "sql_query",

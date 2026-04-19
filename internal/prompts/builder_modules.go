@@ -515,6 +515,10 @@ func (m *PromptModule) ShouldInclude(flags ContextFlags) bool {
 			if flags.AdGuardEnabled {
 				return true
 			}
+		case "uptime_kuma_enabled":
+			if flags.UptimeKumaEnabled {
+				return true
+			}
 		case "jellyfin_enabled":
 			if flags.JellyfinEnabled {
 				return true

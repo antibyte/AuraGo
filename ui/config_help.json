@@ -202,6 +202,36 @@
       "description": "Long-lived access token from your HA profile. Stored in vault."
     }
   },
+  "uptime_kuma": {
+    "enabled": {
+      "title": "Enable Uptime Kuma",
+      "description": "Activates the read-only Uptime Kuma integration so the agent can read monitor states from the official /metrics endpoint."
+    },
+    "base_url": {
+      "title": "Base URL",
+      "description": "Base URL of your Uptime Kuma instance (e.g. https://uptime-kuma.local:3001). AuraGo automatically requests /metrics."
+    },
+    "api_key": {
+      "title": "API Key",
+      "description": "Uptime Kuma metrics API key. Stored securely in the encrypted vault and never written to config.yaml."
+    },
+    "insecure_ssl": {
+      "title": "Allow Self-Signed TLS",
+      "description": "Skip certificate verification for self-signed or internal certificates. Only use this in trusted homelab environments."
+    },
+    "request_timeout": {
+      "title": "Request Timeout",
+      "description": "Timeout in seconds for fetching the metrics endpoint. Default: 15."
+    },
+    "poll_interval_seconds": {
+      "title": "Poll Interval",
+      "description": "How often AuraGo checks the metrics endpoint in the background for monitor transitions. Default: 30 seconds."
+    },
+    "relay_to_agent": {
+      "title": "Notify Agent on Outage",
+      "description": "When enabled, AuraGo wakes the agent exactly once for each UP→DOWN or DOWN→UP status transition."
+    }
+  },
   "homepage": {
     "enabled": {
       "title": "Enable Homepage Tool",

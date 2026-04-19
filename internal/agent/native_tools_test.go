@@ -171,7 +171,7 @@ func TestToolSchemaManualSync(t *testing.T) {
 		AllowNetworkRequests: true, AllowSelfUpdate: true, AllowRemoteShell: true,
 		DockerEnabled: true, HomeAssistantEnabled: true, ProxmoxEnabled: true,
 		CoAgentEnabled: true, SandboxEnabled: true,
-		GitHubEnabled: true, SudoEnabled: true, AdGuardEnabled: true,
+		GitHubEnabled: true, SudoEnabled: true, AdGuardEnabled: true, UptimeKumaEnabled: true,
 		HomepageEnabled: true, InventoryEnabled: true, MQTTEnabled: true,
 		TailscaleEnabled: true, CloudflareTunnelEnabled: true, OllamaEnabled: true,
 		WOLEnabled: true, WebhooksEnabled: true, FirewallEnabled: true,
@@ -248,6 +248,16 @@ func TestToolSchemaManualSync(t *testing.T) {
 		t.Errorf("Tool schemas without a manual in prompts/tools_manuals/ (add a .md file or add to knownNoManual):\n  %s",
 			strings.Join(missing, "\n  "))
 	}
+}
+
+func TestBuiltinToolSchemasIncludeUptimeKumaWhenEnabled(t *testing.T) {
+	schemas := builtinToolSchemas(ToolFeatureFlags{UptimeKumaEnabled: true})
+	for _, schema := range schemas {
+		if schema.Function != nil && schema.Function.Name == "uptime_kuma" {
+			return
+		}
+	}
+	t.Fatal("expected uptime_kuma tool schema when UptimeKumaEnabled is true")
 }
 
 func TestBuildNativeToolSchemasIncludesVirusTotalAndListSkills(t *testing.T) {
@@ -701,7 +711,7 @@ func TestInjectAdditionalPropertiesRecPreservesExplicitTrue(t *testing.T) {
 			"webhook_name": map[string]interface{}{"type": "string"},
 			"parameters": map[string]interface{}{
 				"type":                 "object",
-				"additionalProperties":  true, // explicit: must be preserved
+				"additionalProperties": true, // explicit: must be preserved
 			},
 		},
 	}
@@ -727,7 +737,7 @@ func TestInjectAdditionalPropertiesRecPreservesSchemaObject(t *testing.T) {
 		"properties": map[string]interface{}{
 			"headers": map[string]interface{}{
 				"type":                 "object",
-				"additionalProperties":  map[string]interface{}{"type": "string"},
+				"additionalProperties": map[string]interface{}{"type": "string"},
 			},
 		},
 	}

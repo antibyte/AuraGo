@@ -263,6 +263,8 @@
   "config.section.tts.label": "文本转语音",
   "config.section.updates.desc": "将 AuraGo 更新到最新版本",
   "config.section.updates.label": "更新",
+  "config.section.uptime_kuma.desc": "通过 Uptime Kuma 指标进行只读监控",
+  "config.section.uptime_kuma.label": "Uptime Kuma",
   "config.section.virustotal.desc": "用于扫描的 VirusTotal API",
   "config.section.virustotal.label": "VirusTotal",
   "config.section.vision.desc": "图像分析配置",

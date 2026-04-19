@@ -290,6 +290,64 @@ agent:
 	}
 }
 
+func TestLoadUptimeKumaDefaults(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(configPath, []byte("server:\n  ui_language: en\n"), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.UptimeKuma.RequestTimeout != 15 {
+		t.Fatalf("request_timeout = %d, want 15", cfg.UptimeKuma.RequestTimeout)
+	}
+	if cfg.UptimeKuma.PollIntervalSeconds != 30 {
+		t.Fatalf("poll_interval_seconds = %d, want 30", cfg.UptimeKuma.PollIntervalSeconds)
+	}
+	if cfg.UptimeKuma.RelayToAgent {
+		t.Fatal("expected relay_to_agent to default to false")
+	}
+}
+
+func TestApplyVaultSecretsLoadsUptimeKumaAPIKey(t *testing.T) {
+	cfg := &Config{}
+	vault := &testSecretVault{data: map[string]string{
+		"uptime_kuma_api_key": "uk2_secret_from_vault",
+	}}
+
+	cfg.ApplyVaultSecrets(vault)
+
+	if cfg.UptimeKuma.APIKey != "uk2_secret_from_vault" {
+		t.Fatalf("APIKey = %q, want uptime kuma secret", cfg.UptimeKuma.APIKey)
+	}
+}
+
+func TestConfigSaveOmitsUptimeKumaAPIKey(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(configPath, []byte("server:\n  ui_language: en\n"), 0o644); err != nil {
+		t.Fatalf("failed to seed config file: %v", err)
+	}
+	cfg := &Config{}
+	cfg.UptimeKuma.Enabled = true
+	cfg.UptimeKuma.BaseURL = "https://uptime.local"
+	cfg.UptimeKuma.APIKey = "uk2_should_not_be_serialized"
+
+	if err := cfg.Save(configPath); err != nil {
+		t.Fatalf("Save() error = %v", err)
+	}
+
+	raw, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("os.ReadFile() error = %v", err)
+	}
+	if strings.Contains(string(raw), "uk2_should_not_be_serialized") || strings.Contains(string(raw), "api_key:") {
+		t.Fatalf("expected uptime kuma API key to stay out of YAML, got:\n%s", string(raw))
+	}
+}
+
 func TestMigrateEggModeSharedKeyToVault(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.yaml")

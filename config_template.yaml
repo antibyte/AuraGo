@@ -567,6 +567,14 @@ adguard:
     readonly: false
     url: ""
     username: ""
+uptime_kuma:
+    enabled: false
+    base_url: ""                  # e.g. https://uptime-kuma.local:3001
+    insecure_ssl: false           # accept self-signed certificates for /metrics
+    request_timeout: 15           # request timeout in seconds
+    poll_interval_seconds: 30     # background poll interval for outage detection
+    relay_to_agent: false         # wake the agent on UP/DOWN transitions
+    # API key is stored in the vault as uptime_kuma_api_key
 obsidian:
     enabled: false
     read_only: false                # read-only mode: only read/search operations allowed

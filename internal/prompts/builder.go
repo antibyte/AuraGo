@@ -144,6 +144,7 @@ type ContextFlags struct {
 	GitHubEnabled            bool
 	MQTTEnabled              bool
 	AdGuardEnabled           bool
+	UptimeKumaEnabled        bool
 	MCPEnabled               bool
 	SandboxEnabled           bool
 	MeshCentralEnabled       bool
@@ -1499,6 +1500,7 @@ func buildEnabledToolsOverview(flags ContextFlags) string {
 	add("github", flags.GitHubEnabled)
 	add("mqtt", flags.MQTTEnabled)
 	add("adguard", flags.AdGuardEnabled)
+	add("uptime_kuma", flags.UptimeKumaEnabled)
 	add("mcp", flags.MCPEnabled)
 	add("meshcentral", flags.MeshCentralEnabled)
 	add("homepage", flags.HomepageEnabled)

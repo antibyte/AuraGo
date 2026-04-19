@@ -141,6 +141,9 @@ func collectEnabledTools(flags prompts.ContextFlags) []string {
 	if flags.AdGuardEnabled {
 		tools = append(tools, "adguard")
 	}
+	if flags.UptimeKumaEnabled {
+		tools = append(tools, "uptimekuma")
+	}
 	if flags.MCPEnabled {
 		tools = append(tools, "mcp")
 	}

@@ -1322,6 +1322,9 @@ type Config struct {
 	// TrueNAS integration for ZFS storage management
 	TrueNAS TrueNASConfig `yaml:"truenas"`
 
+	// Uptime Kuma monitoring integration
+	UptimeKuma UptimeKumaConfig `yaml:"uptime_kuma"`
+
 	// Jellyfin media server integration
 	Jellyfin JellyfinConfig `yaml:"jellyfin"`
 
@@ -1360,6 +1363,17 @@ type TrueNASConfig struct {
 		DefaultDays  int  `yaml:"default_days"`  // default retention in days (0 = forever)
 		MaxSnapshots int  `yaml:"max_snapshots"` // maximum snapshots per dataset (0 = unlimited)
 	} `yaml:"snapshot_retention,omitempty"`
+}
+
+// UptimeKumaConfig holds configuration for the read-only Uptime Kuma metrics integration.
+type UptimeKumaConfig struct {
+	Enabled             bool   `yaml:"enabled"`
+	BaseURL             string `yaml:"base_url"`
+	APIKey              string `yaml:"-" json:"-"`
+	InsecureSSL         bool   `yaml:"insecure_ssl"`
+	RequestTimeout      int    `yaml:"request_timeout"`
+	PollIntervalSeconds int    `yaml:"poll_interval_seconds"`
+	RelayToAgent        bool   `yaml:"relay_to_agent"`
 }
 
 // JellyfinConfig holds configuration for Jellyfin media server integration.
