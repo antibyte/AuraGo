@@ -203,6 +203,7 @@
   "config.section.n8n.label": "n8n",
   "config.section.netlify.desc": "Sites deployen en beheren op Netlify",
   "config.section.netlify.label": "Netlify",
+  "config.section.vercel.label": "Vercel",
   "config.section.network_tools.desc": "Wake-on-LAN, process control and network utilities",
   "config.section.network_tools.label": "Netwerktools",
   "config.section.notifications.desc": "Notificatie kanalen",
@@ -331,5 +332,6 @@
   "config.tts.provider_label": "TTS-provider",
   "config.tts.provider_minimax": "MiniMax",
   "config.tts.provider_none": "Geen",
-  "config.tts.provider_piper": "Piper (lokaal)"
+  "config.tts.provider_piper": "Piper (lokaal)",
+  "config.section.vercel.desc": "Deploy and manage projects on Vercel"
 }

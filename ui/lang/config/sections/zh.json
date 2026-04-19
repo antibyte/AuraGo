@@ -203,6 +203,7 @@
   "config.section.n8n.label": "n8n",
   "config.section.netlify.desc": "在 Netlify 上部署和管理站点",
   "config.section.netlify.label": "Netlify",
+  "config.section.vercel.label": "Vercel",
   "config.section.network_tools.desc": "Wake-on-LAN、进程控制和网络实用工具",
   "config.section.network_tools.label": "网络工具",
   "config.section.notifications.desc": "推送通知渠道",
@@ -331,5 +332,6 @@
   "config.tts.provider_label": "TTS 提供商",
   "config.tts.provider_minimax": "MiniMax",
   "config.tts.provider_none": "无",
-  "config.tts.provider_piper": "Piper（本地）"
+  "config.tts.provider_piper": "Piper（本地）",
+  "config.section.vercel.desc": "Deploy and manage projects on Vercel"
 }

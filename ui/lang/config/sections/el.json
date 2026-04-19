@@ -203,6 +203,7 @@
   "config.section.n8n.label": "n8n",
   "config.section.netlify.desc": "Ανάπτυξη και διαχείριση ιστότοπων στο Netlify",
   "config.section.netlify.label": "Netlify",
+  "config.section.vercel.label": "Vercel",
   "config.section.network_tools.desc": "Wake-on-LAN, έλεγχος διεργασιών και βοηθήματα δικτύου",
   "config.section.network_tools.label": "Εργαλεία Δικτύου",
   "config.section.notifications.desc": "Kanály push notifikací",
@@ -331,5 +332,6 @@
   "config.tts.provider_label": "Πάροχος TTS",
   "config.tts.provider_minimax": "MiniMax",
   "config.tts.provider_none": "Κανένας",
-  "config.tts.provider_piper": "Piper (τοπικό)"
+  "config.tts.provider_piper": "Piper (τοπικό)",
+  "config.section.vercel.desc": "Deploy and manage projects on Vercel"
 }

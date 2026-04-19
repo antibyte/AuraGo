@@ -224,6 +224,7 @@ func TestInjectVaultIndicatorsAddsAdditionalVaultBackedFields(t *testing.T) {
 
 	secrets := map[string]string{
 		"netlify_token":                  "netlify-secret",
+		"vercel_token":                   "vercel-secret",
 		"telnyx_api_key":                 "telnyx-secret",
 		"cloudflared_token":              "cloudflare-secret",
 		"uptime_kuma_api_key":            "uptime-kuma-secret",
@@ -242,6 +243,7 @@ func TestInjectVaultIndicatorsAddsAdditionalVaultBackedFields(t *testing.T) {
 
 	rawCfg := map[string]interface{}{
 		"netlify":           map[string]interface{}{},
+		"vercel":            map[string]interface{}{},
 		"telnyx":            map[string]interface{}{},
 		"cloudflare_tunnel": map[string]interface{}{},
 		"uptime_kuma":       map[string]interface{}{},
@@ -276,6 +278,7 @@ func TestInjectVaultIndicatorsAddsAdditionalVaultBackedFields(t *testing.T) {
 	}
 
 	assertMasked("netlify.token")
+	assertMasked("vercel.token")
 	assertMasked("telnyx.api_key")
 	assertMasked("cloudflare_tunnel.token")
 	assertMasked("uptime_kuma.api_key")

@@ -177,7 +177,8 @@ func TestToolSchemaManualSync(t *testing.T) {
 		WOLEnabled: true, WebhooksEnabled: true, FirewallEnabled: true,
 		JournalEnabled: true, GoogleWorkspaceEnabled: true, MissionsEnabled: true,
 		MediaRegistryEnabled: true, MeshCentralEnabled: true, NetlifyEnabled: true,
-		EmailEnabled: true, NotesEnabled: true, InvasionControlEnabled: true,
+		VercelEnabled: true,
+		EmailEnabled:  true, NotesEnabled: true, InvasionControlEnabled: true,
 		AnsibleEnabled: true, MCPEnabled: true, HomepageRegistryEnabled: true,
 		RemoteControlEnabled: true, ImageGenerationEnabled: true,
 		MemoryEnabled: true, KnowledgeGraphEnabled: true, SecretsVaultEnabled: true,
@@ -298,6 +299,16 @@ func TestBuiltinToolSchemasRegistersMeshCentralOnlyOnce(t *testing.T) {
 	if count != 1 {
 		t.Fatalf("meshcentral schema count = %d, want 1", count)
 	}
+}
+
+func TestBuiltinToolSchemasIncludeVercelWhenEnabled(t *testing.T) {
+	schemas := builtinToolSchemas(ToolFeatureFlags{VercelEnabled: true})
+	for _, schema := range schemas {
+		if schema.Function != nil && schema.Function.Name == "vercel" {
+			return
+		}
+	}
+	t.Fatal("expected vercel tool schema when VercelEnabled is true")
 }
 
 func TestBuildNativeToolSchemasOmitsVirusTotalWhenDisabled(t *testing.T) {

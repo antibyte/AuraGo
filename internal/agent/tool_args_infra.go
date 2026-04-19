@@ -48,6 +48,22 @@ type netlifyArgs struct {
 	CustomDomain string
 }
 
+type vercelArgs struct {
+	Operation      string
+	ProjectID      string
+	ProjectName    string
+	DeploymentID   string
+	EnvKey         string
+	EnvValue       string
+	EnvTarget      string
+	Domain         string
+	Alias          string
+	Target         string
+	Framework      string
+	RootDirectory  string
+	OutputDirectory string
+}
+
 type proxmoxArgs struct {
 	Operation    string
 	Hostname     string
@@ -447,6 +463,24 @@ func decodeNetlifyArgs(tc ToolCall) netlifyArgs {
 		Value:        firstNonEmptyToolString(tc.Value, toolArgString(tc.Params, "value")),
 		SiteName:     firstNonEmptyToolString(tc.SiteName, toolArgString(tc.Params, "site_name")),
 		CustomDomain: firstNonEmptyToolString(tc.CustomDomain, toolArgString(tc.Params, "custom_domain")),
+	}
+}
+
+func decodeVercelArgs(tc ToolCall) vercelArgs {
+	return vercelArgs{
+		Operation:       firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		ProjectID:       firstNonEmptyToolString(toolArgString(tc.Params, "project_id"), toolArgString(tc.Params, "id")),
+		ProjectName:     firstNonEmptyToolString(toolArgString(tc.Params, "project_name"), toolArgString(tc.Params, "name")),
+		DeploymentID:    firstNonEmptyToolString(tc.DeployID, toolArgString(tc.Params, "deployment_id", "deploy_id")),
+		EnvKey:          firstNonEmptyToolString(tc.EnvKey, toolArgString(tc.Params, "env_key")),
+		EnvValue:        firstNonEmptyToolString(tc.EnvValue, toolArgString(tc.Params, "env_value")),
+		EnvTarget:       firstNonEmptyToolString(toolArgString(tc.Params, "env_target"), tc.EnvContext, toolArgString(tc.Params, "env_context")),
+		Domain:          firstNonEmptyToolString(tc.CustomDomain, toolArgString(tc.Params, "domain", "custom_domain")),
+		Alias:           firstNonEmptyToolString(toolArgString(tc.Params, "alias")),
+		Target:          firstNonEmptyToolString(toolArgString(tc.Params, "target")),
+		Framework:       firstNonEmptyToolString(tc.Framework, toolArgString(tc.Params, "framework")),
+		RootDirectory:   firstNonEmptyToolString(toolArgString(tc.Params, "root_directory")),
+		OutputDirectory: firstNonEmptyToolString(toolArgString(tc.Params, "output_directory")),
 	}
 }
 

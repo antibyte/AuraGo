@@ -102,6 +102,8 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	// Netlify integration endpoints
 	mux.HandleFunc("/api/netlify/status", handleNetlifyStatus(s))
 	mux.HandleFunc("/api/netlify/test-connection", handleNetlifyTestConnection(s))
+	mux.HandleFunc("/api/vercel/status", handleVercelStatus(s))
+	mux.HandleFunc("/api/vercel/test-connection", handleVercelTestConnection(s))
 
 	// Google Workspace integration endpoints
 	mux.HandleFunc("/api/google-workspace/test", handleGoogleWorkspaceTest(s))

@@ -818,7 +818,7 @@ func dispatchInner(ctx context.Context, tc ToolCall, dc *DispatchContext) string
 		"rebuild": true, "install_deps": true, "lint": true, "webserver_start": true,
 		"webserver_stop": true, "webserver_status": true, "init_project": true,
 		"edit_file": true, "json_edit": true, "yaml_edit": true, "xml_edit": true,
-		"deploy_netlify": true, "publish_local": true, "deploy": true,
+		"deploy_netlify": true, "deploy_vercel": true, "publish_local": true, "deploy": true,
 		"list_files": true, "read_file": true, "write_file": true,
 		"save_revision": true, "list_revisions": true, "get_revision": true,
 		"diff_revision": true, "restore_revision": true, "revision_status": true,

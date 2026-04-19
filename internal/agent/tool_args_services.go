@@ -91,6 +91,10 @@ type homepageArgs struct {
 	Port         int
 	BuildDir     string
 	SiteID       string
+	ProjectID    string
+	Alias        string
+	Domain       string
+	Target       string
 	Title        string
 	Draft        bool
 	GitMessage   string
@@ -352,6 +356,10 @@ func decodeHomepageArgs(tc ToolCall) homepageArgs {
 		Port:         firstNonEmptyInt(tc.Port, toolArgInt(tc.Params, 0, "port")),
 		BuildDir:     firstNonEmptyToolString(tc.BuildDir, toolArgString(tc.Params, "build_dir")),
 		SiteID:       firstNonEmptyToolString(tc.SiteID, toolArgString(tc.Params, "site_id")),
+		ProjectID:    firstNonEmptyToolString(toolArgString(tc.Params, "project_id")),
+		Alias:        firstNonEmptyToolString(toolArgString(tc.Params, "alias")),
+		Domain:       firstNonEmptyToolString(toolArgString(tc.Params, "domain")),
+		Target:       firstNonEmptyToolString(toolArgString(tc.Params, "target")),
 		Title:        firstNonEmptyToolString(tc.Title, toolArgString(tc.Params, "title")),
 		Draft:        tc.Draft,
 		GitMessage:   firstNonEmptyToolString(tc.GitMessage, toolArgString(tc.Params, "git_message")),

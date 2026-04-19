@@ -1110,6 +1110,7 @@ var vaultKeyMap = map[string]string{
 	"onedrive.client_secret":           "onedrive_client_secret",
 	"paperless_ngx.api_token":          "paperless_ngx_api_token",
 	"netlify.token":                    "netlify_token",
+	"vercel.token":                     "vercel_token",
 	"telnyx.api_key":                   "telnyx_api_key",
 	"cloudflare_tunnel.token":          "cloudflared_token",
 	"a2a.auth.api_key":                 "a2a_api_key",

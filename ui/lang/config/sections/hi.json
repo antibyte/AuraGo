@@ -203,6 +203,7 @@
   "config.section.n8n.label": "n8n",
   "config.section.netlify.desc": "Netlify पर साइट्स डिप्लॉय और प्रबंधित करें",
   "config.section.netlify.label": "Netlify",
+  "config.section.vercel.label": "Vercel",
   "config.section.network_tools.desc": "Wake-on-LAN, प्रक्रिया नियंत्रण और नेटवर्क उपयोगिताएं",
   "config.section.network_tools.label": "नेटवर्क उपकरण",
   "config.section.notifications.desc": "पुश अधिसूचना चैनल",
@@ -331,5 +332,6 @@
   "config.tts.provider_label": "TTS प्रदाता",
   "config.tts.provider_minimax": "MiniMax",
   "config.tts.provider_none": "कोई नहीं",
-  "config.tts.provider_piper": "Piper (स्थानीय)"
+  "config.tts.provider_piper": "Piper (स्थानीय)",
+  "config.section.vercel.desc": "Deploy and manage projects on Vercel"
 }

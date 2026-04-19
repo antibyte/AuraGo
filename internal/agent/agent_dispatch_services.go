@@ -405,6 +405,11 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 						execEnv = []string{"NETLIFY_AUTH_TOKEN=" + nfTok}
 					}
 				}
+				if vault != nil && strings.Contains(req.Command, "vercel ") {
+					if vcTok, tokErr := vault.ReadSecret("vercel_token"); tokErr == nil && vcTok != "" {
+						execEnv = append(execEnv, "VERCEL_TOKEN="+vcTok)
+					}
+				}
 				return "Tool Output: " + tools.HomepageExec(homepageCfg, req.Command, execEnv, logger)
 			case "init_project":
 				logger.Info("LLM requested homepage init_project", "framework", req.Framework, "name", req.Name, "template", req.Template)
@@ -569,6 +574,54 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 					}
 				}
 				return "Tool Output: " + result
+			case "deploy_vercel":
+				if !cfg.Vercel.AllowDeploy {
+					return `Tool Output: {"status":"error","message":"Deployment is disabled. Enable vercel.allow_deploy in config."}`
+				}
+				if !cfg.Vercel.Enabled {
+					return `Tool Output: {"status":"error","message":"Vercel integration is not enabled. Set vercel.enabled=true in config.yaml."}`
+				}
+				vcToken, vcErr := vault.ReadSecret("vercel_token")
+				if vcErr != nil || vcToken == "" {
+					return `Tool Output: {"status":"error","message":"Vercel token not found in vault. Store it with key 'vercel_token' via the Config UI."}`
+				}
+				vcfg := tools.VercelConfig{
+					Token:            vcToken,
+					DefaultProjectID: cfg.Vercel.DefaultProjectID,
+					TeamID:           cfg.Vercel.TeamID,
+					TeamSlug:         cfg.Vercel.TeamSlug,
+				}
+				logger.Info("LLM requested homepage deploy_vercel", "project", req.ProjectDir, "build_dir", req.BuildDir, "project_id", req.ProjectID, "target", req.Target)
+				result := tools.HomepageDeployVercel(
+					homepageCfg,
+					vcfg,
+					req.ProjectDir,
+					req.BuildDir,
+					req.ProjectID,
+					req.Target,
+					req.Alias,
+					req.Domain,
+					cfg.Vercel.AllowProjectManagement,
+					cfg.Vercel.AllowDomainManagement,
+					logger,
+				)
+				if homepageRegistryDB != nil && req.ProjectDir != "" {
+					deployURL := "vercel"
+					var parsed map[string]interface{}
+					if err := json.Unmarshal([]byte(result), &parsed); err == nil {
+						if url, _ := parsed["deployment_url"].(string); url != "" {
+							deployURL = url
+						}
+					}
+					if proj, err := tools.GetProjectByDir(homepageRegistryDB, req.ProjectDir); err == nil {
+						tools.LogDeploy(homepageRegistryDB, proj.ID, deployURL)
+						_ = tools.UpdateProject(homepageRegistryDB, proj.ID, map[string]interface{}{
+							"deploy_host": "vercel",
+							"url":         deployURL,
+						})
+					}
+				}
+				return "Tool Output: " + result
 			// ─── Git operations ─────────────────────────────────────
 			case "git_init":
 				logger.Info("LLM requested homepage git_init", "dir", req.ProjectDir)
@@ -623,7 +676,7 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				logger.Info("LLM requested homepage revision_status", "dir", req.ProjectDir)
 				return "Tool Output: " + tools.HomepageRevisionStatus(homepageCfg, homepageRegistryDB, req.ProjectDir, logger)
 			default:
-				return `Tool Output: {"status":"error","message":"Unknown homepage operation. Use: init, start, stop, status, rebuild, destroy, exec, init_project, build, install_deps, lighthouse, screenshot, lint, list_files, read_file, write_file, optimize_images, dev, deploy, deploy_netlify, test_connection, webserver_start, webserver_stop, webserver_status, publish_local, tunnel, git_init, git_commit, git_status, git_diff, git_log, git_rollback, save_revision, list_revisions, get_revision, diff_revision, restore_revision, revision_status"}`
+				return `Tool Output: {"status":"error","message":"Unknown homepage operation. Use: init, start, stop, status, rebuild, destroy, exec, init_project, build, install_deps, lighthouse, screenshot, lint, list_files, read_file, write_file, optimize_images, dev, deploy, deploy_netlify, deploy_vercel, test_connection, webserver_start, webserver_stop, webserver_status, publish_local, tunnel, git_init, git_commit, git_status, git_diff, git_log, git_rollback, save_revision, list_revisions, get_revision, diff_revision, restore_revision, revision_status"}`
 			}
 
 		case "webdav", "webdav_storage":

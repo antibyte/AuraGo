@@ -81,6 +81,7 @@ type ToolFeatureFlags struct {
 	MeshCentralEnabled      bool
 	HomepageEnabled         bool
 	NetlifyEnabled          bool
+	VercelEnabled           bool
 	FirewallEnabled         bool
 	EmailEnabled            bool
 	CloudflareTunnelEnabled bool

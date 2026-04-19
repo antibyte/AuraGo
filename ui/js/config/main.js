@@ -115,6 +115,7 @@ const SECTIONS = [
         group: t('config.group.web_publishing'),
         items: [
             { key: 'netlify', icon: '🔺', label: t('config.section.netlify.label'), desc: t('config.section.netlify.desc') },
+            { key: 'vercel', icon: '▲', label: t('config.section.vercel.label'), desc: t('config.section.vercel.desc') },
             { key: 'cloudflare_tunnel', icon: '🌩️', label: t('config.section.cloudflare_tunnel.label'), desc: t('config.section.cloudflare_tunnel.desc') },
             { key: 'homepage', icon: '🌐', label: t('config.section.homepage.label'), desc: t('config.section.homepage.desc') }
         ]
@@ -1454,6 +1455,7 @@ const SECTION_MODULES = {
     paperless_ngx: { m: 'paperless', fn: 'renderPaperlessSection' },
     homepage: { m: 'homepage', fn: 'renderHomepageSection' },
     netlify: { m: 'netlify', fn: 'renderNetlifySection' },
+    vercel: { m: 'vercel', fn: 'renderVercelSection' },
     danger_zone: { m: 'danger', fn: 'renderDangerZoneSection' },
     truenas: { m: 'truenas', fn: 'renderTrueNASSection' },
     jellyfin: { m: 'jellyfin', fn: 'renderJellyfinSection' },

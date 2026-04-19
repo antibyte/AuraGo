@@ -159,6 +159,9 @@ func collectEnabledTools(flags prompts.ContextFlags) []string {
 	if flags.NetlifyEnabled {
 		tools = append(tools, "netlify")
 	}
+	if flags.VercelEnabled {
+		tools = append(tools, "vercel")
+	}
 	if flags.GoogleWorkspaceEnabled {
 		tools = append(tools, "googleworkspace")
 	}

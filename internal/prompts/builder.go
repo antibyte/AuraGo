@@ -151,6 +151,7 @@ type ContextFlags struct {
 	HomepageEnabled          bool
 	HomepageAllowLocalServer bool
 	NetlifyEnabled           bool
+	VercelEnabled            bool
 	CloudflareTunnelEnabled  bool
 	WebhooksEnabled          bool
 	WebhooksDefinitions      string // Summary of configured outgoing webhooks for tool context
@@ -1505,6 +1506,7 @@ func buildEnabledToolsOverview(flags ContextFlags) string {
 	add("meshcentral", flags.MeshCentralEnabled)
 	add("homepage", flags.HomepageEnabled)
 	add("netlify", flags.NetlifyEnabled)
+	add("vercel", flags.VercelEnabled)
 	add("email", flags.EmailEnabled)
 	add("cloudflare_tunnel", flags.CloudflareTunnelEnabled)
 	add("google_workspace", flags.GoogleWorkspaceEnabled)

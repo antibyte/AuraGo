@@ -71,6 +71,7 @@ var blockedSecretExact = map[string]struct{}{
 	"ldap_bind_password":          {},
 	"adguard_password":            {},
 	"netlify_token":               {},
+	"vercel_token":                {},
 	"pushover_user_key":           {},
 	"pushover_app_token":          {},
 	"paperless_ngx_api_token":     {},

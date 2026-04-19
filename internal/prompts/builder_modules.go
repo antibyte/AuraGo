@@ -451,6 +451,10 @@ func (m *PromptModule) ShouldInclude(flags ContextFlags) bool {
 			if flags.NetlifyEnabled {
 				return true
 			}
+		case "vercel_enabled":
+			if flags.VercelEnabled {
+				return true
+			}
 		case "image_generation_enabled":
 			if flags.ImageGenerationEnabled {
 				return true

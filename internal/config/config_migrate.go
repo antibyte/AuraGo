@@ -781,6 +781,7 @@ func (c *Config) ApplyVaultSecrets(vault SecretReader) {
 
 	// ── Netlify ──
 	apply("netlify_token", &c.Netlify.Token)
+	apply("vercel_token", &c.Vercel.Token)
 
 	// ── Egg mode ──
 	apply("egg_shared_key", &c.EggMode.SharedKey)

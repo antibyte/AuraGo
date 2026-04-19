@@ -203,6 +203,7 @@
   "config.section.n8n.label": "n8n",
   "config.section.netlify.desc": "Netlifyでサイトをデプロイ・管理",
   "config.section.netlify.label": "Netlify",
+  "config.section.vercel.label": "Vercel",
   "config.section.network_tools.desc": "Wake-on-LAN、プロセス制御、ネットワークユーティリティ",
   "config.section.network_tools.label": "ネットワークツール",
   "config.section.notifications.desc": "プッシュ通知チャネル",
@@ -331,5 +332,6 @@
   "config.tts.provider_label": "TTSプロバイダー",
   "config.tts.provider_minimax": "MiniMax",
   "config.tts.provider_none": "なし",
-  "config.tts.provider_piper": "Piper（ローカル）"
+  "config.tts.provider_piper": "Piper（ローカル）",
+  "config.section.vercel.desc": "Deploy and manage projects on Vercel"
 }

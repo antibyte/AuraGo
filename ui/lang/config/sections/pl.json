@@ -203,6 +203,7 @@
   "config.section.n8n.label": "n8n",
   "config.section.netlify.desc": "Wdrażanie i zarządzanie stronami na Netlify",
   "config.section.netlify.label": "Netlify",
+  "config.section.vercel.label": "Vercel",
   "config.section.network_tools.desc": "Wake-on-LAN, kontrola procesów i narzędzia sieciowe",
   "config.section.network_tools.label": "Narzędzia sieciowe",
   "config.section.notifications.desc": "Kanały powiadomień push",
@@ -331,5 +332,6 @@
   "config.tts.provider_label": "Dostawca TTS",
   "config.tts.provider_minimax": "MiniMax",
   "config.tts.provider_none": "Brak",
-  "config.tts.provider_piper": "Piper (lokalnie)"
+  "config.tts.provider_piper": "Piper (lokalnie)",
+  "config.section.vercel.desc": "Deploy and manage projects on Vercel"
 }

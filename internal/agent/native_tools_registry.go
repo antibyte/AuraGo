@@ -66,7 +66,7 @@ func allBuiltinToolFeatureFlags() ToolFeatureFlags {
 		WebhooksEnabled: true, ProxmoxEnabled: true, OllamaEnabled: true, TailscaleEnabled: true,
 		AnsibleEnabled: true, InvasionControlEnabled: true, GitHubEnabled: true, MQTTEnabled: true,
 		AdGuardEnabled: true, UptimeKumaEnabled: true, MCPEnabled: true, SandboxEnabled: true, MeshCentralEnabled: true,
-		HomepageEnabled: true, NetlifyEnabled: true, FirewallEnabled: true, EmailEnabled: true,
+		HomepageEnabled: true, NetlifyEnabled: true, VercelEnabled: true, FirewallEnabled: true, EmailEnabled: true,
 		CloudflareTunnelEnabled: true, GoogleWorkspaceEnabled: true, OneDriveEnabled: true,
 		VirusTotalEnabled: true, ImageGenerationEnabled: true, MusicGenerationEnabled: true, RemoteControlEnabled: true,
 		AllowShell: true, AllowPython: true, AllowFilesystemWrite: true, AllowNetworkRequests: true,
@@ -125,6 +125,7 @@ func (ff ToolFeatureFlags) Key() string {
 	appendToolFeatureKeyPart("meshcentral", ff.MeshCentralEnabled)
 	appendToolFeatureKeyPart("homepage", ff.HomepageEnabled)
 	appendToolFeatureKeyPart("netlify", ff.NetlifyEnabled)
+	appendToolFeatureKeyPart("vercel", ff.VercelEnabled)
 	appendToolFeatureKeyPart("firewall", ff.FirewallEnabled)
 	appendToolFeatureKeyPart("email", ff.EmailEnabled)
 	appendToolFeatureKeyPart("cloudflare_tunnel", ff.CloudflareTunnelEnabled)

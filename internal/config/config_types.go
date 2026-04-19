@@ -1032,6 +1032,18 @@ type Config struct {
 		TeamSlug            string `yaml:"team_slug"`             // Netlify team/account slug
 		Token               string `yaml:"-" vault:"token"`       // Personal Access Token (from vault)
 	} `yaml:"netlify"`
+	Vercel struct {
+		Enabled                bool   `yaml:"enabled"`
+		ReadOnly               bool   `yaml:"readonly"`                 // true = only list/get, block create/update/delete/deploy
+		AllowDeploy            bool   `yaml:"allow_deploy"`             // allow creating deployments and promotions
+		AllowProjectManagement bool   `yaml:"allow_project_management"` // allow creating/updating projects
+		AllowEnvManagement     bool   `yaml:"allow_env_management"`     // allow managing environment variables
+		AllowDomainManagement  bool   `yaml:"allow_domain_management"`  // allow managing project domains and aliases
+		DefaultProjectID       string `yaml:"default_project_id"`       // default project ID/name for operations
+		TeamID                 string `yaml:"team_id"`                  // Vercel team ID for scoped API calls
+		TeamSlug               string `yaml:"team_slug"`                // Vercel team slug for scoped API calls
+		Token                  string `yaml:"-" vault:"token"`          // Personal Access Token (from vault)
+	} `yaml:"vercel"`
 	AdGuard struct {
 		Enabled  bool   `yaml:"enabled"`
 		ReadOnly bool   `yaml:"readonly"` // true = only read status/stats/logs, block all mutations

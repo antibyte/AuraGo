@@ -140,8 +140,8 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",
-					"description": "Operation to perform. To deploy a workspace project to Netlify, use 'deploy_netlify' — it builds and packages automatically, no manual ZIP needed. Do NOT use the 'netlify' tool's deploy_zip/deploy_draft for workspace projects.",
-					"enum":        []string{"init", "start", "stop", "status", "rebuild", "destroy", "exec", "init_project", "build", "install_deps", "lighthouse", "screenshot", "check_js", "lint", "list_files", "read_file", "write_file", "edit_file", "json_edit", "yaml_edit", "xml_edit", "optimize_images", "dev", "deploy", "deploy_netlify", "test_connection", "webserver_start", "webserver_stop", "webserver_status", "publish_local", "tunnel", "git_init", "git_commit", "git_status", "git_diff", "git_log", "git_rollback", "save_revision", "list_revisions", "get_revision", "diff_revision", "restore_revision", "revision_status"},
+					"description": "Operation to perform. To publish a workspace project to Netlify or Vercel, use 'deploy_netlify' or 'deploy_vercel' — both build and package automatically inside the homepage workspace.",
+					"enum":        []string{"init", "start", "stop", "status", "rebuild", "destroy", "exec", "init_project", "build", "install_deps", "lighthouse", "screenshot", "check_js", "lint", "list_files", "read_file", "write_file", "edit_file", "json_edit", "yaml_edit", "xml_edit", "optimize_images", "dev", "deploy", "deploy_netlify", "deploy_vercel", "test_connection", "webserver_start", "webserver_stop", "webserver_status", "publish_local", "tunnel", "git_init", "git_commit", "git_status", "git_diff", "git_log", "git_rollback", "save_revision", "list_revisions", "get_revision", "diff_revision", "restore_revision", "revision_status"},
 				},
 				"command":       prop("string", "Shell command to execute (for 'exec')"),
 				"framework":     prop("string", "Web framework: next, vite, astro, svelte, vue, html (for 'init_project')"),
@@ -170,6 +170,11 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				"site_id": prop("string", "Netlify site ID to deploy to (for 'deploy_netlify'). Leave empty to use the default site from config."),
 				"draft":   map[string]interface{}{"type": "boolean", "description": "Deploy as preview/draft, not as production (for 'deploy_netlify')"},
 				"title":   prop("string", "Deploy message shown in Netlify dashboard (for 'deploy_netlify')"),
+				// deploy_vercel specific fields
+				"project_id": prop("string", "Vercel project ID or name to deploy to (for 'deploy_vercel'). Leave empty to use default_project_id from config."),
+				"target":     prop("string", "Deployment target for Vercel: preview or production (for 'deploy_vercel')"),
+				"alias":      prop("string", "Optional Vercel alias/domain to assign to the deployment after success (for 'deploy_vercel')"),
+				"domain":     prop("string", "Optional custom domain to verify or assign after a Vercel deployment (for 'deploy_vercel')"),
 			}, "operation"),
 		))
 	}
@@ -242,6 +247,30 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				"hook_event":    prop("string", "Hook event: deploy_created, deploy_building, deploy_failed, etc."),
 				"url":           prop("string", "Webhook URL (for create_hook with type=url)"),
 				"value":         prop("string", "Email address (for create_hook with type=email)"),
+			}, "operation"),
+		))
+	}
+
+	if ff.VercelEnabled {
+		tools = append(tools, tool("vercel",
+			"Manage Vercel projects, deployments, environment variables, domains, and aliases via the Vercel API. Use homepage deploy_vercel for homepage workspace publishing.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "Operation to perform",
+					"enum":        []string{"check_connection", "list_projects", "get_project", "create_project", "update_project", "list_deployments", "get_deployment", "list_env", "set_env", "delete_env", "list_domains", "add_domain", "verify_domain", "list_aliases", "assign_alias"},
+				},
+				"project_id":       prop("string", "Vercel project ID or name (uses default_project_id if omitted)"),
+				"project_name":     prop("string", "Project name for create_project"),
+				"deployment_id":    prop("string", "Deployment ID for get_deployment, list_aliases, or assign_alias"),
+				"env_key":          prop("string", "Environment variable key"),
+				"env_value":        prop("string", "Environment variable value"),
+				"env_target":       prop("string", "Environment targets: production, preview, development, or comma-separated combination"),
+				"domain":           prop("string", "Project domain to add or verify"),
+				"alias":            prop("string", "Alias or custom domain to assign to a deployment"),
+				"framework":        prop("string", "Framework slug for project creation/update (for example nextjs, vite, astro, nuxtjs, vue)"),
+				"root_directory":   prop("string", "Optional project root directory"),
+				"output_directory": prop("string", "Optional output directory override"),
 			}, "operation"),
 		))
 	}

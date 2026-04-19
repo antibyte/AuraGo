@@ -37,6 +37,8 @@ Design, develop, build, test and deploy professional websites using AuraGo's web
 | `webserver_stop` | Stop the web server |
 | `webserver_status` | Check web server status |
 | `publish_local` | Build and serve locally |
+| `deploy_netlify` | Build and deploy directly to Netlify |
+| `deploy_vercel` | Build and deploy directly to Vercel |
 | `git_init` | Initialize a git repository |
 | `git_commit` | Commit all changes |
 | `git_status` | View changed files |
@@ -327,6 +329,7 @@ Referenced assets (`/files/generated_images/*`, `/files/audio/*`, `/files/docume
     - `publish_local` — serve locally with Caddy (DEFAULT for most cases, no config flags needed)
     - `deploy` — upload to remote server (requires `homepage.allow_deploy=true`)
     - `deploy_netlify` — deploy to Netlify (requires `netlify.allow_deploy=true`)
+    - `deploy_vercel` — deploy to Vercel (requires `vercel.allow_deploy=true`)
 
 ## Version Control (Git)
 
@@ -448,7 +451,7 @@ Starts a Cloudflare quick tunnel to expose a local port to the internet via a te
 - For deployment, store credentials in the vault: `homepage_deploy_password` or `homepage_deploy_key`
 - The Caddy web server can serve with automatic HTTPS if a domain is configured (Docker mode only)
 - Use compound operations (`init_project`, `build`, `deploy`) to save tokens — avoid running many individual `exec` calls
-- **NEVER use the `filesystem` tool for homepage project files.** The filesystem tool writes to `agent_workspace/workdir/` — a completely different location from the homepage workspace. Files created there will NOT be found by `build`, `deploy`, `deploy_netlify`, or `publish_local`. Always use `homepage` → `write_file` instead.
+- **NEVER use the `filesystem` tool for homepage project files.** The filesystem tool writes to `agent_workspace/workdir/` — a completely different location from the homepage workspace. Files created there will NOT be found by `build`, `deploy`, `deploy_netlify`, `deploy_vercel`, or `publish_local`. Always use `homepage` → `write_file` instead.
 
 ### Using Generated Images in Netlify Deployments
 
@@ -460,6 +463,33 @@ Simply embed the image in your HTML using the exact URL path from `media_registr
 ```
 
 The `deploy_netlify` operation scans all HTML and CSS files, detects `/files/generated_images/` references, and includes those image files in the deployment package automatically. After deploying, the image will be live at the same URL path on Netlify.
+
+### Using Vercel Deployments
+
+Use `deploy_vercel` when the homepage project should be published to Vercel from AuraGo's managed workspace.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `project_dir` | string | yes | Homepage workspace directory to deploy |
+| `project_id` | string | no | Vercel project name or ID; falls back to `vercel.default_project_id` |
+| `build_dir` | string | no | Explicit directory to upload; otherwise auto-detected after build |
+| `target` | string | no | `preview` or `production` (default: `preview`) |
+| `alias` | string | no | Alias or domain to assign after a successful deployment |
+| `domain` | string | no | Custom domain to add/verify before alias assignment |
+
+```json
+{"action": "homepage", "operation": "deploy_vercel", "project_dir": "my-site", "project_id": "my-site", "target": "preview"}
+```
+
+```json
+{"action": "homepage", "operation": "deploy_vercel", "project_dir": "my-site", "project_id": "my-site", "target": "production", "domain": "www.example.com"}
+```
+
+Notes:
+- `deploy_vercel` is designed for static-first homepage projects such as HTML, Vite, Astro, Nuxt static output, and Next.js with static export.
+- AuraGo validates the build first, then deploys from the homepage workspace via the Vercel CLI.
+- If the Vercel project does not exist yet, AuraGo can create it automatically only when `vercel.allow_project_management=true`.
+- Alias or custom domain assignment requires `vercel.allow_domain_management=true`.
 
 ## Troubleshooting
 
@@ -524,6 +554,23 @@ The `deploy_netlify` operation scans all HTML and CSS files, detects `/files/gen
 2. Add a valid `build` script to `package.json`, then retry.
 
 If the project is plain HTML, you usually do not need a build step at all.
+
+### deploy_vercel: "project was not found"
+
+**Problem:** The requested Vercel project does not exist and automatic project creation is blocked.
+
+**Solution:** Either:
+1. Set `vercel.default_project_id` or pass `project_id` explicitly, or
+2. Enable `vercel.allow_project_management` so AuraGo may create the Vercel project automatically.
+
+### deploy_vercel: alias or domain assignment failed
+
+**Problem:** The deployment succeeded, but the requested alias or custom domain could not be attached.
+
+**Solution:** Check:
+1. `vercel.allow_domain_management=true`
+2. The domain is already configured for the same Vercel team/account
+3. DNS verification is complete if you are using a custom domain
 
 ## Configuration
 

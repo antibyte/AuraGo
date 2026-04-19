@@ -44,6 +44,7 @@ type ToolingPolicy struct {
 	SandboxEnabled             bool
 	HomepageEnabled            bool
 	HomepageAllowLocalServer   bool
+	VercelEnabled              bool
 	WOLEnabled                 bool
 	EffectiveMaxToolGuides     int
 	EffectiveGuideStrategy     prompts.DynamicGuideStrategy
@@ -217,6 +218,7 @@ func buildToolingPolicy(cfg *config.Config, userQuery string) ToolingPolicy {
 		SandboxEnabled:             sandboxEnabled,
 		HomepageEnabled:            homepageEnabled,
 		HomepageAllowLocalServer:   cfg.Homepage.AllowLocalServer,
+		VercelEnabled:              cfg.Vercel.Enabled,
 		WOLEnabled:                 wolEnabled,
 		EffectiveMaxToolGuides:     effectiveMaxToolGuides,
 		EffectiveGuideStrategy:     guideStrategy,
@@ -297,6 +299,7 @@ func buildToolFlagsFromConfig(cfg *config.Config) ToolFeatureFlags {
 		HomepageEnabled:              homepageEnabled,
 		HomepageAllowLocalServer:     cfg.Homepage.AllowLocalServer,
 		NetlifyEnabled:               cfg.Netlify.Enabled,
+		VercelEnabled:                cfg.Vercel.Enabled,
 		FirewallEnabled:              cfg.Firewall.Enabled && (cfg.Runtime.FirewallAccessOK || (cfg.Agent.SudoEnabled && !cfg.Runtime.IsDocker)),
 		EmailEnabled:                 cfg.Email.Enabled || len(cfg.EmailAccounts) > 0,
 		CloudflareTunnelEnabled:      cfg.CloudflareTunnel.Enabled,
@@ -434,6 +437,7 @@ func buildPromptContextFlags(runCfg RunConfig, policy ToolingPolicy, opts prompt
 		HomepageEnabled:          flags.HomepageEnabled,
 		HomepageAllowLocalServer: flags.HomepageAllowLocalServer,
 		NetlifyEnabled:           flags.NetlifyEnabled,
+		VercelEnabled:            flags.VercelEnabled,
 		WebhooksEnabled:          flags.WebhooksEnabled,
 		WebhooksDefinitions:      opts.WebhooksDefinitions,
 		VirusTotalEnabled:        flags.VirusTotalEnabled,

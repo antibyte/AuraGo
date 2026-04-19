@@ -90,6 +90,7 @@ func TestBuildPromptContextFlagsAndToolFeatureFlagsShareResolvedCapabilities(t *
 	cfg.HomeAssistant.Enabled = true
 	cfg.Koofr.Enabled = true
 	cfg.GoogleWorkspace.Enabled = true
+	cfg.Vercel.Enabled = true
 	cfg.Tools.Memory.Enabled = true
 	cfg.Tools.WebCapture.Enabled = true
 	cfg.Tools.NetworkPing.Enabled = true
@@ -122,6 +123,9 @@ func TestBuildPromptContextFlagsAndToolFeatureFlagsShareResolvedCapabilities(t *
 	}
 	if contextFlags.GoogleWorkspaceEnabled != toolFlags.GoogleWorkspaceEnabled {
 		t.Fatal("google workspace capability mismatch between prompt context and tool feature flags")
+	}
+	if contextFlags.VercelEnabled != toolFlags.VercelEnabled {
+		t.Fatal("vercel capability mismatch between prompt context and tool feature flags")
 	}
 	if contextFlags.MemoryEnabled != toolFlags.MemoryEnabled {
 		t.Fatal("memory capability mismatch between prompt context and tool feature flags")
