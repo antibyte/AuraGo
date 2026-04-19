@@ -39,5 +39,9 @@
   "config.cloudflare_tunnel.log_info": "जानकारी",
   "config.cloudflare_tunnel.log_debug": "डीबग",
   "config.cloudflare_tunnel.log_warn": "चेतावनी",
-  "config.cloudflare_tunnel.log_error": "त्रुटि"
+  "config.cloudflare_tunnel.log_error": "त्रुटि",
+  "config.cloudflare_tunnel.general_title": "सामान्य",
+  "config.cloudflare_tunnel.general_desc": "टनल सक्षम करें और बुनियादी सेटिंग्स कॉन्फ़िगर करें।",
+  "config.cloudflare_tunnel.connection_title": "कनेक्शन",
+  "config.cloudflare_tunnel.connection_desc": "टनल कनेक्शन और प्रमाणीकरण सेटिंग्स कॉन्फ़िगर करें।"
 }

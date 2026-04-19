@@ -39,5 +39,9 @@
   "config.cloudflare_tunnel.log_info": "Info",
   "config.cloudflare_tunnel.log_debug": "Débogage",
   "config.cloudflare_tunnel.log_warn": "Avertissement",
-  "config.cloudflare_tunnel.log_error": "Erreur"
+  "config.cloudflare_tunnel.log_error": "Erreur",
+  "config.cloudflare_tunnel.general_title": "Général",
+  "config.cloudflare_tunnel.general_desc": "Activez le tunnel et configurez les paramètres de base.",
+  "config.cloudflare_tunnel.connection_title": "Connexion",
+  "config.cloudflare_tunnel.connection_desc": "Configurez les paramètres de connexion et d'authentification du tunnel."
 }

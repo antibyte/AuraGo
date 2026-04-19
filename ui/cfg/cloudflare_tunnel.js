@@ -16,6 +16,9 @@ async function renderCloudflareTunnelSection(section) {
         <div><small>${t('config.cloudflare_tunnel.info')}</small></div>
     </div>`;
 
+    html += `<div class="field-group">
+        <div class="field-group-title">⚙️ ${t('config.cloudflare_tunnel.general_title')}</div>
+        <div class="field-group-desc">${t('config.cloudflare_tunnel.general_desc')}</div>`;
     html += `<div class="cft-toggle-row">
         <span class="cft-toggle-label">${t('config.cloudflare_tunnel.enabled_label')}</span>
         <div class="toggle ${enabled ? 'on' : ''}" data-path="cloudflare_tunnel.enabled" onclick="toggleBool(this)"></div>
@@ -40,6 +43,11 @@ async function renderCloudflareTunnelSection(section) {
         <span class="cft-toggle-label">${t('config.cloudflare_tunnel.auto_start_label')}</span>
         <div class="toggle ${autoStart ? 'on' : ''}" data-path="cloudflare_tunnel.auto_start" onclick="toggleBool(this)"></div>
     </div>`;
+    html += `</div>`;
+
+    html += `<div class="field-group">
+        <div class="field-group-title">🔗 ${t('config.cloudflare_tunnel.connection_title')}</div>
+        <div class="field-group-desc">${t('config.cloudflare_tunnel.connection_desc')}</div>`;
 
     html += `<div class="cft-grid">`;
 
@@ -110,9 +118,10 @@ async function renderCloudflareTunnelSection(section) {
             <div><small>${t('config.cloudflare_tunnel.loopback_hint')}</small></div>
         </div>`;
     }
-    html += `<div class="cft-exposure-heading-wrap">
-        <span class="cft-exposure-heading">${t('config.cloudflare_tunnel.exposure_heading')}</span>
-    </div>`;
+    html += `</div>`;
+
+    html += `<div class="field-group">
+        <div class="field-group-title">🌐 ${t('config.cloudflare_tunnel.exposure_heading')}</div>`;
 
     const isNamed = cfg.auth_method === 'named';
     if (isNamed) {
@@ -144,6 +153,7 @@ async function renderCloudflareTunnelSection(section) {
             <div><small>${t('config.cloudflare_tunnel.expose_single_hint')}</small></div>
         </div>`;
     }
+    html += `</div>`;
 
     if ((cfg.auth_method === 'token' || !cfg.auth_method) && enabled) {
         html += `<div class="field-group cf-token-group">

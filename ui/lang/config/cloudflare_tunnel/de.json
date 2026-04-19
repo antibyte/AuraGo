@@ -39,5 +39,9 @@
   "config.cloudflare_tunnel.log_error": "Fehler",
   "config.cloudflare_tunnel.error_prefix": "Fehler",
   "config.cloudflare_tunnel.restarting": "Tunnel wird neu gestartet...",
-  "config.cloudflare_tunnel.restart_success": "Tunnel erfolgreich neu gestartet"
+  "config.cloudflare_tunnel.restart_success": "Tunnel erfolgreich neu gestartet",
+  "config.cloudflare_tunnel.general_title": "Allgemein",
+  "config.cloudflare_tunnel.general_desc": "Aktivieren Sie den Tunnel und konfigurieren Sie die Grundeinstellungen.",
+  "config.cloudflare_tunnel.connection_title": "Verbindung",
+  "config.cloudflare_tunnel.connection_desc": "Tunnel-Verbindungs- und Authentifizierungseinstellungen konfigurieren."
 }

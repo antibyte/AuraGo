@@ -39,5 +39,9 @@
   "config.cloudflare_tunnel.log_error": "エラー",
   "config.cloudflare_tunnel.error_prefix": "エラー",
   "config.cloudflare_tunnel.restarting": "隧道を再起動中...",
-  "config.cloudflare_tunnel.restart_success": "隧道が正常に再起動されました"
+  "config.cloudflare_tunnel.restart_success": "隧道が正常に再起動されました",
+  "config.cloudflare_tunnel.general_title": "一般",
+  "config.cloudflare_tunnel.general_desc": "トンネルを有効にして基本設定を構成します。",
+  "config.cloudflare_tunnel.connection_title": "接続",
+  "config.cloudflare_tunnel.connection_desc": "トンネル接続と認証設定を構成します。"
 }

@@ -39,5 +39,9 @@
   "config.cloudflare_tunnel.log_info": "Info",
   "config.cloudflare_tunnel.log_debug": "Debug",
   "config.cloudflare_tunnel.log_warn": "Varování",
-  "config.cloudflare_tunnel.log_error": "Chyba"
+  "config.cloudflare_tunnel.log_error": "Chyba",
+  "config.cloudflare_tunnel.general_title": "Obecné",
+  "config.cloudflare_tunnel.general_desc": "Povolte tunel a nakonfigurujte základní nastavení.",
+  "config.cloudflare_tunnel.connection_title": "Připojení",
+  "config.cloudflare_tunnel.connection_desc": "Nakonfigurujte připojení tunelu a nastavení ověřování."
 }

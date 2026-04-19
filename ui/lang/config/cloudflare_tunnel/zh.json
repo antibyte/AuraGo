@@ -39,5 +39,9 @@
   "config.cloudflare_tunnel.log_info": "信息",
   "config.cloudflare_tunnel.log_debug": "调试",
   "config.cloudflare_tunnel.log_warn": "警告",
-  "config.cloudflare_tunnel.log_error": "错误"
+  "config.cloudflare_tunnel.log_error": "错误",
+  "config.cloudflare_tunnel.general_title": "常规",
+  "config.cloudflare_tunnel.general_desc": "启用隧道并配置基本设置。",
+  "config.cloudflare_tunnel.connection_title": "连接",
+  "config.cloudflare_tunnel.connection_desc": "配置隧道连接和身份验证设置。"
 }

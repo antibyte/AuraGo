@@ -39,5 +39,9 @@
   "config.cloudflare_tunnel.log_info": "Información",
   "config.cloudflare_tunnel.log_debug": "Depuración",
   "config.cloudflare_tunnel.log_warn": "Advertencia",
-  "config.cloudflare_tunnel.log_error": "Error"
+  "config.cloudflare_tunnel.log_error": "Error",
+  "config.cloudflare_tunnel.general_title": "General",
+  "config.cloudflare_tunnel.general_desc": "Habilite el túnel y configure los ajustes básicos.",
+  "config.cloudflare_tunnel.connection_title": "Conexión",
+  "config.cloudflare_tunnel.connection_desc": "Configure los ajustes de conexión y autenticación del túnel."
 }
