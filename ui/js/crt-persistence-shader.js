@@ -1,7 +1,6 @@
 /**
  * AuraGo CRT Persistence Shader — event-driven phosphor afterglow & hero FX
- * Handles: phosphor persistence sweeps, degauss edge pulses, power-on bloom,
- * activity-reactive brightness surges.
+ * Renders with mixBlendMode:'screen' for additive luminance only.
  */
 (function () {
     'use strict';
@@ -45,56 +44,56 @@
             float aspect = u_res.x / max(u_res.y, 1.0);
             vec2 cc = vec2((uv.x - 0.5) * aspect, uv.y - 0.5);
             float dist = length(cc);
-            float rollCenter = fract(t * 0.095 + u_activity * 0.05);
+            float rollCenter = fract(t * 0.10 + u_activity * 0.06);
 
             // Main phosphor sweep
-            float sweepPos = fract(t * 0.065 + u_activity * 0.08);
-            float sweep = band(uv.y, sweepPos, 16.0) * (0.25 + u_activity * 0.75);
+            float sweepPos = fract(t * 0.075 + u_activity * 0.10);
+            float sweep = band(uv.y, sweepPos, 12.0) * (0.40 + u_activity * 0.90);
 
             // Secondary sweep (ghost echo)
-            float sweepPos2 = fract(sweepPos + 0.28);
-            float sweep2 = band(uv.y, sweepPos2, 24.0) * u_activity * 0.22;
+            float sweepPos2 = fract(sweepPos + 0.25);
+            float sweep2 = band(uv.y, sweepPos2, 18.0) * u_activity * 0.30;
 
             // Traveling retrace line
-            float travelingLine = band(uv.y, rollCenter, 48.0) * (0.12 + u_activity * 0.14);
-            float lineGlow = band(uv.y, rollCenter, 14.0) * (0.07 + u_activity * 0.10);
+            float travelingLine = band(uv.y, rollCenter, 35.0) * (0.20 + u_activity * 0.25);
+            float lineGlow = band(uv.y, rollCenter, 10.0) * (0.12 + u_activity * 0.15);
 
             // Degauss-inspired edge pulse rings
-            float degaussRing = exp(-abs(dist - 0.52) * 20.0) * u_theme_pulse;
-            float degaussCore = smoothstep(0.38, 0.0, dist) * u_theme_pulse * 0.14;
+            float degaussRing = exp(-abs(dist - 0.50) * 16.0) * u_theme_pulse;
+            float degaussCore = smoothstep(0.35, 0.0, dist) * u_theme_pulse * 0.20;
 
             // Corner power surge
             float edgeSurge =
-                exp(-uv.x * 10.0) +
-                exp(-(1.0 - uv.x) * 10.0) +
-                exp(-uv.y * 14.0) +
-                exp(-(1.0 - uv.y) * 14.0);
-            edgeSurge *= u_theme_pulse * 0.10;
+                exp(-uv.x * 8.0) +
+                exp(-(1.0 - uv.x) * 8.0) +
+                exp(-uv.y * 12.0) +
+                exp(-(1.0 - uv.y) * 12.0);
+            edgeSurge *= u_theme_pulse * 0.14;
 
             // Phosphor afterglow spill
-            float afterglow = smoothstep(0.65, 0.0, dist) * u_activity * 0.08;
+            float afterglow = smoothstep(0.60, 0.0, dist) * u_activity * 0.12;
 
-            vec3 phosphor = vec3(0.22, 1.0, 0.14);
-            vec3 amber = vec3(0.95, 0.58, 0.14);
-            vec3 cool = vec3(0.55, 0.85, 1.0);
+            vec3 phosphor = vec3(0.25, 1.0, 0.16);
+            vec3 amber = vec3(1.0, 0.60, 0.16);
+            vec3 cool = vec3(0.60, 0.90, 1.0);
 
             vec3 color =
-                phosphor * (sweep + sweep2 + travelingLine + degaussCore * 0.6 + afterglow) +
-                vec3(0.75, 1.0, 0.70) * lineGlow * 0.10 +
-                amber * degaussRing * 0.16 +
-                cool * edgeSurge * 0.08;
+                phosphor * (sweep + sweep2 + travelingLine + degaussCore * 0.7 + afterglow) +
+                vec3(0.80, 1.0, 0.75) * lineGlow * 0.15 +
+                amber * degaussRing * 0.22 +
+                cool * edgeSurge * 0.10;
 
             float alpha =
-                sweep * 0.14 +
-                sweep2 * 0.08 +
-                travelingLine * 0.09 +
-                lineGlow * 0.09 +
-                degaussRing * 0.12 +
-                degaussCore * 0.09 +
-                edgeSurge * 0.06 +
-                afterglow * 0.5;
+                sweep * 0.22 +
+                sweep2 * 0.12 +
+                travelingLine * 0.14 +
+                lineGlow * 0.12 +
+                degaussRing * 0.18 +
+                degaussCore * 0.12 +
+                edgeSurge * 0.08 +
+                afterglow * 0.6;
 
-            alpha = clamp(alpha, 0.0, 0.26);
+            alpha = clamp(alpha, 0.0, 0.55);
             gl_FragColor = vec4(color, alpha);
         }
     `;
@@ -161,7 +160,7 @@
             height: '100vh',
             pointerEvents: 'none',
             zIndex: '999995',
-            mixBlendMode: 'overlay'
+            mixBlendMode: 'screen'
         });
         document.documentElement.appendChild(canvas);
 

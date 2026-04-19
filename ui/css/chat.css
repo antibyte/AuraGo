@@ -3665,8 +3665,8 @@ html[data-theme="retro-crt"]::after {
         ),
         repeating-linear-gradient(
             to bottom,
-            rgba(120, 255, 86, 0.010) 0px,
-            rgba(120, 255, 86, 0.010) 1px,
+            rgba(120, 255, 86, 0.020) 0px,
+            rgba(120, 255, 86, 0.020) 1px,
             rgba(0, 0, 0, 0.0) 2px,
             rgba(0, 0, 0, 0.0) 4px
         );
@@ -3717,15 +3717,15 @@ html[data-theme="retro-crt"]::before {
         linear-gradient(180deg, rgba(10, 18, 10, 0.12) 0%, transparent 18%, transparent 80%, rgba(0, 0, 0, 0.18) 100%),
         repeating-linear-gradient(
             to bottom,
-            rgba(95, 255, 58, 0.008) 0px,
-            rgba(95, 255, 58, 0.008) 1px,
+            rgba(95, 255, 58, 0.015) 0px,
+            rgba(95, 255, 58, 0.015) 1px,
             rgba(0, 0, 0, 0.0) 2px,
             rgba(0, 0, 0, 0.0) 4px
         ),
         repeating-linear-gradient(
             to right,
-            rgba(95, 255, 58, 0.012) 0px,
-            rgba(95, 255, 58, 0.012) 1px,
+            rgba(95, 255, 58, 0.022) 0px,
+            rgba(95, 255, 58, 0.022) 1px,
             rgba(0, 0, 0, 0.0) 2px,
             rgba(0, 0, 0, 0.0) 6px
         );
