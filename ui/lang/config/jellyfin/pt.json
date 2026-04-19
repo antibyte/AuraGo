@@ -7,8 +7,8 @@
   "config.jellyfin.host_label": "Host Jellyfin",
   "config.jellyfin.port_label": "Porta",
   "config.jellyfin.product_name": "Jellyfin",
-  "config.jellyfin.apikey_label": "API Key (Vault)",
-  "config.jellyfin.apikey_placeholder": "Enter API Key…",
+  "config.jellyfin.apikey_label": "Chave API (Vault)",
+  "config.jellyfin.apikey_placeholder": "Insira a chave API…",
   "config.jellyfin.save_vault": "Salvar no Vault",
   "config.jellyfin.test_btn": "Testar Conexão",
   "config.jellyfin.checking": "Verificando conexão…",
@@ -16,9 +16,9 @@
   "config.jellyfin.connection_failed": "Conexão falhou",
   "config.jellyfin.test_ok": "Conexão bem-sucedida",
   "config.jellyfin.test_fail": "Conexão falhou",
-  "config.jellyfin.apikey_empty": "Please enter an API key first.",
-  "config.jellyfin.apikey_saved": "API key saved to vault.",
-  "config.jellyfin.apikey_save_failed": "Failed to save API key to vault.",
+  "config.jellyfin.apikey_empty": "Por favor, insira uma chave API primeiro.",
+  "config.jellyfin.apikey_saved": "Chave API salva no vault.",
+  "config.jellyfin.apikey_save_failed": "Falha ao salvar chave API no vault.",
   "help.jellyfin.enabled": "Ativa a integração Jellyfin. O agente pode navegar em bibliotecas, pesquisar mídia, controlar reprodução e gerenciar o servidor de mídia.",
   "help.jellyfin.readonly": "No modo somente leitura, o agente só pode visualizar dados. O controle de reprodução e a atualização de bibliotecas são bloqueados.",
   "help.jellyfin.allow_destructive": "Permite excluir itens de mídia do servidor Jellyfin.",
@@ -26,5 +26,5 @@
   "help.jellyfin.insecure_ssl": "Aceita certificados autoassinados ou inválidos (apenas para ambientes de teste).",
   "help.jellyfin.host": "Nome do host ou endereço IP do seu servidor Jellyfin (ex.: jellyfin.local ou 192.168.1.100).",
   "help.jellyfin.port": "Porta do servidor Jellyfin (padrão: 8096).",
-  "help.jellyfin.api_key": "API key for the Jellyfin API. Create one under Dashboard → API Keys in Jellyfin."
+  "help.jellyfin.api_key": "Chave API para a API do Jellyfin. Crie uma em Painel → Chaves API no Jellyfin."
 }

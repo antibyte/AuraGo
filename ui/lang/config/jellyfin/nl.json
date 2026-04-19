@@ -7,8 +7,8 @@
   "config.jellyfin.host_label": "Jellyfin Host",
   "config.jellyfin.port_label": "Poort",
   "config.jellyfin.product_name": "Jellyfin",
-  "config.jellyfin.apikey_label": "API Key (Vault)",
-  "config.jellyfin.apikey_placeholder": "Enter API Key…",
+  "config.jellyfin.apikey_label": "API-sleutel (Vault)",
+  "config.jellyfin.apikey_placeholder": "Voer API-sleutel in…",
   "config.jellyfin.save_vault": "Opslaan in Vault",
   "config.jellyfin.test_btn": "Verbinding Testen",
   "config.jellyfin.checking": "Verbinding controleren…",
@@ -16,9 +16,9 @@
   "config.jellyfin.connection_failed": "Verbinding mislukt",
   "config.jellyfin.test_ok": "Verbinding geslaagd",
   "config.jellyfin.test_fail": "Verbinding mislukt",
-  "config.jellyfin.apikey_empty": "Please enter an API key first.",
-  "config.jellyfin.apikey_saved": "API key saved to vault.",
-  "config.jellyfin.apikey_save_failed": "Failed to save API key to vault.",
+  "config.jellyfin.apikey_empty": "Voer eerst een API-sleutel in.",
+  "config.jellyfin.apikey_saved": "API-sleutel opgeslagen in vault.",
+  "config.jellyfin.apikey_save_failed": "Opslaan van API-sleutel in vault mislukt.",
   "help.jellyfin.enabled": "Activeert de Jellyfin-integratie. De agent kan bibliotheken doorzoeken, media zoeken, afspelen besturen en de mediaserver beheren.",
   "help.jellyfin.readonly": "In alleen-lezen modus kan de agent alleen gegevens bekijken. Afspeelbediening en bibliotheek vernieuwen zijn geblokkeerd.",
   "help.jellyfin.allow_destructive": "Staat het verwijderen van media-items van de Jellyfin-server toe.",
@@ -26,5 +26,5 @@
   "help.jellyfin.insecure_ssl": "Accepteert zelfondertekende of ongeldige certificaten (alleen voor testomgevingen).",
   "help.jellyfin.host": "Hostnaam of IP-adres van uw Jellyfin-server (bijv. jellyfin.local of 192.168.1.100).",
   "help.jellyfin.port": "Poort van de Jellyfin-server (standaard: 8096).",
-  "help.jellyfin.api_key": "API key for the Jellyfin API. Create one under Dashboard → API Keys in Jellyfin."
+  "help.jellyfin.api_key": "API-sleutel voor de Jellyfin API. Maak er een aan onder Dashboard → API-sleutels in Jellyfin."
 }

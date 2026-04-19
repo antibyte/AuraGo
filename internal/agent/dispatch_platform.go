@@ -600,7 +600,7 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				}
 			}
 			logger.Info("LLM requested Jellyfin operation", "operation", req.Operation)
-			return "Tool Output: " + tools.DispatchJellyfinTool(req.Operation, req.params(), cfg, logger)
+				return "Tool Output: " + tools.DispatchJellyfinTool(req.Operation, req.params(), cfg, dc.Vault, logger)
 
 		// ── Obsidian Knowledge Management ──
 		case "obsidian":

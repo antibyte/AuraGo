@@ -10,6 +10,7 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/jellyfin"
+	"aurago/internal/security"
 )
 
 const defaultJellyfinRequestTimeout = 60 * time.Second
@@ -23,51 +24,51 @@ func jellyfinRequestContext(cfg config.JellyfinConfig) (context.Context, context
 }
 
 // DispatchJellyfinTool routes Jellyfin tool calls by operation name.
-func DispatchJellyfinTool(operation string, params map[string]string, cfg *config.Config, logger *slog.Logger) string {
+func DispatchJellyfinTool(operation string, params map[string]string, cfg *config.Config, vault *security.Vault, logger *slog.Logger) string {
 	if !cfg.Jellyfin.Enabled {
 		return errJSON("Jellyfin integration is disabled")
 	}
 
 	switch operation {
 	case "health":
-		return JellyfinHealth(cfg.Jellyfin, logger)
+		return JellyfinHealth(cfg.Jellyfin, vault, logger)
 	case "library_list":
-		return JellyfinLibraryList(cfg.Jellyfin, logger)
+		return JellyfinLibraryList(cfg.Jellyfin, vault, logger)
 	case "search":
 		query := getString(params, "query")
 		mediaType := getString(params, "media_type", "")
 		limit := getInt(params, "limit", 20)
-		return JellyfinSearch(cfg.Jellyfin, query, mediaType, limit, logger)
+		return JellyfinSearch(cfg.Jellyfin, vault, query, mediaType, limit, logger)
 	case "item_details":
 		itemID := getString(params, "item_id")
-		return JellyfinItemDetails(cfg.Jellyfin, itemID, logger)
+		return JellyfinItemDetails(cfg.Jellyfin, vault, itemID, logger)
 	case "recent_items":
 		limit := getInt(params, "limit", 20)
 		mediaType := getString(params, "media_type", "")
-		return JellyfinRecentItems(cfg.Jellyfin, limit, mediaType, logger)
+		return JellyfinRecentItems(cfg.Jellyfin, vault, limit, mediaType, logger)
 	case "sessions":
-		return JellyfinSessions(cfg.Jellyfin, logger)
+		return JellyfinSessions(cfg.Jellyfin, vault, logger)
 	case "playback_control":
 		sessionID := getString(params, "session_id")
 		command := getString(params, "command")
-		return JellyfinPlaybackControl(cfg.Jellyfin, sessionID, command, logger)
+		return JellyfinPlaybackControl(cfg.Jellyfin, vault, sessionID, command, logger)
 	case "library_refresh":
 		libraryID := getString(params, "library_id")
-		return JellyfinLibraryRefresh(cfg.Jellyfin, libraryID, logger)
+		return JellyfinLibraryRefresh(cfg.Jellyfin, vault, libraryID, logger)
 	case "delete_item":
 		itemID := getString(params, "item_id")
-		return JellyfinDeleteItem(cfg.Jellyfin, itemID, logger)
+		return JellyfinDeleteItem(cfg.Jellyfin, vault, itemID, logger)
 	case "activity_log":
 		limit := getInt(params, "limit", 25)
-		return JellyfinActivityLog(cfg.Jellyfin, limit, logger)
+		return JellyfinActivityLog(cfg.Jellyfin, vault, limit, logger)
 	default:
 		return errJSON("Unknown Jellyfin operation: %s", operation)
 	}
 }
 
 // JellyfinHealth returns server info, version, and active session count.
-func JellyfinHealth(cfg config.JellyfinConfig, logger *slog.Logger) string {
-	client, err := jellyfin.NewClient(cfg, nil)
+func JellyfinHealth(cfg config.JellyfinConfig, vault *security.Vault, logger *slog.Logger) string {
+	client, err := jellyfin.NewClient(cfg, vault)
 	if err != nil {
 		return errJSON("Jellyfin connection failed: %v", err)
 	}
@@ -111,8 +112,8 @@ func JellyfinHealth(cfg config.JellyfinConfig, logger *slog.Logger) string {
 }
 
 // JellyfinLibraryList returns all media libraries with their types.
-func JellyfinLibraryList(cfg config.JellyfinConfig, logger *slog.Logger) string {
-	client, err := jellyfin.NewClient(cfg, nil)
+func JellyfinLibraryList(cfg config.JellyfinConfig, vault *security.Vault, logger *slog.Logger) string {
+	client, err := jellyfin.NewClient(cfg, vault)
 	if err != nil {
 		return errJSON("Jellyfin connection failed: %v", err)
 	}
@@ -151,12 +152,12 @@ func JellyfinLibraryList(cfg config.JellyfinConfig, logger *slog.Logger) string 
 }
 
 // JellyfinSearch searches for media items matching a query.
-func JellyfinSearch(cfg config.JellyfinConfig, query, mediaType string, limit int, logger *slog.Logger) string {
+func JellyfinSearch(cfg config.JellyfinConfig, vault *security.Vault, query, mediaType string, limit int, logger *slog.Logger) string {
 	if query == "" {
 		return errJSON("search query is required")
 	}
 
-	client, err := jellyfin.NewClient(cfg, nil)
+	client, err := jellyfin.NewClient(cfg, vault)
 	if err != nil {
 		return errJSON("Jellyfin connection failed: %v", err)
 	}
@@ -181,12 +182,12 @@ func JellyfinSearch(cfg config.JellyfinConfig, query, mediaType string, limit in
 }
 
 // JellyfinItemDetails returns detailed info for a specific item.
-func JellyfinItemDetails(cfg config.JellyfinConfig, itemID string, logger *slog.Logger) string {
+func JellyfinItemDetails(cfg config.JellyfinConfig, vault *security.Vault, itemID string, logger *slog.Logger) string {
 	if itemID == "" {
 		return errJSON("item_id is required")
 	}
 
-	client, err := jellyfin.NewClient(cfg, nil)
+	client, err := jellyfin.NewClient(cfg, vault)
 	if err != nil {
 		return errJSON("Jellyfin connection failed: %v", err)
 	}
@@ -210,20 +211,109 @@ func JellyfinItemDetails(cfg config.JellyfinConfig, itemID string, logger *slog.
 		"runtime":  jellyfinFormatRuntime(item.RunTimeTicks),
 	}
 
+	if item.OfficialRating != "" {
+		detail["official_rating"] = item.OfficialRating
+	}
+
 	if item.SeriesName != "" {
 		detail["series_name"] = item.SeriesName
 		detail["season"] = item.SeasonName
 		detail["episode_number"] = item.IndexNumber
+		detail["season_number"] = item.ParentIndexNumber
+	}
+
+	if item.ChildCount > 0 {
+		detail["child_count"] = item.ChildCount
 	}
 
 	if item.Path != "" {
 		detail["path"] = item.Path
 	}
 
+	if item.PremiereDate != nil {
+		detail["premiere_date"] = item.PremiereDate.Format("2006-01-02")
+	}
+
+	// User data (play state, favorites)
+	if item.UserData != nil {
+		ud := map[string]interface{}{
+			"play_count":  item.UserData.PlayCount,
+			"is_favorite": item.UserData.IsFavorite,
+			"played":      item.UserData.Played,
+		}
+		if item.UserData.PlaybackPositionTicks > 0 {
+			ud["position"] = jellyfinFormatRuntime(item.UserData.PlaybackPositionTicks)
+		}
+		if item.UserData.LastPlayedDate != "" {
+			ud["last_played"] = item.UserData.LastPlayedDate
+		}
+		detail["user_data"] = ud
+	}
+
+	// Studios
+	if len(item.Studios) > 0 {
+		studios := make([]string, 0, len(item.Studios))
+		for _, s := range item.Studios {
+			studios = append(studios, s.Name)
+		}
+		detail["studios"] = studios
+	}
+
+	// People (actors, directors, writers) - top 10
+	if len(item.People) > 0 {
+		limit := len(item.People)
+		if limit > 10 {
+			limit = 10
+		}
+		people := make([]map[string]string, 0, limit)
+		for i := 0; i < limit; i++ {
+			p := item.People[i]
+			entry := map[string]string{
+				"name": p.Name,
+				"type": p.Type,
+			}
+			if p.Role != "" {
+				entry["role"] = p.Role
+			}
+			people = append(people, entry)
+		}
+		detail["people"] = people
+	}
+
+	// Media sources with stream details
 	if len(item.MediaSources) > 0 {
 		src := item.MediaSources[0]
 		detail["container"] = src.Container
 		detail["size_mb"] = src.Size / (1024 * 1024)
+
+		if len(src.Streams) > 0 {
+			streams := make([]map[string]interface{}, 0, len(src.Streams))
+			for _, s := range src.Streams {
+				stream := map[string]interface{}{
+					"type":    s.Type,
+					"codec":   s.Codec,
+					"language": s.Language,
+				}
+				if s.Type == "Video" {
+					if s.Width > 0 || s.Height > 0 {
+						stream["resolution"] = fmt.Sprintf("%dx%d", s.Width, s.Height)
+					}
+					if s.BitRate > 0 {
+						stream["bitrate"] = s.BitRate
+					}
+				}
+				if s.Type == "Audio" {
+					if s.Channels > 0 {
+						stream["channels"] = s.Channels
+					}
+					if s.BitRate > 0 {
+						stream["bitrate"] = s.BitRate
+					}
+				}
+				streams = append(streams, stream)
+			}
+			detail["streams"] = streams
+		}
 	}
 
 	result, _ := json.Marshal(map[string]interface{}{
@@ -234,8 +324,8 @@ func JellyfinItemDetails(cfg config.JellyfinConfig, itemID string, logger *slog.
 }
 
 // JellyfinRecentItems returns recently added media items.
-func JellyfinRecentItems(cfg config.JellyfinConfig, limit int, mediaType string, logger *slog.Logger) string {
-	client, err := jellyfin.NewClient(cfg, nil)
+func JellyfinRecentItems(cfg config.JellyfinConfig, vault *security.Vault, limit int, mediaType string, logger *slog.Logger) string {
+	client, err := jellyfin.NewClient(cfg, vault)
 	if err != nil {
 		return errJSON("Jellyfin connection failed: %v", err)
 	}
@@ -259,8 +349,8 @@ func JellyfinRecentItems(cfg config.JellyfinConfig, limit int, mediaType string,
 }
 
 // JellyfinSessions returns active playback sessions.
-func JellyfinSessions(cfg config.JellyfinConfig, logger *slog.Logger) string {
-	client, err := jellyfin.NewClient(cfg, nil)
+func JellyfinSessions(cfg config.JellyfinConfig, vault *security.Vault, logger *slog.Logger) string {
+	client, err := jellyfin.NewClient(cfg, vault)
 	if err != nil {
 		return errJSON("Jellyfin connection failed: %v", err)
 	}
@@ -315,7 +405,7 @@ func JellyfinSessions(cfg config.JellyfinConfig, logger *slog.Logger) string {
 }
 
 // JellyfinPlaybackControl sends a playback command to a session.
-func JellyfinPlaybackControl(cfg config.JellyfinConfig, sessionID, command string, logger *slog.Logger) string {
+func JellyfinPlaybackControl(cfg config.JellyfinConfig, vault *security.Vault, sessionID, command string, logger *slog.Logger) string {
 	if sessionID == "" {
 		return errJSON("session_id is required")
 	}
@@ -337,7 +427,7 @@ func JellyfinPlaybackControl(cfg config.JellyfinConfig, sessionID, command strin
 		normalized = command // Pass through if already a valid Jellyfin command
 	}
 
-	client, err := jellyfin.NewClient(cfg, nil)
+	client, err := jellyfin.NewClient(cfg, vault)
 	if err != nil {
 		return errJSON("Jellyfin connection failed: %v", err)
 	}
@@ -359,12 +449,12 @@ func JellyfinPlaybackControl(cfg config.JellyfinConfig, sessionID, command strin
 }
 
 // JellyfinLibraryRefresh triggers a library scan/refresh.
-func JellyfinLibraryRefresh(cfg config.JellyfinConfig, libraryID string, logger *slog.Logger) string {
+func JellyfinLibraryRefresh(cfg config.JellyfinConfig, vault *security.Vault, libraryID string, logger *slog.Logger) string {
 	if libraryID == "" {
 		return errJSON("library_id is required")
 	}
 
-	client, err := jellyfin.NewClient(cfg, nil)
+	client, err := jellyfin.NewClient(cfg, vault)
 	if err != nil {
 		return errJSON("Jellyfin connection failed: %v", err)
 	}
@@ -385,12 +475,12 @@ func JellyfinLibraryRefresh(cfg config.JellyfinConfig, libraryID string, logger 
 }
 
 // JellyfinDeleteItem permanently deletes a media item.
-func JellyfinDeleteItem(cfg config.JellyfinConfig, itemID string, logger *slog.Logger) string {
+func JellyfinDeleteItem(cfg config.JellyfinConfig, vault *security.Vault, itemID string, logger *slog.Logger) string {
 	if itemID == "" {
 		return errJSON("item_id is required")
 	}
 
-	client, err := jellyfin.NewClient(cfg, nil)
+	client, err := jellyfin.NewClient(cfg, vault)
 	if err != nil {
 		return errJSON("Jellyfin connection failed: %v", err)
 	}
@@ -411,8 +501,8 @@ func JellyfinDeleteItem(cfg config.JellyfinConfig, itemID string, logger *slog.L
 }
 
 // JellyfinActivityLog returns recent activity log entries.
-func JellyfinActivityLog(cfg config.JellyfinConfig, limit int, logger *slog.Logger) string {
-	client, err := jellyfin.NewClient(cfg, nil)
+func JellyfinActivityLog(cfg config.JellyfinConfig, vault *security.Vault, limit int, logger *slog.Logger) string {
+	client, err := jellyfin.NewClient(cfg, vault)
 	if err != nil {
 		return errJSON("Jellyfin connection failed: %v", err)
 	}

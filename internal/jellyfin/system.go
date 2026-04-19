@@ -1,6 +1,9 @@
 package jellyfin
 
-import "context"
+import (
+	"context"
+	"strconv"
+)
 
 // GetSystemInfo returns the Jellyfin server system information.
 func (c *Client) GetSystemInfo(ctx context.Context) (*SystemInfo, error) {
@@ -22,30 +25,9 @@ func (c *Client) GetActivityLog(ctx context.Context, limit int) (*ActivityLogRes
 		limit = 25
 	}
 	var resp ActivityLogResponse
-	endpoint := "/System/ActivityLog/Entries?StartIndex=0&Limit=" + itoa(limit)
+	endpoint := "/System/ActivityLog/Entries?StartIndex=0&Limit=" + strconv.Itoa(limit)
 	if err := c.Get(ctx, endpoint, &resp); err != nil {
 		return nil, err
 	}
 	return &resp, nil
-}
-
-func itoa(i int) string {
-	if i < 0 {
-		return "-" + uitoa(uint(-i))
-	}
-	return uitoa(uint(i))
-}
-
-func uitoa(u uint) string {
-	if u == 0 {
-		return "0"
-	}
-	var buf [20]byte
-	i := len(buf)
-	for u > 0 {
-		i--
-		buf[i] = byte('0' + u%10)
-		u /= 10
-	}
-	return string(buf[i:])
 }

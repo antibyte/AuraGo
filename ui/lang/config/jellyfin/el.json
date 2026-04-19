@@ -7,8 +7,8 @@
   "config.jellyfin.host_label": "Jellyfin Host",
   "config.jellyfin.port_label": "Θύρα",
   "config.jellyfin.product_name": "Jellyfin",
-  "config.jellyfin.apikey_label": "API Key (Vault)",
-  "config.jellyfin.apikey_placeholder": "Enter API Key…",
+  "config.jellyfin.apikey_label": "Κλειδί API (Vault)",
+  "config.jellyfin.apikey_placeholder": "Εισαγωγή κλειδιού API…",
   "config.jellyfin.save_vault": "Αποθήκευση στο Vault",
   "config.jellyfin.test_btn": "Δοκιμή Σύνδεσης",
   "config.jellyfin.checking": "Έλεγχος σύνδεσης…",
@@ -16,9 +16,9 @@
   "config.jellyfin.connection_failed": "Αποτυχία σύνδεσης",
   "config.jellyfin.test_ok": "Επιτυχής σύνδεση",
   "config.jellyfin.test_fail": "Αποτυχία σύνδεσης",
-  "config.jellyfin.apikey_empty": "Παρακαλώ εισάγετε πρώτα ένα API key.",
-  "config.jellyfin.apikey_saved": "Το API key αποθηκεύτηκε στο vault.",
-  "config.jellyfin.apikey_save_failed": "Αποτυχία αποθήκευσης API key στο vault.",
+  "config.jellyfin.apikey_empty": "Παρακαλώ εισάγετε πρώτα ένα κλειδί API.",
+  "config.jellyfin.apikey_saved": "Το κλειδί API αποθηκεύτηκε στο vault.",
+  "config.jellyfin.apikey_save_failed": "Αποτυχία αποθήκευσης κλειδιού API στο vault.",
   "help.jellyfin.enabled": "Ενεργοποιεί την ενσωμάτωση Jellyfin. Ο πράκτορας μπορεί να περιηγηθεί σε βιβλιοθήκες, να αναζητήσει μέσα, να ελέγξει αναπαραγωγή και να διαχειριστεί τον διακομιστή μέσων.",
   "help.jellyfin.readonly": "Σε λειτουργία μόνο ανάγνωσης, ο πράκτορας μπορεί μόνο να προβάλλει δεδομένα. Ο έλεγχος αναπαραγωγής και η ανανέωση βιβλιοθήκης είναι μπλοκαρισμένα.",
   "help.jellyfin.allow_destructive": "Επιτρέπει τη διαγραφή στοιχείων πολυμέσων από τον διακομιστή Jellyfin.",
@@ -26,5 +26,5 @@
   "help.jellyfin.insecure_ssl": "Αποδέχεται αυτο-υπογεγραμμένα ή μη έγκυρα πιστοποιητικά (μόνο για περιβάλλοντα δοκιμών).",
   "help.jellyfin.host": "Όνομα κεντρικού υπολογιστή ή διεύθυνση IP του διακομιστή Jellyfin (π.χ. jellyfin.local ή 192.168.1.100).",
   "help.jellyfin.port": "Θύρα του διακομιστή Jellyfin (προεπιλογή: 8096).",
-  "help.jellyfin.api_key": "API key για το Jellyfin API. Δημιουργήστε ένα στο Dashboard → API Keys στο Jellyfin."
+  "help.jellyfin.api_key": "Κλειδί API για το Jellyfin API. Δημιουργήστε ένα στο Dashboard → Κλειδιά API στο Jellyfin."
 }

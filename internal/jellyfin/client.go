@@ -16,6 +16,9 @@ import (
 	"aurago/internal/security"
 )
 
+// maxResponseBody limits response body reads to 10 MB to prevent OOM from malicious or broken servers.
+const maxResponseBody = 10 << 20
+
 // Client represents a connection to a Jellyfin server.
 type Client struct {
 	baseURL    string
@@ -133,7 +136,7 @@ func (c *Client) Get(ctx context.Context, endpoint string, result interface{}) e
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseBody))
 	if err != nil {
 		return fmt.Errorf("read response body: %w", err)
 	}
@@ -159,7 +162,7 @@ func (c *Client) Post(ctx context.Context, endpoint string, body, result interfa
 	}
 	defer resp.Body.Close()
 
-	respBody, err := io.ReadAll(resp.Body)
+	respBody, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseBody))
 	if err != nil {
 		return fmt.Errorf("read response body: %w", err)
 	}
@@ -186,7 +189,7 @@ func (c *Client) Delete(ctx context.Context, endpoint string) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, maxResponseBody))
 		return fmt.Errorf("API error %d: %s", resp.StatusCode, string(body))
 	}
 

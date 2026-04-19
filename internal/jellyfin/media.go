@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"strconv"
 )
 
 // GetLibraries returns all media libraries (virtual folders).
@@ -36,10 +37,10 @@ func (c *Client) GetItems(ctx context.Context, parentID string, includeTypes str
 		params.Set("IncludeItemTypes", includeTypes)
 	}
 	if limit > 0 {
-		params.Set("Limit", itoa(limit))
+		params.Set("Limit", strconv.Itoa(limit))
 	}
 	if startIndex > 0 {
-		params.Set("StartIndex", itoa(startIndex))
+		params.Set("StartIndex", strconv.Itoa(startIndex))
 	}
 	params.Set("SortBy", "SortName")
 	params.Set("SortOrder", "Ascending")
@@ -61,7 +62,7 @@ func (c *Client) SearchItems(ctx context.Context, query string, includeTypes str
 		params.Set("IncludeItemTypes", includeTypes)
 	}
 	if limit > 0 {
-		params.Set("Limit", itoa(limit))
+		params.Set("Limit", strconv.Itoa(limit))
 	}
 
 	var resp ItemsResponse
@@ -98,7 +99,7 @@ func (c *Client) GetRecentItems(ctx context.Context, includeTypes string, limit 
 		params.Set("IncludeItemTypes", includeTypes)
 	}
 	if limit > 0 {
-		params.Set("Limit", itoa(limit))
+		params.Set("Limit", strconv.Itoa(limit))
 	} else {
 		params.Set("Limit", "20")
 	}
