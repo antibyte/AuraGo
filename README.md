@@ -109,15 +109,11 @@ go build -o aurago ./cmd/aurago
 
 ### Theme Variants
 
-AuraGo supports customizable dark and light themes:
+AuraGo has some built-in themes to choose from:
 
-| Theme 1 (Dark) | Theme 2 (Light) |
-|:---------------:|:---------------:|
-| ![Theme 1](documentation/screenshots/theme1.png) | ![Theme 2](documentation/screenshots/theme2.png) |
-
-| Theme 3 (Dark Variant) | Theme 4 (Light Variant) |
-|:----------------------:|:-----------------------:|
-| ![Theme 3](documentation/screenshots/theme3.png) | ![Theme 4](documentation/screenshots/theme4.png) |
+| Cyberwar | Retro CRT | Dark Sun | Lollipop |
+|:--------:|:---------:|:--------:|:--------:|
+| ![Cyberwar](documentation/screenshots/theme1.png) | ![Retro CRT](documentation/screenshots/theme2.png) | ![Dark Sun](documentation/screenshots/theme3.png) | ![Lollipop](documentation/screenshots/theme4.png) |
 
 ---
 

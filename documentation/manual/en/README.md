@@ -44,15 +44,11 @@ AuraGo is a fully autonomous AI agent shipped as a single portable binary with a
 
 ## Screenshots
 
-AuraGo comes with a customizable dark/light theme UI. Here's a preview of the different looks:
+AuraGo has some built-in themes to choose from:
 
-| Theme 1 (Dark) | Theme 2 (Light) |
-|----------------|-----------------|
-| ![Theme 1](../../screenshots/theme1.png) | ![Theme 2](../../screenshots/theme2.png) |
-
-| Theme 3 (Dark Variant) | Theme 4 (Light Variant) |
-|------------------------|------------------------|
-| ![Theme 3](../../screenshots/theme3.png) | ![Theme 4](../../screenshots/theme4.png) |
+| Cyberwar | Retro CRT | Dark Sun | Lollipop |
+|:--------:|:---------:|:--------:|:--------:|
+| ![Cyberwar](../../screenshots/theme1.png) | ![Retro CRT](../../screenshots/theme2.png) | ![Dark Sun](../../screenshots/theme3.png) | ![Lollipop](../../screenshots/theme4.png) |
 
 ### Main Interface Screenshots
 
