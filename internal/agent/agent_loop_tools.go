@@ -318,6 +318,7 @@ func executeAgentToolTurn(
 			recentMsgs := s.req.Messages
 			toolEmotionTrigger, toolEmotionDetail := detectToolEmotionTrigger(tc, s.recoveryState.ConsecutiveErrorCount, s.toolCallCount-s.recoveryState.ConsecutiveErrorCount)
 			launchAsyncPersonalityV2Analysis(
+				sessionID,
 				cfg,
 				currentLogger,
 				s.runCfg.LLMClient,

@@ -35,56 +35,59 @@ func TestDeriveTaskStatus(t *testing.T) {
 
 func TestGetInnerVoiceForPrompt_Decay(t *testing.T) {
 	ResetInnerVoiceState()
+	sessionID := "sess-a"
 
 	// No thought yet — should be empty
-	if got, _ := getInnerVoiceForPrompt(3); got != "" {
+	if got, _ := getInnerVoiceForPrompt(sessionID, 3); got != "" {
 		t.Fatalf("expected empty, got %q", got)
 	}
 
 	// Apply a thought
-	applyInnerVoiceResult("Be patient here", "patience")
-	if got, cat := getInnerVoiceForPrompt(3); got != "Be patient here" {
+	applyInnerVoiceResult(sessionID, "Be patient here", "patience", 0.8)
+	if got, cat := getInnerVoiceForPrompt(sessionID, 3); got != "Be patient here" {
 		t.Fatalf("expected thought, got %q (category=%q)", got, cat)
 	}
 
-	// Tick 2 turns — still within decay window
-	tickInnerVoiceTurn()
-	tickInnerVoiceTurn()
-	if got, _ := getInnerVoiceForPrompt(3); got != "Be patient here" {
-		t.Fatalf("expected thought after 2 ticks, got %q", got)
+	// Two real user turns — still within decay window
+	NoteInnerVoiceUserTurn(sessionID)
+	NoteInnerVoiceUserTurn(sessionID)
+	if got, _ := getInnerVoiceForPrompt(sessionID, 3); got != "Be patient here" {
+		t.Fatalf("expected thought after 2 user turns, got %q", got)
 	}
 
-	// Tick 1 more — now at decay threshold (3 turns since)
-	tickInnerVoiceTurn()
-	if got, _ := getInnerVoiceForPrompt(3); got != "" {
-		t.Fatalf("expected decayed/empty after 3 ticks, got %q", got)
+	// One more user turn — now at decay threshold
+	NoteInnerVoiceUserTurn(sessionID)
+	if got, _ := getInnerVoiceForPrompt(sessionID, 3); got != "" {
+		t.Fatalf("expected decayed/empty after 3 user turns, got %q", got)
 	}
 }
 
 func TestGetInnerVoiceForPrompt_NoDecay(t *testing.T) {
 	ResetInnerVoiceState()
-	applyInnerVoiceResult("persistent thought", "reflection")
+	sessionID := "sess-a"
+	applyInnerVoiceResult(sessionID, "persistent thought", "reflection", 0.8)
 
 	// With decayTurns=0, thought should never decay
 	for i := 0; i < 10; i++ {
-		tickInnerVoiceTurn()
+		NoteInnerVoiceUserTurn(sessionID)
 	}
-	if got, _ := getInnerVoiceForPrompt(0); got != "persistent thought" {
+	if got, _ := getInnerVoiceForPrompt(sessionID, 0); got != "persistent thought" {
 		t.Fatalf("expected persistent thought with decay=0, got %q", got)
 	}
 }
 
 func TestResetInnerVoiceState(t *testing.T) {
-	applyInnerVoiceResult("some thought", "cat")
-	tickInnerVoiceTurn()
+	sessionID := "sess-a"
+	applyInnerVoiceResult(sessionID, "some thought", "cat", 0.8)
+	NoteInnerVoiceUserTurn(sessionID)
 
 	ResetInnerVoiceState()
 
-	if got, _ := getInnerVoiceForPrompt(3); got != "" {
+	if got, _ := getInnerVoiceForPrompt(sessionID, 3); got != "" {
 		t.Fatalf("expected empty after reset, got %q", got)
 	}
-	if count := innerVoiceSessionCount.Load(); count != 0 {
-		t.Fatalf("expected session count 0 after reset, got %d", count)
+	if len(globalInnerVoiceStore.states) != 1 {
+		t.Fatalf("expected lazy recreation of a single empty state, got %d", len(globalInnerVoiceStore.states))
 	}
 }
 
@@ -92,7 +95,7 @@ func TestShouldGenerateInnerVoice_Disabled(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Personality.InnerVoice.Enabled = false
 
-	if shouldGenerateInnerVoice(cfg, 5, 0, 0, false, false, false) {
+	if shouldGenerateInnerVoice("sess-a", cfg, 5, 0, 0, false, false, false) {
 		t.Fatal("should not generate when disabled")
 	}
 }
@@ -108,10 +111,10 @@ func TestShouldGenerateInnerVoice_SkipMissionAndCoAgent(t *testing.T) {
 
 	ResetInnerVoiceState()
 
-	if shouldGenerateInnerVoice(cfg, 5, 0, 0, false, true, false) {
+	if shouldGenerateInnerVoice("sess-a", cfg, 5, 0, 0, false, true, false) {
 		t.Fatal("should not generate for missions")
 	}
-	if shouldGenerateInnerVoice(cfg, 5, 0, 0, false, false, true) {
+	if shouldGenerateInnerVoice("sess-a", cfg, 5, 0, 0, false, false, true) {
 		t.Fatal("should not generate for co-agents")
 	}
 }
@@ -124,7 +127,7 @@ func TestShouldGenerateInnerVoice_RequiresEmotionSynthesizer(t *testing.T) {
 
 	ResetInnerVoiceState()
 
-	if shouldGenerateInnerVoice(cfg, 5, 0, 0, false, false, false) {
+	if shouldGenerateInnerVoice("sess-a", cfg, 5, 0, 0, false, false, false) {
 		t.Fatal("should not generate without emotion synthesizer")
 	}
 }
@@ -141,15 +144,15 @@ func TestShouldGenerateInnerVoice_ErrorStreak(t *testing.T) {
 	ResetInnerVoiceState()
 
 	// Simulate a recent generation so the periodic (genCount==0) trigger is not active.
-	applyInnerVoiceResult("seed", "seed")
+	applyInnerVoiceResult("sess-a", "seed", "seed", 0.8)
 
 	// Below threshold — no trigger
-	if shouldGenerateInnerVoice(cfg, 1, 1, 0, false, false, false) {
+	if shouldGenerateInnerVoice("sess-a", cfg, 1, 1, 0, false, false, false) {
 		t.Fatal("should not trigger with only 1 consecutive error")
 	}
 
 	// At threshold — trigger
-	if !shouldGenerateInnerVoice(cfg, 2, 2, 0, false, false, false) {
+	if !shouldGenerateInnerVoice("sess-a", cfg, 2, 2, 0, false, false, false) {
 		t.Fatal("should trigger with error streak >= 2")
 	}
 }
@@ -166,15 +169,15 @@ func TestShouldGenerateInnerVoice_RecoveryTrigger(t *testing.T) {
 	ResetInnerVoiceState()
 
 	// Task completed after errors — recovery trigger (consecutiveErrors=0 = recovered, totalErrors=5)
-	if !shouldGenerateInnerVoice(cfg, 0, 5, 3, true, false, false) {
+	if !shouldGenerateInnerVoice("sess-a", cfg, 0, 5, 3, true, false, false) {
 		t.Fatal("should trigger on task completion after errors")
 	}
 
 	// Simulate a recent generation so the periodic (genCount==0) trigger is not active.
-	applyInnerVoiceResult("seed", "seed")
+	applyInnerVoiceResult("sess-a", "seed", "seed", 0.8)
 
 	// Task completed without any prior errors — no trigger
-	if shouldGenerateInnerVoice(cfg, 0, 0, 3, true, false, false) {
+	if shouldGenerateInnerVoice("sess-a", cfg, 0, 0, 3, true, false, false) {
 		t.Fatal("should not trigger on clean task completion (no prior errors)")
 	}
 }
@@ -191,11 +194,43 @@ func TestShouldGenerateInnerVoice_SessionCap(t *testing.T) {
 	ResetInnerVoiceState()
 
 	// Generate up to cap
-	applyInnerVoiceResult("first", "a")
-	applyInnerVoiceResult("second", "b")
+	applyInnerVoiceResult("sess-a", "first", "a", 0.8)
+	applyInnerVoiceResult("sess-a", "second", "b", 0.8)
 
-	if shouldGenerateInnerVoice(cfg, 5, 0, 0, false, false, false) {
+	if shouldGenerateInnerVoice("sess-a", cfg, 5, 0, 0, false, false, false) {
 		t.Fatal("should not generate past session cap")
+	}
+}
+
+func TestInnerVoiceStateIsSessionScoped(t *testing.T) {
+	ResetInnerVoiceState()
+	applyInnerVoiceResult("sess-a", "first thought", "focus", 0.8)
+
+	if got, _ := getInnerVoiceForPrompt("sess-a", 3); got != "first thought" {
+		t.Fatalf("expected sess-a thought, got %q", got)
+	}
+	if got, _ := getInnerVoiceForPrompt("sess-b", 3); got != "" {
+		t.Fatalf("expected sess-b to stay isolated, got %q", got)
+	}
+}
+
+func TestNormalizeInnerVoiceRejectsCommandTone(t *testing.T) {
+	ResetInnerVoiceState()
+	if _, _, _, accepted, reason := normalizeInnerVoice("sess-a", "I should call the tool and then verify everything.", "focus", 0.8); accepted {
+		t.Fatal("expected command-like nudge to be rejected")
+	} else if reason != "command_tone" {
+		t.Fatalf("expected command_tone rejection, got %q", reason)
+	}
+}
+
+func TestNormalizeInnerVoiceAcceptsSubtleThought(t *testing.T) {
+	ResetInnerVoiceState()
+	thought, category, confidence, accepted, reason := normalizeInnerVoice("sess-a", "Something here still feels slightly under-checked.", "caution", 0.8)
+	if !accepted {
+		t.Fatalf("expected subtle nudge to be accepted, got reason %q", reason)
+	}
+	if thought == "" || category != "caution" || confidence < 0.55 {
+		t.Fatalf("unexpected normalized output: thought=%q category=%q confidence=%.2f", thought, category, confidence)
 	}
 }
 

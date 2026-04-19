@@ -481,7 +481,7 @@ func NormalizeHelperMoodAnalysis(userSentiment, agentMood string, relationshipDe
 
 // AnalyzeMoodV2WithEmotion combines mood analysis and emotion synthesis in one helper-model call.
 // When emotionInput.InnerVoiceEnabled is true, also generates an inner voice thought.
-func (s *SQLiteMemory) AnalyzeMoodV2WithEmotion(ctx context.Context, client PersonalityAnalyzerClient, modelName string, recentHistory string, userOnlyHistory string, meta PersonalityMeta, enableProfiling bool, emotionInput EmotionInput, language string) (Mood, float64, map[string]float64, []ProfileUpdate, *EmotionState, string, string, error) {
+func (s *SQLiteMemory) AnalyzeMoodV2WithEmotion(ctx context.Context, client PersonalityAnalyzerClient, modelName string, recentHistory string, userOnlyHistory string, meta PersonalityMeta, enableProfiling bool, emotionInput EmotionInput, language string) (Mood, float64, map[string]float64, []ProfileUpdate, *EmotionState, string, string, float64, error) {
 	meta = meta.Normalized()
 	if modelName == "" {
 		modelName = "gpt-4o-mini"
@@ -678,42 +678,44 @@ User Statements:
 
 	resp, err := client.CreateChatCompletion(ctx, req)
 	if err != nil {
-		return MoodFocused, 0, nil, nil, nil, "", "", fmt.Errorf("llm analyze mood+emotion: %w", err)
+		return MoodFocused, 0, nil, nil, nil, "", "", 0, fmt.Errorf("llm analyze mood+emotion: %w", err)
 	}
 	if len(resp.Choices) == 0 {
-		return MoodFocused, 0, nil, nil, nil, "", "", nil
+		return MoodFocused, 0, nil, nil, nil, "", "", 0, nil
 	}
 
 	jsonStr := extractStrictJSONObject(resp.Choices[0].Message.Content)
 	if jsonStr == "" {
-		return MoodFocused, 0, nil, nil, nil, "", "", nil
+		return MoodFocused, 0, nil, nil, nil, "", "", 0, nil
 	}
 
 	var result moodEmotionAnalysisResult
 	if err := json.Unmarshal([]byte(jsonStr), &result); err != nil {
-		return MoodFocused, 0, nil, nil, nil, "", "", nil
+		return MoodFocused, 0, nil, nil, nil, "", "", 0, nil
 	}
 
 	mood, relationshipDelta, traitDeltas, profileUpdates, ok := normalizeMoodAnalysisResult(&result.MoodAnalysis, meta)
 	if !ok {
-		return MoodFocused, 0, nil, nil, nil, "", "", nil
+		return MoodFocused, 0, nil, nil, nil, "", "", 0, nil
 	}
 
 	emotionJSON, err := json.Marshal(result.EmotionState)
 	if err != nil {
-		return MoodFocused, 0, nil, nil, nil, "", "", fmt.Errorf("marshal combined emotion state: %w", err)
+		return MoodFocused, 0, nil, nil, nil, "", "", 0, fmt.Errorf("marshal combined emotion state: %w", err)
 	}
 	emotionState, err := parseEmotionSynthesisResponse(string(emotionJSON), mood)
 	if err != nil {
-		return MoodFocused, 0, nil, nil, nil, "", "", fmt.Errorf("parse combined emotion state: %w", err)
+		return MoodFocused, 0, nil, nil, nil, "", "", 0, fmt.Errorf("parse combined emotion state: %w", err)
 	}
 
 	// Extract inner voice if present
 	var innerThought, nudgeCategory string
+	var nudgeConfidence float64
 	if result.InnerVoice != nil && result.InnerVoice.InnerThought != "" {
 		innerThought = result.InnerVoice.InnerThought
 		nudgeCategory = result.InnerVoice.NudgeCategory
+		nudgeConfidence = result.InnerVoice.Confidence
 	}
 
-	return mood, relationshipDelta, traitDeltas, profileUpdates, emotionState, innerThought, nudgeCategory, nil
+	return mood, relationshipDelta, traitDeltas, profileUpdates, emotionState, innerThought, nudgeCategory, nudgeConfidence, nil
 }

@@ -772,10 +772,10 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 			// Inner Voice: inject if available and not decayed
 			if cfg.Personality.InnerVoice.Enabled {
-				tickInnerVoiceTurn()
-				if iv, ivCategory := getInnerVoiceForPrompt(cfg.Personality.InnerVoice.DecayTurns); iv != "" {
+				if iv, ivCategory := getInnerVoiceForPrompt(sessionID, cfg.Personality.InnerVoice.DecayTurns); iv != "" {
 					flags.InnerVoice = iv
 					s.currentLogger.Info("[InnerVoice] Injecting inner voice into system prompt",
+						"session_id", sessionID,
 						"category", ivCategory,
 						"content", iv)
 				}
@@ -1398,6 +1398,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			if cfg.Personality.EngineV2 {
 				if !useBatchedTurnPersonality {
 					launchAsyncPersonalityV2Analysis(
+						sessionID,
 						cfg,
 						s.currentLogger,
 						client,
@@ -1464,7 +1465,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				traits, _ := shortTermMem.GetTraits()
 				batchSuccessCount := s.toolCallCount - recoveryState.ConsecutiveErrorCount
 				batchTaskCompleted := recoveryState.ConsecutiveErrorCount == 0 && batchSuccessCount > 0
-				batchIVEnabled := shouldGenerateInnerVoice(cfg, recoveryState.ConsecutiveErrorCount, recoveryState.TotalErrorCount, batchSuccessCount, batchTaskCompleted, flags.IsMission, flags.IsCoAgent)
+				batchIVEnabled := shouldGenerateInnerVoice(sessionID, cfg, recoveryState.ConsecutiveErrorCount, recoveryState.TotalErrorCount, batchSuccessCount, batchTaskCompleted, flags.IsMission, flags.IsCoAgent)
 				// Fetch inner voice history for narrative continuity
 				var batchIVHistory string
 				if batchIVEnabled && shortTermMem != nil {
@@ -1499,6 +1500,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					s.currentLogger.Warn("[HelperLLM] Batched turn analysis failed, falling back", "error", err)
 					if useBatchedTurnPersonality {
 						launchAsyncPersonalityV2Analysis(
+							sid,
 							cfg,
 							s.currentLogger,
 							client,
@@ -1544,6 +1546,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 						_, previousEmotion := resolveHelperEmotionBatchState(cfg, emotionSynthesizer)
 						v2FailCount.Store(0)
 						applyPersonalityV2AnalysisResult(
+							sid,
 							cfg,
 							s.currentLogger,
 							shortTermMem,
@@ -1561,6 +1564,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					} else {
 						helperManager.ObserveFallback("analyze_turn_personality", "personality_payload_invalid")
 						launchAsyncPersonalityV2Analysis(
+							sid,
 							cfg,
 							s.currentLogger,
 							client,

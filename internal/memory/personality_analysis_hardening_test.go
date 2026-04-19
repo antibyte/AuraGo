@@ -103,7 +103,7 @@ func TestAnalyzeMoodV2WithEmotionParsesCombinedJSON(t *testing.T) {
 		response: `{"mood_analysis":{"user_sentiment":"curious","agent_appropriate_response_mood":"focused","relationship_delta":0.02,"trait_deltas":{"curiosity":0.05,"affinity":0.02},"user_profile_updates":[{"category":"tech","key":"preferred_language","value":"golang"}]},"emotion_state":{"description":"I feel calm and ready to help.","primary_mood":"focused","secondary_mood":"steady","valence":0.2,"arousal":0.3,"confidence":0.8,"cause":"the request is clear","recommended_response_style":"calm_and_precise"}}`,
 	}
 
-	mood, delta, deltas, updates, emotionState, _, _, err := stm.AnalyzeMoodV2WithEmotion(
+	mood, delta, deltas, updates, emotionState, _, _, _, err := stm.AnalyzeMoodV2WithEmotion(
 		context.Background(),
 		mock,
 		"test-model",

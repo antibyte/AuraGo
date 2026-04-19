@@ -238,6 +238,7 @@ func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 			if err != nil {
 				s.Logger.Error("Failed to insert user message", "error", err)
 			}
+			agent.NoteInnerVoiceUserTurn(sessionID)
 			if sessionID == "default" {
 				// Persist the raw text message (including attachment paths) so we
 				// don't bloat history.json with base64-encoded images. Multimodal

@@ -95,6 +95,7 @@ func TestApplyPersonalityV2AnalysisResultPersistsPrecomputedBatch(t *testing.T) 
 	}
 
 	applyPersonalityV2AnalysisResult(
+		"default",
 		cfg,
 		logger,
 		stm,

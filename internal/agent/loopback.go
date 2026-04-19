@@ -56,6 +56,7 @@ func Loopback(runCfg RunConfig, message string, broker FeedbackBroker) {
 		logger.Error("[Loopback] Failed to insert message", "error", err)
 		return
 	}
+	NoteInnerVoiceUserTurn(sessionID)
 	if shouldPersistLoopbackHistory(sessionID) {
 		historyManager.Add(openai.ChatMessageRoleUser, safeMessage, mid, false, false)
 	}

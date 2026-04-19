@@ -1,8 +1,10 @@
 package agent
 
 import (
+	"math"
+	"regexp"
+	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"aurago/internal/config"
@@ -11,73 +13,96 @@ import (
 
 // innerVoiceState tracks runtime state for the inner voice system within a session.
 type innerVoiceState struct {
-	mu              sync.Mutex
-	lastGenerated   time.Time
-	generationCount int
-	turnsSinceLast  int    // turns elapsed since last inner voice was generated
-	currentThought  string // the latest inner thought text
-	nudgeCategory   string // category of the latest thought
+	lastGenerated      time.Time
+	generationCount    int
+	userTurnsSinceLast int
+	currentThought     string
+	nudgeCategory      string
+	lastConfidence     float64
 }
 
-// globalInnerVoiceState is the singleton state for the current session.
-var globalInnerVoiceState = &innerVoiceState{}
+type innerVoiceStore struct {
+	mu     sync.Mutex
+	states map[string]*innerVoiceState
+}
 
-// innerVoiceSessionCount tracks total inner voice generations for the current session.
-var innerVoiceSessionCount atomic.Int32
+var globalInnerVoiceStore = &innerVoiceStore{
+	states: make(map[string]*innerVoiceState),
+}
+
+var innerVoiceWhitespaceRx = regexp.MustCompile(`\s+`)
+
+func normalizeInnerVoiceSessionID(sessionID string) string {
+	sessionID = strings.TrimSpace(sessionID)
+	if sessionID == "" {
+		return "default"
+	}
+	return sessionID
+}
+
+func getInnerVoiceStateLocked(sessionID string) *innerVoiceState {
+	sessionID = normalizeInnerVoiceSessionID(sessionID)
+	state, ok := globalInnerVoiceStore.states[sessionID]
+	if !ok {
+		state = &innerVoiceState{}
+		globalInnerVoiceStore.states[sessionID] = state
+	}
+	return state
+}
 
 // ResetInnerVoiceState resets the inner voice state (e.g. on session reset).
 // Exported so that the commands and server packages can call it on /reset.
 func ResetInnerVoiceState() {
-	globalInnerVoiceState.mu.Lock()
-	defer globalInnerVoiceState.mu.Unlock()
-	globalInnerVoiceState.lastGenerated = time.Time{}
-	globalInnerVoiceState.generationCount = 0
-	globalInnerVoiceState.turnsSinceLast = 0
-	globalInnerVoiceState.currentThought = ""
-	globalInnerVoiceState.nudgeCategory = ""
-	innerVoiceSessionCount.Store(0)
+	globalInnerVoiceStore.mu.Lock()
+	defer globalInnerVoiceStore.mu.Unlock()
+	globalInnerVoiceStore.states = make(map[string]*innerVoiceState)
 }
 
-// tickInnerVoiceTurn increments the turn counter since last generation.
-// Called once per agent loop iteration.
-func tickInnerVoiceTurn() {
-	globalInnerVoiceState.mu.Lock()
-	defer globalInnerVoiceState.mu.Unlock()
-	globalInnerVoiceState.turnsSinceLast++
+// NoteInnerVoiceUserTurn increments the user-turn counter for a session.
+// This tracks real user-visible turns instead of internal loop iterations.
+func NoteInnerVoiceUserTurn(sessionID string) {
+	globalInnerVoiceStore.mu.Lock()
+	defer globalInnerVoiceStore.mu.Unlock()
+	state := getInnerVoiceStateLocked(sessionID)
+	state.userTurnsSinceLast++
 }
 
 // applyInnerVoiceResult stores a newly generated inner voice thought.
-func applyInnerVoiceResult(thought, category string) {
-	globalInnerVoiceState.mu.Lock()
-	defer globalInnerVoiceState.mu.Unlock()
-	globalInnerVoiceState.currentThought = thought
-	globalInnerVoiceState.nudgeCategory = category
-	globalInnerVoiceState.turnsSinceLast = 0
-	globalInnerVoiceState.lastGenerated = time.Now()
-	globalInnerVoiceState.generationCount++
-	innerVoiceSessionCount.Add(1)
+func applyInnerVoiceResult(sessionID, thought, category string, confidence float64) {
+	globalInnerVoiceStore.mu.Lock()
+	defer globalInnerVoiceStore.mu.Unlock()
+	state := getInnerVoiceStateLocked(sessionID)
+	state.currentThought = thought
+	state.nudgeCategory = category
+	state.lastConfidence = confidence
+	state.userTurnsSinceLast = 0
+	state.lastGenerated = time.Now()
+	state.generationCount++
 }
 
 // getInnerVoiceForPrompt returns the current inner voice text and its nudge category
 // if it hasn't decayed. Returns empty strings if decayed or not available.
-func getInnerVoiceForPrompt(decayTurns int) (string, string) {
-	globalInnerVoiceState.mu.Lock()
-	defer globalInnerVoiceState.mu.Unlock()
-	if globalInnerVoiceState.currentThought == "" {
+func getInnerVoiceForPrompt(sessionID string, decayTurns int) (string, string) {
+	globalInnerVoiceStore.mu.Lock()
+	defer globalInnerVoiceStore.mu.Unlock()
+	state := getInnerVoiceStateLocked(sessionID)
+	if state.currentThought == "" {
 		return "", ""
 	}
-	if decayTurns > 0 && globalInnerVoiceState.turnsSinceLast >= decayTurns {
+	if decayTurns > 0 && state.userTurnsSinceLast >= decayTurns {
 		// Decayed — clear stale thought
-		globalInnerVoiceState.currentThought = ""
-		globalInnerVoiceState.nudgeCategory = ""
+		state.currentThought = ""
+		state.nudgeCategory = ""
+		state.lastConfidence = 0
 		return "", ""
 	}
-	return globalInnerVoiceState.currentThought, globalInnerVoiceState.nudgeCategory
+	return state.currentThought, state.nudgeCategory
 }
 
 // shouldGenerateInnerVoice determines whether the inner voice system should trigger.
 // It evaluates rate limits, session caps, and situational triggers.
 func shouldGenerateInnerVoice(
+	sessionID string,
 	cfg *config.Config,
 	consecutiveErrors int,
 	totalErrors int,
@@ -98,18 +123,17 @@ func shouldGenerateInnerVoice(
 		return false
 	}
 
+	globalInnerVoiceStore.mu.Lock()
+	state := getInnerVoiceStateLocked(sessionID)
+	elapsed := time.Since(state.lastGenerated)
+	genCount := state.generationCount
+	userTurnsSinceLast := state.userTurnsSinceLast
+	globalInnerVoiceStore.mu.Unlock()
+
 	// Session cap
-	if int(innerVoiceSessionCount.Load()) >= cfg.Personality.InnerVoice.MaxPerSession {
+	if genCount >= cfg.Personality.InnerVoice.MaxPerSession {
 		return false
 	}
-
-	// Single lock acquisition to read all state consistently (avoids TOCTOU race between
-	// the two separate lock/unlock pairs that previously existed).
-	globalInnerVoiceState.mu.Lock()
-	elapsed := time.Since(globalInnerVoiceState.lastGenerated)
-	genCount := globalInnerVoiceState.generationCount
-	turnsSinceLast := globalInnerVoiceState.turnsSinceLast
-	globalInnerVoiceState.mu.Unlock()
 
 	// Rate limiting
 	minInterval := time.Duration(cfg.Personality.InnerVoice.MinIntervalSecs) * time.Second
@@ -135,11 +159,77 @@ func shouldGenerateInnerVoice(
 	if periodicThreshold <= 0 {
 		periodicThreshold = 3
 	}
-	if genCount == 0 || turnsSinceLast >= periodicThreshold {
+	if genCount == 0 || userTurnsSinceLast >= periodicThreshold {
 		return true
 	}
 
 	return false
+}
+
+func normalizeInnerVoiceCategory(category string) string {
+	category = strings.ToLower(strings.TrimSpace(category))
+	if category == "" {
+		return "reflection"
+	}
+	valid := strings.Split(memory.InnerVoiceNudgeCategories, ",")
+	for _, candidate := range valid {
+		if strings.TrimSpace(candidate) == category {
+			return category
+		}
+	}
+	return "reflection"
+}
+
+func innerVoiceCommandPhrases() []string {
+	return []string{
+		"must ", " need to", "have to", "should ", "you should", "you need to",
+		"let's ", "first ", "then ", "always ", "never ", "only right path",
+		"definitely ", "certainly ", "ich muss", "ich sollte", "du solltest", "du musst",
+	}
+}
+
+func normalizeInnerVoiceText(thought string) string {
+	thought = strings.TrimSpace(thought)
+	thought = strings.Trim(thought, `"'`)
+	thought = innerVoiceWhitespaceRx.ReplaceAllString(thought, " ")
+	runes := []rune(thought)
+	if len(runes) > 160 {
+		thought = strings.TrimSpace(string(runes[:157])) + "..."
+	}
+	return thought
+}
+
+func normalizeInnerVoice(sessionID, thought, category string, confidence float64) (string, string, float64, bool, string) {
+	thought = normalizeInnerVoiceText(thought)
+	if thought == "" {
+		return "", "", 0, false, "empty"
+	}
+
+	if math.IsNaN(confidence) || math.IsInf(confidence, 0) || confidence <= 0 {
+		confidence = 0.7
+	}
+	if confidence < 0.55 {
+		return "", "", confidence, false, "low_confidence"
+	}
+
+	lower := strings.ToLower(thought)
+	if strings.Contains(thought, "\n- ") || strings.Contains(thought, "\n1.") {
+		return "", "", confidence, false, "checklist_like"
+	}
+	for _, phrase := range innerVoiceCommandPhrases() {
+		if strings.Contains(lower, phrase) {
+			return "", "", confidence, false, "command_tone"
+		}
+	}
+
+	globalInnerVoiceStore.mu.Lock()
+	currentThought := getInnerVoiceStateLocked(sessionID).currentThought
+	globalInnerVoiceStore.mu.Unlock()
+	if currentThought != "" && strings.EqualFold(normalizeInnerVoiceText(currentThought), thought) {
+		return "", "", confidence, false, "duplicate"
+	}
+
+	return thought, normalizeInnerVoiceCategory(category), confidence, true, "accepted"
 }
 
 // deriveTaskStatus computes a human-readable task status from error/success counts.

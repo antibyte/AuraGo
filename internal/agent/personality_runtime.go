@@ -120,6 +120,7 @@ type personalityV2AnalysisResult struct {
 	SynthesizedEmotion *memory.EmotionState
 	InnerThought       string // Inner voice thought (1-3 sentences, first person)
 	NudgeCategory      string // Category of the inner voice nudge
+	NudgeConfidence    float64
 }
 
 func resolveHelperEmotionBatchState(cfg *config.Config, emotionSynthesizer *memory.EmotionSynthesizer) (bool, *memory.EmotionState) {
@@ -165,6 +166,7 @@ func applyPersonalityProfileUpdates(stm *memory.SQLiteMemory, logger *slog.Logge
 }
 
 func applyPersonalityV2AnalysisResult(
+	sessionID string,
 	cfg *config.Config,
 	logger *slog.Logger,
 	stm *memory.SQLiteMemory,
@@ -201,11 +203,27 @@ func applyPersonalityV2AnalysisResult(
 
 	// Apply inner voice result if present
 	if result.InnerThought != "" && cfg.Personality.InnerVoice.Enabled {
-		applyInnerVoiceResult(result.InnerThought, result.NudgeCategory)
-		if err := stm.StoreInnerVoice(result.InnerThought, result.NudgeCategory); err != nil {
-			logger.Warn("[InnerVoice] Failed to store inner voice", "error", err)
+		thought, category, confidence, accepted, reason := normalizeInnerVoice(sessionID, result.InnerThought, result.NudgeCategory, result.NudgeConfidence)
+		logger.Info("[InnerVoice] Candidate evaluated",
+			"session_id", sessionID,
+			"category", result.NudgeCategory,
+			"confidence", result.NudgeConfidence,
+			"accepted", accepted,
+			"reason", reason,
+			"thought_len", len(result.InnerThought),
+			"thought", result.InnerThought)
+		if accepted {
+			applyInnerVoiceResult(sessionID, thought, category, confidence)
+			if err := stm.StoreInnerVoice(thought, category); err != nil {
+				logger.Warn("[InnerVoice] Failed to store inner voice", "error", err)
+			}
+			logger.Info("[InnerVoice] Inner voice generated",
+				"session_id", sessionID,
+				"category", category,
+				"confidence", confidence,
+				"thought_len", len(thought),
+				"thought", thought)
 		}
-		logger.Info("[InnerVoice] Inner voice generated", "category", result.NudgeCategory, "thought_len", len(result.InnerThought))
 	}
 
 	if emotionSynthesizer == nil {
@@ -280,6 +298,7 @@ func normalizeHelperTurnPersonalityResult(payload helperTurnPersonalityBlock, me
 		SynthesizedEmotion: synthesizedEmotion,
 		InnerThought:       extractHelperInnerThought(payload),
 		NudgeCategory:      extractHelperNudgeCategory(payload),
+		NudgeConfidence:    extractHelperNudgeConfidence(payload),
 	}, true
 }
 
@@ -297,7 +316,15 @@ func extractHelperNudgeCategory(payload helperTurnPersonalityBlock) string {
 	return ""
 }
 
+func extractHelperNudgeConfidence(payload helperTurnPersonalityBlock) float64 {
+	if payload.InnerVoice != nil {
+		return payload.InnerVoice.Confidence
+	}
+	return 0
+}
+
 func launchAsyncPersonalityV2Analysis(
+	sessionID string,
 	cfg *config.Config,
 	logger *slog.Logger,
 	fallbackClient memory.PersonalityAnalyzerClient,
@@ -365,7 +392,7 @@ func launchAsyncPersonalityV2Analysis(
 				PersonaPrompt:   prompts.GetCorePersonalityPromptSummary(cfg.Directories.PromptsDir, cfg.Personality.CorePersonality, 300),
 			}
 			// Enrich with inner voice context only when rate/session/trigger gates pass
-			if shouldGenerateInnerVoice(cfg, consecutiveErrorCount, totalErrorCount, successCount, taskCompleted, isMission, isCoAgent) {
+			if shouldGenerateInnerVoice(sessionID, cfg, consecutiveErrorCount, totalErrorCount, successCount, taskCompleted, isMission, isCoAgent) {
 				// Gather lessons from error patterns
 				var lessons []string
 				if errPatterns, lErr := stm.GetRecentErrors(3); lErr == nil {
@@ -388,7 +415,7 @@ func launchAsyncPersonalityV2Analysis(
 					combinedInput.InnerVoiceHistory = memory.FormatInnerVoiceHistory(ivEntries)
 				}
 			}
-			result.Mood, result.AffinityDelta, result.TraitDeltas, result.ProfileUpdates, result.SynthesizedEmotion, result.InnerThought, result.NudgeCategory, err = stm.AnalyzeMoodV2WithEmotion(
+			result.Mood, result.AffinityDelta, result.TraitDeltas, result.ProfileUpdates, result.SynthesizedEmotion, result.InnerThought, result.NudgeCategory, result.NudgeConfidence, err = stm.AnalyzeMoodV2WithEmotion(
 				v2Ctx,
 				analyzerClient,
 				modelName,
@@ -430,6 +457,7 @@ func launchAsyncPersonalityV2Analysis(
 		v2FailCount.Store(0)
 
 		applyPersonalityV2AnalysisResult(
+			sessionID,
 			cfg,
 			logger,
 			stm,
