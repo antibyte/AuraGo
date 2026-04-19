@@ -7,6 +7,89 @@ function ccRenderDiscoveryState(area, type, message) {
     area.innerHTML = `<div class="cc-discovery-state cc-discovery-state-${type}">${message}</div>`;
 }
 
+function ccNormalizeDiscoveryValue(value) {
+    return String(value || '').trim().toLowerCase();
+}
+
+function ccExistingChromecastIPs() {
+    return new Set(
+        ccDevicesCache
+            .map(d => ccNormalizeDiscoveryValue(d.ip_address))
+            .filter(Boolean)
+    );
+}
+
+function ccBuildDevicePayload({ name, ip, port, description }) {
+    return {
+        name: String(name || '').trim(),
+        type: 'chromecast',
+        ip_address: String(ip || '').trim(),
+        port: parseInt(port, 10) || 8009,
+        description: String(description || '').trim(),
+        tags: ['chromecast', 'smart-home'],
+        username: '',
+        mac_address: '',
+        vault_secret_id: ''
+    };
+}
+
+function ccRenderDiscoveryResults(area, devices) {
+    const existingIPs = ccExistingChromecastIPs();
+
+    const listContainer = document.createElement('div');
+    listContainer.className = 'cc-discovery-list';
+
+    const title = document.createElement('div');
+    title.className = 'cc-discovery-list-title';
+    title.textContent = t('config.chromecast.found_devices', { count: devices.length });
+    listContainer.appendChild(title);
+
+    const itemsContainer = document.createElement('div');
+    itemsContainer.className = 'cc-discovery-items';
+
+    devices.forEach((d, i) => {
+        const discoveredIP = ccNormalizeDiscoveryValue(d.addr);
+        const alreadyAdded = !!discoveredIP && existingIPs.has(discoveredIP);
+
+        const item = document.createElement('div');
+        item.className = 'cc-discovery-item' + (alreadyAdded ? ' is-added' : '');
+
+        const infoDiv = document.createElement('div');
+
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'cc-discovery-name';
+        nameSpan.textContent = d.name || t('config.chromecast.unknown');
+
+        const metaSpan = document.createElement('span');
+        metaSpan.className = 'cc-discovery-meta';
+        metaSpan.textContent = (d.addr || '—') + ':' + (d.port || 8009);
+
+        infoDiv.appendChild(nameSpan);
+        infoDiv.appendChild(metaSpan);
+        item.appendChild(infoDiv);
+
+        if (alreadyAdded) {
+            const addedSpan = document.createElement('span');
+            addedSpan.className = 'cc-discovery-added';
+            addedSpan.textContent = '✓ ' + t('config.chromecast.already_added');
+            item.appendChild(addedSpan);
+        } else {
+            const btn = document.createElement('button');
+            btn.className = 'btn-save cc-btn-compact';
+            btn.dataset.ccIdx = String(i);
+            btn.textContent = '＋ ' + t('config.chromecast.add_device');
+            btn.addEventListener('click', () => ccAddDiscovered(i));
+            item.appendChild(btn);
+        }
+
+        itemsContainer.appendChild(item);
+    });
+
+    listContainer.appendChild(itemsContainer);
+    area.innerHTML = '';
+    area.appendChild(listContainer);
+}
+
 function renderChromecastSection(section) {
     const data = configData['chromecast'] || {};
     const enabledOn = data.enabled === true;
@@ -190,63 +273,8 @@ async function ccDiscoverDevices() {
             return;
         }
 
-        // Filter out already-registered devices by IP
-        const existingIPs = new Set(ccDevicesCache.map(d => d.ip_address));
         ccDiscoveredCache = devices;
-
-        // Build DOM using createElement to avoid CSP issues with inline onclick
-        const listContainer = document.createElement('div');
-        listContainer.className = 'cc-discovery-list';
-
-        const title = document.createElement('div');
-        title.className = 'cc-discovery-list-title';
-        title.textContent = t('config.chromecast.found_devices', { count: devices.length });
-        listContainer.appendChild(title);
-
-        const itemsContainer = document.createElement('div');
-        itemsContainer.className = 'cc-discovery-items';
-
-        devices.forEach((d, i) => {
-            const alreadyAdded = existingIPs.has(d.addr || '');
-
-            const item = document.createElement('div');
-            item.className = 'cc-discovery-item' + (alreadyAdded ? ' is-added' : '');
-
-            const infoDiv = document.createElement('div');
-
-            const nameSpan = document.createElement('span');
-            nameSpan.className = 'cc-discovery-name';
-            nameSpan.textContent = d.name || t('config.chromecast.unknown');
-
-            const metaSpan = document.createElement('span');
-            metaSpan.className = 'cc-discovery-meta';
-            metaSpan.textContent = (d.addr || '—') + ':' + (d.port || 8009);
-
-            infoDiv.appendChild(nameSpan);
-            infoDiv.appendChild(metaSpan);
-            item.appendChild(infoDiv);
-
-            if (alreadyAdded) {
-                const addedSpan = document.createElement('span');
-                addedSpan.className = 'cc-discovery-added';
-                addedSpan.textContent = '✓ ' + t('config.chromecast.already_added');
-                item.appendChild(addedSpan);
-            } else {
-                const btn = document.createElement('button');
-                btn.className = 'btn-save cc-btn-compact';
-                btn.dataset.ccIdx = String(i);
-                btn.textContent = '＋ ' + t('config.chromecast.add_device');
-                // Use addEventListener instead of inline onclick for CSP compatibility
-                btn.addEventListener('click', () => ccAddDiscovered(i));
-                item.appendChild(btn);
-            }
-
-            itemsContainer.appendChild(item);
-        });
-
-        listContainer.appendChild(itemsContainer);
-        area.innerHTML = '';
-        area.appendChild(listContainer);
+        ccRenderDiscoveryResults(area, devices);
 
     } catch (e) {
         ccRenderDiscoveryState(area, 'error', '❌ ' + escapeHtml(e.message));
@@ -256,11 +284,47 @@ async function ccDiscoverDevices() {
     }
 }
 
-// ── Add discovered device → opens modal with pre-filled data ──
-function ccAddDiscovered(index) {
+// ── Add discovered device directly; fall back to prefilled modal when details are incomplete ──
+async function ccAddDiscovered(index) {
     const d = ccDiscoveredCache[index];
     if (!d) return;
-    ccShowEditModal(null, d);
+    if (!String(d.addr || '').trim()) {
+        ccShowEditModal(null, d);
+        return;
+    }
+
+    const btn = document.querySelector(`button[data-cc-idx="${index}"]`);
+    if (btn) {
+        btn.disabled = true;
+    }
+
+    try {
+        const payload = ccBuildDevicePayload({
+            name: d.name,
+            ip: d.addr,
+            port: d.port,
+            description: ''
+        });
+        const resp = await fetch('/api/devices', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (!resp.ok) {
+            const data = await resp.json().catch(() => ({}));
+            throw new Error(data.error || 'Request failed');
+        }
+        await ccLoadDevices();
+        const area = document.getElementById('cc-discover-area');
+        if (area && !area.classList.contains('is-hidden') && ccDiscoveredCache.length > 0) {
+            ccRenderDiscoveryResults(area, ccDiscoveredCache);
+        }
+    } catch (e) {
+        showToast(e.message || t('config.common.error'), 'error');
+        if (btn) {
+            btn.disabled = false;
+        }
+    }
 }
 
 // ── Manual add → empty modal ──
@@ -328,17 +392,12 @@ async function ccSaveDevice() {
         return;
     }
 
-    const payload = {
+    const payload = ccBuildDevicePayload({
         name: name,
-        type: 'chromecast',
-        ip_address: ip,
-        port: parseInt(document.getElementById('cc-field-port').value) || 8009,
-        description: document.getElementById('cc-field-desc').value.trim(),
-        tags: ['chromecast', 'smart-home'],
-        username: '',
-        mac_address: '',
-        vault_secret_id: ''
-    };
+        ip: ip,
+        port: document.getElementById('cc-field-port').value,
+        description: document.getElementById('cc-field-desc').value
+    });
 
     const editId = document.getElementById('cc-edit-id').value;
     const isEdit = !!editId;
@@ -359,23 +418,9 @@ async function ccSaveDevice() {
         }
         ccCloseModal();
         await ccLoadDevices();
-        // Re-render discovery results to update "already added" state
         const area = document.getElementById('cc-discover-area');
         if (area && !area.classList.contains('is-hidden') && ccDiscoveredCache.length > 0) {
-            // Trigger a soft re-render of the discovery panel
-            const existingIPs = new Set(ccDevicesCache.map(d => d.ip_address));
-            area.querySelectorAll('button[data-cc-idx]').forEach(btn => {
-                const idx = parseInt(btn.getAttribute('data-cc-idx'), 10);
-                const d = ccDiscoveredCache[idx];
-                if (d && existingIPs.has(d.addr)) {
-                    const parent = btn.parentElement;
-                    parent.classList.add('is-added');
-                    btn.replaceWith(Object.assign(document.createElement('span'), {
-                        className: 'cc-discovery-added',
-                        textContent: '✓ ' + t('config.chromecast.already_added')
-                    }));
-                }
-            });
+            ccRenderDiscoveryResults(area, ccDiscoveredCache);
         }
     } catch (e) {
         errBox.textContent = '❌ ' + e.message;
