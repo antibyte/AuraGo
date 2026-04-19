@@ -36,7 +36,7 @@
                 </div>
             </div>`;
 
-            // Min chars
+            // Basic settings card
             html += `<div class="field-group">
                 <div class="field-label">${t('config.output_compression.min_chars_label')}</div>
                 <div class="field-help">${t('config.output_compression.min_chars_desc')}</div>
@@ -47,16 +47,19 @@
 
             // Preserve errors toggle
             const preserveErrors = compCfg.preserve_errors !== false;
-            html += `<div class="cfg-toggle-row">
-                <div>
-                    <span class="cfg-toggle-label">${t('config.output_compression.preserve_errors_label')}</span>
-                    <div class="field-help" style="margin-top:2px">${t('config.output_compression.preserve_errors_desc')}</div>
+            html += `<div class="field-group">
+                <div class="cfg-toggle-row">
+                    <div>
+                        <span class="cfg-toggle-label">${t('config.output_compression.preserve_errors_label')}</span>
+                        <div class="field-help" style="margin-top:2px">${t('config.output_compression.preserve_errors_desc')}</div>
+                    </div>
+                    <div class="toggle ${preserveErrors ? 'on' : ''}" data-path="agent.output_compression.preserve_errors" onclick="toggleBool(this)"></div>
                 </div>
-                <div class="toggle ${preserveErrors ? 'on' : ''}" data-path="agent.output_compression.preserve_errors" onclick="toggleBool(this)"></div>
             </div>`;
 
-            // Sub-toggles header
-            html += `<div class="field-group-title" style="margin-top:1rem">${t('config.output_compression.filters_title')}</div>
+            // Filter card
+            html += `<div class="field-group">
+                <div class="field-group-title">${t('config.output_compression.filters_title')}</div>
                 <div class="field-group-desc">${t('config.output_compression.filters_desc')}</div>`;
 
             // Shell compression
@@ -96,6 +99,8 @@
                     <small>${t('config.output_compression.note_limit')}</small>
                 </div>
             </div>`;
+
+            html += `</div>`;
 
             html += '</div>';
             document.getElementById('content').innerHTML = html;
