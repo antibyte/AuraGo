@@ -94,8 +94,8 @@
             float slot = 0.84 + 0.16 * smoothstep(0.40, 0.60, slotY);
 
             // ---- VIGNETTE & CORNER DARKENING ----
-            float vignette = smoothstep(1.05, 0.18, dist * 1.18);
-            float cornerDark = (1.0 - corner) * 0.82;
+            float vignette = smoothstep(1.0, 0.32, dist * 1.05);
+            float cornerDark = (1.0 - corner) * 0.45;
 
             // ---- ANALOG NOISE ----
             float grain = noise(vec2(
@@ -152,7 +152,7 @@
             vec3 amber = vec3(0.95, 0.50, 0.08);
 
             // Darkening alpha
-            float darkAlpha = (1.0 - darken) * 0.30 + cornerDark * 0.85;
+            float darkAlpha = (1.0 - darken) * 0.10 + cornerDark * 0.40;
             darkAlpha = clamp(darkAlpha, 0.0, 0.72);
 
             // Glow
@@ -161,13 +161,13 @@
             glow += amber * edgeFringe * (0.5 + u_theme_pulse * 0.5);
             glow += phosphor * travelingLine * 0.13 * vignette;
 
-            float glowAlpha = phosphorEnergy * 0.48 + reflection * 0.24 + travelingLine * 0.13;
+            float glowAlpha = phosphorEnergy * 0.55 + reflection * 0.28 + travelingLine * 0.16;
             glowAlpha = clamp(glowAlpha, 0.0, 0.40);
 
             // Final output: normal alpha blending handles both darkening and brightening
             vec3 finalColor = glow;
-            float finalAlpha = mix(darkAlpha, glowAlpha, 0.42);
-            finalAlpha = clamp(finalAlpha, 0.0, 0.68);
+            float finalAlpha = mix(darkAlpha, glowAlpha, 0.5);
+            finalAlpha = clamp(finalAlpha, 0.0, 0.48);
 
             gl_FragColor = vec4(finalColor, finalAlpha);
         }
@@ -259,7 +259,8 @@
             height: '100vh',
             pointerEvents: 'none',
             zIndex: '999996',
-            imageRendering: 'auto'
+            imageRendering: 'auto',
+            mixBlendMode: 'overlay'
         });
         document.documentElement.appendChild(canvas);
 

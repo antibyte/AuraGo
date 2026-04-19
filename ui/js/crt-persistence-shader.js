@@ -94,7 +94,7 @@
                 edgeSurge * 0.06 +
                 afterglow * 0.5;
 
-            alpha = clamp(alpha, 0.0, 0.32);
+            alpha = clamp(alpha, 0.0, 0.26);
             gl_FragColor = vec4(color, alpha);
         }
     `;
@@ -160,7 +160,8 @@
             width: '100vw',
             height: '100vh',
             pointerEvents: 'none',
-            zIndex: '999995'
+            zIndex: '999995',
+            mixBlendMode: 'overlay'
         });
         document.documentElement.appendChild(canvas);
 
