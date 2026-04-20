@@ -56,15 +56,11 @@
             </div>
         </div>
 
-        <div class="sheet-groups-overview is-hidden" id="sheets-groups-overview">
-            <div class="sheet-group-pill">
-                <span data-i18n="cheatsheets.group_user">User</span>
-                <strong id="sheets-count-user">0</strong>
-            </div>
-            <div class="sheet-group-pill">
-                <span data-i18n="cheatsheets.group_agent">Agent</span>
-                <strong id="sheets-count-agent">0</strong>
-            </div>
+        <div class="cheatsheet-tabs" role="tablist">
+            <button class="cheatsheet-tab active" id="tab-user" role="tab" aria-selected="true"
+                onclick="switchCheatTab('user')">👤 <span data-i18n="cheatsheets.group_user">User</span> <span class="cheatsheet-tab-count" id="sheets-count-user">0</span></button>
+            <button class="cheatsheet-tab" id="tab-agent" role="tab" aria-selected="false"
+                onclick="switchCheatTab('agent')">🤖 <span data-i18n="cheatsheets.group_agent">Agent</span> <span class="cheatsheet-tab-count" id="sheets-count-agent">0</span></button>
         </div>
 
         <div class="empty-state is-hidden" id="sheets-empty">
@@ -72,29 +68,20 @@
             <h3 data-i18n="cheatsheets.empty_title">No Cheat Sheets Yet</h3>
             <p data-i18n="cheatsheets.empty_desc">Create reusable workflow instructions for the agent.</p>
         </div>
-        <div class="sheet-groups is-hidden" id="sheets-groups">
-            <section class="sheet-group">
-                <div class="sheet-group-header">
-                    <h2 data-i18n="cheatsheets.group_user">User</h2>
-                    <span class="sheet-group-count" id="sheets-header-count-user">0</span>
-                </div>
-                <div class="cards-grid" id="sheets-grid-user"></div>
-                <div class="empty-state empty-state-inline is-hidden" id="sheets-empty-user">
-                    <div class="empty-icon">👤</div>
-                    <p data-i18n="cheatsheets.empty_user">No user cheat sheets yet.</p>
-                </div>
-            </section>
-            <section class="sheet-group">
-                <div class="sheet-group-header">
-                    <h2 data-i18n="cheatsheets.group_agent">Agent</h2>
-                    <span class="sheet-group-count" id="sheets-header-count-agent">0</span>
-                </div>
-                <div class="cards-grid" id="sheets-grid-agent"></div>
-                <div class="empty-state empty-state-inline is-hidden" id="sheets-empty-agent">
-                    <div class="empty-icon">🤖</div>
-                    <p data-i18n="cheatsheets.empty_agent">No agent cheat sheets yet.</p>
-                </div>
-            </section>
+
+        <div class="cheatsheet-panel active" id="panel-user">
+            <div class="cards-grid" id="sheets-grid-user"></div>
+            <div class="empty-state empty-state-inline is-hidden" id="sheets-empty-user">
+                <div class="empty-icon">👤</div>
+                <p data-i18n="cheatsheets.empty_user">No user cheat sheets yet.</p>
+            </div>
+        </div>
+        <div class="cheatsheet-panel" id="panel-agent">
+            <div class="cards-grid" id="sheets-grid-agent"></div>
+            <div class="empty-state empty-state-inline is-hidden" id="sheets-empty-agent">
+                <div class="empty-icon">🤖</div>
+                <p data-i18n="cheatsheets.empty_agent">No agent cheat sheets yet.</p>
+            </div>
         </div>
     </div>
 

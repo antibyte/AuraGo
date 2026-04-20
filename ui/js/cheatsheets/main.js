@@ -7,6 +7,7 @@ let expandedCards = new Set(); // Track expanded card IDs
 let currentAttachments = []; // Saved attachments for the currently edited sheet
 let pendingAttachments = [];  // Staged attachments for an unsaved new sheet
 let knowledgePickerSelection = new Set(); // Selected knowledge files in picker
+let currentCheatTab = localStorage.getItem('cheatsheets-tab') || 'user'; // 'user' | 'agent'
 
 // ── Init ─────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
@@ -69,32 +70,46 @@ function toggleCardExpand(id) {
     renderSheets();
 }
 
+// ── Tab Switching ────────────────────────────────────────
+function switchCheatTab(tab) {
+    currentCheatTab = tab;
+    localStorage.setItem('cheatsheets-tab', tab);
+
+    document.querySelectorAll('.cheatsheet-tab').forEach(function (btn) {
+        btn.classList.remove('active');
+        btn.setAttribute('aria-selected', 'false');
+    });
+    document.querySelectorAll('.cheatsheet-panel').forEach(function (panel) {
+        panel.classList.remove('active');
+    });
+
+    const activeTab = document.getElementById('tab-' + tab);
+    const activePanel = document.getElementById('panel-' + tab);
+    if (activeTab) { activeTab.classList.add('active'); activeTab.setAttribute('aria-selected', 'true'); }
+    if (activePanel) { activePanel.classList.add('active'); }
+}
+
 // ── Render ───────────────────────────────────────────────
 function renderSheets() {
     const empty = document.getElementById('sheets-empty');
-    const groups = document.getElementById('sheets-groups');
-    const overview = document.getElementById('sheets-groups-overview');
     const mode = getEffectiveViewMode();
     const userSheets = sheetsData.filter(s => s.created_by !== 'agent');
     const agentSheets = sheetsData.filter(s => s.created_by === 'agent');
 
     if (!sheetsData || sheetsData.length === 0) {
         empty.classList.remove('is-hidden');
-        groups.classList.add('is-hidden');
-        overview.classList.add('is-hidden');
         renderSheetGroup('user', [], mode);
         renderSheetGroup('agent', [], mode);
         return;
     }
     empty.classList.add('is-hidden');
-    groups.classList.remove('is-hidden');
-    overview.classList.remove('is-hidden');
 
     renderSheetGroup('user', userSheets, mode);
     renderSheetGroup('agent', agentSheets, mode);
     setGroupCount('user', userSheets.length);
     setGroupCount('agent', agentSheets.length);
     updateViewToggle();
+    switchCheatTab(currentCheatTab);
 }
 
 function renderSheetGroup(groupKey, sheets, mode) {
