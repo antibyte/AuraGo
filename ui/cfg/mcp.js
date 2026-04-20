@@ -159,8 +159,8 @@ async function mcpRenderRoutingCards() {
                     `<option value="${escapeAttr(tool.name)}" ${tool.name === pref.tool ? 'selected' : ''}>${escapeAttr(tool.name)}</option>`
                 ).join('');
                 const selectedTool = tools.find(tool => tool.name === pref.tool);
-                if (selectedTool && selectedTool.description) {
-                    toolHelp = `<div class="field-help" style="margin-top:.35rem;">${escapeAttr(selectedTool.description)}</div>`;
+                if (selectedTool) {
+                    toolHelp = `<div class="field-help" style="margin-top:.35rem;">${escapeAttr(t('config.mcp.mapping_tool_selected', {capability: t(capability.titleKey)}))}</div>`;
                 }
             }
         }

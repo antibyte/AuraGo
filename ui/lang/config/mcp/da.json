@@ -39,6 +39,7 @@
   "config.mcp.mapping_builtin_option": "Use AuraGo built-in backend",
   "config.mcp.mapping_select_tool": "Select a tool",
   "config.mcp.mapping_no_tools": "No runtime tools found for this server",
+  "config.mcp.mapping_tool_selected": "AuraGo bruger nu dette værktøj til {capability}.",
   "config.mcp.mapping_saved": "MCP tool mapping saved.",
   "config.mcp.mapping_save_failed": "Saving MCP tool mapping failed: "
 }
