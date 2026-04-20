@@ -2,7 +2,7 @@ package server
 
 import (
 	"encoding/json"
-	"fmt"
+	"io"
 	"net/http"
 	"sync"
 	"time"
@@ -164,11 +164,28 @@ func (b *SSEBroadcaster) unsubscribe(ch chan string) {
 	close(ch)
 }
 
+func writeSSEComment(w http.ResponseWriter, flusher http.Flusher, comment string) error {
+	if _, err := io.WriteString(w, ": "+comment+"\n\n"); err != nil {
+		return err
+	}
+	flusher.Flush()
+	return nil
+}
+
+func writeSSEData(w http.ResponseWriter, flusher http.Flusher, data string) error {
+	if _, err := io.WriteString(w, "data: "+data+"\n\n"); err != nil {
+		return err
+	}
+	flusher.Flush()
+	return nil
+}
+
 // ServeHTTP implements the /events SSE endpoint handler.
 func (b *SSEBroadcaster) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate, private")
 	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("X-Accel-Buffering", "no")
 
 	flusher, ok := w.(http.Flusher)
 	if !ok {
@@ -181,20 +198,26 @@ func (b *SSEBroadcaster) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Flush headers immediately so the browser's EventSource fires onopen
 	// without waiting for the first real message.
-	fmt.Fprintf(w, ": ping\n\n")
-	flusher.Flush()
+	if err := writeSSEComment(w, flusher, "ping"); err != nil {
+		return
+	}
 
 	ctx := r.Context()
 	heartbeat := time.NewTicker(20 * time.Second)
 	defer heartbeat.Stop()
 	for {
 		select {
-		case msg := <-ch:
-			fmt.Fprintf(w, "data: %s\n\n", msg)
-			flusher.Flush()
+		case msg, ok := <-ch:
+			if !ok {
+				return
+			}
+			if err := writeSSEData(w, flusher, msg); err != nil {
+				return
+			}
 		case <-heartbeat.C:
-			fmt.Fprintf(w, ": ping\n\n")
-			flusher.Flush()
+			if err := writeSSEComment(w, flusher, "ping"); err != nil {
+				return
+			}
 		case <-ctx.Done():
 			return
 		}

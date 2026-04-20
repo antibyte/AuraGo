@@ -1,7 +1,10 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
+	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 )
@@ -261,5 +264,81 @@ func TestSSEEventTypeConstants(t *testing.T) {
 		if string(tt.evt) != tt.expected {
 			t.Errorf("SSEEventType %v = %q, want %q", tt.evt, string(tt.evt), tt.expected)
 		}
+	}
+}
+
+func TestSSEServeHTTPSetsStreamingHeaders(t *testing.T) {
+	b := NewSSEBroadcaster()
+	ctx, cancel := context.WithCancel(context.Background())
+	req := httptest.NewRequest("GET", "/events", nil).WithContext(ctx)
+	rec := httptest.NewRecorder()
+
+	done := make(chan struct{})
+	go func() {
+		b.ServeHTTP(rec, req)
+		close(done)
+	}()
+
+	time.Sleep(20 * time.Millisecond)
+	cancel()
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("ServeHTTP did not stop after context cancellation")
+	}
+
+	res := rec.Result()
+	if got := res.Header.Get("Content-Type"); got != "text/event-stream; charset=utf-8" {
+		t.Fatalf("Content-Type = %q, want %q", got, "text/event-stream; charset=utf-8")
+	}
+	if got := res.Header.Get("Cache-Control"); got != "no-cache, no-store, must-revalidate, private" {
+		t.Fatalf("Cache-Control = %q, want hardened SSE cache policy", got)
+	}
+	if got := res.Header.Get("X-Accel-Buffering"); got != "no" {
+		t.Fatalf("X-Accel-Buffering = %q, want %q", got, "no")
+	}
+	if body := rec.Body.String(); !strings.Contains(body, ": ping\n\n") {
+		t.Fatalf("initial SSE ping missing from body: %q", body)
+	}
+}
+
+func TestSSEServeHTTPReturnsWhenClientChannelCloses(t *testing.T) {
+	b := NewSSEBroadcaster()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	req := httptest.NewRequest("GET", "/events", nil).WithContext(ctx)
+	rec := httptest.NewRecorder()
+
+	done := make(chan struct{})
+	go func() {
+		b.ServeHTTP(rec, req)
+		close(done)
+	}()
+
+	var client chan string
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		b.mu.RLock()
+		for ch := range b.clients {
+			client = ch
+			break
+		}
+		b.mu.RUnlock()
+		if client != nil {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if client == nil {
+		t.Fatal("timed out waiting for SSE client subscription")
+	}
+
+	b.unsubscribe(client)
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("ServeHTTP did not stop after client channel closed")
 	}
 }
