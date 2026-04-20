@@ -8,7 +8,9 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -84,7 +86,69 @@ func (c *mcpConn) toolCount() int {
 	return len(c.tools)
 }
 
+func expandMCPPathValue(value string) string {
+	if value == "" || value[0] != '~' {
+		return value
+	}
+	if value != "~" && !strings.HasPrefix(value, "~/") && !strings.HasPrefix(value, "~\\") {
+		return value
+	}
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		return value
+	}
+	if value == "~" {
+		return home
+	}
+	trimmed := strings.TrimPrefix(strings.TrimPrefix(value[1:], "/"), "\\")
+	if trimmed == "" {
+		return home
+	}
+	return filepath.Join(home, filepath.FromSlash(strings.ReplaceAll(trimmed, "\\", "/")))
+}
+
+func normalizeMCPArgs(args []string) []string {
+	if len(args) == 0 {
+		return nil
+	}
+	normalized := make([]string, len(args))
+	for i, arg := range args {
+		normalized[i] = expandMCPPathValue(arg)
+	}
+	return normalized
+}
+
+func normalizeMCPEnv(env map[string]string) map[string]string {
+	if len(env) == 0 {
+		return nil
+	}
+	normalized := make(map[string]string, len(env))
+	for k, v := range env {
+		normalized[k] = expandMCPPathValue(v)
+	}
+	return normalized
+}
+
+func mcpStderrSnippet(stderr *bytes.Buffer) string {
+	if stderr == nil {
+		return ""
+	}
+	text := strings.TrimSpace(stderr.String())
+	if text == "" {
+		return ""
+	}
+	const maxLen = 500
+	if len(text) > maxLen {
+		return text[:maxLen] + "..."
+	}
+	return text
+}
+
 func newMCPConn(name, command string, args []string, env map[string]string, logger *slog.Logger) (*mcpConn, error) {
+	command = expandMCPPathValue(strings.TrimSpace(command))
+	args = normalizeMCPArgs(args)
+	env = normalizeMCPEnv(env)
+
 	cmd := exec.Command(command, args...)
 
 	// Build environment
@@ -111,6 +175,9 @@ func newMCPConn(name, command string, args []string, env map[string]string, logg
 
 	if err := cmd.Start(); err != nil {
 		stdinPipe.Close()
+		if snippet := mcpStderrSnippet(stderrBuf); snippet != "" {
+			return nil, fmt.Errorf("start command %q: %w (stderr: %s)", command, err, snippet)
+		}
 		return nil, fmt.Errorf("start command %q: %w", command, err)
 	}
 
@@ -371,14 +438,14 @@ func InitMCPManager(servers []MCPServerConfig, logger *slog.Logger) *MCPManager 
 
 		// Initialize the connection
 		if err := conn.initialize(logger); err != nil {
-			logger.Error("[MCP] Initialization failed", "name", srv.Name, "error", err)
+			logger.Error("[MCP] Initialization failed", "name", srv.Name, "error", err, "stderr", mcpStderrSnippet(conn.stderrBuf))
 			conn.close()
 			continue
 		}
 
 		// Discover tools
 		if err := conn.discoverTools(logger); err != nil {
-			logger.Error("[MCP] Tool discovery failed", "name", srv.Name, "error", err)
+			logger.Error("[MCP] Tool discovery failed", "name", srv.Name, "error", err, "stderr", mcpStderrSnippet(conn.stderrBuf))
 			conn.close()
 			continue
 		}
@@ -393,6 +460,15 @@ func InitMCPManager(servers []MCPServerConfig, logger *slog.Logger) *MCPManager 
 	globalMCPManager = mgr
 	mcpManagerMu.Unlock()
 
+	if len(servers) > 0 && len(mgr.conns) == 0 {
+		configured := make([]string, 0, len(servers))
+		for _, srv := range servers {
+			if srv.Enabled && srv.Name != "" {
+				configured = append(configured, srv.Name)
+			}
+		}
+		logger.Warn("[MCP] No configured servers connected", "configured_servers", configured)
+	}
 	logger.Info("[MCP] Manager initialized", "servers_connected", len(mgr.conns))
 	return mgr
 }
@@ -420,7 +496,7 @@ func (m *MCPManager) ListTools(serverName string) []MCPToolInfo {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	var result []MCPToolInfo
+	result := make([]MCPToolInfo, 0)
 	for name, conn := range m.conns {
 		if serverName != "" && name != serverName {
 			continue
@@ -439,7 +515,7 @@ func (m *MCPManager) ListServers() []map[string]interface{} {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	var result []map[string]interface{}
+	result := make([]map[string]interface{}, 0, len(m.conns))
 	for name, conn := range m.conns {
 		conn.mu.Lock()
 		ready := conn.ready
