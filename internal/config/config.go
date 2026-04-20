@@ -123,7 +123,7 @@ func Load(path string) (*Config, error) {
 	}
 	cfg.BrowserAutomation.ContainerName = "aurago_browser_automation"
 	cfg.BrowserAutomation.Image = "aurago-browser-automation:latest"
-	cfg.BrowserAutomation.AutoStart = false
+	cfg.BrowserAutomation.AutoStart = true
 	cfg.BrowserAutomation.AutoBuild = true
 	cfg.BrowserAutomation.DockerfileDir = "."
 	cfg.BrowserAutomation.SessionTTLMinutes = 30

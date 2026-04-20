@@ -96,7 +96,6 @@ async function renderBrowserAutomationSection(section) {
     html += '<div class="field-group"><div class="field-label">' + t('config.browser_automation.viewport_height_label') + '</div><input class="field-input" type="number" min="240" max="2160" value="' + (viewport.height || 720) + '" data-path="browser_automation.viewport.height"></div>';
     html += '</div>';
 
-    html += baToggleRow('config.browser_automation.auto_start_label', data.auto_start === true, 'browser_automation.auto_start');
     html += baToggleRow('config.browser_automation.auto_build_label', data.auto_build !== false, 'browser_automation.auto_build');
     html += baToggleRow('config.browser_automation.readonly_label', data.readonly === true, 'browser_automation.readonly');
     html += baToggleRow('config.browser_automation.headless_label', data.headless !== false, 'browser_automation.headless');

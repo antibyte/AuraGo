@@ -529,7 +529,7 @@ browser_automation:
     url: "http://browser-automation:7331"
     container_name: aurago_browser_automation
     image: aurago-browser-automation:latest
-    auto_start: false
+    auto_start: true                                         # starts immediately when browser automation is enabled (kept for compatibility)
     auto_build: true
     dockerfile_dir: "."
     session_ttl_minutes: 30

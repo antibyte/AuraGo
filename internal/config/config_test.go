@@ -267,6 +267,9 @@ func TestLoadBrowserAutomationDefaults(t *testing.T) {
 	if cfg.BrowserAutomation.Image != "aurago-browser-automation:latest" {
 		t.Fatalf("image = %q, want aurago-browser-automation:latest", cfg.BrowserAutomation.Image)
 	}
+	if !cfg.BrowserAutomation.AutoStart {
+		t.Fatal("expected browser_automation.auto_start to default to true")
+	}
 	if cfg.BrowserAutomation.SessionTTLMinutes != 30 {
 		t.Fatalf("session_ttl_minutes = %d, want 30", cfg.BrowserAutomation.SessionTTLMinutes)
 	}

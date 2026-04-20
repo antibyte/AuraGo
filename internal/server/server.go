@@ -709,8 +709,8 @@ func Start(opts StartOptions) error {
 		go tools.EnsureGotenbergRunning(cfg.Docker.Host, logger)
 	}
 
-	// Auto-start Browser Automation sidecar if enabled in sidecar mode
-	if cfg.BrowserAutomation.Enabled && cfg.Tools.BrowserAutomation.Enabled && cfg.BrowserAutomation.AutoStart && strings.EqualFold(cfg.BrowserAutomation.Mode, "sidecar") {
+	// Auto-start Browser Automation sidecar whenever the integration is active in sidecar mode.
+	if cfg.BrowserAutomation.Enabled && cfg.Tools.BrowserAutomation.Enabled && strings.EqualFold(cfg.BrowserAutomation.Mode, "sidecar") {
 		if sidecarCfg, err := tools.ResolveBrowserAutomationSidecarConfig(cfg); err == nil {
 			go tools.EnsureBrowserAutomationSidecarRunning(cfg.Docker.Host, sidecarCfg, logger)
 		} else {

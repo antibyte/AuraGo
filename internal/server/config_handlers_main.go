@@ -538,7 +538,6 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			if browserAutomationChanged &&
 				newCfg.BrowserAutomation.Enabled &&
 				newCfg.Tools.BrowserAutomation.Enabled &&
-				newCfg.BrowserAutomation.AutoStart &&
 				strings.EqualFold(newCfg.BrowserAutomation.Mode, "sidecar") {
 				if sidecarCfg, err := tools.ResolveBrowserAutomationSidecarConfig(newCfg); err != nil {
 					s.Logger.Warn("[Config UI] Failed to resolve browser automation sidecar config", "error", err)
