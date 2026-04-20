@@ -1,8 +1,8 @@
 package server
 
 import (
-	"aurago/internal/tools"
 	"aurago/internal/security"
+	"aurago/internal/tools"
 	"io"
 	"log/slog"
 	"net/http"
@@ -213,5 +213,61 @@ func TestHandlePutMCPServersReinitializesRuntimeManager(t *testing.T) {
 	}
 	if gotConfigs[0].Name != "minimax" || gotConfigs[0].Command != "uvx" {
 		t.Fatalf("unexpected runtime config: %+v", gotConfigs[0])
+	}
+}
+
+func TestHandlePutMCPPreferencesPersistsCapabilitySelections(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	initial := "agent:\n  allow_mcp: true\nmcp:\n  enabled: true\n  servers:\n    - name: minimax\n      command: uvx\n      enabled: true\n"
+	if err := os.WriteFile(configPath, []byte(initial), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	vaultPath := filepath.Join(tmpDir, "vault.bin")
+	vault, err := security.NewVault(strings.Repeat("d", 64), vaultPath)
+	if err != nil {
+		t.Fatalf("new vault: %v", err)
+	}
+
+	oldInit := initExternalMCPManager
+	oldShutdown := shutdownExternalMCPManager
+	initExternalMCPManager = func(configs []tools.MCPServerConfig, _ *slog.Logger) *tools.MCPManager {
+		return nil
+	}
+	shutdownExternalMCPManager = func() {}
+	defer func() {
+		initExternalMCPManager = oldInit
+		shutdownExternalMCPManager = oldShutdown
+	}()
+
+	s := &Server{
+		Cfg:    &config.Config{ConfigPath: configPath},
+		Logger: logger,
+		Vault:  vault,
+	}
+
+	req := httptest.NewRequest(http.MethodPut, "/api/mcp-preferences", strings.NewReader(`{
+		"web_search": {"server": "minimax", "tool": "web_search"},
+		"vision": {"server": "minimax", "tool": "image_analysis"}
+	}`))
+	rec := httptest.NewRecorder()
+
+	handlePutMCPPreferences(s, rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+
+	cfg, err := config.Load(configPath)
+	if err != nil {
+		t.Fatalf("reload config: %v", err)
+	}
+	if cfg.MCP.PreferredCapabilities.WebSearch.Server != "minimax" || cfg.MCP.PreferredCapabilities.WebSearch.Tool != "web_search" {
+		t.Fatalf("unexpected web_search preference: %+v", cfg.MCP.PreferredCapabilities.WebSearch)
+	}
+	if cfg.MCP.PreferredCapabilities.Vision.Server != "minimax" || cfg.MCP.PreferredCapabilities.Vision.Tool != "image_analysis" {
+		t.Fatalf("unexpected vision preference: %+v", cfg.MCP.PreferredCapabilities.Vision)
 	}
 }

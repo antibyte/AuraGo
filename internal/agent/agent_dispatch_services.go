@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"aurago/internal/meshcentral"
+	"aurago/internal/security"
 	"aurago/internal/tools"
 )
 
@@ -41,6 +42,12 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			prompt := req.Prompt
 			if prompt == "" {
 				prompt = "Describe this image in detail. What do you see? If there is text, transcribe it. If there are people, describe their actions."
+			}
+			if preferredResult, usedPreferred, err := tools.CallPreferredMCPVision(cfg, fpath, prompt, logger); usedPreferred {
+				if err != nil {
+					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Preferred MCP vision failed: %v"}`, err)
+				}
+				return "Tool Output: " + security.Scrub(preferredResult)
 			}
 			result, pTokens, cTokens, err := tools.AnalyzeImageWithPrompt(fpath, prompt, cfg)
 			if err != nil {

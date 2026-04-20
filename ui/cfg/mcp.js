@@ -1,12 +1,24 @@
 let mcpServersCache = null;
+let mcpPreferencesCache = null;
+let mcpRuntimeToolsCache = {};
+
+const MCP_CAPABILITY_DEFS = [
+    {
+        key: 'web_search',
+        icon: '🔎',
+        titleKey: 'config.mcp.mapping_web_search',
+        descKey: 'config.mcp.mapping_web_search_desc'
+    },
+    {
+        key: 'vision',
+        icon: '🖼️',
+        titleKey: 'config.mcp.mapping_vision',
+        descKey: 'config.mcp.mapping_vision_desc'
+    }
+];
 
 async function renderMCPSection(section) {
-    if (mcpServersCache === null) {
-        try {
-            const resp = await fetch('/api/mcp-servers');
-            mcpServersCache = resp.ok ? await resp.json() : [];
-        } catch (_) { mcpServersCache = []; }
-    }
+    await mcpEnsureCaches();
     const mcpEnabled = configData.mcp && configData.mcp.enabled;
     const allowMcp = configData.agent && configData.agent.allow_mcp;
 
@@ -50,10 +62,37 @@ async function renderMCPSection(section) {
     <div id="mcp-servers-empty" class="mcp-empty-state is-hidden">
         ${t('config.mcp.empty')}
     </div>
+    <div class="field-group" style="margin-top:1.5rem;">
+        <div class="field-group-title">🧭 ${t('config.mcp.routing_title')}</div>
+        <div class="field-group-desc">${t('config.mcp.routing_desc')}</div>
+        <div id="mcp-routing-list"></div>
+    </div>
     </div>`;
     document.getElementById('content').innerHTML = html;
     attachChangeListeners();
     mcpServerRenderCards();
+    await mcpRenderRoutingCards();
+}
+
+async function mcpEnsureCaches() {
+    if (mcpServersCache === null) {
+        try {
+            const resp = await fetch('/api/mcp-servers');
+            mcpServersCache = resp.ok ? await resp.json() : [];
+        } catch (_) {
+            mcpServersCache = [];
+        }
+    }
+    if (mcpPreferencesCache === null) {
+        try {
+            const resp = await fetch('/api/mcp-preferences');
+            mcpPreferencesCache = resp.ok ? await resp.json() : {};
+        } catch (_) {
+            mcpPreferencesCache = {};
+        }
+    }
+    configData.mcp = configData.mcp || {};
+    configData.mcp.preferred_capabilities = mcpPreferencesCache || {};
 }
 
 function mcpServerRenderCards() {
@@ -96,6 +135,115 @@ function mcpServerRenderCards() {
     wrap.innerHTML = html;
 }
 
+async function mcpRenderRoutingCards() {
+    const container = document.getElementById('mcp-routing-list');
+    if (!container) return;
+
+    const enabledServers = (mcpServersCache || []).filter(server => server && server.enabled);
+    let html = '';
+
+    for (const capability of MCP_CAPABILITY_DEFS) {
+        const pref = mcpGetPreference(capability.key);
+        const serverOptions = enabledServers.map(server =>
+            `<option value="${escapeAttr(server.name)}" ${server.name === pref.server ? 'selected' : ''}>${escapeAttr(server.name)}</option>`
+        ).join('');
+
+        let toolOptions = `<option value="">${t('config.mcp.mapping_select_tool')}</option>`;
+        let toolHelp = '';
+        if (pref.server) {
+            const tools = await mcpGetRuntimeTools(pref.server);
+            if (tools.length === 0) {
+                toolOptions = `<option value="">${t('config.mcp.mapping_no_tools')}</option>`;
+            } else {
+                toolOptions += tools.map(tool =>
+                    `<option value="${escapeAttr(tool.name)}" ${tool.name === pref.tool ? 'selected' : ''}>${escapeAttr(tool.name)}</option>`
+                ).join('');
+                const selectedTool = tools.find(tool => tool.name === pref.tool);
+                if (selectedTool && selectedTool.description) {
+                    toolHelp = `<div class="field-help" style="margin-top:.35rem;">${escapeAttr(selectedTool.description)}</div>`;
+                }
+            }
+        }
+
+        html += `
+        <div class="mcp-card" style="margin-top:1rem;">
+            <div class="mcp-card-header">
+                <div class="mcp-card-title">${capability.icon} ${t(capability.titleKey)}</div>
+            </div>
+            <div class="field-group-desc" style="margin-bottom:.9rem;">${t(capability.descKey)}</div>
+            <div class="mcp-card-grid">
+                <label>
+                    <span class="mcp-grid-label">${t('config.mcp.mapping_server')}</span>
+                    <select class="field-input cfg-input-full" onchange="mcpPreferenceServerChanged('${capability.key}', this.value)">
+                        <option value="">${t('config.mcp.mapping_builtin_option')}</option>
+                        ${serverOptions}
+                    </select>
+                </label>
+                <label>
+                    <span class="mcp-grid-label">${t('config.mcp.mapping_tool')}</span>
+                    <select class="field-input cfg-input-full" ${pref.server ? '' : 'disabled'} onchange="mcpPreferenceToolChanged('${capability.key}', this.value)">
+                        ${toolOptions}
+                    </select>
+                </label>
+            </div>
+            ${toolHelp}
+        </div>`;
+    }
+
+    if (!html) {
+        html = `<div class="wh-notice"><span>ℹ️</span><div><small>${t('config.mcp.routing_empty')}</small></div></div>`;
+    }
+    container.innerHTML = html;
+}
+
+function mcpGetPreference(key) {
+    const prefs = (configData.mcp && configData.mcp.preferred_capabilities) || {};
+    const pref = prefs[key] || {};
+    return {
+        server: pref.server || '',
+        tool: pref.tool || ''
+    };
+}
+
+async function mcpGetRuntimeTools(serverName) {
+    const key = String(serverName || '').trim();
+    if (!key) return [];
+    if (mcpRuntimeToolsCache[key]) return mcpRuntimeToolsCache[key];
+    try {
+        const resp = await fetch('/api/mcp-runtime/tools?server=' + encodeURIComponent(key));
+        const data = resp.ok ? await resp.json() : { tools: [] };
+        mcpRuntimeToolsCache[key] = Array.isArray(data.tools) ? data.tools : [];
+    } catch (_) {
+        mcpRuntimeToolsCache[key] = [];
+    }
+    return mcpRuntimeToolsCache[key];
+}
+
+async function mcpPreferenceServerChanged(capabilityKey, serverName) {
+    const prefs = configData.mcp.preferred_capabilities || {};
+    prefs[capabilityKey] = { server: serverName || '', tool: '' };
+    configData.mcp.preferred_capabilities = prefs;
+    mcpPreferencesCache = prefs;
+    if (serverName) {
+        await mcpGetRuntimeTools(serverName);
+    }
+    await mcpSavePreferences();
+    await mcpRenderRoutingCards();
+}
+
+async function mcpPreferenceToolChanged(capabilityKey, toolName) {
+    const prefs = configData.mcp.preferred_capabilities || {};
+    const current = prefs[capabilityKey] || {};
+    prefs[capabilityKey] = {
+        server: current.server || '',
+        tool: toolName || ''
+    };
+    configData.mcp.preferred_capabilities = prefs;
+    mcpPreferencesCache = prefs;
+    await mcpSavePreferences();
+    await mcpRenderRoutingCards();
+}
+
 function mcpServerAdd() {
     mcpServerShowModal({name:'', command:'', args:[], env:{}, enabled:true}, -1);
 }
@@ -110,6 +258,8 @@ async function mcpServerDelete(idx) {
     mcpServersCache.splice(idx, 1);
     await mcpServerSave();
     mcpServerRenderCards();
+    mcpRuntimeToolsCache = {};
+    await mcpRenderRoutingCards();
 }
 
 function mcpServerShowModal(data, idx) {
@@ -178,6 +328,8 @@ function mcpServerShowModal(data, idx) {
         await mcpServerSave();
         overlay.remove();
         mcpServerRenderCards();
+        mcpRuntimeToolsCache = {};
+        await mcpRenderRoutingCards();
     });
 }
 
@@ -196,5 +348,19 @@ async function mcpServerSave() {
         if (reload.ok) mcpServersCache = await reload.json();
     } catch (e) {
         showToast(t('config.common.error') + ': ' + e.message, 'error');
+    }
+}
+
+async function mcpSavePreferences() {
+    try {
+        const resp = await fetch('/api/mcp-preferences', {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(configData.mcp.preferred_capabilities || {})
+        });
+        if (!resp.ok) throw new Error(await resp.text());
+        showToast(t('config.mcp.mapping_saved'), 'success');
+    } catch (e) {
+        showToast(t('config.mcp.mapping_save_failed') + e.message, 'error');
     }
 }

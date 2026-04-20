@@ -828,6 +828,13 @@ vercel:
 mcp:
     enabled: false
     servers: []
+    preferred_capabilities:
+        web_search:
+            server: ""
+            tool: ""
+        vision:
+            server: ""
+            tool: ""
 sandbox:
     enabled: false
     backend: docker

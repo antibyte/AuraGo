@@ -2,7 +2,9 @@ package agent
 
 import (
 	"context"
+	"fmt"
 
+	"aurago/internal/security"
 	"aurago/internal/tools"
 )
 
@@ -54,6 +56,12 @@ func handleBuiltinSkillAction(ctx context.Context, dc *DispatchContext, action s
 
 	case "ddg_search":
 		req := decodeDDGSearchArgs(args)
+		if preferredResult, usedPreferred, err := tools.CallPreferredMCPWebSearch(cfg, req.Query, req.MaxResults, "", "", logger); usedPreferred {
+			if err != nil {
+				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Preferred MCP web search failed: %v"}`, err), true
+			}
+			return "Tool Output: " + security.Scrub(preferredResult), true
+		}
 		result := tools.ExecuteDDGSearch(req.Query, req.MaxResults)
 		if cfg.Tools.DDGSearch.SummaryMode {
 			searchQuery := req.SearchQuery
@@ -104,6 +112,12 @@ func handleBuiltinSkillAction(ctx context.Context, dc *DispatchContext, action s
 		lang := req.Lang
 		if lang == "" {
 			lang = cfg.BraveSearch.Lang
+		}
+		if preferredResult, usedPreferred, err := tools.CallPreferredMCPWebSearch(cfg, req.Query, req.Count, country, lang, logger); usedPreferred {
+			if err != nil {
+				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Preferred MCP web search failed: %v"}`, err), true
+			}
+			return "Tool Output: " + security.Scrub(preferredResult), true
 		}
 		return tools.ExecuteBraveSearch(cfg.BraveSearch.APIKey, req.Query, req.Count, country, lang), true
 

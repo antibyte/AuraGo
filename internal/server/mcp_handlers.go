@@ -2,13 +2,14 @@ package server
 
 import (
 	"aurago/internal/config"
-	"aurago/internal/tools"
-	"encoding/json"
-	"io"
 	"log/slog"
 	"net/http"
 	"os"
 	"strings"
+
+	"aurago/internal/tools"
+	"encoding/json"
+	"io"
 
 	"gopkg.in/yaml.v3"
 )
@@ -67,6 +68,61 @@ func handleGetMCPServers(s *Server, w http.ResponseWriter, _ *http.Request) {
 	json.NewEncoder(w).Encode(servers)
 }
 
+func mcpConfigPath(s *Server) string {
+	s.CfgMu.RLock()
+	defer s.CfgMu.RUnlock()
+	return s.Cfg.ConfigPath
+}
+
+func persistMCPSectionUpdate(s *Server, mutate func(map[string]interface{}) error) error {
+	configPath := mcpConfigPath(s)
+	if configPath == "" {
+		return os.ErrInvalid
+	}
+
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return err
+	}
+
+	var rawCfg map[string]interface{}
+	if err := yaml.Unmarshal(data, &rawCfg); err != nil {
+		return err
+	}
+
+	mcpSection, ok := rawCfg["mcp"].(map[string]interface{})
+	if !ok {
+		mcpSection = map[string]interface{}{}
+	}
+	if err := mutate(mcpSection); err != nil {
+		return err
+	}
+	rawCfg["mcp"] = mcpSection
+
+	out, err := yaml.Marshal(rawCfg)
+	if err != nil {
+		return err
+	}
+	if err := config.WriteFileAtomic(configPath, out, 0o600); err != nil {
+		return err
+	}
+
+	s.CfgMu.Lock()
+	newCfg, loadErr := config.Load(configPath)
+	if loadErr != nil {
+		s.CfgMu.Unlock()
+		return loadErr
+	}
+	savedPath := s.Cfg.ConfigPath
+	*s.Cfg = *newCfg
+	s.Cfg.ConfigPath = savedPath
+	s.Cfg.ApplyVaultSecrets(s.Vault)
+	s.Cfg.ApplyOAuthTokens(s.Vault)
+	syncExternalMCPRuntime(s.Cfg, s.Logger)
+	s.CfgMu.Unlock()
+	return nil
+}
+
 // handlePutMCPServers saves a new MCP servers array to config.yaml and hot-reloads.
 func handlePutMCPServers(s *Server, w http.ResponseWriter, r *http.Request) {
 	body, err := io.ReadAll(r.Body)
@@ -104,87 +160,34 @@ func handlePutMCPServers(s *Server, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.CfgMu.RLock()
-	configPath := s.Cfg.ConfigPath
-	s.CfgMu.RUnlock()
-
-	if configPath == "" {
-		jsonError(w, "Config path not set", http.StatusInternalServerError)
-		return
-	}
-
-	// Read raw YAML, update mcp.servers key, write back
-	data, err := os.ReadFile(configPath)
-	if err != nil {
-		s.Logger.Error("Failed to read config for mcp-servers update", "error", err)
-		jsonError(w, "Failed to read config", http.StatusInternalServerError)
-		return
-	}
-
-	var rawCfg map[string]interface{}
-	if err := yaml.Unmarshal(data, &rawCfg); err != nil {
-		s.Logger.Error("Failed to parse config for mcp-servers update", "error", err)
-		jsonError(w, "Failed to parse config", http.StatusInternalServerError)
-		return
-	}
-
-	// Ensure mcp section exists
-	mcpSection, ok := rawCfg["mcp"].(map[string]interface{})
-	if !ok {
-		mcpSection = map[string]interface{}{}
-	}
-
 	// Build servers list for YAML
-	serversList := make([]interface{}, len(incoming))
-	for i, srv := range incoming {
-		m := map[string]interface{}{
-			"name":    srv.Name,
-			"command": srv.Command,
-			"enabled": srv.Enabled,
+	err = persistMCPSectionUpdate(s, func(mcpSection map[string]interface{}) error {
+		serversList := make([]interface{}, len(incoming))
+		for i, srv := range incoming {
+			m := map[string]interface{}{
+				"name":    srv.Name,
+				"command": srv.Command,
+				"enabled": srv.Enabled,
+			}
+			if len(srv.Args) > 0 {
+				m["args"] = srv.Args
+			}
+			if len(srv.Env) > 0 {
+				m["env"] = srv.Env
+			}
+			serversList[i] = m
 		}
-		if len(srv.Args) > 0 {
-			m["args"] = srv.Args
+		mcpSection["servers"] = serversList
+		if enabledOverride != nil {
+			mcpSection["enabled"] = *enabledOverride
 		}
-		if len(srv.Env) > 0 {
-			m["env"] = srv.Env
-		}
-		serversList[i] = m
-	}
-	mcpSection["servers"] = serversList
-	if enabledOverride != nil {
-		mcpSection["enabled"] = *enabledOverride
-	}
-	rawCfg["mcp"] = mcpSection
-
-	out, err := yaml.Marshal(rawCfg)
+		return nil
+	})
 	if err != nil {
 		s.Logger.Error("Failed to marshal config after mcp-servers update", "error", err)
 		jsonError(w, "Failed to save config", http.StatusInternalServerError)
 		return
 	}
-
-	if err := config.WriteFileAtomic(configPath, out, 0o600); err != nil {
-		s.Logger.Error("Failed to write config after mcp-servers update", "error", err)
-		jsonError(w, "Failed to write config", http.StatusInternalServerError)
-		return
-	}
-
-	// Hot-reload
-	s.CfgMu.Lock()
-	newCfg, loadErr := config.Load(configPath)
-	if loadErr != nil {
-		s.CfgMu.Unlock()
-		s.Logger.Error("[MCPServers] Hot-reload failed", "error", loadErr)
-		jsonError(w, "Saved but reload failed", http.StatusInternalServerError)
-		return
-	}
-	savedPath := s.Cfg.ConfigPath
-	*s.Cfg = *newCfg
-	s.Cfg.ConfigPath = savedPath
-	s.Cfg.ApplyVaultSecrets(s.Vault)
-	s.Cfg.ApplyOAuthTokens(s.Vault)
-	syncExternalMCPRuntime(s.Cfg, s.Logger)
-	s.CfgMu.Unlock()
 
 	s.Logger.Info("[MCPServers] Updated", "count", len(incoming))
 
@@ -193,4 +196,105 @@ func handlePutMCPServers(s *Server, w http.ResponseWriter, r *http.Request) {
 		"status": "ok",
 		"count":  len(incoming),
 	})
+}
+
+func handleMCPPreferences(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			handleGetMCPPreferences(s, w, r)
+		case http.MethodPut:
+			handlePutMCPPreferences(s, w, r)
+		default:
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	}
+}
+
+func handleGetMCPPreferences(s *Server, w http.ResponseWriter, _ *http.Request) {
+	s.CfgMu.RLock()
+	preferences := s.Cfg.MCP.PreferredCapabilities
+	s.CfgMu.RUnlock()
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(preferences)
+}
+
+func handlePutMCPPreferences(s *Server, w http.ResponseWriter, r *http.Request) {
+	var preferences config.MCPPreferredCapabilities
+	if err := json.NewDecoder(r.Body).Decode(&preferences); err != nil {
+		jsonError(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	err := persistMCPSectionUpdate(s, func(mcpSection map[string]interface{}) error {
+		mcpSection["preferred_capabilities"] = map[string]interface{}{
+			"web_search": map[string]interface{}{
+				"server": strings.TrimSpace(preferences.WebSearch.Server),
+				"tool":   strings.TrimSpace(preferences.WebSearch.Tool),
+			},
+			"vision": map[string]interface{}{
+				"server": strings.TrimSpace(preferences.Vision.Server),
+				"tool":   strings.TrimSpace(preferences.Vision.Tool),
+			},
+		}
+		return nil
+	})
+	if err != nil {
+		s.Logger.Error("Failed to save MCP preferred capabilities", "error", err)
+		jsonError(w, "Failed to save config", http.StatusInternalServerError)
+		return
+	}
+
+	s.Logger.Info("[MCPPreferences] Updated",
+		"web_search_server", preferences.WebSearch.Server,
+		"web_search_tool", preferences.WebSearch.Tool,
+		"vision_server", preferences.Vision.Server,
+		"vision_tool", preferences.Vision.Tool,
+	)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok"})
+}
+
+func handleMCPRuntimeServers(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		servers, err := tools.MCPListServers(s.Logger)
+		if err != nil {
+			servers = []map[string]interface{}{}
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"status":  "ok",
+			"servers": servers,
+		})
+	}
+}
+
+func handleMCPRuntimeTools(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		serverName := strings.TrimSpace(r.URL.Query().Get("server"))
+		if serverName == "" {
+			jsonError(w, "server query parameter is required", http.StatusBadRequest)
+			return
+		}
+		mcpTools, err := tools.MCPListTools(serverName, s.Logger)
+		if err != nil {
+			s.Logger.Warn("[MCPRuntime] Failed to list tools", "server", serverName, "error", err)
+			mcpTools = []tools.MCPToolInfo{}
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"status": "ok",
+			"tools":  mcpTools,
+		})
+	}
 }

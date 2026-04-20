@@ -26,5 +26,19 @@
   "config.mcp.field_command": "Befehl",
   "config.mcp.field_args_label": "Argumente",
   "config.mcp.field_environment": "Umgebungsvariablen",
-  "config.mcp.save_failed": "MCP-Speichern fehlgeschlagen: "
+  "config.mcp.save_failed": "MCP-Speichern fehlgeschlagen: ",
+  "config.mcp.routing_title": "Tool-Zuordnung",
+  "config.mcp.routing_desc": "Wähle aus, welches verbundene MCP-Tool AuraGo für die integrierte Websuche und Bildanalyse verwenden soll.",
+  "config.mcp.routing_empty": "Noch keine MCP-Ziele verfügbar. Füge zuerst einen MCP-Server hinzu und aktiviere ihn.",
+  "config.mcp.mapping_web_search": "Websuche",
+  "config.mcp.mapping_web_search_desc": "Verwendet das ausgewählte MCP-Tool statt des normalen AuraGo-Suchbackends.",
+  "config.mcp.mapping_vision": "Vision / Bildanalyse",
+  "config.mcp.mapping_vision_desc": "Verwendet das ausgewählte MCP-Tool statt des konfigurierten Vision-Providers für analyze_image.",
+  "config.mcp.mapping_server": "MCP-Server",
+  "config.mcp.mapping_tool": "MCP-Tool",
+  "config.mcp.mapping_builtin_option": "Eingebautes AuraGo-Backend verwenden",
+  "config.mcp.mapping_select_tool": "Tool auswählen",
+  "config.mcp.mapping_no_tools": "Für diesen Server wurden keine Runtime-Tools gefunden",
+  "config.mcp.mapping_saved": "MCP-Tool-Zuordnung gespeichert.",
+  "config.mcp.mapping_save_failed": "Speichern der MCP-Tool-Zuordnung fehlgeschlagen: "
 }

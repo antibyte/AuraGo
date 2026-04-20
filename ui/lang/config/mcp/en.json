@@ -26,5 +26,19 @@
   "config.mcp.field_command": "Command",
   "config.mcp.field_args_label": "Args",
   "config.mcp.field_environment": "Environment Variables",
-  "config.mcp.save_failed": "MCP save failed: "
+  "config.mcp.save_failed": "MCP save failed: ",
+  "config.mcp.routing_title": "Tool Routing",
+  "config.mcp.routing_desc": "Choose which connected MCP tool AuraGo should use for built-in web search and image analysis.",
+  "config.mcp.routing_empty": "No MCP routing targets are available yet. Add and enable an MCP server first.",
+  "config.mcp.mapping_web_search": "Web Search",
+  "config.mcp.mapping_web_search_desc": "Uses the selected MCP tool instead of AuraGo's standard web search backend.",
+  "config.mcp.mapping_vision": "Vision / Image Analysis",
+  "config.mcp.mapping_vision_desc": "Uses the selected MCP tool instead of the configured Vision provider for analyze_image.",
+  "config.mcp.mapping_server": "MCP Server",
+  "config.mcp.mapping_tool": "MCP Tool",
+  "config.mcp.mapping_builtin_option": "Use AuraGo built-in backend",
+  "config.mcp.mapping_select_tool": "Select a tool",
+  "config.mcp.mapping_no_tools": "No runtime tools found for this server",
+  "config.mcp.mapping_saved": "MCP tool mapping saved.",
+  "config.mcp.mapping_save_failed": "Saving MCP tool mapping failed: "
 }
