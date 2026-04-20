@@ -45,8 +45,10 @@ func promoteUploadedImagesToMultiContent(cfg *config.Config, msg openai.ChatComp
 	const maxDecodedPixels = 4_000_000
 	const maxDim = 1600
 
-	// Provider fallback: if the main provider can't accept multimodal image parts,
-	// fall back to the configured Vision provider and inject a text-only analysis.
+	// Trust the explicit multimodal setting from config over provider heuristics.
+	// If users enable llm.multimodal, uploaded images are sent directly to the
+	// main model even when the provider type is not part of AuraGo's built-in
+	// allowlist.
 	if !mainProviderSupportsImageMultimodal(cfg) {
 		return fallbackVisionAnalysis(cfg, msg, matches, logger)
 	}
@@ -120,6 +122,9 @@ func promoteUploadedImagesToMultiContent(cfg *config.Config, msg openai.ChatComp
 func mainProviderSupportsImageMultimodal(cfg *config.Config) bool {
 	if cfg == nil {
 		return false
+	}
+	if cfg.LLM.Multimodal {
+		return true
 	}
 	pt := strings.ToLower(strings.TrimSpace(cfg.LLM.ProviderType))
 	for _, extra := range cfg.LLM.MultimodalProviderTypesExtra {

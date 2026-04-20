@@ -130,7 +130,7 @@ func min(a, b int) int {
 	return b
 }
 
-func TestPromoteUploadedImagesToMultiContent_FallbackToVisionWhenProviderUnsupported(t *testing.T) {
+func TestPromoteUploadedImagesToMultiContent_TrustsConfiguredMultimodalForUnknownProvider(t *testing.T) {
 	dir := t.TempDir()
 	attachDir := filepath.Join(dir, "attachments")
 	if err := os.MkdirAll(attachDir, 0o755); err != nil {
@@ -148,7 +148,7 @@ func TestPromoteUploadedImagesToMultiContent_FallbackToVisionWhenProviderUnsuppo
 
 	cfg := &config.Config{}
 	cfg.LLM.Multimodal = true
-	cfg.LLM.ProviderType = "ollama" // treated as unsupported for multimodal image parts
+	cfg.LLM.ProviderType = "minimax"
 
 	in := openai.ChatCompletionMessage{
 		Role:    openai.ChatMessageRoleUser,
@@ -156,14 +156,14 @@ func TestPromoteUploadedImagesToMultiContent_FallbackToVisionWhenProviderUnsuppo
 	}
 	out := promoteUploadedImagesToMultiContent(cfg, in, dir, nil)
 
-	if len(out.MultiContent) != 0 {
-		t.Fatalf("expected MultiContent to be empty for fallback path, got %d parts", len(out.MultiContent))
+	if out.Content != "" {
+		t.Fatalf("expected Content to be empty, got %q", out.Content)
 	}
-	if !strings.Contains(out.Content, "stub-analysis") {
-		t.Fatalf("expected fallback analysis to be injected, got %q", out.Content)
+	if len(out.MultiContent) != 2 {
+		t.Fatalf("expected MultiContent parts (text + image), got %d", len(out.MultiContent))
 	}
-	if strings.Contains(out.Content, "agent_workspace/workdir/attachments/img.png") {
-		t.Fatalf("expected attachment path to be stripped in fallback text, got %q", out.Content)
+	if out.MultiContent[1].Type != openai.ChatMessagePartTypeImageURL {
+		t.Fatalf("expected second part type image_url, got %q", out.MultiContent[1].Type)
 	}
 }
 
