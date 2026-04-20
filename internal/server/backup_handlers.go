@@ -34,6 +34,12 @@ import (
 
 const agoMagic = "AGOE"
 
+const (
+	agoMaxExtractSize      int64  = 1 << 30
+	agoMaxArchiveEntries          = 100000
+	agoMaxCompressionRatio uint64 = 1000
+)
+
 // currentDBSchemaVersion is incremented whenever any SQLite schema changes.
 // Stored in the manifest so imports can warn about version mismatches.
 const currentDBSchemaVersion = 1
@@ -46,6 +52,16 @@ type agoManifest struct {
 	Contents        []string `json:"contents"`
 	VaultIncluded   bool     `json:"vault_included,omitempty"`
 	DBSchemaVersion int      `json:"db_schema_version,omitempty"`
+}
+
+type agoImportEntry struct {
+	file    *zip.File
+	clean   string
+	dest    string
+	isDir   bool
+	mode    os.FileMode
+	stage   string
+	zipPath string
 }
 
 // vaultSkipKeys contains secrets that are instance-specific and must not be
@@ -235,6 +251,114 @@ func decryptAGO(data []byte, password string) ([]byte, error) {
 	return plaintext, nil
 }
 
+func agoArchiveBaseDir(targetDir string) (string, error) {
+	absBase, err := filepath.Abs(targetDir)
+	if err != nil {
+		return "", err
+	}
+	if resolved, err := filepath.EvalSymlinks(absBase); err == nil {
+		absBase = resolved
+	}
+	return filepath.Clean(absBase), nil
+}
+
+func agoSafeDestination(baseDir, name string) (string, error) {
+	dest := filepath.Clean(filepath.Join(baseDir, name))
+	rel, err := filepath.Rel(baseDir, dest)
+	if err != nil {
+		return "", err
+	}
+	if rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
+		return "", fmt.Errorf("path traversal")
+	}
+	return dest, nil
+}
+
+func agoEnsureSafePath(baseDir, dest string, dirTarget bool) error {
+	rel, err := filepath.Rel(baseDir, dest)
+	if err != nil {
+		return err
+	}
+	if rel == "." && dirTarget {
+		return nil
+	}
+	parts := strings.Split(filepath.Clean(rel), string(os.PathSeparator))
+	current := baseDir
+	limit := len(parts)
+	if !dirTarget {
+		limit--
+	}
+	for i := 0; i < limit; i++ {
+		current = filepath.Join(current, parts[i])
+		info, err := os.Lstat(current)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return err
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("refusing to restore through symlink path: %s", current)
+		}
+		if !info.IsDir() {
+			return fmt.Errorf("refusing to restore through non-directory path: %s", current)
+		}
+	}
+	if !dirTarget {
+		if info, err := os.Lstat(dest); err == nil && info.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("refusing to overwrite symlink target: %s", dest)
+		}
+	}
+	return nil
+}
+
+func agoRelZipPath(baseDir, absPath string) (string, bool) {
+	rel, err := filepath.Rel(baseDir, absPath)
+	if err != nil {
+		return "", false
+	}
+	clean := filepath.Clean(rel)
+	if clean == "." || clean == ".." || strings.HasPrefix(clean, ".."+string(os.PathSeparator)) {
+		return "", false
+	}
+	return filepath.ToSlash(clean), true
+}
+
+func agoAtomicCopyFile(src, dest string, perm os.FileMode) error {
+	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
+		return err
+	}
+	tmp, err := os.CreateTemp(filepath.Dir(dest), ".ago-restore-*")
+	if err != nil {
+		return err
+	}
+	tmpName := tmp.Name()
+	defer os.Remove(tmpName)
+
+	if err := tmp.Chmod(perm); err != nil {
+		tmp.Close()
+		return err
+	}
+	in, err := os.Open(src)
+	if err != nil {
+		tmp.Close()
+		return err
+	}
+	if _, err := io.Copy(tmp, in); err != nil {
+		in.Close()
+		tmp.Close()
+		return err
+	}
+	if err := in.Close(); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	return os.Rename(tmpName, dest)
+}
+
 // ── Create backup ────────────────────────────────────────────────────────────
 
 // handleBackupCreate builds a .ago archive from the running instance's files
@@ -254,15 +378,26 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 		body, _ := io.ReadAll(io.LimitReader(r.Body, 1024))
 		json.Unmarshal(body, &req)
 
+		absConfig, _ := filepath.Abs(s.Cfg.ConfigPath)
+		configRoot := filepath.Dir(absConfig)
+
 		// Build ZIP in memory
 		var zipBuf bytes.Buffer
 		zw := zip.NewWriter(&zipBuf)
 		contents := []string{}
+		seenZipPaths := map[string]struct{}{}
 
 		// addFile adds a single file to the ZIP at the given zip-internal path.
 		addFile := func(zipPath, filePath string) {
-			info, err := os.Stat(filePath)
-			if err != nil || info.IsDir() {
+			info, err := os.Lstat(filePath)
+			if err != nil || info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+				return
+			}
+			zipPath = filepath.ToSlash(filepath.Clean(zipPath))
+			if zipPath == "." {
+				return
+			}
+			if _, exists := seenZipPaths[zipPath]; exists {
 				return
 			}
 			// Skip excessively large files (>100 MB) to prevent OOM
@@ -275,16 +410,20 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 				return
 			}
 			defer f.Close()
-			fh := &zip.FileHeader{
-				Name:   zipPath,
-				Method: zip.Deflate,
+			fh, err := zip.FileInfoHeader(info)
+			if err != nil {
+				return
 			}
-			fh.SetModTime(info.ModTime())
+			fh.Name = zipPath
+			fh.Method = zip.Deflate
 			fw, err := zw.CreateHeader(fh)
 			if err != nil {
 				return
 			}
-			io.Copy(fw, f)
+			if _, err := io.Copy(fw, f); err != nil {
+				return
+			}
+			seenZipPaths[zipPath] = struct{}{}
 		}
 
 		// addDir recursively adds all files under dirPath into zipPrefix, skipping
@@ -306,8 +445,6 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 			})
 		}
 
-		// 1. config.yaml
-		absConfig, _ := filepath.Abs(s.Cfg.ConfigPath)
 		addFile("config.yaml", absConfig)
 		contents = append(contents, "config.yaml")
 
@@ -346,44 +483,93 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 			contents = append(contents, fmt.Sprintf("prompts/ (custom only, %d file(s))", customPromptCount))
 		}
 
-		// 3. Curated data files (no sqlite WAL files, just final DBs + JSON/MD)
+		// 3. Curated runtime files
 		absData, _ := filepath.Abs(s.Cfg.Directories.DataDir)
 		dataFiles := []string{
 			"chat_history.json", "state.json", "graph.json",
 			"crontab.json", "current_plan.md", "character_journal.md",
-			"budget.json", "long_term.db", "short_term.db", "inventory.db",
+			"budget.json", "tokens.json", "webhooks.json", "webhook_log.json",
+			"background_tasks.json", "missions_v2.json",
 		}
 		for _, fname := range dataFiles {
 			addFile("data/"+fname, filepath.Join(absData, fname))
 		}
-		contents = append(contents, "data/ (curated)")
+		contents = append(contents, "data/ (runtime files)")
 
-		// 4. VectorDB (optional — can be large)
+		// 4. SQLite databases + sidecars
+		sqlitePaths := []string{
+			s.Cfg.SQLite.ShortTermPath,
+			s.Cfg.SQLite.LongTermPath,
+			s.Cfg.SQLite.InventoryPath,
+			s.Cfg.SQLite.InvasionPath,
+			s.Cfg.SQLite.CheatsheetPath,
+			s.Cfg.SQLite.ImageGalleryPath,
+			s.Cfg.SQLite.RemoteControlPath,
+			s.Cfg.SQLite.MediaRegistryPath,
+			s.Cfg.SQLite.HomepageRegistryPath,
+			s.Cfg.SQLite.ContactsPath,
+			s.Cfg.SQLite.PlannerPath,
+			s.Cfg.SQLite.SiteMonitorPath,
+			s.Cfg.SQLite.SQLConnectionsPath,
+			s.Cfg.SQLite.SkillsPath,
+			s.Cfg.SQLite.KnowledgeGraphPath,
+			s.Cfg.SQLite.OptimizationPath,
+			s.Cfg.SQLite.PreparedMissionsPath,
+			s.Cfg.SQLite.MissionHistoryPath,
+			s.Cfg.SQLite.PushPath,
+		}
+		sqliteAdded := 0
+		for _, dbPath := range sqlitePaths {
+			if dbPath == "" {
+				continue
+			}
+			absDB, err := filepath.Abs(dbPath)
+			if err != nil {
+				continue
+			}
+			zipPath, ok := agoRelZipPath(configRoot, absDB)
+			if !ok {
+				s.Logger.Warn("[Backup] Skipping SQLite path outside config root", "path", absDB)
+				continue
+			}
+			before := len(seenZipPaths)
+			addFile(zipPath, absDB)
+			addFile(zipPath+"-wal", absDB+"-wal")
+			addFile(zipPath+"-shm", absDB+"-shm")
+			if len(seenZipPaths) > before {
+				sqliteAdded++
+			}
+		}
+		if sqliteAdded > 0 {
+			contents = append(contents, fmt.Sprintf("sqlite/ (%d database roots incl. WAL/SHM)", sqliteAdded))
+		}
+
+		// 5. VectorDB (optional — can be large)
 		if req.IncludeVectorDB {
 			absVDB, _ := filepath.Abs(s.Cfg.Directories.VectorDBDir)
 			addDir("data/vectordb/", absVDB)
 			contents = append(contents, "data/vectordb/")
 		}
 
-		// 5. Skills (exclude OAuth credentials)
+		// 6. Skills (exclude OAuth credentials)
 		absSkills, _ := filepath.Abs(s.Cfg.Directories.SkillsDir)
 		addDir("agent_workspace/skills/", absSkills,
 			"client_secret.json", "client_secrets.json", "token.json")
 		contents = append(contents, "agent_workspace/skills/")
 
-		// 6. Tools
+		// 7. Tools
 		absTools, _ := filepath.Abs(s.Cfg.Directories.ToolsDir)
 		addDir("agent_workspace/tools/", absTools)
 		contents = append(contents, "agent_workspace/tools/")
 
-		// 7. Workdir (optional — excludes images sub-dir to keep size manageable)
+		// 8. Workdir (optional — excludes images sub-dir to keep size manageable)
 		if req.IncludeWorkdir {
 			absWorkdir, _ := filepath.Abs(s.Cfg.Directories.WorkspaceDir)
 			addDir("agent_workspace/workdir/", absWorkdir, "/images/", "/attachments/")
 			contents = append(contents, "agent_workspace/workdir/")
 		}
 
-		// 8. Vault secrets (only when a password is set — never in plain-text backups)
+		// 9. Vault secrets (only when a password is set — never in plain-text backups)
 		vaultIncluded := false
 		if req.Password != "" && s.Vault != nil {
 			if vaultBlob, err := exportVaultSecrets(s.Vault, req.Password); err != nil {
@@ -397,7 +583,7 @@ func handleBackupCreate(s *Server) http.HandlerFunc {
 			}
 		}
 
-		// 9. Write manifest
+		// 10. Write manifest
 		hostname, _ := os.Hostname()
 		manifest := agoManifest{
 			Version:         "1",
@@ -517,81 +703,180 @@ func handleBackupImport(s *Server) http.HandlerFunc {
 			return
 		}
 
-		// Restore relative to CWD (same as where the binary runs)
-		cwd, err := os.Getwd()
+		// Restore relative to the configured instance root, not the process CWD.
+		configRoot, err := agoArchiveBaseDir(filepath.Dir(s.Cfg.ConfigPath))
 		if err != nil {
-			jsonError(w, "Cannot determine working directory", http.StatusInternalServerError)
+			jsonError(w, "Cannot determine restore root", http.StatusInternalServerError)
+			return
+		}
+
+		if len(zr.File) > agoMaxArchiveEntries {
+			jsonError(w, "Backup archive contains too many entries", http.StatusBadRequest)
 			return
 		}
 
 		restored, skipped := 0, 0
 		var vaultEncData []byte // vault_secrets.enc bytes, if present
 		var backupManifest *agoManifest
+		var importEntries []agoImportEntry
+		var totalBytes int64
 
 		for _, f := range zr.File {
-			// Security: reject path-traversal attempts
 			clean := filepath.Clean(filepath.FromSlash(f.Name))
-			if strings.HasPrefix(clean, "..") || filepath.IsAbs(clean) {
-				s.Logger.Warn("[Backup] Skipping unsafe path in archive", "path", f.Name)
-				skipped++
+			if clean == "." {
 				continue
+			}
+			if strings.HasPrefix(clean, "..") || filepath.IsAbs(clean) {
+				s.Logger.Warn("[Backup] Unsafe path in archive", "path", f.Name)
+				jsonError(w, "Backup archive contains unsafe paths", http.StatusBadRequest)
+				return
+			}
+			if f.Mode()&os.ModeSymlink != 0 {
+				s.Logger.Warn("[Backup] Symlink entry rejected", "path", f.Name)
+				jsonError(w, "Backup archive contains unsupported symlink entries", http.StatusBadRequest)
+				return
+			}
+			if f.CompressedSize64 > 0 && f.UncompressedSize64 > 0 {
+				ratio := f.UncompressedSize64 / f.CompressedSize64
+				if ratio > agoMaxCompressionRatio {
+					s.Logger.Warn("[Backup] Suspicious compression ratio", "path", f.Name, "ratio", ratio)
+					jsonError(w, "Backup archive looks corrupted or malicious", http.StatusBadRequest)
+					return
+				}
+			}
+			if f.UncompressedSize64 > uint64(agoMaxExtractSize) {
+				jsonError(w, "Backup archive exceeds maximum size", http.StatusBadRequest)
+				return
+			}
+			totalBytes += int64(f.UncompressedSize64)
+			if totalBytes > agoMaxExtractSize {
+				jsonError(w, "Backup archive exceeds maximum size", http.StatusBadRequest)
+				return
 			}
 
 			// vault_secrets.enc is never written to disk — handled separately below.
 			if clean == "vault_secrets.enc" {
-				if rc, err := f.Open(); err == nil {
-					vaultEncData, _ = io.ReadAll(rc)
-					rc.Close()
+				rc, err := f.Open()
+				if err != nil {
+					jsonError(w, "Failed to read vault secrets from backup", http.StatusBadRequest)
+					return
+				}
+				vaultEncData, err = io.ReadAll(io.LimitReader(rc, 8<<20))
+				rc.Close()
+				if err != nil {
+					jsonError(w, "Failed to read vault secrets from backup", http.StatusBadRequest)
+					return
 				}
 				continue
 			}
 
 			// manifest.json — read for schema version check, skip file-system restore.
 			if clean == "manifest.json" {
-				if rc, err := f.Open(); err == nil {
-					var m agoManifest
-					if jsonErr := json.NewDecoder(rc).Decode(&m); jsonErr == nil {
-						backupManifest = &m
-					}
-					rc.Close()
+				rc, err := f.Open()
+				if err != nil {
+					jsonError(w, "Failed to read backup manifest", http.StatusBadRequest)
+					return
+				}
+				var m agoManifest
+				if jsonErr := json.NewDecoder(io.LimitReader(rc, 1<<20)).Decode(&m); jsonErr == nil {
+					backupManifest = &m
+				}
+				rc.Close()
+				continue
+			}
+
+			destPath, err := agoSafeDestination(configRoot, clean)
+			if err != nil {
+				s.Logger.Warn("[Backup] Illegal path in archive", "path", f.Name, "error", err)
+				jsonError(w, "Backup archive contains unsafe paths", http.StatusBadRequest)
+				return
+			}
+			if err := agoEnsureSafePath(configRoot, destPath, f.FileInfo().IsDir()); err != nil {
+				s.Logger.Warn("[Backup] Unsafe restore destination", "path", f.Name, "error", err)
+				jsonError(w, "Restore target path is unsafe", http.StatusBadRequest)
+				return
+			}
+			importEntries = append(importEntries, agoImportEntry{
+				file:    f,
+				clean:   clean,
+				dest:    destPath,
+				isDir:   f.FileInfo().IsDir(),
+				mode:    f.Mode().Perm(),
+				zipPath: f.Name,
+			})
+		}
+
+		stagingRoot, err := os.MkdirTemp(configRoot, ".ago-import-*")
+		if err != nil {
+			jsonError(w, "Failed to prepare restore staging area", http.StatusInternalServerError)
+			return
+		}
+		defer os.RemoveAll(stagingRoot)
+
+		for i := range importEntries {
+			entry := &importEntries[i]
+			entry.stage = filepath.Join(stagingRoot, entry.clean)
+			if entry.isDir {
+				if err := os.MkdirAll(entry.stage, 0o755); err != nil {
+					s.Logger.Warn("[Backup] Failed to stage directory", "path", entry.zipPath, "error", err)
+					jsonError(w, "Failed to stage restore files", http.StatusInternalServerError)
+					return
 				}
 				continue
 			}
-
-			destPath := filepath.Join(cwd, clean)
-
-			if f.FileInfo().IsDir() {
-				os.MkdirAll(destPath, 0755)
-				continue
+			if err := os.MkdirAll(filepath.Dir(entry.stage), 0o755); err != nil {
+				s.Logger.Warn("[Backup] Failed to stage file parent", "path", entry.zipPath, "error", err)
+				jsonError(w, "Failed to stage restore files", http.StatusInternalServerError)
+				return
 			}
-
-			if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
-				skipped++
-				continue
-			}
-
-			rc, err := f.Open()
+			rc, err := entry.file.Open()
 			if err != nil {
-				skipped++
-				continue
+				s.Logger.Warn("[Backup] Failed to open archive entry", "path", entry.zipPath, "error", err)
+				jsonError(w, "Failed to read backup archive", http.StatusBadRequest)
+				return
 			}
-
-			out, err := os.Create(destPath)
-			if err != nil {
-				rc.Close()
-				skipped++
-				continue
-			}
-
-			_, copyErr := io.Copy(out, rc)
-			out.Close()
+			data, readErr := io.ReadAll(io.LimitReader(rc, int64(entry.file.UncompressedSize64)+1))
 			rc.Close()
-
-			if copyErr != nil {
-				skipped++
-			} else {
-				restored++
+			if readErr != nil {
+				s.Logger.Warn("[Backup] Failed to read archive entry", "path", entry.zipPath, "error", readErr)
+				jsonError(w, "Failed to read backup archive", http.StatusBadRequest)
+				return
 			}
+			if uint64(len(data)) > entry.file.UncompressedSize64 {
+				s.Logger.Warn("[Backup] Entry exceeded declared size", "path", entry.zipPath)
+				jsonError(w, "Backup archive is inconsistent", http.StatusBadRequest)
+				return
+			}
+			perm := entry.mode
+			if perm == 0 {
+				perm = 0o644
+			}
+			if err := config.WriteFileAtomic(entry.stage, data, perm); err != nil {
+				s.Logger.Warn("[Backup] Failed to stage file", "path", entry.zipPath, "error", err)
+				jsonError(w, "Failed to stage restore files", http.StatusInternalServerError)
+				return
+			}
+		}
+
+		for _, entry := range importEntries {
+			if entry.isDir {
+				if err := os.MkdirAll(entry.dest, 0o755); err != nil {
+					s.Logger.Warn("[Backup] Failed to restore directory", "path", entry.zipPath, "error", err)
+					jsonError(w, "Restore failed while writing files", http.StatusInternalServerError)
+					return
+				}
+				continue
+			}
+			perm := entry.mode
+			if perm == 0 {
+				perm = 0o644
+			}
+			if err := agoAtomicCopyFile(entry.stage, entry.dest, perm); err != nil {
+				s.Logger.Warn("[Backup] Failed to restore file", "path", entry.zipPath, "error", err)
+				jsonError(w, "Restore failed while writing files", http.StatusInternalServerError)
+				return
+			}
+			restored++
 		}
 
 		// Vault secrets import — re-encrypt with the local AURAGO_MASTER_KEY so
