@@ -53,6 +53,7 @@
   "help.agent.show_tool_results": "Zobrazuje vysledky nastroju.",
   "help.agent.step_delay_seconds": "Zpozdeni mezi volanimi.",
   "help.agent.sudo_enabled": "Povoluje sudo.",
+  "help.agent.sudo_unrestricted": "Umožňuje agentovi zapisovat mimo instalační adresář pomocí sudo (např. /etc/). Vyžaduje odstranění ProtectSystem=strict z jednotky systemd služby. Bez tohoto nastavení jsou zápisy sudo omezeny pouze na instalační adresář.",
   "help.agent.system_language": "Jazyk odpovedi.",
   "help.agent.system_prompt_token_budget": "Maximální počet tokenů pro systémovou výzvu. 0 = automaticky.",
   "help.agent.tool_output_limit": "Odpovědi nástrojů přesahující tento limit znaků jsou zkráceny. Zabraňuje plýtvání tokeny příliš dlouhými výstupy.",

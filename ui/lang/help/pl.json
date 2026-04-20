@@ -53,6 +53,7 @@
   "help.agent.show_tool_results": "Pokazuje wyniki narzędzi w oknie czatu jako zwijane bloki debugowania.",
   "help.agent.step_delay_seconds": "Opóźnienie między wywołaniami narzędzi w sekundach. 0 = brak opóźnienia.",
   "help.agent.sudo_enabled": "Włącza execute_sudo. Hasło sudo musi być przechowywane w vault pod kluczem 'sudo_password'.",
+  "help.agent.sudo_unrestricted": "Pozwala agentowi zapisywać poza katalogiem instalacyjnym przy użyciu sudo (np. /etc/). Wymaga usunięcia ProtectSystem=strict z jednostki usługi systemd. Bez tej opcji zapisy sudo są ograniczone tylko do katalogu instalacyjnego.",
   "help.agent.system_language": "Język odpowiedzi, np. 'Deutsch' lub 'English'.",
   "help.agent.system_prompt_token_budget": "Maksymalna liczba tokenów dla promptu systemowego. 0 = automatycznie.",
   "help.agent.tool_output_limit": "Odpowiedzi narzędzi przekraczające ten limit znaków są obcinane. Zapobiega marnowaniu tokenów przez zbyt długie wyniki.",

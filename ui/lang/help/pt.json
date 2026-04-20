@@ -53,6 +53,7 @@
   "help.agent.show_tool_results": "Mostra resultados das ferramentas no chat.",
   "help.agent.step_delay_seconds": "Atraso entre chamadas de ferramenta em segundos.",
   "help.agent.sudo_enabled": "Habilita execute_sudo. A senha sudo deve estar no vault.",
+  "help.agent.sudo_unrestricted": "Permite ao agente escrever fora do diretório de instalação usando sudo (por ex. /etc/). Requer a remoção de ProtectSystem=strict da unidade de serviço systemd. Sem esta opção, as gravações sudo são restritas apenas ao diretório de instalação.",
   "help.agent.system_language": "Idioma para respostas, ex: \"Português\" ou \"English\".",
   "help.agent.system_prompt_token_budget": "Maximum token count for the system prompt. The optimizer trims to this limit. 0 = auto-calculate.",
   "help.agent.tool_output_limit": "Tool responses exceeding this character limit are truncated. Prevents token waste from overly long outputs.",

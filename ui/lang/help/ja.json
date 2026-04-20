@@ -53,6 +53,7 @@
   "help.agent.show_tool_results": "チャット ウィンドウにツールの結果を折りたたみ可能なデバッグ ブロックとして表示します。",
   "help.agent.step_delay_seconds": "ツール呼び出し間の遅延 (秒単位)。 0 = 遅延なし。",
   "help.agent.sudo_enabled": "execute_sudo を有効にします。 sudo パスワードは、キー「sudo_password」の下でボールトに保存する必要があります。",
+  "help.agent.sudo_unrestricted": "エージェントがsudoを使用してインストールディレクトリ外（例: /etc/）に書き込めるようにします。systemdサービスユニットからProtectSystem=strictを削除する必要があります。これがない場合、sudoの書き込みはインストールディレクトリのみに制限されます。",
   "help.agent.system_language": "応答の言語。例: 「ドイツ語」または「英語」。",
   "help.agent.system_prompt_token_budget": "システム プロンプトの最大トークン数。 0 = 自動。",
   "help.agent.tool_output_limit": "この文字制限を超えるツール応答は切り捨てられます。長すぎる出力によるトークン無駄遣いを防ぎます。",

@@ -53,6 +53,7 @@
   "help.agent.show_tool_results": "Zeigt Tool-Ergebnisse im Chat-Fenster als klappbare Debug-Blöcke.",
   "help.agent.step_delay_seconds": "Wartezeit zwischen Tool-Aufrufen in Sekunden. 0 = kein Delay.",
   "help.agent.sudo_enabled": "Aktiviert execute_sudo. Das Sudo-Passwort muss im Vault unter dem Schlüssel 'sudo_password' gespeichert sein.",
+  "help.agent.sudo_unrestricted": "Erlaubt dem Agenten, mit sudo auch außerhalb des Installationsverzeichnisses zu schreiben (z. B. /etc/). Erfordert das Entfernen von ProtectSystem=strict in der systemd-Service-Datei. Ohne diese Option sind Sudo-Schreibzugriffe auf das Installationsverzeichnis beschränkt.",
   "help.agent.system_language": "Sprache für Antworten, z.B. 'Deutsch' oder 'English'.",
   "help.agent.system_prompt_token_budget": "Maximale Token-Anzahl für den System-Prompt. Der Prompt-Optimizer kürzt auf dieses Limit. 0 = automatisch berechnen.",
   "help.agent.tool_output_limit": "Tool-Antworten, die dieses Zeichenlimit überschreiten, werden abgeschnitten. Verhindert Token-Verschwendung durch zu lange Ausgaben.",

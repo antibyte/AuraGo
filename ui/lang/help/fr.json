@@ -53,6 +53,7 @@
   "help.agent.show_tool_results": "Affiche les résultats de l'outil dans la fenêtre de discussion sous forme de blocs de débogage pliables.",
   "help.agent.step_delay_seconds": "Délai entre les appels d'outils en secondes. 0 = pas de retard.",
   "help.agent.sudo_enabled": "Active exécuter_sudo. Le mot de passe sudo doit être stocké dans le coffre-fort sous la clé « sudo_password ».",
+  "help.agent.sudo_unrestricted": "Permet à l'agent d'écrire en dehors du répertoire d'installation en utilisant sudo (par ex. /etc/). Nécessite la suppression de ProtectSystem=strict de l'unité de service systemd. Sans cette option, les écritures sudo sont limitées au répertoire d'installation uniquement.",
   "help.agent.system_language": "Langue pour les réponses, par ex. « Deutsch » ou « English ».",
   "help.agent.system_prompt_token_budget": "Nombre maximal de jetons pour l'invite système. 0 = automatique.",
   "help.agent.tool_output_limit": "Les réponses d'outils dépassant cette limite de caractères sont tronquées. Empêche le gaspillage de tokens dû à des sorties trop longues.",

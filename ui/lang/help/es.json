@@ -53,6 +53,7 @@
   "help.agent.show_tool_results": "Muestra los resultados de la herramienta en la ventana de chat como bloques de depuración plegables.",
   "help.agent.step_delay_seconds": "Retraso entre llamadas de herramientas en segundos. 0 = sin retraso.",
   "help.agent.sudo_enabled": "Habilita ejecutar_sudo. La contraseña de sudo debe almacenarse en la bóveda con la clave 'sudo_password'.",
+  "help.agent.sudo_unrestricted": "Permite al agente escribir fuera del directorio de instalación usando sudo (p. ej. /etc/). Requiere eliminar ProtectSystem=strict de la unidad de servicio systemd. Sin esta opción, las escrituras sudo están restringidas solo al directorio de instalación.",
   "help.agent.system_language": "Idioma para las respuestas, p.e. 'Deutsch' o 'inglés'.",
   "help.agent.system_prompt_token_budget": "Recuento máximo de tokens para el aviso del sistema. 0 = automático.",
   "help.agent.tool_output_limit": "Las respuestas de herramientas que excedan este límite de caracteres se truncarán. Previene el desperdicio de tokens por salidas demasiado largas.",

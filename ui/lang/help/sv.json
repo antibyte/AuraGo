@@ -53,6 +53,7 @@
   "help.agent.show_tool_results": "Shows tool results in the chat window as collapsible debug blocks.",
   "help.agent.step_delay_seconds": "Delay between tool calls in seconds. 0 = no delay.",
   "help.agent.sudo_enabled": "Enables execute_sudo. The sudo password must be stored in the vault under the key 'sudo_password'.",
+  "help.agent.sudo_unrestricted": "Tillåter agenten att skriva utanför installationskatalogen med sudo (t.ex. /etc/). Kräver borttagning av ProtectSystem=strict från systemd-tjänsteneheten. Utan detta alternativ är sudo-skrivning begränsad till endast installationskatalogen.",
   "help.agent.system_language": "Language for responses, e.g. 'Deutsch' or 'English'.",
   "help.agent.system_prompt_token_budget": "Maximum token count for the system prompt. The optimizer trims to this limit. 0 = auto-calculate.",
   "help.agent.tool_output_limit": "Tool responses exceeding this character limit are truncated. Prevents token waste from overly long outputs.",

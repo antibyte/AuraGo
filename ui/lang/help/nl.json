@@ -53,6 +53,7 @@
   "help.agent.show_tool_results": "Toont tool-resultaten in chat.",
   "help.agent.step_delay_seconds": "Vertraging tussen tool-aanroepen.",
   "help.agent.sudo_enabled": "Schakelt sudo-uitvoering in. Wachtwoord vereist.",
+  "help.agent.sudo_unrestricted": "Staat de agent toe om buiten de installatiemap te schrijven met sudo (bijv. /etc/). Vereist het verwijderen van ProtectSystem=strict uit de systemd-service-unit. Zonder deze optie zijn sudo-schrijfbewerkingen beperkt tot de installatiemap.",
   "help.agent.system_language": "Taal voor antwoorden, bijv. \"Nederlands\".",
   "help.agent.system_prompt_token_budget": "Maximum token count for the system prompt. The optimizer trims to this limit. 0 = auto-calculate.",
   "help.agent.tool_output_limit": "Tool responses exceeding this character limit are truncated. Prevents token waste from overly long outputs.",
