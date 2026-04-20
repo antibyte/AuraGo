@@ -119,6 +119,7 @@ func buildPreferredMCPVisionArgs(tool *MCPToolInfo, resolvedPath, prompt string)
 		"path",
 		"image_path", "imagePath",
 		"image_file", "imageFile",
+		"image_source", "imageSource",
 		"local_path", "localPath",
 		"input_path", "inputPath",
 		"image",

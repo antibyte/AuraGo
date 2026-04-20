@@ -285,3 +285,56 @@ func TestCallPreferredMCPVisionSupportsWrappedSchemaProperties(t *testing.T) {
 		t.Fatalf("prompt = %v, want %q", gotArgs["prompt"], "Describe it")
 	}
 }
+
+func TestCallPreferredMCPVisionSupportsImageSourceInputs(t *testing.T) {
+	oldList := listPreferredMCPTools
+	oldCall := callPreferredMCPTool
+	defer func() {
+		listPreferredMCPTools = oldList
+		callPreferredMCPTool = oldCall
+	}()
+
+	listPreferredMCPTools = func(serverName string, logger *slog.Logger) ([]MCPToolInfo, error) {
+		return []MCPToolInfo{{
+			Server: "minimax",
+			Name:   "understand_image",
+			InputSchema: map[string]interface{}{
+				"properties": map[string]interface{}{
+					"image_source": map[string]interface{}{"type": "string"},
+					"prompt":       map[string]interface{}{"type": "string"},
+				},
+			},
+		}}, nil
+	}
+
+	var gotArgs map[string]interface{}
+	callPreferredMCPTool = func(serverName, toolName string, arguments map[string]interface{}, logger *slog.Logger) (string, error) {
+		gotArgs = arguments
+		return `{"status":"ok"}`, nil
+	}
+
+	cfg := &config.Config{}
+	cfg.Agent.AllowMCP = true
+	cfg.MCP.Enabled = true
+	cfg.MCP.PreferredCapabilities.Vision = config.MCPPreferredToolSelection{Server: "minimax", Tool: "understand_image"}
+	cfg.Directories.WorkspaceDir = t.TempDir()
+
+	imgPath := filepath.Join(cfg.Directories.WorkspaceDir, "source.png")
+	if err := os.WriteFile(imgPath, []byte("fake image bytes"), 0o644); err != nil {
+		t.Fatalf("write image: %v", err)
+	}
+
+	_, used, err := CallPreferredMCPVision(cfg, imgPath, "Describe it", slog.Default())
+	if err != nil {
+		t.Fatalf("CallPreferredMCPVision error = %v", err)
+	}
+	if !used {
+		t.Fatal("expected preferred MCP vision to be used")
+	}
+	if gotArgs["image_source"] != imgPath {
+		t.Fatalf("image_source = %v, want %q", gotArgs["image_source"], imgPath)
+	}
+	if gotArgs["prompt"] != "Describe it" {
+		t.Fatalf("prompt = %v, want %q", gotArgs["prompt"], "Describe it")
+	}
+}
