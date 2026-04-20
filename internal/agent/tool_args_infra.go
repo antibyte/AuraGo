@@ -49,18 +49,18 @@ type netlifyArgs struct {
 }
 
 type vercelArgs struct {
-	Operation      string
-	ProjectID      string
-	ProjectName    string
-	DeploymentID   string
-	EnvKey         string
-	EnvValue       string
-	EnvTarget      string
-	Domain         string
-	Alias          string
-	Target         string
-	Framework      string
-	RootDirectory  string
+	Operation       string
+	ProjectID       string
+	ProjectName     string
+	DeploymentID    string
+	EnvKey          string
+	EnvValue        string
+	EnvTarget       string
+	Domain          string
+	Alias           string
+	Target          string
+	Framework       string
+	RootDirectory   string
 	OutputDirectory string
 }
 
@@ -202,6 +202,7 @@ type chromecastArgs struct {
 	DeviceName  string
 	DevicePort  int
 	URL         string
+	LocalPath   string
 	ContentType string
 	Text        string
 	Language    string
@@ -312,6 +313,7 @@ func decodeChromecastArgs(tc ToolCall) chromecastArgs {
 		DeviceName:  firstNonEmptyToolString(tc.DeviceName, toolArgString(tc.Params, "device_name")),
 		DevicePort:  firstNonEmptyInt(tc.DevicePort, toolArgInt(tc.Params, 0, "device_port")),
 		URL:         firstNonEmptyToolString(tc.URL, toolArgString(tc.Params, "url")),
+		LocalPath:   firstNonEmptyToolString(tc.LocalPath, toolArgString(tc.Params, "local_path")),
 		ContentType: firstNonEmptyToolString(tc.ContentType, toolArgString(tc.Params, "content_type")),
 		Text:        firstNonEmptyToolString(tc.Text, tc.Content, toolArgString(tc.Params, "text", "content")),
 		Language:    firstNonEmptyToolString(tc.Language, toolArgString(tc.Params, "language")),

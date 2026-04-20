@@ -517,6 +517,7 @@ func TestDecodeChromecastArgsUsesParamsFallback(t *testing.T) {
 			"device_name":  "Living Room",
 			"device_port":  float64(8009),
 			"url":          "https://example.com/audio.mp3",
+			"local_path":   "workdir/audio.mp3",
 			"content_type": "audio/mpeg",
 			"text":         "ignored for play",
 			"language":     "de",
@@ -524,7 +525,7 @@ func TestDecodeChromecastArgsUsesParamsFallback(t *testing.T) {
 		},
 	})
 
-	if req.Operation != "play" || req.DeviceName != "Living Room" || req.DevicePort != 8009 || req.URL != "https://example.com/audio.mp3" || req.ContentType != "audio/mpeg" || req.Language != "de" || req.Volume != 0.5 {
+	if req.Operation != "play" || req.DeviceName != "Living Room" || req.DevicePort != 8009 || req.URL != "https://example.com/audio.mp3" || req.LocalPath != "workdir/audio.mp3" || req.ContentType != "audio/mpeg" || req.Language != "de" || req.Volume != 0.5 {
 		t.Fatalf("unexpected chromecast decode: %+v", req)
 	}
 }

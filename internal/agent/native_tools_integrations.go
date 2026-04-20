@@ -68,6 +68,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				"device_addr":  prop("string", "IP address of the Chromecast device (e.g. '192.168.1.42')."),
 				"device_port":  map[string]interface{}{"type": "integer", "description": "Port of the Chromecast device (default: 8009)."},
 				"url":          prop("string", "Media URL to cast (for 'play' operation)."),
+				"local_path":   prop("string", "Local workspace file to cast (for 'play'). AuraGo will publish it on the local TTS HTTP server automatically, e.g. 'workdir/song.mp3'."),
 				"content_type": prop("string", "MIME type of the media (for 'play', e.g. 'video/mp4', 'audio/mpeg'). Default: 'video/mp4'."),
 				"text":         prop("string", "Text to speak aloud via TTS (for 'speak' operation)."),
 				"language":     prop("string", "Language code for TTS speech (for 'speak', e.g. 'de', 'en'). Defaults to system language."),

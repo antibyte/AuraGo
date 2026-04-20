@@ -5,7 +5,9 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -18,6 +20,58 @@ import (
 
 var _ = (*slog.Logger)(nil)
 var discoverChromecastDevices = tools.DiscoverChromecastDevices
+
+func prepareChromecastLocalMediaURL(cfg *config.Config, req *chromecastArgs) error {
+	if req == nil || strings.TrimSpace(req.LocalPath) == "" {
+		return nil
+	}
+	localPath := filepath.ToSlash(strings.TrimSpace(req.LocalPath))
+	switch {
+	case strings.HasPrefix(localPath, "workdir/"):
+		localPath = strings.TrimPrefix(localPath, "workdir/")
+	case strings.HasPrefix(localPath, "/workdir/"):
+		localPath = strings.TrimPrefix(localPath, "/workdir/")
+	}
+	resolved, err := tools.ResolveToolInputPath(filepath.FromSlash(localPath), cfg)
+	if err != nil {
+		return fmt.Errorf("resolve local_path: %w", err)
+	}
+
+	source, err := os.Open(resolved)
+	if err != nil {
+		return fmt.Errorf("open local media: %w", err)
+	}
+	defer source.Close()
+
+	baseName := filepath.Base(resolved)
+	baseName = strings.ReplaceAll(baseName, " ", "_")
+	destDir := tools.TTSAudioDir(cfg.Directories.DataDir)
+	if err := os.MkdirAll(destDir, 0o755); err != nil {
+		return fmt.Errorf("create cast media dir: %w", err)
+	}
+	destPath := filepath.Join(destDir, baseName)
+	destFile, err := os.Create(destPath)
+	if err != nil {
+		return fmt.Errorf("create cast media file: %w", err)
+	}
+	if _, err := io.Copy(destFile, source); err != nil {
+		destFile.Close()
+		return fmt.Errorf("copy cast media file: %w", err)
+	}
+	if err := destFile.Close(); err != nil {
+		return fmt.Errorf("finalize cast media file: %w", err)
+	}
+
+	port := cfg.Chromecast.TTSPort
+	if port == 0 {
+		port = cfg.Server.Port
+	}
+	req.URL = fmt.Sprintf("http://%s:%d/tts/%s", getLocalIP(cfg), port, baseName)
+	if req.ContentType == "" {
+		req.ContentType = audioMIMEType(baseName)
+	}
+	return nil
+}
 
 func buildRuntimeTTSConfig(cfg *config.Config, language string) tools.TTSConfig {
 	provider := cfg.TTS.Provider
@@ -260,6 +314,10 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			case "discover":
 				return "Tool Output: " + tools.ChromecastDiscover(logger)
 			case "play":
+				if err := prepareChromecastLocalMediaURL(cfg, &req); err != nil {
+					data, _ := json.Marshal(map[string]string{"status": "error", "message": err.Error()})
+					return "Tool Output: " + string(data)
+				}
 				return "Tool Output: " + tools.ChromecastPlay(req.DeviceAddr, req.DevicePort, req.URL, req.ContentType, logger)
 			case "speak":
 				ttsCfg := buildRuntimeTTSConfig(cfg, req.Language)

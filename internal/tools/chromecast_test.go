@@ -3,6 +3,8 @@ package tools
 import (
 	"io"
 	"log/slog"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 )
@@ -55,5 +57,14 @@ func TestFindChromecastDeviceByNameMatchesFriendlyName(t *testing.T) {
 	}
 	if device.Addr != "192.168.6.130" {
 		t.Fatalf("Addr = %q, want 192.168.6.130", device.Addr)
+	}
+}
+
+func TestValidateChromecastMediaURLRejectsHTTP404(t *testing.T) {
+	srv := httptest.NewServer(http.NotFoundHandler())
+	defer srv.Close()
+
+	if err := validateChromecastMediaURL(srv.URL + "/missing.mp3"); err == nil {
+		t.Fatal("expected 404 media URL to be rejected")
 	}
 }

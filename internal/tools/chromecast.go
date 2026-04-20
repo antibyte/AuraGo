@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"net/http"
 	"strings"
 	"time"
 
@@ -26,6 +27,7 @@ type ChromecastDevice struct {
 }
 
 var chromecastMDNSQuery = mdnsQueryServices
+var chromecastURLHTTPClient = &http.Client{Timeout: 5 * time.Second}
 
 // DiscoverChromecastDevices scans the local network for Chromecast devices via mDNS.
 func DiscoverChromecastDevices(logger *slog.Logger) ([]ChromecastDevice, error) {
@@ -130,6 +132,9 @@ func ChromecastPlay(deviceAddr string, devicePort int, mediaURL, contentType str
 	if contentType == "" {
 		contentType = "audio/mpeg"
 	}
+	if err := validateChromecastMediaURL(mediaURL); err != nil {
+		return jsonErr("Media URL is not reachable: " + err.Error())
+	}
 
 	app, err := connectChromecast(deviceAddr, devicePort)
 	if err != nil {
@@ -147,6 +152,26 @@ func ChromecastPlay(deviceAddr string, devicePort int, mediaURL, contentType str
 	return jsonOK(map[string]interface{}{
 		"message": fmt.Sprintf("Playing %s on %s", mediaURL, deviceAddr),
 	})
+}
+
+func validateChromecastMediaURL(mediaURL string) error {
+	req, err := http.NewRequest(http.MethodHead, mediaURL, nil)
+	if err != nil {
+		return err
+	}
+	resp, err := chromecastURLHTTPClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("HTTP %d", resp.StatusCode)
+	}
+	contentType := strings.ToLower(strings.TrimSpace(resp.Header.Get("Content-Type")))
+	if contentType != "" && strings.Contains(contentType, "text/html") {
+		return fmt.Errorf("unexpected content type %q", contentType)
+	}
+	return nil
 }
 
 // ChromecastSpeak generates TTS audio and plays it on a Chromecast device.

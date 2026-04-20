@@ -20,6 +20,11 @@ Chromecast devices can be registered in the device registry with friendly names 
 {"action": "chromecast", "operation": "play", "device_name": "Living Room", "url": "https://example.com/song.mp3"}
 ```
 
+### Play local audio file
+```json
+{"action": "chromecast", "operation": "play", "device_name": "Living Room", "local_path": "workdir/song.mp3"}
+```
+
 ### Speak text (TTS → Chromecast)
 ```json
 {"action": "chromecast", "operation": "speak", "device_name": "Living Room", "text": "Dinner is ready"}
@@ -49,6 +54,7 @@ Chromecast devices can be registered in the device registry with friendly names 
 | `device_addr` | Alternative to device_name | Direct IP address (use device_name when possible) |
 | `device_port` | ❌ | Default: 8009 |
 | `url` | For play | Media URL |
+| `local_path` | For play | Local workspace audio file; AuraGo publishes it on the LAN automatically |
 | `text` | For speak | Text to speak (max 200 chars) |
 | `volume` | For volume | 0.0 to 1.0 |
 | `content_type` | ❌ | MIME type (default: audio/mpeg) |

@@ -29,3 +29,9 @@ func resolveToolInputPath(filePath string, cfg *config.Config) (string, error) {
 	}
 	return resolved, nil
 }
+
+// ResolveToolInputPath validates and resolves a tool-provided local file path
+// against the configured workspace/project boundaries.
+func ResolveToolInputPath(filePath string, cfg *config.Config) (string, error) {
+	return resolveToolInputPath(filePath, cfg)
+}

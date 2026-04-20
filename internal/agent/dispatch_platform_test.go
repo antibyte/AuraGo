@@ -3,6 +3,8 @@ package agent
 import (
 	"io"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"aurago/internal/config"
@@ -72,5 +74,38 @@ func TestResolveChromecastTargetFallsBackToDiscovery(t *testing.T) {
 	}
 	if req.DevicePort != 8009 {
 		t.Fatalf("DevicePort = %d, want 8009", req.DevicePort)
+	}
+}
+
+func TestPrepareChromecastLocalMediaURLCopiesWorkspaceFileToTTSDir(t *testing.T) {
+	root := t.TempDir()
+	workdir := filepath.Join(root, "agent_workspace", "workdir")
+	dataDir := filepath.Join(root, "data")
+	if err := os.MkdirAll(workdir, 0o755); err != nil {
+		t.Fatalf("MkdirAll workdir: %v", err)
+	}
+	src := filepath.Join(workdir, "ueberall_zuhause.mp3")
+	if err := os.WriteFile(src, []byte("fake mp3"), 0o644); err != nil {
+		t.Fatalf("WriteFile src: %v", err)
+	}
+
+	cfg := &config.Config{}
+	cfg.Directories.WorkspaceDir = workdir
+	cfg.Directories.DataDir = dataDir
+	cfg.Server.Host = "192.168.6.238"
+	cfg.Chromecast.TTSPort = 8090
+
+	req := chromecastArgs{LocalPath: "workdir/ueberall_zuhause.mp3"}
+	if err := prepareChromecastLocalMediaURL(cfg, &req); err != nil {
+		t.Fatalf("prepareChromecastLocalMediaURL: %v", err)
+	}
+	if req.URL != "http://192.168.6.238:8090/tts/ueberall_zuhause.mp3" {
+		t.Fatalf("URL = %q", req.URL)
+	}
+	if req.ContentType != "audio/mpeg" {
+		t.Fatalf("ContentType = %q, want audio/mpeg", req.ContentType)
+	}
+	if _, err := os.Stat(filepath.Join(dataDir, "tts", "ueberall_zuhause.mp3")); err != nil {
+		t.Fatalf("expected published file in tts dir: %v", err)
 	}
 }
