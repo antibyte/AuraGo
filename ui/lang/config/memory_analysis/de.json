@@ -11,7 +11,7 @@
   "config.memory_analysis.disabled_desc": "Aktiviere dies, damit der Agent Gespr\\u00e4che analysieren und speicherw\\u00fcrdige Inhalte extrahieren kann. AuraGo nutzt daf\\u00fcr den zentralen Helper-Pfad \\u00fcber das Hilfs-LLM, wenn er verf\\u00fcgbar ist.",
   "config.memory_analysis.disabled_notice": "Gedächtnisanalyse ist deaktiviert",
   "config.memory_analysis.effectiveness_help": "Verfolgt, welche Erinnerungen vom Agenten in Antworten tatsächlich genutzt werden. Diese Daten können helfen zu erkennen, welche gespeicherten Fakten wertvoll sind und welche aktualisiert oder vergessen werden sollten.",
-  "config.memory_analysis.effectiveness_label": "Effektivit\\u00e4ts-Tracking",
+  "config.memory_analysis.effectiveness_label": "Effektivitäts-Tracking",
   "config.memory_analysis.enabled_label": "Gedächtnisanalyse aktiviert:",
   "config.memory_analysis.llm_reranking_help": "Nach der ersten Vektor-Suche ordnet das LLM die Ergebnisse nach Relevanz für den aktuellen Gesprächskontext neu. Genauer als rein ähnlichkeitsbasierte Werte.",
   "config.memory_analysis.llm_reranking_label": "LLM Reranking",
