@@ -32,5 +32,6 @@
   "config.auth.totp_setup": "Configurar TOTP →",
   "config.auth.totp_title": "Autenticación de Dos Factores (TOTP)",
   "config.auth.update_password": "Actualizar",
-  "config.auth.web_config_title": "Configuración Web"
+  "config.auth.web_config_title": "Configuración Web",
+  "config.auth.https_forces_auth": "HTTPS está activo. El inicio de sesión no se puede desactivar."
 }

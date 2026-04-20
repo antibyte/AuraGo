@@ -32,5 +32,6 @@
   "config.auth.totp_setup": "Indstil TOTP →",
   "config.auth.totp_title": "To-faktor-godkendelse (TOTP)",
   "config.auth.update_password": "Opdater",
-  "config.auth.web_config_title": "Web konfiguration"
+  "config.auth.web_config_title": "Web konfiguration",
+  "config.auth.https_forces_auth": "HTTPS er aktiv. Login kan ikke deaktiveres."
 }

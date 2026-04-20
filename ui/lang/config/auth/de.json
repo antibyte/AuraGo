@@ -32,5 +32,6 @@
   "config.auth.totp_setup": "TOTP einrichten →",
   "config.auth.totp_title": "Zwei-Faktor-Authentifizierung (TOTP)",
   "config.auth.update_password": "Ändern",
-  "config.auth.web_config_title": "Web-Konfiguration"
+  "config.auth.web_config_title": "Web-Konfiguration",
+  "config.auth.https_forces_auth": "HTTPS ist aktiv. Anmeldung kann nicht deaktiviert werden."
 }

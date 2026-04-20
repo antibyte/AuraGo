@@ -32,5 +32,6 @@
   "config.auth.totp_setup": "设置 TOTP →",
   "config.auth.totp_title": "双因素认证 (TOTP)",
   "config.auth.update_password": "更新",
-  "config.auth.web_config_title": "Web 配置"
+  "config.auth.web_config_title": "Web 配置",
+  "config.auth.https_forces_auth": "HTTPS 已启用，无法禁用登录。"
 }

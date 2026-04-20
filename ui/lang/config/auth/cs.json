@@ -32,5 +32,6 @@
   "config.auth.totp_setup": "Nastavit TOTP →",
   "config.auth.totp_title": "Dvoufaktorová autentizace (TOTP)",
   "config.auth.update_password": "Aktualizovat",
-  "config.auth.web_config_title": "Webová konfigurace"
+  "config.auth.web_config_title": "Webová konfigurace",
+  "config.auth.https_forces_auth": "HTTPS je aktivní. Přihlášení nelze deaktivovat."
 }

@@ -32,5 +32,6 @@
   "config.auth.totp_setup": "TOTPを設定する →",
   "config.auth.totp_title": "二要素認証 (TOTP)",
   "config.auth.update_password": "更新",
-  "config.auth.web_config_title": "ウェブ設定"
+  "config.auth.web_config_title": "ウェブ設定",
+  "config.auth.https_forces_auth": "HTTPSが有効です。ログインを無効にすることはできません。"
 }

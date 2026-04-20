@@ -32,5 +32,6 @@
   "config.auth.totp_setup": "Sett opp TOTP →",
   "config.auth.totp_title": "Tofaktorautentisering (TOTP)",
   "config.auth.update_password": "Oppdater",
-  "config.auth.web_config_title": "Nettkonfigurasjon"
+  "config.auth.web_config_title": "Nettkonfigurasjon",
+  "config.auth.https_forces_auth": "HTTPS er aktiv. Innlogging kan ikke deaktiveres."
 }

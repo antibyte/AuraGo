@@ -32,5 +32,6 @@
   "config.auth.totp_setup": "Ρύθμιση TOTP →",
   "config.auth.totp_title": "Έλεγχος ταυτότητας δύο παραγόντων (TOTP)",
   "config.auth.update_password": "Ενημέρωση",
-  "config.auth.web_config_title": "Διαμόρφωση Ιστού"
+  "config.auth.web_config_title": "Διαμόρφωση Ιστού",
+  "config.auth.https_forces_auth": "Το HTTPS είναι ενεργό. Η σύνδεση δεν μπορεί να απενεργοποιηθεί."
 }

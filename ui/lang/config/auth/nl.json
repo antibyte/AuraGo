@@ -32,5 +32,6 @@
   "config.auth.totp_setup": "TOTP instellen →",
   "config.auth.totp_title": "Tweefactorauthenticatie (TOTP)",
   "config.auth.update_password": "Bijwerken",
-  "config.auth.web_config_title": "Web Configuratie"
+  "config.auth.web_config_title": "Web Configuratie",
+  "config.auth.https_forces_auth": "HTTPS is actief. Login kan niet worden uitgeschakeld."
 }

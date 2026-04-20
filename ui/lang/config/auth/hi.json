@@ -32,5 +32,6 @@
   "config.auth.totp_setup": "TOTP सेट करें →",
   "config.auth.totp_title": "दो-कारक प्रमाणीकरण (टीओटीपी)",
   "config.auth.update_password": "अद्यतन",
-  "config.auth.web_config_title": "वेब कॉन्फ़िगरेशन"
+  "config.auth.web_config_title": "वेब कॉन्फ़िगरेशन",
+  "config.auth.https_forces_auth": "HTTPS सक्रिय है। लॉगिन अक्षम नहीं किया जा सकता।"
 }

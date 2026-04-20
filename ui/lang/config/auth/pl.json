@@ -32,5 +32,6 @@
   "config.auth.totp_setup": "Skonfiguruj TOTP →",
   "config.auth.totp_title": "Uwierzytelnianie Dwuskładnikowe (TOTP)",
   "config.auth.update_password": "Aktualizuj",
-  "config.auth.web_config_title": "Konfiguracja Web"
+  "config.auth.web_config_title": "Konfiguracja Web",
+  "config.auth.https_forces_auth": "HTTPS jest aktywne. Logowanie nie może zostać wyłączone."
 }
