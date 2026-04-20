@@ -1047,6 +1047,9 @@ function urlBase64ToUint8Array(base64String) {
 function initThemeToggle() {
     const themeToggleBtn = document.getElementById('theme-toggle');
     if (!themeToggleBtn) {
+        if (document.getElementById('chat-theme-btn')) {
+            return;
+        }
         console.warn('[AuraGo] Theme toggle button not found');
         return;
     }

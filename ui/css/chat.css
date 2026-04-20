@@ -70,6 +70,11 @@
             gap: 2px;
         }
 
+        .chat-theme-dropdown[hidden],
+        .mood-panel[hidden] {
+            display: none !important;
+        }
+
         .chat-theme-option {
             display: flex;
             align-items: center;
