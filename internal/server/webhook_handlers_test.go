@@ -1,10 +1,13 @@
 package server
 
 import (
+	"aurago/internal/config"
 	"encoding/json"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -136,5 +139,59 @@ func TestHandleListWebhooksMasksVaultBackedSignatureSecret(t *testing.T) {
 	}
 	if list[0].Format.SignatureSecret != maskedKey {
 		t.Fatalf("signature_secret = %q, want masked", list[0].Format.SignatureSecret)
+	}
+}
+
+func TestHandlePutOutgoingWebhooksReloadsVaultBackedAuthSecrets(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	if err := os.WriteFile(configPath, []byte("auth:\n  enabled: true\nwebhooks:\n  outgoing: []\n"), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	vault, err := security.NewVault(strings.Repeat("d", 64), filepath.Join(tmpDir, "vault.bin"))
+	if err != nil {
+		t.Fatalf("NewVault() error = %v", err)
+	}
+	passwordHash, err := HashPassword("correct horse battery staple")
+	if err != nil {
+		t.Fatalf("HashPassword() error = %v", err)
+	}
+	if err := vault.WriteSecret("auth_password_hash", passwordHash); err != nil {
+		t.Fatalf("vault.WriteSecret() error = %v", err)
+	}
+
+	server := &Server{
+		Cfg:    &config.Config{ConfigPath: configPath},
+		Vault:  vault,
+		Logger: logger,
+	}
+
+	req := httptest.NewRequest(http.MethodPut, "/api/outgoing-webhooks", strings.NewReader(`[
+		{
+			"id":"wh_1",
+			"name":"Test Webhook",
+			"description":"demo",
+			"method":"POST",
+			"url":"https://example.com/hook",
+			"headers":{"Content-Type":"application/json"},
+			"parameters":[],
+			"payload_type":"json",
+			"body_template":"{\"ok\":true}"
+		}
+	]`))
+	rec := httptest.NewRecorder()
+
+	handlePutOutgoingWebhooks(server, rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	if !server.Cfg.Auth.Enabled {
+		t.Fatalf("auth.enabled = false, want true")
+	}
+	if server.Cfg.Auth.PasswordHash != passwordHash {
+		t.Fatalf("password hash not reloaded from vault; got %q", server.Cfg.Auth.PasswordHash)
 	}
 }

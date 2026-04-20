@@ -472,6 +472,7 @@ func handlePutOutgoingWebhooks(s *Server, w http.ResponseWriter, r *http.Request
 	savedPath := s.Cfg.ConfigPath
 	*s.Cfg = *newCfg
 	s.Cfg.ConfigPath = savedPath
+	s.Cfg.ApplyVaultSecrets(s.Vault)
 	s.Cfg.ApplyOAuthTokens(s.Vault)
 	s.CfgMu.Unlock()
 
