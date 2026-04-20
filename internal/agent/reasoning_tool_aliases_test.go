@@ -34,7 +34,7 @@ func TestNormalizeParsedToolShortcut_ConvertsSkillShortcutToExecuteSkill(t *test
 func TestKnownReasoningExtractedActionSet_IncludesDirectBuiltinSkillActions(t *testing.T) {
 	known := knownReasoningExtractedActionSet(nil, nil)
 
-	for _, action := range []string{"brave_search", "web_scraper", "wikipedia_search", "ddg_search"} {
+	for _, action := range []string{"brave_search", "web_scraper", "wikipedia_search", "ddg_search", "obsidian"} {
 		if _, ok := known[action]; !ok {
 			t.Fatalf("expected %q in known reasoning action set", action)
 		}
@@ -55,4 +55,3 @@ func TestKnownReasoningExtractedActionSet_IncludesSkillShortcutUnderlyingAction(
 		t.Fatal("expected underlying brave_search action in known reasoning action set")
 	}
 }
-

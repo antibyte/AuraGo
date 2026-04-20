@@ -68,7 +68,7 @@ func handleAgentLoopRecoveries(s *agentLoopState, content string, tc ToolCall, p
 		return content, tc, true, false
 	}
 
-	if tc.XMLFallbackDetected && s.xmlFallbackCount < 2 {
+	if tc.XMLFallbackDetected && tc.IsTool && s.xmlFallbackCount < 2 {
 		s.xmlFallbackCount++
 		currentLogger.Warn("[Sync] XML fallback tool call detected, sending corrective feedback",
 			"attempt", s.xmlFallbackCount, "action", tc.Action)

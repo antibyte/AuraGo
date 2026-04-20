@@ -83,7 +83,7 @@ func allBuiltinToolFeatureFlags() ToolFeatureFlags {
 		FritzBoxTelephonyEnabled: true, FritzBoxSmartHomeEnabled: true, FritzBoxStorageEnabled: true,
 		FritzBoxTVEnabled: true, TelnyxSMSEnabled: true, TelnyxCallEnabled: true,
 		SQLConnectionsEnabled: true, PythonSecretInjectionEnabled: true,
-		LDAPEnabled: true,
+		LDAPEnabled: true, ObsidianEnabled: true,
 	}
 }
 
