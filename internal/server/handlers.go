@@ -716,7 +716,7 @@ func handleUpload(s *Server) http.HandlerFunc {
 		base := sanitizeFilename(header.Filename)
 
 		ts := time.Now().Format("20060102_150405")
-		filename := ts + "_" + base
+		filename := ts + "_" + uid.New() + "_" + base
 
 		// Save to {workspace_dir}/attachments/
 		attachDir := filepath.Join(s.Cfg.Directories.WorkspaceDir, "attachments")

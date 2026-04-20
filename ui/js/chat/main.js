@@ -581,11 +581,52 @@ const attachClear = document.getElementById('attachment-clear');
 const attachmentsPanel = document.getElementById('attachments-panel');
 let pendingAttachments = []; // [{ path, filename, localUrl, kind }]
 
+function _fileExtension(name) {
+    const normalized = String(name || '').trim().toLowerCase();
+    const idx = normalized.lastIndexOf('.');
+    if (idx <= -1 || idx === normalized.length - 1) return '';
+    return normalized.slice(idx + 1);
+}
+
+function _normalizedAttachmentName(file) {
+    const originalName = String(file && file.name ? file.name : '').trim();
+    if (originalName) return originalName;
+
+    const mime = String(file && file.type ? file.type : '').toLowerCase();
+    const extMap = {
+        'image/png': 'png',
+        'image/jpeg': 'jpg',
+        'image/gif': 'gif',
+        'image/webp': 'webp',
+        'image/bmp': 'bmp',
+        'audio/mpeg': 'mp3',
+        'audio/mp3': 'mp3',
+        'audio/wav': 'wav',
+        'audio/x-wav': 'wav',
+        'audio/ogg': 'ogg',
+        'audio/webm': 'webm',
+        'audio/mp4': 'm4a',
+        'application/pdf': 'pdf',
+        'application/msword': 'doc',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+        'text/plain': 'txt'
+    };
+    const ext = extMap[mime] || 'bin';
+
+    if (mime.startsWith('image/')) return `pasted-image.${ext}`;
+    if (mime.startsWith('audio/')) return `pasted-audio.${ext}`;
+    return `pasted-file.${ext}`;
+}
+
 function _attachmentKindFromFile(file) {
-    const t = (file && file.type) ? file.type : '';
+    const t = (file && file.type) ? file.type.toLowerCase() : '';
     if (t.startsWith('image/')) return 'image';
     if (t.startsWith('audio/')) return 'audio';
     if (t.startsWith('video/')) return 'video';
+    const ext = _fileExtension(_normalizedAttachmentName(file));
+    if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'].includes(ext)) return 'image';
+    if (['mp3', 'wav', 'ogg', 'webm', 'm4a', 'aac', 'flac'].includes(ext)) return 'audio';
+    if (['mp4', 'mov', 'avi', 'mkv', 'webm'].includes(ext)) return 'video';
     return 'file';
 }
 
@@ -760,7 +801,7 @@ if (feedbackToggleBtn && moodFeedbackRow) {
 
 async function uploadSingleAttachment(file) {
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('file', file, _normalizedAttachmentName(file));
     const res = await fetch('/api/upload', { method: 'POST', body: formData });
     if (!res.ok) throw new Error(await res.text());
     const data = await res.json();
@@ -770,8 +811,7 @@ async function uploadSingleAttachment(file) {
     renderPendingAttachments();
 }
 
-fileInput.addEventListener('change', async () => {
-    const files = Array.from(fileInput.files || []);
+async function queueAttachmentUploads(files) {
     if (!files.length) return;
     uploadBtn.disabled = true;
     try {
@@ -785,6 +825,26 @@ fileInput.addEventListener('change', async () => {
         uploadBtn.disabled = false;
         fileInput.value = ''; // allow re-upload of same file(s)
     }
+}
+
+fileInput.addEventListener('change', async () => {
+    const files = Array.from(fileInput.files || []);
+    await queueAttachmentUploads(files);
+});
+
+userInput.addEventListener('paste', (event) => {
+    const clipboard = event.clipboardData;
+    if (!clipboard) return;
+
+    const files = Array.from(clipboard.items || [])
+        .filter((item) => item && item.kind === 'file')
+        .map((item) => item.getAsFile())
+        .filter(Boolean);
+
+    if (!files.length) return;
+
+    event.preventDefault();
+    void queueAttachmentUploads(files);
 });
 
 async function handleOutgoingMessage(inputMessage, displayMessageOverride = '') {

@@ -49,3 +49,28 @@ func TestChatFrontend_ToolLeakSanitizerPatternsRemainPresent(t *testing.T) {
 		}
 	}
 }
+
+func TestChatFrontend_PasteAttachmentFlowRemainsPresent(t *testing.T) {
+	t.Parallel()
+
+	mainPath := filepath.Join("js", "chat", "main.js")
+
+	mainContent, err := os.ReadFile(mainPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", mainPath, err)
+	}
+
+	mainJS := string(mainContent)
+	requiredMarkers := []string{
+		"userInput.addEventListener('paste'",
+		"item.kind === 'file'",
+		"queueAttachmentUploads(files)",
+		"_normalizedAttachmentName(file)",
+		"formData.append('file', file, _normalizedAttachmentName(file))",
+	}
+	for _, marker := range requiredMarkers {
+		if !strings.Contains(mainJS, marker) {
+			t.Fatalf("%s is missing expected paste-upload regression marker %q", mainPath, marker)
+		}
+	}
+}
