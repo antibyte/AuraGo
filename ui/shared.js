@@ -381,7 +381,7 @@ function getCurrentChatTheme() {
 function _updateHljsTheme(theme) {
     var link = document.getElementById('hljs-theme');
     if (!link) return;
-    var base = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/';
+    var base = '/css/hljs-';
     // light and lollipop use the light base; deeper customization is handled in CSS.
     if (theme === 'light' || theme === 'lollipop') {
         link.href = base + 'github.min.css';

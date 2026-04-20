@@ -28,9 +28,9 @@ class MermaidRenderer {
                 return;
             }
 
-            // Load Mermaid from CDN
+            // Load Mermaid from bundled vendor assets
             const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js';
+            script.src = '/js/vendor/mermaid.min.js';
             script.async = true;
             script.onload = () => {
                 this.loaded = true;

@@ -45,7 +45,7 @@
                 }
 
                 const script = document.createElement('script');
-                script.src = 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js';
+                script.src = '/js/vendor/mermaid.min.js';
                 script.async = true;
                 script.onload = () => {
                     this.initMermaid();
