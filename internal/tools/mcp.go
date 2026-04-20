@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -156,8 +157,69 @@ func mcpStderrSnippet(stderr *bytes.Buffer) string {
 	return text
 }
 
+func mcpCommandCandidates(command string) []string {
+	command = strings.TrimSpace(command)
+	if command == "" {
+		return nil
+	}
+	if runtime.GOOS != "windows" || filepath.Ext(command) != "" {
+		return []string{command}
+	}
+
+	candidates := []string{command}
+	pathext := os.Getenv("PATHEXT")
+	if pathext == "" {
+		pathext = ".COM;.EXE;.BAT;.CMD"
+	}
+	for _, ext := range strings.Split(pathext, ";") {
+		ext = strings.TrimSpace(ext)
+		if ext == "" {
+			continue
+		}
+		candidates = append(candidates, command+strings.ToLower(ext))
+		candidates = append(candidates, command+strings.ToUpper(ext))
+	}
+	return candidates
+}
+
+func resolveMCPCommandPath(command string) string {
+	command = strings.TrimSpace(command)
+	if command == "" {
+		return ""
+	}
+
+	if filepath.IsAbs(command) || strings.ContainsRune(command, os.PathSeparator) || (os.PathSeparator != '/' && strings.ContainsRune(command, '/')) {
+		return command
+	}
+
+	if p, err := exec.LookPath(command); err == nil {
+		return p
+	}
+
+	var searchDirs []string
+	if home, err := os.UserHomeDir(); err == nil && home != "" {
+		searchDirs = append(searchDirs,
+			filepath.Join(home, ".local", "bin"),
+			filepath.Join(home, "bin"),
+			filepath.Join(home, "go", "bin"),
+		)
+	}
+	searchDirs = append(searchDirs, "/usr/local/bin", "/usr/bin")
+
+	for _, dir := range searchDirs {
+		for _, candidate := range mcpCommandCandidates(command) {
+			fullPath := filepath.Join(dir, candidate)
+			if info, err := os.Stat(fullPath); err == nil && !info.IsDir() {
+				return fullPath
+			}
+		}
+	}
+
+	return command
+}
+
 func newMCPConn(name, command string, args []string, env map[string]string, logger *slog.Logger) (*mcpConn, error) {
-	command = expandMCPPathValue(strings.TrimSpace(command))
+	command = resolveMCPCommandPath(expandMCPPathValue(strings.TrimSpace(command)))
 	args = normalizeMCPArgs(args)
 	env = normalizeMCPEnv(env)
 

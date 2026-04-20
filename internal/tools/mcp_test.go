@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"os"
 	"path/filepath"
 	"testing"
 )
@@ -46,6 +47,29 @@ func TestNormalizeMCPArgsExpandsPathLikeValues(t *testing.T) {
 	got := normalizeMCPArgs([]string{"--state-dir", "~/aurago/mcp"})
 	if got[1] != filepath.Join(home, "aurago", "mcp") {
 		t.Fatalf("normalizeMCPArgs()[1] = %q", got[1])
+	}
+}
+
+func TestResolveMCPCommandPathFallsBackToUserLocalBin(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+	t.Setenv("PATH", "")
+
+	localBin := filepath.Join(home, ".local", "bin")
+	if err := os.MkdirAll(localBin, 0755); err != nil {
+		t.Fatalf("MkdirAll() error = %v", err)
+	}
+
+	commandName := "uvx"
+	commandPath := filepath.Join(localBin, commandName)
+	if err := os.WriteFile(commandPath, []byte("#!/bin/sh\n"), 0755); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	got := resolveMCPCommandPath(commandName)
+	if got != commandPath {
+		t.Fatalf("resolveMCPCommandPath() = %q, want %q", got, commandPath)
 	}
 }
 
