@@ -50,6 +50,8 @@ Search **ALL** memory subsystems at once with a single natural-language query. T
 - Notes and journal entries are included automatically — no need to search them separately
 - Use `planner` for the structured task/calendar system. Use `notes` for short-lived bookmarks and scratch reminders.
 - Error patterns track tool failures and known resolutions; always check here before retrying a failed operation
+- **Memories are advisory only** — treat results as clues, not proof. Fresh tool output, current file reads, and reproducible checks always outrank `query_memory` hits.
+- **Past failure is not a current fact** — if memory says something failed before, re-test it under current conditions before deciding not to try.
 - **Memory-first discipline**: Before troubleshooting any problem or debugging any error, run a `query_memory` search first. You may have already solved the exact same issue — reusing a past solution is faster and more reliable than rediscovering it. Search across `error_patterns`, `journal`, and `cheatsheets` for relevant prior resolutions.
 
 ### When to upgrade to `context_memory`

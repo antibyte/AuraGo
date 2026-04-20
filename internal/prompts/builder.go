@@ -574,8 +574,12 @@ func buildSystemPromptInner(promptsDir string, flags *ContextFlags, coreMemory s
 				"**Priority rule: fresh tool output always overrides memory.** " +
 				"If you have just read a file, executed a tool, or received a tool result in this conversation, " +
 				"that is the authoritative current state — ignore any conflicting memory entry about the same file, code, or resource. " +
-				"Memories about file content, code structure, integration status, system configuration, " +
+				"Memories about file content, code structure, integration status, system configuration, prior failures, " +
 				"or tool availability are especially prone to staleness. " +
+				"NEVER treat a memory as proof that something is currently true, currently false, or currently impossible. " +
+				"NEVER skip an attempt, abandon a fix, or reject a path just because memory says it failed before. " +
+				"Use memories only as leads: verify them against the current files, current tool output, or a fresh reproducible check first. " +
+				"If memory reports a past error, interpret that as a debugging clue to re-test under current conditions — not as a final fact. " +
 				"NEVER act on a memory about specific code or file contents without verifying against the actual current file. " +
 				"Treat every memory entry as a *hint to investigate*, not a fact.\n\n")
 			finalPrompt.WriteString(security.IsolateExternalData(flags.RetrievedMemories))
@@ -1105,8 +1109,12 @@ func buildUnifiedMemoryContextBlock(flags *ContextFlags) string {
 				"**Priority rule: fresh tool output always overrides memory.** "+
 				"If you have just read a file, executed a tool, or received a tool result in this conversation, "+
 				"that is the authoritative current state — ignore any conflicting memory entry about the same file, code, or resource. "+
-				"Memories about file content, code structure, integration status, system configuration, "+
+				"Memories about file content, code structure, integration status, system configuration, prior failures, "+
 				"or tool availability are especially prone to staleness. "+
+				"NEVER treat a memory as proof that something is currently true, currently false, or currently impossible. "+
+				"NEVER skip an attempt, abandon a fix, or reject a path just because memory says it failed before. "+
+				"Use memories only as leads: verify them against the current files, current tool output, or a fresh reproducible check first. "+
+				"If memory reports a past error, interpret that as a debugging clue to re-test under current conditions — not as a final fact. "+
 				"NEVER act on a memory about specific code or file contents without verifying against the actual current file. "+
 				"Treat every memory entry as a *hint to investigate*, not a fact.\n\n"+
 				security.IsolateExternalData(flags.RetrievedMemories),
