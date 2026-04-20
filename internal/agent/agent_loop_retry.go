@@ -97,8 +97,8 @@ func handleAgentLoopRecoveries(s *agentLoopState, content string, tc ToolCall, p
 				"The tool has already been executed and the action is COMPLETE — do NOT repeat it. "+
 				"Continue with the next step of the task. "+
 				"For future calls, always use the native function-calling API instead. "+
-				"If a tool is not in your current tool list, you can still call it directly by name — "+
-				"the system accepts all enabled tools. Use discover_tools to find available tools.",
+				"If a tool is not in your current tool list, use discover_tools first so it can be re-added "+
+				"to your active tool list on the next turn.",
 			tc.Action)
 		if len(content) > xmlFallbackContentMaxBytes {
 			xmlFeedback += " IMPORTANT: To edit existing files, use the `file_editor` tool with" +

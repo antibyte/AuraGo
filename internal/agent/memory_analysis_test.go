@@ -350,6 +350,12 @@ func TestShouldStoreExtractedMemory(t *testing.T) {
 			category: "recent_operational_details",
 			want:     false,
 		},
+		{
+			name:     "drops transient image analysis claim",
+			content:  "Image analysis result: Cyberpunk city at night with neon lights and drones.",
+			category: "recent_operational_details",
+			want:     false,
+		},
 	}
 
 	for _, tt := range tests {

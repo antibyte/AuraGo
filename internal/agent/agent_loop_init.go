@@ -298,6 +298,7 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 			// Re-include hidden tools the agent explicitly inspected via discover_tools
 			// so the next turn can use native function-calling instead of improvising.
 			alwaysInclude = append(alwaysInclude, GetDiscoverRequestedTools(sessionID)...)
+			alwaysInclude = expandAdaptiveAlwaysInclude(cfg, alwaysInclude)
 
 			if maxTools > 0 && len(prioritized) > 0 {
 				ntSchemas = filterToolSchemas(ntSchemas, prioritized, alwaysInclude, maxTools, logger)

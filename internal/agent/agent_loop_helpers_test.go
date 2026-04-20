@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"aurago/internal/config"
+
 	"github.com/sashabaranov/go-openai"
 )
 
@@ -361,6 +363,25 @@ func TestExtractIntentMatchedToolsMatchesMCPAliases(t *testing.T) {
 	matches := extractIntentMatchedTools("teste das neue mcp tool minimax", []string{"mcp_call", "filesystem", "execute_skill"})
 	if !containsName(matches, "mcp_call") {
 		t.Fatalf("expected mcp_call alias match, got %v", matches)
+	}
+}
+
+func TestExpandAdaptiveAlwaysIncludeAddsMCPCallWhenEnabled(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Agent.AllowMCP = true
+	cfg.MCP.Enabled = true
+
+	got := expandAdaptiveAlwaysInclude(cfg, []string{"filesystem"})
+	if !containsName(got, "mcp_call") {
+		t.Fatalf("expected mcp_call in always-include set, got %v", got)
+	}
+}
+
+func TestExpandAdaptiveAlwaysIncludeSkipsMCPCallWhenDisabled(t *testing.T) {
+	cfg := &config.Config{}
+	got := expandAdaptiveAlwaysInclude(cfg, []string{"filesystem"})
+	if containsName(got, "mcp_call") {
+		t.Fatalf("did not expect mcp_call in always-include set, got %v", got)
 	}
 }
 

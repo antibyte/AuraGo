@@ -552,7 +552,7 @@ func shouldStoreExtractedMemory(content, category string) bool {
 		return false
 	}
 
-	if isEphemeralExecutionClaim(text) || isWeakOperationalLabel(text) {
+	if isEphemeralExecutionClaim(text) || isWeakOperationalLabel(text) || isTransientMediaAnalysisClaim(text) {
 		return false
 	}
 
@@ -573,6 +573,23 @@ func isWeakOperationalLabel(text string) bool {
 	prefixes := []string{
 		"song:", "titel:", "title:", "target device:", "ziel:", "device:",
 		"tool:", "problem:", "attempts:", "versuche:", "tries:", "chromecast tool:",
+	}
+	for _, prefix := range prefixes {
+		if strings.HasPrefix(text, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+func isTransientMediaAnalysisClaim(text string) bool {
+	prefixes := []string{
+		"image analysis result:",
+		"vision analysis result:",
+		"image description:",
+		"bildanalyse:",
+		"bildanalyse ergebnis:",
+		"analyseergebnis bild:",
 	}
 	for _, prefix := range prefixes {
 		if strings.HasPrefix(text, prefix) {

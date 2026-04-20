@@ -244,11 +244,11 @@ var adaptiveToolNeighbors = map[string][]string{
 	"cloudflare_tunnel": {"network_ping", "dns_lookup"},
 
 	// Web Scraping & QA
-	"web_scraper":  {"site_crawler", "web_capture", "web_performance_audit", "document_creator"},
-	"site_crawler": {"web_scraper", "web_capture"},
-	"web_capture":  {"web_scraper", "site_crawler", "web_performance_audit"},
+	"web_scraper":        {"site_crawler", "web_capture", "web_performance_audit", "document_creator"},
+	"site_crawler":       {"web_scraper", "web_capture"},
+	"web_capture":        {"web_scraper", "site_crawler", "web_performance_audit"},
 	"browser_automation": {"web_capture", "form_automation", "analyze_image", "filesystem"},
-	"site_monitor": {"web_scraper", "network_ping"},
+	"site_monitor":       {"web_scraper", "network_ping"},
 
 	// SQL & Databases
 	"sql_query":              {"manage_sql_connections", "filesystem"},
@@ -511,6 +511,36 @@ func extractIntentMatchedTools(userQuery string, availableTools []string) []stri
 		result = append(result, match.name)
 	}
 	return result
+}
+
+func expandAdaptiveAlwaysInclude(cfg *config.Config, alwaysInclude []string) []string {
+	if cfg == nil {
+		return alwaysInclude
+	}
+
+	seen := make(map[string]bool, len(alwaysInclude)+2)
+	out := make([]string, 0, len(alwaysInclude)+2)
+	add := func(name string) {
+		name = strings.TrimSpace(name)
+		if name == "" || seen[name] {
+			return
+		}
+		seen[name] = true
+		out = append(out, name)
+	}
+
+	for _, name := range alwaysInclude {
+		add(name)
+	}
+
+	// MCP must stay callable once the user enabled it. Hiding the generic bridge
+	// causes the model to improvise fake direct tool names like
+	// "minimax_understand_image" instead of using mcp_call.
+	if cfg.Agent.AllowMCP && cfg.MCP.Enabled {
+		add("mcp_call")
+	}
+
+	return out
 }
 
 func buildAdaptiveToolPriority(schemas []openai.Tool, weightedUsage []string, userQuery string, guideSearcher toolGuideSearcher, logger *slog.Logger) []string {
