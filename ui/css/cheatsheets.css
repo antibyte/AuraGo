@@ -150,18 +150,16 @@
     padding: 20px 16px;
 }
 
-/* Cards Grid – Masonry in grid view, normal list in list view */
+/* Cards Grid – responsive grid in grid view, normal list in list view */
 .cards-grid {
-    columns: 4 320px;
-    column-gap: 20px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 20px;
 }
 
 .cards-grid .card {
-    break-inside: avoid;
-    margin-bottom: 20px;
+    margin-bottom: 0;
     width: 100%;
-    display: inline-block;
-    vertical-align: top;
     background: var(--card-bg);
     border-radius: 16px;
     border: 1px solid var(--border-subtle);
@@ -563,21 +561,9 @@
 }
 
 /* Responsive */
-@media (max-width: 1200px) {
-    .cards-grid {
-        columns: 3 300px;
-    }
-}
-
-@media (max-width: 900px) {
-    .cards-grid {
-        columns: 2 280px;
-    }
-}
-
 @media (max-width: 768px) {
     .cards-grid {
-        columns: 1;
+        grid-template-columns: 1fr;
     }
     .container {
         padding: 18px 16px 48px;
