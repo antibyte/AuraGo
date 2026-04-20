@@ -12,21 +12,22 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/providerutil"
 )
 
 // AnalyzeImage sends an image file to OpenRouter using a vision LLM for analysis.
 func AnalyzeImage(filePath string, cfg *config.Config) (string, error) {
-	apiKey := cfg.Vision.APIKey
+	apiKey := strings.TrimSpace(cfg.Vision.APIKey)
 	if apiKey == "" {
-		apiKey = cfg.LLM.APIKey
+		apiKey = strings.TrimSpace(cfg.LLM.APIKey)
 	}
 
-	baseURL := cfg.Vision.BaseURL
+	baseURL := providerutil.NormalizeBaseURL(strings.TrimSpace(cfg.Vision.BaseURL))
 	if baseURL == "" {
-		baseURL = cfg.LLM.BaseURL
+		baseURL = providerutil.NormalizeBaseURL(strings.TrimSpace(cfg.LLM.BaseURL))
 	}
 
-	model := cfg.Vision.Model
+	model := strings.TrimSpace(cfg.Vision.Model)
 	if model == "" {
 		model = "google/gemini-2.5-flash-lite-preview-09-2025"
 	}

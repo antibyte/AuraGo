@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/providerutil"
 )
 
 var visionHTTPClient = &http.Client{Timeout: 60 * time.Second}
@@ -24,16 +25,25 @@ func AnalyzeImageWithPrompt(filePath, prompt string, cfg *config.Config) (string
 	}
 
 	// Resolved by config.ResolveProviders (falls back to main LLM)
-	apiKey := cfg.Vision.APIKey
-	baseURL := cfg.Vision.BaseURL
+	apiKey := strings.TrimSpace(cfg.Vision.APIKey)
+	baseURL := providerutil.NormalizeBaseURL(strings.TrimSpace(cfg.Vision.BaseURL))
 
-	model := cfg.Vision.Model
+	model := strings.TrimSpace(cfg.Vision.Model)
 	if model == "" {
 		model = "google/gemini-2.0-flash-001"
 	}
 
 	if apiKey == "" {
+		apiKey = strings.TrimSpace(cfg.LLM.APIKey)
+	}
+	if apiKey == "" {
 		return "", 0, 0, fmt.Errorf("vision API key is not configured — set vision.provider or vision.api_key in config, or ensure the main LLM API key is set as fallback")
+	}
+	if baseURL == "" {
+		baseURL = providerutil.NormalizeBaseURL(strings.TrimSpace(cfg.LLM.BaseURL))
+	}
+	if baseURL == "" {
+		return "", 0, 0, fmt.Errorf("vision base URL is not configured")
 	}
 
 	// Read and base64-encode the image
@@ -124,7 +134,7 @@ func AnalyzeImageWithPrompt(filePath, prompt string, cfg *config.Config) (string
 		if err != nil {
 			return "", 0, 0, fmt.Errorf("vision API error (status %d) and failed to read response body: %w", resp.StatusCode, err)
 		}
-		return "", 0, 0, fmt.Errorf("vision API error (status %d): %s", resp.StatusCode, string(body))
+		return "", 0, 0, fmt.Errorf("vision API error (status %d, provider=%s, base_url=%s, auth_present=%t): %s", resp.StatusCode, strings.TrimSpace(cfg.Vision.ProviderType), baseURL, apiKey != "", string(body))
 	}
 
 	var result struct {
