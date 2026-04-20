@@ -95,3 +95,57 @@ func TestHandlePutMCPServersPersistsEnabledAndAllFields(t *testing.T) {
 		t.Fatalf("env = %#v, want full roundtrip", got.Env)
 	}
 }
+
+func TestHandlePutMCPServersReloadsVaultBackedAuthSecrets(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	if err := os.WriteFile(configPath, []byte("auth:\n  enabled: true\nmcp:\n  enabled: false\n  servers: []\n"), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	vaultPath := filepath.Join(tmpDir, "vault.bin")
+	vault, err := security.NewVault(strings.Repeat("b", 64), vaultPath)
+	if err != nil {
+		t.Fatalf("new vault: %v", err)
+	}
+	passwordHash, err := HashPassword("correct horse battery staple")
+	if err != nil {
+		t.Fatalf("hash password: %v", err)
+	}
+	if err := vault.WriteSecret("auth_password_hash", passwordHash); err != nil {
+		t.Fatalf("write auth hash: %v", err)
+	}
+
+	s := &Server{
+		Cfg:    &config.Config{ConfigPath: configPath},
+		Logger: logger,
+		Vault:  vault,
+	}
+
+	req := httptest.NewRequest(http.MethodPut, "/api/mcp-servers", strings.NewReader(`{
+		"enabled": true,
+		"servers": [{
+			"name": "minimax",
+			"command": "uvx",
+			"args": ["minimax-coding-plan-mcp"],
+			"env": {"MINIMAX_API_HOST": "https://api.minimax.io"},
+			"enabled": true
+		}]
+	}`))
+	rec := httptest.NewRecorder()
+
+	handlePutMCPServers(s, rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	if !s.Cfg.Auth.Enabled {
+		t.Fatalf("auth.enabled = false, want true")
+	}
+	if s.Cfg.Auth.PasswordHash != passwordHash {
+		t.Fatalf("password hash not reloaded from vault; got %q", s.Cfg.Auth.PasswordHash)
+	}
+}
