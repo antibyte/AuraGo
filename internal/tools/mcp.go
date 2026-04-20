@@ -76,6 +76,18 @@ type mcpConn struct {
 	stderrBuf *bytes.Buffer // captures MCP server stderr for diagnostics
 }
 
+var (
+	startManagedMCPConn = startMCPServerConnection
+	invokeMCPConnTool   = func(conn *mcpConn, toolName string, arguments map[string]interface{}) (string, error) {
+		return conn.callTool(toolName, arguments)
+	}
+	closeManagedMCPConn = func(conn *mcpConn) {
+		if conn != nil {
+			conn.close()
+		}
+	}
+)
+
 func (c *mcpConn) markReady() {
 	c.mu.Lock()
 	c.ready = true
@@ -191,6 +203,23 @@ func newMCPConn(name, command string, args []string, env map[string]string, logg
 	}
 
 	logger.Info("[MCP] Server process started", "name", name, "command", command, "pid", cmd.Process.Pid)
+	return conn, nil
+}
+
+func startMCPServerConnection(srv MCPServerConfig, logger *slog.Logger) (*mcpConn, error) {
+	conn, err := newMCPConn(srv.Name, srv.Command, srv.Args, srv.Env, logger)
+	if err != nil {
+		return nil, err
+	}
+	if err := conn.initialize(logger); err != nil {
+		closeManagedMCPConn(conn)
+		return nil, fmt.Errorf("initialize failed: %w", err)
+	}
+	if err := conn.discoverTools(logger); err != nil {
+		closeManagedMCPConn(conn)
+		return nil, fmt.Errorf("tool discovery failed: %w", err)
+	}
+	conn.markReady()
 	return conn, nil
 }
 
@@ -405,9 +434,10 @@ func (c *mcpConn) close() {
 
 // MCPManager manages connections to multiple MCP servers.
 type MCPManager struct {
-	mu     sync.RWMutex
-	conns  map[string]*mcpConn
-	logger *slog.Logger
+	mu      sync.RWMutex
+	conns   map[string]*mcpConn
+	configs map[string]MCPServerConfig
+	logger  *slog.Logger
 }
 
 var (
@@ -419,38 +449,24 @@ var (
 // Should be called once at startup (and on config hot-reload if MCP settings change).
 func InitMCPManager(servers []MCPServerConfig, logger *slog.Logger) *MCPManager {
 	mgr := &MCPManager{
-		conns:  make(map[string]*mcpConn),
-		logger: logger,
+		conns:   make(map[string]*mcpConn),
+		configs: make(map[string]MCPServerConfig),
+		logger:  logger,
 	}
 
 	for _, srv := range servers {
 		if !srv.Enabled || srv.Command == "" || srv.Name == "" {
 			continue
 		}
+		mgr.configs[srv.Name] = srv
 
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		conn, err := newMCPConn(srv.Name, srv.Command, srv.Args, srv.Env, logger)
+		conn, err := startManagedMCPConn(srv, logger)
 		cancel()
 		if err != nil {
 			logger.Error("[MCP] Failed to start server", "name", srv.Name, "error", err)
 			continue
 		}
-
-		// Initialize the connection
-		if err := conn.initialize(logger); err != nil {
-			logger.Error("[MCP] Initialization failed", "name", srv.Name, "error", err, "stderr", mcpStderrSnippet(conn.stderrBuf))
-			conn.close()
-			continue
-		}
-
-		// Discover tools
-		if err := conn.discoverTools(logger); err != nil {
-			logger.Error("[MCP] Tool discovery failed", "name", srv.Name, "error", err, "stderr", mcpStderrSnippet(conn.stderrBuf))
-			conn.close()
-			continue
-		}
-
-		conn.markReady()
 		mgr.conns[srv.Name] = conn
 		_ = ctx // suppress unused var
 	}
@@ -473,6 +489,98 @@ func InitMCPManager(servers []MCPServerConfig, logger *slog.Logger) *MCPManager 
 	return mgr
 }
 
+func (m *MCPManager) configuredServerNames() []string {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	names := make([]string, 0, len(m.configs))
+	for name, cfg := range m.configs {
+		if cfg.Enabled && cfg.Name != "" && cfg.Command != "" {
+			names = append(names, name)
+		}
+	}
+	return names
+}
+
+func (m *MCPManager) invalidateConnection(serverName string, reason error) {
+	m.mu.Lock()
+	conn := m.conns[serverName]
+	delete(m.conns, serverName)
+	m.mu.Unlock()
+	if conn != nil {
+		go closeManagedMCPConn(conn)
+	}
+	if reason != nil {
+		m.logger.Warn("[MCP] Invalidated server connection", "server", serverName, "reason", reason)
+	}
+}
+
+func (m *MCPManager) ensureServerConnected(serverName string) (*mcpConn, error) {
+	m.mu.RLock()
+	if conn, ok := m.conns[serverName]; ok {
+		conn.mu.Lock()
+		ready := conn.ready
+		conn.mu.Unlock()
+		if ready {
+			m.mu.RUnlock()
+			return conn, nil
+		}
+	}
+	cfg, ok := m.configs[serverName]
+	m.mu.RUnlock()
+	if !ok || !cfg.Enabled || cfg.Name == "" || cfg.Command == "" {
+		return nil, fmt.Errorf("MCP server %q not found or not connected", serverName)
+	}
+
+	m.logger.Warn("[MCP] Reconnecting configured server", "server", serverName)
+	conn, err := startManagedMCPConn(cfg, m.logger)
+	if err != nil {
+		return nil, fmt.Errorf("reconnect %q failed: %w", serverName, err)
+	}
+
+	m.mu.Lock()
+	if existing, ok := m.conns[serverName]; ok {
+		existing.mu.Lock()
+		ready := existing.ready
+		existing.mu.Unlock()
+		if ready {
+			m.mu.Unlock()
+			closeManagedMCPConn(conn)
+			return existing, nil
+		}
+		go closeManagedMCPConn(existing)
+	}
+	m.conns[serverName] = conn
+	m.mu.Unlock()
+	return conn, nil
+}
+
+func (m *MCPManager) ensureConfiguredServersConnected() {
+	for _, serverName := range m.configuredServerNames() {
+		if _, err := m.ensureServerConnected(serverName); err != nil {
+			m.logger.Warn("[MCP] Configured server not connected", "server", serverName, "error", err)
+		}
+	}
+}
+
+func isRetryableMCPTransportError(err error) bool {
+	if err == nil {
+		return false
+	}
+	lower := strings.ToLower(err.Error())
+	needles := []string{
+		"broken pipe", "eof", "read from stdout", "write to stdin",
+		"connection reset", "connection closed", "file already closed",
+		"timed out", "timeout", "transport is closing",
+	}
+	for _, needle := range needles {
+		if strings.Contains(lower, needle) {
+			return true
+		}
+	}
+	return false
+}
+
 // GetMCPManager returns the global MCPManager singleton.
 func GetMCPManager() *MCPManager {
 	mcpManagerMu.RLock()
@@ -493,6 +601,14 @@ func ShutdownMCPManager() {
 
 // ListTools returns all discovered tools, optionally filtered by server name.
 func (m *MCPManager) ListTools(serverName string) []MCPToolInfo {
+	if serverName != "" {
+		if _, err := m.ensureServerConnected(serverName); err != nil {
+			m.logger.Warn("[MCP] Failed to refresh server before listing tools", "server", serverName, "error", err)
+		}
+	} else {
+		m.ensureConfiguredServersConnected()
+	}
+
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -512,6 +628,8 @@ func (m *MCPManager) ListTools(serverName string) []MCPToolInfo {
 
 // ListServers returns a summary of all connected servers and their tool counts.
 func (m *MCPManager) ListServers() []map[string]interface{} {
+	m.ensureConfiguredServersConnected()
+
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -545,41 +663,48 @@ var mcpRetryDelays = []time.Duration{
 
 // CallTool invokes a tool on a specific MCP server with a timeout.
 func (m *MCPManager) CallTool(serverName, toolName string, arguments map[string]interface{}) (string, error) {
-	m.mu.RLock()
-	conn, ok := m.conns[serverName]
-	m.mu.RUnlock()
-
-	if !ok {
-		return "", fmt.Errorf("MCP server %q not found or not connected", serverName)
-	}
-	conn.mu.Lock()
-	ready := conn.ready
-	conn.mu.Unlock()
-	if !ready {
-		return "", fmt.Errorf("MCP server %q is not ready", serverName)
-	}
-
 	type result struct {
 		s   string
 		err error
 	}
-	ch := make(chan result, 1)
-	go func() {
-		s, err := conn.callTool(toolName, arguments)
-		ch <- result{s, err}
-	}()
-	select {
-	case r := <-ch:
-		return r.s, r.err
-	case <-time.After(mcpCallToolTimeout):
-		// Close the connection to release the blocked goroutine and prevent
-		// future callers from using a potentially corrupted connection.
-		go conn.close()
-		m.mu.Lock()
-		delete(m.conns, serverName)
-		m.mu.Unlock()
-		return "", fmt.Errorf("MCP tool call timed out after %s (server=%s, tool=%s) â connection closed", mcpCallToolTimeout, serverName, toolName)
+
+	attempts := mcpMaxRetries + 1
+	for attempt := 0; attempt < attempts; attempt++ {
+		conn, err := m.ensureServerConnected(serverName)
+		if err != nil {
+			return "", err
+		}
+
+		ch := make(chan result, 1)
+		go func(activeConn *mcpConn) {
+			s, callErr := invokeMCPConnTool(activeConn, toolName, arguments)
+			ch <- result{s, callErr}
+		}(conn)
+
+		select {
+		case r := <-ch:
+			if r.err == nil {
+				return r.s, nil
+			}
+			if !isRetryableMCPTransportError(r.err) || attempt == attempts-1 {
+				return "", r.err
+			}
+			m.invalidateConnection(serverName, r.err)
+		case <-time.After(mcpCallToolTimeout):
+			timeoutErr := fmt.Errorf("MCP tool call timed out after %s (server=%s, tool=%s) — connection closed", mcpCallToolTimeout, serverName, toolName)
+			m.invalidateConnection(serverName, timeoutErr)
+			if attempt == attempts-1 {
+				return "", timeoutErr
+			}
+		}
+
+		if attempt < len(mcpRetryDelays) {
+			time.Sleep(mcpRetryDelays[attempt])
+		} else {
+			time.Sleep(mcpRetryDelays[len(mcpRetryDelays)-1])
+		}
 	}
+	return "", fmt.Errorf("MCP server %q not found or not connected", serverName)
 }
 
 // Close shuts down all MCP server connections.
@@ -589,7 +714,7 @@ func (m *MCPManager) Close() {
 
 	for name, conn := range m.conns {
 		m.logger.Info("[MCP] Stopping server", "name", name)
-		conn.close()
+		closeManagedMCPConn(conn)
 	}
 	m.conns = make(map[string]*mcpConn)
 }
