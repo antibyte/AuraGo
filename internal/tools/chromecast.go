@@ -17,23 +17,26 @@ type ChromecastConfig struct {
 	ServerPort int    // Port of the AuraGo server
 }
 
-type chromecastDevice struct {
-	Name string `json:"name"`
-	Addr string `json:"addr"`
-	Port int    `json:"port"`
-	UUID string `json:"uuid,omitempty"`
+type ChromecastDevice struct {
+	Name         string `json:"name"`
+	FriendlyName string `json:"friendly_name,omitempty"`
+	Addr         string `json:"addr"`
+	Port         int    `json:"port"`
+	UUID         string `json:"uuid,omitempty"`
 }
 
-// ChromecastDiscover scans the local network for Chromecast devices via mDNS.
-func ChromecastDiscover(logger *slog.Logger) string {
+var chromecastMDNSQuery = mdnsQueryServices
+
+// DiscoverChromecastDevices scans the local network for Chromecast devices via mDNS.
+func DiscoverChromecastDevices(logger *slog.Logger) ([]ChromecastDevice, error) {
 	logger.Info("Starting Chromecast discovery via mDNS")
 
-	entries, err := mdnsQueryServices("_googlecast._tcp", 10*time.Second, logger)
+	entries, err := chromecastMDNSQuery("_googlecast._tcp", 10*time.Second, logger)
 	if err != nil {
-		return jsonErr("mDNS discovery failed: " + err.Error())
+		return nil, fmt.Errorf("mDNS discovery failed: %w", err)
 	}
 
-	var devices []chromecastDevice
+	var devices []ChromecastDevice
 	for _, e := range entries {
 		// Skip entries from _googlezone._tcp (not Chromecast devices)
 		if strings.Contains(e.Name, "_googlezone") {
@@ -47,18 +50,29 @@ func ChromecastDiscover(logger *slog.Logger) string {
 		if port == 0 {
 			port = 8009
 		}
-		devices = append(devices, chromecastDevice{
-			Name: strings.TrimSuffix(e.Name, "._googlecast._tcp.local."),
-			Addr: ip,
-			Port: port,
-			UUID: strings.Join(e.TXTs, ", "),
+		devices = append(devices, ChromecastDevice{
+			Name:         strings.TrimSuffix(e.Name, "._googlecast._tcp.local."),
+			FriendlyName: chromecastTXTValue(e.TXTs, "fn"),
+			Addr:         ip,
+			Port:         port,
+			UUID:         strings.Join(e.TXTs, ", "),
 		})
+	}
+
+	return devices, nil
+}
+
+// ChromecastDiscover scans the local network for Chromecast devices via mDNS and returns JSON.
+func ChromecastDiscover(logger *slog.Logger) string {
+	devices, err := DiscoverChromecastDevices(logger)
+	if err != nil {
+		return jsonErr(err.Error())
 	}
 
 	if len(devices) == 0 {
 		return jsonOK(map[string]interface{}{
 			"message": "No Chromecast devices found",
-			"devices": []chromecastDevice{},
+			"devices": []ChromecastDevice{},
 		})
 	}
 
@@ -66,6 +80,43 @@ func ChromecastDiscover(logger *slog.Logger) string {
 		"count":   len(devices),
 		"devices": devices,
 	})
+}
+
+// FindChromecastDeviceByName matches either the mDNS service name or the device's friendly name.
+func FindChromecastDeviceByName(devices []ChromecastDevice, requested string) (ChromecastDevice, bool) {
+	target := canonicalChromecastName(requested)
+	if target == "" {
+		return ChromecastDevice{}, false
+	}
+
+	for _, device := range devices {
+		for _, candidate := range []string{device.FriendlyName, device.Name} {
+			if canonicalChromecastName(candidate) == target {
+				return device, true
+			}
+		}
+	}
+
+	matchIdx := -1
+	for i, device := range devices {
+		for _, candidate := range []string{device.FriendlyName, device.Name} {
+			normalized := canonicalChromecastName(candidate)
+			if normalized == "" {
+				continue
+			}
+			if strings.Contains(normalized, target) || strings.Contains(target, normalized) {
+				if matchIdx != -1 {
+					return ChromecastDevice{}, false
+				}
+				matchIdx = i
+				break
+			}
+		}
+	}
+	if matchIdx == -1 {
+		return ChromecastDevice{}, false
+	}
+	return devices[matchIdx], true
 }
 
 // ChromecastPlay plays a media URL on a Chromecast device.
@@ -236,6 +287,30 @@ func getOutboundIP() string {
 	defer conn.Close()
 	localAddr := conn.LocalAddr().(*net.UDPAddr)
 	return localAddr.IP.String()
+}
+
+func chromecastTXTValue(txts []string, key string) string {
+	key = strings.TrimSpace(strings.ToLower(key))
+	for _, raw := range txts {
+		parts := strings.SplitN(strings.TrimSpace(raw), "=", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		if strings.ToLower(strings.TrimSpace(parts[0])) != key {
+			continue
+		}
+		return strings.TrimSpace(parts[1])
+	}
+	return ""
+}
+
+func canonicalChromecastName(s string) string {
+	s = strings.ToLower(strings.TrimSpace(s))
+	if s == "" {
+		return ""
+	}
+	replacer := strings.NewReplacer(" ", "", "-", "", "_", "", ".", "", "'", "", "\"", "")
+	return replacer.Replace(s)
 }
 
 // jsonOK builds a success JSON response.

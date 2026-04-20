@@ -2,12 +2,14 @@ package agent
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log/slog"
 	"path/filepath"
 	"strings"
 
+	"aurago/internal/config"
 	"aurago/internal/inventory"
 	"aurago/internal/security"
 	"aurago/internal/tools"
@@ -15,6 +17,74 @@ import (
 )
 
 var _ = (*slog.Logger)(nil)
+var discoverChromecastDevices = tools.DiscoverChromecastDevices
+
+func buildRuntimeTTSConfig(cfg *config.Config, language string) tools.TTSConfig {
+	provider := cfg.TTS.Provider
+	if provider == "" && cfg.TTS.Piper.Enabled {
+		provider = "piper"
+	}
+
+	ttsCfg := tools.TTSConfig{
+		Provider:            provider,
+		Language:            language,
+		DataDir:             cfg.Directories.DataDir,
+		CacheRetentionHours: cfg.TTS.CacheRetentionHours,
+		CacheMaxFiles:       cfg.TTS.CacheMaxFiles,
+	}
+	if ttsCfg.Language == "" {
+		ttsCfg.Language = cfg.TTS.Language
+	}
+	ttsCfg.ElevenLabs.APIKey = cfg.TTS.ElevenLabs.APIKey
+	ttsCfg.ElevenLabs.VoiceID = cfg.TTS.ElevenLabs.VoiceID
+	ttsCfg.ElevenLabs.ModelID = cfg.TTS.ElevenLabs.ModelID
+	ttsCfg.MiniMax.APIKey = cfg.TTS.MiniMax.APIKey
+	ttsCfg.MiniMax.VoiceID = cfg.TTS.MiniMax.VoiceID
+	ttsCfg.MiniMax.ModelID = cfg.TTS.MiniMax.ModelID
+	ttsCfg.MiniMax.Speed = cfg.TTS.MiniMax.Speed
+	ttsCfg.Piper.Port = cfg.TTS.Piper.ContainerPort
+	ttsCfg.Piper.Voice = cfg.TTS.Piper.Voice
+	ttsCfg.Piper.SpeakerID = cfg.TTS.Piper.SpeakerID
+	return ttsCfg
+}
+
+func resolveChromecastTarget(req *chromecastArgs, inventoryDB *sql.DB, logger *slog.Logger) error {
+	if req == nil || req.DeviceAddr != "" {
+		return nil
+	}
+	req.DeviceName = strings.TrimSpace(req.DeviceName)
+	if req.DeviceName == "" {
+		return nil
+	}
+
+	if inventoryDB != nil {
+		devices, err := inventory.QueryDevices(inventoryDB, "", "chromecast", req.DeviceName)
+		if err == nil && len(devices) > 0 {
+			req.DeviceAddr = devices[0].IPAddress
+			if req.DevicePort == 0 && devices[0].Port > 0 {
+				req.DevicePort = devices[0].Port
+			}
+			logger.Info("Resolved chromecast device name via inventory", "name", req.DeviceName, "addr", req.DeviceAddr, "port", req.DevicePort)
+			return nil
+		}
+	}
+
+	devices, err := discoverChromecastDevices(logger)
+	if err != nil {
+		return fmt.Errorf("could not resolve chromecast device %q via inventory or discovery: %w", req.DeviceName, err)
+	}
+	device, ok := tools.FindChromecastDeviceByName(devices, req.DeviceName)
+	if !ok {
+		return fmt.Errorf("could not find chromecast device named %q in the device registry or via discovery", req.DeviceName)
+	}
+
+	req.DeviceAddr = device.Addr
+	if req.DevicePort == 0 && device.Port > 0 {
+		req.DevicePort = device.Port
+	}
+	logger.Info("Resolved chromecast device name via discovery", "requested_name", req.DeviceName, "matched_name", device.Name, "friendly_name", device.FriendlyName, "addr", req.DeviceAddr, "port", req.DevicePort)
+	return nil
+}
 
 func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (string, bool) {
 	cfg := dc.Cfg
@@ -162,30 +232,7 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return `Tool Output: {"status": "error", "message": "TTS is not configured. Set tts.provider in config.yaml."}`
 			}
 			req := decodeTTSArgs(tc)
-			provider := cfg.TTS.Provider
-			if provider == "" && cfg.TTS.Piper.Enabled {
-				provider = "piper"
-			}
-			ttsCfg := tools.TTSConfig{
-				Provider:            provider,
-				Language:            req.Language,
-				DataDir:             cfg.Directories.DataDir,
-				CacheRetentionHours: cfg.TTS.CacheRetentionHours,
-				CacheMaxFiles:       cfg.TTS.CacheMaxFiles,
-			}
-			if ttsCfg.Language == "" {
-				ttsCfg.Language = cfg.TTS.Language
-			}
-			ttsCfg.ElevenLabs.APIKey = cfg.TTS.ElevenLabs.APIKey
-			ttsCfg.ElevenLabs.VoiceID = cfg.TTS.ElevenLabs.VoiceID
-			ttsCfg.ElevenLabs.ModelID = cfg.TTS.ElevenLabs.ModelID
-			ttsCfg.MiniMax.APIKey = cfg.TTS.MiniMax.APIKey
-			ttsCfg.MiniMax.VoiceID = cfg.TTS.MiniMax.VoiceID
-			ttsCfg.MiniMax.ModelID = cfg.TTS.MiniMax.ModelID
-			ttsCfg.MiniMax.Speed = cfg.TTS.MiniMax.Speed
-			ttsCfg.Piper.Port = cfg.TTS.Piper.ContainerPort
-			ttsCfg.Piper.Voice = cfg.TTS.Piper.Voice
-			ttsCfg.Piper.SpeakerID = cfg.TTS.Piper.SpeakerID
+			ttsCfg := buildRuntimeTTSConfig(cfg, req.Language)
 			filename, err := tools.TTSSynthesize(ttsCfg, req.Text)
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "TTS failed: %v"}`, err)
@@ -204,19 +251,10 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			if !cfg.Chromecast.Enabled {
 				return `Tool Output: {"status": "error", "message": "Chromecast is disabled. Set chromecast.enabled=true in config.yaml."}`
 			}
-			// Resolve device_name → device_addr via inventory if device_addr is empty
 			req := decodeChromecastArgs(tc)
-			if req.DeviceAddr == "" && req.DeviceName != "" && inventoryDB != nil {
-				devices, err := inventory.QueryDevices(inventoryDB, "", "chromecast", req.DeviceName)
-				if err == nil && len(devices) > 0 {
-					req.DeviceAddr = devices[0].IPAddress
-					if req.DevicePort == 0 && devices[0].Port > 0 {
-						req.DevicePort = devices[0].Port
-					}
-					logger.Info("Resolved chromecast device name", "name", req.DeviceName, "addr", req.DeviceAddr, "port", req.DevicePort)
-				} else {
-					return fmt.Sprintf(`Tool Output: {"status":"error","message":"Could not find chromecast device named '%s' in the device registry."}`, req.DeviceName)
-				}
+			if err := resolveChromecastTarget(&req, inventoryDB, logger); err != nil {
+				data, _ := json.Marshal(map[string]string{"status": "error", "message": err.Error()})
+				return "Tool Output: " + string(data)
 			}
 			switch req.Operation {
 			case "discover":
@@ -224,22 +262,14 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			case "play":
 				return "Tool Output: " + tools.ChromecastPlay(req.DeviceAddr, req.DevicePort, req.URL, req.ContentType, logger)
 			case "speak":
-				ttsCfg := tools.TTSConfig{
-					Provider:            cfg.TTS.Provider,
-					Language:            req.Language,
-					DataDir:             cfg.Directories.DataDir,
-					CacheRetentionHours: cfg.TTS.CacheRetentionHours,
-					CacheMaxFiles:       cfg.TTS.CacheMaxFiles,
+				ttsCfg := buildRuntimeTTSConfig(cfg, req.Language)
+				ttsPort := cfg.Chromecast.TTSPort
+				if ttsPort == 0 {
+					ttsPort = cfg.Server.Port
 				}
-				if ttsCfg.Language == "" {
-					ttsCfg.Language = cfg.TTS.Language
-				}
-				ttsCfg.ElevenLabs.APIKey = cfg.TTS.ElevenLabs.APIKey
-				ttsCfg.ElevenLabs.VoiceID = cfg.TTS.ElevenLabs.VoiceID
-				ttsCfg.ElevenLabs.ModelID = cfg.TTS.ElevenLabs.ModelID
 				ccCfg := tools.ChromecastConfig{
 					ServerHost: cfg.Server.Host,
-					ServerPort: cfg.Chromecast.TTSPort,
+					ServerPort: ttsPort,
 				}
 				return "Tool Output: " + tools.ChromecastSpeak(req.DeviceAddr, req.DevicePort, req.Text, ttsCfg, ccCfg, logger)
 			case "stop":
@@ -600,7 +630,7 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				}
 			}
 			logger.Info("LLM requested Jellyfin operation", "operation", req.Operation)
-				return "Tool Output: " + tools.DispatchJellyfinTool(req.Operation, req.params(), cfg, dc.Vault, logger)
+			return "Tool Output: " + tools.DispatchJellyfinTool(req.Operation, req.params(), cfg, dc.Vault, logger)
 
 		// ── Obsidian Knowledge Management ──
 		case "obsidian":
