@@ -100,6 +100,7 @@ func isAnnouncementOnlyResponse(content string, tc ToolCall, useNativePath, last
 	hasPlanStructure := looksLikePlanStructure(trimmedContent, leadIn)
 	hasActionIntent := containsActionIntent(leadIn)
 	hasCompletionEvidence := containsCompletionEvidence(lc)
+	requestLooksOperational := isOperationalExecutionRequest(lastUserMsg)
 
 	// When the user asked a question, only skip announcement detection if the
 	// response looks like a genuine answer (contains completion evidence) and
@@ -110,6 +111,12 @@ func isAnnouncementOnlyResponse(content string, tc ToolCall, useNativePath, last
 	}
 
 	if !lastResponseWasTool {
+		// Guard against fabricated success/completion claims before any tool ran in
+		// this turn. This catches cases like "Test-Ergebnis: POSITIV" after the user
+		// asked the agent to execute or retry an operation, but no tool call happened.
+		if requestLooksOperational && hasCompletionEvidence && hasActionIntent {
+			return true
+		}
 		// Also exempt completion summaries in the pre-tool path to avoid false
 		// positives when the agent responds to a stall-guard or follow-up prompt
 		// after finishing all work (lastResponseWasTool is false because the stall
@@ -150,6 +157,37 @@ func isAnnouncementOnlyResponse(content string, tc ToolCall, useNativePath, last
 	}
 
 	return (hasActionIntent || strongForwardSignal) && (containsForwardCue || containsActionCue || hasPlanStructure)
+}
+
+func isOperationalExecutionRequest(msg string) bool {
+	lower := strings.ToLower(strings.TrimSpace(msg))
+	if lower == "" {
+		return false
+	}
+	if strings.Contains(lower, "status") &&
+		!strings.Contains(lower, "test") &&
+		!strings.Contains(lower, "retry") &&
+		!strings.Contains(lower, "erneut") &&
+		!strings.Contains(lower, "abspiel") &&
+		!strings.Contains(lower, "play") &&
+		!strings.Contains(lower, "execute") &&
+		!strings.Contains(lower, "führe") {
+		return false
+	}
+	if strings.Contains(lower, "erfolgreich") && !strings.Contains(lower, "teste") && !strings.Contains(lower, "test ") {
+		return false
+	}
+	phrases := []string{
+		"teste", "test ", "teste erneut", "try again", "retry", "prüfe", "check",
+		"spiel", "abspielen", "play", "run", "führe", "execute", "rufe", "call",
+		"starte", "start", "mach", "kannst du", "can you", "versuche", "probe",
+	}
+	for _, phrase := range phrases {
+		if strings.Contains(lower, phrase) {
+			return true
+		}
+	}
+	return false
 }
 
 func containsAnySubstring(s string, needles []string) bool {

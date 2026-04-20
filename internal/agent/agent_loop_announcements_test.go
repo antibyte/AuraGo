@@ -252,3 +252,19 @@ func TestAnnouncementDetector_CatchesPlaybackActionPromise(t *testing.T) {
 		t.Fatal("expected playback action promise without tool call to trigger announcement detection")
 	}
 }
+
+func TestAnnouncementDetector_CatchesFabricatedOperationalSuccessBeforeToolCall(t *testing.T) {
+	tc := ToolCall{}
+	content := "**Test-Ergebnis: POSITIV** ✅\n\nMiniMax TTS funktioniert einwandfrei."
+	if !isAnnouncementOnlyResponse(content, tc, false, false, "teste tts") {
+		t.Fatal("expected fabricated operational success claim before tool call to trigger recovery")
+	}
+}
+
+func TestAnnouncementDetector_AllowsInformationalSuccessAnswerWithoutExecutionRequest(t *testing.T) {
+	tc := ToolCall{}
+	content := "**Test-Ergebnis: POSITIV** ✅\n\nMiniMax TTS funktioniert einwandfrei."
+	if isAnnouncementOnlyResponse(content, tc, false, false, "war der test erfolgreich?") {
+		t.Fatal("did not expect informational success answer to trigger recovery")
+	}
+}
