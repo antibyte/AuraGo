@@ -9,6 +9,13 @@ import (
 	"net/http"
 )
 
+func noteWriteContentType(targetType string) string {
+	if targetType == "frontmatter" {
+		return "application/json"
+	}
+	return "text/plain"
+}
+
 // ListFiles lists files and directories at the given vault path.
 // Pass empty string for vault root.
 func (c *Client) ListFiles(ctx context.Context, directory string) ([]FileEntry, error) {
@@ -96,7 +103,7 @@ func (c *Client) CreateNote(ctx context.Context, path, content string) error {
 	endpoint := "/vault/" + encodePath(path)
 
 	resp, err := c.request(ctx, http.MethodPost, endpoint, bytes.NewReader([]byte(content)), map[string]string{
-		"Content-Type": "text/markdown",
+		"Content-Type": noteWriteContentType(""),
 	})
 	if err != nil {
 		return err
@@ -116,7 +123,7 @@ func (c *Client) UpdateNote(ctx context.Context, path, content string) error {
 	endpoint := "/vault/" + encodePath(path)
 
 	resp, err := c.request(ctx, http.MethodPut, endpoint, bytes.NewReader([]byte(content)), map[string]string{
-		"Content-Type": "text/markdown",
+		"Content-Type": noteWriteContentType(""),
 	})
 	if err != nil {
 		return err
@@ -136,7 +143,7 @@ func (c *Client) PatchNote(ctx context.Context, path, content, targetType, targe
 	endpoint := "/vault/" + encodePath(path)
 
 	headers := map[string]string{
-		"Content-Type":             "text/markdown",
+		"Content-Type":             noteWriteContentType(targetType),
 		"Operation":                operation,
 		"Create-Target-If-Missing": "true",
 	}

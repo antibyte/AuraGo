@@ -3,7 +3,7 @@
 function renderObsidianSection(section) {
     const data = configData['obsidian'] || {};
     const enabledOn = data.enabled === true;
-    const readonlyOn = data.read_only === true;
+    const readonlyOn = data.readonly === true || data.read_only === true;
     const destructiveOn = data.allow_destructive === true;
     const httpsOn = data.use_https !== false; // default true
     const insecureOn = data.insecure_ssl !== false; // default true
@@ -36,7 +36,7 @@ function renderObsidianSection(section) {
     html += '<div class="field-label">' + t('config.obsidian.readonly_label') + '</div>';
     if (helpReadonly) html += '<div class="field-help">' + helpReadonly + '</div>';
     html += '<div class="toggle-wrap">';
-    html += '<div class="toggle' + (readonlyOn ? ' on' : '') + '" data-path="obsidian.read_only" onclick="toggleBool(this)"></div>';
+    html += '<div class="toggle' + (readonlyOn ? ' on' : '') + '" data-path="obsidian.readonly" onclick="toggleBool(this)"></div>';
     html += '<span class="toggle-label">' + (readonlyOn ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
     html += '</div></div>';
 

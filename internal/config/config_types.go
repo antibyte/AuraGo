@@ -1,5 +1,7 @@
 package config
 
+import "gopkg.in/yaml.v3"
+
 // Defined here to avoid a circular dependency on the security package.
 type SecretReader interface {
 	ReadSecret(key string) (string, error)
@@ -380,12 +382,12 @@ type Config struct {
 			TriggerAlways       bool `yaml:"trigger_always"`         // synthesize on every message (default: false)
 		} `yaml:"emotion_synthesizer"`
 		InnerVoice struct {
-			Enabled         bool `yaml:"enabled"`           // enable inner voice system (subconscious nudge engine)
-			MinIntervalSecs int  `yaml:"min_interval_secs"` // minimum seconds between inner voice generations (default: 60)
-			MaxPerSession   int  `yaml:"max_per_session"`   // max inner voice generations per session (default: 20)
-			DecayTurns      int  `yaml:"decay_turns"`       // turns after which inner voice fades from prompt (default: 3)
+			Enabled         bool `yaml:"enabled"`            // enable inner voice system (subconscious nudge engine)
+			MinIntervalSecs int  `yaml:"min_interval_secs"`  // minimum seconds between inner voice generations (default: 60)
+			MaxPerSession   int  `yaml:"max_per_session"`    // max inner voice generations per session (default: 20)
+			DecayTurns      int  `yaml:"decay_turns"`        // turns after which inner voice fades from prompt (default: 3)
 			DecayMaxAgeSecs int  `yaml:"decay_max_age_secs"` // max seconds before inner voice expires regardless of turns (default: 300 = 5min)
-			ErrorStreakMin  int  `yaml:"error_streak_min"`  // consecutive errors before triggering inner voice (default: 2)
+			ErrorStreakMin  int  `yaml:"error_streak_min"`   // consecutive errors before triggering inner voice (default: 2)
 		} `yaml:"inner_voice"`
 	} `yaml:"personality"`
 	CircuitBreaker struct {
@@ -1416,6 +1418,49 @@ type ObsidianConfig struct {
 	InsecureSSL      bool   `yaml:"insecure_ssl"`      // skip TLS verification for self-signed certs (default: true)
 	ConnectTimeout   int    `yaml:"connect_timeout"`   // connection timeout in seconds (default: 10)
 	RequestTimeout   int    `yaml:"request_timeout"`   // request timeout in seconds (default: 30)
+}
+
+// UnmarshalYAML keeps backward compatibility with the legacy read_only key
+// while preferring the canonical readonly key when both are present.
+func (c *ObsidianConfig) UnmarshalYAML(value *yaml.Node) error {
+	type rawObsidianConfig ObsidianConfig
+
+	var raw rawObsidianConfig
+	if err := value.Decode(&raw); err != nil {
+		return err
+	}
+
+	*c = ObsidianConfig(raw)
+	if obsidianConfigHasYAMLKey(value, "readonly") || !obsidianConfigHasYAMLKey(value, "read_only") {
+		return nil
+	}
+
+	var legacy struct {
+		ReadOnly bool `yaml:"read_only"`
+	}
+	if err := value.Decode(&legacy); err != nil {
+		return err
+	}
+	c.ReadOnly = legacy.ReadOnly
+	return nil
+}
+
+func obsidianConfigHasYAMLKey(node *yaml.Node, key string) bool {
+	if node == nil {
+		return false
+	}
+	if node.Kind == yaml.DocumentNode && len(node.Content) > 0 {
+		node = node.Content[0]
+	}
+	if node.Kind != yaml.MappingNode {
+		return false
+	}
+	for i := 0; i+1 < len(node.Content); i += 2 {
+		if node.Content[i].Value == key {
+			return true
+		}
+	}
+	return false
 }
 
 // LDAPConfig holds configuration for LDAP/Active Directory integration.

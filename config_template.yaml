@@ -578,7 +578,7 @@ uptime_kuma:
     # API key is stored in the vault as uptime_kuma_api_key
 obsidian:
     enabled: false
-    read_only: false                # read-only mode: only read/search operations allowed
+    readonly: false                 # read-only mode: only read/search operations allowed
     allow_destructive: false        # allow deleting notes
     host: "127.0.0.1"              # same machine: 127.0.0.1; Docker/WSL/remote: reachable Obsidian host/IP
     port: 27124                     # port of Obsidian Local REST API plugin

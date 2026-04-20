@@ -804,3 +804,46 @@ func TestApplyOAuthTokensUsesCurrentPersonalityProviderField(t *testing.T) {
 		t.Fatalf("personality resolved key = %q, want personality-token", cfg.Personality.V2ResolvedKey)
 	}
 }
+
+func TestLoadObsidianLegacyReadOnlyKey(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	configContent := `
+obsidian:
+  enabled: true
+  read_only: true
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if !cfg.Obsidian.ReadOnly {
+		t.Fatal("expected obsidian.read_only to map to Obsidian.ReadOnly")
+	}
+}
+
+func TestLoadObsidianCanonicalReadOnlyWins(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	configContent := `
+obsidian:
+  enabled: true
+  readonly: false
+  read_only: true
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if cfg.Obsidian.ReadOnly {
+		t.Fatal("expected canonical obsidian.readonly to take precedence over legacy read_only")
+	}
+}

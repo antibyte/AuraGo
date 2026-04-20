@@ -121,6 +121,69 @@ func wrapExternalContent(content string) string {
 	return "<external_data>" + content + "</external_data>"
 }
 
+func obsidianReadBack(ctx context.Context, client *obsidian.Client, path, targetType, target string) (*obsidian.NoteJSON, error) {
+	if targetType != "" && target != "" {
+		return client.ReadNoteSection(ctx, path, targetType, target)
+	}
+	return client.ReadNote(ctx, path)
+}
+
+func obsidianNormalizeContent(content string) string {
+	content = strings.ReplaceAll(content, "\r\n", "\n")
+	return strings.TrimRight(content, "\n")
+}
+
+func obsidianIsNotFound(err error) bool {
+	return err != nil && strings.Contains(strings.ToLower(err.Error()), "note not found")
+}
+
+func obsidianExactContentMatch(actual, expected string) bool {
+	return obsidianNormalizeContent(actual) == obsidianNormalizeContent(expected)
+}
+
+func obsidianPatchVerified(before *obsidian.NoteJSON, after, patchContent, patchOp string) bool {
+	afterNorm := obsidianNormalizeContent(after)
+	patchNorm := obsidianNormalizeContent(patchContent)
+	beforeNorm := ""
+	if before != nil {
+		beforeNorm = obsidianNormalizeContent(before.Content)
+	}
+	if before != nil && afterNorm == beforeNorm {
+		return false
+	}
+
+	switch patchOp {
+	case "replace":
+		return afterNorm == patchNorm
+	case "append", "prepend":
+		return patchNorm == "" || strings.Contains(afterNorm, patchNorm)
+	default:
+		return before == nil || afterNorm != beforeNorm
+	}
+}
+
+func obsidianWriteResult(path, message, targetType, target string, note *obsidian.NoteJSON) string {
+	result := map[string]interface{}{
+		"status":   "ok",
+		"path":     path,
+		"message":  message,
+		"verified": true,
+		"content":  wrapExternalContent(note.Content),
+	}
+	if targetType != "" {
+		result["target_type"] = targetType
+	}
+	if target != "" {
+		result["target"] = target
+	}
+	if note.Stat != nil {
+		result["size"] = note.Stat.Size
+		result["mtime"] = note.Stat.MTime
+	}
+	data, _ := json.Marshal(result)
+	return string(data)
+}
+
 // ObsidianHealth checks connectivity to the Obsidian REST API.
 func ObsidianHealth(cfg config.ObsidianConfig, vault *security.Vault, logger *slog.Logger) string {
 	client, err := newObsidianClient(cfg, vault)
@@ -231,16 +294,25 @@ func ObsidianCreateNote(cfg config.ObsidianConfig, vault *security.Vault, path, 
 	ctx, cancel := obsidianRequestContext(cfg)
 	defer cancel()
 
+	if existing, err := obsidianReadBack(ctx, client, path, "", ""); err == nil && existing != nil {
+		return errJSON("Failed to create note: note already exists at %s; use update_note or patch_note", path)
+	} else if err != nil && !obsidianIsNotFound(err) {
+		return errJSON("Failed to create note: preflight read failed: %v", err)
+	}
+
 	if err := client.CreateNote(ctx, path, content); err != nil {
 		return errJSON("Failed to create note: %v", err)
 	}
 
-	result := map[string]interface{}{
-		"status":  "ok",
-		"message": fmt.Sprintf("Note created at %s", path),
+	note, err := obsidianReadBack(ctx, client, path, "", "")
+	if err != nil {
+		return errJSON("Note was created but verification failed for %s: %v", path, err)
 	}
-	data, _ := json.Marshal(result)
-	return string(data)
+	if !obsidianExactContentMatch(note.Content, content) {
+		return errJSON("Note write verification failed for %s: created content does not match the requested content", path)
+	}
+
+	return obsidianWriteResult(path, fmt.Sprintf("Note created at %s", path), "", "", note)
 }
 
 // ObsidianUpdateNote replaces the entire content of a note.
@@ -258,16 +330,23 @@ func ObsidianUpdateNote(cfg config.ObsidianConfig, vault *security.Vault, path, 
 	ctx, cancel := obsidianRequestContext(cfg)
 	defer cancel()
 
+	if _, err := obsidianReadBack(ctx, client, path, "", ""); err != nil && obsidianIsNotFound(err) {
+		return errJSON("Failed to update note: note not found at %s", path)
+	}
+
 	if err := client.UpdateNote(ctx, path, content); err != nil {
 		return errJSON("Failed to update note: %v", err)
 	}
 
-	result := map[string]interface{}{
-		"status":  "ok",
-		"message": fmt.Sprintf("Note updated at %s", path),
+	note, err := obsidianReadBack(ctx, client, path, "", "")
+	if err != nil {
+		return errJSON("Note was updated but verification failed for %s: %v", path, err)
 	}
-	data, _ := json.Marshal(result)
-	return string(data)
+	if !obsidianExactContentMatch(note.Content, content) {
+		return errJSON("Note write verification failed for %s: updated content does not match the requested content", path)
+	}
+
+	return obsidianWriteResult(path, fmt.Sprintf("Note updated at %s", path), "", "", note)
 }
 
 // ObsidianPatchNote appends, prepends, or replaces content in a note.
@@ -288,16 +367,28 @@ func ObsidianPatchNote(cfg config.ObsidianConfig, vault *security.Vault, path, c
 	ctx, cancel := obsidianRequestContext(cfg)
 	defer cancel()
 
+	var before *obsidian.NoteJSON
+	if targetType != "" && target != "" {
+		before, _ = obsidianReadBack(ctx, client, path, targetType, target)
+	} else if note, err := obsidianReadBack(ctx, client, path, "", ""); err == nil {
+		before = note
+	} else if err != nil && !obsidianIsNotFound(err) {
+		return errJSON("Failed to patch note: preflight read failed: %v", err)
+	}
+
 	if err := client.PatchNote(ctx, path, content, targetType, target, patchOp); err != nil {
 		return errJSON("Failed to patch note: %v", err)
 	}
 
-	result := map[string]interface{}{
-		"status":  "ok",
-		"message": fmt.Sprintf("Note patched at %s (%s)", path, patchOp),
+	note, err := obsidianReadBack(ctx, client, path, targetType, target)
+	if err != nil {
+		return errJSON("Note was patched but verification failed for %s: %v", path, err)
 	}
-	data, _ := json.Marshal(result)
-	return string(data)
+	if !obsidianPatchVerified(before, note.Content, content, patchOp) {
+		return errJSON("Note patch verification failed for %s: no observable %s change was detected", path, patchOp)
+	}
+
+	return obsidianWriteResult(path, fmt.Sprintf("Note patched at %s (%s)", path, patchOp), targetType, target, note)
 }
 
 // ObsidianDeleteNote deletes a note from the vault.
