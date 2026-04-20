@@ -2,14 +2,42 @@ package server
 
 import (
 	"aurago/internal/config"
+	"aurago/internal/tools"
 	"encoding/json"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"strings"
 
 	"gopkg.in/yaml.v3"
 )
+
+var (
+	initExternalMCPManager     = tools.InitMCPManager
+	shutdownExternalMCPManager = tools.ShutdownMCPManager
+)
+
+func syncExternalMCPRuntime(cfg *config.Config, logger *slog.Logger) {
+	shutdownExternalMCPManager()
+	if cfg == nil || logger == nil {
+		return
+	}
+	if !cfg.Agent.AllowMCP || !cfg.MCP.Enabled || len(cfg.MCP.Servers) == 0 {
+		return
+	}
+	mcpConfigs := make([]tools.MCPServerConfig, len(cfg.MCP.Servers))
+	for i, srv := range cfg.MCP.Servers {
+		mcpConfigs[i] = tools.MCPServerConfig{
+			Name:    srv.Name,
+			Command: srv.Command,
+			Args:    srv.Args,
+			Env:     srv.Env,
+			Enabled: srv.Enabled,
+		}
+	}
+	initExternalMCPManager(mcpConfigs, logger)
+}
 
 // handleMCPServers dispatches GET / PUT for /api/mcp-servers.
 func handleMCPServers(s *Server) http.HandlerFunc {
@@ -155,6 +183,7 @@ func handlePutMCPServers(s *Server, w http.ResponseWriter, r *http.Request) {
 	s.Cfg.ConfigPath = savedPath
 	s.Cfg.ApplyVaultSecrets(s.Vault)
 	s.Cfg.ApplyOAuthTokens(s.Vault)
+	syncExternalMCPRuntime(s.Cfg, s.Logger)
 	s.CfgMu.Unlock()
 
 	s.Logger.Info("[MCPServers] Updated", "count", len(incoming))

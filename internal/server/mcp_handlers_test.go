@@ -1,6 +1,7 @@
 package server
 
 import (
+	"aurago/internal/tools"
 	"aurago/internal/security"
 	"io"
 	"log/slog"
@@ -15,8 +16,6 @@ import (
 )
 
 func TestHandlePutMCPServersInvalidJSONIsGeneric(t *testing.T) {
-	t.Parallel()
-
 	s := &Server{
 		Cfg: &config.Config{ConfigPath: "config.yaml"},
 	}
@@ -36,8 +35,6 @@ func TestHandlePutMCPServersInvalidJSONIsGeneric(t *testing.T) {
 }
 
 func TestHandlePutMCPServersPersistsEnabledAndAllFields(t *testing.T) {
-	t.Parallel()
-
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.yaml")
 	if err := os.WriteFile(configPath, []byte("mcp:\n  enabled: false\n  servers: []\n"), 0o644); err != nil {
@@ -97,8 +94,6 @@ func TestHandlePutMCPServersPersistsEnabledAndAllFields(t *testing.T) {
 }
 
 func TestHandlePutMCPServersReloadsVaultBackedAuthSecrets(t *testing.T) {
-	t.Parallel()
-
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.yaml")
 	if err := os.WriteFile(configPath, []byte("auth:\n  enabled: true\nmcp:\n  enabled: false\n  servers: []\n"), 0o644); err != nil {
@@ -147,5 +142,76 @@ func TestHandlePutMCPServersReloadsVaultBackedAuthSecrets(t *testing.T) {
 	}
 	if s.Cfg.Auth.PasswordHash != passwordHash {
 		t.Fatalf("password hash not reloaded from vault; got %q", s.Cfg.Auth.PasswordHash)
+	}
+}
+
+func TestHandlePutMCPServersReinitializesRuntimeManager(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	if err := os.WriteFile(configPath, []byte("agent:\n  allow_mcp: true\nmcp:\n  enabled: false\n  servers: []\n"), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	vaultPath := filepath.Join(tmpDir, "vault.bin")
+	vault, err := security.NewVault(strings.Repeat("c", 64), vaultPath)
+	if err != nil {
+		t.Fatalf("new vault: %v", err)
+	}
+
+	var (
+		shutdownCalls int
+		initCalls     int
+		gotConfigs    []tools.MCPServerConfig
+	)
+	oldInit := initExternalMCPManager
+	oldShutdown := shutdownExternalMCPManager
+	initExternalMCPManager = func(configs []tools.MCPServerConfig, _ *slog.Logger) *tools.MCPManager {
+		initCalls++
+		gotConfigs = append([]tools.MCPServerConfig(nil), configs...)
+		return nil
+	}
+	shutdownExternalMCPManager = func() {
+		shutdownCalls++
+	}
+	defer func() {
+		initExternalMCPManager = oldInit
+		shutdownExternalMCPManager = oldShutdown
+	}()
+
+	s := &Server{
+		Cfg:    &config.Config{ConfigPath: configPath},
+		Logger: logger,
+		Vault:  vault,
+	}
+
+	req := httptest.NewRequest(http.MethodPut, "/api/mcp-servers", strings.NewReader(`{
+		"enabled": true,
+		"servers": [{
+			"name": "minimax",
+			"command": "uvx",
+			"args": ["minimax-coding-plan-mcp"],
+			"env": {"MINIMAX_API_HOST": "https://api.minimax.io"},
+			"enabled": true
+		}]
+	}`))
+	rec := httptest.NewRecorder()
+
+	handlePutMCPServers(s, rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	if shutdownCalls != 1 {
+		t.Fatalf("shutdown calls = %d, want 1", shutdownCalls)
+	}
+	if initCalls != 1 {
+		t.Fatalf("init calls = %d, want 1", initCalls)
+	}
+	if len(gotConfigs) != 1 {
+		t.Fatalf("config count = %d, want 1", len(gotConfigs))
+	}
+	if gotConfigs[0].Name != "minimax" || gotConfigs[0].Command != "uvx" {
+		t.Fatalf("unexpected runtime config: %+v", gotConfigs[0])
 	}
 }
