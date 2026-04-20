@@ -12,6 +12,11 @@ import (
 	"aurago/internal/tools"
 )
 
+var (
+	dispatchPreferredMCPVision     = tools.CallPreferredMCPVision
+	dispatchAnalyzeImageWithPrompt = tools.AnalyzeImageWithPrompt
+)
+
 // dispatchServices handles media, infrastructure management, and platform tool calls
 // (vision, transcribe, meshcentral, docker, homepage, webdav, home_assistant).
 func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (string, bool) {
@@ -43,13 +48,14 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			if prompt == "" {
 				prompt = "Describe this image in detail. What do you see? If there is text, transcribe it. If there are people, describe their actions."
 			}
-			if preferredResult, usedPreferred, err := tools.CallPreferredMCPVision(cfg, fpath, prompt, logger); usedPreferred {
+			if preferredResult, usedPreferred, err := dispatchPreferredMCPVision(cfg, fpath, prompt, logger); usedPreferred {
 				if err != nil {
-					return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Preferred MCP vision failed: %v"}`, err)
+					logger.Warn("[Vision] Preferred MCP vision failed, falling back to native vision", "file_path", fpath, "error", err)
+				} else {
+					return "Tool Output: " + security.Scrub(preferredResult)
 				}
-				return "Tool Output: " + security.Scrub(preferredResult)
 			}
-			result, pTokens, cTokens, err := tools.AnalyzeImageWithPrompt(fpath, prompt, cfg)
+			result, pTokens, cTokens, err := dispatchAnalyzeImageWithPrompt(fpath, prompt, cfg)
 			if err != nil {
 				return fmt.Sprintf(`Tool Output: {"status": "error", "message": "Vision analysis failed: %v"}`, err)
 			}
