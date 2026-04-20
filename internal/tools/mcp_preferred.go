@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"aurago/internal/config"
@@ -40,8 +41,36 @@ func mcpInputProperties(tool *MCPToolInfo) map[string]interface{} {
 	if tool == nil || len(tool.InputSchema) == 0 {
 		return nil
 	}
-	props, _ := tool.InputSchema["properties"].(map[string]interface{})
-	return props
+	return extractMCPInputProperties(tool.InputSchema)
+}
+
+func extractMCPInputProperties(schema map[string]interface{}) map[string]interface{} {
+	if len(schema) == 0 {
+		return nil
+	}
+	if props, _ := schema["properties"].(map[string]interface{}); len(props) > 0 {
+		return props
+	}
+	for _, key := range []string{"inputSchema", "input_schema", "schema", "parameters"} {
+		nested, _ := schema[key].(map[string]interface{})
+		if props := extractMCPInputProperties(nested); len(props) > 0 {
+			return props
+		}
+	}
+	return nil
+}
+
+func summarizeMCPInputSchema(schema map[string]interface{}) string {
+	props := extractMCPInputProperties(schema)
+	if len(props) == 0 {
+		return "no properties found"
+	}
+	keys := make([]string, 0, len(props))
+	for key := range props {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return strings.Join(keys, ", ")
 }
 
 func setFirstMatchingMCPArg(args map[string]interface{}, props map[string]interface{}, value interface{}, names ...string) bool {
@@ -115,7 +144,7 @@ func buildPreferredMCPVisionArgs(tool *MCPToolInfo, resolvedPath, prompt string)
 		}
 	}
 	if !hasImageInput {
-		return nil, fmt.Errorf("preferred MCP vision tool %q does not expose a recognized image input", tool.Name)
+		return nil, fmt.Errorf("preferred MCP vision tool %q does not expose a recognized image input (schema keys: %s)", tool.Name, summarizeMCPInputSchema(tool.InputSchema))
 	}
 
 	setFirstMatchingMCPArg(args, props, prompt, "prompt", "question", "query", "instruction", "text")
