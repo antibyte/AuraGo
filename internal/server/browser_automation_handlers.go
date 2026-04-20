@@ -35,6 +35,9 @@ func ensureBrowserAutomationReady(ctx context.Context, cfg *config.Config, logge
 		if status, _ := health["status"].(string); status == "success" {
 			return health
 		}
+		if retryable, ok := health["retryable"].(bool); ok && !retryable {
+			return health
+		}
 		select {
 		case <-ctx.Done():
 			if msg, ok := tools.BrowserAutomationHealth(context.Background(), cfg)["message"].(string); ok && msg != "" {
@@ -79,20 +82,20 @@ func handleBrowserAutomationTest(s *Server) http.HandlerFunc {
 		s.CfgMu.RUnlock()
 		var req struct {
 			BrowserAutomation struct {
-				Enabled            *bool `json:"enabled"`
+				Enabled            *bool  `json:"enabled"`
 				Mode               string `json:"mode"`
 				URL                string `json:"url"`
 				ContainerName      string `json:"container_name"`
 				Image              string `json:"image"`
-				AutoBuild          *bool `json:"auto_build"`
+				AutoBuild          *bool  `json:"auto_build"`
 				DockerfileDir      string `json:"dockerfile_dir"`
-				SessionTTLMinutes  *int  `json:"session_ttl_minutes"`
-				MaxSessions        *int  `json:"max_sessions"`
-				AllowFileUploads   *bool `json:"allow_file_uploads"`
-				AllowFileDownloads *bool `json:"allow_file_downloads"`
+				SessionTTLMinutes  *int   `json:"session_ttl_minutes"`
+				MaxSessions        *int   `json:"max_sessions"`
+				AllowFileUploads   *bool  `json:"allow_file_uploads"`
+				AllowFileDownloads *bool  `json:"allow_file_downloads"`
 				AllowedDownloadDir string `json:"allowed_download_dir"`
-				Headless           *bool `json:"headless"`
-				ReadOnly           *bool `json:"readonly"`
+				Headless           *bool  `json:"headless"`
+				ReadOnly           *bool  `json:"readonly"`
 				ScreenshotsDir     string `json:"screenshots_dir"`
 				Viewport           struct {
 					Width  *int `json:"width"`

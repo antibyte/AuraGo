@@ -37,7 +37,10 @@ type formField struct {
 }
 
 func formJSON(r formResult) string {
-	b, _ := json.Marshal(r)
+	b, err := json.Marshal(r)
+	if err != nil {
+		return `{"status":"error","message":"failed to encode result"}`
+	}
 	return string(b)
 }
 
@@ -80,7 +83,9 @@ func ExecuteFormAutomation(operation, rawURL, fieldsJSON, selector, screenshotDi
 	if err := browser.Connect(); err != nil {
 		return formJSON(formResult{Status: "error", Message: fmt.Sprintf("browser connect failed: %v", err)})
 	}
-	defer browser.MustClose()
+	defer func() {
+		_ = browser.Close()
+	}()
 
 	page, err := browser.Page(proto.TargetCreateTarget{URL: rawURL})
 	if err != nil {

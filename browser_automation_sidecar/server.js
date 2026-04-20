@@ -14,9 +14,11 @@ const SESSION_TTL_MS = Math.max(1, parseInt(process.env.SESSION_TTL_MINUTES || '
 const MAX_SESSIONS = Math.max(1, parseInt(process.env.MAX_SESSIONS || '3', 10));
 const VIEWPORT_WIDTH = Math.max(320, parseInt(process.env.VIEWPORT_WIDTH || '1280', 10));
 const VIEWPORT_HEIGHT = Math.max(240, parseInt(process.env.VIEWPORT_HEIGHT || '720', 10));
+const HTTP_TIMEOUT_MS = Math.max(1000, parseInt(process.env.HTTP_TIMEOUT_MS || '60000', 10));
 
 const sessions = new Map();
 let browserPromise = null;
+let shuttingDown = false;
 
 function json(res, statusCode, payload) {
   res.writeHead(statusCode, { 'Content-Type': 'application/json; charset=utf-8' });
@@ -53,7 +55,10 @@ async function ensureDir(dirPath) {
 
 async function getBrowser() {
   if (!browserPromise) {
-    browserPromise = chromium.launch({ headless: HEADLESS });
+    browserPromise = chromium.launch({ headless: HEADLESS }).catch((error) => {
+      browserPromise = null;
+      throw error;
+    });
   }
   return browserPromise;
 }
@@ -70,6 +75,23 @@ async function destroySession(id) {
     await session.context.close();
   } catch (_) {
   }
+}
+
+function isSessionExpired(session) {
+  return Date.now() - session.lastUsedAt > SESSION_TTL_MS;
+}
+
+async function getActiveSession(id, operation) {
+  const session = sessions.get(id);
+  if (!session) {
+    return { error: { status: 'error', operation, message: 'session not found', session_id: id || '' } };
+  }
+  if (isSessionExpired(session)) {
+    await destroySession(session.id);
+    return { error: { status: 'error', operation, message: 'session expired', session_id: id || '' } };
+  }
+  touchSession(session);
+  return { session };
 }
 
 async function enforceSessionLimit() {
@@ -234,11 +256,11 @@ async function handleAutomation(body) {
     return createSession(body.url || '');
   }
 
-  const session = sessions.get(String(body.session_id || ''));
-  if (!session) {
-    return { status: 'error', operation, message: 'session not found', session_id: body.session_id || '' };
+  const resolved = await getActiveSession(String(body.session_id || ''), operation);
+  if (resolved.error) {
+    return resolved.error;
   }
-  touchSession(session);
+  const { session } = resolved;
   const page = session.page;
   const timeoutMs = Math.max(1000, parseInt(body.timeout_ms || '15000', 10));
   const selector = typeof body.selector === 'string' ? body.selector : '';
@@ -294,7 +316,7 @@ async function handleAutomation(body) {
       return { status: 'success', operation, session_id: session.id, url: page.url(), title: await page.title(), screenshot_rel_path: relFromRoot(WORKSPACE_ROOT, target), message: `screenshot saved to ${relPath}` };
     }
     case 'upload_file': {
-      if (!ALLOW_FILE_UPLOADS) throw new Error('file uploads are disabled');
+      if (!ALLOW_FILE_UPLOADS) return { status: 'error', operation, session_id: session.id, message: 'file uploads are disabled', http_status: 400 };
       const relPath = String(body.file_path || '');
       const target = resolveUnder(WORKSPACE_ROOT, relPath);
       await page.locator(selector).setInputFiles(target, { timeout: timeoutMs });
@@ -303,7 +325,7 @@ async function handleAutomation(body) {
     case 'list_downloads':
       return { status: 'success', operation, session_id: session.id, downloads: session.downloads, message: `listed ${session.downloads.length} downloads` };
     case 'get_download': {
-      if (!ALLOW_FILE_DOWNLOADS) throw new Error('file downloads are disabled');
+      if (!ALLOW_FILE_DOWNLOADS) return { status: 'error', operation, session_id: session.id, message: 'file downloads are disabled', http_status: 400 };
       let chosen = null;
       const requestedName = String(body.download_name || '').trim();
       if (requestedName) {
@@ -344,23 +366,38 @@ setInterval(() => {
   }
 }, 30 * 1000);
 
-const server = http.createServer(async (req, res) => {
+const server = http.createServer({ requestTimeout: HTTP_TIMEOUT_MS }, async (req, res) => {
   try {
     if (req.method === 'GET' && req.url === '/health') {
-      return json(res, 200, {
-        status: 'success',
-        message: 'browser automation sidecar is healthy',
-        sessions: sessions.size,
-        headless: HEADLESS,
-        read_only: READ_ONLY
-      });
+      try {
+        const browser = await getBrowser();
+        const version = await browser.version();
+        return json(res, 200, {
+          status: 'success',
+          message: 'browser automation sidecar is healthy',
+          sessions: sessions.size,
+          headless: HEADLESS,
+          read_only: READ_ONLY,
+          browser_version: version
+        });
+      } catch (error) {
+        return json(res, 503, {
+          status: 'error',
+          retryable: false,
+          message: error && error.message ? `browser unavailable: ${error.message}` : 'browser unavailable'
+        });
+      }
     }
 
     if (req.method === 'POST' && req.url === '/automation') {
+      const contentType = String(req.headers['content-type'] || '').toLowerCase();
+      if (!contentType.includes('application/json')) {
+        return json(res, 415, { status: 'error', message: 'content-type must be application/json' });
+      }
       const raw = await readBody(req);
       const body = raw ? JSON.parse(raw) : {};
       const result = await handleAutomation(body);
-      const statusCode = result.status === 'error' ? 400 : 200;
+      const statusCode = Number.isInteger(result.http_status) ? result.http_status : (result.status === 'error' ? 400 : 200);
       return json(res, statusCode, result);
     }
 
@@ -370,11 +407,48 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
+async function shutdown(signal) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  try {
+    await new Promise((resolve) => server.close(() => resolve()));
+    const sessionIds = [...sessions.keys()];
+    for (const id of sessionIds) {
+      await destroySession(id);
+    }
+    if (browserPromise) {
+      const browser = await browserPromise.catch(() => null);
+      if (browser) {
+        await browser.close().catch(() => {});
+      }
+      browserPromise = null;
+    }
+  } finally {
+    if (signal) {
+      process.exit(0);
+    }
+  }
+}
+
 async function boot() {
   await ensureDir(WORKSPACE_ROOT);
   await ensureDir(DOWNLOAD_ROOT);
   server.listen(PORT, '0.0.0.0');
 }
+
+process.on('SIGTERM', () => {
+  shutdown('SIGTERM').catch((error) => {
+    console.error('Failed to shut down browser automation sidecar cleanly:', error);
+    process.exit(1);
+  });
+});
+
+process.on('SIGINT', () => {
+  shutdown('SIGINT').catch((error) => {
+    console.error('Failed to shut down browser automation sidecar cleanly:', error);
+    process.exit(1);
+  });
+});
 
 boot().catch((error) => {
   console.error('Failed to start browser automation sidecar:', error);

@@ -1,0 +1,13 @@
+{
+  "name": "aurago-browser-automation-sidecar",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Playwright sidecar for AuraGo browser automation",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "playwright": "^1.53.0"
+  }
+}

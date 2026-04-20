@@ -62,6 +62,11 @@ type BrowserAutomationSidecarConfig struct {
 
 var browserAutomationHTTPClient = &http.Client{Timeout: 60 * time.Second}
 
+var browserAutomationRetryDelays = []time.Duration{
+	200 * time.Millisecond,
+	500 * time.Millisecond,
+}
+
 func browserAutomationJSON(result map[string]interface{}) string {
 	data, err := json.Marshal(result)
 	if err != nil {
@@ -186,7 +191,7 @@ func browserAutomationUsesManagedLoopbackURL(raw string) bool {
 	}
 	host := strings.TrimSpace(parsed.Hostname())
 	switch strings.ToLower(host) {
-	case "", "localhost", "127.0.0.1":
+	case "", "localhost", "127.0.0.1", "::1":
 		return true
 	default:
 		return false
@@ -216,9 +221,23 @@ func browserAutomationSidecarRequest(ctx context.Context, cfg BrowserAutomationS
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := browserAutomationHTTPClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("browser automation request failed: %w", err)
+	var (
+		resp   *http.Response
+		reqErr error
+	)
+	for attempt := 0; attempt <= len(browserAutomationRetryDelays); attempt++ {
+		clonedReq := req.Clone(ctx)
+		clonedReq.Body = io.NopCloser(bytes.NewReader(data))
+		resp, reqErr = browserAutomationHTTPClient.Do(clonedReq)
+		if reqErr == nil {
+			break
+		}
+		if attempt == len(browserAutomationRetryDelays) || !browserAutomationRetryableError(reqErr) {
+			return nil, fmt.Errorf("browser automation request failed: %w", reqErr)
+		}
+		if sleepErr := browserAutomationSleepWithContext(ctx, browserAutomationRetryDelays[attempt]); sleepErr != nil {
+			return nil, fmt.Errorf("browser automation request failed: %w", reqErr)
+		}
 	}
 	defer resp.Body.Close()
 
@@ -268,7 +287,51 @@ func BrowserAutomationHealth(ctx context.Context, cfg *config.Config) map[string
 	if err := json.Unmarshal(body, &result); err != nil {
 		return map[string]interface{}{"status": "error", "message": "invalid sidecar health response"}
 	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		if result == nil {
+			result = map[string]interface{}{}
+		}
+		if _, ok := result["status"]; !ok {
+			result["status"] = "error"
+		}
+		if _, ok := result["message"]; !ok {
+			result["message"] = fmt.Sprintf("sidecar health returned HTTP %d", resp.StatusCode)
+		}
+	}
 	return result
+}
+
+func browserAutomationRetryableError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errText := strings.ToLower(err.Error())
+	for _, marker := range []string{
+		"connection refused",
+		"connection reset",
+		"broken pipe",
+		"eof",
+		"no such host",
+		"server misbehaving",
+		"timeout",
+		"temporarily unavailable",
+	} {
+		if strings.Contains(errText, marker) {
+			return true
+		}
+	}
+	return false
+}
+
+func browserAutomationSleepWithContext(ctx context.Context, delay time.Duration) error {
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
 }
 
 func ResolveBrowserAutomationSidecarConfig(cfg *config.Config) (BrowserAutomationSidecarConfig, error) {
@@ -500,6 +563,8 @@ func EnsureBrowserAutomationSidecarRunning(dockerHost string, sidecarCfg Browser
 		"Env":   env,
 		"HostConfig": map[string]interface{}{
 			"RestartPolicy": map[string]interface{}{"Name": "unless-stopped"},
+			"Memory":        int64(1024 * 1024 * 1024),
+			"NanoCpus":      int64(1_000_000_000),
 			"PortBindings": map[string]interface{}{
 				fmt.Sprintf("%d/tcp", browserAutomationContainerPort): []map[string]string{{"HostIp": "127.0.0.1", "HostPort": fmt.Sprintf("%d", browserAutomationContainerPort)}},
 			},

@@ -3,14 +3,23 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"aurago/internal/config"
 )
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (fn roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return fn(req)
+}
 
 func browserAutomationTestConfig(t *testing.T, sidecarURL string) *config.Config {
 	t.Helper()
@@ -92,8 +101,6 @@ func TestExecuteBrowserAutomationRejectsUploadOutsideWorkspace(t *testing.T) {
 }
 
 func TestExecuteBrowserAutomationMapsScreenshotAndDownloads(t *testing.T) {
-	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "1")
-
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/automation" {
 			http.NotFound(w, r)
@@ -152,8 +159,6 @@ func TestExecuteBrowserAutomationMapsScreenshotAndDownloads(t *testing.T) {
 }
 
 func TestBrowserAutomationHealthReadsSidecarEndpoint(t *testing.T) {
-	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "1")
-
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/health" {
 			http.NotFound(w, r)
@@ -175,6 +180,61 @@ func TestBrowserAutomationHealthReadsSidecarEndpoint(t *testing.T) {
 	}
 }
 
+func TestBrowserAutomationHealthReturnsErrorPayloadForNonSuccessStatus(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_, _ = w.Write([]byte(`{"status":"error","retryable":false,"message":"browser unavailable"}`))
+	}))
+	defer srv.Close()
+
+	cfg := browserAutomationTestConfig(t, srv.URL)
+	result := BrowserAutomationHealth(context.Background(), cfg)
+
+	if got, _ := result["status"].(string); got != "error" {
+		t.Fatalf("status = %q, want error", got)
+	}
+	if retryable, _ := result["retryable"].(bool); retryable {
+		t.Fatalf("retryable = true, want false")
+	}
+}
+
+func TestBrowserAutomationSidecarRequestRetriesTransientFailures(t *testing.T) {
+	originalClient := browserAutomationHTTPClient
+	t.Cleanup(func() {
+		browserAutomationHTTPClient = originalClient
+	})
+
+	attempts := 0
+	browserAutomationHTTPClient = &http.Client{
+		Timeout: 2 * time.Second,
+		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			attempts++
+			if attempts == 1 {
+				return nil, errors.New("connection refused")
+			}
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     make(http.Header),
+				Body:       io.NopCloser(strings.NewReader(`{"status":"success","message":"ok"}`)),
+			}, nil
+		}),
+	}
+
+	result, err := browserAutomationSidecarRequest(context.Background(), BrowserAutomationSidecarConfig{
+		URL: "http://127.0.0.1:7331",
+	}, map[string]interface{}{"operation": "current_state"})
+	if err != nil {
+		t.Fatalf("browserAutomationSidecarRequest() error = %v", err)
+	}
+	if got, _ := result["status"].(string); got != "success" {
+		t.Fatalf("status = %q, want success", got)
+	}
+	if attempts != 2 {
+		t.Fatalf("attempts = %d, want 2", attempts)
+	}
+}
+
 func TestBrowserAutomationUsesManagedLoopbackURL(t *testing.T) {
 	tests := []struct {
 		raw  string
@@ -183,6 +243,7 @@ func TestBrowserAutomationUsesManagedLoopbackURL(t *testing.T) {
 		{"", true},
 		{"http://127.0.0.1:7331", true},
 		{"http://localhost:7331", true},
+		{"http://[::1]:7331", true},
 		{"http://browser-automation:7331", false},
 		{"https://remote.example.com:7331", false},
 	}
