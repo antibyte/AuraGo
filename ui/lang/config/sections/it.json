@@ -361,5 +361,7 @@
   "config.browser_automation.test_button": "Testa connessione",
   "config.browser_automation.loading": "Controllo del sidecar di automazione del browser...",
   "config.browser_automation.status_ok": "Il sidecar di automazione del browser è raggiungibile.",
-  "config.browser_automation.status_error": "Controllo dell’automazione del browser non riuscito:"
+  "config.browser_automation.status_error": "Controllo dell’automazione del browser non riuscito:",
+  "config.browser_automation.advanced_label": "Impostazioni avanzate del sidecar",
+  "config.browser_automation.advanced_desc": "Impostazioni tecniche di Docker e sessione per il sidecar Playwright. Normalmente la maggior parte degli utenti non deve modificare questi valori."
 }

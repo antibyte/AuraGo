@@ -48,6 +48,15 @@ async function renderBrowserAutomationSection(section) {
     }
 
     html += '<div class="cfg-note-banner cfg-note-banner-info">🧭 ' + t('config.browser_automation.sidecar_note') + '</div>';
+    html += baToggleRow('config.browser_automation.readonly_label', data.readonly === true, 'browser_automation.readonly');
+    html += baToggleRow('config.browser_automation.headless_label', data.headless !== false, 'browser_automation.headless');
+    html += baToggleRow('config.browser_automation.allow_uploads_label', data.allow_file_uploads !== false, 'browser_automation.allow_file_uploads');
+    html += baToggleRow('config.browser_automation.allow_downloads_label', data.allow_file_downloads !== false, 'browser_automation.allow_file_downloads');
+
+    html += '<details class="cfg-advanced-panel ba-advanced-panel">';
+    html += '<summary class="cfg-advanced-summary">⚙️ ' + t('config.browser_automation.advanced_label') + '</summary>';
+    html += '<div class="cfg-advanced-body">';
+    html += '<div class="cfg-advanced-help">' + t('config.browser_automation.advanced_desc') + '</div>';
 
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.browser_automation.mode_label') + '</div>';
@@ -97,10 +106,8 @@ async function renderBrowserAutomationSection(section) {
     html += '</div>';
 
     html += baToggleRow('config.browser_automation.auto_build_label', data.auto_build !== false, 'browser_automation.auto_build');
-    html += baToggleRow('config.browser_automation.readonly_label', data.readonly === true, 'browser_automation.readonly');
-    html += baToggleRow('config.browser_automation.headless_label', data.headless !== false, 'browser_automation.headless');
-    html += baToggleRow('config.browser_automation.allow_uploads_label', data.allow_file_uploads !== false, 'browser_automation.allow_file_uploads');
-    html += baToggleRow('config.browser_automation.allow_downloads_label', data.allow_file_downloads !== false, 'browser_automation.allow_file_downloads');
+    html += '</div>';
+    html += '</details>';
 
     html += '<div class="field-group">';
     html += '<button class="btn-save dc-test-btn" onclick="baTestConnection()" id="ba-test-btn">🔌 ' + t('config.browser_automation.test_button') + '</button>';

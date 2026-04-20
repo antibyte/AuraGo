@@ -5051,6 +5051,47 @@ select.cfg-input option {
     border: 1px solid rgba(251, 191, 36, 0.28);
 }
 
+.cfg-advanced-panel {
+    margin-top: 1rem;
+    border: 1px solid var(--border-subtle);
+    border-radius: 14px;
+    background: var(--bg-secondary);
+    overflow: hidden;
+}
+
+.cfg-advanced-summary {
+    cursor: pointer;
+    list-style: none;
+    padding: 0.95rem 1.1rem;
+    font-size: 0.84rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    user-select: none;
+}
+
+.cfg-advanced-summary::-webkit-details-marker {
+    display: none;
+}
+
+.cfg-advanced-panel[open] .cfg-advanced-summary {
+    border-bottom: 1px solid var(--border-subtle);
+    background: var(--bg-tertiary);
+}
+
+.cfg-advanced-body {
+    padding: 1rem 1.1rem 0.4rem;
+}
+
+.cfg-advanced-help {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin-bottom: 0.9rem;
+}
+
 .cfg-group-title {
     margin-bottom: 0.5rem;
     font-weight: 600;

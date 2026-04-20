@@ -361,5 +361,7 @@
   "config.browser_automation.test_button": "测试连接",
   "config.browser_automation.loading": "正在检查浏览器自动化边车...",
   "config.browser_automation.status_ok": "浏览器自动化边车可访问。",
-  "config.browser_automation.status_error": "浏览器自动化检查失败："
+  "config.browser_automation.status_error": "浏览器自动化检查失败：",
+  "config.browser_automation.advanced_label": "高级边车设置",
+  "config.browser_automation.advanced_desc": "Playwright 边车的技术性 Docker 和会话设置。大多数用户通常不需要修改这些值。"
 }

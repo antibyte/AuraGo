@@ -361,5 +361,7 @@
   "config.browser_automation.test_button": "Verbindung testen",
   "config.browser_automation.loading": "Browser-Automation-Sidecar wird geprüft...",
   "config.browser_automation.status_ok": "Browser-Automation-Sidecar ist erreichbar.",
-  "config.browser_automation.status_error": "Prüfung der Browser-Automation fehlgeschlagen:"
+  "config.browser_automation.status_error": "Prüfung der Browser-Automation fehlgeschlagen:",
+  "config.browser_automation.advanced_label": "Erweiterte Sidecar-Einstellungen",
+  "config.browser_automation.advanced_desc": "Technische Docker- und Sitzungsoptionen für den Playwright-Sidecar. Die meisten Nutzer müssen diese Werte normalerweise nicht ändern."
 }

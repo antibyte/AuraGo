@@ -361,5 +361,7 @@
   "config.browser_automation.test_button": "Test tilkobling",
   "config.browser_automation.loading": "Kontrollerer sidecar for nettleserautomatisering...",
   "config.browser_automation.status_ok": "Sidecaren for nettleserautomatisering er tilgjengelig.",
-  "config.browser_automation.status_error": "Kontroll av nettleserautomatisering mislyktes:"
+  "config.browser_automation.status_error": "Kontroll av nettleserautomatisering mislyktes:",
+  "config.browser_automation.advanced_label": "Avanserte sidecar-innstillinger",
+  "config.browser_automation.advanced_desc": "Tekniske Docker- og sesjonsinnstillinger for Playwright-sidecaren. De fleste brukere trenger normalt ikke å endre disse verdiene."
 }
