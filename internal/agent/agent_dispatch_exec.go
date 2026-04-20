@@ -1008,7 +1008,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				Username:    cfg.Koofr.Username,
 				AppPassword: cfg.Koofr.AppPassword,
 			}
-			return tools.ExecuteKoofr(koofrCfg, req.Operation, req.FilePath, req.Destination, req.Content)
+			return tools.ExecuteKoofr(koofrCfg, req.Operation, req.FilePath, req.Destination, req.Content, cfg.Directories.WorkspaceDir)
 
 		case "google_workspace", "gworkspace":
 			if !cfg.GoogleWorkspace.Enabled {

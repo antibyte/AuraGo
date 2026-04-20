@@ -8,9 +8,11 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/url"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"aurago/internal/security"
 )
@@ -30,8 +32,8 @@ type mountInfo struct {
 var koofrHTTPClient = security.NewSSRFProtectedHTTPClient(30 * time.Second)
 
 // ExecuteKoofr performs operations on the Koofr API.
-// Valid actions: list, read, write, mkdir, delete, rename, copy.
-func ExecuteKoofr(cfg KoofrConfig, action, path, dest, content string) string {
+// Valid actions: list, read, download, write, mkdir, delete, rename, copy.
+func ExecuteKoofr(cfg KoofrConfig, action, path, dest, content, workspaceDir string) string {
 	if cfg.Username == "" || cfg.AppPassword == "" {
 		return marshalPrefixedToolJSON(map[string]interface{}{"status": "error", "message": "Koofr credentials are not configured"})
 	}
@@ -46,18 +48,8 @@ func ExecuteKoofr(cfg KoofrConfig, action, path, dest, content string) string {
 		return marshalPrefixedToolJSON(map[string]interface{}{"status": "error", "message": fmt.Sprintf("Failed to get Koofr mount ID: %v", err)})
 	}
 
-	safePath := path
-	if !strings.HasPrefix(safePath, "/") {
-		safePath = "/" + safePath
-	}
-	if safePath == "//" {
-		safePath = "/"
-	}
-
-	safeDest := dest
-	if dest != "" && !strings.HasPrefix(safeDest, "/") {
-		safeDest = "/" + safeDest
-	}
+	safePath := normalizeKoofrPath(path)
+	safeDest := normalizeKoofrPath(dest)
 
 	var respBytes []byte
 
@@ -70,7 +62,41 @@ func ExecuteKoofr(cfg KoofrConfig, action, path, dest, content string) string {
 		reqURL := fmt.Sprintf("%s/content/api/v2/mounts/%s/files/get?path=%s", baseURL, mountID, url.QueryEscape(safePath))
 		respBytes, err = doKoofrRequest("GET", reqURL, cfg.Username, cfg.AppPassword, "", nil)
 		if err == nil {
+			if contentType, isText := classifyKoofrContent(respBytes); !isText {
+				return marshalPrefixedToolJSON(map[string]interface{}{
+					"status":       "error",
+					"message":      "Koofr read only supports text files. This file appears to be binary. Use operation 'download' with a destination inside the workspace (for example 'workdir/song.mp3').",
+					"content_type": contentType,
+					"bytes":        len(respBytes),
+				})
+			}
 			return koofrSuccessContentResponse(respBytes)
+		}
+
+	case "download":
+		if strings.TrimSpace(dest) == "" {
+			return marshalPrefixedToolJSON(map[string]interface{}{"status": "error", "message": "Destination path required for download"})
+		}
+		reqURL := fmt.Sprintf("%s/content/api/v2/mounts/%s/files/get?path=%s", baseURL, mountID, url.QueryEscape(safePath))
+		respBytes, err = doKoofrRequest("GET", reqURL, cfg.Username, cfg.AppPassword, "", nil)
+		if err == nil {
+			resolvedDest, err := resolveKoofrDownloadDestination(workspaceDir, dest)
+			if err != nil {
+				return marshalPrefixedToolJSON(map[string]interface{}{"status": "error", "message": fmt.Sprintf("Invalid download destination: %v", err)})
+			}
+			if err := os.MkdirAll(filepath.Dir(resolvedDest), 0o755); err != nil {
+				return marshalPrefixedToolJSON(map[string]interface{}{"status": "error", "message": fmt.Sprintf("Failed to create destination directory: %v", err)})
+			}
+			if err := os.WriteFile(resolvedDest, respBytes, 0o644); err != nil {
+				return marshalPrefixedToolJSON(map[string]interface{}{"status": "error", "message": fmt.Sprintf("Failed to write downloaded file: %v", err)})
+			}
+			contentType, _ := classifyKoofrContent(respBytes)
+			return marshalPrefixedToolJSON(map[string]interface{}{
+				"status":       "success",
+				"message":      fmt.Sprintf("Downloaded %d bytes from %s", len(respBytes), safePath),
+				"path":         resolvedDest,
+				"content_type": contentType,
+			})
 		}
 
 	case "write":
@@ -143,6 +169,12 @@ func ExecuteKoofr(cfg KoofrConfig, action, path, dest, content string) string {
 		if safeDest == "" {
 			return marshalPrefixedToolJSON(map[string]interface{}{"status": "error", "message": "Destination path required for copy"})
 		}
+		if koofrDestinationLooksLocal(dest) {
+			return marshalPrefixedToolJSON(map[string]interface{}{
+				"status":  "error",
+				"message": "Koofr copy only copies within Koofr storage. To download into the agent workspace, use operation 'download' with destination like 'workdir/song.mp3'.",
+			})
+		}
 		reqURL := fmt.Sprintf("%s/api/v2/mounts/%s/files/copy?path=%s", baseURL, mountID, url.QueryEscape(safePath))
 
 		payload := map[string]string{"to": safeDest}
@@ -178,6 +210,71 @@ func koofrSuccessContentResponse(content []byte) string {
 		return marshalPrefixedToolJSON(map[string]interface{}{"status": "error", "message": "Failed to encode Koofr response"})
 	}
 	return "Tool Output: " + string(data)
+}
+
+func normalizeKoofrPath(raw string) string {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return ""
+	}
+	if !strings.HasPrefix(trimmed, "/") {
+		trimmed = "/" + trimmed
+	}
+	if trimmed == "//" {
+		return "/"
+	}
+	return trimmed
+}
+
+func classifyKoofrContent(content []byte) (string, bool) {
+	if len(content) == 0 {
+		return "application/octet-stream", true
+	}
+	sample := content
+	if len(sample) > 512 {
+		sample = sample[:512]
+	}
+	contentType := http.DetectContentType(sample)
+	if strings.HasPrefix(contentType, "text/") ||
+		strings.Contains(contentType, "json") ||
+		strings.Contains(contentType, "xml") ||
+		strings.Contains(contentType, "javascript") {
+		return contentType, true
+	}
+	if bytes.IndexByte(sample, 0) >= 0 {
+		return contentType, false
+	}
+	return contentType, utf8.Valid(sample)
+}
+
+func koofrDestinationLooksLocal(dest string) bool {
+	slash := filepath.ToSlash(strings.TrimSpace(dest))
+	return slash == "workdir" ||
+		slash == "/workdir" ||
+		strings.HasPrefix(slash, "workdir/") ||
+		strings.HasPrefix(slash, "/workdir/") ||
+		strings.HasPrefix(slash, "agent_workspace/workdir/") ||
+		strings.HasPrefix(slash, "/agent_workspace/workdir/")
+}
+
+func resolveKoofrDownloadDestination(workspaceDir, dest string) (string, error) {
+	if strings.TrimSpace(workspaceDir) == "" {
+		return "", fmt.Errorf("workspace_dir is not configured")
+	}
+	normalized := filepath.ToSlash(strings.TrimSpace(dest))
+	switch {
+	case normalized == "workdir" || normalized == "/workdir":
+		normalized = "."
+	case strings.HasPrefix(normalized, "workdir/"):
+		normalized = strings.TrimPrefix(normalized, "workdir/")
+	case strings.HasPrefix(normalized, "/workdir/"):
+		normalized = strings.TrimPrefix(normalized, "/workdir/")
+	}
+	resolved, err := secureResolve(workspaceDir, filepath.FromSlash(normalized))
+	if err != nil {
+		return "", err
+	}
+	return resolved, nil
 }
 
 func getPrimaryMountID(baseURL, username, password string) (string, error) {

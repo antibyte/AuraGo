@@ -757,16 +757,16 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 
 	if ff.KoofrEnabled {
 		tools = append(tools, tool("koofr",
-			"Manage files in Koofr cloud storage: list directory contents, read files, write/upload files, "+
-				"create directories, delete files/directories, rename/move, and copy files.",
+			"Manage files in Koofr cloud storage: list directory contents, read text files, download files to the workspace, "+
+				"write/upload files, create directories, delete files/directories, rename/move, and copy files inside Koofr.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",
 					"description": "File operation to perform",
-					"enum":        []string{"list", "read", "write", "mkdir", "delete", "rename", "copy"},
+					"enum":        []string{"list", "read", "download", "write", "mkdir", "delete", "rename", "copy"},
 				},
 				"path":        prop("string", "File or directory path in Koofr (e.g. '/My Files/documents/'). Required for all operations."),
-				"destination": prop("string", "Destination path for rename/copy operations."),
+				"destination": prop("string", "Destination path for rename/copy operations, or a local workspace path for download (for example 'workdir/song.mp3')."),
 				"content":     prop("string", "File content to write (for 'write' operation)."),
 			}, "operation", "path"),
 		))

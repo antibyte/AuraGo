@@ -49,6 +49,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"image_processing", "Resize, crop, rotate, convert, compress, watermark images"},
 		{"detect_file_type", "Identify file type by content (magic bytes)"},
 		{"document_creator", "Create PDF, DOCX, XLSX, PPTX documents from structured data"},
+		{"koofr", "Access Koofr cloud storage: list, read, download, upload, move, and copy files"},
 	},
 	"network": {
 		{"api_request", "Make HTTP requests (GET, POST, PUT, DELETE, etc.)"},

@@ -80,6 +80,11 @@ func TestSearchToolsInCategories(t *testing.T) {
 		t.Fatal("expected results for 'DNS'")
 	}
 
+	results = SearchToolsInCategories("koofr")
+	if len(results) == 0 {
+		t.Fatal("expected results for 'koofr'")
+	}
+
 	// No results
 	results = SearchToolsInCategories("zzz_nonexistent_xyz")
 	if len(results) != 0 {

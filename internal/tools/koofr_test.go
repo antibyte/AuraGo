@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -42,5 +43,27 @@ func TestDoKoofrRequestRejectsOversizeResponse(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "exceeds limit") {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestClassifyKoofrContentRejectsBinaryAudio(t *testing.T) {
+	contentType, isText := classifyKoofrContent([]byte("ID3\x03\x00\x00binary"))
+	if isText {
+		t.Fatal("expected binary audio sample to be rejected as text")
+	}
+	if contentType != "audio/mpeg" {
+		t.Fatalf("contentType = %q, want audio/mpeg", contentType)
+	}
+}
+
+func TestResolveKoofrDownloadDestinationSupportsWorkdirAlias(t *testing.T) {
+	workspaceDir := filepath.Join(t.TempDir(), "agent_workspace", "workdir")
+	got, err := resolveKoofrDownloadDestination(workspaceDir, "/workdir/audio/song.mp3")
+	if err != nil {
+		t.Fatalf("resolveKoofrDownloadDestination: %v", err)
+	}
+	want := filepath.Join(workspaceDir, "audio", "song.mp3")
+	if got != want {
+		t.Fatalf("resolved = %q, want %q", got, want)
 	}
 }

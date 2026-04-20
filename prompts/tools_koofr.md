@@ -7,4 +7,4 @@ conditions: ["koofr_enabled"]
 ### Cloud Storage (Koofr)
 | Tool | Purpose |
 |---|---|
-| `koofr` | Access Koofr cloud storage: list, read, write, mkdir, delete, rename, copy |
+| `koofr` | Access Koofr cloud storage: list, read text files, download files, write, mkdir, delete, rename, copy |
