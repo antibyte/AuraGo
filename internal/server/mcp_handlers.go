@@ -3,8 +3,10 @@ package server
 import (
 	"aurago/internal/config"
 	"encoding/json"
+	"io"
 	"net/http"
 	"os"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -39,8 +41,37 @@ func handleGetMCPServers(s *Server, w http.ResponseWriter, _ *http.Request) {
 
 // handlePutMCPServers saves a new MCP servers array to config.yaml and hot-reloads.
 func handlePutMCPServers(s *Server, w http.ResponseWriter, r *http.Request) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		jsonError(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+
 	var incoming []config.MCPServer
-	if err := json.NewDecoder(r.Body).Decode(&incoming); err != nil {
+	var enabledOverride *bool
+	trimmed := strings.TrimSpace(string(body))
+	switch {
+	case trimmed == "":
+		jsonError(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	case strings.HasPrefix(trimmed, "["):
+		if err := json.Unmarshal(body, &incoming); err != nil {
+			jsonError(w, "Invalid JSON", http.StatusBadRequest)
+			return
+		}
+	default:
+		var payload struct {
+			Enabled *bool              `json:"enabled"`
+			Servers []config.MCPServer `json:"servers"`
+		}
+		if err := json.Unmarshal(body, &payload); err != nil {
+			jsonError(w, "Invalid JSON", http.StatusBadRequest)
+			return
+		}
+		incoming = payload.Servers
+		enabledOverride = payload.Enabled
+	}
+	if incoming == nil {
 		jsonError(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
@@ -92,6 +123,9 @@ func handlePutMCPServers(s *Server, w http.ResponseWriter, r *http.Request) {
 		serversList[i] = m
 	}
 	mcpSection["servers"] = serversList
+	if enabledOverride != nil {
+		mcpSection["enabled"] = *enabledOverride
+	}
 	rawCfg["mcp"] = mcpSection
 
 	out, err := yaml.Marshal(rawCfg)

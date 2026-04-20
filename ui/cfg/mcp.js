@@ -186,7 +186,10 @@ async function mcpServerSave() {
         const resp = await fetch('/api/mcp-servers', {
             method: 'PUT',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(mcpServersCache)
+            body: JSON.stringify({
+                enabled: !!(configData.mcp && configData.mcp.enabled),
+                servers: mcpServersCache
+            })
         });
         if (!resp.ok) throw new Error(await resp.text());
         const reload = await fetch('/api/mcp-servers');
