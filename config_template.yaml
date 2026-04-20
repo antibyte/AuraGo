@@ -74,15 +74,15 @@ agent:
     # ── Tool guide injection ──
     max_tool_guides: 5                                              # max tool guide documents injected into prompt (default: 5)
     budget:
-    daily_limit_usd: 5
-    default_cost:
-        input_per_million: 0.4
-        output_per_million: 0.7
-    enabled: false
-    enforcement: warn
-    models: []
-    reset_hour: 0
-    warning_threshold: 0.8
+        daily_limit_usd: 5
+        default_cost:
+            input_per_million: 0.4
+            output_per_million: 0.7
+        enabled: false
+        enforcement: warn
+        models: []
+        reset_hour: 0
+        warning_threshold: 0.8
 chromecast:
     enabled: false
     tts_port: 8090

@@ -75,10 +75,11 @@ func main() {
 		// ── Happy path: user config is valid YAML ──
 		missing := findMissingTopKeys(tmplMap, srcMap)
 		merged := deepMerge(tmplMap, srcMap)
+		safetyAdjusted := applyUpgradeSafetyDefaults(merged, srcMap)
 		typeFixed := enforceTemplateTypes(merged, tmplMap)
 		sanitized := sanitizeMergedConfig(merged)
 
-		if len(missing) == 0 && !sanitized && !typeFixed {
+		if len(missing) == 0 && !sanitized && !typeFixed && !safetyAdjusted {
 			fmt.Println("Config is up to date")
 			if *outputPath != *sourcePath {
 				atomicWriteYAML(*outputPath, merged)
@@ -113,6 +114,7 @@ func main() {
 	var merged map[string]interface{}
 	if len(salvaged) > 0 {
 		merged = deepMerge(tmplMap, salvaged)
+		applyUpgradeSafetyDefaults(merged, salvaged)
 		enforceTemplateTypes(merged, tmplMap)
 		sanitizeMergedConfig(merged)
 		total := countTopLevelKeys(srcData)
@@ -183,6 +185,25 @@ func deepMerge(base, overlay map[string]interface{}) map[string]interface{} {
 	}
 
 	return result
+}
+
+// applyUpgradeSafetyDefaults prevents dangerous template defaults from silently
+// activating features on existing installations when the user config lacks an
+// explicit value.
+func applyUpgradeSafetyDefaults(merged, user map[string]interface{}) bool {
+	changed := false
+
+	if authMap, ok := asStringMap(merged["auth"]); ok {
+		userAuth, userHasAuth := asStringMap(user["auth"])
+		_, userSetEnabled := userAuth["enabled"]
+		if (!userHasAuth || !userSetEnabled) && authMap["enabled"] == true {
+			authMap["enabled"] = false
+			merged["auth"] = authMap
+			changed = true
+		}
+	}
+
+	return changed
 }
 
 // asStringMap converts a value to map[string]interface{} if possible.

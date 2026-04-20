@@ -296,6 +296,77 @@ agent:
 	}
 }
 
+func TestApplyUpgradeSafetyDefaults_DisablesAuthWhenMissingFromUserConfig(t *testing.T) {
+	merged := map[string]interface{}{
+		"auth": map[string]interface{}{
+			"enabled": true,
+		},
+	}
+	user := map[string]interface{}{
+		"llm": map[string]interface{}{"provider": "main"},
+	}
+
+	changed := applyUpgradeSafetyDefaults(merged, user)
+
+	if !changed {
+		t.Fatal("expected safety adjustment to be applied")
+	}
+	auth, _ := asStringMap(merged["auth"])
+	if auth["enabled"] != false {
+		t.Fatalf("auth.enabled = %v, want false", auth["enabled"])
+	}
+}
+
+func TestApplyUpgradeSafetyDefaults_PreservesExplicitAuthEnabled(t *testing.T) {
+	merged := map[string]interface{}{
+		"auth": map[string]interface{}{
+			"enabled": true,
+		},
+	}
+	user := map[string]interface{}{
+		"auth": map[string]interface{}{
+			"enabled": true,
+		},
+	}
+
+	changed := applyUpgradeSafetyDefaults(merged, user)
+
+	if changed {
+		t.Fatal("expected no safety adjustment for explicit auth.enabled")
+	}
+	auth, _ := asStringMap(merged["auth"])
+	if auth["enabled"] != true {
+		t.Fatalf("auth.enabled = %v, want true", auth["enabled"])
+	}
+}
+
+func TestConfigTemplateBudgetBlockIsNestedUnderAgent(t *testing.T) {
+	templatePath := filepath.Join("..", "..", "config_template.yaml")
+	content, err := readNormalized(templatePath)
+	if err != nil {
+		t.Fatalf("read template: %v", err)
+	}
+	tmplMap, err := parseYAMLMap(content)
+	if err != nil {
+		t.Fatalf("parse template: %v", err)
+	}
+
+	agent, ok := asStringMap(tmplMap["agent"])
+	if !ok {
+		t.Fatal("template agent section missing or invalid")
+	}
+	budget, ok := asStringMap(agent["budget"])
+	if !ok {
+		t.Fatal("template agent.budget section missing or invalid")
+	}
+	if budget["daily_limit_usd"] != 5 {
+		t.Fatalf("agent.budget.daily_limit_usd = %v, want 5", budget["daily_limit_usd"])
+	}
+	if _, hasTopLevel := tmplMap["daily_limit_usd"]; hasTopLevel {
+		t.Fatal("template leaked daily_limit_usd to top level")
+	}
+}
+
 func TestEndToEnd_RepairCorrupted(t *testing.T) {
 	dir := t.TempDir()
 	templatePath := filepath.Join(dir, "template.yaml")
