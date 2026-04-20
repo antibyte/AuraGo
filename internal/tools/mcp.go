@@ -25,11 +25,18 @@ import (
 
 // MCPServerConfig describes one MCP server from the config.
 type MCPServerConfig struct {
-	Name    string            `yaml:"name"    json:"name"`
-	Command string            `yaml:"command" json:"command"`
-	Args    []string          `yaml:"args"    json:"args"`
-	Env     map[string]string `yaml:"env"     json:"env"`
-	Enabled bool              `yaml:"enabled" json:"enabled"`
+	Name               string            `yaml:"name"                     json:"name"`
+	Command            string            `yaml:"command"                  json:"command"`
+	Args               []string          `yaml:"args"                     json:"args"`
+	Env                map[string]string `yaml:"env"                      json:"env"`
+	Enabled            bool              `yaml:"enabled"                  json:"enabled"`
+	Runtime            string            `yaml:"runtime,omitempty"        json:"runtime"`
+	DockerImage        string            `yaml:"docker_image,omitempty"   json:"docker_image"`
+	DockerCommand      string            `yaml:"docker_command,omitempty" json:"docker_command"`
+	AllowLocalFallback bool              `yaml:"allow_local_fallback,omitempty" json:"allow_local_fallback"`
+	HostWorkdir        string            `yaml:"host_workdir,omitempty"   json:"host_workdir"`
+	ContainerWorkdir   string            `yaml:"container_workdir,omitempty" json:"container_workdir"`
+	Secrets            map[string]string `yaml:"-"                        json:"-"`
 }
 
 // MCPToolInfo describes a tool exposed by an MCP server.
@@ -75,6 +82,9 @@ type mcpConn struct {
 	closeCh   chan struct{}
 	closeOnce sync.Once     // ensures close() is idempotent
 	stderrBuf *bytes.Buffer // captures MCP server stderr for diagnostics
+	runtime   string
+	hostDir   string
+	contDir   string
 }
 
 var (
@@ -218,7 +228,7 @@ func resolveMCPCommandPath(command string) string {
 	return command
 }
 
-func newMCPConn(name, command string, args []string, env map[string]string, logger *slog.Logger) (*mcpConn, error) {
+func newMCPConn(name, command string, args []string, env map[string]string, logger *slog.Logger, runtimeName, hostWorkdir, containerWorkdir string) (*mcpConn, error) {
 	command = resolveMCPCommandPath(expandMCPPathValue(strings.TrimSpace(command)))
 	args = normalizeMCPArgs(args)
 	env = normalizeMCPEnv(env)
@@ -262,14 +272,74 @@ func newMCPConn(name, command string, args []string, env map[string]string, logg
 		stdout:    bufio.NewReaderSize(stdoutPipe, 1024*1024), // 1MB buffer for large responses
 		closeCh:   make(chan struct{}),
 		stderrBuf: stderrBuf,
+		runtime:   runtimeName,
+		hostDir:   hostWorkdir,
+		contDir:   containerWorkdir,
 	}
 
 	logger.Info("[MCP] Server process started", "name", name, "command", command, "pid", cmd.Process.Pid)
 	return conn, nil
 }
 
+func newLocalMCPConn(srv MCPServerConfig, logger *slog.Logger) (*mcpConn, error) {
+	args, env, err := resolveMCPLaunchArgsAndEnv(srv, false)
+	if err != nil {
+		return nil, err
+	}
+	return newMCPConn(srv.Name, srv.Command, args, env, logger, "local", srv.HostWorkdir, srv.ContainerWorkdir)
+}
+
+func newDockerMCPConn(srv MCPServerConfig, logger *slog.Logger) (*mcpConn, error) {
+	if strings.TrimSpace(srv.DockerImage) == "" {
+		return nil, fmt.Errorf("docker_image is required for MCP server %q when runtime=docker", srv.Name)
+	}
+	if err := ensureMCPHostWorkdir(srv.HostWorkdir); err != nil {
+		return nil, err
+	}
+	args, env, err := resolveMCPLaunchArgsAndEnv(srv, true)
+	if err != nil {
+		return nil, err
+	}
+	containerWorkdir := strings.TrimSpace(srv.ContainerWorkdir)
+	if containerWorkdir == "" {
+		containerWorkdir = defaultMCPContainerWorkdir
+	}
+	containerCommand := strings.TrimSpace(srv.DockerCommand)
+	if containerCommand == "" {
+		containerCommand = strings.TrimSpace(srv.Command)
+	}
+	if containerCommand == "" {
+		return nil, fmt.Errorf("docker_command or command is required for MCP server %q", srv.Name)
+	}
+
+	dockerArgs := []string{
+		"run", "--rm", "-i",
+		"-v", fmt.Sprintf("%s:%s", srv.HostWorkdir, containerWorkdir),
+		"-w", containerWorkdir,
+	}
+	for key, value := range env {
+		dockerArgs = append(dockerArgs, "-e", key+"="+value)
+	}
+	dockerArgs = append(dockerArgs, strings.TrimSpace(srv.DockerImage), containerCommand)
+	dockerArgs = append(dockerArgs, args...)
+
+	return newMCPConn(srv.Name, "docker", dockerArgs, nil, logger, "docker", srv.HostWorkdir, containerWorkdir)
+}
+
 func startMCPServerConnection(srv MCPServerConfig, logger *slog.Logger) (*mcpConn, error) {
-	conn, err := newMCPConn(srv.Name, srv.Command, srv.Args, srv.Env, logger)
+	var (
+		conn *mcpConn
+		err  error
+	)
+	if mcpRuntimeMode(srv.Runtime) == "docker" {
+		conn, err = newDockerMCPConn(srv, logger)
+		if err != nil && srv.AllowLocalFallback {
+			logger.Warn("[MCP] Docker runtime failed, falling back to local execution", "server", srv.Name, "error", err)
+			conn, err = newLocalMCPConn(srv, logger)
+		}
+	} else {
+		conn, err = newLocalMCPConn(srv, logger)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -472,9 +542,9 @@ func (c *mcpConn) callTool(toolName string, arguments map[string]interface{}) (s
 		}
 	}
 	if len(texts) == 0 {
-		return string(resp.Result), nil
+		return normalizeMCPResultText(string(resp.Result), c.hostDir, c.contDir), nil
 	}
-	return strings.Join(texts, "\n"), nil
+	return normalizeMCPResultText(strings.Join(texts, "\n"), c.hostDir, c.contDir), nil
 }
 
 func (c *mcpConn) close() {

@@ -482,16 +482,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 
 		// MCP: start external MCP server connections (only when both gates are open)
 		if s.Cfg.Agent.AllowMCP && s.Cfg.MCP.Enabled && len(s.Cfg.MCP.Servers) > 0 {
-			mcpConfigs := make([]tools.MCPServerConfig, len(s.Cfg.MCP.Servers))
-			for i, srv := range s.Cfg.MCP.Servers {
-				mcpConfigs[i] = tools.MCPServerConfig{
-					Name:    srv.Name,
-					Command: srv.Command,
-					Args:    srv.Args,
-					Env:     srv.Env,
-					Enabled: srv.Enabled,
-				}
-			}
+			mcpConfigs := buildRuntimeMCPConfigs(s.Cfg, s.Vault, s.Logger)
 			tools.InitMCPManager(mcpConfigs, s.Logger)
 		}
 

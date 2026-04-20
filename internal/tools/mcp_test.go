@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
@@ -70,6 +71,56 @@ func TestResolveMCPCommandPathFallsBackToUserLocalBin(t *testing.T) {
 	got := resolveMCPCommandPath(commandName)
 	if got != commandPath {
 		t.Fatalf("resolveMCPCommandPath() = %q, want %q", got, commandPath)
+	}
+}
+
+func TestResolveMCPLaunchArgsAndEnvInterpolatesSecretsAndWorkdirs(t *testing.T) {
+	server := MCPServerConfig{
+		Name:             "minimax",
+		Command:          "uvx",
+		Args:             []string{"--base", "{{workdir.output}}"},
+		Env:              map[string]string{"API_KEY": "{{api-token}}", "BASE": "{{workdir}}"},
+		HostWorkdir:      filepath.Join(t.TempDir(), "minimax"),
+		ContainerWorkdir: "/workspace",
+		Secrets:          map[string]string{"api-token": "secret-value"},
+	}
+
+	args, env, err := resolveMCPLaunchArgsAndEnv(server, false)
+	if err != nil {
+		t.Fatalf("resolveMCPLaunchArgsAndEnv(local) error = %v", err)
+	}
+	if got, want := args[1], filepath.Join(server.HostWorkdir, "output"); got != want {
+		t.Fatalf("local arg = %q, want %q", got, want)
+	}
+	if got := env["API_KEY"]; got != "secret-value" {
+		t.Fatalf("local API_KEY = %q, want secret-value", got)
+	}
+	if got := env["BASE"]; got != server.HostWorkdir {
+		t.Fatalf("local BASE = %q, want %q", got, server.HostWorkdir)
+	}
+
+	args, env, err = resolveMCPLaunchArgsAndEnv(server, true)
+	if err != nil {
+		t.Fatalf("resolveMCPLaunchArgsAndEnv(docker) error = %v", err)
+	}
+	if got, want := args[1], "/workspace/output"; filepath.ToSlash(got) != want {
+		t.Fatalf("docker arg = %q, want %q", got, want)
+	}
+	if got := env["BASE"]; filepath.ToSlash(got) != "/workspace" {
+		t.Fatalf("docker BASE = %q, want /workspace", got)
+	}
+}
+
+func TestNormalizeMCPResultTextMapsContainerPathsToHostPaths(t *testing.T) {
+	hostDir := filepath.Join(t.TempDir(), "minimax")
+	got := normalizeMCPResultText(`{"output_path":"/workspace/output/test.mp3"}`, hostDir, "/workspace")
+	want := filepath.Join(hostDir, "output", "test.mp3")
+	var decoded map[string]string
+	if err := json.Unmarshal([]byte(got), &decoded); err != nil {
+		t.Fatalf("Unmarshal() error = %v; got=%q", err, got)
+	}
+	if decoded["output_path"] != want {
+		t.Fatalf("output_path = %q, want %q", decoded["output_path"], want)
 	}
 }
 

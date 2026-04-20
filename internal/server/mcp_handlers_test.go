@@ -271,3 +271,89 @@ func TestHandlePutMCPPreferencesPersistsCapabilitySelections(t *testing.T) {
 		t.Fatalf("unexpected vision preference: %+v", cfg.MCP.PreferredCapabilities.Vision)
 	}
 }
+
+func TestHandlePutMCPSecretsPersistsMetadataAndVaultValue(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	initial := "agent:\n  allow_mcp: true\nmcp:\n  enabled: true\n  secrets: []\n  servers: []\n"
+	if err := os.WriteFile(configPath, []byte(initial), 0o644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	vaultPath := filepath.Join(tmpDir, "vault.bin")
+	vault, err := security.NewVault(strings.Repeat("e", 64), vaultPath)
+	if err != nil {
+		t.Fatalf("new vault: %v", err)
+	}
+	s := &Server{
+		Cfg:    &config.Config{ConfigPath: configPath},
+		Logger: logger,
+		Vault:  vault,
+	}
+
+	req := httptest.NewRequest(http.MethodPut, "/api/mcp-secrets", strings.NewReader(`{
+		"secrets": [{
+			"alias": "api-token",
+			"label": "MiniMax API",
+			"description": "main key",
+			"value": "secret-value"
+		}]
+	}`))
+	rec := httptest.NewRecorder()
+
+	handlePutMCPSecrets(s, rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+
+	cfg, err := config.Load(configPath)
+	if err != nil {
+		t.Fatalf("reload config: %v", err)
+	}
+	if len(cfg.MCP.Secrets) != 1 || cfg.MCP.Secrets[0].Alias != "api-token" {
+		t.Fatalf("unexpected MCP secrets config: %+v", cfg.MCP.Secrets)
+	}
+	if got, err := vault.ReadSecret("mcp_secret_api-token"); err != nil || got != "secret-value" {
+		t.Fatalf("vault secret = %q, err=%v", got, err)
+	}
+}
+
+func TestBuildRuntimeMCPConfigsResolvesSafeWorkdirAndSecrets(t *testing.T) {
+	workspaceDir := t.TempDir()
+	cfg := &config.Config{}
+	cfg.Directories.WorkspaceDir = workspaceDir
+	cfg.MCP.Secrets = []config.MCPSecret{{Alias: "api-token", Label: "MiniMax"}}
+	cfg.MCP.Servers = []config.MCPServer{{
+		Name:             "minimax",
+		Command:          "uvx",
+		Enabled:          true,
+		Runtime:          "docker",
+		HostWorkdir:      "../unsafe",
+		ContainerWorkdir: "/workspace",
+		Env:              map[string]string{"API_KEY": "{{api-token}}"},
+	}}
+
+	vaultPath := filepath.Join(t.TempDir(), "vault.bin")
+	vault, err := security.NewVault(strings.Repeat("f", 64), vaultPath)
+	if err != nil {
+		t.Fatalf("new vault: %v", err)
+	}
+	if err := vault.WriteSecret("mcp_secret_api-token", "secret-value"); err != nil {
+		t.Fatalf("WriteSecret() error = %v", err)
+	}
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	configs := buildRuntimeMCPConfigs(cfg, vault, logger)
+	if len(configs) != 1 {
+		t.Fatalf("len(configs) = %d, want 1", len(configs))
+	}
+	if got := configs[0].Secrets["api-token"]; got != "secret-value" {
+		t.Fatalf("resolved secret = %q, want secret-value", got)
+	}
+	expectedRoot := filepath.Join(workspaceDir, "mcp", "minimax")
+	if configs[0].HostWorkdir != expectedRoot {
+		t.Fatalf("HostWorkdir = %q, want %q", configs[0].HostWorkdir, expectedRoot)
+	}
+}

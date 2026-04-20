@@ -827,7 +827,23 @@ vercel:
     team_slug: ""
 mcp:
     enabled: false
+    secrets: []
     servers: []
+    # example:
+    # - name: minimax
+    #   enabled: true
+    #   runtime: docker
+    #   command: uvx
+    #   args:
+    #     - minimax-coding-plan-mcp
+    #   env:
+    #     MINIMAX_API_KEY: "{{api-token}}"
+    #     MINIMAX_MCP_BASE_PATH: "{{workdir}}"
+    #   docker_image: ghcr.io/astral-sh/uv:latest
+    #   docker_command: uvx
+    #   allow_local_fallback: true
+    #   host_workdir: agent_workspace/mcp/minimax
+    #   container_workdir: /workspace
     preferred_capabilities:
         web_search:
             server: ""

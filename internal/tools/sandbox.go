@@ -167,7 +167,7 @@ func InitSandboxManager(cfg SandboxConfig, workspaceDir string, logger *slog.Log
 	mgr.env = env
 	args := []string{"-m", "llm_sandbox.mcp_server.server"}
 	mgr.connFactory = func() (sandboxConn, error) {
-		return newMCPConn("llm-sandbox", mgr.pythonBin, args, mgr.env, logger)
+		return newMCPConn("llm-sandbox", mgr.pythonBin, args, mgr.env, logger, "local", "", "")
 	}
 
 	// 5. Validate the MCP server and optionally keep it warm.

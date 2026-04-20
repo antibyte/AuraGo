@@ -1101,6 +1101,7 @@ type Config struct {
 	MCP struct {
 		Enabled               bool                     `yaml:"enabled"`
 		Servers               []MCPServer              `yaml:"servers"`
+		Secrets               []MCPSecret              `yaml:"secrets"`
 		PreferredCapabilities MCPPreferredCapabilities `yaml:"preferred_capabilities"`
 	} `yaml:"mcp"`
 	Tools struct {
@@ -1532,11 +1533,24 @@ type A2ARemoteAgent struct {
 
 // MCPServer describes one external MCP server in the config.
 type MCPServer struct {
-	Name    string            `yaml:"name"    json:"name"`
-	Command string            `yaml:"command" json:"command"`
-	Args    []string          `yaml:"args"    json:"args"`
-	Env     map[string]string `yaml:"env"     json:"env"`
-	Enabled bool              `yaml:"enabled" json:"enabled"`
+	Name               string            `yaml:"name"                    json:"name"`
+	Command            string            `yaml:"command"                 json:"command"`
+	Args               []string          `yaml:"args"                    json:"args"`
+	Env                map[string]string `yaml:"env"                     json:"env"`
+	Enabled            bool              `yaml:"enabled"                 json:"enabled"`
+	Runtime            string            `yaml:"runtime,omitempty"       json:"runtime"`
+	DockerImage        string            `yaml:"docker_image,omitempty"  json:"docker_image"`
+	DockerCommand      string            `yaml:"docker_command,omitempty" json:"docker_command"`
+	AllowLocalFallback bool              `yaml:"allow_local_fallback,omitempty" json:"allow_local_fallback"`
+	HostWorkdir        string            `yaml:"host_workdir,omitempty"  json:"host_workdir"`
+	ContainerWorkdir   string            `yaml:"container_workdir,omitempty" json:"container_workdir"`
+}
+
+// MCPSecret stores a vault-backed MCP secret alias visible in the config UI.
+type MCPSecret struct {
+	Alias       string `yaml:"alias"                 json:"alias"`
+	Label       string `yaml:"label,omitempty"       json:"label"`
+	Description string `yaml:"description,omitempty" json:"description"`
 }
 
 // MCPPreferredToolSelection binds an AuraGo capability to a specific external MCP tool.
