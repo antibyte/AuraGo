@@ -38,8 +38,8 @@
     --page-orb-opacity: 1;
     --chat-image-opacity: 0.04;
     --bg-logo-filter: grayscale(1) contrast(1.18) brightness(0.7);
-    --matrix-font-ui: 'Oxanium', 'Inter', system-ui, sans-serif;
-    --matrix-font-copy: 'Datatype', 'Inter', system-ui, sans-serif;
+    --matrix-font-ui: 'Exo 2', 'Inter', system-ui, sans-serif;
+    --matrix-font-copy: 'Exo 2', 'Inter', system-ui, sans-serif;
     --matrix-emboss:
         0 1px 0 rgba(255, 255, 255, 0.16),
         0 -1px 0 rgba(0, 0, 0, 0.8),
