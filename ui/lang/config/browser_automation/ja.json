@@ -1,0 +1,19 @@
+{
+  "help.browser_automation.enabled": "ブラウザー自動操作の統合を有効にします。エージェントは分離されたPlaywrightサイドカーコンテナーを使用して、ウェブサイトのナビゲート、フォーム入力、要素のクリック、スクリーンショットの取得、データの抽出を行えます。",
+  "help.browser_automation.readonly": "読み取り専用モードでは、エージェントはナビゲートとページ内容の読み取りのみ可能です。フォーム入力、クリック、ファイル操作はブロックされます。",
+  "help.browser_automation.headless": "可視ウィンドウなしでブラウザーを実行します（推奨）。デバッグ目的でのみ無効にしてください — サイドカーにはデフォルトでディスプレイ出力がありません。",
+  "help.browser_automation.allow_file_uploads": "エージェントがファイル入力フィールドを介してローカルファイルをウェブページにアップロードすることを許可します。",
+  "help.browser_automation.allow_file_downloads": "エージェントがウェブページからファイルをダウンロードすることを許可します。ダウンロードされたファイルは設定されたダウンロードディレクトリに保存されます。",
+  "help.browser_automation.mode": "ブラウザー自動操作サービスの動作モード。現在は'sidecar'モードのみサポートされており、Playwrightを分離されたDockerコンテナーで実行します。",
+  "help.browser_automation.url": "Playwrightサイドカーサービスの内部URL。Dockerコンテナー名またはサービス名をホスト名として使用してください（例: http://browser-automation:7331）。",
+  "help.browser_automation.container_name": "ブラウザー自動操作サイドカーのDockerコンテナー名。Dockerホスト上で一意である必要があります。",
+  "help.browser_automation.image": "ブラウザー自動操作サイドカーのDockerイメージ。設定されたディレクトリのDockerfileから自動的にビルドされます。",
+  "help.browser_automation.dockerfile_dir": "ブラウザー自動操作イメージをビルドするためのDockerfileを含むディレクトリ。デフォルトはAuraGoのインストールディレクトリです。",
+  "help.browser_automation.allowed_download_dir": "ダウンロードしたファイルが保存されるディレクトリ。相対パスはAuraGoデータディレクトリから解決されます。",
+  "help.browser_automation.screenshots_dir": "ブラウザースクリーンショットが保存されるディレクトリ。相対パスはAuraGoデータディレクトリから解決されます。",
+  "help.browser_automation.session_ttl_minutes": "非アクティブなブラウザーセッションが自動的に閉じられるまでの時間（分）。デフォルト: 30分。",
+  "help.browser_automation.max_sessions": "同時ブラウザーセッションの最大数。各セッションはサイドカーコンテナーのメモリを使用します。デフォルト: 3。",
+  "help.browser_automation.viewport.width": "ブラウザービューポートの幅（ピクセル）。ページのレンダリング方法に影響します。デフォルト: 1280。",
+  "help.browser_automation.viewport.height": "ブラウザービューポートの高さ（ピクセル）。ページのレンダリング方法に影響します。デフォルト: 720。",
+  "help.browser_automation.auto_build": "サイドカー起動時にDockerイメージが存在しない場合、自動的にビルドします。手動でイメージを管理する場合は無効にしてください。"
+}

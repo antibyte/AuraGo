@@ -1,0 +1,19 @@
+{
+  "help.browser_automation.enabled": "Aktiverar webbläsarautomationsintegrationen. Agenten kan navigera webbplatser, fylla i formulär, klicka på element, ta skärmdumpar och extrahera data via en isolerad Playwright-sidecar-container.",
+  "help.browser_automation.readonly": "I skrivskyddat läge kan agenten bara navigera och läsa sidinnehåll. Formulärifyllning, klick och filoperationer är blockerade.",
+  "help.browser_automation.headless": "Kör webbläsaren utan synligt fönster (rekommenderas). Inaktivera endast för felsökning — sidecaren har ingen skärm som standard.",
+  "help.browser_automation.allow_file_uploads": "Tillåter agenten att ladda upp lokala filer till webbsidor via filinmatningsfält.",
+  "help.browser_automation.allow_file_downloads": "Tillåter agenten att ladda ner filer från webbsidor. Nedladdade filer sparas i den konfigurerade nedladdningskatalogen.",
+  "help.browser_automation.mode": "Driftläge för webbläsarautomationstjänsten. För närvarande stöds endast 'sidecar'-läge, som kör Playwright i en isolerad Docker-container.",
+  "help.browser_automation.url": "Intern URL för Playwright-sidecar-tjänsten. Använd Docker-containernamnet eller tjänstenamnet som värdnamn (t.ex. http://browser-automation:7331).",
+  "help.browser_automation.container_name": "Docker-containernamn för webbläsarautomations-sidecaren. Måste vara unikt på din Docker-värd.",
+  "help.browser_automation.image": "Docker-image för webbläsarautomations-sidecaren. Byggs automatiskt från Dockerfilen i den konfigurerade katalogen.",
+  "help.browser_automation.dockerfile_dir": "Katalog som innehåller Dockerfilen för att bygga webbläsarautomations-imagen. Standard är AuraGo-installationskatalogen.",
+  "help.browser_automation.allowed_download_dir": "Katalog där nedladdade filer sparas. Relativa sökvägar löses från AuraGo-datakatalogen.",
+  "help.browser_automation.screenshots_dir": "Katalog där webbläsarskärmdumpar sparas. Relativa sökvägar löses från AuraGo-datakatalogen.",
+  "help.browser_automation.session_ttl_minutes": "Tid i minuter innan en inaktiv webbläsarsession stängs automatiskt. Standard: 30 minuter.",
+  "help.browser_automation.max_sessions": "Maximalt antal samtidiga webbläsarsessioner. Varje session använder minne i sidecar-containern. Standard: 3.",
+  "help.browser_automation.viewport.width": "Bredd på webbläsarens viewport i pixlar. Påverkar hur sidor renderas. Standard: 1280.",
+  "help.browser_automation.viewport.height": "Höjd på webbläsarens viewport i pixlar. Påverkar hur sidor renderas. Standard: 720.",
+  "help.browser_automation.auto_build": "Bygger automatiskt Docker-imagen om den inte finns när sidecaren startas. Inaktivera för att hantera imagen manuellt."
+}

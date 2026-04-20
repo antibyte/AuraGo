@@ -25,8 +25,11 @@ async function renderBrowserAutomationSection(section) {
     html += '<div class="section-header">' + section.icon + ' ' + section.label + '</div>';
     html += '<div class="section-desc">' + section.desc + '</div>';
 
+    // ── Integration enabled toggle ──
+    const helpEnabled = t('help.browser_automation.enabled');
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.browser_automation.integration_enabled') + '</div>';
+    if (helpEnabled) html += '<div class="field-help">' + helpEnabled + '</div>';
     html += '<div class="toggle ' + (integrationEnabled ? 'on' : '') + '" onclick="baToggleIntegration(this.classList.contains(\'on\'))"></div>';
     html += '</div>';
     html += '<div class="toggle ' + (integrationEnabled ? 'on' : '') + '" data-path="tools.browser_automation.enabled" style="display:none" aria-hidden="true"></div>';
@@ -43,64 +46,64 @@ async function renderBrowserAutomationSection(section) {
     }
 
     html += '<div class="cfg-note-banner cfg-note-banner-info">🧭 ' + t('config.browser_automation.sidecar_note') + '</div>';
-    html += baToggleRow('config.browser_automation.readonly_label', data.readonly === true, 'browser_automation.readonly');
-    html += baToggleRow('config.browser_automation.headless_label', data.headless !== false, 'browser_automation.headless');
-    html += baToggleRow('config.browser_automation.allow_uploads_label', data.allow_file_uploads !== false, 'browser_automation.allow_file_uploads');
-    html += baToggleRow('config.browser_automation.allow_downloads_label', data.allow_file_downloads !== false, 'browser_automation.allow_file_downloads');
+    html += baToggleRow('config.browser_automation.readonly_label', 'help.browser_automation.readonly', data.readonly === true, 'browser_automation.readonly');
+    html += baToggleRow('config.browser_automation.headless_label', 'help.browser_automation.headless', data.headless !== false, 'browser_automation.headless');
+    html += baToggleRow('config.browser_automation.allow_uploads_label', 'help.browser_automation.allow_file_uploads', data.allow_file_uploads !== false, 'browser_automation.allow_file_uploads');
+    html += baToggleRow('config.browser_automation.allow_downloads_label', 'help.browser_automation.allow_file_downloads', data.allow_file_downloads !== false, 'browser_automation.allow_file_downloads');
 
     html += '<details class="cfg-advanced-panel ba-advanced-panel">';
     html += '<summary class="cfg-advanced-summary">⚙️ ' + t('config.browser_automation.advanced_label') + '</summary>';
     html += '<div class="cfg-advanced-body">';
     html += '<div class="cfg-advanced-help">' + t('config.browser_automation.advanced_desc') + '</div>';
 
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.browser_automation.mode_label') + '</div>';
-    html += '<select class="field-input" data-path="browser_automation.mode">';
-    html += '<option value="sidecar"' + ((data.mode || 'sidecar') === 'sidecar' ? ' selected' : '') + '>sidecar</option>';
-    html += '</select>';
-    html += '</div>';
+    html += baFieldWithHelp('config.browser_automation.mode_label', 'help.browser_automation.mode',
+        '<select class="field-input" data-path="browser_automation.mode">' +
+        '<option value="sidecar"' + ((data.mode || 'sidecar') === 'sidecar' ? ' selected' : '') + '>sidecar</option>' +
+        '</select>');
 
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.browser_automation.url_label') + '</div>';
-    html += '<input class="field-input" type="text" value="' + escapeAttr(data.url || 'http://browser-automation:7331') + '" data-path="browser_automation.url">';
-    html += '</div>';
+    html += baFieldWithHelp('config.browser_automation.url_label', 'help.browser_automation.url',
+        '<input class="field-input" type="text" value="' + escapeAttr(data.url || 'http://browser-automation:7331') + '" data-path="browser_automation.url">');
 
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.browser_automation.container_name_label') + '</div>';
-    html += '<input class="field-input" type="text" value="' + escapeAttr(data.container_name || 'aurago_browser_automation') + '" data-path="browser_automation.container_name">';
-    html += '</div>';
+    html += baFieldWithHelp('config.browser_automation.container_name_label', 'help.browser_automation.container_name',
+        '<input class="field-input" type="text" value="' + escapeAttr(data.container_name || 'aurago_browser_automation') + '" data-path="browser_automation.container_name">');
 
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.browser_automation.image_label') + '</div>';
-    html += '<input class="field-input" type="text" value="' + escapeAttr(data.image || 'aurago-browser-automation:latest') + '" data-path="browser_automation.image">';
-    html += '</div>';
+    html += baFieldWithHelp('config.browser_automation.image_label', 'help.browser_automation.image',
+        '<input class="field-input" type="text" value="' + escapeAttr(data.image || 'aurago-browser-automation:latest') + '" data-path="browser_automation.image">');
 
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.browser_automation.dockerfile_dir_label') + '</div>';
-    html += '<input class="field-input" type="text" value="' + escapeAttr(data.dockerfile_dir || '.') + '" data-path="browser_automation.dockerfile_dir">';
-    html += '</div>';
+    html += baFieldWithHelp('config.browser_automation.dockerfile_dir_label', 'help.browser_automation.dockerfile_dir',
+        '<input class="field-input" type="text" value="' + escapeAttr(data.dockerfile_dir || '.') + '" data-path="browser_automation.dockerfile_dir">');
 
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.browser_automation.allowed_download_dir_label') + '</div>';
-    html += '<input class="field-input" type="text" value="' + escapeAttr(data.allowed_download_dir || 'browser_downloads') + '" data-path="browser_automation.allowed_download_dir">';
-    html += '</div>';
+    html += baFieldWithHelp('config.browser_automation.allowed_download_dir_label', 'help.browser_automation.allowed_download_dir',
+        '<input class="field-input" type="text" value="' + escapeAttr(data.allowed_download_dir || 'browser_downloads') + '" data-path="browser_automation.allowed_download_dir">');
 
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.browser_automation.screenshots_dir_label') + '</div>';
-    html += '<input class="field-input" type="text" value="' + escapeAttr(data.screenshots_dir || 'browser_screenshots') + '" data-path="browser_automation.screenshots_dir">';
-    html += '</div>';
+    html += baFieldWithHelp('config.browser_automation.screenshots_dir_label', 'help.browser_automation.screenshots_dir',
+        '<input class="field-input" type="text" value="' + escapeAttr(data.screenshots_dir || 'browser_screenshots') + '" data-path="browser_automation.screenshots_dir">');
 
+    // Session TTL + Max Sessions (grid)
+    const helpTTL = t('help.browser_automation.session_ttl_minutes');
+    const helpMaxSessions = t('help.browser_automation.max_sessions');
     html += '<div class="field-grid two-cols">';
-    html += '<div class="field-group"><div class="field-label">' + t('config.browser_automation.session_ttl_label') + '</div><input class="field-input" type="number" min="1" max="720" value="' + (data.session_ttl_minutes || 30) + '" data-path="browser_automation.session_ttl_minutes"></div>';
-    html += '<div class="field-group"><div class="field-label">' + t('config.browser_automation.max_sessions_label') + '</div><input class="field-input" type="number" min="1" max="20" value="' + (data.max_sessions || 3) + '" data-path="browser_automation.max_sessions"></div>';
+    html += '<div class="field-group"><div class="field-label">' + t('config.browser_automation.session_ttl_label') + '</div>';
+    if (helpTTL) html += '<div class="field-help">' + helpTTL + '</div>';
+    html += '<input class="field-input" type="number" min="1" max="720" value="' + (data.session_ttl_minutes || 30) + '" data-path="browser_automation.session_ttl_minutes"></div>';
+    html += '<div class="field-group"><div class="field-label">' + t('config.browser_automation.max_sessions_label') + '</div>';
+    if (helpMaxSessions) html += '<div class="field-help">' + helpMaxSessions + '</div>';
+    html += '<input class="field-input" type="number" min="1" max="20" value="' + (data.max_sessions || 3) + '" data-path="browser_automation.max_sessions"></div>';
     html += '</div>';
 
+    // Viewport (grid)
+    const helpVPW = t('help.browser_automation.viewport.width');
+    const helpVPH = t('help.browser_automation.viewport.height');
     html += '<div class="field-grid two-cols">';
-    html += '<div class="field-group"><div class="field-label">' + t('config.browser_automation.viewport_width_label') + '</div><input class="field-input" type="number" min="320" max="3840" value="' + (viewport.width || 1280) + '" data-path="browser_automation.viewport.width"></div>';
-    html += '<div class="field-group"><div class="field-label">' + t('config.browser_automation.viewport_height_label') + '</div><input class="field-input" type="number" min="240" max="2160" value="' + (viewport.height || 720) + '" data-path="browser_automation.viewport.height"></div>';
+    html += '<div class="field-group"><div class="field-label">' + t('config.browser_automation.viewport_width_label') + '</div>';
+    if (helpVPW) html += '<div class="field-help">' + helpVPW + '</div>';
+    html += '<input class="field-input" type="number" min="320" max="3840" value="' + (viewport.width || 1280) + '" data-path="browser_automation.viewport.width"></div>';
+    html += '<div class="field-group"><div class="field-label">' + t('config.browser_automation.viewport_height_label') + '</div>';
+    if (helpVPH) html += '<div class="field-help">' + helpVPH + '</div>';
+    html += '<input class="field-input" type="number" min="240" max="2160" value="' + (viewport.height || 720) + '" data-path="browser_automation.viewport.height"></div>';
     html += '</div>';
 
-    html += baToggleRow('config.browser_automation.auto_build_label', data.auto_build !== false, 'browser_automation.auto_build');
+    html += baToggleRow('config.browser_automation.auto_build_label', 'help.browser_automation.auto_build', data.auto_build !== false, 'browser_automation.auto_build');
     html += '</div>';
     html += '</details>';
 
@@ -114,8 +117,24 @@ async function renderBrowserAutomationSection(section) {
     attachChangeListeners();
 }
 
-function baToggleRow(labelKey, enabled, path) {
-    return '<div class="field-group"><div class="field-label">' + t(labelKey) + '</div><div class="toggle ' + (enabled ? 'on' : '') + '" data-path="' + path + '" onclick="toggleBool(this)"></div></div>';
+function baToggleRow(labelKey, helpKey, enabled, path) {
+    const helpText = t(helpKey);
+    let html = '<div class="field-group">';
+    html += '<div class="field-label">' + t(labelKey) + '</div>';
+    if (helpText) html += '<div class="field-help">' + helpText + '</div>';
+    html += '<div class="toggle ' + (enabled ? 'on' : '') + '" data-path="' + path + '" onclick="toggleBool(this)"></div>';
+    html += '</div>';
+    return html;
+}
+
+function baFieldWithHelp(labelKey, helpKey, inputHtml) {
+    const helpText = t(helpKey);
+    let html = '<div class="field-group">';
+    html += '<div class="field-label">' + t(labelKey) + '</div>';
+    if (helpText) html += '<div class="field-help">' + helpText + '</div>';
+    html += inputHtml;
+    html += '</div>';
+    return html;
 }
 
 function baToggleIntegration(isOn) {

@@ -1,0 +1,19 @@
+{
+  "help.browser_automation.enabled": "Enables the Browser Automation integration. The agent can navigate websites, fill forms, click elements, take screenshots, and extract data using an isolated Playwright sidecar container.",
+  "help.browser_automation.readonly": "In read-only mode, the agent can only navigate and read page content. Form filling, clicking buttons, and file operations are blocked.",
+  "help.browser_automation.headless": "Runs the browser without a visible window (recommended). Disable only for debugging purposes — the sidecar has no display output by default.",
+  "help.browser_automation.allow_file_uploads": "Allows the agent to upload local files to web pages via file input fields.",
+  "help.browser_automation.allow_file_downloads": "Allows the agent to download files from web pages. Downloaded files are stored in the configured download directory.",
+  "help.browser_automation.mode": "Operating mode for the browser automation service. Currently only 'sidecar' mode is supported, which runs Playwright in an isolated Docker container.",
+  "help.browser_automation.url": "Internal URL of the Playwright sidecar service. Use the Docker container name or service name as hostname (e.g. http://browser-automation:7331).",
+  "help.browser_automation.container_name": "Docker container name for the browser automation sidecar. Must be unique on your Docker host.",
+  "help.browser_automation.image": "Docker image for the browser automation sidecar. Built automatically from the Dockerfile in the configured directory.",
+  "help.browser_automation.dockerfile_dir": "Directory containing the Dockerfile for building the browser automation image. Default is the AuraGo install directory.",
+  "help.browser_automation.allowed_download_dir": "Directory where downloaded files are stored. Relative paths are resolved from the AuraGo data directory.",
+  "help.browser_automation.screenshots_dir": "Directory where browser screenshots are saved. Relative paths are resolved from the AuraGo data directory.",
+  "help.browser_automation.session_ttl_minutes": "Time in minutes before an idle browser session is automatically closed. Default: 30 minutes.",
+  "help.browser_automation.max_sessions": "Maximum number of concurrent browser sessions. Each session uses memory in the sidecar container. Default: 3.",
+  "help.browser_automation.viewport.width": "Browser viewport width in pixels. Affects how pages are rendered. Default: 1280.",
+  "help.browser_automation.viewport.height": "Browser viewport height in pixels. Affects how pages are rendered. Default: 720.",
+  "help.browser_automation.auto_build": "Automatically build the Docker image if it does not exist when the sidecar is started. Disable to manage the image manually."
+}

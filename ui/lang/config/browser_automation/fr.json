@@ -1,0 +1,19 @@
+{
+  "help.browser_automation.enabled": "Active l'intégration d'automatisation du navigateur. L'agent peut naviguer sur des sites web, remplir des formulaires, cliquer sur des éléments, capturer des écrans et extraire des données via un conteneur sidecar Playwright isolé.",
+  "help.browser_automation.readonly": "En mode lecture seule, l'agent peut uniquement naviguer et lire le contenu des pages. Le remplissage de formulaires, les clics et les opérations de fichiers sont bloqués.",
+  "help.browser_automation.headless": "Exécute le navigateur sans fenêtre visible (recommandé). Désactiver uniquement pour le débogage — le sidecar n'a pas de sortie d'affichage par défaut.",
+  "help.browser_automation.allow_file_uploads": "Permet à l'agent de téléverser des fichiers locaux vers des pages web via des champs de saisie de fichiers.",
+  "help.browser_automation.allow_file_downloads": "Permet à l'agent de télécharger des fichiers depuis des pages web. Les fichiers téléchargés sont stockés dans le répertoire de téléchargement configuré.",
+  "help.browser_automation.mode": "Mode de fonctionnement du service d'automatisation du navigateur. Actuellement, seul le mode 'sidecar' est pris en charge, exécutant Playwright dans un conteneur Docker isolé.",
+  "help.browser_automation.url": "URL interne du service sidecar Playwright. Utilisez le nom du conteneur Docker ou du service comme nom d'hôte (ex. http://browser-automation:7331).",
+  "help.browser_automation.container_name": "Nom du conteneur Docker pour le sidecar d'automatisation du navigateur. Doit être unique sur votre hôte Docker.",
+  "help.browser_automation.image": "Image Docker pour le sidecar d'automatisation du navigateur. Construite automatiquement à partir du Dockerfile dans le répertoire configuré.",
+  "help.browser_automation.dockerfile_dir": "Répertoire contenant le Dockerfile pour construire l'image d'automatisation du navigateur. Par défaut, le répertoire d'installation d'AuraGo.",
+  "help.browser_automation.allowed_download_dir": "Répertoire où les fichiers téléchargés sont stockés. Les chemins relatifs sont résolus depuis le répertoire de données d'AuraGo.",
+  "help.browser_automation.screenshots_dir": "Répertoire où les captures d'écran du navigateur sont enregistrées. Les chemins relatifs sont résolus depuis le répertoire de données d'AuraGo.",
+  "help.browser_automation.session_ttl_minutes": "Temps en minutes avant qu'une session de navigateur inactive ne soit automatiquement fermée. Par défaut : 30 minutes.",
+  "help.browser_automation.max_sessions": "Nombre maximum de sessions de navigateur simultanées. Chaque session utilise de la mémoire dans le conteneur sidecar. Par défaut : 3.",
+  "help.browser_automation.viewport.width": "Largeur du viewport du navigateur en pixels. Affecte le rendu des pages. Par défaut : 1280.",
+  "help.browser_automation.viewport.height": "Hauteur du viewport du navigateur en pixels. Affecte le rendu des pages. Par défaut : 720.",
+  "help.browser_automation.auto_build": "Construit automatiquement l'image Docker si elle n'existe pas au démarrage du sidecar. Désactiver pour gérer l'image manuellement."
+}

@@ -1,0 +1,19 @@
+{
+  "help.browser_automation.enabled": "Activeert de browserautomatiseringsintegratie. De agent kan websites navigeren, formulieren invullen, elementen aanklikken, schermafbeeldingen maken en gegevens extraheren via een geïsoleerde Playwright-sidecar-container.",
+  "help.browser_automation.readonly": "In alleen-lezen modus kan de agent alleen navigeren en pagina-inhoud lezen. Formulierinvulling, klikken en bestandsbewerkingen zijn geblokkeerd.",
+  "help.browser_automation.headless": "Start de browser zonder zichtbaar venster (aanbevolen). Alleen uitschakelen voor foutopsporing — de sidecar heeft standaard geen schermuitvoer.",
+  "help.browser_automation.allow_file_uploads": "Staat de agent toe om lokale bestanden naar webpagina's te uploaden via bestandsinvoervelden.",
+  "help.browser_automation.allow_file_downloads": "Staat de agent toe om bestanden van webpagina's te downloaden. Gedownloade bestanden worden opgeslagen in de geconfigureerde downloadmap.",
+  "help.browser_automation.mode": "Bedrijfsmodus van de browserautomatiseringsservice. Momenteel wordt alleen de 'sidecar'-modus ondersteund, waarbij Playwright in een geïsoleerde Docker-container draait.",
+  "help.browser_automation.url": "Interne URL van de Playwright-sidecarservice. Gebruik de Docker-containernaam of servicenaam als hostnaam (bijv. http://browser-automation:7331).",
+  "help.browser_automation.container_name": "Docker-containernaam voor de browserautomatiserings-sidecar. Moet uniek zijn op je Docker-host.",
+  "help.browser_automation.image": "Docker-image voor de browserautomatiserings-sidecar. Wordt automatisch gebouwd vanuit de Dockerfile in de geconfigureerde map.",
+  "help.browser_automation.dockerfile_dir": "Map met de Dockerfile voor het bouwen van de browserautomatiserings-image. Standaard is de AuraGo-installatiemap.",
+  "help.browser_automation.allowed_download_dir": "Map waar gedownloade bestanden worden opgeslagen. Relatieve paden worden opgelost vanuit de AuraGo-datamap.",
+  "help.browser_automation.screenshots_dir": "Map waar browserschermafbeeldingen worden opgeslagen. Relatieve paden worden opgelost vanuit de AuraGo-datamap.",
+  "help.browser_automation.session_ttl_minutes": "Tijd in minuten voordat een inactieve browsersessie automatisch wordt gesloten. Standaard: 30 minuten.",
+  "help.browser_automation.max_sessions": "Maximum aantal gelijktijdige browsersessies. Elke sessie gebruikt geheugen in de sidecar-container. Standaard: 3.",
+  "help.browser_automation.viewport.width": "Breedte van de browser viewport in pixels. Beïnvloedt hoe pagina's worden weergegeven. Standaard: 1280.",
+  "help.browser_automation.viewport.height": "Hoogte van de browser viewport in pixels. Beïnvloedt hoe pagina's worden weergegeven. Standaard: 720.",
+  "help.browser_automation.auto_build": "Bouwt automatisch de Docker-image als deze niet bestaat bij het starten van de sidecar. Uitschakelen om de image handmatig te beheren."
+}

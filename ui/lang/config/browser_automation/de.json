@@ -1,0 +1,19 @@
+{
+  "help.browser_automation.enabled": "Aktiviert die Browser-Automation-Integration. Der Agent kann Websites navigieren, Formulare ausfüllen, Elemente anklicken, Screenshots erstellen und Daten über einen isolierten Playwright-Sidecar-Container extrahieren.",
+  "help.browser_automation.readonly": "Im Nur-Lese-Modus kann der Agent nur navigieren und Seiteninhalte lesen. Formularausfüllung, Klicks und Dateioperationen werden blockiert.",
+  "help.browser_automation.headless": "Startet den Browser ohne sichtbares Fenster (empfohlen). Nur zur Fehlerbehebung deaktivieren — der Sidecar hat standardmäßig keine Display-Ausgabe.",
+  "help.browser_automation.allow_file_uploads": "Erlaubt dem Agenten, lokale Dateien über Datei-Eingabefelder auf Webseiten hochzuladen.",
+  "help.browser_automation.allow_file_downloads": "Erlaubt dem Agenten, Dateien von Webseiten herunterzuladen. Heruntergeladene Dateien werden im konfigurierten Download-Verzeichnis gespeichert.",
+  "help.browser_automation.mode": "Betriebsmodus des Browser-Automation-Dienstes. Derzeit wird nur der Modus 'sidecar' unterstützt, bei dem Playwright in einem isolierten Docker-Container läuft.",
+  "help.browser_automation.url": "Interne URL des Playwright-Sidecar-Dienstes. Verwende den Docker-Containernamen oder Servicenamen als Hostnamen (z.B. http://browser-automation:7331).",
+  "help.browser_automation.container_name": "Docker-Container-Name für den Browser-Automation-Sidecar. Muss auf dem Docker-Host eindeutig sein.",
+  "help.browser_automation.image": "Docker-Image für den Browser-Automation-Sidecar. Wird automatisch aus dem Dockerfile im konfigurierten Verzeichnis erstellt.",
+  "help.browser_automation.dockerfile_dir": "Verzeichnis mit dem Dockerfile zum Erstellen des Browser-Automation-Images. Standard ist das AuraGo-Installationsverzeichnis.",
+  "help.browser_automation.allowed_download_dir": "Verzeichnis, in dem heruntergeladene Dateien gespeichert werden. Relative Pfade werden vom AuraGo-Datenverzeichnis aufgelöst.",
+  "help.browser_automation.screenshots_dir": "Verzeichnis, in dem Browser-Screenshots gespeichert werden. Relative Pfade werden vom AuraGo-Datenverzeichnis aufgelöst.",
+  "help.browser_automation.session_ttl_minutes": "Zeit in Minuten, bis eine inaktive Browser-Sitzung automatisch geschlossen wird. Standard: 30 Minuten.",
+  "help.browser_automation.max_sessions": "Maximale Anzahl gleichzeitiger Browser-Sitzungen. Jede Sitzung verbraucht Speicher im Sidecar-Container. Standard: 3.",
+  "help.browser_automation.viewport.width": "Browser-Viewport-Breite in Pixeln. Beeinflusst, wie Seiten dargestellt werden. Standard: 1280.",
+  "help.browser_automation.viewport.height": "Browser-Viewport-Höhe in Pixeln. Beeinflusst, wie Seiten dargestellt werden. Standard: 720.",
+  "help.browser_automation.auto_build": "Erstellt das Docker-Image automatisch, wenn es beim Start des Sidecars nicht vorhanden ist. Deaktivieren, um das Image manuell zu verwalten."
+}

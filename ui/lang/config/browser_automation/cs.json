@@ -1,0 +1,19 @@
+{
+  "help.browser_automation.enabled": "Aktivuje integraci automatizace prohlížeče. Agent může navigovat na weby, vyplňovat formuláře, klikat na prvky, pořizovat snímky obrazovky a extrahovat data pomocí izolovaného sidecar kontejneru Playwright.",
+  "help.browser_automation.readonly": "V režimu pouze pro čtení může agent pouze navigovat a číst obsah stránek. Vyplňování formulářů, klikání a souborové operace jsou zablokovány.",
+  "help.browser_automation.headless": "Spustí prohlížeč bez viditelného okna (doporučeno). Deaktivujte pouze pro účely ladění — sidecar ve výchozím nastavení nemá žádný výstup na displej.",
+  "help.browser_automation.allow_file_uploads": "Umožňuje agentovi nahrávat místní soubory na webové stránky prostřednictvím vstupních polí pro soubory.",
+  "help.browser_automation.allow_file_downloads": "Umožňuje agentovi stahovat soubory z webových stránek. Stažené soubory se ukládají do nakonfigurovaného adresáře pro stahování.",
+  "help.browser_automation.mode": "Provozní režim služby automatizace prohlížeče. V současné době je podporován pouze režim 'sidecar', který spouští Playwright v izolovaném Docker kontejneru.",
+  "help.browser_automation.url": "Interní URL služby Playwright sidecar. Použijte název Docker kontejneru nebo služby jako název hostitele (např. http://browser-automation:7331).",
+  "help.browser_automation.container_name": "Název Docker kontejneru pro sidecar automatizace prohlížeče. Musí být jedinečný na vašem Docker hostiteli.",
+  "help.browser_automation.image": "Docker image pro sidecar automatizace prohlížeče. Automaticky se vytvoří z Dockerfile v nakonfigurovaném adresáři.",
+  "help.browser_automation.dockerfile_dir": "Adresář obsahující Dockerfile pro vytvoření image automatizace prohlížeče. Výchozí je instalační adresář AuraGo.",
+  "help.browser_automation.allowed_download_dir": "Adresář, kam se ukládají stažené soubory. Relativní cesty se vyhodnocují od datového adresáře AuraGo.",
+  "help.browser_automation.screenshots_dir": "Adresář, kam se ukládají snímky obrazovky prohlížeče. Relativní cesty se vyhodnocují od datového adresáře AuraGo.",
+  "help.browser_automation.session_ttl_minutes": "Čas v minutách, než je nečinná relace prohlížeče automaticky uzavřena. Výchozí: 30 minut.",
+  "help.browser_automation.max_sessions": "Maximální počet souběžných relací prohlížeče. Každá relace spotřebovává paměť v sidecar kontejneru. Výchozí: 3.",
+  "help.browser_automation.viewport.width": "Šířka viewportu prohlížeče v pixelech. Ovlivňuje vykreslování stránek. Výchozí: 1280.",
+  "help.browser_automation.viewport.height": "Výška viewportu prohlížeče v pixelech. Ovlivňuje vykreslování stránek. Výchozí: 720.",
+  "help.browser_automation.auto_build": "Automaticky vytvoří Docker image, pokud při spuštění sidecar neexistuje. Deaktivujte pro ruční správu image."
+}

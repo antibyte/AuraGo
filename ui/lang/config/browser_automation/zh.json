@@ -1,0 +1,19 @@
+{
+  "help.browser_automation.enabled": "启用浏览器自动化集成。代理可以通过隔离的 Playwright 边车容器浏览网站、填写表单、点击元素、截图和提取数据。",
+  "help.browser_automation.readonly": "在只读模式下，代理只能导航和读取页面内容。表单填写、点击和文件操作被阻止。",
+  "help.browser_automation.headless": "在无可见窗口的情况下运行浏览器（推荐）。仅在调试时禁用 — 边车默认没有显示输出。",
+  "help.browser_automation.allow_file_uploads": "允许代理通过文件输入字段将本地文件上传到网页。",
+  "help.browser_automation.allow_file_downloads": "允许代理从网页下载文件。下载的文件存储在配置的下载目录中。",
+  "help.browser_automation.mode": "浏览器自动化服务的运行模式。目前仅支持 'sidecar' 模式，即在隔离的 Docker 容器中运行 Playwright。",
+  "help.browser_automation.url": "Playwright 边车服务的内部 URL。使用 Docker 容器名称或服务名称作为主机名（例如 http://browser-automation:7331）。",
+  "help.browser_automation.container_name": "浏览器自动化边车的 Docker 容器名称。在您的 Docker 主机上必须唯一。",
+  "help.browser_automation.image": "浏览器自动化边车的 Docker 镜像。从配置目录中的 Dockerfile 自动构建。",
+  "help.browser_automation.dockerfile_dir": "包含用于构建浏览器自动化镜像的 Dockerfile 的目录。默认为 AuraGo 安装目录。",
+  "help.browser_automation.allowed_download_dir": "下载文件存储的目录。相对路径从 AuraGo 数据目录解析。",
+  "help.browser_automation.screenshots_dir": "浏览器截图保存的目录。相对路径从 AuraGo 数据目录解析。",
+  "help.browser_automation.session_ttl_minutes": "空闲浏览器会话自动关闭前的分钟数。默认：30 分钟。",
+  "help.browser_automation.max_sessions": "最大并发浏览器会话数。每个会话在边车容器中使用内存。默认：3。",
+  "help.browser_automation.viewport.width": "浏览器视口宽度（像素）。影响页面渲染方式。默认：1280。",
+  "help.browser_automation.viewport.height": "浏览器视口高度（像素）。影响页面渲染方式。默认：720。",
+  "help.browser_automation.auto_build": "边车启动时如果 Docker 镜像不存在则自动构建。禁用以手动管理镜像。"
+}

@@ -1,0 +1,19 @@
+{
+  "help.browser_automation.enabled": "Włącza integrację automatyzacji przeglądarki. Agent może nawigować po stronach, wypełniać formularze, klikać elementy, robić zrzuty ekranu i ekstrahować dane za pomocą izolowanego kontenera sidecar Playwright.",
+  "help.browser_automation.readonly": "W trybie tylko do odczytu agent może jedynie nawigować i czytać zawartość stron. Wypełnianie formularzy, klikanie i operacje na plikach są zablokowane.",
+  "help.browser_automation.headless": "Uruchamia przeglądarkę bez widocznego okna (zalecane). Wyłącz tylko do debugowania — sidecar domyślnie nie ma wyjścia ekranowego.",
+  "help.browser_automation.allow_file_uploads": "Pozwala agentowi na przesyłanie lokalnych plików na strony internetowe za pomocą pól wejściowych plików.",
+  "help.browser_automation.allow_file_downloads": "Pozwala agentowi na pobieranie plików ze stron internetowych. Pobrane pliki są zapisywane w skonfigurowanym katalogu pobierania.",
+  "help.browser_automation.mode": "Tryb działania usługi automatyzacji przeglądarki. Obecnie obsługiwany jest tylko tryb 'sidecar', który uruchamia Playwright w izolowanym kontenerze Docker.",
+  "help.browser_automation.url": "Wewnętrzny URL usługi sidecar Playwright. Użyj nazwy kontenera Docker lub nazwy usługi jako nazwy hosta (np. http://browser-automation:7331).",
+  "help.browser_automation.container_name": "Nazwa kontenera Docker dla sidecara automatyzacji przeglądarki. Musi być unikalna na hoście Docker.",
+  "help.browser_automation.image": "Obraz Docker dla sidecara automatyzacji przeglądarki. Budowany automatycznie z Dockerfile w skonfigurowanym katalogu.",
+  "help.browser_automation.dockerfile_dir": "Katalog zawierający Dockerfile do budowy obrazu automatyzacji przeglądarki. Domyślnie katalog instalacji AuraGo.",
+  "help.browser_automation.allowed_download_dir": "Katalog, w którym przechowywane są pobrane pliki. Ścieżki względne są rozwiązywane z katalogu danych AuraGo.",
+  "help.browser_automation.screenshots_dir": "Katalog, w którym zapisywane są zrzuty ekranu przeglądarki. Ścieżki względne są rozwiązywane z katalogu danych AuraGo.",
+  "help.browser_automation.session_ttl_minutes": "Czas w minutach przed automatycznym zamknięciem nieaktywnej sesji przeglądarki. Domyślnie: 30 minut.",
+  "help.browser_automation.max_sessions": "Maksymalna liczba jednoczesnych sesji przeglądarki. Każda sesja zużywa pamięć w kontenerze sidecar. Domyślnie: 3.",
+  "help.browser_automation.viewport.width": "Szerokość viewportu przeglądarki w pikselach. Wpływa na renderowanie stron. Domyślnie: 1280.",
+  "help.browser_automation.viewport.height": "Wysokość viewportu przeglądarki w pikselach. Wpływa na renderowanie stron. Domyślnie: 720.",
+  "help.browser_automation.auto_build": "Automatycznie buduje obraz Docker, jeśli nie istnieje przy uruchamianiu sidecara. Wyłącz, aby zarządzać obrazem ręcznie."
+}
