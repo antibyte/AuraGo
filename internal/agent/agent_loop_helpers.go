@@ -17,6 +17,10 @@ import (
 
 var nowFunc = time.Now
 
+var adaptiveToolIntentAliases = map[string][]string{
+	"chromecast": {"google home mini", "google home", "google cast"},
+}
+
 func ShouldReloadCoreMemory(dirty bool, loadedAt time.Time, dbUpdatedAt, cachedUpdatedAt time.Time) bool {
 	if dirty {
 		return true
@@ -383,6 +387,47 @@ func normalizeAdaptiveIntentText(s string) string {
 	return strings.Join(strings.Fields(s), " ")
 }
 
+func collectRecentUserIntentText(messages []openai.ChatCompletionMessage, maxMessages, maxChars int) string {
+	if maxMessages <= 0 {
+		maxMessages = 4
+	}
+	if maxChars <= 0 {
+		maxChars = 800
+	}
+
+	parts := make([]string, 0, maxMessages)
+	for i := len(messages) - 1; i >= 0 && len(parts) < maxMessages; i-- {
+		if messages[i].Role != openai.ChatMessageRoleUser {
+			continue
+		}
+		text := strings.TrimSpace(messageText(messages[i]))
+		if text == "" {
+			continue
+		}
+		parts = append(parts, text)
+	}
+	for i, j := 0, len(parts)-1; i < j; i, j = i+1, j-1 {
+		parts[i], parts[j] = parts[j], parts[i]
+	}
+
+	joined := strings.TrimSpace(strings.Join(parts, "\n"))
+	if len(joined) <= maxChars {
+		return joined
+	}
+	return joined[len(joined)-maxChars:]
+}
+
+func adaptiveIntentAliasPriority(toolName, normalizedQuery string) (int, bool) {
+	aliases := adaptiveToolIntentAliases[toolName]
+	for _, alias := range aliases {
+		normalizedAlias := normalizeAdaptiveIntentText(alias)
+		if normalizedAlias != "" && strings.Contains(normalizedQuery, normalizedAlias) {
+			return 0, true
+		}
+	}
+	return 0, false
+}
+
 func extractIntentMatchedTools(userQuery string, availableTools []string) []string {
 	normalizedQuery := normalizeAdaptiveIntentText(userQuery)
 	if normalizedQuery == "" || len(availableTools) == 0 {
@@ -407,7 +452,9 @@ func extractIntentMatchedTools(userQuery string, availableTools []string) []stri
 		}
 
 		priority := -1
-		switch {
+		switch aliasPriority, ok := adaptiveIntentAliasPriority(tool, normalizedQuery); {
+		case ok:
+			priority = aliasPriority
 		case strings.Contains(normalizedQuery, normalizedTool):
 			priority = 0
 		default:

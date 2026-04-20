@@ -343,6 +343,59 @@ func TestExtractIntentMatchedToolsMatchesSplitToolNames(t *testing.T) {
 	}
 }
 
+func TestExtractIntentMatchedToolsMatchesChromecastAliases(t *testing.T) {
+	matches := extractIntentMatchedTools("spiele den song bitte auf dem google home mini ab", []string{"chromecast", "koofr", "filesystem"})
+	if !containsName(matches, "chromecast") {
+		t.Fatalf("expected chromecast alias match, got %v", matches)
+	}
+}
+
+func TestCollectRecentUserIntentTextKeepsRecentUserContext(t *testing.T) {
+	messages := []openai.ChatCompletionMessage{
+		{Role: openai.ChatMessageRoleUser, Content: "erste frage"},
+		{Role: openai.ChatMessageRoleAssistant, Content: "antwort"},
+		{Role: openai.ChatMessageRoleUser, Content: "hol dir von koofr einen song"},
+		{Role: openai.ChatMessageRoleAssistant, Content: "ok"},
+		{Role: openai.ChatMessageRoleUser, Content: "und spiele ihn auf google home mini ab"},
+		{Role: openai.ChatMessageRoleUser, Content: "bugs gefixed, probier nochmal"},
+	}
+
+	got := collectRecentUserIntentText(messages, 3, 200)
+
+	if !strings.Contains(got, "hol dir von koofr einen song") {
+		t.Fatalf("expected older user intent to remain, got %q", got)
+	}
+	if !strings.Contains(got, "google home mini") {
+		t.Fatalf("expected playback context to remain, got %q", got)
+	}
+	if !strings.Contains(got, "bugs gefixed, probier nochmal") {
+		t.Fatalf("expected latest retry message to remain, got %q", got)
+	}
+}
+
+func TestBuildAdaptiveToolPriorityUsesCombinedConversationIntent(t *testing.T) {
+	schemas := []openai.Tool{
+		makeTool("chromecast"),
+		makeTool("koofr"),
+		makeTool("filesystem"),
+	}
+
+	prioritized := buildAdaptiveToolPriority(
+		schemas,
+		[]string{"filesystem"},
+		"hol dir von koofr einen song und spiele ihn auf google home mini ab\nbugs gefixed, probier nochmal",
+		nil,
+		nil,
+	)
+
+	if !containsName(prioritized, "koofr") {
+		t.Fatalf("expected koofr in prioritized tools, got %v", prioritized)
+	}
+	if !containsName(prioritized, "chromecast") {
+		t.Fatalf("expected chromecast in prioritized tools, got %v", prioritized)
+	}
+}
+
 func TestBuildAdaptiveToolPriorityPrefersIntentAndSemanticHits(t *testing.T) {
 	schemas := []openai.Tool{
 		makeTool("shell"),

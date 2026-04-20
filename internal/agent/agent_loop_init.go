@@ -98,6 +98,10 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 			}
 		}
 	}
+	adaptiveUserContext := collectRecentUserIntentText(req.Messages, 4, 800)
+	if adaptiveUserContext == "" {
+		adaptiveUserContext = initialUserMsg
+	}
 	isFirstTurn := isFirstUserMessageInSession(req.Messages)
 	plannerContext := plannerPromptContextText(runCfg, initialUserMsg, time.Now(), isFirstTurn, logger)
 	dailyTodoReminder := dailyTodoReminderText(runCfg, initialUserMsg, time.Now(), logger)
@@ -272,7 +276,7 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 			if gs, ok := longTermMem.(toolGuideSearcher); ok {
 				guideSearcher = gs
 			}
-			prioritized := buildAdaptiveToolPriority(ntSchemas, frequent, initialUserMsg, guideSearcher, logger)
+			prioritized := buildAdaptiveToolPriority(ntSchemas, frequent, adaptiveUserContext, guideSearcher, logger)
 			maxTools := cfg.Agent.AdaptiveTools.MaxTools
 
 			alwaysInclude := make([]string, len(cfg.Agent.AdaptiveTools.AlwaysInclude))
