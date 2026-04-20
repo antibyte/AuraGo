@@ -11,6 +11,9 @@ pub enum Screen {
     Missions,
     Skills,
     Containers,
+    Config,
+    Knowledge,
+    Media,
 }
 
 impl Screen {
@@ -24,6 +27,9 @@ impl Screen {
             Screen::Missions => "Missions",
             Screen::Skills => "Skills",
             Screen::Containers => "Containers",
+            Screen::Config => "Config",
+            Screen::Knowledge => "Knowledge",
+            Screen::Media => "Media",
         }
     }
 
@@ -36,6 +42,9 @@ impl Screen {
             Screen::Missions,
             Screen::Skills,
             Screen::Containers,
+            Screen::Config,
+            Screen::Knowledge,
+            Screen::Media,
         ]
     }
 
@@ -47,6 +56,9 @@ impl Screen {
             Screen::Missions => 3,
             Screen::Skills => 4,
             Screen::Containers => 5,
+            Screen::Config => 6,
+            Screen::Knowledge => 7,
+            Screen::Media => 8,
             _ => 0,
         }
     }
@@ -59,6 +71,9 @@ impl Screen {
             3 => Some(Screen::Missions),
             4 => Some(Screen::Skills),
             5 => Some(Screen::Containers),
+            6 => Some(Screen::Config),
+            7 => Some(Screen::Knowledge),
+            8 => Some(Screen::Media),
             _ => None,
         }
     }
@@ -140,6 +155,34 @@ pub struct AppState {
     pub containers_selected: Option<usize>,
     pub containers_loading: bool,
 
+    // ── Config ────────────────────────────────────────────────────────────
+    pub config_data: serde_json::Value,
+    pub config_schema: serde_json::Value,
+    pub config_sections: Vec<String>,
+    pub config_section_index: usize,
+    pub config_field_index: usize,
+    pub config_loading: bool,
+    pub config_dirty: bool,
+    pub config_editing: bool,
+    pub config_edit_value: String,
+
+    // ── Knowledge ─────────────────────────────────────────────────────────
+    pub knowledge_files: Vec<KnowledgeFile>,
+    pub knowledge_selected: Option<usize>,
+    pub knowledge_loading: bool,
+    pub knowledge_search: String,
+    pub knowledge_search_active: bool,
+
+    // ── Media ─────────────────────────────────────────────────────────────
+    pub media_items: Vec<MediaItem>,
+    pub media_total: i64,
+    pub media_selected: Option<usize>,
+    pub media_loading: bool,
+    pub media_tab: MediaTab,
+    pub media_search: String,
+    pub media_search_active: bool,
+    pub media_offset: u32,
+
     // ── Navigation ────────────────────────────────────────────────────────
     pub nav_bar_open: bool,
     pub nav_bar_index: usize,
@@ -159,6 +202,18 @@ pub enum DashTab {
 impl Default for DashTab {
     fn default() -> Self {
         DashTab::Overview
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum MediaTab {
+    Audio,
+    Documents,
+}
+
+impl Default for MediaTab {
+    fn default() -> Self {
+        MediaTab::Audio
     }
 }
 
@@ -224,6 +279,28 @@ impl Default for AppState {
             containers: Vec::new(),
             containers_selected: None,
             containers_loading: false,
+            config_data: serde_json::Value::Null,
+            config_schema: serde_json::Value::Null,
+            config_sections: Vec::new(),
+            config_section_index: 0,
+            config_field_index: 0,
+            config_loading: false,
+            config_dirty: false,
+            config_editing: false,
+            config_edit_value: String::new(),
+            knowledge_files: Vec::new(),
+            knowledge_selected: None,
+            knowledge_loading: false,
+            knowledge_search: String::new(),
+            knowledge_search_active: false,
+            media_items: Vec::new(),
+            media_total: 0,
+            media_selected: None,
+            media_loading: false,
+            media_tab: MediaTab::default(),
+            media_search: String::new(),
+            media_search_active: false,
+            media_offset: 0,
             nav_bar_open: false,
             nav_bar_index: 0,
             _list_dummy: None,
@@ -342,7 +419,7 @@ impl AppState {
 
     /// Returns true if the current screen uses a list + detail layout
     pub fn has_list_layout(&self) -> bool {
-        matches!(self.screen, Screen::Plans | Screen::Missions | Screen::Skills | Screen::Containers)
+        matches!(self.screen, Screen::Plans | Screen::Missions | Screen::Skills | Screen::Containers | Screen::Knowledge | Screen::Media)
     }
 
     /// Get the selected item index for the current list-based screen
@@ -352,6 +429,8 @@ impl AppState {
             Screen::Missions => &self.missions_selected,
             Screen::Skills => &self.skills_selected,
             Screen::Containers => &self.containers_selected,
+            Screen::Knowledge => &self.knowledge_selected,
+            Screen::Media => &self.media_selected,
             _ => &None,
         }
     }
@@ -363,6 +442,8 @@ impl AppState {
             Screen::Missions => &mut self.missions_selected,
             Screen::Skills => &mut self.skills_selected,
             Screen::Containers => &mut self.containers_selected,
+            Screen::Knowledge => &mut self.knowledge_selected,
+            Screen::Media => &mut self.media_selected,
             _ => &mut self._list_dummy,
         }
     }
@@ -374,6 +455,8 @@ impl AppState {
             Screen::Missions => self.missions.len(),
             Screen::Skills => self.skills.len(),
             Screen::Containers => self.containers.len(),
+            Screen::Knowledge => self.knowledge_files.len(),
+            Screen::Media => self.media_items.len(),
             _ => 0,
         }
     }

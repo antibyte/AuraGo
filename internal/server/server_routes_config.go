@@ -150,6 +150,8 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 
 	// Document Creator endpoints
 	mux.HandleFunc("/api/document-creator/test", handleGotenbergTest(s))
+	mux.HandleFunc("/api/browser-automation/status", handleBrowserAutomationStatus(s))
+	mux.HandleFunc("/api/browser-automation/test", handleBrowserAutomationTest(s))
 
 	// Ansible endpoints
 	mux.HandleFunc("/api/ansible/generate-token", handleAnsibleGenerateToken(s))

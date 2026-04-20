@@ -187,6 +187,7 @@ type ContextFlags struct {
 	HomepageRegistryEnabled  bool
 	DocumentCreatorEnabled   bool
 	WebCaptureEnabled        bool
+	BrowserAutomationEnabled bool
 	NetworkPingEnabled       bool
 	WebScraperEnabled        bool
 	S3Enabled                bool

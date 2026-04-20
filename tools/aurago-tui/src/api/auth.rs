@@ -183,6 +183,50 @@ pub async fn remove_container(client: &ApiClient, id: &str, force: bool) -> Resu
     client.request(Method::DELETE, &path, None::<&()>).await
 }
 
+// ── Config ────────────────────────────────────────────────────────────────────
+
+pub async fn fetch_config(client: &ApiClient) -> Result<serde_json::Value> {
+    client.request(Method::GET, "/api/config", None::<&()>).await
+}
+
+pub async fn fetch_config_schema(client: &ApiClient) -> Result<serde_json::Value> {
+    client.request(Method::GET, "/api/config/schema", None::<&()>).await
+}
+
+pub async fn save_config(client: &ApiClient, config: &serde_json::Value) -> Result<()> {
+    client.request_empty(Method::PUT, "/api/config", Some(config)).await
+}
+
+pub async fn fetch_vault_status(client: &ApiClient) -> Result<VaultStatus> {
+    client.request(Method::GET, "/api/vault/status", None::<&()>).await
+}
+
+// ── Knowledge ─────────────────────────────────────────────────────────────────
+
+pub async fn fetch_knowledge_files(client: &ApiClient) -> Result<Vec<KnowledgeFile>> {
+    client.request(Method::GET, "/api/knowledge", None::<&()>).await
+}
+
+pub async fn delete_knowledge_file(client: &ApiClient, name: &str) -> Result<()> {
+    let path = format!("/api/knowledge/{}", name);
+    client.request_empty(Method::DELETE, &path, None::<&()>).await
+}
+
+// ── Media ─────────────────────────────────────────────────────────────────────
+
+pub async fn fetch_media(client: &ApiClient, media_type: &str, limit: u32, offset: u32, query: Option<&str>) -> Result<MediaResponse> {
+    let mut path = format!("/api/media?type={}&limit={}&offset={}", media_type, limit, offset);
+    if let Some(q) = query {
+        path.push_str(&format!("&q={}", urlencoding::encode(q)));
+    }
+    client.request(Method::GET, &path, None::<&()>).await
+}
+
+pub async fn delete_media(client: &ApiClient, id: i64) -> Result<serde_json::Value> {
+    let path = format!("/api/media/{}", id);
+    client.request(Method::DELETE, &path, None::<&()>).await
+}
+
 // ── Session persistence ───────────────────────────────────────────────────────
 
 pub fn save_session_cookie(cookie: &str, path: &std::path::Path) -> Result<()> {

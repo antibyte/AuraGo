@@ -37,6 +37,9 @@ pub enum Action {
     GoToMissions,    // F5
     GoToSkills,      // F6
     GoToContainers,  // F7
+    GoToConfig,      // F8
+    GoToKnowledge,   // F9
+    GoToMedia,       // F10
 
     // ── List navigation ───────────────────────────────────────────────────
     ListUp,
@@ -61,6 +64,18 @@ pub enum Action {
     ActionPrimary,   // Enter on detail view
     ActionDelete,    // Delete key on list item
     ActionToggle,    // Space to toggle enabled/disabled
+
+    // ── Search ────────────────────────────────────────────────────────────
+    SearchActivate,  // / to start search
+    SearchDeactivate, // Esc to exit search
+    SearchSubmit,    // Enter to submit search
+
+    // ── Config editing ────────────────────────────────────────────────────
+    EditField,       // Enter on config field to edit
+    EditSave,        // Enter to save edit
+    EditCancel,      // Esc to cancel edit
+    SectionUp,       // Move to previous config section
+    SectionDown,     // Move to next config section
 }
 
 pub fn map_key(key: KeyEvent, context: KeyContext) -> Action {
@@ -73,6 +88,8 @@ pub fn map_key(key: KeyEvent, context: KeyContext) -> Action {
         KeyContext::NavBar { .. } => map_nav_bar(key),
         KeyContext::List { .. } => map_list(key),
         KeyContext::Dashboard { .. } => map_dashboard(key),
+        KeyContext::Config { editing, .. } => map_config(key, editing),
+        KeyContext::Search { active } => map_search(key, active),
     }
 }
 
@@ -84,6 +101,8 @@ pub enum KeyContext {
     NavBar { index: usize, max: usize },
     List { selected: Option<usize>, len: usize },
     Dashboard { tab_index: usize, tab_count: usize },
+    Config { section_index: usize, field_index: usize, editing: bool },
+    Search { active: bool },
 }
 
 fn map_splash(key: KeyEvent) -> Action {
@@ -203,6 +222,68 @@ fn map_dashboard(key: KeyEvent) -> Action {
     }
 }
 
+/// Config screen keybindings
+fn map_config(key: KeyEvent, editing: bool) -> Action {
+    // When editing a field, handle edit-mode keys
+    if editing {
+        if let Some(action) = try_global_keys(key) {
+            return action;
+        }
+        return match key.code {
+            KeyCode::Enter => Action::EditSave,
+            KeyCode::Esc => Action::EditCancel,
+            KeyCode::Backspace => Action::Backspace,
+            KeyCode::Delete => Action::Backspace,
+            KeyCode::Char('\u{7f}') => Action::Backspace,
+            KeyCode::Char('\u{8}') => Action::Backspace,
+            KeyCode::Left => Action::CursorLeft,
+            KeyCode::Right => Action::CursorRight,
+            KeyCode::Home => Action::CursorStart,
+            KeyCode::End => Action::CursorEnd,
+            KeyCode::Char(c) => Action::Type(c),
+            _ => Action::None,
+        };
+    }
+
+    // Normal config browsing mode
+    if let Some(action) = try_global_keys(key) {
+        return action;
+    }
+
+    match key.code {
+        KeyCode::Char('j') | KeyCode::Down => Action::ListDown,
+        KeyCode::Char('k') | KeyCode::Up => Action::ListUp,
+        KeyCode::Char('h') | KeyCode::Left => Action::SectionUp,
+        KeyCode::Char('l') | KeyCode::Right => Action::SectionDown,
+        KeyCode::Enter => Action::EditField,
+        KeyCode::Char('r') => Action::Refresh,
+        KeyCode::Char('/') => Action::SearchActivate,
+        _ => Action::None,
+    }
+}
+
+/// Search mode keybindings (used by Knowledge and Media screens)
+fn map_search(key: KeyEvent, _active: bool) -> Action {
+    if let Some(action) = try_global_keys(key) {
+        return action;
+    }
+
+    match key.code {
+        KeyCode::Enter => Action::SearchSubmit,
+        KeyCode::Esc => Action::SearchDeactivate,
+        KeyCode::Backspace => Action::Backspace,
+        KeyCode::Delete => Action::Backspace,
+        KeyCode::Char('\u{7f}') => Action::Backspace,
+        KeyCode::Char('\u{8}') => Action::Backspace,
+        KeyCode::Left => Action::CursorLeft,
+        KeyCode::Right => Action::CursorRight,
+        KeyCode::Home => Action::CursorStart,
+        KeyCode::End => Action::CursorEnd,
+        KeyCode::Char(c) => Action::Type(c),
+        _ => Action::None,
+    }
+}
+
 /// Global keybindings that work on every screen
 fn try_global_keys(key: KeyEvent) -> Option<Action> {
     match key.code {
@@ -217,6 +298,9 @@ fn try_global_keys(key: KeyEvent) -> Option<Action> {
         KeyCode::F(5) => Some(Action::GoToMissions),
         KeyCode::F(6) => Some(Action::GoToSkills),
         KeyCode::F(7) => Some(Action::GoToContainers),
+        KeyCode::F(8) => Some(Action::GoToConfig),
+        KeyCode::F(9) => Some(Action::GoToKnowledge),
+        KeyCode::F(10) => Some(Action::GoToMedia),
         KeyCode::Char('o') if key.modifiers.contains(KeyModifiers::CONTROL) => Some(Action::Logout),
         KeyCode::Char('s') if key.modifiers.contains(KeyModifiers::CONTROL) => Some(Action::ToggleSessionDrawer),
         KeyCode::Char('n') if key.modifiers.contains(KeyModifiers::CONTROL) => Some(Action::OpenNavBar),

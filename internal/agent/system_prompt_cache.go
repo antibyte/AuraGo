@@ -255,6 +255,9 @@ func collectEnabledTools(flags *prompts.ContextFlags) []string {
 	if flags.WebCaptureEnabled {
 		tools = append(tools, "webcapture")
 	}
+	if flags.BrowserAutomationEnabled {
+		tools = append(tools, "browserautomation")
+	}
 	if flags.NetworkPingEnabled {
 		tools = append(tools, "networkping")
 	}

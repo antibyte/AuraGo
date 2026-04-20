@@ -305,3 +305,91 @@ pub struct CronEntry {
     #[serde(default)]
     pub enabled: bool,
 }
+
+// ── Config ────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct ConfigSection {
+    #[serde(default)]
+    pub key: String,
+    #[serde(default)]
+    pub label: String,
+    #[serde(default)]
+    pub fields: Vec<ConfigField>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct ConfigField {
+    #[serde(default)]
+    pub key: String,
+    #[serde(default)]
+    pub label: String,
+    #[serde(default)]
+    pub field_type: String,
+    #[serde(default)]
+    pub value: serde_json::Value,
+    #[serde(default)]
+    pub default: serde_json::Value,
+    #[serde(default)]
+    pub description: String,
+    #[serde(default)]
+    pub options: Vec<String>,
+    #[serde(default)]
+    pub disabled: bool,
+    #[serde(default)]
+    pub sensitive: bool,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct VaultStatus {
+    #[serde(default)]
+    pub exists: bool,
+    #[serde(default)]
+    pub sealed: bool,
+    #[serde(default)]
+    pub entry_count: i32,
+}
+
+// ── Knowledge ─────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct KnowledgeFile {
+    #[serde(default)]
+    pub name: String,
+    #[serde(default)]
+    pub size: i64,
+    #[serde(default)]
+    pub modified: String,
+}
+
+// ── Media ─────────────────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct MediaItem {
+    #[serde(default)]
+    pub id: i64,
+    #[serde(default)]
+    pub description: String,
+    #[serde(default)]
+    pub filename: String,
+    #[serde(default)]
+    pub format: String,
+    #[serde(default)]
+    pub media_type: String,
+    #[serde(default)]
+    pub created_at: String,
+    #[serde(default)]
+    pub web_path: String,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct MediaResponse {
+    #[serde(default)]
+    pub status: String,
+    #[serde(default)]
+    pub items: Vec<MediaItem>,
+    #[serde(default)]
+    pub total: i64,
+    #[serde(default)]
+    pub message: String,
+}

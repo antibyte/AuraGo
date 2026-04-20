@@ -237,6 +237,53 @@ remote_control:
 	}
 }
 
+func TestLoadBrowserAutomationDefaults(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	if err := os.WriteFile(configPath, []byte("server:\n  ui_language: en\n"), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.BrowserAutomation.Enabled {
+		t.Fatal("expected browser_automation.enabled to default to false")
+	}
+	if cfg.Tools.BrowserAutomation.Enabled {
+		t.Fatal("expected tools.browser_automation.enabled to default to false")
+	}
+	if cfg.BrowserAutomation.Mode != "sidecar" {
+		t.Fatalf("mode = %q, want sidecar", cfg.BrowserAutomation.Mode)
+	}
+	if cfg.BrowserAutomation.URL == "" {
+		t.Fatal("expected browser automation URL default to be populated")
+	}
+	if cfg.BrowserAutomation.ContainerName != "aurago_browser_automation" {
+		t.Fatalf("container_name = %q, want aurago_browser_automation", cfg.BrowserAutomation.ContainerName)
+	}
+	if cfg.BrowserAutomation.Image != "aurago-browser-automation:latest" {
+		t.Fatalf("image = %q, want aurago-browser-automation:latest", cfg.BrowserAutomation.Image)
+	}
+	if cfg.BrowserAutomation.SessionTTLMinutes != 30 {
+		t.Fatalf("session_ttl_minutes = %d, want 30", cfg.BrowserAutomation.SessionTTLMinutes)
+	}
+	if cfg.BrowserAutomation.MaxSessions != 3 {
+		t.Fatalf("max_sessions = %d, want 3", cfg.BrowserAutomation.MaxSessions)
+	}
+	if cfg.BrowserAutomation.Viewport.Width != 1280 || cfg.BrowserAutomation.Viewport.Height != 720 {
+		t.Fatalf("viewport = %+v, want 1280x720", cfg.BrowserAutomation.Viewport)
+	}
+	if !cfg.BrowserAutomation.Headless {
+		t.Fatal("expected browser_automation.headless to default to true")
+	}
+	if cfg.BrowserAutomation.ReadOnly {
+		t.Fatal("expected browser_automation.readonly to default to false")
+	}
+}
+
 func TestLoadAdaptiveSystemPromptTokenBudgetDefaultsToTrue(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "config_test")
 	if err != nil {

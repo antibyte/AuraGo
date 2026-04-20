@@ -19,6 +19,7 @@ tui-textarea = "0.7"
 unicode-width = "0.2"
 chrono = "0.4"
 anyhow = "1"
+urlencoding = "2"
 
 [profile.release]
 opt-level = "z"

@@ -138,6 +138,33 @@ type DocumentCreatorConfig struct {
 	Gotenberg GotenbergConfig `yaml:"gotenberg"`
 }
 
+// BrowserAutomationViewport defines the browser viewport used for new sessions.
+type BrowserAutomationViewport struct {
+	Width  int `yaml:"width"`
+	Height int `yaml:"height"`
+}
+
+// BrowserAutomationConfig holds the settings for the optional Playwright sidecar.
+type BrowserAutomationConfig struct {
+	Enabled             bool                      `yaml:"enabled"`               // enable browser automation integration
+	Mode                string                    `yaml:"mode"`                  // "sidecar" (default)
+	URL                 string                    `yaml:"url"`                   // sidecar base URL
+	ContainerName       string                    `yaml:"container_name"`        // managed Docker container name
+	Image               string                    `yaml:"image"`                 // sidecar Docker image
+	AutoStart           bool                      `yaml:"auto_start"`            // auto-start the sidecar container when enabled
+	AutoBuild           bool                      `yaml:"auto_build"`            // auto-build the sidecar image when missing locally
+	DockerfileDir       string                    `yaml:"dockerfile_dir"`        // build context containing Dockerfile.browser_automation
+	SessionTTLMinutes   int                       `yaml:"session_ttl_minutes"`   // session expiry in minutes
+	MaxSessions         int                       `yaml:"max_sessions"`          // max concurrent sessions
+	AllowFileUploads    bool                      `yaml:"allow_file_uploads"`    // allow upload_file operation
+	AllowFileDownloads  bool                      `yaml:"allow_file_downloads"`  // allow browser downloads
+	AllowedDownloadDir  string                    `yaml:"allowed_download_dir"`  // host/workspace dir for downloads
+	Viewport            BrowserAutomationViewport `yaml:"viewport"`              // default viewport for sessions
+	Headless            bool                      `yaml:"headless"`              // run browser headless
+	ReadOnly            bool                      `yaml:"readonly"`              // block mutating actions when true
+	ScreenshotsDir      string                    `yaml:"screenshots_dir"`       // workspace-relative screenshot directory
+}
+
 // MQTTTLS holds TLS configuration for MQTT connections.
 type MQTTTLS struct {
 	Enabled            bool   `yaml:"enabled"`              // enable TLS encryption
@@ -967,6 +994,7 @@ type Config struct {
 		AuditLog           bool     `yaml:"audit_log"`             // log all operations (default: true)
 		SSHInsecureHostKey bool     `yaml:"ssh_insecure_host_key"` // skip SSH host key verification (disables MITM protection)
 	} `yaml:"remote_control"`
+	BrowserAutomation BrowserAutomationConfig `yaml:"browser_automation"`
 	SecurityProxy struct {
 		Enabled      bool   `yaml:"enabled"`
 		Domain       string `yaml:"domain"`      // primary domain for TLS (e.g. "aurago.example.com")
@@ -1158,6 +1186,9 @@ type Config struct {
 		WebCapture      struct {
 			Enabled bool `yaml:"enabled"` // enable web_capture tool (screenshot/pdf via headless Chromium, default true)
 		} `yaml:"web_capture"`
+		BrowserAutomation struct {
+			Enabled bool `yaml:"enabled"` // enable browser_automation tool (Playwright sidecar driven browser sessions)
+		} `yaml:"browser_automation"`
 		NetworkPing struct {
 			Enabled bool `yaml:"enabled"` // enable network_ping tool (ICMP echo, default true)
 		} `yaml:"network_ping"`

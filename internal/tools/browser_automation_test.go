@@ -1,0 +1,195 @@
+package tools
+
+import (
+	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"aurago/internal/config"
+)
+
+func browserAutomationTestConfig(t *testing.T, sidecarURL string) *config.Config {
+	t.Helper()
+
+	workspaceDir := filepath.Join(t.TempDir(), "agent_workspace", "workdir")
+	cfg := &config.Config{}
+	cfg.Directories.WorkspaceDir = workspaceDir
+	cfg.BrowserAutomation.Enabled = true
+	cfg.Tools.BrowserAutomation.Enabled = true
+	cfg.BrowserAutomation.URL = sidecarURL
+	cfg.BrowserAutomation.Mode = "sidecar"
+	cfg.BrowserAutomation.AllowedDownloadDir = "browser_downloads"
+	cfg.BrowserAutomation.ScreenshotsDir = "browser_screenshots"
+	cfg.BrowserAutomation.AllowFileUploads = true
+	cfg.BrowserAutomation.AllowFileDownloads = true
+	cfg.BrowserAutomation.Viewport.Width = 1280
+	cfg.BrowserAutomation.Viewport.Height = 720
+	return cfg
+}
+
+func decodeBrowserAutomationResult(t *testing.T, raw string) map[string]interface{} {
+	t.Helper()
+	var parsed map[string]interface{}
+	if err := json.Unmarshal([]byte(raw), &parsed); err != nil {
+		t.Fatalf("json.Unmarshal(%q): %v", raw, err)
+	}
+	return parsed
+}
+
+func TestExecuteBrowserAutomationDisabled(t *testing.T) {
+	cfg := &config.Config{}
+
+	result := decodeBrowserAutomationResult(t, ExecuteBrowserAutomation(context.Background(), cfg, BrowserAutomationRequest{
+		Operation: "current_state",
+	}, nil))
+
+	if got, _ := result["status"].(string); got != "error" {
+		t.Fatalf("status = %q, want error", got)
+	}
+	if !strings.Contains(result["message"].(string), "disabled") {
+		t.Fatalf("message = %q, want disabled error", result["message"])
+	}
+}
+
+func TestExecuteBrowserAutomationReadOnlyBlocksMutation(t *testing.T) {
+	cfg := browserAutomationTestConfig(t, "http://127.0.0.1:7331")
+	cfg.BrowserAutomation.ReadOnly = true
+
+	result := decodeBrowserAutomationResult(t, ExecuteBrowserAutomation(context.Background(), cfg, BrowserAutomationRequest{
+		Operation: "click",
+		SessionID: "ba_123",
+		Selector:  "#submit",
+	}, nil))
+
+	if got, _ := result["status"].(string); got != "error" {
+		t.Fatalf("status = %q, want error", got)
+	}
+	if !strings.Contains(result["message"].(string), "read-only") {
+		t.Fatalf("message = %q, want read-only error", result["message"])
+	}
+}
+
+func TestExecuteBrowserAutomationRejectsUploadOutsideWorkspace(t *testing.T) {
+	cfg := browserAutomationTestConfig(t, "http://127.0.0.1:7331")
+
+	result := decodeBrowserAutomationResult(t, ExecuteBrowserAutomation(context.Background(), cfg, BrowserAutomationRequest{
+		Operation: "upload_file",
+		SessionID: "ba_123",
+		Selector:  "input[type=file]",
+		FilePath:  "../escape.txt",
+	}, nil))
+
+	if got, _ := result["status"].(string); got != "error" {
+		t.Fatalf("status = %q, want error", got)
+	}
+	if !strings.Contains(result["message"].(string), "inside workspace") {
+		t.Fatalf("message = %q, want workspace validation error", result["message"])
+	}
+}
+
+func TestExecuteBrowserAutomationMapsScreenshotAndDownloads(t *testing.T) {
+	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "1")
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/automation" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{
+			"status":"success",
+			"operation":"screenshot",
+			"session_id":"ba_123",
+			"url":"https://example.com",
+			"title":"Example",
+			"screenshot_rel_path":"browser_screenshots/shot.png",
+			"download_rel_path":"ba_123/report.pdf",
+			"downloads":[{"name":"report.pdf","rel_path":"ba_123/report.pdf"}]
+		}`))
+	}))
+	defer srv.Close()
+
+	cfg := browserAutomationTestConfig(t, srv.URL)
+
+	result := decodeBrowserAutomationResult(t, ExecuteBrowserAutomation(context.Background(), cfg, BrowserAutomationRequest{
+		Operation:  "screenshot",
+		SessionID:  "ba_123",
+		OutputPath: "browser_screenshots/shot.png",
+	}, nil))
+
+	if got, _ := result["status"].(string); got != "success" {
+		t.Fatalf("status = %q, want success", got)
+	}
+	screenshotPath, _ := result["screenshot_path"].(string)
+	if !strings.HasSuffix(filepath.ToSlash(screenshotPath), "browser_screenshots/shot.png") {
+		t.Fatalf("screenshot_path = %q, want browser_screenshots/shot.png suffix", screenshotPath)
+	}
+	if got, _ := result["screenshot_web_path"].(string); got != "/files/browser_screenshots/shot.png" {
+		t.Fatalf("screenshot_web_path = %q, want /files/browser_screenshots/shot.png", got)
+	}
+	downloadedFile, _ := result["downloaded_file"].(string)
+	if !strings.HasSuffix(filepath.ToSlash(downloadedFile), "browser_downloads/ba_123/report.pdf") {
+		t.Fatalf("downloaded_file = %q, want browser_downloads/ba_123/report.pdf suffix", downloadedFile)
+	}
+	if got, _ := result["downloaded_file_web_path"].(string); got != "/files/browser_downloads/ba_123/report.pdf" {
+		t.Fatalf("downloaded_file_web_path = %q, want /files/browser_downloads/ba_123/report.pdf", got)
+	}
+	downloads, ok := result["downloads"].([]interface{})
+	if !ok || len(downloads) != 1 {
+		t.Fatalf("downloads = %#v, want one entry", result["downloads"])
+	}
+	entry, ok := downloads[0].(map[string]interface{})
+	if !ok {
+		t.Fatalf("downloads[0] = %#v, want object", downloads[0])
+	}
+	if got, _ := entry["web_path"].(string); got != "/files/browser_downloads/ba_123/report.pdf" {
+		t.Fatalf("downloads[0].web_path = %q, want /files/browser_downloads/ba_123/report.pdf", got)
+	}
+}
+
+func TestBrowserAutomationHealthReadsSidecarEndpoint(t *testing.T) {
+	t.Setenv("AURAGO_SSRF_ALLOW_LOOPBACK", "1")
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/health" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"status":"success","message":"ok","sessions":1}`))
+	}))
+	defer srv.Close()
+
+	cfg := browserAutomationTestConfig(t, srv.URL)
+	result := BrowserAutomationHealth(context.Background(), cfg)
+
+	if got, _ := result["status"].(string); got != "success" {
+		t.Fatalf("status = %q, want success", got)
+	}
+	if got, _ := result["sessions"].(float64); got != 1 {
+		t.Fatalf("sessions = %v, want 1", got)
+	}
+}
+
+func TestBrowserAutomationUsesManagedLoopbackURL(t *testing.T) {
+	tests := []struct {
+		raw  string
+		want bool
+	}{
+		{"", true},
+		{"http://127.0.0.1:7331", true},
+		{"http://localhost:7331", true},
+		{"http://browser-automation:7331", false},
+		{"https://remote.example.com:7331", false},
+	}
+
+	for _, tt := range tests {
+		if got := browserAutomationUsesManagedLoopbackURL(tt.raw); got != tt.want {
+			t.Fatalf("browserAutomationUsesManagedLoopbackURL(%q) = %v, want %v", tt.raw, got, tt.want)
+		}
+	}
+}

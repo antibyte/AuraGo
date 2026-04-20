@@ -167,6 +167,63 @@ services:
         max-file: "3"
 
   # ============================================================================
+  # Browser Automation Sidecar  (OPTIONAL — enable with profile "browser-automation")
+  # ============================================================================
+  # Provides a Playwright + Chromium browser for the browser_automation tool.
+  #
+  # Enable it with:
+  #   docker compose --profile browser-automation up -d
+  #
+  # Config URL:
+  #   • AuraGo running in Docker:    http://browser-automation:7331
+  #   • AuraGo running bare-metal:   http://127.0.0.1:7331
+  #
+  # Notes:
+  #   - The browser session workspace is shared with AuraGo via the aurago_workdir volume.
+  #   - Downloads are stored under /app/agent_workspace/workdir/browser_downloads inside AuraGo.
+  # ============================================================================
+  browser-automation:
+    profiles: ["browser-automation"]
+    build:
+      context: .
+      dockerfile: Dockerfile.browser_automation
+    image: aurago-browser-automation:latest
+    container_name: browser-automation
+    restart: unless-stopped
+    environment:
+      - PORT=7331
+      - WORKSPACE_ROOT=/workspace
+      - DOWNLOAD_ROOT=/workspace/browser_downloads
+      - HEADLESS=true
+      - ALLOW_FILE_UPLOADS=true
+      - ALLOW_FILE_DOWNLOADS=true
+      - READ_ONLY=false
+      - SESSION_TTL_MINUTES=30
+      - MAX_SESSIONS=3
+      - VIEWPORT_WIDTH=1280
+      - VIEWPORT_HEIGHT=720
+    volumes:
+      - aurago_workdir:/workspace
+    ports:
+      - "127.0.0.1:7331:7331"
+    shm_size: '512m'
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:7331/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ============================================================================
   # Ansible Sidecar  (OPTIONAL — uncomment the entire block to enable)
   # ============================================================================
   # Runs a lightweight Ansible API server reachable from AuraGo as

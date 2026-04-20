@@ -60,6 +60,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"site_crawler", "Crawl websites following links and extracting data"},
 		{"site_monitor", "Monitor websites for availability and changes"},
 		{"web_capture", "Take screenshots and capture web pages"},
+		{"browser_automation", "Drive a full browser session with clicks, typing, screenshots, and downloads"},
 		{"web_performance_audit", "Lighthouse-style performance audit of a URL"},
 		{"form_automation", "Automate web form submissions via headless browser"},
 		{"whois_lookup", "WHOIS domain registration and ownership lookup"},

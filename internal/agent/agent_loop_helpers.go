@@ -23,6 +23,11 @@ var adaptiveToolIntentAliases = map[string][]string{
 		"spiel es nochmal ab", "spiele es nochmal ab", "spiel es ab", "spiele es ab",
 		"spiel den song ab", "spiele den song ab", "play it again", "play it",
 	},
+	"browser_automation": {
+		"browser automation", "use the browser", "open the browser", "nutze den browser",
+		"oeffne die webseite", "öffne die webseite", "klicke dich durch", "fill the form",
+		"fülle das formular aus", "fill in the field", "browser session", "take a browser screenshot",
+	},
 }
 
 func ShouldReloadCoreMemory(dirty bool, loadedAt time.Time, dbUpdatedAt, cachedUpdatedAt time.Time) bool {
@@ -237,6 +242,7 @@ var adaptiveToolNeighbors = map[string][]string{
 	"web_scraper":  {"site_crawler", "web_capture", "web_performance_audit", "document_creator"},
 	"site_crawler": {"web_scraper", "web_capture"},
 	"web_capture":  {"web_scraper", "site_crawler", "web_performance_audit"},
+	"browser_automation": {"web_capture", "form_automation", "analyze_image", "filesystem"},
 	"site_monitor": {"web_scraper", "network_ping"},
 
 	// SQL & Databases

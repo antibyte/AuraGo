@@ -128,6 +128,24 @@ type formAutomationArgs struct {
 	ScreenshotDir string
 }
 
+type browserAutomationArgs struct {
+	Operation    string
+	SessionID    string
+	URL          string
+	Selector     string
+	Text         string
+	Value        string
+	Key          string
+	WaitFor      string
+	TimeoutMs    int
+	OutputPath   string
+	FullPage     bool
+	FilePath     string
+	DownloadName string
+	DOMSnippet   bool
+	MaxElements  int
+}
+
 type upnpScanArgs struct {
 	SearchTarget      string
 	TimeoutSecs       int
@@ -530,6 +548,32 @@ func decodeFormAutomationArgs(tc ToolCall) formAutomationArgs {
 		Selector:      firstNonEmptyToolString(tc.Selector, toolArgString(tc.Params, "selector")),
 		ScreenshotDir: firstNonEmptyToolString(tc.ScreenshotDir, toolArgString(tc.Params, "screenshot_dir")),
 	}
+}
+
+func decodeBrowserAutomationArgs(tc ToolCall) browserAutomationArgs {
+	req := browserAutomationArgs{
+		Operation:    firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		SessionID:    firstNonEmptyToolString(toolArgString(tc.Params, "session_id")),
+		URL:          firstNonEmptyToolString(tc.URL, toolArgString(tc.Params, "url")),
+		Selector:     firstNonEmptyToolString(tc.Selector, toolArgString(tc.Params, "selector")),
+		Text:         firstNonEmptyToolString(tc.Text, tc.Content, toolArgString(tc.Params, "text", "content")),
+		Value:        firstNonEmptyToolString(tc.Value, toolArgString(tc.Params, "value")),
+		Key:          firstNonEmptyToolString(toolArgString(tc.Params, "key")),
+		WaitFor:      firstNonEmptyToolString(toolArgString(tc.Params, "wait_for")),
+		TimeoutMs:    max(tc.TimeoutMs, toolArgInt(tc.Params, 0, "timeout_ms")),
+		OutputPath:   firstNonEmptyToolString(toolArgString(tc.Params, "output_path")),
+		FullPage:     tc.FullPage,
+		FilePath:     firstNonEmptyToolString(tc.FilePath, tc.Path, toolArgString(tc.Params, "file_path", "path")),
+		DownloadName: firstNonEmptyToolString(toolArgString(tc.Params, "download_name")),
+		MaxElements:  toolArgInt(tc.Params, 0, "max_elements"),
+	}
+	if fullPage, ok := toolArgBool(tc.Params, "full_page"); ok {
+		req.FullPage = fullPage
+	}
+	if domSnippet, ok := toolArgBool(tc.Params, "dom_snippet"); ok {
+		req.DOMSnippet = domSnippet
+	}
+	return req
 }
 
 func decodeUPnPScanArgs(tc ToolCall) upnpScanArgs {

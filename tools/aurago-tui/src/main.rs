@@ -22,7 +22,7 @@ mod events;
 mod ui;
 
 use api::{auth, sse, types::*, ApiClient};
-use app::{AppState, DashTab, Screen};
+use app::{AppState, DashTab, MediaTab, Screen};
 use events::keybindings::{map_key, Action, KeyContext};
 use events::AppEvent;
 use ui::theme::Theme;
@@ -145,6 +145,9 @@ async fn run_app(
                         Screen::Missions => ui::missions::draw_missions(f, &app_lock, &current_theme),
                         Screen::Skills => ui::skills::draw_skills(f, &app_lock, &current_theme),
                         Screen::Containers => ui::containers::draw_containers(f, &app_lock, &current_theme),
+                        Screen::Config => ui::config::draw_config(f, &app_lock, &current_theme),
+                        Screen::Knowledge => ui::knowledge::draw_knowledge(f, &app_lock, &current_theme),
+                        Screen::Media => ui::media::draw_media(f, &app_lock, &current_theme),
                     }
                 })
                 .context("Failed to draw UI")?;
@@ -489,6 +492,139 @@ async fn run_app(
                     }
                 }
             }
+
+            // ── Config ──────────────────────────────────────────────────────
+            AppEvent::ConfigLoaded(result) => {
+                match result {
+                    Ok(data) => {
+                        app_lock.config_data = data;
+                        // Extract top-level sections from config data
+                        if let Some(obj) = app_lock.config_data.as_object() {
+                            app_lock.config_sections = obj.keys().cloned().collect();
+                            app_lock.config_sections.sort();
+                        }
+                    }
+                    Err(e) => {
+                        app_lock.toast = Some(format!("Failed to load config: {}", e));
+                        app_lock.toast_ticks = 10;
+                    }
+                }
+                app_lock.config_loading = false;
+            }
+            AppEvent::ConfigSchemaLoaded(result) => {
+                match result {
+                    Ok(schema) => {
+                        app_lock.config_schema = schema;
+                    }
+                    Err(e) => {
+                        app_lock.toast = Some(format!("Failed to load config schema: {}", e));
+                        app_lock.toast_ticks = 10;
+                    }
+                }
+            }
+            AppEvent::ConfigSaved(result) => {
+                match result {
+                    Ok(()) => {
+                        app_lock.config_dirty = false;
+                        app_lock.toast = Some("✓ Configuration saved".to_string());
+                        app_lock.toast_ticks = 8;
+                    }
+                    Err(e) => {
+                        app_lock.toast = Some(format!("Failed to save config: {}", e));
+                        app_lock.toast_ticks = 10;
+                    }
+                }
+            }
+            AppEvent::VaultStatusLoaded(result) => {
+                match result {
+                    Ok(_status) => {
+                        // Vault status loaded - could display in config UI
+                    }
+                    Err(e) => {
+                        app_lock.toast = Some(format!("Vault status error: {}", e));
+                        app_lock.toast_ticks = 10;
+                    }
+                }
+            }
+
+            // ── Knowledge ───────────────────────────────────────────────────
+            AppEvent::KnowledgeFilesLoaded(result) => {
+                match result {
+                    Ok(files) => {
+                        app_lock.knowledge_files = files;
+                        if app_lock.knowledge_selected.is_none() && !app_lock.knowledge_files.is_empty() {
+                            app_lock.knowledge_selected = Some(0);
+                        }
+                    }
+                    Err(e) => {
+                        app_lock.toast = Some(format!("Failed to load knowledge: {}", e));
+                        app_lock.toast_ticks = 10;
+                    }
+                }
+                app_lock.knowledge_loading = false;
+            }
+            AppEvent::KnowledgeFileDeleted(result) => {
+                match result {
+                    Ok(()) => {
+                        app_lock.toast = Some("✓ File deleted".to_string());
+                        app_lock.toast_ticks = 8;
+                        // Refresh knowledge files
+                        let c = client.clone();
+                        let tx = event_tx.clone();
+                        tokio::spawn(async move {
+                            let result = auth::fetch_knowledge_files(&c).await.map_err(|e| e.to_string());
+                            let _ = tx.send(AppEvent::KnowledgeFilesLoaded(result));
+                        });
+                    }
+                    Err(e) => {
+                        app_lock.toast = Some(format!("Failed to delete file: {}", e));
+                        app_lock.toast_ticks = 10;
+                    }
+                }
+            }
+
+            // ── Media ───────────────────────────────────────────────────────
+            AppEvent::MediaLoaded(result) => {
+                match result {
+                    Ok(resp) => {
+                        app_lock.media_items = resp.items;
+                        app_lock.media_total = resp.total;
+                        if app_lock.media_selected.is_none() && !app_lock.media_items.is_empty() {
+                            app_lock.media_selected = Some(0);
+                        }
+                    }
+                    Err(e) => {
+                        app_lock.toast = Some(format!("Failed to load media: {}", e));
+                        app_lock.toast_ticks = 10;
+                    }
+                }
+                app_lock.media_loading = false;
+            }
+            AppEvent::MediaDeleted(result) => {
+                match result {
+                    Ok(_) => {
+                        app_lock.toast = Some("✓ Media deleted".to_string());
+                        app_lock.toast_ticks = 8;
+                        // Refresh media
+                        let c = client.clone();
+                        let tx = event_tx.clone();
+                        let media_type = match app_lock.media_tab {
+                            MediaTab::Audio => "audio",
+                            MediaTab::Documents => "documents",
+                        }.to_string();
+                        let offset = app_lock.media_offset;
+                        let query = if app_lock.media_search.is_empty() { None } else { Some(app_lock.media_search.clone()) };
+                        tokio::spawn(async move {
+                            let result = auth::fetch_media(&c, &media_type, 50, offset, query.as_deref()).await.map_err(|e| e.to_string());
+                            let _ = tx.send(AppEvent::MediaLoaded(result));
+                        });
+                    }
+                    Err(e) => {
+                        app_lock.toast = Some(format!("Failed to delete media: {}", e));
+                        app_lock.toast_ticks = 10;
+                    }
+                }
+            }
         }
     }
 
@@ -547,6 +683,31 @@ fn handle_key_event(
                 KeyContext::List {
                     selected: *app_lock.list_selected(),
                     len: app_lock.list_len(),
+                }
+            }
+            Screen::Config => KeyContext::Config {
+                section_index: app_lock.config_section_index,
+                field_index: app_lock.config_field_index,
+                editing: app_lock.config_editing,
+            },
+            Screen::Knowledge => {
+                if app_lock.knowledge_search_active {
+                    KeyContext::Search { active: true }
+                } else {
+                    KeyContext::List {
+                        selected: *app_lock.list_selected(),
+                        len: app_lock.list_len(),
+                    }
+                }
+            }
+            Screen::Media => {
+                if app_lock.media_search_active {
+                    KeyContext::Search { active: true }
+                } else {
+                    KeyContext::List {
+                        selected: *app_lock.list_selected(),
+                        len: app_lock.list_len(),
+                    }
                 }
             }
             Screen::Splash => KeyContext::Splash,
@@ -685,6 +846,12 @@ fn dispatch_action(
                 } else {
                     app.login_password.pop();
                 }
+            } else if app.screen == Screen::Config && app.config_editing {
+                app.config_edit_value.pop();
+            } else if app.screen == Screen::Knowledge && app.knowledge_search_active {
+                app.knowledge_search.pop();
+            } else if app.screen == Screen::Media && app.media_search_active {
+                app.media_search.pop();
             } else {
                 app.chat_input.pop();
             }
@@ -706,6 +873,24 @@ fn dispatch_action(
                     } else if !c.is_control() {
                         app.login_password.push(c);
                     }
+                }
+            } else if app.screen == Screen::Config && app.config_editing {
+                if is_backspace {
+                    app.config_edit_value.pop();
+                } else if !c.is_control() {
+                    app.config_edit_value.push(c);
+                }
+            } else if app.screen == Screen::Knowledge && app.knowledge_search_active {
+                if is_backspace {
+                    app.knowledge_search.pop();
+                } else if !c.is_control() {
+                    app.knowledge_search.push(c);
+                }
+            } else if app.screen == Screen::Media && app.media_search_active {
+                if is_backspace {
+                    app.media_search.pop();
+                } else if !c.is_control() {
+                    app.media_search.push(c);
                 }
             } else {
                 if is_backspace {
@@ -761,6 +946,9 @@ fn dispatch_action(
         Action::GoToMissions => navigate_and_load(app, Screen::Missions, client, tx),
         Action::GoToSkills => navigate_and_load(app, Screen::Skills, client, tx),
         Action::GoToContainers => navigate_and_load(app, Screen::Containers, client, tx),
+        Action::GoToConfig => navigate_and_load(app, Screen::Config, client, tx),
+        Action::GoToKnowledge => navigate_and_load(app, Screen::Knowledge, client, tx),
+        Action::GoToMedia => navigate_and_load(app, Screen::Media, client, tx),
 
         // ── List navigation ──────────────────────────────────────────────────
         Action::ListUp => {
@@ -881,6 +1069,115 @@ fn dispatch_action(
         Action::ActionToggle => {
             execute_toggle_action(app, client, tx);
         }
+
+        // ── Search ────────────────────────────────────────────────────────────
+        Action::SearchActivate => {
+            match app.screen {
+                Screen::Knowledge => app.knowledge_search_active = true,
+                Screen::Media => app.media_search_active = true,
+                _ => {}
+            }
+        }
+        Action::SearchDeactivate => {
+            match app.screen {
+                Screen::Knowledge => {
+                    app.knowledge_search_active = false;
+                    app.knowledge_search.clear();
+                }
+                Screen::Media => {
+                    app.media_search_active = false;
+                    app.media_search.clear();
+                }
+                _ => {}
+            }
+        }
+        Action::SearchSubmit => {
+            match app.screen {
+                Screen::Knowledge => {
+                    app.knowledge_search_active = false;
+                    // Reload with search query (future: server-side search)
+                    load_data_for_screen(app, client, tx);
+                }
+                Screen::Media => {
+                    app.media_search_active = false;
+                    app.media_offset = 0;
+                    load_data_for_screen(app, client, tx);
+                }
+                _ => {}
+            }
+        }
+
+        // ── Config editing ────────────────────────────────────────────────────
+        Action::EditField => {
+            if app.screen == Screen::Config && !app.config_editing {
+                // Get current field value and start editing
+                let section_key = app.config_sections.get(app.config_section_index);
+                if let Some(key) = section_key {
+                    if let Some(data) = app.config_data.get(key) {
+                        let fields = collect_config_fields(data);
+                        if let Some((_, value)) = fields.get(app.config_field_index) {
+                            app.config_edit_value = value.to_string();
+                            app.config_editing = true;
+                        }
+                    }
+                }
+            }
+        }
+        Action::EditSave => {
+            if app.screen == Screen::Config && app.config_editing {
+                app.config_editing = false;
+                app.config_dirty = true;
+                // Apply the edit to config_data
+                let section_key = app.config_sections.get(app.config_section_index).cloned();
+                if let Some(key) = section_key {
+                    let fields = app.config_data.get(&key).map(|d| collect_config_fields(d));
+                    if let Some(fields) = fields {
+                        if let Some((field_key, _)) = fields.get(app.config_field_index) {
+                            // Parse the edit value
+                            let new_val = parse_edit_value(&app.config_edit_value);
+                            set_nested_config_value(&mut app.config_data, &key, field_key, new_val);
+                        }
+                    }
+                }
+                app.config_edit_value.clear();
+            }
+        }
+        Action::EditCancel => {
+            app.config_editing = false;
+            app.config_edit_value.clear();
+        }
+        Action::SectionUp => {
+            if app.screen == Screen::Config {
+                if app.config_section_index > 0 {
+                    app.config_section_index -= 1;
+                    app.config_field_index = 0;
+                }
+            } else if app.screen == Screen::Media {
+                // Switch tab left
+                app.media_tab = match app.media_tab {
+                    MediaTab::Audio => MediaTab::Documents,
+                    MediaTab::Documents => MediaTab::Audio,
+                };
+                app.media_offset = 0;
+                load_data_for_screen(app, client, tx);
+            }
+        }
+        Action::SectionDown => {
+            if app.screen == Screen::Config {
+                if app.config_section_index < app.config_sections.len().saturating_sub(1) {
+                    app.config_section_index += 1;
+                    app.config_field_index = 0;
+                }
+            } else if app.screen == Screen::Media {
+                // Switch tab right
+                app.media_tab = match app.media_tab {
+                    MediaTab::Audio => MediaTab::Documents,
+                    MediaTab::Documents => MediaTab::Audio,
+                };
+                app.media_offset = 0;
+                load_data_for_screen(app, client, tx);
+            }
+        }
     }
 }
 
@@ -977,6 +1274,45 @@ fn load_data_for_screen(
             tokio::spawn(async move {
                 let result = auth::fetch_containers(&c).await.map_err(|e| e.to_string());
                 let _ = t.send(AppEvent::ContainersLoaded(result));
+            });
+        }
+        Screen::Config => {
+            app.config_loading = true;
+            let c = client.clone();
+            let t = tx.clone();
+            tokio::spawn(async move {
+                let result = auth::fetch_config(&c).await.map_err(|e| e.to_string());
+                let _ = t.send(AppEvent::ConfigLoaded(result));
+            });
+            let c = client.clone();
+            let t = tx.clone();
+            tokio::spawn(async move {
+                let result = auth::fetch_config_schema(&c).await.map_err(|e| e.to_string());
+                let _ = t.send(AppEvent::ConfigSchemaLoaded(result));
+            });
+        }
+        Screen::Knowledge => {
+            app.knowledge_loading = true;
+            let c = client.clone();
+            let t = tx.clone();
+            tokio::spawn(async move {
+                let result = auth::fetch_knowledge_files(&c).await.map_err(|e| e.to_string());
+                let _ = t.send(AppEvent::KnowledgeFilesLoaded(result));
+            });
+        }
+        Screen::Media => {
+            app.media_loading = true;
+            let c = client.clone();
+            let t = tx.clone();
+            let media_type = match app.media_tab {
+                MediaTab::Audio => "audio",
+                MediaTab::Documents => "documents",
+            }.to_string();
+            let offset = app.media_offset;
+            let query = if app.media_search.is_empty() { None } else { Some(app.media_search.clone()) };
+            tokio::spawn(async move {
+                let result = auth::fetch_media(&c, &media_type, 50, offset, query.as_deref()).await.map_err(|e| e.to_string());
+                let _ = t.send(AppEvent::MediaLoaded(result));
             });
         }
         _ => {}
@@ -1105,6 +1441,32 @@ fn execute_delete_action(
                 }
             }
         }
+        Screen::Knowledge => {
+            if let Some(idx) = app.knowledge_selected {
+                if let Some(file) = app.knowledge_files.get(idx) {
+                    let name = file.name.clone();
+                    let c = client.clone();
+                    let t = tx.clone();
+                    tokio::spawn(async move {
+                        let result = auth::delete_knowledge_file(&c, &name).await.map_err(|e| e.to_string());
+                        let _ = t.send(AppEvent::KnowledgeFileDeleted(result));
+                    });
+                }
+            }
+        }
+        Screen::Media => {
+            if let Some(idx) = app.media_selected {
+                if let Some(item) = app.media_items.get(idx) {
+                    let id = item.id;
+                    let c = client.clone();
+                    let t = tx.clone();
+                    tokio::spawn(async move {
+                        let result = auth::delete_media(&c, id).await.map_err(|e| e.to_string());
+                        let _ = t.send(AppEvent::MediaDeleted(result));
+                    });
+                }
+            }
+        }
         _ => {}
     }
 }
@@ -1226,6 +1588,56 @@ async fn start_chat_session(client: &ApiClient, tx: UnboundedSender<AppEvent>) {
             }
         }
     });
+}
+
+// ── Config helpers ────────────────────────────────────────────────────────────
+
+/// Collect flat key-value pairs from a JSON object (one level)
+fn collect_config_fields(data: &serde_json::Value) -> Vec<(String, serde_json::Value)> {
+    let mut result = Vec::new();
+    if let Some(obj) = data.as_object() {
+        for (key, value) in obj {
+            result.push((key.clone(), value.clone()));
+        }
+    }
+    result
+}
+
+/// Parse a string edit value into a JSON value
+fn parse_edit_value(s: &str) -> serde_json::Value {
+    // Try to parse as JSON first
+    if let Ok(v) = serde_json::from_str::<serde_json::Value>(s) {
+        return v;
+    }
+    // Try boolean
+    match s.to_lowercase().as_str() {
+        "true" => return serde_json::Value::Bool(true),
+        "false" => return serde_json::Value::Bool(false),
+        _ => {}
+    }
+    // Try number
+    if let Ok(n) = s.parse::<i64>() {
+        return serde_json::json!(n);
+    }
+    if let Ok(f) = s.parse::<f64>() {
+        return serde_json::json!(f);
+    }
+    // Default to string
+    serde_json::Value::String(s.to_string())
+}
+
+/// Set a nested config value at section.field_path
+fn set_nested_config_value(
+    config: &mut serde_json::Value,
+    section: &str,
+    field_key: &str,
+    new_val: serde_json::Value,
+) {
+    if let Some(section_data) = config.get_mut(section) {
+        if let Some(obj) = section_data.as_object_mut() {
+            obj.insert(field_key.to_string(), new_val);
+        }
+    }
 }
 
 // ── Utility ───────────────────────────────────────────────────────────────────

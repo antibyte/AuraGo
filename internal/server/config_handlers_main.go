@@ -530,6 +530,23 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				}
 			}
 
+			// Auto-start Browser Automation sidecar when the integration becomes active
+			// or relevant sidecar settings change.
+			browserAutomationChanged := oldCfg.BrowserAutomation != newCfg.BrowserAutomation ||
+				oldCfg.Tools.BrowserAutomation.Enabled != newCfg.Tools.BrowserAutomation.Enabled ||
+				oldCfg.Directories.WorkspaceDir != newCfg.Directories.WorkspaceDir
+			if browserAutomationChanged &&
+				newCfg.BrowserAutomation.Enabled &&
+				newCfg.Tools.BrowserAutomation.Enabled &&
+				newCfg.BrowserAutomation.AutoStart &&
+				strings.EqualFold(newCfg.BrowserAutomation.Mode, "sidecar") {
+				if sidecarCfg, err := tools.ResolveBrowserAutomationSidecarConfig(newCfg); err != nil {
+					s.Logger.Warn("[Config UI] Failed to resolve browser automation sidecar config", "error", err)
+				} else {
+					go tools.EnsureBrowserAutomationSidecarRunning(newCfg.Docker.Host, sidecarCfg, s.Logger)
+				}
+			}
+
 			// Auto-start / stop Security Proxy (Caddy) container when enabled flag changes
 			if oldCfg.SecurityProxy.Enabled != newCfg.SecurityProxy.Enabled {
 				if newCfg.SecurityProxy.Enabled {

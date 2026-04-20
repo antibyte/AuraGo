@@ -264,6 +264,57 @@ func TestDecodeFormAutomationArgsEncodesFieldMaps(t *testing.T) {
 	}
 }
 
+func TestDecodeBrowserAutomationArgsUsesParamsAndTopLevelFields(t *testing.T) {
+	req := decodeBrowserAutomationArgs(ToolCall{
+		Action:    "browser_automation",
+		Operation: "click",
+		URL:       "https://example.com",
+		Selector:  "#submit",
+		FilePath:  "workdir/upload.txt",
+		Params: map[string]interface{}{
+			"session_id":    "ba_123",
+			"text":          "hello",
+			"value":         "option-a",
+			"key":           "Enter",
+			"wait_for":      "visible",
+			"timeout_ms":    float64(4500),
+			"output_path":   "browser_screenshots/shot.png",
+			"download_name": "report.pdf",
+			"full_page":     true,
+			"dom_snippet":   true,
+			"max_elements":  float64(15),
+		},
+	})
+
+	if req.Operation != "click" {
+		t.Fatalf("Operation = %q, want click", req.Operation)
+	}
+	if req.SessionID != "ba_123" {
+		t.Fatalf("SessionID = %q, want ba_123", req.SessionID)
+	}
+	if req.URL != "https://example.com" || req.Selector != "#submit" {
+		t.Fatalf("URL/Selector = %q/%q", req.URL, req.Selector)
+	}
+	if req.Text != "hello" || req.Value != "option-a" || req.Key != "Enter" || req.WaitFor != "visible" {
+		t.Fatalf("decoded browser automation args = %+v", req)
+	}
+	if req.TimeoutMs != 4500 {
+		t.Fatalf("TimeoutMs = %d, want 4500", req.TimeoutMs)
+	}
+	if req.OutputPath != "browser_screenshots/shot.png" {
+		t.Fatalf("OutputPath = %q, want browser_screenshots/shot.png", req.OutputPath)
+	}
+	if req.FilePath != "workdir/upload.txt" {
+		t.Fatalf("FilePath = %q, want workdir/upload.txt", req.FilePath)
+	}
+	if req.DownloadName != "report.pdf" {
+		t.Fatalf("DownloadName = %q, want report.pdf", req.DownloadName)
+	}
+	if !req.FullPage || !req.DOMSnippet || req.MaxElements != 15 {
+		t.Fatalf("decoded browser automation flags = %+v", req)
+	}
+}
+
 func TestDecodeUPnPScanArgsUsesParamsFallback(t *testing.T) {
 	req := decodeUPnPScanArgs(ToolCall{
 		Action: "upnp_scan",

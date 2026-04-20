@@ -687,6 +687,30 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			logger.Info("LLM requested web capture", "operation", req.Operation, "url", req.URL)
 			return "Tool Output: " + tools.WebCapture(ctx, req.Operation, req.URL, req.Selector, req.FullPage, req.OutputDir)
 
+		case "browser_automation":
+			if !cfg.BrowserAutomation.Enabled || !cfg.Tools.BrowserAutomation.Enabled {
+				return `Tool Output: {"status":"error","message":"browser_automation is disabled. Enable browser_automation.enabled=true and tools.browser_automation.enabled=true in config."}`
+			}
+			req := decodeBrowserAutomationArgs(tc)
+			logger.Info("LLM requested browser automation", "operation", req.Operation, "session_id", req.SessionID, "url", req.URL)
+			return "Tool Output: " + tools.ExecuteBrowserAutomation(ctx, cfg, tools.BrowserAutomationRequest{
+				Operation:    req.Operation,
+				SessionID:    req.SessionID,
+				URL:          req.URL,
+				Selector:     req.Selector,
+				Text:         req.Text,
+				Value:        req.Value,
+				Key:          req.Key,
+				WaitFor:      req.WaitFor,
+				TimeoutMs:    req.TimeoutMs,
+				OutputPath:   req.OutputPath,
+				FullPage:     req.FullPage,
+				FilePath:     req.FilePath,
+				DownloadName: req.DownloadName,
+				DOMSnippet:   req.DOMSnippet,
+				MaxElements:  req.MaxElements,
+			}, logger)
+
 		case "web_performance_audit":
 			req := decodeWebPerformanceAuditArgs(tc)
 			logger.Info("LLM requested web performance audit", "url", req.URL, "viewport", req.Viewport)

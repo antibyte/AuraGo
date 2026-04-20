@@ -950,6 +950,38 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 		))
 	}
 
+	if ff.BrowserAutomationEnabled {
+		tools = append(tools, tool("browser_automation",
+			"Control a full browser session through the optional Playwright sidecar. "+
+				"Use it for multi-step website automation: navigate pages, inspect UI state, click buttons, type into fields, select options, upload files, take screenshots, and retrieve browser downloads. "+
+				"Work in a loop: create_session or navigate, extract/current_state, perform one action, wait_for if needed, then extract again.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "Browser automation operation to perform",
+					"enum":        []string{"create_session", "close_session", "navigate", "click", "type", "select", "press", "wait_for", "extract", "screenshot", "upload_file", "list_downloads", "get_download", "current_state"},
+				},
+				"session_id": map[string]interface{}{
+					"type":        "string",
+					"description": "Existing browser session ID. Required for every operation except create_session.",
+				},
+				"url":           prop("string", "Target page URL for create_session or navigate."),
+				"selector":      prop("string", "Primary CSS selector used for click, type, select, upload_file, and wait_for."),
+				"text":          prop("string", "Text content to enter for the type operation."),
+				"value":         prop("string", "Value to select for the select operation."),
+				"key":           prop("string", "Keyboard key for the press operation, e.g. Enter, Escape, Tab."),
+				"wait_for":      map[string]interface{}{"type": "string", "description": "State to wait for during wait_for. Defaults to visible when omitted.", "enum": []string{"visible", "hidden", "attached", "detached", "load", "networkidle"}},
+				"timeout_ms":    map[string]interface{}{"type": "integer", "description": "Timeout in milliseconds for navigation and waits."},
+				"output_path":   prop("string", "Workspace-relative output path for screenshot, e.g. 'browser_screenshots/login.png'. Optional."),
+				"full_page":     map[string]interface{}{"type": "boolean", "description": "Capture the full scrollable page for screenshots."},
+				"file_path":     prop("string", "Workspace-relative file path for upload_file, e.g. 'workdir/invoice.pdf'."),
+				"download_name": prop("string", "Downloaded file name used by get_download to pick one entry from list_downloads."),
+				"dom_snippet":   map[string]interface{}{"type": "boolean", "description": "When true, extract also returns a compact DOM snippet around the current page focus."},
+				"max_elements":  map[string]interface{}{"type": "integer", "description": "Maximum number of interactive elements to include in extract results."},
+			}, "operation"),
+		))
+	}
+
 	if ff.NetworkPingEnabled {
 		tools = append(tools, tool("network_ping",
 			"Ping a host using ICMP echo requests and return latency statistics (min/avg/max RTT, packet loss). "+

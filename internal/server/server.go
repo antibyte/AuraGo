@@ -709,6 +709,15 @@ func Start(opts StartOptions) error {
 		go tools.EnsureGotenbergRunning(cfg.Docker.Host, logger)
 	}
 
+	// Auto-start Browser Automation sidecar if enabled in sidecar mode
+	if cfg.BrowserAutomation.Enabled && cfg.Tools.BrowserAutomation.Enabled && cfg.BrowserAutomation.AutoStart && strings.EqualFold(cfg.BrowserAutomation.Mode, "sidecar") {
+		if sidecarCfg, err := tools.ResolveBrowserAutomationSidecarConfig(cfg); err == nil {
+			go tools.EnsureBrowserAutomationSidecarRunning(cfg.Docker.Host, sidecarCfg, logger)
+		} else {
+			logger.Warn("[BrowserAutomation] Failed to resolve sidecar config", "error", err)
+		}
+	}
+
 	// Auto-start Ansible sidecar container if enabled in sidecar mode
 	if cfg.Ansible.Enabled && cfg.Ansible.Mode == "sidecar" {
 		inventoryDir := ""

@@ -1,8 +1,11 @@
 pub mod animations;
 pub mod chat;
+pub mod config;
 pub mod containers;
 pub mod dashboard;
+pub mod knowledge;
 pub mod login;
+pub mod media;
 pub mod missions;
 pub mod plans;
 pub mod skills;

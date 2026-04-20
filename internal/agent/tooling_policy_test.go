@@ -89,9 +89,11 @@ func TestBuildPromptContextFlagsAndToolFeatureFlagsShareResolvedCapabilities(t *
 	cfg.Discord.Enabled = true
 	cfg.HomeAssistant.Enabled = true
 	cfg.Koofr.Enabled = true
+	cfg.BrowserAutomation.Enabled = true
 	cfg.GoogleWorkspace.Enabled = true
 	cfg.Vercel.Enabled = true
 	cfg.Tools.Memory.Enabled = true
+	cfg.Tools.BrowserAutomation.Enabled = true
 	cfg.Tools.WebCapture.Enabled = true
 	cfg.Tools.NetworkPing.Enabled = true
 	cfg.Tools.NetworkScan.Enabled = true
@@ -120,6 +122,9 @@ func TestBuildPromptContextFlagsAndToolFeatureFlagsShareResolvedCapabilities(t *
 	}
 	if contextFlags.KoofrEnabled != toolFlags.KoofrEnabled {
 		t.Fatal("koofr capability mismatch between prompt context and tool feature flags")
+	}
+	if contextFlags.BrowserAutomationEnabled != toolFlags.BrowserAutomationEnabled {
+		t.Fatal("browser automation capability mismatch between prompt context and tool feature flags")
 	}
 	if contextFlags.GoogleWorkspaceEnabled != toolFlags.GoogleWorkspaceEnabled {
 		t.Fatal("google workspace capability mismatch between prompt context and tool feature flags")

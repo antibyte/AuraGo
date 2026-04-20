@@ -53,4 +53,18 @@ pub enum AppEvent {
     ContainersLoaded(Result<Vec<Container>, String>),
     ContainerActionDone(Result<serde_json::Value, String>),
     ContainerLogsLoaded(Result<serde_json::Value, String>),
+
+    // ── Config ────────────────────────────────────────────────────────────
+    ConfigLoaded(Result<serde_json::Value, String>),
+    ConfigSchemaLoaded(Result<serde_json::Value, String>),
+    ConfigSaved(Result<(), String>),
+    VaultStatusLoaded(Result<VaultStatus, String>),
+
+    // ── Knowledge ─────────────────────────────────────────────────────────
+    KnowledgeFilesLoaded(Result<Vec<KnowledgeFile>, String>),
+    KnowledgeFileDeleted(Result<(), String>),
+
+    // ── Media ─────────────────────────────────────────────────────────────
+    MediaLoaded(Result<MediaResponse, String>),
+    MediaDeleted(Result<serde_json::Value, String>),
 }

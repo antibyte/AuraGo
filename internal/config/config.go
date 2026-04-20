@@ -114,6 +114,29 @@ func Load(path string) (*Config, error) {
 	}
 	cfg.Tools.DocumentCreator.Gotenberg.Timeout = 120
 
+	// Browser Automation defaults: disabled, Docker sidecar, local loopback outside containers.
+	cfg.BrowserAutomation.Mode = "sidecar"
+	if _, err := os.Stat("/.dockerenv"); err == nil {
+		cfg.BrowserAutomation.URL = "http://browser-automation:7331"
+	} else {
+		cfg.BrowserAutomation.URL = "http://127.0.0.1:7331"
+	}
+	cfg.BrowserAutomation.ContainerName = "aurago_browser_automation"
+	cfg.BrowserAutomation.Image = "aurago-browser-automation:latest"
+	cfg.BrowserAutomation.AutoStart = false
+	cfg.BrowserAutomation.AutoBuild = true
+	cfg.BrowserAutomation.DockerfileDir = "."
+	cfg.BrowserAutomation.SessionTTLMinutes = 30
+	cfg.BrowserAutomation.MaxSessions = 3
+	cfg.BrowserAutomation.AllowFileUploads = true
+	cfg.BrowserAutomation.AllowFileDownloads = true
+	cfg.BrowserAutomation.AllowedDownloadDir = "browser_downloads"
+	cfg.BrowserAutomation.Viewport.Width = 1280
+	cfg.BrowserAutomation.Viewport.Height = 720
+	cfg.BrowserAutomation.Headless = true
+	cfg.BrowserAutomation.ReadOnly = false
+	cfg.BrowserAutomation.ScreenshotsDir = "browser_screenshots"
+
 	cfg.Tools.PythonTimeoutSeconds = 30
 	cfg.Tools.SkillTimeoutSeconds = 120
 	cfg.Tools.BackgroundTimeoutSeconds = 3600

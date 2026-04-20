@@ -85,6 +85,21 @@ func TestSearchToolsInCategories(t *testing.T) {
 		t.Fatal("expected results for 'koofr'")
 	}
 
+	results = SearchToolsInCategories("browser")
+	if len(results) == 0 {
+		t.Fatal("expected results for 'browser'")
+	}
+	found = false
+	for _, r := range results {
+		if r.Entry.Name == "browser_automation" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected 'browser_automation' in search results for 'browser'")
+	}
+
 	// No results
 	results = SearchToolsInCategories("zzz_nonexistent_xyz")
 	if len(results) != 0 {

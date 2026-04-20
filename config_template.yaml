@@ -343,6 +343,8 @@ tools:
         gotenberg:
             url: "http://gotenberg:3000"
             timeout: 120
+    browser_automation:
+        enabled: false                                     # enable browser_automation tool (Playwright browser sidecar)
     skill_manager:
         enabled: true                                       # enable the Skill Manager Web UI
         allow_uploads: true                                 # allow users to upload new Python skills
@@ -521,6 +523,26 @@ remote_control:
     auto_approve: false
     allowed_paths: []
     audit_log: true
+browser_automation:
+    enabled: false
+    mode: sidecar
+    url: "http://browser-automation:7331"
+    container_name: aurago_browser_automation
+    image: aurago-browser-automation:latest
+    auto_start: false
+    auto_build: true
+    dockerfile_dir: "."
+    session_ttl_minutes: 30
+    max_sessions: 3
+    allow_file_uploads: true
+    allow_file_downloads: true
+    allowed_download_dir: browser_downloads
+    viewport:
+        width: 1280
+        height: 720
+    headless: true
+    readonly: false
+    screenshots_dir: browser_screenshots
 indexing:
     enabled: true
     directories:

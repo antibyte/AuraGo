@@ -78,6 +78,7 @@ const SECTIONS = [
         items: [
             { key: 'tools', icon: '🛠️', label: t('config.section.tools.label'), desc: t('config.section.tools.desc') },
             { key: 'web_scraper', icon: '🕷️', label: t('config.section.web_scraper.label'), desc: t('config.section.web_scraper.desc'), customRender: 'renderWebScraperSection' },
+            { key: 'browser_automation', icon: '🌐', label: t('config.section.browser_automation.label'), desc: t('config.section.browser_automation.desc') },
             { key: 'sandbox', icon: '📦', label: t('config.section.sandbox.label'), desc: t('config.section.sandbox.desc') },
             { key: 'info_tools', icon: '🔍', label: t('config.section.info_tools.label'), desc: t('config.section.info_tools.desc') },
             { key: 'network_tools', icon: '📡', label: t('config.section.network_tools.label'), desc: t('config.section.network_tools.desc') },
@@ -1447,6 +1448,7 @@ const SECTION_MODULES = {
     mcp: { m: 'mcp', fn: 'renderMCPSection' },
     sandbox: { m: 'sandbox', fn: 'renderSandboxSection' },
     web_scraper: { m: 'scraper', fn: 'renderWebScraperSection' },
+    browser_automation: { m: 'browser_automation', fn: 'renderBrowserAutomationSection' },
     webhooks: { m: 'webhooks', fn: 'renderWebhooksSection' },
     prompts_editor: { m: 'prompts', fn: 'renderPromptsSection' },
     indexing: { m: 'indexing', fn: 'renderIndexingSection' },

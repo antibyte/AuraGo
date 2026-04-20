@@ -119,6 +119,7 @@ type ToolFeatureFlags struct {
 	MemoryAnalysisEnabled    bool
 	DocumentCreatorEnabled   bool
 	WebCaptureEnabled        bool
+	BrowserAutomationEnabled bool
 	NetworkPingEnabled       bool
 	WebScraperEnabled        bool
 	S3Enabled                bool
