@@ -588,6 +588,9 @@ func applyReusableSkill(runCfg RunConfig, logger *slog.Logger, evaluation Reusab
 }
 
 func shouldMaterializeCheatsheet(query string, toolNames, toolSummaries []string) bool {
+	if len(toolNames) == 0 {
+		return false
+	}
 	if len(toolNames) >= 2 {
 		return true
 	}
@@ -601,6 +604,9 @@ func shouldMaterializeCheatsheet(query string, toolNames, toolSummaries []string
 }
 
 func isLikelyRecurringResolution(query, finalAnswer string, toolNames []string) bool {
+	if len(toolNames) == 0 {
+		return false
+	}
 	combined := strings.ToLower(strings.TrimSpace(query + " " + finalAnswer))
 	if len(toolNames) >= 2 {
 		return true

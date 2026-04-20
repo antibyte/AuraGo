@@ -319,8 +319,8 @@ func TestTrimMessagesForEmptyResponsePreservesLastUserIntentAndLatestToolResult(
 		{Role: openai.ChatMessageRoleUser, Content: "older request"},
 		{Role: openai.ChatMessageRoleAssistant, Content: "planning"},
 		{Role: openai.ChatMessageRoleAssistant, ToolCalls: []openai.ToolCall{{
-			ID:   "call-1",
-			Type: openai.ToolTypeFunction,
+			ID:       "call-1",
+			Type:     openai.ToolTypeFunction,
 			Function: openai.FunctionCall{Name: "execute_shell", Arguments: `{"command":"pwd"}`},
 		}}},
 		{Role: openai.ChatMessageRoleTool, ToolCallID: "call-1", Content: "tool output"},
@@ -532,6 +532,50 @@ func TestParseToolCallBracketFormatAfterTagStripping(t *testing.T) {
 	// We verify the parser handles it gracefully (IsTool=false is expected here)
 	if result.IsTool {
 		t.Fatalf("expected IsTool=false when closing tag was stripped by tag removal")
+	}
+}
+
+func TestParseToolCallAcceptsToolFieldJSON(t *testing.T) {
+	content := `{"tool":"obsidian","operation":"create_note","path":"BugTest.md","content":"hello"}`
+
+	result := ParseToolCall(content)
+
+	if !result.IsTool {
+		t.Fatal("expected IsTool=true for JSON using the tool field")
+	}
+	if result.Action != "obsidian" {
+		t.Fatalf("Action=%q, want obsidian", result.Action)
+	}
+	if result.Operation != "create_note" {
+		t.Fatalf("Operation=%q, want create_note", result.Operation)
+	}
+}
+
+func TestParseToolResponseParsesWrappedToolCallsJSON(t *testing.T) {
+	resp := openai.ChatCompletionResponse{
+		Choices: []openai.ChatCompletionChoice{{
+			Message: openai.ChatCompletionMessage{
+				Content: "<think>Need the obsidian tool</think>\n```json\n{\"tool_calls\":[{\"name\":\"obsidian\",\"arguments\":{\"operation\":\"create_note\",\"path\":\"BugTest.md\",\"content\":\"hello\"}}]}\n```",
+			},
+		}},
+	}
+
+	parsed := parseToolResponse(resp, nil, AgentTelemetryScope{})
+
+	if !parsed.ToolCall.IsTool {
+		t.Fatal("expected wrapped tool_calls JSON to be parsed as a tool call")
+	}
+	if parsed.ToolCall.Action != "obsidian" {
+		t.Fatalf("Action=%q, want obsidian", parsed.ToolCall.Action)
+	}
+	if parsed.ToolCall.Path != "BugTest.md" {
+		t.Fatalf("Path=%q, want BugTest.md", parsed.ToolCall.Path)
+	}
+	if parsed.ToolCall.Operation != "create_note" {
+		t.Fatalf("Operation=%q, want create_note", parsed.ToolCall.Operation)
+	}
+	if parsed.ParseSource != ToolCallParseSourceReasoningCleanJSON {
+		t.Fatalf("ParseSource=%q, want %q", parsed.ParseSource, ToolCallParseSourceReasoningCleanJSON)
 	}
 }
 

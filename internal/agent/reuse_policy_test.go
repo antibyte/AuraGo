@@ -164,6 +164,23 @@ func TestEvaluateReusabilityDoesNotUpdateUserOwnedArtifacts(t *testing.T) {
 	}
 }
 
+func TestEvaluateReusabilitySkipsArtifactCreationWithoutExecutedTools(t *testing.T) {
+	evaluation := evaluateReusability(
+		"du sollst obsidian erneut testen schreiben",
+		"Ich wuerde jetzt Obsidian testen.",
+		nil,
+		nil,
+		ReuseLookupResult{Complexity: TaskComplexityNonTrivial},
+	)
+
+	if evaluation.Decision != ReusableArtifactNone {
+		t.Fatalf("Decision=%q, want none", evaluation.Decision)
+	}
+	if evaluation.Reason != "not_likely_recurring" {
+		t.Fatalf("Reason=%q, want not_likely_recurring", evaluation.Reason)
+	}
+}
+
 func TestApplyReusableCheatsheetKeepsUserOwnedEntryUntouched(t *testing.T) {
 	logger := newReuseTestLogger()
 	csDB := setupReuseCheatsheetDB(t).DB

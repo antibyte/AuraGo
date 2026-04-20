@@ -796,8 +796,13 @@ func ParseToolCall(content string) ToolCall {
 					if strings.HasPrefix(candidate, "{") {
 						normalized := normalizeTagsInJSON(candidate)
 						var tmp ToolCall
-						if json.Unmarshal([]byte(normalized), &tmp) == nil && (tmp.Action != "" || tmp.ToolCallAction != "") && (tmp.Operation == "" && tmp.Name == "" && tmp.Tool == "" && tmp.Command == "" || tmp.Action != "" || tmp.ToolCallAction != "") {
+						if json.Unmarshal([]byte(normalized), &tmp) == nil && toolCallHasRecoverableFields(tmp) {
 							tc = tmp
+							extractedFromFence = true
+							tc.RawJSON = candidate
+							break
+						} else if wrapped, ok := parseWrappedToolCallJSON(normalized); ok {
+							tc = wrapped
 							extractedFromFence = true
 							tc.RawJSON = candidate
 							break
@@ -818,8 +823,13 @@ func ParseToolCall(content string) ToolCall {
 						candidate := bStr[:j+1]
 						normalized := normalizeTagsInJSON(candidate)
 						var tmp ToolCall
-						if json.Unmarshal([]byte(normalized), &tmp) == nil && (tmp.Action != "" || tmp.ToolCallAction != "") && (tmp.Operation == "" && tmp.Name == "" && tmp.Tool == "" && tmp.Command == "" || tmp.Action != "" || tmp.ToolCallAction != "") {
+						if json.Unmarshal([]byte(normalized), &tmp) == nil && toolCallHasRecoverableFields(tmp) {
 							tc = tmp
+							extractedFromFence = true
+							tc.RawJSON = candidate
+							break
+						} else if wrapped, ok := parseWrappedToolCallJSON(normalized); ok {
+							tc = wrapped
 							extractedFromFence = true
 							tc.RawJSON = candidate
 							break
@@ -1032,8 +1042,8 @@ func ParseToolCall(content string) ToolCall {
 					}
 				}
 			}
-			return tc
 		}
+		return tc
 	}
 
 	// ── Native-function bare-args fallback ───────────────────────────────────
@@ -1081,6 +1091,59 @@ func ParseToolCall(content string) ToolCall {
 	}
 
 	return ToolCall{}
+}
+
+func toolCallHasRecoverableFields(tc ToolCall) bool {
+	return tc.Action != "" ||
+		tc.ToolCallAction != "" ||
+		tc.Tool != "" ||
+		tc.Command != "" ||
+		tc.Name != "" ||
+		tc.Operation != ""
+}
+
+func parseWrappedToolCallJSON(raw string) (ToolCall, bool) {
+	type wrapperCall struct {
+		Name      string      `json:"name"`
+		Operation string      `json:"operation"`
+		Path      string      `json:"path"`
+		Content   string      `json:"content"`
+		Target    string      `json:"target"`
+		Arguments interface{} `json:"arguments"`
+		Function  struct {
+			Name      string      `json:"name"`
+			Arguments interface{} `json:"arguments"`
+		} `json:"function"`
+	}
+	type wrapper struct {
+		ToolCalls []wrapperCall `json:"tool_calls"`
+	}
+
+	var parsed wrapper
+	if err := json.Unmarshal([]byte(raw), &parsed); err != nil || len(parsed.ToolCalls) == 0 {
+		return ToolCall{}, false
+	}
+
+	first := parsed.ToolCalls[0]
+	tc := ToolCall{
+		Action:    strings.TrimSpace(first.Name),
+		Operation: strings.TrimSpace(first.Operation),
+		Path:      strings.TrimSpace(first.Path),
+		Content:   first.Content,
+		Target:    strings.TrimSpace(first.Target),
+		Arguments: first.Arguments,
+	}
+	if tc.Action == "" {
+		tc.Action = strings.TrimSpace(first.Function.Name)
+	}
+	if first.Function.Arguments != nil {
+		tc.Arguments = first.Function.Arguments
+	}
+	if tc.Action == "" && !toolCallHasRecoverableFields(tc) {
+		return ToolCall{}, false
+	}
+	tc.IsTool = true
+	return tc, true
 }
 
 func parseXMLParams(tc *ToolCall, body string) {
