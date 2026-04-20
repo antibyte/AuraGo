@@ -107,7 +107,7 @@ func TestEvaluateReusabilityUsesAgentOwnershipForUpdates(t *testing.T) {
 	agentSkill := &tools.SkillRegistryEntry{ID: "sk-agent", Name: "log_analyzer_helper", CreatedBy: "agent", Category: "ops"}
 
 	lookup := ReuseLookupResult{
-		Query:      "analyze nginx logs after deployment failure",
+		Query:      "automate docker deployment recovery workflow after restart failures",
 		Complexity: TaskComplexityNonTrivial,
 		Performed:  true,
 		CheatsheetHits: []reuseArtifactHit{{
@@ -124,7 +124,17 @@ func TestEvaluateReusabilityUsesAgentOwnershipForUpdates(t *testing.T) {
 		}},
 	}
 
-	eval := evaluateReusability("analyze nginx logs after deployment failure", "Confirmed the failing log pattern and validated the recovery.", []string{"execute_shell", "query_memory"}, []string{"execute_shell: completed - checked nginx logs"}, lookup)
+	eval := evaluateReusability(
+		"automate docker deployment recovery workflow after restart failures",
+		"Resolved the restart failure by fixing environment variables, rebuilding the container, restarting the stack, and validating health checks. Captured a repeatable recovery workflow.",
+		[]string{"docker", "execute_shell", "manage_files"},
+		[]string{
+			"inspect compose configuration and identify missing environment variables",
+			"rebuild and restart the docker stack",
+			"validate container health checks and service responses",
+		},
+		lookup,
+	)
 	if eval.Decision != ReusableArtifactUpdateBoth {
 		t.Fatalf("Decision = %q, want %q", eval.Decision, ReusableArtifactUpdateBoth)
 	}
@@ -138,7 +148,7 @@ func TestEvaluateReusabilityDoesNotUpdateUserOwnedArtifacts(t *testing.T) {
 	userSkill := &tools.SkillRegistryEntry{ID: "sk-user", Name: "log_analyzer_helper", CreatedBy: "user", Category: "ops"}
 
 	lookup := ReuseLookupResult{
-		Query:      "analyze nginx logs after deployment failure",
+		Query:      "automate docker deployment recovery workflow after restart failures",
 		Complexity: TaskComplexityNonTrivial,
 		Performed:  true,
 		CheatsheetHits: []reuseArtifactHit{{
@@ -155,7 +165,17 @@ func TestEvaluateReusabilityDoesNotUpdateUserOwnedArtifacts(t *testing.T) {
 		}},
 	}
 
-	eval := evaluateReusability("analyze nginx logs after deployment failure", "Confirmed the failing log pattern and validated the recovery.", []string{"execute_shell", "query_memory"}, []string{"execute_shell: completed - checked nginx logs"}, lookup)
+	eval := evaluateReusability(
+		"automate docker deployment recovery workflow after restart failures",
+		"Resolved the restart failure by fixing environment variables, rebuilding the container, restarting the stack, and validating health checks. Captured a repeatable recovery workflow.",
+		[]string{"docker", "execute_shell", "manage_files"},
+		[]string{
+			"inspect compose configuration and identify missing environment variables",
+			"rebuild and restart the docker stack",
+			"validate container health checks and service responses",
+		},
+		lookup,
+	)
 	if eval.Decision != ReusableArtifactCreateBoth {
 		t.Fatalf("Decision = %q, want %q", eval.Decision, ReusableArtifactCreateBoth)
 	}
@@ -176,8 +196,64 @@ func TestEvaluateReusabilitySkipsArtifactCreationWithoutExecutedTools(t *testing
 	if evaluation.Decision != ReusableArtifactNone {
 		t.Fatalf("Decision=%q, want none", evaluation.Decision)
 	}
-	if evaluation.Reason != "not_likely_recurring" {
-		t.Fatalf("Reason=%q, want not_likely_recurring", evaluation.Reason)
+	if evaluation.Reason != "task_not_substantial_enough" {
+		t.Fatalf("Reason=%q, want task_not_substantial_enough", evaluation.Reason)
+	}
+}
+
+func TestEvaluateReusabilitySkipsSimpleVerificationTasks(t *testing.T) {
+	evaluation := evaluateReusability(
+		"teste nochmal ob obsidian schreiben geht",
+		"Ich habe den Schreibzugriff noch einmal geprueft und den Inhalt wieder eingelesen.",
+		[]string{"obsidian"},
+		[]string{
+			"create a temporary note in obsidian",
+			"read the note back to compare the content",
+		},
+		ReuseLookupResult{Complexity: TaskComplexityNonTrivial},
+	)
+
+	if evaluation.Decision != ReusableArtifactNone {
+		t.Fatalf("Decision=%q, want none", evaluation.Decision)
+	}
+	if evaluation.Reason != "task_not_substantial_enough" {
+		t.Fatalf("Reason=%q, want task_not_substantial_enough", evaluation.Reason)
+	}
+}
+
+func TestEvaluateReusabilityCreatesOnlyCheatsheetForResolvedFailure(t *testing.T) {
+	evaluation := evaluateReusability(
+		"debug the failing nginx deployment and document the fix",
+		"Root cause resolved after checking logs, fixing the missing upstream config, restarting nginx, and validating the endpoint response.",
+		[]string{"execute_shell", "manage_files", "http_request"},
+		[]string{
+			"inspect nginx error logs to isolate the upstream misconfiguration",
+			"update the nginx configuration and restart the service",
+			"verify the endpoint returns the expected response",
+		},
+		ReuseLookupResult{Complexity: TaskComplexityNonTrivial},
+	)
+
+	if evaluation.Decision != ReusableArtifactCreateCheatsheet {
+		t.Fatalf("Decision=%q, want %q", evaluation.Decision, ReusableArtifactCreateCheatsheet)
+	}
+}
+
+func TestEvaluateReusabilityCreatesOnlySkillForAutomatedWorkflow(t *testing.T) {
+	evaluation := evaluateReusability(
+		"automate recurring database backup and restore validation",
+		"Built a repeatable backup workflow that exports snapshots, restores them into a validation database, and verifies the schema and row counts automatically.",
+		[]string{"sql_query", "archive", "execute_shell"},
+		[]string{
+			"export the production snapshot with the configured backup command",
+			"restore the snapshot into the validation database",
+			"compare schema and row counts to confirm integrity",
+		},
+		ReuseLookupResult{Complexity: TaskComplexityNonTrivial},
+	)
+
+	if evaluation.Decision != ReusableArtifactCreateSkill {
+		t.Fatalf("Decision=%q, want %q", evaluation.Decision, ReusableArtifactCreateSkill)
 	}
 }
 

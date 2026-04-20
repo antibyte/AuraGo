@@ -94,6 +94,22 @@ var (
 		"fix", "integration", "issue", "log", "monitor", "panic", "problem", "remote", "restore", "setup",
 		"ssh", "sync", "timeout", "workflow", "fehler", "deploy", "docker", "konfigur", "ssh", "wiederkehr",
 	}
+	reuseTrivialTaskCues = []string{
+		"test", "teste", "testing", "smoke test", "check", "verify", "confirm", "try again", "try",
+		"versuch", "pruef", "pruf", "nochmal", "erneut", "quick", "kurz",
+	}
+	reuseFailureCues = []string{
+		"broken", "bug", "crash", "error", "failure", "failing", "issue", "panic", "problem", "regression",
+		"timeout", "fehler", "kaputt", "funktioniert nicht", "schlaegt fehl",
+	}
+	reuseResolutionCues = []string{
+		"fixed", "resolved", "solution", "solved", "workaround", "root cause", "mitigated", "recovered",
+		"gefixed", "geloest", "loesung", "ursache", "behoben",
+	}
+	reuseAutomationCues = []string{
+		"automate", "automation", "automated", "script", "workflow", "runbook", "recurring", "repeatable",
+		"scheduled", "schedule", "pipeline", "routine", "batch", "wiederkehr", "automatisier",
+	}
 )
 
 func classifyTaskComplexity(userMsg string) TaskComplexity {
@@ -382,15 +398,19 @@ func evaluateReusability(query, finalAnswer string, toolNames, toolSummaries []s
 		eval.Reason = "task_trivial"
 		return eval
 	}
-	if !isLikelyRecurringResolution(query, finalAnswer, toolNames) {
+	if isTrivialReuseTask(query, finalAnswer, toolNames, toolSummaries) {
+		eval.Reason = "task_not_substantial_enough"
+		return eval
+	}
+	if !isLikelyRecurringResolution(query, finalAnswer, toolNames, toolSummaries) {
 		eval.Reason = "not_likely_recurring"
 		return eval
 	}
 
 	eval.HighRecurrence = true
-	needsCheatsheet := shouldMaterializeCheatsheet(query, toolNames, toolSummaries)
+	needsCheatsheet := shouldMaterializeCheatsheet(query, finalAnswer, toolNames, toolSummaries)
 	templateName, category, tags := deriveReusableSkillTemplate(query, finalAnswer, toolNames)
-	needsSkill := templateName != ""
+	needsSkill := shouldMaterializeSkill(query, finalAnswer, toolNames, toolSummaries) && templateName != ""
 
 	existingAgentCS := topAgentCheatsheet(lookup.CheatsheetHits)
 	existingAgentSkill := topAgentSkill(lookup.SkillHits)
@@ -587,15 +607,96 @@ func applyReusableSkill(runCfg RunConfig, logger *slog.Logger, evaluation Reusab
 	return nil
 }
 
-func shouldMaterializeCheatsheet(query string, toolNames, toolSummaries []string) bool {
+func shouldMaterializeCheatsheet(query, finalAnswer string, toolNames, toolSummaries []string) bool {
 	if len(toolNames) == 0 {
 		return false
 	}
-	if len(toolNames) >= 2 {
+	if isTrivialReuseTask(query, finalAnswer, toolNames, toolSummaries) {
+		return false
+	}
+	combined := normalizeReuseCombined(query, finalAnswer, toolNames, toolSummaries)
+	stepCount := reusableExecutionDepth(toolNames, toolSummaries)
+	if stepCount < 3 && !(stepCount >= 2 && containsReuseCue(combined, reuseFailureCues) && containsReuseCue(combined, reuseResolutionCues)) {
+		return false
+	}
+	return containsReuseCue(combined, reuseFailureCues) && containsReuseCue(combined, reuseResolutionCues)
+}
+
+func shouldMaterializeSkill(query, finalAnswer string, toolNames, toolSummaries []string) bool {
+	if len(toolNames) == 0 {
+		return false
+	}
+	if isTrivialReuseTask(query, finalAnswer, toolNames, toolSummaries) {
+		return false
+	}
+	combined := normalizeReuseCombined(query, finalAnswer, toolNames, toolSummaries)
+	if reusableExecutionDepth(toolNames, toolSummaries) < 3 {
+		return false
+	}
+	return containsReuseCue(combined, reuseAutomationCues)
+}
+
+func isLikelyRecurringResolution(query, finalAnswer string, toolNames, toolSummaries []string) bool {
+	if len(toolNames) == 0 {
+		return false
+	}
+	if isTrivialReuseTask(query, finalAnswer, toolNames, toolSummaries) {
+		return false
+	}
+	combined := normalizeReuseCombined(query, finalAnswer, toolNames, toolSummaries)
+	stepCount := reusableExecutionDepth(toolNames, toolSummaries)
+	hasFailureResolution := containsReuseCue(combined, reuseFailureCues) && containsReuseCue(combined, reuseResolutionCues)
+	hasAutomationIntent := containsReuseCue(combined, reuseAutomationCues)
+
+	if stepCount >= 3 && (hasFailureResolution || hasAutomationIntent) {
 		return true
 	}
-	combined := strings.ToLower(strings.Join(append([]string{query}, toolSummaries...), " "))
-	for _, cue := range reuseRecurringCues {
+	if stepCount >= 2 && hasFailureResolution && len(reuseKeywords(combined)) >= 6 {
+		return true
+	}
+	return false
+}
+
+func isTrivialReuseTask(query, finalAnswer string, toolNames, toolSummaries []string) bool {
+	trimmedQuery := strings.ToLower(strings.TrimSpace(query))
+	combined := normalizeReuseCombined(query, finalAnswer, toolNames, toolSummaries)
+	stepCount := reusableExecutionDepth(toolNames, toolSummaries)
+	if stepCount >= 3 {
+		return false
+	}
+	if hasPrefixReuseCue(trimmedQuery, reuseTrivialTaskCues) {
+		return true
+	}
+	if containsReuseCue(combined, reuseTrivialTaskCues) && !containsReuseCue(combined, reuseFailureCues) && !containsReuseCue(combined, reuseAutomationCues) {
+		return true
+	}
+	return len(reuseKeywords(trimmedQuery)) <= 6 && stepCount <= 2
+}
+
+func normalizeReuseCombined(query, finalAnswer string, toolNames, toolSummaries []string) string {
+	parts := make([]string, 0, 2+len(toolNames)+len(toolSummaries))
+	parts = append(parts, query, finalAnswer)
+	parts = append(parts, toolNames...)
+	parts = append(parts, toolSummaries...)
+	return strings.ToLower(strings.TrimSpace(strings.Join(parts, " ")))
+}
+
+func reusableExecutionDepth(toolNames, toolSummaries []string) int {
+	nonEmptySummaries := 0
+	for _, summary := range toolSummaries {
+		if strings.TrimSpace(summary) != "" {
+			nonEmptySummaries++
+		}
+	}
+	uniqueToolCount := len(uniqueStrings(toolNames))
+	if nonEmptySummaries > uniqueToolCount {
+		return nonEmptySummaries
+	}
+	return uniqueToolCount
+}
+
+func containsReuseCue(combined string, cues []string) bool {
+	for _, cue := range cues {
 		if strings.Contains(combined, cue) {
 			return true
 		}
@@ -603,20 +704,13 @@ func shouldMaterializeCheatsheet(query string, toolNames, toolSummaries []string
 	return false
 }
 
-func isLikelyRecurringResolution(query, finalAnswer string, toolNames []string) bool {
-	if len(toolNames) == 0 {
-		return false
-	}
-	combined := strings.ToLower(strings.TrimSpace(query + " " + finalAnswer))
-	if len(toolNames) >= 2 {
-		return true
-	}
-	for _, cue := range reuseRecurringCues {
-		if strings.Contains(combined, cue) {
+func hasPrefixReuseCue(query string, cues []string) bool {
+	for _, cue := range cues {
+		if strings.HasPrefix(query, cue+" ") || query == cue {
 			return true
 		}
 	}
-	return len(reuseKeywords(combined)) >= 6
+	return false
 }
 
 func deriveReusableSkillTemplate(query, finalAnswer string, toolNames []string) (string, string, []string) {
