@@ -85,7 +85,17 @@ func buildPreferredMCPVisionArgs(tool *MCPToolInfo, resolvedPath, prompt string)
 	props := mcpInputProperties(tool)
 
 	hasImageInput := false
-	if setFirstMatchingMCPArg(args, props, resolvedPath, "file_path", "path", "image_path", "image_file", "local_path", "input_path", "image", "image_url", "url") {
+	if setFirstMatchingMCPArg(args, props, resolvedPath,
+		"file_path", "filePath",
+		"path",
+		"image_path", "imagePath",
+		"image_file", "imageFile",
+		"local_path", "localPath",
+		"input_path", "inputPath",
+		"image",
+		"image_url", "imageUrl",
+		"url",
+	) {
 		hasImageInput = true
 	}
 	if !hasImageInput {
@@ -94,7 +104,13 @@ func buildPreferredMCPVisionArgs(tool *MCPToolInfo, resolvedPath, prompt string)
 			return nil, fmt.Errorf("read image for MCP fallback: %w", err)
 		}
 		encoded := base64.StdEncoding.EncodeToString(raw)
-		if setFirstMatchingMCPArg(args, props, encoded, "image_base64", "base64_image", "base64", "image_data", "data") {
+		if setFirstMatchingMCPArg(args, props, encoded,
+			"image_base64", "imageBase64",
+			"base64_image", "base64Image",
+			"base64",
+			"image_data", "imageData",
+			"data",
+		) {
 			hasImageInput = true
 		}
 	}
@@ -103,7 +119,7 @@ func buildPreferredMCPVisionArgs(tool *MCPToolInfo, resolvedPath, prompt string)
 	}
 
 	setFirstMatchingMCPArg(args, props, prompt, "prompt", "question", "query", "instruction", "text")
-	setFirstMatchingMCPArg(args, props, filepath.Base(resolvedPath), "filename", "file_name", "name")
+	setFirstMatchingMCPArg(args, props, filepath.Base(resolvedPath), "filename", "file_name", "fileName", "name")
 	return args, nil
 }
 

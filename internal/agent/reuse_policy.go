@@ -184,8 +184,12 @@ func searchReusableCheatsheets(db *sql.DB, query string, limit int) []reuseArtif
 	if err != nil {
 		return nil
 	}
+	errorRecoveryQuery := isErrorRecoveryQuery(query)
 	hits := make([]reuseArtifactHit, 0, len(sheets))
 	for i := range sheets {
+		if !errorRecoveryQuery && isErrorRecoveryCheatsheet(sheets[i].Name, sheets[i].Content) {
+			continue
+		}
 		score, matched := scoreReuseCandidate(query, sheets[i].Name, sheets[i].Content)
 		if score < 0.26 {
 			continue
@@ -206,6 +210,36 @@ func searchReusableCheatsheets(db *sql.DB, query string, limit int) []reuseArtif
 		return hits[:limit]
 	}
 	return hits
+}
+
+func isErrorRecoveryQuery(query string) bool {
+	text := strings.TrimSpace(strings.ToLower(query))
+	if text == "" {
+		return false
+	}
+	if strings.Contains(text, "error: your last response") ||
+		strings.Contains(text, "text-only") ||
+		strings.Contains(text, "function-calling api") ||
+		strings.Contains(text, "tool call") {
+		return true
+	}
+	for _, cue := range reuseFailureCues {
+		if strings.Contains(text, cue) {
+			return true
+		}
+	}
+	return false
+}
+
+func isErrorRecoveryCheatsheet(name, content string) bool {
+	nameText := strings.TrimSpace(strings.ToLower(name))
+	text := strings.TrimSpace(strings.ToLower(name + "\n" + content))
+	return strings.HasPrefix(nameText, "error ") ||
+		strings.Contains(text, "error: your last response") ||
+		strings.Contains(text, "text-only") ||
+		strings.Contains(text, "native function-calling api") ||
+		strings.Contains(text, "emit the tool call again") ||
+		strings.Contains(text, "completion signal")
 }
 
 func searchReusableSkills(query string, limit int) []reuseArtifactHit {

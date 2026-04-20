@@ -175,3 +175,57 @@ func TestCallPreferredMCPVisionSupportsImageURLStyleInputs(t *testing.T) {
 		t.Fatalf("question = %v, want %q", gotArgs["question"], "What is shown?")
 	}
 }
+
+func TestCallPreferredMCPVisionSupportsCamelCaseInputs(t *testing.T) {
+	oldList := listPreferredMCPTools
+	oldCall := callPreferredMCPTool
+	defer func() {
+		listPreferredMCPTools = oldList
+		callPreferredMCPTool = oldCall
+	}()
+
+	listPreferredMCPTools = func(serverName string, logger *slog.Logger) ([]MCPToolInfo, error) {
+		return []MCPToolInfo{{
+			Server: "minimax",
+			Name:   "understand_image",
+			InputSchema: map[string]interface{}{
+				"properties": map[string]interface{}{
+					"imageUrl": map[string]interface{}{"type": "string"},
+					"question": map[string]interface{}{"type": "string"},
+					"fileName": map[string]interface{}{"type": "string"},
+				},
+			},
+		}}, nil
+	}
+
+	var gotArgs map[string]interface{}
+	callPreferredMCPTool = func(serverName, toolName string, arguments map[string]interface{}, logger *slog.Logger) (string, error) {
+		gotArgs = arguments
+		return `{"status":"ok"}`, nil
+	}
+
+	cfg := &config.Config{}
+	cfg.Agent.AllowMCP = true
+	cfg.MCP.Enabled = true
+	cfg.MCP.PreferredCapabilities.Vision = config.MCPPreferredToolSelection{Server: "minimax", Tool: "understand_image"}
+	cfg.Directories.WorkspaceDir = t.TempDir()
+
+	imgPath := filepath.Join(cfg.Directories.WorkspaceDir, "image.png")
+	if err := os.WriteFile(imgPath, []byte("fake image bytes"), 0o644); err != nil {
+		t.Fatalf("write image: %v", err)
+	}
+
+	_, used, err := CallPreferredMCPVision(cfg, imgPath, "What is shown?", slog.Default())
+	if err != nil {
+		t.Fatalf("CallPreferredMCPVision error = %v", err)
+	}
+	if !used {
+		t.Fatal("expected preferred MCP vision to be used")
+	}
+	if gotArgs["imageUrl"] != imgPath {
+		t.Fatalf("imageUrl = %v, want %q", gotArgs["imageUrl"], imgPath)
+	}
+	if gotArgs["fileName"] != "image.png" {
+		t.Fatalf("fileName = %v, want %q", gotArgs["fileName"], "image.png")
+	}
+}

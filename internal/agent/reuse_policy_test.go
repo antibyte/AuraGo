@@ -102,6 +102,27 @@ func TestBuildReuseLookupFindsCheatsheetAndSkill(t *testing.T) {
 	}
 }
 
+func TestBuildReuseLookupSkipsErrorRecoveryCheatsheetsForNormalRequests(t *testing.T) {
+	logger := newReuseTestLogger()
+	csDB := setupReuseCheatsheetDB(t).DB
+	if _, err := tools.CheatsheetCreate(csDB, "Error Your Last Workflow", "ERROR: Your last response was text-only. Emit the tool call again using the native function-calling API.", "agent"); err != nil {
+		t.Fatalf("CheatsheetCreate error sheet: %v", err)
+	}
+	if _, err := tools.CheatsheetCreate(csDB, "Image Handling Workflow", "Use the configured image analysis path for uploaded screenshots and photos.", "agent"); err != nil {
+		t.Fatalf("CheatsheetCreate image sheet: %v", err)
+	}
+
+	lookup := buildReuseLookup("analyze the uploaded image at agent_workspace/workdir/attachments/example.png", nil, csDB, logger)
+	for _, hit := range lookup.CheatsheetHits {
+		if hit.Name == "Error Your Last Workflow" {
+			t.Fatalf("unexpected recovery cheatsheet hit: %+v", lookup.CheatsheetHits)
+		}
+	}
+	if len(lookup.CheatsheetHits) == 0 || lookup.CheatsheetHits[0].Name != "Image Handling Workflow" {
+		t.Fatalf("expected image workflow hit, got %+v", lookup.CheatsheetHits)
+	}
+}
+
 func TestEvaluateReusabilityUsesAgentOwnershipForUpdates(t *testing.T) {
 	agentCheatsheet := &tools.CheatSheet{ID: "cs-agent", Name: "Nginx Recovery", CreatedBy: "agent", Content: "old"}
 	agentSkill := &tools.SkillRegistryEntry{ID: "sk-agent", Name: "log_analyzer_helper", CreatedBy: "agent", Category: "ops"}

@@ -368,6 +368,18 @@ func TestShouldStoreExtractedMemory(t *testing.T) {
 			category: "user_preferences",
 			want:     false,
 		},
+		{
+			name:     "drops attachment path detail",
+			content:  "The file is located at agent_workspace/workdir/attachments/example.png",
+			category: "recent_operational_details",
+			want:     false,
+		},
+		{
+			name:     "drops auth issue outage detail",
+			content:  "The Vision API is down due to authentication issues.",
+			category: "recent_operational_details",
+			want:     false,
+		},
 	}
 
 	for _, tt := range tests {

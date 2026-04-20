@@ -561,6 +561,12 @@ func shouldStoreExtractedMemory(content, category string) bool {
 			strings.Contains(text, "document sent") || strings.Contains(text, "dokument gesendet") {
 			return false
 		}
+		if strings.Contains(text, "agent_workspace/workdir/attachments/") ||
+			strings.Contains(text, "vision api is down") ||
+			strings.Contains(text, "authentication issues") ||
+			(strings.Contains(text, "uploaded") && (strings.Contains(text, "mb") || strings.Contains(text, "gb"))) {
+			return false
+		}
 		if strings.Contains(text, "integration") || strings.Contains(text, "tool") {
 			if strings.Contains(text, "available") || strings.Contains(text, "verfügbar") ||
 				strings.Contains(text, "configured") || strings.Contains(text, "konfiguriert") ||
