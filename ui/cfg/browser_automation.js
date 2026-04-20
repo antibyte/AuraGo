@@ -7,6 +7,7 @@ function baEnsureData() {
     if (!configData.browser_automation.viewport) configData.browser_automation.viewport = {};
     if (!configData.tools) configData.tools = {};
     if (!configData.tools.browser_automation) configData.tools.browser_automation = {};
+    configData.tools.browser_automation.enabled = configData.browser_automation.enabled === true;
     return {
         integration: configData.browser_automation,
         tool: configData.tools.browser_automation
@@ -17,9 +18,7 @@ async function renderBrowserAutomationSection(section) {
     if (section) _baSection = section; else section = _baSection;
     const state = baEnsureData();
     const data = state.integration;
-    const toolData = state.tool;
     const integrationEnabled = data.enabled === true;
-    const toolEnabled = toolData.enabled === true;
     const viewport = data.viewport || {};
 
     let html = '<div class="cfg-section active">';
@@ -30,13 +29,9 @@ async function renderBrowserAutomationSection(section) {
     html += '<div class="field-label">' + t('config.browser_automation.integration_enabled') + '</div>';
     html += '<div class="toggle ' + (integrationEnabled ? 'on' : '') + '" onclick="baToggleIntegration(this.classList.contains(\'on\'))"></div>';
     html += '</div>';
+    html += '<div class="toggle ' + (integrationEnabled ? 'on' : '') + '" data-path="tools.browser_automation.enabled" style="display:none" aria-hidden="true"></div>';
 
-    html += '<div class="field-group">';
-    html += '<div class="field-label">' + t('config.browser_automation.tool_enabled') + '</div>';
-    html += '<div class="toggle ' + (toolEnabled ? 'on' : '') + '" onclick="baToggleTool(this.classList.contains(\'on\'))"></div>';
-    html += '</div>';
-
-    if (!integrationEnabled || !toolEnabled) {
+    if (!integrationEnabled) {
         html += '<div class="wh-notice"><span>🌐</span><div>';
         html += '<strong>' + t('config.browser_automation.disabled_notice') + '</strong><br>';
         html += '<small>' + t('config.browser_automation.disabled_desc') + '</small>';
@@ -125,14 +120,9 @@ function baToggleRow(labelKey, enabled, path) {
 
 function baToggleIntegration(isOn) {
     const state = baEnsureData();
-    state.integration.enabled = !isOn;
-    setDirty(true);
-    renderBrowserAutomationSection(null);
-}
-
-function baToggleTool(isOn) {
-    const state = baEnsureData();
-    state.tool.enabled = !isOn;
+    const next = !isOn;
+    state.integration.enabled = next;
+    state.tool.enabled = next;
     setDirty(true);
     renderBrowserAutomationSection(null);
 }
@@ -144,7 +134,17 @@ async function baTestConnection() {
     result.textContent = t('config.browser_automation.loading');
     result.className = 'dc-test-result';
     try {
-        const resp = await fetch('/api/browser-automation/test', { method: 'POST' });
+        const patch = buildConfigPatchFromForm();
+        const browserAutomation = patch.browser_automation || {};
+        const toolEnabled = browserAutomation.enabled === true;
+        const resp = await fetch('/api/browser-automation/test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                browser_automation: browserAutomation,
+                tool_enabled: toolEnabled
+            })
+        });
         const body = await resp.json();
         if (resp.ok && body.status === 'success') {
             result.className = 'dc-test-result is-success';

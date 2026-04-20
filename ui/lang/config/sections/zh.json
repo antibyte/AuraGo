@@ -339,7 +339,7 @@
   "config.browser_automation.integration_enabled": "启用集成",
   "config.browser_automation.tool_enabled": "启用工具",
   "config.browser_automation.disabled_notice": "浏览器自动化当前已禁用。",
-  "config.browser_automation.disabled_desc": "在代理使用浏览器自动化之前，请同时启用集成和工具开关。",
+  "config.browser_automation.disabled_desc": "请先启用集成，代理才能使用浏览器自动化。",
   "config.browser_automation.sidecar_note": "通过隔离的 Playwright 边车运行，并保留持久浏览器会话。",
   "config.browser_automation.mode_label": "模式",
   "config.browser_automation.url_label": "边车 URL",

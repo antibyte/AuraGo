@@ -339,7 +339,7 @@
   "config.browser_automation.integration_enabled": "Η ενσωμάτωση είναι ενεργή",
   "config.browser_automation.tool_enabled": "Το εργαλείο είναι ενεργό",
   "config.browser_automation.disabled_notice": "Η αυτοματοποίηση προγράμματος περιήγησης είναι απενεργοποιημένη αυτή τη στιγμή.",
-  "config.browser_automation.disabled_desc": "Ενεργοποιήστε τόσο την ενσωμάτωση όσο και το εργαλείο πριν μπορέσει ο agent να χρησιμοποιήσει την αυτοματοποίηση προγράμματος περιήγησης.",
+  "config.browser_automation.disabled_desc": "Ενεργοποιήστε την ενσωμάτωση ώστε ο agent να μπορεί να χρησιμοποιεί την αυτοματοποίηση προγράμματος περιήγησης.",
   "config.browser_automation.sidecar_note": "Εκτελείται μέσω απομονωμένου sidecar Playwright με επίμονες συνεδρίες προγράμματος περιήγησης.",
   "config.browser_automation.mode_label": "Λειτουργία",
   "config.browser_automation.url_label": "URL sidecar",

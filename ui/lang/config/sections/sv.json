@@ -339,7 +339,7 @@
   "config.browser_automation.integration_enabled": "Integration aktiverad",
   "config.browser_automation.tool_enabled": "Verktyg aktiverat",
   "config.browser_automation.disabled_notice": "Webbläsarautomation är för närvarande inaktiverad.",
-  "config.browser_automation.disabled_desc": "Aktivera både integrationen och verktyget innan agenten kan använda webbläsarautomation.",
+  "config.browser_automation.disabled_desc": "Aktivera integrationen så att agenten kan använda webbläsarautomation.",
   "config.browser_automation.sidecar_note": "Körs via en isolerad Playwright-sidecar med beständiga webbläsarsessioner.",
   "config.browser_automation.mode_label": "Läge",
   "config.browser_automation.url_label": "Sidecar-URL",

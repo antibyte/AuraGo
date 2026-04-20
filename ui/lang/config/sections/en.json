@@ -339,7 +339,7 @@
   "config.browser_automation.integration_enabled": "Integration Enabled",
   "config.browser_automation.tool_enabled": "Tool Enabled",
   "config.browser_automation.disabled_notice": "Browser automation is currently disabled.",
-  "config.browser_automation.disabled_desc": "Enable both the integration and the tool toggle before the agent can use browser automation.",
+  "config.browser_automation.disabled_desc": "Enable the integration before the agent can use browser automation.",
   "config.browser_automation.sidecar_note": "Runs through an isolated Playwright sidecar with persistent browser sessions.",
   "config.browser_automation.mode_label": "Mode",
   "config.browser_automation.url_label": "Sidecar URL",

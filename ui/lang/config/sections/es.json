@@ -339,7 +339,7 @@
   "config.browser_automation.integration_enabled": "Integración activada",
   "config.browser_automation.tool_enabled": "Herramienta activada",
   "config.browser_automation.disabled_notice": "La automatización del navegador está desactivada actualmente.",
-  "config.browser_automation.disabled_desc": "Activa tanto la integración como la herramienta antes de que el agente pueda usar la automatización del navegador.",
+  "config.browser_automation.disabled_desc": "Activa la integración para que el agente pueda usar la automatización del navegador.",
   "config.browser_automation.sidecar_note": "Se ejecuta mediante un sidecar aislado de Playwright con sesiones persistentes del navegador.",
   "config.browser_automation.mode_label": "Modo",
   "config.browser_automation.url_label": "URL del sidecar",

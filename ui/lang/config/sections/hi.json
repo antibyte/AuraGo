@@ -339,7 +339,7 @@
   "config.browser_automation.integration_enabled": "इंटीग्रेशन सक्षम",
   "config.browser_automation.tool_enabled": "टूल सक्षम",
   "config.browser_automation.disabled_notice": "ब्राउज़र ऑटोमेशन अभी निष्क्रिय है।",
-  "config.browser_automation.disabled_desc": "एजेंट के ब्राउज़र ऑटोमेशन का उपयोग करने से पहले इंटीग्रेशन और टूल दोनों सक्षम करें।",
+  "config.browser_automation.disabled_desc": "इंटीग्रेशन सक्षम करें, तभी एजेंट ब्राउज़र ऑटोमेशन का उपयोग कर सकेगा।",
   "config.browser_automation.sidecar_note": "यह स्थायी ब्राउज़र सत्रों वाले अलग Playwright साइडकार के माध्यम से चलता है।",
   "config.browser_automation.mode_label": "मोड",
   "config.browser_automation.url_label": "साइडकार URL",
