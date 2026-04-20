@@ -619,6 +619,11 @@ async function renderSection(key) {
 
     // Information Tools — Wikipedia, DuckDuckGo, PDF Extractor (subset of tools config)
     if (key === 'info_tools' || key === 'network_tools') {
+        if (key === 'info_tools') {
+            html += `<div class="cfg-note-banner cfg-note-banner-info">
+                        ℹ️ ${t('config.info_tools.always_active_banner')}
+                    </div>`;
+        }
         const toolsData = configData['tools'] || {};
         const toolsSchema = schema.find(s => s.yaml_key === 'tools');
         const SECTION_KEYS = key === 'info_tools'
@@ -809,7 +814,10 @@ function renderFields(fields, data, parentPath) {
         const fullPath = parentPath + '.' + field.yaml_key;
 
         if (field.type === 'object' && field.children) {
-            html += '<div class="cfg-group-title cfg-group-title-underlined">' + formatKey(field.yaml_key) + '</div>';
+            // Use translated group title if available, otherwise fall back to formatKey
+            const titleKey = 'config.group_title.' + fullPath;
+            const groupTitle = (typeof I18N !== 'undefined' && I18N[titleKey]) ? I18N[titleKey] : formatKey(field.yaml_key);
+            html += '<div class="cfg-group-title cfg-group-title-underlined">' + groupTitle + '</div>';
             html += renderFields(field.children, val || {}, fullPath);
         } else {
             html += renderField(fullPath, field.yaml_key, val, parentPath, field);
