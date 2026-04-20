@@ -53,7 +53,7 @@ class MermaidRenderer {
         const baseConfig = {
             startOnLoad: false,
             securityLevel: 'strict',
-            fontFamily: theme === 'cyberwar' || theme === 'dark-sun'
+            fontFamily: theme === 'cyberwar' || theme === 'dark-sun' || theme === 'black-matrix'
                 ? '"Oxanium", "Inter", system-ui, sans-serif'
                 : 'Inter, system-ui, sans-serif',
             flowchart: {
@@ -250,6 +250,42 @@ class MermaidRenderer {
                     noteTextColor: '#f8dcff',
                     activationBorderColor: '#54f7ff',
                     activationBkgColor: '#0f2550'
+                }
+            };
+        }
+
+        if (theme === 'black-matrix') {
+            return {
+                ...baseConfig,
+                theme: 'base',
+                themeVariables: {
+                    background: '#030404',
+                    primaryColor: '#101512',
+                    primaryTextColor: '#edf5ee',
+                    primaryBorderColor: '#8ee65e',
+                    lineColor: '#8ee65e',
+                    secondaryColor: '#0a0e0b',
+                    tertiaryColor: '#121816',
+                    mainBkg: '#0b100d',
+                    secondBkg: '#131a16',
+                    tertiaryBkg: '#060807',
+                    clusterBkg: '#090c0a',
+                    clusterBorder: '#95f46c',
+                    edgeLabelBackground: '#080a08',
+                    nodeTextColor: '#edf5ee',
+                    textColor: '#cfddd0',
+                    actorBkg: '#111713',
+                    actorBorder: '#b7c6bb',
+                    actorTextColor: '#f4faf4',
+                    signalColor: '#8ee65e',
+                    signalTextColor: '#f4faf4',
+                    labelBoxBkgColor: '#121713',
+                    labelBoxBorderColor: '#95f46c',
+                    noteBkgColor: '#171d19',
+                    noteBorderColor: '#b7c6bb',
+                    noteTextColor: '#eff6ef',
+                    activationBorderColor: '#8ee65e',
+                    activationBkgColor: '#111612'
                 }
             };
         }

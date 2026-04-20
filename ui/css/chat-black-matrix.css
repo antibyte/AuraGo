@@ -1,0 +1,498 @@
+[data-theme="black-matrix"] {
+    color-scheme: dark;
+    --accent: #94f26d;
+    --accent-secondary: #bcc8be;
+    --accent-tertiary: #6aff9f;
+    --accent-dim: rgba(148, 242, 109, 0.16);
+    --accent-glow: rgba(148, 242, 109, 0.28);
+    --bg-primary: #010201;
+    --bg-secondary: rgba(6, 8, 7, 0.96);
+    --bg-tertiary: rgba(14, 17, 15, 0.94);
+    --bg-glass: linear-gradient(180deg, rgba(33, 38, 35, 0.9), rgba(8, 10, 9, 0.96));
+    --header-bg: rgba(4, 5, 5, 0.9);
+    --modal-bg: rgba(0, 0, 0, 0.72);
+    --modal-surface: rgba(10, 12, 11, 0.96);
+    --modal-border: rgba(150, 159, 153, 0.22);
+    --sidebar-bg: rgba(8, 10, 9, 0.98);
+    --card-bg: rgba(12, 14, 13, 0.94);
+    --code-bg: rgba(5, 7, 6, 0.96);
+    --inline-code-bg: rgba(148, 242, 109, 0.12);
+    --input-bg: rgba(7, 9, 8, 0.98);
+    --input-border: rgba(126, 134, 129, 0.28);
+    --text-primary: #edf2ed;
+    --text-secondary: #aab3ab;
+    --strong-color: #ffffff;
+    --border-subtle: rgba(126, 134, 129, 0.18);
+    --border-accent: rgba(148, 242, 109, 0.34);
+    --user-bubble: linear-gradient(180deg, rgba(26, 32, 27, 0.98), rgba(6, 9, 7, 0.98));
+    --user-bubble-tail: rgba(14, 20, 15, 0.98);
+    --user-bubble-shadow: rgba(148, 242, 109, 0.16);
+    --bot-bubble: linear-gradient(180deg, rgba(19, 22, 20, 0.98), rgba(5, 7, 6, 0.99));
+    --bot-bubble-tail: rgba(9, 12, 10, 0.98);
+    --surface-shadow: 0 24px 55px rgba(0, 0, 0, 0.52);
+    --surface-shadow-strong: 0 34px 95px rgba(0, 0, 0, 0.72);
+    --surface-highlight: rgba(255, 255, 255, 0.1);
+    --page-orb-1: rgba(255, 255, 255, 0.05);
+    --page-orb-2: rgba(148, 242, 109, 0.08);
+    --page-orb-3: rgba(255, 255, 255, 0.04);
+    --page-orb-opacity: 1;
+    --chat-image-opacity: 0.04;
+    --bg-logo-filter: grayscale(1) contrast(1.18) brightness(0.7);
+    --matrix-font-ui: 'Oxanium', 'Inter', system-ui, sans-serif;
+    --matrix-font-copy: 'Datatype', 'Inter', system-ui, sans-serif;
+    --matrix-emboss:
+        0 1px 0 rgba(255, 255, 255, 0.16),
+        0 -1px 0 rgba(0, 0, 0, 0.8),
+        0 0 12px rgba(255, 255, 255, 0.04);
+    --matrix-panel:
+        linear-gradient(180deg, rgba(44, 48, 45, 0.16), rgba(0, 0, 0, 0) 24%),
+        linear-gradient(180deg, rgba(22, 25, 23, 0.98), rgba(7, 9, 8, 0.98));
+    --matrix-panel-accent:
+        linear-gradient(180deg, rgba(173, 255, 138, 0.18), rgba(0, 0, 0, 0) 22%),
+        linear-gradient(180deg, rgba(27, 33, 28, 0.98), rgba(8, 11, 9, 0.98));
+    --matrix-metal:
+        repeating-linear-gradient(135deg,
+            rgba(255, 255, 255, 0.025) 0 2px,
+            rgba(0, 0, 0, 0) 2px 8px),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0) 28%),
+        linear-gradient(180deg, rgba(34, 38, 35, 0.98), rgba(7, 9, 8, 0.98));
+}
+
+[data-theme="black-matrix"] body {
+    background:
+        radial-gradient(circle at 16% 14%, rgba(255, 255, 255, 0.08), transparent 18%),
+        radial-gradient(circle at 84% 12%, rgba(130, 255, 112, 0.08), transparent 24%),
+        radial-gradient(circle at 50% 120%, rgba(255, 255, 255, 0.06), transparent 28%),
+        linear-gradient(180deg, #000000 0%, #020302 44%, #050706 100%);
+    color: var(--text-primary);
+    font-family: var(--matrix-font-copy);
+}
+
+[data-theme="black-matrix"] body::before,
+[data-theme="black-matrix"] body::after {
+    display: none;
+}
+
+[data-theme="black-matrix"] .app-header {
+    position: relative;
+    z-index: 120;
+    background:
+        repeating-linear-gradient(135deg,
+            rgba(255, 255, 255, 0.03) 0 2px,
+            rgba(0, 0, 0, 0) 2px 8px),
+        linear-gradient(180deg, rgba(36, 40, 37, 0.96), rgba(7, 8, 8, 0.98) 38%, rgba(2, 3, 3, 0.98) 100%);
+    border-bottom: 1px solid rgba(168, 176, 170, 0.16);
+    box-shadow:
+        0 16px 40px rgba(0, 0, 0, 0.5),
+        inset 0 1px 0 rgba(255, 255, 255, 0.16),
+        inset 0 -2px 0 rgba(0, 0, 0, 0.6);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
+[data-theme="black-matrix"] .app-header::before {
+    display: none;
+}
+
+[data-theme="black-matrix"] .app-header::after {
+    height: 2px;
+    opacity: 0.88;
+    background: linear-gradient(90deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.2) 14%,
+        rgba(148, 242, 109, 0.84) 50%,
+        rgba(255, 255, 255, 0.2) 86%,
+        transparent 100%);
+    box-shadow:
+        0 0 24px rgba(148, 242, 109, 0.16),
+        0 0 42px rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="black-matrix"] .logo span:first-of-type {
+    background: linear-gradient(180deg, #ffffff 0%, #c8d1c9 26%, #8ef25c 62%, #eff8ee 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 0 18px rgba(148, 242, 109, 0.08);
+}
+
+[data-theme="black-matrix"] .logo span:first-of-type,
+[data-theme="black-matrix"] .session-drawer-title,
+[data-theme="black-matrix"] .modal-title,
+[data-theme="black-matrix"] .app-header .pill,
+[data-theme="black-matrix"] .chat-theme-btn,
+[data-theme="black-matrix"] .btn-session-toggle,
+[data-theme="black-matrix"] .btn-speaker,
+[data-theme="black-matrix"] .btn-warnings,
+[data-theme="black-matrix"] .select-personality,
+[data-theme="black-matrix"] .mood-toggle,
+[data-theme="black-matrix"] .btn-header,
+[data-theme="black-matrix"] .btn-header-link,
+[data-theme="black-matrix"] #logout-btn,
+[data-theme="black-matrix"] .session-new-btn,
+[data-theme="black-matrix"] .session-drawer-close,
+[data-theme="black-matrix"] .btn-send,
+[data-theme="black-matrix"] .btn-voice,
+[data-theme="black-matrix"] .btn-more,
+[data-theme="black-matrix"] .composer-tool-btn,
+[data-theme="black-matrix"] .modal-btn,
+[data-theme="black-matrix"] .scroll-to-bottom-btn,
+[data-theme="black-matrix"] .status-pill {
+    font-family: var(--matrix-font-ui);
+    text-shadow: var(--matrix-emboss);
+    letter-spacing: 0.03em;
+}
+
+[data-theme="black-matrix"] .chat-theme-btn,
+[data-theme="black-matrix"] .btn-session-toggle,
+[data-theme="black-matrix"] .btn-speaker,
+[data-theme="black-matrix"] .btn-warnings,
+[data-theme="black-matrix"] .select-personality,
+[data-theme="black-matrix"] .mood-toggle,
+[data-theme="black-matrix"] .btn-header,
+[data-theme="black-matrix"] .btn-header-link,
+[data-theme="black-matrix"] #logout-btn,
+[data-theme="black-matrix"] .session-new-btn,
+[data-theme="black-matrix"] .session-drawer-close,
+[data-theme="black-matrix"] .btn-send,
+[data-theme="black-matrix"] .btn-voice,
+[data-theme="black-matrix"] .btn-more,
+[data-theme="black-matrix"] .composer-tool-btn,
+[data-theme="black-matrix"] .modal-btn,
+[data-theme="black-matrix"] .scroll-to-bottom-btn {
+    background: var(--matrix-metal);
+    border: 1px solid rgba(154, 161, 156, 0.22);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.14),
+        inset 0 -2px 4px rgba(0, 0, 0, 0.55),
+        0 12px 26px rgba(0, 0, 0, 0.32),
+        0 0 0 1px rgba(255, 255, 255, 0.03);
+    color: var(--text-primary);
+}
+
+[data-theme="black-matrix"] .chat-theme-btn:hover,
+[data-theme="black-matrix"] .btn-session-toggle:hover,
+[data-theme="black-matrix"] .btn-speaker:hover,
+[data-theme="black-matrix"] .btn-warnings:hover,
+[data-theme="black-matrix"] .select-personality:hover,
+[data-theme="black-matrix"] .mood-toggle:hover,
+[data-theme="black-matrix"] .btn-header:hover,
+[data-theme="black-matrix"] .btn-header-link:hover,
+[data-theme="black-matrix"] #logout-btn:hover,
+[data-theme="black-matrix"] .session-new-btn:hover,
+[data-theme="black-matrix"] .session-drawer-close:hover,
+[data-theme="black-matrix"] .btn-send:hover,
+[data-theme="black-matrix"] .btn-voice:hover,
+[data-theme="black-matrix"] .btn-more:hover,
+[data-theme="black-matrix"] .composer-tool-btn:hover,
+[data-theme="black-matrix"] .modal-btn:hover,
+[data-theme="black-matrix"] .scroll-to-bottom-btn:hover {
+    border-color: rgba(148, 242, 109, 0.44);
+    color: #ffffff;
+    transform: translateY(-1px);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.18),
+        inset 0 -2px 5px rgba(0, 0, 0, 0.64),
+        0 16px 34px rgba(0, 0, 0, 0.38),
+        0 0 20px rgba(148, 242, 109, 0.09);
+}
+
+[data-theme="black-matrix"] .chat-theme-icon,
+[data-theme="black-matrix"] .personality-chevron,
+[data-theme="black-matrix"] .mood-chevron {
+    color: #dbe4dc;
+}
+
+[data-theme="black-matrix"] .chat-theme-dropdown,
+[data-theme="black-matrix"] .mood-panel,
+[data-theme="black-matrix"] .session-drawer,
+[data-theme="black-matrix"] .modal-card,
+[data-theme="black-matrix"] .voice-recorder-panel {
+    --theme-option-color: #eef4ef;
+    background:
+        repeating-linear-gradient(135deg,
+            rgba(255, 255, 255, 0.028) 0 2px,
+            rgba(0, 0, 0, 0) 2px 10px),
+        linear-gradient(180deg, rgba(29, 32, 30, 0.98), rgba(7, 8, 8, 0.98));
+    border: 1px solid rgba(164, 171, 166, 0.2);
+    box-shadow:
+        0 22px 58px rgba(0, 0, 0, 0.56),
+        inset 0 1px 0 rgba(255, 255, 255, 0.12),
+        inset 0 -2px 5px rgba(0, 0, 0, 0.62),
+        0 0 0 1px rgba(255, 255, 255, 0.03);
+}
+
+[data-theme="black-matrix"] .chat-theme-option,
+[data-theme="black-matrix"] .session-item {
+    border-radius: 10px;
+}
+
+[data-theme="black-matrix"] .chat-theme-option:hover,
+[data-theme="black-matrix"] .chat-theme-option.active,
+[data-theme="black-matrix"] .session-item:hover,
+[data-theme="black-matrix"] .session-item.active {
+    background:
+        linear-gradient(90deg, rgba(148, 242, 109, 0.14), rgba(255, 255, 255, 0.06)),
+        linear-gradient(180deg, rgba(24, 29, 25, 0.96), rgba(10, 12, 11, 0.98));
+}
+
+[data-theme="black-matrix"] .app-header .pill {
+    background: var(--matrix-panel);
+    border: 1px solid rgba(164, 171, 166, 0.18);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.12),
+        inset 0 -2px 4px rgba(0, 0, 0, 0.58),
+        0 10px 18px rgba(0, 0, 0, 0.22);
+    color: #f0f4f1;
+}
+
+[data-theme="black-matrix"] #chat-box {
+    isolation: auto;
+    position: relative;
+    z-index: 1;
+    background:
+        radial-gradient(circle at 16% 14%, rgba(255, 255, 255, 0.05), transparent 18%),
+        radial-gradient(circle at 85% 16%, rgba(140, 255, 110, 0.07), transparent 22%),
+        radial-gradient(circle at 50% 120%, rgba(255, 255, 255, 0.04), transparent 28%),
+        linear-gradient(180deg, #010101 0%, #050706 100%);
+    background-size: 110% 110%;
+    animation: none;
+}
+
+[data-theme="black-matrix"] #chat-box::before {
+    display: block;
+    background:
+        linear-gradient(180deg,
+            rgba(255, 255, 255, 0.05) 0%,
+            rgba(255, 255, 255, 0) 12%,
+            rgba(0, 0, 0, 0) 74%,
+            rgba(0, 0, 0, 0.34) 100%),
+        repeating-linear-gradient(180deg,
+            rgba(255, 255, 255, 0.015) 0 1px,
+            rgba(0, 0, 0, 0) 1px 4px);
+    opacity: 1;
+}
+
+[data-theme="black-matrix"] #chat-box::after {
+    display: block;
+    opacity: var(--chat-image-opacity);
+    filter: var(--bg-logo-filter);
+}
+
+[data-theme="black-matrix"] #black-matrix-overlay {
+    position: fixed;
+    pointer-events: none;
+    z-index: 2;
+    opacity: 0.92;
+    mix-blend-mode: screen;
+}
+
+[data-theme="black-matrix"] #chat-content {
+    position: relative;
+    z-index: 3;
+    padding-top: 1.85rem;
+    padding-bottom: 2.25rem;
+}
+
+[data-theme="black-matrix"] .greeting-icon,
+[data-theme="black-matrix"] .avatar.bot,
+[data-theme="black-matrix"] .avatar.human {
+    background: var(--matrix-metal);
+    border: 1px solid rgba(177, 185, 179, 0.24);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.14),
+        inset 0 -2px 5px rgba(0, 0, 0, 0.56),
+        0 16px 30px rgba(0, 0, 0, 0.34);
+}
+
+[data-theme="black-matrix"] .greeting-text,
+[data-theme="black-matrix"] .mood-emotion,
+[data-theme="black-matrix"] .trait-label,
+[data-theme="black-matrix"] .trait-value {
+    color: #b3bbb4;
+}
+
+[data-theme="black-matrix"] .bubble {
+    position: relative;
+    border-radius: 18px;
+    border: 1px solid rgba(170, 176, 171, 0.16);
+    overflow: hidden;
+    box-shadow:
+        0 18px 36px rgba(0, 0, 0, 0.5),
+        inset 0 1px 0 rgba(255, 255, 255, 0.14),
+        inset 0 -4px 10px rgba(0, 0, 0, 0.64);
+}
+
+[data-theme="black-matrix"] .bubble::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0) 24%),
+        linear-gradient(115deg, rgba(255, 255, 255, 0.05) 0, rgba(255, 255, 255, 0) 36%);
+    mix-blend-mode: screen;
+}
+
+[data-theme="black-matrix"] .bubble.bot {
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0) 22%),
+        repeating-linear-gradient(135deg,
+            rgba(255, 255, 255, 0.02) 0 2px,
+            rgba(0, 0, 0, 0) 2px 10px),
+        linear-gradient(180deg, rgba(26, 30, 27, 0.98), rgba(6, 8, 7, 0.99));
+    color: var(--text-primary);
+}
+
+[data-theme="black-matrix"] .bubble.bot::before {
+    border-color: transparent transparent rgba(9, 12, 10, 0.98) transparent;
+}
+
+[data-theme="black-matrix"] .bubble.user {
+    background:
+        linear-gradient(180deg, rgba(150, 242, 109, 0.12), rgba(150, 242, 109, 0) 18%),
+        repeating-linear-gradient(135deg,
+            rgba(255, 255, 255, 0.024) 0 2px,
+            rgba(0, 0, 0, 0) 2px 8px),
+        linear-gradient(180deg, rgba(29, 36, 30, 0.98), rgba(7, 10, 8, 0.99));
+    border-color: rgba(148, 242, 109, 0.24);
+    color: #f7fff5;
+    box-shadow:
+        0 18px 38px rgba(0, 0, 0, 0.54),
+        inset 0 1px 0 rgba(210, 255, 193, 0.14),
+        inset 0 -4px 10px rgba(0, 0, 0, 0.64),
+        0 0 24px rgba(148, 242, 109, 0.08);
+}
+
+[data-theme="black-matrix"] .bubble.user::before {
+    border-color: transparent transparent rgba(14, 20, 15, 0.98) transparent;
+}
+
+[data-theme="black-matrix"] .bubble,
+[data-theme="black-matrix"] .bubble p,
+[data-theme="black-matrix"] .bubble li,
+[data-theme="black-matrix"] .bubble blockquote,
+[data-theme="black-matrix"] .bubble strong,
+[data-theme="black-matrix"] .bubble h1,
+[data-theme="black-matrix"] .bubble h2,
+[data-theme="black-matrix"] .bubble h3 {
+    text-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.12),
+        0 -1px 0 rgba(0, 0, 0, 0.7);
+}
+
+[data-theme="black-matrix"] .bubble code,
+[data-theme="black-matrix"] .bubble pre,
+[data-theme="black-matrix"] .bubble pre code {
+    text-shadow: none;
+}
+
+[data-theme="black-matrix"] .bubble a,
+[data-theme="black-matrix"] .bubble strong,
+[data-theme="black-matrix"] .code-lang {
+    color: #9ef772;
+}
+
+[data-theme="black-matrix"] .bubble blockquote,
+[data-theme="black-matrix"] .code-block-wrapper,
+[data-theme="black-matrix"] .copy-btn,
+[data-theme="black-matrix"] .tool-output-block summary {
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0) 22%),
+        linear-gradient(180deg, rgba(20, 24, 21, 0.98), rgba(7, 9, 8, 0.98));
+    border-color: rgba(148, 242, 109, 0.2);
+}
+
+[data-theme="black-matrix"] .code-header,
+[data-theme="black-matrix"] .line-numbers {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+[data-theme="black-matrix"] .app-footer {
+    background:
+        linear-gradient(180deg, rgba(15, 17, 16, 0.96), rgba(4, 5, 5, 0.98));
+    border-top: 1px solid rgba(156, 164, 159, 0.14);
+    box-shadow:
+        0 -18px 32px rgba(0, 0, 0, 0.36),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="black-matrix"] .input-wrap textarea {
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0) 22%),
+        repeating-linear-gradient(135deg,
+            rgba(255, 255, 255, 0.02) 0 2px,
+            rgba(0, 0, 0, 0) 2px 10px),
+        linear-gradient(180deg, rgba(20, 23, 21, 0.98), rgba(6, 8, 7, 0.98));
+    border: 1px solid rgba(160, 168, 162, 0.18);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.1),
+        inset 0 -3px 8px rgba(0, 0, 0, 0.65),
+        0 14px 28px rgba(0, 0, 0, 0.22);
+    color: var(--text-primary);
+    text-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.08),
+        0 -1px 0 rgba(0, 0, 0, 0.7);
+}
+
+[data-theme="black-matrix"] .input-wrap textarea::placeholder {
+    color: #89928a;
+}
+
+[data-theme="black-matrix"] .input-wrap textarea:hover,
+[data-theme="black-matrix"] .input-wrap textarea:focus {
+    border-color: rgba(148, 242, 109, 0.3);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.1),
+        inset 0 -3px 8px rgba(0, 0, 0, 0.68),
+        0 16px 30px rgba(0, 0, 0, 0.28),
+        0 0 22px rgba(148, 242, 109, 0.08);
+}
+
+[data-theme="black-matrix"] .btn-send {
+    background: var(--matrix-panel-accent);
+    border-color: rgba(148, 242, 109, 0.34);
+    color: #f6fff5;
+}
+
+[data-theme="black-matrix"] .status-pill,
+[data-theme="black-matrix"] .scroll-to-bottom-btn.has-new {
+    background: var(--matrix-panel-accent);
+    border-color: rgba(148, 242, 109, 0.34);
+    color: #f7fff5;
+}
+
+[data-theme="black-matrix"] .trait-bar-bg {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.06);
+}
+
+[data-theme="black-matrix"] .modal-overlay,
+[data-theme="black-matrix"] .voice-recorder-overlay {
+    background: rgba(0, 0, 0, 0.8);
+}
+
+[data-theme="black-matrix"] ::selection,
+[data-theme="black-matrix"] ::-moz-selection {
+    background: rgba(148, 242, 109, 0.24);
+    color: #ffffff;
+}
+
+@media (max-width: 767px) {
+    [data-theme="black-matrix"] #black-matrix-overlay {
+        opacity: 0.72;
+    }
+
+    [data-theme="black-matrix"] .bubble {
+        box-shadow:
+            0 14px 28px rgba(0, 0, 0, 0.44),
+            inset 0 1px 0 rgba(255, 255, 255, 0.12),
+            inset 0 -3px 8px rgba(0, 0, 0, 0.62);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    [data-theme="black-matrix"] #black-matrix-overlay {
+        display: none !important;
+    }
+}

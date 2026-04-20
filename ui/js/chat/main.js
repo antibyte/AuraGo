@@ -1177,7 +1177,8 @@ const THEME_ICONS = {
     'lollipop': '✿',
     'dark-sun': '☼',
     'ocean': '◌',
-    'sandstorm': '◍'
+    'sandstorm': '◍',
+    'black-matrix': '▥'
 };
 
 function initChatThemePicker() {
