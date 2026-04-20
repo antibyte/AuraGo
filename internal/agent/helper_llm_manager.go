@@ -797,6 +797,8 @@ func buildHelperTurnPersonalitySection(input *helperTurnPersonalityInput) string
 		b.WriteString("\nWrite inner_thought in: " + ivLang + "\n")
 		b.WriteString("Write as the agent's inner subconscious voice — genuine, subtle, not commanding.\n")
 		b.WriteString("Be forward-looking: anticipate what might happen next and prepare yourself mentally.\n")
+		b.WriteString("Use predictive context to form a forward-looking thought about what's coming next.\n")
+		b.WriteString("Match the conversation phase: opening=curiosity, execution=focus, struggling=patience, closing=satisfaction.\n")
 		if input.InnerVoiceHistory != "" {
 			b.WriteString("Your recent inner voice thoughts (avoid repeating, build narrative continuity):\n")
 			b.WriteString(input.InnerVoiceHistory)

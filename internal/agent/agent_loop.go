@@ -788,7 +788,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 			// Inner Voice: inject if available and not decayed
 			if cfg.Personality.InnerVoice.Enabled {
-				if iv, ivCategory := getInnerVoiceForPrompt(sessionID, cfg.Personality.InnerVoice.DecayTurns); iv != "" {
+				if iv, ivCategory := getInnerVoiceForPrompt(sessionID, cfg.Personality.InnerVoice.DecayTurns, cfg.Personality.InnerVoice.DecayMaxAgeSecs); iv != "" {
 					flags.InnerVoice = iv
 					s.currentLogger.Info("[InnerVoice] Injecting inner voice into system prompt",
 						"session_id", sessionID,

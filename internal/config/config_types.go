@@ -384,6 +384,7 @@ type Config struct {
 			MinIntervalSecs int  `yaml:"min_interval_secs"` // minimum seconds between inner voice generations (default: 60)
 			MaxPerSession   int  `yaml:"max_per_session"`   // max inner voice generations per session (default: 20)
 			DecayTurns      int  `yaml:"decay_turns"`       // turns after which inner voice fades from prompt (default: 3)
+			DecayMaxAgeSecs int  `yaml:"decay_max_age_secs"` // max seconds before inner voice expires regardless of turns (default: 300 = 5min)
 			ErrorStreakMin  int  `yaml:"error_streak_min"`  // consecutive errors before triggering inner voice (default: 2)
 		} `yaml:"inner_voice"`
 	} `yaml:"personality"`

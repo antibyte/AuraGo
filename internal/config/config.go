@@ -520,6 +520,9 @@ func Load(path string) (*Config, error) {
 	if cfg.Personality.InnerVoice.DecayTurns <= 0 {
 		cfg.Personality.InnerVoice.DecayTurns = 3
 	}
+	if cfg.Personality.InnerVoice.DecayMaxAgeSecs <= 0 {
+		cfg.Personality.InnerVoice.DecayMaxAgeSecs = 300 // 5 minutes
+	}
 	if cfg.Personality.InnerVoice.ErrorStreakMin <= 0 {
 		cfg.Personality.InnerVoice.ErrorStreakMin = 2
 	}

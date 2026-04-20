@@ -2,6 +2,7 @@ package agent
 
 import (
 	"testing"
+	"time"
 
 	"aurago/internal/config"
 	"aurago/internal/memory"
@@ -38,26 +39,26 @@ func TestGetInnerVoiceForPrompt_Decay(t *testing.T) {
 	sessionID := "sess-a"
 
 	// No thought yet — should be empty
-	if got, _ := getInnerVoiceForPrompt(sessionID, 3); got != "" {
+	if got, _ := getInnerVoiceForPrompt(sessionID, 3, 300); got != "" {
 		t.Fatalf("expected empty, got %q", got)
 	}
 
 	// Apply a thought
 	applyInnerVoiceResult(sessionID, "Be patient here", "patience", 0.8)
-	if got, cat := getInnerVoiceForPrompt(sessionID, 3); got != "Be patient here" {
+	if got, cat := getInnerVoiceForPrompt(sessionID, 3, 300); got != "Be patient here" {
 		t.Fatalf("expected thought, got %q (category=%q)", got, cat)
 	}
 
 	// Two real user turns — still within decay window
 	NoteInnerVoiceUserTurn(sessionID)
 	NoteInnerVoiceUserTurn(sessionID)
-	if got, _ := getInnerVoiceForPrompt(sessionID, 3); got != "Be patient here" {
+	if got, _ := getInnerVoiceForPrompt(sessionID, 3, 300); got != "Be patient here" {
 		t.Fatalf("expected thought after 2 user turns, got %q", got)
 	}
 
 	// One more user turn — now at decay threshold
 	NoteInnerVoiceUserTurn(sessionID)
-	if got, _ := getInnerVoiceForPrompt(sessionID, 3); got != "" {
+	if got, _ := getInnerVoiceForPrompt(sessionID, 3, 300); got != "" {
 		t.Fatalf("expected decayed/empty after 3 user turns, got %q", got)
 	}
 }
@@ -71,8 +72,38 @@ func TestGetInnerVoiceForPrompt_NoDecay(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		NoteInnerVoiceUserTurn(sessionID)
 	}
-	if got, _ := getInnerVoiceForPrompt(sessionID, 0); got != "persistent thought" {
+	if got, _ := getInnerVoiceForPrompt(sessionID, 0, 0); got != "persistent thought" {
 		t.Fatalf("expected persistent thought with decay=0, got %q", got)
+	}
+}
+
+func TestGetInnerVoiceForPrompt_TimeBasedDecay(t *testing.T) {
+	ResetInnerVoiceState()
+	sessionID := "sess-time"
+
+	applyInnerVoiceResult(sessionID, "old thought", "reflection", 0.8)
+
+	// Manually age the thought by overwriting lastGenerated to 6 minutes ago
+	globalInnerVoiceStore.mu.Lock()
+	state := getInnerVoiceStateLocked(sessionID)
+	state.lastGenerated = time.Now().Add(-6 * time.Minute)
+	globalInnerVoiceStore.mu.Unlock()
+
+	// With decayMaxAgeSecs=300 (5min), the 6-minute-old thought should be expired
+	if got, _ := getInnerVoiceForPrompt(sessionID, 100, 300); got != "" {
+		t.Fatalf("expected time-decayed thought to be empty, got %q", got)
+	}
+}
+
+func TestGetInnerVoiceForPrompt_TimeBasedNotYetExpired(t *testing.T) {
+	ResetInnerVoiceState()
+	sessionID := "sess-time2"
+
+	applyInnerVoiceResult(sessionID, "fresh thought", "focus", 0.8)
+
+	// Thought is fresh (just created), should survive with 300s max age
+	if got, _ := getInnerVoiceForPrompt(sessionID, 100, 300); got != "fresh thought" {
+		t.Fatalf("expected fresh thought to survive, got %q", got)
 	}
 }
 
@@ -83,7 +114,7 @@ func TestResetInnerVoiceState(t *testing.T) {
 
 	ResetInnerVoiceState()
 
-	if got, _ := getInnerVoiceForPrompt(sessionID, 3); got != "" {
+	if got, _ := getInnerVoiceForPrompt(sessionID, 3, 300); got != "" {
 		t.Fatalf("expected empty after reset, got %q", got)
 	}
 	if len(globalInnerVoiceStore.states) != 1 {
@@ -206,20 +237,32 @@ func TestInnerVoiceStateIsSessionScoped(t *testing.T) {
 	ResetInnerVoiceState()
 	applyInnerVoiceResult("sess-a", "first thought", "focus", 0.8)
 
-	if got, _ := getInnerVoiceForPrompt("sess-a", 3); got != "first thought" {
+	if got, _ := getInnerVoiceForPrompt("sess-a", 3, 300); got != "first thought" {
 		t.Fatalf("expected sess-a thought, got %q", got)
 	}
-	if got, _ := getInnerVoiceForPrompt("sess-b", 3); got != "" {
+	if got, _ := getInnerVoiceForPrompt("sess-b", 3, 300); got != "" {
 		t.Fatalf("expected sess-b to stay isolated, got %q", got)
 	}
 }
 
 func TestNormalizeInnerVoiceRejectsCommandTone(t *testing.T) {
 	ResetInnerVoiceState()
-	if _, _, _, accepted, reason := normalizeInnerVoice("sess-a", "I should call the tool and then verify everything.", "focus", 0.8); accepted {
+	if _, _, _, accepted, reason := normalizeInnerVoice("sess-a", "You should call the tool and verify everything.", "focus", 0.8); accepted {
 		t.Fatal("expected command-like nudge to be rejected")
 	} else if reason != "command_tone" {
 		t.Fatalf("expected command_tone rejection, got %q", reason)
+	}
+}
+
+func TestNormalizeInnerVoiceAcceptsFirstPersonShould(t *testing.T) {
+	ResetInnerVoiceState()
+	// "I should..." is a valid inner thought, not a command — only "you should" is commanding
+	thought, category, _, accepted, reason := normalizeInnerVoice("sess-a", "I should be more careful here, something feels off.", "caution", 0.8)
+	if !accepted {
+		t.Fatalf("expected first-person 'I should' to be accepted, got reason %q", reason)
+	}
+	if thought == "" || category != "caution" {
+		t.Fatalf("unexpected output: thought=%q category=%q", thought, category)
 	}
 }
 
@@ -238,7 +281,7 @@ func TestEnrichEmotionInputForInnerVoice(t *testing.T) {
 	input := &memory.EmotionInput{}
 	lessons := []string{"lesson1", "lesson2", "lesson3", "lesson4", "lesson5"}
 
-	enrichEmotionInputForInnerVoice(input, 10, 2, 3, 5, 7, lessons)
+	enrichEmotionInputForInnerVoice(input, 10, 2, 3, 5, 7, lessons, []string{"shell", "docker", "shell"})
 
 	if !input.InnerVoiceEnabled {
 		t.Fatal("expected InnerVoiceEnabled = true")
@@ -255,5 +298,12 @@ func TestEnrichEmotionInputForInnerVoice(t *testing.T) {
 	// Lessons should be truncated to 3
 	if len(input.RelevantLessons) != 3 {
 		t.Fatalf("expected 3 lessons, got %d", len(input.RelevantLessons))
+	}
+	// New predictive fields
+	if input.RecentToolUsage != "shell(2), docker" {
+		t.Fatalf("expected RecentToolUsage='shell(2), docker', got %q", input.RecentToolUsage)
+	}
+	if input.ConversationPhase != "struggling" {
+		t.Fatalf("expected ConversationPhase='struggling', got %q", input.ConversationPhase)
 	}
 }

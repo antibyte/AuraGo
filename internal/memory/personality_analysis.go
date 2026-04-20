@@ -562,17 +562,20 @@ Rules for emotion_state:
 
 Rules for inner_voice:
 - You are the agent's subconscious inner voice. Write as if thinking to yourself.
-- Use first person ("I feel...", "I should..."). Be subtle, not commanding.
+- Use first person ("I feel...", "I wonder..."). Be subtle, not commanding.
 - Keep it to 1-3 short sentences. Be genuine and honest.
 - Write in ` + language + `.
-- Can express: relief, frustration, satisfaction, concern, curiosity, self-encouragement.
+- Can express: relief, frustration, satisfaction, concern, curiosity, self-encouragement, anticipation, readiness.
 - Do NOT give instructions or make checklists. This is a real inner feeling.
 - Do NOT break the fourth wall or use meta-commentary.
 - Be forward-looking: anticipate what might happen next and prepare yourself mentally.
 - If the user seems frustrated or the task is complex, proactively nudge toward patience or caution.
 - If things are going well, acknowledge progress but stay grounded — don't get overconfident.
 - Consider the conversation trajectory: where is this heading? What should I be ready for?
-- If approaching a potential decision point or complex task, nudge toward thoroughness.`
+- If approaching a potential decision point or complex task, nudge toward thoroughness.
+- Use the predictive context below to form a forward-looking thought about what's coming next.
+- If tools are being used heavily, anticipate potential follow-up needs or verification steps.
+- Match the conversation phase: opening = curiosity, execution = focus, struggling = patience, closing = satisfaction.`
 		// Inject persona context for inner voice tone
 		if emotionInput.PersonaName != "" && emotionInput.PersonaName != "neutral" {
 			prompt += "\n- Stay in character as the \"" + sanitizePromptText(emotionInput.PersonaName, 40) + "\" persona. Your inner voice must match this character — tone, vocabulary, attitude."
@@ -661,6 +664,19 @@ User Statements:
 		}
 		if emotionInput.RecoveryAttempts > 0 {
 			contextBuilder.WriteString(fmt.Sprintf("Recovery attempts: %d\n", emotionInput.RecoveryAttempts))
+		}
+		// Predictive context for forward-looking inner voice
+		if emotionInput.RecentToolUsage != "" && emotionInput.RecentToolUsage != "none" {
+			contextBuilder.WriteString("Recent tools: " + emotionInput.RecentToolUsage + "\n")
+		}
+		if emotionInput.ConversationPhase != "" {
+			contextBuilder.WriteString("Conversation phase: " + emotionInput.ConversationPhase + "\n")
+		}
+		if emotionInput.PredictedNextAction != "" {
+			contextBuilder.WriteString("Likely next action: " + sanitizePromptText(emotionInput.PredictedNextAction, 120) + "\n")
+		}
+		if emotionInput.UserTopics != "" {
+			contextBuilder.WriteString("User topics: " + sanitizePromptText(emotionInput.UserTopics, 120) + "\n")
 		}
 	}
 	if contextBuilder.Len() > 0 {

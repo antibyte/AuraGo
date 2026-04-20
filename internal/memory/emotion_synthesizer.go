@@ -78,6 +78,11 @@ type EmotionInput struct {
 	RelevantLessons    []string // Past lessons from error_learning
 	InnerVoiceEnabled  bool     // Whether inner voice generation is requested
 	InnerVoiceHistory  string   // Brief summary of recent inner voice thoughts for continuity
+	// Predictive context fields — enable forward-looking inner voice nudges
+	RecentToolUsage    string   // Summary of recently used tools (e.g. "shell(2), docker(1)")
+	ConversationPhase  string   // Detected phase: "opening", "exploration", "execution", "closing", "idle"
+	UserTopics         string   // Brief summary of recent user topics/interests
+	PredictedNextAction string  // Hint about likely next action based on trajectory
 	// Active persona context — shapes the tone of emotion descriptions & inner voice
 	PersonaName   string // Active persona ID (e.g. "punk", "friend"); empty or "neutral" = generic
 	PersonaPrompt string // Short persona description (max ~300 chars) for tone guidance

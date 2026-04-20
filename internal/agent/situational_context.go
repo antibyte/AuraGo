@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"fmt"
 	"math"
 	"regexp"
 	"strings"
@@ -82,13 +83,26 @@ func applyInnerVoiceResult(sessionID, thought, category string, confidence float
 
 // getInnerVoiceForPrompt returns the current inner voice text and its nudge category
 // if it hasn't decayed. Returns empty strings if decayed or not available.
-func getInnerVoiceForPrompt(sessionID string, decayTurns int) (string, string) {
+// Decay happens when either the turn count exceeds decayTurns OR the thought age
+// exceeds decayMaxAgeSecs (time-based expiry prevents stale thoughts from lingering).
+func getInnerVoiceForPrompt(sessionID string, decayTurns, decayMaxAgeSecs int) (string, string) {
 	globalInnerVoiceStore.mu.Lock()
 	defer globalInnerVoiceStore.mu.Unlock()
 	state := getInnerVoiceStateLocked(sessionID)
 	if state.currentThought == "" {
 		return "", ""
 	}
+	// Time-based decay: expire thoughts older than decayMaxAgeSecs
+	if decayMaxAgeSecs > 0 && !state.lastGenerated.IsZero() {
+		age := time.Since(state.lastGenerated)
+		if age > time.Duration(decayMaxAgeSecs)*time.Second {
+			state.currentThought = ""
+			state.nudgeCategory = ""
+			state.lastConfidence = 0
+			return "", ""
+		}
+	}
+	// Turn-based decay: expire after N user turns
 	if decayTurns > 0 && state.userTurnsSinceLast >= decayTurns {
 		// Decayed — clear stale thought
 		state.currentThought = ""
@@ -182,8 +196,8 @@ func normalizeInnerVoiceCategory(category string) string {
 
 func innerVoiceCommandPhrases() []string {
 	return []string{
-		"must ", " need to", "have to", "should ", "you should", "you need to",
-		"let's ", "first ", "then ", "always ", "never ", "only right path",
+		"you must", "you need to", "you have to", "you should",
+		"let's ", "always ", "never ", "only right path",
 		"definitely ", "certainly ", "ich muss", "ich sollte", "du solltest", "du musst",
 	}
 }
@@ -258,6 +272,7 @@ func enrichEmotionInputForInnerVoice(
 	totalErrors int,
 	totalSuccesses int,
 	lessons []string,
+	recentToolNames []string,
 ) {
 	input.InnerVoiceEnabled = true
 	input.ConversationTurns = conversationTurns
@@ -267,4 +282,53 @@ func enrichEmotionInputForInnerVoice(
 		lessons = lessons[:3]
 	}
 	input.RelevantLessons = lessons
+	input.RecentToolUsage = summarizeToolUsage(recentToolNames)
+	input.ConversationPhase = deriveConversationPhase(conversationTurns, consecutiveErrors, totalSuccesses)
+}
+
+// summarizeToolUsage creates a compact summary of recently used tools.
+func summarizeToolUsage(toolNames []string) string {
+	if len(toolNames) == 0 {
+		return "none"
+	}
+	counts := make(map[string]int)
+	order := make([]string, 0, 8)
+	for _, name := range toolNames {
+		if _, ok := counts[name]; !ok {
+			order = append(order, name)
+		}
+		counts[name]++
+	}
+	var parts []string
+	for _, name := range order {
+		if len(parts) >= 6 {
+			break
+		}
+		if counts[name] > 1 {
+			parts = append(parts, fmt.Sprintf("%s(%d)", name, counts[name]))
+		} else {
+			parts = append(parts, name)
+		}
+	}
+	return strings.Join(parts, ", ")
+}
+
+// deriveConversationPhase estimates the current conversation phase from signals.
+func deriveConversationPhase(turns, consecutiveErrors, totalSuccesses int) string {
+	if turns == 0 {
+		return "idle"
+	}
+	if turns <= 2 {
+		return "opening"
+	}
+	if consecutiveErrors >= 2 {
+		return "struggling"
+	}
+	if totalSuccesses > 0 && turns > 5 {
+		return "closing"
+	}
+	if totalSuccesses > 0 {
+		return "execution"
+	}
+	return "exploration"
 }

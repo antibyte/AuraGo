@@ -409,7 +409,7 @@ func launchAsyncPersonalityV2Analysis(
 				if totalErrorCount > 0 && consecutiveErrorCount == 0 && successCount > 0 {
 					recoveryAttempts = totalErrorCount
 				}
-				enrichEmotionInputForInnerVoice(&combinedInput, conversationTurns, recoveryAttempts, consecutiveErrorCount, totalErrorCount, successCount, lessons)
+				enrichEmotionInputForInnerVoice(&combinedInput, conversationTurns, recoveryAttempts, consecutiveErrorCount, totalErrorCount, successCount, lessons, nil)
 				// Add inner voice history for narrative continuity
 				if ivEntries, ivErr := stm.GetRecentInnerVoices(3); ivErr == nil && len(ivEntries) > 0 {
 					combinedInput.InnerVoiceHistory = memory.FormatInnerVoiceHistory(ivEntries)
