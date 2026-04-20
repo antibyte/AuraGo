@@ -350,6 +350,13 @@ func TestExtractIntentMatchedToolsMatchesChromecastAliases(t *testing.T) {
 	}
 }
 
+func TestExtractIntentMatchedToolsMatchesChromecastRepeatPlaybackAlias(t *testing.T) {
+	matches := extractIntentMatchedTools("spiel es nochmal ab", []string{"chromecast", "koofr", "filesystem"})
+	if !containsName(matches, "chromecast") {
+		t.Fatalf("expected chromecast repeat-playback alias match, got %v", matches)
+	}
+}
+
 func TestCollectRecentUserIntentTextKeepsRecentUserContext(t *testing.T) {
 	messages := []openai.ChatCompletionMessage{
 		{Role: openai.ChatMessageRoleUser, Content: "erste frage"},

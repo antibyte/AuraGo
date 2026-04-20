@@ -232,6 +232,28 @@ func handleAgentLoopRecoveries(s *agentLoopState, content string, tc ToolCall, p
 		}
 	}
 
+	announcementOnly := announcementContent != "" &&
+		!parsedToolResp.IsFinished &&
+		!tc.IsTool &&
+		isAnnouncementOnlyResponse(announcementContent, tc, useNativePath, s.lastResponseWasTool, s.lastUserMsg)
+	if announcementOnly && s.announcementCount < cfg.Agent.AnnouncementDetector.MaxRetries {
+		s.announcementCount++
+		currentLogger.Warn("[Sync] Announcement-only text response detected, requesting tool call or completion signal",
+			"attempt", s.announcementCount,
+			"last_user_msg", Truncate(s.lastUserMsg, 120),
+			"content_preview", Truncate(announcementContent, 120))
+		feedbackMsg := applyEmotionRecoveryNudge(FormatAnnouncementFeedback(s.useNativeFunctions, s.recentTools), emotionPolicy)
+		msgs := s.recoverySession.PersistRecoveryMessages(PersistRecoveryParams{
+			SessionID:        sessionID,
+			AssistantContent: content,
+			FeedbackMsg:      feedbackMsg,
+			BrokerEventType:  "error_recovery",
+			I18nKey:          "backend.stream_error_recovery_announcement_no_action",
+		}, shortTermMem, historyManager)
+		s.req.Messages = append(s.req.Messages, msgs...)
+		return content, tc, true, false
+	}
+
 	if !tc.IsTool && !tc.RawCodeDetected && s.missedToolCount < 2 &&
 		(strings.Contains(content, "```") || strings.Contains(content, "{")) &&
 		(strings.Contains(content, `"action"`) || strings.Contains(content, `'action'`)) {

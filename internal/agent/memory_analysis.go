@@ -552,6 +552,10 @@ func shouldStoreExtractedMemory(content, category string) bool {
 		return false
 	}
 
+	if isEphemeralExecutionClaim(text) || isWeakOperationalLabel(text) {
+		return false
+	}
+
 	if strings.EqualFold(strings.TrimSpace(category), "recent_operational_details") {
 		if strings.Contains(text, "integration") || strings.Contains(text, "tool") {
 			if strings.Contains(text, "available") || strings.Contains(text, "verfügbar") ||
@@ -563,6 +567,47 @@ func shouldStoreExtractedMemory(content, category string) bool {
 	}
 
 	return true
+}
+
+func isWeakOperationalLabel(text string) bool {
+	prefixes := []string{
+		"song:", "titel:", "title:", "target device:", "ziel:", "device:",
+		"tool:", "problem:", "attempts:", "versuche:", "tries:", "chromecast tool:",
+	}
+	for _, prefix := range prefixes {
+		if strings.HasPrefix(text, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+func isEphemeralExecutionClaim(text string) bool {
+	playbackContext := []string{
+		"song", "audio", "music", "musik", "google home", "google home mini",
+		"chromecast", "tts", "speaker", "lautsprecher",
+	}
+	playbackVerbs := []string{
+		"is playing", "playing on", "now playing", "wird abgespielt", "wird jetzt abgespielt",
+		"läuft auf", "läuft jetzt", "abgespielt", "gespielt", "playing", "speaking on",
+		"hat gesprochen", "spricht gerade",
+	}
+	hasContext := false
+	for _, needle := range playbackContext {
+		if strings.Contains(text, needle) {
+			hasContext = true
+			break
+		}
+	}
+	if !hasContext {
+		return false
+	}
+	for _, needle := range playbackVerbs {
+		if strings.Contains(text, needle) {
+			return true
+		}
+	}
+	return false
 }
 
 // isAmbiguousShortCommand returns true if the message is a short, context-dependent

@@ -44,7 +44,8 @@ var operationalTerms = []string{
 	"edit", "update", "modify", "inspect", "create",
 	"lint", "screenshot", "publish", "commit", "push", "pull", "grep",
 	"open", "browse", "render", "compile", "generate", "homepage", "netlify",
-	"docker", "git",
+	"docker", "git", "play", "playing", "abspielen", "abgespielt", "spiele", "song", "musik", "audio",
+	"google home", "chromecast", "cast",
 }
 
 var completionEvidenceTerms = []string{

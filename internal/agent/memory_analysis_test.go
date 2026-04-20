@@ -338,6 +338,18 @@ func TestShouldStoreExtractedMemory(t *testing.T) {
 			category: "workflow",
 			want:     false,
 		},
+		{
+			name:     "drops ephemeral playback success claim",
+			content:  "Song läuft auf dem Google Home Mini.",
+			category: "recent_operational_details",
+			want:     false,
+		},
+		{
+			name:     "drops weak operational label",
+			content:  "Target device: Google Home Mini",
+			category: "recent_operational_details",
+			want:     false,
+		},
 	}
 
 	for _, tt := range tests {

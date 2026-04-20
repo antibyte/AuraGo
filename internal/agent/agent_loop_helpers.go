@@ -18,7 +18,11 @@ import (
 var nowFunc = time.Now
 
 var adaptiveToolIntentAliases = map[string][]string{
-	"chromecast": {"google home mini", "google home", "google cast"},
+	"chromecast": {
+		"google home mini", "google home", "google cast",
+		"spiel es nochmal ab", "spiele es nochmal ab", "spiel es ab", "spiele es ab",
+		"spiel den song ab", "spiele den song ab", "play it again", "play it",
+	},
 }
 
 func ShouldReloadCoreMemory(dirty bool, loadedAt time.Time, dbUpdatedAt, cachedUpdatedAt time.Time) bool {

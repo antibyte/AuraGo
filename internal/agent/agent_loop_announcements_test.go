@@ -244,3 +244,11 @@ func TestIsAnnouncementOnlyResponsePureThinkBlockDoesNotTrigger(t *testing.T) {
 		t.Fatal("empty sanitized content (pure think-block) post-tool must NOT trigger announcement recovery")
 	}
 }
+
+func TestAnnouncementDetector_CatchesPlaybackActionPromise(t *testing.T) {
+	tc := ToolCall{}
+	content := `Spiele "Überall zuhause" nochmal auf dem Google Home Mini ab.`
+	if !isAnnouncementOnlyResponse(content, tc, false, false, "spiel es nochmal ab") {
+		t.Fatal("expected playback action promise without tool call to trigger announcement detection")
+	}
+}
