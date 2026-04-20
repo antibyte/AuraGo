@@ -15,6 +15,11 @@ const MAX_SESSIONS = Math.max(1, parseInt(process.env.MAX_SESSIONS || '3', 10));
 const VIEWPORT_WIDTH = Math.max(320, parseInt(process.env.VIEWPORT_WIDTH || '1280', 10));
 const VIEWPORT_HEIGHT = Math.max(240, parseInt(process.env.VIEWPORT_HEIGHT || '720', 10));
 const HTTP_TIMEOUT_MS = Math.max(1000, parseInt(process.env.HTTP_TIMEOUT_MS || '60000', 10));
+const MAX_DOWNLOAD_BYTES = Math.max(1024 * 1024, parseInt(process.env.MAX_DOWNLOAD_BYTES || String(100 * 1024 * 1024), 10));
+const MAX_SCREENSHOT_BYTES = Math.max(256 * 1024, parseInt(process.env.MAX_SCREENSHOT_BYTES || String(25 * 1024 * 1024), 10));
+const MAX_DOWNLOAD_RECORDS = Math.max(1, parseInt(process.env.MAX_DOWNLOAD_RECORDS || '25', 10));
+const FILE_RETENTION_MS = Math.max(SESSION_TTL_MS, parseInt(process.env.FILE_RETENTION_MINUTES || String(Math.ceil((SESSION_TTL_MS * 2) / 60000)), 10) * 60 * 1000);
+const DEFAULT_SCREENSHOT_DIR = path.join(WORKSPACE_ROOT, 'browser_screenshots');
 
 const sessions = new Map();
 let browserPromise = null;
@@ -53,6 +58,52 @@ async function ensureDir(dirPath) {
   await fs.mkdir(dirPath, { recursive: true });
 }
 
+async function ensureFileWithinLimit(filePath, maxBytes, kind) {
+  const stat = await fs.stat(filePath);
+  if (stat.size > maxBytes) {
+    await fs.unlink(filePath).catch(() => {});
+    throw new Error(`${kind} exceeds size limit of ${maxBytes} bytes`);
+  }
+  return stat;
+}
+
+async function cleanupOldEntries(root, maxAgeMs) {
+  let entries = [];
+  try {
+    entries = await fs.readdir(root, { withFileTypes: true });
+  } catch (_) {
+    return;
+  }
+  const cutoff = Date.now() - maxAgeMs;
+  for (const entry of entries) {
+    const target = path.join(root, entry.name);
+    try {
+      const stat = await fs.stat(target);
+      if (stat.mtimeMs >= cutoff) {
+        continue;
+      }
+      if (entry.isDirectory()) {
+        await fs.rm(target, { recursive: true, force: true });
+      } else {
+        await fs.unlink(target).catch(() => {});
+      }
+    } catch (_) {
+    }
+  }
+}
+
+async function cleanupStaleArtifacts() {
+  await cleanupOldEntries(DOWNLOAD_ROOT, FILE_RETENTION_MS);
+  await cleanupOldEntries(DEFAULT_SCREENSHOT_DIR, FILE_RETENTION_MS);
+}
+
+function pushDownloadEntry(session, entry) {
+  session.downloads.unshift(entry);
+  while (session.downloads.length > MAX_DOWNLOAD_RECORDS) {
+    session.downloads.pop();
+  }
+}
+
 async function getBrowser() {
   if (!browserPromise) {
     browserPromise = chromium.launch({ headless: HEADLESS }).catch((error) => {
@@ -75,6 +126,10 @@ async function destroySession(id) {
     await session.context.close();
   } catch (_) {
   }
+  for (const screenshotPath of session.screenshots || []) {
+    await fs.unlink(screenshotPath).catch(() => {});
+  }
+  await fs.rm(path.join(DOWNLOAD_ROOT, session.id), { recursive: true, force: true }).catch(() => {});
 }
 
 function isSessionExpired(session) {
@@ -193,17 +248,24 @@ async function registerDownload(session, download) {
       break;
     }
   }
-  await download.saveAs(dest);
-  const stat = await fs.stat(dest);
-  const entry = {
-    name: path.basename(dest),
-    rel_path: relFromRoot(DOWNLOAD_ROOT, dest),
-    size: stat.size,
-    created_at: new Date().toISOString()
-  };
-  session.downloads.unshift(entry);
-  if (session.downloads.length > 25) {
-    session.downloads.length = 25;
+  try {
+    await download.saveAs(dest);
+    const stat = await ensureFileWithinLimit(dest, MAX_DOWNLOAD_BYTES, 'download');
+    pushDownloadEntry(session, {
+      name: path.basename(dest),
+      rel_path: relFromRoot(DOWNLOAD_ROOT, dest),
+      size: stat.size,
+      created_at: new Date().toISOString(),
+      status: 'success'
+    });
+  } catch (error) {
+    await fs.unlink(dest).catch(() => {});
+    pushDownloadEntry(session, {
+      name: path.basename(dest),
+      created_at: new Date().toISOString(),
+      status: 'error',
+      message: error && error.message ? error.message : 'download failed'
+    });
   }
 }
 
@@ -221,6 +283,7 @@ async function createSession(targetURL) {
     context,
     page,
     downloads: [],
+    screenshots: [],
     createdAt: Date.now(),
     lastUsedAt: Date.now()
   };
@@ -313,6 +376,8 @@ async function handleAutomation(body) {
       const target = resolveUnder(WORKSPACE_ROOT, relPath);
       await ensureDir(path.dirname(target));
       await page.screenshot({ path: target, fullPage: body.full_page === true });
+      await ensureFileWithinLimit(target, MAX_SCREENSHOT_BYTES, 'screenshot');
+      session.screenshots.push(target);
       return { status: 'success', operation, session_id: session.id, url: page.url(), title: await page.title(), screenshot_rel_path: relFromRoot(WORKSPACE_ROOT, target), message: `screenshot saved to ${relPath}` };
     }
     case 'upload_file': {
@@ -335,6 +400,9 @@ async function handleAutomation(body) {
       }
       if (!chosen) {
         return { status: 'error', operation, session_id: session.id, message: 'download not found' };
+      }
+      if (chosen.status === 'error') {
+        return { status: 'error', operation, session_id: session.id, message: chosen.message || `download failed: ${chosen.name}` };
       }
       return { status: 'success', operation, session_id: session.id, download_name: chosen.name, download_rel_path: chosen.rel_path, message: `download ready: ${chosen.name}` };
     }
@@ -365,6 +433,10 @@ setInterval(() => {
     }
   }
 }, 30 * 1000);
+
+setInterval(() => {
+  cleanupStaleArtifacts().catch(() => {});
+}, 10 * 60 * 1000);
 
 const server = http.createServer({ requestTimeout: HTTP_TIMEOUT_MS }, async (req, res) => {
   try {
@@ -433,6 +505,8 @@ async function shutdown(signal) {
 async function boot() {
   await ensureDir(WORKSPACE_ROOT);
   await ensureDir(DOWNLOAD_ROOT);
+  await ensureDir(DEFAULT_SCREENSHOT_DIR);
+  await cleanupStaleArtifacts();
   server.listen(PORT, '0.0.0.0');
 }
 
