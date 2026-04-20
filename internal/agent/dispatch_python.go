@@ -137,7 +137,7 @@ func dispatchPython(tc ToolCall, dc *DispatchContext) string {
 		return sb.String()
 
 	case "discover_tools":
-		return handleDiscoverTools(tc, cfg, logger)
+		return handleDiscoverTools(tc, cfg, logger, dc.SessionID)
 
 	case "run_tool":
 		if !cfg.Agent.AllowPython {

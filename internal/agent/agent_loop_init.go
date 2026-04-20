@@ -291,6 +291,9 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 			for tool := range sessionUsedTools {
 				alwaysInclude = append(alwaysInclude, tool)
 			}
+			// Re-include hidden tools the agent explicitly inspected via discover_tools
+			// so the next turn can use native function-calling instead of improvising.
+			alwaysInclude = append(alwaysInclude, GetDiscoverRequestedTools(sessionID)...)
 
 			if maxTools > 0 && len(prioritized) > 0 {
 				ntSchemas = filterToolSchemas(ntSchemas, prioritized, alwaysInclude, maxTools, logger)
@@ -309,7 +312,7 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 			}
 		}
 		// Update discover_tools state so the agent can browse hidden tools
-		SetDiscoverToolsState(allSchemas, ntSchemas, cfg.Directories.PromptsDir)
+		SetDiscoverToolsState(sessionID, allSchemas, ntSchemas, cfg.Directories.PromptsDir)
 
 		// Structured Outputs: set Strict=true on every tool definition so the
 		// provider uses constrained decoding for tool-call arguments.

@@ -11,7 +11,7 @@ import (
 )
 
 // handleDiscoverTools dispatches discover_tools operations (list_categories, search, get_tool_info).
-func handleDiscoverTools(tc ToolCall, cfg *config.Config, logger *slog.Logger) string {
+func handleDiscoverTools(tc ToolCall, cfg *config.Config, logger *slog.Logger, sessionID string) string {
 	op := strings.TrimSpace(stringValueFromMap(tc.Params, "operation"))
 	if op == "" {
 		return "Tool Output: ERROR 'operation' is required. Use list_categories, search, or get_tool_info."
@@ -72,6 +72,7 @@ func handleDiscoverTools(tc ToolCall, cfg *config.Config, logger *slog.Logger) s
 		if active {
 			hint = "\n\n[STATUS] This tool is currently active in your tool list. You can call it directly."
 		} else if enabledNames[toolName] {
+			MarkDiscoverRequestedTool(sessionID, toolName)
 			hint = "\n\n[STATUS] This tool is currently hidden by adaptive filtering but enabled. You can call it directly by name using the parameters shown above."
 		} else {
 			hint = "\n\n[STATUS] This tool is disabled in config. It cannot be used until enabled by the user."
