@@ -8,6 +8,26 @@ import (
 	openai "github.com/sashabaranov/go-openai"
 )
 
+var discoverToolAliases = map[string]string{
+	"mcp":                    "mcp_call",
+	"mcp tool":               "mcp_call",
+	"mcp tools":              "mcp_call",
+	"mcp server":             "mcp_call",
+	"mcp servers":            "mcp_call",
+	"model context protocol": "mcp_call",
+}
+
+func resolveDiscoverToolName(name string) string {
+	normalized := strings.ToLower(strings.TrimSpace(name))
+	if normalized == "" {
+		return ""
+	}
+	if alias, ok := discoverToolAliases[normalized]; ok {
+		return alias
+	}
+	return strings.TrimSpace(name)
+}
+
 // ToolCategoryEntry describes a single tool within a category.
 type ToolCategoryEntry struct {
 	Name      string
@@ -180,7 +200,8 @@ func SearchToolsInCategories(query string) []struct {
 	Category string
 	Entry    ToolCategoryEntry
 } {
-	q := strings.ToLower(query)
+	resolved := resolveDiscoverToolName(query)
+	q := strings.ToLower(strings.TrimSpace(resolved))
 	var results []struct {
 		Category string
 		Entry    ToolCategoryEntry

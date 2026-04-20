@@ -33,8 +33,9 @@ func handleDiscoverTools(tc ToolCall, cfg *config.Config, logger *slog.Logger, s
 		if query == "" {
 			return "Tool Output: ERROR 'query' is required for search."
 		}
+		resolvedQuery := resolveDiscoverToolName(query)
 		logger.Info("[DiscoverTools] search", "query", query)
-		results := SearchToolsInCategories(query)
+		results := SearchToolsInCategories(resolvedQuery)
 		if len(results) == 0 {
 			return fmt.Sprintf("Tool Output: No tools found matching '%s'. Use list_categories to browse all tools.", query)
 		}
@@ -59,23 +60,27 @@ func handleDiscoverTools(tc ToolCall, cfg *config.Config, logger *slog.Logger, s
 		if toolName == "" {
 			return "Tool Output: ERROR 'tool_name' is required for get_tool_info."
 		}
+		resolvedToolName := resolveDiscoverToolName(toolName)
 		logger.Info("[DiscoverTools] get_tool_info", "tool", toolName)
 
 		// Load tool guide
 		toolsDir := filepath.Join(cfg.Directories.PromptsDir, "tools_manuals")
-		guidePath := filepath.Join(toolsDir, toolName+".md")
+		guidePath := filepath.Join(toolsDir, resolvedToolName+".md")
 		guide, _ := prompts.ReadToolGuide(guidePath)
 
-		info := FormatToolInfo(toolName, allSchemas, guide)
-		active := activeNames[toolName]
+		info := FormatToolInfo(resolvedToolName, allSchemas, guide)
+		active := activeNames[resolvedToolName]
 		var hint string
 		if active {
 			hint = "\n\n[STATUS] This tool is currently active in your tool list. You can call it directly."
-		} else if enabledNames[toolName] {
-			MarkDiscoverRequestedTool(sessionID, toolName)
+		} else if enabledNames[resolvedToolName] {
+			MarkDiscoverRequestedTool(sessionID, resolvedToolName)
 			hint = "\n\n[STATUS] This tool is currently hidden by adaptive filtering but enabled. You can call it directly by name using the parameters shown above."
 		} else {
 			hint = "\n\n[STATUS] This tool is disabled in config. It cannot be used until enabled by the user."
+		}
+		if resolvedToolName != toolName {
+			hint = fmt.Sprintf("\n\n[ALIAS] '%s' maps to '%s'.", toolName, resolvedToolName) + hint
 		}
 		return "Tool Output:\n" + info + hint
 

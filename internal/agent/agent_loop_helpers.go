@@ -28,6 +28,11 @@ var adaptiveToolIntentAliases = map[string][]string{
 		"oeffne die webseite", "öffne die webseite", "klicke dich durch", "fill the form",
 		"fülle das formular aus", "fill in the field", "browser session", "take a browser screenshot",
 	},
+	"mcp_call": {
+		"mcp", "mcp tool", "mcp tools", "mcp server", "mcp servers",
+		"model context protocol", "teste das neue mcp tool", "test the new mcp tool",
+		"teste das mcp tool", "use mcp", "nutze mcp",
+	},
 }
 
 func ShouldReloadCoreMemory(dirty bool, loadedAt time.Time, dbUpdatedAt, cachedUpdatedAt time.Time) bool {

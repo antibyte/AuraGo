@@ -357,6 +357,13 @@ func TestExtractIntentMatchedToolsMatchesChromecastRepeatPlaybackAlias(t *testin
 	}
 }
 
+func TestExtractIntentMatchedToolsMatchesMCPAliases(t *testing.T) {
+	matches := extractIntentMatchedTools("teste das neue mcp tool minimax", []string{"mcp_call", "filesystem", "execute_skill"})
+	if !containsName(matches, "mcp_call") {
+		t.Fatalf("expected mcp_call alias match, got %v", matches)
+	}
+}
+
 func TestCollectRecentUserIntentTextKeepsRecentUserContext(t *testing.T) {
 	messages := []openai.ChatCompletionMessage{
 		{Role: openai.ChatMessageRoleUser, Content: "erste frage"},

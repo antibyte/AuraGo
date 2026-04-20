@@ -100,6 +100,21 @@ func TestSearchToolsInCategories(t *testing.T) {
 		t.Error("expected 'browser_automation' in search results for 'browser'")
 	}
 
+	results = SearchToolsInCategories("mcp")
+	if len(results) == 0 {
+		t.Fatal("expected results for 'mcp'")
+	}
+	found = false
+	for _, r := range results {
+		if r.Entry.Name == "mcp_call" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected 'mcp_call' in search results for 'mcp'")
+	}
+
 	// No results
 	results = SearchToolsInCategories("zzz_nonexistent_xyz")
 	if len(results) != 0 {
@@ -195,6 +210,18 @@ func TestFormatToolInfo_NotFound(t *testing.T) {
 	output := FormatToolInfo("missing_tool", nil, "")
 	if !strings.Contains(output, "not found") {
 		t.Error("expected not-found message")
+	}
+}
+
+func TestResolveDiscoverToolNameAlias(t *testing.T) {
+	if got := resolveDiscoverToolName("mcp"); got != "mcp_call" {
+		t.Fatalf("resolveDiscoverToolName(mcp) = %q, want %q", got, "mcp_call")
+	}
+	if got := resolveDiscoverToolName("mcp server"); got != "mcp_call" {
+		t.Fatalf("resolveDiscoverToolName(mcp server) = %q, want %q", got, "mcp_call")
+	}
+	if got := resolveDiscoverToolName("chromecast"); got != "chromecast" {
+		t.Fatalf("resolveDiscoverToolName(chromecast) = %q, want %q", got, "chromecast")
 	}
 }
 
