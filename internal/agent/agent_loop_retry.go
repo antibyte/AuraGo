@@ -216,6 +216,14 @@ func handleAgentLoopRecoveries(s *agentLoopState, content string, tc ToolCall, p
 				content += "\n<done/>"
 			}
 			content = strings.TrimSpace(strings.ReplaceAll(content, "<done/>", ""))
+		} else if containsCompletionEvidence(strings.ToLower(announcementContent)) &&
+			!isAnnouncementOnlyResponse(announcementContent, tc, useNativePath, s.lastResponseWasTool, s.lastUserMsg) {
+			currentLogger.Info("[Sync] Mid-task text-only response with completion evidence — treating as implicit completion", "content_len", len(announcementContent))
+			parsedToolResp.IsFinished = true
+			if !strings.Contains(content, "<done/>") {
+				content += "\n<done/>"
+			}
+			content = strings.TrimSpace(strings.ReplaceAll(content, "<done/>", ""))
 		} else if s.announcementCount < cfg.Agent.AnnouncementDetector.MaxRetries {
 			s.announcementCount++
 			currentLogger.Warn("[Sync] Mid-task text-only response without <done/> — requesting tool call or completion signal", "attempt", s.announcementCount, "content_preview", Truncate(announcementContent, 120))

@@ -557,12 +557,22 @@ func shouldStoreExtractedMemory(content, category string) bool {
 	}
 
 	if strings.EqualFold(strings.TrimSpace(category), "recent_operational_details") {
+		if strings.Contains(text, "bug report") || strings.Contains(text, "fehlerbericht") ||
+			strings.Contains(text, "document sent") || strings.Contains(text, "dokument gesendet") {
+			return false
+		}
 		if strings.Contains(text, "integration") || strings.Contains(text, "tool") {
 			if strings.Contains(text, "available") || strings.Contains(text, "verfügbar") ||
 				strings.Contains(text, "configured") || strings.Contains(text, "konfiguriert") ||
 				strings.Contains(text, "enabled") || strings.Contains(text, "aktiviert") {
 				return false
 			}
+		}
+	}
+	if strings.EqualFold(strings.TrimSpace(category), "user_preferences") {
+		if strings.Contains(text, "direct document sending") || strings.Contains(text, "dokument direkt senden") ||
+			strings.Contains(text, "bug report") || strings.Contains(text, "fehlerbericht") {
+			return false
 		}
 	}
 

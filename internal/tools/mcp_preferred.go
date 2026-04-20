@@ -85,7 +85,7 @@ func buildPreferredMCPVisionArgs(tool *MCPToolInfo, resolvedPath, prompt string)
 	props := mcpInputProperties(tool)
 
 	hasImageInput := false
-	if setFirstMatchingMCPArg(args, props, resolvedPath, "file_path", "path", "image_path", "image_file", "local_path", "input_path", "image") {
+	if setFirstMatchingMCPArg(args, props, resolvedPath, "file_path", "path", "image_path", "image_file", "local_path", "input_path", "image", "image_url", "url") {
 		hasImageInput = true
 	}
 	if !hasImageInput {

@@ -356,6 +356,18 @@ func TestShouldStoreExtractedMemory(t *testing.T) {
 			category: "recent_operational_details",
 			want:     false,
 		},
+		{
+			name:     "drops bug report operational detail",
+			content:  "Bug report created and sent",
+			category: "recent_operational_details",
+			want:     false,
+		},
+		{
+			name:     "drops transient document sending preference",
+			content:  "User prefers direct document sending",
+			category: "user_preferences",
+			want:     false,
+		},
 	}
 
 	for _, tt := range tests {

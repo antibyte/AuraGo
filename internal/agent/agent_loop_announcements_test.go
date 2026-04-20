@@ -25,6 +25,14 @@ func TestIsAnnouncementOnlyResponseAfterToolCallWithCompletionOnly(t *testing.T)
 	}
 }
 
+func TestIsAnnouncementOnlyResponseAfterToolCallWithBugReportCompletionDoesNotTrigger(t *testing.T) {
+	tc := ToolCall{}
+	content := "Erledigt! Der Bug-Report wurde erstellt und direkt in den Chat gesendet."
+	if isAnnouncementOnlyResponse(content, tc, false, true, "analysiere das bild") {
+		t.Fatal("did not expect bug report completion summary to trigger recovery")
+	}
+}
+
 func TestIsAnnouncementOnlyResponseAfterToolCallWithForwardCueButNoAction(t *testing.T) {
 	tc := ToolCall{}
 	content := "Jetzt ist alles aktualisiert."
