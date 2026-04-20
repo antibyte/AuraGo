@@ -13,7 +13,7 @@ use futures::StreamExt;
 use ratatui::{backend::CrosstermBackend, Terminal};
 use reqwest::Method;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
-use tokio::time::{interval, Interval};
+use tokio::time::interval;
 
 mod api;
 mod app;
@@ -22,8 +22,8 @@ mod events;
 mod ui;
 
 use api::{auth, sse, types::*, ApiClient};
-use app::{AppState, Screen};
-use events::keybindings::{map_key, Action};
+use app::{AppState, DashTab, Screen};
+use events::keybindings::{map_key, Action, KeyContext};
 use events::AppEvent;
 use ui::theme::Theme;
 
@@ -61,7 +61,7 @@ async fn main() -> Result<()> {
         }
     };
 
-    let (event_tx, mut event_rx) = mpsc::unbounded_channel::<AppEvent>();
+    let (event_tx, event_rx) = mpsc::unbounded_channel::<AppEvent>();
     let result = run_app(&mut terminal, app.clone(), client, event_tx, event_rx).await;
 
     restore_terminal(&mut terminal)?;
@@ -86,6 +86,8 @@ fn restore_terminal(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> Re
     terminal.show_cursor()?;
     Ok(())
 }
+
+// ── Main event loop ──────────────────────────────────────────────────────────
 
 async fn run_app(
     terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
@@ -116,28 +118,39 @@ async fn run_app(
     });
 
     let mut sse_handle: Option<tokio::task::JoinHandle<()>> = None;
-    let mut theme = Theme::default();
+    let theme = Theme::default();
 
     loop {
-        // Draw UI
+        // ── Draw UI ──────────────────────────────────────────────────────────
         {
             let app_lock = app.lock().unwrap();
-            let tick = app_lock.tick_counter;
+            let tick_val = app_lock.tick_counter;
             let current_theme = if app_lock.screen == Screen::Chat {
                 Theme::from_mood(app_lock.personality.mood.as_deref().unwrap_or("neutral"))
             } else {
                 theme.clone()
             };
             terminal
-                .draw(|f| match app_lock.screen {
-                    Screen::Splash => ui::splash::draw_splash(f, &current_theme, tick),
-                    Screen::Login => ui::login::draw_login(f, &app_lock, &current_theme),
-                    Screen::Chat => ui::chat::draw_chat(f, &app_lock, &current_theme),
+                .draw(|f| {
+                    // Draw nav bar overlay if open
+                    if app_lock.nav_bar_open {
+                        draw_nav_bar(f, &app_lock, &current_theme);
+                    }
+                    match app_lock.screen {
+                        Screen::Splash => ui::splash::draw_splash(f, &current_theme, tick_val),
+                        Screen::Login => ui::login::draw_login(f, &app_lock, &current_theme),
+                        Screen::Chat => ui::chat::draw_chat(f, &app_lock, &current_theme),
+                        Screen::Dashboard => ui::dashboard::draw_dashboard(f, &app_lock, &current_theme),
+                        Screen::Plans => ui::plans::draw_plans(f, &app_lock, &current_theme),
+                        Screen::Missions => ui::missions::draw_missions(f, &app_lock, &current_theme),
+                        Screen::Skills => ui::skills::draw_skills(f, &app_lock, &current_theme),
+                        Screen::Containers => ui::containers::draw_containers(f, &app_lock, &current_theme),
+                    }
                 })
                 .context("Failed to draw UI")?;
         }
 
-        // Wait for next event
+        // ── Wait for next event ──────────────────────────────────────────────
         let event = tokio::select! {
             Some(Ok(ev)) = reader.next() => AppEvent::Crossterm(ev),
             _ = tick.tick() => AppEvent::Tick,
@@ -148,172 +161,7 @@ async fn run_app(
 
         match event {
             AppEvent::Crossterm(crossterm::event::Event::Key(key)) => {
-                if app_lock.screen == Screen::Splash {
-                    app_lock.screen = if app_lock.auth_enabled && !app_lock.authenticated {
-                        Screen::Login
-                    } else {
-                        Screen::Chat
-                    };
-                    if app_lock.screen == Screen::Chat {
-                        let tx = event_tx.clone();
-                        let c = client.clone();
-                        tokio::spawn(async move {
-                            start_chat_session(&c, tx).await;
-                        });
-                    }
-                    continue;
-                }
-
-                let action = map_key(key, app_lock.focus_sidebar);
-                match action {
-                    Action::Quit => break,
-                    Action::ToggleHelp => app_lock.show_help = !app_lock.show_help,
-                    Action::ToggleTheme => {
-                        // Cycle theme for fun
-                    }
-                    Action::ToggleSidebar => {
-                        if app_lock.screen == Screen::Login && app_lock.totp_enabled {
-                            app_lock.login_focus_otp = !app_lock.login_focus_otp;
-                        } else {
-                            app_lock.focus_sidebar = !app_lock.focus_sidebar;
-                        }
-                    }
-                    Action::ClearChat => {
-                        let c = client.clone();
-                        tokio::spawn(async move {
-                            let _ = auth::clear_history(&c).await;
-                        });
-                        app_lock.chat_messages.clear();
-                    }
-                    Action::Logout => {
-                        let c = client.clone();
-                        let path = config::session_cookie_path().ok();
-                        tokio::spawn(async move {
-                            let _ = auth::logout(&c).await;
-                            if let Some(p) = path {
-                                let _ = auth::delete_session_cookie(&p);
-                            }
-                        });
-                        app_lock.authenticated = false;
-                        app_lock.screen = Screen::Login;
-                        if let Some(h) = sse_handle.take() {
-                            h.abort();
-                        }
-                    }
-                    Action::SendMessage => {
-                        if app_lock.screen == Screen::Login {
-                            let password = app_lock.login_password.clone();
-                            let totp = app_lock.login_totp.clone();
-                            app_lock.login_loading = true;
-                            app_lock.login_error = None;
-                            let c = client.clone();
-                            let tx = event_tx.clone();
-                            tokio::spawn(async move {
-                                match auth::login(&c, &password, &totp).await {
-                                    Ok(_) => {
-                                        let _ = tx.send(AppEvent::LoginResult(Ok(())));
-                                    }
-                                    Err(e) => {
-                                        let _ = tx.send(AppEvent::LoginResult(Err(e.to_string())));
-                                    }
-                                }
-                            });
-                        } else if app_lock.screen == Screen::Chat && !app_lock.chat_input.trim().is_empty() {
-                            let text = app_lock.chat_input.trim().to_string();
-                            app_lock.chat_input.clear();
-                            app_lock.push_user_message(text.clone());
-                            app_lock.start_assistant_stream();
-
-                            let c = client.clone();
-                            let tx = event_tx.clone();
-                            let messages: Vec<ChatMessage> = app_lock
-                                .chat_messages
-                                .iter()
-                                .filter(|m| !m.is_tool && !m.is_thinking)
-                                .map(|m| ChatMessage {
-                                    role: m.role.clone(),
-                                    content: m.content.clone(),
-                                })
-                                .collect();
-
-                            tokio::spawn(async move {
-                                let req = ChatCompletionRequest {
-                                    model: "aurago".to_string(),
-                                    messages,
-                                    stream: true,
-                                };
-                                match c.request::<ChatCompletionRequest, serde_json::Value>(Method::POST, "/v1/chat/completions", Some(&req)).await {
-                                    Ok(_) => {
-                                        let _ = tx.send(AppEvent::ChatSent);
-                                    }
-                                    Err(e) => {
-                                        let _ = tx.send(AppEvent::ChatError(e.to_string()));
-                                    }
-                                }
-                            });
-                        }
-                    }
-                    Action::NewLine => {
-                        if app_lock.screen == Screen::Chat {
-                            app_lock.chat_input.push('\n');
-                        }
-                    }
-                    Action::ScrollUp => {
-                        if app_lock.scroll > 0 {
-                            app_lock.scroll -= 1;
-                        }
-                    }
-                    Action::ScrollDown => {
-                        let max = app_lock.chat_messages.len().saturating_sub(1);
-                        if app_lock.scroll < max {
-                            app_lock.scroll += 1;
-                        }
-                    }
-                    Action::ScrollTop => app_lock.scroll = 0,
-                    Action::ScrollBottom => app_lock.scroll_to_bottom(),
-                    Action::Backspace => {
-                        if app_lock.screen == Screen::Login {
-                            if app_lock.login_focus_otp {
-                                app_lock.login_totp.pop();
-                            } else {
-                                app_lock.login_password.pop();
-                            }
-                        } else {
-                            app_lock.chat_input.pop();
-                        }
-                    }
-                    Action::DeleteChar => {}
-                    Action::CursorLeft => {}
-                    Action::CursorRight => {}
-                    Action::CursorStart => {}
-                    Action::CursorEnd => {}
-                    Action::Type(c) => {
-                        // Robust backspace handling for terminals that send DEL/Ctrl+H as chars
-                        let is_backspace = c == '\u{7f}' || c == '\u{8}';
-                        if app_lock.screen == Screen::Login {
-                            if app_lock.login_focus_otp {
-                                if is_backspace {
-                                    app_lock.login_totp.pop();
-                                } else if c.is_ascii_digit() && app_lock.login_totp.len() < 6 {
-                                    app_lock.login_totp.push(c);
-                                }
-                            } else {
-                                if is_backspace {
-                                    app_lock.login_password.pop();
-                                } else if !c.is_control() {
-                                    app_lock.login_password.push(c);
-                                }
-                            }
-                        } else {
-                            if is_backspace {
-                                app_lock.chat_input.pop();
-                            } else if c == '\n' || !c.is_control() {
-                                app_lock.chat_input.push(c);
-                            }
-                        }
-                    }
-                    Action::None => {}
-                }
+                handle_key_event(key, &mut app_lock, &client, &event_tx, &mut sse_handle);
             }
             AppEvent::Crossterm(_) => {}
             AppEvent::Tick => {
@@ -331,7 +179,7 @@ async fn run_app(
                 match result {
                     Ok(()) => {
                         app_lock.authenticated = true;
-                        app_lock.screen = Screen::Chat;
+                        app_lock.navigate_to(Screen::Chat);
                         let tx = event_tx.clone();
                         let c = client.clone();
                         tokio::spawn(async move {
@@ -350,7 +198,7 @@ async fn run_app(
                         app_lock.totp_enabled = totp_enabled;
                         if !enabled || !password_set {
                             app_lock.authenticated = true;
-                            app_lock.screen = Screen::Chat;
+                            app_lock.navigate_to(Screen::Chat);
                             let tx = event_tx.clone();
                             let c = client.clone();
                             tokio::spawn(async move {
@@ -378,11 +226,975 @@ async fn run_app(
                     }
                 }
             }
+
+            // ── Sessions ─────────────────────────────────────────────────────
+            AppEvent::SessionsLoaded(result) => {
+                match result {
+                    Ok(sessions) => {
+                        app_lock.sessions = sessions;
+                    }
+                    Err(e) => {
+                        app_lock.toast = Some(format!("Failed to load sessions: {}", e));
+                        app_lock.toast_ticks = 10;
+                    }
+                }
+            }
+            AppEvent::SessionCreated(result) => {
+                match result {
+                    Ok(session) => {
+                        app_lock.active_session_id = session.id.clone();
+                        app_lock.sessions.insert(0, session);
+                        app_lock.chat_messages.clear();
+                        app_lock.status_message = "New session created".to_string();
+                        // Fetch history for new session
+                        let c = client.clone();
+                        let tx = event_tx.clone();
+                        let sid = app_lock.active_session_id.clone();
+                        tokio::spawn(async move {
+                            let result = auth::fetch_history_for_session(&c, &sid).await
+                                .map_err(|e| e.to_string());
+                            let _ = tx.send(AppEvent::HistoryLoaded(result));
+                        });
+                    }
+                    Err(e) => {
+                        app_lock.toast = Some(format!("Failed to create session: {}", e));
+                        app_lock.toast_ticks = 10;
+                    }
+                }
+            }
+            AppEvent::SessionDeleted(result) => {
+                match result {
+                    Ok(()) => {
+                        // Refresh sessions
+                        let c = client.clone();
+                        let tx = event_tx.clone();
+                        tokio::spawn(async move {
+                            let result = auth::fetch_sessions(&c).await.map_err(|e| e.to_string());
+                            let _ = tx.send(AppEvent::SessionsLoaded(result));
+                        });
+                        app_lock.status_message = "Session deleted".to_string();
+                    }
+                    Err(e) => {
+                        app_lock.toast = Some(format!("Failed to delete session: {}", e));
+                        app_lock.toast_ticks = 10;
+                    }
+                }
+            }
+
+            // ── Dashboard ────────────────────────────────────────────────────
+            AppEvent::DashboardSystemLoaded(result) => {
+                match result {
+                    Ok(info) => app_lock.dash_system = info,
+                    Err(e) => app_lock.status_message = format!("System info error: {}", e),
+                }
+                app_lock.dash_loading = false;
+            }
+            AppEvent::DashboardBudgetLoaded(result) => {
+                match result {
+                    Ok(info) => app_lock.dash_budget = info,
+                    Err(e) => app_lock.status_message = format!("Budget error: {}", e),
+                }
+            }
+            AppEvent::DashboardOverviewLoaded(result) => {
+                match result {
+                    Ok(info) => app_lock.dash_overview = info,
+                    Err(e) => app_lock.status_message = format!("Overview error: {}", e),
+                }
+            }
+            AppEvent::DashboardPersonalityLoaded(result) => {
+                match result {
+                    Ok(info) => app_lock.dash_personality = info,
+                    Err(e) => app_lock.status_message = format!("Personality error: {}", e),
+                }
+            }
+            AppEvent::DashboardLogsLoaded(result) => {
+                match result {
+                    Ok(logs) => app_lock.dash_logs = logs,
+                    Err(e) => app_lock.status_message = format!("Logs error: {}", e),
+                }
+            }
+            AppEvent::DashboardActivityLoaded(result) => {
+                match result {
+                    Ok(activity) => app_lock.dash_activity = activity,
+                    Err(e) => app_lock.status_message = format!("Activity error: {}", e),
+                }
+            }
+
+            // ── Plans ────────────────────────────────────────────────────────
+            AppEvent::PlansLoaded(result) => {
+                match result {
+                    Ok(plans) => {
+                        app_lock.plans = plans;
+                        // Auto-select first if none selected
+                        if app_lock.plans_selected.is_none() && !app_lock.plans.is_empty() {
+                            app_lock.plans_selected = Some(0);
+                        }
+                    }
+                    Err(e) => {
+                        app_lock.toast = Some(format!("Failed to load plans: {}", e));
+                        app_lock.toast_ticks = 10;
+                    }
+                }
+                app_lock.plans_loading = false;
+            }
+            AppEvent::PlanDetailLoaded(result) => {
+                match result {
+                    Ok(plan) => {
+                        // Update the plan in the list if it exists
+                        if let Some(idx) = app_lock.plans_selected {
+                            if idx < app_lock.plans.len() && app_lock.plans[idx].id == plan.id {
+                                app_lock.plans[idx] = plan;
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        app_lock.toast = Some(format!("Failed to load plan: {}", e));
+                        app_lock.toast_ticks = 10;
+                    }
+                }
+            }
+            AppEvent::PlanActionDone(result) => {
+                match result {
+                    Ok(()) => {
+                        app_lock.status_message = "Plan action completed".to_string();
+                        // Refresh plans
+                        let c = client.clone();
+                        let tx = event_tx.clone();
+                        let sid = app_lock.active_session_id.clone();
+                        tokio::spawn(async move {
+                            let result = auth::fetch_plans(&c, &sid).await.map_err(|e| e.to_string());
+                            let _ = tx.send(AppEvent::PlansLoaded(result));
+                        });
+                    }
+                    Err(e) => {
+                        app_lock.toast = Some(format!("Plan action failed: {}", e));
+                        app_lock.toast_ticks = 10;
+                    }
+                }
+            }
+
+            // ── Missions ─────────────────────────────────────────────────────
+            AppEvent::MissionsLoaded(result) => {
+                match result {
+                    Ok(missions) => {
+                        app_lock.missions = missions;
+                        if app_lock.missions_selected.is_none() && !app_lock.missions.is_empty() {
+                            app_lock.missions_selected = Some(0);
+                        }
+                    }
+                    Err(e) => {
+                        app_lock.toast = Some(format!("Failed to load missions: {}", e));
+                        app_lock.toast_ticks = 10;
+                    }
+                }
+                app_lock.missions_loading = false;
+            }
+            AppEvent::MissionActionDone(result) => {
+                match result {
+                    Ok(()) => {
+                        app_lock.status_message = "Mission action completed".to_string();
+                        let c = client.clone();
+                        let tx = event_tx.clone();
+                        tokio::spawn(async move {
+                            let result = auth::fetch_missions(&c).await.map_err(|e| e.to_string());
+                            let _ = tx.send(AppEvent::MissionsLoaded(result));
+                        });
+                    }
+                    Err(e) => {
+                        app_lock.toast = Some(format!("Mission action failed: {}", e));
+                        app_lock.toast_ticks = 10;
+                    }
+                }
+            }
+
+            // ── Skills ───────────────────────────────────────────────────────
+            AppEvent::SkillsLoaded(result) => {
+                match result {
+                    Ok(skills) => {
+                        app_lock.skills = skills;
+                        if app_lock.skills_selected.is_none() && !app_lock.skills.is_empty() {
+                            app_lock.skills_selected = Some(0);
+                        }
+                    }
+                    Err(e) => {
+                        app_lock.toast = Some(format!("Failed to load skills: {}", e));
+                        app_lock.toast_ticks = 10;
+                    }
+                }
+                app_lock.skills_loading = false;
+            }
+            AppEvent::SkillActionDone(result) => {
+                match result {
+                    Ok(()) => {
+                        app_lock.status_message = "Skill action completed".to_string();
+                        let c = client.clone();
+                        let tx = event_tx.clone();
+                        tokio::spawn(async move {
+                            let result = auth::fetch_skills(&c).await.map_err(|e| e.to_string());
+                            let _ = tx.send(AppEvent::SkillsLoaded(result));
+                        });
+                    }
+                    Err(e) => {
+                        app_lock.toast = Some(format!("Skill action failed: {}", e));
+                        app_lock.toast_ticks = 10;
+                    }
+                }
+            }
+
+            // ── Containers ───────────────────────────────────────────────────
+            AppEvent::ContainersLoaded(result) => {
+                match result {
+                    Ok(containers) => {
+                        app_lock.containers = containers;
+                        if app_lock.containers_selected.is_none() && !app_lock.containers.is_empty() {
+                            app_lock.containers_selected = Some(0);
+                        }
+                    }
+                    Err(e) => {
+                        app_lock.toast = Some(format!("Failed to load containers: {}", e));
+                        app_lock.toast_ticks = 10;
+                    }
+                }
+                app_lock.containers_loading = false;
+            }
+            AppEvent::ContainerActionDone(result) => {
+                match result {
+                    Ok(_) => {
+                        app_lock.status_message = "Container action completed".to_string();
+                        let c = client.clone();
+                        let tx = event_tx.clone();
+                        tokio::spawn(async move {
+                            let result = auth::fetch_containers(&c).await.map_err(|e| e.to_string());
+                            let _ = tx.send(AppEvent::ContainersLoaded(result));
+                        });
+                    }
+                    Err(e) => {
+                        app_lock.toast = Some(format!("Container action failed: {}", e));
+                        app_lock.toast_ticks = 10;
+                    }
+                }
+            }
+            AppEvent::ContainerLogsLoaded(result) => {
+                match result {
+                    Ok(val) => {
+                        // Display container logs as a toast or in a dedicated area
+                        if let Some(logs) = val.as_str() {
+                            app_lock.toast = Some(format!("Container logs:\n{}", truncate_str(logs, 500)));
+                            app_lock.toast_ticks = 20;
+                        }
+                    }
+                    Err(e) => {
+                        app_lock.toast = Some(format!("Failed to load container logs: {}", e));
+                        app_lock.toast_ticks = 10;
+                    }
+                }
+            }
         }
     }
 
     Ok(())
 }
+
+// ── Key event handling ────────────────────────────────────────────────────────
+
+fn handle_key_event(
+    key: crossterm::event::KeyEvent,
+    app_lock: &mut AppState,
+    client: &ApiClient,
+    event_tx: &UnboundedSender<AppEvent>,
+    sse_handle: &mut Option<tokio::task::JoinHandle<()>>,
+) {
+    // Splash screen: any key proceeds
+    if app_lock.screen == Screen::Splash {
+        app_lock.screen = if app_lock.auth_enabled && !app_lock.authenticated {
+            Screen::Login
+        } else {
+            Screen::Chat
+        };
+        if app_lock.screen == Screen::Chat {
+            let tx = event_tx.clone();
+            let c = client.clone();
+            tokio::spawn(async move {
+                start_chat_session(&c, tx).await;
+            });
+        }
+        return;
+    }
+
+    // Determine key context
+    let context = if app_lock.nav_bar_open {
+        KeyContext::NavBar {
+            index: app_lock.nav_bar_index,
+            max: Screen::nav_items().len(),
+        }
+    } else {
+        match app_lock.screen {
+            Screen::Login => KeyContext::Login,
+            Screen::Chat => KeyContext::Chat {
+                focus_sidebar: app_lock.focus_sidebar,
+                session_drawer: app_lock.session_drawer_open,
+            },
+            Screen::Dashboard => KeyContext::Dashboard {
+                tab_index: match app_lock.dash_tab {
+                    DashTab::Overview => 0,
+                    DashTab::Agent => 1,
+                    DashTab::System => 2,
+                    DashTab::Logs => 3,
+                },
+                tab_count: 4,
+            },
+            Screen::Plans | Screen::Missions | Screen::Skills | Screen::Containers => {
+                KeyContext::List {
+                    selected: *app_lock.list_selected(),
+                    len: app_lock.list_len(),
+                }
+            }
+            Screen::Splash => KeyContext::Splash,
+        }
+    };
+
+    let action = map_key(key, context);
+    dispatch_action(action, app_lock, client, event_tx, sse_handle);
+}
+
+fn dispatch_action(
+    action: Action,
+    app: &mut AppState,
+    client: &ApiClient,
+    tx: &UnboundedSender<AppEvent>,
+    sse_handle: &mut Option<tokio::task::JoinHandle<()>>,
+) {
+    match action {
+        Action::None => {}
+        Action::Quit => {
+            std::process::exit(0);
+        }
+
+        // ── Help & Theme ─────────────────────────────────────────────────────
+        Action::ToggleHelp => app.show_help = !app.show_help,
+        Action::ToggleTheme => { /* Cycle theme - future */ }
+
+        // ── Sidebar / Tab ────────────────────────────────────────────────────
+        Action::ToggleSidebar => {
+            if app.screen == Screen::Login && app.totp_enabled {
+                app.login_focus_otp = !app.login_focus_otp;
+            } else {
+                app.focus_sidebar = !app.focus_sidebar;
+            }
+        }
+
+        // ── Chat actions ─────────────────────────────────────────────────────
+        Action::SendMessage => {
+            if app.screen == Screen::Login {
+                let password = app.login_password.clone();
+                let totp = app.login_totp.clone();
+                app.login_loading = true;
+                app.login_error = None;
+                let c = client.clone();
+                let t = tx.clone();
+                tokio::spawn(async move {
+                    match auth::login(&c, &password, &totp).await {
+                        Ok(_) => { let _ = t.send(AppEvent::LoginResult(Ok(()))); }
+                        Err(e) => { let _ = t.send(AppEvent::LoginResult(Err(e.to_string()))); }
+                    }
+                });
+            } else if app.screen == Screen::Chat && !app.chat_input.trim().is_empty() {
+                let text = app.chat_input.trim().to_string();
+                app.chat_input.clear();
+                app.push_user_message(text.clone());
+                app.start_assistant_stream();
+
+                let c = client.clone();
+                let t = tx.clone();
+                let messages: Vec<ChatMessage> = app
+                    .chat_messages
+                    .iter()
+                    .filter(|m| !m.is_tool && !m.is_thinking)
+                    .map(|m| ChatMessage {
+                        role: m.role.clone(),
+                        content: m.content.clone(),
+                    })
+                    .collect();
+
+                tokio::spawn(async move {
+                    let req = ChatCompletionRequest {
+                        model: "aurago".to_string(),
+                        messages,
+                        stream: true,
+                    };
+                    match c.request::<ChatCompletionRequest, serde_json::Value>(
+                        Method::POST, "/v1/chat/completions", Some(&req),
+                    ).await {
+                        Ok(_) => { let _ = t.send(AppEvent::ChatSent); }
+                        Err(e) => { let _ = t.send(AppEvent::ChatError(e.to_string())); }
+                    }
+                });
+            }
+        }
+        Action::NewLine => {
+            if app.screen == Screen::Chat {
+                app.chat_input.push('\n');
+            }
+        }
+        Action::ClearChat => {
+            let c = client.clone();
+            tokio::spawn(async move {
+                let _ = auth::clear_history(&c).await;
+            });
+            app.chat_messages.clear();
+        }
+        Action::Logout => {
+            let c = client.clone();
+            let path = config::session_cookie_path().ok();
+            tokio::spawn(async move {
+                let _ = auth::logout(&c).await;
+                if let Some(p) = path {
+                    let _ = auth::delete_session_cookie(&p);
+                }
+            });
+            app.authenticated = false;
+            app.screen = Screen::Login;
+            app.nav_bar_open = false;
+            if let Some(h) = sse_handle.take() {
+                h.abort();
+            }
+        }
+
+        // ── Scrolling ────────────────────────────────────────────────────────
+        Action::ScrollUp => {
+            if app.screen == Screen::Chat {
+                if app.scroll > 0 { app.scroll -= 1; }
+            } else if app.screen == Screen::Dashboard {
+                // Scroll logs
+            }
+        }
+        Action::ScrollDown => {
+            if app.screen == Screen::Chat {
+                let max = app.chat_messages.len().saturating_sub(1);
+                if app.scroll < max { app.scroll += 1; }
+            }
+        }
+        Action::ScrollTop => app.scroll = 0,
+        Action::ScrollBottom => app.scroll_to_bottom(),
+
+        // ── Cursor ───────────────────────────────────────────────────────────
+        Action::Backspace => {
+            if app.screen == Screen::Login {
+                if app.login_focus_otp {
+                    app.login_totp.pop();
+                } else {
+                    app.login_password.pop();
+                }
+            } else {
+                app.chat_input.pop();
+            }
+        }
+        Action::DeleteChar => {}
+        Action::CursorLeft | Action::CursorRight | Action::CursorStart | Action::CursorEnd => {}
+        Action::Type(c) => {
+            let is_backspace = c == '\u{7f}' || c == '\u{8}';
+            if app.screen == Screen::Login {
+                if app.login_focus_otp {
+                    if is_backspace {
+                        app.login_totp.pop();
+                    } else if c.is_ascii_digit() && app.login_totp.len() < 6 {
+                        app.login_totp.push(c);
+                    }
+                } else {
+                    if is_backspace {
+                        app.login_password.pop();
+                    } else if !c.is_control() {
+                        app.login_password.push(c);
+                    }
+                }
+            } else {
+                if is_backspace {
+                    app.chat_input.pop();
+                } else if c == '\n' || !c.is_control() {
+                    app.chat_input.push(c);
+                }
+            }
+        }
+
+        // ── Navigation ───────────────────────────────────────────────────────
+        Action::NavigateLeft => {
+            let idx = app.screen.nav_index();
+            if idx > 0 {
+                if let Some(prev) = Screen::from_nav_index(idx - 1) {
+                    navigate_and_load(app, prev, client, tx);
+                }
+            }
+        }
+        Action::NavigateRight => {
+            let idx = app.screen.nav_index();
+            if let Some(next) = Screen::from_nav_index(idx + 1) {
+                navigate_and_load(app, next, client, tx);
+            }
+        }
+        Action::OpenNavBar => {
+            app.nav_bar_open = true;
+            app.nav_bar_index = app.screen.nav_index();
+        }
+        Action::CloseNavBar => {
+            app.nav_bar_open = false;
+        }
+        Action::NavUp => {
+            if app.nav_bar_index > 0 {
+                app.nav_bar_index -= 1;
+            }
+        }
+        Action::NavDown => {
+            let max = Screen::nav_items().len().saturating_sub(1);
+            if app.nav_bar_index < max {
+                app.nav_bar_index += 1;
+            }
+        }
+        Action::NavSelect => {
+            if let Some(screen) = Screen::from_nav_index(app.nav_bar_index) {
+                navigate_and_load(app, screen, client, tx);
+            }
+            app.nav_bar_open = false;
+        }
+        Action::GoToChat => navigate_and_load(app, Screen::Chat, client, tx),
+        Action::GoToDashboard => navigate_and_load(app, Screen::Dashboard, client, tx),
+        Action::GoToPlans => navigate_and_load(app, Screen::Plans, client, tx),
+        Action::GoToMissions => navigate_and_load(app, Screen::Missions, client, tx),
+        Action::GoToSkills => navigate_and_load(app, Screen::Skills, client, tx),
+        Action::GoToContainers => navigate_and_load(app, Screen::Containers, client, tx),
+
+        // ── List navigation ──────────────────────────────────────────────────
+        Action::ListUp => {
+            let len = app.list_len();
+            let selected = app.list_selected_mut();
+            match selected {
+                Some(idx) if *idx > 0 => *idx -= 1,
+                None if len > 0 => *selected = Some(0),
+                _ => {}
+            }
+        }
+        Action::ListDown => {
+            let len = app.list_len();
+            let selected = app.list_selected_mut();
+            match selected {
+                Some(idx) if *idx < len.saturating_sub(1) => *idx += 1,
+                None if len > 0 => *selected = Some(0),
+                _ => {}
+            }
+        }
+        Action::ListSelect => {
+            // Load detail for selected item
+            load_detail_for_selected(app, client, tx);
+        }
+        Action::ListBack => {
+            // Deselect / go back to list from detail
+            *app.list_selected_mut() = None;
+        }
+
+        // ── Session drawer ───────────────────────────────────────────────────
+        Action::ToggleSessionDrawer => {
+            app.session_drawer_open = !app.session_drawer_open;
+            if app.session_drawer_open {
+                // Load sessions
+                let c = client.clone();
+                let t = tx.clone();
+                tokio::spawn(async move {
+                    let result = auth::fetch_sessions(&c).await.map_err(|e| e.to_string());
+                    let _ = t.send(AppEvent::SessionsLoaded(result));
+                });
+            }
+        }
+        Action::SessionUp => {
+            // Not tracked with a separate index - we just keep it simple
+        }
+        Action::SessionDown => {}
+        Action::SessionSelect => {
+            // Select the first session that isn't active
+            if let Some(session) = app.sessions.first() {
+                if session.id != app.active_session_id {
+                    let new_id = session.id.clone();
+                    app.active_session_id = new_id;
+                    app.chat_messages.clear();
+                    app.session_drawer_open = false;
+                    app.status_message = "Switched session".to_string();
+                    // Load history for selected session
+                    let c = client.clone();
+                    let t = tx.clone();
+                    let sid = app.active_session_id.clone();
+                    tokio::spawn(async move {
+                        let result = auth::fetch_history_for_session(&c, &sid).await
+                            .map_err(|e| e.to_string());
+                        let _ = t.send(AppEvent::HistoryLoaded(result));
+                    });
+                }
+            }
+        }
+        Action::SessionNew => {
+            let c = client.clone();
+            let t = tx.clone();
+            tokio::spawn(async move {
+                let result = auth::create_session(&c).await.map_err(|e| e.to_string());
+                let _ = t.send(AppEvent::SessionCreated(result));
+            });
+        }
+        Action::SessionDelete => {
+            // Delete the first non-active session
+            if let Some(session) = app.sessions.iter().find(|s| s.id != app.active_session_id) {
+                let id = session.id.clone();
+                let c = client.clone();
+                let t = tx.clone();
+                tokio::spawn(async move {
+                    let result = auth::delete_session(&c, &id).await.map_err(|e| e.to_string());
+                    let _ = t.send(AppEvent::SessionDeleted(result));
+                });
+            }
+        }
+
+        // ── Dashboard tabs ───────────────────────────────────────────────────
+        Action::TabLeft => {
+            app.dash_tab = match app.dash_tab {
+                DashTab::Overview => DashTab::Logs,
+                DashTab::Agent => DashTab::Overview,
+                DashTab::System => DashTab::Agent,
+                DashTab::Logs => DashTab::System,
+            };
+        }
+        Action::TabRight => {
+            app.dash_tab = match app.dash_tab {
+                DashTab::Overview => DashTab::Agent,
+                DashTab::Agent => DashTab::System,
+                DashTab::System => DashTab::Logs,
+                DashTab::Logs => DashTab::Overview,
+            };
+        }
+
+        // ── Actions ──────────────────────────────────────────────────────────
+        Action::Refresh => {
+            load_data_for_screen(app, client, tx);
+        }
+        Action::ActionPrimary => {
+            // Execute primary action on selected item
+            execute_primary_action(app, client, tx);
+        }
+        Action::ActionDelete => {
+            execute_delete_action(app, client, tx);
+        }
+        Action::ActionToggle => {
+            execute_toggle_action(app, client, tx);
+        }
+    }
+}
+
+// ── Navigation helpers ────────────────────────────────────────────────────────
+
+fn navigate_and_load(
+    app: &mut AppState,
+    screen: Screen,
+    client: &ApiClient,
+    tx: &UnboundedSender<AppEvent>,
+) {
+    app.navigate_to(screen);
+    load_data_for_screen(app, client, tx);
+}
+
+/// Load data appropriate for the current screen
+fn load_data_for_screen(
+    app: &mut AppState,
+    client: &ApiClient,
+    tx: &UnboundedSender<AppEvent>,
+) {
+    match app.screen {
+        Screen::Dashboard => {
+            app.dash_loading = true;
+            let c = client.clone();
+            let t = tx.clone();
+            tokio::spawn(async move {
+                let result = auth::fetch_system_info(&c).await.map_err(|e| e.to_string());
+                let _ = t.send(AppEvent::DashboardSystemLoaded(result));
+            });
+            let c = client.clone();
+            let t = tx.clone();
+            tokio::spawn(async move {
+                let result = auth::fetch_budget(&c).await.map_err(|e| e.to_string());
+                let _ = t.send(AppEvent::DashboardBudgetLoaded(result));
+            });
+            let c = client.clone();
+            let t = tx.clone();
+            tokio::spawn(async move {
+                let result = auth::fetch_overview(&c).await.map_err(|e| e.to_string());
+                let _ = t.send(AppEvent::DashboardOverviewLoaded(result));
+            });
+            let c = client.clone();
+            let t = tx.clone();
+            tokio::spawn(async move {
+                let result = auth::fetch_personality_state(&c).await.map_err(|e| e.to_string());
+                let _ = t.send(AppEvent::DashboardPersonalityLoaded(result));
+            });
+            let c = client.clone();
+            let t = tx.clone();
+            tokio::spawn(async move {
+                let result = auth::fetch_logs(&c, 100).await.map_err(|e| e.to_string());
+                let _ = t.send(AppEvent::DashboardLogsLoaded(result));
+            });
+            let c = client.clone();
+            let t = tx.clone();
+            tokio::spawn(async move {
+                let result = auth::fetch_activity(&c).await.map_err(|e| e.to_string());
+                let _ = t.send(AppEvent::DashboardActivityLoaded(result));
+            });
+        }
+        Screen::Plans => {
+            app.plans_loading = true;
+            let c = client.clone();
+            let t = tx.clone();
+            let sid = app.active_session_id.clone();
+            tokio::spawn(async move {
+                let result = auth::fetch_plans(&c, &sid).await.map_err(|e| e.to_string());
+                let _ = t.send(AppEvent::PlansLoaded(result));
+            });
+        }
+        Screen::Missions => {
+            app.missions_loading = true;
+            let c = client.clone();
+            let t = tx.clone();
+            tokio::spawn(async move {
+                let result = auth::fetch_missions(&c).await.map_err(|e| e.to_string());
+                let _ = t.send(AppEvent::MissionsLoaded(result));
+            });
+        }
+        Screen::Skills => {
+            app.skills_loading = true;
+            let c = client.clone();
+            let t = tx.clone();
+            tokio::spawn(async move {
+                let result = auth::fetch_skills(&c).await.map_err(|e| e.to_string());
+                let _ = t.send(AppEvent::SkillsLoaded(result));
+            });
+        }
+        Screen::Containers => {
+            app.containers_loading = true;
+            let c = client.clone();
+            let t = tx.clone();
+            tokio::spawn(async move {
+                let result = auth::fetch_containers(&c).await.map_err(|e| e.to_string());
+                let _ = t.send(AppEvent::ContainersLoaded(result));
+            });
+        }
+        _ => {}
+    }
+}
+
+/// Load detail data for the currently selected list item
+fn load_detail_for_selected(
+    app: &AppState,
+    client: &ApiClient,
+    tx: &UnboundedSender<AppEvent>,
+) {
+    match app.screen {
+        Screen::Plans => {
+            if let Some(idx) = app.plans_selected {
+                if let Some(plan) = app.plans.get(idx) {
+                    let id = plan.id.clone();
+                    let c = client.clone();
+                    let t = tx.clone();
+                    tokio::spawn(async move {
+                        let result = auth::fetch_plan_detail(&c, &id).await.map_err(|e| e.to_string());
+                        let _ = t.send(AppEvent::PlanDetailLoaded(result));
+                    });
+                }
+            }
+        }
+        Screen::Containers => {
+            if let Some(idx) = app.containers_selected {
+                if let Some(container) = app.containers.get(idx) {
+                    let id = container.id.clone();
+                    let c = client.clone();
+                    let t = tx.clone();
+                    tokio::spawn(async move {
+                        let result = auth::fetch_container_logs(&c, &id).await.map_err(|e| e.to_string());
+                        let _ = t.send(AppEvent::ContainerLogsLoaded(result));
+                    });
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Execute the primary action (Enter) for the selected item
+fn execute_primary_action(
+    app: &AppState,
+    client: &ApiClient,
+    tx: &UnboundedSender<AppEvent>,
+) {
+    match app.screen {
+        Screen::Plans => {
+            if let Some(idx) = app.plans_selected {
+                if let Some(plan) = app.plans.get(idx) {
+                    let id = plan.id.clone();
+                    let c = client.clone();
+                    let t = tx.clone();
+                    tokio::spawn(async move {
+                        let result = auth::advance_plan(&c, &id).await.map_err(|e| e.to_string());
+                        let _ = t.send(AppEvent::PlanActionDone(result));
+                    });
+                }
+            }
+        }
+        Screen::Missions => {
+            if let Some(idx) = app.missions_selected {
+                if let Some(mission) = app.missions.get(idx) {
+                    let id = mission.id.clone();
+                    let c = client.clone();
+                    let t = tx.clone();
+                    tokio::spawn(async move {
+                        let result = auth::run_mission(&c, &id).await.map_err(|e| e.to_string());
+                        let _ = t.send(AppEvent::MissionActionDone(result));
+                    });
+                }
+            }
+        }
+        Screen::Containers => {
+            if let Some(idx) = app.containers_selected {
+                if let Some(container) = app.containers.get(idx) {
+                    let action_str = if container.state == "running" { "stop" } else { "start" };
+                    let id = container.id.clone();
+                    let c = client.clone();
+                    let t = tx.clone();
+                    let a = action_str.to_string();
+                    tokio::spawn(async move {
+                        let result = auth::container_action(&c, &id, &a).await.map_err(|e| e.to_string());
+                        let _ = t.send(AppEvent::ContainerActionDone(result));
+                    });
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Execute delete action for the selected item
+fn execute_delete_action(
+    app: &AppState,
+    client: &ApiClient,
+    tx: &UnboundedSender<AppEvent>,
+) {
+    match app.screen {
+        Screen::Missions => {
+            if let Some(idx) = app.missions_selected {
+                if let Some(mission) = app.missions.get(idx) {
+                    let id = mission.id.clone();
+                    let c = client.clone();
+                    let t = tx.clone();
+                    tokio::spawn(async move {
+                        let result = auth::delete_mission(&c, &id).await.map_err(|e| e.to_string());
+                        let _ = t.send(AppEvent::MissionActionDone(result));
+                    });
+                }
+            }
+        }
+        Screen::Containers => {
+            if let Some(idx) = app.containers_selected {
+                if let Some(container) = app.containers.get(idx) {
+                    let id = container.id.clone();
+                    let c = client.clone();
+                    let t = tx.clone();
+                    tokio::spawn(async move {
+                        let result = auth::remove_container(&c, &id, false).await.map_err(|e| e.to_string());
+                        let _ = t.send(AppEvent::ContainerActionDone(result));
+                    });
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Execute toggle action (enable/disable) for the selected item
+fn execute_toggle_action(
+    app: &AppState,
+    client: &ApiClient,
+    tx: &UnboundedSender<AppEvent>,
+) {
+    match app.screen {
+        Screen::Skills => {
+            if let Some(idx) = app.skills_selected {
+                if let Some(skill) = app.skills.get(idx) {
+                    let id = skill.id.clone();
+                    let new_state = !skill.enabled;
+                    let c = client.clone();
+                    let t = tx.clone();
+                    tokio::spawn(async move {
+                        let result = auth::toggle_skill(&c, &id, new_state).await.map_err(|e| e.to_string());
+                        let _ = t.send(AppEvent::SkillActionDone(result));
+                    });
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+// ── Nav bar drawing ───────────────────────────────────────────────────────────
+
+fn draw_nav_bar(f: &mut ratatui::Frame, app: &AppState, theme: &Theme) {
+    use ratatui::layout::{Alignment, Rect};
+    use ratatui::style::{Modifier, Style};
+    use ratatui::text::{Line, Span};
+    use ratatui::widgets::{Block, Borders, Clear, Paragraph};
+
+    let area = f.area();
+    let nav_width = 24.min(area.width / 3);
+    let nav_height = (Screen::nav_items().len() as u16 * 2) + 4;
+
+    let nav_area = Rect {
+        x: (area.width.saturating_sub(nav_width)) / 2,
+        y: (area.height.saturating_sub(nav_height)) / 2,
+        width: nav_width,
+        height: nav_height,
+    };
+
+    f.render_widget(Clear, nav_area);
+
+    let block = Block::default()
+        .title(" Navigate ")
+        .title_alignment(Alignment::Center)
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(theme.accent))
+        .style(Style::default().bg(theme.bg));
+
+    let inner = block.inner(nav_area);
+    f.render_widget(block, nav_area);
+
+    let items: Vec<Line> = Screen::nav_items()
+        .iter()
+        .enumerate()
+        .map(|(i, screen)| {
+            let is_selected = i == app.nav_bar_index;
+            let is_current = *screen == app.screen;
+            let marker = if is_current { "● " } else { "  " };
+            let arrow = if is_selected { "▸ " } else { "  " };
+            let style = if is_selected {
+                Style::default().fg(theme.accent).add_modifier(Modifier::BOLD)
+            } else if is_current {
+                Style::default().fg(theme.fg).add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(theme.fg)
+            };
+            let f_key = format!("F{}", i + 2);
+            Line::from(vec![
+                Span::styled(arrow, Style::default().fg(theme.accent)),
+                Span::styled(marker, Style::default().fg(theme.accent)),
+                Span::styled(format!("{:<10}", screen.title()), style),
+                Span::styled(f_key, Style::default().fg(theme.accent_dim)),
+            ])
+        })
+        .collect();
+
+    let para = Paragraph::new(items);
+    f.render_widget(para, inner);
+}
+
+// ── SSE / Chat session startup ────────────────────────────────────────────────
 
 async fn start_chat_session(client: &ApiClient, tx: UnboundedSender<AppEvent>) {
     // Fetch history
@@ -414,4 +1226,18 @@ async fn start_chat_session(client: &ApiClient, tx: UnboundedSender<AppEvent>) {
             }
         }
     });
+}
+
+// ── Utility ───────────────────────────────────────────────────────────────────
+
+fn truncate_str(s: &str, max_len: usize) -> String {
+    if s.len() <= max_len {
+        s.to_string()
+    } else {
+        let mut end = max_len;
+        while !s.is_char_boundary(end) && end > 0 {
+            end -= 1;
+        }
+        format!("{}…", &s[..end])
+    }
 }

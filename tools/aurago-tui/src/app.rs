@@ -1,4 +1,4 @@
-use crate::api::types::{HistoryMessage, TokenUpdatePayload, PersonalityUpdatePayload};
+use crate::api::types::*;
 use crate::api::sse::SseEvent;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -6,6 +6,62 @@ pub enum Screen {
     Splash,
     Login,
     Chat,
+    Dashboard,
+    Plans,
+    Missions,
+    Skills,
+    Containers,
+}
+
+impl Screen {
+    pub fn title(&self) -> &str {
+        match self {
+            Screen::Splash => "AuraGo",
+            Screen::Login => "Login",
+            Screen::Chat => "Chat",
+            Screen::Dashboard => "Dashboard",
+            Screen::Plans => "Plans",
+            Screen::Missions => "Missions",
+            Screen::Skills => "Skills",
+            Screen::Containers => "Containers",
+        }
+    }
+
+    /// All navigable screens (excluding Splash and Login)
+    pub fn nav_items() -> &'static [Screen] {
+        &[
+            Screen::Chat,
+            Screen::Dashboard,
+            Screen::Plans,
+            Screen::Missions,
+            Screen::Skills,
+            Screen::Containers,
+        ]
+    }
+
+    pub fn nav_index(&self) -> usize {
+        match self {
+            Screen::Chat => 0,
+            Screen::Dashboard => 1,
+            Screen::Plans => 2,
+            Screen::Missions => 3,
+            Screen::Skills => 4,
+            Screen::Containers => 5,
+            _ => 0,
+        }
+    }
+
+    pub fn from_nav_index(i: usize) -> Option<Self> {
+        match i {
+            0 => Some(Screen::Chat),
+            1 => Some(Screen::Dashboard),
+            2 => Some(Screen::Plans),
+            3 => Some(Screen::Missions),
+            4 => Some(Screen::Skills),
+            5 => Some(Screen::Containers),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -19,16 +75,21 @@ pub struct ChatMessage {
 
 #[derive(Debug, Clone)]
 pub struct AppState {
+    // ── Core ──────────────────────────────────────────────────────────────
     pub screen: Screen,
     pub server_url: String,
     pub authenticated: bool,
     pub auth_enabled: bool,
     pub totp_enabled: bool,
+
+    // ── Login ─────────────────────────────────────────────────────────────
     pub login_password: String,
     pub login_totp: String,
     pub login_focus_otp: bool,
     pub login_error: Option<String>,
     pub login_loading: bool,
+
+    // ── Chat ──────────────────────────────────────────────────────────────
     pub chat_input: String,
     pub chat_messages: Vec<ChatMessage>,
     pub scroll: usize,
@@ -43,6 +104,62 @@ pub struct AppState {
     pub focus_sidebar: bool,
     pub sidebar_index: usize,
     pub tick_counter: u64,
+
+    // ── Sessions ──────────────────────────────────────────────────────────
+    pub sessions: Vec<ChatSession>,
+    pub active_session_id: String,
+    pub session_drawer_open: bool,
+
+    // ── Dashboard ─────────────────────────────────────────────────────────
+    pub dash_system: SystemInfo,
+    pub dash_budget: BudgetInfo,
+    pub dash_overview: OverviewInfo,
+    pub dash_personality: PersonalityState,
+    pub dash_logs: Vec<LogEntry>,
+    pub dash_activity: Vec<CronEntry>,
+    pub dash_tab: DashTab,
+    pub dash_loading: bool,
+
+    // ── Plans ─────────────────────────────────────────────────────────────
+    pub plans: Vec<Plan>,
+    pub plans_selected: Option<usize>,
+    pub plans_loading: bool,
+
+    // ── Missions ──────────────────────────────────────────────────────────
+    pub missions: Vec<Mission>,
+    pub missions_selected: Option<usize>,
+    pub missions_loading: bool,
+
+    // ── Skills ────────────────────────────────────────────────────────────
+    pub skills: Vec<Skill>,
+    pub skills_selected: Option<usize>,
+    pub skills_loading: bool,
+
+    // ── Containers ────────────────────────────────────────────────────────
+    pub containers: Vec<Container>,
+    pub containers_selected: Option<usize>,
+    pub containers_loading: bool,
+
+    // ── Navigation ────────────────────────────────────────────────────────
+    pub nav_bar_open: bool,
+    pub nav_bar_index: usize,
+
+    /// Dummy field for list_selected_mut() default case
+    pub _list_dummy: Option<usize>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum DashTab {
+    Overview,
+    Agent,
+    System,
+    Logs,
+}
+
+impl Default for DashTab {
+    fn default() -> Self {
+        DashTab::Overview
+    }
 }
 
 impl Default for AppState {
@@ -84,11 +201,39 @@ impl Default for AppState {
             focus_sidebar: false,
             sidebar_index: 0,
             tick_counter: 0,
+            sessions: Vec::new(),
+            active_session_id: "default".to_string(),
+            session_drawer_open: false,
+            dash_system: SystemInfo::default(),
+            dash_budget: BudgetInfo::default(),
+            dash_overview: OverviewInfo::default(),
+            dash_personality: PersonalityState::default(),
+            dash_logs: Vec::new(),
+            dash_activity: Vec::new(),
+            dash_tab: DashTab::default(),
+            dash_loading: false,
+            plans: Vec::new(),
+            plans_selected: None,
+            plans_loading: false,
+            missions: Vec::new(),
+            missions_selected: None,
+            missions_loading: false,
+            skills: Vec::new(),
+            skills_selected: None,
+            skills_loading: false,
+            containers: Vec::new(),
+            containers_selected: None,
+            containers_loading: false,
+            nav_bar_open: false,
+            nav_bar_index: 0,
+            _list_dummy: None,
         }
     }
 }
 
 impl AppState {
+    // ── Chat helpers ──────────────────────────────────────────────────────
+
     pub fn push_user_message(&mut self, text: String) {
         self.chat_messages.push(ChatMessage {
             role: "user".to_string(),
@@ -184,6 +329,52 @@ impl AppState {
             if self.toast_ticks == 0 {
                 self.toast = None;
             }
+        }
+    }
+
+    // ── Navigation helpers ────────────────────────────────────────────────
+
+    pub fn navigate_to(&mut self, screen: Screen) {
+        self.screen = screen.clone();
+        self.nav_bar_index = screen.nav_index();
+        self.nav_bar_open = false;
+    }
+
+    /// Returns true if the current screen uses a list + detail layout
+    pub fn has_list_layout(&self) -> bool {
+        matches!(self.screen, Screen::Plans | Screen::Missions | Screen::Skills | Screen::Containers)
+    }
+
+    /// Get the selected item index for the current list-based screen
+    pub fn list_selected(&self) -> &Option<usize> {
+        match self.screen {
+            Screen::Plans => &self.plans_selected,
+            Screen::Missions => &self.missions_selected,
+            Screen::Skills => &self.skills_selected,
+            Screen::Containers => &self.containers_selected,
+            _ => &None,
+        }
+    }
+
+    /// Get mutable selected item index
+    pub fn list_selected_mut(&mut self) -> &mut Option<usize> {
+        match self.screen {
+            Screen::Plans => &mut self.plans_selected,
+            Screen::Missions => &mut self.missions_selected,
+            Screen::Skills => &mut self.skills_selected,
+            Screen::Containers => &mut self.containers_selected,
+            _ => &mut self._list_dummy,
+        }
+    }
+
+    /// Get the list length for the current screen
+    pub fn list_len(&self) -> usize {
+        match self.screen {
+            Screen::Plans => self.plans.len(),
+            Screen::Missions => self.missions.len(),
+            Screen::Skills => self.skills.len(),
+            Screen::Containers => self.containers.len(),
+            _ => 0,
         }
     }
 }

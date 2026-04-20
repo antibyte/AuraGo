@@ -6,7 +6,7 @@ use ratatui::{
     Frame,
 };
 
-use crate::app::{AppState, ChatMessage};
+use crate::app::AppState;
 use super::theme::{spinner_frame, Theme};
 
 pub fn draw_chat(f: &mut Frame, app: &AppState, theme: &Theme) {
@@ -37,6 +37,10 @@ pub fn draw_chat(f: &mut Frame, app: &AppState, theme: &Theme) {
     draw_messages(f, app, theme, body_chunks[1]);
     draw_input(f, app, theme, main_chunks[2]);
     draw_status(f, app, theme, main_chunks[3]);
+
+    if app.session_drawer_open {
+        draw_session_drawer(f, app, theme);
+    }
 
     if app.show_help {
         draw_help(f, theme);
@@ -203,30 +207,134 @@ fn draw_status(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
     f.render_widget(para, area);
 }
 
+/// Draw session drawer as an overlay panel on the right side
+fn draw_session_drawer(f: &mut Frame, app: &AppState, theme: &Theme) {
+    let area = f.area();
+    let drawer_width = 36.min(area.width / 2);
+
+    let drawer_area = Rect {
+        x: area.width.saturating_sub(drawer_width),
+        y: 0,
+        width: drawer_width,
+        height: area.height,
+    };
+
+    f.render_widget(Clear, drawer_area);
+
+    let block = Block::default()
+        .title(" 💬 Sessions ")
+        .borders(Borders::LEFT | Borders::TOP | Borders::BOTTOM)
+        .border_style(Style::default().fg(theme.accent))
+        .style(Style::default().bg(theme.bg));
+    let inner = block.inner(drawer_area);
+    f.render_widget(block, drawer_area);
+
+    // Split into list + footer
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Min(0),    // session list
+            Constraint::Length(2), // footer hints
+        ])
+        .split(inner);
+
+    // Session list
+    let items: Vec<Line> = if app.sessions.is_empty() {
+        vec![Line::from(Span::styled(
+            "  No sessions yet",
+            Style::default().fg(theme.accent_dim),
+        ))]
+    } else {
+        app.sessions
+            .iter()
+            .enumerate()
+            .map(|(_i, s)| {
+                let is_active = s.id == app.active_session_id;
+                let marker = if is_active { "● " } else { "  " };
+                let name = if s.name.is_empty() {
+                    format!("Session {}", &s.id[..8.min(s.id.len())])
+                } else {
+                    s.name.clone()
+                };
+                let count = format!(" ({})", s.message_count);
+                let style = if is_active {
+                    Style::default().fg(theme.accent).add_modifier(Modifier::BOLD)
+                } else {
+                    Style::default().fg(theme.fg)
+                };
+                Line::from(vec![
+                    Span::styled(marker, Style::default().fg(theme.accent)),
+                    Span::styled(truncate_str(&name, 20), style),
+                    Span::styled(count, Style::default().fg(theme.accent_dim)),
+                ])
+            })
+            .collect()
+    };
+
+    let para = Paragraph::new(Text::from(items));
+    f.render_widget(para, chunks[0]);
+
+    // Footer hints
+    let hints = Line::from(vec![
+        Span::styled(" n", Style::default().fg(theme.accent).add_modifier(Modifier::BOLD)),
+        Span::styled(" New  ", Style::default().fg(theme.accent_dim)),
+        Span::styled(" d", Style::default().fg(theme.accent).add_modifier(Modifier::BOLD)),
+        Span::styled(" Del  ", Style::default().fg(theme.accent_dim)),
+        Span::styled(" Esc", Style::default().fg(theme.accent).add_modifier(Modifier::BOLD)),
+        Span::styled(" Close", Style::default().fg(theme.accent_dim)),
+    ]);
+    let hint_para = Paragraph::new(hints)
+        .style(Style::default().bg(theme.bg));
+    f.render_widget(hint_para, chunks[1]);
+}
+
 fn draw_help(f: &mut Frame, theme: &Theme) {
-    let area = centered_rect(60, 50, f.area());
+    let area = centered_rect(60, 60, f.area());
     f.render_widget(Clear, area);
     let block = Block::default()
         .title(" Help ")
         .borders(Borders::ALL)
         .border_style(Style::default().fg(theme.border_focus));
     let text = Text::from(vec![
-        Line::from("Enter        Send message"),
-        Line::from("Shift+Enter  New line"),
-        Line::from("↑ / ↓        Scroll history"),
-        Line::from("Ctrl+L       Clear chat"),
-        Line::from("Ctrl+O       Logout"),
-        Line::from("Ctrl+R       Scroll to latest"),
-        Line::from("Ctrl+T       Toggle theme"),
-        Line::from("Tab          Focus sidebar"),
-        Line::from("Esc / ?      Close help"),
-        Line::from("Ctrl+C / q   Quit"),
+        Line::from(""),
+        Line::from(Span::styled("── Chat ──────────────────────────", Style::default().fg(theme.accent))),
+        Line::from("Enter          Send message"),
+        Line::from("Shift+Enter    New line"),
+        Line::from("↑ / ↓          Scroll messages"),
+        Line::from("Ctrl+L         Clear chat"),
+        Line::from("Ctrl+R         Scroll to latest"),
+        Line::from("Ctrl+S         Session drawer"),
+        Line::from("Tab            Focus sidebar"),
+        Line::from(""),
+        Line::from(Span::styled("── Navigation ────────────────────", Style::default().fg(theme.accent))),
+        Line::from("F1             Open nav bar"),
+        Line::from("F2             Chat"),
+        Line::from("F3             Dashboard"),
+        Line::from("F4             Plans"),
+        Line::from("F5             Missions"),
+        Line::from("F6             Skills"),
+        Line::from("F7             Containers"),
+        Line::from("Ctrl+N         Open nav bar"),
+        Line::from("Ctrl+O         Logout"),
+        Line::from(""),
+        Line::from(Span::styled("── List pages ────────────────────", Style::default().fg(theme.accent))),
+        Line::from("j / ↓          Move down"),
+        Line::from("k / ↑          Move up"),
+        Line::from("Enter          Select / detail"),
+        Line::from("Esc            Back to list"),
+        Line::from("Space          Toggle enabled"),
+        Line::from("Delete         Delete item"),
+        Line::from("r              Refresh"),
+        Line::from(""),
+        Line::from(Span::styled("── General ───────────────────────", Style::default().fg(theme.accent))),
+        Line::from("Esc / ?        Close help"),
+        Line::from("Ctrl+C / q     Quit"),
     ]);
     let para = Paragraph::new(text).block(block).wrap(Wrap { trim: true });
     f.render_widget(para, area);
 }
 
-fn draw_toast(f: &mut Frame, toast: &str, theme: &Theme) {
+pub fn draw_toast(f: &mut Frame, toast: &str, theme: &Theme) {
     let area = centered_rect(70, 10, f.area());
     f.render_widget(Clear, area);
     let block = Block::default()
@@ -259,4 +367,17 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
             Constraint::Percentage((100 - percent_x) / 2),
         ])
         .split(popup_layout[1])[1]
+}
+
+/// Truncate a string to max_len characters, appending "…" if truncated
+fn truncate_str(s: &str, max_len: usize) -> String {
+    if s.len() <= max_len {
+        s.to_string()
+    } else {
+        let mut end = max_len;
+        while !s.is_char_boundary(end) && end > 0 {
+            end -= 1;
+        }
+        format!("{}…", &s[..end])
+    }
 }

@@ -1,5 +1,10 @@
 pub mod animations;
 pub mod chat;
+pub mod containers;
+pub mod dashboard;
 pub mod login;
+pub mod missions;
+pub mod plans;
+pub mod skills;
 pub mod splash;
 pub mod theme;
