@@ -246,24 +246,30 @@ func NewChromemVectorDB(cfg *config.Config, logger *slog.Logger) (*ChromemVector
 		fileIndexerCollections: make(map[string]struct{}),
 	}
 
-	// Phase 29: Startup validation — test the embedding pipeline with retries
+	// Phase 29: Startup validation — test the embedding pipeline asynchronously
+	// so that slow remote embedding providers do not block server startup.
+	// vdb.disabled starts as false (atomic.Bool zero value). If the background
+	// validation fails, it is set to true, causing subsequent VectorDB operations
+	// to gracefully fail until the process is restarted.
 	if provider == "disabled" {
 		vdb.disabled.Store(true)
 		logger.Info("VectorDB disabled by configuration, skipping embedding validation")
 	} else {
-		logger.Info("Validating embedding pipeline (with retries)...")
-		validationStart := time.Now()
-		vec, err := validateEmbeddingWithRetry(embeddingFunc, 3, logger)
-		if err != nil {
-			logger.Warn("Embedding pipeline validation failed after retries. Long-term memory will be disabled.", "error", err)
-			vdb.disabled.Store(true)
-		} else {
-			latency := time.Since(validationStart)
-			logger.Info("Embedding pipeline validated", "vector_dimensions", len(vec), "provider", provider, "docs", collection.Count(), "latency", latency)
-			if latency > 500*time.Millisecond {
-				logger.Warn("Local embeddings are slow. Consider enabling GPU passthrough (use_host_gpu) or using a cloud provider.", "latency", latency)
+		logger.Info("Validating embedding pipeline (async)...")
+		go func() {
+			validationStart := time.Now()
+			vec, err := validateEmbeddingWithRetry(embeddingFunc, 3, logger)
+			if err != nil {
+				logger.Warn("Embedding pipeline validation failed after retries. Long-term memory will be disabled.", "error", err)
+				vdb.disabled.Store(true)
+			} else {
+				latency := time.Since(validationStart)
+				logger.Info("Embedding pipeline validated", "vector_dimensions", len(vec), "provider", provider, "docs", collection.Count(), "latency", latency)
+				if latency > 500*time.Millisecond {
+					logger.Warn("Local embeddings are slow. Consider enabling GPU passthrough (use_host_gpu) or using a cloud provider.", "latency", latency)
+				}
 			}
-		}
+		}()
 	}
 
 	return vdb, nil
