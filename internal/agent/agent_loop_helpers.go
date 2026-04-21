@@ -1026,6 +1026,23 @@ func trim422Messages(msgs []openai.ChatCompletionMessage) []openai.ChatCompletio
 	return trimmed
 }
 
+// queuePendingToolCalls appends newly discovered pending tool calls to the
+// current loop-local queue and immediately mirrors the result back into the
+// shared loop state. Native multi-tool responses are executed from
+// agentLoopState.pendingTCs inside executeAgentToolTurn, so keeping only the
+// local slice up to date can drop later tool results and break provider-side
+// tool_call_id matching.
+func queuePendingToolCalls(state *agentLoopState, existing []ToolCall, newCalls []ToolCall) []ToolCall {
+	if len(newCalls) == 0 {
+		return existing
+	}
+	queued := append(existing, newCalls...)
+	if state != nil {
+		state.pendingTCs = queued
+	}
+	return queued
+}
+
 // SanitizeToolMessages validates and repairs tool-call integrity in a message
 // slice. It ensures every role=tool message has a matching tool_call_id in a
 // preceding assistant message's ToolCalls, and strips unmatched tool calls

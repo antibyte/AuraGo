@@ -1229,7 +1229,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			for i := range parsedToolResp.PendingToolCalls {
 				parsedToolResp.PendingToolCalls[i] = normalizeParsedToolShortcut(parsedToolResp.PendingToolCalls[i])
 			}
-			pendingTCs = append(pendingTCs, parsedToolResp.PendingToolCalls...)
+			pendingTCs = queuePendingToolCalls(s, pendingTCs, parsedToolResp.PendingToolCalls)
 			s.currentLogger.Info("[MultiTool] Queued additional tool calls from response", "count", len(parsedToolResp.PendingToolCalls), "source", parsedToolResp.ParseSource)
 		}
 
