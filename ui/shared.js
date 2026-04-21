@@ -163,14 +163,13 @@ function ensureBrandIcons() {
     ensureHeadAsset('link', {
         rel: 'icon',
         type: 'image/png',
-        sizes: '32x32',
-        href: '/favicon-32x32.png'
+        sizes: '96x96',
+        href: '/favicon-96x96.png'
     });
     ensureHeadAsset('link', {
         rel: 'icon',
-        type: 'image/png',
-        sizes: '16x16',
-        href: '/favicon-16x16.png'
+        type: 'image/svg+xml',
+        href: '/favicon.svg'
     });
     ensureHeadAsset('link', {
         rel: 'shortcut icon',
@@ -178,7 +177,7 @@ function ensureBrandIcons() {
     });
     ensureHeadAsset('link', {
         rel: 'manifest',
-        href: '/manifest.json'
+        href: '/site.webmanifest'
     });
     ensureHeadAsset('meta', {
         name: 'theme-color',

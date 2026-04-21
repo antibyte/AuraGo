@@ -20,6 +20,7 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 	_ = mime.AddExtensionType(".js", "application/javascript; charset=utf-8")
 	_ = mime.AddExtensionType(".woff", "font/woff")
 	_ = mime.AddExtensionType(".woff2", "font/woff2")
+	_ = mime.AddExtensionType(".webmanifest", "application/manifest+json")
 
 	// Serve the embedded Web UI at root via html/template for i18n injection
 	uiFS, err := fs.Sub(ui.Content, ".")

@@ -404,7 +404,7 @@ var authBypassPrefixes = []string{
 	// They are served as sub-resources in authenticated pages and must not be
 	// accessible without a valid session (could expose user-generated content).
 	// Browsers consistently send session cookies for same-origin sub-resource requests.
-	"/manifest.json",
+	"/site.webmanifest",
 	"/sw.js",
 	"/tailwind.min.js",
 	"/chart.min.js",
@@ -417,7 +417,7 @@ func isAuthBypassed(path string) bool {
 		}
 	}
 	// Static image/icon assets needed for the login page
-	return strings.HasSuffix(path, ".png") || strings.HasSuffix(path, ".ico")
+	return strings.HasSuffix(path, ".png") || strings.HasSuffix(path, ".ico") || strings.HasSuffix(path, ".svg") || strings.HasSuffix(path, ".svg")
 }
 
 // noPasswordPrefixes lists the only URL prefixes accessible when auth is enabled
