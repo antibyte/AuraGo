@@ -182,7 +182,6 @@
         inset 0 -1px 0 rgba(162, 122, 77, 0.22),
         0 7px 16px rgba(37, 22, 13, 0.16);
     color: var(--papyrus-ink);
-    min-height: 40px;
 }
 
 [data-theme="papyrus"] .chat-theme-btn:hover,
