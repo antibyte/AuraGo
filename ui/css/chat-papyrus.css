@@ -71,13 +71,6 @@
 }
 
 [data-theme="papyrus"] .app-header {
-    position: relative;
-    z-index: 120;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 1rem;
-    flex-wrap: nowrap;
     background:
         linear-gradient(180deg, rgba(150, 105, 66, 0.12), rgba(0, 0, 0, 0) 24%),
         repeating-linear-gradient(96deg,
@@ -743,11 +736,6 @@
 }
 
 @media (max-width: 767px) {
-    [data-theme="papyrus"] .app-header {
-        min-height: 60px;
-        padding: 0.6rem 1rem;
-    }
-
     [data-theme="papyrus"] .greeting-row {
         min-height: clamp(14rem, 30vh, 18rem);
         padding: 1.6rem 1.1rem;
