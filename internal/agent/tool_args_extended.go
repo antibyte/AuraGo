@@ -544,7 +544,7 @@ func decodeFormAutomationArgs(tc ToolCall) formAutomationArgs {
 	return formAutomationArgs{
 		Operation:     firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
 		URL:           firstNonEmptyToolString(tc.URL, toolArgString(tc.Params, "url")),
-		Fields:        firstNonEmptyToolString(tc.Fields, toolArgJSONText(tc.Params, "fields")),
+		Fields:        firstNonEmptyToolString(string(tc.Fields), toolArgJSONText(tc.Params, "fields")),
 		Selector:      firstNonEmptyToolString(tc.Selector, toolArgString(tc.Params, "selector")),
 		ScreenshotDir: firstNonEmptyToolString(tc.ScreenshotDir, toolArgString(tc.Params, "screenshot_dir")),
 	}

@@ -610,8 +610,8 @@ func decodeDocumentCreatorArgs(tc ToolCall) documentCreatorArgs {
 		Filename:    firstNonEmptyToolString(tc.Filename, toolArgString(tc.Params, "filename")),
 		PaperSize:   firstNonEmptyToolString(tc.PaperSize, toolArgString(tc.Params, "paper_size")),
 		Landscape:   tc.Landscape,
-		Sections:    firstNonEmptyToolString(tc.Sections, toolArgString(tc.Params, "sections")),
-		SourceFiles: firstNonEmptyToolString(tc.SourceFiles, toolArgString(tc.Params, "source_files")),
+		Sections:    firstNonEmptyToolString(string(tc.Sections), toolArgJSONText(tc.Params, "sections")),
+		SourceFiles: firstNonEmptyToolString(string(tc.SourceFiles), toolArgJSONText(tc.Params, "source_files")),
 	}
 	if landscape, ok := toolArgBool(tc.Params, "landscape"); ok {
 		req.Landscape = landscape
@@ -624,7 +624,7 @@ func decodeArchiveArgs(tc ToolCall) archiveArgs {
 		Operation:   firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
 		FilePath:    firstNonEmptyToolString(tc.FilePath, tc.Path, toolArgString(tc.Params, "file_path", "path")),
 		Destination: firstNonEmptyToolString(tc.Destination, tc.Dest, toolArgString(tc.Params, "destination", "dest")),
-		SourceFiles: firstNonEmptyToolString(tc.SourceFiles, toolArgString(tc.Params, "source_files")),
+		SourceFiles: firstNonEmptyToolString(string(tc.SourceFiles), toolArgJSONText(tc.Params, "source_files")),
 		Format:      firstNonEmptyToolString(tc.Format, toolArgString(tc.Params, "format")),
 	}
 }
@@ -637,7 +637,7 @@ func decodePDFOperationArgs(tc ToolCall) pdfOperationArgs {
 		Pages:         firstNonEmptyToolString(tc.Pages, toolArgString(tc.Params, "pages")),
 		Password:      firstNonEmptyToolString(tc.Password, toolArgString(tc.Params, "password")),
 		WatermarkText: firstNonEmptyToolString(tc.WatermarkText, toolArgString(tc.Params, "watermark_text")),
-		SourceFiles:   firstNonEmptyToolString(tc.SourceFiles, toolArgString(tc.Params, "source_files")),
+		SourceFiles:   firstNonEmptyToolString(string(tc.SourceFiles), toolArgJSONText(tc.Params, "source_files")),
 	}
 }
 

@@ -280,6 +280,41 @@ func (s *StringOrArray) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// StringOrJSON accepts either a plain JSON string or a native JSON value such as
+// an object/array and stores the latter as compact JSON text. This lets the agent
+// accept model outputs like "sections": [...] without breaking typed decoding.
+type StringOrJSON string
+
+func (s *StringOrJSON) UnmarshalJSON(data []byte) error {
+	if len(data) == 0 {
+		*s = ""
+		return nil
+	}
+
+	var str string
+	if err := json.Unmarshal(data, &str); err == nil {
+		*s = StringOrJSON(str)
+		return nil
+	}
+
+	trimmed := strings.TrimSpace(string(data))
+	if trimmed == "null" {
+		*s = ""
+		return nil
+	}
+
+	var normalized interface{}
+	if err := json.Unmarshal(data, &normalized); err != nil {
+		return err
+	}
+	compact, err := json.Marshal(normalized)
+	if err != nil {
+		return err
+	}
+	*s = StringOrJSON(compact)
+	return nil
+}
+
 // ToolCall represents a parsed tool invocation from the LLM.
 type ToolCall struct {
 	Action              string                   `json:"action"`
@@ -556,8 +591,8 @@ type ToolCall struct {
 	// Document Creator fields
 	PaperSize   string `json:"paper_size,omitempty"`   // A4, A3, Letter, Legal
 	Landscape   bool   `json:"landscape,omitempty"`    // landscape orientation
-	Sections    string `json:"sections,omitempty"`     // JSON array of document sections for Maroto
-	SourceFiles string `json:"source_files,omitempty"` // JSON array of file paths for merge/convert
+	Sections    StringOrJSON `json:"sections,omitempty"`     // JSON array of document sections for Maroto
+	SourceFiles StringOrJSON `json:"source_files,omitempty"` // JSON array of file paths for merge/convert
 	Filename    string `json:"filename,omitempty"`     // output filename without extension
 	// Archive fields
 	Format string `json:"format,omitempty"` // zip or tar.gz
@@ -595,7 +630,7 @@ type ToolCall struct {
 	MonitorID string `json:"monitor_id,omitempty"` // site monitor ID
 	Interval  string `json:"interval,omitempty"`   // monitoring interval description
 	// Form Automation fields
-	Fields        string `json:"fields,omitempty"`         // JSON map of CSS selector → value
+	Fields        StringOrJSON `json:"fields,omitempty"`         // JSON map of CSS selector → value
 	ScreenshotDir string `json:"screenshot_dir,omitempty"` // directory for post-action screenshot
 	// UPnP Scan fields
 	SearchTarget string `json:"search_target,omitempty"` // UPnP search target (e.g. "ssdp:all")

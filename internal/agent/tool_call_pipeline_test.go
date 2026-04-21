@@ -551,6 +551,44 @@ func TestParseToolCallAcceptsToolFieldJSON(t *testing.T) {
 	}
 }
 
+func TestParseToolCallAcceptsDocumentCreatorSectionsArray(t *testing.T) {
+	content := `{"action":"document_creator","operation":"create_pdf","title":"KI-News – Aktuelle Entwicklungen April 2026","filename":"ki-news-april-2026","sections":[{"type":"text","header":"Intro","body":"Hallo"},{"type":"text","header":"Trend","body":"Mehr KI"}]}`
+
+	result := ParseToolCall(content)
+
+	if !result.IsTool {
+		t.Fatal("expected document_creator payload with native sections array to parse as tool call")
+	}
+	if result.Action != "document_creator" {
+		t.Fatalf("Action=%q, want document_creator", result.Action)
+	}
+	if result.Operation != "create_pdf" {
+		t.Fatalf("Operation=%q, want create_pdf", result.Operation)
+	}
+	if !strings.Contains(string(result.Sections), `"header":"Intro"`) {
+		t.Fatalf("Sections=%q, want compact JSON array content", result.Sections)
+	}
+}
+
+func TestParseToolCallAcceptsPDFOperationsSourceFilesArray(t *testing.T) {
+	content := `{"action":"pdf_operations","operation":"merge","output_file":"combined.pdf","source_files":["one.pdf","two.pdf"]}`
+
+	result := ParseToolCall(content)
+
+	if !result.IsTool {
+		t.Fatal("expected pdf_operations payload with native source_files array to parse as tool call")
+	}
+	if result.Action != "pdf_operations" {
+		t.Fatalf("Action=%q, want pdf_operations", result.Action)
+	}
+	if result.Operation != "merge" {
+		t.Fatalf("Operation=%q, want merge", result.Operation)
+	}
+	if got := string(result.SourceFiles); got != `["one.pdf","two.pdf"]` {
+		t.Fatalf("SourceFiles=%q, want compact JSON array", got)
+	}
+}
+
 func TestParseToolResponseParsesWrappedToolCallsJSON(t *testing.T) {
 	resp := openai.ChatCompletionResponse{
 		Choices: []openai.ChatCompletionChoice{{
