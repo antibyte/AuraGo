@@ -344,6 +344,7 @@ function setChatTheme(theme) {
     html.setAttribute('data-theme', theme);
     localStorage.setItem('aurago-theme', theme);
     _updateHljsTheme(theme);
+    _updateThemeColor(theme);
 
     // Notify other components (e.g. charts) that the theme changed
     try {
@@ -391,6 +392,30 @@ function _updateHljsTheme(theme) {
 }
 
 /**
+ * Update the <meta name="theme-color"> tag to match the active theme.
+ * This ensures mobile browsers (address bar, task switcher) reflect the correct color.
+ */
+var THEME_COLORS = {
+    'dark': '#111827',
+    'light': '#d8e4df',
+    'retro-crt': '#0b0f1a',
+    'cyberwar': '#071128',
+    'lollipop': '#fff8fd',
+    'dark-sun': '#140b09',
+    'ocean': '#091827',
+    'sandstorm': '#1d140d',
+    'papyrus': '#bca784',
+    'black-matrix': '#030404'
+};
+
+function _updateThemeColor(theme) {
+    var meta = document.querySelector('meta[name="theme-color"]');
+    if (!meta) return;
+    var color = THEME_COLORS[theme] || THEME_COLORS[DEFAULT_CHAT_THEME];
+    if (color) meta.setAttribute('content', color);
+}
+
+/**
  * Initialize theme from localStorage on page load.
  */
 function initTheme() {
@@ -400,6 +425,7 @@ function initTheme() {
     const theme = (saved && CHAT_THEMES.includes(saved)) ? saved : DEFAULT_CHAT_THEME;
     document.documentElement.setAttribute('data-theme', theme);
     _updateHljsTheme(theme);
+    _updateThemeColor(theme);
 }
 
 // ═══════════════════════════════════════════════════════════════
