@@ -3,7 +3,7 @@
 AuraGo bietet eine umfassende REST API für den programmatischen Zugriff auf alle Funktionen. Die API folgt den REST-Prinzipien und verwendet JSON für die Datenübertragung.
 
 > 📅 **Stand:** März 2026  
-> 🔌 **Basis-URL:** `http://localhost:8080` (Standard)
+> 🔌 **Basis-URL:** `http://localhost:8088` (Standard)
 
 ---
 
@@ -247,7 +247,7 @@ Content-Type: application/json
 {
   "server": {
     "host": "0.0.0.0",
-    "port": 8080
+    "port": 8088
   }
 }
 ```

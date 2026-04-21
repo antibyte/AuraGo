@@ -43,45 +43,45 @@ tools:
 
 ---
 
-## Konzepte: Nester & Eier
+## Mission Control Konzepte
 
-Das Mission Control-System basiert auf zwei zentralen Konzepten:
+Mission Control basiert auf folgenden Kernkonzepten:
 
-### Nester (Nests)
+### Missionen
 
-Ein **Nest** ist ein Zielserver oder eine Ausführungsumgebung, auf dem Missionen laufen können.
+Eine **Mission** ist eine geplante Aufgabe, die der Agent zu festgelegten Zeiten oder bei bestimmten Ereignissen ausführt. Missionen werden über die Web-UI oder REST API verwaltet.
 
-| Nest-Typ | Beschreibung | Anwendungsfall |
-|----------|--------------|----------------|
-| `local` | Lokale Maschine | Datei-Backups, lokale Skripte |
-| `ssh` | SSH-Verbindung | Remote-Server verwalten |
-| `docker` | Docker-Container | Containerisierte Aufgaben |
+| Mission-Typ | Beschreibung | Anwendungsfall |
+|-------------|--------------|----------------|
+| `Agent-Task` | KI-gestützte Aufgabe | Automatisierte Analysen, Berichte |
+| `Cron` | Zeitgesteuert | Backups, Monitoring |
+| `Event-getriggert` | Bei bestimmten Ereignissen | Webhook-gesteuerte Aktionen |
 
-```yaml
-# Beispiel-Nest in config.yaml
-nests:
-  - name: "produktion-db"
-    type: "ssh"
-    host: "db.example.com"
-    user: "admin"
-    key_file: "~/.ssh/id_rsa"
-```
+### Mission Preparation (Optional)
 
-### Eier (Eggs)
-
-Ein **Ei** ist eine wiederverwendbare Vorlage für Missionen. Es definiert die auszuführenden Befehle und Konfigurationen.
+Mit **Mission Preparation** kann der Agent vor der eigentlichen Ausführung eine Vorbereitungsphase durchlaufen, in der er relevante Tools, Pläne und Entscheidungspunkte analysiert.
 
 ```yaml
-# Beispiel-Ei
-eggs:
-  - name: "postgres-backup"
-    type: "shell"
-    command: |
-      pg_dump mydb > /backups/mydb_$(date +%Y%m%d).sql
-    timeout: "30m"
+# config.yaml
+mission_preparation:
+  enabled: false
+  provider: ""                    # Provider-ID; leer = Haupt-LLM
+  timeout_seconds: 120
+  max_essential_tools: 5
+  cache_expiry_hours: 24
+  min_confidence: 0.5
+  auto_prepare_scheduled: true
 ```
 
-> 🔍 **Deep Dive:** Die Namensgebung stammt aus der Idee, dass ein Nest (Server) mehrere Eier (Aufgaben) "ausbrüten" kann. Ein Ei kann in mehreren Nestern deployed werden.
+> 💡 Mission Preparation ist rein beratend – es blockiert niemals die Ausführung.
+
+### Abhängigkeiten und Warteschlange
+
+Missionen können Abhängigkeiten untereinander haben und werden in einer Warteschlange verwaltet:
+
+- **Dependencies:** Mission B startet erst nach Abschluss von Mission A
+- **Queue:** Missionen werden sequenziell abgearbeitet, wenn Ressourcen begrenzt sind
+- **Triggers:** Manuelle, zeitgesteuerte oder ereignisbasierte Auslösung
 
 ---
 
@@ -91,29 +91,36 @@ eggs:
 
 1. **Öffne** Mission Control im Radial-Menü (🚀)
 2. **Klicke** auf "Neue Mission"
-3. **Wähle** ein vorhandenes Ei oder erstelle ein Neues
-4. **Konfiguriere** den Zeitplan
-5. **Speichere** die Mission
+3. **Konfiguriere** die Mission (Name, Anweisungen, Zeitplan)
+4. **Speichere** die Mission
 
 ### Über die REST API
 
 ```bash
-# Mission erstellen
-curl -X POST http://localhost:8088/api/missions \
+# Mission erstellen (v2 API)
+curl -X POST http://localhost:8088/api/missions/v2 \
   -H "Content-Type: application/json" \
   -d '{
     "name": "tägliches-backup",
-    "egg": "postgres-backup",
-    "nest": "produktion-db",
+    "instructions": "Erstelle ein Backup der Datenbank",
     "schedule": "0 2 * * *",
     "enabled": true
   }'
 
 # Alle Missionen auflisten
-curl http://localhost:8088/api/missions
+curl http://localhost:8088/api/missions/v2
 
 # Mission manuell ausführen
-curl -X POST http://localhost:8088/api/missions/tägliches-backup/run
+curl -X POST http://localhost:8088/api/missions/v2/{mission-id}/run
+
+# Warteschlange anzeigen
+curl http://localhost:8088/api/missions/v2/queue
+
+# Ausführungsverlauf abrufen
+curl http://localhost:8088/api/missions/v2/history?limit=10
+
+# Abhängigkeiten anzeigen
+curl http://localhost:8088/api/missions/v2/dependencies
 ```
 
 ### Mission-Typen
@@ -188,10 +195,7 @@ Missions können jederzeit manuell gestartet werden – unabhängig vom Zeitplan
 
 ```bash
 # Mission ausführen
-curl -X POST http://localhost:8088/api/missions/tägliches-backup/run
-
-# Mit Debug-Output
-curl -X POST http://localhost:8088/api/missions/tägliches-backup/run?debug=true
+curl -X POST http://localhost:8088/api/missions/v2/{mission-id}/run
 ```
 
 ---
@@ -238,10 +242,10 @@ Die Mission Control-Oberfläche zeigt eine Echtzeit-Übersicht:
 
 ```bash
 # Status einer Mission prüfen
-curl http://localhost:8088/api/missions/tägliches-backup/status
+curl http://localhost:8088/api/missions/v2/{mission-id}
 
 # Ausführungsverlauf abrufen
-curl http://localhost:8088/api/missions/tägliches-backup/history
+curl http://localhost:8088/api/missions/v2/history?mission_id={mission-id}
 ```
 
 ---
@@ -286,71 +290,29 @@ fi
 
 ## Beispiele
 
-### Beispiel 1: Datenbank-Backup
+Missionen werden über die Web-UI oder REST API erstellt. Der Agent führt die Anweisungen dann zur geplanten Zeit aus.
 
-```yaml
-# config.yaml
-eggs:
-  - name: "postgres-backup"
-    type: "shell"
-    working_dir: "/opt/backups"
-    command: |
-      #!/bin/bash
-      BACKUP_DIR="/opt/backups/postgres"
-      TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-      FILENAME="mydb_${TIMESTAMP}.sql"
-      
-      # Backup erstellen
-      pg_dump -h localhost -U postgres mydb > "${BACKUP_DIR}/${FILENAME}"
-      
-      # Alte Backups löschen (älter als 30 Tage)
-      find "${BACKUP_DIR}" -name "mydb_*.sql" -mtime +30 -delete
-      
-      echo "Backup erstellt: ${FILENAME}"
-    env:
-      PGPASSWORD: "${DB_PASSWORD}"  # Aus Umgebungsvariable
-```
+### Beispiel 1: Tägliche System-Prüfung
 
-Erstelle die Mission über die Web-UI oder API mit:
-- **Egg:** postgres-backup
-- **Nest:** local (oder dein Datenbank-Server)
-- **Schedule:** `0 2 * * *` (täglich um 2 Uhr)
+Erstelle eine Mission über die Web-UI mit folgenden Einstellungen:
+- **Name:** `tägliches-system-check`
+- **Anweisungen:** `Prüfe Festplattenplatz, CPU-Auslastung und laufende Docker-Container. Erstelle einen kurzen Bericht.`
+- **Schedule:** `0 8 * * *` (täglich um 8 Uhr)
+- **Enabled:** `true`
 
-### Beispiel 2: System-Monitoring
+### Beispiel 2: Wöchentlicher Bericht
 
-```yaml
-eggs:
-  - name: "disk-space-monitor"
-    type: "script"
-    interpreter: "python3"
-    script: |
-      import shutil
-      import sys
-      
-      disk = shutil.disk_usage('/')
-      percent_used = (disk.used / disk.total) * 100
-      
-      print(f"Disk usage: {percent_used:.1f}%")
-      
-      if percent_used > 90:
-          print("CRITICAL: Disk usage above 90%!")
-          sys.exit(1)
-      elif percent_used > 80:
-          print("WARNING: Disk usage above 80%")
-          sys.exit(2)
-```
+- **Name:** `wöchentlicher-report`
+- **Anweisungen:** `Erstelle eine Zusammenfassung aller wichtigen Ereignisse der letzten Woche aus den Logs und Memory.`
+- **Schedule:** `0 9 * * 1` (jeden Montag um 9 Uhr)
+- **Enabled:** `true`
 
 ### Beispiel 3: API-Health-Check
 
-```yaml
-eggs:
-  - name: "api-health-check"
-    type: "http"
-    method: "GET"
-    url: "https://api.example.com/health"
-    expected_status: 200
-    timeout: "10s"
-```
+- **Name:** `api-health-check`
+- **Anweisungen:** `Prüfe ob die folgenden APIs erreichbar sind: https://api.example.com/health, https://grafana.local:3000/api/health. Berichte bei Fehlern.`
+- **Schedule:** `*/15 * * * *` (alle 15 Minuten)
+- **Enabled:** `true`
 
 ---
 
@@ -358,7 +320,7 @@ eggs:
 
 | Problem | Ursache | Lösung |
 |---------|---------|--------|
-| Mission bleibt im Status "Running" | Hängender Prozess | Timeout in Egg-Config setzen |
+| Mission bleibt im Status "Running" | Hängender Prozess | Timeout prüfen, Mission manuell stoppen |
 | Cron wird nicht ausgelöst | Falscher Zeitpunkt | Cron-Ausdruck mit crontab.guru prüfen |
 | Berechtigungsfehler | Falsche Rechte | Nutzer/Gruppe prüfen |
 | "Scheduler tool disabled" | Tool nicht aktiviert | `tools.scheduler.enabled: true` |

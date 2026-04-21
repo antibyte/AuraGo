@@ -112,7 +112,7 @@ Für Entwickler oder wenn du den Code modifizieren willst:
 
 **Voraussetzungen:**
 - Go 1.26.2+
-- Python 3.10+ (optional, für Tools)
+- Python 3.10+ (optional, für Python-Tools)
 
 ```bash
 # Repository klonen
@@ -120,7 +120,7 @@ git clone https://github.com/antibyte/AuraGo.git
 cd AuraGo
 
 # Bauen
-go build -o aurago cmd/aurago/main.go
+go build -o aurago ./cmd/aurago
 
 # Oder mit Lifeboat (für Self-Updates)
 ./make_deploy.sh  # Linux/macOS
@@ -141,18 +141,19 @@ nano config.yaml   # oder vim, code, notepad
 Minimale Konfiguration:
 
 ```yaml
-server:
-  host: "127.0.0.1"
-  port: 8088
+providers:
+  - id: main
+    type: openrouter
+    name: "Haupt-LLM"
+    base_url: https://openrouter.ai/api/v1
+    api_key: "sk-or-v1-DEIN-API-KEY"
+    model: "google/gemini-2.0-flash-001"
 
 llm:
-  provider: openrouter
-  base_url: "https://openrouter.ai/api/v1"
-  api_key: "sk-or-v1-DEIN-API-KEY"
-  model: "arcee-ai/trinity-large-preview:free"
+  provider: main
 ```
 
-> 💡 **Keinen API-Key?** Besuche [openrouter.ai](https://openrouter.ai) – es gibt auch kostenlose Modelle.
+> 💡 **Keinen API-Key?** Besuche [openrouter.ai](https://openrouter.ai) – es gibt auch kostenlose Modelle. Das Provider-System erlaubt mehrere LLM-Provider mit Failover; Details im [Kapitel 7: Konfiguration](07-konfiguration.md).
 
 ### 2. Master Key setzen
 
@@ -247,7 +248,7 @@ Du solltest den Login-Screen oder den Chat sehen (je nach Auth-Konfiguration).
 ├── data/
 │   ├── core_memory.md        # Persistentes Gedächtnis
 │   ├── chat_history.json     # Chat-Verlauf
-│   ├── secrets.vault         # Verschlüsselte Secrets
+│   ├── vault.bin             # Verschlüsselte Secrets (AES-256-GCM)
 │   └── vectordb/             # Vektor-Datenbank
 └── log/
     └── supervisor.log        # Anwendungs-Logs
@@ -301,7 +302,7 @@ Remove-Item -Recurse -Force C:\Users\$env:USERNAME\aurago
 | `resources.dat not found` | Datei muss im gleichen Verzeichnis wie `aurago` liegen |
 | `AURAGO_MASTER_KEY is missing` | `.env` laden: `export $(cat .env \| xargs)` |
 | Port bereits belegt | `server.port` in `config.yaml` ändern |
-| Python venv Fehler | Python 3.9+ installieren: `sudo apt install python3 python3-venv` |
+| Python venv Fehler | Python 3.10+ installieren: `sudo apt install python3 python3-venv` |
 | Permission denied (Docker) | `sudo usermod -aG docker $USER` und neu einloggen |
 
 ## Nächste Schritte

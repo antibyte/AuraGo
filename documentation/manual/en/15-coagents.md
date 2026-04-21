@@ -79,7 +79,7 @@ co_agents:
   llm:
     provider: "openrouter"
     base_url: ""
-    api_key: ""              # Falls back to main llm.api_key
+    api_key: ""              # Falls back to main provider
     model: "meta-llama/llama-3.1-8b-instruct:free"  # Cheaper/faster
   
   # Own limits per co-agent

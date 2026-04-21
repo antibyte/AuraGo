@@ -126,14 +126,13 @@ Die Konfiguration verwendet jetzt ein zentrales Provider-System für LLM-Verbind
 /help          - Alle Befehle anzeigen
 /reset         - Chat-Verlauf löschen
 /stop          - Aktuelle Aktion abbrechen
+/restart       - AuraGo neu starten
 /debug on/off  - Debug-Modus umschalten
 /budget        - Kostenübersicht anzeigen
 /personality   - Persönlichkeit wechseln
 /voice         - Sprachausgabe ein-/ausschalten
 /warnings      - System-Warnungen anzeigen
-/sudo          - Sudo-Modus aktivieren (erfordert sudo_enabled)
 /sudopwd       - Sudo-Passwort im Vault speichern
-/journal       - Journal öffnen
 /addssh        - SSH-Server registrieren
 /credits       - OpenRouter Credits anzeigen
 ```

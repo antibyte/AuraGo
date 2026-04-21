@@ -11,16 +11,28 @@ Referenzmaterial, vollständige Konfigurationen und nützliche Ressourcen.
 # AuraGo Configuration Reference
 # ============================================
 
+# ── LLM Providers ── API keys and models are defined here
+providers: []                  # Configured via Setup Wizard or Config UI
+  # - id: main
+  #   type: openrouter
+  #   name: "Haupt-LLM"
+  #   base_url: https://openrouter.ai/api/v1
+  #   api_key: "sk-or-..."
+  #   model: "google/gemini-2.0-flash-001"
+
+llm:
+  provider: ""                 # References provider id from providers list
+  multimodal: false
+  helper_enabled: false        # Dedicated helper LLM for analysis/background tasks
+  helper_provider: ""          # Helper provider id (empty = main provider)
+  helper_model: ""             # Helper model override
+  use_native_functions: true
+  temperature: 0.7
+
 server:
   host: "127.0.0.1"           # Bind address (0.0.0.0 for LAN)
   port: 8088                  # HTTP port
   max_body_bytes: 33554432    # Max upload size (32MB)
-
-llm:
-  provider: "openrouter"      # Provider name
-  base_url: "https://openrouter.ai/api/v1"
-  api_key: ""                 # Your API key
-  model: "arcee-ai/trinity-large-preview:free"
 
 embeddings:
   provider: "internal"        # internal/external/disabled
@@ -29,18 +41,104 @@ embeddings:
   api_key: ""
 
 agent:
-  system_language: "German"
-  max_tool_calls: 12
-  enable_google_workspace: true
+  system_language: "English"
+  max_tool_calls: 15
   step_delay_seconds: 0
-  memory_compression_char_limit: 50000
-  personality_engine: true
-  core_personality: "friend"
-  system_prompt_token_budget: 8192
-  context_window: 0
-  use_native_functions: false
+  memory_compression_char_limit: 60000
+  system_prompt_token_budget: 0   # 0 = automatic
+  adaptive_system_prompt_token_budget: true
+  context_window: 0               # 0 = auto-detect from provider API
   show_tool_results: false
-  debug_mode: true
+  debug_mode: false
+  core_memory_cap_mode: "soft"
+  core_memory_max_entries: 200
+  tool_output_limit: 50000
+  workflow_feedback: true
+  # Danger Zone (all disabled by default)
+  sudo_enabled: false
+  sudo_unrestricted: false
+  allow_shell: false
+  allow_python: false
+  allow_filesystem_write: false
+  allow_network_requests: false
+  allow_remote_shell: false
+  allow_self_update: false
+  allow_mcp: false
+  allow_web_scraper: false
+
+  output_compression:
+    enabled: true
+    min_chars: 500
+    preserve_errors: true
+    shell_compression: true
+    python_compression: true
+    api_compression: true
+
+circuit_breaker:
+  max_tool_calls: 20
+  llm_timeout_seconds: 600
+  llm_per_attempt_timeout_seconds: 60
+  llm_stream_chunk_timeout_seconds: 30
+  maintenance_timeout_minutes: 10
+  retry_intervals: ["10s", "2m", "10m"]
+
+fallback_llm:
+  enabled: false
+  base_url: ""
+  api_key: ""
+  model: ""
+  error_threshold: 2
+  probe_interval_seconds: 60
+
+co_agents:
+  enabled: false
+  max_concurrent: 3
+  llm:
+    provider: ""
+    base_url: ""
+    api_key: ""
+    model: ""
+  circuit_breaker:
+    max_tool_calls: 12
+    timeout_seconds: 300
+    max_tokens: 0              # 0 = unlimited
+  budget_quota_percent: 25
+  cleanup_interval_minutes: 10
+  cleanup_max_age_minutes: 30
+  max_context_hints: 6
+  max_context_hint_chars: 180
+  max_result_bytes: 100000
+
+budget:
+  enabled: false
+  daily_limit_usd: 1.00
+  enforcement: "warn"
+  reset_hour: 0
+  warning_threshold: 0.8
+  models: []
+  default_cost:
+    input_per_million: 1.00
+    output_per_million: 3.00
+
+auth:
+  enabled: true               # Login protection active by default
+  password_hash: ""
+  session_timeout_hours: 24
+  totp_enabled: false
+  totp_secret: ""
+  max_login_attempts: 5
+  lockout_minutes: 15
+
+logging:
+  log_dir: "./log"
+  enable_file_log: true
+  enable_prompt_log: false
+
+maintenance:
+  enabled: true
+  time: "04:00"
+  lifeboat_enabled: true
+  lifeboat_port: 8090
 
 telegram:
   bot_token: ""
@@ -53,42 +151,6 @@ discord:
   guild_id: ""
   allowed_user_id: ""
   default_channel_id: ""
-
-whisper:
-  provider: "openrouter"
-  api_key: ""
-  base_url: "https://openrouter.ai/api/v1"
-  model: "google/gemini-2.5-flash-lite-preview-09-2025"
-
-vision:
-  provider: "openrouter"
-  api_key: ""
-  base_url: "https://openrouter.ai/api/v1"
-  model: "google/gemini-2.5-flash-lite-preview-09-2025"
-
-maintenance:
-  enabled: true
-  time: "04:00"
-  lifeboat_enabled: true
-  lifeboat_port: 8090
-
-fallback_llm:
-  enabled: false
-  base_url: ""
-  api_key: ""
-  model: ""
-  error_threshold: 2
-  probe_interval_seconds: 60
-
-circuit_breaker:
-  max_tool_calls: 20
-  llm_timeout_seconds: 180
-  maintenance_timeout_minutes: 10
-  retry_intervals: ["10s", "2m", "10m"]
-
-logging:
-  log_dir: "./log"
-  enable_file_log: true
 
 email:
   enabled: false
@@ -107,37 +169,13 @@ email:
 home_assistant:
   enabled: false
   read_only: false
-  url: "http://localhost:8123"
+  url: ""
   access_token: ""
 
 docker:
   enabled: false
   read_only: false
   host: ""
-
-co_agents:
-  enabled: false
-  max_concurrent: 3
-  llm:
-    provider: "openrouter"
-    base_url: ""
-    api_key: ""
-    model: ""
-  circuit_breaker:
-    max_tool_calls: 10
-    timeout_seconds: 300
-    max_tokens: 8000
-
-budget:
-  enabled: false
-  daily_limit_usd: 1.00
-  enforcement: "warn"
-  reset_hour: 0
-  warning_threshold: 0.8
-  models: []
-  default_cost:
-    input_per_million: 1.00
-    output_per_million: 3.00
 
 directories:
   data_dir: "./data"
@@ -178,13 +216,6 @@ tools:
   memory_maintenance:
     enabled: true
 
-auth:
-  enabled: false
-  password_hash: ""
-  session_timeout_hours: 24
-  totp_enabled: false
-  totp_secret: ""
-
 web_config:
   enabled: true
 ```
@@ -219,10 +250,17 @@ web_config:
 | `/help` | Alle Befehle anzeigen | `/help` |
 | `/reset` | Chat zurücksetzen | `/reset` |
 | `/stop` | Aktuelle Aktion stoppen | `/stop` |
+| `/restart` | Agent neu starten | `/restart` |
 | `/debug on` | Debug-Modus ein | `/debug on` |
 | `/debug off` | Debug-Modus aus | `/debug off` |
-| `/budget` | Kosten anzeigen | `/budget` |
 | `/personality <name>` | Persönlichkeit wechseln | `/personality professional` |
+| `/budget [en]` | Kosten anzeigen (optional: Englisch) | `/budget` |
+| `/voice on` | Sprachausgabe ein | `/voice on` |
+| `/voice off` | Sprachausgabe aus | `/voice off` |
+| `/warnings` | Warnungen anzeigen | `/warnings` |
+| `/sudopwd <pw>` | Sudo-Passwort setzen | `/sudopwd meinpass` |
+| `/addssh` | SSH-Gerät hinzufügen | `/addssh` |
+| `/credits` | OpenRouter Credits | `/credits` |
 
 ## Tool-Referenz
 
@@ -268,8 +306,15 @@ web_config:
 ### Minimal (nur Chat)
 
 ```yaml
+providers:
+  - id: main
+    type: openrouter
+    base_url: https://openrouter.ai/api/v1
+    api_key: "sk-or-v1-..."
+    model: "google/gemini-2.0-flash-001"
+
 llm:
-  api_key: "sk-or-v1-..."
+  provider: main
 ```
 
 Alles andere nutzt Defaults.
@@ -277,19 +322,23 @@ Alles andere nutzt Defaults.
 ### Entwicklung
 
 ```yaml
+providers:
+  - id: main
+    type: openrouter
+    base_url: https://openrouter.ai/api/v1
+    api_key: "sk-or-v1-..."
+    model: "mistralai/mixtral-8x7b-instruct"
+
+llm:
+  provider: main
+
 server:
   host: "127.0.0.1"
   port: 8088
 
-llm:
-  provider: "openrouter"
-  api_key: "sk-or-v1-..."
-  model: "mistralai/mixtral-8x7b-instruct"
-
 agent:
   debug_mode: true
   show_tool_results: true
-  personality_engine: false
 
 logging:
   enable_file_log: true
@@ -298,31 +347,39 @@ logging:
 ### Produktion mit Auth
 
 ```yaml
+providers:
+  - id: main
+    type: openrouter
+    base_url: https://openrouter.ai/api/v1
+    api_key: "sk-or-v1-..."
+    model: "google/gemini-2.0-flash-001"
+
+llm:
+  provider: main
+
 server:
   host: "127.0.0.1"
   port: 8088
-
-llm:
-  api_key: "sk-or-v1-..."
 
 auth:
   enabled: true
   password_hash: "$2a$10$..."  # bcrypt
   session_timeout_hours: 8
   totp_enabled: true
-
-tools:
-  execute_shell:
-    enabled: false
-  docker:
-    enabled: false
 ```
 
 ### Mit Telegram
 
 ```yaml
+providers:
+  - id: main
+    type: openrouter
+    base_url: https://openrouter.ai/api/v1
+    api_key: "sk-or-v1-..."
+    model: "google/gemini-2.0-flash-001"
+
 llm:
-  api_key: "sk-or-v1-..."
+  provider: main
 
 telegram:
   bot_token: "123456:ABC-DEF..."
@@ -332,8 +389,15 @@ telegram:
 ### Mit Home Assistant
 
 ```yaml
+providers:
+  - id: main
+    type: openrouter
+    base_url: https://openrouter.ai/api/v1
+    api_key: "sk-or-v1-..."
+    model: "google/gemini-2.0-flash-001"
+
 llm:
-  api_key: "sk-or-v1-..."
+  provider: main
 
 home_assistant:
   enabled: true
@@ -344,11 +408,14 @@ home_assistant:
 ### Lokales Modell (Ollama)
 
 ```yaml
+providers:
+  - id: local
+    type: ollama
+    base_url: http://localhost:11434/v1
+    model: "llama3.1:8b"
+
 llm:
-  provider: "ollama"
-  base_url: "http://localhost:11434/v1"
-  api_key: "dummy"
-  model: "llama3.1:8b"
+  provider: local
 
 embeddings:
   provider: "external"
@@ -392,7 +459,7 @@ $env:AURAGO_MASTER_KEY = -join ((1..32) | ForEach-Object { '{0:x2}' -f (Get-Rand
 │   ├── tools/                # Erstellte Tools
 │   └── workdir/              # Arbeitsverzeichnis
 ├── data/
-│   ├── vault.dat             # Verschlüsselter Vault
+│   ├── vault.bin             # Verschlüsselter Vault (AES-256-GCM)
 │   ├── short_term.db         # SQLite STM
 │   ├── long_term.db          # SQLite LTM
 │   └── vectordb/             # ChromaDB

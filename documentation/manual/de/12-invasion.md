@@ -150,22 +150,30 @@ eggs:
 ### Über die REST API
 
 ```bash
-# Deployment starten
-curl -X POST http://localhost:8088/api/invasion/deploy \
+# Nester verwalten
+curl http://localhost:8088/api/invasion/nests              # Alle Nester auflisten
+curl -X POST http://localhost:8088/api/invasion/nests      # Nest erstellen
+curl http://localhost:8088/api/invasion/nests/{id}         # Nest abrufen
+curl -X PUT http://localhost:8088/api/invasion/nests/{id}  # Nest bearbeiten
+curl -X DELETE http://localhost:8088/api/invasion/nests/{id}  # Nest löschen
+curl -X POST http://localhost:8088/api/invasion/nests/{id}/toggle   # Nest aktivieren/deaktivieren
+curl -X POST http://localhost:8088/api/invasion/nests/{id}/validate # Nest-Verbindung prüfen
+
+# Eier verwalten
+curl http://localhost:8088/api/invasion/eggs               # Alle Eier auflisten
+curl -X POST http://localhost:8088/api/invasion/eggs       # Ei erstellen
+curl http://localhost:8088/api/invasion/eggs/{id}          # Ei abrufen
+curl -X PUT http://localhost:8088/api/invasion/eggs/{id}   # Ei bearbeiten
+curl -X DELETE http://localhost:8088/api/invasion/eggs/{id}   # Ei löschen
+curl -X POST http://localhost:8088/api/invasion/eggs/{id}/toggle  # Ei aktivieren/deaktivieren
+
+# Ei auf Nest ausbrüten (deployen)
+curl -X POST http://localhost:8088/api/invasion/nests/{nest-id}/hatch \
   -H "Content-Type: application/json" \
-  -d '{
-    "egg": "aurago-edge-agent",
-    "nest": "produktion-server-01",
-    "name": "edge-berlin-01"
-  }'
+  -d '{"egg_id": "aurago-edge-agent"}'
 
-# Alle Deployments anzeigen
-curl http://localhost:8088/api/invasion/deployments
-
-# Deployment verwalten
-curl -X POST http://localhost:8088/api/invasion/deployments/edge-berlin-01/stop
-curl -X POST http://localhost:8088/api/invasion/deployments/edge-berlin-01/start
-curl -X DELETE http://localhost:8088/api/invasion/deployments/edge-berlin-01
+# WebSocket-Verbindung
+ws://localhost:8088/api/invasion/ws
 ```
 
 ---
@@ -204,12 +212,21 @@ curl -X DELETE http://localhost:8088/api/invasion/deployments/edge-berlin-01
 
 | Aktion | API-Endpunkt |
 |--------|-------------|
-| Deploy | `POST /api/invasion/deploy` |
-| Start | `POST /api/invasion/deployments/{name}/start` |
-| Stop | `POST /api/invasion/deployments/{name}/stop` |
-| Restart | `POST /api/invasion/deployments/{name}/restart` |
-| Remove | `DELETE /api/invasion/deployments/{name}` |
-| Logs | `GET /api/invasion/deployments/{name}/logs` |
+| Nester auflisten | `GET /api/invasion/nests` |
+| Nest erstellen | `POST /api/invasion/nests` |
+| Nest abrufen | `GET /api/invasion/nests/{id}` |
+| Nest bearbeiten | `PUT /api/invasion/nests/{id}` |
+| Nest löschen | `DELETE /api/invasion/nests/{id}` |
+| Nest aktivieren/deaktivieren | `POST /api/invasion/nests/{id}/toggle` |
+| Nest-Verbindung prüfen | `POST /api/invasion/nests/{id}/validate` |
+| Ei ausbrüten (deployen) | `POST /api/invasion/nests/{id}/hatch` |
+| Eier auflisten | `GET /api/invasion/eggs` |
+| Ei erstellen | `POST /api/invasion/eggs` |
+| Ei abrufen | `GET /api/invasion/eggs/{id}` |
+| Ei bearbeiten | `PUT /api/invasion/eggs/{id}` |
+| Ei löschen | `DELETE /api/invasion/eggs/{id}` |
+| Ei aktivieren/deaktivieren | `POST /api/invasion/eggs/{id}/toggle` |
+| WebSocket | `WS /api/invasion/ws` |
 
 ---
 
@@ -301,14 +318,17 @@ Die Invasion Control-Oberfläche zeigt den Status jedes Deployments:
 ### API-Abfragen
 
 ```bash
-# Status prüfen
-curl http://localhost:8088/api/invasion/deployments/edge-berlin-01/status
+# Nest-Status prüfen
+curl http://localhost:8088/api/invasion/nests/{id}
 
-# Logs abrufen
-curl http://localhost:8088/api/invasion/deployments/edge-berlin-01/logs
+# Nest-Verbindung validieren
+curl -X POST http://localhost:8088/api/invasion/nests/{id}/validate
 
-# Metriken abrufen
-curl http://localhost:8088/api/invasion/deployments/edge-berlin-01/metrics
+# Ei-Status prüfen
+curl http://localhost:8088/api/invasion/eggs/{id}
+
+# Aufgabe auf einem Nest verwalten
+curl http://localhost:8088/api/invasion/tasks/{task-id}
 ```
 
 ---

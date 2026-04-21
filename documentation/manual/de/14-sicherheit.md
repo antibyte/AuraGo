@@ -33,7 +33,7 @@ Der Vault ist das Herzstück der AuraGo-Sicherheitsarchitektur. Hier werden alle
 | **Token** | OAuth-Refresh-Tokens, Bot-Tokens |
 | **Intern** | Master-Key-Derivate, Session-Secrets |
 
-> 💡 **Tipp:** Der Vault wird in `data/vault.dat` gespeichert. Das Master-Passwort (64 Hex-Zeichen) wird aus der Umgebungsvariable `AURAGO_MASTER_KEY` gelesen.
+> 💡 **Tipp:** Der Vault wird in `data/vault.bin` gespeichert. Das Master-Passwort (64 Hex-Zeichen) wird aus der Umgebungsvariable `AURAGO_MASTER_KEY` gelesen.
 
 ### Agent-Zugriff auf den Vault
 
@@ -92,35 +92,36 @@ Der LLM Guardian überwacht alle Aktionen des Agenten und schützt vor potenziel
 
 ```yaml
 llm_guardian:
-  enabled: true              # Guardian aktivieren
-  mode: "scan"               # "scan", "block", "warn"
-  
-  # Dedizierter Provider für Guardian (empfohlen)
-  provider: "openrouter"
-  api_key: "sk-or-..."
-  base_url: "https://openrouter.ai/api/v1"
-  model: "google/gemini-2.5-flash-lite-preview-09-2025"
-  
-  # Risiko-Schwellenwerte
-  risk_thresholds:
-    low: 25                  # 0-25: Unbedenklich
-    medium: 50               # 26-50: Beobachten
-    high: 75                 # 51-75: Warnung
-    critical: 90             # 76-100: Blockieren
-  
-  # Ausnahmen (für vertrauenswürdige Operationen)
-  exceptions:
-    - "read_file"
-    - "query_memory"
+  enabled: false                     # Guardian aktivieren
+  provider: ""                       # Provider-ID (Referenz auf providers-Eintrag)
+  model: ""                          # Modell-Override (leer = Provider-Default)
+  default_level: "medium"            # Standard-Prüfstufe
+  fail_safe: "quarantine"            # Verhalten bei Guardian-Fehler: "quarantine" | "allow"
+  cache_ttl: 300                     # Cache-Gültigkeit in Sekunden
+  max_checks_per_min: 60             # Max Prüfungen pro Minute
+  tool_overrides: {}                 # Tool-spezifische Level-Overrides
+  allow_clarification: false         # Rückfragen beim User erlauben
+  scan_documents: false              # Hochgeladene Dokumente scannen
+  scan_emails: false                 # Eingehende E-Mails scannen
 ```
 
-### Modi
+> 💡 **Hinweis:** Der LLM Guardian nutzt das Provider-System. Erstelle einen eigenen Provider-Eintrag für den Guardian und referenziere ihn über die `provider`-ID.
 
-| Modus | Beschreibung | Anwendungsfall |
+### Prüfstufen
+
+| Stufe | Beschreibung | Anwendungsfall |
 |-------|--------------|----------------|
-| `scan` | Nur protokollieren, keine Eingriffe | Monitoring, Entwicklung |
-| `warn` | Warnung im Chat anzeigen, aber ausführen | Produktion mit menschlicher Aufsicht |
-| `block` | Gefährliche Calls blockieren | Hochsichere Umgebungen |
+| `low` | Grundlegende Prüfung | Entwicklung, Testing |
+| `medium` | Standard-Prüfung (Default) | Normale Nutzung |
+| `high` | Verstärkte Prüfung | Produktivumgebungen |
+| `strict` | Maximale Prüfung | Hochsichere Umgebungen |
+
+### Fail-Safe-Verhalten
+
+| Wert | Beschreibung |
+|------|-------------|
+| `quarantine` | Bei Guardian-Fehler wird der Tool-Call blockiert (Default) |
+| `allow` | Bei Guardian-Fehler wird der Tool-Call erlaubt |
 
 ### Best Practices
 
@@ -133,7 +134,7 @@ llm_guardian:
 
 ## Sudo Execution – Privilegierte Befehle
 
-AuraGo unterstützt die Ausführung von Befehlen mit erhöhten Rechten (sudo) über das `sudo` Slash-Command oder automatisch bei Bedarf.
+AuraGo unterstützt die Ausführung von Befehlen mit erhöhten Rechten (sudo). Das Sudo-Passwort wird über den `/sudopwd` Befehl sicher im Vault gespeichert.
 
 ### Sicherheitskonzept
 
@@ -141,7 +142,7 @@ AuraGo unterstützt die Ausführung von Befehlen mit erhöhten Rechten (sudo) ü
 ┌─────────────────────────────────────────────────────────────┐
 │                   Sudo Execution Flow                       │
 ├─────────────────────────────────────────────────────────────┤
-│  1. Benutzer aktiviert Sudo-Modus mit /sudo                 │
+│  1. Benutzer setzt Sudo-Passwort mit /sudopwd               │
 │  2. Passwort wird sicher im Vault gespeichert               │
 │  3. Passwort ist nie im Chat oder Logs sichtbar             │
 │  4. Befehle werden mit sudo ausgeführt                      │
@@ -155,7 +156,7 @@ AuraGo unterstützt die Ausführung von Befehlen mit erhöhten Rechten (sudo) ü
 
 ```bash
 # Im Chat eingeben
-/sudo
+/sudopwd
 
 # Oder direkt im Vault unter dem Schlüssel "sudo_password"
 ```
@@ -171,10 +172,8 @@ agent:
 ### Verwendung
 
 ```
-Du: /sudo
-Agent: 🔐 Sudo-Modus aktiviert. Passwort wurde sicher aus dem Vault geladen.
-       Alle Shell-Befehle werden jetzt mit sudo ausgeführt.
-       Timeout: 10 Minuten
+Du: /sudopwd
+Agent: 🔐 Sudo-Passwort wurde sicher im Vault gespeichert.
 
 Du: Installiere das Paket nginx
 Agent: 🛠️ Shell: sudo apt install nginx -y
@@ -409,7 +408,7 @@ fileLock := flock.New(vaultFile + ".lock")
 // Sperrt während Lese-/Schreiboperationen
 ```
 
-- **Datei:** `data/vault.dat.lock`
+- **Datei:** `data/vault.bin.lock`
 - **Funktion:** Verhindert gleichzeitige Vault-Zugriffe
 - **Timeout:** Kein Timeout – blockiert bis zur Freigabe
 
@@ -510,7 +509,7 @@ auth:
 pkill aurago
 
 # 2. Vault-Datei löschen
-rm data/vault.dat
+rm data/vault.bin
 
 # 3. Optional: Neuen Master-Key generieren
 export AURAGO_MASTER_KEY="$(openssl rand -hex 32)"
@@ -565,7 +564,7 @@ GET /api/vault/status
    cp -r log/ incident_logs_$(date +%Y%m%d)/
 
 4. Vault-Datei prüfen (Zeitstempel)
-   ls -la data/vault.dat
+   ls -la data/vault.bin
 
 5. Master-Key rotieren (siehe oben)
 ```

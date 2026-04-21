@@ -135,13 +135,15 @@ server:
   host: "127.0.0.1"
   port: 8088
   max_body_bytes: 10485760
-  ui_language: "de"
-  oauth_redirect_base_url: ""
+  bridge_address: ""
   https:
     enabled: false
-    cert_mode: auto
+    cert_mode: auto          # "auto" (Let's Encrypt), "custom", "selfsigned"
     domain: ""
     email: ""
+    https_port: 443
+    http_port: 80
+    behind_proxy: false
 ```
 
 | Parameter | Standard | Beschreibung |
@@ -149,8 +151,9 @@ server:
 | `host` | `127.0.0.1` | Bind-Adresse |
 | `port` | `8088` | HTTP-Port |
 | `max_body_bytes` | `10485760` | Maximale Request-Größe |
-| `ui_language` | `"de"` | Standard-Sprache der Web-UI |
-| `oauth_redirect_base_url` | `""` | Basis-URL für OAuth-Callbacks (z. B. `http://localhost:8088`) |
+| `bridge_address` | `""` | Bridge-Adresse für Telegram/Discord |
+| `https.enabled` | `false` | HTTPS aktivieren |
+| `https.cert_mode` | `auto` | Zertifikatsmodus: `auto`, `custom`, `selfsigned` |
 
 ---
 
@@ -160,20 +163,24 @@ In der **Web-UI** unter *Config → Agent* lassen sich Sprache, Kontextfenster, 
 
 ```yaml
 agent:
-  system_language: "German"
-  context_window: 131000
-  max_tool_calls: 12
+  system_language: "English"
+  context_window: 0              # 0 = automatisch vom Provider ermitteln
+  max_tool_calls: 15
   debug_mode: false
+  memory_compression_char_limit: 60000
+  system_prompt_token_budget: 0  # 0 = automatisch
+  adaptive_system_prompt_token_budget: true
+  workflow_feedback: true
   
-  # Danger Zone - Tool-Berechtigungen
-  allow_shell: true
-  allow_python: true
-  allow_filesystem_write: true
-  allow_network_requests: true
-  allow_remote_shell: true
-  allow_self_update: true
-  allow_mcp: false            # bei Neuinstallationen standardmäßig false
-  allow_web_scraper: false    # bei Neuinstallationen standardmäßig false
+  # Danger Zone - bei Neuinstallationen standardmäßig deaktiviert
+  allow_shell: false
+  allow_python: false
+  allow_filesystem_write: false
+  allow_network_requests: false
+  allow_remote_shell: false
+  allow_self_update: false
+  allow_mcp: false
+  allow_web_scraper: false
   sudo_enabled: false
 ```
 
@@ -380,7 +387,7 @@ Die folgenden Blöcke können ebenfalls über die Web-UI oder ergänzend in `con
 | `budget` | Kostenkontrolle | `budget:\n  enabled: false\n  daily_limit_usd: 5\n  enforcement: warn` |
 | `fallback_llm` | Backup-LLM | `fallback_llm:\n  enabled: true\n  provider: fallback` |
 | `co_agents` | Parallele Sub-Agenten | `co_agents:\n  enabled: true\n  max_concurrent: 3` |
-| `circuit_breaker` | Resilienz | `circuit_breaker:\n  max_tool_calls: 20\n  llm_timeout_seconds: 180` |
+| `circuit_breaker` | Resilienz | `circuit_breaker:\n  max_tool_calls: 20\n  llm_timeout_seconds: 600` |
 | `auth` | Login-Schutz | `auth:\n  enabled: true\n  session_timeout_hours: 24` |
 | `llm_guardian` | Sicherheitsprüfung | `llm_guardian:\n  enabled: false\n  default_level: medium` |
 | `mcp_server` | MCP-Interoperabilität | `mcp_server:\n  enabled: false\n  require_auth: true` |
@@ -508,14 +515,14 @@ AuraGo validiert die Konfiguration beim Start:
 ```
 [INFO] Loading config from ./config.yaml
 [INFO] Configuration validated successfully
-[ERROR] Invalid config: llm.api_key is required
+[ERROR] Invalid config: providers section requires at least one provider
 ```
 
 ### Häufige Validierungsfehler
 
 | Fehler | Lösung |
 |--------|--------|
-| `llm.api_key is required` | API-Key in Provider konfigurieren |
+| `providers section requires at least one provider` | Provider mit API-Key in `providers`-Liste konfigurieren |
 | `invalid yaml` | YAML-Syntax prüfen (Einrückungen!) |
 | `invalid port number` | Port zwischen 1-65535 wählen |
 | `directory not found` | Verzeichnispfad korrigieren |

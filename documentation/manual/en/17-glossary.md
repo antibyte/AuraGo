@@ -276,7 +276,7 @@ A comprehensive reference of technical terms, abbreviations, and concepts used i
 | **context_window** | LLM context size in tokens | Auto-detect |
 | **max_tool_calls** | Maximum tool calls per request | `12` |
 | **step_delay_seconds** | Delay between tool calls | `0` |
-| **system_language** | Agent response language | `German` |
+| **system_language** | Agent response language | `English` |
 | **personality_engine** | Enable mood adaptation | `true` |
 | **core_personality** | Base personality template | `friend` |
 | **debug_mode** | Enable debug instructions | `false` |

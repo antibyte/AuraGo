@@ -73,17 +73,23 @@ Co-Agenten sind eigenständige Helfer-Agenten, die der Haupt-Agent (Main Agent) 
 co_agents:
   enabled: false                   # System aktivieren
   max_concurrent: 3                # Max. gleichzeitig laufende Co-Agenten
+  max_context_hints: 6             # Max Kontext-Hinweise pro Co-Agent
+  max_context_hint_chars: 180      # Max Zeichen pro Kontext-Hinweis
+  max_result_bytes: 100000         # Max Ergebnisgröße in Bytes (~100 KB)
+  budget_quota_percent: 25         # Max. Budget-Anteil für Co-Agenten (%)
+  cleanup_interval_minutes: 10     # Automatische Aufräum-Intervall
+  cleanup_max_age_minutes: 30      # Max Alter abgeschlossener Co-Agenten
   
-  # LLM-Konfiguration für Co-Agenten (eigenes Model)
+  # LLM-Konfiguration für Co-Agenten (Provider-Referenz)
   llm:
-    provider: "openrouter"
-    base_url: "https://openrouter.ai/api/v1"
-    api_key: ""                    # Leer = fällt auf llm.api_key zurück
-    model: "meta-llama/llama-3.1-8b-instruct:free"  # Günstigeres/schnelleres Model
+    provider: ""                   # Provider-ID (Referenz auf providers-Eintrag)
+    base_url: ""                   # Leer = Haupt-Provider
+    api_key: ""                    # Leer = Haupt-Provider API-Key
+    model: ""                      # Leer = Haupt-Modell; z.B. "meta-llama/llama-3.1-8b-instruct:free"
   
   # Eigene Limits pro Co-Agent
   circuit_breaker:
-    max_tool_calls: 10             # Max Tool-Calls pro Co-Agent-Auftrag
+    max_tool_calls: 12             # Max Tool-Calls pro Co-Agent-Auftrag
     timeout_seconds: 300           # Max Laufzeit pro Co-Agent (5 Min.)
     max_tokens: 0                  # Token-Budget (0 = unbegrenzt)
 ```
@@ -94,6 +100,12 @@ co_agents:
 |-----------|---------|--------------|
 | `enabled` | `false` | Deaktiviert – muss explizit aktiviert werden |
 | `max_concurrent` | `3` | Gleichzeitige Co-Agenten |
+| `max_context_hints` | `6` | Max Kontext-Hinweise |
+| `max_context_hint_chars` | `180` | Max Zeichen pro Hinweis |
+| `max_result_bytes` | `100000` | Max Ergebnisgröße (~100 KB) |
+| `budget_quota_percent` | `25` | Budget-Anteil für Co-Agenten |
+| `cleanup_interval_minutes` | `10` | Aufräum-Intervall |
+| `cleanup_max_age_minutes` | `30` | Max Alter abgeschlossener Agenten |
 | `max_tool_calls` | `12` | Tool-Calls pro Auftrag |
 | `timeout_seconds` | `300` | 5 Minuten Timeout |
 | `max_tokens` | `0` | Unbegrenzt |

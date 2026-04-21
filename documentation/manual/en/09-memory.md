@@ -348,7 +348,7 @@ embeddings:
 
 # Agent memory settings
 agent:
-  memory_compression_char_limit: 50000   # Trigger compression at this character limit
+  memory_compression_char_limit: 60000   # Trigger compression at this character limit
   core_memory_max_entries: 200           # Maximum entries in core memory (0 = unlimited)
   core_memory_cap_mode: "soft"           # "soft" (default) or "hard"
 

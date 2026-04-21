@@ -37,13 +37,24 @@ server:
   bridge_address: "localhost:8089"  # Internal bridge port
   max_body_bytes: 10485760    # Max request body (10MB)
 
+# LLM Providers — configure via the Setup Wizard or Config UI
+# -----------------------------------------------------------
+providers: []
+  # - id: main
+  #   type: openrouter
+  #   name: "Main LLM"
+  #   base_url: https://openrouter.ai/api/v1
+  #   api_key: "sk-or-..."
+  #   model: "google/gemini-2.0-flash-001"
+
 # LLM Configuration
 # -----------------
 llm:
-  provider: "openrouter"      # Provider name (informational)
-  base_url: "https://openrouter.ai/api/v1"  # API endpoint
-  api_key: ""                 # Your API key (REQUIRED)
-  model: "arcee-ai/trinity-large-preview:free"  # Model ID
+  provider: ""                # References provider id from providers list
+  multimodal: false           # Enable image inputs in the main agent loop
+  helper_enabled: false       # Dedicated helper LLM for analysis/background tasks
+  helper_provider: ""         # Helper provider id (empty = main provider)
+  helper_model: ""            # Helper model override
   use_native_functions: true  # Use OpenAI function calling
   temperature: 0.7            # Randomness (0.0-2.0)
   structured_outputs: false   # Enable constrained decoding
@@ -60,29 +71,42 @@ embeddings:
 # Agent Behavior
 # --------------
 agent:
-  system_language: "Deutsch"  # Response language
-  max_tool_calls: 12          # Max tool calls per request
+  system_language: "English"  # Response language
+  max_tool_calls: 15          # Max tool calls per request
   step_delay_seconds: 0       # Delay between calls (rate limiting)
-  memory_compression_char_limit: 50000  # Compress context at this size
-  personality_engine: true    # Enable mood adaptation (V1)
-  personality_engine_v2: true # Enable advanced personality (V2)
-  personality_v2_model: "qwen/qwen-2.5-7b-instruct"
-  personality_v2_url: ""      # Custom V2 endpoint
-  personality_v2_api_key: ""  # V2 API key
-  core_personality: "friend"  # Base personality
+  memory_compression_char_limit: 60000  # Compress context at this size
+  system_prompt_token_budget: 0   # 0 = automatic
+  adaptive_system_prompt_token_budget: true
+  context_window: 0           # 0 = auto-detect from provider API
   show_tool_results: false    # Show raw tool output
   debug_mode: false           # Enable debug instructions
-  system_prompt_token_budget: 8192  # System prompt soft limit
-  context_window: 131000      # Model context window (0=auto)
   core_memory_cap_mode: "soft"  # soft/hard cap mode
   core_memory_max_entries: 200  # Max core memory entries
+  tool_output_limit: 50000    # Max chars of a single tool result
   workflow_feedback: true     # Enable workflow feedback
-  enable_google_workspace: true  # Enable Google Workspace tools
+  # Danger Zone (all disabled by default)
+  sudo_enabled: false
+  sudo_unrestricted: false
+  allow_shell: false
+  allow_python: false
+  allow_filesystem_write: false
+  allow_network_requests: false
+  allow_remote_shell: false
+  allow_self_update: false
+  allow_mcp: false
+  allow_web_scraper: false
+  output_compression:
+    enabled: true
+    min_chars: 500
+    preserve_errors: true
+    shell_compression: true
+    python_compression: true
+    api_compression: true
 
 # Authentication
 # --------------
 auth:
-  enabled: false              # Enable Web UI login
+  enabled: true               # Enable Web UI login (default)
   password_hash: ""           # bcrypt hashed password
   session_secret: ""          # Session encryption key
   session_timeout_hours: 24   # Session duration
@@ -111,7 +135,7 @@ budget:
 # -------------------------------
 circuit_breaker:
   max_tool_calls: 20          # Hard limit on tool calls
-  llm_timeout_seconds: 180    # LLM call timeout
+  llm_timeout_seconds: 600    # LLM call timeout
   maintenance_timeout_minutes: 10  # Maintenance timeout
   retry_intervals:            # Backoff intervals
     - "10s"
@@ -217,7 +241,7 @@ tts:
 vision:
   provider: "openrouter"
   base_url: "https://openrouter.ai/api/v1"
-  api_key: ""                 # Falls back to llm.api_key
+  api_key: ""                 # Falls back to main provider
   model: "google/gemini-2.5-flash-lite-preview-09-2025"
 
 # Whisper (Speech-to-Text)
@@ -225,7 +249,7 @@ vision:
 whisper:
   provider: "openrouter"
   base_url: "https://openrouter.ai/api/v1"
-  api_key: ""                 # Falls back to llm.api_key
+  api_key: ""                 # Falls back to main provider
   model: "google/gemini-2.5-flash-lite-preview-09-2025"
 
 # WebDAV Integration
@@ -896,7 +920,7 @@ AuraGo/
 │   ├── invasion.db           # Remote deployment (SQLite)
 │   ├── vectordb/             # Vector database
 │   │   └── ...
-│   ├── secrets.vault         # Encrypted secrets
+│   ├── vault.bin             # Encrypted secrets (AES-256-GCM)
 │   ├── core_memory.md        # Permanent memory
 │   └── chat_history.json     # Chat UI state
 └── log/

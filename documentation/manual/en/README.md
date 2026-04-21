@@ -126,14 +126,13 @@ The configuration now uses a central provider system for LLM connections. See [C
 /help          - Show all commands
 /reset         - Clear chat history
 /stop          - Cancel current action
+/restart       - Restart AuraGo server
 /debug on/off  - Toggle debug mode
-/budget        - Show cost overview
 /personality   - Switch personality
+/budget        - Show cost overview
 /voice         - Toggle voice output
 /warnings      - Show system warnings
-/sudo          - Activate sudo mode (requires sudo_enabled)
 /sudopwd       - Store sudo password in vault
-/journal       - Open journal
 /addssh        - Register SSH server
 /credits       - Show OpenRouter credits
 ```

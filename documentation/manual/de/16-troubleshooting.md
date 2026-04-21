@@ -44,7 +44,7 @@ Fehler: failed to create virtual environment
 
 **Lösung:**
 ```bash
-# Python 3.9+ installieren
+# Python 3.10+ installieren
 sudo apt install python3 python3-venv python3-pip  # Debian/Ubuntu
 brew install python@3.10                           # macOS
 
@@ -96,9 +96,9 @@ Fehler: 401 Unauthorized - Invalid API key
 curl -H "Authorization: Bearer DEIN-KEY" \
   https://openrouter.ai/api/v1/models
 
-# In config.yaml prüfen
+# In config.yaml prüfen – Provider-API-Key verifizieren
 nano config.yaml
-# llm.api_key muss korrekt sein
+# Der API-Key wird im providers-Block konfiguriert, nicht unter llm.api_key
 ```
 
 ### Rate Limiting (429)
@@ -285,7 +285,7 @@ Falls `AURAGO_MASTER_KEY` verloren:
 **Neuer Vault:**
 ```bash
 # Alten Vault löschen (Daten sind verloren!)
-mv data/secrets.vault data/secrets.vault.backup.$(date +%s)
+mv data/vault.bin data/vault.bin.backup.$(date +%s)
 
 # Neuen Key generieren
 export AURAGO_MASTER_KEY=$(openssl rand -hex 32)

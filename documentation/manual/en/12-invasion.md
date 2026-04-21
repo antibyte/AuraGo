@@ -116,7 +116,7 @@ Use the Web-UI or REST API to test the connection:
 
 **REST API:**
 ```bash
-curl -X POST http://localhost:8080/api/v1/invasion/nests/production-web-01/test \
+curl -X POST http://localhost:8088/api/invasion/nests/production-web-01/validate \
   -H "Authorization: Bearer ${API_TOKEN}"
 ```
 
@@ -200,7 +200,7 @@ Resources:
 
 ```bash
 # Deploy containerized-agent to local-docker
-curl -X POST http://localhost:8080/api/v1/invasion/deployments \
+curl -X POST http://localhost:8088/api/invasion/nests/local-docker/hatch \
   -H "Authorization: Bearer ${API_TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{
@@ -299,16 +299,24 @@ Navigate to **Invasion Control → Deployments → New Deployment**:
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/v1/invasion/deployments` | POST | Deploy egg to nest |
-| `/api/v1/invasion/deployments/{id}` | PUT | Update running agent |
-| `/api/v1/invasion/deployments/{id}` | DELETE | Remove agent from nest |
-| `/api/v1/invasion/deployments/{id}/status` | GET | Check deployment health |
-| `/api/v1/invasion/deployments/{id}/logs` | GET | View agent logs |
+| `/api/invasion/nests` | GET | List all nests |
+| `/api/invasion/nests` | POST | Create a new nest |
+| `/api/invasion/nests/{id}` | GET | Get nest details |
+| `/api/invasion/nests/{id}` | PUT | Update nest |
+| `/api/invasion/nests/{id}` | DELETE | Delete nest |
+| `/api/invasion/nests/{id}/toggle` | POST | Enable/disable nest |
+| `/api/invasion/nests/{id}/validate` | POST | Test nest connection |
+| `/api/invasion/eggs` | GET | List all eggs |
+| `/api/invasion/eggs` | POST | Create a new egg |
+| `/api/invasion/eggs/{id}` | GET/PUT/DELETE | Manage egg |
+| `/api/invasion/eggs/{id}/toggle` | POST | Enable/disable egg |
+| `/api/invasion/nests/{id}/hatch` | POST | Deploy (hatch) egg on nest |
+| `/api/invasion/ws` | WS | WebSocket for real-time events |
 
 **Example: Deploy via REST API**
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/invasion/deployments \
+curl -X POST http://localhost:8088/api/invasion/nests/production-web-01/hatch \
   -H "Authorization: Bearer ${API_TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{
@@ -381,7 +389,7 @@ Navigate to **Invasion Control → Deployments → web-agent-01 → Update**
 
 Or use REST API:
 ```bash
-curl -X PUT http://localhost:8080/api/v1/invasion/deployments/web-agent-01 \
+curl -X PUT http://localhost:8088/api/invasion/eggs/web-agent-01 \
   -H "Authorization: Bearer ${API_TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{
@@ -396,7 +404,7 @@ Navigate to **Invasion Control → Deployments → web-agent-01 → Remove**
 
 Or use REST API:
 ```bash
-curl -X DELETE http://localhost:8080/api/v1/invasion/deployments/backup-worker \
+curl -X DELETE http://localhost:8088/api/invasion/eggs/backup-worker \
   -H "Authorization: Bearer ${API_TOKEN}"
 ```
 
@@ -628,7 +636,7 @@ Monitoring:
 
 Or via REST API:
 ```bash
-curl -X PUT http://localhost:8080/api/v1/invasion/settings/alerts \
+curl -X PUT http://localhost:8088/api/invasion/nests/production-web-01 \
   -H "Authorization: Bearer ${API_TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{
@@ -701,7 +709,7 @@ curl -X PUT http://localhost:8080/api/v1/invasion/settings/alerts \
 ### Diagnostic via REST API
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/invasion/deployments/web-agent-01/diagnose \
+curl -X POST http://localhost:8088/api/invasion/nests/web-agent-01/validate \
   -H "Authorization: Bearer ${API_TOKEN}"
 ```
 
@@ -737,7 +745,7 @@ Expected response:
 View remote agent logs:
 
 ```bash
-curl "http://localhost:8080/api/v1/invasion/deployments/web-agent-01/logs?lines=50" \
+curl "http://localhost:8088/api/invasion/nests/web-agent-01" \
   -H "Authorization: Bearer ${API_TOKEN}"
 ```
 
@@ -760,7 +768,7 @@ Expected response:
 If a deployment becomes unresponsive:
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/invasion/deployments/web-agent-01/restart \
+curl -X POST http://localhost:8088/api/invasion/nests/web-agent-01/hatch \
   -H "Authorization: Bearer ${API_TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{

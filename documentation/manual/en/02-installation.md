@@ -247,7 +247,7 @@ You should see the login screen or chat (depending on auth configuration).
 ├── data/
 │   ├── core_memory.md        # Persistent memory
 │   ├── chat_history.json     # Chat history
-│   ├── secrets.vault         # Encrypted secrets
+│   ├── vault.bin             # Encrypted secrets (AES-256-GCM)
 │   └── vectordb/             # Vector database
 └── log/
     └── supervisor.log        # Application logs
@@ -301,7 +301,7 @@ Remove-Item -Recurse -Force C:\Users\$env:USERNAME\aurago
 | `resources.dat not found` | File must be in same directory as `aurago` |
 | `AURAGO_MASTER_KEY is missing` | Load `.env`: `export $(cat .env \| xargs)` |
 | Port already in use | Change `server.port` in `config.yaml` |
-| Python venv error | Install Python 3.9+: `sudo apt install python3 python3-venv` |
+| Python venv error | Install Python 3.10+: `sudo apt install python3 python3-venv` |
 | Permission denied (Docker) | `sudo usermod -aG docker $USER` and re-login |
 
 ## Next Steps

@@ -305,7 +305,7 @@ Commands können auch programmatisch über die API ausgelöst werden:
 
 ```bash
 # Via Chat-Completion API mit speziellem Prefix
- curl -X POST http://localhost:8080/v1/chat/completions \
+ curl -X POST http://localhost:8088/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
     "messages": [{"role": "user", "content": "/reset"}]

@@ -950,6 +950,94 @@ egg_mode:
   api_key_vault_key: "egg_api_key"
 ```
 
+## LDAP Integration
+
+Authentifizierung und Benutzerverwaltung über LDAP/Active Directory.
+
+**Web-UI:** Config → Integrationen → LDAP → Server-URL, Base DN und Bind-Credentials konfigurieren.
+
+### YAML-Referenz
+```yaml
+ldap:
+  enabled: true
+  url: "ldap://ldap.example.com:389"
+  base_dn: "dc=example,dc=com"
+  bind_dn: "cn=admin,dc=example,dc=com"
+  use_tls: true
+  insecure_skip_verify: false
+```
+
+## Obsidian Integration
+
+Verknüpfe AuraGo mit deinem Obsidian-Vault für Notizen und Wissensmanagement.
+
+**Web-UI:** Config → Integrationen → Obsidian → Vault-Pfad und Synchronisationsmodus konfigurieren.
+
+### YAML-Referenz
+```yaml
+obsidian:
+  enabled: true
+  vault_path: "/home/user/obsidian-vault"
+```
+
+## Uptime Kuma Integration
+
+Überwache die Erreichbarkeit von Diensten mit Uptime Kuma.
+
+**Web-UI:** Config → Integrationen → Uptime Kuma → URL eingeben. API-Key im Vault speichern.
+
+### YAML-Referenz
+```yaml
+uptime_kuma:
+  enabled: true
+  url: "https://uptime-kuma.example.com"
+```
+
+## Vercel Integration
+
+Deploye Web-Projekte direkt auf Vercel.
+
+**Web-UI:** Config → Integrationen → Vercel → Team-Slug eingeben. API-Token im Vault speichern.
+
+### YAML-Referenz
+```yaml
+vercel:
+  enabled: true
+  team_slug: "my-team"
+```
+
+## Browser Automation
+
+Headless-Browser-Automatisierung für Formulare, Screenshots und Web-Interaktionen.
+
+**Web-UI:** Config → Integrationen → Browser Automation → aktivieren und Headless-Modus konfigurieren.
+
+### YAML-Referenz
+```yaml
+browser_automation:
+  enabled: true
+  headless: true
+  screenshots_dir: "browser_screenshots"
+```
+
+## Output Compression
+
+Reduziert den Token-Verbrauch durch Filterung und Deduplizierung von Tool-Ausgaben, bevor sie in den LLM-Kontext gelangen.
+
+**Web-UI:** Config → Agent → Output Compression → aktivieren und Schwellenwerte anpassen.
+
+### YAML-Referenz
+```yaml
+agent:
+  output_compression:
+    enabled: true
+    min_chars: 500
+    preserve_errors: true
+    shell_compression: true
+    python_compression: true
+    api_compression: true
+```
+
 ---
 
 ## Integrationen testen

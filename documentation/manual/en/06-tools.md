@@ -85,8 +85,8 @@ home_assistant:
 ### 5. Google Workspace (OAuth2)
 
 ```yaml
-agent:
-  enable_google_workspace: true
+google_workspace:
+  enabled: true
 ```
 
 Authentication via OAuth2 in the Web UI vault menu.

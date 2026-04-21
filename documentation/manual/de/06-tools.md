@@ -85,8 +85,8 @@ home_assistant:
 ### 5. Google Workspace (OAuth2)
 
 ```yaml
-agent:
-  enable_google_workspace: true
+google_workspace:
+  enabled: true
 ```
 
 Die Authentifizierung erfolgt über OAuth2 im Vault-Menü der Web-UI.
@@ -129,13 +129,18 @@ brave_search:
 agent:
   adaptive_tools:
     enabled: true
-    max_tools: 20               # Max. Anzahl Tools im Kontext
+    max_tools: 16               # Max. Anzahl Tools im Kontext (Standard: 16)
     
     # Immer verfügbar (nicht filtern):
     always_include:
       - "filesystem"
+      - "file_editor"
       - "shell"
+      - "manage_memory"
       - "query_memory"
+      - "execute_python"
+      - "docker"
+      - "api_request"
 ```
 
 | Aspekt | Ohne Adaptive | Mit Adaptive |

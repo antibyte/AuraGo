@@ -154,7 +154,7 @@ Agent: 📄 Zusammenfassung von dokument.pdf:
 
 ## Die ersten Tools kennenlernen
 
-AuraGo hat über 30 eingebaute Tools. Hier sind einige zum Ausprobieren:
+AuraGo hat über 90 eingebaute Tools. Hier sind einige zum Ausprobieren:
 
 ### Dateisystem
 ```

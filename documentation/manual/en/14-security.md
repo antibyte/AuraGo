@@ -33,7 +33,7 @@ The vault is the heart of AuraGo's security architecture. All sensitive data –
 | **Tokens** | OAuth refresh tokens, bot tokens |
 | **Internal** | Master key derivatives, session secrets |
 
-> 💡 **Tip:** The vault is stored in `data/vault.dat`. The master password (64 hex characters) is read from the `AURAGO_MASTER_KEY` environment variable.
+> 💡 **Tip:** The vault is stored in `data/vault.bin`. The master password (64 hex characters) is read from the `AURAGO_MASTER_KEY` environment variable.
 
 ### Agent Access to the Vault
 
@@ -220,7 +220,7 @@ Agent: 🔐 Vault Status:
 
 ```bash
 # Backup old vault
-mv data/secrets.vault data/secrets.vault.backup.$(date +%s)
+mv data/vault.bin data/vault.bin.backup.$(date +%s)
 
 # Generate new key
 export AURAGO_MASTER_KEY=$(openssl rand -hex 32)

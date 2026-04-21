@@ -48,14 +48,20 @@ Die V2-Engine bietet:
 personality:
   engine: true
   engine_v2: true
-  v2_provider: ""
+  v2_provider: ""                    # deprecated – V2 nutzt jetzt llm.helper_*
   user_profiling: false
-  user_profiling_threshold: 3
-  v2_timeout_secs: 30
+  user_profiling_threshold: 2
   emotion_synthesizer:
-    enabled: true
-    trigger_on_mood_change: true
+    enabled: false
+    max_history_entries: 100
+  inner_voice:
+    enabled: false                   # erfordert emotion_synthesizer + engine_v2
+    min_interval_secs: 60
+    max_per_session: 20
+    decay_turns: 3
 ```
+
+> ⚠️ **Hinweis:** `v2_provider` ist veraltet. Die V2-Engine nutzt jetzt die Helper-LLM-Konfiguration (`llm.helper_enabled`, `llm.helper_provider`, `llm.helper_model`). Siehe [Kapitel 9: Helper LLM](./09-memory.md#helper-llm--automatisierte-wartung).
 
 ### Beide Engines deaktivieren
 
@@ -76,8 +82,13 @@ personality:
 | `professional` | Höflich, effizient, formell | Business-Kontexte, formelle Kommunikation |
 | `punk` | Rebellisch, direkt, unkonventionell | Kreative Projekte, Brainstorming |
 | `terminator` | Extrem kurz, direkt, ohne Floskeln | Schnelle Informationen, Kommandozeilen-Modus |
-| `psycho` | Chaotisch, unberechenbar | Experimente, Entertainment |
-| `mcp` | Fokus auf Model Context Protocol | MCP-Server Interaktionen |
+| `psycho` | Chaotisch, unberechenbar, neurotisch | Experimente, Entertainment |
+| `mcp` | Master Control Program (TRON-Stil), kalt, imperiös | Systemüberwachung, autoritärer Modus |
+| `secretary` | Effizient, vorausschauend, organisiert | Aufgabenverwaltung, Terminplanung |
+| `servant` | Äußerst unterwürfig, gehorsam | Rollenspiel, Unterhaltung |
+| `thinker` | Analytisch, philosophisch, fragend | Tiefe Analysen, komplexe Probleme |
+| `evil` | Megalomane, theatralisch, herrisch | Humorvolle Interaktionen, Rollenspiel |
+| `mistress` | Dominant, streng, kompromisslos | Rollenspiel, disziplinierte Interaktionen |
 
 ### Persönlichkeit wechseln
 

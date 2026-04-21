@@ -220,14 +220,7 @@ Hier bearbeitest du die `config.yaml` über ein Web-Formular.
 
 ## Mission Control
 
-Oberfläche für automatisierte Aufgaben.
-
-### Tabs
-
-| Tab | Inhalt |
-|-----|--------|
-| Nester | Verbindungen zu Servern (SSH, Docker, etc.) |
-| Eier | Vorlagen für Deployments |
+Oberfläche für automatisierte Aufgaben (Cron-ähnliche Ausführung).
 
 ### Karten-Ansicht
 
@@ -245,14 +238,21 @@ Jede Mission wird als Karte dargestellt:
 └─────────────────┘
 ```
 
+### Funktionen
+
+- Missionen erstellen und planen (einmalig oder wiederkehrend)
+- Prompt-Vorlagen für automatisierte Abläufe
+- Historie der vergangenen Läufe einsehen
+- Vorbereitete Missionen (Prepared Missions) als Bibliothek
+
 ## Invasion Control
 
-Für das Deployment von Remote-Agenten.
+Für das Deployment von Remote-Agenten auf Zielservern.
 
 ### Konzept
 
-- **Nester** = Zielserver (wo deployed wird)
-- **Eier** = Agent-Konfigurationen (was deployed wird)
+- **Nester** = Zielserver (wo der Remote-Agent deployed wird)
+- **Eier** = Agent-Konfigurationen (was genau deployed wird)
 
 ### Status-Anzeigen
 

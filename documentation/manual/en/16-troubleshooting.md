@@ -587,7 +587,7 @@ rm data/short_term.db
 
 **If master key is lost:**
 1. Stop AuraGo
-2. Delete vault: `rm data/secrets.vault`
+2. Delete vault: `rm data/vault.bin`
 3. Regenerate master key: `export AURAGO_MASTER_KEY=$(openssl rand -hex 32)`
 4. Restart AuraGo and re-enter API keys
 

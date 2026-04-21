@@ -117,7 +117,7 @@ Um den Kontext effizient zu nutzen, komprimiert AuraGo ältere Konversationen au
 ```yaml
 # config.yaml
 agent:
-  memory_compression_char_limit: 50000   # Zeichen-Limit für Kompression
+  memory_compression_char_limit: 60000   # Zeichen-Limit für Kompression (Standard: 60000)
 ```
 
 Wenn die Konversationshistorie dieses Limit überschreitet:
@@ -264,26 +264,19 @@ Helper LLM Statistiken
 ### Konfiguration
 
 ```yaml
-helper_llm:
-  enabled: true                    # Helper LLM aktivieren
-  provider: "auto"                # "auto" oder Provider-ID
-  model: "auto"                   # "auto" oder spezifisches Modell
-  cache_enabled: true              # Analyseergebnisse zwischenspeichern
-  operations:
-    turn_analysis: true            # Jeden Strang analysieren
-    daily_summary: true            # Tägliche Wartung
-    consolidation: true            # Stapel-Konsolidierung
-    compression: true              # Speicherkomprimierung
-    content_summaries: true       # Zusammenfassungen erstellen
-    rag_batch: true              # RAG-Stapelverarbeitung
+llm:
+  helper_enabled: true              # Helper LLM aktivieren (empfohlen)
+  helper_provider: ""               # leer = Haupt-Provider; oder Provider-ID
+  helper_model: ""                  # leer = auto; oder spezifisches kostengünstiges Modell
 ```
+
+> 💡 **Empfehlung:** Aktiviere den Helper LLM und weise ihm ein kleineres, kostengünstiges Modell zu (z. B. `google/gemini-2.0-flash-001`). Ohne Helper sind viele Hintergrundfunktionen wie Turn-Analyse, Konsolidierung und Wissensgraph-Extraktion nicht vollständig verfügbar.
 
 | Parameter | Standard | Beschreibung |
 |-----------|----------|--------------|
-| `enabled` | `true` | Helper LLM aktivieren/deaktivieren |
-| `provider` | `"auto"` | LLM-Provider |
-| `model` | `"auto"` | Modell (auto wählt günstigstes fähiges) |
-| `cache_enabled` | `true` | Ergebnisse zwischenspeichern |
+| `helper_enabled` | `false` | Helper LLM aktivieren/deaktivieren |
+| `helper_provider` | `""` | Provider-ID (leer = Haupt-Provider) |
+| `helper_model` | `""` | Modell (leer = Haupt-Modell) |
 
 ### Fehlerbehebung
 

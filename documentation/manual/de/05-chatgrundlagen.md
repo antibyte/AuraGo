@@ -60,11 +60,14 @@ Spezielle Steuerbefehle für den Chat:
 | `/help` | Alle verfügbaren Befehle anzeigen | `/help` |
 | `/reset` | Chat-Verlauf löschen | `/reset` |
 | `/stop` | Laufende Aktion abbrechen | `/stop` |
+| `/restart` | AuraGo neu starten | `/restart` |
 | `/debug on` | Detaillierte Tool-Ausgaben | `/debug on` |
 | `/debug off` | Kompakte Ausgaben (Standard) | `/debug off` |
 | `/budget` | Heutige API-Kosten anzeigen | `/budget` |
 | `/personality <name>` | Persönlichkeit wechseln | `/personality pro` |
-| `/sudo` | Sudo-Modus aktivieren (falls konfiguriert) | `/sudo` |
+| `/voice` | Sprachausgabe ein-/ausschalten | `/voice` |
+| `/warnings` | System-Warnungen anzeigen | `/warnings` |
+| `/sudopwd` | Sudo-Passwort im Vault speichern | `/sudopwd` |
 | `/credits` | OpenRouter Credits anzeigen | `/credits` |
 | `/addssh` | SSH-Server zum Inventar hinzufügen | `/addssh server.com user key` |
 
@@ -252,9 +255,9 @@ Agent: 🔄 Chat-Verlauf wurde zurückgesetzt.
 
 | Einstellung | Standard | Beschreibung |
 |-------------|----------|--------------|
-| `context_window` | 131000 Tokens | Maximale Kontextgröße |
-| `memory_compression_char_limit` | 50000 | Ab hier wird komprimiert |
-| `system_prompt_token_budget` | 8192 | Reserviert für System-Instruktionen |
+| `context_window` | 0 (auto) | Maximale Kontextgröße (0 = automatisch vom Provider ermitteln) |
+| `memory_compression_char_limit` | 60000 | Ab hier wird komprimiert |
+| `system_prompt_token_budget` | 0 (auto) | Reserviert für System-Instruktionen (0 = automatisch) |
 
 > 🔍 **Deep Dive: Kontext-Kompression**
 > Wenn der Kontext zu groß wird, nutzt AuraGo ein intelligentes Komprimierungssystem:
