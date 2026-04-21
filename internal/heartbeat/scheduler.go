@@ -168,10 +168,14 @@ func (s *Scheduler) checkAndRun() {
 		return
 	}
 
+	if err := s.persistLastRun(now); err != nil {
+		s.logger.Warn("Heartbeat: failed to persist state, not updating lastRun", "error", err)
+		s.running.Store(false)
+		return
+	}
 	s.mu.Lock()
 	s.lastRun = now
 	s.mu.Unlock()
-	s.persistLastRun(now)
 
 	prompt := buildHeartbeatPrompt(cfg.Heartbeat, now)
 	s.logger.Info("Heartbeat wake-up triggered",
@@ -222,31 +226,33 @@ func (s *Scheduler) loadPersistedLastRunLocked() (time.Time, bool) {
 	return lastRun, true
 }
 
-func (s *Scheduler) persistLastRun(lastRun time.Time) {
+func (s *Scheduler) persistLastRun(lastRun time.Time) error {
 	s.mu.RLock()
 	statePath := s.heartbeatStatePathLocked()
 	s.mu.RUnlock()
 	if statePath == "" {
-		return
+		return nil
 	}
 	if err := os.MkdirAll(filepath.Dir(statePath), 0o755); err != nil {
 		s.logger.Warn("Failed to create heartbeat state directory", "path", filepath.Dir(statePath), "error", err)
-		return
+		return err
 	}
 
 	payload, err := json.Marshal(persistedState{LastRun: lastRun.Format(time.RFC3339Nano)})
 	if err != nil {
 		s.logger.Warn("Failed to encode heartbeat scheduler state", "error", err)
-		return
+		return err
 	}
 
 	tmpPath := statePath + ".tmp"
 	if err := os.WriteFile(tmpPath, payload, 0o600); err != nil {
 		s.logger.Warn("Failed to write heartbeat scheduler state", "path", tmpPath, "error", err)
-		return
+		return err
 	}
 	if err := os.Rename(tmpPath, statePath); err != nil {
 		_ = os.Remove(tmpPath)
 		s.logger.Warn("Failed to finalize heartbeat scheduler state", "path", statePath, "error", err)
+		return err
 	}
+	return nil
 }

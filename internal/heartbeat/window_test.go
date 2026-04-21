@@ -79,6 +79,8 @@ func TestIsInWindow(t *testing.T) {
 		{"overnight window - day", time.Date(2024, 1, 1, 12, 0, 0, 0, time.Local), "22:00", "08:00", false},
 		{"empty window", time.Date(2024, 1, 1, 8, 0, 0, 0, time.Local), "08:00", "08:00", false},
 		{"full day window", time.Date(2024, 1, 1, 12, 0, 0, 0, time.Local), "00:00", "23:59", true},
+		{"invalid start time", time.Date(2024, 1, 1, 12, 0, 0, 0, time.Local), "abc", "22:00", false},
+		{"invalid end time", time.Date(2024, 1, 1, 12, 0, 0, 0, time.Local), "08:00", "xyz", false},
 	}
 
 	for _, tt := range tests {

@@ -294,7 +294,7 @@ func Start(opts StartOptions) error {
 		MessageSource:      "heartbeat",
 	}
 	s.HeartbeatScheduler = heartbeat.New(cfg, logger, func(prompt string) {
-		go agent.Loopback(hbRunCfg, prompt, agent.NoopBroker{})
+		agent.Loopback(hbRunCfg, prompt, agent.NoopBroker{})
 	})
 	s.HeartbeatScheduler.Start()
 	s.restartUptimeKumaPoller()

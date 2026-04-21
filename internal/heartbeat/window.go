@@ -29,7 +29,10 @@ func parseTime(t string) (hour, min int, err error) {
 }
 
 func timeInMinutes(t string) int {
-	h, m, _ := parseTime(t)
+	h, m, err := parseTime(t)
+	if err != nil {
+		return -1
+	}
 	return h*60 + m
 }
 
@@ -37,6 +40,10 @@ func isInWindow(now time.Time, start, end string) bool {
 	nowMin := now.Hour()*60 + now.Minute()
 	startMin := timeInMinutes(start)
 	endMin := timeInMinutes(end)
+
+	if startMin < 0 || endMin < 0 {
+		return false
+	}
 
 	if startMin <= endMin {
 		return nowMin >= startMin && nowMin < endMin
