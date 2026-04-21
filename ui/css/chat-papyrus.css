@@ -60,7 +60,10 @@
         radial-gradient(circle at 14% 10%, rgba(182, 143, 92, 0.12), transparent 18%),
         radial-gradient(circle at 88% 12%, rgba(252, 243, 224, 0.18), transparent 22%),
         radial-gradient(circle at 50% 110%, rgba(161, 123, 76, 0.1), transparent 26%),
-        linear-gradient(180deg, #c7af88 0%, #d6c19b 40%, #cdb287 100%);
+        linear-gradient(180deg, #c7af88 0%, #d6c19b 40%, #cdb287 100%),
+        url('../papback.png');
+    background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, repeat;
+    background-size: auto, auto, auto, auto, auto;
     color: var(--text-primary);
     font-family: var(--papyrus-font-ui);
 }
