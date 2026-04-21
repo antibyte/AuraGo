@@ -19,7 +19,7 @@ var (
 	shutdownExternalMCPManager = tools.ShutdownMCPManager
 )
 
-func syncExternalMCPRuntime(cfg *config.Config, logger *slog.Logger) {
+func syncExternalMCPRuntime(cfg *config.Config, vault config.SecretReader, logger *slog.Logger) {
 	shutdownExternalMCPManager()
 	if cfg == nil || logger == nil {
 		return
@@ -27,7 +27,7 @@ func syncExternalMCPRuntime(cfg *config.Config, logger *slog.Logger) {
 	if !cfg.Agent.AllowMCP || !cfg.MCP.Enabled || len(cfg.MCP.Servers) == 0 {
 		return
 	}
-	initExternalMCPManager(buildRuntimeMCPConfigs(cfg, nil, logger), logger)
+	initExternalMCPManager(buildRuntimeMCPConfigs(cfg, vault, logger), logger)
 }
 
 // handleMCPServers dispatches GET / PUT for /api/mcp-servers.
@@ -119,7 +119,7 @@ func persistMCPSectionUpdate(s *Server, mutate func(map[string]interface{}) erro
 
 // handlePutMCPServers saves a new MCP servers array to config.yaml and hot-reloads.
 func handlePutMCPServers(s *Server, w http.ResponseWriter, r *http.Request) {
-	body, err := io.ReadAll(r.Body)
+	body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20)) // 1 MB max
 	if err != nil {
 		jsonError(w, "Invalid JSON", http.StatusBadRequest)
 		return

@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -129,9 +130,9 @@ func handleMCPEndpoint(s *Server) http.HandlerFunc {
 			return
 		}
 
-		// Parse JSON-RPC request
+		// Parse JSON-RPC request (limit body to 10 MB for safety)
 		var req mcpRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		if err := json.NewDecoder(io.LimitReader(r.Body, 10<<20)).Decode(&req); err != nil {
 			mcpWriteJSON(w, http.StatusBadRequest, mcpResponse{
 				JSONRPC: "2.0",
 				ID:      nil,
@@ -309,7 +310,10 @@ func mcpCallTool(ctx context.Context, s *Server, params json.RawMessage) mcpCall
 }
 
 func mcpToolAvailable(s *Server, toolName string) bool {
-	for _, tool := range mcpBuildToolList(s) {
+	// Use the catalog directly instead of mcpBuildToolList which also
+	// filters by allowed-tools — we check availability before the allowlist
+	// filter so the error message is accurate.
+	for _, tool := range mcpBuildToolCatalog(s) {
 		if tool.Name == toolName {
 			return true
 		}
@@ -420,7 +424,7 @@ func handleMCPServerToken(s *Server) http.HandlerFunc {
 				return
 			}
 			// Return masked version for display
-			masked := token[:4] + "••••••••" + token[len(token)-4:]
+			masked := maskToken(token)
 			mcpWriteJSON(w, http.StatusOK, map[string]string{"token": masked})
 
 		case http.MethodPost:
@@ -444,6 +448,15 @@ func handleMCPServerToken(s *Server) http.HandlerFunc {
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
+
+// maskToken returns a masked representation of a secret token.
+// Safely handles tokens shorter than 8 characters.
+func maskToken(token string) string {
+	if len(token) <= 8 {
+		return "••••••••"
+	}
+	return token[:4] + "••••••••" + token[len(token)-4:]
+}
 
 func mcpWriteJSON(w http.ResponseWriter, status int, v interface{}) {
 	w.Header().Set("Content-Type", "application/json")

@@ -3,7 +3,6 @@ package tools
 import (
 	"bufio"
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -52,6 +51,13 @@ type MCPToolInfo struct {
 type jsonRPCRequest struct {
 	JSONRPC string      `json:"jsonrpc"`
 	ID      int64       `json:"id"`
+	Method  string      `json:"method"`
+	Params  interface{} `json:"params,omitempty"`
+}
+
+// jsonRPCNotification is a JSON-RPC notification (no ID field per spec).
+type jsonRPCNotification struct {
+	JSONRPC string      `json:"jsonrpc"`
 	Method  string      `json:"method"`
 	Params  interface{} `json:"params,omitempty"`
 }
@@ -438,10 +444,10 @@ func (c *mcpConn) initialize(logger *slog.Logger) error {
 		logger.Info("[MCP] Server identified", "name", c.name, "server", result.ServerInfo.Name, "version", result.ServerInfo.Version)
 	}
 
-	// Send notifications/initialized (no response expected, but we still need to write it)
-	notif := jsonRPCRequest{
+	// Send notifications/initialized (no response expected).
+	// Per MCP/JSON-RPC spec, notifications MUST NOT include an ID.
+	notif := jsonRPCNotification{
 		JSONRPC: "2.0",
-		ID:      0, // notifications can have id=0 or none, but for safety we use 0
 		Method:  "notifications/initialized",
 	}
 	data, err := json.Marshal(notif)
@@ -527,18 +533,18 @@ func (c *mcpConn) callTool(toolName string, arguments map[string]interface{}) (s
 
 	if result.IsError {
 		var texts []string
-		for _, c := range result.Content {
-			if c.Text != "" {
-				texts = append(texts, c.Text)
+		for _, item := range result.Content {
+			if item.Text != "" {
+				texts = append(texts, item.Text)
 			}
 		}
 		return "", fmt.Errorf("tool returned error: %s", strings.Join(texts, "; "))
 	}
 
 	var texts []string
-	for _, c := range result.Content {
-		if c.Type == "text" && c.Text != "" {
-			texts = append(texts, c.Text)
+	for _, item := range result.Content {
+		if item.Type == "text" && item.Text != "" {
+			texts = append(texts, item.Text)
 		}
 	}
 	if len(texts) == 0 {
@@ -592,15 +598,12 @@ func InitMCPManager(servers []MCPServerConfig, logger *slog.Logger) *MCPManager 
 		}
 		mgr.configs[srv.Name] = srv
 
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		conn, err := startManagedMCPConn(srv, logger)
-		cancel()
 		if err != nil {
 			logger.Error("[MCP] Failed to start server", "name", srv.Name, "error", err)
 			continue
 		}
 		mgr.conns[srv.Name] = conn
-		_ = ctx // suppress unused var
 	}
 
 	// Register as global singleton
