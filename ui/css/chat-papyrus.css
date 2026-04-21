@@ -57,10 +57,10 @@
 
 [data-theme="papyrus"] body {
     background:
-        radial-gradient(circle at 15% 12%, rgba(124, 85, 46, 0.22), transparent 20%),
-        radial-gradient(circle at 84% 14%, rgba(238, 221, 186, 0.24), transparent 22%),
-        radial-gradient(circle at 48% 115%, rgba(91, 61, 37, 0.18), transparent 28%),
-        linear-gradient(180deg, #7f654a 0%, #9a8262 22%, #b69d78 100%);
+        radial-gradient(circle at 14% 10%, rgba(182, 143, 92, 0.12), transparent 18%),
+        radial-gradient(circle at 88% 12%, rgba(252, 243, 224, 0.18), transparent 22%),
+        radial-gradient(circle at 50% 110%, rgba(161, 123, 76, 0.1), transparent 26%),
+        linear-gradient(180deg, #c7af88 0%, #d6c19b 40%, #cdb287 100%);
     color: var(--text-primary);
     font-family: var(--papyrus-font-ui);
 }
@@ -73,6 +73,8 @@
 [data-theme="papyrus"] .app-header {
     position: relative;
     z-index: 120;
+    gap: 1rem;
+    flex-wrap: nowrap;
     background:
         linear-gradient(180deg, rgba(150, 105, 66, 0.12), rgba(0, 0, 0, 0) 24%),
         repeating-linear-gradient(96deg,
@@ -89,6 +91,10 @@
         inset 0 -2px 0 rgba(32, 18, 10, 0.34);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
+}
+
+[data-theme="papyrus"] .logo {
+    margin-right: 1rem;
 }
 
 [data-theme="papyrus"] .app-header::before {
@@ -120,6 +126,40 @@
     background-clip: text;
     -webkit-text-fill-color: transparent;
     text-shadow: 0 2px 12px rgba(44, 26, 15, 0.18);
+}
+
+[data-theme="papyrus"] .logo-wordmark-base {
+    color: rgba(247, 229, 192, 0.92);
+    text-shadow: 0 1px 10px rgba(32, 19, 12, 0.18);
+}
+
+[data-theme="papyrus"] .logo-icon {
+    background: linear-gradient(135deg, #3ad1c7, #149b8f);
+    box-shadow:
+        0 10px 18px rgba(18, 10, 6, 0.16),
+        0 0 0 1px rgba(255, 248, 231, 0.16);
+}
+
+[data-theme="papyrus"] .header-actions {
+    margin-left: auto;
+    flex: 0 1 auto;
+    max-width: calc(100vw - 240px);
+    min-width: 0;
+    justify-content: flex-end;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    padding-bottom: 4px;
+    margin-bottom: -4px;
+}
+
+[data-theme="papyrus"] .header-actions::-webkit-scrollbar {
+    display: none;
+}
+
+[data-theme="papyrus"] .header-actions > * {
+    flex: 0 0 auto;
 }
 
 [data-theme="papyrus"] .logo span:first-of-type,
@@ -156,6 +196,7 @@
         inset 0 -1px 0 rgba(162, 122, 77, 0.22),
         0 7px 16px rgba(37, 22, 13, 0.16);
     color: var(--papyrus-ink);
+    min-height: 40px;
 }
 
 [data-theme="papyrus"] .chat-theme-btn:hover,
@@ -240,18 +281,23 @@
     position: relative;
     z-index: 1;
     background:
-        radial-gradient(circle at 10% 18%, rgba(157, 118, 71, 0.16), transparent 20%),
-        radial-gradient(circle at 86% 14%, rgba(251, 242, 222, 0.26), transparent 24%),
-        radial-gradient(circle at 48% 108%, rgba(139, 101, 58, 0.14), transparent 28%),
-        linear-gradient(180deg, #cbb38c 0%, #d8c19c 28%, #ceb58d 58%, #c2a578 100%);
-    background-size: 110% 110%;
+        radial-gradient(circle at 12% 18%, rgba(169, 127, 75, 0.14), transparent 22%),
+        radial-gradient(circle at 84% 14%, rgba(255, 247, 229, 0.26), transparent 24%),
+        radial-gradient(circle at 50% 108%, rgba(140, 103, 59, 0.1), transparent 28%),
+        linear-gradient(180deg, #d9c49f 0%, #e4d0ac 36%, #dbc49e 70%, #d0b182 100%);
+    background-size: 100% 100%;
     animation: none;
+    box-shadow:
+        inset 0 18px 34px rgba(255, 248, 233, 0.14),
+        inset 0 -18px 28px rgba(120, 86, 48, 0.08);
 }
 
 [data-theme="papyrus"] #chat-box::before {
+    position: absolute;
+    inset: 0;
     display: block;
     background:
-        linear-gradient(105deg, rgba(255, 248, 232, 0.28), transparent 24%, transparent 78%, rgba(130, 91, 48, 0.08) 100%),
+        linear-gradient(105deg, rgba(255, 248, 232, 0.26), transparent 24%, transparent 78%, rgba(130, 91, 48, 0.07) 100%),
         repeating-linear-gradient(180deg,
             rgba(133, 103, 67, 0) 0 9px,
             rgba(133, 103, 67, 0.05) 9px 10px,
@@ -266,16 +312,43 @@
 }
 
 [data-theme="papyrus"] #chat-box::after {
+    position: absolute;
+    inset: 0;
+    width: auto;
+    height: auto;
+    top: auto;
+    left: auto;
     display: block;
-    opacity: var(--chat-image-opacity);
+    opacity: 0.065;
     filter: var(--bg-logo-filter);
 }
 
 [data-theme="papyrus"] #chat-content {
     position: relative;
     z-index: 3;
-    padding-top: 1.85rem;
+    padding-top: 1.35rem;
     padding-bottom: 2.35rem;
+}
+
+[data-theme="papyrus"] .greeting-row {
+    width: min(100%, 52rem);
+    min-height: clamp(18rem, 34vh, 23rem);
+    margin: auto 0;
+    justify-content: center;
+    padding: 2.2rem 2rem;
+    border-radius: 30px;
+    border: 1px solid rgba(126, 89, 52, 0.14);
+    background:
+        linear-gradient(180deg, rgba(248, 240, 224, 0.78), rgba(229, 212, 184, 0.7)),
+        repeating-linear-gradient(180deg,
+            rgba(128, 98, 61, 0) 0 12px,
+            rgba(128, 98, 61, 0.045) 12px 13px,
+            rgba(128, 98, 61, 0) 13px 26px),
+        radial-gradient(circle at 14% 22%, rgba(107, 79, 45, 0.08) 0 1px, transparent 1.6px),
+        radial-gradient(circle at 72% 18%, rgba(143, 108, 63, 0.06) 0 1.1px, transparent 1.7px);
+    box-shadow:
+        0 18px 42px rgba(39, 23, 14, 0.12),
+        inset 0 1px 0 rgba(255, 249, 237, 0.68);
 }
 
 [data-theme="papyrus"] .greeting-icon,
@@ -296,6 +369,11 @@
 [data-theme="papyrus"] .session-item-meta,
 [data-theme="papyrus"] .session-empty {
     color: var(--text-secondary);
+}
+
+[data-theme="papyrus"] .greeting-text {
+    color: rgba(63, 44, 28, 0.76);
+    font-size: 1.06rem;
 }
 
 [data-theme="papyrus"] .bubble {
@@ -636,6 +714,28 @@
     background: linear-gradient(90deg, rgba(222, 196, 153, 0.78), rgba(238, 228, 207, 0.92));
     border-color: rgba(143, 99, 57, 0.24);
     box-shadow: 0 10px 20px rgba(36, 21, 13, 0.1);
+}
+
+@media (max-width: 1200px) {
+    [data-theme="papyrus"] .header-actions {
+        max-width: calc(100vw - 170px);
+    }
+}
+
+@media (max-width: 767px) {
+    [data-theme="papyrus"] .header-actions {
+        max-width: calc(100vw - 96px);
+    }
+
+    [data-theme="papyrus"] .greeting-row {
+        min-height: clamp(14rem, 30vh, 18rem);
+        padding: 1.6rem 1.1rem;
+        border-radius: 22px;
+    }
+
+    [data-theme="papyrus"] .greeting-text {
+        font-size: 0.94rem;
+    }
 }
 
 [data-theme="papyrus"] .session-item-preview,
