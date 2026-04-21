@@ -774,7 +774,10 @@ func handleOpenRouterCredits(s *Server) http.HandlerFunc {
 		var apiKey, baseURL string
 		found := false
 
-		// Check primary LLM
+		// Only check the currently active main/helper LLM paths here.
+		// This endpoint is polled by the UI and should not emit auth warnings just
+		// because some unrelated provider entry somewhere else in the config uses
+		// OpenRouter. The explicit /credits command can still do broader fallback.
 		if strings.ToLower(s.Cfg.LLM.ProviderType) == "openrouter" && s.Cfg.LLM.APIKey != "" {
 			apiKey = s.Cfg.LLM.APIKey
 			baseURL = s.Cfg.LLM.BaseURL
@@ -784,16 +787,6 @@ func handleOpenRouterCredits(s *Server) http.HandlerFunc {
 			apiKey = s.Cfg.LLM.HelperAPIKey
 			baseURL = s.Cfg.LLM.HelperBaseURL
 			found = true
-		} else {
-			// Check all other providers (e.g. Vision, Whisper, Embeddings might use OpenRouter)
-			for _, p := range s.Cfg.Providers {
-				if strings.ToLower(p.Type) == "openrouter" && p.APIKey != "" {
-					apiKey = p.APIKey
-					baseURL = p.BaseURL
-					found = true
-					break
-				}
-			}
 		}
 
 		// Trim whitespace defensively — vault values can occasionally have trailing
