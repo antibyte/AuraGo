@@ -55,3 +55,55 @@ func TestKnownReasoningExtractedActionSet_IncludesSkillShortcutUnderlyingAction(
 		t.Fatal("expected underlying brave_search action in known reasoning action set")
 	}
 }
+
+func TestShouldAcceptParsedTextToolCallsInNativeMode_AcceptsActiveContentJSONTool(t *testing.T) {
+	currentTools := []openai.Tool{
+		makeTool("skill__brave_search"),
+		makeTool("document_creator"),
+	}
+
+	ok := shouldAcceptParsedTextToolCallsInNativeMode(
+		currentTools,
+		ToolCallParseSourceContentJSON,
+		ToolCall{IsTool: true, Action: "brave_search"},
+		[]ToolCall{{IsTool: true, Action: "document_creator"}},
+	)
+
+	if !ok {
+		t.Fatal("expected active content_json tool calls to be accepted in native mode")
+	}
+}
+
+func TestShouldAcceptParsedTextToolCallsInNativeMode_RejectsUnknownAction(t *testing.T) {
+	currentTools := []openai.Tool{
+		makeTool("document_creator"),
+	}
+
+	ok := shouldAcceptParsedTextToolCallsInNativeMode(
+		currentTools,
+		ToolCallParseSourceContentJSON,
+		ToolCall{IsTool: true, Action: "brave_search"},
+		nil,
+	)
+
+	if ok {
+		t.Fatal("did not expect unknown content_json tool call to be accepted in native mode")
+	}
+}
+
+func TestShouldAcceptParsedTextToolCallsInNativeMode_RejectsReasoningJSON(t *testing.T) {
+	currentTools := []openai.Tool{
+		makeTool("document_creator"),
+	}
+
+	ok := shouldAcceptParsedTextToolCallsInNativeMode(
+		currentTools,
+		ToolCallParseSourceReasoningCleanJSON,
+		ToolCall{IsTool: true, Action: "document_creator"},
+		nil,
+	)
+
+	if ok {
+		t.Fatal("did not expect reasoning_clean_json tool calls to be auto-accepted in native mode")
+	}
+}

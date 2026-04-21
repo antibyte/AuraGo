@@ -54,3 +54,28 @@ func normalizeParsedToolShortcut(tc ToolCall) ToolCall {
 	}
 	return tc
 }
+
+func shouldAcceptParsedTextToolCallsInNativeMode(currentTools []openai.Tool, parseSource ToolCallParseSource, primary ToolCall, pending []ToolCall) bool {
+	if parseSource != ToolCallParseSourceContentJSON {
+		return false
+	}
+	if !primary.IsTool || strings.TrimSpace(primary.Action) == "" {
+		return false
+	}
+
+	knownActions := knownReasoningExtractedActionSet(currentTools, nil)
+	if _, ok := knownActions[strings.TrimSpace(primary.Action)]; !ok {
+		return false
+	}
+
+	for _, extra := range pending {
+		if !extra.IsTool || strings.TrimSpace(extra.Action) == "" {
+			return false
+		}
+		if _, ok := knownActions[strings.TrimSpace(extra.Action)]; !ok {
+			return false
+		}
+	}
+
+	return true
+}

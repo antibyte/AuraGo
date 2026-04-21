@@ -155,6 +155,13 @@ func handleAgentLoopRecoveries(s *agentLoopState, content string, tc ToolCall, p
 		!useNativePath &&
 		(parsedToolResp.ParseSource == ToolCallParseSourceReasoningCleanJSON || parsedToolResp.ParseSource == ToolCallParseSourceContentJSON) &&
 		s.invalidNativeToolCount < 2 {
+		if shouldAcceptParsedTextToolCallsInNativeMode(s.req.Tools, parsedToolResp.ParseSource, tc, parsedToolResp.PendingToolCalls) {
+			currentLogger.Warn("[Sync] Accepting parsed text tool call in native mode because actions match the active tool set",
+				"action", tc.Action,
+				"source", parsedToolResp.ParseSource,
+				"pending_count", len(parsedToolResp.PendingToolCalls))
+			return content, tc, false, false
+		}
 		s.invalidNativeToolCount++
 		currentLogger.Warn("[Sync] Non-native text tool call detected while native function calling is enabled, requesting corrected native function call",
 			"attempt", s.invalidNativeToolCount,
