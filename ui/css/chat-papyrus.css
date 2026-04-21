@@ -73,8 +73,13 @@
 [data-theme="papyrus"] .app-header {
     position: relative;
     z-index: 120;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     gap: 1rem;
     flex-wrap: nowrap;
+    min-height: 68px;
+    padding: 0.7rem 1rem;
     background:
         linear-gradient(180deg, rgba(150, 105, 66, 0.12), rgba(0, 0, 0, 0) 24%),
         repeating-linear-gradient(96deg,
@@ -94,6 +99,7 @@
 }
 
 [data-theme="papyrus"] .logo {
+    flex: 0 0 auto;
     margin-right: 1rem;
 }
 
@@ -141,7 +147,14 @@
 }
 
 [data-theme="papyrus"] .header-actions {
+    display: flex;
+    flex: 1 1 auto;
     min-width: 0;
+    align-items: center;
+    align-self: center;
+    justify-content: flex-end;
+    flex-wrap: nowrap;
+    gap: 0.5rem;
 }
 
 [data-theme="papyrus"] .logo span:first-of-type,
@@ -700,16 +713,15 @@
 
 @media (min-width: 1101px) {
     [data-theme="papyrus"] .app-header {
-        padding-top: 0.75rem;
-        padding-bottom: 0.75rem;
+        min-height: 68px;
     }
 
     [data-theme="papyrus"] .app-header .header-actions {
-        flex: 0 1 auto;
-        width: auto;
+        flex: 1 1 auto;
+        width: 100%;
         max-width: none;
         margin-left: 0;
-        justify-content: flex-start;
+        justify-content: flex-end;
         flex-wrap: nowrap;
         overflow: visible;
         padding-right: 0;
@@ -737,6 +749,11 @@
 }
 
 @media (max-width: 767px) {
+    [data-theme="papyrus"] .app-header {
+        min-height: 60px;
+        padding: 0.6rem 1rem;
+    }
+
     [data-theme="papyrus"] .greeting-row {
         min-height: clamp(14rem, 30vh, 18rem);
         padding: 1.6rem 1.1rem;
