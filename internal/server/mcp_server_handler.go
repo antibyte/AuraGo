@@ -261,8 +261,12 @@ func mcpCallTool(ctx context.Context, s *Server, params json.RawMessage) mcpCall
 		// Scan marshaled arguments for prompt injection before dispatch
 		if s.Guardian != nil {
 			if scan := s.Guardian.ScanForInjection(string(argBytes)); scan.Level >= security.ThreatHigh {
-				s.Logger.Warn("[MCP] Prompt injection detected in tool arguments",
+				s.Logger.Warn("[MCP] Prompt injection detected in tool arguments — blocking execution",
 					"tool", p.Name, "level", scan.Level, "patterns", scan.Patterns)
+				return mcpCallToolResult{
+					Content: []mcpContent{{Type: "text", Text: fmt.Sprintf("Security threat detected in tool arguments (level: %s). Execution blocked.", scan.Level)}},
+					IsError: true,
+				}
 			}
 		}
 		json.Unmarshal(argBytes, &tc)

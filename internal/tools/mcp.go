@@ -76,6 +76,31 @@ type jsonRPCError struct {
 
 // ── Single MCP server connection ────────────────────────────────────────────
 
+// safeBuffer is a thread-safe wrapper around bytes.Buffer for capturing
+// process stderr without data races.
+type safeBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (b *safeBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+
+func (b *safeBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
+}
+
+func (b *safeBuffer) Len() int {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Len()
+}
+
 type mcpConn struct {
 	name      string
 	cmd       *exec.Cmd
@@ -85,9 +110,8 @@ type mcpConn struct {
 	nextID    int64
 	tools     []MCPToolInfo
 	ready     bool
-	closeCh   chan struct{}
 	closeOnce sync.Once     // ensures close() is idempotent
-	stderrBuf *bytes.Buffer // captures MCP server stderr for diagnostics
+	stderrBuf *safeBuffer   // captures MCP server stderr for diagnostics
 	runtime   string
 	hostDir   string
 	contDir   string
@@ -158,7 +182,7 @@ func normalizeMCPEnv(env map[string]string) map[string]string {
 	return normalized
 }
 
-func mcpStderrSnippet(stderr *bytes.Buffer) string {
+func mcpStderrSnippet(stderr *safeBuffer) string {
 	if stderr == nil {
 		return ""
 	}
@@ -260,7 +284,7 @@ func newMCPConn(name, command string, args []string, env map[string]string, logg
 		return nil, fmt.Errorf("stdout pipe: %w", err)
 	}
 	// Capture stderr for diagnostics (MCP server startup errors, etc.)
-	stderrBuf := &bytes.Buffer{}
+	stderrBuf := &safeBuffer{}
 	cmd.Stderr = stderrBuf
 
 	if err := cmd.Start(); err != nil {
@@ -276,7 +300,7 @@ func newMCPConn(name, command string, args []string, env map[string]string, logg
 		cmd:       cmd,
 		stdin:     stdinPipe,
 		stdout:    bufio.NewReaderSize(stdoutPipe, 1024*1024), // 1MB buffer for large responses
-		closeCh:   make(chan struct{}),
+
 		stderrBuf: stderrBuf,
 		runtime:   runtimeName,
 		hostDir:   hostWorkdir,
@@ -389,7 +413,7 @@ func (c *mcpConn) send(method string, params interface{}) (*jsonRPCResponse, err
 		line, err := c.stdout.ReadBytes('\n')
 		if err != nil {
 			if c.stderrBuf != nil && c.stderrBuf.Len() > 0 {
-				slog.Default().Error("[MCP] Server stderr", "server", c.name, "stderr", c.stderrBuf.String())
+				return nil, fmt.Errorf("read from stdout: %w (stderr: %s)", err, mcpStderrSnippet(c.stderrBuf))
 			}
 			return nil, fmt.Errorf("read from stdout: %w", err)
 		}
@@ -555,7 +579,6 @@ func (c *mcpConn) callTool(toolName string, arguments map[string]interface{}) (s
 
 func (c *mcpConn) close() {
 	c.closeOnce.Do(func() {
-		close(c.closeCh)
 		c.stdin.Close()
 		// Give the process a moment to exit gracefully
 		done := make(chan error, 1)
@@ -563,7 +586,9 @@ func (c *mcpConn) close() {
 		select {
 		case <-done:
 		case <-time.After(5 * time.Second):
-			c.cmd.Process.Kill()
+			if c.cmd.Process != nil {
+				c.cmd.Process.Kill()
+			}
 		}
 	})
 }
@@ -593,7 +618,12 @@ func InitMCPManager(servers []MCPServerConfig, logger *slog.Logger) *MCPManager 
 	}
 
 	for _, srv := range servers {
-		if !srv.Enabled || srv.Command == "" || srv.Name == "" {
+		if !srv.Enabled || srv.Name == "" {
+			continue
+		}
+		hasCmd := strings.TrimSpace(srv.Command) != ""
+		hasDockerCmd := strings.TrimSpace(srv.DockerCommand) != ""
+		if !hasCmd && (mcpRuntimeMode(srv.Runtime) != "docker" || !hasDockerCmd) {
 			continue
 		}
 		mgr.configs[srv.Name] = srv

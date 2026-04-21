@@ -124,6 +124,22 @@ func TestNormalizeMCPResultTextMapsContainerPathsToHostPaths(t *testing.T) {
 	}
 }
 
+func TestNormalizeMCPResultTextDoesNotReplacePartialPaths(t *testing.T) {
+	// Ensure /work is NOT replaced when it appears inside /workspace
+	hostDir := filepath.Join(t.TempDir(), "app")
+	got := normalizeMCPResultText(`{"path":"/workspace-old/file.txt"}`, hostDir, "/workspace")
+	// /workspace-old should remain untouched because /workspace is a prefix of /workspace-old
+	// but the path does not start with /workspace/ (it starts with /workspace-old/)
+	var decoded map[string]string
+	if err := json.Unmarshal([]byte(got), &decoded); err != nil {
+		t.Fatalf("Unmarshal() error = %v; got=%q", err, got)
+	}
+	// Since /workspace-old does not start with /workspace/, it should be unchanged
+	if decoded["path"] != "/workspace-old/file.txt" {
+		t.Fatalf("path = %q, want %q", decoded["path"], "/workspace-old/file.txt")
+	}
+}
+
 func TestMCPManagerListServersReturnsEmptySlice(t *testing.T) {
 	mgr := &MCPManager{conns: map[string]*mcpConn{}}
 	servers := mgr.ListServers()

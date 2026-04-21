@@ -140,15 +140,31 @@ func normalizeMCPResultValue(value interface{}, hostWorkdir, containerWorkdir st
 	switch typed := value.(type) {
 	case string:
 		containerPath := filepath.ToSlash(containerWorkdir)
+		// Only treat as a prefix match if the container path is followed by
+		// a slash or the end of the string — prevents /workspace matching
+		// inside /workspace-old.
 		if strings.HasPrefix(typed, containerPath) {
-			rel := strings.TrimPrefix(typed, containerPath)
-			rel = strings.TrimPrefix(rel, "/")
-			if rel == "" {
-				return hostWorkdir
+			after := len(containerPath)
+			if after == len(typed) || typed[after] == '/' {
+				rel := strings.TrimPrefix(typed, containerPath)
+				rel = strings.TrimPrefix(rel, "/")
+				if rel == "" {
+					return hostWorkdir
+				}
+				return filepath.Join(hostWorkdir, filepath.FromSlash(rel))
 			}
-			return filepath.Join(hostWorkdir, filepath.FromSlash(rel))
 		}
-		return strings.ReplaceAll(typed, containerPath, hostWorkdir)
+		// Only replace whole-path occurrences to avoid partial substring
+		// replacements (e.g. /work matching inside /workspace).
+		sepPath := containerPath
+		if !strings.HasSuffix(sepPath, "/") {
+			sepPath += "/"
+		}
+		sepHost := hostWorkdir
+		if !strings.HasSuffix(sepHost, string(filepath.Separator)) {
+			sepHost += string(filepath.Separator)
+		}
+		return strings.ReplaceAll(typed, sepPath, sepHost)
 	case map[string]interface{}:
 		for key, item := range typed {
 			typed[key] = normalizeMCPResultValue(item, hostWorkdir, containerWorkdir)
