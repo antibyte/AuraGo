@@ -12,6 +12,8 @@ func TestLookupKnownContextWindow_PrefixMatchingOnly(t *testing.T) {
 		{name: "direct prefix match", model: "qwen2.5-14b", wantSize: 131_072, wantOK: true},
 		{name: "provider style segment match", model: "openrouter/qwen2.5-14b", wantSize: 131_072, wantOK: true},
 		{name: "slash model match", model: "meta-llama/llama-3.1-70b-instruct", wantSize: 131_072, wantOK: true},
+		{name: "kimi k2.6 direct match", model: "kimi-k2.6", wantSize: 262_144, wantOK: true},
+		{name: "kimi k2.6 provider style match", model: "ollama/kimi-k2.6", wantSize: 262_144, wantOK: true},
 		{name: "no contains fallback", model: "my-custom-qwen-adapter", wantSize: 0, wantOK: false},
 	}
 

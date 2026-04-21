@@ -194,3 +194,31 @@ func TestPromoteUploadedImagesToMultiContent_ProviderExtraAllowlist(t *testing.T
 		t.Fatalf("expected MultiContent parts (text + image), got %d", len(out.MultiContent))
 	}
 }
+
+func TestPromoteUploadedImagesToMultiContent_KimiK26ModelAllowlist(t *testing.T) {
+	dir := t.TempDir()
+	attachDir := filepath.Join(dir, "attachments")
+	if err := os.MkdirAll(attachDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(attachDir, "img.png"), []byte{0x89, 0x50, 0x4e, 0x47}, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := &config.Config{}
+	cfg.LLM.Multimodal = true
+	cfg.LLM.ProviderType = "ollama"
+	cfg.LLM.Model = "kimi-k2.6"
+
+	in := openai.ChatCompletionMessage{
+		Role:    openai.ChatMessageRoleUser,
+		Content: "agent_workspace/workdir/attachments/img.png",
+	}
+	out := promoteUploadedImagesToMultiContent(cfg, in, dir, nil)
+	if out.Content != "" {
+		t.Fatalf("expected Content to be empty, got %q", out.Content)
+	}
+	if len(out.MultiContent) != 2 {
+		t.Fatalf("expected MultiContent parts (text + image), got %d", len(out.MultiContent))
+	}
+}

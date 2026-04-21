@@ -44,6 +44,7 @@ var knownContextWindows = []struct {
 
 	// ── Kimi / Moonshot AI (api.moonshot.cn) ─────────────────────────────────
 	// kimi-k2 variants with 256K window before base kimi-k2 (128K)
+	{"kimi-k2.6", 262_144},        // kimi-k2.6 multimodal: 256K
 	{"kimi-k2.5", 262_144},        // kimi-k2.5: 256K
 	{"kimi-k2-thinking", 262_144}, // kimi-k2-thinking / kimi-k2-thinking-turbo: 256K
 	{"kimi-k2-turbo", 262_144},    // kimi-k2-turbo-preview: 256K

@@ -122,10 +122,14 @@ func mainProviderSupportsImageMultimodal(cfg *config.Config) bool {
 		return false
 	}
 	pt := strings.ToLower(strings.TrimSpace(cfg.LLM.ProviderType))
+	model := strings.ToLower(strings.TrimSpace(cfg.LLM.Model))
 	for _, extra := range cfg.LLM.MultimodalProviderTypesExtra {
 		if strings.ToLower(strings.TrimSpace(extra)) == pt && pt != "" {
 			return true
 		}
+	}
+	if modelSupportsImageMultimodal(model) {
+		return true
 	}
 
 	switch pt {
@@ -134,6 +138,20 @@ func mainProviderSupportsImageMultimodal(cfg *config.Config) bool {
 	default:
 		return false
 	}
+}
+
+func modelSupportsImageMultimodal(model string) bool {
+	if model == "" {
+		return false
+	}
+	for _, prefix := range []string{
+		"kimi-k2.6",
+	} {
+		if strings.HasPrefix(model, prefix) {
+			return true
+		}
+	}
+	return false
 }
 
 func fallbackVisionAnalysis(cfg *config.Config, msg openai.ChatCompletionMessage, matches [][]string, logger *slog.Logger) openai.ChatCompletionMessage {
