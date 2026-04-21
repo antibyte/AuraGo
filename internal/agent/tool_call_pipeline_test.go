@@ -680,3 +680,13 @@ func TestFormatNonNativeToolCallFeedbackMentionsNativeAPI(t *testing.T) {
 		t.Fatal("expected feedback to mention the affected tool name")
 	}
 }
+
+func TestFormatDiscoverToolsFirstFeedbackMentionsDiscovery(t *testing.T) {
+	msg := FormatDiscoverToolsFirstFeedback("pdf_operations")
+	if !strings.Contains(msg, "discover_tools") {
+		t.Fatal("expected feedback to require discover_tools first")
+	}
+	if !strings.Contains(msg, "pdf_operations") {
+		t.Fatal("expected feedback to mention the affected tool name")
+	}
+}

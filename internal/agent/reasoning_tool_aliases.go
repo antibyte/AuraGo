@@ -8,22 +8,9 @@ import (
 	openai "github.com/sashabaranov/go-openai"
 )
 
-func directBuiltinSkillActionSet() map[string]struct{} {
-	return map[string]struct{}{
-		"ddg_search":     {},
-		"web_scraper":    {},
-		"wikipedia_search": {},
-		"virustotal_scan": {},
-		"golangci_lint":  {},
-		"brave_search":   {},
-	}
-}
-
 func knownReasoningExtractedActionSet(currentTools []openai.Tool, manifest *tools.Manifest) map[string]struct{} {
-	knownActions := allBuiltinToolNameSet()
-	for action := range directBuiltinSkillActionSet() {
-		knownActions[action] = struct{}{}
-	}
+	_ = manifest
+	knownActions := make(map[string]struct{})
 
 	for _, t := range currentTools {
 		if t.Function == nil {
@@ -37,15 +24,6 @@ func knownReasoningExtractedActionSet(currentTools []openai.Tool, manifest *tool
 		if strings.HasPrefix(name, "skill__") {
 			if normalized, err := tools.ValidateSkillShortcutName(strings.TrimPrefix(name, "skill__")); err == nil {
 				knownActions[normalized] = struct{}{}
-			}
-		}
-	}
-
-	if manifest != nil {
-		if customTools, loadErr := manifest.Load(); loadErr == nil {
-			for name := range customTools {
-				knownActions[name] = struct{}{}
-				knownActions["tool__"+name] = struct{}{}
 			}
 		}
 	}
@@ -76,4 +54,3 @@ func normalizeParsedToolShortcut(tc ToolCall) ToolCall {
 	}
 	return tc
 }
-

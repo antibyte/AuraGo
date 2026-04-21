@@ -680,7 +680,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			flags.RetrievedMemories = "[Memory Policy] This query concerns agent capabilities or tool/integration availability. " +
 				"The authoritative source is the CURRENT TOOL SCHEMA in this context — NOT past memory entries. " +
 				"Memory about tool availability is always considered potentially stale. " +
-				"If you are unsure whether a tool is present, inspect the tool list directly or attempt to use the tool."
+				"If you are unsure whether a tool is present, use discover_tools first. Do not guess, improvise, or attempt hidden tools blindly."
 			s.currentLogger.Debug("[RAG] Capability query: injecting live-state policy hint")
 		}
 
@@ -1215,6 +1215,16 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				knownActions := knownReasoningExtractedActionSet(req.Tools, manifest)
 				if _, known := knownActions[tc.Action]; !known {
 					s.currentLogger.Warn("[Sync] Dropping reasoning-extracted tool call: action not in known tool set", "action", tc.Action)
+					feedbackMsg := applyEmotionRecoveryNudge(FormatDiscoverToolsFirstFeedback(tc.Action), emotionPolicy)
+					msgs := s.recoverySession.PersistRecoveryMessages(PersistRecoveryParams{
+						SessionID:            sessionID,
+						FeedbackMsg:          feedbackMsg,
+						BrokerEventType:      "error_recovery",
+						SkipAssistantPersist: true,
+					}, shortTermMem, historyManager)
+					s.req.Messages = append(s.req.Messages, msgs...)
+					s.lastResponseWasTool = false
+					req = s.req
 					parsedToolResp.ToolCall.IsTool = false
 					tc = parsedToolResp.ToolCall
 					// Also discard any pending calls from the same reasoning block
@@ -1222,6 +1232,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 						s.currentLogger.Warn("[Sync] Dropping pending tool calls from same reasoning block", "count", len(parsedToolResp.PendingToolCalls))
 						parsedToolResp.PendingToolCalls = nil
 					}
+					continue
 				}
 			}
 		}

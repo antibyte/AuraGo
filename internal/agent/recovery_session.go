@@ -175,6 +175,18 @@ func FormatNonNativeToolCallFeedback(toolName string) string {
 	)
 }
 
+// FormatDiscoverToolsFirstFeedback tells the model to resolve hidden or
+// unavailable tools through discover_tools before trying alternatives.
+func FormatDiscoverToolsFirstFeedback(toolName string) string {
+	if toolName == "" {
+		toolName = "the requested tool"
+	}
+	return fmt.Sprintf(
+		"ERROR: %q is not available in your CURRENT active tool list. Before improvising, renaming tools, or trying alternatives, you MUST use discover_tools first. Call discover_tools with search or get_tool_info to find the exact available tool, then use that exact tool on the next turn.",
+		toolName,
+	)
+}
+
 // FormatIncompleteToolCallFeedback returns the feedback message for incomplete tool call tags.
 func FormatIncompleteToolCallFeedback(useNativeFunctions bool, retryCount int) string {
 	if useNativeFunctions {
