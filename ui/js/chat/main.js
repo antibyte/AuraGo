@@ -1238,6 +1238,7 @@ const THEME_ICONS = {
     'dark-sun': '☼',
     'ocean': '◌',
     'sandstorm': '◍',
+    'papyrus': '≋',
     'black-matrix': '▥'
 };
 
