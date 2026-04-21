@@ -78,8 +78,6 @@
     align-items: center;
     gap: 1rem;
     flex-wrap: nowrap;
-    min-height: 68px;
-    padding: 0.7rem 1rem;
     background:
         linear-gradient(180deg, rgba(150, 105, 66, 0.12), rgba(0, 0, 0, 0) 24%),
         repeating-linear-gradient(96deg,
@@ -712,10 +710,6 @@
 }
 
 @media (min-width: 1101px) {
-    [data-theme="papyrus"] .app-header {
-        min-height: 68px;
-    }
-
     [data-theme="papyrus"] .app-header .header-actions {
         flex: 1 1 auto;
         width: 100%;
