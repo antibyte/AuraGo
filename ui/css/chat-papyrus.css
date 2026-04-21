@@ -138,11 +138,10 @@
 
 [data-theme="papyrus"] .header-actions {
     display: flex;
-    flex: 1 1 auto;
+    flex: 0 1 auto;
     min-width: 0;
     align-items: center;
     align-self: center;
-    justify-content: flex-end;
     flex-wrap: nowrap;
     gap: 0.5rem;
 }
@@ -173,7 +172,7 @@
 [data-theme="papyrus"] .btn-header-link,
 [data-theme="papyrus"] #logout-btn,
 [data-theme="papyrus"] .app-header .pill {
-    font-size: 0.95rem;
+    font-size: 0.8rem;
 }
 
 [data-theme="papyrus"] .modal-title {
@@ -395,7 +394,7 @@
         0 14px 28px rgba(48, 30, 18, 0.14);
     color: var(--papyrus-ink);
     font-family: var(--papyrus-font-body);
-    font-size: 1.15rem;
+    font-size: 1.05rem;
 }
 
 [data-theme="papyrus"] .bubble::after {
@@ -769,11 +768,8 @@
 
 @media (min-width: 1101px) {
     [data-theme="papyrus"] .app-header .header-actions {
-        flex: 1 1 auto;
-        width: 100%;
-        max-width: none;
+        flex: 0 1 auto;
         margin-left: 0;
-        justify-content: flex-end;
         flex-wrap: nowrap;
         overflow: visible;
         padding-right: 0;
