@@ -75,8 +75,10 @@
             rgba(94, 58, 35, 0) 14px 34px,
             rgba(133, 90, 54, 0.12) 34px 46px,
             rgba(76, 46, 27, 0) 46px 68px),
-        linear-gradient(180deg, rgba(98, 62, 37, 0.98), rgba(52, 30, 18, 0.99));
-    background-size: auto, 280px 100%, auto;
+        linear-gradient(180deg, rgba(98, 62, 37, 0.98), rgba(52, 30, 18, 0.99)),
+        url('../wood.jpg');
+    background-size: auto, 280px 100%, auto, auto;
+    background-position: 0 0, 0 0, 0 0, 12px 45px;
     border-bottom: 1px solid rgba(212, 176, 126, 0.2);
     box-shadow:
         0 12px 34px rgba(33, 19, 11, 0.28),
@@ -159,6 +161,27 @@
 [data-theme="papyrus"] .btn-header-link,
 [data-theme="papyrus"] #logout-btn {
     font-family: var(--papyrus-font-ui);
+}
+
+[data-theme="papyrus"] .chat-theme-btn,
+[data-theme="papyrus"] .btn-session-toggle,
+[data-theme="papyrus"] .btn-speaker,
+[data-theme="papyrus"] .btn-warnings,
+[data-theme="papyrus"] .select-personality,
+[data-theme="papyrus"] .mood-toggle,
+[data-theme="papyrus"] .btn-header,
+[data-theme="papyrus"] .btn-header-link,
+[data-theme="papyrus"] #logout-btn,
+[data-theme="papyrus"] .app-header .pill {
+    font-size: 0.95rem;
+}
+
+[data-theme="papyrus"] .modal-title {
+    font-size: 1.45rem;
+}
+
+[data-theme="papyrus"] .modal-body {
+    font-size: 1.05rem;
 }
 
 [data-theme="papyrus"] .chat-theme-btn,
@@ -372,6 +395,7 @@
         0 14px 28px rgba(48, 30, 18, 0.14);
     color: var(--papyrus-ink);
     font-family: var(--papyrus-font-body);
+    font-size: 1.15rem;
 }
 
 [data-theme="papyrus"] .bubble::after {
@@ -382,43 +406,50 @@
     background:
         /* top highlight sheen */
         linear-gradient(180deg, rgba(255, 250, 239, 0.52), rgba(255, 250, 239, 0) 22%, rgba(133, 99, 57, 0.03) 100%),
-        /* horizontal papyrus lines */
+        /* horizontal papyrus lines - stronger */
         repeating-linear-gradient(180deg,
-            rgba(130, 100, 66, 0) 0 13px,
-            rgba(130, 100, 66, 0.06) 13px 14px,
+            rgba(130, 100, 66, 0) 0 12px,
+            rgba(130, 100, 66, 0.14) 12px 14px,
             rgba(130, 100, 66, 0) 14px 28px),
-        /* second set of lines offset for organic feel */
+        /* second set of lines offset */
         repeating-linear-gradient(180deg,
-            rgba(130, 100, 66, 0) 0 21px,
-            rgba(130, 100, 66, 0.035) 21px 22px,
-            rgba(130, 100, 66, 0) 22px 44px),
-        /* fibre specks - scattered */
-        radial-gradient(circle at 12% 18%, rgba(109, 79, 46, 0.14) 0 1px, transparent 2px),
-        radial-gradient(circle at 38% 42%, rgba(148, 111, 67, 0.09) 0 1.2px, transparent 2.2px),
-        radial-gradient(circle at 62% 12%, rgba(109, 78, 45, 0.11) 0 0.8px, transparent 1.8px),
-        radial-gradient(circle at 78% 56%, rgba(148, 111, 67, 0.08) 0 1px, transparent 2px),
-        radial-gradient(circle at 88% 84%, rgba(109, 79, 46, 0.1) 0 1.1px, transparent 2.1px),
-        radial-gradient(circle at 25% 76%, rgba(148, 111, 67, 0.07) 0 0.9px, transparent 1.9px),
-        radial-gradient(circle at 52% 68%, rgba(109, 78, 45, 0.09) 0 1px, transparent 2px),
-        /* subtle horizontal fibre streaks */
+            rgba(130, 100, 66, 0) 0 20px,
+            rgba(130, 100, 66, 0.09) 20px 22px,
+            rgba(130, 100, 66, 0) 22px 42px),
+        /* third set for density */
+        repeating-linear-gradient(180deg,
+            rgba(130, 100, 66, 0) 0 34px,
+            rgba(130, 100, 66, 0.06) 34px 35px,
+            rgba(130, 100, 66, 0) 35px 48px),
+        /* fibre specks - stronger */
+        radial-gradient(circle at 12% 18%, rgba(109, 79, 46, 0.28) 0 1.2px, transparent 2.2px),
+        radial-gradient(circle at 38% 42%, rgba(148, 111, 67, 0.18) 0 1.4px, transparent 2.6px),
+        radial-gradient(circle at 62% 12%, rgba(109, 78, 45, 0.22) 0 1px, transparent 2px),
+        radial-gradient(circle at 78% 56%, rgba(148, 111, 67, 0.16) 0 1.2px, transparent 2.2px),
+        radial-gradient(circle at 88% 84%, rgba(109, 79, 46, 0.20) 0 1.3px, transparent 2.3px),
+        radial-gradient(circle at 25% 76%, rgba(148, 111, 67, 0.14) 0 1.1px, transparent 2.1px),
+        radial-gradient(circle at 52% 68%, rgba(109, 78, 45, 0.18) 0 1.2px, transparent 2.2px),
+        radial-gradient(circle at 8% 62%, rgba(148, 111, 67, 0.15) 0 1px, transparent 2px),
+        radial-gradient(circle at 72% 32%, rgba(109, 79, 46, 0.17) 0 1.1px, transparent 2.1px),
+        /* horizontal fibre streaks */
         repeating-linear-gradient(96deg,
             rgba(143, 112, 71, 0) 0 18px,
-            rgba(143, 112, 71, 0.025) 18px 19px,
-            rgba(143, 112, 71, 0) 19px 36px),
+            rgba(143, 112, 71, 0.06) 18px 20px,
+            rgba(143, 112, 71, 0) 20px 36px),
         /* warm vignette */
         radial-gradient(220px 120px at 20% 8%, rgba(255, 250, 241, 0.28), transparent 76%),
         radial-gradient(180px 100px at 82% 88%, rgba(144, 107, 62, 0.1), transparent 74%);
-    background-size: auto, auto, auto, 52px 52px, 68px 68px, 74px 74px, 58px 58px, 64px 64px, 48px 48px, 72px 72px, auto, auto, auto;
-    opacity: 0.92;
+    background-size: auto, auto, auto, auto, 52px 52px, 68px 68px, 74px 74px, 58px 58px, 64px 64px, 48px 48px, 72px 72px, 56px 56px, 64px 64px, auto, auto, auto;
+    opacity: 0.95;
 }
 
 [data-theme="papyrus"] .bubble.bot {
     background:
         linear-gradient(180deg, rgba(247, 239, 223, 0.98), rgba(231, 214, 185, 0.98)),
         repeating-linear-gradient(180deg,
-            rgba(128, 98, 61, 0) 0 16px,
-            rgba(128, 98, 61, 0.04) 16px 17px,
-            rgba(128, 98, 61, 0) 17px 34px);
+            rgba(128, 98, 61, 0) 0 14px,
+            rgba(128, 98, 61, 0.10) 14px 16px,
+            rgba(128, 98, 61, 0) 16px 32px);
     color: var(--papyrus-ink);
 }
 
@@ -430,9 +461,9 @@
     background:
         linear-gradient(180deg, rgba(231, 208, 166, 0.98), rgba(204, 169, 120, 0.98)),
         repeating-linear-gradient(180deg,
-            rgba(128, 98, 61, 0) 0 16px,
-            rgba(128, 98, 61, 0.045) 16px 17px,
-            rgba(128, 98, 61, 0) 17px 34px);
+            rgba(128, 98, 61, 0) 0 14px,
+            rgba(128, 98, 61, 0.11) 14px 16px,
+            rgba(128, 98, 61, 0) 16px 32px);
     color: #2f2013;
     box-shadow:
         inset 0 1px 0 rgba(255, 246, 226, 0.72),
@@ -553,8 +584,10 @@
             rgba(94, 58, 35, 0) 14px 34px,
             rgba(133, 90, 54, 0.11) 34px 46px,
             rgba(76, 46, 27, 0) 46px 68px),
-        linear-gradient(180deg, rgba(91, 56, 34, 0.98), rgba(54, 31, 19, 0.99));
-    background-size: auto, 280px 100%, auto;
+        linear-gradient(180deg, rgba(91, 56, 34, 0.98), rgba(54, 31, 19, 0.99)),
+        url('../wood.jpg');
+    background-size: auto, 280px 100%, auto, auto;
+    background-position: 0 0, 0 0, 0 0, 88px 120px;
     border-top: 1px solid rgba(211, 177, 129, 0.2);
     box-shadow:
         0 -14px 28px rgba(33, 19, 11, 0.22),
@@ -712,6 +745,10 @@
 [data-theme="papyrus"] .session-drawer-header,
 [data-theme="papyrus"] .modal-title {
     border-bottom-color: rgba(126, 89, 52, 0.16);
+}
+
+[data-theme="papyrus"] .session-drawer-title {
+    font-size: 1.35rem;
 }
 
 [data-theme="papyrus"] .session-item {
