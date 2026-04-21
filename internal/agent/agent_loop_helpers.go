@@ -18,6 +18,20 @@ import (
 var nowFunc = time.Now
 
 var adaptiveToolIntentAliases = map[string][]string{
+	"document_creator": {
+		"create pdf", "generate pdf", "make pdf", "export pdf",
+		"create document", "generate document", "make document",
+		"erstelle eine pdf", "pdf erstellen", "als pdf", "exportiere als pdf",
+		"erstelle ein dokument", "dokument erstellen",
+	},
+	"pdf_operations": {
+		"pdf", "pdf file", "pdf files", "portable document format",
+		"pdf erstellen", "eine pdf", "als pdf",
+	},
+	"send_document": {
+		"send pdf", "send document", "download pdf", "document download",
+		"pdf senden", "dokument senden",
+	},
 	"chromecast": {
 		"google home mini", "google home", "google cast",
 		"spiel es nochmal ab", "spiele es nochmal ab", "spiel es ab", "spiele es ab",

@@ -366,6 +366,19 @@ func TestExtractIntentMatchedToolsMatchesMCPAliases(t *testing.T) {
 	}
 }
 
+func TestExtractIntentMatchedToolsMatchesPDFAliases(t *testing.T) {
+	matches := extractIntentMatchedTools(
+		"such mal die neuesten ki news und erstelle eine pdf",
+		[]string{"document_creator", "pdf_operations", "send_document", "tts"},
+	)
+	if !containsName(matches, "document_creator") {
+		t.Fatalf("expected document_creator alias match, got %v", matches)
+	}
+	if !containsName(matches, "pdf_operations") {
+		t.Fatalf("expected pdf_operations alias match, got %v", matches)
+	}
+}
+
 func TestExpandAdaptiveAlwaysIncludeAddsMCPCallWhenEnabled(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Agent.AllowMCP = true
