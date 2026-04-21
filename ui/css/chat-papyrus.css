@@ -57,8 +57,8 @@
 
 [data-theme="papyrus"] body {
     background:
-        /* subtle warm tint overlay */
-        linear-gradient(180deg, rgba(199, 175, 136, 0.65) 0%, rgba(214, 193, 155, 0.6) 40%, rgba(205, 178, 135, 0.65) 100%),
+        /* very subtle warm tint overlay */
+        linear-gradient(180deg, rgba(199, 175, 136, 0.18) 0%, rgba(214, 193, 155, 0.14) 40%, rgba(205, 178, 135, 0.18) 100%),
         /* soft light orbs */
         radial-gradient(circle at 14% 10%, rgba(182, 143, 92, 0.14), transparent 18%),
         radial-gradient(circle at 88% 12%, rgba(252, 243, 224, 0.22), transparent 22%),
