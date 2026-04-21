@@ -262,6 +262,8 @@
     isolation: auto;
     position: relative;
     z-index: 1;
+    margin-left: clamp(1.5rem, 4vw, 3.5rem);
+    margin-right: clamp(1.5rem, 4vw, 3.5rem);
     background:
         radial-gradient(circle at 12% 18%, rgba(169, 127, 75, 0.14), transparent 22%),
         radial-gradient(circle at 84% 14%, rgba(255, 247, 229, 0.26), transparent 24%),
@@ -271,7 +273,9 @@
     animation: none;
     box-shadow:
         inset 0 18px 34px rgba(255, 248, 233, 0.14),
-        inset 0 -18px 28px rgba(120, 86, 48, 0.08);
+        inset 0 -18px 28px rgba(120, 86, 48, 0.08),
+        -2px 0 8px rgba(52, 32, 20, 0.18),
+        2px 0 8px rgba(52, 32, 20, 0.18);
 }
 
 [data-theme="papyrus"] #chat-box::before {
@@ -760,6 +764,14 @@
 }
 
 @media (max-width: 767px) {
+    [data-theme="papyrus"] #chat-box {
+        margin-left: 0;
+        margin-right: 0;
+        box-shadow:
+            inset 0 18px 34px rgba(255, 248, 233, 0.14),
+            inset 0 -18px 28px rgba(120, 86, 48, 0.08);
+    }
+
     [data-theme="papyrus"] .greeting-row {
         min-height: clamp(14rem, 30vh, 18rem);
         padding: 1.6rem 1.1rem;
