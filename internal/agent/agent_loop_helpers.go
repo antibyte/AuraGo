@@ -17,38 +17,6 @@ import (
 
 var nowFunc = time.Now
 
-var adaptiveToolIntentAliases = map[string][]string{
-	"document_creator": {
-		"create pdf", "generate pdf", "make pdf", "export pdf",
-		"create document", "generate document", "make document",
-		"erstelle eine pdf", "pdf erstellen", "als pdf", "exportiere als pdf",
-		"erstelle ein dokument", "dokument erstellen",
-	},
-	"pdf_operations": {
-		"pdf", "pdf file", "pdf files", "portable document format",
-		"pdf erstellen", "eine pdf", "als pdf",
-	},
-	"send_document": {
-		"send pdf", "send document", "download pdf", "document download",
-		"pdf senden", "dokument senden",
-	},
-	"chromecast": {
-		"google home mini", "google home", "google cast",
-		"spiel es nochmal ab", "spiele es nochmal ab", "spiel es ab", "spiele es ab",
-		"spiel den song ab", "spiele den song ab", "play it again", "play it",
-	},
-	"browser_automation": {
-		"browser automation", "use the browser", "open the browser", "nutze den browser",
-		"oeffne die webseite", "öffne die webseite", "klicke dich durch", "fill the form",
-		"fülle das formular aus", "fill in the field", "browser session", "take a browser screenshot",
-	},
-	"mcp_call": {
-		"mcp", "mcp tool", "mcp tools", "mcp server", "mcp servers",
-		"model context protocol", "teste das neue mcp tool", "test the new mcp tool",
-		"teste das mcp tool", "use mcp", "nutze mcp",
-	},
-}
-
 func ShouldReloadCoreMemory(dirty bool, loadedAt time.Time, dbUpdatedAt, cachedUpdatedAt time.Time) bool {
 	if dirty {
 		return true
@@ -192,6 +160,41 @@ type toolGuideSearcher interface {
 }
 
 var nonAlphaNumPattern = regexp.MustCompile(`[^a-z0-9]+`)
+var adaptiveFamilySeedTools = map[string][]string{
+	"files": {
+		"filesystem", "smart_file_read", "file_search", "file_reader_advanced",
+		"detect_file_type", "pdf_operations", "document_creator", "send_document",
+	},
+	"shell": {
+		"execute_shell", "execute_python", "execute_sandbox", "filesystem",
+	},
+	"coding": {
+		"execute_python", "execute_sandbox", "execute_shell", "document_creator",
+	},
+	"web": {
+		"web_scraper", "site_crawler", "web_capture", "document_creator",
+	},
+	"deployment": {
+		"homepage", "netlify", "homepage_registry", "filesystem", "file_editor",
+	},
+	"network": {
+		"network_ping", "dns_lookup", "port_scanner", "mdns_scan", "upnp_scan",
+	},
+	"infra": {
+		"docker", "proxmox", "tailscale", "github", "ansible", "remote_execution",
+	},
+	"communication": {
+		"fetch_email", "send_email", "send_document", "send_audio",
+	},
+	"automation": {
+		"cron_scheduler", "follow_up", "manage_missions", "co_agent",
+	},
+	"media": {
+		"media_registry", "send_document", "send_audio", "send_image", "tts",
+		"transcribe_audio", "generate_image", "generate_music", "chromecast",
+	},
+}
+
 var adaptiveToolNeighbors = map[string][]string{
 	// Web & Hosting
 	"homepage":          {"netlify", "homepage_registry", "filesystem", "file_editor"},
@@ -446,17 +449,6 @@ func collectRecentUserIntentText(messages []openai.ChatCompletionMessage, maxMes
 	return joined[len(joined)-maxChars:]
 }
 
-func adaptiveIntentAliasPriority(toolName, normalizedQuery string) (int, bool) {
-	aliases := adaptiveToolIntentAliases[toolName]
-	for _, alias := range aliases {
-		normalizedAlias := normalizeAdaptiveIntentText(alias)
-		if normalizedAlias != "" && strings.Contains(normalizedQuery, normalizedAlias) {
-			return 0, true
-		}
-	}
-	return 0, false
-}
-
 func extractIntentMatchedTools(userQuery string, availableTools []string) []string {
 	normalizedQuery := normalizeAdaptiveIntentText(userQuery)
 	if normalizedQuery == "" || len(availableTools) == 0 {
@@ -481,9 +473,7 @@ func extractIntentMatchedTools(userQuery string, availableTools []string) []stri
 		}
 
 		priority := -1
-		switch aliasPriority, ok := adaptiveIntentAliasPriority(tool, normalizedQuery); {
-		case ok:
-			priority = aliasPriority
+		switch {
 		case strings.Contains(normalizedQuery, normalizedTool):
 			priority = 0
 		default:
@@ -525,6 +515,14 @@ func extractIntentMatchedTools(userQuery string, availableTools []string) []stri
 		result = append(result, match.name)
 	}
 	return result
+}
+
+func adaptiveFamilySeedsForQuery(userQuery string) []string {
+	family := inferToolFamilyFromQuery(userQuery)
+	if family == "" {
+		return nil
+	}
+	return adaptiveFamilySeedTools[family]
 }
 
 func expandAdaptiveAlwaysInclude(cfg *config.Config, alwaysInclude []string) []string {
@@ -581,10 +579,6 @@ func buildAdaptiveToolPriority(schemas []openai.Tool, weightedUsage []string, us
 		prioritized = append(prioritized, name)
 	}
 
-	for _, tool := range extractIntentMatchedTools(userQuery, available) {
-		add(tool)
-	}
-
 	if guideSearcher != nil && strings.TrimSpace(userQuery) != "" {
 		paths, err := guideSearcher.SearchToolGuides(userQuery, 4)
 		if err != nil {
@@ -597,6 +591,14 @@ func buildAdaptiveToolPriority(schemas []openai.Tool, weightedUsage []string, us
 				add(name)
 			}
 		}
+	}
+
+	for _, tool := range adaptiveFamilySeedsForQuery(userQuery) {
+		add(tool)
+	}
+
+	for _, tool := range extractIntentMatchedTools(userQuery, available) {
+		add(tool)
 	}
 
 	seedCount := len(prioritized)

@@ -345,37 +345,39 @@ func TestExtractIntentMatchedToolsMatchesSplitToolNames(t *testing.T) {
 	}
 }
 
-func TestExtractIntentMatchedToolsMatchesChromecastAliases(t *testing.T) {
-	matches := extractIntentMatchedTools("spiele den song bitte auf dem google home mini ab", []string{"chromecast", "koofr", "filesystem"})
-	if !containsName(matches, "chromecast") {
-		t.Fatalf("expected chromecast alias match, got %v", matches)
+func TestAdaptiveFamilySeedsForQueryIncludesDocumentToolsForPDFRequests(t *testing.T) {
+	seeds := adaptiveFamilySeedsForQuery("such mal die neuesten ki news und erstelle eine pdf")
+	if !containsName(seeds, "pdf_operations") {
+		t.Fatalf("expected pdf_operations family seed, got %v", seeds)
+	}
+	if !containsName(seeds, "document_creator") {
+		t.Fatalf("expected document_creator family seed, got %v", seeds)
 	}
 }
 
-func TestExtractIntentMatchedToolsMatchesChromecastRepeatPlaybackAlias(t *testing.T) {
-	matches := extractIntentMatchedTools("spiel es nochmal ab", []string{"chromecast", "koofr", "filesystem"})
-	if !containsName(matches, "chromecast") {
-		t.Fatalf("expected chromecast repeat-playback alias match, got %v", matches)
+func TestBuildAdaptiveToolPriorityUsesSemanticAndFamilySignals(t *testing.T) {
+	schemas := []openai.Tool{
+		makeTool("document_creator"),
+		makeTool("pdf_operations"),
+		makeTool("send_document"),
+		makeTool("tts"),
 	}
-}
 
-func TestExtractIntentMatchedToolsMatchesMCPAliases(t *testing.T) {
-	matches := extractIntentMatchedTools("teste das neue mcp tool minimax", []string{"mcp_call", "filesystem", "execute_skill"})
-	if !containsName(matches, "mcp_call") {
-		t.Fatalf("expected mcp_call alias match, got %v", matches)
-	}
-}
-
-func TestExtractIntentMatchedToolsMatchesPDFAliases(t *testing.T) {
-	matches := extractIntentMatchedTools(
-		"such mal die neuesten ki news und erstelle eine pdf",
-		[]string{"document_creator", "pdf_operations", "send_document", "tts"},
+	got := buildAdaptiveToolPriority(
+		schemas,
+		nil,
+		"erstelle bitte eine pdf aus den neuesten ki news",
+		fakeGuideSearcher{paths: []string{
+			filepath.Join("prompts", "tools_manuals", "document_creator.md"),
+		}},
+		nil,
 	)
-	if !containsName(matches, "document_creator") {
-		t.Fatalf("expected document_creator alias match, got %v", matches)
+
+	if !containsName(got, "document_creator") {
+		t.Fatalf("expected semantic priority to include document_creator, got %v", got)
 	}
-	if !containsName(matches, "pdf_operations") {
-		t.Fatalf("expected pdf_operations alias match, got %v", matches)
+	if !containsName(got, "pdf_operations") {
+		t.Fatalf("expected family priority to include pdf_operations, got %v", got)
 	}
 }
 
@@ -432,7 +434,7 @@ func TestBuildAdaptiveToolPriorityUsesCombinedConversationIntent(t *testing.T) {
 		schemas,
 		[]string{"filesystem"},
 		"hol dir von koofr einen song und spiele ihn auf google home mini ab\nbugs gefixed, probier nochmal",
-		nil,
+		fakeGuideSearcher{paths: []string{filepath.Join("tools_manuals", "chromecast.md")}},
 		nil,
 	)
 
