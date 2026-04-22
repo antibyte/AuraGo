@@ -32,6 +32,7 @@ async function renderBrowserAutomationSection(section) {
     if (helpEnabled) html += '<div class="field-help">' + helpEnabled + '</div>';
     html += '<div class="toggle ' + (integrationEnabled ? 'on' : '') + '" onclick="baToggleIntegration(this.classList.contains(\'on\'))"></div>';
     html += '</div>';
+    html += '<div class="toggle ' + (integrationEnabled ? 'on' : '') + '" data-path="browser_automation.enabled" style="display:none" aria-hidden="true"></div>';
     html += '<div class="toggle ' + (integrationEnabled ? 'on' : '') + '" data-path="tools.browser_automation.enabled" style="display:none" aria-hidden="true"></div>';
 
     if (!integrationEnabled) {
@@ -155,7 +156,7 @@ async function baTestConnection() {
     try {
         const patch = buildConfigPatchFromForm();
         const browserAutomation = patch.browser_automation || {};
-        const toolEnabled = browserAutomation.enabled === true;
+        const toolEnabled = patch.tools?.browser_automation?.enabled === true || browserAutomation.enabled === true;
         const resp = await fetch('/api/browser-automation/test', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
