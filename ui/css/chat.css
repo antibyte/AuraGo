@@ -2006,11 +2006,11 @@
         /* ── Floating action icons ── */
         .floating-icon {
             position: absolute;
-            bottom: 16%;
+            bottom: 24%;
             font-size: 1.2rem;
             pointer-events: none;
             z-index: 0;
-            animation: floatUp 2.5s ease-out forwards;
+            animation: floatUp 3s ease-out forwards;
             line-height: 1;
             filter: drop-shadow(0 0 4px var(--accent-glow));
         }
