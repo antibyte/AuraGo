@@ -88,12 +88,12 @@ Returns the chosen download from the allowed download directory.
 
 - `operation`: required operation name
 - `session_id`: required for all operations except `create_session`
-- `url`: used for `create_session` or `navigate`
-- `selector`: CSS selector for the target element
+- `url`: used for `create_session` and required for `navigate`
+- `selector`: CSS selector for the target element; required for `click`, `type`, `select`, `upload_file`, and selector-based `wait_for`
 - `text`: text for `type`
-- `value`: selected value for `select`
+- `value`: selected value for `select` and required there
 - `key`: key name for `press`
-- `wait_for`: one of `visible`, `hidden`, `attached`, `detached`, `load`, `networkidle`
+- `wait_for`: required for `wait_for`; one of `visible`, `hidden`, `attached`, `detached`, `load`, `networkidle`
 - `timeout_ms`: optional timeout in milliseconds
 - `output_path`: workspace-relative screenshot path
 - `full_page`: full page screenshot

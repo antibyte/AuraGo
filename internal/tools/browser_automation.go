@@ -95,6 +95,51 @@ func browserAutomationNeedsSession(op string) bool {
 	return op != "" && op != "create_session"
 }
 
+func browserAutomationValidateRequest(req BrowserAutomationRequest) error {
+	op := strings.TrimSpace(req.Operation)
+	switch op {
+	case "create_session", "close_session", "extract", "current_state", "screenshot", "list_downloads", "get_download":
+		return nil
+	case "navigate":
+		if strings.TrimSpace(req.URL) == "" {
+			return fmt.Errorf("url is required for navigate")
+		}
+		return nil
+	case "click", "type", "upload_file":
+		if strings.TrimSpace(req.Selector) == "" {
+			return fmt.Errorf("selector is required for %s", op)
+		}
+		return nil
+	case "select":
+		if strings.TrimSpace(req.Selector) == "" {
+			return fmt.Errorf("selector is required for select")
+		}
+		if strings.TrimSpace(req.Value) == "" {
+			return fmt.Errorf("value is required for select")
+		}
+		return nil
+	case "press":
+		return nil
+	case "wait_for":
+		waitFor := strings.TrimSpace(req.WaitFor)
+		switch waitFor {
+		case "visible", "hidden", "attached", "detached":
+			if strings.TrimSpace(req.Selector) == "" {
+				return fmt.Errorf("selector is required for wait_for state %s", waitFor)
+			}
+			return nil
+		case "load", "networkidle":
+			return nil
+		case "":
+			return fmt.Errorf("wait_for is required for wait_for")
+		default:
+			return fmt.Errorf("unsupported wait_for state: %s", waitFor)
+		}
+	default:
+		return fmt.Errorf("unsupported operation: %s", op)
+	}
+}
+
 func browserAutomationResolveWorkspaceRoot(cfg *config.Config) (string, error) {
 	return filepath.Abs(cfg.Directories.WorkspaceDir)
 }
@@ -476,6 +521,9 @@ func ExecuteBrowserAutomation(ctx context.Context, cfg *config.Config, req Brows
 	}
 	if browserAutomationNeedsSession(op) && strings.TrimSpace(req.SessionID) == "" {
 		return browserAutomationJSON(map[string]interface{}{"status": "error", "message": "session_id is required"})
+	}
+	if validationErr := browserAutomationValidateRequest(req); validationErr != nil {
+		return browserAutomationJSON(map[string]interface{}{"status": "error", "operation": op, "message": validationErr.Error()})
 	}
 	if cfg.BrowserAutomation.ReadOnly && browserAutomationReadOnlyBlocked(op) {
 		return browserAutomationJSON(map[string]interface{}{"status": "error", "operation": op, "message": "browser_automation is in read-only mode"})

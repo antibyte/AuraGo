@@ -101,6 +101,86 @@ func TestExecuteBrowserAutomationRejectsUploadOutsideWorkspace(t *testing.T) {
 	}
 }
 
+func TestExecuteBrowserAutomationValidatesOperationInputsBeforeSidecarRequest(t *testing.T) {
+	cfg := browserAutomationTestConfig(t, "http://127.0.0.1:7331")
+
+	tests := []struct {
+		name        string
+		req         BrowserAutomationRequest
+		wantMessage string
+	}{
+		{
+			name: "navigate requires url",
+			req: BrowserAutomationRequest{
+				Operation: "navigate",
+				SessionID: "ba_123",
+			},
+			wantMessage: "url is required for navigate",
+		},
+		{
+			name: "click requires selector",
+			req: BrowserAutomationRequest{
+				Operation: "click",
+				SessionID: "ba_123",
+			},
+			wantMessage: "selector is required for click",
+		},
+		{
+			name: "select requires value",
+			req: BrowserAutomationRequest{
+				Operation: "select",
+				SessionID: "ba_123",
+				Selector:  "#country",
+			},
+			wantMessage: "value is required for select",
+		},
+		{
+			name: "wait_for requires state",
+			req: BrowserAutomationRequest{
+				Operation: "wait_for",
+				SessionID: "ba_123",
+			},
+			wantMessage: "wait_for is required for wait_for",
+		},
+		{
+			name: "wait_for visible requires selector",
+			req: BrowserAutomationRequest{
+				Operation: "wait_for",
+				SessionID: "ba_123",
+				WaitFor:   "visible",
+			},
+			wantMessage: "selector is required for wait_for state visible",
+		},
+		{
+			name: "wait_for rejects unsupported state",
+			req: BrowserAutomationRequest{
+				Operation: "wait_for",
+				SessionID: "ba_123",
+				WaitFor:   "idleish",
+			},
+			wantMessage: "unsupported wait_for state: idleish",
+		},
+		{
+			name: "unknown operation is rejected",
+			req: BrowserAutomationRequest{
+				Operation: "teleport",
+				SessionID: "ba_123",
+			},
+			wantMessage: "unsupported operation: teleport",
+		},
+	}
+
+	for _, tt := range tests {
+		result := decodeBrowserAutomationResult(t, ExecuteBrowserAutomation(context.Background(), cfg, tt.req, nil))
+		if got, _ := result["status"].(string); got != "error" {
+			t.Fatalf("%s: status = %q, want error", tt.name, got)
+		}
+		if msg, _ := result["message"].(string); msg != tt.wantMessage {
+			t.Fatalf("%s: message = %q, want %q", tt.name, msg, tt.wantMessage)
+		}
+	}
+}
+
 func TestExecuteBrowserAutomationMapsScreenshotAndDownloads(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/automation" {
