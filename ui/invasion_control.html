@@ -267,6 +267,91 @@
         </div>
     </div>
 
+    <div class="modal-overlay" id="reconfigure-modal">
+        <div class="modal modal-lg">
+            <div class="modal-header">
+                <h2 id="reconfigure-modal-title" data-i18n="invasion.reconfigure_title">Safe Reconfigure</h2>
+                <button class="modal-close" type="button" data-modal-close="reconfigure-modal">&times;</button>
+            </div>
+            <input type="hidden" id="reconfigure-nest-id">
+            <div class="reconfigure-warning" data-i18n="invasion.reconfigure_warning">⚠️ The egg will be restarted after applying changes.</div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="reconfigure-provider" data-i18n="invasion.provider">Provider</label>
+                    <select id="reconfigure-provider" class="form-select">
+                        <option value="" data-i18n="invasion.reconfigure_keep_current">— Keep Current —</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="reconfigure-model" data-i18n="invasion.model">Model</label>
+                    <input type="text" id="reconfigure-model" data-i18n-placeholder="invasion.reconfigure_ph_model" placeholder="Leave empty to keep current">
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="reconfigure-base-url" data-i18n="invasion.base_url">Base URL</label>
+                <input type="text" id="reconfigure-base-url" data-i18n-placeholder="invasion.reconfigure_ph_base_url" placeholder="Leave empty to keep current">
+            </div>
+            <div class="form-group">
+                <label for="reconfigure-allowed-tools" data-i18n="invasion.allowed_tools">Allowed Tools (JSON Array)</label>
+                <input type="text" id="reconfigure-allowed-tools" placeholder='["shell","python"]'>
+                <small class="hint-subtle" data-i18n="invasion.reconfigure_tools_hint">Available: shell, python, filesystem_write, network_requests, remote_shell, self_update</small>
+            </div>
+            <fieldset class="reconfigure-fieldset">
+                <legend data-i18n="invasion.reconfigure_runtime_flags">Runtime Flags</legend>
+                <div class="reconfigure-toggles">
+                    <div class="toggle-wrap">
+                        <label class="toggle">
+                            <input type="checkbox" id="reconfigure-allow-filesystem">
+                            <span class="slider"></span>
+                        </label>
+                        <span class="toggle-label" data-i18n="invasion.reconfigure_allow_filesystem">Allow Filesystem Write</span>
+                    </div>
+                    <div class="toggle-wrap">
+                        <label class="toggle">
+                            <input type="checkbox" id="reconfigure-allow-network">
+                            <span class="slider"></span>
+                        </label>
+                        <span class="toggle-label" data-i18n="invasion.reconfigure_allow_network">Allow Network Requests</span>
+                    </div>
+                    <div class="toggle-wrap">
+                        <label class="toggle">
+                            <input type="checkbox" id="reconfigure-allow-remote-shell">
+                            <span class="slider"></span>
+                        </label>
+                        <span class="toggle-label" data-i18n="invasion.reconfigure_allow_remote">Allow Remote Shell</span>
+                    </div>
+                    <div class="toggle-wrap">
+                        <label class="toggle">
+                            <input type="checkbox" id="reconfigure-allow-self-update">
+                            <span class="slider"></span>
+                        </label>
+                        <span class="toggle-label" data-i18n="invasion.reconfigure_allow_selfupdate">Allow Self-Update</span>
+                    </div>
+                </div>
+            </fieldset>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" id="reconfigure-cancel-btn" type="button" data-i18n="invasion.cancel">Cancel</button>
+                <button class="btn btn-primary" id="reconfigure-apply-btn" type="button" data-i18n="invasion.reconfigure_apply">Apply & Restart</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="config-history-modal">
+        <div class="modal modal-lg">
+            <div class="modal-header">
+                <h2 id="config-history-title" data-i18n="invasion.config_history_title">Config History</h2>
+                <button class="modal-close" type="button" data-modal-close="config-history-modal">&times;</button>
+            </div>
+            <input type="hidden" id="history-nest-id">
+            <div id="config-history-list" class="config-history-list">
+                <div class="config-history-empty" data-i18n="invasion.config_history_empty">No configuration changes recorded yet.</div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" id="config-history-close-btn" type="button" data-i18n="invasion.cancel">Close</button>
+            </div>
+        </div>
+    </div>
+
     <div class="modal-overlay" id="delete-modal">
         <div class="modal">
             <div class="modal-header">

@@ -6,6 +6,7 @@ let nestsData = [];
 let eggsData = [];
 let providersData = [];
 let deleteTarget = null; // { type: 'nest'|'egg', id, name }
+let configHistoryData = [];
 
 // ── Init ─────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
@@ -30,6 +31,9 @@ function bindInvasionUI() {
     document.getElementById('delete-cancel-btn')?.addEventListener('click', () => closeModal('delete-modal'));
     document.getElementById('btn-delete-confirm')?.addEventListener('click', confirmDelete);
     document.getElementById('delete-confirm-input')?.addEventListener('input', checkDeleteConfirm);
+    document.getElementById('reconfigure-cancel-btn')?.addEventListener('click', () => closeModal('reconfigure-modal'));
+    document.getElementById('reconfigure-apply-btn')?.addEventListener('click', applyReconfigure);
+    document.getElementById('config-history-close-btn')?.addEventListener('click', () => closeModal('config-history-modal'));
 
     document.addEventListener('click', (event) => {
         const tabBtn = event.target.closest('.invasion-tab[data-tab]');
@@ -47,7 +51,7 @@ function bindInvasionUI() {
         const actionBtn = event.target.closest('[data-action]');
         if (!actionBtn) return;
 
-        const { action, id, active, type, name } = actionBtn.dataset;
+        const { action, id, active, type, name, revision } = actionBtn.dataset;
         switch (action) {
             case 'open-create':
                 openCreateModal();
@@ -72,6 +76,15 @@ function bindInvasionUI() {
                 break;
             case 'request-delete':
                 requestDelete(type, id, name);
+                break;
+            case 'reconfigure-nest':
+                openReconfigureModal(id);
+                break;
+            case 'config-history-nest':
+                openConfigHistory(id);
+                break;
+            case 'rollback-config':
+                rollbackConfig(id, revision);
                 break;
         }
     });
@@ -153,6 +166,12 @@ function renderNests() {
             : (hs === 'running' ? `<span class="badge badge-disconnected">${t('invasion.ws_disconnected')}</span>` : '');
         const canHatch = n.egg_id && n.active && (hs === 'idle' || hs === 'failed' || hs === 'stopped');
         const canStop = hs === 'running' || hs === 'hatching';
+        const hasEgg = !!n.egg_id;
+        // Config drift indicator
+        const hasDrift = n.desired_config_rev && n.applied_config_rev && n.desired_config_rev !== n.applied_config_rev;
+        const driftBadge = hasDrift
+            ? `<span class="badge badge-drift" title="${t('invasion.config_drift_tooltip')}">🔄 ${t('invasion.config_drift')}</span>`
+            : (n.applied_config_rev ? `<span class="badge badge-synced">✅ ${t('invasion.config_synced')}</span>` : '');
         let telBadge = '';
         if (n.telemetry) {
             const cpu = Math.round(n.telemetry.cpu_percent || 0);
@@ -172,7 +191,7 @@ function renderNests() {
                         <span class="badge ${n.active ? 'badge-active' : 'badge-inactive'}">
                             ${n.active ? t('invasion.active') : t('invasion.inactive')}
                         </span>
-                        ${hsBadge} ${wsStatus}
+                        ${hsBadge} ${wsStatus} ${driftBadge}
                     </div>
                 </div>
                 <div class="card-meta">
@@ -191,6 +210,8 @@ function renderNests() {
                     <button class="btn btn-sm btn-secondary" data-action="edit-nest" data-id="${escAttr(n.id)}">✏️ ${t('invasion.edit')}</button>
                     ${canHatch ? `<button class="btn btn-sm btn-primary" data-action="hatch-nest" data-id="${escAttr(n.id)}">${t('invasion.hatch')}</button>` : ''}
                     ${canStop ? `<button class="btn btn-sm btn-danger" data-action="stop-nest" data-id="${escAttr(n.id)}">${t('invasion.stop_egg')}</button>` : ''}
+                    ${hasEgg ? `<button class="btn btn-sm btn-secondary" data-action="reconfigure-nest" data-id="${escAttr(n.id)}">🔧 ${t('invasion.reconfigure')}</button>` : ''}
+                    ${hasEgg ? `<button class="btn btn-sm btn-secondary" data-action="config-history-nest" data-id="${escAttr(n.id)}">📋 ${t('invasion.config_history')}</button>` : ''}
                     <button class="btn btn-sm btn-secondary" data-action="toggle-nest" data-id="${escAttr(n.id)}" data-active="${String(!n.active)}">
                         ${n.active ? '⏸️' : '▶️'} ${n.active ? t('invasion.inactive') : t('invasion.active')}
                     </button>
@@ -516,6 +537,189 @@ async function confirmDelete() {
         else await loadEggs();
     } catch (e) { showToast(t('invasion.error') + ': ' + e.message, 'error'); }
     deleteTarget = null;
+}
+
+// ── Safe Reconfigure ─────────────────────────────────────
+async function openReconfigureModal(nestId) {
+    const nest = nestsData.find(n => n.id === nestId);
+    if (!nest) return;
+
+    document.getElementById('reconfigure-nest-id').value = nestId;
+    document.getElementById('reconfigure-modal-title').textContent =
+        t('invasion.reconfigure_title') + ' — ' + nest.name;
+
+    // Populate provider dropdown
+    const sel = document.getElementById('reconfigure-provider');
+    sel.innerHTML = `<option value="">${t('invasion.reconfigure_keep_current')}</option>`;
+    providersData.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = p.name || p.id;
+        sel.appendChild(opt);
+    });
+
+    // Reset all fields
+    document.getElementById('reconfigure-provider').value = '';
+    document.getElementById('reconfigure-model').value = '';
+    document.getElementById('reconfigure-base-url').value = '';
+    document.getElementById('reconfigure-allowed-tools').value = '';
+    document.getElementById('reconfigure-allow-filesystem').checked = false;
+    document.getElementById('reconfigure-allow-network').checked = false;
+    document.getElementById('reconfigure-allow-remote-shell').checked = false;
+    document.getElementById('reconfigure-allow-self-update').checked = false;
+
+    openModal('reconfigure-modal');
+}
+
+async function applyReconfigure() {
+    const nestId = document.getElementById('reconfigure-nest-id').value;
+    if (!nestId) return;
+
+    const allowedToolsRaw = document.getElementById('reconfigure-allowed-tools').value.trim();
+    let allowedTools = null;
+    if (allowedToolsRaw) {
+        try {
+            allowedTools = JSON.parse(allowedToolsRaw);
+            if (!Array.isArray(allowedTools)) {
+                showToast(t('invasion.reconfigure_tools_invalid'), 'error');
+                return;
+            }
+        } catch (e) {
+            showToast(t('invasion.reconfigure_tools_invalid'), 'error');
+            return;
+        }
+    }
+
+    const patch = {};
+    const provider = document.getElementById('reconfigure-provider').value;
+    const model = document.getElementById('reconfigure-model').value.trim();
+    const baseUrl = document.getElementById('reconfigure-base-url').value.trim();
+
+    if (provider) patch.provider = provider;
+    if (model) patch.model = model;
+    if (baseUrl) patch.base_url = baseUrl;
+    if (allowedTools !== null) patch.allowed_tools = allowedTools;
+
+    // Runtime flags — only include if at least one is checked
+    const flags = {
+        allow_filesystem_write: document.getElementById('reconfigure-allow-filesystem').checked,
+        allow_network_requests: document.getElementById('reconfigure-allow-network').checked,
+        allow_remote_shell: document.getElementById('reconfigure-allow-remote-shell').checked,
+        allow_self_update: document.getElementById('reconfigure-allow-self-update').checked,
+    };
+    const anyFlag = Object.values(flags).some(v => v);
+    if (anyFlag) {
+        patch.allow_filesystem_write = flags.allow_filesystem_write;
+        patch.allow_network_requests = flags.allow_network_requests;
+        patch.allow_remote_shell = flags.allow_remote_shell;
+        patch.allow_self_update = flags.allow_self_update;
+    }
+
+    if (Object.keys(patch).length === 0) {
+        showToast(t('invasion.reconfigure_no_changes'), 'error');
+        return;
+    }
+
+    const btn = document.getElementById('reconfigure-apply-btn');
+    btn.disabled = true;
+    btn.textContent = t('invasion.reconfigure_applying');
+
+    try {
+        await api('nests/' + nestId + '/safe-reconfigure', {
+            method: 'POST',
+            body: JSON.stringify(patch)
+        });
+        closeModal('reconfigure-modal');
+        showToast(t('invasion.reconfigure_success'), 'success');
+        await loadNests();
+    } catch (e) {
+        showToast(t('invasion.error') + ': ' + e.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = t('invasion.reconfigure_apply');
+    }
+}
+
+// ── Config History ───────────────────────────────────────
+async function openConfigHistory(nestId) {
+    const nest = nestsData.find(n => n.id === nestId);
+    if (!nest) return;
+
+    document.getElementById('history-nest-id').value = nestId;
+    document.getElementById('config-history-title').textContent =
+        t('invasion.config_history_title') + ' — ' + nest.name;
+
+    const list = document.getElementById('config-history-list');
+    list.innerHTML = `<div class="config-history-loading">${t('invasion.config_history_loading')}</div>`;
+
+    openModal('config-history-modal');
+
+    try {
+        configHistoryData = await api('nests/' + nestId + '/config-history?limit=20');
+        renderConfigHistory(nestId);
+    } catch (e) {
+        list.innerHTML = `<div class="config-history-error">${t('invasion.error')}: ${esc(e.message)}</div>`;
+    }
+}
+
+function renderConfigHistory(nestId) {
+    const list = document.getElementById('config-history-list');
+    if (!configHistoryData || configHistoryData.length === 0) {
+        list.innerHTML = `<div class="config-history-empty">${t('invasion.config_history_empty')}</div>`;
+        return;
+    }
+
+    list.innerHTML = configHistoryData.map(rev => {
+        const date = new Date(rev.created_at).toLocaleString();
+        const statusClass = rev.status === 'applied' ? 'rev-applied' :
+                           rev.status === 'failed' ? 'rev-failed' :
+                           rev.status === 'pending' ? 'rev-pending' : 'rev-rolled-back';
+        const statusText = t('invasion.config_status_' + rev.status) || rev.status;
+        const canRollback = rev.status === 'applied';
+
+        // Parse patch JSON for display
+        let patchSummary = '';
+        try {
+            const patch = JSON.parse(rev.patch_json);
+            patchSummary = Object.keys(patch).map(k => {
+                const label = t('invasion.config_field_' + k) || k;
+                return `<span class="rev-field">${esc(label)}</span>`;
+            }).join(' ');
+        } catch (e) {
+            patchSummary = '<span class="rev-field">—</span>';
+        }
+
+        return `
+            <div class="config-history-item ${statusClass}">
+                <div class="rev-header">
+                    <span class="rev-revision">#${esc(String(rev.revision))}</span>
+                    <span class="rev-status ${statusClass}">${statusText}</span>
+                    <span class="rev-date">${esc(date)}</span>
+                </div>
+                <div class="rev-fields">${patchSummary}</div>
+                ${rev.error_message ? `<div class="rev-error">⚠️ ${esc(rev.error_message)}</div>` : ''}
+                <div class="rev-actions">
+                    <span class="rev-source">${esc(rev.source)}</span>
+                    ${canRollback ? `<button class="btn btn-sm btn-secondary" data-action="rollback-config" data-id="${escAttr(nestId)}" data-revision="${escAttr(rev.id)}">↩️ ${t('invasion.config_rollback')}</button>` : ''}
+                </div>
+            </div>`;
+    }).join('');
+}
+
+async function rollbackConfig(nestId, revisionId) {
+    try {
+        await api('nests/' + nestId + '/config-rollback', {
+            method: 'POST',
+            body: JSON.stringify({ revision_id: revisionId })
+        });
+        showToast(t('invasion.reconfigure_success'), 'success');
+        // Reload history
+        configHistoryData = await api('nests/' + nestId + '/config-history?limit=20');
+        renderConfigHistory(nestId);
+        await loadNests();
+    } catch (e) {
+        showToast(t('invasion.error') + ': ' + e.message, 'error');
+    }
 }
 
 // ── esc() is now provided by shared.js ──

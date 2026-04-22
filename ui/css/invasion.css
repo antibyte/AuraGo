@@ -215,6 +215,197 @@
     border-bottom-color: rgba(71, 85, 105, 0.12);
 }
 
+/* Modal large variant */
+.modal-lg {
+    max-width: 640px;
+}
+
+/* Reconfigure warning */
+.reconfigure-warning {
+    background: var(--warning-dim, rgba(245, 158, 11, 0.1));
+    color: var(--warning, #f59e0b);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 16px;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+/* Reconfigure fieldset */
+.reconfigure-fieldset {
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 16px;
+}
+
+.reconfigure-fieldset legend {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    padding: 0 8px;
+}
+
+.reconfigure-toggles {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+/* Config drift badges */
+.badge-drift {
+    background: rgba(245, 158, 11, 0.15);
+    color: #f59e0b;
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    animation: drift-pulse 2s ease-in-out infinite;
+}
+
+.badge-synced {
+    background: rgba(34, 197, 94, 0.1);
+    color: #22c55e;
+    border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+@keyframes drift-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+/* Config History List */
+.config-history-list {
+    max-height: 480px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 4px 0;
+}
+
+.config-history-empty,
+.config-history-loading {
+    text-align: center;
+    padding: 32px 16px;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.config-history-error {
+    text-align: center;
+    padding: 16px;
+    color: var(--danger);
+    font-size: 0.85rem;
+}
+
+.config-history-item {
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    padding: 12px 14px;
+    transition: border-color 0.2s;
+}
+
+.config-history-item:hover {
+    border-color: var(--accent);
+}
+
+.config-history-item.rev-applied {
+    border-left: 3px solid #22c55e;
+}
+
+.config-history-item.rev-failed {
+    border-left: 3px solid var(--danger);
+}
+
+.config-history-item.rev-pending {
+    border-left: 3px solid #f59e0b;
+}
+
+.config-history-item.rev-rolled-back {
+    border-left: 3px solid var(--text-secondary);
+    opacity: 0.7;
+}
+
+.rev-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+    font-size: 0.85rem;
+}
+
+.rev-revision {
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.rev-status {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+.rev-status.rev-applied {
+    background: rgba(34, 197, 94, 0.15);
+    color: #22c55e;
+}
+
+.rev-status.rev-failed {
+    background: var(--danger-dim);
+    color: var(--danger);
+}
+
+.rev-status.rev-pending {
+    background: rgba(245, 158, 11, 0.15);
+    color: #f59e0b;
+}
+
+.rev-status.rev-rolled-back {
+    background: rgba(148, 163, 184, 0.15);
+    color: var(--text-secondary);
+}
+
+.rev-date {
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    margin-left: auto;
+}
+
+.rev-fields {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 6px;
+}
+
+.rev-field {
+    background: var(--bg-secondary, rgba(148, 163, 184, 0.1));
+    color: var(--text-secondary);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-family: monospace;
+}
+
+.rev-error {
+    color: var(--danger);
+    font-size: 0.8rem;
+    margin-bottom: 6px;
+}
+
+.rev-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.rev-source {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    opacity: 0.7;
+}
+
 /* Responsive */
 @media (max-width: 600px) {
     .cards-grid {
@@ -234,5 +425,11 @@
     .invasion-tab {
         padding: 8px 14px;
         font-size: 0.85rem;
+    }
+    .reconfigure-toggles {
+        grid-template-columns: 1fr;
+    }
+    .modal-lg {
+        max-width: 100%;
     }
 }
