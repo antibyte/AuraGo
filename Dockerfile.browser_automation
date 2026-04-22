@@ -2,8 +2,13 @@ FROM mcr.microsoft.com/playwright:v1.53.0-noble
 
 WORKDIR /app
 
+COPY browser_automation_sidecar/package.json /app/package.json
+COPY browser_automation_sidecar/package-lock.json /app/package-lock.json
+RUN PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm ci --omit=dev
+
 COPY browser_automation_sidecar/server.js /app/server.js
 
+ENV NODE_ENV=production
 ENV PORT=7331
 
 EXPOSE 7331
