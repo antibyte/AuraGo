@@ -203,10 +203,18 @@
                 margin-right: 0.55rem;
             }
 
+            #chat-content {
+                padding-top: 5.9rem;
+            }
+
             .chat-robot-mascot {
                 --chat-robot-size: 72px;
+                position: absolute;
                 left: max(0.5rem, env(safe-area-inset-left, 0px));
+                top: 0.7rem;
+                bottom: auto;
                 opacity: 0.92;
+                z-index: 3;
             }
         }
 
