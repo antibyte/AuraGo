@@ -342,15 +342,15 @@
 }
 
 [data-theme="papyrus"] #chat-box::after {
+    content: '';
     position: absolute;
     inset: 0;
-    width: auto;
-    height: auto;
-    top: auto;
-    left: auto;
     display: block;
-    opacity: 0.065;
-    filter: var(--bg-logo-filter);
+    background: url('../img/aurago_transparent.png') center 52% / clamp(18rem, 38vw, 30rem) auto no-repeat;
+    opacity: 0.12;
+    filter: sepia(0.82) saturate(0.52) brightness(0.82) contrast(0.94);
+    pointer-events: none;
+    z-index: 1;
 }
 
 [data-theme="papyrus"] #chat-content {
@@ -858,6 +858,12 @@
         box-shadow:
             inset 0 18px 34px rgba(255, 248, 233, 0.14),
             inset 0 -18px 28px rgba(120, 86, 48, 0.08);
+    }
+
+    [data-theme="papyrus"] #chat-box::after {
+        background-size: clamp(13rem, 56vw, 20rem);
+        background-position: center 46%;
+        opacity: 0.1;
     }
 
     [data-theme="papyrus"] .greeting-row {
