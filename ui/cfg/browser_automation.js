@@ -8,6 +8,28 @@ function baDefaultSidecarURL() {
         : 'http://127.0.0.1:7331';
 }
 
+function baSyncIntegrationState(enabled) {
+    const state = baEnsureData();
+    state.integration.enabled = enabled === true;
+    state.tool.enabled = enabled === true;
+    return state;
+}
+
+function baHiddenToggle(path, enabled) {
+    return '<div class="toggle ' + (enabled ? 'on' : '') + '" data-path="' + path + '" style="display:none" aria-hidden="true"></div>';
+}
+
+function baApplySuggestedURL(body) {
+    const suggestedURL = body && typeof body.suggested_url === 'string' ? body.suggested_url.trim() : '';
+    if (!suggestedURL) return;
+    const state = baEnsureData();
+    if ((state.integration.url || '').trim() === suggestedURL) return;
+    state.integration.url = suggestedURL;
+    const input = document.querySelector('[data-path="browser_automation.url"]');
+    if (input) input.value = suggestedURL;
+    setDirty(true);
+}
+
 function baEnsureData() {
     if (!configData.browser_automation) configData.browser_automation = {};
     if (!configData.browser_automation.viewport) configData.browser_automation.viewport = {};
@@ -38,8 +60,8 @@ async function renderBrowserAutomationSection(section) {
     if (helpEnabled) html += '<div class="field-help">' + helpEnabled + '</div>';
     html += '<div class="toggle ' + (integrationEnabled ? 'on' : '') + '" onclick="baToggleIntegration(this.classList.contains(\'on\'))"></div>';
     html += '</div>';
-    html += '<div class="toggle ' + (integrationEnabled ? 'on' : '') + '" data-path="browser_automation.enabled" style="display:none" aria-hidden="true"></div>';
-    html += '<div class="toggle ' + (integrationEnabled ? 'on' : '') + '" data-path="tools.browser_automation.enabled" style="display:none" aria-hidden="true"></div>';
+    html += baHiddenToggle('browser_automation.enabled', integrationEnabled);
+    html += baHiddenToggle('tools.browser_automation.enabled', integrationEnabled);
 
     if (!integrationEnabled) {
         html += '<div class="wh-notice"><span>🌐</span><div>';
@@ -145,10 +167,7 @@ function baFieldWithHelp(labelKey, helpKey, inputHtml) {
 }
 
 function baToggleIntegration(isOn) {
-    const state = baEnsureData();
-    const next = !isOn;
-    state.integration.enabled = next;
-    state.tool.enabled = next;
+    baSyncIntegrationState(!isOn);
     setDirty(true);
     renderBrowserAutomationSection(null);
 }
@@ -176,6 +195,7 @@ async function baTestConnection() {
             result.className = 'dc-test-result is-success';
             result.textContent = t('config.browser_automation.status_ok');
         } else {
+            baApplySuggestedURL(body);
             result.className = 'dc-test-result is-danger';
             result.textContent = t('config.browser_automation.status_error') + ' ' + (body.message || ('HTTP ' + resp.status));
         }
