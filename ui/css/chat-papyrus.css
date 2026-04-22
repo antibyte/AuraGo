@@ -51,8 +51,8 @@
     --papyrus-wood-mid: #6f452c;
     --papyrus-wood-light: #9e6d45;
     --papyrus-button: linear-gradient(180deg, rgba(244, 231, 205, 0.98), rgba(218, 194, 154, 0.98));
-    --papyrus-font-ui: 'Darker Grotesque', 'Inter', system-ui, sans-serif;
-    --papyrus-font-body: 'Inter', system-ui, sans-serif;
+    --papyrus-font-ui: 'Special Elite', 'Darker Grotesque', 'Inter', system-ui, sans-serif;
+    --papyrus-font-body: 'Special Elite', 'Inter', system-ui, sans-serif;
 }
 
 [data-theme="papyrus"] body {
