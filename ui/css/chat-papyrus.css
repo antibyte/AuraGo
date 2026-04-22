@@ -168,7 +168,7 @@
 [data-theme="papyrus"] .btn-header,
 [data-theme="papyrus"] .btn-header-link,
 [data-theme="papyrus"] #logout-btn {
-    font-size: 1.14rem;
+    font-size: 0.92rem;
 }
 
 [data-theme="papyrus"] .modal-title {
@@ -331,19 +331,9 @@
     position: absolute;
     inset: 0;
     display: block;
+    pointer-events: none;
     background:
-        linear-gradient(105deg, rgba(255, 248, 232, 0.26), transparent 24%, transparent 78%, rgba(130, 91, 48, 0.07) 100%),
-        repeating-linear-gradient(180deg,
-            rgba(133, 103, 67, 0) 0 9px,
-            rgba(133, 103, 67, 0.05) 9px 10px,
-            rgba(133, 103, 67, 0) 10px 21px),
-        radial-gradient(circle at 12% 20%, rgba(118, 87, 50, 0.12) 0 1.2px, transparent 1.9px),
-        radial-gradient(circle at 75% 18%, rgba(150, 115, 73, 0.08) 0 1px, transparent 1.6px),
-        radial-gradient(circle at 63% 72%, rgba(114, 83, 49, 0.08) 0 1.2px, transparent 1.8px),
-        radial-gradient(220px 120px at 20% 6%, rgba(255, 250, 241, 0.2), transparent 76%),
-        radial-gradient(180px 100px at 82% 84%, rgba(144, 107, 62, 0.08), transparent 74%);
-    background-size: auto, auto, 58px 58px, 74px 74px, 68px 68px, auto, auto;
-    opacity: 0.96;
+        linear-gradient(105deg, rgba(255, 248, 232, 0.26), transparent 24%, transparent 78%, rgba(130, 91, 48, 0.07) 100%);
 }
 
 [data-theme="papyrus"] #chat-box::after {
@@ -374,6 +364,26 @@
     z-index: 3;
     padding-top: 1.35rem;
     padding-bottom: 2.35rem;
+}
+
+[data-theme="papyrus"] #chat-content::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background:
+        repeating-linear-gradient(180deg,
+            rgba(133, 103, 67, 0) 0 9px,
+            rgba(133, 103, 67, 0.05) 9px 10px,
+            rgba(133, 103, 67, 0) 10px 21px),
+        radial-gradient(circle at 12% 20%, rgba(118, 87, 50, 0.12) 0 1.2px, transparent 1.9px),
+        radial-gradient(circle at 75% 18%, rgba(150, 115, 73, 0.08) 0 1px, transparent 1.6px),
+        radial-gradient(circle at 63% 72%, rgba(114, 83, 49, 0.08) 0 1.2px, transparent 1.8px),
+        radial-gradient(220px 120px at 20% 6%, rgba(255, 250, 241, 0.2), transparent 76%),
+        radial-gradient(180px 100px at 82% 84%, rgba(144, 107, 62, 0.08), transparent 74%);
+    background-size: auto, 58px 58px, 74px 74px, 68px 68px, auto, auto;
+    opacity: 0.96;
 }
 
 [data-theme="papyrus"] .greeting-row {
