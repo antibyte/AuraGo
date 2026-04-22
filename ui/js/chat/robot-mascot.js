@@ -1,7 +1,9 @@
 (() => {
     const mascot = document.getElementById('chat-robot-mascot');
     const footer = document.querySelector('.app-footer');
-    if (!mascot || !footer) return;
+    const header = document.querySelector('.app-header');
+    const chatContent = document.getElementById('chat-content');
+    if (!mascot || !footer || !chatContent) return;
 
     const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)');
     const gestures = [
@@ -18,6 +20,8 @@
     let timer = null;
     let activeGesture = null;
     let gestureIndex = 0;
+    let robotState = 'idle';
+    let launchTimer = null;
 
     function setFrame(frameIndex) {
         const clamped = Math.max(0, Math.min(15, Number(frameIndex) || 0));
@@ -42,6 +46,65 @@
         const next = gestures[Math.floor(Math.random() * gestures.length)];
         activeGesture = next;
         gestureIndex = 0;
+    }
+
+    function currentRobotSize() {
+        if (window.innerWidth <= 479) return 64;
+        if (window.innerWidth <= 767) return 72;
+        return 92;
+    }
+
+    function greetingIconEl() {
+        return chatContent.querySelector('.greeting-icon-robot');
+    }
+
+    function greetingActive() {
+        return !!chatContent.querySelector('[data-greeting]');
+    }
+
+    function placeRobot(metrics) {
+        if (!metrics) return;
+        mascot.style.left = `${Math.round(metrics.left)}px`;
+        mascot.style.top = `${Math.round(metrics.top)}px`;
+        mascot.style.bottom = 'auto';
+        mascot.style.width = `${Math.round(metrics.size)}px`;
+        mascot.style.height = `${Math.round(metrics.size)}px`;
+    }
+
+    function greetingMetrics() {
+        const icon = greetingIconEl();
+        if (!icon) return null;
+        const rect = icon.getBoundingClientRect();
+        const size = Math.max(rect.width, rect.height, window.innerWidth <= 767 ? 78 : 96);
+        return {
+            left: rect.left + ((rect.width - size) / 2),
+            top: rect.top + ((rect.height - size) / 2),
+            size
+        };
+    }
+
+    function anchorMetrics() {
+        const size = currentRobotSize();
+        if (window.innerWidth <= 767) {
+            const headerRect = header ? header.getBoundingClientRect() : { bottom: 0 };
+            return {
+                left: 10,
+                top: Math.round((headerRect.bottom || 0) + 10),
+                size
+            };
+        }
+
+        const footerRect = footer.getBoundingClientRect();
+        return {
+            left: Math.round(Math.min(Math.max(12, window.innerWidth * 0.021), 24)),
+            top: Math.round(window.innerHeight - footerRect.height - 18 - size),
+            size
+        };
+    }
+
+    function applyRobotState(nextState) {
+        robotState = nextState;
+        mascot.classList.toggle('is-greeting', nextState === 'greeting');
     }
 
     function tick() {
@@ -78,8 +141,48 @@
         mascot.style.setProperty('--chat-robot-footer-offset', `${footerHeight + extraClearance}px`);
     }
 
-    function start() {
+    function syncPlacement(forceAnchor = false) {
         updateFooterOffset();
+        const metrics = (!forceAnchor && greetingActive()) ? greetingMetrics() : anchorMetrics();
+        applyRobotState((!forceAnchor && greetingActive()) ? 'greeting' : 'anchored');
+        placeRobot(metrics);
+    }
+
+    function anchorImmediately() {
+        window.clearTimeout(launchTimer);
+        applyRobotState('anchored');
+        placeRobot(anchorMetrics());
+    }
+
+    function launchToAnchor() {
+        if (robotState === 'launching' || !greetingActive()) {
+            anchorImmediately();
+            return;
+        }
+
+        const startMetrics = greetingMetrics();
+        const endMetrics = anchorMetrics();
+        if (!startMetrics || !endMetrics || (reduceMotion && reduceMotion.matches)) {
+            anchorImmediately();
+            return;
+        }
+
+        applyRobotState('launching');
+        placeRobot(startMetrics);
+        window.clearTimeout(launchTimer);
+        window.requestAnimationFrame(() => {
+            window.requestAnimationFrame(() => {
+                placeRobot(endMetrics);
+            });
+        });
+
+        launchTimer = window.setTimeout(() => {
+            anchorImmediately();
+        }, 760);
+    }
+
+    function start() {
+        syncPlacement(false);
         setFrame(0);
         tick();
     }
@@ -87,9 +190,15 @@
     if (typeof ResizeObserver !== 'undefined') {
         const observer = new ResizeObserver(updateFooterOffset);
         observer.observe(footer);
+        if (header) observer.observe(header);
+        observer.observe(chatContent);
     }
 
-    window.addEventListener('resize', updateFooterOffset, { passive: true });
+    window.addEventListener('resize', () => {
+        if (robotState !== 'launching') {
+            syncPlacement(robotState !== 'greeting');
+        }
+    }, { passive: true });
     document.addEventListener('visibilitychange', () => {
         if (document.hidden) {
             window.clearTimeout(timer);
@@ -105,6 +214,14 @@
             start();
         });
     }
+
+    window.ChatRobotMascot = {
+        launchToAnchor,
+        anchorImmediately,
+        resetGreeting() {
+            syncPlacement(false);
+        }
+    };
 
     start();
 })();

@@ -42,6 +42,9 @@ function appendMessage(role, text) {
     if (!text || typeof text !== 'string') text = '';
 
     const greet = chatContent.querySelector('[data-greeting]');
+    if (greet && window.ChatRobotMascot && typeof window.ChatRobotMascot.launchToAnchor === 'function') {
+        window.ChatRobotMascot.launchToAnchor();
+    }
     if (greet) greet.remove();
 
     const isUser = role === 'user';

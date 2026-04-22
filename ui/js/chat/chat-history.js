@@ -92,6 +92,9 @@ window.onSessionSwitch = async function (sessionId) {
         if (res.ok) {
             const history = await res.json();
             if (history && history.length > 0) {
+                if (window.ChatRobotMascot && typeof window.ChatRobotMascot.anchorImmediately === 'function') {
+                    window.ChatRobotMascot.anchorImmediately();
+                }
                 await renderHistoryMessagesBatched(history);
             } else {
                 appendMessage('assistant', t('chat.greeting'));
@@ -125,6 +128,9 @@ async function initPage() {
         if (res.ok) {
             const history = await res.json();
             if (history && history.length > 0) {
+                if (window.ChatRobotMascot && typeof window.ChatRobotMascot.anchorImmediately === 'function') {
+                    window.ChatRobotMascot.anchorImmediately();
+                }
                 chatContent.innerHTML = '';
                 await renderHistoryMessagesBatched(history);
             }
@@ -149,6 +155,9 @@ async function initPage() {
             const notes = await res.json();
             if (notes && notes.length > 0) {
                 const greet = chatContent.querySelector('[data-greeting]');
+                if (greet && window.ChatRobotMascot && typeof window.ChatRobotMascot.launchToAnchor === 'function') {
+                    window.ChatRobotMascot.launchToAnchor();
+                }
                 if (greet) greet.remove();
                 notes.forEach(note => {
                     appendMessage('assistant', t('chat.system_briefing_prefix') + note);
