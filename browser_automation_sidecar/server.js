@@ -17,6 +17,8 @@ const MAX_SESSIONS = Math.max(1, parseInt(process.env.MAX_SESSIONS || '3', 10));
 const VIEWPORT_WIDTH = Math.max(320, parseInt(process.env.VIEWPORT_WIDTH || '1280', 10));
 const VIEWPORT_HEIGHT = Math.max(240, parseInt(process.env.VIEWPORT_HEIGHT || '720', 10));
 const HTTP_TIMEOUT_MS = Math.max(1000, parseInt(process.env.HTTP_TIMEOUT_MS || '60000', 10));
+const BODY_READ_TIMEOUT_MS = Math.max(1000, parseInt(process.env.BODY_READ_TIMEOUT_MS || String(Math.min(HTTP_TIMEOUT_MS, 15000)), 10));
+const SHUTDOWN_GRACE_MS = Math.max(1000, parseInt(process.env.SHUTDOWN_GRACE_MS || '10000', 10));
 const MAX_DOWNLOAD_BYTES = Math.max(1024 * 1024, parseInt(process.env.MAX_DOWNLOAD_BYTES || String(100 * 1024 * 1024), 10));
 const MAX_SCREENSHOT_BYTES = Math.max(256 * 1024, parseInt(process.env.MAX_SCREENSHOT_BYTES || String(25 * 1024 * 1024), 10));
 const MAX_DOWNLOAD_RECORDS = Math.max(1, parseInt(process.env.MAX_DOWNLOAD_RECORDS || '25', 10));
@@ -138,7 +140,8 @@ async function destroySession(id) {
   sessions.delete(id);
   try {
     await session.context.close();
-  } catch (_) {
+  } catch (error) {
+    console.warn(`Failed to close browser automation session ${id}:`, error && error.message ? error.message : error);
   }
   for (const screenshotPath of session.screenshots || []) {
     await fs.unlink(screenshotPath).catch(() => {});
@@ -432,14 +435,43 @@ async function handleAutomation(body) {
 async function readBody(req) {
   return new Promise((resolve, reject) => {
     let data = '';
-    req.on('data', (chunk) => {
+    let settled = false;
+    const timeout = setTimeout(() => {
+      cleanup();
+      settled = true;
+      reject(new Error('request body timed out'));
+      req.destroy();
+    }, BODY_READ_TIMEOUT_MS);
+    const cleanup = () => {
+      clearTimeout(timeout);
+      req.removeListener('data', onData);
+      req.removeListener('end', onEnd);
+      req.removeListener('error', onError);
+    };
+    const onData = (chunk) => {
+      if (settled) return;
       data += chunk;
       if (data.length > 1024 * 1024) {
+        settled = true;
+        cleanup();
         reject(new Error('request body too large'));
       }
-    });
-    req.on('end', () => resolve(data));
-    req.on('error', reject);
+    };
+    const onEnd = () => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      resolve(data);
+    };
+    const onError = (error) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      reject(error);
+    };
+    req.on('data', onData);
+    req.on('end', onEnd);
+    req.on('error', onError);
   });
 }
 
@@ -497,6 +529,7 @@ const server = http.createServer({ requestTimeout: HTTP_TIMEOUT_MS }, async (req
       }
       const result = await handleAutomation(body);
       const statusCode = Number.isInteger(result.http_status) ? result.http_status : (result.status === 'error' ? 400 : 200);
+      delete result.http_status;
       return json(res, statusCode, result);
     }
 
@@ -510,7 +543,10 @@ async function shutdown(signal) {
   if (shuttingDown) return;
   shuttingDown = true;
   try {
-    await new Promise((resolve) => server.close(() => resolve()));
+    await Promise.race([
+      new Promise((resolve) => server.close(() => resolve())),
+      new Promise((resolve) => setTimeout(resolve, SHUTDOWN_GRACE_MS))
+    ]);
     const sessionIds = [...sessions.keys()];
     for (const id of sessionIds) {
       await destroySession(id);
