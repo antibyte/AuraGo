@@ -120,3 +120,13 @@ func TestMCPBuildToolListRequiresSQLRuntimeDependencies(t *testing.T) {
 		t.Fatal("unexpected availability for unknown MCP tool")
 	}
 }
+
+func TestMCPFeatureFlagsIncludeMediaConversion(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Tools.MediaConversion.Enabled = true
+
+	flags := mcpFeatureFlags(&Server{Cfg: cfg})
+	if !flags.MediaConversionEnabled {
+		t.Fatal("expected MediaConversionEnabled to be true")
+	}
+}

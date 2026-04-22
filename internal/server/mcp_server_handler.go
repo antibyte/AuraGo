@@ -384,6 +384,7 @@ func mcpFeatureFlags(s *Server) agent.ToolFeatureFlags {
 		FritzBoxTVEnabled:            cfg.FritzBox.Enabled && cfg.FritzBox.TV.Enabled,
 		ContactsEnabled:              cfg.Tools.Contacts.Enabled,
 		PlannerEnabled:               cfg.Tools.Planner.Enabled,
+		MediaConversionEnabled:       cfg.Tools.MediaConversion.Enabled,
 		PythonSecretInjectionEnabled: cfg.Tools.PythonSecretInjection.Enabled,
 	}
 }
