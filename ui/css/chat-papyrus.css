@@ -851,6 +851,20 @@
     }
 }
 
+@media (max-width: 1100px) {
+    [data-theme="papyrus"] .chat-theme-dropdown {
+        position: fixed;
+        top: 64px;
+        right: 12px;
+        left: 12px;
+        min-width: 0;
+        width: auto;
+        max-width: calc(100vw - 24px);
+        max-height: min(70vh, calc(100dvh - 88px));
+        border-radius: 16px;
+    }
+}
+
 @media (max-width: 767px) {
     [data-theme="papyrus"] #chat-box {
         margin-left: 0;
