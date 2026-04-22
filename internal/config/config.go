@@ -2,6 +2,8 @@ package config
 
 import (
 	"fmt"
+	"net"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -55,6 +57,32 @@ func defaultSidecarURL(runningInDocker bool, service string, port int) string {
 		return fmt.Sprintf("http://%s:%d", service, port)
 	}
 	return fmt.Sprintf("http://127.0.0.1:%d", port)
+}
+
+func normalizeLegacySidecarURL(raw string, runningInDocker bool, service string, port int) string {
+	if runningInDocker {
+		return raw
+	}
+
+	parsed, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || parsed == nil {
+		return raw
+	}
+
+	host := parsed.Hostname()
+	if !strings.EqualFold(host, service) {
+		return raw
+	}
+
+	if parsed.Port() != "" && parsed.Port() != fmt.Sprintf("%d", port) {
+		return raw
+	}
+
+	if parsed.Scheme == "" {
+		parsed.Scheme = "http"
+	}
+	parsed.Host = net.JoinHostPort("127.0.0.1", fmt.Sprintf("%d", port))
+	return parsed.String()
 }
 
 func Load(path string) (*Config, error) {
@@ -302,6 +330,8 @@ func Load(path string) (*Config, error) {
 	default:
 		cfg.WebDAV.AuthType = "basic"
 	}
+
+	cfg.BrowserAutomation.URL = normalizeLegacySidecarURL(cfg.BrowserAutomation.URL, runningInDocker, "browser-automation", 7331)
 
 	// Resolve absolute paths for directories
 	cfg.Directories.DataDir = resolvePath(configDir, cfg.Directories.DataDir)

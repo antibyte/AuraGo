@@ -287,6 +287,29 @@ func TestLoadBrowserAutomationDefaults(t *testing.T) {
 	}
 }
 
+func TestLoadMigratesLegacyBrowserAutomationDockerURLOutsideDocker(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	configContent := `
+server:
+  ui_language: en
+browser_automation:
+  url: http://browser-automation:7331
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.BrowserAutomation.URL != "http://127.0.0.1:7331" {
+		t.Fatalf("url = %q, want http://127.0.0.1:7331", cfg.BrowserAutomation.URL)
+	}
+}
+
 func TestDefaultSidecarURL(t *testing.T) {
 	tests := []struct {
 		name            string
@@ -321,6 +344,48 @@ func TestDefaultSidecarURL(t *testing.T) {
 	for _, tt := range tests {
 		if got := defaultSidecarURL(tt.runningInDocker, tt.service, tt.port); got != tt.want {
 			t.Fatalf("%s: defaultSidecarURL(%v, %q, %d) = %q, want %q", tt.name, tt.runningInDocker, tt.service, tt.port, got, tt.want)
+		}
+	}
+}
+
+func TestNormalizeLegacySidecarURL(t *testing.T) {
+	tests := []struct {
+		name            string
+		raw             string
+		runningInDocker bool
+		service         string
+		port            int
+		want            string
+	}{
+		{
+			name:            "non-docker rewrites legacy service host",
+			raw:             "http://browser-automation:7331",
+			runningInDocker: false,
+			service:         "browser-automation",
+			port:            7331,
+			want:            "http://127.0.0.1:7331",
+		},
+		{
+			name:            "docker keeps service host",
+			raw:             "http://browser-automation:7331",
+			runningInDocker: true,
+			service:         "browser-automation",
+			port:            7331,
+			want:            "http://browser-automation:7331",
+		},
+		{
+			name:            "non-matching host stays unchanged",
+			raw:             "http://automation.internal:7331",
+			runningInDocker: false,
+			service:         "browser-automation",
+			port:            7331,
+			want:            "http://automation.internal:7331",
+		},
+	}
+
+	for _, tt := range tests {
+		if got := normalizeLegacySidecarURL(tt.raw, tt.runningInDocker, tt.service, tt.port); got != tt.want {
+			t.Fatalf("%s: normalizeLegacySidecarURL(%q, %v, %q, %d) = %q, want %q", tt.name, tt.raw, tt.runningInDocker, tt.service, tt.port, got, tt.want)
 		}
 	}
 }
