@@ -177,8 +177,10 @@
 [data-theme="papyrus"] .btn-header-link,
 [data-theme="papyrus"] #logout-btn,
 [data-theme="papyrus"] .app-header .pill {
-    font-size: 0.88rem;
+    font-size: 0.82rem;
     line-height: 1.15;
+    padding: 0.3rem 0.6rem;
+    height: 30px;
 }
 
 [data-theme="papyrus"] .modal-title {
@@ -202,7 +204,8 @@
 [data-theme="papyrus"] .mood-toggle,
 [data-theme="papyrus"] .btn-header,
 [data-theme="papyrus"] .btn-header-link,
-[data-theme="papyrus"] #logout-btn {
+[data-theme="papyrus"] #logout-btn,
+[data-theme="papyrus"] .app-header .pill {
     background:
         linear-gradient(180deg, rgba(255, 250, 242, 0.16), rgba(255, 250, 242, 0) 34%),
         var(--papyrus-button);
@@ -893,6 +896,9 @@
     }
 
     [data-theme="papyrus"] .chat-theme-btn,
+    [data-theme="papyrus"] .btn-session-toggle,
+    [data-theme="papyrus"] .btn-speaker,
+    [data-theme="papyrus"] .btn-warnings,
     [data-theme="papyrus"] .select-personality,
     [data-theme="papyrus"] .mood-toggle,
     [data-theme="papyrus"] .btn-header,
@@ -900,7 +906,9 @@
     [data-theme="papyrus"] #logout-btn,
     [data-theme="papyrus"] .app-header .pill,
     [data-theme="papyrus"] .chat-theme-option {
-        font-size: 0.98rem;
+        font-size: 0.88rem;
+        padding: 0.3rem 0.65rem;
+        height: 30px;
     }
 
     [data-theme="papyrus"] .modal-title {
