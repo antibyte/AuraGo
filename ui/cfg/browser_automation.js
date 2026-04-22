@@ -2,6 +2,12 @@
 
 let _baSection = null;
 
+function baDefaultSidecarURL() {
+    return (typeof isDockerRuntime === 'function' && isDockerRuntime())
+        ? 'http://browser-automation:7331'
+        : 'http://127.0.0.1:7331';
+}
+
 function baEnsureData() {
     if (!configData.browser_automation) configData.browser_automation = {};
     if (!configData.browser_automation.viewport) configData.browser_automation.viewport = {};
@@ -63,7 +69,7 @@ async function renderBrowserAutomationSection(section) {
         '</select>');
 
     html += baFieldWithHelp('config.browser_automation.url_label', 'help.browser_automation.url',
-        '<input class="field-input" type="text" value="' + escapeAttr(data.url || 'http://browser-automation:7331') + '" data-path="browser_automation.url">');
+        '<input class="field-input" type="text" value="' + escapeAttr(data.url || baDefaultSidecarURL()) + '" data-path="browser_automation.url">');
 
     html += baFieldWithHelp('config.browser_automation.container_name_label', 'help.browser_automation.container_name',
         '<input class="field-input" type="text" value="' + escapeAttr(data.container_name || 'aurago_browser_automation') + '" data-path="browser_automation.container_name">');

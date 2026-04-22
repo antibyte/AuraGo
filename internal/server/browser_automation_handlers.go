@@ -3,14 +3,59 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
 	"aurago/internal/config"
 	"aurago/internal/tools"
 )
+
+func browserAutomationHealthHint(cfg *config.Config) (string, string) {
+	if cfg == nil {
+		return "", ""
+	}
+	rawURL := strings.TrimSpace(cfg.BrowserAutomation.URL)
+	if rawURL == "" {
+		return "", ""
+	}
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return "", ""
+	}
+	host := strings.ToLower(strings.TrimSpace(parsed.Hostname()))
+	switch {
+	case !cfg.Runtime.IsDocker && host == "browser-automation":
+		return "http://127.0.0.1:7331", "AuraGo is not running in Docker, so the Docker service hostname \"browser-automation\" cannot be resolved here. Use http://127.0.0.1:7331 for a local sidecar, or run AuraGo in Docker together with the browser-automation service."
+	case cfg.Runtime.IsDocker && (host == "127.0.0.1" || host == "localhost" || host == "::1"):
+		return "http://browser-automation:7331", "AuraGo is running in Docker, so localhost points to the AuraGo container itself. Use http://browser-automation:7331 or the reachable sidecar container/service name on the same Docker network."
+	default:
+		return "", ""
+	}
+}
+
+func browserAutomationAnnotateHealth(cfg *config.Config, health map[string]interface{}) map[string]interface{} {
+	if health == nil {
+		return map[string]interface{}{"status": "error", "message": "browser automation health check failed"}
+	}
+	suggestedURL, hint := browserAutomationHealthHint(cfg)
+	if hint == "" {
+		return health
+	}
+	msg, _ := health["message"].(string)
+	if msg == "" {
+		health["message"] = hint
+	} else if !strings.Contains(msg, hint) {
+		health["message"] = fmt.Sprintf("%s Hint: %s", msg, hint)
+	}
+	if suggestedURL != "" {
+		health["suggested_url"] = suggestedURL
+	}
+	return health
+}
 
 func ensureBrowserAutomationReady(ctx context.Context, cfg *config.Config, logger interface {
 	Info(string, ...any)
@@ -31,7 +76,7 @@ func ensureBrowserAutomationReady(ctx context.Context, cfg *config.Config, logge
 	defer ticker.Stop()
 
 	for {
-		health := tools.BrowserAutomationHealth(ctx, cfg)
+		health := browserAutomationAnnotateHealth(cfg, tools.BrowserAutomationHealth(ctx, cfg))
 		if status, _ := health["status"].(string); status == "success" {
 			return health
 		}
@@ -40,7 +85,7 @@ func ensureBrowserAutomationReady(ctx context.Context, cfg *config.Config, logge
 		}
 		select {
 		case <-ctx.Done():
-			if msg, ok := tools.BrowserAutomationHealth(context.Background(), cfg)["message"].(string); ok && msg != "" {
+			if msg, ok := browserAutomationAnnotateHealth(cfg, tools.BrowserAutomationHealth(context.Background(), cfg))["message"].(string); ok && msg != "" {
 				return map[string]interface{}{"status": "error", "message": msg}
 			}
 			return map[string]interface{}{"status": "error", "message": ctx.Err().Error()}
@@ -66,7 +111,7 @@ func handleBrowserAutomationStatus(s *Server) http.HandlerFunc {
 		s.CfgMu.RUnlock()
 		ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 		defer cancel()
-		json.NewEncoder(w).Encode(tools.BrowserAutomationHealth(ctx, &cfg))
+		json.NewEncoder(w).Encode(browserAutomationAnnotateHealth(&cfg, tools.BrowserAutomationHealth(ctx, &cfg)))
 	}
 }
 
