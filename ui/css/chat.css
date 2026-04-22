@@ -604,7 +604,16 @@
             opacity: 0;
         }
 
+        .chat-robot-effects {
+            position: absolute;
+            inset: 0;
+            overflow: visible;
+            pointer-events: none;
+            z-index: 0;
+        }
+
         .chat-robot-sprite {
+            position: relative;
             width: 100%;
             height: 100%;
             background-image: url('/img/image.png?v=20260422b');
@@ -615,6 +624,7 @@
                 calc(var(--chat-robot-row) * 33.3333%);
             transform-origin: 50% 100%;
             will-change: background-position, transform;
+            z-index: 1;
         }
 
         @keyframes chatRobotFloat {
@@ -1987,7 +1997,7 @@
         /* ── Floating action icons ── */
         .floating-icon {
             position: absolute;
-            bottom: 0;
+            bottom: 16%;
             font-size: 1.2rem;
             pointer-events: none;
             z-index: 0;

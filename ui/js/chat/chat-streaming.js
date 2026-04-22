@@ -3,6 +3,7 @@
 /* ── SSE (Server-Sent Events) ── */
 const agentStatusDiv = document.getElementById('agentStatusContainer');
 const agentStatusText = document.getElementById('agentStatusText');
+const chatRobotEffects = document.getElementById('chat-robot-effects');
 
 /* ── Floating action icons ── */
 const TOOL_ICONS = {
@@ -31,8 +32,8 @@ const TOOL_ICONS = {
 };
 
 function spawnFloatingIcon(toolName) {
-    const pill = agentStatusDiv.querySelector('.status-pill');
-    if (!pill || agentStatusDiv.classList.contains('is-hidden')) return;
+    const effectHost = chatRobotEffects || (agentStatusDiv ? agentStatusDiv.querySelector('.status-pill') : null);
+    if (!effectHost || agentStatusDiv.classList.contains('is-hidden')) return;
     const now = Date.now();
     const key = '_lastIcon_' + toolName;
     if (spawnFloatingIcon[key] && now - spawnFloatingIcon[key] < 800) return;
@@ -40,10 +41,10 @@ function spawnFloatingIcon(toolName) {
     const icon = document.createElement('span');
     icon.className = 'floating-icon';
     icon.textContent = TOOL_ICONS[toolName] || TOOL_ICONS._default;
-    const pillW = pill.offsetWidth;
-    const randomX = Math.random() * Math.max(pillW - 16, 20);
+    const hostW = effectHost.offsetWidth || 72;
+    const randomX = (hostW * (0.2 + Math.random() * 0.55));
     icon.style.left = randomX + 'px';
-    pill.appendChild(icon);
+    effectHost.appendChild(icon);
     icon.addEventListener('animationend', () => icon.remove());
 }
 
