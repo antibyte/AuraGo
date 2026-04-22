@@ -13,9 +13,9 @@
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker)](docker-compose.yml)
 
-> **🛠️ Work in Progress** — AuraGo is under active development. Expect occasional breaking changes.
+> **🛠️ Work in Progress** — AuraGo is under active development. Expect occasional breaking changes and stuff that does not work yet.
 >
-> **Testing note** — This is a one-man (and his agents) project. Many things are not tested, or only minimally tested. Windows and macOS support is built in *in theory*, but is not regularly tested.
+> **Testing note** — This is a one-man (and his agents) project. Many things are not tested, or only minimally tested. Windows and macOS support is built in *in theory*, but is *not* tested.
 
 > **🔒 You are in control** — Every feature can be individually disabled: Shell/Python execution, filesystem access, network requests, and self-updates each have their own toggle in the **Danger Zone**. For internet-facing installs, always enable HTTPS, login protection, and 2FA.
 
@@ -55,6 +55,8 @@ Unlike cloud AI services, AuraGo runs **on your hardware**, has **direct access 
 | **🔐 AES-256 Vault** | All secrets encrypted; Web UI with bcrypt passwords and TOTP 2FA |
 | **📱 PWA & Mobile** | Installable as PWA with voice control and TTS for a native mobile experience |
 | **🎨 Built-in Themes** | Choose from Cyberwar, Retro CRT, Dark Sun, or Lollipop |
+| **🔧 TONS of tools and integration** | No need to rely on shady skills from the internet for most tasks |
+| **🎙️ Voice control and text to speech** | Requires HTTPS to work |
 
 ---
 
