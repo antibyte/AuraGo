@@ -51,7 +51,6 @@ Unlike cloud AI services, AuraGo runs **on your hardware**, has **direct access 
 | **🛡️ LLM Guardian** | AI-powered security scanner monitors every tool call and external content for threats |
 | **⚡ Adaptive Tools** | Intelligently filters 90+ tools based on conversation context — saves tokens, improves accuracy |
 | **📄 Document AI** | Create PDFs (invoices, reports) and extract text from documents with LLM analysis |
-| **🤖 Native Function Calling** | OpenAI-compatible tool calls with auto-detection for DeepSeek and other models |
 | **🔐 AES-256 Vault** | All secrets encrypted; Web UI with bcrypt passwords and TOTP 2FA |
 | **📱 PWA & Mobile** | Installable as PWA with voice control and TTS for a native mobile experience |
 | **🎨 Built-in Themes** | Choose from Cyberwar, Retro CRT, Dark Sun, or Lollipop |
