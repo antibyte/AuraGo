@@ -47,30 +47,32 @@ func handleInvasionNests(s *Server) http.HandlerFunc {
 					}
 				}
 				resp = append(resp, nestResponse{
-					NestRecord: invasion.NestRecord{
-						ID:           n.ID,
-						Name:         n.Name,
-						Notes:        n.Notes,
-						AccessType:   n.AccessType,
-						Host:         n.Host,
-						Port:         n.Port,
-						Username:     n.Username,
-						Active:       n.Active,
-						EggID:        n.EggID,
-						HatchStatus:  n.HatchStatus,
-						HatchError:   n.HatchError,
-						LastHatchAt:  n.LastHatchAt,
-						DeployMethod: n.DeployMethod,
-						TargetArch:   n.TargetArch,
-						Route:        n.Route,
-						RouteConfig:  n.RouteConfig,
-						CreatedAt:    n.CreatedAt,
-						UpdatedAt:    n.UpdatedAt,
-					},
-					HasSecret:   n.VaultSecretID != "",
-					WSConnected: hasWS,
-					Telemetry:   tel,
-				})
+						NestRecord: invasion.NestRecord{
+							ID:               n.ID,
+							Name:             n.Name,
+							Notes:            n.Notes,
+							AccessType:       n.AccessType,
+							Host:             n.Host,
+							Port:             n.Port,
+							Username:         n.Username,
+							Active:           n.Active,
+							EggID:            n.EggID,
+							HatchStatus:      n.HatchStatus,
+							HatchError:       n.HatchError,
+							LastHatchAt:      n.LastHatchAt,
+							DeployMethod:     n.DeployMethod,
+							TargetArch:       n.TargetArch,
+							Route:            n.Route,
+							RouteConfig:      n.RouteConfig,
+							DesiredConfigRev: n.DesiredConfigRev,
+							AppliedConfigRev: n.AppliedConfigRev,
+							CreatedAt:        n.CreatedAt,
+							UpdatedAt:        n.UpdatedAt,
+						},
+						HasSecret:   n.VaultSecretID != "",
+						WSConnected: hasWS,
+						Telemetry:   tel,
+					})
 			}
 			writeJSON(w, resp)
 

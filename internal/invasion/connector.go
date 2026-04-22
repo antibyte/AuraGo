@@ -40,4 +40,9 @@ type NestConnector interface {
 
 	// Rollback reverts to the previous deployment backup created during Deploy.
 	Rollback(ctx context.Context, nest NestRecord, secret []byte) error
+
+	// Reconfigure applies a safe config patch to a running egg.
+	// It writes the new config YAML and restarts the egg process/container.
+	// The configYAML parameter contains the fully patched config.
+	Reconfigure(ctx context.Context, nest NestRecord, secret []byte, configYAML []byte) error
 }

@@ -656,3 +656,219 @@ func TestCleanupOldDeployments(t *testing.T) {
 		t.Error("old deployment should be deleted")
 	}
 }
+
+// ── Safe Config Revision tests ──────────────────────────────────────────────
+
+func TestSafeConfigRevision_CRUD(t *testing.T) {
+	db, err := InitDB(tempDB(t))
+	if err != nil {
+		t.Fatalf("InitDB: %v", err)
+	}
+	defer db.Close()
+
+	nest := NestRecord{Name: "Rev Test", AccessType: "ssh", Host: "10.0.0.1", Port: 22, Active: true}
+	nestID, err := CreateNest(db, nest)
+	if err != nil {
+		t.Fatalf("CreateNest: %v", err)
+	}
+
+	egg := EggRecord{Name: "Rev Egg", Model: "gpt-4", Active: true}
+	eggID, err := CreateEgg(db, egg)
+	if err != nil {
+		t.Fatalf("CreateEgg: %v", err)
+	}
+
+	patchJSON := `{"model":"gpt-4o"}`
+	configHash := HashConfigYAML([]byte("test: yaml"))
+
+	// Create
+	revID, err := CreateSafeConfigRevision(db, nestID, eggID, patchJSON, configHash, "safe_reconfigure")
+	if err != nil {
+		t.Fatalf("CreateSafeConfigRevision: %v", err)
+	}
+	if revID == "" {
+		t.Fatal("expected non-empty revision ID")
+	}
+
+	// Get
+	rev, err := GetSafeConfigRevision(db, revID)
+	if err != nil {
+		t.Fatalf("GetSafeConfigRevision: %v", err)
+	}
+	if rev.NestID != nestID {
+		t.Errorf("nest_id = %q, want %q", rev.NestID, nestID)
+	}
+	if rev.EggID != eggID {
+		t.Errorf("egg_id = %q, want %q", rev.EggID, eggID)
+	}
+	if rev.RevisionNumber != 1 {
+		t.Errorf("revision_number = %d, want 1", rev.RevisionNumber)
+	}
+	if rev.Status != "pending" {
+		t.Errorf("status = %q, want pending", rev.Status)
+	}
+	if rev.Source != "safe_reconfigure" {
+		t.Errorf("source = %q, want safe_reconfigure", rev.Source)
+	}
+	if rev.ConfigHash != configHash {
+		t.Errorf("config_hash = %q, want %q", rev.ConfigHash, configHash)
+	}
+
+	// Update to applying
+	if err := UpdateSafeConfigRevisionStatus(db, revID, "applying", ""); err != nil {
+		t.Fatalf("UpdateSafeConfigRevisionStatus applying: %v", err)
+	}
+	rev, _ = GetSafeConfigRevision(db, revID)
+	if rev.Status != "applying" {
+		t.Errorf("status = %q, want applying", rev.Status)
+	}
+
+	// Update to applied
+	if err := UpdateSafeConfigRevisionStatus(db, revID, "applied", ""); err != nil {
+		t.Fatalf("UpdateSafeConfigRevisionStatus applied: %v", err)
+	}
+	rev, _ = GetSafeConfigRevision(db, revID)
+	if rev.Status != "applied" {
+		t.Errorf("status = %q, want applied", rev.Status)
+	}
+	if rev.AppliedAt == "" {
+		t.Error("applied_at should be set")
+	}
+
+	// GetLatestAppliedRevision
+	latest, err := GetLatestAppliedRevision(db, nestID)
+	if err != nil {
+		t.Fatalf("GetLatestAppliedRevision: %v", err)
+	}
+	if latest == nil || latest.ID != revID {
+		t.Errorf("latest applied = %+v, want ID %s", latest, revID)
+	}
+
+	// Create second revision
+	revID2, _ := CreateSafeConfigRevision(db, nestID, eggID, `{"model":"gpt-5"}`, "hash2", "safe_reconfigure")
+	rev2, _ := GetSafeConfigRevision(db, revID2)
+	if rev2.RevisionNumber != 2 {
+		t.Errorf("second revision_number = %d, want 2", rev2.RevisionNumber)
+	}
+
+	// List
+	revs, err := ListSafeConfigRevisions(db, nestID, 10)
+	if err != nil {
+		t.Fatalf("ListSafeConfigRevisions: %v", err)
+	}
+	if len(revs) != 2 {
+		t.Errorf("len(revs) = %d, want 2", len(revs))
+	}
+	// Newest first
+	if revs[0].RevisionNumber != 2 {
+		t.Errorf("first rev number = %d, want 2", revs[0].RevisionNumber)
+	}
+
+	// Update to failed
+	if err := UpdateSafeConfigRevisionStatus(db, revID2, "failed", "test error"); err != nil {
+		t.Fatalf("UpdateSafeConfigRevisionStatus failed: %v", err)
+	}
+	rev2, _ = GetSafeConfigRevision(db, revID2)
+	if rev2.ErrorMessage != "test error" {
+		t.Errorf("error_message = %q, want 'test error'", rev2.ErrorMessage)
+	}
+}
+
+func TestSafeConfigRevision_NestConfigRev(t *testing.T) {
+	db, err := InitDB(tempDB(t))
+	if err != nil {
+		t.Fatalf("InitDB: %v", err)
+	}
+	defer db.Close()
+
+	nest := NestRecord{Name: "CfgRev Test", AccessType: "ssh", Host: "10.0.0.2", Port: 22, Active: true}
+	nestID, _ := CreateNest(db, nest)
+
+	// Update config rev
+	if err := UpdateNestConfigRev(db, nestID, "rev-desired-1", "rev-applied-1"); err != nil {
+		t.Fatalf("UpdateNestConfigRev: %v", err)
+	}
+
+	got, _ := GetNest(db, nestID)
+	if got.DesiredConfigRev != "rev-desired-1" {
+		t.Errorf("desired_config_rev = %q, want 'rev-desired-1'", got.DesiredConfigRev)
+	}
+	if got.AppliedConfigRev != "rev-applied-1" {
+		t.Errorf("applied_config_rev = %q, want 'rev-applied-1'", got.AppliedConfigRev)
+	}
+}
+
+func TestValidateSafeConfigPatch(t *testing.T) {
+	// Valid: empty patch
+	if err := ValidateSafeConfigPatch(SafeConfigPatch{}); err != nil {
+		t.Errorf("empty patch should be valid: %v", err)
+	}
+
+	// Valid: model only
+	model := "gpt-4o"
+	if err := ValidateSafeConfigPatch(SafeConfigPatch{Model: &model}); err != nil {
+		t.Errorf("model-only patch should be valid: %v", err)
+	}
+
+	// Invalid: inherit_llm=true with provider
+	inheritTrue := true
+	provider := "openai"
+	if err := ValidateSafeConfigPatch(SafeConfigPatch{InheritLLM: &inheritTrue, Provider: &provider}); err == nil {
+		t.Error("inherit_llm=true with provider should fail validation")
+	}
+
+	// Invalid: inherit_llm=true with base_url
+	baseURL := "https://api.example.com"
+	if err := ValidateSafeConfigPatch(SafeConfigPatch{InheritLLM: &inheritTrue, BaseURL: &baseURL}); err == nil {
+		t.Error("inherit_llm=true with base_url should fail validation")
+	}
+
+	// Invalid: unknown tool
+	if err := ValidateSafeConfigPatch(SafeConfigPatch{AllowedTools: []string{"shell", "dangerous_tool"}}); err == nil {
+		t.Error("unknown tool should fail validation")
+	}
+
+	// Valid: known tools
+	if err := ValidateSafeConfigPatch(SafeConfigPatch{AllowedTools: []string{"shell", "python"}}); err != nil {
+		t.Errorf("known tools should be valid: %v", err)
+	}
+
+	// Valid: inherit_llm=false with provider
+	inheritFalse := false
+	if err := ValidateSafeConfigPatch(SafeConfigPatch{InheritLLM: &inheritFalse, Provider: &provider}); err != nil {
+		t.Errorf("inherit_llm=false with provider should be valid: %v", err)
+	}
+}
+
+func TestHashConfigYAML(t *testing.T) {
+	h1 := HashConfigYAML([]byte("test: value"))
+	h2 := HashConfigYAML([]byte("test: value"))
+	if h1 != h2 {
+		t.Error("same input should produce same hash")
+	}
+	h3 := HashConfigYAML([]byte("test: other"))
+	if h1 == h3 {
+		t.Error("different input should produce different hash")
+	}
+	if len(h1) != 64 {
+		t.Errorf("hash length = %d, want 64 (SHA-256 hex)", len(h1))
+	}
+}
+
+func TestPatchToJSON_JSONToPatch(t *testing.T) {
+	model := "gpt-4o"
+	patch := SafeConfigPatch{Model: &model}
+
+	jsonStr, err := PatchToJSON(patch)
+	if err != nil {
+		t.Fatalf("PatchToJSON: %v", err)
+	}
+
+	got, err := JSONToPatch(jsonStr)
+	if err != nil {
+		t.Fatalf("JSONToPatch: %v", err)
+	}
+	if got.Model == nil || *got.Model != "gpt-4o" {
+		t.Errorf("model = %+v, want 'gpt-4o'", got.Model)
+	}
+}

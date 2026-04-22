@@ -162,6 +162,20 @@ func (h *EggHub) SendSecret(nestID, key, encryptedValue string) error {
 	return conn.Send(msg)
 }
 
+// SendSafeReconfigure sends a safe config patch to an egg for in-place reconfiguration.
+// The egg applies the patch and restarts. Returns an error if the nest is not connected.
+func (h *EggHub) SendSafeReconfigure(nestID string, payload ReconfigurePayload) error {
+	conn := h.GetConnection(nestID)
+	if conn == nil {
+		return fmt.Errorf("no active connection for nest %s", nestID)
+	}
+	msg, err := NewMessage(MsgSafeReconfigure, conn.EggID, nestID, conn.SharedKey, payload)
+	if err != nil {
+		return fmt.Errorf("failed to create safe_reconfigure message: %w", err)
+	}
+	return conn.Send(msg)
+}
+
 // SendStop sends a graceful shutdown command to an egg.
 func (h *EggHub) SendStop(nestID string) error {
 	conn := h.GetConnection(nestID)

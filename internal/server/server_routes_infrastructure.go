@@ -43,12 +43,18 @@ func (s *Server) registerInfrastructureRoutes(mux *http.ServeMux, shutdownCh cha
 			} else if strings.HasSuffix(path, "/rotate-key") {
 				handleInvasionNestRotateKey(s)(w, r)
 			} else if strings.HasSuffix(path, "/rollback") {
-				handleInvasionNestRollback(s)(w, r)
-			} else if strings.HasSuffix(path, "/deployments") {
-				handleInvasionNestDeployments(s)(w, r)
-			} else {
-				handleInvasionNest(s)(w, r)
-			}
+					handleInvasionNestRollback(s)(w, r)
+				} else if strings.HasSuffix(path, "/deployments") {
+					handleInvasionNestDeployments(s)(w, r)
+				} else if strings.HasSuffix(path, "/safe-reconfigure") {
+					handleInvasionNestSafeReconfigure(s)(w, r)
+				} else if strings.HasSuffix(path, "/config-history") {
+					handleInvasionNestConfigHistory(s)(w, r)
+				} else if strings.HasSuffix(path, "/config-rollback") {
+					handleInvasionNestConfigRollback(s)(w, r)
+				} else {
+					handleInvasionNest(s)(w, r)
+				}
 		})
 		mux.HandleFunc("/api/invasion/ws", handleInvasionWebSocket(s))
 		mux.HandleFunc("/api/invasion/tasks/", handleInvasionTask(s))

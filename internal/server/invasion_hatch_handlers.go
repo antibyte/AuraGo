@@ -810,6 +810,317 @@ func handleInvasionNestDeployments(s *Server) http.HandlerFunc {
 	}
 }
 
+// ── Safe Config Reconfigure API ─────────────────────────────────────────────
+
+// handleInvasionNestSafeReconfigure applies a safe config patch to a running egg.
+// POST /api/invasion/nests/{id}/safe-reconfigure
+// Body: SafeConfigPatch JSON
+func handleInvasionNestSafeReconfigure(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if s.InvasionDB == nil || r.Method != http.MethodPost {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		id := extractNestSubID(r.URL.Path, "safe-reconfigure")
+		if id == "" {
+			jsonError(w, "Missing nest ID", http.StatusBadRequest)
+			return
+		}
+
+		// Parse patch
+		var patch invasion.SafeConfigPatch
+		if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
+			jsonError(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		// Validate patch
+		if err := invasion.ValidateSafeConfigPatch(patch); err != nil {
+			jsonError(w, "Validation failed: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		// Get nest and egg
+		nest, err := invasion.GetNest(s.InvasionDB, id)
+		if err != nil {
+			jsonError(w, "Nest not found", http.StatusNotFound)
+			return
+		}
+		if nest.EggID == "" {
+			jsonError(w, "No egg assigned to this nest", http.StatusBadRequest)
+			return
+		}
+		egg, err := invasion.GetEgg(s.InvasionDB, nest.EggID)
+		if err != nil {
+			jsonError(w, "Egg not found", http.StatusNotFound)
+			return
+		}
+
+		// Generate current config (same as deployEgg)
+		sharedKey, _ := s.Vault.ReadSecret("egg_shared_" + nest.ID)
+		if sharedKey == "" {
+			jsonError(w, "Shared key not found — re-hatch required", http.StatusConflict)
+			return
+		}
+		masterURL := invasion.ResolveMasterURL(s.Cfg, nest)
+		eggMasterKey, _ := s.Vault.ReadSecret("egg_master_key_" + nest.ID)
+		if eggMasterKey == "" {
+			eggMasterKey, _ = invasion.GenerateSharedKey()
+		}
+
+		cfgYAML, err := invasion.GenerateEggConfig(s.Cfg, egg, nest, sharedKey, masterURL, eggMasterKey)
+		if err != nil {
+			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to generate config", "Safe reconfigure config generation failed", err, "nest_id", id)
+			return
+		}
+
+		// Apply patch
+		patchedYAML, err := invasion.ApplySafeConfigPatch(cfgYAML, patch)
+		if err != nil {
+			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to apply patch", "Safe reconfigure patch failed", err, "nest_id", id)
+			return
+		}
+
+		// Create revision record
+		patchJSON, _ := invasion.PatchToJSON(patch)
+		configHash := invasion.HashConfigYAML(patchedYAML)
+		revID, err := invasion.CreateSafeConfigRevision(s.InvasionDB, nest.ID, nest.EggID, patchJSON, configHash, "safe_reconfigure")
+		if err != nil {
+			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to create revision", "Safe reconfigure revision creation failed", err, "nest_id", id)
+			return
+		}
+
+		// Set desired config rev on nest
+		if err := invasion.UpdateNestConfigRev(s.InvasionDB, nest.ID, revID, nest.AppliedConfigRev); err != nil {
+			s.Logger.Warn("Failed to update nest desired_config_rev", "nest_id", id, "error", err)
+		}
+
+		// Mark revision as applying
+		_ = invasion.UpdateSafeConfigRevisionStatus(s.InvasionDB, revID, "applying", "")
+
+		// Get nest secret for connector
+		var secretBytes []byte
+		if nest.VaultSecretID != "" {
+			secretStr, err := s.Vault.ReadSecret(nest.VaultSecretID)
+			if err != nil {
+				_ = invasion.UpdateSafeConfigRevisionStatus(s.InvasionDB, revID, "failed", "failed to read nest secret")
+				jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to read nest secret", "Safe reconfigure secret read failed", err, "nest_id", id)
+				return
+			}
+			secretBytes = []byte(secretStr)
+		}
+
+		// Execute reconfigure via connector
+		connector := invasion.GetConnector(nest)
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+		defer cancel()
+
+		if err := connector.Reconfigure(ctx, nest, secretBytes, patchedYAML); err != nil {
+			_ = invasion.UpdateSafeConfigRevisionStatus(s.InvasionDB, revID, "failed", err.Error())
+			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Reconfigure failed: "+err.Error(), "Safe reconfigure connector failed", err, "nest_id", id)
+			return
+		}
+
+		// Health check
+		time.Sleep(3 * time.Second)
+		if err := connector.HealthCheck(ctx, nest, secretBytes); err != nil {
+			_ = invasion.UpdateSafeConfigRevisionStatus(s.InvasionDB, revID, "failed", "health check after reconfigure failed: "+err.Error())
+			s.Logger.Warn("Health check failed after safe reconfigure", "nest_id", id, "error", err)
+			jsonError(w, "Reconfigure applied but health check failed: "+err.Error(), http.StatusConflict)
+			return
+		}
+
+		// Mark as applied
+		_ = invasion.UpdateSafeConfigRevisionStatus(s.InvasionDB, revID, "applied", "")
+		_ = invasion.UpdateNestConfigRev(s.InvasionDB, nest.ID, revID, revID)
+
+		writeJSON(w, map[string]interface{}{
+			"status":      "applied",
+			"revision_id": revID,
+			"config_hash": configHash,
+			"nest_id":     id,
+		})
+	}
+}
+
+// handleInvasionNestConfigHistory returns the safe config revision history for a nest.
+// GET /api/invasion/nests/{id}/config-history?limit=20
+func handleInvasionNestConfigHistory(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if s.InvasionDB == nil || r.Method != http.MethodGet {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		id := extractNestSubID(r.URL.Path, "config-history")
+		if id == "" {
+			jsonError(w, "Missing nest ID", http.StatusBadRequest)
+			return
+		}
+
+		limit := 20
+		if l := r.URL.Query().Get("limit"); l != "" {
+			if parsed, err := fmt.Sscanf(l, "%d", &limit); err != nil || parsed != 1 {
+				limit = 20
+			}
+		}
+
+		revs, err := invasion.ListSafeConfigRevisions(s.InvasionDB, id, limit)
+		if err != nil {
+			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to list config history", "Config history query failed", err, "nest_id", id)
+			return
+		}
+		if revs == nil {
+			revs = []invasion.SafeConfigRevision{}
+		}
+		writeJSON(w, revs)
+	}
+}
+
+// handleInvasionNestConfigRollback rolls back to a previous safe config revision.
+// POST /api/invasion/nests/{id}/config-rollback
+// Body: {"revision_id": "..."}
+func handleInvasionNestConfigRollback(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if s.InvasionDB == nil || r.Method != http.MethodPost {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		id := extractNestSubID(r.URL.Path, "config-rollback")
+		if id == "" {
+			jsonError(w, "Missing nest ID", http.StatusBadRequest)
+			return
+		}
+
+		var req struct {
+			RevisionID string `json:"revision_id"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			jsonError(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
+			return
+		}
+		if req.RevisionID == "" {
+			jsonError(w, "Missing revision_id", http.StatusBadRequest)
+			return
+		}
+
+		// Get the target revision
+		rev, err := invasion.GetSafeConfigRevision(s.InvasionDB, req.RevisionID)
+		if err != nil {
+			jsonError(w, "Revision not found: "+err.Error(), http.StatusNotFound)
+			return
+		}
+		if rev.NestID != id {
+			jsonError(w, "Revision does not belong to this nest", http.StatusBadRequest)
+			return
+		}
+		if rev.Status != "applied" {
+			jsonError(w, "Can only roll back to an applied revision", http.StatusBadRequest)
+			return
+		}
+
+		// Get nest and egg
+		nest, err := invasion.GetNest(s.InvasionDB, id)
+		if err != nil {
+			jsonError(w, "Nest not found", http.StatusNotFound)
+			return
+		}
+		if nest.EggID == "" {
+			jsonError(w, "No egg assigned to this nest", http.StatusBadRequest)
+			return
+		}
+		egg, err := invasion.GetEgg(s.InvasionDB, nest.EggID)
+		if err != nil {
+			jsonError(w, "Egg not found", http.StatusNotFound)
+			return
+		}
+
+		// Re-generate config at the target revision's patch state
+		// We re-apply the target revision's patch to a fresh config
+		patch, err := invasion.JSONToPatch(rev.PatchJSON)
+		if err != nil {
+			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to parse revision patch", "Config rollback patch parse failed", err, "nest_id", id)
+			return
+		}
+
+		sharedKey, _ := s.Vault.ReadSecret("egg_shared_" + nest.ID)
+		if sharedKey == "" {
+			jsonError(w, "Shared key not found — re-hatch required", http.StatusConflict)
+			return
+		}
+		masterURL := invasion.ResolveMasterURL(s.Cfg, nest)
+		eggMasterKey, _ := s.Vault.ReadSecret("egg_master_key_" + nest.ID)
+		if eggMasterKey == "" {
+			eggMasterKey, _ = invasion.GenerateSharedKey()
+		}
+
+		cfgYAML, err := invasion.GenerateEggConfig(s.Cfg, egg, nest, sharedKey, masterURL, eggMasterKey)
+		if err != nil {
+			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to generate config", "Config rollback config generation failed", err, "nest_id", id)
+			return
+		}
+
+		patchedYAML, err := invasion.ApplySafeConfigPatch(cfgYAML, patch)
+		if err != nil {
+			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to apply patch", "Config rollback patch apply failed", err, "nest_id", id)
+			return
+		}
+
+		// Create a rollback revision record
+		patchJSON, _ := invasion.PatchToJSON(patch)
+		configHash := invasion.HashConfigYAML(patchedYAML)
+		rollbackRevID, err := invasion.CreateSafeConfigRevision(s.InvasionDB, nest.ID, nest.EggID, patchJSON, configHash, "rollback")
+		if err != nil {
+			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to create rollback revision", "Config rollback revision creation failed", err, "nest_id", id)
+			return
+		}
+
+		_ = invasion.UpdateSafeConfigRevisionStatus(s.InvasionDB, rollbackRevID, "applying", "")
+
+		// Get nest secret
+		var secretBytes []byte
+		if nest.VaultSecretID != "" {
+			secretStr, err := s.Vault.ReadSecret(nest.VaultSecretID)
+			if err != nil {
+				_ = invasion.UpdateSafeConfigRevisionStatus(s.InvasionDB, rollbackRevID, "failed", "failed to read nest secret")
+				jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to read nest secret", "Config rollback secret read failed", err, "nest_id", id)
+				return
+			}
+			secretBytes = []byte(secretStr)
+		}
+
+		// Execute reconfigure via connector
+		connector := invasion.GetConnector(nest)
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+		defer cancel()
+
+		if err := connector.Reconfigure(ctx, nest, secretBytes, patchedYAML); err != nil {
+			_ = invasion.UpdateSafeConfigRevisionStatus(s.InvasionDB, rollbackRevID, "failed", err.Error())
+			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Rollback reconfigure failed: "+err.Error(), "Config rollback connector failed", err, "nest_id", id)
+			return
+		}
+
+		// Health check
+		time.Sleep(3 * time.Second)
+		if err := connector.HealthCheck(ctx, nest, secretBytes); err != nil {
+			_ = invasion.UpdateSafeConfigRevisionStatus(s.InvasionDB, rollbackRevID, "failed", "health check after rollback failed: "+err.Error())
+			jsonError(w, "Rollback applied but health check failed: "+err.Error(), http.StatusConflict)
+			return
+		}
+
+		// Mark rollback as applied, mark old current as rolled_back
+		_ = invasion.UpdateSafeConfigRevisionStatus(s.InvasionDB, rollbackRevID, "applied", "")
+		_ = invasion.UpdateNestConfigRev(s.InvasionDB, nest.ID, rollbackRevID, rollbackRevID)
+
+		writeJSON(w, map[string]interface{}{
+			"status":               "rolled_back",
+			"rollback_revision_id": rollbackRevID,
+			"target_revision_id":   req.RevisionID,
+			"config_hash":          configHash,
+			"nest_id":              id,
+		})
+	}
+}
+
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
 // extractNestSubID extracts the nest ID from paths like /api/invasion/nests/{id}/{action}.

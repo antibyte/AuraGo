@@ -9,6 +9,14 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// allowedToolsWhitelist is the set of tool IDs that can be used in safe reconfigure patches.
+var allowedToolsWhitelist = map[string]bool{
+	"shell":                 true,
+	"execute_shell_command": true,
+	"python":                true,
+	"python_execute":        true,
+}
+
 // GenerateEggConfig produces a minimal config.yaml for a deployed egg worker.
 // It derives settings from the master config and the egg/nest records.
 func GenerateEggConfig(masterCfg *config.Config, egg EggRecord, nest NestRecord, sharedKey, masterURL, eggMasterKey string) ([]byte, error) {
@@ -180,6 +188,86 @@ func GenerateEggConfig(masterCfg *config.Config, egg EggRecord, nest NestRecord,
 		return nil, fmt.Errorf("failed to marshal egg config: %w", err)
 	}
 
+	return data, nil
+}
+
+// ApplySafeConfigPatch applies a SafeConfigPatch to an existing egg config YAML.
+// It returns the modified config YAML bytes. The original config is not modified.
+// Only whitelisted fields are changed; all other sections remain untouched.
+func ApplySafeConfigPatch(originalYAML []byte, patch SafeConfigPatch) ([]byte, error) {
+	var cfg map[string]interface{}
+	if err := yaml.Unmarshal(originalYAML, &cfg); err != nil {
+		return nil, fmt.Errorf("failed to parse existing config: %w", err)
+	}
+
+	// ── LLM section ──
+	if patch.InheritLLM != nil {
+		// Note: InheritLLM is stored on the EggRecord, not in the config YAML.
+		// When InheritLLM is toggled, the caller should regenerate the full config
+		// via GenerateEggConfig instead of patching. We still allow the flag here
+		// for audit purposes but it has no effect on the YAML directly.
+	}
+
+	if patch.Provider != nil {
+		if llm, ok := cfg["llm"].(map[string]interface{}); ok {
+			llm["provider"] = *patch.Provider
+		}
+	}
+	if patch.BaseURL != nil {
+		if llm, ok := cfg["llm"].(map[string]interface{}); ok {
+			llm["base_url"] = *patch.BaseURL
+		}
+	}
+	if patch.Model != nil {
+		if llm, ok := cfg["llm"].(map[string]interface{}); ok {
+			llm["model"] = *patch.Model
+		}
+	}
+
+	// ── Agent section — runtime flags ──
+	if patch.AllowFilesystemWrite != nil {
+		if agent, ok := cfg["agent"].(map[string]interface{}); ok {
+			agent["allow_filesystem_write"] = *patch.AllowFilesystemWrite
+		}
+	}
+	if patch.AllowNetworkRequests != nil {
+		if agent, ok := cfg["agent"].(map[string]interface{}); ok {
+			agent["allow_network_requests"] = *patch.AllowNetworkRequests
+		}
+	}
+	if patch.AllowRemoteShell != nil {
+		if agent, ok := cfg["agent"].(map[string]interface{}); ok {
+			agent["allow_remote_shell"] = *patch.AllowRemoteShell
+		}
+	}
+	if patch.AllowSelfUpdate != nil {
+		if agent, ok := cfg["agent"].(map[string]interface{}); ok {
+			agent["allow_self_update"] = *patch.AllowSelfUpdate
+		}
+	}
+
+	// ── Allowed tools → derive allow_shell / allow_python ──
+	if len(patch.AllowedTools) > 0 {
+		allowShell := false
+		allowPython := false
+		for _, t := range patch.AllowedTools {
+			switch strings.TrimSpace(t) {
+			case "shell", "execute_shell_command":
+				allowShell = true
+			case "python", "python_execute":
+				allowPython = true
+			}
+		}
+		if agent, ok := cfg["agent"].(map[string]interface{}); ok {
+			agent["allow_shell"] = allowShell
+			agent["allow_python"] = allowPython
+		}
+	}
+
+	data, err := yaml.Marshal(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal patched config: %w", err)
+	}
 	return data, nil
 }
 

@@ -399,6 +399,41 @@ func (c *DockerConnector) HealthCheck(ctx context.Context, nest NestRecord, secr
 	return nil
 }
 
+// Reconfigure writes a patched config.yaml into the running egg container and restarts it.
+// The container is stopped, the config is replaced via the archive API, then restarted.
+func (c *DockerConnector) Reconfigure(ctx context.Context, nest NestRecord, secret []byte, configYAML []byte) error {
+	containerName := fmt.Sprintf("aurago-egg-%s", nest.ID[:8])
+
+	// 1. Stop the container
+	if err := c.Stop(ctx, nest, secret); err != nil {
+		return fmt.Errorf("failed to stop container for reconfigure: %w", err)
+	}
+
+	// 2. Copy the patched config into the container
+	if err := c.copyConfigToContainer(ctx, nest, containerName, configYAML); err != nil {
+		return fmt.Errorf("failed to copy patched config to container: %w", err)
+	}
+
+	// 3. Start the container
+	client := c.httpClient(nest)
+	startURL := c.apiURL(nest, fmt.Sprintf("/containers/%s/start", containerName))
+	startReq, err := http.NewRequestWithContext(ctx, "POST", startURL, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create start request: %w", err)
+	}
+	startResp, err := client.Do(startReq)
+	if err != nil {
+		return fmt.Errorf("failed to start container after reconfigure: %w", err)
+	}
+	defer startResp.Body.Close()
+	if startResp.StatusCode != http.StatusNoContent && startResp.StatusCode != http.StatusOK && startResp.StatusCode != http.StatusNotModified {
+		body, _ := io.ReadAll(startResp.Body)
+		return fmt.Errorf("container start failed after reconfigure (%d): %s", startResp.StatusCode, string(body))
+	}
+
+	return nil
+}
+
 func (c *DockerConnector) Rollback(ctx context.Context, nest NestRecord, secret []byte) error {
 	containerName := fmt.Sprintf("aurago-egg-%s", nest.ID[:8])
 	backupName := containerName + "-prev"

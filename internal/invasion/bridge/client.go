@@ -31,9 +31,10 @@ type EggClient struct {
 	activeTasks  int
 
 	// Callbacks (set by the egg runtime)
-	OnTask   func(task TaskPayload)     // called when master sends a task
-	OnSecret func(secret SecretPayload) // called when master sends a secret
-	OnStop   func()                     // called when master sends stop
+	OnTask       func(task TaskPayload)            // called when master sends a task
+	OnSecret     func(secret SecretPayload)        // called when master sends a secret
+	OnStop       func()                            // called when master sends stop
+	OnReconfigure func(payload ReconfigurePayload) // called when master sends a safe config patch
 }
 
 // NewEggClient creates a new client for connecting to the master.
@@ -259,6 +260,17 @@ func (c *EggClient) readLoop() {
 			c.mu.Unlock()
 			c.logger.Info("Shared key rotated", "version", rekey.KeyVersion)
 			c.sendAck(msg.ID, true, fmt.Sprintf("key rotated to v%d", rekey.KeyVersion))
+		case MsgSafeReconfigure:
+			var reconfigPayload ReconfigurePayload
+			if err := json.Unmarshal(msg.Payload, &reconfigPayload); err != nil {
+				c.logger.Warn("Invalid safe_reconfigure payload", "error", err)
+				c.sendAck(msg.ID, false, "invalid payload")
+				continue
+			}
+			c.sendAck(msg.ID, true, "reconfigure received")
+			if c.OnReconfigure != nil {
+				go c.OnReconfigure(reconfigPayload)
+			}
 		case MsgStop:
 			c.logger.Info("Stop command received from master")
 			c.sendAck(msg.ID, true, "stopping")

@@ -426,3 +426,133 @@ func TestGenerateEggConfig_AutoCert_NoTLSSkipVerify(t *testing.T) {
 		t.Error("auto cert mode should NOT set tls_skip_verify")
 	}
 }
+
+// ── ApplySafeConfigPatch tests ──────────────────────────────────────────────
+
+func TestApplySafeConfigPatch_Model(t *testing.T) {
+	masterCfg := minimalMasterCfg()
+	egg := EggRecord{ID: "e1", Name: "W", EggPort: 8099}
+	nest := NestRecord{ID: "n1", Name: "S"}
+
+	original, _ := GenerateEggConfig(masterCfg, egg, nest, "aa", "ws://localhost:8080/api/invasion/ws", "bb")
+
+	model := "gpt-4o"
+	patched, err := ApplySafeConfigPatch(original, SafeConfigPatch{Model: &model})
+	if err != nil {
+		t.Fatalf("ApplySafeConfigPatch: %v", err)
+	}
+
+	var cfg map[string]interface{}
+	yaml.Unmarshal(patched, &cfg)
+	llm := cfg["llm"].(map[string]interface{})
+	if llm["model"] != "gpt-4o" {
+		t.Errorf("model = %v, want gpt-4o", llm["model"])
+	}
+}
+
+func TestApplySafeConfigPatch_RuntimeFlags(t *testing.T) {
+	masterCfg := minimalMasterCfg()
+	egg := EggRecord{ID: "e1", Name: "W", EggPort: 8099}
+	nest := NestRecord{ID: "n1", Name: "S"}
+
+	original, _ := GenerateEggConfig(masterCfg, egg, nest, "aa", "ws://localhost:8080/api/invasion/ws", "bb")
+
+	fsFalse := false
+	netTrue := true
+	patched, err := ApplySafeConfigPatch(original, SafeConfigPatch{
+		AllowFilesystemWrite: &fsFalse,
+		AllowNetworkRequests: &netTrue,
+	})
+	if err != nil {
+		t.Fatalf("ApplySafeConfigPatch: %v", err)
+	}
+
+	var cfg map[string]interface{}
+	yaml.Unmarshal(patched, &cfg)
+	agent := cfg["agent"].(map[string]interface{})
+	if agent["allow_filesystem_write"] != false {
+		t.Error("allow_filesystem_write should be false")
+	}
+	if agent["allow_network_requests"] != true {
+		t.Error("allow_network_requests should be true")
+	}
+}
+
+func TestApplySafeConfigPatch_AllowedTools(t *testing.T) {
+	masterCfg := minimalMasterCfg()
+	egg := EggRecord{ID: "e1", Name: "W", EggPort: 8099}
+	nest := NestRecord{ID: "n1", Name: "S"}
+
+	original, _ := GenerateEggConfig(masterCfg, egg, nest, "aa", "ws://localhost:8080/api/invasion/ws", "bb")
+
+	// Only python, no shell
+	patched, err := ApplySafeConfigPatch(original, SafeConfigPatch{
+		AllowedTools: []string{"python"},
+	})
+	if err != nil {
+		t.Fatalf("ApplySafeConfigPatch: %v", err)
+	}
+
+	var cfg map[string]interface{}
+	yaml.Unmarshal(patched, &cfg)
+	agent := cfg["agent"].(map[string]interface{})
+	if agent["allow_shell"] != false {
+		t.Error("allow_shell should be false when only python is allowed")
+	}
+	if agent["allow_python"] != true {
+		t.Error("allow_python should be true")
+	}
+}
+
+func TestApplySafeConfigPatch_EmptyPatch(t *testing.T) {
+	masterCfg := minimalMasterCfg()
+	egg := EggRecord{ID: "e1", Name: "W", EggPort: 8099}
+	nest := NestRecord{ID: "n1", Name: "S"}
+
+	original, _ := GenerateEggConfig(masterCfg, egg, nest, "aa", "ws://localhost:8080/api/invasion/ws", "bb")
+
+	patched, err := ApplySafeConfigPatch(original, SafeConfigPatch{})
+	if err != nil {
+		t.Fatalf("ApplySafeConfigPatch: %v", err)
+	}
+
+	// Empty patch should produce identical config
+	if string(patched) != string(original) {
+		t.Error("empty patch should not change config")
+	}
+}
+
+func TestApplySafeConfigPatch_InvalidYAML(t *testing.T) {
+	_, err := ApplySafeConfigPatch([]byte("not: [valid: yaml"), SafeConfigPatch{})
+	if err == nil {
+		t.Error("invalid YAML should return error")
+	}
+}
+
+func TestApplySafeConfigPatch_ProviderAndBaseURL(t *testing.T) {
+	masterCfg := minimalMasterCfg()
+	egg := EggRecord{ID: "e1", Name: "W", EggPort: 8099}
+	nest := NestRecord{ID: "n1", Name: "S"}
+
+	original, _ := GenerateEggConfig(masterCfg, egg, nest, "aa", "ws://localhost:8080/api/invasion/ws", "bb")
+
+	provider := "openai"
+	baseURL := "https://api.openai.com/v1"
+	patched, err := ApplySafeConfigPatch(original, SafeConfigPatch{
+		Provider: &provider,
+		BaseURL:  &baseURL,
+	})
+	if err != nil {
+		t.Fatalf("ApplySafeConfigPatch: %v", err)
+	}
+
+	var cfg map[string]interface{}
+	yaml.Unmarshal(patched, &cfg)
+	llm := cfg["llm"].(map[string]interface{})
+	if llm["provider"] != "openai" {
+		t.Errorf("provider = %v, want openai", llm["provider"])
+	}
+	if llm["base_url"] != "https://api.openai.com/v1" {
+		t.Errorf("base_url = %v, want https://api.openai.com/v1", llm["base_url"])
+	}
+}

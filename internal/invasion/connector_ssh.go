@@ -189,6 +189,34 @@ func (c *SSHConnector) HealthCheck(ctx context.Context, nest NestRecord, secret 
 	return nil
 }
 
+// Reconfigure writes a patched config.yaml to the remote egg and restarts it.
+// The egg process/container is stopped, the config is replaced, and then restarted.
+func (c *SSHConnector) Reconfigure(ctx context.Context, nest NestRecord, secret []byte, configYAML []byte) error {
+	baseDir := fmt.Sprintf("~/.aurago-egg-%s", nest.ID[:8])
+	remoteConfig := baseDir + "/config.yaml"
+
+	// 1. Stop the running egg
+	if err := c.Stop(ctx, nest, secret); err != nil {
+		return fmt.Errorf("failed to stop egg for reconfigure: %w", err)
+	}
+
+	// 2. Write the new config via base64 to avoid shell escaping issues
+	configB64 := base64.StdEncoding.EncodeToString(configYAML)
+	writeCmd := fmt.Sprintf("echo '%s' | base64 -d > %s", configB64, remoteConfig)
+	if _, err := remote.ExecuteRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, writeCmd); err != nil {
+		return fmt.Errorf("failed to write patched config: %w", err)
+	}
+
+	// 3. Restart the egg (try systemd first, fall back to nohup)
+	serviceName := fmt.Sprintf("aurago-egg-%s", nest.ID[:8])
+	restartCmd := fmt.Sprintf("systemctl --user restart %s 2>/dev/null || (cd %s && set -a && source .env && set +a && nohup ./aurago > log/egg.log 2>&1 &)", serviceName, baseDir)
+	if _, err := remote.ExecuteRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, restartCmd); err != nil {
+		return fmt.Errorf("failed to restart egg after reconfigure: %w", err)
+	}
+
+	return nil
+}
+
 func (c *SSHConnector) Rollback(ctx context.Context, nest NestRecord, secret []byte) error {
 	baseDir := fmt.Sprintf("~/.aurago-egg-%s", nest.ID[:8])
 	backupDir := baseDir + ".bak"

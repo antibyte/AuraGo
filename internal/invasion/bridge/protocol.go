@@ -19,16 +19,17 @@ import (
 // ── Message types ───────────────────────────────────────────────────────────
 
 const (
-	MsgAuth      = "auth"      // egg → master: initial authentication
-	MsgHeartbeat = "heartbeat" // egg → master: periodic health report
-	MsgTask      = "task"      // master → egg: work assignment
-	MsgResult    = "result"    // egg → master: task completion
-	MsgStatus    = "status"    // master → egg: status request
-	MsgSecret    = "secret"    // master → egg: encrypted vault secret
-	MsgRekey     = "rekey"     // master → egg: shared key rotation
-	MsgAck       = "ack"       // both directions: acknowledgement
-	MsgError     = "error"     // both directions: error notification
-	MsgStop      = "stop"      // master → egg: graceful shutdown
+	MsgAuth            = "auth"            // egg → master: initial authentication
+	MsgHeartbeat       = "heartbeat"       // egg → master: periodic health report
+	MsgTask            = "task"            // master → egg: work assignment
+	MsgResult          = "result"          // egg → master: task completion
+	MsgStatus          = "status"          // master → egg: status request
+	MsgSecret          = "secret"          // master → egg: encrypted vault secret
+	MsgRekey           = "rekey"           // master → egg: shared key rotation
+	MsgSafeReconfigure = "safe_reconfigure" // master → egg: safe config patch + restart
+	MsgAck             = "ack"             // both directions: acknowledgement
+	MsgError           = "error"           // both directions: error notification
+	MsgStop            = "stop"            // master → egg: graceful shutdown
 )
 
 // Message is the wire format for all egg↔master communication.
@@ -98,6 +99,14 @@ type AckPayload struct {
 type ErrorPayload struct {
 	Code    string `json:"code"` // "auth_failed" | "invalid_hmac" | "unknown_type" | "internal"
 	Message string `json:"message"`
+}
+
+// ReconfigurePayload carries a safe config patch from master to egg.
+// The egg applies the patch to its local config.yaml and restarts.
+type ReconfigurePayload struct {
+	RevisionID string `json:"revision_id"` // safe_config_revisions ID for ack correlation
+	PatchJSON  string `json:"patch_json"`  // JSON-serialized SafeConfigPatch
+	ConfigHash string `json:"config_hash"` // SHA-256 hash of the resulting full config
 }
 
 // ── HMAC signing ────────────────────────────────────────────────────────────

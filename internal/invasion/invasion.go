@@ -1,7 +1,10 @@
 package invasion
 
 import (
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -35,6 +38,10 @@ type NestRecord struct {
 	// ── Deployment settings ──
 	DeployMethod string `json:"deploy_method"` // "ssh" | "docker_remote" | "docker_local"
 	TargetArch   string `json:"target_arch"`   // "linux/amd64" | "linux/arm64" | etc.
+
+	// ── Config revision tracking (safe reconfigure) ──
+	DesiredConfigRev string `json:"desired_config_rev"` // ID of the pending desired revision
+	AppliedConfigRev string `json:"applied_config_rev"` // ID of the last successfully applied revision
 
 	CreatedAt string `json:"created_at"`
 	UpdatedAt string `json:"updated_at"`
@@ -164,6 +171,30 @@ func InitDB(dbPath string) (*sql.DB, error) {
 		return nil, fmt.Errorf("failed to create deployment_history schema: %w", err)
 	}
 
+	// ── Safe Config Revisions — tracks selective config changes for audit/rollback ──
+	safeRevSchema := `
+	CREATE TABLE IF NOT EXISTS safe_config_revisions (
+		id              TEXT PRIMARY KEY,
+		nest_id         TEXT NOT NULL,
+		egg_id          TEXT NOT NULL,
+		revision_number INTEGER NOT NULL,
+		patch_json      TEXT NOT NULL,
+		config_hash     TEXT NOT NULL,
+		status          TEXT NOT NULL DEFAULT 'pending',
+		source          TEXT NOT NULL DEFAULT 'safe_reconfigure',
+		error_message   TEXT DEFAULT '',
+		created_at      TEXT NOT NULL,
+		applied_at      TEXT DEFAULT ''
+	);
+	CREATE UNIQUE INDEX IF NOT EXISTS idx_safe_rev_nest_rev ON safe_config_revisions(nest_id, revision_number);
+	CREATE INDEX IF NOT EXISTS idx_safe_rev_status ON safe_config_revisions(nest_id, status);
+	`
+
+	if _, err := db.Exec(safeRevSchema); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("failed to create safe_config_revisions schema: %w", err)
+	}
+
 	// ── Migrations — add columns that may be missing on older DBs ──
 	migrations := []string{
 		"ALTER TABLE nests ADD COLUMN hatch_status TEXT DEFAULT 'idle'",
@@ -173,6 +204,8 @@ func InitDB(dbPath string) (*sql.DB, error) {
 		"ALTER TABLE nests ADD COLUMN route_config TEXT DEFAULT ''",
 		"ALTER TABLE nests ADD COLUMN deploy_method TEXT DEFAULT 'ssh'",
 		"ALTER TABLE nests ADD COLUMN target_arch TEXT DEFAULT 'linux/amd64'",
+		"ALTER TABLE nests ADD COLUMN desired_config_rev TEXT DEFAULT ''",
+		"ALTER TABLE nests ADD COLUMN applied_config_rev TEXT DEFAULT ''",
 		"ALTER TABLE eggs ADD COLUMN permanent INTEGER NOT NULL DEFAULT 0",
 		"ALTER TABLE eggs ADD COLUMN include_vault INTEGER NOT NULL DEFAULT 0",
 		"ALTER TABLE eggs ADD COLUMN inherit_llm INTEGER NOT NULL DEFAULT 0",
@@ -212,8 +245,9 @@ func CreateNest(db *sql.DB, n NestRecord) (string, error) {
 
 func insertNest(db *sql.DB, n NestRecord) error {
 	query := `INSERT INTO nests (id, name, notes, access_type, host, port, username, vault_secret_id, active, egg_id,
-	           hatch_status, last_hatch_at, hatch_error, route, route_config, deploy_method, target_arch, created_at, updated_at)
-	           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	           hatch_status, last_hatch_at, hatch_error, route, route_config, deploy_method, target_arch,
+	           desired_config_rev, applied_config_rev, created_at, updated_at)
+	           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 	if n.HatchStatus == "" {
 		n.HatchStatus = "idle"
 	}
@@ -227,7 +261,8 @@ func insertNest(db *sql.DB, n NestRecord) error {
 		n.TargetArch = "linux/amd64"
 	}
 	_, err := db.Exec(query, n.ID, n.Name, n.Notes, n.AccessType, n.Host, n.Port, n.Username, n.VaultSecretID,
-		dbutil.BoolToInt(n.Active), n.EggID, n.HatchStatus, n.LastHatchAt, n.HatchError, n.Route, n.RouteConfig, n.DeployMethod, n.TargetArch, n.CreatedAt, n.UpdatedAt)
+		dbutil.BoolToInt(n.Active), n.EggID, n.HatchStatus, n.LastHatchAt, n.HatchError, n.Route, n.RouteConfig, n.DeployMethod, n.TargetArch,
+		n.DesiredConfigRev, n.AppliedConfigRev, n.CreatedAt, n.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("failed to insert nest: %w", err)
 	}
@@ -245,8 +280,10 @@ func scanNestRow(s nestScanner) (NestRecord, error) {
 	var active int
 	var notesNull, hostNull, userNull, secretNull, eggNull sql.NullString
 	var hatchStatusNull, lastHatchNull, hatchErrNull, routeNull, routeCfgNull, deployNull, archNull sql.NullString
+	var desiredCfgRevNull, appliedCfgRevNull sql.NullString
 	if err := s.Scan(&n.ID, &n.Name, &notesNull, &n.AccessType, &hostNull, &n.Port, &userNull, &secretNull, &active, &eggNull,
-		&hatchStatusNull, &lastHatchNull, &hatchErrNull, &routeNull, &routeCfgNull, &deployNull, &archNull, &n.CreatedAt, &n.UpdatedAt); err != nil {
+		&hatchStatusNull, &lastHatchNull, &hatchErrNull, &routeNull, &routeCfgNull, &deployNull, &archNull,
+		&desiredCfgRevNull, &appliedCfgRevNull, &n.CreatedAt, &n.UpdatedAt); err != nil {
 		return NestRecord{}, err
 	}
 	n.Notes = nullStr(notesNull)
@@ -261,6 +298,8 @@ func scanNestRow(s nestScanner) (NestRecord, error) {
 	n.RouteConfig = nullStr(routeCfgNull)
 	n.DeployMethod = nullStr(deployNull)
 	n.TargetArch = nullStr(archNull)
+	n.DesiredConfigRev = nullStr(desiredCfgRevNull)
+	n.AppliedConfigRev = nullStr(appliedCfgRevNull)
 	n.Active = active != 0
 	if n.HatchStatus == "" {
 		n.HatchStatus = "idle"
@@ -280,7 +319,8 @@ func scanNestRow(s nestScanner) (NestRecord, error) {
 // GetNest retrieves a single nest by ID.
 func GetNest(db *sql.DB, id string) (NestRecord, error) {
 	query := `SELECT id, name, notes, access_type, host, port, username, vault_secret_id, active, egg_id,
-	          hatch_status, last_hatch_at, hatch_error, route, route_config, deploy_method, target_arch, created_at, updated_at FROM nests WHERE id = ?`
+	          hatch_status, last_hatch_at, hatch_error, route, route_config, deploy_method, target_arch,
+	          desired_config_rev, applied_config_rev, created_at, updated_at FROM nests WHERE id = ?`
 	n, err := scanNestRow(db.QueryRow(query, id))
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -294,7 +334,8 @@ func GetNest(db *sql.DB, id string) (NestRecord, error) {
 // ListNests returns all nest records.
 func ListNests(db *sql.DB) ([]NestRecord, error) {
 	query := `SELECT id, name, notes, access_type, host, port, username, vault_secret_id, active, egg_id,
-	          hatch_status, last_hatch_at, hatch_error, route, route_config, deploy_method, target_arch, created_at, updated_at FROM nests ORDER BY name`
+	          hatch_status, last_hatch_at, hatch_error, route, route_config, deploy_method, target_arch,
+	          desired_config_rev, applied_config_rev, created_at, updated_at FROM nests ORDER BY name`
 	rows, err := db.Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list nests: %w", err)
@@ -306,7 +347,8 @@ func ListNests(db *sql.DB) ([]NestRecord, error) {
 // ListActiveNests returns only active nest records.
 func ListActiveNests(db *sql.DB) ([]NestRecord, error) {
 	query := `SELECT id, name, notes, access_type, host, port, username, vault_secret_id, active, egg_id,
-	          hatch_status, last_hatch_at, hatch_error, route, route_config, deploy_method, target_arch, created_at, updated_at FROM nests WHERE active = 1 ORDER BY name`
+	          hatch_status, last_hatch_at, hatch_error, route, route_config, deploy_method, target_arch,
+	          desired_config_rev, applied_config_rev, created_at, updated_at FROM nests WHERE active = 1 ORDER BY name`
 	rows, err := db.Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list active nests: %w", err)
@@ -319,9 +361,11 @@ func ListActiveNests(db *sql.DB) ([]NestRecord, error) {
 func UpdateNest(db *sql.DB, n NestRecord) error {
 	n.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 	query := `UPDATE nests SET name=?, notes=?, access_type=?, host=?, port=?, username=?, vault_secret_id=?, active=?, egg_id=?,
-	          hatch_status=?, last_hatch_at=?, hatch_error=?, route=?, route_config=?, deploy_method=?, target_arch=?, updated_at=? WHERE id=?`
+	          hatch_status=?, last_hatch_at=?, hatch_error=?, route=?, route_config=?, deploy_method=?, target_arch=?,
+	          desired_config_rev=?, applied_config_rev=?, updated_at=? WHERE id=?`
 	res, err := db.Exec(query, n.Name, n.Notes, n.AccessType, n.Host, n.Port, n.Username, n.VaultSecretID, dbutil.BoolToInt(n.Active), n.EggID,
-		n.HatchStatus, n.LastHatchAt, n.HatchError, n.Route, n.RouteConfig, n.DeployMethod, n.TargetArch, n.UpdatedAt, n.ID)
+		n.HatchStatus, n.LastHatchAt, n.HatchError, n.Route, n.RouteConfig, n.DeployMethod, n.TargetArch,
+		n.DesiredConfigRev, n.AppliedConfigRev, n.UpdatedAt, n.ID)
 	if err != nil {
 		return fmt.Errorf("failed to update nest: %w", err)
 	}
@@ -475,7 +519,8 @@ func ToggleEggActive(db *sql.DB, id string, active bool) error {
 // GetNestByName retrieves a nest by its name (case-insensitive).
 func GetNestByName(db *sql.DB, name string) (NestRecord, error) {
 	query := `SELECT id, name, notes, access_type, host, port, username, vault_secret_id, active, egg_id,
-	          hatch_status, last_hatch_at, hatch_error, route, route_config, deploy_method, target_arch, created_at, updated_at FROM nests WHERE LOWER(name) = LOWER(?)`
+	          hatch_status, last_hatch_at, hatch_error, route, route_config, deploy_method, target_arch,
+	          desired_config_rev, applied_config_rev, created_at, updated_at FROM nests WHERE LOWER(name) = LOWER(?)`
 	n, err := scanNestRow(db.QueryRow(query, name))
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -819,6 +864,204 @@ func scanDeployments(rows *sql.Rows) ([]DeploymentRecord, error) {
 		deployments = append(deployments, d)
 	}
 	return deployments, rows.Err()
+}
+
+// ── Safe Config Revisions ───────────────────────────────────────────────────
+
+// SafeConfigPatch represents a whitelist-based set of safe configuration changes
+// that can be applied to a running egg without touching secrets or transport.
+type SafeConfigPatch struct {
+	InheritLLM           *bool    `json:"inherit_llm,omitempty"`
+	Provider             *string  `json:"provider,omitempty"`
+	BaseURL              *string  `json:"base_url,omitempty"`
+	Model                *string  `json:"model,omitempty"`
+	AllowedTools         []string `json:"allowed_tools,omitempty"`
+	AllowFilesystemWrite *bool    `json:"allow_filesystem_write,omitempty"`
+	AllowNetworkRequests *bool    `json:"allow_network_requests,omitempty"`
+	AllowRemoteShell     *bool    `json:"allow_remote_shell,omitempty"`
+	AllowSelfUpdate      *bool    `json:"allow_self_update,omitempty"`
+}
+
+// ValidateSafeConfigPatch checks that a patch only contains allowed fields
+// and that the values are sane.
+func ValidateSafeConfigPatch(patch SafeConfigPatch) error {
+	// When InheritLLM is set to true, egg-specific LLM fields should not be set
+	if patch.InheritLLM != nil && *patch.InheritLLM {
+		if patch.Provider != nil || patch.BaseURL != nil || patch.Model != nil {
+			return fmt.Errorf("cannot set provider/base_url/model when inherit_llm is true")
+		}
+	}
+	// Validate allowed tools against known whitelist
+	if len(patch.AllowedTools) > 0 {
+		known := map[string]bool{
+			"shell": true, "execute_shell_command": true,
+			"python": true, "python_execute": true,
+		}
+		for _, t := range patch.AllowedTools {
+			if !known[t] {
+				return fmt.Errorf("unknown tool in allowed_tools: %s", t)
+			}
+		}
+	}
+	return nil
+}
+
+// SafeConfigRevision tracks a single safe config change for audit and rollback.
+type SafeConfigRevision struct {
+	ID             string `json:"id"`
+	NestID         string `json:"nest_id"`
+	EggID          string `json:"egg_id"`
+	RevisionNumber int    `json:"revision_number"`
+	PatchJSON      string `json:"patch_json"`
+	ConfigHash     string `json:"config_hash"`
+	Status         string `json:"status"` // pending, applying, applied, failed, rolled_back
+	Source         string `json:"source"` // safe_reconfigure, rollback
+	ErrorMessage   string `json:"error_message"`
+	CreatedAt      string `json:"created_at"`
+	AppliedAt      string `json:"applied_at"`
+}
+
+// CreateSafeConfigRevision inserts a new safe config revision and returns its ID.
+func CreateSafeConfigRevision(db *sql.DB, nestID, eggID, patchJSON, configHash, source string) (string, error) {
+	// Determine next revision number for this nest
+	var maxRev int
+	row := db.QueryRow(`SELECT COALESCE(MAX(revision_number), 0) FROM safe_config_revisions WHERE nest_id = ?`, nestID)
+	if err := row.Scan(&maxRev); err != nil {
+		return "", fmt.Errorf("failed to query revision number: %w", err)
+	}
+
+	id := uid.New()
+	now := time.Now().UTC().Format(time.RFC3339)
+	_, err := db.Exec(`INSERT INTO safe_config_revisions
+		(id, nest_id, egg_id, revision_number, patch_json, config_hash, status, source, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?)`,
+		id, nestID, eggID, maxRev+1, patchJSON, configHash, source, now)
+	if err != nil {
+		return "", fmt.Errorf("failed to create safe config revision: %w", err)
+	}
+	return id, nil
+}
+
+// UpdateSafeConfigRevisionStatus transitions a revision to a new status.
+func UpdateSafeConfigRevisionStatus(db *sql.DB, revID, status, errMsg string) error {
+	now := time.Now().UTC().Format(time.RFC3339)
+	var query string
+	var args []interface{}
+	switch status {
+	case "applied":
+		query = `UPDATE safe_config_revisions SET status=?, applied_at=? WHERE id=?`
+		args = []interface{}{status, now, revID}
+	case "failed":
+		query = `UPDATE safe_config_revisions SET status=?, error_message=? WHERE id=?`
+		args = []interface{}{status, errMsg, revID}
+	default: // pending, applying, rolled_back
+		query = `UPDATE safe_config_revisions SET status=? WHERE id=?`
+		args = []interface{}{status, revID}
+	}
+	_, err := db.Exec(query, args...)
+	if err != nil {
+		return fmt.Errorf("failed to update safe config revision status: %w", err)
+	}
+	return nil
+}
+
+// GetSafeConfigRevision retrieves a single revision by ID.
+func GetSafeConfigRevision(db *sql.DB, revID string) (*SafeConfigRevision, error) {
+	row := db.QueryRow(`SELECT id, nest_id, egg_id, revision_number, patch_json, config_hash,
+		status, source, error_message, created_at, applied_at
+		FROM safe_config_revisions WHERE id = ?`, revID)
+	var r SafeConfigRevision
+	var appliedAt sql.NullString
+	if err := row.Scan(&r.ID, &r.NestID, &r.EggID, &r.RevisionNumber, &r.PatchJSON, &r.ConfigHash,
+		&r.Status, &r.Source, &r.ErrorMessage, &r.CreatedAt, &appliedAt); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("revision not found: %s", revID)
+		}
+		return nil, fmt.Errorf("failed to get safe config revision: %w", err)
+	}
+	r.AppliedAt = nullStr(appliedAt)
+	return &r, nil
+}
+
+// GetLatestAppliedRevision returns the most recently applied revision for a nest.
+func GetLatestAppliedRevision(db *sql.DB, nestID string) (*SafeConfigRevision, error) {
+	row := db.QueryRow(`SELECT id, nest_id, egg_id, revision_number, patch_json, config_hash,
+		status, source, error_message, created_at, applied_at
+		FROM safe_config_revisions WHERE nest_id = ? AND status = 'applied'
+		ORDER BY revision_number DESC LIMIT 1`, nestID)
+	var r SafeConfigRevision
+	var appliedAt sql.NullString
+	if err := row.Scan(&r.ID, &r.NestID, &r.EggID, &r.RevisionNumber, &r.PatchJSON, &r.ConfigHash,
+		&r.Status, &r.Source, &r.ErrorMessage, &r.CreatedAt, &appliedAt); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil // no applied revision yet
+		}
+		return nil, fmt.Errorf("failed to get latest applied revision: %w", err)
+	}
+	r.AppliedAt = nullStr(appliedAt)
+	return &r, nil
+}
+
+// ListSafeConfigRevisions returns revision history for a nest, newest first.
+func ListSafeConfigRevisions(db *sql.DB, nestID string, limit int) ([]SafeConfigRevision, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	rows, err := db.Query(`SELECT id, nest_id, egg_id, revision_number, patch_json, config_hash,
+		status, source, error_message, created_at, applied_at
+		FROM safe_config_revisions WHERE nest_id = ?
+		ORDER BY revision_number DESC LIMIT ?`, nestID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list safe config revisions: %w", err)
+	}
+	defer rows.Close()
+	var revs []SafeConfigRevision
+	for rows.Next() {
+		var r SafeConfigRevision
+		var appliedAt sql.NullString
+		if err := rows.Scan(&r.ID, &r.NestID, &r.EggID, &r.RevisionNumber, &r.PatchJSON, &r.ConfigHash,
+			&r.Status, &r.Source, &r.ErrorMessage, &r.CreatedAt, &appliedAt); err != nil {
+			return nil, fmt.Errorf("failed to scan revision: %w", err)
+		}
+		r.AppliedAt = nullStr(appliedAt)
+		revs = append(revs, r)
+	}
+	return revs, rows.Err()
+}
+
+// UpdateNestConfigRev sets the desired and/or applied config revision on a nest.
+func UpdateNestConfigRev(db *sql.DB, nestID, desiredRev, appliedRev string) error {
+	now := time.Now().UTC().Format(time.RFC3339)
+	_, err := db.Exec(`UPDATE nests SET desired_config_rev=?, applied_config_rev=?, updated_at=? WHERE id=?`,
+		desiredRev, appliedRev, now, nestID)
+	if err != nil {
+		return fmt.Errorf("failed to update nest config rev: %w", err)
+	}
+	return nil
+}
+
+// HashConfigYAML computes the SHA-256 hex hash of a config YAML byte slice.
+func HashConfigYAML(data []byte) string {
+	h := sha256.Sum256(data)
+	return hex.EncodeToString(h[:])
+}
+
+// PatchToJSON serializes a SafeConfigPatch to JSON string.
+func PatchToJSON(patch SafeConfigPatch) (string, error) {
+	data, err := json.Marshal(patch)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal patch: %w", err)
+	}
+	return string(data), nil
+}
+
+// JSONToPatch deserializes a SafeConfigPatch from JSON string.
+func JSONToPatch(jsonStr string) (SafeConfigPatch, error) {
+	var patch SafeConfigPatch
+	if err := json.Unmarshal([]byte(jsonStr), &patch); err != nil {
+		return SafeConfigPatch{}, fmt.Errorf("failed to unmarshal patch: %w", err)
+	}
+	return patch, nil
 }
 
 // Close closes the database connection.
