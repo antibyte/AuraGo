@@ -341,7 +341,7 @@
     position: absolute;
     inset: 0;
     display: block;
-    background: url('../img/aurago_transparent.png') center 52% / clamp(18rem, 38vw, 30rem) auto no-repeat;
+    background: url('../img/aurago_transparent.png?v=20260422a') center 52% / clamp(18rem, 38vw, 30rem) auto no-repeat;
     opacity: 0.12;
     filter: sepia(0.82) saturate(0.52) brightness(0.82) contrast(0.94);
     pointer-events: none;
