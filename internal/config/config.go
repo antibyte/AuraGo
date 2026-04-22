@@ -50,6 +50,13 @@ func WriteFileAtomic(path string, data []byte, perm os.FileMode) error {
 var defaultIndexingExtensions = []string{".txt", ".md", ".json", ".csv", ".log", ".yaml", ".yml", ".pdf", ".docx", ".xlsx", ".pptx", ".odt", ".rtf"}
 var legacyIndexingExtensions = []string{".txt", ".md", ".json", ".csv", ".log", ".yaml", ".yml"}
 
+func defaultSidecarURL(runningInDocker bool, service string, port int) string {
+	if runningInDocker {
+		return fmt.Sprintf("http://%s:%d", service, port)
+	}
+	return fmt.Sprintf("http://127.0.0.1:%d", port)
+}
+
 func Load(path string) (*Config, error) {
 	absConfigPath, err := filepath.Abs(path)
 	if err != nil {
@@ -103,24 +110,18 @@ func Load(path string) (*Config, error) {
 	cfg.FritzBox.Telephony.Polling.DedupWindowMinutes = 5
 	cfg.FritzBox.Telephony.Polling.MaxCallbacksPerHour = 20
 
+	runningInDocker := probeDockerContainer()
+
 	// Document Creator defaults: Maroto backend, Gotenberg sidecar URL.
-	// Use Docker-internal hostname when running inside a container, otherwise localhost.
+	// Use Docker-internal hostname when running inside a Docker container, otherwise localhost.
 	cfg.Tools.DocumentCreator.Backend = "maroto"
 	cfg.Tools.DocumentCreator.OutputDir = "data/documents"
-	if _, err := os.Stat("/.dockerenv"); err == nil {
-		cfg.Tools.DocumentCreator.Gotenberg.URL = "http://gotenberg:3000"
-	} else {
-		cfg.Tools.DocumentCreator.Gotenberg.URL = "http://127.0.0.1:3000"
-	}
+	cfg.Tools.DocumentCreator.Gotenberg.URL = defaultSidecarURL(runningInDocker, "gotenberg", 3000)
 	cfg.Tools.DocumentCreator.Gotenberg.Timeout = 120
 
-	// Browser Automation defaults: disabled, Docker sidecar, local loopback outside containers.
+	// Browser Automation defaults: disabled, Docker sidecar, local loopback outside Docker.
 	cfg.BrowserAutomation.Mode = "sidecar"
-	if _, err := os.Stat("/.dockerenv"); err == nil {
-		cfg.BrowserAutomation.URL = "http://browser-automation:7331"
-	} else {
-		cfg.BrowserAutomation.URL = "http://127.0.0.1:7331"
-	}
+	cfg.BrowserAutomation.URL = defaultSidecarURL(runningInDocker, "browser-automation", 7331)
 	cfg.BrowserAutomation.ContainerName = "aurago_browser_automation"
 	cfg.BrowserAutomation.Image = "aurago-browser-automation:latest"
 	cfg.BrowserAutomation.AutoStart = true

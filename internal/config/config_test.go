@@ -287,6 +287,44 @@ func TestLoadBrowserAutomationDefaults(t *testing.T) {
 	}
 }
 
+func TestDefaultSidecarURL(t *testing.T) {
+	tests := []struct {
+		name            string
+		runningInDocker bool
+		service         string
+		port            int
+		want            string
+	}{
+		{
+			name:            "docker runtime uses service hostname",
+			runningInDocker: true,
+			service:         "browser-automation",
+			port:            7331,
+			want:            "http://browser-automation:7331",
+		},
+		{
+			name:            "host runtime uses loopback",
+			runningInDocker: false,
+			service:         "browser-automation",
+			port:            7331,
+			want:            "http://127.0.0.1:7331",
+		},
+		{
+			name:            "other services share same rule",
+			runningInDocker: false,
+			service:         "gotenberg",
+			port:            3000,
+			want:            "http://127.0.0.1:3000",
+		},
+	}
+
+	for _, tt := range tests {
+		if got := defaultSidecarURL(tt.runningInDocker, tt.service, tt.port); got != tt.want {
+			t.Fatalf("%s: defaultSidecarURL(%v, %q, %d) = %q, want %q", tt.name, tt.runningInDocker, tt.service, tt.port, got, tt.want)
+		}
+	}
+}
+
 func TestLoadAdaptiveSystemPromptTokenBudgetDefaultsToTrue(t *testing.T) {
 	tmpDir, err := os.MkdirTemp("", "config_test")
 	if err != nil {
