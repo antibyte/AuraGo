@@ -172,7 +172,8 @@
 [data-theme="papyrus"] .btn-header-link,
 [data-theme="papyrus"] #logout-btn,
 [data-theme="papyrus"] .app-header .pill {
-    font-size: 0.8rem;
+    font-size: 0.88rem;
+    line-height: 1.15;
 }
 
 [data-theme="papyrus"] .modal-title {
@@ -181,6 +182,11 @@
 
 [data-theme="papyrus"] .modal-body {
     font-size: 1.05rem;
+}
+
+[data-theme="papyrus"] .chat-theme-picker {
+    position: relative;
+    z-index: 1201;
 }
 
 [data-theme="papyrus"] .chat-theme-btn,
@@ -225,13 +231,21 @@
 [data-theme="papyrus"] .mood-panel {
     --theme-option-color: #3b2a1a;
     position: absolute;
-    overflow: hidden;
+    isolation: isolate;
+    overflow-x: hidden;
+    overflow-y: auto;
     border: 1px solid rgba(137, 99, 58, 0.22);
     background:
         linear-gradient(180deg, rgba(247, 238, 221, 0.98), rgba(230, 213, 184, 0.98));
     box-shadow:
         0 20px 48px rgba(41, 25, 15, 0.22),
         inset 0 1px 0 rgba(255, 248, 233, 0.82);
+}
+
+[data-theme="papyrus"] .chat-theme-dropdown {
+    min-width: 220px;
+    max-height: min(70vh, 30rem);
+    z-index: 1300;
 }
 
 [data-theme="papyrus"] .chat-theme-dropdown::before,
@@ -260,8 +274,16 @@
     opacity: 0.92;
 }
 
+[data-theme="papyrus"] .chat-theme-dropdown > *,
+[data-theme="papyrus"] .mood-panel > * {
+    position: relative;
+    z-index: 1;
+}
+
 [data-theme="papyrus"] .chat-theme-option {
     border-radius: 11px;
+    font-size: 0.92rem;
+    line-height: 1.2;
 }
 
 [data-theme="papyrus"] .chat-theme-option:hover,
@@ -767,6 +789,10 @@
 }
 
 @media (min-width: 1101px) {
+    [data-theme="papyrus"] .app-header {
+        overflow: visible;
+    }
+
     [data-theme="papyrus"] .app-header .header-actions {
         flex: 0 1 auto;
         margin-left: 0;
@@ -793,6 +819,35 @@
         display: inline-flex;
         align-items: center;
         vertical-align: middle;
+    }
+
+    [data-theme="papyrus"] .chat-theme-dropdown {
+        right: 0;
+        top: calc(100% + 8px);
+    }
+
+    [data-theme="papyrus"] .chat-theme-btn,
+    [data-theme="papyrus"] .select-personality,
+    [data-theme="papyrus"] .mood-toggle,
+    [data-theme="papyrus"] .btn-header,
+    [data-theme="papyrus"] .btn-header-link,
+    [data-theme="papyrus"] #logout-btn,
+    [data-theme="papyrus"] .app-header .pill,
+    [data-theme="papyrus"] .chat-theme-option {
+        font-size: 0.98rem;
+    }
+
+    [data-theme="papyrus"] .modal-title {
+        font-size: 1.62rem;
+    }
+
+    [data-theme="papyrus"] .modal-body,
+    [data-theme="papyrus"] .warnings-item,
+    [data-theme="papyrus"] .warnings-item-desc,
+    [data-theme="papyrus"] .mermaid-error .error-title,
+    [data-theme="papyrus"] .mermaid-error .error-message,
+    [data-theme="papyrus"] .modal-btn {
+        font-size: 1rem;
     }
 }
 
@@ -871,4 +926,3 @@
 [data-theme="papyrus"] ::-webkit-scrollbar-thumb:hover {
     background: linear-gradient(180deg, rgba(170, 126, 78, 0.9), rgba(126, 89, 52, 0.9));
 }
-
