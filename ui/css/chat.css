@@ -596,7 +596,7 @@
         }
 
         .chat-robot-mascot.is-greeting {
-            animation: none;
+            animation: chatRobotGreetingFloat 4.4s ease-in-out infinite;
             filter: none;
         }
 
@@ -633,6 +633,15 @@
             }
             50% {
                 transform: translateY(-4px);
+            }
+        }
+
+        @keyframes chatRobotGreetingFloat {
+            0%, 100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-6px);
             }
         }
 
