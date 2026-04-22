@@ -284,13 +284,8 @@ func TestBrowserAutomationHealthReturnsErrorPayloadForNonSuccessStatus(t *testin
 }
 
 func TestBrowserAutomationSidecarRequestRetriesTransientFailures(t *testing.T) {
-	originalClient := browserAutomationHTTPClient
-	t.Cleanup(func() {
-		browserAutomationHTTPClient = originalClient
-	})
-
 	attempts := 0
-	browserAutomationHTTPClient = &http.Client{
+	httpClient := &http.Client{
 		Timeout: 2 * time.Second,
 		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 			attempts++
@@ -309,8 +304,9 @@ func TestBrowserAutomationSidecarRequestRetriesTransientFailures(t *testing.T) {
 	}
 
 	result, err := browserAutomationSidecarRequest(context.Background(), BrowserAutomationSidecarConfig{
-		URL:       "http://127.0.0.1:7331",
-		AuthToken: "test-token",
+		URL:        "http://127.0.0.1:7331",
+		AuthToken:  "test-token",
+		HTTPClient: httpClient,
 	}, map[string]interface{}{"operation": "current_state"})
 	if err != nil {
 		t.Fatalf("browserAutomationSidecarRequest() error = %v", err)
@@ -320,6 +316,17 @@ func TestBrowserAutomationSidecarRequestRetriesTransientFailures(t *testing.T) {
 	}
 	if attempts != 2 {
 		t.Fatalf("attempts = %d, want 2", attempts)
+	}
+}
+
+func TestBrowserAutomationHTTPClientForUsesOverride(t *testing.T) {
+	override := &http.Client{Timeout: time.Second}
+	cfg := BrowserAutomationSidecarConfig{HTTPClient: override}
+	if got := browserAutomationHTTPClientFor(cfg); got != override {
+		t.Fatal("expected override client to be used")
+	}
+	if got := browserAutomationHTTPClientFor(BrowserAutomationSidecarConfig{}); got != browserAutomationDefaultHTTPClient {
+		t.Fatal("expected default client when no override is set")
 	}
 }
 

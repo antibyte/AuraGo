@@ -53,6 +53,7 @@ type BrowserAutomationSidecarConfig struct {
 	Image          string
 	ContainerName  string
 	AuthToken      string
+	HTTPClient     *http.Client
 	AutoBuild      bool
 	DockerfileDir  string
 	SessionTTL     int
@@ -67,11 +68,20 @@ type BrowserAutomationSidecarConfig struct {
 	ViewportHeight int
 }
 
-var browserAutomationHTTPClient = &http.Client{Timeout: 60 * time.Second}
+var browserAutomationDefaultHTTPClient = &http.Client{Timeout: 60 * time.Second}
 
 var browserAutomationRetryDelays = []time.Duration{
-	200 * time.Millisecond,
-	500 * time.Millisecond,
+	250 * time.Millisecond,
+	750 * time.Millisecond,
+	1500 * time.Millisecond,
+	3000 * time.Millisecond,
+}
+
+func browserAutomationHTTPClientFor(cfg BrowserAutomationSidecarConfig) *http.Client {
+	if cfg.HTTPClient != nil {
+		return cfg.HTTPClient
+	}
+	return browserAutomationDefaultHTTPClient
 }
 
 func browserAutomationJSON(result map[string]interface{}) string {
@@ -330,6 +340,7 @@ func browserAutomationSidecarRequest(ctx context.Context, cfg BrowserAutomationS
 	if baseURL == "" {
 		return nil, fmt.Errorf("browser automation URL is not configured")
 	}
+	httpClient := browserAutomationHTTPClientFor(cfg)
 	data, err := json.Marshal(payload)
 	if err != nil {
 		return nil, fmt.Errorf("marshal sidecar payload: %w", err)
@@ -350,7 +361,7 @@ func browserAutomationSidecarRequest(ctx context.Context, cfg BrowserAutomationS
 	for attempt := 0; attempt <= len(browserAutomationRetryDelays); attempt++ {
 		clonedReq := req.Clone(ctx)
 		clonedReq.Body = io.NopCloser(bytes.NewReader(data))
-		resp, reqErr = browserAutomationHTTPClient.Do(clonedReq)
+		resp, reqErr = httpClient.Do(clonedReq)
 		if reqErr == nil {
 			break
 		}
@@ -391,6 +402,7 @@ func BrowserAutomationHealth(ctx context.Context, cfg *config.Config) map[string
 	if err != nil {
 		return map[string]interface{}{"status": "error", "message": err.Error()}
 	}
+	httpClient := browserAutomationHTTPClientFor(sidecarCfg)
 	baseURL := strings.TrimRight(sidecarCfg.URL, "/")
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL+"/health", nil)
 	if err != nil {
@@ -399,7 +411,7 @@ func BrowserAutomationHealth(ctx context.Context, cfg *config.Config) map[string
 	if token := strings.TrimSpace(sidecarCfg.AuthToken); token != "" {
 		req.Header.Set("X-AuraGo-Sidecar-Token", token)
 	}
-	resp, err := browserAutomationHTTPClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return map[string]interface{}{"status": "error", "message": err.Error()}
 	}
