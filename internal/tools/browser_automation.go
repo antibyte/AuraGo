@@ -182,22 +182,89 @@ func browserAutomationWebPath(workspaceRoot, localPath string) string {
 	return "/files/" + filepath.ToSlash(rel)
 }
 
-func browserAutomationUsesManagedLoopbackURL(raw string) bool {
+func browserAutomationManagedURLHost(raw, containerName string, runningInDocker bool) string {
 	trimmed := strings.TrimSpace(raw)
 	if trimmed == "" {
-		return true
+		return ""
 	}
 	parsed, err := url.Parse(trimmed)
 	if err != nil {
-		return false
+		return ""
 	}
-	host := strings.TrimSpace(parsed.Hostname())
-	switch strings.ToLower(host) {
+	host := strings.ToLower(strings.TrimSpace(parsed.Hostname()))
+	switch host {
+	case "", "localhost", "127.0.0.1", "::1":
+		return host
+	}
+	if !runningInDocker {
+		return ""
+	}
+	if host == "browser-automation" {
+		return host
+	}
+	if name := strings.ToLower(strings.TrimSpace(containerName)); name != "" && host == name {
+		return host
+	}
+	return ""
+}
+
+func browserAutomationIsLoopbackHost(host string) bool {
+	switch strings.ToLower(strings.TrimSpace(host)) {
 	case "", "localhost", "127.0.0.1", "::1":
 		return true
 	default:
 		return false
 	}
+}
+
+func browserAutomationRunsInDocker() bool {
+	_, err := os.Stat("/.dockerenv")
+	return err == nil
+}
+
+func browserAutomationEffectiveContainerName(sidecarCfg BrowserAutomationSidecarConfig, managedHost string) string {
+	name := strings.TrimSpace(sidecarCfg.ContainerName)
+	if name == "" {
+		name = browserAutomationContainerName
+	}
+	if browserAutomationIsLoopbackHost(managedHost) {
+		return name
+	}
+	if name == "" || strings.EqualFold(name, browserAutomationContainerName) {
+		return managedHost
+	}
+	return name
+}
+
+func browserAutomationCurrentContainerNetwork(dockerCfg DockerConfig) (string, error) {
+	if !browserAutomationRunsInDocker() {
+		return "", fmt.Errorf("current process is not running inside Docker")
+	}
+	selfID, err := os.Hostname()
+	if err != nil {
+		return "", fmt.Errorf("resolve current container hostname: %w", err)
+	}
+	data, code, err := dockerRequest(dockerCfg, "GET", "/containers/"+url.PathEscape(selfID)+"/json", "")
+	if err != nil {
+		return "", fmt.Errorf("inspect current container %q: %w", selfID, err)
+	}
+	if code != 200 {
+		return "", fmt.Errorf("inspect current container %q returned status %d", selfID, code)
+	}
+	var info struct {
+		NetworkSettings struct {
+			Networks map[string]struct{} `json:"Networks"`
+		} `json:"NetworkSettings"`
+	}
+	if err := json.Unmarshal(data, &info); err != nil {
+		return "", fmt.Errorf("decode current container networks: %w", err)
+	}
+	for networkName := range info.NetworkSettings.Networks {
+		if strings.TrimSpace(networkName) != "" {
+			return networkName, nil
+		}
+	}
+	return "", fmt.Errorf("current container has no attached Docker network")
 }
 
 func browserAutomationDefaultScreenshotRel(req BrowserAutomationRequest) string {
@@ -492,7 +559,8 @@ func EnsureBrowserAutomationSidecarRunning(dockerHost string, sidecarCfg Browser
 	Warn(string, ...any)
 	Error(string, ...any)
 }) {
-	if !browserAutomationUsesManagedLoopbackURL(sidecarCfg.URL) {
+	managedHost := browserAutomationManagedURLHost(sidecarCfg.URL, sidecarCfg.ContainerName, browserAutomationRunsInDocker())
+	if managedHost == "" {
 		logger.Info("[BrowserAutomation] Skipping auto-start because sidecar URL points to an external/container service", "url", sidecarCfg.URL)
 		return
 	}
@@ -503,10 +571,7 @@ func EnsureBrowserAutomationSidecarRunning(dockerHost string, sidecarCfg Browser
 	if image == "" {
 		image = browserAutomationImage
 	}
-	containerName := sidecarCfg.ContainerName
-	if containerName == "" {
-		containerName = browserAutomationContainerName
-	}
+	containerName := browserAutomationEffectiveContainerName(sidecarCfg, managedHost)
 
 	data, code, err := dockerRequest(dockerCfg, "GET", "/containers/"+containerName+"/json", "")
 	if err != nil {
@@ -571,9 +636,6 @@ func EnsureBrowserAutomationSidecarRunning(dockerHost string, sidecarCfg Browser
 			"RestartPolicy": map[string]interface{}{"Name": "unless-stopped"},
 			"Memory":        int64(1024 * 1024 * 1024),
 			"NanoCpus":      int64(1_000_000_000),
-			"PortBindings": map[string]interface{}{
-				fmt.Sprintf("%d/tcp", browserAutomationContainerPort): []map[string]string{{"HostIp": "127.0.0.1", "HostPort": fmt.Sprintf("%d", browserAutomationContainerPort)}},
-			},
 			"Binds": []string{
 				sidecarCfg.WorkspaceDir + ":" + browserAutomationWorkspaceDir,
 				sidecarCfg.DownloadDir + ":" + browserAutomationDownloadsDir,
@@ -582,6 +644,26 @@ func EnsureBrowserAutomationSidecarRunning(dockerHost string, sidecarCfg Browser
 		"ExposedPorts": map[string]interface{}{
 			fmt.Sprintf("%d/tcp", browserAutomationContainerPort): struct{}{},
 		},
+	}
+	hostConfig, _ := payload["HostConfig"].(map[string]interface{})
+	if browserAutomationIsLoopbackHost(managedHost) {
+		hostConfig["PortBindings"] = map[string]interface{}{
+			fmt.Sprintf("%d/tcp", browserAutomationContainerPort): []map[string]string{{"HostIp": "127.0.0.1", "HostPort": fmt.Sprintf("%d", browserAutomationContainerPort)}},
+		}
+	} else {
+		networkName, networkErr := browserAutomationCurrentContainerNetwork(dockerCfg)
+		if networkErr != nil {
+			logger.Error("[BrowserAutomation] Failed to resolve current Docker network for managed sidecar", "error", networkErr, "url", sidecarCfg.URL)
+			return
+		}
+		hostConfig["NetworkMode"] = networkName
+		payload["NetworkingConfig"] = map[string]interface{}{
+			"EndpointsConfig": map[string]interface{}{
+				networkName: map[string]interface{}{
+					"Aliases": []string{managedHost},
+				},
+			},
+		}
 	}
 	body, _ := json.Marshal(payload)
 	_, createCode, createErr := dockerRequest(dockerCfg, "POST", "/containers/create?name="+url.QueryEscape(containerName), string(body))
@@ -605,13 +687,11 @@ func StopBrowserAutomationSidecar(dockerHost string, sidecarCfg BrowserAutomatio
 	Warn(string, ...any)
 	Error(string, ...any)
 }) {
-	if !browserAutomationUsesManagedLoopbackURL(sidecarCfg.URL) {
+	managedHost := browserAutomationManagedURLHost(sidecarCfg.URL, sidecarCfg.ContainerName, browserAutomationRunsInDocker())
+	if managedHost == "" {
 		return
 	}
-	containerName := sidecarCfg.ContainerName
-	if containerName == "" {
-		containerName = browserAutomationContainerName
-	}
+	containerName := browserAutomationEffectiveContainerName(sidecarCfg, managedHost)
 	dockerCfg := DockerConfig{Host: dockerHost}
 
 	// Stop the container (ignore errors if it's not running).

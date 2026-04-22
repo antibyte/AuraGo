@@ -235,22 +235,61 @@ func TestBrowserAutomationSidecarRequestRetriesTransientFailures(t *testing.T) {
 	}
 }
 
-func TestBrowserAutomationUsesManagedLoopbackURL(t *testing.T) {
+func TestBrowserAutomationManagedURLHost(t *testing.T) {
 	tests := []struct {
-		raw  string
-		want bool
+		name            string
+		raw             string
+		containerName   string
+		runningInDocker bool
+		want            string
 	}{
-		{"", true},
-		{"http://127.0.0.1:7331", true},
-		{"http://localhost:7331", true},
-		{"http://[::1]:7331", true},
-		{"http://browser-automation:7331", false},
-		{"https://remote.example.com:7331", false},
+		{name: "empty url", raw: "", want: ""},
+		{name: "loopback ipv4", raw: "http://127.0.0.1:7331", want: "127.0.0.1"},
+		{name: "loopback localhost", raw: "http://localhost:7331", want: "localhost"},
+		{name: "loopback ipv6", raw: "http://[::1]:7331", want: "::1"},
+		{name: "docker service host", raw: "http://browser-automation:7331", runningInDocker: true, want: "browser-automation"},
+		{name: "custom managed container host", raw: "http://aurago_browser_automation:7331", containerName: "aurago_browser_automation", runningInDocker: true, want: "aurago_browser_automation"},
+		{name: "docker host ignored outside docker", raw: "http://browser-automation:7331", want: ""},
+		{name: "remote host", raw: "https://remote.example.com:7331", runningInDocker: true, want: ""},
 	}
 
 	for _, tt := range tests {
-		if got := browserAutomationUsesManagedLoopbackURL(tt.raw); got != tt.want {
-			t.Fatalf("browserAutomationUsesManagedLoopbackURL(%q) = %v, want %v", tt.raw, got, tt.want)
+		if got := browserAutomationManagedURLHost(tt.raw, tt.containerName, tt.runningInDocker); got != tt.want {
+			t.Fatalf("%s: browserAutomationManagedURLHost(%q, %q, %v) = %q, want %q", tt.name, tt.raw, tt.containerName, tt.runningInDocker, got, tt.want)
+		}
+	}
+}
+
+func TestBrowserAutomationEffectiveContainerName(t *testing.T) {
+	tests := []struct {
+		name        string
+		cfg         BrowserAutomationSidecarConfig
+		managedHost string
+		want        string
+	}{
+		{
+			name:        "loopback keeps default managed name",
+			cfg:         BrowserAutomationSidecarConfig{},
+			managedHost: "127.0.0.1",
+			want:        browserAutomationContainerName,
+		},
+		{
+			name:        "docker service host reuses service name for default config",
+			cfg:         BrowserAutomationSidecarConfig{ContainerName: browserAutomationContainerName},
+			managedHost: "browser-automation",
+			want:        "browser-automation",
+		},
+		{
+			name:        "custom container name stays untouched",
+			cfg:         BrowserAutomationSidecarConfig{ContainerName: "custom-browser-sidecar"},
+			managedHost: "browser-automation",
+			want:        "custom-browser-sidecar",
+		},
+	}
+
+	for _, tt := range tests {
+		if got := browserAutomationEffectiveContainerName(tt.cfg, tt.managedHost); got != tt.want {
+			t.Fatalf("%s: browserAutomationEffectiveContainerName(...) = %q, want %q", tt.name, got, tt.want)
 		}
 	}
 }
