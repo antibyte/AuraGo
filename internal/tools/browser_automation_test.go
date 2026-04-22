@@ -26,6 +26,7 @@ func browserAutomationTestConfig(t *testing.T, sidecarURL string) *config.Config
 
 	workspaceDir := filepath.Join(t.TempDir(), "agent_workspace", "workdir")
 	cfg := &config.Config{}
+	cfg.Server.MasterKey = strings.Repeat("a", 64)
 	cfg.Directories.WorkspaceDir = workspaceDir
 	cfg.BrowserAutomation.Enabled = true
 	cfg.Tools.BrowserAutomation.Enabled = true
@@ -164,6 +165,9 @@ func TestBrowserAutomationHealthReadsSidecarEndpoint(t *testing.T) {
 			http.NotFound(w, r)
 			return
 		}
+		if got := r.Header.Get("X-AuraGo-Sidecar-Token"); got == "" {
+			t.Fatal("expected X-AuraGo-Sidecar-Token header")
+		}
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"status":"success","message":"ok","sessions":1}`))
 	}))
@@ -210,6 +214,9 @@ func TestBrowserAutomationSidecarRequestRetriesTransientFailures(t *testing.T) {
 		Timeout: 2 * time.Second,
 		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 			attempts++
+			if got := req.Header.Get("X-AuraGo-Sidecar-Token"); got != "test-token" {
+				t.Fatalf("X-AuraGo-Sidecar-Token = %q, want test-token", got)
+			}
 			if attempts == 1 {
 				return nil, errors.New("connection refused")
 			}
@@ -222,7 +229,8 @@ func TestBrowserAutomationSidecarRequestRetriesTransientFailures(t *testing.T) {
 	}
 
 	result, err := browserAutomationSidecarRequest(context.Background(), BrowserAutomationSidecarConfig{
-		URL: "http://127.0.0.1:7331",
+		URL:       "http://127.0.0.1:7331",
+		AuthToken: "test-token",
 	}, map[string]interface{}{"operation": "current_state"})
 	if err != nil {
 		t.Fatalf("browserAutomationSidecarRequest() error = %v", err)
@@ -232,6 +240,20 @@ func TestBrowserAutomationSidecarRequestRetriesTransientFailures(t *testing.T) {
 	}
 	if attempts != 2 {
 		t.Fatalf("attempts = %d, want 2", attempts)
+	}
+}
+
+func TestBrowserAutomationAuthTokenUsesMasterKey(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Server.MasterKey = strings.Repeat("b", 64)
+
+	token1 := browserAutomationAuthToken(cfg)
+	token2 := browserAutomationAuthToken(cfg)
+	if token1 == "" {
+		t.Fatal("expected auth token to be derived from master key")
+	}
+	if token1 != token2 {
+		t.Fatalf("expected deterministic auth token, got %q and %q", token1, token2)
 	}
 }
 

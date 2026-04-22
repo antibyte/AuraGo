@@ -3,6 +3,9 @@ package tools
 import (
 	"bytes"
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -16,6 +19,7 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/security"
 )
 
 const (
@@ -48,6 +52,7 @@ type BrowserAutomationSidecarConfig struct {
 	URL            string
 	Image          string
 	ContainerName  string
+	AuthToken      string
 	AutoBuild      bool
 	DockerfileDir  string
 	SessionTTL     int
@@ -289,6 +294,9 @@ func browserAutomationSidecarRequest(ctx context.Context, cfg BrowserAutomationS
 		return nil, fmt.Errorf("create sidecar request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
+	if token := strings.TrimSpace(cfg.AuthToken); token != "" {
+		req.Header.Set("X-AuraGo-Sidecar-Token", token)
+	}
 
 	var (
 		resp   *http.Response
@@ -342,6 +350,9 @@ func BrowserAutomationHealth(ctx context.Context, cfg *config.Config) map[string
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL+"/health", nil)
 	if err != nil {
 		return map[string]interface{}{"status": "error", "message": err.Error()}
+	}
+	if token := strings.TrimSpace(sidecarCfg.AuthToken); token != "" {
+		req.Header.Set("X-AuraGo-Sidecar-Token", token)
 	}
 	resp, err := browserAutomationHTTPClient.Do(req)
 	if err != nil {
@@ -407,6 +418,21 @@ func ResolveBrowserAutomationSidecarConfig(cfg *config.Config) (BrowserAutomatio
 	return browserAutomationSidecarConfig(cfg)
 }
 
+func browserAutomationAuthToken(cfg *config.Config) string {
+	if cfg == nil {
+		return ""
+	}
+	masterKey := strings.TrimSpace(cfg.Server.MasterKey)
+	if masterKey == "" {
+		return ""
+	}
+	mac := hmac.New(sha256.New, []byte(masterKey))
+	_, _ = mac.Write([]byte("aurago/browser-automation-sidecar/v1"))
+	token := hex.EncodeToString(mac.Sum(nil))
+	security.RegisterSensitive(token)
+	return token
+}
+
 func browserAutomationSidecarConfig(cfg *config.Config) (BrowserAutomationSidecarConfig, error) {
 	workspaceRoot, err := browserAutomationResolveWorkspaceRoot(cfg)
 	if err != nil {
@@ -420,6 +446,7 @@ func browserAutomationSidecarConfig(cfg *config.Config) (BrowserAutomationSideca
 		URL:            cfg.BrowserAutomation.URL,
 		Image:          cfg.BrowserAutomation.Image,
 		ContainerName:  cfg.BrowserAutomation.ContainerName,
+		AuthToken:      browserAutomationAuthToken(cfg),
 		AutoBuild:      cfg.BrowserAutomation.AutoBuild,
 		DockerfileDir:  cfg.BrowserAutomation.DockerfileDir,
 		SessionTTL:     cfg.BrowserAutomation.SessionTTLMinutes,
@@ -617,6 +644,7 @@ func EnsureBrowserAutomationSidecarRunning(dockerHost string, sidecarCfg Browser
 	_ = os.MkdirAll(sidecarCfg.DownloadDir, 0o750)
 	env := []string{
 		"PORT=7331",
+		"AURAGO_BROWSER_AUTOMATION_TOKEN=" + sidecarCfg.AuthToken,
 		fmt.Sprintf("SESSION_TTL_MINUTES=%d", max(1, sidecarCfg.SessionTTL)),
 		fmt.Sprintf("MAX_SESSIONS=%d", max(1, sidecarCfg.MaxSessions)),
 		fmt.Sprintf("HEADLESS=%t", sidecarCfg.Headless),

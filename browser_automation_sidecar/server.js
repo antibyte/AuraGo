@@ -1,4 +1,5 @@
 const http = require('http');
+const crypto = require('crypto');
 const fs = require('fs/promises');
 const path = require('path');
 const { chromium } = require('playwright');
@@ -10,6 +11,7 @@ const HEADLESS = process.env.HEADLESS !== 'false';
 const ALLOW_FILE_UPLOADS = process.env.ALLOW_FILE_UPLOADS !== 'false';
 const ALLOW_FILE_DOWNLOADS = process.env.ALLOW_FILE_DOWNLOADS !== 'false';
 const READ_ONLY = process.env.READ_ONLY === 'true';
+const SIDECAR_TOKEN = String(process.env.AURAGO_BROWSER_AUTOMATION_TOKEN || '').trim();
 const SESSION_TTL_MS = Math.max(1, parseInt(process.env.SESSION_TTL_MINUTES || '30', 10)) * 60 * 1000;
 const MAX_SESSIONS = Math.max(1, parseInt(process.env.MAX_SESSIONS || '3', 10));
 const VIEWPORT_WIDTH = Math.max(320, parseInt(process.env.VIEWPORT_WIDTH || '1280', 10));
@@ -28,6 +30,18 @@ let shuttingDown = false;
 function json(res, statusCode, payload) {
   res.writeHead(statusCode, { 'Content-Type': 'application/json; charset=utf-8' });
   res.end(JSON.stringify(payload));
+}
+
+function hasValidSidecarToken(req) {
+  if (!SIDECAR_TOKEN) return true;
+  const provided = typeof req.headers['x-aurago-sidecar-token'] === 'string'
+    ? req.headers['x-aurago-sidecar-token'].trim()
+    : '';
+  if (!provided) return false;
+  const expectedBuf = Buffer.from(SIDECAR_TOKEN, 'utf8');
+  const providedBuf = Buffer.from(provided, 'utf8');
+  if (expectedBuf.length !== providedBuf.length) return false;
+  return crypto.timingSafeEqual(expectedBuf, providedBuf);
 }
 
 function sanitizeFilename(name) {
@@ -444,6 +458,10 @@ setInterval(() => {
 
 const server = http.createServer({ requestTimeout: HTTP_TIMEOUT_MS }, async (req, res) => {
   try {
+    if ((req.url === '/health' || req.url === '/automation') && !hasValidSidecarToken(req)) {
+      return json(res, 401, { status: 'error', message: 'unauthorized' });
+    }
+
     if (req.method === 'GET' && req.url === '/health') {
       try {
         const browser = await getBrowser();
