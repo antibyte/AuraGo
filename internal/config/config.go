@@ -59,7 +59,7 @@ func defaultSidecarURL(runningInDocker bool, service string, port int) string {
 	return fmt.Sprintf("http://127.0.0.1:%d", port)
 }
 
-func normalizeLegacySidecarURL(raw string, runningInDocker bool, service string, port int) string {
+func NormalizeLegacySidecarURL(raw string, runningInDocker bool, service string, port int) string {
 	if runningInDocker {
 		return raw
 	}
@@ -331,7 +331,7 @@ func Load(path string) (*Config, error) {
 		cfg.WebDAV.AuthType = "basic"
 	}
 
-	cfg.BrowserAutomation.URL = normalizeLegacySidecarURL(cfg.BrowserAutomation.URL, runningInDocker, "browser-automation", 7331)
+	cfg.BrowserAutomation.URL = NormalizeLegacySidecarURL(cfg.BrowserAutomation.URL, runningInDocker, "browser-automation", 7331)
 
 	// Resolve absolute paths for directories
 	cfg.Directories.DataDir = resolvePath(configDir, cfg.Directories.DataDir)

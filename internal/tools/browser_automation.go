@@ -499,8 +499,9 @@ func browserAutomationSidecarConfig(cfg *config.Config) (BrowserAutomationSideca
 	if err != nil {
 		return BrowserAutomationSidecarConfig{}, fmt.Errorf("resolve download dir: %w", err)
 	}
+	runningInDocker := cfg.Runtime.IsDocker || browserAutomationRunsInDocker()
 	return BrowserAutomationSidecarConfig{
-		URL:            cfg.BrowserAutomation.URL,
+		URL:            config.NormalizeLegacySidecarURL(cfg.BrowserAutomation.URL, runningInDocker, "browser-automation", browserAutomationContainerPort),
 		Image:          cfg.BrowserAutomation.Image,
 		ContainerName:  cfg.BrowserAutomation.ContainerName,
 		AuthToken:      browserAutomationAuthToken(cfg),

@@ -384,8 +384,8 @@ func TestNormalizeLegacySidecarURL(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		if got := normalizeLegacySidecarURL(tt.raw, tt.runningInDocker, tt.service, tt.port); got != tt.want {
-			t.Fatalf("%s: normalizeLegacySidecarURL(%q, %v, %q, %d) = %q, want %q", tt.name, tt.raw, tt.runningInDocker, tt.service, tt.port, got, tt.want)
+		if got := NormalizeLegacySidecarURL(tt.raw, tt.runningInDocker, tt.service, tt.port); got != tt.want {
+			t.Fatalf("%s: NormalizeLegacySidecarURL(%q, %v, %q, %d) = %q, want %q", tt.name, tt.raw, tt.runningInDocker, tt.service, tt.port, got, tt.want)
 		}
 	}
 }

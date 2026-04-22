@@ -344,6 +344,19 @@ func TestBrowserAutomationAuthTokenUsesMasterKey(t *testing.T) {
 	}
 }
 
+func TestResolveBrowserAutomationSidecarConfigNormalizesLegacyHostOutsideDocker(t *testing.T) {
+	cfg := browserAutomationTestConfig(t, "http://browser-automation:7331")
+	cfg.Runtime.IsDocker = false
+
+	sidecarCfg, err := ResolveBrowserAutomationSidecarConfig(cfg)
+	if err != nil {
+		t.Fatalf("ResolveBrowserAutomationSidecarConfig() error = %v", err)
+	}
+	if sidecarCfg.URL != "http://127.0.0.1:7331" {
+		t.Fatalf("sidecarCfg.URL = %q, want http://127.0.0.1:7331", sidecarCfg.URL)
+	}
+}
+
 func TestBrowserAutomationManagedURLHost(t *testing.T) {
 	tests := []struct {
 		name            string
