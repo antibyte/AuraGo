@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -212,13 +213,20 @@ func (s *Server) deployEgg(nest invasion.NestRecord, egg invasion.EggRecord) err
 	return nil
 }
 
-// hashFile returns the SHA-256 hex hash of a file, or empty string on error.
+// hashFile returns the SHA-256 hex hash of a file using streaming to avoid
+// loading the entire (potentially large) binary into memory.
+// Returns empty string on error.
 func hashFile(path string) string {
-	data, err := os.ReadFile(path)
+	f, err := os.Open(path)
 	if err != nil {
 		return ""
 	}
-	return hashBytes(data)
+	defer f.Close()
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return ""
+	}
+	return hex.EncodeToString(h.Sum(nil))
 }
 
 // hashBytes returns the SHA-256 hex hash of a byte slice.

@@ -265,7 +265,11 @@ func TestDockerConnector_Deploy_OK(t *testing.T) {
 				w.WriteHeader(http.StatusNoContent)
 				return
 			}
-			if r.Method == "POST" { // start
+			if r.Method == "PUT" { // archive upload (config.yaml copy)
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+			if r.Method == "POST" { // start / rename
 				w.WriteHeader(http.StatusNoContent)
 				return
 			}

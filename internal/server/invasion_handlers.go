@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"aurago/internal/invasion"
-	"aurago/internal/remote"
 )
 
 // ── Nest Handlers ───────────────────────────────────────────────────────────
@@ -60,6 +59,7 @@ func handleInvasionNests(s *Server) http.HandlerFunc {
 						EggID:        n.EggID,
 						HatchStatus:  n.HatchStatus,
 						HatchError:   n.HatchError,
+						LastHatchAt:  n.LastHatchAt,
 						DeployMethod: n.DeployMethod,
 						TargetArch:   n.TargetArch,
 						Route:        n.Route,
@@ -272,6 +272,40 @@ func handleInvasionNest(s *Server) http.HandlerFunc {
 				return
 			}
 
+			// Validate enum fields (same rules as POST handler)
+			if req.AccessType != "" {
+				switch req.AccessType {
+				case "ssh", "docker", "local":
+				default:
+					jsonError(w, "Invalid access_type (must be ssh, docker, or local)", http.StatusBadRequest)
+					return
+				}
+			}
+			if req.DeployMethod != "" {
+				switch req.DeployMethod {
+				case "ssh", "docker_remote", "docker_local":
+				default:
+					jsonError(w, "Invalid deploy_method (must be ssh, docker_remote, or docker_local)", http.StatusBadRequest)
+					return
+				}
+			}
+			if req.TargetArch != "" {
+				switch req.TargetArch {
+				case "linux/amd64", "linux/arm64":
+				default:
+					jsonError(w, "Invalid target_arch (must be linux/amd64 or linux/arm64)", http.StatusBadRequest)
+					return
+				}
+			}
+			if req.Route != "" {
+				switch req.Route {
+				case "direct", "ssh_tunnel", "tailscale", "wireguard", "custom":
+				default:
+					jsonError(w, "Invalid route (must be direct, ssh_tunnel, tailscale, wireguard, or custom)", http.StatusBadRequest)
+					return
+				}
+			}
+
 			existing, err := invasion.GetNest(s.InvasionDB, id)
 			if err != nil {
 				jsonLoggedError(w, s.Logger, http.StatusNotFound, "Nest not found", "Invasion nest lookup failed", err, "nest_id", id)
@@ -405,50 +439,26 @@ func handleInvasionNestValidate(s *Server) http.HandlerFunc {
 	}
 }
 
-// validateNestConnection tests connectivity to a nest based on its access type.
+// validateNestConnection tests connectivity to a nest using the appropriate
+// connector based on the nest's deploy_method.
 func validateNestConnection(nest invasion.NestRecord, s *Server) error {
-	switch nest.AccessType {
-	case "ssh":
-		if nest.VaultSecretID == "" {
-			return fmt.Errorf("no SSH secret configured for this nest")
-		}
-		secret, err := s.Vault.ReadSecret(nest.VaultSecretID)
+	// Read vault secret if needed (SSH deployments require credentials)
+	var secret []byte
+	if nest.VaultSecretID != "" {
+		sec, err := s.Vault.ReadSecret(nest.VaultSecretID)
 		if err != nil {
 			return fmt.Errorf("failed to read secret from vault: %w", err)
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-		defer cancel()
-		output, err := remote.ExecuteRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, []byte(secret), "echo ok && hostname")
-		if err != nil {
-			return fmt.Errorf("SSH connection failed: %w", err)
-		}
-		_ = output
-		return nil
-
-	case "docker":
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		url := fmt.Sprintf("http://%s:%d/version", nest.Host, nest.Port)
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-		if err != nil {
-			return fmt.Errorf("failed to build request: %w", err)
-		}
-		resp, err := http.DefaultClient.Do(req)
-		if err != nil {
-			return fmt.Errorf("Docker API connection failed: %w", err)
-		}
-		resp.Body.Close()
-		if resp.StatusCode != http.StatusOK {
-			return fmt.Errorf("Docker API returned status %d", resp.StatusCode)
-		}
-		return nil
-
-	case "local":
-		return nil // local is always reachable
-
-	default:
-		return fmt.Errorf("unknown access type: %s", nest.AccessType)
+		secret = []byte(sec)
+	} else if nest.DeployMethod == "ssh" {
+		return fmt.Errorf("no SSH secret configured for this nest")
 	}
+
+	connector := invasion.GetConnector(nest)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	return connector.Validate(ctx, nest, secret)
 }
 
 // ── Egg Handlers ────────────────────────────────────────────────────────────

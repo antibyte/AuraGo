@@ -1,6 +1,8 @@
 package invasion
 
 import (
+	"archive/tar"
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -56,15 +58,12 @@ func (c *DockerConnector) Deploy(ctx context.Context, nest NestRecord, secret []
 	_ = c.removeContainer(ctx, nest, backupName)
 	_ = c.renameContainer(ctx, nest, containerName, backupName)
 
-	// 3. Create container with egg configuration via env vars.
-	// NOTE: AURAGO_MASTER_KEY is NOT passed as env var (visible via docker inspect).
-	// Instead it is written into the config YAML and mounted into the container.
+	// 3. Create container with minimal env vars.
+	// The full configuration (including secrets like the shared key and API keys)
+	// is copied into the container via the archive API in step 4, avoiding
+	// exposure via "docker inspect" which displays environment variables.
 	envVars := []string{
 		"AURAGO_EGG_MODE=true",
-		fmt.Sprintf("AURAGO_MASTER_URL=%s", extractMasterURL(payload.ConfigYAML)),
-		fmt.Sprintf("AURAGO_SHARED_KEY=%s", payload.SharedKey),
-		fmt.Sprintf("AURAGO_EGG_ID=%s", extractField(payload.ConfigYAML, "egg_id")),
-		fmt.Sprintf("AURAGO_NEST_ID=%s", extractField(payload.ConfigYAML, "nest_id")),
 		"AURAGO_SERVER_HOST=0.0.0.0",
 	}
 
@@ -109,7 +108,15 @@ func (c *DockerConnector) Deploy(ctx context.Context, nest NestRecord, secret []
 		return fmt.Errorf("container creation failed (%d): %s", resp.StatusCode, string(body))
 	}
 
-	// 4. Start container
+	// 4. Copy config.yaml into the container via the Docker Archive API.
+	// This ensures secrets (shared key, API keys) are not visible in "docker inspect".
+	if err := c.copyConfigToContainer(ctx, nest, containerName, payload.ConfigYAML); err != nil {
+		// Clean up the created container on failure
+		_ = c.removeContainer(ctx, nest, containerName)
+		return fmt.Errorf("failed to copy config to container: %w", err)
+	}
+
+	// 5. Start container
 	startURL := c.apiURL(nest, fmt.Sprintf("/containers/%s/start", containerName))
 	startReq, err := http.NewRequestWithContext(ctx, "POST", startURL, nil)
 	if err != nil {
@@ -125,6 +132,49 @@ func (c *DockerConnector) Deploy(ctx context.Context, nest NestRecord, secret []
 		return fmt.Errorf("container start failed (%d): %s", startResp.StatusCode, string(body))
 	}
 
+	return nil
+}
+
+// copyConfigToContainer copies the egg config YAML into a container via the
+// Docker Engine Archive API (PUT /containers/{id}/archive). The config is
+// written to /app/config.yaml with mode 0600 (owner read/write only).
+func (c *DockerConnector) copyConfigToContainer(ctx context.Context, nest NestRecord, containerName string, configYAML []byte) error {
+	// Build a tar archive containing config.yaml
+	var buf bytes.Buffer
+	tw := tar.NewWriter(&buf)
+	hdr := &tar.Header{
+		Name: "config.yaml",
+		Mode: 0600,
+		Size: int64(len(configYAML)),
+	}
+	if err := tw.WriteHeader(hdr); err != nil {
+		return fmt.Errorf("failed to write tar header: %w", err)
+	}
+	if _, err := tw.Write(configYAML); err != nil {
+		return fmt.Errorf("failed to write config to tar: %w", err)
+	}
+	if err := tw.Close(); err != nil {
+		return fmt.Errorf("failed to close tar archive: %w", err)
+	}
+
+	// Upload to container at /app/
+	url := c.apiURL(nest, fmt.Sprintf("/containers/%s/archive?path=/app", containerName))
+	req, err := http.NewRequestWithContext(ctx, "PUT", url, &buf)
+	if err != nil {
+		return fmt.Errorf("failed to create archive request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/x-tar")
+
+	uploadClient := c.httpClient(nest)
+	resp, err := uploadClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to upload config: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("config upload failed (%d): %s", resp.StatusCode, string(body))
+	}
 	return nil
 }
 
@@ -202,20 +252,19 @@ func (c *DockerConnector) httpClient(nest NestRecord) *http.Client {
 							return net.Dial("unix", strings.TrimPrefix(dh, "unix://"))
 						}
 						if strings.HasPrefix(dh, "npipe://") {
-							// On Windows, named pipe is the default
-							return net.Dial("unix", strings.TrimPrefix(dh, "npipe://"))
+							// Windows named pipes require github.com/Microsoft/go-winio.
+							// Fall back to TCP; users should set DOCKER_HOST=tcp://localhost:2375
+							// for Docker Desktop on Windows.
+							return net.Dial("tcp", "localhost:2375")
 						}
 						if strings.HasPrefix(dh, "tcp://") {
 							return net.Dial("tcp", strings.TrimPrefix(dh, "tcp://"))
 						}
 					}
 					if runtime.GOOS == "windows" {
-						// Windows Docker Desktop uses named pipe by default.
-						// Fall back to TCP 2375 only if pipe is not available.
-						conn, err := net.Dial("unix", `\\.\pipe\docker_engine`)
-						if err == nil {
-							return conn, nil
-						}
+						// Docker Desktop for Windows exposes the API via TCP on
+						// localhost:2375 by default. Named pipe support requires
+						// github.com/Microsoft/go-winio; use TCP as default.
 						return net.Dial("tcp", "localhost:2375")
 					}
 					return net.Dial("unix", "/var/run/docker.sock")

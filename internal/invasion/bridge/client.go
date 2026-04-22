@@ -27,7 +27,8 @@ type EggClient struct {
 	conn   *websocket.Conn
 	mu     sync.Mutex
 	logger *slog.Logger
-	done   chan struct{}
+	done         chan struct{}
+	activeTasks  int
 
 	// Callbacks (set by the egg runtime)
 	OnTask   func(task TaskPayload)     // called when master sends a task
@@ -223,9 +224,16 @@ func (c *EggClient) readLoop() {
 		case MsgTask:
 			var task TaskPayload
 			if err := json.Unmarshal(msg.Payload, &task); err == nil && c.OnTask != nil {
-				// Send ack
 				c.sendAck(msg.ID, true, "")
-				go c.OnTask(task)
+				c.mu.Lock()
+				c.activeTasks++
+				c.mu.Unlock()
+				go func() {
+					c.OnTask(task)
+					c.mu.Lock()
+					c.activeTasks--
+					c.mu.Unlock()
+				}()
 			}
 		case MsgSecret:
 			var secret SecretPayload
@@ -294,11 +302,19 @@ func (c *EggClient) heartbeatLoop(done chan struct{}) {
 				upS = int64(h.Uptime)
 			}
 
+			c.mu.Lock()
+			taskCount := c.activeTasks
+			c.mu.Unlock()
+			status := "idle"
+			if taskCount > 0 {
+				status = "busy"
+			}
 			hb := HeartbeatPayload{
-				Status:     "idle",
-				CPUPercent: cpuP,
-				MemPercent: memP,
-				Uptime:     upS,
+				Status:      status,
+				CPUPercent:  cpuP,
+				MemPercent:  memP,
+				Uptime:      upS,
+				ActiveTasks: taskCount,
 			}
 			msg, err := NewMessage(MsgHeartbeat, c.EggID, c.NestID, c.SharedKey, hb)
 			if err != nil {

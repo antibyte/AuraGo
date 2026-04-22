@@ -23,6 +23,12 @@ func GenerateEggConfig(masterCfg *config.Config, egg EggRecord, nest NestRecord,
 
 	// ── LLM — either inherit from master or use egg's own ──
 	if egg.InheritLLM {
+		// SECURITY NOTE: The master's API key is included in the config YAML.
+		// For Docker deployments the config is copied into the container as a file
+		// (not an env var) to prevent exposure via "docker inspect". For SSH
+		// deployments the config is written with restricted permissions on the
+		// remote host. The egg host must be considered trusted — a compromised
+		// egg can extract the key from its config file.
 		cfg["llm"] = map[string]interface{}{
 			"provider":             masterCfg.LLM.ProviderType,
 			"base_url":             masterCfg.LLM.BaseURL,

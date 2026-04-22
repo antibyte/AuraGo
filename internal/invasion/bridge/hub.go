@@ -230,7 +230,7 @@ func (h *EggHub) HandleMessages(conn *EggConnection) {
 	// Rate limit: max 100 messages per second per connection
 	const rateLimit = 100
 	const rateBurst = 150
-	tokens := rateBurst
+	tokens := float64(rateBurst)
 	lastRefill := time.Now()
 
 	for {
@@ -242,15 +242,16 @@ func (h *EggHub) HandleMessages(conn *EggConnection) {
 			return
 		}
 
-		// Token bucket rate limiting
+		// Token bucket rate limiting (float64 accumulator avoids truncation
+		// that would lose sub-second token refills)
 		now := time.Now()
 		elapsed := now.Sub(lastRefill)
-		tokens += int(elapsed.Seconds() * float64(rateLimit))
-		if tokens > rateBurst {
-			tokens = rateBurst
+		tokens += elapsed.Seconds() * float64(rateLimit)
+		if tokens > float64(rateBurst) {
+			tokens = float64(rateBurst)
 		}
 		lastRefill = now
-		if tokens <= 0 {
+		if tokens < 1.0 {
 			h.logger.Warn("Rate limit exceeded for egg", "nest_id", conn.NestID)
 			continue
 		}
@@ -306,6 +307,9 @@ func (h *EggHub) HandleMessages(conn *EggConnection) {
 		case MsgAck:
 			// Ack received — logged for tracing
 			h.logger.Debug("Ack received from egg", "nest_id", conn.NestID, "msg_id", msg.ID)
+		case MsgStatus:
+			// Status messages from eggs are logged at debug level
+			h.logger.Debug("Status update from egg", "nest_id", conn.NestID)
 		case MsgError:
 			var errPayload ErrorPayload
 			if err := json.Unmarshal(msg.Payload, &errPayload); err == nil {
