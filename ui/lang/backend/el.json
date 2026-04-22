@@ -105,6 +105,7 @@
   "backend.handler_failed_save_file": "Αποτυχία αποθήκευσης αρχείου",
   "backend.handler_provider_not_openrouter": "Ο πάροχος δεν είναι OpenRouter",
   "backend.handler_credits_fetch_error": "Αποτυχία λήψης πιστώσεων OpenRouter",
+  "backend.handler_image_not_supported": "Το τρέχον μοντέλο δεν υποστηρίζει είσοδο εικόνας. Χρησιμοποιήστε ένα μοντέλο με υποστήριξη Vision (π.χ. gemini-2.0-flash, gpt-4o) ή ρυθμίστε έναν ξεχωριστό πάροχο Vision.",
   "backend.voice_no_audio_file": "Δεν μεταφορτώθηκε αρχείο ήχου",
   "backend.voice_invalid_format": "Μη έγκυρη μορφή ήχου",
   "backend.voice_server_error": "Σφάλμα διακομιστή",

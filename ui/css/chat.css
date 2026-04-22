@@ -2077,6 +2077,7 @@
             box-shadow: 0 2px 12px rgba(45, 212, 191, 0.25);
             position: relative;
             overflow: hidden;
+            align-self: center;
         }
 
         .btn-send:hover {
@@ -2109,6 +2110,7 @@
             place-items: center;
             transition: all 0.2s ease;
             flex-shrink: 0;
+            align-self: center;
         }
 
         .btn-more:hover,
@@ -2335,6 +2337,7 @@
             place-items: center;
             transition: all 0.2s ease;
             flex-shrink: 0;
+            align-self: center;
         }
 
         .btn-upload:hover,
@@ -3749,11 +3752,11 @@ html[data-theme="retro-crt"]::before {
 [data-theme="retro-crt"] .bubble {
     text-shadow: 0 0 5px rgba(95, 255, 58, 0.2);
     border-radius: 4px;
-    position: relative;
-    overflow: hidden;
-}
+            position: relative;
+            overflow: hidden;
+        }
 
-[data-theme="retro-crt"] .bubble::after {
+        [data-theme="retro-crt"] .bubble::after {
     content: '';
     position: absolute;
     inset: 0;

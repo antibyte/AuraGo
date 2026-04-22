@@ -105,6 +105,7 @@
   "backend.handler_failed_save_file": "Kunde inte spara fil",
   "backend.handler_provider_not_openrouter": "Leverantören är inte OpenRouter",
   "backend.handler_credits_fetch_error": "Kunde inte hämta OpenRouter-krediter",
+  "backend.handler_image_not_supported": "Den aktuella modellen stöder inte bildinmatning. Använd en modell med Vision-stöd (t.ex. gemini-2.0-flash, gpt-4o) eller konfigurera en separat Vision-leverantör.",
   "backend.voice_no_audio_file": "Ingen ljudfil uppladdad",
   "backend.voice_invalid_format": "Ogiltigt ljudformat",
   "backend.voice_server_error": "Serverfel",

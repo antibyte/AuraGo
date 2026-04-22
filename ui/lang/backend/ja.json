@@ -105,6 +105,7 @@
   "backend.handler_failed_save_file": "ファイルの保存に失敗",
   "backend.handler_provider_not_openrouter": "プロバイダーはOpenRouterではありません",
   "backend.handler_credits_fetch_error": "OpenRouterクレジットの取得に失敗",
+  "backend.handler_image_not_supported": "現在のモデルは画像入力に対応していません。Vision対応モデル（例: gemini-2.0-flash, gpt-4o）を使用するか、別のVisionプロバイダーを設定してください。",
   "backend.voice_no_audio_file": "音声ファイルがアップロードされていません",
   "backend.voice_invalid_format": "無効なオーディオ形式",
   "backend.voice_server_error": "サーバーエラー",

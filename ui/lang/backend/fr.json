@@ -105,6 +105,7 @@
   "backend.handler_failed_save_file": "Échec de l'enregistrement du fichier",
   "backend.handler_provider_not_openrouter": "Le fournisseur n'est pas OpenRouter",
   "backend.handler_credits_fetch_error": "Échec de la récupération des crédits OpenRouter",
+  "backend.handler_image_not_supported": "Le modèle actuel ne prend pas en charge l'entrée d'images. Utilisez un modèle compatible Vision (p.ex. gemini-2.0-flash, gpt-4o) ou configurez un fournisseur Vision distinct.",
   "backend.voice_no_audio_file": "Aucun fichier audio téléversé",
   "backend.voice_invalid_format": "Format audio invalide",
   "backend.voice_server_error": "Erreur serveur",

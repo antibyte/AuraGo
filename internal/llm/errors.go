@@ -158,6 +158,21 @@ func IsProbeInconclusive(err error) bool {
 	return ClassifyError(err) == ErrCategoryProbeInconclusive
 }
 
+// IsImageNotSupportedError returns true if the error indicates the model
+// does not support image/vision input.
+func IsImageNotSupportedError(err error) bool {
+	if err == nil {
+		return false
+	}
+	lower := strings.ToLower(err.Error())
+	return strings.Contains(lower, "does not support image") ||
+		strings.Contains(lower, "does not support multimodal") ||
+		strings.Contains(lower, "image input") ||
+		strings.Contains(lower, "not support image") ||
+		strings.Contains(lower, "image is not supported") ||
+		(strings.Contains(lower, "does not support") && strings.Contains(lower, "image"))
+}
+
 func WrapError(category ErrorCategory, err error, message string) *LLMError {
 	return &LLMError{
 		Category:   category,

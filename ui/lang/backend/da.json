@@ -105,6 +105,7 @@
   "backend.handler_failed_save_file": "Kunne ikke gemme fil",
   "backend.handler_provider_not_openrouter": "Udbyder er ikke OpenRouter",
   "backend.handler_credits_fetch_error": "Kunne ikke hente OpenRouter-kreditter",
+  "backend.handler_image_not_supported": "Den aktuelle model understøtter ikke billedinput. Brug en model med vision-understøttelse (f.eks. gemini-2.0-flash, gpt-4o) eller konfigurer en separat vision-udbyder.",
   "backend.voice_no_audio_file": "Ingen lydfil uploadet",
   "backend.voice_invalid_format": "Ugyldigt lydformat",
   "backend.voice_server_error": "Serverfejl",

@@ -105,6 +105,7 @@
   "backend.handler_failed_save_file": "No se pudo guardar el archivo",
   "backend.handler_provider_not_openrouter": "El proveedor no es OpenRouter",
   "backend.handler_credits_fetch_error": "No se pudieron obtener los créditos de OpenRouter",
+  "backend.handler_image_not_supported": "El modelo actual no admite entrada de imágenes. Usa un modelo compatible con Vision (p.ej. gemini-2.0-flash, gpt-4o) o configura un proveedor de Vision independiente.",
   "backend.voice_no_audio_file": "No se subió ningún archivo de audio",
   "backend.voice_invalid_format": "Formato de audio no válido",
   "backend.voice_server_error": "Error del servidor",

@@ -105,6 +105,7 @@
   "backend.handler_failed_save_file": "Nepodařilo se uložit soubor",
   "backend.handler_provider_not_openrouter": "Poskytovatel není OpenRouter",
   "backend.handler_credits_fetch_error": "Nepodařilo se načíst OpenRouter kredity",
+  "backend.handler_image_not_supported": "Aktuální model nepodporuje vstup obrázků. Použijte model s podporou Vision (např. gemini-2.0-flash, gpt-4o) nebo nakonfigurujte samostatného poskytovatele Vision.",
   "backend.voice_no_audio_file": "Žádný zvukový soubor nebyl nahrán",
   "backend.voice_invalid_format": "Neplatný formát zvuku",
   "backend.voice_server_error": "Chyba serveru",

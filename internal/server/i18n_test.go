@@ -138,6 +138,7 @@ func TestLoadI18NBackendKeys(t *testing.T) {
 		"backend.handler_failed_save_file",
 		"backend.handler_provider_not_openrouter",
 		"backend.handler_credits_fetch_error",
+		"backend.handler_image_not_supported",
 		"backend.voice_no_audio_file",
 		"backend.voice_invalid_format",
 		"backend.voice_server_error",

@@ -111,6 +111,7 @@
   "backend.handler_failed_save_file": "Failed to save file",
   "backend.handler_provider_not_openrouter": "Provider is not OpenRouter",
   "backend.handler_credits_fetch_error": "Failed to fetch OpenRouter credits",
+  "backend.handler_image_not_supported": "The current model does not support image input. Please use a vision-capable model (e.g., gemini-2.0-flash, gpt-4o) or configure a separate vision provider.",
   "backend.voice_no_audio_file": "No audio file uploaded",
   "backend.voice_invalid_format": "Invalid audio format",
   "backend.voice_server_error": "Server error",

@@ -105,6 +105,7 @@
   "backend.handler_failed_save_file": "Nie udało się zapisać pliku",
   "backend.handler_provider_not_openrouter": "Dostawca to nie OpenRouter",
   "backend.handler_credits_fetch_error": "Nie udało się pobrać kredytów OpenRouter",
+  "backend.handler_image_not_supported": "Bieżący model nie obsługuje wprowadzania obrazów. Użyj modelu z obsługą Vision (np. gemini-2.0-flash, gpt-4o) lub skonfiguruj oddzielonego dostawcę Vision.",
   "backend.voice_no_audio_file": "Nie przesłano pliku audio",
   "backend.voice_invalid_format": "Nieprawidłowy format audio",
   "backend.voice_server_error": "Błąd serwera",

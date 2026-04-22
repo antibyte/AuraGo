@@ -105,6 +105,7 @@
   "backend.handler_failed_save_file": "保存文件失败",
   "backend.handler_provider_not_openrouter": "提供商不是 OpenRouter",
   "backend.handler_credits_fetch_error": "获取 OpenRouter 积分失败",
+  "backend.handler_image_not_supported": "当前模型不支持图像输入。请使用支持视觉的模型（如 gemini-2.0-flash、gpt-4o）或配置独立的视觉提供商。",
   "backend.voice_no_audio_file": "未上传音频文件",
   "backend.voice_invalid_format": "无效的音频格式",
   "backend.voice_server_error": "服务器错误",

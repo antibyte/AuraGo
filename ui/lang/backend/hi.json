@@ -105,6 +105,7 @@
   "backend.handler_failed_save_file": "फ़ाइल सहेजने में विफल",
   "backend.handler_provider_not_openrouter": "प्रदाता OpenRouter नहीं है",
   "backend.handler_credits_fetch_error": "OpenRouter क्रेडिट प्राप्त करने में विफल",
+  "backend.handler_image_not_supported": "वर्तमान मॉडल छवि इनपुट का समर्थन नहीं करता। कृपया Vision-सक्षम मॉडल (जैसे gemini-2.0-flash, gpt-4o) का उपयोग करें या एक अलग Vision प्रदाता कॉन्फ़िगर करें।",
   "backend.voice_no_audio_file": "कोई ऑडियो फ़ाइल अपलोड नहीं की गई",
   "backend.voice_invalid_format": "अमान्य ऑडियो प्रारूप",
   "backend.voice_server_error": "सर्वर त्रुटि",
