@@ -58,6 +58,8 @@ type BrowserAutomationSidecarConfig struct {
 	ReadOnly       bool
 	WorkspaceDir   string
 	DownloadDir    string
+	ViewportWidth  int
+	ViewportHeight int
 }
 
 var browserAutomationHTTPClient = &http.Client{Timeout: 60 * time.Second}
@@ -361,6 +363,8 @@ func browserAutomationSidecarConfig(cfg *config.Config) (BrowserAutomationSideca
 		ReadOnly:       cfg.BrowserAutomation.ReadOnly,
 		WorkspaceDir:   workspaceRoot,
 		DownloadDir:    downloadsRoot,
+		ViewportWidth:  cfg.BrowserAutomation.Viewport.Width,
+		ViewportHeight: cfg.BrowserAutomation.Viewport.Height,
 	}, nil
 }
 
@@ -556,6 +560,8 @@ func EnsureBrowserAutomationSidecarRunning(dockerHost string, sidecarCfg Browser
 		fmt.Sprintf("READ_ONLY=%t", sidecarCfg.ReadOnly),
 		"WORKSPACE_ROOT=" + browserAutomationWorkspaceDir,
 		"DOWNLOAD_ROOT=" + browserAutomationDownloadsDir,
+		fmt.Sprintf("VIEWPORT_WIDTH=%d", max(320, sidecarCfg.ViewportWidth)),
+		fmt.Sprintf("VIEWPORT_HEIGHT=%d", max(240, sidecarCfg.ViewportHeight)),
 	}
 
 	payload := map[string]interface{}{
@@ -589,6 +595,36 @@ func EnsureBrowserAutomationSidecarRunning(dockerHost string, sidecarCfg Browser
 		return
 	}
 	logger.Info("[BrowserAutomation] Sidecar container created and started", "image", image, "container", containerName)
+}
+
+// StopBrowserAutomationSidecar stops and removes the managed sidecar container.
+// This is used when config changes require a container restart with new environment
+// variables (e.g. viewport, session TTL, read-only mode).
+func StopBrowserAutomationSidecar(dockerHost string, sidecarCfg BrowserAutomationSidecarConfig, logger interface {
+	Info(string, ...any)
+	Warn(string, ...any)
+	Error(string, ...any)
+}) {
+	if !browserAutomationUsesManagedLoopbackURL(sidecarCfg.URL) {
+		return
+	}
+	containerName := sidecarCfg.ContainerName
+	if containerName == "" {
+		containerName = browserAutomationContainerName
+	}
+	dockerCfg := DockerConfig{Host: dockerHost}
+
+	// Stop the container (ignore errors if it's not running).
+	_, _, _ = dockerRequest(dockerCfg, "POST", "/containers/"+containerName+"/stop?t=5", "")
+
+	// Remove the container so the next EnsureBrowserAutomationSidecarRunning call
+	// recreates it with updated env vars and binds.
+	_, removeCode, removeErr := dockerRequest(dockerCfg, "DELETE", "/containers/"+containerName+"?force=true", "")
+	if removeErr != nil {
+		logger.Warn("[BrowserAutomation] Failed to remove old sidecar container", "error", removeErr)
+	} else if removeCode == 204 || removeCode == 404 {
+		logger.Info("[BrowserAutomation] Old sidecar container removed", "container", containerName)
+	}
 }
 
 func buildBrowserAutomationImage(image, dockerfileDir string, logger interface {

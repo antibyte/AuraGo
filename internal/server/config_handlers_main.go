@@ -537,13 +537,19 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				oldCfg.Directories.WorkspaceDir != newCfg.Directories.WorkspaceDir
 			if browserAutomationChanged &&
 				newCfg.BrowserAutomation.Enabled &&
+				newCfg.BrowserAutomation.AutoStart &&
 				newCfg.Tools.BrowserAutomation.Enabled &&
 				strings.EqualFold(newCfg.BrowserAutomation.Mode, "sidecar") {
 				if sidecarCfg, err := tools.ResolveBrowserAutomationSidecarConfig(newCfg); err != nil {
-					s.Logger.Warn("[Config UI] Failed to resolve browser automation sidecar config", "error", err)
-				} else {
-					go tools.EnsureBrowserAutomationSidecarRunning(newCfg.Docker.Host, sidecarCfg, s.Logger)
-				}
+						s.Logger.Warn("[Config UI] Failed to resolve browser automation sidecar config", "error", err)
+					} else {
+						go func() {
+							// Stop and remove the old container so it gets recreated
+							// with updated env vars (viewport, TTL, read-only, etc.).
+							tools.StopBrowserAutomationSidecar(newCfg.Docker.Host, sidecarCfg, s.Logger)
+							tools.EnsureBrowserAutomationSidecarRunning(newCfg.Docker.Host, sidecarCfg, s.Logger)
+						}()
+					}
 			}
 
 			// Auto-start / stop Security Proxy (Caddy) container when enabled flag changes

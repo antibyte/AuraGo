@@ -145,6 +145,10 @@ async function getActiveSession(id, operation) {
     await destroySession(session.id);
     return { error: { status: 'error', operation, message: 'session expired', session_id: id || '' } };
   }
+  if (session.page && session.page.isClosed()) {
+    await destroySession(session.id);
+    return { error: { status: 'error', operation, message: 'session page was closed or crashed', session_id: id || '' } };
+  }
   touchSession(session);
   return { session };
 }
@@ -467,7 +471,12 @@ const server = http.createServer({ requestTimeout: HTTP_TIMEOUT_MS }, async (req
         return json(res, 415, { status: 'error', message: 'content-type must be application/json' });
       }
       const raw = await readBody(req);
-      const body = raw ? JSON.parse(raw) : {};
+      let body;
+      try {
+        body = raw ? JSON.parse(raw) : {};
+      } catch (parseErr) {
+        return json(res, 400, { status: 'error', message: 'invalid JSON: ' + (parseErr.message || String(parseErr)) });
+      }
       const result = await handleAutomation(body);
       const statusCode = Number.isInteger(result.http_status) ? result.http_status : (result.status === 'error' ? 400 : 200);
       return json(res, statusCode, result);
