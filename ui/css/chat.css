@@ -3145,7 +3145,7 @@
 
             .input-row {
                 gap: 0.45rem;
-                align-items: end;
+                align-items: center;
             }
 
             .input-wrap {
@@ -3331,7 +3331,7 @@
             .input-row {
                 display: flex;
                 gap: 0.3rem;
-                align-items: stretch;
+                align-items: center;
             }
 
             /* Hide the ⋯ toggle button on desktop */
@@ -3346,6 +3346,7 @@
                 left: auto;
                 bottom: auto;
                 display: flex;
+                align-items: center;
                 flex-wrap: nowrap;
                 flex-direction: row;
                 gap: 0.2rem;
@@ -3361,6 +3362,7 @@
                 max-width: none;
                 width: auto;
                 z-index: auto;
+                align-self: center;
             }
 
             /* Override is-hidden so panel is always visible on desktop */
