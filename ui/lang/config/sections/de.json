@@ -363,5 +363,7 @@
   "config.browser_automation.status_ok": "Browser-Automation-Sidecar ist erreichbar.",
   "config.browser_automation.status_error": "Prüfung der Browser-Automation fehlgeschlagen:",
   "config.browser_automation.advanced_label": "Erweiterte Sidecar-Einstellungen",
-  "config.browser_automation.advanced_desc": "Technische Docker- und Sitzungsoptionen für den Playwright-Sidecar. Die meisten Nutzer müssen diese Werte normalerweise nicht ändern."
+  "config.browser_automation.advanced_desc": "Technische Docker- und Sitzungsoptionen für den Playwright-Sidecar. Die meisten Nutzer müssen diese Werte normalerweise nicht ändern.",
+  "config.section.media_conversion.label": "Medienkonvertierung",
+  "config.section.media_conversion.desc": "Audio, Video und Bilder mit FFmpeg und ImageMagick konvertieren."
 }

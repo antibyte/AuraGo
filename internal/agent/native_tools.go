@@ -118,6 +118,7 @@ type ToolFeatureFlags struct {
 	JournalEnabled           bool
 	MemoryAnalysisEnabled    bool
 	DocumentCreatorEnabled   bool
+	MediaConversionEnabled   bool
 	WebCaptureEnabled        bool
 	BrowserAutomationEnabled bool
 	NetworkPingEnabled       bool

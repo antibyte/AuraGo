@@ -956,6 +956,9 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 		case "image_processing":
 			return dispatchFilesystem(ctx, tc, dc)
 
+		case "media_conversion":
+			return dispatchFilesystem(ctx, tc, dc)
+
 		case "filesystem", "filesystem_op":
 			return dispatchFilesystem(ctx, tc, dc)
 

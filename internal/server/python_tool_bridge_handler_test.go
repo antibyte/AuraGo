@@ -4,10 +4,11 @@ import "testing"
 
 func TestPythonToolBridgeBuildCatalogGroups_FiltersByAvailableTools(t *testing.T) {
 	available := map[string]bool{
-		"proxmox":     true,
-		"docker":      true,
-		"send_email":  true,
-		"fetch_email": true,
+		"proxmox":          true,
+		"docker":           true,
+		"send_email":       true,
+		"fetch_email":      true,
+		"media_conversion": true,
 		// list_email_accounts intentionally missing
 		"execute_shell": true, // must never appear because not in curated groups
 	}
@@ -19,6 +20,7 @@ func TestPythonToolBridgeBuildCatalogGroups_FiltersByAvailableTools(t *testing.T
 
 	foundProxmox := false
 	foundEmail := false
+	foundMediaConversion := false
 	for _, g := range groups {
 		if g.Key == "proxmox" {
 			foundProxmox = true
@@ -33,6 +35,12 @@ func TestPythonToolBridgeBuildCatalogGroups_FiltersByAvailableTools(t *testing.T
 				t.Fatalf("expected 2 email tools, got %#v", g.Tools)
 			}
 		}
+		if g.Key == "media_conversion" {
+			foundMediaConversion = true
+			if len(g.Tools) != 1 || g.Tools[0] != "media_conversion" {
+				t.Fatalf("unexpected media conversion tools: %#v", g.Tools)
+			}
+		}
 		if g.Key == "execution" || g.Key == "filesystem" {
 			t.Fatalf("unexpected dangerous group in catalog: %q", g.Key)
 		}
@@ -43,5 +51,8 @@ func TestPythonToolBridgeBuildCatalogGroups_FiltersByAvailableTools(t *testing.T
 	}
 	if !foundEmail {
 		t.Fatal("expected email group")
+	}
+	if !foundMediaConversion {
+		t.Fatal("expected media_conversion group")
 	}
 }

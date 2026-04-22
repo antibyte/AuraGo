@@ -1,0 +1,23 @@
+{
+  "config.media_conversion.note": "FFmpeg verzorgt audio- en videoconversie. ImageMagick converteert afbeeldingsformaten.",
+  "config.media_conversion.enabled_label": "Ingeschakeld",
+  "config.media_conversion.disabled_notice": "Mediaconversie is uitgeschakeld",
+  "config.media_conversion.disabled_desc": "Schakel deze tool in zodat de agent audio, video en afbeeldingen in de werkmap kan converteren.",
+  "config.media_conversion.readonly_label": "Alleen-lezen",
+  "config.media_conversion.ffmpeg_path_label": "FFmpeg-pad",
+  "config.media_conversion.imagemagick_path_label": "ImageMagick-pad",
+  "config.media_conversion.timeout_label": "Time-out",
+  "config.media_conversion.seconds": "seconden",
+  "config.media_conversion.test_button": "Tools testen",
+  "config.media_conversion.loading": "Tools controleren…",
+  "config.media_conversion.status_success": "✅",
+  "config.media_conversion.status_warning": "⚠️",
+  "config.media_conversion.status_error": "❌",
+  "config.media_conversion.available": "beschikbaar",
+  "config.media_conversion.missing": "ontbreekt",
+  "help.media_conversion.enabled": "Schakelt de tool media_conversion in om audio-, video- en afbeeldingsbestanden binnen de werkmap te converteren.",
+  "help.media_conversion.readonly": "In alleen-lezen-modus is alleen info toegestaan. Echte conversies worden geblokkeerd.",
+  "help.media_conversion.ffmpeg_path": "Optioneel aangepast pad naar de ffmpeg-binary. Laat leeg voor automatische detectie via PATH.",
+  "help.media_conversion.imagemagick_path": "Optioneel aangepast pad naar magick of convert. Laat leeg voor automatische detectie.",
+  "help.media_conversion.timeout_seconds": "Maximale looptijd voor één conversie in seconden."
+}

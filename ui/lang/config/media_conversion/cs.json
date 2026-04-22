@@ -1,0 +1,23 @@
+{
+  "config.media_conversion.note": "FFmpeg zajišťuje převod zvuku a videa. ImageMagick převádí obrazové formáty.",
+  "config.media_conversion.enabled_label": "Povoleno",
+  "config.media_conversion.disabled_notice": "Konverze médií je vypnutá",
+  "config.media_conversion.disabled_desc": "Povolte tento nástroj, aby agent mohl převádět zvuk, video a obrázky uvnitř workspace.",
+  "config.media_conversion.readonly_label": "Jen pro čtení",
+  "config.media_conversion.ffmpeg_path_label": "Cesta k FFmpeg",
+  "config.media_conversion.imagemagick_path_label": "Cesta k ImageMagick",
+  "config.media_conversion.timeout_label": "Timeout",
+  "config.media_conversion.seconds": "sekundy",
+  "config.media_conversion.test_button": "Otestovat nástroje",
+  "config.media_conversion.loading": "Kontroluji nástroje…",
+  "config.media_conversion.status_success": "✅",
+  "config.media_conversion.status_warning": "⚠️",
+  "config.media_conversion.status_error": "❌",
+  "config.media_conversion.available": "dostupné",
+  "config.media_conversion.missing": "nedostupné",
+  "help.media_conversion.enabled": "Povolí nástroj media_conversion pro převod audio, video a obrazových souborů uvnitř workspace.",
+  "help.media_conversion.readonly": "V režimu jen pro čtení je povolena pouze operace info. Skutečné převody jsou blokovány.",
+  "help.media_conversion.ffmpeg_path": "Volitelná vlastní cesta k binárce ffmpeg. Nechte prázdné pro automatické vyhledání v PATH.",
+  "help.media_conversion.imagemagick_path": "Volitelná vlastní cesta k magick nebo convert. Nechte prázdné pro automatické vyhledání.",
+  "help.media_conversion.timeout_seconds": "Maximální doba běhu pro jeden převod v sekundách."
+}

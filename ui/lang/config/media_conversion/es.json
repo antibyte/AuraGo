@@ -1,0 +1,23 @@
+{
+  "config.media_conversion.note": "FFmpeg gestiona la conversión de audio y vídeo. ImageMagick convierte formatos de imagen.",
+  "config.media_conversion.enabled_label": "Activado",
+  "config.media_conversion.disabled_notice": "La conversión de medios está desactivada",
+  "config.media_conversion.disabled_desc": "Activa esta herramienta para que el agente pueda convertir audio, vídeo e imágenes dentro del espacio de trabajo.",
+  "config.media_conversion.readonly_label": "Solo lectura",
+  "config.media_conversion.ffmpeg_path_label": "Ruta de FFmpeg",
+  "config.media_conversion.imagemagick_path_label": "Ruta de ImageMagick",
+  "config.media_conversion.timeout_label": "Tiempo de espera",
+  "config.media_conversion.seconds": "segundos",
+  "config.media_conversion.test_button": "Probar herramientas",
+  "config.media_conversion.loading": "Comprobando herramientas…",
+  "config.media_conversion.status_success": "✅",
+  "config.media_conversion.status_warning": "⚠️",
+  "config.media_conversion.status_error": "❌",
+  "config.media_conversion.available": "disponible",
+  "config.media_conversion.missing": "falta",
+  "help.media_conversion.enabled": "Activa la herramienta media_conversion para convertir archivos de audio, vídeo e imagen dentro del espacio de trabajo.",
+  "help.media_conversion.readonly": "En modo de solo lectura solo se permite info. Las conversiones reales se bloquean.",
+  "help.media_conversion.ffmpeg_path": "Ruta personalizada opcional al binario ffmpeg. Déjalo vacío para detectarlo automáticamente en PATH.",
+  "help.media_conversion.imagemagick_path": "Ruta personalizada opcional a magick o convert. Déjala vacía para detectarla automáticamente.",
+  "help.media_conversion.timeout_seconds": "Tiempo máximo de ejecución para una conversión individual en segundos."
+}

@@ -363,5 +363,7 @@
   "config.browser_automation.status_ok": "ब्राउज़र ऑटोमेशन साइडकार उपलब्ध है।",
   "config.browser_automation.status_error": "ब्राउज़र ऑटोमेशन जाँच विफल हुई:",
   "config.browser_automation.advanced_label": "उन्नत साइडकार सेटिंग्स",
-  "config.browser_automation.advanced_desc": "Playwright साइडकार के लिए तकनीकी Docker और सेशन सेटिंग्स। अधिकांश उपयोगकर्ताओं को सामान्यतः इन मानों को बदलने की आवश्यकता नहीं होती।"
+  "config.browser_automation.advanced_desc": "Playwright साइडकार के लिए तकनीकी Docker और सेशन सेटिंग्स। अधिकांश उपयोगकर्ताओं को सामान्यतः इन मानों को बदलने की आवश्यकता नहीं होती।",
+  "config.section.media_conversion.label": "मीडिया रूपांतरण",
+  "config.section.media_conversion.desc": "FFmpeg और ImageMagick से ऑडियो, वीडियो और छवियाँ रूपांतरित करें।"
 }

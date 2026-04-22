@@ -1,0 +1,23 @@
+{
+  "config.media_conversion.note": "FFmpeg hanterar ljud- och videokonvertering. ImageMagick konverterar bildformat.",
+  "config.media_conversion.enabled_label": "Aktiverad",
+  "config.media_conversion.disabled_notice": "Mediekonvertering är inaktiverad",
+  "config.media_conversion.disabled_desc": "Aktivera detta verktyg så att agenten kan konvertera ljud, video och bilder i arbetsytan.",
+  "config.media_conversion.readonly_label": "Skrivskyddat",
+  "config.media_conversion.ffmpeg_path_label": "FFmpeg-sökväg",
+  "config.media_conversion.imagemagick_path_label": "ImageMagick-sökväg",
+  "config.media_conversion.timeout_label": "Timeout",
+  "config.media_conversion.seconds": "sekunder",
+  "config.media_conversion.test_button": "Testa verktyg",
+  "config.media_conversion.loading": "Kontrollerar verktyg…",
+  "config.media_conversion.status_success": "✅",
+  "config.media_conversion.status_warning": "⚠️",
+  "config.media_conversion.status_error": "❌",
+  "config.media_conversion.available": "tillgänglig",
+  "config.media_conversion.missing": "saknas",
+  "help.media_conversion.enabled": "Aktiverar verktyget media_conversion för att konvertera ljud-, video- och bildfiler i arbetsytan.",
+  "help.media_conversion.readonly": "I skrivskyddat läge är bara info tillåtet. Faktiska konverteringar blockeras.",
+  "help.media_conversion.ffmpeg_path": "Valfri egen sökväg till ffmpeg-binären. Lämna tomt för automatisk detektering via PATH.",
+  "help.media_conversion.imagemagick_path": "Valfri egen sökväg till magick eller convert. Lämna tomt för automatisk detektering.",
+  "help.media_conversion.timeout_seconds": "Maximal körtid för en enskild konvertering i sekunder."
+}

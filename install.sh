@@ -126,6 +126,23 @@ else
     ok "ffmpeg found."
 fi
 
+# ImageMagick (needed for image format conversion)
+if ! command -v magick >/dev/null 2>&1 && ! command -v convert >/dev/null 2>&1; then
+    warn "ImageMagick not found."
+    read -r -p "Install ImageMagick for image conversion? [Y/n]: " IM_REPLY < /dev/tty || true
+    if [[ "${IM_REPLY:-y}" =~ ^[Yy]$ ]]; then
+        case "$PKG_MGR" in
+            dnf)    _pkg_install ImageMagick ;;
+            *)      _pkg_install imagemagick ;;
+        esac
+        ok "ImageMagick installed."
+    else
+        warn "Skipping ImageMagick. Image format conversion will not work."
+    fi
+else
+    ok "ImageMagick found."
+fi
+
 # Python 3 + pip (needed for Python skills)
 PYTHON_MISSING=false
 if ! command -v python3 >/dev/null 2>&1 || ! python3 -m pip --version >/dev/null 2>&1; then

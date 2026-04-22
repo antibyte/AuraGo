@@ -287,6 +287,35 @@ func TestLoadBrowserAutomationDefaults(t *testing.T) {
 	}
 }
 
+func TestLoadMediaConversionDefaults(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	if err := os.WriteFile(configPath, []byte("server:\n  ui_language: en\n"), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.Tools.MediaConversion.Enabled {
+		t.Fatal("expected tools.media_conversion.enabled to default to false")
+	}
+	if cfg.Tools.MediaConversion.ReadOnly {
+		t.Fatal("expected tools.media_conversion.readonly to default to false")
+	}
+	if cfg.Tools.MediaConversion.TimeoutSeconds != 120 {
+		t.Fatalf("timeout_seconds = %d, want 120", cfg.Tools.MediaConversion.TimeoutSeconds)
+	}
+	if cfg.Tools.MediaConversion.FFmpegPath != "" {
+		t.Fatalf("ffmpeg_path = %q, want empty default", cfg.Tools.MediaConversion.FFmpegPath)
+	}
+	if cfg.Tools.MediaConversion.ImageMagickPath != "" {
+		t.Fatalf("imagemagick_path = %q, want empty default", cfg.Tools.MediaConversion.ImageMagickPath)
+	}
+}
+
 func TestLoadMigratesLegacyBrowserAutomationDockerURLOutsideDocker(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.yaml")

@@ -1,0 +1,23 @@
+{
+  "config.media_conversion.note": "Το FFmpeg χειρίζεται μετατροπές ήχου και βίντεο. Το ImageMagick μετατρέπει μορφές εικόνας.",
+  "config.media_conversion.enabled_label": "Ενεργοποιημένο",
+  "config.media_conversion.disabled_notice": "Η μετατροπή πολυμέσων είναι απενεργοποιημένη",
+  "config.media_conversion.disabled_desc": "Ενεργοποιήστε αυτό το εργαλείο ώστε ο πράκτορας να μπορεί να μετατρέπει ήχο, βίντεο και εικόνες μέσα στο workspace.",
+  "config.media_conversion.readonly_label": "Μόνο ανάγνωση",
+  "config.media_conversion.ffmpeg_path_label": "Διαδρομή FFmpeg",
+  "config.media_conversion.imagemagick_path_label": "Διαδρομή ImageMagick",
+  "config.media_conversion.timeout_label": "Timeout",
+  "config.media_conversion.seconds": "δευτερόλεπτα",
+  "config.media_conversion.test_button": "Δοκιμή εργαλείων",
+  "config.media_conversion.loading": "Έλεγχος εργαλείων…",
+  "config.media_conversion.status_success": "✅",
+  "config.media_conversion.status_warning": "⚠️",
+  "config.media_conversion.status_error": "❌",
+  "config.media_conversion.available": "διαθέσιμο",
+  "config.media_conversion.missing": "λείπει",
+  "help.media_conversion.enabled": "Ενεργοποιεί το εργαλείο media_conversion για μετατροπή αρχείων ήχου, βίντεο και εικόνων μέσα στο workspace.",
+  "help.media_conversion.readonly": "Στη λειτουργία μόνο ανάγνωσης επιτρέπεται μόνο το info. Οι πραγματικές μετατροπές μπλοκάρονται.",
+  "help.media_conversion.ffmpeg_path": "Προαιρετική προσαρμοσμένη διαδρομή προς το ffmpeg. Αφήστε κενό για αυτόματη εύρεση στο PATH.",
+  "help.media_conversion.imagemagick_path": "Προαιρετική προσαρμοσμένη διαδρομή προς το magick ή το convert. Αφήστε κενό για αυτόματη εύρεση.",
+  "help.media_conversion.timeout_seconds": "Μέγιστος χρόνος εκτέλεσης για μία μετατροπή σε δευτερόλεπτα."
+}

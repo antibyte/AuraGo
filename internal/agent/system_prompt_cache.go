@@ -252,6 +252,9 @@ func collectEnabledTools(flags *prompts.ContextFlags) []string {
 	if flags.DocumentCreatorEnabled {
 		tools = append(tools, "documentcreator")
 	}
+	if flags.MediaConversionEnabled {
+		tools = append(tools, "mediaconversion")
+	}
 	if flags.WebCaptureEnabled {
 		tools = append(tools, "webcapture")
 	}

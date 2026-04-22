@@ -363,5 +363,7 @@
   "config.browser_automation.status_ok": "ブラウザー自動操作サイドカーに接続できます。",
   "config.browser_automation.status_error": "ブラウザー自動操作の確認に失敗しました:",
   "config.browser_automation.advanced_label": "高度なサイドカー設定",
-  "config.browser_automation.advanced_desc": "Playwright サイドカー用の技術的な Docker とセッション設定です。通常、ほとんどのユーザーはこれらの値を変更する必要はありません。"
+  "config.browser_automation.advanced_desc": "Playwright サイドカー用の技術的な Docker とセッション設定です。通常、ほとんどのユーザーはこれらの値を変更する必要はありません。",
+  "config.section.media_conversion.label": "メディア変換",
+  "config.section.media_conversion.desc": "FFmpeg と ImageMagick で音声、動画、画像を変換します。"
 }

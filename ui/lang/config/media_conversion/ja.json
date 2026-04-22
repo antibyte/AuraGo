@@ -1,0 +1,23 @@
+{
+  "config.media_conversion.note": "FFmpeg は音声と動画の変換を担当します。ImageMagick は画像形式を変換します。",
+  "config.media_conversion.enabled_label": "有効",
+  "config.media_conversion.disabled_notice": "メディア変換は無効です",
+  "config.media_conversion.disabled_desc": "このツールを有効にすると、エージェントがワークスペース内で音声、動画、画像を変換できます。",
+  "config.media_conversion.readonly_label": "読み取り専用",
+  "config.media_conversion.ffmpeg_path_label": "FFmpeg パス",
+  "config.media_conversion.imagemagick_path_label": "ImageMagick パス",
+  "config.media_conversion.timeout_label": "タイムアウト",
+  "config.media_conversion.seconds": "秒",
+  "config.media_conversion.test_button": "ツールをテスト",
+  "config.media_conversion.loading": "ツールを確認中…",
+  "config.media_conversion.status_success": "✅",
+  "config.media_conversion.status_warning": "⚠️",
+  "config.media_conversion.status_error": "❌",
+  "config.media_conversion.available": "利用可能",
+  "config.media_conversion.missing": "見つかりません",
+  "help.media_conversion.enabled": "ワークスペース内の音声、動画、画像ファイルを変換する media_conversion ツールを有効にします。",
+  "help.media_conversion.readonly": "読み取り専用モードでは info 操作のみ許可されます。実際の変換はブロックされます。",
+  "help.media_conversion.ffmpeg_path": "ffmpeg バイナリへの任意のカスタムパス。PATH から自動検出する場合は空欄のままにします。",
+  "help.media_conversion.imagemagick_path": "magick または convert への任意のカスタムパス。自動検出する場合は空欄のままにします。",
+  "help.media_conversion.timeout_seconds": "1 回の変換の最大実行時間（秒）。"
+}

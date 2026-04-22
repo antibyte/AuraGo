@@ -163,7 +163,7 @@ var nonAlphaNumPattern = regexp.MustCompile(`[^a-z0-9]+`)
 var adaptiveFamilySeedTools = map[string][]string{
 	"files": {
 		"filesystem", "smart_file_read", "file_search", "file_reader_advanced",
-		"detect_file_type", "pdf_operations", "document_creator", "send_document",
+		"detect_file_type", "pdf_operations", "document_creator", "media_conversion", "send_document",
 	},
 	"shell": {
 		"execute_shell", "execute_python", "execute_sandbox", "filesystem",
@@ -190,7 +190,7 @@ var adaptiveFamilySeedTools = map[string][]string{
 		"cron_scheduler", "follow_up", "manage_missions", "co_agent",
 	},
 	"media": {
-		"media_registry", "send_document", "send_audio", "send_image", "tts",
+		"media_registry", "media_conversion", "send_document", "send_audio", "send_image", "tts",
 		"transcribe_audio", "generate_image", "generate_music", "chromecast",
 	},
 }
@@ -220,8 +220,9 @@ var adaptiveToolNeighbors = map[string][]string{
 	"transfer_remote_file": {"remote_execution", "filesystem", "ssh_exec"},
 
 	// Media & Documents
-	"document_creator": {"media_registry", "send_document", "filesystem"},
-	"media_registry":   {"document_creator", "send_document", "filesystem", "generate_image", "send_image", "tts", "send_audio", "generate_music"},
+	"document_creator": {"media_registry", "media_conversion", "send_document", "filesystem"},
+	"media_registry":   {"document_creator", "media_conversion", "send_document", "filesystem", "generate_image", "send_image", "tts", "send_audio", "generate_music"},
+	"media_conversion": {"media_registry", "document_creator", "image_processing", "transcribe_audio", "send_audio", "send_image", "filesystem"},
 	"send_document":    {"media_registry", "document_creator"},
 	"send_image":       {"media_registry", "generate_image"},
 	"send_audio":       {"media_registry", "tts", "generate_music"},

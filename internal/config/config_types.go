@@ -138,6 +138,15 @@ type DocumentCreatorConfig struct {
 	Gotenberg GotenbergConfig `yaml:"gotenberg"`
 }
 
+// MediaConversionConfig holds settings for the media_conversion tool.
+type MediaConversionConfig struct {
+	Enabled         bool   `yaml:"enabled"`           // enable media_conversion tool
+	ReadOnly        bool   `yaml:"readonly"`          // block conversion writes when true; info remains allowed
+	FFmpegPath      string `yaml:"ffmpeg_path"`       // optional ffmpeg binary path override
+	ImageMagickPath string `yaml:"imagemagick_path"`  // optional ImageMagick binary path override
+	TimeoutSeconds  int    `yaml:"timeout_seconds"`   // per-conversion timeout in seconds
+}
+
 // BrowserAutomationViewport defines the browser viewport used for new sessions.
 type BrowserAutomationViewport struct {
 	Width  int `yaml:"width"`
@@ -1184,6 +1193,7 @@ type Config struct {
 			SummaryAPIKey  string `yaml:"-" json:"-"`
 			SummaryModel   string `yaml:"-" json:"-"`
 		} `yaml:"pdf_extractor"`
+		MediaConversion MediaConversionConfig `yaml:"media_conversion"`
 		DocumentCreator DocumentCreatorConfig `yaml:"document_creator"`
 		WebCapture      struct {
 			Enabled bool `yaml:"enabled"` // enable web_capture tool (screenshot/pdf via headless Chromium, default true)

@@ -142,6 +142,8 @@ func Load(path string) (*Config, error) {
 
 	// Document Creator defaults: Maroto backend, Gotenberg sidecar URL.
 	// Use Docker-internal hostname when running inside a Docker container, otherwise localhost.
+	cfg.Tools.MediaConversion.ReadOnly = false
+	cfg.Tools.MediaConversion.TimeoutSeconds = 120
 	cfg.Tools.DocumentCreator.Backend = "maroto"
 	cfg.Tools.DocumentCreator.OutputDir = "data/documents"
 	cfg.Tools.DocumentCreator.Gotenberg.URL = defaultSidecarURL(runningInDocker, "gotenberg", 3000)

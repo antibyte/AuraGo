@@ -363,5 +363,7 @@
   "config.browser_automation.status_ok": "Sidecar automatyzacji przeglądarki jest osiągalny.",
   "config.browser_automation.status_error": "Sprawdzenie automatyzacji przeglądarki nie powiodło się:",
   "config.browser_automation.advanced_label": "Zaawansowane ustawienia sidecara",
-  "config.browser_automation.advanced_desc": "Techniczne ustawienia Dockera i sesji dla sidecara Playwright. Większość użytkowników zwykle nie musi zmieniać tych wartości."
+  "config.browser_automation.advanced_desc": "Techniczne ustawienia Dockera i sesji dla sidecara Playwright. Większość użytkowników zwykle nie musi zmieniać tych wartości.",
+  "config.section.media_conversion.label": "Konwersja multimediów",
+  "config.section.media_conversion.desc": "Konwertuj audio, wideo i obrazy za pomocą FFmpeg oraz ImageMagick."
 }

@@ -363,5 +363,7 @@
   "config.browser_automation.status_ok": "O sidecar de automação do navegador está acessível.",
   "config.browser_automation.status_error": "A verificação da automação do navegador falhou:",
   "config.browser_automation.advanced_label": "Definições avançadas do sidecar",
-  "config.browser_automation.advanced_desc": "Definições técnicas de Docker e sessão para o sidecar Playwright. Normalmente a maioria dos utilizadores não precisa de alterar estes valores."
+  "config.browser_automation.advanced_desc": "Definições técnicas de Docker e sessão para o sidecar Playwright. Normalmente a maioria dos utilizadores não precisa de alterar estes valores.",
+  "config.section.media_conversion.label": "Conversão de mídia",
+  "config.section.media_conversion.desc": "Converta áudio, vídeo e imagens com FFmpeg e ImageMagick."
 }

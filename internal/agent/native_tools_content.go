@@ -148,6 +148,34 @@ func appendContentToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai
 		}, "operation", "file_path"),
 	))
 
+	if ff.MediaConversionEnabled {
+		tools = append(tools, tool("media_conversion",
+			"Convert audio, video, and image files between formats using FFmpeg and ImageMagick. "+
+				"Operations: audio_convert, video_convert, image_convert, info. "+
+				"Use info to inspect codecs, duration, resolution, channels, or sample rate before converting. "+
+				"All file paths must stay inside the workspace.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "Media conversion operation to perform",
+					"enum":        []string{"audio_convert", "video_convert", "image_convert", "info"},
+				},
+				"file_path":      prop("string", "Input media file path"),
+				"output_file":    prop("string", "Output media file path (auto-generated if omitted for conversions)"),
+				"output_format":  prop("string", "Target file format/extension such as mp3, wav, mp4, webm, png, jpg, or webp"),
+				"video_codec":    prop("string", "Optional FFmpeg video codec, e.g. libx264, libvpx-vp9, hevc"),
+				"audio_codec":    prop("string", "Optional FFmpeg audio codec, e.g. aac, libmp3lame, opus"),
+				"video_bitrate":  prop("string", "Optional target video bitrate, e.g. 2M"),
+				"audio_bitrate":  prop("string", "Optional target audio bitrate, e.g. 192k"),
+				"width":          map[string]interface{}{"type": "integer", "description": "Optional target width for video/image conversions"},
+				"height":         map[string]interface{}{"type": "integer", "description": "Optional target height for video/image conversions"},
+				"fps":            map[string]interface{}{"type": "integer", "description": "Optional target frames per second for video conversion"},
+				"sample_rate":    map[string]interface{}{"type": "integer", "description": "Optional target audio sample rate in Hz"},
+				"quality_pct":    map[string]interface{}{"type": "integer", "description": "Optional image quality percentage 1-100"},
+			}, "operation", "file_path"),
+		))
+	}
+
 	// WHOIS Lookup (always available, network read-only)
 	tools = append(tools, tool("whois_lookup",
 		"Look up WHOIS registration information for a domain name. "+

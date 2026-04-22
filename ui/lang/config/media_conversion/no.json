@@ -1,0 +1,23 @@
+{
+  "config.media_conversion.note": "FFmpeg håndterer lyd- og videokonvertering. ImageMagick konverterer bildeformater.",
+  "config.media_conversion.enabled_label": "Aktivert",
+  "config.media_conversion.disabled_notice": "Mediakonvertering er deaktivert",
+  "config.media_conversion.disabled_desc": "Aktiver dette verktøyet for å la agenten konvertere lyd, video og bilder i arbeidsområdet.",
+  "config.media_conversion.readonly_label": "Skrivebeskyttet",
+  "config.media_conversion.ffmpeg_path_label": "FFmpeg-sti",
+  "config.media_conversion.imagemagick_path_label": "ImageMagick-sti",
+  "config.media_conversion.timeout_label": "Tidsavbrudd",
+  "config.media_conversion.seconds": "sekunder",
+  "config.media_conversion.test_button": "Test verktøy",
+  "config.media_conversion.loading": "Kontrollerer verktøy…",
+  "config.media_conversion.status_success": "✅",
+  "config.media_conversion.status_warning": "⚠️",
+  "config.media_conversion.status_error": "❌",
+  "config.media_conversion.available": "tilgjengelig",
+  "config.media_conversion.missing": "mangler",
+  "help.media_conversion.enabled": "Aktiverer media_conversion-verktøyet for å konvertere lyd-, video- og bildefiler i arbeidsområdet.",
+  "help.media_conversion.readonly": "I skrivebeskyttet modus er bare info tillatt. Faktiske konverteringer blokkeres.",
+  "help.media_conversion.ffmpeg_path": "Valgfri egendefinert sti til ffmpeg-binæren. La stå tom for automatisk oppslag i PATH.",
+  "help.media_conversion.imagemagick_path": "Valgfri egendefinert sti til magick eller convert. La stå tom for automatisk oppslag.",
+  "help.media_conversion.timeout_seconds": "Maksimal kjøretid for en enkelt konvertering i sekunder."
+}

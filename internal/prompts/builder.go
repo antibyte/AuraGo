@@ -186,6 +186,7 @@ type ContextFlags struct {
 	MediaRegistryEnabled     bool
 	HomepageRegistryEnabled  bool
 	DocumentCreatorEnabled   bool
+	MediaConversionEnabled   bool
 	WebCaptureEnabled        bool
 	BrowserAutomationEnabled bool
 	NetworkPingEnabled       bool

@@ -1,0 +1,23 @@
+{
+  "config.media_conversion.note": "FFmpeg obsługuje konwersję audio i wideo. ImageMagick konwertuje formaty obrazów.",
+  "config.media_conversion.enabled_label": "Włączone",
+  "config.media_conversion.disabled_notice": "Konwersja multimediów jest wyłączona",
+  "config.media_conversion.disabled_desc": "Włącz to narzędzie, aby agent mógł konwertować audio, wideo i obrazy w obszarze roboczym.",
+  "config.media_conversion.readonly_label": "Tylko do odczytu",
+  "config.media_conversion.ffmpeg_path_label": "Ścieżka FFmpeg",
+  "config.media_conversion.imagemagick_path_label": "Ścieżka ImageMagick",
+  "config.media_conversion.timeout_label": "Limit czasu",
+  "config.media_conversion.seconds": "sekundy",
+  "config.media_conversion.test_button": "Przetestuj narzędzia",
+  "config.media_conversion.loading": "Sprawdzanie narzędzi…",
+  "config.media_conversion.status_success": "✅",
+  "config.media_conversion.status_warning": "⚠️",
+  "config.media_conversion.status_error": "❌",
+  "config.media_conversion.available": "dostępne",
+  "config.media_conversion.missing": "brak",
+  "help.media_conversion.enabled": "Włącza narzędzie media_conversion do konwersji plików audio, wideo i obrazów w obszarze roboczym.",
+  "help.media_conversion.readonly": "W trybie tylko do odczytu dozwolona jest tylko operacja info. Rzeczywiste konwersje są blokowane.",
+  "help.media_conversion.ffmpeg_path": "Opcjonalna własna ścieżka do pliku ffmpeg. Pozostaw puste, aby wykryć automatycznie z PATH.",
+  "help.media_conversion.imagemagick_path": "Opcjonalna własna ścieżka do magick lub convert. Pozostaw puste dla automatycznego wykrywania.",
+  "help.media_conversion.timeout_seconds": "Maksymalny czas działania pojedynczej konwersji w sekundach."
+}

@@ -1,0 +1,23 @@
+{
+  "config.media_conversion.note": "FFmpeg übernimmt Audio- und Videokonvertierung. ImageMagick konvertiert Bildformate.",
+  "config.media_conversion.enabled_label": "Aktiviert",
+  "config.media_conversion.disabled_notice": "Medienkonvertierung ist deaktiviert",
+  "config.media_conversion.disabled_desc": "Aktiviere dieses Tool, damit der Agent Audio, Video und Bilder im Workspace konvertieren kann.",
+  "config.media_conversion.readonly_label": "Nur-Lese-Modus",
+  "config.media_conversion.ffmpeg_path_label": "FFmpeg-Pfad",
+  "config.media_conversion.imagemagick_path_label": "ImageMagick-Pfad",
+  "config.media_conversion.timeout_label": "Timeout",
+  "config.media_conversion.seconds": "Sekunden",
+  "config.media_conversion.test_button": "Tools testen",
+  "config.media_conversion.loading": "Prüfe Tools…",
+  "config.media_conversion.status_success": "✅",
+  "config.media_conversion.status_warning": "⚠️",
+  "config.media_conversion.status_error": "❌",
+  "config.media_conversion.available": "verfügbar",
+  "config.media_conversion.missing": "fehlt",
+  "help.media_conversion.enabled": "Aktiviert das media_conversion-Tool zum Konvertieren von Audio-, Video- und Bilddateien im Workspace.",
+  "help.media_conversion.readonly": "Im Nur-Lese-Modus ist nur die Operation info erlaubt. Echte Konvertierungen werden blockiert.",
+  "help.media_conversion.ffmpeg_path": "Optionaler eigener Pfad zur ffmpeg-Binärdatei. Leer lassen für automatische Suche im PATH.",
+  "help.media_conversion.imagemagick_path": "Optionaler eigener Pfad zu magick oder convert. Leer lassen für automatische Suche.",
+  "help.media_conversion.timeout_seconds": "Maximale Laufzeit einer einzelnen Konvertierung in Sekunden."
+}

@@ -38,6 +38,29 @@ func dispatchFilesystem(ctx context.Context, tc ToolCall, dc *DispatchContext) s
 		logger.Info("LLM requested image processing", "op", req.Operation, "path", req.FilePath)
 		return "Tool Output: " + tools.ExecuteImageProcessing(cfg.Directories.WorkspaceDir, req.Operation, req.FilePath, req.OutputFile, req.OutputFormat, req.Width, req.Height, req.QualityPct, req.CropX, req.CropY, req.CropWidth, req.CropHeight, req.Angle)
 
+	case "media_conversion":
+		req := decodeMediaConversionArgs(tc)
+		op := strings.ToLower(req.Operation)
+		if !cfg.Agent.AllowFilesystemWrite && op != "info" {
+			return "Tool Output: [PERMISSION DENIED] media_conversion write operations are disabled in Danger Zone settings (agent.allow_filesystem_write: false)."
+		}
+		logger.Info("LLM requested media conversion", "op", req.Operation, "path", req.FilePath, "output", req.OutputFile)
+		return "Tool Output: " + tools.ExecuteMediaConversion(cfg.Directories.WorkspaceDir, &cfg.Tools.MediaConversion, tools.MediaConversionRequest{
+			Operation:    req.Operation,
+			FilePath:     req.FilePath,
+			OutputFile:   req.OutputFile,
+			OutputFormat: req.OutputFormat,
+			VideoCodec:   req.VideoCodec,
+			AudioCodec:   req.AudioCodec,
+			VideoBitrate: req.VideoBitrate,
+			AudioBitrate: req.AudioBitrate,
+			Width:        req.Width,
+			Height:       req.Height,
+			FPS:          req.FPS,
+			SampleRate:   req.SampleRate,
+			QualityPct:   req.QualityPct,
+		})
+
 	case "filesystem", "filesystem_op":
 		req := decodeFilesystemArgs(tc)
 		// Parameter robustness: handle 'path' and 'dest' aliases frequently hallucinated by LLMs

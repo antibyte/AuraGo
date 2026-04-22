@@ -1,0 +1,23 @@
+{
+  "config.media_conversion.note": "FFmpeg gestisce la conversione audio e video. ImageMagick converte i formati immagine.",
+  "config.media_conversion.enabled_label": "Abilitato",
+  "config.media_conversion.disabled_notice": "La conversione media è disabilitata",
+  "config.media_conversion.disabled_desc": "Abilita questo strumento per permettere all'agente di convertire audio, video e immagini nello spazio di lavoro.",
+  "config.media_conversion.readonly_label": "Sola lettura",
+  "config.media_conversion.ffmpeg_path_label": "Percorso FFmpeg",
+  "config.media_conversion.imagemagick_path_label": "Percorso ImageMagick",
+  "config.media_conversion.timeout_label": "Timeout",
+  "config.media_conversion.seconds": "secondi",
+  "config.media_conversion.test_button": "Testa strumenti",
+  "config.media_conversion.loading": "Controllo strumenti…",
+  "config.media_conversion.status_success": "✅",
+  "config.media_conversion.status_warning": "⚠️",
+  "config.media_conversion.status_error": "❌",
+  "config.media_conversion.available": "disponibile",
+  "config.media_conversion.missing": "mancante",
+  "help.media_conversion.enabled": "Abilita lo strumento media_conversion per convertire file audio, video e immagini nello spazio di lavoro.",
+  "help.media_conversion.readonly": "In modalità sola lettura è consentita solo l'operazione info. Le conversioni reali sono bloccate.",
+  "help.media_conversion.ffmpeg_path": "Percorso personalizzato opzionale per il binario ffmpeg. Lascia vuoto per il rilevamento automatico da PATH.",
+  "help.media_conversion.imagemagick_path": "Percorso personalizzato opzionale per magick o convert. Lascia vuoto per il rilevamento automatico.",
+  "help.media_conversion.timeout_seconds": "Tempo massimo di esecuzione per una singola conversione in secondi."
+}

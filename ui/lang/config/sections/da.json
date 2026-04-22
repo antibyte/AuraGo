@@ -363,5 +363,7 @@
   "config.browser_automation.status_ok": "Browserautomatiserings-sidecaren kan nås.",
   "config.browser_automation.status_error": "Kontrol af browserautomatisering mislykkedes:",
   "config.browser_automation.advanced_label": "Avancerede sidecar-indstillinger",
-  "config.browser_automation.advanced_desc": "Tekniske Docker- og sessionsindstillinger for Playwright-sidecaren. De fleste brugere behøver normalt ikke ændre disse værdier."
+  "config.browser_automation.advanced_desc": "Tekniske Docker- og sessionsindstillinger for Playwright-sidecaren. De fleste brugere behøver normalt ikke ændre disse værdier.",
+  "config.section.media_conversion.label": "Mediekonvertering",
+  "config.section.media_conversion.desc": "Konvertér lyd, video og billeder med FFmpeg og ImageMagick."
 }

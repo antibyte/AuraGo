@@ -1,0 +1,23 @@
+{
+  "config.media_conversion.note": "FFmpeg ऑडियो और वीडियो रूपांतरण संभालता है। ImageMagick छवि प्रारूप बदलता है।",
+  "config.media_conversion.enabled_label": "सक्षम",
+  "config.media_conversion.disabled_notice": "मीडिया रूपांतरण अक्षम है",
+  "config.media_conversion.disabled_desc": "इस टूल को सक्षम करें ताकि एजेंट workspace के अंदर ऑडियो, वीडियो और छवियाँ रूपांतरित कर सके।",
+  "config.media_conversion.readonly_label": "केवल-पढ़ें",
+  "config.media_conversion.ffmpeg_path_label": "FFmpeg पथ",
+  "config.media_conversion.imagemagick_path_label": "ImageMagick पथ",
+  "config.media_conversion.timeout_label": "टाइमआउट",
+  "config.media_conversion.seconds": "सेकंड",
+  "config.media_conversion.test_button": "टूल जाँचें",
+  "config.media_conversion.loading": "टूल जाँचे जा रहे हैं…",
+  "config.media_conversion.status_success": "✅",
+  "config.media_conversion.status_warning": "⚠️",
+  "config.media_conversion.status_error": "❌",
+  "config.media_conversion.available": "उपलब्ध",
+  "config.media_conversion.missing": "अनुपस्थित",
+  "help.media_conversion.enabled": "workspace के अंदर ऑडियो, वीडियो और छवि फ़ाइलों को रूपांतरित करने के लिए media_conversion टूल सक्षम करता है।",
+  "help.media_conversion.readonly": "केवल-पढ़ें मोड में केवल info ऑपरेशन अनुमति है। वास्तविक रूपांतरण रोके जाते हैं।",
+  "help.media_conversion.ffmpeg_path": "ffmpeg बाइनरी का वैकल्पिक कस्टम पथ। PATH से स्वतः खोज के लिए खाली छोड़ें।",
+  "help.media_conversion.imagemagick_path": "magick या convert का वैकल्पिक कस्टम पथ। स्वतः खोज के लिए खाली छोड़ें।",
+  "help.media_conversion.timeout_seconds": "एकल रूपांतरण के लिए अधिकतम रनटाइम सेकंड में।"
+}

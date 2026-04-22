@@ -1,0 +1,23 @@
+{
+  "config.media_conversion.note": "FFmpeg handles audio and video conversion. ImageMagick converts image formats.",
+  "config.media_conversion.enabled_label": "Enabled",
+  "config.media_conversion.disabled_notice": "Media conversion is disabled",
+  "config.media_conversion.disabled_desc": "Enable this tool to let the agent convert audio, video, and images inside the workspace.",
+  "config.media_conversion.readonly_label": "Read-Only",
+  "config.media_conversion.ffmpeg_path_label": "FFmpeg Path",
+  "config.media_conversion.imagemagick_path_label": "ImageMagick Path",
+  "config.media_conversion.timeout_label": "Timeout",
+  "config.media_conversion.seconds": "seconds",
+  "config.media_conversion.test_button": "Test Tools",
+  "config.media_conversion.loading": "Checking tools…",
+  "config.media_conversion.status_success": "✅",
+  "config.media_conversion.status_warning": "⚠️",
+  "config.media_conversion.status_error": "❌",
+  "config.media_conversion.available": "available",
+  "config.media_conversion.missing": "missing",
+  "help.media_conversion.enabled": "Enables the media_conversion tool for converting audio, video, and image files inside the workspace.",
+  "help.media_conversion.readonly": "In read-only mode only the info operation is allowed. Real conversions are blocked.",
+  "help.media_conversion.ffmpeg_path": "Optional custom path to the ffmpeg binary. Leave empty to auto-detect it from PATH.",
+  "help.media_conversion.imagemagick_path": "Optional custom path to magick or convert. Leave empty to auto-detect it.",
+  "help.media_conversion.timeout_seconds": "Maximum runtime for a single conversion in seconds."
+}

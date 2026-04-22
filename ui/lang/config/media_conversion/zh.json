@@ -1,0 +1,23 @@
+{
+  "config.media_conversion.note": "FFmpeg 负责音频和视频转换。ImageMagick 用于图像格式转换。",
+  "config.media_conversion.enabled_label": "已启用",
+  "config.media_conversion.disabled_notice": "媒体转换已禁用",
+  "config.media_conversion.disabled_desc": "启用此工具后，代理即可在工作区内转换音频、视频和图像。",
+  "config.media_conversion.readonly_label": "只读",
+  "config.media_conversion.ffmpeg_path_label": "FFmpeg 路径",
+  "config.media_conversion.imagemagick_path_label": "ImageMagick 路径",
+  "config.media_conversion.timeout_label": "超时",
+  "config.media_conversion.seconds": "秒",
+  "config.media_conversion.test_button": "测试工具",
+  "config.media_conversion.loading": "正在检查工具…",
+  "config.media_conversion.status_success": "✅",
+  "config.media_conversion.status_warning": "⚠️",
+  "config.media_conversion.status_error": "❌",
+  "config.media_conversion.available": "可用",
+  "config.media_conversion.missing": "缺失",
+  "help.media_conversion.enabled": "启用 media_conversion 工具，用于在工作区内转换音频、视频和图像文件。",
+  "help.media_conversion.readonly": "在只读模式下仅允许使用 info 操作。真实转换会被阻止。",
+  "help.media_conversion.ffmpeg_path": "可选的 ffmpeg 自定义路径。留空则从 PATH 自动检测。",
+  "help.media_conversion.imagemagick_path": "可选的 magick 或 convert 自定义路径。留空则自动检测。",
+  "help.media_conversion.timeout_seconds": "单次转换的最大运行时间（秒）。"
+}

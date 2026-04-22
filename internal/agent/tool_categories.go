@@ -98,6 +98,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"send_document", "Send a document to the user"},
 		{"analyze_image", "Analyze images using Vision LLM (OCR, describe, identify)"},
 		{"transcribe_audio", "Transcribe audio files to text (Speech-to-Text)"},
+		{"media_conversion", "Convert audio, video, and image files between formats"},
 		{"chromecast", "Cast media to Chromecast devices"},
 		{"media_registry", "Manage and search local media files"},
 		{"jellyfin", "Control Jellyfin media server (libraries, playback, users)"},

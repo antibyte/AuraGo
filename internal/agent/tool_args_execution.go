@@ -150,6 +150,22 @@ type imageProcessingArgs struct {
 	Angle        int
 }
 
+type mediaConversionArgs struct {
+	Operation    string
+	FilePath     string
+	OutputFile   string
+	OutputFormat string
+	VideoCodec   string
+	AudioCodec   string
+	VideoBitrate string
+	AudioBitrate string
+	Width        int
+	Height       int
+	FPS          int
+	SampleRate   int
+	QualityPct   int
+}
+
 type apiRequestArgs struct {
 	Method  string
 	URL     string
@@ -655,6 +671,24 @@ func decodeImageProcessingArgs(tc ToolCall) imageProcessingArgs {
 		CropWidth:    firstNonEmptyInt(tc.CropWidth, toolArgInt(tc.Params, 0, "crop_width")),
 		CropHeight:   firstNonEmptyInt(tc.CropHeight, toolArgInt(tc.Params, 0, "crop_height")),
 		Angle:        firstNonEmptyInt(tc.Angle, toolArgInt(tc.Params, 0, "angle")),
+	}
+}
+
+func decodeMediaConversionArgs(tc ToolCall) mediaConversionArgs {
+	return mediaConversionArgs{
+		Operation:    firstNonEmptyToolString(tc.Operation, toolArgString(tc.Params, "operation")),
+		FilePath:     firstNonEmptyToolString(tc.FilePath, tc.Path, toolArgString(tc.Params, "file_path", "path")),
+		OutputFile:   firstNonEmptyToolString(tc.OutputFile, tc.Destination, tc.Dest, toolArgString(tc.Params, "output_file", "destination", "dest")),
+		OutputFormat: firstNonEmptyToolString(tc.OutputFormat, toolArgString(tc.Params, "output_format")),
+		VideoCodec:   toolArgString(tc.Params, "video_codec"),
+		AudioCodec:   toolArgString(tc.Params, "audio_codec"),
+		VideoBitrate: toolArgString(tc.Params, "video_bitrate"),
+		AudioBitrate: toolArgString(tc.Params, "audio_bitrate"),
+		Width:        firstNonEmptyInt(tc.Width, toolArgInt(tc.Params, 0, "width")),
+		Height:       firstNonEmptyInt(tc.Height, toolArgInt(tc.Params, 0, "height")),
+		FPS:          toolArgInt(tc.Params, 0, "fps"),
+		SampleRate:   toolArgInt(tc.Params, 0, "sample_rate"),
+		QualityPct:   firstNonEmptyInt(tc.QualityPct, toolArgInt(tc.Params, 0, "quality_pct")),
 	}
 }
 

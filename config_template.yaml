@@ -343,6 +343,12 @@ tools:
         gotenberg:
             url: "http://gotenberg:3000"
             timeout: 120
+    media_conversion:
+        enabled: false
+        readonly: false
+        ffmpeg_path: ""
+        imagemagick_path: ""
+        timeout_seconds: 120
     browser_automation:
         enabled: false                                     # enable browser_automation tool (Playwright browser sidecar)
     skill_manager:

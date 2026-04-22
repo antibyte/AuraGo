@@ -1,0 +1,23 @@
+{
+  "config.media_conversion.note": "FFmpeg gère la conversion audio et vidéo. ImageMagick convertit les formats d'image.",
+  "config.media_conversion.enabled_label": "Activé",
+  "config.media_conversion.disabled_notice": "La conversion multimédia est désactivée",
+  "config.media_conversion.disabled_desc": "Activez cet outil pour permettre à l'agent de convertir l'audio, la vidéo et les images dans l'espace de travail.",
+  "config.media_conversion.readonly_label": "Lecture seule",
+  "config.media_conversion.ffmpeg_path_label": "Chemin FFmpeg",
+  "config.media_conversion.imagemagick_path_label": "Chemin ImageMagick",
+  "config.media_conversion.timeout_label": "Délai d'attente",
+  "config.media_conversion.seconds": "secondes",
+  "config.media_conversion.test_button": "Tester les outils",
+  "config.media_conversion.loading": "Vérification des outils…",
+  "config.media_conversion.status_success": "✅",
+  "config.media_conversion.status_warning": "⚠️",
+  "config.media_conversion.status_error": "❌",
+  "config.media_conversion.available": "disponible",
+  "config.media_conversion.missing": "manquant",
+  "help.media_conversion.enabled": "Active l'outil media_conversion pour convertir des fichiers audio, vidéo et image dans l'espace de travail.",
+  "help.media_conversion.readonly": "En mode lecture seule, seule l'opération info est autorisée. Les conversions réelles sont bloquées.",
+  "help.media_conversion.ffmpeg_path": "Chemin personnalisé optionnel vers le binaire ffmpeg. Laissez vide pour une détection automatique via PATH.",
+  "help.media_conversion.imagemagick_path": "Chemin personnalisé optionnel vers magick ou convert. Laissez vide pour une détection automatique.",
+  "help.media_conversion.timeout_seconds": "Durée maximale d'une conversion unique en secondes."
+}
