@@ -23,10 +23,13 @@ type SetupProfile struct {
 	PricingLabel          string          `yaml:"pricing_label"          json:"pricing_label"`
 	PricingURL            string          `yaml:"pricing_url"            json:"pricing_url"`
 	KeyURL                string          `yaml:"key_url"                json:"key_url"`
+	AltKeyURL             string          `yaml:"alt_key_url,omitempty"  json:"alt_key_url,omitempty"`
 	KeyPlaceholder        string          `yaml:"key_placeholder"        json:"key_placeholder"`
 	ProviderType          string          `yaml:"provider_type"          json:"provider_type"`
 	BaseURL               string          `yaml:"base_url"               json:"base_url"`
+	AltBaseURL            string          `yaml:"alt_base_url,omitempty" json:"alt_base_url,omitempty"`
 	MainModel             string          `yaml:"main_model"             json:"main_model"`
+	HighspeedModel        string          `yaml:"highspeed_model,omitempty" json:"highspeed_model,omitempty"`
 	NativeFunctionCalling bool            `yaml:"native_function_calling" json:"native_function_calling"`
 	Features              ProfileFeatures `yaml:"features"               json:"features"`
 	Models                ProfileModels   `yaml:"models"                 json:"models"`

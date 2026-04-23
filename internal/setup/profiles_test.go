@@ -94,6 +94,21 @@ func TestMiniMaxProfileHasTTS(t *testing.T) {
 			if p.TTS.VoiceID == "" {
 				t.Fatal("minimax TTS should have voice_id")
 			}
+			if p.KeyPlaceholder != "sk-..." {
+				t.Fatalf("minimax key placeholder = %q, want sk-...", p.KeyPlaceholder)
+			}
+			if p.BaseURL != "https://api.minimax.io/v1" {
+				t.Fatalf("minimax base_url = %q, want international endpoint", p.BaseURL)
+			}
+			if p.AltBaseURL != "https://api.minimaxi.com/v1" {
+				t.Fatalf("minimax alt_base_url = %q, want China endpoint", p.AltBaseURL)
+			}
+			if p.MainModel != "MiniMax-M2.7" {
+				t.Fatalf("minimax main_model = %q, want MiniMax-M2.7", p.MainModel)
+			}
+			if p.HighspeedModel != "MiniMax-M2.7-highspeed" {
+				t.Fatalf("minimax highspeed_model = %q, want MiniMax-M2.7-highspeed", p.HighspeedModel)
+			}
 			return
 		}
 	}

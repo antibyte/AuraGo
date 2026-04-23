@@ -200,6 +200,30 @@ func TestHandleSetupProfilesReturnsProfiles(t *testing.T) {
 			t.Fatalf("missing field %q in first profile", field)
 		}
 	}
+
+	foundMiniMax := false
+	for _, raw := range profiles {
+		profile := raw.(map[string]interface{})
+		if profile["id"] != "minimax_coding" {
+			continue
+		}
+		foundMiniMax = true
+		if profile["key_placeholder"] != "sk-..." {
+			t.Fatalf("minimax key_placeholder = %v, want sk-...", profile["key_placeholder"])
+		}
+		if profile["base_url"] != "https://api.minimax.io/v1" {
+			t.Fatalf("minimax base_url = %v, want international endpoint", profile["base_url"])
+		}
+		if profile["alt_base_url"] != "https://api.minimaxi.com/v1" {
+			t.Fatalf("minimax alt_base_url = %v, want China endpoint", profile["alt_base_url"])
+		}
+		if profile["highspeed_model"] != "MiniMax-M2.7-highspeed" {
+			t.Fatalf("minimax highspeed_model = %v, want MiniMax-M2.7-highspeed", profile["highspeed_model"])
+		}
+	}
+	if !foundMiniMax {
+		t.Fatal("expected minimax_coding profile in response")
+	}
 }
 
 func TestHandleSetupProfilesRejectsPost(t *testing.T) {

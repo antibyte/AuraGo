@@ -147,6 +147,29 @@
                         <div id="quick-test-result" class="field-hint is-hidden"></div>
                     </div>
                 </div>
+
+                <div class="setup-inner-card is-hidden" id="quick-minimax-options">
+                    <h3 class="setup-section-heading" data-i18n="setup.minimax_options_heading">⚡ MiniMax Token Plan</h3>
+                    <div class="field-group">
+                        <label class="field-label" for="quick-minimax-region" data-i18n="setup.minimax_region_label">Region</label>
+                        <select class="field-select" id="quick-minimax-region" onchange="onQuickMiniMaxOptionsChange()">
+                            <option value="international" data-i18n="setup.minimax_region_international">International</option>
+                            <option value="china" data-i18n="setup.minimax_region_china">China</option>
+                        </select>
+                        <div class="field-hint" id="quick-minimax-region-hint"></div>
+                    </div>
+                    <div class="toggle-row">
+                        <div>
+                            <div class="toggle-label" data-i18n="setup.minimax_highspeed_label">Use High-Speed model</div>
+                            <div class="toggle-desc" data-i18n="setup.minimax_highspeed_hint">Enable this only if you booked a High-Speed Token Plan. Standard Token Plan keys should stay on MiniMax-M2.7.</div>
+                        </div>
+                        <label class="toggle" for="quick-minimax-highspeed">
+                            <input type="checkbox" id="quick-minimax-highspeed" class="toggle" onchange="onQuickMiniMaxOptionsChange()">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="field-hint" id="quick-minimax-runtime-hint"></div>
+                </div>
             </div>
 
             <!-- ═══ Section 1: Minimum Config ═══ -->

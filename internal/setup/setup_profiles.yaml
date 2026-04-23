@@ -46,17 +46,20 @@ profiles:
 
   - id: minimax_coding
     name: "MiniMax Coding Plan"
-    description: "MiniMax M2.5 coding-optimized models. Best value for creative + agentic code workflows."
+    description: "MiniMax M2.7 token plan with optional High-Speed support. Strong value for creative + agentic code workflows."
     icon: "💻"
     sort_order: 2
     recommended: true
-    pricing_label: "Coding plan – included models"
-    pricing_url: "https://www.minimaxi.com"
-    key_url: "https://platform.minimaxi.com"
-    key_placeholder: "mm-..."
+    pricing_label: "Token plan – included models"
+    pricing_url: "https://platform.minimax.io/docs/guides/pricing-token-plan"
+    key_url: "https://platform.minimax.io"
+    alt_key_url: "https://platform.minimaxi.com"
+    key_placeholder: "sk-..."
     provider_type: openai
-    base_url: "https://api.minimaxi.com/v1"
-    main_model: "MiniMax-M2.5" # 2026 SOTA Agentic Model von MiniMax
+    base_url: "https://api.minimax.io/v1"
+    alt_base_url: "https://api.minimaxi.com/v1"
+    main_model: "MiniMax-M2.7"
+    highspeed_model: "MiniMax-M2.7-highspeed"
     native_function_calling: true
     default_trust_level: 3
     features:
@@ -70,9 +73,9 @@ profiles:
       video_generation: false
     models:
       vision:
-        model: "MiniMax-M2.5"
+        model: "MiniMax-M2.7"
       whisper:
-        model: "MiniMax-M2.5"
+        model: "MiniMax-M2.7"
         mode: "multimodal"
       embeddings:
         model: "minimax-embedding"

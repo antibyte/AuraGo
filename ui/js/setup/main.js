@@ -196,6 +196,103 @@ function renderProfileCards(list) {
     }).join('');
 }
 
+function isMiniMaxQuickProfile(profile) {
+    return !!profile && profile.id === 'minimax_coding';
+}
+
+function getQuickProfileRuntimeConfig(profile) {
+    const runtime = {
+        providerType: (profile && profile.provider_type) || 'openai',
+        baseUrl: (profile && profile.base_url) || '',
+        mainModel: (profile && profile.main_model) || '',
+        keyPlaceholder: (profile && profile.key_placeholder) || 'sk-...',
+        keyUrl: (profile && profile.key_url) || '',
+    };
+    if (!isMiniMaxQuickProfile(profile)) return runtime;
+
+    const region = (document.getElementById('quick-minimax-region') || {}).value || 'international';
+    const useHighspeed = !!((document.getElementById('quick-minimax-highspeed') || {}).checked);
+    runtime.baseUrl = region === 'china'
+        ? (profile.alt_base_url || 'https://api.minimaxi.com/v1')
+        : (profile.base_url || 'https://api.minimax.io/v1');
+    runtime.keyUrl = region === 'china'
+        ? (profile.alt_key_url || profile.key_url || 'https://platform.minimaxi.com')
+        : (profile.key_url || 'https://platform.minimax.io');
+    runtime.mainModel = useHighspeed
+        ? (profile.highspeed_model || profile.main_model || 'MiniMax-M2.7-highspeed')
+        : (profile.main_model || 'MiniMax-M2.7');
+    runtime.keyPlaceholder = profile.key_placeholder || 'sk-...';
+    return runtime;
+}
+
+function resolveQuickProfileModel(profile, model) {
+    if (!isMiniMaxQuickProfile(profile)) return model || '';
+    const useHighspeed = !!((document.getElementById('quick-minimax-highspeed') || {}).checked);
+    if (useHighspeed && model === (profile.main_model || '')) {
+        return profile.highspeed_model || model || '';
+    }
+    return model || '';
+}
+
+function updateQuickProfileUI() {
+    const minimaxOptions = document.getElementById('quick-minimax-options');
+    if (minimaxOptions) {
+        setupSetHidden(minimaxOptions, !isMiniMaxQuickProfile(selectedProfile));
+    }
+    if (!selectedProfile || selectedProfile.id === 'custom') return;
+
+    const runtime = getQuickProfileRuntimeConfig(selectedProfile);
+
+    const header = document.getElementById('plan-quick-header');
+    if (header) {
+        const name = tProfile(selectedProfile.id, 'name', selectedProfile.name);
+        const desc = tProfile(selectedProfile.id, 'description', selectedProfile.description || '');
+        header.innerHTML = `
+            <div class="plan-quick-icon">${escapeHtml(selectedProfile.icon || '🤖')}</div>
+            <div>
+                <div class="plan-quick-name">${escapeHtml(name)}</div>
+                <div class="plan-quick-subtitle">${escapeHtml(desc)}</div>
+            </div>`;
+    }
+
+    const hint = document.getElementById('quick-api-key-hint');
+    const link = document.getElementById('quick-key-link');
+    if (hint && link && runtime.keyUrl) {
+        link.href = runtime.keyUrl;
+        const domain = runtime.keyUrl.replace(/^https?:\/\//, '').split('/')[0];
+        link.textContent = domain;
+        setupSetHidden(hint, false);
+    } else if (hint) {
+        setupSetHidden(hint, true);
+    }
+
+    const apiKeyInput = document.getElementById('quick-api-key');
+    if (apiKeyInput) {
+        apiKeyInput.placeholder = runtime.keyPlaceholder;
+    }
+
+    if (isMiniMaxQuickProfile(selectedProfile)) {
+        const regionHint = document.getElementById('quick-minimax-region-hint');
+        if (regionHint) {
+            regionHint.innerHTML = t('setup.minimax_region_hint', {
+                international_url: selectedProfile.base_url || 'https://api.minimax.io/v1',
+                china_url: selectedProfile.alt_base_url || 'https://api.minimaxi.com/v1',
+            });
+        }
+        const runtimeHint = document.getElementById('quick-minimax-runtime-hint');
+        if (runtimeHint) {
+            runtimeHint.innerHTML = t('setup.minimax_runtime_hint', {
+                model: runtime.mainModel,
+                base_url: runtime.baseUrl,
+            });
+        }
+    }
+}
+
+function onQuickMiniMaxOptionsChange() {
+    updateQuickProfileUI();
+}
+
 function selectProfile(profileId) {
     selectedProfile = profiles.find(p => p.id === profileId) || null;
     // Update card selection state
@@ -205,37 +302,7 @@ function selectProfile(profileId) {
     if (!selectedProfile) return;
     // Update Next button state
     updateNextButtonState();
-    // For quick flow: populate quick-step fields
-    if (profileId !== 'custom') {
-        // Update quick-plan header
-        const header = document.getElementById('plan-quick-header');
-        if (header) {
-            const name = tProfile(selectedProfile.id, 'name', selectedProfile.name);
-            const desc = tProfile(selectedProfile.id, 'description', selectedProfile.description || '');
-            header.innerHTML = `
-                <div class="plan-quick-icon">${escapeHtml(selectedProfile.icon || '🤖')}</div>
-                <div>
-                    <div class="plan-quick-name">${escapeHtml(name)}</div>
-                    <div class="plan-quick-subtitle">${escapeHtml(desc)}</div>
-                </div>`;
-        }
-        // Update API key hint
-        const hint = document.getElementById('quick-api-key-hint');
-        const link = document.getElementById('quick-key-link');
-        if (hint && link && selectedProfile.key_url) {
-            link.href = selectedProfile.key_url;
-            const domain = selectedProfile.key_url.replace(/^https?:\/\//, '').split('/')[0];
-            link.textContent = domain;
-            setupSetHidden(hint, false);
-        } else if (hint) {
-            setupSetHidden(hint, true);
-        }
-        // Update API key placeholder
-        const apiKeyInput = document.getElementById('quick-api-key');
-        if (apiKeyInput) {
-            apiKeyInput.placeholder = selectedProfile.key_placeholder || 'sk-...';
-        }
-    }
+    updateQuickProfileUI();
 }
 
 // ── Quick Connection Test ────────────────────
@@ -259,14 +326,15 @@ async function testQuickConnection() {
     setupSetHidden(result, false);
 
     try {
+        const runtime = getQuickProfileRuntimeConfig(selectedProfile);
         const resp = await fetch('/api/setup/test', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                provider_type: selectedProfile.provider_type || 'openai',
-                base_url: selectedProfile.base_url || '',
+                provider_type: runtime.providerType,
+                base_url: runtime.baseUrl,
                 api_key: apiKey,
-                model: selectedProfile.main_model || '',
+                model: runtime.mainModel,
             }),
         });
         const data = await resp.json();
@@ -347,6 +415,7 @@ function buildQuickConfigPatch() {
     if (!selectedProfile) return buildConfigPatch();
 
     const p = selectedProfile;
+    const runtime = getQuickProfileRuntimeConfig(p);
     const apiKey = (document.getElementById('quick-api-key').value || '').trim();
     const adminPassword = (document.getElementById('quick-admin-password').value || '').trim();
     const quickLang = document.getElementById('quick-language');
@@ -356,24 +425,25 @@ function buildQuickConfigPatch() {
     // Build provider list — main + one entry per enabled subsystem
     const makeProvider = (id, label, model, extra) => ({
         id,
-        type: p.provider_type || 'openai',
+        type: runtime.providerType,
         name: `${p.name} ${label}`.trim(),
-        base_url: p.base_url || '',
+        base_url: runtime.baseUrl,
         api_key: apiKey,
         model,
         native_function_calling: p.native_function_calling !== false,
         ...extra,
     });
 
-    const providers = [makeProvider('main', '', p.main_model || '', {})];
+    const providers = [makeProvider('main', '', runtime.mainModel || '', {})];
     const m = p.models || {};
+    const resolveModel = (subsystem) => resolveQuickProfileModel(p, (subsystem && subsystem.model) || '');
 
-    if (p.features && p.features.vision    && m.vision)           providers.push(makeProvider('vision',     'Vision',     m.vision.model,           {}));
-    if (p.features && p.features.whisper   && m.whisper)          providers.push(makeProvider('whisper',    'Whisper',    m.whisper.model,          {}));
-    if (p.features && p.features.embeddings && m.embeddings)      providers.push(makeProvider('embeddings', 'Embeddings', m.embeddings.model,       { native_function_calling: false }));
-    if (p.features && p.features.helper    && m.helper)           providers.push(makeProvider('helper',     'Helper',     m.helper.model,           {}));
-    if (p.features && p.features.image_generation && m.image_generation) providers.push(makeProvider('image_gen', 'Image Gen', m.image_generation.model, {}));
-    if (p.features && p.features.music_generation && m.music_generation) providers.push(makeProvider('music_gen', 'Music Gen',  m.music_generation.model, {}));
+    if (p.features && p.features.vision    && m.vision)           providers.push(makeProvider('vision',     'Vision',     resolveModel(m.vision),           {}));
+    if (p.features && p.features.whisper   && m.whisper)          providers.push(makeProvider('whisper',    'Whisper',    resolveModel(m.whisper),          {}));
+    if (p.features && p.features.embeddings && m.embeddings)      providers.push(makeProvider('embeddings', 'Embeddings', resolveModel(m.embeddings),       { native_function_calling: false }));
+    if (p.features && p.features.helper    && m.helper)           providers.push(makeProvider('helper',     'Helper',     resolveModel(m.helper),           {}));
+    if (p.features && p.features.image_generation && m.image_generation) providers.push(makeProvider('image_gen', 'Image Gen', resolveModel(m.image_generation), {}));
+    if (p.features && p.features.music_generation && m.music_generation) providers.push(makeProvider('music_gen', 'Music Gen',  resolveModel(m.music_generation), {}));
 
     // Read trust level from radio button (may have been pre-selected by nextStep)
     const trustRadio = document.querySelector('input[name="trust-level"]:checked');
@@ -755,7 +825,10 @@ function fetchAndApplyLang(langValue) {
                 applyI18N();
                 renderStepIndicator();
                 // Re-render dynamically built content that used t() at creation time
-                if (profiles && profiles.length > 0) renderProfileCards(profiles);
+                if (profiles && profiles.length > 0) {
+                    renderProfileCards(profiles);
+                    if (selectedProfile) selectProfile(selectedProfile.id);
+                }
             }
         })
         .catch((err) => { console.warn('fetchAndApplyLang failed:', err); });

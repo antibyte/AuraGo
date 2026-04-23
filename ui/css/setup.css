@@ -1209,6 +1209,12 @@ body.has-https-warning {
     color: var(--text-secondary);
 }
 
+#quick-minimax-runtime-hint,
+#quick-minimax-region-hint {
+    margin-top: 0.5rem;
+    line-height: 1.5;
+}
+
 /* ──── Dynamic Step Indicator ──── */
 
 #step-indicator {
