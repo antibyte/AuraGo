@@ -36,13 +36,14 @@ services:
 
     # --- Volumes ---
     volumes:
-      # Optional: place your pre-filled config.yaml next to docker-compose.yml.
-      # It will be copied into the container on first start.
-      # IMPORTANT: The file must exist before running docker-compose up.
-      #   Create it first:  touch ./config.yaml   (empty = use built-in defaults)
-      # If this line is commented out, the container generates a default config.
-      # Use the Web UI (http://localhost:8088) to edit settings afterwards.
-      - ./config.yaml:/app/config.yaml.user
+      # Optional host config override directory.
+      # If ./config/config.yaml exists, it is copied into the container on first start.
+      # If the directory is empty or missing, AuraGo uses the built-in template.
+      #
+      # This uses a DIRECTORY mount intentionally. Docker auto-creates missing bind
+      # mount paths as directories; mounting a single file here would otherwise
+      # create an empty ./config.yaml directory on fresh installs.
+      - ./config:/run/optional-config:ro
 
       # Persistent runtime data: memory, chat history, state, master key, vector DB.
       - aurago_data:/app/data

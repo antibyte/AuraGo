@@ -5,7 +5,9 @@ set -e
 # This script ensures safe configuration updates with multiple fallback layers
 
 CONFIG_FILE="/app/data/config.yaml"
-USER_CONFIG="/app/config.yaml.user"
+LEGACY_USER_CONFIG="/app/config.yaml.user"
+USER_CONFIG_DIR="/run/optional-config"
+USER_CONFIG=""
 ENV_FILE="/app/data/.env"
 TEMPLATE_FILE="/app/config.yaml.default"
 MERGER_BIN="/app/config-merger"
@@ -26,26 +28,24 @@ normalize_file "$TEMPLATE_FILE"
 
 # === 1. INITIAL CONFIG SETUP ===
 
-# Docker creates a directory if the host file doesn't exist when using bind mounts.
-# We cannot remove a mounted directory, so just warn and continue.
-# All subsequent checks use [ -f "$USER_CONFIG" ] so a directory is safely ignored.
-if [ -d "$USER_CONFIG" ]; then
+# Resolve optional user config source.
+# Preferred modern path: /run/optional-config/config.yaml (directory mount).
+# Legacy compatibility: /app/config.yaml.user (file mount from older compose files).
+if [ -f "$USER_CONFIG_DIR/config.yaml" ]; then
+    USER_CONFIG="$USER_CONFIG_DIR/config.yaml"
+elif [ -f "$USER_CONFIG_DIR/config.yml" ]; then
+    USER_CONFIG="$USER_CONFIG_DIR/config.yml"
+elif [ -f "$LEGACY_USER_CONFIG" ]; then
+    USER_CONFIG="$LEGACY_USER_CONFIG"
+elif [ -d "$LEGACY_USER_CONFIG" ]; then
     echo "[Entrypoint] =========================================================="
-    echo "[Entrypoint] WARNING: $USER_CONFIG is a directory, not a file!"
+    echo "[Entrypoint] WARNING: $LEGACY_USER_CONFIG is a directory, not a file!"
     echo "[Entrypoint]"
-    echo "[Entrypoint] This happens when the host file did not exist before"
-    echo "[Entrypoint] running 'docker compose up'. Docker auto-creates a"
-    echo "[Entrypoint] directory instead of a file for missing bind mounts."
-    echo "[Entrypoint]"
-    echo "[Entrypoint] Fix: stop the container and run these commands on the host:"
-    echo "[Entrypoint]   docker compose down"
-    echo "[Entrypoint]   rmdir config.yaml        # remove the auto-created directory"
-    echo "[Entrypoint]   touch config.yaml         # create an empty file"
-    echo "[Entrypoint]   docker compose up -d"
-    echo "[Entrypoint]"
-    echo "[Entrypoint] Falling back to the built-in template config for this run."
-    echo "[Entrypoint] Your settings will NOT be preserved across restarts until"
-    echo "[Entrypoint] you create a real config.yaml file on the host."
+    echo "[Entrypoint] This usually comes from an older compose setup that bind-mounted"
+    echo "[Entrypoint] ./config.yaml before the file existed on the host."
+    echo "[Entrypoint] AuraGo will ignore it and use the built-in template instead."
+    echo "[Entrypoint] Recommended fix: remove the legacy ./config.yaml directory and"
+    echo "[Entrypoint] switch to the new optional ./config/config.yaml layout."
     echo "[Entrypoint] =========================================================="
 fi
 
@@ -59,7 +59,7 @@ if [ ! -f "$CONFIG_FILE" ]; then
             echo "[Entrypoint] Backed up existing config to $BACKUP_NAME" || true
     fi
     
-    if [ -f "$USER_CONFIG" ]; then
+    if [ -n "$USER_CONFIG" ] && [ -f "$USER_CONFIG" ]; then
         echo "[Entrypoint] Using user-supplied config from $USER_CONFIG..."
         cp "$USER_CONFIG" "$CONFIG_FILE"
     elif [ -f "$TEMPLATE_FILE" ]; then

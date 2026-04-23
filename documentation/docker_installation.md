@@ -44,7 +44,20 @@ The `docker-compose.yml` mounts `./secrets` read-only into the container. If `se
 
 > If you skip this step, AuraGo auto-generates a master key on first start and stores it in `/app/data/.env` inside the persistent Docker volume. That works out of the box, but a host-managed key file is better for backup and migration.
 
-### Step 4: Start the Container
+### Step 4: Optional host config override
+
+If you want to pre-seed a custom config before the first start, create it as:
+
+```bash
+mkdir -p config
+nano config/config.yaml
+```
+
+If `config/config.yaml` is missing, AuraGo simply uses the built-in template and writes the active config into the persistent Docker volume.
+
+> This directory-based layout is intentional. Docker bind mounts create missing file paths as directories, which easily leads to broken first starts if a compose file mounts `./config.yaml` directly.
+
+### Step 5: Start the Container
 ```bash
 docker compose up -d
 ```
@@ -100,13 +113,24 @@ openssl rand -hex 32 > secrets/aurago_master.key
 chmod 600 secrets/aurago_master.key
 ```
 
-### Step 3: Deploy
+### Step 3: Optional pre-filled config
+
+If you want to provide your own config before first start:
+
+```bash
+mkdir -p config
+nano config/config.yaml
+```
+
+If you do nothing here, AuraGo will start from the built-in defaults and store the active config in its persistent data volume.
+
+### Step 4: Deploy
 Deploy the stack.
 - Dockge/Portainer will pull the image and start three containers: `aurago`, `aurago_docker_proxy`, and `aurago_gotenberg`.
 - On first start, the container automatically generates the config from the built-in template.
 - Persistent volumes for `/app/data` and `/app/agent_workspace/workdir` are automatically created.
 
-### Step 4: Configure via Web UI
+### Step 5: Configure via Web UI
 Access the Web UI at `http://<your-server-ip>:8088` and navigate to the **CONFIG** tab to finish setting up your AI agent.
 
 > [!NOTE]
