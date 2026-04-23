@@ -248,6 +248,19 @@ func TestHandleAuthLoginReturnsSetupRedirectWhenPasswordMissing(t *testing.T) {
 	}
 }
 
+func TestSetupWizardRedirectTargetDefaultsToSetupWhenPasswordBootstrapState(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{}
+	cfg.Auth.Enabled = true
+	cfg.LLM.APIKey = "configured"
+
+	target := setupWizardRedirectTarget(&Server{Cfg: cfg})
+	if target != "/setup" {
+		t.Fatalf("target = %q, want /setup", target)
+	}
+}
+
 func TestAuthMiddlewareAllowsLoginAssetsWithoutSession(t *testing.T) {
 	t.Parallel()
 

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"aurago/internal/config"
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha1"
@@ -470,9 +471,16 @@ func isAllowedWithoutPassword(path string) bool {
 		strings.HasSuffix(path, ".ttf")
 }
 
+func requiresPasswordBootstrap(cfg *config.Config) bool {
+	return cfg != nil && cfg.Auth.Enabled && cfg.Auth.PasswordHash == ""
+}
+
 func setupWizardRedirectTarget(s *Server) string {
 	if s == nil || s.Cfg == nil {
-		return "/auth/login"
+		return "/setup"
+	}
+	if requiresPasswordBootstrap(s.Cfg) {
+		return "/setup"
 	}
 	if needsSetup(s.Cfg) {
 		return "/setup"

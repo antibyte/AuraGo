@@ -73,7 +73,7 @@ func handleAuthLoginPage(s *Server, uiFS fs.FS) http.HandlerFunc {
 			http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 			return
 		}
-		if !passwordSet && needsSetup(s.Cfg) {
+		if !passwordSet {
 			http.Redirect(w, r, "/setup", http.StatusTemporaryRedirect)
 			return
 		}
@@ -173,17 +173,12 @@ func handleAuthLogin(s *Server) http.HandlerFunc {
 		// Validate password
 		if hash == "" {
 			w.Header().Set("Content-Type", "application/json")
-			if needsSetup(s.Cfg) {
-				w.WriteHeader(http.StatusConflict)
-				json.NewEncoder(w).Encode(map[string]interface{}{
-					"error":          i18n.T(s.Cfg.Server.UILanguage, "backend.auth_not_configured"),
-					"redirect":       "/setup",
-					"setup_required": true,
-				})
-				return
-			}
-			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(map[string]interface{}{"error": i18n.T(s.Cfg.Server.UILanguage, "backend.auth_not_configured")})
+			w.WriteHeader(http.StatusConflict)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"error":          i18n.T(s.Cfg.Server.UILanguage, "backend.auth_not_configured"),
+				"redirect":       "/setup",
+				"setup_required": true,
+			})
 			return
 		}
 		if !CheckPassword(req.Password, hash) {
