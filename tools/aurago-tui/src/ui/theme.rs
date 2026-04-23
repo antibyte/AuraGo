@@ -1,4 +1,4 @@
-use ratatui::style::{Color, Modifier, Style};
+use ratatui::style::Color;
 
 #[derive(Debug, Clone)]
 pub struct Theme {
@@ -19,6 +19,12 @@ pub struct Theme {
 
 impl Default for Theme {
     fn default() -> Self {
+        Self::dark()
+    }
+}
+
+impl Theme {
+    pub fn dark() -> Self {
         Self {
             bg: Color::Black,
             fg: Color::White,
@@ -33,6 +39,59 @@ impl Default for Theme {
             assistant_msg: Color::Magenta,
             system_msg: Color::Gray,
             tool_msg: Color::Yellow,
+        }
+    }
+
+    pub fn light() -> Self {
+        Self {
+            bg: Color::Rgb(250, 250, 250),
+            fg: Color::Black,
+            accent: Color::Blue,
+            accent_dim: Color::Gray,
+            success: Color::Green,
+            warning: Color::Rgb(200, 150, 0),
+            error: Color::Red,
+            border: Color::Gray,
+            border_focus: Color::Blue,
+            user_msg: Color::Blue,
+            assistant_msg: Color::Magenta,
+            system_msg: Color::Gray,
+            tool_msg: Color::Rgb(180, 140, 0),
+        }
+    }
+
+    pub fn midnight() -> Self {
+        Self {
+            bg: Color::Rgb(15, 15, 35),
+            fg: Color::Rgb(220, 220, 240),
+            accent: Color::Rgb(100, 200, 255),
+            accent_dim: Color::Rgb(60, 60, 100),
+            success: Color::Rgb(100, 255, 150),
+            warning: Color::Rgb(255, 200, 100),
+            error: Color::Rgb(255, 100, 120),
+            border: Color::Rgb(50, 50, 80),
+            border_focus: Color::Rgb(100, 200, 255),
+            user_msg: Color::Rgb(120, 160, 255),
+            assistant_msg: Color::Rgb(200, 120, 255),
+            system_msg: Color::Rgb(140, 140, 170),
+            tool_msg: Color::Rgb(255, 220, 100),
+        }
+    }
+
+    pub fn by_name(name: &str) -> Self {
+        match name {
+            "light" => Self::light(),
+            "midnight" => Self::midnight(),
+            _ => Self::dark(),
+        }
+    }
+
+    pub fn next_name(current: &str) -> &'static str {
+        match current {
+            "default" => "light",
+            "light" => "midnight",
+            "midnight" => "default",
+            _ => "light",
         }
     }
 }

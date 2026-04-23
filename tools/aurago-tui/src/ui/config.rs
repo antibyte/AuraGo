@@ -198,11 +198,22 @@ fn draw_edit_field(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
     let inner = block.inner(area);
     f.render_widget(block, area);
 
-    let input = Paragraph::new(Line::from(vec![
+    // Show cursor at edit position
+    let cursor_idx = app.config_edit_cursor.min(app.config_edit_value.len());
+    let (before, after) = app.config_edit_value.split_at(cursor_idx);
+    let cursor_visible = app.tick_counter % 4 < 2;
+    let cursor_str = if cursor_visible { "▎" } else { " " };
+
+    let mut spans = vec![
         Span::styled(" ", Style::default()),
-        Span::styled(&app.config_edit_value, Style::default().fg(theme.fg)),
-        Span::styled("▎", Style::default().fg(theme.accent)),
-    ]));
+        Span::styled(before, Style::default().fg(theme.fg)),
+        Span::styled(cursor_str, Style::default().fg(theme.accent)),
+    ];
+    if !after.is_empty() {
+        spans.push(Span::styled(after, Style::default().fg(theme.fg)));
+    }
+
+    let input = Paragraph::new(Line::from(spans));
     f.render_widget(input, inner);
 }
 

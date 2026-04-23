@@ -187,6 +187,17 @@ pub struct AppState {
     pub nav_bar_open: bool,
     pub nav_bar_index: usize,
 
+    /// Input cursor positions for TUI polish
+    pub chat_input_cursor: usize,
+    pub config_edit_cursor: usize,
+    pub session_drawer_index: usize,
+
+    /// Graceful quit flag
+    pub should_quit: bool,
+
+    /// Current theme name
+    pub theme_name: String,
+
     /// Dummy field for list_selected_mut() default case
     pub _list_dummy: Option<usize>,
 }
@@ -231,6 +242,7 @@ impl Default for AppState {
             login_error: None,
             login_loading: false,
             chat_input: String::new(),
+            chat_input_cursor: 0,
             chat_messages: Vec::new(),
             scroll: 0,
             status_message: "Disconnected".to_string(),
@@ -303,6 +315,10 @@ impl Default for AppState {
             media_offset: 0,
             nav_bar_open: false,
             nav_bar_index: 0,
+            config_edit_cursor: 0,
+            session_drawer_index: 0,
+            should_quit: false,
+            theme_name: "default".to_string(),
             _list_dummy: None,
         }
     }
@@ -320,6 +336,47 @@ impl AppState {
             is_thinking: false,
         });
         self.scroll_to_bottom();
+    }
+
+    pub fn insert_at_cursor(&mut self, c: char) {
+        if self.chat_input_cursor > self.chat_input.len() {
+            self.chat_input_cursor = self.chat_input.len();
+        }
+        self.chat_input.insert(self.chat_input_cursor, c);
+        self.chat_input_cursor += 1;
+    }
+
+    pub fn backspace_at_cursor(&mut self) {
+        if self.chat_input_cursor > 0 && self.chat_input_cursor <= self.chat_input.len() {
+            self.chat_input_cursor -= 1;
+            self.chat_input.remove(self.chat_input_cursor);
+        }
+    }
+
+    pub fn delete_at_cursor(&mut self) {
+        if self.chat_input_cursor < self.chat_input.len() {
+            self.chat_input.remove(self.chat_input_cursor);
+        }
+    }
+
+    pub fn cursor_left(&mut self) {
+        if self.chat_input_cursor > 0 {
+            self.chat_input_cursor -= 1;
+        }
+    }
+
+    pub fn cursor_right(&mut self) {
+        if self.chat_input_cursor < self.chat_input.len() {
+            self.chat_input_cursor += 1;
+        }
+    }
+
+    pub fn cursor_start(&mut self) {
+        self.chat_input_cursor = 0;
+    }
+
+    pub fn cursor_end(&mut self) {
+        self.chat_input_cursor = self.chat_input.len();
     }
 
     pub fn start_assistant_stream(&mut self) {
@@ -348,7 +405,7 @@ impl AppState {
     }
 
     pub fn scroll_to_bottom(&mut self) {
-        self.scroll = self.chat_messages.len().saturating_sub(1);
+        self.scroll = usize::MAX;
     }
 
     pub fn apply_sse_event(&mut self, event: SseEvent) {
@@ -415,11 +472,6 @@ impl AppState {
         self.screen = screen.clone();
         self.nav_bar_index = screen.nav_index();
         self.nav_bar_open = false;
-    }
-
-    /// Returns true if the current screen uses a list + detail layout
-    pub fn has_list_layout(&self) -> bool {
-        matches!(self.screen, Screen::Plans | Screen::Missions | Screen::Skills | Screen::Containers | Screen::Knowledge | Screen::Media)
     }
 
     /// Get the selected item index for the current list-based screen

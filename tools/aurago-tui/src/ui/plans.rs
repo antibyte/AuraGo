@@ -94,7 +94,9 @@ fn draw_plans_list(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
         .borders(Borders::RIGHT)
         .border_style(Style::default().fg(theme.border));
     let list = List::new(items).block(block);
-    f.render_widget(list, area);
+    let mut state = ratatui::widgets::ListState::default();
+    state.select(app.plans_selected);
+    f.render_stateful_widget(list, area, &mut state);
 }
 
 fn draw_plans_detail(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {

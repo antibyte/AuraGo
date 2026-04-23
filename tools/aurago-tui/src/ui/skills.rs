@@ -100,7 +100,9 @@ fn draw_skills_list(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
         .borders(Borders::RIGHT)
         .border_style(Style::default().fg(theme.border));
     let list = List::new(items).block(block);
-    f.render_widget(list, area);
+    let mut state = ratatui::widgets::ListState::default();
+    state.select(app.skills_selected);
+    f.render_stateful_widget(list, area, &mut state);
 }
 
 fn draw_skills_detail(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
@@ -178,7 +180,7 @@ fn draw_skills_detail(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) 
 
 fn draw_skills_status(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
     let left = format!("⚡ {} ", app.status_message);
-    let right = " j/k: navigate │ Space: toggle │ d: toggle daemon │ r: refresh │ F1: nav │ ?: help ";
+    let right = " j/k: navigate │ Space: toggle │ r: refresh │ F1: nav │ ?: help ";
     let total = area.width as usize;
     let spacer = total.saturating_sub(left.len() + right.len());
     let text = format!("{}{}{}", left, " ".repeat(spacer), right);

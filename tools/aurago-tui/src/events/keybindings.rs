@@ -61,7 +61,7 @@ pub enum Action {
 
     // ── Actions ───────────────────────────────────────────────────────────
     Refresh,         // F5 or Ctrl+Shift+R
-    ActionPrimary,   // Enter on detail view
+    ActionPrimary,   // Enter on selected item (run/advance/start)
     ActionDelete,    // Delete key on list item
     ActionToggle,    // Space to toggle enabled/disabled
 
@@ -165,7 +165,7 @@ fn map_chat(key: KeyEvent, focus_sidebar: bool, session_drawer: bool) -> Action 
         KeyCode::Down => Action::ScrollDown,
         KeyCode::Tab => Action::ToggleSidebar,
         KeyCode::Backspace => Action::Backspace,
-        KeyCode::Delete => Action::Backspace,
+        KeyCode::Delete => Action::DeleteChar,
         KeyCode::Char('\u{7f}') => Action::Backspace,
         KeyCode::Char('\u{8}') => Action::Backspace,
         KeyCode::Left if key.modifiers.contains(KeyModifiers::CONTROL) => Action::CursorStart,
@@ -174,6 +174,8 @@ fn map_chat(key: KeyEvent, focus_sidebar: bool, session_drawer: bool) -> Action 
         KeyCode::Right => Action::CursorRight,
         KeyCode::Home => Action::CursorStart,
         KeyCode::End => Action::CursorEnd,
+        KeyCode::Char('l') if key.modifiers.contains(KeyModifiers::CONTROL) => Action::ClearChat,
+        KeyCode::Char('g') if key.modifiers.contains(KeyModifiers::CONTROL) => Action::ScrollBottom,
         KeyCode::Char(c) => Action::Type(c),
         _ => Action::None,
     }
@@ -304,6 +306,9 @@ fn try_global_keys(key: KeyEvent) -> Option<Action> {
         KeyCode::Char('o') if key.modifiers.contains(KeyModifiers::CONTROL) => Some(Action::Logout),
         KeyCode::Char('s') if key.modifiers.contains(KeyModifiers::CONTROL) => Some(Action::ToggleSessionDrawer),
         KeyCode::Char('n') if key.modifiers.contains(KeyModifiers::CONTROL) => Some(Action::OpenNavBar),
+        KeyCode::Char('t') if key.modifiers.contains(KeyModifiers::CONTROL) => Some(Action::ToggleTheme),
+        KeyCode::Left if key.modifiers.contains(KeyModifiers::ALT) => Some(Action::NavigateLeft),
+        KeyCode::Right if key.modifiers.contains(KeyModifiers::ALT) => Some(Action::NavigateRight),
         _ => None,
     }
 }

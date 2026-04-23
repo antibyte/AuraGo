@@ -1,7 +1,6 @@
 use ratatui::{
-    layout::{Alignment, Constraint, Direction, Layout, Margin, Rect},
+    layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
-    text::{Line, Span, Text},
     widgets::{Block, Borders, Clear, Paragraph, Wrap},
     Frame,
 };
@@ -34,11 +33,11 @@ pub fn draw_login(f: &mut Frame, app: &AppState, theme: &Theme) {
         .constraints([
             Constraint::Length(1),
             Constraint::Length(1),
-            Constraint::Length(2),
-            Constraint::Length(3),
-            Constraint::Length(3),
-            Constraint::Length(2),
             Constraint::Length(1),
+            Constraint::Length(4),
+            Constraint::Length(4),
+            Constraint::Length(2),
+            Constraint::Length(2),
             Constraint::Min(0),
         ])
         .split(inner);
@@ -55,10 +54,8 @@ pub fn draw_login(f: &mut Frame, app: &AppState, theme: &Theme) {
     let status_line = Paragraph::new(status).style(Style::default().fg(theme.accent));
     f.render_widget(status_line, chunks[1]);
 
+    // Password field with integrated label in block title
     let password_masked = "*".repeat(app.login_password.len());
-    let pass_label = Paragraph::new("Password:").style(Style::default().fg(theme.fg));
-    f.render_widget(pass_label, chunks[3]);
-
     let pass_border = if app.login_focus_otp {
         Style::default().fg(theme.border)
     } else {
@@ -67,16 +64,14 @@ pub fn draw_login(f: &mut Frame, app: &AppState, theme: &Theme) {
     let pass_input = Paragraph::new(password_masked)
         .block(
             Block::default()
+                .title(" Password ")
                 .borders(Borders::ALL)
                 .border_style(pass_border),
         )
-        .style(Style::default().bg(Color::Black));
+        .style(Style::default().bg(Color::Black).fg(theme.fg));
     f.render_widget(pass_input, chunks[3]);
 
     if app.totp_enabled {
-        let totp_label = Paragraph::new("OTP Code:").style(Style::default().fg(theme.fg));
-        f.render_widget(totp_label, chunks[4]);
-
         let totp_border = if app.login_focus_otp {
             Style::default().fg(theme.border_focus)
         } else {
@@ -85,10 +80,11 @@ pub fn draw_login(f: &mut Frame, app: &AppState, theme: &Theme) {
         let totp_input = Paragraph::new(app.login_totp.clone())
             .block(
                 Block::default()
+                    .title(" OTP Code ")
                     .borders(Borders::ALL)
                     .border_style(totp_border),
             )
-            .style(Style::default().bg(Color::Black));
+            .style(Style::default().bg(Color::Black).fg(theme.fg));
         f.render_widget(totp_input, chunks[4]);
     }
 

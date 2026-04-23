@@ -166,10 +166,11 @@ fn draw_messages(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
 
     let scrollbar = Scrollbar::default()
         .orientation(ScrollbarOrientation::VerticalRight)
-        .begin_symbol(None)
-        .end_symbol(None);
-    let mut scrollbar_state = ratatui::widgets::ScrollbarState::new(app.chat_messages.len())
-        .position(app.scroll);
+        .begin_symbol(Some("↑"))
+        .end_symbol(Some("↓"))
+        .track_symbol(Some("│"));
+    let mut scrollbar_state = ratatui::widgets::ScrollbarState::new(app.chat_messages.len().saturating_mul(3))
+        .position(app.scroll.min(app.chat_messages.len().saturating_mul(3)));
     f.render_stateful_widget(
         scrollbar,
         inner.inner(Margin { horizontal: 0, vertical: 0 }),
@@ -188,7 +189,22 @@ fn draw_input(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
         .title(" Message ")
         .borders(Borders::ALL)
         .border_style(Style::default().fg(border_color));
-    let para = Paragraph::new(app.chat_input.as_str())
+
+    // Split text at cursor and show a blinking cursor
+    let cursor_visible = app.tick_counter % 4 < 2;
+    let cursor_str = if cursor_visible { "▎" } else { " " };
+    let cursor_idx = app.chat_input_cursor.min(app.chat_input.len());
+    let (before, after) = app.chat_input.split_at(cursor_idx);
+
+    let mut spans = vec![
+        Span::styled(before, Style::default().fg(theme.fg)),
+        Span::styled(cursor_str, Style::default().fg(theme.accent)),
+    ];
+    if !after.is_empty() {
+        spans.push(Span::styled(after, Style::default().fg(theme.fg)));
+    }
+
+    let para = Paragraph::new(Line::from(spans))
         .block(block)
         .style(Style::default().bg(Color::Black).fg(theme.fg));
     f.render_widget(para, area);
@@ -248,16 +264,19 @@ fn draw_session_drawer(f: &mut Frame, app: &AppState, theme: &Theme) {
         app.sessions
             .iter()
             .enumerate()
-            .map(|(_i, s)| {
+            .map(|(i, s)| {
                 let is_active = s.id == app.active_session_id;
-                let marker = if is_active { "● " } else { "  " };
+                let is_highlighted = i == app.session_drawer_index;
+                let marker = if is_active { "● " } else if is_highlighted { "▸ " } else { "  " };
                 let name = if s.name.is_empty() {
                     format!("Session {}", &s.id[..8.min(s.id.len())])
                 } else {
                     s.name.clone()
                 };
                 let count = format!(" ({})", s.message_count);
-                let style = if is_active {
+                let style = if is_highlighted {
+                    Style::default().bg(theme.accent).fg(theme.bg).add_modifier(Modifier::BOLD)
+                } else if is_active {
                     Style::default().fg(theme.accent).add_modifier(Modifier::BOLD)
                 } else {
                     Style::default().fg(theme.fg)
@@ -276,11 +295,13 @@ fn draw_session_drawer(f: &mut Frame, app: &AppState, theme: &Theme) {
 
     // Footer hints
     let hints = Line::from(vec![
-        Span::styled(" n", Style::default().fg(theme.accent).add_modifier(Modifier::BOLD)),
+        Span::styled(" j/k", Style::default().fg(theme.accent).add_modifier(Modifier::BOLD)),
+        Span::styled(" Navigate  ", Style::default().fg(theme.accent_dim)),
+        Span::styled("n", Style::default().fg(theme.accent).add_modifier(Modifier::BOLD)),
         Span::styled(" New  ", Style::default().fg(theme.accent_dim)),
-        Span::styled(" d", Style::default().fg(theme.accent).add_modifier(Modifier::BOLD)),
+        Span::styled("d", Style::default().fg(theme.accent).add_modifier(Modifier::BOLD)),
         Span::styled(" Del  ", Style::default().fg(theme.accent_dim)),
-        Span::styled(" Esc", Style::default().fg(theme.accent).add_modifier(Modifier::BOLD)),
+        Span::styled("Esc", Style::default().fg(theme.accent).add_modifier(Modifier::BOLD)),
         Span::styled(" Close", Style::default().fg(theme.accent_dim)),
     ]);
     let hint_para = Paragraph::new(hints)
@@ -302,7 +323,7 @@ fn draw_help(f: &mut Frame, theme: &Theme) {
         Line::from("Shift+Enter    New line"),
         Line::from("↑ / ↓          Scroll messages"),
         Line::from("Ctrl+L         Clear chat"),
-        Line::from("Ctrl+R         Scroll to latest"),
+        Line::from("Ctrl+G         Scroll to latest"),
         Line::from("Ctrl+S         Session drawer"),
         Line::from("Tab            Focus sidebar"),
         Line::from(""),
@@ -328,6 +349,7 @@ fn draw_help(f: &mut Frame, theme: &Theme) {
         Line::from(""),
         Line::from(Span::styled("── General ───────────────────────", Style::default().fg(theme.accent))),
         Line::from("Esc / ?        Close help"),
+        Line::from("Ctrl+T         Toggle theme"),
         Line::from("Ctrl+C / q     Quit"),
     ]);
     let para = Paragraph::new(text).block(block).wrap(Wrap { trim: true });
@@ -335,18 +357,32 @@ fn draw_help(f: &mut Frame, theme: &Theme) {
 }
 
 pub fn draw_toast(f: &mut Frame, toast: &str, theme: &Theme) {
-    let area = centered_rect(70, 10, f.area());
-    f.render_widget(Clear, area);
+    // Calculate height based on content length and terminal width
+    let area = f.area();
+    let toast_width = (area.width as usize * 70 / 100).max(40);
+    let lines_needed = toast.lines().count().max(1);
+    let wrapped_lines = (toast.len() / toast_width.saturating_sub(4)).max(0) + lines_needed;
+    let height = (wrapped_lines + 4).min(area.height as usize).max(5) as u16;
+
+    let toast_area = centered_rect(70, ((height * 100) / area.height.max(1)) as u16, area);
+    f.render_widget(Clear, toast_area);
+
+    // Use success color for positive toasts, warning for others
+    let is_success = toast.starts_with('✓');
+    let border_color = if is_success { theme.success } else { theme.warning };
+    let text_color = if is_success { theme.success } else { theme.warning };
+
     let block = Block::default()
+        .title(" Notification ")
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(theme.warning))
+        .border_style(Style::default().fg(border_color))
         .style(Style::default().bg(theme.bg));
     let para = Paragraph::new(toast)
         .block(block)
         .alignment(ratatui::layout::Alignment::Center)
         .wrap(Wrap { trim: true })
-        .style(Style::default().fg(theme.warning).add_modifier(Modifier::BOLD));
-    f.render_widget(para, area);
+        .style(Style::default().fg(text_color).add_modifier(Modifier::BOLD));
+    f.render_widget(para, toast_area);
 }
 
 fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {

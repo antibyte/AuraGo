@@ -99,7 +99,9 @@ fn draw_containers_list(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect
         .borders(Borders::RIGHT)
         .border_style(Style::default().fg(theme.border));
     let list = List::new(items).block(block);
-    f.render_widget(list, area);
+    let mut state = ratatui::widgets::ListState::default();
+    state.select(app.containers_selected);
+    f.render_stateful_widget(list, area, &mut state);
 }
 
 fn draw_containers_detail(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {

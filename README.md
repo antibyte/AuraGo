@@ -24,30 +24,15 @@
 ## Why AuraGo?
 
 Unlike cloud AI services, AuraGo runs **on your hardware**, has **direct access to your infrastructure**, and keeps all data local.
+It runs 24/7 in Docker, a container, VM or on PC and works for you on demand or automated.
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│  Your Home Lab                                              │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐ │
-│  │   Docker    │  │   Proxmox   │  │   Home Assistant    │ │
-│  │  Containers │  │  VMs & LXCs │  │   Smart Devices     │ │
-│  └──────┬──────┘  └──────┬──────┘  └──────────┬──────────┘ │
-│         │                │                    │            │
-│         └────────────────┴────────────────────┘            │
-│                          │                                 │
-│                    ┌─────▼─────┐  ←── AuraGo               │
-│                    │  Web UI   │      Telegram             │
-│                    │  Chat     │      Discord              │
-│                    │  API      │      Email                │
-│                    └───────────┘                           │
-└─────────────────────────────────────────────────────────────┘
 ```
 
 ### What Makes It Special
 
 | Feature | What It Does |
 |---------|--------------|
-| **🧠 Personality Engine V2** | Learns your preferences, tech stack, and communication style — adapts to you over time |
+| **🧠 Personality Engine V2** | Learns your preferences, tech stack, and communication style — adapts to you over time and has it`s own personality |
 | **🛡️ LLM Guardian** | AI-powered security scanner monitors every tool call and external content for threats |
 | **⚡ Adaptive Tools** | Intelligently filters 90+ tools based on conversation context — saves tokens, improves accuracy |
 | **📄 Document AI** | Create PDFs (invoices, reports) and extract text from documents with LLM analysis |

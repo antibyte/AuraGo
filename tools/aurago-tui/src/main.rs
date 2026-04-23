@@ -49,6 +49,7 @@ async fn main() -> Result<()> {
     let mut terminal = setup_terminal()?;
     let app = Arc::new(Mutex::new(AppState {
         server_url: cfg.server_url.clone(),
+        theme_name: cfg.theme.clone(),
         ..AppState::default()
     }));
 
@@ -118,7 +119,6 @@ async fn run_app(
     });
 
     let mut sse_handle: Option<tokio::task::JoinHandle<()>> = None;
-    let theme = Theme::default();
 
     loop {
         // ── Draw UI ──────────────────────────────────────────────────────────
@@ -128,7 +128,7 @@ async fn run_app(
             let current_theme = if app_lock.screen == Screen::Chat {
                 Theme::from_mood(app_lock.personality.mood.as_deref().unwrap_or("neutral"))
             } else {
-                theme.clone()
+                Theme::by_name(&app_lock.theme_name)
             };
             terminal
                 .draw(|f| {
@@ -626,6 +626,10 @@ async fn run_app(
                 }
             }
         }
+
+        if app_lock.should_quit {
+            break;
+        }
     }
 
     Ok(())
@@ -655,6 +659,38 @@ fn handle_key_event(
             });
         }
         return;
+    }
+
+    // Esc overlay stack: close innermost overlay first
+    if key.code == crossterm::event::KeyCode::Esc && key.modifiers.is_empty() {
+        if app_lock.show_help {
+            app_lock.show_help = false;
+            return;
+        }
+        if app_lock.nav_bar_open {
+            app_lock.nav_bar_open = false;
+            return;
+        }
+        if app_lock.session_drawer_open {
+            app_lock.session_drawer_open = false;
+            return;
+        }
+        if app_lock.media_search_active {
+            app_lock.media_search_active = false;
+            app_lock.media_search.clear();
+            return;
+        }
+        if app_lock.knowledge_search_active {
+            app_lock.knowledge_search_active = false;
+            app_lock.knowledge_search.clear();
+            return;
+        }
+        if app_lock.screen == Screen::Config && app_lock.config_editing {
+            app_lock.config_editing = false;
+            app_lock.config_edit_value.clear();
+            app_lock.config_edit_cursor = 0;
+            return;
+        }
     }
 
     // Determine key context
@@ -728,12 +764,19 @@ fn dispatch_action(
     match action {
         Action::None => {}
         Action::Quit => {
-            std::process::exit(0);
+            app.should_quit = true;
         }
 
         // ── Help & Theme ─────────────────────────────────────────────────────
         Action::ToggleHelp => app.show_help = !app.show_help,
-        Action::ToggleTheme => { /* Cycle theme - future */ }
+        Action::ToggleTheme => {
+            app.theme_name = Theme::next_name(&app.theme_name).to_string();
+            // Persist theme choice
+            if let Ok(mut cfg) = config::Config::load() {
+                cfg.theme = app.theme_name.clone();
+                let _ = cfg.save();
+            }
+        }
 
         // ── Sidebar / Tab ────────────────────────────────────────────────────
         Action::ToggleSidebar => {
@@ -803,6 +846,7 @@ fn dispatch_action(
                 let _ = auth::clear_history(&c).await;
             });
             app.chat_messages.clear();
+            app.scroll = 0;
         }
         Action::Logout => {
             let c = client.clone();
@@ -816,6 +860,10 @@ fn dispatch_action(
             app.authenticated = false;
             app.screen = Screen::Login;
             app.nav_bar_open = false;
+            app.chat_input.clear();
+            app.chat_input_cursor = 0;
+            app.chat_messages.clear();
+            app.scroll = 0;
             if let Some(h) = sse_handle.take() {
                 h.abort();
             }
@@ -824,7 +872,12 @@ fn dispatch_action(
         // ── Scrolling ────────────────────────────────────────────────────────
         Action::ScrollUp => {
             if app.screen == Screen::Chat {
-                if app.scroll > 0 { app.scroll -= 1; }
+                let max = app.chat_messages.len().saturating_sub(1);
+                if app.scroll > max {
+                    app.scroll = max;
+                } else if app.scroll > 0 {
+                    app.scroll -= 1;
+                }
             } else if app.screen == Screen::Dashboard {
                 // Scroll logs
             }
@@ -832,7 +885,11 @@ fn dispatch_action(
         Action::ScrollDown => {
             if app.screen == Screen::Chat {
                 let max = app.chat_messages.len().saturating_sub(1);
-                if app.scroll < max { app.scroll += 1; }
+                if app.scroll > max {
+                    app.scroll = max;
+                } else if app.scroll < max {
+                    app.scroll += 1;
+                }
             }
         }
         Action::ScrollTop => app.scroll = 0,
@@ -847,17 +904,55 @@ fn dispatch_action(
                     app.login_password.pop();
                 }
             } else if app.screen == Screen::Config && app.config_editing {
-                app.config_edit_value.pop();
+                if app.config_edit_cursor > 0 {
+                    app.config_edit_cursor -= 1;
+                    app.config_edit_value.remove(app.config_edit_cursor);
+                }
             } else if app.screen == Screen::Knowledge && app.knowledge_search_active {
                 app.knowledge_search.pop();
             } else if app.screen == Screen::Media && app.media_search_active {
                 app.media_search.pop();
             } else {
-                app.chat_input.pop();
+                app.backspace_at_cursor();
             }
         }
-        Action::DeleteChar => {}
-        Action::CursorLeft | Action::CursorRight | Action::CursorStart | Action::CursorEnd => {}
+        Action::DeleteChar => {
+            if app.screen == Screen::Config && app.config_editing {
+                if app.config_edit_cursor < app.config_edit_value.len() {
+                    app.config_edit_value.remove(app.config_edit_cursor);
+                }
+            } else if app.screen == Screen::Chat {
+                app.delete_at_cursor();
+            }
+        }
+        Action::CursorLeft => {
+            if app.screen == Screen::Config && app.config_editing {
+                if app.config_edit_cursor > 0 { app.config_edit_cursor -= 1; }
+            } else if app.screen == Screen::Chat {
+                app.cursor_left();
+            }
+        }
+        Action::CursorRight => {
+            if app.screen == Screen::Config && app.config_editing {
+                if app.config_edit_cursor < app.config_edit_value.len() { app.config_edit_cursor += 1; }
+            } else if app.screen == Screen::Chat {
+                app.cursor_right();
+            }
+        }
+        Action::CursorStart => {
+            if app.screen == Screen::Config && app.config_editing {
+                app.config_edit_cursor = 0;
+            } else if app.screen == Screen::Chat {
+                app.cursor_start();
+            }
+        }
+        Action::CursorEnd => {
+            if app.screen == Screen::Config && app.config_editing {
+                app.config_edit_cursor = app.config_edit_value.len();
+            } else if app.screen == Screen::Chat {
+                app.cursor_end();
+            }
+        }
         Action::Type(c) => {
             let is_backspace = c == '\u{7f}' || c == '\u{8}';
             if app.screen == Screen::Login {
@@ -876,9 +971,13 @@ fn dispatch_action(
                 }
             } else if app.screen == Screen::Config && app.config_editing {
                 if is_backspace {
-                    app.config_edit_value.pop();
+                    if app.config_edit_cursor > 0 {
+                        app.config_edit_cursor -= 1;
+                        app.config_edit_value.remove(app.config_edit_cursor);
+                    }
                 } else if !c.is_control() {
-                    app.config_edit_value.push(c);
+                    app.config_edit_value.insert(app.config_edit_cursor, c);
+                    app.config_edit_cursor += 1;
                 }
             } else if app.screen == Screen::Knowledge && app.knowledge_search_active {
                 if is_backspace {
@@ -894,9 +993,9 @@ fn dispatch_action(
                 }
             } else {
                 if is_backspace {
-                    app.chat_input.pop();
+                    app.backspace_at_cursor();
                 } else if c == '\n' || !c.is_control() {
-                    app.chat_input.push(c);
+                    app.insert_at_cursor(c);
                 }
             }
         }
@@ -980,24 +1079,47 @@ fn dispatch_action(
 
         // ── Session drawer ───────────────────────────────────────────────────
         Action::ToggleSessionDrawer => {
-            app.session_drawer_open = !app.session_drawer_open;
-            if app.session_drawer_open {
-                // Load sessions
-                let c = client.clone();
-                let t = tx.clone();
-                tokio::spawn(async move {
-                    let result = auth::fetch_sessions(&c).await.map_err(|e| e.to_string());
-                    let _ = t.send(AppEvent::SessionsLoaded(result));
-                });
+            if app.screen == Screen::Config {
+                // Save config instead of toggling drawer when in config
+                if app.config_dirty {
+                    let c = client.clone();
+                    let t = tx.clone();
+                    let data = app.config_data.clone();
+                    tokio::spawn(async move {
+                        let result = auth::save_config(&c, &data).await.map_err(|e| e.to_string());
+                        let _ = t.send(AppEvent::ConfigSaved(result));
+                    });
+                }
+            } else {
+                app.session_drawer_open = !app.session_drawer_open;
+                app.session_drawer_index = 0;
+                if app.session_drawer_open {
+                    // Load sessions
+                    let c = client.clone();
+                    let t = tx.clone();
+                    tokio::spawn(async move {
+                        let result = auth::fetch_sessions(&c).await.map_err(|e| e.to_string());
+                        let _ = t.send(AppEvent::SessionsLoaded(result));
+                    });
+                }
             }
         }
         Action::SessionUp => {
-            // Not tracked with a separate index - we just keep it simple
+            if app.session_drawer_open && app.session_drawer_index > 0 {
+                app.session_drawer_index -= 1;
+            }
         }
-        Action::SessionDown => {}
+        Action::SessionDown => {
+            if app.session_drawer_open {
+                let max = app.sessions.len().saturating_sub(1);
+                if app.session_drawer_index < max {
+                    app.session_drawer_index += 1;
+                }
+            }
+        }
         Action::SessionSelect => {
-            // Select the first session that isn't active
-            if let Some(session) = app.sessions.first() {
+            // Select session at drawer index
+            if let Some(session) = app.sessions.get(app.session_drawer_index) {
                 if session.id != app.active_session_id {
                     let new_id = session.id.clone();
                     app.active_session_id = new_id;
@@ -1025,15 +1147,20 @@ fn dispatch_action(
             });
         }
         Action::SessionDelete => {
-            // Delete the first non-active session
-            if let Some(session) = app.sessions.iter().find(|s| s.id != app.active_session_id) {
-                let id = session.id.clone();
-                let c = client.clone();
-                let t = tx.clone();
-                tokio::spawn(async move {
-                    let result = auth::delete_session(&c, &id).await.map_err(|e| e.to_string());
-                    let _ = t.send(AppEvent::SessionDeleted(result));
-                });
+            // Delete session at drawer index (prevent deleting active session)
+            if let Some(session) = app.sessions.get(app.session_drawer_index) {
+                if session.id != app.active_session_id {
+                    let id = session.id.clone();
+                    let c = client.clone();
+                    let t = tx.clone();
+                    tokio::spawn(async move {
+                        let result = auth::delete_session(&c, &id).await.map_err(|e| e.to_string());
+                        let _ = t.send(AppEvent::SessionDeleted(result));
+                    });
+                } else {
+                    app.toast = Some("Cannot delete active session".to_string());
+                    app.toast_ticks = 8;
+                }
             }
         }
 
@@ -1060,7 +1187,7 @@ fn dispatch_action(
             load_data_for_screen(app, client, tx);
         }
         Action::ActionPrimary => {
-            // Execute primary action on selected item
+            // Execute primary action on selected item (run/advance/start)
             execute_primary_action(app, client, tx);
         }
         Action::ActionDelete => {
