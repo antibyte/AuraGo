@@ -39,6 +39,45 @@ ok()   { echo -e "${GREEN}${ICO_OK}${NC}        -> $*"; }
 warn() { echo -e "${YELLOW}${ICO_WARN} WARN${NC}  -> $*"; }
 die()  { echo -e "${RED}${ICO_ERR} ERROR${NC} -> $*"; exit 1; }
 
+is_valid_master_key() {
+    printf '%s' "${1:-}" | grep -Eq '^[0-9a-fA-F]{64}$'
+}
+
+read_env_value() {
+    local env_file="$1"
+    local env_key="$2"
+    [ -f "$env_file" ] || return 1
+    awk -F= -v key="$env_key" '
+        $1 == key {
+            sub(/^[^=]*=/, "", $0)
+            gsub(/^[[:space:]]+|[[:space:]]+$/, "", $0)
+            gsub(/^["'"'"']|["'"'"']$/, "", $0)
+            print $0
+            exit
+        }
+    ' "$env_file"
+}
+
+write_master_key_file() {
+    local target="$1"
+    local key="$2"
+    local tmp
+    is_valid_master_key "$key" || return 1
+    tmp="${target}.tmp.$$"
+    (umask 077 && printf 'AURAGO_MASTER_KEY=%s\n' "$key" > "$tmp") || return 1
+    mv -f "$tmp" "$target"
+}
+
+generate_master_key() {
+    if command -v openssl >/dev/null 2>&1; then
+        openssl rand -hex 32 2>/dev/null && return 0
+    fi
+    if command -v python3 >/dev/null 2>&1; then
+        python3 -c "import secrets; print(secrets.token_hex(32))" 2>/dev/null && return 0
+    fi
+    return 1
+}
+
 G1='\033[38;5;39m'
 G2='\033[38;5;38m'
 G3='\033[38;5;37m'
@@ -56,7 +95,7 @@ ARCH_RAW=$(uname -m)
 case "$ARCH_RAW" in
     x86_64)        GOARCH="amd64" ;;
     aarch64|arm64) GOARCH="arm64" ;;
-    armv7l|armv6l) GOARCH="armv6l" ;;
+    armv7l|armv6l) die "ARMv6/v7 is not supported by the current installer artifacts yet. Please use a supported release or build manually." ;;
     *)             die "Unsupported architecture: $ARCH_RAW" ;;
 esac
 ok "Architecture: $ARCH_RAW → target: $GOARCH"
@@ -354,11 +393,13 @@ ok "Binaries ready."
 # ── Master key ────────────────────────────────────────────────────────────
 ENV_FILE="$INSTALL_DIR/.env"
 if [ -f "$ENV_FILE" ] && grep -q "AURAGO_MASTER_KEY" "$ENV_FILE"; then
+    EXISTING_MASTER_KEY="$(read_env_value "$ENV_FILE" "AURAGO_MASTER_KEY" || true)"
+    is_valid_master_key "$EXISTING_MASTER_KEY" || die "Existing $ENV_FILE contains an invalid AURAGO_MASTER_KEY."
     warn ".env already has AURAGO_MASTER_KEY — keeping existing key."
 else
-    MASTER_KEY=$(openssl rand -hex 32 2>/dev/null || python3 -c "import secrets; print(secrets.token_hex(32))")
-    printf "AURAGO_MASTER_KEY=%s\n" "$MASTER_KEY" > "$ENV_FILE"
-    chmod 600 "$ENV_FILE"
+    MASTER_KEY="$(generate_master_key || true)"
+    is_valid_master_key "$MASTER_KEY" || die "Failed to generate a valid AURAGO_MASTER_KEY. Please install openssl or python3."
+    write_master_key_file "$ENV_FILE" "$MASTER_KEY" || die "Failed to write $ENV_FILE securely."
     ok "Master key generated → $ENV_FILE"
     warn "Keep .env safe! Losing it means losing access to your encrypted vault."
 fi
@@ -369,12 +410,28 @@ cat > "$INSTALL_DIR/start.sh" <<'STARTSH'
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$DIR"
 
+read_env_value() {
+    local env_file="$1"
+    local env_key="$2"
+    [ -f "$env_file" ] || return 1
+    awk -F= -v key="$env_key" '
+        $1 == key {
+            sub(/^[^=]*=/, "", $0)
+            gsub(/^[[:space:]]+|[[:space:]]+$/, "", $0)
+            gsub(/^["'"'"']|["'"'"']$/, "", $0)
+            print $0
+            exit
+        }
+    ' "$env_file"
+}
+
 # Load master key: prefer system-wide credential, fall back to local .env
 if [ -f /etc/aurago/master.key ]; then
-    source /etc/aurago/master.key
+    AURAGO_MASTER_KEY="$(read_env_value /etc/aurago/master.key AURAGO_MASTER_KEY)"
 elif [ -f "$DIR/.env" ]; then
-    source "$DIR/.env"
+    AURAGO_MASTER_KEY="$(read_env_value "$DIR/.env" AURAGO_MASTER_KEY)"
 fi
+export AURAGO_MASTER_KEY
 
 if [ -z "${AURAGO_MASTER_KEY:-}" ]; then
     echo "ERROR: AURAGO_MASTER_KEY is not set."
@@ -503,12 +560,8 @@ if command -v systemctl >/dev/null 2>&1; then
         if [ -f "$CREDENTIAL_FILE" ] && grep -q "AURAGO_MASTER_KEY" "$CREDENTIAL_FILE"; then
             warn "$CREDENTIAL_FILE already exists — keeping existing key."
         else
-            # Read the key from the .env we generated earlier
-            # shellcheck disable=SC1090
-            [ -f "$ENV_FILE" ] && source "$ENV_FILE"
-            if [ -z "${AURAGO_MASTER_KEY:-}" ]; then
-                die "Cannot migrate master key — AURAGO_MASTER_KEY is empty."
-            fi
+            AURAGO_MASTER_KEY="$(read_env_value "$ENV_FILE" "AURAGO_MASTER_KEY" || true)"
+            is_valid_master_key "$AURAGO_MASTER_KEY" || die "Cannot migrate master key — AURAGO_MASTER_KEY is missing or invalid."
             $SUDO mkdir -p "$CREDENTIAL_DIR"
             $SUDO chmod 700 "$CREDENTIAL_DIR"
             printf "AURAGO_MASTER_KEY=%s\n" "$AURAGO_MASTER_KEY" | $SUDO tee "$CREDENTIAL_FILE" > /dev/null
@@ -571,11 +624,11 @@ StartLimitIntervalSec=0
 Type=simple
 User=${SERVICE_USER}
 Group=${SERVICE_GROUP}
-WorkingDirectory=${INSTALL_DIR}
-ExecStart=${INSTALL_DIR}/bin/aurago_linux --config ${INSTALL_DIR}/config.yaml
+WorkingDirectory="${INSTALL_DIR}"
+ExecStart="${INSTALL_DIR}/bin/aurago_linux" --config "${INSTALL_DIR}/config.yaml"
 Restart=on-failure
 RestartSec=5
-EnvironmentFile=${CREDENTIAL_FILE}
+EnvironmentFile="${CREDENTIAL_FILE}"
 ${AMBIENT_CAPS_LINE}
 # Security hardening
 NoNewPrivileges=true
@@ -635,14 +688,13 @@ else
     echo "  Next steps:"
     echo "  1. Edit config:  nano $CONFIG_FILE"
     echo "     Set at minimum: llm.api_key"
-    echo "  2. Restart after config change: cd $INSTALL_DIR && source .env && ./start.sh"
+    echo "  2. Restart after config change: cd $INSTALL_DIR && ./start.sh"
     echo "  3. Open UI:      http://localhost:8088"
     echo ""
     echo -e "  ${CYAN}Logs:${NC}  tail -f $INSTALL_DIR/log/aurago.log"
 
     # Start AuraGo now
     cd "$INSTALL_DIR"
-    source "$ENV_FILE" 2>/dev/null || true
     bash start.sh
 fi
 echo ""

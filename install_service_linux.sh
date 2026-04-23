@@ -29,6 +29,45 @@ error() { echo -e "${RED}[ERROR]${NC} $*"; exit 1; }
 warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
 ok() { echo -e "${GREEN}[OK]${NC} $*"; }
 
+is_valid_master_key() {
+    printf '%s' "${1:-}" | grep -Eq '^[0-9a-fA-F]{64}$'
+}
+
+read_env_value() {
+    local env_file="$1"
+    local env_key="$2"
+    [[ -f "$env_file" ]] || return 1
+    awk -F= -v key="$env_key" '
+        $1 == key {
+            sub(/^[^=]*=/, "", $0)
+            gsub(/^[[:space:]]+|[[:space:]]+$/, "", $0)
+            gsub(/^["'"'"']|["'"'"']$/, "", $0)
+            print $0
+            exit
+        }
+    ' "$env_file"
+}
+
+write_master_key_file() {
+    local target="$1"
+    local key="$2"
+    local tmp
+    is_valid_master_key "$key" || return 1
+    tmp="${target}.tmp.$$"
+    (umask 077 && printf 'AURAGO_MASTER_KEY=%s\n' "$key" > "$tmp") || return 1
+    mv -f "$tmp" "$target"
+}
+
+generate_master_key() {
+    if command -v openssl >/dev/null 2>&1; then
+        openssl rand -hex 32 2>/dev/null && return 0
+    fi
+    if command -v python3 >/dev/null 2>&1; then
+        python3 -c "import secrets; print(secrets.token_hex(32))" 2>/dev/null && return 0
+    fi
+    return 1
+}
+
 # 1. Check if running as root
 if [[ $EUID -ne 0 ]]; then
    error "This script must be run as root (use sudo)."
@@ -67,11 +106,9 @@ fi
 # Priority: existing /etc/aurago/master.key → local .env → user input → generate
 if [[ -f "$CREDENTIAL_FILE" ]] && grep -q "AURAGO_MASTER_KEY" "$CREDENTIAL_FILE"; then
     warn "$CREDENTIAL_FILE already exists — keeping existing key."
-    # shellcheck disable=SC1090
-    source "$CREDENTIAL_FILE"
+    AURAGO_MASTER_KEY="$(read_env_value "$CREDENTIAL_FILE" "AURAGO_MASTER_KEY" || true)"
 elif [[ -f "$ENV_FILE" ]]; then
-    # shellcheck disable=SC1090
-    source "$ENV_FILE"
+    AURAGO_MASTER_KEY="$(read_env_value "$ENV_FILE" "AURAGO_MASTER_KEY" || true)"
 fi
 
 if [[ -z "${AURAGO_MASTER_KEY:-}" ]]; then
@@ -79,10 +116,8 @@ if [[ -z "${AURAGO_MASTER_KEY:-}" ]]; then
     read -rp "Enter AURAGO_MASTER_KEY (64 hex characters) or press Enter to generate one: " USER_KEY
     if [[ -z "$USER_KEY" ]]; then
         info "Generating random AURAGO_MASTER_KEY..."
-        AURAGO_MASTER_KEY=$(openssl rand -hex 32 2>/dev/null || python3 -c "import secrets; print(secrets.token_hex(32))" 2>/dev/null || echo "failed")
-        if [[ "$AURAGO_MASTER_KEY" == "failed" ]]; then
-            error "Failed to generate a secure random key. Please provide one manually."
-        fi
+        AURAGO_MASTER_KEY="$(generate_master_key || true)"
+        is_valid_master_key "$AURAGO_MASTER_KEY" || error "Failed to generate a secure random key. Please provide one manually."
         ok "Generated new master key."
     else
         AURAGO_MASTER_KEY="$USER_KEY"
@@ -90,12 +125,13 @@ if [[ -z "${AURAGO_MASTER_KEY:-}" ]]; then
     fi
 fi
 
+is_valid_master_key "$AURAGO_MASTER_KEY" || error "AURAGO_MASTER_KEY must be exactly 64 hexadecimal characters."
+
 # 3b. Store the key in /etc/aurago/master.key (root-only)
 if ! [[ -f "$CREDENTIAL_FILE" ]] || ! grep -q "AURAGO_MASTER_KEY" "$CREDENTIAL_FILE"; then
     mkdir -p "$CREDENTIAL_DIR"
     chmod 700 "$CREDENTIAL_DIR"
-    printf "AURAGO_MASTER_KEY=%s\n" "$AURAGO_MASTER_KEY" > "$CREDENTIAL_FILE"
-    chmod 600 "$CREDENTIAL_FILE"
+    write_master_key_file "$CREDENTIAL_FILE" "$AURAGO_MASTER_KEY" || error "Failed to write ${CREDENTIAL_FILE} securely."
     chown root:root "$CREDENTIAL_DIR" "$CREDENTIAL_FILE"
     ok "Master key stored at ${CREDENTIAL_FILE} (root-only, mode 0600)."
 fi
@@ -121,11 +157,11 @@ StartLimitIntervalSec=0
 Type=simple
 User=$(id -un "${SUDO_USER:-root}")
 Group=$(id -gn "${SUDO_USER:-root}")
-WorkingDirectory=${INSTALL_DIR}
-ExecStart=${BINARY_PATH} --config ${CONFIG_PATH}
+WorkingDirectory="${INSTALL_DIR}"
+ExecStart="${BINARY_PATH}" --config "${CONFIG_PATH}"
 Restart=always
 RestartSec=5
-EnvironmentFile=${CREDENTIAL_FILE}
+EnvironmentFile="${CREDENTIAL_FILE}"
 StandardOutput=append:${INSTALL_DIR}/log/aurago.log
 StandardError=append:${INSTALL_DIR}/log/aurago.err
 
