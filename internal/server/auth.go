@@ -452,6 +452,16 @@ func isAllowedWithoutPassword(path string) bool {
 	return strings.HasSuffix(path, ".png") || strings.HasSuffix(path, ".ico")
 }
 
+func setupWizardRedirectTarget(s *Server) string {
+	if s == nil || s.Cfg == nil {
+		return "/auth/login"
+	}
+	if needsSetup(s.Cfg) {
+		return "/setup"
+	}
+	return "/auth/login"
+}
+
 // authMiddleware wraps a handler and enforces session authentication when
 // auth.enabled is true. API paths return 401 JSON; browser paths redirect to /auth/login.
 func authMiddleware(s *Server, next http.Handler) http.Handler {
@@ -495,7 +505,7 @@ func authMiddleware(s *Server, next http.Handler) http.Handler {
 				w.Write([]byte(`{"error":"server_locked","message":"Auth is enabled but no password is set. Access is blocked until a password is configured."}`))
 				return
 			}
-			http.Redirect(w, r, "/auth/login", http.StatusTemporaryRedirect)
+			http.Redirect(w, r, setupWizardRedirectTarget(s), http.StatusTemporaryRedirect)
 			return
 		}
 

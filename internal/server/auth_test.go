@@ -4,12 +4,14 @@ import (
 	"aurago/internal/config"
 	"bytes"
 	"encoding/json"
+	"io/fs"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
+	"testing/fstest"
 	"time"
 )
 
@@ -167,6 +169,82 @@ func TestHandleAuthLoginLocksOutAcrossAccountScope(t *testing.T) {
 	}
 	if rec := makeRequest("127.0.0.2"); rec.Code != http.StatusTooManyRequests {
 		t.Fatalf("second login on different IP status = %d, want 429", rec.Code)
+	}
+}
+
+func TestAuthMiddlewareRedirectsToSetupWhenPasswordMissing(t *testing.T) {
+	t.Parallel()
+
+	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
+	s.Cfg.Auth.Enabled = true
+	s.Cfg.LLM.APIKey = "configured"
+
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	})
+	handler := authMiddleware(s, next)
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusTemporaryRedirect {
+		t.Fatalf("status = %d, want 307", rec.Code)
+	}
+	if loc := rec.Header().Get("Location"); loc != "/setup" {
+		t.Fatalf("redirect location = %q, want /setup", loc)
+	}
+}
+
+func TestHandleAuthLoginPageRedirectsToSetupWhenPasswordMissing(t *testing.T) {
+	t.Parallel()
+
+	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
+	s.Cfg.Auth.Enabled = true
+	s.Cfg.LLM.APIKey = "configured"
+
+	uiFS := fstest.MapFS{
+		"login.html": &fstest.MapFile{Data: []byte("ignored")},
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/auth/login", nil)
+	rec := httptest.NewRecorder()
+	handleAuthLoginPage(s, fs.FS(uiFS)).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusTemporaryRedirect {
+		t.Fatalf("status = %d, want 307", rec.Code)
+	}
+	if loc := rec.Header().Get("Location"); loc != "/setup" {
+		t.Fatalf("redirect location = %q, want /setup", loc)
+	}
+}
+
+func TestHandleAuthLoginReturnsSetupRedirectWhenPasswordMissing(t *testing.T) {
+	t.Parallel()
+
+	loginRecords = make(map[string]*loginRecord)
+	cfg := &config.Config{}
+	cfg.Auth.Enabled = true
+	cfg.LLM.APIKey = "configured"
+	s := &Server{Cfg: cfg, Logger: slog.Default()}
+
+	body, _ := json.Marshal(map[string]string{"password": "irrelevant"})
+	req := httptest.NewRequest(http.MethodPost, "/auth/login", bytes.NewReader(body))
+	rec := httptest.NewRecorder()
+	handleAuthLogin(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusConflict {
+		t.Fatalf("status = %d, want 409", rec.Code)
+	}
+	var payload map[string]interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatalf("json: %v", err)
+	}
+	if payload["redirect"] != "/setup" {
+		t.Fatalf("redirect = %v, want /setup", payload["redirect"])
+	}
+	if payload["setup_required"] != true {
+		t.Fatalf("setup_required = %v, want true", payload["setup_required"])
 	}
 }
 

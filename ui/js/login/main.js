@@ -858,6 +858,10 @@
                     const allowed = redirect === '/' || (/^\/[a-zA-Z0-9._~!$&'()*+,;=:@-]*$/).test(redirect);
                     window.location.replace(allowed ? redirect : '/');
                 } else {
+                    if (data && data.redirect && data.setup_required) {
+                        window.location.replace(data.redirect);
+                        return;
+                    }
                     showError(data.error || t('login.error_failed'));
                     document.getElementById('password').classList.add('error-field');
                     if (TOTP_ENABLED && data.error && data.error.toLowerCase().includes('authenticator')) {
