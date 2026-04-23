@@ -1,6 +1,6 @@
 # Chapter 6: Tools
 
-AuraGo's **90+ built-in tools** transform it from a chatbot into an autonomous agent.
+AuraGo's **100+ built-in tools** transform it from a chatbot into an autonomous agent.
 
 ---
 
@@ -257,7 +257,7 @@ Created tools are saved to `agent_workspace/tools/` and available immediately.
 
 | Category | Highlights |
 |----------|------------|
-| **90+ Tools** | For nearly any home lab task |
+| **100+ Tools** | For nearly any home lab task |
 | **Security** | Read-only mode, Danger Zone, LLM Guardian |
 | **Flexibility** | Dynamic tool creation at runtime |
 | **Efficiency** | Adaptive Tools save tokens |

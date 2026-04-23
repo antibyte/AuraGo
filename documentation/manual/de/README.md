@@ -74,7 +74,7 @@ AuraGo hat einige eingebaute Themes zur Auswahl:
 5. [Chat-Grundlagen](05-chatgrundlagen.md) – Kommunikation
 
 ### Teil 2: Features im Detail
-6. [Werkzeuge](06-tools.md) – 90+ Tools nutzen
+6. [Werkzeuge](06-tools.md) – 100+ Tools nutzen
 7. [Konfiguration](07-konfiguration.md) – Feintuning mit Provider-System
 8. [Integrationen](08-integrations.md) – Telegram, Discord, Email, etc.
 9. [Gedächtnis & Wissen](09-memory.md) – Speicher verstehen
@@ -138,7 +138,7 @@ Die Konfiguration verwendet jetzt ein zentrales Provider-System für LLM-Verbind
 ```
 
 ### Alle Agent-Tools
-Eine vollständige Übersicht aller 100+ internen Tools findest du im Abschnitt [Interne Tools](22-interne-tools.md).
+Eine vollständige Übersicht aller 100+ internen Tools findest du im Abschnitt [Interne Tools](22-interne-tools.md). Darüber hinaus können dynamisch weitere Python-Skills und benutzerdefinierte Tools hinzugefügt werden.
 
 ### Schnell-Links
 - [Handbuch-Startseite](../README.md)

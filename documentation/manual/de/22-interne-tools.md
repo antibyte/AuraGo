@@ -2,7 +2,7 @@
 
 Diese Dokumentation listet alle internen Tools, die AuraGo dem Agenten zur Verfügung stellt. Diese Tools werden vom LLM über native Function Calling aufgerufen.
 
-> 📅 **Stand:** März 2026  
+> 📅 **Stand:** April 2026
 > 🔢 **Anzahl:** 100+ Tools
 
 ---
@@ -74,13 +74,15 @@ Führt golangci-lint auf Go-Code aus (Code-Qualitäts-Checks).
 ## Dateisystem
 
 ### `filesystem`
-Dateisystem-Operationen (read/write/move/copy/delete/list).
+Dateisystem-Operationen (read/write/move/copy/delete/list). Unterstützt Batch-Operationen für copy, move und delete.
 
 | Parameter | Typ | Beschreibung |
 |-----------|-----|--------------|
-| `operation` | enum | read_file, write_file, delete, move, list_dir, create_dir, stat |
+| `operation` | enum | read_file, write_file, delete, copy, move, list_dir, create_dir, stat, copy_batch, move_batch, delete_batch, create_dir_batch |
 | `file_path` | string | Pfad zur Datei |
 | `content` | string | Inhalt (für write_file) |
+| `destination` | string | Zielpfad (für copy/move) |
+| `items` | array | Batch-Items für copy_batch/move_batch/delete_batch |
 
 ### `file_search`
 Text-Suche in Dateien (grep, find).
@@ -135,16 +137,37 @@ ZIP/TAR.GZ Archive erstellen/extrahieren/listen.
 ### `detect_file_type`
 Dateityp per Magic-Bytes erkennen (ignoriert Extension).
 
+### `text_diff`
+Zwei Dateien oder Strings vergleichen und Unified Diff zurückgeben.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `operation` | enum | diff_files, diff_strings |
+| `file1` | string | Pfad zur ersten Datei (für diff_files) |
+| `file2` | string | Pfad zur zweiten Datei (für diff_files) |
+| `text1` | string | Erster Text (für diff_strings) |
+| `text2` | string | Zweiter Text (für diff_strings) |
+
+### `discover_tools`
+Alle verfügbaren Tools durchsuchen, inklusive adaptiv gefilterter. Browsen nach Kategorie, Suche nach Keyword oder Detail-Info zu einem Tool.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `operation` | enum | list_categories, search, get_tool_info |
+| `category` | string | Kategorie-Filter (system, files, network, media, smart_home, infrastructure, communication) |
+| `query` | string | Suchbegriff |
+| `tool_name` | string | Tool-Name für Detail-Info |
+
 ---
 
 ## System & Prozesse
 
 ### `system_metrics`
-System-Ressourcen abrufen (CPU, RAM, Disk, Netzwerk, Temperaturen).
+System-Ressourcen abrufen (CPU, RAM, Disk, Netzwerk, Temperaturen, aktive Verbindungen, Disk I/O).
 
 | Parameter | Typ | Beschreibung |
 |-----------|-----|--------------|
-| `target` | enum | all, cpu, memory, disk, processes, host, sensors, network_detail |
+| `target` | enum | all, cpu, memory, disk, processes, host, sensors, network_detail, connections, disk_io |
 
 ### `process_analyzer`
 Laufende Prozesse analysieren (Top CPU/Memory, Bäume, Details).
@@ -266,6 +289,35 @@ Mission Control Hintergrund-Aufgaben verwalten.
 
 ### `manage_daemon`
 Daemon-Skills (langlaufende Hintergrundprozesse) verwalten.
+
+### `manage_plan`
+Pläne erstellen und verwalten (Mehrschrittige Aufgabenplanung).
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `operation` | enum | create, list, get, update_step, delete |
+| `title` | string | Plan-Titel |
+| `steps` | array | List von {title, description}-Schritten |
+
+### `manage_appointments`
+Termine und Kalenderereignisse verwalten (erfordert `planner_enabled`).
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `operation` | enum | create, list, update, delete, find_slots |
+| `title` | string | Termin-Titel |
+| `start_time` | string | Startzeit (ISO 8601) |
+| `end_time` | string | Endzeit (ISO 8601) |
+
+### `manage_todos`
+Aufgaben und To-Do-Listen verwalten (erfordert `planner_enabled`).
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `operation` | enum | create, list, update, delete, complete |
+| `title` | string | Aufgaben-Titel |
+| `priority` | string | low, medium, high |
+| `due_date` | string | Fälligkeitsdatum |
 
 ### `context_manager`
 Sitzungs-Kontexte verwalten und zwischen ihnen wechseln.
@@ -512,6 +564,34 @@ Ansible Playbooks und Ad-hoc-Befehle ausführen.
 ### `meshcentral`
 MeshCentral Geräte verwalten.
 
+### `vercel`
+Vercel-Projekte, Deployments, Umgebungsvariablen und Domains verwalten.
+
+### `obsidian`
+Obsidian Vault über Local REST API Plugin durchsuchen und bearbeiten (Notizen lesen, erstellen, suchen).
+
+### `uptime_kuma`
+Uptime Kuma Monitor-Status über Prometheus Metrics abfragen (summary, list_monitors, get_monitor).
+
+### `ldap`
+LDAP/Active Directory Server durchsuchen und Authentifizierung durchführen.
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `operation` | enum | search, authenticate, get_user, list_groups |
+| `base_dn` | string | Base DN für Suche |
+| `filter` | string | LDAP-Filter |
+| `attributes` | array | Zurückzugebende Attribute |
+
+### `paperless_ngx`
+Paperless-ngx Dokumentenverwaltung (Suche, Upload, Metadaten, Tags).
+
+| Parameter | Typ | Beschreibung |
+|-----------|-----|--------------|
+| `operation` | enum | search, download, upload, list_tags, list_correspondents, get_document, update_metadata, delete |
+| `query` | string | Suchbegriff |
+| `document_id` | integer | Dokument-ID |
+
 ---
 
 ## Netzwerk & Sicherheit
@@ -671,7 +751,7 @@ Externe Datenbank-Verbindungen verwalten.
 
 ## Infrastruktur
 
-### `invasion_control'
+### `invasion_control`
 Invasion Control (Remote Deployment) verwalten.
 
 | Parameter | Typ | Beschreibung |
@@ -750,14 +830,17 @@ Nicht alle Tools sind standardmäßig verfügbar. Die Verfügbarkeit hängt von 
 ### Always Available (Immer verfügbar)
 - `filesystem` (read-only wenn `allow_filesystem_write=false`)
 - `file_search`, `file_reader_advanced`, `smart_file_read`
-- `system_metrics`, `process_analyzer`
+- `text_diff`
+- `system_metrics`, `process_analyzer`, `process_management`
 - `analyze_image`, `transcribe_audio`
 - `send_image`, `send_audio`, `send_document`
-- `list_skills`, `execute_skill`
+- `list_skills`, `execute_skill`, `discover_tools`
 - `dns_lookup`, `whois_lookup`
 - `detect_file_type`, `archive`
 - `pdf_operations`, `image_processing`
 - `tts`
+- `ddg_search`, `wikipedia_search`
+- `follow_up`, `wait_for_event`
 
 ### Danger Zone (Konfigurierbare Berechtigungen)
 | Flag | Tools |
@@ -816,9 +899,15 @@ Nicht alle Tools sind standardmäßig verfügbar. Die Verfügbarkeit hängt von 
 | `remote_control_enabled` | `remote_control` |
 | `document_creator_enabled` | `document_creator` |
 | `web_capture_enabled` | `web_capture`, `web_performance_audit` |
-| `planner_enabled` | `manage_appointments`, `manage_todos` |
+| `planner_enabled` | `manage_appointments`, `manage_todos`, `manage_plan` |
 | `media_registry_enabled` | `media_registry` |
 | `homepage_registry_enabled` | `homepage_registry` |
+| `vercel_enabled` | `vercel` |
+| `obsidian_enabled` | `obsidian` |
+| `uptime_kuma_enabled` | `uptime_kuma` |
+| `ldap_enabled` | `ldap` |
+| `paperless_ngx_enabled` | `paperless_ngx` |
+| `python_secret_injection_enabled` | Vault-Key-Injection in `execute_skill` |
 
 ---
 

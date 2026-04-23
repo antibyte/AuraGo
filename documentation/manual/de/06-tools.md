@@ -1,6 +1,6 @@
 # Kapitel 6: Werkzeuge
 
-AuraGo verfügt über **90+ eingebaute Werkzeuge**, die ihn von einem einfachen Chatbot zu einem autonomen Agenten machen.
+AuraGo verfügt über **100+ eingebaute Werkzeuge**, die ihn von einem einfachen Chatbot zu einem autonomen Agenten machen.
 
 ---
 
@@ -295,9 +295,9 @@ tools:
 
 | Tool | Beschreibung |
 |------|--------------|
-| `capture_webpage` | Screenshot einer Webseite erstellen |
-| `webpage_to_pdf` | Webseite als PDF speichern |
-| `fill_form` | Formular automatisch ausfüllen und absenden |
+| `web_capture` | Screenshot oder PDF einer Webseite erstellen |
+| `web_performance_audit` | Core Web Vitals messen (TTFB, FCP, LCP) |
+| `form_automation` | Formular automatisch ausfüllen und absenden |
 
 ### Anforderungen
 
@@ -335,7 +335,7 @@ Erstellte Tools werden in `agent_workspace/tools/` gespeichert und sind sofort v
 
 | Kategorie | Highlights |
 |-----------|------------|
-| **90+ Tools** | Für nahezu jede Home-Lab-Aufgabe |
+| **100+ Tools** | Für nahezu jede Home-Lab-Aufgabe |
 | **Sicherheit** | Read-Only-Modus, Danger Zone, LLM Guardian |
 | **Flexibilität** | Dynamische Tool-Erstellung zur Laufzeit |
 | **Effizienz** | Adaptive Tools sparen Tokens |

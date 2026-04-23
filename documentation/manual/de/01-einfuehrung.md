@@ -40,7 +40,7 @@ Stell dir einen persönlichen Assistenten vor, der:
 ## Hauptfeatures im Überblick
 
 ### 🤖 Agent Core
-- **90+ eingebaute Tools** — Von Dateisystem bis Docker, von WebDAV bis Proxmox
+- **100+ eingebaute Tools** — Von Dateisystem bis Docker, von WebDAV bis Proxmox
 - **Native Function Calling** — OpenAI-kompatible Tool-Aufrufe
 - **Dynamische Tool-Erstellung** — Der Agent kann neue Python-Tools zur Laufzeit schreiben
 - **Multi-Step Reasoning** — Automatische Werkzeug-Dispatch, Fehlerbehebung
@@ -89,7 +89,7 @@ Stell dir einen persönlichen Assistenten vor, der:
 │  AuraGo Core                                            │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐     │
 │  │   Agent     │  │   Memory    │  │   Tools     │     │
-│  │   Loop      │  │   System    │  │   (90+)     │     │
+│  │   Loop      │  │   System    │  │   (100+)    │     │
 │  └─────────────┘  └─────────────┘  └─────────────┘     │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐     │
 │  │ Personality │  │   Vault     │  │   LLM       │     │

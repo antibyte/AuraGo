@@ -154,7 +154,7 @@ Agent: 📄 Summary of document.pdf:
 
 ## Getting to Know the First Tools
 
-AuraGo has over 30 built-in tools. Here are some to try:
+AuraGo has over 100 built-in tools. Here are some to try:
 
 ### Filesystem
 ```

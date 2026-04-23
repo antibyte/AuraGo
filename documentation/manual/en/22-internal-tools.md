@@ -2,7 +2,7 @@
 
 This documentation lists all internal tools that AuraGo makes available to the agent. These tools are invoked by the LLM via native function calling.
 
-> 📅 **Updated:** March 2026  
+> 📅 **Updated:** April 2026
 > 🔢 **Count:** 100+ Tools
 
 ---
@@ -110,6 +110,12 @@ Intelligent reading of large files (analyze, sample, summarize).
 | `file_path` | string | File path |
 | `sampling_strategy` | enum | head, tail, distributed, semantic |
 
+### `text_diff`
+Compare two text strings and show differences.
+
+### `discover_tools`
+List all currently available tools for the agent (context-aware).
+
 ### `file_editor`
 Precise text file editing (str_replace, insert, delete).
 
@@ -144,7 +150,7 @@ Retrieve system resources (CPU, RAM, Disk, Network, Temperatures).
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `target` | enum | all, cpu, memory, disk, processes, host, sensors, network_detail |
+| `target` | enum | all, cpu, memory, disk, disk_io, processes, connections, host, sensors, network_detail |
 
 ### `process_analyzer`
 Analyze running processes (Top CPU/Memory, trees, details).
@@ -263,6 +269,15 @@ Manage Mission Control background tasks.
 | `title` | string | Mission name |
 | `command` | string | Task prompt |
 | `cron_expr` | string | Cron expression |
+
+### `manage_plan`
+Manage plans (create, update, delete, list).
+
+### `manage_appointments`
+Manage appointments (create, update, delete, list).
+
+### `manage_todos`
+Manage to-dos (create, update, delete, list).
 
 ### `manage_daemon`
 Manage daemon skills (long-running background processes).
@@ -495,6 +510,21 @@ Manage local Ollama LLM instance.
 |-----------|------|-------------|
 | `operation` | enum | list, running, show, pull, delete, copy, load, unload |
 | `model` | string | Model name |
+
+### `vercel`
+Manage Vercel projects, deployments, and environment variables.
+
+### `obsidian`
+Read and search Obsidian vault notes.
+
+### `uptime_kuma`
+Monitor uptime via Uptime Kuma (status pages, heartbeats).
+
+### `ldap`
+Query LDAP directory (users, groups, search).
+
+### `paperless_ngx`
+Manage Paperless-ngx documents (search, upload, tags, correspondents).
 
 ### `adguard`
 Manage AdGuard Home DNS server.
@@ -750,13 +780,17 @@ Not all tools are available by default. Availability depends on **Tool Feature F
 ### Always Available
 - `filesystem` (read-only if `allow_filesystem_write=false`)
 - `file_search`, `file_reader_advanced`, `smart_file_read`
-- `system_metrics`, `process_analyzer`
+- `text_diff`
+- `system_metrics`, `process_analyzer`, `process_management`
+- `discover_tools`
+- `ddg_search`, `wikipedia_search`
 - `analyze_image`, `transcribe_audio`
 - `send_image`, `send_audio`, `send_document`
 - `list_skills`, `execute_skill`
 - `dns_lookup`, `whois_lookup`
 - `detect_file_type`, `archive`
 - `pdf_operations`, `image_processing`
+- `follow_up`, `wait_for_event`
 - `tts`
 
 ### Danger Zone (Configurable Permissions)
@@ -816,9 +850,15 @@ Not all tools are available by default. Availability depends on **Tool Feature F
 | `remote_control_enabled` | `remote_control` |
 | `document_creator_enabled` | `document_creator` |
 | `web_capture_enabled` | `web_capture`, `web_performance_audit` |
-| `planner_enabled` | `manage_appointments`, `manage_todos` |
+| `planner_enabled` | `manage_plan`, `manage_appointments`, `manage_todos` |
 | `media_registry_enabled` | `media_registry` |
 | `homepage_registry_enabled` | `homepage_registry` |
+| `vercel_enabled` | `vercel` |
+| `obsidian_enabled` | `obsidian` |
+| `uptime_kuma_enabled` | `uptime_kuma` |
+| `ldap_enabled` | `ldap` |
+| `paperless_ngx_enabled` | `paperless_ngx` |
+| `python_secret_injection_enabled` | Vault secret injection into Python skills |
 
 ---
 
