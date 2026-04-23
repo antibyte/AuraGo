@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"reflect"
 	"strings"
 
 	"aurago/internal/providerutil"
@@ -696,6 +697,13 @@ func (c *Config) ApplyOAuthTokens(vault SecretReader) {
 func (c *Config) ApplyVaultSecrets(vault SecretReader) {
 	if vault == nil {
 		return
+	}
+	rv := reflect.ValueOf(vault)
+	switch rv.Kind() {
+	case reflect.Pointer, reflect.Interface, reflect.Map, reflect.Slice, reflect.Func:
+		if rv.IsNil() {
+			return
+		}
 	}
 	apply := func(vaultKey string, target *string) {
 		if v, err := vault.ReadSecret(vaultKey); err == nil && strings.TrimSpace(v) != "" {

@@ -6,6 +6,8 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -257,5 +259,153 @@ func TestHandleSetupProfilesRejectsPost(t *testing.T) {
 
 	if rec.Code != http.StatusMethodNotAllowed {
 		t.Fatalf("status = %d, want 405", rec.Code)
+	}
+}
+
+func TestHandleSetupSaveAcceptsMiniMaxQuickPatch(t *testing.T) {
+	t.Parallel()
+
+	setupCSRFMu.Lock()
+	setupCSRFToken = "minimax-setup-token"
+	setupCSRFMu.Unlock()
+
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "config.yaml")
+	input, err := os.ReadFile(filepath.Join("..", "..", "config_template.yaml"))
+	if err != nil {
+		t.Fatalf("read config_template: %v", err)
+	}
+	if err := os.WriteFile(configPath, input, 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	s := &Server{
+		Cfg:    &config.Config{ConfigPath: configPath},
+		Logger: slog.Default(),
+	}
+	s.Cfg.Server.UILanguage = "de"
+	s.Cfg.Auth.Enabled = true
+
+	patch := map[string]interface{}{
+		"auth": map[string]interface{}{
+			"enabled":        true,
+			"admin_password": "supersecret",
+		},
+		"providers": []interface{}{
+			map[string]interface{}{
+				"id":                      "main",
+				"type":                    "openai",
+				"name":                    "MiniMax Coding Plan",
+				"base_url":                "https://api.minimax.io/v1",
+				"api_key":                 "sk-test",
+				"model":                   "MiniMax-M2.7",
+				"native_function_calling": true,
+			},
+			map[string]interface{}{
+				"id":                      "vision",
+				"type":                    "openai",
+				"name":                    "MiniMax Coding Plan Vision",
+				"base_url":                "https://api.minimax.io/v1",
+				"api_key":                 "sk-test",
+				"model":                   "MiniMax-M2.7",
+				"native_function_calling": true,
+			},
+			map[string]interface{}{
+				"id":                      "whisper",
+				"type":                    "openai",
+				"name":                    "MiniMax Coding Plan Whisper",
+				"base_url":                "https://api.minimax.io/v1",
+				"api_key":                 "sk-test",
+				"model":                   "MiniMax-M2.7",
+				"native_function_calling": true,
+			},
+			map[string]interface{}{
+				"id":                      "embeddings",
+				"type":                    "openai",
+				"name":                    "MiniMax Coding Plan Embeddings",
+				"base_url":                "https://api.minimax.io/v1",
+				"api_key":                 "sk-test",
+				"model":                   "minimax-embedding",
+				"native_function_calling": false,
+			},
+			map[string]interface{}{
+				"id":                      "helper",
+				"type":                    "openai",
+				"name":                    "MiniMax Coding Plan Helper",
+				"base_url":                "https://api.minimax.io/v1",
+				"api_key":                 "sk-test",
+				"model":                   "MiniMax-M2.1",
+				"native_function_calling": true,
+			},
+			map[string]interface{}{
+				"id":                      "image_gen",
+				"type":                    "minimax",
+				"name":                    "MiniMax Coding Plan Image Gen",
+				"base_url":                "https://api.minimax.io/v1/image_generation",
+				"api_key":                 "sk-test",
+				"model":                   "image-01",
+				"native_function_calling": true,
+			},
+			map[string]interface{}{
+				"id":                      "music_gen",
+				"type":                    "minimax",
+				"name":                    "MiniMax Coding Plan Music Gen",
+				"base_url":                "https://api.minimax.io/v1",
+				"api_key":                 "sk-test",
+				"model":                   "music-01",
+				"native_function_calling": true,
+			},
+		},
+		"agent": map[string]interface{}{
+			"system_language": "Deutsch",
+		},
+		"llm": map[string]interface{}{
+			"provider":             "main",
+			"use_native_functions": true,
+			"helper_enabled":       true,
+			"helper_provider":      "helper",
+		},
+		"embeddings": map[string]interface{}{
+			"provider": "embeddings",
+		},
+		"vision": map[string]interface{}{
+			"provider": "vision",
+		},
+		"whisper": map[string]interface{}{
+			"provider": "whisper",
+			"mode":     "multimodal",
+		},
+		"image_generation": map[string]interface{}{
+			"enabled":  true,
+			"provider": "image_gen",
+		},
+		"music_generation": map[string]interface{}{
+			"enabled":  true,
+			"provider": "music_gen",
+		},
+		"tts": map[string]interface{}{
+			"provider": "minimax",
+			"minimax": map[string]interface{}{
+				"api_key":  "sk-test",
+				"model_id": "speech-02-turbo",
+				"voice_id": "male-qn-qingse",
+			},
+		},
+	}
+
+	body, err := json.Marshal(patch)
+	if err != nil {
+		t.Fatalf("marshal patch: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/setup", strings.NewReader(string(body)))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-CSRF-Token", "minimax-setup-token")
+	rec := httptest.NewRecorder()
+
+	handleSetupSave(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())
 	}
 }
