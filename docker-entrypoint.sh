@@ -22,6 +22,31 @@ normalize_file() {
     fi
 }
 
+read_master_key_from_env_file() {
+    local file="$1"
+    local raw=""
+    if [ ! -f "$file" ]; then
+        return 0
+    fi
+    raw=$(grep -E '^AURAGO_MASTER_KEY=' "$file" | head -n 1 || true)
+    raw="${raw#AURAGO_MASTER_KEY=}"
+    raw="$(printf '%s' "$raw" | tr -d '[:space:]')"
+    raw="${raw%\"}"
+    raw="${raw#\"}"
+    raw="${raw%\'}"
+    raw="${raw#\'}"
+    printf '%s' "$raw"
+}
+
+persist_master_key_fallback() {
+    local key="$1"
+    if [ -z "$key" ]; then
+        return 0
+    fi
+    printf 'AURAGO_MASTER_KEY="%s"\n' "$key" > "$ENV_FILE"
+    chmod 600 "$ENV_FILE"
+}
+
 # Normalize the baked-in template immediately — it may have CRLF endings
 # because it was COPYd from a Windows development machine.
 normalize_file "$TEMPLATE_FILE"
@@ -135,6 +160,28 @@ echo "[Entrypoint] Config OK"
 #   4. persisted data/.env
 #   5. auto-generate
 
+PERSISTED_ENV_KEY="$(read_master_key_from_env_file "$ENV_FILE")"
+
+if [ -n "${AURAGO_MASTER_KEY:-}" ]; then
+    if [ -n "$PERSISTED_ENV_KEY" ] && [ "$PERSISTED_ENV_KEY" != "$AURAGO_MASTER_KEY" ]; then
+        echo "[Entrypoint] =========================================================="
+        echo "[Entrypoint] FATAL: External AURAGO_MASTER_KEY does not match persisted"
+        echo "[Entrypoint]        master key in $ENV_FILE."
+        echo "[Entrypoint]"
+        echo "[Entrypoint] Current start would make the existing vault unreadable."
+        echo "[Entrypoint] Fix one of these before restarting:"
+        echo "[Entrypoint]   1. Restore the previous external AURAGO_MASTER_KEY"
+        echo "[Entrypoint]   2. Remove the conflicting env injection / stack secret"
+        echo "[Entrypoint]   3. If this is a fresh reset, delete $ENV_FILE and vault.bin"
+        echo "[Entrypoint] =========================================================="
+        exit 1
+    fi
+    if [ -z "$PERSISTED_ENV_KEY" ]; then
+        echo "[Entrypoint] Persisting environment-provided master key to $ENV_FILE for restart safety"
+        persist_master_key_fallback "$AURAGO_MASTER_KEY"
+    fi
+fi
+
 if [ -z "${AURAGO_MASTER_KEY:-}" ]; then
     # Try Docker Compose file-based secret (mounted at /run/secrets/)
     DOCKER_SECRET="/run/secrets/aurago_master_key"
@@ -163,8 +210,7 @@ if [ -z "${AURAGO_MASTER_KEY:-}" ]; then
         export AURAGO_MASTER_KEY="$NEW_KEY"
         
         # Save to .env file (only when no external secret source is available)
-        echo "AURAGO_MASTER_KEY=\"$NEW_KEY\"" > "$ENV_FILE"
-        chmod 600 "$ENV_FILE"
+        persist_master_key_fallback "$NEW_KEY"
         
         # SECURITY: Don't log the actual key value
         echo "=========================================================================="
