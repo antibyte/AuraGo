@@ -63,24 +63,20 @@ profiles:
     native_function_calling: true
     default_trust_level: 3
     features:
-      vision: true
+      vision: false
       whisper: true
-      embeddings: true
+      embeddings: false
       helper: true
       tts: true
       image_generation: true
       music_generation: true
       video_generation: false
     models:
-      vision:
-        model: "MiniMax-M2.7"
       whisper:
         model: "MiniMax-M2.7"
         mode: "multimodal"
-      embeddings:
-        model: "minimax-embedding"
       helper:
-        model: "MiniMax-M2.1" # Schnellerer, ressourcenschonender Helper der Vorgängergeneration
+        model: "MiniMax-M2.5"
       image_generation:
         provider_type: "minimax"
         base_url: "https://api.minimax.io/v1/image_generation"
@@ -88,12 +84,17 @@ profiles:
         model: "image-01"
       music_generation:
         provider_type: "minimax"
-        model: "music-01"
+        base_url: "https://api.minimax.io/v1/music_generation"
+        alt_base_url: "https://api.minimaxi.com/v1/music_generation"
+        model: "music-2.6"
     # TTS uses its own config structure (NOT the provider system)
     tts:
       provider: "minimax"
-      model_id: "speech-02-turbo"
-      voice_id: "male-qn-qingse"
+      model_id: "speech-02-hd"
+      voice_id: "English_PlayfulGirl"
+    config_patch:
+      llm:
+        structured_outputs: true
 
   - id: alibaba_coding
     name: "Alibaba Coding Plan"

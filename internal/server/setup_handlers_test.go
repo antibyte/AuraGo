@@ -347,15 +347,6 @@ func TestHandleSetupSaveAcceptsMiniMaxQuickPatch(t *testing.T) {
 				"native_function_calling": true,
 			},
 			map[string]interface{}{
-				"id":                      "vision",
-				"type":                    "openai",
-				"name":                    "MiniMax Coding Plan Vision",
-				"base_url":                "https://api.minimax.io/v1",
-				"api_key":                 "sk-test",
-				"model":                   "MiniMax-M2.7",
-				"native_function_calling": true,
-			},
-			map[string]interface{}{
 				"id":                      "whisper",
 				"type":                    "openai",
 				"name":                    "MiniMax Coding Plan Whisper",
@@ -365,21 +356,12 @@ func TestHandleSetupSaveAcceptsMiniMaxQuickPatch(t *testing.T) {
 				"native_function_calling": true,
 			},
 			map[string]interface{}{
-				"id":                      "embeddings",
-				"type":                    "openai",
-				"name":                    "MiniMax Coding Plan Embeddings",
-				"base_url":                "https://api.minimax.io/v1",
-				"api_key":                 "sk-test",
-				"model":                   "minimax-embedding",
-				"native_function_calling": false,
-			},
-			map[string]interface{}{
 				"id":                      "helper",
 				"type":                    "openai",
 				"name":                    "MiniMax Coding Plan Helper",
 				"base_url":                "https://api.minimax.io/v1",
 				"api_key":                 "sk-test",
-				"model":                   "MiniMax-M2.1",
+				"model":                   "MiniMax-M2.5",
 				"native_function_calling": true,
 			},
 			map[string]interface{}{
@@ -395,9 +377,9 @@ func TestHandleSetupSaveAcceptsMiniMaxQuickPatch(t *testing.T) {
 				"id":                      "music_gen",
 				"type":                    "minimax",
 				"name":                    "MiniMax Coding Plan Music Gen",
-				"base_url":                "https://api.minimax.io/v1",
+				"base_url":                "https://api.minimax.io/v1/music_generation",
 				"api_key":                 "sk-test",
-				"model":                   "music-01",
+				"model":                   "music-2.6",
 				"native_function_calling": true,
 			},
 		},
@@ -412,12 +394,7 @@ func TestHandleSetupSaveAcceptsMiniMaxQuickPatch(t *testing.T) {
 			"use_native_functions": true,
 			"helper_enabled":       true,
 			"helper_provider":      "helper",
-		},
-		"embeddings": map[string]interface{}{
-			"provider": "embeddings",
-		},
-		"vision": map[string]interface{}{
-			"provider": "vision",
+			"structured_outputs":   true,
 		},
 		"whisper": map[string]interface{}{
 			"provider": "whisper",
@@ -435,8 +412,8 @@ func TestHandleSetupSaveAcceptsMiniMaxQuickPatch(t *testing.T) {
 			"provider": "minimax",
 			"minimax": map[string]interface{}{
 				"api_key":  "sk-test",
-				"model_id": "speech-02-turbo",
-				"voice_id": "male-qn-qingse",
+				"model_id": "speech-02-hd",
+				"voice_id": "English_PlayfulGirl",
 			},
 		},
 	}
@@ -466,6 +443,9 @@ func TestHandleSetupSaveAcceptsMiniMaxQuickPatch(t *testing.T) {
 	}
 	if loaded.Agent.SystemLanguage != "Deutsch" {
 		t.Fatalf("system_language = %q, want Deutsch", loaded.Agent.SystemLanguage)
+	}
+	if !loaded.LLM.StructuredOutputs {
+		t.Fatal("structured_outputs should be enabled for minimax quick setup")
 	}
 }
 
@@ -498,21 +478,17 @@ func TestHandleSetupSaveAcceptsMiniMaxQuickPatchAgainstCurrentConfig(t *testing.
 		},
 		"providers": []interface{}{
 			map[string]interface{}{"id": "main", "type": "openai", "name": "MiniMax Coding Plan", "base_url": "https://api.minimax.io/v1", "api_key": "sk-test", "model": "MiniMax-M2.7", "native_function_calling": true},
-			map[string]interface{}{"id": "vision", "type": "openai", "name": "MiniMax Coding Plan Vision", "base_url": "https://api.minimax.io/v1", "api_key": "sk-test", "model": "MiniMax-M2.7", "native_function_calling": true},
 			map[string]interface{}{"id": "whisper", "type": "openai", "name": "MiniMax Coding Plan Whisper", "base_url": "https://api.minimax.io/v1", "api_key": "sk-test", "model": "MiniMax-M2.7", "native_function_calling": true},
-			map[string]interface{}{"id": "embeddings", "type": "openai", "name": "MiniMax Coding Plan Embeddings", "base_url": "https://api.minimax.io/v1", "api_key": "sk-test", "model": "minimax-embedding", "native_function_calling": false},
-			map[string]interface{}{"id": "helper", "type": "openai", "name": "MiniMax Coding Plan Helper", "base_url": "https://api.minimax.io/v1", "api_key": "sk-test", "model": "MiniMax-M2.1", "native_function_calling": true},
+			map[string]interface{}{"id": "helper", "type": "openai", "name": "MiniMax Coding Plan Helper", "base_url": "https://api.minimax.io/v1", "api_key": "sk-test", "model": "MiniMax-M2.5", "native_function_calling": true},
 			map[string]interface{}{"id": "image_gen", "type": "minimax", "name": "MiniMax Coding Plan Image Gen", "base_url": "https://api.minimax.io/v1/image_generation", "api_key": "sk-test", "model": "image-01", "native_function_calling": true},
-			map[string]interface{}{"id": "music_gen", "type": "minimax", "name": "MiniMax Coding Plan Music Gen", "base_url": "https://api.minimax.io/v1", "api_key": "sk-test", "model": "music-01", "native_function_calling": true},
+			map[string]interface{}{"id": "music_gen", "type": "minimax", "name": "MiniMax Coding Plan Music Gen", "base_url": "https://api.minimax.io/v1/music_generation", "api_key": "sk-test", "model": "music-2.6", "native_function_calling": true},
 		},
 		"agent": map[string]interface{}{"system_language": "Deutsch"},
-		"llm": map[string]interface{}{"provider": "main", "use_native_functions": true, "helper_enabled": true, "helper_provider": "helper"},
-		"embeddings": map[string]interface{}{"provider": "embeddings"},
-		"vision": map[string]interface{}{"provider": "vision"},
+		"llm": map[string]interface{}{"provider": "main", "use_native_functions": true, "helper_enabled": true, "helper_provider": "helper", "structured_outputs": true},
 		"whisper": map[string]interface{}{"provider": "whisper", "mode": "multimodal"},
 		"image_generation": map[string]interface{}{"enabled": true, "provider": "image_gen"},
 		"music_generation": map[string]interface{}{"enabled": true, "provider": "music_gen"},
-		"tts": map[string]interface{}{"provider": "minimax", "minimax": map[string]interface{}{"api_key": "sk-test", "model_id": "speech-02-turbo", "voice_id": "male-qn-qingse"}},
+		"tts": map[string]interface{}{"provider": "minimax", "minimax": map[string]interface{}{"api_key": "sk-test", "model_id": "speech-02-hd", "voice_id": "English_PlayfulGirl"}},
 	}
 
 	body, err := json.Marshal(patch)
@@ -562,21 +538,17 @@ func TestHandleSetupSaveReturnsRestartRequiredWhenHotReloadPanics(t *testing.T) 
 		},
 		"providers": []interface{}{
 			map[string]interface{}{"id": "main", "type": "openai", "name": "MiniMax Coding Plan", "base_url": "https://api.minimax.io/v1", "api_key": "sk-test", "model": "MiniMax-M2.7", "native_function_calling": true},
-			map[string]interface{}{"id": "vision", "type": "openai", "name": "MiniMax Coding Plan Vision", "base_url": "https://api.minimax.io/v1", "api_key": "sk-test", "model": "MiniMax-M2.7", "native_function_calling": true},
 			map[string]interface{}{"id": "whisper", "type": "openai", "name": "MiniMax Coding Plan Whisper", "base_url": "https://api.minimax.io/v1", "api_key": "sk-test", "model": "MiniMax-M2.7", "native_function_calling": true},
-			map[string]interface{}{"id": "embeddings", "type": "openai", "name": "MiniMax Coding Plan Embeddings", "base_url": "https://api.minimax.io/v1", "api_key": "sk-test", "model": "minimax-embedding", "native_function_calling": false},
-			map[string]interface{}{"id": "helper", "type": "openai", "name": "MiniMax Coding Plan Helper", "base_url": "https://api.minimax.io/v1", "api_key": "sk-test", "model": "MiniMax-M2.1", "native_function_calling": true},
+			map[string]interface{}{"id": "helper", "type": "openai", "name": "MiniMax Coding Plan Helper", "base_url": "https://api.minimax.io/v1", "api_key": "sk-test", "model": "MiniMax-M2.5", "native_function_calling": true},
 			map[string]interface{}{"id": "image_gen", "type": "minimax", "name": "MiniMax Coding Plan Image Gen", "base_url": "https://api.minimax.io/v1/image_generation", "api_key": "sk-test", "model": "image-01", "native_function_calling": true},
-			map[string]interface{}{"id": "music_gen", "type": "minimax", "name": "MiniMax Coding Plan Music Gen", "base_url": "https://api.minimax.io/v1", "api_key": "sk-test", "model": "music-01", "native_function_calling": true},
+			map[string]interface{}{"id": "music_gen", "type": "minimax", "name": "MiniMax Coding Plan Music Gen", "base_url": "https://api.minimax.io/v1/music_generation", "api_key": "sk-test", "model": "music-2.6", "native_function_calling": true},
 		},
 		"agent": map[string]interface{}{"system_language": "Deutsch"},
-		"llm": map[string]interface{}{"provider": "main", "use_native_functions": true, "helper_enabled": true, "helper_provider": "helper"},
-		"embeddings": map[string]interface{}{"provider": "embeddings"},
-		"vision": map[string]interface{}{"provider": "vision"},
+		"llm": map[string]interface{}{"provider": "main", "use_native_functions": true, "helper_enabled": true, "helper_provider": "helper", "structured_outputs": true},
 		"whisper": map[string]interface{}{"provider": "whisper", "mode": "multimodal"},
 		"image_generation": map[string]interface{}{"enabled": true, "provider": "image_gen"},
 		"music_generation": map[string]interface{}{"enabled": true, "provider": "music_gen"},
-		"tts": map[string]interface{}{"provider": "minimax", "minimax": map[string]interface{}{"api_key": "sk-test", "model_id": "speech-02-turbo", "voice_id": "male-qn-qingse"}},
+		"tts": map[string]interface{}{"provider": "minimax", "minimax": map[string]interface{}{"api_key": "sk-test", "model_id": "speech-02-hd", "voice_id": "English_PlayfulGirl"}},
 	}
 
 	body, err := json.Marshal(patch)

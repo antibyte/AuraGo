@@ -109,6 +109,21 @@ func TestMiniMaxProfileHasTTS(t *testing.T) {
 			if p.HighspeedModel != "MiniMax-M2.7-highspeed" {
 				t.Fatalf("minimax highspeed_model = %q, want MiniMax-M2.7-highspeed", p.HighspeedModel)
 			}
+			if p.Features.Embeddings {
+				t.Fatal("minimax profile should have embeddings disabled")
+			}
+			if p.Features.Vision {
+				t.Fatal("minimax profile should not preconfigure vision provider")
+			}
+			if p.Models.Embeddings != nil {
+				t.Fatal("minimax profile should not define an embeddings model")
+			}
+			if p.Models.Vision != nil {
+				t.Fatal("minimax profile should not define a vision provider model")
+			}
+			if p.Models.Helper == nil || p.Models.Helper.Model != "MiniMax-M2.5" {
+				t.Fatalf("minimax helper model = %v, want MiniMax-M2.5", p.Models.Helper)
+			}
 			if p.Models.ImageGeneration == nil {
 				t.Fatal("minimax image_generation should be configured")
 			}
@@ -129,6 +144,24 @@ func TestMiniMaxProfileHasTTS(t *testing.T) {
 			}
 			if p.Models.MusicGeneration.ProviderType != "minimax" {
 				t.Fatalf("minimax music_generation provider_type = %q, want minimax", p.Models.MusicGeneration.ProviderType)
+			}
+			if p.Models.MusicGeneration.BaseURL != "https://api.minimax.io/v1/music_generation" {
+				t.Fatalf("minimax music_generation base_url = %q, want international music endpoint", p.Models.MusicGeneration.BaseURL)
+			}
+			if p.Models.MusicGeneration.AltBaseURL != "https://api.minimaxi.com/v1/music_generation" {
+				t.Fatalf("minimax music_generation alt_base_url = %q, want China music endpoint", p.Models.MusicGeneration.AltBaseURL)
+			}
+			if p.Models.MusicGeneration.Model != "music-2.6" {
+				t.Fatalf("minimax music_generation model = %q, want music-2.6", p.Models.MusicGeneration.Model)
+			}
+			if p.TTS.ModelID != "speech-02-hd" {
+				t.Fatalf("minimax TTS model_id = %q, want speech-02-hd", p.TTS.ModelID)
+			}
+			if p.TTS.VoiceID != "English_PlayfulGirl" {
+				t.Fatalf("minimax TTS voice_id = %q, want English_PlayfulGirl", p.TTS.VoiceID)
+			}
+			if got := p.ConfigPatch["llm"].(map[string]any)["structured_outputs"]; got != true {
+				t.Fatalf("minimax llm.structured_outputs = %v, want true", got)
 			}
 			return
 		}
