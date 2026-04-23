@@ -440,6 +440,9 @@ var noPasswordPrefixes = []string{
 	"/api/auth/password", // allows setting the initial password
 	"/api/security/status",
 	"/api/setup",
+	"/api/i18n",
+	"/api/personalities",
+	"/api/openrouter/models",
 	"/api/ui-language",
 	"/setup",
 	"/css/",

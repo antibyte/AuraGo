@@ -219,6 +219,29 @@ func TestHandleAuthLoginPageRedirectsToSetupWhenPasswordMissing(t *testing.T) {
 	}
 }
 
+func TestAuthMiddlewareAllowsSetupDependenciesWhenPasswordMissing(t *testing.T) {
+	t.Parallel()
+
+	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
+	s.Cfg.Auth.Enabled = true
+	s.Cfg.LLM.APIKey = "configured"
+
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	})
+	handler := authMiddleware(s, next)
+
+	for _, path := range []string{"/api/i18n?lang=de", "/api/personalities", "/api/openrouter/models"} {
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusNoContent {
+			t.Fatalf("path %q status = %d, want %d", path, rec.Code, http.StatusNoContent)
+		}
+	}
+}
+
 func TestHandleAuthLoginReturnsSetupRedirectWhenPasswordMissing(t *testing.T) {
 	t.Parallel()
 

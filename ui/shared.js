@@ -440,7 +440,6 @@ function initRadialMenu() {
     const backdrop = document.getElementById('radialBackdrop');
 
     if (!menu || !trigger) {
-        console.warn('[AuraGo] Radial menu elements not found');
         return;
     }
 
