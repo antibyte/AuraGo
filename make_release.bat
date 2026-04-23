@@ -145,17 +145,43 @@ echo     -> deploy\install.sh
 set "GOOS=windows" & set "GOARCH=amd64"
 echo.
 
-REM -- [3/5] Commit and push
-echo [3/5] Pushing code to GitHub...
+REM -- [3/5] Commit, tag and push
+echo [3/5] Pushing code and release tag to GitHub...
 git add .
 git diff-index --quiet HEAD 2>nul
 if errorlevel 1 (
-    git commit -m "build: release !VERSION! [skip actions]"
-    git push origin main
-    echo     Code pushed.
+    git commit -m "build: release !VERSION!"
+    echo     Release commit created.
 ) else (
-    echo     Nothing to commit.
+    echo     Nothing to commit on main.
 )
+
+git rev-parse -q --verify "refs/tags/!VERSION!" >nul 2>&1
+if not errorlevel 1 (
+    echo [ERROR] Git tag !VERSION! already exists locally.
+    echo         Delete it or choose a different release tag.
+    exit /b 1
+)
+
+git ls-remote --exit-code --tags origin "refs/tags/!VERSION!" >nul 2>&1
+if not errorlevel 1 (
+    echo [ERROR] Git tag !VERSION! already exists on origin.
+    echo         Delete the remote tag/release or choose a different release tag.
+    exit /b 1
+)
+
+git tag -a "!VERSION!" -m "AuraGo !VERSION!"
+if errorlevel 1 (
+    echo [ERROR] Failed to create git tag !VERSION!.
+    exit /b 1
+)
+
+git push origin main "!VERSION!"
+if errorlevel 1 (
+    echo [ERROR] Failed to push main and tag !VERSION! to origin.
+    exit /b 1
+)
+echo     Code and tag pushed.
 echo.
 
 REM -- [4/5] Create GitHub Release
