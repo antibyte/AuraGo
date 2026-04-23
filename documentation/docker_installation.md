@@ -66,21 +66,19 @@ The AuraGo Docker image is published to GitHub Container Registry (`ghcr.io/anti
 
 | Tag | Description | Use Case |
 |-----|-------------|----------|
-| `main` | Current main branch build | Default for the repository `docker-compose.yml` |
-| `latest` | Always points to the latest stable release | Conservative/stable deployments |
+| `latest` | Always points to the latest stable release | Default for release installs |
+| `main` | Current main branch build | Testing / unreleased fixes |
 | `v1.2.3` | Pinned to a specific release | Reproducible deployments |
 
-> **Note:** The `docker-compose.yml` in this repository defaults to `main`, so a fresh install from the repo gets the newest main-branch container instead of the last tagged release.
->
 > **Recommendation:** For production, pin to a specific version tag. For example:
 > ```yaml
 > image: ghcr.io/antibyte/aurago:v1.2.3
 > ```
 
-You can also override the default tag without editing the compose file:
+If you want the current branch build instead of the latest release, override the tag without editing the compose file:
 
 ```bash
-AURAGO_IMAGE_TAG=latest docker compose up -d
+AURAGO_IMAGE_TAG=main docker compose up -d
 ```
 
 ---
