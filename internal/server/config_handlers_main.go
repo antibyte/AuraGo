@@ -204,6 +204,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			jsonError(w, "Failed to parse config", http.StatusInternalServerError)
 			return
 		}
+		rawCfg = normalizeConfigYAMLMap(rawCfg)
 
 		// Deep merge the patch into the existing config, skipping masked password values.
 		// Before merging, extract any secrets from the patch and write them to the vault
@@ -219,6 +220,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			return
 		}
 		deepMerge(rawCfg, patch, "")
+		rawCfg = normalizeConfigYAMLMap(rawCfg)
 
 		// Write back
 		out, err := yaml.Marshal(rawCfg)

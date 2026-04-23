@@ -1390,7 +1390,8 @@ async function saveConfig() {
             let errMsg = text || `HTTP ${resp.status}`;
             try {
                 const parsed = JSON.parse(text);
-                if (parsed.error) errMsg = parsed.error;
+                if (parsed.error && parsed.details) errMsg = `${parsed.error}: ${parsed.details}`;
+                else if (parsed.error) errMsg = parsed.error;
                 else if (parsed.message) errMsg = parsed.message;
             } catch (_) { /* not JSON, use raw text */ }
             throw new Error(errMsg);

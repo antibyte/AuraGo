@@ -526,6 +526,7 @@ func patchAuthConfig(s *Server, fields map[string]interface{}) error {
 		if err := yaml.Unmarshal(data, &rawCfg); err != nil {
 			return err
 		}
+		rawCfg = normalizeConfigYAMLMap(rawCfg)
 		authSection, ok := rawCfg["auth"].(map[string]interface{})
 		if !ok {
 			authSection = make(map[string]interface{})
@@ -534,6 +535,7 @@ func patchAuthConfig(s *Server, fields map[string]interface{}) error {
 			authSection[k] = v
 		}
 		rawCfg["auth"] = authSection
+		rawCfg = normalizeConfigYAMLMap(rawCfg)
 		out, err := yaml.Marshal(rawCfg)
 		if err != nil {
 			return err

@@ -152,6 +152,7 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.setup_failed_parse_config"), http.StatusInternalServerError)
 			return
 		}
+		rawCfg = normalizeConfigYAMLMap(rawCfg)
 
 		// Extract and persist provider API keys into the vault BEFORE merging
 		// into the YAML. ProviderEntry.APIKey has yaml:"-" so it is vault-only
@@ -203,12 +204,13 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 
 		// Deep merge the setup patch into existing config
 		deepMerge(rawCfg, patch, "")
+		rawCfg = normalizeConfigYAMLMap(rawCfg)
 
 		// Write back
 		out, err := yaml.Marshal(rawCfg)
 		if err != nil {
 			s.Logger.Error("[Setup] Failed to marshal config", "error", err)
-			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.setup_failed_save_config"), http.StatusInternalServerError)
+			jsonErrorWithDetails(w, i18n.T(s.Cfg.Server.UILanguage, "backend.setup_failed_save_config"), err.Error(), http.StatusInternalServerError)
 			return
 		}
 
@@ -239,7 +241,7 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 				"session_secret": newSecret,
 			}); err != nil {
 				s.Logger.Error("[Setup] Failed to persist admin password", "error", err)
-				jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.auth_failed_save_config"), http.StatusInternalServerError)
+				jsonErrorWithDetails(w, i18n.T(s.Cfg.Server.UILanguage, "backend.auth_failed_save_config"), err.Error(), http.StatusInternalServerError)
 				return
 			}
 			s.Logger.Info("[Setup] Admin password initialized")
