@@ -153,6 +153,7 @@ func appendContentToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai
 			"Convert audio, video, and image files between formats using FFmpeg and ImageMagick. "+
 				"Operations: audio_convert, video_convert, image_convert, info. "+
 				"Use info to inspect codecs, duration, resolution, channels, or sample rate before converting. "+
+				"For audio_convert, video_convert, and image_convert you MUST provide either output_file or output_format. "+
 				"All file paths must stay inside the workspace.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{

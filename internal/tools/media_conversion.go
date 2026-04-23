@@ -93,7 +93,10 @@ type ffprobeOutput struct {
 }
 
 func mediaConversionJSON(r mediaConversionResult) string {
-	b, _ := json.Marshal(r)
+	b, err := json.Marshal(r)
+	if err != nil {
+		return fmt.Sprintf(`{"status":"error","message":%q}`, "failed to encode result: "+err.Error())
+	}
 	return string(b)
 }
 
@@ -184,6 +187,9 @@ func executeFFmpegConversion(cfg *config.MediaConversionConfig, req MediaConvers
 	if _, err := os.Stat(req.FilePath); err != nil {
 		return mediaConversionJSON(mediaConversionResult{Status: "error", Message: fmt.Sprintf("cannot access input file: %v", err), Operation: req.Operation})
 	}
+	if err := checkMediaFileSize(cfg, req.FilePath); err != nil {
+		return mediaConversionJSON(mediaConversionResult{Status: "error", Message: err.Error(), Operation: req.Operation})
+	}
 
 	ffmpegPath, err := resolveConfiguredBinary(cfg.FFmpegPath, []string{"ffmpeg"})
 	if err != nil {
@@ -265,6 +271,9 @@ func executeImageMagickConversion(cfg *config.MediaConversionConfig, req MediaCo
 	if _, err := os.Stat(req.FilePath); err != nil {
 		return mediaConversionJSON(mediaConversionResult{Status: "error", Message: fmt.Sprintf("cannot access input file: %v", err), Operation: req.Operation})
 	}
+	if err := checkMediaFileSize(cfg, req.FilePath); err != nil {
+		return mediaConversionJSON(mediaConversionResult{Status: "error", Message: err.Error(), Operation: req.Operation})
+	}
 
 	imageMagickPath, err := resolveConfiguredImageMagick(cfg.ImageMagickPath)
 	if err != nil {
@@ -285,7 +294,10 @@ func executeImageMagickConversion(cfg *config.MediaConversionConfig, req MediaCo
 	if geometry := imageMagickResizeArg(req.Width, req.Height); geometry != "" {
 		args = append(args, "-resize", geometry)
 	}
-	if req.QualityPct > 0 {
+	if req.QualityPct != 0 {
+		if req.QualityPct < 1 || req.QualityPct > 100 {
+			return mediaConversionJSON(mediaConversionResult{Status: "error", Message: "quality_pct must be between 1 and 100", Operation: req.Operation})
+		}
 		args = append(args, "-quality", strconv.Itoa(req.QualityPct))
 	}
 	args = append(args, req.OutputFile)
@@ -316,6 +328,9 @@ func executeImageMagickConversion(cfg *config.MediaConversionConfig, req MediaCo
 func executeMediaInfo(cfg *config.MediaConversionConfig, req MediaConversionRequest) string {
 	if strings.TrimSpace(req.FilePath) == "" {
 		return mediaConversionJSON(mediaConversionResult{Status: "error", Message: "file_path is required", Operation: req.Operation})
+	}
+	if _, err := os.Stat(req.FilePath); err != nil {
+		return mediaConversionJSON(mediaConversionResult{Status: "error", Message: fmt.Sprintf("cannot access input file: %v", err), Operation: req.Operation})
 	}
 
 	ext := strings.ToLower(filepath.Ext(req.FilePath))
@@ -526,6 +541,10 @@ func resolveConversionOutput(inputFile, outputFile, outputFormat string) (string
 	if format == "" {
 		return "", "", fmt.Errorf("could not determine output format")
 	}
+	// Prevent accidental in-place overwrite which would destroy the source file
+	if filepath.Clean(inputFile) == filepath.Clean(outputFile) {
+		return "", "", fmt.Errorf("output file must be different from input file")
+	}
 	return outputFile, format, nil
 }
 
@@ -576,6 +595,38 @@ func imageMagickResizeArg(width, height int) string {
 	default:
 		return ""
 	}
+}
+
+func checkMediaFileSize(cfg *config.MediaConversionConfig, path string) error {
+	if cfg == nil || cfg.MaxFileSizeMB <= 0 {
+		return nil
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+	maxBytes := int64(cfg.MaxFileSizeMB) * 1024 * 1024
+	if info.Size() > maxBytes {
+		return fmt.Errorf("file size %s exceeds maximum allowed %d MB", formatFileSize(info.Size()), cfg.MaxFileSizeMB)
+	}
+	return nil
+}
+
+func formatFileSize(size int64) string {
+	const unit = 1024
+	if size < unit {
+		return fmt.Sprintf("%d B", size)
+	}
+	div, exp := int64(unit), 0
+	for n := size / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	units := "KMGTPE"
+	if exp >= len(units) {
+		return fmt.Sprintf("%.1f %cB", float64(size)/float64(div), units[len(units)-1])
+	}
+	return fmt.Sprintf("%.1f %cB", float64(size)/float64(div), units[exp])
 }
 
 func mediaConversionTimeout(cfg *config.MediaConversionConfig) time.Duration {

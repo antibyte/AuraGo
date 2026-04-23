@@ -144,6 +144,7 @@ func Load(path string) (*Config, error) {
 	// Use Docker-internal hostname when running inside a Docker container, otherwise localhost.
 	cfg.Tools.MediaConversion.ReadOnly = false
 	cfg.Tools.MediaConversion.TimeoutSeconds = 120
+	cfg.Tools.MediaConversion.MaxFileSizeMB = 500
 	cfg.Tools.DocumentCreator.Backend = "maroto"
 	cfg.Tools.DocumentCreator.OutputDir = "data/documents"
 	cfg.Tools.DocumentCreator.Gotenberg.URL = defaultSidecarURL(runningInDocker, "gotenberg", 3000)

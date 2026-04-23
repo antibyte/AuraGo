@@ -20,20 +20,31 @@ func TestPaperlessSearch_WithResults(t *testing.T) {
 		if r.Header.Get("Authorization") != "Token test-token" {
 			t.Error("missing or wrong Authorization header")
 		}
-		if !strings.Contains(r.URL.Path, "/api/documents/") {
+		switch {
+		case strings.Contains(r.URL.Path, "/api/tags/"):
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"count": 2,
+				"results": []map[string]interface{}{
+					{"id": 1, "name": "invoice"},
+					{"id": 2, "name": "receipt"},
+				},
+			})
+		case strings.Contains(r.URL.Path, "/api/documents/"):
+			if r.URL.Query().Get("query") != "invoice" {
+				t.Errorf("expected query=invoice, got %s", r.URL.Query().Get("query"))
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"count": 2,
+				"results": []map[string]interface{}{
+					{"id": 1, "title": "Invoice 2025", "created": "2025-01-15", "tags": []interface{}{1, 2}},
+					{"id": 2, "title": "Invoice 2024", "created": "2024-06-10", "tags": []interface{}{}},
+				},
+			})
+		default:
 			t.Errorf("unexpected path: %s", r.URL.Path)
 		}
-		if r.URL.Query().Get("query") != "invoice" {
-			t.Errorf("expected query=invoice, got %s", r.URL.Query().Get("query"))
-		}
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"count": 2,
-			"results": []map[string]interface{}{
-				{"id": 1, "title": "Invoice 2025", "created": "2025-01-15", "tags": []interface{}{1, 2}},
-				{"id": 2, "title": "Invoice 2024", "created": "2024-06-10", "tags": []interface{}{}},
-			},
-		})
 	})
 	defer srv.Close()
 

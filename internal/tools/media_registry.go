@@ -110,6 +110,7 @@ func repairLegacyMediaTypes(db *sql.DB) error {
 	}{
 		{mediaType: "document", patterns: []string{".pdf", ".doc", ".docx", ".txt", ".md", ".rtf", ".odt", ".csv", ".json", ".yaml", ".yml", ".xls", ".xlsx", ".ppt", ".pptx"}},
 		{mediaType: "audio", patterns: []string{".mp3", ".wav", ".ogg", ".m4a", ".aac", ".flac"}},
+		{mediaType: "video", patterns: []string{".mp4", ".mkv", ".avi", ".mov", ".wmv", ".flv", ".webm", ".m4v", ".mpg", ".mpeg", ".ts", ".m2ts"}},
 	}
 
 	for _, repair := range repairs {
@@ -219,6 +220,8 @@ func inferMediaType(filename, filePath string) string {
 		return "document"
 	case ".mp3", ".wav", ".ogg", ".m4a", ".aac", ".flac":
 		return "audio"
+	case ".mp4", ".mkv", ".avi", ".mov", ".wmv", ".flv", ".webm", ".m4v", ".mpg", ".mpeg", ".ts", ".m2ts":
+		return "video"
 	case ".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".svg":
 		return "image"
 	default:
@@ -265,8 +268,21 @@ func SearchMedia(db *sql.DB, query, mediaType string, tags []string, limit, offs
 		}
 	}
 	for _, t := range tags {
-		conditions = append(conditions, "tags LIKE ?")
-		args = append(args, "%\""+t+"\"%")
+		// Exact JSON array element matching to avoid partial matches
+		// (e.g. searching for tag "sun" should not match "sunset").
+		// Tags are stored as JSON arrays like ["tag1", "tag2"].
+		patterns := []string{
+			`["` + t + `"]`,    // single element
+			`["` + t + `",`,    // first element
+			`,"` + t + `"]`,    // last element
+			`,"` + t + `",`,    // middle element
+		}
+		var clauses []string
+		for _, p := range patterns {
+			clauses = append(clauses, "tags LIKE ?")
+			args = append(args, "%"+p+"%")
+		}
+		conditions = append(conditions, "("+strings.Join(clauses, " OR ")+")")
 	}
 
 	where := strings.Join(conditions, " AND ")
@@ -456,9 +472,18 @@ func MediaStats(db *sql.DB) (map[string]interface{}, error) {
 }
 
 // DispatchMediaRegistry handles tool calls for the media_registry action.
-func DispatchMediaRegistry(db *sql.DB, operation, query, mediaType, description string, tags []string, tagMode string, id int64, limit, offset int, filename, filePath, webPath string) string {
+// workspaceDir is used to validate that file_path stays inside the workspace.
+func DispatchMediaRegistry(db *sql.DB, workspaceDir, operation, query, mediaType, description string, tags []string, tagMode string, id int64, limit, offset int, filename, filePath, webPath string) string {
 	switch operation {
 	case "register":
+		// Security: validate file_path stays inside the workspace
+		if filePath != "" && workspaceDir != "" {
+			resolved, err := secureResolve(workspaceDir, filePath)
+			if err != nil {
+				return fmt.Sprintf(`{"status":"error","message":%q}`, "invalid file_path: "+err.Error())
+			}
+			filePath = resolved
+		}
 		item := MediaItem{
 			MediaType:   mediaType,
 			SourceTool:  "manual",

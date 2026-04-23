@@ -99,9 +99,9 @@ func TestSearchMedia(t *testing.T) {
 	}
 	defer db.Close()
 
-	RegisterMedia(db, MediaItem{MediaType: "image", Filename: "sunset.png", Prompt: "a beautiful sunset"})
-	RegisterMedia(db, MediaItem{MediaType: "image", Filename: "cat.png", Description: "a cute cat"})
-	RegisterMedia(db, MediaItem{MediaType: "tts", Filename: "hello.mp3", Prompt: "hello world"})
+	RegisterMedia(db, MediaItem{MediaType: "image", Filename: "sunset.png", Prompt: "a beautiful sunset", Tags: []string{"sunset", "landscape"}})
+	RegisterMedia(db, MediaItem{MediaType: "image", Filename: "cat.png", Description: "a cute cat", Tags: []string{"cat", "animal"}})
+	RegisterMedia(db, MediaItem{MediaType: "tts", Filename: "hello.mp3", Prompt: "hello world", Tags: []string{"greeting"}})
 
 	results, _, searchErr := SearchMedia(db, "sunset", "", nil, 10, 0)
 	if searchErr != nil {
@@ -120,6 +120,18 @@ func TestSearchMedia(t *testing.T) {
 	if len(results) != 2 {
 		t.Errorf("expected 2 image results, got %d", len(results))
 	}
+
+	// Exact tag matching: "sun" should NOT match "sunset"
+	results, _, _ = SearchMedia(db, "", "", []string{"sun"}, 10, 0)
+	if len(results) != 0 {
+		t.Errorf("exact tag search: expected 0 results for 'sun', got %d (should not match 'sunset')", len(results))
+	}
+
+	// Exact tag matching: "sunset" SHOULD match
+	results, _, _ = SearchMedia(db, "", "", []string{"sunset"}, 10, 0)
+	if len(results) != 1 {
+		t.Errorf("exact tag search: expected 1 result for 'sunset', got %d", len(results))
+	}
 }
 
 func TestDispatchMediaRegistryInfersDocumentType(t *testing.T) {
@@ -129,7 +141,8 @@ func TestDispatchMediaRegistryInfersDocumentType(t *testing.T) {
 	}
 	defer db.Close()
 
-	resp := DispatchMediaRegistry(db, "register", "", "", "News PDF", nil, "", 0, 10, 0, "ki-news-latest.pdf", "/files/ki-news-latest.pdf", "")
+	workspaceDir := t.TempDir()
+	resp := DispatchMediaRegistry(db, workspaceDir, "register", "", "", "News PDF", nil, "", 0, 10, 0, "ki-news-latest.pdf", "ki-news-latest.pdf", "")
 	if !strings.Contains(resp, `"status":"success"`) {
 		t.Fatalf("register response = %s", resp)
 	}
@@ -157,6 +170,8 @@ func TestInferMediaType(t *testing.T) {
 		{name: "docx document", filePath: "/tmp/report.docx", want: "document"},
 		{name: "audio mp3", filename: "voice.mp3", want: "audio"},
 		{name: "image png", filename: "image.png", want: "image"},
+		{name: "video mp4", filename: "movie.mp4", want: "video"},
+		{name: "video mkv", filePath: "/tmp/movie.mkv", want: "video"},
 		{name: "unknown defaults to image", filename: "blob.bin", want: "image"},
 		{name: "empty defaults to image", want: "image"},
 	}
@@ -281,5 +296,19 @@ func TestMediaStats(t *testing.T) {
 	}
 	if stats["total_count"] != int64(3) {
 		t.Errorf("total_count = %v (%T), want 3", stats["total_count"], stats["total_count"])
+	}
+}
+
+func TestDispatchMediaRegistryRejectsPathTraversal(t *testing.T) {
+	db, err := InitMediaRegistryDB(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("init db: %v", err)
+	}
+	defer db.Close()
+
+	workspaceDir := t.TempDir()
+	resp := DispatchMediaRegistry(db, workspaceDir, "register", "", "", "Bad", nil, "", 0, 10, 0, "evil.txt", "../../../etc/passwd", "")
+	if !strings.Contains(resp, `"status":"error"`) {
+		t.Fatalf("expected error for path traversal, got: %s", resp)
 	}
 }

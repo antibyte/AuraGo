@@ -845,7 +845,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 	if ff.MediaRegistryEnabled {
 		tools = append(tools, tool("media_registry",
 			"Search, browse, tag, and manage the media registry. Tracks all generated images, TTS audio, and other media files with metadata, tags, and descriptions. "+
-				"Operations: register (manual add), search (full-text across description/prompt/tags), get (by id), list (optionally filter by media_type), update (description/tags), tag (add/remove/set tags), delete (soft-delete), stats (aggregate counts).",
+				"Operations: register (manual add; requires filename and file_path), search (full-text across description/prompt/tags), get (requires id), list (optionally filter by media_type), update (requires id), tag (requires id; modes add/remove/set), delete (requires id; soft-delete), stats (aggregate counts).",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",
