@@ -39,6 +39,7 @@ func TestConfigWriteAtomicity(t *testing.T) {
 	// All paths that were previously at-risk — all must now use WriteFileAtomic.
 	// The atRisk field should be 'false' once fixed.
 	paths := []writePath{
+		{"handleUpdateConfig", "WriteFileAtomic", false},
 		{"handlePutProviders", "WriteFileAtomic", false},
 		{"persistProviders", "WriteFileAtomic", false},
 		{"patchIndexingDirs", "WriteFileAtomic", false},

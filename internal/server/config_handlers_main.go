@@ -314,9 +314,17 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			}
 		}
 
+		perm := os.FileMode(0o600)
+		if info, statErr := os.Stat(configPath); statErr == nil {
+			perm = info.Mode().Perm()
+			if perm == 0 {
+				perm = 0o600
+			}
+		}
+
 		// Serialize concurrent config saves to prevent TOCTOU: read-modify-write race.
 		s.CfgSaveMu.Lock()
-		writeErr := os.WriteFile(configPath, out, 0600)
+		writeErr := config.WriteFileAtomic(configPath, out, perm)
 		s.CfgSaveMu.Unlock()
 		if writeErr != nil {
 			s.Logger.Error("Failed to write config file", "error", writeErr)
@@ -543,15 +551,15 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 				newCfg.Tools.BrowserAutomation.Enabled &&
 				strings.EqualFold(newCfg.BrowserAutomation.Mode, "sidecar") {
 				if sidecarCfg, err := tools.ResolveBrowserAutomationSidecarConfig(newCfg); err != nil {
-						s.Logger.Warn("[Config UI] Failed to resolve browser automation sidecar config", "error", err)
-					} else {
-						go func() {
-							// Stop and remove the old container so it gets recreated
-							// with updated env vars (viewport, TTL, read-only, etc.).
-							tools.StopBrowserAutomationSidecar(newCfg.Docker.Host, sidecarCfg, s.Logger)
-							tools.EnsureBrowserAutomationSidecarRunning(newCfg.Docker.Host, sidecarCfg, s.Logger)
-						}()
-					}
+					s.Logger.Warn("[Config UI] Failed to resolve browser automation sidecar config", "error", err)
+				} else {
+					go func() {
+						// Stop and remove the old container so it gets recreated
+						// with updated env vars (viewport, TTL, read-only, etc.).
+						tools.StopBrowserAutomationSidecar(newCfg.Docker.Host, sidecarCfg, s.Logger)
+						tools.EnsureBrowserAutomationSidecarRunning(newCfg.Docker.Host, sidecarCfg, s.Logger)
+					}()
+				}
 			}
 
 			// Auto-start / stop Security Proxy (Caddy) container when enabled flag changes

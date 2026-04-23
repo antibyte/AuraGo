@@ -591,6 +591,72 @@ egg_mode:
 	}
 }
 
+func TestMigratePlaintextSecretsToVaultMovesProviderAndAccountSecrets(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	configContent := `
+providers:
+  - id: main
+    name: Main
+    type: openrouter
+    base_url: https://openrouter.ai/api/v1
+    api_key: sk-provider-secret
+    model: openai/gpt-4o-mini
+llm:
+  provider: main
+email_accounts:
+  - id: work
+    name: Work
+    imap_host: mail.example.com
+    password: mailbox-secret
+truenas:
+  enabled: true
+  host: truenas.local
+  api_key: tn-secret
+telegram:
+  enabled: true
+  bot_token: tg-secret
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	vault := &testSecretVault{data: map[string]string{}}
+
+	MigratePlaintextSecretsToVault(configPath, vault, slog.Default())
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	cfg.ApplyVaultSecrets(vault)
+	cfg.ResolveProviders()
+
+	if cfg.LLM.APIKey != "sk-provider-secret" {
+		t.Fatalf("provider api key = %q, want sk-provider-secret", cfg.LLM.APIKey)
+	}
+	if len(cfg.EmailAccounts) != 1 || cfg.EmailAccounts[0].Password != "mailbox-secret" {
+		t.Fatalf("email account password not restored from vault: %+v", cfg.EmailAccounts)
+	}
+	if cfg.TrueNAS.APIKey != "tn-secret" {
+		t.Fatalf("truenas api key = %q, want tn-secret", cfg.TrueNAS.APIKey)
+	}
+	if cfg.Telegram.BotToken != "tg-secret" {
+		t.Fatalf("telegram bot token = %q, want tg-secret", cfg.Telegram.BotToken)
+	}
+
+	raw, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("read config after migration: %v", err)
+	}
+	got := string(raw)
+	for _, needle := range []string{"api_key: sk-provider-secret", "password: mailbox-secret", "api_key: tn-secret", "bot_token: tg-secret"} {
+		if strings.Contains(got, needle) {
+			t.Fatalf("expected secret %q to be removed from config.yaml, got:\n%s", needle, got)
+		}
+	}
+}
+
 func TestConfigSaveWritesUpdatedField(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.yaml")

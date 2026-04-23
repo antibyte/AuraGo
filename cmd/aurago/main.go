@@ -536,8 +536,7 @@ func main() {
 	// One-time migration: auth secrets (password_hash, session_secret) may have been
 	// stored in config.yaml by older versions. Move them to the encrypted vault so that
 	// they are no longer kept in plaintext on disk.
-	config.MigrateAuthSecretsToVault(configFile, vault, appLog)
-	config.MigrateEggModeSharedKeyToVault(configFile, vault, appLog)
+	config.MigratePlaintextSecretsToVault(configFile, vault, appLog)
 
 	// Apply all vault-stored secrets into the runtime config, then re-resolve
 	// provider references so that API keys propagate to the LLM/Vision/etc. slots.
