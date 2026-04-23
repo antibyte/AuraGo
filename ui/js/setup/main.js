@@ -483,6 +483,9 @@ function buildQuickConfigPatch() {
 
     const langMap = {de:'Deutsch',en:'English',es:'Español',fr:'Français',pl:'Polski',zh:'中文',hi:'हिन्दी',nl:'Nederlands',it:'Italiano',pt:'Português',da:'Dansk',ja:'日本語',sv:'Svenska',no:'Norsk',el:'Ελληνικά',cs:'Čeština'};
     const patch = {
+        server: {
+            ui_language: lang,
+        },
         auth: {
             enabled: true,
             ...(adminPassword ? { admin_password: adminPassword } : {}),
@@ -849,6 +852,7 @@ function onLanguageChange() {
 }
 
 function fetchAndApplyLang(langValue) {
+    document.documentElement.lang = langValue || 'en';
     fetch('/api/i18n?lang=' + encodeURIComponent(langValue))
         .then(r => r.ok ? r.json() : null)
         .then(json => {
@@ -1303,10 +1307,14 @@ function buildConfigPatch() {
     const helperRequested = document.getElementById('helper-llm').checked;
     const helperModel = document.getElementById('helper-model').value.trim();
     const helperConfigured = helperRequested && helperModel !== '';
+    const selectedLanguage = document.getElementById('system-language').value;
+    const uiLanguage = selectedLanguage === 'custom'
+        ? (document.documentElement.lang || 'en')
+        : (selectedLanguage || document.documentElement.lang || 'en');
     const patch = {
         providers: buildProviderEntries(),
         server: {
-            ui_language: document.documentElement.lang || 'en',
+            ui_language: uiLanguage,
         },
         llm: {
             provider: 'main',

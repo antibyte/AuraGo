@@ -404,6 +404,9 @@ func TestHandleSetupSaveAcceptsMiniMaxQuickPatch(t *testing.T) {
 		"agent": map[string]interface{}{
 			"system_language": "Deutsch",
 		},
+		"server": map[string]interface{}{
+			"ui_language": "de",
+		},
 		"llm": map[string]interface{}{
 			"provider":             "main",
 			"use_native_functions": true,
@@ -452,6 +455,17 @@ func TestHandleSetupSaveAcceptsMiniMaxQuickPatch(t *testing.T) {
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+
+	loaded, err := config.Load(configPath)
+	if err != nil {
+		t.Fatalf("load saved config: %v", err)
+	}
+	if loaded.Server.UILanguage != "de" {
+		t.Fatalf("ui_language = %q, want de", loaded.Server.UILanguage)
+	}
+	if loaded.Agent.SystemLanguage != "Deutsch" {
+		t.Fatalf("system_language = %q, want Deutsch", loaded.Agent.SystemLanguage)
 	}
 }
 
