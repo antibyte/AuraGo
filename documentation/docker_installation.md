@@ -41,7 +41,7 @@ chmod 600 aurago_master.key
 
 The `docker-compose.yml` references this file as a Docker Compose secret. The key is mounted read-only into `/run/secrets/aurago_master_key` — it never appears in `docker inspect` or process listings.
 
-> If you skip this step the container auto-generates a key on first start and saves it inside the Docker volume (`data/.env`). This works but is less secure — extracting the key later for backup requires `docker compose exec`.
+> For the Docker Compose deployment, this file is required. Compose validates secrets before startup, so `aurago_master.key` must exist before `docker compose up` or stack deployment.
 
 ### Step 4: Start the Container
 ```bash
@@ -101,7 +101,7 @@ Deploy the stack.
 Access the Web UI at `http://<your-server-ip>:8088` and navigate to the **CONFIG** tab to finish setting up your AI agent.
 
 > [!NOTE]
-> Your `AURAGO_MASTER_KEY` is stored in `aurago_master.key` on the host (or inside `data/.env` in the Docker volume if you skipped the secret file). THIS KEY ENCRYPTS THE AGENT'S SECRET VAULT. BACK IT UP OR YOU WILL NOT BE ABLE TO MOVE THE VAULT TO ANOTHER SERVER!
+> Your `AURAGO_MASTER_KEY` is stored in `aurago_master.key` on the host. THIS KEY ENCRYPTS THE AGENT'S SECRET VAULT. BACK IT UP OR YOU WILL NOT BE ABLE TO MOVE THE VAULT TO ANOTHER SERVER!
 
 ---
 

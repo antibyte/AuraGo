@@ -26,8 +26,7 @@ services:
     # --- Docker Compose Secrets ---
     # The master key is mounted read-only into /run/secrets/aurago_master_key.
     # Create the file first:  openssl rand -hex 32 > aurago_master.key && chmod 600 aurago_master.key
-    # If the file does not exist, the container auto-generates a key on first start
-    # and saves it to data/.env (less secure but works out of the box).
+    # Docker Compose requires the secret file to exist before startup.
     secrets:
       - aurago_master_key
 
@@ -321,9 +320,8 @@ volumes:
 # File-based Docker Compose secret (no Swarm required, Compose v2.2+).
 # Create the file on the host before starting:
 #   openssl rand -hex 32 > aurago_master.key && chmod 600 aurago_master.key
-# If the file doesn't exist, set optional: true below and the container
-# will auto-generate a key internally (saved to data/.env).
+# Docker Compose validates this eagerly, so the file must exist before
+# `docker compose up` or stack deployment.
 secrets:
   aurago_master_key:
     file: ./aurago_master.key
-    optional: true
