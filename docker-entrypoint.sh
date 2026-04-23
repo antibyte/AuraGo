@@ -128,14 +128,30 @@ fi
 echo "[Entrypoint] Config OK"
 
 # === 4. MASTER KEY SETUP ===
-# Priority: env var > Docker Compose secret > .env file > auto-generate
+# Priority:
+#   1. explicit env var / stack-secret environment injection
+#   2. Docker secret (/run/secrets/aurago_master_key)
+#   3. optional host-managed secret file (/run/optional-secrets/aurago_master.key)
+#   4. persisted data/.env
+#   5. auto-generate
 
 if [ -z "${AURAGO_MASTER_KEY:-}" ]; then
     # Try Docker Compose file-based secret (mounted at /run/secrets/)
     DOCKER_SECRET="/run/secrets/aurago_master_key"
+    OPTIONAL_SECRET_DIR="/run/optional-secrets"
+    OPTIONAL_SECRET_FILE=""
+    if [ -f "$OPTIONAL_SECRET_DIR/aurago_master.key" ]; then
+        OPTIONAL_SECRET_FILE="$OPTIONAL_SECRET_DIR/aurago_master.key"
+    elif [ -f "$OPTIONAL_SECRET_DIR/aurago_master_key" ]; then
+        OPTIONAL_SECRET_FILE="$OPTIONAL_SECRET_DIR/aurago_master_key"
+    fi
+
     if [ -f "$DOCKER_SECRET" ]; then
         echo "[Entrypoint] Loading master key from Docker secret ($DOCKER_SECRET)"
         export AURAGO_MASTER_KEY="$(cat "$DOCKER_SECRET" | tr -d '[:space:]')"
+    elif [ -n "$OPTIONAL_SECRET_FILE" ]; then
+        echo "[Entrypoint] Loading master key from optional host secret ($OPTIONAL_SECRET_FILE)"
+        export AURAGO_MASTER_KEY="$(cat "$OPTIONAL_SECRET_FILE" | tr -d '[:space:]')"
     elif [ -f "$ENV_FILE" ]; then
         echo "[Entrypoint] Loading master key from $ENV_FILE"
         # shellcheck source=/dev/null
@@ -146,7 +162,7 @@ if [ -z "${AURAGO_MASTER_KEY:-}" ]; then
         NEW_KEY=$(tr -dc 'a-f0-9' < /dev/urandom | head -c 64)
         export AURAGO_MASTER_KEY="$NEW_KEY"
         
-        # Save to .env file (only if Docker secret not available)
+        # Save to .env file (only when no external secret source is available)
         echo "AURAGO_MASTER_KEY=\"$NEW_KEY\"" > "$ENV_FILE"
         chmod 600 "$ENV_FILE"
         
@@ -158,9 +174,9 @@ if [ -z "${AURAGO_MASTER_KEY:-}" ]; then
         echo "   BACKUP THIS KEY IMMEDIATELY:"
         echo "   docker compose exec aurago sh -c 'cat /app/data/.env | grep AURAGO_MASTER_KEY'"
         echo ""
-        echo "   For better security on next restart, use Docker Compose secrets:"
-        echo "   1. Save the key: echo '<your-key>' > aurago_master.key && chmod 600 aurago_master.key"
-        echo "   2. The docker-compose.yml already references this file as a secret"
+        echo "   For better security on next restart, place the key on the host:"
+        echo "   1. mkdir -p secrets"
+        echo "   2. echo '<your-key>' > secrets/aurago_master.key && chmod 600 secrets/aurago_master.key"
         echo "   3. Restart: docker compose down && docker compose up -d"
         echo "=========================================================================="
     fi

@@ -23,18 +23,15 @@ services:
     ports:
       - "8088:8088"
 
-    # --- Docker Compose Secrets ---
-    # The master key is mounted read-only into /run/secrets/aurago_master_key.
-    # Create the file first:  openssl rand -hex 32 > aurago_master.key && chmod 600 aurago_master.key
-    # Docker Compose requires the secret file to exist before startup.
-    secrets:
-      - aurago_master_key
-
     # --- Environment ---
     environment:
       # Connect to Docker via the docker-proxy service (recommended).
       # If you prefer direct socket access (less secure), see the alternative below.
       - DOCKER_HOST=tcp://docker-proxy:2375
+      # Optional: provide the master key via environment or your stack manager's
+      # secret UI. If empty, AuraGo will try a mounted host secret file and then
+      # auto-generate a key on first start.
+      - AURAGO_MASTER_KEY=${AURAGO_MASTER_KEY:-}
 
     # --- Volumes ---
     volumes:
@@ -52,6 +49,12 @@ services:
       # Python venv + generated tools.
       # Mount this as a named volume so installed pip packages survive restarts.
       - aurago_workdir:/app/agent_workspace/workdir
+
+      # Optional but secure host-managed master key directory.
+      # If ./secrets/aurago_master.key exists, AuraGo loads it read-only.
+      # If the directory or file is missing, AuraGo auto-generates a key and
+      # stores it in /app/data/.env inside the persistent volume.
+      - ./secrets:/run/optional-secrets:ro
 
       # Optional: expose the agent's tool scripts on the host for inspection.
       # - ./agent_workspace/tools:/app/agent_workspace/tools
@@ -315,13 +318,3 @@ services:
 volumes:
   aurago_data:
   aurago_workdir:
-
-# --- Secrets ---
-# File-based Docker Compose secret (no Swarm required, Compose v2.2+).
-# Create the file on the host before starting:
-#   openssl rand -hex 32 > aurago_master.key && chmod 600 aurago_master.key
-# Docker Compose validates this eagerly, so the file must exist before
-# `docker compose up` or stack deployment.
-secrets:
-  aurago_master_key:
-    file: ./aurago_master.key

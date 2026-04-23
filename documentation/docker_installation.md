@@ -1,6 +1,6 @@
 # AuraGo Docker Installation Guide
 
-AuraGo provides a fully automated Docker deployment with a secure default configuration. The setup uses a Docker socket proxy for safe container management, persistent volumes for your data, and Docker Compose secrets for encryption keys.
+AuraGo provides a fully automated Docker deployment with a secure default configuration. The setup uses a Docker socket proxy for safe container management, persistent volumes for your data, and an optional host-managed secret file for the vault master key.
 
 ## Hardware Requirements
 
@@ -30,18 +30,19 @@ cd ~/aurago-docker
 curl -O https://raw.githubusercontent.com/antibyte/AuraGo/main/docker-compose.yml
 ```
 
-### Step 3: Create the Master Key (recommended)
+### Step 3: Create the Master Key (recommended, optional)
 
 Generate the encryption key **before** the first start so it is stored outside the container:
 
 ```bash
-openssl rand -hex 32 > aurago_master.key
-chmod 600 aurago_master.key
+mkdir -p secrets
+openssl rand -hex 32 > secrets/aurago_master.key
+chmod 600 secrets/aurago_master.key
 ```
 
-The `docker-compose.yml` references this file as a Docker Compose secret. The key is mounted read-only into `/run/secrets/aurago_master_key` — it never appears in `docker inspect` or process listings.
+The `docker-compose.yml` mounts `./secrets` read-only into the container. If `secrets/aurago_master.key` exists, AuraGo loads it on startup without exposing it in the normal config.
 
-> For the Docker Compose deployment, this file is required. Compose validates secrets before startup, so `aurago_master.key` must exist before `docker compose up` or stack deployment.
+> If you skip this step, AuraGo auto-generates a master key on first start and stores it in `/app/data/.env` inside the persistent Docker volume. That works out of the box, but a host-managed key file is better for backup and migration.
 
 ### Step 4: Start the Container
 ```bash
@@ -49,7 +50,8 @@ docker compose up -d
 ```
 
 That's it!
-- The `AURAGO_MASTER_KEY` is loaded from your `aurago_master.key` file via Docker Compose secrets.
+- If `secrets/aurago_master.key` exists, AuraGo loads it as the master key.
+- Otherwise AuraGo auto-generates a key and stores it in `/app/data/.env` inside the persistent volume.
 - A default config is generated inside the container from the built-in template.
 - The Docker socket proxy (`docker-proxy`) starts automatically and provides safe, filtered access to the host Docker daemon.
 - The Web UI is now available at `http://<your-server-ip>:8088`.
@@ -87,8 +89,9 @@ If you use a Docker management stack like **Dockge** or **Portainer**, deploymen
 ### Step 2: Create the Master Key
 On the host where Docker runs, create the secret file in the stack directory:
 ```bash
-openssl rand -hex 32 > aurago_master.key
-chmod 600 aurago_master.key
+mkdir -p secrets
+openssl rand -hex 32 > secrets/aurago_master.key
+chmod 600 secrets/aurago_master.key
 ```
 
 ### Step 3: Deploy
@@ -101,7 +104,7 @@ Deploy the stack.
 Access the Web UI at `http://<your-server-ip>:8088` and navigate to the **CONFIG** tab to finish setting up your AI agent.
 
 > [!NOTE]
-> Your `AURAGO_MASTER_KEY` is stored in `aurago_master.key` on the host. THIS KEY ENCRYPTS THE AGENT'S SECRET VAULT. BACK IT UP OR YOU WILL NOT BE ABLE TO MOVE THE VAULT TO ANOTHER SERVER!
+> Your `AURAGO_MASTER_KEY` is either stored in `secrets/aurago_master.key` on the host or auto-generated into `data/.env` inside the Docker volume. THIS KEY ENCRYPTS THE AGENT'S SECRET VAULT. BACK IT UP OR YOU WILL NOT BE ABLE TO MOVE THE VAULT TO ANOTHER SERVER!
 
 ---
 
@@ -193,16 +196,17 @@ docker compose up -d     # start fresh
 
 ---
 
-## 6. Migrating an Existing Installation to Docker Secrets
+## 6. Migrating an Existing Installation to a Host-Managed Secret File
 
 If you already have a running AuraGo container that stores the key in `data/.env`:
 
 ```bash
 # 1. Extract the existing key
-docker compose exec aurago cat /app/data/.env | grep AURAGO_MASTER_KEY | cut -d= -f2 | tr -d '"' > aurago_master.key
-chmod 600 aurago_master.key
+mkdir -p secrets
+docker compose exec aurago cat /app/data/.env | grep AURAGO_MASTER_KEY | cut -d= -f2 | tr -d '"' > secrets/aurago_master.key
+chmod 600 secrets/aurago_master.key
 
-# 2. Restart — the entrypoint now picks up /run/secrets/aurago_master_key
+# 2. Restart — the entrypoint now picks up /run/optional-secrets/aurago_master.key
 docker compose down && docker compose up -d
 
 # 3. (Optional) Remove the old .env from the volume
