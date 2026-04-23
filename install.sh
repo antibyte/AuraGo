@@ -143,6 +143,70 @@ _download() {
     fi
 }
 
+fetch_url_stdout() {
+    local url="$1"
+    if command -v curl >/dev/null 2>&1; then
+        curl -fsSL "$url"
+    elif command -v wget >/dev/null 2>&1; then
+        wget -qO- "$url"
+    else
+        die "Neither curl nor wget available."
+    fi
+}
+
+sha256_file() {
+    local path="$1"
+    if command -v sha256sum >/dev/null 2>&1; then
+        sha256sum "$path" | awk '{print $1}'
+    elif command -v shasum >/dev/null 2>&1; then
+        shasum -a 256 "$path" | awk '{print $1}'
+    elif command -v openssl >/dev/null 2>&1; then
+        openssl dgst -sha256 "$path" | awk '{print $NF}'
+    else
+        return 1
+    fi
+}
+
+fetch_release_checksums() {
+    [ -n "${RELEASE_BASE:-}" ] || die "RELEASE_BASE is not set."
+    if [ -n "${RELEASE_CHECKSUMS_FILE:-}" ] && [ -f "${RELEASE_CHECKSUMS_FILE:-}" ]; then
+        return 0
+    fi
+    RELEASE_CHECKSUMS_FILE="$(mktemp)"
+    if ! _download "${RELEASE_BASE}/SHA256SUMS" "$RELEASE_CHECKSUMS_FILE"; then
+        rm -f "$RELEASE_CHECKSUMS_FILE"
+        RELEASE_CHECKSUMS_FILE=""
+        return 1
+    fi
+}
+
+verify_release_asset() {
+    local asset="$1"
+    local path="$2"
+    local expected actual
+    [ -f "$path" ] || die "Cannot verify missing file: $path"
+    [ -n "${RELEASE_CHECKSUMS_FILE:-}" ] && [ -f "$RELEASE_CHECKSUMS_FILE" ] || die "Release checksums are not available."
+    expected="$(awk -v target="$asset" '$2 == target {print $1; exit}' "$RELEASE_CHECKSUMS_FILE")"
+    [ -n "$expected" ] || die "Missing checksum entry for ${asset} in release manifest."
+    actual="$(sha256_file "$path" || true)"
+    [ -n "$actual" ] || die "No SHA256 tool available to verify ${asset}."
+    [ "$actual" = "$expected" ] || die "Checksum verification failed for ${asset}."
+}
+
+download_release_asset() {
+    local asset="$1"
+    local dest="$2"
+    _download "${RELEASE_BASE}/${asset}" "$dest"
+    verify_release_asset "$asset" "$dest"
+}
+
+latest_release_tag() {
+    fetch_url_stdout "https://api.github.com/repos/${GITHUB_REPO}/releases/latest" \
+        | grep -o '"tag_name": *"[^"]*"' \
+        | head -1 \
+        | cut -d'"' -f4
+}
+
 # ── Optional system dependencies ─────────────────────────────────────────
 info "Checking system dependencies..."
 
@@ -328,21 +392,27 @@ else
     info "Binary install — downloading from GitHub Releases..."
 
     # Resolve the latest release tag
-    RELEASE_TAG=$(curl -fsSL "https://api.github.com/repos/${GITHUB_REPO}/releases/latest" \
-                  | grep -o '"tag_name": *"[^"]*"' | head -1 | cut -d'"' -f4)
+    RELEASE_TAG="$(latest_release_tag || true)"
     [ -z "$RELEASE_TAG" ] && die "Could not determine latest release tag from GitHub."
     info "Latest release: $RELEASE_TAG"
 
     RELEASE_BASE="https://github.com/${GITHUB_REPO}/releases/download/${RELEASE_TAG}"
+    fetch_release_checksums || die "Could not download SHA256SUMS for release ${RELEASE_TAG}."
 
     # Create install directory + subdirectories
     mkdir -p "$INSTALL_DIR/bin" "$INSTALL_DIR/data" "$INSTALL_DIR/log"
     mkdir -p "$INSTALL_DIR/agent_workspace/workdir" "$INSTALL_DIR/agent_workspace/tools"
     cd "$INSTALL_DIR"
 
+    EXISTING_CONFIG_BAK=""
+    if [ -f "$INSTALL_DIR/config.yaml" ]; then
+        EXISTING_CONFIG_BAK="$(mktemp)"
+        cp -p "$INSTALL_DIR/config.yaml" "$EXISTING_CONFIG_BAK"
+    fi
+
     # Download resources.dat and extract (contains prompts, skills, config template, UI)
     info "Downloading resources.dat ..."
-    _download "${RELEASE_BASE}/resources.dat" "$INSTALL_DIR/resources.dat"
+    download_release_asset "resources.dat" "$INSTALL_DIR/resources.dat"
     # Extract to a temp dir so we can selectively merge (never clobber existing config)
     TMPEXT=$(mktemp -d)
     tar -xzf "$INSTALL_DIR/resources.dat" -C "$TMPEXT"
@@ -354,12 +424,9 @@ else
     [ -d "$TMPEXT/ui" ]               && cp -a "$TMPEXT/ui"               "$INSTALL_DIR/" 2>/dev/null || true
     [ -d "$TMPEXT/assets" ]           && cp -a "$TMPEXT/assets"           "$INSTALL_DIR/"
 
-    # Only install config.yaml if none exists (preserve user config on re-install)
-    if [ ! -f "$INSTALL_DIR/config.yaml" ]; then
-        [ -f "$TMPEXT/config.yaml" ] && cp "$TMPEXT/config.yaml" "$INSTALL_DIR/config.yaml"
-        ok "config.yaml installed (clean template — Setup Wizard will run)."
-    else
-        ok "Existing config.yaml preserved."
+    # Save the freshly shipped template for merge/copy after config-merger is available.
+    if [ -f "$TMPEXT/config.yaml" ]; then
+        cp "$TMPEXT/config.yaml" "$INSTALL_DIR/config.yaml.new_template"
     fi
     rm -rf "$TMPEXT"
     ok "Resources extracted."
@@ -367,20 +434,20 @@ else
     # Download binaries
     if [ "$GOARCH" = "arm64" ]; then
         info "Downloading arm64 binaries..."
-        _download "${RELEASE_BASE}/aurago_linux_arm64"                "bin/aurago_linux_arm64"
-        _download "${RELEASE_BASE}/lifeboat_linux_arm64"              "bin/lifeboat_linux_arm64"              2>/dev/null || warn "lifeboat_linux_arm64 not in release."
-        _download "${RELEASE_BASE}/config-merger_linux_arm64"         "bin/config-merger_linux_arm64"         2>/dev/null || warn "config-merger_linux_arm64 not in release."
-        _download "${RELEASE_BASE}/aurago-remote_linux_arm64"         "bin/aurago-remote_linux_arm64"         2>/dev/null || warn "aurago-remote_linux_arm64 not in release."
+        download_release_asset "aurago_linux_arm64"                "bin/aurago_linux_arm64"
+        download_release_asset "lifeboat_linux_arm64"              "bin/lifeboat_linux_arm64"              2>/dev/null || warn "lifeboat_linux_arm64 not in release."
+        download_release_asset "config-merger_linux_arm64"         "bin/config-merger_linux_arm64"         2>/dev/null || warn "config-merger_linux_arm64 not in release."
+        download_release_asset "aurago-remote_linux_arm64"         "bin/aurago-remote_linux_arm64"         2>/dev/null || warn "aurago-remote_linux_arm64 not in release."
         cp bin/aurago_linux_arm64           bin/aurago_linux
         cp bin/lifeboat_linux_arm64         bin/lifeboat_linux             2>/dev/null || true
         cp bin/config-merger_linux_arm64    bin/config-merger_linux         2>/dev/null || true
         cp bin/aurago-remote_linux_arm64    bin/aurago-remote_linux         2>/dev/null || true
     else
         info "Downloading amd64 binaries..."
-        _download "${RELEASE_BASE}/aurago_linux"                      "bin/aurago_linux"
-        _download "${RELEASE_BASE}/lifeboat_linux"                    "bin/lifeboat_linux"                    2>/dev/null || warn "lifeboat_linux not in release."
-        _download "${RELEASE_BASE}/config-merger_linux"               "bin/config-merger_linux"               2>/dev/null || warn "config-merger_linux not in release."
-        _download "${RELEASE_BASE}/aurago-remote_linux"               "bin/aurago-remote_linux"               2>/dev/null || warn "aurago-remote_linux not in release."
+        download_release_asset "aurago_linux"                      "bin/aurago_linux"
+        download_release_asset "lifeboat_linux"                    "bin/lifeboat_linux"                    2>/dev/null || warn "lifeboat_linux not in release."
+        download_release_asset "config-merger_linux"               "bin/config-merger_linux"               2>/dev/null || warn "config-merger_linux not in release."
+        download_release_asset "aurago-remote_linux"               "bin/aurago-remote_linux"               2>/dev/null || warn "aurago-remote_linux not in release."
     fi
     # Record installed version for update checks
     printf '%s' "$RELEASE_TAG" > "$INSTALL_DIR/.version"
@@ -389,6 +456,39 @@ fi
 
 chmod +x bin/aurago_linux bin/lifeboat_linux bin/config-merger_linux bin/aurago-remote_linux 2>/dev/null || true
 ok "Binaries ready."
+
+if ! $BUILD_FROM_SOURCE; then
+    if [ -f "$INSTALL_DIR/config.yaml.new_template" ]; then
+        if [ -n "${EXISTING_CONFIG_BAK:-}" ] && [ -f "${EXISTING_CONFIG_BAK:-}" ]; then
+            if [ -x "$INSTALL_DIR/bin/config-merger_linux" ]; then
+                info "Merging existing config.yaml with new template defaults ..."
+                if "$INSTALL_DIR/bin/config-merger_linux" -source "$EXISTING_CONFIG_BAK" -template "$INSTALL_DIR/config.yaml.new_template" -output "$INSTALL_DIR/config.yaml"; then
+                    ok "config.yaml merged with latest template defaults."
+                else
+                    warn "config-merger failed. Restoring previous config.yaml."
+                    cp -p "$EXISTING_CONFIG_BAK" "$INSTALL_DIR/config.yaml"
+                fi
+            else
+                warn "config-merger not available. Keeping existing config.yaml unchanged."
+            fi
+        elif [ ! -f "$INSTALL_DIR/config.yaml" ]; then
+            cp "$INSTALL_DIR/config.yaml.new_template" "$INSTALL_DIR/config.yaml"
+            ok "config.yaml installed from release template."
+        fi
+        rm -f "$INSTALL_DIR/config.yaml.new_template"
+    fi
+    [ -n "${EXISTING_CONFIG_BAK:-}" ] && rm -f "$EXISTING_CONFIG_BAK"
+
+    info "Downloading update.sh ..."
+    if download_release_asset "update.sh" "$INSTALL_DIR/update.sh"; then
+        chmod +x "$INSTALL_DIR/update.sh"
+        ok "update.sh installed."
+    else
+        warn "Could not download verified update.sh — install it manually later."
+    fi
+
+    [ -n "${RELEASE_CHECKSUMS_FILE:-}" ] && rm -f "$RELEASE_CHECKSUMS_FILE"
+fi
 
 # ── Master key ────────────────────────────────────────────────────────────
 ENV_FILE="$INSTALL_DIR/.env"
@@ -445,16 +545,6 @@ echo "Started (PID=$!). Web UI: http://localhost:8088"
 echo "Follow logs: tail -f $DIR/log/aurago.log"
 STARTSH
 chmod +x "$INSTALL_DIR/start.sh"
-
-# ── update.sh ─────────────────────────────────────────────────────────────
-info "Downloading update.sh ..."
-UPDATE_SH_URL="https://raw.githubusercontent.com/${GITHUB_REPO}/main/update.sh"
-if command -v curl >/dev/null 2>&1; then
-    curl -fsSL "$UPDATE_SH_URL" -o "$INSTALL_DIR/update.sh" 2>/dev/null || warn "Could not download update.sh — download manually later."
-elif command -v wget >/dev/null 2>&1; then
-    wget -q "$UPDATE_SH_URL" -O "$INSTALL_DIR/update.sh" 2>/dev/null || warn "Could not download update.sh — download manually later."
-fi
-[ -f "$INSTALL_DIR/update.sh" ] && chmod +x "$INSTALL_DIR/update.sh" && ok "update.sh installed."
 
 # ── Network binding & HTTPS ───────────────────────────────────────────────
 echo ""

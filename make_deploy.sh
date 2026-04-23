@@ -15,6 +15,8 @@
 #   aurago-remote_linux_arm64   aurago-remote_darwin_arm64  aurago-remote_windows_arm64.exe
 #   resources.dat               (shared across all platforms)
 #   install.sh                  (one-liner bootstrap script)
+#   update.sh                   (updater script)
+#   SHA256SUMS                  (release checksum manifest)
 #
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -153,9 +155,57 @@ for target in "${REMOTE_TARGETS[@]}"; do
   fi
 done
 
-# ── Step 4: Copy install script ──────────────────────────────────────────
-echo "[4/5] Copying install script ..."
+# ── Step 4: Copy release scripts + checksums ─────────────────────────────
+echo "[4/5] Copying release scripts and generating checksums ..."
 cp deploy/install.sh "$DEPLOY_DIR/install.sh" 2>/dev/null || cp install.sh "$DEPLOY_DIR/" 2>/dev/null || true
+cp update.sh "$DEPLOY_DIR/update.sh" 2>/dev/null || true
+
+(
+  cd "$DEPLOY_DIR"
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum \
+      resources.dat \
+      install.sh \
+      update.sh \
+      > SHA256SUMS
+  elif command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 \
+      resources.dat \
+      install.sh \
+      update.sh \
+      > SHA256SUMS
+  else
+    echo "No SHA256 tool found (sha256sum/shasum)." >&2
+    exit 1
+  fi
+)
+
+(
+  cd bin
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum \
+      aurago_linux \
+      aurago_linux_arm64 \
+      lifeboat_linux \
+      lifeboat_linux_arm64 \
+      config-merger_linux \
+      config-merger_linux_arm64 \
+      aurago-remote_linux \
+      aurago-remote_linux_arm64 \
+      >> "../$DEPLOY_DIR/SHA256SUMS"
+  else
+    shasum -a 256 \
+      aurago_linux \
+      aurago_linux_arm64 \
+      lifeboat_linux \
+      lifeboat_linux_arm64 \
+      config-merger_linux \
+      config-merger_linux_arm64 \
+      aurago-remote_linux \
+      aurago-remote_linux_arm64 \
+      >> "../$DEPLOY_DIR/SHA256SUMS"
+  fi
+)
 
 echo "━━━ Done! Artifacts in $DEPLOY_DIR/ ━━━"
 ls -lh "$DEPLOY_DIR/"

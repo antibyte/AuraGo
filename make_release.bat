@@ -141,7 +141,38 @@ go build -trimpath -ldflags="-s -w" -o "deploy\aurago-remote_windows_arm64.exe" 
 echo     -> Windows arm64 OK
 
 copy "install.sh" "deploy\install.sh" >nul
+copy "update.sh" "deploy\update.sh" >nul
 echo     -> deploy\install.sh
+echo     -> deploy\update.sh
+echo   Generating SHA256SUMS...
+powershell -nologo -noprofile -command ^
+  "$files = @(" ^
+  "  'deploy\\resources.dat'," ^
+  "  'deploy\\install.sh'," ^
+  "  'deploy\\update.sh'," ^
+  "  'bin\\aurago_linux'," ^
+  "  'bin\\aurago_linux_arm64'," ^
+  "  'bin\\lifeboat_linux'," ^
+  "  'bin\\lifeboat_linux_arm64'," ^
+  "  'bin\\config-merger_linux'," ^
+  "  'bin\\config-merger_linux_arm64'," ^
+  "  'bin\\aurago-remote_linux'," ^
+  "  'bin\\aurago-remote_linux_arm64'," ^
+  "  'deploy\\aurago_darwin_amd64'," ^
+  "  'deploy\\aurago_darwin_arm64'," ^
+  "  'deploy\\aurago-remote_darwin_amd64'," ^
+  "  'deploy\\aurago-remote_darwin_arm64'," ^
+  "  'deploy\\aurago_windows_amd64.exe'," ^
+  "  'deploy\\aurago_windows_arm64.exe'," ^
+  "  'deploy\\aurago-remote_windows_amd64.exe'," ^
+  "  'deploy\\aurago-remote_windows_arm64.exe'" ^
+  ");" ^
+  "$out = foreach ($file in $files) { if (Test-Path $file) { $hash = (Get-FileHash -Algorithm SHA256 $file).Hash.ToLower(); '{0}  {1}' -f $hash, [IO.Path]::GetFileName($file) } };" ^
+  "$out | Set-Content 'deploy\\SHA256SUMS'"
+if errorlevel 1 (
+    echo [ERROR] Failed to generate SHA256SUMS.
+    exit /b 1
+)
 set "GOOS=windows" & set "GOARCH=amd64"
 echo.
 
@@ -191,6 +222,7 @@ echo.
 set ASSETS=
 for %%F in (
     "deploy\resources.dat"
+    "deploy\SHA256SUMS"
     "bin\aurago_linux"
     "bin\aurago_linux_arm64"
     "bin\lifeboat_linux"
@@ -208,6 +240,7 @@ for %%F in (
     "deploy\aurago-remote_windows_amd64.exe"
     "deploy\aurago-remote_windows_arm64.exe"
     "deploy\install.sh"
+    "deploy\update.sh"
 ) do (
     if exist %%F set ASSETS=!ASSETS! %%F
 )

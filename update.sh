@@ -134,6 +134,53 @@ fetch_url_to_file() {
     fi
 }
 
+sha256_file() {
+    local path="$1"
+    if command -v sha256sum >/dev/null 2>&1; then
+        sha256sum "$path" | awk '{print $1}'
+    elif command -v shasum >/dev/null 2>&1; then
+        shasum -a 256 "$path" | awk '{print $1}'
+    elif command -v openssl >/dev/null 2>&1; then
+        openssl dgst -sha256 "$path" | awk '{print $NF}'
+    else
+        return 1
+    fi
+}
+
+fetch_release_checksums() {
+    [ -n "${RELEASE_BASE:-}" ] || die "RELEASE_BASE is not set."
+    if [ -n "${RELEASE_CHECKSUMS_FILE:-}" ] && [ -f "${RELEASE_CHECKSUMS_FILE:-}" ]; then
+        return 0
+    fi
+    RELEASE_CHECKSUMS_FILE="$(mktemp "/tmp/aurago-sha256.XXXXXX")"
+    if ! fetch_url_to_file "${RELEASE_BASE}/SHA256SUMS" "$RELEASE_CHECKSUMS_FILE"; then
+        rm -f "$RELEASE_CHECKSUMS_FILE"
+        RELEASE_CHECKSUMS_FILE=""
+        return 1
+    fi
+}
+
+verify_release_asset() {
+    local asset="$1"
+    local path="$2"
+    local expected actual
+    [ -f "$path" ] || die "Cannot verify missing file: $path"
+    [ -n "${RELEASE_CHECKSUMS_FILE:-}" ] && [ -f "$RELEASE_CHECKSUMS_FILE" ] || die "Release checksums are not available."
+    expected="$(awk -v target="$asset" '$2 == target {print $1; exit}' "$RELEASE_CHECKSUMS_FILE")"
+    [ -n "$expected" ] || die "Missing checksum entry for ${asset} in release manifest."
+    actual="$(sha256_file "$path" || true)"
+    [ -n "$actual" ] || die "No SHA256 tool available to verify ${asset}."
+    [ "$actual" = "$expected" ] || die "Checksum verification failed for ${asset}."
+}
+
+download_release_asset() {
+    local asset="$1"
+    local dest="$2"
+    local url="${RELEASE_BASE}/${asset}"
+    fetch_url_to_file "$url" "$dest"
+    verify_release_asset "$asset" "$dest"
+}
+
 fetch_url_stdout() {
     local url="$1"
     if command -v curl >/dev/null 2>&1; then
@@ -352,7 +399,7 @@ fi
 # Running from temp copy: claim the single-instance lock and schedule cleanup.
 _AU_LOCK="/tmp/.aurago-update-$(id -u).lock"
 echo $$ > "$_AU_LOCK"
-trap 'rm -f "$_AU_LOCK" "${BASH_SOURCE[0]}"' EXIT
+trap 'rm -f "$_AU_LOCK" "${BASH_SOURCE[0]}" "${RELEASE_CHECKSUMS_FILE:-}"' EXIT
 
 # ── Banner ─────────────────────────────────────────────────────────────
 G1='\033[38;5;39m'
@@ -384,6 +431,7 @@ if $BINARY_ONLY; then
     [ -z "$RELEASE_TAG" ] && die "Could not determine latest release tag from GitHub."
     info "Latest release available: $RELEASE_TAG"
     RELEASE_BASE="https://github.com/${GITHUB_REPO}/releases/download/${RELEASE_TAG}"
+    fetch_release_checksums || die "Could not download SHA256SUMS for release ${RELEASE_TAG}."
     echo ""
     confirm "Proceed with update to $RELEASE_TAG?" || { info "Update cancelled."; exit 0; }
 else
@@ -573,8 +621,8 @@ if $BINARY_ONLY; then
     # Binary-only: download resources.dat and extract
     info "Downloading resources.dat ..."
     TMPRES=$(mktemp)
-    if ! fetch_url_to_file "${RELEASE_BASE}/resources.dat" "$TMPRES"; then
-        die "Neither curl nor wget found. Cannot download update."
+    if ! download_release_asset "resources.dat" "$TMPRES"; then
+        die "Failed to download or verify resources.dat from the release."
     fi
     TMPEXT=$(mktemp -d)
     tar -xzf "$TMPRES" -C "$TMPEXT"
@@ -593,11 +641,11 @@ if $BINARY_ONLY; then
         cp "$TMPEXT/config.yaml" "$DIR/config.yaml.new_template"
     fi
 
-    # Update update.sh itself
-    if [ -f "$TMPEXT/update.sh" ]; then
-        cp "$TMPEXT/update.sh" "$DIR/update.sh"
+    if download_release_asset "update.sh" "$DIR/update.sh"; then
         chmod +x "$DIR/update.sh"
         ok "update.sh refreshed"
+    else
+        warn "Could not refresh update.sh from verified release asset."
     fi
 
     rm -rf "$TMPEXT"
@@ -900,11 +948,12 @@ if [ -z "$RELEASE_TAG" ]; then
 else
     info "Latest release: $RELEASE_TAG"
 fi
+RELEASE_BASE="https://github.com/${GITHUB_REPO}/releases/download/${RELEASE_TAG}"
+fetch_release_checksums || die "Could not download SHA256SUMS for release ${RELEASE_TAG}."
 
 _download_release_bin() {
     local name="$1"
-    local url="https://github.com/${GITHUB_REPO}/releases/download/${RELEASE_TAG}/${name}"
-    fetch_url_to_file "$url" "$DIR/bin/$name"
+    download_release_asset "$name" "$DIR/bin/$name"
 }
 
 # Add common Go install locations to PATH (in case the shell was not re-sourced after install)
@@ -1013,7 +1062,7 @@ else
         _ros="${_t%/*}"; _rarch="${_t#*/}"; _rext=""
         [ "$_ros" = "windows" ] && _rext=".exe"
         _rname="aurago-remote_${_ros}_${_rarch}${_rext}"
-        if fetch_url_to_file "${RELEASE_BASE}/${_rname}" "$DIR/deploy/${_rname}"; then
+        if download_release_asset "${_rname}" "$DIR/deploy/${_rname}"; then
             ok "  deploy/${_rname}"
         else
             warn "  Could not download deploy/${_rname} — skipping."
