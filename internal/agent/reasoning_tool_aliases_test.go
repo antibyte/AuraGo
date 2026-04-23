@@ -3,6 +3,8 @@ package agent
 import (
 	"testing"
 
+	"aurago/internal/tools"
+
 	openai "github.com/sashabaranov/go-openai"
 )
 
@@ -31,12 +33,12 @@ func TestNormalizeParsedToolShortcut_ConvertsSkillShortcutToExecuteSkill(t *test
 	}
 }
 
-func TestKnownReasoningExtractedActionSet_OnlyIncludesCurrentlyActiveTools(t *testing.T) {
+func TestKnownReasoningExtractedActionSet_IncludesBuiltinActions(t *testing.T) {
 	known := knownReasoningExtractedActionSet(nil, nil)
 
-	for _, action := range []string{"brave_search", "web_scraper", "wikipedia_search", "ddg_search", "obsidian"} {
-		if _, ok := known[action]; ok {
-			t.Fatalf("did not expect inactive action %q in known reasoning action set", action)
+	for _, action := range []string{"brave_search", "web_scraper", "wikipedia_search", "ddg_search", "obsidian", "execute_skill"} {
+		if _, ok := known[action]; !ok {
+			t.Fatalf("expected builtin action %q in known reasoning action set", action)
 		}
 	}
 }
@@ -53,6 +55,23 @@ func TestKnownReasoningExtractedActionSet_IncludesSkillShortcutUnderlyingAction(
 	}
 	if _, ok := known["brave_search"]; !ok {
 		t.Fatal("expected underlying brave_search action in known reasoning action set")
+	}
+}
+
+func TestKnownReasoningExtractedActionSet_IncludesManifestCustomToolNames(t *testing.T) {
+	toolsDir := t.TempDir()
+	manifest := tools.NewManifest(toolsDir)
+	if err := manifest.Register("my_custom_tool.py", "Custom tool"); err != nil {
+		t.Fatalf("register custom tool: %v", err)
+	}
+
+	known := knownReasoningExtractedActionSet(nil, manifest)
+
+	if _, ok := known["my_custom_tool.py"]; !ok {
+		t.Fatal("expected manifest custom tool name in known reasoning action set")
+	}
+	if _, ok := known["tool__my_custom_tool.py"]; !ok {
+		t.Fatal("expected tool__ manifest alias in known reasoning action set")
 	}
 }
 
@@ -82,7 +101,7 @@ func TestShouldAcceptParsedTextToolCallsInNativeMode_RejectsUnknownAction(t *tes
 	ok := shouldAcceptParsedTextToolCallsInNativeMode(
 		currentTools,
 		ToolCallParseSourceContentJSON,
-		ToolCall{IsTool: true, Action: "brave_search"},
+		ToolCall{IsTool: true, Action: "docker_exec"},
 		nil,
 	)
 
