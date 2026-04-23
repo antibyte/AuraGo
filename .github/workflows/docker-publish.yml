@@ -12,6 +12,7 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
   build-and-push:
@@ -46,15 +47,17 @@ jobs:
 
       # Compute image tags:
       #   push to main/master  → ghcr.io/antibyte/aurago:main + :sha-<short>
-      #   push a v* tag        → ghcr.io/antibyte/aurago:v1.2.3 + :latest + :sha-<short>
+      #   push a v* tag        → ghcr.io/antibyte/aurago:<exact-tag> + :latest + :sha-<short>
+      # Date-based release tags such as v2026.04.23.3 are intentionally handled
+      # as raw refs rather than semver because docker/metadata-action warns on
+      # non-semver tag strings.
       - name: Extract metadata (tags, labels)
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_LC }}
           tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
+            type=ref,event=tag
             type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
             type=raw,value=main,enable=${{ github.ref_name == 'main' || github.ref_name == 'master' }}
             type=sha,prefix=sha-,format=short

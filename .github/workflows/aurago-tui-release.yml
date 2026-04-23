@@ -1,0 +1,107 @@
+name: Build aurago-tui
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'tools/aurago-tui/**'
+      - '.github/workflows/aurago-tui-release.yml'
+  pull_request:
+    paths:
+      - 'tools/aurago-tui/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            suffix: .exe
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            suffix: ""
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            suffix: ""
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            suffix: ""
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: tools/aurago-tui
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install cross-compilation tools (Linux)
+        if: matrix.target == 'x86_64-unknown-linux-gnu' && runner.os == 'Windows'
+        run: |
+          cargo install cross --git https://github.com/cross-rs/cross
+
+      - name: Build (Windows / macOS)
+        if: runner.os != 'Linux' || matrix.target == 'x86_64-unknown-linux-gnu'
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Build (Linux from Ubuntu)
+        if: runner.os == 'Linux'
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Package
+        shell: bash
+        run: |
+          mkdir -p ../../dist
+          cp target/${{ matrix.target }}/release/aurago-tui${{ matrix.suffix }} ../../dist/aurago-tui-${{ matrix.target }}${{ matrix.suffix }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: aurago-tui-${{ matrix.target }}
+          path: dist/aurago-tui-${{ matrix.target }}${{ matrix.suffix }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: aurago-tui-*
+          merge-multiple: true
+
+      - name: Create short SHA
+        id: sha
+        run: echo "sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Upload to GitHub Releases (rolling)
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: aurago-tui-rolling
+          name: aurago-tui Rolling Build (${{ steps.sha.outputs.sha }})
+          body: |
+            Automated rolling build of `aurago-tui`.
+            Downloads:
+            - `aurago-tui-x86_64-pc-windows-msvc.exe` → Windows
+            - `aurago-tui-x86_64-unknown-linux-gnu` → Linux
+            - `aurago-tui-x86_64-apple-darwin` → Intel macOS
+            - `aurago-tui-aarch64-apple-darwin` → Apple Silicon macOS
+          files: dist/*
+          fail_on_unmatched_files: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
