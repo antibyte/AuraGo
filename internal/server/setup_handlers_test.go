@@ -2,7 +2,9 @@ package server
 
 import (
 	"aurago/internal/config"
+	"aurago/internal/memory"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -11,6 +13,51 @@ import (
 	"strings"
 	"testing"
 )
+
+type panicVectorDB struct{}
+
+func (panicVectorDB) StoreDocument(concept, content string) ([]string, error) {
+	return nil, errors.New("not implemented")
+}
+func (panicVectorDB) StoreDocumentWithEmbedding(concept, content string, embedding []float32) (string, error) {
+	return "", errors.New("not implemented")
+}
+func (panicVectorDB) StoreDocumentInCollection(concept, content, collection string) ([]string, error) {
+	return nil, errors.New("not implemented")
+}
+func (panicVectorDB) StoreDocumentWithEmbeddingInCollection(concept, content string, embedding []float32, collection string) (string, error) {
+	return "", errors.New("not implemented")
+}
+func (panicVectorDB) StoreBatch(items []memory.ArchiveItem) ([]string, error) {
+	return nil, errors.New("not implemented")
+}
+func (panicVectorDB) SearchSimilar(query string, topK int, excludeCollections ...string) ([]string, []string, error) {
+	return nil, nil, errors.New("not implemented")
+}
+func (panicVectorDB) SearchMemoriesOnly(query string, topK int) ([]string, []string, error) {
+	return nil, nil, errors.New("not implemented")
+}
+func (panicVectorDB) GetByIDFromCollection(id, collection string) (string, error) {
+	return "", errors.New("not implemented")
+}
+func (panicVectorDB) GetByID(id string) (string, error) {
+	return "", errors.New("not implemented")
+}
+func (panicVectorDB) DeleteDocument(id string) error {
+	return errors.New("not implemented")
+}
+func (panicVectorDB) DeleteDocumentFromCollection(id, collection string) error {
+	return errors.New("not implemented")
+}
+func (panicVectorDB) Count() int { return 0 }
+func (panicVectorDB) IsDisabled() bool { panic("boom") }
+func (panicVectorDB) Close() error { return nil }
+func (panicVectorDB) StoreCheatsheet(id, name, content string, attachments ...string) error {
+	return errors.New("not implemented")
+}
+func (panicVectorDB) DeleteCheatsheet(id string) error {
+	return errors.New("not implemented")
+}
 
 func TestNeedsSetupRequiresPasswordWhenAuthEnabled(t *testing.T) {
 	t.Parallel()
@@ -263,8 +310,6 @@ func TestHandleSetupProfilesRejectsPost(t *testing.T) {
 }
 
 func TestHandleSetupSaveAcceptsMiniMaxQuickPatch(t *testing.T) {
-	t.Parallel()
-
 	setupCSRFMu.Lock()
 	setupCSRFToken = "minimax-setup-token"
 	setupCSRFMu.Unlock()
@@ -407,5 +452,144 @@ func TestHandleSetupSaveAcceptsMiniMaxQuickPatch(t *testing.T) {
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestHandleSetupSaveAcceptsMiniMaxQuickPatchAgainstCurrentConfig(t *testing.T) {
+	setupCSRFMu.Lock()
+	setupCSRFToken = "minimax-current-config-token"
+	setupCSRFMu.Unlock()
+
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "config.yaml")
+	input, err := os.ReadFile(filepath.Join("..", "..", "config.yaml"))
+	if err != nil {
+		t.Fatalf("read config.yaml: %v", err)
+	}
+	if err := os.WriteFile(configPath, input, 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	s := &Server{
+		Cfg:    &config.Config{ConfigPath: configPath},
+		Logger: slog.Default(),
+	}
+	s.Cfg.Server.UILanguage = "de"
+	s.Cfg.Auth.Enabled = true
+
+	patch := map[string]interface{}{
+		"auth": map[string]interface{}{
+			"enabled":        true,
+			"admin_password": "supersecret",
+		},
+		"providers": []interface{}{
+			map[string]interface{}{"id": "main", "type": "openai", "name": "MiniMax Coding Plan", "base_url": "https://api.minimax.io/v1", "api_key": "sk-test", "model": "MiniMax-M2.7", "native_function_calling": true},
+			map[string]interface{}{"id": "vision", "type": "openai", "name": "MiniMax Coding Plan Vision", "base_url": "https://api.minimax.io/v1", "api_key": "sk-test", "model": "MiniMax-M2.7", "native_function_calling": true},
+			map[string]interface{}{"id": "whisper", "type": "openai", "name": "MiniMax Coding Plan Whisper", "base_url": "https://api.minimax.io/v1", "api_key": "sk-test", "model": "MiniMax-M2.7", "native_function_calling": true},
+			map[string]interface{}{"id": "embeddings", "type": "openai", "name": "MiniMax Coding Plan Embeddings", "base_url": "https://api.minimax.io/v1", "api_key": "sk-test", "model": "minimax-embedding", "native_function_calling": false},
+			map[string]interface{}{"id": "helper", "type": "openai", "name": "MiniMax Coding Plan Helper", "base_url": "https://api.minimax.io/v1", "api_key": "sk-test", "model": "MiniMax-M2.1", "native_function_calling": true},
+			map[string]interface{}{"id": "image_gen", "type": "minimax", "name": "MiniMax Coding Plan Image Gen", "base_url": "https://api.minimax.io/v1/image_generation", "api_key": "sk-test", "model": "image-01", "native_function_calling": true},
+			map[string]interface{}{"id": "music_gen", "type": "minimax", "name": "MiniMax Coding Plan Music Gen", "base_url": "https://api.minimax.io/v1", "api_key": "sk-test", "model": "music-01", "native_function_calling": true},
+		},
+		"agent": map[string]interface{}{"system_language": "Deutsch"},
+		"llm": map[string]interface{}{"provider": "main", "use_native_functions": true, "helper_enabled": true, "helper_provider": "helper"},
+		"embeddings": map[string]interface{}{"provider": "embeddings"},
+		"vision": map[string]interface{}{"provider": "vision"},
+		"whisper": map[string]interface{}{"provider": "whisper", "mode": "multimodal"},
+		"image_generation": map[string]interface{}{"enabled": true, "provider": "image_gen"},
+		"music_generation": map[string]interface{}{"enabled": true, "provider": "music_gen"},
+		"tts": map[string]interface{}{"provider": "minimax", "minimax": map[string]interface{}{"api_key": "sk-test", "model_id": "speech-02-turbo", "voice_id": "male-qn-qingse"}},
+	}
+
+	body, err := json.Marshal(patch)
+	if err != nil {
+		t.Fatalf("marshal patch: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/setup", strings.NewReader(string(body)))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-CSRF-Token", "minimax-current-config-token")
+	rec := httptest.NewRecorder()
+
+	handleSetupSave(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestHandleSetupSaveReturnsRestartRequiredWhenHotReloadPanics(t *testing.T) {
+	setupCSRFMu.Lock()
+	setupCSRFToken = "minimax-panic-token"
+	setupCSRFMu.Unlock()
+
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "config.yaml")
+	input, err := os.ReadFile(filepath.Join("..", "..", "config_template.yaml"))
+	if err != nil {
+		t.Fatalf("read config_template: %v", err)
+	}
+	if err := os.WriteFile(configPath, input, 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	s := &Server{
+		Cfg:         &config.Config{ConfigPath: configPath},
+		Logger:      slog.Default(),
+		LongTermMem: panicVectorDB{},
+	}
+	s.Cfg.Server.UILanguage = "de"
+	s.Cfg.Auth.Enabled = true
+
+	patch := map[string]interface{}{
+		"auth": map[string]interface{}{
+			"enabled":        true,
+			"admin_password": "supersecret",
+		},
+		"providers": []interface{}{
+			map[string]interface{}{"id": "main", "type": "openai", "name": "MiniMax Coding Plan", "base_url": "https://api.minimax.io/v1", "api_key": "sk-test", "model": "MiniMax-M2.7", "native_function_calling": true},
+			map[string]interface{}{"id": "vision", "type": "openai", "name": "MiniMax Coding Plan Vision", "base_url": "https://api.minimax.io/v1", "api_key": "sk-test", "model": "MiniMax-M2.7", "native_function_calling": true},
+			map[string]interface{}{"id": "whisper", "type": "openai", "name": "MiniMax Coding Plan Whisper", "base_url": "https://api.minimax.io/v1", "api_key": "sk-test", "model": "MiniMax-M2.7", "native_function_calling": true},
+			map[string]interface{}{"id": "embeddings", "type": "openai", "name": "MiniMax Coding Plan Embeddings", "base_url": "https://api.minimax.io/v1", "api_key": "sk-test", "model": "minimax-embedding", "native_function_calling": false},
+			map[string]interface{}{"id": "helper", "type": "openai", "name": "MiniMax Coding Plan Helper", "base_url": "https://api.minimax.io/v1", "api_key": "sk-test", "model": "MiniMax-M2.1", "native_function_calling": true},
+			map[string]interface{}{"id": "image_gen", "type": "minimax", "name": "MiniMax Coding Plan Image Gen", "base_url": "https://api.minimax.io/v1/image_generation", "api_key": "sk-test", "model": "image-01", "native_function_calling": true},
+			map[string]interface{}{"id": "music_gen", "type": "minimax", "name": "MiniMax Coding Plan Music Gen", "base_url": "https://api.minimax.io/v1", "api_key": "sk-test", "model": "music-01", "native_function_calling": true},
+		},
+		"agent": map[string]interface{}{"system_language": "Deutsch"},
+		"llm": map[string]interface{}{"provider": "main", "use_native_functions": true, "helper_enabled": true, "helper_provider": "helper"},
+		"embeddings": map[string]interface{}{"provider": "embeddings"},
+		"vision": map[string]interface{}{"provider": "vision"},
+		"whisper": map[string]interface{}{"provider": "whisper", "mode": "multimodal"},
+		"image_generation": map[string]interface{}{"enabled": true, "provider": "image_gen"},
+		"music_generation": map[string]interface{}{"enabled": true, "provider": "music_gen"},
+		"tts": map[string]interface{}{"provider": "minimax", "minimax": map[string]interface{}{"api_key": "sk-test", "model_id": "speech-02-turbo", "voice_id": "male-qn-qingse"}},
+	}
+
+	body, err := json.Marshal(patch)
+	if err != nil {
+		t.Fatalf("marshal patch: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/setup", strings.NewReader(string(body)))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-CSRF-Token", "minimax-panic-token")
+	rec := httptest.NewRecorder()
+
+	handleSetupSave(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+
+	var resp struct {
+		Status       string   `json:"status"`
+		NeedsRestart bool     `json:"needs_restart"`
+		Reasons      []string `json:"restart_reason"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("unmarshal response: %v", err)
+	}
+	if resp.Status != "saved" || !resp.NeedsRestart {
+		t.Fatalf("unexpected response: %+v", resp)
 	}
 }

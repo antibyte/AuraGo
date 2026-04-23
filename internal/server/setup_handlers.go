@@ -220,18 +220,54 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 
 		s.Logger.Info("[Setup] Configuration saved via Quick Setup wizard")
 
-		// Hot-reload: re-parse and apply
-		s.CfgMu.Lock()
-		newCfg, loadErr := config.Load(configPath)
+		if authEnabled && s.Cfg.Auth.PasswordHash == "" {
+			newHash, err := HashPassword(setupPassword)
+			if err != nil {
+				s.Logger.Error("[Setup] Failed to hash admin password", "error", err)
+				jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.auth_internal_error"), http.StatusInternalServerError)
+				return
+			}
+			newSecret, err := GenerateRandomHex(32)
+			if err != nil {
+				s.Logger.Error("[Setup] Failed to generate session secret", "error", err)
+				jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.auth_failed_generate_secret"), http.StatusInternalServerError)
+				return
+			}
+			if err := patchAuthConfig(s, map[string]interface{}{
+				"enabled":        true,
+				"password_hash":  newHash,
+				"session_secret": newSecret,
+			}); err != nil {
+				s.Logger.Error("[Setup] Failed to persist admin password", "error", err)
+				jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.auth_failed_save_config"), http.StatusInternalServerError)
+				return
+			}
+			s.Logger.Info("[Setup] Admin password initialized")
+		}
 
+		// Hot-reload: re-parse and apply
 		needsRestart := false
 		restartReasons := []string{}
+		func() {
+			defer func() {
+				if rec := recover(); rec != nil {
+					s.Logger.Error("[Setup] Panic during hot-reload after save", "panic", rec)
+					needsRestart = true
+					restartReasons = append(restartReasons, "live reload panic")
+				}
+			}()
 
-		if loadErr != nil {
-			s.Logger.Warn("[Setup] Hot-reload failed, changes saved but require restart", "error", loadErr)
-			needsRestart = true
-			restartReasons = append(restartReasons, "config reload failed")
-		} else {
+			s.CfgMu.Lock()
+			defer s.CfgMu.Unlock()
+
+			newCfg, loadErr := config.Load(configPath)
+			if loadErr != nil {
+				s.Logger.Warn("[Setup] Hot-reload failed, changes saved but require restart", "error", loadErr)
+				needsRestart = true
+				restartReasons = append(restartReasons, "config reload failed")
+				return
+			}
+
 			savedPath := s.Cfg.ConfigPath
 			*s.Cfg = *newCfg
 			s.Cfg.ConfigPath = savedPath
@@ -273,33 +309,7 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 			}
 
 			s.Logger.Info("[Setup] Configuration hot-reloaded successfully")
-		}
-		s.CfgMu.Unlock()
-
-		if authEnabled && s.Cfg.Auth.PasswordHash == "" {
-			newHash, err := HashPassword(setupPassword)
-			if err != nil {
-				s.Logger.Error("[Setup] Failed to hash admin password", "error", err)
-				jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.auth_internal_error"), http.StatusInternalServerError)
-				return
-			}
-			newSecret, err := GenerateRandomHex(32)
-			if err != nil {
-				s.Logger.Error("[Setup] Failed to generate session secret", "error", err)
-				jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.auth_failed_generate_secret"), http.StatusInternalServerError)
-				return
-			}
-			if err := patchAuthConfig(s, map[string]interface{}{
-				"enabled":        true,
-				"password_hash":  newHash,
-				"session_secret": newSecret,
-			}); err != nil {
-				s.Logger.Error("[Setup] Failed to persist admin password", "error", err)
-				jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.auth_failed_save_config"), http.StatusInternalServerError)
-				return
-			}
-			s.Logger.Info("[Setup] Admin password initialized")
-		}
+		}()
 
 		w.Header().Set("Content-Type", "application/json")
 		if needsRestart {
