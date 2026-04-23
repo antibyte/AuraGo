@@ -56,9 +56,9 @@ del "%TEMP%\aurago_date.txt" 2>nul
 if not "%~1"=="" (
     set VERSION=%~1
 ) else (
-    set VERSION=v!DEFDATE!
-    set /p VERSION="  Release tag [v!DEFDATE!]: "
-    if "!VERSION!"=="" set VERSION=v!DEFDATE!
+    call :find_available_tag "v!DEFDATE!" VERSION
+    set /p VERSION="  Release tag [!VERSION!]: "
+    if "!VERSION!"=="" call :find_available_tag "v!DEFDATE!" VERSION
 )
 echo   Release: !VERSION!
 echo.
@@ -233,6 +233,33 @@ for /f "tokens=*" %%U in ('gh release view "!VERSION!" --json url --jq ".url" 2^
 echo.
 echo  --- Release !VERSION! published successfully ---
 goto :eof
+
+:find_available_tag
+setlocal
+set "BASE=%~1"
+set /a INDEX=0
+
+:find_available_tag_loop
+if %INDEX%==0 (
+    set "CANDIDATE=%BASE%"
+) else (
+    set "CANDIDATE=%BASE%.%INDEX%"
+)
+
+git rev-parse -q --verify "refs/tags/%CANDIDATE%" >nul 2>&1
+if not errorlevel 1 (
+    set /a INDEX+=1
+    goto :find_available_tag_loop
+)
+
+git ls-remote --exit-code --tags origin "refs/tags/%CANDIDATE%" >nul 2>&1
+if not errorlevel 1 (
+    set /a INDEX+=1
+    goto :find_available_tag_loop
+)
+
+endlocal & set "%~2=%CANDIDATE%"
+exit /b 0
 
 :build_error
 echo.
