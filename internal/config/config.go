@@ -335,6 +335,7 @@ func Load(path string) (*Config, error) {
 	}
 
 	cfg.BrowserAutomation.URL = NormalizeLegacySidecarURL(cfg.BrowserAutomation.URL, runningInDocker, "browser-automation", 7331)
+	cfg.Directories.WorkspaceDir = normalizeDockerWorkspaceDir(configDir, cfg.Directories.WorkspaceDir, runningInDocker)
 
 	// Resolve absolute paths for directories
 	cfg.Directories.DataDir = resolvePath(configDir, cfg.Directories.DataDir)
@@ -1252,6 +1253,24 @@ func resolvePath(baseDir, targetPath string) string {
 		return targetPath
 	}
 	return filepath.Join(baseDir, targetPath)
+}
+
+func normalizeDockerWorkspaceDir(configDir, workspaceDir string, runningInDocker bool) string {
+	if !runningInDocker {
+		return workspaceDir
+	}
+
+	cleanConfigDir := filepath.Clean(configDir)
+	if cleanConfigDir != filepath.Clean("/app/data") {
+		return workspaceDir
+	}
+
+	switch filepath.ToSlash(strings.TrimSpace(workspaceDir)) {
+	case "", "./agent_workspace/workdir", "agent_workspace/workdir":
+		return "/app/agent_workspace/workdir"
+	default:
+		return workspaceDir
+	}
 }
 
 func yamlHasPath(data []byte, path ...string) bool {

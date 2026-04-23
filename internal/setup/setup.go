@@ -49,23 +49,8 @@ func Run(logger *slog.Logger) error {
 	}
 
 	// ── Step 2: Generate master key if not present ───────────────────────
-	envFile := filepath.Join(installDir, ".env")
-	if _, err := os.Stat(envFile); os.IsNotExist(err) {
-		key := make([]byte, 32)
-		if _, err := rand.Read(key); err != nil {
-			return fmt.Errorf("failed to generate master key: %w", err)
-		}
-		hexKey := hex.EncodeToString(key)
-		content := fmt.Sprintf("AURAGO_MASTER_KEY=%s\n", hexKey)
-		if err := os.WriteFile(envFile, []byte(content), 0600); err != nil {
-			return fmt.Errorf("failed to write .env file: %w", err)
-		}
-		logger.Info("Generated new master key in .env")
-
-		// Also set it for the current process so service install can validate
-		os.Setenv("AURAGO_MASTER_KEY", hexKey)
-	} else {
-		logger.Info(".env already exists, skipping key generation")
+	if err := ensureMasterKey(installDir, logger); err != nil {
+		return err
 	}
 
 	// ── Step 3: Ensure required directories exist ────────────────────────
@@ -85,11 +70,15 @@ func Run(logger *slog.Logger) error {
 	logger.Info("Directory structure verified")
 
 	// ── Step 4: Install OS service ───────────────────────────────────────
-	logger.Info("Installing system service ...")
-	if err := installService(exePath, installDir, logger); err != nil {
-		logger.Warn("Service installation failed (non-fatal — you can start AuraGo manually)", "error", err)
+	if runningInDocker() {
+		logger.Info("Docker environment detected — skipping OS service installation")
 	} else {
-		logger.Info("System service installed successfully")
+		logger.Info("Installing system service ...")
+		if err := installService(exePath, installDir, logger); err != nil {
+			logger.Warn("Service installation failed (non-fatal — you can start AuraGo manually)", "error", err)
+		} else {
+			logger.Info("System service installed successfully")
+		}
 	}
 
 	logger.Info("━━━ Setup complete! ━━━")
@@ -105,7 +94,12 @@ func Run(logger *slog.Logger) error {
 // Only config.yaml is checked — it is the one file that cannot be
 // auto-generated. Other directories (agent_workspace/skills, data, etc.)
 // are ensured by EnsureDirectories() or created on-the-fly during startup.
-func NeedsSetup(installDir string) bool {
+func NeedsSetup(installDir, configPath string) bool {
+	if strings.TrimSpace(configPath) != "" {
+		if _, err := os.Stat(configPath); err == nil {
+			return false
+		}
+	}
 	if _, err := os.Stat(filepath.Join(installDir, "config.yaml")); os.IsNotExist(err) {
 		return true
 	}
@@ -258,7 +252,16 @@ WantedBy=multi-user.target
 // ── macOS: launchd ──────────────────────────────────────────────────────
 
 func installLaunchd(exePath, installDir string, logger *slog.Logger) error {
-	masterKey := readEnvKey(filepath.Join(installDir, ".env"), "AURAGO_MASTER_KEY")
+	wrapperPath := filepath.Join(installDir, "start_aurago.sh")
+	wrapper := fmt.Sprintf(`#!/bin/sh
+set -a
+[ -f "%s" ] && . "%s"
+set +a
+exec "%s"
+`, filepath.Join(installDir, ".env"), filepath.Join(installDir, ".env"), exePath)
+	if err := os.WriteFile(wrapperPath, []byte(wrapper), 0700); err != nil {
+		return fmt.Errorf("failed to write launchd wrapper: %w", err)
+	}
 
 	plist := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -272,11 +275,6 @@ func installLaunchd(exePath, installDir string, logger *slog.Logger) error {
 	</array>
 	<key>WorkingDirectory</key>
 	<string>%s</string>
-	<key>EnvironmentVariables</key>
-	<dict>
-		<key>AURAGO_MASTER_KEY</key>
-		<string>%s</string>
-	</dict>
 	<key>RunAtLoad</key>
 	<true/>
 	<key>KeepAlive</key>
@@ -287,7 +285,7 @@ func installLaunchd(exePath, installDir string, logger *slog.Logger) error {
 	<string>%s/log/aurago_stderr.log</string>
 </dict>
 </plist>
-`, exePath, installDir, masterKey, installDir, installDir)
+`, wrapperPath, installDir, installDir, installDir)
 
 	// Install for current user (no root needed)
 	home, _ := os.UserHomeDir()
@@ -356,4 +354,53 @@ func readEnvKey(envPath, key string) string {
 		}
 	}
 	return ""
+}
+
+func ensureMasterKey(installDir string, logger *slog.Logger) error {
+	envFile := filepath.Join(installDir, ".env")
+	if envKey := strings.TrimSpace(os.Getenv("AURAGO_MASTER_KEY")); isValidMasterKeyHex(envKey) {
+		if fileKey := readEnvKey(envFile, "AURAGO_MASTER_KEY"); fileKey != envKey {
+			content := fmt.Sprintf("AURAGO_MASTER_KEY=%s\n", envKey)
+			if err := os.WriteFile(envFile, []byte(content), 0600); err != nil {
+				return fmt.Errorf("failed to persist existing master key to .env: %w", err)
+			}
+			logger.Info("Persisted existing environment master key to .env")
+		} else {
+			logger.Info("AURAGO_MASTER_KEY already set in environment, skipping key generation")
+		}
+		return nil
+	}
+
+	if fileKey := readEnvKey(envFile, "AURAGO_MASTER_KEY"); isValidMasterKeyHex(fileKey) {
+		os.Setenv("AURAGO_MASTER_KEY", fileKey)
+		logger.Info("Loaded existing valid master key from .env")
+		return nil
+	}
+
+	key := make([]byte, 32)
+	if _, err := rand.Read(key); err != nil {
+		return fmt.Errorf("failed to generate master key: %w", err)
+	}
+	hexKey := hex.EncodeToString(key)
+	content := fmt.Sprintf("AURAGO_MASTER_KEY=%s\n", hexKey)
+	if err := os.WriteFile(envFile, []byte(content), 0600); err != nil {
+		return fmt.Errorf("failed to write .env file: %w", err)
+	}
+	logger.Info("Generated new master key in .env")
+	os.Setenv("AURAGO_MASTER_KEY", hexKey)
+	return nil
+}
+
+func isValidMasterKeyHex(key string) bool {
+	key = strings.TrimSpace(key)
+	if len(key) != 64 {
+		return false
+	}
+	_, err := hex.DecodeString(key)
+	return err == nil
+}
+
+func runningInDocker() bool {
+	_, err := os.Stat("/.dockerenv")
+	return err == nil
 }

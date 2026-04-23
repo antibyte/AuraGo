@@ -225,7 +225,7 @@ func main() {
 	// â”€â”€ Auto-detect missing resources â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 	exePath, _ := os.Executable()
 	installDir := filepath.Dir(exePath)
-	if setup.NeedsSetup(installDir) {
+	if setup.NeedsSetup(installDir, configFile) {
 		resPath := filepath.Join(installDir, "resources.dat")
 		if _, err := os.Stat(resPath); err != nil {
 			appLog.Warn("resources.dat not found in install directory â setup will run from defaults", "path", resPath)

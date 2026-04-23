@@ -77,6 +77,24 @@ sqlite:
 	}
 }
 
+func TestNormalizeDockerWorkspaceDirUsesMountedWorkdir(t *testing.T) {
+	t.Parallel()
+
+	got := normalizeDockerWorkspaceDir("/app/data", "./agent_workspace/workdir", true)
+	if got != "/app/agent_workspace/workdir" {
+		t.Fatalf("normalizeDockerWorkspaceDir() = %q, want /app/agent_workspace/workdir", got)
+	}
+}
+
+func TestNormalizeDockerWorkspaceDirKeepsCustomPath(t *testing.T) {
+	t.Parallel()
+
+	got := normalizeDockerWorkspaceDir("/app/data", "/custom/workdir", true)
+	if got != "/custom/workdir" {
+		t.Fatalf("normalizeDockerWorkspaceDir() = %q, want /custom/workdir", got)
+	}
+}
+
 func TestGetSpecialist(t *testing.T) {
 	cfg := &Config{}
 	cfg.CoAgents.Specialists.Coder.Enabled = true
