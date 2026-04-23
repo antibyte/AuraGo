@@ -517,7 +517,8 @@ func Start(opts StartOptions) error {
 				// Extract the assistant's text from the OpenAI-format response
 				output := extractAssistantContent(respBody)
 				toolResultCount, _ := strconv.Atoi(resp.Header.Get("X-Aurago-Mission-Tool-Results"))
-				suspiciousCompletion := strings.EqualFold(resp.Header.Get("X-Aurago-Mission-Suspicious-Completion"), "true")
+				suspiciousCompletion := strings.EqualFold(resp.Header.Get("X-Aurago-Mission-Suspicious-Completion"), "true") ||
+					missionResponseLooksIncomplete(output, toolResultCount)
 				if suspiciousCompletion {
 					logger.Warn("[MissionV2] Mission response looked incomplete, refusing success",
 						"mission_id", missionID,

@@ -8,6 +8,19 @@ func TestMissionResponseLooksIncomplete_NoToolsAndPlanningText(t *testing.T) {
 	}
 }
 
+func TestMissionResponseLooksIncomplete_NoToolsAndEmptyAfterReasoningStrip(t *testing.T) {
+	if !missionResponseLooksIncomplete("", 0) {
+		t.Fatal("expected empty mission response without tool activity to be flagged")
+	}
+}
+
+func TestMissionResponseLooksIncomplete_NoToolsAndMissionPlanLanguage(t *testing.T) {
+	content := "According to the mission plan, I will first check the latest world news and then generate the mood image."
+	if !missionResponseLooksIncomplete(content, 0) {
+		t.Fatal("expected mission-plan progress language without tool activity to be flagged")
+	}
+}
+
 func TestMissionResponseLooksIncomplete_NoToolsButFinishedResult(t *testing.T) {
 	if missionResponseLooksIncomplete("Die Seite wurde bereits aktualisiert und ist unter https://example.test erreichbar.", 0) {
 		t.Fatal("did not expect a concrete completed-result message to be flagged")
