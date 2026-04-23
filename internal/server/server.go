@@ -78,6 +78,8 @@ func NewInternalHTTPClient(timeout time.Duration) *http.Client {
 			TLSClientConfig: &tls.Config{
 				InsecureSkipVerify: true, // SECURE: Only for 127.0.0.1 internal API
 			},
+			ForceAttemptHTTP2: false,
+			DisableKeepAlives: true,
 		},
 	}
 }
