@@ -78,3 +78,12 @@ func TestDispatchServicesPaperlessMatchesExecuteSkillWhenReadOnly(t *testing.T) 
 		t.Fatalf("direct result = %q, via skill = %q", direct, viaSkill)
 	}
 }
+
+func TestResolveWikipediaLanguageUsesSystemLanguageDefault(t *testing.T) {
+	if got := resolveWikipediaLanguage("", "Deutsch"); got != "de" {
+		t.Fatalf("resolveWikipediaLanguage(empty, Deutsch) = %q, want de", got)
+	}
+	if got := resolveWikipediaLanguage("ja", "Deutsch"); got != "ja" {
+		t.Fatalf("resolveWikipediaLanguage(ja, Deutsch) = %q, want ja", got)
+	}
+}

@@ -21,5 +21,9 @@ information to extract. Without a clear search query the summary will be generic
 
 ### Parameters
 - `query` (string, required): The search query or page title.
-- `language` (string, optional): BCP-47 language code (e.g., "de", "en"). Default is agent's system language.
+- `language` (string, optional): Wikipedia language code such as `de`, `en`, `fr`, or `ja`. If omitted, AuraGo uses the agent's system language.
 - `search_query` (string, optional but **recommended in summary mode**): Tell the summarisation model exactly what information you are looking for. Be specific.
+
+### Notes
+- AuraGo first tries a direct Wikipedia page summary lookup.
+- If the title does not match exactly, it automatically performs a Wikipedia search and uses the best matching article as a fallback.

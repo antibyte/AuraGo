@@ -4,9 +4,17 @@ import (
 	"context"
 	"fmt"
 
+	"aurago/internal/i18n"
 	"aurago/internal/security"
 	"aurago/internal/tools"
 )
+
+func resolveWikipediaLanguage(explicitLang, systemLang string) string {
+	if explicitLang != "" {
+		return explicitLang
+	}
+	return i18n.NormalizeLang(systemLang)
+}
 
 func handleBuiltinSkillAction(ctx context.Context, dc *DispatchContext, action string, args map[string]interface{}, viaSkill bool) (string, bool) {
 	cfg := dc.Cfg
@@ -35,6 +43,7 @@ func handleBuiltinSkillAction(ctx context.Context, dc *DispatchContext, action s
 
 	case "wikipedia_search":
 		req := decodeWikipediaSearchArgs(args)
+		req.Language = resolveWikipediaLanguage(req.Language, cfg.Agent.SystemLanguage)
 		result := tools.ExecuteWikipediaSearch(req.Query, req.Language)
 		if cfg.Tools.Wikipedia.SummaryMode {
 			searchQuery := req.SearchQuery
