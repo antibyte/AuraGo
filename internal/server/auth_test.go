@@ -248,6 +248,72 @@ func TestHandleAuthLoginReturnsSetupRedirectWhenPasswordMissing(t *testing.T) {
 	}
 }
 
+func TestAuthMiddlewareAllowsLoginAssetsWithoutSession(t *testing.T) {
+	t.Parallel()
+
+	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
+	s.Cfg.Auth.Enabled = true
+	s.Cfg.Auth.SessionSecret = "0123456789abcdef0123456789abcdef"
+	s.Cfg.Auth.PasswordHash = "configured"
+
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	})
+	handler := authMiddleware(s, next)
+
+	paths := []string{
+		"/fonts/fonts.css",
+		"/css/tokens.css",
+		"/css/enhancements.css",
+		"/js/vendor/three.min.js",
+		"/js/login/main.js",
+		"/site.webmanifest",
+	}
+
+	for _, path := range paths {
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusNoContent {
+			t.Fatalf("path %q status = %d, want 204", path, rec.Code)
+		}
+	}
+}
+
+func TestAuthMiddlewareAllowsSetupAssetsWhenPasswordMissing(t *testing.T) {
+	t.Parallel()
+
+	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
+	s.Cfg.Auth.Enabled = true
+	s.Cfg.LLM.APIKey = "configured"
+
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	})
+	handler := authMiddleware(s, next)
+
+	paths := []string{
+		"/setup",
+		"/fonts/fonts.css",
+		"/css/tailwind-compat.css",
+		"/css/tokens.css",
+		"/css/setup.css",
+		"/css/enhancements.css",
+		"/shared.js?v=7",
+		"/js/setup/main.js",
+		"/site.webmanifest",
+	}
+
+	for _, path := range paths {
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusNoContent {
+			t.Fatalf("path %q status = %d, want 204", path, rec.Code)
+		}
+	}
+}
+
 func TestAuthMiddlewareLoopbackFollowUpBypassRequiresLoopbackRemoteAddr(t *testing.T) {
 	t.Parallel()
 

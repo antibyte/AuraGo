@@ -392,14 +392,17 @@ var authBypassPrefixes = []string{
 	"/mcp",
 	"/api/n8n/", // n8n endpoints have their own Bearer token auth (see n8nAuthenticate)
 	"/setup",
+	"/css/",
+	"/fonts/",
 	"/shared.css",
 	"/shared-variables.css",
 	"/shared-utilities.css",
 	"/shared-components.css",
 	"/shared-animations.css",
 	"/shared.js",
-	"/css/login.css",
+	"/js/setup/",
 	"/js/login/",
+	"/js/vendor/",
 	// Static media files (audio, images, documents) require authentication.
 	// They are served as sub-resources in authenticated pages and must not be
 	// accessible without a valid session (could expose user-generated content).
@@ -417,7 +420,12 @@ func isAuthBypassed(path string) bool {
 		}
 	}
 	// Static image/icon assets needed for the login page
-	return strings.HasSuffix(path, ".png") || strings.HasSuffix(path, ".ico") || strings.HasSuffix(path, ".svg") || strings.HasSuffix(path, ".svg")
+	return strings.HasSuffix(path, ".png") ||
+		strings.HasSuffix(path, ".ico") ||
+		strings.HasSuffix(path, ".svg") ||
+		strings.HasSuffix(path, ".woff") ||
+		strings.HasSuffix(path, ".woff2") ||
+		strings.HasSuffix(path, ".ttf")
 }
 
 // noPasswordPrefixes lists the only URL prefixes accessible when auth is enabled
@@ -433,14 +441,19 @@ var noPasswordPrefixes = []string{
 	"/api/setup",
 	"/api/ui-language",
 	"/setup",
+	"/css/",
+	"/fonts/",
 	"/shared.css",
 	"/shared-variables.css",
 	"/shared-utilities.css",
 	"/shared-components.css",
 	"/shared-animations.css",
 	"/shared.js",
-	"/css/login.css",
+	"/js/setup/",
 	"/js/login/",
+	"/js/vendor/",
+	"/site.webmanifest",
+	"/sw.js",
 }
 
 func isAllowedWithoutPassword(path string) bool {
@@ -449,7 +462,12 @@ func isAllowedWithoutPassword(path string) bool {
 			return true
 		}
 	}
-	return strings.HasSuffix(path, ".png") || strings.HasSuffix(path, ".ico")
+	return strings.HasSuffix(path, ".png") ||
+		strings.HasSuffix(path, ".ico") ||
+		strings.HasSuffix(path, ".svg") ||
+		strings.HasSuffix(path, ".woff") ||
+		strings.HasSuffix(path, ".woff2") ||
+		strings.HasSuffix(path, ".ttf")
 }
 
 func setupWizardRedirectTarget(s *Server) string {
