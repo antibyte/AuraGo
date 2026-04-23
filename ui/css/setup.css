@@ -886,21 +886,28 @@
 /* ── HTTPS Warning Banner ──────────────────── */
 .https-warning {
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
+    left: 1rem;
+    right: 1rem;
+    bottom: 1rem;
     z-index: 1200;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    padding: 0.5rem 1rem;
+    padding: 0.75rem 1rem;
     background: var(--warning, #eab308);
     color: #000;
     font-size: 0.85rem;
     font-weight: 500;
     text-align: center;
+    border-radius: 14px;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28);
 }
+
+body.has-https-warning {
+    padding-bottom: calc(4.75rem + env(safe-area-inset-bottom, 0px));
+}
+
 .https-warning.is-hidden {
     display: none;
 }
@@ -1051,18 +1058,37 @@
 
 .profile-recommended-bubble {
     position: absolute;
-    top: 10px;
-    right: -24px;
+    top: 13px;
+    right: -42px;
+    width: 150px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     background: linear-gradient(135deg, #2dd4bf, #14b8a6);
     color: #fff;
     font-size: 0.6rem;
     font-weight: 700;
-    padding: 3px 28px;
+    padding: 4px 0.75rem;
+    box-sizing: border-box;
     transform: rotate(45deg);
     letter-spacing: 0.05em;
     text-transform: uppercase;
     pointer-events: none;
     box-shadow: 0 2px 8px rgba(45, 212, 191, 0.4);
+    text-align: center;
+}
+
+@media (max-width: 560px) {
+    .https-warning {
+        left: 0.75rem;
+        right: 0.75rem;
+        bottom: 0.75rem;
+        font-size: 0.78rem;
+    }
+
+    body.has-https-warning {
+        padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
+    }
 }
 
 .profile-card-icon {

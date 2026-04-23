@@ -44,7 +44,10 @@ function totalSteps()  { return activeFlow().length; }
     const isLocal = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
     if (!isSecure && !isLocal) {
         const banner = document.getElementById('https-warning');
-        if (banner) banner.classList.remove('is-hidden');
+        if (banner) {
+            banner.classList.remove('is-hidden');
+            document.body.classList.add('has-https-warning');
+        }
     }
 })();
 
