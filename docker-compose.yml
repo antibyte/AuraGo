@@ -3,13 +3,14 @@ services:
     # Pre-built image from GitHub Container Registry (recommended).
     #
     # Tag strategy:
-    #   v1.2.3   — stable release (recommended for production)
-    #   latest   — always points to the latest stable release
-    #   main     — current main branch (may contain unreleased changes)
+    #   main     — current main branch (default for this repository compose file)
+    #   latest   — latest stable release
+    #   v1.2.3   — pinned stable release
     #
-    # For reproducible deployments, pin to a specific version tag:
-    #   image: ghcr.io/antibyte/aurago:v1.2.3
-    image: ghcr.io/antibyte/aurago:latest
+    # Override with AURAGO_IMAGE_TAG if desired, e.g.:
+    #   AURAGO_IMAGE_TAG=latest docker compose up -d
+    #   AURAGO_IMAGE_TAG=v1.2.3 docker compose up -d
+    image: ghcr.io/antibyte/aurago:${AURAGO_IMAGE_TAG:-main}
 
     # --- Build from source (uncomment to build locally instead) ---
     # build:
