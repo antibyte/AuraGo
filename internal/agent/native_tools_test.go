@@ -654,6 +654,29 @@ func TestBuiltinToolSchemasDoNotContainDuplicateNames(t *testing.T) {
 	}
 }
 
+func TestBuiltinToolSchemasIncludeWikipediaAndDDGSearch(t *testing.T) {
+	schemas := builtinToolSchemas(allBuiltinToolFeatureFlags())
+	foundWikipedia := false
+	foundDDG := false
+	for _, s := range schemas {
+		if s.Function == nil {
+			continue
+		}
+		switch s.Function.Name {
+		case "wikipedia_search":
+			foundWikipedia = true
+		case "ddg_search":
+			foundDDG = true
+		}
+	}
+	if !foundWikipedia {
+		t.Fatal("expected wikipedia_search builtin schema to be present")
+	}
+	if !foundDDG {
+		t.Fatal("expected ddg_search builtin schema to be present")
+	}
+}
+
 func TestBuildNativeToolSchemasSkipsCustomSkillCollidingWithBuiltinTool(t *testing.T) {
 	skillsDir := t.TempDir()
 	skillManifest := `{

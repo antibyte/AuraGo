@@ -12,6 +12,25 @@ func buildCoreToolSchemas(ff ToolFeatureFlags, execSkillProps map[string]interfa
 			"Run a pre-built registered skill (e.g. web_search, ddg_search, pdf_extractor, wikipedia_search, virustotal_scan). Use for external data retrieval.",
 			schema(execSkillProps, "skill"),
 		),
+		tool("wikipedia_search",
+			"Search Wikipedia and return the best matching article summary. "+
+				"Use this for encyclopedic facts, biographies, places, historical topics, and definitions. "+
+				"When Wikipedia summary mode is enabled, include search_query to request a focused summary.",
+			schema(map[string]interface{}{
+				"query":        prop("string", "The Wikipedia search term or page title to look up"),
+				"language":     prop("string", "Optional Wikipedia language code such as de, en, fr, or ja"),
+				"search_query": prop("string", "Optional focused question for summary mode, e.g. 'main subfields and recent breakthroughs'"),
+			}, "query"),
+		),
+		tool("ddg_search",
+			"Search the web with DuckDuckGo and return the top results. "+
+				"When DDG summary mode is enabled, include search_query to request a focused synthesis of the results.",
+			schema(map[string]interface{}{
+				"query":        prop("string", "Search query to submit to DuckDuckGo"),
+				"max_results":  map[string]interface{}{"type": "integer", "description": "Maximum number of results to return (default: 5)"},
+				"search_query": prop("string", "Optional focused question for summary mode, e.g. 'most significant AI developments this week'"),
+			}, "query"),
+		),
 		func() openai.Tool {
 			if ff.AllowFilesystemWrite {
 				return tool("filesystem",
