@@ -2,9 +2,6 @@ name: Build & Push Docker Image
 
 on:
   push:
-    branches:
-      - main
-      - master
     tags:
       - "v*"
   workflow_dispatch:
@@ -46,7 +43,6 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       # Compute image tags:
-      #   push to main/master  → ghcr.io/antibyte/aurago:main + :sha-<short>
       #   push a v* tag        → ghcr.io/antibyte/aurago:<exact-tag> + :latest + :sha-<short>
       # Date-based release tags such as v2026.04.23.3 are intentionally handled
       # as raw refs rather than semver because docker/metadata-action warns on
@@ -58,8 +54,7 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_LC }}
           tags: |
             type=ref,event=tag
-            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
-            type=raw,value=main,enable=${{ github.ref_name == 'main' || github.ref_name == 'master' }}
+            type=raw,value=latest
             type=sha,prefix=sha-,format=short
 
       - name: Build and push

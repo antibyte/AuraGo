@@ -1,14 +1,6 @@
 name: Build aurago-tui
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'tools/aurago-tui/**'
-      - '.github/workflows/aurago-tui-release.yml'
-  pull_request:
-    paths:
-      - 'tools/aurago-tui/**'
   workflow_dispatch:
 
 permissions:
@@ -74,7 +66,7 @@ jobs:
   release:
     needs: build
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@v4
 
