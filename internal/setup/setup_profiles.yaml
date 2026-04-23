@@ -82,8 +82,12 @@ profiles:
       helper:
         model: "MiniMax-M2.1" # Schnellerer, ressourcenschonender Helper der Vorgängergeneration
       image_generation:
+        provider_type: "minimax"
+        base_url: "https://api.minimax.io/v1/image_generation"
+        alt_base_url: "https://api.minimaxi.com/v1/image_generation"
         model: "image-01"
       music_generation:
+        provider_type: "minimax"
         model: "music-01"
     # TTS uses its own config structure (NOT the provider system)
     tts:

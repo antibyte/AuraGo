@@ -234,6 +234,26 @@ function resolveQuickProfileModel(profile, model) {
     return model || '';
 }
 
+function getQuickProfileSubsystemRuntime(profile, subsystem) {
+    const runtime = getQuickProfileRuntimeConfig(profile);
+    const config = {
+        providerType: runtime.providerType,
+        baseUrl: runtime.baseUrl,
+        model: resolveQuickProfileModel(profile, (subsystem && subsystem.model) || ''),
+    };
+    if (!subsystem) return config;
+    if (subsystem.provider_type) {
+        config.providerType = subsystem.provider_type;
+    }
+    const region = (document.getElementById('quick-minimax-region') || {}).value || 'international';
+    if (region === 'china' && subsystem.alt_base_url) {
+        config.baseUrl = subsystem.alt_base_url;
+    } else if (subsystem.base_url) {
+        config.baseUrl = subsystem.base_url;
+    }
+    return config;
+}
+
 function updateQuickProfileUI() {
     const minimaxOptions = document.getElementById('quick-minimax-options');
     if (minimaxOptions) {
@@ -436,14 +456,26 @@ function buildQuickConfigPatch() {
 
     const providers = [makeProvider('main', '', runtime.mainModel || '', {})];
     const m = p.models || {};
-    const resolveModel = (subsystem) => resolveQuickProfileModel(p, (subsystem && subsystem.model) || '');
+    const makeSubsystemProvider = (id, label, subsystem, extra) => {
+        const subsystemRuntime = getQuickProfileSubsystemRuntime(p, subsystem);
+        return {
+            id,
+            type: subsystemRuntime.providerType,
+            name: `${p.name} ${label}`.trim(),
+            base_url: subsystemRuntime.baseUrl,
+            api_key: apiKey,
+            model: subsystemRuntime.model,
+            native_function_calling: p.native_function_calling !== false,
+            ...extra,
+        };
+    };
 
-    if (p.features && p.features.vision    && m.vision)           providers.push(makeProvider('vision',     'Vision',     resolveModel(m.vision),           {}));
-    if (p.features && p.features.whisper   && m.whisper)          providers.push(makeProvider('whisper',    'Whisper',    resolveModel(m.whisper),          {}));
-    if (p.features && p.features.embeddings && m.embeddings)      providers.push(makeProvider('embeddings', 'Embeddings', resolveModel(m.embeddings),       { native_function_calling: false }));
-    if (p.features && p.features.helper    && m.helper)           providers.push(makeProvider('helper',     'Helper',     resolveModel(m.helper),           {}));
-    if (p.features && p.features.image_generation && m.image_generation) providers.push(makeProvider('image_gen', 'Image Gen', resolveModel(m.image_generation), {}));
-    if (p.features && p.features.music_generation && m.music_generation) providers.push(makeProvider('music_gen', 'Music Gen',  resolveModel(m.music_generation), {}));
+    if (p.features && p.features.vision    && m.vision)           providers.push(makeSubsystemProvider('vision',     'Vision',     m.vision,           {}));
+    if (p.features && p.features.whisper   && m.whisper)          providers.push(makeSubsystemProvider('whisper',    'Whisper',    m.whisper,          {}));
+    if (p.features && p.features.embeddings && m.embeddings)      providers.push(makeSubsystemProvider('embeddings', 'Embeddings', m.embeddings,       { native_function_calling: false }));
+    if (p.features && p.features.helper    && m.helper)           providers.push(makeSubsystemProvider('helper',     'Helper',     m.helper,           {}));
+    if (p.features && p.features.image_generation && m.image_generation) providers.push(makeSubsystemProvider('image_gen', 'Image Gen', m.image_generation, {}));
+    if (p.features && p.features.music_generation && m.music_generation) providers.push(makeSubsystemProvider('music_gen', 'Music Gen',  m.music_generation, {}));
 
     // Read trust level from radio button (may have been pre-selected by nextStep)
     const trustRadio = document.querySelector('input[name="trust-level"]:checked');

@@ -53,8 +53,11 @@ type ProfileFeatures struct {
 
 // ProfileSubsystemModel holds the model and optional mode for a subsystem.
 type ProfileSubsystemModel struct {
-	Model string `yaml:"model"    json:"model"`
-	Mode  string `yaml:"mode"     json:"mode,omitempty"`
+	Model        string `yaml:"model"                    json:"model"`
+	Mode         string `yaml:"mode"                     json:"mode,omitempty"`
+	ProviderType string `yaml:"provider_type,omitempty"  json:"provider_type,omitempty"`
+	BaseURL      string `yaml:"base_url,omitempty"       json:"base_url,omitempty"`
+	AltBaseURL   string `yaml:"alt_base_url,omitempty"   json:"alt_base_url,omitempty"`
 }
 
 // ProfileModels maps subsystem names to their model configuration.

@@ -220,6 +220,26 @@ func TestHandleSetupProfilesReturnsProfiles(t *testing.T) {
 		if profile["highspeed_model"] != "MiniMax-M2.7-highspeed" {
 			t.Fatalf("minimax highspeed_model = %v, want MiniMax-M2.7-highspeed", profile["highspeed_model"])
 		}
+		models, ok := profile["models"].(map[string]interface{})
+		if !ok {
+			t.Fatal("expected minimax models map in response")
+		}
+		imageGen, ok := models["image_generation"].(map[string]interface{})
+		if !ok {
+			t.Fatal("expected minimax image_generation config in response")
+		}
+		if imageGen["provider_type"] != "minimax" {
+			t.Fatalf("minimax image_generation provider_type = %v, want minimax", imageGen["provider_type"])
+		}
+		if imageGen["base_url"] != "https://api.minimax.io/v1/image_generation" {
+			t.Fatalf("minimax image_generation base_url = %v, want international image endpoint", imageGen["base_url"])
+		}
+		if imageGen["alt_base_url"] != "https://api.minimaxi.com/v1/image_generation" {
+			t.Fatalf("minimax image_generation alt_base_url = %v, want China image endpoint", imageGen["alt_base_url"])
+		}
+		if imageGen["model"] != "image-01" {
+			t.Fatalf("minimax image_generation model = %v, want image-01", imageGen["model"])
+		}
 	}
 	if !foundMiniMax {
 		t.Fatal("expected minimax_coding profile in response")

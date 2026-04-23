@@ -109,6 +109,27 @@ func TestMiniMaxProfileHasTTS(t *testing.T) {
 			if p.HighspeedModel != "MiniMax-M2.7-highspeed" {
 				t.Fatalf("minimax highspeed_model = %q, want MiniMax-M2.7-highspeed", p.HighspeedModel)
 			}
+			if p.Models.ImageGeneration == nil {
+				t.Fatal("minimax image_generation should be configured")
+			}
+			if p.Models.ImageGeneration.ProviderType != "minimax" {
+				t.Fatalf("minimax image_generation provider_type = %q, want minimax", p.Models.ImageGeneration.ProviderType)
+			}
+			if p.Models.ImageGeneration.BaseURL != "https://api.minimax.io/v1/image_generation" {
+				t.Fatalf("minimax image_generation base_url = %q, want international image endpoint", p.Models.ImageGeneration.BaseURL)
+			}
+			if p.Models.ImageGeneration.AltBaseURL != "https://api.minimaxi.com/v1/image_generation" {
+				t.Fatalf("minimax image_generation alt_base_url = %q, want China image endpoint", p.Models.ImageGeneration.AltBaseURL)
+			}
+			if p.Models.ImageGeneration.Model != "image-01" {
+				t.Fatalf("minimax image_generation model = %q, want image-01", p.Models.ImageGeneration.Model)
+			}
+			if p.Models.MusicGeneration == nil {
+				t.Fatal("minimax music_generation should be configured")
+			}
+			if p.Models.MusicGeneration.ProviderType != "minimax" {
+				t.Fatalf("minimax music_generation provider_type = %q, want minimax", p.Models.MusicGeneration.ProviderType)
+			}
 			return
 		}
 	}
