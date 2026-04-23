@@ -5,12 +5,14 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 	"unicode/utf8"
 
+	promptsembed "aurago/prompts"
 	chromem "github.com/philippgille/chromem-go"
 	"gopkg.in/yaml.v3"
 )
@@ -57,23 +59,14 @@ func (cv *ChromemVectorDB) IndexToolGuides(toolsDir string, force bool) error {
 		cv.logger.Info("Tool guides content changed, re-indexing", "old_hash", strings.TrimSpace(string(storedHashBytes)), "new_hash", currentHash)
 	}
 
-	files, err := os.ReadDir(toolsDir)
-	if err != nil {
-		return fmt.Errorf("failed to read tools directory: %w", err)
-	}
-
 	var docs []chromem.Document
-	for _, file := range files {
-		if file.IsDir() || !strings.HasSuffix(file.Name(), ".md") {
-			continue
-		}
-
-		path := filepath.Join(toolsDir, file.Name())
-		data, err := os.ReadFile(path)
-		if err != nil {
-			cv.logger.Warn("Failed to read tool guide", "path", path, "error", err)
-			continue
-		}
+	guideFiles, err := loadToolGuideFiles(toolsDir)
+	if err != nil {
+		return err
+	}
+	for _, guide := range guideFiles {
+		path := guide.Path
+		data := guide.Data
 
 		raw := string(data)
 		description := ""
@@ -99,12 +92,12 @@ func (cv *ChromemVectorDB) IndexToolGuides(toolsDir string, force bool) error {
 			}
 		}
 
-		docID := fmt.Sprintf("tool_%s", strings.TrimSuffix(file.Name(), ".md"))
+		docID := fmt.Sprintf("tool_%s", strings.TrimSuffix(guide.Name, ".md"))
 		docs = append(docs, chromem.Document{
 			ID: docID,
 			Metadata: map[string]string{
 				"path":      path,
-				"tool_name": strings.TrimSuffix(file.Name(), ".md"),
+				"tool_name": strings.TrimSuffix(guide.Name, ".md"),
 			},
 			Content: description,
 		})
@@ -314,23 +307,67 @@ func (cv *ChromemVectorDB) IndexDirectory(dir, collectionName string, stm *SQLit
 // combining file names and their contents in sorted order. Returns an empty
 // string on error so a missing/unreadable directory always forces re-indexing.
 func (cv *ChromemVectorDB) computeToolGuidesHash(toolsDir string) string {
-	files, err := os.ReadDir(toolsDir)
+	files, err := loadToolGuideFiles(toolsDir)
 	if err != nil {
 		return ""
 	}
 	h := sha256.New()
 	for _, f := range files {
-		if f.IsDir() || !strings.HasSuffix(f.Name(), ".md") {
-			continue
-		}
-		data, err := os.ReadFile(filepath.Join(toolsDir, f.Name()))
-		if err != nil {
-			continue
-		}
-		h.Write([]byte(f.Name()))
-		h.Write(data)
+		h.Write([]byte(f.Name))
+		h.Write(f.Data)
 	}
 	return hex.EncodeToString(h.Sum(nil))
+}
+
+type toolGuideFile struct {
+	Name string
+	Path string
+	Data []byte
+}
+
+func loadToolGuideFiles(toolsDir string) ([]toolGuideFile, error) {
+	files, err := os.ReadDir(toolsDir)
+	if err == nil {
+		guides := make([]toolGuideFile, 0, len(files))
+		for _, file := range files {
+			if file.IsDir() || !strings.HasSuffix(file.Name(), ".md") {
+				continue
+			}
+			path := filepath.Join(toolsDir, file.Name())
+			data, readErr := os.ReadFile(path)
+			if readErr != nil {
+				continue
+			}
+			guides = append(guides, toolGuideFile{
+				Name: file.Name(),
+				Path: path,
+				Data: data,
+			})
+		}
+		return guides, nil
+	}
+
+	embedEntries, embedErr := fs.ReadDir(promptsembed.FS, "tools_manuals")
+	if embedErr != nil {
+		return nil, fmt.Errorf("failed to read tools directory: %w", err)
+	}
+	guides := make([]toolGuideFile, 0, len(embedEntries))
+	for _, entry := range embedEntries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
+			continue
+		}
+		embedPath := filepath.ToSlash(filepath.Join("tools_manuals", entry.Name()))
+		data, readErr := fs.ReadFile(promptsembed.FS, embedPath)
+		if readErr != nil {
+			continue
+		}
+		guides = append(guides, toolGuideFile{
+			Name: entry.Name(),
+			Path: embedPath,
+			Data: data,
+		})
+	}
+	return guides, nil
 }
 
 // splitFrontmatter splits a YAML frontmatter document (---\n...\n---\n...) into

@@ -266,7 +266,29 @@ func TestComputeToolGuidesHash_IgnoresNonMD(t *testing.T) {
 func TestComputeToolGuidesHash_MissingDir(t *testing.T) {
 	cv := fakeCV(t)
 	hash := cv.computeToolGuidesHash("/nonexistent/path/that/does/not/exist")
-	if hash != "" {
-		t.Errorf("missing directory should return empty hash, got %q", hash)
+	if hash == "" {
+		t.Fatal("missing directory should fall back to embedded tool guides and return a hash")
+	}
+}
+
+func TestLoadToolGuideFilesFallsBackToEmbeddedGuides(t *testing.T) {
+	guides, err := loadToolGuideFiles(filepath.Join(t.TempDir(), "missing-guides"))
+	if err != nil {
+		t.Fatalf("loadToolGuideFiles() error = %v", err)
+	}
+	if len(guides) == 0 {
+		t.Fatal("expected embedded tool guides fallback to return entries")
+	}
+	foundDocker := false
+	for _, guide := range guides {
+		if !strings.HasPrefix(filepath.ToSlash(guide.Path), "tools_manuals/") {
+			t.Fatalf("guide path = %q, want embedded tools_manuals path", guide.Path)
+		}
+		if guide.Name == "docker.md" {
+			foundDocker = true
+		}
+	}
+	if !foundDocker {
+		t.Fatal("expected embedded docker.md guide to be available")
 	}
 }

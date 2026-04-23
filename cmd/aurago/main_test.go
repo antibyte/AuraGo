@@ -26,3 +26,37 @@ func TestLoadDotEnvSetsMissingVariablesOnly(t *testing.T) {
 		t.Fatalf("AURAGO_TEST_KEEP = %q, want existing", got)
 	}
 }
+
+func TestFindLegacyVaultPathReturnsPreviousDefaultVault(t *testing.T) {
+	configDir := t.TempDir()
+	configPath := filepath.Join(configDir, "config.yaml")
+	legacyVault := filepath.Join(configDir, "data", "vault.bin")
+	if err := os.MkdirAll(filepath.Dir(legacyVault), 0o755); err != nil {
+		t.Fatalf("MkdirAll() error = %v", err)
+	}
+	if err := os.WriteFile(legacyVault, []byte("vault"), 0o600); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	got := findLegacyVaultPath(configPath, filepath.Join(t.TempDir(), "new-data"))
+	if got != legacyVault {
+		t.Fatalf("findLegacyVaultPath() = %q, want %q", got, legacyVault)
+	}
+}
+
+func TestFindLegacyVaultPathIgnoresCurrentVaultLocation(t *testing.T) {
+	configDir := t.TempDir()
+	configPath := filepath.Join(configDir, "config.yaml")
+	currentDataDir := filepath.Join(configDir, "data")
+	legacyVault := filepath.Join(currentDataDir, "vault.bin")
+	if err := os.MkdirAll(filepath.Dir(legacyVault), 0o755); err != nil {
+		t.Fatalf("MkdirAll() error = %v", err)
+	}
+	if err := os.WriteFile(legacyVault, []byte("vault"), 0o600); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	if got := findLegacyVaultPath(configPath, currentDataDir); got != "" {
+		t.Fatalf("findLegacyVaultPath() = %q, want empty", got)
+	}
+}

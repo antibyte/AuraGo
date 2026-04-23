@@ -501,6 +501,9 @@ func main() {
 	security.RegisterSensitive(masterKey)
 
 	vaultPath := filepath.Join(cfg.Directories.DataDir, "vault.bin")
+	if legacyVaultPath := findLegacyVaultPath(configFile, cfg.Directories.DataDir); legacyVaultPath != "" {
+		appLog.Warn("Legacy vault file found at previous data directory", "legacy_path", legacyVaultPath, "current_path", vaultPath)
+	}
 	vault, err := security.NewVault(masterKey, vaultPath)
 	if err != nil {
 		appLog.Error("Failed to initialize security vault", "error", err)
@@ -1010,6 +1013,26 @@ func loadDockerSecret(path, envVar string, log *slog.Logger) {
 	}
 	os.Setenv(envVar, val)
 	log.Info("Loaded secret from Docker secret file", "env", envVar, "path", path)
+}
+
+func findLegacyVaultPath(configPath, currentDataDir string) string {
+	if strings.TrimSpace(configPath) == "" || strings.TrimSpace(currentDataDir) == "" {
+		return ""
+	}
+	absConfigPath, err := filepath.Abs(configPath)
+	if err != nil {
+		return ""
+	}
+	configDir := filepath.Dir(absConfigPath)
+	legacyVaultPath := filepath.Join(configDir, "data", "vault.bin")
+	currentVaultPath := filepath.Join(currentDataDir, "vault.bin")
+	if filepath.Clean(legacyVaultPath) == filepath.Clean(currentVaultPath) {
+		return ""
+	}
+	if _, err := os.Stat(legacyVaultPath); err == nil {
+		return legacyVaultPath
+	}
+	return ""
 }
 
 func startLifeboatSidecar(log *slog.Logger, cfg *config.Config, bridgeToken string) {
