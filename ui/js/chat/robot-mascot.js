@@ -76,7 +76,7 @@
         if (!icon) return null;
         const rect = icon.getBoundingClientRect();
         const size = Math.max(rect.width, rect.height, window.innerWidth <= 767 ? 78 : 96);
-        const verticalLift = window.innerWidth <= 767 ? 18 : 14;
+        const verticalLift = window.innerWidth <= 767 ? 34 : 14;
         return {
             left: rect.left + ((rect.width - size) / 2),
             top: rect.top + ((rect.height - size) / 2) - verticalLift,
@@ -89,8 +89,8 @@
         if (window.innerWidth <= 767) {
             const headerRect = header ? header.getBoundingClientRect() : { bottom: 0 };
             return {
-                left: 10,
-                top: Math.round((headerRect.bottom || 0) + 10),
+                left: 8,
+                top: Math.round((headerRect.bottom || 0) + 6),
                 size
             };
         }

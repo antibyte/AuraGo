@@ -215,7 +215,15 @@
 
             .chat-robot-mascot {
                 --chat-robot-size: 72px;
+                --chat-robot-icon-start: 34%;
+                --chat-robot-icon-rise-mid: 24px;
+                --chat-robot-icon-rise-end: 52px;
+                --chat-robot-icon-duration: 3.15s;
                 opacity: 0.92;
+            }
+
+            .chat-robot-effects {
+                inset: -1.25rem -0.85rem -0.55rem -0.85rem;
             }
 
             .greeting-icon.greeting-icon-robot {
@@ -561,6 +569,10 @@
             --chat-robot-footer-offset: 7rem;
             --chat-robot-col: 0;
             --chat-robot-row: 0;
+            --chat-robot-icon-start: 24%;
+            --chat-robot-icon-rise-mid: 40px;
+            --chat-robot-icon-rise-end: 80px;
+            --chat-robot-icon-duration: 3s;
             position: fixed;
             left: clamp(0.75rem, 2.1vw, 1.5rem);
             bottom: calc(var(--chat-robot-footer-offset) + env(safe-area-inset-bottom, 0px));
@@ -572,6 +584,7 @@
             opacity: 0.98;
             filter: drop-shadow(0 16px 22px rgba(3, 10, 20, 0.2));
             transform-origin: 50% 100%;
+            isolation: isolate;
             animation: chatRobotFloat 5.6s ease-in-out infinite;
             transition:
                 left 720ms cubic-bezier(0.22, 1, 0.36, 1),
@@ -606,7 +619,7 @@
 
         .chat-robot-effects {
             position: absolute;
-            inset: 0;
+            inset: -0.65rem -0.75rem -0.55rem -0.75rem;
             overflow: visible;
             pointer-events: none;
             z-index: 0;
@@ -2006,11 +2019,11 @@
         /* ── Floating action icons ── */
         .floating-icon {
             position: absolute;
-            bottom: 24%;
+            bottom: var(--chat-robot-icon-start);
             font-size: 1.2rem;
             pointer-events: none;
             z-index: 0;
-            animation: floatUp 3s ease-out forwards;
+            animation: floatUp var(--chat-robot-icon-duration) ease-out forwards;
             line-height: 1;
             filter: drop-shadow(0 0 4px var(--accent-glow));
         }
@@ -2022,11 +2035,11 @@
             }
             50% {
                 opacity: 0.5;
-                transform: translateY(-40px) scale(0.9);
+                transform: translateY(calc(-1 * var(--chat-robot-icon-rise-mid))) scale(0.9);
             }
             100% {
                 opacity: 0;
-                transform: translateY(-80px) scale(0.7);
+                transform: translateY(calc(-1 * var(--chat-robot-icon-rise-end))) scale(0.7);
             }
         }
 
