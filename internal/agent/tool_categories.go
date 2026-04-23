@@ -15,6 +15,13 @@ var discoverToolAliases = map[string]string{
 	"mcp server":             "mcp_call",
 	"mcp servers":            "mcp_call",
 	"model context protocol": "mcp_call",
+	"wikipedia":              "wikipedia_search",
+	"wiki":                   "wikipedia_search",
+	"duckduckgo":             "ddg_search",
+	"duck duck go":           "ddg_search",
+	"ddg":                    "ddg_search",
+	"brave":                  "brave_search",
+	"pdf extractor":          "pdf_extractor",
 }
 
 func resolveDiscoverToolName(name string) string {
@@ -65,6 +72,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"file_reader_advanced", "Read line ranges, head/tail, and contextual search in large files"},
 		{"smart_file_read", "Intelligently inspect large files: analyze, sample, structure, summarize"},
 		{"archive", "Create and extract tar.gz and zip archives"},
+		{"pdf_extractor", "Extract and optionally summarise text from PDF documents"},
 		{"pdf_operations", "Read, merge, split, extract text/images from PDFs"},
 		{"image_processing", "Resize, crop, rotate, convert, compress, watermark images"},
 		{"detect_file_type", "Identify file type by content (magic bytes)"},
@@ -76,6 +84,9 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"dns_lookup", "DNS resolution for any record type (A, AAAA, MX, TXT, etc.)"},
 		{"port_scanner", "Scan TCP ports on a host"},
 		{"network_ping", "Ping hosts to check availability and latency"},
+		{"ddg_search", "Search the web with DuckDuckGo and summarise results"},
+		{"wikipedia_search", "Look up encyclopedic topics and summaries on Wikipedia"},
+		{"brave_search", "Search the web with Brave Search"},
 		{"web_scraper", "Scrape web pages and extract content"},
 		{"site_crawler", "Crawl websites following links and extracting data"},
 		{"site_monitor", "Monitor websites for availability and changes"},

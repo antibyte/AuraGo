@@ -100,6 +100,21 @@ func TestSearchToolsInCategories(t *testing.T) {
 		t.Error("expected 'browser_automation' in search results for 'browser'")
 	}
 
+	results = SearchToolsInCategories("wikipedia")
+	if len(results) == 0 {
+		t.Fatal("expected results for 'wikipedia'")
+	}
+	found = false
+	for _, r := range results {
+		if r.Entry.Name == "wikipedia_search" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected 'wikipedia_search' in search results for 'wikipedia'")
+	}
+
 	results = SearchToolsInCategories("mcp")
 	if len(results) == 0 {
 		t.Fatal("expected results for 'mcp'")
@@ -219,6 +234,12 @@ func TestResolveDiscoverToolNameAlias(t *testing.T) {
 	}
 	if got := resolveDiscoverToolName("mcp server"); got != "mcp_call" {
 		t.Fatalf("resolveDiscoverToolName(mcp server) = %q, want %q", got, "mcp_call")
+	}
+	if got := resolveDiscoverToolName("wikipedia"); got != "wikipedia_search" {
+		t.Fatalf("resolveDiscoverToolName(wikipedia) = %q, want %q", got, "wikipedia_search")
+	}
+	if got := resolveDiscoverToolName("ddg"); got != "ddg_search" {
+		t.Fatalf("resolveDiscoverToolName(ddg) = %q, want %q", got, "ddg_search")
 	}
 	if got := resolveDiscoverToolName("chromecast"); got != "chromecast" {
 		t.Fatalf("resolveDiscoverToolName(chromecast) = %q, want %q", got, "chromecast")
