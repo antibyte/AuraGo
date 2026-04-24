@@ -116,5 +116,7 @@
   "help.heartbeat.check_emails": "Sprawdza skonfigurowane konta e-mail pod kątem nowych wiadomości przy każdym hearbeacie.",
   "help.heartbeat.additional_prompt": "Niestandardowe instrukcje, które agent powinien uwzględnić przy każdym pobudzeniu Heartbeat.",
   "help.heartbeat.day_time_window": "Okres dzienny z własnym interwałem sprawdzania.",
-  "help.heartbeat.night_time_window": "Okres nocny z własnym (zazwyczaj dłuższym) interwałem sprawdzania."
+  "help.heartbeat.night_time_window": "Okres nocny z własnym (zazwyczaj dłuższym) interwałem sprawdzania.",
+  "config.docker.managed_disabled_reason": "Integracja Docker jest wylaczona. Wlacz Docker przed uzyciem zarzadzanych kontenerow Ollama.",
+  "config.docker.socket_missing_reason": "Nie wykryto gniazda Docker. Zamontuj /var/run/docker.sock albo skonfiguruj docker.host przed uzyciem zarzadzanych kontenerow Ollama."
 }

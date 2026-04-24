@@ -116,5 +116,7 @@
   "help.heartbeat.check_emails": "Kontrolovat nakonfigurované e-mailové účty na nové zprávy při každém heartbeatu.",
   "help.heartbeat.additional_prompt": "Vlastní pokyny, které má agent zvážit při každém probuzení heartbeatem.",
   "help.heartbeat.day_time_window": "Denní období s vlastním intervalem kontroly.",
-  "help.heartbeat.night_time_window": "Noční období s vlastním (obvykle delším) intervalem kontroly."
+  "help.heartbeat.night_time_window": "Noční období s vlastním (obvykle delším) intervalem kontroly.",
+  "config.docker.managed_disabled_reason": "Integrace Dockeru je vypnuta. Pred pouzitim spravovanych kontejneru Ollama Docker zapnete.",
+  "config.docker.socket_missing_reason": "Docker socket nebyl nalezen. Pripojte /var/run/docker.sock nebo nastavte docker.host pred pouzitim spravovanych kontejneru Ollama."
 }

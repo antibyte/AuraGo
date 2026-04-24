@@ -116,5 +116,7 @@
   "help.heartbeat.check_emails": "各Heartbeatで設定済みのメールアカウントに新着メールがないか確認します。",
   "help.heartbeat.additional_prompt": "エージェントが毎回のHeartbeat起動時に考慮すべきカスタム指示です。",
   "help.heartbeat.day_time_window": "独自の確認間隔を持つ昼間の時間帯。",
-  "help.heartbeat.night_time_window": "独自の（通常は長い）確認間隔を持つ夜間の時間帯。"
+  "help.heartbeat.night_time_window": "独自の（通常は長い）確認間隔を持つ夜間の時間帯。",
+  "config.docker.managed_disabled_reason": "Docker 連携が無効です。管理対象の Ollama コンテナを使う前に Docker を有効にしてください。",
+  "config.docker.socket_missing_reason": "Docker ソケットが見つかりません。管理対象の Ollama コンテナを使う前に /var/run/docker.sock をマウントするか docker.host を設定してください。"
 }

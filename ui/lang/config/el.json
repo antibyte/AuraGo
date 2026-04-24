@@ -116,5 +116,7 @@
   "help.heartbeat.check_emails": "Έλεγχος διαμορφωμένων λογαριασμών email για νέα μηνύματα σε κάθε heartbeat.",
   "help.heartbeat.additional_prompt": "Προσαρμοσμένες οδηγίες που ο πράκτορας θα λάβει υπόψη σε κάθε αφύπνιση heartbeat.",
   "help.heartbeat.day_time_window": "Περίοδος ημέρας με δικό της διάστημα ελέγχου.",
-  "help.heartbeat.night_time_window": "Περίοδος νύχτας με δικό της (συνήθως μεγαλύτερο) διάστημα ελέγχου."
+  "help.heartbeat.night_time_window": "Περίοδος νύχτας με δικό της (συνήθως μεγαλύτερο) διάστημα ελέγχου.",
+  "config.docker.managed_disabled_reason": "Η ενσωμάτωση Docker είναι απενεργοποιημένη. Ενεργοποιήστε το Docker πριν χρησιμοποιήσετε διαχειριζόμενα κοντέινερ Ollama.",
+  "config.docker.socket_missing_reason": "Δεν εντοπίστηκε Docker socket. Προσαρτήστε το /var/run/docker.sock ή ρυθμίστε το docker.host πριν χρησιμοποιήσετε διαχειριζόμενα κοντέινερ Ollama."
 }

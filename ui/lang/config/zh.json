@@ -116,5 +116,7 @@
   "help.heartbeat.check_emails": "每次心跳时检查配置的电子邮件帐户是否有新邮件。",
   "help.heartbeat.additional_prompt": "代理在每次心跳唤醒时应考虑的自定义说明。",
   "help.heartbeat.day_time_window": "具有自己的检查间隔的白天时段。",
-  "help.heartbeat.night_time_window": "具有自己的（通常更长）检查间隔的夜间时段。"
+  "help.heartbeat.night_time_window": "具有自己的（通常更长）检查间隔的夜间时段。",
+  "config.docker.managed_disabled_reason": "Docker 集成已禁用。使用托管 Ollama 容器前请先启用 Docker。",
+  "config.docker.socket_missing_reason": "未检测到 Docker socket。使用托管 Ollama 容器前，请挂载 /var/run/docker.sock 或配置 docker.host。"
 }

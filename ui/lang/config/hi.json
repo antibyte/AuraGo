@@ -116,5 +116,7 @@
   "help.heartbeat.check_emails": "प्रत्येक heartbeat पर कॉन्फ़िगर किए गए ईमेल खातों में नए संदेशों की जांच करें।",
   "help.heartbeat.additional_prompt": "एजेंट के लिए कस्टम निर्देश जो हर heartbeat-जागरण पर विचार करे।",
   "help.heartbeat.day_time_window": "अपने स्वयं के जांच अंतराल के साथ दिन का समय।",
-  "help.heartbeat.night_time_window": "अपने स्वयं के (आमतौर पर लंबे) जांच अंतराल के साथ रात का समय।"
+  "help.heartbeat.night_time_window": "अपने स्वयं के (आमतौर पर लंबे) जांच अंतराल के साथ रात का समय।",
+  "config.docker.managed_disabled_reason": "Docker integration band hai. Managed Ollama containers istemal karne se pahle Docker enabled karein.",
+  "config.docker.socket_missing_reason": "Docker socket nahi mila. Managed Ollama containers istemal karne se pahle /var/run/docker.sock mount karein ya docker.host configure karein."
 }

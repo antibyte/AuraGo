@@ -116,5 +116,7 @@
   "help.heartbeat.check_emails": "Kontrollerar konfigurerade e-postkonton för nya meddelanden vid varje heartbeat.",
   "help.heartbeat.additional_prompt": "Anpassade instruktioner som agenten ska överväga vid varje heartbeat-uppvaknande.",
   "help.heartbeat.day_time_window": "Dagtidsfönster med eget kontrollintervall.",
-  "help.heartbeat.night_time_window": "Nattidsfönster med eget (vanligtvis längre) kontrollintervall."
+  "help.heartbeat.night_time_window": "Nattidsfönster med eget (vanligtvis längre) kontrollintervall.",
+  "config.docker.managed_disabled_reason": "Docker-integrationen ar avstangd. Aktivera Docker innan du anvander hanterade Ollama-containrar.",
+  "config.docker.socket_missing_reason": "Docker-socket hittades inte. Montera /var/run/docker.sock eller konfigurera docker.host innan du anvander hanterade Ollama-containrar."
 }

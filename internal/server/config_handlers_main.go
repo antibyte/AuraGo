@@ -260,6 +260,20 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			return
 		}
 
+		s.CfgMu.RLock()
+		runtimeSnapshot := s.Cfg.Runtime
+		s.CfgMu.RUnlock()
+		if managedDockerErr := validateManagedDockerBackends(validateCfg, runtimeSnapshot); managedDockerErr != nil {
+			s.Logger.Error("[Config] Managed Docker backend unavailable — save rejected", "error", managedDockerErr)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"status":  "error",
+				"message": managedDockerErr.Error(),
+			})
+			return
+		}
+
 		// Pre-flight: if HTTPS is being newly enabled or the port is changing, verify the
 		// configured port is actually bindable RIGHT NOW. Reject the save if not.
 		// Skip this check if HTTPS was already active on the same port — AuraGo itself
@@ -869,6 +883,76 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			})
 		}
 	}
+}
+
+func validateManagedDockerBackends(cfg config.Config, rt config.Runtime) error {
+	needsManagedDocker := cfg.Embeddings.LocalOllama.Enabled || cfg.Ollama.ManagedInstance.Enabled
+	if !needsManagedDocker {
+		return nil
+	}
+	if !cfg.Docker.Enabled {
+		return fmt.Errorf("Docker integration is disabled. Enable Docker before using managed Ollama containers for local models or embeddings")
+	}
+	if strings.TrimSpace(cfg.Docker.Host) != "" {
+		return nil
+	}
+	if rt.IsDocker && !rt.DockerSocketOK {
+		return fmt.Errorf("Docker socket not detected. Mount /var/run/docker.sock or configure docker.host before using managed Ollama containers")
+	}
+	return nil
+}
+
+func managedDockerConfigFromRaw(rawCfg map[string]interface{}) config.Config {
+	var cfg config.Config
+	if dockerSection := rawMap(rawCfg, "docker"); dockerSection != nil {
+		cfg.Docker.Enabled = rawBool(dockerSection, "enabled")
+		cfg.Docker.Host = rawString(dockerSection, "host")
+	}
+	if embeddingsSection := rawMap(rawCfg, "embeddings"); embeddingsSection != nil {
+		if localOllama := rawMap(embeddingsSection, "local_ollama"); localOllama != nil {
+			cfg.Embeddings.LocalOllama.Enabled = rawBool(localOllama, "enabled")
+		}
+	}
+	if ollamaSection := rawMap(rawCfg, "ollama"); ollamaSection != nil {
+		if managedInstance := rawMap(ollamaSection, "managed_instance"); managedInstance != nil {
+			cfg.Ollama.ManagedInstance.Enabled = rawBool(managedInstance, "enabled")
+		}
+	}
+	return cfg
+}
+
+func rawMap(parent map[string]interface{}, key string) map[string]interface{} {
+	value, ok := parent[key]
+	if !ok {
+		return nil
+	}
+	if m, ok := value.(map[string]interface{}); ok {
+		return m
+	}
+	return nil
+}
+
+func rawBool(parent map[string]interface{}, key string) bool {
+	value, ok := parent[key]
+	if !ok {
+		return false
+	}
+	switch v := value.(type) {
+	case bool:
+		return v
+	case string:
+		return strings.EqualFold(strings.TrimSpace(v), "true")
+	default:
+		return false
+	}
+}
+
+func rawString(parent map[string]interface{}, key string) string {
+	value, ok := parent[key]
+	if !ok {
+		return ""
+	}
+	return strings.TrimSpace(fmt.Sprint(value))
 }
 
 func llmHotReloadChanged(oldCfg config.Config, newCfg config.Config) bool {

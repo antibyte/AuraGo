@@ -250,6 +250,14 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 			jsonErrorWithDetails(w, i18n.T(s.Cfg.Server.UILanguage, "backend.setup_failed_save_config"), err.Error(), http.StatusInternalServerError)
 			return
 		}
+		s.CfgMu.RLock()
+		runtimeSnapshot := s.Cfg.Runtime
+		s.CfgMu.RUnlock()
+		if managedDockerErr := validateManagedDockerBackends(managedDockerConfigFromRaw(rawCfg), runtimeSnapshot); managedDockerErr != nil {
+			s.Logger.Error("[Setup] Managed Docker backend unavailable — save rejected", "error", managedDockerErr)
+			jsonError(w, managedDockerErr.Error(), http.StatusBadRequest)
+			return
+		}
 
 		if err := config.WriteFileAtomic(configPath, out, 0o600); err != nil {
 			s.Logger.Error("[Setup] Failed to write config", "error", err)

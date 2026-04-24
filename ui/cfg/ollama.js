@@ -66,6 +66,9 @@ async function renderOllamaSection(section) {
 
     document.getElementById('content').innerHTML = html;
     attachChangeListeners();
+    if (typeof applyManagedDockerGuards === 'function') {
+        applyManagedDockerGuards('ollama');
+    }
 
     // Auto-check status
     ollamaManagedCheckStatus(managedEnabled);

@@ -751,6 +751,7 @@ async function renderSection(key) {
     // ── Embeddings: multimodal_format visibility depends on multimodal toggle ──
     if (key === 'embeddings') {
         _embeddingsBindMultimodal();
+        applyManagedDockerGuards('embeddings');
     }
 }
 
@@ -861,9 +862,59 @@ function featureUnavailableBanner(featureKey, options) {
     const fa = (runtimeData.features || {})[featureKey];
     if (!fa || fa.available) return '';
     const blocked = options && options.blocked;
+    return unavailableReasonBanner(fa.reason || t('config.feature_unavailable'), { blocked });
+}
+
+function unavailableReasonBanner(reason, options) {
+    if (!reason) return '';
+    const blocked = options && options.blocked;
     const cls = blocked ? 'feature-unavailable-banner fub-blocked' : 'feature-unavailable-banner';
     const icon = blocked ? '🚫' : '⚠️';
-    return '<div class="' + cls + '"><span class="fub-icon">' + icon + '</span><span>' + escapeHtml(fa.reason || t('config.feature_unavailable')) + '</span></div>';
+    return '<div class="' + cls + '"><span class="fub-icon">' + icon + '</span><span>' + escapeHtml(reason) + '</span></div>';
+}
+
+function managedDockerUnavailableReason() {
+    const dockerCfg = configData.docker || {};
+    if (dockerCfg.enabled !== true) {
+        return t('config.docker.managed_disabled_reason');
+    }
+    const dockerFeature = (runtimeData.features || {}).docker;
+    if (dockerFeature && dockerFeature.available === false) {
+        return dockerFeature.reason || t('config.docker.socket_missing_reason');
+    }
+    return '';
+}
+
+function applyManagedDockerToggleGuard(fullPath, reason) {
+    if (!reason) return;
+    const toggle = document.querySelector('[data-path="' + fullPath + '"]');
+    if (!toggle) return;
+
+    const group = toggle.closest('.field-group');
+    if (group && !group.previousElementSibling?.classList?.contains('managed-docker-unavailable-banner')) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'managed-docker-unavailable-banner';
+        wrapper.innerHTML = unavailableReasonBanner(reason, { blocked: true });
+        group.parentNode.insertBefore(wrapper, group);
+    }
+
+    if (toggle.classList.contains('on')) {
+        return;
+    }
+    toggle.classList.add('cfg-toggle-disabled');
+    toggle.removeAttribute('onclick');
+    toggle.setAttribute('title', reason);
+}
+
+function applyManagedDockerGuards(sectionKey) {
+    const reason = managedDockerUnavailableReason();
+    if (!reason) return;
+    if (sectionKey === 'embeddings') {
+        applyManagedDockerToggleGuard('embeddings.local_ollama.enabled', reason);
+    }
+    if (sectionKey === 'ollama') {
+        applyManagedDockerToggleGuard('ollama.managed_instance.enabled', reason);
+    }
 }
 
 /** Returns true if AuraGo is running inside a Docker container. */

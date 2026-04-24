@@ -145,6 +145,45 @@ func TestHandleUpdateConfigInvalidJSONIsGeneric(t *testing.T) {
 	}
 }
 
+func TestValidateManagedDockerBackendsRejectsLocalOllamaEmbeddingsWhenDockerDisabled(t *testing.T) {
+	var cfg config.Config
+	cfg.Embeddings.LocalOllama.Enabled = true
+
+	err := validateManagedDockerBackends(cfg, config.Runtime{})
+	if err == nil {
+		t.Fatal("expected local Ollama embeddings to require Docker")
+	}
+	if !strings.Contains(err.Error(), "Docker integration is disabled") {
+		t.Fatalf("error = %q, want Docker disabled explanation", err)
+	}
+}
+
+func TestValidateManagedDockerBackendsRejectsManagedOllamaWithoutSocketInDocker(t *testing.T) {
+	var cfg config.Config
+	cfg.Docker.Enabled = true
+	cfg.Ollama.ManagedInstance.Enabled = true
+
+	err := validateManagedDockerBackends(cfg, config.Runtime{IsDocker: true, DockerSocketOK: false})
+	if err == nil {
+		t.Fatal("expected managed Ollama to require Docker socket inside Docker")
+	}
+	if !strings.Contains(err.Error(), "/var/run/docker.sock") {
+		t.Fatalf("error = %q, want Docker socket explanation", err)
+	}
+}
+
+func TestValidateManagedDockerBackendsAllowsRemoteDockerHost(t *testing.T) {
+	var cfg config.Config
+	cfg.Docker.Enabled = true
+	cfg.Docker.Host = "tcp://docker.example.local:2375"
+	cfg.Ollama.ManagedInstance.Enabled = true
+	cfg.Embeddings.LocalOllama.Enabled = true
+
+	if err := validateManagedDockerBackends(cfg, config.Runtime{IsDocker: true, DockerSocketOK: false}); err != nil {
+		t.Fatalf("validateManagedDockerBackends() error = %v, want nil for remote Docker host", err)
+	}
+}
+
 func TestHandleGetConfigRemovesHelperOwnedLegacyLLMFields(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.yaml")

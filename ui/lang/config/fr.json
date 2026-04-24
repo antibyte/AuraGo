@@ -116,5 +116,7 @@
   "help.heartbeat.check_emails": "Vérifie les comptes e-mail configurés pour les nouveaux messages à chaque heartbeat.",
   "help.heartbeat.additional_prompt": "Instructions personnalisées que l'agent doit considérer à chaque réveil du heartbeat.",
   "help.heartbeat.day_time_window": "Période diurne avec son propre intervalle de vérification.",
-  "help.heartbeat.night_time_window": "Période nocturne avec son propre (généralement plus long) intervalle de vérification."
+  "help.heartbeat.night_time_window": "Période nocturne avec son propre (généralement plus long) intervalle de vérification.",
+  "config.docker.managed_disabled_reason": "L'integration Docker est desactivee. Activez Docker avant d'utiliser des conteneurs Ollama geres.",
+  "config.docker.socket_missing_reason": "Socket Docker introuvable. Montez /var/run/docker.sock ou configurez docker.host avant d'utiliser des conteneurs Ollama geres."
 }

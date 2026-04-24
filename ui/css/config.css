@@ -2264,6 +2264,13 @@ select.cfg-input option {
     user-select: none;
 }
 
+.cfg-toggle-disabled {
+    opacity: 0.45;
+    cursor: not-allowed !important;
+    pointer-events: none;
+    filter: grayscale(0.5);
+}
+
 /* ── Chromecast config section ─────────────────────── */
 .is-hidden {
     display: none !important;
