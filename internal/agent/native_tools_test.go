@@ -750,6 +750,21 @@ func TestBuildNativeToolSchemasSortsCustomToolsByName(t *testing.T) {
 	}
 }
 
+func TestBuildNativeToolSchemasReturnsGloballySortedTools(t *testing.T) {
+	schemas := BuildNativeToolSchemas(t.TempDir(), nil, allBuiltinToolFeatureFlags(), nil)
+	last := ""
+	for _, toolSchema := range schemas {
+		if toolSchema.Function == nil {
+			continue
+		}
+		name := toolSchema.Function.Name
+		if last != "" && name < last {
+			t.Fatalf("tool schemas are not sorted: %q came after %q", name, last)
+		}
+		last = name
+	}
+}
+
 func TestToolFeatureFlagsKeyChangesWhenFlagsChange(t *testing.T) {
 	base := ToolFeatureFlags{AllowShell: true, DockerEnabled: true}
 	same := ToolFeatureFlags{AllowShell: true, DockerEnabled: true}

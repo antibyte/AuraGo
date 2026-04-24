@@ -114,6 +114,29 @@ func TestOpenAIPromptCacheTransportAddsRequestShapeHint(t *testing.T) {
 	}
 }
 
+func TestShouldUseOpenAIPromptCacheKeyOnlyForOfficialOpenAI(t *testing.T) {
+	tests := []struct {
+		name         string
+		providerType string
+		baseURL      string
+		want         bool
+	}{
+		{name: "default OpenAI URL", providerType: "openai", baseURL: "https://api.openai.com/v1", want: true},
+		{name: "empty OpenAI URL uses SDK default", providerType: "openai", baseURL: "", want: true},
+		{name: "custom OpenAI-compatible URL", providerType: "openai", baseURL: "https://proxy.example.test/v1", want: false},
+		{name: "Cloudflare gateway URL", providerType: "openai", baseURL: "https://gateway.ai.cloudflare.com/v1/acct/gateway/openai", want: false},
+		{name: "OpenRouter provider", providerType: "openrouter", baseURL: "https://api.openai.com/v1", want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := shouldUseOpenAIPromptCacheKey(tt.providerType, tt.baseURL); got != tt.want {
+				t.Fatalf("shouldUseOpenAIPromptCacheKey(%q, %q) = %v, want %v", tt.providerType, tt.baseURL, got, tt.want)
+			}
+		})
+	}
+}
+
 func openAIPromptCacheKeyFromBodyForTest(t *testing.T, body []byte) string {
 	t.Helper()
 	var payload map[string]interface{}

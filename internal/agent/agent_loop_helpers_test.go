@@ -356,7 +356,12 @@ func TestAdaptiveFamilySeedsForQueryIncludesDocumentToolsForPDFRequests(t *testi
 }
 
 func TestCacheAwareAdaptiveAlwaysIncludeAddsIntentFamilyBundle(t *testing.T) {
-	got := cacheAwareAdaptiveAlwaysInclude("generate a short video with music", []string{"execute_shell"})
+	schemas := []openai.Tool{
+		makeTool("execute_shell"),
+		makeTool("generate_music"),
+		makeTool("generate_video"),
+	}
+	got := cacheAwareAdaptiveAlwaysInclude("generate a short video with music", []string{"execute_shell"}, schemas)
 	if !containsName(got, "execute_shell") {
 		t.Fatalf("expected existing always-include tool to remain, got %v", got)
 	}
@@ -365,6 +370,18 @@ func TestCacheAwareAdaptiveAlwaysIncludeAddsIntentFamilyBundle(t *testing.T) {
 	}
 	if !containsName(got, "generate_music") {
 		t.Fatalf("expected media family bundle to include generate_music, got %v", got)
+	}
+}
+
+func TestCacheAwareAdaptiveAlwaysIncludeSkipsUnavailableFamilySeeds(t *testing.T) {
+	got := cacheAwareAdaptiveAlwaysInclude("generate a short video with music", nil, []openai.Tool{
+		makeTool("generate_video"),
+	})
+	if !containsName(got, "generate_video") {
+		t.Fatalf("expected available media seed to be included, got %v", got)
+	}
+	if containsName(got, "generate_music") {
+		t.Fatalf("did not expect unavailable media seed to be included, got %v", got)
 	}
 }
 

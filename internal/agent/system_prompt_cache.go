@@ -15,6 +15,7 @@ type systemPromptCacheKey struct {
 	BudgetHint             string   `json:"budget_hint"`
 	EnabledTools           []string `json:"enabled_tools"`
 	FeatureToggles         []string `json:"feature_toggles"`
+	SkipIntegrationTools   []string `json:"skip_integration_tools"`
 	Tier                   string   `json:"tier"`
 	TokenBudget            int      `json:"token_budget"`
 	IsMission              bool     `json:"is_mission"`
@@ -67,6 +68,7 @@ func buildSystemPromptCacheKey(promptsDir string, flags *prompts.ContextFlags, c
 		BudgetHint:             budgetHint,
 		EnabledTools:           enabledTools,
 		FeatureToggles:         featureToggles,
+		SkipIntegrationTools:   sortedStringCopy(flags.SkipIntegrationTools),
 		Tier:                   flags.Tier,
 		TokenBudget:            flags.TokenBudget,
 		IsMission:              flags.IsMission,
@@ -104,6 +106,20 @@ func buildSystemPromptCacheKey(promptsDir string, flags *prompts.ContextFlags, c
 	}
 	sum := sha256.Sum256(b)
 	return hex.EncodeToString(sum[:]), nil
+}
+
+func sortedStringCopy(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		if value != "" {
+			out = append(out, value)
+		}
+	}
+	sort.Strings(out)
+	return out
 }
 
 func collectEnabledTools(flags *prompts.ContextFlags) []string {

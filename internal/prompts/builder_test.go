@@ -248,6 +248,39 @@ func TestBuildSystemPromptStablePrefixIgnoresVolatileSuffix(t *testing.T) {
 	}
 }
 
+func TestBuildSystemPromptKeepsIntegrationOverviewOutOfStablePrefix(t *testing.T) {
+	flagsA := ContextFlags{
+		Tier:                 "full",
+		SystemLanguage:       "en",
+		DockerEnabled:        true,
+		GitHubEnabled:        true,
+		SkipIntegrationTools: []string{"docker"},
+	}
+	flagsB := flagsA
+	flagsB.SkipIntegrationTools = []string{"github"}
+
+	promptA, _ := buildSystemPromptInner("", &flagsA, "", slog.Default())
+	promptB, _ := buildSystemPromptInner("", &flagsB, "", slog.Default())
+
+	prefixA, suffixA, okA := strings.Cut(promptA, "# TURN CONTEXT")
+	prefixB, suffixB, okB := strings.Cut(promptB, "# TURN CONTEXT")
+	if !okA || !okB {
+		t.Fatalf("expected # TURN CONTEXT marker in both prompts")
+	}
+	if prefixA != prefixB {
+		t.Fatalf("stable prefix changed when SkipIntegrationTools changed")
+	}
+	if strings.Contains(prefixA, "[ENABLED INTEGRATIONS]") {
+		t.Fatalf("integration overview leaked into stable prefix")
+	}
+	if !strings.Contains(suffixA, "[ENABLED INTEGRATIONS]") || !strings.Contains(suffixB, "[ENABLED INTEGRATIONS]") {
+		t.Fatalf("expected integration overview in volatile suffix")
+	}
+	if suffixA == suffixB {
+		t.Fatalf("expected volatile suffix to reflect changed SkipIntegrationTools")
+	}
+}
+
 func TestFallbackSystemPromptIncludesEmbeddedSafetyRules(t *testing.T) {
 	flags := ContextFlags{SystemLanguage: "en"}
 

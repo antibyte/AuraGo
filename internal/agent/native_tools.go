@@ -483,6 +483,10 @@ func BuildNativeToolSchemas(skillsDir string, manifest *tools.Manifest, ff ToolF
 		}
 	}
 
+	sort.SliceStable(allTools, func(i, j int) bool {
+		return nativeToolSortName(allTools[i]) < nativeToolSortName(allTools[j])
+	})
+
 	// Inject _todo property into every tool schema so the agent can piggyback
 	// a session-scoped task list on each tool call.
 	//
@@ -535,6 +539,13 @@ func BuildNativeToolSchemas(skillsDir string, manifest *tools.Manifest, ff ToolF
 	}
 
 	return allTools
+}
+
+func nativeToolSortName(schema openai.Tool) string {
+	if schema.Function == nil {
+		return ""
+	}
+	return schema.Function.Name
 }
 
 func containsRequiredString(items []string, target string) bool {

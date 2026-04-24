@@ -293,7 +293,7 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 			if ff.ImageGenerationEnabled {
 				alwaysInclude = append(alwaysInclude, "generate_image")
 			}
-			alwaysInclude = cacheAwareAdaptiveAlwaysInclude(adaptiveUserContext, alwaysInclude)
+			alwaysInclude = cacheAwareAdaptiveAlwaysInclude(adaptiveUserContext, alwaysInclude, ntSchemas)
 			// Re-include every tool that was actually called in this conversation so the
 			// model can continue using tools it already relied on (Option 3: session context).
 			for tool := range sessionUsedTools {

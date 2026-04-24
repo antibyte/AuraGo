@@ -78,6 +78,11 @@ func TestBuildSystemPromptCacheKey_DifferentFlags(t *testing.T) {
 			wantNewKey: true,
 		},
 		{
+			name:       "SkipIntegrationTools changes cache key",
+			modify:     func(f *prompts.ContextFlags) { f.SkipIntegrationTools = []string{"docker"} },
+			wantNewKey: true,
+		},
+		{
 			name:       "WebhooksDefinitions changes cache key",
 			modify:     func(f *prompts.ContextFlags) { f.WebhooksDefinitions = "webhook1, webhook2" },
 			wantNewKey: true,
@@ -104,5 +109,28 @@ func TestBuildSystemPromptCacheKey_DifferentFlags(t *testing.T) {
 				t.Errorf("expected cache key to stay the same but it changed")
 			}
 		})
+	}
+}
+
+func TestBuildSystemPromptCacheKey_SkipIntegrationToolsOrderInsensitive(t *testing.T) {
+	flagsA := prompts.ContextFlags{
+		Tier:                 "full",
+		SkipIntegrationTools: []string{"github", "docker"},
+	}
+	flagsB := prompts.ContextFlags{
+		Tier:                 "full",
+		SkipIntegrationTools: []string{"docker", "github"},
+	}
+
+	keyA, err := buildSystemPromptCacheKey("/prompts", &flagsA, "", "")
+	if err != nil {
+		t.Fatalf("build key A: %v", err)
+	}
+	keyB, err := buildSystemPromptCacheKey("/prompts", &flagsB, "", "")
+	if err != nil {
+		t.Fatalf("build key B: %v", err)
+	}
+	if keyA != keyB {
+		t.Fatalf("expected SkipIntegrationTools order-insensitive cache key")
 	}
 }

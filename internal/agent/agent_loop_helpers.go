@@ -531,14 +531,26 @@ func adaptiveFamilySeedsForQuery(userQuery string) []string {
 	return adaptiveFamilySeedTools[family]
 }
 
-func cacheAwareAdaptiveAlwaysInclude(userQuery string, alwaysInclude []string) []string {
+func cacheAwareAdaptiveAlwaysInclude(userQuery string, alwaysInclude []string, schemas []openai.Tool) []string {
 	seeds := adaptiveFamilySeedsForQuery(userQuery)
 	if len(seeds) == 0 {
 		return alwaysInclude
 	}
+
+	available := make(map[string]bool, len(schemas))
+	for _, schema := range schemas {
+		if schema.Function != nil && schema.Function.Name != "" {
+			available[schema.Function.Name] = true
+		}
+	}
+
 	out := make([]string, 0, len(alwaysInclude)+len(seeds))
 	out = append(out, alwaysInclude...)
-	out = append(out, seeds...)
+	for _, seed := range seeds {
+		if available[seed] {
+			out = append(out, seed)
+		}
+	}
 	return out
 }
 

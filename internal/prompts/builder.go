@@ -530,13 +530,6 @@ func buildSystemPromptInner(promptsDir string, flags *ContextFlags, coreMemory s
 		finalPrompt.WriteString("\n\n")
 	}
 
-	// Compact enabled integrations overview (one-liner). This is configuration-derived,
-	// so keep it in the stable prefix for provider-side prompt caching.
-	if overview := buildEnabledToolsOverview(flags); overview != "" {
-		finalPrompt.WriteString(overview)
-		finalPrompt.WriteString("\n\n")
-	}
-
 	posBeforePersonality := finalPrompt.Len()
 	if !flags.IsMission && corePersonalityContent != "" {
 		finalPrompt.WriteString("# YOUR PERSONALITY (ACTIVE PROFILE: " + strings.ToUpper(flags.CorePersonality) + ")\n")
@@ -640,6 +633,14 @@ func buildSystemPromptInner(promptsDir string, flags *ContextFlags, coreMemory s
 	// System Status
 	if flags.ActiveProcesses != "" && flags.ActiveProcesses != "None" {
 		finalPrompt.WriteString(fmt.Sprintf("[ACTIVE DAEMONS] %s\n\n", flags.ActiveProcesses))
+	}
+
+	// Compact enabled integrations overview (one-liner). It depends on
+	// SkipIntegrationTools, which can change after adaptive tool filtering, so it
+	// must stay in the volatile turn context instead of the provider-cache prefix.
+	if overview := buildEnabledToolsOverview(flags); overview != "" {
+		finalPrompt.WriteString(overview)
+		finalPrompt.WriteString("\n\n")
 	}
 
 	// Dynamic Tool Guides — only in full tier

@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"aurago/internal/config"
@@ -142,7 +143,7 @@ func NewClient(cfg *config.Config) *openai.Client {
 
 	if isLoopbackHTTPS(cfg.LLM.BaseURL) {
 		clientConfig.HTTPClient = &http.Client{Transport: loopbackHTTPSTransport()}
-	} else if httpClient := buildLLMHTTPClient(cfg, providerType, aiGatewayToken); httpClient != nil {
+	} else if httpClient := buildLLMHTTPClient(cfg, providerType, aiGatewayToken, clientConfig.BaseURL); httpClient != nil {
 		clientConfig.HTTPClient = httpClient
 	}
 
@@ -220,14 +221,14 @@ func NewClientFromProviderDetails(providerType, baseURL, apiKey, accountID strin
 
 	if isLoopbackHTTPS(baseURL) {
 		clientConfig.HTTPClient = &http.Client{Transport: loopbackHTTPSTransport()}
-	} else if httpClient := buildLLMHTTPClient(nil, pt, ""); httpClient != nil {
+	} else if httpClient := buildLLMHTTPClient(nil, pt, "", clientConfig.BaseURL); httpClient != nil {
 		clientConfig.HTTPClient = httpClient
 	}
 
 	return openai.NewClientWithConfig(clientConfig)
 }
 
-func buildLLMHTTPClient(cfg *config.Config, providerType, aiGatewayToken string) *http.Client {
+func buildLLMHTTPClient(cfg *config.Config, providerType, aiGatewayToken, baseURL string) *http.Client {
 	transport := http.RoundTripper(http.DefaultTransport)
 	hasCustomTransport := false
 
@@ -241,7 +242,7 @@ func buildLLMHTTPClient(cfg *config.Config, providerType, aiGatewayToken string)
 		hasCustomTransport = true
 	}
 
-	if providerType == "openai" {
+	if shouldUseOpenAIPromptCacheKey(providerType, baseURL) {
 		transport = &openAIPromptCacheTransport{base: transport}
 		hasCustomTransport = true
 	}
@@ -264,6 +265,25 @@ func buildLLMHTTPClient(cfg *config.Config, providerType, aiGatewayToken string)
 	}
 
 	return &http.Client{Transport: transport}
+}
+
+func shouldUseOpenAIPromptCacheKey(providerType, baseURL string) bool {
+	if providerType != "openai" {
+		return false
+	}
+	return isOfficialOpenAIBaseURL(baseURL)
+}
+
+func isOfficialOpenAIBaseURL(rawURL string) bool {
+	rawURL = strings.TrimSpace(rawURL)
+	if rawURL == "" {
+		return true
+	}
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return false
+	}
+	return strings.EqualFold(parsed.Hostname(), "api.openai.com")
 }
 
 // aiGatewaySegment maps a provider type to the Cloudflare AI Gateway URL segment.
