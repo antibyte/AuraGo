@@ -107,6 +107,7 @@
                     <div class="plan-quick-header" id="plan-quick-header">
                         <!-- Icon + name filled by JS -->
                     </div>
+                    <div class="setup-embedding-warning is-hidden" id="quick-embedding-warning" data-i18n="setup.plan_embedding_warning">This plan does not use OpenRouter. Please make sure an embedding model is configured; AuraGo cannot reach its full capabilities without embeddings.</div>
                     <p class="section-desc" data-i18n="setup.plan_quick_description">Enter your API key and admin password. Everything else is pre-configured.</p>
                 </div>
 
@@ -242,6 +243,7 @@
                         <option value="custom" data-i18n="setup.step0_provider_custom">Custom / Other</option>
                     </select>
                     <div id="hint-provider" class="field-hint" data-i18n="setup.step0_provider_hint">OpenRouter recommended — offers many models including free options.</div>
+                    <div id="provider-embedding-warning" class="setup-embedding-warning is-hidden" data-i18n="setup.provider_embedding_warning">For providers other than OpenRouter, choose and verify an embedding model in the next setup step. AuraGo cannot reach its full capabilities without embeddings.</div>
                 </div>
 
                 <div class="field-group" id="group-api-key">

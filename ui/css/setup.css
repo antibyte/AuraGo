@@ -262,6 +262,27 @@
             color: var(--warning);
         }
 
+        .setup-embedding-warning {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+            padding: 0.75rem 0.85rem;
+            border: 1px solid rgba(245, 158, 11, 0.32);
+            border-radius: 10px;
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--text-primary);
+            font-size: var(--text-xs);
+            line-height: 1.45;
+        }
+
+        .setup-embedding-warning::before {
+            content: '⚠';
+            flex: 0 0 auto;
+            color: var(--warning, #f59e0b);
+            font-weight: 700;
+        }
+
         .setup-inline-actions {
             display: flex;
             align-items: center;

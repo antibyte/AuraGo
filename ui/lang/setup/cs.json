@@ -192,5 +192,7 @@
   "setup.success_restart_notice": "⚠️ Restart se doporučuje, aby se všechny změny projevily.",
   "setup.success_title": "Nastavení dokončeno!",
   "setup.toast_config_saved": "Konfigurace uložena!",
-  "setup.toast_error_prefix": "Chyba: "
+  "setup.toast_error_prefix": "Chyba: ",
+  "setup.plan_embedding_warning": "Tento plán nepoužívá OpenRouter. Ujistěte se prosím, že je nakonfigurován model embeddings; AuraGo bez embeddings nedosáhne svých plných schopností.",
+  "setup.provider_embedding_warning": "U jiných poskytovatelů než OpenRouter vyberte a ověřte model embeddings v dalším kroku nastavení. AuraGo bez embeddings nedosáhne svých plných schopností."
 }

@@ -9,7 +9,9 @@
   "setup.feature_websearch": "検索",
   "setup.header_subtitle": "クイックセットアップ",
   "setup.https_warning": "暗号化されていないHTTP接続を使用しています。APIキーが安全でない方法で送信される可能性があります。",
-  "setup.language_cs": "Čeština",  "setup.language_custom": "カスタム",  "setup.language_da": "Dansk",
+  "setup.language_cs": "Čeština",
+  "setup.language_custom": "カスタム",
+  "setup.language_da": "Dansk",
   "setup.language_de": "Deutsch",
   "setup.language_el": "Ελληνικά",
   "setup.language_en": "English",
@@ -190,5 +192,7 @@
   "setup.success_restart_notice": "⚠️ すべての変更を有効にするには再起動が推奨されます。",
   "setup.success_title": "セットアップ完了！",
   "setup.toast_config_saved": "設定が保存されました！",
-  "setup.toast_error_prefix": "エラー: "
+  "setup.toast_error_prefix": "エラー: ",
+  "setup.plan_embedding_warning": "このプランはOpenRouterを使用しません。embeddingモデルが設定されていることを必ず確認してください。embeddingsなしではAuraGoは本来の性能を発揮できません。",
+  "setup.provider_embedding_warning": "OpenRouter以外のプロバイダーでは、次のセットアップ手順でembeddingモデルを選択して確認してください。embeddingsなしではAuraGoは本来の性能を発揮できません。"
 }

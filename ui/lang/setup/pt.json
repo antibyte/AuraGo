@@ -192,5 +192,7 @@
   "setup.success_restart_notice": "⚠️ Um reinício é recomendado para que todas as alterações tenham efeito.",
   "setup.success_title": "Configuração completa!",
   "setup.toast_config_saved": "Configuração salva!",
-  "setup.toast_error_prefix": "Erro: "
+  "setup.toast_error_prefix": "Erro: ",
+  "setup.plan_embedding_warning": "Este plano não usa OpenRouter. Verifique se um modelo de embeddings está configurado; sem embeddings, o AuraGo não alcança todo o seu potencial.",
+  "setup.provider_embedding_warning": "Para provedores diferentes do OpenRouter, escolha e verifique um modelo de embeddings na próxima etapa da configuração. Sem embeddings, o AuraGo não alcança todo o seu potencial."
 }

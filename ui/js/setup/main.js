@@ -271,6 +271,7 @@ function updateQuickProfileUI() {
     if (minimaxOptions) {
         setupSetHidden(minimaxOptions, !isMiniMaxQuickProfile(selectedProfile));
     }
+    updateEmbeddingSetupWarnings();
     if (!selectedProfile || selectedProfile.id === 'custom') return;
 
     const runtime = getQuickProfileRuntimeConfig(selectedProfile);
@@ -790,7 +791,22 @@ function onProviderChange() {
         setupSetHidden(orBrowseBtn, provider !== 'openrouter');
     }
 
+    updateEmbeddingSetupWarnings();
     syncHelperModelSuggestion();
+}
+
+function updateEmbeddingSetupWarnings() {
+    const quickWarning = document.getElementById('quick-embedding-warning');
+    if (quickWarning) {
+        const quickProvider = selectedProfile && selectedProfile.provider_type ? selectedProfile.provider_type : '';
+        setupSetHidden(quickWarning, !quickProvider || quickProvider === 'openrouter' || selectedProfile.id === 'custom');
+    }
+
+    const providerWarning = document.getElementById('provider-embedding-warning');
+    const provider = (document.getElementById('llm-provider') || {}).value || '';
+    if (providerWarning) {
+        setupSetHidden(providerWarning, !provider || provider === 'openrouter');
+    }
 }
 
 // ── Whisper Provider Change Handler ─────────

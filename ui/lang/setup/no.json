@@ -192,5 +192,7 @@
   "setup.success_restart_notice": "⚠️ En omstart anbefales slik at alle endringer trer i kraft.",
   "setup.success_title": "Oppsett fullført!",
   "setup.toast_config_saved": "Konfigurasjon lagret!",
-  "setup.toast_error_prefix": "Feil: "
+  "setup.toast_error_prefix": "Feil: ",
+  "setup.plan_embedding_warning": "Denne planen bruker ikke OpenRouter. Sørg for at en embeddingmodell er konfigurert; AuraGo kan ikke nå full kapasitet uten embeddings.",
+  "setup.provider_embedding_warning": "For andre leverandører enn OpenRouter bør du velge og kontrollere en embeddingmodell i neste oppsettsteg. AuraGo kan ikke nå full kapasitet uten embeddings."
 }

@@ -192,5 +192,7 @@
   "setup.success_restart_notice": "⚠️ 建议重启以使所有更改生效。",
   "setup.success_title": "设置完成！",
   "setup.toast_config_saved": "配置已保存！",
-  "setup.toast_error_prefix": "错误："
+  "setup.toast_error_prefix": "错误：",
+  "setup.plan_embedding_warning": "此方案不使用 OpenRouter。请确保已配置嵌入模型；没有 embeddings，AuraGo 无法发挥完整能力。",
+  "setup.provider_embedding_warning": "对于 OpenRouter 以外的提供商，请在下一步设置中选择并验证嵌入模型。没有 embeddings，AuraGo 无法发挥完整能力。"
 }

@@ -192,5 +192,7 @@
   "setup.success_restart_notice": "⚠️ सभी परिवर्तनों को प्रभावी करने के लिए पुनरारंभ की अनुशंसा की जाती है।",
   "setup.success_title": "सेटअप पूरा हुआ!",
   "setup.toast_config_saved": "कॉन्फ़िगरेशन सहेजा गया!",
-  "setup.toast_error_prefix": "त्रुटि: "
+  "setup.toast_error_prefix": "त्रुटि: ",
+  "setup.plan_embedding_warning": "यह प्लान OpenRouter का उपयोग नहीं करता। कृपया सुनिश्चित करें कि कोई embedding मॉडल कॉन्फ़िगर है; embeddings के बिना AuraGo अपनी पूरी क्षमता तक नहीं पहुँच सकता।",
+  "setup.provider_embedding_warning": "OpenRouter के अलावा अन्य providers के लिए, अगले setup चरण में कोई embedding मॉडल चुनें और जाँचें। embeddings के बिना AuraGo अपनी पूरी क्षमता तक नहीं पहुँच सकता।"
 }

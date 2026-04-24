@@ -192,5 +192,7 @@
   "setup.success_restart_notice": "⚠️ Συνιστάται επανεκκίνηση για να τεθούν σε ισχύ όλες οι αλλαγές.",
   "setup.success_title": "Η ρύθμιση ολοκληρώθηκε!",
   "setup.toast_config_saved": "Οι ρυθμίσεις αποθηκεύτηκαν!",
-  "setup.toast_error_prefix": "Σφάλμα: "
+  "setup.toast_error_prefix": "Σφάλμα: ",
+  "setup.plan_embedding_warning": "Αυτό το πλάνο δεν χρησιμοποιεί OpenRouter. Βεβαιωθείτε ότι έχει ρυθμιστεί μοντέλο embeddings· το AuraGo δεν μπορεί να φτάσει την πλήρη απόδοσή του χωρίς embeddings.",
+  "setup.provider_embedding_warning": "Για παρόχους εκτός OpenRouter, επιλέξτε και ελέγξτε ένα μοντέλο embeddings στο επόμενο βήμα ρύθμισης. Το AuraGo δεν μπορεί να φτάσει την πλήρη απόδοσή του χωρίς embeddings."
 }
