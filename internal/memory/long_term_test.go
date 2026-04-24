@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"aurago/internal/config"
+
 	chromem "github.com/philippgille/chromem-go"
 )
 
@@ -84,6 +86,33 @@ func TestQueryCacheEntry(t *testing.T) {
 
 	if time.Since(entry.timestamp) > time.Second {
 		t.Error("timestamp should be recent")
+	}
+}
+
+func TestIsLocalEmbeddingProvider(t *testing.T) {
+	cloudCfg := config.Config{}
+	cloudCfg.Embeddings.ProviderType = "openrouter"
+	cloudCfg.Embeddings.BaseURL = "https://openrouter.ai/api/v1"
+
+	ollamaCfg := config.Config{}
+	ollamaCfg.Embeddings.ProviderType = "ollama"
+	ollamaCfg.Embeddings.BaseURL = "http://127.0.0.1:11435/v1"
+
+	tests := []struct {
+		name string
+		cfg  config.Config
+		want bool
+	}{
+		{name: "openrouter cloud provider is not local", cfg: cloudCfg, want: false},
+		{name: "ollama provider type is local", cfg: ollamaCfg, want: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := isLocalEmbeddingProvider(&tt.cfg); got != tt.want {
+				t.Fatalf("isLocalEmbeddingProvider() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
 

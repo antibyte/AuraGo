@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"sort"
 	"strconv"
 	"strings"
@@ -171,6 +172,7 @@ func NewChromemVectorDB(cfg *config.Config, logger *slog.Logger) (*ChromemVector
 	// Dynamic embedding function factory using chromem-go's native constructors
 	var embeddingFunc chromem.EmbeddingFunc
 	provider := cfg.Embeddings.Provider
+	localEmbeddingProvider := isLocalEmbeddingProvider(cfg)
 
 	if provider == "disabled" || provider == "" {
 		// Explicit opt-out via config — use a no-op func; disabled flag is set below.
@@ -265,7 +267,7 @@ func NewChromemVectorDB(cfg *config.Config, logger *slog.Logger) (*ChromemVector
 			} else {
 				latency := time.Since(validationStart)
 				logger.Info("Embedding pipeline validated", "vector_dimensions", len(vec), "provider", provider, "docs", collection.Count(), "latency", latency)
-				if latency > 500*time.Millisecond {
+				if localEmbeddingProvider && latency > 500*time.Millisecond {
 					logger.Warn("Local embeddings are slow. Consider enabling GPU passthrough (use_host_gpu) or using a cloud provider.", "latency", latency)
 				}
 			}
@@ -273,6 +275,30 @@ func NewChromemVectorDB(cfg *config.Config, logger *slog.Logger) (*ChromemVector
 	}
 
 	return vdb, nil
+}
+
+func isLocalEmbeddingProvider(cfg *config.Config) bool {
+	if cfg == nil {
+		return false
+	}
+	providerType := strings.ToLower(strings.TrimSpace(cfg.Embeddings.ProviderType))
+	if providerType == "ollama" {
+		return true
+	}
+	if cfg.Embeddings.LocalOllama.Enabled {
+		return true
+	}
+
+	rawURL := strings.TrimSpace(cfg.Embeddings.BaseURL)
+	if rawURL == "" {
+		rawURL = strings.TrimSpace(cfg.Embeddings.ExternalURL)
+	}
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return false
+	}
+	host := strings.ToLower(parsed.Hostname())
+	return host == "localhost" || host == "127.0.0.1" || host == "::1" || host == "ollama"
 }
 
 // validateEmbeddingWithRetry attempts to validate the embedding pipeline up to maxRetries times

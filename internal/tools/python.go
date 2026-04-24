@@ -262,9 +262,9 @@ func createVenv(workspaceDir string, logger *slog.Logger) error {
 }
 
 // validPackageName matches pip-safe package name specifiers.
-// Allows: name, name[extra], name>=1.0, name==1.0.0, etc.
+// Allows: name, name[extra], name[extra-with-dash], name>=1.0, name==1.0.0, etc.
 // Blocks: paths, flags (--index-url), shell metacharacters.
-var validPackageName = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._\-]*(\[[\w,\s]+\])?([\s]*(==|!=|<=|>=|<|>|~=)[^\s;]+)?$`)
+var validPackageName = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9._\-]*(\[[a-zA-Z0-9._\-,\s]+\])?([\s]*(==|!=|<=|>=|<|>|~=)[^\s;]+)?$`)
 
 // InstallPackage installs a Python package using the virtual environment's pip.
 // Uses pipInstallTimeout for downloads and compilation.

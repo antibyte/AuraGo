@@ -73,6 +73,37 @@ func TestWriteScript_AtMaxSize(t *testing.T) {
 	}
 }
 
+func TestValidPackageNameAcceptsExtrasWithHyphen(t *testing.T) {
+	valid := []string{
+		"llm-sandbox[mcp-docker]",
+		"llm-sandbox[mcp-podman]",
+		"package[extra_one,extra-two]>=1.2.3",
+	}
+	for _, pkg := range valid {
+		t.Run(pkg, func(t *testing.T) {
+			if !validPackageName.MatchString(pkg) {
+				t.Fatalf("expected package specifier %q to be accepted", pkg)
+			}
+		})
+	}
+}
+
+func TestValidPackageNameRejectsUnsafeSpecifiers(t *testing.T) {
+	invalid := []string{
+		"--index-url=https://example.invalid package",
+		"../package",
+		"package; rm -rf /",
+		"package[extra]; echo bad",
+	}
+	for _, pkg := range invalid {
+		t.Run(pkg, func(t *testing.T) {
+			if validPackageName.MatchString(pkg) {
+				t.Fatalf("expected package specifier %q to be rejected", pkg)
+			}
+		})
+	}
+}
+
 func TestSandboxExecuteCode_ManagerNil(t *testing.T) {
 	// Ensure the package-level shorthand returns a descriptive error when no manager is set.
 	// Temporarily clear the global manager.
