@@ -353,14 +353,14 @@ func (kg *KnowledgeGraph) GetCollectionFileSyncStats(collection string) (*KGColl
 		AND json_extract(properties, '$.collection') = ?
 	`, collection).Scan(&stats.FileCount)
 
-	var lastSync string
+	var lastSync sql.NullString
 	err := kg.db.QueryRow(`
 		SELECT MAX(json_extract(properties, '$.extracted_at')) FROM kg_nodes
 		WHERE json_extract(properties, '$.source') = 'file_sync'
 		AND json_extract(properties, '$.collection') = ?
 	`, collection).Scan(&lastSync)
-	if err == nil && lastSync != "" {
-		if t, err := time.Parse("2006-01-02", lastSync); err == nil {
+	if err == nil && lastSync.Valid && lastSync.String != "" {
+		if t, err := time.Parse("2006-01-02", lastSync.String); err == nil {
 			stats.LastSyncAt = &t
 		}
 	}
@@ -369,7 +369,7 @@ func (kg *KnowledgeGraph) GetCollectionFileSyncStats(collection string) (*KGColl
 }
 
 func (kg *KnowledgeGraph) GetLastFileSyncTime(collection string) (*time.Time, error) {
-	var lastSync string
+	var lastSync sql.NullString
 	var query string
 	var args []interface{}
 
@@ -381,11 +381,14 @@ func (kg *KnowledgeGraph) GetLastFileSyncTime(collection string) (*time.Time, er
 	}
 
 	err := kg.db.QueryRow(query, args...).Scan(&lastSync)
-	if err != nil || lastSync == "" {
+	if err != nil {
 		return nil, err
 	}
+	if !lastSync.Valid || lastSync.String == "" {
+		return nil, nil
+	}
 
-	t, err := time.Parse("2006-01-02", lastSync)
+	t, err := time.Parse("2006-01-02", lastSync.String)
 	if err != nil {
 		return nil, fmt.Errorf("parse last sync time: %w", err)
 	}

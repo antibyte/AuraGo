@@ -271,6 +271,13 @@ func applyPersonalityV2AnalysisResult(
 }
 
 func normalizeHelperTurnPersonalityResult(payload helperTurnPersonalityBlock, meta memory.PersonalityMeta) (personalityV2AnalysisResult, bool) {
+	if strings.TrimSpace(payload.MoodAnalysis.UserSentiment) == "" {
+		payload.MoodAnalysis.UserSentiment = "neutral"
+	}
+	if strings.TrimSpace(payload.MoodAnalysis.AgentMood) == "" {
+		payload.MoodAnalysis.AgentMood = string(memory.MoodFocused)
+	}
+
 	mood, affinityDelta, traitDeltas, profileUpdates, ok := memory.NormalizeHelperMoodAnalysis(
 		payload.MoodAnalysis.UserSentiment,
 		payload.MoodAnalysis.AgentMood,

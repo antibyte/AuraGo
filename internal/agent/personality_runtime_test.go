@@ -65,6 +65,19 @@ func TestResolvePersonalityAnalyzerClientPrefersHelperLLM(t *testing.T) {
 	}
 }
 
+func TestNormalizeHelperTurnPersonalityResultDefaultsMissingOptionalMoodFields(t *testing.T) {
+	got, ok := normalizeHelperTurnPersonalityResult(helperTurnPersonalityBlock{}, memory.PersonalityMeta{})
+	if !ok {
+		t.Fatal("normalizeHelperTurnPersonalityResult() rejected missing helper mood fields, want neutral defaults")
+	}
+	if got.Mood != memory.MoodFocused {
+		t.Fatalf("Mood = %q, want %q", got.Mood, memory.MoodFocused)
+	}
+	if got.AffinityDelta != 0 {
+		t.Fatalf("AffinityDelta = %v, want 0", got.AffinityDelta)
+	}
+}
+
 func TestApplyPersonalityV2AnalysisResultPersistsPrecomputedBatch(t *testing.T) {
 	stm := newTestPersonalityRuntimeMemory(t)
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))

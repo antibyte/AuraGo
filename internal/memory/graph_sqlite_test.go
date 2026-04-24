@@ -1229,3 +1229,37 @@ func TestKGGetSourceFilesByNodeID_Limit(t *testing.T) {
 		t.Errorf("expected 1 file due to limit, got %d", len(files))
 	}
 }
+
+func TestKGFileSyncTimestampsHandleMissingExtractedAt(t *testing.T) {
+	kg := newTestKG(t)
+
+	_ = kg.AddNode("file_entity", "File Entity", map[string]string{
+		"source":      "file_sync",
+		"collection":  "file_index",
+		"source_file": "/docs/manual.pdf",
+	})
+
+	globalLastSync, err := kg.GetLastFileSyncTime("")
+	if err != nil {
+		t.Fatalf("GetLastFileSyncTime global returned error for missing extracted_at: %v", err)
+	}
+	if globalLastSync != nil {
+		t.Fatalf("global last sync = %v, want nil", globalLastSync)
+	}
+
+	collectionLastSync, err := kg.GetLastFileSyncTime("file_index")
+	if err != nil {
+		t.Fatalf("GetLastFileSyncTime collection returned error for missing extracted_at: %v", err)
+	}
+	if collectionLastSync != nil {
+		t.Fatalf("collection last sync = %v, want nil", collectionLastSync)
+	}
+
+	stats, err := kg.GetCollectionFileSyncStats("file_index")
+	if err != nil {
+		t.Fatalf("GetCollectionFileSyncStats returned error for missing extracted_at: %v", err)
+	}
+	if stats.LastSyncAt != nil {
+		t.Fatalf("stats.LastSyncAt = %v, want nil", stats.LastSyncAt)
+	}
+}
