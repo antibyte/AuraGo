@@ -24,6 +24,7 @@ const TOOL_ICONS = {
     cloudflare_tunnel: '\u2601\ufe0f', fetch_email: '\ud83d\udce7', send_email: '\ud83d\udce7',
     list_email_accounts: '\ud83d\udce7', firewall: '\ud83e\uddf1', ansible: '\ud83d\udd27',
     invasion_control: '\ud83e\udd5a', github: '\ud83d\udc19', generate_image: '\ud83c\udfa8',
+    generate_video: '\ud83c\udfac', send_video: '\ud83c\udfac',
     mqtt_publish: '\ud83d\udce1', mqtt_subscribe: '\ud83d\udce1', mqtt_unsubscribe: '\ud83d\udce1',
     mqtt_get_messages: '\ud83d\udce1', mcp_call: '\ud83d\udd0c', adguard: '\ud83d\udee1\ufe0f',
     google_workspace: '\ud83d\udcca', remote_control: '\ud83c\udfae', media_registry: '\ud83c\udfac',
@@ -313,6 +314,15 @@ function handleSSEMessage(e) {
                         chatContent.appendChild(row);
                         chatBox.scrollTop = chatBox.scrollHeight;
                     }
+                }
+            } catch (e) { }
+            return;
+        } else if (data.event === 'video') {
+            try {
+                const videoData = JSON.parse(data.detail);
+                if (videoData && videoData.path && !seenSSEVideos.has(videoData.path)) {
+                    seenSSEVideos.add(videoData.path);
+                    appendVideoMessage(videoData);
                 }
             } catch (e) { }
             return;

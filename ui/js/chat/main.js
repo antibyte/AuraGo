@@ -310,6 +310,7 @@ let _httpResponseRendered = false;
 // SSE 'done' handler can recover the response once the agent finishes.
 let _fetchConnectionLost = false;
 let seenSSEAudios = new Set();
+let seenSSEVideos = new Set();
 let seenSSEDocuments = new Set();
 let currentPlanState = null;
 
@@ -940,6 +941,7 @@ async function handleOutgoingMessage(inputMessage, displayMessageOverride = '') 
         _httpResponseRendered = true;
         seenSSEImages.clear(); // reset after final response is rendered
         seenSSEAudios.clear();
+        seenSSEVideos.clear();
         seenSSEDocuments.clear();
         conversation.push(assistantMessage);
         // Cap to last 200 messages to prevent unbounded memory growth

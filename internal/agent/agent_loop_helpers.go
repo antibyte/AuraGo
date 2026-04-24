@@ -188,13 +188,13 @@ var adaptiveFamilySeedTools = map[string][]string{
 		"docker", "proxmox", "tailscale", "github", "ansible", "remote_execution",
 	},
 	"communication": {
-		"fetch_email", "send_email", "send_document", "send_audio",
+		"fetch_email", "send_email", "send_document", "send_audio", "send_video",
 	},
 	"automation": {
 		"cron_scheduler", "follow_up", "manage_missions", "co_agent",
 	},
 	"media": {
-		"media_registry", "media_conversion", "send_document", "send_audio", "send_image", "tts",
+		"media_registry", "media_conversion", "send_document", "send_audio", "send_video", "send_image", "tts",
 		"transcribe_audio", "generate_image", "generate_music", "generate_video", "chromecast",
 	},
 }
@@ -225,14 +225,15 @@ var adaptiveToolNeighbors = map[string][]string{
 
 	// Media & Documents
 	"document_creator": {"media_registry", "media_conversion", "send_document", "filesystem"},
-	"media_registry":   {"document_creator", "media_conversion", "send_document", "filesystem", "generate_image", "generate_video", "send_image", "tts", "send_audio", "generate_music"},
-	"media_conversion": {"media_registry", "document_creator", "image_processing", "transcribe_audio", "send_audio", "send_image", "filesystem"},
+	"media_registry":   {"document_creator", "media_conversion", "send_document", "filesystem", "generate_image", "generate_video", "send_image", "send_video", "tts", "send_audio", "generate_music"},
+	"media_conversion": {"media_registry", "document_creator", "image_processing", "transcribe_audio", "send_audio", "send_video", "send_image", "filesystem"},
 	"send_document":    {"media_registry", "document_creator"},
 	"send_image":       {"media_registry", "generate_image"},
 	"send_audio":       {"media_registry", "tts", "generate_music"},
+	"send_video":       {"media_registry", "generate_video", "media_conversion"},
 	"generate_image":   {"media_registry", "send_image", "analyze_image"},
 	"generate_music":   {"media_registry", "send_audio", "tts"},
-	"generate_video":   {"media_registry", "media_conversion", "send_document"},
+	"generate_video":   {"media_registry", "media_conversion", "send_video"},
 	"analyze_image":    {"generate_image", "media_registry"},
 	"tts":              {"media_registry", "send_audio"},
 	"transcribe_audio": {"filesystem", "media_registry"},
@@ -848,6 +849,48 @@ func emitMediaSSEEvents(broker FeedbackBroker, action, resultContent string, dat
 				"filename":  audioRes.Filename,
 			})
 			broker.Send("audio", string(evtPayload))
+		}
+	case "send_video":
+		var videoRes struct {
+			Status   string `json:"status"`
+			WebPath  string `json:"web_path"`
+			Title    string `json:"title"`
+			MimeType string `json:"mime_type"`
+			Filename string `json:"filename"`
+			Format   string `json:"format"`
+		}
+		if json.Unmarshal([]byte(raw), &videoRes) == nil && videoRes.Status == "success" {
+			evtPayload, _ := json.Marshal(map[string]string{
+				"path":      videoRes.WebPath,
+				"title":     videoRes.Title,
+				"mime_type": videoRes.MimeType,
+				"filename":  videoRes.Filename,
+				"format":    videoRes.Format,
+			})
+			broker.Send("video", string(evtPayload))
+		}
+	case "generate_video":
+		var videoRes struct {
+			Status     string `json:"status"`
+			WebPath    string `json:"web_path"`
+			Filename   string `json:"filename"`
+			Format     string `json:"format"`
+			Provider   string `json:"provider"`
+			Model      string `json:"model"`
+			DurationMs int64  `json:"duration_ms"`
+		}
+		if json.Unmarshal([]byte(raw), &videoRes) == nil && videoRes.Status == "ok" {
+			mimeType := videoMIMEType(videoRes.Filename)
+			evtPayload, _ := json.Marshal(map[string]string{
+				"path":      videoRes.WebPath,
+				"title":     strings.TrimSuffix(videoRes.Filename, filepath.Ext(videoRes.Filename)),
+				"mime_type": mimeType,
+				"filename":  videoRes.Filename,
+				"format":    videoRes.Format,
+				"provider":  videoRes.Provider,
+				"model":     videoRes.Model,
+			})
+			broker.Send("video", string(evtPayload))
 		}
 	case "tts":
 		var ttsRes struct {

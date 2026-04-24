@@ -21,6 +21,11 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 	_ = mime.AddExtensionType(".woff", "font/woff")
 	_ = mime.AddExtensionType(".woff2", "font/woff2")
 	_ = mime.AddExtensionType(".webmanifest", "application/manifest+json")
+	_ = mime.AddExtensionType(".mp4", "video/mp4")
+	_ = mime.AddExtensionType(".m4v", "video/mp4")
+	_ = mime.AddExtensionType(".webm", "video/webm")
+	_ = mime.AddExtensionType(".mov", "video/quicktime")
+	_ = mime.AddExtensionType(".ogv", "video/ogg")
 
 	// Serve the embedded Web UI at root via html/template for i18n injection
 	uiFS, err := fs.Sub(ui.Content, ".")

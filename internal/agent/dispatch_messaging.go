@@ -51,6 +51,11 @@ func dispatchMessagingCases(ctx context.Context, tc ToolCall, dc *DispatchContex
 		logger.Info("LLM requested audio send", "path", req.Path, "title", req.Title)
 		return handleSendAudio(req, cfg, logger, mediaRegistryDB), true
 
+	case "send_video":
+		req := decodeSendMediaArgs(tc)
+		logger.Info("LLM requested video send", "path", req.Path, "title", req.Title)
+		return handleSendVideo(req, cfg, logger, mediaRegistryDB), true
+
 	case "send_document":
 		req := decodeSendMediaArgs(tc)
 		logger.Info("LLM requested document send", "path", req.Path, "title", req.Title)

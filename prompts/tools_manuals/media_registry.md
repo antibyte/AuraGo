@@ -72,10 +72,11 @@ Media is automatically registered when generated via `generate_image` or `tts`. 
 - `tts` — Text-to-speech audio (auto-registered from `tts`)
 - `audio` — Other audio files
 - `music` — Music files
+- `video` — Videos (auto-registered from `generate_video` and `send_video`)
 - `document` — Documents and PDFs (auto-registered from `document_creator`)
 
 ## Notes
-- Items are auto-registered when created via `generate_image`, `tts`, or `document_creator`
+- Items are auto-registered when created via `generate_image`, `generate_video`, `send_video`, `tts`, or `document_creator`
 - Use `update` to add descriptions and better tags after auto-registration
 - `delete` is a soft-delete; items are hidden but not removed from the DB
 - Tags are stored as JSON arrays; use `tag` operation with modes `add`, `remove`, or `set`
@@ -88,6 +89,7 @@ The Media View in the Web UI only shows items that are registered. Files placed 
 **Correct workflow for any document/file you create:**
 1. Use `document_creator` → auto-registers on success ✅
 2. Use `send_document` tool (not filesystem!) → auto-registers the file ✅
-3. Use `filesystem` to write a file to a media directory? → immediately call `media_registry` `register` ✅
+3. Use `send_video` for video files that should appear in chat and media view ✅
+4. Use `filesystem` to write a file to a media directory? → immediately call `media_registry` `register` ✅
 
 **Never do this:** Create a file with shell/Python/filesystem and skip registration → 📁 file is invisible in the UI. Or try calling `{"action": "filesystem", "operation": "send_document"}` which does not exist!

@@ -1059,6 +1059,9 @@ func ParseToolCall(content string) ToolCall {
 					var tmp ToolCall
 					if json.Unmarshal([]byte(candidate), &tmp) == nil && tmp.Action == "" {
 						switch {
+						case tmp.Path != "" && (tmp.Title != "" || tmp.Caption != "") && isSupportedVideoFormat(strings.TrimPrefix(filepath.Ext(tmp.Path), ".")):
+							// send_video: {"path": "...mp4", "title": "..."}
+							tmp.Action = "send_video"
 						case tmp.Path != "" && tmp.Caption != "":
 							// send_image: {"path": "...", "caption": "..."}
 							tmp.Action = "send_image"

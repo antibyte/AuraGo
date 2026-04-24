@@ -28,7 +28,7 @@ func classifyToolFamily(toolName string) string {
 		return "communication"
 	case strings.Contains(name, "cron") || strings.Contains(name, "follow_up") || strings.Contains(name, "mission") || name == "co_agent" || name == "co_agents":
 		return "automation"
-	case strings.Contains(name, "image") || strings.Contains(name, "audio") || name == "tts" || strings.Contains(name, "transcribe") || strings.Contains(name, "media_") || name == "send_document":
+	case strings.Contains(name, "image") || strings.Contains(name, "audio") || strings.Contains(name, "video") || name == "tts" || strings.Contains(name, "transcribe") || strings.Contains(name, "media_") || name == "send_document":
 		return "media"
 	default:
 		return "misc"

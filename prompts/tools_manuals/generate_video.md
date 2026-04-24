@@ -32,3 +32,5 @@ The provider is chosen in Settings > Video Generation, not per tool call. Only s
 ## Notes
 
 Video generation is asynchronous and can take several minutes. The tool polls provider status until completion, failure, or `video_generation.timeout_seconds`.
+
+Successful generated videos are automatically posted to the WebUI chat as an inline player. Do not call `send_video` again for the same generated clip unless the user explicitly asks to resend it.

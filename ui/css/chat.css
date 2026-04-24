@@ -3502,6 +3502,60 @@
             text-overflow: ellipsis;
         }
 
+        .chat-video-wrapper {
+            width: min(100%, 560px);
+            min-width: 220px;
+        }
+
+        .chat-video-title {
+            font-size: 0.8rem;
+            color: var(--text-secondary, #6c7086);
+            margin-bottom: 0.45rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .chat-video-player {
+            display: block;
+            width: 100%;
+            max-height: 420px;
+            aspect-ratio: 16 / 9;
+            background: #000;
+            border: 1px solid var(--border-subtle);
+            border-radius: 8px;
+            object-fit: contain;
+        }
+
+        .chat-video-actions {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 0.4rem;
+        }
+
+        .chat-video-actions a {
+            color: var(--text-secondary, #6c7086);
+            font-size: 0.78rem;
+            text-decoration: none;
+            border-bottom: 1px solid transparent;
+        }
+
+        .chat-video-actions a:hover {
+            color: var(--accent, #cba6f7);
+            border-bottom-color: currentColor;
+        }
+
+        @media (max-width: 640px) {
+            .chat-video-wrapper {
+                width: 100%;
+                min-width: 0;
+            }
+
+            .chat-video-player {
+                max-height: 68vh;
+            }
+        }
+
 /* Width utility classes for dynamic bars */
 .w-pct-0 { width: 0%; }
 .w-pct-1 { width: 1%; }

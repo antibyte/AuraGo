@@ -145,6 +145,7 @@ function appendMessage(role, text) {
 
                 finalHTML = replaceRedactedMarkers(finalHTML);
                 finalHTML = sanitizeRenderedHTML(finalHTML);
+                finalHTML = renderVideoLinksAsPlayers(finalHTML);
 
                 // If the rendered content contains only thinking blocks with no visible
                 // text, add a subtle "done" indicator so the bubble is never blank.
@@ -314,6 +315,146 @@ function sanitizeRenderedHTML(html) {
                 node.removeAttribute(attr.name);
             }
         });
+    });
+    return template.innerHTML;
+}
+
+function isVideoHref(url) {
+    if (!url || typeof url !== 'string') return false;
+    const trimmed = url.trim();
+    if (!trimmed || !isSafeHref(trimmed, true)) return false;
+    try {
+        const parsed = new URL(trimmed, window.location.origin);
+        if (parsed.origin !== window.location.origin) return false;
+        const path = parsed.pathname.toLowerCase();
+        return path.startsWith('/files/generated_videos/') ||
+            /\.(mp4|m4v|mov|webm|ogv|ogg)$/i.test(path);
+    } catch (_err) {
+        return false;
+    }
+}
+
+function videoMimeTypeForPath(path) {
+    const lower = String(path || '').split('?')[0].toLowerCase();
+    if (lower.endsWith('.webm')) return 'video/webm';
+    if (lower.endsWith('.ogv') || lower.endsWith('.ogg')) return 'video/ogg';
+    if (lower.endsWith('.mov')) return 'video/quicktime';
+    return 'video/mp4';
+}
+
+function filenameFromPath(path) {
+    try {
+        const parsed = new URL(path, window.location.origin);
+        const name = decodeURIComponent((parsed.pathname.split('/').pop() || '').trim());
+        return name || '';
+    } catch (_err) {
+        const clean = String(path || '').split('?')[0];
+        return clean.split('/').pop() || '';
+    }
+}
+
+function createChatVideoElement(videoData) {
+    const path = videoData && videoData.path ? String(videoData.path) : '';
+    const wrapper = document.createElement('div');
+    wrapper.className = 'chat-video-wrapper';
+
+    const title = String((videoData && (videoData.title || videoData.filename)) || filenameFromPath(path) || '').trim();
+    if (title) {
+        const titleEl = document.createElement('div');
+        titleEl.className = 'chat-video-title';
+        titleEl.textContent = title;
+        wrapper.appendChild(titleEl);
+    }
+
+    const video = document.createElement('video');
+    video.className = 'chat-video-player';
+    video.controls = true;
+    video.preload = 'metadata';
+    video.playsInline = true;
+
+    const source = document.createElement('source');
+    source.src = path;
+    source.type = String((videoData && videoData.mime_type) || videoMimeTypeForPath(path));
+    video.appendChild(source);
+    wrapper.appendChild(video);
+
+    const actions = document.createElement('div');
+    actions.className = 'chat-video-actions';
+    const link = document.createElement('a');
+    link.href = path;
+    link.download = filenameFromPath(path) || 'video.mp4';
+    link.title = 'Download';
+    link.textContent = 'Download';
+    actions.appendChild(link);
+    wrapper.appendChild(actions);
+
+    return wrapper;
+}
+
+function appendVideoMessage(videoData) {
+    if (!videoData || !videoData.path || !isVideoHref(videoData.path)) return false;
+    const greet = chatContent.querySelector('[data-greeting]');
+    if (greet) greet.remove();
+
+    const row = document.createElement('div');
+    row.className = 'msg-row bot';
+    row.innerHTML = '<div class="avatar bot">🤖</div><div class="bubble bot"></div>';
+    row.querySelector('.bubble').appendChild(createChatVideoElement(videoData));
+    chatContent.appendChild(row);
+    chatBox.scrollTop = chatBox.scrollHeight;
+    return true;
+}
+
+function renderVideoLinksAsPlayers(html) {
+    const template = document.createElement('template');
+    template.innerHTML = html;
+    template.content.querySelectorAll('a[href]').forEach((anchor) => {
+        const href = anchor.getAttribute('href') || '';
+        if (!isVideoHref(href)) return;
+        if (typeof seenSSEVideos !== 'undefined' && seenSSEVideos.has(href)) {
+            anchor.remove();
+            return;
+        }
+        anchor.replaceWith(createChatVideoElement({
+            path: href,
+            title: anchor.textContent || filenameFromPath(href),
+            mime_type: videoMimeTypeForPath(href)
+        }));
+    });
+    const walker = document.createTreeWalker(template.content, NodeFilter.SHOW_TEXT);
+    const textNodes = [];
+    let node;
+    while ((node = walker.nextNode())) {
+        const parent = node.parentElement;
+        if (!parent || parent.closest('a, code, pre, .chat-video-wrapper')) continue;
+        if (/\/files\/[^\s<>()"']+\.(?:mp4|m4v|mov|webm|ogv|ogg)/i.test(node.nodeValue || '')) {
+            textNodes.push(node);
+        }
+    }
+    textNodes.forEach((textNode) => {
+        const text = textNode.nodeValue || '';
+        const fragment = document.createDocumentFragment();
+        const pattern = /\/files\/[^\s<>()"']+\.(?:mp4|m4v|mov|webm|ogv|ogg)/ig;
+        let lastIndex = 0;
+        let match;
+        while ((match = pattern.exec(text)) !== null) {
+            if (match.index > lastIndex) {
+                fragment.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
+            }
+            const path = match[0];
+            if (!(typeof seenSSEVideos !== 'undefined' && seenSSEVideos.has(path)) && isVideoHref(path)) {
+                fragment.appendChild(createChatVideoElement({
+                    path,
+                    title: filenameFromPath(path),
+                    mime_type: videoMimeTypeForPath(path)
+                }));
+            }
+            lastIndex = match.index + path.length;
+        }
+        if (lastIndex < text.length) {
+            fragment.appendChild(document.createTextNode(text.slice(lastIndex)));
+        }
+        textNode.parentNode.replaceChild(fragment, textNode);
     });
     return template.innerHTML;
 }

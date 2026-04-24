@@ -230,6 +230,13 @@ func buildCoreToolSchemas(ff ToolFeatureFlags, execSkillProps map[string]interfa
 				"title": prop("string", "Optional title shown above the audio player"),
 			}, "path"),
 		),
+		tool("send_video",
+			"Send a video file to the user. Shown with an inline video player in the Web UI. Provide a local workspace path or a direct HTTPS URL to a browser-playable video file.",
+			schema(map[string]interface{}{
+				"path":  prop("string", "Local file path within the workspace (e.g. 'clips/demo.mp4') or a full HTTPS URL to a video file (MP4, WebM, MOV, OGV)"),
+				"title": prop("string", "Optional title shown above the video player"),
+			}, "path"),
+		),
 		tool("send_document",
 			"Send a document to the user. Shown with Open and Download buttons in the Web UI. PDF files can be viewed inline in the browser. Provide a local workspace path or a direct HTTPS URL.",
 			schema(map[string]interface{}{
