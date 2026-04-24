@@ -1,5 +1,5 @@
 /* AuraGo – Media View Page Styles
-   Extends gallery.css for the tabbed Medienansicht (Images / Audio / Documents)
+   Extends gallery.css for the tabbed Medienansicht (Images / Audio / Videos / Documents)
    Uses standard components from shared.css where applicable.
 */
 
@@ -158,6 +158,74 @@
     border: 1px solid var(--border-subtle);
     color: var(--text-secondary);
     white-space: nowrap;
+}
+
+/* ── Video grid ── */
+.media-video-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1rem;
+}
+
+.media-video-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    padding: 1rem;
+    transition: all 0.25s ease;
+    backdrop-filter: blur(10px);
+    min-width: 0;
+    overflow: hidden;
+    box-shadow:
+        var(--surface-shadow),
+        inset 0 1px 0 var(--surface-highlight);
+}
+
+.media-video-card:hover {
+    border-color: var(--accent);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(45, 212, 191, 0.1);
+}
+
+.media-video-card-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 0.35rem;
+}
+
+.media-video-card-meta {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.7rem;
+}
+
+.media-video-player {
+    display: block;
+    width: 100%;
+    max-height: 360px;
+    aspect-ratio: 16 / 9;
+    background: #000;
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    object-fit: contain;
+}
+
+.media-video-card-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.7rem;
+    flex-wrap: wrap;
+}
+
+.media-video-unavailable {
+    padding: 1rem 0;
 }
 
 /* ── Document list ── */
@@ -329,18 +397,33 @@
         grid-template-columns: 1fr;
     }
 
+    .media-video-grid {
+        grid-template-columns: 1fr;
+    }
+
     .media-audio-card {
         max-width: 100%;
         box-sizing: border-box;
     }
 
+    .media-video-card {
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+
+    .media-video-card-actions,
     .media-audio-card-actions {
         flex-direction: column;
     }
 
+    .media-video-card-actions > *,
     .media-audio-card-actions > * {
         width: 100%;
         justify-content: center;
+    }
+
+    .media-video-player {
+        max-height: 60vh;
     }
 
     .chat-audio-player {
@@ -541,6 +624,7 @@
 }
 
 [data-theme="light"] .media-audio-card,
+[data-theme="light"] .media-video-card,
 [data-theme="light"] .media-doc-row,
 [data-theme="light"] .chat-audio-player {
     border-color: rgba(71, 85, 105, 0.14);

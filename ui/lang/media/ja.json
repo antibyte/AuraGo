@@ -4,12 +4,15 @@
   "media.search_placeholder": "メディアを検索...",
   "media.tab_images": "🖼️ 画像",
   "media.tab_audio": "🎵 オーディオ",
+  "media.tab_videos": "🎬 動画",
   "media.tab_documents": "📄 ドキュメント",
   "media.empty_audio": "まだ音声ファイルがありません。エージェントに音声ファイルを送るよう頼んでください！",
+  "media.empty_videos": "まだ動画がありません。エージェントに動画の作成または送信を依頼してください！",
   "media.empty_documents": "まだドキュメントがありません。エージェントにドキュメントを作成または送るよう頼んでください！",
   "media.doc_open": "開く",
   "media.audio_type_tts": "音声合成",
   "media.audio_type_audio": "音声ファイル",
   "media.audio_type_music": "音楽",
+  "media.video_type_video": "動画",
   "media.file_not_available": "ファイルが利用できません"
 }

@@ -4,12 +4,15 @@
   "media.search_placeholder": "Cerca media...",
   "media.tab_images": "🖼️ Immagini",
   "media.tab_audio": "🎵 Audio",
+  "media.tab_videos": "🎬 Video",
   "media.tab_documents": "📄 Documenti",
   "media.empty_audio": "Nessun file audio ancora. Chiedi all'agente di inviare un file audio!",
+  "media.empty_videos": "Nessun video ancora. Chiedi all'agente di creare o inviare un video!",
   "media.empty_documents": "Nessun documento ancora. Chiedi all'agente di creare o inviare un documento!",
   "media.doc_open": "Apri",
   "media.audio_type_tts": "Sintesi vocale",
   "media.audio_type_audio": "File audio",
   "media.audio_type_music": "Musica",
+  "media.video_type_video": "Video",
   "media.file_not_available": "File non disponibile"
 }

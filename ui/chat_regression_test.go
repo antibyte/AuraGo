@@ -111,3 +111,40 @@ func TestChatFrontend_PasteAttachmentFlowRemainsPresent(t *testing.T) {
 		}
 	}
 }
+
+func TestMediaFrontend_VideoTabFlowRemainsPresent(t *testing.T) {
+	t.Parallel()
+
+	mediaHTMLPath := "media.html"
+	mediaJSPath := filepath.Join("js", "media", "main.js")
+	mediaCSSPath := filepath.Join("css", "media.css")
+
+	mediaHTML, err := os.ReadFile(mediaHTMLPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", mediaHTMLPath, err)
+	}
+	mediaJS, err := os.ReadFile(mediaJSPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", mediaJSPath, err)
+	}
+	mediaCSS, err := os.ReadFile(mediaCSSPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", mediaCSSPath, err)
+	}
+
+	combined := string(mediaHTML) + "\n" + string(mediaJS) + "\n" + string(mediaCSS)
+	requiredMarkers := []string{
+		`id="tab-videos"`,
+		`id="panel-videos"`,
+		`MEDIA_TABS_ORDER = ['images', 'audio', 'videos', 'documents']`,
+		`type: 'video'`,
+		`function loadVideos()`,
+		`className = 'media-video-player'`,
+		`.media-video-grid`,
+	}
+	for _, marker := range requiredMarkers {
+		if !strings.Contains(combined, marker) {
+			t.Fatalf("media frontend is missing expected video tab marker %q", marker)
+		}
+	}
+}

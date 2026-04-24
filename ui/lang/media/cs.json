@@ -4,12 +4,15 @@
   "media.search_placeholder": "Hledat média...",
   "media.tab_images": "🖼️ Obrázky",
   "media.tab_audio": "🎵 Zvuk",
+  "media.tab_videos": "🎬 Videa",
   "media.tab_documents": "📄 Dokumenty",
   "media.empty_audio": "Zatím žádné zvukové soubory. Požádejte agenta, aby odeslal zvukový soubor!",
+  "media.empty_videos": "Zatím žádná videa. Požádejte agenta, aby vytvořil nebo odeslal video!",
   "media.empty_documents": "Zatím žádné dokumenty. Požádejte agenta, aby vytvořil nebo odeslal dokument!",
   "media.doc_open": "Otevřít",
   "media.audio_type_tts": "Hlasový výstup",
   "media.audio_type_audio": "Zvukový soubor",
   "media.audio_type_music": "Hudba",
+  "media.video_type_video": "Video",
   "media.file_not_available": "Soubor není dostupný"
 }

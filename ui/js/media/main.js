@@ -1,4 +1,4 @@
-// js/media/main.js — Media View page logic (Images / Audio / Documents tabs)
+// js/media/main.js — Media View page logic (Images / Audio / Videos / Documents tabs)
 // The gallery.js is also loaded and handles the Images tab via its own functions.
 
 let currentTab = 'images';
@@ -11,6 +11,12 @@ let audioTotal = 0;
 let currentAudioModalId = null;
 let isLoadingAudio = false;
 const MEDIA_LIMIT = 30;
+
+// ── Video tab state ──────────────────────────────────────────────────────────
+let videoItems = [];
+let videoOffset = 0;
+let videoTotal = 0;
+let isLoadingVideos = false;
 
 // ── Document tab state ───────────────────────────────────────────────────────
 let docItems = [];
@@ -34,6 +40,9 @@ document.addEventListener('DOMContentLoaded', function () {
             } else if (currentTab === 'audio') {
                 audioOffset = 0;
                 loadAudio();
+            } else if (currentTab === 'videos') {
+                videoOffset = 0;
+                loadVideos();
             } else if (currentTab === 'documents') {
                 docOffset = 0;
                 loadDocuments();
@@ -50,7 +59,7 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 // ── Tab switching ─────────────────────────────────────────────────────────────
-const MEDIA_TABS_ORDER = ['images', 'audio', 'documents'];
+const MEDIA_TABS_ORDER = ['images', 'audio', 'videos', 'documents'];
 
 document.addEventListener('keydown', function (e) {
     // Only handle arrow keys when no modal is open and no input focused
@@ -89,6 +98,8 @@ function switchTab(tab) {
         loadGallery();
     } else if (tab === 'audio') {
         if (audioItems.length === 0) loadAudio();
+    } else if (tab === 'videos') {
+        if (videoItems.length === 0) loadVideos();
     } else if (tab === 'documents') {
         if (docItems.length === 0) loadDocuments();
     }
@@ -325,6 +336,185 @@ async function audioDeleteCurrent() {
             await showAlert(t('common.error'), data.message || t('common.error'));
         }
     } catch (e) { await showAlert(t('common.error'), e.message || t('common.error')); }
+}
+
+// ── Videos tab ────────────────────────────────────────────────────────────────
+async function loadVideos() {
+    if (isLoadingVideos) return;
+    isLoadingVideos = true;
+    const grid = document.getElementById('video-grid');
+    grid.innerHTML = '<div class="gallery-loading">' + t('common.loading') + '</div>';
+
+    const params = new URLSearchParams({
+        type: 'video',
+        limit: MEDIA_LIMIT,
+        offset: videoOffset,
+    });
+    const q = getSearchQuery();
+    if (q) params.set('q', q);
+
+    try {
+        const resp = await fetch('/api/media?' + params.toString());
+        const data = await resp.json();
+
+        if (data.status !== 'ok') {
+            grid.innerHTML = '<div class="gallery-empty"><div class="gallery-empty-icon">⚠️</div>' + escapeHtml(data.message || t('common.error')) + '</div>';
+            return;
+        }
+
+        videoItems = data.items || [];
+        videoTotal = data.total || 0;
+
+        if (videoItems.length === 0) {
+            grid.innerHTML = '<div class="gallery-empty"><div class="gallery-empty-icon">🎬</div><div>' + t('media.empty_videos') + '</div></div>';
+            document.getElementById('video-pagination').classList.add('is-hidden');
+            return;
+        }
+
+        renderVideoGrid(videoItems);
+        updateVideoPagination();
+    } catch (e) {
+        grid.innerHTML = '<div class="gallery-empty"><div class="gallery-empty-icon">⚠️</div>' + escapeHtml(e.message || t('common.error')) + '</div>';
+    } finally {
+        isLoadingVideos = false;
+    }
+}
+
+function renderVideoGrid(items) {
+    const grid = document.getElementById('video-grid');
+    grid.innerHTML = '';
+
+    items.forEach(function (item) {
+        const title = item.description || item.prompt || item.filename || t('media.video_type_video');
+        const fmt = (item.format || fileExtension(item.filename) || '').toUpperCase();
+        const date = item.created_at ? new Date(item.created_at).toLocaleDateString() : '';
+        const durationLabel = formatVideoDuration(item.duration_ms);
+        const videoPath = item.web_path || (item.filename ? '/files/generated_videos/' + item.filename : '');
+        const hasFile = !!videoPath;
+
+        const card = document.createElement('div');
+        card.className = 'media-video-card' + (hasFile ? '' : ' media-video-card--unavailable');
+
+        const titleEl = document.createElement('div');
+        titleEl.className = 'media-video-card-title';
+        titleEl.textContent = '🎬 ' + title;
+        if (!hasFile) {
+            const warn = document.createElement('span');
+            warn.className = 'media-inline-warning-icon';
+            warn.textContent = ' ⚠️';
+            titleEl.appendChild(warn);
+        }
+        card.appendChild(titleEl);
+
+        const metaEl = document.createElement('div');
+        metaEl.className = 'media-video-card-meta';
+        const badge = document.createElement('span');
+        badge.className = 'media-type-badge';
+        badge.textContent = t('media.video_type_video');
+        metaEl.appendChild(badge);
+        [fmt, durationLabel, date].filter(Boolean).forEach(function (value) {
+            const span = document.createElement('span');
+            span.textContent = value;
+            metaEl.appendChild(span);
+        });
+        card.appendChild(metaEl);
+
+        if (hasFile) {
+            const video = document.createElement('video');
+            video.className = 'media-video-player';
+            video.controls = true;
+            video.preload = 'metadata';
+            video.playsInline = true;
+            const source = document.createElement('source');
+            source.src = videoPath;
+            source.type = videoMimeType(item.filename || videoPath);
+            video.appendChild(source);
+            card.appendChild(video);
+
+            const actionsEl = document.createElement('div');
+            actionsEl.className = 'media-video-card-actions';
+
+            const dlBtn = document.createElement('a');
+            dlBtn.href = videoPath;
+            dlBtn.download = item.filename || 'video';
+            dlBtn.className = 'btn-gallery-action';
+            dlBtn.textContent = '⬇ ' + t('gallery.download');
+            actionsEl.appendChild(dlBtn);
+
+            const delBtn = document.createElement('button');
+            delBtn.className = 'btn-gallery-action btn-danger';
+            delBtn.textContent = '🗑 ' + t('gallery.delete');
+            delBtn.addEventListener('click', (function (id) {
+                return function () { deleteVideoItem(id); };
+            }(item.id)));
+            actionsEl.appendChild(delBtn);
+
+            card.appendChild(actionsEl);
+        } else {
+            const unavailEl = document.createElement('div');
+            unavailEl.className = 'audio-error media-video-unavailable';
+            unavailEl.textContent = '⚠️ ' + t('media.file_not_available');
+            card.appendChild(unavailEl);
+        }
+
+        grid.appendChild(card);
+    });
+}
+
+function updateVideoPagination() {
+    const pag = document.getElementById('video-pagination');
+    if (videoTotal <= MEDIA_LIMIT) { pag.classList.add('is-hidden'); return; }
+    pag.classList.remove('is-hidden');
+    document.getElementById('video-prev').disabled = videoOffset === 0;
+    document.getElementById('video-next').disabled = videoOffset + MEDIA_LIMIT >= videoTotal;
+    const page = Math.floor(videoOffset / MEDIA_LIMIT) + 1;
+    const pages = Math.ceil(videoTotal / MEDIA_LIMIT);
+    document.getElementById('video-page-info').textContent = page + ' / ' + pages + ' (' + videoTotal + ')';
+}
+
+function videoPrev() { videoOffset = Math.max(0, videoOffset - MEDIA_LIMIT); loadVideos(); }
+function videoNext() { videoOffset += MEDIA_LIMIT; loadVideos(); }
+
+async function deleteVideoItem(id) {
+    const confirmed = await showConfirm(t('common.confirm_title'), t('gallery.confirm_delete'));
+    if (!confirmed) return;
+    try {
+        const resp = await fetch('/api/media/' + id, { method: 'DELETE' });
+        const data = await resp.json();
+        if (data.status === 'ok') {
+            videoItems = [];
+            videoOffset = 0;
+            loadVideos();
+        } else {
+            await showAlert(t('common.error'), data.message || t('common.error'));
+        }
+    } catch (e) { await showAlert(t('common.error'), e.message || t('common.error')); }
+}
+
+function fileExtension(filename) {
+    const name = String(filename || '');
+    const idx = name.lastIndexOf('.');
+    return idx >= 0 ? name.slice(idx + 1) : '';
+}
+
+function videoMimeType(filename) {
+    switch (fileExtension(filename).toLowerCase()) {
+        case 'webm': return 'video/webm';
+        case 'mov': return 'video/quicktime';
+        case 'ogv':
+        case 'ogg': return 'video/ogg';
+        default: return 'video/mp4';
+    }
+}
+
+function formatVideoDuration(ms) {
+    const total = Number(ms || 0);
+    if (!Number.isFinite(total) || total <= 0) return '';
+    const seconds = Math.round(total / 1000);
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    if (mins <= 0) return secs + 's';
+    return mins + ':' + String(secs).padStart(2, '0');
 }
 
 // ── Documents tab ─────────────────────────────────────────────────────────────

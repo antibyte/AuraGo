@@ -56,6 +56,8 @@
                 onclick="switchTab('images')" data-i18n="media.tab_images">🖼️ Images</button>
             <button class="media-tab" id="tab-audio" role="tab" aria-selected="false"
                 onclick="switchTab('audio')" data-i18n="media.tab_audio">🎵 Audio</button>
+            <button class="media-tab" id="tab-videos" role="tab" aria-selected="false"
+                onclick="switchTab('videos')" data-i18n="media.tab_videos">🎬 Videos</button>
             <button class="media-tab" id="tab-documents" role="tab" aria-selected="false"
                 onclick="switchTab('documents')" data-i18n="media.tab_documents">📄 Documents</button>
         </div>
@@ -85,6 +87,17 @@
                 <button id="audio-prev" class="btn-gallery-nav" onclick="audioPrev()">← <span data-i18n="common.pagination_previous">Previous</span></button>
                 <span id="audio-page-info"></span>
                 <button id="audio-next" class="btn-gallery-nav" onclick="audioNext()"><span data-i18n="common.pagination_next">Next</span> →</button>
+            </div>
+        </div>
+
+        <div id="panel-videos" class="media-panel">
+            <div id="video-grid" class="media-video-grid">
+                <div class="gallery-loading" data-i18n="gallery.loading">Loading...</div>
+            </div>
+            <div id="video-pagination" class="gallery-pagination is-hidden">
+                <button id="video-prev" class="btn-gallery-nav" onclick="videoPrev()">← <span data-i18n="common.pagination_previous">Previous</span></button>
+                <span id="video-page-info"></span>
+                <button id="video-next" class="btn-gallery-nav" onclick="videoNext()"><span data-i18n="common.pagination_next">Next</span> →</button>
             </div>
         </div>
 

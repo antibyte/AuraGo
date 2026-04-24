@@ -4,12 +4,15 @@
   "media.search_placeholder": "Media zoeken...",
   "media.tab_images": "🖼️ Afbeeldingen",
   "media.tab_audio": "🎵 Audio",
+  "media.tab_videos": "🎬 Video's",
   "media.tab_documents": "📄 Documenten",
   "media.empty_audio": "Nog geen audiobestanden. Vraag de agent een audiobestand te sturen!",
+  "media.empty_videos": "Nog geen video's. Vraag de agent een video te maken of te sturen!",
   "media.empty_documents": "Nog geen documenten. Vraag de agent een document te maken of te sturen!",
   "media.doc_open": "Openen",
   "media.audio_type_tts": "Tekst-naar-spraak",
   "media.audio_type_audio": "Audiobestand",
   "media.audio_type_music": "Muziek",
+  "media.video_type_video": "Video",
   "media.file_not_available": "Bestand niet beschikbaar"
 }

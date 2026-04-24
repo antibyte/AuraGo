@@ -4,12 +4,15 @@
   "media.search_placeholder": "Søk i medier...",
   "media.tab_images": "🖼️ Bilder",
   "media.tab_audio": "🎵 Lyd",
+  "media.tab_videos": "🎬 Videoer",
   "media.tab_documents": "📄 Dokumenter",
   "media.empty_audio": "Ingen lydfiler ennå. Be agenten sende en lydfil!",
+  "media.empty_videos": "Ingen videoer ennå. Be agenten opprette eller sende en video!",
   "media.empty_documents": "Ingen dokumenter ennå. Be agenten opprette eller sende et dokument!",
   "media.doc_open": "Åpne",
   "media.audio_type_tts": "Tekst-til-tale",
   "media.audio_type_audio": "Lydfil",
   "media.audio_type_music": "Musikk",
+  "media.video_type_video": "Video",
   "media.file_not_available": "Fil ikke tilgjengelig"
 }
