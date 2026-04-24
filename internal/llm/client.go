@@ -1,6 +1,7 @@
 package llm
 
 import (
+	"bufio"
 	"bytes"
 	"crypto/tls"
 	"encoding/json"
@@ -26,6 +27,9 @@ func detectProviderURLMismatch(providerType, baseURL string) string {
 		if strings.Contains(lower, "anthropic") {
 			return "provider=openai but URL contains 'anthropic' — did you mean provider=anthropic?"
 		}
+		if strings.Contains(lower, "minimax") || strings.Contains(lower, "minimaxi") {
+			return "provider=openai but URL contains 'minimax/minimaxi' — did you mean provider=minimax?"
+		}
 		if strings.Contains(lower, "openrouter") {
 			return "provider=openai but URL contains 'openrouter' — did you mean provider=openrouter?"
 		}
@@ -43,8 +47,21 @@ func detectProviderURLMismatch(providerType, baseURL string) string {
 		if strings.Contains(lower, "api.openai.com") {
 			return "provider=openrouter but URL contains 'api.openai.com' — did you mean provider=openai?"
 		}
+		if strings.Contains(lower, "minimax") || strings.Contains(lower, "minimaxi") {
+			return "provider=openrouter but URL contains 'minimax/minimaxi' — did you mean provider=minimax?"
+		}
 		if strings.Contains(lower, "anthropic") {
 			return "provider=openrouter but URL contains 'anthropic' — did you mean provider=anthropic?"
+		}
+	case "minimax":
+		if strings.Contains(lower, "api.openai.com") {
+			return "provider=minimax but URL contains 'api.openai.com' — did you mean provider=openai?"
+		}
+		if strings.Contains(lower, "openrouter") {
+			return "provider=minimax but URL contains 'openrouter' — did you mean provider=openrouter?"
+		}
+		if strings.Contains(lower, "anthropic") {
+			return "provider=minimax uses MiniMax's OpenAI-compatible endpoint — use https://api.minimax.io/v1 or provider=anthropic for an Anthropic-compatible endpoint"
 		}
 	case "ollama":
 		if !strings.Contains(lower, "localhost") && !strings.Contains(lower, "127.0.0.1") && !strings.Contains(lower, "ollama") {
@@ -265,7 +282,9 @@ func aiGatewaySegment(providerType string) string {
 // miniMaxTransport is an http.RoundTripper that makes requests compatible with
 // MiniMax's OpenAI-compatible endpoint. MiniMax does not accept the "system"
 // message role; this transport converts system messages by prepending their
-// content to the first "user" message.
+// content to the first "user" message. It also maps MiniMax's reasoning_details
+// extension to go-openai's reasoning_content field so the agent can preserve the
+// interleaved-thinking chain across tool calls.
 type miniMaxTransport struct {
 	base http.RoundTripper
 }
@@ -288,14 +307,15 @@ func (t *aiGatewayAuthTransport) RoundTrip(req *http.Request) (*http.Response, e
 }
 
 func (t *miniMaxTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	if req.Body != nil && req.Method == http.MethodPost &&
-		strings.HasSuffix(req.URL.Path, "/chat/completions") {
+	isChatCompletion := req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/chat/completions")
+	isStream := false
+	if req.Body != nil && isChatCompletion {
 		body, err := io.ReadAll(req.Body)
 		req.Body.Close()
 		if err != nil {
 			return nil, fmt.Errorf("minimax transport: read body: %w", err)
 		}
-		body = miniMaxConvertSystemMessages(body)
+		body, isStream = miniMaxPrepareRequestBody(body)
 		req.Body = io.NopCloser(bytes.NewReader(body))
 		req.ContentLength = int64(len(body))
 	}
@@ -303,7 +323,220 @@ func (t *miniMaxTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 	if base == nil {
 		base = http.DefaultTransport
 	}
-	return base.RoundTrip(req)
+	resp, err := base.RoundTrip(req)
+	if err != nil || resp == nil || !isChatCompletion || resp.Body == nil || resp.StatusCode >= http.StatusBadRequest {
+		return resp, err
+	}
+	if isStream {
+		resp.Body = newMiniMaxReasoningStreamBody(resp.Body)
+		return resp, nil
+	}
+	body, readErr := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if readErr != nil {
+		return nil, fmt.Errorf("minimax transport: read response body: %w", readErr)
+	}
+	body = miniMaxNormalizeResponseBody(body)
+	resp.Body = io.NopCloser(bytes.NewReader(body))
+	resp.ContentLength = int64(len(body))
+	return resp, nil
+}
+
+func miniMaxPrepareRequestBody(body []byte) ([]byte, bool) {
+	var stream bool
+	var payload map[string]json.RawMessage
+	if err := json.Unmarshal(body, &payload); err == nil {
+		if streamRaw, ok := payload["stream"]; ok {
+			_ = json.Unmarshal(streamRaw, &stream)
+		}
+	}
+	body = miniMaxConvertSystemMessages(body)
+	body = miniMaxMapReasoningContentToDetails(body)
+	body = miniMaxEnableReasoningSplit(body)
+	return body, stream
+}
+
+func miniMaxMapReasoningContentToDetails(body []byte) []byte {
+	var payload map[string]json.RawMessage
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return body
+	}
+	msgsRaw, ok := payload["messages"]
+	if !ok {
+		return body
+	}
+	var msgs []map[string]interface{}
+	if err := json.Unmarshal(msgsRaw, &msgs); err != nil {
+		return body
+	}
+	changed := false
+	for _, msg := range msgs {
+		reasoning, _ := msg["reasoning_content"].(string)
+		if strings.TrimSpace(reasoning) == "" {
+			continue
+		}
+		if _, exists := msg["reasoning_details"]; !exists {
+			msg["reasoning_details"] = []map[string]interface{}{
+				{
+					"type":   "reasoning.text",
+					"id":     "reasoning-text-1",
+					"format": "MiniMax-response-v1",
+					"index":  0,
+					"text":   reasoning,
+				},
+			}
+		}
+		delete(msg, "reasoning_content")
+		changed = true
+	}
+	if !changed {
+		return body
+	}
+	newMsgs, err := json.Marshal(msgs)
+	if err != nil {
+		return body
+	}
+	payload["messages"] = newMsgs
+	result, err := json.Marshal(payload)
+	if err != nil {
+		return body
+	}
+	return result
+}
+
+func miniMaxEnableReasoningSplit(body []byte) []byte {
+	var payload map[string]json.RawMessage
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return body
+	}
+	payload["reasoning_split"] = json.RawMessage("true")
+	result, err := json.Marshal(payload)
+	if err != nil {
+		return body
+	}
+	return result
+}
+
+func miniMaxNormalizeResponseBody(body []byte) []byte {
+	var payload map[string]interface{}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return body
+	}
+	choices, ok := payload["choices"].([]interface{})
+	if !ok {
+		return body
+	}
+	changed := false
+	for _, choiceRaw := range choices {
+		choice, ok := choiceRaw.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		if msg, ok := choice["message"].(map[string]interface{}); ok {
+			changed = miniMaxNormalizeReasoningContainer(msg) || changed
+		}
+		if delta, ok := choice["delta"].(map[string]interface{}); ok {
+			changed = miniMaxNormalizeReasoningContainer(delta) || changed
+		}
+	}
+	if !changed {
+		return body
+	}
+	result, err := json.Marshal(payload)
+	if err != nil {
+		return body
+	}
+	return result
+}
+
+func miniMaxNormalizeReasoningContainer(container map[string]interface{}) bool {
+	if existing, _ := container["reasoning_content"].(string); strings.TrimSpace(existing) != "" {
+		return false
+	}
+	reasoning := miniMaxReasoningDetailsText(container["reasoning_details"])
+	if reasoning == "" {
+		return false
+	}
+	container["reasoning_content"] = reasoning
+	return true
+}
+
+func miniMaxReasoningDetailsText(raw interface{}) string {
+	switch v := raw.(type) {
+	case []interface{}:
+		var b strings.Builder
+		for _, item := range v {
+			if text := miniMaxReasoningDetailsText(item); text != "" {
+				if b.Len() > 0 {
+					b.WriteString("\n")
+				}
+				b.WriteString(text)
+			}
+		}
+		return b.String()
+	case map[string]interface{}:
+		if text, _ := v["text"].(string); strings.TrimSpace(text) != "" {
+			return text
+		}
+		if text, _ := v["thinking"].(string); strings.TrimSpace(text) != "" {
+			return text
+		}
+		if text, _ := v["content"].(string); strings.TrimSpace(text) != "" {
+			return text
+		}
+	case string:
+		if strings.TrimSpace(v) != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+func newMiniMaxReasoningStreamBody(body io.ReadCloser) io.ReadCloser {
+	reader, writer := io.Pipe()
+	go func() {
+		defer body.Close()
+		buf := bufio.NewReader(body)
+		for {
+			line, err := buf.ReadString('\n')
+			if line != "" {
+				if _, writeErr := writer.Write([]byte(miniMaxNormalizeSSELine(line))); writeErr != nil {
+					_ = writer.CloseWithError(writeErr)
+					return
+				}
+			}
+			if err != nil {
+				if err == io.EOF {
+					_ = writer.Close()
+				} else {
+					_ = writer.CloseWithError(err)
+				}
+				return
+			}
+		}
+	}()
+	return reader
+}
+
+func miniMaxNormalizeSSELine(line string) string {
+	const prefix = "data: "
+	if !strings.HasPrefix(line, prefix) {
+		return line
+	}
+	body := strings.TrimPrefix(line, prefix)
+	lineEnding := ""
+	if strings.HasSuffix(body, "\r\n") {
+		lineEnding = "\r\n"
+		body = strings.TrimSuffix(body, "\r\n")
+	} else if strings.HasSuffix(body, "\n") {
+		lineEnding = "\n"
+		body = strings.TrimSuffix(body, "\n")
+	}
+	if strings.TrimSpace(body) == "[DONE]" {
+		return line
+	}
+	normalized := miniMaxNormalizeResponseBody([]byte(body))
+	return prefix + string(normalized) + lineEnding
 }
 
 // miniMaxConvertSystemMessages rewrites a chat completions JSON request body,

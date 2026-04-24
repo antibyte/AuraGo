@@ -434,11 +434,16 @@ llm:
 
 ```yaml
 # config.yaml - Beispiel für MiniMax als Haupt-Provider
+providers:
+  - id: minimax
+    type: minimax
+    name: "MiniMax"
+    base_url: "https://api.minimax.io/v1"      # China: https://api.minimaxi.com/v1
+    api_key: "IHR_MINIMAX_KEY"
+    model: "MiniMax-M2.7"
+
 llm:
   provider: minimax
-  base_url: "https://api.minimaxi.chat/v1"
-  api_key: "IHRER_MINIMAX_KEY"
-  model: "MiniMax-Text-01"
 
 # Co-Agenten mit MiniMax (besonders preiswert)
 co_agents:
@@ -446,9 +451,7 @@ co_agents:
   max_concurrent: 3
   llm:
     provider: minimax
-    base_url: "https://api.minimaxi.chat/v1"
-    api_key: "IHRER_MINIMAX_KEY"
-    model: "MiniMax-Text-01"  # Günstiges Modell für parallele Aufgaben
+    model: "MiniMax-M2.7-highspeed"  # Optional schnelleres Modell für parallele Aufgaben
 ```
 
 > **Empfehlung**: MiniMax eignet sich besonders für den Co-Agenten-Betrieb, da hier die Token-Kosten durch parallele Ausführung schnell summieren können.

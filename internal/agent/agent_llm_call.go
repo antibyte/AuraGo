@@ -62,6 +62,7 @@ func handleStreamingResponse(
 	defer stm.Close()
 
 	var assembledResponse strings.Builder
+	var assembledReasoning strings.Builder
 	var lastFinishReason string
 	tcAssembler := NewStreamToolCallAssembler()
 
@@ -159,6 +160,9 @@ func handleStreamingResponse(
 				lastFinishReason = string(chunk.Choices[0].FinishReason)
 			}
 			delta := chunk.Choices[0].Delta
+			if delta.ReasoningContent != "" {
+				assembledReasoning.WriteString(delta.ReasoningContent)
+			}
 			if delta.Content != "" {
 				assembledResponse.WriteString(delta.Content)
 				trimmed := strings.TrimLeft(delta.Content, " \t\r\n")
@@ -250,6 +254,7 @@ func handleStreamingResponse(
 	}
 	broker.SendLLMStreamDone(lastFinishReason)
 	content := assembledResponse.String()
+	reasoningContent := assembledReasoning.String()
 
 	assembledToolCalls := tcAssembler.Assemble()
 	if len(assembledToolCalls) > 0 {
@@ -280,9 +285,10 @@ func handleStreamingResponse(
 	resp := openai.ChatCompletionResponse{
 		Choices: []openai.ChatCompletionChoice{
 			{Message: openai.ChatCompletionMessage{
-				Role:      openai.ChatMessageRoleAssistant,
-				Content:   content,
-				ToolCalls: assembledToolCalls,
+				Role:             openai.ChatMessageRoleAssistant,
+				Content:          content,
+				ReasoningContent: reasoningContent,
+				ToolCalls:        assembledToolCalls,
 			}},
 		},
 		Usage: openai.Usage{
