@@ -206,6 +206,48 @@ func TestBuildSystemPromptIncludesPlannerContext(t *testing.T) {
 	}
 }
 
+func TestBuildSystemPromptStablePrefixIgnoresVolatileSuffix(t *testing.T) {
+	flagsA := ContextFlags{
+		Tier:                   "full",
+		SystemLanguage:         "en",
+		NativeToolsEnabled:     true,
+		HighPriorityNotes:      "Note A",
+		PlannerContext:         "Planner A",
+		RecentActivityOverview: "Recent A",
+		PredictedGuides:        []string{"Guide A"},
+		MessageSource:          "web_chat",
+		ActiveProcesses:        "daemon-a",
+	}
+	flagsB := flagsA
+	flagsB.HighPriorityNotes = "Note B"
+	flagsB.PlannerContext = "Planner B"
+	flagsB.RecentActivityOverview = "Recent B"
+	flagsB.PredictedGuides = []string{"Guide B"}
+	flagsB.MessageSource = "telegram"
+	flagsB.ActiveProcesses = "daemon-b"
+
+	promptA, _ := buildSystemPromptInner("", &flagsA, "Remember stable facts.", slog.Default())
+	promptB, _ := buildSystemPromptInner("", &flagsB, "Remember stable facts.", slog.Default())
+
+	prefixA, suffixA, okA := strings.Cut(promptA, "# TURN CONTEXT")
+	prefixB, suffixB, okB := strings.Cut(promptB, "# TURN CONTEXT")
+	if !okA || !okB {
+		t.Fatalf("expected # TURN CONTEXT marker in both prompts")
+	}
+	if prefixA != prefixB {
+		t.Fatalf("stable prefix changed for volatile inputs")
+	}
+	if suffixA == suffixB {
+		t.Fatalf("expected volatile suffixes to differ")
+	}
+	if strings.Contains(prefixA, "Note A") || strings.Contains(prefixA, "Planner A") || strings.Contains(prefixA, "Recent A") {
+		t.Fatalf("volatile context leaked into stable prefix")
+	}
+	if !strings.Contains(suffixA, "Note A") || !strings.Contains(suffixB, "Note B") {
+		t.Fatalf("volatile notes missing from suffixes")
+	}
+}
+
 func TestFallbackSystemPromptIncludesEmbeddedSafetyRules(t *testing.T) {
 	flags := ContextFlags{SystemLanguage: "en"}
 

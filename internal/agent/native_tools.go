@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"reflect"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 
@@ -392,6 +393,12 @@ func BuildNativeToolSchemas(skillsDir string, manifest *tools.Manifest, ff ToolF
 
 	// Add skills as sub-variants of execute_skill (informational context; already handled by execute_skill schema)
 	if skills, err := tools.ListSkills(skillsDir); err == nil {
+		sort.SliceStable(skills, func(i, j int) bool {
+			if skills[i].Name != skills[j].Name {
+				return skills[i].Name < skills[j].Name
+			}
+			return skills[i].Executable < skills[j].Executable
+		})
 		for _, skill := range skills {
 			if skill.Executable == "__builtin__" && skill.Name == "virustotal_scan" && !ff.VirusTotalEnabled {
 				continue
@@ -428,7 +435,13 @@ func BuildNativeToolSchemas(skillsDir string, manifest *tools.Manifest, ff ToolF
 	// Add custom tools from manifest
 	if manifest != nil {
 		if entries, err := manifest.Load(); err == nil {
-			for name, description := range entries {
+			names := make([]string, 0, len(entries))
+			for name := range entries {
+				names = append(names, name)
+			}
+			sort.Strings(names)
+			for _, name := range names {
+				description := entries[name]
 				if collisionName, ok := customToolBuiltinCollisionName(name, builtinNames); ok {
 					if logger != nil {
 						logger.Warn("[NativeTools] Skipping custom tool that collides with built-in tool",

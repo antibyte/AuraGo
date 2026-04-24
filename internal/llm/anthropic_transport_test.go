@@ -9,6 +9,52 @@ import (
 	"testing"
 )
 
+func anthropicSystemTextForTest(t *testing.T, system any) string {
+	t.Helper()
+	switch v := system.(type) {
+	case string:
+		return v
+	case []anthropicContentBlock:
+		if len(v) == 0 {
+			return ""
+		}
+		return v[0].Text
+	case []interface{}:
+		if len(v) == 0 {
+			return ""
+		}
+		block, ok := v[0].(map[string]interface{})
+		if !ok {
+			t.Fatalf("system block type = %T, want map", v[0])
+		}
+		text, _ := block["text"].(string)
+		return text
+	default:
+		t.Fatalf("system type = %T", system)
+		return ""
+	}
+}
+
+func anthropicSystemHasCacheControlForTest(t *testing.T, system any) bool {
+	t.Helper()
+	switch v := system.(type) {
+	case []anthropicContentBlock:
+		return len(v) > 0 && v[0].CacheControl != nil && v[0].CacheControl.Type == "ephemeral"
+	case []interface{}:
+		if len(v) == 0 {
+			return false
+		}
+		block, ok := v[0].(map[string]interface{})
+		if !ok {
+			t.Fatalf("system block type = %T, want map", v[0])
+		}
+		cacheControl, ok := block["cache_control"].(map[string]interface{})
+		return ok && cacheControl["type"] == "ephemeral"
+	default:
+		return false
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Request translation tests
 // ---------------------------------------------------------------------------
@@ -37,8 +83,8 @@ func TestAnthropicRequestTranslation(t *testing.T) {
 	if ant.MaxTokens != 1024 {
 		t.Errorf("max_tokens = %d, want 1024", ant.MaxTokens)
 	}
-	if ant.System != "You are helpful." {
-		t.Errorf("system = %q, want 'You are helpful.'", ant.System)
+	if got := anthropicSystemTextForTest(t, ant.System); got != "You are helpful." {
+		t.Errorf("system = %q, want 'You are helpful.'", got)
 	}
 	if len(ant.Messages) != 1 {
 		t.Fatalf("messages len = %d, want 1", len(ant.Messages))
@@ -155,8 +201,8 @@ func TestAnthropicSystemMessageExtraction(t *testing.T) {
 		t.Fatalf("translate: %v", err)
 	}
 
-	if ant.System != "System prompt 1\n\nSystem prompt 2" {
-		t.Errorf("system = %q, want concatenated system prompts", ant.System)
+	if got := anthropicSystemTextForTest(t, ant.System); got != "System prompt 1\n\nSystem prompt 2" {
+		t.Errorf("system = %q, want concatenated system prompts", got)
 	}
 	if len(ant.Messages) != 3 {
 		t.Fatalf("messages len = %d, want 3", len(ant.Messages))
@@ -207,6 +253,39 @@ func TestAnthropicToolDefinitionTranslation(t *testing.T) {
 	}
 	if ant.Tools[0].Description != "Get weather" {
 		t.Errorf("tool description = %q, want 'Get weather'", ant.Tools[0].Description)
+	}
+}
+
+func TestAnthropicPromptCacheHintsRequestShape(t *testing.T) {
+	toolA := `{"type":"function","function":{"name":"get_weather","description":"Get weather","parameters":{"type":"object","properties":{"city":{"type":"string"}}}}}`
+	toolB := `{"type":"function","function":{"name":"send_email","description":"Send email","parameters":{"type":"object","properties":{"to":{"type":"string"}}}}}`
+	oai := openaiRequest{
+		Model: "claude-3-5-sonnet-latest",
+		Tools: []json.RawMessage{
+			json.RawMessage(toolA),
+			json.RawMessage(toolB),
+		},
+		Messages: marshalMessages(t, []openaiMessage{
+			{Role: "system", Content: "Stable system prompt."},
+			{Role: "user", Content: "Hello"},
+		}),
+	}
+
+	ant, err := translateOpenAIToAnthropic(oai, anthropicThinkingConfig{})
+	if err != nil {
+		t.Fatalf("translate: %v", err)
+	}
+	if !anthropicSystemHasCacheControlForTest(t, ant.System) {
+		t.Fatalf("expected system cache_control hint, got %#v", ant.System)
+	}
+	if len(ant.Tools) != 2 {
+		t.Fatalf("tools len = %d, want 2", len(ant.Tools))
+	}
+	if ant.Tools[0].CacheControl != nil {
+		t.Fatalf("expected only final tool cache breakpoint, got first=%#v", ant.Tools[0].CacheControl)
+	}
+	if ant.Tools[1].CacheControl == nil || ant.Tools[1].CacheControl.Type != "ephemeral" {
+		t.Fatalf("expected final tool cache_control hint, got %#v", ant.Tools[1].CacheControl)
 	}
 }
 
@@ -702,8 +781,11 @@ func TestAnthropicE2E_Chat(t *testing.T) {
 		if err := json.Unmarshal(body, &antReq); err != nil {
 			t.Fatalf("unmarshal request: %v", err)
 		}
-		if antReq.System != "You are helpful." {
-			t.Errorf("system = %q", antReq.System)
+		if got := anthropicSystemTextForTest(t, antReq.System); got != "You are helpful." {
+			t.Errorf("system = %q", got)
+		}
+		if !anthropicSystemHasCacheControlForTest(t, antReq.System) {
+			t.Errorf("system missing cache_control hint: %#v", antReq.System)
 		}
 		if antReq.MaxTokens == 0 {
 			t.Error("max_tokens should not be 0")

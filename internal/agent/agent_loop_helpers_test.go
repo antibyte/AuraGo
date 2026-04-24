@@ -355,6 +355,19 @@ func TestAdaptiveFamilySeedsForQueryIncludesDocumentToolsForPDFRequests(t *testi
 	}
 }
 
+func TestCacheAwareAdaptiveAlwaysIncludeAddsIntentFamilyBundle(t *testing.T) {
+	got := cacheAwareAdaptiveAlwaysInclude("generate a short video with music", []string{"execute_shell"})
+	if !containsName(got, "execute_shell") {
+		t.Fatalf("expected existing always-include tool to remain, got %v", got)
+	}
+	if !containsName(got, "generate_video") {
+		t.Fatalf("expected media family bundle to include generate_video, got %v", got)
+	}
+	if !containsName(got, "generate_music") {
+		t.Fatalf("expected media family bundle to include generate_music, got %v", got)
+	}
+}
+
 func TestBuildAdaptiveToolPriorityUsesSemanticAndFamilySignals(t *testing.T) {
 	schemas := []openai.Tool{
 		makeTool("document_creator"),
@@ -512,28 +525,28 @@ func TestStreamingAccountingState_RecordsProviderUsage(t *testing.T) {
 	if st.hasProviderUsage {
 		t.Fatal("expected hasProviderUsage=false initially")
 	}
-	st.recordProviderUsage(100, 50)
+	st.recordProviderUsage(100, 50, 25)
 	if !st.hasProviderUsage {
 		t.Error("expected hasProviderUsage=true after recordProviderUsage")
 	}
-	if st.providerPrompt != 100 || st.providerCompletion != 50 {
-		t.Errorf("providerPrompt=%d providerCompletion=%d, want 100, 50", st.providerPrompt, st.providerCompletion)
+	if st.providerPrompt != 100 || st.providerCompletion != 50 || st.providerCached != 25 {
+		t.Errorf("providerPrompt=%d providerCompletion=%d providerCached=%d, want 100, 50, 25", st.providerPrompt, st.providerCompletion, st.providerCached)
 	}
 }
 
 func TestStreamingAccountingState_MergesNonZeroValuesOnMultipleRecords(t *testing.T) {
 	st := streamingAccountingState{}
 	// First chunk: prompt only
-	st.recordProviderUsage(100, 0)
+	st.recordProviderUsage(100, 0, 0)
 	// Second chunk: completion only
-	st.recordProviderUsage(0, 75)
+	st.recordProviderUsage(0, 75, 0)
 	if st.providerPrompt != 100 || st.providerCompletion != 75 {
 		t.Errorf("expected merged record (100, 75), got (%d, %d)", st.providerPrompt, st.providerCompletion)
 	}
 	// Third chunk: both values updated
-	st.recordProviderUsage(200, 80)
-	if st.providerPrompt != 200 || st.providerCompletion != 80 {
-		t.Errorf("expected last record (200, 80), got (%d, %d)", st.providerPrompt, st.providerCompletion)
+	st.recordProviderUsage(200, 80, 60)
+	if st.providerPrompt != 200 || st.providerCompletion != 80 || st.providerCached != 60 {
+		t.Errorf("expected last record (200, 80, 60), got (%d, %d, %d)", st.providerPrompt, st.providerCompletion, st.providerCached)
 	}
 }
 

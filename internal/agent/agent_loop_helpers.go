@@ -137,10 +137,11 @@ type streamingAccountingState struct {
 	hasProviderUsage   bool
 	providerPrompt     int
 	providerCompletion int
+	providerCached     int
 	finalized          bool
 }
 
-func (s *streamingAccountingState) recordProviderUsage(prompt, completion int) {
+func (s *streamingAccountingState) recordProviderUsage(prompt, completion, cached int) {
 	// Providers may send usage across multiple chunks (e.g. prompt in one chunk,
 	// completion in another). Only overwrite non-zero values so earlier
 	// measurements are preserved.
@@ -150,7 +151,10 @@ func (s *streamingAccountingState) recordProviderUsage(prompt, completion int) {
 	if completion > 0 {
 		s.providerCompletion = completion
 	}
-	if prompt > 0 || completion > 0 {
+	if cached > 0 {
+		s.providerCached = cached
+	}
+	if prompt > 0 || completion > 0 || cached > 0 {
 		s.hasProviderUsage = true
 	}
 }
@@ -525,6 +529,17 @@ func adaptiveFamilySeedsForQuery(userQuery string) []string {
 		return nil
 	}
 	return adaptiveFamilySeedTools[family]
+}
+
+func cacheAwareAdaptiveAlwaysInclude(userQuery string, alwaysInclude []string) []string {
+	seeds := adaptiveFamilySeedsForQuery(userQuery)
+	if len(seeds) == 0 {
+		return alwaysInclude
+	}
+	out := make([]string, 0, len(alwaysInclude)+len(seeds))
+	out = append(out, alwaysInclude...)
+	out = append(out, seeds...)
+	return out
 }
 
 func expandAdaptiveAlwaysInclude(cfg *config.Config, alwaysInclude []string) []string {

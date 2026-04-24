@@ -97,7 +97,7 @@ func (c anthropicThinkingConfig) enabledForModel(model string) bool {
 type anthropicRequest struct {
 	Model         string               `json:"model"`
 	MaxTokens     int                  `json:"max_tokens"`
-	System        string               `json:"system,omitempty"`
+	System        any                  `json:"system,omitempty"` // string or []anthropicContentBlock
 	Messages      []anthropicMessage   `json:"messages"`
 	Stream        bool                 `json:"stream,omitempty"`
 	Temperature   *float32             `json:"temperature,omitempty"`
@@ -114,14 +114,19 @@ type anthropicThinking struct {
 	BudgetTokens int    `json:"budget_tokens,omitempty"`
 }
 
+type anthropicCacheControl struct {
+	Type string `json:"type"`
+}
+
 type anthropicMessage struct {
 	Role    string `json:"role"`
 	Content any    `json:"content"` // string or []anthropicContentBlock
 }
 
 type anthropicContentBlock struct {
-	Type string `json:"type"`
-	Text string `json:"text,omitempty"`
+	Type         string                 `json:"type"`
+	Text         string                 `json:"text,omitempty"`
+	CacheControl *anthropicCacheControl `json:"cache_control,omitempty"`
 
 	// tool_use
 	ID    string          `json:"id,omitempty"`
@@ -145,9 +150,10 @@ type anthropicImageSource struct {
 }
 
 type anthropicToolDef struct {
-	Name        string          `json:"name"`
-	Description string          `json:"description,omitempty"`
-	InputSchema json.RawMessage `json:"input_schema"`
+	Name         string                 `json:"name"`
+	Description  string                 `json:"description,omitempty"`
+	InputSchema  json.RawMessage        `json:"input_schema"`
+	CacheControl *anthropicCacheControl `json:"cache_control,omitempty"`
 }
 
 type anthropicToolChoice struct {
@@ -495,7 +501,9 @@ func translateOpenAIToAnthropic(oai openaiRequest, thinkingCfg anthropicThinking
 	if err != nil {
 		return ant, fmt.Errorf("translate messages: %w", err)
 	}
-	ant.System = system
+	if strings.TrimSpace(system) != "" {
+		ant.System = cacheableAnthropicSystem(system)
+	}
 	ant.Messages = messages
 
 	return ant, nil
@@ -535,7 +543,18 @@ func translateTools(rawTools []json.RawMessage) ([]anthropicToolDef, error) {
 			InputSchema: oaiTool.Function.Parameters,
 		})
 	}
+	if len(result) > 0 {
+		result[len(result)-1].CacheControl = &anthropicCacheControl{Type: "ephemeral"}
+	}
 	return result, nil
+}
+
+func cacheableAnthropicSystem(system string) []anthropicContentBlock {
+	return []anthropicContentBlock{{
+		Type:         "text",
+		Text:         system,
+		CacheControl: &anthropicCacheControl{Type: "ephemeral"},
+	}}
 }
 
 func translateToolChoice(tc any) (*anthropicToolChoice, error) {

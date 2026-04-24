@@ -3,6 +3,7 @@ package llm
 import (
 	"bufio"
 	"bytes"
+	"crypto/sha256"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -240,6 +241,11 @@ func buildLLMHTTPClient(cfg *config.Config, providerType, aiGatewayToken string)
 		hasCustomTransport = true
 	}
 
+	if providerType == "openai" {
+		transport = &openAIPromptCacheTransport{base: transport}
+		hasCustomTransport = true
+	}
+
 	if providerType == "anthropic" {
 		at := &anthropicTransport{base: transport}
 		if cfg != nil {
@@ -289,9 +295,127 @@ type miniMaxTransport struct {
 	base http.RoundTripper
 }
 
+type openAIPromptCacheTransport struct {
+	base http.RoundTripper
+}
+
 type aiGatewayAuthTransport struct {
 	base  http.RoundTripper
 	token string
+}
+
+func (t *openAIPromptCacheTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	isChatCompletion := req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/chat/completions")
+	if req.Body == nil || !isChatCompletion {
+		return t.baseTransport().RoundTrip(req)
+	}
+
+	body, err := io.ReadAll(req.Body)
+	req.Body.Close()
+	if err != nil {
+		return nil, fmt.Errorf("openai prompt cache transport: read body: %w", err)
+	}
+	body = openAIPromptCacheRequestBody(body)
+
+	clone := req.Clone(req.Context())
+	clone.Header = req.Header.Clone()
+	clone.Body = io.NopCloser(bytes.NewReader(body))
+	clone.ContentLength = int64(len(body))
+
+	return t.baseTransport().RoundTrip(clone)
+}
+
+func (t *openAIPromptCacheTransport) baseTransport() http.RoundTripper {
+	if t.base != nil {
+		return t.base
+	}
+	return http.DefaultTransport
+}
+
+func openAIPromptCacheRequestBody(body []byte) []byte {
+	var payload map[string]interface{}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return body
+	}
+	if _, exists := payload["prompt_cache_key"]; exists {
+		return body
+	}
+	key := buildOpenAIPromptCacheKey(payload)
+	if key == "" {
+		return body
+	}
+	payload["prompt_cache_key"] = key
+	result, err := json.Marshal(payload)
+	if err != nil {
+		return body
+	}
+	return result
+}
+
+func buildOpenAIPromptCacheKey(payload map[string]interface{}) string {
+	fingerprint := struct {
+		Model          string        `json:"model"`
+		SystemPrefixes []string      `json:"system_prefixes,omitempty"`
+		Tools          []interface{} `json:"tools,omitempty"`
+	}{}
+	if model, ok := payload["model"].(string); ok {
+		fingerprint.Model = strings.TrimSpace(model)
+	}
+
+	if messages, ok := payload["messages"].([]interface{}); ok {
+		for _, rawMsg := range messages {
+			msg, ok := rawMsg.(map[string]interface{})
+			if !ok || msg["role"] != "system" {
+				continue
+			}
+			text := openAIRequestContentText(msg["content"])
+			if text == "" {
+				continue
+			}
+			fingerprint.SystemPrefixes = append(fingerprint.SystemPrefixes, openAICacheStablePrefix(text))
+		}
+	}
+	if tools, ok := payload["tools"].([]interface{}); ok && len(tools) > 0 {
+		fingerprint.Tools = tools
+	}
+	if fingerprint.Model == "" && len(fingerprint.SystemPrefixes) == 0 && len(fingerprint.Tools) == 0 {
+		return ""
+	}
+
+	raw, err := json.Marshal(fingerprint)
+	if err != nil {
+		return ""
+	}
+	sum := sha256.Sum256(raw)
+	return fmt.Sprintf("aurago-%x", sum[:16])
+}
+
+func openAIRequestContentText(content interface{}) string {
+	switch v := content.(type) {
+	case string:
+		return v
+	case []interface{}:
+		var b strings.Builder
+		for _, partRaw := range v {
+			part, ok := partRaw.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			if text, ok := part["text"].(string); ok {
+				b.WriteString(text)
+			}
+		}
+		return b.String()
+	default:
+		return ""
+	}
+}
+
+func openAICacheStablePrefix(system string) string {
+	if idx := strings.Index(system, "# TURN CONTEXT"); idx >= 0 {
+		return strings.TrimSpace(system[:idx])
+	}
+	return strings.TrimSpace(system)
 }
 
 func (t *aiGatewayAuthTransport) RoundTrip(req *http.Request) (*http.Response, error) {

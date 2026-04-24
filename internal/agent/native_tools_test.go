@@ -722,6 +722,34 @@ func TestBuildNativeToolSchemasSkipsCustomToolCollidingWithBuiltinTool(t *testin
 	}
 }
 
+func TestBuildNativeToolSchemasSortsCustomToolsByName(t *testing.T) {
+	toolsDir := t.TempDir()
+	manifest := tools.NewManifest(toolsDir)
+	manifestJSON := `{
+  "version": 2,
+  "tools": {
+    "zeta_helper": "Zeta helper",
+    "alpha_helper": "Alpha helper",
+    "middle_helper": "Middle helper"
+  }
+}`
+	if err := os.WriteFile(filepath.Join(toolsDir, "manifest.json"), []byte(manifestJSON), 0o600); err != nil {
+		t.Fatalf("write manifest: %v", err)
+	}
+
+	var got []string
+	for _, toolSchema := range BuildNativeToolSchemas(t.TempDir(), manifest, ToolFeatureFlags{}, nil) {
+		if toolSchema.Function != nil && strings.HasPrefix(toolSchema.Function.Name, "tool__") {
+			got = append(got, toolSchema.Function.Name)
+		}
+	}
+
+	want := []string{"tool__alpha_helper", "tool__middle_helper", "tool__zeta_helper"}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("custom tool order = %v, want %v", got, want)
+	}
+}
+
 func TestToolFeatureFlagsKeyChangesWhenFlagsChange(t *testing.T) {
 	base := ToolFeatureFlags{AllowShell: true, DockerEnabled: true}
 	same := ToolFeatureFlags{AllowShell: true, DockerEnabled: true}

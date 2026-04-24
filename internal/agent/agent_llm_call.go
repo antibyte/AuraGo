@@ -153,7 +153,11 @@ func handleStreamingResponse(
 			break
 		}
 		if chunk.Usage != nil {
-			streamAcct.recordProviderUsage(chunk.Usage.PromptTokens, chunk.Usage.CompletionTokens)
+			cachedTokens := 0
+			if chunk.Usage.PromptTokensDetails != nil {
+				cachedTokens = chunk.Usage.PromptTokensDetails.CachedTokens
+			}
+			streamAcct.recordProviderUsage(chunk.Usage.PromptTokens, chunk.Usage.CompletionTokens, cachedTokens)
 		}
 		if len(chunk.Choices) > 0 {
 			if chunk.Choices[0].FinishReason != "" {
@@ -282,6 +286,15 @@ func handleStreamingResponse(
 		tokenSource = "fallback_estimate"
 	}
 
+	usage := openai.Usage{
+		PromptTokens:     promptTokens,
+		CompletionTokens: completionTokens,
+		TotalTokens:      totalTokens,
+	}
+	if streamAcct.providerCached > 0 {
+		usage.PromptTokensDetails = &openai.PromptTokensDetails{CachedTokens: streamAcct.providerCached}
+	}
+
 	resp := openai.ChatCompletionResponse{
 		Choices: []openai.ChatCompletionChoice{
 			{Message: openai.ChatCompletionMessage{
@@ -291,11 +304,7 @@ func handleStreamingResponse(
 				ToolCalls:        assembledToolCalls,
 			}},
 		},
-		Usage: openai.Usage{
-			PromptTokens:     promptTokens,
-			CompletionTokens: completionTokens,
-			TotalTokens:      totalTokens,
-		},
+		Usage: usage,
 	}
 	return streamingResponseResult{
 		resp:             resp,

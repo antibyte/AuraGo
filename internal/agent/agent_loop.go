@@ -1266,6 +1266,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			SetGlobalTokenEstimated(true)
 			s.currentLogger.Warn("[TokenEstimation] Provider returned zero tokens — falling back to estimation which may be inaccurate", "model", req.Model)
 		}
+		if details := resp.Usage.PromptTokensDetails; details != nil && details.CachedTokens > 0 {
+			s.currentLogger.Debug("[PromptCache] Provider reported cached prompt tokens", "cached_tokens", details.CachedTokens, "prompt_tokens", promptTokens, "model", req.Model)
+		}
 
 		sessionTokens += totalTokens
 		localGlobalTotal := AddGlobalTokenCount(totalTokens)

@@ -44,6 +44,86 @@ func TestAIGatewayAuthTransportAddsHeader(t *testing.T) {
 	}
 }
 
+func TestOpenAIPromptCacheRequestBodyAddsStableKeyFromPrefix(t *testing.T) {
+	bodyA := []byte(`{
+		"model": "gpt-4.1",
+		"messages": [
+			{"role": "system", "content": "Stable system prompt\n# TURN CONTEXT\nNow A"},
+			{"role": "user", "content": "Hello A"}
+		],
+		"tools": [
+			{"type":"function","function":{"name":"alpha","parameters":{"type":"object"}}}
+		]
+	}`)
+	bodyB := []byte(`{
+		"model": "gpt-4.1",
+		"messages": [
+			{"role": "system", "content": "Stable system prompt\n# TURN CONTEXT\nNow B"},
+			{"role": "user", "content": "Hello B"}
+		],
+		"tools": [
+			{"type":"function","function":{"name":"alpha","parameters":{"type":"object"}}}
+		]
+	}`)
+
+	keyA := openAIPromptCacheKeyFromBodyForTest(t, openAIPromptCacheRequestBody(bodyA))
+	keyB := openAIPromptCacheKeyFromBodyForTest(t, openAIPromptCacheRequestBody(bodyB))
+	if keyA == "" {
+		t.Fatal("expected prompt_cache_key")
+	}
+	if keyA != keyB {
+		t.Fatalf("prompt_cache_key changed across volatile suffixes: %q vs %q", keyA, keyB)
+	}
+
+	var payload map[string]interface{}
+	if err := json.Unmarshal(openAIPromptCacheRequestBody(bodyA), &payload); err != nil {
+		t.Fatalf("unmarshal request body: %v", err)
+	}
+	if _, exists := payload["prompt_cache_retention"]; exists {
+		t.Fatal("did not expect prompt_cache_retention in minimal cache hint")
+	}
+}
+
+func TestOpenAIPromptCacheTransportAddsRequestShapeHint(t *testing.T) {
+	transport := &openAIPromptCacheTransport{
+		base: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			raw, err := io.ReadAll(req.Body)
+			if err != nil {
+				t.Fatalf("read request body failed: %v", err)
+			}
+			if key := openAIPromptCacheKeyFromBodyForTest(t, raw); key == "" {
+				t.Fatal("expected prompt_cache_key in outbound request")
+			}
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader("ok")),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	}
+
+	req, err := http.NewRequest(http.MethodPost, "https://api.openai.com/v1/chat/completions", strings.NewReader(`{
+		"model": "gpt-4.1",
+		"messages": [{"role": "system", "content": "Stable\n# TURN CONTEXT\nTurn"}]
+	}`))
+	if err != nil {
+		t.Fatalf("http.NewRequest() error = %v", err)
+	}
+	if _, err := transport.RoundTrip(req); err != nil {
+		t.Fatalf("RoundTrip() error = %v", err)
+	}
+}
+
+func openAIPromptCacheKeyFromBodyForTest(t *testing.T, body []byte) string {
+	t.Helper()
+	var payload map[string]interface{}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		t.Fatalf("unmarshal request body: %v", err)
+	}
+	key, _ := payload["prompt_cache_key"].(string)
+	return key
+}
+
 func TestMiniMaxConvertSystemMessages_StructuredContent(t *testing.T) {
 	body := `{
 		"model": "minimax",

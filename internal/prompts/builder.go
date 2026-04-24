@@ -530,6 +530,26 @@ func buildSystemPromptInner(promptsDir string, flags *ContextFlags, coreMemory s
 		finalPrompt.WriteString("\n\n")
 	}
 
+	// Compact enabled integrations overview (one-liner). This is configuration-derived,
+	// so keep it in the stable prefix for provider-side prompt caching.
+	if overview := buildEnabledToolsOverview(flags); overview != "" {
+		finalPrompt.WriteString(overview)
+		finalPrompt.WriteString("\n\n")
+	}
+
+	posBeforePersonality := finalPrompt.Len()
+	if !flags.IsMission && corePersonalityContent != "" {
+		finalPrompt.WriteString("# YOUR PERSONALITY (ACTIVE PROFILE: " + strings.ToUpper(flags.CorePersonality) + ")\n")
+		finalPrompt.WriteString("You MUST embody this personality completely and naturally in EVERY single response. Let it organically shape your words, choices, phrasing, and reasoning. This replaces any default AI tone completely. Do not act artificial or forced; just internalize and BE this persona:\n")
+		finalPrompt.WriteString(corePersonalityContent)
+		finalPrompt.WriteString("\n\n")
+	}
+	sectionPersonality := finalPrompt.Len() - posBeforePersonality
+
+	finalPrompt.WriteString("# TURN CONTEXT\n")
+	finalPrompt.WriteString("The following sections are specific to the current turn and may change between requests.\n\n")
+	posBeforeMemoryContext := finalPrompt.Len()
+
 	// High-priority open notes — inject as reminders
 	if flags.HighPriorityNotes != "" {
 		finalPrompt.WriteString("### ACTIVE REMINDERS (high-priority notes) ###\n")
@@ -615,17 +635,11 @@ func buildSystemPromptInner(promptsDir string, flags *ContextFlags, coreMemory s
 		finalPrompt.WriteString(security.IsolateExternalData(flags.ReuseContext))
 		finalPrompt.WriteString("\n\n")
 	}
-	sectionMemories := finalPrompt.Len() - sectionModules
+	sectionMemories := finalPrompt.Len() - posBeforeMemoryContext
 
 	// System Status
 	if flags.ActiveProcesses != "" && flags.ActiveProcesses != "None" {
 		finalPrompt.WriteString(fmt.Sprintf("[ACTIVE DAEMONS] %s\n\n", flags.ActiveProcesses))
-	}
-
-	// Compact enabled integrations overview (one-liner)
-	if overview := buildEnabledToolsOverview(flags); overview != "" {
-		finalPrompt.WriteString(overview)
-		finalPrompt.WriteString("\n\n")
 	}
 
 	// Dynamic Tool Guides — only in full tier
@@ -648,16 +662,8 @@ func buildSystemPromptInner(promptsDir string, flags *ContextFlags, coreMemory s
 
 	now := time.Now()
 
-	// Core Personality Profile (injected near end for maximum LLM attention)
-	posBeforePersonality := finalPrompt.Len()
-	if !flags.IsMission && corePersonalityContent != "" {
-		finalPrompt.WriteString("# YOUR PERSONALITY (ACTIVE PROFILE: " + strings.ToUpper(flags.CorePersonality) + ")\n")
-		finalPrompt.WriteString("You MUST embody this personality completely and naturally in EVERY single response. Let it organically shape your words, choices, phrasing, and reasoning. This replaces any default AI tone completely. Do not act artificial or forced; just internalize and BE this persona:\n")
-		finalPrompt.WriteString(corePersonalityContent)
-		finalPrompt.WriteString("\n\n")
-	}
-
 	// User Profiling: behavioral instruction + collected data
+	posBeforeVolatilePersonality := finalPrompt.Len()
 	if !flags.IsMission && flags.UserProfilingEnabled {
 		finalPrompt.WriteString("## USER PROFILING\n")
 		finalPrompt.WriteString("Your goal: build a comprehensive user profile over time to provide personalized assistance. " +
@@ -702,7 +708,7 @@ func buildSystemPromptInner(promptsDir string, flags *ContextFlags, coreMemory s
 		finalPrompt.WriteString(flags.InnerVoice)
 		finalPrompt.WriteString("\n\n")
 	}
-	sectionPersonality := finalPrompt.Len() - posBeforePersonality
+	sectionPersonality += finalPrompt.Len() - posBeforeVolatilePersonality
 
 	finalPrompt.WriteString("# NOW\n")
 	finalPrompt.WriteString(now.Format("2006-01-02 15:04"))
