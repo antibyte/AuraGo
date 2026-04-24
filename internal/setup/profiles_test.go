@@ -97,6 +97,9 @@ func TestMiniMaxProfileHasTTS(t *testing.T) {
 			if p.KeyPlaceholder != "sk-..." {
 				t.Fatalf("minimax key placeholder = %q, want sk-...", p.KeyPlaceholder)
 			}
+			if p.ProviderType != "minimax" {
+				t.Fatalf("minimax provider_type = %q, want minimax", p.ProviderType)
+			}
 			if p.BaseURL != "https://api.minimax.io/v1" {
 				t.Fatalf("minimax base_url = %q, want international endpoint", p.BaseURL)
 			}

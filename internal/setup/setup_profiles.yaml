@@ -55,7 +55,7 @@ profiles:
     key_url: "https://platform.minimax.io"
     alt_key_url: "https://platform.minimaxi.com"
     key_placeholder: "sk-..."
-    provider_type: openai
+    provider_type: minimax
     base_url: "https://api.minimax.io/v1"
     alt_base_url: "https://api.minimaxi.com/v1"
     main_model: "MiniMax-M2.7"
