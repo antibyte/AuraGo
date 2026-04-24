@@ -250,6 +250,7 @@ let personalitiesCache = [];
 // Runtime environment detection (loaded from /api/runtime)
 let runtimeData = { runtime: {}, features: {} };
 const SECTION_FEATURE_MAP = { docker: 'docker', invasion_control: 'invasion_local', updates: 'updates' };
+const NON_BLOCKING_UNAVAILABLE_SECTIONS = new Set(['docker']);
 
 // Init
 async function init() {
@@ -406,7 +407,7 @@ function buildSidebar() {
 
         group.items.forEach(s => {
             const blockedReason = sectionBlockedReason(s.key);
-            const isBlocked = blockedReason !== '';
+            const isBlocked = shouldBlockUnavailableSection(s.key) && blockedReason !== '';
             const item = document.createElement('div');
             item.className = 'sidebar-item'
                 + (s.key === activeSection ? ' active' : '')
@@ -417,7 +418,7 @@ function buildSidebar() {
             if (isBlocked) item.title = blockedReason;
             item.innerHTML = '<span class="icon">' + s.icon + '</span><span>' + s.label + '</span>';
             item.onclick = () => {
-                if (sectionBlockedReason(s.key)) return;
+                if (shouldBlockUnavailableSection(s.key) && sectionBlockedReason(s.key)) return;
                 selectSection(s.key);
             };
             content.appendChild(item);
@@ -450,7 +451,7 @@ function toggleGroup(groupName, groupDiv) {
 async function selectSection(key, options = {}) {
     const { scrollBehavior = 'smooth' } = options;
     if (!hasVisibleSection(key)) key = 'server';
-    if (sectionBlockedReason(key)) key = 'server';
+    if (shouldBlockUnavailableSection(key) && sectionBlockedReason(key)) key = 'server';
     activeSection = key;
     localStorage.setItem('aurago-cfg-section', key);
     document.querySelectorAll('.sidebar-item').forEach(el => el.classList.toggle('active', el.dataset.section === key));
@@ -608,7 +609,7 @@ async function renderSection(key) {
         const fb = featureUnavailableBanner(sectionFeatureKey);
         if (fb) html += fb;
     }
-    const sectionBlocked = sectionFeatureKey && runtimeData.features && runtimeData.features[sectionFeatureKey] && !runtimeData.features[sectionFeatureKey].available;
+    const sectionBlocked = sectionFeatureKey && shouldBlockUnavailableSection(key) && runtimeData.features && runtimeData.features[sectionFeatureKey] && !runtimeData.features[sectionFeatureKey].available;
     if (sectionBlocked) html += '<div class="feature-unavailable-fields">';
 
     // LLM settings explanation
@@ -879,6 +880,10 @@ function sectionBlockedReason(sectionKey) {
     const fa = (runtimeData.features || {})[featureKey];
     if (!fa || fa.available) return '';
     return fa.reason || t('config.feature_unavailable');
+}
+
+function shouldBlockUnavailableSection(sectionKey) {
+    return !NON_BLOCKING_UNAVAILABLE_SECTIONS.has(sectionKey);
 }
 
 function unavailableReasonBanner(reason, options) {
