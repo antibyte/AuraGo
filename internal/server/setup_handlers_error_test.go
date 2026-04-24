@@ -13,10 +13,7 @@ import (
 func TestHandleSetupSaveInvalidJSONIsGeneric(t *testing.T) {
 	t.Parallel()
 
-	// Set a known CSRF token for this test.
-	setupCSRFMu.Lock()
-	setupCSRFToken = "test-token"
-	setupCSRFMu.Unlock()
+	addSetupCSRFTokenForTest("test-token")
 
 	s := &Server{
 		Cfg: &config.Config{ConfigPath: t.TempDir() + "\\config.yaml"},

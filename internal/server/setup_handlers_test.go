@@ -12,9 +12,16 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 type panicVectorDB struct{}
+
+func addSetupCSRFTokenForTest(token string) {
+	setupCSRFMu.Lock()
+	defer setupCSRFMu.Unlock()
+	setupCSRFTokens[token] = time.Now().Add(setupCSRFTokenTTL)
+}
 
 func (panicVectorDB) StoreDocument(concept, content string) ([]string, error) {
 	return nil, errors.New("not implemented")
@@ -49,9 +56,9 @@ func (panicVectorDB) DeleteDocument(id string) error {
 func (panicVectorDB) DeleteDocumentFromCollection(id, collection string) error {
 	return errors.New("not implemented")
 }
-func (panicVectorDB) Count() int { return 0 }
+func (panicVectorDB) Count() int       { return 0 }
 func (panicVectorDB) IsDisabled() bool { panic("boom") }
-func (panicVectorDB) Close() error { return nil }
+func (panicVectorDB) Close() error     { return nil }
 func (panicVectorDB) StoreCheatsheet(id, name, content string, attachments ...string) error {
 	return errors.New("not implemented")
 }
@@ -125,11 +132,6 @@ func TestExtractSetupAdminPasswordAllowsExistingPasswordToRemain(t *testing.T) {
 }
 
 func TestHandleSetupStatusReturnsCSRFToken(t *testing.T) {
-	// Reset global CSRF state for this test.
-	setupCSRFMu.Lock()
-	setupCSRFToken = ""
-	setupCSRFMu.Unlock()
-
 	s := &Server{Cfg: &config.Config{}}
 	// Config has no provider → needsSetup returns true
 
@@ -155,10 +157,6 @@ func TestHandleSetupStatusReturnsCSRFToken(t *testing.T) {
 }
 
 func TestHandleSetupStatusNoCSRFWhenConfigured(t *testing.T) {
-	setupCSRFMu.Lock()
-	setupCSRFToken = ""
-	setupCSRFMu.Unlock()
-
 	s := &Server{Cfg: &config.Config{}}
 	s.Cfg.LLM.APIKey = "configured"
 
@@ -178,10 +176,67 @@ func TestHandleSetupStatusNoCSRFWhenConfigured(t *testing.T) {
 	}
 }
 
+func TestSetupCSRFTokensAllowMultipleTabs(t *testing.T) {
+	tokenA := issueSetupCSRFToken()
+	tokenB := issueSetupCSRFToken()
+
+	if tokenA == "" || tokenB == "" || tokenA == tokenB {
+		t.Fatalf("expected distinct non-empty tokens, got %q and %q", tokenA, tokenB)
+	}
+	if !validateSetupCSRFToken(tokenA, true) {
+		t.Fatal("expected first token to validate")
+	}
+	if validateSetupCSRFToken(tokenA, false) {
+		t.Fatal("expected consumed first token to be rejected")
+	}
+	if !validateSetupCSRFToken(tokenB, false) {
+		t.Fatal("expected second token to remain valid")
+	}
+}
+
+func TestValidateSetupTestBaseURLRejectsPrivateProviderURL(t *testing.T) {
+	if err := validateSetupTestBaseURL("openai", "https://127.0.0.1/v1"); err == nil {
+		t.Fatal("expected private provider URL to be rejected")
+	}
+}
+
+func TestValidateSetupTestBaseURLAllowsKnownProviderURL(t *testing.T) {
+	if err := validateSetupTestBaseURL("openrouter", "https://openrouter.ai/api/v1"); err != nil {
+		t.Fatalf("expected known provider URL to be allowed: %v", err)
+	}
+}
+
+func TestValidateSetupTestBaseURLAllowsDockerOllamaURL(t *testing.T) {
+	if got := setupOllamaBaseURL(true); got != "http://host.docker.internal:11434/v1" {
+		t.Fatalf("docker Ollama base URL = %q", got)
+	}
+	if err := validateSetupTestBaseURL("ollama", setupOllamaBaseURL(true)); err != nil {
+		t.Fatalf("expected Docker Ollama URL to be allowed: %v", err)
+	}
+}
+
+func TestValidateSetupTestBaseURLRejectsOllamaUnexpectedPort(t *testing.T) {
+	if err := validateSetupTestBaseURL("ollama", "http://host.docker.internal:8080/v1"); err == nil {
+		t.Fatal("expected unexpected Ollama port to be rejected")
+	}
+}
+
+func TestHandleSetupTestConnectionRejectsWithoutCSRF(t *testing.T) {
+	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/setup/test", strings.NewReader(`{"provider_type":"openrouter","base_url":"https://openrouter.ai/api/v1","api_key":"sk-test","model":"test-model"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+
+	handleSetupTestConnection(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusForbidden, rec.Body.String())
+	}
+}
+
 func TestHandleSetupSaveRejectsWithoutCSRF(t *testing.T) {
-	setupCSRFMu.Lock()
-	setupCSRFToken = "test-csrf-token-12345"
-	setupCSRFMu.Unlock()
+	addSetupCSRFTokenForTest("test-csrf-token-12345")
 
 	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
 
@@ -199,9 +254,7 @@ func TestHandleSetupSaveRejectsWithoutCSRF(t *testing.T) {
 }
 
 func TestHandleSetupSaveRejectsWrongCSRF(t *testing.T) {
-	setupCSRFMu.Lock()
-	setupCSRFToken = "correct-token"
-	setupCSRFMu.Unlock()
+	addSetupCSRFTokenForTest("correct-token")
 
 	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
 
@@ -310,9 +363,7 @@ func TestHandleSetupProfilesRejectsPost(t *testing.T) {
 }
 
 func TestHandleSetupSaveAcceptsMiniMaxQuickPatch(t *testing.T) {
-	setupCSRFMu.Lock()
-	setupCSRFToken = "minimax-setup-token"
-	setupCSRFMu.Unlock()
+	addSetupCSRFTokenForTest("minimax-setup-token")
 
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "config.yaml")
@@ -450,9 +501,7 @@ func TestHandleSetupSaveAcceptsMiniMaxQuickPatch(t *testing.T) {
 }
 
 func TestHandleSetupSaveAcceptsMiniMaxQuickPatchAgainstCurrentConfig(t *testing.T) {
-	setupCSRFMu.Lock()
-	setupCSRFToken = "minimax-current-config-token"
-	setupCSRFMu.Unlock()
+	addSetupCSRFTokenForTest("minimax-current-config-token")
 
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "config.yaml")
@@ -483,12 +532,12 @@ func TestHandleSetupSaveAcceptsMiniMaxQuickPatchAgainstCurrentConfig(t *testing.
 			map[string]interface{}{"id": "image_gen", "type": "minimax", "name": "MiniMax Coding Plan Image Gen", "base_url": "https://api.minimax.io/v1/image_generation", "api_key": "sk-test", "model": "image-01", "native_function_calling": true},
 			map[string]interface{}{"id": "music_gen", "type": "minimax", "name": "MiniMax Coding Plan Music Gen", "base_url": "https://api.minimax.io/v1/music_generation", "api_key": "sk-test", "model": "music-2.6", "native_function_calling": true},
 		},
-		"agent": map[string]interface{}{"system_language": "Deutsch"},
-		"llm": map[string]interface{}{"provider": "main", "use_native_functions": true, "helper_enabled": true, "helper_provider": "helper", "structured_outputs": true},
-		"whisper": map[string]interface{}{"provider": "whisper", "mode": "multimodal"},
+		"agent":            map[string]interface{}{"system_language": "Deutsch"},
+		"llm":              map[string]interface{}{"provider": "main", "use_native_functions": true, "helper_enabled": true, "helper_provider": "helper", "structured_outputs": true},
+		"whisper":          map[string]interface{}{"provider": "whisper", "mode": "multimodal"},
 		"image_generation": map[string]interface{}{"enabled": true, "provider": "image_gen"},
 		"music_generation": map[string]interface{}{"enabled": true, "provider": "music_gen"},
-		"tts": map[string]interface{}{"provider": "minimax", "minimax": map[string]interface{}{"api_key": "sk-test", "model_id": "speech-02-hd", "voice_id": "English_PlayfulGirl"}},
+		"tts":              map[string]interface{}{"provider": "minimax", "minimax": map[string]interface{}{"api_key": "sk-test", "model_id": "speech-02-hd", "voice_id": "English_PlayfulGirl"}},
 	}
 
 	body, err := json.Marshal(patch)
@@ -509,9 +558,7 @@ func TestHandleSetupSaveAcceptsMiniMaxQuickPatchAgainstCurrentConfig(t *testing.
 }
 
 func TestHandleSetupSaveReturnsRestartRequiredWhenHotReloadPanics(t *testing.T) {
-	setupCSRFMu.Lock()
-	setupCSRFToken = "minimax-panic-token"
-	setupCSRFMu.Unlock()
+	addSetupCSRFTokenForTest("minimax-panic-token")
 
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "config.yaml")
@@ -543,12 +590,12 @@ func TestHandleSetupSaveReturnsRestartRequiredWhenHotReloadPanics(t *testing.T) 
 			map[string]interface{}{"id": "image_gen", "type": "minimax", "name": "MiniMax Coding Plan Image Gen", "base_url": "https://api.minimax.io/v1/image_generation", "api_key": "sk-test", "model": "image-01", "native_function_calling": true},
 			map[string]interface{}{"id": "music_gen", "type": "minimax", "name": "MiniMax Coding Plan Music Gen", "base_url": "https://api.minimax.io/v1/music_generation", "api_key": "sk-test", "model": "music-2.6", "native_function_calling": true},
 		},
-		"agent": map[string]interface{}{"system_language": "Deutsch"},
-		"llm": map[string]interface{}{"provider": "main", "use_native_functions": true, "helper_enabled": true, "helper_provider": "helper", "structured_outputs": true},
-		"whisper": map[string]interface{}{"provider": "whisper", "mode": "multimodal"},
+		"agent":            map[string]interface{}{"system_language": "Deutsch"},
+		"llm":              map[string]interface{}{"provider": "main", "use_native_functions": true, "helper_enabled": true, "helper_provider": "helper", "structured_outputs": true},
+		"whisper":          map[string]interface{}{"provider": "whisper", "mode": "multimodal"},
 		"image_generation": map[string]interface{}{"enabled": true, "provider": "image_gen"},
 		"music_generation": map[string]interface{}{"enabled": true, "provider": "music_gen"},
-		"tts": map[string]interface{}{"provider": "minimax", "minimax": map[string]interface{}{"api_key": "sk-test", "model_id": "speech-02-hd", "voice_id": "English_PlayfulGirl"}},
+		"tts":              map[string]interface{}{"provider": "minimax", "minimax": map[string]interface{}{"api_key": "sk-test", "model_id": "speech-02-hd", "voice_id": "English_PlayfulGirl"}},
 	}
 
 	body, err := json.Marshal(patch)

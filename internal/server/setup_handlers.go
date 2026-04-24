@@ -12,7 +12,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/netip"
+	"net/url"
 	"os"
 	"strings"
 	"sync"
@@ -22,12 +25,14 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// setupCSRF holds the active CSRF token for the setup wizard.
-// A fresh token is issued on every GET /api/setup/status request so that
-// the token cannot be replayed across multiple browser sessions.
+const setupCSRFTokenTTL = 30 * time.Minute
+
+// setupCSRFTokens holds short-lived CSRF tokens for the setup wizard.
+// Multiple tokens may be valid at once so a second tab or status refresh does
+// not silently invalidate an in-progress setup form.
 var (
-	setupCSRFToken string
-	setupCSRFMu    sync.RWMutex
+	setupCSRFTokens = map[string]time.Time{}
+	setupCSRFMu     sync.Mutex
 )
 
 // generateSetupCSRF creates a cryptographically random 32-byte hex token.
@@ -38,6 +43,43 @@ func generateSetupCSRF() string {
 		return hex.EncodeToString([]byte(fmt.Sprintf("%d", time.Now().UnixNano())))
 	}
 	return hex.EncodeToString(b)
+}
+
+func issueSetupCSRFToken() string {
+	token := generateSetupCSRF()
+	now := time.Now()
+	setupCSRFMu.Lock()
+	defer setupCSRFMu.Unlock()
+	pruneExpiredSetupCSRFTokensLocked(now)
+	setupCSRFTokens[token] = now.Add(setupCSRFTokenTTL)
+	return token
+}
+
+func validateSetupCSRFToken(token string, consume bool) bool {
+	if token == "" {
+		return false
+	}
+	now := time.Now()
+	setupCSRFMu.Lock()
+	defer setupCSRFMu.Unlock()
+	pruneExpiredSetupCSRFTokensLocked(now)
+	expiry, ok := setupCSRFTokens[token]
+	if !ok || now.After(expiry) {
+		delete(setupCSRFTokens, token)
+		return false
+	}
+	if consume {
+		delete(setupCSRFTokens, token)
+	}
+	return true
+}
+
+func pruneExpiredSetupCSRFTokensLocked(now time.Time) {
+	for token, expiry := range setupCSRFTokens {
+		if now.After(expiry) {
+			delete(setupCSRFTokens, token)
+		}
+	}
 }
 
 // handleSetupStatus returns whether the setup wizard should be shown.
@@ -53,17 +95,14 @@ func handleSetupStatus(s *Server) http.HandlerFunc {
 		s.CfgMu.RUnlock()
 
 		resp := map[string]interface{}{
-			"needs_setup": show,
+			"needs_setup":     show,
+			"is_docker":       s.Cfg.Runtime.IsDocker,
+			"ollama_base_url": setupOllamaBaseURL(s.Cfg.Runtime.IsDocker),
 		}
 
 		// Issue a fresh CSRF token on every status request when setup is needed.
-		// This prevents replay of observed tokens.
 		if show {
-			token := generateSetupCSRF()
-			setupCSRFMu.Lock()
-			setupCSRFToken = token
-			setupCSRFMu.Unlock()
-			resp["csrf_token"] = token
+			resp["csrf_token"] = issueSetupCSRFToken()
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -96,12 +135,8 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 		}
 
 		// CSRF protection: the token was issued via GET /api/setup/status.
-		// Validate and immediately invalidate to prevent replay.
-		setupCSRFMu.Lock()
-		expectedToken := setupCSRFToken
-		setupCSRFToken = "" // invalidate after single use
-		setupCSRFMu.Unlock()
-		if token := r.Header.Get("X-CSRF-Token"); token == "" || expectedToken == "" || token != expectedToken {
+		// Final setup saves consume the token to prevent replay.
+		if !validateSetupCSRFToken(r.Header.Get("X-CSRF-Token"), true) {
 			s.Logger.Warn("[Setup] CSRF token mismatch")
 			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.setup_invalid_csrf_token"), http.StatusForbidden)
 			return
@@ -417,6 +452,13 @@ func needsSetup(cfg *config.Config) bool {
 	return cfg.Auth.Enabled && cfg.Auth.PasswordHash == ""
 }
 
+func setupOllamaBaseURL(isDocker bool) string {
+	if isDocker {
+		return "http://host.docker.internal:11434/v1"
+	}
+	return "http://localhost:11434/v1"
+}
+
 // handleSetupTestConnection performs a lightweight LLM connectivity test using
 // the provider details supplied by the setup wizard. It creates a temporary
 // client, sends a minimal completion request, and returns success or an error
@@ -435,6 +477,15 @@ func handleSetupTestConnection(s *Server) http.HandlerFunc {
 			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.setup_already_completed"), http.StatusForbidden)
 			return
 		}
+		// The test endpoint performs an outbound request using user-supplied
+		// connection details, so it must be protected even though setup itself is
+		// available before login. Do not consume the token: users often test and
+		// then save from the same setup page.
+		if !validateSetupCSRFToken(r.Header.Get("X-CSRF-Token"), false) {
+			s.Logger.Warn("[Setup] CSRF token mismatch on test connection")
+			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.setup_invalid_csrf_token"), http.StatusForbidden)
+			return
+		}
 
 		var req struct {
 			ProviderType string `json:"provider_type"`
@@ -450,6 +501,10 @@ func handleSetupTestConnection(s *Server) http.HandlerFunc {
 
 		if req.Model == "" {
 			jsonError(w, i18n.T(s.Cfg.Server.UILanguage, "backend.setup_model_required"), http.StatusBadRequest)
+			return
+		}
+		if err := validateSetupTestBaseURL(req.ProviderType, req.BaseURL); err != nil {
+			jsonError(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 
@@ -481,6 +536,98 @@ func handleSetupTestConnection(s *Server) http.HandlerFunc {
 			"message": i18n.T(s.Cfg.Server.UILanguage, "backend.setup_connection_successful"),
 		})
 	}
+}
+
+func validateSetupTestBaseURL(providerType, rawURL string) error {
+	providerType = strings.ToLower(strings.TrimSpace(providerType))
+	rawURL = strings.TrimSpace(rawURL)
+	if rawURL == "" {
+		return fmt.Errorf("base_url is required")
+	}
+	parsed, err := url.Parse(rawURL)
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		return fmt.Errorf("base_url must be a valid absolute URL")
+	}
+	if parsed.User != nil {
+		return fmt.Errorf("base_url must not include credentials")
+	}
+	scheme := strings.ToLower(parsed.Scheme)
+	host := strings.ToLower(strings.TrimSuffix(parsed.Hostname(), "."))
+	port := parsed.Port()
+
+	if providerType == "ollama" {
+		if scheme != "http" && scheme != "https" {
+			return fmt.Errorf("ollama base_url must use http or https")
+		}
+		if port != "" && port != "11434" {
+			return fmt.Errorf("ollama setup test only allows port 11434")
+		}
+		if isAllowedOllamaSetupHost(host) {
+			return nil
+		}
+		return fmt.Errorf("ollama setup test only allows localhost or host.docker.internal")
+	}
+
+	if scheme != "https" {
+		return fmt.Errorf("setup test only allows HTTPS provider URLs")
+	}
+	if port != "" && port != "443" {
+		return fmt.Errorf("setup test only allows the default HTTPS port")
+	}
+	if isLocalOrPrivateSetupHost(host) {
+		return fmt.Errorf("setup test does not allow local or private base_url hosts")
+	}
+	if !isAllowedSetupProviderHost(host) {
+		return fmt.Errorf("setup test only allows known setup provider hosts")
+	}
+	return nil
+}
+
+func isAllowedOllamaSetupHost(host string) bool {
+	switch host {
+	case "localhost", "127.0.0.1", "::1", "host.docker.internal":
+		return true
+	default:
+		return false
+	}
+}
+
+func isLocalOrPrivateSetupHost(host string) bool {
+	if strings.EqualFold(host, "localhost") || strings.HasSuffix(host, ".localhost") {
+		return true
+	}
+	if ip := net.ParseIP(host); ip != nil {
+		addr, ok := netip.AddrFromSlice(ip)
+		if !ok {
+			return true
+		}
+		return !addr.IsGlobalUnicast() ||
+			addr.IsPrivate() ||
+			addr.IsLoopback() ||
+			addr.IsLinkLocalUnicast() ||
+			addr.IsLinkLocalMulticast()
+	}
+	return false
+}
+
+func isAllowedSetupProviderHost(host string) bool {
+	allowed := []string{
+		"api.openai.com",
+		"api.anthropic.com",
+		"generativelanguage.googleapis.com",
+		"openrouter.ai",
+		"api.minimax.io",
+		"api.minimaxi.com",
+		"dashscope-intl.aliyuncs.com",
+		"open.bigmodel.cn",
+		"api.moonshot.cn",
+	}
+	for _, allowedHost := range allowed {
+		if host == allowedHost {
+			return true
+		}
+	}
+	return false
 }
 
 // handleSetupProfiles returns the list of pre-configured provider profiles

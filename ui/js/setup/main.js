@@ -17,6 +17,7 @@ let profiles = [];
 let saving = false;
 let setupPasswordRequired = true;
 let csrfToken = '';
+let setupOllamaBaseURL = 'http://localhost:11434/v1';
 
 // Derived helpers
 function activeFlow()  { return isQuickFlow ? QUICK_FLOW_STEPS  : CUSTOM_FLOW_STEPS; }
@@ -35,6 +36,17 @@ function totalSteps()  { return activeFlow().length; }
             return;
         }
         if (data.csrf_token) csrfToken = data.csrf_token;
+        if (data.ollama_base_url) {
+            setupOllamaBaseURL = data.ollama_base_url;
+            if (typeof providerConfig !== 'undefined' && providerConfig.ollama) {
+                providerConfig.ollama.baseUrl = setupOllamaBaseURL;
+                const provider = document.getElementById('llm-provider');
+                const baseURL = document.getElementById('llm-base-url');
+                if (provider && baseURL && provider.value === 'ollama') {
+                    baseURL.value = setupOllamaBaseURL;
+                }
+            }
+        }
     } catch (e) { /* ignore — proceed with setup */ }
 })();
 
@@ -118,7 +130,7 @@ const providerConfig = {
         needsKey: true,
     },
     ollama: {
-        baseUrl: 'http://localhost:11434/v1',
+        baseUrl: setupOllamaBaseURL,
         placeholder: t('setup.provider_ollama_key_placeholder'),
         link: 'ollama.com',
         defaultModel: 'llama3.1',
@@ -349,7 +361,10 @@ async function testQuickConnection() {
         const runtime = getQuickProfileRuntimeConfig(selectedProfile);
         const resp = await fetch('/api/setup/test', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': csrfToken,
+            },
             body: JSON.stringify({
                 provider_type: runtime.providerType,
                 base_url: runtime.baseUrl,
@@ -819,7 +834,10 @@ async function testConnection() {
     try {
         const resp = await fetch('/api/setup/test', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': csrfToken,
+            },
             body: JSON.stringify({ provider_type: providerType, base_url: baseUrl, api_key: apiKey, model: model }),
         });
         const data = await resp.json();
