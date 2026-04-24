@@ -22,6 +22,7 @@
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
             box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+            min-width: 0;
         }
 
         .dash-tab {
@@ -100,9 +101,28 @@
         }
 
         /* D-14/D-15: Unified breakpoint — 600px → 640px */
-        @media (max-width: 640px) {
+        @media (max-width: 1024px) {
             .dash-tabs {
                 overflow-x: auto;
+                overflow-y: hidden;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: none;
+                -ms-overflow-style: none;
+                scroll-snap-type: x proximity;
+            }
+
+            .dash-tabs::-webkit-scrollbar {
+                display: none;
+            }
+
+            .dash-tab {
+                flex: 0 0 auto;
+                scroll-snap-align: start;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .dash-tabs {
                 padding: 0.5rem 0.75rem;
                 gap: 0.25rem;
                 top: 52px;
@@ -1695,13 +1715,24 @@
         }
 
         @media (max-width: 640px) {
+            .dash-banner-always {
+                padding: 0.65rem 0.75rem 0;
+            }
+
             .agent-banner-item {
                 white-space: normal;
-                flex: 1 1 calc(50% - 0.5rem);
+                flex: 1 1 min(100%, 12rem);
+                min-width: 0;
+                overflow-wrap: anywhere;
             }
             .agent-banner {
                 gap: 0.5rem 1rem;
-                justify-content: center;
+                justify-content: flex-start;
+            }
+            .agent-banner-item strong,
+            .agent-banner-item span {
+                min-width: 0;
+                overflow-wrap: anywhere;
             }
             .agent-banner-sep {
                 display: none;
@@ -1837,7 +1868,6 @@
                 gap: 0.15rem;
             }
             .dash-tab {
-                flex: 1 1 auto;
                 justify-content: center;
                 min-width: 48px;
                 padding: 0.4rem 0.5rem;
