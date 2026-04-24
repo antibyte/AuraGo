@@ -237,7 +237,7 @@ agent:
         enabled: false
         max_tools: 60
         decay_half_life_days: 7
-        always_include: [filesystem, shell, manage_memory, query_memory, execute_python, docker, api_request]
+        always_include: [filesystem, execute_shell, manage_memory, query_memory, execute_python, docker, api_request]
 
     # Recovery settings
     recovery:

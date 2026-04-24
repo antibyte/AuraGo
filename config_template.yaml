@@ -53,7 +53,7 @@ agent:
         enabled: false                                              # enable adaptive filtering
         max_tools: 16                                              # max tool schemas sent to LLM (0 = unlimited, default: 16; research shows accuracy degrades beyond ~20 tools)
         decay_half_life_days: 7                                     # usage score halves after this many days
-        always_include: [filesystem, file_editor, shell, manage_memory, query_memory, execute_python, docker, api_request]
+        always_include: [filesystem, file_editor, execute_shell, manage_memory, query_memory, execute_python, docker, api_request]
     recovery:
         max_provider_422_recoveries: 3                              # automatic retries after provider-side 422 validation errors
         min_messages_for_empty_retry: 5                             # retry empty LLM responses only when enough conversation context exists

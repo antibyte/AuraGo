@@ -135,7 +135,7 @@ agent:
     always_include:
       - "filesystem"
       - "file_editor"
-      - "shell"
+      - "execute_shell"
       - "manage_memory"
       - "query_memory"
       - "execute_python"

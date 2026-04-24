@@ -457,7 +457,7 @@ mcp_server:
   enabled: true
   port: 8089
   allowed_tools:
-    - "shell"
+    - "execute_shell"
     - "filesystem"
 ```
 

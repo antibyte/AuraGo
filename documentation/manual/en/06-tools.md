@@ -134,7 +134,7 @@ agent:
     # Always available (don't filter):
     always_include:
       - "filesystem"
-      - "shell"
+      - "execute_shell"
       - "query_memory"
 ```
 

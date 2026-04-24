@@ -688,6 +688,33 @@ minimax:tool_call
 	}
 }
 
+func TestParseToolResponsePromotesBareDiagnosticShellCommand(t *testing.T) {
+	command := `docker stats --no-stream --format "table {{.Name}}\t{{.MemUsage}}\t{{.MemPerc}}" 2>/dev/null || echo "Docker nicht verfügbar oder keine Berechtigung"`
+	resp := openai.ChatCompletionResponse{
+		Choices: []openai.ChatCompletionChoice{{
+			Message: openai.ChatCompletionMessage{Content: command},
+		}},
+	}
+
+	parsed := parseToolResponse(resp, nil, AgentTelemetryScope{})
+	if !parsed.ToolCall.IsTool {
+		t.Fatal("expected bare diagnostic command to be promoted to a tool call")
+	}
+	if parsed.ToolCall.Action != "execute_shell" {
+		t.Fatalf("action = %q, want execute_shell", parsed.ToolCall.Action)
+	}
+	if parsed.ToolCall.Command != command {
+		t.Fatalf("command = %q, want %q", parsed.ToolCall.Command, command)
+	}
+}
+
+func TestParseToolCallDoesNotPromoteDestructiveBareShellCommand(t *testing.T) {
+	parsed := ParseToolCall("docker rm -f aurago")
+	if parsed.IsTool {
+		t.Fatalf("destructive bare command should not become a tool call: %+v", parsed)
+	}
+}
+
 func TestFormatAnnouncementFeedbackIncludesDone(t *testing.T) {
 	msg := FormatAnnouncementFeedback(true, nil)
 	if !strings.Contains(msg, "<done/>") {

@@ -644,7 +644,7 @@ func Load(path string) (*Config, error) {
 	}
 	if len(cfg.Agent.AdaptiveTools.AlwaysInclude) == 0 && cfg.Agent.AdaptiveTools.Enabled {
 		cfg.Agent.AdaptiveTools.AlwaysInclude = []string{
-			"filesystem", "file_editor", "shell", "manage_memory", "query_memory",
+			"filesystem", "file_editor", "execute_shell", "manage_memory", "query_memory",
 			"execute_python", "docker", "api_request", "manage_missions",
 		}
 	}

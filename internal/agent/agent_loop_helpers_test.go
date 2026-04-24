@@ -355,6 +355,15 @@ func TestAdaptiveFamilySeedsForQueryIncludesDocumentToolsForPDFRequests(t *testi
 	}
 }
 
+func TestAdaptiveFamilySeedsForQueryIncludesResourceAndContainerTools(t *testing.T) {
+	seeds := adaptiveFamilySeedsForQuery("wieviel ram verbraucht aurago und wieviel die container")
+	for _, want := range []string{"system_metrics", "process_analyzer", "docker", "execute_shell"} {
+		if !containsName(seeds, want) {
+			t.Fatalf("expected %s for resource/container query, got %v", want, seeds)
+		}
+	}
+}
+
 func TestCacheAwareAdaptiveAlwaysIncludeAddsIntentFamilyBundle(t *testing.T) {
 	schemas := []openai.Tool{
 		makeTool("execute_shell"),
@@ -419,6 +428,17 @@ func TestExpandAdaptiveAlwaysIncludeAddsMCPCallWhenEnabled(t *testing.T) {
 	got := expandAdaptiveAlwaysInclude(cfg, []string{"filesystem"})
 	if !containsName(got, "mcp_call") {
 		t.Fatalf("expected mcp_call in always-include set, got %v", got)
+	}
+}
+
+func TestExpandAdaptiveAlwaysIncludeMapsLegacyShellAlias(t *testing.T) {
+	cfg := &config.Config{}
+	got := expandAdaptiveAlwaysInclude(cfg, []string{"filesystem", "shell"})
+	if !containsName(got, "execute_shell") {
+		t.Fatalf("expected shell alias to expand to execute_shell, got %v", got)
+	}
+	if containsName(got, "shell") {
+		t.Fatalf("did not expect legacy shell alias to remain in always-include set, got %v", got)
 	}
 }
 

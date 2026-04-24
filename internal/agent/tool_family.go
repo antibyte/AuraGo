@@ -46,7 +46,7 @@ func inferToolFamilyFromQuery(query string) string {
 		return "deployment"
 	case strings.Contains(q, "file") || strings.Contains(q, "folder") || strings.Contains(q, "directory") || strings.Contains(q, "yaml") || strings.Contains(q, "json") || strings.Contains(q, "xml") || strings.Contains(q, "pdf"):
 		return "files"
-	case strings.Contains(q, "shell") || strings.Contains(q, "command") || strings.Contains(q, "terminal") || strings.Contains(q, "script") || strings.Contains(q, "bash") || strings.Contains(q, "powershell"):
+	case strings.Contains(q, "shell") || strings.Contains(q, "command") || strings.Contains(q, "terminal") || strings.Contains(q, "script") || strings.Contains(q, "bash") || strings.Contains(q, "powershell") || isResourceUsageIntent(q):
 		return "shell"
 	case strings.Contains(q, "python") || strings.Contains(q, "code") || strings.Contains(q, "coding") || strings.Contains(q, "program"):
 		return "coding"

@@ -1085,6 +1085,14 @@ func ParseToolCall(content string) ToolCall {
 		}
 	}
 
+	if command, ok := parseBareDiagnosticShellCommand(content); ok {
+		return ToolCall{
+			IsTool:  true,
+			Action:  "execute_shell",
+			Command: command,
+		}
+	}
+
 	if strings.HasPrefix(lowerContent, "import ") ||
 		strings.HasPrefix(lowerContent, "def ") ||
 		strings.HasPrefix(lowerContent, "print(") ||
@@ -1094,6 +1102,44 @@ func ParseToolCall(content string) ToolCall {
 	}
 
 	return ToolCall{}
+}
+
+func parseBareDiagnosticShellCommand(content string) (string, bool) {
+	cmd := strings.TrimSpace(content)
+	if cmd == "" || strings.ContainsAny(cmd, "\r\n") {
+		return "", false
+	}
+	if strings.HasPrefix(cmd, "```") || strings.HasPrefix(cmd, "{") || strings.HasPrefix(cmd, "[") {
+		return "", false
+	}
+
+	lower := strings.ToLower(cmd)
+	blocked := []string{
+		";", "&&", " sudo ", " su ", " rm ", " del ", " rmdir ",
+		" chmod ", " chown ", " shutdown", " reboot", " curl ", " wget ",
+		"docker rm", "docker stop", "docker restart", "docker kill", "docker run",
+		"docker exec", "docker compose down", "docker compose rm",
+		"powershell -enc", "powershell -encodedcommand",
+	}
+	padded := " " + lower + " "
+	for _, blockedPattern := range blocked {
+		if strings.Contains(padded, blockedPattern) {
+			return "", false
+		}
+	}
+
+	allowedPrefixes := []string{
+		"docker stats", "docker ps", "docker system df", "docker compose ps",
+		"free", "ps", "top", "df", "du", "tasklist", "get-process",
+		"get-ciminstance", "get-counter", "wmic",
+	}
+	for _, prefix := range allowedPrefixes {
+		if lower == prefix || strings.HasPrefix(lower, prefix+" ") || strings.HasPrefix(lower, prefix+"|") || strings.HasPrefix(lower, prefix+"\t") {
+			return cmd, true
+		}
+	}
+
+	return "", false
 }
 
 func toolCallHasRecoverableFields(tc ToolCall) bool {

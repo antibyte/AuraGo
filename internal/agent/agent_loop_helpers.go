@@ -171,6 +171,7 @@ var adaptiveFamilySeedTools = map[string][]string{
 	},
 	"shell": {
 		"execute_shell", "execute_python", "execute_sandbox", "filesystem",
+		"system_metrics", "process_analyzer", "process_management",
 	},
 	"coding": {
 		"execute_python", "execute_sandbox", "execute_shell", "document_creator",
@@ -186,6 +187,7 @@ var adaptiveFamilySeedTools = map[string][]string{
 	},
 	"infra": {
 		"docker", "proxmox", "tailscale", "github", "ansible", "remote_execution",
+		"execute_shell", "system_metrics", "process_analyzer",
 	},
 	"communication": {
 		"fetch_email", "send_email", "send_document", "send_audio", "send_video",
@@ -526,10 +528,67 @@ func extractIntentMatchedTools(userQuery string, availableTools []string) []stri
 
 func adaptiveFamilySeedsForQuery(userQuery string) []string {
 	family := inferToolFamilyFromQuery(userQuery)
-	if family == "" {
+	out := make([]string, 0, 8)
+	seen := make(map[string]bool)
+	add := func(name string) {
+		if name == "" || seen[name] {
+			return
+		}
+		seen[name] = true
+		out = append(out, name)
+	}
+	if family != "" {
+		for _, seed := range adaptiveFamilySeedTools[family] {
+			add(seed)
+		}
+	}
+
+	q := normalizeAdaptiveIntentText(userQuery)
+	if isResourceUsageIntent(q) {
+		add("system_metrics")
+		add("process_analyzer")
+		add("execute_shell")
+	}
+	if isContainerIntent(q) {
+		add("docker")
+		add("execute_shell")
+	}
+
+	if len(out) == 0 {
 		return nil
 	}
-	return adaptiveFamilySeedTools[family]
+	return out
+}
+
+func isResourceUsageIntent(normalizedQuery string) bool {
+	if normalizedQuery == "" {
+		return false
+	}
+	resourceTerms := []string{
+		"ram", "cpu", "memory usage", "mem usage", "resource usage",
+		"resources", "ressourcen", "verbrauch", "auslastung",
+		"speicherverbrauch", "arbeitsspeicher", "speicher auslastung",
+		"wieviel speicher", "wie viel speicher", "wieviel ram", "wie viel ram",
+	}
+	for _, term := range resourceTerms {
+		if strings.Contains(normalizedQuery, term) {
+			return true
+		}
+	}
+	return false
+}
+
+func isContainerIntent(normalizedQuery string) bool {
+	if normalizedQuery == "" {
+		return false
+	}
+	containerTerms := []string{"docker", "container", "containers", "compose"}
+	for _, term := range containerTerms {
+		if strings.Contains(normalizedQuery, term) {
+			return true
+		}
+	}
+	return false
 }
 
 func cacheAwareAdaptiveAlwaysInclude(userQuery string, alwaysInclude []string, schemas []openai.Tool) []string {
@@ -572,7 +631,9 @@ func expandAdaptiveAlwaysInclude(cfg *config.Config, alwaysInclude []string) []s
 	}
 
 	for _, name := range alwaysInclude {
-		add(name)
+		for _, expanded := range expandAdaptiveAlwaysIncludeAlias(name) {
+			add(expanded)
+		}
 	}
 
 	// MCP must stay callable once the user enabled it. Hiding the generic bridge
@@ -583,6 +644,20 @@ func expandAdaptiveAlwaysInclude(cfg *config.Config, alwaysInclude []string) []s
 	}
 
 	return out
+}
+
+func expandAdaptiveAlwaysIncludeAlias(name string) []string {
+	normalized := strings.ToLower(strings.TrimSpace(name))
+	switch normalized {
+	case "":
+		return nil
+	case "shell":
+		return []string{"execute_shell"}
+	case "python":
+		return []string{"execute_python"}
+	default:
+		return []string{strings.TrimSpace(name)}
+	}
 }
 
 func buildAdaptiveToolPriority(schemas []openai.Tool, weightedUsage []string, userQuery string, guideSearcher toolGuideSearcher, logger *slog.Logger) []string {
