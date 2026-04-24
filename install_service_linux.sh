@@ -29,6 +29,16 @@ error() { echo -e "${RED}[ERROR]${NC} $*"; exit 1; }
 warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
 ok() { echo -e "${GREEN}[OK]${NC} $*"; }
 
+warn_if_systemd_hardening_conflicts() {
+    local config_path="$1"
+    [[ -f "$config_path" ]] || return 0
+    if grep -Eq '^[[:space:]]+sudo_enabled:[[:space:]]*true([[:space:]]|$)' "$config_path" || \
+       grep -Eq '^[[:space:]]+sudo_unrestricted:[[:space:]]*true([[:space:]]|$)' "$config_path"; then
+        warn "config.yaml enables sudo features. ProtectSystem=strict in the generated unit may block unrestricted sudo writes."
+        warn "If you intentionally need unrestricted sudo, edit the unit afterwards and reload systemd."
+    fi
+}
+
 is_valid_master_key() {
     printf '%s' "${1:-}" | grep -Eq '^[0-9a-fA-F]{64}$'
 }
@@ -101,6 +111,8 @@ fi
 if [[ ! -f "$CONFIG_PATH" ]]; then
     warn "config.yaml not found at ${CONFIG_PATH}. Using default might fail."
 fi
+
+warn_if_systemd_hardening_conflicts "$CONFIG_PATH"
 
 # 3. Handle Environment Variables (AURAGO_MASTER_KEY)
 # Priority: existing /etc/aurago/master.key → local .env → user input → generate

@@ -12,6 +12,12 @@
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 set -euo pipefail
 
+INSTALL_SUCCESS=0
+SERVICE_FILE_CREATED=0
+CREDENTIAL_FILE_CREATED=0
+SERVICE_ENABLED=0
+RELEASE_CHECKSUMS_FILE=""
+
 GITHUB_REPO="antibyte/AuraGo"
 REPO="https://github.com/${GITHUB_REPO}.git"
 INSTALL_DIR="${AURAGO_DIR:-$HOME/aurago}"
@@ -38,6 +44,29 @@ info() { echo -e "${CYAN}${ICO_INFO} AuraGo${NC} -> $*"; }
 ok()   { echo -e "${GREEN}${ICO_OK}${NC}        -> $*"; }
 warn() { echo -e "${YELLOW}${ICO_WARN} WARN${NC}  -> $*"; }
 die()  { echo -e "${RED}${ICO_ERR} ERROR${NC} -> $*"; exit 1; }
+
+cleanup_install_failure() {
+    local exit_code=$?
+    if [ "$exit_code" -eq 0 ] || [ "$INSTALL_SUCCESS" -eq 1 ]; then
+        [ -n "${RELEASE_CHECKSUMS_FILE:-}" ] && rm -f "$RELEASE_CHECKSUMS_FILE"
+        return 0
+    fi
+
+    warn "Installation aborted — cleaning up partially created service artifacts."
+    if [ "$SERVICE_ENABLED" -eq 1 ] && command -v systemctl >/dev/null 2>&1; then
+        ${SUDO:-} systemctl disable --now "$SYSTEMD_SERVICE" >/dev/null 2>&1 || true
+    fi
+    if [ "$SERVICE_FILE_CREATED" -eq 1 ] && [ -f "/etc/systemd/system/${SYSTEMD_SERVICE}.service" ]; then
+        ${SUDO:-} rm -f "/etc/systemd/system/${SYSTEMD_SERVICE}.service" >/dev/null 2>&1 || true
+        command -v systemctl >/dev/null 2>&1 && ${SUDO:-} systemctl daemon-reload >/dev/null 2>&1 || true
+    fi
+    if [ "$CREDENTIAL_FILE_CREATED" -eq 1 ] && [ -f "/etc/aurago/master.key" ]; then
+        ${SUDO:-} rm -f "/etc/aurago/master.key" >/dev/null 2>&1 || true
+    fi
+    [ -n "${RELEASE_CHECKSUMS_FILE:-}" ] && rm -f "$RELEASE_CHECKSUMS_FILE"
+}
+
+trap cleanup_install_failure EXIT
 
 is_valid_master_key() {
     printf '%s' "${1:-}" | grep -Eq '^[0-9a-fA-F]{64}$'
@@ -809,6 +838,7 @@ if command -v systemctl >/dev/null 2>&1; then
             printf "AURAGO_MASTER_KEY=%s\n" "$AURAGO_MASTER_KEY" | $SUDO tee "$CREDENTIAL_FILE" > /dev/null
             $SUDO chmod 600 "$CREDENTIAL_FILE"
             $SUDO chown root:root "$CREDENTIAL_DIR" "$CREDENTIAL_FILE"
+            CREDENTIAL_FILE_CREATED=1
             ok "Master key moved to $CREDENTIAL_FILE (root-only, mode 0600)."
         fi
 
@@ -899,8 +929,10 @@ PrivateTmp=true
 [Install]
 WantedBy=multi-user.target
 EOF
+        SERVICE_FILE_CREATED=1
         $SUDO systemctl daemon-reload
         $SUDO systemctl enable "$SYSTEMD_SERVICE"
+        SERVICE_ENABLED=1
         $SUDO systemctl start "$SYSTEMD_SERVICE"
         SERVICE_INSTALLED=true
         ok "Systemd service installed, enabled and started."
@@ -968,6 +1000,7 @@ fi
 echo ""
 echo -e "${GREEN}Setup complete! Finish configuration in the Web UI.${NC}"
 echo -e "Go to the ${BOLD}CONFIG${NC} section to set up your LLM provider and API keys."
+INSTALL_SUCCESS=1
 echo ""
 
 if [ "$PYTHON_MISSING" = "true" ]; then

@@ -690,6 +690,43 @@ personality:
 	}
 }
 
+func TestConfigSavePreservesComments(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	configContent := `# top-level comment
+server:
+  # keep this language comment
+  ui_language: en
+auth:
+  # keep auth comment
+  enabled: false
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	cfg.Server.UILanguage = "de"
+	cfg.Auth.Enabled = true
+	if err := cfg.Save(configPath); err != nil {
+		t.Fatalf("Save() error = %v", err)
+	}
+
+	raw, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("read saved config: %v", err)
+	}
+	got := string(raw)
+	for _, comment := range []string{"# top-level comment", "# keep this language comment", "# keep auth comment"} {
+		if !strings.Contains(got, comment) {
+			t.Fatalf("expected comment %q to be preserved, got:\n%s", comment, got)
+		}
+	}
+}
+
 func TestConfigSavePersistsOutgoingWebhooks(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.yaml")

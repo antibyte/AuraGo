@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bytes"
 	"fmt"
 	"net"
 	"net/url"
@@ -9,6 +10,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -51,6 +53,7 @@ func WriteFileAtomic(path string, data []byte, perm os.FileMode) error {
 
 var defaultIndexingExtensions = []string{".txt", ".md", ".json", ".csv", ".log", ".yaml", ".yml", ".pdf", ".docx", ".xlsx", ".pptx", ".odt", ".rtf"}
 var legacyIndexingExtensions = []string{".txt", ".md", ".json", ".csv", ".log", ".yaml", ".yml"}
+var configSaveMu sync.Mutex
 
 func defaultSidecarURL(runningInDocker bool, service string, port int) string {
 	if runningInDocker {
@@ -1131,10 +1134,13 @@ func usesLegacyDefaultIndexingExtensions(exts []string) bool {
 }
 
 // Save persists the configuration to the specified path using a targeted patch
-// strategy: the original file is read, parsed as a generic YAML map, only the
-// changed runtime fields are updated, and the map is written back. This ensures
-// that API keys, comments structure, and other sensitive fields are never lost.
+// strategy: the original file is read as YAML nodes, only the changed runtime
+// fields are updated, and the document is written back atomically. This keeps
+// sensitive fields intact and preserves existing YAML comments where possible.
 func (c *Config) Save(path string) error {
+	configSaveMu.Lock()
+	defer configSaveMu.Unlock()
+
 	absPath, err := filepath.Abs(path)
 	if err != nil {
 		absPath = path
@@ -1146,48 +1152,46 @@ func (c *Config) Save(path string) error {
 		return fmt.Errorf("failed to read config file for patching: %w", err)
 	}
 
-	var rawCfg map[string]interface{}
-	if err := yaml.Unmarshal(original, &rawCfg); err != nil {
+	var root yaml.Node
+	if err := yaml.Unmarshal(original, &root); err != nil {
 		return fmt.Errorf("failed to unmarshal config for patching: %w", err)
 	}
 
 	// 2. Patch only the fields that are safe to change at runtime
-	if _, ok := rawCfg["personality"]; !ok {
-		rawCfg["personality"] = map[string]interface{}{}
+	patches := []struct {
+		path  []string
+		value interface{}
+	}{
+		{[]string{"personality", "core_personality"}, c.Personality.CorePersonality},
+		{[]string{"server", "ui_language"}, c.Server.UILanguage},
+		{[]string{"auth", "enabled"}, c.Auth.Enabled},
+		{[]string{"webhooks", "outgoing"}, c.Webhooks.Outgoing},
+		{[]string{"uptime_kuma", "enabled"}, c.UptimeKuma.Enabled},
+		{[]string{"uptime_kuma", "base_url"}, c.UptimeKuma.BaseURL},
+		{[]string{"uptime_kuma", "insecure_ssl"}, c.UptimeKuma.InsecureSSL},
+		{[]string{"uptime_kuma", "request_timeout"}, c.UptimeKuma.RequestTimeout},
+		{[]string{"uptime_kuma", "poll_interval_seconds"}, c.UptimeKuma.PollIntervalSeconds},
+		{[]string{"uptime_kuma", "relay_to_agent"}, c.UptimeKuma.RelayToAgent},
+		{[]string{"uptime_kuma", "relay_instruction"}, c.UptimeKuma.RelayInstruction},
 	}
-	if personalitySection, ok := rawCfg["personality"].(map[string]interface{}); ok {
-		personalitySection["core_personality"] = c.Personality.CorePersonality
-	}
-	if serverSection, ok := rawCfg["server"].(map[string]interface{}); ok {
-		serverSection["ui_language"] = c.Server.UILanguage
-	}
-	if authSection, ok := rawCfg["auth"].(map[string]interface{}); ok {
-		authSection["enabled"] = c.Auth.Enabled
-	}
-	if _, ok := rawCfg["webhooks"]; !ok {
-		rawCfg["webhooks"] = map[string]interface{}{}
-	}
-	if webhooksSection, ok := rawCfg["webhooks"].(map[string]interface{}); ok {
-		webhooksSection["outgoing"] = c.Webhooks.Outgoing
-	}
-	if _, ok := rawCfg["uptime_kuma"]; !ok {
-		rawCfg["uptime_kuma"] = map[string]interface{}{}
-	}
-	if uptimeKumaSection, ok := rawCfg["uptime_kuma"].(map[string]interface{}); ok {
-		uptimeKumaSection["enabled"] = c.UptimeKuma.Enabled
-		uptimeKumaSection["base_url"] = c.UptimeKuma.BaseURL
-		uptimeKumaSection["insecure_ssl"] = c.UptimeKuma.InsecureSSL
-		uptimeKumaSection["request_timeout"] = c.UptimeKuma.RequestTimeout
-		uptimeKumaSection["poll_interval_seconds"] = c.UptimeKuma.PollIntervalSeconds
-		uptimeKumaSection["relay_to_agent"] = c.UptimeKuma.RelayToAgent
-		uptimeKumaSection["relay_instruction"] = c.UptimeKuma.RelayInstruction
+	for _, patch := range patches {
+		if err := setYAMLPathValue(&root, patch.path, patch.value); err != nil {
+			return fmt.Errorf("failed to patch config path %s: %w", strings.Join(patch.path, "."), err)
+		}
 	}
 
 	// 3. Write back with all original fields (including API keys) intact
-	data, err := yaml.Marshal(rawCfg)
-	if err != nil {
+	var buf bytes.Buffer
+	enc := yaml.NewEncoder(&buf)
+	enc.SetIndent(2)
+	if err := enc.Encode(&root); err != nil {
+		_ = enc.Close()
 		return fmt.Errorf("failed to marshal patched config: %w", err)
 	}
+	if err := enc.Close(); err != nil {
+		return fmt.Errorf("failed to finalize patched config: %w", err)
+	}
+	data := buf.Bytes()
 
 	perm := os.FileMode(0o600)
 	if info, statErr := os.Stat(absPath); statErr == nil {
@@ -1201,6 +1205,93 @@ func (c *Config) Save(path string) error {
 	}
 
 	return nil
+}
+
+func setYAMLPathValue(root *yaml.Node, path []string, value interface{}) error {
+	if len(path) == 0 {
+		return nil
+	}
+
+	doc := root
+	if doc.Kind == 0 {
+		doc.Kind = yaml.DocumentNode
+	}
+	if doc.Kind == yaml.DocumentNode {
+		if len(doc.Content) == 0 {
+			doc.Content = []*yaml.Node{{Kind: yaml.MappingNode, Tag: "!!map"}}
+		}
+		doc = doc.Content[0]
+	}
+	if doc.Kind != yaml.MappingNode {
+		doc.Kind = yaml.MappingNode
+		doc.Tag = "!!map"
+		doc.Content = nil
+	}
+
+	current := doc
+	for _, key := range path[:len(path)-1] {
+		next := mappingNodeValue(current, key)
+		if next == nil {
+			keyNode := &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: key}
+			next = &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
+			current.Content = append(current.Content, keyNode, next)
+		} else if next.Kind == 0 {
+			next.Kind = yaml.MappingNode
+			next.Tag = "!!map"
+		}
+		if next.Kind != yaml.MappingNode {
+			next.Kind = yaml.MappingNode
+			next.Tag = "!!map"
+			next.Content = nil
+		}
+		current = next
+	}
+
+	replacement, err := yamlNodeForValue(value)
+	if err != nil {
+		return err
+	}
+	lastKey := path[len(path)-1]
+	for i := 0; i+1 < len(current.Content); i += 2 {
+		if current.Content[i].Value == lastKey {
+			existing := current.Content[i+1]
+			replacement.HeadComment = existing.HeadComment
+			replacement.LineComment = existing.LineComment
+			replacement.FootComment = existing.FootComment
+			current.Content[i+1] = replacement
+			return nil
+		}
+	}
+	keyNode := &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: lastKey}
+	current.Content = append(current.Content, keyNode, replacement)
+	return nil
+}
+
+func mappingNodeValue(node *yaml.Node, key string) *yaml.Node {
+	if node == nil || node.Kind != yaml.MappingNode {
+		return nil
+	}
+	for i := 0; i+1 < len(node.Content); i += 2 {
+		if node.Content[i].Value == key {
+			return node.Content[i+1]
+		}
+	}
+	return nil
+}
+
+func yamlNodeForValue(value interface{}) (*yaml.Node, error) {
+	raw, err := yaml.Marshal(value)
+	if err != nil {
+		return nil, err
+	}
+	var doc yaml.Node
+	if err := yaml.Unmarshal(raw, &doc); err != nil {
+		return nil, err
+	}
+	if doc.Kind == yaml.DocumentNode && len(doc.Content) > 0 {
+		return doc.Content[0], nil
+	}
+	return &doc, nil
 }
 
 // fixCommonConfigIssues fixes common YAML corruption issues before parsing.
