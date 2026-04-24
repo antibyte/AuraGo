@@ -6,34 +6,35 @@
     if (!mascot || !footer || !chatContent) return;
 
     const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)');
-    const gestures = [
-        [0, 1, 0],
-        [0, 2, 0],
-        [0, 5, 0],
-        [0, 10, 0],
-        [0, 6, 7, 6, 0],
-        [0, 12, 15, 12, 0],
-        [0, 3, 4, 8, 9, 8, 4, 0],
-        [0, 13, 14, 13, 0]
+    const animationFrameCount = 6;
+    const animations = [
+        { name: 'idle', row: 0, frames: [0, 1, 2, 3, 4, 5], hold: 1200, weight: 3 },
+        { name: 'wave', row: 1, frames: [0, 1, 2, 3, 4, 5], hold: 1600, weight: 2 },
+        { name: 'happy', row: 2, frames: [0, 1, 2, 3, 4, 5], hold: 1600, weight: 2 },
+        { name: 'sleepy', row: 3, frames: [0, 1, 2, 3, 4, 5], hold: 1900, weight: 1 },
+        { name: 'curious', row: 4, frames: [0, 1, 2, 3, 4, 5], hold: 1600, weight: 2 },
+        { name: 'thinking', row: 5, frames: [0, 1, 2, 3, 4, 5], hold: 1700, weight: 2 }
     ];
+    const animationPool = animations.flatMap(animation => Array.from({ length: animation.weight }, () => animation));
 
     let timer = null;
-    let activeGesture = null;
-    let gestureIndex = 0;
+    let activeAnimation = null;
+    let animationFrameIndex = 0;
     let robotState = 'idle';
     let launchTimer = null;
 
-    function setFrame(frameIndex) {
-        const clamped = Math.max(0, Math.min(15, Number(frameIndex) || 0));
-        const row = Math.floor(clamped / 4);
-        const col = clamped % 4;
+    function setFrame(rowIndex, colIndex = 0) {
+        const row = Math.max(0, Math.min(animations.length - 1, Number(rowIndex) || 0));
+        const col = Math.max(0, Math.min(animationFrameCount - 1, Number(colIndex) || 0));
         mascot.style.setProperty('--chat-robot-row', String(row));
         mascot.style.setProperty('--chat-robot-col', String(col));
     }
 
-    function frameDuration(frameIndex) {
-        if (frameIndex === 0) return 260;
-        if (frameIndex === 2 || frameIndex === 5 || frameIndex === 10 || frameIndex === 15) return 210;
+    function frameDuration(animation, colIndex) {
+        if (!animation) return 260;
+        if (colIndex === 0 || colIndex === animationFrameCount - 1) return 230;
+        if (animation.name === 'idle') return colIndex === 4 ? 210 : 180;
+        if (animation.name === 'sleepy') return colIndex >= 1 && colIndex <= 3 ? 260 : 190;
         return 150;
     }
 
@@ -42,10 +43,9 @@
         timer = window.setTimeout(tick, delay);
     }
 
-    function chooseGesture() {
-        const next = gestures[Math.floor(Math.random() * gestures.length)];
-        activeGesture = next;
-        gestureIndex = 0;
+    function chooseAnimation() {
+        activeAnimation = animationPool[Math.floor(Math.random() * animationPool.length)] || animations[0];
+        animationFrameIndex = 0;
     }
 
     function currentRobotSize() {
@@ -110,30 +110,31 @@
 
     function tick() {
         if (document.hidden || (reduceMotion && reduceMotion.matches)) {
-            setFrame(0);
+            setFrame(0, 0);
             schedule(1600);
             return;
         }
 
-        if (!activeGesture) {
-            setFrame(0);
-            chooseGesture();
+        if (!activeAnimation) {
+            setFrame(0, 0);
+            chooseAnimation();
             schedule(1100 + Math.random() * 2200);
             return;
         }
 
-        const frameIndex = activeGesture[gestureIndex];
-        setFrame(frameIndex);
-        gestureIndex += 1;
+        const colIndex = activeAnimation.frames[animationFrameIndex] || 0;
+        setFrame(activeAnimation.row, colIndex);
+        animationFrameIndex += 1;
 
-        if (gestureIndex >= activeGesture.length) {
-            activeGesture = null;
-            gestureIndex = 0;
-            schedule(1300 + Math.random() * 2600);
+        if (animationFrameIndex >= activeAnimation.frames.length) {
+            const hold = activeAnimation.hold || 1500;
+            activeAnimation = null;
+            animationFrameIndex = 0;
+            schedule(hold + Math.random() * 2200);
             return;
         }
 
-        schedule(frameDuration(frameIndex));
+        schedule(frameDuration(activeAnimation, colIndex));
     }
 
     function updateFooterOffset() {
@@ -184,7 +185,7 @@
 
     function start() {
         syncPlacement(false);
-        setFrame(0);
+        setFrame(0, 0);
         tick();
     }
 
@@ -203,7 +204,7 @@
     document.addEventListener('visibilitychange', () => {
         if (document.hidden) {
             window.clearTimeout(timer);
-            setFrame(0);
+            setFrame(0, 0);
             return;
         }
         tick();
