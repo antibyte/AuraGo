@@ -32,8 +32,32 @@ func TestNewInternalHTTPClientDisablesHTTP2AndKeepAlive(t *testing.T) {
 	}
 }
 
-func TestInternalAPIURLUsesHTTPSWhenEnabled(t *testing.T) {
+func TestInternalAPIURLUsesDedicatedHTTPWhenHTTPSEnabled(t *testing.T) {
 	cfg := &config.Config{}
+	cfg.Server.Port = 8088
+	cfg.Server.HTTPS.Enabled = true
+	cfg.Server.HTTPS.HTTPSPort = 8443
+
+	if got := InternalAPIURL(cfg); got != "http://127.0.0.1:8088" {
+		t.Fatalf("InternalAPIURL = %q, want http://127.0.0.1:8088", got)
+	}
+}
+
+func TestInternalAPIURLUsesExplicitLoopbackPort(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Server.Port = 8088
+	cfg.Server.HTTPS.Enabled = true
+	cfg.Server.HTTPS.HTTPSPort = 8443
+	cfg.CloudflareTunnel.LoopbackPort = 18080
+
+	if got := InternalAPIURL(cfg); got != "http://127.0.0.1:18080" {
+		t.Fatalf("InternalAPIURL = %q, want http://127.0.0.1:18080", got)
+	}
+}
+
+func TestInternalAPIURLFallsBackToHTTPSWhenNoDedicatedLoopbackPort(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Server.Port = 8443
 	cfg.Server.HTTPS.Enabled = true
 	cfg.Server.HTTPS.HTTPSPort = 8443
 

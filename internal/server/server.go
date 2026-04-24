@@ -51,11 +51,38 @@ func normalizeLang(lang string) string {
 	return i18n.NormalizeLang(lang)
 }
 
+// DedicatedInternalLoopbackPort returns the plain-HTTP loopback listener port
+// reserved for internal self-calls while the public server runs with HTTPS.
+func DedicatedInternalLoopbackPort(cfg *config.Config) int {
+	if cfg == nil {
+		return 0
+	}
+	if cfg.CloudflareTunnel.LoopbackPort > 0 {
+		return cfg.CloudflareTunnel.LoopbackPort
+	}
+	if !cfg.Server.HTTPS.Enabled {
+		return 0
+	}
+	port := cfg.Server.Port
+	if port <= 0 || port == cfg.Server.HTTPS.HTTPSPort {
+		return 0
+	}
+	if cfg.Server.HTTPS.HTTPPort > 0 && port == cfg.Server.HTTPS.HTTPPort {
+		return 0
+	}
+	return port
+}
+
 // InternalAPIURL returns the base URL for internal (loopback) API calls.
-// When HTTPS is enabled it uses HTTPSPort with https:// scheme.
-// When HTTPS is disabled it uses Server.Port with http:// scheme.
+// HTTPS instances prefer a dedicated 127.0.0.1 plain-HTTP listener so scheduled
+// automation is not coupled to the public TLS listener. If no dedicated
+// listener is configured, the function falls back to the active public scheme.
 // This is the single source of truth for all internal API URL construction.
 func InternalAPIURL(cfg *config.Config) string {
+	if port := DedicatedInternalLoopbackPort(cfg); port > 0 {
+		return fmt.Sprintf("http://127.0.0.1:%d", port)
+	}
+
 	scheme := "http"
 	port := cfg.Server.Port
 	if cfg.Server.HTTPS.Enabled {
@@ -70,8 +97,9 @@ func InternalAPIURL(cfg *config.Config) string {
 }
 
 // NewInternalHTTPClient returns an http.Client configured for internal loopback
-// API calls. It skips TLS verification because InternalAPIURL always resolves
-// to 127.0.0.1 and the server may use a self-signed certificate.
+// API calls. It skips TLS verification for fallback HTTPS self-calls because
+// InternalAPIURL always resolves to 127.0.0.1 and the server may use a
+// self-signed certificate.
 func NewInternalHTTPClient(timeout time.Duration) *http.Client {
 	return &http.Client{
 		Timeout: timeout,

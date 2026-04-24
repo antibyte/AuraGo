@@ -678,13 +678,13 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	// which is the port lifeboat itself listens on.
 	go s.StartTCPBridge("localhost:8089")
 
-	// Cloudflare Tunnel loopback HTTP port:
-	// When HTTPS is active and cloudflare_tunnel.loopback_port > 0, open a
-	// plain HTTP listener on 127.0.0.1 only. cloudflared connects to this instead of
-	// the HTTPS port so no TLS verification is needed. The loopback interface ensures
-	// this port is never reachable from the network.
+	// Dedicated loopback HTTP port:
+	// When HTTPS is active, open a plain HTTP listener on 127.0.0.1 only for
+	// internal self-calls. If cloudflare_tunnel.loopback_port is set, cloudflared
+	// can use the same listener to avoid local TLS verification. The loopback
+	// interface ensures this port is never reachable from the network.
 	s.CfgMu.RLock()
-	loopbackPort := s.Cfg.CloudflareTunnel.LoopbackPort
+	loopbackPort := DedicatedInternalLoopbackPort(s.Cfg)
 	s.CfgMu.RUnlock()
 	// Build a dynamic loopback handler: routes requests to either the Homepage caddy
 	// server or the Web UI depending on the current expose-target config, without
@@ -709,6 +709,10 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		exposeHomepage := s.Cfg.CloudflareTunnel.ExposeHomepage
 		exposeWebUI := s.Cfg.CloudflareTunnel.ExposeWebUI
 		s.CfgMu.RUnlock()
+		if r.Header.Get("X-Internal-Token") != "" || r.Header.Get("X-Internal-FollowUp") != "" {
+			webUILoopbackHandler.ServeHTTP(w, r)
+			return
+		}
 		if exposeHomepage && !exposeWebUI {
 			homepageProxy.ServeHTTP(w, r)
 		} else {
@@ -719,9 +723,9 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		bindAddr := fmt.Sprintf("127.0.0.1:%d", loopbackPort)
 		ln, err := net.Listen("tcp4", bindAddr)
 		if err != nil {
-			s.Logger.Warn("[CloudflareTunnel] Could not bind loopback HTTP listener", "addr", bindAddr, "error", err)
+			s.Logger.Warn("[Loopback] Could not bind internal HTTP listener", "addr", bindAddr, "error", err)
 		} else {
-			s.Logger.Info("[CloudflareTunnel] Starting loopback HTTP listener", "port", loopbackPort)
+			s.Logger.Info("[Loopback] Starting internal HTTP listener", "port", loopbackPort)
 			s.loopbackSrv = &http.Server{
 				Handler:      s.loopbackHandler,
 				ReadTimeout:  30 * time.Second,
@@ -730,7 +734,7 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 			}
 			go func() {
 				if err := s.loopbackSrv.Serve(ln); err != nil && err != http.ErrServerClosed {
-					s.Logger.Warn("[CloudflareTunnel] Loopback HTTP listener stopped", "error", err)
+					s.Logger.Warn("[Loopback] Internal HTTP listener stopped", "error", err)
 				}
 			}()
 		}
