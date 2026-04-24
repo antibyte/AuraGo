@@ -870,6 +870,16 @@ func (cv *ChromemVectorDB) SearchSimilar(query string, topK int, excludeCollecti
 	}
 
 	allCollections := []string{"aurago_memories", "tool_guides", "documentation"}
+	cv.fiColMu.RLock()
+	fileCollections := make([]string, 0, len(cv.fileIndexerCollections)+1)
+	fileCollections = append(fileCollections, "file_index")
+	for col := range cv.fileIndexerCollections {
+		if col != "file_index" {
+			fileCollections = append(fileCollections, col)
+		}
+	}
+	cv.fiColMu.RUnlock()
+	allCollections = append(allCollections, fileCollections...)
 	var collections []string
 	if len(excludeCollections) > 0 {
 		excludeSet := make(map[string]bool, len(excludeCollections))

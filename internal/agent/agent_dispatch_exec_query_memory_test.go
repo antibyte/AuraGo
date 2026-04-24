@@ -19,6 +19,7 @@ import (
 type fakeVectorDB struct {
 	searchSimilarCalled      bool
 	searchMemoriesOnlyCalled bool
+	excludeCollections       []string
 }
 
 func (f *fakeVectorDB) StoreDocument(concept, content string) ([]string, error) {
@@ -35,7 +36,8 @@ func (f *fakeVectorDB) StoreBatch(items []memory.ArchiveItem) ([]string, error) 
 
 func (f *fakeVectorDB) SearchSimilar(query string, topK int, excludeCollections ...string) ([]string, []string, error) {
 	f.searchSimilarCalled = true
-	return []string{"[tool_guides] wrong hit"}, []string{"tool-1"}, nil
+	f.excludeCollections = append([]string(nil), excludeCollections...)
+	return []string{"[file_index] Krankenkasse PDF hit"}, []string{"file-1"}, nil
 }
 
 func (f *fakeVectorDB) SearchMemoriesOnly(query string, topK int) ([]string, []string, error) {
@@ -61,7 +63,7 @@ func (f *fakeVectorDB) StoreCheatsheet(id, name, content string, attachments ...
 }
 func (f *fakeVectorDB) DeleteCheatsheet(id string) error { return nil }
 
-func TestDispatchExecQueryMemoryUsesMemoriesOnlyForVectorDB(t *testing.T) {
+func TestDispatchExecQueryMemorySearchesKnowledgeFilesForVectorDB(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Tools.Memory.Enabled = true
 	logger := slog.New(slog.NewTextHandler(testWriter{t}, &slog.HandlerOptions{Level: slog.LevelError}))
@@ -76,14 +78,17 @@ func TestDispatchExecQueryMemoryUsesMemoriesOnlyForVectorDB(t *testing.T) {
 		t.Fatal("expected dispatchExec to handle query_memory")
 	}
 
-	if !vdb.searchMemoriesOnlyCalled {
-		t.Fatal("expected SearchMemoriesOnly to be called")
+	if !vdb.searchSimilarCalled {
+		t.Fatal("expected SearchSimilar to be called")
 	}
-	if vdb.searchSimilarCalled {
-		t.Fatal("did not expect SearchSimilar to be called")
+	if vdb.searchMemoriesOnlyCalled {
+		t.Fatal("did not expect SearchMemoriesOnly to be called")
 	}
-	if !strings.Contains(out, "Vincenzo memory hit") {
-		t.Fatalf("output = %q, want memory hit", out)
+	if !containsString(vdb.excludeCollections, "tool_guides") || !containsString(vdb.excludeCollections, "documentation") {
+		t.Fatalf("excludeCollections = %v, want tool_guides and documentation excluded", vdb.excludeCollections)
+	}
+	if !strings.Contains(out, "Krankenkasse PDF hit") {
+		t.Fatalf("output = %q, want knowledge file hit", out)
 	}
 	if strings.Contains(out, "tool_guides") {
 		t.Fatalf("output = %q, did not expect tool guide hit", out)
@@ -271,13 +276,16 @@ func TestDispatchExecContextMemorySupportsVectorAliasSources(t *testing.T) {
 		t.Fatal("expected dispatchExec to handle context_memory")
 	}
 
-	if !vdb.searchMemoriesOnlyCalled {
-		t.Fatal("expected context_memory to use SearchMemoriesOnly via vector_db alias")
+	if !vdb.searchSimilarCalled {
+		t.Fatal("expected context_memory to use SearchSimilar via vector_db alias")
+	}
+	if !containsString(vdb.excludeCollections, "tool_guides") || !containsString(vdb.excludeCollections, "documentation") {
+		t.Fatalf("excludeCollections = %v, want tool_guides and documentation excluded", vdb.excludeCollections)
 	}
 	if !strings.Contains(out, `"source":"ltm"`) {
 		t.Fatalf("output = %q, want ltm source", out)
 	}
-	if !strings.Contains(out, "Vincenzo memory hit") {
+	if !strings.Contains(out, "Krankenkasse PDF hit") {
 		t.Fatalf("output = %q, want vector memory hit", out)
 	}
 }

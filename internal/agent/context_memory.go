@@ -213,7 +213,7 @@ func gatherMemorySourceResults(searchContent string, tc ToolCall, shortTermMem *
 	}
 
 	if bundle.SourceMap["ltm"] && longTermMem != nil && hasSemanticQuery {
-		results, _, err := longTermMem.SearchMemoriesOnly(searchContent, perSourceLimit)
+		results, _, err := longTermMem.SearchSimilar(searchContent, perSourceLimit, "tool_guides", "documentation")
 		if err != nil {
 			bundle.Errors = append(bundle.Errors, fmt.Sprintf("%s: %v", labelFor("ltm"), err))
 		} else if len(results) > 0 {

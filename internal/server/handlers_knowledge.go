@@ -133,16 +133,26 @@ func handleKnowledgeUpload(s *Server) http.HandlerFunc {
 			jsonError(w, "Could not store uploaded file", http.StatusInternalServerError)
 			return
 		}
-		defer out.Close()
 
 		if _, err := io.Copy(out, io.LimitReader(file, 32<<20)); err != nil {
 			s.Logger.Error("Failed to write knowledge file", "file", safeName, "error", err)
+			_ = out.Close()
+			_ = os.Remove(destPath)
+			jsonError(w, "Could not store uploaded file", http.StatusInternalServerError)
+			return
+		}
+		if err := out.Close(); err != nil {
+			s.Logger.Error("Failed to close knowledge file", "file", safeName, "error", err)
 			_ = os.Remove(destPath)
 			jsonError(w, "Could not store uploaded file", http.StatusInternalServerError)
 			return
 		}
 
 		s.Logger.Info("Knowledge file uploaded", "file", safeName)
+		if s.FileIndexer != nil {
+			s.FileIndexer.Rescan()
+			s.Logger.Info("Knowledge file indexing rescan triggered", "file", safeName)
+		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
 		json.NewEncoder(w).Encode(map[string]string{"status": "uploaded", "name": safeName})

@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"strings"
 	"testing"
 	"time"
 
@@ -156,6 +157,56 @@ func TestCountIncludesFileIndexerCollections(t *testing.T) {
 	want := 5
 	if got != want {
 		t.Errorf("Count() = %d, want %d", got, want)
+	}
+}
+
+func TestSearchSimilarIncludesFileIndexerCollections(t *testing.T) {
+	embeddingFunc := func(_ context.Context, text string) ([]float32, error) {
+		if strings.Contains(strings.ToLower(text), "krankenkasse") {
+			return []float32{1, 0, 0}, nil
+		}
+		return []float32{0, 1, 0}, nil
+	}
+
+	db := chromem.NewDB()
+	collection, err := db.GetOrCreateCollection("aurago_memories", nil, embeddingFunc)
+	if err != nil {
+		t.Fatalf("GetOrCreateCollection: %v", err)
+	}
+
+	cv := &ChromemVectorDB{
+		db:                     db,
+		collection:             collection,
+		embeddingFunc:          embeddingFunc,
+		fileIndexerCollections: make(map[string]struct{}),
+		logger:                 slog.New(slog.NewTextHandler(io.Discard, nil)),
+		queryCache:             make(map[string]queryCacheEntry),
+		queryCacheTTL:          time.Minute,
+	}
+
+	fileCol, err := db.GetOrCreateCollection("file_index", nil, embeddingFunc)
+	if err != nil {
+		t.Fatalf("GetOrCreateCollection file_index: %v", err)
+	}
+	if err := fileCol.AddDocument(context.Background(), chromem.Document{
+		ID:      "file-krankenkasse",
+		Content: "Krankenkasse PDF: Beitragserstattung und Versicherungsnummer",
+		Metadata: map[string]string{
+			"timestamp": "0",
+		},
+	}); err != nil {
+		t.Fatalf("AddDocument file_index: %v", err)
+	}
+
+	results, ids, err := cv.SearchSimilar("krankenkasse beitrag", 5, "tool_guides", "documentation")
+	if err != nil {
+		t.Fatalf("SearchSimilar: %v", err)
+	}
+	if len(results) != 1 || ids[0] != "file-krankenkasse" {
+		t.Fatalf("results=%v ids=%v, want file_index hit", results, ids)
+	}
+	if !strings.Contains(results[0], "[file_index]") {
+		t.Fatalf("result = %q, want file_index source hint", results[0])
 	}
 }
 

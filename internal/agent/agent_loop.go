@@ -456,7 +456,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			if useHelperRAGBatch {
 				searchLimit = 8
 			}
-			memories, docIDs, err := longTermMem.SearchMemoriesOnly(ragQuery, searchLimit)
+			memories, docIDs, err := longTermMem.SearchSimilar(ragQuery, searchLimit, "tool_guides", "documentation")
 			RecordRetrievalEventForScope(telemetryScope, "rag_auto_latency:"+retrievalLatencyBucket(time.Since(autoRetrievalStart)))
 			if err != nil {
 				RecordRetrievalEventForScope(telemetryScope, "rag_auto_error")
@@ -470,7 +470,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					if batchErr != nil {
 						helperManager.ObserveFallback("rag_batch", batchErr.Error())
 						ragQuery = expandQueryForRAG(ctx, cfg, s.currentLogger, lastUserMsg, shortTermMem)
-						memories, docIDs, err = longTermMem.SearchMemoriesOnly(ragQuery, 6)
+						memories, docIDs, err = longTermMem.SearchSimilar(ragQuery, 6, "tool_guides", "documentation")
 						if err == nil {
 							ranked = rankMemoryCandidates(memories, docIDs, shortTermMem, usedMemoryDocIDs, time.Now())
 							ranked = rerankWithLLM(ctx, cfg, s.currentLogger, ranked, lastUserMsg, shortTermMem)
@@ -480,7 +480,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 					} else {
 						if helperQuery := strings.TrimSpace(batchResult.SearchQuery); helperQuery != "" && !strings.EqualFold(helperQuery, strings.TrimSpace(lastUserMsg)) {
 							ragQuery = helperQuery
-							extraMemories, extraDocIDs, extraErr := longTermMem.SearchMemoriesOnly(ragQuery, 4)
+							extraMemories, extraDocIDs, extraErr := longTermMem.SearchSimilar(ragQuery, 4, "tool_guides", "documentation")
 							if extraErr == nil && len(extraMemories) > 0 {
 								extraRanked := rankMemoryCandidates(extraMemories, extraDocIDs, shortTermMem, usedMemoryDocIDs, time.Now())
 								existing := make(map[string]struct{}, len(ranked))
