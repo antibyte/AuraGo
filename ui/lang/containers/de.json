@@ -10,7 +10,7 @@
   "containers.empty_title": "Keine Container gefunden",
   "containers.empty_desc": "Keine Docker-Container entsprechen dem aktuellen Filter.",
   "containers.disabled_title": "Docker nicht aktiviert",
-  "containers.disabled_desc": "Aktivieren Sie Docker in der Konfiguration, um Container zu verwalten.",
+  "containers.disabled_desc": "Aktiviere Docker in der Konfiguration, um Container zu verwalten.",
   "containers.btn_start": "▶ Starten",
   "containers.btn_stop": "⏹ Stoppen",
   "containers.btn_restart": "🔄 Neustarten",
@@ -22,7 +22,7 @@
   "containers.logs_refresh": "Aktualisieren",
   "containers.inspect_title": "Container-Details",
   "containers.delete_title": "Container entfernen",
-  "containers.delete_confirm": "Sind Sie sicher, dass Sie diesen Container entfernen möchten?",
+  "containers.delete_confirm": "Bist du sicher, dass du diesen Container entfernen möchtest?",
   "containers.delete_force": "Erzwungenes Entfernen (beenden, falls laufend)",
   "containers.delete_success": "Container entfernt",
   "containers.action_success": "Aktion erfolgreich"
