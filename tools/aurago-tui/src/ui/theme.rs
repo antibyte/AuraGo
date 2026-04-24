@@ -1,4 +1,5 @@
 use ratatui::style::Color;
+use super::utils;
 
 #[derive(Debug, Clone)]
 pub struct Theme {
@@ -130,28 +131,11 @@ impl Theme {
 
     pub fn glow_color(&self, tick: u64) -> Color {
         let hue = (tick % 360) as f32;
-        hsv_to_rgb(hue, 1.0, 1.0)
+        utils::hsv_to_rgb(hue, 1.0, 1.0)
     }
 }
 
-fn hsv_to_rgb(h: f32, s: f32, v: f32) -> Color {
-    let c = v * s;
-    let x = c * (1.0 - ((h / 60.0) % 2.0 - 1.0).abs());
-    let m = v - c;
-    let (r, g, b) = match h as u32 / 60 {
-        0 => (c, x, 0.0),
-        1 => (x, c, 0.0),
-        2 => (0.0, c, x),
-        3 => (0.0, x, c),
-        4 => (x, 0.0, c),
-        _ => (c, 0.0, x),
-    };
-    Color::Rgb(
-        ((r + m) * 255.0) as u8,
-        ((g + m) * 255.0) as u8,
-        ((b + m) * 255.0) as u8,
-    )
-}
+
 
 pub fn spinner_frame(tick: u64) -> &'static str {
     const FRAMES: &[&str] = &["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];

@@ -114,7 +114,8 @@ pub struct AppState {
     pub agent_status: String,
     pub show_help: bool,
     pub toast: Option<String>,
-    pub toast_ticks: u8,
+    pub toast_ticks: u16,
+    pub toast_anim: u16,
     pub thinking_active: bool,
     pub focus_sidebar: bool,
     pub sidebar_index: usize,
@@ -198,6 +199,10 @@ pub struct AppState {
     /// Current theme name
     pub theme_name: String,
 
+    // ── Auto-scroll & Confirmation ──────────────────────────────────────
+    pub auto_scroll: bool,
+    pub confirm_action: Option<ConfirmAction>,
+
     /// Dummy field for list_selected_mut() default case
     pub _list_dummy: Option<usize>,
 }
@@ -226,6 +231,15 @@ impl Default for MediaTab {
     fn default() -> Self {
         MediaTab::Audio
     }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum ConfirmAction {
+    DeleteMission { index: usize },
+    DeleteContainer { index: usize },
+    DeleteKnowledge { index: usize },
+    DeleteMedia { index: usize },
+    ClearChat,
 }
 
 impl Default for AppState {
@@ -264,6 +278,7 @@ impl Default for AppState {
             show_help: false,
             toast: None,
             toast_ticks: 0,
+            toast_anim: 0,
             thinking_active: false,
             focus_sidebar: false,
             sidebar_index: 0,
@@ -319,6 +334,8 @@ impl Default for AppState {
             session_drawer_index: 0,
             should_quit: false,
             theme_name: "default".to_string(),
+            auto_scroll: true,
+            confirm_action: None,
             _list_dummy: None,
         }
     }
@@ -405,12 +422,18 @@ impl AppState {
     }
 
     pub fn scroll_to_bottom(&mut self) {
-        self.scroll = usize::MAX;
+        // Set a flag to auto-scroll; actual value will be clamped during rendering
+        self.auto_scroll = true;
     }
 
     pub fn apply_sse_event(&mut self, event: SseEvent) {
         match event {
-            SseEvent::Delta(text) => self.append_stream_delta(text),
+            SseEvent::Delta(text) => {
+                self.append_stream_delta(text);
+                if self.auto_scroll {
+                    self.scroll = self.scroll.saturating_add(1);
+                }
+            }
             SseEvent::DeltaDone => self.finish_stream(),
             SseEvent::ThinkingStart => self.thinking_active = true,
             SseEvent::ThinkingStop => self.thinking_active = false,
@@ -422,7 +445,9 @@ impl AppState {
                     is_tool: true,
                     is_thinking: false,
                 });
-                self.scroll_to_bottom();
+                if self.auto_scroll {
+                    self.scroll = self.chat_messages.len().saturating_sub(1);
+                }
             }
             SseEvent::TokenUpdate(p) => self.tokens = p,
             SseEvent::PersonalityUpdate(p) => self.personality = p,
@@ -460,8 +485,10 @@ impl AppState {
         self.tick_counter = self.tick_counter.wrapping_add(1);
         if self.toast_ticks > 0 {
             self.toast_ticks -= 1;
+            self.toast_anim += 1;
             if self.toast_ticks == 0 {
                 self.toast = None;
+                self.toast_anim = 0;
             }
         }
     }

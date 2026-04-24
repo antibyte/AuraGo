@@ -8,6 +8,7 @@ use ratatui::{
 
 use crate::app::{AppState, DashTab};
 use super::theme::Theme;
+use super::utils;
 
 pub fn draw_dashboard(f: &mut Frame, app: &AppState, theme: &Theme) {
     let area = f.area();
@@ -30,7 +31,7 @@ pub fn draw_dashboard(f: &mut Frame, app: &AppState, theme: &Theme) {
     draw_dash_status(f, app, theme, chunks[2]);
 
     if let Some(toast) = &app.toast {
-        super::chat::draw_toast(f, toast, theme);
+        super::chat::draw_toast_simple(f, toast, theme);
     }
 }
 
@@ -110,7 +111,7 @@ fn draw_overview_tab(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
         ]),
         Line::from(vec![
             Span::styled("📐 Context: ", Style::default().fg(theme.fg)),
-            Span::styled(format!("{:.0}%", ov.context_percent), context_color(ov.context_percent, theme)),
+            Span::styled(format!("{:.0}%", ov.context_percent), utils::percent_color(ov.context_percent, theme)),
             draw_gauge(ov.context_percent, 20, theme),
         ]),
         Line::from(vec![
@@ -234,17 +235,17 @@ fn draw_system_tab(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
     let text = Text::from(vec![
         Line::from(vec![
             Span::styled("🖥️  CPU: ", Style::default().fg(theme.fg)),
-            Span::styled(format!("{:.1}%", s.cpu_percent), gauge_color(s.cpu_percent, theme)),
+            Span::styled(format!("{:.1}%", s.cpu_percent), utils::percent_color(s.cpu_percent, theme)),
             draw_gauge(s.cpu_percent, 30, theme),
         ]),
         Line::from(vec![
             Span::styled("💾 RAM: ", Style::default().fg(theme.fg)),
-            Span::styled(format!("{:.1}%", s.memory_percent), gauge_color(s.memory_percent, theme)),
+            Span::styled(format!("{:.1}%", s.memory_percent), utils::percent_color(s.memory_percent, theme)),
             draw_gauge(s.memory_percent, 30, theme),
         ]),
         Line::from(vec![
             Span::styled("💿 Disk: ", Style::default().fg(theme.fg)),
-            Span::styled(format!("{:.1}%", s.disk_percent), gauge_color(s.disk_percent, theme)),
+            Span::styled(format!("{:.1}%", s.disk_percent), utils::percent_color(s.disk_percent, theme)),
             draw_gauge(s.disk_percent, 30, theme),
         ]),
         Line::from(""),
@@ -318,31 +319,7 @@ fn draw_dash_status(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 fn draw_gauge(percent: f64, width: usize, theme: &Theme) -> Span<'static> {
-    let filled = (percent / 100.0 * width as f64).round() as usize;
-    let filled = filled.min(width);
-    let empty = width - filled;
-    let bar = format!(" [{}{}]", "█".repeat(filled), "░".repeat(empty));
-    Span::styled(bar, Style::default().fg(theme.accent_dim))
-}
-
-fn gauge_color(percent: f64, theme: &Theme) -> ratatui::style::Color {
-    if percent >= 90.0 {
-        theme.error
-    } else if percent >= 70.0 {
-        theme.warning
-    } else {
-        theme.success
-    }
-}
-
-fn context_color(percent: f64, theme: &Theme) -> ratatui::style::Color {
-    if percent >= 90.0 {
-        theme.error
-    } else if percent >= 70.0 {
-        theme.warning
-    } else {
-        theme.success
-    }
+    Span::styled(utils::draw_gauge_span(percent, width), Style::default().fg(theme.accent_dim))
 }
 
 fn budget_color(percent: f64, theme: &Theme) -> ratatui::style::Color {

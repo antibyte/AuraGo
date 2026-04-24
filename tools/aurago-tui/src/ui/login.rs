@@ -7,6 +7,7 @@ use ratatui::{
 
 use crate::app::AppState;
 use super::theme::{spinner_frame, Theme};
+use super::utils;
 
 pub fn draw_login(f: &mut Frame, app: &AppState, theme: &Theme) {
     let area = f.area();
@@ -15,7 +16,7 @@ pub fn draw_login(f: &mut Frame, app: &AppState, theme: &Theme) {
         area,
     );
 
-    let center = centered_rect(50, 40, area);
+    let center = utils::centered_rect(50, 40, area);
     f.render_widget(Clear, center);
 
     let block = Block::default()
@@ -111,22 +112,4 @@ pub fn draw_login(f: &mut Frame, app: &AppState, theme: &Theme) {
     }
 }
 
-fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
-    let popup_layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Percentage((100 - percent_y) / 2),
-            Constraint::Percentage(percent_y),
-            Constraint::Percentage((100 - percent_y) / 2),
-        ])
-        .split(r);
 
-    Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Percentage((100 - percent_x) / 2),
-            Constraint::Percentage(percent_x),
-            Constraint::Percentage((100 - percent_x) / 2),
-        ])
-        .split(popup_layout[1])[1]
-}

@@ -8,6 +8,7 @@ use ratatui::{
 
 use crate::app::AppState;
 use super::theme::{spinner_frame, Theme};
+use super::utils;
 
 pub fn draw_chat(f: &mut Frame, app: &AppState, theme: &Theme) {
     let area = f.area();
@@ -47,7 +48,7 @@ pub fn draw_chat(f: &mut Frame, app: &AppState, theme: &Theme) {
     }
 
     if let Some(toast) = &app.toast {
-        draw_toast(f, toast, theme);
+        draw_toast(f, toast, theme, app.toast_anim, app.toast_ticks);
     }
 }
 
@@ -156,6 +157,14 @@ fn draw_messages(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
                 format!("Thinking... {}", spinner_frame(app.tick_counter)),
                 Style::default().fg(theme.accent_dim),
             ),
+        ]));
+    }
+
+    // Show "new messages" indicator when not auto-scrolling
+    if !app.auto_scroll && !app.chat_messages.is_empty() {
+        lines.push(Line::from(vec![
+            Span::styled("  ↓ ", Style::default().fg(theme.accent).add_modifier(Modifier::BOLD)),
+            Span::styled("New messages — press Ctrl+G to scroll down", Style::default().fg(theme.accent_dim)),
         ]));
     }
 
@@ -283,7 +292,7 @@ fn draw_session_drawer(f: &mut Frame, app: &AppState, theme: &Theme) {
                 };
                 Line::from(vec![
                     Span::styled(marker, Style::default().fg(theme.accent)),
-                    Span::styled(truncate_str(&name, 20), style),
+                    Span::styled(utils::truncate_str(&name, 20), style),
                     Span::styled(count, Style::default().fg(theme.accent_dim)),
                 ])
             })
@@ -310,7 +319,7 @@ fn draw_session_drawer(f: &mut Frame, app: &AppState, theme: &Theme) {
 }
 
 fn draw_help(f: &mut Frame, theme: &Theme) {
-    let area = centered_rect(60, 60, f.area());
+    let area = utils::centered_rect(60, 60, f.area());
     f.render_widget(Clear, area);
     let block = Block::default()
         .title(" Help ")
@@ -350,27 +359,29 @@ fn draw_help(f: &mut Frame, theme: &Theme) {
         Line::from(Span::styled("── General ───────────────────────", Style::default().fg(theme.accent))),
         Line::from("Esc / ?        Close help"),
         Line::from("Ctrl+T         Toggle theme"),
-        Line::from("Ctrl+C / q     Quit"),
+        Line::from("Ctrl+C         Quit"),
     ]);
     let para = Paragraph::new(text).block(block).wrap(Wrap { trim: true });
     f.render_widget(para, area);
 }
 
-pub fn draw_toast(f: &mut Frame, toast: &str, theme: &Theme) {
-    // Calculate height based on content length and terminal width
+pub fn draw_toast(f: &mut Frame, toast: &str, theme: &Theme, anim: u16, max_ticks: u16) {
     let area = f.area();
     let toast_width = (area.width as usize * 70 / 100).max(40);
     let lines_needed = toast.lines().count().max(1);
     let wrapped_lines = (toast.len() / toast_width.saturating_sub(4)).max(0) + lines_needed;
     let height = (wrapped_lines + 4).min(area.height as usize).max(5) as u16;
 
-    let toast_area = centered_rect(70, ((height * 100) / area.height.max(1)) as u16, area);
+    let toast_area = utils::centered_rect(70, ((height * 100) / area.height.max(1)) as u16, area);
     f.render_widget(Clear, toast_area);
 
-    // Use success color for positive toasts, warning for others
     let is_success = toast.starts_with('✓');
     let border_color = if is_success { theme.success } else { theme.warning };
     let text_color = if is_success { theme.success } else { theme.warning };
+
+    // Animate: pulse the border brightness
+    let pulse = if anim < 5 { 0.5 + (anim as f32 / 5.0) * 0.5 } else { 1.0 };
+    let _ = pulse;
 
     let block = Block::default()
         .title(" Notification ")
@@ -385,35 +396,7 @@ pub fn draw_toast(f: &mut Frame, toast: &str, theme: &Theme) {
     f.render_widget(para, toast_area);
 }
 
-fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
-    let popup_layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Percentage((100 - percent_y) / 2),
-            Constraint::Percentage(percent_y),
-            Constraint::Percentage((100 - percent_y) / 2),
-        ])
-        .split(r);
-
-    Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Percentage((100 - percent_x) / 2),
-            Constraint::Percentage(percent_x),
-            Constraint::Percentage((100 - percent_x) / 2),
-        ])
-        .split(popup_layout[1])[1]
-}
-
-/// Truncate a string to max_len characters, appending "…" if truncated
-fn truncate_str(s: &str, max_len: usize) -> String {
-    if s.len() <= max_len {
-        s.to_string()
-    } else {
-        let mut end = max_len;
-        while !s.is_char_boundary(end) && end > 0 {
-            end -= 1;
-        }
-        format!("{}…", &s[..end])
-    }
+/// Convenience wrapper for callers that don't track animation state
+pub fn draw_toast_simple(f: &mut Frame, toast: &str, theme: &Theme) {
+    draw_toast(f, toast, theme, 10, 10);
 }

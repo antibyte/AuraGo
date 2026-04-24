@@ -11,3 +11,4 @@ pub mod plans;
 pub mod skills;
 pub mod splash;
 pub mod theme;
+pub mod utils;

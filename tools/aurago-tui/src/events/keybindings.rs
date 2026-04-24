@@ -134,6 +134,7 @@ fn map_chat(key: KeyEvent, focus_sidebar: bool, session_drawer: bool) -> Action 
     // Session drawer mode
     if session_drawer {
         return match key.code {
+            KeyCode::Char('q') => Action::Quit,
             KeyCode::Char('j') | KeyCode::Down => Action::SessionDown,
             KeyCode::Char('k') | KeyCode::Up => Action::SessionUp,
             KeyCode::Enter => Action::SessionSelect,
@@ -147,6 +148,7 @@ fn map_chat(key: KeyEvent, focus_sidebar: bool, session_drawer: bool) -> Action 
     // Sidebar mode
     if focus_sidebar {
         return match key.code {
+            KeyCode::Char('q') => Action::Quit,
             KeyCode::Char('j') | KeyCode::Down => Action::ScrollDown,
             KeyCode::Char('k') | KeyCode::Up => Action::ScrollUp,
             KeyCode::Enter => Action::ListSelect,
@@ -157,6 +159,7 @@ fn map_chat(key: KeyEvent, focus_sidebar: bool, session_drawer: bool) -> Action 
 
     // Normal chat input mode
     match key.code {
+        KeyCode::Esc => Action::ToggleHelp,
         KeyCode::Enter if key.modifiers.contains(KeyModifiers::SHIFT) => Action::NewLine,
         KeyCode::Enter => Action::SendMessage,
         KeyCode::Up if key.modifiers.contains(KeyModifiers::CONTROL) => Action::ScrollTop,
@@ -184,6 +187,7 @@ fn map_chat(key: KeyEvent, focus_sidebar: bool, session_drawer: bool) -> Action 
 fn map_nav_bar(key: KeyEvent) -> Action {
     match key.code {
         KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => Action::Quit,
+        KeyCode::Char('q') => Action::Quit,
         KeyCode::Char('j') | KeyCode::Down => Action::NavDown,
         KeyCode::Char('k') | KeyCode::Up => Action::NavUp,
         KeyCode::Enter => Action::NavSelect,
@@ -198,10 +202,11 @@ fn map_list(key: KeyEvent) -> Action {
     }
 
     match key.code {
+        KeyCode::Char('q') => Action::Quit,
+        KeyCode::Esc => Action::ToggleHelp,
         KeyCode::Char('j') | KeyCode::Down => Action::ListDown,
         KeyCode::Char('k') | KeyCode::Up => Action::ListUp,
         KeyCode::Enter => Action::ListSelect,
-        KeyCode::Esc => Action::ListBack,
         KeyCode::Delete => Action::ActionDelete,
         KeyCode::Char(' ') => Action::ActionToggle,
         KeyCode::Char('r') => Action::Refresh,
@@ -215,6 +220,8 @@ fn map_dashboard(key: KeyEvent) -> Action {
     }
 
     match key.code {
+        KeyCode::Char('q') => Action::Quit,
+        KeyCode::Esc => Action::ToggleHelp,
         KeyCode::Char('j') | KeyCode::Down => Action::ScrollDown,
         KeyCode::Char('k') | KeyCode::Up => Action::ScrollUp,
         KeyCode::Char('h') | KeyCode::Left => Action::TabLeft,
@@ -253,6 +260,8 @@ fn map_config(key: KeyEvent, editing: bool) -> Action {
     }
 
     match key.code {
+        KeyCode::Char('q') => Action::Quit,
+        KeyCode::Esc => Action::ToggleHelp,
         KeyCode::Char('j') | KeyCode::Down => Action::ListDown,
         KeyCode::Char('k') | KeyCode::Up => Action::ListUp,
         KeyCode::Char('h') | KeyCode::Left => Action::SectionUp,
@@ -290,8 +299,6 @@ fn map_search(key: KeyEvent, _active: bool) -> Action {
 fn try_global_keys(key: KeyEvent) -> Option<Action> {
     match key.code {
         KeyCode::Char('c') if key.modifiers.contains(KeyModifiers::CONTROL) => Some(Action::Quit),
-        KeyCode::Char('q') => Some(Action::Quit),
-        KeyCode::Esc => Some(Action::ToggleHelp),
         KeyCode::Char('?') => Some(Action::ToggleHelp),
         KeyCode::F(1) => Some(Action::OpenNavBar),
         KeyCode::F(2) => Some(Action::GoToChat),

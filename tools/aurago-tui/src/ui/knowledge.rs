@@ -8,6 +8,7 @@ use ratatui::{
 
 use crate::app::AppState;
 use super::theme::Theme;
+use super::utils;
 
 pub fn draw_knowledge(f: &mut Frame, app: &AppState, theme: &Theme) {
     let chunks = Layout::default()
@@ -104,7 +105,7 @@ fn draw_knowledge_list(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect)
                 Span::styled(marker, Style::default().fg(theme.accent)),
                 Span::styled(icon, Style::default().fg(theme.accent)),
                 Span::styled(" ", Style::default()),
-                Span::styled(truncate_str(&file.name, (area.width as usize).saturating_sub(8)), style),
+                Span::styled(utils::truncate_str(&file.name, (area.width as usize).saturating_sub(8)), style),
             ]))
         })
         .collect();
@@ -146,7 +147,7 @@ fn draw_knowledge_detail(f: &mut Frame, app: &AppState, theme: &Theme, area: Rec
         None => return,
     };
 
-    let size_str = format_size(file.size);
+    let size_str = utils::format_size(file.size);
     let lines: Vec<Line> = vec![
         Line::from(vec![
             Span::styled("  Name:  ", Style::default().fg(theme.accent_dim)),
@@ -227,30 +228,4 @@ fn file_type_label(name: &str) -> String {
     }
 }
 
-fn format_size(bytes: i64) -> String {
-    const KB: f64 = 1024.0;
-    const MB: f64 = KB * 1024.0;
-    const GB: f64 = MB * 1024.0;
-    let b = bytes as f64;
-    if b >= GB {
-        format!("{:.1} GB", b / GB)
-    } else if b >= MB {
-        format!("{:.1} MB", b / MB)
-    } else if b >= KB {
-        format!("{:.1} KB", b / KB)
-    } else {
-        format!("{} B", bytes)
-    }
-}
 
-fn truncate_str(s: &str, max_len: usize) -> String {
-    if s.len() <= max_len {
-        s.to_string()
-    } else {
-        let mut end = max_len;
-        while !s.is_char_boundary(end) && end > 0 {
-            end -= 1;
-        }
-        format!("{}…", &s[..end])
-    }
-}

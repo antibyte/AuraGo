@@ -8,6 +8,7 @@ use ratatui::{
 
 use crate::app::AppState;
 use super::theme::Theme;
+use super::utils;
 
 pub fn draw_missions(f: &mut Frame, app: &AppState, theme: &Theme) {
     let area = f.area();
@@ -30,7 +31,7 @@ pub fn draw_missions(f: &mut Frame, app: &AppState, theme: &Theme) {
     draw_missions_status(f, app, theme, chunks[2]);
 
     if let Some(toast) = &app.toast {
-        super::chat::draw_toast(f, toast, theme);
+        super::chat::draw_toast_simple(f, toast, theme);
     }
 }
 

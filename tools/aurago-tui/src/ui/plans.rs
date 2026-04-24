@@ -8,6 +8,7 @@ use ratatui::{
 
 use crate::app::AppState;
 use super::theme::Theme;
+use super::utils;
 
 pub fn draw_plans(f: &mut Frame, app: &AppState, theme: &Theme) {
     let area = f.area();
@@ -30,7 +31,7 @@ pub fn draw_plans(f: &mut Frame, app: &AppState, theme: &Theme) {
     draw_plans_status(f, app, theme, chunks[2]);
 
     if let Some(toast) = &app.toast {
-        super::chat::draw_toast(f, toast, theme);
+        super::chat::draw_toast_simple(f, toast, theme);
     }
 }
 
@@ -103,7 +104,7 @@ fn draw_plans_detail(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
     let plan = app.plans_selected.and_then(|i| app.plans.get(i));
 
     let text = if let Some(p) = plan {
-        let progress_bar = make_progress_bar(p.progress, 30);
+        let progress_bar = utils::make_progress_bar(p.progress, 30);
         let mut lines = vec![
             Line::from(vec![
                 Span::styled("Name: ", Style::default().fg(theme.accent_dim)),
@@ -204,9 +205,3 @@ fn task_status_icon(status: &str) -> &'static str {
     }
 }
 
-fn make_progress_bar(progress: f64, width: usize) -> String {
-    let filled = (progress * width as f64).round() as usize;
-    let filled = filled.min(width);
-    let empty = width - filled;
-    format!(" [{}{}]", "█".repeat(filled), "░".repeat(empty))
-}

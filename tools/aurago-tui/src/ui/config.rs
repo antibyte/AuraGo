@@ -8,6 +8,7 @@ use ratatui::{
 
 use crate::app::AppState;
 use super::theme::Theme;
+use super::utils;
 
 pub fn draw_config(f: &mut Frame, app: &AppState, theme: &Theme) {
     let chunks = Layout::default()
@@ -91,7 +92,7 @@ fn draw_section_sidebar(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect
                 Style::default().fg(theme.fg)
             };
             let marker = if is_selected { "▸ " } else { "  " };
-            let label = truncate_str(section, (area.width as usize).saturating_sub(4));
+            let label = utils::truncate_str(section, (area.width as usize).saturating_sub(4));
             ListItem::new(Line::from(vec![
                 Span::styled(marker, Style::default().fg(theme.accent)),
                 Span::styled(label, style),
@@ -161,7 +162,7 @@ fn draw_fields_panel(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
             let display_value = format_value(value, 60);
             ListItem::new(Line::from(vec![
                 Span::styled(marker, Style::default().fg(theme.accent)),
-                Span::styled(truncate_str(key, 28), key_style),
+                Span::styled(utils::truncate_str(key, 28), key_style),
                 Span::styled(" = ", Style::default().fg(theme.border)),
                 Span::styled(display_value, style),
             ]))
@@ -169,7 +170,7 @@ fn draw_fields_panel(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
         .collect();
 
     let block = Block::default()
-        .title(format!(" {} ", capitalize(section_key)))
+        .title(format!(" {} ", utils::capitalize(section_key)))
         .borders(Borders::ALL)
         .border_style(Style::default().fg(theme.border));
     let inner = block.inner(chunks[0]);
@@ -276,25 +277,7 @@ fn format_value(value: &serde_json::Value, max_len: usize) -> String {
         serde_json::Value::Array(arr) => format!("[{} items]", arr.len()),
         serde_json::Value::Object(obj) => format!("{{{} keys}}", obj.len()),
     };
-    truncate_str(&s, max_len)
+    utils::truncate_str(&s, max_len)
 }
 
-fn capitalize(s: &str) -> String {
-    let mut c = s.chars();
-    match c.next() {
-        None => String::new(),
-        Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
-    }
-}
 
-fn truncate_str(s: &str, max_len: usize) -> String {
-    if s.len() <= max_len {
-        s.to_string()
-    } else {
-        let mut end = max_len;
-        while !s.is_char_boundary(end) && end > 0 {
-            end -= 1;
-        }
-        format!("{}…", &s[..end])
-    }
-}

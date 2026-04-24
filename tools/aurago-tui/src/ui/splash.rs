@@ -7,6 +7,7 @@ use ratatui::{
 };
 
 use super::theme::Theme;
+use super::utils;
 
 const LOGO: &[&str] = &[
     "  ░█████╗░██╗░░░██╗██████╗░░█████╗░░██████╗░░█████╗░  ",
@@ -24,7 +25,7 @@ pub fn draw_splash(f: &mut Frame, theme: &Theme, tick: u64) {
         area,
     );
 
-    let center = centered_rect(80, 60, area);
+    let center = utils::centered_rect(80, 60, area);
     f.render_widget(Clear, center);
 
     let mut lines: Vec<Line> = LOGO
@@ -32,7 +33,7 @@ pub fn draw_splash(f: &mut Frame, theme: &Theme, tick: u64) {
         .enumerate()
         .map(|(i, line)| {
             let hue = ((tick as usize * 2 + i * 15) % 360) as f32;
-            let color = hsv_to_rgb(hue, 1.0, 1.0);
+            let color = utils::hsv_to_rgb(hue, 1.0, 1.0);
             Line::from(Span::styled(
                 *line,
                 Style::default().fg(color).add_modifier(Modifier::BOLD),
@@ -41,13 +42,33 @@ pub fn draw_splash(f: &mut Frame, theme: &Theme, tick: u64) {
         .collect();
 
     lines.push(Line::from(""));
+
+    // Typing effect for subtitle
+    let subtitle = "Terminal Chat Client";
+    let visible_chars = ((tick as usize) / 3).min(subtitle.len());
+    let typed_text = &subtitle[..visible_chars];
+    let cursor = if visible_chars < subtitle.len() && tick % 6 < 3 { "▎" } else { "" };
+    let display = format!("{:^40}", format!("{}{}", typed_text, cursor));
     lines.push(Line::from(Span::styled(
-        "         Terminal Chat Client         ",
+        display,
         Style::default().fg(theme.accent).add_modifier(Modifier::BOLD),
     )));
     lines.push(Line::from(""));
+
+    // Pulsing "press any key" — fade in/out
+    let pulse_alpha = ((tick as f32 * 0.05).sin() * 0.5 + 0.5);
+    let press_style = if pulse_alpha > 0.5 {
+        Style::default().fg(theme.accent)
+    } else {
+        Style::default().fg(theme.accent_dim)
+    };
     lines.push(Line::from(Span::styled(
         "      Press any key to continue...    ",
+        press_style,
+    )));
+    lines.push(Line::from(""));
+    lines.push(Line::from(Span::styled(
+        "              v0.1.0                   ",
         Style::default().fg(theme.accent_dim),
     )));
 
@@ -55,41 +76,4 @@ pub fn draw_splash(f: &mut Frame, theme: &Theme, tick: u64) {
     f.render_widget(para, center);
 }
 
-fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
-    let popup_layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Percentage((100 - percent_y) / 2),
-            Constraint::Percentage(percent_y),
-            Constraint::Percentage((100 - percent_y) / 2),
-        ])
-        .split(r);
 
-    Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Percentage((100 - percent_x) / 2),
-            Constraint::Percentage(percent_x),
-            Constraint::Percentage((100 - percent_x) / 2),
-        ])
-        .split(popup_layout[1])[1]
-}
-
-fn hsv_to_rgb(h: f32, s: f32, v: f32) -> Color {
-    let c = v * s;
-    let x = c * (1.0 - ((h / 60.0) % 2.0 - 1.0).abs());
-    let m = v - c;
-    let (r, g, b) = match h as u32 / 60 {
-        0 => (c, x, 0.0),
-        1 => (x, c, 0.0),
-        2 => (0.0, c, x),
-        3 => (0.0, x, c),
-        4 => (x, 0.0, c),
-        _ => (c, 0.0, x),
-    };
-    Color::Rgb(
-        ((r + m) * 255.0) as u8,
-        ((g + m) * 255.0) as u8,
-        ((b + m) * 255.0) as u8,
-    )
-}

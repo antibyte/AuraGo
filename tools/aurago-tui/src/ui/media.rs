@@ -8,6 +8,7 @@ use ratatui::{
 
 use crate::app::{AppState, MediaTab};
 use super::theme::Theme;
+use super::utils;
 
 pub fn draw_media(f: &mut Frame, app: &AppState, theme: &Theme) {
     let chunks = Layout::default()
@@ -126,7 +127,7 @@ fn draw_media_list(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
                 MediaTab::Documents => doc_icon(&item.filename),
             };
 
-            let name = truncate_str(&item.filename, (area.width as usize).saturating_sub(10));
+            let name = utils::truncate_str(&item.filename, (area.width as usize).saturating_sub(10));
 
             ListItem::new(Line::from(vec![
                 Span::styled(marker, Style::default().fg(theme.accent)),
@@ -178,7 +179,7 @@ fn draw_media_detail(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
         None => return,
     };
 
-    let size_str = format_size(0); // MediaItem has no size field
+    let size_str = utils::format_size(0); // MediaItem has no size field
     let icon = match app.media_tab {
         MediaTab::Audio => "🎵",
         MediaTab::Documents => doc_icon(&item.filename),
@@ -188,7 +189,7 @@ fn draw_media_detail(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
         Line::from(vec![
             Span::styled(format!("  {} ", icon), Style::default()),
             Span::styled(
-                truncate_str(&item.filename, (area.width as usize).saturating_sub(6)),
+                utils::truncate_str(&item.filename, (area.width as usize).saturating_sub(6)),
                 Style::default().fg(theme.fg).add_modifier(Modifier::BOLD),
             ),
         ]),
@@ -257,30 +258,4 @@ fn doc_icon(filename: &str) -> &'static str {
     }
 }
 
-fn format_size(bytes: i64) -> String {
-    const KB: f64 = 1024.0;
-    const MB: f64 = KB * 1024.0;
-    const GB: f64 = MB * 1024.0;
-    let b = bytes as f64;
-    if b >= GB {
-        format!("{:.1} GB", b / GB)
-    } else if b >= MB {
-        format!("{:.1} MB", b / MB)
-    } else if b >= KB {
-        format!("{:.1} KB", b / KB)
-    } else {
-        format!("{} B", bytes)
-    }
-}
 
-fn truncate_str(s: &str, max_len: usize) -> String {
-    if s.len() <= max_len {
-        s.to_string()
-    } else {
-        let mut end = max_len;
-        while !s.is_char_boundary(end) && end > 0 {
-            end -= 1;
-        }
-        format!("{}…", &s[..end])
-    }
-}

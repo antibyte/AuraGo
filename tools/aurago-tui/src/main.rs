@@ -22,7 +22,7 @@ mod events;
 mod ui;
 
 use api::{auth, sse, types::*, ApiClient};
-use app::{AppState, DashTab, MediaTab, Screen};
+use app::{AppState, ConfirmAction, DashTab, MediaTab, Screen};
 use events::keybindings::{map_key, Action, KeyContext};
 use events::AppEvent;
 use ui::theme::Theme;
@@ -61,6 +61,13 @@ async fn main() -> Result<()> {
             std::process::exit(1);
         }
     };
+
+    // Try to restore saved session cookie
+    if let Ok(cookie_path) = config::session_cookie_path() {
+        if let Some(cookie) = auth::load_session_cookie(&cookie_path) {
+            client.set_session_cookie(cookie);
+        }
+    }
 
     let (event_tx, event_rx) = mpsc::unbounded_channel::<AppEvent>();
     let result = run_app(&mut terminal, app.clone(), client, event_tx, event_rx).await;
@@ -123,8 +130,18 @@ async fn run_app(
     loop {
         // ── Draw UI ──────────────────────────────────────────────────────────
         {
-            let app_lock = app.lock().unwrap();
+            let mut app_lock = app.lock().unwrap();
             let tick_val = app_lock.tick_counter;
+            
+            // Auto-scroll: clamp scroll to bottom of messages in chat
+            if app_lock.auto_scroll && app_lock.screen == Screen::Chat && !app_lock.chat_messages.is_empty() {
+                app_lock.scroll = app_lock.chat_messages.len().saturating_sub(1);
+            }
+            // Clamp scroll to valid range
+            if app_lock.scroll > app_lock.chat_messages.len().saturating_sub(1) {
+                app_lock.scroll = app_lock.chat_messages.len().saturating_sub(1);
+            }
+            
             let current_theme = if app_lock.screen == Screen::Chat {
                 Theme::from_mood(app_lock.personality.mood.as_deref().unwrap_or("neutral"))
             } else {
@@ -149,6 +166,11 @@ async fn run_app(
                         Screen::Knowledge => ui::knowledge::draw_knowledge(f, &app_lock, &current_theme),
                         Screen::Media => ui::media::draw_media(f, &app_lock, &current_theme),
                     }
+                    
+                    // Draw confirmation dialog overlay
+                    if app_lock.confirm_action.is_some() {
+                        draw_confirm_dialog(f, &app_lock, &current_theme);
+                    }
                 })
                 .context("Failed to draw UI")?;
         }
@@ -165,6 +187,32 @@ async fn run_app(
         match event {
             AppEvent::Crossterm(crossterm::event::Event::Key(key)) => {
                 handle_key_event(key, &mut app_lock, &client, &event_tx, &mut sse_handle);
+            }
+            AppEvent::Crossterm(crossterm::event::Event::Mouse(mouse)) => {
+                match mouse.kind {
+                    crossterm::event::MouseEventKind::ScrollUp => {
+                        if app_lock.screen == Screen::Chat {
+                            app_lock.auto_scroll = false;
+                            if app_lock.scroll > 0 {
+                                app_lock.scroll -= 3; // Scroll 3 lines at a time
+                            }
+                        } else if app_lock.screen == Screen::Dashboard {
+                            // Could scroll logs in future
+                        }
+                    }
+                    crossterm::event::MouseEventKind::ScrollDown => {
+                        if app_lock.screen == Screen::Chat {
+                            let max = app_lock.chat_messages.len().saturating_sub(1);
+                            if app_lock.scroll < max {
+                                app_lock.scroll = (app_lock.scroll + 3).min(max);
+                            }
+                            if app_lock.scroll >= max {
+                                app_lock.auto_scroll = true;
+                            }
+                        }
+                    }
+                    _ => {}
+                }
             }
             AppEvent::Crossterm(_) => {}
             AppEvent::Tick => {
@@ -183,6 +231,12 @@ async fn run_app(
                     Ok(()) => {
                         app_lock.authenticated = true;
                         app_lock.navigate_to(Screen::Chat);
+                        // Persist session cookie
+                        if let Ok(path) = config::session_cookie_path() {
+                            if let Some(cookie) = client.get_session_cookie() {
+                                let _ = auth::save_session_cookie(&cookie, &path);
+                            }
+                        }
                         let tx = event_tx.clone();
                         let c = client.clone();
                         tokio::spawn(async move {
@@ -693,6 +747,21 @@ fn handle_key_event(
         }
     }
 
+    // Handle confirmation dialog
+    if app_lock.confirm_action.is_some() {
+        if key.code == crossterm::event::KeyCode::Char('y') || key.code == crossterm::event::KeyCode::Char('Y') {
+            let action = app_lock.confirm_action.take();
+            if let Some(confirm) = action {
+                execute_confirmed_action(confirm, app_lock, client, event_tx);
+            }
+            return;
+        } else {
+            // Any other key cancels
+            app_lock.confirm_action = None;
+            return;
+        }
+    }
+
     // Determine key context
     let context = if app_lock.nav_bar_open {
         KeyContext::NavBar {
@@ -872,6 +941,7 @@ fn dispatch_action(
         // ── Scrolling ────────────────────────────────────────────────────────
         Action::ScrollUp => {
             if app.screen == Screen::Chat {
+                app.auto_scroll = false;
                 let max = app.chat_messages.len().saturating_sub(1);
                 if app.scroll > max {
                     app.scroll = max;
@@ -890,10 +960,25 @@ fn dispatch_action(
                 } else if app.scroll < max {
                     app.scroll += 1;
                 }
+                // Re-enable auto-scroll if we've scrolled to the bottom
+                if app.scroll >= max {
+                    app.auto_scroll = true;
+                }
             }
         }
-        Action::ScrollTop => app.scroll = 0,
-        Action::ScrollBottom => app.scroll_to_bottom(),
+        Action::ScrollTop => {
+            app.scroll = 0;
+            if app.screen == Screen::Chat {
+                app.auto_scroll = false;
+            }
+        }
+        Action::ScrollBottom => {
+            if app.screen == Screen::Chat {
+                app.auto_scroll = true;
+            } else {
+                app.scroll = 0;
+            }
+        }
 
         // ── Cursor ───────────────────────────────────────────────────────────
         Action::Backspace => {
@@ -1191,7 +1276,8 @@ fn dispatch_action(
             execute_primary_action(app, client, tx);
         }
         Action::ActionDelete => {
-            execute_delete_action(app, client, tx);
+            // Show confirmation dialog instead of immediately deleting
+            show_delete_confirmation(app);
         }
         Action::ActionToggle => {
             execute_toggle_action(app, client, tx);
@@ -1242,6 +1328,10 @@ fn dispatch_action(
                 if let Some(key) = section_key {
                     if let Some(data) = app.config_data.get(key) {
                         let fields = collect_config_fields(data);
+                        // Clamp field index to valid range
+                        if app.config_field_index >= fields.len() {
+                            app.config_field_index = fields.len().saturating_sub(1);
+                        }
                         if let Some((_, value)) = fields.get(app.config_field_index) {
                             app.config_edit_value = value.to_string();
                             app.config_editing = true;
@@ -1621,6 +1711,127 @@ fn execute_toggle_action(
         }
         _ => {}
     }
+}
+
+/// Show a delete confirmation dialog for the current context
+fn show_delete_confirmation(app: &mut AppState) {
+    let confirm = match app.screen {
+        Screen::Missions => app.missions_selected.map(|i| ConfirmAction::DeleteMission { index: i }),
+        Screen::Containers => app.containers_selected.map(|i| ConfirmAction::DeleteContainer { index: i }),
+        Screen::Knowledge => app.knowledge_selected.map(|i| ConfirmAction::DeleteKnowledge { index: i }),
+        Screen::Media => app.media_selected.map(|i| ConfirmAction::DeleteMedia { index: i }),
+        _ => None,
+    };
+    if let Some(c) = confirm {
+        app.confirm_action = Some(c);
+    }
+}
+
+/// Execute a previously confirmed destructive action
+fn execute_confirmed_action(
+    confirm: ConfirmAction,
+    app: &mut AppState,
+    client: &ApiClient,
+    tx: &UnboundedSender<AppEvent>,
+) {
+    match confirm {
+        ConfirmAction::DeleteMission { index } => {
+            if let Some(mission) = app.missions.get(index) {
+                let id = mission.id.clone();
+                let c = client.clone();
+                let t = tx.clone();
+                tokio::spawn(async move {
+                    let result = auth::delete_mission(&c, &id).await.map_err(|e| e.to_string());
+                    let _ = t.send(AppEvent::MissionActionDone(result));
+                });
+            }
+        }
+        ConfirmAction::DeleteContainer { index } => {
+            if let Some(container) = app.containers.get(index) {
+                let id = container.id.clone();
+                let c = client.clone();
+                let t = tx.clone();
+                tokio::spawn(async move {
+                    let result = auth::remove_container(&c, &id, false).await.map_err(|e| e.to_string());
+                    let _ = t.send(AppEvent::ContainerActionDone(result));
+                });
+            }
+        }
+        ConfirmAction::DeleteKnowledge { index } => {
+            if let Some(file) = app.knowledge_files.get(index) {
+                let name = file.name.clone();
+                let c = client.clone();
+                let t = tx.clone();
+                tokio::spawn(async move {
+                    let result = auth::delete_knowledge_file(&c, &name).await.map_err(|e| e.to_string());
+                    let _ = t.send(AppEvent::KnowledgeFileDeleted(result));
+                });
+            }
+        }
+        ConfirmAction::DeleteMedia { index } => {
+            if let Some(item) = app.media_items.get(index) {
+                let id = item.id;
+                let c = client.clone();
+                let t = tx.clone();
+                tokio::spawn(async move {
+                    let result = auth::delete_media(&c, id).await.map_err(|e| e.to_string());
+                    let _ = t.send(AppEvent::MediaDeleted(result));
+                });
+            }
+        }
+        ConfirmAction::ClearChat => {
+            let c = client.clone();
+            tokio::spawn(async move {
+                let _ = auth::clear_history(&c).await;
+            });
+            app.chat_messages.clear();
+            app.scroll = 0;
+        }
+    }
+}
+
+fn draw_confirm_dialog(f: &mut ratatui::Frame, app: &AppState, theme: &Theme) {
+    use ratatui::layout::Alignment;
+    use ratatui::style::{Modifier, Style};
+    use ratatui::text::{Line, Span};
+    use ratatui::widgets::{Block, Borders, Clear, Paragraph};
+
+    let area = ui::utils::centered_rect(50, 20, f.area());
+    f.render_widget(Clear, area);
+
+    let action_text = match app.confirm_action {
+        Some(ConfirmAction::DeleteMission { .. }) => "delete this mission",
+        Some(ConfirmAction::DeleteContainer { .. }) => "remove this container",
+        Some(ConfirmAction::DeleteKnowledge { .. }) => "delete this file",
+        Some(ConfirmAction::DeleteMedia { .. }) => "delete this media item",
+        Some(ConfirmAction::ClearChat) => "clear chat history",
+        None => "",
+    };
+
+    let text = vec![
+        Line::from(""),
+        Line::from(Span::styled(
+            format!(" ⚠️  Confirm: {}? ", action_text),
+            Style::default().fg(theme.warning).add_modifier(Modifier::BOLD),
+        )),
+        Line::from(""),
+        Line::from(vec![
+            Span::styled("  y", Style::default().fg(theme.accent).add_modifier(Modifier::BOLD)),
+            Span::styled(" = Confirm   ", Style::default().fg(theme.fg)),
+            Span::styled("Any other key", Style::default().fg(theme.accent)),
+            Span::styled(" = Cancel", Style::default().fg(theme.fg)),
+        ]),
+    ];
+
+    let block = Block::default()
+        .title(" ⚠ Confirm ")
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(theme.warning))
+        .style(Style::default().bg(theme.bg));
+    let para = Paragraph::new(text)
+        .block(block)
+        .alignment(Alignment::Center);
+    f.render_widget(para, area);
 }
 
 // ── Nav bar drawing ───────────────────────────────────────────────────────────
