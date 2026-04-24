@@ -25,8 +25,9 @@ import (
 var videoGenHTTPClient = security.NewSSRFProtectedHTTPClient(12 * time.Minute)
 
 const (
-	defaultMiniMaxVideoModel = "Hailuo-2.3-768P"
-	defaultGoogleVideoModel  = "veo-3.1-generate-preview"
+	defaultMiniMaxVideoModel    = "MiniMax-Hailuo-2.3"
+	legacyMiniMaxHailuo23Preset = "Hailuo-2.3-768P"
+	defaultGoogleVideoModel     = "veo-3.1-generate-preview"
 )
 
 // VideoGenParams holds the parameters for the generate_video tool call.
@@ -272,12 +273,6 @@ func generateVideoMiniMax(ctx context.Context, baseURL, apiKey, model string, pa
 		"duration":   params.DurationSeconds,
 		"resolution": strings.ToUpper(params.Resolution),
 	}
-	if params.AspectRatio != "" {
-		payload["aspect_ratio"] = params.AspectRatio
-	}
-	if params.NegativePrompt != "" {
-		payload["negative_prompt"] = params.NegativePrompt
-	}
 	if params.FirstFrameImage != "" {
 		payload["first_frame_image"] = params.FirstFrameImage
 	}
@@ -358,12 +353,40 @@ func generateVideoMiniMax(ctx context.Context, baseURL, apiKey, model string, pa
 }
 
 func miniMaxVideoModelForAPI(model string) (apiModel, displayModel string) {
-	switch strings.TrimSpace(model) {
-	case "", defaultMiniMaxVideoModel:
-		return "MiniMax-Hailuo-2.3", defaultMiniMaxVideoModel
-	default:
-		return model, model
+	trimmed := strings.TrimSpace(model)
+	if trimmed == "" {
+		return defaultMiniMaxVideoModel, defaultMiniMaxVideoModel
 	}
+
+	lower := strings.ToLower(trimmed)
+	if strings.EqualFold(trimmed, legacyMiniMaxHailuo23Preset) {
+		return defaultMiniMaxVideoModel, trimmed
+	}
+	switch lower {
+	case "minimax-hailuo-2.3", "hailuo-2.3", "minimax-hailuo-2.3-768p":
+		return defaultMiniMaxVideoModel, trimmed
+	case "minimax-hailuo-02", "hailuo-02":
+		return "MiniMax-Hailuo-02", trimmed
+	case "s2v-01":
+		return "S2V-01", trimmed
+	}
+
+	// Users often select their existing MiniMax chat provider for video generation.
+	// Text/chat models such as MiniMax-M2.7 are not valid for /video_generation and
+	// MiniMax rejects them with code 2013, so fall back to the documented video model.
+	if strings.HasPrefix(lower, "minimax-m") ||
+		strings.HasPrefix(lower, "m2") ||
+		strings.Contains(lower, "veo") ||
+		strings.Contains(lower, "chat") ||
+		strings.Contains(lower, "text") {
+		return defaultMiniMaxVideoModel, defaultMiniMaxVideoModel
+	}
+
+	if strings.Contains(lower, "hailuo") {
+		return trimmed, trimmed
+	}
+
+	return defaultMiniMaxVideoModel, defaultMiniMaxVideoModel
 }
 
 func pollMiniMaxVideo(ctx context.Context, baseURL, apiKey, taskID string, pollIntervalSeconds, timeoutSeconds int) (string, error) {

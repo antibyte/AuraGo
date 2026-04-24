@@ -389,8 +389,8 @@ func TestHandleSetupProfilesReturnsProfiles(t *testing.T) {
 		if videoGen["alt_base_url"] != "https://api.minimaxi.com/v1" {
 			t.Fatalf("minimax video_generation alt_base_url = %v, want China video endpoint", videoGen["alt_base_url"])
 		}
-		if videoGen["model"] != "Hailuo-2.3-768P" {
-			t.Fatalf("minimax video_generation model = %v, want Hailuo-2.3-768P", videoGen["model"])
+		if videoGen["model"] != "MiniMax-Hailuo-2.3" {
+			t.Fatalf("minimax video_generation model = %v, want MiniMax-Hailuo-2.3", videoGen["model"])
 		}
 	}
 	if !foundMiniMax {
@@ -489,7 +489,7 @@ func TestHandleSetupSaveAcceptsMiniMaxQuickPatch(t *testing.T) {
 				"name":                    "MiniMax Coding Plan Video Gen",
 				"base_url":                "https://api.minimax.io/v1",
 				"api_key":                 "sk-test",
-				"model":                   "Hailuo-2.3-768P",
+				"model":                   "MiniMax-Hailuo-2.3",
 				"native_function_calling": true,
 			},
 		},
@@ -596,7 +596,7 @@ func TestHandleSetupSaveAcceptsMiniMaxQuickPatchAgainstCurrentConfig(t *testing.
 			map[string]interface{}{"id": "helper", "type": "openai", "name": "MiniMax Coding Plan Helper", "base_url": "https://api.minimax.io/v1", "api_key": "sk-test", "model": "MiniMax-M2.5", "native_function_calling": true},
 			map[string]interface{}{"id": "image_gen", "type": "minimax", "name": "MiniMax Coding Plan Image Gen", "base_url": "https://api.minimax.io/v1/image_generation", "api_key": "sk-test", "model": "image-01", "native_function_calling": true},
 			map[string]interface{}{"id": "music_gen", "type": "minimax", "name": "MiniMax Coding Plan Music Gen", "base_url": "https://api.minimax.io/v1/music_generation", "api_key": "sk-test", "model": "music-2.6", "native_function_calling": true},
-			map[string]interface{}{"id": "video_gen", "type": "minimax", "name": "MiniMax Coding Plan Video Gen", "base_url": "https://api.minimax.io/v1", "api_key": "sk-test", "model": "Hailuo-2.3-768P", "native_function_calling": true},
+			map[string]interface{}{"id": "video_gen", "type": "minimax", "name": "MiniMax Coding Plan Video Gen", "base_url": "https://api.minimax.io/v1", "api_key": "sk-test", "model": "MiniMax-Hailuo-2.3", "native_function_calling": true},
 		},
 		"agent":            map[string]interface{}{"system_language": "Deutsch"},
 		"llm":              map[string]interface{}{"provider": "main", "use_native_functions": true, "helper_enabled": true, "helper_provider": "helper", "structured_outputs": true},
@@ -656,7 +656,7 @@ func TestHandleSetupSaveReturnsRestartRequiredWhenHotReloadPanics(t *testing.T) 
 			map[string]interface{}{"id": "helper", "type": "openai", "name": "MiniMax Coding Plan Helper", "base_url": "https://api.minimax.io/v1", "api_key": "sk-test", "model": "MiniMax-M2.5", "native_function_calling": true},
 			map[string]interface{}{"id": "image_gen", "type": "minimax", "name": "MiniMax Coding Plan Image Gen", "base_url": "https://api.minimax.io/v1/image_generation", "api_key": "sk-test", "model": "image-01", "native_function_calling": true},
 			map[string]interface{}{"id": "music_gen", "type": "minimax", "name": "MiniMax Coding Plan Music Gen", "base_url": "https://api.minimax.io/v1/music_generation", "api_key": "sk-test", "model": "music-2.6", "native_function_calling": true},
-			map[string]interface{}{"id": "video_gen", "type": "minimax", "name": "MiniMax Coding Plan Video Gen", "base_url": "https://api.minimax.io/v1", "api_key": "sk-test", "model": "Hailuo-2.3-768P", "native_function_calling": true},
+			map[string]interface{}{"id": "video_gen", "type": "minimax", "name": "MiniMax Coding Plan Video Gen", "base_url": "https://api.minimax.io/v1", "api_key": "sk-test", "model": "MiniMax-Hailuo-2.3", "native_function_calling": true},
 		},
 		"agent":            map[string]interface{}{"system_language": "Deutsch"},
 		"llm":              map[string]interface{}{"provider": "main", "use_native_functions": true, "helper_enabled": true, "helper_provider": "helper", "structured_outputs": true},

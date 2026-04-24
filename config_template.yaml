@@ -797,9 +797,9 @@ music_generation:
 video_generation:
     enabled: false
     provider: ""                   # references a ProviderEntry ID (type: minimax or google)
-    model: ""                      # model override (empty = use provider default, e.g. Hailuo-2.3-768P or veo-3.1-generate-preview)
+    model: ""                      # model override (empty = use provider default, e.g. MiniMax-Hailuo-2.3 or veo-3.1-generate-preview)
     default_duration_seconds: 6    # MiniMax default: 6 seconds
-    default_resolution: "768P"     # MiniMax Hailuo-2.3-768P preset
+    default_resolution: "768P"     # MiniMax resolution preset (model is configured separately)
     default_aspect_ratio: "16:9"
     poll_interval_seconds: 10
     timeout_seconds: 600

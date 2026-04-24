@@ -52,7 +52,7 @@ function renderVideoGenerationSection(section) {
     html += `<label class="ig-label">
         <span class="ig-label-text">${t('config.video_gen.model_label')} <small class="ig-hint">(${t('config.video_gen.model_hint')})</small></span>
         <input type="text" class="cfg-input cfg-input-full" data-path="video_generation.model" value="${escapeAttr(cfg.model || '')}"
-            placeholder="Hailuo-2.3-768P, veo-3.1-generate-preview...">
+            placeholder="MiniMax-Hailuo-2.3, veo-3.1-generate-preview...">
     </label>`;
     html += `</div>`;
 

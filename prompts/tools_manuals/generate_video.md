@@ -12,8 +12,10 @@ Use `generate_video` when the user asks AuraGo to create a short video clip from
 
 ## Providers
 
-- MiniMax Hailuo through `video_generation.provider`; default model is `Hailuo-2.3-768P` with a 6-second clip.
+- MiniMax Hailuo through `video_generation.provider`; default API model is `MiniMax-Hailuo-2.3` with a 6-second clip. Resolution is sent separately, defaulting to `768P`.
 - Google Veo through `video_generation.provider`; default fallback is `veo-3.1-generate-preview` if no model is configured.
+
+The provider is chosen in Settings > Video Generation, not per tool call. Only set `model` when the user explicitly asks for a model that belongs to the configured provider; otherwise leave it empty.
 
 ## Arguments
 

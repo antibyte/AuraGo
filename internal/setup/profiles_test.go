@@ -166,8 +166,8 @@ func TestMiniMaxProfileHasTTS(t *testing.T) {
 			if p.Models.VideoGeneration.AltBaseURL != "https://api.minimaxi.com/v1" {
 				t.Fatalf("minimax video_generation alt_base_url = %q, want China video endpoint", p.Models.VideoGeneration.AltBaseURL)
 			}
-			if p.Models.VideoGeneration.Model != "Hailuo-2.3-768P" {
-				t.Fatalf("minimax video_generation model = %q, want Hailuo-2.3-768P", p.Models.VideoGeneration.Model)
+			if p.Models.VideoGeneration.Model != "MiniMax-Hailuo-2.3" {
+				t.Fatalf("minimax video_generation model = %q, want MiniMax-Hailuo-2.3", p.Models.VideoGeneration.Model)
 			}
 			if p.TTS.ModelID != "speech-02-hd" {
 				t.Fatalf("minimax TTS model_id = %q, want speech-02-hd", p.TTS.ModelID)

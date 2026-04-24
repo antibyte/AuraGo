@@ -812,6 +812,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 	if ff.VideoGenerationEnabled {
 		tools = append(tools, tool("generate_video",
 			"Generate short videos from text prompts using AI. Supports MiniMax Hailuo and Google Veo providers. "+
+				"Provider selection comes from Settings > Video Generation; model overrides must match that configured provider. "+
 				"Supports text-to-video, first-frame image-to-video, first/last frame guidance, and provider-supported reference images. "+
 				"The generated MP4 is saved locally and automatically registered in the media registry.",
 			schema(map[string]interface{}{
@@ -823,7 +824,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				"duration_seconds":  prop("integer", "Clip duration in seconds. Default comes from settings (MiniMax default: 6)."),
 				"resolution":        prop("string", "Output resolution/preset, e.g. '768P', '1080P', '720p' (optional)."),
 				"aspect_ratio":      prop("string", "Output aspect ratio, e.g. '16:9', '9:16', or '1:1' (optional)."),
-				"model":             prop("string", "Override the configured video model for this generation (optional)."),
+				"model":             prop("string", "Override the configured video model for this generation (optional). Must match the configured provider; leave empty for the provider default."),
 				"first_frame_image": prop("string", "URL or base64 image to use as the first frame for image-to-video (optional)."),
 				"last_frame_image":  prop("string", "URL or base64 image to use as the last frame when supported (optional)."),
 				"reference_images": map[string]interface{}{

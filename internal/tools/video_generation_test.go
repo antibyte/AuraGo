@@ -3,6 +3,8 @@ package tools
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -15,6 +17,7 @@ import (
 func TestGenerateVideoMiniMaxFlow(t *testing.T) {
 	tmpDir := t.TempDir()
 	videoBytes := []byte("fake mp4 data")
+	var createPayload map[string]interface{}
 
 	var server *httptest.Server
 	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -22,6 +25,13 @@ func TestGenerateVideoMiniMaxFlow(t *testing.T) {
 		case "/v1/video_generation":
 			if r.Method != http.MethodPost {
 				t.Fatalf("unexpected method for create: %s", r.Method)
+			}
+			raw, err := io.ReadAll(r.Body)
+			if err != nil {
+				t.Fatalf("read create body: %v", err)
+			}
+			if err := json.Unmarshal(raw, &createPayload); err != nil {
+				t.Fatalf("unmarshal create body: %v", err)
 			}
 			w.Write([]byte(`{"task_id":"task-1","base_resp":{"status_code":0}}`))
 		case "/v1/query/video_generation":
@@ -57,23 +67,64 @@ func TestGenerateVideoMiniMaxFlow(t *testing.T) {
 	cfg.VideoGeneration.ProviderType = "minimax"
 	cfg.VideoGeneration.BaseURL = server.URL + "/v1"
 	cfg.VideoGeneration.APIKey = "test-key"
-	cfg.VideoGeneration.ResolvedModel = "Hailuo-2.3-768P"
+	cfg.VideoGeneration.ResolvedModel = "MiniMax-M2.7-highspeed"
 	cfg.VideoGeneration.DefaultDurationSeconds = 6
 	cfg.VideoGeneration.DefaultResolution = "768P"
 	cfg.VideoGeneration.PollIntervalSeconds = -1
 
-	result := GenerateVideoResult(context.Background(), cfg, db, slog.Default(), VideoGenParams{Prompt: "a calm lake at sunrise"})
+	result := GenerateVideoResult(context.Background(), cfg, db, slog.Default(), VideoGenParams{
+		Prompt:         "a calm lake at sunrise",
+		AspectRatio:    "16:9",
+		NegativePrompt: "blurry",
+	})
 	if result.Status != "ok" {
 		t.Fatalf("status = %q, error = %q", result.Status, result.Error)
 	}
-	if result.Provider != "minimax" || result.Model != "Hailuo-2.3-768P" {
+	if result.Provider != "minimax" || result.Model != "MiniMax-Hailuo-2.3" {
 		t.Fatalf("provider/model = %s/%s", result.Provider, result.Model)
+	}
+	if createPayload["model"] != "MiniMax-Hailuo-2.3" {
+		t.Fatalf("MiniMax request model = %v, want MiniMax-Hailuo-2.3", createPayload["model"])
+	}
+	if createPayload["resolution"] != "768P" {
+		t.Fatalf("MiniMax request resolution = %v, want 768P", createPayload["resolution"])
+	}
+	if _, ok := createPayload["aspect_ratio"]; ok {
+		t.Fatalf("MiniMax request should not include unsupported aspect_ratio: %v", createPayload)
+	}
+	if _, ok := createPayload["negative_prompt"]; ok {
+		t.Fatalf("MiniMax request should not include unsupported negative_prompt: %v", createPayload)
 	}
 	if result.WebPath == "" || result.MediaID == 0 {
 		t.Fatalf("expected web path and media registry id, got web=%q id=%d", result.WebPath, result.MediaID)
 	}
 	if got := fileSizeOrZero(result.FilePath); got != int64(len(videoBytes)) {
 		t.Fatalf("file size = %d, want %d", got, len(videoBytes))
+	}
+}
+
+func TestMiniMaxVideoModelForAPI(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		wantAPI     string
+		wantDisplay string
+	}{
+		{name: "empty default", input: "", wantAPI: "MiniMax-Hailuo-2.3", wantDisplay: "MiniMax-Hailuo-2.3"},
+		{name: "legacy preset", input: "Hailuo-2.3-768P", wantAPI: "MiniMax-Hailuo-2.3", wantDisplay: "Hailuo-2.3-768P"},
+		{name: "official model", input: "MiniMax-Hailuo-2.3", wantAPI: "MiniMax-Hailuo-2.3", wantDisplay: "MiniMax-Hailuo-2.3"},
+		{name: "chat model fallback", input: "MiniMax-M2.7-highspeed", wantAPI: "MiniMax-Hailuo-2.3", wantDisplay: "MiniMax-Hailuo-2.3"},
+		{name: "google model fallback on minimax provider", input: "veo-3.1-generate-preview", wantAPI: "MiniMax-Hailuo-2.3", wantDisplay: "MiniMax-Hailuo-2.3"},
+		{name: "subject reference model", input: "S2V-01", wantAPI: "S2V-01", wantDisplay: "S2V-01"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotAPI, gotDisplay := miniMaxVideoModelForAPI(tt.input)
+			if gotAPI != tt.wantAPI || gotDisplay != tt.wantDisplay {
+				t.Fatalf("miniMaxVideoModelForAPI(%q) = (%q, %q), want (%q, %q)", tt.input, gotAPI, gotDisplay, tt.wantAPI, tt.wantDisplay)
+			}
+		})
 	}
 }
 
