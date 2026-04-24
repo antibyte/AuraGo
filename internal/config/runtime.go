@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"net/url"
 	"os"
 	"os/exec"
 	"runtime"
@@ -45,11 +46,11 @@ func DetectRuntime(logger *slog.Logger) Runtime {
 	rt.IsDocker = probeDockerContainer()
 	logger.Info("[Runtime] Container check", "is_docker", rt.IsDocker)
 
-	// 2. Docker socket reachability — try common paths / configured host.
+	// 2. Docker endpoint reachability — try DOCKER_HOST first, then common sockets.
 	// We import tools.DockerPing indirectly to avoid a circular import;
-	// instead we do a minimal dial to the socket.
+	// instead we do a minimal dial to the configured endpoint.
 	rt.DockerSocketOK = probeDockerSocket()
-	logger.Info("[Runtime] Docker socket", "ok", rt.DockerSocketOK)
+	logger.Info("[Runtime] Docker endpoint", "ok", rt.DockerSocketOK)
 
 	// 3. Broadcast network — send a single UDP packet to 255.255.255.255:9.
 	//    If the OS returns an immediate error, broadcast is blocked (Docker bridge).
@@ -121,30 +122,30 @@ func ComputeFeatureAvailability(rt Runtime, sudoEnabled bool) map[string]Feature
 		avail["sudo_unrestricted"] = FeatureAvailability{Available: true}
 	}
 
-	// Docker socket
-	// Only report the socket as "unavailable" (with a reason) when we are
-	// actually running inside a Docker container — outside Docker, the socket
-	// simply being absent is normal (Docker not installed / not needed).
+	// Docker endpoint
+	// Only report Docker as "unavailable" (with a reason) when we are actually
+	// running inside a Docker container — outside Docker, the endpoint simply
+	// being absent is normal (Docker not installed / not needed).
 	socketReason := ""
 	if rt.IsDocker && !rt.DockerSocketOK {
-		socketReason = "Docker socket not detected. Mount /var/run/docker.sock to enable."
+		socketReason = "Docker endpoint not reachable. Start the docker-proxy, mount /var/run/docker.sock, or configure docker.host."
 	}
 	avail["docker"] = FeatureAvailability{Available: rt.DockerSocketOK || !rt.IsDocker, Reason: socketReason}
 	avail["sandbox"] = FeatureAvailability{Available: rt.DockerSocketOK || !rt.IsDocker, Reason: func() string {
 		if rt.IsDocker && !rt.DockerSocketOK {
-			return "Sandbox requires Docker socket. Mount /var/run/docker.sock to enable."
+			return "Sandbox requires a reachable Docker endpoint. Start the docker-proxy, mount /var/run/docker.sock, or configure docker.host."
 		}
 		return ""
 	}()}
 	avail["homepage_docker"] = FeatureAvailability{Available: rt.DockerSocketOK || !rt.IsDocker, Reason: func() string {
 		if rt.IsDocker && !rt.DockerSocketOK {
-			return "Docker-based development requires the Docker socket. Local file server still works."
+			return "Docker-based development requires a reachable Docker endpoint. Local file server still works."
 		}
 		return ""
 	}()}
 	avail["invasion_local"] = FeatureAvailability{Available: rt.DockerSocketOK || !rt.IsDocker, Reason: func() string {
 		if rt.IsDocker && !rt.DockerSocketOK {
-			return "Local Docker deployment requires the Docker socket. SSH deployment still works."
+			return "Local Docker deployment requires a reachable Docker endpoint. SSH deployment still works."
 		}
 		return ""
 	}()}
@@ -236,19 +237,65 @@ func probeDockerContainer() bool {
 	return false
 }
 
-// probeDockerSocket tries connecting to common Docker socket paths.
+// probeDockerSocket tries connecting to the configured Docker endpoint, then
+// falls back to common Unix socket paths.
 func probeDockerSocket() bool {
+	if host := strings.TrimSpace(os.Getenv("DOCKER_HOST")); host != "" {
+		if probeDockerHost(host) {
+			return true
+		}
+	}
+
 	paths := []string{"/var/run/docker.sock", "/run/docker.sock"}
 	for _, p := range paths {
-		if fi, err := os.Stat(p); err == nil && fi.Mode().Type() == os.ModeSocket {
-			conn, err := net.DialTimeout("unix", p, 2*time.Second)
-			if err == nil {
-				conn.Close()
-				return true
-			}
+		if probeDockerUnixSocket(p) {
+			return true
 		}
 	}
 	return false
+}
+
+func probeDockerHost(host string) bool {
+	switch {
+	case strings.HasPrefix(host, "unix://"):
+		return probeDockerUnixSocket(strings.TrimPrefix(host, "unix://"))
+	case strings.HasPrefix(host, "tcp://"):
+		return probeDockerTCP(strings.TrimPrefix(host, "tcp://"))
+	case strings.HasPrefix(host, "http://") || strings.HasPrefix(host, "https://"):
+		parsed, err := url.Parse(host)
+		if err != nil {
+			return false
+		}
+		return probeDockerTCP(parsed.Host)
+	case strings.HasPrefix(host, "npipe://"):
+		return false
+	default:
+		return probeDockerTCP(host)
+	}
+}
+
+func probeDockerUnixSocket(path string) bool {
+	if fi, err := os.Stat(path); err == nil && fi.Mode().Type() == os.ModeSocket {
+		conn, err := net.DialTimeout("unix", path, 2*time.Second)
+		if err == nil {
+			conn.Close()
+			return true
+		}
+	}
+	return false
+}
+
+func probeDockerTCP(hostPort string) bool {
+	hostPort = strings.TrimSpace(hostPort)
+	if hostPort == "" {
+		return false
+	}
+	conn, err := net.DialTimeout("tcp", hostPort, 2*time.Second)
+	if err != nil {
+		return false
+	}
+	conn.Close()
+	return true
 }
 
 // probeBroadcast sends a single UDP datagram to 255.255.255.255:9.

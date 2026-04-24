@@ -2,6 +2,7 @@ package config
 
 import (
 	"log/slog"
+	"net"
 	"os"
 	"path/filepath"
 	"slices"
@@ -108,6 +109,68 @@ func TestComputeFeatureAvailabilityDisablesUpdatesInDocker(t *testing.T) {
 	}
 	if !strings.Contains(strings.ToLower(updates.Reason), "docker") {
 		t.Fatalf("updates reason = %q, want Docker explanation", updates.Reason)
+	}
+}
+
+func TestProbeDockerSocketHonorsDockerHostTCP(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Skipf("tcp listener unavailable on this host: %v", err)
+	}
+	defer listener.Close()
+
+	t.Setenv("DOCKER_HOST", "tcp://"+listener.Addr().String())
+
+	if !probeDockerSocket() {
+		t.Fatal("expected Docker probe to accept reachable DOCKER_HOST tcp endpoint")
+	}
+}
+
+func TestLoadInheritsDockerHostFromEnvironment(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	configContent := `
+docker:
+  enabled: true
+  host: ""
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	t.Setenv("DOCKER_HOST", "tcp://docker-proxy:2375")
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.Docker.Host != "tcp://docker-proxy:2375" {
+		t.Fatalf("docker.host = %q, want tcp://docker-proxy:2375", cfg.Docker.Host)
+	}
+}
+
+func TestLoadKeepsExplicitDockerHost(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	configContent := `
+docker:
+  enabled: true
+  host: "tcp://custom-docker:2375"
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	t.Setenv("DOCKER_HOST", "tcp://docker-proxy:2375")
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.Docker.Host != "tcp://custom-docker:2375" {
+		t.Fatalf("docker.host = %q, want explicit custom host", cfg.Docker.Host)
 	}
 }
 

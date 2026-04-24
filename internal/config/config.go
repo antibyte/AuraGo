@@ -346,6 +346,9 @@ func Load(path string) (*Config, error) {
 
 	cfg.BrowserAutomation.URL = NormalizeLegacySidecarURL(cfg.BrowserAutomation.URL, runningInDocker, "browser-automation", 7331)
 	cfg.Directories.WorkspaceDir = normalizeDockerWorkspaceDir(configDir, cfg.Directories.WorkspaceDir, runningInDocker)
+	if strings.TrimSpace(cfg.Docker.Host) == "" {
+		cfg.Docker.Host = strings.TrimSpace(os.Getenv("DOCKER_HOST"))
+	}
 
 	// Resolve absolute paths for directories
 	cfg.Directories.DataDir = resolvePath(configDir, cfg.Directories.DataDir)

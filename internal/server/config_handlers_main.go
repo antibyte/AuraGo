@@ -105,6 +105,7 @@ func handleGetConfig(s *Server) http.HandlerFunc {
 			}
 		}
 		injectDefaultToolPermissions(rawCfg, s.Cfg)
+		injectRuntimeDockerDefaults(rawCfg, s.Cfg)
 
 		// Mask sensitive fields
 		maskSensitiveFields(rawCfg)
@@ -152,6 +153,27 @@ func setDefaultBool(section map[string]interface{}, key string, value bool) {
 func setDefaultInt(section map[string]interface{}, key string, value int) {
 	if _, ok := section[key]; !ok {
 		section[key] = value
+	}
+}
+
+func injectRuntimeDockerDefaults(rawCfg map[string]interface{}, cfg *config.Config) {
+	if cfg == nil {
+		return
+	}
+	host := strings.TrimSpace(cfg.Docker.Host)
+	if host == "" {
+		return
+	}
+	dockerSection, ok := rawCfg["docker"].(map[string]interface{})
+	if !ok {
+		dockerSection = make(map[string]interface{})
+		rawCfg["docker"] = dockerSection
+	}
+	if rawHost, ok := dockerSection["host"]; !ok || strings.TrimSpace(fmt.Sprint(rawHost)) == "" {
+		dockerSection["host"] = host
+	}
+	if _, ok := dockerSection["enabled"]; !ok {
+		dockerSection["enabled"] = cfg.Docker.Enabled
 	}
 }
 
@@ -923,6 +945,9 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 }
 
 func validateManagedDockerBackends(cfg config.Config, rt config.Runtime) error {
+	if strings.TrimSpace(cfg.Docker.Host) == "" {
+		cfg.Docker.Host = strings.TrimSpace(os.Getenv("DOCKER_HOST"))
+	}
 	needsManagedDocker := cfg.Embeddings.LocalOllama.Enabled || cfg.Ollama.ManagedInstance.Enabled
 	if !needsManagedDocker {
 		return nil
@@ -934,7 +959,7 @@ func validateManagedDockerBackends(cfg config.Config, rt config.Runtime) error {
 		return nil
 	}
 	if rt.IsDocker && !rt.DockerSocketOK {
-		return fmt.Errorf("Docker socket not detected. Mount /var/run/docker.sock or configure docker.host before using managed Ollama containers")
+		return fmt.Errorf("Docker endpoint not reachable. Start the docker-proxy, mount /var/run/docker.sock, or configure docker.host before using managed Ollama containers")
 	}
 	return nil
 }
@@ -944,6 +969,9 @@ func managedDockerConfigFromRaw(rawCfg map[string]interface{}) config.Config {
 	if dockerSection := rawMap(rawCfg, "docker"); dockerSection != nil {
 		cfg.Docker.Enabled = rawBool(dockerSection, "enabled")
 		cfg.Docker.Host = rawString(dockerSection, "host")
+	}
+	if strings.TrimSpace(cfg.Docker.Host) == "" {
+		cfg.Docker.Host = strings.TrimSpace(os.Getenv("DOCKER_HOST"))
 	}
 	if embeddingsSection := rawMap(rawCfg, "embeddings"); embeddingsSection != nil {
 		if localOllama := rawMap(embeddingsSection, "local_ollama"); localOllama != nil {
