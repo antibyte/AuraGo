@@ -95,6 +95,22 @@ func TestNormalizeDockerWorkspaceDirKeepsCustomPath(t *testing.T) {
 	}
 }
 
+func TestComputeFeatureAvailabilityDisablesUpdatesInDocker(t *testing.T) {
+	t.Parallel()
+
+	features := ComputeFeatureAvailability(Runtime{IsDocker: true}, false)
+	updates, ok := features["updates"]
+	if !ok {
+		t.Fatal("expected updates feature availability to be reported")
+	}
+	if updates.Available {
+		t.Fatal("expected updates to be unavailable in Docker runtime")
+	}
+	if !strings.Contains(strings.ToLower(updates.Reason), "docker") {
+		t.Fatalf("updates reason = %q, want Docker explanation", updates.Reason)
+	}
+}
+
 func TestGetSpecialist(t *testing.T) {
 	cfg := &Config{}
 	cfg.CoAgents.Specialists.Coder.Enabled = true

@@ -22,6 +22,12 @@ async function renderUpdatesBody() {
     const body = document.getElementById('updates-body');
     if (!body) return;
 
+    const blockedReason = typeof sectionBlockedReason === 'function' ? sectionBlockedReason('updates') : '';
+    if (blockedReason) {
+        body.innerHTML = unavailableReasonBanner(blockedReason, { blocked: true });
+        return;
+    }
+
     body.innerHTML = `
     <div class="updates-warning-card">
         <div class="updates-warning-text">

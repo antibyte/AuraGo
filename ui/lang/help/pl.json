@@ -360,5 +360,7 @@
   "help.whisper.base_url": "Bazowy URL dla dostawcy Whisper.",
   "help.whisper.mode": "Tryb Whisper: 'whisper' (standardowe API OpenAI), 'multimodal' (Gemini/multimodal LLM) lub 'local' (lokalny serwer).",
   "help.whisper.model": "Nazwa modelu dla Whisper, np. 'whisper-1'.",
-  "help.whisper.provider": "Wybierz dostawcę z zarządzania dostawcami dla speech-to-text."
+  "help.whisper.provider": "Wybierz dostawcę z zarządzania dostawcami dla speech-to-text.",
+  "help.tools.knowledge_graph.auto_extraction": "Automatycznie wyodrebnia encje i relacje z ostatnich rozmow do grafu wiedzy.",
+  "help.tools.knowledge_graph.prompt_injection": "Wstrzykuje istotny kontekst grafu wiedzy do promptu systemowego."
 }

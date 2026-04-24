@@ -360,5 +360,7 @@
   "help.whisper.base_url": "Whisper プロバイダーのベース URL。",
   "help.whisper.mode": "ウィスパー モード: 「ウィスパー」 (標準 OpenAI API)、「マルチモーダル」 (Gemini/マルチモーダル LLM)、または「ローカル」 (ローカル サーバー)。",
   "help.whisper.model": "Whisper のモデル名、例: 「ささやき-1」。",
-  "help.whisper.provider": "Speech-to-Text のプロバイダー管理からプロバイダーを選択します。"
+  "help.whisper.provider": "Speech-to-Text のプロバイダー管理からプロバイダーを選択します。",
+  "help.tools.knowledge_graph.auto_extraction": "最近の会話からエンティティと関係を自動的にナレッジグラフへ抽出します。",
+  "help.tools.knowledge_graph.prompt_injection": "関連するナレッジグラフの文脈をシステムプロンプトに挿入します。"
 }

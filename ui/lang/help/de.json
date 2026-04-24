@@ -360,5 +360,7 @@
   "help.whisper.base_url": "Basis-URL für den Whisper-Provider.",
   "help.whisper.mode": "Whisper-Modus: 'whisper' (Standard OpenAI API), 'multimodal' (Gemini/multimodales LLM) oder 'local' (lokaler Server).",
   "help.whisper.model": "Modellname für Whisper, z.B. 'whisper-1'.",
-  "help.whisper.provider": "Wähle einen Provider aus der Provider-Verwaltung für Speech-to-Text."
+  "help.whisper.provider": "Wähle einen Provider aus der Provider-Verwaltung für Speech-to-Text.",
+  "help.tools.knowledge_graph.auto_extraction": "Extrahiert automatisch Entitaeten und Beziehungen aus aktuellen Unterhaltungen in den Wissensgraph.",
+  "help.tools.knowledge_graph.prompt_injection": "Fuegt relevanten Wissensgraph-Kontext in den System-Prompt ein."
 }

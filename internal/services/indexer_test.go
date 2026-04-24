@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -17,9 +18,10 @@ import (
 )
 
 type fakeIndexerVectorDB struct {
-	mu      sync.Mutex
-	nextID  int
-	deleted []string
+	mu       sync.Mutex
+	nextID   int
+	deleted  []string
+	disabled bool
 }
 
 func (f *fakeIndexerVectorDB) StoreDocument(concept, content string) ([]string, error) {
@@ -73,7 +75,7 @@ func (f *fakeIndexerVectorDB) DeleteDocumentFromCollection(id, collection string
 }
 
 func (f *fakeIndexerVectorDB) Count() int       { return 0 }
-func (f *fakeIndexerVectorDB) IsDisabled() bool { return false }
+func (f *fakeIndexerVectorDB) IsDisabled() bool { return f.disabled }
 func (f *fakeIndexerVectorDB) Close() error     { return nil }
 
 func (f *fakeIndexerVectorDB) StoreCheatsheet(id, name, content string, attachments ...string) error {
@@ -224,6 +226,42 @@ func TestFileIndexerRemovesEmbeddingsForDeletedFiles(t *testing.T) {
 	}
 	if !lastIndexed.IsZero() {
 		t.Fatalf("expected file index removed after file delete, got %v", lastIndexed)
+	}
+}
+
+func TestFileIndexerRecordsDisabledVectorDBScanStatus(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	defer stm.Close()
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "note.txt"), []byte("index me"), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	cfg := &config.Config{}
+	cfg.Indexing.Directories = []config.IndexingDirectory{{Path: dir}}
+	cfg.Indexing.Extensions = []string{".txt"}
+	cfgMu := &sync.RWMutex{}
+	fi := NewFileIndexer(cfg, cfgMu, &fakeIndexerVectorDB{disabled: true}, stm, logger)
+
+	fi.scan()
+
+	status := fi.Status()
+	if status.LastScanAt.IsZero() {
+		t.Fatal("expected disabled VectorDB scan to update LastScanAt")
+	}
+	if status.TotalFiles != 1 {
+		t.Fatalf("TotalFiles = %d, want 1", status.TotalFiles)
+	}
+	if status.IndexedFiles != 0 {
+		t.Fatalf("IndexedFiles = %d, want 0", status.IndexedFiles)
+	}
+	if len(status.Errors) == 0 || !strings.Contains(strings.ToLower(status.Errors[0]), "embedding") {
+		t.Fatalf("Errors = %v, want embedding pipeline explanation", status.Errors)
 	}
 }
 

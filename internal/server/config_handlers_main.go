@@ -104,6 +104,7 @@ func handleGetConfig(s *Server) http.HandlerFunc {
 				}
 			}
 		}
+		injectDefaultToolPermissions(rawCfg, s.Cfg)
 
 		// Mask sensitive fields
 		maskSensitiveFields(rawCfg)
@@ -116,6 +117,41 @@ func handleGetConfig(s *Server) http.HandlerFunc {
 		injectFeatureAvailability(rawCfg, s.Cfg.Runtime, s.Cfg.Agent.SudoEnabled)
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(rawCfg)
+	}
+}
+
+func injectDefaultToolPermissions(rawCfg map[string]interface{}, cfg *config.Config) {
+	if cfg == nil {
+		return
+	}
+	toolsSection, ok := rawCfg["tools"].(map[string]interface{})
+	if !ok {
+		toolsSection = make(map[string]interface{})
+		rawCfg["tools"] = toolsSection
+	}
+	kgSection, ok := toolsSection["knowledge_graph"].(map[string]interface{})
+	if !ok {
+		kgSection = make(map[string]interface{})
+		toolsSection["knowledge_graph"] = kgSection
+	}
+	setDefaultBool(kgSection, "enabled", cfg.Tools.KnowledgeGraph.Enabled)
+	setDefaultBool(kgSection, "readonly", cfg.Tools.KnowledgeGraph.ReadOnly)
+	setDefaultBool(kgSection, "auto_extraction", cfg.Tools.KnowledgeGraph.AutoExtraction)
+	setDefaultBool(kgSection, "prompt_injection", cfg.Tools.KnowledgeGraph.PromptInjection)
+	setDefaultInt(kgSection, "max_prompt_nodes", cfg.Tools.KnowledgeGraph.MaxPromptNodes)
+	setDefaultInt(kgSection, "max_prompt_chars", cfg.Tools.KnowledgeGraph.MaxPromptChars)
+	setDefaultBool(kgSection, "retrieval_fusion", cfg.Tools.KnowledgeGraph.RetrievalFusion)
+}
+
+func setDefaultBool(section map[string]interface{}, key string, value bool) {
+	if _, ok := section[key]; !ok {
+		section[key] = value
+	}
+}
+
+func setDefaultInt(section map[string]interface{}, key string, value int) {
+	if _, ok := section[key]; !ok {
+		section[key] = value
 	}
 }
 

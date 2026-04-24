@@ -360,5 +360,7 @@
   "help.whisper.base_url": "URL base para o provedor Whisper.",
   "help.whisper.mode": "Modo Whisper: 'whisper' (API OpenAI padrão), 'multimodal' (Gemini/LLM multimodal) ou 'local' (servidor local).",
   "help.whisper.model": "Nome do modelo para Whisper, ex: 'whisper-1'.",
-  "help.whisper.provider": "Selecione um provedor da gestão de provedores para conversão de fala em texto."
+  "help.whisper.provider": "Selecione um provedor da gestão de provedores para conversão de fala em texto.",
+  "help.tools.knowledge_graph.auto_extraction": "Extrai automaticamente entidades e relacoes de conversas recentes para o grafo de conhecimento.",
+  "help.tools.knowledge_graph.prompt_injection": "Insere contexto relevante do grafo de conhecimento no prompt do sistema."
 }

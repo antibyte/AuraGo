@@ -21,8 +21,8 @@ type Runtime struct {
 	FirewallAccessOK bool `json:"firewall_access_ok"`
 	// NoNewPrivileges is true when the kernel flag PR_SET_NO_NEW_PRIVS is active.
 	// This prevents sudo (setuid escalation) from working regardless of config.
-	NoNewPrivileges      bool `json:"no_new_privileges"`
-	ProtectSystemStrict  bool `json:"protect_system_strict"`
+	NoNewPrivileges     bool `json:"no_new_privileges"`
+	ProtectSystemStrict bool `json:"protect_system_strict"`
 }
 
 // FeatureAvailability describes whether a config section is usable
@@ -145,6 +145,12 @@ func ComputeFeatureAvailability(rt Runtime, sudoEnabled bool) map[string]Feature
 	avail["invasion_local"] = FeatureAvailability{Available: rt.DockerSocketOK || !rt.IsDocker, Reason: func() string {
 		if rt.IsDocker && !rt.DockerSocketOK {
 			return "Local Docker deployment requires the Docker socket. SSH deployment still works."
+		}
+		return ""
+	}()}
+	avail["updates"] = FeatureAvailability{Available: !rt.IsDocker, Reason: func() string {
+		if rt.IsDocker {
+			return "Self-updates are disabled in Docker installations. Update the container image and recreate the container instead."
 		}
 		return ""
 	}()}

@@ -153,13 +153,6 @@ func (fi *FileIndexer) ensureDirectories() {
 
 // scan walks all configured directories and indexes new/changed files.
 func (fi *FileIndexer) scan() {
-	// Skip silently when the embedding pipeline failed at startup - the
-	// disabled state is already reported once during VectorDB initialisation.
-	if fi.vectorDB.IsDisabled() {
-		fi.logger.Debug("[Indexer] VectorDB is disabled, skipping scan")
-		return
-	}
-
 	start := time.Now()
 	fi.logger.Debug("[Indexer] Starting scan...")
 
@@ -170,6 +163,29 @@ func (fi *FileIndexer) scan() {
 	var totalFiles, indexedFiles int
 	var scanErrors []string
 	var dirPaths []string
+
+	if fi.vectorDB.IsDisabled() {
+		for _, indexingDir := range dirs {
+			dirPaths = append(dirPaths, indexingDir.Path)
+			nTotal, errs := fi.countIndexableFiles(indexingDir.Path)
+			totalFiles += nTotal
+			scanErrors = append(scanErrors, errs...)
+		}
+		scanErrors = append(scanErrors, "Embedding pipeline unavailable; file indexing is disabled until an embedding provider is configured.")
+		duration := time.Since(start)
+
+		fi.mu.Lock()
+		fi.status.TotalFiles = totalFiles
+		fi.status.IndexedFiles = 0
+		fi.status.LastScanAt = start
+		fi.status.LastScanDuration = duration.Round(time.Millisecond).String()
+		fi.status.Errors = scanErrors
+		fi.status.Directories = dirPaths
+		fi.mu.Unlock()
+
+		fi.logger.Debug("[Indexer] VectorDB is disabled, scan status updated", "total_files", totalFiles, "duration", duration.Round(time.Millisecond))
+		return
+	}
 
 	for _, indexingDir := range dirs {
 		dirPaths = append(dirPaths, indexingDir.Path)
@@ -201,6 +217,44 @@ func (fi *FileIndexer) scan() {
 			"total_files", totalFiles,
 			"duration", duration.Round(time.Millisecond))
 	}
+}
+
+func (fi *FileIndexer) countIndexableFiles(dir string) (int, []string) {
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		return 0, nil
+	}
+
+	var total int
+	var errors []string
+	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			errors = append(errors, fmt.Sprintf("walk error %s: %v", path, err))
+			return nil
+		}
+		if info.IsDir() {
+			if strings.HasPrefix(info.Name(), ".") {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		ext := strings.ToLower(filepath.Ext(info.Name()))
+		isImage := IsImageFile(ext)
+		isAudio := IsAudioFile(ext)
+
+		fi.cfgMu.RLock()
+		indexImages := fi.cfg.Indexing.IndexImages
+		multimodal := fi.cfg.Embeddings.Multimodal
+		fi.cfgMu.RUnlock()
+
+		if fi.extensions[ext] || (isImage && (indexImages || multimodal)) || (isAudio && multimodal) {
+			total++
+		}
+		return nil
+	})
+	if err != nil {
+		errors = append(errors, fmt.Sprintf("walk error %s: %v", dir, err))
+	}
+	return total, errors
 }
 
 // getDirCollection returns the collection name for an indexing directory.

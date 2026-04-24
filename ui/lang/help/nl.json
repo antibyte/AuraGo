@@ -360,5 +360,7 @@
   "help.whisper.base_url": "Basis-URL voor de Whisper-provider.",
   "help.whisper.mode": "Whisper-modus: 'whisper' (standaard OpenAI API), 'multimodal' (Gemini/multimodaal LLM) of 'local' (lokale server).",
   "help.whisper.model": "Modelnaam voor Whisper, bijv. 'whisper-1'.",
-  "help.whisper.provider": "Selecteer een provider uit de providerbeheer voor spraak-naar-tekst."
+  "help.whisper.provider": "Selecteer een provider uit de providerbeheer voor spraak-naar-tekst.",
+  "help.tools.knowledge_graph.auto_extraction": "Extraheert automatisch entiteiten en relaties uit recente gesprekken naar de kennisgrafiek.",
+  "help.tools.knowledge_graph.prompt_injection": "Voegt relevante kennisgrafiekcontext toe aan de systeemprompt."
 }

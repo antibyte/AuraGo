@@ -88,8 +88,10 @@
                 </div>`;
             } else {
                 dirs.forEach(d => {
-                    const safeDir = escapeHtml(d);
-                    const attrDir = escapeAttr(d);
+                    const dirPath = idxDirPath(d);
+                    const dirLabel = idxDirLabel(d);
+                    const safeDir = escapeHtml(dirLabel);
+                    const attrDir = escapeAttr(dirPath);
                     html += `<div class="idx-dir-item">
                         <span class="idx-dir-icon">📁</span>
                         <span class="idx-dir-path" title="${attrDir}">${safeDir}</span>
@@ -247,4 +249,18 @@
                     }, 1500);
                 }
             } catch (_) {}
+        }
+
+        function idxDirPath(dir) {
+            if (typeof dir === 'string') return dir;
+            if (dir && typeof dir === 'object') return dir.path || dir.Path || '';
+            return '';
+        }
+
+        function idxDirLabel(dir) {
+            if (typeof dir === 'string') return dir;
+            if (!dir || typeof dir !== 'object') return '';
+            const path = dir.path || dir.Path || '';
+            const collection = dir.collection || dir.Collection || '';
+            return collection ? `${path} (${collection})` : path;
         }

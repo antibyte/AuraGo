@@ -253,6 +253,49 @@ tools:
 	}
 }
 
+func TestHandleGetConfigInjectsKnowledgeGraphPermissionDefaults(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	configContent := `
+tools:
+  knowledge_graph:
+    enabled: true
+    readonly: false
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	loaded, err := config.Load(configPath)
+	if err != nil {
+		t.Fatalf("config.Load() error = %v", err)
+	}
+	s := &Server{
+		Cfg:    loaded,
+		Logger: slog.Default(),
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/config", nil)
+	rec := httptest.NewRecorder()
+	handleGetConfig(s).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	var body map[string]interface{}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+	toolsMap, _ := body["tools"].(map[string]interface{})
+	kg, _ := toolsMap["knowledge_graph"].(map[string]interface{})
+	if kg["auto_extraction"] != true {
+		t.Fatalf("tools.knowledge_graph.auto_extraction = %#v, want true", kg["auto_extraction"])
+	}
+	if kg["prompt_injection"] != true {
+		t.Fatalf("tools.knowledge_graph.prompt_injection = %#v, want true", kg["prompt_injection"])
+	}
+}
+
 func TestInjectVaultIndicatorsAddsAdditionalVaultBackedFields(t *testing.T) {
 	const masterKey = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 

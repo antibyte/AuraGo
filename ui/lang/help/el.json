@@ -360,5 +360,7 @@
   "help.whisper.base_url": "Βασική URL για τον πάροχο Whisper.",
   "help.whisper.mode": "Λειτουργία Whisper: 'whisper' (τυπικό OpenAI API), 'multimodal' (Gemini/πολυτροπικό LLM) ή 'local' (τοπικός διακομιστής).",
   "help.whisper.model": "Όνομα μοντέλου για το Whisper, π.χ. 'whisper-1'.",
-  "help.whisper.provider": "Επιλέξτε έναν πάροχο από τη διαχείριση παρόχων για μετατροπή ομιλίας σε κείμενο."
+  "help.whisper.provider": "Επιλέξτε έναν πάροχο από τη διαχείριση παρόχων για μετατροπή ομιλίας σε κείμενο.",
+  "help.tools.knowledge_graph.auto_extraction": "Εξάγει αυτόματα οντότητες και σχέσεις από πρόσφατες συνομιλίες στο γράφημα γνώσης.",
+  "help.tools.knowledge_graph.prompt_injection": "Προσθέτει σχετικό πλαίσιο του γραφήματος γνώσης στο system prompt."
 }

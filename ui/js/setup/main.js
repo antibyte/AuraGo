@@ -1237,7 +1237,7 @@ function buildTrustLevelPatch(level) {
     // Base tools — always enabled at all levels, always read-write
     const baseTools = {
         memory:             { enabled: true },
-        knowledge_graph:    { enabled: true },
+        knowledge_graph:    { enabled: true, auto_extraction: true, prompt_injection: true },
         secrets_vault:      { enabled: true },
         scheduler:          { enabled: true },
         notes:              { enabled: true },

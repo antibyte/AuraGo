@@ -50,6 +50,7 @@ func injectFeatureAvailability(rawCfg map[string]interface{}, rt config.Runtime,
 		"wol":                  "tools",
 		"homepage_docker":      "homepage",
 		"invasion_local":       "invasion_control",
+		"updates":              "updates",
 		"chromecast_discovery": "chromecast",
 	}
 

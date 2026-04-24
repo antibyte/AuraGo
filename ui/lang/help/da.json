@@ -360,5 +360,7 @@
   "help.whisper.base_url": "Base-URL for Whisper-udbyderen.",
   "help.whisper.mode": "Whisper-tilstand: 'whisper' (standard OpenAI API), 'multimodal' (Gemini/multimodal LLM) eller 'local' (lokal server).",
   "help.whisper.model": "Modelnavn til Whisper, f.eks. 'whisper-1'.",
-  "help.whisper.provider": "Vælg en udbyder fra udbyderstyringen til tale-til-tekst."
+  "help.whisper.provider": "Vælg en udbyder fra udbyderstyringen til tale-til-tekst.",
+  "help.tools.knowledge_graph.auto_extraction": "Udtrakker automatisk enheder og relationer fra seneste samtaler til vidensgrafen.",
+  "help.tools.knowledge_graph.prompt_injection": "Indsaetter relevant vidensgraf-kontekst i systemprompten."
 }

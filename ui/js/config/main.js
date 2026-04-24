@@ -249,6 +249,7 @@ let personalitiesCache = [];
 
 // Runtime environment detection (loaded from /api/runtime)
 let runtimeData = { runtime: {}, features: {} };
+const SECTION_FEATURE_MAP = { docker: 'docker', invasion_control: 'invasion_local', updates: 'updates' };
 
 // Init
 async function init() {
@@ -404,14 +405,21 @@ function buildSidebar() {
         content.style.maxHeight = isCollapsed ? '0' : 'none';
 
         group.items.forEach(s => {
+            const blockedReason = sectionBlockedReason(s.key);
+            const isBlocked = blockedReason !== '';
             const item = document.createElement('div');
             item.className = 'sidebar-item'
                 + (s.key === activeSection ? ' active' : '')
                 + (group.dangerGroup ? ' danger-item' : '')
-                + (group.integrationSubGroup ? ' integration-sub-item' : '');
+                + (group.integrationSubGroup ? ' integration-sub-item' : '')
+                + (isBlocked ? ' sidebar-item-disabled' : '');
             item.dataset.section = s.key;
+            if (isBlocked) item.title = blockedReason;
             item.innerHTML = '<span class="icon">' + s.icon + '</span><span>' + s.label + '</span>';
-            item.onclick = () => selectSection(s.key);
+            item.onclick = () => {
+                if (sectionBlockedReason(s.key)) return;
+                selectSection(s.key);
+            };
             content.appendChild(item);
         });
 
@@ -442,6 +450,7 @@ function toggleGroup(groupName, groupDiv) {
 async function selectSection(key, options = {}) {
     const { scrollBehavior = 'smooth' } = options;
     if (!hasVisibleSection(key)) key = 'server';
+    if (sectionBlockedReason(key)) key = 'server';
     activeSection = key;
     localStorage.setItem('aurago-cfg-section', key);
     document.querySelectorAll('.sidebar-item').forEach(el => el.classList.toggle('active', el.dataset.section === key));
@@ -594,7 +603,6 @@ async function renderSection(key) {
     html += '<div class="section-desc">' + section.desc + '</div>';
 
     // Generic feature-unavailability banner for sections with runtime checks
-    const SECTION_FEATURE_MAP = { docker: 'docker', invasion_control: 'invasion_local' };
     const sectionFeatureKey = SECTION_FEATURE_MAP[key];
     if (sectionFeatureKey) {
         const fb = featureUnavailableBanner(sectionFeatureKey);
@@ -863,6 +871,14 @@ function featureUnavailableBanner(featureKey, options) {
     if (!fa || fa.available) return '';
     const blocked = options && options.blocked;
     return unavailableReasonBanner(fa.reason || t('config.feature_unavailable'), { blocked });
+}
+
+function sectionBlockedReason(sectionKey) {
+    const featureKey = SECTION_FEATURE_MAP[sectionKey];
+    if (!featureKey) return '';
+    const fa = (runtimeData.features || {})[featureKey];
+    if (!fa || fa.available) return '';
+    return fa.reason || t('config.feature_unavailable');
 }
 
 function unavailableReasonBanner(reason, options) {

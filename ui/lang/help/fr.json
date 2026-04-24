@@ -360,5 +360,7 @@
   "help.whisper.base_url": "URL de base du fournisseur Whisper.",
   "help.whisper.mode": "Mode Whisper : « Whisper » (API OpenAI standard), « multimodal » (Gemini/multimodal LLM) ou « local » (serveur local).",
   "help.whisper.model": "Nom du modèle pour Whisper, par ex. 'chuchotement-1'.",
-  "help.whisper.provider": "Sélectionnez un fournisseur dans la gestion des fournisseurs pour la synthèse vocale."
+  "help.whisper.provider": "Sélectionnez un fournisseur dans la gestion des fournisseurs pour la synthèse vocale.",
+  "help.tools.knowledge_graph.auto_extraction": "Extrait automatiquement les entites et relations des conversations recentes vers le graphe de connaissances.",
+  "help.tools.knowledge_graph.prompt_injection": "Injecte le contexte pertinent du graphe de connaissances dans le prompt systeme."
 }

@@ -360,5 +360,7 @@
   "help.whisper.base_url": "Whisper 提供商的基本 URL。",
   "help.whisper.mode": "Whisper 模式：“whisper”（标准 OpenAI API）、“multimodal”（Gemini/multimodal LLM）或“local”（本地服务器）。",
   "help.whisper.model": "Whisper 的型号名称，例如'耳语-1'。",
-  "help.whisper.provider": "从语音转文本的提供商管理中选择提供商。"
+  "help.whisper.provider": "从语音转文本的提供商管理中选择提供商。",
+  "help.tools.knowledge_graph.auto_extraction": "自动从最近的对话中提取实体和关系并写入知识图谱。",
+  "help.tools.knowledge_graph.prompt_injection": "将相关的知识图谱上下文注入系统提示。"
 }

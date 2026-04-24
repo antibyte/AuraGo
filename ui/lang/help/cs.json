@@ -360,5 +360,7 @@
   "help.whisper.base_url": "URL pro whisper.",
   "help.whisper.mode": "Mod pro whisper.",
   "help.whisper.model": "Model pro whisper.",
-  "help.whisper.provider": "Poskytovatel pro whisper."
+  "help.whisper.provider": "Poskytovatel pro whisper.",
+  "help.tools.knowledge_graph.auto_extraction": "Automaticky extrahuje entity a vztahy z nedavnych konverzaci do znalostniho grafu.",
+  "help.tools.knowledge_graph.prompt_injection": "Pridava relevantni kontext znalostniho grafu do systemoveho promptu."
 }

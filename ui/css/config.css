@@ -309,6 +309,18 @@ body {
     transform: translateX(2px);
 }
 
+.sidebar-item.sidebar-item-disabled {
+    opacity: 0.42;
+    cursor: not-allowed;
+    filter: grayscale(0.65);
+}
+
+.sidebar-item.sidebar-item-disabled:hover {
+    background: transparent;
+    color: var(--text-secondary);
+    transform: none;
+}
+
 .sidebar-item.active {
     background: var(--accent-dim);
     color: var(--accent);

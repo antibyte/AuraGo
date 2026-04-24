@@ -360,5 +360,7 @@
   "help.whisper.base_url": "Bas-URL för Whisper-leverantören.",
   "help.whisper.mode": "Whisper-läge: 'whisper' (standard OpenAI API), 'multimodal' (Gemini/multimodalt LLM) eller 'local' (lokal server).",
   "help.whisper.model": "Modellnamn för Whisper, t.ex. 'whisper-1'.",
-  "help.whisper.provider": "Välj en leverantör från leverantörshanteringen för tal-till-text."
+  "help.whisper.provider": "Välj en leverantör från leverantörshanteringen för tal-till-text.",
+  "help.tools.knowledge_graph.auto_extraction": "Extraherar automatiskt entiteter och relationer fran senaste konversationer till kunskapsgrafen.",
+  "help.tools.knowledge_graph.prompt_injection": "Lagger in relevant kunskapsgrafkontext i systemprompten."
 }

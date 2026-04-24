@@ -279,6 +279,11 @@ tools:
     knowledge_graph:
         enabled: true
         readonly: false
+        auto_extraction: true                                # nightly entity extraction from recent conversations
+        prompt_injection: true                               # inject relevant graph context into the system prompt
+        max_prompt_nodes: 5                                  # max graph nodes injected per prompt
+        max_prompt_chars: 800                                # max graph context chars injected per prompt
+        retrieval_fusion: true                               # enrich RAG results with related graph context
     secrets_vault:
         enabled: true
         readonly: false
