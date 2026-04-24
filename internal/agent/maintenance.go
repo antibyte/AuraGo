@@ -172,6 +172,13 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 	if kg != nil {
 		SyncPlannerToKnowledgeGraph(ctx, plannerDB, kg, logger)
 	}
+	if plannerDB != nil {
+		if cleaned, err := planner.CleanupOperationalIssues(plannerDB, 30*24*time.Hour); err != nil {
+			logger.Warn("[Maintenance] Failed to clean up operational issues", "error", err)
+		} else if cleaned > 0 {
+			logger.Info("[Maintenance] Cleaned old operational issues", "deleted", cleaned)
+		}
+	}
 	if kg != nil && shortTermMem != nil {
 		SyncCoreMemoryToKnowledgeGraph(ctx, shortTermMem, kg, logger)
 	}

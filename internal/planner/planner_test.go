@@ -544,8 +544,105 @@ func TestRecordOperationalIssueDeduplicatesOpenTodos(t *testing.T) {
 	if got := operationalIssueField(issues[0].Description, "Occurrences"); got != "2" {
 		t.Fatalf("Occurrences = %q, want 2", got)
 	}
+	var issueRows int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM operational_issues`).Scan(&issueRows); err != nil {
+		t.Fatalf("count operational_issues error = %v", err)
+	}
+	if issueRows != 1 {
+		t.Fatalf("operational_issues rows = %d, want 1", issueRows)
+	}
 	if reminder := BuildOperationalIssueReminderText(issues); !strings.Contains(reminder, "Mission Backup failed") {
 		t.Fatalf("reminder text does not mention issue: %q", reminder)
+	}
+}
+
+func TestListOperationalIssueTodosNilDBReturnsError(t *testing.T) {
+	if _, err := ListOperationalIssueTodos(nil, 10); err == nil {
+		t.Fatal("ListOperationalIssueTodos(nil) error = nil, want error")
+	}
+}
+
+func TestOperationalIssueFingerprintIgnoresDisplayPrefix(t *testing.T) {
+	plain := normalizeOperationalIssue(OperationalIssue{
+		Source:    "mission",
+		Context:   "mission-1",
+		Title:     "Backup failed",
+		Reference: "mission-1",
+	})
+	prefixed := normalizeOperationalIssue(OperationalIssue{
+		Source:    "mission",
+		Context:   "mission-1",
+		Title:     "System issue: Backup failed",
+		Reference: "mission-1",
+	})
+	if plain.Fingerprint != prefixed.Fingerprint {
+		t.Fatalf("fingerprint changed with display prefix: %q != %q", plain.Fingerprint, prefixed.Fingerprint)
+	}
+}
+
+func TestOperationalIssueDescriptionRoundTripAndTruncation(t *testing.T) {
+	issue := normalizeOperationalIssue(OperationalIssue{
+		Source:    "maintenance",
+		Title:     "Nightly check failed",
+		Detail:    "line one\nline two",
+		Severity:  "warning",
+		Reference: "daily",
+	})
+	desc := buildOperationalIssueDescription(issue, "2026-04-24T18:00:00Z", 3)
+	if got := operationalIssueField(desc, "Occurrences"); got != "3" {
+		t.Fatalf("Occurrences = %q, want 3", got)
+	}
+	if got := operationalIssueDetails(desc); got != "line one\nline two" {
+		t.Fatalf("Details = %q, want original multiline detail", got)
+	}
+	for max, want := range map[int]string{1: ".", 2: "..", 3: "...", 4: "a..."} {
+		if got := truncateOperationalIssueText("abcdef", max); got != want {
+			t.Fatalf("truncateOperationalIssueText max=%d = %q, want %q", max, got, want)
+		}
+	}
+}
+
+func TestCleanupOperationalIssuesDeletesOldCompletedIssues(t *testing.T) {
+	db := testDB(t)
+	defer db.Close()
+
+	id, err := RecordOperationalIssue(db, OperationalIssue{
+		Source:    "maintenance",
+		Title:     "Old issue",
+		Detail:    "already fixed",
+		Severity:  "warning",
+		Reference: "old",
+	})
+	if err != nil {
+		t.Fatalf("RecordOperationalIssue error = %v", err)
+	}
+	if err := CompleteTodo(db, id, true); err != nil {
+		t.Fatalf("CompleteTodo error = %v", err)
+	}
+	old := time.Now().UTC().Add(-45 * 24 * time.Hour).Format(time.RFC3339)
+	if _, err := db.Exec(`UPDATE todos SET completed_at=?, updated_at=? WHERE id=?`, old, old, id); err != nil {
+		t.Fatalf("backdate todo error = %v", err)
+	}
+	if _, err := db.Exec(`UPDATE operational_issues SET status='done', last_seen=?, updated_at=? WHERE todo_id=?`, old, old, id); err != nil {
+		t.Fatalf("backdate operational issue error = %v", err)
+	}
+
+	deleted, err := CleanupOperationalIssues(db, 30*24*time.Hour)
+	if err != nil {
+		t.Fatalf("CleanupOperationalIssues error = %v", err)
+	}
+	if deleted != 1 {
+		t.Fatalf("CleanupOperationalIssues deleted = %d, want 1", deleted)
+	}
+	if _, err := GetTodo(db, id); err == nil {
+		t.Fatal("GetTodo after cleanup error = nil, want missing todo")
+	}
+	var issueRows int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM operational_issues`).Scan(&issueRows); err != nil {
+		t.Fatalf("count operational_issues error = %v", err)
+	}
+	if issueRows != 0 {
+		t.Fatalf("operational_issues rows after cleanup = %d, want 0", issueRows)
 	}
 }
 

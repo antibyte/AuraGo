@@ -68,6 +68,11 @@ func TestBuildSystemPromptCacheKey_DifferentFlags(t *testing.T) {
 			wantNewKey: true,
 		},
 		{
+			name:       "OperationalIssueReminder changes cache key",
+			modify:     func(f *prompts.ContextFlags) { f.OperationalIssueReminder = "System issue: background failure" },
+			wantNewKey: true,
+		},
+		{
 			name:       "ReuseContext changes cache key",
 			modify:     func(f *prompts.ContextFlags) { f.ReuseContext = "reuse this cheatsheet first" },
 			wantNewKey: true,

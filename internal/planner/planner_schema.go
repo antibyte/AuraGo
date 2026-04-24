@@ -8,7 +8,7 @@ import (
 	"aurago/internal/dbutil"
 )
 
-const plannerSchemaVersion = 5
+const plannerSchemaVersion = 6
 
 func initPlannerSchema(db *sql.DB) error {
 	version, err := dbutil.GetUserVersion(db)
@@ -44,8 +44,13 @@ func initPlannerSchema(db *sql.DB) error {
 			return err
 		}
 		fallthrough
-	case version < plannerSchemaVersion:
+	case version < 5:
 		if err := migratePlannerToV5(db); err != nil {
+			return err
+		}
+		fallthrough
+	case version < 6:
+		if err := migratePlannerToV6(db); err != nil {
 			return err
 		}
 	default:
@@ -103,6 +108,15 @@ func createPlannerTables(db *sql.DB) error {
 func ensurePlannerIndexes(db *sql.DB) error {
 	if _, err := db.Exec(plannerIndexesSQL()); err != nil {
 		return fmt.Errorf("ensure planner indexes: %w", err)
+	}
+	hasOperationalIssues, err := plannerTableExists(db, "operational_issues")
+	if err != nil {
+		return err
+	}
+	if hasOperationalIssues {
+		if _, err := db.Exec(operationalIssueIndexesSQL()); err != nil {
+			return fmt.Errorf("ensure operational issue indexes: %w", err)
+		}
 	}
 	return nil
 }
@@ -296,6 +310,16 @@ func migratePlannerToV5(db *sql.DB) error {
 	return nil
 }
 
+func migratePlannerToV6(db *sql.DB) error {
+	if _, err := db.Exec(operationalIssuesSQL()); err != nil {
+		return fmt.Errorf("create operational issues table: %w", err)
+	}
+	if err := backfillOperationalIssuesFromTodos(db); err != nil {
+		return err
+	}
+	return ensurePlannerIndexes(db)
+}
+
 func plannerTablesSQL() string {
 	return strings.TrimSpace(`
 		CREATE TABLE IF NOT EXISTS appointments (
@@ -342,7 +366,31 @@ func plannerTablesSQL() string {
 			key TEXT PRIMARY KEY,
 			value TEXT NOT NULL DEFAULT ''
 		);
+	` + operationalIssuesSQL() + `
+	` + operationalIssueIndexesSQL() + `
 	` + plannerIndexesSQL())
+}
+
+func operationalIssuesSQL() string {
+	return strings.TrimSpace(`
+		CREATE TABLE IF NOT EXISTS operational_issues (
+			fingerprint TEXT PRIMARY KEY,
+			todo_id TEXT NOT NULL UNIQUE,
+			source TEXT NOT NULL DEFAULT '',
+			context TEXT NOT NULL DEFAULT '',
+			severity TEXT NOT NULL DEFAULT 'warning',
+			title TEXT NOT NULL DEFAULT '',
+			detail TEXT NOT NULL DEFAULT '',
+			reference TEXT NOT NULL DEFAULT '',
+			first_seen TEXT NOT NULL,
+			last_seen TEXT NOT NULL,
+			occurrences INTEGER NOT NULL DEFAULT 1,
+			status TEXT NOT NULL DEFAULT 'open',
+			created_at TEXT NOT NULL,
+			updated_at TEXT NOT NULL,
+			FOREIGN KEY (todo_id) REFERENCES todos(id) ON DELETE CASCADE
+		);
+	`)
 }
 
 func plannerIndexesSQL() string {
@@ -356,5 +404,13 @@ func plannerIndexesSQL() string {
 		CREATE INDEX IF NOT EXISTS idx_todos_remind_daily ON todos(remind_daily, status);
 		CREATE INDEX IF NOT EXISTS idx_todo_items_todo ON todo_items(todo_id);
 		CREATE INDEX IF NOT EXISTS idx_todo_items_order ON todo_items(todo_id, position);
+	`)
+}
+
+func operationalIssueIndexesSQL() string {
+	return strings.TrimSpace(`
+		CREATE INDEX IF NOT EXISTS idx_operational_issues_status ON operational_issues(status);
+		CREATE INDEX IF NOT EXISTS idx_operational_issues_source ON operational_issues(source);
+		CREATE INDEX IF NOT EXISTS idx_operational_issues_last_seen ON operational_issues(last_seen);
 	`)
 }
