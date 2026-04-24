@@ -265,6 +265,56 @@ func TestFileIndexerRecordsDisabledVectorDBScanStatus(t *testing.T) {
 	}
 }
 
+func TestFileIndexerTriggersKGSyncForIndexedFiles(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	defer stm.Close()
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "note.txt")
+	if err := os.WriteFile(path, []byte("Proxmox runs the home lab services."), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	cfg := &config.Config{}
+	cfg.Indexing.Directories = []config.IndexingDirectory{{Path: dir}}
+	cfg.Indexing.Extensions = []string{".txt"}
+	cfg.Tools.KnowledgeGraph.Enabled = true
+	cfg.Tools.KnowledgeGraph.AutoExtraction = true
+
+	cfgMu := &sync.RWMutex{}
+	fi := NewFileIndexer(cfg, cfgMu, &fakeIndexerVectorDB{}, stm, logger)
+
+	synced := make(chan string, 1)
+	syncer := NewFileKGSyncer(cfg, logger, nil, nil, stm, nil)
+	syncer.syncFile = func(path, collection string, opts FileKGSyncOptions) FileKGSyncResult {
+		synced <- path + "|" + collection
+		return FileKGSyncResult{FilesProcessed: 1}
+	}
+	fi.SetKGSyncer(syncer)
+
+	_, indexed, errs := fi.scanDirectory(dir, IndexerCollection)
+	if indexed != 1 {
+		t.Fatalf("scan indexed = %d, want 1", indexed)
+	}
+	if len(errs) != 0 {
+		t.Fatalf("scan errors = %v", errs)
+	}
+
+	select {
+	case got := <-synced:
+		want := path + "|" + IndexerCollection
+		if got != want {
+			t.Fatalf("synced = %q, want %q", got, want)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("expected file indexer to trigger KG sync for indexed file")
+	}
+}
+
 func TestShouldRetryIndexingErr(t *testing.T) {
 	tests := []struct {
 		name string

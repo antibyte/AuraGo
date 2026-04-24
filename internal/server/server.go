@@ -700,6 +700,7 @@ func Start(opts StartOptions) error {
 	// Start File Indexer if enabled
 	if cfg.Indexing.Enabled {
 		s.FileIndexer = services.NewFileIndexer(cfg, &s.CfgMu, longTermMem, shortTermMem, logger)
+		s.attachFileKGSyncer()
 		s.FileIndexer.Start(context.Background())
 		logger.Info("File indexer started", "directories", cfg.Indexing.Directories)
 	}

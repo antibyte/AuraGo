@@ -574,6 +574,7 @@ func handleUpdateConfig(s *Server) http.HandlerFunc {
 			if oldCfg.Indexing.Enabled != newCfg.Indexing.Enabled {
 				if newCfg.Indexing.Enabled && s.FileIndexer == nil {
 					s.FileIndexer = services.NewFileIndexer(newCfg, &s.CfgMu, s.LongTermMem, s.ShortTermMem, s.Logger)
+					s.attachFileKGSyncer()
 					s.FileIndexer.Start(context.Background())
 					s.Logger.Info("[Config UI] File indexer started")
 				} else if !newCfg.Indexing.Enabled && s.FileIndexer != nil {

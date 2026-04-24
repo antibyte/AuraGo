@@ -488,6 +488,7 @@ func (fi *FileIndexer) scanDirectory(dir, collection string) (totalFiles, indexe
 
 		indexedFiles++
 		fi.logger.Info("[Indexer] Indexed file", "path", relPath, "size", info.Size(), "doc_ids", len(docIDs))
+		fi.syncIndexedFileToKG(path, collection)
 
 		return nil
 	})
@@ -497,6 +498,30 @@ func (fi *FileIndexer) scanDirectory(dir, collection string) (totalFiles, indexe
 
 	errors = append(errors, fi.cleanupDeletedTrackedFiles(dir, collection, trackedPaths, seenPaths)...)
 	return totalFiles, indexedFiles, errors
+}
+
+func (fi *FileIndexer) syncIndexedFileToKG(path, collection string) {
+	fi.mu.RLock()
+	syncer := fi.kgSyncer
+	fi.mu.RUnlock()
+	if syncer == nil {
+		return
+	}
+
+	fi.cfgMu.RLock()
+	kgEnabled := fi.cfg.Tools.KnowledgeGraph.Enabled
+	autoExtraction := fi.cfg.Tools.KnowledgeGraph.AutoExtraction
+	fi.cfgMu.RUnlock()
+	if !kgEnabled || !autoExtraction {
+		return
+	}
+
+	go func() {
+		res := syncer.runSyncFile(path, collection, FileKGSyncOptions{})
+		if len(res.Errors) > 0 {
+			fi.logger.Warn("[Indexer] KG sync produced errors", "path", path, "errors", res.Errors)
+		}
+	}()
 }
 
 func (fi *FileIndexer) cleanupDeletedTrackedFiles(dir, collection string, trackedPaths []string, seenPaths map[string]struct{}) []string {
