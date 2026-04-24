@@ -498,6 +498,7 @@ function buildQuickConfigPatch() {
 
     const langMap = {de:'Deutsch',en:'English',es:'Español',fr:'Français',pl:'Polski',zh:'中文',hi:'हिन्दी',nl:'Nederlands',it:'Italiano',pt:'Português',da:'Dansk',ja:'日本語',sv:'Svenska',no:'Norsk',el:'Ελληνικά',cs:'Čeština'};
     const patch = {
+        _setup_profile_id: p.id,
         server: {
             ui_language: lang,
         },

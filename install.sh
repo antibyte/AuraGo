@@ -247,10 +247,11 @@ update_source_checkout() {
 warn_if_systemd_hardening_conflicts() {
     local config_path="$1"
     [ -f "$config_path" ] || return 0
-    if grep -Eq '^[[:space:]]+sudo_enabled:[[:space:]]*true([[:space:]]|$)' "$config_path" || \
-       grep -Eq '^[[:space:]]+sudo_unrestricted:[[:space:]]*true([[:space:]]|$)' "$config_path"; then
-        warn "config.yaml enables sudo features. The generated systemd unit keeps ProtectSystem=strict and may block unrestricted sudo writes."
-        warn "If you intentionally need unrestricted sudo, adjust the unit after installation and reload systemd."
+    if grep -Eq '^[[:space:]]+sudo_enabled:[[:space:]]*true([[:space:]]|$)' "$config_path"; then
+        warn "config.yaml enables sudo features. Keep this only for trusted local installations."
+    fi
+    if grep -Eq '^[[:space:]]+sudo_unrestricted:[[:space:]]*true([[:space:]]|$)' "$config_path"; then
+        warn "config.yaml enables sudo_unrestricted. The generated systemd unit will not use ProtectSystem=strict."
     fi
 }
 
@@ -460,7 +461,17 @@ if ! command -v docker >/dev/null 2>&1; then
     if [[ "${DKR_REPLY:-y}" =~ ^[Yy]$ ]]; then
         info "Installing Docker via the local package manager..."
         if install_docker_engine; then
-            $SUDO usermod -aG docker "$USER" || warn "Failed to add $USER to docker group. You may need to do this manually."
+            DOCKER_USER="${SUDO_USER:-${USER:-}}"
+            if [ -n "$DOCKER_USER" ] && [ "$DOCKER_USER" != "root" ]; then
+                if id -nG "$DOCKER_USER" 2>/dev/null | tr ' ' '\n' | grep -qx docker; then
+                    ok "$DOCKER_USER is already in the docker group."
+                else
+                    $SUDO usermod -aG docker "$DOCKER_USER" || warn "Failed to add $DOCKER_USER to docker group. Run manually: sudo usermod -aG docker $DOCKER_USER"
+                    warn "$DOCKER_USER must log out and back in before Docker group membership is active."
+                fi
+            else
+                warn "Docker installed, but no non-root login user was detected for docker group membership."
+            fi
             ok "Docker installed."
         else
             warn "Docker was not installed automatically."
@@ -787,10 +798,14 @@ if [ -f "$CONFIG_FILE" ]; then
     write_secret_text_file "$INSTALL_DIR/firstpassword.txt" "$INFO_PASSWORD" || die "Failed to write firstpassword.txt securely."
 
     if [ "$HTTPS_ENABLED" = "true" ]; then
-        ./bin/aurago_linux --config "$CONFIG_FILE" --init-only -password "$INFO_PASSWORD" -https -domain "$HTTPS_DOMAIN" -email "$HTTPS_EMAIL"
+        if ! ./bin/aurago_linux --config "$CONFIG_FILE" --init-only -password "$INFO_PASSWORD" -https -domain "$HTTPS_DOMAIN" -email "$HTTPS_EMAIL"; then
+            die "Initial password and HTTPS setup failed. Check config.yaml and AURAGO_MASTER_KEY."
+        fi
         ok "config.yaml → HTTPS enabled for $HTTPS_DOMAIN"
     else
-        ./bin/aurago_linux --config "$CONFIG_FILE" --init-only -password "$INFO_PASSWORD"
+        if ! ./bin/aurago_linux --config "$CONFIG_FILE" --init-only -password "$INFO_PASSWORD"; then
+            die "Initial password setup failed. Check config.yaml and AURAGO_MASTER_KEY."
+        fi
         awk -v host="$SERVER_HOST" '
             /^server:/ { in_server=1 }
             /^[a-z]/ && !/^server:/ { in_server=0 }
@@ -902,6 +917,10 @@ if command -v systemctl >/dev/null 2>&1; then
         if [ "$HTTPS_ENABLED" = "true" ]; then
             AMBIENT_CAPS_LINE="AmbientCapabilities=CAP_NET_BIND_SERVICE"
         fi
+        PROTECT_SYSTEM_LINE="ProtectSystem=strict"
+        if grep -Eq '^[[:space:]]+sudo_unrestricted:[[:space:]]*true([[:space:]]|$)' "$CONFIG_FILE"; then
+            PROTECT_SYSTEM_LINE="# ProtectSystem=strict disabled because sudo_unrestricted is enabled"
+        fi
 
         # ── Create systemd unit ──────────────────────────────────────────
         $SUDO tee /etc/systemd/system/${SYSTEMD_SERVICE}.service > /dev/null <<EOF
@@ -922,7 +941,7 @@ EnvironmentFile="${CREDENTIAL_FILE}"
 ${AMBIENT_CAPS_LINE}
 # Security hardening
 NoNewPrivileges=true
-ProtectSystem=strict
+${PROTECT_SYSTEM_LINE}
 ReadWritePaths=${INSTALL_DIR} ${CREDENTIAL_DIR}
 PrivateTmp=true
 

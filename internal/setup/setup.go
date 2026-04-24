@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 
 	"aurago/internal/config"
@@ -252,6 +253,10 @@ func installSystemd(exePath, installDir string, logger *slog.Logger) error {
 		credentialFile = "/etc/aurago/master.key"
 		readWritePaths = installDir + " /etc/aurago"
 	}
+	protectSystemLine := "ProtectSystem=strict"
+	if configAllowsSudoUnrestricted(filepath.Join(installDir, "config.yaml")) {
+		protectSystemLine = "# ProtectSystem=strict disabled because sudo_unrestricted is enabled"
+	}
 
 	unit := fmt.Sprintf(`[Unit]
 Description=AuraGo AI Agent
@@ -269,13 +274,13 @@ Restart=on-failure
 RestartSec=10
 EnvironmentFile=-%s
 NoNewPrivileges=true
-ProtectSystem=strict
+%s
 ReadWritePaths=%s
 PrivateTmp=true
 
 [Install]
 WantedBy=multi-user.target
-`, user, user, installDir, exePath, installDir, credentialFile, readWritePaths)
+`, user, user, installDir, exePath, installDir, credentialFile, protectSystemLine, readWritePaths)
 
 	unitPath := "/etc/systemd/system/aurago.service"
 	if err := os.WriteFile(unitPath, []byte(unit), 0600); err != nil {
@@ -297,12 +302,13 @@ WantedBy=multi-user.target
 
 func installLaunchd(exePath, installDir string, logger *slog.Logger) error {
 	wrapperPath := filepath.Join(installDir, "start_aurago.sh")
+	envPath := filepath.Join(installDir, ".env")
 	wrapper := fmt.Sprintf(`#!/bin/sh
 set -a
-[ -f "%s" ] && . "%s"
+[ -f %s ] && . %s
 set +a
-exec "%s"
-`, filepath.Join(installDir, ".env"), filepath.Join(installDir, ".env"), exePath)
+exec %s
+`, strconv.Quote(envPath), strconv.Quote(envPath), strconv.Quote(exePath))
 	if err := os.WriteFile(wrapperPath, []byte(wrapper), 0700); err != nil {
 		return fmt.Errorf("failed to write launchd wrapper: %w", err)
 	}
@@ -466,7 +472,33 @@ func isValidMasterKeyHex(key string) bool {
 	return err == nil
 }
 
+func configAllowsSudoUnrestricted(configPath string) bool {
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return false
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		if idx := strings.Index(line, "#"); idx >= 0 {
+			line = line[:idx]
+		}
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "sudo_unrestricted:") {
+			return strings.TrimSpace(strings.TrimPrefix(line, "sudo_unrestricted:")) == "true"
+		}
+	}
+	return false
+}
+
 func runningInDocker() bool {
-	_, err := os.Stat("/.dockerenv")
-	return err == nil
+	if _, err := os.Stat("/.dockerenv"); err == nil {
+		return true
+	}
+	data, err := os.ReadFile("/proc/self/cgroup")
+	if err != nil {
+		return false
+	}
+	cgroup := strings.ToLower(string(data))
+	return strings.Contains(cgroup, "docker") ||
+		strings.Contains(cgroup, "containerd") ||
+		strings.Contains(cgroup, "kubepods")
 }

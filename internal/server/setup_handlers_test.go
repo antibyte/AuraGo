@@ -131,6 +131,34 @@ func TestExtractSetupAdminPasswordAllowsExistingPasswordToRemain(t *testing.T) {
 	}
 }
 
+func TestApplySetupProfileConfigPatchAppliesMiniMaxDefaults(t *testing.T) {
+	t.Parallel()
+
+	patch := map[string]interface{}{
+		"_setup_profile_id": "minimax_coding",
+		"llm": map[string]interface{}{
+			"provider": "main",
+		},
+	}
+	s := &Server{Cfg: &config.Config{}, Logger: slog.Default()}
+
+	applySetupProfileConfigPatch(patch, s)
+
+	if _, exists := patch["_setup_profile_id"]; exists {
+		t.Fatal("expected setup profile marker to be removed before config merge")
+	}
+	llmPatch, ok := patch["llm"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("expected llm patch map, got %T", patch["llm"])
+	}
+	if got := llmPatch["structured_outputs"]; got != true {
+		t.Fatalf("structured_outputs = %v, want true from minimax config_patch", got)
+	}
+	if got := llmPatch["provider"]; got != "main" {
+		t.Fatalf("provider = %v, want client value main", got)
+	}
+}
+
 func TestHandleSetupStatusReturnsCSRFToken(t *testing.T) {
 	s := &Server{Cfg: &config.Config{}}
 	// Config has no provider → needsSetup returns true
@@ -203,6 +231,12 @@ func TestValidateSetupTestBaseURLRejectsPrivateProviderURL(t *testing.T) {
 func TestValidateSetupTestBaseURLAllowsKnownProviderURL(t *testing.T) {
 	if err := validateSetupTestBaseURL("openrouter", "https://openrouter.ai/api/v1"); err != nil {
 		t.Fatalf("expected known provider URL to be allowed: %v", err)
+	}
+}
+
+func TestValidateSetupTestBaseURLAllowsCustomPublicHTTPSURL(t *testing.T) {
+	if err := validateSetupTestBaseURL("custom", "https://llm.example.com/v1"); err != nil {
+		t.Fatalf("expected custom public HTTPS URL to be allowed: %v", err)
 	}
 }
 

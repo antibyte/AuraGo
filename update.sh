@@ -481,26 +481,46 @@ section "Stopping running instances"
 _kill_proc() {
     local label="$1"; shift
     local patterns=("$@")
-    local found=false
+    local pids=""
+    local pat pid exe cwd cmd expected
 
+    # Only stop processes that belong to this AuraGo installation. Matching on
+    # broad names such as "bin/aurago_linux" can otherwise kill unrelated test
+    # instances in other directories.
     for pat in "${patterns[@]}"; do
-        if pgrep -f "$pat" >/dev/null 2>&1; then
-            found=true; break
-        fi
+        expected="$DIR/$pat"
+        while IFS= read -r pid; do
+            [ -n "$pid" ] || continue
+            [ "$pid" = "$$" ] && continue
+
+            exe="$(readlink -f "/proc/$pid/exe" 2>/dev/null || true)"
+            cwd="$(readlink -f "/proc/$pid/cwd" 2>/dev/null || true)"
+            cmd="$(tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null || true)"
+
+            if [ "$exe" = "$expected" ] ||
+               [[ "$cmd" == *"$expected"* ]] ||
+               { [[ "$cwd" == "$DIR" || "$cwd" == "$DIR"/* ]] && [[ "$cmd" == *"$pat"* ]]; }; then
+                case " $pids " in
+                    *" $pid "*) ;;
+                    *) pids="$pids $pid" ;;
+                esac
+            fi
+        done < <(pgrep -f "$pat" 2>/dev/null || true)
     done
-    $found || { info "$label: not running"; return 0; }
+
+    [ -n "${pids// /}" ] || { info "$label: not running"; return 0; }
 
     info "Stopping $label (SIGTERM)..."
-    for pat in "${patterns[@]}"; do
-        pkill -TERM -f "$pat" 2>/dev/null || true
+    for pid in $pids; do
+        kill -TERM "$pid" 2>/dev/null || true
     done
 
     # Wait up to 8 seconds for clean exit
     local waited=0
     while true; do
         local still_up=false
-        for pat in "${patterns[@]}"; do
-            pgrep -f "$pat" >/dev/null 2>&1 && { still_up=true; break; }
+        for pid in $pids; do
+            kill -0 "$pid" 2>/dev/null && { still_up=true; break; }
         done
         $still_up || break
         sleep 1; waited=$((waited + 1))
@@ -509,10 +529,10 @@ _kill_proc() {
 
     # SIGKILL if still alive
     local killed=false
-    for pat in "${patterns[@]}"; do
-        if pgrep -f "$pat" >/dev/null 2>&1; then
+    for pid in $pids; do
+        if kill -0 "$pid" 2>/dev/null; then
             warn "$label still alive after ${waited}s — sending SIGKILL"
-            pkill -KILL -f "$pat" 2>/dev/null || true
+            kill -KILL "$pid" 2>/dev/null || true
             killed=true
         fi
     done
@@ -520,9 +540,9 @@ _kill_proc() {
     # Final wait after SIGKILL
     if $killed; then
         sleep 2
-        for pat in "${patterns[@]}"; do
-            if pgrep -f "$pat" >/dev/null 2>&1; then
-                warn "Could not kill $label (pattern: $pat) — update may fail"
+        for pid in $pids; do
+            if kill -0 "$pid" 2>/dev/null; then
+                warn "Could not kill $label process $pid — update may fail"
             fi
         done
     fi
@@ -552,16 +572,7 @@ do
     fi
 done
 
-# ── Release any bound ports ────────────────────────────────────────────
-for PORT in 8080 8088 8089 8090 8091 8099; do
-    if command -v fuser >/dev/null 2>&1; then
-        fuser -k ${PORT}/tcp 2>/dev/null || true
-    elif command -v lsof >/dev/null 2>&1; then
-        lsof -ti tcp:${PORT} | xargs -r kill -9 2>/dev/null || true
-    fi
-done
-
-ok "All instances stopped, ports released"
+ok "AuraGo-owned instances stopped"
 
 # ── Backup protected user data ─────────────────────────────────────────
 section "Backing up user data"

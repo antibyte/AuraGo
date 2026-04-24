@@ -47,6 +47,63 @@ persist_master_key_fallback() {
     chmod 600 "$ENV_FILE"
 }
 
+is_valid_master_key() {
+    local key="$1"
+    printf '%s' "$key" | grep -Eq '^[0-9a-fA-F]{64}$'
+}
+
+generate_master_key() {
+    local key=""
+    if [ -r /dev/urandom ]; then
+        key="$(tr -dc 'a-f0-9' < /dev/urandom | head -c 64 || true)"
+        if is_valid_master_key "$key"; then
+            printf '%s' "$key"
+            return 0
+        fi
+    fi
+    if command -v python3 >/dev/null 2>&1; then
+        key="$(python3 -c 'import secrets; print(secrets.token_hex(32))' 2>/dev/null || true)"
+        if is_valid_master_key "$key"; then
+            printf '%s' "$key"
+            return 0
+        fi
+    fi
+    return 1
+}
+
+wait_for_docker_proxy() {
+    case "${DOCKER_HOST:-}" in
+        tcp://*:*)
+            ;;
+        *)
+            return 0
+            ;;
+    esac
+
+    if ! command -v wget >/dev/null 2>&1; then
+        echo "[Entrypoint] WARNING: wget not available; skipping Docker proxy readiness wait"
+        return 0
+    fi
+
+    local target="${DOCKER_HOST#tcp://}"
+    local proxy_host="${target%:*}"
+    local proxy_port="${target##*:}"
+    if [ -z "$proxy_host" ] || [ -z "$proxy_port" ] || [ "$proxy_host" = "$proxy_port" ]; then
+        echo "[Entrypoint] WARNING: Could not parse DOCKER_HOST=$DOCKER_HOST"
+        return 0
+    fi
+
+    echo "[Entrypoint] Waiting for Docker proxy at $proxy_host:$proxy_port ..."
+    for i in $(seq 1 30); do
+        if wget -q -O - "http://${proxy_host}:${proxy_port}/_ping" >/dev/null 2>&1; then
+            echo "[Entrypoint] Docker proxy reachable"
+            return 0
+        fi
+        sleep 1
+    done
+    echo "[Entrypoint] WARNING: Docker proxy was not reachable after 30s; continuing without blocking startup"
+}
+
 # Normalize the baked-in template immediately — it may have CRLF endings
 # because it was COPYd from a Windows development machine.
 normalize_file "$TEMPLATE_FILE"
@@ -163,6 +220,10 @@ echo "[Entrypoint] Config OK"
 PERSISTED_ENV_KEY="$(read_master_key_from_env_file "$ENV_FILE")"
 
 if [ -n "${AURAGO_MASTER_KEY:-}" ]; then
+    if ! is_valid_master_key "$AURAGO_MASTER_KEY"; then
+        echo "[Entrypoint] FATAL: External AURAGO_MASTER_KEY must be 64 hexadecimal characters"
+        exit 1
+    fi
     if [ -n "$PERSISTED_ENV_KEY" ] && [ "$PERSISTED_ENV_KEY" != "$AURAGO_MASTER_KEY" ]; then
         echo "[Entrypoint] =========================================================="
         echo "[Entrypoint] FATAL: External AURAGO_MASTER_KEY does not match persisted"
@@ -206,7 +267,10 @@ if [ -z "${AURAGO_MASTER_KEY:-}" ]; then
         export AURAGO_MASTER_KEY
     else
         echo "[Entrypoint] Generating new master key..."
-        NEW_KEY=$(tr -dc 'a-f0-9' < /dev/urandom | head -c 64)
+        if ! NEW_KEY="$(generate_master_key)"; then
+            echo "[Entrypoint] FATAL: Could not generate a valid master key"
+            exit 1
+        fi
         export AURAGO_MASTER_KEY="$NEW_KEY"
         
         # Save to .env file (only when no external secret source is available)
@@ -227,6 +291,13 @@ if [ -z "${AURAGO_MASTER_KEY:-}" ]; then
         echo "=========================================================================="
     fi
 fi
+
+if ! is_valid_master_key "${AURAGO_MASTER_KEY:-}"; then
+    echo "[Entrypoint] FATAL: AURAGO_MASTER_KEY must be 64 hexadecimal characters"
+    exit 1
+fi
+
+wait_for_docker_proxy
 
 # === 5. START APPLICATION ===
 

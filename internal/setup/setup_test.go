@@ -99,3 +99,16 @@ func TestEnsureConfigFileCreatesMinimalFallbackWithoutTemplate(t *testing.T) {
 		t.Fatalf("config contents = %q, want minimal fallback", string(got))
 	}
 }
+
+func TestConfigAllowsSudoUnrestricted(t *testing.T) {
+	t.Parallel()
+
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(configPath, []byte("agent:\n  sudo_unrestricted: true # intentional\n"), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	if !configAllowsSudoUnrestricted(configPath) {
+		t.Fatal("expected sudo_unrestricted=true to be detected")
+	}
+}

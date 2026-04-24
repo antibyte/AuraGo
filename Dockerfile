@@ -110,7 +110,7 @@ USER aurago
 # ----- exposed ports -----
 # 8088 – Web UI + REST API  (matches config.yaml server.port default)
 # 8089 – Internal TCP bridge (accessed only by the agent itself)
-EXPOSE 8088
+EXPOSE 8088 8089
 
 # ----- volumes -----
 # Mount these from outside to persist state across container restarts:

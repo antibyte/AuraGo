@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/netip"
@@ -172,6 +173,7 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 			jsonError(w, setupValidationMessage(err), http.StatusBadRequest)
 			return
 		}
+		applySetupProfileConfigPatch(patch, s)
 
 		// Read current config file
 		data, err := os.ReadFile(configPath)
@@ -364,6 +366,40 @@ func handleSetupSave(s *Server) http.HandlerFunc {
 				"needs_restart": false,
 			})
 		}
+	}
+}
+
+func applySetupProfileConfigPatch(patch map[string]interface{}, s *Server) {
+	rawProfileID, ok := patch["_setup_profile_id"]
+	if ok {
+		delete(patch, "_setup_profile_id")
+	}
+	profileID, _ := rawProfileID.(string)
+	profileID = strings.TrimSpace(profileID)
+	if profileID == "" || profileID == "custom" {
+		return
+	}
+
+	logger := s.Logger
+	if logger == nil {
+		logger = slog.Default()
+	}
+
+	for _, profile := range setup.LoadProfiles("", logger) {
+		if profile.ID != profileID || len(profile.ConfigPatch) == 0 {
+			continue
+		}
+		merged := make(map[string]interface{}, len(profile.ConfigPatch)+len(patch))
+		deepMerge(merged, profile.ConfigPatch, "")
+		deepMerge(merged, patch, "")
+		for key := range patch {
+			delete(patch, key)
+		}
+		for key, value := range merged {
+			patch[key] = value
+		}
+		logger.Info("[Setup] Applied setup profile config_patch", "profile", profileID)
+		return
 	}
 }
 
@@ -576,6 +612,9 @@ func validateSetupTestBaseURL(providerType, rawURL string) error {
 	}
 	if isLocalOrPrivateSetupHost(host) {
 		return fmt.Errorf("setup test does not allow local or private base_url hosts")
+	}
+	if providerType == "custom" {
+		return nil
 	}
 	if !isAllowedSetupProviderHost(host) {
 		return fmt.Errorf("setup test only allows known setup provider hosts")
