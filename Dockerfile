@@ -72,6 +72,9 @@ COPY --from=builder /deploy /app/deploy
 COPY prompts                        /app/prompts
 COPY agent_workspace/skills         /app/agent_workspace/skills
 COPY documentation                  /app/documentation
+COPY assets/skill_samples           /app/assets/skill_samples
+COPY assets/mission_samples         /app/assets/mission_samples
+COPY assets/cheatsheet_samples      /app/assets/cheatsheet_samples
 COPY assets/media_samples           /app/assets/media_samples
 
 # Create writable runtime directories.
