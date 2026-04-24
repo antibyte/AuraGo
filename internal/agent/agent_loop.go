@@ -37,13 +37,14 @@ type agentLoopState struct {
 	req    openai.ChatCompletionRequest
 	flags  prompts.ContextFlags
 
-	initialUserMsg       string
-	dailyTodoReminder    string
-	plannerContext       string
-	baseAdditionalPrompt string
-	toolGuidesDir        string
-	toolingPolicy        ToolingPolicy
-	telemetryScope       AgentTelemetryScope
+	initialUserMsg           string
+	dailyTodoReminder        string
+	operationalIssueReminder string
+	plannerContext           string
+	baseAdditionalPrompt     string
+	toolGuidesDir            string
+	toolingPolicy            ToolingPolicy
+	telemetryScope           AgentTelemetryScope
 
 	toolCallCount           int
 	rawCodeCount            int
@@ -850,6 +851,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 		flags.PlannerContext = plannerContext
 		flags.DailyTodoReminder = dailyTodoReminder
+		flags.OperationalIssueReminder = s.operationalIssueReminder
 
 		// Inject session todo list into system prompt context
 		flags.SessionTodoItems = sessionTodoList

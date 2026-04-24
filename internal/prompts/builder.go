@@ -213,6 +213,7 @@ type ContextFlags struct {
 	HighPriorityNotes        string // Open high-priority notes injected as reminders
 	PlannerContext           string // Trigger-based planner context with open todos and upcoming appointments
 	DailyTodoReminder        string // First-contact-of-day reminder for open planner todos
+	OperationalIssueReminder string // Unresolved background problems to report on next user contact
 	KnowledgeContext         string // Relevant KG entities injected from SearchForContext
 	ErrorPatternContext      string // Known error patterns with resolutions for agent learning
 	ReuseContext             string // Reuse-first lookup hints for non-trivial tasks
@@ -560,6 +561,13 @@ func buildSystemPromptInner(promptsDir string, flags *ContextFlags, coreMemory s
 		finalPrompt.WriteString("### DAILY TODO REMINDER ###\n")
 		finalPrompt.WriteString("On this turn, start your reply with a brief proactive reminder about these open tasks before addressing the user's new message.\n")
 		finalPrompt.WriteString(security.IsolateExternalData(flags.DailyTodoReminder))
+		finalPrompt.WriteString("\n\n")
+	}
+
+	if flags.OperationalIssueReminder != "" {
+		finalPrompt.WriteString("### OPERATIONAL ISSUE REMINDER ###\n")
+		finalPrompt.WriteString("At the start of this user contact, briefly tell the user about these unresolved background problems, then continue with their request unless the issue is urgent. Do not repeat the reminder if you already mentioned it in this conversation.\n")
+		finalPrompt.WriteString(security.IsolateExternalData(flags.OperationalIssueReminder))
 		finalPrompt.WriteString("\n\n")
 	}
 

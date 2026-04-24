@@ -74,6 +74,9 @@ func processPendingToolCalls(s *agentLoopState, ctx context.Context, lastUserMsg
 		&s.recoveryState, &s.req, currentLogger, s.telemetryScope, optimizer.GetToolPromptVersion(ptc.Action),
 		dispatchCtx.ExecutionTimeMs)
 	pResultContent = policyResult.Content
+	if policyResult.Failed {
+		recordToolFailureOperationalIssue(s.runCfg, ptc, pResultContent, currentLogger)
+	}
 	trackActivityTool(&s.turnToolNames, &s.turnToolSummaries, ptc.Action, pResultContent)
 	recordPlanToolProgress(shortTermMem, sessionID, ptc, pResultContent, currentLogger)
 	broker.Send("tool_output", pResultContent)
@@ -251,6 +254,9 @@ func executeAgentToolTurn(
 	resultContent := DispatchToolCall(ctx, &tc, dispatchCtx, lastUserMsg)
 	policyResult := finalizeToolExecution(tc, resultContent, tc.GuardianBlocked, cfg, shortTermMem, sessionID, &s.recoveryState, &s.req, currentLogger, s.telemetryScope, optimizer.GetToolPromptVersion(tc.Action), dispatchCtx.ExecutionTimeMs)
 	resultContent = policyResult.Content
+	if policyResult.Failed {
+		recordToolFailureOperationalIssue(s.runCfg, tc, resultContent, currentLogger)
+	}
 	trackActivityTool(&s.turnToolNames, &s.turnToolSummaries, tc.Action, resultContent)
 	recordPlanToolProgress(shortTermMem, sessionID, tc, resultContent, currentLogger)
 
@@ -449,6 +455,9 @@ func executeAgentToolTurn(
 			}
 			policyResult := finalizeToolExecution(btc, bResult, btc.GuardianBlocked, cfg, shortTermMem, sessionID, &s.recoveryState, &s.req, currentLogger, s.telemetryScope, optimizer.GetToolPromptVersion(btc.Action), nativeDispatchCtx.ExecutionTimeMs)
 			bResult = policyResult.Content
+			if policyResult.Failed {
+				recordToolFailureOperationalIssue(s.runCfg, btc, bResult, currentLogger)
+			}
 			trackActivityTool(&s.turnToolNames, &s.turnToolSummaries, btc.Action, bResult)
 			recordPlanToolProgress(shortTermMem, sessionID, btc, bResult, currentLogger)
 			broker.Send("tool_output", bResult)

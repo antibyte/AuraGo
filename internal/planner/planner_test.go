@@ -498,6 +498,57 @@ func TestCreateTodo(t *testing.T) {
 	}
 }
 
+func TestRecordOperationalIssueDeduplicatesOpenTodos(t *testing.T) {
+	db := testDB(t)
+	defer db.Close()
+
+	now := time.Date(2026, 4, 24, 18, 30, 0, 0, time.UTC)
+	issue := OperationalIssue{
+		Source:     "mission",
+		Context:    "mission-123",
+		Title:      "Mission Backup failed",
+		Detail:     "tool returned status error",
+		Severity:   "error",
+		Reference:  "mission-123",
+		OccurredAt: now,
+	}
+
+	firstID, err := RecordOperationalIssue(db, issue)
+	if err != nil {
+		t.Fatalf("RecordOperationalIssue first error = %v", err)
+	}
+	if firstID == "" {
+		t.Fatal("RecordOperationalIssue first returned empty id")
+	}
+
+	issue.Detail = "same mission failed again"
+	issue.OccurredAt = now.Add(10 * time.Minute)
+	secondID, err := RecordOperationalIssue(db, issue)
+	if err != nil {
+		t.Fatalf("RecordOperationalIssue second error = %v", err)
+	}
+	if secondID != firstID {
+		t.Fatalf("RecordOperationalIssue created duplicate id %q, want %q", secondID, firstID)
+	}
+
+	issues, err := ListOperationalIssueTodos(db, 10)
+	if err != nil {
+		t.Fatalf("ListOperationalIssueTodos error = %v", err)
+	}
+	if len(issues) != 1 {
+		t.Fatalf("len(issues) = %d, want 1", len(issues))
+	}
+	if issues[0].Priority != "high" || !issues[0].RemindDaily {
+		t.Fatalf("issue priority/remind = %q/%v, want high/true", issues[0].Priority, issues[0].RemindDaily)
+	}
+	if got := operationalIssueField(issues[0].Description, "Occurrences"); got != "2" {
+		t.Fatalf("Occurrences = %q, want 2", got)
+	}
+	if reminder := BuildOperationalIssueReminderText(issues); !strings.Contains(reminder, "Mission Backup failed") {
+		t.Fatalf("reminder text does not mention issue: %q", reminder)
+	}
+}
+
 func TestCreateTodoDefaults(t *testing.T) {
 	db := testDB(t)
 	defer db.Close()

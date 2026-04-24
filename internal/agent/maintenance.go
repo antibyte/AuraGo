@@ -205,6 +205,14 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 	maintenancePrompt, err := os.ReadFile(promptPath)
 	if err != nil {
 		logger.Error("[Maintenance] Failed to read maintenance prompt", "error", err)
+		recordOperationalIssue(RunConfig{PlannerDB: plannerDB, MessageSource: "maintenance", IsMaintenance: true}, planner.OperationalIssue{
+			Source:     "maintenance",
+			Title:      "Maintenance prompt could not be read",
+			Detail:     err.Error(),
+			Severity:   "error",
+			Reference:  promptPath,
+			OccurredAt: time.Now(),
+		}, logger)
 		return
 	}
 
@@ -242,13 +250,24 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 		CoAgentRegistry:  nil,
 		BudgetTracker:    nil,
 		SessionID:        sessionID,
-		IsMaintenance:    false,
+		PlannerDB:        plannerDB,
+		IsMaintenance:    true,
+		MessageSource:    "maintenance",
 		SurgeryPlan:      "",
 	}
 
 	resp, err := ExecuteAgentLoop(ctx, req, runCfg, false, broker)
 	if err != nil {
 		logger.Error("[Maintenance] Agent loop failed", "error", err)
+		recordOperationalIssue(runCfg, planner.OperationalIssue{
+			Source:     "maintenance",
+			Context:    sessionID,
+			Title:      "Maintenance agent loop failed",
+			Detail:     err.Error(),
+			Severity:   "error",
+			Reference:  "daily_maintenance",
+			OccurredAt: time.Now(),
+		}, logger)
 		return
 	}
 
@@ -256,6 +275,15 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 		logger.Info("[Maintenance] Task completed successfully", "response_len", len(resp.Choices[0].Message.Content))
 	} else {
 		logger.Warn("[Maintenance] Agent returned no choices")
+		recordOperationalIssue(runCfg, planner.OperationalIssue{
+			Source:     "maintenance",
+			Context:    sessionID,
+			Title:      "Maintenance agent returned no response",
+			Detail:     "The daily maintenance agent loop completed without any assistant choices.",
+			Severity:   "warning",
+			Reference:  "daily_maintenance",
+			OccurredAt: time.Now(),
+		}, logger)
 	}
 }
 

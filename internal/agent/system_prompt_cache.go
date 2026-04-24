@@ -10,42 +10,43 @@ import (
 )
 
 type systemPromptCacheKey struct {
-	PromptsDir             string   `json:"prompts_dir"`
-	CoreMemory             string   `json:"core_memory"`
-	BudgetHint             string   `json:"budget_hint"`
-	EnabledTools           []string `json:"enabled_tools"`
-	FeatureToggles         []string `json:"feature_toggles"`
-	SkipIntegrationTools   []string `json:"skip_integration_tools"`
-	Tier                   string   `json:"tier"`
-	TokenBudget            int      `json:"token_budget"`
-	IsMission              bool     `json:"is_mission"`
-	IsErrorState           bool     `json:"is_error_state"`
-	RequiresCoding         bool     `json:"requires_coding"`
-	SystemLanguage         string   `json:"system_language"`
-	CorePersonality        string   `json:"core_personality"`
-	AdditionalPrompt       string   `json:"additional_prompt"`
-	InnerVoice             string   `json:"inner_voice"`
-	PredictedGuidesHash    string   `json:"predicted_guides_hash"`
-	HighPriorityNotes      string   `json:"high_priority_notes"`
-	PlannerContext         string   `json:"planner_context"`
-	DailyTodoReminder      string   `json:"daily_todo_reminder"`
-	SessionTodoItems       string   `json:"session_todo_items"`
-	WebhooksDefinitions    string   `json:"webhooks_definitions"`
-	RetrievedMemories      string   `json:"retrieved_memories"`
-	RecentActivityOverview string   `json:"recent_activity_overview"`
-	PredictedMemories      string   `json:"predicted_memories"`
-	ActiveProcesses        string   `json:"active_processes"`
-	IsVoiceMode            bool     `json:"is_voice_mode"`
-	SpecialistsStatus      string   `json:"specialists_status"`
-	KnowledgeContext       string   `json:"knowledge_context"`
-	ErrorPatternContext    string   `json:"error_pattern_context"`
-	ReuseContext           string   `json:"reuse_context"`
-	EmotionDescription     string   `json:"emotion_description"`
-	UserProfileSummary     string   `json:"user_profile_summary"`
-	MessageSource          string   `json:"message_source"`
-	Model                  string   `json:"model"`
-	IsTextModeModel        bool     `json:"is_text_mode_model"`
-	PersonalityLine        string   `json:"personality_line"`
+	PromptsDir               string   `json:"prompts_dir"`
+	CoreMemory               string   `json:"core_memory"`
+	BudgetHint               string   `json:"budget_hint"`
+	EnabledTools             []string `json:"enabled_tools"`
+	FeatureToggles           []string `json:"feature_toggles"`
+	SkipIntegrationTools     []string `json:"skip_integration_tools"`
+	Tier                     string   `json:"tier"`
+	TokenBudget              int      `json:"token_budget"`
+	IsMission                bool     `json:"is_mission"`
+	IsErrorState             bool     `json:"is_error_state"`
+	RequiresCoding           bool     `json:"requires_coding"`
+	SystemLanguage           string   `json:"system_language"`
+	CorePersonality          string   `json:"core_personality"`
+	AdditionalPrompt         string   `json:"additional_prompt"`
+	InnerVoice               string   `json:"inner_voice"`
+	PredictedGuidesHash      string   `json:"predicted_guides_hash"`
+	HighPriorityNotes        string   `json:"high_priority_notes"`
+	PlannerContext           string   `json:"planner_context"`
+	DailyTodoReminder        string   `json:"daily_todo_reminder"`
+	OperationalIssueReminder string   `json:"operational_issue_reminder"`
+	SessionTodoItems         string   `json:"session_todo_items"`
+	WebhooksDefinitions      string   `json:"webhooks_definitions"`
+	RetrievedMemories        string   `json:"retrieved_memories"`
+	RecentActivityOverview   string   `json:"recent_activity_overview"`
+	PredictedMemories        string   `json:"predicted_memories"`
+	ActiveProcesses          string   `json:"active_processes"`
+	IsVoiceMode              bool     `json:"is_voice_mode"`
+	SpecialistsStatus        string   `json:"specialists_status"`
+	KnowledgeContext         string   `json:"knowledge_context"`
+	ErrorPatternContext      string   `json:"error_pattern_context"`
+	ReuseContext             string   `json:"reuse_context"`
+	EmotionDescription       string   `json:"emotion_description"`
+	UserProfileSummary       string   `json:"user_profile_summary"`
+	MessageSource            string   `json:"message_source"`
+	Model                    string   `json:"model"`
+	IsTextModeModel          bool     `json:"is_text_mode_model"`
+	PersonalityLine          string   `json:"personality_line"`
 }
 
 func buildSystemPromptCacheKey(promptsDir string, flags *prompts.ContextFlags, coreMemory, budgetHint string) (string, error) {
@@ -63,42 +64,43 @@ func buildSystemPromptCacheKey(promptsDir string, flags *prompts.ContextFlags, c
 	}
 
 	key := systemPromptCacheKey{
-		PromptsDir:             promptsDir,
-		CoreMemory:             coreMemory,
-		BudgetHint:             budgetHint,
-		EnabledTools:           enabledTools,
-		FeatureToggles:         featureToggles,
-		SkipIntegrationTools:   sortedStringCopy(flags.SkipIntegrationTools),
-		Tier:                   flags.Tier,
-		TokenBudget:            flags.TokenBudget,
-		IsMission:              flags.IsMission,
-		IsErrorState:           flags.IsErrorState,
-		RequiresCoding:         flags.RequiresCoding,
-		SystemLanguage:         flags.SystemLanguage,
-		CorePersonality:        flags.CorePersonality,
-		AdditionalPrompt:       flags.AdditionalPrompt,
-		InnerVoice:             flags.InnerVoice,
-		PredictedGuidesHash:    predictedGuidesHash,
-		HighPriorityNotes:      flags.HighPriorityNotes,
-		PlannerContext:         flags.PlannerContext,
-		DailyTodoReminder:      flags.DailyTodoReminder,
-		SessionTodoItems:       flags.SessionTodoItems,
-		WebhooksDefinitions:    flags.WebhooksDefinitions,
-		RetrievedMemories:      flags.RetrievedMemories,
-		RecentActivityOverview: flags.RecentActivityOverview,
-		PredictedMemories:      flags.PredictedMemories,
-		ActiveProcesses:        flags.ActiveProcesses,
-		IsVoiceMode:            flags.IsVoiceMode,
-		SpecialistsStatus:      flags.SpecialistsStatus,
-		KnowledgeContext:       flags.KnowledgeContext,
-		ErrorPatternContext:    flags.ErrorPatternContext,
-		ReuseContext:           flags.ReuseContext,
-		EmotionDescription:     flags.EmotionDescription,
-		UserProfileSummary:     flags.UserProfileSummary,
-		MessageSource:          flags.MessageSource,
-		Model:                  flags.Model,
-		IsTextModeModel:        flags.IsTextModeModel,
-		PersonalityLine:        flags.PersonalityLine,
+		PromptsDir:               promptsDir,
+		CoreMemory:               coreMemory,
+		BudgetHint:               budgetHint,
+		EnabledTools:             enabledTools,
+		FeatureToggles:           featureToggles,
+		SkipIntegrationTools:     sortedStringCopy(flags.SkipIntegrationTools),
+		Tier:                     flags.Tier,
+		TokenBudget:              flags.TokenBudget,
+		IsMission:                flags.IsMission,
+		IsErrorState:             flags.IsErrorState,
+		RequiresCoding:           flags.RequiresCoding,
+		SystemLanguage:           flags.SystemLanguage,
+		CorePersonality:          flags.CorePersonality,
+		AdditionalPrompt:         flags.AdditionalPrompt,
+		InnerVoice:               flags.InnerVoice,
+		PredictedGuidesHash:      predictedGuidesHash,
+		HighPriorityNotes:        flags.HighPriorityNotes,
+		PlannerContext:           flags.PlannerContext,
+		DailyTodoReminder:        flags.DailyTodoReminder,
+		OperationalIssueReminder: flags.OperationalIssueReminder,
+		SessionTodoItems:         flags.SessionTodoItems,
+		WebhooksDefinitions:      flags.WebhooksDefinitions,
+		RetrievedMemories:        flags.RetrievedMemories,
+		RecentActivityOverview:   flags.RecentActivityOverview,
+		PredictedMemories:        flags.PredictedMemories,
+		ActiveProcesses:          flags.ActiveProcesses,
+		IsVoiceMode:              flags.IsVoiceMode,
+		SpecialistsStatus:        flags.SpecialistsStatus,
+		KnowledgeContext:         flags.KnowledgeContext,
+		ErrorPatternContext:      flags.ErrorPatternContext,
+		ReuseContext:             flags.ReuseContext,
+		EmotionDescription:       flags.EmotionDescription,
+		UserProfileSummary:       flags.UserProfileSummary,
+		MessageSource:            flags.MessageSource,
+		Model:                    flags.Model,
+		IsTextModeModel:          flags.IsTextModeModel,
+		PersonalityLine:          flags.PersonalityLine,
 	}
 	b, err := json.Marshal(key)
 	if err != nil {

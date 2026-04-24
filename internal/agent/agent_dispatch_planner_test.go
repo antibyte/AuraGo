@@ -140,3 +140,71 @@ func TestDailyTodoReminderTextOnlyOnEligibleFirstContact(t *testing.T) {
 		t.Fatalf("mission reminder = %q, want empty", blocked)
 	}
 }
+
+func TestOperationalIssueReminderTextOnlyOnDirectFirstContact(t *testing.T) {
+	db := newPlannerTestDB(t)
+	defer db.Close()
+
+	if _, err := planner.RecordOperationalIssue(db, planner.OperationalIssue{
+		Source:    "maintenance",
+		Context:   "maintenance",
+		Title:     "Maintenance agent loop failed",
+		Detail:    "budget exceeded",
+		Severity:  "error",
+		Reference: "daily_maintenance",
+	}); err != nil {
+		t.Fatalf("planner.RecordOperationalIssue() error = %v", err)
+	}
+
+	runCfg := RunConfig{PlannerDB: db, MessageSource: "web_chat"}
+	first := operationalIssueReminderText(runCfg, "Hallo", true, slog.Default())
+	if !strings.Contains(first, "Maintenance agent loop failed") || !strings.Contains(first, "budget exceeded") {
+		t.Fatalf("first operational reminder = %q, want issue title and detail", first)
+	}
+
+	repeated := operationalIssueReminderText(runCfg, "Noch mal", false, slog.Default())
+	if repeated != "" {
+		t.Fatalf("repeated operational reminder = %q, want empty after first turn", repeated)
+	}
+
+	blocked := operationalIssueReminderText(RunConfig{PlannerDB: db, MessageSource: "mission", IsMission: true}, "hello", true, slog.Default())
+	if blocked != "" {
+		t.Fatalf("mission operational reminder = %q, want empty", blocked)
+	}
+}
+
+func TestRecordToolFailureOperationalIssueOnlyForBackgroundRuns(t *testing.T) {
+	db := newPlannerTestDB(t)
+	defer db.Close()
+
+	recordToolFailureOperationalIssue(
+		RunConfig{PlannerDB: db, MessageSource: "web_chat", SessionID: "default"},
+		ToolCall{Action: "docker"},
+		`Tool Output: {"status":"error","message":"container failed"}`,
+		slog.Default(),
+	)
+	issues, err := planner.ListOperationalIssueTodos(db, 10)
+	if err != nil {
+		t.Fatalf("ListOperationalIssueTodos() error = %v", err)
+	}
+	if len(issues) != 0 {
+		t.Fatalf("direct web chat created operational issues: %#v", issues)
+	}
+
+	recordToolFailureOperationalIssue(
+		RunConfig{PlannerDB: db, IsMission: true, MissionID: "mission-42", MessageSource: "mission"},
+		ToolCall{Action: "docker"},
+		`Tool Output: {"status":"error","message":"container failed"}`,
+		slog.Default(),
+	)
+	issues, err = planner.ListOperationalIssueTodos(db, 10)
+	if err != nil {
+		t.Fatalf("ListOperationalIssueTodos() second error = %v", err)
+	}
+	if len(issues) != 1 {
+		t.Fatalf("len(issues) = %d, want 1", len(issues))
+	}
+	if !strings.Contains(issues[0].Title, "docker") || !strings.Contains(issues[0].Description, "container failed") {
+		t.Fatalf("recorded issue = %#v, want tool and detail", issues[0])
+	}
+}

@@ -206,6 +206,21 @@ func TestBuildSystemPromptIncludesPlannerContext(t *testing.T) {
 	}
 }
 
+func TestBuildSystemPromptIncludesOperationalIssueReminder(t *testing.T) {
+	flags := ContextFlags{
+		SystemLanguage:           "en",
+		OperationalIssueReminder: "Unresolved operational issues detected in background contexts:\n- System issue: Maintenance failed",
+	}
+
+	prompt, _ := buildSystemPromptInner("", &flags, "", slog.Default())
+	if !strings.Contains(prompt, "### OPERATIONAL ISSUE REMINDER ###") {
+		t.Fatalf("prompt = %q, want operational issue reminder header", prompt)
+	}
+	if !strings.Contains(prompt, "Maintenance failed") {
+		t.Fatalf("prompt = %q, want operational issue content", prompt)
+	}
+}
+
 func TestBuildSystemPromptStablePrefixIgnoresVolatileSuffix(t *testing.T) {
 	flagsA := ContextFlags{
 		Tier:                   "full",

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"aurago/internal/i18n"
+	"aurago/internal/planner"
 	"aurago/internal/prompts"
 	"aurago/internal/security"
 	"aurago/internal/tools"
@@ -95,6 +96,15 @@ func Loopback(runCfg RunConfig, message string, broker FeedbackBroker) {
 	resp, err := ExecuteAgentLoop(ctx, req, runCfg, false, broker)
 	if err != nil {
 		logger.Error("[Loopback] Agent loop failed", "error", err)
+		recordOperationalIssue(runCfg, planner.OperationalIssue{
+			Source:     operationalIssueSource(runCfg),
+			Context:    operationalIssueContext(runCfg),
+			Title:      "Background agent loop failed",
+			Detail:     err.Error(),
+			Severity:   "error",
+			Reference:  "loopback",
+			OccurredAt: time.Now(),
+		}, logger)
 		broker.Send("error_recovery", i18n.T(cfg.Server.UILanguage, "backend.stream_error_recovery_loopback"))
 		return
 	}

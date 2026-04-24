@@ -31,6 +31,7 @@ import (
 	"aurago/internal/invasion/bridge"
 	"aurago/internal/llm"
 	"aurago/internal/memory"
+	"aurago/internal/planner"
 	"aurago/internal/proxy"
 	"aurago/internal/remote"
 	"aurago/internal/security"
@@ -461,10 +462,40 @@ func Start(opts StartOptions) error {
 	// Start MissionManagerV2 with enhanced callback that reports completion
 	missionCallbackV2 := func(prompt string, missionID string) {
 		go func() {
+			recordMissionIssue := func(title, detail string) {
+				if s.PlannerDB == nil {
+					return
+				}
+				missionLabel := missionID
+				if mission, ok := s.MissionManagerV2.Get(missionID); ok && strings.TrimSpace(mission.Name) != "" {
+					missionLabel = strings.TrimSpace(mission.Name)
+				}
+				if title == "" {
+					title = fmt.Sprintf("Mission %s failed", missionLabel)
+				}
+				if _, err := planner.RecordOperationalIssue(s.PlannerDB, planner.OperationalIssue{
+					Source:      "mission",
+					Context:     missionID,
+					Title:       title,
+					Detail:      detail,
+					Severity:    "error",
+					Reference:   missionID,
+					Fingerprint: "mission|" + missionID,
+					OccurredAt:  time.Now(),
+				}); err != nil {
+					logger.Warn("[MissionV2] Failed to record operational issue todo", "mission_id", missionID, "error", err)
+				}
+			}
+			setMissionError := func(title, detail string) {
+				recordMissionIssue(title, detail)
+				s.MissionManagerV2.SetResult(missionID, "error", detail)
+				broadcastMissionState(s)
+			}
+
 			defer func() {
 				if r := recover(); r != nil {
 					logger.Error("[MissionV2] Recovered from panic", "mission_id", missionID, "panic", r)
-					s.MissionManagerV2.SetResult(missionID, "error", fmt.Sprintf("panic: %v", r))
+					setMissionError("", fmt.Sprintf("panic: %v", r))
 				}
 			}()
 
@@ -480,15 +511,13 @@ func Start(opts StartOptions) error {
 			body, err := json.Marshal(payload)
 			if err != nil {
 				logger.Error("[MissionV2] Failed to marshal request payload", "error", err, "mission_id", missionID)
-				s.MissionManagerV2.SetResult(missionID, "error", err.Error())
-				broadcastMissionState(s)
+				setMissionError("Mission request preparation failed", err.Error())
 				return
 			}
 			req, err := http.NewRequest("POST", url, strings.NewReader(string(body)))
 			if err != nil {
 				logger.Error("[MissionV2] Failed to create request", "error", err, "mission_id", missionID)
-				s.MissionManagerV2.SetResult(missionID, "error", err.Error())
-				broadcastMissionState(s)
+				setMissionError("Mission request creation failed", err.Error())
 				return
 			}
 			req.Header.Set("Content-Type", "application/json")
@@ -500,8 +529,7 @@ func Start(opts StartOptions) error {
 			resp, err := client.Do(req)
 			if err != nil {
 				logger.Error("[MissionV2] Execution failed", "error", err, "mission_id", missionID)
-				s.MissionManagerV2.SetResult(missionID, "error", err.Error())
-				broadcastMissionState(s)
+				setMissionError("", err.Error())
 				return
 			}
 			defer resp.Body.Close()
@@ -509,8 +537,7 @@ func Start(opts StartOptions) error {
 			respBody, err := io.ReadAll(resp.Body)
 			if err != nil {
 				logger.Error("[MissionV2] Failed to read response body", "error", err, "mission_id", missionID)
-				s.MissionManagerV2.SetResult(missionID, "error", fmt.Sprintf("failed to read response: %v", err))
-				broadcastMissionState(s)
+				setMissionError("", fmt.Sprintf("failed to read response: %v", err))
 				return
 			}
 			if resp.StatusCode >= 200 && resp.StatusCode < 300 {
@@ -523,18 +550,19 @@ func Start(opts StartOptions) error {
 					logger.Warn("[MissionV2] Mission response looked incomplete, refusing success",
 						"mission_id", missionID,
 						"tool_results", toolResultCount)
-					s.MissionManagerV2.SetResult(
-						missionID,
-						"error",
+					setMissionError(
+						"Mission response looked incomplete",
 						"Mission response looked incomplete: no executed tools were recorded and the final assistant reply resembled a progress update instead of a finished result.\n\n"+output,
 					)
+					return
 				} else {
 					logger.Info("[MissionV2] Mission executed successfully", "mission_id", missionID, "tool_results", toolResultCount)
 					s.MissionManagerV2.SetResult(missionID, "success", output)
 				}
 			} else {
 				logger.Error("[MissionV2] Mission returned non-OK status", "status", resp.Status, "mission_id", missionID)
-				s.MissionManagerV2.SetResult(missionID, "error", string(respBody))
+				setMissionError("Mission returned non-OK status", string(respBody))
+				return
 			}
 			broadcastMissionState(s)
 		}()
@@ -583,7 +611,20 @@ func Start(opts StartOptions) error {
 			s.MissionManagerV2.SetHistoryDB(histDB)
 			logger.Info("Mission execution history initialized")
 			// Reconcile zombie "running" entries left by previous crashes
-			tools.ReconcileStaleRunningMarks(histDB, 1*time.Hour, logger)
+			if reconciled, recErr := tools.ReconcileStaleRunningMarks(histDB, 1*time.Hour, logger); recErr != nil {
+				logger.Warn("[MissionHistory] Failed to reconcile stale running missions", "error", recErr)
+			} else if reconciled > 0 && s.PlannerDB != nil {
+				if _, err := planner.RecordOperationalIssue(s.PlannerDB, planner.OperationalIssue{
+					Source:     "mission_history",
+					Title:      "Stale running missions were marked as failed",
+					Detail:     fmt.Sprintf("%d mission run(s) were still marked as running after a restart and were reconciled as failed.", reconciled),
+					Severity:   "warning",
+					Reference:  "mission_history_reconcile",
+					OccurredAt: time.Now(),
+				}); err != nil {
+					logger.Warn("[MissionHistory] Failed to record stale mission operational issue", "error", err)
+				}
+			}
 		}
 	}
 
