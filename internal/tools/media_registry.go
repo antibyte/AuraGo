@@ -17,8 +17,8 @@ type MediaItem struct {
 	ID               int64    `json:"id"`
 	CreatedAt        string   `json:"created_at"`
 	UpdatedAt        string   `json:"updated_at"`
-	MediaType        string   `json:"media_type"`  // image, tts, audio, music
-	SourceTool       string   `json:"source_tool"` // generate_image, tts, transcribe, manual
+	MediaType        string   `json:"media_type"`  // image, video, tts, audio, music
+	SourceTool       string   `json:"source_tool"` // generate_image, generate_video, tts, transcribe, manual
 	Filename         string   `json:"filename"`
 	FilePath         string   `json:"file_path"`
 	WebPath          string   `json:"web_path"`
@@ -272,10 +272,10 @@ func SearchMedia(db *sql.DB, query, mediaType string, tags []string, limit, offs
 		// (e.g. searching for tag "sun" should not match "sunset").
 		// Tags are stored as JSON arrays like ["tag1", "tag2"].
 		patterns := []string{
-			`["` + t + `"]`,    // single element
-			`["` + t + `",`,    // first element
-			`,"` + t + `"]`,    // last element
-			`,"` + t + `",`,    // middle element
+			`["` + t + `"]`, // single element
+			`["` + t + `",`, // first element
+			`,"` + t + `"]`, // last element
+			`,"` + t + `",`, // middle element
 		}
 		var clauses []string
 		for _, p := range patterns {

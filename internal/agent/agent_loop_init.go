@@ -287,6 +287,9 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 			if ff.MusicGenerationEnabled {
 				alwaysInclude = append(alwaysInclude, "generate_music")
 			}
+			if ff.VideoGenerationEnabled {
+				alwaysInclude = append(alwaysInclude, "generate_video")
+			}
 			if ff.ImageGenerationEnabled {
 				alwaysInclude = append(alwaysInclude, "generate_image")
 			}

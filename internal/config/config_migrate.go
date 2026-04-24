@@ -549,6 +549,20 @@ func (c *Config) ResolveProviders() {
 			}
 		}
 	}
+
+	// ── Video Generation ── (no fallback — must be explicitly configured)
+	if c.VideoGeneration.Provider != "" {
+		if p := c.FindProvider(c.VideoGeneration.Provider); p != nil {
+			c.VideoGeneration.ProviderType = p.Type
+			c.VideoGeneration.BaseURL = p.BaseURL
+			c.VideoGeneration.APIKey = p.APIKey
+			if c.VideoGeneration.Model == "" {
+				c.VideoGeneration.ResolvedModel = p.Model
+			} else {
+				c.VideoGeneration.ResolvedModel = c.VideoGeneration.Model
+			}
+		}
+	}
 }
 
 // resolveSpecialistLLM resolves a single specialist's LLM fields.
@@ -662,6 +676,7 @@ func (c *Config) ApplyOAuthTokens(vault SecretReader) {
 	applyIfOAuth(c.MissionPreparation.Provider, &c.MissionPreparation.APIKey)
 	applyIfOAuth(c.ImageGeneration.Provider, &c.ImageGeneration.APIKey)
 	applyIfOAuth(c.MusicGeneration.Provider, &c.MusicGeneration.APIKey)
+	applyIfOAuth(c.VideoGeneration.Provider, &c.VideoGeneration.APIKey)
 	applyIfOAuth(c.A2A.LLM.Provider, &c.A2A.LLM.APIKey)
 	applyIfOAuth(c.CoAgents.Specialists.Researcher.LLM.Provider, &c.CoAgents.Specialists.Researcher.LLM.APIKey)
 	applyIfOAuth(c.CoAgents.Specialists.Coder.LLM.Provider, &c.CoAgents.Specialists.Coder.LLM.APIKey)

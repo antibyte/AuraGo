@@ -6047,11 +6047,13 @@ select.cfg-input option {
 .ig-hint { color: var(--text-tertiary); }
 .ig-toggle-row { display: flex; align-items: center; gap: 0.8rem; margin-bottom: 0.6rem; }
 .ig-flex-row { display: flex; align-items: center; gap: 0.8rem; }
+.ig-grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.8rem; }
 .ig-test-status { font-size: 0.8rem; }
 .ig-test-preview { margin-top: 0.6rem; }
 .ig-preview-img { max-width: 256px; max-height: 256px; border-radius: 8px; border: 1px solid var(--border); }
 .ig-status-success { color: var(--success); }
 .ig-status-error { color: var(--danger); }
+@media (max-width: 760px) { .ig-grid-3 { grid-template-columns: 1fr; } }
 
 /* LLM Guardian */
 .lg-field-label { display:block; margin-bottom:0.6rem; }

@@ -809,6 +809,32 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 		))
 	}
 
+	if ff.VideoGenerationEnabled {
+		tools = append(tools, tool("generate_video",
+			"Generate short videos from text prompts using AI. Supports MiniMax Hailuo and Google Veo providers. "+
+				"Supports text-to-video, first-frame image-to-video, first/last frame guidance, and provider-supported reference images. "+
+				"The generated MP4 is saved locally and automatically registered in the media registry.",
+			schema(map[string]interface{}{
+				"prompt": map[string]interface{}{
+					"type":        "string",
+					"description": "Text description of the video to generate. Include subject, action, camera motion, style, lighting, and mood.",
+				},
+				"negative_prompt":   prop("string", "Things to avoid in the generated video (optional, provider/model dependent)"),
+				"duration_seconds":  prop("integer", "Clip duration in seconds. Default comes from settings (MiniMax default: 6)."),
+				"resolution":        prop("string", "Output resolution/preset, e.g. '768P', '1080P', '720p' (optional)."),
+				"aspect_ratio":      prop("string", "Output aspect ratio, e.g. '16:9', '9:16', or '1:1' (optional)."),
+				"model":             prop("string", "Override the configured video model for this generation (optional)."),
+				"first_frame_image": prop("string", "URL or base64 image to use as the first frame for image-to-video (optional)."),
+				"last_frame_image":  prop("string", "URL or base64 image to use as the last frame when supported (optional)."),
+				"reference_images": map[string]interface{}{
+					"type":        "array",
+					"description": "Reference image URLs/base64 strings for subject consistency when supported (optional).",
+					"items":       map[string]interface{}{"type": "string"},
+				},
+			}, "prompt"),
+		))
+	}
+
 	if ff.RemoteControlEnabled {
 		tools = append(tools, tool("remote_control",
 			"Manage and interact with remote devices connected to this AuraGo instance. "+
@@ -852,7 +878,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 					"description": "Operation to perform",
 					"enum":        []string{"register", "search", "get", "list", "update", "tag", "delete", "stats"},
 				},
-				"media_type":  prop("string", "Media type filter: image, tts, audio, music"),
+				"media_type":  prop("string", "Media type filter: image, video, tts, audio, music"),
 				"filename":    prop("string", "Filename of the media file (required for register)"),
 				"file_path":   prop("string", "Absolute file path of the media file (required for register)"),
 				"web_path":    prop("string", "Web-accessible URL path for the media file (e.g. /files/documents/report.pdf)"),

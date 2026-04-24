@@ -118,6 +118,7 @@ func countAdaptivePromptBudgetIntegrations(cfg *Config) int {
 		cfg.Homepage.Enabled,
 		cfg.CoAgents.Enabled,
 		cfg.ImageGeneration.Enabled,
+		cfg.VideoGeneration.Enabled,
 		(cfg.Embeddings.Provider != "" && cfg.Embeddings.Provider != "disabled"),
 		cfg.Vision.Provider != "",
 		cfg.Whisper.Provider != "" || cfg.Whisper.Mode != "",

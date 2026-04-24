@@ -1080,6 +1080,41 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 
 			return "Tool Output: " + tools.MusicResultToJSON(musicResult)
 
+		case "generate_video":
+			if !cfg.VideoGeneration.Enabled {
+				return `Tool Output: {"status": "error", "message": "Video generation is not enabled. Enable it in Settings > Video Generation."}`
+			}
+			if cfg.VideoGeneration.APIKey == "" {
+				return `Tool Output: {"status": "error", "message": "Video generation provider not configured. Set a provider in Settings > Video Generation."}`
+			}
+			req := decodeVideoGenerationArgs(tc)
+			if req.Prompt == "" {
+				return `Tool Output: {"status": "error", "message": "'prompt' is required for video generation."}`
+			}
+			logger.Info("LLM requested video generation", "prompt_len", len(req.Prompt), "provider", cfg.VideoGeneration.ProviderType)
+
+			if budgetTracker != nil && budgetTracker.IsBlocked("video_generation") {
+				return `Tool Output: {"status": "error", "message": "Video generation blocked: daily budget exceeded."}`
+			}
+
+			videoResult := tools.GenerateVideoResult(ctx, cfg, mediaRegistryDB, logger, tools.VideoGenParams{
+				Prompt:          req.Prompt,
+				NegativePrompt:  req.NegativePrompt,
+				Model:           req.Model,
+				DurationSeconds: req.DurationSeconds,
+				Resolution:      req.Resolution,
+				AspectRatio:     req.AspectRatio,
+				FirstFrameImage: req.FirstFrameImage,
+				LastFrameImage:  req.LastFrameImage,
+				ReferenceImages: req.ReferenceImages,
+			})
+
+			if budgetTracker != nil && videoResult.CostEstimate > 0 {
+				budgetTracker.RecordCostForCategory("video_generation", videoResult.CostEstimate)
+			}
+
+			return "Tool Output: " + tools.VideoResultToJSON(videoResult)
+
 		case "generate_image":
 			if !cfg.ImageGeneration.Enabled {
 				return `Tool Output: {"status": "error", "message": "Image generation is not enabled. Enable it in Settings > Image Generation."}`

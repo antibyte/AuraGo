@@ -376,6 +376,22 @@ func TestHandleSetupProfilesReturnsProfiles(t *testing.T) {
 		if imageGen["model"] != "image-01" {
 			t.Fatalf("minimax image_generation model = %v, want image-01", imageGen["model"])
 		}
+		videoGen, ok := models["video_generation"].(map[string]interface{})
+		if !ok {
+			t.Fatal("expected minimax video_generation config in response")
+		}
+		if videoGen["provider_type"] != "minimax" {
+			t.Fatalf("minimax video_generation provider_type = %v, want minimax", videoGen["provider_type"])
+		}
+		if videoGen["base_url"] != "https://api.minimax.io/v1" {
+			t.Fatalf("minimax video_generation base_url = %v, want international video endpoint", videoGen["base_url"])
+		}
+		if videoGen["alt_base_url"] != "https://api.minimaxi.com/v1" {
+			t.Fatalf("minimax video_generation alt_base_url = %v, want China video endpoint", videoGen["alt_base_url"])
+		}
+		if videoGen["model"] != "Hailuo-2.3-768P" {
+			t.Fatalf("minimax video_generation model = %v, want Hailuo-2.3-768P", videoGen["model"])
+		}
 	}
 	if !foundMiniMax {
 		t.Fatal("expected minimax_coding profile in response")
@@ -467,6 +483,15 @@ func TestHandleSetupSaveAcceptsMiniMaxQuickPatch(t *testing.T) {
 				"model":                   "music-2.6",
 				"native_function_calling": true,
 			},
+			map[string]interface{}{
+				"id":                      "video_gen",
+				"type":                    "minimax",
+				"name":                    "MiniMax Coding Plan Video Gen",
+				"base_url":                "https://api.minimax.io/v1",
+				"api_key":                 "sk-test",
+				"model":                   "Hailuo-2.3-768P",
+				"native_function_calling": true,
+			},
 		},
 		"agent": map[string]interface{}{
 			"system_language": "Deutsch",
@@ -492,6 +517,12 @@ func TestHandleSetupSaveAcceptsMiniMaxQuickPatch(t *testing.T) {
 		"music_generation": map[string]interface{}{
 			"enabled":  true,
 			"provider": "music_gen",
+		},
+		"video_generation": map[string]interface{}{
+			"enabled":                  true,
+			"provider":                 "video_gen",
+			"default_duration_seconds": 6,
+			"default_resolution":       "768P",
 		},
 		"tts": map[string]interface{}{
 			"provider": "minimax",
@@ -565,12 +596,14 @@ func TestHandleSetupSaveAcceptsMiniMaxQuickPatchAgainstCurrentConfig(t *testing.
 			map[string]interface{}{"id": "helper", "type": "openai", "name": "MiniMax Coding Plan Helper", "base_url": "https://api.minimax.io/v1", "api_key": "sk-test", "model": "MiniMax-M2.5", "native_function_calling": true},
 			map[string]interface{}{"id": "image_gen", "type": "minimax", "name": "MiniMax Coding Plan Image Gen", "base_url": "https://api.minimax.io/v1/image_generation", "api_key": "sk-test", "model": "image-01", "native_function_calling": true},
 			map[string]interface{}{"id": "music_gen", "type": "minimax", "name": "MiniMax Coding Plan Music Gen", "base_url": "https://api.minimax.io/v1/music_generation", "api_key": "sk-test", "model": "music-2.6", "native_function_calling": true},
+			map[string]interface{}{"id": "video_gen", "type": "minimax", "name": "MiniMax Coding Plan Video Gen", "base_url": "https://api.minimax.io/v1", "api_key": "sk-test", "model": "Hailuo-2.3-768P", "native_function_calling": true},
 		},
 		"agent":            map[string]interface{}{"system_language": "Deutsch"},
 		"llm":              map[string]interface{}{"provider": "main", "use_native_functions": true, "helper_enabled": true, "helper_provider": "helper", "structured_outputs": true},
 		"whisper":          map[string]interface{}{"provider": "whisper", "mode": "multimodal"},
 		"image_generation": map[string]interface{}{"enabled": true, "provider": "image_gen"},
 		"music_generation": map[string]interface{}{"enabled": true, "provider": "music_gen"},
+		"video_generation": map[string]interface{}{"enabled": true, "provider": "video_gen", "default_duration_seconds": 6, "default_resolution": "768P"},
 		"tts":              map[string]interface{}{"provider": "minimax", "minimax": map[string]interface{}{"api_key": "sk-test", "model_id": "speech-02-hd", "voice_id": "English_PlayfulGirl"}},
 	}
 
@@ -623,12 +656,14 @@ func TestHandleSetupSaveReturnsRestartRequiredWhenHotReloadPanics(t *testing.T) 
 			map[string]interface{}{"id": "helper", "type": "openai", "name": "MiniMax Coding Plan Helper", "base_url": "https://api.minimax.io/v1", "api_key": "sk-test", "model": "MiniMax-M2.5", "native_function_calling": true},
 			map[string]interface{}{"id": "image_gen", "type": "minimax", "name": "MiniMax Coding Plan Image Gen", "base_url": "https://api.minimax.io/v1/image_generation", "api_key": "sk-test", "model": "image-01", "native_function_calling": true},
 			map[string]interface{}{"id": "music_gen", "type": "minimax", "name": "MiniMax Coding Plan Music Gen", "base_url": "https://api.minimax.io/v1/music_generation", "api_key": "sk-test", "model": "music-2.6", "native_function_calling": true},
+			map[string]interface{}{"id": "video_gen", "type": "minimax", "name": "MiniMax Coding Plan Video Gen", "base_url": "https://api.minimax.io/v1", "api_key": "sk-test", "model": "Hailuo-2.3-768P", "native_function_calling": true},
 		},
 		"agent":            map[string]interface{}{"system_language": "Deutsch"},
 		"llm":              map[string]interface{}{"provider": "main", "use_native_functions": true, "helper_enabled": true, "helper_provider": "helper", "structured_outputs": true},
 		"whisper":          map[string]interface{}{"provider": "whisper", "mode": "multimodal"},
 		"image_generation": map[string]interface{}{"enabled": true, "provider": "image_gen"},
 		"music_generation": map[string]interface{}{"enabled": true, "provider": "music_gen"},
+		"video_generation": map[string]interface{}{"enabled": true, "provider": "video_gen", "default_duration_seconds": 6, "default_resolution": "768P"},
 		"tts":              map[string]interface{}{"provider": "minimax", "minimax": map[string]interface{}{"api_key": "sk-test", "model_id": "speech-02-hd", "voice_id": "English_PlayfulGirl"}},
 	}
 

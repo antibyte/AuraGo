@@ -68,7 +68,7 @@ func allBuiltinToolFeatureFlags() ToolFeatureFlags {
 		AdGuardEnabled: true, UptimeKumaEnabled: true, MCPEnabled: true, SandboxEnabled: true, MeshCentralEnabled: true,
 		HomepageEnabled: true, NetlifyEnabled: true, VercelEnabled: true, FirewallEnabled: true, EmailEnabled: true,
 		CloudflareTunnelEnabled: true, GoogleWorkspaceEnabled: true, OneDriveEnabled: true,
-		VirusTotalEnabled: true, ImageGenerationEnabled: true, MusicGenerationEnabled: true, RemoteControlEnabled: true,
+		VirusTotalEnabled: true, ImageGenerationEnabled: true, MusicGenerationEnabled: true, VideoGenerationEnabled: true, RemoteControlEnabled: true,
 		AllowShell: true, AllowPython: true, AllowFilesystemWrite: true, AllowNetworkRequests: true,
 		AllowRemoteShell: true, AllowSelfUpdate: true, HomepageAllowLocalServer: true,
 		MemoryEnabled: true, KnowledgeGraphEnabled: true, SecretsVaultEnabled: true,
@@ -135,6 +135,7 @@ func (ff ToolFeatureFlags) Key() string {
 	appendToolFeatureKeyPart("golangci_lint", ff.GolangciLintEnabled)
 	appendToolFeatureKeyPart("image_generation", ff.ImageGenerationEnabled)
 	appendToolFeatureKeyPart("music_generation", ff.MusicGenerationEnabled)
+	appendToolFeatureKeyPart("video_generation", ff.VideoGenerationEnabled)
 	appendToolFeatureKeyPart("remote_control", ff.RemoteControlEnabled)
 	appendToolFeatureKeyPart("allow_shell", ff.AllowShell)
 	appendToolFeatureKeyPart("allow_python", ff.AllowPython)

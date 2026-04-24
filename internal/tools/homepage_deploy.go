@@ -931,6 +931,7 @@ func HomepageDeployNetlify(cfg HomepageConfig, nfCfg NetlifyConfig, projectDir, 
 		subdir string
 	}{
 		{generatedImageRefRegex, "generated_images"},
+		{generatedVideoRefRegex, "generated_videos"},
 		{audioFileRefRegex, "audio"},
 		{documentFileRefRegex, "documents"},
 	}
@@ -1472,6 +1473,7 @@ func HomepagePublishToLocal(cfg HomepageConfig, projectDir string, logger *slog.
 // ─── Internal Helpers ─────────────────────────────────────────────────────
 
 var generatedImageRefRegex = regexp.MustCompile(`/files/generated_images/([^"' ><\\]+)`)
+var generatedVideoRefRegex = regexp.MustCompile(`/files/generated_videos/([^"' ><\\]+)`)
 var audioFileRefRegex = regexp.MustCompile(`/files/audio/([^"' ><\\]+)`)
 var documentFileRefRegex = regexp.MustCompile(`/files/documents/([^"' ><\\]+)`)
 
@@ -1481,7 +1483,7 @@ type assetRef struct {
 }
 
 // copyAssetsToBuildDir scans HTML/CSS/JS files in the build directory for
-// /files/<subdir>/<name> references (generated_images, audio, documents) and
+// /files/<subdir>/<name> references (generated_images, generated_videos, audio, documents) and
 // copies the actual files from the AuraGo data directory into the build
 // directory so the Caddy/Python web server can serve them as static assets.
 func copyAssetsToBuildDir(buildPath, dataDir string, logger *slog.Logger) {
@@ -1495,6 +1497,7 @@ func copyAssetsToBuildDir(buildPath, dataDir string, logger *slog.Logger) {
 		subdir string
 	}{
 		{generatedImageRefRegex, "generated_images"},
+		{generatedVideoRefRegex, "generated_videos"},
 		{audioFileRefRegex, "audio"},
 		{documentFileRefRegex, "documents"},
 	}

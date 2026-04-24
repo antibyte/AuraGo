@@ -365,5 +365,7 @@
   "config.browser_automation.advanced_label": "Definições avançadas do sidecar",
   "config.browser_automation.advanced_desc": "Definições técnicas de Docker e sessão para o sidecar Playwright. Normalmente a maioria dos utilizadores não precisa de alterar estes valores.",
   "config.section.media_conversion.label": "Conversão de mídia",
-  "config.section.media_conversion.desc": "Converta áudio, vídeo e imagens com FFmpeg e ImageMagick."
+  "config.section.media_conversion.desc": "Converta áudio, vídeo e imagens com FFmpeg e ImageMagick.",
+  "config.section.video_generation.label": "Geração de vídeo",
+  "config.section.video_generation.desc": "Gere vídeos curtos a partir de prompts de texto e imagem com IA"
 }

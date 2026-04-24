@@ -91,6 +91,7 @@ type ToolFeatureFlags struct {
 	GolangciLintEnabled     bool
 	ImageGenerationEnabled  bool
 	MusicGenerationEnabled  bool
+	VideoGenerationEnabled  bool
 	RemoteControlEnabled    bool
 	// Danger Zone toggles
 	AllowShell               bool

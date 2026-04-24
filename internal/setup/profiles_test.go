@@ -154,6 +154,21 @@ func TestMiniMaxProfileHasTTS(t *testing.T) {
 			if p.Models.MusicGeneration.Model != "music-2.6" {
 				t.Fatalf("minimax music_generation model = %q, want music-2.6", p.Models.MusicGeneration.Model)
 			}
+			if p.Models.VideoGeneration == nil {
+				t.Fatal("minimax video_generation should be configured")
+			}
+			if p.Models.VideoGeneration.ProviderType != "minimax" {
+				t.Fatalf("minimax video_generation provider_type = %q, want minimax", p.Models.VideoGeneration.ProviderType)
+			}
+			if p.Models.VideoGeneration.BaseURL != "https://api.minimax.io/v1" {
+				t.Fatalf("minimax video_generation base_url = %q, want international video endpoint", p.Models.VideoGeneration.BaseURL)
+			}
+			if p.Models.VideoGeneration.AltBaseURL != "https://api.minimaxi.com/v1" {
+				t.Fatalf("minimax video_generation alt_base_url = %q, want China video endpoint", p.Models.VideoGeneration.AltBaseURL)
+			}
+			if p.Models.VideoGeneration.Model != "Hailuo-2.3-768P" {
+				t.Fatalf("minimax video_generation model = %q, want Hailuo-2.3-768P", p.Models.VideoGeneration.Model)
+			}
 			if p.TTS.ModelID != "speech-02-hd" {
 				t.Fatalf("minimax TTS model_id = %q, want speech-02-hd", p.TTS.ModelID)
 			}

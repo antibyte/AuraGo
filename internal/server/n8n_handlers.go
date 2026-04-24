@@ -1149,6 +1149,8 @@ func buildFeatureFlags(s *Server) agent.ToolFeatureFlags {
 		FirewallEnabled:              cfg.Firewall.Enabled && cfg.Runtime.FirewallAccessOK,
 		EmailEnabled:                 cfg.Email.Enabled || len(cfg.EmailAccounts) > 0,
 		ImageGenerationEnabled:       cfg.ImageGeneration.Enabled,
+		MusicGenerationEnabled:       cfg.MusicGeneration.Enabled,
+		VideoGenerationEnabled:       cfg.VideoGeneration.Enabled,
 		RemoteControlEnabled:         cfg.RemoteControl.Enabled,
 		MemoryEnabled:                cfg.Tools.Memory.Enabled,
 		KnowledgeGraphEnabled:        cfg.Tools.KnowledgeGraph.Enabled,

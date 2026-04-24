@@ -191,7 +191,7 @@ var adaptiveFamilySeedTools = map[string][]string{
 	},
 	"media": {
 		"media_registry", "media_conversion", "send_document", "send_audio", "send_image", "tts",
-		"transcribe_audio", "generate_image", "generate_music", "chromecast",
+		"transcribe_audio", "generate_image", "generate_music", "generate_video", "chromecast",
 	},
 }
 
@@ -221,13 +221,14 @@ var adaptiveToolNeighbors = map[string][]string{
 
 	// Media & Documents
 	"document_creator": {"media_registry", "media_conversion", "send_document", "filesystem"},
-	"media_registry":   {"document_creator", "media_conversion", "send_document", "filesystem", "generate_image", "send_image", "tts", "send_audio", "generate_music"},
+	"media_registry":   {"document_creator", "media_conversion", "send_document", "filesystem", "generate_image", "generate_video", "send_image", "tts", "send_audio", "generate_music"},
 	"media_conversion": {"media_registry", "document_creator", "image_processing", "transcribe_audio", "send_audio", "send_image", "filesystem"},
 	"send_document":    {"media_registry", "document_creator"},
 	"send_image":       {"media_registry", "generate_image"},
 	"send_audio":       {"media_registry", "tts", "generate_music"},
 	"generate_image":   {"media_registry", "send_image", "analyze_image"},
 	"generate_music":   {"media_registry", "send_audio", "tts"},
+	"generate_video":   {"media_registry", "media_conversion", "send_document"},
 	"analyze_image":    {"generate_image", "media_registry"},
 	"tts":              {"media_registry", "send_audio"},
 	"transcribe_audio": {"filesystem", "media_registry"},

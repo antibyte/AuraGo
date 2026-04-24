@@ -117,6 +117,8 @@ func handleMediaByID(s *Server) http.HandlerFunc {
 					subDir = "documents"
 				case "image":
 					subDir = "generated_images"
+				case "video":
+					subDir = "generated_videos"
 				}
 				if subDir != "" {
 					os.Remove(filepath.Join(dataDir, subDir, item.Filename))

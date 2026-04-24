@@ -250,6 +250,13 @@ func Load(path string) (*Config, error) {
 	// Music Generation defaults
 	// (Provider must be configured via Provider Management — no defaults for API keys)
 
+	// Video Generation defaults
+	cfg.VideoGeneration.DefaultDurationSeconds = 6
+	cfg.VideoGeneration.DefaultResolution = "768P"
+	cfg.VideoGeneration.DefaultAspectRatio = "16:9"
+	cfg.VideoGeneration.PollIntervalSeconds = 10
+	cfg.VideoGeneration.TimeoutSeconds = 600
+
 	cfg.LLMGuardian.TimeoutSecs = 30
 	cfg.LLMGuardian.ScanDocuments = false
 	cfg.LLMGuardian.ScanEmails = false

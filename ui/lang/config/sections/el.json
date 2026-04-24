@@ -365,5 +365,7 @@
   "config.browser_automation.advanced_label": "Προχωρημένες ρυθμίσεις sidecar",
   "config.browser_automation.advanced_desc": "Τεχνικές ρυθμίσεις Docker και συνεδριών για το sidecar Playwright. Οι περισσότεροι χρήστες συνήθως δεν χρειάζεται να αλλάξουν αυτές τις τιμές.",
   "config.section.media_conversion.label": "Μετατροπή πολυμέσων",
-  "config.section.media_conversion.desc": "Μετατρέψτε ήχο, βίντεο και εικόνες με FFmpeg και ImageMagick."
+  "config.section.media_conversion.desc": "Μετατρέψτε ήχο, βίντεο και εικόνες με FFmpeg και ImageMagick.",
+  "config.section.video_generation.label": "Δημιουργία βίντεο",
+  "config.section.video_generation.desc": "Δημιουργήστε σύντομα βίντεο από κείμενο και εικόνες με AI"
 }

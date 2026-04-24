@@ -1092,7 +1092,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		switch lastTool {
 		case "homepage", "homepage_tool":
 			creativeDelta = 0.2
-		case "generate_image":
+		case "generate_image", "generate_video":
 			creativeDelta = 0.3
 		}
 		effectiveTemp := baseTemp + tempDelta + creativeDelta

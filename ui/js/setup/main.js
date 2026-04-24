@@ -491,6 +491,7 @@ function buildQuickConfigPatch() {
     if (p.features && p.features.helper    && m.helper)           providers.push(makeSubsystemProvider('helper',     'Helper',     m.helper,           {}));
     if (p.features && p.features.image_generation && m.image_generation) providers.push(makeSubsystemProvider('image_gen', 'Image Gen', m.image_generation, {}));
     if (p.features && p.features.music_generation && m.music_generation) providers.push(makeSubsystemProvider('music_gen', 'Music Gen',  m.music_generation, {}));
+    if (p.features && p.features.video_generation && m.video_generation) providers.push(makeSubsystemProvider('video_gen', 'Video Gen', m.video_generation, {}));
 
     // Read trust level from radio button (may have been pre-selected by nextStep)
     const trustRadio = document.querySelector('input[name="trust-level"]:checked');
@@ -533,6 +534,12 @@ function buildQuickConfigPatch() {
         music_generation: {
             enabled: !!(p.features && p.features.music_generation),
             provider: (p.features && p.features.music_generation && m.music_generation) ? 'music_gen' : '',
+        },
+        video_generation: {
+            enabled: !!(p.features && p.features.video_generation),
+            provider: (p.features && p.features.video_generation && m.video_generation) ? 'video_gen' : '',
+            default_duration_seconds: 6,
+            default_resolution: '768P',
         },
     };
 

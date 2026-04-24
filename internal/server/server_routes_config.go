@@ -122,6 +122,9 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	// Music Generation endpoints
 	mux.HandleFunc("/api/music-generation/test", handleMusicGenerationTest(s))
 
+	// Video Generation endpoints
+	mux.HandleFunc("/api/video-generation/test", handleVideoGenerationTest(s))
+
 	// Image Generation endpoints
 	mux.HandleFunc("/api/image-generation/test", handleImageGenerationTest(s))
 	mux.HandleFunc("/api/image-gallery", handleImageGalleryList(s))

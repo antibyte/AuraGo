@@ -207,6 +207,9 @@ func collectEnabledTools(flags *prompts.ContextFlags) []string {
 	if flags.MusicGenerationEnabled {
 		tools = append(tools, "musicgeneration")
 	}
+	if flags.VideoGenerationEnabled {
+		tools = append(tools, "videogeneration")
+	}
 	if flags.RemoteControlEnabled {
 		tools = append(tools, "remotecontrol")
 	}

@@ -410,6 +410,16 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 		genImgHandler.ServeHTTP(w, r)
 	})
 
+	// Serve generated videos from data directory
+	genVideoDir := filepath.Join(s.Cfg.Directories.DataDir, "generated_videos")
+	os.MkdirAll(genVideoDir, 0755)
+	genVideoHandler := http.StripPrefix("/files/generated_videos/", http.FileServer(neuteredFileSystem{http.Dir(genVideoDir)}))
+	mux.HandleFunc("/files/generated_videos/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("Cache-Control", "public, max-age=86400")
+		genVideoHandler.ServeHTTP(w, r)
+	})
+
 	// Serve static files securely from the workspace directory
 	fsHandler := http.StripPrefix("/files/", http.FileServer(neuteredFileSystem{http.Dir(s.Cfg.Directories.WorkspaceDir)}))
 	mux.HandleFunc("/files/", func(w http.ResponseWriter, r *http.Request) {

@@ -180,7 +180,7 @@ func TestToolSchemaManualSync(t *testing.T) {
 		VercelEnabled: true,
 		EmailEnabled:  true, NotesEnabled: true, InvasionControlEnabled: true,
 		AnsibleEnabled: true, MCPEnabled: true, HomepageRegistryEnabled: true,
-		RemoteControlEnabled: true, ImageGenerationEnabled: true,
+		RemoteControlEnabled: true, ImageGenerationEnabled: true, VideoGenerationEnabled: true,
 		MemoryEnabled: true, KnowledgeGraphEnabled: true, SecretsVaultEnabled: true,
 		SchedulerEnabled: true, StopProcessEnabled: true,
 		MemoryMaintenanceEnabled: true, MemoryAnalysisEnabled: true,
@@ -886,6 +886,7 @@ func TestBuildToolFlagsFromConfigProducesConsistentResults(t *testing.T) {
 	cfg.GolangciLint.Enabled = true
 	cfg.ImageGeneration.Enabled = true
 	cfg.MusicGeneration.Enabled = true
+	cfg.VideoGeneration.Enabled = true
 	cfg.RemoteControl.Enabled = true
 	cfg.Tools.Memory.Enabled = true
 	cfg.Tools.KnowledgeGraph.Enabled = true

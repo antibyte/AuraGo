@@ -5,7 +5,7 @@
 const EYE_OPEN_SVG = '<svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
 const EYE_CLOSED_SVG = '<svg viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
 const cfgMaskedSecretFallback = '••••••••';
-const CONFIG_ASSET_VERSION = '11';
+const CONFIG_ASSET_VERSION = '12';
 
 if (typeof window.cfgIsMaskedSecret !== 'function') {
     window.cfgIsMaskedSecret = function (value) {
@@ -95,6 +95,7 @@ const SECTIONS = [
             { key: 'tts', icon: '🔊', label: t('config.section.tts.label'), desc: t('config.section.tts.desc') },
             { key: 'image_generation', icon: '🎨', label: t('config.section.image_generation.label'), desc: t('config.section.image_generation.desc') },
             { key: 'music_generation', icon: '🎵', label: t('config.section.music_generation.label'), desc: t('config.section.music_generation.desc') },
+            { key: 'video_generation', icon: '🎬', label: t('config.section.video_generation.label'), desc: t('config.section.video_generation.desc') },
             { key: 'media_conversion', icon: '🎞️', label: t('config.section.media_conversion.label'), desc: t('config.section.media_conversion.desc') },
             { key: 'document_creator', icon: '📄', label: t('config.section.document_creator.label'), desc: t('config.section.document_creator.desc') }
         ]
@@ -1503,6 +1504,7 @@ const SECTION_MODULES = {
     mcp_server: { m: 'mcp_server', fn: 'renderMCPServerSection' },
     image_generation: { m: 'image_generation', fn: 'renderImageGenerationSection' },
     music_generation: { m: 'music_generation', fn: 'renderMusicGenerationSection' },
+    video_generation: { m: 'video_generation', fn: 'renderVideoGenerationSection' },
     remote_control: { m: 'remote_control', fn: 'renderRemoteControlSection' },
     security_proxy: { m: 'security_proxy', fn: 'renderSecurityProxySection' },
     memory_analysis: { m: 'memory_analysis', fn: 'renderMemoryAnalysisSection' },

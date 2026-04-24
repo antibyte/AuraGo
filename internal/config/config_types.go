@@ -140,12 +140,12 @@ type DocumentCreatorConfig struct {
 
 // MediaConversionConfig holds settings for the media_conversion tool.
 type MediaConversionConfig struct {
-	Enabled         bool   `yaml:"enabled"`           // enable media_conversion tool
-	ReadOnly        bool   `yaml:"readonly"`          // block conversion writes when true; info remains allowed
-	FFmpegPath      string `yaml:"ffmpeg_path"`       // optional ffmpeg binary path override
-	ImageMagickPath string `yaml:"imagemagick_path"`  // optional ImageMagick binary path override
-	TimeoutSeconds  int    `yaml:"timeout_seconds"`   // per-conversion timeout in seconds
-	MaxFileSizeMB   int    `yaml:"max_file_size_mb"`  // max input file size in MB (0 = unlimited)
+	Enabled         bool   `yaml:"enabled"`          // enable media_conversion tool
+	ReadOnly        bool   `yaml:"readonly"`         // block conversion writes when true; info remains allowed
+	FFmpegPath      string `yaml:"ffmpeg_path"`      // optional ffmpeg binary path override
+	ImageMagickPath string `yaml:"imagemagick_path"` // optional ImageMagick binary path override
+	TimeoutSeconds  int    `yaml:"timeout_seconds"`  // per-conversion timeout in seconds
+	MaxFileSizeMB   int    `yaml:"max_file_size_mb"` // max input file size in MB (0 = unlimited)
 }
 
 // BrowserAutomationViewport defines the browser viewport used for new sessions.
@@ -1367,6 +1367,22 @@ type Config struct {
 		APIKey        string `yaml:"-" json:"-"` // resolved from provider entry
 		ResolvedModel string `yaml:"-" json:"-"` // resolved: model from provider if not overridden
 	} `yaml:"music_generation"`
+	VideoGeneration struct {
+		Enabled                bool   `yaml:"enabled"`
+		Provider               string `yaml:"provider"`                 // references ProviderEntry ID
+		Model                  string `yaml:"model"`                    // model override (empty = use provider default)
+		DefaultDurationSeconds int    `yaml:"default_duration_seconds"` // default clip length
+		DefaultResolution      string `yaml:"default_resolution"`       // e.g. 768P, 1080P, 720p
+		DefaultAspectRatio     string `yaml:"default_aspect_ratio"`     // 16:9, 9:16, 1:1
+		PollIntervalSeconds    int    `yaml:"poll_interval_seconds"`    // async status polling cadence
+		TimeoutSeconds         int    `yaml:"timeout_seconds"`          // maximum wait time for one generation
+		MaxDaily               int    `yaml:"max_daily"`                // 0 = unlimited
+		// resolved fields (populated by ResolveProviders)
+		ProviderType  string `yaml:"-" json:"-"` // minimax, google, etc.
+		BaseURL       string `yaml:"-" json:"-"` // resolved from provider entry
+		APIKey        string `yaml:"-" json:"-"` // resolved from provider entry
+		ResolvedModel string `yaml:"-" json:"-"` // resolved: model from provider if not overridden
+	} `yaml:"video_generation"`
 	OneDrive struct {
 		Enabled      bool   `yaml:"enabled"`
 		ReadOnly     bool   `yaml:"readonly"`   // true = only list/read/search/quota, block upload/delete/move/copy/share/mkdir

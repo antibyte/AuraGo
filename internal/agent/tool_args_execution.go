@@ -270,6 +270,18 @@ type imageGenerationArgs struct {
 	SourceImage   string
 }
 
+type videoGenerationArgs struct {
+	Prompt          string
+	NegativePrompt  string
+	Model           string
+	DurationSeconds int
+	Resolution      string
+	AspectRatio     string
+	FirstFrameImage string
+	LastFrameImage  string
+	ReferenceImages []string
+}
+
 type inventoryQueryArgs struct {
 	Tag        string
 	DeviceType string
@@ -864,6 +876,25 @@ func decodeImageGenerationArgs(tc ToolCall) imageGenerationArgs {
 		req.EnhancePrompt = toolArgBoolPtr(tc.Params, "enhance_prompt")
 	}
 	return req
+}
+
+func decodeVideoGenerationArgs(tc ToolCall) videoGenerationArgs {
+	return videoGenerationArgs{
+		Prompt: firstNonEmptyToolString(
+			tc.Prompt,
+			toolArgString(tc.Params, "prompt"),
+			tc.Content,
+			toolArgString(tc.Params, "content"),
+		),
+		NegativePrompt:  toolArgString(tc.Params, "negative_prompt"),
+		Model:           firstNonEmptyToolString(tc.Model, toolArgString(tc.Params, "model")),
+		DurationSeconds: toolArgInt(tc.Params, 0, "duration_seconds", "duration"),
+		Resolution:      toolArgString(tc.Params, "resolution"),
+		AspectRatio:     toolArgString(tc.Params, "aspect_ratio"),
+		FirstFrameImage: toolArgString(tc.Params, "first_frame_image", "source_image"),
+		LastFrameImage:  toolArgString(tc.Params, "last_frame_image"),
+		ReferenceImages: toolArgStringsFromRaw(tc.Params["reference_images"]),
+	}
 }
 
 func decodeInventoryQueryArgs(tc ToolCall) inventoryQueryArgs {

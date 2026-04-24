@@ -68,6 +68,7 @@ type ProfileModels struct {
 	Helper          *ProfileSubsystemModel `yaml:"helper,omitempty"           json:"helper,omitempty"`
 	ImageGeneration *ProfileSubsystemModel `yaml:"image_generation,omitempty" json:"image_generation,omitempty"`
 	MusicGeneration *ProfileSubsystemModel `yaml:"music_generation,omitempty" json:"music_generation,omitempty"`
+	VideoGeneration *ProfileSubsystemModel `yaml:"video_generation,omitempty" json:"video_generation,omitempty"`
 }
 
 // ProfileTTS holds TTS-specific config. TTS does NOT use the provider system —

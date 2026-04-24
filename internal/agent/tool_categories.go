@@ -103,6 +103,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 	"media": {
 		{"generate_image", "Generate images using AI (DALL-E, Stable Diffusion, etc.)"},
 		{"generate_music", "Generate music tracks using AI"},
+		{"generate_video", "Generate short videos using AI"},
 		{"tts", "Text-to-Speech: convert text to audio"},
 		{"send_image", "Send an image to the user"},
 		{"send_audio", "Send an audio file to the user"},

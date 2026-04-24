@@ -181,6 +181,7 @@ type ContextFlags struct {
 	MemoryMaintenanceEnabled bool
 	ImageGenerationEnabled   bool
 	MusicGenerationEnabled   bool
+	VideoGenerationEnabled   bool
 	RemoteControlEnabled     bool
 	WOLEnabled               bool
 	MediaRegistryEnabled     bool
@@ -1583,6 +1584,7 @@ func buildEnabledToolsOverview(flags *ContextFlags) string {
 	add("brave_search", flags.BraveSearchEnabled)
 	add("image_generation", flags.ImageGenerationEnabled)
 	add("music_generation", flags.MusicGenerationEnabled)
+	add("video_generation", flags.VideoGenerationEnabled)
 	add("remote_control", flags.RemoteControlEnabled)
 	add("webdav", flags.WebDAVEnabled)
 	add("koofr", flags.KoofrEnabled)

@@ -459,6 +459,10 @@ func (m *PromptModule) ShouldInclude(flags *ContextFlags) bool {
 			if flags.ImageGenerationEnabled {
 				return true
 			}
+		case "video_generation_enabled":
+			if flags.VideoGenerationEnabled {
+				return true
+			}
 		case "is_docker":
 			if flags.IsDocker {
 				return true

@@ -70,7 +70,7 @@ profiles:
       tts: true
       image_generation: true
       music_generation: true
-      video_generation: false
+      video_generation: true
     models:
       whisper:
         model: "MiniMax-M2.7"
@@ -87,6 +87,11 @@ profiles:
         base_url: "https://api.minimax.io/v1/music_generation"
         alt_base_url: "https://api.minimaxi.com/v1/music_generation"
         model: "music-2.6"
+      video_generation:
+        provider_type: "minimax"
+        base_url: "https://api.minimax.io/v1"
+        alt_base_url: "https://api.minimaxi.com/v1"
+        model: "Hailuo-2.3-768P"
     # TTS uses its own config structure (NOT the provider system)
     tts:
       provider: "minimax"

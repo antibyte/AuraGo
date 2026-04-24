@@ -12,7 +12,7 @@ func classifyToolFamily(toolName string) string {
 		return "files"
 	case strings.Contains(name, "shell") || strings.Contains(name, "sudo") || name == "process_analyzer" || name == "process_management" || name == "system_metrics":
 		return "shell"
-	case strings.Contains(name, "python") || strings.Contains(name, "sandbox") || strings.Contains(name, "skill") || name == "generate_image" || name == "document_creator":
+	case strings.Contains(name, "python") || strings.Contains(name, "sandbox") || strings.Contains(name, "skill") || name == "generate_image" || name == "generate_video" || name == "document_creator":
 		return "coding"
 	case strings.Contains(name, "memory") || name == "remember" || name == "knowledge_graph" || name == "cheatsheet" || strings.Contains(name, "journal") || strings.Contains(name, "notes"):
 		return "memory"

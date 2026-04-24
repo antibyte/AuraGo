@@ -794,6 +794,16 @@ music_generation:
     provider: ""                   # references a ProviderEntry ID (type: minimax or google)
     model: ""                      # model override (empty = use provider default, e.g. music-2.5+, lyria-3-clip-preview)
     max_daily: 0                   # 0 = unlimited
+video_generation:
+    enabled: false
+    provider: ""                   # references a ProviderEntry ID (type: minimax or google)
+    model: ""                      # model override (empty = use provider default, e.g. Hailuo-2.3-768P or veo-3.1-generate-preview)
+    default_duration_seconds: 6    # MiniMax default: 6 seconds
+    default_resolution: "768P"     # MiniMax Hailuo-2.3-768P preset
+    default_aspect_ratio: "16:9"
+    poll_interval_seconds: 10
+    timeout_seconds: 600
+    max_daily: 0                   # 0 = unlimited
 llm_guardian:
     enabled: false
     provider: ""
