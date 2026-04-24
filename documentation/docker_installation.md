@@ -411,6 +411,11 @@ docker compose ps
 docker inspect aurago | grep -A 10 Health
 ```
 
+For the Gotenberg sidecar, AuraGo's compose file probes `GET /health` using
+`curl`, `wget`, or a bash TCP fallback. If you maintain a custom compose file,
+avoid healthchecks that assume only `wget` is installed; some Gotenberg image
+variants do not include it.
+
 ### Docker Proxy Issues
 
 If container management fails:
