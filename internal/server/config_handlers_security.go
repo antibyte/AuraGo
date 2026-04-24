@@ -67,7 +67,8 @@ func handleSecurityHints(s *Server) http.HandlerFunc {
 		}
 		s.CfgMu.RLock()
 		hints := CheckSecurity(s.Cfg)
-		facing := isInternetFacing(s.Cfg)
+		internetFacing := isInternetFacing(s.Cfg)
+		networkFacing := isNetworkFacing(s.Cfg)
 		s.CfgMu.RUnlock()
 
 		// Build a serialisable view (strip FixPatch — applied server-side only)
@@ -92,7 +93,8 @@ func handleSecurityHints(s *Server) http.HandlerFunc {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"hints":           views,
-			"internet_facing": facing,
+			"internet_facing": internetFacing,
+			"network_facing":  networkFacing,
 		})
 	}
 }

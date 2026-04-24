@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"strings"
 
@@ -28,34 +29,154 @@ type SecurityHint struct {
 	FixPatch    map[string]interface{} `json:"-"` // applied server-side only, never serialised
 }
 
-// isInternetFacing returns true when the server is reachable from outside localhost.
-// This influences whether auth_disabled is critical vs. just a warning.
+// isInternetFacing returns true when the server likely has public internet exposure.
+// LAN binds and private tailnet access are handled by isNetworkFacing instead.
 func isInternetFacing(cfg *config.Config) bool {
-	if cfg.Server.HTTPS.Enabled {
+	return hasPublicInternetExposure(cfg)
+}
+
+// isNetworkFacing returns true when the server is reachable from any non-localhost
+// network, including LAN and tailnet access. This is broader than public internet
+// exposure and is used for local-network hygiene warnings such as plain HTTP.
+func isNetworkFacing(cfg *config.Config) bool {
+	if cfg == nil {
+		return false
+	}
+	if hasPublicInternetExposure(cfg) {
 		return true
 	}
 	h := cfg.Server.Host
-	if h == "0.0.0.0" || h == "" {
+	if h == "0.0.0.0" || h == "::" || h == "" {
 		return true
 	}
-	// Tailscale TsNet makes the node reachable within the tailnet.
-	// Funnel additionally exposes it to the public internet.
-	if cfg.Tailscale.TsNet.Enabled {
+	if hostLooksNetworkFacing(h) {
 		return true
 	}
-	// Cloudflare Tunnel exposing the Web UI routes internet traffic directly to AuraGo.
-	if cfg.CloudflareTunnel.Enabled && cfg.CloudflareTunnel.ExposeWebUI {
+	// Tailscale Serve makes the UI reachable inside the private tailnet only.
+	if cfg.Tailscale.TsNet.Enabled && (cfg.Tailscale.TsNet.ServeHTTP || cfg.Tailscale.TsNet.ExposeHomepage) {
 		return true
 	}
-	// Tailscale Funnel makes the TsNet node reachable from the public internet.
-	if cfg.Tailscale.TsNet.Enabled && cfg.Tailscale.TsNet.Funnel {
-		return true
-	}
-	// Security Proxy (Caddy) binds on 0.0.0.0:443 and routes traffic to AuraGo.
+	// Security Proxy binds on a network interface even when it only serves LAN clients.
 	if cfg.SecurityProxy.Enabled {
 		return true
 	}
 	return false
+}
+
+func hasPublicInternetExposure(cfg *config.Config) bool {
+	if cfg == nil {
+		return false
+	}
+	// Cloudflare Tunnel exposing the Web UI routes public internet traffic directly to AuraGo.
+	if cfg.CloudflareTunnel.Enabled && cfg.CloudflareTunnel.ExposeWebUI {
+		return true
+	}
+	for _, rule := range cfg.CloudflareTunnel.CustomIngress {
+		if strings.TrimSpace(rule.Hostname) != "" && ingressTargetsAuraGoWebUI(rule.Service, cfg) {
+			return true
+		}
+	}
+	// Tailscale Funnel is public internet exposure; normal tsnet Serve is tailnet-only.
+	if cfg.Tailscale.TsNet.Enabled && cfg.Tailscale.TsNet.Funnel {
+		return true
+	}
+	// A public-looking domain with ACME/proxy TLS usually means the operator is
+	// publishing the instance beyond the LAN. Self-signed HTTPS and .ts.net names
+	// are intentionally not treated as public by themselves.
+	if cfg.Server.HTTPS.Enabled && strings.EqualFold(cfg.Server.HTTPS.CertMode, "auto") && publicHostnameLikely(cfg.Server.HTTPS.Domain) {
+		return true
+	}
+	if cfg.SecurityProxy.Enabled && publicHostnameLikely(cfg.SecurityProxy.Domain) {
+		return true
+	}
+	return false
+}
+
+func ingressTargetsAuraGoWebUI(service string, cfg *config.Config) bool {
+	service = strings.ToLower(strings.TrimSpace(service))
+	if service == "" {
+		return false
+	}
+	webPorts := []string{
+		fmt.Sprintf(":%d", cfg.Server.Port),
+		fmt.Sprintf(":%d", cfg.Server.HTTPS.HTTPSPort),
+		fmt.Sprintf(":%d", cfg.CloudflareTunnel.LoopbackPort),
+	}
+	for _, marker := range []string{"localhost", "127.0.0.1", "[::1]"} {
+		if strings.Contains(service, marker) {
+			for _, port := range webPorts {
+				if port != ":0" && strings.Contains(service, port) {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+func hostLooksNetworkFacing(host string) bool {
+	host = stripHostPort(host)
+	if host == "" {
+		return true
+	}
+	if strings.EqualFold(host, "localhost") {
+		return false
+	}
+	if ip := net.ParseIP(host); ip != nil {
+		return !ip.IsLoopback()
+	}
+	return true
+}
+
+func publicHostnameLikely(host string) bool {
+	host = strings.ToLower(strings.Trim(strings.TrimSpace(stripHostPort(host)), "."))
+	if host == "" || host == "localhost" {
+		return false
+	}
+	if ip := net.ParseIP(host); ip != nil {
+		return publicIPLikely(ip)
+	}
+	if !strings.Contains(host, ".") {
+		return false
+	}
+	privateSuffixes := []string{
+		".local", ".localhost", ".lan", ".home", ".internal", ".localdomain",
+		".test", ".invalid", ".example", ".ts.net",
+	}
+	for _, suffix := range privateSuffixes {
+		if strings.HasSuffix(host, suffix) {
+			return false
+		}
+	}
+	return true
+}
+
+func publicIPLikely(ip net.IP) bool {
+	if ip == nil {
+		return false
+	}
+	return !ip.IsLoopback() &&
+		!ip.IsPrivate() &&
+		!ip.IsUnspecified() &&
+		!ip.IsLinkLocalUnicast() &&
+		!ip.IsLinkLocalMulticast() &&
+		!isCGNATIP(ip)
+}
+
+func isCGNATIP(ip net.IP) bool {
+	v4 := ip.To4()
+	return v4 != nil && v4[0] == 100 && v4[1] >= 64 && v4[1] <= 127
+}
+
+func stripHostPort(host string) string {
+	host = strings.TrimSpace(host)
+	if host == "" {
+		return ""
+	}
+	if parsedHost, _, err := net.SplitHostPort(host); err == nil {
+		return strings.Trim(parsedHost, "[]")
+	}
+	return strings.Trim(host, "[]")
 }
 
 // weakAuth returns true when no effective authentication is configured.
@@ -68,6 +189,7 @@ func weakAuth(cfg *config.Config) bool {
 func CheckSecurity(cfg *config.Config) []SecurityHint {
 	var hints []SecurityHint
 	facing := isInternetFacing(cfg)
+	networkFacing := isNetworkFacing(cfg)
 	dangerCount := countDangerZoneCapabilities(cfg)
 
 	// 1. auth_disabled
@@ -106,14 +228,14 @@ func CheckSecurity(cfg *config.Config) []SecurityHint {
 		hints = append(hints, SecurityHint{
 			ID: "critical_public_exposure", Severity: SevCritical,
 			Title: "Public instance is broadly exposed",
-			Description: "The server is reachable beyond localhost, key perimeter protections are missing, " +
+			Description: "The server is reachable from the public internet, key perimeter protections are missing, " +
 				"and multiple high-risk capabilities are enabled. Lock down access before using AuraGo on this network.",
 			AutoFixable: false,
 		})
 	}
 
-	// 3. no_https — internet-facing without TLS
-	if facing && !cfg.Server.HTTPS.Enabled &&
+	// 3. no_https — network-facing without TLS
+	if networkFacing && !cfg.Server.HTTPS.Enabled &&
 		cfg.Server.Host != "127.0.0.1" && cfg.Server.Host != "localhost" {
 		hints = append(hints, SecurityHint{
 			ID: "no_https", Severity: SevWarning,
@@ -197,8 +319,8 @@ func CheckSecurity(cfg *config.Config) []SecurityHint {
 	if facing && cfg.Agent.AllowMCP && cfg.MCP.Enabled {
 		hints = append(hints, SecurityHint{
 			ID: "mcp_public", Severity: SevWarning,
-			Title: "MCP enabled on an externally reachable instance",
-			Description: "Model Context Protocol is enabled while the server is reachable beyond localhost. " +
+			Title: "MCP enabled on an internet-facing instance",
+			Description: "Model Context Protocol is enabled while the server is reachable from the public internet. " +
 				"Expose it only behind authentication and transport security, or disable MCP if not needed.",
 			AutoFixable: false,
 		})
