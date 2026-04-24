@@ -57,3 +57,45 @@ func TestEnsureMasterKeyLoadsValidEnvFileIntoProcess(t *testing.T) {
 		t.Fatalf("AURAGO_MASTER_KEY = %q, want %q", got, validKey)
 	}
 }
+
+func TestEnsureConfigFileCopiesTemplateWhenMissing(t *testing.T) {
+	t.Parallel()
+
+	installDir := t.TempDir()
+	configPath := filepath.Join(installDir, "config.yaml")
+	template := []byte("server:\n  host: 127.0.0.1\n")
+	if err := os.WriteFile(filepath.Join(installDir, "config_template.yaml"), template, 0o600); err != nil {
+		t.Fatalf("write template: %v", err)
+	}
+
+	if err := ensureConfigFile(installDir, configPath, slog.Default()); err != nil {
+		t.Fatalf("ensureConfigFile() error = %v", err)
+	}
+
+	got, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("read config: %v", err)
+	}
+	if string(got) != string(template) {
+		t.Fatalf("config contents = %q, want %q", string(got), string(template))
+	}
+}
+
+func TestEnsureConfigFileCreatesMinimalFallbackWithoutTemplate(t *testing.T) {
+	t.Parallel()
+
+	installDir := t.TempDir()
+	configPath := filepath.Join(installDir, "config.yaml")
+
+	if err := ensureConfigFile(installDir, configPath, slog.Default()); err != nil {
+		t.Fatalf("ensureConfigFile() error = %v", err)
+	}
+
+	got, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("read config: %v", err)
+	}
+	if string(got) != "{}\n" {
+		t.Fatalf("config contents = %q, want minimal fallback", string(got))
+	}
+}

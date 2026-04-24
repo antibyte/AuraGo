@@ -13,6 +13,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"aurago/internal/config"
 )
 
 // Run performs the full first-time setup:
@@ -69,9 +71,17 @@ func Run(logger *slog.Logger) error {
 	}
 	logger.Info("Directory structure verified")
 
-	// ── Step 4: Install OS service ───────────────────────────────────────
+	// ── Step 4: Ensure config.yaml exists ────────────────────────────────
+	configPath := filepath.Join(installDir, "config.yaml")
+	if err := ensureConfigFile(installDir, configPath, logger); err != nil {
+		return err
+	}
+
+	// ── Step 5: Install OS service ───────────────────────────────────────
 	if runningInDocker() {
 		logger.Info("Docker environment detected — skipping OS service installation")
+	} else if serviceAlreadyInstalled(installDir, logger) {
+		logger.Info("Existing OS service detected — keeping current service definition")
 	} else {
 		logger.Info("Installing system service ...")
 		if err := installService(exePath, installDir, logger); err != nil {
@@ -87,6 +97,28 @@ func Run(logger *slog.Logger) error {
 	logger.Info("  2. Set AURAGO_MASTER_KEY from .env in your shell (or the service reads it automatically)")
 	logger.Info("  3. Start AuraGo: ./aurago  or  systemctl start aurago")
 
+	return nil
+}
+
+func ensureConfigFile(installDir, configPath string, logger *slog.Logger) error {
+	if _, err := os.Stat(configPath); err == nil {
+		return nil
+	}
+
+	templatePath := filepath.Join(installDir, "config_template.yaml")
+	if data, err := os.ReadFile(templatePath); err == nil {
+		if err := config.WriteFileAtomic(configPath, data, 0o600); err != nil {
+			return fmt.Errorf("failed to create config.yaml from template: %w", err)
+		}
+		logger.Info("Created config.yaml from config_template.yaml")
+		return nil
+	}
+
+	minimalConfig := []byte("{}\n")
+	if err := config.WriteFileAtomic(configPath, minimalConfig, 0o600); err != nil {
+		return fmt.Errorf("failed to create minimal config.yaml: %w", err)
+	}
+	logger.Warn("config_template.yaml not found — created minimal fallback config.yaml")
 	return nil
 }
 
@@ -214,24 +246,36 @@ func installSystemd(exePath, installDir string, logger *slog.Logger) error {
 		user = "root" // absolute fallback
 	}
 
+	credentialFile := filepath.Join(installDir, ".env")
+	readWritePaths := installDir
+	if _, err := os.Stat("/etc/aurago/master.key"); err == nil {
+		credentialFile = "/etc/aurago/master.key"
+		readWritePaths = installDir + " /etc/aurago"
+	}
+
 	unit := fmt.Sprintf(`[Unit]
 Description=AuraGo AI Agent
 After=network-online.target
 Wants=network-online.target
+StartLimitIntervalSec=0
 
 [Service]
 Type=simple
 User=%s
 Group=%s
-WorkingDirectory=%s
-ExecStart=%s
+WorkingDirectory="%s"
+ExecStart="%s" --config "%s/config.yaml"
 Restart=on-failure
 RestartSec=10
-EnvironmentFile=-%s/.env
+EnvironmentFile=-%s
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=%s
+PrivateTmp=true
 
 [Install]
 WantedBy=multi-user.target
-`, user, user, installDir, exePath, installDir)
+`, user, user, installDir, exePath, installDir, credentialFile, readWritePaths)
 
 	unitPath := "/etc/systemd/system/aurago.service"
 	if err := os.WriteFile(unitPath, []byte(unit), 0600); err != nil {
@@ -301,6 +345,28 @@ exec "%s"
 		logger.Warn("launchctl load failed", "output", string(out), "error", err)
 	}
 	return nil
+}
+
+func serviceAlreadyInstalled(installDir string, logger *slog.Logger) bool {
+	switch runtime.GOOS {
+	case "linux":
+		_, err := os.Stat("/etc/systemd/system/aurago.service")
+		return err == nil
+	case "darwin":
+		home, err := os.UserHomeDir()
+		if err != nil {
+			logger.Warn("Could not resolve user home for launchd detection", "error", err)
+			return false
+		}
+		_, err = os.Stat(filepath.Join(home, "Library", "LaunchAgents", "com.aurago.agent.plist"))
+		return err == nil
+	case "windows":
+		batPath := filepath.Join(installDir, "start_aurago.bat")
+		_, err := os.Stat(batPath)
+		return err == nil
+	default:
+		return false
+	}
 }
 
 // ── Windows: Task Scheduler ─────────────────────────────────────────────

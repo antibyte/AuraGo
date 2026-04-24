@@ -18,6 +18,7 @@
 package main
 
 import (
+	"aurago/internal/config"
 	"flag"
 	"fmt"
 	"log"
@@ -299,13 +300,8 @@ func atomicWriteYAML(path string, data map[string]interface{}) {
 		log.Fatalf("Failed to marshal merged config: %v", err)
 	}
 
-	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, out, 0644); err != nil {
-		log.Fatalf("Failed to write temp file %s: %v", tmp, err)
-	}
-	if err := os.Rename(tmp, path); err != nil {
-		os.Remove(tmp)
-		log.Fatalf("Failed to rename %s → %s: %v", tmp, path, err)
+	if err := config.WriteFileAtomic(path, out, 0o600); err != nil {
+		log.Fatalf("Failed to write merged config %s: %v", path, err)
 	}
 }
 

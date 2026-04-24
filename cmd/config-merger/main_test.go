@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -222,6 +223,16 @@ func TestAtomicWriteYAML(t *testing.T) {
 	srv, _ := asStringMap(m["server"])
 	if srv["host"] != "0.0.0.0" {
 		t.Errorf("expected host=0.0.0.0, got %v", srv["host"])
+	}
+
+	if runtime.GOOS != "windows" {
+		info, err := os.Stat(path)
+		if err != nil {
+			t.Fatalf("stat output: %v", err)
+		}
+		if perms := info.Mode().Perm(); perms != 0o600 {
+			t.Fatalf("expected permissions 0600, got %04o", perms)
+		}
 	}
 }
 

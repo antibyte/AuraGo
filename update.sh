@@ -62,6 +62,17 @@ confirm() {
     [[ "${REPLY:-n}" =~ ^[Yy]$ ]]
 }
 
+stat_owner() {
+    local path="$1"
+    if stat -c '%U' "$path" >/dev/null 2>&1; then
+        stat -c '%U' "$path"
+    elif stat -f '%Su' "$path" >/dev/null 2>&1; then
+        stat -f '%Su' "$path"
+    else
+        return 1
+    fi
+}
+
 # ── Find installation directory ────────────────────────────────────────
 # _AU_ORIG_DIR is exported when re-execing from a temp copy (see below).
 # In that case BASH_SOURCE[0] points to /tmp/... so we must use the saved path.
@@ -1085,7 +1096,7 @@ SVC_FILE="/etc/systemd/system/aurago.service"
 if [ -f "$SVC_FILE" ] && ! grep -q '^User=' "$SVC_FILE"; then
     # Detect the right user: prefer install directory owner, then SUDO_USER
     _svc_user=""
-    _dir_owner=$(stat -c '%U' "$DIR" 2>/dev/null || echo '')
+    _dir_owner="$(stat_owner "$DIR" 2>/dev/null || echo '')"
     if [ -n "$_dir_owner" ] && [ "$_dir_owner" != "root" ]; then
         _svc_user="$_dir_owner"
     elif [ -n "${SUDO_USER:-}" ]; then

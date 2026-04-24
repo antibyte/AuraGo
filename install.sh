@@ -68,6 +68,15 @@ write_master_key_file() {
     mv -f "$tmp" "$target"
 }
 
+write_secret_text_file() {
+    local target="$1"
+    local value="$2"
+    local tmp
+    tmp="${target}.tmp.$$"
+    (umask 077 && printf '%s\n' "$value" > "$tmp") || return 1
+    mv -f "$tmp" "$target"
+}
+
 generate_master_key() {
     if command -v openssl >/dev/null 2>&1; then
         openssl rand -hex 32 2>/dev/null && return 0
@@ -76,6 +85,144 @@ generate_master_key() {
         python3 -c "import secrets; print(secrets.token_hex(32))" 2>/dev/null && return 0
     fi
     return 1
+}
+
+version_ge() {
+    local lhs="${1#v}" rhs="${2#v}" i
+    local IFS=.
+    local lhs_parts=() rhs_parts=()
+    read -r -a lhs_parts <<< "$lhs"
+    read -r -a rhs_parts <<< "$rhs"
+    local max_len="${#lhs_parts[@]}"
+    if [ "${#rhs_parts[@]}" -gt "$max_len" ]; then
+        max_len="${#rhs_parts[@]}"
+    fi
+    for ((i=0; i<max_len; i++)); do
+        local l="${lhs_parts[i]:-0}"
+        local r="${rhs_parts[i]:-0}"
+        l="${l%%[^0-9]*}"
+        r="${r%%[^0-9]*}"
+        l="${l:-0}"
+        r="${r:-0}"
+        if ((10#$l > 10#$r)); then
+            return 0
+        fi
+        if ((10#$l < 10#$r)); then
+            return 1
+        fi
+    done
+    return 0
+}
+
+stat_owner() {
+    local path="$1"
+    if stat -c '%U' "$path" >/dev/null 2>&1; then
+        stat -c '%U' "$path"
+    elif stat -f '%Su' "$path" >/dev/null 2>&1; then
+        stat -f '%Su' "$path"
+    else
+        return 1
+    fi
+}
+
+latest_release_tag_via_redirect() {
+    local latest_url="https://github.com/${GITHUB_REPO}/releases/latest"
+    local effective_url=""
+    if command -v curl >/dev/null 2>&1; then
+        effective_url="$(curl -fsSLI -o /dev/null -w '%{url_effective}' "$latest_url" 2>/dev/null || true)"
+    elif command -v wget >/dev/null 2>&1; then
+        effective_url="$(wget -S --max-redirect=10 --spider "$latest_url" 2>&1 | awk '/^  Location: / {print $2}' | tail -n1 | tr -d '\r' || true)"
+    fi
+    [ -n "$effective_url" ] || return 1
+    basename "$effective_url"
+}
+
+install_ffmpeg() {
+    case "$PKG_MGR" in
+        apt)
+            _pkg_install ffmpeg
+            ;;
+        dnf)
+            if $SUDO dnf install -y ffmpeg --allowerasing 2>/dev/null; then
+                return 0
+            fi
+            if [ -f /etc/fedora-release ] && command -v rpm >/dev/null 2>&1; then
+                local fedora_release
+                fedora_release="$(rpm -E %fedora 2>/dev/null || true)"
+                if printf '%s' "$fedora_release" | grep -Eq '^[0-9]+$'; then
+                    $SUDO dnf install -y "https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-${fedora_release}.noarch.rpm" 2>/dev/null || return 1
+                    $SUDO dnf install -y ffmpeg
+                    return $?
+                fi
+            fi
+            return 1
+            ;;
+        *)
+            _pkg_install ffmpeg
+            ;;
+    esac
+}
+
+install_docker_engine() {
+    case "$PKG_MGR" in
+        apt)
+            $SUDO apt-get update
+            $SUDO apt-get install -y docker.io
+            ;;
+        pacman)
+            _pkg_install docker
+            ;;
+        apk)
+            _pkg_install docker docker-cli containerd
+            ;;
+        zypper)
+            _pkg_install docker
+            ;;
+        dnf|yum)
+            warn "Automatic Docker installation for ${PKG_MGR} is disabled here to avoid piping a remote script into sh."
+            warn "Install Docker manually via your distro's documented repository setup, then rerun this installer."
+            return 1
+            ;;
+        *)
+            warn "Cannot install Docker automatically on this system."
+            return 1
+            ;;
+    esac
+
+    if command -v systemctl >/dev/null 2>&1; then
+        $SUDO systemctl enable --now docker >/dev/null 2>&1 || warn "Could not enable/start docker.service automatically."
+    fi
+}
+
+update_source_checkout() {
+    local branch upstream
+    if ! git -C "$INSTALL_DIR" diff --quiet --ignore-submodules -- || ! git -C "$INSTALL_DIR" diff --cached --quiet --ignore-submodules --; then
+        warn "Local tracked changes detected in $INSTALL_DIR — skipping automatic git fast-forward."
+        warn "Commit/stash your changes and rerun the installer if you want the source checkout updated."
+        return 0
+    fi
+    git -C "$INSTALL_DIR" fetch --tags --prune origin || return 1
+    branch="$(git -C "$INSTALL_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo main)"
+    upstream="origin/${branch}"
+    if ! git -C "$INSTALL_DIR" rev-parse --verify "$upstream" >/dev/null 2>&1; then
+        warn "Upstream branch ${upstream} not found — keeping current checkout unchanged."
+        return 0
+    fi
+    if git -C "$INSTALL_DIR" merge --ff-only "$upstream"; then
+        ok "Updated source checkout to latest ${upstream}."
+    else
+        warn "Fast-forward merge failed for ${upstream} — keeping current checkout unchanged."
+    fi
+}
+
+warn_if_systemd_hardening_conflicts() {
+    local config_path="$1"
+    [ -f "$config_path" ] || return 0
+    if grep -Eq '^[[:space:]]+sudo_enabled:[[:space:]]*true([[:space:]]|$)' "$config_path" || \
+       grep -Eq '^[[:space:]]+sudo_unrestricted:[[:space:]]*true([[:space:]]|$)' "$config_path"; then
+        warn "config.yaml enables sudo features. The generated systemd unit keeps ProtectSystem=strict and may block unrestricted sudo writes."
+        warn "If you intentionally need unrestricted sudo, adjust the unit after installation and reload systemd."
+    fi
 }
 
 G1='\033[38;5;39m'
@@ -201,10 +348,16 @@ download_release_asset() {
 }
 
 latest_release_tag() {
-    fetch_url_stdout "https://api.github.com/repos/${GITHUB_REPO}/releases/latest" \
+    local tag
+    tag="$(fetch_url_stdout "https://api.github.com/repos/${GITHUB_REPO}/releases/latest" \
         | grep -o '"tag_name": *"[^"]*"' \
         | head -1 \
-        | cut -d'"' -f4
+        | cut -d'"' -f4)"
+    if [ -n "$tag" ]; then
+        printf '%s\n' "$tag"
+        return 0
+    fi
+    latest_release_tag_via_redirect
 }
 
 # ── Optional system dependencies ─────────────────────────────────────────
@@ -215,13 +368,11 @@ if ! command -v ffmpeg >/dev/null 2>&1; then
     warn "ffmpeg not found."
     read -r -p "Install ffmpeg? [Y/n]: " FF_REPLY < /dev/tty || true
     if [[ "${FF_REPLY:-y}" =~ ^[Yy]$ ]]; then
-        case "$PKG_MGR" in
-            apt)    _pkg_install ffmpeg ;;
-            dnf)    $SUDO dnf install -y ffmpeg --allowerasing 2>/dev/null || \
-                    { $SUDO dnf install -y https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm 2>/dev/null; $SUDO dnf install -y ffmpeg; } ;;
-            *)      _pkg_install ffmpeg ;;
-        esac
-        ok "ffmpeg installed."
+        if install_ffmpeg; then
+            ok "ffmpeg installed."
+        else
+            warn "ffmpeg installation failed. Install it manually for your distro and rerun the installer if you need voice conversion."
+        fi
     else
         warn "Skipping ffmpeg. Telegram voice messages will not work."
     fi
@@ -278,10 +429,13 @@ if ! command -v docker >/dev/null 2>&1; then
     echo ""
     read -r -p "Install Docker now? (Recommended) [Y/n]: " DKR_REPLY < /dev/tty || true
     if [[ "${DKR_REPLY:-y}" =~ ^[Yy]$ ]]; then
-        info "Installing Docker via official get.docker.com script..."
-        curl -fsSL https://get.docker.com | sh
-        $SUDO usermod -aG docker "$USER" || warn "Failed to add $USER to docker group. You may need to do this manually."
-        ok "Docker installed."
+        info "Installing Docker via the local package manager..."
+        if install_docker_engine; then
+            $SUDO usermod -aG docker "$USER" || warn "Failed to add $USER to docker group. You may need to do this manually."
+            ok "Docker installed."
+        else
+            warn "Docker was not installed automatically."
+        fi
     else
         warn "Skipping Docker installation."
     fi
@@ -304,7 +458,7 @@ _go_version_ok() {
     local installed
     installed=$(go version 2>/dev/null | awk '{print $3}' | sed 's/go//')
     [ -n "$installed" ] || return 1
-    [ "$(printf '%s\n%s' "$GO_VERSION" "$installed" | sort -V | head -n1)" = "$GO_VERSION" ]
+    version_ge "$installed" "$GO_VERSION"
 }
 
 if _go_version_ok; then
@@ -351,8 +505,7 @@ if $BUILD_FROM_SOURCE; then
 
     if [ -d "$INSTALL_DIR/.git" ]; then
         info "Existing installation found at $INSTALL_DIR — updating..."
-        git -C "$INSTALL_DIR" pull --ff-only
-        ok "Updated to latest."
+        update_source_checkout || die "Failed to update source checkout."
     else
         info "Cloning into $INSTALL_DIR ..."
         git clone "$REPO" "$INSTALL_DIR"
@@ -602,8 +755,7 @@ if [ -f "$CONFIG_FILE" ]; then
     INFO_PASSWORD=$(openssl rand -base64 12 2>/dev/null || python3 -c "import secrets; print(secrets.token_urlsafe(12))")
 
     # Save first-use password (owner-readable only)
-    printf '%s\n' "$INFO_PASSWORD" > "$INSTALL_DIR/firstpassword.txt"
-    chmod 600 "$INSTALL_DIR/firstpassword.txt"
+    write_secret_text_file "$INSTALL_DIR/firstpassword.txt" "$INFO_PASSWORD" || die "Failed to write firstpassword.txt securely."
 
     if [ "$HTTPS_ENABLED" = "true" ]; then
         ./bin/aurago_linux --config "$CONFIG_FILE" --init-only -password "$INFO_PASSWORD" -https -domain "$HTTPS_DOMAIN" -email "$HTTPS_EMAIL"
@@ -678,7 +830,7 @@ if command -v systemctl >/dev/null 2>&1; then
             SERVICE_GROUP="$(id -gn)"
         else
             # Running directly as root — derive user from install directory owner
-            _dir_owner=$(stat -c '%U' "$INSTALL_DIR" 2>/dev/null || echo '')
+            _dir_owner="$(stat_owner "$INSTALL_DIR" 2>/dev/null || echo '')"
             if [ -n "$_dir_owner" ] && [ "$_dir_owner" != "root" ]; then
                 SERVICE_USER="$_dir_owner"
                 SERVICE_GROUP=$(id -gn "$_dir_owner" 2>/dev/null || echo "$_dir_owner")
@@ -691,8 +843,26 @@ if command -v systemctl >/dev/null 2>&1; then
         fi
         ok "Service will run as: ${SERVICE_USER}:${SERVICE_GROUP}"
 
-        # Ensure install directory and data are owned by the service user
-        $SUDO chown -R "${SERVICE_USER}:${SERVICE_GROUP}" "${INSTALL_DIR}" 2>/dev/null || true
+        warn_if_systemd_hardening_conflicts "$CONFIG_FILE"
+
+        # Ensure only AuraGo-managed writable paths are owned by the service user.
+        CHOWN_TARGETS=()
+        for _path in \
+            "$INSTALL_DIR/bin" \
+            "$INSTALL_DIR/data" \
+            "$INSTALL_DIR/log" \
+            "$INSTALL_DIR/agent_workspace" \
+            "$INSTALL_DIR/config.yaml" \
+            "$INSTALL_DIR/config_template.yaml" \
+            "$INSTALL_DIR/start.sh" \
+            "$INSTALL_DIR/update.sh" \
+            "$INSTALL_DIR/firstpassword.txt" \
+            "$INSTALL_DIR/.version"; do
+            [ -e "$_path" ] && CHOWN_TARGETS+=("$_path")
+        done
+        if [ "${#CHOWN_TARGETS[@]}" -gt 0 ]; then
+            $SUDO chown -R "${SERVICE_USER}:${SERVICE_GROUP}" "${CHOWN_TARGETS[@]}" 2>/dev/null || true
+        fi
 
         # Grant CAP_NET_BIND_SERVICE in the systemd unit so the service can bind
         # ports 80/443 as a non-root user without a setcap dependency on the binary.

@@ -88,6 +88,8 @@ func main() {
 	appLog := logger.Setup(debug)
 	slog.SetDefault(appLog)
 	webAccessLog := appLog.With("component", "web-access")
+	exePath, _ := os.Executable()
+	installDir := filepath.Dir(exePath)
 
 	// Load secrets in priority order -- each step only sets vars not already present:
 	//   1. systemd EnvironmentFile (already in env before process starts)
@@ -111,8 +113,23 @@ func main() {
 	// â”€â”€ Early Config Load for Path Resolution â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 	cfg, err := config.Load(configFile)
 	if err != nil && !runSetup {
-		// If we can't load config and we're not in setup, we can't safely proceed
-		log.Fatalf("âŒ CONFIG ERROR: %v", err)
+		if setup.NeedsSetup(installDir, configFile) {
+			resPath := filepath.Join(installDir, "resources.dat")
+			if _, statErr := os.Stat(resPath); statErr != nil {
+				appLog.Warn("resources.dat not found in install directory — bootstrapping from local defaults", "path", resPath)
+			} else {
+				appLog.Info("Running automatic setup from resources.dat")
+			}
+			if setupErr := setup.Run(appLog); setupErr != nil {
+				appLog.Error("Auto-setup failed", "error", setupErr)
+				os.Exit(1)
+			}
+			cfg, err = config.Load(configFile)
+		}
+		if err != nil {
+			// If we can't load config and we're not in setup, we can't safely proceed
+			log.Fatalf("âŒ CONFIG ERROR: %v", err)
+		}
 	}
 
 	// â”€â”€ Apply CLI flags for HTTPS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -222,24 +239,8 @@ func main() {
 		os.Exit(0)
 	}
 
-	// â”€â”€ Auto-detect missing resources â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-	exePath, _ := os.Executable()
-	installDir := filepath.Dir(exePath)
-	if setup.NeedsSetup(installDir, configFile) {
-		resPath := filepath.Join(installDir, "resources.dat")
-		if _, err := os.Stat(resPath); err != nil {
-			appLog.Warn("resources.dat not found in install directory â setup will run from defaults", "path", resPath)
-		} else {
-			appLog.Info("Running automatic setup from resources.dat")
-		}
-		if err := setup.Run(appLog); err != nil {
-			appLog.Error("Auto-setup failed", "error", err)
-			os.Exit(1)
-		}
-		appLog.Info("Auto-setup complete, continuing startup ...")
-	} else {
-		setup.EnsureDirectories(installDir, appLog)
-	}
+	// â”€â”€ Runtime directories â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+	setup.EnsureDirectories(installDir, appLog)
 
 	appLog.Info("Starting AuraGo")
 
