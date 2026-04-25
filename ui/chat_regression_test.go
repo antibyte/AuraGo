@@ -276,7 +276,7 @@ func TestChatToolIconPngSpriteCatalogRemainsWired(t *testing.T) {
 	}
 
 	streamingJS := string(streamingContent)
-	for _, marker := range []string{"AuraToolIcons.createIcon", "setStatusToolIcon(data.detail)", "setStatusToolIcon('thinking')"} {
+	for _, marker := range []string{"AuraToolIcons.createIcon", "setStatusToolIcon(data.detail)", "setStatusToolIcon('thinking')", "--tool-bubble-drift", "--tool-bubble-tilt"} {
 		if !strings.Contains(streamingJS, marker) {
 			t.Fatalf("%s is missing icon wiring marker %q", streamingPath, marker)
 		}
@@ -286,10 +286,25 @@ func TestChatToolIconPngSpriteCatalogRemainsWired(t *testing.T) {
 	}
 
 	css := string(cssContent)
-	for _, marker := range []string{".tool-icon-sprite", "background-image: url('/img/tool-icons-sprite.png", ".status-tool-icon"} {
+	for _, marker := range []string{
+		".tool-icon-sprite",
+		"background-image: url('/img/tool-icons-sprite.png",
+		".status-tool-icon",
+		"animation: toolBubbleFloat var(--chat-robot-icon-duration)",
+		".floating-icon::before",
+		".floating-icon::after",
+		"@keyframes toolBubbleFloat",
+		"@keyframes toolBubbleShell",
+		"@keyframes toolBubblePop",
+		"scale(1.72)",
+		"--chat-robot-icon-duration: 2.2s;",
+	} {
 		if !strings.Contains(css, marker) {
 			t.Fatalf("%s is missing icon CSS marker %q", cssPath, marker)
 		}
+	}
+	if strings.Contains(css, "@keyframes floatUp") {
+		t.Fatalf("%s still contains the old simple floatUp icon animation", cssPath)
 	}
 
 	if !strings.Contains(string(indexContent), `/js/chat/tool-icons.js`) {

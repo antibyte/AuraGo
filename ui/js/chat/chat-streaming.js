@@ -20,15 +20,26 @@ function setStatusToolIcon(toolName) {
 
 function spawnFloatingIcon(toolName) {
     const effectHost = chatRobotEffects || (agentStatusDiv ? agentStatusDiv.querySelector('.status-pill') : null);
-    if (!effectHost || !window.AuraToolIcons || agentStatusDiv.classList.contains('is-hidden')) return;
+    if (!effectHost || !window.AuraToolIcons || !agentStatusDiv || agentStatusDiv.classList.contains('is-hidden')) return;
     const now = Date.now();
     const key = '_lastIcon_' + toolName;
     if (spawnFloatingIcon[key] && now - spawnFloatingIcon[key] < 800) return;
     spawnFloatingIcon[key] = now;
     const icon = window.AuraToolIcons.createIcon(toolName, 'floating-icon');
     const hostW = effectHost.offsetWidth || 72;
-    const randomX = (hostW * (0.2 + Math.random() * 0.55));
+    const randomX = (hostW * (0.32 + Math.random() * 0.36));
+    const drift = Math.round((Math.random() - 0.5) * Math.min(42, Math.max(18, hostW * 0.36)));
+    const tilt = Math.random() * 24 - 12;
     icon.style.left = randomX + 'px';
+    icon.style.setProperty('--tool-bubble-drift', drift + 'px');
+    icon.style.setProperty('--tool-bubble-drift-mid', Math.round(drift * 0.42) + 'px');
+    icon.style.setProperty('--tool-bubble-drift-end', Math.round(drift * 1.14) + 'px');
+    icon.style.setProperty('--tool-bubble-tilt', tilt.toFixed(1) + 'deg');
+    icon.style.setProperty('--tool-bubble-tilt-start', (-tilt * 0.6).toFixed(1) + 'deg');
+    icon.style.setProperty('--tool-bubble-tilt-soft', (-tilt * 0.35).toFixed(1) + 'deg');
+    icon.style.setProperty('--tool-bubble-tilt-mid', (tilt * 0.3).toFixed(1) + 'deg');
+    icon.style.setProperty('--tool-bubble-tilt-pop', (tilt * 1.18).toFixed(1) + 'deg');
+    icon.style.animationDelay = Math.round(Math.random() * 90) + 'ms';
     effectHost.appendChild(icon);
     icon.addEventListener('animationend', () => icon.remove());
 }
