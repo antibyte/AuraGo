@@ -1283,14 +1283,7 @@ func (m *MissionManagerV2) Update(id string, updated *MissionV2) error {
 		cronID := "mission_" + id
 		m.cron.ManageSchedule("remove", cronID, "", "", "")
 	}
-	if isRemoteMission(mission) && (!isRemoteMission(updated) || mission.RemoteNestID != updated.RemoteNestID) && m.remoteClient != nil {
-		ctx, cancel := context.WithTimeout(m.ctx, 20*time.Second)
-		if err := m.remoteClient.DeleteMission(ctx, *mission); err != nil {
-			cancel()
-			return err
-		}
-		cancel()
-	}
+	oldRemoteNeedsCleanup := isRemoteMission(mission) && (!isRemoteMission(updated) || mission.RemoteNestID != updated.RemoteNestID)
 
 	// Preserve metadata
 	updated.ID = id
@@ -1307,6 +1300,20 @@ func (m *MissionManagerV2) Update(id string, updated *MissionV2) error {
 		if err := m.syncRemoteMissionLocked(updated); err != nil {
 			return err
 		}
+	}
+
+	var cleanupErr error
+	if oldRemoteNeedsCleanup && m.remoteClient != nil {
+		ctx, cancel := context.WithTimeout(m.ctx, 20*time.Second)
+		cleanupErr = m.remoteClient.DeleteMission(ctx, *mission)
+		cancel()
+		if cleanupErr != nil && !isRemoteMission(updated) {
+			return cleanupErr
+		}
+	}
+	if cleanupErr != nil {
+		updated.RemoteSyncStatus = RemoteSyncError
+		updated.RemoteSyncError = "new remote target synced, but old target cleanup failed: " + cleanupErr.Error()
 	}
 
 	m.missions[id] = updated
@@ -1333,7 +1340,10 @@ func (m *MissionManagerV2) Update(id string, updated *MissionV2) error {
 		InvalidatePreparedMission(m.preparedDB, id)
 	}
 
-	return m.save()
+	if err := m.save(); err != nil {
+		return err
+	}
+	return cleanupErr
 }
 
 // DeleteSyncedMission removes an egg-local mission that was installed by its master.
@@ -1364,6 +1374,16 @@ func (m *MissionManagerV2) DeleteSyncedMission(id string) error {
 
 // Delete removes a mission
 func (m *MissionManagerV2) Delete(id string) error {
+	return m.DeleteWithOptions(id, DeleteMissionOptions{})
+}
+
+// DeleteMissionOptions controls mission delete behavior.
+type DeleteMissionOptions struct {
+	ForceRemote bool
+}
+
+// DeleteWithOptions removes a mission with optional remote cleanup behavior.
+func (m *MissionManagerV2) DeleteWithOptions(id string, opts DeleteMissionOptions) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -1380,7 +1400,7 @@ func (m *MissionManagerV2) Delete(id string) error {
 		cronID := "mission_" + id
 		m.cron.ManageSchedule("remove", cronID, "", "", "")
 	}
-	if isRemoteMission(mission) && m.remoteClient != nil {
+	if isRemoteMission(mission) && m.remoteClient != nil && !opts.ForceRemote {
 		ctx, cancel := context.WithTimeout(m.ctx, 20*time.Second)
 		if err := m.remoteClient.DeleteMission(ctx, *mission); err != nil {
 			cancel()

@@ -41,9 +41,7 @@ func (c *remoteMissionClient) SyncMission(ctx context.Context, mission tools.Mis
 	if err != nil {
 		return err
 	}
-	return runWithContext(ctx, func() error {
-		return c.hub.SendMissionSync(mission.RemoteNestID, payload)
-	})
+	return c.hub.SendMissionSyncContext(ctx, mission.RemoteNestID, payload)
 }
 
 func (c *remoteMissionClient) DeleteMission(ctx context.Context, mission tools.MissionV2) error {
@@ -54,9 +52,7 @@ func (c *remoteMissionClient) DeleteMission(ctx context.Context, mission tools.M
 		return fmt.Errorf("remote nest %s is not connected", mission.RemoteNestID)
 	}
 	payload := bridge.MissionDeletePayload{MissionID: mission.ID}
-	return runWithContext(ctx, func() error {
-		return c.hub.SendMissionDelete(mission.RemoteNestID, payload)
-	})
+	return c.hub.SendMissionDeleteContext(ctx, mission.RemoteNestID, payload)
 }
 
 func (c *remoteMissionClient) RunMission(ctx context.Context, mission tools.MissionV2, triggerType, triggerData string) error {
@@ -68,9 +64,7 @@ func (c *remoteMissionClient) RunMission(ctx context.Context, mission tools.Miss
 		TriggerType: triggerType,
 		TriggerData: triggerData,
 	}
-	return runWithContext(ctx, func() error {
-		return c.hub.SendMissionRun(mission.RemoteNestID, payload)
-	})
+	return c.hub.SendMissionRunContext(ctx, mission.RemoteNestID, payload)
 }
 
 func (c *remoteMissionClient) validateTarget(mission tools.MissionV2) error {
@@ -91,8 +85,18 @@ func (c *remoteMissionClient) validateTarget(mission tools.MissionV2) error {
 		if err != nil {
 			return fmt.Errorf("remote nest %s not found: %w", mission.RemoteNestID, err)
 		}
+		if !nest.Active {
+			return fmt.Errorf("remote nest %s is inactive", mission.RemoteNestID)
+		}
 		if nest.EggID != "" && nest.EggID != mission.RemoteEggID {
 			return fmt.Errorf("remote nest %s is assigned to egg %s, not %s", mission.RemoteNestID, nest.EggID, mission.RemoteEggID)
+		}
+		egg, err := invasion.GetEgg(c.db, mission.RemoteEggID)
+		if err != nil {
+			return fmt.Errorf("remote egg %s not found: %w", mission.RemoteEggID, err)
+		}
+		if !egg.Active {
+			return fmt.Errorf("remote egg %s is inactive", mission.RemoteEggID)
 		}
 	}
 	return nil
@@ -119,20 +123,9 @@ func missionSyncPayloadFromMission(mission tools.MissionV2, promptSnapshot strin
 		Priority:       mission.Priority,
 		Enabled:        mission.Enabled,
 		Locked:         mission.Locked,
+		AutoPrepare:    mission.AutoPrepare,
+		CreatedAt:      mission.CreatedAt,
 	}, nil
-}
-
-func runWithContext(ctx context.Context, fn func() error) error {
-	done := make(chan error, 1)
-	go func() {
-		done <- fn()
-	}()
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case err := <-done:
-		return err
-	}
 }
 
 func handleMissionRemoteTargets(s *Server) http.HandlerFunc {
@@ -156,14 +149,18 @@ func handleMissionRemoteTargets(s *Server) http.HandlerFunc {
 			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to list remote targets", "Mission remote egg list failed", err)
 			return
 		}
-		eggNames := make(map[string]string, len(eggs))
+		eggsByID := make(map[string]invasion.EggRecord, len(eggs))
 		for _, egg := range eggs {
-			eggNames[egg.ID] = egg.Name
+			eggsByID[egg.ID] = egg
 		}
 
 		targets := make([]remoteMissionTarget, 0)
 		for _, nest := range nests {
 			if nest.EggID == "" {
+				continue
+			}
+			egg, ok := eggsByID[nest.EggID]
+			if !nest.Active || !ok || !egg.Active {
 				continue
 			}
 			connected := s.EggHub.IsConnected(nest.ID)
@@ -174,7 +171,7 @@ func handleMissionRemoteTargets(s *Server) http.HandlerFunc {
 				NestID:      nest.ID,
 				NestName:    nest.Name,
 				EggID:       nest.EggID,
-				EggName:     eggNames[nest.EggID],
+				EggName:     egg.Name,
 				Connected:   connected,
 				HatchStatus: nest.HatchStatus,
 			})

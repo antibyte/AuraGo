@@ -155,20 +155,35 @@ func (h *EggHub) SendTask(nestID string, task TaskPayload) error {
 
 // SendMissionSync sends a mission definition to a specific egg and waits for acknowledgement.
 func (h *EggHub) SendMissionSync(nestID string, payload MissionSyncPayload) error {
-	return h.sendMissionMessage(nestID, MsgMissionSync, payload)
+	return h.SendMissionSyncContext(context.Background(), nestID, payload)
+}
+
+// SendMissionSyncContext sends a mission definition to a specific egg and waits for acknowledgement or context cancellation.
+func (h *EggHub) SendMissionSyncContext(ctx context.Context, nestID string, payload MissionSyncPayload) error {
+	return h.sendMissionMessageContext(ctx, nestID, MsgMissionSync, payload)
 }
 
 // SendMissionRun asks a specific egg to run a synced mission and waits for acknowledgement.
 func (h *EggHub) SendMissionRun(nestID string, payload MissionRunPayload) error {
-	return h.sendMissionMessage(nestID, MsgMissionRun, payload)
+	return h.SendMissionRunContext(context.Background(), nestID, payload)
+}
+
+// SendMissionRunContext asks a specific egg to run a synced mission and waits for acknowledgement or context cancellation.
+func (h *EggHub) SendMissionRunContext(ctx context.Context, nestID string, payload MissionRunPayload) error {
+	return h.sendMissionMessageContext(ctx, nestID, MsgMissionRun, payload)
 }
 
 // SendMissionDelete asks a specific egg to delete a synced mission and waits for acknowledgement.
 func (h *EggHub) SendMissionDelete(nestID string, payload MissionDeletePayload) error {
-	return h.sendMissionMessage(nestID, MsgMissionDelete, payload)
+	return h.SendMissionDeleteContext(context.Background(), nestID, payload)
 }
 
-func (h *EggHub) sendMissionMessage(nestID, msgType string, payload interface{}) error {
+// SendMissionDeleteContext asks a specific egg to delete a synced mission and waits for acknowledgement or context cancellation.
+func (h *EggHub) SendMissionDeleteContext(ctx context.Context, nestID string, payload MissionDeletePayload) error {
+	return h.sendMissionMessageContext(ctx, nestID, MsgMissionDelete, payload)
+}
+
+func (h *EggHub) sendMissionMessageContext(ctx context.Context, nestID, msgType string, payload interface{}) error {
 	conn := h.GetConnection(nestID)
 	if conn == nil {
 		return fmt.Errorf("no active connection for nest %s", nestID)
@@ -177,10 +192,17 @@ func (h *EggHub) sendMissionMessage(nestID, msgType string, payload interface{})
 	if err != nil {
 		return fmt.Errorf("failed to create %s message: %w", msgType, err)
 	}
-	return h.sendWithAck(conn, msg)
+	return h.sendWithAckContext(ctx, conn, msg)
 }
 
 func (h *EggHub) sendWithAck(conn *EggConnection, msg *Message) error {
+	return h.sendWithAckContext(context.Background(), conn, msg)
+}
+
+func (h *EggHub) sendWithAckContext(ctx context.Context, conn *EggConnection, msg *Message) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	ackCh := make(chan AckPayload, 1)
 	h.mu.Lock()
 	h.pendingAcks[msg.ID] = ackCh
@@ -210,6 +232,8 @@ func (h *EggHub) sendWithAck(conn *EggConnection, msg *Message) error {
 		return nil
 	case <-time.After(timeout):
 		return fmt.Errorf("timed out waiting for ack from nest %s", conn.NestID)
+	case <-ctx.Done():
+		return ctx.Err()
 	}
 }
 

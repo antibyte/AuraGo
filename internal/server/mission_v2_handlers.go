@@ -248,8 +248,15 @@ func handleMissionUpdateV2(s *Server, w http.ResponseWriter, r *http.Request, id
 }
 
 func handleMissionDeleteV2(s *Server, w http.ResponseWriter, r *http.Request, id string) {
-	if err := s.MissionManagerV2.Delete(id); err != nil {
-		jsonError(w, "Mission not found", http.StatusNotFound)
+	force := r.URL.Query().Get("force") == "true"
+	var err error
+	if force {
+		err = s.MissionManagerV2.DeleteWithOptions(id, tools.DeleteMissionOptions{ForceRemote: true})
+	} else {
+		err = s.MissionManagerV2.Delete(id)
+	}
+	if err != nil {
+		jsonError(w, err.Error(), missionErrorStatus(err))
 		return
 	}
 	broadcastMissionState(s)

@@ -2,6 +2,7 @@ package tools
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -209,6 +210,80 @@ func TestRemoteMissionPromptSnapshotIncludesCheatsheetAttachments(t *testing.T) 
 	}
 	if !strings.Contains(client.syncedPrompt, "Attached runbook body") {
 		t.Fatalf("prompt snapshot missing attachment content: %q", client.syncedPrompt)
+	}
+}
+
+func TestForceDeleteRemoteMissionSkipsRemoteClient(t *testing.T) {
+	client := &fakeRemoteMissionClient{}
+	mgr := NewMissionManagerV2(t.TempDir(), nil)
+	mgr.SetRemoteMissionClient(client)
+
+	mission := &MissionV2{
+		ID:            "mission_remote_delete",
+		Name:          "Remote",
+		Prompt:        "x",
+		ExecutionType: ExecutionManual,
+		Priority:      "medium",
+		Enabled:       true,
+		RunnerType:    MissionRunnerRemote,
+		RemoteNestID:  "nest-1",
+		RemoteEggID:   "egg-1",
+	}
+	if err := mgr.Create(mission); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	client.deleteErr = errors.New("remote nest nest-1 is not connected")
+	if err := mgr.DeleteWithOptions("mission_remote_delete", DeleteMissionOptions{ForceRemote: true}); err != nil {
+		t.Fatalf("DeleteWithOptions(force): %v", err)
+	}
+	if client.deleteCalls != 0 {
+		t.Fatalf("deleteCalls = %d, want 0 for force delete", client.deleteCalls)
+	}
+	if _, ok := mgr.Get("mission_remote_delete"); ok {
+		t.Fatal("mission still exists after force delete")
+	}
+}
+
+func TestRemoteTargetSwitchSyncsNewTargetBeforeOldCleanup(t *testing.T) {
+	client := &fakeRemoteMissionClient{}
+	mgr := NewMissionManagerV2(t.TempDir(), nil)
+	mgr.SetRemoteMissionClient(client)
+
+	mission := &MissionV2{
+		ID:            "mission_remote_move",
+		Name:          "Remote",
+		Prompt:        "x",
+		ExecutionType: ExecutionManual,
+		Priority:      "medium",
+		Enabled:       true,
+		RunnerType:    MissionRunnerRemote,
+		RemoteNestID:  "nest-old",
+		RemoteEggID:   "egg-old",
+	}
+	if err := mgr.Create(mission); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	client.deleteErr = errors.New("old target cleanup failed")
+	updated := *mission
+	updated.RemoteNestID = "nest-new"
+	updated.RemoteEggID = "egg-new"
+
+	err := mgr.Update(mission.ID, &updated)
+	if err == nil || !strings.Contains(err.Error(), "old target cleanup failed") {
+		t.Fatalf("Update error = %v, want cleanup failure", err)
+	}
+	if client.syncCalls != 2 {
+		t.Fatalf("syncCalls = %d, want 2 (create plus new target sync)", client.syncCalls)
+	}
+	got, ok := mgr.Get(mission.ID)
+	if !ok {
+		t.Fatal("mission missing after cleanup failure")
+	}
+	if got.RemoteNestID != "nest-new" || got.RemoteEggID != "egg-new" {
+		t.Fatalf("stored target = %s/%s, want nest-new/egg-new", got.RemoteNestID, got.RemoteEggID)
+	}
+	if got.RemoteSyncStatus != RemoteSyncError || !strings.Contains(got.RemoteSyncError, "old target cleanup failed") {
+		t.Fatalf("remote sync status/error = %s/%q, want cleanup error", got.RemoteSyncStatus, got.RemoteSyncError)
 	}
 }
 
