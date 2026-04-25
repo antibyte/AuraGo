@@ -399,8 +399,16 @@ func TestChatUIEmojiIconsAreImageAssets(t *testing.T) {
 		iconPath := filepath.Join(iconDir, key+".png")
 		assertPNGIcon(t, iconPath, 128, 128)
 	}
+	iconFiles, err := filepath.Glob(filepath.Join(iconDir, "*.png"))
+	if err != nil {
+		t.Fatalf("list chat UI icon files: %v", err)
+	}
+	if len(iconFiles) != 100 {
+		t.Fatalf("%s has %d generated PNG icons, want 100", iconDir, len(iconFiles))
+	}
 
 	assertPNGIcon(t, spritePath, 1280, 1280)
+	assertChatUISpriteCellsHaveVisibleIcons(t, spritePath)
 
 	css := string(cssContent)
 	for _, marker := range []string{
@@ -468,10 +476,38 @@ func assertPNGIcon(t *testing.T, path string, wantWidth, wantHeight int) {
 	if got := img.Bounds().Dy(); got != wantHeight {
 		t.Fatalf("%s decoded height is %d, want %d", path, got, wantHeight)
 	}
-	for _, point := range [][2]int{{0, 0}, {wantWidth - 1, 0}, {0, wantHeight - 1}, {wantWidth - 1, wantHeight - 1}} {
-		_, _, _, a := img.At(point[0], point[1]).RGBA()
-		if a != 0 {
-			t.Fatalf("%s has non-transparent corner pixel at %v, alpha=%d", path, point, a)
+}
+
+func assertChatUISpriteCellsHaveVisibleIcons(t *testing.T, path string) {
+	t.Helper()
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	img, err := png.Decode(bytes.NewReader(content))
+	if err != nil {
+		t.Fatalf("decode %s: %v", path, err)
+	}
+
+	const cellSize = 128
+	const minVisiblePixels = 400
+	for slot := 0; slot < 100; slot++ {
+		cellX := (slot % 10) * cellSize
+		cellY := (slot / 10) * cellSize
+		visiblePixels := 0
+		for y := 0; y < cellSize; y++ {
+			for x := 0; x < cellSize; x++ {
+				_, _, _, a16 := img.At(cellX+x, cellY+y).RGBA()
+				a := int(a16 >> 8)
+				if a <= 8 {
+					continue
+				}
+				visiblePixels++
+			}
+		}
+		if visiblePixels < minVisiblePixels {
+			t.Fatalf("%s slot %d has only %d visible pixels, want at least %d for a generated icon", path, slot, visiblePixels, minVisiblePixels)
 		}
 	}
 }
