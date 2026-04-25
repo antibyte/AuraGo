@@ -102,6 +102,29 @@ func buildRuntimeTTSConfig(cfg *config.Config, language string) tools.TTSConfig 
 	return ttsCfg
 }
 
+func isTTSConfigured(cfg *config.Config) bool {
+	if cfg == nil {
+		return false
+	}
+	provider := strings.ToLower(strings.TrimSpace(cfg.TTS.Provider))
+	if provider == "" && cfg.TTS.Piper.Enabled {
+		provider = "piper"
+	}
+
+	switch provider {
+	case "google":
+		return true
+	case "elevenlabs":
+		return strings.TrimSpace(cfg.TTS.ElevenLabs.APIKey) != ""
+	case "minimax":
+		return strings.TrimSpace(cfg.TTS.MiniMax.APIKey) != ""
+	case "piper":
+		return cfg.TTS.Piper.Enabled
+	default:
+		return false
+	}
+}
+
 func resolveChromecastTarget(req *chromecastArgs, inventoryDB *sql.DB, logger *slog.Logger) error {
 	if req == nil || req.DeviceAddr != "" {
 		return nil
@@ -282,7 +305,7 @@ func dispatchPlatform(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 			}
 
 		case "tts":
-			if !cfg.Chromecast.Enabled && cfg.TTS.Provider == "" && !cfg.TTS.Piper.Enabled {
+			if !isTTSConfigured(cfg) {
 				return `Tool Output: {"status": "error", "message": "TTS is not configured. Set tts.provider in config.yaml."}`
 			}
 			req := decodeTTSArgs(tc)

@@ -48,6 +48,37 @@ func TestBuildRuntimeTTSConfigIncludesMiniMaxAndPiper(t *testing.T) {
 	}
 }
 
+func TestIsTTSConfiguredRequiresUsableBackend(t *testing.T) {
+	if isTTSConfigured(&config.Config{}) {
+		t.Fatal("empty TTS config should not be considered configured")
+	}
+
+	googleCfg := &config.Config{}
+	googleCfg.TTS.Provider = "google"
+	if !isTTSConfigured(googleCfg) {
+		t.Fatal("google provider should be considered configured")
+	}
+
+	missingKeyCfg := &config.Config{}
+	missingKeyCfg.TTS.Provider = "minimax"
+	if isTTSConfigured(missingKeyCfg) {
+		t.Fatal("minimax without API key should not be considered configured")
+	}
+
+	minimaxCfg := &config.Config{}
+	minimaxCfg.TTS.Provider = "minimax"
+	minimaxCfg.TTS.MiniMax.APIKey = "mm-key"
+	if !isTTSConfigured(minimaxCfg) {
+		t.Fatal("minimax with API key should be considered configured")
+	}
+
+	piperCfg := &config.Config{}
+	piperCfg.TTS.Piper.Enabled = true
+	if !isTTSConfigured(piperCfg) {
+		t.Fatal("enabled Piper should be considered configured")
+	}
+}
+
 func TestResolveChromecastTargetFallsBackToDiscovery(t *testing.T) {
 	orig := discoverChromecastDevices
 	discoverChromecastDevices = func(logger *slog.Logger) ([]tools.ChromecastDevice, error) {

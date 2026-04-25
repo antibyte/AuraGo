@@ -93,6 +93,7 @@ type ToolFeatureFlags struct {
 	ImageGenerationEnabled  bool
 	MusicGenerationEnabled  bool
 	VideoGenerationEnabled  bool
+	TTSEnabled              bool
 	RemoteControlEnabled    bool
 	// Danger Zone toggles
 	AllowShell               bool

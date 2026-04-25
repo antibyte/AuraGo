@@ -16,6 +16,10 @@ import (
 // bareToolCallTagRe matches bare <tool_call>, </tool_call>, <tool_call/>, or
 // minimax:tool_call markers that have no JSON body following them.
 var bareToolCallTagRe = regexp.MustCompile(`(?i)</?tool_call/?>|minimax:tool_call`)
+var ttsBlockRe = regexp.MustCompile(`(?is)<tts\b[^>]*>(.*?)</tts>`)
+var ttsTagRe = regexp.MustCompile(`(?i)</?tts\b[^>]*>`)
+var trailingLineSpaceRe = regexp.MustCompile(`[ \t]+\n`)
+var excessiveBlankLinesRe = regexp.MustCompile(`\n{3,}`)
 
 type ToolCallParseSource string
 
@@ -57,7 +61,7 @@ func parseToolResponse(resp openai.ChatCompletionResponse, logger *slog.Logger, 
 
 	msg := resp.Choices[0].Message
 	result.Content = msg.Content
-	sanitized := strings.TrimSpace(security.StripThinkingTags(msg.Content))
+	sanitized := strings.TrimSpace(stripTTSMarkup(security.StripThinkingTags(msg.Content)))
 	// Detect explicit completion signal from LLM. Strip the tag so it is never
 	// shown to the user or passed to the announcement detector as text.
 	if strings.Contains(sanitized, "<done/>") {
@@ -138,6 +142,17 @@ func parseToolResponse(resp openai.ChatCompletionResponse, logger *slog.Logger, 
 	}
 
 	return result
+}
+
+func stripTTSMarkup(content string) string {
+	if content == "" {
+		return ""
+	}
+	cleaned := ttsBlockRe.ReplaceAllString(content, "$1")
+	cleaned = ttsTagRe.ReplaceAllString(cleaned, "")
+	cleaned = trailingLineSpaceRe.ReplaceAllString(cleaned, "\n")
+	cleaned = excessiveBlankLinesRe.ReplaceAllString(cleaned, "\n\n")
+	return strings.TrimSpace(cleaned)
 }
 
 func isUnprocessableProviderError(err error) bool {

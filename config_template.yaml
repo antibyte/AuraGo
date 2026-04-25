@@ -517,7 +517,7 @@ tts:
         image: rhasspy/wyoming-piper:latest
         speaker_id: 0
         voice: de_DE-thorsten-high
-    provider: google
+    provider: ""
 media_registry:
     enabled: true
 vision:

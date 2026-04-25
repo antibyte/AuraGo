@@ -8,6 +8,7 @@ function containsLeakedToolMarkup(text) {
         /(?:^|\n)\s*minimax:tool_call\s*(?:\n|$)/i,
         /<invoke\b[^>]*>/i,
         /<parameter\b[^>]*>/i,
+        /<\/?tts\b[^>]*>/i,
         /^\[Tool Output\]/im,
         /^Tool Output:/im,
         /\[Suggested next step\]/i,
@@ -27,6 +28,8 @@ function stripLeakedToolMarkup(text) {
         .replace(/<invoke\b[^>]*>[\s\S]*?<\/invoke>/gi, '')
         .replace(/<parameter\b[^>]*>[\s\S]*?<\/parameter>/gi, '')
         .replace(/<\/?(invoke|parameter)\b[^>]*>/gi, '')
+        .replace(/<tts\b[^>]*>([\s\S]*?)<\/tts>/gi, (_, inner) => inner.trim())
+        .replace(/<\/?tts\b[^>]*>/gi, '')
         .replace(/<done\s*\/?>/gi, '')
         .replace(/```(?:json)?\s*\{\s*"action"[\s\S]*?\}\s*```/gi, '')
         .replace(/^```(?:json)?\n\{[\s\S]*?\}\n```$/gim, '')

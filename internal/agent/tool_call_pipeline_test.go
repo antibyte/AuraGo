@@ -97,6 +97,25 @@ func TestParseToolResponseDetectsDoneTag(t *testing.T) {
 	}
 }
 
+func TestParseToolResponseStripsTTSBlocks(t *testing.T) {
+	resp := openai.ChatCompletionResponse{
+		Choices: []openai.ChatCompletionChoice{{
+			Message: openai.ChatCompletionMessage{
+				Content: "Ehrlich gesagt habe ich keine Wetterdaten.\n\n<tts>\n\n</tts>",
+			},
+		}},
+	}
+
+	parsed := parseToolResponse(resp, nil, AgentTelemetryScope{})
+
+	if strings.Contains(strings.ToLower(parsed.SanitizedContent), "<tts") {
+		t.Fatalf("expected TTS tags to be stripped, got %q", parsed.SanitizedContent)
+	}
+	if !strings.Contains(parsed.SanitizedContent, "keine Wetterdaten") {
+		t.Fatalf("expected visible response to be preserved, got %q", parsed.SanitizedContent)
+	}
+}
+
 func TestParseToolResponseNoTagIsNotFinished(t *testing.T) {
 	resp := openai.ChatCompletionResponse{
 		Choices: []openai.ChatCompletionChoice{{

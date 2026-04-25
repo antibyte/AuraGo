@@ -77,17 +77,18 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 		))
 	}
 
-	// TTS — synthesize speech audio. Always shown (runtime checks if TTS is actually configured).
-	tools = append(tools, tool("tts",
-		"Convert text to speech (TTS). The generated audio will AUTOMATICALLY be sent to the user and played in the chat UI! "+
-			"Supports ElevenLabs, MiniMax, and Piper TTS providers. "+
-			"When VOICE MODE is active, YOU MUST USE THIS TOOL to reply to the user instead of typing a long text response. "+
-			"Put your conversational output in the 'text' argument.",
-		schema(map[string]interface{}{
-			"text":     prop("string", "Text to synthesize into speech. Can be a sentence, paragraph, or any text content."),
-			"language": prop("string", "Language code for the speech (e.g. 'en', 'de', 'es', 'fr'). Defaults to the configured TTS language."),
-		}, "text"),
-	))
+	if ff.TTSEnabled {
+		tools = append(tools, tool("tts",
+			"Convert text to speech (TTS). The generated audio will AUTOMATICALLY be sent to the user and played in the chat UI! "+
+				"Supports Google, ElevenLabs, MiniMax, and Piper TTS providers. "+
+				"When VOICE MODE is active, YOU MUST USE THIS TOOL to reply to the user instead of typing a long text response. "+
+				"Put your conversational output in the 'text' argument.",
+			schema(map[string]interface{}{
+				"text":     prop("string", "Text to synthesize into speech. Can be a sentence, paragraph, or any text content."),
+				"language": prop("string", "Language code for the speech (e.g. 'en', 'de', 'es', 'fr'). Defaults to the configured TTS language."),
+			}, "text"),
+		))
+	}
 
 	if ff.DockerEnabled {
 		tools = append(tools, tool("docker",
