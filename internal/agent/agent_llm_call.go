@@ -70,6 +70,7 @@ func handleStreamingResponse(
 	const minimaxToolCallPrefix = "minimax:tool_call"
 	const xmlToolCallPrefix = "<tool_call"      // matches <tool_call> and <tool_call\n> variants
 	const actionTagPrefix = "<action>"          // bare <action>toolname</action> emitted by some models
+	const ttsTagPrefix = "<tts"                 // proprietary TTS block emitted by some models instead of native tools
 	const toolResponsePrefix = "<tool_response" // model hallucinating a tool response XML block
 	const bracketToolCallPrefix = "[tool_call]" // MiniMax bracket format [TOOL_CALL]{...}[/TOOL_CALL]
 	// holdLen must cover the longest tag prefix so that it is never split across
@@ -206,7 +207,7 @@ func handleStreamingResponse(
 					// Check combined toSend+holdBuffer for prefixes so that a prefix
 					// straddling the send/hold boundary is still detected and suppressed.
 					combined := strings.ToLower(toSend + doneTagStreamBuf)
-					for _, prefix := range []string{minimaxToolCallPrefix, xmlToolCallPrefix, actionTagPrefix, toolResponsePrefix, bracketToolCallPrefix} {
+					for _, prefix := range []string{minimaxToolCallPrefix, xmlToolCallPrefix, actionTagPrefix, ttsTagPrefix, toolResponsePrefix, bracketToolCallPrefix} {
 						if idx := strings.Index(combined, prefix); idx != -1 {
 							if idx < len(toSend) {
 								toSend = toSend[:idx]
@@ -243,6 +244,9 @@ func handleStreamingResponse(
 			remaining = remaining[:idx]
 		}
 		if idx := strings.Index(strings.ToLower(remaining), actionTagPrefix); idx != -1 {
+			remaining = remaining[:idx]
+		}
+		if idx := strings.Index(strings.ToLower(remaining), ttsTagPrefix); idx != -1 {
 			remaining = remaining[:idx]
 		}
 		if idx := strings.Index(strings.ToLower(remaining), toolResponsePrefix); idx != -1 {

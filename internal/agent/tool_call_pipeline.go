@@ -2,6 +2,7 @@ package agent
 
 import (
 	"fmt"
+	"html"
 	"log/slog"
 	"reflect"
 	"regexp"
@@ -18,6 +19,9 @@ import (
 var bareToolCallTagRe = regexp.MustCompile(`(?i)</?tool_call/?>|minimax:tool_call`)
 var ttsBlockRe = regexp.MustCompile(`(?is)<tts\b[^>]*>(.*?)</tts>`)
 var ttsTagRe = regexp.MustCompile(`(?i)</?tts\b[^>]*>`)
+var ttsTextParamRe = regexp.MustCompile(`(?is)<parameter\b[^>]*\bname\s*=\s*["']text["'][^>]*>(.*?)</parameter>`)
+var ttsLanguageParamRe = regexp.MustCompile(`(?is)<parameter\b[^>]*\bname\s*=\s*["']language["'][^>]*>(.*?)</parameter>`)
+var parameterTagRe = regexp.MustCompile(`(?is)</?parameter\b[^>]*>`)
 var trailingLineSpaceRe = regexp.MustCompile(`[ \t]+\n`)
 var excessiveBlankLinesRe = regexp.MustCompile(`\n{3,}`)
 
@@ -101,6 +105,13 @@ func parseToolResponse(resp openai.ChatCompletionResponse, logger *slog.Logger, 
 		return result
 	}
 
+	if ttsTC, ok := parseTTSTagToolCall(result.Content); ok {
+		result.ToolCall = ttsTC
+		result.ParseSource = ToolCallParseSourceReasoningCleanJSON
+		RecordToolParseSourceForScope(scope, result.ParseSource)
+		return result
+	}
+
 	// Fast path: detect [TOOL_CALL] bracket format on raw content before sanitization.
 	// StripThinkingTags may remove [/TOOL_CALL] closing tags via hallucinatedRagRe,
 	// which breaks bracket detection on the sanitized content path. Parse the raw
@@ -142,6 +153,50 @@ func parseToolResponse(resp openai.ChatCompletionResponse, logger *slog.Logger, 
 	}
 
 	return result
+}
+
+func parseTTSTagToolCall(content string) (ToolCall, bool) {
+	match := ttsBlockRe.FindStringSubmatch(content)
+	if len(match) < 2 {
+		return ToolCall{}, false
+	}
+
+	body := strings.TrimSpace(match[1])
+	if body == "" {
+		return ToolCall{}, false
+	}
+
+	text := body
+	if textMatch := ttsTextParamRe.FindStringSubmatch(body); len(textMatch) >= 2 {
+		text = textMatch[1]
+	} else {
+		text = parameterTagRe.ReplaceAllString(text, "")
+	}
+	text = strings.TrimSpace(html.UnescapeString(text))
+	if text == "" {
+		return ToolCall{}, false
+	}
+
+	language := ""
+	if languageMatch := ttsLanguageParamRe.FindStringSubmatch(body); len(languageMatch) >= 2 {
+		language = strings.TrimSpace(html.UnescapeString(languageMatch[1]))
+	}
+
+	params := map[string]interface{}{"text": text}
+	if language != "" {
+		params["language"] = language
+	}
+
+	return ToolCall{
+		Action:              "tts",
+		Text:                text,
+		Content:             text,
+		Language:            language,
+		Params:              params,
+		IsTool:              true,
+		XMLFallbackDetected: true,
+		RawJSON:             match[0],
+	}, true
 }
 
 func stripTTSMarkup(content string) string {

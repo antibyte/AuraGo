@@ -116,6 +116,34 @@ func TestParseToolResponseStripsTTSBlocks(t *testing.T) {
 	}
 }
 
+func TestParseToolResponseParsesTTSTagToolCall(t *testing.T) {
+	resp := openai.ChatCompletionResponse{
+		Choices: []openai.ChatCompletionChoice{{
+			Message: openai.ChatCompletionMessage{
+				Content: "Klar, ich teste das.\n\n<tts>\n<parameter name=\"text\">Hallo! Ich teste gerade die Sprachausgabe.</parameter>\n<parameter name=\"language\">de</parameter>\n</tts>",
+			},
+		}},
+	}
+
+	parsed := parseToolResponse(resp, nil, AgentTelemetryScope{})
+
+	if !parsed.ToolCall.IsTool {
+		t.Fatal("expected TTS tag to be parsed as a tool call")
+	}
+	if parsed.ToolCall.Action != "tts" {
+		t.Fatalf("Action = %q, want tts", parsed.ToolCall.Action)
+	}
+	if parsed.ToolCall.Text != "Hallo! Ich teste gerade die Sprachausgabe." {
+		t.Fatalf("Text = %q", parsed.ToolCall.Text)
+	}
+	if parsed.ToolCall.Language != "de" {
+		t.Fatalf("Language = %q, want de", parsed.ToolCall.Language)
+	}
+	if !parsed.ToolCall.XMLFallbackDetected {
+		t.Fatal("expected XMLFallbackDetected=true")
+	}
+}
+
 func TestParseToolResponseNoTagIsNotFinished(t *testing.T) {
 	resp := openai.ChatCompletionResponse{
 		Choices: []openai.ChatCompletionChoice{{
