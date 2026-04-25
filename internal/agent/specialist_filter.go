@@ -63,7 +63,9 @@ func checkCoderRestriction(action string) string {
 	return ""
 }
 
-// checkDesignerRestriction blocks tools not relevant for design.
+// checkDesignerRestriction blocks operational tools not relevant for design.
+// Designers can create assets and design guidance, but direct homepage project
+// management/deployment stays with the main agent or coder specialist.
 // Allowed: image_generation, filesystem, execute_skill, query_memory, knowledge_graph (read), api_request
 func checkDesignerRestriction(action string) string {
 	switch action {
@@ -74,7 +76,7 @@ func checkDesignerRestriction(action string) string {
 	case "remote_control":
 		return `Tool Output: {"status": "error", "message": "Designer specialist cannot use remote control."}`
 	case "homepage":
-		return `Tool Output: {"status": "error", "message": "Designer specialist cannot manage websites directly."}`
+		return `Tool Output: {"status": "error", "message": "Designer specialist cannot manage or deploy homepage projects directly. Provide design assets or guidance for the main agent or coder specialist to implement."}`
 	}
 	return ""
 }

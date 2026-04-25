@@ -41,6 +41,29 @@ func TestExtractSpecialistRole(t *testing.T) {
 	}
 }
 
+func TestIsCoAgentSession(t *testing.T) {
+	tests := []struct {
+		name      string
+		sessionID string
+		want      bool
+	}{
+		{"generic co-agent", "coagent-5", true},
+		{"specialist", "specialist-coder-23", true},
+		{"a2a", "a2a-task-123", true},
+		{"main", "default", false},
+		{"empty", "", false},
+		{"partial prefix", "not-a2a-task", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := isCoAgentSession(tt.sessionID); got != tt.want {
+				t.Fatalf("isCoAgentSession(%q) = %v, want %v", tt.sessionID, got, tt.want)
+			}
+		})
+	}
+}
+
 // ══════════════════════════════════════════════
 // checkSpecialistToolRestriction
 // ══════════════════════════════════════════════
@@ -144,6 +167,16 @@ func TestDispatchInnerBlocksCoAgentSensitiveAliases(t *testing.T) {
 			tc:        ToolCall{Action: "journal", Operation: "create"},
 			wantParts: []string{"error", "cannot modify journal entries"},
 		},
+		{
+			name:      "blocks mission execution",
+			tc:        ToolCall{Action: "manage_missions", Operation: "run"},
+			wantParts: []string{"error", "cannot modify or run missions"},
+		},
+		{
+			name:      "blocks mission creation",
+			tc:        ToolCall{Action: "manage_missions", Operation: "create"},
+			wantParts: []string{"error", "cannot modify or run missions"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -153,6 +186,71 @@ func TestDispatchInnerBlocksCoAgentSensitiveAliases(t *testing.T) {
 				if !strings.Contains(strings.ToLower(got), strings.ToLower(want)) {
 					t.Fatalf("dispatchInner() = %q, want substring %q", got, want)
 				}
+			}
+		})
+	}
+}
+
+func TestDispatchInnerBlocksA2ASessionSensitiveTools(t *testing.T) {
+	tests := []struct {
+		name      string
+		tc        ToolCall
+		wantParts []string
+	}{
+		{
+			name:      "blocks secrets vault access",
+			tc:        ToolCall{Action: "secrets_vault", Operation: "get", Key: "api_key"},
+			wantParts: []string{"error", "cannot access the secrets vault"},
+		},
+		{
+			name:      "blocks memory writes",
+			tc:        ToolCall{Action: "manage_memory", Operation: "write"},
+			wantParts: []string{"error", "cannot modify memory"},
+		},
+		{
+			name:      "blocks nested co-agent spawning",
+			tc:        ToolCall{Action: "co_agent", Operation: "spawn"},
+			wantParts: []string{"error", "cannot spawn sub-agents"},
+		},
+		{
+			name:      "blocks cron scheduler",
+			tc:        ToolCall{Action: "cron_scheduler", Operation: "create"},
+			wantParts: []string{"error", "cannot manage cron jobs"},
+		},
+		{
+			name:      "blocks mission run",
+			tc:        ToolCall{Action: "manage_missions", Operation: "run_now"},
+			wantParts: []string{"error", "cannot modify or run missions"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := dispatchInner(context.Background(), tt.tc, &DispatchContext{SessionID: "a2a-task-1", IsCoAgent: false})
+			for _, want := range tt.wantParts {
+				if !strings.Contains(strings.ToLower(got), strings.ToLower(want)) {
+					t.Fatalf("dispatchInner() = %q, want substring %q", got, want)
+				}
+			}
+		})
+	}
+}
+
+func TestCoAgentMissionReadOperationPolicy(t *testing.T) {
+	allowed := []string{"", "list", "get", "status"}
+	for _, op := range allowed {
+		t.Run("allows_"+op, func(t *testing.T) {
+			if !isCoAgentMissionReadOperation(op) {
+				t.Fatalf("isCoAgentMissionReadOperation(%q) = false, want true", op)
+			}
+		})
+	}
+
+	blocked := []string{"create", "add", "update", "delete", "remove", "run", "run_now", "enable", "disable"}
+	for _, op := range blocked {
+		t.Run("blocks_"+op, func(t *testing.T) {
+			if isCoAgentMissionReadOperation(op) {
+				t.Fatalf("isCoAgentMissionReadOperation(%q) = true, want false", op)
 			}
 		})
 	}

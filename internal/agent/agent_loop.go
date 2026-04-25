@@ -1291,7 +1291,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				actualModel = req.Model
 			}
 			budgetCategory := "chat"
-			if runCfg.IsCoAgent || strings.HasPrefix(sessionID, "coagent-") || strings.HasPrefix(sessionID, "specialist-") {
+			if runCfg.IsCoAgent || isCoAgentSession(sessionID) {
 				budgetCategory = "coagent"
 			}
 			crossedWarning := budgetTracker.RecordForCategory(budgetCategory, actualModel, promptTokens, completionTokens)

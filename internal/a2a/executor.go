@@ -111,24 +111,25 @@ func (e *Executor) Execute(ctx context.Context, execCtx *a2asrv.ExecutorContext)
 		}
 
 		runCfg := agent.RunConfig{
-			Config:          &a2aCfg,
-			Logger:          logger,
-			LLMClient:       a2aClient,
-			ShortTermMem:    e.deps.ShortTermMem,
-			HistoryManager:  historyMgr,
-			LongTermMem:     e.deps.LongTermMem,
-			KG:              e.deps.KG,
-			InventoryDB:     e.deps.InventoryDB,
-			Vault:           e.deps.Vault,
-			Registry:        e.deps.Registry,
-			Manifest:        e.deps.Manifest,
-			CronManager:     nil, // A2A agents cannot manage cron
+			Config:             &a2aCfg,
+			Logger:             logger,
+			LLMClient:          a2aClient,
+			ShortTermMem:       e.deps.ShortTermMem,
+			HistoryManager:     historyMgr,
+			LongTermMem:        e.deps.LongTermMem,
+			KG:                 e.deps.KG,
+			InventoryDB:        e.deps.InventoryDB,
+			Vault:              e.deps.Vault,
+			Registry:           e.deps.Registry,
+			Manifest:           e.deps.Manifest,
+			CronManager:        nil, // A2A agents cannot manage cron
 			CoAgentRegistry:    nil, // A2A agents cannot spawn co-agents
 			BudgetTracker:      e.deps.Budget,
 			PreparationService: nil,
 			SessionID:          sessionID,
-			IsMaintenance:   false,
-			MessageSource:   "a2a",
+			IsMaintenance:      false,
+			IsCoAgent:          true,
+			MessageSource:      "a2a",
 		}
 
 		broker := &agent.NoopBroker{}
@@ -210,5 +211,6 @@ func buildA2ASystemPrompt(cfg *config.Config) string {
 	return fmt.Sprintf(`You are %s, an AI agent responding to an Agent-to-Agent (A2A) protocol request.
 You are being invoked by another AI agent or system. Respond concisely and precisely.
 Focus on completing the requested task and returning structured, useful results.
-Do not include pleasantries or conversational filler.`, name)
+Do not include pleasantries or conversational filler.
+Runtime policy restricts A2A tool use: no secrets access, no memory or knowledge mutations, no nested agents, no follow-ups, no cron access, and no mission creation or execution.`, name)
 }

@@ -589,11 +589,11 @@ type ToolCall struct {
 	Status    string `json:"status,omitempty"`     // project status: active, archived, maintenance
 	Notes     string `json:"notes,omitempty"`      // additional notes
 	// Document Creator fields
-	PaperSize   string `json:"paper_size,omitempty"`   // A4, A3, Letter, Legal
-	Landscape   bool   `json:"landscape,omitempty"`    // landscape orientation
+	PaperSize   string       `json:"paper_size,omitempty"`   // A4, A3, Letter, Legal
+	Landscape   bool         `json:"landscape,omitempty"`    // landscape orientation
 	Sections    StringOrJSON `json:"sections,omitempty"`     // JSON array of document sections for Maroto
 	SourceFiles StringOrJSON `json:"source_files,omitempty"` // JSON array of file paths for merge/convert
-	Filename    string `json:"filename,omitempty"`     // output filename without extension
+	Filename    string       `json:"filename,omitempty"`     // output filename without extension
 	// Archive fields
 	Format string `json:"format,omitempty"` // zip or tar.gz
 	// DNS Lookup fields
@@ -631,7 +631,7 @@ type ToolCall struct {
 	Interval  string `json:"interval,omitempty"`   // monitoring interval description
 	// Form Automation fields
 	Fields        StringOrJSON `json:"fields,omitempty"`         // JSON map of CSS selector → value
-	ScreenshotDir string `json:"screenshot_dir,omitempty"` // directory for post-action screenshot
+	ScreenshotDir string       `json:"screenshot_dir,omitempty"` // directory for post-action screenshot
 	// UPnP Scan fields
 	SearchTarget string `json:"search_target,omitempty"` // UPnP search target (e.g. "ssdp:all")
 	TimeoutSecs  int    `json:"timeout_secs,omitempty"`  // discovery timeout in seconds
@@ -770,7 +770,7 @@ func dispatchInner(ctx context.Context, tc ToolCall, dc *DispatchContext) string
 
 	// Co-Agent blacklist: co-agents cannot access secrets,
 	// mutate memory-like stores, or orchestrate additional autonomous work.
-	isCoAgent := dc.IsCoAgent || strings.HasPrefix(sessionID, "coagent-") || strings.HasPrefix(sessionID, "specialist-")
+	isCoAgent := dc.IsCoAgent || isCoAgentSession(sessionID)
 	if isCoAgent {
 		switch tc.Action {
 		case "manage_memory", "core_memory":
@@ -796,6 +796,10 @@ func dispatchInner(ctx context.Context, tc ToolCall, dc *DispatchContext) string
 		case "manage_plan":
 			if tc.Operation != "list" && tc.Operation != "get" {
 				return `Tool Output: {"status": "error", "message": "Co-Agents cannot modify plans. Only list and get are allowed."}`
+			}
+		case "manage_missions":
+			if !isCoAgentMissionReadOperation(tc.Operation) {
+				return `Tool Output: {"status": "error", "message": "Co-Agents cannot modify or run missions. Only list, get, and status are allowed."}`
 			}
 		case "manage_appointments":
 			if tc.Operation != "list" && tc.Operation != "get" {
@@ -927,4 +931,13 @@ func dispatchInner(ctx context.Context, tc ToolCall, dc *DispatchContext) string
 		hint = " Use execute_shell with the git command in the 'command' field."
 	}
 	return fmt.Sprintf("Tool Output: ERROR unknown action '%s'.%s Available actions are listed in the tool schema.", tc.Action, hint)
+}
+
+func isCoAgentMissionReadOperation(operation string) bool {
+	switch operation {
+	case "", "list", "get", "status":
+		return true
+	default:
+		return false
+	}
 }

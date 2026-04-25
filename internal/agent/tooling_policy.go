@@ -511,5 +511,7 @@ func buildToolFeatureFlags(runCfg RunConfig, policy ToolingPolicy) ToolFeatureFl
 }
 
 func isCoAgentSession(sessionID string) bool {
-	return strings.HasPrefix(sessionID, "coagent-") || strings.HasPrefix(sessionID, "specialist-")
+	return strings.HasPrefix(sessionID, "coagent-") ||
+		strings.HasPrefix(sessionID, "specialist-") ||
+		strings.HasPrefix(sessionID, "a2a-")
 }
