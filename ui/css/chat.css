@@ -218,7 +218,7 @@
                 --chat-robot-icon-start: 34%;
                 --chat-robot-icon-rise-mid: 24px;
                 --chat-robot-icon-rise-end: 52px;
-                --chat-robot-icon-duration: 2.2s;
+                --chat-robot-icon-duration: 3.2s;
                 opacity: 0.92;
             }
 
@@ -572,7 +572,7 @@
             --chat-robot-icon-start: 24%;
             --chat-robot-icon-rise-mid: 40px;
             --chat-robot-icon-rise-end: 104px;
-            --chat-robot-icon-duration: 2.2s;
+            --chat-robot-icon-duration: 3.2s;
             position: fixed;
             left: clamp(0.75rem, 2.1vw, 1.5rem);
             bottom: calc(var(--chat-robot-footer-offset) + env(safe-area-inset-bottom, 0px));

@@ -297,7 +297,7 @@ func TestChatToolIconPngSpriteCatalogRemainsWired(t *testing.T) {
 		"@keyframes toolBubbleShell",
 		"@keyframes toolBubblePop",
 		"scale(1.72)",
-		"--chat-robot-icon-duration: 2.2s;",
+		"--chat-robot-icon-duration: 3.2s;",
 	} {
 		if !strings.Contains(css, marker) {
 			t.Fatalf("%s is missing icon CSS marker %q", cssPath, marker)
