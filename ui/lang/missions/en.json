@@ -267,5 +267,19 @@
   "missions.prep_toast_ok": "Mission prepared successfully",
   "missions.prep_toast_error": "Preparation failed",
   "missions.prep_toast_invalidated": "Preparation invalidated",
-  "missions.prep_view_title": "Prepared Context"
+  "missions.prep_view_title": "Prepared Context",
+  "missions.form_runner_label": "Run Location",
+  "missions.form_runner_local_label": "Local",
+  "missions.form_runner_local_desc": "Run on this AuraGo instance.",
+  "missions.form_runner_remote_label": "Remote Egg",
+  "missions.form_runner_remote_desc": "Deliver and run on an Invasion egg.",
+  "missions.form_remote_target_label": "Remote Egg",
+  "missions.form_remote_target_loading": "Loading eggs...",
+  "missions.form_remote_target_hint": "Only connected deployed eggs can receive missions.",
+  "missions.form_remote_target_none": "No connected eggs available",
+  "missions.form_remote_target_placeholder": "Select an egg...",
+  "missions.form_remote_target_unavailable": "Remote targets unavailable",
+  "missions.toast_select_remote_target": "Please select a remote egg",
+  "missions.trigger_remote_disabled_title": "This trigger is not available for remote missions",
+  "missions.card_remote_badge": "Remote"
 }

@@ -152,6 +152,29 @@
                     </div>
 
                     <div class="form-group">
+                        <label data-i18n="missions.form_runner_label">Run Location</label>
+                        <div class="mission-runner-selector">
+                            <label class="mission-runner-option" data-runner-type="local">
+                                <input type="radio" name="runner-type" value="local" checked>
+                                <span class="runner-label" data-i18n="missions.form_runner_local_label">Local</span>
+                                <span class="runner-desc" data-i18n="missions.form_runner_local_desc">Run on this AuraGo instance.</span>
+                            </label>
+                            <label class="mission-runner-option" data-runner-type="remote">
+                                <input type="radio" name="runner-type" value="remote">
+                                <span class="runner-label" data-i18n="missions.form_runner_remote_label">Remote Egg</span>
+                                <span class="runner-desc" data-i18n="missions.form_runner_remote_desc">Deliver and run on an Invasion egg.</span>
+                            </label>
+                        </div>
+                        <div id="remote-target-group" class="remote-target-group is-hidden">
+                            <label for="remote-target-select" data-i18n="missions.form_remote_target_label">Remote Egg</label>
+                            <select id="remote-target-select" class="form-select">
+                                <option value="" data-i18n="missions.form_remote_target_loading">Loading eggs...</option>
+                            </select>
+                            <div class="form-hint" data-i18n="missions.form_remote_target_hint">Only connected deployed eggs can receive missions.</div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
                         <label for="mission-priority" data-i18n="missions.form_priority_label">Priority</label>
                         <select id="mission-priority" class="form-select">
                             <option value="low" data-i18n="missions.form_priority_low">Low</option>

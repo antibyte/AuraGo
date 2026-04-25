@@ -267,5 +267,19 @@
   "missions.prep_toast_ok": "Uppdrag förberett",
   "missions.prep_toast_error": "Förberedelse misslyckades",
   "missions.prep_toast_invalidated": "Förberedelse ogiltigförklarad",
-  "missions.prep_view_title": "Förberett sammanhang"
+  "missions.prep_view_title": "Förberett sammanhang",
+  "missions.form_runner_label": "Körplats",
+  "missions.form_runner_local_label": "Lokalt",
+  "missions.form_runner_local_desc": "Kör på denna AuraGo-instans.",
+  "missions.form_runner_remote_label": "Fjärr-egg",
+  "missions.form_runner_remote_desc": "Skicka och kör på ett Invasion-egg.",
+  "missions.form_remote_target_label": "Fjärr-egg",
+  "missions.form_remote_target_loading": "Läser in eggs...",
+  "missions.form_remote_target_hint": "Endast anslutna deployade eggs kan ta emot uppdrag.",
+  "missions.form_remote_target_none": "Inga anslutna eggs tillgängliga",
+  "missions.form_remote_target_placeholder": "Välj ett egg...",
+  "missions.form_remote_target_unavailable": "Fjärrmål inte tillgängliga",
+  "missions.toast_select_remote_target": "Välj ett fjärr-egg",
+  "missions.trigger_remote_disabled_title": "Denna trigger är inte tillgänglig för fjärruppdrag",
+  "missions.card_remote_badge": "Fjärr"
 }

@@ -267,5 +267,19 @@
   "missions.prep_toast_ok": "Misja przygotowana pomyślnie",
   "missions.prep_toast_error": "Przygotowanie nie powiodło się",
   "missions.prep_toast_invalidated": "Przygotowanie unieważnione",
-  "missions.prep_view_title": "Przygotowany kontekst"
+  "missions.prep_view_title": "Przygotowany kontekst",
+  "missions.form_runner_label": "Miejsce wykonania",
+  "missions.form_runner_local_label": "Lokalnie",
+  "missions.form_runner_local_desc": "Uruchom na tej instancji AuraGo.",
+  "missions.form_runner_remote_label": "Zdalny egg",
+  "missions.form_runner_remote_desc": "Wyślij i uruchom na egg Invasion.",
+  "missions.form_remote_target_label": "Zdalny egg",
+  "missions.form_remote_target_loading": "Ładowanie eggów...",
+  "missions.form_remote_target_hint": "Tylko połączone wdrożone eggi mogą odbierać misje.",
+  "missions.form_remote_target_none": "Brak połączonych eggów",
+  "missions.form_remote_target_placeholder": "Wybierz egg...",
+  "missions.form_remote_target_unavailable": "Cele zdalne niedostępne",
+  "missions.toast_select_remote_target": "Wybierz zdalny egg",
+  "missions.trigger_remote_disabled_title": "Ten wyzwalacz nie jest dostępny dla misji zdalnych",
+  "missions.card_remote_badge": "Zdalnie"
 }

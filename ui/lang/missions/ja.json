@@ -267,5 +267,19 @@
   "missions.prep_toast_ok": "ミッションの準備が完了",
   "missions.prep_toast_error": "準備失敗",
   "missions.prep_toast_invalidated": "準備が無効化されました",
-  "missions.prep_view_title": "準備済みコンテキスト"
+  "missions.prep_view_title": "準備済みコンテキスト",
+  "missions.form_runner_label": "実行場所",
+  "missions.form_runner_local_label": "ローカル",
+  "missions.form_runner_local_desc": "この AuraGo インスタンスで実行します。",
+  "missions.form_runner_remote_label": "リモート egg",
+  "missions.form_runner_remote_desc": "Invasion egg に配信して実行します。",
+  "missions.form_remote_target_label": "リモート egg",
+  "missions.form_remote_target_loading": "Egg を読み込み中...",
+  "missions.form_remote_target_hint": "接続済みでデプロイ済みの egg のみミッションを受信できます。",
+  "missions.form_remote_target_none": "接続済み egg はありません",
+  "missions.form_remote_target_placeholder": "Egg を選択...",
+  "missions.form_remote_target_unavailable": "リモートターゲットを利用できません",
+  "missions.toast_select_remote_target": "リモート egg を選択してください",
+  "missions.trigger_remote_disabled_title": "このトリガーはリモートミッションでは利用できません",
+  "missions.card_remote_badge": "リモート"
 }

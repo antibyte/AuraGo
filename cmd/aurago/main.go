@@ -805,6 +805,7 @@ func main() {
 	}
 
 	// â”€â”€ Egg Mode: start WebSocket client to master â”€â”€
+	var eggMissionResultSink func(result bridge.MissionResultPayload) error
 	if cfg.EggMode.Enabled {
 		appLog.Info("Egg mode enabled -- connecting to master", "master_url", cfg.EggMode.MasterURL)
 		eggClient := bridge.NewEggClient(
@@ -816,6 +817,33 @@ func main() {
 			appLog,
 		)
 		eggClient.TLSSkipVerify = cfg.EggMode.TLSSkipVerify
+		eggMissionAPI := func(method, path string, body interface{}) error {
+			var reader io.Reader
+			if body != nil {
+				payload, err := json.Marshal(body)
+				if err != nil {
+					return err
+				}
+				reader = bytes.NewBuffer(payload)
+			}
+			req, err := http.NewRequest(method, server.InternalAPIURL(cfg)+path, reader)
+			if err != nil {
+				return err
+			}
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("X-Internal-FollowUp", "true")
+			req.Header.Set("X-Internal-Token", loopbackToken)
+			resp, err := cronHTTPClient.Do(req)
+			if err != nil {
+				return err
+			}
+			defer resp.Body.Close()
+			if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+				return nil
+			}
+			respBody, _ := io.ReadAll(resp.Body)
+			return fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(respBody))
+		}
 		eggClient.OnTask = func(task bridge.TaskPayload) {
 			appLog.Info("Task received from master", "task_id", task.TaskID, "desc", task.Description)
 			// Execute task via loopback to local agent API
@@ -859,6 +887,53 @@ func main() {
 			if err := eggClient.SendResult(result); err != nil {
 				appLog.Error("Failed to send task result to master", "error", err)
 			}
+		}
+		eggClient.OnMissionSync = func(payload bridge.MissionSyncPayload) error {
+			appLog.Info("Mission sync received from master", "mission_id", payload.MissionID, "revision", payload.Revision)
+			var triggerConfig *tools.TriggerConfig
+			if len(payload.TriggerConfig) > 0 {
+				var cfg tools.TriggerConfig
+				if err := json.Unmarshal(payload.TriggerConfig, &cfg); err != nil {
+					return fmt.Errorf("invalid trigger config: %w", err)
+				}
+				triggerConfig = &cfg
+			}
+			mission := tools.MissionV2{
+				ID:            payload.MissionID,
+				Name:          payload.Name,
+				Prompt:        payload.PromptSnapshot,
+				ExecutionType: tools.ExecutionType(payload.ExecutionType),
+				Schedule:      payload.Schedule,
+				TriggerType:   tools.TriggerType(payload.TriggerType),
+				TriggerConfig: triggerConfig,
+				Priority:      payload.Priority,
+				Enabled:       payload.Enabled,
+				Locked:        false,
+			}
+			if mission.Priority == "" {
+				mission.Priority = "medium"
+			}
+			path := "/api/missions/v2"
+			if err := eggMissionAPI(http.MethodGet, "/api/missions/v2/"+payload.MissionID, nil); err == nil {
+				path = "/api/missions/v2/" + payload.MissionID
+				return eggMissionAPI(http.MethodPut, path, mission)
+			}
+			return eggMissionAPI(http.MethodPost, path, mission)
+		}
+		eggClient.OnMissionRun = func(payload bridge.MissionRunPayload) error {
+			appLog.Info("Mission run received from master", "mission_id", payload.MissionID, "trigger_type", payload.TriggerType)
+			body := map[string]string{"trigger_data": payload.TriggerData}
+			return eggMissionAPI(http.MethodPost, "/api/missions/v2/"+payload.MissionID+"/trigger", body)
+		}
+		eggClient.OnMissionDelete = func(payload bridge.MissionDeletePayload) error {
+			appLog.Info("Mission delete received from master", "mission_id", payload.MissionID)
+			return eggMissionAPI(http.MethodDelete, "/api/missions/v2/"+payload.MissionID, nil)
+		}
+		eggMissionResultSink = func(result bridge.MissionResultPayload) error {
+			if err := eggClient.SendMissionResult(result); err != nil {
+				return err
+			}
+			return nil
 		}
 		eggClient.OnSecret = func(secret bridge.SecretPayload) {
 			appLog.Info("Secret received from master", "key", secret.Key)
@@ -915,33 +990,34 @@ func main() {
 	warnings.RegisterBuiltinProducers(warningsRegistry, cfg, appLog)
 
 	if err := server.Start(server.StartOptions{
-		Cfg:                cfg,
-		Logger:             appLog,
-		AccessLogger:       webAccessLog,
-		LLMClient:          llmClient,
-		ShortTermMem:       shortTermMem,
-		LongTermMem:        longTermMem,
-		Vault:              vault,
-		Registry:           registry,
-		CronManager:        cronManager,
-		HistoryManager:     historyManager,
-		KG:                 kg,
-		InventoryDB:        inventoryDB,
-		InvasionDB:         invasionDB,
-		CheatsheetDB:       cheatsheetDB,
-		ImageGalleryDB:     imageGalleryDB,
-		RemoteControlDB:    remoteControlDB,
-		MediaRegistryDB:    mediaRegistryDB,
-		HomepageRegistryDB: homepageRegistryDB,
-		ContactsDB:         contactsDB,
-		PlannerDB:          plannerDB,
-		SQLConnectionsDB:   sqlConnectionsDB,
-		SQLConnectionPool:  sqlConnectionPool,
-		BackgroundTasks:    backgroundTaskManager,
-		WarningsRegistry:   warningsRegistry,
-		IsFirstStart:       isFirstStart,
-		ShutdownCh:         shutdownCh,
-		InstallDir:         installDir,
+		Cfg:                  cfg,
+		Logger:               appLog,
+		AccessLogger:         webAccessLog,
+		LLMClient:            llmClient,
+		ShortTermMem:         shortTermMem,
+		LongTermMem:          longTermMem,
+		Vault:                vault,
+		Registry:             registry,
+		CronManager:          cronManager,
+		HistoryManager:       historyManager,
+		KG:                   kg,
+		InventoryDB:          inventoryDB,
+		InvasionDB:           invasionDB,
+		CheatsheetDB:         cheatsheetDB,
+		ImageGalleryDB:       imageGalleryDB,
+		RemoteControlDB:      remoteControlDB,
+		MediaRegistryDB:      mediaRegistryDB,
+		HomepageRegistryDB:   homepageRegistryDB,
+		ContactsDB:           contactsDB,
+		PlannerDB:            plannerDB,
+		SQLConnectionsDB:     sqlConnectionsDB,
+		SQLConnectionPool:    sqlConnectionPool,
+		BackgroundTasks:      backgroundTaskManager,
+		EggMissionResultSink: eggMissionResultSink,
+		WarningsRegistry:     warningsRegistry,
+		IsFirstStart:         isFirstStart,
+		ShutdownCh:           shutdownCh,
+		InstallDir:           installDir,
 	}); err != nil {
 		appLog.Error("Server failed", "error", err)
 		os.Exit(1)

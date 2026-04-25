@@ -39,6 +39,23 @@ func validateCronExpr(expr string) bool {
 	return err == nil
 }
 
+func missionErrorStatus(err error) int {
+	if err == nil {
+		return http.StatusInternalServerError
+	}
+	msg := err.Error()
+	switch {
+	case strings.Contains(msg, "not found"):
+		return http.StatusNotFound
+	case strings.Contains(msg, "required"), strings.Contains(msg, "not supported"), strings.Contains(msg, "disabled"):
+		return http.StatusBadRequest
+	case strings.Contains(msg, "not connected"), strings.Contains(msg, "timed out"):
+		return http.StatusConflict
+	default:
+		return http.StatusInternalServerError
+	}
+}
+
 // handleListMissionsV2 returns all missions V2 with queue status
 func handleListMissionsV2(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -128,7 +145,7 @@ func handleCreateMissionV2(s *Server) http.HandlerFunc {
 
 		if err := s.MissionManagerV2.Create(&mission); err != nil {
 			s.Logger.Error("Failed to create mission", "error", err)
-			jsonError(w, "Failed to create mission", http.StatusInternalServerError)
+			jsonError(w, "Failed to create mission: "+err.Error(), missionErrorStatus(err))
 			return
 		}
 		broadcastMissionState(s)
@@ -221,7 +238,7 @@ func handleMissionUpdateV2(s *Server, w http.ResponseWriter, r *http.Request, id
 
 	if err := s.MissionManagerV2.Update(id, &updated); err != nil {
 		s.Logger.Error("Failed to update mission", "error", err)
-		jsonError(w, "Failed to update mission", http.StatusInternalServerError)
+		jsonError(w, "Failed to update mission: "+err.Error(), missionErrorStatus(err))
 		return
 	}
 	broadcastMissionState(s)
@@ -247,7 +264,7 @@ func handleMissionRunV2(s *Server, w http.ResponseWriter, r *http.Request, id st
 	}
 
 	if err := s.MissionManagerV2.RunNow(id); err != nil {
-		jsonError(w, "Mission not found", http.StatusNotFound)
+		jsonError(w, err.Error(), missionErrorStatus(err))
 		return
 	}
 	broadcastMissionState(s)
@@ -271,7 +288,7 @@ func handleMissionTriggerV2(s *Server, w http.ResponseWriter, r *http.Request, i
 	}
 
 	if err := s.MissionManagerV2.TriggerMission(id, "api", payload.TriggerData); err != nil {
-		jsonError(w, "Failed to trigger mission", http.StatusBadRequest)
+		jsonError(w, "Failed to trigger mission: "+err.Error(), missionErrorStatus(err))
 		return
 	}
 	broadcastMissionState(s)

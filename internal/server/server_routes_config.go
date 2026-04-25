@@ -394,5 +394,6 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	mux.HandleFunc("/api/missions/v2/execution", handleMissionsV2ByExecution(s))
 	mux.HandleFunc("/api/missions/v2/dependencies", handleMissionDependencies(s))
 	mux.HandleFunc("/api/missions/v2/history", handleMissionV2History(s))
+	mux.HandleFunc("/api/missions/v2/remote-targets", handleMissionRemoteTargets(s))
 	mux.HandleFunc("/api/missions/v2/", handleMissionV2ByID(s))
 }

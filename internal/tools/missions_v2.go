@@ -117,6 +117,16 @@ type MissionV2 struct {
 	WaitingForID  string         `json:"waiting_for_id,omitempty"` // ID of mission this is waiting for
 	CheatsheetIDs []string       `json:"cheatsheet_ids,omitempty"` // Linked cheat sheet IDs for prompt expansion
 
+	// Remote execution fields
+	RunnerType       MissionRunner `json:"runner_type,omitempty"`        // local | remote
+	RemoteNestID     string        `json:"remote_nest_id,omitempty"`     // Invasion nest connection target
+	RemoteNestName   string        `json:"remote_nest_name,omitempty"`   // Display cache
+	RemoteEggID      string        `json:"remote_egg_id,omitempty"`      // Assigned egg template ID
+	RemoteEggName    string        `json:"remote_egg_name,omitempty"`    // Display cache
+	RemoteSyncStatus string        `json:"remote_sync_status,omitempty"` // synced | pending | error
+	RemoteSyncError  string        `json:"remote_sync_error,omitempty"`
+	RemoteRevision   string        `json:"remote_revision,omitempty"`
+
 	// Mission Preparation fields
 	PreparationStatus string     `json:"preparation_status,omitempty"` // none|preparing|prepared|stale|error
 	LastPreparedAt    *time.Time `json:"last_prepared_at,omitempty"`
@@ -295,6 +305,7 @@ type MissionManagerV2 struct {
 	activeRunID       map[string]string                        // missionID → history run ID for in-progress tracking
 	onMissionComplete func(completedID, result, output string) // callback for mission completion
 	missionGuards     map[string]context.CancelFunc            // per-mission timeout guardian cancel functions
+	remoteClient      RemoteMissionClient
 }
 
 // EmailWatcherInterface for email trigger integration
@@ -376,6 +387,20 @@ func (m *MissionManagerV2) SetHistoryDB(db *sql.DB) {
 	m.historyDB = db
 }
 
+// SetRemoteMissionClient sets the client used to synchronize missions to eggs.
+func (m *MissionManagerV2) SetRemoteMissionClient(client RemoteMissionClient) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.remoteClient = client
+}
+
+// SetCompletionCallback registers a callback fired after any mission completes.
+func (m *MissionManagerV2) SetCompletionCallback(callback func(completedID, result, output string)) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.onMissionComplete = callback
+}
+
 // GetHistoryDB returns the mission execution history database reference.
 func (m *MissionManagerV2) GetHistoryDB() *sql.DB {
 	m.mu.RLock()
@@ -426,6 +451,7 @@ func (m *MissionManagerV2) Start() error {
 			return fmt.Errorf("failed to parse %s: %w", m.file, err)
 		}
 		for _, mission := range missions {
+			mission.RunnerType = normalizeMissionRunner(mission.RunnerType)
 			m.missions[mission.ID] = mission
 			if mission.Status == MissionStatusRunning || mission.Status == MissionStatusQueued {
 				mission.Status = MissionStatusIdle // Reset on startup
@@ -448,6 +474,9 @@ func (m *MissionManagerV2) Start() error {
 		})
 		for _, mission := range m.missions {
 			if !mission.Enabled || mission.ExecutionType != ExecutionScheduled {
+				continue
+			}
+			if isRemoteMission(mission) {
 				continue
 			}
 			if mission.Schedule != "" {
@@ -505,12 +534,18 @@ func (m *MissionManagerV2) setupTriggers() {
 		if !mission.Enabled || mission.ExecutionType != ExecutionTriggered {
 			continue
 		}
+		if isRemoteMission(mission) {
+			continue
+		}
 		m.registerTrigger(mission)
 	}
 }
 
 // registerTrigger sets up a single trigger
 func (m *MissionManagerV2) registerTrigger(mission *MissionV2) {
+	if isRemoteMission(mission) {
+		return
+	}
 	if mission.TriggerConfig == nil {
 		return
 	}
@@ -771,7 +806,11 @@ func (m *MissionManagerV2) OnMissionComplete(missionID, result, output string) {
 			fmt.Sprintf(`{"source_mission":"%s","result":"%s"}`, missionID, result))
 		mission.Status = MissionStatusQueued
 	}
+	completeCB := m.onMissionComplete
 	m.save() // Second save: persist queued status of triggered dependents
+	if completeCB != nil {
+		go completeCB(missionID, result, output)
+	}
 }
 
 // TriggerMission manually triggers a mission (for webhooks, emails, etc.)
@@ -793,6 +832,27 @@ func (m *MissionManagerV2) TriggerMissionWithOptions(missionID, triggerType, tri
 	if !mission.Enabled {
 		return fmt.Errorf("mission is disabled")
 	}
+	if isRemoteMission(mission) {
+		if len(extraCheatsheetIDs) > 0 || extraPromptSuffix != "" {
+			return fmt.Errorf("remote missions do not support transient prompt extras")
+		}
+		if m.remoteClient == nil {
+			return fmt.Errorf("remote mission client is not configured")
+		}
+		ctx, cancel := context.WithTimeout(m.ctx, 20*time.Second)
+		defer cancel()
+		if err := m.remoteClient.RunMission(ctx, *mission, triggerType, triggerData); err != nil {
+			mission.RemoteSyncStatus = RemoteSyncError
+			mission.RemoteSyncError = err.Error()
+			m.save()
+			return err
+		}
+		mission.Status = MissionStatusQueued
+		mission.RemoteSyncStatus = RemoteSyncSynced
+		mission.RemoteSyncError = ""
+		m.save()
+		return nil
+	}
 
 	m.queue.EnqueueWithExtras(missionID, prioFromString(mission.Priority), triggerType, triggerData, extraCheatsheetIDs, extraPromptSuffix)
 	mission.Status = MissionStatusQueued
@@ -808,6 +868,7 @@ func (m *MissionManagerV2) NotifyInvasionEvent(eventType, nestID, nestName, eggI
 
 	for _, mission := range m.missions {
 		if !mission.Enabled ||
+			isRemoteMission(mission) ||
 			mission.ExecutionType != ExecutionTriggered ||
 			string(mission.TriggerType) != eventType {
 			continue
@@ -846,6 +907,7 @@ func (m *MissionManagerV2) NotifySystemStartup() {
 
 	for _, mission := range m.missions {
 		if !mission.Enabled ||
+			isRemoteMission(mission) ||
 			mission.ExecutionType != ExecutionTriggered ||
 			mission.TriggerType != TriggerSystemStartup {
 			continue
@@ -869,6 +931,7 @@ func (m *MissionManagerV2) NotifyDeviceEvent(eventType, deviceID, deviceName str
 	trigType := TriggerType(eventType)
 	for _, mission := range m.missions {
 		if !mission.Enabled ||
+			isRemoteMission(mission) ||
 			mission.ExecutionType != ExecutionTriggered ||
 			mission.TriggerType != trigType {
 			continue
@@ -906,6 +969,7 @@ func (m *MissionManagerV2) NotifyFritzBoxEvent(callType, summary string) {
 
 	for _, mission := range m.missions {
 		if !mission.Enabled ||
+			isRemoteMission(mission) ||
 			mission.ExecutionType != ExecutionTriggered ||
 			mission.TriggerType != TriggerFritzBoxCall {
 			continue
@@ -940,6 +1004,7 @@ func (m *MissionManagerV2) NotifyBudgetEvent(eventType string, spentUSD, limitUS
 	trigType := TriggerType(eventType)
 	for _, mission := range m.missions {
 		if !mission.Enabled ||
+			isRemoteMission(mission) ||
 			mission.ExecutionType != ExecutionTriggered ||
 			mission.TriggerType != trigType {
 			continue
@@ -965,6 +1030,7 @@ func (m *MissionManagerV2) NotifyHomeAssistantEvent(entityID, newState, oldState
 
 	for _, mission := range m.missions {
 		if !mission.Enabled ||
+			isRemoteMission(mission) ||
 			mission.ExecutionType != ExecutionTriggered ||
 			mission.TriggerType != TriggerHomeAssistantState {
 			continue
@@ -994,6 +1060,62 @@ func (m *MissionManagerV2) NotifyHomeAssistantEvent(entityID, newState, oldState
 	m.save()
 }
 
+func (m *MissionManagerV2) buildRemotePromptSnapshotLocked(mission *MissionV2) string {
+	if mission == nil {
+		return ""
+	}
+	prompt := mission.Prompt
+	if len(mission.CheatsheetIDs) > 0 && m.cheatsheetDB != nil {
+		if extra := CheatsheetGetMultiple(m.cheatsheetDB, mission.CheatsheetIDs); extra != "" {
+			prompt += extra
+		}
+	}
+	return prompt
+}
+
+func (m *MissionManagerV2) syncRemoteMissionLocked(mission *MissionV2) error {
+	if !isRemoteMission(mission) {
+		return nil
+	}
+	if m.remoteClient == nil {
+		mission.RemoteSyncStatus = RemoteSyncError
+		mission.RemoteSyncError = "remote mission client is not configured"
+		return fmt.Errorf("remote mission client is not configured")
+	}
+	mission.RemoteRevision = newRemoteRevision()
+	mission.RemoteSyncStatus = RemoteSyncPending
+	mission.RemoteSyncError = ""
+	promptSnapshot := m.buildRemotePromptSnapshotLocked(mission)
+	ctx, cancel := context.WithTimeout(m.ctx, 20*time.Second)
+	defer cancel()
+	if err := m.remoteClient.SyncMission(ctx, *mission, promptSnapshot); err != nil {
+		mission.RemoteSyncStatus = RemoteSyncError
+		mission.RemoteSyncError = err.Error()
+		return err
+	}
+	mission.RemoteSyncStatus = RemoteSyncSynced
+	mission.RemoteSyncError = ""
+	return nil
+}
+
+// SetRemoteResult records a result reported by an egg for a master-side mission.
+func (m *MissionManagerV2) SetRemoteResult(id, result, output string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	mission, ok := m.missions[id]
+	if !ok {
+		return
+	}
+	mission.Status = MissionStatusIdle
+	mission.LastRun = time.Now()
+	mission.LastResult = result
+	mission.LastOutput = truncateString(output, 500)
+	mission.RunCount++
+	mission.RemoteSyncStatus = RemoteSyncSynced
+	mission.RemoteSyncError = ""
+	m.save()
+}
+
 // RunNow triggers a mission immediately (bypasses queue for manual execution)
 func (m *MissionManagerV2) RunNow(id string) error {
 	m.mu.Lock()
@@ -1002,6 +1124,27 @@ func (m *MissionManagerV2) RunNow(id string) error {
 	mission, ok := m.missions[id]
 	if !ok {
 		return fmt.Errorf("mission not found")
+	}
+	if !mission.Enabled {
+		return fmt.Errorf("mission is disabled")
+	}
+	if isRemoteMission(mission) {
+		if m.remoteClient == nil {
+			return fmt.Errorf("remote mission client is not configured")
+		}
+		ctx, cancel := context.WithTimeout(m.ctx, 20*time.Second)
+		defer cancel()
+		if err := m.remoteClient.RunMission(ctx, *mission, "manual", ""); err != nil {
+			mission.RemoteSyncStatus = RemoteSyncError
+			mission.RemoteSyncError = err.Error()
+			m.save()
+			return err
+		}
+		mission.Status = MissionStatusQueued
+		mission.RemoteSyncStatus = RemoteSyncSynced
+		mission.RemoteSyncError = ""
+		m.save()
+		return nil
 	}
 
 	// For manual execution, we still queue but with high priority
@@ -1016,6 +1159,7 @@ func (m *MissionManagerV2) Create(mission *MissionV2) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	mission.RunnerType = normalizeMissionRunner(mission.RunnerType)
 	if mission.ID == "" {
 		mission.ID = fmt.Sprintf("mission_%d", time.Now().UnixNano())
 	}
@@ -1029,16 +1173,28 @@ func (m *MissionManagerV2) Create(mission *MissionV2) error {
 	mission.CreatedAt = time.Now()
 	mission.Enabled = true
 
+	if err := validateRemoteMission(*mission); err != nil {
+		return err
+	}
+	if isRemoteMission(mission) {
+		if err := m.syncRemoteMissionLocked(mission); err != nil {
+			return err
+		}
+	}
+
 	m.missions[mission.ID] = mission
 
 	// Register trigger if needed
-	if mission.ExecutionType == ExecutionTriggered {
+	if !isRemoteMission(mission) && mission.ExecutionType == ExecutionTriggered {
 		m.registerTrigger(mission)
 	}
 
 	// Register with cron if scheduled
-	if mission.ExecutionType == ExecutionScheduled && mission.Schedule != "" {
+	if !isRemoteMission(mission) && mission.ExecutionType == ExecutionScheduled && mission.Schedule != "" {
 		cronID := "mission_" + mission.ID
+		if m.cron == nil {
+			return fmt.Errorf("cron manager is not configured")
+		}
 		if _, err := m.cron.ManageScheduleWithSource("add", cronID, mission.Schedule, mission.Prompt, "", "mission"); err != nil {
 			return fmt.Errorf("failed to register mission with cron: %w", err)
 		}
@@ -1056,11 +1212,23 @@ func (m *MissionManagerV2) Update(id string, updated *MissionV2) error {
 	if !ok {
 		return fmt.Errorf("mission not found")
 	}
+	updated.RunnerType = normalizeMissionRunner(updated.RunnerType)
+	if err := validateRemoteMission(*updated); err != nil {
+		return err
+	}
 
 	// Unregister old triggers
-	if mission.ExecutionType == ExecutionScheduled && mission.Schedule != "" {
+	if !isRemoteMission(mission) && mission.ExecutionType == ExecutionScheduled && mission.Schedule != "" && m.cron != nil {
 		cronID := "mission_" + id
 		m.cron.ManageSchedule("remove", cronID, "", "", "")
+	}
+	if isRemoteMission(mission) && (!isRemoteMission(updated) || mission.RemoteNestID != updated.RemoteNestID) && m.remoteClient != nil {
+		ctx, cancel := context.WithTimeout(m.ctx, 20*time.Second)
+		if err := m.remoteClient.DeleteMission(ctx, *mission); err != nil {
+			cancel()
+			return err
+		}
+		cancel()
 	}
 
 	// Preserve metadata
@@ -1073,15 +1241,26 @@ func (m *MissionManagerV2) Update(id string, updated *MissionV2) error {
 	updated.Status = mission.Status
 	updated.PreparationStatus = mission.PreparationStatus
 	updated.LastPreparedAt = mission.LastPreparedAt
+	if isRemoteMission(updated) {
+		updated.RemoteRevision = newRemoteRevision()
+		if err := m.syncRemoteMissionLocked(updated); err != nil {
+			return err
+		}
+	}
 
 	m.missions[id] = updated
 
 	// Register new triggers
 	if updated.Enabled {
-		if updated.ExecutionType == ExecutionTriggered {
+		if isRemoteMission(updated) {
+			// Remote eggs register their own schedule/trigger handlers.
+		} else if updated.ExecutionType == ExecutionTriggered {
 			m.registerTrigger(updated)
 		} else if updated.ExecutionType == ExecutionScheduled && updated.Schedule != "" {
 			cronID := "mission_" + id
+			if m.cron == nil {
+				return fmt.Errorf("cron manager is not configured")
+			}
 			if _, err := m.cron.ManageScheduleWithSource("add", cronID, updated.Schedule, updated.Prompt, "", "mission"); err != nil {
 				return fmt.Errorf("failed to register mission with cron: %w", err)
 			}
@@ -1110,9 +1289,17 @@ func (m *MissionManagerV2) Delete(id string) error {
 	}
 
 	// Unregister triggers
-	if mission.ExecutionType == ExecutionScheduled && mission.Schedule != "" {
+	if !isRemoteMission(mission) && mission.ExecutionType == ExecutionScheduled && mission.Schedule != "" && m.cron != nil {
 		cronID := "mission_" + id
 		m.cron.ManageSchedule("remove", cronID, "", "", "")
+	}
+	if isRemoteMission(mission) && m.remoteClient != nil {
+		ctx, cancel := context.WithTimeout(m.ctx, 20*time.Second)
+		if err := m.remoteClient.DeleteMission(ctx, *mission); err != nil {
+			cancel()
+			return err
+		}
+		cancel()
 	}
 
 	delete(m.missions, id)

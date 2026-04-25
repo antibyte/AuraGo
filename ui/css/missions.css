@@ -799,6 +799,62 @@
     background: rgba(45, 212, 191, 0.08);
 }
 
+#mission-prompt {
+    min-height: 220px;
+    resize: vertical;
+}
+
+.mission-runner-selector {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.mission-runner-option {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 12px 14px;
+    background: var(--bg-glass);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.mission-runner-option input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.mission-runner-option:hover,
+.mission-runner-option.active,
+.mission-runner-option:has(input:checked) {
+    border-color: var(--accent);
+    background: rgba(45, 212, 191, 0.08);
+}
+
+.runner-label {
+    font-size: 0.92rem;
+    font-weight: 600;
+}
+
+.runner-desc {
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+}
+
+.remote-target-group {
+    margin-top: 12px;
+}
+
+.badge-remote {
+    background: rgba(56, 189, 248, 0.14);
+    border-color: rgba(56, 189, 248, 0.24);
+    color: #7dd3fc;
+}
+
 /* Trigger Config Sections */
 .trigger-config {
     margin-top: 16px;
@@ -834,6 +890,13 @@
     border-color: var(--accent);
     background: rgba(45, 212, 191, 0.08);
     color: var(--accent);
+}
+
+.trigger-type-btn.is-disabled,
+.trigger-type-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+    filter: grayscale(0.4);
 }
 
 .mission-actions .btn:focus-visible,

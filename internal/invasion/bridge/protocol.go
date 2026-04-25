@@ -19,17 +19,21 @@ import (
 // ── Message types ───────────────────────────────────────────────────────────
 
 const (
-	MsgAuth            = "auth"            // egg → master: initial authentication
-	MsgHeartbeat       = "heartbeat"       // egg → master: periodic health report
-	MsgTask            = "task"            // master → egg: work assignment
-	MsgResult          = "result"          // egg → master: task completion
-	MsgStatus          = "status"          // master → egg: status request
-	MsgSecret          = "secret"          // master → egg: encrypted vault secret
-	MsgRekey           = "rekey"           // master → egg: shared key rotation
+	MsgAuth            = "auth"             // egg → master: initial authentication
+	MsgHeartbeat       = "heartbeat"        // egg → master: periodic health report
+	MsgTask            = "task"             // master → egg: work assignment
+	MsgResult          = "result"           // egg → master: task completion
+	MsgMissionSync     = "mission_sync"     // master → egg: create/update a mission
+	MsgMissionRun      = "mission_run"      // master → egg: run a synced mission
+	MsgMissionDelete   = "mission_delete"   // master → egg: delete a synced mission
+	MsgMissionResult   = "mission_result"   // egg → master: synced mission completion
+	MsgStatus          = "status"           // master → egg: status request
+	MsgSecret          = "secret"           // master → egg: encrypted vault secret
+	MsgRekey           = "rekey"            // master → egg: shared key rotation
 	MsgSafeReconfigure = "safe_reconfigure" // master → egg: safe config patch + restart
-	MsgAck             = "ack"             // both directions: acknowledgement
-	MsgError           = "error"           // both directions: error notification
-	MsgStop            = "stop"            // master → egg: graceful shutdown
+	MsgAck             = "ack"              // both directions: acknowledgement
+	MsgError           = "error"            // both directions: error notification
+	MsgStop            = "stop"             // master → egg: graceful shutdown
 )
 
 // Message is the wire format for all egg↔master communication.
@@ -73,6 +77,41 @@ type ResultPayload struct {
 	Output string `json:"output"`
 	Error  string `json:"error,omitempty"`
 	Tokens int    `json:"tokens_used"`
+}
+
+// MissionSyncPayload installs or updates a mission on an egg.
+type MissionSyncPayload struct {
+	Revision       string          `json:"revision"`
+	MissionID      string          `json:"mission_id"`
+	Name           string          `json:"name"`
+	PromptSnapshot string          `json:"prompt_snapshot"`
+	ExecutionType  string          `json:"execution_type"`
+	Schedule       string          `json:"schedule,omitempty"`
+	TriggerType    string          `json:"trigger_type,omitempty"`
+	TriggerConfig  json.RawMessage `json:"trigger_config,omitempty"`
+	Priority       string          `json:"priority,omitempty"`
+	Enabled        bool            `json:"enabled"`
+	Locked         bool            `json:"locked,omitempty"`
+}
+
+// MissionRunPayload requests execution of a synced mission on an egg.
+type MissionRunPayload struct {
+	MissionID   string `json:"mission_id"`
+	TriggerType string `json:"trigger_type,omitempty"`
+	TriggerData string `json:"trigger_data,omitempty"`
+}
+
+// MissionDeletePayload removes a synced mission from an egg.
+type MissionDeletePayload struct {
+	MissionID string `json:"mission_id"`
+}
+
+// MissionResultPayload reports completion of a synced mission from an egg.
+type MissionResultPayload struct {
+	MissionID string `json:"mission_id"`
+	Result    string `json:"result"`
+	Output    string `json:"output,omitempty"`
+	Error     string `json:"error,omitempty"`
 }
 
 // SecretPayload carries an encrypted vault secret from master to egg.

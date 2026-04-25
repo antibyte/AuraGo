@@ -232,33 +232,34 @@ func (s *Server) reinitBudgetTracker(cfg *config.Config) {
 
 // StartOptions groups the server boot dependencies so startup wiring stays named and testable.
 type StartOptions struct {
-	Cfg                *config.Config
-	Logger             *slog.Logger
-	AccessLogger       *slog.Logger
-	LLMClient          llm.ChatClient
-	ShortTermMem       *memory.SQLiteMemory
-	LongTermMem        memory.VectorDB
-	Vault              *security.Vault
-	Registry           *tools.ProcessRegistry
-	CronManager        *tools.CronManager
-	HistoryManager     *memory.HistoryManager
-	KG                 *memory.KnowledgeGraph
-	InventoryDB        *sql.DB
-	InvasionDB         *sql.DB
-	CheatsheetDB       *sql.DB
-	ImageGalleryDB     *sql.DB
-	RemoteControlDB    *sql.DB
-	MediaRegistryDB    *sql.DB
-	HomepageRegistryDB *sql.DB
-	ContactsDB         *sql.DB
-	PlannerDB          *sql.DB
-	SQLConnectionsDB   *sql.DB
-	SQLConnectionPool  *sqlconnections.ConnectionPool
-	BackgroundTasks    *tools.BackgroundTaskManager
-	WarningsRegistry   *warnings.Registry
-	IsFirstStart       bool
-	ShutdownCh         chan struct{}
-	InstallDir         string
+	Cfg                  *config.Config
+	Logger               *slog.Logger
+	AccessLogger         *slog.Logger
+	LLMClient            llm.ChatClient
+	ShortTermMem         *memory.SQLiteMemory
+	LongTermMem          memory.VectorDB
+	Vault                *security.Vault
+	Registry             *tools.ProcessRegistry
+	CronManager          *tools.CronManager
+	HistoryManager       *memory.HistoryManager
+	KG                   *memory.KnowledgeGraph
+	InventoryDB          *sql.DB
+	InvasionDB           *sql.DB
+	CheatsheetDB         *sql.DB
+	ImageGalleryDB       *sql.DB
+	RemoteControlDB      *sql.DB
+	MediaRegistryDB      *sql.DB
+	HomepageRegistryDB   *sql.DB
+	ContactsDB           *sql.DB
+	PlannerDB            *sql.DB
+	SQLConnectionsDB     *sql.DB
+	SQLConnectionPool    *sqlconnections.ConnectionPool
+	BackgroundTasks      *tools.BackgroundTaskManager
+	EggMissionResultSink func(result bridge.MissionResultPayload) error
+	WarningsRegistry     *warnings.Registry
+	IsFirstStart         bool
+	ShutdownCh           chan struct{}
+	InstallDir           string
 }
 
 func Start(opts StartOptions) error {
@@ -596,6 +597,21 @@ func Start(opts StartOptions) error {
 		}()
 	}
 	s.MissionManagerV2.SetCallback(missionCallbackV2)
+	if opts.EggMissionResultSink != nil {
+		s.MissionManagerV2.SetCompletionCallback(func(missionID, result, output string) {
+			payload := bridge.MissionResultPayload{
+				MissionID: missionID,
+				Result:    result,
+				Output:    output,
+			}
+			if result != tools.MissionResultSuccess && result != "success" {
+				payload.Error = output
+			}
+			if err := opts.EggMissionResultSink(payload); err != nil {
+				logger.Warn("[MissionV2] Failed to send remote mission result", "mission_id", missionID, "error", err)
+			}
+		})
+	}
 
 	// Set webhook manager for webhook triggers
 	if s.WebhookManager != nil {
@@ -610,6 +626,9 @@ func Start(opts StartOptions) error {
 	// Set cheatsheet DB for mission prompt expansion
 	if s.CheatsheetDB != nil {
 		s.MissionManagerV2.SetCheatsheetDB(s.CheatsheetDB)
+	}
+	if s.EggHub != nil {
+		s.MissionManagerV2.SetRemoteMissionClient(newRemoteMissionClient(s))
 	}
 
 	// Initialize Mission Preparation system

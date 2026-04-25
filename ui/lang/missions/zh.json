@@ -267,5 +267,19 @@
   "missions.prep_toast_ok": "任务准备成功",
   "missions.prep_toast_error": "准备失败",
   "missions.prep_toast_invalidated": "准备已作废",
-  "missions.prep_view_title": "准备上下文"
+  "missions.prep_view_title": "准备上下文",
+  "missions.form_runner_label": "运行位置",
+  "missions.form_runner_local_label": "本地",
+  "missions.form_runner_local_desc": "在此 AuraGo 实例上运行。",
+  "missions.form_runner_remote_label": "远程 egg",
+  "missions.form_runner_remote_desc": "发送到 Invasion egg 并在那里运行。",
+  "missions.form_remote_target_label": "远程 egg",
+  "missions.form_remote_target_loading": "正在加载 eggs...",
+  "missions.form_remote_target_hint": "只有已连接且已部署的 eggs 可以接收任务。",
+  "missions.form_remote_target_none": "没有可用的已连接 egg",
+  "missions.form_remote_target_placeholder": "选择 egg...",
+  "missions.form_remote_target_unavailable": "远程目标不可用",
+  "missions.toast_select_remote_target": "请选择一个远程 egg",
+  "missions.trigger_remote_disabled_title": "此触发器不适用于远程任务",
+  "missions.card_remote_badge": "远程"
 }

@@ -267,5 +267,19 @@
   "missions.prep_toast_ok": "Mission préparée avec succès",
   "missions.prep_toast_error": "Échec de la préparation",
   "missions.prep_toast_invalidated": "Préparation invalidée",
-  "missions.prep_view_title": "Contexte préparé"
+  "missions.prep_view_title": "Contexte préparé",
+  "missions.form_runner_label": "Lieu d’exécution",
+  "missions.form_runner_local_label": "Local",
+  "missions.form_runner_local_desc": "Exécuter sur cette instance AuraGo.",
+  "missions.form_runner_remote_label": "Egg distant",
+  "missions.form_runner_remote_desc": "Envoyer et exécuter sur un egg Invasion.",
+  "missions.form_remote_target_label": "Egg distant",
+  "missions.form_remote_target_loading": "Chargement des eggs...",
+  "missions.form_remote_target_hint": "Seuls les eggs déployés et connectés peuvent recevoir des missions.",
+  "missions.form_remote_target_none": "Aucun egg connecté disponible",
+  "missions.form_remote_target_placeholder": "Choisir un egg...",
+  "missions.form_remote_target_unavailable": "Cibles distantes indisponibles",
+  "missions.toast_select_remote_target": "Sélectionnez un egg distant",
+  "missions.trigger_remote_disabled_title": "Ce déclencheur n’est pas disponible pour les missions distantes",
+  "missions.card_remote_badge": "Distant"
 }

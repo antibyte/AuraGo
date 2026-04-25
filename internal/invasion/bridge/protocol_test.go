@@ -124,7 +124,7 @@ func TestSignVerify_EmptyPayload(t *testing.T) {
 
 func TestNewMessage_AllTypes(t *testing.T) {
 	key := validKey(t)
-	types := []string{MsgAuth, MsgHeartbeat, MsgTask, MsgResult, MsgStatus, MsgSecret, MsgAck, MsgError, MsgStop}
+	types := []string{MsgAuth, MsgHeartbeat, MsgTask, MsgResult, MsgMissionSync, MsgMissionRun, MsgMissionDelete, MsgMissionResult, MsgStatus, MsgSecret, MsgAck, MsgError, MsgStop}
 	for _, msgType := range types {
 		t.Run(msgType, func(t *testing.T) {
 			msg, err := NewMessage(msgType, "egg-1", "nest-1", key, nil)
@@ -144,6 +144,36 @@ func TestNewMessage_AllTypes(t *testing.T) {
 				t.Error("HMAC should be set")
 			}
 		})
+	}
+}
+
+func TestNewMessage_MissionSyncPayloadSerialization(t *testing.T) {
+	key := validKey(t)
+	msg, err := NewMessage(MsgMissionSync, "egg-1", "nest-1", key, MissionSyncPayload{
+		Revision:       "rev-1",
+		MissionID:      "mission-1",
+		Name:           "Remote mission",
+		PromptSnapshot: "Base prompt\n\nCheatsheet attachment",
+		ExecutionType:  "scheduled",
+		Schedule:       "0 * * * *",
+		Priority:       "high",
+		Enabled:        true,
+	})
+	if err != nil {
+		t.Fatalf("NewMessage(MsgMissionSync): %v", err)
+	}
+	if !strings.Contains(string(msg.Payload), `"mission_id":"mission-1"`) {
+		t.Fatalf("expected mission_id in payload, got %s", msg.Payload)
+	}
+	if !strings.Contains(string(msg.Payload), `"prompt_snapshot":"Base prompt\n\nCheatsheet attachment"`) {
+		t.Fatalf("expected prompt snapshot in payload, got %s", msg.Payload)
+	}
+	ok, err := VerifyMessage(*msg, key)
+	if err != nil {
+		t.Fatalf("VerifyMessage: %v", err)
+	}
+	if !ok {
+		t.Fatal("mission sync payload should verify after signing")
 	}
 }
 

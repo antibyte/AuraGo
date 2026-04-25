@@ -43,18 +43,18 @@ func (s *Server) registerInfrastructureRoutes(mux *http.ServeMux, shutdownCh cha
 			} else if strings.HasSuffix(path, "/rotate-key") {
 				handleInvasionNestRotateKey(s)(w, r)
 			} else if strings.HasSuffix(path, "/rollback") {
-					handleInvasionNestRollback(s)(w, r)
-				} else if strings.HasSuffix(path, "/deployments") {
-					handleInvasionNestDeployments(s)(w, r)
-				} else if strings.HasSuffix(path, "/safe-reconfigure") {
-					handleInvasionNestSafeReconfigure(s)(w, r)
-				} else if strings.HasSuffix(path, "/config-history") {
-					handleInvasionNestConfigHistory(s)(w, r)
-				} else if strings.HasSuffix(path, "/config-rollback") {
-					handleInvasionNestConfigRollback(s)(w, r)
-				} else {
-					handleInvasionNest(s)(w, r)
-				}
+				handleInvasionNestRollback(s)(w, r)
+			} else if strings.HasSuffix(path, "/deployments") {
+				handleInvasionNestDeployments(s)(w, r)
+			} else if strings.HasSuffix(path, "/safe-reconfigure") {
+				handleInvasionNestSafeReconfigure(s)(w, r)
+			} else if strings.HasSuffix(path, "/config-history") {
+				handleInvasionNestConfigHistory(s)(w, r)
+			} else if strings.HasSuffix(path, "/config-rollback") {
+				handleInvasionNestConfigRollback(s)(w, r)
+			} else {
+				handleInvasionNest(s)(w, r)
+			}
 		})
 		mux.HandleFunc("/api/invasion/ws", handleInvasionWebSocket(s))
 		mux.HandleFunc("/api/invasion/tasks/", handleInvasionTask(s))
@@ -69,6 +69,17 @@ func (s *Server) registerInfrastructureRoutes(mux *http.ServeMux, shutdownCh cha
 				status = "failed"
 			}
 			_ = invasion.UpdateTaskStatus(s.InvasionDB, result.TaskID, status, result.Output, result.Error)
+		}
+		s.EggHub.OnMissionResult = func(nestID string, result bridge.MissionResultPayload) {
+			s.Logger.Info("Remote mission result received", "nest_id", nestID, "mission_id", result.MissionID, "result", result.Result)
+			if s.MissionManagerV2 != nil {
+				output := result.Output
+				if output == "" {
+					output = result.Error
+				}
+				s.MissionManagerV2.SetRemoteResult(result.MissionID, result.Result, output)
+				broadcastMissionState(s)
+			}
 		}
 		s.EggHub.OnConnect = func(nestID, eggID string) {
 			_ = invasion.UpdateNestHatchStatus(s.InvasionDB, nestID, "running", "")

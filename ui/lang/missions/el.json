@@ -267,5 +267,19 @@
   "missions.prep_toast_ok": "Η αποστολή προετοιμάστηκε επιτυχώς",
   "missions.prep_toast_error": "Η προετοιμασία απέτυχε",
   "missions.prep_toast_invalidated": "Η προετοιμασία ακυρώθηκε",
-  "missions.prep_view_title": "Προετοιμασμένο Πλαίσιο"
+  "missions.prep_view_title": "Προετοιμασμένο Πλαίσιο",
+  "missions.form_runner_label": "Τοποθεσία εκτέλεσης",
+  "missions.form_runner_local_label": "Τοπικά",
+  "missions.form_runner_local_desc": "Εκτέλεση σε αυτή την παρουσία AuraGo.",
+  "missions.form_runner_remote_label": "Απομακρυσμένο egg",
+  "missions.form_runner_remote_desc": "Αποστολή και εκτέλεση σε egg του Invasion.",
+  "missions.form_remote_target_label": "Απομακρυσμένο egg",
+  "missions.form_remote_target_loading": "Φόρτωση eggs...",
+  "missions.form_remote_target_hint": "Μόνο συνδεδεμένα εγκατεστημένα eggs μπορούν να λάβουν αποστολές.",
+  "missions.form_remote_target_none": "Δεν υπάρχουν συνδεδεμένα eggs",
+  "missions.form_remote_target_placeholder": "Επιλέξτε egg...",
+  "missions.form_remote_target_unavailable": "Οι απομακρυσμένοι στόχοι δεν είναι διαθέσιμοι",
+  "missions.toast_select_remote_target": "Επιλέξτε απομακρυσμένο egg",
+  "missions.trigger_remote_disabled_title": "Αυτός ο trigger δεν είναι διαθέσιμος για απομακρυσμένες αποστολές",
+  "missions.card_remote_badge": "Απομακρυσμένο"
 }

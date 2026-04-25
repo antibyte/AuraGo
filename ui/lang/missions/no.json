@@ -267,5 +267,19 @@
   "missions.prep_toast_ok": "Oppdrag forberedt",
   "missions.prep_toast_error": "Forberedelse mislyktes",
   "missions.prep_toast_invalidated": "Forberedelse ugyldiggjort",
-  "missions.prep_view_title": "Forberedt kontekst"
+  "missions.prep_view_title": "Forberedt kontekst",
+  "missions.form_runner_label": "Kjørested",
+  "missions.form_runner_local_label": "Lokalt",
+  "missions.form_runner_local_desc": "Kjør på denne AuraGo-instansen.",
+  "missions.form_runner_remote_label": "Fjern-egg",
+  "missions.form_runner_remote_desc": "Send og kjør på et Invasion-egg.",
+  "missions.form_remote_target_label": "Fjern-egg",
+  "missions.form_remote_target_loading": "Laster eggs...",
+  "missions.form_remote_target_hint": "Bare tilkoblede deployede eggs kan motta missioner.",
+  "missions.form_remote_target_none": "Ingen tilkoblede eggs tilgjengelige",
+  "missions.form_remote_target_placeholder": "Velg et egg...",
+  "missions.form_remote_target_unavailable": "Fjernmål ikke tilgjengelige",
+  "missions.toast_select_remote_target": "Velg et fjern-egg",
+  "missions.trigger_remote_disabled_title": "Denne triggeren er ikke tilgjengelig for fjernmissioner",
+  "missions.card_remote_badge": "Fjern"
 }

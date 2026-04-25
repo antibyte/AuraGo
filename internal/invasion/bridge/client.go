@@ -24,17 +24,20 @@ type EggClient struct {
 	Version       string
 	TLSSkipVerify bool // skip TLS certificate verification (for self-signed certs)
 
-	conn   *websocket.Conn
-	mu     sync.Mutex
-	logger *slog.Logger
-	done         chan struct{}
-	activeTasks  int
+	conn        *websocket.Conn
+	mu          sync.Mutex
+	logger      *slog.Logger
+	done        chan struct{}
+	activeTasks int
 
 	// Callbacks (set by the egg runtime)
-	OnTask       func(task TaskPayload)            // called when master sends a task
-	OnSecret     func(secret SecretPayload)        // called when master sends a secret
-	OnStop       func()                            // called when master sends stop
-	OnReconfigure func(payload ReconfigurePayload) // called when master sends a safe config patch
+	OnTask          func(task TaskPayload)           // called when master sends a task
+	OnSecret        func(secret SecretPayload)       // called when master sends a secret
+	OnStop          func()                           // called when master sends stop
+	OnReconfigure   func(payload ReconfigurePayload) // called when master sends a safe config patch
+	OnMissionSync   func(payload MissionSyncPayload) error
+	OnMissionRun    func(payload MissionRunPayload) error
+	OnMissionDelete func(payload MissionDeletePayload) error
 }
 
 // NewEggClient creates a new client for connecting to the master.
@@ -113,6 +116,20 @@ func (c *EggClient) Stop() {
 // SendResult sends a task result back to the master.
 func (c *EggClient) SendResult(result ResultPayload) error {
 	msg, err := NewMessage(MsgResult, c.EggID, c.NestID, c.SharedKey, result)
+	if err != nil {
+		return err
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.conn == nil {
+		return fmt.Errorf("not connected")
+	}
+	return c.conn.WriteJSON(msg)
+}
+
+// SendMissionResult sends a synced mission completion result back to the master.
+func (c *EggClient) SendMissionResult(result MissionResultPayload) error {
+	msg, err := NewMessage(MsgMissionResult, c.EggID, c.NestID, c.SharedKey, result)
 	if err != nil {
 		return err
 	}
@@ -235,6 +252,39 @@ func (c *EggClient) readLoop() {
 					c.activeTasks--
 					c.mu.Unlock()
 				}()
+			}
+		case MsgMissionSync:
+			var payload MissionSyncPayload
+			if err := json.Unmarshal(msg.Payload, &payload); err != nil {
+				c.sendAck(msg.ID, false, "invalid payload")
+			} else if c.OnMissionSync == nil {
+				c.sendAck(msg.ID, false, "mission sync handler unavailable")
+			} else if err := c.OnMissionSync(payload); err != nil {
+				c.sendAck(msg.ID, false, err.Error())
+			} else {
+				c.sendAck(msg.ID, true, "mission synced")
+			}
+		case MsgMissionRun:
+			var payload MissionRunPayload
+			if err := json.Unmarshal(msg.Payload, &payload); err != nil {
+				c.sendAck(msg.ID, false, "invalid payload")
+			} else if c.OnMissionRun == nil {
+				c.sendAck(msg.ID, false, "mission run handler unavailable")
+			} else if err := c.OnMissionRun(payload); err != nil {
+				c.sendAck(msg.ID, false, err.Error())
+			} else {
+				c.sendAck(msg.ID, true, "mission run queued")
+			}
+		case MsgMissionDelete:
+			var payload MissionDeletePayload
+			if err := json.Unmarshal(msg.Payload, &payload); err != nil {
+				c.sendAck(msg.ID, false, "invalid payload")
+			} else if c.OnMissionDelete == nil {
+				c.sendAck(msg.ID, false, "mission delete handler unavailable")
+			} else if err := c.OnMissionDelete(payload); err != nil {
+				c.sendAck(msg.ID, false, err.Error())
+			} else {
+				c.sendAck(msg.ID, true, "mission deleted")
 			}
 		case MsgSecret:
 			var secret SecretPayload

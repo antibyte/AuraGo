@@ -47,18 +47,23 @@ type EggHub struct {
 	connections    map[string]*EggConnection // keyed by nest_id
 	logger         *slog.Logger
 	MaxConnections int // 0 = unlimited
+	pendingAcks    map[string]chan AckPayload
+	ackTimeout     time.Duration
 
 	// Callbacks (set by the server layer)
-	OnConnect    func(nestID, eggID string)
-	OnDisconnect func(nestID, eggID string)
-	OnHeartbeat  func(nestID string, hb HeartbeatPayload)
-	OnResult     func(nestID string, result ResultPayload)
+	OnConnect       func(nestID, eggID string)
+	OnDisconnect    func(nestID, eggID string)
+	OnHeartbeat     func(nestID string, hb HeartbeatPayload)
+	OnResult        func(nestID string, result ResultPayload)
+	OnMissionResult func(nestID string, result MissionResultPayload)
 }
 
 // NewEggHub creates a new hub for managing egg connections.
 func NewEggHub(logger *slog.Logger) *EggHub {
 	return &EggHub{
 		connections: make(map[string]*EggConnection),
+		pendingAcks: make(map[string]chan AckPayload),
+		ackTimeout:  15 * time.Second,
 		logger:      logger,
 	}
 }
@@ -146,6 +151,91 @@ func (h *EggHub) SendTask(nestID string, task TaskPayload) error {
 		return fmt.Errorf("failed to create task message: %w", err)
 	}
 	return conn.Send(msg)
+}
+
+// SendMissionSync sends a mission definition to a specific egg and waits for acknowledgement.
+func (h *EggHub) SendMissionSync(nestID string, payload MissionSyncPayload) error {
+	return h.sendMissionMessage(nestID, MsgMissionSync, payload)
+}
+
+// SendMissionRun asks a specific egg to run a synced mission and waits for acknowledgement.
+func (h *EggHub) SendMissionRun(nestID string, payload MissionRunPayload) error {
+	return h.sendMissionMessage(nestID, MsgMissionRun, payload)
+}
+
+// SendMissionDelete asks a specific egg to delete a synced mission and waits for acknowledgement.
+func (h *EggHub) SendMissionDelete(nestID string, payload MissionDeletePayload) error {
+	return h.sendMissionMessage(nestID, MsgMissionDelete, payload)
+}
+
+func (h *EggHub) sendMissionMessage(nestID, msgType string, payload interface{}) error {
+	conn := h.GetConnection(nestID)
+	if conn == nil {
+		return fmt.Errorf("no active connection for nest %s", nestID)
+	}
+	msg, err := NewMessage(msgType, conn.EggID, nestID, conn.SharedKey, payload)
+	if err != nil {
+		return fmt.Errorf("failed to create %s message: %w", msgType, err)
+	}
+	return h.sendWithAck(conn, msg)
+}
+
+func (h *EggHub) sendWithAck(conn *EggConnection, msg *Message) error {
+	ackCh := make(chan AckPayload, 1)
+	h.mu.Lock()
+	h.pendingAcks[msg.ID] = ackCh
+	timeout := h.ackTimeout
+	h.mu.Unlock()
+
+	defer func() {
+		h.mu.Lock()
+		delete(h.pendingAcks, msg.ID)
+		h.mu.Unlock()
+	}()
+
+	if err := conn.Send(msg); err != nil {
+		return err
+	}
+	if timeout <= 0 {
+		timeout = 15 * time.Second
+	}
+	select {
+	case ack := <-ackCh:
+		if !ack.Success {
+			if ack.Detail == "" {
+				ack.Detail = "operation rejected by egg"
+			}
+			return fmt.Errorf("%s", ack.Detail)
+		}
+		return nil
+	case <-time.After(timeout):
+		return fmt.Errorf("timed out waiting for ack from nest %s", conn.NestID)
+	}
+}
+
+func (h *EggHub) resolveAck(ack AckPayload) {
+	h.mu.RLock()
+	ch := h.pendingAcks[ack.RefID]
+	h.mu.RUnlock()
+	if ch == nil {
+		return
+	}
+	select {
+	case ch <- ack:
+	default:
+	}
+}
+
+func (h *EggHub) sendAck(conn *EggConnection, refID string, success bool, detail string) error {
+	ack, err := NewMessage(MsgAck, conn.EggID, conn.NestID, conn.SharedKey, AckPayload{
+		RefID:   refID,
+		Success: success,
+		Detail:  detail,
+	})
+	if err != nil {
+		return err
+	}
+	return conn.Send(ack)
 }
 
 // SendSecret sends an encrypted secret to a specific egg.
@@ -318,8 +408,19 @@ func (h *EggHub) HandleMessages(conn *EggConnection) {
 					h.OnResult(conn.NestID, result)
 				}
 			}
+		case MsgMissionResult:
+			var result MissionResultPayload
+			if err := json.Unmarshal(msg.Payload, &result); err == nil {
+				_ = h.sendAck(conn, msg.ID, true, "mission result received")
+				if h.OnMissionResult != nil {
+					h.OnMissionResult(conn.NestID, result)
+				}
+			}
 		case MsgAck:
-			// Ack received — logged for tracing
+			var ack AckPayload
+			if err := json.Unmarshal(msg.Payload, &ack); err == nil {
+				h.resolveAck(ack)
+			}
 			h.logger.Debug("Ack received from egg", "nest_id", conn.NestID, "msg_id", msg.ID)
 		case MsgStatus:
 			// Status messages from eggs are logged at debug level

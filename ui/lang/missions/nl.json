@@ -267,5 +267,19 @@
   "missions.prep_toast_ok": "Missie succesvol voorbereid",
   "missions.prep_toast_error": "Voorbereiding mislukt",
   "missions.prep_toast_invalidated": "Voorbereiding ongeldig gemaakt",
-  "missions.prep_view_title": "Voorbereidingscontext"
+  "missions.prep_view_title": "Voorbereidingscontext",
+  "missions.form_runner_label": "Uitvoeringslocatie",
+  "missions.form_runner_local_label": "Lokaal",
+  "missions.form_runner_local_desc": "Uitvoeren op deze AuraGo-instantie.",
+  "missions.form_runner_remote_label": "Remote egg",
+  "missions.form_runner_remote_desc": "Versturen naar en uitvoeren op een Invasion-egg.",
+  "missions.form_remote_target_label": "Remote egg",
+  "missions.form_remote_target_loading": "Eggs laden...",
+  "missions.form_remote_target_hint": "Alleen verbonden uitgerolde eggs kunnen missies ontvangen.",
+  "missions.form_remote_target_none": "Geen verbonden eggs beschikbaar",
+  "missions.form_remote_target_placeholder": "Kies een egg...",
+  "missions.form_remote_target_unavailable": "Remote doelen niet beschikbaar",
+  "missions.toast_select_remote_target": "Selecteer een remote egg",
+  "missions.trigger_remote_disabled_title": "Deze trigger is niet beschikbaar voor remote missies",
+  "missions.card_remote_badge": "Remote"
 }

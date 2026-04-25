@@ -14,6 +14,9 @@ let gridRendered = false; // Track if grid has been rendered at least once (for 
 let viewMode = localStorage.getItem('missions-view-mode') || 'auto'; // 'grid' | 'list' | 'auto'
 let expandedCards = new Set(); // Track expanded card IDs in grid view
 let lastRenderedDataHash = ''; // Used to skip re-renders when nothing changed
+let remoteTargets = [];
+
+const remoteAllowedTriggers = new Set(['system_startup', 'mqtt_message']);
 
 // Extract displayable text from mission last_output.
 // Handles legacy entries where the raw OpenAI-format JSON was stored.
@@ -114,8 +117,15 @@ function bindMissionUI() {
             return;
         }
 
+        const runnerType = event.target.closest('.mission-runner-option[data-runner-type]');
+        if (runnerType) {
+            selectRunnerType(runnerType.dataset.runnerType);
+            return;
+        }
+
         const triggerBtn = event.target.closest('.trigger-type-btn[data-trigger]');
         if (triggerBtn) {
+            if (triggerBtn.disabled) return;
             selectTriggerType(triggerBtn.dataset.trigger);
             return;
         }
@@ -387,6 +397,9 @@ function renderMissionCompact(mission) {
     const statusBadge = isRunning ? `<span class="badge badge-running">${t('missions.card_badge_running')}</span>` :
                        isQueued ? `<span class="badge badge-warning">${t('missions.card_badge_queued')}</span>` : '';
     const prepBadge = renderPrepBadge(mission);
+    const runnerBadge = mission.runner_type === 'remote'
+        ? `<span class="badge badge-remote">${escapeHtml(mission.remote_egg_name || mission.remote_nest_name || t('missions.card_remote_badge'))}</span>`
+        : '';
 
     const mid = escapeAttr(mission.id);
     return `
@@ -394,7 +407,7 @@ function renderMissionCompact(mission) {
             <span class="card-icon" title="${escapeAttr(mission.execution_type)}">${typeIcon}</span>
             <span class="card-name">${escapeHtml(mission.name)}</span>
             ${mission.locked ? `<span class="card-icon" title="${t('missions.card_locked_title')}">${svgIcons.lockIcon}</span>` : ''}
-            <div class="card-badges">${statusBadge}${prepBadge}</div>
+            <div class="card-badges">${statusBadge}${prepBadge}${runnerBadge}</div>
             <div class="card-actions">
                 <button class="mc-btn mc-btn-run" data-mission-action="run" data-mission-id="${mid}" title="${t('missions.card_btn_run_title')}" ${isRunning ? 'disabled' : ''}>${svgIcons.play}</button>
                 ${renderPrepButton(mission, isRunning)}
@@ -416,6 +429,9 @@ function renderMissionGrid(mission, isFirstRender) {
     const mid = escapeAttr(mission.id);
     const priorityBadge = `<span class="badge badge-priority-${escapeAttr(mission.priority)}">${escapeHtml(mission.priority)}</span>`;
     const typeBadge = `<span class="badge badge-type-${escapeAttr(mission.execution_type)}">${escapeHtml(mission.execution_type)}</span>`;
+    const runnerBadge = mission.runner_type === 'remote'
+        ? `<span class="badge badge-remote">${escapeHtml(mission.remote_egg_name || mission.remote_nest_name || t('missions.card_remote_badge'))}</span>`
+        : '';
     const statusBadge = isRunning
         ? `<span class="badge badge-running">${t('missions.card_badge_running')}</span>`
         : isQueued ? `<span class="badge badge-warning">${t('missions.card_badge_queued')}</span>` : '';
@@ -438,7 +454,7 @@ function renderMissionGrid(mission, isFirstRender) {
                     ${mission.locked ? `<span class="mission-locked" title="${t('missions.card_locked_title')}">${svgIcons.lockIcon}</span>` : ''}
                 </div>
                 <div class="mission-badges">
-                    ${priorityBadge}${typeBadge}${statusBadge}${prepBadge}
+                    ${priorityBadge}${typeBadge}${runnerBadge}${statusBadge}${prepBadge}
                 </div>
             </div>
             <div class="card-body">
@@ -565,6 +581,7 @@ function openMissionModal(missionId = null) {
             document.getElementById('mission-locked').checked = mission.locked;
             document.getElementById('mission-auto-prepare').checked = mission.auto_prepare || false;
 
+            selectRunnerType(mission.runner_type || 'local');
             selectExecType(mission.execution_type);
 
             if (mission.execution_type === 'scheduled') {
@@ -579,6 +596,7 @@ function openMissionModal(missionId = null) {
         document.getElementById('mission-form').reset();
         document.getElementById('mission-id').value = '';
         syncCronPreset('');
+        selectRunnerType('local');
         selectExecType('manual');
     }
 
@@ -588,6 +606,8 @@ function openMissionModal(missionId = null) {
     loadWebhooks();
     // Load invasion eggs/nests for triggers
     loadInvasionData();
+    // Load connected eggs for remote mission targets
+    loadRemoteTargets(missionId ? missions.find(m => m.id === missionId) : null);
     // Load cheatsheet picker
     loadCheatsheetPicker(missionId ? (missions.find(m => m.id === missionId)?.cheatsheet_ids || []) : []);
 
@@ -604,6 +624,38 @@ function selectExecType(type) {
 
     document.getElementById('config-scheduled').classList.toggle('is-hidden', type !== 'scheduled');
     document.getElementById('config-triggered').classList.toggle('is-hidden', type !== 'triggered');
+    updateRemoteTriggerAvailability();
+}
+
+function selectRunnerType(type) {
+    const normalized = type === 'remote' ? 'remote' : 'local';
+    document.querySelectorAll('.mission-runner-option').forEach(opt => {
+        const input = opt.querySelector('input');
+        input.checked = input.value === normalized;
+        opt.classList.toggle('active', input.checked);
+    });
+    document.getElementById('remote-target-group')?.classList.toggle('is-hidden', normalized !== 'remote');
+    updateRemoteTriggerAvailability();
+}
+
+function currentRunnerType() {
+    return document.querySelector('input[name="runner-type"]:checked')?.value || 'local';
+}
+
+function updateRemoteTriggerAvailability() {
+    const isRemote = currentRunnerType() === 'remote';
+    document.querySelectorAll('.trigger-type-btn').forEach(btn => {
+        const disabled = isRemote && !remoteAllowedTriggers.has(btn.dataset.trigger);
+        btn.disabled = disabled;
+        btn.classList.toggle('is-disabled', disabled);
+        btn.title = disabled ? t('missions.trigger_remote_disabled_title') : '';
+    });
+
+    const active = document.querySelector('.trigger-type-btn.active');
+    if (active && active.disabled) {
+        active.classList.remove('active');
+        document.querySelectorAll('.trigger-fields').forEach(field => field.classList.remove('active'));
+    }
 }
 
 // Cron Preset Selection
@@ -697,6 +749,33 @@ async function loadInvasionData() {
         document.getElementById('nest-cleared-nest-select').innerHTML = nestOptions;
     } catch (err) {
         // Invasion not enabled — selectors stay with default "Beliebiges" option
+    }
+}
+
+async function loadRemoteTargets(selectedMission = null) {
+    const select = document.getElementById('remote-target-select');
+    if (!select) return;
+    select.innerHTML = `<option value="">${t('missions.form_remote_target_loading')}</option>`;
+    try {
+        const resp = await fetch('/api/missions/v2/remote-targets');
+        if (!resp.ok) throw new Error();
+        const data = await resp.json();
+        remoteTargets = data.targets || [];
+        if (remoteTargets.length === 0) {
+            select.innerHTML = `<option value="">${t('missions.form_remote_target_none')}</option>`;
+            return;
+        }
+        select.innerHTML = `<option value="">${t('missions.form_remote_target_placeholder')}</option>` +
+            remoteTargets.map(target => {
+                const label = `${target.nest_name || target.nest_id} · ${target.egg_name || target.egg_id}`;
+                return `<option value="${escapeAttr(target.nest_id)}" data-egg-id="${escapeAttr(target.egg_id)}" data-nest-name="${escapeAttr(target.nest_name || '')}" data-egg-name="${escapeAttr(target.egg_name || '')}">${escapeHtml(label)}</option>`;
+            }).join('');
+        if (selectedMission?.remote_nest_id) {
+            select.value = selectedMission.remote_nest_id;
+        }
+    } catch (err) {
+        remoteTargets = [];
+        select.innerHTML = `<option value="">${t('missions.form_remote_target_unavailable')}</option>`;
     }
 }
 
@@ -794,16 +873,30 @@ async function saveMission() {
         return;
     }
     const execType = checkedRadio.value;
+    const runnerType = currentRunnerType();
     const mission = {
         name,
         prompt,
         priority: document.getElementById('mission-priority').value,
         execution_type: execType,
+        runner_type: runnerType,
         enabled: true,
         locked: document.getElementById('mission-locked').checked,
         auto_prepare: document.getElementById('mission-auto-prepare').checked,
         cheatsheet_ids: getSelectedCheatsheetIds()
     };
+    if (runnerType === 'remote') {
+        const remoteSelect = document.getElementById('remote-target-select');
+        const option = remoteSelect?.options[remoteSelect.selectedIndex];
+        if (!remoteSelect?.value || !option?.dataset?.eggId) {
+            showToast(t('missions.toast_select_remote_target'), 'error');
+            return;
+        }
+        mission.remote_nest_id = remoteSelect.value;
+        mission.remote_nest_name = option.dataset.nestName || '';
+        mission.remote_egg_id = option.dataset.eggId;
+        mission.remote_egg_name = option.dataset.eggName || '';
+    }
 
     // Add execution-specific config
     if (execType === 'scheduled') {
@@ -943,6 +1036,8 @@ function duplicateMission(id) {
     document.getElementById('mission-priority').value = m.priority;
     document.getElementById('mission-locked').checked = false;
     document.getElementById('mission-auto-prepare').checked = m.auto_prepare || false;
+    selectRunnerType(m.runner_type || 'local');
+    loadRemoteTargets(m);
     selectExecType(m.execution_type);
     if (m.execution_type === 'scheduled') {
         document.getElementById('cron-schedule').value = m.schedule || '';

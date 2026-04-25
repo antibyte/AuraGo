@@ -267,5 +267,19 @@
   "missions.prep_toast_ok": "मिशन सफलतापूर्वक तैयार",
   "missions.prep_toast_error": "तैयारी विफल",
   "missions.prep_toast_invalidated": "तैयारी अमान्य",
-  "missions.prep_view_title": "तैयार संदर्भ"
+  "missions.prep_view_title": "तैयार संदर्भ",
+  "missions.form_runner_label": "चलाने का स्थान",
+  "missions.form_runner_local_label": "स्थानीय",
+  "missions.form_runner_local_desc": "इस AuraGo इंस्टेंस पर चलाएं।",
+  "missions.form_runner_remote_label": "रिमोट egg",
+  "missions.form_runner_remote_desc": "Invasion egg पर भेजें और चलाएं।",
+  "missions.form_remote_target_label": "रिमोट egg",
+  "missions.form_remote_target_loading": "Eggs लोड हो रहे हैं...",
+  "missions.form_remote_target_hint": "केवल जुड़े हुए deployed eggs मिशन प्राप्त कर सकते हैं।",
+  "missions.form_remote_target_none": "कोई जुड़ा egg उपलब्ध नहीं",
+  "missions.form_remote_target_placeholder": "Egg चुनें...",
+  "missions.form_remote_target_unavailable": "रिमोट लक्ष्य उपलब्ध नहीं",
+  "missions.toast_select_remote_target": "कृपया रिमोट egg चुनें",
+  "missions.trigger_remote_disabled_title": "यह trigger रिमोट मिशनों के लिए उपलब्ध नहीं है",
+  "missions.card_remote_badge": "रिमोट"
 }

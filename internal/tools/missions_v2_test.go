@@ -1,12 +1,145 @@
 package tools
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 )
+
+type fakeRemoteMissionClient struct {
+	syncedMission   MissionV2
+	syncedPrompt    string
+	deletedMission  MissionV2
+	runMission      MissionV2
+	runTriggerType  string
+	runTriggerData  string
+	syncCalls       int
+	deleteCalls     int
+	runCalls        int
+	syncErr         error
+	deleteErr       error
+	runErr          error
+}
+
+func (f *fakeRemoteMissionClient) SyncMission(ctx context.Context, mission MissionV2, promptSnapshot string) error {
+	f.syncCalls++
+	f.syncedMission = mission
+	f.syncedPrompt = promptSnapshot
+	return f.syncErr
+}
+
+func (f *fakeRemoteMissionClient) DeleteMission(ctx context.Context, mission MissionV2) error {
+	f.deleteCalls++
+	f.deletedMission = mission
+	return f.deleteErr
+}
+
+func (f *fakeRemoteMissionClient) RunMission(ctx context.Context, mission MissionV2, triggerType, triggerData string) error {
+	f.runCalls++
+	f.runMission = mission
+	f.runTriggerType = triggerType
+	f.runTriggerData = triggerData
+	return f.runErr
+}
+
+func hasCronJob(cronMgr *CronManager, id string) bool {
+	for _, job := range cronMgr.GetJobs() {
+		if job.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
+func TestRemoteMissionRequiresNestAndEgg(t *testing.T) {
+	mgr := NewMissionManagerV2(t.TempDir(), NewCronManager(t.TempDir()))
+
+	err := mgr.Create(&MissionV2{
+		Name:          "Remote missing target",
+		Prompt:        "run remotely",
+		ExecutionType: ExecutionManual,
+		RunnerType:    MissionRunnerRemote,
+	})
+
+	if err == nil || !strings.Contains(err.Error(), "remote_nest_id is required") {
+		t.Fatalf("Create remote without target error = %v, want remote_nest_id validation", err)
+	}
+}
+
+func TestRemoteScheduledMissionDoesNotRegisterLocalCron(t *testing.T) {
+	tmpDir := t.TempDir()
+	cronMgr := NewCronManager(tmpDir)
+	client := &fakeRemoteMissionClient{}
+	mgr := NewMissionManagerV2(tmpDir, cronMgr)
+	mgr.SetRemoteMissionClient(client)
+
+	mission := &MissionV2{
+		ID:            "remote-schedule",
+		Name:          "Remote schedule",
+		Prompt:        "remote cron",
+		ExecutionType: ExecutionScheduled,
+		Schedule:      "0 * * * *",
+		RunnerType:    MissionRunnerRemote,
+		RemoteNestID:  "nest-1",
+		RemoteEggID:   "egg-1",
+	}
+	if err := mgr.Create(mission); err != nil {
+		t.Fatalf("Create remote scheduled mission: %v", err)
+	}
+	if hasCronJob(cronMgr, "mission_"+mission.ID) {
+		t.Fatal("remote mission registered a local cron job")
+	}
+	if client.syncCalls != 1 {
+		t.Fatalf("remote sync calls = %d, want 1", client.syncCalls)
+	}
+}
+
+func TestRemoteMissionPromptSnapshotIncludesCheatsheetAttachments(t *testing.T) {
+	tmpDir := t.TempDir()
+	client := &fakeRemoteMissionClient{}
+	mgr := NewMissionManagerV2(tmpDir, NewCronManager(tmpDir))
+	mgr.SetRemoteMissionClient(client)
+
+	db, err := InitCheatsheetDB(filepath.Join(tmpDir, "cheatsheets.db"))
+	if err != nil {
+		t.Fatalf("InitCheatsheetDB: %v", err)
+	}
+	defer db.Close()
+	sheet, err := CheatsheetCreate(db, "Deploy notes", "Use the deployment checklist.", "user")
+	if err != nil {
+		t.Fatalf("CheatsheetCreate: %v", err)
+	}
+	if _, err := CheatsheetAttachmentAdd(db, sheet.ID, "runbook.md", "upload", "Attached runbook body"); err != nil {
+		t.Fatalf("CheatsheetAttachmentAdd: %v", err)
+	}
+	mgr.SetCheatsheetDB(db)
+
+	err = mgr.Create(&MissionV2{
+		ID:            "remote-cheatsheet",
+		Name:          "Remote with attachments",
+		Prompt:        "Base prompt",
+		ExecutionType: ExecutionManual,
+		RunnerType:    MissionRunnerRemote,
+		RemoteNestID:  "nest-1",
+		RemoteEggID:   "egg-1",
+		CheatsheetIDs: []string{sheet.ID},
+	})
+	if err != nil {
+		t.Fatalf("Create remote mission: %v", err)
+	}
+	if !strings.Contains(client.syncedPrompt, "Base prompt") {
+		t.Fatalf("prompt snapshot missing base prompt: %q", client.syncedPrompt)
+	}
+	if !strings.Contains(client.syncedPrompt, "Use the deployment checklist.") {
+		t.Fatalf("prompt snapshot missing cheatsheet content: %q", client.syncedPrompt)
+	}
+	if !strings.Contains(client.syncedPrompt, "Attached runbook body") {
+		t.Fatalf("prompt snapshot missing attachment content: %q", client.syncedPrompt)
+	}
+}
 
 func TestMissionQueueTryStartNextIsAtomic(t *testing.T) {
 	q := NewMissionQueue()
