@@ -11,8 +11,11 @@ import (
 	"time"
 )
 
-// haHTTPClient is a shared HTTP client for Home Assistant API calls with SSRF protection.
-var haHTTPClient = security.NewSSRFProtectedHTTPClient(30 * time.Second)
+// haHTTPClient is a shared HTTP client for configured Home Assistant API calls.
+// Home Assistant is a homelab integration and commonly lives on RFC1918 or
+// mDNS/local addresses, so it must not use the generic SSRF-protected client
+// reserved for agent-supplied arbitrary URLs.
+var haHTTPClient = &http.Client{Timeout: 30 * time.Second}
 
 // HAConfig holds the Home Assistant connection parameters.
 type HAConfig struct {
