@@ -5,6 +5,9 @@ async function renderN8nSection(section) {
     const enabledOn      = data.enabled       === true;
     const readonlyOn     = data.readonly       === true;
     const requireTokenOn = data.require_token  !== false; // default: true
+    const allowedEvents  = Array.isArray(data.allowed_events) ? data.allowed_events : ['agent.response', 'agent.error', 'mission.completed'];
+    const allowedTools   = Array.isArray(data.allowed_tools) ? data.allowed_tools : [];
+    const scopes         = Array.isArray(data.scopes) ? data.scopes : [];
 
     let html = '<div class="cfg-section active">';
     html += '<div class="section-header">' + section.icon + ' ' + section.label + '</div>';
@@ -13,6 +16,14 @@ async function renderN8nSection(section) {
     // ── Info banner ──
     html += '<div class="n8n-info-banner">';
     html += t('config.n8n.info_text');
+    html += '</div>';
+
+    // ── Status test ──
+    html += '<div class="field-group">';
+    html += '<div class="field-label">' + t('config.n8n.status_label') + '</div>';
+    html += '<div class="field-help">' + t('config.n8n.status_hint') + '</div>';
+    html += '<button class="btn-save n8n-token-btn" type="button" onclick="n8nTestStatus()">' + t('config.n8n.status_test') + '</button>';
+    html += '<div id="n8n-status-result" class="n8n-token-status"></div>';
     html += '</div>';
 
     // ── Enabled toggle ──
@@ -43,11 +54,32 @@ async function renderN8nSection(section) {
     html += '<span class="toggle-label">' + (requireTokenOn ? t('config.toggle.active') : t('config.toggle.inactive')) + '</span>';
     html += '</div></div>';
 
-    // ── Webhook Base URL ──
+    // ── Full n8n Webhook URL ──
     html += '<div class="field-group">';
     html += '<div class="field-label">' + t('config.n8n.webhook_url_label') + '</div>';
     html += '<div class="field-help">' + t('config.n8n.webhook_url_hint') + '</div>';
     html += '<input class="field-input" type="url" data-path="n8n.webhook_base_url" value="' + escapeAttr(data.webhook_base_url || '') + '" placeholder="' + t('config.n8n.webhook_url_placeholder') + '" oninput="markDirty()">';
+    html += '</div>';
+
+    // ── Allowed events ──
+    html += '<div class="field-group">';
+    html += '<div class="field-label">' + t('config.n8n.allowed_events_label') + '</div>';
+    html += '<div class="field-help">' + t('config.n8n.allowed_events_hint') + '</div>';
+    html += '<textarea class="field-input" rows="4" data-path="n8n.allowed_events" data-type="array-lines" oninput="markDirty()">' + escapeHtml(allowedEvents.join('\n')) + '</textarea>';
+    html += '</div>';
+
+    // ── Allowed tools ──
+    html += '<div class="field-group">';
+    html += '<div class="field-label">' + t('config.n8n.allowed_tools_label') + '</div>';
+    html += '<div class="field-help">' + t('config.n8n.allowed_tools_hint') + '</div>';
+    html += '<textarea class="field-input" rows="4" data-path="n8n.allowed_tools" data-type="array-lines" placeholder="shell\nhttp_request" oninput="markDirty()">' + escapeHtml(allowedTools.join('\n')) + '</textarea>';
+    html += '</div>';
+
+    // ── Scopes ──
+    html += '<div class="field-group">';
+    html += '<div class="field-label">' + t('config.n8n.scopes_label') + '</div>';
+    html += '<div class="field-help">' + t('config.n8n.scopes_hint') + '</div>';
+    html += '<textarea class="field-input" rows="4" data-path="n8n.scopes" data-type="array-lines" placeholder="n8n:read\nn8n:chat\nn8n:tools" oninput="markDirty()">' + escapeHtml(scopes.join('\n')) + '</textarea>';
     html += '</div>';
 
     // ── Rate limit ──
@@ -111,6 +143,24 @@ async function n8nGenerateToken() {
             status.className = 'n8n-token-status n8n-token-status-error';
             status.textContent = t('config.n8n.token_error_with_icon');
         }
+    }
+}
+
+async function n8nTestStatus() {
+    const status = document.getElementById('n8n-status-result');
+    if (!status) return;
+    status.className = 'n8n-token-status n8n-token-status-muted';
+    status.textContent = t('config.n8n.status_testing');
+    try {
+        const resp = await fetch('/api/n8n/status');
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) throw new Error(data.error || resp.statusText);
+        status.className = 'n8n-token-status n8n-token-status-success';
+        const caps = Array.isArray(data.capabilities) ? data.capabilities.join(', ') : 'ok';
+        status.textContent = t('config.n8n.status_success') + ': ' + caps;
+    } catch (e) {
+        status.className = 'n8n-token-status n8n-token-status-error';
+        status.textContent = t('config.n8n.status_error') + ': ' + (e && e.message ? e.message : 'unknown');
     }
 }
 

@@ -5,6 +5,9 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"aurago/internal/config"
@@ -71,5 +74,73 @@ func TestGenerateSessionIDReturnsErrorWhenRandomFails(t *testing.T) {
 
 	if _, err := generateSessionID(); err == nil {
 		t.Fatal("expected random failure to be returned")
+	}
+}
+
+func TestMaskN8nTokenHandlesShortValues(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		token string
+		want  string
+	}{
+		{name: "empty", token: "", want: ""},
+		{name: "short", token: "short", want: "•••••"},
+		{name: "exact eight", token: "12345678", want: "••••••••"},
+		{name: "long", token: "n8n_1234567890", want: "n8n_••••••••7890"},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if got := maskN8nToken(tt.token); got != tt.want {
+				t.Fatalf("maskN8nToken() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestN8nReadJSONRejectsTrailingDocuments(t *testing.T) {
+	t.Parallel()
+
+	req := httptest.NewRequest(http.MethodPost, "/api/n8n/chat", strings.NewReader(`{"message":"one"}{"message":"two"}`))
+	rec := httptest.NewRecorder()
+	var body n8nChatRequest
+	if err := n8nReadJSON(rec, req, &body); err == nil {
+		t.Fatal("expected trailing JSON document to be rejected")
+	}
+}
+
+func TestN8nEffectiveAllowedTools(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		global  []string
+		request []string
+		want    []string
+	}{
+		{name: "request only", request: []string{"shell"}, want: []string{"shell"}},
+		{name: "global only", global: []string{"shell"}, want: []string{"shell"}},
+		{name: "intersection", global: []string{"shell", "http_request"}, request: []string{"http_request", "python"}, want: []string{"http_request"}},
+		{name: "no overlap", global: []string{"shell"}, request: []string{"python"}, want: []string{}},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := n8nEffectiveAllowedTools(tt.global, tt.request)
+			if len(got) != len(tt.want) {
+				t.Fatalf("len = %d, want %d (%v)", len(got), len(tt.want), got)
+			}
+			for i := range got {
+				if got[i] != tt.want[i] {
+					t.Fatalf("got %v, want %v", got, tt.want)
+				}
+			}
+		})
 	}
 }

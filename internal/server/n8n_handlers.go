@@ -7,7 +7,9 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"regexp"
 	"strings"
@@ -31,6 +33,8 @@ const (
 	maxSessionIDLength = 64      // Max session ID length
 	maxSessions        = 10000   // Maximum concurrent sessions
 	maxTimeout         = 300     // 5 minutes max tool timeout
+	maxContextWindow   = 50      // Maximum n8n chat history messages per request
+	maxMemoryLimit     = 100     // Maximum memory search results per request
 )
 
 // Validators
@@ -198,7 +202,7 @@ func handleN8nChat(s *Server) http.HandlerFunc {
 		}
 
 		var req n8nChatRequest
-		if err := n8nReadJSON(r, &req); err != nil {
+		if err := n8nReadJSON(w, r, &req); err != nil {
 			n8nWriteError(w, http.StatusBadRequest, "Invalid request body", "parse_error")
 			return
 		}
@@ -241,6 +245,8 @@ func handleN8nChat(s *Server) http.HandlerFunc {
 		contextWindow := req.ContextWindow
 		if contextWindow <= 0 {
 			contextWindow = 10
+		} else if contextWindow > maxContextWindow {
+			contextWindow = maxContextWindow
 		}
 
 		// Build system prompt
@@ -252,15 +258,11 @@ func handleN8nChat(s *Server) http.HandlerFunc {
 		// Filter tools if specified
 		var allowedTools []string
 		s.CfgMu.RLock()
-		if len(s.Cfg.N8n.AllowedTools) > 0 {
-			allowedTools = s.Cfg.N8n.AllowedTools
-		} else if len(req.Tools) > 0 {
-			allowedTools = req.Tools
-		}
+		allowedTools = n8nEffectiveAllowedTools(s.Cfg.N8n.AllowedTools, req.Tools)
 		readonly := s.Cfg.N8n.ReadOnly
 		s.CfgMu.RUnlock()
 
-		ctx := context.Background()
+		ctx := r.Context()
 
 		toolSchemas := buildN8nToolSchemas(s, allowedTools)
 		manifest := tools.NewManifest(s.Cfg.Directories.ToolsDir)
@@ -284,6 +286,9 @@ func handleN8nChat(s *Server) http.HandlerFunc {
 			llmResp, tokens, err := callLLMWithTools(ctx, s, messages, toolSchemas)
 			if err != nil {
 				s.Logger.Error("[n8n] LLM chat failed", "error", err)
+				n8nSendWebhook(s, N8nEventAgentError, sessionID, map[string]interface{}{
+					"error": "Agent processing failed",
+				})
 				n8nWriteError(w, http.StatusInternalServerError, "Agent processing failed", "agent_error")
 				return
 			}
@@ -483,7 +488,7 @@ func handleN8nToolExecute(s *Server) http.HandlerFunc {
 		}
 
 		var req n8nToolExecuteRequest
-		if err := n8nReadJSON(r, &req); err != nil {
+		if err := n8nReadJSON(w, r, &req); err != nil {
 			n8nWriteError(w, http.StatusBadRequest, "Invalid request body", "parse_error")
 			return
 		}
@@ -496,7 +501,7 @@ func handleN8nToolExecute(s *Server) http.HandlerFunc {
 			timeout = maxTimeout
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Second)
+		ctx, cancel := context.WithTimeout(r.Context(), time.Duration(timeout)*time.Second)
 		defer cancel()
 
 		// Build tool call — only set Params; do NOT unmarshal user input into the full ToolCall struct
@@ -565,7 +570,7 @@ func handleN8nMemorySearch(s *Server) http.HandlerFunc {
 		}
 
 		var req n8nMemorySearchRequest
-		if err := n8nReadJSON(r, &req); err != nil {
+		if err := n8nReadJSON(w, r, &req); err != nil {
 			n8nWriteError(w, http.StatusBadRequest, "Invalid request body", "parse_error")
 			return
 		}
@@ -577,6 +582,8 @@ func handleN8nMemorySearch(s *Server) http.HandlerFunc {
 
 		if req.Limit <= 0 {
 			req.Limit = 10
+		} else if req.Limit > maxMemoryLimit {
+			req.Limit = maxMemoryLimit
 		}
 
 		results := make([]map[string]interface{}, 0)
@@ -713,7 +720,7 @@ func handleN8nMemoryStore(s *Server) http.HandlerFunc {
 		}
 
 		var req n8nMemoryStoreRequest
-		if err := n8nReadJSON(r, &req); err != nil {
+		if err := n8nReadJSON(w, r, &req); err != nil {
 			n8nWriteError(w, http.StatusBadRequest, "Invalid request body", "parse_error")
 			return
 		}
@@ -814,7 +821,7 @@ func handleN8nMissionCreate(s *Server) http.HandlerFunc {
 		}
 
 		var req n8nMissionRequest
-		if err := n8nReadJSON(r, &req); err != nil {
+		if err := n8nReadJSON(w, r, &req); err != nil {
 			n8nWriteError(w, http.StatusBadRequest, "Invalid request body", "parse_error")
 			return
 		}
@@ -841,6 +848,14 @@ func handleN8nMissionCreate(s *Server) http.HandlerFunc {
 		var triggerType tools.TriggerType
 		switch req.Trigger {
 		case "schedule":
+			if strings.TrimSpace(req.Schedule) == "" {
+				n8nWriteError(w, http.StatusBadRequest, "Schedule is required for scheduled missions", "validation_error")
+				return
+			}
+			if !validateCronExpr(req.Schedule) {
+				n8nWriteError(w, http.StatusBadRequest, "Invalid cron schedule", "validation_error")
+				return
+			}
 			execType = tools.ExecutionScheduled
 		case "webhook":
 			execType = tools.ExecutionTriggered
@@ -922,7 +937,7 @@ func handleN8nToken(s *Server) http.HandlerFunc {
 				return
 			}
 			// Return masked version
-			masked := token[:4] + "••••••••" + token[len(token)-4:]
+			masked := maskN8nToken(token)
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(map[string]string{"token": masked})
 
@@ -1082,11 +1097,42 @@ func n8nWriteError(w http.ResponseWriter, status int, message string, code strin
 
 func generateN8nToken() (string, error) {
 	// Generate a secure random token: n8n_ + 32 hex chars
-	b := make([]byte, 16)
+	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
 		return "", err
 	}
 	return "n8n_" + hex.EncodeToString(b), nil
+}
+
+func maskN8nToken(token string) string {
+	if token == "" {
+		return ""
+	}
+	if len(token) <= 8 {
+		return strings.Repeat("•", len(token))
+	}
+	return token[:4] + "••••••••" + token[len(token)-4:]
+}
+
+func n8nEffectiveAllowedTools(globalAllowed, requestAllowed []string) []string {
+	if len(globalAllowed) == 0 {
+		return append([]string(nil), requestAllowed...)
+	}
+	if len(requestAllowed) == 0 {
+		return append([]string(nil), globalAllowed...)
+	}
+
+	requestSet := make(map[string]bool, len(requestAllowed))
+	for _, name := range requestAllowed {
+		requestSet[name] = true
+	}
+	allowed := make([]string, 0, len(globalAllowed))
+	for _, name := range globalAllowed {
+		if requestSet[name] {
+			allowed = append(allowed, name)
+		}
+	}
+	return allowed
 }
 
 func generateSessionID() (string, error) {
@@ -1355,7 +1401,14 @@ func n8nEvictOldestSessionLocked() {
 }
 
 // n8nReadJSON reads JSON body with size limit protection
-func n8nReadJSON(r *http.Request, dst interface{}) error {
-	r.Body = http.MaxBytesReader(nil, r.Body, maxBodySize)
-	return json.NewDecoder(r.Body).Decode(dst)
+func n8nReadJSON(w http.ResponseWriter, r *http.Request, dst interface{}) error {
+	r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
+	dec := json.NewDecoder(r.Body)
+	if err := dec.Decode(dst); err != nil {
+		return err
+	}
+	if err := dec.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
+		return fmt.Errorf("request body must contain a single JSON document")
+	}
+	return nil
 }

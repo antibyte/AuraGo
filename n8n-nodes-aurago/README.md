@@ -10,6 +10,7 @@
 - **Tools** - Execute any AuraGo tool directly (filesystem, web scraper, API requests, etc.)
 - **Memory** - Search and store memories in the agent's short-term, long-term, or knowledge graph
 - **Missions** - Create and run automated mission chains
+- **Status** - Check connection status and available n8n capabilities
 
 ### Triggers
 
@@ -100,13 +101,13 @@ In your AuraGo instance:
 2. Navigate to **n8n Integration**
 3. Enable the integration
 4. Generate an API token
-5. Set your webhook URL (if using triggers)
+5. Set the full n8n webhook URL (if using triggers)
 
 ```yaml
 # Or in config.yaml:
 n8n:
   enabled: true
-  webhook_base_url: "https://your-n8n.com/webhook"
+  webhook_base_url: "https://your-n8n.com/webhook/abc-123"
   allowed_events:
     - "agent.response"
     - "agent.error"
@@ -194,7 +195,6 @@ AuraGo Trigger (Mission Completed) → HTTP Request (Notification)
 - Tool Name
 - Parameters (JSON)
 - Timeout
-- Async mode
 
 ### Memory Resource
 
@@ -220,7 +220,14 @@ AuraGo Trigger (Mission Completed) → HTTP Request (Notification)
 - Name
 - Description
 - Trigger type (manual/webhook/schedule)
+- Schedule (cron expression, required for scheduled missions)
 - Steps (JSON array)
+
+### Status Resource
+
+| Operation | Description |
+|-----------|-------------|
+| Get Status | Return AuraGo n8n integration status, capabilities and exposed config summary |
 
 ## Webhook Security
 
@@ -249,11 +256,11 @@ const signature = crypto
 
 1. Regenerate token in AuraGo Config UI
 2. Ensure token is copied completely (starts with `n8n_`)
-3. Check token hasn't expired
+3. Confirm `require_token` is enabled and the token is stored in the AuraGo vault
 
 ### Webhook Not Triggering
 
-1. Verify webhook_base_url is set in AuraGo
+1. Verify `webhook_base_url` is the full n8n webhook URL in AuraGo
 2. Check event type is in allowed_events list
 3. Ensure n8n webhook URL is publicly accessible
 4. Check AuraGo logs for webhook delivery errors
