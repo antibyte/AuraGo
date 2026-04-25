@@ -96,6 +96,18 @@ func (m *Manager) Subscribe(sub PushSubscription) error {
 		return fmt.Errorf("invalid subscription data")
 	}
 
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	created := false
+	var existing string
+	err := m.db.QueryRow("SELECT endpoint FROM subscriptions WHERE endpoint = ?", sub.Endpoint).Scan(&existing)
+	if err == sql.ErrNoRows {
+		created = true
+	} else if err != nil {
+		return fmt.Errorf("failed to inspect subscription: %w", err)
+	}
+
 	stmt := `
 	INSERT INTO subscriptions (endpoint, auth_key, p256dh_key) 
 	VALUES (?, ?, ?)
@@ -104,12 +116,14 @@ func (m *Manager) Subscribe(sub PushSubscription) error {
 		p256dh_key = excluded.p256dh_key,
 		last_used = CURRENT_TIMESTAMP;`
 
-	_, err := m.db.Exec(stmt, sub.Endpoint, sub.Keys["auth"], sub.Keys["p256dh"])
+	_, err = m.db.Exec(stmt, sub.Endpoint, sub.Keys["auth"], sub.Keys["p256dh"])
 	if err != nil {
 		return fmt.Errorf("failed to save subscription: %w", err)
 	}
 
-	m.logger.Info("New Web Push subscription added", "endpoint", sub.Endpoint)
+	if created {
+		m.logger.Info("New Web Push subscription added", "endpoint", sub.Endpoint)
+	}
 	return nil
 }
 

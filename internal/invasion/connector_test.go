@@ -108,6 +108,15 @@ func TestDockerLocalHostHonorsDockerHostEnv(t *testing.T) {
 	}
 }
 
+func TestDockerConnector_ConfigArchivePathMatchesEntrypoint(t *testing.T) {
+	if dockerEggConfigArchivePath != "/app/data" {
+		t.Fatalf("dockerEggConfigArchivePath = %q, want /app/data", dockerEggConfigArchivePath)
+	}
+	if dockerEggConfigFileName != "config.yaml" {
+		t.Fatalf("dockerEggConfigFileName = %q, want config.yaml", dockerEggConfigFileName)
+	}
+}
+
 // ── Docker API mock tests ───────────────────────────────────────────────────
 
 // mockDockerAPI creates an httptest.Server that emulates key Docker Engine endpoints.
@@ -259,6 +268,7 @@ func TestDockerConnector_Stop_AlreadyStopped(t *testing.T) {
 
 func TestDockerConnector_Deploy_OK(t *testing.T) {
 	configYAML := []byte("egg_mode:\n  master_url: ws://localhost:8080/api/invasion/ws\n  egg_id: e1\n  nest_id: n1\n")
+	var archivePath string
 
 	ts := mockDockerAPI(t, map[string]http.HandlerFunc{
 		"/images/create": func(w http.ResponseWriter, r *http.Request) {
@@ -275,6 +285,7 @@ func TestDockerConnector_Deploy_OK(t *testing.T) {
 				return
 			}
 			if r.Method == "PUT" { // archive upload (config.yaml copy)
+				archivePath = r.URL.Query().Get("path")
 				w.WriteHeader(http.StatusOK)
 				return
 			}
@@ -294,6 +305,9 @@ func TestDockerConnector_Deploy_OK(t *testing.T) {
 	})
 	if err != nil {
 		t.Errorf("Deploy should succeed: %v", err)
+	}
+	if archivePath != "/app/data" {
+		t.Fatalf("config archive path = %q, want /app/data so the entrypoint reads the generated egg config", archivePath)
 	}
 }
 

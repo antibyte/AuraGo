@@ -20,6 +20,8 @@ import (
 // dockerAPIVersion is the Docker Engine API version used for all requests.
 // Increment when requiring features from a newer Docker Engine.
 const dockerAPIVersion = dockerutil.APIVersion
+const dockerEggConfigArchivePath = "/app/data"
+const dockerEggConfigFileName = "config.yaml"
 
 // DockerConnector deploys eggs as Docker containers, either on a remote host
 // or on the local Docker daemon.
@@ -137,13 +139,13 @@ func (c *DockerConnector) Deploy(ctx context.Context, nest NestRecord, secret []
 
 // copyConfigToContainer copies the egg config YAML into a container via the
 // Docker Engine Archive API (PUT /containers/{id}/archive). The config is
-// written to /app/config.yaml with mode 0600 (owner read/write only).
+// written to /app/data/config.yaml with mode 0600 (owner read/write only).
 func (c *DockerConnector) copyConfigToContainer(ctx context.Context, nest NestRecord, containerName string, configYAML []byte) error {
 	// Build a tar archive containing config.yaml
 	var buf bytes.Buffer
 	tw := tar.NewWriter(&buf)
 	hdr := &tar.Header{
-		Name: "config.yaml",
+		Name: dockerEggConfigFileName,
 		Mode: 0600,
 		Size: int64(len(configYAML)),
 	}
@@ -157,8 +159,8 @@ func (c *DockerConnector) copyConfigToContainer(ctx context.Context, nest NestRe
 		return fmt.Errorf("failed to close tar archive: %w", err)
 	}
 
-	// Upload to container at /app/
-	url := c.apiURL(nest, fmt.Sprintf("/containers/%s/archive?path=/app", containerName))
+	// Upload to the persisted config path read by docker-entrypoint.sh.
+	url := c.apiURL(nest, fmt.Sprintf("/containers/%s/archive?path=%s", containerName, dockerEggConfigArchivePath))
 	req, err := http.NewRequestWithContext(ctx, "PUT", url, &buf)
 	if err != nil {
 		return fmt.Errorf("failed to create archive request: %w", err)

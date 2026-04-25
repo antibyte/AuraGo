@@ -117,7 +117,7 @@ EXPOSE 8088 8089
 
 # ----- volumes -----
 # Mount these from outside to persist state across container restarts:
-#   /app/config.yaml              – your filled-in config (required)
+#   /app/data/config.yaml         – active config read by the entrypoint
 #   /app/data                     – memory, chat history, master key, state
 #   /app/agent_workspace/workdir  – Python venv + generated tools
 VOLUME ["/app/data", "/app/agent_workspace/workdir"]
