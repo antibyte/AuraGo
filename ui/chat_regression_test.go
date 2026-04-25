@@ -456,6 +456,55 @@ func TestChatUIEmojiIconsAreImageAssets(t *testing.T) {
 	}
 }
 
+func TestChatComposerToolIconsKeepExplicitImageBox(t *testing.T) {
+	t.Parallel()
+
+	cssPath := filepath.Join("css", "chat.css")
+	indexPath := "index.html"
+
+	cssContent, err := os.ReadFile(cssPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", cssPath, err)
+	}
+	indexContent, err := os.ReadFile(indexPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", indexPath, err)
+	}
+
+	indexHTML := string(indexContent)
+	for _, marker := range []string{
+		`id="clear-btn"`,
+		`data-chat-icon="clear"`,
+		`id="upload-btn"`,
+		`data-chat-icon="attach"`,
+		`id="cheatsheet-picker-btn"`,
+		`data-chat-icon="clipboard"`,
+		`id="push-btn"`,
+		`data-chat-icon="bell"`,
+		`id="stop-btn"`,
+		`data-chat-icon="stop"`,
+	} {
+		if !strings.Contains(indexHTML, marker) {
+			t.Fatalf("%s is missing composer icon wiring marker %q", indexPath, marker)
+		}
+	}
+
+	css := string(cssContent)
+	if strings.Contains(css, ".composer-tool-btn .tool-icon {\n                width: auto;") ||
+		strings.Contains(css, ".composer-panel .composer-tool-btn .tool-icon {\n                font-size: 0.95rem;\n                width: auto;") {
+		t.Fatalf("%s lets composer image icons collapse to zero width with width:auto", cssPath)
+	}
+	for _, marker := range []string{
+		".composer-tool-btn .tool-icon {\n            font-size: 0.95rem;\n            width: var(--chat-ui-icon-size);",
+		".composer-tool-btn .tool-icon {\n                font-size: 1rem;\n                width: var(--chat-ui-icon-size);",
+		".composer-panel .composer-tool-btn .tool-icon {\n                font-size: 0.95rem;\n                width: var(--chat-ui-icon-size);",
+	} {
+		if !strings.Contains(css, marker) {
+			t.Fatalf("%s is missing explicit composer icon box marker %q", cssPath, marker)
+		}
+	}
+}
+
 func TestGlobalSafeAreaRulesPreserveHeaderFooterSpacing(t *testing.T) {
 	t.Parallel()
 

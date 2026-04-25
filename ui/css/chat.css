@@ -2620,7 +2620,8 @@
 
         .composer-tool-btn .tool-icon {
             font-size: 0.95rem;
-            width: 1rem;
+            width: var(--chat-ui-icon-size);
+            height: var(--chat-ui-icon-size);
             text-align: center;
             flex-shrink: 0;
         }
@@ -3514,8 +3515,9 @@
             }
 
             .composer-tool-btn .tool-icon {
-                width: auto;
                 font-size: 1rem;
+                width: var(--chat-ui-icon-size);
+                height: var(--chat-ui-icon-size);
             }
 
             .composer-tool-btn .tool-label {
@@ -3738,7 +3740,8 @@
 
             .composer-panel .composer-tool-btn .tool-icon {
                 font-size: 0.95rem;
-                width: auto;
+                width: var(--chat-ui-icon-size);
+                height: var(--chat-ui-icon-size);
             }
 
             /* Hide text labels on desktop – icon-only */
