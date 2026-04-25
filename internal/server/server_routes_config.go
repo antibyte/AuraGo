@@ -396,4 +396,12 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	mux.HandleFunc("/api/missions/v2/history", handleMissionV2History(s))
 	mux.HandleFunc("/api/missions/v2/remote-targets", handleMissionRemoteTargets(s))
 	mux.HandleFunc("/api/missions/v2/", handleMissionV2ByID(s))
+	mux.HandleFunc("/api/internal/missions/sync", handleInternalMissionSync(s))
+	mux.HandleFunc("/api/internal/missions/", func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/run") {
+			handleInternalMissionRun(s)(w, r)
+			return
+		}
+		handleInternalMissionDelete(s)(w, r)
+	})
 }

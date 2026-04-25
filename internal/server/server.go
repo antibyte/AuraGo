@@ -599,6 +599,9 @@ func Start(opts StartOptions) error {
 	s.MissionManagerV2.SetCallback(missionCallbackV2)
 	if opts.EggMissionResultSink != nil {
 		s.MissionManagerV2.SetCompletionCallback(func(missionID, result, output string) {
+			if !s.MissionManagerV2.IsSyncedFromMaster(missionID) {
+				return
+			}
 			payload := bridge.MissionResultPayload{
 				MissionID: missionID,
 				Result:    result,

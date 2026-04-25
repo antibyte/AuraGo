@@ -10,18 +10,18 @@ import (
 )
 
 type fakeRemoteMissionClient struct {
-	syncedMission   MissionV2
-	syncedPrompt    string
-	deletedMission  MissionV2
-	runMission      MissionV2
-	runTriggerType  string
-	runTriggerData  string
-	syncCalls       int
-	deleteCalls     int
-	runCalls        int
-	syncErr         error
-	deleteErr       error
-	runErr          error
+	syncedMission  MissionV2
+	syncedPrompt   string
+	deletedMission MissionV2
+	runMission     MissionV2
+	runTriggerType string
+	runTriggerData string
+	syncCalls      int
+	deleteCalls    int
+	runCalls       int
+	syncErr        error
+	deleteErr      error
+	runErr         error
 }
 
 func (f *fakeRemoteMissionClient) SyncMission(ctx context.Context, mission MissionV2, promptSnapshot string) error {
@@ -52,6 +52,77 @@ func hasCronJob(cronMgr *CronManager, id string) bool {
 		}
 	}
 	return false
+}
+
+func TestApplySyncedMissionPreservesMetadata(t *testing.T) {
+	mgr := NewMissionManagerV2(t.TempDir(), nil)
+	createdAt := time.Date(2026, 4, 25, 18, 0, 0, 0, time.UTC)
+	mission := &MissionV2{
+		ID:               "mission_remote_1",
+		Name:             "Remote backup",
+		Prompt:           "Run backup",
+		ExecutionType:    ExecutionManual,
+		Priority:         "high",
+		Enabled:          true,
+		Locked:           true,
+		CreatedAt:        createdAt,
+		AutoPrepare:      true,
+		SyncedFromMaster: true,
+	}
+	if err := mgr.ApplySyncedMission(mission); err != nil {
+		t.Fatalf("ApplySyncedMission: %v", err)
+	}
+	got, ok := mgr.Get("mission_remote_1")
+	if !ok {
+		t.Fatal("synced mission was not stored")
+	}
+	if !got.Locked || !got.AutoPrepare || !got.CreatedAt.Equal(createdAt) || !got.SyncedFromMaster {
+		t.Fatalf("synced metadata not preserved: %+v", got)
+	}
+}
+
+func TestDeleteSyncedMissionBypassesLock(t *testing.T) {
+	mgr := NewMissionManagerV2(t.TempDir(), nil)
+	if err := mgr.ApplySyncedMission(&MissionV2{
+		ID:               "mission_locked_remote",
+		Name:             "Locked",
+		Prompt:           "x",
+		ExecutionType:    ExecutionManual,
+		Enabled:          true,
+		Locked:           true,
+		SyncedFromMaster: true,
+	}); err != nil {
+		t.Fatalf("ApplySyncedMission: %v", err)
+	}
+	if err := mgr.DeleteSyncedMission("mission_locked_remote"); err != nil {
+		t.Fatalf("DeleteSyncedMission: %v", err)
+	}
+	if _, ok := mgr.Get("mission_locked_remote"); ok {
+		t.Fatal("locked synced mission still exists")
+	}
+}
+
+func TestApplySyncedScheduledMissionRegistersCron(t *testing.T) {
+	tmpDir := t.TempDir()
+	cronMgr := NewCronManager(tmpDir)
+	if err := cronMgr.Start(func(string) {}); err != nil {
+		t.Fatalf("cron start: %v", err)
+	}
+	mgr := NewMissionManagerV2(tmpDir, cronMgr)
+	if err := mgr.ApplySyncedMission(&MissionV2{
+		ID:               "mission_scheduled_remote",
+		Name:             "Remote schedule",
+		Prompt:           "x",
+		ExecutionType:    ExecutionScheduled,
+		Schedule:         "0 4 * * *",
+		Enabled:          true,
+		SyncedFromMaster: true,
+	}); err != nil {
+		t.Fatalf("ApplySyncedMission: %v", err)
+	}
+	if !hasCronJob(cronMgr, "mission_mission_scheduled_remote") {
+		t.Fatal("synced scheduled mission was not registered with cron")
+	}
 }
 
 func TestRemoteMissionRequiresNestAndEgg(t *testing.T) {

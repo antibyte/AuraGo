@@ -817,6 +817,7 @@ func main() {
 			appLog,
 		)
 		eggClient.TLSSkipVerify = cfg.EggMode.TLSSkipVerify
+		internalHTTPClient := server.NewInternalHTTPClient(2 * time.Minute)
 		eggMissionAPI := func(method, path string, body interface{}) error {
 			var reader io.Reader
 			if body != nil {
@@ -833,7 +834,7 @@ func main() {
 			req.Header.Set("Content-Type", "application/json")
 			req.Header.Set("X-Internal-FollowUp", "true")
 			req.Header.Set("X-Internal-Token", loopbackToken)
-			resp, err := cronHTTPClient.Do(req)
+			resp, err := internalHTTPClient.Do(req)
 			if err != nil {
 				return err
 			}
@@ -890,44 +891,19 @@ func main() {
 		}
 		eggClient.OnMissionSync = func(payload bridge.MissionSyncPayload) error {
 			appLog.Info("Mission sync received from master", "mission_id", payload.MissionID, "revision", payload.Revision)
-			var triggerConfig *tools.TriggerConfig
-			if len(payload.TriggerConfig) > 0 {
-				var cfg tools.TriggerConfig
-				if err := json.Unmarshal(payload.TriggerConfig, &cfg); err != nil {
-					return fmt.Errorf("invalid trigger config: %w", err)
-				}
-				triggerConfig = &cfg
-			}
-			mission := tools.MissionV2{
-				ID:            payload.MissionID,
-				Name:          payload.Name,
-				Prompt:        payload.PromptSnapshot,
-				ExecutionType: tools.ExecutionType(payload.ExecutionType),
-				Schedule:      payload.Schedule,
-				TriggerType:   tools.TriggerType(payload.TriggerType),
-				TriggerConfig: triggerConfig,
-				Priority:      payload.Priority,
-				Enabled:       payload.Enabled,
-				Locked:        false,
-			}
-			if mission.Priority == "" {
-				mission.Priority = "medium"
-			}
-			path := "/api/missions/v2"
-			if err := eggMissionAPI(http.MethodGet, "/api/missions/v2/"+payload.MissionID, nil); err == nil {
-				path = "/api/missions/v2/" + payload.MissionID
-				return eggMissionAPI(http.MethodPut, path, mission)
-			}
-			return eggMissionAPI(http.MethodPost, path, mission)
+			return eggMissionAPI(http.MethodPost, "/api/internal/missions/sync", payload)
 		}
 		eggClient.OnMissionRun = func(payload bridge.MissionRunPayload) error {
 			appLog.Info("Mission run received from master", "mission_id", payload.MissionID, "trigger_type", payload.TriggerType)
-			body := map[string]string{"trigger_data": payload.TriggerData}
-			return eggMissionAPI(http.MethodPost, "/api/missions/v2/"+payload.MissionID+"/trigger", body)
+			body := map[string]string{
+				"trigger_type": payload.TriggerType,
+				"trigger_data": payload.TriggerData,
+			}
+			return eggMissionAPI(http.MethodPost, "/api/internal/missions/"+payload.MissionID+"/run", body)
 		}
 		eggClient.OnMissionDelete = func(payload bridge.MissionDeletePayload) error {
 			appLog.Info("Mission delete received from master", "mission_id", payload.MissionID)
-			return eggMissionAPI(http.MethodDelete, "/api/missions/v2/"+payload.MissionID, nil)
+			return eggMissionAPI(http.MethodDelete, "/api/internal/missions/"+payload.MissionID, nil)
 		}
 		eggMissionResultSink = func(result bridge.MissionResultPayload) error {
 			if err := eggClient.SendMissionResult(result); err != nil {
@@ -951,7 +927,15 @@ func main() {
 			appLog.Warn("Stop command from master -- initiating shutdown")
 			close(shutdownCh)
 		}
-		go eggClient.Start()
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			if err := waitForInternalAPIReady(ctx, cfg, loopbackToken, internalHTTPClient); err != nil {
+				appLog.Error("Egg client startup aborted because internal API is not ready", "error", err)
+				return
+			}
+			eggClient.Start()
+		}()
 	}
 
 	// Startup security audit -- log warnings for any critical/warning issues
@@ -1021,6 +1005,36 @@ func main() {
 	}); err != nil {
 		appLog.Error("Server failed", "error", err)
 		os.Exit(1)
+	}
+}
+
+func waitForInternalAPIReady(ctx context.Context, cfg *config.Config, token string, client *http.Client) error {
+	if client == nil {
+		client = server.NewInternalHTTPClient(10 * time.Second)
+	}
+	ticker := time.NewTicker(250 * time.Millisecond)
+	defer ticker.Stop()
+	url := server.InternalAPIURL(cfg) + "/api/health"
+	for {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+		if err != nil {
+			return err
+		}
+		req.Header.Set("X-Internal-FollowUp", "true")
+		req.Header.Set("X-Internal-Token", token)
+		resp, err := client.Do(req)
+		if err == nil {
+			_, _ = io.Copy(io.Discard, resp.Body)
+			_ = resp.Body.Close()
+			if resp.StatusCode >= 200 && resp.StatusCode < 500 {
+				return nil
+			}
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+		}
 	}
 }
 

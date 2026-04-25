@@ -566,7 +566,8 @@ func authMiddleware(s *Server, next http.Handler) http.Handler {
 		// auth middleware intercepts /api/internal/tool-bridge/* first and returns the
 		// login redirect 401 before the dedicated tool-bridge handler can validate the
 		// token itself.
-		if strings.HasPrefix(r.URL.Path, "/api/internal/tool-bridge/") && isValidInternalLoopbackToken(r, s.internalToken) {
+		if (strings.HasPrefix(r.URL.Path, "/api/internal/tool-bridge/") ||
+			strings.HasPrefix(r.URL.Path, "/api/internal/missions/")) && isValidInternalLoopbackToken(r, s.internalToken) {
 			next.ServeHTTP(w, r)
 			return
 		}

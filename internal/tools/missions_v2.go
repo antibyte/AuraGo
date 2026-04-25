@@ -126,6 +126,7 @@ type MissionV2 struct {
 	RemoteSyncStatus string        `json:"remote_sync_status,omitempty"` // synced | pending | error
 	RemoteSyncError  string        `json:"remote_sync_error,omitempty"`
 	RemoteRevision   string        `json:"remote_revision,omitempty"`
+	SyncedFromMaster bool          `json:"synced_from_master,omitempty"` // Egg-local mission received from a master
 
 	// Mission Preparation fields
 	PreparationStatus string     `json:"preparation_status,omitempty"` // none|preparing|prepared|stale|error
@@ -399,6 +400,14 @@ func (m *MissionManagerV2) SetCompletionCallback(callback func(completedID, resu
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.onMissionComplete = callback
+}
+
+// IsSyncedFromMaster reports whether an egg-local mission was installed by its master.
+func (m *MissionManagerV2) IsSyncedFromMaster(id string) bool {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	mission, ok := m.missions[id]
+	return ok && mission.SyncedFromMaster
 }
 
 // GetHistoryDB returns the mission execution history database reference.
@@ -1203,6 +1212,58 @@ func (m *MissionManagerV2) Create(mission *MissionV2) error {
 	return m.save()
 }
 
+// ApplySyncedMission installs or updates an egg-local mission received from a master.
+func (m *MissionManagerV2) ApplySyncedMission(mission *MissionV2) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if mission == nil {
+		return fmt.Errorf("mission is required")
+	}
+	if mission.ID == "" {
+		return fmt.Errorf("mission id is required")
+	}
+	if mission.Priority == "" {
+		mission.Priority = "medium"
+	}
+	if mission.ExecutionType == "" {
+		mission.ExecutionType = ExecutionManual
+	}
+	if mission.CreatedAt.IsZero() {
+		mission.CreatedAt = time.Now()
+	}
+	if existing, ok := m.missions[mission.ID]; ok && existing.ExecutionType == ExecutionScheduled && existing.Schedule != "" && m.cron != nil {
+		_, _ = m.cron.ManageSchedule("remove", "mission_"+mission.ID, "", "", "")
+	}
+
+	mission.RunnerType = MissionRunnerLocal
+	mission.RemoteNestID = ""
+	mission.RemoteNestName = ""
+	mission.RemoteEggID = ""
+	mission.RemoteEggName = ""
+	mission.RemoteSyncStatus = ""
+	mission.RemoteSyncError = ""
+	mission.RemoteRevision = ""
+	mission.SyncedFromMaster = true
+	mission.Status = MissionStatusIdle
+	m.missions[mission.ID] = mission
+
+	if mission.Enabled {
+		if mission.ExecutionType == ExecutionTriggered {
+			m.registerTrigger(mission)
+		} else if mission.ExecutionType == ExecutionScheduled && mission.Schedule != "" {
+			if m.cron == nil {
+				return fmt.Errorf("cron manager is not configured")
+			}
+			if _, err := m.cron.ManageScheduleWithSource("add", "mission_"+mission.ID, mission.Schedule, mission.Prompt, "", "mission"); err != nil {
+				return fmt.Errorf("failed to register synced mission with cron: %w", err)
+			}
+		}
+	}
+
+	return m.save()
+}
+
 // Update modifies a mission
 func (m *MissionManagerV2) Update(id string, updated *MissionV2) error {
 	m.mu.Lock()
@@ -1270,6 +1331,32 @@ func (m *MissionManagerV2) Update(id string, updated *MissionV2) error {
 	// Invalidate prepared mission cache when mission content changes
 	if m.preparedDB != nil {
 		InvalidatePreparedMission(m.preparedDB, id)
+	}
+
+	return m.save()
+}
+
+// DeleteSyncedMission removes an egg-local mission that was installed by its master.
+func (m *MissionManagerV2) DeleteSyncedMission(id string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	mission, ok := m.missions[id]
+	if !ok {
+		return fmt.Errorf("mission not found")
+	}
+	if !mission.SyncedFromMaster {
+		return fmt.Errorf("mission is not synced from master")
+	}
+	if mission.ExecutionType == ExecutionScheduled && mission.Schedule != "" && m.cron != nil {
+		_, _ = m.cron.ManageSchedule("remove", "mission_"+id, "", "", "")
+	}
+
+	delete(m.missions, id)
+	m.queue.Remove(id)
+
+	if m.preparedDB != nil {
+		DeletePreparedMission(m.preparedDB, id)
 	}
 
 	return m.save()
