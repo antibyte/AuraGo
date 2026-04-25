@@ -1,7 +1,10 @@
 package ui
 
 import (
+	"bytes"
 	"encoding/binary"
+	"hash/fnv"
+	"image/png"
 	"os"
 	"path/filepath"
 	"strings"
@@ -228,6 +231,48 @@ func TestChatToolIconPngSpriteCatalogRemainsWired(t *testing.T) {
 	}
 	if colorType != 6 {
 		t.Fatalf("%s uses PNG color type %d, want 6 for RGBA alpha", spritePath, colorType)
+	}
+	spriteImage, err := png.Decode(bytes.NewReader(spriteContent))
+	if err != nil {
+		t.Fatalf("decode %s: %v", spritePath, err)
+	}
+	if got := spriteImage.Bounds().Dx(); got != 1280 {
+		t.Fatalf("%s decoded width is %d, want 1280", spritePath, got)
+	}
+	if got := spriteImage.Bounds().Dy(); got != 1280 {
+		t.Fatalf("%s decoded height is %d, want 1280", spritePath, got)
+	}
+	seenCellHashes := make(map[uint64]int, 100)
+	const cellSize = 128
+	for slot := 0; slot < 100; slot++ {
+		cellX := (slot % 10) * cellSize
+		cellY := (slot / 10) * cellSize
+		paintedPixels := 0
+		hash := fnv.New64a()
+		for y := 0; y < cellSize; y++ {
+			for x := 0; x < cellSize; x++ {
+				r, g, b, a := spriteImage.At(cellX+x, cellY+y).RGBA()
+				if a > 0x0fff {
+					paintedPixels++
+				}
+				hash.Write([]byte{byte(r >> 8), byte(g >> 8), byte(b >> 8), byte(a >> 8)})
+			}
+		}
+		coverage := float64(paintedPixels) / float64(cellSize*cellSize)
+		if coverage < 0.04 || coverage > 0.61 {
+			t.Fatalf("%s slot %d alpha coverage is %.2f, want freestanding icon coverage between 0.04 and 0.61", spritePath, slot, coverage)
+		}
+		sum := hash.Sum64()
+		if previous, ok := seenCellHashes[sum]; ok {
+			t.Fatalf("%s slots %d and %d are exact duplicate icons", spritePath, previous, slot)
+		}
+		seenCellHashes[sum] = slot
+		for _, point := range [][2]int{{0, 0}, {cellSize - 1, 0}, {0, cellSize - 1}, {cellSize - 1, cellSize - 1}} {
+			_, _, _, a := spriteImage.At(cellX+point[0], cellY+point[1]).RGBA()
+			if a != 0 {
+				t.Fatalf("%s slot %d has non-transparent corner pixel, alpha=%d", spritePath, slot, a)
+			}
+		}
 	}
 
 	streamingJS := string(streamingContent)
