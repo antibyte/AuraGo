@@ -144,6 +144,7 @@ async function loadEggs() {
     try {
         eggsData = (await api('eggs')) || [];
         renderEggs();
+        renderNests();
     } catch (e) { showToast(t('invasion.error') + ': ' + e.message, 'error'); }
 }
 

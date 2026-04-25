@@ -177,8 +177,10 @@ func GenerateEggConfig(masterCfg *config.Config, egg EggRecord, nest NestRecord,
 		"egg_id":     egg.ID,
 		"nest_id":    nest.ID,
 	}
-	// When master uses self-signed TLS, the egg must skip certificate verification.
-	if masterCfg.Server.HTTPS.Enabled && masterCfg.Server.HTTPS.CertMode == "selfsigned" {
+	// When the master serves self-signed TLS, the egg must skip certificate
+	// verification. The server falls back to self-signed mode for "auto"/empty
+	// cert mode when no domain is configured, so mirror that runtime behavior.
+	if usesSelfSignedMasterTLS(masterCfg) {
 		eggModeCfg["tls_skip_verify"] = true
 	}
 	cfg["egg_mode"] = eggModeCfg
@@ -189,6 +191,17 @@ func GenerateEggConfig(masterCfg *config.Config, egg EggRecord, nest NestRecord,
 	}
 
 	return data, nil
+}
+
+func usesSelfSignedMasterTLS(masterCfg *config.Config) bool {
+	if masterCfg == nil || !masterCfg.Server.HTTPS.Enabled {
+		return false
+	}
+	certMode := strings.ToLower(strings.TrimSpace(masterCfg.Server.HTTPS.CertMode))
+	if certMode == "selfsigned" {
+		return true
+	}
+	return (certMode == "" || certMode == "auto") && strings.TrimSpace(masterCfg.Server.HTTPS.Domain) == ""
 }
 
 // ApplySafeConfigPatch applies a SafeConfigPatch to an existing egg config YAML.

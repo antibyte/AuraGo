@@ -412,6 +412,7 @@ func TestGenerateEggConfig_AutoCert_NoTLSSkipVerify(t *testing.T) {
 	masterCfg := minimalMasterCfg()
 	masterCfg.Server.HTTPS.Enabled = true
 	masterCfg.Server.HTTPS.CertMode = "auto" // Let's Encrypt
+	masterCfg.Server.HTTPS.Domain = "aurago.example.com"
 
 	egg := EggRecord{ID: "e1", Name: "W", EggPort: 8099}
 	nest := NestRecord{ID: "n1", Name: "S"}
@@ -424,6 +425,26 @@ func TestGenerateEggConfig_AutoCert_NoTLSSkipVerify(t *testing.T) {
 	eggMode := parsed["egg_mode"].(map[string]interface{})
 	if _, exists := eggMode["tls_skip_verify"]; exists {
 		t.Error("auto cert mode should NOT set tls_skip_verify")
+	}
+}
+
+func TestGenerateEggConfig_AutoCertWithoutDomain_TLSSkipVerify(t *testing.T) {
+	masterCfg := minimalMasterCfg()
+	masterCfg.Server.HTTPS.Enabled = true
+	masterCfg.Server.HTTPS.CertMode = "auto"
+	masterCfg.Server.HTTPS.Domain = ""
+
+	egg := EggRecord{ID: "e1", Name: "W", EggPort: 8099}
+	nest := NestRecord{ID: "n1", Name: "S"}
+
+	data, _ := GenerateEggConfig(masterCfg, egg, nest, "aa", "wss://localhost:8443", "bb")
+
+	var parsed map[string]interface{}
+	yaml.Unmarshal(data, &parsed)
+
+	eggMode := parsed["egg_mode"].(map[string]interface{})
+	if eggMode["tls_skip_verify"] != true {
+		t.Error("auto cert mode without a domain falls back to self-signed TLS and should set tls_skip_verify: true")
 	}
 }
 
