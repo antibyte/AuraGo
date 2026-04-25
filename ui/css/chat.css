@@ -2429,6 +2429,7 @@
         }
 
         .app-footer {
+            --safe-area-footer-padding-bottom: 0.35rem;
             background: var(--header-bg);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
@@ -3489,6 +3490,7 @@
             }
 
             .app-footer {
+                --safe-area-footer-padding-bottom: 0.34rem;
                 padding: 0.34rem 0.5rem;
                 padding-bottom: calc(0.34rem + env(safe-area-inset-bottom, 0px));
             }

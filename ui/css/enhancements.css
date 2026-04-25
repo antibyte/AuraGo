@@ -510,15 +510,16 @@ body {
     overflow-x: hidden;
 }
 
-/* Ensure fixed/sticky elements respect safe areas */
-.app-header {
-    padding-top: var(--safe-area-top);
+/* Ensure fixed/sticky elements respect safe areas without removing base spacing */
+.app-header,
+.cfg-header {
+    padding-top: calc(var(--safe-area-header-padding-top, 0.75rem) + var(--safe-area-top));
 }
 
 .app-footer,
 .app-footer.fixed,
 .save-bar {
-    padding-bottom: var(--safe-area-bottom);
+    padding-bottom: calc(var(--safe-area-footer-padding-bottom, 0.75rem) + var(--safe-area-bottom));
 }
 
     /* Mobile global: prevent images/canvas/iframes from overflowing */

@@ -97,6 +97,7 @@
 /* ── Shared Header ─────────────────────────────────────────── */
 .app-header,
 .cfg-header {
+    --safe-area-header-padding-top: 0.75rem;
     background: var(--header-bg);
     backdrop-filter: blur(20px) saturate(1.15);
     -webkit-backdrop-filter: blur(20px) saturate(1.15);
@@ -678,6 +679,7 @@ a.logo {
 
     .app-header,
     .cfg-header {
+        --safe-area-header-padding-top: 0.7rem;
         padding: 0.7rem 0.9rem;
     }
 
@@ -2699,6 +2701,7 @@ div.toggle.toggle-sm.on::before {
 
     .app-header,
     .cfg-header {
+        --safe-area-header-padding-top: 0.6rem;
         padding: 0.6rem 1rem;
     }
 

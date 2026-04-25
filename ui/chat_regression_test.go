@@ -453,6 +453,78 @@ func TestChatUIEmojiIconsAreImageAssets(t *testing.T) {
 	}
 }
 
+func TestGlobalSafeAreaRulesPreserveHeaderFooterSpacing(t *testing.T) {
+	t.Parallel()
+
+	enhancementsContent, err := os.ReadFile(filepath.Join("css", "enhancements.css"))
+	if err != nil {
+		t.Fatalf("read enhancements.css: %v", err)
+	}
+	sharedContent, err := os.ReadFile("shared-components.css")
+	if err != nil {
+		t.Fatalf("read shared-components.css: %v", err)
+	}
+	chatContent, err := os.ReadFile(filepath.Join("css", "chat.css"))
+	if err != nil {
+		t.Fatalf("read chat.css: %v", err)
+	}
+	configContent, err := os.ReadFile(filepath.Join("css", "config.css"))
+	if err != nil {
+		t.Fatalf("read config.css: %v", err)
+	}
+
+	enhancementsCSS := string(enhancementsContent)
+	for _, staleRule := range []string{
+		"padding-top: var(--safe-area-top);",
+		"padding-bottom: var(--safe-area-bottom);",
+	} {
+		if strings.Contains(enhancementsCSS, staleRule) {
+			t.Fatalf("enhancements.css still replaces base spacing with raw safe-area rule %q", staleRule)
+		}
+	}
+	for _, marker := range []string{
+		".app-header,\n.cfg-header",
+		"padding-top: calc(var(--safe-area-header-padding-top, 0.75rem) + var(--safe-area-top));",
+		"padding-bottom: calc(var(--safe-area-footer-padding-bottom, 0.75rem) + var(--safe-area-bottom));",
+	} {
+		if !strings.Contains(enhancementsCSS, marker) {
+			t.Fatalf("enhancements.css is missing safe-area spacing marker %q", marker)
+		}
+	}
+
+	sharedCSS := string(sharedContent)
+	for _, marker := range []string{
+		"--safe-area-header-padding-top: 0.75rem;",
+		"--safe-area-header-padding-top: 0.7rem;",
+		"--safe-area-header-padding-top: 0.6rem;",
+	} {
+		if !strings.Contains(sharedCSS, marker) {
+			t.Fatalf("shared-components.css is missing header spacing marker %q", marker)
+		}
+	}
+
+	chatCSS := string(chatContent)
+	for _, marker := range []string{
+		"--safe-area-footer-padding-bottom: 0.35rem;",
+		"--safe-area-footer-padding-bottom: 0.34rem;",
+	} {
+		if !strings.Contains(chatCSS, marker) {
+			t.Fatalf("chat.css is missing footer spacing marker %q", marker)
+		}
+	}
+
+	configCSS := string(configContent)
+	for _, marker := range []string{
+		"--safe-area-footer-padding-bottom: 0.7rem;",
+		"--safe-area-footer-padding-bottom: 0.6rem;",
+		"--safe-area-footer-padding-bottom: 0.5rem;",
+	} {
+		if !strings.Contains(configCSS, marker) {
+			t.Fatalf("config.css is missing save-bar spacing marker %q", marker)
+		}
+	}
+}
+
 func extractJSStringConst(t *testing.T, js, name string) string {
 	t.Helper()
 
