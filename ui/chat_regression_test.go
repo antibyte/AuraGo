@@ -112,6 +112,27 @@ func TestChatFrontend_PasteAttachmentFlowRemainsPresent(t *testing.T) {
 	}
 }
 
+func TestChatRobotGreetingStartsAboveGreetingText(t *testing.T) {
+	t.Parallel()
+
+	robotPath := filepath.Join("js", "chat", "robot-mascot.js")
+	robotContent, err := os.ReadFile(robotPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", robotPath, err)
+	}
+
+	robotJS := string(robotContent)
+	requiredMarkers := []string{
+		"const verticalLift = window.innerWidth <= 767 ? 48 : 56;",
+		"top: rect.top + ((rect.height - size) / 2) - verticalLift",
+	}
+	for _, marker := range requiredMarkers {
+		if !strings.Contains(robotJS, marker) {
+			t.Fatalf("%s is missing expected elevated greeting placement marker %q", robotPath, marker)
+		}
+	}
+}
+
 func TestMediaFrontend_VideoTabFlowRemainsPresent(t *testing.T) {
 	t.Parallel()
 
