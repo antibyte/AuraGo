@@ -160,7 +160,8 @@ function renderNests() {
     grid.innerHTML = nestsData.map(n => {
         const eggName = n.egg_id ? (eggsData.find(e => e.id === n.egg_id)?.name || n.egg_id) : '—';
         const hs = n.hatch_status || 'idle';
-        const hsBadge = `<span class="badge badge-${hs}">${t('invasion.hatch_' + hs)}</span>`;
+        const showHatchBadge = !(hs === 'running' && !n.ws_connected);
+        const hsBadge = showHatchBadge ? `<span class="badge badge-${hs}">${t('invasion.hatch_' + hs)}</span>` : '';
         const wsStatus = n.ws_connected
             ? `<span class="badge badge-connected">${t('invasion.ws_connected')}</span>`
             : (hs === 'running' ? `<span class="badge badge-disconnected">${t('invasion.ws_disconnected')}</span>` : '');
@@ -172,6 +173,7 @@ function renderNests() {
         const driftBadge = hasDrift
             ? `<span class="badge badge-drift" title="${t('invasion.config_drift_tooltip')}">🔄 ${t('invasion.config_drift')}</span>`
             : (n.applied_config_rev ? `<span class="badge badge-synced">✅ ${t('invasion.config_synced')}</span>` : '');
+        const statusBadges = [hsBadge, wsStatus, driftBadge].filter(Boolean).join(' ');
         let telBadge = '';
         if (n.telemetry) {
             const cpu = Math.round(n.telemetry.cpu_percent || 0);
@@ -191,7 +193,7 @@ function renderNests() {
                         <span class="badge ${n.active ? 'badge-active' : 'badge-inactive'}">
                             ${n.active ? t('invasion.active') : t('invasion.inactive')}
                         </span>
-                        ${hsBadge} ${wsStatus} ${driftBadge}
+                        ${statusBadges}
                     </div>
                 </div>
                 <div class="card-meta">
