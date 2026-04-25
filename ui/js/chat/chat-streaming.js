@@ -6,9 +6,8 @@ const agentStatusText = document.getElementById('agentStatusText');
 const agentStatusIcon = document.getElementById('agentStatusIcon');
 const chatRobotEffects = document.getElementById('chat-robot-effects');
 const toolIconStack = document.getElementById('tool-icon-stack');
-const TOOL_STACK_IDLE_MS = 60000;
-const TOOL_STACK_FADE_MS = 3200;
-const TOOL_STACK_MAX_ICONS = 7;
+const TOOL_STACK_IDLE_MS = 10000;
+const TOOL_STACK_FADE_MS = 1000;
 let toolStackIdleTimer = null;
 let toolStackFadeTimer = null;
 
@@ -22,21 +21,6 @@ function setStatusToolIcon(toolName) {
     }
     window.AuraToolIcons.applyIcon(agentStatusIcon, toolName);
     agentStatusIcon.classList.remove('is-hidden');
-}
-
-function updateToolStackDepth() {
-    if (!toolIconStack) return;
-    const icons = Array.from(toolIconStack.children);
-    icons.forEach((icon, index) => {
-        const depthFromBottom = icons.length - 1 - index;
-        const opacity = Math.max(0.16, 1 - depthFromBottom * 0.15);
-        const scale = Math.max(0.72, 1 - depthFromBottom * 0.045);
-        icon.style.setProperty('--tool-stack-depth', String(depthFromBottom));
-        icon.style.setProperty('--tool-stack-offset', (depthFromBottom * -2) + 'px');
-        icon.style.setProperty('--tool-stack-opacity', opacity.toFixed(2));
-        icon.style.setProperty('--tool-stack-scale', scale.toFixed(2));
-        icon.style.zIndex = String(icons.length - depthFromBottom);
-    });
 }
 
 function scheduleToolStackFade() {
@@ -57,12 +41,8 @@ function pushToolStackIcon(toolName) {
     clearTimeout(toolStackFadeTimer);
     toolIconStack.classList.remove('is-fading');
     const icon = window.AuraToolIcons.createIcon(toolName, 'tool-stack-icon');
-    while (toolIconStack.children.length >= TOOL_STACK_MAX_ICONS) {
-        toolIconStack.firstElementChild.remove();
-    }
-    toolIconStack.appendChild(icon);
+    toolIconStack.replaceChildren(icon);
     toolIconStack.classList.add('has-icons');
-    updateToolStackDepth();
     scheduleToolStackFade();
 }
 

@@ -283,13 +283,16 @@ func TestChatToolIconPngSpriteCatalogRemainsWired(t *testing.T) {
 		"--tool-bubble-drift",
 		"--tool-bubble-tilt",
 		"const toolIconStack = document.getElementById('tool-icon-stack')",
-		"const TOOL_STACK_IDLE_MS = 60000",
+		"const TOOL_STACK_IDLE_MS = 10000",
 		"function pushToolStackIcon(toolName)",
-		"updateToolStackDepth()",
+		"toolIconStack.replaceChildren(icon)",
 	} {
 		if !strings.Contains(streamingJS, marker) {
 			t.Fatalf("%s is missing icon wiring marker %q", streamingPath, marker)
 		}
+	}
+	if strings.Contains(streamingJS, "TOOL_STACK_MAX_ICONS") || strings.Contains(streamingJS, "function updateToolStackDepth") {
+		t.Fatalf("%s still keeps multiple right-side activity icons instead of replacing them with the latest icon", streamingPath)
 	}
 	if strings.Contains(streamingJS, "const TOOL_ICONS = {") {
 		t.Fatalf("%s still contains the old emoji tool icon map", streamingPath)
@@ -310,9 +313,9 @@ func TestChatToolIconPngSpriteCatalogRemainsWired(t *testing.T) {
 		"--chat-robot-icon-duration: 3.2s;",
 		".tool-icon-stack",
 		".tool-stack-icon",
-		"--tool-stack-opacity",
 		".tool-icon-stack.is-fading",
-		"width: clamp(72px, 7vw, 96px);",
+		"--tool-stack-icon-size: clamp(44px, 4.6vw, 56px);",
+		"width: var(--tool-stack-icon-size);",
 	} {
 		if !strings.Contains(css, marker) {
 			t.Fatalf("%s is missing icon CSS marker %q", cssPath, marker)
