@@ -7,10 +7,13 @@ COPY browser_automation_sidecar/package-lock.json /app/package-lock.json
 RUN PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm ci --omit=dev
 
 COPY browser_automation_sidecar/server.js /app/server.js
+RUN chown -R pwuser:pwuser /app
 
 ENV NODE_ENV=production
 ENV PORT=7331
 
 EXPOSE 7331
+
+USER pwuser
 
 CMD ["node", "/app/server.js"]

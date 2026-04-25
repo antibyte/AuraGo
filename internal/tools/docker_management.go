@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"aurago/internal/dockerutil"
 )
 
 // DockerCreateContainer creates a new container from a configuration.
@@ -66,14 +68,24 @@ func DockerCreateContainer(cfg DockerConfig, name, image string, env []string, p
 	if err != nil {
 		return errJSON("Failed to create container: %v", err)
 	}
-	if code == 201 {
+	if dockerCreateSucceeded(code) {
+		id := ""
 		var resp map[string]interface{}
-		if err := json.Unmarshal(data, &resp); err != nil {
-			return errJSON("Failed to parse create response: %v", err)
+		if len(strings.TrimSpace(string(data))) > 0 {
+			if err := json.Unmarshal(data, &resp); err != nil {
+				return errJSON("Failed to parse create response: %v", err)
+			}
+			if rawID, ok := resp["Id"]; ok && rawID != nil {
+				id = fmt.Sprintf("%v", rawID)
+			}
 		}
-		return fmt.Sprintf(`{"status":"ok","message":"Container created","id":"%v"}`, resp["Id"])
+		return fmt.Sprintf(`{"status":"ok","message":"Container created","id":"%s"}`, id)
 	}
 	return dockerBodyErr(code, data)
+}
+
+func dockerCreateSucceeded(code int) bool {
+	return code >= 200 && code < 300
 }
 
 // DockerListNetworks returns all Docker networks.
@@ -544,11 +556,7 @@ func DockerRemoveVolume(cfg DockerConfig, name string, force bool) string {
 
 // runDockerCLIHelper is used for operations like cp and compose which are notoriously difficult strictly via REST API.
 func runDockerCLIHelper(cfg DockerConfig, args ...string) string {
-	var cmdArgs []string
-	if cfg.Host != "" && !strings.HasPrefix(cfg.Host, "unix://") && !strings.HasPrefix(cfg.Host, "npipe://") {
-		cmdArgs = append(cmdArgs, "-H", cfg.Host)
-	}
-	cmdArgs = append(cmdArgs, args...)
+	cmdArgs := dockerCLIArgs(cfg, args...)
 	cmd := exec.Command("docker", cmdArgs...)
 	out, err := cmd.CombinedOutput()
 
@@ -562,6 +570,15 @@ func runDockerCLIHelper(cfg DockerConfig, args ...string) string {
 		"output": msg,
 	})
 	return string(res)
+}
+
+func dockerCLIArgs(cfg DockerConfig, args ...string) []string {
+	var cmdArgs []string
+	if host := strings.TrimSpace(cfg.Host); host != "" {
+		cmdArgs = append(cmdArgs, "-H", host)
+	}
+	cmdArgs = append(cmdArgs, args...)
+	return cmdArgs
 }
 
 // DockerCopy uses CLI to copy files to/from container.
@@ -659,37 +676,136 @@ func DockerCompose(cfg DockerConfig, file, cmd string) string {
 }
 
 func validateDockerBindMount(cfg DockerConfig, bind string) error {
-	parts := strings.SplitN(bind, ":", 3)
-	if len(parts) < 2 {
+	spec, ok := parseDockerBindMount(bind)
+	if !ok {
 		return nil
 	}
-	hostPath := filepath.ToSlash(filepath.Clean(parts[0]))
+	if !spec.isHostPath {
+		return nil // named Docker volume
+	}
+	hostPath := cleanDockerHostPath(spec.hostPath)
 	if hostPath == "." || hostPath == "" {
 		return nil
 	}
-	if !strings.HasPrefix(hostPath, "/") && !strings.Contains(hostPath, ":") {
-		return nil // named Docker volume
-	}
-	for _, sensitive := range []string{
-		"/", "/mnt", "/hostfs", "/etc", "/root", "/proc", "/sys", "/dev",
-		"/var/run/docker.sock", "/run/docker.sock", "/var/lib/docker", "/boot",
-	} {
-		if dockerPathEqualOrWithin(hostPath, sensitive) {
-			return fmt.Errorf("mounting sensitive host path %q is not allowed for security reasons", hostPath)
-		}
+	if isSensitiveDockerHostPath(hostPath) {
+		return fmt.Errorf("mounting sensitive host path %q is not allowed for security reasons", hostPath)
 	}
 	if cfg.WorkspaceDir != "" {
-		workspace := filepath.ToSlash(filepath.Clean(cfg.WorkspaceDir))
-		if filepath.IsAbs(parts[0]) && !dockerPathEqualOrWithin(hostPath, workspace) {
+		workspace := cleanDockerHostPath(cfg.WorkspaceDir)
+		if !dockerPathEqualOrWithin(hostPath, workspace) {
 			return fmt.Errorf("bind mount host path %q must stay within the configured workspace", hostPath)
 		}
 	}
 	return nil
 }
 
+type dockerBindMountSpec struct {
+	hostPath   string
+	isHostPath bool
+}
+
+func parseDockerBindMount(bind string) (dockerBindMountSpec, bool) {
+	raw := strings.TrimSpace(bind)
+	if raw == "" {
+		return dockerBindMountSpec{}, false
+	}
+	sep := dockerBindHostSeparator(raw)
+	if sep < 0 {
+		return dockerBindMountSpec{}, false
+	}
+	hostPath := strings.TrimSpace(raw[:sep])
+	if hostPath == "" {
+		return dockerBindMountSpec{}, false
+	}
+	return dockerBindMountSpec{
+		hostPath:   hostPath,
+		isHostPath: dockerBindHostLooksLikePath(hostPath),
+	}, true
+}
+
+func dockerBindHostSeparator(bind string) int {
+	if isWindowsAbsolutePath(bind) {
+		if idx := strings.Index(bind[2:], ":"); idx >= 0 {
+			return idx + 2
+		}
+		return -1
+	}
+	return strings.Index(bind, ":")
+}
+
+func dockerBindHostLooksLikePath(hostPath string) bool {
+	normalized := dockerutil.NormalizeHostPathForBind(hostPath)
+	return strings.HasPrefix(normalized, "/") ||
+		strings.HasPrefix(normalized, "//") ||
+		isWindowsAbsolutePath(normalized)
+}
+
+func isWindowsAbsolutePath(path string) bool {
+	if len(path) < 3 {
+		return false
+	}
+	return ((path[0] >= 'a' && path[0] <= 'z') || (path[0] >= 'A' && path[0] <= 'Z')) &&
+		path[1] == ':' &&
+		(path[2] == '/' || path[2] == '\\')
+}
+
+func cleanDockerHostPath(hostPath string) string {
+	normalized := dockerutil.NormalizeHostPathForBind(hostPath)
+	if isWindowsAbsolutePath(normalized) {
+		volume := normalized[:2]
+		rest := pathpkg.Clean(normalized[2:])
+		if rest == "." || rest == "" {
+			rest = "/"
+		}
+		if !strings.HasPrefix(rest, "/") {
+			rest = "/" + rest
+		}
+		return volume + rest
+	}
+	return pathpkg.Clean(normalized)
+}
+
+func isSensitiveDockerHostPath(hostPath string) bool {
+	for _, sensitive := range []string{
+		"/", "/mnt", "/hostfs", "/etc", "/root", "/proc", "/sys", "/dev",
+		"/var/run/docker.sock", "/run/docker.sock", "/var/lib/docker", "/boot",
+	} {
+		if dockerPathEqualOrWithin(hostPath, sensitive) {
+			return true
+		}
+	}
+	return isSensitiveWindowsHostPath(hostPath)
+}
+
+func isSensitiveWindowsHostPath(hostPath string) bool {
+	normalized := strings.ToLower(strings.TrimRight(dockerutil.NormalizeHostPathForBind(hostPath), "/"))
+	if len(normalized) == 2 && normalized[1] == ':' {
+		return true
+	}
+	if !isWindowsAbsolutePath(normalized) {
+		return false
+	}
+	drivePath := normalized[2:]
+	for _, sensitive := range []string{
+		"/windows",
+		"/program files",
+		"/program files (x86)",
+		"/programdata",
+	} {
+		if drivePath == sensitive || strings.HasPrefix(drivePath, sensitive+"/") {
+			return true
+		}
+	}
+	return false
+}
+
 func dockerPathEqualOrWithin(path, root string) bool {
-	path = strings.TrimRight(filepath.ToSlash(filepath.Clean(path)), "/")
-	root = strings.TrimRight(filepath.ToSlash(filepath.Clean(root)), "/")
+	path = strings.TrimRight(cleanDockerHostPath(path), "/")
+	root = strings.TrimRight(cleanDockerHostPath(root), "/")
+	if isWindowsAbsolutePath(path) || isWindowsAbsolutePath(root) {
+		path = strings.ToLower(path)
+		root = strings.ToLower(root)
+	}
 	if path == "" {
 		path = "/"
 	}

@@ -10,16 +10,16 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"runtime"
 	"strings"
 	"time"
 
+	"aurago/internal/dockerutil"
 	"gopkg.in/yaml.v3"
 )
 
 // dockerAPIVersion is the Docker Engine API version used for all requests.
 // Increment when requiring features from a newer Docker Engine.
-const dockerAPIVersion = "v1.45"
+const dockerAPIVersion = dockerutil.APIVersion
 
 // DockerConnector deploys eggs as Docker containers, either on a remote host
 // or on the local Docker daemon.
@@ -242,37 +242,24 @@ func (c *DockerConnector) Status(ctx context.Context, nest NestRecord, secret []
 func (c *DockerConnector) httpClient(nest NestRecord) *http.Client {
 	isLocal := nest.DeployMethod == "docker_local"
 	if isLocal {
+		dockerHost := dockerLocalHost()
 		return &http.Client{
 			Timeout: 30 * time.Second,
 			Transport: &http.Transport{
 				DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-					// Respect DOCKER_HOST environment variable if set
-					if dh := os.Getenv("DOCKER_HOST"); dh != "" {
-						if strings.HasPrefix(dh, "unix://") {
-							return net.Dial("unix", strings.TrimPrefix(dh, "unix://"))
-						}
-						if strings.HasPrefix(dh, "npipe://") {
-							// Windows named pipes require github.com/Microsoft/go-winio.
-							// Fall back to TCP; users should set DOCKER_HOST=tcp://localhost:2375
-							// for Docker Desktop on Windows.
-							return net.Dial("tcp", "localhost:2375")
-						}
-						if strings.HasPrefix(dh, "tcp://") {
-							return net.Dial("tcp", strings.TrimPrefix(dh, "tcp://"))
-						}
-					}
-					if runtime.GOOS == "windows" {
-						// Docker Desktop for Windows exposes the API via TCP on
-						// localhost:2375 by default. Named pipe support requires
-						// github.com/Microsoft/go-winio; use TCP as default.
-						return net.Dial("tcp", "localhost:2375")
-					}
-					return net.Dial("unix", "/var/run/docker.sock")
+					return dockerutil.DialContext(ctx, dockerHost)
 				},
 			},
 		}
 	}
 	return &http.Client{Timeout: 30 * time.Second}
+}
+
+func dockerLocalHost() string {
+	if dh := strings.TrimSpace(os.Getenv("DOCKER_HOST")); dh != "" {
+		return dh
+	}
+	return dockerutil.DefaultHost()
 }
 
 func (c *DockerConnector) apiURL(nest NestRecord, path string) string {

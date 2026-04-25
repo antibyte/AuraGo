@@ -10,15 +10,16 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
-	"runtime"
 	"strings"
 	"sync"
 	"time"
+
+	"aurago/internal/dockerutil"
 )
 
 // DockerConfig holds the Docker Engine connection parameters.
 type DockerConfig struct {
-	Host         string // e.g. "unix:///var/run/docker.sock" or "tcp://localhost:2375"
+	Host         string // e.g. "unix:///var/run/docker.sock", "npipe:////./pipe/docker_engine", or "tcp://localhost:2375"
 	WorkspaceDir string // workspace root for validating host-side file paths used by docker cp
 }
 
@@ -36,7 +37,7 @@ var dockerPullHTTPClientHost string
 var reDockerSafeName = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_.:\-/]*$`)
 
 // dockerAPIVersion is the Docker Engine API version used for all requests.
-const dockerAPIVersion = "v1.45"
+const dockerAPIVersion = dockerutil.APIVersion
 
 // maxDockerNameLength is Docker's maximum allowed length for container/image names.
 const maxDockerNameLength = 255
@@ -47,14 +48,7 @@ func getDockerClient(cfg DockerConfig) *http.Client {
 	dockerClientMu.Lock()
 	defer dockerClientMu.Unlock()
 
-	host := cfg.Host
-	if host == "" {
-		if runtime.GOOS == "windows" {
-			host = "npipe:////./pipe/docker_engine"
-		} else {
-			host = "unix:///var/run/docker.sock"
-		}
-	}
+	host := dockerutil.NormalizeHost(cfg.Host)
 
 	// Reuse client if host hasn't changed
 	if dockerHTTPClient != nil && dockerHTTPClientHost == host {
@@ -81,14 +75,7 @@ func getPullDockerClient(cfg DockerConfig) *http.Client {
 	dockerClientMu.Lock()
 	defer dockerClientMu.Unlock()
 
-	host := cfg.Host
-	if host == "" {
-		if runtime.GOOS == "windows" {
-			host = "npipe:////./pipe/docker_engine"
-		} else {
-			host = "unix:///var/run/docker.sock"
-		}
-	}
+	host := dockerutil.NormalizeHost(cfg.Host)
 
 	if dockerPullHTTPClient != nil && dockerPullHTTPClientHost == host {
 		return dockerPullHTTPClient
@@ -133,35 +120,11 @@ func DockerPing(host string) error {
 }
 
 func dockerDialContext(ctx context.Context, host string) (net.Conn, error) {
-	dialer := &net.Dialer{Timeout: 5 * time.Second}
-	switch {
-	case strings.HasPrefix(host, "unix://"):
-		return dialer.DialContext(ctx, "unix", strings.TrimPrefix(host, "unix://"))
-	case strings.HasPrefix(host, "npipe://"):
-		return dialDockerNamedPipe(ctx, host)
-	case strings.HasPrefix(host, "tcp://"):
-		return dialer.DialContext(ctx, "tcp", strings.TrimPrefix(host, "tcp://"))
-	default:
-		return dialer.DialContext(ctx, "tcp", host)
-	}
+	return dockerutil.DialContext(ctx, host)
 }
 
 func normalizeDockerNamedPipeHost(host string) (string, error) {
-	if !strings.HasPrefix(host, "npipe://") {
-		return "", fmt.Errorf("invalid Docker named pipe host %q", host)
-	}
-	path := strings.TrimPrefix(host, "npipe://")
-	path = strings.ReplaceAll(path, "/", `\`)
-	switch {
-	case strings.HasPrefix(path, `\\.\pipe\`):
-		return path, nil
-	case strings.HasPrefix(path, `.\pipe\`):
-		return `\\` + path, nil
-	case strings.HasPrefix(path, `pipe\`):
-		return `\\.\` + path, nil
-	default:
-		return "", fmt.Errorf("invalid Docker named pipe path %q", host)
-	}
+	return dockerutil.NormalizeNamedPipeHost(host)
 }
 
 // validateDockerName checks that a container/image identifier is safe to use in API paths.

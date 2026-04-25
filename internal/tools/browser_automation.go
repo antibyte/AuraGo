@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/dockerutil"
 	"aurago/internal/security"
 )
 
@@ -726,8 +727,8 @@ func EnsureBrowserAutomationSidecarRunning(dockerHost string, sidecarCfg Browser
 			"Memory":        int64(1024 * 1024 * 1024),
 			"NanoCpus":      int64(1_000_000_000),
 			"Binds": []string{
-				sidecarCfg.WorkspaceDir + ":" + browserAutomationWorkspaceDir,
-				sidecarCfg.DownloadDir + ":" + browserAutomationDownloadsDir,
+				dockerutil.FormatBindMount(sidecarCfg.WorkspaceDir, browserAutomationWorkspaceDir),
+				dockerutil.FormatBindMount(sidecarCfg.DownloadDir, browserAutomationDownloadsDir),
 			},
 		},
 		"ExposedPorts": map[string]interface{}{

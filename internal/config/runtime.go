@@ -2,6 +2,7 @@ package config
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"log/slog"
 	"net"
@@ -11,6 +12,8 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"aurago/internal/dockerutil"
 )
 
 // Runtime holds auto-detected environment capabilities.
@@ -246,6 +249,10 @@ func probeDockerSocket() bool {
 		}
 	}
 
+	if runtime.GOOS == "windows" && probeDockerHost(dockerutil.DefaultHostForGOOS("windows")) {
+		return true
+	}
+
 	paths := []string{"/var/run/docker.sock", "/run/docker.sock"}
 	for _, p := range paths {
 		if probeDockerUnixSocket(p) {
@@ -268,10 +275,21 @@ func probeDockerHost(host string) bool {
 		}
 		return probeDockerTCP(parsed.Host)
 	case strings.HasPrefix(host, "npipe://"):
-		return false
+		return probeDockerNamedPipe(host)
 	default:
 		return probeDockerTCP(host)
 	}
+}
+
+func probeDockerNamedPipe(host string) bool {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	conn, err := dockerutil.DialContext(ctx, host)
+	if err != nil {
+		return false
+	}
+	conn.Close()
+	return true
 }
 
 func probeDockerUnixSocket(path string) bool {

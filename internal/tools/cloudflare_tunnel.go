@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"aurago/internal/dockerutil"
 	"aurago/internal/security"
 	"bytes"
 	"context"
@@ -691,7 +692,7 @@ func startDockerNamedTunnel(cfg CloudflareTunnelConfig, credDir, configPath stri
 			"NetworkMode":   "host",
 			"RestartPolicy": map[string]string{"Name": "unless-stopped"},
 			"Binds": []string{
-				credDir + ":/etc/cloudflared:ro",
+				dockerutil.FormatBindMount(credDir, "/etc/cloudflared", "ro"),
 			},
 		},
 	}

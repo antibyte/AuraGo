@@ -15,6 +15,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"aurago/internal/dockerutil"
 )
 
 // AnsibleConfig holds the connection parameters for the Ansible sidecar API.
@@ -336,13 +338,13 @@ func EnsureAnsibleSidecarRunning(dockerHost string, sidecarCfg AnsibleSidecarCon
 	// mounted into /home/ansibleuser/.ssh — NOT /root/.ssh.
 	sshDir := ansibleSSHDir()
 	if sshDir != "" {
-		binds = append(binds, sshDir+":/home/ansibleuser/.ssh:ro")
+		binds = append(binds, dockerutil.FormatBindMount(sshDir, "/home/ansibleuser/.ssh", "ro"))
 	}
 	if sidecarCfg.PlaybooksDir != "" {
-		binds = append(binds, sidecarCfg.PlaybooksDir+":/playbooks")
+		binds = append(binds, dockerutil.FormatBindMount(sidecarCfg.PlaybooksDir, "/playbooks"))
 	}
 	if sidecarCfg.InventoryDir != "" {
-		binds = append(binds, sidecarCfg.InventoryDir+":/inventory")
+		binds = append(binds, dockerutil.FormatBindMount(sidecarCfg.InventoryDir, "/inventory"))
 	}
 
 	// Create and start the container

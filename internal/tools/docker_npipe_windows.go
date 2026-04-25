@@ -4,20 +4,11 @@ package tools
 
 import (
 	"context"
-	"fmt"
 	"net"
 
-	winio "github.com/tailscale/go-winio"
+	"aurago/internal/dockerutil"
 )
 
 func dialDockerNamedPipe(ctx context.Context, host string) (net.Conn, error) {
-	pipePath, err := normalizeDockerNamedPipeHost(host)
-	if err != nil {
-		return nil, err
-	}
-	conn, err := winio.DialPipeContext(ctx, pipePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to Docker named pipe %s: %w", pipePath, err)
-	}
-	return conn, nil
+	return dockerutil.DialContext(ctx, host)
 }

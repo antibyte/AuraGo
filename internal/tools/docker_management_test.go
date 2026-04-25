@@ -130,6 +130,75 @@ func TestValidateDockerBindMountRejectsSensitiveHostPaths(t *testing.T) {
 	}
 }
 
+func TestValidateDockerBindMountRejectsSensitiveWindowsHostPaths(t *testing.T) {
+	for _, bind := range []string{
+		`C:\Windows\System32:/host/system32`,
+		`C:\Temp\..\Windows\System32:/host/system32`,
+		`C:/ProgramData/Docker:/host/docker:ro`,
+		`D:\Windows:/host/windows`,
+	} {
+		if err := validateDockerBindMount(DockerConfig{}, bind); err == nil {
+			t.Fatalf("expected Windows bind mount %q to be rejected", bind)
+		}
+	}
+}
+
+func TestValidateDockerBindMountRejectsWindowsWorkspaceEscape(t *testing.T) {
+	cfg := DockerConfig{WorkspaceDir: `C:\Users\andi\workspace`}
+	if err := validateDockerBindMount(cfg, `C:\Users\andi\other:/data`); err == nil {
+		t.Fatal("expected Windows bind mount outside workspace to be rejected")
+	}
+	if err := validateDockerBindMount(cfg, `C:\Users\andi\workspace\project:/data:ro`); err != nil {
+		t.Fatalf("expected Windows bind mount inside workspace to be allowed: %v", err)
+	}
+}
+
+func TestDockerCLIArgsIncludeConfiguredSocketHosts(t *testing.T) {
+	tests := []struct {
+		name string
+		host string
+		want []string
+	}{
+		{
+			name: "unix socket",
+			host: "unix:///custom/docker.sock",
+			want: []string{"-H", "unix:///custom/docker.sock", "ps"},
+		},
+		{
+			name: "windows named pipe",
+			host: "npipe:////./pipe/docker_engine",
+			want: []string{"-H", "npipe:////./pipe/docker_engine", "ps"},
+		},
+		{
+			name: "tcp host",
+			host: "tcp://docker-proxy:2375",
+			want: []string{"-H", "tcp://docker-proxy:2375", "ps"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := dockerCLIArgs(DockerConfig{Host: tt.host}, "ps")
+			if strings.Join(got, "\x00") != strings.Join(tt.want, "\x00") {
+				t.Fatalf("dockerCLIArgs() = %#v, want %#v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestDockerCreateStatusAcceptsAnySuccessCode(t *testing.T) {
+	for _, code := range []int{200, 201, 202, 204} {
+		if !dockerCreateSucceeded(code) {
+			t.Fatalf("expected create status %d to be accepted", code)
+		}
+	}
+	for _, code := range []int{199, 300, 400, 500} {
+		if dockerCreateSucceeded(code) {
+			t.Fatalf("expected create status %d to be rejected", code)
+		}
+	}
+}
+
 func TestValidateDockerComposeArgsRejectsHighRiskSubcommands(t *testing.T) {
 	for _, command := range []string{
 		"run --rm -v /:/host alpine sh",

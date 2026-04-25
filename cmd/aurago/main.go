@@ -25,6 +25,7 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/contacts"
 	"aurago/internal/credentials"
+	"aurago/internal/dockerutil"
 	"aurago/internal/invasion"
 	"aurago/internal/invasion/bridge"
 	"aurago/internal/inventory"
@@ -702,7 +703,7 @@ func main() {
 		if cfg.Docker.Enabled {
 			dockerHost := cfg.Docker.Host
 			if dockerHost == "" {
-				dockerHost = "unix:///var/run/docker.sock"
+				dockerHost = dockerutil.DefaultHost()
 			}
 			// Pass DOCKER_HOST into the sandboxed process environment
 			extraEnv = append(extraEnv, "DOCKER_HOST="+dockerHost)

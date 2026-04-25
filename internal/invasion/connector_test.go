@@ -99,6 +99,15 @@ func TestExtractMasterURL(t *testing.T) {
 	}
 }
 
+func TestDockerLocalHostHonorsDockerHostEnv(t *testing.T) {
+	t.Setenv("DOCKER_HOST", "npipe:////./pipe/docker_engine")
+
+	got := dockerLocalHost()
+	if got != "npipe:////./pipe/docker_engine" {
+		t.Fatalf("dockerLocalHost() = %q, want npipe host from DOCKER_HOST", got)
+	}
+}
+
 // ── Docker API mock tests ───────────────────────────────────────────────────
 
 // mockDockerAPI creates an httptest.Server that emulates key Docker Engine endpoints.

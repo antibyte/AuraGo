@@ -174,6 +174,8 @@ This pulls the latest image and restarts the container. Your data is preserved i
 - `aurago_data` — config, memory, chat history, vault, vector DB
 - `aurago_workdir` — Python venv and generated tools
 
+Keep `aurago_data` on a local Docker volume or local disk bind mount. AuraGo stores SQLite databases there, and SQLite locking is not reliable on many NFS, CIFS, SMB, or other network filesystem mounts.
+
 ### Python Venv Considerations
 
 The `aurago_workdir` volume preserves the Python virtual environment across restarts. This is intentional for performance, but requires attention during upgrades:

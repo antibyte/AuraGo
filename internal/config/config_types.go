@@ -688,7 +688,7 @@ type Config struct {
 	Docker struct {
 		Enabled  bool   `yaml:"enabled"`
 		ReadOnly bool   `yaml:"readonly"` // true = only list/inspect/logs/stats, block create/start/stop/remove/exec
-		Host     string `yaml:"host"`     // e.g. unix:///var/run/docker.sock or tcp://localhost:2375
+		Host     string `yaml:"host"`     // e.g. unix:///var/run/docker.sock, npipe:////./pipe/docker_engine, or tcp://localhost:2375
 	} `yaml:"docker"`
 	CoAgents struct {
 		Enabled             bool `yaml:"enabled"`

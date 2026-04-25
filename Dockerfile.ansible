@@ -20,8 +20,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         git \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Ansible (latest stable for Python 3.12)
-RUN pip install --no-cache-dir --break-system-packages ansible
+# Install Ansible (latest stable for Python 3.12) in an isolated venv.
+ENV VIRTUAL_ENV=/opt/ansible-venv
+ENV PATH="${VIRTUAL_ENV}/bin:${PATH}"
+RUN python -m venv "${VIRTUAL_ENV}" \
+    && "${VIRTUAL_ENV}/bin/pip" install --no-cache-dir --upgrade pip \
+    && "${VIRTUAL_ENV}/bin/pip" install --no-cache-dir ansible
 
 WORKDIR /app
 COPY ansible_api/server.py /app/server.py

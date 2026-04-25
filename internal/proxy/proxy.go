@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"aurago/internal/config"
+	"aurago/internal/dockerutil"
 	"aurago/internal/tools"
 )
 
@@ -119,9 +120,9 @@ func (m *Manager) Start() error {
 		},
 		"HostConfig": map[string]interface{}{
 			"Binds": []string{
-				absCaddyfile + ":/etc/caddy/Caddyfile",
-				absCaddyData + ":/data",
-				absCaddyConfig + ":/config",
+				dockerutil.FormatBindMount(absCaddyfile, "/etc/caddy/Caddyfile"),
+				dockerutil.FormatBindMount(absCaddyData, "/data"),
+				dockerutil.FormatBindMount(absCaddyConfig, "/config"),
 			},
 			"PortBindings": map[string]interface{}{
 				"443/tcp": []map[string]string{

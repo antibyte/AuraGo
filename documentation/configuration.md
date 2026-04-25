@@ -223,7 +223,7 @@ Container management via the Docker Engine API.
 |---|---|---|
 | `enabled` | `false` | Enable Docker integration. |
 | `read_only` | `false` | When `true`, the agent can only list/inspect containers and images but cannot start, stop, create, or remove them. |
-| `host` | `""` | Docker socket/host. Empty = auto-detect (`/var/run/docker.sock` on Linux, TCP on Windows). |
+| `host` | `""` | Docker socket/host. Empty = auto-detect (`/var/run/docker.sock` on Linux, `npipe:////./pipe/docker_engine` on Windows). |
 
 See [docker.md](docker.md) for details.
 
