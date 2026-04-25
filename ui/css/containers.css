@@ -360,6 +360,12 @@
 
 /* ── Responsive ── */
 @media (max-width: 600px) {
+    .ct-container {
+        padding: 16px 12px 60px;
+        padding-top: calc(16px + env(safe-area-inset-top, 0px));
+        padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px));
+    }
+
     .ct-status-bar {
         flex-wrap: wrap;
     }

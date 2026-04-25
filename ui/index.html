@@ -55,12 +55,12 @@
         </a>
         <div class="header-actions">
             <!-- Session drawer toggle -->
-            <button id="session-toggle-btn" type="button" class="btn-session-toggle" title="">💬</button>
+            <button id="session-toggle-btn" type="button" class="btn-session-toggle" aria-label="Conversations">💬</button>
             <!-- Speaker toggle for TTS auto-play -->
-            <button id="speaker-toggle" type="button" class="btn-speaker" title="">🔇</button>
+            <button id="speaker-toggle" type="button" class="btn-speaker" aria-label="Toggle speaker">🔇</button>
             <!-- Chat theme picker -->
             <div id="chat-theme-picker" class="chat-theme-picker">
-                <button id="chat-theme-btn" type="button" class="chat-theme-btn" aria-haspopup="listbox" aria-expanded="false">
+                <button id="chat-theme-btn" type="button" class="chat-theme-btn" aria-label="Chat theme" aria-haspopup="listbox" aria-expanded="false">
                     <span class="chat-theme-icon" id="chat-theme-icon">◐</span>
                 </button>
                 <div id="chat-theme-dropdown" class="chat-theme-dropdown" role="listbox" hidden>
@@ -118,7 +118,7 @@
                 <span class="personality-chevron">▾</span>
             </div>
             <div class="mood-widget" id="moodWidget">
-                <button class="mood-toggle" id="moodToggle">
+                <button class="mood-toggle" id="moodToggle" aria-label="Mood settings" aria-expanded="false" aria-haspopup="true">
                     <span class="mood-emoji" id="moodEmoji">🧠</span>
                     <span id="moodText"></span>
                     <span class="mood-chevron">▾</span>
@@ -133,13 +133,14 @@
                 </div>
             </div>
             <span id="debug-pill" class="pill pill-debug"></span>
-            <button id="warnings-btn" type="button" class="btn-warnings" title="">
+            <button id="warnings-btn" type="button" class="btn-warnings" aria-label="System warnings">
                 <span class="warnings-icon">🛡️</span>
                 <span id="warnings-badge" class="warnings-badge is-hidden">0</span>
             </button>
             <span id="connectionPill" class="pill pill-active"></span>
             <a id="logout-btn" href="/auth/logout" class="btn-header btn-header-link is-hidden"
                 data-logout-action="true"
+                aria-label="Logout"
                 onclick="performLogout(); return false;"
                 ontouchend="event.preventDefault(); performLogout(); return false;"></a>
         </div>
@@ -186,31 +187,31 @@
     <footer class="app-footer">
         <form id="chat-form" class="input-row">
             <input type="file" id="file-input" class="is-hidden" multiple>
-            <button type="button" id="voice-btn" class="btn-voice btn-composer-primary" title="🎤">🎤</button>
+            <button type="button" id="voice-btn" class="btn-voice btn-composer-primary" aria-label="Voice input">🎤</button>
             <div id="composer-panel" class="composer-panel is-hidden">
-                <button type="button" id="clear-btn" class="composer-tool-btn" title="">
+                <button type="button" id="clear-btn" class="composer-tool-btn" aria-label="Clear">
                     <span class="tool-icon">✚</span>
                     <span class="tool-label"></span>
                 </button>
-                <button type="button" id="upload-btn" class="composer-tool-btn" title="📎">
+                <button type="button" id="upload-btn" class="composer-tool-btn" aria-label="Upload file">
                     <span class="tool-icon">📎</span>
                     <span class="tool-label"></span>
                 </button>
-                <button type="button" id="cheatsheet-picker-btn" class="composer-tool-btn" title="📋">
+                <button type="button" id="cheatsheet-picker-btn" class="composer-tool-btn" aria-label="Send cheatsheet">
                     <span class="tool-icon">📋</span>
                     <span class="tool-label"></span>
                 </button>
-                <button type="button" id="push-btn" class="composer-tool-btn" title="🔔">
+                <button type="button" id="push-btn" class="composer-tool-btn" aria-label="Notifications">
                     <span class="tool-icon">🔔</span>
                     <span class="tool-label"></span>
                 </button>
                 {{if .PersonalityEnabled}}
-                <button type="button" id="feedback-toggle-btn" class="composer-tool-btn" title="">
+                <button type="button" id="feedback-toggle-btn" class="composer-tool-btn" aria-label="Feedback">
                     <span class="tool-icon">🙂</span>
                     <span class="tool-label"></span>
                 </button>
                 {{end}}
-                <button type="button" id="stop-btn" class="composer-tool-btn composer-tool-btn-danger" disabled title="■">
+                <button type="button" id="stop-btn" class="composer-tool-btn composer-tool-btn-danger" disabled aria-label="Stop">
                     <span class="tool-icon">■</span>
                     <span class="tool-label"></span>
                 </button>
@@ -219,8 +220,8 @@
                 <textarea id="user-input" name="aura-chat-input" autocomplete="off" spellcheck="true" rows="1"
                     placeholder=""></textarea>
             </div>
-            <button type="submit" id="send-btn" class="btn-send btn-composer-primary" title="➤">➤</button>
-            <button type="button" id="composer-more-btn" class="btn-more btn-composer-primary" title="" aria-expanded="false" aria-controls="composer-panel">⋯</button>
+            <button type="submit" id="send-btn" class="btn-send btn-composer-primary" aria-label="Send message">➤</button>
+            <button type="button" id="composer-more-btn" class="btn-more btn-composer-primary" aria-label="More options" aria-expanded="false" aria-controls="composer-panel">⋯</button>
         </form>
         {{if .PersonalityEnabled}}
         <div id="mood-feedback-row" class="mood-feedback-row is-hidden">

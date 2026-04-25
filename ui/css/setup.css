@@ -1411,6 +1411,8 @@ body.has-https-warning {
 @media (max-width: 768px) {
     .setup-container {
         padding: 1rem 0.75rem 1.25rem;
+        padding-top: calc(1rem + env(safe-area-inset-top, 0px));
+        padding-bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px));
         align-items: stretch;
     }
 

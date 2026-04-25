@@ -59,6 +59,8 @@
     align-items: center;
     justify-content: space-between;
     padding: 16px 20px;
+    padding-top: calc(16px + env(safe-area-inset-top, 0px));
+    padding-left: calc(20px + env(safe-area-inset-left, 0px));
     border-bottom: 1px solid var(--border-color, rgba(255,255,255,0.1));
     flex-shrink: 0;
 }

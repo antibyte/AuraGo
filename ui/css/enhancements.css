@@ -412,6 +412,7 @@ html {
 
 /* Modal Backdrop Blur */
 .modal-overlay {
+    inset: 0;
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
 }
@@ -485,10 +486,84 @@ html {
     [data-theme="dark"] body::before {
         animation: none;
     }
-    
+
     .card:not(.radial-item):hover,
     .dash-card:not(.radial-item):hover {
         transform: translateY(-2px);
+    }
+}
+
+/* ── Global Mobile Safe-Area & Overflow Foundations ─────────────────────── */
+:root {
+    --safe-area-top: env(safe-area-inset-top, 0px);
+    --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-area-left: env(safe-area-inset-left, 0px);
+    --safe-area-right: env(safe-area-inset-right, 0px);
+}
+
+/* Prevent unintended global horizontal scroll */
+html {
+    overflow-x: hidden;
+}
+
+body {
+    overflow-x: hidden;
+}
+
+/* Ensure fixed/sticky elements respect safe areas */
+.app-header {
+    padding-top: var(--safe-area-top);
+}
+
+.app-footer,
+.app-footer.fixed,
+.save-bar {
+    padding-bottom: var(--safe-area-bottom);
+}
+
+    /* Mobile global: prevent images/canvas/iframes from overflowing */
+img,
+canvas,
+iframe,
+video,
+pre,
+.code-block {
+    max-width: 100%;
+}
+
+/* Mobile scrollable wrapper for tables – use in HTML as class="table-scroll" */
+.table-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* ── Mobile: ≥ 44px touch targets for primary actions ─────────────────── */
+@media (max-width: 768px) {
+    .btn,
+    button,
+    [role="button"],
+    input[type="submit"],
+    input[type="button"],
+    .modal-btn {
+        min-height: 44px;
+        min-width: 44px;
+    }
+
+    /* Tables: horizontal scroll with visible scrollbar on mobile */
+    .cc-table-wrap,
+    .devices-table-wrap,
+    .prov-models-table-wrap,
+    .sql-table-wrap,
+    .wh-log-table {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+}
+
+/* ── Very small phones (≤ 360px): additional compact mode ───────────── */
+@media (max-width: 360px) {
+    :root {
+        --text-base: 0.875rem;
     }
 }
 

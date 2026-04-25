@@ -2132,6 +2132,7 @@
             -webkit-backdrop-filter: blur(20px);
             border-top: 1px solid var(--border-subtle);
             padding: 0.35rem 0.65rem;
+            padding-bottom: calc(0.35rem + env(safe-area-inset-bottom, 0px));
             transition: background 0.3s, box-shadow 0.25s ease;
             position: relative;
             z-index: 30;
@@ -3187,6 +3188,7 @@
 
             .app-footer {
                 padding: 0.34rem 0.5rem;
+                padding-bottom: calc(0.34rem + env(safe-area-inset-bottom, 0px));
             }
 
             .composer-panel {
@@ -3257,6 +3259,46 @@
             .mood-widget #moodText,
             .mood-widget .mood-chevron {
                 display: none;
+            }
+
+            /* Very narrow phones (≤ 360px): collapse non-essential header elements */
+            @media (max-width: 360px) {
+                .pill-tokens,
+                .pill-budget,
+                .credits-pill-action,
+                .select-personality,
+                .personality-select-wrapper,
+                .pill-debug,
+                #debug-pill {
+                    display: none !important;
+                }
+
+                .app-header .header-actions {
+                    gap: 0.2rem;
+                }
+
+                #chat-theme-btn {
+                    width: 28px;
+                    height: 28px;
+                }
+            }
+
+            /* Ultra-narrow (≤ 320px): further collapse */
+            @media (max-width: 320px) {
+                .app-header .logo .logo-wordmark-accent,
+                .app-header .logo .logo-wordmark-base {
+                    display: none;
+                }
+
+                #session-toggle-btn,
+                #chat-theme-btn {
+                    width: 28px;
+                    height: 28px;
+                }
+
+                .mood-widget {
+                    display: none !important;
+                }
             }
 
             .composer-panel {
