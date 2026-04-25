@@ -3,8 +3,10 @@ package bridge
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"strings"
 	"testing"
+	"time"
 )
 
 // validKey returns a random 32-byte hex key for tests.
@@ -147,8 +149,20 @@ func TestNewMessage_AllTypes(t *testing.T) {
 	}
 }
 
+func TestNewMessageIDIsUniqueForSameTimestamp(t *testing.T) {
+	first := newMessageID(time.Unix(1777140000, 123))
+	second := newMessageID(time.Unix(1777140000, 123))
+	if first == second {
+		t.Fatalf("newMessageID returned duplicate IDs for same timestamp: %q", first)
+	}
+	if !strings.HasPrefix(first, "1777140000000000123-") {
+		t.Fatalf("newMessageID prefix = %q, want timestamp prefix", first)
+	}
+}
+
 func TestNewMessage_MissionSyncPayloadSerialization(t *testing.T) {
 	key := validKey(t)
+	createdAt := time.Date(2026, 4, 25, 20, 30, 0, 0, time.UTC)
 	msg, err := NewMessage(MsgMissionSync, "egg-1", "nest-1", key, MissionSyncPayload{
 		Revision:       "rev-1",
 		MissionID:      "mission-1",
@@ -158,6 +172,8 @@ func TestNewMessage_MissionSyncPayloadSerialization(t *testing.T) {
 		Schedule:       "0 * * * *",
 		Priority:       "high",
 		Enabled:        true,
+		AutoPrepare:    true,
+		CreatedAt:      createdAt,
 	})
 	if err != nil {
 		t.Fatalf("NewMessage(MsgMissionSync): %v", err)
@@ -167,6 +183,16 @@ func TestNewMessage_MissionSyncPayloadSerialization(t *testing.T) {
 	}
 	if !strings.Contains(string(msg.Payload), `"prompt_snapshot":"Base prompt\n\nCheatsheet attachment"`) {
 		t.Fatalf("expected prompt snapshot in payload, got %s", msg.Payload)
+	}
+	var decoded MissionSyncPayload
+	if err := json.Unmarshal(msg.Payload, &decoded); err != nil {
+		t.Fatalf("unmarshal mission sync payload: %v", err)
+	}
+	if !decoded.AutoPrepare {
+		t.Fatal("AutoPrepare was not preserved")
+	}
+	if !decoded.CreatedAt.Equal(createdAt) {
+		t.Fatalf("CreatedAt = %s, want %s", decoded.CreatedAt, createdAt)
 	}
 	ok, err := VerifyMessage(*msg, key)
 	if err != nil {

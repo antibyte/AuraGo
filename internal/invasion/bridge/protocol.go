@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"sync/atomic"
 	"time"
 )
 
@@ -92,6 +93,8 @@ type MissionSyncPayload struct {
 	Priority       string          `json:"priority,omitempty"`
 	Enabled        bool            `json:"enabled"`
 	Locked         bool            `json:"locked,omitempty"`
+	AutoPrepare    bool            `json:"auto_prepare,omitempty"`
+	CreatedAt      time.Time       `json:"created_at,omitempty"`
 }
 
 // MissionRunPayload requests execution of a synced mission on an egg.
@@ -178,6 +181,12 @@ func VerifyMessage(msg Message, sharedKeyHex string) (bool, error) {
 	return hmac.Equal([]byte(expected), []byte(computed)), nil
 }
 
+var bridgeMessageCounter atomic.Uint64
+
+func newMessageID(now time.Time) string {
+	return fmt.Sprintf("%d-%d", now.UnixNano(), bridgeMessageCounter.Add(1))
+}
+
 // NewMessage creates a signed Message with the given payload.
 func NewMessage(msgType, eggID, nestID, sharedKeyHex string, payload interface{}) (*Message, error) {
 	var raw json.RawMessage
@@ -188,13 +197,14 @@ func NewMessage(msgType, eggID, nestID, sharedKeyHex string, payload interface{}
 		}
 		raw = b
 	}
+	now := time.Now().UTC()
 	msg := &Message{
 		Type:      msgType,
 		EggID:     eggID,
 		NestID:    nestID,
-		ID:        fmt.Sprintf("%d", time.Now().UnixNano()),
+		ID:        newMessageID(now),
 		Payload:   raw,
-		Timestamp: time.Now().UTC().Format(time.RFC3339),
+		Timestamp: now.Format(time.RFC3339),
 	}
 	if err := SignMessage(msg, sharedKeyHex); err != nil {
 		return nil, err

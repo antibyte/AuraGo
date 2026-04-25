@@ -259,10 +259,10 @@ func (c *EggClient) readLoop() {
 				c.sendAck(msg.ID, false, "invalid payload")
 			} else if c.OnMissionSync == nil {
 				c.sendAck(msg.ID, false, "mission sync handler unavailable")
-			} else if err := c.OnMissionSync(payload); err != nil {
-				c.sendAck(msg.ID, false, err.Error())
 			} else {
-				c.sendAck(msg.ID, true, "mission synced")
+				c.runAckedHandler(msg.ID, "mission synced", func() error {
+					return c.OnMissionSync(payload)
+				})
 			}
 		case MsgMissionRun:
 			var payload MissionRunPayload
@@ -270,10 +270,10 @@ func (c *EggClient) readLoop() {
 				c.sendAck(msg.ID, false, "invalid payload")
 			} else if c.OnMissionRun == nil {
 				c.sendAck(msg.ID, false, "mission run handler unavailable")
-			} else if err := c.OnMissionRun(payload); err != nil {
-				c.sendAck(msg.ID, false, err.Error())
 			} else {
-				c.sendAck(msg.ID, true, "mission run queued")
+				c.runAckedHandler(msg.ID, "mission run queued", func() error {
+					return c.OnMissionRun(payload)
+				})
 			}
 		case MsgMissionDelete:
 			var payload MissionDeletePayload
@@ -281,10 +281,10 @@ func (c *EggClient) readLoop() {
 				c.sendAck(msg.ID, false, "invalid payload")
 			} else if c.OnMissionDelete == nil {
 				c.sendAck(msg.ID, false, "mission delete handler unavailable")
-			} else if err := c.OnMissionDelete(payload); err != nil {
-				c.sendAck(msg.ID, false, err.Error())
 			} else {
-				c.sendAck(msg.ID, true, "mission deleted")
+				c.runAckedHandler(msg.ID, "mission deleted", func() error {
+					return c.OnMissionDelete(payload)
+				})
 			}
 		case MsgSecret:
 			var secret SecretPayload
@@ -338,6 +338,24 @@ func (c *EggClient) readLoop() {
 			c.logger.Warn("Unknown message type from master", "type", msg.Type)
 		}
 	}
+}
+
+func (c *EggClient) runAckedHandler(refID, successDetail string, handler func() error) {
+	c.mu.Lock()
+	c.activeTasks++
+	c.mu.Unlock()
+	go func() {
+		defer func() {
+			c.mu.Lock()
+			c.activeTasks--
+			c.mu.Unlock()
+		}()
+		if err := handler(); err != nil {
+			c.sendAck(refID, false, err.Error())
+			return
+		}
+		c.sendAck(refID, true, successDetail)
+	}()
 }
 
 func (c *EggClient) heartbeatLoop(done chan struct{}) {
