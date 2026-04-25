@@ -1102,6 +1102,10 @@ var plaintextSecretVaultPaths = map[string]string{
 }
 
 func migrateNestedStringSecret(root map[string]interface{}, path []string, vaultKey string, vault SecretReadWriter, log *slog.Logger) bool {
+	return migrateNestedStringSecretWithOverwrite(root, path, vaultKey, vault, log, false)
+}
+
+func migrateNestedStringSecretWithOverwrite(root map[string]interface{}, path []string, vaultKey string, vault SecretReadWriter, log *slog.Logger, overwrite bool) bool {
 	if len(path) == 0 {
 		return false
 	}
@@ -1115,10 +1119,14 @@ func migrateNestedStringSecret(root map[string]interface{}, path []string, vault
 		current = next
 	}
 
-	return migrateMapStringSecret(current, path[len(path)-1], vaultKey, vault, log)
+	return migrateMapStringSecretWithOverwrite(current, path[len(path)-1], vaultKey, vault, log, overwrite)
 }
 
 func migrateMapStringSecret(section map[string]interface{}, yamlKey, vaultKey string, vault SecretReadWriter, log *slog.Logger) bool {
+	return migrateMapStringSecretWithOverwrite(section, yamlKey, vaultKey, vault, log, false)
+}
+
+func migrateMapStringSecretWithOverwrite(section map[string]interface{}, yamlKey, vaultKey string, vault SecretReadWriter, log *slog.Logger, overwrite bool) bool {
 	val, exists := section[yamlKey]
 	if !exists {
 		return false
@@ -1131,7 +1139,7 @@ func migrateMapStringSecret(section map[string]interface{}, yamlKey, vaultKey st
 	}
 
 	existing, _ := vault.ReadSecret(vaultKey)
-	if existing == "" {
+	if overwrite || existing == "" {
 		if err := vault.WriteSecret(vaultKey, strVal); err != nil {
 			log.Error("[Config] Failed to migrate secret to vault", "key", vaultKey, "error", err)
 			return false
@@ -1247,7 +1255,11 @@ func MigratePlaintextSecretsToVault(configPath string, vault SecretReadWriter, l
 
 	migrated := false
 	for path, vaultKey := range plaintextSecretVaultPaths {
-		if migrateNestedStringSecret(rawCfg, strings.Split(path, "."), vaultKey, vault, log) {
+		// Generated egg configs intentionally include a fresh per-deploy shared
+		// key. Egg containers keep a persistent vault volume, so this one secret
+		// must replace any stale value from a previous hatch.
+		overwrite := path == "egg_mode.shared_key"
+		if migrateNestedStringSecretWithOverwrite(rawCfg, strings.Split(path, "."), vaultKey, vault, log, overwrite) {
 			migrated = true
 		}
 	}

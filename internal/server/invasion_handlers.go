@@ -35,6 +35,7 @@ func handleInvasionNests(s *Server) http.HandlerFunc {
 				HasSecret   bool        `json:"has_secret"`
 				WSConnected bool        `json:"ws_connected"`
 				Telemetry   interface{} `json:"telemetry"`
+				EggName     string      `json:"egg_name,omitempty"`
 			}
 			resp := make([]nestResponse, 0, len(nests))
 			for _, n := range nests {
@@ -46,33 +47,40 @@ func handleInvasionNests(s *Server) http.HandlerFunc {
 						tel = c.GetTelemetry()
 					}
 				}
+				eggName := ""
+				if n.EggID != "" {
+					if egg, err := invasion.GetEgg(s.InvasionDB, n.EggID); err == nil {
+						eggName = egg.Name
+					}
+				}
 				resp = append(resp, nestResponse{
-						NestRecord: invasion.NestRecord{
-							ID:               n.ID,
-							Name:             n.Name,
-							Notes:            n.Notes,
-							AccessType:       n.AccessType,
-							Host:             n.Host,
-							Port:             n.Port,
-							Username:         n.Username,
-							Active:           n.Active,
-							EggID:            n.EggID,
-							HatchStatus:      n.HatchStatus,
-							HatchError:       n.HatchError,
-							LastHatchAt:      n.LastHatchAt,
-							DeployMethod:     n.DeployMethod,
-							TargetArch:       n.TargetArch,
-							Route:            n.Route,
-							RouteConfig:      n.RouteConfig,
-							DesiredConfigRev: n.DesiredConfigRev,
-							AppliedConfigRev: n.AppliedConfigRev,
-							CreatedAt:        n.CreatedAt,
-							UpdatedAt:        n.UpdatedAt,
-						},
-						HasSecret:   n.VaultSecretID != "",
-						WSConnected: hasWS,
-						Telemetry:   tel,
-					})
+					NestRecord: invasion.NestRecord{
+						ID:               n.ID,
+						Name:             n.Name,
+						Notes:            n.Notes,
+						AccessType:       n.AccessType,
+						Host:             n.Host,
+						Port:             n.Port,
+						Username:         n.Username,
+						Active:           n.Active,
+						EggID:            n.EggID,
+						HatchStatus:      n.HatchStatus,
+						HatchError:       n.HatchError,
+						LastHatchAt:      n.LastHatchAt,
+						DeployMethod:     n.DeployMethod,
+						TargetArch:       n.TargetArch,
+						Route:            n.Route,
+						RouteConfig:      n.RouteConfig,
+						DesiredConfigRev: n.DesiredConfigRev,
+						AppliedConfigRev: n.AppliedConfigRev,
+						CreatedAt:        n.CreatedAt,
+						UpdatedAt:        n.UpdatedAt,
+					},
+					HasSecret:   n.VaultSecretID != "",
+					WSConnected: hasWS,
+					Telemetry:   tel,
+					EggName:     eggName,
+				})
 			}
 			writeJSON(w, resp)
 
@@ -232,6 +240,12 @@ func handleInvasionNest(s *Server) http.HandlerFunc {
 				jsonLoggedError(w, s.Logger, http.StatusNotFound, "Nest not found", "Invasion nest lookup failed", err, "nest_id", id)
 				return
 			}
+			eggName := ""
+			if nest.EggID != "" {
+				if egg, err := invasion.GetEgg(s.InvasionDB, nest.EggID); err == nil {
+					eggName = egg.Name
+				}
+			}
 			writeJSON(w, map[string]interface{}{
 				"id":            nest.ID,
 				"name":          nest.Name,
@@ -251,6 +265,7 @@ func handleInvasionNest(s *Server) http.HandlerFunc {
 				"route_config":  nest.RouteConfig,
 				"created_at":    nest.CreatedAt,
 				"updated_at":    nest.UpdatedAt,
+				"egg_name":      eggName,
 			})
 
 		case http.MethodPut:

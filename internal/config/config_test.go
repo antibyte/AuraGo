@@ -670,6 +670,42 @@ egg_mode:
 	}
 }
 
+func TestMigrateEggModeSharedKeyToVaultOverwritesStaleEggKey(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	configContent := `
+egg_mode:
+  enabled: true
+  master_url: ws://master.local/ws
+  shared_key: fresh-key
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	vault := &testSecretVault{data: map[string]string{"egg_shared_key": "stale-key"}}
+
+	MigrateEggModeSharedKeyToVault(configPath, vault, slog.Default())
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	cfg.ApplyVaultSecrets(vault)
+
+	if cfg.EggMode.SharedKey != "fresh-key" {
+		t.Fatalf("shared key = %q, want fresh-key from latest egg config", cfg.EggMode.SharedKey)
+	}
+
+	raw, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("read config after migration: %v", err)
+	}
+	if strings.Contains(string(raw), "shared_key:") {
+		t.Fatalf("expected shared_key to be removed from config.yaml, got:\n%s", string(raw))
+	}
+}
+
 func TestMigratePlaintextSecretsToVaultMovesProviderAndAccountSecrets(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.yaml")

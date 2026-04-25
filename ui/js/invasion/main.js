@@ -159,7 +159,7 @@ function renderNests() {
     }
     empty.classList.add('is-hidden');
     grid.innerHTML = nestsData.map(n => {
-        const eggName = n.egg_id ? (eggsData.find(e => e.id === n.egg_id)?.name || n.egg_id) : '—';
+        const eggName = n.egg_id ? (n.egg_name || eggsData.find(e => e.id === n.egg_id)?.name || n.egg_id) : '—';
         const hs = n.hatch_status || 'idle';
         const showHatchBadge = !(hs === 'running' && !n.ws_connected);
         const hsBadge = showHatchBadge ? `<span class="badge badge-${hs}">${t('invasion.hatch_' + hs)}</span>` : '';
