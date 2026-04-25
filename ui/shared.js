@@ -1156,24 +1156,25 @@ window.AuraSSE = (function () {
 
     // Auto-redirect to login on SSE auth failure
     var _authRedirectInProgress = false;
-    var _authErrorCount = 0;
-    var _authErrorTimer = null;
+    var _authCheckInProgress = false;
     function _redirectToLogin() {
         if (_authRedirectInProgress) return;
         if (window.location.pathname.indexOf('/login') !== -1 || window.location.pathname.indexOf('/setup') !== -1) return;
         _authRedirectInProgress = true;
-        window.location.href = '/auth/login?redirect=' + encodeURIComponent(window.location.pathname);
+        window.location.replace('/auth/login?redirect=' + encodeURIComponent(window.location.pathname + window.location.search));
+    }
+    function _checkAuthAfterSSEError() {
+        if (_authRedirectInProgress || _authCheckInProgress) return;
+        _authCheckInProgress = true;
+        fetch('/api/auth/status', { credentials: 'same-origin', cache: 'no-store' }).then(function (r) {
+            if (r.status === 401) _redirectToLogin();
+        }).catch(function () {}).then(function () {
+            _authCheckInProgress = false;
+        });
     }
     if (!_typed['_error']) _typed['_error'] = [];
     _typed['_error'].push(function () {
-        _authErrorCount++;
-        if (_authErrorTimer) clearTimeout(_authErrorTimer);
-        _authErrorTimer = setTimeout(function () { _authErrorCount = 0; }, 5000);
-        // Only redirect after multiple consecutive auth errors (avoids false positives on temporary disconnects)
-        if (_authErrorCount < 3) return;
-        fetch('/api/auth/status', { credentials: 'same-origin' }).then(function (r) {
-            if (r.status === 401) _redirectToLogin();
-        }).catch(function () {});
+        _checkAuthAfterSSEError();
     });
 
     return {

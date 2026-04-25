@@ -525,6 +525,37 @@ func TestGlobalSafeAreaRulesPreserveHeaderFooterSpacing(t *testing.T) {
 	}
 }
 
+func TestSharedSSEAuthFailureRedirectsImmediately(t *testing.T) {
+	t.Parallel()
+
+	content, err := os.ReadFile("shared.js")
+	if err != nil {
+		t.Fatalf("read shared.js: %v", err)
+	}
+	sharedJS := string(content)
+
+	for _, staleMarker := range []string{
+		"_authErrorCount",
+		"Only redirect after multiple consecutive auth errors",
+		"if (_authErrorCount < 3) return;",
+	} {
+		if strings.Contains(sharedJS, staleMarker) {
+			t.Fatalf("shared.js still delays login redirect on SSE auth failure via marker %q", staleMarker)
+		}
+	}
+	for _, marker := range []string{
+		"function _checkAuthAfterSSEError()",
+		"fetch('/api/auth/status', { credentials: 'same-origin', cache: 'no-store' })",
+		"if (r.status === 401) _redirectToLogin();",
+		"_typed['_error'].push(function () {",
+		"_checkAuthAfterSSEError();",
+	} {
+		if !strings.Contains(sharedJS, marker) {
+			t.Fatalf("shared.js is missing immediate SSE auth redirect marker %q", marker)
+		}
+	}
+}
+
 func extractJSStringConst(t *testing.T, js, name string) string {
 	t.Helper()
 
