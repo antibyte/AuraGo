@@ -133,6 +133,36 @@ func TestChatRobotGreetingStartsAboveGreetingText(t *testing.T) {
 	}
 }
 
+func TestChatPapyrusThemeUsesRefinedManuscriptPalette(t *testing.T) {
+	t.Parallel()
+
+	papyrusPath := filepath.Join("css", "chat-papyrus.css")
+	papyrusContent, err := os.ReadFile(papyrusPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", papyrusPath, err)
+	}
+
+	papyrusCSS := string(papyrusContent)
+	requiredMarkers := []string{
+		"--papyrus-ink-blue: #1e3f66;",
+		"--papyrus-verdigris: #2f7f73;",
+		"--papyrus-wax: #9f3f35;",
+		"--papyrus-font-body: 'Inter', system-ui, sans-serif;",
+		"linear-gradient(135deg, rgba(30, 63, 102, 0.34) 0%, rgba(47, 127, 115, 0.2) 38%, rgba(159, 63, 53, 0.16) 72%, rgba(20, 35, 51, 0.98) 100%)",
+		"linear-gradient(135deg, rgba(30, 63, 102, 0.96), rgba(47, 127, 115, 0.92))",
+		"opacity: 0.38;",
+	}
+	for _, marker := range requiredMarkers {
+		if !strings.Contains(papyrusCSS, marker) {
+			t.Fatalf("%s is missing refined papyrus marker %q", papyrusPath, marker)
+		}
+	}
+
+	if strings.Contains(papyrusCSS, "[data-theme=\"papyrus\"] body {\n    background: url('../wood.jpg');") {
+		t.Fatalf("%s still uses the old wood-only body background", papyrusPath)
+	}
+}
+
 func TestMediaFrontend_VideoTabFlowRemainsPresent(t *testing.T) {
 	t.Parallel()
 
