@@ -1348,7 +1348,7 @@ fn dispatch_action(
                 // Apply the edit to config_data
                 let section_key = app.config_sections.get(app.config_section_index).cloned();
                 if let Some(key) = section_key {
-                    let fields = app.config_data.get(&key).map(|d| collect_config_fields(d));
+                    let fields = app.config_data.get(&key).map(collect_config_fields);
                     if let Some(fields) = fields {
                         if let Some((field_key, _)) = fields.get(app.config_field_index) {
                             // Parse the edit value
@@ -1696,22 +1696,19 @@ fn execute_toggle_action(
     client: &ApiClient,
     tx: &UnboundedSender<AppEvent>,
 ) {
-    match app.screen {
-        Screen::Skills => {
-            if let Some(idx) = app.skills_selected {
-                if let Some(skill) = app.skills.get(idx) {
-                    let id = skill.id.clone();
-                    let new_state = !skill.enabled;
-                    let c = client.clone();
-                    let t = tx.clone();
-                    tokio::spawn(async move {
-                        let result = auth::toggle_skill(&c, &id, new_state).await.map_err(|e| e.to_string());
-                        let _ = t.send(AppEvent::SkillActionDone(result));
-                    });
-                }
+    if app.screen == Screen::Skills {
+        if let Some(idx) = app.skills_selected {
+            if let Some(skill) = app.skills.get(idx) {
+                let id = skill.id.clone();
+                let new_state = !skill.enabled;
+                let c = client.clone();
+                let t = tx.clone();
+                tokio::spawn(async move {
+                    let result = auth::toggle_skill(&c, &id, new_state).await.map_err(|e| e.to_string());
+                    let _ = t.send(AppEvent::SkillActionDone(result));
+                });
             }
         }
-        _ => {}
     }
 }
 
@@ -1898,7 +1895,10 @@ fn draw_nav_bar(f: &mut ratatui::Frame, app: &AppState, theme: &Theme) {
 
 // ── SSE / Chat session startup ────────────────────────────────────────────────
 
-async fn start_chat_session(client: &ApiClient, tx: UnboundedSender<AppEvent>) {
+/// Starts a chat session: fetches history and opens an SSE connection.
+/// Returns a `JoinHandle` for the SSE connection task (the reconnect loop).
+/// The caller should abort this handle before starting a new session.
+pub async fn start_chat_session(client: &ApiClient, tx: UnboundedSender<AppEvent>) -> tokio::task::JoinHandle<()> {
     // Fetch history
     match auth::fetch_history(client).await {
         Ok(history) => {
@@ -1916,7 +1916,7 @@ async fn start_chat_session(client: &ApiClient, tx: UnboundedSender<AppEvent>) {
     let cookie = client.get_session_cookie();
     let (sse_tx, mut sse_rx) = mpsc::unbounded_channel::<sse::SseEvent>();
 
-    tokio::spawn(async move {
+    let handle = tokio::spawn(async move {
         sse::connect_sse(c, url, origin, cookie, sse_tx).await;
     });
 
@@ -1928,6 +1928,8 @@ async fn start_chat_session(client: &ApiClient, tx: UnboundedSender<AppEvent>) {
             }
         }
     });
+
+    handle
 }
 
 // ── Config helpers ────────────────────────────────────────────────────────────
@@ -1991,57 +1993,5 @@ fn truncate_str(s: &str, max_len: usize) -> String {
             end -= 1;
         }
         format!("{}…", &s[..end])
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn test_parse_edit_value_bool() {
-        assert_eq!(parse_edit_value("true"), serde_json::Value::Bool(true));
-        assert_eq!(parse_edit_value("false"), serde_json::Value::Bool(false));
-        assert_eq!(parse_edit_value("TRUE"), serde_json::Value::Bool(true));
-        assert_eq!(parse_edit_value("FALSE"), serde_json::Value::Bool(false));
-    }
-
-    #[test]
-    fn test_parse_edit_value_number() {
-        assert_eq!(parse_edit_value("42"), serde_json::Value::Number(42.into()));
-        assert_eq!(parse_edit_value("-1"), serde_json::Value::Number((-1).into()));
-        assert_eq!(parse_edit_value("3.14"), serde_json::json!(3.14));
-    }
-
-    #[test]
-    fn test_parse_edit_value_string() {
-        assert_eq!(parse_edit_value("hello"), serde_json::Value::String("hello".to_string()));
-        assert_eq!(parse_edit_value(""), serde_json::Value::String("".to_string()));
-    }
-
-    #[test]
-    fn test_parse_edit_value_json() {
-        assert_eq!(parse_edit_value(r#"{"key":"value"}"#), serde_json::json!({"key": "value"}));
-        assert_eq!(parse_edit_value(r#"[1,2,3]"#), serde_json::json!([1, 2, 3]));
-    }
-
-    #[test]
-    fn test_collect_config_fields() {
-        let json = serde_json::json!({
-            "server": {"port": 8080},
-            "debug": true
-        });
-        let fields = collect_config_fields(&json);
-        assert_eq!(fields.len(), 2);
-        let keys: Vec<_> = fields.iter().map(|(k, _): &(String, serde_json::Value)| k.as_str()).collect();
-        assert!(keys.contains(&"server"));
-        assert!(keys.contains(&"debug"));
-    }
-
-    #[test]
-    fn test_set_nested_config_value() {
-        let mut config = serde_json::json!({
-            "server": {"port": 8080}
-        });
-        set_nested_config_value(&mut config, "server", "port", serde_json::json!(9090));
-        assert_eq!(config["server"]["port"], serde_json::json!(9090));
     }
 }

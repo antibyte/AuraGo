@@ -43,6 +43,8 @@ pub async fn connect_sse(
         let connected = connect_sse_once(&client, &url, &origin, cookie.as_deref(), &tx).await;
 
         if connected {
+            // Reset backoff after successful connection so next retry starts fresh
+            retry_delay_secs = 1;
             // Connection was established and then closed — try reconnect
             let _ = tx.send(SseEvent::AgentStatus("reconnecting".to_string()));
         }
