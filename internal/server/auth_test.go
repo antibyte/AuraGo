@@ -56,6 +56,35 @@ func TestClearSessionCookieIncludesSecureOnHTTPS(t *testing.T) {
 	}
 }
 
+func TestIsAuthenticatedRejectsEmptySessionSecret(t *testing.T) {
+	t.Parallel()
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.AddCookie(&http.Cookie{
+		Name:  sessionCookieName,
+		Value: createSessionValue("", time.Now().Add(time.Hour)),
+	})
+
+	if IsAuthenticated(req, "") {
+		t.Fatal("empty session secret must never authenticate a forged cookie")
+	}
+}
+
+func TestSanitizeRedirectTargetRejectsControlCharacters(t *testing.T) {
+	t.Parallel()
+
+	for _, target := range []string{
+		"/chat\r\nLocation: //evil.example",
+		"/chat\x00",
+		"//evil.example",
+		"https://evil.example",
+	} {
+		if got := sanitizeRedirectTarget(target); got != "/" {
+			t.Fatalf("sanitizeRedirectTarget(%q) = %q, want /", target, got)
+		}
+	}
+}
+
 func TestClearSessionCookieIncludesProxySecureAttribute(t *testing.T) {
 	t.Parallel()
 

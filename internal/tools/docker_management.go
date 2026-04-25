@@ -29,15 +29,9 @@ func DockerCreateContainer(cfg DockerConfig, name, image string, env []string, p
 		portBindings[containerPort] = []map[string]string{{"HostPort": hostPort}}
 	}
 
-	// Validate volume bind mounts are within allowed paths
 	for _, bind := range volumes {
-		parts := strings.SplitN(bind, ":", 3)
-		if len(parts) >= 2 {
-			hostPath := filepath.Clean(parts[0])
-			// Block mounting the entire root filesystem
-			if hostPath == "/" || hostPath == "/mnt" || hostPath == "/hostfs" {
-				return errJSON("mounting root filesystem paths ('%s') is not allowed for security reasons", hostPath)
-			}
+		if err := validateDockerBindMount(cfg, bind); err != nil {
+			return errJSON("%v", err)
 		}
 	}
 
@@ -655,23 +649,84 @@ func DockerCompose(cfg DockerConfig, file, cmd string) string {
 	if strings.Contains(absFile, "..") {
 		return errJSON("path traversal is not allowed in compose file paths")
 	}
-	parts := strings.Fields(cmd)
-	if len(parts) == 0 {
-		return errJSON("command is empty")
-	}
-	if !allowedComposeCommands[parts[0]] {
-		return errJSON("compose command %q is not allowed", parts[0])
-	}
-	// Block global Docker daemon flags that could redirect commands to a remote host
-	// or change TLS configuration — only parts[0] (the subcommand) is validated above.
-	for _, arg := range parts[1:] {
-		lower := strings.ToLower(arg)
-		if strings.HasPrefix(lower, "--host") || strings.HasPrefix(lower, "--context") ||
-			strings.HasPrefix(lower, "--tls") || strings.HasPrefix(lower, "-h=") {
-			return errJSON("compose argument %q is not allowed", arg)
-		}
+	parts, err := dockerComposeParts(cmd)
+	if err != nil {
+		return errJSON("%v", err)
 	}
 	args := []string{"compose", "-f", file}
 	args = append(args, parts...)
 	return runDockerCLIHelper(cfg, args...)
+}
+
+func validateDockerBindMount(cfg DockerConfig, bind string) error {
+	parts := strings.SplitN(bind, ":", 3)
+	if len(parts) < 2 {
+		return nil
+	}
+	hostPath := filepath.ToSlash(filepath.Clean(parts[0]))
+	if hostPath == "." || hostPath == "" {
+		return nil
+	}
+	if !strings.HasPrefix(hostPath, "/") && !strings.Contains(hostPath, ":") {
+		return nil // named Docker volume
+	}
+	for _, sensitive := range []string{
+		"/", "/mnt", "/hostfs", "/etc", "/root", "/proc", "/sys", "/dev",
+		"/var/run/docker.sock", "/run/docker.sock", "/var/lib/docker", "/boot",
+	} {
+		if dockerPathEqualOrWithin(hostPath, sensitive) {
+			return fmt.Errorf("mounting sensitive host path %q is not allowed for security reasons", hostPath)
+		}
+	}
+	if cfg.WorkspaceDir != "" {
+		workspace := filepath.ToSlash(filepath.Clean(cfg.WorkspaceDir))
+		if filepath.IsAbs(parts[0]) && !dockerPathEqualOrWithin(hostPath, workspace) {
+			return fmt.Errorf("bind mount host path %q must stay within the configured workspace", hostPath)
+		}
+	}
+	return nil
+}
+
+func dockerPathEqualOrWithin(path, root string) bool {
+	path = strings.TrimRight(filepath.ToSlash(filepath.Clean(path)), "/")
+	root = strings.TrimRight(filepath.ToSlash(filepath.Clean(root)), "/")
+	if path == "" {
+		path = "/"
+	}
+	if root == "" {
+		root = "/"
+	}
+	if root == "/" {
+		return path == "/"
+	}
+	return path == root || strings.HasPrefix(path, root+"/")
+}
+
+func validateDockerComposeArgs(cmd string) error {
+	_, err := dockerComposeParts(cmd)
+	return err
+}
+
+func dockerComposeParts(cmd string) ([]string, error) {
+	parts := strings.Fields(cmd)
+	if len(parts) == 0 {
+		return nil, fmt.Errorf("command is empty")
+	}
+	if !allowedComposeCommands[parts[0]] {
+		return nil, fmt.Errorf("compose command %q is not allowed", parts[0])
+	}
+	switch parts[0] {
+	case "exec", "run", "cp", "push":
+		return nil, fmt.Errorf("compose command %q is not allowed by the safe compose policy", parts[0])
+	}
+	for _, arg := range parts[1:] {
+		lower := strings.ToLower(arg)
+		if strings.HasPrefix(lower, "--host") || strings.HasPrefix(lower, "--context") ||
+			strings.HasPrefix(lower, "--tls") || strings.HasPrefix(lower, "-h=") ||
+			lower == "-v" || lower == "--volume" || strings.HasPrefix(lower, "-v=") ||
+			strings.HasPrefix(lower, "--volume=") || strings.HasPrefix(lower, "--mount") {
+			return nil, fmt.Errorf("compose argument %q is not allowed", arg)
+		}
+	}
+	return parts, nil
 }

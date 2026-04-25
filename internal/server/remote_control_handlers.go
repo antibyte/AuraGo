@@ -23,7 +23,7 @@ import (
 var remoteUpgrader = websocket.Upgrader{
 	ReadBufferSize:  4096,
 	WriteBufferSize: 4096,
-	CheckOrigin:     func(r *http.Request) bool { return true },
+	CheckOrigin:     sameOriginOrNoOrigin,
 }
 
 func handleRemoteWebSocket(s *Server) http.HandlerFunc {
@@ -336,19 +336,21 @@ func handleRemoteDownload(s *Server) http.HandlerFunc {
 			return
 		}
 
-		// Rate-limit unauthenticated download requests to prevent enrollment token
-		// flooding (max 5 downloads per 10 minutes per IP).
+		// Rate-limit failed unauthenticated download requests to prevent enrollment
+		// token flooding without locking out legitimate repeated downloads.
 		clientIP := ClientIP(r, s.Cfg.Server.HTTPS.BehindProxy)
-		if IsLockedOut(clientIP) {
+		rateKey := loginScopeKey("remote_download", clientIP)
+		recordDownloadFailure := func() { RecordFailedLogin(rateKey, 5, 10) }
+		if IsLockedOut(rateKey) {
 			jsonError(w, "Too many download requests — please wait before trying again", http.StatusTooManyRequests)
 			return
 		}
-		RecordFailedLogin(clientIP, 5, 10)
 
 		// Parse /api/remote/download/{os}/{arch}?token=...&name=...
 		path := strings.TrimPrefix(r.URL.Path, "/api/remote/download/")
 		parts := strings.SplitN(path, "/", 2)
 		if len(parts) != 2 {
+			recordDownloadFailure()
 			jsonError(w, "invalid path, expected /api/remote/download/{os}/{arch}", http.StatusBadRequest)
 			return
 		}
@@ -363,6 +365,7 @@ func handleRemoteDownload(s *Server) http.HandlerFunc {
 		}
 		platform := targetOS + "/" + targetArch
 		if !validPlatforms[platform] {
+			recordDownloadFailure()
 			jsonError(w, "Unsupported platform", http.StatusBadRequest)
 			return
 		}
@@ -377,6 +380,7 @@ func handleRemoteDownload(s *Server) http.HandlerFunc {
 
 		genericBinary, err := os.ReadFile(binaryPath)
 		if err != nil {
+			recordDownloadFailure()
 			jsonLoggedError(w, s.Logger, http.StatusNotFound, "Requested binary is not available", "Remote binary not available", err, "binary", binaryName)
 			return
 		}
@@ -384,6 +388,7 @@ func handleRemoteDownload(s *Server) http.HandlerFunc {
 		// Generate enrollment token for this download
 		rawToken, err := generateRemoteToken()
 		if err != nil {
+			recordDownloadFailure()
 			jsonError(w, "token generation failed", http.StatusInternalServerError)
 			return
 		}
@@ -398,6 +403,7 @@ func handleRemoteDownload(s *Server) http.HandlerFunc {
 			ExpiresAt:  expires,
 		})
 		if err != nil {
+			recordDownloadFailure()
 			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Enrollment creation failed", "Failed to create download enrollment", err, "platform", platform)
 			return
 		}
@@ -437,6 +443,7 @@ func handleRemoteDownload(s *Server) http.HandlerFunc {
 			DeviceName:    deviceName,
 		})
 		if err != nil {
+			recordDownloadFailure()
 			jsonError(w, "binary personalization failed", http.StatusInternalServerError)
 			return
 		}

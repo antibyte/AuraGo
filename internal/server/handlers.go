@@ -95,6 +95,15 @@ func sanitizeFilename(filename string) string {
 	return base
 }
 
+func isActiveContentExtension(filename string) bool {
+	switch strings.ToLower(filepath.Ext(filename)) {
+	case ".html", ".htm", ".js", ".mjs", ".svg", ".xml", ".xhtml":
+		return true
+	default:
+		return false
+	}
+}
+
 func handleChatCompletions(s *Server, sse *SSEBroadcaster) http.HandlerFunc {
 	// Pre-create manifest once — it caches internally and auto-reloads on file changes
 	manifest := tools.NewManifest(s.Cfg.Directories.ToolsDir)
@@ -737,6 +746,10 @@ func handleUpload(s *Server) http.HandlerFunc {
 
 		// Sanitize filename - prevent path traversal and ensure safe name
 		base := sanitizeFilename(header.Filename)
+		if isActiveContentExtension(base) {
+			jsonError(w, "Uploads with active content extensions are not allowed", http.StatusBadRequest)
+			return
+		}
 
 		ts := time.Now().Format("20060102_150405")
 		filename := ts + "_" + uid.New() + "_" + base

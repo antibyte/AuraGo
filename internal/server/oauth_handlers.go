@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"html"
 	"io"
 	"net"
 	"net/http"
@@ -128,14 +129,8 @@ func handleOAuthCallback(s *Server) http.HandlerFunc {
 		state := r.URL.Query().Get("state")
 		errParam := r.URL.Query().Get("error")
 
-		if errParam != "" {
-			errDesc := r.URL.Query().Get("error_description")
-			renderOAuthResult(w, false, fmt.Sprintf("Authorization denied: %s — %s", errParam, errDesc))
-			return
-		}
-
-		if code == "" || state == "" {
-			renderOAuthResult(w, false, "Missing code or state parameter")
+		if state == "" {
+			renderOAuthResult(w, false, "Missing state parameter")
 			return
 		}
 
@@ -151,6 +146,17 @@ func handleOAuthCallback(s *Server) http.HandlerFunc {
 			return
 		}
 		_ = s.Vault.DeleteSecret("oauth_state_" + state) // one-time use
+
+		if errParam != "" {
+			errDesc := r.URL.Query().Get("error_description")
+			renderOAuthResult(w, false, fmt.Sprintf("Authorization denied: %s - %s", errParam, errDesc))
+			return
+		}
+
+		if code == "" {
+			renderOAuthResult(w, false, "Missing code parameter")
+			return
+		}
 
 		var stateData map[string]string
 		if err := json.Unmarshal([]byte(stateRaw), &stateData); err != nil {
@@ -599,6 +605,8 @@ func renderOAuthResult(w http.ResponseWriter, success bool, message string) {
 		title = "Authorization Successful"
 		color = "#27ae60"
 	}
+	safeTitle := html.EscapeString(title)
+	safeMessage := html.EscapeString(message)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	fmt.Fprintf(w, `<!DOCTYPE html>
 <html>
@@ -618,5 +626,5 @@ button:hover{opacity:0.85;}
 <p>%s</p>
 <button onclick="window.close()">Close Window</button>
 </div>
-</body></html>`, title, color, color, icon, title, message)
+</body></html>`, safeTitle, color, color, icon, safeTitle, safeMessage)
 }

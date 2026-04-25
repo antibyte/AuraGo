@@ -246,6 +246,29 @@ func TestFileEditorPathTraversal(t *testing.T) {
 	}
 }
 
+func TestFileEditorStrReplaceGlobRejectsAbsolutePattern(t *testing.T) {
+	wsDir, _ := setupEditorTest(t, "test.txt", "content")
+	outside := filepath.Join(t.TempDir(), "*.txt")
+	res := decodeEditorResult(t, ExecuteFileEditor("str_replace_glob", outside, "content", "updated", "", "", 0, 0, 0, wsDir))
+	if res.Status != "error" {
+		t.Fatalf("expected error for absolute glob pattern, got %s", res.Status)
+	}
+	if !strings.Contains(res.Message, "relative") {
+		t.Fatalf("expected relative-pattern error, got %q", res.Message)
+	}
+}
+
+func TestFileEditorStrReplaceGlobRejectsParentTraversalPattern(t *testing.T) {
+	wsDir, _ := setupEditorTest(t, "test.txt", "content")
+	res := decodeEditorResult(t, ExecuteFileEditor("str_replace_glob", "../*.txt", "content", "updated", "", "", 0, 0, 0, wsDir))
+	if res.Status != "error" {
+		t.Fatalf("expected error for parent-traversal glob pattern, got %s", res.Status)
+	}
+	if !strings.Contains(res.Message, "relative") {
+		t.Fatalf("expected relative-pattern error, got %q", res.Message)
+	}
+}
+
 func TestWriteFileAtomic(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "atomic_test.txt")

@@ -1,6 +1,7 @@
 package fritzbox
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -50,6 +51,18 @@ func TestMd5Hex(t *testing.T) {
 	want := "5d41402abc4b2a76b9719d911017c592"
 	if got != want {
 		t.Errorf("md5Hex(\"hello\") = %q, want %q", got, want)
+	}
+}
+
+func TestNewCnonceReturnsErrorWhenRandomFails(t *testing.T) {
+	prev := digestRandRead
+	digestRandRead = func([]byte) (int, error) {
+		return 0, errors.New("entropy unavailable")
+	}
+	defer func() { digestRandRead = prev }()
+
+	if _, err := newCnonce(); err == nil {
+		t.Fatal("expected random failure to be returned")
 	}
 }
 

@@ -49,7 +49,11 @@ func handleVaultDelete(s *Server) http.HandlerFunc {
 		// Update in-memory config
 		s.CfgMu.Lock()
 		s.Cfg.Server.MasterKey = ""
+		s.Cfg.Auth.PasswordHash = ""
+		s.Cfg.Auth.SessionSecret = ""
+		s.Cfg.Auth.TOTPSecret = ""
 		s.CfgMu.Unlock()
+		s.Vault = nil
 
 		s.Logger.Info("[Vault] Vault deleted via Web UI")
 		w.Header().Set("Content-Type", "application/json")

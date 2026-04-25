@@ -2,6 +2,7 @@ package server
 
 import (
 	"database/sql"
+	"errors"
 	"io"
 	"log/slog"
 	"testing"
@@ -58,5 +59,17 @@ func TestN8nToolAvailableRequiresSQLRuntime(t *testing.T) {
 	}
 	if n8nToolAvailable(s, "sql_query", []string{"filesystem"}) {
 		t.Fatal("sql_query should respect explicit allowed tool filtering")
+	}
+}
+
+func TestGenerateSessionIDReturnsErrorWhenRandomFails(t *testing.T) {
+	prev := n8nRandRead
+	n8nRandRead = func([]byte) (int, error) {
+		return 0, errors.New("entropy unavailable")
+	}
+	defer func() { n8nRandRead = prev }()
+
+	if _, err := generateSessionID(); err == nil {
+		t.Fatal("expected random failure to be returned")
 	}
 }

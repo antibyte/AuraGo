@@ -1,9 +1,8 @@
 package tools
 
 import (
+	"crypto/ed25519"
 	"crypto/rand"
-	"crypto/rsa"
-	"crypto/x509"
 	"encoding/pem"
 	"fmt"
 	"os"
@@ -16,6 +15,8 @@ import (
 // SSHKeyManager handles safe SSH key generation, listing, and revocation for the agent.
 type SSHKeyManager struct {
 	authorizedKeysPath string
+	workspaceDir       string
+	homeDir            string
 }
 
 func NewSSHKeyManager(workspaceDir string) *SSHKeyManager {
@@ -28,15 +29,22 @@ func NewSSHKeyManager(workspaceDir string) *SSHKeyManager {
 	}
 	return &SSHKeyManager{
 		authorizedKeysPath: authKeys,
+		workspaceDir:       workspaceDir,
+		homeDir:            home,
 	}
 }
 
 // SetAuthorizedKeysPath overrides the default path.
-func (m *SSHKeyManager) SetAuthorizedKeysPath(p string) {
-	m.authorizedKeysPath = p
+func (m *SSHKeyManager) SetAuthorizedKeysPath(p string) error {
+	resolved, err := m.resolveAuthorizedKeysPath(p)
+	if err != nil {
+		return err
+	}
+	m.authorizedKeysPath = resolved
+	return nil
 }
 
-// Generate creates a new RSA key pair, optionally appending the public key to authorized_keys.
+// Generate creates a new Ed25519 key pair, optionally appending the public key to authorized_keys.
 // Returns the private key (PEM) and public key. Does NOT store in vault to avoid mixing scopes.
 func (m *SSHKeyManager) Generate(comment string, authorize bool) (privatePEM string, pubKey string, err error) {
 	if comment == "" {
@@ -45,28 +53,23 @@ func (m *SSHKeyManager) Generate(comment string, authorize bool) (privatePEM str
 		comment = "AuraGo-Agent:" + comment
 	}
 
-	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to generate RSA key: %w", err)
+		return "", "", fmt.Errorf("failed to generate Ed25519 key: %w", err)
 	}
 
-	if err := privateKey.Validate(); err != nil {
-		return "", "", fmt.Errorf("failed to validate RSA key: %w", err)
+	privBlock, err := ssh.MarshalPrivateKey(privateKey, comment)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to marshal private SSH key: %w", err)
 	}
+	privatePEM = string(pem.EncodeToMemory(privBlock))
 
-	privDER := x509.MarshalPKCS1PrivateKey(privateKey)
-	privBlock := pem.Block{
-		Type:  "RSA PRIVATE KEY",
-		Bytes: privDER,
-	}
-	privatePEM = string(pem.EncodeToMemory(&privBlock))
-
-	publicRsaKey, err := ssh.NewPublicKey(&privateKey.PublicKey)
+	publicSSHKey, err := ssh.NewPublicKey(publicKey)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to generate public SSH key: %w", err)
 	}
 
-	pubKey = string(ssh.MarshalAuthorizedKey(publicRsaKey))
+	pubKey = string(ssh.MarshalAuthorizedKey(publicSSHKey))
 	pubKeyStr := strings.TrimSpace(string(pubKey)) + " " + comment
 
 	if authorize {
@@ -77,6 +80,59 @@ func (m *SSHKeyManager) Generate(comment string, authorize bool) (privatePEM str
 	}
 
 	return privatePEM, pubKeyStr, nil
+}
+
+func (m *SSHKeyManager) resolveAuthorizedKeysPath(p string) (string, error) {
+	if strings.TrimSpace(p) == "" {
+		return "", fmt.Errorf("authorized_keys path is required")
+	}
+	var candidate string
+	if filepath.IsAbs(p) {
+		candidate = p
+	} else {
+		candidate = filepath.Join(m.workspaceDir, p)
+	}
+	absCandidate, err := filepath.Abs(candidate)
+	if err != nil {
+		return "", fmt.Errorf("resolve authorized_keys path: %w", err)
+	}
+	absCandidate = filepath.Clean(absCandidate)
+
+	if m.workspaceDir != "" && pathWithinBase(m.workspaceDir, absCandidate) {
+		return absCandidate, nil
+	}
+	if m.homeDir != "" {
+		homeAuthKeys := filepath.Join(m.homeDir, ".ssh", "authorized_keys")
+		if samePath(homeAuthKeys, absCandidate) {
+			return absCandidate, nil
+		}
+	}
+	return "", fmt.Errorf("authorized_keys path %q is outside allowed workspace/home locations", p)
+}
+
+func pathWithinBase(base, target string) bool {
+	absBase, err := filepath.Abs(base)
+	if err != nil {
+		return false
+	}
+	absBase = filepath.Clean(absBase)
+	rel, err := filepath.Rel(absBase, target)
+	if err != nil {
+		return false
+	}
+	return rel == "." || (rel != ".." && !strings.HasPrefix(rel, ".."+string(os.PathSeparator)))
+}
+
+func samePath(a, b string) bool {
+	absA, err := filepath.Abs(a)
+	if err != nil {
+		return false
+	}
+	absB, err := filepath.Abs(b)
+	if err != nil {
+		return false
+	}
+	return filepath.Clean(absA) == filepath.Clean(absB)
 }
 
 func (m *SSHKeyManager) addAuthorizedKey(pubKeyStr string) error {

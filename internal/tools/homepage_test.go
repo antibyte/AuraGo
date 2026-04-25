@@ -201,6 +201,14 @@ func TestSanitizeProjectDir_ShellMetachars(t *testing.T) {
 	}
 }
 
+func TestValidateHomepageProjectNameRejectsControlCharacters(t *testing.T) {
+	for _, name := range []string{"foo\ncurl-evil", "foo\rbar", "foo\tbar"} {
+		if err := validateHomepageProjectName(name); err == nil {
+			t.Fatalf("expected project name %q to be rejected", name)
+		}
+	}
+}
+
 // ─── truncateStr ─────────────────────────────────────────────────────────
 
 func TestTruncateStr(t *testing.T) {

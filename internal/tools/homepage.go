@@ -233,6 +233,23 @@ func sanitizeProjectDir(projectDir string) error {
 	return nil
 }
 
+func validateHomepageProjectName(name string) error {
+	if name == "" {
+		return fmt.Errorf("project name is required")
+	}
+	for _, c := range name {
+		switch {
+		case c >= 'a' && c <= 'z':
+		case c >= 'A' && c <= 'Z':
+		case c >= '0' && c <= '9':
+		case c == '_' || c == '-':
+		default:
+			return fmt.Errorf("invalid character %q in project name %q. Use only letters, numbers, '-' and '_'", c, name)
+		}
+	}
+	return nil
+}
+
 func homepageWorkspacePathGuidance() string {
 	return "Configure homepage.workspace_path as the absolute host directory mounted as /workspace. In homepage tool calls, use relative project_dir/path values like 'my-site' or 'my-site/src/app/page.tsx', never '/workspace/my-site' or host filesystem paths."
 }
@@ -651,12 +668,8 @@ func HomepageInitProject(cfg HomepageConfig, framework, name, template string, l
 	if name == "" {
 		name = "my-site"
 	}
-	// Validate name to prevent shell injection
-	if strings.ContainsAny(name, ";|&`$(){}\"' <>") {
-		return errJSON("Invalid project name: %s", name)
-	}
-	if strings.Contains(name, "..") || strings.Contains(name, "/") || strings.Contains(name, "\\") {
-		return errJSON("Path traversal not allowed in project name")
+	if err := validateHomepageProjectName(name); err != nil {
+		return errJSON("Invalid project name: %v", err)
 	}
 	var cmd string
 	switch strings.ToLower(framework) {

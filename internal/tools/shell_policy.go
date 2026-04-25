@@ -22,8 +22,16 @@ var (
 	}
 	interpreterBypassPatterns = []shellPolicyPattern{
 		{reason: "interpreter command chain that can bypass shell policy", pattern: regexp.MustCompile(`(?i)(^|[;&|\r\n])\s*(bash|sh|zsh|cmd|powershell|pwsh)\b[^\r\n;|&]*\s(-c|-lc|/c|-command)\b`)},
+		{reason: "encoded PowerShell command that can bypass shell policy", pattern: regexp.MustCompile(`(?i)(^|[;&|\r\n])\s*(powershell|pwsh)\b[^\r\n;|&]*\s(-enc|-encodedcommand)\b`)},
 		{reason: "interpreter command chain that can bypass shell policy", pattern: regexp.MustCompile(`(?i)(^|[;&|\r\n])\s*(python|python3|node|perl|ruby)\b[^\r\n;|&]*\s(-c|-e)\b`)},
 		{reason: "interpreter command chain that can bypass shell policy", pattern: regexp.MustCompile(`(?i)\b(os\.system|subprocess\.(run|popen|call)|invoke-expression|iex\b|child_process\.(exec|spawn)|system\()`)},
+	}
+	downloadExecutePatterns = []shellPolicyPattern{
+		{reason: "downloaded script piped to interpreter", pattern: regexp.MustCompile(`(?i)\b(curl|wget|iwr|invoke-webrequest)\b[^\r\n;|&]*\|\s*(sh|bash|zsh|powershell|pwsh|iex|invoke-expression)\b`)},
+	}
+	sensitiveEnvReadPatterns = []shellPolicyPattern{
+		{reason: "environment variable dump could expose secrets", pattern: regexp.MustCompile(`(?i)(^|[;&|\r\n])\s*(get-childitem|dir|ls)\s+env:`)},
+		{reason: "environment variable dump could expose secrets", pattern: regexp.MustCompile(`(?i)\[environment\]::getenvironmentvariables\s*\(`)},
 	}
 	shellControlOperatorPattern = regexp.MustCompile(`(&&|\|\||;|\r|\n)`)
 )
@@ -51,6 +59,12 @@ func blockedShellCommandReason(command string) string {
 		return reason
 	}
 	if reason := matchShellPolicyPatterns(normalized, interpreterBypassPatterns); reason != "" {
+		return reason
+	}
+	if reason := matchShellPolicyPatterns(normalized, downloadExecutePatterns); reason != "" {
+		return reason
+	}
+	if reason := matchShellPolicyPatterns(normalized, sensitiveEnvReadPatterns); reason != "" {
 		return reason
 	}
 	if reason := matchShellPolicyPatterns(normalized, directDestructiveShellPatterns); reason != "" {

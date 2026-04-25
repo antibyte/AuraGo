@@ -4,12 +4,19 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
+	"regexp"
+	"strings"
 )
+
+var sqliteMigrationIdentifierRe = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 
 // MigrateAddColumn adds a column to a table if it doesn't already exist.
 // It checks using PRAGMA table_info and only executes ALTER TABLE if needed.
 // Returns nil if the column already exists or was added successfully.
 func MigrateAddColumn(db *sql.DB, table, column, definition string, logger *slog.Logger) error {
+	if err := validateMigrationInputs(table, column, definition); err != nil {
+		return err
+	}
 	// Check if column already exists
 	hasCol, err := hasColumn(db, table, column)
 	if err != nil {
@@ -35,6 +42,9 @@ func MigrateAddColumn(db *sql.DB, table, column, definition string, logger *slog
 // This variant is tolerant of duplicate-column errors that may occur due to
 // schema drift, verifying that the column exists after attempting to add it.
 func MigrateAddColumnChecked(db *sql.DB, table, column, definition string, logger *slog.Logger) error {
+	if err := validateMigrationInputs(table, column, definition); err != nil {
+		return err
+	}
 	// Check if column already exists
 	hasCol, err := hasColumn(db, table, column)
 	if err != nil {
@@ -74,6 +84,26 @@ func MigrateAddColumnChecked(db *sql.DB, table, column, definition string, logge
 		return fmt.Errorf("column %s.%s was not added successfully", table, column)
 	}
 
+	return nil
+}
+
+func validateMigrationInputs(table, column, definition string) error {
+	if !sqliteMigrationIdentifierRe.MatchString(table) {
+		return fmt.Errorf("invalid table name %q", table)
+	}
+	if !sqliteMigrationIdentifierRe.MatchString(column) {
+		return fmt.Errorf("invalid column name %q", column)
+	}
+	definition = strings.TrimSpace(definition)
+	if definition == "" {
+		return fmt.Errorf("invalid column definition: empty definition")
+	}
+	if strings.ContainsAny(definition, ";\x00") ||
+		strings.Contains(definition, "--") ||
+		strings.Contains(definition, "/*") ||
+		strings.Contains(definition, "*/") {
+		return fmt.Errorf("invalid column definition: disallowed SQL control sequence")
+	}
 	return nil
 }
 

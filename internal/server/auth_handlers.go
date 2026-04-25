@@ -110,6 +110,11 @@ func sanitizeRedirectTarget(target string) string {
 	if target == "" || !strings.HasPrefix(target, "/") || strings.HasPrefix(target, "//") {
 		return "/"
 	}
+	if strings.Contains(target, "\\") || strings.ContainsFunc(target, func(r rune) bool {
+		return r < 0x20 || r == 0x7f
+	}) {
+		return "/"
+	}
 	return target
 }
 
