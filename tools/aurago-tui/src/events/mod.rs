@@ -6,6 +6,7 @@ use crate::api::types::*;
 pub mod keybindings;
 
 #[derive(Debug)]
+#[allow(dead_code)]
 pub enum AppEvent {
     // ── Terminal events ───────────────────────────────────────────────────
     Crossterm(CrosstermEvent),

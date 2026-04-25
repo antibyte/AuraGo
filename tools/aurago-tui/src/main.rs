@@ -874,6 +874,7 @@ fn dispatch_action(
             } else if app.screen == Screen::Chat && !app.chat_input.trim().is_empty() {
                 let text = app.chat_input.trim().to_string();
                 app.chat_input.clear();
+                app.chat_input_cursor = 0;
                 app.push_user_message(text.clone());
                 app.start_assistant_stream();
 
@@ -906,7 +907,7 @@ fn dispatch_action(
         }
         Action::NewLine => {
             if app.screen == Screen::Chat {
-                app.chat_input.push('\n');
+                app.insert_at_cursor('\n');
             }
         }
         Action::ClearChat => {
@@ -1626,6 +1627,7 @@ fn execute_primary_action(
 }
 
 /// Execute delete action for the selected item
+#[allow(dead_code)]
 fn execute_delete_action(
     app: &AppState,
     client: &ApiClient,
@@ -1989,5 +1991,57 @@ fn truncate_str(s: &str, max_len: usize) -> String {
             end -= 1;
         }
         format!("{}…", &s[..end])
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_parse_edit_value_bool() {
+        assert_eq!(parse_edit_value("true"), serde_json::Value::Bool(true));
+        assert_eq!(parse_edit_value("false"), serde_json::Value::Bool(false));
+        assert_eq!(parse_edit_value("TRUE"), serde_json::Value::Bool(true));
+        assert_eq!(parse_edit_value("FALSE"), serde_json::Value::Bool(false));
+    }
+
+    #[test]
+    fn test_parse_edit_value_number() {
+        assert_eq!(parse_edit_value("42"), serde_json::Value::Number(42.into()));
+        assert_eq!(parse_edit_value("-1"), serde_json::Value::Number((-1).into()));
+        assert_eq!(parse_edit_value("3.14"), serde_json::json!(3.14));
+    }
+
+    #[test]
+    fn test_parse_edit_value_string() {
+        assert_eq!(parse_edit_value("hello"), serde_json::Value::String("hello".to_string()));
+        assert_eq!(parse_edit_value(""), serde_json::Value::String("".to_string()));
+    }
+
+    #[test]
+    fn test_parse_edit_value_json() {
+        assert_eq!(parse_edit_value(r#"{"key":"value"}"#), serde_json::json!({"key": "value"}));
+        assert_eq!(parse_edit_value(r#"[1,2,3]"#), serde_json::json!([1, 2, 3]));
+    }
+
+    #[test]
+    fn test_collect_config_fields() {
+        let json = serde_json::json!({
+            "server": {"port": 8080},
+            "debug": true
+        });
+        let fields = collect_config_fields(&json);
+        assert_eq!(fields.len(), 2);
+        let keys: Vec<_> = fields.iter().map(|(k, _): &(String, serde_json::Value)| k.as_str()).collect();
+        assert!(keys.contains(&"server"));
+        assert!(keys.contains(&"debug"));
+    }
+
+    #[test]
+    fn test_set_nested_config_value() {
+        let mut config = serde_json::json!({
+            "server": {"port": 8080}
+        });
+        set_nested_config_value(&mut config, "server", "port", serde_json::json!(9090));
+        assert_eq!(config["server"]["port"], serde_json::json!(9090));
     }
 }

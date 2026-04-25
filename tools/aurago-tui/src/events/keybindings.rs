@@ -1,6 +1,7 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 #[derive(Debug, Clone)]
+#[allow(clippy::enum_variant_names, dead_code)]
 pub enum Action {
     Quit,
     SendMessage,
@@ -94,6 +95,7 @@ pub fn map_key(key: KeyEvent, context: KeyContext) -> Action {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub enum KeyContext {
     Splash,
     Login,
@@ -105,10 +107,18 @@ pub enum KeyContext {
     Search { active: bool },
 }
 
-fn map_splash(key: KeyEvent) -> Action {
-    match key.code {
-        _ => Action::None,
+impl KeyContext {
+    #[allow(dead_code)]
+    pub fn selected(&self) -> Option<usize> {
+        match self {
+            KeyContext::List { selected, .. } => *selected,
+            _ => None,
+        }
     }
+}
+
+fn map_splash(_key: KeyEvent) -> Action {
+    Action::None
 }
 
 fn map_login(key: KeyEvent) -> Action {

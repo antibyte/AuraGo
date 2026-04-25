@@ -1,6 +1,20 @@
 use crate::api::types::*;
 use crate::api::sse::SseEvent;
 
+/// Convert a character index to a byte index in a string.
+/// Returns `s.len()` if char_idx is out of bounds.
+pub fn char_to_byte(s: &str, char_idx: usize) -> usize {
+    s.char_indices()
+        .nth(char_idx)
+        .map(|(i, _)| i)
+        .unwrap_or(s.len())
+}
+
+/// Count the number of characters (NOT bytes) in a string.
+pub fn char_len(s: &str) -> usize {
+    s.chars().count()
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Screen {
     Splash,
@@ -207,33 +221,24 @@ pub struct AppState {
     pub _list_dummy: Option<usize>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum DashTab {
+    #[default]
     Overview,
     Agent,
     System,
     Logs,
 }
 
-impl Default for DashTab {
-    fn default() -> Self {
-        DashTab::Overview
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum MediaTab {
+    #[default]
     Audio,
     Documents,
 }
 
-impl Default for MediaTab {
-    fn default() -> Self {
-        MediaTab::Audio
-    }
-}
-
 #[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
 pub enum ConfirmAction {
     DeleteMission { index: usize },
     DeleteContainer { index: usize },
@@ -356,23 +361,32 @@ impl AppState {
     }
 
     pub fn insert_at_cursor(&mut self, c: char) {
-        if self.chat_input_cursor > self.chat_input.len() {
-            self.chat_input_cursor = self.chat_input.len();
+        let char_count = char_len(&self.chat_input);
+        if self.chat_input_cursor > char_count {
+            self.chat_input_cursor = char_count;
         }
-        self.chat_input.insert(self.chat_input_cursor, c);
+        let byte_idx = char_to_byte(&self.chat_input, self.chat_input_cursor);
+        self.chat_input.insert(byte_idx, c);
         self.chat_input_cursor += 1;
     }
 
     pub fn backspace_at_cursor(&mut self) {
-        if self.chat_input_cursor > 0 && self.chat_input_cursor <= self.chat_input.len() {
+        if self.chat_input_cursor > 0 {
             self.chat_input_cursor -= 1;
-            self.chat_input.remove(self.chat_input_cursor);
+            let byte_idx = char_to_byte(&self.chat_input, self.chat_input_cursor);
+            if byte_idx < self.chat_input.len() {
+                self.chat_input.remove(byte_idx);
+            }
         }
     }
 
     pub fn delete_at_cursor(&mut self) {
-        if self.chat_input_cursor < self.chat_input.len() {
-            self.chat_input.remove(self.chat_input_cursor);
+        let char_count = char_len(&self.chat_input);
+        if self.chat_input_cursor < char_count {
+            let byte_idx = char_to_byte(&self.chat_input, self.chat_input_cursor);
+            if byte_idx < self.chat_input.len() {
+                self.chat_input.remove(byte_idx);
+            }
         }
     }
 
@@ -383,7 +397,7 @@ impl AppState {
     }
 
     pub fn cursor_right(&mut self) {
-        if self.chat_input_cursor < self.chat_input.len() {
+        if self.chat_input_cursor < char_len(&self.chat_input) {
             self.chat_input_cursor += 1;
         }
     }
@@ -393,7 +407,7 @@ impl AppState {
     }
 
     pub fn cursor_end(&mut self) {
-        self.chat_input_cursor = self.chat_input.len();
+        self.chat_input_cursor = char_len(&self.chat_input);
     }
 
     pub fn start_assistant_stream(&mut self) {

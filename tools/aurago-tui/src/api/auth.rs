@@ -20,7 +20,6 @@ pub async fn login(client: &ApiClient, password: &str, totp_code: &str) -> Resul
         .request_raw(Method::POST, "/auth/login", Some(&req))
         .await?;
 
-    // Extract session cookie from response headers
     if let Some(cookie) = raw_resp.headers().get("set-cookie") {
         if let Ok(cookie_str) = cookie.to_str() {
             let session_cookie = cookie_str
@@ -41,6 +40,7 @@ pub async fn logout(client: &ApiClient) -> Result<()> {
     client.request_empty(Method::POST, "/api/auth/logout", None::<&()>).await
 }
 
+#[allow(dead_code)]
 pub async fn fetch_health(client: &ApiClient) -> Result<HealthStatus> {
     client.request(Method::GET, "/api/health", None::<&()>).await
 }
@@ -119,6 +119,7 @@ pub async fn advance_plan(client: &ApiClient, id: &str) -> Result<()> {
     client.request_empty(Method::POST, &path, None::<&()>).await
 }
 
+#[allow(dead_code)]
 pub async fn archive_plan(client: &ApiClient, id: &str) -> Result<()> {
     let path = format!("/api/plans/{}/archive", id);
     client.request_empty(Method::POST, &path, None::<&()>).await
@@ -140,6 +141,7 @@ pub async fn delete_mission(client: &ApiClient, id: &str) -> Result<()> {
     client.request_empty(Method::DELETE, &path, None::<&()>).await
 }
 
+#[allow(dead_code)]
 pub async fn cancel_mission_queue(client: &ApiClient, id: &str) -> Result<()> {
     let path = format!("/api/missions/v2/{}/queue", id);
     client.request_empty(Method::DELETE, &path, None::<&()>).await
@@ -157,6 +159,7 @@ pub async fn toggle_skill(client: &ApiClient, id: &str, enabled: bool) -> Result
     client.request_empty(Method::PUT, &path, Some(&body)).await
 }
 
+#[allow(dead_code)]
 pub async fn toggle_daemon(client: &ApiClient, skill_id: &str, action: &str) -> Result<()> {
     let path = format!("/api/daemons/{}/{}", skill_id, action);
     client.request_empty(Method::POST, &path, None::<&()>).await
@@ -197,6 +200,7 @@ pub async fn save_config(client: &ApiClient, config: &serde_json::Value) -> Resu
     client.request_empty(Method::PUT, "/api/config", Some(config)).await
 }
 
+#[allow(dead_code)]
 pub async fn fetch_vault_status(client: &ApiClient) -> Result<VaultStatus> {
     client.request(Method::GET, "/api/vault/status", None::<&()>).await
 }

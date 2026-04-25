@@ -141,7 +141,7 @@ fn draw_messages(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
             }
         }
         if msg.is_streaming {
-            let cursor = format!("{}", spinner_frame(app.tick_counter));
+            let cursor = spinner_frame(app.tick_counter).to_string();
             lines.push(Line::from(vec![
                 Span::styled("   ", Style::default()),
                 Span::styled(cursor, Style::default().fg(theme.accent)),
@@ -200,10 +200,17 @@ fn draw_input(f: &mut Frame, app: &AppState, theme: &Theme, area: Rect) {
         .border_style(Style::default().fg(border_color));
 
     // Split text at cursor and show a blinking cursor
+    // Convert character cursor to byte offset for split_at to avoid panic with non-ASCII
+    let char_count = app.chat_input.chars().count();
+    let cursor_char = app.chat_input_cursor.min(char_count);
+    let byte_idx = app.chat_input.char_indices()
+        .nth(cursor_char)
+        .map(|(i, _)| i)
+        .unwrap_or_else(|| app.chat_input.len());
+
     let cursor_visible = app.tick_counter % 4 < 2;
     let cursor_str = if cursor_visible { "▎" } else { " " };
-    let cursor_idx = app.chat_input_cursor.min(app.chat_input.len());
-    let (before, after) = app.chat_input.split_at(cursor_idx);
+    let (before, after) = app.chat_input.split_at(byte_idx);
 
     let mut spans = vec![
         Span::styled(before, Style::default().fg(theme.fg)),
@@ -365,14 +372,14 @@ fn draw_help(f: &mut Frame, theme: &Theme) {
     f.render_widget(para, area);
 }
 
-pub fn draw_toast(f: &mut Frame, toast: &str, theme: &Theme, anim: u16, max_ticks: u16) {
+pub fn draw_toast(f: &mut Frame, toast: &str, theme: &Theme, anim: u16, _max_ticks: u16) {
     let area = f.area();
     let toast_width = (area.width as usize * 70 / 100).max(40);
     let lines_needed = toast.lines().count().max(1);
     let wrapped_lines = (toast.len() / toast_width.saturating_sub(4)).max(0) + lines_needed;
     let height = (wrapped_lines + 4).min(area.height as usize).max(5) as u16;
 
-    let toast_area = utils::centered_rect(70, ((height * 100) / area.height.max(1)) as u16, area);
+    let toast_area = utils::centered_rect(70, (height * 100) / area.height.max(1), area);
     f.render_widget(Clear, toast_area);
 
     let is_success = toast.starts_with('✓');

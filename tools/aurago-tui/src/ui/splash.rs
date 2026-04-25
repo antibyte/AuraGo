@@ -1,6 +1,6 @@
 use ratatui::{
-    layout::{Alignment, Constraint, Direction, Layout, Rect},
-    style::{Color, Modifier, Style},
+    layout::Alignment,
+    style::{Modifier, Style},
     text::{Line, Span, Text},
     widgets::{Block, Clear, Paragraph},
     Frame,
@@ -56,7 +56,7 @@ pub fn draw_splash(f: &mut Frame, theme: &Theme, tick: u64) {
     lines.push(Line::from(""));
 
     // Pulsing "press any key" — fade in/out
-    let pulse_alpha = ((tick as f32 * 0.05).sin() * 0.5 + 0.5);
+    let pulse_alpha = (tick as f32 * 0.05).sin() * 0.5 + 0.5;
     let press_style = if pulse_alpha > 0.5 {
         Style::default().fg(theme.accent)
     } else {

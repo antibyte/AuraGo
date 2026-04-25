@@ -8,7 +8,6 @@ use ratatui::{
 
 use crate::app::AppState;
 use super::theme::Theme;
-use super::utils;
 
 pub fn draw_skills(f: &mut Frame, app: &AppState, theme: &Theme) {
     let area = f.area();

@@ -2,10 +2,12 @@ use eventsource_stream::Eventsource;
 use futures::StreamExt;
 use reqwest::Client;
 use serde_json::Value;
+use std::time::Duration;
 
 use super::types::SseEventWrapper;
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub enum SseEvent {
     Delta(String),
     DeltaDone,
@@ -22,6 +24,8 @@ pub enum SseEvent {
     Unknown(String),
 }
 
+/// Connect to the SSE stream with automatic reconnection and exponential backoff.
+/// This function runs indefinitely, reconnecting whenever the connection drops.
 pub async fn connect_sse(
     client: Client,
     url: String,
@@ -29,17 +33,58 @@ pub async fn connect_sse(
     cookie: Option<String>,
     tx: tokio::sync::mpsc::UnboundedSender<SseEvent>,
 ) {
-    let mut req = client.get(&url).header("Origin", origin);
+    let mut retry_delay_secs: u64 = 1;
+    let max_retry_delay_secs: u64 = 30;
+
+    loop {
+        // Notify UI that we're connecting
+        let _ = tx.send(SseEvent::AgentStatus("connecting".to_string()));
+
+        let connected = connect_sse_once(&client, &url, &origin, cookie.as_deref(), &tx).await;
+
+        if connected {
+            // Connection was established and then closed — try reconnect
+            let _ = tx.send(SseEvent::AgentStatus("reconnecting".to_string()));
+        }
+        // If not connected, the error was already sent via tx
+
+        // Exponential backoff: 1s → 2s → 4s → 8s → 16s → 30s (max)
+        let _ = tx.send(SseEvent::Unknown(format!(
+            "SSE disconnected — reconnecting in {}s...",
+            retry_delay_secs
+        )));
+
+        tokio::time::sleep(Duration::from_secs(retry_delay_secs)).await;
+
+        retry_delay_secs = (retry_delay_secs * 2).min(max_retry_delay_secs);
+    }
+}
+
+/// Attempt a single SSE connection. Returns `true` if the connection was
+/// successfully established (even if it later dropped), `false` if the
+/// initial connection failed.
+async fn connect_sse_once(
+    client: &Client,
+    url: &str,
+    origin: &str,
+    cookie: Option<&str>,
+    tx: &tokio::sync::mpsc::UnboundedSender<SseEvent>,
+) -> bool {
+    let mut req = client.get(url).header("Origin", origin);
     if let Some(c) = cookie {
         req = req.header("Cookie", c);
     }
+
     let resp = match req.send().await {
         Ok(r) => r,
         Err(e) => {
             let _ = tx.send(SseEvent::Unknown(format!("SSE connect error: {}", e)));
-            return;
+            return false;
         }
     };
+
+    // Connection succeeded — reset backoff hint (caller resets based on return value)
+    let _ = tx.send(SseEvent::AgentStatus("connected".to_string()));
 
     let mut stream = resp.bytes_stream().eventsource();
     while let Some(event) = stream.next().await {
@@ -49,9 +94,9 @@ pub async fn connect_sse(
                     let parsed = parse_sse_event(wrapper);
                     let _ = tx.send(parsed);
                 } else if let Ok(val) = serde_json::from_str::<Value>(&ev.data) {
-                    if let Some(event) = val.get("event").and_then(|v| v.as_str()) {
+                    if let Some(event_name) = val.get("event").and_then(|v| v.as_str()) {
                         if let Some(detail) = val.get("detail").and_then(|v| v.as_str()) {
-                            let _ = tx.send(SseEvent::LogLine(format!("{}: {}", event, detail)));
+                            let _ = tx.send(SseEvent::LogLine(format!("{}: {}", event_name, detail)));
                             continue;
                         }
                     }
@@ -65,7 +110,10 @@ pub async fn connect_sse(
             }
         }
     }
-    let _ = tx.send(SseEvent::Unknown("SSE disconnected".to_string()));
+
+    // Stream ended normally (server closed connection)
+    let _ = tx.send(SseEvent::Unknown("SSE stream ended".to_string()));
+    true
 }
 
 fn parse_sse_event(wrapper: SseEventWrapper) -> SseEvent {
