@@ -406,6 +406,9 @@ func TestChatUIEmojiIconsAreImageAssets(t *testing.T) {
 	if len(iconFiles) != 100 {
 		t.Fatalf("%s has %d generated PNG icons, want 100", iconDir, len(iconFiles))
 	}
+	for _, iconPath := range iconFiles {
+		assertPNGIcon(t, iconPath, 128, 128)
+	}
 
 	assertPNGIcon(t, spritePath, 1280, 1280)
 	assertChatUISpriteCellsHaveVisibleIcons(t, spritePath)
@@ -475,6 +478,12 @@ func assertPNGIcon(t *testing.T, path string, wantWidth, wantHeight int) {
 	}
 	if got := img.Bounds().Dy(); got != wantHeight {
 		t.Fatalf("%s decoded height is %d, want %d", path, got, wantHeight)
+	}
+	for _, point := range [][2]int{{0, 0}, {wantWidth - 1, 0}, {0, wantHeight - 1}, {wantWidth - 1, wantHeight - 1}} {
+		_, _, _, a := img.At(point[0], point[1]).RGBA()
+		if a != 0 {
+			t.Fatalf("%s has non-transparent corner pixel at %v, alpha=%d", path, point, a)
+		}
 	}
 }
 
