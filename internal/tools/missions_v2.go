@@ -1107,6 +1107,43 @@ func (m *MissionManagerV2) syncRemoteMissionLocked(mission *MissionV2) error {
 	return nil
 }
 
+// SyncRemoteMissionsForNest retries mission delivery for all missions assigned
+// to a nest, typically after an egg reconnects to the bridge.
+func (m *MissionManagerV2) SyncRemoteMissionsForNest(nestID string) (int, error) {
+	if strings.TrimSpace(nestID) == "" {
+		return 0, fmt.Errorf("nest id is required")
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	synced := 0
+	attempted := 0
+	var firstErr error
+	for _, mission := range m.missions {
+		if !isRemoteMission(mission) || mission.RemoteNestID != nestID {
+			continue
+		}
+		attempted++
+		if err := m.syncRemoteMissionLocked(mission); err != nil {
+			if isTemporaryRemoteSyncError(err) {
+				markRemoteSyncPendingAfterError(mission, err)
+			}
+			if firstErr == nil {
+				firstErr = err
+			}
+			continue
+		}
+		synced++
+	}
+
+	if attempted > 0 {
+		if err := m.save(); err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
+	return synced, firstErr
+}
+
 // SetRemoteResult records a result reported by an egg for a master-side mission.
 func (m *MissionManagerV2) SetRemoteResult(id, result, output string) {
 	m.mu.Lock()
@@ -1187,7 +1224,10 @@ func (m *MissionManagerV2) Create(mission *MissionV2) error {
 	}
 	if isRemoteMission(mission) {
 		if err := m.syncRemoteMissionLocked(mission); err != nil {
-			return err
+			if !isTemporaryRemoteSyncError(err) {
+				return err
+			}
+			markRemoteSyncPendingAfterError(mission, err)
 		}
 	}
 
@@ -1298,7 +1338,10 @@ func (m *MissionManagerV2) Update(id string, updated *MissionV2) error {
 	if isRemoteMission(updated) {
 		updated.RemoteRevision = newRemoteRevision()
 		if err := m.syncRemoteMissionLocked(updated); err != nil {
-			return err
+			if !isTemporaryRemoteSyncError(err) || oldRemoteNeedsCleanup {
+				return err
+			}
+			markRemoteSyncPendingAfterError(updated, err)
 		}
 	}
 

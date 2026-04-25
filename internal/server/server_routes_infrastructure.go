@@ -85,6 +85,17 @@ func (s *Server) registerInfrastructureRoutes(mux *http.ServeMux, shutdownCh cha
 			_ = invasion.UpdateNestHatchStatus(s.InvasionDB, nestID, "running", "")
 			go func() {
 				time.Sleep(2 * time.Second)
+				if s.MissionManagerV2 != nil {
+					synced, err := s.MissionManagerV2.SyncRemoteMissionsForNest(nestID)
+					if err != nil {
+						s.Logger.Warn("Failed to re-sync remote missions after egg reconnect", "nest_id", nestID, "synced", synced, "error", err)
+					} else if synced > 0 {
+						s.Logger.Info("Re-synced remote missions after egg reconnect", "nest_id", nestID, "count", synced)
+					}
+					if synced > 0 || err != nil {
+						broadcastMissionState(s)
+					}
+				}
 				tasks, err := invasion.GetPendingTasks(s.InvasionDB, nestID)
 				if err != nil || len(tasks) == 0 {
 					return

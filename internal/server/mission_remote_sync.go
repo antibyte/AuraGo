@@ -77,22 +77,17 @@ func (c *remoteMissionClient) validateTarget(mission tools.MissionV2) error {
 	if mission.RemoteEggID == "" {
 		return fmt.Errorf("remote_egg_id is required for remote missions")
 	}
-	conn := c.hub.GetConnection(mission.RemoteNestID)
-	if conn == nil {
-		return fmt.Errorf("remote nest %s is not connected", mission.RemoteNestID)
-	}
-	if conn.EggID != "" && conn.EggID != mission.RemoteEggID {
-		return fmt.Errorf("remote nest %s is connected as egg %s, not %s", mission.RemoteNestID, conn.EggID, mission.RemoteEggID)
-	}
+	var nest invasion.NestRecord
 	if c.db != nil {
-		nest, err := invasion.GetNest(c.db, mission.RemoteNestID)
+		var err error
+		nest, err = invasion.GetNest(c.db, mission.RemoteNestID)
 		if err != nil {
 			return fmt.Errorf("remote nest %s not found: %w", mission.RemoteNestID, err)
 		}
 		if !nest.Active {
 			return fmt.Errorf("remote nest %s is inactive", mission.RemoteNestID)
 		}
-		if nest.EggID != "" && conn.EggID == "" && nest.EggID != mission.RemoteEggID {
+		if nest.EggID != "" && nest.EggID != mission.RemoteEggID {
 			return fmt.Errorf("remote nest %s is assigned to egg %s, not %s", mission.RemoteNestID, nest.EggID, mission.RemoteEggID)
 		}
 		egg, err := invasion.GetEgg(c.db, mission.RemoteEggID)
@@ -102,6 +97,16 @@ func (c *remoteMissionClient) validateTarget(mission tools.MissionV2) error {
 		if !egg.Active {
 			return fmt.Errorf("remote egg %s is inactive", mission.RemoteEggID)
 		}
+	}
+	conn := c.hub.GetConnection(mission.RemoteNestID)
+	if conn == nil {
+		return fmt.Errorf("remote nest %s is not connected", mission.RemoteNestID)
+	}
+	if conn.EggID != "" && conn.EggID != mission.RemoteEggID {
+		if c.db != nil && nest.EggID == conn.EggID {
+			return fmt.Errorf("remote nest %s is assigned to egg %s, not %s", mission.RemoteNestID, conn.EggID, mission.RemoteEggID)
+		}
+		return fmt.Errorf("remote nest %s is connected as egg %s, not %s", mission.RemoteNestID, conn.EggID, mission.RemoteEggID)
 	}
 	return nil
 }
@@ -161,11 +166,9 @@ func handleMissionRemoteTargets(s *Server) http.HandlerFunc {
 		targets := make([]remoteMissionTarget, 0)
 		for _, nest := range nests {
 			conn := s.EggHub.GetConnection(nest.ID)
-			if conn == nil {
-				continue
-			}
+			connected := conn != nil
 			eggID := nest.EggID
-			if conn.EggID != "" {
+			if conn != nil && conn.EggID != "" {
 				eggID = conn.EggID
 			}
 			if eggID == "" {
@@ -175,12 +178,15 @@ func handleMissionRemoteTargets(s *Server) http.HandlerFunc {
 			if !nest.Active || !ok || !egg.Active {
 				continue
 			}
+			if !connected && nest.HatchStatus != "running" {
+				continue
+			}
 			targets = append(targets, remoteMissionTarget{
 				NestID:      nest.ID,
 				NestName:    nest.Name,
 				EggID:       eggID,
 				EggName:     egg.Name,
-				Connected:   true,
+				Connected:   connected,
 				HatchStatus: nest.HatchStatus,
 			})
 		}

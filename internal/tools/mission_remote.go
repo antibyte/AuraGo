@@ -58,6 +58,27 @@ func validateRemoteMission(m MissionV2) error {
 	return nil
 }
 
+func isTemporaryRemoteSyncError(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "not connected") ||
+		strings.Contains(msg, "timed out") ||
+		strings.Contains(msg, "timeout") ||
+		strings.Contains(msg, "deadline exceeded") ||
+		strings.Contains(msg, "connection lost") ||
+		strings.Contains(msg, "connection reset")
+}
+
+func markRemoteSyncPendingAfterError(mission *MissionV2, err error) {
+	if mission == nil || err == nil {
+		return
+	}
+	mission.RemoteSyncStatus = RemoteSyncPending
+	mission.RemoteSyncError = err.Error()
+}
+
 // RemoteTriggerAllowed reports whether a mission execution/trigger type can be
 // evaluated by an egg without relying on master-side event sources.
 func RemoteTriggerAllowed(exec ExecutionType, trig TriggerType) bool {

@@ -99,6 +99,39 @@ func TestMissionRemoteTargetsUsesConnectedEggWhenNestAssignmentIsEmpty(t *testin
 	}
 }
 
+func TestMissionRemoteTargetsIncludesRunningNestWithoutBridgeConnection(t *testing.T) {
+	db := setupInvasionTestDB(t)
+	activeEggID, _ := invasion.CreateEgg(db, invasion.EggRecord{Name: "Running Egg", Active: true})
+	nestID, _ := invasion.CreateNest(db, invasion.NestRecord{
+		Name:        "Running Nest",
+		Active:      true,
+		EggID:       activeEggID,
+		HatchStatus: "running",
+	})
+
+	hub := bridge.NewEggHub(slog.New(slog.NewTextHandler(io.Discard, nil)))
+	s := &Server{InvasionDB: db, EggHub: hub, Logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
+	req := httptest.NewRequest(http.MethodGet, "/api/missions/v2/remote-targets", nil)
+	rr := httptest.NewRecorder()
+	handleMissionRemoteTargets(s)(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%s", rr.Code, rr.Body.String())
+	}
+	var body struct {
+		Targets []remoteMissionTarget `json:"targets"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &body); err != nil {
+		t.Fatalf("unmarshal response: %v", err)
+	}
+	if len(body.Targets) != 1 {
+		t.Fatalf("targets = %+v, want running deployed target", body.Targets)
+	}
+	if body.Targets[0].NestID != nestID || body.Targets[0].EggID != activeEggID || body.Targets[0].Connected {
+		t.Fatalf("target = %+v, want disconnected running nest/egg", body.Targets[0])
+	}
+}
+
 func TestRemoteMissionValidateTargetUsesConnectedEggWhenNestAssignmentIsEmpty(t *testing.T) {
 	db := setupInvasionTestDB(t)
 	activeEggID, _ := invasion.CreateEgg(db, invasion.EggRecord{Name: "Live Egg", Active: true})
@@ -133,5 +166,19 @@ func TestRemoteMissionValidateTargetRejectsInactiveNestAndEgg(t *testing.T) {
 	err = client.validateTarget(tools.MissionV2{RunnerType: tools.MissionRunnerRemote, RemoteNestID: inactiveEggNestID, RemoteEggID: inactiveEggID})
 	if err == nil || !strings.Contains(err.Error(), "inactive") {
 		t.Fatalf("inactive egg error = %v, want inactive rejection", err)
+	}
+}
+
+func TestRemoteMissionValidateTargetRejectsInactiveRecordsBeforeBridgeConnectionCheck(t *testing.T) {
+	db := setupInvasionTestDB(t)
+	activeEggID, _ := invasion.CreateEgg(db, invasion.EggRecord{Name: "Active Egg", Active: true})
+	inactiveNestID, _ := invasion.CreateNest(db, invasion.NestRecord{Name: "Inactive Nest", Active: false, EggID: activeEggID})
+
+	hub := bridge.NewEggHub(slog.New(slog.NewTextHandler(io.Discard, nil)))
+	client := &remoteMissionClient{hub: hub, db: db}
+
+	err := client.validateTarget(tools.MissionV2{RunnerType: tools.MissionRunnerRemote, RemoteNestID: inactiveNestID, RemoteEggID: activeEggID})
+	if err == nil || !strings.Contains(err.Error(), "inactive") || strings.Contains(err.Error(), "not connected") {
+		t.Fatalf("offline inactive nest error = %v, want inactive rejection before connection check", err)
 	}
 }

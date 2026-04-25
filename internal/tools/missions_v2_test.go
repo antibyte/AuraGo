@@ -141,6 +141,64 @@ func TestRemoteMissionRequiresNestAndEgg(t *testing.T) {
 	}
 }
 
+func TestRemoteMissionCreateStoresPendingWhenEggTemporarilyDisconnected(t *testing.T) {
+	client := &fakeRemoteMissionClient{syncErr: errors.New("remote nest nest-1 is not connected")}
+	mgr := NewMissionManagerV2(t.TempDir(), nil)
+	mgr.SetRemoteMissionClient(client)
+
+	mission := &MissionV2{
+		ID:            "remote-pending",
+		Name:          "Remote pending",
+		Prompt:        "wait for egg",
+		ExecutionType: ExecutionManual,
+		RunnerType:    MissionRunnerRemote,
+		RemoteNestID:  "nest-1",
+		RemoteEggID:   "egg-1",
+	}
+	if err := mgr.Create(mission); err != nil {
+		t.Fatalf("Create temporarily disconnected remote mission: %v", err)
+	}
+	got, ok := mgr.Get("remote-pending")
+	if !ok {
+		t.Fatal("remote mission was not stored")
+	}
+	if got.RemoteSyncStatus != RemoteSyncPending || !strings.Contains(got.RemoteSyncError, "not connected") {
+		t.Fatalf("remote sync status/error = %s/%q, want pending not connected", got.RemoteSyncStatus, got.RemoteSyncError)
+	}
+}
+
+func TestSyncRemoteMissionsForNestRetriesPendingMission(t *testing.T) {
+	client := &fakeRemoteMissionClient{syncErr: errors.New("remote nest nest-1 is not connected")}
+	mgr := NewMissionManagerV2(t.TempDir(), nil)
+	mgr.SetRemoteMissionClient(client)
+
+	mission := &MissionV2{
+		ID:            "remote-retry",
+		Name:          "Remote retry",
+		Prompt:        "sync after reconnect",
+		ExecutionType: ExecutionManual,
+		RunnerType:    MissionRunnerRemote,
+		RemoteNestID:  "nest-1",
+		RemoteEggID:   "egg-1",
+	}
+	if err := mgr.Create(mission); err != nil {
+		t.Fatalf("Create pending remote mission: %v", err)
+	}
+	client.syncErr = nil
+
+	count, err := mgr.SyncRemoteMissionsForNest("nest-1")
+	if err != nil {
+		t.Fatalf("SyncRemoteMissionsForNest: %v", err)
+	}
+	if count != 1 || client.syncCalls != 2 {
+		t.Fatalf("sync count/calls = %d/%d, want 1/2", count, client.syncCalls)
+	}
+	got, _ := mgr.Get("remote-retry")
+	if got.RemoteSyncStatus != RemoteSyncSynced || got.RemoteSyncError != "" {
+		t.Fatalf("remote sync status/error = %s/%q, want synced", got.RemoteSyncStatus, got.RemoteSyncError)
+	}
+}
+
 func TestRemoteScheduledMissionDoesNotRegisterLocalCron(t *testing.T) {
 	tmpDir := t.TempDir()
 	cronMgr := NewCronManager(tmpDir)
