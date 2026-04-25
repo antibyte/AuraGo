@@ -90,6 +90,7 @@
   "missions.card_trigger_label": "⚡ Attivatore",
   "missions.card_view_log": "Visualizza registro",
   "missions.confirm_delete": "Eliminare davvero la missione \"{{name}}\"?",
+  "missions.confirm_force_delete_remote": "L’egg remoto non è raggiungibile. Rimuovere comunque la missione \"{{name}}\" solo in locale? La vecchia copia potrebbe restare sull’egg finché non si riconnette.",
   "missions.cron_preset_daily_9am": "Tutti i giorni alle 9:00",
   "missions.cron_preset_daily_midnight": "Tutti i giorni a mezzanotte",
   "missions.cron_preset_every_15min": "Ogni 15 minuti",

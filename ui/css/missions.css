@@ -829,8 +829,7 @@
 }
 
 .mission-runner-option:hover,
-.mission-runner-option.active,
-.mission-runner-option:has(input:checked) {
+.mission-runner-option.active {
     border-color: var(--accent);
     background: rgba(45, 212, 191, 0.08);
 }

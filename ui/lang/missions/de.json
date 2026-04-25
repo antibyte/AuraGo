@@ -90,6 +90,7 @@
   "missions.card_trigger_label": "⚡ Auslöser",
   "missions.card_view_log": "Log ansehen",
   "missions.confirm_delete": "Mission \"{{name}}\" wirklich löschen?",
+  "missions.confirm_force_delete_remote": "Das Remote-Egg ist nicht erreichbar. Mission „{{name}}“ trotzdem lokal entfernen? Die alte Kopie kann auf dem Egg bleiben, bis es wieder verbunden ist.",
   "missions.cron_preset_daily_9am": "Täglich um 9:00 Uhr",
   "missions.cron_preset_daily_midnight": "Täglich um Mitternacht",
   "missions.cron_preset_every_15min": "Alle 15 Minuten",

@@ -90,6 +90,7 @@
   "missions.card_trigger_label": "⚡ Trigger",
   "missions.card_view_log": "Logboek bekijken",
   "missions.confirm_delete": "Missie \"{{name}}\" echt verwijderen?",
+  "missions.confirm_force_delete_remote": "Het externe egg is niet bereikbaar. Missie \"{{name}}\" toch alleen lokaal verwijderen? De oude kopie kan op het egg blijven totdat het opnieuw verbindt.",
   "missions.cron_preset_daily_9am": "Dagelijks om 9:00",
   "missions.cron_preset_daily_midnight": "Dagelijks om middernacht",
   "missions.cron_preset_every_15min": "Elke 15 minuten",

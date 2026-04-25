@@ -90,6 +90,7 @@
   "missions.card_trigger_label": "⚡ 触发器",
   "missions.card_view_log": "查看日志",
   "missions.confirm_delete": "确定要删除任务 '{{name}}' 吗？",
+  "missions.confirm_force_delete_remote": "无法连接远程 egg。仍要仅在本地移除任务“{{name}}”吗？旧副本可能会保留在 egg 上，直到它重新连接。",
   "missions.cron_preset_daily_9am": "每天上午9点",
   "missions.cron_preset_daily_midnight": "每天午夜",
   "missions.cron_preset_every_15min": "每15分钟",

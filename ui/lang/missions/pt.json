@@ -90,6 +90,7 @@
   "missions.card_trigger_label": "Gatilho",
   "missions.card_view_log": "Ver registro",
   "missions.confirm_delete": "Deseja realmente excluir a missão \"{{name}}\"?",
+  "missions.confirm_force_delete_remote": "O egg remoto não está acessível. Remover a missão \"{{name}}\" apenas localmente mesmo assim? A cópia antiga pode permanecer no egg até ele se reconectar.",
   "missions.cron_preset_daily_9am": "Diariamente às 9:00",
   "missions.cron_preset_daily_midnight": "Diariamente à meia-noite",
   "missions.cron_preset_every_15min": "A cada 15 minutos",

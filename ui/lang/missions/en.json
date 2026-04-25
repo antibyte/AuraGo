@@ -90,6 +90,7 @@
   "missions.card_trigger_label": "⚡ Trigger",
   "missions.card_view_log": "View Log",
   "missions.confirm_delete": "Really delete mission \"{{name}}\"?",
+  "missions.confirm_force_delete_remote": "The remote egg is not reachable. Remove mission \"{{name}}\" locally anyway? The old copy may remain on the egg until it reconnects.",
   "missions.cron_preset_daily_9am": "Daily at 9:00 AM",
   "missions.cron_preset_daily_midnight": "Daily at midnight",
   "missions.cron_preset_every_15min": "Every 15 minutes",

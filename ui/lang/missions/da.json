@@ -90,6 +90,7 @@
   "missions.card_trigger_label": "⚡ Udløser",
   "missions.card_view_log": "Vis log",
   "missions.confirm_delete": "Vil du virkelig slette missionen \"{{name}}\"?",
+  "missions.confirm_force_delete_remote": "Det eksterne egg kan ikke nås. Fjern missionen \"{{name}}\" lokalt alligevel? Den gamle kopi kan blive på egg, indtil det forbinder igen.",
   "missions.cron_preset_daily_9am": "Dagligt kl. 9:00",
   "missions.cron_preset_daily_midnight": "Dagligt ved midnat",
   "missions.cron_preset_every_15min": "Hvert 15. minut",

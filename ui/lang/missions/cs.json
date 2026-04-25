@@ -90,6 +90,7 @@
   "missions.card_trigger_label": "⚡ Spouštěč",
   "missions.card_view_log": "Zobrazit protokol",
   "missions.confirm_delete": "Opravdu smazat misi \"{{name}}\"?",
+  "missions.confirm_force_delete_remote": "Vzdálené egg není dostupné. Odebrat misi „{{name}}“ pouze lokálně? Stará kopie může na egg zůstat, dokud se znovu nepřipojí.",
   "missions.cron_preset_daily_9am": "Denně v 9:00",
   "missions.cron_preset_daily_midnight": "Denně o půlnoci",
   "missions.cron_preset_every_15min": "Každých 15 minut",

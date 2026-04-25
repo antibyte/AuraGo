@@ -1062,11 +1062,33 @@ async function deleteMission(id) {
     }
 
     try {
-        const response = await fetch(`/api/missions/v2/${id}`, { method: 'DELETE' });
+        const response = await fetch(`/api/missions/v2/${encodeURIComponent(id)}`, { method: 'DELETE' });
         if (!response.ok) throw new Error(await response.text());
         showToast(t('missions.toast_mission_deleted'), 'success');
         loadData();
     } catch (err) {
+        const detail = err?.message || '';
+        const isRemoteMission = mission.runner_type === 'remote' || !!mission.remote_nest_id;
+        const canForceDelete = isRemoteMission && /not connected|remote nest|timed out/i.test(detail);
+        if (canForceDelete) {
+            const forceConfirmed = await showConfirm(
+                t('common.confirm'),
+                t('missions.confirm_force_delete_remote', { name: mission.name })
+            );
+            if (!forceConfirmed) {
+                return;
+            }
+            try {
+                const forceResponse = await fetch(`/api/missions/v2/${encodeURIComponent(id)}?force=true`, { method: 'DELETE' });
+                if (!forceResponse.ok) throw new Error(await forceResponse.text());
+                showToast(t('missions.toast_mission_deleted'), 'success');
+                loadData();
+                return;
+            } catch (forceErr) {
+                showToast(t('missions.toast_error_prefix') + forceErr.message, 'error');
+                return;
+            }
+        }
         showToast(t('missions.toast_error_prefix') + err.message, 'error');
     }
 }

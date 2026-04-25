@@ -90,6 +90,7 @@
   "missions.card_trigger_label": "⚡ Activador",
   "missions.card_view_log": "Ver registro",
   "missions.confirm_delete": "¿Eliminar realmente la misión \"{{name}}\"?",
+  "missions.confirm_force_delete_remote": "El egg remoto no está accesible. ¿Eliminar la misión \"{{name}}\" solo localmente de todos modos? La copia antigua puede permanecer en el egg hasta que se reconecte.",
   "missions.cron_preset_daily_9am": "Diario a las 9:00",
   "missions.cron_preset_daily_midnight": "Diario a medianoche",
   "missions.cron_preset_every_15min": "Cada 15 minutos",

@@ -90,6 +90,7 @@
   "missions.card_trigger_label": "⚡ ट्रिगर",
   "missions.card_view_log": "लॉग देखें",
   "missions.confirm_delete": "क्या आप सच में मिशन \"{{name}}\" हटाना चाहते हैं?",
+  "missions.confirm_force_delete_remote": "रिमोट egg उपलब्ध नहीं है। क्या मिशन \"{{name}}\" को फिर भी केवल स्थानीय रूप से हटाना है? पुरानी कॉपी egg पर फिर से कनेक्ट होने तक रह सकती है।",
   "missions.cron_preset_daily_9am": "प्रतिदिन सुबह 9:00 बजे",
   "missions.cron_preset_daily_midnight": "प्रतिदिन मध्यरात्रि",
   "missions.cron_preset_every_15min": "हर 15 मिनट",

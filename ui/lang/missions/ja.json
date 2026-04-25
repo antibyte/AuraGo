@@ -90,6 +90,7 @@
   "missions.card_trigger_label": "⚡ トリガー",
   "missions.card_view_log": "ログの表示",
   "missions.confirm_delete": "ミッション「{{name}}」を本当に削除しますか？",
+  "missions.confirm_force_delete_remote": "リモート egg に接続できません。ミッション「{{name}}」をローカルだけから削除しますか？古いコピーは再接続されるまで egg に残る場合があります。",
   "missions.cron_preset_daily_9am": "毎日午前9時",
   "missions.cron_preset_daily_midnight": "毎日深夜0時",
   "missions.cron_preset_every_15min": "15分ごと",

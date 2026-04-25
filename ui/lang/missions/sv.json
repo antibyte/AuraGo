@@ -90,6 +90,7 @@
   "missions.card_trigger_label": "⚡ Utlösare",
   "missions.card_view_log": "Visa logg",
   "missions.confirm_delete": "Vill du verkligen ta bort uppdraget \"{{name}}\"?",
+  "missions.confirm_force_delete_remote": "Det fjärranslutna egg kan inte nås. Ta ändå bort missionen \"{{name}}\" lokalt? Den gamla kopian kan ligga kvar på egg tills det ansluter igen.",
   "missions.cron_preset_daily_9am": "Dagligen kl. 9:00",
   "missions.cron_preset_daily_midnight": "Dagligen vid midnatt",
   "missions.cron_preset_every_15min": "Var 15:e minut",

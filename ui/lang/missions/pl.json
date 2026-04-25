@@ -90,6 +90,7 @@
   "missions.card_trigger_label": "⚡ Wyzwalacz",
   "missions.card_view_log": "Wyświetl dziennik",
   "missions.confirm_delete": "Na pewno usunąć misję \"{{name}}\"?",
+  "missions.confirm_force_delete_remote": "Zdalne egg jest niedostępne. Usunąć misję „{{name}}” tylko lokalnie mimo to? Stara kopia może pozostać na egg do czasu ponownego połączenia.",
   "missions.cron_preset_daily_9am": "Codziennie o 9:00",
   "missions.cron_preset_daily_midnight": "Codziennie o północy",
   "missions.cron_preset_every_15min": "Co 15 minut",

@@ -90,6 +90,7 @@
   "missions.card_trigger_label": "⚡ Εναύσμα",
   "missions.card_view_log": "Προβολή Αρχείου Καταγραφής",
   "missions.confirm_delete": "Να διαγραφεί πραγματικά η αποστολή \"{{name}}\";",
+  "missions.confirm_force_delete_remote": "Το απομακρυσμένο egg δεν είναι διαθέσιμο. Να αφαιρεθεί η αποστολή «{{name}}» μόνο τοπικά; Το παλιό αντίγραφο μπορεί να παραμείνει στο egg μέχρι να επανασυνδεθεί.",
   "missions.cron_preset_daily_9am": "Καθημερινά στις 9:00 π.μ.",
   "missions.cron_preset_daily_midnight": "Καθημερινά τα μεσάνυχτα",
   "missions.cron_preset_every_15min": "Κάθε 15 λεπτά",
