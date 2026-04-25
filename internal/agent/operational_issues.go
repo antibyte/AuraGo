@@ -45,7 +45,7 @@ func recordOperationalIssue(runCfg RunConfig, issue planner.OperationalIssue, lo
 		return
 	}
 	if _, err := planner.RecordOperationalIssue(runCfg.PlannerDB, issue); err != nil && logger != nil {
-		logger.Warn("[OperationalIssue] Failed to record issue todo", "source", issue.Source, "title", issue.Title, "error", err)
+		logger.Warn("[OperationalIssue] Failed to record internal issue", "source", issue.Source, "title", issue.Title, "error", err)
 	}
 }
 

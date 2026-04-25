@@ -511,7 +511,7 @@ func Start(opts StartOptions) error {
 					Fingerprint: "mission|" + missionID,
 					OccurredAt:  time.Now(),
 				}); err != nil {
-					logger.Warn("[MissionV2] Failed to record operational issue todo", "mission_id", missionID, "error", err)
+					logger.Warn("[MissionV2] Failed to record internal operational issue", "mission_id", missionID, "error", err)
 				}
 			}
 			setMissionError := func(title, detail string) {

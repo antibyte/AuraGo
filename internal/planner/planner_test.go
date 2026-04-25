@@ -498,7 +498,7 @@ func TestCreateTodo(t *testing.T) {
 	}
 }
 
-func TestRecordOperationalIssueDeduplicatesOpenTodos(t *testing.T) {
+func TestRecordOperationalIssueDeduplicatesWithoutVisibleTodos(t *testing.T) {
 	db := testDB(t)
 	defer db.Close()
 
@@ -529,6 +529,14 @@ func TestRecordOperationalIssueDeduplicatesOpenTodos(t *testing.T) {
 	}
 	if secondID != firstID {
 		t.Fatalf("RecordOperationalIssue created duplicate id %q, want %q", secondID, firstID)
+	}
+
+	todos, err := ListTodos(db, "", "all")
+	if err != nil {
+		t.Fatalf("ListTodos error = %v", err)
+	}
+	if len(todos) != 0 {
+		t.Fatalf("visible todos = %#v, want none for internal operational issues", todos)
 	}
 
 	issues, err := ListOperationalIssueTodos(db, 10)
@@ -606,7 +614,7 @@ func TestCleanupOperationalIssuesDeletesOldCompletedIssues(t *testing.T) {
 	db := testDB(t)
 	defer db.Close()
 
-	id, err := RecordOperationalIssue(db, OperationalIssue{
+	fingerprint, err := RecordOperationalIssue(db, OperationalIssue{
 		Source:    "maintenance",
 		Title:     "Old issue",
 		Detail:    "already fixed",
@@ -616,14 +624,8 @@ func TestCleanupOperationalIssuesDeletesOldCompletedIssues(t *testing.T) {
 	if err != nil {
 		t.Fatalf("RecordOperationalIssue error = %v", err)
 	}
-	if err := CompleteTodo(db, id, true); err != nil {
-		t.Fatalf("CompleteTodo error = %v", err)
-	}
 	old := time.Now().UTC().Add(-45 * 24 * time.Hour).Format(time.RFC3339)
-	if _, err := db.Exec(`UPDATE todos SET completed_at=?, updated_at=? WHERE id=?`, old, old, id); err != nil {
-		t.Fatalf("backdate todo error = %v", err)
-	}
-	if _, err := db.Exec(`UPDATE operational_issues SET status='done', last_seen=?, updated_at=? WHERE todo_id=?`, old, old, id); err != nil {
+	if _, err := db.Exec(`UPDATE operational_issues SET status='done', last_seen=?, updated_at=? WHERE fingerprint=?`, old, old, fingerprint); err != nil {
 		t.Fatalf("backdate operational issue error = %v", err)
 	}
 
@@ -634,15 +636,215 @@ func TestCleanupOperationalIssuesDeletesOldCompletedIssues(t *testing.T) {
 	if deleted != 1 {
 		t.Fatalf("CleanupOperationalIssues deleted = %d, want 1", deleted)
 	}
-	if _, err := GetTodo(db, id); err == nil {
-		t.Fatal("GetTodo after cleanup error = nil, want missing todo")
-	}
 	var issueRows int
 	if err := db.QueryRow(`SELECT COUNT(*) FROM operational_issues`).Scan(&issueRows); err != nil {
 		t.Fatalf("count operational_issues error = %v", err)
 	}
 	if issueRows != 0 {
 		t.Fatalf("operational_issues rows after cleanup = %d, want 0", issueRows)
+	}
+}
+
+func TestBackfillOperationalIssuesRemovesLegacyVisibleTodos(t *testing.T) {
+	db := testDB(t)
+	defer db.Close()
+
+	issue := normalizeOperationalIssue(OperationalIssue{
+		Source:     "mission",
+		Context:    "mission-legacy",
+		Title:      "Legacy mission failed",
+		Detail:     "old visible todo should move to internal list",
+		Severity:   "warning",
+		Reference:  "mission-legacy",
+		OccurredAt: time.Date(2026, 4, 24, 22, 0, 0, 0, time.UTC),
+	})
+	todoID, err := CreateTodo(db, Todo{
+		Title:       issue.Title,
+		Description: buildOperationalIssueDescription(issue, "2026-04-24T21:00:00Z", 2),
+		Priority:    "medium",
+		Status:      "open",
+		RemindDaily: true,
+	})
+	if err != nil {
+		t.Fatalf("CreateTodo legacy issue error = %v", err)
+	}
+	if _, err := AddTodoItem(db, todoID, TodoItem{Title: "Legacy checklist item"}); err != nil {
+		t.Fatalf("AddTodoItem legacy issue error = %v", err)
+	}
+
+	if err := backfillOperationalIssuesFromTodos(db); err != nil {
+		t.Fatalf("backfillOperationalIssuesFromTodos error = %v", err)
+	}
+
+	todos, err := ListTodos(db, "", "all")
+	if err != nil {
+		t.Fatalf("ListTodos error = %v", err)
+	}
+	if len(todos) != 0 {
+		t.Fatalf("legacy operational issue todos still visible = %#v", todos)
+	}
+	var itemRows int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM todo_items`).Scan(&itemRows); err != nil {
+		t.Fatalf("count todo_items error = %v", err)
+	}
+	if itemRows != 0 {
+		t.Fatalf("legacy operational issue todo_items = %d, want 0", itemRows)
+	}
+	issues, err := ListOperationalIssueTodos(db, 10)
+	if err != nil {
+		t.Fatalf("ListOperationalIssueTodos error = %v", err)
+	}
+	if len(issues) != 1 {
+		t.Fatalf("len(issues) = %d, want 1", len(issues))
+	}
+	if got := operationalIssueField(issues[0].Description, "Occurrences"); got != "2" {
+		t.Fatalf("Occurrences = %q, want 2", got)
+	}
+}
+
+func TestInitDBMigratesV6OperationalIssuesOutOfVisibleTodos(t *testing.T) {
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "planner_v6.db")
+	db, err := dbutil.Open(dbPath)
+	if err != nil {
+		t.Fatalf("open planner db: %v", err)
+	}
+
+	if _, err := db.Exec(`
+		CREATE TABLE appointments (
+			id TEXT PRIMARY KEY,
+			title TEXT NOT NULL,
+			description TEXT NOT NULL DEFAULT '',
+			date_time TEXT NOT NULL DEFAULT '',
+			notification_at TEXT NOT NULL DEFAULT '',
+			wake_agent INTEGER NOT NULL DEFAULT 0,
+			agent_instruction TEXT NOT NULL DEFAULT '',
+			notified INTEGER NOT NULL DEFAULT 0,
+			status TEXT NOT NULL DEFAULT 'upcoming',
+			kg_node_id TEXT NOT NULL DEFAULT '',
+			created_at TEXT NOT NULL,
+			updated_at TEXT NOT NULL
+		);
+		CREATE TABLE todos (
+			id TEXT PRIMARY KEY,
+			title TEXT NOT NULL,
+			description TEXT NOT NULL DEFAULT '',
+			priority TEXT NOT NULL DEFAULT 'medium',
+			status TEXT NOT NULL DEFAULT 'open',
+			due_date TEXT NOT NULL DEFAULT '',
+			remind_daily INTEGER NOT NULL DEFAULT 0,
+			completed_at TEXT NOT NULL DEFAULT '',
+			last_daily_reminder_at TEXT NOT NULL DEFAULT '',
+			kg_node_id TEXT NOT NULL DEFAULT '',
+			created_at TEXT NOT NULL,
+			updated_at TEXT NOT NULL
+		);
+		CREATE TABLE todo_items (
+			id TEXT PRIMARY KEY,
+			todo_id TEXT NOT NULL,
+			title TEXT NOT NULL,
+			description TEXT NOT NULL DEFAULT '',
+			position INTEGER NOT NULL DEFAULT 0,
+			is_done INTEGER NOT NULL DEFAULT 0,
+			completed_at TEXT NOT NULL DEFAULT '',
+			created_at TEXT NOT NULL,
+			updated_at TEXT NOT NULL
+		);
+		CREATE TABLE planner_meta (
+			key TEXT PRIMARY KEY,
+			value TEXT NOT NULL DEFAULT ''
+		);
+		CREATE TABLE operational_issues (
+			fingerprint TEXT PRIMARY KEY,
+			todo_id TEXT NOT NULL UNIQUE,
+			source TEXT NOT NULL DEFAULT '',
+			context TEXT NOT NULL DEFAULT '',
+			severity TEXT NOT NULL DEFAULT 'warning',
+			title TEXT NOT NULL DEFAULT '',
+			detail TEXT NOT NULL DEFAULT '',
+			reference TEXT NOT NULL DEFAULT '',
+			first_seen TEXT NOT NULL,
+			last_seen TEXT NOT NULL,
+			occurrences INTEGER NOT NULL DEFAULT 1,
+			status TEXT NOT NULL DEFAULT 'open',
+			created_at TEXT NOT NULL,
+			updated_at TEXT NOT NULL
+		);
+	`); err != nil {
+		t.Fatalf("create v6 schema: %v", err)
+	}
+
+	issue := normalizeOperationalIssue(OperationalIssue{
+		Source:     "mission",
+		Context:    "mission-v6",
+		Title:      "V6 mission failed",
+		Detail:     "old v6 todo should disappear",
+		Severity:   "error",
+		Reference:  "mission-v6",
+		OccurredAt: time.Date(2026, 4, 24, 23, 0, 0, 0, time.UTC),
+	})
+	description := buildOperationalIssueDescription(issue, "2026-04-24T22:30:00Z", 3)
+	if _, err := db.Exec(`
+		INSERT INTO todos
+			(id, title, description, priority, status, remind_daily, kg_node_id, created_at, updated_at)
+		VALUES
+			('user-visible', 'User visible todo', 'keep me', 'medium', 'open', 0, '', '2026-04-24T22:00:00Z', '2026-04-24T22:00:00Z'),
+			('legacy-op', ?, ?, 'high', 'open', 1, '', '2026-04-24T22:00:00Z', '2026-04-24T23:00:00Z')`,
+		issue.Title, description); err != nil {
+		t.Fatalf("insert v6 todos: %v", err)
+	}
+	if _, err := db.Exec(`INSERT INTO todo_items (id, todo_id, title, created_at, updated_at) VALUES ('legacy-item', 'legacy-op', 'remove me', '2026-04-24T22:00:00Z', '2026-04-24T22:00:00Z')`); err != nil {
+		t.Fatalf("insert v6 todo item: %v", err)
+	}
+	if _, err := db.Exec(`
+		INSERT INTO operational_issues
+			(fingerprint, todo_id, source, context, severity, title, detail, reference,
+			 first_seen, last_seen, occurrences, status, created_at, updated_at)
+		VALUES (?, 'legacy-op', ?, ?, ?, ?, ?, ?, '2026-04-24T22:30:00Z', '2026-04-24T23:00:00Z', 3, 'open', '2026-04-24T22:00:00Z', '2026-04-24T23:00:00Z')`,
+		issue.Fingerprint, issue.Source, issue.Context, issue.Severity, issue.Title, issue.Detail, issue.Reference); err != nil {
+		t.Fatalf("insert v6 operational issue: %v", err)
+	}
+	if err := dbutil.SetUserVersion(db, 6); err != nil {
+		t.Fatalf("set v6 user version: %v", err)
+	}
+	db.Close()
+
+	migrated, err := InitDB(dbPath)
+	if err != nil {
+		t.Fatalf("InitDB migration failed: %v", err)
+	}
+	defer migrated.Close()
+
+	hasTodoID, err := plannerColumnExists(migrated, "operational_issues", "todo_id")
+	if err != nil {
+		t.Fatalf("plannerColumnExists error = %v", err)
+	}
+	if hasTodoID {
+		t.Fatal("operational_issues.todo_id still exists after v7 migration")
+	}
+	todos, err := ListTodos(migrated, "", "all")
+	if err != nil {
+		t.Fatalf("ListTodos error = %v", err)
+	}
+	if len(todos) != 1 || todos[0].ID != "user-visible" {
+		t.Fatalf("visible todos after migration = %#v, want only user todo", todos)
+	}
+	var itemRows int
+	if err := migrated.QueryRow(`SELECT COUNT(*) FROM todo_items`).Scan(&itemRows); err != nil {
+		t.Fatalf("count todo_items error = %v", err)
+	}
+	if itemRows != 0 {
+		t.Fatalf("legacy operational todo_items after migration = %d, want 0", itemRows)
+	}
+	issues, err := ListOperationalIssueTodos(migrated, 10)
+	if err != nil {
+		t.Fatalf("ListOperationalIssueTodos error = %v", err)
+	}
+	if len(issues) != 1 {
+		t.Fatalf("len(issues) = %d, want 1", len(issues))
+	}
+	if got := operationalIssueField(issues[0].Description, "Occurrences"); got != "3" {
+		t.Fatalf("Occurrences = %q, want 3", got)
 	}
 }
 

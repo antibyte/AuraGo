@@ -16,7 +16,8 @@ const (
 )
 
 // OperationalIssue describes a problem detected by a background agent context.
-// The recorder stores a visible planner todo plus a dedicated indexed record.
+// The recorder stores it in the internal operational issue table so it can be
+// surfaced to the agent without polluting the user's visible planner todos.
 type OperationalIssue struct {
 	Source      string
 	Context     string
@@ -30,7 +31,6 @@ type OperationalIssue struct {
 
 type operationalIssueRecord struct {
 	Fingerprint string
-	TodoID      string
 	Source      string
 	Context     string
 	Severity    string
@@ -41,11 +41,13 @@ type operationalIssueRecord struct {
 	LastSeen    string
 	Occurrences int
 	Status      string
+	CreatedAt   string
+	UpdatedAt   string
 }
 
-// RecordOperationalIssue creates or updates a deduplicated open todo for a
-// background problem. Repeated occurrences update the same todo instead of
-// flooding the planner.
+// RecordOperationalIssue creates or updates a deduplicated internal record for
+// a background problem. Repeated occurrences update the same record instead of
+// flooding the user's visible planner todos.
 func RecordOperationalIssue(db *sql.DB, issue OperationalIssue) (string, error) {
 	if db == nil {
 		return "", fmt.Errorf("planner database not available")
@@ -67,79 +69,46 @@ func RecordOperationalIssue(db *sql.DB, issue OperationalIssue) (string, error) 
 		if occurrences < 1 {
 			occurrences = 1
 		}
-		description := buildOperationalIssueDescription(normalized, firstSeen, occurrences)
-
-		todo, todoErr := GetTodo(db, record.TodoID)
-		if todoErr != nil {
-			record.TodoID, todoErr = CreateTodo(db, Todo{
-				Title:       normalized.Title,
-				Description: description,
-				Priority:    operationalIssuePriority(normalized.Severity),
-				Status:      "open",
-				RemindDaily: true,
-			})
-			if todoErr != nil {
-				return "", todoErr
-			}
-		} else {
-			todo.Title = normalized.Title
-			todo.Description = description
-			todo.Priority = operationalIssuePriority(normalized.Severity)
-			todo.Status = "open"
-			todo.RemindDaily = true
-			if err := UpdateTodo(db, *todo); err != nil {
-				return "", err
-			}
-		}
 
 		_, err := db.Exec(`
 			UPDATE operational_issues
-			SET todo_id=?, source=?, context=?, severity=?, title=?, detail=?, reference=?,
+			SET source=?, context=?, severity=?, title=?, detail=?, reference=?,
 				last_seen=?, occurrences=?, status='open', updated_at=?
 			WHERE fingerprint=?`,
-			record.TodoID, normalized.Source, normalized.Context, normalized.Severity, normalized.Title,
+			normalized.Source, normalized.Context, normalized.Severity, normalized.Title,
 			normalized.Detail, normalized.Reference, now, occurrences, now, fingerprint)
 		if err != nil {
 			return "", fmt.Errorf("update operational issue: %w", err)
 		}
-		return record.TodoID, nil
-	}
-
-	id, err := CreateTodo(db, Todo{
-		Title:       normalized.Title,
-		Description: buildOperationalIssueDescription(normalized, now, 1),
-		Priority:    operationalIssuePriority(normalized.Severity),
-		Status:      "open",
-		RemindDaily: true,
-	})
-	if err != nil {
-		return "", err
+		return fingerprint, nil
 	}
 
 	_, err = db.Exec(`
 		INSERT INTO operational_issues
-			(fingerprint, todo_id, source, context, severity, title, detail, reference,
+			(fingerprint, source, context, severity, title, detail, reference,
 			 first_seen, last_seen, occurrences, status, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 'open', ?, ?)`,
-		fingerprint, id, normalized.Source, normalized.Context, normalized.Severity,
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 'open', ?, ?)`,
+		fingerprint, normalized.Source, normalized.Context, normalized.Severity,
 		normalized.Title, normalized.Detail, normalized.Reference, now, now, now, now)
 	if err != nil {
 		return "", fmt.Errorf("insert operational issue: %w", err)
 	}
-	return id, nil
+	return fingerprint, nil
 }
 
-// ListOperationalIssueTodos returns unresolved operational issue todos.
+// ListOperationalIssueTodos returns unresolved operational issues as synthetic
+// Todo values for prompt-reminder compatibility. These records are not stored
+// in the visible todos table.
 func ListOperationalIssueTodos(db *sql.DB, limit int) ([]Todo, error) {
 	if db == nil {
 		return nil, fmt.Errorf("planner database not available")
 	}
 	query := `
-		SELECT oi.todo_id
-		FROM operational_issues oi
-		JOIN todos t ON t.id = oi.todo_id
-		WHERE t.status IN ('open', 'in_progress')
-		ORDER BY oi.last_seen DESC`
+		SELECT fingerprint, source, context, severity, title, detail, reference,
+			first_seen, last_seen, occurrences, status, created_at, updated_at
+		FROM operational_issues
+		WHERE status IN ('open', 'in_progress')
+		ORDER BY last_seen DESC`
 	args := []interface{}{}
 	if limit > 0 {
 		query += " LIMIT ?"
@@ -148,36 +117,33 @@ func ListOperationalIssueTodos(db *sql.DB, limit int) ([]Todo, error) {
 
 	rows, err := db.Query(query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("list operational issue ids: %w", err)
+		return nil, fmt.Errorf("list operational issues: %w", err)
 	}
 
-	todoIDs := []string{}
+	result := []Todo{}
 	for rows.Next() {
-		var todoID string
-		if err := rows.Scan(&todoID); err != nil {
-			return nil, fmt.Errorf("scan operational issue id: %w", err)
+		var record operationalIssueRecord
+		if err := rows.Scan(
+			&record.Fingerprint, &record.Source, &record.Context, &record.Severity,
+			&record.Title, &record.Detail, &record.Reference, &record.FirstSeen,
+			&record.LastSeen, &record.Occurrences, &record.Status, &record.CreatedAt,
+			&record.UpdatedAt,
+		); err != nil {
+			rows.Close()
+			return nil, fmt.Errorf("scan operational issue: %w", err)
 		}
-		todoIDs = append(todoIDs, todoID)
+		result = append(result, syntheticOperationalIssueTodo(record))
 	}
 	if err := rows.Close(); err != nil {
-		return nil, fmt.Errorf("close operational issue id rows: %w", err)
+		return nil, fmt.Errorf("close operational issue rows: %w", err)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate operational issue ids: %w", err)
-	}
-
-	result := make([]Todo, 0, len(todoIDs))
-	for _, todoID := range todoIDs {
-		todo, err := GetTodo(db, todoID)
-		if err != nil {
-			return nil, err
-		}
-		result = append(result, *todo)
+		return nil, fmt.Errorf("iterate operational issues: %w", err)
 	}
 	return result, nil
 }
 
-// CleanupOperationalIssues deletes completed operational issue todos older than maxDoneAge.
+// CleanupOperationalIssues deletes completed internal operational issues older than maxDoneAge.
 func CleanupOperationalIssues(db *sql.DB, maxDoneAge time.Duration) (int64, error) {
 	if db == nil {
 		return 0, fmt.Errorf("planner database not available")
@@ -187,52 +153,18 @@ func CleanupOperationalIssues(db *sql.DB, maxDoneAge time.Duration) (int64, erro
 	}
 	cutoff := time.Now().UTC().Add(-maxDoneAge).Format(time.RFC3339)
 
-	tx, err := db.Begin()
+	result, err := db.Exec(`
+		DELETE FROM operational_issues
+		WHERE status = 'done'
+			AND COALESCE(NULLIF(updated_at, ''), NULLIF(last_seen, ''), created_at) < ?`, cutoff)
 	if err != nil {
-		return 0, fmt.Errorf("begin operational issue cleanup: %w", err)
+		return 0, fmt.Errorf("delete old operational issues: %w", err)
 	}
-	defer tx.Rollback()
-
-	rows, err := tx.Query(`
-		SELECT oi.todo_id
-		FROM operational_issues oi
-		JOIN todos t ON t.id = oi.todo_id
-		WHERE t.status = 'done'
-			AND COALESCE(NULLIF(t.completed_at, ''), NULLIF(t.updated_at, ''), oi.last_seen) < ?`, cutoff)
+	rows, err := result.RowsAffected()
 	if err != nil {
-		return 0, fmt.Errorf("query old operational issues: %w", err)
+		return 0, fmt.Errorf("count deleted operational issues: %w", err)
 	}
-	var todoIDs []string
-	for rows.Next() {
-		var todoID string
-		if err := rows.Scan(&todoID); err != nil {
-			rows.Close()
-			return 0, fmt.Errorf("scan old operational issue: %w", err)
-		}
-		todoIDs = append(todoIDs, todoID)
-	}
-	if err := rows.Close(); err != nil {
-		return 0, fmt.Errorf("close operational issue cleanup rows: %w", err)
-	}
-	if err := rows.Err(); err != nil {
-		return 0, fmt.Errorf("iterate old operational issues: %w", err)
-	}
-
-	for _, todoID := range todoIDs {
-		if _, err := tx.Exec(`DELETE FROM todo_items WHERE todo_id = ?`, todoID); err != nil {
-			return 0, fmt.Errorf("delete operational issue todo items: %w", err)
-		}
-		if _, err := tx.Exec(`DELETE FROM todos WHERE id = ?`, todoID); err != nil {
-			return 0, fmt.Errorf("delete operational issue todo: %w", err)
-		}
-	}
-	if _, err := tx.Exec(`DELETE FROM operational_issues WHERE todo_id NOT IN (SELECT id FROM todos)`); err != nil {
-		return 0, fmt.Errorf("delete orphaned operational issues: %w", err)
-	}
-	if err := tx.Commit(); err != nil {
-		return 0, fmt.Errorf("commit operational issue cleanup: %w", err)
-	}
-	return int64(len(todoIDs)), nil
+	return rows, nil
 }
 
 // BuildOperationalIssueReminderText formats unresolved background issues for
@@ -263,11 +195,11 @@ func BuildOperationalIssueReminderText(todos []Todo) string {
 func getOperationalIssueRecord(db *sql.DB, fingerprint string) (operationalIssueRecord, bool, error) {
 	var record operationalIssueRecord
 	err := db.QueryRow(`
-		SELECT fingerprint, todo_id, source, context, severity, title, detail, reference,
+		SELECT fingerprint, source, context, severity, title, detail, reference,
 			first_seen, last_seen, occurrences, status
 		FROM operational_issues
 		WHERE fingerprint = ?`, fingerprint).Scan(
-		&record.Fingerprint, &record.TodoID, &record.Source, &record.Context, &record.Severity,
+		&record.Fingerprint, &record.Source, &record.Context, &record.Severity,
 		&record.Title, &record.Detail, &record.Reference, &record.FirstSeen, &record.LastSeen,
 		&record.Occurrences, &record.Status,
 	)
@@ -333,10 +265,10 @@ func backfillOperationalIssuesFromTodos(db *sql.DB) error {
 
 		_, err := db.Exec(`
 			INSERT OR IGNORE INTO operational_issues
-				(fingerprint, todo_id, source, context, severity, title, detail, reference,
+				(fingerprint, source, context, severity, title, detail, reference,
 				 first_seen, last_seen, occurrences, status, created_at, updated_at)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			fingerprint, todo.ID,
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			fingerprint,
 			operationalIssueField(todo.Description, "Source"),
 			operationalIssueField(todo.Description, "Context"),
 			defaultTrimmed(operationalIssueField(todo.Description, "Severity"), "warning"),
@@ -349,6 +281,24 @@ func backfillOperationalIssuesFromTodos(db *sql.DB) error {
 		if err != nil {
 			return fmt.Errorf("backfill operational issue: %w", err)
 		}
+	}
+	return deleteLegacyOperationalIssueTodos(db)
+}
+
+type operationalIssueExecer interface {
+	Exec(query string, args ...interface{}) (sql.Result, error)
+}
+
+func deleteLegacyOperationalIssueTodos(exec operationalIssueExecer) error {
+	if _, err := exec.Exec(`
+		DELETE FROM todo_items
+		WHERE todo_id IN (
+			SELECT id FROM todos WHERE description LIKE ?
+		)`, "%"+operationalIssueMarker+"%"); err != nil {
+		return fmt.Errorf("delete legacy operational issue todo items: %w", err)
+	}
+	if _, err := exec.Exec(`DELETE FROM todos WHERE description LIKE ?`, "%"+operationalIssueMarker+"%"); err != nil {
+		return fmt.Errorf("delete legacy operational issue todos: %w", err)
 	}
 	return nil
 }
@@ -412,6 +362,47 @@ func buildOperationalIssueDescription(issue OperationalIssue, firstSeen string, 
 		issue.Detail,
 	}
 	return strings.Join(lines, "\n")
+}
+
+func syntheticOperationalIssueTodo(record operationalIssueRecord) Todo {
+	occurredAt := parseOperationalIssueTime(record.LastSeen)
+	issue := OperationalIssue{
+		Source:      record.Source,
+		Context:     record.Context,
+		Title:       defaultTrimmed(record.Title, OperationalIssueTitlePrefix+" Background problem detected"),
+		Detail:      record.Detail,
+		Severity:    record.Severity,
+		Reference:   record.Reference,
+		Fingerprint: record.Fingerprint,
+		OccurredAt:  occurredAt,
+	}
+	description := buildOperationalIssueDescription(issue, defaultTrimmed(record.FirstSeen, record.CreatedAt), record.Occurrences)
+	return Todo{
+		ID:          record.Fingerprint,
+		Title:       issue.Title,
+		Description: description,
+		Priority:    operationalIssuePriority(record.Severity),
+		Status:      operationalIssueTodoStatus(record.Status),
+		RemindDaily: true,
+		CreatedAt:   record.CreatedAt,
+		UpdatedAt:   record.UpdatedAt,
+	}
+}
+
+func parseOperationalIssueTime(value string) time.Time {
+	if parsed, err := time.Parse(time.RFC3339, strings.TrimSpace(value)); err == nil {
+		return parsed
+	}
+	return time.Now().UTC()
+}
+
+func operationalIssueTodoStatus(status string) string {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "open", "in_progress", "done":
+		return strings.ToLower(strings.TrimSpace(status))
+	default:
+		return "open"
+	}
 }
 
 func operationalIssuePriority(severity string) string {

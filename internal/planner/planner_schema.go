@@ -8,7 +8,7 @@ import (
 	"aurago/internal/dbutil"
 )
 
-const plannerSchemaVersion = 6
+const plannerSchemaVersion = 7
 
 func initPlannerSchema(db *sql.DB) error {
 	version, err := dbutil.GetUserVersion(db)
@@ -51,6 +51,11 @@ func initPlannerSchema(db *sql.DB) error {
 		fallthrough
 	case version < 6:
 		if err := migratePlannerToV6(db); err != nil {
+			return err
+		}
+		fallthrough
+	case version < 7:
+		if err := migratePlannerToV7(db); err != nil {
 			return err
 		}
 	default:
@@ -320,6 +325,85 @@ func migratePlannerToV6(db *sql.DB) error {
 	return ensurePlannerIndexes(db)
 }
 
+func migratePlannerToV7(db *sql.DB) error {
+	hasOperationalIssues, err := plannerTableExists(db, "operational_issues")
+	if err != nil {
+		return err
+	}
+	if !hasOperationalIssues {
+		if _, err := db.Exec(operationalIssuesSQL()); err != nil {
+			return fmt.Errorf("create operational issues table v7: %w", err)
+		}
+		if err := backfillOperationalIssuesFromTodos(db); err != nil {
+			return err
+		}
+		return ensurePlannerIndexes(db)
+	}
+
+	hasTodoID, err := plannerColumnExists(db, "operational_issues", "todo_id")
+	if err != nil {
+		return err
+	}
+	if !hasTodoID {
+		if err := backfillOperationalIssuesFromTodos(db); err != nil {
+			return err
+		}
+		return ensurePlannerIndexes(db)
+	}
+
+	tx, err := db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin operational issues v7 migration: %w", err)
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.Exec(`DROP TABLE IF EXISTS operational_issues_v7`); err != nil {
+		return fmt.Errorf("drop temporary operational issues table: %w", err)
+	}
+	if _, err := tx.Exec(operationalIssuesTableSQL("operational_issues_v7")); err != nil {
+		return fmt.Errorf("create operational issues v7 table: %w", err)
+	}
+	if _, err := tx.Exec(`
+		INSERT OR REPLACE INTO operational_issues_v7
+			(fingerprint, source, context, severity, title, detail, reference,
+			 first_seen, last_seen, occurrences, status, created_at, updated_at)
+		SELECT
+			oi.fingerprint,
+			oi.source,
+			oi.context,
+			oi.severity,
+			oi.title,
+			oi.detail,
+			oi.reference,
+			oi.first_seen,
+			oi.last_seen,
+			oi.occurrences,
+			CASE
+				WHEN t.status IN ('open', 'in_progress', 'done') THEN t.status
+				WHEN oi.status IN ('open', 'in_progress', 'done') THEN oi.status
+				ELSE 'open'
+			END,
+			oi.created_at,
+			COALESCE(NULLIF(t.updated_at, ''), oi.updated_at)
+		FROM operational_issues oi
+		LEFT JOIN todos t ON t.id = oi.todo_id`); err != nil {
+		return fmt.Errorf("copy operational issues v7 rows: %w", err)
+	}
+	if _, err := tx.Exec(`DROP TABLE operational_issues`); err != nil {
+		return fmt.Errorf("drop operational issues v6 table: %w", err)
+	}
+	if _, err := tx.Exec(`ALTER TABLE operational_issues_v7 RENAME TO operational_issues`); err != nil {
+		return fmt.Errorf("rename operational issues v7 table: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit operational issues v7 migration: %w", err)
+	}
+	if err := backfillOperationalIssuesFromTodos(db); err != nil {
+		return err
+	}
+	return ensurePlannerIndexes(db)
+}
+
 func plannerTablesSQL() string {
 	return strings.TrimSpace(`
 		CREATE TABLE IF NOT EXISTS appointments (
@@ -372,10 +456,13 @@ func plannerTablesSQL() string {
 }
 
 func operationalIssuesSQL() string {
+	return operationalIssuesTableSQL("operational_issues")
+}
+
+func operationalIssuesTableSQL(tableName string) string {
 	return strings.TrimSpace(`
-		CREATE TABLE IF NOT EXISTS operational_issues (
+		CREATE TABLE IF NOT EXISTS ` + tableName + ` (
 			fingerprint TEXT PRIMARY KEY,
-			todo_id TEXT NOT NULL UNIQUE,
 			source TEXT NOT NULL DEFAULT '',
 			context TEXT NOT NULL DEFAULT '',
 			severity TEXT NOT NULL DEFAULT 'warning',
@@ -387,8 +474,7 @@ func operationalIssuesSQL() string {
 			occurrences INTEGER NOT NULL DEFAULT 1,
 			status TEXT NOT NULL DEFAULT 'open',
 			created_at TEXT NOT NULL,
-			updated_at TEXT NOT NULL,
-			FOREIGN KEY (todo_id) REFERENCES todos(id) ON DELETE CASCADE
+			updated_at TEXT NOT NULL
 		);
 	`)
 }
