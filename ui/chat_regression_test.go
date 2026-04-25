@@ -163,6 +163,87 @@ func TestChatPapyrusThemeUsesRefinedManuscriptPalette(t *testing.T) {
 	}
 }
 
+func TestChatToolIconSpriteCatalogRemainsWired(t *testing.T) {
+	t.Parallel()
+
+	iconsPath := filepath.Join("js", "chat", "tool-icons.js")
+	spritePath := filepath.Join("img", "tool-icons-sprite.svg")
+	streamingPath := filepath.Join("js", "chat", "chat-streaming.js")
+	cssPath := filepath.Join("css", "chat.css")
+	indexPath := "index.html"
+
+	iconsContent, err := os.ReadFile(iconsPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", iconsPath, err)
+	}
+	spriteContent, err := os.ReadFile(spritePath)
+	if err != nil {
+		t.Fatalf("read %s: %v", spritePath, err)
+	}
+	streamingContent, err := os.ReadFile(streamingPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", streamingPath, err)
+	}
+	cssContent, err := os.ReadFile(cssPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", cssPath, err)
+	}
+	indexContent, err := os.ReadFile(indexPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", indexPath, err)
+	}
+
+	iconsJS := string(iconsContent)
+	if got := strings.Count(iconsJS, "slot: "); got != 100 {
+		t.Fatalf("%s has %d sprite slots, want 100", iconsPath, got)
+	}
+	requiredIconMarkers := []string{
+		"key: 'execute_shell'",
+		"key: 'docker'",
+		"key: 'proxmox'",
+		"key: 'home_assistant'",
+		"key: 'github'",
+		"key: 'cloudflare_tunnel'",
+		"key: 'truenas'",
+		"key: 'generic_tool'",
+		"window.AuraToolIcons",
+		"createIcon(toolName",
+	}
+	for _, marker := range requiredIconMarkers {
+		if !strings.Contains(iconsJS, marker) {
+			t.Fatalf("%s is missing tool icon marker %q", iconsPath, marker)
+		}
+	}
+
+	spriteSVG := string(spriteContent)
+	for _, marker := range []string{`viewBox="0 0 320 320"`, `id="tool-icons-grid"`, `data-slot="99"`} {
+		if !strings.Contains(spriteSVG, marker) {
+			t.Fatalf("%s is missing sprite marker %q", spritePath, marker)
+		}
+	}
+
+	streamingJS := string(streamingContent)
+	for _, marker := range []string{"AuraToolIcons.createIcon", "setStatusToolIcon(data.detail)", "setStatusToolIcon('thinking')"} {
+		if !strings.Contains(streamingJS, marker) {
+			t.Fatalf("%s is missing icon wiring marker %q", streamingPath, marker)
+		}
+	}
+	if strings.Contains(streamingJS, "const TOOL_ICONS = {") {
+		t.Fatalf("%s still contains the old emoji tool icon map", streamingPath)
+	}
+
+	css := string(cssContent)
+	for _, marker := range []string{".tool-icon-sprite", "background-image: url('/img/tool-icons-sprite.svg", ".status-tool-icon"} {
+		if !strings.Contains(css, marker) {
+			t.Fatalf("%s is missing icon CSS marker %q", cssPath, marker)
+		}
+	}
+
+	if !strings.Contains(string(indexContent), `/js/chat/tool-icons.js`) {
+		t.Fatalf("%s does not load the tool icon catalog", indexPath)
+	}
+}
+
 func TestMediaFrontend_VideoTabFlowRemainsPresent(t *testing.T) {
 	t.Parallel()
 

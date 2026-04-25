@@ -3,45 +3,29 @@
 /* ── SSE (Server-Sent Events) ── */
 const agentStatusDiv = document.getElementById('agentStatusContainer');
 const agentStatusText = document.getElementById('agentStatusText');
+const agentStatusIcon = document.getElementById('agentStatusIcon');
 const chatRobotEffects = document.getElementById('chat-robot-effects');
 
 /* ── Floating action icons ── */
-const TOOL_ICONS = {
-    execute_shell: '\ud83d\udda5\ufe0f', execute_python: '\ud83d\udc0d', execute_sandbox: '\ud83d\udce6',
-    filesystem: '\ud83d\udcc1', system_metrics: '\ud83d\udcca', process_management: '\u2699\ufe0f',
-    follow_up: '\ud83d\udd04', analyze_image: '\ud83d\udd0d', transcribe_audio: '\ud83c\udfa4',
-    send_image: '\ud83d\uddbc\ufe0f', execute_skill: '\ud83c\udfaf', list_skills: '\ud83d\udcdc',
-    save_tool: '\ud83d\udcbe', remote_execution: '\ud83c\udf10', api_request: '\ud83d\udd17',
-    manage_memory: '\ud83e\udde0', query_memory: '\ud83e\udde0', memory_reflect: '\ud83d\udcad',
-    cheatsheet: '\ud83d\udccb', knowledge_graph: '\ud83d\udd78\ufe0f', secrets_vault: '\ud83d\udd10',
-    cron_scheduler: '\u23f0', manage_notes: '\ud83d\udcdd', manage_journal: '\ud83d\udcd3',
-    manage_missions: '\ud83c\udfaf', query_inventory: '\ud83d\udccb', register_device: '\ud83d\udcf1',
-    home_assistant: '\ud83c\udfe0', meshcentral: '\ud83d\udda7', wake_on_lan: '\u26a1',
-    docker: '\ud83d\udc33', co_agent: '\ud83e\udd16', homepage: '\ud83c\udf0d', homepage_registry: '\ud83d\udcda',
-    call_webhook: '\ud83e\ude9d', manage_outgoing_webhooks: '\ud83e\ude9d', manage_webhooks: '\ud83e\ude9d',
-    netlify: '\ud83d\ude80', manage_updates: '\ud83d\udd04', execute_sudo: '\ud83d\udee1\ufe0f',
-    proxmox: '\ud83d\udda5\ufe0f', ollama: '\ud83e\udd99', tailscale: '\ud83d\udd12',
-    cloudflare_tunnel: '\u2601\ufe0f', fetch_email: '\ud83d\udce7', send_email: '\ud83d\udce7',
-    list_email_accounts: '\ud83d\udce7', firewall: '\ud83e\uddf1', ansible: '\ud83d\udd27',
-    invasion_control: '\ud83e\udd5a', github: '\ud83d\udc19', generate_image: '\ud83c\udfa8',
-    generate_video: '\ud83c\udfac', send_video: '\ud83c\udfac',
-    mqtt_publish: '\ud83d\udce1', mqtt_subscribe: '\ud83d\udce1', mqtt_unsubscribe: '\ud83d\udce1',
-    mqtt_get_messages: '\ud83d\udce1', mcp_call: '\ud83d\udd0c', adguard: '\ud83d\udee1\ufe0f',
-    google_workspace: '\ud83d\udcca', remote_control: '\ud83c\udfae', media_registry: '\ud83c\udfac',
-    thinking: '\ud83d\udca1', coding: '\ud83d\udcbb', co_agent_spawn: '\ud83e\udd16',
-    _default: '\u2728'
-};
+function setStatusToolIcon(toolName) {
+    if (!agentStatusIcon || !window.AuraToolIcons) return;
+    if (!toolName) {
+        agentStatusIcon.classList.add('is-hidden');
+        agentStatusIcon.removeAttribute('data-tool-icon');
+        return;
+    }
+    window.AuraToolIcons.applyIcon(agentStatusIcon, toolName);
+    agentStatusIcon.classList.remove('is-hidden');
+}
 
 function spawnFloatingIcon(toolName) {
     const effectHost = chatRobotEffects || (agentStatusDiv ? agentStatusDiv.querySelector('.status-pill') : null);
-    if (!effectHost || agentStatusDiv.classList.contains('is-hidden')) return;
+    if (!effectHost || !window.AuraToolIcons || agentStatusDiv.classList.contains('is-hidden')) return;
     const now = Date.now();
     const key = '_lastIcon_' + toolName;
     if (spawnFloatingIcon[key] && now - spawnFloatingIcon[key] < 800) return;
     spawnFloatingIcon[key] = now;
-    const icon = document.createElement('span');
-    icon.className = 'floating-icon';
-    icon.textContent = TOOL_ICONS[toolName] || TOOL_ICONS._default;
+    const icon = window.AuraToolIcons.createIcon(toolName, 'floating-icon');
     const hostW = effectHost.offsetWidth || 72;
     const randomX = (hostW * (0.2 + Math.random() * 0.55));
     icon.style.left = randomX + 'px';
@@ -199,6 +183,7 @@ function handleSSEMessage(e) {
         if (data.event === 'thinking') {
             stopBtn.disabled = false;
             message = data.detail || t('chat.sse_thinking');
+            setStatusToolIcon('thinking');
             spawnFloatingIcon('thinking');
         } else if (data.event === 'tool_start') {
             if (data.detail === 'execute_skill') {
@@ -210,22 +195,28 @@ function handleSSEMessage(e) {
             } else {
                 message = t('chat.sse_tool_start') + data.detail;
             }
+            setStatusToolIcon(data.detail);
             spawnFloatingIcon(data.detail);
         } else if (data.event === 'co_agent_spawn') {
             message = t('chat.sse_co_agent_spawn') + data.detail;
+            setStatusToolIcon('co_agent_spawn');
             spawnFloatingIcon('co_agent_spawn');
         } else if (data.event === 'workflow_plan') {
             message = t('chat.sse_workflow_plan');
+            setStatusToolIcon('manage_plan');
         } else if (data.event === 'tool_end') {
             if (data.detail === 'co_agent' || data.detail === 'co_agents') {
                 return;
             }
             message = t('chat.sse_tool_end') + data.detail;
+            setStatusToolIcon(data.detail);
         } else if (data.event === 'coding') {
             message = t('chat.sse_coding');
+            setStatusToolIcon('coding');
             spawnFloatingIcon('coding');
         } else if (data.event === 'error_recovery') {
             message = t('chat.sse_error_recovery');
+            setStatusToolIcon('generic_tool');
         } else if (data.event === 'tool_call') {
             if (debugMode) {
                 appendToolOutput(data.detail, t('chat.tool_call_label'));
@@ -363,6 +354,7 @@ function handleSSEMessage(e) {
         } else if (data.event === 'done') {
             _fetchConnectionLost = false;
             chatSetHidden(agentStatusDiv, true);
+            setStatusToolIcon(null);
             stopBtn.disabled = true;
             hideTodoPanel();
             if (!_httpResponseRendered) {

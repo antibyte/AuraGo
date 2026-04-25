@@ -2016,16 +2016,42 @@
             z-index: 1;
         }
 
+        .tool-icon-sprite {
+            --tool-icon-position-x: 100%;
+            --tool-icon-position-y: 100%;
+            display: inline-block;
+            width: 1.15rem;
+            height: 1.15rem;
+            flex: 0 0 auto;
+            background-image: url('/img/tool-icons-sprite.svg?v=20260425a');
+            background-repeat: no-repeat;
+            background-size: 1000% 1000%;
+            background-position: var(--tool-icon-position-x) var(--tool-icon-position-y);
+            border-radius: 0.3rem;
+            filter: drop-shadow(0 0 5px var(--accent-glow));
+        }
+
+        .status-tool-icon {
+            width: 1.05rem;
+            height: 1.05rem;
+            margin-left: -0.1rem;
+        }
+
+        .status-tool-icon.is-hidden {
+            display: none;
+        }
+
         /* ── Floating action icons ── */
         .floating-icon {
             position: absolute;
             bottom: var(--chat-robot-icon-start);
-            font-size: 1.2rem;
+            width: 1.35rem;
+            height: 1.35rem;
             pointer-events: none;
             z-index: 0;
             animation: floatUp var(--chat-robot-icon-duration) ease-out forwards;
             line-height: 1;
-            filter: drop-shadow(0 0 4px var(--accent-glow));
+            filter: drop-shadow(0 0 6px var(--accent-glow));
         }
 
         @keyframes floatUp {
