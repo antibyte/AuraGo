@@ -77,8 +77,12 @@ func (c *remoteMissionClient) validateTarget(mission tools.MissionV2) error {
 	if mission.RemoteEggID == "" {
 		return fmt.Errorf("remote_egg_id is required for remote missions")
 	}
-	if !c.hub.IsConnected(mission.RemoteNestID) {
+	conn := c.hub.GetConnection(mission.RemoteNestID)
+	if conn == nil {
 		return fmt.Errorf("remote nest %s is not connected", mission.RemoteNestID)
+	}
+	if conn.EggID != "" && conn.EggID != mission.RemoteEggID {
+		return fmt.Errorf("remote nest %s is connected as egg %s, not %s", mission.RemoteNestID, conn.EggID, mission.RemoteEggID)
 	}
 	if c.db != nil {
 		nest, err := invasion.GetNest(c.db, mission.RemoteNestID)
@@ -88,7 +92,7 @@ func (c *remoteMissionClient) validateTarget(mission tools.MissionV2) error {
 		if !nest.Active {
 			return fmt.Errorf("remote nest %s is inactive", mission.RemoteNestID)
 		}
-		if nest.EggID != "" && nest.EggID != mission.RemoteEggID {
+		if nest.EggID != "" && conn.EggID == "" && nest.EggID != mission.RemoteEggID {
 			return fmt.Errorf("remote nest %s is assigned to egg %s, not %s", mission.RemoteNestID, nest.EggID, mission.RemoteEggID)
 		}
 		egg, err := invasion.GetEgg(c.db, mission.RemoteEggID)
@@ -156,23 +160,27 @@ func handleMissionRemoteTargets(s *Server) http.HandlerFunc {
 
 		targets := make([]remoteMissionTarget, 0)
 		for _, nest := range nests {
-			if nest.EggID == "" {
+			conn := s.EggHub.GetConnection(nest.ID)
+			if conn == nil {
 				continue
 			}
-			egg, ok := eggsByID[nest.EggID]
+			eggID := nest.EggID
+			if conn.EggID != "" {
+				eggID = conn.EggID
+			}
+			if eggID == "" {
+				continue
+			}
+			egg, ok := eggsByID[eggID]
 			if !nest.Active || !ok || !egg.Active {
-				continue
-			}
-			connected := s.EggHub.IsConnected(nest.ID)
-			if !connected {
 				continue
 			}
 			targets = append(targets, remoteMissionTarget{
 				NestID:      nest.ID,
 				NestName:    nest.Name,
-				EggID:       nest.EggID,
+				EggID:       eggID,
 				EggName:     egg.Name,
-				Connected:   connected,
+				Connected:   true,
 				HatchStatus: nest.HatchStatus,
 			})
 		}

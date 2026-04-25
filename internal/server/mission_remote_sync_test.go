@@ -69,6 +69,51 @@ func TestMissionRemoteTargetsFiltersInactiveNestsAndEggs(t *testing.T) {
 	}
 }
 
+func TestMissionRemoteTargetsUsesConnectedEggWhenNestAssignmentIsEmpty(t *testing.T) {
+	db := setupInvasionTestDB(t)
+	activeEggID, _ := invasion.CreateEgg(db, invasion.EggRecord{Name: "Live Egg", Active: true})
+	nestID, _ := invasion.CreateNest(db, invasion.NestRecord{Name: "Live Nest", Active: true})
+
+	hub := bridge.NewEggHub(slog.New(slog.NewTextHandler(io.Discard, nil)))
+	registerFakeEggConnection(t, hub, nestID, activeEggID)
+
+	s := &Server{InvasionDB: db, EggHub: hub, Logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
+	req := httptest.NewRequest(http.MethodGet, "/api/missions/v2/remote-targets", nil)
+	rr := httptest.NewRecorder()
+	handleMissionRemoteTargets(s)(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%s", rr.Code, rr.Body.String())
+	}
+	var body struct {
+		Targets []remoteMissionTarget `json:"targets"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &body); err != nil {
+		t.Fatalf("unmarshal response: %v", err)
+	}
+	if len(body.Targets) != 1 {
+		t.Fatalf("targets = %+v, want one connected target", body.Targets)
+	}
+	if body.Targets[0].NestID != nestID || body.Targets[0].EggID != activeEggID {
+		t.Fatalf("target = %+v, want connected nest/egg", body.Targets[0])
+	}
+}
+
+func TestRemoteMissionValidateTargetUsesConnectedEggWhenNestAssignmentIsEmpty(t *testing.T) {
+	db := setupInvasionTestDB(t)
+	activeEggID, _ := invasion.CreateEgg(db, invasion.EggRecord{Name: "Live Egg", Active: true})
+	nestID, _ := invasion.CreateNest(db, invasion.NestRecord{Name: "Live Nest", Active: true})
+
+	hub := bridge.NewEggHub(slog.New(slog.NewTextHandler(io.Discard, nil)))
+	registerFakeEggConnection(t, hub, nestID, activeEggID)
+	client := &remoteMissionClient{hub: hub, db: db}
+
+	err := client.validateTarget(tools.MissionV2{RunnerType: tools.MissionRunnerRemote, RemoteNestID: nestID, RemoteEggID: activeEggID})
+	if err != nil {
+		t.Fatalf("validateTarget with connected egg and empty nest assignment: %v", err)
+	}
+}
+
 func TestRemoteMissionValidateTargetRejectsInactiveNestAndEgg(t *testing.T) {
 	db := setupInvasionTestDB(t)
 	activeEggID, _ := invasion.CreateEgg(db, invasion.EggRecord{Name: "Active Egg", Active: true})
