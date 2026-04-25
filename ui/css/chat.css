@@ -2023,7 +2023,7 @@
             width: 1.15rem;
             height: 1.15rem;
             flex: 0 0 auto;
-            background-image: url('/img/tool-icons-sprite.svg?v=20260425a');
+            background-image: url('/img/tool-icons-sprite.png?v=20260425b');
             background-repeat: no-repeat;
             background-size: 1000% 1000%;
             background-position: var(--tool-icon-position-x) var(--tool-icon-position-y);

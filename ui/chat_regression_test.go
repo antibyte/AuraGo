@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"encoding/binary"
 	"os"
 	"path/filepath"
 	"strings"
@@ -163,11 +164,11 @@ func TestChatPapyrusThemeUsesRefinedManuscriptPalette(t *testing.T) {
 	}
 }
 
-func TestChatToolIconSpriteCatalogRemainsWired(t *testing.T) {
+func TestChatToolIconPngSpriteCatalogRemainsWired(t *testing.T) {
 	t.Parallel()
 
 	iconsPath := filepath.Join("js", "chat", "tool-icons.js")
-	spritePath := filepath.Join("img", "tool-icons-sprite.svg")
+	spritePath := filepath.Join("img", "tool-icons-sprite.png")
 	streamingPath := filepath.Join("js", "chat", "chat-streaming.js")
 	cssPath := filepath.Join("css", "chat.css")
 	indexPath := "index.html"
@@ -215,11 +216,18 @@ func TestChatToolIconSpriteCatalogRemainsWired(t *testing.T) {
 		}
 	}
 
-	spriteSVG := string(spriteContent)
-	for _, marker := range []string{`viewBox="0 0 320 320"`, `id="tool-icons-grid"`, `data-slot="99"`} {
-		if !strings.Contains(spriteSVG, marker) {
-			t.Fatalf("%s is missing sprite marker %q", spritePath, marker)
-		}
+	const pngHeaderLen = 26
+	if len(spriteContent) < pngHeaderLen || string(spriteContent[:8]) != "\x89PNG\r\n\x1a\n" || string(spriteContent[12:16]) != "IHDR" {
+		t.Fatalf("%s is not a valid PNG sprite header", spritePath)
+	}
+	width := binary.BigEndian.Uint32(spriteContent[16:20])
+	height := binary.BigEndian.Uint32(spriteContent[20:24])
+	colorType := spriteContent[25]
+	if width != 1280 || height != 1280 {
+		t.Fatalf("%s is %dx%d, want 1280x1280", spritePath, width, height)
+	}
+	if colorType != 6 {
+		t.Fatalf("%s uses PNG color type %d, want 6 for RGBA alpha", spritePath, colorType)
 	}
 
 	streamingJS := string(streamingContent)
@@ -233,7 +241,7 @@ func TestChatToolIconSpriteCatalogRemainsWired(t *testing.T) {
 	}
 
 	css := string(cssContent)
-	for _, marker := range []string{".tool-icon-sprite", "background-image: url('/img/tool-icons-sprite.svg", ".status-tool-icon"} {
+	for _, marker := range []string{".tool-icon-sprite", "background-image: url('/img/tool-icons-sprite.png", ".status-tool-icon"} {
 		if !strings.Contains(css, marker) {
 			t.Fatalf("%s is missing icon CSS marker %q", cssPath, marker)
 		}
