@@ -71,10 +71,10 @@ type mediaConversionHealthBinary struct {
 }
 
 type mediaConversionHealthResult struct {
-	Status       string                      `json:"status"`
-	Message      string                      `json:"message"`
-	FFmpeg       mediaConversionHealthBinary `json:"ffmpeg"`
-	ImageMagick  mediaConversionHealthBinary `json:"imagemagick"`
+	Status      string                      `json:"status"`
+	Message     string                      `json:"message"`
+	FFmpeg      mediaConversionHealthBinary `json:"ffmpeg"`
+	ImageMagick mediaConversionHealthBinary `json:"imagemagick"`
 }
 
 type ffprobeOutput struct {
@@ -541,11 +541,31 @@ func resolveConversionOutput(inputFile, outputFile, outputFormat string) (string
 	if format == "" {
 		return "", "", fmt.Errorf("could not determine output format")
 	}
+	if err := validateMediaConversionOutputFile(outputFile); err != nil {
+		return "", "", err
+	}
 	// Prevent accidental in-place overwrite which would destroy the source file
 	if filepath.Clean(inputFile) == filepath.Clean(outputFile) {
 		return "", "", fmt.Errorf("output file must be different from input file")
 	}
 	return outputFile, format, nil
+}
+
+func validateMediaConversionOutputFile(outputFile string) error {
+	trimmed := strings.TrimSpace(outputFile)
+	if trimmed == "" {
+		return fmt.Errorf("output_file is required")
+	}
+	lower := strings.ToLower(trimmed)
+	for _, prefix := range []string{
+		"|", "@", "-",
+		"msl:", "ephemeral:", "https:", "http:", "caption:", "label:", "vid:", "json:", "fd:",
+	} {
+		if strings.HasPrefix(lower, prefix) {
+			return fmt.Errorf("unsafe output_file prefix %q is not allowed", prefix)
+		}
+	}
+	return nil
 }
 
 func normalizedOutputFormat(raw string) string {

@@ -115,3 +115,30 @@ func TestExtractDockerPortsReturnsPortsMap(t *testing.T) {
 		t.Fatalf("expected marshaled ports to contain mapped port, got %s", encoded)
 	}
 }
+
+func TestValidateDockerBindMountRejectsSensitiveHostPaths(t *testing.T) {
+	for _, bind := range []string{
+		"/var/run/docker.sock:/sock",
+		"/etc:/host/etc:ro",
+		"/root/.ssh:/ssh",
+		"/proc:/host/proc",
+		"/sys:/host/sys",
+	} {
+		if err := validateDockerBindMount(DockerConfig{}, bind); err == nil {
+			t.Fatalf("expected bind mount %q to be rejected", bind)
+		}
+	}
+}
+
+func TestValidateDockerComposeArgsRejectsHighRiskSubcommands(t *testing.T) {
+	for _, command := range []string{
+		"run --rm -v /:/host alpine sh",
+		"exec app sh -c whoami",
+		"cp app:/etc/passwd ./passwd",
+		"push app",
+	} {
+		if err := validateDockerComposeArgs(command); err == nil {
+			t.Fatalf("expected compose command %q to be rejected", command)
+		}
+	}
+}

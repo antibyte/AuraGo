@@ -131,6 +131,22 @@ func TestResolveConversionOutputRejectsSameFile(t *testing.T) {
 	}
 }
 
+func TestResolveConversionOutputRejectsImageMagickPseudoProtocols(t *testing.T) {
+	for _, output := range []string{
+		"|sh -c whoami",
+		"@payload.txt",
+		"-write.png",
+		"msl:payload.msl",
+		"https://example.com/out.png",
+		"caption:hello",
+	} {
+		_, _, err := resolveConversionOutput("input.png", output, "png")
+		if err == nil {
+			t.Fatalf("expected output %q to be rejected", output)
+		}
+	}
+}
+
 func TestExecuteMediaConversionRejectsOversizedFile(t *testing.T) {
 	workspaceDir := t.TempDir()
 	imagePath := filepath.Join(workspaceDir, "sample.png")
@@ -166,7 +182,6 @@ func TestExecuteMediaConversionRejectsOversizedFile(t *testing.T) {
 	if got, _ := result["status"].(string); got != "success" {
 		t.Fatalf("zero limit means unlimited: status = %q, want success", got)
 	}
-
 
 	// Test checkMediaFileSize logic directly for rejection and acceptance
 	if err := checkMediaFileSize(&config.MediaConversionConfig{MaxFileSizeMB: 1}, imagePath); err != nil {
