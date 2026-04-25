@@ -242,6 +242,10 @@
     pointer-events: none;
 }
 
+.stt-btn .chat-ui-icon {
+    --chat-ui-icon-size: 24px;
+}
+
 .stt-cancel {
     background: rgba(239, 68, 68, 0.1);
     color: #ef4444;

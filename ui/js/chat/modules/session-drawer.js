@@ -123,7 +123,7 @@ window.SessionDrawer = (function () {
                             ${s.message_count > 0 ? `<span class="session-item-count">${s.message_count}</span>` : ''}
                         </div>
                     </div>
-                    ${!isActive ? `<button class="session-item-delete" data-delete-id="${escapeAttr(s.id)}" title="${escapeAttr(t('chat.sessions_delete'))}">✕</button>` : ''}
+                    ${!isActive ? `<button class="session-item-delete" data-delete-id="${escapeAttr(s.id)}" title="${escapeAttr(t('chat.sessions_delete'))}">${window.chatUiIconMarkup ? window.chatUiIconMarkup('close') : ''}</button>` : ''}
                 </div>`;
         }).join('');
 

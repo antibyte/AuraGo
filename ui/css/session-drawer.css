@@ -183,6 +183,11 @@
     transition: opacity 0.2s, color 0.2s, background 0.2s;
     flex-shrink: 0;
 }
+
+.session-item-delete .chat-ui-icon {
+    --chat-ui-icon-size: 1rem;
+}
+
 .session-item:hover .session-item-delete {
     opacity: 1;
 }

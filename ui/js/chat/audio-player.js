@@ -42,8 +42,8 @@ class ChatAudioPlayer {
         
         container.innerHTML = `
             <button class="audio-play-btn" title="${t('chat.audio_play_pause')}">
-                <span class="play-icon">▶</span>
-                <span class="pause-icon is-hidden">⏸</span>
+                ${window.chatUiIconMarkup ? window.chatUiIconMarkup('play', 'play-icon') : ''}
+                ${window.chatUiIconMarkup ? window.chatUiIconMarkup('pause', 'pause-icon is-hidden') : ''}
             </button>
             <div class="audio-progress-container">
                 <div class="audio-progress-bar">
@@ -57,7 +57,7 @@ class ChatAudioPlayer {
                 <span class="total">${this.formatTime(this.duration)}</span>
             </div>
             <button class="audio-speed-btn" title="${t('chat.audio_speed')}">1.0x</button>
-            <button class="audio-download-btn" title="${t('chat.audio_download')}">⬇</button>
+            <button class="audio-download-btn" title="${t('chat.audio_download')}">${window.chatUiIconMarkup ? window.chatUiIconMarkup('download') : ''}</button>
         `;
 
         // Event listeners
@@ -183,6 +183,7 @@ class ChatAudioPlayer {
     updatePlayButton() {
         const playIcon = this.element.querySelector('.play-icon');
         const pauseIcon = this.element.querySelector('.pause-icon');
+        if (!playIcon || !pauseIcon) return;
         
         if (this.isPlaying) {
             playIcon.classList.add('is-hidden');
@@ -210,7 +211,7 @@ class ChatAudioPlayer {
     showError() {
         this.element.innerHTML = `
             <div class="audio-error">
-                ❌ ${t('chat.audio_failed_load')}
+                ${window.chatUiIconMarkup ? window.chatUiIconMarkup('error') : ''} ${t('chat.audio_failed_load')}
                 <button onclick="this.parentElement.parentElement.remove()">${t('chat.audio_dismiss')}</button>
             </div>
         `;

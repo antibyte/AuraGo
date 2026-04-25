@@ -27,7 +27,7 @@
             this.scrollButton = document.createElement('button');
             this.scrollButton.className = 'scroll-to-bottom-btn';
             this.scrollButton.innerHTML = `
-                <span class="stb-icon">↓</span>
+                ${window.chatUiIconMarkup ? window.chatUiIconMarkup('scroll-down', 'stb-icon') : ''}
                 <span class="stb-count"></span>
             `;
             this.scrollButton.style.display = 'none';

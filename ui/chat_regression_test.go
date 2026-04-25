@@ -331,6 +331,141 @@ func TestChatToolIconPngSpriteCatalogRemainsWired(t *testing.T) {
 	}
 }
 
+func TestChatUIEmojiIconsAreImageAssets(t *testing.T) {
+	t.Parallel()
+
+	iconsPath := filepath.Join("js", "chat", "ui-icons.js")
+	spritePath := filepath.Join("img", "chat-ui-icons-sprite.png")
+	iconDir := filepath.Join("img", "chat-ui-icons")
+	cssPath := filepath.Join("css", "chat.css")
+	indexPath := "index.html"
+
+	iconsContent, err := os.ReadFile(iconsPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", iconsPath, err)
+	}
+	cssContent, err := os.ReadFile(cssPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", cssPath, err)
+	}
+	indexContent, err := os.ReadFile(indexPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", indexPath, err)
+	}
+
+	iconsJS := string(iconsContent)
+	requiredMarkers := []string{
+		"const CHAT_UI_ICON_DEFINITIONS = [",
+		"window.AuraChatIcons",
+		"chatUiIconMarkup",
+		"hydrate(root = document)",
+	}
+	for _, marker := range requiredMarkers {
+		if !strings.Contains(iconsJS, marker) {
+			t.Fatalf("%s is missing chat UI icon marker %q", iconsPath, marker)
+		}
+	}
+	if got := strings.Count(iconsJS, "sourceSlot: "); got != 100 {
+		t.Fatalf("%s has %d sprite source mappings, want 100", iconsPath, got)
+	}
+
+	requiredIconKeys := []string{
+		"robot", "user", "bot", "conversation", "speaker", "speaker-muted", "credit-card",
+		"theme-dark", "theme-light", "theme-retro-crt", "theme-cyberwar", "theme-lollipop",
+		"theme-dark-sun", "theme-ocean", "theme-sandstorm", "theme-papyrus", "theme-black-matrix",
+		"mood-brain", "mood-curious", "mood-focused", "mood-creative", "mood-analytical",
+		"mood-cautious", "mood-playful", "warning", "close", "new-chat", "voice", "clear",
+		"attach", "clipboard", "bell", "feedback", "stop", "send", "more", "positive",
+		"negative", "angry", "laughing", "crying", "amazed", "document", "edit-document",
+		"spreadsheet", "presentation", "csv", "markdown", "text-file", "json", "xml", "web",
+		"image", "video", "audio", "pdf", "archive", "pending", "upload", "complete", "error",
+		"folder", "retry", "play", "pause", "download", "expand", "target", "in-progress",
+		"blocked", "skipped", "info", "chevron-down", "scroll-down",
+	}
+	for _, key := range requiredIconKeys {
+		if !strings.Contains(iconsJS, "key: '"+key+"'") {
+			t.Fatalf("%s is missing chat UI icon key %q", iconsPath, key)
+		}
+		iconPath := filepath.Join(iconDir, key+".png")
+		assertPNGIcon(t, iconPath, 128, 128)
+	}
+
+	assertPNGIcon(t, spritePath, 1280, 1280)
+
+	css := string(cssContent)
+	for _, marker := range []string{
+		".chat-ui-icon",
+		"--chat-ui-icon-url",
+		".chat-ui-icon.is-large",
+		".chat-theme-option-icon .chat-ui-icon",
+		".mood-btn .chat-ui-icon",
+	} {
+		if !strings.Contains(css, marker) {
+			t.Fatalf("%s is missing chat UI icon CSS marker %q", cssPath, marker)
+		}
+	}
+
+	indexHTML := string(indexContent)
+	for _, marker := range []string{
+		`/js/chat/ui-icons.js`,
+		`data-chat-icon="robot"`,
+		`data-chat-icon="voice"`,
+		`data-chat-icon="send"`,
+		`data-chat-icon="warning"`,
+		`data-chat-icon="positive"`,
+		`data-chat-icon="attach"`,
+	} {
+		if !strings.Contains(indexHTML, marker) {
+			t.Fatalf("%s is missing chat UI icon wiring marker %q", indexPath, marker)
+		}
+	}
+
+	disallowedStaticGlyphs := []string{"🤖", "💬", "🔇", "💳", "🧠", "🛡️", "🎤", "📎", "📋", "🔔", "🙂", "➤", "⋯", "👍", "👎", "😡", "😂", "😢", "😲"}
+	for _, glyph := range disallowedStaticGlyphs {
+		if strings.Contains(indexHTML, glyph) {
+			t.Fatalf("%s still contains static emoji/icon glyph %q", indexPath, glyph)
+		}
+	}
+}
+
+func assertPNGIcon(t *testing.T, path string, wantWidth, wantHeight int) {
+	t.Helper()
+
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	const pngHeaderLen = 26
+	if len(content) < pngHeaderLen || string(content[:8]) != "\x89PNG\r\n\x1a\n" || string(content[12:16]) != "IHDR" {
+		t.Fatalf("%s is not a valid PNG header", path)
+	}
+	width := binary.BigEndian.Uint32(content[16:20])
+	height := binary.BigEndian.Uint32(content[20:24])
+	colorType := content[25]
+	if int(width) != wantWidth || int(height) != wantHeight {
+		t.Fatalf("%s is %dx%d, want %dx%d", path, width, height, wantWidth, wantHeight)
+	}
+	if colorType != 6 {
+		t.Fatalf("%s uses PNG color type %d, want 6 for RGBA alpha", path, colorType)
+	}
+	img, err := png.Decode(bytes.NewReader(content))
+	if err != nil {
+		t.Fatalf("decode %s: %v", path, err)
+	}
+	if got := img.Bounds().Dx(); got != wantWidth {
+		t.Fatalf("%s decoded width is %d, want %d", path, got, wantWidth)
+	}
+	if got := img.Bounds().Dy(); got != wantHeight {
+		t.Fatalf("%s decoded height is %d, want %d", path, got, wantHeight)
+	}
+	for _, point := range [][2]int{{0, 0}, {wantWidth - 1, 0}, {0, wantHeight - 1}, {wantWidth - 1, wantHeight - 1}} {
+		_, _, _, a := img.At(point[0], point[1]).RGBA()
+		if a != 0 {
+			t.Fatalf("%s has non-transparent corner pixel at %v, alpha=%d", path, point, a)
+		}
+	}
+}
+
 func TestMediaFrontend_VideoTabFlowRemainsPresent(t *testing.T) {
 	t.Parallel()
 

@@ -140,7 +140,8 @@ function appendMessage(role, text) {
                 thinkingBlocks.forEach((innerText, idx) => {
                     const innerHtml = md.render(innerText);
                     const label = (typeof t === 'function') ? t('chat.thinking_label') : 'Reasoning';
-                    const detailsHtml = `<details class="thinking-block"><summary>🧠 ${label}</summary><div class="thinking-content">${innerHtml}</div></details>`;
+                    const icon = window.chatUiIconMarkup ? window.chatUiIconMarkup('mood-brain', 'thinking-block-icon') : '';
+                    const detailsHtml = `<details class="thinking-block"><summary>${icon} ${label}</summary><div class="thinking-content">${innerHtml}</div></details>`;
                     // Replace whether it is wrapped in paragraph or not
                     finalHTML = finalHTML.replace(new RegExp(`<p>%%THINKING_BLOCK_${idx}%%</p>`, 'g'), detailsHtml);
                     finalHTML = finalHTML.replace(new RegExp(`%%THINKING_BLOCK_${idx}%%`, 'g'), detailsHtml);
@@ -168,7 +169,7 @@ function appendMessage(role, text) {
     }
 
     const side = isUser ? 'user' : 'bot';
-    const avatarIcon = isUser ? '🧑' : '🤖';
+    const avatarIcon = window.chatUiIconMarkup ? window.chatUiIconMarkup(isUser ? 'user' : 'bot') : '';
     const bubbleClass = isTechnical ? 'bubble bot technical' : `bubble ${side}`;
 
     const msgHTML = `
@@ -205,13 +206,14 @@ function appendToolOutput(text, label) {
     if (greet) greet.remove();
     const escaped = escapeHtml(text);
     const lbl = label || t('chat.tool_output_label');
+    const settingsIcon = window.chatUiIconMarkup ? window.chatUiIconMarkup('settings') : '';
     const row = document.createElement('div');
     row.className = 'tool-output-row';
     row.innerHTML = `
-                <div class="avatar bot">⚙️</div>
+                <div class="avatar bot">${settingsIcon}</div>
                 <div class="tool-output-block">
                     <details>
-                        <summary>⚙️ ${lbl}</summary>
+                        <summary>${settingsIcon} ${lbl}</summary>
                         <div class="tool-output-content">${escaped}</div>
                     </details>
                 </div>
@@ -401,7 +403,8 @@ function appendVideoMessage(videoData) {
 
     const row = document.createElement('div');
     row.className = 'msg-row bot';
-    row.innerHTML = '<div class="avatar bot">🤖</div><div class="bubble bot"></div>';
+    const botIcon = window.chatUiIconMarkup ? window.chatUiIconMarkup('bot') : '';
+    row.innerHTML = `<div class="avatar bot">${botIcon}</div><div class="bubble bot"></div>`;
     row.querySelector('.bubble').appendChild(createChatVideoElement(videoData));
     chatContent.appendChild(row);
     chatBox.scrollTop = chatBox.scrollHeight;
@@ -506,19 +509,20 @@ function decorateEmojiGlyphs(root) {
 
 window.decorateEmojiGlyphs = decorateEmojiGlyphs;
 
-/** Returns an emoji icon for common document formats. */
+/** Returns image icon markup for common document formats. */
 function docFormatIcon(fmt) {
+    const markup = window.chatUiIconMarkup || (() => '');
     switch ((fmt || '').toLowerCase()) {
-        case 'pdf': return '📄';
-        case 'docx': case 'doc': return '📝';
-        case 'xlsx': case 'xls': return '📊';
-        case 'pptx': case 'ppt': return '📑';
-        case 'csv': return '📋';
-        case 'md': return '📓';
-        case 'txt': return '📃';
-        case 'json': return '🔧';
-        case 'xml': return '🗂️';
-        case 'html': case 'htm': return '🌐';
-        default: return '📎';
+        case 'pdf': return markup('pdf');
+        case 'docx': case 'doc': return markup('edit-document');
+        case 'xlsx': case 'xls': return markup('spreadsheet');
+        case 'pptx': case 'ppt': return markup('presentation');
+        case 'csv': return markup('csv');
+        case 'md': return markup('markdown');
+        case 'txt': return markup('text-file');
+        case 'json': return markup('json');
+        case 'xml': return markup('xml');
+        case 'html': case 'htm': return markup('web');
+        default: return markup('attach');
     }
 }

@@ -360,7 +360,8 @@ function handleSSEMessage(e) {
                         wrapper.appendChild(player.element);
                         const row = document.createElement('div');
                         row.className = 'msg-row bot';
-                        row.innerHTML = '\u003cdiv class="avatar bot"\u003e\ud83e\udd16\u003c/div\u003e\u003cdiv class="bubble bot"\u003e\u003c/div\u003e';
+                        const botIcon = window.chatUiIconMarkup ? window.chatUiIconMarkup('bot') : '';
+                        row.innerHTML = `<div class="avatar bot">${botIcon}</div><div class="bubble bot"></div>`;
                         row.querySelector('.bubble').appendChild(wrapper);
                         chatContent.appendChild(row);
                         chatBox.scrollTop = chatBox.scrollHeight;
@@ -387,11 +388,13 @@ function handleSSEMessage(e) {
                     const docIcon = docFormatIcon(docData.format);
                     const previewUrl = isSafeHref(docData.preview_url, true) ? docData.preview_url : '';
                     const downloadPath = isSafeHref(docData.path, true) ? docData.path : '';
+                    const openIcon = window.chatUiIconMarkup ? window.chatUiIconMarkup('search') : '';
+                    const downloadIcon = window.chatUiIconMarkup ? window.chatUiIconMarkup('download') : '';
                     const openBtn = previewUrl
-                        ? `\u003ca href="${escapeHtml(previewUrl)}" target="_blank" rel="noopener noreferrer" title="Open"\u003e\ud83d\udd0d\u003c/a\u003e`
+                        ? `<a href="${escapeHtml(previewUrl)}" target="_blank" rel="noopener noreferrer" title="Open">${openIcon}</a>`
                         : '';
                     const dlBtn = downloadPath
-                        ? `\u003ca href="${escapeHtml(downloadPath)}" download="${escapeHtml(docData.filename || 'document')}" title="Download"\u003e\u2b07\u003c/a\u003e`
+                        ? `<a href="${escapeHtml(downloadPath)}" download="${escapeHtml(docData.filename || 'document')}" title="Download">${downloadIcon}</a>`
                         : '';
                     const cardHTML = `
                         \u003cdiv class="chat-document-card"\u003e
@@ -404,7 +407,8 @@ function handleSSEMessage(e) {
                         \u003c/div\u003e`;
                     const row = document.createElement('div');
                     row.className = 'msg-row bot';
-                    row.innerHTML = '\u003cdiv class="avatar bot"\u003e\ud83e\udd16\u003c/div\u003e\u003cdiv class="bubble bot"\u003e\u003c/div\u003e';
+                    const botIcon = window.chatUiIconMarkup ? window.chatUiIconMarkup('bot') : '';
+                    row.innerHTML = `<div class="avatar bot">${botIcon}</div><div class="bubble bot"></div>`;
                     row.querySelector('.bubble').insertAdjacentHTML('beforeend', cardHTML);
                     chatContent.appendChild(row);
                     chatBox.scrollTop = chatBox.scrollHeight;

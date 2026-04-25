@@ -53,10 +53,10 @@
                     </div>
                     <div class="vr-controls">
                         <button class="vr-btn vr-cancel" title="${this._t('voice_cancel', 'Cancel')}">
-                            <span>✕</span>
+                            ${window.chatUiIconMarkup ? window.chatUiIconMarkup('close') : ''}
                         </button>
                         <button class="vr-btn vr-send" title="${this._t('voice_send', 'Send')}">
-                            <span>➤</span>
+                            ${window.chatUiIconMarkup ? window.chatUiIconMarkup('send') : ''}
                         </button>
                     </div>
                 </div>

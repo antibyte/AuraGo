@@ -23,31 +23,42 @@ const cheatsheetPickerCloseXBtn = document.getElementById('cheatsheet-picker-clo
 let cheatsheetPickerItems = [];
 let selectedCheatsheetId = '';
 
+function chatIconMarkup(iconName, className = '') {
+    return window.chatUiIconMarkup ? window.chatUiIconMarkup(iconName, className) : '';
+}
 
-/* ── Mood Feedback Buttons (insert emoji + personality feedback) ── */
-const moodEmojiMap = {
-    positive: '👍',
-    negative: '👎',
-    angry: '😡',
-    laughing: '😂',
-    crying: '😢',
-    amazed: '😲'
-};
+function applyChatIcon(el, iconName) {
+    if (!el) return;
+    if (window.AuraChatIcons) {
+        window.AuraChatIcons.applyIcon(el, iconName);
+    } else {
+        el.dataset.chatIcon = iconName;
+    }
+}
+
+function setIconButton(btn, iconName) {
+    if (!btn) return;
+    btn.textContent = '';
+    if (window.AuraChatIcons) {
+        btn.appendChild(window.AuraChatIcons.createIcon(iconName));
+    }
+}
+
+function setIconPillText(el, iconName, text) {
+    if (!el) return;
+    el.textContent = '';
+    if (window.AuraChatIcons) {
+        el.appendChild(window.AuraChatIcons.createIcon(iconName));
+        el.appendChild(document.createTextNode(' '));
+    }
+    el.appendChild(document.createTextNode(text));
+}
+
+
+/* ── Mood Feedback Buttons ── */
 document.querySelectorAll('.mood-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
         const feedbackType = btn.dataset.feedback;
-        const emoji = moodEmojiMap[feedbackType] || '';
-
-        // Insert emoji at cursor position in the textarea
-        const ta = document.getElementById('user-input');
-        const start = ta.selectionStart;
-        const end = ta.selectionEnd;
-        const before = ta.value.substring(0, start);
-        const after = ta.value.substring(end);
-        ta.value = before + emoji + after;
-        ta.selectionStart = ta.selectionEnd = start + emoji.length;
-        ta.focus();
-        autoResize();
 
         // Send personality feedback to backend
         btn.disabled = true;
@@ -347,7 +358,7 @@ let _audioPlaying = false;
 function updateSpeakerButton() {
     const btn = document.getElementById('speaker-toggle');
     if (!btn) return;
-    btn.textContent = speakerMode ? '🔊' : '🔇';
+    setIconButton(btn, speakerMode ? 'speaker' : 'speaker-muted');
     btn.title = speakerMode ? t('chat.speaker_on_title') : t('chat.speaker_off_title');
     btn.classList.toggle('speaker-active', speakerMode);
 }
@@ -409,12 +420,12 @@ function renderPlanStatusBadge(status) {
 
 function renderPlanTask(task) {
     const status = task && task.status ? task.status : 'pending';
-    const icon = status === 'completed' ? '✅'
-        : status === 'in_progress' ? '⟳'
-        : status === 'blocked' ? '⛔'
-        : status === 'failed' ? '⚠️'
-        : status === 'skipped' ? '⏭'
-        : '⬜';
+    const icon = chatIconMarkup(status === 'completed' ? 'complete'
+        : status === 'in_progress' ? 'in-progress'
+        : status === 'blocked' ? 'blocked'
+        : status === 'failed' ? 'error'
+        : status === 'skipped' ? 'skipped'
+        : 'pending');
     const desc = task && task.description ? `<div class="todo-item-meta">${escapeHtml(task.description)}</div>` : '';
     const blocker = task && task.blocker_reason ? `<div class="todo-item-meta">Blocker: ${escapeHtml(task.blocker_reason)}</div>` : '';
     const artifacts = task && Array.isArray(task.artifacts) && task.artifacts.length
@@ -436,7 +447,7 @@ function updatePlanPanel(plan) {
     const counts = plan.task_counts || {};
     const progress = Number.isFinite(plan.progress_pct) ? plan.progress_pct : 0;
     const currentTask = plan.current_task
-        ? `<div class="todo-item todo-pending">🎯 ${escapeHtml(plan.current_task)}</div>`
+        ? `<div class="todo-item todo-pending">${chatIconMarkup('target')} ${escapeHtml(plan.current_task)}</div>`
         : '';
     const blocked = plan.blocked_reason
         ? `<div class="todo-item-meta">${escapeHtml(t('plans.blocked_reason'))}: ${escapeHtml(plan.blocked_reason)}</div>`
@@ -452,7 +463,7 @@ function updatePlanPanel(plan) {
     panel.innerHTML = `
         <div class="todo-debug-header"><span>${headerTitle}</span>${renderPlanStatusBadge(plan.status)}</div>
         <div class="todo-debug-body">
-            <div class="todo-item todo-pending">📈 ${progressLabel}: ${progress}% (${counts.completed || 0}/${counts.total || tasks.length || 0})</div>
+            <div class="todo-item todo-pending">${chatIconMarkup('activity')} ${progressLabel}: ${progress}% (${counts.completed || 0}/${counts.total || tasks.length || 0})</div>
             ${currentTask}
             ${blocked}
             ${recommendation}
@@ -476,7 +487,7 @@ function updateTodoPanel(todoText) {
             const done = /^\s*-\s*\[x\]/i.test(line);
             const text = line.replace(/^\s*-\s*\[[ x]\]\s*/i, '').trim();
             return '<div class="todo-item ' + (done ? 'todo-done' : 'todo-pending') + '">'
-                + (done ? '✅' : '⬜') + ' ' + escapeHtml(text) + '</div>';
+                + chatIconMarkup(done ? 'complete' : 'pending') + ' ' + escapeHtml(text) + '</div>';
         }).join('');
     }
     chatSetHidden(panel, false);
@@ -689,7 +700,7 @@ function renderPendingAttachments() {
                     <div class="attachment-filename" title="${safeName}">${safeName}</div>
                     <div class="attachment-path" title="${safePath}">${safePath}</div>
                 </div>
-                <button type="button" class="attachment-remove" data-idx="${idx}" title="${removeTitle}">✕</button>
+                <button type="button" class="attachment-remove" data-idx="${idx}" title="${removeTitle}">${chatIconMarkup('close')}</button>
             </div>
         `;
     }).join('');
@@ -1028,14 +1039,14 @@ function updateCreditsPills(c) {
     if (el) {
         chatSetHidden(el, false);
         if (c.limit > 0) {
-            el.textContent = t('chat.credits_pill_text', { amount: c.balance.toFixed(2) });
+            setIconPillText(el, 'credit-card', t('chat.credits_pill_text', { amount: c.balance.toFixed(2) }));
             el.title = t('chat.credits_tooltip_used_limit', { usage: c.usage.toFixed(2), limit: c.limit.toFixed(2) });
             el.classList.remove('budget-warning', 'budget-exceeded');
             const pct = c.usage / c.limit;
             if (pct >= 1.0) el.classList.add('budget-exceeded');
             else if (pct >= 0.8) el.classList.add('budget-warning');
         } else {
-            el.textContent = t('chat.credits_pill_text', { amount: c.usage.toFixed(2) });
+            setIconPillText(el, 'credit-card', t('chat.credits_pill_text', { amount: c.usage.toFixed(2) }));
             el.title = t('chat.credits_tooltip_payg', { usage: c.usage.toFixed(2) });
         }
     }
@@ -1046,9 +1057,9 @@ document.getElementById('creditsPill').addEventListener('click', () => {
 fetch('/api/credits').then(r => r.json()).then(updateCreditsPills).catch(() => { });
 
 /* ── Mood Widget ── */
-const moodStateEmojiMap = {
-    curious: '🔍', focused: '🎯', creative: '🎨',
-    analytical: '📊', cautious: '🛡️', playful: '🎮'
+const moodStateIconMap = {
+    curious: 'mood-curious', focused: 'mood-focused', creative: 'mood-creative',
+    analytical: 'mood-analytical', cautious: 'mood-cautious', playful: 'mood-playful'
 };
 const moodNameKeys = {
     curious: 'chat.mood_curious', focused: 'chat.mood_focused', creative: 'chat.mood_creative',
@@ -1070,11 +1081,11 @@ function updateMoodWidget(data) {
     if (!data || !data.enabled) return;
     const toggle = document.getElementById('moodToggle');
     const emotionEl = document.getElementById('moodEmotion');
-    const emoji = moodStateEmojiMap[data.mood] || '🧠';
+    const iconKey = moodStateIconMap[data.mood] || 'mood-brain';
     const moodLabel = t(moodNameKeys[data.mood] || 'chat.mood_default_text');
-    document.getElementById('moodEmoji').textContent = emoji;
+    applyChatIcon(document.getElementById('moodEmoji'), iconKey);
     document.getElementById('moodText').textContent = moodLabel;
-    document.getElementById('moodPanelEmoji').textContent = emoji;
+    applyChatIcon(document.getElementById('moodPanelEmoji'), iconKey);
     document.getElementById('moodPanelLabel').textContent = moodLabel;
     if (emotionEl) {
         if (data.current_emotion) {
@@ -1231,17 +1242,17 @@ function initPushUI() {
 }
 
 /* ── Chat Theme Picker ── */
-const THEME_ICONS = {
-    'dark': '◐',
-    'light': '☀',
-    'retro-crt': '▣',
-    'cyberwar': '✦',
-    'lollipop': '✿',
-    'dark-sun': '☼',
-    'ocean': '◌',
-    'sandstorm': '◍',
-    'papyrus': '≋',
-    'black-matrix': '▥'
+const THEME_ICON_KEYS = {
+    'dark': 'theme-dark',
+    'light': 'theme-light',
+    'retro-crt': 'theme-retro-crt',
+    'cyberwar': 'theme-cyberwar',
+    'lollipop': 'theme-lollipop',
+    'dark-sun': 'theme-dark-sun',
+    'ocean': 'theme-ocean',
+    'sandstorm': 'theme-sandstorm',
+    'papyrus': 'theme-papyrus',
+    'black-matrix': 'theme-black-matrix'
 };
 
 function initChatThemePicker() {
@@ -1254,7 +1265,7 @@ function initChatThemePicker() {
     picker.dataset.initialized = 'true';
 
     function _refreshIcon(theme) {
-        icon.textContent = THEME_ICONS[theme] || '◐';
+        applyChatIcon(icon, THEME_ICON_KEYS[theme] || 'theme-dark');
     }
 
     function _selectOption(theme) {

@@ -36,11 +36,11 @@ class VoiceRecorder {
                 <canvas class="recorder-waveform" width="200" height="40"></canvas>
                 <div class="recorder-controls">
                     <button class="recorder-btn recorder-pause" title="${t('chat.voice_pause_resume')}">
-                        <span class="pause-icon">⏸</span>
-                        <span class="resume-icon is-hidden">▶</span>
+                        ${window.chatUiIconMarkup ? window.chatUiIconMarkup('pause', 'pause-icon') : ''}
+                        ${window.chatUiIconMarkup ? window.chatUiIconMarkup('play', 'resume-icon is-hidden') : ''}
                     </button>
-                    <button class="recorder-btn recorder-cancel" title="${t('chat.voice_cancel')}">✕</button>
-                    <button class="recorder-btn recorder-send" title="${t('chat.voice_send')}">➤</button>
+                    <button class="recorder-btn recorder-cancel" title="${t('chat.voice_cancel')}">${window.chatUiIconMarkup ? window.chatUiIconMarkup('close') : ''}</button>
+                    <button class="recorder-btn recorder-send" title="${t('chat.voice_send')}">${window.chatUiIconMarkup ? window.chatUiIconMarkup('send') : ''}</button>
                 </div>
             </div>
         `;

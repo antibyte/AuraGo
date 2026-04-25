@@ -33,7 +33,7 @@
                     <div class="code-header">
                         <span class="code-lang">${lang || 'text'}</span>
                         <button class="copy-btn" onclick="copyCodeBlock(this)" data-code="${this.encodeHtml(code)}">
-                            <span class="copy-icon">📋</span>
+                            ${window.chatUiIconMarkup ? window.chatUiIconMarkup('clipboard', 'copy-icon') : ''}
                             <span class="copy-text">${t('chat.code_copy')}</span>
                         </button>
                     </div>
@@ -52,7 +52,7 @@
                 const originalHTML = btn.innerHTML;
                 btn.classList.add('copied');
                 btn.innerHTML = `
-                    <span class="copy-icon">✓</span>
+                    ${window.chatUiIconMarkup ? window.chatUiIconMarkup('complete', 'copy-icon') : ''}
                     <span class="copy-text">${t('chat.code_copied')}</span>
                 `;
                 

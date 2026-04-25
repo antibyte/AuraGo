@@ -40,10 +40,11 @@
             this.overlay.className = 'drag-drop-overlay';
             this.overlay.innerHTML = `
                 <div class="dd-message">
-                    <div class="dd-icon">📁</div>
+                    <div class="dd-icon chat-ui-icon" data-chat-icon="folder"></div>
                     <div class="dd-text">Drop files to upload</div>
                 </div>
             `;
+            if (window.AuraChatIcons) window.AuraChatIcons.hydrate(this.overlay);
             document.body.appendChild(this.overlay);
         },
 
@@ -138,7 +139,7 @@
             let html = `
                 <div class="uq-header">
                     <span>${this.uploadQueue.length} files</span>
-                    <button class="uq-close">✕</button>
+                    <button class="uq-close">${window.chatUiIconMarkup ? window.chatUiIconMarkup('close') : ''}</button>
                 </div>
                 <div class="uq-items">
             `;
@@ -164,9 +165,9 @@
                             ` : ''}
                         </div>
                         ${item.status === 'error' ? `
-                            <button class="uq-retry" data-id="${item.id}">↻</button>
+                            <button class="uq-retry" data-id="${item.id}">${window.chatUiIconMarkup ? window.chatUiIconMarkup('retry') : ''}</button>
                         ` : ''}
-                        <button class="uq-remove" data-id="${item.id}">✕</button>
+                        <button class="uq-remove" data-id="${item.id}">${window.chatUiIconMarkup ? window.chatUiIconMarkup('close') : ''}</button>
                     </div>
                 `;
             });
@@ -176,7 +177,7 @@
             if (completed === this.uploadQueue.length) {
                 html += `
                     <div class="uq-footer">
-                        <span>✓ Complete</span>
+                        <span>${window.chatUiIconMarkup ? window.chatUiIconMarkup('complete') : ''} Complete</span>
                         <button class="uq-clear">Clear</button>
                     </div>
                 `;
@@ -310,12 +311,13 @@
         },
 
         getFileIcon(file) {
-            if (file.type.startsWith('image/')) return '🖼️';
-            if (file.type.startsWith('video/')) return '🎬';
-            if (file.type.startsWith('audio/')) return '🎵';
-            if (file.type.includes('pdf')) return '📕';
-            if (file.type.includes('zip')) return '📦';
-            return '📎';
+            const markup = window.chatUiIconMarkup || (() => '');
+            if (file.type.startsWith('image/')) return markup('image');
+            if (file.type.startsWith('video/')) return markup('video');
+            if (file.type.startsWith('audio/')) return markup('audio');
+            if (file.type.includes('pdf')) return markup('pdf');
+            if (file.type.includes('zip')) return markup('archive');
+            return markup('attach');
         },
 
         formatSize(bytes) {

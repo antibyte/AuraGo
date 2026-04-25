@@ -63,6 +63,10 @@
     font-size: 12px;
 }
 
+.stb-icon.chat-ui-icon {
+    --chat-ui-icon-size: 16px;
+}
+
 .stb-count {
     font-weight: 600;
     min-width: 16px;
@@ -139,6 +143,10 @@
 
 .copy-icon {
     font-size: 11px;
+}
+
+.copy-icon.chat-ui-icon {
+    --chat-ui-icon-size: 14px;
 }
 
 .code-body {
@@ -354,6 +362,10 @@
     margin-bottom: 16px;
 }
 
+.dd-icon.chat-ui-icon {
+    --chat-ui-icon-size: 56px;
+}
+
 .dd-text {
     font-size: 18px;
     font-weight: 500;
@@ -433,6 +445,10 @@
 .uq-icon {
     font-size: 20px;
     flex-shrink: 0;
+}
+
+.uq-icon .chat-ui-icon {
+    --chat-ui-icon-size: 22px;
 }
 
 .uq-info {
@@ -577,6 +593,11 @@
     color: var(--text-secondary, #94a3b8);
     cursor: pointer;
     transition: all 0.2s;
+}
+
+.mc-btn .chat-ui-icon,
+.vr-btn .chat-ui-icon {
+    --chat-ui-icon-size: 20px;
 }
 
 .mc-btn:hover {

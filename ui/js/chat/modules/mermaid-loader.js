@@ -370,7 +370,7 @@
                         console.error('[MermaidLoader] Render error:', err);
                         block.innerHTML = `
                             <div class="mermaid-error">
-                                <div class="me-title">⚠️ Diagram Error</div>
+                                <div class="me-title">${window.chatUiIconMarkup ? window.chatUiIconMarkup('warning') : ''} Diagram Error</div>
                                 <div class="me-msg">${escapeHtml(err.message || 'Failed to render')}</div>
                             </div>
                         `;
@@ -388,9 +388,9 @@
             wrapper.innerHTML = `
                 <div class="mermaid-diagram">${svg}</div>
                 <div class="mermaid-controls">
-                    <button class="mc-btn mc-copy" title="Copy source">📋</button>
-                    <button class="mc-btn mc-expand" title="Expand">⛶</button>
-                    <button class="mc-btn mc-download" title="Download SVG">⬇</button>
+                    <button class="mc-btn mc-copy" title="Copy source">${window.chatUiIconMarkup ? window.chatUiIconMarkup('clipboard') : ''}</button>
+                    <button class="mc-btn mc-expand" title="Expand">${window.chatUiIconMarkup ? window.chatUiIconMarkup('expand') : ''}</button>
+                    <button class="mc-btn mc-download" title="Download SVG">${window.chatUiIconMarkup ? window.chatUiIconMarkup('download') : ''}</button>
                 </div>
             `;
 
@@ -418,7 +418,7 @@
             modal.innerHTML = `
                 <div class="mm-overlay"></div>
                 <div class="mm-content">
-                    <button class="mm-close">✕</button>
+                    <button class="mm-close">${window.chatUiIconMarkup ? window.chatUiIconMarkup('close') : ''}</button>
                     <div class="mm-diagram">${svg}</div>
                 </div>
             `;

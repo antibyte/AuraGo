@@ -52,7 +52,7 @@ class DragDropManager {
         this.overlay.className = 'drag-drop-overlay';
         this.overlay.innerHTML = `
             <div class="drag-drop-message">
-                <div class="drag-drop-icon">📁</div>
+                <div class="drag-drop-icon">${window.chatUiIconMarkup ? window.chatUiIconMarkup('folder') : ''}</div>
                 <div class="drag-drop-text">${t('chat.drag_drop_title')}</div>
             </div>
         `;
@@ -143,7 +143,7 @@ class DragDropManager {
                 <span class="queue-title">
                     ${t('chat.drag_drop_uploading', { count: count })}
                 </span>
-                <button class="queue-close" onclick="dragDropManager.closeQueue()">✕</button>
+                <button class="queue-close" onclick="dragDropManager.closeQueue()">${window.chatUiIconMarkup ? window.chatUiIconMarkup('close') : ''}</button>
             </div>
             <div class="queue-items">
         `;
@@ -172,9 +172,9 @@ class DragDropManager {
                         ` : ''}
                     </div>
                     ${item.status === 'error' ? `
-                        <button class="queue-item-retry" onclick="dragDropManager.retryItem('${item.id}')" title="${t('chat.drag_drop_retry')}">↻</button>
+                        <button class="queue-item-retry" onclick="dragDropManager.retryItem('${item.id}')" title="${t('chat.drag_drop_retry')}">${window.chatUiIconMarkup ? window.chatUiIconMarkup('retry') : ''}</button>
                     ` : ''}
-                    <button class="queue-item-remove" onclick="dragDropManager.removeItem('${item.id}')" title="${t('chat.drag_drop_remove')}">✕</button>
+                    <button class="queue-item-remove" onclick="dragDropManager.removeItem('${item.id}')" title="${t('chat.drag_drop_remove')}">${window.chatUiIconMarkup ? window.chatUiIconMarkup('close') : ''}</button>
                 </div>
             `;
         });
@@ -184,7 +184,7 @@ class DragDropManager {
         if (completed === this.uploadQueue.length) {
             html += `
                 <div class="queue-footer">
-                    <span class="queue-complete">✓ ${t('chat.drag_drop_complete')}</span>
+                    <span class="queue-complete">${window.chatUiIconMarkup ? window.chatUiIconMarkup('complete') : ''} ${t('chat.drag_drop_complete')}</span>
                     <button class="queue-clear-btn" onclick="dragDropManager.clearCompleted()">${t('chat.drag_drop_clear')}</button>
                 </div>
             `;
@@ -283,29 +283,29 @@ class DragDropManager {
 
     getFileIcon(file) {
         const typeIcons = {
-            'image/': '🖼️',
-            'video/': '🎬',
-            'audio/': '🎵',
-            'text/': '📄',
-            'application/pdf': '📕',
-            'application/zip': '📦',
-            'application/json': '📋'
+            'image/': 'image',
+            'video/': 'video',
+            'audio/': 'audio',
+            'text/': 'document',
+            'application/pdf': 'pdf',
+            'application/zip': 'archive',
+            'application/json': 'json'
         };
 
         for (const [type, icon] of Object.entries(typeIcons)) {
-            if (file.type.startsWith(type)) return icon;
+            if (file.type.startsWith(type)) return window.chatUiIconMarkup ? window.chatUiIconMarkup(icon) : '';
         }
-        return '📎';
+        return window.chatUiIconMarkup ? window.chatUiIconMarkup('attach') : '';
     }
 
     getStatusIcon(status) {
         const icons = {
-            'pending': '⏳',
-            'uploading': '📤',
-            'complete': '✅',
-            'error': '❌'
+            'pending': 'pending',
+            'uploading': 'upload',
+            'complete': 'complete',
+            'error': 'error'
         };
-        return icons[status] || '⏳';
+        return window.chatUiIconMarkup ? window.chatUiIconMarkup(icons[status] || 'pending') : '';
     }
 
     formatSize(bytes) {

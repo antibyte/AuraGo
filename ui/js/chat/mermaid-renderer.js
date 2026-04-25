@@ -364,7 +364,7 @@ class MermaidRenderer {
                 console.error('Mermaid render error:', err);
                 block.innerHTML = `
                     <div class="mermaid-error">
-                        <div class="error-title">⚠️ ${t('chat.mermaid_error_title')}</div>
+                        <div class="error-title">${window.chatUiIconMarkup ? window.chatUiIconMarkup('warning') : ''} ${t('chat.mermaid_error_title')}</div>
                         <div class="error-message">${mermaidEscapeHtml(err.message || t('chat.mermaid_error_failed'))}</div>
                         <details>
                             <summary>${t('chat.mermaid_view_source')}</summary>
@@ -394,16 +394,16 @@ class MermaidRenderer {
                 </div>
                 <div class="mermaid-actions">
                     <button class="mermaid-btn copy-source" title="${t('chat.mermaid_copy_source')}">
-                        📋 ${t('chat.mermaid_view_source')}
+                        ${window.chatUiIconMarkup ? window.chatUiIconMarkup('clipboard') : ''} ${t('chat.mermaid_view_source')}
                     </button>
                     <button class="mermaid-btn expand" title="${t('chat.mermaid_expand')}">
-                        ⛶ ${t('chat.mermaid_expand')}
+                        ${window.chatUiIconMarkup ? window.chatUiIconMarkup('expand') : ''} ${t('chat.mermaid_expand')}
                     </button>
                     <button class="mermaid-btn download-svg" title="${t('chat.mermaid_download_svg')}">
-                        ⬇ SVG
+                        ${window.chatUiIconMarkup ? window.chatUiIconMarkup('download') : ''} SVG
                     </button>
                     <button class="mermaid-btn download-png" title="${t('chat.mermaid_download_png')}">
-                        ⬇ PNG
+                        ${window.chatUiIconMarkup ? window.chatUiIconMarkup('download') : ''} PNG
                     </button>
                 </div>
             </div>
@@ -544,7 +544,7 @@ class MermaidRenderer {
         modal.innerHTML = `
             <div class="mermaid-modal-overlay"></div>
             <div class="mermaid-modal-content">
-                <button class="mermaid-modal-close">✕</button>
+                <button class="mermaid-modal-close">${window.chatUiIconMarkup ? window.chatUiIconMarkup('close') : ''}</button>
                 <div class="mermaid-modal-diagram"></div>
             </div>
         `;

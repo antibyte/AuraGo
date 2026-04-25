@@ -2016,6 +2016,89 @@
             z-index: 1;
         }
 
+        .chat-ui-icon {
+            --chat-ui-icon-url: none;
+            --chat-ui-icon-size: 1.15em;
+            display: inline-block;
+            width: var(--chat-ui-icon-size);
+            height: var(--chat-ui-icon-size);
+            flex: 0 0 auto;
+            vertical-align: -0.18em;
+            background-image: var(--chat-ui-icon-url);
+            background-repeat: no-repeat;
+            background-position: center;
+            background-size: contain;
+            line-height: 1;
+            color: transparent;
+            user-select: none;
+            pointer-events: none;
+            filter:
+                drop-shadow(0 4px 8px rgba(2, 8, 23, 0.24))
+                drop-shadow(0 0 5px color-mix(in srgb, var(--accent-glow, rgba(45, 212, 191, 0.32)) 62%, transparent));
+        }
+
+        .chat-ui-icon.is-large {
+            --chat-ui-icon-size: 1.7rem;
+        }
+
+        .logo-icon .chat-ui-icon {
+            --chat-ui-icon-size: 1.9rem;
+        }
+
+        .btn-session-toggle .chat-ui-icon,
+        .btn-speaker .chat-ui-icon,
+        .chat-theme-btn .chat-ui-icon,
+        .btn-composer-primary .chat-ui-icon {
+            --chat-ui-icon-size: 1.42rem;
+        }
+
+        .chat-theme-option-icon.chat-ui-icon,
+        .chat-theme-option-icon .chat-ui-icon {
+            --chat-ui-icon-size: 1.05rem;
+        }
+
+        .mood-toggle .chat-ui-icon {
+            --chat-ui-icon-size: 1.05rem;
+        }
+
+        .mood-panel-header .chat-ui-icon {
+            --chat-ui-icon-size: 1.35rem;
+        }
+
+        .warnings-icon.chat-ui-icon {
+            --chat-ui-icon-size: 1.35rem;
+        }
+
+        .composer-tool-btn .chat-ui-icon {
+            --chat-ui-icon-size: 1.15rem;
+        }
+
+        .mood-btn .chat-ui-icon {
+            --chat-ui-icon-size: 1.45rem;
+        }
+
+        .attachment-chip .chat-ui-icon,
+        .modal-title .chat-ui-icon,
+        .chat-document-icon .chat-ui-icon,
+        .avatar .chat-ui-icon {
+            --chat-ui-icon-size: 1.25rem;
+        }
+
+        .queue-item-icon .chat-ui-icon,
+        .recorder-btn .chat-ui-icon,
+        .audio-play-btn .chat-ui-icon,
+        .audio-download-btn .chat-ui-icon,
+        .mermaid-btn .chat-ui-icon,
+        .chat-document-actions .chat-ui-icon,
+        .attachment-remove .chat-ui-icon,
+        .chip-clear .chat-ui-icon {
+            --chat-ui-icon-size: 1.15rem;
+        }
+
+        .avatar .chat-ui-icon {
+            filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.18));
+        }
+
         .tool-icon-sprite {
             --tool-icon-position-x: 100%;
             --tool-icon-position-y: 100%;

@@ -50,58 +50,62 @@
 
     <header class="app-header">
         <a href="/" class="logo">
-            <div class="logo-icon">🤖</div>
+            <div class="logo-icon"><span class="chat-ui-icon is-large" data-chat-icon="robot"></span></div>
             <span class="logo-wordmark-accent">AURA</span><span class="logo-wordmark-base">GO</span>
         </a>
         <div class="header-actions">
             <!-- Session drawer toggle -->
-            <button id="session-toggle-btn" type="button" class="btn-session-toggle" aria-label="Conversations">💬</button>
+            <button id="session-toggle-btn" type="button" class="btn-session-toggle" aria-label="Conversations">
+                <span class="chat-ui-icon" data-chat-icon="conversation"></span>
+            </button>
             <!-- Speaker toggle for TTS auto-play -->
-            <button id="speaker-toggle" type="button" class="btn-speaker" aria-label="Toggle speaker">🔇</button>
+            <button id="speaker-toggle" type="button" class="btn-speaker" aria-label="Toggle speaker">
+                <span class="chat-ui-icon" data-chat-icon="speaker-muted"></span>
+            </button>
             <!-- Chat theme picker -->
             <div id="chat-theme-picker" class="chat-theme-picker">
                 <button id="chat-theme-btn" type="button" class="chat-theme-btn" aria-label="Chat theme" aria-haspopup="listbox" aria-expanded="false">
-                    <span class="chat-theme-icon" id="chat-theme-icon">◐</span>
+                    <span class="chat-theme-icon" id="chat-theme-icon" data-chat-icon="theme-dark"></span>
                 </button>
                 <div id="chat-theme-dropdown" class="chat-theme-dropdown" role="listbox" hidden>
                     <button type="button" class="chat-theme-option" data-theme="dark" role="option">
-                        <span class="chat-theme-option-icon">◐</span>
+                        <span class="chat-theme-option-icon" data-chat-icon="theme-dark"></span>
                         <span class="chat-theme-option-label" data-i18n="chat.theme_standard">Standard</span>
                     </button>
                     <button type="button" class="chat-theme-option" data-theme="light" role="option">
-                        <span class="chat-theme-option-icon">☀</span>
+                        <span class="chat-theme-option-icon" data-chat-icon="theme-light"></span>
                         <span class="chat-theme-option-label" data-i18n="chat.theme_light">Light</span>
                     </button>
                     <button type="button" class="chat-theme-option" data-theme="retro-crt" role="option">
-                        <span class="chat-theme-option-icon">▣</span>
+                        <span class="chat-theme-option-icon" data-chat-icon="theme-retro-crt"></span>
                         <span class="chat-theme-option-label" data-i18n="chat.theme_retro_crt">Retro CRT</span>
                     </button>
                     <button type="button" class="chat-theme-option" data-theme="cyberwar" role="option">
-                        <span class="chat-theme-option-icon">✦</span>
+                        <span class="chat-theme-option-icon" data-chat-icon="theme-cyberwar"></span>
                         <span class="chat-theme-option-label" data-i18n="chat.theme_cyberwar">Cyberwar</span>
                     </button>
                     <button type="button" class="chat-theme-option" data-theme="lollipop" role="option">
-                        <span class="chat-theme-option-icon">✿</span>
+                        <span class="chat-theme-option-icon" data-chat-icon="theme-lollipop"></span>
                         <span class="chat-theme-option-label" data-i18n="chat.theme_lollipop">Lollipop</span>
                     </button>
                     <button type="button" class="chat-theme-option" data-theme="dark-sun" role="option">
-                        <span class="chat-theme-option-icon">☼</span>
+                        <span class="chat-theme-option-icon" data-chat-icon="theme-dark-sun"></span>
                         <span class="chat-theme-option-label" data-i18n="chat.theme_dark_sun">Dark Sun</span>
                     </button>
                     <button type="button" class="chat-theme-option" data-theme="ocean" role="option">
-                        <span class="chat-theme-option-icon">◌</span>
+                        <span class="chat-theme-option-icon" data-chat-icon="theme-ocean"></span>
                         <span class="chat-theme-option-label" data-i18n="chat.theme_ocean">Ocean</span>
                     </button>
                     <button type="button" class="chat-theme-option" data-theme="sandstorm" role="option">
-                        <span class="chat-theme-option-icon">◍</span>
+                        <span class="chat-theme-option-icon" data-chat-icon="theme-sandstorm"></span>
                         <span class="chat-theme-option-label" data-i18n="chat.theme_sandstorm">Sandstorm</span>
                     </button>
                     <button type="button" class="chat-theme-option" data-theme="papyrus" role="option">
-                        <span class="chat-theme-option-icon">≋</span>
+                        <span class="chat-theme-option-icon" data-chat-icon="theme-papyrus"></span>
                         <span class="chat-theme-option-label" data-i18n="chat.theme_papyrus">Papyrus</span>
                     </button>
                     <button type="button" class="chat-theme-option" data-theme="black-matrix" role="option">
-                        <span class="chat-theme-option-icon">▥</span>
+                        <span class="chat-theme-option-icon" data-chat-icon="theme-black-matrix"></span>
                         <span class="chat-theme-option-label" data-i18n="chat.theme_black_matrix">Black Matrix</span>
                     </button>
                 </div>
@@ -110,22 +114,22 @@
             <span id="tokenCounter" class="pill pill-tokens"></span>
 
             <span id="budgetPill" class="pill pill-budget">$0.00</span>
-            <span id="creditsPill" class="pill pill-budget is-hidden credits-pill-action">💳 $0.00</span>
+            <span id="creditsPill" class="pill pill-budget is-hidden credits-pill-action"><span class="chat-ui-icon" data-chat-icon="credit-card"></span> $0.00</span>
             <div class="personality-select-wrapper">
                 <select id="personality-select" class="select-personality">
                     <option value="" disabled selected></option>
                 </select>
-                <span class="personality-chevron">▾</span>
+                <span class="personality-chevron chat-ui-icon" data-chat-icon="chevron-down"></span>
             </div>
             <div class="mood-widget" id="moodWidget">
                 <button class="mood-toggle" id="moodToggle" aria-label="Mood settings" aria-expanded="false" aria-haspopup="true">
-                    <span class="mood-emoji" id="moodEmoji">🧠</span>
+                    <span class="mood-emoji" id="moodEmoji" data-chat-icon="mood-brain"></span>
                     <span id="moodText"></span>
-                    <span class="mood-chevron">▾</span>
+                    <span class="mood-chevron chat-ui-icon" data-chat-icon="chevron-down"></span>
                 </button>
                 <div class="mood-panel" id="moodPanel">
                     <div class="mood-panel-header">
-                        <span class="mood-emoji-lg" id="moodPanelEmoji">🧠</span>
+                        <span class="mood-emoji-lg" id="moodPanelEmoji" data-chat-icon="mood-brain"></span>
                         <span class="mood-label" id="moodPanelLabel"></span>
                     </div>
                     <div class="mood-emotion is-hidden" id="moodEmotion"></div>
@@ -134,7 +138,7 @@
             </div>
             <span id="debug-pill" class="pill pill-debug"></span>
             <button id="warnings-btn" type="button" class="btn-warnings" aria-label="System warnings">
-                <span class="warnings-icon">🛡️</span>
+                <span class="warnings-icon chat-ui-icon" data-chat-icon="warning"></span>
                 <span id="warnings-badge" class="warnings-badge is-hidden">0</span>
             </button>
             <span id="connectionPill" class="pill pill-active"></span>
@@ -153,10 +157,12 @@
     <aside id="session-drawer" class="session-drawer">
         <div class="session-drawer-header">
             <span class="session-drawer-title" data-i18n="chat.sessions_title">Conversations</span>
-            <button type="button" id="session-drawer-close" class="session-drawer-close" aria-label="Close">✕</button>
+            <button type="button" id="session-drawer-close" class="session-drawer-close" aria-label="Close">
+                <span class="chat-ui-icon" data-chat-icon="close"></span>
+            </button>
         </div>
         <button type="button" id="session-new-btn" class="session-new-btn">
-            <span class="session-new-icon">✚</span>
+            <span class="session-new-icon chat-ui-icon" data-chat-icon="new-chat"></span>
             <span data-i18n="chat.sessions_new">New Conversation</span>
         </button>
         <div id="session-list" class="session-list">
@@ -189,32 +195,34 @@
     <footer class="app-footer">
         <form id="chat-form" class="input-row">
             <input type="file" id="file-input" class="is-hidden" multiple>
-            <button type="button" id="voice-btn" class="btn-voice btn-composer-primary" aria-label="Voice input">🎤</button>
+            <button type="button" id="voice-btn" class="btn-voice btn-composer-primary" aria-label="Voice input">
+                <span class="chat-ui-icon" data-chat-icon="voice"></span>
+            </button>
             <div id="composer-panel" class="composer-panel is-hidden">
                 <button type="button" id="clear-btn" class="composer-tool-btn" aria-label="Clear">
-                    <span class="tool-icon">✚</span>
+                    <span class="tool-icon chat-ui-icon" data-chat-icon="clear"></span>
                     <span class="tool-label"></span>
                 </button>
                 <button type="button" id="upload-btn" class="composer-tool-btn" aria-label="Upload file">
-                    <span class="tool-icon">📎</span>
+                    <span class="tool-icon chat-ui-icon" data-chat-icon="attach"></span>
                     <span class="tool-label"></span>
                 </button>
                 <button type="button" id="cheatsheet-picker-btn" class="composer-tool-btn" aria-label="Send cheatsheet">
-                    <span class="tool-icon">📋</span>
+                    <span class="tool-icon chat-ui-icon" data-chat-icon="clipboard"></span>
                     <span class="tool-label"></span>
                 </button>
                 <button type="button" id="push-btn" class="composer-tool-btn" aria-label="Notifications">
-                    <span class="tool-icon">🔔</span>
+                    <span class="tool-icon chat-ui-icon" data-chat-icon="bell"></span>
                     <span class="tool-label"></span>
                 </button>
                 {{if .PersonalityEnabled}}
                 <button type="button" id="feedback-toggle-btn" class="composer-tool-btn" aria-label="Feedback">
-                    <span class="tool-icon">🙂</span>
+                    <span class="tool-icon chat-ui-icon" data-chat-icon="feedback"></span>
                     <span class="tool-label"></span>
                 </button>
                 {{end}}
                 <button type="button" id="stop-btn" class="composer-tool-btn composer-tool-btn-danger" disabled aria-label="Stop">
-                    <span class="tool-icon">■</span>
+                    <span class="tool-icon chat-ui-icon" data-chat-icon="stop"></span>
                     <span class="tool-label"></span>
                 </button>
             </div>
@@ -222,24 +230,28 @@
                 <textarea id="user-input" name="aura-chat-input" autocomplete="off" spellcheck="true" rows="1"
                     placeholder=""></textarea>
             </div>
-            <button type="submit" id="send-btn" class="btn-send btn-composer-primary" aria-label="Send message">➤</button>
-            <button type="button" id="composer-more-btn" class="btn-more btn-composer-primary" aria-label="More options" aria-expanded="false" aria-controls="composer-panel">⋯</button>
+            <button type="submit" id="send-btn" class="btn-send btn-composer-primary" aria-label="Send message">
+                <span class="chat-ui-icon" data-chat-icon="send"></span>
+            </button>
+            <button type="button" id="composer-more-btn" class="btn-more btn-composer-primary" aria-label="More options" aria-expanded="false" aria-controls="composer-panel">
+                <span class="chat-ui-icon" data-chat-icon="more"></span>
+            </button>
         </form>
         {{if .PersonalityEnabled}}
         <div id="mood-feedback-row" class="mood-feedback-row is-hidden">
             <button type="button" class="mood-btn mood-positive" data-feedback="positive"
-                >👍</button>
+                ><span class="chat-ui-icon" data-chat-icon="positive"></span></button>
             <button type="button" class="mood-btn mood-negative" data-feedback="negative"
-                >👎</button>
-            <button type="button" class="mood-btn mood-angry" data-feedback="angry">😡</button>
-            <button type="button" class="mood-btn mood-laughing" data-feedback="laughing">😂</button>
-            <button type="button" class="mood-btn mood-crying" data-feedback="crying">😢</button>
-            <button type="button" class="mood-btn mood-amazed" data-feedback="amazed">😲</button>
+                ><span class="chat-ui-icon" data-chat-icon="negative"></span></button>
+            <button type="button" class="mood-btn mood-angry" data-feedback="angry"><span class="chat-ui-icon" data-chat-icon="angry"></span></button>
+            <button type="button" class="mood-btn mood-laughing" data-feedback="laughing"><span class="chat-ui-icon" data-chat-icon="laughing"></span></button>
+            <button type="button" class="mood-btn mood-crying" data-feedback="crying"><span class="chat-ui-icon" data-chat-icon="crying"></span></button>
+            <button type="button" class="mood-btn mood-amazed" data-feedback="amazed"><span class="chat-ui-icon" data-chat-icon="amazed"></span></button>
         </div>
         {{end}}
         <div id="attachment-chip" class="attachment-chip is-hidden">
-            <span>📎&nbsp;</span><span id="attachment-name" class="attachment-chip-name"></span>
-            <button type="button" id="attachment-clear" class="chip-clear">✕</button>
+            <span class="chat-ui-icon" data-chat-icon="attach"></span><span id="attachment-name" class="attachment-chip-name"></span>
+            <button type="button" id="attachment-clear" class="chip-clear"><span class="chat-ui-icon" data-chat-icon="close"></span></button>
         </div>
         <div id="attachments-panel" class="attachments-panel is-hidden"></div>
     </footer>
@@ -248,8 +260,8 @@
     <div id="cheatsheet-picker-overlay" class="modal-overlay">
         <div class="modal-card cheatsheet-picker-card">
             <div class="modal-title cheatsheet-picker-title">
-                <span>📋 <span data-i18n="chat.cheatsheet_picker_title">Send Cheat Sheet</span></span>
-                <button id="cheatsheet-picker-close-x" class="btn-small" data-i18n-aria-label="chat.close">✕</button>
+                <span><span class="chat-ui-icon" data-chat-icon="clipboard"></span> <span data-i18n="chat.cheatsheet_picker_title">Send Cheat Sheet</span></span>
+                <button id="cheatsheet-picker-close-x" class="btn-small" data-i18n-aria-label="chat.close"><span class="chat-ui-icon" data-chat-icon="close"></span></button>
             </div>
             <div id="cheatsheet-picker-list" class="cheatsheet-picker-list">
                 <div class="cheatsheet-picker-empty" data-i18n="chat.cheatsheet_picker_loading">Loading cheat sheets...</div>
@@ -265,7 +277,7 @@
     <div id="warnings-overlay" class="modal-overlay">
         <div class="modal-card warnings-modal-card">
             <div class="modal-title warnings-modal-title">
-                <span>🛡️ <span data-i18n="chat.warnings_title">System Warnings</span></span>
+                <span><span class="chat-ui-icon" data-chat-icon="warning"></span> <span data-i18n="chat.warnings_title">System Warnings</span></span>
                 <button id="warnings-ack-all" class="btn-small" data-i18n="chat.warnings_ack_all">Acknowledge All</button>
             </div>
             <div id="warnings-list" class="warnings-list">
@@ -289,6 +301,7 @@
         </div>
     </div>
 
+    <script src="/js/chat/ui-icons.js?v=20260425a"></script>
     <script src="/js/chat/audio-player.js"></script>
     <script src="/js/chat/mermaid-renderer.js?v=20260418o"></script>
     <!-- Chat Modules -->
@@ -310,7 +323,7 @@
 
     <!-- Image Lightbox Overlay -->
     <div id="img-lightbox">
-        <button id="img-lightbox-close">&#x2715;</button>
+        <button id="img-lightbox-close"><span class="chat-ui-icon" data-chat-icon="close"></span></button>
         <img id="img-lightbox-img" src="" alt="">
     </div>
 

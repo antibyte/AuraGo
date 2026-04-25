@@ -99,10 +99,10 @@
                     <div class="stt-lang-badge"></div>
                     <div class="stt-controls">
                         <button class="stt-btn stt-cancel" title="${this._t('stt_cancel')}">
-                            <span>✕</span>
+                            ${window.chatUiIconMarkup ? window.chatUiIconMarkup('close') : ''}
                         </button>
                         <button class="stt-btn stt-done" title="${this._t('stt_done')}">
-                            <span>➤</span>
+                            ${window.chatUiIconMarkup ? window.chatUiIconMarkup('send') : ''}
                         </button>
                     </div>
                 </div>

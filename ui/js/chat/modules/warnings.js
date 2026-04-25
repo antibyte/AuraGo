@@ -49,10 +49,11 @@
 
     // ── Severity helpers ──────────────────────────────────────
     function severityIcon(sev) {
+        const markup = window.chatUiIconMarkup || (() => '');
         switch (sev) {
-            case 'critical': return '🔴';
-            case 'warning':  return '🟡';
-            default:         return 'ℹ️';
+            case 'critical': return markup('error');
+            case 'warning':  return markup('warning');
+            default:         return markup('info');
         }
     }
 
@@ -148,7 +149,7 @@
             const catLabel = typeof t === 'function' ? t('chat.warnings_cat_' + w.category) || w.category : w.category;
             right.textContent = catLabel;
             if (isLocallyAcked) {
-                right.textContent += ' ✓';
+                right.insertAdjacentHTML('beforeend', ' ' + (window.chatUiIconMarkup ? window.chatUiIconMarkup('complete') : ''));
             }
 
             header.appendChild(left);
