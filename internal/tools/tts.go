@@ -300,9 +300,7 @@ func ttsMiniMax(cfg TTSConfig, text string) ([]byte, error) {
 	}
 
 	model := cfg.MiniMax.ModelID
-	if model == "" {
-		model = "speech-2.8-hd"
-	}
+	model = miniMaxTTSModelForAPI(model)
 	voiceID := cfg.MiniMax.VoiceID
 	if voiceID == "" {
 		voiceID = "English_expressive_narrator"
@@ -382,4 +380,17 @@ func ttsMiniMax(cfg TTSConfig, text string) ([]byte, error) {
 		return nil, fmt.Errorf("failed to decode MiniMax audio hex: %w", err)
 	}
 	return audioData, nil
+}
+
+func miniMaxTTSModelForAPI(model string) string {
+	switch strings.ToLower(strings.TrimSpace(model)) {
+	case "":
+		return "speech-2.8-hd"
+	case "speech-02-hd":
+		return "speech-2.8-hd"
+	case "speech-02-turbo":
+		return "speech-2.8-turbo"
+	default:
+		return strings.TrimSpace(model)
+	}
 }

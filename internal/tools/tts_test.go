@@ -126,6 +126,13 @@ func TestTTSElevenLabsRejectsOversizedErrorBody(t *testing.T) {
 	})
 }
 
+func TestMiniMaxTTSModelIDNormalizesLegacySpeech02HD(t *testing.T) {
+	got := miniMaxTTSModelForAPI("speech-02-hd")
+	if got != "speech-2.8-hd" {
+		t.Fatalf("miniMaxTTSModelForAPI = %q, want speech-2.8-hd", got)
+	}
+}
+
 func withTTSTestClient(t *testing.T, server *httptest.Server, fn func()) {
 	t.Helper()
 	oldClient := ttsHTTPClient

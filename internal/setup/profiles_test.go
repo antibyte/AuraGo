@@ -172,8 +172,8 @@ func TestMiniMaxProfileHasTTS(t *testing.T) {
 			if p.Models.VideoGeneration.Model != "MiniMax-Hailuo-2.3" {
 				t.Fatalf("minimax video_generation model = %q, want MiniMax-Hailuo-2.3", p.Models.VideoGeneration.Model)
 			}
-			if p.TTS.ModelID != "speech-02-hd" {
-				t.Fatalf("minimax TTS model_id = %q, want speech-02-hd", p.TTS.ModelID)
+			if p.TTS.ModelID != "speech-2.8-hd" {
+				t.Fatalf("minimax TTS model_id = %q, want speech-2.8-hd", p.TTS.ModelID)
 			}
 			if p.TTS.VoiceID != "English_PlayfulGirl" {
 				t.Fatalf("minimax TTS voice_id = %q, want English_PlayfulGirl", p.TTS.VoiceID)

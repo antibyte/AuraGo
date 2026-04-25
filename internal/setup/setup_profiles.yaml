@@ -95,7 +95,7 @@ profiles:
     # TTS uses its own config structure (NOT the provider system)
     tts:
       provider: "minimax"
-      model_id: "speech-02-hd"
+      model_id: "speech-2.8-hd"
       voice_id: "English_PlayfulGirl"
     config_patch:
       llm:

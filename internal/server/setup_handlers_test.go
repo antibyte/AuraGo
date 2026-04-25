@@ -528,7 +528,7 @@ func TestHandleSetupSaveAcceptsMiniMaxQuickPatch(t *testing.T) {
 			"provider": "minimax",
 			"minimax": map[string]interface{}{
 				"api_key":  "sk-test",
-				"model_id": "speech-02-hd",
+				"model_id": "speech-2.8-hd",
 				"voice_id": "English_PlayfulGirl",
 			},
 		},
@@ -604,7 +604,7 @@ func TestHandleSetupSaveAcceptsMiniMaxQuickPatchAgainstCurrentConfig(t *testing.
 		"image_generation": map[string]interface{}{"enabled": true, "provider": "image_gen"},
 		"music_generation": map[string]interface{}{"enabled": true, "provider": "music_gen"},
 		"video_generation": map[string]interface{}{"enabled": true, "provider": "video_gen", "default_duration_seconds": 6, "default_resolution": "768P"},
-		"tts":              map[string]interface{}{"provider": "minimax", "minimax": map[string]interface{}{"api_key": "sk-test", "model_id": "speech-02-hd", "voice_id": "English_PlayfulGirl"}},
+		"tts":              map[string]interface{}{"provider": "minimax", "minimax": map[string]interface{}{"api_key": "sk-test", "model_id": "speech-2.8-hd", "voice_id": "English_PlayfulGirl"}},
 	}
 
 	body, err := json.Marshal(patch)
@@ -664,7 +664,7 @@ func TestHandleSetupSaveReturnsRestartRequiredWhenHotReloadPanics(t *testing.T) 
 		"image_generation": map[string]interface{}{"enabled": true, "provider": "image_gen"},
 		"music_generation": map[string]interface{}{"enabled": true, "provider": "music_gen"},
 		"video_generation": map[string]interface{}{"enabled": true, "provider": "video_gen", "default_duration_seconds": 6, "default_resolution": "768P"},
-		"tts":              map[string]interface{}{"provider": "minimax", "minimax": map[string]interface{}{"api_key": "sk-test", "model_id": "speech-02-hd", "voice_id": "English_PlayfulGirl"}},
+		"tts":              map[string]interface{}{"provider": "minimax", "minimax": map[string]interface{}{"api_key": "sk-test", "model_id": "speech-2.8-hd", "voice_id": "English_PlayfulGirl"}},
 	}
 
 	body, err := json.Marshal(patch)
