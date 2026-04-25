@@ -145,6 +145,22 @@ func TestDockerConnector_ConfigArchiveIsReadableByContainerUser(t *testing.T) {
 	}
 }
 
+func TestDockerConnector_EggBindsDoNotReuseDataVolume(t *testing.T) {
+	binds := dockerEggBinds("7680f451-bad4-4908-92da-e286eb5f7c2a")
+	for _, bind := range binds {
+		if strings.Contains(bind, ":/app/data") {
+			t.Fatalf("docker egg binds must not reuse /app/data across hatches; got %q", bind)
+		}
+	}
+}
+
+func TestDockerConnector_RemoveContainerPathRemovesAnonymousVolumes(t *testing.T) {
+	got := dockerRemoveContainerPath("aurago-egg-test")
+	if !strings.Contains(got, "v=true") {
+		t.Fatalf("remove path = %q, want v=true to remove anonymous /app/data volumes", got)
+	}
+}
+
 // ── Docker API mock tests ───────────────────────────────────────────────────
 
 // mockDockerAPI creates an httptest.Server that emulates key Docker Engine endpoints.
@@ -297,6 +313,11 @@ func TestDockerConnector_Stop_AlreadyStopped(t *testing.T) {
 func TestDockerConnector_Deploy_OK(t *testing.T) {
 	configYAML := []byte("egg_mode:\n  master_url: ws://localhost:8080/api/invasion/ws\n  egg_id: e1\n  nest_id: n1\n")
 	var archivePath string
+	var createBody struct {
+		HostConfig struct {
+			Binds []string `json:"Binds"`
+		} `json:"HostConfig"`
+	}
 
 	ts := mockDockerAPI(t, map[string]http.HandlerFunc{
 		"/images/create": func(w http.ResponseWriter, r *http.Request) {
@@ -304,6 +325,9 @@ func TestDockerConnector_Deploy_OK(t *testing.T) {
 			w.Write([]byte(`{}`))
 		},
 		"/containers/create": func(w http.ResponseWriter, r *http.Request) {
+			if err := json.NewDecoder(r.Body).Decode(&createBody); err != nil {
+				t.Fatalf("decode create body: %v", err)
+			}
 			w.WriteHeader(http.StatusCreated)
 			json.NewEncoder(w).Encode(map[string]string{"Id": "abc123"})
 		},
@@ -336,6 +360,11 @@ func TestDockerConnector_Deploy_OK(t *testing.T) {
 	}
 	if archivePath != "/app/data" {
 		t.Fatalf("config archive path = %q, want /app/data so the entrypoint reads the generated egg config", archivePath)
+	}
+	for _, bind := range createBody.HostConfig.Binds {
+		if strings.Contains(bind, ":/app/data") {
+			t.Fatalf("docker deploy must not reuse a named /app/data volume across hatches; got bind %q", bind)
+		}
 	}
 }
 

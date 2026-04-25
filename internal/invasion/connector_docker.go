@@ -80,10 +80,7 @@ func (c *DockerConnector) Deploy(ctx context.Context, nest NestRecord, secret []
 			"RestartPolicy": map[string]interface{}{
 				"Name": "unless-stopped",
 			},
-			"Binds": []string{
-				fmt.Sprintf("aurago-egg-%s-data:/app/data", nest.ID[:8]),
-				fmt.Sprintf("aurago-egg-%s-log:/app/log", nest.ID[:8]),
-			},
+			"Binds": dockerEggBinds(nest.ID),
 			// Allow the egg to reach the master via host.docker.internal.
 			// On Linux Docker Engine this is not injected automatically;
 			// host-gateway resolves to the Docker bridge gateway (typically 172.17.0.1).
@@ -139,6 +136,16 @@ func (c *DockerConnector) Deploy(ctx context.Context, nest NestRecord, secret []
 	}
 
 	return nil
+}
+
+func dockerEggBinds(nestID string) []string {
+	shortID := nestID
+	if len(shortID) > 8 {
+		shortID = shortID[:8]
+	}
+	return []string{
+		fmt.Sprintf("aurago-egg-%s-log:/app/log", shortID),
+	}
 }
 
 // copyConfigToContainer copies the egg config YAML into a container via the
@@ -324,7 +331,7 @@ func (c *DockerConnector) pullImage(ctx context.Context, nest NestRecord, image 
 
 func (c *DockerConnector) removeContainer(ctx context.Context, nest NestRecord, name string) error {
 	client := c.httpClient(nest)
-	url := c.apiURL(nest, fmt.Sprintf("/containers/%s?force=true", name))
+	url := c.apiURL(nest, dockerRemoveContainerPath(name))
 	req, err := http.NewRequestWithContext(ctx, "DELETE", url, nil)
 	if err != nil {
 		return err
@@ -340,6 +347,10 @@ func (c *DockerConnector) removeContainer(ctx context.Context, nest NestRecord, 
 		return fmt.Errorf("remove container failed with HTTP %d: %s", resp.StatusCode, string(body))
 	}
 	return nil
+}
+
+func dockerRemoveContainerPath(name string) string {
+	return fmt.Sprintf("/containers/%s?force=true&v=true", name)
 }
 
 func (c *DockerConnector) renameContainer(ctx context.Context, nest NestRecord, oldName, newName string) error {
