@@ -356,17 +356,27 @@ func TestChatUIEmojiIconsAreImageAssets(t *testing.T) {
 	iconsJS := string(iconsContent)
 	requiredMarkers := []string{
 		"const CHAT_UI_ICON_DEFINITIONS = [",
+		"const CHAT_UI_ICON_STYLE_PRESET = 'ai-generated-activity-3d';",
 		"window.AuraChatIcons",
+		"stylePreset: CHAT_UI_ICON_STYLE_PRESET",
 		"chatUiIconMarkup",
 		"hydrate(root = document)",
+		"shape: 'send'",
+		"shape: 'close'",
+		"shape: 'paperclip'",
+		"shape: 'microphone'",
+		"shape: 'speaker-muted'",
 	}
 	for _, marker := range requiredMarkers {
 		if !strings.Contains(iconsJS, marker) {
 			t.Fatalf("%s is missing chat UI icon marker %q", iconsPath, marker)
 		}
 	}
-	if got := strings.Count(iconsJS, "sourceSlot: "); got != 100 {
-		t.Fatalf("%s has %d sprite source mappings, want 100", iconsPath, got)
+	if strings.Contains(iconsJS, "sourceSlot: ") {
+		t.Fatalf("%s still maps chat UI icons to activity sprite source slots", iconsPath)
+	}
+	if got := strings.Count(iconsJS, "shape: "); got != 100 {
+		t.Fatalf("%s has %d explicit icon shapes, want 100", iconsPath, got)
 	}
 
 	requiredIconKeys := []string{
