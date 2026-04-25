@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -38,7 +39,10 @@ const (
 )
 
 var homepageDockerExecFunc = DockerExec
+var homepageDockerExecInternalFunc = dockerExecInternal
 var homepageWebCaptureFunc = WebCapture
+
+var homepageUIDGIDPattern = regexp.MustCompile(`^\d+:\d+$`)
 
 // activePythonServerCmd tracks the last Python HTTP server started as fallback.
 var (
@@ -499,6 +503,9 @@ func HomepageInit(cfg HomepageConfig, logger *slog.Logger) string {
 			state, _ := info["State"].(map[string]interface{})
 			running, _ := state["Running"].(bool)
 			if running {
+				if err := homepageEnsureWorkspaceWritable(dockerCfg, logger); err != nil {
+					return errJSON("Dev container is running but /workspace is not writable and automatic permission repair failed: %v", err)
+				}
 				return okJSON("Dev container already running", "container", homepageContainerName)
 			}
 		}
@@ -508,6 +515,9 @@ func HomepageInit(cfg HomepageConfig, logger *slog.Logger) string {
 		_, startCode, startErr := dockerRequest(dockerCfg, "POST", "/containers/"+homepageContainerName+"/start", "")
 		if startErr != nil || (startCode != 204 && startCode != 304) {
 			return errJSON("Failed to start existing container: code=%d err=%v", startCode, startErr)
+		}
+		if err := homepageEnsureWorkspaceWritable(dockerCfg, logger); err != nil {
+			return errJSON("Dev container started but /workspace is not writable and automatic permission repair failed: %v", err)
 		}
 		return okJSON("Dev container started", "container", homepageContainerName)
 	}
@@ -540,12 +550,82 @@ func HomepageInit(cfg HomepageConfig, logger *slog.Logger) string {
 	if startErr != nil || (startCode != 204 && startCode != 304) {
 		return errJSON("Failed to start container: code=%d err=%v", startCode, startErr)
 	}
+	if err := homepageEnsureWorkspaceWritable(dockerCfg, logger); err != nil {
+		return errJSON("Dev container initialized but /workspace is not writable and automatic permission repair failed: %v", err)
+	}
 
 	ensureHomepageNetwork(dockerCfg, logger)
 	connectContainerToNetwork(dockerCfg, homepageContainerName, logger)
 
 	logger.Info("[Homepage] Dev container initialized and running", "container", homepageContainerName)
 	return okJSON("Dev container initialized and running", "container", homepageContainerName)
+}
+
+func homepageEnsureWorkspaceWritable(dockerCfg DockerConfig, logger *slog.Logger) error {
+	if homepageWorkspaceWritable(dockerCfg) {
+		return nil
+	}
+
+	uidGid, err := homepageDetectContainerUIDGID(dockerCfg)
+	if err != nil {
+		return err
+	}
+
+	repairCmd := homepageWorkspaceRepairCommand(uidGid)
+	repairRaw := homepageDockerExecInternalFunc(dockerCfg, homepageContainerName, repairCmd, "0:0", nil)
+	repairCode, repairOutput := homepageDockerExecResult(repairRaw)
+	if repairCode != 0 {
+		return fmt.Errorf("permission repair command failed with exit code %d: %s", repairCode, truncateStr(strings.TrimSpace(repairOutput), 500))
+	}
+
+	if !homepageWorkspaceWritable(dockerCfg) {
+		return fmt.Errorf("/workspace is still not writable by the homepage container user after permission repair")
+	}
+
+	if logger != nil {
+		logger.Info("[Homepage] Repaired workspace bind-mount permissions", "container", homepageContainerName, "uid_gid", uidGid)
+	}
+	return nil
+}
+
+func homepageWorkspaceWritable(dockerCfg DockerConfig) bool {
+	cmd := "test -d /workspace && touch /workspace/.aurago-write-test && rm -f /workspace/.aurago-write-test"
+	raw := homepageDockerExecInternalFunc(dockerCfg, homepageContainerName, cmd, "", nil)
+	exitCode, _ := homepageDockerExecResult(raw)
+	return exitCode == 0
+}
+
+func homepageDetectContainerUIDGID(dockerCfg DockerConfig) (string, error) {
+	raw := homepageDockerExecInternalFunc(dockerCfg, homepageContainerName, `printf '%s:%s\n' "$(id -u)" "$(id -g)"`, "", nil)
+	exitCode, output := homepageDockerExecResult(raw)
+	if exitCode != 0 {
+		return "", fmt.Errorf("failed to determine homepage container UID/GID: %s", truncateStr(strings.TrimSpace(output), 500))
+	}
+	uidGid := strings.TrimSpace(output)
+	if !homepageUIDGIDPattern.MatchString(uidGid) {
+		return "", fmt.Errorf("homepage container returned invalid UID/GID %q", uidGid)
+	}
+	return uidGid, nil
+}
+
+func homepageWorkspaceRepairCommand(uidGid string) string {
+	return fmt.Sprintf("set -eu; mkdir -p /workspace; chown -R %s /workspace; chmod -R u+rwX,g+rwX /workspace", uidGid)
+}
+
+func homepageDockerExecResult(raw string) (int, string) {
+	var resp map[string]interface{}
+	if err := json.Unmarshal([]byte(raw), &resp); err != nil {
+		return -1, raw
+	}
+	exitCode := -1
+	if n, ok := resp["exit_code"].(float64); ok {
+		exitCode = int(n)
+	}
+	output, _ := resp["output"].(string)
+	if output == "" {
+		output, _ = resp["message"].(string)
+	}
+	return exitCode, output
 }
 
 // HomepageStart starts the dev container.
@@ -558,6 +638,15 @@ func HomepageStart(cfg HomepageConfig, logger *slog.Logger) string {
 	if err := json.Unmarshal([]byte(result), &resp); err == nil {
 		if msg, _ := resp["message"].(string); strings.Contains(strings.ToLower(msg), "not found") {
 			return errJSON("Container '%s' not found — it was likely destroyed. Use homepage init to recreate the container and then homepage init_project to restore your projects.", homepageContainerName)
+		}
+	}
+	if resp != nil {
+		respStatus, _ := resp["status"].(string)
+		if respStatus == "error" {
+			return result
+		}
+		if err := homepageEnsureWorkspaceWritable(dockerCfg, logger); err != nil {
+			return errJSON("Dev container started but /workspace is not writable and automatic permission repair failed: %v", err)
 		}
 	}
 	return result
@@ -659,7 +748,10 @@ func HomepageExec(cfg HomepageConfig, command string, env []string, logger *slog
 		return errJSON("command is required")
 	}
 	logger.Info("[Homepage] Exec", "cmd", command)
-	return dockerExecInternal(dockerCfg, homepageContainerName, command, "", env)
+	if err := homepageEnsureWorkspaceWritable(dockerCfg, logger); err != nil {
+		return errJSON("Homepage dev container /workspace is not writable and automatic permission repair failed: %v", err)
+	}
+	return homepageDockerExecInternalFunc(dockerCfg, homepageContainerName, command, "", env)
 }
 
 // HomepageInitProject scaffolds a new web project inside the container.
@@ -777,6 +869,9 @@ func HomepageInitProject(cfg HomepageConfig, framework, name, template string, l
 	}
 
 	dockerCfg := DockerConfig{Host: cfg.DockerHost}
+	if err := homepageEnsureWorkspaceWritable(dockerCfg, logger); err != nil {
+		return errJSON("Homepage dev container /workspace is not writable and automatic permission repair failed: %v", err)
+	}
 	scaffoldResult := DockerExec(dockerCfg, homepageContainerName, "cd /workspace && "+cmd, "")
 
 	// Verify the project directory was actually created.
@@ -832,6 +927,9 @@ func HomepageBuild(cfg HomepageConfig, projectDir string, logger *slog.Logger) s
 	}
 
 	dockerCfg := DockerConfig{Host: cfg.DockerHost}
+	if err := homepageEnsureWorkspaceWritable(dockerCfg, logger); err != nil {
+		return errJSON("Homepage dev container /workspace is not writable and automatic permission repair failed: %v", err)
+	}
 	return DockerExec(dockerCfg, homepageContainerName, fmt.Sprintf("cd /workspace/%s && npm run build 2>&1", projectDir), "")
 }
 
@@ -857,6 +955,9 @@ func HomepageInstallDeps(cfg HomepageConfig, projectDir string, packages []strin
 	}
 	logger.Info("[Homepage] Install deps", "project_dir", projectDir, "packages", packages)
 	dockerCfg := DockerConfig{Host: cfg.DockerHost}
+	if err := homepageEnsureWorkspaceWritable(dockerCfg, logger); err != nil {
+		return errJSON("Homepage dev container /workspace is not writable and automatic permission repair failed: %v", err)
+	}
 
 	// Pre-check: verify the project directory exists to give a clear error
 	if projectDir != "." {
@@ -887,8 +988,8 @@ func homepageDecorateInstallResult(result string) string {
 		// Return original output but annotate with a clear fix suggestion.
 		resp["message"] = "npm install failed with a permissions error (EACCES). " +
 			"The /workspace directory inside the container is not writable by the npm user. " +
-			"Fix: run 'homepage destroy' followed by 'homepage init' to recreate the container with correct permissions, " +
-			"then redo your project setup."
+			"AuraGo normally repairs this automatically by chowning the bind mount to the container user. " +
+			"If this repeats, run 'homepage init' once, then check host ownership of homepage.workspace_path."
 		b, _ := json.Marshal(resp)
 		return string(b)
 	}
