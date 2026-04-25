@@ -2,6 +2,7 @@ package server
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 
 	"aurago/internal/config"
@@ -35,6 +36,47 @@ func TestBuildSchemaIncludesRocketChatAuthTokenAsSensitive(t *testing.T) {
 	}
 
 	t.Fatal("rocketchat.auth_token field not found in schema")
+}
+
+func TestNormalizeOllamaModelsBaseURLRejectsUnexpectedPrivateHost(t *testing.T) {
+	t.Parallel()
+
+	if _, err := normalizeOllamaModelsBaseURL("http://169.254.169.254:11434/v1"); err == nil {
+		t.Fatal("expected metadata-service URL to be rejected")
+	}
+}
+
+func TestNormalizeOllamaModelsBaseURLAllowsLocalOllamaPort(t *testing.T) {
+	t.Parallel()
+
+	got, err := normalizeOllamaModelsBaseURL("http://localhost:11434/v1")
+	if err != nil {
+		t.Fatalf("expected localhost Ollama URL to be allowed: %v", err)
+	}
+	if got != "http://localhost:11434" {
+		t.Fatalf("normalized URL = %q, want http://localhost:11434", got)
+	}
+}
+
+func TestResolveMeshCentralTestURLRejectsDifferentOverrideHost(t *testing.T) {
+	t.Parallel()
+
+	_, err := resolveMeshCentralTestURL("https://169.254.169.254", "https://mesh.example.com")
+	if err == nil || !strings.Contains(err.Error(), "configured MeshCentral host") {
+		t.Fatalf("expected configured-host override rejection, got %v", err)
+	}
+}
+
+func TestResolveMeshCentralTestURLAllowsConfiguredPrivateURL(t *testing.T) {
+	t.Parallel()
+
+	got, err := resolveMeshCentralTestURL("", "https://192.168.1.20")
+	if err != nil {
+		t.Fatalf("expected configured private MeshCentral URL to be allowed: %v", err)
+	}
+	if got != "https://192.168.1.20" {
+		t.Fatalf("resolved URL = %q", got)
+	}
 }
 
 func TestBuildSchemaHidesHelperOwnedLegacyLLMSelectionFields(t *testing.T) {

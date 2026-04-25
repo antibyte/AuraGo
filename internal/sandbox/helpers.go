@@ -37,18 +37,43 @@ func FilterEnv(env []string) []string {
 	}
 	var filtered []string
 	for _, e := range env {
-		skip := false
-		for _, prefix := range sensitivePrefixes {
-			if strings.HasPrefix(e, prefix) {
-				skip = true
-				break
-			}
-		}
-		if !skip {
+		if !isSensitiveEnvAssignment(e, sensitivePrefixes) {
 			filtered = append(filtered, e)
 		}
 	}
 	return filtered
+}
+
+func isSensitiveEnvAssignment(assignment string, sensitivePrefixes []string) bool {
+	name := assignment
+	if idx := strings.IndexByte(name, '='); idx >= 0 {
+		name = name[:idx]
+	}
+	upperName := strings.ToUpper(strings.TrimSpace(name))
+	for _, prefix := range sensitivePrefixes {
+		if strings.HasPrefix(upperName, strings.ToUpper(prefix)) {
+			return true
+		}
+	}
+	for _, suffix := range []string{
+		"_API_TOKEN",
+		"_AUTH_TOKEN",
+		"_ACCESS_TOKEN",
+		"_REFRESH_TOKEN",
+		"_TOKEN",
+		"_PASSWORD",
+		"_PASS",
+		"_SECRET",
+		"_API_KEY",
+		"_ACCESS_KEY",
+		"_PRIVATE_KEY",
+		"_CREDENTIALS",
+	} {
+		if strings.HasSuffix(upperName, suffix) {
+			return true
+		}
+	}
+	return false
 }
 
 // splitPaths splits a colon-separated path list, trimming whitespace and skipping empty segments.

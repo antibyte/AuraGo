@@ -389,11 +389,11 @@ func fileStrReplaceGlob(workspaceDir, globPattern, old, new_ string, encode func
 	if old == "" {
 		return encode(FileEditorResult{Status: "error", Message: "'old' text is required for str_replace_glob"})
 	}
-	// Resolve glob relative to workspace dir
-	absGlob := globPattern
-	if !filepath.IsAbs(absGlob) {
-		absGlob = filepath.Join(workspaceDir, globPattern)
+	if err := validateRelativeGlobPattern(globPattern); err != nil {
+		return encode(FileEditorResult{Status: "error", Message: err.Error()})
 	}
+	// Resolve glob relative to workspace dir
+	absGlob := filepath.Join(workspaceDir, filepath.Clean(globPattern))
 	matches, err := filepath.Glob(absGlob)
 	if err != nil {
 		return encode(FileEditorResult{Status: "error", Message: fmt.Sprintf("Invalid glob pattern: %v", err)})
@@ -419,7 +419,7 @@ func fileStrReplaceGlob(workspaceDir, globPattern, old, new_ string, encode func
 			continue
 		}
 		rel, relErr := filepath.Rel(absWorkspace, absPath)
-		if relErr != nil || strings.HasPrefix(rel, "..") {
+		if relErr != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) {
 			skipped = append(skipped, filepath.Base(path)+" (outside workspace)")
 			continue
 		}
@@ -461,4 +461,20 @@ func fileStrReplaceGlob(workspaceDir, globPattern, old, new_ string, encode func
 		LinesChanged: totalReplacements,
 		TotalLines:   filesChanged,
 	})
+}
+
+func validateRelativeGlobPattern(pattern string) error {
+	if filepath.IsAbs(pattern) || filepath.VolumeName(pattern) != "" {
+		return fmt.Errorf("glob pattern must be relative to the workspace")
+	}
+	clean := filepath.Clean(pattern)
+	if clean == "." || clean == "" {
+		return fmt.Errorf("glob pattern must reference files relative to the workspace")
+	}
+	for _, part := range strings.Split(clean, string(os.PathSeparator)) {
+		if part == ".." {
+			return fmt.Errorf("glob pattern must be relative to the workspace")
+		}
+	}
+	return nil
 }

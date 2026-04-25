@@ -98,13 +98,18 @@ func TestFilterEnv(t *testing.T) {
 		"AURAGO_SBX_WORKDIR=/tmp",
 		"AURAGO_SBX_MEM=512",
 		"AURAGO_MASTER_KEY=secret",
+		"CUSTOM_API_TOKEN=secret",
+		"DB_PASSWORD=secret",
+		"MY_SECRET=secret",
 		"LANG=en_US.UTF-8",
 	}
 
 	got := FilterEnv(input)
 
 	for _, e := range got {
-		if e == "AURAGO_SBX_WORKDIR=/tmp" || e == "AURAGO_SBX_MEM=512" || e == "AURAGO_MASTER_KEY=secret" {
+		if e == "AURAGO_SBX_WORKDIR=/tmp" || e == "AURAGO_SBX_MEM=512" ||
+			e == "AURAGO_MASTER_KEY=secret" || e == "CUSTOM_API_TOKEN=secret" ||
+			e == "DB_PASSWORD=secret" || e == "MY_SECRET=secret" {
 			t.Errorf("FilterEnv should have removed %q", e)
 		}
 	}

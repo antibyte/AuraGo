@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	neturl "net/url"
 	"os"
 	"reflect"
 	"strings"
@@ -293,9 +294,17 @@ func handleOllamaModels(s *Server) http.HandlerFunc {
 		var ollamaHost string
 		if explicitURL != "" {
 			// Caller supplied a URL directly (e.g. from provider modal)
-			ollamaHost = strings.TrimRight(explicitURL, "/")
-			ollamaHost = strings.TrimSuffix(ollamaHost, "/v1")
-			ollamaHost = strings.TrimRight(ollamaHost, "/")
+			var err error
+			ollamaHost, err = normalizeOllamaModelsBaseURL(explicitURL)
+			if err != nil {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(map[string]interface{}{
+					"available": false,
+					"reason":    err.Error(),
+				})
+				return
+			}
 		} else {
 			// Fall back to the saved main LLM config
 			s.CfgMu.RLock()
@@ -311,9 +320,17 @@ func handleOllamaModels(s *Server) http.HandlerFunc {
 				})
 				return
 			}
-			ollamaHost = strings.TrimRight(baseURL, "/")
-			ollamaHost = strings.TrimSuffix(ollamaHost, "/v1")
-			ollamaHost = strings.TrimRight(ollamaHost, "/")
+			var err error
+			ollamaHost, err = normalizeOllamaModelsBaseURL(baseURL)
+			if err != nil {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(map[string]interface{}{
+					"available": false,
+					"reason":    err.Error(),
+				})
+				return
+			}
 		}
 
 		if ollamaHost == "" {
@@ -366,6 +383,26 @@ func handleOllamaModels(s *Server) http.HandlerFunc {
 			"models": names,
 		})
 	}
+}
+
+func normalizeOllamaModelsBaseURL(rawURL string) (string, error) {
+	ollamaHost := strings.TrimRight(strings.TrimSpace(rawURL), "/")
+	ollamaHost = strings.TrimSuffix(ollamaHost, "/v1")
+	ollamaHost = strings.TrimRight(ollamaHost, "/")
+	if ollamaHost == "" {
+		return "", fmt.Errorf("no Ollama URL provided")
+	}
+	if err := validateSetupTestBaseURL("ollama", ollamaHost); err != nil {
+		return "", err
+	}
+	parsed, err := neturl.Parse(ollamaHost)
+	if err != nil {
+		return "", fmt.Errorf("invalid URL: %w", err)
+	}
+	if parsed.Port() != "11434" {
+		return "", fmt.Errorf("ollama URL must use port 11434")
+	}
+	return ollamaHost, nil
 }
 
 // handleOpenRouterModels fetches the public model list from the OpenRouter API
@@ -429,10 +466,7 @@ func handleMeshCentralTest(s *Server) http.HandlerFunc {
 
 		// Fall back to saved config
 		s.CfgMu.RLock()
-		url := body.URL
-		if url == "" {
-			url = s.Cfg.MeshCentral.URL
-		}
+		configuredURL := s.Cfg.MeshCentral.URL
 		username := body.Username
 		if username == "" {
 			username = s.Cfg.MeshCentral.Username
@@ -446,6 +480,15 @@ func handleMeshCentralTest(s *Server) http.HandlerFunc {
 			loginToken = s.Cfg.MeshCentral.LoginToken
 		}
 		s.CfgMu.RUnlock()
+
+		meshURL, err := resolveMeshCentralTestURL(body.URL, configuredURL)
+		if err != nil {
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"status":  "error",
+				"message": err.Error(),
+			})
+			return
+		}
 
 		// Vault fallback for password / token
 		if s.Vault != nil {
@@ -468,7 +511,7 @@ func handleMeshCentralTest(s *Server) http.HandlerFunc {
 		}
 
 		// URL is always required. Username is required only when no login token is set.
-		if url == "" {
+		if meshURL == "" {
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status":  "error",
 				"message": "URL is required (not set in config)",
@@ -483,7 +526,7 @@ func handleMeshCentralTest(s *Server) http.HandlerFunc {
 			return
 		}
 
-		mc, err := meshcentral.NewClient(url, username, password, loginToken, s.Cfg.MeshCentral.Insecure)
+		mc, err := meshcentral.NewClient(meshURL, username, password, loginToken, s.Cfg.MeshCentral.Insecure)
 		if err != nil {
 			json.NewEncoder(w).Encode(map[string]interface{}{
 				"status":  "error",
@@ -505,4 +548,55 @@ func handleMeshCentralTest(s *Server) http.HandlerFunc {
 			"message": "Login and WebSocket handshake successful.",
 		})
 	}
+}
+
+func resolveMeshCentralTestURL(overrideURL, configuredURL string) (string, error) {
+	candidate := strings.TrimSpace(overrideURL)
+	configured := strings.TrimSpace(configuredURL)
+	if candidate == "" {
+		return configured, nil
+	}
+
+	if configured != "" {
+		same, err := sameURLOrigin(candidate, configured)
+		if err != nil {
+			return "", err
+		}
+		if !same {
+			return "", fmt.Errorf("MeshCentral test URL override must match the configured MeshCentral host")
+		}
+		return candidate, nil
+	}
+
+	if err := security.ValidateSSRF(candidate); err != nil {
+		return "", fmt.Errorf("MeshCentral URL rejected: %w", err)
+	}
+	return candidate, nil
+}
+
+func sameURLOrigin(a, b string) (bool, error) {
+	parsedA, err := parseHTTPOrigin(a)
+	if err != nil {
+		return false, err
+	}
+	parsedB, err := parseHTTPOrigin(b)
+	if err != nil {
+		return false, err
+	}
+	return strings.EqualFold(parsedA.Scheme, parsedB.Scheme) &&
+		strings.EqualFold(parsedA.Host, parsedB.Host), nil
+}
+
+func parseHTTPOrigin(raw string) (*neturl.URL, error) {
+	parsed, err := neturl.Parse(strings.TrimSpace(raw))
+	if err != nil {
+		return nil, fmt.Errorf("invalid URL: %w", err)
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return nil, fmt.Errorf("invalid URL scheme (must be http:// or https://)")
+	}
+	if parsed.Host == "" {
+		return nil, fmt.Errorf("URL has no host")
+	}
+	return parsed, nil
 }
