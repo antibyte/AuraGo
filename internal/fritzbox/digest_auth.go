@@ -14,6 +14,8 @@ import (
 	"sync"
 )
 
+var digestRandRead = rand.Read
+
 // DigestTransport wraps an http.RoundTripper and handles HTTP Digest Auth
 // transparently for each request. Thread-safe: multiple goroutines may call
 // RoundTrip concurrently (the nonce counter is protected by a mutex).
@@ -75,8 +77,11 @@ func (d *DigestTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 
 	d.mu.Lock()
 	d.parseChallenge(wwwAuth)
-	authHeader := d.buildAuthorization(req.Method, req.URL.RequestURI())
+	authHeader, err := d.buildAuthorization(req.Method, req.URL.RequestURI())
 	d.mu.Unlock()
+	if err != nil {
+		return nil, err
+	}
 
 	// Retry with auth header.
 	retry, err := cloneRequest(req)
@@ -100,10 +105,13 @@ func (d *DigestTransport) parseChallenge(header string) {
 }
 
 // buildAuthorization constructs the Authorization header value.
-func (d *DigestTransport) buildAuthorization(method, uri string) string {
+func (d *DigestTransport) buildAuthorization(method, uri string) (string, error) {
 	d.nc++
 	ncStr := fmt.Sprintf("%08x", d.nc)
-	cnonce := newCnonce()
+	cnonce, err := newCnonce()
+	if err != nil {
+		return "", fmt.Errorf("digest_auth: generate cnonce: %w", err)
+	}
 
 	ha1 := md5Hex(d.username + ":" + d.realm + ":" + d.password) //nolint:gosec
 	ha2 := md5Hex(method + ":" + uri)                            //nolint:gosec
@@ -132,7 +140,7 @@ func (d *DigestTransport) buildAuthorization(method, uri string) string {
 	if d.opaque != "" {
 		parts = append(parts, fmt.Sprintf(`opaque="%s"`, d.opaque))
 	}
-	return "Digest " + strings.Join(parts, ", ")
+	return "Digest " + strings.Join(parts, ", "), nil
 }
 
 // ──────────────────────────── helpers ────────────────────────────
@@ -142,10 +150,12 @@ func md5Hex(s string) string { //nolint:gosec
 	return hex.EncodeToString(h[:])
 }
 
-func newCnonce() string {
+func newCnonce() (string, error) {
 	b := make([]byte, 8)
-	_, _ = rand.Read(b)
-	return hex.EncodeToString(b)
+	if _, err := digestRandRead(b); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(b), nil
 }
 
 // parseDigestParams parses comma-separated key="value" pairs.

@@ -56,6 +56,20 @@ func TestClearSessionCookieIncludesSecureOnHTTPS(t *testing.T) {
 	}
 }
 
+func TestIsAuthenticatedRejectsEmptySessionSecret(t *testing.T) {
+	t.Parallel()
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.AddCookie(&http.Cookie{
+		Name:  sessionCookieName,
+		Value: createSessionValue("", time.Now().Add(time.Hour)),
+	})
+
+	if IsAuthenticated(req, "") {
+		t.Fatal("empty session secret must never authenticate a forged cookie")
+	}
+}
+
 func TestClearSessionCookieIncludesProxySecureAttribute(t *testing.T) {
 	t.Parallel()
 

@@ -197,6 +197,9 @@ func ClearSessionCookie(w http.ResponseWriter, r *http.Request) {
 
 // IsAuthenticated returns true if the request carries a valid session cookie.
 func IsAuthenticated(r *http.Request, secret string) bool {
+	if secret == "" {
+		return false
+	}
 	cookie, err := r.Cookie(sessionCookieName)
 	if err != nil {
 		return false

@@ -4,7 +4,8 @@ package server
 //
 // .ago file format:
 //   Plain (no password):    standard ZIP file, rename to .zip to inspect.
-//   Encrypted (password):   4-byte magic "AGOE" + 16-byte salt + 12-byte nonce + AES-256-GCM(ZIP).
+//   Encrypted v2:           4-byte magic "AGOE" + KDF byte + 16-byte salt + nonce + AES-256-GCM(ZIP).
+//   Encrypted legacy:       4-byte magic "AGOE" + 16-byte salt + 12-byte nonce + AES-256-GCM(ZIP).
 //
 // Vault secrets are included as vault_secrets.enc only when a backup password is set.
 // They are encrypted independently with AES-256-GCM derived from the same password so they
@@ -30,6 +31,7 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/security"
 	promptsembed "aurago/prompts"
+	"golang.org/x/crypto/argon2"
 )
 
 const agoMagic = "AGOE"
@@ -38,7 +40,11 @@ const (
 	agoMaxExtractSize      int64  = 1 << 30
 	agoMaxArchiveEntries          = 100000
 	agoMaxCompressionRatio uint64 = 1000
+	agoSaltSize                   = 16
+	agoKDFArgon2ID         byte   = 1
 )
+
+const vaultSecretsMagic = "AGOV"
 
 // currentDBSchemaVersion is incremented whenever any SQLite schema changes.
 // Stored in the manifest so imports can warn about version mismatches.
@@ -106,11 +112,11 @@ func exportVaultSecrets(vault *security.Vault, password string) ([]byte, error) 
 		return nil, fmt.Errorf("vault marshal: %w", err)
 	}
 	// Derive per-blob key with a fresh salt so it's independent of the zip encryption.
-	salt := make([]byte, 16)
+	salt := make([]byte, agoSaltSize)
 	if _, err := rand.Read(salt); err != nil {
 		return nil, err
 	}
-	key := deriveKey(password, salt)
+	key := deriveBackupKey(password, salt)
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err
@@ -124,6 +130,8 @@ func exportVaultSecrets(vault *security.Vault, password string) ([]byte, error) 
 		return nil, err
 	}
 	var buf bytes.Buffer
+	buf.WriteString(vaultSecretsMagic)
+	buf.WriteByte(agoKDFArgon2ID)
 	buf.Write(salt)
 	buf.Write(nonce)
 	buf.Write(gcm.Seal(nil, nonce, plain, nil))
@@ -136,27 +144,9 @@ func importVaultSecrets(vault *security.Vault, encData []byte, password string) 
 	if vault == nil {
 		return 0, nil
 	}
-	if len(encData) < 28 { // 16 salt + 12 nonce min
-		return 0, fmt.Errorf("vault_secrets.enc too short")
-	}
-	salt := encData[:16]
-	rest := encData[16:]
-	key := deriveKey(password, salt)
-	block, err := aes.NewCipher(key)
+	plain, err := decryptVaultSecretsBlob(encData, password)
 	if err != nil {
 		return 0, err
-	}
-	gcm, err := cipher.NewGCM(block)
-	if err != nil {
-		return 0, err
-	}
-	nonceSize := gcm.NonceSize()
-	if len(rest) < nonceSize {
-		return 0, fmt.Errorf("vault_secrets.enc nonce missing")
-	}
-	plain, err := gcm.Open(nil, rest[:nonceSize], rest[nonceSize:], nil)
-	if err != nil {
-		return 0, fmt.Errorf("vault secrets decryption failed (wrong password?): %w", err)
 	}
 	var data map[string]string
 	if err := json.Unmarshal(plain, &data); err != nil {
@@ -176,9 +166,14 @@ func importVaultSecrets(vault *security.Vault, encData []byte, password string) 
 
 // ── Key derivation ───────────────────────────────────────────────────────────
 
-// deriveKey derives a 32-byte AES-256 key from a password and random salt
-// using 65536 SHA-256 iterations (fast but meaningful KDF for a backup tool).
-func deriveKey(password string, salt []byte) []byte {
+// deriveBackupKey derives a 32-byte AES-256 key from a password and random salt
+// using Argon2id for newly created encrypted backups.
+func deriveBackupKey(password string, salt []byte) []byte {
+	return argon2.IDKey([]byte(password), salt, 3, 64*1024, 4, 32)
+}
+
+// deriveLegacyBackupKey keeps old SHA-256-loop backups readable.
+func deriveLegacyBackupKey(password string, salt []byte) []byte {
 	h := sha256.New()
 	h.Write([]byte(password))
 	h.Write(salt)
@@ -195,11 +190,11 @@ func deriveKey(password string, salt []byte) []byte {
 // ── Encrypt / Decrypt ────────────────────────────────────────────────────────
 
 func encryptAGO(zipData []byte, password string) ([]byte, error) {
-	salt := make([]byte, 16)
+	salt := make([]byte, agoSaltSize)
 	if _, err := rand.Read(salt); err != nil {
 		return nil, err
 	}
-	key := deriveKey(password, salt)
+	key := deriveBackupKey(password, salt)
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err
@@ -216,6 +211,7 @@ func encryptAGO(zipData []byte, password string) ([]byte, error) {
 
 	var buf bytes.Buffer
 	buf.WriteString(agoMagic)
+	buf.WriteByte(agoKDFArgon2ID)
 	buf.Write(salt)
 	buf.Write(nonce)
 	buf.Write(ciphertext)
@@ -227,15 +223,43 @@ func decryptAGO(data []byte, password string) ([]byte, error) {
 		return nil, fmt.Errorf("not an encrypted .ago file")
 	}
 	data = data[4:]
-	if len(data) < 28 { // 16 salt + 12 nonce min
+	if len(data) < agoSaltSize+12 { // salt + nonce min
 		return nil, fmt.Errorf("invalid encrypted .ago file (too short)")
 	}
-	salt := data[:16]
-	data = data[16:]
-	nonce := data[:12]
-	ciphertext := data[12:]
+	if data[0] == agoKDFArgon2ID {
+		if len(data) < 1+agoSaltSize+12 {
+			return nil, fmt.Errorf("invalid encrypted .ago file (too short)")
+		}
+		salt := data[1 : 1+agoSaltSize]
+		payload := data[1+agoSaltSize:]
+		plaintext, err := decryptBackupGCM(payload, deriveBackupKey(password, salt))
+		if err == nil {
+			return plaintext, nil
+		}
+		// Very old backups store random salt immediately after the magic. If the first
+		// salt byte happens to match the current KDF marker, try the legacy path too.
+		if legacy, legacyErr := decryptLegacyAGOBody(data, password); legacyErr == nil {
+			return legacy, nil
+		}
+		return nil, fmt.Errorf("decryption failed (wrong password?): %w", err)
+	}
+	return decryptLegacyAGOBody(data, password)
+}
 
-	key := deriveKey(password, salt)
+func decryptLegacyAGOBody(data []byte, password string) ([]byte, error) {
+	if len(data) < agoSaltSize+12 {
+		return nil, fmt.Errorf("invalid encrypted .ago file (too short)")
+	}
+	salt := data[:agoSaltSize]
+	payload := data[agoSaltSize:]
+	plaintext, err := decryptBackupGCM(payload, deriveLegacyBackupKey(password, salt))
+	if err != nil {
+		return nil, fmt.Errorf("decryption failed (wrong password?): %w", err)
+	}
+	return plaintext, nil
+}
+
+func decryptBackupGCM(payload []byte, key []byte) ([]byte, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err
@@ -244,11 +268,39 @@ func decryptAGO(data []byte, password string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	plaintext, err := gcm.Open(nil, nonce, ciphertext, nil)
-	if err != nil {
-		return nil, fmt.Errorf("decryption failed (wrong password?): %w", err)
+	nonceSize := gcm.NonceSize()
+	if len(payload) < nonceSize {
+		return nil, fmt.Errorf("nonce missing")
 	}
-	return plaintext, nil
+	return gcm.Open(nil, payload[:nonceSize], payload[nonceSize:], nil)
+}
+
+func decryptVaultSecretsBlob(encData []byte, password string) ([]byte, error) {
+	if bytes.HasPrefix(encData, []byte(vaultSecretsMagic)) {
+		body := encData[len(vaultSecretsMagic):]
+		if len(body) < 1+agoSaltSize+12 {
+			return nil, fmt.Errorf("vault_secrets.enc too short")
+		}
+		if body[0] != agoKDFArgon2ID {
+			return nil, fmt.Errorf("vault_secrets.enc has unsupported KDF version")
+		}
+		salt := body[1 : 1+agoSaltSize]
+		plain, err := decryptBackupGCM(body[1+agoSaltSize:], deriveBackupKey(password, salt))
+		if err != nil {
+			return nil, fmt.Errorf("vault secrets decryption failed (wrong password?): %w", err)
+		}
+		return plain, nil
+	}
+
+	if len(encData) < agoSaltSize+12 {
+		return nil, fmt.Errorf("vault_secrets.enc too short")
+	}
+	salt := encData[:agoSaltSize]
+	plain, err := decryptBackupGCM(encData[agoSaltSize:], deriveLegacyBackupKey(password, salt))
+	if err != nil {
+		return nil, fmt.Errorf("vault secrets decryption failed (wrong password?): %w", err)
+	}
+	return plain, nil
 }
 
 func agoArchiveBaseDir(targetDir string) (string, error) {

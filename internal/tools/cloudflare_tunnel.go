@@ -74,6 +74,8 @@ var (
 	tunnelStopping bool
 )
 
+var cloudflareRandRead = rand.Read
+
 // ──────────────────────────────────────────────────────────────────────────
 // Lifecycle
 // ──────────────────────────────────────────────────────────────────────────
@@ -1109,26 +1111,13 @@ func findCloudflaredBinary(dataDir string) string {
 }
 
 func installCloudflaredBinary(destPath string, logger *slog.Logger) string {
-	arch := runtime.GOARCH
 	goos := runtime.GOOS
-
-	var downloadURL, checksumURL string
-	switch {
-	case goos == "linux" && arch == "amd64":
-		downloadURL = "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64"
-		checksumURL = "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.sha256sum"
-	case goos == "linux" && arch == "arm64":
-		downloadURL = "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64"
-		checksumURL = "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64.sha256sum"
-	case goos == "darwin" && arch == "amd64":
-		downloadURL = "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-darwin-amd64.tgz"
-	case goos == "darwin" && arch == "arm64":
-		downloadURL = "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-darwin-arm64.tgz"
-	case goos == "windows" && arch == "amd64":
-		downloadURL = "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe"
-	default:
-		return errJSON("Unsupported platform: %s/%s", goos, arch)
+	metadata, err := cloudflaredDownloadMetadata(goos, runtime.GOARCH)
+	if err != nil {
+		return errJSON("%v", err)
 	}
+	downloadURL := metadata.DownloadURL
+	checksumURL := metadata.ChecksumURL
 
 	logger.Info("[CloudflareTunnel] Downloading cloudflared", "url", downloadURL, "dest", destPath)
 
@@ -1149,7 +1138,11 @@ func installCloudflaredBinary(destPath string, logger *slog.Logger) string {
 	}
 
 	// Write to temp file first, then rename (atomic-ish)
-	tmpPath := destPath + ".tmp." + randomHex(4)
+	suffix, err := randomHex(4)
+	if err != nil {
+		return errJSON("Failed to generate temp file suffix: %v", err)
+	}
+	tmpPath := destPath + ".tmp." + suffix
 	f, err := os.Create(tmpPath)
 	if err != nil {
 		return errJSON("Failed to create temp file: %v", err)
@@ -1162,12 +1155,9 @@ func installCloudflaredBinary(destPath string, logger *slog.Logger) string {
 		return errJSON("Failed to write binary: %v", err)
 	}
 
-	// Verify integrity before installing (Linux only — sha256sum files available)
-	if checksumURL != "" {
-		if err := verifyCloudflaredChecksum(client, checksumURL, tmpPath, logger); err != nil {
-			os.Remove(tmpPath)
-			return errJSON("Binary integrity check failed: %v", err)
-		}
+	if err := verifyCloudflaredChecksum(client, checksumURL, tmpPath, logger); err != nil {
+		os.Remove(tmpPath)
+		return errJSON("Binary integrity check failed: %v", err)
 	}
 
 	// Make executable
@@ -1199,32 +1189,59 @@ func installCloudflaredBinary(destPath string, logger *slog.Logger) string {
 // Helpers
 // ──────────────────────────────────────────────────────────────────────────
 
+type cloudflaredDownload struct {
+	DownloadURL string
+	ChecksumURL string
+}
+
+func cloudflaredDownloadMetadata(goos, arch string) (cloudflaredDownload, error) {
+	switch {
+	case goos == "linux" && arch == "amd64":
+		return cloudflaredDownload{
+			DownloadURL: "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64",
+			ChecksumURL: "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.sha256sum",
+		}, nil
+	case goos == "linux" && arch == "arm64":
+		return cloudflaredDownload{
+			DownloadURL: "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64",
+			ChecksumURL: "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64.sha256sum",
+		}, nil
+	case goos == "darwin" && (arch == "amd64" || arch == "arm64"):
+		return cloudflaredDownload{}, fmt.Errorf("cloudflared automatic download for %s/%s is disabled because checksum metadata is unavailable", goos, arch)
+	case goos == "windows" && arch == "amd64":
+		return cloudflaredDownload{}, fmt.Errorf("cloudflared automatic download for %s/%s is disabled because checksum metadata is unavailable", goos, arch)
+	default:
+		return cloudflaredDownload{}, fmt.Errorf("unsupported platform: %s/%s", goos, arch)
+	}
+}
+
 // verifyCloudflaredChecksum downloads the .sha256sum file for the given URL and validates
-// the already-downloaded binary at filePath. Best-effort: logs a warning and proceeds if
-// the checksum file cannot be fetched (e.g. network issue or missing file for the platform).
+// the already-downloaded binary at filePath. Missing or malformed checksum metadata is fatal.
 func verifyCloudflaredChecksum(client *http.Client, checksumURL, filePath string, logger *slog.Logger) error {
 	resp, err := client.Get(checksumURL)
 	if err != nil {
-		logger.Warn("[CloudflareTunnel] Could not download checksum file — skipping integrity check", "error", err)
-		return nil
+		return fmt.Errorf("could not download checksum file: %w", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
-		logger.Warn("[CloudflareTunnel] Checksum file unavailable — skipping integrity check", "status", resp.StatusCode)
-		return nil
+		return fmt.Errorf("checksum file unavailable: HTTP %d", resp.StatusCode)
 	}
 	data, err := readHTTPResponseBody(resp.Body, maxHTTPResponseSize)
 	if err != nil {
-		logger.Warn("[CloudflareTunnel] Failed to read checksum file — skipping integrity check", "error", err)
-		return nil
+		return fmt.Errorf("failed to read checksum file: %w", err)
 	}
 	// Format: "<sha256hash>  <filename>"
 	parts := strings.Fields(string(data))
 	if len(parts) == 0 {
-		logger.Warn("[CloudflareTunnel] Checksum file empty or unparseable — skipping integrity check")
-		return nil
+		return fmt.Errorf("checksum file empty or unparseable")
 	}
 	expectedHash := strings.ToLower(strings.TrimSpace(parts[0]))
+	if len(expectedHash) != sha256.Size*2 {
+		return fmt.Errorf("checksum file has invalid SHA-256 length")
+	}
+	if _, err := hex.DecodeString(expectedHash); err != nil {
+		return fmt.Errorf("checksum file has invalid SHA-256 hex: %w", err)
+	}
 
 	f, err := os.Open(filePath)
 	if err != nil {
@@ -1321,10 +1338,12 @@ func extractQuickTunnelURL(output string) string {
 	return ""
 }
 
-func randomHex(n int) string {
+func randomHex(n int) (string, error) {
 	b := make([]byte, n)
-	rand.Read(b)
-	return hex.EncodeToString(b)
+	if _, err := cloudflareRandRead(b); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(b), nil
 }
 
 // IsTunnelRunning returns true if a cloudflared tunnel is currently active.

@@ -3,6 +3,9 @@ package server
 import (
 	"archive/zip"
 	"bytes"
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/rand"
 	"encoding/json"
 	"io"
 	"log/slog"
@@ -16,6 +19,70 @@ import (
 
 	"aurago/internal/config"
 )
+
+func TestEncryptAGOUsesVersionedArgon2idFormat(t *testing.T) {
+	t.Parallel()
+
+	plain := []byte("zip data")
+	encrypted, err := encryptAGO(plain, "correct horse battery staple")
+	if err != nil {
+		t.Fatalf("encryptAGO: %v", err)
+	}
+	if len(encrypted) < len(agoMagic)+1 {
+		t.Fatalf("encrypted data too short: %d", len(encrypted))
+	}
+	if string(encrypted[:len(agoMagic)]) != agoMagic {
+		t.Fatalf("missing magic prefix")
+	}
+	if encrypted[len(agoMagic)] != agoKDFArgon2ID {
+		t.Fatalf("kdf marker = %d, want %d", encrypted[len(agoMagic)], agoKDFArgon2ID)
+	}
+
+	decrypted, err := decryptAGO(encrypted, "correct horse battery staple")
+	if err != nil {
+		t.Fatalf("decryptAGO: %v", err)
+	}
+	if !bytes.Equal(decrypted, plain) {
+		t.Fatalf("decrypted = %q, want %q", decrypted, plain)
+	}
+}
+
+func TestDecryptAGOLegacySHA256FormatStillWorks(t *testing.T) {
+	t.Parallel()
+
+	plain := []byte("legacy zip data")
+	salt := make([]byte, 16)
+	if _, err := rand.Read(salt); err != nil {
+		t.Fatalf("rand.Read(salt): %v", err)
+	}
+	key := deriveLegacyBackupKey("old password", salt)
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		t.Fatalf("NewCipher: %v", err)
+	}
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		t.Fatalf("NewGCM: %v", err)
+	}
+	nonce := make([]byte, gcm.NonceSize())
+	if _, err := rand.Read(nonce); err != nil {
+		t.Fatalf("rand.Read(nonce): %v", err)
+	}
+
+	var legacy bytes.Buffer
+	legacy.WriteString(agoMagic)
+	legacy.Write(salt)
+	legacy.Write(nonce)
+	legacy.Write(gcm.Seal(nil, nonce, plain, nil))
+
+	decrypted, err := decryptAGO(legacy.Bytes(), "old password")
+	if err != nil {
+		t.Fatalf("decryptAGO legacy: %v", err)
+	}
+	if !bytes.Equal(decrypted, plain) {
+		t.Fatalf("decrypted = %q, want %q", decrypted, plain)
+	}
+}
 
 func TestHandleBackupImportMasksDecryptionErrors(t *testing.T) {
 	t.Parallel()

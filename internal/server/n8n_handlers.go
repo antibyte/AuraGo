@@ -70,6 +70,7 @@ var (
 	n8nSessionLast = make(map[string]time.Time)
 	n8nRateMu      sync.Mutex
 	n8nRateWindows = make(map[string][]time.Time)
+	n8nRandRead    = rand.Read
 )
 
 // n8nChatRequest represents a chat request from n8n
@@ -221,7 +222,13 @@ func handleN8nChat(s *Server) http.HandlerFunc {
 		// Validate and generate session ID
 		sessionID := req.SessionID
 		if sessionID == "" {
-			sessionID = generateSessionID()
+			var err error
+			sessionID, err = generateSessionID()
+			if err != nil {
+				s.Logger.Error("[n8n] Session ID generation failed", "error", err)
+				n8nWriteError(w, http.StatusInternalServerError, "Failed to generate session ID", "random_error")
+				return
+			}
 		} else {
 			// Validate session ID format
 			if !sessionIDRegex.MatchString(sessionID) || len(sessionID) > maxSessionIDLength {
@@ -851,8 +858,15 @@ func handleN8nMissionCreate(s *Server) http.HandlerFunc {
 			prompt += "\n\nSteps:\n" + string(stepsJSON)
 		}
 
+		sessionID, err := generateSessionID()
+		if err != nil {
+			s.Logger.Error("[n8n] Mission ID generation failed", "error", err)
+			n8nWriteError(w, http.StatusInternalServerError, "Failed to generate mission ID", "random_error")
+			return
+		}
+
 		m := &tools.MissionV2{
-			ID:            "n8n_" + generateSessionID(),
+			ID:            "n8n_" + sessionID,
 			Name:          req.Name,
 			Prompt:        prompt,
 			ExecutionType: execType,
@@ -1075,10 +1089,12 @@ func generateN8nToken() (string, error) {
 	return "n8n_" + hex.EncodeToString(b), nil
 }
 
-func generateSessionID() string {
+func generateSessionID() (string, error) {
 	b := make([]byte, 8)
-	rand.Read(b)
-	return hex.EncodeToString(b)
+	if _, err := n8nRandRead(b); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(b), nil
 }
 
 func buildDefaultSystemPrompt(cfg *config.Config) string {
