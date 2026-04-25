@@ -1,6 +1,8 @@
 package invasion
 
 import (
+	"archive/tar"
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -114,6 +116,32 @@ func TestDockerConnector_ConfigArchivePathMatchesEntrypoint(t *testing.T) {
 	}
 	if dockerEggConfigFileName != "config.yaml" {
 		t.Fatalf("dockerEggConfigFileName = %q, want config.yaml", dockerEggConfigFileName)
+	}
+}
+
+func TestDockerConnector_ConfigArchiveIsReadableByContainerUser(t *testing.T) {
+	cfg := []byte("egg_mode:\n  enabled: true\n")
+	archive, err := buildDockerEggConfigArchive(cfg)
+	if err != nil {
+		t.Fatalf("buildDockerEggConfigArchive: %v", err)
+	}
+
+	tr := tar.NewReader(bytes.NewReader(archive))
+	hdr, err := tr.Next()
+	if err != nil {
+		t.Fatalf("reading config tar header: %v", err)
+	}
+	if hdr.Name != dockerEggConfigFileName {
+		t.Fatalf("tar entry name = %q, want %q", hdr.Name, dockerEggConfigFileName)
+	}
+	if hdr.Mode != 0600 {
+		t.Fatalf("tar entry mode = %#o, want 0600", hdr.Mode)
+	}
+	if hdr.Uid != dockerEggConfigUID || hdr.Gid != dockerEggConfigGID {
+		t.Fatalf("tar entry uid/gid = %d/%d, want %d/%d", hdr.Uid, hdr.Gid, dockerEggConfigUID, dockerEggConfigGID)
+	}
+	if hdr.Uname != dockerEggConfigUser || hdr.Gname != dockerEggConfigGroup {
+		t.Fatalf("tar entry user/group = %q/%q, want %q/%q", hdr.Uname, hdr.Gname, dockerEggConfigUser, dockerEggConfigGroup)
 	}
 }
 

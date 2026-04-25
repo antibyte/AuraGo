@@ -22,6 +22,10 @@ import (
 const dockerAPIVersion = dockerutil.APIVersion
 const dockerEggConfigArchivePath = "/app/data"
 const dockerEggConfigFileName = "config.yaml"
+const dockerEggConfigUID = 1001
+const dockerEggConfigGID = 1001
+const dockerEggConfigUser = "aurago"
+const dockerEggConfigGroup = "aurago"
 
 // DockerConnector deploys eggs as Docker containers, either on a remote host
 // or on the local Docker daemon.
@@ -141,27 +145,15 @@ func (c *DockerConnector) Deploy(ctx context.Context, nest NestRecord, secret []
 // Docker Engine Archive API (PUT /containers/{id}/archive). The config is
 // written to /app/data/config.yaml with mode 0600 (owner read/write only).
 func (c *DockerConnector) copyConfigToContainer(ctx context.Context, nest NestRecord, containerName string, configYAML []byte) error {
-	// Build a tar archive containing config.yaml
-	var buf bytes.Buffer
-	tw := tar.NewWriter(&buf)
-	hdr := &tar.Header{
-		Name: dockerEggConfigFileName,
-		Mode: 0600,
-		Size: int64(len(configYAML)),
+	archive, err := buildDockerEggConfigArchive(configYAML)
+	if err != nil {
+		return err
 	}
-	if err := tw.WriteHeader(hdr); err != nil {
-		return fmt.Errorf("failed to write tar header: %w", err)
-	}
-	if _, err := tw.Write(configYAML); err != nil {
-		return fmt.Errorf("failed to write config to tar: %w", err)
-	}
-	if err := tw.Close(); err != nil {
-		return fmt.Errorf("failed to close tar archive: %w", err)
-	}
+	buf := bytes.NewReader(archive)
 
 	// Upload to the persisted config path read by docker-entrypoint.sh.
 	url := c.apiURL(nest, fmt.Sprintf("/containers/%s/archive?path=%s", containerName, dockerEggConfigArchivePath))
-	req, err := http.NewRequestWithContext(ctx, "PUT", url, &buf)
+	req, err := http.NewRequestWithContext(ctx, "PUT", url, buf)
 	if err != nil {
 		return fmt.Errorf("failed to create archive request: %w", err)
 	}
@@ -178,6 +170,30 @@ func (c *DockerConnector) copyConfigToContainer(ctx context.Context, nest NestRe
 		return fmt.Errorf("config upload failed (%d): %s", resp.StatusCode, string(body))
 	}
 	return nil
+}
+
+func buildDockerEggConfigArchive(configYAML []byte) ([]byte, error) {
+	var buf bytes.Buffer
+	tw := tar.NewWriter(&buf)
+	hdr := &tar.Header{
+		Name:  dockerEggConfigFileName,
+		Mode:  0600,
+		Uid:   dockerEggConfigUID,
+		Gid:   dockerEggConfigGID,
+		Uname: dockerEggConfigUser,
+		Gname: dockerEggConfigGroup,
+		Size:  int64(len(configYAML)),
+	}
+	if err := tw.WriteHeader(hdr); err != nil {
+		return nil, fmt.Errorf("failed to write tar header: %w", err)
+	}
+	if _, err := tw.Write(configYAML); err != nil {
+		return nil, fmt.Errorf("failed to write config to tar: %w", err)
+	}
+	if err := tw.Close(); err != nil {
+		return nil, fmt.Errorf("failed to close tar archive: %w", err)
+	}
+	return buf.Bytes(), nil
 }
 
 func (c *DockerConnector) Stop(ctx context.Context, nest NestRecord, secret []byte) error {
