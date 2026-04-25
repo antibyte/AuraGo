@@ -362,6 +362,10 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 	mux.HandleFunc("/api/n8n/memory/search", handleN8nMemorySearch(s))
 	mux.HandleFunc("/api/n8n/memory/store", handleN8nMemoryStore(s))
 	mux.HandleFunc("/api/n8n/missions", handleN8nMissionCreate(s))
+	mux.HandleFunc("/api/n8n/missions/", handleN8nMissionManage(s))
+	mux.HandleFunc("/api/n8n/sessions", handleN8nSessions(s))
+	mux.HandleFunc("/api/n8n/sessions/", handleN8nSessionManage(s))
+	mux.HandleFunc("/api/n8n/webhooks/history", handleN8nWebhookHistory(s))
 
 	// Internal Tool Bridge (loopback-only, for Python skills calling native tools)
 	mux.HandleFunc("/api/internal/tool-bridge/", handleToolBridgeExecute(s))

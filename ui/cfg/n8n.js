@@ -132,7 +132,11 @@ async function n8nGenerateToken() {
         const resp = await fetch('/api/n8n/token', { method: 'POST' });
         if (!resp.ok) throw new Error(resp.statusText);
         const data = await resp.json();
-        if (display) display.textContent = data.token || t('config.n8n.token_masked');
+        const token = data.token || '';
+        if (token && navigator.clipboard && window.isSecureContext) {
+            try { await navigator.clipboard.writeText(token); } catch (_) { /* keep token out of the DOM even if clipboard is blocked */ }
+        }
+        if (display) display.textContent = token ? _n8nMaskToken(token) : t('config.n8n.token_masked');
         if (status) {
             status.className = 'n8n-token-status n8n-token-status-success';
             status.textContent = t('config.n8n.token_generate_success');
@@ -162,6 +166,12 @@ async function n8nTestStatus() {
         status.className = 'n8n-token-status n8n-token-status-error';
         status.textContent = t('config.n8n.status_error') + ': ' + (e && e.message ? e.message : 'unknown');
     }
+}
+
+function _n8nMaskToken(token) {
+    if (!token) return '';
+    if (token.length <= 8) return '•'.repeat(token.length);
+    return token.slice(0, 4) + '••••••••' + token.slice(-4);
 }
 
 async function n8nDeleteToken() {

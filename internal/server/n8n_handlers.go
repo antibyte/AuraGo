@@ -35,6 +35,7 @@ const (
 	maxTimeout         = 300     // 5 minutes max tool timeout
 	maxContextWindow   = 50      // Maximum n8n chat history messages per request
 	maxMemoryLimit     = 100     // Maximum memory search results per request
+	maxWebhookHistory  = 100     // Maximum retained outbound webhook delivery records
 )
 
 // Validators
@@ -75,6 +76,8 @@ var (
 	n8nRateMu      sync.Mutex
 	n8nRateWindows = make(map[string][]time.Time)
 	n8nRandRead    = rand.Read
+	n8nWebhookMu   sync.Mutex
+	n8nWebhooks    []n8nWebhookDelivery
 )
 
 // n8nChatRequest represents a chat request from n8n
@@ -136,6 +139,8 @@ type n8nMissionRequest struct {
 	Trigger     string                   `json:"trigger,omitempty"`  // manual, webhook, schedule
 	Schedule    string                   `json:"schedule,omitempty"` // Cron expression for scheduled missions
 	RunNow      bool                     `json:"run_now,omitempty"`
+	Enabled     *bool                    `json:"enabled,omitempty"`
+	Priority    string                   `json:"priority,omitempty"`
 }
 
 // n8nWebhookPayload represents a webhook event to send to n8n
@@ -145,6 +150,17 @@ type n8nWebhookPayload struct {
 	SessionID string                 `json:"session_id,omitempty"`
 	Data      map[string]interface{} `json:"data"`
 	Signature string                 `json:"signature"`
+}
+
+type n8nWebhookDelivery struct {
+	Event      string    `json:"event"`
+	SessionID  string    `json:"session_id,omitempty"`
+	URL        string    `json:"url,omitempty"`
+	StatusCode int       `json:"status_code,omitempty"`
+	Error      string    `json:"error,omitempty"`
+	Attempts   int       `json:"attempts"`
+	Timestamp  time.Time `json:"timestamp"`
+	Delivered  bool      `json:"delivered"`
 }
 
 // handleN8nStatus returns the n8n integration status and capabilities
@@ -172,7 +188,7 @@ func handleN8nStatus(s *Server) http.HandlerFunc {
 		response := map[string]interface{}{
 			"status":       "ok",
 			"version":      "1.0.0",
-			"capabilities": []string{"chat", "tools", "memory", "missions", "webhooks"},
+			"capabilities": []string{"chat", "tools", "memory", "missions", "sessions", "webhooks", "webhook_history"},
 			"config": map[string]interface{}{
 				"readonly":       cfg.ReadOnly,
 				"allowed_tools":  cfg.AllowedTools,
@@ -797,6 +813,11 @@ func handleN8nMemoryStore(s *Server) http.HandlerFunc {
 // handleN8nMissionCreate creates and optionally runs a mission
 func handleN8nMissionCreate(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			handleN8nMissionsList(s)(w, r)
+			return
+		}
+
 		if r.Method != http.MethodPost {
 			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
@@ -844,35 +865,6 @@ func handleN8nMissionCreate(s *Server) http.HandlerFunc {
 			return
 		}
 
-		execType := tools.ExecutionManual
-		var triggerType tools.TriggerType
-		switch req.Trigger {
-		case "schedule":
-			if strings.TrimSpace(req.Schedule) == "" {
-				n8nWriteError(w, http.StatusBadRequest, "Schedule is required for scheduled missions", "validation_error")
-				return
-			}
-			if !validateCronExpr(req.Schedule) {
-				n8nWriteError(w, http.StatusBadRequest, "Invalid cron schedule", "validation_error")
-				return
-			}
-			execType = tools.ExecutionScheduled
-		case "webhook":
-			execType = tools.ExecutionTriggered
-			triggerType = tools.TriggerWebhook
-		}
-
-		prompt := req.Description
-		if prompt == "" {
-			prompt = req.Name
-		}
-
-		// If steps were provided, append them to the prompt so the agent can follow them.
-		if len(req.Steps) > 0 {
-			stepsJSON, _ := json.Marshal(req.Steps)
-			prompt += "\n\nSteps:\n" + string(stepsJSON)
-		}
-
 		sessionID, err := generateSessionID()
 		if err != nil {
 			s.Logger.Error("[n8n] Mission ID generation failed", "error", err)
@@ -880,18 +872,14 @@ func handleN8nMissionCreate(s *Server) http.HandlerFunc {
 			return
 		}
 
-		m := &tools.MissionV2{
-			ID:            "n8n_" + sessionID,
-			Name:          req.Name,
-			Prompt:        prompt,
-			ExecutionType: execType,
-			Schedule:      req.Schedule,
-			TriggerType:   triggerType,
-			Priority:      "medium",
-			Enabled:       true,
-			Status:        tools.MissionStatusIdle,
-			CreatedAt:     time.Now(),
+		m, err := n8nMissionFromRequest(req)
+		if err != nil {
+			n8nWriteError(w, http.StatusBadRequest, err.Error(), "validation_error")
+			return
 		}
+		m.ID = "n8n_" + sessionID
+		m.Status = tools.MissionStatusIdle
+		m.CreatedAt = time.Now()
 
 		if err := s.MissionManagerV2.Create(m); err != nil {
 			s.Logger.Error("[n8n] Mission create failed", "error", err)
@@ -917,6 +905,131 @@ func handleN8nMissionCreate(s *Server) http.HandlerFunc {
 			"status":       "created",
 			"run_now":      req.RunNow,
 		})
+	}
+}
+
+// handleN8nMissionsList returns all missions for n8n automation and debugging.
+func handleN8nMissionsList(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if !n8nCheckEnabled(s, w) {
+			return
+		}
+		if !n8nAuthorize(s, w, r, N8nScopeMissions) {
+			return
+		}
+		if s.MissionManagerV2 == nil {
+			n8nWriteError(w, http.StatusServiceUnavailable, "Mission manager not available", "service_unavailable")
+			return
+		}
+
+		missions := s.MissionManagerV2.List()
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"missions": missions,
+			"count":    len(missions),
+		})
+	}
+}
+
+// handleN8nMissionManage handles get, update, delete and run operations for a mission.
+func handleN8nMissionManage(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !n8nCheckEnabled(s, w) {
+			return
+		}
+		if !n8nAuthorize(s, w, r, N8nScopeMissions) {
+			return
+		}
+		if s.MissionManagerV2 == nil {
+			n8nWriteError(w, http.StatusServiceUnavailable, "Mission manager not available", "service_unavailable")
+			return
+		}
+
+		parts := strings.Split(strings.Trim(strings.TrimPrefix(r.URL.Path, "/api/n8n/missions/"), "/"), "/")
+		if len(parts) == 0 || parts[0] == "" {
+			n8nWriteError(w, http.StatusBadRequest, "Mission ID is required", "validation_error")
+			return
+		}
+		missionID := parts[0]
+
+		if len(parts) == 2 && parts[1] == "run" {
+			if r.Method != http.MethodPost {
+				jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+				return
+			}
+			if n8nReadOnly(s) {
+				n8nWriteError(w, http.StatusForbidden, "Mission execution disabled (readonly mode)", "readonly")
+				return
+			}
+			if err := s.MissionManagerV2.RunNow(missionID); err != nil {
+				n8nWriteError(w, http.StatusNotFound, "Mission not found", "not_found")
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{"mission_id": missionID, "status": "queued"})
+			return
+		}
+
+		if len(parts) > 1 {
+			n8nWriteError(w, http.StatusNotFound, "Unknown mission endpoint", "not_found")
+			return
+		}
+
+		switch r.Method {
+		case http.MethodGet:
+			mission, ok := s.MissionManagerV2.Get(missionID)
+			if !ok {
+				n8nWriteError(w, http.StatusNotFound, "Mission not found", "not_found")
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{"mission": mission})
+
+		case http.MethodPut:
+			if n8nReadOnly(s) {
+				n8nWriteError(w, http.StatusForbidden, "Mission update disabled (readonly mode)", "readonly")
+				return
+			}
+			var req n8nMissionRequest
+			if err := n8nReadJSON(w, r, &req); err != nil {
+				n8nWriteError(w, http.StatusBadRequest, "Invalid request body", "parse_error")
+				return
+			}
+			if req.Name == "" {
+				n8nWriteError(w, http.StatusBadRequest, "Mission name is required", "validation_error")
+				return
+			}
+			updated, err := n8nMissionFromRequest(req)
+			if err != nil {
+				n8nWriteError(w, http.StatusBadRequest, err.Error(), "validation_error")
+				return
+			}
+			if err := s.MissionManagerV2.Update(missionID, updated); err != nil {
+				n8nWriteError(w, http.StatusNotFound, "Mission not found", "not_found")
+				return
+			}
+			mission, _ := s.MissionManagerV2.Get(missionID)
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{"mission": mission, "status": "updated"})
+
+		case http.MethodDelete:
+			if n8nReadOnly(s) {
+				n8nWriteError(w, http.StatusForbidden, "Mission deletion disabled (readonly mode)", "readonly")
+				return
+			}
+			if err := s.MissionManagerV2.Delete(missionID); err != nil {
+				n8nWriteError(w, http.StatusNotFound, err.Error(), "not_found")
+				return
+			}
+			w.WriteHeader(http.StatusNoContent)
+
+		default:
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
 	}
 }
 
@@ -970,7 +1083,170 @@ func handleN8nToken(s *Server) http.HandlerFunc {
 	}
 }
 
+// handleN8nSessions exposes isolated n8n chat sessions for workflow debugging.
+func handleN8nSessions(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !n8nCheckEnabled(s, w) {
+			return
+		}
+		if !n8nAuthorize(s, w, r, N8nScopeRead) {
+			return
+		}
+
+		switch r.Method {
+		case http.MethodGet:
+			sessions := n8nListSessions()
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{"sessions": sessions, "count": len(sessions)})
+		default:
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	}
+}
+
+// handleN8nSessionManage exposes history retrieval and deletion for one n8n session.
+func handleN8nSessionManage(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !n8nCheckEnabled(s, w) {
+			return
+		}
+		if !n8nAuthorize(s, w, r, N8nScopeRead) {
+			return
+		}
+
+		parts := strings.Split(strings.Trim(strings.TrimPrefix(r.URL.Path, "/api/n8n/sessions/"), "/"), "/")
+		if len(parts) == 0 || parts[0] == "" {
+			n8nWriteError(w, http.StatusBadRequest, "Session ID is required", "validation_error")
+			return
+		}
+		sessionID := parts[0]
+		if !sessionIDRegex.MatchString(sessionID) || len(sessionID) > maxSessionIDLength {
+			n8nWriteError(w, http.StatusBadRequest, "Invalid session ID format", "validation_error")
+			return
+		}
+
+		switch r.Method {
+		case http.MethodGet:
+			if len(parts) != 2 || parts[1] != "history" {
+				n8nWriteError(w, http.StatusNotFound, "Unknown session endpoint", "not_found")
+				return
+			}
+			messages, ok := n8nSessionHistory(sessionID)
+			if !ok {
+				n8nWriteError(w, http.StatusNotFound, "Session not found", "not_found")
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(map[string]interface{}{"session_id": sessionID, "messages": messages, "count": len(messages)})
+
+		case http.MethodDelete:
+			if len(parts) != 1 {
+				n8nWriteError(w, http.StatusNotFound, "Unknown session endpoint", "not_found")
+				return
+			}
+			if !n8nDeleteSession(sessionID) {
+				n8nWriteError(w, http.StatusNotFound, "Session not found", "not_found")
+				return
+			}
+			w.WriteHeader(http.StatusNoContent)
+
+		default:
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	}
+}
+
+// handleN8nWebhookHistory returns recent outbound webhook delivery attempts.
+func handleN8nWebhookHistory(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			jsonError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if !n8nCheckEnabled(s, w) {
+			return
+		}
+		if !n8nAuthorize(s, w, r, N8nScopeRead) {
+			return
+		}
+
+		history := n8nWebhookHistory()
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{"deliveries": history, "count": len(history)})
+	}
+}
+
 // Helper functions
+
+func n8nReadOnly(s *Server) bool {
+	s.CfgMu.RLock()
+	readonly := s.Cfg.N8n.ReadOnly
+	s.CfgMu.RUnlock()
+	return readonly
+}
+
+func n8nMissionFromRequest(req n8nMissionRequest) (*tools.MissionV2, error) {
+	if req.Name == "" {
+		return nil, fmt.Errorf("Mission name is required")
+	}
+	if len(req.Name) > maxMissionNameLen {
+		return nil, fmt.Errorf("Mission name too long")
+	}
+	if len(req.Description) > maxMissionPromptLen {
+		return nil, fmt.Errorf("Mission description too long")
+	}
+
+	execType := tools.ExecutionManual
+	var triggerType tools.TriggerType
+	switch req.Trigger {
+	case "", "manual":
+	case "schedule":
+		if strings.TrimSpace(req.Schedule) == "" {
+			return nil, fmt.Errorf("Schedule is required for scheduled missions")
+		}
+		if !validateCronExpr(req.Schedule) {
+			return nil, fmt.Errorf("Invalid cron schedule")
+		}
+		execType = tools.ExecutionScheduled
+	case "webhook":
+		execType = tools.ExecutionTriggered
+		triggerType = tools.TriggerWebhook
+	default:
+		return nil, fmt.Errorf("Invalid mission trigger")
+	}
+
+	prompt := req.Description
+	if prompt == "" {
+		prompt = req.Name
+	}
+	if len(req.Steps) > 0 {
+		stepsJSON, _ := json.Marshal(req.Steps)
+		prompt += "\n\nSteps:\n" + string(stepsJSON)
+	}
+
+	priority := strings.TrimSpace(req.Priority)
+	if priority == "" {
+		priority = "medium"
+	}
+	if priority != "low" && priority != "medium" && priority != "high" {
+		return nil, fmt.Errorf("Invalid mission priority")
+	}
+
+	enabled := true
+	if req.Enabled != nil {
+		enabled = *req.Enabled
+	}
+
+	return &tools.MissionV2{
+		Name:          req.Name,
+		Prompt:        prompt,
+		ExecutionType: execType,
+		Schedule:      req.Schedule,
+		TriggerType:   triggerType,
+		Priority:      priority,
+		Enabled:       enabled,
+	}, nil
+}
 
 func n8nCheckEnabled(s *Server, w http.ResponseWriter) bool {
 	s.CfgMu.RLock()
@@ -1031,14 +1307,21 @@ func n8nScopeAllowed(scopes []string, required string) bool {
 	return false
 }
 
+type n8nRateLimitResult struct {
+	Allowed   bool
+	Limit     int
+	Remaining int
+	Reset     time.Time
+}
+
 // n8nCheckRateLimit enforces RateLimitRPS for n8n endpoints using a per-token sliding window.
-func n8nCheckRateLimit(s *Server, r *http.Request) bool {
+func n8nCheckRateLimit(s *Server, r *http.Request) n8nRateLimitResult {
 	s.CfgMu.RLock()
 	rps := s.Cfg.N8n.RateLimitRPS
 	s.CfgMu.RUnlock()
 
 	if rps <= 0 {
-		return true
+		return n8nRateLimitResult{Allowed: true}
 	}
 
 	// Key on the first 8 chars of the Bearer token, or fall back to the client IP.
@@ -1063,12 +1346,17 @@ func n8nCheckRateLimit(s *Server, r *http.Request) bool {
 	}
 	ts = ts[i:]
 
+	reset := now.Add(time.Second)
+	if len(ts) > 0 {
+		reset = ts[0].Add(time.Second)
+	}
+
 	if len(ts) >= rps {
 		n8nRateWindows[key] = ts
-		return false
+		return n8nRateLimitResult{Allowed: false, Limit: rps, Remaining: 0, Reset: reset}
 	}
 	n8nRateWindows[key] = append(ts, now)
-	return true
+	return n8nRateLimitResult{Allowed: true, Limit: rps, Remaining: rps - len(ts) - 1, Reset: reset}
 }
 
 // n8nAuthorize combines auth check, scope enforcement and rate limiting.
@@ -1078,7 +1366,13 @@ func n8nAuthorize(s *Server, w http.ResponseWriter, r *http.Request, scope strin
 		n8nWriteError(w, http.StatusUnauthorized, "Unauthorized", "invalid_token")
 		return false
 	}
-	if !n8nCheckRateLimit(s, r) {
+	rate := n8nCheckRateLimit(s, r)
+	if rate.Limit > 0 {
+		w.Header().Set("X-RateLimit-Limit", fmt.Sprintf("%d", rate.Limit))
+		w.Header().Set("X-RateLimit-Remaining", fmt.Sprintf("%d", rate.Remaining))
+		w.Header().Set("X-RateLimit-Reset", fmt.Sprintf("%d", rate.Reset.Unix()))
+	}
+	if !rate.Allowed {
 		n8nWriteError(w, http.StatusTooManyRequests, "Rate limit exceeded", "rate_limited")
 		return false
 	}
@@ -1136,7 +1430,7 @@ func n8nEffectiveAllowedTools(globalAllowed, requestAllowed []string) []string {
 }
 
 func generateSessionID() (string, error) {
-	b := make([]byte, 8)
+	b := make([]byte, 16)
 	if _, err := n8nRandRead(b); err != nil {
 		return "", err
 	}
@@ -1277,22 +1571,59 @@ func n8nSendWebhook(s *Server, event string, sessionID string, data map[string]i
 		}
 	}
 
-	// Send async with a bounded timeout so the goroutine cannot leak.
+	// Send async with bounded retries so transient n8n outages are recoverable.
 	// POST directly to webhookURL — the user configures the full n8n webhook URL.
 	go func() {
-		client := &http.Client{Timeout: 10 * time.Second}
 		jsonPayload, _ := json.Marshal(payload)
-		resp, err := client.Post(
-			webhookURL,
-			"application/json",
-			strings.NewReader(string(jsonPayload)),
-		)
-		if err != nil {
-			s.Logger.Warn("[n8n] Failed to send webhook", "error", err)
-			return
+		client := &http.Client{Timeout: 10 * time.Second}
+		delivery := n8nWebhookDelivery{
+			Event:     event,
+			SessionID: sessionID,
+			URL:       webhookURL,
+			Timestamp: time.Now().UTC(),
 		}
-		defer resp.Body.Close()
+
+		for attempt := 1; attempt <= 3; attempt++ {
+			delivery.Attempts = attempt
+			resp, err := client.Post(webhookURL, "application/json", strings.NewReader(string(jsonPayload)))
+			if err != nil {
+				delivery.Error = err.Error()
+				s.Logger.Warn("[n8n] Failed to send webhook", "error", err, "attempt", attempt)
+			} else {
+				delivery.StatusCode = resp.StatusCode
+				resp.Body.Close()
+				if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+					delivery.Delivered = true
+					delivery.Error = ""
+					n8nRecordWebhookDelivery(delivery)
+					return
+				}
+				delivery.Error = fmt.Sprintf("unexpected status %d", resp.StatusCode)
+				s.Logger.Warn("[n8n] Webhook returned non-success status", "status", resp.StatusCode, "attempt", attempt)
+			}
+			if attempt < 3 {
+				time.Sleep(time.Duration(attempt*attempt) * time.Second)
+			}
+		}
+		n8nRecordWebhookDelivery(delivery)
 	}()
+}
+
+func n8nRecordWebhookDelivery(delivery n8nWebhookDelivery) {
+	n8nWebhookMu.Lock()
+	defer n8nWebhookMu.Unlock()
+	n8nWebhooks = append(n8nWebhooks, delivery)
+	if len(n8nWebhooks) > maxWebhookHistory {
+		n8nWebhooks = n8nWebhooks[len(n8nWebhooks)-maxWebhookHistory:]
+	}
+}
+
+func n8nWebhookHistory() []n8nWebhookDelivery {
+	n8nWebhookMu.Lock()
+	defer n8nWebhookMu.Unlock()
+	out := make([]n8nWebhookDelivery, len(n8nWebhooks))
+	copy(out, n8nWebhooks)
+	return out
 }
 
 // callLLMWithTools calls the LLM with tools using the agent's LLM client
@@ -1369,6 +1700,45 @@ func n8nStoreSessionMessages(sessionID, userMsg, assistantMsg string) {
 	}
 	n8nSessions[sessionID] = msgs
 	n8nSessionLast[sessionID] = time.Now()
+}
+
+func n8nListSessions() []map[string]interface{} {
+	n8nSessionMu.Lock()
+	defer n8nSessionMu.Unlock()
+	n8nPurgeExpiredSessionsLocked()
+
+	sessions := make([]map[string]interface{}, 0, len(n8nSessions))
+	for id, msgs := range n8nSessions {
+		sessions = append(sessions, map[string]interface{}{
+			"session_id": id,
+			"messages":   len(msgs),
+			"last_seen":  n8nSessionLast[id],
+		})
+	}
+	return sessions
+}
+
+func n8nSessionHistory(sessionID string) ([]openai.ChatCompletionMessage, bool) {
+	n8nSessionMu.Lock()
+	defer n8nSessionMu.Unlock()
+	n8nPurgeExpiredSessionsLocked()
+
+	msgs, ok := n8nSessions[sessionID]
+	if !ok {
+		return nil, false
+	}
+	return append([]openai.ChatCompletionMessage(nil), msgs...), true
+}
+
+func n8nDeleteSession(sessionID string) bool {
+	n8nSessionMu.Lock()
+	defer n8nSessionMu.Unlock()
+	if _, ok := n8nSessions[sessionID]; !ok {
+		return false
+	}
+	delete(n8nSessions, sessionID)
+	delete(n8nSessionLast, sessionID)
+	return true
 }
 
 // n8nPurgeExpiredSessionsLocked removes sessions older than n8nSessionTTL.

@@ -9,9 +9,12 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"aurago/internal/config"
 	"aurago/internal/sqlconnections"
+
+	openai "github.com/sashabaranov/go-openai"
 )
 
 func newN8nToolTestServer(t *testing.T) *Server {
@@ -74,6 +77,16 @@ func TestGenerateSessionIDReturnsErrorWhenRandomFails(t *testing.T) {
 
 	if _, err := generateSessionID(); err == nil {
 		t.Fatal("expected random failure to be returned")
+	}
+}
+
+func TestGenerateSessionIDUsesStrongLength(t *testing.T) {
+	id, err := generateSessionID()
+	if err != nil {
+		t.Fatalf("generateSessionID() error = %v", err)
+	}
+	if len(id) != 32 {
+		t.Fatalf("session ID length = %d, want 32", len(id))
 	}
 }
 
@@ -142,5 +155,54 @@ func TestN8nEffectiveAllowedTools(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestN8nSessionHelpersListHistoryAndDelete(t *testing.T) {
+	n8nSessionMu.Lock()
+	n8nSessions = make(map[string][]openai.ChatCompletionMessage)
+	n8nSessionLast = make(map[string]time.Time)
+	n8nSessionMu.Unlock()
+
+	n8nStoreSessionMessages("test_session", "hello", "world")
+
+	sessions := n8nListSessions()
+	if len(sessions) != 1 {
+		t.Fatalf("session count = %d, want 1", len(sessions))
+	}
+
+	history, ok := n8nSessionHistory("test_session")
+	if !ok {
+		t.Fatal("expected session history to exist")
+	}
+	if len(history) != 2 {
+		t.Fatalf("history length = %d, want 2", len(history))
+	}
+
+	if !n8nDeleteSession("test_session") {
+		t.Fatal("expected delete to return true")
+	}
+	if _, ok := n8nSessionHistory("test_session"); ok {
+		t.Fatal("expected session to be removed")
+	}
+}
+
+func TestN8nRateLimitResultIncludesMetadata(t *testing.T) {
+	n8nRateMu.Lock()
+	n8nRateWindows = make(map[string][]time.Time)
+	n8nRateMu.Unlock()
+
+	s := newN8nToolTestServer(t)
+	s.Cfg.N8n.RateLimitRPS = 1
+
+	req := httptest.NewRequest(http.MethodGet, "/api/n8n/status", nil)
+	first := n8nCheckRateLimit(s, req)
+	if !first.Allowed || first.Limit != 1 || first.Remaining != 0 || first.Reset.IsZero() {
+		t.Fatalf("unexpected first rate result: %+v", first)
+	}
+
+	second := n8nCheckRateLimit(s, req)
+	if second.Allowed || second.Limit != 1 || second.Remaining != 0 || second.Reset.IsZero() {
+		t.Fatalf("unexpected second rate result: %+v", second)
 	}
 }

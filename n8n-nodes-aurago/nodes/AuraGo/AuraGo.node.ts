@@ -234,11 +234,27 @@ async function executeMemoryOperation(this: IExecuteFunctions, index: number, op
 }
 
 async function executeMissionOperation(this: IExecuteFunctions, index: number, operation: string): Promise<any> {
+  if (operation === 'list') {
+    return await auragoApiRequest.call(this, 'GET', '/api/n8n/missions');
+  }
+
+  if (['get', 'delete', 'run'].includes(operation)) {
+    const missionId = this.getNodeParameter('missionId', index) as string;
+    if (operation === 'get') {
+      return await auragoApiRequest.call(this, 'GET', `/api/n8n/missions/${missionId}`);
+    }
+    if (operation === 'delete') {
+      return await auragoApiRequest.call(this, 'DELETE', `/api/n8n/missions/${missionId}`);
+    }
+    return await auragoApiRequest.call(this, 'POST', `/api/n8n/missions/${missionId}/run`);
+  }
+
   const missionName = this.getNodeParameter('missionName', index) as string;
   const description = this.getNodeParameter('description', index, '') as string;
   const triggerType = this.getNodeParameter('triggerType', index, 'manual') as string;
   const stepsJson = this.getNodeParameter('steps', index, '[]') as string;
   const schedule = this.getNodeParameter('schedule', index, '') as string;
+  const priority = this.getNodeParameter('priority', index, 'medium') as string;
 
   let steps = [];
   try {
@@ -252,10 +268,17 @@ async function executeMissionOperation(this: IExecuteFunctions, index: number, o
     description,
     trigger: triggerType,
     steps,
+    priority,
     run_now: operation === 'createAndRun',
   };
   if (triggerType === 'schedule') {
     body.schedule = schedule;
+  }
+
+  if (operation === 'update') {
+    const missionId = this.getNodeParameter('missionId', index) as string;
+    body.enabled = this.getNodeParameter('enabled', index, true) as boolean;
+    return await auragoApiRequest.call(this, 'PUT', `/api/n8n/missions/${missionId}`, body);
   }
 
   return await auragoApiRequest.call(this, 'POST', '/api/n8n/missions', body);
