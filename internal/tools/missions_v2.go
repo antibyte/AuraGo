@@ -12,6 +12,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"aurago/internal/security"
 )
 
 // ExecutionType defines how a mission is executed
@@ -667,10 +669,7 @@ func (m *MissionManagerV2) processNext() {
 		}
 	}
 
-	// Enhance prompt with trigger data
-	if item.TriggerData != "" {
-		prompt = fmt.Sprintf("%s\n\n[Trigger Context: %s]", prompt, item.TriggerData)
-	}
+	prompt = appendIsolatedTriggerContext(prompt, item.TriggerType, item.TriggerData)
 	// Start timeout guardian to prevent permanent queue blocking if callback hangs
 	guardCtx, guardCancel := context.WithCancel(context.Background())
 	m.mu.Lock()
@@ -691,6 +690,16 @@ func (m *MissionManagerV2) processNext() {
 		}
 	}()
 	go callback(prompt, missionID)
+}
+
+func appendIsolatedTriggerContext(prompt, triggerType, triggerData string) string {
+	if triggerData == "" {
+		return prompt
+	}
+	if triggerType == "" {
+		triggerType = "event"
+	}
+	return fmt.Sprintf("%s\n\n[Trigger Context: %s]\n%s", prompt, triggerType, security.IsolateExternalData(triggerData))
 }
 
 // OnMissionComplete handles mission completion and triggers dependent missions

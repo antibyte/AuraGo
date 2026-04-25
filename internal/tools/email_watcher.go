@@ -231,8 +231,15 @@ func (ew *EmailWatcher) pollAccount(acct config.EmailAccount) {
 		ew.mu.Unlock()
 	}
 
-	prompt := fmt.Sprintf("[EMAIL NOTIFICATION] Account: %s (%s) — %d new email(s) in %s:%s\n\nYou can use fetch_email with account \"%s\" for full content or send_email to reply.", acct.Name, acct.FromAddress, len(messages), acct.WatchFolder, summary, acct.ID)
-	ew.notifyAgent(prompt)
+	ew.notifyAgent(buildEmailNotificationPrompt(acct, len(messages), summary))
+}
+
+func buildEmailNotificationPrompt(acct config.EmailAccount, messageCount int, summary string) string {
+	summaryBlock := ""
+	if summary != "" {
+		summaryBlock = "\n\nEmail summary:\n" + security.IsolateExternalData(summary)
+	}
+	return fmt.Sprintf("[EMAIL NOTIFICATION] Account: %s (%s) - %d new email(s) in %s.%s\n\nYou can use fetch_email with account \"%s\" for full content or send_email to reply.", acct.Name, acct.FromAddress, messageCount, acct.WatchFolder, summaryBlock, acct.ID)
 }
 
 // containsCI is a case-insensitive contains check.

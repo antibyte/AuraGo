@@ -257,6 +257,8 @@ func (g *Guardian) SanitizeToolOutput(toolName, output string) string {
 		"proxmox_ve":        true,
 		"github":            true,
 		"netlify":           true,
+		"google_workspace":  true,
+		"gworkspace":        true,
 		"home_assistant":    true,
 		"tailscale":         true,
 		"webdav":            true,
