@@ -107,6 +107,7 @@ log_analysis_*.md
 docs
 docs/*.*
 .superpowers/
+.worktrees/
 #Agent files
 .kilo/
 .kilocode/
