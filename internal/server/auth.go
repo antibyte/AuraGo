@@ -598,7 +598,7 @@ func authMiddleware(s *Server, next http.Handler) http.Handler {
 		// Browser: redirect to login with return path
 		target := "/auth/login"
 		if r.URL.Path != "/" {
-			target += "?redirect=" + r.URL.RequestURI()
+			target += "?redirect=" + url.QueryEscape(r.URL.RequestURI())
 		}
 		http.Redirect(w, r, target, http.StatusTemporaryRedirect)
 	})

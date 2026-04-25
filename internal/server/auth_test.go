@@ -70,6 +70,21 @@ func TestIsAuthenticatedRejectsEmptySessionSecret(t *testing.T) {
 	}
 }
 
+func TestSanitizeRedirectTargetRejectsControlCharacters(t *testing.T) {
+	t.Parallel()
+
+	for _, target := range []string{
+		"/chat\r\nLocation: //evil.example",
+		"/chat\x00",
+		"//evil.example",
+		"https://evil.example",
+	} {
+		if got := sanitizeRedirectTarget(target); got != "/" {
+			t.Fatalf("sanitizeRedirectTarget(%q) = %q, want /", target, got)
+		}
+	}
+}
+
 func TestClearSessionCookieIncludesProxySecureAttribute(t *testing.T) {
 	t.Parallel()
 
