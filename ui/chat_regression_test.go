@@ -427,6 +427,10 @@ func TestChatUIEmojiIconsAreImageAssets(t *testing.T) {
 	}
 
 	indexHTML := string(indexContent)
+	iconVersion := extractJSStringConst(t, iconsJS, "ICON_VERSION")
+	if !strings.Contains(indexHTML, `/js/chat/ui-icons.js?v=`+iconVersion) {
+		t.Fatalf("%s loads ui-icons.js without the current icon cache-bust version %q", indexPath, iconVersion)
+	}
 	for _, marker := range []string{
 		`/js/chat/ui-icons.js`,
 		`data-chat-icon="robot"`,
@@ -447,6 +451,22 @@ func TestChatUIEmojiIconsAreImageAssets(t *testing.T) {
 			t.Fatalf("%s still contains static emoji/icon glyph %q", indexPath, glyph)
 		}
 	}
+}
+
+func extractJSStringConst(t *testing.T, js, name string) string {
+	t.Helper()
+
+	marker := "const " + name + " = '"
+	start := strings.Index(js, marker)
+	if start < 0 {
+		t.Fatalf("missing JS const %s", name)
+	}
+	start += len(marker)
+	end := strings.Index(js[start:], "'")
+	if end < 0 {
+		t.Fatalf("unterminated JS const %s", name)
+	}
+	return js[start : start+end]
 }
 
 func assertPNGIcon(t *testing.T, path string, wantWidth, wantHeight int) {

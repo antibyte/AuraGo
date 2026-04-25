@@ -1,5 +1,5 @@
 (() => {
-    const ICON_VERSION = '20260425c';
+    const ICON_VERSION = '20260425d';
     const ICON_BASE_PATH = '/img/chat-ui-icons';
     const DEFAULT_ICON_KEY = 'generic';
     const CHAT_UI_ICON_STYLE_PRESET = 'ai-generated-activity-3d';
