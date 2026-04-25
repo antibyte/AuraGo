@@ -429,6 +429,10 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 	fsHandler := http.StripPrefix("/files/", http.FileServer(neuteredFileSystem{http.Dir(s.Cfg.Directories.WorkspaceDir)}))
 	mux.HandleFunc("/files/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
+		if isActiveContentExtension(r.URL.Path) {
+			filename := filepath.Base(r.URL.Path)
+			w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
+		}
 		fsHandler.ServeHTTP(w, r)
 	})
 

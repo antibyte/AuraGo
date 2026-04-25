@@ -395,6 +395,7 @@ var authBypassPrefixes = []string{
 	"/setup",
 	"/css/",
 	"/fonts/",
+	"/img/",
 	"/shared.css",
 	"/shared-variables.css",
 	"/shared-utilities.css",
@@ -414,19 +415,29 @@ var authBypassPrefixes = []string{
 	"/chart.min.js",
 }
 
+var publicUIAssetPaths = map[string]bool{
+	"/apple-touch-icon.png":         true,
+	"/aurago_logo_dark.png":         true,
+	"/aurago_logo.png":              true,
+	"/favicon-96x96.png":            true,
+	"/favicon.ico":                  true,
+	"/favicon.svg":                  true,
+	"/web-app-manifest-192x192.png": true,
+	"/web-app-manifest-512x512.png": true,
+	"/wood.jpg":                     true,
+}
+
+func isPublicUIAssetPath(path string) bool {
+	return publicUIAssetPaths[path]
+}
+
 func isAuthBypassed(path string) bool {
 	for _, prefix := range authBypassPrefixes {
 		if strings.HasPrefix(path, prefix) {
 			return true
 		}
 	}
-	// Static image/icon assets needed for the login page
-	return strings.HasSuffix(path, ".png") ||
-		strings.HasSuffix(path, ".ico") ||
-		strings.HasSuffix(path, ".svg") ||
-		strings.HasSuffix(path, ".woff") ||
-		strings.HasSuffix(path, ".woff2") ||
-		strings.HasSuffix(path, ".ttf")
+	return isPublicUIAssetPath(path)
 }
 
 // noPasswordPrefixes lists the only URL prefixes accessible when auth is enabled
@@ -466,12 +477,7 @@ func isAllowedWithoutPassword(path string) bool {
 			return true
 		}
 	}
-	return strings.HasSuffix(path, ".png") ||
-		strings.HasSuffix(path, ".ico") ||
-		strings.HasSuffix(path, ".svg") ||
-		strings.HasSuffix(path, ".woff") ||
-		strings.HasSuffix(path, ".woff2") ||
-		strings.HasSuffix(path, ".ttf")
+	return isPublicUIAssetPath(path)
 }
 
 func requiresPasswordBootstrap(cfg *config.Config) bool {

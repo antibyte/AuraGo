@@ -469,10 +469,9 @@ func handleInvasionNestSendSecret(s *Server) http.HandlerFunc {
 var wsUpgrader = websocket.Upgrader{
 	ReadBufferSize:  4096,
 	WriteBufferSize: 4096,
-	// CheckOrigin validated in handleInvasionWebSocket via HMAC auth.
-	// Allow all origins here because eggs connect from arbitrary hosts
-	// and authenticate via per-nest shared key HMAC in the first message.
-	CheckOrigin: func(r *http.Request) bool { return true },
+	// Eggs and remote agents do not send Origin. Browser-originated upgrades
+	// must be same-origin before the post-upgrade HMAC auth is considered.
+	CheckOrigin: sameOriginOrNoOrigin,
 }
 
 func handleInvasionWebSocket(s *Server) http.HandlerFunc {
