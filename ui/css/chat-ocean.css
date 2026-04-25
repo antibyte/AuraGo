@@ -91,7 +91,7 @@
     box-shadow: 0 0 20px rgba(118, 198, 223, 0.14);
 }
 
-[data-theme="ocean"] .logo span:first-of-type {
+[data-theme="ocean"] .logo .logo-wordmark-accent {
     background: linear-gradient(135deg, #c6e8f7 0%, #86c8e3 42%, #5e9dc2 100%);
     -webkit-background-clip: text;
     background-clip: text;

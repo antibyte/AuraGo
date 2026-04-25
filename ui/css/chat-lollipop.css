@@ -90,7 +90,7 @@
         transparent 100%);
 }
 
-[data-theme="lollipop"] .logo span:first-of-type,
+[data-theme="lollipop"] .logo .logo-wordmark-accent,
 [data-theme="lollipop"] .session-drawer-title,
 [data-theme="lollipop"] .modal-title,
 [data-theme="lollipop"] .chat-theme-btn,
@@ -106,7 +106,7 @@
     letter-spacing: 0.01em;
 }
 
-[data-theme="lollipop"] .logo span:first-of-type {
+[data-theme="lollipop"] .logo .logo-wordmark-accent {
     font-size: 1.35rem;
 }
 
@@ -138,7 +138,7 @@
     font-size: 1.18rem;
 }
 
-[data-theme="lollipop"] .logo span:first-of-type {
+[data-theme="lollipop"] .logo .logo-wordmark-accent {
     background: linear-gradient(135deg, #ef83bc, #c7a2ff 55%, #8fd9be);
     -webkit-background-clip: text;
     background-clip: text;

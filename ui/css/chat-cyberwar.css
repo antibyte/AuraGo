@@ -98,7 +98,7 @@
         0 0 22px rgba(255, 71, 200, 0.18);
 }
 
-[data-theme="cyberwar"] .logo span:first-of-type {
+[data-theme="cyberwar"] .logo .logo-wordmark-accent {
     background: linear-gradient(135deg, #7cf8ff, #8b7dff 48%, #ff47c8);
     -webkit-background-clip: text;
     background-clip: text;
@@ -107,7 +107,7 @@
         0 0 44px rgba(139, 125, 255, 0.22);
 }
 
-[data-theme="cyberwar"] .logo span:first-of-type,
+[data-theme="cyberwar"] .logo .logo-wordmark-accent,
 [data-theme="cyberwar"] .session-drawer-title,
 [data-theme="cyberwar"] .modal-title,
 [data-theme="cyberwar"] .app-header .pill,

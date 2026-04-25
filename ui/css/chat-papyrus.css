@@ -117,7 +117,7 @@
     box-shadow: 0 0 18px rgba(233, 208, 164, 0.12);
 }
 
-[data-theme="papyrus"] .logo span:first-of-type {
+[data-theme="papyrus"] .logo .logo-wordmark-accent {
     background: linear-gradient(135deg, #fff1d6 0%, #e4c38f 42%, #c39055 100%);
     -webkit-background-clip: text;
     background-clip: text;
@@ -143,7 +143,7 @@
 }
 
 
-[data-theme="papyrus"] .logo span:first-of-type,
+[data-theme="papyrus"] .logo .logo-wordmark-accent,
 [data-theme="papyrus"] .session-drawer-title,
 [data-theme="papyrus"] .modal-title,
 [data-theme="papyrus"] .app-header .pill,
@@ -941,12 +941,12 @@
     opacity: 0.72;
 }
 
-[data-theme="papyrus"] .logo span:first-of-type,
+[data-theme="papyrus"] .logo .logo-wordmark-accent,
 [data-theme="papyrus"] .logo-wordmark-base {
     font-family: var(--papyrus-font-display);
 }
 
-[data-theme="papyrus"] .logo span:first-of-type {
+[data-theme="papyrus"] .logo .logo-wordmark-accent {
     background: linear-gradient(135deg, #f9efd7 0%, #d8b56c 42%, #7dc0b2 100%);
     -webkit-background-clip: text;
     background-clip: text;

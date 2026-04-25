@@ -108,7 +108,7 @@
         0 0 42px rgba(255, 255, 255, 0.08);
 }
 
-[data-theme="black-matrix"] .logo span:first-of-type {
+[data-theme="black-matrix"] .logo .logo-wordmark-accent {
     background: linear-gradient(180deg, #ffffff 0%, #c8d1c9 26%, #8ef25c 62%, #eff8ee 100%);
     -webkit-background-clip: text;
     background-clip: text;
@@ -116,7 +116,7 @@
     text-shadow: 0 0 18px rgba(148, 242, 109, 0.08);
 }
 
-[data-theme="black-matrix"] .logo span:first-of-type,
+[data-theme="black-matrix"] .logo .logo-wordmark-accent,
 [data-theme="black-matrix"] .session-drawer-title,
 [data-theme="black-matrix"] .modal-title,
 [data-theme="black-matrix"] .app-header .pill,

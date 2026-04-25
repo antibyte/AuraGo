@@ -159,7 +159,7 @@
             position: relative;
             margin-right: 0.85rem;
         }
-        .logo span:first-of-type {
+        .logo .logo-wordmark-accent {
             background: linear-gradient(135deg, var(--accent), var(--accent-secondary, #0d9488));
             -webkit-background-clip: text;
             background-clip: text;
@@ -4447,7 +4447,7 @@ html[data-theme="retro-crt"]::before {
     font-family: var(--crt-font-ui) !important;
 }
 
-[data-theme="retro-crt"] .logo span:first-of-type,
+[data-theme="retro-crt"] .logo .logo-wordmark-accent,
 [data-theme="retro-crt"] .session-drawer-title,
 [data-theme="retro-crt"] .modal-title,
 [data-theme="retro-crt"] .app-header .pill,

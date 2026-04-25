@@ -97,7 +97,7 @@
         0 0 44px rgba(255, 186, 85, 0.12);
 }
 
-[data-theme="dark-sun"] .logo span:first-of-type {
+[data-theme="dark-sun"] .logo .logo-wordmark-accent {
     background: linear-gradient(135deg, #ffb666, #ff7d35 38%, #d5441c 100%);
     -webkit-background-clip: text;
     background-clip: text;
@@ -107,7 +107,7 @@
         0 0 40px rgba(120, 20, 6, 0.16);
 }
 
-[data-theme="dark-sun"] .logo span:first-of-type,
+[data-theme="dark-sun"] .logo .logo-wordmark-accent,
 [data-theme="dark-sun"] .session-drawer-title,
 [data-theme="dark-sun"] .modal-title,
 [data-theme="dark-sun"] .app-header .pill,
@@ -123,7 +123,7 @@
     font-family: var(--darksun-font-ui);
 }
 
-[data-theme="dark-sun"] .logo span:first-of-type {
+[data-theme="dark-sun"] .logo .logo-wordmark-accent {
     font-size: 1.3rem;
 }
 

@@ -99,7 +99,7 @@
     box-shadow: 0 0 18px rgba(212, 173, 117, 0.12);
 }
 
-[data-theme="sandstorm"] .logo span:first-of-type {
+[data-theme="sandstorm"] .logo .logo-wordmark-accent {
     background: linear-gradient(135deg, #f2ddbb 0%, #d5ae79 42%, #ae7441 100%);
     -webkit-background-clip: text;
     background-clip: text;

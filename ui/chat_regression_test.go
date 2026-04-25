@@ -456,6 +456,37 @@ func TestChatUIEmojiIconsAreImageAssets(t *testing.T) {
 	}
 }
 
+func TestChatLogoIconIsNotCapturedByWordmarkCSS(t *testing.T) {
+	t.Parallel()
+
+	cssFiles, err := filepath.Glob(filepath.Join("css", "chat*.css"))
+	if err != nil {
+		t.Fatalf("list chat css files: %v", err)
+	}
+	if len(cssFiles) == 0 {
+		t.Fatal("expected chat css files")
+	}
+
+	for _, cssPath := range cssFiles {
+		content, err := os.ReadFile(cssPath)
+		if err != nil {
+			t.Fatalf("read %s: %v", cssPath, err)
+		}
+		css := string(content)
+		if strings.Contains(css, ".logo span:first-of-type") {
+			t.Fatalf("%s still styles the first span in .logo; this captures the logo icon span and hides its image", cssPath)
+		}
+	}
+
+	chatCSS, err := os.ReadFile(filepath.Join("css", "chat.css"))
+	if err != nil {
+		t.Fatalf("read chat.css: %v", err)
+	}
+	if !strings.Contains(string(chatCSS), ".logo-wordmark-accent") {
+		t.Fatal("chat.css should style the AURA wordmark via .logo-wordmark-accent")
+	}
+}
+
 func TestChatComposerToolIconsKeepExplicitImageBox(t *testing.T) {
 	t.Parallel()
 
