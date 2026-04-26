@@ -20,7 +20,7 @@ func DispatchYepAPIAmazon(ctx context.Context, client *YepAPIClient, operation s
 			payload["country"] = "US"
 		}
 		if limit, ok := args["limit"].(float64); ok && limit > 0 {
-			payload["limit"] = int(limit)
+			payload["page"] = int(limit)
 		}
 		data, err := client.Post(ctx, "/v1/amazon/search", payload)
 		if err != nil {
@@ -52,7 +52,7 @@ func DispatchYepAPIAmazon(ctx context.Context, client *YepAPIClient, operation s
 		}
 		payload := map[string]interface{}{"asin": asin}
 		if limit, ok := args["limit"].(float64); ok && limit > 0 {
-			payload["limit"] = int(limit)
+			payload["page"] = int(limit)
 		}
 		if sortBy, ok := args["sort_by"].(string); ok && sortBy != "" {
 			payload["sort_by"] = sortBy
@@ -69,7 +69,7 @@ func DispatchYepAPIAmazon(ctx context.Context, client *YepAPIClient, operation s
 			payload["category"] = category
 		}
 		if limit, ok := args["limit"].(float64); ok && limit > 0 {
-			payload["limit"] = int(limit)
+			payload["page"] = int(limit)
 		}
 		data, err := client.Post(ctx, "/v1/amazon/deals", payload)
 		if err != nil {
@@ -83,7 +83,7 @@ func DispatchYepAPIAmazon(ctx context.Context, client *YepAPIClient, operation s
 			payload["category"] = category
 		}
 		if limit, ok := args["limit"].(float64); ok && limit > 0 {
-			payload["limit"] = int(limit)
+			payload["page"] = int(limit)
 		}
 		data, err := client.Post(ctx, "/v1/amazon/best-sellers", payload)
 		if err != nil {

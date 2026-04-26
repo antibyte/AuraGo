@@ -15,7 +15,7 @@ func DispatchYepAPIYouTube(ctx context.Context, client *YepAPIClient, operation 
 		}
 		payload := map[string]interface{}{"query": query}
 		if limit, ok := args["limit"].(float64); ok && limit > 0 {
-			payload["depth"] = int(limit)
+			payload["limit"] = int(limit)
 		}
 		data, err := client.Post(ctx, "/v1/youtube/search", payload)
 		if err != nil {

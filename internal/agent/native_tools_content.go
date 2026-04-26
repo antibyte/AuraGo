@@ -453,7 +453,7 @@ func appendContentToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai
 				"asin":     prop("string", "Amazon ASIN product ID (for product and reviews operations)"),
 				"country":  map[string]interface{}{"type": "string", "description": "Amazon marketplace country code, e.g. 'US', 'UK', 'DE' (default: 'US')"},
 				"category": prop("string", "Category slug or browse node ID (for deals and best_sellers operations)"),
-				"limit":    map[string]interface{}{"type": "integer", "description": "Max results to return (default: 10)"},
+				"limit":    map[string]interface{}{"type": "integer", "description": "Page number for paginated results (default: 1)"},
 				"sort_by":  map[string]interface{}{"type": "string", "description": "Review sort order: 'TOP_REVIEWS' or 'MOST_RECENT' (for reviews operation)"},
 			}, "operation"),
 		))
