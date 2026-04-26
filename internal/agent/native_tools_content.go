@@ -378,5 +378,86 @@ func appendContentToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai
 		))
 	}
 
+	// ── YepAPI YouTube ──────────────────────────────────────────────
+	if ff.YepAPIYouTubeEnabled {
+		tools = append(tools, tool("yepapi_youtube",
+			"YouTube data via YepAPI: search videos, get video details, transcripts, comments, channel info, playlists, trending videos, and shorts. "+
+				"No YouTube Data API quota limits. All operations are read-only and pay-per-call.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "YouTube operation to perform",
+					"enum":        []string{"search", "video", "transcript", "comments", "channel", "channel_videos", "playlist", "trending", "shorts", "suggest"},
+				},
+				"query":       prop("string", "Search query (for search and suggest operations)"),
+				"video_id":    prop("string", "YouTube video ID (for video, transcript, comments operations)"),
+				"channel_id":  prop("string", "YouTube channel ID (for channel and channel_videos operations)"),
+				"playlist_id": prop("string", "YouTube playlist ID (for playlist operation)"),
+				"limit":       map[string]interface{}{"type": "integer", "description": "Max results to return (default: 10)"},
+			}, "operation"),
+		))
+	}
+
+	// ── YepAPI TikTok ───────────────────────────────────────────────
+	if ff.YepAPITikTokEnabled {
+		tools = append(tools, tool("yepapi_tiktok",
+			"TikTok data via YepAPI: search videos and users, get video details, user profiles, posts, comments, music, and challenges. "+
+				"All operations are read-only and pay-per-call.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "TikTok operation to perform",
+					"enum":        []string{"search", "search_user", "video", "user", "user_posts", "comments", "music", "challenge"},
+				},
+				"query":    prop("string", "Search query (for search and search_user operations)"),
+				"url":      prop("string", "TikTok video or music URL (for video, comments, music operations)"),
+				"username": prop("string", "TikTok username/unique_id (for user and user_posts operations)"),
+				"name":     prop("string", "Challenge name (for challenge operation)"),
+				"limit":    map[string]interface{}{"type": "integer", "description": "Max results to return (default: 10)"},
+			}, "operation"),
+		))
+	}
+
+	// ── YepAPI Instagram ────────────────────────────────────────────
+	if ff.YepAPIInstagramEnabled {
+		tools = append(tools, tool("yepapi_instagram",
+			"Instagram data via YepAPI: search users/hashtags/places, get user profiles, posts, reels, comments, and hashtag posts. "+
+				"All operations are read-only and pay-per-call.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "Instagram operation to perform",
+					"enum":        []string{"search", "user", "user_posts", "user_reels", "post", "post_comments", "hashtag"},
+				},
+				"query":      prop("string", "Search query (for search operation)"),
+				"username":   prop("string", "Instagram username (for user and user_posts/user_reels operations)"),
+				"shortcode":  prop("string", "Instagram post shortcode (for post and post_comments operations)"),
+				"tag":        prop("string", "Hashtag without # (for hashtag operation)"),
+				"limit":      map[string]interface{}{"type": "integer", "description": "Max results to return (default: 10)"},
+			}, "operation"),
+		))
+	}
+
+	// ── YepAPI Amazon ───────────────────────────────────────────────
+	if ff.YepAPIAmazonEnabled {
+		tools = append(tools, tool("yepapi_amazon",
+			"Amazon product data via YepAPI: search products, get product details by ASIN, read reviews, browse deals and best sellers. "+
+				"All operations are read-only and pay-per-call.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "Amazon operation to perform",
+					"enum":        []string{"search", "product", "reviews", "deals", "best_sellers"},
+				},
+				"query":    prop("string", "Search query (for search operation)"),
+				"asin":     prop("string", "Amazon ASIN product ID (for product and reviews operations)"),
+				"country":  map[string]interface{}{"type": "string", "description": "Amazon marketplace country code, e.g. 'US', 'UK', 'DE' (default: 'US')"},
+				"category": prop("string", "Category slug or browse node ID (for deals and best_sellers operations)"),
+				"limit":    map[string]interface{}{"type": "integer", "description": "Max results to return (default: 10)"},
+				"sort_by":  map[string]interface{}{"type": "string", "description": "Review sort order: 'TOP_REVIEWS' or 'MOST_RECENT' (for reviews operation)"},
+			}, "operation"),
+		))
+	}
+
 	return tools
 }

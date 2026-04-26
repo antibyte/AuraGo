@@ -78,6 +78,7 @@ var blockedSecretExact = map[string]struct{}{
 	"jellyfin_api_key":            {},
 	"obsidian_api_key":            {},
 	"uptime_kuma_api_key":         {},
+	"yepapi_api_key":              {},
 }
 
 // IsPythonAccessibleSecret returns true only if the vault key is a user/agent-created

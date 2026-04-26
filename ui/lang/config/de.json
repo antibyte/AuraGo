@@ -131,4 +131,22 @@
   "config.n8n.status_testing": "Verbindung wird getestet…",
   "config.n8n.status_success": "Verbindung OK",
   "config.n8n.status_error": "Verbindung fehlgeschlagen"
+,
+  "config.yepapi.enabled_label": "YepAPI aktivieren",
+  "config.yepapi.enabled_hint": "Aktiviert die YepAPI-Integration für SEO-, SERP-, Scraping- und Social-Media-Tools.",
+  "config.yepapi.seo_label": "SEO-Tools",
+  "config.yepapi.seo_hint": "Keyword-Recherche, Domain-Übersicht, Wettbewerbsanalyse, Backlinks und On-Page-Audits.",
+  "config.yepapi.serp_label": "SERP-Suche",
+  "config.yepapi.serp_hint": "Suchmaschinenergebnisse von Google, Bing, Yahoo, Baidu und mehr.",
+  "config.yepapi.scraping_label": "Web-Scraping",
+  "config.yepapi.scraping_hint": "Standard-Scraping, JavaScript-Rendering, Stealth-Modus, Screenshots und KI-Extraktion.",
+  "config.yepapi.youtube_label": "YouTube-Daten",
+  "config.yepapi.youtube_hint": "Videos suchen, Details, Transkripte, Kommentare, Kanäle, Playlists und Trends abrufen.",
+  "config.yepapi.tiktok_label": "TikTok-Daten",
+  "config.yepapi.tiktok_hint": "Videos und Benutzer suchen, Profile, Posts, Kommentare, Musik und Challenges abrufen.",
+  "config.yepapi.instagram_label": "Instagram-Daten",
+  "config.yepapi.instagram_hint": "Benutzer und Hashtags suchen, Profile, Posts, Reels, Kommentare und Hashtags abrufen.",
+  "config.yepapi.amazon_label": "Amazon-Daten",
+  "config.yepapi.amazon_hint": "Produkte suchen, Details per ASIN abrufen, Rezensionen lesen, Deals und Bestseller durchsuchen.",
+  "config.yepapi.provider_info": "YepAPI kann auch als LLM-Provider genutzt werden. Konfiguriere es im Bereich Provider mit dem Typ 'yepapi'."
 }

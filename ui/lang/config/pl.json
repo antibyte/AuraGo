@@ -131,4 +131,22 @@
   "config.n8n.status_testing": "Testowanie połączenia…",
   "config.n8n.status_success": "Połączenie OK",
   "config.n8n.status_error": "Połączenie nieudane"
+,
+  "config.yepapi.enabled_label": "Enable YepAPI",
+  "config.yepapi.enabled_hint": "Activate the YepAPI integration for SEO, SERP, scraping, and social media tools.",
+  "config.yepapi.seo_label": "SEO Tools",
+  "config.yepapi.seo_hint": "Keyword research, domain overview, competitor analysis, backlinks, and on-page audits.",
+  "config.yepapi.serp_label": "SERP Search",
+  "config.yepapi.serp_hint": "Search engine results from Google, Bing, Yahoo, Baidu, and more.",
+  "config.yepapi.scraping_label": "Web Scraping",
+  "config.yepapi.scraping_hint": "Standard scrape, JavaScript rendering, stealth mode, screenshots, and AI extraction.",
+  "config.yepapi.youtube_label": "YouTube Data",
+  "config.yepapi.youtube_hint": "Search videos, get details, transcripts, comments, channels, playlists, and trending.",
+  "config.yepapi.tiktok_label": "TikTok Data",
+  "config.yepapi.tiktok_hint": "Search videos and users, get profiles, posts, comments, music, and challenges.",
+  "config.yepapi.instagram_label": "Instagram Data",
+  "config.yepapi.instagram_hint": "Search users and hashtags, get profiles, posts, reels, comments, and hashtags.",
+  "config.yepapi.amazon_label": "Amazon Data",
+  "config.yepapi.amazon_hint": "Search products, get details by ASIN, read reviews, browse deals and best sellers.",
+  "config.yepapi.provider_info": "YepAPI can also be used as an LLM provider. Configure it in the Providers section with type 'yepapi'."
 }

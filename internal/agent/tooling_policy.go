@@ -360,6 +360,14 @@ func buildToolFlagsFromConfig(cfg *config.Config) ToolFeatureFlags {
 		AllowSelfUpdate:              cfg.Agent.AllowSelfUpdate,
 		LDAPEnabled:                  cfg.LDAP.Enabled,
 		PaperlessNGXEnabled:          cfg.PaperlessNGX.Enabled,
+		YepAPIEnabled:                cfg.YepAPI.Enabled,
+		YepAPISEOEnabled:             cfg.YepAPI.Enabled && cfg.YepAPI.SEO.Enabled,
+		YepAPISERPEnabled:            cfg.YepAPI.Enabled && cfg.YepAPI.SERP.Enabled,
+		YepAPIScrapingEnabled:        cfg.YepAPI.Enabled && cfg.YepAPI.Scraping.Enabled,
+		YepAPIYouTubeEnabled:         cfg.YepAPI.Enabled && cfg.YepAPI.YouTube.Enabled,
+		YepAPITikTokEnabled:          cfg.YepAPI.Enabled && cfg.YepAPI.TikTok.Enabled,
+		YepAPIInstagramEnabled:       cfg.YepAPI.Enabled && cfg.YepAPI.Instagram.Enabled,
+		YepAPIAmazonEnabled:          cfg.YepAPI.Enabled && cfg.YepAPI.Amazon.Enabled,
 	}
 }
 

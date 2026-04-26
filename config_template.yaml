@@ -925,3 +925,27 @@ notifications:
         topic: ""
     pushover:
         enabled: false
+
+
+# ── YepAPI Integration ───────────────────────────────────────────────────────
+# Unified API for SEO, SERP, web scraping, YouTube, TikTok, Instagram, Amazon,
+# and LLM access. One API key unlocks 118+ endpoints. Get your key at:
+# https://yepapi.com/dashboard/api-keys
+# YepAPI can also be configured as an LLM provider (type: yepapi) in the
+# Providers section above.
+yepapi:
+    enabled: false
+    seo:
+        enabled: false                      # keyword research, domain overview, competitor analysis, backlinks
+    serp:
+        enabled: false                      # Google, Bing, Yahoo, Baidu, YouTube SERP, Maps, Images, News
+    scraping:
+        enabled: false                      # standard scrape, JS render, stealth, screenshots, AI extraction
+    youtube:
+        enabled: false                      # video search, details, transcripts, comments, channels, playlists
+    tiktok:
+        enabled: false                      # video/user search, profiles, posts, comments, music, challenges
+    instagram:
+        enabled: false                      # user/hashtag search, profiles, posts, reels, comments
+    amazon:
+        enabled: false                      # product search, ASIN details, reviews, deals, best sellers

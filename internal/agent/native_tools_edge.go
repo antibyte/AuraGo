@@ -130,5 +130,64 @@ func appendEdgeToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai.To
 			}, "operation"),
 		))
 	}
+
+	// ── YepAPI SEO ──────────────────────────────────────────────────
+	if ff.YepAPISEOEnabled {
+		tools = append(tools, tool("yepapi_seo",
+			"SEO analysis via YepAPI: keyword research, domain overview, competitor analysis, backlink summary, on-page audits, and Google Trends data. "+
+				"All operations are read-only and pay-per-call.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "SEO operation to perform",
+					"enum":        []string{"keywords", "keyword_ideas", "domain_overview", "domain_keywords", "competitors", "backlinks", "onpage", "trends"},
+				},
+				"keywords": prop("string", "JSON array of keywords (for 'keywords' operation)"),
+				"seed":     prop("string", "Seed keyword for suggestions (for 'keyword_ideas' operation)"),
+				"domain":   prop("string", "Domain name, e.g. 'example.com' (for domain_* operations)"),
+				"target":   prop("string", "Target domain or URL (for 'backlinks' operation)"),
+				"url":      prop("string", "Page URL to audit (for 'onpage' operation)"),
+			}, "operation"),
+		))
+	}
+
+	// ── YepAPI SERP ─────────────────────────────────────────────────
+	if ff.YepAPISERPEnabled {
+		tools = append(tools, tool("yepapi_serp",
+			"Search engine results via YepAPI: Google, Bing, Yahoo, Baidu, YouTube SERP, Google Images, News, Maps, and more. "+
+				"Returns real-time SERP data with titles, URLs, descriptions, and positions.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "SERP engine to query",
+					"enum":        []string{"google", "google_images", "google_news", "google_maps", "google_datasets", "google_autocomplete", "google_ads", "google_ai_mode", "google_finance", "yahoo", "bing", "baidu", "youtube"},
+				},
+				"query":    prop("string", "Search query (required)"),
+				"depth":    map[string]interface{}{"type": "integer", "description": "Number of results to return (default: 10)"},
+				"location": prop("string", "Country code for localised results, e.g. 'us', 'de', 'uk' (default: 'us')"),
+				"language": prop("string", "Language code, e.g. 'en', 'de' (default: 'en')"),
+				"limit":    map[string]interface{}{"type": "integer", "description": "Max results for Google Maps (default: 10)"},
+				"open_now": map[string]interface{}{"type": "boolean", "description": "Filter Google Maps for currently open places"},
+			}, "operation", "query"),
+		))
+	}
+
+	// ── YepAPI Scraping ─────────────────────────────────────────────
+	if ff.YepAPIScrapingEnabled {
+		tools = append(tools, tool("yepapi_scrape",
+			"Web scraping via YepAPI: standard scrape, JavaScript-rendered pages, stealth anti-bot bypass, full-page screenshots, and AI-powered data extraction. "+
+				"Returns page content as markdown, HTML, or structured data.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "Scraping operation to perform",
+					"enum":        []string{"scrape", "js", "stealth", "screenshot", "ai_extract"},
+				},
+				"url":    prop("string", "URL to scrape (required)"),
+				"format": map[string]interface{}{"type": "string", "description": "Output format for 'scrape' operation: 'markdown' or 'html' (default: markdown)"},
+				"prompt": prop("string", "Natural language extraction prompt (for 'ai_extract' operation)"),
+			}, "operation", "url"),
+		))
+	}
 	return tools
 }

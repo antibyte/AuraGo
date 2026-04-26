@@ -194,6 +194,14 @@ func (ff ToolFeatureFlags) Key() string {
 	appendToolFeatureKeyPart("daemon_skills", ff.DaemonSkillsEnabled)
 	appendToolFeatureKeyPart("ldap", ff.LDAPEnabled)
 	appendToolFeatureKeyPart("paperless_ngx", ff.PaperlessNGXEnabled)
+	appendToolFeatureKeyPart("yepapi", ff.YepAPIEnabled)
+	appendToolFeatureKeyPart("yepapi_seo", ff.YepAPISEOEnabled)
+	appendToolFeatureKeyPart("yepapi_serp", ff.YepAPISERPEnabled)
+	appendToolFeatureKeyPart("yepapi_scraping", ff.YepAPIScrapingEnabled)
+	appendToolFeatureKeyPart("yepapi_youtube", ff.YepAPIYouTubeEnabled)
+	appendToolFeatureKeyPart("yepapi_tiktok", ff.YepAPITikTokEnabled)
+	appendToolFeatureKeyPart("yepapi_instagram", ff.YepAPIInstagramEnabled)
+	appendToolFeatureKeyPart("yepapi_amazon", ff.YepAPIAmazonEnabled)
 
 	return strings.Join(parts, "|")
 }

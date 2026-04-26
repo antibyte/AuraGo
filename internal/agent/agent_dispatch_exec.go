@@ -1459,6 +1459,112 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			}
 			return docResult
 
+		// ── YepAPI Tools ────────────────────────────────────────────────
+		case "yepapi_seo":
+			if !cfg.YepAPI.Enabled || !cfg.YepAPI.SEO.Enabled {
+				return `Tool Output: {"status":"error","message":"YepAPI SEO is disabled. Enable it in Settings > YepAPI > SEO."}`
+			}
+			apiKey, keyErr := tools.ResolveYepAPIKey(cfg, vault)
+			if keyErr != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, keyErr)
+			}
+			client := tools.NewYepAPIClient(apiKey)
+			res, err := tools.DispatchYepAPISEO(ctx, client, tc.Operation, tc.Params)
+			if err != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err)
+			}
+			return res
+
+		case "yepapi_serp":
+			if !cfg.YepAPI.Enabled || !cfg.YepAPI.SERP.Enabled {
+				return `Tool Output: {"status":"error","message":"YepAPI SERP is disabled. Enable it in Settings > YepAPI > SERP."}`
+			}
+			apiKey, keyErr := tools.ResolveYepAPIKey(cfg, vault)
+			if keyErr != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, keyErr)
+			}
+			client := tools.NewYepAPIClient(apiKey)
+			res, err := tools.DispatchYepAPISERP(ctx, client, tc.Operation, tc.Params)
+			if err != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err)
+			}
+			return res
+
+		case "yepapi_scrape":
+			if !cfg.YepAPI.Enabled || !cfg.YepAPI.Scraping.Enabled {
+				return `Tool Output: {"status":"error","message":"YepAPI Scraping is disabled. Enable it in Settings > YepAPI > Scraping."}`
+			}
+			apiKey, keyErr := tools.ResolveYepAPIKey(cfg, vault)
+			if keyErr != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, keyErr)
+			}
+			client := tools.NewYepAPIClient(apiKey)
+			res, err := tools.DispatchYepAPIScrape(ctx, client, tc.Operation, tc.Params)
+			if err != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err)
+			}
+			return res
+
+		case "yepapi_youtube":
+			if !cfg.YepAPI.Enabled || !cfg.YepAPI.YouTube.Enabled {
+				return `Tool Output: {"status":"error","message":"YepAPI YouTube is disabled. Enable it in Settings > YepAPI > YouTube."}`
+			}
+			apiKey, keyErr := tools.ResolveYepAPIKey(cfg, vault)
+			if keyErr != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, keyErr)
+			}
+			client := tools.NewYepAPIClient(apiKey)
+			res, err := tools.DispatchYepAPIYouTube(ctx, client, tc.Operation, tc.Params)
+			if err != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err)
+			}
+			return res
+
+		case "yepapi_tiktok":
+			if !cfg.YepAPI.Enabled || !cfg.YepAPI.TikTok.Enabled {
+				return `Tool Output: {"status":"error","message":"YepAPI TikTok is disabled. Enable it in Settings > YepAPI > TikTok."}`
+			}
+			apiKey, keyErr := tools.ResolveYepAPIKey(cfg, vault)
+			if keyErr != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, keyErr)
+			}
+			client := tools.NewYepAPIClient(apiKey)
+			res, err := tools.DispatchYepAPITikTok(ctx, client, tc.Operation, tc.Params)
+			if err != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err)
+			}
+			return res
+
+		case "yepapi_instagram":
+			if !cfg.YepAPI.Enabled || !cfg.YepAPI.Instagram.Enabled {
+				return `Tool Output: {"status":"error","message":"YepAPI Instagram is disabled. Enable it in Settings > YepAPI > Instagram."}`
+			}
+			apiKey, keyErr := tools.ResolveYepAPIKey(cfg, vault)
+			if keyErr != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, keyErr)
+			}
+			client := tools.NewYepAPIClient(apiKey)
+			res, err := tools.DispatchYepAPIInstagram(ctx, client, tc.Operation, tc.Params)
+			if err != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err)
+			}
+			return res
+
+		case "yepapi_amazon":
+			if !cfg.YepAPI.Enabled || !cfg.YepAPI.Amazon.Enabled {
+				return `Tool Output: {"status":"error","message":"YepAPI Amazon is disabled. Enable it in Settings > YepAPI > Amazon."}`
+			}
+			apiKey, keyErr := tools.ResolveYepAPIKey(cfg, vault)
+			if keyErr != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, keyErr)
+			}
+			client := tools.NewYepAPIClient(apiKey)
+			res, err := tools.DispatchYepAPIAmazon(ctx, client, tc.Operation, tc.Params)
+			if err != nil {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s"}`, err)
+			}
+			return res
+
 		default:
 			handled = false
 			return ""
