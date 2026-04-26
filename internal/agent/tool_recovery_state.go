@@ -169,6 +169,8 @@ func recoveryHintForToolFailure(tc ToolCall, resultContent string) string {
 	switch {
 	case tc.Action == "homepage" && strings.Contains(lower, `missing script: "build"`):
 		return "The project has no build script. Treat it as a static site or fix package.json before trying again. Check whether project_dir is correct and whether a dist/build/output directory is even needed."
+	case tc.Action == "homepage" && strings.Contains(lower, "path is required"):
+		return `Homepage file operations require a relative path inside the homepage workspace. Retry with path/file_path including the project directory, for example {"operation":"write_file","path":"my-site/index.html","content":"..."} or {"operation":"read_file","path":"my-site/src/main.ts"}. Do not use filesystem for homepage project files.`
 	case tc.Action == "homepage" && strings.Contains(lower, "absolute paths not allowed"):
 		return "Use a relative homepage workspace path such as 'ki-news', not '/workspace/ki-news'. Do not retry until project_dir/path arguments are relative."
 	case tc.Action == "homepage" && strings.Contains(lower, "deploy path does not exist"):

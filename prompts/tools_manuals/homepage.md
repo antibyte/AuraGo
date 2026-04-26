@@ -47,6 +47,17 @@ Design, develop, build, test and deploy professional websites using AuraGo's web
 | `git_rollback` | Revert recent commits |
 | `tunnel` | Create a public URL for sharing |
 
+## Existing Project Fast Path
+
+When updating or publishing an existing homepage project, use this direct path:
+
+1. `homepage` → `list_files` with `path: "."` to identify the project directory.
+2. `homepage` → `read_file` / `write_file` with a project-prefixed `path`, for example `my-site/index.html`.
+3. `homepage` → `build`, `deploy_netlify`, `deploy_vercel`, or `publish_local` with `project_dir: "my-site"`.
+4. Verify the returned deployment URL or the live page before reporting success.
+
+Do not use the generic `filesystem` tool to inspect, copy, or edit homepage project files. It writes to `agent_workspace/workdir/`, not the homepage workspace.
+
 ## Runtime Modes
 
 ### Docker Mode

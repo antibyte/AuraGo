@@ -579,6 +579,61 @@ func TestBuildAdaptiveToolPriorityAddsCuratedDependencyNeighbors(t *testing.T) {
 	}
 }
 
+func TestBuildAdaptiveToolPriorityPrefersHomepageForGermanWebsiteDeploy(t *testing.T) {
+	schemas := []openai.Tool{
+		makeTool("filesystem"),
+		makeTool("homepage"),
+		makeTool("homepage_registry"),
+		makeTool("netlify"),
+		makeTool("shell"),
+	}
+
+	prioritized := buildAdaptiveToolPriority(
+		schemas,
+		[]string{"filesystem", "shell"},
+		"aktualisiere die Webseite und veröffentliche sie",
+		nil,
+		nil,
+	)
+
+	if len(prioritized) == 0 {
+		t.Fatal("expected homepage-oriented priority for German website deployment intent")
+	}
+	if prioritized[0] != "homepage" {
+		t.Fatalf("expected homepage first for German website deployment intent, got %v", prioritized)
+	}
+	if !containsName(prioritized, "homepage_registry") {
+		t.Fatalf("expected homepage_registry to be included for website deployment intent, got %v", prioritized)
+	}
+}
+
+func TestCacheAwareAdaptiveAlwaysIncludeKeepsHomepageForGermanWebsiteDeploy(t *testing.T) {
+	schemas := []openai.Tool{
+		makeTool("filesystem"),
+		makeTool("homepage"),
+		makeTool("homepage_registry"),
+		makeTool("netlify"),
+		makeTool("shell"),
+	}
+
+	alwaysInclude := cacheAwareAdaptiveAlwaysInclude(
+		"aktualisiere die Webseite und veröffentliche sie",
+		[]string{"query_memory"},
+		schemas,
+	)
+
+	for _, want := range []string{"homepage", "homepage_registry", "netlify"} {
+		if !containsName(alwaysInclude, want) {
+			t.Fatalf("expected %s to stay always-included for website deployment intent, got %v", want, alwaysInclude)
+		}
+	}
+
+	filtered := filterToolSchemas(schemas, []string{"shell"}, alwaysInclude, 1, nil)
+	if !containsName(toolNames(filtered), "homepage") {
+		t.Fatalf("expected filtered schemas to keep homepage even with maxTools=1, got %v", toolNames(filtered))
+	}
+}
+
 func TestStreamingAccountingState_RecordsProviderUsage(t *testing.T) {
 	st := streamingAccountingState{}
 	if st.hasProviderUsage {

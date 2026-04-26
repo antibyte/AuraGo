@@ -182,7 +182,7 @@ var adaptiveFamilySeedTools = map[string][]string{
 		"web_scraper", "site_crawler", "web_capture", "document_creator",
 	},
 	"deployment": {
-		"homepage", "netlify", "homepage_registry", "filesystem", "file_editor",
+		"homepage", "homepage_registry", "netlify",
 	},
 	"network": {
 		"network_ping", "dns_lookup", "port_scanner", "mdns_scan", "upnp_scan",
@@ -205,8 +205,8 @@ var adaptiveFamilySeedTools = map[string][]string{
 
 var adaptiveToolNeighbors = map[string][]string{
 	// Web & Hosting
-	"homepage":          {"netlify", "homepage_registry", "filesystem", "file_editor"},
-	"netlify":           {"homepage", "homepage_registry", "filesystem", "file_editor"},
+	"homepage":          {"homepage_registry", "netlify"},
+	"netlify":           {"homepage", "homepage_registry"},
 	"homepage_registry": {"homepage", "netlify"},
 
 	// File System & Editing

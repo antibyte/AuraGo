@@ -377,6 +377,9 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				Path:     cfg.Homepage.DeployPath,
 				Method:   cfg.Homepage.DeployMethod,
 			}
+			homepagePathRequired := func(operation string) string {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"path is required for homepage %s. Use a relative homepage workspace path including the project directory, for example path=\"my-site/index.html\" or file_path=\"my-site/src/main.ts\". Do not use the filesystem tool for homepage project files."}`, operation)
+			}
 
 			// Permission checks for restricted operations
 			switch req.Operation {
@@ -491,25 +494,43 @@ func dispatchServices(ctx context.Context, tc ToolCall, dc *DispatchContext) (st
 				return "Tool Output: " + tools.HomepageListFiles(homepageCfg, req.Path, logger)
 			case "read_file":
 				logger.Info("LLM requested homepage read_file", "path", req.Path)
+				if strings.TrimSpace(req.Path) == "" {
+					return homepagePathRequired(req.Operation)
+				}
 				return "Tool Output: " + tools.HomepageReadFile(homepageCfg, req.Path, logger)
 			case "write_file":
 				logger.Info("LLM requested homepage write_file", "path", req.Path)
+				if strings.TrimSpace(req.Path) == "" {
+					return homepagePathRequired(req.Operation)
+				}
 				return "Tool Output: " + tools.HomepageWriteFile(homepageCfg, req.Path, req.Content, logger)
 			case "edit_file":
 				editOp := req.SubOperation
 				logger.Info("LLM requested homepage edit_file", "path", req.Path, "op", editOp)
+				if strings.TrimSpace(req.Path) == "" {
+					return homepagePathRequired(req.Operation)
+				}
 				return "Tool Output: " + tools.HomepageEditFile(homepageCfg, req.Path, editOp, req.Old, req.New, req.Marker, req.Content, req.StartLine, req.EndLine, logger)
 			case "json_edit":
 				editOp := req.SubOperation
 				logger.Info("LLM requested homepage json_edit", "path", req.Path, "op", editOp)
+				if strings.TrimSpace(req.Path) == "" {
+					return homepagePathRequired(req.Operation)
+				}
 				return "Tool Output: " + tools.HomepageJsonEdit(homepageCfg, req.Path, editOp, req.JsonPath, req.SetValue, req.Content, logger)
 			case "yaml_edit":
 				editOp := req.SubOperation
 				logger.Info("LLM requested homepage yaml_edit", "path", req.Path, "op", editOp)
+				if strings.TrimSpace(req.Path) == "" {
+					return homepagePathRequired(req.Operation)
+				}
 				return "Tool Output: " + tools.HomepageYamlEdit(homepageCfg, req.Path, editOp, req.JsonPath, req.SetValue, logger)
 			case "xml_edit":
 				editOp := req.SubOperation
 				logger.Info("LLM requested homepage xml_edit", "path", req.Path, "op", editOp)
+				if strings.TrimSpace(req.Path) == "" {
+					return homepagePathRequired(req.Operation)
+				}
 				xpath := req.Xpath
 				if xpath == "" {
 					xpath = req.JsonPath

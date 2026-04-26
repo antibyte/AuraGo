@@ -660,6 +660,9 @@ func TestBuiltinToolSchemasHomepageUsesSubOperationField(t *testing.T) {
 	if _, ok := homepageProps["sub_operation"]; !ok {
 		t.Fatal("homepage schema missing sub_operation property")
 	}
+	if _, ok := homepageProps["file_path"]; !ok {
+		t.Fatal("homepage schema missing file_path alias for path")
+	}
 	if _, ok := homepageProps["action"]; ok {
 		t.Fatal("homepage schema should not expose action as edit sub-operation field")
 	}

@@ -34,6 +34,9 @@ You have expert-level web design and development capabilities through the `homep
 
 **Workflow:** Always `init` first, then `init_project`, develop with `write_file`/`exec`, test with `lighthouse`/`screenshot`, then `deploy`, `deploy_netlify`, `deploy_vercel`, or `publish_local`.
 
+**Existing project fast path:** For an already-created homepage project, do not re-discover through the generic filesystem. Use `homepage` directly:
+`list_files` with `path: "."` → `read_file` / `write_file` with a project-prefixed `path` like `my-site/index.html` → `build` or `deploy_netlify` / `deploy_vercel` with `project_dir: "my-site"` → verify the deployed URL.
+
 **Runtime mode:** Prefer Docker when available for the full dev environment. If Docker is unavailable and the admin enabled `homepage.allow_local_server`, AuraGo may fall back to limited local workflows such as local file editing, plain HTML projects, and local publishing.
 
 **CRITICAL — File management:** Always use `homepage` → `write_file` / `read_file` / `list_files` for all homepage project files. **Never use the `filesystem` tool** to create or edit homepage files — the `filesystem` tool writes to `agent_workspace/workdir/` which is a completely different path from the homepage workspace (`data/homepage/`). Files created via `filesystem` will **not be found** by `build`, `deploy`, `deploy_netlify`, `deploy_vercel`, or `publish_local`. If `init_project` fails, use `homepage` → `write_file` to create files manually in the correct location.

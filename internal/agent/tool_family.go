@@ -42,7 +42,24 @@ func inferToolFamilyFromQuery(query string) string {
 	}
 
 	switch {
-	case strings.Contains(q, "homepage") || strings.Contains(q, "landing page") || strings.Contains(q, "website") || strings.Contains(q, "netlify") || strings.Contains(q, "deploy"):
+	case strings.Contains(q, "homepage") ||
+		strings.Contains(q, "landing page") ||
+		strings.Contains(q, "landingpage") ||
+		strings.Contains(q, "website") ||
+		strings.Contains(q, "webseite") ||
+		strings.Contains(q, "web site") ||
+		strings.Contains(q, "netlify") ||
+		strings.Contains(q, "deploy") ||
+		strings.Contains(q, "deployen") ||
+		strings.Contains(q, "publish") ||
+		strings.Contains(q, "publizieren") ||
+		strings.Contains(q, "veroeffentlichen") ||
+		strings.Contains(q, "veroffentlichen") ||
+		strings.Contains(q, "veroffentliche") ||
+		strings.Contains(q, "veroffentlicht") ||
+		strings.Contains(q, "veröffentlich") ||
+		strings.Contains(q, "hochladen") ||
+		strings.Contains(q, "hochgeladen"):
 		return "deployment"
 	case strings.Contains(q, "file") || strings.Contains(q, "folder") || strings.Contains(q, "directory") || strings.Contains(q, "yaml") || strings.Contains(q, "json") || strings.Contains(q, "xml") || strings.Contains(q, "pdf"):
 		return "files"

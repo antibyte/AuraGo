@@ -88,6 +88,7 @@ netlify:
 ## Notes
 
 - **Authentication**: A Personal Access Token (PAT) is required. Store it in the vault with key `netlify_token`.
+- **Homepage/project deploys**: Do not use this tool to upload website files. For AuraGo homepage workspace projects, use `homepage` → `deploy_netlify` with `project_dir`.
 - **ZIP deploys**: Binary ZIP data cannot be reliably transported through LLM tool arguments. Use `homepage` → `deploy_netlify` instead for builds.
 - **Rate limits**: General API: 500 requests/minute. Deploys: 3/minute, 100/day.
 - **Permission model**: `readonly` blocks all mutations. Other flags control specific operations.

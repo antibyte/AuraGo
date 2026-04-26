@@ -187,6 +187,26 @@ func TestToolRecoveryStateInjectsRecoveryHintBeforeBreaker(t *testing.T) {
 	}
 }
 
+func TestToolRecoveryStateHintsHomepagePathRequiredWithExample(t *testing.T) {
+	state := newToolRecoveryState()
+	req := openai.ChatCompletionRequest{}
+	tc := ToolCall{Action: "homepage", Operation: "write_file"}
+	result := `Tool Output: {"status":"error","message":"path is required"}`
+
+	if state.updateToolErrorState(tc, result, &req, nil, AgentTelemetryScope{}, "v1", 100) {
+		t.Fatal("did not expect first identical error to trip circuit breaker")
+	}
+	if state.updateToolErrorState(tc, result, &req, nil, AgentTelemetryScope{}, "v1", 100) {
+		t.Fatal("did not expect second identical error to trip circuit breaker yet")
+	}
+	if len(req.Messages) != 1 {
+		t.Fatalf("expected one recovery hint message, got %d", len(req.Messages))
+	}
+	if !strings.Contains(req.Messages[0].Content, `path`) || !strings.Contains(req.Messages[0].Content, `my-site/index.html`) {
+		t.Fatalf("expected homepage path-required recovery hint with example, got: %s", req.Messages[0].Content)
+	}
+}
+
 func TestToolRecoveryStateUpdateToolErrorStateResolvesOnSuccess(t *testing.T) {
 	state := newToolRecoveryState()
 	req := openai.ChatCompletionRequest{}

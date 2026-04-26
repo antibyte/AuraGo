@@ -133,7 +133,7 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 	}
 
 	if ff.HomepageEnabled {
-		homepageDesc := "Design, develop, build, test and deploy websites using a Docker-based dev environment with Node.js, Playwright, Lighthouse and more. Supports Next.js, Vite, Astro, Svelte, Vue and static HTML."
+		homepageDesc := "Design, develop, build, test and deploy websites using a Docker-based dev environment with Node.js, Playwright, Lighthouse and more. Supports Next.js, Vite, Astro, Svelte, Vue and static HTML. Use this tool for homepage/web project files and for Netlify/Vercel publishing; do not use filesystem for homepage workspace files."
 		if !ff.HomepageAllowLocalServer {
 			homepageDesc += " REQUIRES DOCKER: Local Python server fallback is disabled for security. Ensure Docker is running or enable homepage.allow_local_server in config."
 		}
@@ -154,7 +154,8 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				"auto_fix":      map[string]interface{}{"type": "boolean", "description": "If true, attempt to auto-fix common build errors (missing deps, lint issues) and retry once (for 'build')"},
 				"git_message":   prop("string", "Commit message (for 'git_commit')"),
 				"count":         prop("integer", "Number of entries (for 'git_log': default 10) or commits to revert (for 'git_rollback': default 1)"),
-				"path":          prop("string", "File path relative to /workspace — MUST include the project subdirectory prefix (e.g. 'my-project/index.html', NOT just 'index.html'). Applies to 'read_file', 'write_file', 'list_files', 'edit_file', 'json_edit', 'yaml_edit', 'xml_edit'. Do not write/edit generated output paths like 'my-project/dist/index.html'; edit source files and rebuild."),
+				"path":          prop("string", "File path relative to /workspace — MUST include the project subdirectory prefix (e.g. 'my-project/index.html', NOT just 'index.html'). Required for read_file/write_file/list_files/edit_file/json_edit/yaml_edit/xml_edit. Do not write/edit generated output paths like 'my-project/dist/index.html'; edit source files and rebuild."),
+				"file_path":     prop("string", "Alias for path. Prefer path, but file_path is accepted for read_file/write_file/list_files/edit_file/json_edit/yaml_edit/xml_edit. Example: 'my-project/index.html'."),
 				"content":       prop("string", "File content to write (for 'write_file') or text to insert (for 'edit_file' insert_after/insert_before/append/prepend)"),
 				"url":           prop("string", "URL for lighthouse audit or screenshot"),
 				"viewport":      prop("string", "Viewport size for screenshot (e.g. '1280x720')"),
