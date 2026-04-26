@@ -2154,11 +2154,13 @@
         }
 
         .tool-stack-icon {
+            --tool-stack-icon-top-crop: 2px;
             width: var(--tool-stack-icon-size);
             height: var(--tool-stack-icon-size);
             position: relative;
             margin-top: 0;
             opacity: 1;
+            clip-path: inset(var(--tool-stack-icon-top-crop) 0 0 0);
             transform: translateY(0) scale(1);
             transform-origin: 50% 85%;
             filter:
