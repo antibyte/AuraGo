@@ -42,8 +42,6 @@ func inferToolFamilyFromQuery(query string) string {
 	}
 
 	switch {
-	case isInvasionControlIntent(q):
-		return "infra"
 	case strings.Contains(q, "homepage") || strings.Contains(q, "landing page") || strings.Contains(q, "website") || strings.Contains(q, "netlify") || strings.Contains(q, "deploy"):
 		return "deployment"
 	case strings.Contains(q, "file") || strings.Contains(q, "folder") || strings.Contains(q, "directory") || strings.Contains(q, "yaml") || strings.Contains(q, "json") || strings.Contains(q, "xml") || strings.Contains(q, "pdf"):
@@ -69,31 +67,4 @@ func inferToolFamilyFromQuery(query string) string {
 	default:
 		return ""
 	}
-}
-
-func isInvasionControlIntent(normalizedQuery string) bool {
-	if normalizedQuery == "" {
-		return false
-	}
-	phrases := []string{
-		"invasion control",
-		"remote agent",
-		"remote agents",
-		"sub agent",
-		"sub agents",
-		"subagent",
-		"subagents",
-	}
-	for _, phrase := range phrases {
-		if strings.Contains(normalizedQuery, phrase) {
-			return true
-		}
-	}
-	for _, token := range strings.Fields(normalizedQuery) {
-		switch token {
-		case "egg", "eggs", "nest", "nests", "ei", "eier":
-			return true
-		}
-	}
-	return false
 }

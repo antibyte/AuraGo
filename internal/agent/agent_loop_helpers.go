@@ -553,10 +553,6 @@ func adaptiveFamilySeedsForQuery(userQuery string) []string {
 		add("docker")
 		add("execute_shell")
 	}
-	if isInvasionControlIntent(q) {
-		add("invasion_control")
-		add("co_agent")
-	}
 
 	if len(out) == 0 {
 		return nil
@@ -645,6 +641,9 @@ func expandAdaptiveAlwaysInclude(cfg *config.Config, alwaysInclude []string) []s
 	// "minimax_understand_image" instead of using mcp_call.
 	if cfg.Agent.AllowMCP && cfg.MCP.Enabled {
 		add("mcp_call")
+	}
+	if cfg.InvasionControl.Enabled {
+		add("invasion_control")
 	}
 
 	return out

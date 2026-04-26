@@ -364,21 +364,6 @@ func TestAdaptiveFamilySeedsForQueryIncludesResourceAndContainerTools(t *testing
 	}
 }
 
-func TestAdaptiveFamilySeedsForQueryIncludesInvasionControlForEggAgentRequests(t *testing.T) {
-	tests := []string{
-		"pruefe ob du das egg erreichen kannst, stelle eine frage",
-		"das egg mit dem namen web scraper ist ein agent. sprich mit ihm",
-		"frage den remote agent web scraper nach einem witz",
-	}
-
-	for _, query := range tests {
-		seeds := adaptiveFamilySeedsForQuery(query)
-		if !containsName(seeds, "invasion_control") {
-			t.Fatalf("query %q should include invasion_control seed, got %v", query, seeds)
-		}
-	}
-}
-
 func TestCacheAwareAdaptiveAlwaysIncludeAddsIntentFamilyBundle(t *testing.T) {
 	schemas := []openai.Tool{
 		makeTool("execute_shell"),
@@ -443,6 +428,16 @@ func TestExpandAdaptiveAlwaysIncludeAddsMCPCallWhenEnabled(t *testing.T) {
 	got := expandAdaptiveAlwaysInclude(cfg, []string{"filesystem"})
 	if !containsName(got, "mcp_call") {
 		t.Fatalf("expected mcp_call in always-include set, got %v", got)
+	}
+}
+
+func TestExpandAdaptiveAlwaysIncludeAddsInvasionControlWhenEnabled(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.InvasionControl.Enabled = true
+
+	got := expandAdaptiveAlwaysInclude(cfg, []string{"filesystem"})
+	if !containsName(got, "invasion_control") {
+		t.Fatalf("expected invasion_control in always-include set when enabled, got %v", got)
 	}
 }
 
