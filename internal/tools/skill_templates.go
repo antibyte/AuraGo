@@ -33,6 +33,17 @@ func paramMap(m map[string]string) map[string]interface{} {
 func AvailableSkillTemplates() []SkillTemplate {
 	return []SkillTemplate{
 		{
+			Name:        "minimal_skill",
+			Description: "Minimal stdlib-only skill skeleton that echoes an optional text value and returns a JSON success response.",
+			Parameters: paramMap(map[string]string{
+				"text": "Optional text value to echo back; returns 'ok' when omitted",
+			}),
+			Dependencies: nil,
+			Code: composePythonSkillTemplate(tplMinimal, `{{.FunctionName}}(
+        text=args.get("text", ""),
+    )`),
+		},
+		{
 			Name:        "api_client",
 			Description: "REST API client with Bearer/Basic/API-Key auth, retry logic, pagination support, and vault key injection.",
 			Parameters: paramMap(map[string]string{
@@ -302,6 +313,7 @@ func mustLoadTemplate(name string) string {
 var (
 	tplPrefix   = mustLoadTemplate("_wrapper_prefix")
 	tplSuffix   = mustLoadTemplate("_wrapper_suffix")
+	tplMinimal  = mustLoadTemplate("minimal_skill")
 	tplAPI      = mustLoadTemplate("api_client")
 	tplData     = mustLoadTemplate("data_transformer")
 	tplNotify   = mustLoadTemplate("notification_sender")

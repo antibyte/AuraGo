@@ -25,6 +25,10 @@ Generate a complete skill (manifest + Python code) from a template. The skill is
 
 #### Templates
 
+**minimal_skill** — Minimal stdlib-only skill skeleton for quick custom code. Echoes an optional text value and returns a JSON success response.
+- No default deps
+- Params: `text`
+
 **api_client** — REST API client with Bearer/Basic/API-Key auth, retry logic, and pagination support.
 - Default deps: `requests`
 - Vault: `API_KEY` or `USERNAME`+`PASSWORD`, `BASE_URL` (optional)

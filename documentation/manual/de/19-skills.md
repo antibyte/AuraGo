@@ -526,6 +526,7 @@ AuraGo bietet Templates für häufige Skill-Typen:
 ```
 Du: Welche Skill-Templates gibt es?
 Agent: 📋 Verfügbare Templates:
+       - minimal_skill: Minimaler Starter-Skill nur mit Standardbibliothek
        - api_client: REST API Client mit Auth
        - file_processor: Datei-Lese- und Schreiboperationen
        - data_transformer: Datenformat-Konvertierung
@@ -535,7 +536,7 @@ Agent: 📋 Verfügbare Templates:
 ### Skill aus Template erstellen
 
 ```
-Du: Erstelle einen Skill aus dem Template api_client mit dem Namen meine_api
+Du: Erstelle einen Skill aus dem Template minimal_skill mit dem Namen mein_helfer
 ```
 
 ---

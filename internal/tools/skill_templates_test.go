@@ -10,8 +10,8 @@ import (
 
 func TestAvailableSkillTemplates(t *testing.T) {
 	templates := AvailableSkillTemplates()
-	if len(templates) != 14 {
-		t.Fatalf("expected 14 templates, got %d", len(templates))
+	if len(templates) != 15 {
+		t.Fatalf("expected 15 templates, got %d", len(templates))
 	}
 	names := map[string]bool{}
 	for _, tmpl := range templates {
@@ -29,7 +29,7 @@ func TestAvailableSkillTemplates(t *testing.T) {
 		}
 		names[tmpl.Name] = true
 	}
-	for _, expected := range []string{"api_client", "data_transformer", "notification_sender", "monitor_check", "log_analyzer", "docker_manager", "backup_runner", "database_query", "ssh_executor", "mqtt_publisher", "daemon_monitor", "daemon_watcher", "daemon_listener", "daemon_mission"} {
+	for _, expected := range []string{"minimal_skill", "api_client", "data_transformer", "notification_sender", "monitor_check", "log_analyzer", "docker_manager", "backup_runner", "database_query", "ssh_executor", "mqtt_publisher", "daemon_monitor", "daemon_watcher", "daemon_listener", "daemon_mission"} {
 		if !names[expected] {
 			t.Errorf("missing expected template '%s'", expected)
 		}
@@ -161,6 +161,47 @@ func TestCreateSkillFromTemplate_LogAnalyzerHasOperations(t *testing.T) {
 	}
 	if !contains(pyCode, `"search"`) {
 		t.Fatal("generated log analyzer is missing search operation")
+	}
+}
+
+func TestCreateSkillFromTemplate_MinimalSkill(t *testing.T) {
+	dir := t.TempDir()
+	_, err := CreateSkillFromTemplate(dir, "minimal_skill", "tiny_helper", "", "", nil, nil)
+	if err != nil {
+		t.Fatalf("CreateSkillFromTemplate failed: %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(dir, "tiny_helper.json"))
+	if err != nil {
+		t.Fatalf("failed to read manifest: %v", err)
+	}
+	var manifest SkillManifest
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		t.Fatalf("failed to parse manifest: %v", err)
+	}
+	if manifest.Description == "" {
+		t.Fatal("minimal skill manifest should use the template description when none is provided")
+	}
+	if len(manifest.Dependencies) != 0 {
+		t.Fatalf("minimal skill should not add default dependencies, got %v", manifest.Dependencies)
+	}
+	if _, ok := manifest.Parameters["text"]; !ok {
+		t.Fatalf("minimal skill should expose a simple optional text parameter, got %v", manifest.Parameters)
+	}
+
+	pyData, err := os.ReadFile(filepath.Join(dir, "tiny_helper.py"))
+	if err != nil {
+		t.Fatalf("failed to read Python file: %v", err)
+	}
+	pyCode := string(pyData)
+	for _, marker := range []string{
+		"def tiny_helper(text=\"\"):",
+		`"status": "success"`,
+		`"result": text if text else "ok"`,
+	} {
+		if !contains(pyCode, marker) {
+			t.Fatalf("minimal skill code is missing marker %q", marker)
+		}
 	}
 }
 

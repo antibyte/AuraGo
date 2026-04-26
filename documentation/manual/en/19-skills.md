@@ -576,6 +576,7 @@ AuraGo offers templates for common skill types:
 ```
 You: What skill templates are available?
 Agent: 📋 Available templates:
+       - minimal_skill: Minimal stdlib-only starter skill
        - api_client: REST API client with auth
        - file_processor: File read and write operations
        - data_transformer: Data format conversion
@@ -587,10 +588,9 @@ Agent: 📋 Available templates:
 ```json
 {
   "action": "create_skill_from_template",
-  "template": "api_client",
-  "name": "my_api",
-  "description": "My API integration",
-  "vault_keys": ["api_key"]
+  "template": "minimal_skill",
+  "name": "my_helper",
+  "description": "Small custom helper skill"
 }
 ```
 
