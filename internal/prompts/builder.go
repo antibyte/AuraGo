@@ -447,6 +447,9 @@ func buildSystemPromptInner(promptsDir string, flags *ContextFlags, coreMemory s
 	// 4. Assemble modules
 	for _, mod := range selectedModules {
 		content := mod.Content
+		if flags.NativeToolsEnabled {
+			content = stripTextJSONToolProtocolForNative(content)
+		}
 		// Replace specialist status placeholder in the awareness module
 		if flags.SpecialistsAvailable && flags.SpecialistsStatus != "" && strings.Contains(content, "{{SPECIALISTS_STATUS}}") {
 			content = strings.ReplaceAll(content, "{{SPECIALISTS_STATUS}}", flags.SpecialistsStatus)
@@ -838,6 +841,20 @@ func buildSystemPromptInner(promptsDir string, flags *ContextFlags, coreMemory s
 	})
 
 	return optimized, finalTokens
+}
+
+func stripTextJSONToolProtocolForNative(content string) string {
+	trimmed := strings.TrimSpace(content)
+	if !strings.HasPrefix(trimmed, "# TOOL EXECUTION PROTOCOL") {
+		return content
+	}
+
+	const keepFrom = "## Workflow efficiency"
+	idx := strings.Index(content, keepFrom)
+	if idx < 0 {
+		return content
+	}
+	return strings.TrimSpace(content[idx:])
 }
 
 // budgetShed progressively removes content sections until the prompt fits within the token budget.

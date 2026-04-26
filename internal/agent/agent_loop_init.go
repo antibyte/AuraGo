@@ -15,6 +15,27 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
+func reconcileToolPromptModeWithSchemas(flags *prompts.ContextFlags, policy *ToolingPolicy, useNativeFunctions *bool, schemaCount int, logger *slog.Logger) {
+	if schemaCount > 0 || useNativeFunctions == nil || !*useNativeFunctions {
+		return
+	}
+
+	*useNativeFunctions = false
+	if policy != nil {
+		policy.UseNativeFunctions = false
+		policy.AutoEnabledNativeFunctions = false
+		policy.StructuredOutputsEnabled = false
+		policy.ParallelToolCallsEnabled = false
+	}
+	if flags != nil {
+		flags.NativeToolsEnabled = false
+		flags.IsTextModeModel = true
+	}
+	if logger != nil {
+		logger.Warn("[NativeTools] Native function calling disabled for this request because no tool schemas were attached; using text JSON tool mode")
+	}
+}
+
 // initAgentLoopState sets up all mutable state before the main agent loop begins.
 func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, broker FeedbackBroker) *agentLoopState {
 	s := &agentLoopState{
@@ -324,6 +345,10 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 		// Update discover_tools state so the agent can browse hidden tools
 		SetDiscoverToolsState(sessionID, allSchemas, ntSchemas, cfg.Directories.PromptsDir)
 
+		if len(ntSchemas) == 0 {
+			reconcileToolPromptModeWithSchemas(&flags, &toolingPolicy, &useNativeFunctions, len(ntSchemas), logger)
+		}
+
 		// Structured Outputs: set Strict=true on every tool definition so the
 		// provider uses constrained decoding for tool-call arguments.
 		// Only enable this for models that support structured outputs (e.g. GPT-4o,
@@ -331,22 +356,24 @@ func initAgentLoopState(req openai.ChatCompletionRequest, runCfg RunConfig, brok
 		// response_format, but does not yet honor Function.Strict=true in the
 		// OpenAI-compatible chat completions API, so we skip it to avoid sending
 		// an unsupported field.
-		if toolingPolicy.StructuredOutputsEnabled {
+		if useNativeFunctions && toolingPolicy.StructuredOutputsEnabled {
 			for i := range ntSchemas {
 				if ntSchemas[i].Function != nil {
 					ntSchemas[i].Function.Strict = true
 				}
 			}
 			logger.Info("[NativeTools] Structured outputs enabled (strict mode)")
-		} else if toolingPolicy.StructuredOutputsRequested && toolingPolicy.Capabilities.IsOllama {
+		} else if useNativeFunctions && toolingPolicy.StructuredOutputsRequested && toolingPolicy.Capabilities.IsOllama {
 			logger.Warn("[NativeTools] Strict tool definitions not supported by Ollama, ignoring strict mode")
 		}
-		req.Tools = ntSchemas
-		req.ToolChoice = "auto"
-		if toolingPolicy.ParallelToolCallsEnabled {
-			req.ParallelToolCalls = true
+		if useNativeFunctions {
+			req.Tools = ntSchemas
+			req.ToolChoice = "auto"
+			if toolingPolicy.ParallelToolCallsEnabled {
+				req.ParallelToolCalls = true
+			}
+			logger.Info("[NativeTools] Native function calling enabled", "tool_count", len(ntSchemas), "parallel", toolingPolicy.ParallelToolCallsEnabled)
 		}
-		logger.Info("[NativeTools] Native function calling enabled", "tool_count", len(ntSchemas), "parallel", toolingPolicy.ParallelToolCallsEnabled)
 	}
 
 	// Store mutable state back into struct

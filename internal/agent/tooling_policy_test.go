@@ -38,6 +38,54 @@ func TestBuildToolingPolicyHonorsExplicitNativeFunctions(t *testing.T) {
 	}
 }
 
+func TestReconcileToolPromptModeDowngradesNativeWhenNoSchemas(t *testing.T) {
+	flags := prompts.ContextFlags{
+		NativeToolsEnabled: true,
+		IsTextModeModel:    false,
+	}
+	policy := ToolingPolicy{UseNativeFunctions: true}
+	useNativeFunctions := true
+
+	reconcileToolPromptModeWithSchemas(&flags, &policy, &useNativeFunctions, 0, nil)
+
+	if useNativeFunctions {
+		t.Fatal("expected native function calling to be disabled when no native schemas are attached")
+	}
+	if policy.UseNativeFunctions {
+		t.Fatal("expected policy to be downgraded for the current request")
+	}
+	if flags.NativeToolsEnabled {
+		t.Fatal("expected prompt flags to stop advertising native tool calls")
+	}
+	if !flags.IsTextModeModel {
+		t.Fatal("expected prompt flags to use text JSON tool mode when no native schemas are attached")
+	}
+}
+
+func TestReconcileToolPromptModeKeepsNativeWhenSchemasExist(t *testing.T) {
+	flags := prompts.ContextFlags{
+		NativeToolsEnabled: true,
+		IsTextModeModel:    false,
+	}
+	policy := ToolingPolicy{UseNativeFunctions: true}
+	useNativeFunctions := true
+
+	reconcileToolPromptModeWithSchemas(&flags, &policy, &useNativeFunctions, 1, nil)
+
+	if !useNativeFunctions {
+		t.Fatal("expected native function calling to stay enabled when schemas are attached")
+	}
+	if !policy.UseNativeFunctions {
+		t.Fatal("expected policy to stay native")
+	}
+	if !flags.NativeToolsEnabled {
+		t.Fatal("expected prompt flags to keep native tool mode")
+	}
+	if flags.IsTextModeModel {
+		t.Fatal("did not expect text JSON mode while native schemas exist")
+	}
+}
+
 func TestBuildToolingPolicyDisablesStructuredOutputsAndParallelForOllama(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.LLM.ProviderType = "ollama"

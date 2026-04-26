@@ -263,6 +263,25 @@ func TestBuildSystemPromptStablePrefixIgnoresVolatileSuffix(t *testing.T) {
 	}
 }
 
+func TestBuildSystemPromptNativeModeOmitsRawJSONToolProtocol(t *testing.T) {
+	flags := ContextFlags{
+		Tier:               "full",
+		SystemLanguage:     "en",
+		NativeToolsEnabled: true,
+	}
+
+	prompt, _ := buildSystemPromptInner("", &flags, "", slog.Default())
+	if !strings.Contains(prompt, "This session uses the **native function calling API**") {
+		t.Fatalf("prompt missing native tool calling instructions")
+	}
+	if strings.Contains(prompt, "A Go supervisor parses your output. To invoke a tool, output a raw JSON object") {
+		t.Fatalf("native prompt must not include raw JSON tool protocol")
+	}
+	if strings.Contains(prompt, "When calling a tool, your ENTIRE response = a raw JSON object") {
+		t.Fatalf("native prompt must not include raw JSON-only response rule")
+	}
+}
+
 func TestBuildSystemPromptKeepsIntegrationOverviewOutOfStablePrefix(t *testing.T) {
 	flagsA := ContextFlags{
 		Tier:                 "full",
