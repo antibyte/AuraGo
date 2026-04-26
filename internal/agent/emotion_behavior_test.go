@@ -70,12 +70,78 @@ func TestDeriveEmotionBehaviorPolicyUsesStructuredStateAndTraits(t *testing.T) {
 	}
 }
 
+func TestDeriveEmotionBehaviorPolicyAddsCasualCuriosityHintAboveNeutral(t *testing.T) {
+	stm := newTestEmotionBehaviorMemory(t)
+
+	if err := stm.SetTrait(memory.TraitCuriosity, 0.51); err != nil {
+		t.Fatalf("SetTrait curiosity: %v", err)
+	}
+
+	policy := deriveEmotionBehaviorPolicy(stm, nil)
+	hint := strings.ToLower(policy.CuriosityPromptHint)
+	for _, want := range []string{
+		"more curious",
+		"gather a little more context",
+		"not interrogate",
+		"weather",
+		"live there",
+	} {
+		if !strings.Contains(hint, want) {
+			t.Fatalf("CuriosityPromptHint %q does not contain %q", policy.CuriosityPromptHint, want)
+		}
+	}
+}
+
+func TestDeriveEmotionBehaviorPolicyDoesNotAddCuriosityHintAtNeutral(t *testing.T) {
+	stm := newTestEmotionBehaviorMemory(t)
+
+	if err := stm.SetTrait(memory.TraitCuriosity, 0.5); err != nil {
+		t.Fatalf("SetTrait curiosity: %v", err)
+	}
+
+	policy := deriveEmotionBehaviorPolicy(stm, nil)
+	if policy.CuriosityPromptHint != "" {
+		t.Fatalf("CuriosityPromptHint = %q, want empty at neutral curiosity", policy.CuriosityPromptHint)
+	}
+}
+
 func TestApplyEmotionRecoveryNudgeAppendsGuidance(t *testing.T) {
 	got := applyEmotionRecoveryNudge("Base error.", emotionBehaviorPolicy{
 		RecoveryNudge: "Inspect the exact last error.",
 	})
 	if !strings.Contains(got, "Base error.") || !strings.Contains(got, "Inspect the exact last error.") {
 		t.Fatalf("applyEmotionRecoveryNudge() = %q", got)
+	}
+}
+
+func TestMergeEmotionBehaviorPromptPreservesCuriosityWithInnerVoice(t *testing.T) {
+	policy := emotionBehaviorPolicy{
+		PromptHint:          "general emotion guidance",
+		CuriosityPromptHint: "curiosity guidance",
+	}
+
+	got := mergeEmotionBehaviorPrompt("base prompt", policy, true)
+	for _, want := range []string{"base prompt", "curiosity guidance"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("mergeEmotionBehaviorPrompt() = %q, want %q", got, want)
+		}
+	}
+	if strings.Contains(got, "general emotion guidance") {
+		t.Fatalf("mergeEmotionBehaviorPrompt() = %q, should suppress general emotion guidance with inner voice", got)
+	}
+}
+
+func TestMergeEmotionBehaviorPromptIncludesAllHintsWithoutInnerVoice(t *testing.T) {
+	policy := emotionBehaviorPolicy{
+		PromptHint:          "general emotion guidance",
+		CuriosityPromptHint: "curiosity guidance",
+	}
+
+	got := mergeEmotionBehaviorPrompt("base prompt", policy, false)
+	for _, want := range []string{"base prompt", "general emotion guidance", "curiosity guidance"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("mergeEmotionBehaviorPrompt() = %q, want %q", got, want)
+		}
 	}
 }
 

@@ -8,9 +8,10 @@ import (
 )
 
 type emotionBehaviorPolicy struct {
-	PromptHint        string
-	RecoveryNudge     string
-	MaxToolCallsDelta int
+	PromptHint          string
+	CuriosityPromptHint string
+	RecoveryNudge       string
+	MaxToolCallsDelta   int
 }
 
 func latestEmotionState(stm *memory.SQLiteMemory, synthesizer *memory.EmotionSynthesizer) *memory.EmotionState {
@@ -59,6 +60,7 @@ func deriveEmotionBehaviorPolicy(stm *memory.SQLiteMemory, synthesizer *memory.E
 	traits, _ := stm.GetTraits()
 
 	confidenceTrait := traits[memory.TraitConfidence]
+	curiosityTrait := traits[memory.TraitCuriosity]
 	thoroughnessTrait := traits[memory.TraitThoroughness]
 	empathyTrait := traits[memory.TraitEmpathy]
 
@@ -101,6 +103,9 @@ func deriveEmotionBehaviorPolicy(stm *memory.SQLiteMemory, synthesizer *memory.E
 	if len(hints) > 0 {
 		policy.PromptHint = "Emotion-aware runtime guidance: " + strings.Join(hints, " ")
 	}
+	if curiosityTrait > 0.5 {
+		policy.CuriosityPromptHint = "Curiosity-aware runtime guidance: Be more curious and gather a little more context when it naturally fits. Ask casual, optional follow-up questions only when they would help the conversation, and do not interrogate the user. For example, if the user asks for the weather in a place, answer the request first and, if it feels natural, casually ask in the user's language whether they live there. Keep it relaxed and easy to ignore."
+	}
 	if tenseRecovery {
 		policy.RecoveryNudge = "Inspect the exact last error and make one concrete correction. Avoid speculative retries."
 		policy.MaxToolCallsDelta = -1
@@ -136,8 +141,18 @@ func mergeAdditionalPrompt(base, extra string) string {
 	}
 }
 
+func mergeEmotionBehaviorPrompt(base string, policy emotionBehaviorPolicy, innerVoiceActive bool) string {
+	if innerVoiceActive {
+		return mergeAdditionalPrompt(base, policy.CuriosityPromptHint)
+	}
+	return mergeAdditionalPrompt(mergeAdditionalPrompt(base, policy.PromptHint), policy.CuriosityPromptHint)
+}
+
 func shouldUseEmotionBehavior(policy emotionBehaviorPolicy, state *memory.EmotionState) bool {
-	if strings.TrimSpace(policy.PromptHint) != "" || strings.TrimSpace(policy.RecoveryNudge) != "" || policy.MaxToolCallsDelta != 0 {
+	if strings.TrimSpace(policy.PromptHint) != "" ||
+		strings.TrimSpace(policy.CuriosityPromptHint) != "" ||
+		strings.TrimSpace(policy.RecoveryNudge) != "" ||
+		policy.MaxToolCallsDelta != 0 {
 		return true
 	}
 	if state == nil {

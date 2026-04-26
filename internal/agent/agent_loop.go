@@ -860,13 +860,9 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 				flags.SessionTodoItems = planPrompt
 			}
 		}
-		// When inner voice is active, suppress emotion policy prompt hints
-		// (inner voice provides organic guidance; emotion policy is redundant)
-		if flags.InnerVoice != "" {
-			flags.AdditionalPrompt = mergeAdditionalPrompt(baseAdditionalPrompt, "")
-		} else {
-			flags.AdditionalPrompt = mergeAdditionalPrompt(baseAdditionalPrompt, emotionPolicy.PromptHint)
-		}
+		// When inner voice is active, suppress general emotion guidance while
+		// preserving trait-driven curiosity guidance.
+		flags.AdditionalPrompt = mergeEmotionBehaviorPrompt(baseAdditionalPrompt, emotionPolicy, flags.InnerVoice != "")
 		flags.TokenBudget = calculateEffectivePromptTokenBudget(cfg, ToolCall{}, homepageUsedInChain, s.currentLogger)
 		recordRetrievalPromptTelemetry(telemetryScope, retrievalPromptTokens, flags.TokenBudget)
 
