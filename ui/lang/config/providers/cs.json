@@ -124,5 +124,7 @@
   "config.providers.type_openrouter": "openrouter",
   "config.providers.type_workers_ai": "workers-ai",
   "config.providers.url_empty_error": "Base URL must not be empty.",
-  "config.providers.workers_ai_url_auto": "URL se generuje automaticky z ID účtu."
+  "config.providers.workers_ai_url_auto": "URL se generuje automaticky z ID účtu.",
+  "config.providers.type_yepapi": "yepapi",
+  "config.providers.hint.yepapi": "API klíč z YepAPI dashboardu. Základní URL by mělo být https://api.yepapi.com/v1/ai pro LLM chat."
 }

@@ -124,5 +124,7 @@
   "config.providers.type_openrouter": "åpen ruter",
   "config.providers.type_workers_ai": "workers-ai",
   "config.providers.url_empty_error": "Grunnnettadressen må ikke være tom.",
-  "config.providers.workers_ai_url_auto": "URL is auto-generated from Account ID."
+  "config.providers.workers_ai_url_auto": "URL is auto-generated from Account ID.",
+  "config.providers.type_yepapi": "yepapi",
+  "config.providers.hint.yepapi": "API-nøkkel fra YepAPI-dashboard. Basis-URL må være https://api.yepapi.com/v1/ai for LLM-chat."
 }

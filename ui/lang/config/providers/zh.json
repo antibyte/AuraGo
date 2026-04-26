@@ -124,5 +124,7 @@
   "config.providers.type_openrouter": "openrouter",
   "config.providers.type_workers_ai": "workers-ai",
   "config.providers.url_empty_error": "Base URL 不能为空。",
-  "config.providers.workers_ai_url_auto": "URL 由账户 ID 自动生成。"
+  "config.providers.workers_ai_url_auto": "URL 由账户 ID 自动生成。",
+  "config.providers.type_yepapi": "yepapi",
+  "config.providers.hint.yepapi": "来自 YepAPI 控制面板的 API 密钥。LLM 聊天的基础 URL 应为 https://api.yepapi.com/v1/ai。"
 }

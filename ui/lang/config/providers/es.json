@@ -124,5 +124,7 @@
   "config.providers.type_openrouter": "openrouter",
   "config.providers.type_workers_ai": "workers-ai",
   "config.providers.url_empty_error": "La URL Base no puede estar vacía.",
-  "config.providers.workers_ai_url_auto": "La URL se genera automáticamente a partir del ID de cuenta."
+  "config.providers.workers_ai_url_auto": "La URL se genera automáticamente a partir del ID de cuenta.",
+  "config.providers.type_yepapi": "yepapi",
+  "config.providers.hint.yepapi": "Clave API del panel de YepAPI. La URL base debe ser https://api.yepapi.com/v1/ai para chat LLM."
 }

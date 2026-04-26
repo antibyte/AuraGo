@@ -124,5 +124,7 @@
   "config.providers.type_openrouter": "openrouter",
   "config.providers.type_workers_ai": "workers-ai",
   "config.providers.url_empty_error": "Base URL must not be empty.",
-  "config.providers.workers_ai_url_auto": "URL is auto-generated from Account ID."
+  "config.providers.workers_ai_url_auto": "URL is auto-generated from Account ID.",
+  "config.providers.type_yepapi": "yepapi",
+  "config.providers.hint.yepapi": "API-nyckel från YepAPI-dashboard. Bas-URL måste vara https://api.yepapi.com/v1/ai för LLM-chat."
 }

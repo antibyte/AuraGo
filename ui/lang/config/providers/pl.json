@@ -124,5 +124,7 @@
   "config.providers.type_openrouter": "openrouter",
   "config.providers.type_workers_ai": "workers-ai",
   "config.providers.url_empty_error": "Bazowy URL nie może być pusty.",
-  "config.providers.workers_ai_url_auto": "URL jest generowany automatycznie z ID konta."
+  "config.providers.workers_ai_url_auto": "URL jest generowany automatycznie z ID konta.",
+  "config.providers.type_yepapi": "yepapi",
+  "config.providers.hint.yepapi": "Klucz API z panelu YepAPI. Podstawowy URL powinien być https://api.yepapi.com/v1/ai dla czatu LLM."
 }

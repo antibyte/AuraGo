@@ -765,6 +765,7 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
             google: 'https://generativelanguage.googleapis.com/v1beta/openai',
             minimax: 'https://api.minimax.io/v1',
             'workers-ai': '',
+            yepapi: 'https://api.yepapi.com/v1/ai',
             custom: ''
         };
 
@@ -776,6 +777,7 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
             openai: 'config.providers.hint.openai',
             'workers-ai': 'config.providers.hint.workers_ai',
             minimax: 'config.providers.hint.minimax',
+            yepapi: 'config.providers.hint.yepapi',
             custom: 'config.providers.hint.custom'
         };
 
@@ -811,7 +813,7 @@ const OR_CACHE_TTL = 5 * 60 * 1000;
                     <div class="field-label">${t('config.providers.field_type_label')}</div>
                     <div class="field-help">${t('config.providers.type_help')}</div>
                     <select class="field-select" id="prov-type">
-                        ${['openai','openrouter','ollama','anthropic','google','minimax','workers-ai','custom'].map(typ =>
+                        ${['openai','openrouter','ollama','anthropic','google','minimax','workers-ai','yepapi','custom'].map(typ =>
                             `<option value="${typ}"${data.type === typ ? ' selected' : ''}>${t('config.providers.type_' + typ.replace('-', '_'))}</option>`
                         ).join('')}
                     </select>
