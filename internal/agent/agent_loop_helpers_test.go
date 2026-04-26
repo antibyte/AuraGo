@@ -436,8 +436,8 @@ func TestExpandAdaptiveAlwaysIncludeAddsInvasionControlWhenEnabled(t *testing.T)
 	cfg.InvasionControl.Enabled = true
 
 	got := expandAdaptiveAlwaysInclude(cfg, []string{"filesystem"})
-	if !containsName(got, "invasion_control") {
-		t.Fatalf("expected invasion_control in always-include set when enabled, got %v", got)
+	if containsName(got, "invasion_control") {
+		t.Fatalf("did not expect invasion_control to be always visible just because it is enabled, got %v", got)
 	}
 }
 

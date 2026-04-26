@@ -642,9 +642,6 @@ func expandAdaptiveAlwaysInclude(cfg *config.Config, alwaysInclude []string) []s
 	if cfg.Agent.AllowMCP && cfg.MCP.Enabled {
 		add("mcp_call")
 	}
-	if cfg.InvasionControl.Enabled {
-		add("invasion_control")
-	}
 
 	return out
 }

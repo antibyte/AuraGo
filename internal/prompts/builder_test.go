@@ -514,6 +514,31 @@ func TestBuildEnabledToolsOverview_IncludesPaperlessNGX(t *testing.T) {
 	}
 }
 
+func TestBuildEnabledToolsOverview_IncludesInvasionControlCapability(t *testing.T) {
+	flags := &ContextFlags{
+		InvasionControlEnabled: true,
+	}
+	overview := buildEnabledToolsOverview(flags)
+	for _, want := range []string{"invasion_control", "Egg/Nest", "remote agents", "discover_tools"} {
+		if !strings.Contains(overview, want) {
+			t.Fatalf("expected %q in invasion overview, got: %s", want, overview)
+		}
+	}
+}
+
+func TestBuildEnabledToolsOverview_PointsHiddenIntegrationsToDiscovery(t *testing.T) {
+	flags := &ContextFlags{
+		DockerEnabled: true,
+	}
+	overview := buildEnabledToolsOverview(flags)
+	if !strings.Contains(overview, "discover_tools") {
+		t.Fatalf("enabled integrations overview should point hidden tools to discover_tools, got: %s", overview)
+	}
+	if strings.Contains(overview, "use it directly by name") {
+		t.Fatalf("enabled integrations overview should not tell the agent to call hidden tools directly, got: %s", overview)
+	}
+}
+
 func TestBuildEnabledToolsOverview_ExcludesPaperlessNGXWhenDisabled(t *testing.T) {
 	flags := &ContextFlags{
 		PaperlessNGXEnabled: false,

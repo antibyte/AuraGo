@@ -1618,10 +1618,11 @@ func buildEnabledToolsOverview(flags *ContextFlags) string {
 	add("fritzbox", flags.FritzBoxSystemEnabled || flags.FritzBoxNetworkEnabled || flags.FritzBoxSmartHomeEnabled)
 	add("telnyx", flags.TelnyxEnabled)
 	add("a2a", flags.A2AEnabled)
+	add("invasion_control (Egg/Nest remote agents)", flags.InvasionControlEnabled)
 	add("co_agents", flags.CoAgentEnabled)
 	add("paperless_ngx", flags.PaperlessNGXEnabled)
 	if len(enabled) == 0 {
 		return ""
 	}
-	return "[ENABLED INTEGRATIONS] " + strings.Join(enabled, ", ") + ". Some may be hidden by adaptive tool filtering — if you need one not in your tool list, use it directly by name."
+	return "[ENABLED INTEGRATIONS] " + strings.Join(enabled, ", ") + ". Some may be hidden by adaptive tool filtering — if you need one not in your current tool list, use discover_tools with search or get_tool_info first."
 }
