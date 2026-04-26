@@ -55,8 +55,55 @@ Refresh the daemon list after installing new skills:
 
 ## Notes
 
-- Daemon skills are Python scripts with `"daemon": true` in their skill manifest
+- Daemon skills are Python scripts with a `daemon` object in their skill manifest
 - Daemons communicate with the agent via structured JSON messages on stdout
 - The system enforces rate limits, budget caps, and circuit breakers to prevent runaway costs
 - Auto-disabled daemons require explicit `reenable` to restart
 - Maximum concurrent daemons is configurable (default: 5)
+
+## Daemon Manifest Settings
+
+Daemon lifecycle is controlled with `manage_daemon`; daemon configuration lives in the skill manifest's `daemon` object. Use the Skill Manager/Web UI or deliberate manifest editing to change these fields, then run `refresh` and `status`.
+
+```json
+{
+  "daemon": {
+    "enabled": true,
+    "wake_agent": true,
+    "wake_rate_limit_seconds": 60,
+    "max_runtime_hours": 0,
+    "restart_on_crash": true,
+    "max_restart_attempts": 3,
+    "restart_cooldown_seconds": 300,
+    "health_check_interval_seconds": 60,
+    "env": {"MODE": "safe"},
+    "trigger_mission_id": "mission-uuid",
+    "trigger_mission_name": "Mission display name",
+    "cheatsheet_id": "cheatsheet-uuid",
+    "cheatsheet_name": "Cheatsheet display name"
+  }
+}
+```
+
+| Field | Purpose |
+|---|---|
+| `enabled` | Starts the daemon automatically when the supervisor refreshes. |
+| `wake_agent` | Sends accepted daemon wake events to the main agent. |
+| `wake_rate_limit_seconds` | Minimum seconds between accepted wake-ups for this daemon. |
+| `max_runtime_hours` | Hard runtime limit. `0` means unlimited. |
+| `restart_on_crash` | Enables crash recovery. |
+| `max_restart_attempts` | Max restart attempts in the cooldown window. |
+| `restart_cooldown_seconds` | Restart counting cooldown window. |
+| `health_check_interval_seconds` | Process liveness check interval. |
+| `env` | Extra environment variables injected into the daemon process. |
+| `trigger_mission_id` | Mission to trigger when a wake event is accepted. |
+| `cheatsheet_id` | Cheatsheet injected as working instructions for triggered missions. |
+
+After changing daemon settings, verify with:
+
+```json
+{"operation": "refresh"}
+```
+```json
+{"operation": "status", "skill_id": "network-monitor"}
+```

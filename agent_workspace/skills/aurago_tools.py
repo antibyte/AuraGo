@@ -36,6 +36,14 @@ class AuraGoTools:
     4. The user has approved the skill's internal_tools access
     """
 
+    @staticmethod
+    def is_available():
+        """Return True when the tool bridge URL and token are available."""
+        return bool(
+            os.environ.get("AURAGO_TOOL_BRIDGE_URL", "")
+            and os.environ.get("AURAGO_TOOL_BRIDGE_TOKEN", "")
+        )
+
     def __init__(self, base_url=None, token=None):
         self._base_url = base_url or os.environ.get("AURAGO_TOOL_BRIDGE_URL", "")
         self._token = token or os.environ.get("AURAGO_TOOL_BRIDGE_TOKEN", "")

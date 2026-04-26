@@ -96,12 +96,29 @@ After creation, use:
 {"action": "execute_skill", "skill": "weather_api", "skill_args": {"endpoint": "weather?q=Berlin", "method": "GET"}}
 ```
 
+### After Creation: Editing the Manifest
+
+`create_skill_from_template` writes both the Python script and the `.json` manifest. If the generated skill needs advanced fields, edit the manifest deliberately and then refresh or re-run the skill:
+
+- Add `internal_tools` when the skill must call native AuraGo tools through the Tool Bridge.
+- Add daemon settings under the `daemon` object for long-running skills.
+- Add `vault_keys` for required vault secrets. Use `cred:<credential-id>` in `vault_keys` only when a manifest must request a stored credential by ID.
+- Use `parameters` as either a legacy flat map (`"field": "description"`) or JSON Schema.
+
+For the complete schema, read `skill_manifest_spec.md`.
+
+### Testing Your Skill
+
+After creating or editing a normal skill, call `execute_skill` with small safe test arguments before telling the user it is ready. For daemon templates, run `manage_daemon` with `refresh`, then `start`, then `status` and inspect the status/logs before declaring success.
+
 ### Vault Secrets — User Action Required
 
 When a skill uses `vault_keys`, the user must manually configure the secrets before the skill can work:
 
 1. **Store secret in vault**: Web UI → Settings → Secrets → New Secret (e.g. name: `API_KEY`, value: the actual key)
 2. **Assign secret to skill**: Web UI → Skills → select the skill → Assign Secrets → check the matching vault entries → Save
+
+Vault keys are injected as environment variables named `AURAGO_SECRET_<KEY>` where the key is uppercased and non-alphanumeric characters become `_` (for example `api-key` becomes `AURAGO_SECRET_API_KEY`).
 
 **Always inform the user** which secrets they need to store and assign. Without this step, the skill will receive empty values and fail.
 
@@ -148,12 +165,16 @@ Skills can call native AuraGo tools (like `proxmox`, `docker_management`, `site_
 
 **Usage in Python skill code:**
 ```python
-from aurago_tools import AuraGoTools
+from aurago_tools import AuraGoTools, AuraGoToolError
 
-tools = AuraGoTools()
-if tools.is_available():
-    result = tools.call("proxmox", operation="list_vms")
-    print(result)  # {"status": "success", "result": "..."}
+if not AuraGoTools.is_available():
+    return {"status": "error", "message": "Tool bridge is not available or not approved"}
+
+try:
+    tools = AuraGoTools()
+    result = tools.call("proxmox", {"operation": "list_vms"})
+except AuraGoToolError as exc:
+    return {"status": "error", "message": str(exc)}
 ```
 
 The SDK (`aurago_tools.py`) uses only Python stdlib and is auto-deployed to `agent_workspace/skills/`.
