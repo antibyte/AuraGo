@@ -142,7 +142,11 @@ func appendEdgeToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai.To
 					"description": "SEO operation to perform",
 					"enum":        []string{"keywords", "keyword_ideas", "domain_overview", "domain_keywords", "competitors", "backlinks", "onpage", "trends"},
 				},
-				"keywords": prop("string", "JSON array of keywords (for 'keywords' operation)"),
+				"keywords": map[string]interface{}{
+					"type":        "array",
+					"items":       map[string]interface{}{"type": "string"},
+					"description": "Array of keywords (for 'keywords' operation)",
+				},
 				"seed":     prop("string", "Seed keyword for suggestions (for 'keyword_ideas' operation)"),
 				"domain":   prop("string", "Domain name, e.g. 'example.com' (for domain_* operations)"),
 				"target":   prop("string", "Target domain or URL (for 'backlinks' operation)"),

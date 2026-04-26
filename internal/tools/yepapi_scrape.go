@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"fmt"
+	"strings"
 )
 
 // DispatchYepAPIScrape handles web scraping operations via YepAPI.
@@ -10,6 +11,10 @@ func DispatchYepAPIScrape(ctx context.Context, client *YepAPIClient, operation s
 	url, _ := args["url"].(string)
 	if url == "" {
 		return yepAPIFormatError("scrape operations require a 'url' string"), nil
+	}
+	url = strings.TrimSpace(url)
+	if !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") {
+		return yepAPIFormatError("only http:// and https:// URLs are supported"), nil
 	}
 
 	payload := map[string]interface{}{"url": url}

@@ -67,7 +67,7 @@ func detectProviderURLMismatch(providerType, baseURL string) string {
 		}
 	case "yepapi":
 		if !strings.Contains(lower, "yepapi") {
-			return "provider=yepapi but URL does not contain 'yepapi' — use https://api.yepapi.com/v1/ai"
+			return "provider=yepapi but URL does not contain 'yepapi' — use https://api.yepapi.com/v1/ai for LLM chat completions"
 		}
 	case "ollama":
 		if !strings.Contains(lower, "localhost") && !strings.Contains(lower, "127.0.0.1") && !strings.Contains(lower, "ollama") {
@@ -303,6 +303,9 @@ func aiGatewaySegment(providerType string) string {
 		return "workers-ai"
 	case "openrouter", "custom":
 		// OpenRouter and custom providers are OpenAI-compatible
+		return "openai"
+	case "yepapi":
+		// YepAPI LLM endpoint is OpenAI-compatible
 		return "openai"
 	default:
 		return ""

@@ -45,12 +45,14 @@ func DispatchYepAPISERP(ctx context.Context, client *YepAPIClient, operation str
 	if language, ok := args["language"].(string); ok && language != "" {
 		payload["language"] = language
 	}
-	// google-maps specific
-	if limit, ok := args["limit"].(float64); ok && limit > 0 {
-		payload["limit"] = int(limit)
-	}
-	if openNow, ok := args["open_now"].(bool); ok {
-		payload["open_now"] = openNow
+	// google-maps specific parameters
+	if operation == "google_maps" {
+		if limit, ok := args["limit"].(float64); ok && limit > 0 {
+			payload["limit"] = int(limit)
+		}
+		if openNow, ok := args["open_now"].(bool); ok {
+			payload["open_now"] = openNow
+		}
 	}
 
 	data, err := client.Post(ctx, endpoint, payload)

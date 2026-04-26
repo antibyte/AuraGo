@@ -22,5 +22,10 @@ func stringSliceFromArgs(args map[string]interface{}, key string) []string {
 		return result
 	}
 
+	// Fallback: if the value is a single string, wrap it in a slice
+	if s, ok := raw.(string); ok && s != "" {
+		return []string{s}
+	}
+
 	return nil
 }
