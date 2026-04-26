@@ -481,6 +481,29 @@
 }
 
 /* ── Inline audio player (ChatAudioPlayer) inside media cards ──────────────── */
+.chat-ui-icon {
+    --chat-ui-icon-url: none;
+    --chat-ui-icon-size: 1.15em;
+    display: inline-block;
+    width: var(--chat-ui-icon-size);
+    height: var(--chat-ui-icon-size);
+    flex: 0 0 auto;
+    vertical-align: -0.18em;
+    background-image: var(--chat-ui-icon-url);
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+    line-height: 1;
+    color: transparent;
+    user-select: none;
+    pointer-events: none;
+}
+
+.audio-play-btn .chat-ui-icon,
+.audio-download-btn .chat-ui-icon {
+    --chat-ui-icon-size: 1.15rem;
+}
+
 .chat-audio-player {
     display: flex;
     align-items: center;

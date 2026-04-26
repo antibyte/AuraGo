@@ -808,3 +808,67 @@ func TestMediaFrontend_ImageDeleteFlowUsesSharedConfirm(t *testing.T) {
 		}
 	}
 }
+
+func TestMediaFrontend_AudioPlayerIconsRemainWired(t *testing.T) {
+	t.Parallel()
+
+	mediaHTMLPath := "media.html"
+	audioPlayerJSPath := filepath.Join("js", "chat", "audio-player.js")
+	iconsJSPath := filepath.Join("js", "chat", "ui-icons.js")
+	mediaCSSPath := filepath.Join("css", "media.css")
+
+	mediaHTMLBytes, err := os.ReadFile(mediaHTMLPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", mediaHTMLPath, err)
+	}
+	audioPlayerJSBytes, err := os.ReadFile(audioPlayerJSPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", audioPlayerJSPath, err)
+	}
+	iconsJSBytes, err := os.ReadFile(iconsJSPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", iconsJSPath, err)
+	}
+	mediaCSSBytes, err := os.ReadFile(mediaCSSPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", mediaCSSPath, err)
+	}
+
+	mediaHTML := string(mediaHTMLBytes)
+	iconVersion := extractJSStringConst(t, string(iconsJSBytes), "ICON_VERSION")
+	iconScript := `/js/chat/ui-icons.js?v=` + iconVersion
+	audioPlayerScript := `/js/chat/audio-player.js`
+	iconScriptIndex := strings.Index(mediaHTML, iconScript)
+	if iconScriptIndex < 0 {
+		t.Fatalf("%s is missing %s before the shared audio player", mediaHTMLPath, iconScript)
+	}
+	audioPlayerScriptIndex := strings.Index(mediaHTML, audioPlayerScript)
+	if audioPlayerScriptIndex < 0 {
+		t.Fatalf("%s is missing %s", mediaHTMLPath, audioPlayerScript)
+	}
+	if iconScriptIndex > audioPlayerScriptIndex {
+		t.Fatalf("%s loads %s after %s; icon registry must be available first", mediaHTMLPath, iconScript, audioPlayerScript)
+	}
+
+	audioPlayerJS := string(audioPlayerJSBytes)
+	for _, marker := range []string{
+		`window.chatUiIconMarkup('play', 'play-icon')`,
+		`window.chatUiIconMarkup('pause', 'pause-icon is-hidden')`,
+		`window.chatUiIconMarkup('download')`,
+	} {
+		if !strings.Contains(audioPlayerJS, marker) {
+			t.Fatalf("%s is missing audio icon marker %q", audioPlayerJSPath, marker)
+		}
+	}
+
+	mediaCSS := string(mediaCSSBytes)
+	for _, marker := range []string{
+		`.chat-ui-icon`,
+		`--chat-ui-icon-url`,
+		`background-image: var(--chat-ui-icon-url)`,
+	} {
+		if !strings.Contains(mediaCSS, marker) {
+			t.Fatalf("%s is missing audio player icon CSS marker %q", mediaCSSPath, marker)
+		}
+	}
+}
