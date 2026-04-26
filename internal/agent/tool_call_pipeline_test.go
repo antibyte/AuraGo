@@ -224,6 +224,34 @@ func TestParseToolCallMinimaxJSONFormat(t *testing.T) {
 	}
 }
 
+func TestParseToolResponseKimiFunctionInvokeWrapper(t *testing.T) {
+	resp := openai.ChatCompletionResponse{
+		Choices: []openai.ChatCompletionChoice{{
+			Message: openai.ChatCompletionMessage{
+				Content: "Lass mich schnell das Wetter fuer morgen checken.\n\n<function>\n<invoke name=\"api_request\">\n<parameter name=\"method\">GET</parameter>\n<parameter name=\"url\">https://wttr.in/Pforzheim?format=j1</parameter>\n</invoke>\n</function>",
+			},
+		}},
+	}
+
+	parsed := parseToolResponse(resp, nil, AgentTelemetryScope{})
+
+	if !parsed.ToolCall.IsTool {
+		t.Fatalf("IsTool=false, expected Kimi function invoke wrapper to be parsed")
+	}
+	if parsed.ToolCall.Action != "api_request" {
+		t.Fatalf("Action=%q, want api_request", parsed.ToolCall.Action)
+	}
+	if !parsed.ToolCall.XMLFallbackDetected {
+		t.Fatal("XMLFallbackDetected=false, expected proprietary XML fallback marker")
+	}
+	if got := toolArgString(parsed.ToolCall.Params, "method"); got != "GET" {
+		t.Fatalf("method param = %q, want GET", got)
+	}
+	if got := toolArgString(parsed.ToolCall.Params, "url"); got != "https://wttr.in/Pforzheim?format=j1" {
+		t.Fatalf("url param = %q, want wttr URL", got)
+	}
+}
+
 func TestRecoverFrom422TrimsMessagesAndRetries(t *testing.T) {
 	req := openai.ChatCompletionRequest{
 		Messages: []openai.ChatCompletionMessage{
@@ -714,6 +742,10 @@ func TestParseToolResponseBareToolCallTag(t *testing.T) {
 			name:    "minimax:tool_call with junk log data after it",
 			content: "Lass mich das reparieren:\nminimax:tool_call           log : app-page.runtime.dev.js:35:16871\n    at aw (node_modules/next/dist/compiled/next-server)",
 		},
+		{
+			name:    "empty Kimi function wrapper",
+			content: "Lass mich kurz schauen.\n<function>\n</function>",
+		},
 	}
 
 	for _, tt := range tests {
@@ -733,6 +765,8 @@ func TestParseToolResponseBareToolCallTag(t *testing.T) {
 			}
 			if strings.Contains(parsed.SanitizedContent, "<tool_call>") ||
 				strings.Contains(parsed.SanitizedContent, "</tool_call>") ||
+				strings.Contains(parsed.SanitizedContent, "<function>") ||
+				strings.Contains(parsed.SanitizedContent, "</function>") ||
 				strings.Contains(parsed.SanitizedContent, "minimax:tool_call") {
 				t.Fatalf("bare tags should be stripped from SanitizedContent, got: %q", parsed.SanitizedContent)
 			}

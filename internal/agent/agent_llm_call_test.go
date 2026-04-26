@@ -25,3 +25,15 @@ func TestShouldHoldPotentialStreamedToolCallJSONPrefix(t *testing.T) {
 		t.Fatal("expected partial tool JSON prefix to be held until the router can classify it")
 	}
 }
+
+func TestShouldSuppressStreamedToolCallTextRecognizesKimiFunctionWrapper(t *testing.T) {
+	input := "Lass mich schnell das Wetter checken.\n\n<function>\n<invoke name=\"api_request\">"
+
+	idx, ok := shouldSuppressStreamedToolCallText(input)
+	if !ok {
+		t.Fatal("expected Kimi <function><invoke> wrapper to be suppressed")
+	}
+	if got := input[:idx]; got != "Lass mich schnell das Wetter checken.\n\n" {
+		t.Fatalf("prefix before tool wrapper = %q", got)
+	}
+}

@@ -68,6 +68,29 @@ func shouldHoldPotentialStreamedToolCallJSON(content string) bool {
 	return false
 }
 
+func streamedToolCallTextPrefixes() []string {
+	return []string{
+		"minimax:tool_call",
+		"<tool_call",
+		"<action>",
+		"<tts",
+		"<tool_response",
+		"[tool_call]",
+		"<function",
+		"<invoke",
+	}
+}
+
+func shouldSuppressStreamedToolCallText(content string) (int, bool) {
+	combined := strings.ToLower(content)
+	for _, prefix := range streamedToolCallTextPrefixes() {
+		if idx := strings.Index(combined, prefix); idx != -1 {
+			return idx, true
+		}
+	}
+	return -1, false
+}
+
 // handleStreamingResponse executes the streaming LLM call and assembles the response.
 func handleStreamingResponse(
 	llmCtx context.Context,
@@ -109,18 +132,12 @@ func handleStreamingResponse(
 	tcAssembler := NewStreamToolCallAssembler()
 
 	const doneTagStr = "<done/>"
-	const minimaxToolCallPrefix = "minimax:tool_call"
-	const xmlToolCallPrefix = "<tool_call"      // matches <tool_call> and <tool_call\n> variants
-	const actionTagPrefix = "<action>"          // bare <action>toolname</action> emitted by some models
-	const ttsTagPrefix = "<tts"                 // proprietary TTS block emitted by some models instead of native tools
-	const toolResponsePrefix = "<tool_response" // model hallucinating a tool response XML block
-	const bracketToolCallPrefix = "[tool_call]" // MiniMax bracket format [TOOL_CALL]{...}[/TOOL_CALL]
 	// holdLen must cover the longest tag prefix so that it is never split across
 	// the send/hold boundary.  With holdLen == P the entire P-byte prefix stays
 	// in the hold buffer until the next chunk arrives, guaranteeing detection.
-	const doneTagHoldLen = len(minimaxToolCallPrefix) // 17 bytes (≥ all other prefixes)
-	const doneTagStreamBufMaxLen = 8192               // max buffer to prevent unbounded growth
-	const toolCallJSONHoldMaxLen = 512                // enough to classify common JSON tool-call wrappers
+	const doneTagHoldLen = len("minimax:tool_call") // 17 bytes (>= all other prefixes)
+	const doneTagStreamBufMaxLen = 8192             // max buffer to prevent unbounded growth
+	const toolCallJSONHoldMaxLen = 512              // enough to classify common JSON tool-call wrappers
 	doneTagStreamBuf := ""
 	xmlToolCallSuppressed := false // once true, suppress all remaining stream chunks
 	type recvResult struct {
@@ -239,16 +256,12 @@ func handleStreamingResponse(
 					toSend = strings.ReplaceAll(toSend, doneTagStr, "")
 					// Check combined toSend+holdBuffer for prefixes so that a prefix
 					// straddling the send/hold boundary is still detected and suppressed.
-					combined := strings.ToLower(toSend + doneTagStreamBuf)
-					for _, prefix := range []string{minimaxToolCallPrefix, xmlToolCallPrefix, actionTagPrefix, ttsTagPrefix, toolResponsePrefix, bracketToolCallPrefix} {
-						if idx := strings.Index(combined, prefix); idx != -1 {
-							if idx < len(toSend) {
-								toSend = toSend[:idx]
-							}
-							xmlToolCallSuppressed = true
-							doneTagStreamBuf = ""
-							break
+					if idx, ok := shouldSuppressStreamedToolCallText(toSend + doneTagStreamBuf); ok {
+						if idx < len(toSend) {
+							toSend = toSend[:idx]
 						}
+						xmlToolCallSuppressed = true
+						doneTagStreamBuf = ""
 					}
 					if toSend != "" {
 						broker.SendLLMStreamDelta(toSend, "", "", chunk.Choices[0].Index, "")
@@ -270,22 +283,7 @@ func handleStreamingResponse(
 	}
 	if doneTagStreamBuf != "" && !xmlToolCallSuppressed {
 		remaining := strings.ReplaceAll(doneTagStreamBuf, doneTagStr, "")
-		if idx := strings.Index(strings.ToLower(remaining), minimaxToolCallPrefix); idx != -1 {
-			remaining = remaining[:idx]
-		}
-		if idx := strings.Index(strings.ToLower(remaining), xmlToolCallPrefix); idx != -1 {
-			remaining = remaining[:idx]
-		}
-		if idx := strings.Index(strings.ToLower(remaining), actionTagPrefix); idx != -1 {
-			remaining = remaining[:idx]
-		}
-		if idx := strings.Index(strings.ToLower(remaining), ttsTagPrefix); idx != -1 {
-			remaining = remaining[:idx]
-		}
-		if idx := strings.Index(strings.ToLower(remaining), toolResponsePrefix); idx != -1 {
-			remaining = remaining[:idx]
-		}
-		if idx := strings.Index(strings.ToLower(remaining), bracketToolCallPrefix); idx != -1 {
+		if idx, ok := shouldSuppressStreamedToolCallText(remaining); ok {
 			remaining = remaining[:idx]
 		}
 		if remaining != "" {

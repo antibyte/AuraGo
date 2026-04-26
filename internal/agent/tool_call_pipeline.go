@@ -14,9 +14,9 @@ import (
 	"github.com/sashabaranov/go-openai"
 )
 
-// bareToolCallTagRe matches bare <tool_call>, </tool_call>, <tool_call/>, or
-// minimax:tool_call markers that have no JSON body following them.
-var bareToolCallTagRe = regexp.MustCompile(`(?i)</?tool_call/?>|minimax:tool_call`)
+// bareToolCallTagRe matches bare XML/proprietary tool-call wrappers that have
+// no parseable body following them.
+var bareToolCallTagRe = regexp.MustCompile(`(?i)</?tool_call/?>|</?function\b[^>]*>|</?invoke\b[^>]*>|minimax:tool_call`)
 var ttsBlockRe = regexp.MustCompile(`(?is)<tts\b[^>]*>(.*?)</tts>`)
 var ttsTagRe = regexp.MustCompile(`(?i)</?tts\b[^>]*>`)
 var ttsTextParamRe = regexp.MustCompile(`(?is)<parameter\b[^>]*\bname\s*=\s*["']text["'][^>]*>(.*?)</parameter>`)

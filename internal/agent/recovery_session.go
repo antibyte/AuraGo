@@ -190,12 +190,12 @@ func FormatDiscoverToolsFirstFeedback(toolName string) string {
 // FormatIncompleteToolCallFeedback returns the feedback message for incomplete tool call tags.
 func FormatIncompleteToolCallFeedback(useNativeFunctions bool, retryCount int) string {
 	if useNativeFunctions {
-		return "ERROR: You emitted a bare <!-- or <minimax:tool_call> tag but did not produce an actual tool call. You MUST use the native function-calling mechanism to invoke tools. Do NOT output any XML tags in text — use the structured function call API instead."
+		return "ERROR: You emitted a bare XML tool wrapper such as <function>, <invoke>, <tool_call>, or <minimax:tool_call> but did not produce an actual tool call. You MUST use the native function-calling mechanism to invoke tools. Do NOT output any XML tags in text — use the structured function call API instead."
 	}
 	if retryCount >= 2 {
-		return "CRITICAL ERROR: You sent '<!--' as raw text again. This is not a valid tool call format. Do NOT output any XML tags at all. Output a raw JSON object starting with '{'."
+		return "CRITICAL ERROR: You sent an XML tool wrapper as raw text again. This is not a valid tool call format. Do NOT output any XML tags at all. Output a raw JSON object starting with '{'."
 	}
-	return "ERROR: You emitted a bare <!-- tag but did not include the JSON body. Do NOT output XML tags. Output ONLY the raw JSON tool call object - no XML tags, no explanation, no preamble."
+	return "ERROR: You emitted a bare XML tool wrapper but did not include a valid tool body. Do NOT output XML tags. Output ONLY the raw JSON tool call object - no XML tags, no explanation, no preamble."
 }
 
 // FormatOrphanedBracketTagFeedback returns the feedback message for orphaned [TOOL_CALL] tags.
@@ -208,7 +208,7 @@ func FormatOrphanedBracketTagFeedback(useNativeFunctions bool) string {
 
 // FormatBareXMLInNativeModeFeedback returns the feedback message for bare XML in native mode.
 func FormatBareXMLInNativeModeFeedback() string {
-	return "ERROR: Your response contained a literal <!-- XML tag but no actual function call was made. You MUST use the native function-calling mechanism — do not write XML tags. Call the function directly using the tool call interface now."
+	return "ERROR: Your response contained a literal XML tool wrapper such as <function>, <invoke>, or <tool_call>, but no actual function call was made. You MUST use the native function-calling mechanism — do not write XML tags. Call the function directly using the tool call interface now."
 }
 
 // FormatMissedToolInFenceFeedback returns the feedback message for tool calls wrapped in markdown fences.

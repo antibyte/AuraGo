@@ -75,7 +75,7 @@ func handleAgentLoopRecoveries(s *agentLoopState, content string, tc ToolCall, p
 		broker.Send("error_recovery", i18n.T(cfg.Server.UILanguage, "backend.stream_error_recovery_xml_format"))
 
 		displayContent := security.StripThinkingTags(content)
-		for _, marker := range []string{"minimax:tool_call", "<action>", "<invoke", "<tool_call"} {
+		for _, marker := range []string{"minimax:tool_call", "<function", "<action>", "<invoke", "<tool_call"} {
 			if idx := strings.Index(strings.ToLower(displayContent), marker); idx != -1 {
 				displayContent = strings.TrimSpace(displayContent[:idx])
 				break
@@ -93,7 +93,7 @@ func handleAgentLoopRecoveries(s *agentLoopState, content string, tc ToolCall, p
 
 		const xmlFallbackContentMaxBytes = 500
 		xmlFeedback := fmt.Sprintf(
-			"NOTE: You called '%s' using a proprietary XML format (minimax:tool_call). "+
+			"NOTE: You called '%s' using a proprietary XML tool-call format. "+
 				"The tool has already been executed and the action is COMPLETE — do NOT repeat it. "+
 				"Continue with the next step of the task. "+
 				"For future calls, always use the native function-calling API instead. "+
@@ -308,9 +308,12 @@ func handleAgentLoopRecoveries(s *agentLoopState, content string, tc ToolCall, p
 
 	if !tc.IsTool && s.useNativeFunctions && s.orphanedXMLTagCount < 2 {
 		lowerContent := strings.ToLower(parsedToolResp.SanitizedContent + content)
-		if strings.Contains(lowerContent, "<tool_call") || strings.Contains(lowerContent, "minimax:tool_call") {
+		if strings.Contains(lowerContent, "<tool_call") ||
+			strings.Contains(lowerContent, "<function") ||
+			strings.Contains(lowerContent, "<invoke") ||
+			strings.Contains(lowerContent, "minimax:tool_call") {
 			s.orphanedXMLTagCount++
-			currentLogger.Warn("[Sync] Bare <tool_call> XML in native mode, requesting native function call", "attempt", s.orphanedXMLTagCount, "content_preview", Truncate(content, 150))
+			currentLogger.Warn("[Sync] Bare XML tool wrapper in native mode, requesting native function call", "attempt", s.orphanedXMLTagCount, "content_preview", Truncate(content, 150))
 			feedbackMsg := applyEmotionRecoveryNudge(FormatBareXMLInNativeModeFeedback(), emotionPolicy)
 			msgs := s.recoverySession.PersistRecoveryMessages(PersistRecoveryParams{
 				SessionID:        sessionID,

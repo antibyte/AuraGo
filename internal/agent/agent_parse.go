@@ -763,6 +763,11 @@ func ParseToolCall(content string) ToolCall {
 			}
 		}
 	}
+	if start := strings.Index(lowerContent, "<function"); start != -1 && !strings.HasPrefix(lowerContent[start:], "<function=") {
+		if parsed, ok := parseInvokeXMLToolCall(content, lowerContent, start); ok {
+			return parsed
+		}
+	}
 	if start := strings.Index(lowerContent, "<tool_calls>"); start != -1 {
 		tc.IsTool = true
 		// Extract first invoke
@@ -1374,6 +1379,57 @@ func parseXMLParams(tc *ToolCall, body string) {
 			_ = json.Unmarshal([]byte(jsonBody), tc)
 		}
 	}
+}
+
+func parseInvokeXMLToolCall(content, lowerContent string, searchStart int) (ToolCall, bool) {
+	if searchStart < 0 || searchStart >= len(lowerContent) {
+		searchStart = 0
+	}
+
+	invStart := strings.Index(lowerContent[searchStart:], "<invoke name=")
+	if invStart == -1 {
+		return ToolCall{}, false
+	}
+	invStart += searchStart
+	invNameStart := invStart + len("<invoke name=")
+	invEndChar := strings.Index(lowerContent[invNameStart:], ">")
+	if invEndChar == -1 {
+		return ToolCall{}, false
+	}
+
+	actionName := parseInvokeActionName(content[invNameStart : invNameStart+invEndChar])
+	if actionName == "" {
+		return ToolCall{}, false
+	}
+
+	tc := ToolCall{
+		Action:              actionName,
+		IsTool:              true,
+		XMLFallbackDetected: true,
+	}
+	bodyStart := invNameStart + invEndChar + 1
+	if bodyEnd := strings.Index(lowerContent[bodyStart:], "</invoke>"); bodyEnd != -1 {
+		parseXMLParams(&tc, content[bodyStart:bodyStart+bodyEnd])
+	}
+	return tc, true
+}
+
+func parseInvokeActionName(raw string) string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return ""
+	}
+	if raw[0] == '"' || raw[0] == '\'' {
+		quote := raw[0]
+		raw = raw[1:]
+		if end := strings.IndexByte(raw, quote); end != -1 {
+			return strings.TrimSpace(raw[:end])
+		}
+	}
+	if idx := strings.IndexAny(raw, " \t\r\n,>"); idx != -1 {
+		raw = raw[:idx]
+	}
+	return strings.Trim(strings.TrimSpace(raw), "\"'")
 }
 
 func Truncate(s string, n int) string {

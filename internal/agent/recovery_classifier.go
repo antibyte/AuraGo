@@ -162,6 +162,8 @@ func ClassifyToolCallProblem(
 	// 4. Check for Bare <tool_call> XML in Native Mode (Format Error)
 	if !tc.IsTool && useNativeFunctions {
 		if strings.Contains(lowerContent, "<tool_call") ||
+			strings.Contains(lowerContent, "<function") ||
+			strings.Contains(lowerContent, "<invoke") ||
 			strings.Contains(lowerContent, "minimax:tool_call") {
 			return ToolCallProblem{
 				Category:   RecoveryCategoryFormatError,
@@ -408,7 +410,7 @@ func (h *ConsolidatedRecoveryHandler) buildFeedbackMessage(
 
 	case "incomplete_tool_call":
 		if useNativeFunctions {
-			return "ERROR: You emitted a bare <tool_call> or <minimax:tool_call> tag but did not produce an actual tool call. You MUST use the native function-calling mechanism to invoke tools. Do NOT output any XML tags in text — use the structured function call API instead."
+			return "ERROR: You emitted a bare XML tool wrapper such as <function>, <invoke>, <tool_call>, or <minimax:tool_call> but did not produce an actual tool call. You MUST use the native function-calling mechanism to invoke tools. Do NOT output any XML tags in text — use the structured function call API instead."
 		}
 		if problem.RetryCount >= 2 {
 			return "CRITICAL ERROR: You sent '<tool_call>' as raw text again. This is not a valid tool call format. Do NOT output any XML tags at all. Output a raw JSON object starting with '{'."
@@ -422,12 +424,12 @@ func (h *ConsolidatedRecoveryHandler) buildFeedbackMessage(
 		return "ERROR: Your response contained the literal text \"[TOOL_CALL]\" but no valid tool call JSON. Do NOT write [TOOL_CALL] as text. Your ENTIRE response must be ONLY the raw JSON tool call — no explanation, no tags. Output the JSON tool call NOW."
 
 	case "bare_xml_in_native_mode":
-		return "ERROR: Your response contained a literal <tool_call> XML tag but no actual function call was made. You MUST use the native function-calling mechanism — do not write XML tags. Call the function directly using the tool call interface now."
+		return "ERROR: Your response contained a literal XML tool wrapper such as <function>, <invoke>, or <tool_call>, but no actual function call was made. You MUST use the native function-calling mechanism — do not write XML tags. Call the function directly using the tool call interface now."
 
 	case "xml_fallback_format":
 		// This is informational - the tool will still execute
 		return fmt.Sprintf(
-			"NOTE: You called '%s' using a proprietary XML format (minimax:tool_call). "+
+			"NOTE: You called '%s' using a proprietary XML tool-call format. "+
 				"The tool has already been executed and the action is COMPLETE — do NOT repeat it. "+
 				"Continue with the next step of the task. "+
 				"For future calls, always use the native function-calling API instead. "+
