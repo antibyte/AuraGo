@@ -620,7 +620,7 @@ func (m *MissionManagerV2) processQueue() {
 			func() {
 				defer func() {
 					if r := recover(); r != nil {
-						fmt.Printf("[MissionManagerV2] recovered from panic in processNext: %v\n", r)
+						slog.Default().Error("[MissionManagerV2] recovered from panic in processNext", "panic", r)
 					}
 				}()
 				m.processNext()
@@ -1335,6 +1335,16 @@ func (m *MissionManagerV2) Update(id string, updated *MissionV2) error {
 	updated.Status = mission.Status
 	updated.PreparationStatus = mission.PreparationStatus
 	updated.LastPreparedAt = mission.LastPreparedAt
+
+	if oldRemoteNeedsCleanup && m.remoteClient != nil {
+		ctx, cancel := context.WithTimeout(m.ctx, 20*time.Second)
+		cleanupErr := m.remoteClient.DeleteMission(ctx, *mission)
+		cancel()
+		if cleanupErr != nil {
+			return cleanupErr
+		}
+	}
+
 	if isRemoteMission(updated) {
 		updated.RemoteRevision = newRemoteRevision()
 		if err := m.syncRemoteMissionLocked(updated); err != nil {
@@ -1343,20 +1353,6 @@ func (m *MissionManagerV2) Update(id string, updated *MissionV2) error {
 			}
 			markRemoteSyncPendingAfterError(updated, err)
 		}
-	}
-
-	var cleanupErr error
-	if oldRemoteNeedsCleanup && m.remoteClient != nil {
-		ctx, cancel := context.WithTimeout(m.ctx, 20*time.Second)
-		cleanupErr = m.remoteClient.DeleteMission(ctx, *mission)
-		cancel()
-		if cleanupErr != nil && !isRemoteMission(updated) {
-			return cleanupErr
-		}
-	}
-	if cleanupErr != nil {
-		updated.RemoteSyncStatus = RemoteSyncError
-		updated.RemoteSyncError = "new remote target synced, but old target cleanup failed: " + cleanupErr.Error()
 	}
 
 	m.missions[id] = updated
@@ -1386,7 +1382,7 @@ func (m *MissionManagerV2) Update(id string, updated *MissionV2) error {
 	if err := m.save(); err != nil {
 		return err
 	}
-	return cleanupErr
+	return nil
 }
 
 // DeleteSyncedMission removes an egg-local mission that was installed by its master.

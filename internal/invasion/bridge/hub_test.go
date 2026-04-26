@@ -1,6 +1,7 @@
 package bridge
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"log/slog"
@@ -430,6 +431,45 @@ func TestHandleMessages_Result(t *testing.T) {
 		t.Errorf("resultReceived = %q, want %q", resultReceived, "task-42")
 	}
 	mu.Unlock()
+}
+
+func TestStartHeartbeatMonitorUnregistersStaleConnectionWithoutDisconnectCallback(t *testing.T) {
+	hub := NewEggHub(testLogger())
+	hub.mu.Lock()
+	hub.connections["nest-stale"] = &EggConnection{
+		EggID:         "egg-stale",
+		NestID:        "nest-stale",
+		LastHeartbeat: time.Now().Add(-time.Hour),
+	}
+	hub.mu.Unlock()
+
+	disconnected := make(chan struct{}, 1)
+	hub.OnDisconnect = func(nestID, eggID string) {
+		disconnected <- struct{}{}
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	stale := make(chan struct{}, 1)
+	hub.StartHeartbeatMonitor(ctx, 5*time.Millisecond, 10*time.Millisecond, func(nestID, eggID string) {
+		stale <- struct{}{}
+	})
+
+	select {
+	case <-stale:
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("stale heartbeat callback was not called")
+	}
+	time.Sleep(20 * time.Millisecond)
+
+	if hub.IsConnected("nest-stale") {
+		t.Fatal("stale connection should be unregistered")
+	}
+	select {
+	case <-disconnected:
+		t.Fatal("stale monitor should not invoke OnDisconnect after onStale handled failure state")
+	default:
+	}
 }
 
 // ── OnConnect callback ──────────────────────────────────────────────────────

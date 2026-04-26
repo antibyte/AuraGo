@@ -302,7 +302,7 @@ func TestForceDeleteRemoteMissionSkipsRemoteClient(t *testing.T) {
 	}
 }
 
-func TestRemoteTargetSwitchSyncsNewTargetBeforeOldCleanup(t *testing.T) {
+func TestRemoteTargetSwitchAbortsWhenOldCleanupFails(t *testing.T) {
 	client := &fakeRemoteMissionClient{}
 	mgr := NewMissionManagerV2(t.TempDir(), nil)
 	mgr.SetRemoteMissionClient(client)
@@ -330,18 +330,15 @@ func TestRemoteTargetSwitchSyncsNewTargetBeforeOldCleanup(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "old target cleanup failed") {
 		t.Fatalf("Update error = %v, want cleanup failure", err)
 	}
-	if client.syncCalls != 2 {
-		t.Fatalf("syncCalls = %d, want 2 (create plus new target sync)", client.syncCalls)
+	if client.syncCalls != 1 {
+		t.Fatalf("syncCalls = %d, want 1 (create only; new target must not sync after cleanup failure)", client.syncCalls)
 	}
 	got, ok := mgr.Get(mission.ID)
 	if !ok {
 		t.Fatal("mission missing after cleanup failure")
 	}
-	if got.RemoteNestID != "nest-new" || got.RemoteEggID != "egg-new" {
-		t.Fatalf("stored target = %s/%s, want nest-new/egg-new", got.RemoteNestID, got.RemoteEggID)
-	}
-	if got.RemoteSyncStatus != RemoteSyncError || !strings.Contains(got.RemoteSyncError, "old target cleanup failed") {
-		t.Fatalf("remote sync status/error = %s/%q, want cleanup error", got.RemoteSyncStatus, got.RemoteSyncError)
+	if got.RemoteNestID != "nest-old" || got.RemoteEggID != "egg-old" {
+		t.Fatalf("stored target = %s/%s, want old target preserved", got.RemoteNestID, got.RemoteEggID)
 	}
 }
 

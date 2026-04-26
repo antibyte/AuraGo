@@ -32,6 +32,39 @@ func TestGetConnector_SSH(t *testing.T) {
 	}
 }
 
+func TestSSHEggBaseDirRejectsUnsafeNestID(t *testing.T) {
+	if _, err := sshEggBaseDir("bad;rm -rf /"); err == nil {
+		t.Fatal("expected unsafe nest ID to be rejected")
+	}
+}
+
+func TestSSHShellQuoteEscapesSingleQuotes(t *testing.T) {
+	got := shellQuote("~/.aurago-egg-test/config's.yaml")
+	want := "'~/.aurago-egg-test/config'\"'\"'s.yaml'"
+	if got != want {
+		t.Fatalf("shellQuote = %q, want %q", got, want)
+	}
+}
+
+func TestSSHShellPathPreservesHomeExpansion(t *testing.T) {
+	got := shellPath("~/.aurago-egg-test/config.yaml")
+	want := "$HOME/'.aurago-egg-test/config.yaml'"
+	if got != want {
+		t.Fatalf("shellPath = %q, want %q", got, want)
+	}
+}
+
+func TestSSHEggProcessPatternAvoidsTildeLiteral(t *testing.T) {
+	got, err := sshEggProcessPattern("12345678-abcd")
+	if err != nil {
+		t.Fatalf("sshEggProcessPattern: %v", err)
+	}
+	want := ".aurago-egg-12345678/aurago"
+	if got != want {
+		t.Fatalf("sshEggProcessPattern = %q, want %q", got, want)
+	}
+}
+
 func TestDockerConnector_apiURL_Remote(t *testing.T) {
 	c := &DockerConnector{}
 	n := NestRecord{Host: "10.0.0.5", Port: 2376, DeployMethod: "docker_remote"}

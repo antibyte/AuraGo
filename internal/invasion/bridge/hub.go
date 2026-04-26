@@ -24,6 +24,7 @@ type EggConnection struct {
 	Telemetry     HeartbeatPayload
 	KeyVersion    int
 	mu            sync.Mutex
+	writeMu       sync.Mutex
 }
 
 // Send writes a signed message to the egg.
@@ -31,7 +32,21 @@ func (ec *EggConnection) Send(msg *Message) error {
 	ec.mu.Lock()
 	conn := ec.Conn
 	ec.mu.Unlock()
+	if conn == nil {
+		return fmt.Errorf("egg connection is closed")
+	}
+	ec.writeMu.Lock()
+	defer ec.writeMu.Unlock()
 	return conn.WriteJSON(msg)
+}
+
+func (ec *EggConnection) close() error {
+	ec.writeMu.Lock()
+	defer ec.writeMu.Unlock()
+	if ec.Conn == nil {
+		return nil
+	}
+	return ec.Conn.Close()
 }
 
 // GetTelemetry safely retrieves the latest heartbeat data.
@@ -74,10 +89,13 @@ func (h *EggHub) Register(nestID string, conn *EggConnection) error {
 	// Close existing connection for this nest if any
 	if old, ok := h.connections[nestID]; ok {
 		h.logger.Warn("Replacing existing egg connection", "nest_id", nestID)
-		_ = old.Conn.Close()
+		_ = old.close()
 	} else if h.MaxConnections > 0 && len(h.connections) >= h.MaxConnections {
 		h.mu.Unlock()
 		return fmt.Errorf("max connections reached (%d)", h.MaxConnections)
+	}
+	if conn.LastHeartbeat.IsZero() {
+		conn.LastHeartbeat = time.Now()
 	}
 	h.connections[nestID] = conn
 	h.mu.Unlock()
@@ -91,6 +109,10 @@ func (h *EggHub) Register(nestID string, conn *EggConnection) error {
 
 // Unregister removes an egg connection from the hub.
 func (h *EggHub) Unregister(nestID string) {
+	h.unregister(nestID, true)
+}
+
+func (h *EggHub) unregister(nestID string, notify bool) {
 	h.mu.Lock()
 	conn, ok := h.connections[nestID]
 	if ok {
@@ -99,9 +121,9 @@ func (h *EggHub) Unregister(nestID string) {
 	h.mu.Unlock()
 
 	if ok {
-		_ = conn.Conn.Close()
+		_ = conn.close()
 		h.logger.Info("Egg disconnected", "nest_id", nestID, "egg_id", conn.EggID)
-		if h.OnDisconnect != nil {
+		if notify && h.OnDisconnect != nil {
 			h.OnDisconnect(nestID, conn.EggID)
 		}
 	}
@@ -487,6 +509,7 @@ func (h *EggHub) StartHeartbeatMonitor(ctx context.Context, interval, maxAge tim
 				if onStale != nil {
 					onStale(s.nestID, s.eggID)
 				}
+				h.unregister(s.nestID, false)
 			}
 		}
 	}()

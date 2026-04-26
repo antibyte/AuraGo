@@ -11,6 +11,48 @@ import (
 // SSHConnector deploys eggs to remote hosts via SSH/SFTP.
 type SSHConnector struct{}
 
+func sshEggIDPrefix(nestID string) (string, error) {
+	id := strings.TrimSpace(nestID)
+	if len(id) < 8 {
+		return "", fmt.Errorf("invalid nest ID %q: expected at least 8 safe characters", nestID)
+	}
+	prefix := id[:8]
+	for _, r := range prefix {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' {
+			continue
+		}
+		return "", fmt.Errorf("invalid nest ID %q: unsafe character %q in SSH path prefix", nestID, r)
+	}
+	return prefix, nil
+}
+
+func sshEggBaseDir(nestID string) (string, error) {
+	prefix, err := sshEggIDPrefix(nestID)
+	if err != nil {
+		return "", err
+	}
+	return "~/.aurago-egg-" + prefix, nil
+}
+
+func sshEggProcessPattern(nestID string) (string, error) {
+	prefix, err := sshEggIDPrefix(nestID)
+	if err != nil {
+		return "", err
+	}
+	return ".aurago-egg-" + prefix + "/aurago", nil
+}
+
+func shellQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", "'\"'\"'") + "'"
+}
+
+func shellPath(path string) string {
+	if strings.HasPrefix(path, "~/") {
+		return "$HOME/" + shellQuote(strings.TrimPrefix(path, "~/"))
+	}
+	return shellQuote(path)
+}
+
 func (c *SSHConnector) Validate(ctx context.Context, nest NestRecord, secret []byte) error {
 	output, err := remote.ExecuteRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, "echo ok")
 	if err != nil {
@@ -23,17 +65,20 @@ func (c *SSHConnector) Validate(ctx context.Context, nest NestRecord, secret []b
 }
 
 func (c *SSHConnector) Deploy(ctx context.Context, nest NestRecord, secret []byte, payload EggDeployPayload) error {
-	baseDir := fmt.Sprintf("~/.aurago-egg-%s", nest.ID[:8])
+	baseDir, err := sshEggBaseDir(nest.ID)
+	if err != nil {
+		return err
+	}
 	backupDir := baseDir + ".bak"
 
 	// 0. Backup existing deployment (if any)
-	backupCmd := fmt.Sprintf("if [ -d %s ]; then rm -rf %s; cp -a %s %s; fi", baseDir, backupDir, baseDir, backupDir)
+	backupCmd := fmt.Sprintf("if [ -d %s ]; then rm -rf %s; cp -a %s %s; fi", shellPath(baseDir), shellPath(backupDir), shellPath(baseDir), shellPath(backupDir))
 	if _, err := remote.ExecuteRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, backupCmd); err != nil {
 		return fmt.Errorf("failed to backup existing deployment: %w", err)
 	}
 
 	// 1. Create target directory
-	mkdirCmd := fmt.Sprintf("mkdir -p %s/data %s/log %s/prompts", baseDir, baseDir, baseDir)
+	mkdirCmd := fmt.Sprintf("mkdir -p %s %s %s", shellPath(baseDir+"/data"), shellPath(baseDir+"/log"), shellPath(baseDir+"/prompts"))
 	if _, err := remote.ExecuteRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, mkdirCmd); err != nil {
 		return fmt.Errorf("failed to create directories: %w", err)
 	}
@@ -45,7 +90,7 @@ func (c *SSHConnector) Deploy(ctx context.Context, nest NestRecord, secret []byt
 	}
 
 	// chmod +x
-	if _, err := remote.ExecuteRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, "chmod +x "+remoteBinary); err != nil {
+	if _, err := remote.ExecuteRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, "chmod +x "+shellPath(remoteBinary)); err != nil {
 		return fmt.Errorf("failed to chmod binary: %w", err)
 	}
 
@@ -53,7 +98,7 @@ func (c *SSHConnector) Deploy(ctx context.Context, nest NestRecord, secret []byt
 	remoteConfig := baseDir + "/config.yaml"
 	// Use base64 encoding to safely transfer config content without shell escaping issues
 	configB64 := base64.StdEncoding.EncodeToString(payload.ConfigYAML)
-	writeCmd := fmt.Sprintf("echo '%s' | base64 -d > %s", configB64, remoteConfig)
+	writeCmd := fmt.Sprintf("printf %%s %s | base64 -d > %s", shellQuote(configB64), shellPath(remoteConfig))
 	if _, err := remote.ExecuteRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, writeCmd); err != nil {
 		return fmt.Errorf("failed to write config: %w", err)
 	}
@@ -65,7 +110,7 @@ func (c *SSHConnector) Deploy(ctx context.Context, nest NestRecord, secret []byt
 			return fmt.Errorf("failed to transfer resources: %w", err)
 		}
 		// Unpack resources
-		unpackCmd := fmt.Sprintf("cd %s && tar -xzf resources.dat 2>/dev/null; rm -f resources.dat", baseDir)
+		unpackCmd := fmt.Sprintf("cd %s && tar -xzf resources.dat 2>/dev/null; rm -f resources.dat", shellPath(baseDir))
 		if _, err := remote.ExecuteRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, unpackCmd); err != nil {
 			return fmt.Errorf("failed to unpack resources: %w", err)
 		}
@@ -75,7 +120,7 @@ func (c *SSHConnector) Deploy(ctx context.Context, nest NestRecord, secret []byt
 	if payload.IncludeVault && len(payload.VaultData) > 0 {
 		remoteVault := baseDir + "/data/vault.enc"
 		// Write vault bytes via base64
-		vaultWriteCmd := fmt.Sprintf("echo '%s' | base64 -d > %s", base64.StdEncoding.EncodeToString(payload.VaultData), remoteVault)
+		vaultWriteCmd := fmt.Sprintf("printf %%s %s | base64 -d > %s", shellQuote(base64.StdEncoding.EncodeToString(payload.VaultData)), shellPath(remoteVault))
 		if _, err := remote.ExecuteRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, vaultWriteCmd); err != nil {
 			return fmt.Errorf("failed to write vault: %w", err)
 		}
@@ -83,7 +128,8 @@ func (c *SSHConnector) Deploy(ctx context.Context, nest NestRecord, secret []byt
 
 	// 6. Write master key to .env
 	envContent := fmt.Sprintf("AURAGO_MASTER_KEY=%s", payload.MasterKey)
-	envCmd := fmt.Sprintf("echo '%s' > %s/.env && chmod 600 %s/.env", envContent, baseDir, baseDir)
+	envPath := baseDir + "/.env"
+	envCmd := fmt.Sprintf("printf '%%s\\n' %s > %s && chmod 600 %s", shellQuote(envContent), shellPath(envPath), shellPath(envPath))
 	if _, err := remote.ExecuteRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, envCmd); err != nil {
 		return fmt.Errorf("failed to write .env: %w", err)
 	}
@@ -96,8 +142,15 @@ func (c *SSHConnector) Deploy(ctx context.Context, nest NestRecord, secret []byt
 }
 
 func (c *SSHConnector) Stop(ctx context.Context, nest NestRecord, secret []byte) error {
-	baseDir := fmt.Sprintf("~/.aurago-egg-%s", nest.ID[:8])
-	serviceName := fmt.Sprintf("aurago-egg-%s", nest.ID[:8])
+	prefix, err := sshEggIDPrefix(nest.ID)
+	if err != nil {
+		return err
+	}
+	processPattern, err := sshEggProcessPattern(nest.ID)
+	if err != nil {
+		return err
+	}
+	serviceName := fmt.Sprintf("aurago-egg-%s", prefix)
 
 	// Try systemd first
 	stopCmd := fmt.Sprintf("systemctl --user stop %s 2>/dev/null || true", serviceName)
@@ -106,15 +159,22 @@ func (c *SSHConnector) Stop(ctx context.Context, nest NestRecord, secret []byte)
 	}
 
 	// Also kill any running process
-	killCmd := fmt.Sprintf("pkill -f '%s/aurago' 2>/dev/null || true", baseDir)
+	killCmd := fmt.Sprintf("pkill -f %s 2>/dev/null || true", shellQuote(processPattern))
 	_, _ = remote.ExecuteRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, killCmd)
 
 	return nil
 }
 
 func (c *SSHConnector) Status(ctx context.Context, nest NestRecord, secret []byte) (string, error) {
-	baseDir := fmt.Sprintf("~/.aurago-egg-%s", nest.ID[:8])
-	serviceName := fmt.Sprintf("aurago-egg-%s", nest.ID[:8])
+	prefix, err := sshEggIDPrefix(nest.ID)
+	if err != nil {
+		return "unknown", err
+	}
+	processPattern, err := sshEggProcessPattern(nest.ID)
+	if err != nil {
+		return "unknown", err
+	}
+	serviceName := fmt.Sprintf("aurago-egg-%s", prefix)
 
 	// Check systemd service first
 	output, err := remote.ExecuteRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret,
@@ -125,7 +185,7 @@ func (c *SSHConnector) Status(ctx context.Context, nest NestRecord, secret []byt
 
 	// Check for running process
 	output, err = remote.ExecuteRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret,
-		fmt.Sprintf("pgrep -f '%s/aurago' >/dev/null 2>&1 && echo running || echo stopped", baseDir))
+		fmt.Sprintf("pgrep -f %s >/dev/null 2>&1 && echo running || echo stopped", shellQuote(processPattern)))
 	if err != nil {
 		return "unknown", err
 	}
@@ -133,7 +193,11 @@ func (c *SSHConnector) Status(ctx context.Context, nest NestRecord, secret []byt
 }
 
 func (c *SSHConnector) installService(ctx context.Context, nest NestRecord, secret []byte, baseDir string) error {
-	serviceName := fmt.Sprintf("aurago-egg-%s", nest.ID[:8])
+	prefix, err := sshEggIDPrefix(nest.ID)
+	if err != nil {
+		return err
+	}
+	serviceName := fmt.Sprintf("aurago-egg-%s", prefix)
 	unitFile := fmt.Sprintf(`[Unit]
 Description=AuraGo Egg Worker (%s)
 After=network.target
@@ -148,7 +212,7 @@ RestartSec=10
 
 [Install]
 WantedBy=multi-user.target
-`, nest.ID[:8], baseDir, baseDir, baseDir)
+`, prefix, baseDir, baseDir, baseDir)
 
 	writeCmd := fmt.Sprintf("mkdir -p ~/.config/systemd/user && cat > ~/.config/systemd/user/%s.service << 'EOF'\n%s\nEOF", serviceName, unitFile)
 	if _, err := remote.ExecuteRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, writeCmd); err != nil {
@@ -166,7 +230,7 @@ WantedBy=multi-user.target
 func (c *SSHConnector) startProcess(ctx context.Context, nest NestRecord, secret []byte, baseDir string) error {
 	// Start in background with nohup, redirect output to log.
 	// set -a exports all sourced variables to child processes.
-	startCmd := fmt.Sprintf("cd %s && set -a && source .env && set +a && nohup ./aurago > log/egg.log 2>&1 & echo $!", baseDir)
+	startCmd := fmt.Sprintf("cd %s && set -a && . ./.env && set +a && nohup ./aurago > log/egg.log 2>&1 & echo $!", shellPath(baseDir))
 	output, err := remote.ExecuteRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, startCmd)
 	if err != nil {
 		return fmt.Errorf("failed to start egg process: %w", err)
@@ -176,9 +240,12 @@ func (c *SSHConnector) startProcess(ctx context.Context, nest NestRecord, secret
 }
 
 func (c *SSHConnector) HealthCheck(ctx context.Context, nest NestRecord, secret []byte) error {
-	baseDir := fmt.Sprintf("~/.aurago-egg-%s", nest.ID[:8])
+	processPattern, err := sshEggProcessPattern(nest.ID)
+	if err != nil {
+		return err
+	}
 	// Check if the egg process is running
-	checkCmd := fmt.Sprintf("pgrep -f '%s/aurago' >/dev/null 2>&1 && echo ok || echo fail", baseDir)
+	checkCmd := fmt.Sprintf("pgrep -f %s >/dev/null 2>&1 && echo ok || echo fail", shellQuote(processPattern))
 	output, err := remote.ExecuteRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, checkCmd)
 	if err != nil {
 		return fmt.Errorf("health check failed: %w", err)
@@ -192,7 +259,10 @@ func (c *SSHConnector) HealthCheck(ctx context.Context, nest NestRecord, secret 
 // Reconfigure writes a patched config.yaml to the remote egg and restarts it.
 // The egg process/container is stopped, the config is replaced, and then restarted.
 func (c *SSHConnector) Reconfigure(ctx context.Context, nest NestRecord, secret []byte, configYAML []byte) error {
-	baseDir := fmt.Sprintf("~/.aurago-egg-%s", nest.ID[:8])
+	baseDir, err := sshEggBaseDir(nest.ID)
+	if err != nil {
+		return err
+	}
 	remoteConfig := baseDir + "/config.yaml"
 
 	// 1. Stop the running egg
@@ -202,14 +272,18 @@ func (c *SSHConnector) Reconfigure(ctx context.Context, nest NestRecord, secret 
 
 	// 2. Write the new config via base64 to avoid shell escaping issues
 	configB64 := base64.StdEncoding.EncodeToString(configYAML)
-	writeCmd := fmt.Sprintf("echo '%s' | base64 -d > %s", configB64, remoteConfig)
+	writeCmd := fmt.Sprintf("printf %%s %s | base64 -d > %s", shellQuote(configB64), shellPath(remoteConfig))
 	if _, err := remote.ExecuteRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, writeCmd); err != nil {
 		return fmt.Errorf("failed to write patched config: %w", err)
 	}
 
 	// 3. Restart the egg (try systemd first, fall back to nohup)
-	serviceName := fmt.Sprintf("aurago-egg-%s", nest.ID[:8])
-	restartCmd := fmt.Sprintf("systemctl --user restart %s 2>/dev/null || (cd %s && set -a && source .env && set +a && nohup ./aurago > log/egg.log 2>&1 &)", serviceName, baseDir)
+	prefix, err := sshEggIDPrefix(nest.ID)
+	if err != nil {
+		return err
+	}
+	serviceName := fmt.Sprintf("aurago-egg-%s", prefix)
+	restartCmd := fmt.Sprintf("systemctl --user restart %s 2>/dev/null || (cd %s && set -a && . ./.env && set +a && nohup ./aurago > log/egg.log 2>&1 &)", serviceName, shellPath(baseDir))
 	if _, err := remote.ExecuteRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, restartCmd); err != nil {
 		return fmt.Errorf("failed to restart egg after reconfigure: %w", err)
 	}
@@ -218,11 +292,14 @@ func (c *SSHConnector) Reconfigure(ctx context.Context, nest NestRecord, secret 
 }
 
 func (c *SSHConnector) Rollback(ctx context.Context, nest NestRecord, secret []byte) error {
-	baseDir := fmt.Sprintf("~/.aurago-egg-%s", nest.ID[:8])
+	baseDir, err := sshEggBaseDir(nest.ID)
+	if err != nil {
+		return err
+	}
 	backupDir := baseDir + ".bak"
 
 	// Check if backup exists
-	checkCmd := fmt.Sprintf("test -d %s && echo ok || echo missing", backupDir)
+	checkCmd := fmt.Sprintf("test -d %s && echo ok || echo missing", shellPath(backupDir))
 	output, err := remote.ExecuteRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, checkCmd)
 	if err != nil {
 		return fmt.Errorf("failed to check backup: %w", err)
@@ -235,7 +312,7 @@ func (c *SSHConnector) Rollback(ctx context.Context, nest NestRecord, secret []b
 	_ = c.Stop(ctx, nest, secret)
 
 	// Replace current with backup
-	restoreCmd := fmt.Sprintf("rm -rf %s && mv %s %s", baseDir, backupDir, baseDir)
+	restoreCmd := fmt.Sprintf("rm -rf %s && mv %s %s", shellPath(baseDir), shellPath(backupDir), shellPath(baseDir))
 	if _, err := remote.ExecuteRemoteCommand(ctx, nest.Host, nest.Port, nest.Username, secret, restoreCmd); err != nil {
 		return fmt.Errorf("failed to restore backup: %w", err)
 	}

@@ -158,6 +158,10 @@ func (s *Server) deployEgg(nest invasion.NestRecord, egg invasion.EggRecord) err
 		MasterKey:    eggMasterKey,
 	}
 
+	if err := s.storeEggSharedKey(nest.ID, sharedKey); err != nil {
+		return err
+	}
+
 	// 9. Create deployment history record
 	binaryHash := hashFile(binaryPath)
 	configHash := hashBytes(cfgYAML)
@@ -206,11 +210,16 @@ func (s *Server) deployEgg(nest invasion.NestRecord, egg invasion.EggRecord) err
 		_ = invasion.UpdateDeploymentStatus(s.InvasionDB, deployID, "verified")
 	}
 
-	// 12. Store shared key in vault for WebSocket auth
-	if err := s.Vault.WriteSecret("egg_shared_"+nest.ID, sharedKey); err != nil {
-		s.Logger.Warn("Failed to store egg shared key in vault", "nest_id", nest.ID, "error", err)
-	}
+	return nil
+}
 
+func (s *Server) storeEggSharedKey(nestID, sharedKey string) error {
+	if s.Vault == nil {
+		return fmt.Errorf("failed to store egg shared key: vault is unavailable")
+	}
+	if err := s.Vault.WriteSecret("egg_shared_"+nestID, sharedKey); err != nil {
+		return fmt.Errorf("failed to store egg shared key in vault: %w", err)
+	}
 	return nil
 }
 
