@@ -3,6 +3,7 @@ package tools
 import (
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -189,7 +190,8 @@ func TestCreateSkillFromTemplate_MinimalSkill(t *testing.T) {
 		t.Fatalf("minimal skill should expose a simple optional text parameter, got %v", manifest.Parameters)
 	}
 
-	pyData, err := os.ReadFile(filepath.Join(dir, "tiny_helper.py"))
+	pyPath := filepath.Join(dir, "tiny_helper.py")
+	pyData, err := os.ReadFile(pyPath)
 	if err != nil {
 		t.Fatalf("failed to read Python file: %v", err)
 	}
@@ -198,11 +200,66 @@ func TestCreateSkillFromTemplate_MinimalSkill(t *testing.T) {
 		"def tiny_helper(text=\"\"):",
 		`"status": "success"`,
 		`"result": text if text else "ok"`,
+		`result = tiny_helper(`,
 	} {
 		if !contains(pyCode, marker) {
 			t.Fatalf("minimal skill code is missing marker %q", marker)
 		}
 	}
+
+	pythonCmd := findPythonForSkillTemplateTest(t)
+	compileCmd := pythonCmd.command("-m", "py_compile", pyPath)
+	if out, err := compileCmd.CombinedOutput(); err != nil {
+		t.Fatalf("generated minimal skill has invalid Python syntax: %v\n%s", err, out)
+	}
+
+	runCmd := pythonCmd.command(pyPath)
+	runCmd.Stdin = strings.NewReader(`{"text":"hello"}`)
+	out, err := runCmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("generated minimal skill failed to run: %v\n%s", err, out)
+	}
+	var result map[string]interface{}
+	if err := json.Unmarshal(out, &result); err != nil {
+		t.Fatalf("generated minimal skill returned invalid JSON %q: %v", out, err)
+	}
+	if result["status"] != "success" || result["result"] != "hello" {
+		t.Fatalf("generated minimal skill result = %v, want success/hello", result)
+	}
+}
+
+type skillTemplatePythonCommand struct {
+	exe        string
+	prefixArgs []string
+}
+
+func (c skillTemplatePythonCommand) command(args ...string) *exec.Cmd {
+	allArgs := append([]string{}, c.prefixArgs...)
+	allArgs = append(allArgs, args...)
+	return exec.Command(c.exe, allArgs...)
+}
+
+func findPythonForSkillTemplateTest(t *testing.T) skillTemplatePythonCommand {
+	t.Helper()
+	candidates := []skillTemplatePythonCommand{
+		{exe: "python3"},
+		{exe: "python"},
+		{exe: "py", prefixArgs: []string{"-3"}},
+		{exe: "py"},
+	}
+	for _, candidate := range candidates {
+		path, err := exec.LookPath(candidate.exe)
+		if err != nil {
+			continue
+		}
+		candidate.exe = path
+		cmd := candidate.command("--version")
+		if err := cmd.Run(); err == nil {
+			return candidate
+		}
+	}
+	t.Skip("python is required to compile generated skill templates")
+	return skillTemplatePythonCommand{}
 }
 
 func TestCreateSkillFromTemplate_Conflict(t *testing.T) {

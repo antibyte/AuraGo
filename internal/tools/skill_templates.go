@@ -331,7 +331,11 @@ var (
 )
 
 func composePythonSkillTemplate(body, invocation string) string {
-	return body + tplPrefix + invocation + tplSuffix
+	body = strings.TrimRight(body, "\r\n") + "\n"
+	prefix := strings.TrimRight(tplPrefix, " \t\r\n")
+	invocation = strings.TrimLeft(invocation, "\r\n")
+	suffix := strings.TrimLeft(tplSuffix, "\r\n")
+	return body + prefix + " " + invocation + "\n" + suffix
 }
 
 func composeDaemonSkillTemplate(body string) string {
