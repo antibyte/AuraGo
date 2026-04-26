@@ -35,7 +35,7 @@ func handleYepAPITest(s *Server) http.HandlerFunc {
 
 		// Use a minimal SERP query as the cheapest possible test call
 		payload := map[string]interface{}{
-			"q":     "test",
+			"query": "test",
 			"limit": 1,
 		}
 		_, err = client.Post(ctx, "/v1/serp/google", payload)

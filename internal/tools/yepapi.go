@@ -75,9 +75,23 @@ func (c *YepAPIClient) Post(ctx context.Context, endpoint string, payload interf
 		return nil, fmt.Errorf("yepapi: failed to read response: %w", err)
 	}
 
+	// If the HTTP status is not 2xx, include the raw body in the error so
+	// the caller can see what the server actually returned (e.g. HTML 404/403).
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		preview := string(respBody)
+		if len(preview) > 200 {
+			preview = preview[:200] + "..."
+		}
+		return nil, fmt.Errorf("yepapi: HTTP %d — %s", resp.StatusCode, preview)
+	}
+
 	var env YepAPIResponse
 	if err := json.Unmarshal(respBody, &env); err != nil {
-		return nil, fmt.Errorf("yepapi: invalid JSON response: %w", err)
+		preview := string(respBody)
+		if len(preview) > 200 {
+			preview = preview[:200] + "..."
+		}
+		return nil, fmt.Errorf("yepapi: invalid JSON response (%s): %w", preview, err)
 	}
 
 	if !env.OK {
