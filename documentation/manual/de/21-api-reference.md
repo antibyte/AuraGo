@@ -533,6 +533,82 @@ Content-Type: application/json
 GET /api/skills/stats
 ```
 
+### Skill-Handbuch abrufen
+```http
+GET /api/skills/{id}/documentation
+```
+
+**Antwort:**
+```json
+{
+  "status": "ok",
+  "skill_id": "user_mein_skill_1714123456789",
+  "has_documentation": true,
+  "content": "# mein_skill\n\nMacht nützliche Dinge.\n"
+}
+```
+
+Gibt `has_documentation: false` und `content: ""` zurück, wenn kein Handbuch vorhanden ist.
+Gibt `404` zurück, wenn die Skill-ID nicht gefunden wurde.
+
+### Skill-Handbuch erstellen / ersetzen
+```http
+PUT /api/skills/{id}/documentation
+Content-Type: application/json
+
+{
+  "content": "# mein_skill\n\nMarkdown-Inhalt hier.\n"
+}
+```
+
+**Antwort:**
+```json
+{ "status": "saved" }
+```
+
+| Status | Bedeutung |
+|--------|-----------|
+| `200`  | Handbuch gespeichert |
+| `400`  | Skill-ID fehlt oder Inhalt ungültig |
+| `403`  | Skill Manager ist im Nur-Lesen-Modus |
+| `413`  | Inhalt überschreitet 64-KB-Grenze |
+
+Ein leerer `content`-Wert löscht das vorhandene Handbuch.
+
+### Skill-Handbuch löschen
+```http
+DELETE /api/skills/{id}/documentation
+```
+
+**Antwort:**
+```json
+{ "status": "deleted" }
+```
+
+Gibt `403` zurück, wenn der Skill Manager im Nur-Lesen-Modus ist. Das Löschen eines nicht vorhandenen Handbuchs ist eine No-Op.
+
+### Skill-Handbuch-Datei hochladen
+```http
+POST /api/skills/{id}/documentation/upload
+Content-Type: multipart/form-data
+
+file=<binary>  (Feldname: "file")
+```
+
+Akzeptiert `.md`-, `.markdown`- und `.txt`-Dateien. Maximale Größe: 64 KB.
+
+**Antwort:**
+```json
+{ "status": "uploaded" }
+```
+
+| Status | Bedeutung |
+|--------|-----------|
+| `200`  | Datei gespeichert |
+| `400`  | Falsche Dateiendung |
+| `403`  | Nur-Lesen-Modus oder Uploads deaktiviert (`allow_uploads: false`) |
+| `413`  | Datei überschreitet 64-KB-Grenze |
+
 ---
 
 ## Knowledge API

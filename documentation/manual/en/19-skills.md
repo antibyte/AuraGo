@@ -648,6 +648,108 @@ AURAGO_SECRET_MY_KEY is None
 
 ---
 
+## Skill Manual (Documentation)
+
+Each skill can have an optional **manual** — a Markdown file that explains to the agent (and to humans) how the skill works, what its parameters mean, what it returns, and any usage tips.
+
+### Why add a manual?
+
+The agent reads the manual **on demand** before calling a skill, rather than keeping it permanently in the system prompt. This means:
+
+- Long, detailed instructions do not bloat the context window
+- The agent only loads the manual when it is actually needed
+- You can document edge cases, example calls, and error codes freely
+
+### File location
+
+```
+agent_workspace/skills/
+├── my_skill.json    # Manifest
+├── my_skill.py      # Code
+└── my_skill.md      # Manual (optional, same base name)
+```
+
+The manual shares the **same base name** as the manifest and Python file. AuraGo detects it automatically on startup.
+
+### Size limit
+
+Manuals are capped at **64 KB**. This is more than enough for any real-world skill documentation.
+
+### Creating a manual
+
+**Via Web-UI:**
+
+1. Open **Skills** and click on a skill
+2. Click **📖 Add manual** (or the pencil icon if one already exists)
+3. Write or paste Markdown content in the editor
+4. Optionally, use **Upload file** to import a `.md` or `.txt` file from disk
+5. Click **Save**
+
+**Via agent tools:**
+
+The agent can create and update manuals itself using the built-in tools:
+
+```
+get_skill_documentation  – read the current manual for a skill
+set_skill_documentation  – write or replace the manual for a skill
+```
+
+Example chat:
+```
+You:   Write a usage manual for my file_analyzer skill.
+Agent: 🛠️ set_skill_documentation(name="file_analyzer", documentation="# file_analyzer\n…")
+       ✓ Manual saved.
+```
+
+**Via REST API:**
+
+```http
+PUT /api/skills/{id}/documentation
+Content-Type: application/json
+
+{
+  "content": "# My Skill\n\nDescribes parameters and usage.\n"
+}
+```
+
+### Recommended manual structure
+
+```markdown
+# skill_name
+
+One-sentence description of what this skill does.
+
+## Parameters
+
+| Name     | Type   | Required | Description        |
+|----------|--------|----------|--------------------|
+| `city`   | string | yes      | Name of the city   |
+| `unit`   | string | no       | `celsius` (default) or `fahrenheit` |
+
+## Return value
+
+```json
+{
+  "status": "success",
+  "data": {
+    "temperature": 22.5,
+    "description": "partly cloudy"
+  }
+}
+```
+
+## Example call
+
+Ask the agent: "What is the weather in Berlin?"
+
+## Notes
+
+- Requires the vault secret `openweather_api_key`
+- Rate-limited to 60 calls per minute on the free tier
+```
+
+---
+
 **Next Steps**
 
 - **[Chapter 6: Tools](06-tools.md)** – Learn about built-in tools

@@ -533,6 +533,82 @@ Content-Type: application/json
 GET /api/skills/stats
 ```
 
+### Get Skill Manual
+```http
+GET /api/skills/{id}/documentation
+```
+
+**Response:**
+```json
+{
+  "status": "ok",
+  "skill_id": "user_my_skill_1714123456789",
+  "has_documentation": true,
+  "content": "# my_skill\n\nDoes useful things.\n"
+}
+```
+
+Returns `has_documentation: false` and `content: ""` when no manual exists.
+Returns `404` if the skill ID is not found.
+
+### Create / Replace Skill Manual
+```http
+PUT /api/skills/{id}/documentation
+Content-Type: application/json
+
+{
+  "content": "# my_skill\n\nMarkdown content here.\n"
+}
+```
+
+**Response:**
+```json
+{ "status": "saved" }
+```
+
+| Status | Meaning |
+|--------|---------|
+| `200`  | Manual saved |
+| `400`  | Skill ID missing or content invalid |
+| `403`  | Skill Manager is in read-only mode |
+| `413`  | Content exceeds 64 KB limit |
+
+Sending an empty `content` value deletes the existing manual.
+
+### Delete Skill Manual
+```http
+DELETE /api/skills/{id}/documentation
+```
+
+**Response:**
+```json
+{ "status": "deleted" }
+```
+
+Returns `403` if the Skill Manager is in read-only mode. Deleting a non-existent manual is a no-op.
+
+### Upload Skill Manual File
+```http
+POST /api/skills/{id}/documentation/upload
+Content-Type: multipart/form-data
+
+file=<binary>  (field name: "file")
+```
+
+Accepts `.md`, `.markdown`, and `.txt` files. Maximum size: 64 KB.
+
+**Response:**
+```json
+{ "status": "uploaded" }
+```
+
+| Status | Meaning |
+|--------|---------|
+| `200`  | File stored |
+| `400`  | Wrong file extension |
+| `403`  | Read-only mode or uploads disabled (`allow_uploads: false`) |
+| `413`  | File exceeds 64 KB limit |
+
 ---
 
 ## Knowledge API

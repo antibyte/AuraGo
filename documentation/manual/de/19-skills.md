@@ -593,6 +593,108 @@ AURAGO_SECRET_MEIN_KEY ist None
 
 ---
 
+## Skill-Handbuch (Dokumentation)
+
+Jeder Skill kann ein optionales **Handbuch** besitzen — eine Markdown-Datei, die dem Agenten (und Menschen) erklärt, wie der Skill funktioniert, was seine Parameter bedeuten, was er zurückgibt und worauf bei der Nutzung zu achten ist.
+
+### Warum ein Handbuch anlegen?
+
+Der Agent lädt das Handbuch **bei Bedarf**, bevor er den Skill aufruft — nicht dauerhaft im System-Prompt. Das bedeutet:
+
+- Ausführliche Erklärungen belasten das Kontextfenster nicht
+- Der Agent liest das Handbuch nur, wenn er den Skill wirklich benötigt
+- Grenzfälle, Beispiel-Aufrufe und Fehlercodes können frei dokumentiert werden
+
+### Speicherort
+
+```
+agent_workspace/skills/
+├── mein_skill.json    # Manifest
+├── mein_skill.py      # Code
+└── mein_skill.md      # Handbuch (optional, gleicher Basisname)
+```
+
+Das Handbuch trägt **denselben Basisnamen** wie Manifest und Python-Datei. AuraGo erkennt es automatisch beim Start.
+
+### Größenbeschränkung
+
+Handbücher sind auf **64 KB** begrenzt. Das reicht für jede praxisnahe Skill-Dokumentation.
+
+### Handbuch erstellen
+
+**Über das Web-UI:**
+
+1. Öffne **Skills** und klicke auf einen Skill
+2. Klicke auf **📖 Handbuch hinzufügen** (oder das Stift-Symbol, wenn bereits eines existiert)
+3. Schreibe oder füge Markdown-Inhalt in den Editor ein
+4. Optional: Lade über **Datei hochladen** eine `.md`- oder `.txt`-Datei von der Festplatte
+5. Klicke auf **Speichern**
+
+**Über Agent-Tools:**
+
+Der Agent kann Handbücher selbst erstellen und aktualisieren:
+
+```
+get_skill_documentation  – aktuelles Handbuch eines Skills lesen
+set_skill_documentation  – Handbuch eines Skills schreiben oder ersetzen
+```
+
+Beispiel im Chat:
+```
+Du:    Schreibe ein Nutzungshandbuch für meinen file_analyzer-Skill.
+Agent: 🛠️ set_skill_documentation(name="file_analyzer", documentation="# file_analyzer\n…")
+       ✓ Handbuch gespeichert.
+```
+
+**Über die REST-API:**
+
+```http
+PUT /api/skills/{id}/documentation
+Content-Type: application/json
+
+{
+  "content": "# Mein Skill\n\nBeschreibt Parameter und Nutzung.\n"
+}
+```
+
+### Empfohlene Handbuch-Struktur
+
+```markdown
+# skill_name
+
+Ein-Satz-Beschreibung, was dieser Skill tut.
+
+## Parameter
+
+| Name     | Typ    | Pflicht | Beschreibung                          |
+|----------|--------|---------|---------------------------------------|
+| `stadt`  | string | ja      | Name der Stadt                        |
+| `einheit`| string | nein    | `celsius` (Standard) oder `fahrenheit`|
+
+## Rückgabewert
+
+```json
+{
+  "status": "success",
+  "data": {
+    "temperatur": 22.5,
+    "beschreibung": "leicht bewölkt"
+  }
+}
+```
+
+## Beispiel-Aufruf
+
+Frage den Agenten: „Wie ist das Wetter in Berlin?"
+
+## Hinweise
+
+- Benötigt das Vault-Secret `openweather_api_key`
+- Im Free-Tier auf 60 Aufrufe pro Minute begrenzt
+```
+
+---
+
 **Nächste Schritte**
 
 - **[Kapitel 6: Werkzeuge](06-tools.md)** – Die eingebauten Tools kennenlernen
