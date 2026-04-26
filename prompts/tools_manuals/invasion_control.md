@@ -2,12 +2,16 @@
 
 Manage deployment nests (target servers/VMs/containers) and eggs (sub-agent configurations). List, inspect, assign, deploy (hatch), stop, monitor eggs, and send tasks and secrets to running eggs.
 
+Use this tool whenever the user asks to talk to, ask, reach, test, or send work to an Egg, a Nest, a remote agent, or a sub-agent.
+
+Egg names are not tool names. If an Egg is named `web scraper`, call `invasion_control` with `operation:"send_task"` and `egg_name:"web scraper"`. Do not call the `web_scraper` tool just because the Egg has that name.
+
 ## Operations
 
 | Operation | Description |
 |-----------|-------------|
 | `list_nests` | List all configured nests |
-| `list_eggs` | List all eggs in a nest |
+| `list_eggs` | List all configured eggs |
 | `nest_status` | Get status of a specific nest |
 | `assign_egg` | Assign an egg to a nest |
 | `hatch_egg` | Deploy/start an egg in a nest |
@@ -23,7 +27,8 @@ Manage deployment nests (target servers/VMs/containers) and eggs (sub-agent conf
 | `operation` | string | yes | One of the operations above |
 | `nest_id` | string | for most nest operations | Nest ID |
 | `nest_name` | string | no | Nest name — alternative to nest_id for lookup |
-| `egg_id` | string | for assign_egg | Egg ID to assign |
+| `egg_id` | string | for assign_egg; optional target for send_task | Egg ID |
+| `egg_name` | string | optional target for send_task | Egg name — alternative to egg_id when the user names the Egg |
 | `task` | string | for send_task | Task description in natural language |
 | `key` | string | for send_secret | Secret key name |
 | `value` | string | for send_secret | Secret value |
@@ -53,6 +58,11 @@ Manage deployment nests (target servers/VMs/containers) and eggs (sub-agent conf
 **Send a task to a running egg:**
 ```json
 {"action": "invasion_control", "operation": "send_task", "nest_id": "nest-123", "egg_id": "egg-456", "task": "Check the system metrics on all servers"}
+```
+
+**Send a task when only the Egg name is known:**
+```json
+{"action": "invasion_control", "operation": "send_task", "egg_name": "web scraper", "task": "Tell me a short joke in German"}
 ```
 
 **Send a secret to a running egg:**

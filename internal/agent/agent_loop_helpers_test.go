@@ -364,6 +364,21 @@ func TestAdaptiveFamilySeedsForQueryIncludesResourceAndContainerTools(t *testing
 	}
 }
 
+func TestAdaptiveFamilySeedsForQueryIncludesInvasionControlForEggAgentRequests(t *testing.T) {
+	tests := []string{
+		"pruefe ob du das egg erreichen kannst, stelle eine frage",
+		"das egg mit dem namen web scraper ist ein agent. sprich mit ihm",
+		"frage den remote agent web scraper nach einem witz",
+	}
+
+	for _, query := range tests {
+		seeds := adaptiveFamilySeedsForQuery(query)
+		if !containsName(seeds, "invasion_control") {
+			t.Fatalf("query %q should include invasion_control seed, got %v", query, seeds)
+		}
+	}
+}
+
 func TestCacheAwareAdaptiveAlwaysIncludeAddsIntentFamilyBundle(t *testing.T) {
 	schemas := []openai.Tool{
 		makeTool("execute_shell"),

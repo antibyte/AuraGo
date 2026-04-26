@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -394,9 +395,6 @@ func invasionEggDeployStatus(cfg *config.Config, tc ToolCall, logger *slog.Logge
 
 // invasionSendTask sends a task to a running egg via the WebSocket bridge.
 func invasionSendTask(cfg *config.Config, db *sql.DB, tc ToolCall, logger *slog.Logger) string {
-	if tc.NestID == "" {
-		return `Tool Output: {"status":"error","message":"'nest_id' is required for send_task."}`
-	}
 	taskDesc := tc.Task
 	if taskDesc == "" {
 		taskDesc = tc.Description
@@ -405,7 +403,13 @@ func invasionSendTask(cfg *config.Config, db *sql.DB, tc ToolCall, logger *slog.
 		return `Tool Output: {"status":"error","message":"'task' (description) is required for send_task."}`
 	}
 
-	url := invasionLoopbackURL(cfg, fmt.Sprintf("/api/invasion/nests/%s/send-task", tc.NestID))
+	nest, egg, err := resolveInvasionTaskNest(db, tc, logger)
+	if err != nil {
+		b, _ := json.Marshal(map[string]string{"status": "error", "message": err.Error()})
+		return "Tool Output: " + string(b)
+	}
+
+	url := invasionLoopbackURL(cfg, fmt.Sprintf("/api/invasion/nests/%s/send-task", nest.ID))
 	body, _ := json.Marshal(map[string]interface{}{"description": taskDesc, "timeout": 0})
 	resp, err := invasionPost(url, "application/json", bytes.NewReader(body))
 	if err != nil {
@@ -424,9 +428,125 @@ func invasionSendTask(cfg *config.Config, db *sql.DB, tc ToolCall, logger *slog.
 	}
 
 	taskID, _ := result["task_id"].(string)
-	logger.Info("[InvasionTool] Task sent to egg", "nest_id", tc.NestID, "task_id", taskID)
-	bOut, _ := json.Marshal(map[string]string{"status": "success", "message": "Task sent to egg on nest " + tc.NestID, "task_id": taskID, "task": taskDesc})
+	logger.Info("[InvasionTool] Task sent to egg", "nest_id", nest.ID, "nest_name", nest.Name, "egg_id", egg.ID, "egg_name", egg.Name, "task_id", taskID)
+	bOut, _ := json.Marshal(map[string]string{
+		"status":    "success",
+		"message":   "Task sent to egg '" + egg.Name + "' on nest '" + nest.Name + "'.",
+		"task_id":   taskID,
+		"task":      taskDesc,
+		"nest_id":   nest.ID,
+		"nest_name": nest.Name,
+		"egg_id":    egg.ID,
+		"egg_name":  egg.Name,
+	})
 	return "Tool Output: " + string(bOut)
+}
+
+func resolveInvasionTaskNest(db *sql.DB, tc ToolCall, logger *slog.Logger) (invasion.NestRecord, invasion.EggRecord, error) {
+	if db == nil {
+		return invasion.NestRecord{}, invasion.EggRecord{}, fmt.Errorf("invasion database is unavailable")
+	}
+
+	var nest invasion.NestRecord
+	var err error
+	switch {
+	case strings.TrimSpace(tc.NestID) != "":
+		nest, err = invasion.GetNest(db, strings.TrimSpace(tc.NestID))
+	case strings.TrimSpace(tc.NestName) != "":
+		nest, err = invasion.GetNestByName(db, strings.TrimSpace(tc.NestName))
+	}
+	if err != nil {
+		return invasion.NestRecord{}, invasion.EggRecord{}, err
+	}
+	if nest.ID != "" {
+		if nest.EggID == "" {
+			return invasion.NestRecord{}, invasion.EggRecord{}, fmt.Errorf("nest %q has no assigned egg", nest.Name)
+		}
+		egg, eggErr := invasion.GetEgg(db, nest.EggID)
+		if eggErr != nil {
+			return invasion.NestRecord{}, invasion.EggRecord{}, eggErr
+		}
+		return nest, egg, nil
+	}
+
+	egg, err := resolveInvasionEggForTask(db, tc)
+	if err != nil {
+		return invasion.NestRecord{}, invasion.EggRecord{}, err
+	}
+
+	nests, err := invasion.ListNests(db)
+	if err != nil {
+		return invasion.NestRecord{}, invasion.EggRecord{}, fmt.Errorf("failed to list nests for egg lookup: %w", err)
+	}
+
+	var running []invasion.NestRecord
+	var active []invasion.NestRecord
+	for _, candidate := range nests {
+		if candidate.EggID != egg.ID {
+			continue
+		}
+		if !candidate.Active {
+			continue
+		}
+		active = append(active, candidate)
+		if strings.EqualFold(candidate.HatchStatus, "running") {
+			running = append(running, candidate)
+		}
+	}
+
+	switch {
+	case len(running) == 1:
+		return running[0], egg, nil
+	case len(running) > 1:
+		return invasion.NestRecord{}, invasion.EggRecord{}, fmt.Errorf("egg %q is running on multiple nests (%s); provide nest_id or nest_name", egg.Name, joinNestNames(running))
+	case len(active) == 1:
+		return active[0], egg, nil
+	case len(active) > 1:
+		return invasion.NestRecord{}, invasion.EggRecord{}, fmt.Errorf("egg %q is assigned to multiple active nests (%s); provide nest_id or nest_name", egg.Name, joinNestNames(active))
+	default:
+		return invasion.NestRecord{}, invasion.EggRecord{}, fmt.Errorf("egg %q is not assigned to an active nest", egg.Name)
+	}
+}
+
+func resolveInvasionEggForTask(db *sql.DB, tc ToolCall) (invasion.EggRecord, error) {
+	if strings.TrimSpace(tc.EggID) != "" {
+		return invasion.GetEgg(db, strings.TrimSpace(tc.EggID))
+	}
+	eggName := strings.TrimSpace(tc.EggName)
+	if eggName == "" {
+		return invasion.EggRecord{}, fmt.Errorf("provide nest_id, nest_name, egg_id, or egg_name for send_task")
+	}
+
+	eggs, err := invasion.ListEggs(db)
+	if err != nil {
+		return invasion.EggRecord{}, fmt.Errorf("failed to list eggs for name lookup: %w", err)
+	}
+	var matches []invasion.EggRecord
+	for _, egg := range eggs {
+		if strings.EqualFold(strings.TrimSpace(egg.Name), eggName) {
+			matches = append(matches, egg)
+		}
+	}
+	switch len(matches) {
+	case 0:
+		return invasion.EggRecord{}, fmt.Errorf("egg not found by name: %s", eggName)
+	case 1:
+		return matches[0], nil
+	default:
+		return invasion.EggRecord{}, fmt.Errorf("multiple eggs are named %q; provide egg_id", eggName)
+	}
+}
+
+func joinNestNames(nests []invasion.NestRecord) string {
+	names := make([]string, 0, len(nests))
+	for _, nest := range nests {
+		if nest.Name != "" {
+			names = append(names, nest.Name)
+		} else {
+			names = append(names, nest.ID)
+		}
+	}
+	return strings.Join(names, ", ")
 }
 
 // invasionSendSecret sends a secret to a running egg via the encrypted channel.

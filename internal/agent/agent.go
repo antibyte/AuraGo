@@ -529,6 +529,7 @@ type ToolCall struct {
 	NestID   string `json:"nest_id"`   // invasion nest ID for nest_status/assign_egg
 	NestName string `json:"nest_name"` // invasion nest name (alternative lookup)
 	EggID    string `json:"egg_id"`    // invasion egg ID for assign_egg
+	EggName  string `json:"egg_name"`  // invasion egg name (alternative lookup for send_task)
 	// Image sending
 	Caption string `json:"caption"`
 	// Image generation fields

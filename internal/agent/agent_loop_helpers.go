@@ -187,7 +187,7 @@ var adaptiveFamilySeedTools = map[string][]string{
 	},
 	"infra": {
 		"docker", "proxmox", "tailscale", "github", "ansible", "remote_execution",
-		"execute_shell", "system_metrics", "process_analyzer",
+		"invasion_control", "execute_shell", "system_metrics", "process_analyzer",
 	},
 	"communication": {
 		"fetch_email", "send_email", "send_document", "send_audio", "send_video",
@@ -552,6 +552,10 @@ func adaptiveFamilySeedsForQuery(userQuery string) []string {
 	if isContainerIntent(q) {
 		add("docker")
 		add("execute_shell")
+	}
+	if isInvasionControlIntent(q) {
+		add("invasion_control")
+		add("co_agent")
 	}
 
 	if len(out) == 0 {

@@ -561,7 +561,8 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 	if ff.InvasionControlEnabled {
 		tools = append(tools, tool("invasion_control",
 			"Manage deployment nests (target servers/VMs/containers) and eggs (sub-agent configurations). "+
-				"List, inspect, assign, deploy (hatch), stop, monitor eggs, send tasks and secrets to running eggs.",
+				"List, inspect, assign, deploy (hatch), stop, monitor eggs, send tasks and secrets to running eggs. "+
+				"Use send_task to talk to an Egg or remote agent. Egg names are not tool names: if an Egg is named 'web scraper', still call invasion_control, not web_scraper.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",
@@ -570,8 +571,9 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 				},
 				"nest_id":   prop("string", "Nest ID (for nest_status, assign_egg, hatch_egg, stop_egg, egg_status, send_task, send_secret)"),
 				"nest_name": prop("string", "Nest name — alternative to nest_id for lookup"),
-				"egg_id":    prop("string", "Egg ID (for assign_egg)"),
-				"task":      prop("string", "Task description in natural language (for send_task)"),
+				"egg_id":    prop("string", "Egg ID (for assign_egg, or as an alternative target for send_task)"),
+				"egg_name":  prop("string", "Egg name — alternative target for send_task when the user names an Egg or remote agent"),
+				"task":      prop("string", "Natural-language instruction to send to the running Egg/remote agent (for send_task)"),
 				"key":       prop("string", "Secret key name (for send_secret)"),
 				"value":     prop("string", "Secret value (for send_secret)"),
 			}, "operation"),

@@ -311,6 +311,60 @@ func TestBuiltinToolSchemasIncludeVercelWhenEnabled(t *testing.T) {
 	t.Fatal("expected vercel tool schema when VercelEnabled is true")
 }
 
+func TestBuiltinToolSchemasInvasionControlSupportsEggName(t *testing.T) {
+	schemas := builtinToolSchemas(ToolFeatureFlags{InvasionControlEnabled: true})
+
+	for _, s := range schemas {
+		if s.Function == nil || s.Function.Name != "invasion_control" {
+			continue
+		}
+		if !strings.Contains(strings.ToLower(s.Function.Description), "egg names are not tool names") {
+			t.Fatalf("invasion_control description should warn about egg-name/tool-name collisions, got %q", s.Function.Description)
+		}
+		params, ok := s.Function.Parameters.(map[string]interface{})
+		if !ok {
+			t.Fatalf("invasion_control parameters type = %T, want map[string]interface{}", s.Function.Parameters)
+		}
+		props, ok := params["properties"].(map[string]interface{})
+		if !ok {
+			t.Fatalf("invasion_control properties type = %T", params["properties"])
+		}
+		if _, ok := props["egg_name"]; !ok {
+			t.Fatal("invasion_control schema should expose egg_name")
+		}
+		return
+	}
+
+	t.Fatal("invasion_control schema not found")
+}
+
+func TestNativeToolCallToToolCallInvasionControlEggName(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+
+	native := openai.ToolCall{
+		ID:   "call_invasion_egg_name",
+		Type: openai.ToolTypeFunction,
+		Function: openai.FunctionCall{
+			Name:      "invasion_control",
+			Arguments: `{"operation":"send_task","egg_name":"web scraper","task":"sage mir einen witz"}`,
+		},
+	}
+
+	tc := NativeToolCallToToolCall(native, logger)
+	if tc.Action != "invasion_control" {
+		t.Fatalf("Action = %q, want invasion_control", tc.Action)
+	}
+	if tc.Operation != "send_task" {
+		t.Fatalf("Operation = %q, want send_task", tc.Operation)
+	}
+	if tc.EggName != "web scraper" {
+		t.Fatalf("EggName = %q, want web scraper", tc.EggName)
+	}
+	if tc.Task != "sage mir einen witz" {
+		t.Fatalf("Task = %q, want sage mir einen witz", tc.Task)
+	}
+}
+
 func TestBuildNativeToolSchemasOmitsVirusTotalWhenDisabled(t *testing.T) {
 	skillsDir := t.TempDir()
 	skillManifest := `{
