@@ -126,3 +126,21 @@ func TestShouldAcceptParsedTextToolCallsInNativeMode_RejectsReasoningJSON(t *tes
 		t.Fatal("did not expect reasoning_clean_json tool calls to be auto-accepted in native mode")
 	}
 }
+
+func TestShouldAcceptParsedTextToolCallsInNativeMode_AcceptsKnownBuiltinOmittedByAdaptiveSelection(t *testing.T) {
+	currentTools := []openai.Tool{
+		makeTool("mcp_call"),
+		makeTool("web_scraper"),
+	}
+
+	ok := shouldAcceptParsedTextToolCallsInNativeMode(
+		currentTools,
+		ToolCallParseSourceReasoningCleanJSON,
+		ToolCall{IsTool: true, Action: "invasion_control"},
+		nil,
+	)
+
+	if !ok {
+		t.Fatal("expected known builtin action omitted by adaptive selection to be accepted in native mode")
+	}
+}
