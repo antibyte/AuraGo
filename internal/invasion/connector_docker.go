@@ -26,6 +26,9 @@ const dockerEggConfigUID = 1001
 const dockerEggConfigGID = 1001
 const dockerEggConfigUser = "aurago"
 const dockerEggConfigGroup = "aurago"
+const dockerEggDefaultHTTPPort = 8099
+
+const dockerConfigAwareHealthcheckPython = `import pathlib,re,urllib.request; data=pathlib.Path('/app/data/config.yaml').read_text(encoding='utf-8', errors='ignore'); m=re.search(r'(?m)^server:\s*(?:\n[ \t]+[^\n]*)*?\n[ \t]+port:\s*[\"\']?(\d+)', data); port=int(m.group(1)) if m else 8088; urllib.request.urlopen('http://127.0.0.1:%d/api/ready' % port, timeout=5)`
 
 // DockerConnector deploys eggs as Docker containers, either on a remote host
 // or on the local Docker daemon.
@@ -68,29 +71,7 @@ func (c *DockerConnector) Deploy(ctx context.Context, nest NestRecord, secret []
 	// The full configuration (including secrets like the shared key and API keys)
 	// is copied into the container via the archive API in step 4, avoiding
 	// exposure via "docker inspect" which displays environment variables.
-	envVars := []string{
-		"AURAGO_EGG_MODE=true",
-		"AURAGO_SERVER_HOST=0.0.0.0",
-	}
-
-	createBody := map[string]interface{}{
-		"Image": image,
-		"Env":   envVars,
-		"HostConfig": map[string]interface{}{
-			"RestartPolicy": map[string]interface{}{
-				"Name": "unless-stopped",
-			},
-			"Binds": dockerEggBinds(nest.ID),
-			// Allow the egg to reach the master via host.docker.internal.
-			// On Linux Docker Engine this is not injected automatically;
-			// host-gateway resolves to the Docker bridge gateway (typically 172.17.0.1).
-			// Safe no-op on Docker Desktop (Windows/Mac) where the name already resolves.
-			"ExtraHosts": []string{"host.docker.internal:host-gateway"},
-			// Security hardening — mirror the main AuraGo container's security profile.
-			"SecurityOpt": []string{"no-new-privileges:true"},
-			"CapDrop":     []string{"ALL"},
-		},
-	}
+	createBody := dockerEggCreateBody(image, nest.ID, payload)
 
 	bodyJSON, _ := json.Marshal(createBody)
 	url := c.apiURL(nest, fmt.Sprintf("/containers/create?name=%s", containerName))
@@ -138,6 +119,39 @@ func (c *DockerConnector) Deploy(ctx context.Context, nest NestRecord, secret []
 	return nil
 }
 
+func dockerEggCreateBody(image, nestID string, payload EggDeployPayload) map[string]interface{} {
+	eggPort := dockerEggHTTPPort(payload)
+	envVars := []string{
+		"AURAGO_EGG_MODE=true",
+		"AURAGO_SERVER_HOST=0.0.0.0",
+	}
+	return map[string]interface{}{
+		"Image": image,
+		"Env":   envVars,
+		"ExposedPorts": map[string]interface{}{
+			fmt.Sprintf("%d/tcp", eggPort): map[string]interface{}{},
+			"8089/tcp":                     map[string]interface{}{},
+		},
+		"Healthcheck": map[string]interface{}{
+			"Test": []string{"CMD", "python3", "-c", dockerConfigAwareHealthcheckPython},
+		},
+		"HostConfig": map[string]interface{}{
+			"RestartPolicy": map[string]interface{}{
+				"Name": "unless-stopped",
+			},
+			"Binds": dockerEggBinds(nestID),
+			// Allow the egg to reach the master via host.docker.internal.
+			// On Linux Docker Engine this is not injected automatically;
+			// host-gateway resolves to the Docker bridge gateway (typically 172.17.0.1).
+			// Safe no-op on Docker Desktop (Windows/Mac) where the name already resolves.
+			"ExtraHosts": []string{"host.docker.internal:host-gateway"},
+			// Security hardening — mirror the main AuraGo container's security profile.
+			"SecurityOpt": []string{"no-new-privileges:true"},
+			"CapDrop":     []string{"ALL"},
+		},
+	}
+}
+
 func dockerEggBinds(nestID string) []string {
 	shortID := nestID
 	if len(shortID) > 8 {
@@ -146,6 +160,28 @@ func dockerEggBinds(nestID string) []string {
 	return []string{
 		fmt.Sprintf("aurago-egg-%s-log:/app/log", shortID),
 	}
+}
+
+func dockerEggHTTPPort(payload EggDeployPayload) int {
+	if payload.EggPort > 0 {
+		return payload.EggPort
+	}
+	if port := extractServerPort(payload.ConfigYAML); port > 0 {
+		return port
+	}
+	return dockerEggDefaultHTTPPort
+}
+
+func extractServerPort(cfgYAML []byte) int {
+	var raw struct {
+		Server struct {
+			Port int `yaml:"port"`
+		} `yaml:"server"`
+	}
+	if err := yaml.Unmarshal(cfgYAML, &raw); err != nil {
+		return 0
+	}
+	return raw.Server.Port
 }
 
 // copyConfigToContainer copies the egg config YAML into a container via the

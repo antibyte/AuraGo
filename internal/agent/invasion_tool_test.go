@@ -5,8 +5,23 @@ import (
 	"os"
 	"testing"
 
+	"aurago/internal/config"
 	"aurago/internal/invasion"
 )
+
+func TestInvasionLoopbackURLUsesDedicatedLoopbackPort(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Server.Port = 8088
+	cfg.Server.HTTPS.Enabled = true
+	cfg.Server.HTTPS.HTTPSPort = 8443
+	cfg.CloudflareTunnel.LoopbackPort = 18080
+
+	got := invasionLoopbackURL(cfg, "/api/invasion/nests/n1/status")
+	want := "http://127.0.0.1:18080/api/invasion/nests/n1/status"
+	if got != want {
+		t.Fatalf("invasionLoopbackURL = %q, want %q", got, want)
+	}
+}
 
 func TestResolveInvasionTaskNestByEggNamePrefersRunningAssignedNest(t *testing.T) {
 	db, err := invasion.InitDB(t.TempDir() + "/invasion.db")

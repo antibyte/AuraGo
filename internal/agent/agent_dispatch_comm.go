@@ -62,17 +62,7 @@ func resolveSkillBridgeTools(cfg *config.Config, skillsDir, skillName string) []
 
 // toolBridgeURL constructs the loopback URL for the tool bridge endpoint.
 func toolBridgeURL(cfg *config.Config) string {
-	scheme := "http"
-	port := cfg.Server.Port
-	if cfg.Server.HTTPS.Enabled {
-		scheme = "https"
-		if cfg.Server.HTTPS.HTTPSPort > 0 {
-			port = cfg.Server.HTTPS.HTTPSPort
-		} else {
-			port = 443
-		}
-	}
-	return fmt.Sprintf("%s://127.0.0.1:%d/api/internal/tool-bridge", scheme, port)
+	return internalAPIBaseURL(cfg) + "/api/internal/tool-bridge"
 }
 
 func mergeSkillVaultKeys(skillsDir, skillName string, tcKeys []string) []string {

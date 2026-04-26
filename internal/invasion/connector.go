@@ -10,6 +10,7 @@ type EggDeployPayload struct {
 	ConfigYAML   []byte // generated config.yaml content
 	ResourcesPkg string // path to the egg-specific resources.dat
 	SharedKey    string // hex-encoded AES-256 key for master↔egg communication
+	EggPort      int    // HTTP port the egg server listens on
 	Permanent    bool   // install as systemd service (true) or run once (false)
 	IncludeVault bool   // include encrypted vault file
 	VaultData    []byte // AES-256-GCM encrypted vault (empty if IncludeVault=false)

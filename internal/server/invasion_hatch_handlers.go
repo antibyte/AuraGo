@@ -151,6 +151,7 @@ func (s *Server) deployEgg(nest invasion.NestRecord, egg invasion.EggRecord) err
 		ConfigYAML:   cfgYAML,
 		ResourcesPkg: resourcesPath,
 		SharedKey:    sharedKey,
+		EggPort:      egg.EggPort,
 		Permanent:    egg.Permanent,
 		IncludeVault: egg.IncludeVault,
 		VaultData:    vaultData,

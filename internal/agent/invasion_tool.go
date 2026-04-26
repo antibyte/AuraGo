@@ -2,6 +2,7 @@ package agent
 
 import (
 	"bytes"
+	"crypto/tls"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -17,7 +18,16 @@ import (
 )
 
 // hatchClient is used for loopback calls to the server's invasion API.
-var hatchClient = &http.Client{Timeout: 30 * time.Second}
+var hatchClient = &http.Client{
+	Timeout: 30 * time.Second,
+	Transport: &http.Transport{
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: true, // SECURE: loopback-only internal API calls may use self-signed TLS
+		},
+		ForceAttemptHTTP2: false,
+		DisableKeepAlives: true,
+	},
+}
 
 // agentInternalToken holds the per-process crypto token for loopback auth.
 // Set by SetAgentInternalToken during startup before any loopback call is made.
@@ -266,7 +276,7 @@ func invasionAssignEgg(db *sql.DB, tc ToolCall, logger *slog.Logger) string {
 
 // invasionLoopbackURL builds a URL for the local server API.
 func invasionLoopbackURL(cfg *config.Config, path string) string {
-	return fmt.Sprintf("http://127.0.0.1:%d%s", cfg.Server.Port, path)
+	return internalAPIBaseURL(cfg) + path
 }
 
 // invasionPost performs an authenticated loopback POST to the server's invasion API.

@@ -161,6 +161,40 @@ func TestDockerConnector_RemoveContainerPathRemovesAnonymousVolumes(t *testing.T
 	}
 }
 
+func TestDockerEggCreateBodyUsesEggPortHealthcheck(t *testing.T) {
+	body := dockerEggCreateBody("aurago:test", "12345678-abcd-ef12-3456-7890abcdef12", EggDeployPayload{
+		ConfigYAML: []byte("server:\n  port: 8099\n"),
+		EggPort:    8099,
+	})
+	raw, err := json.Marshal(body)
+	if err != nil {
+		t.Fatalf("marshal create body: %v", err)
+	}
+
+	var got struct {
+		ExposedPorts map[string]struct{} `json:"ExposedPorts"`
+		Healthcheck  struct {
+			Test []string `json:"Test"`
+		} `json:"Healthcheck"`
+	}
+	if err := json.Unmarshal(raw, &got); err != nil {
+		t.Fatalf("decode create body: %v", err)
+	}
+	if _, ok := got.ExposedPorts["8099/tcp"]; !ok {
+		t.Fatalf("docker egg create body should expose 8099/tcp, got %#v", got.ExposedPorts)
+	}
+	if _, ok := got.ExposedPorts["8088/tcp"]; ok {
+		t.Fatalf("docker egg create body should not expose the master's default HTTP port, got %#v", got.ExposedPorts)
+	}
+	if len(got.Healthcheck.Test) == 0 {
+		t.Fatal("docker egg create body should override the image healthcheck")
+	}
+	healthcheck := strings.Join(got.Healthcheck.Test, " ")
+	if !strings.Contains(healthcheck, "/app/data/config.yaml") || !strings.Contains(healthcheck, "/api/ready") {
+		t.Fatalf("healthcheck should read the egg config and probe readiness, got %q", healthcheck)
+	}
+}
+
 // ── Docker API mock tests ───────────────────────────────────────────────────
 
 // mockDockerAPI creates an httptest.Server that emulates key Docker Engine endpoints.
@@ -314,6 +348,10 @@ func TestDockerConnector_Deploy_OK(t *testing.T) {
 	configYAML := []byte("egg_mode:\n  master_url: ws://localhost:8080/api/invasion/ws\n  egg_id: e1\n  nest_id: n1\n")
 	var archivePath string
 	var createBody struct {
+		ExposedPorts map[string]struct{} `json:"ExposedPorts"`
+		Healthcheck  struct {
+			Test []string `json:"Test"`
+		} `json:"Healthcheck"`
 		HostConfig struct {
 			Binds []string `json:"Binds"`
 		} `json:"HostConfig"`
@@ -353,6 +391,7 @@ func TestDockerConnector_Deploy_OK(t *testing.T) {
 	c := &DockerConnector{}
 	err := c.Deploy(context.Background(), nestForMock(ts), nil, EggDeployPayload{
 		ConfigYAML: configYAML,
+		EggPort:    8099,
 		SharedKey:  "aabb",
 	})
 	if err != nil {
@@ -365,6 +404,19 @@ func TestDockerConnector_Deploy_OK(t *testing.T) {
 		if strings.Contains(bind, ":/app/data") {
 			t.Fatalf("docker deploy must not reuse a named /app/data volume across hatches; got bind %q", bind)
 		}
+	}
+	if _, ok := createBody.ExposedPorts["8099/tcp"]; !ok {
+		t.Fatalf("docker deploy should expose the configured egg HTTP port 8099/tcp, got %#v", createBody.ExposedPorts)
+	}
+	if _, ok := createBody.ExposedPorts["8088/tcp"]; ok {
+		t.Fatalf("docker deploy should not expose the master's default HTTP port for an egg, got %#v", createBody.ExposedPorts)
+	}
+	if len(createBody.Healthcheck.Test) == 0 {
+		t.Fatal("docker deploy should override the image healthcheck for egg containers")
+	}
+	healthcheck := strings.Join(createBody.Healthcheck.Test, " ")
+	if !strings.Contains(healthcheck, "/app/data/config.yaml") || !strings.Contains(healthcheck, "/api/ready") {
+		t.Fatalf("healthcheck should read the egg config and probe readiness, got %q", healthcheck)
 	}
 }
 
