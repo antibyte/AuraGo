@@ -24,7 +24,7 @@ func DispatchYepAPIInstagram(ctx context.Context, client *YepAPIClient, operatio
 		if username == "" {
 			return yepAPIFormatError("user operation requires a 'username' string"), nil
 		}
-		data, err := client.Post(ctx, "/v1/instagram/user", map[string]interface{}{"username": username})
+		data, err := client.Post(ctx, "/v1/instagram/user", map[string]interface{}{"username_or_url": username})
 		if err != nil {
 			return "", err
 		}
@@ -35,7 +35,7 @@ func DispatchYepAPIInstagram(ctx context.Context, client *YepAPIClient, operatio
 		if username == "" {
 			return yepAPIFormatError("user_posts operation requires a 'username' string"), nil
 		}
-		payload := map[string]interface{}{"username": username}
+		payload := map[string]interface{}{"username_or_url": username}
 		if limit, ok := args["limit"].(float64); ok && limit > 0 {
 			payload["limit"] = int(limit)
 		}
@@ -50,7 +50,7 @@ func DispatchYepAPIInstagram(ctx context.Context, client *YepAPIClient, operatio
 		if username == "" {
 			return yepAPIFormatError("user_reels operation requires a 'username' string"), nil
 		}
-		payload := map[string]interface{}{"username": username}
+		payload := map[string]interface{}{"username_or_url": username}
 		if limit, ok := args["limit"].(float64); ok && limit > 0 {
 			payload["limit"] = int(limit)
 		}
