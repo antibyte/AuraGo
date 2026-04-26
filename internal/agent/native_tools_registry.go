@@ -197,7 +197,7 @@ func (ff ToolFeatureFlags) Key() string {
 	appendToolFeatureKeyPart("yepapi", ff.YepAPIEnabled)
 	appendToolFeatureKeyPart("yepapi_seo", ff.YepAPISEOEnabled)
 	appendToolFeatureKeyPart("yepapi_serp", ff.YepAPISERPEnabled)
-	appendToolFeatureKeyPart("yepapi_scraping", ff.YepAPIScrapingEnabled)
+	appendToolFeatureKeyPart("yepapi_scrape", ff.YepAPIScrapingEnabled)
 	appendToolFeatureKeyPart("yepapi_youtube", ff.YepAPIYouTubeEnabled)
 	appendToolFeatureKeyPart("yepapi_tiktok", ff.YepAPITikTokEnabled)
 	appendToolFeatureKeyPart("yepapi_instagram", ff.YepAPIInstagramEnabled)
