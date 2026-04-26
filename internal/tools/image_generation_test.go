@@ -212,6 +212,47 @@ func TestDeleteGeneratedImage(t *testing.T) {
 	}
 }
 
+func TestDeleteGeneratedImagesByFilename(t *testing.T) {
+	db, err := InitImageGalleryDB(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("init db: %v", err)
+	}
+	defer db.Close()
+
+	firstID, err := SaveGeneratedImage(db, &ImageGenResult{
+		Filename: "shared.png",
+		Prompt:   "first duplicate",
+		Provider: "openai",
+		Model:    "dall-e-3",
+	})
+	if err != nil {
+		t.Fatalf("save first image: %v", err)
+	}
+	secondID, err := SaveGeneratedImage(db, &ImageGenResult{
+		Filename: "other.png",
+		Prompt:   "keep me",
+		Provider: "openai",
+		Model:    "dall-e-3",
+	})
+	if err != nil {
+		t.Fatalf("save second image: %v", err)
+	}
+
+	deleted, err := DeleteGeneratedImagesByFilename(db, "shared.png")
+	if err != nil {
+		t.Fatalf("DeleteGeneratedImagesByFilename failed: %v", err)
+	}
+	if deleted != 1 {
+		t.Fatalf("deleted rows = %d, want 1", deleted)
+	}
+	if _, err := GetGeneratedImage(db, firstID); err == nil {
+		t.Fatal("expected shared.png record to be deleted")
+	}
+	if _, err := GetGeneratedImage(db, secondID); err != nil {
+		t.Fatalf("expected other.png record to remain: %v", err)
+	}
+}
+
 func TestImageGalleryMonthlyCount(t *testing.T) {
 	db, err := InitImageGalleryDB(filepath.Join(t.TempDir(), "test.db"))
 	if err != nil {

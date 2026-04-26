@@ -279,6 +279,44 @@ func TestDeleteMedia(t *testing.T) {
 	}
 }
 
+func TestDeleteMediaImagesByFilename(t *testing.T) {
+	db, err := InitMediaRegistryDB(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatalf("init db: %v", err)
+	}
+	defer db.Close()
+
+	imageID, _, err := RegisterMedia(db, MediaItem{MediaType: "image", Filename: "shared.png"})
+	if err != nil {
+		t.Fatalf("register image: %v", err)
+	}
+	audioID, _, err := RegisterMedia(db, MediaItem{MediaType: "audio", Filename: "shared.png"})
+	if err != nil {
+		t.Fatalf("register audio: %v", err)
+	}
+	otherImageID, _, err := RegisterMedia(db, MediaItem{MediaType: "image", Filename: "other.png"})
+	if err != nil {
+		t.Fatalf("register other image: %v", err)
+	}
+
+	deleted, err := DeleteMediaImagesByFilename(db, "shared.png")
+	if err != nil {
+		t.Fatalf("DeleteMediaImagesByFilename failed: %v", err)
+	}
+	if deleted != 1 {
+		t.Fatalf("deleted rows = %d, want 1", deleted)
+	}
+	if _, err := GetMedia(db, imageID); err == nil {
+		t.Fatal("expected shared image media item to be deleted")
+	}
+	if _, err := GetMedia(db, audioID); err != nil {
+		t.Fatalf("expected same-filename audio media item to remain: %v", err)
+	}
+	if _, err := GetMedia(db, otherImageID); err != nil {
+		t.Fatalf("expected other image media item to remain: %v", err)
+	}
+}
+
 func TestMediaStats(t *testing.T) {
 	db, err := InitMediaRegistryDB(filepath.Join(t.TempDir(), "test.db"))
 	if err != nil {

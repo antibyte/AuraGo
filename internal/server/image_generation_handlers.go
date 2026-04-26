@@ -338,16 +338,29 @@ func handleImageGalleryByID(s *Server) http.HandlerFunc {
 					json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "Failed to delete image"})
 					return
 				}
+				if _, err := tools.DeleteGeneratedImagesByFilename(s.ImageGalleryDB, filename); err != nil {
+					s.Logger.Warn("Failed to delete companion generated image record", "filename", filename, "error", err)
+				}
 			} else {
+				img, err := tools.GetGeneratedImage(s.ImageGalleryDB, id)
+				if err != nil {
+					w.WriteHeader(http.StatusNotFound)
+					json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "Image not found"})
+					return
+				}
+				filename = img.Filename
 				if err := tools.DeleteGeneratedImage(s.ImageGalleryDB, id, dataDir); err != nil {
 					w.WriteHeader(http.StatusInternalServerError)
 					s.Logger.Error("Failed to delete generated image", "image_id", id, "error", err)
 					json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "Failed to delete image"})
 					return
 				}
+				if _, err := tools.DeleteMediaImagesByFilename(s.MediaRegistryDB, filename); err != nil {
+					s.Logger.Warn("Failed to delete companion media image record", "filename", filename, "error", err)
+				}
 			}
 
-			// Best-effort: also delete from the other DB and physical file
+			// Best-effort: remove the physical file after both registries have been cleared.
 			if filename != "" {
 				if filePath != "" {
 					os.Remove(filePath)

@@ -248,6 +248,19 @@ func DeleteGeneratedImage(db *sql.DB, id int64, dataDir string) error {
 	return nil
 }
 
+// DeleteGeneratedImagesByFilename removes generated image records for a filename.
+func DeleteGeneratedImagesByFilename(db *sql.DB, filename string) (int64, error) {
+	if db == nil || strings.TrimSpace(filename) == "" {
+		return 0, nil
+	}
+	res, err := db.Exec("DELETE FROM generated_images WHERE filename = ?", filename)
+	if err != nil {
+		return 0, fmt.Errorf("delete generated image records by filename: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	return n, nil
+}
+
 // ImageGalleryMonthlyCount returns the number of images generated in the current month.
 func ImageGalleryMonthlyCount(db *sql.DB) (int, error) {
 	if db == nil {

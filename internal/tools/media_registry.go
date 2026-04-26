@@ -434,6 +434,20 @@ func DeleteMedia(db *sql.DB, id int64) error {
 	return nil
 }
 
+// DeleteMediaImagesByFilename soft-deletes active image media items for a filename.
+func DeleteMediaImagesByFilename(db *sql.DB, filename string) (int64, error) {
+	if db == nil || strings.TrimSpace(filename) == "" {
+		return 0, nil
+	}
+	now := time.Now().UTC().Format("2006-01-02 15:04:05")
+	res, err := db.Exec("UPDATE media_items SET deleted = 1, updated_at = ? WHERE media_type = 'image' AND filename = ? AND deleted = 0", now, filename)
+	if err != nil {
+		return 0, fmt.Errorf("delete media image records by filename: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	return n, nil
+}
+
 // MediaStats returns aggregate statistics about the media registry.
 func MediaStats(db *sql.DB) (map[string]interface{}, error) {
 	if db == nil {
