@@ -26,6 +26,48 @@ type streamingResponseResult struct {
 	recoveryContinue bool
 }
 
+func shouldSuppressStreamedToolCallJSON(content string) bool {
+	trimmed := strings.ToLower(strings.TrimLeft(content, " \t\r\n"))
+	if !strings.HasPrefix(trimmed, "{") {
+		return false
+	}
+
+	toolKeys := []string{`"action"`, `"tool":`, `"tool_call"`, `"tool_name"`, `"tool_call_path"`}
+	argKeys := []string{`"parameters"`, `"params"`, `"arguments"`, `"operation"`, `"command"`}
+	toolKeyCount := 0
+	for _, key := range toolKeys {
+		if strings.Contains(trimmed, key) {
+			toolKeyCount++
+		}
+	}
+	argKeyCount := 0
+	for _, key := range argKeys {
+		if strings.Contains(trimmed, key) {
+			argKeyCount++
+		}
+	}
+	if toolKeyCount > 0 && argKeyCount > 0 {
+		return true
+	}
+	if strings.Contains(trimmed, `"name"`) && strings.Contains(trimmed, `"arguments"`) {
+		return true
+	}
+	return toolKeyCount >= 2 || argKeyCount >= 3
+}
+
+func shouldHoldPotentialStreamedToolCallJSON(content string) bool {
+	trimmed := strings.ToLower(strings.TrimLeft(content, " \t\r\n"))
+	if !strings.HasPrefix(trimmed, "{") {
+		return false
+	}
+	for _, keyPrefix := range []string{`"action`, `"tool`, `"parameters`, `"params`, `"arguments`, `"operation`, `"command`, `"name`} {
+		if strings.Contains(trimmed, keyPrefix) {
+			return true
+		}
+	}
+	return false
+}
+
 // handleStreamingResponse executes the streaming LLM call and assembles the response.
 func handleStreamingResponse(
 	llmCtx context.Context,
@@ -78,6 +120,7 @@ func handleStreamingResponse(
 	// in the hold buffer until the next chunk arrives, guaranteeing detection.
 	const doneTagHoldLen = len(minimaxToolCallPrefix) // 17 bytes (≥ all other prefixes)
 	const doneTagStreamBufMaxLen = 8192               // max buffer to prevent unbounded growth
+	const toolCallJSONHoldMaxLen = 512                // enough to classify common JSON tool-call wrappers
 	doneTagStreamBuf := ""
 	xmlToolCallSuppressed := false // once true, suppress all remaining stream chunks
 	type recvResult struct {
@@ -170,34 +213,24 @@ func handleStreamingResponse(
 			}
 			if delta.Content != "" {
 				assembledResponse.WriteString(delta.Content)
-				trimmed := strings.TrimLeft(delta.Content, " \t\r\n")
-				suppressToolCallJSON := false
-				if len(trimmed) > 0 && trimmed[0] == '{' {
-					highSpecKeys := []string{`"tool_call"`, `"tool_name"`, `"tool_call_path"`}
-					ambiguousKeys := []string{`"tool":`, `"command"`, `"operation"`, `"name"`, `"arguments"`}
-					highCount := 0
-					for _, k := range highSpecKeys {
-						if strings.Contains(trimmed, k) {
-							highCount++
-						}
-					}
-					ambCount := 0
-					for _, k := range ambiguousKeys {
-						if strings.Contains(trimmed, k) {
-							ambCount++
-						}
-					}
-					suppressToolCallJSON = highCount >= 1 || (highCount+ambCount >= 2 && ambCount >= 1) || ambCount >= 3
-					if !suppressToolCallJSON && strings.Contains(trimmed, `"action"`) &&
-						(strings.Contains(trimmed, `"arguments"`) || strings.Contains(trimmed, `"tool"`) || strings.Contains(trimmed, `"tool_name"`)) {
-						suppressToolCallJSON = true
-					}
+				suppressToolCallJSON := shouldSuppressStreamedToolCallJSON(delta.Content)
+				if suppressToolCallJSON {
+					xmlToolCallSuppressed = true
+					doneTagStreamBuf = ""
 				}
 				if !suppressToolCallJSON && !xmlToolCallSuppressed {
 					if len(doneTagStreamBuf)+len(delta.Content) > doneTagStreamBufMaxLen {
 						doneTagStreamBuf = doneTagStreamBuf[len(doneTagStreamBuf)-doneTagHoldLen:]
 					}
 					doneTagStreamBuf += delta.Content
+					if shouldSuppressStreamedToolCallJSON(doneTagStreamBuf) {
+						xmlToolCallSuppressed = true
+						doneTagStreamBuf = ""
+						continue
+					}
+					if shouldHoldPotentialStreamedToolCallJSON(doneTagStreamBuf) && len(doneTagStreamBuf) < toolCallJSONHoldMaxLen {
+						continue
+					}
 					var toSend string
 					if len(doneTagStreamBuf) > doneTagHoldLen {
 						toSend = doneTagStreamBuf[:len(doneTagStreamBuf)-doneTagHoldLen]

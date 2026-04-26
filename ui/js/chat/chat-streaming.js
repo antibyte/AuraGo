@@ -132,6 +132,7 @@ function connectSSE() {
         const trimmed = payload.content.trimStart();
         if (trimmed.length > 0 && trimmed[0] === '{' &&
             (trimmed.includes('"tool_call"') || trimmed.includes('"tool_name"') ||
+             trimmed.includes('"tool"') || trimmed.includes('"parameters"') ||
              trimmed.includes('"action"') || trimmed.includes('"command"') ||
              trimmed.includes('"operation"') || trimmed.includes('"arguments"'))) {
             return;
@@ -265,8 +266,10 @@ function handleSSEMessage(e) {
                 .replace(/```json[\s\S]*?```/g, '')
                 .replace(/`[^`]*`/g, '')
                 .replace(/\{[\s\S]*"action"\s*:[\s\S]*/g, '')
+                .replace(/\{[\s\S]*"tool"\s*:[\s\S]*/g, '')
                 .replace(/\{[\s\S]*"tool_call"\s*:[\s\S]*/g, '')
                 .replace(/\{[\s\S]*"tool_name"\s*:[\s\S]*/g, '')
+                .replace(/\{[\s\S]*"parameters"\s*:[\s\S]*/g, '')
                 .trim();
             if (typeof stripLeakedToolMarkup === 'function') {
                 thinkingText = stripLeakedToolMarkup(thinkingText);

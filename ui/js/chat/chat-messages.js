@@ -12,7 +12,8 @@ function containsLeakedToolMarkup(text) {
         /^\[Tool Output\]/im,
         /^Tool Output:/im,
         /\[Suggested next step\]/i,
-        /"(action|tool_call|tool_name)"\s*:/i
+        /"(action|tool|tool_call|tool_name)"\s*:/i,
+        /"parameters"\s*:\s*\{/i
     ].some((pattern) => pattern.test(text));
 }
 
@@ -31,9 +32,9 @@ function stripLeakedToolMarkup(text) {
         .replace(/<tts\b[^>]*>([\s\S]*?)<\/tts>/gi, (_, inner) => inner.trim())
         .replace(/<\/?tts\b[^>]*>/gi, '')
         .replace(/<done\s*\/?>/gi, '')
-        .replace(/```(?:json)?\s*\{\s*"action"[\s\S]*?\}\s*```/gi, '')
+        .replace(/```(?:json)?\s*\{\s*"(?:action|tool|tool_call|tool_name)"[\s\S]*?\}\s*```/gi, '')
         .replace(/^```(?:json)?\n\{[\s\S]*?\}\n```$/gim, '')
-        .replace(/^\{"action"\s*:[^\n]*\}\s*$/gim, '')
+        .replace(/^\{\s*"(?:action|tool|tool_call|tool_name)"[\s\S]*?\}\s*$/gim, '')
         .replace(/^\[Tool Output\]\s*$/gim, '')
         .replace(/^Tool Output:.*$/gim, '')
         .replace(/\n?\[Suggested next step\][\s\S]*$/i, '')
@@ -237,7 +238,7 @@ function isDebugOnlyHistoryMessage(msg) {
     if (text === '[TOOL_CALL]') return true;
     if (/^\[TOOL_CALL\]/i.test(text)) return true;
     if (containsLeakedToolMarkup(text)) return true;
-    if (/^\{[\s\S]*"(action|tool_call|tool_name)"\s*:/i.test(text)) return true;
+    if (/^\{[\s\S]*"(action|tool|tool_call|tool_name)"\s*:/i.test(text)) return true;
     if (/^(Tool Output:|\[Tool Output\])/i.test(text)) return true;
 
     // Legacy leaked orchestration/progress messages from pre-tool assistant turns.

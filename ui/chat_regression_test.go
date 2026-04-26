@@ -34,6 +34,8 @@ func TestChatFrontend_ToolLeakSanitizerPatternsRemainPresent(t *testing.T) {
 		"minimax:tool_call",
 		"<invoke\\b",
 		"<parameter\\b",
+		"(action|tool|tool_call|tool_name)",
+		"\"parameters\"",
 		"\\[Suggested next step\\]",
 		"containsLeakedToolMarkup(text)",
 	}
@@ -46,6 +48,8 @@ func TestChatFrontend_ToolLeakSanitizerPatternsRemainPresent(t *testing.T) {
 	requiredStreamingMarkers := []string{
 		"stripLeakedToolMarkup(payload.content)",
 		"stripLeakedToolMarkup(thinkingText)",
+		"trimmed.includes('\"tool\"')",
+		"trimmed.includes('\"parameters\"')",
 		"data.event === 'video'",
 		"appendVideoMessage(videoData)",
 	}

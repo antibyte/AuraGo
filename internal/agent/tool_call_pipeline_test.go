@@ -598,6 +598,31 @@ func TestParseToolCallAcceptsToolFieldJSON(t *testing.T) {
 	}
 }
 
+func TestParseToolCallAcceptsToolParametersWrapper(t *testing.T) {
+	content := `{"tool":"invasion_control","parameters":{"operation":"egg_status","nest_id":"7680f451-bad4-4908-92da-e286eb5f7c2a"}}`
+
+	result := ParseToolCall(content)
+
+	if !result.IsTool {
+		t.Fatal("expected IsTool=true for JSON using tool plus parameters wrapper")
+	}
+	if result.Action != "invasion_control" {
+		t.Fatalf("Action=%q, want invasion_control", result.Action)
+	}
+	if result.Operation != "egg_status" {
+		t.Fatalf("Operation=%q, want egg_status", result.Operation)
+	}
+	if result.NestID != "7680f451-bad4-4908-92da-e286eb5f7c2a" {
+		t.Fatalf("NestID=%q, want flattened nest_id", result.NestID)
+	}
+	if result.Params == nil {
+		t.Fatal("Params=nil, want flattened parameters")
+	}
+	if got, _ := result.Params["nest_id"].(string); got != "7680f451-bad4-4908-92da-e286eb5f7c2a" {
+		t.Fatalf("Params[nest_id]=%q", got)
+	}
+}
+
 func TestParseToolCallAcceptsDocumentCreatorSectionsArray(t *testing.T) {
 	content := `{"action":"document_creator","operation":"create_pdf","title":"KI-News – Aktuelle Entwicklungen April 2026","filename":"ki-news-april-2026","sections":[{"type":"text","header":"Intro","body":"Hallo"},{"type":"text","header":"Trend","body":"Mehr KI"}]}`
 

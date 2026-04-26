@@ -467,7 +467,7 @@ func resolveInvasionTaskNest(db *sql.DB, tc ToolCall, logger *slog.Logger) (inva
 	var err error
 	switch {
 	case strings.TrimSpace(tc.NestID) != "":
-		nest, err = invasion.GetNest(db, strings.TrimSpace(tc.NestID))
+		nest, err = resolveInvasionNestRef(db, strings.TrimSpace(tc.NestID))
 	case strings.TrimSpace(tc.NestName) != "":
 		nest, err = invasion.GetNestByName(db, strings.TrimSpace(tc.NestName))
 	}
@@ -532,6 +532,43 @@ func resolveInvasionEggStatusTarget(db *sql.DB, tc ToolCall, logger *slog.Logger
 		return invasion.NestRecord{}, invasion.EggRecord{}, fmt.Errorf("provide nest_id, nest_name, egg_id, or egg_name for egg_status")
 	}
 	return resolveInvasionTaskNest(db, tc, logger)
+}
+
+func resolveInvasionNestRef(db *sql.DB, ref string) (invasion.NestRecord, error) {
+	trimmed := strings.TrimSpace(ref)
+	if trimmed == "" {
+		return invasion.NestRecord{}, fmt.Errorf("nest reference is empty")
+	}
+
+	nest, directErr := invasion.GetNest(db, trimmed)
+	if directErr == nil {
+		return nest, nil
+	}
+
+	shortRef := strings.TrimPrefix(trimmed, "aurago-egg-")
+	shortRef = strings.TrimPrefix(shortRef, "egg-")
+	if shortRef == trimmed || len(shortRef) < 6 {
+		return invasion.NestRecord{}, directErr
+	}
+
+	nests, err := invasion.ListNests(db)
+	if err != nil {
+		return invasion.NestRecord{}, fmt.Errorf("failed to list nests for %q lookup: %w", trimmed, err)
+	}
+	var matches []invasion.NestRecord
+	for _, candidate := range nests {
+		if strings.HasPrefix(strings.ToLower(candidate.ID), strings.ToLower(shortRef)) {
+			matches = append(matches, candidate)
+		}
+	}
+	switch len(matches) {
+	case 0:
+		return invasion.NestRecord{}, directErr
+	case 1:
+		return matches[0], nil
+	default:
+		return invasion.NestRecord{}, fmt.Errorf("nest reference %q is ambiguous; provide the full nest_id", trimmed)
+	}
 }
 
 func resolveInvasionEggForTask(db *sql.DB, tc ToolCall) (invasion.EggRecord, error) {

@@ -574,6 +574,41 @@ func parseBracketToolCallBlock(block string) (ToolCall, bool) {
 	return out, true
 }
 
+func mergeToolCallParameterObject(tc *ToolCall, raw interface{}) {
+	if tc == nil || raw == nil {
+		return
+	}
+
+	var params map[string]interface{}
+	switch v := raw.(type) {
+	case map[string]interface{}:
+		params = v
+	case string:
+		trimmed := strings.TrimSpace(v)
+		if trimmed == "" {
+			return
+		}
+		_ = json.Unmarshal([]byte(trimmed), &params)
+	case json.RawMessage:
+		if len(v) == 0 {
+			return
+		}
+		_ = json.Unmarshal(v, &params)
+	}
+	if len(params) == 0 {
+		return
+	}
+
+	if tc.Params == nil {
+		tc.Params = make(map[string]interface{}, len(params))
+	}
+	for key, value := range params {
+		if _, exists := tc.Params[key]; !exists {
+			tc.Params[key] = value
+		}
+	}
+}
+
 func ParseToolCall(content string) ToolCall {
 	var tc ToolCall
 	lowerContent := strings.ToLower(content)
@@ -907,6 +942,8 @@ func ParseToolCall(content string) ToolCall {
 				}
 			}
 
+			mergeToolCallParameterObject(&tc, tc.Parameters)
+
 			// Recovery for map-based 'args' which fails to unmarshal into tc.Args ([]string)
 			if argsMap, ok := tc.Args.(map[string]interface{}); ok {
 				if tc.Params == nil {
@@ -998,6 +1035,11 @@ func ParseToolCall(content string) ToolCall {
 				// Co-Agent fields
 				promoteString(&tc.CoAgentID, "co_agent_id", "coAgentId", "coagent_id", "agent_id", "agentId")
 				promoteString(&tc.Task, "task")
+				// Invasion Control fields
+				promoteString(&tc.NestID, "nest_id", "nestId")
+				promoteString(&tc.NestName, "nest_name", "nestName")
+				promoteString(&tc.EggID, "egg_id", "eggId")
+				promoteString(&tc.EggName, "egg_name", "eggName")
 				// context_hints is []string — promote manually
 				if len(tc.ContextHints) == 0 {
 					for _, k := range []string{"context_hints", "contextHints", "hints"} {
