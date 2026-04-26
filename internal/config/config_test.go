@@ -413,6 +413,38 @@ func TestLoadMediaConversionDefaults(t *testing.T) {
 	}
 }
 
+func TestLoadVideoDownloadDefaults(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	if err := os.WriteFile(configPath, []byte("server:\n  ui_language: en\n"), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.Tools.VideoDownload.Enabled {
+		t.Fatal("expected tools.video_download.enabled to default to false")
+	}
+	if cfg.Tools.VideoDownload.Mode != "docker" {
+		t.Fatalf("mode = %q, want docker", cfg.Tools.VideoDownload.Mode)
+	}
+	if cfg.Tools.VideoDownload.DownloadDir != "data/downloads" {
+		t.Fatalf("download_dir = %q, want data/downloads", cfg.Tools.VideoDownload.DownloadDir)
+	}
+	if cfg.Tools.VideoDownload.ContainerImage != "ghcr.io/jauderho/yt-dlp:latest" {
+		t.Fatalf("container_image = %q", cfg.Tools.VideoDownload.ContainerImage)
+	}
+	if !cfg.Tools.VideoDownload.AutoPull {
+		t.Fatal("expected auto_pull to default to true")
+	}
+	if cfg.Tools.VideoDownload.TimeoutSeconds != 300 {
+		t.Fatalf("timeout_seconds = %d, want 300", cfg.Tools.VideoDownload.TimeoutSeconds)
+	}
+}
+
 func TestLoadMigratesLegacyBrowserAutomationDockerURLOutsideDocker(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.yaml")

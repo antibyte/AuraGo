@@ -959,6 +959,29 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 		case "media_conversion":
 			return dispatchFilesystem(ctx, tc, dc)
 
+		case "video_download":
+			if !cfg.Tools.VideoDownload.Enabled {
+				return `Tool Output: {"status":"error","message":"video_download is disabled. Set tools.video_download.enabled=true in config.yaml."}`
+			}
+			if strings.EqualFold(strings.TrimSpace(tc.Operation), "transcribe") && budgetTracker != nil && budgetTracker.IsBlocked("stt") {
+				return `Tool Output: {"status":"error","message":"Video transcription blocked: daily speech-to-text budget exceeded. Try again tomorrow."}`
+			}
+			logger.Info("LLM requested video_download", "operation", tc.Operation, "url", tc.URL, "query", tc.Query)
+			result := tools.DispatchVideoDownload(ctx, cfg, dc.MediaRegistryDB, tools.VideoDownloadRequest{
+				Operation: tc.Operation,
+				URL:       tc.URL,
+				Query:     tc.Query,
+				Format:    tc.Format,
+				Quality:   tc.Quality,
+			}, logger)
+			var parsed struct {
+				STTCost float64 `json:"stt_cost"`
+			}
+			if budgetTracker != nil && json.Unmarshal([]byte(result), &parsed) == nil && parsed.STTCost > 0 {
+				budgetTracker.RecordCostForCategory("stt", parsed.STTCost)
+			}
+			return "Tool Output: " + result
+
 		case "filesystem", "filesystem_op":
 			return dispatchFilesystem(ctx, tc, dc)
 

@@ -122,6 +122,7 @@ type ToolFeatureFlags struct {
 	MemoryAnalysisEnabled    bool
 	DocumentCreatorEnabled   bool
 	MediaConversionEnabled   bool
+	VideoDownloadEnabled     bool
 	WebCaptureEnabled        bool
 	BrowserAutomationEnabled bool
 	NetworkPingEnabled       bool

@@ -354,6 +354,18 @@ tools:
         ffmpeg_path: ""
         imagemagick_path: ""
         timeout_seconds: 120
+    video_download:
+        enabled: false
+        readonly: false
+        mode: docker                                      # docker (default, auto-managed container) or native (requires yt-dlp installed on the host)
+        yt_dlp_path: ""                                  # native mode only: optional yt-dlp binary path override; auto-detected if empty
+        download_dir: data/downloads                      # host directory for downloaded media
+        max_file_size_mb: 500                             # maximum downloaded file size in MB (0 = unlimited)
+        timeout_seconds: 300                              # per-command timeout in seconds
+        default_format: best                              # best, bestaudio, or a custom yt-dlp format string
+        max_search_results: 10                            # maximum search results returned to the agent
+        container_image: ghcr.io/jauderho/yt-dlp:latest    # Docker image used in docker mode
+        auto_pull: true                                   # automatically pull the container image when missing
     browser_automation:
         enabled: false                                     # enable browser_automation tool (Playwright browser sidecar)
     skill_manager:

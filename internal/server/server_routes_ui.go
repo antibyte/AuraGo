@@ -425,6 +425,19 @@ func (s *Server) registerUIRoutes(mux *http.ServeMux, shutdownCh chan struct{}) 
 		genVideoHandler.ServeHTTP(w, r)
 	})
 
+	// Serve yt-dlp downloads from the configured video_download directory
+	downloadsDir, err := tools.ResolveVideoDownloadDir(s.Cfg)
+	if err != nil {
+		downloadsDir = filepath.Join(s.Cfg.Directories.DataDir, "downloads")
+	}
+	os.MkdirAll(downloadsDir, 0755)
+	downloadsHandler := http.StripPrefix("/files/downloads/", http.FileServer(neuteredFileSystem{http.Dir(downloadsDir)}))
+	mux.HandleFunc("/files/downloads/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("Cache-Control", "public, max-age=86400")
+		downloadsHandler.ServeHTTP(w, r)
+	})
+
 	// Serve static files securely from the workspace directory
 	fsHandler := http.StripPrefix("/files/", http.FileServer(neuteredFileSystem{http.Dir(s.Cfg.Directories.WorkspaceDir)}))
 	mux.HandleFunc("/files/", func(w http.ResponseWriter, r *http.Request) {

@@ -148,6 +148,21 @@ type MediaConversionConfig struct {
 	MaxFileSizeMB   int    `yaml:"max_file_size_mb"` // max input file size in MB (0 = unlimited)
 }
 
+// VideoDownloadConfig holds settings for the video_download tool.
+type VideoDownloadConfig struct {
+	Enabled          bool   `yaml:"enabled"`            // enable video_download tool
+	ReadOnly         bool   `yaml:"readonly"`           // allow search/info only when true
+	Mode             string `yaml:"mode"`               // "docker" (default) or "native"
+	YtDlpPath        string `yaml:"yt_dlp_path"`        // native mode only; optional yt-dlp binary path override
+	DownloadDir      string `yaml:"download_dir"`       // host directory for downloaded media
+	MaxFileSizeMB    int    `yaml:"max_file_size_mb"`   // max downloaded file size in MB (0 = unlimited)
+	TimeoutSeconds   int    `yaml:"timeout_seconds"`    // per-command timeout in seconds
+	DefaultFormat    string `yaml:"default_format"`     // "best", "bestaudio", or yt-dlp format string
+	MaxSearchResults int    `yaml:"max_search_results"` // maximum search results returned
+	ContainerImage   string `yaml:"container_image"`    // Docker image used in docker mode
+	AutoPull         bool   `yaml:"auto_pull"`          // pull Docker image automatically when missing
+}
+
 // BrowserAutomationViewport defines the browser viewport used for new sessions.
 type BrowserAutomationViewport struct {
 	Width  int `yaml:"width"`
@@ -1195,6 +1210,7 @@ type Config struct {
 			SummaryModel   string `yaml:"-" json:"-"`
 		} `yaml:"pdf_extractor"`
 		MediaConversion MediaConversionConfig `yaml:"media_conversion"`
+		VideoDownload   VideoDownloadConfig   `yaml:"video_download"`
 		DocumentCreator DocumentCreatorConfig `yaml:"document_creator"`
 		WebCapture      struct {
 			Enabled bool `yaml:"enabled"` // enable web_capture tool (screenshot/pdf via headless Chromium, default true)

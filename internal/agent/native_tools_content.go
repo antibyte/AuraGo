@@ -161,19 +161,38 @@ func appendContentToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai
 					"description": "Media conversion operation to perform",
 					"enum":        []string{"audio_convert", "video_convert", "image_convert", "info"},
 				},
-				"file_path":      prop("string", "Input media file path"),
-				"output_file":    prop("string", "Output media file path (auto-generated if omitted for conversions)"),
-				"output_format":  prop("string", "Target file format/extension such as mp3, wav, mp4, webm, png, jpg, or webp"),
-				"video_codec":    prop("string", "Optional FFmpeg video codec, e.g. libx264, libvpx-vp9, hevc"),
-				"audio_codec":    prop("string", "Optional FFmpeg audio codec, e.g. aac, libmp3lame, opus"),
-				"video_bitrate":  prop("string", "Optional target video bitrate, e.g. 2M"),
-				"audio_bitrate":  prop("string", "Optional target audio bitrate, e.g. 192k"),
-				"width":          map[string]interface{}{"type": "integer", "description": "Optional target width for video/image conversions"},
-				"height":         map[string]interface{}{"type": "integer", "description": "Optional target height for video/image conversions"},
-				"fps":            map[string]interface{}{"type": "integer", "description": "Optional target frames per second for video conversion"},
-				"sample_rate":    map[string]interface{}{"type": "integer", "description": "Optional target audio sample rate in Hz"},
-				"quality_pct":    map[string]interface{}{"type": "integer", "description": "Optional image quality percentage 1-100"},
+				"file_path":     prop("string", "Input media file path"),
+				"output_file":   prop("string", "Output media file path (auto-generated if omitted for conversions)"),
+				"output_format": prop("string", "Target file format/extension such as mp3, wav, mp4, webm, png, jpg, or webp"),
+				"video_codec":   prop("string", "Optional FFmpeg video codec, e.g. libx264, libvpx-vp9, hevc"),
+				"audio_codec":   prop("string", "Optional FFmpeg audio codec, e.g. aac, libmp3lame, opus"),
+				"video_bitrate": prop("string", "Optional target video bitrate, e.g. 2M"),
+				"audio_bitrate": prop("string", "Optional target audio bitrate, e.g. 192k"),
+				"width":         map[string]interface{}{"type": "integer", "description": "Optional target width for video/image conversions"},
+				"height":        map[string]interface{}{"type": "integer", "description": "Optional target height for video/image conversions"},
+				"fps":           map[string]interface{}{"type": "integer", "description": "Optional target frames per second for video conversion"},
+				"sample_rate":   map[string]interface{}{"type": "integer", "description": "Optional target audio sample rate in Hz"},
+				"quality_pct":   map[string]interface{}{"type": "integer", "description": "Optional image quality percentage 1-100"},
 			}, "operation", "file_path"),
+		))
+	}
+
+	if ff.VideoDownloadEnabled {
+		tools = append(tools, tool("video_download",
+			"Search, inspect, download, and optionally transcribe videos using yt-dlp. "+
+				"Docker mode uses an auto-managed ghcr.io/jauderho/yt-dlp container by default; native mode requires yt-dlp installed on the host. "+
+				"Operations: search, info, download, transcribe. Read-only mode allows only search and info.",
+			schema(map[string]interface{}{
+				"operation": map[string]interface{}{
+					"type":        "string",
+					"description": "Operation to perform",
+					"enum":        []string{"search", "info", "download", "transcribe"},
+				},
+				"url":     prop("string", "Video URL for info, download, or transcribe"),
+				"query":   prop("string", "Search query for search operation"),
+				"format":  prop("string", "Download format: video, audio, best, bestaudio, or a custom yt-dlp format string"),
+				"quality": prop("string", "Quality preference for video downloads: best, medium, or low"),
+			}, "operation"),
 		))
 	}
 

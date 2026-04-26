@@ -276,6 +276,9 @@ func collectEnabledTools(flags *prompts.ContextFlags) []string {
 	if flags.MediaConversionEnabled {
 		tools = append(tools, "mediaconversion")
 	}
+	if flags.VideoDownloadEnabled {
+		tools = append(tools, "videodownload")
+	}
 	if flags.WebCaptureEnabled {
 		tools = append(tools, "webcapture")
 	}
