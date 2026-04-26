@@ -561,24 +561,47 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 	if ff.InvasionControlEnabled {
 		tools = append(tools, tool("invasion_control",
 			"Manage deployment nests (target servers/VMs/containers) and eggs (sub-agent configurations). "+
-				"List, inspect, assign, deploy (hatch), stop, monitor eggs, send tasks and secrets to running eggs. "+
+				"List, inspect, assign, deploy (hatch), stop, monitor eggs, send tasks and secrets to running eggs, and inspect Egg artifacts/messages. "+
 				"Use send_task to talk to an Egg or remote agent; it waits briefly and returns the Egg result when available. "+
 				"Egg names are not tool names: if an Egg is named 'web scraper', still call invasion_control, not web_scraper.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",
 					"description": "Operation to perform",
-					"enum":        []string{"list_nests", "list_eggs", "nest_status", "assign_egg", "hatch_egg", "stop_egg", "egg_status", "send_task", "task_status", "get_result", "send_secret"},
+					"enum":        []string{"list_nests", "list_eggs", "nest_status", "assign_egg", "hatch_egg", "stop_egg", "egg_status", "send_task", "task_status", "get_result", "list_artifacts", "get_artifact", "read_artifact", "list_egg_messages", "ack_egg_message", "upload_artifact", "send_host_message", "send_secret"},
 				},
-				"nest_id":   prop("string", "Nest ID (for nest_status, assign_egg, hatch_egg, stop_egg, egg_status, send_task, send_secret)"),
-				"nest_name": prop("string", "Nest name — alternative to nest_id for lookup"),
-				"egg_id":    prop("string", "Egg ID (for assign_egg, or as an alternative target for egg_status/send_task)"),
-				"egg_name":  prop("string", "Egg name — alternative target for egg_status/send_task when the user names an Egg or remote agent"),
-				"task":      prop("string", "Natural-language instruction to send to the running Egg/remote agent (for send_task)"),
-				"task_id":   prop("string", "Task ID returned by send_task (for task_status/get_result)"),
-				"timeout":   prop("integer", "Optional task timeout in seconds; send_task waits up to this value, capped at 60 seconds, for a result"),
-				"key":       prop("string", "Secret key name (for send_secret)"),
-				"value":     prop("string", "Secret value (for send_secret)"),
+				"nest_id":     prop("string", "Nest ID (for nest_status, assign_egg, hatch_egg, stop_egg, egg_status, send_task, send_secret)"),
+				"nest_name":   prop("string", "Nest name — alternative to nest_id for lookup"),
+				"egg_id":      prop("string", "Egg ID (for assign_egg, or as an alternative target for egg_status/send_task)"),
+				"egg_name":    prop("string", "Egg name — alternative target for egg_status/send_task when the user names an Egg or remote agent"),
+				"task":        prop("string", "Natural-language instruction to send to the running Egg/remote agent (for send_task)"),
+				"task_id":     prop("string", "Task ID returned by send_task (for task_status/get_result)"),
+				"mission_id":  prop("string", "Mission ID for filtering Egg artifacts and messages"),
+				"status":      prop("string", "Status filter for list_artifacts, e.g. completed or pending"),
+				"artifact_id": prop("string", "Artifact ID returned by an Egg or list_artifacts (for get_artifact/read_artifact)"),
+				"artifact_ids": map[string]interface{}{
+					"type":        "array",
+					"description": "Artifact IDs to attach to send_host_message",
+					"items":       map[string]interface{}{"type": "string"},
+				},
+				"id":        prop("string", "Generic ID for get_artifact/read_artifact or ack_egg_message"),
+				"limit":     prop("integer", "Maximum number of artifacts or messages to return"),
+				"file_path": prop("string", "Local Egg file path to upload to the host (upload_artifact)"),
+				"path":      prop("string", "Alias for file_path"),
+				"filename":  prop("string", "Filename to show on the host for upload_artifact"),
+				"mime_type": prop("string", "MIME type for upload_artifact, e.g. image/png or text/plain"),
+				"title":     prop("string", "Short title for send_host_message"),
+				"body":      prop("string", "Message body for send_host_message"),
+				"message":   prop("string", "Alias for body in send_host_message"),
+				"severity":  prop("string", "Egg message severity such as info, warning, error"),
+				"dedup_key": prop("string", "Optional deduplication key for send_host_message"),
+				"wakeup_requested": map[string]interface{}{
+					"type":        "boolean",
+					"description": "When true, ask the host to wake the agent; host-side rate limiting still applies",
+				},
+				"timeout": prop("integer", "Optional task timeout in seconds; send_task waits up to this value, capped at 60 seconds, for a result"),
+				"key":     prop("string", "Secret key name (for send_secret)"),
+				"value":   prop("string", "Secret value (for send_secret)"),
 			}, "operation"),
 		))
 	}

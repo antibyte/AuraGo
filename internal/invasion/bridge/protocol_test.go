@@ -203,6 +203,36 @@ func TestNewMessage_MissionSyncPayloadSerialization(t *testing.T) {
 	}
 }
 
+func TestResultPayloadsCarryArtifactIDs(t *testing.T) {
+	taskPayload := ResultPayload{
+		TaskID:      "task-1",
+		Status:      "success",
+		Output:      "created files",
+		ArtifactIDs: []string{"artifact-1", "artifact-2"},
+	}
+	taskJSON, err := json.Marshal(taskPayload)
+	if err != nil {
+		t.Fatalf("marshal ResultPayload: %v", err)
+	}
+	if !strings.Contains(string(taskJSON), `"artifact_ids":["artifact-1","artifact-2"]`) {
+		t.Fatalf("expected artifact_ids in task payload, got %s", taskJSON)
+	}
+
+	missionPayload := MissionResultPayload{
+		MissionID:   "mission-1",
+		Result:      "success",
+		Output:      "created media",
+		ArtifactIDs: []string{"artifact-3"},
+	}
+	missionJSON, err := json.Marshal(missionPayload)
+	if err != nil {
+		t.Fatalf("marshal MissionResultPayload: %v", err)
+	}
+	if !strings.Contains(string(missionJSON), `"artifact_ids":["artifact-3"]`) {
+		t.Fatalf("expected artifact_ids in mission payload, got %s", missionJSON)
+	}
+}
+
 func TestNewMessage_PayloadSerialization(t *testing.T) {
 	key := validKey(t)
 	msg, err := NewMessage(MsgResult, "egg-1", "nest-1", key, ResultPayload{

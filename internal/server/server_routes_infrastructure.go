@@ -58,6 +58,10 @@ func (s *Server) registerInfrastructureRoutes(mux *http.ServeMux, shutdownCh cha
 		})
 		mux.HandleFunc("/api/invasion/ws", handleInvasionWebSocket(s))
 		mux.HandleFunc("/api/invasion/tasks/", handleInvasionTask(s))
+		mux.HandleFunc("/api/invasion/artifacts/offer", handleInvasionArtifactOffer(s))
+		mux.HandleFunc("/api/invasion/artifacts/upload/", handleInvasionArtifactUpload(s))
+		mux.HandleFunc("/api/invasion/artifacts/", handleInvasionArtifactDownload(s))
+		mux.HandleFunc("/api/invasion/messages", handleInvasionEggMessage(s))
 		s.EggHub.OnDisconnect = func(nestID, eggID string) {
 			s.Logger.Info("Egg disconnected", "nest_id", nestID, "egg_id", eggID)
 			_ = invasion.UpdateNestHatchStatus(s.InvasionDB, nestID, "stopped", "connection lost")
@@ -68,14 +72,21 @@ func (s *Server) registerInfrastructureRoutes(mux *http.ServeMux, shutdownCh cha
 			if result.Status == "failure" {
 				status = "failed"
 			}
-			_ = invasion.UpdateTaskStatus(s.InvasionDB, result.TaskID, status, result.Output, result.Error)
+			_ = invasion.UpdateTaskResult(s.InvasionDB, result.TaskID, status, result.Output, result.Error, result.ArtifactIDs)
 		}
 		s.EggHub.OnMissionResult = func(nestID string, result bridge.MissionResultPayload) {
-			s.Logger.Info("Remote mission result received", "nest_id", nestID, "mission_id", result.MissionID, "result", result.Result)
+			s.Logger.Info("Remote mission result received", "nest_id", nestID, "mission_id", result.MissionID, "result", result.Result, "artifact_count", len(result.ArtifactIDs))
 			if s.MissionManagerV2 != nil {
 				output := result.Output
 				if output == "" {
 					output = result.Error
+				}
+				if len(result.ArtifactIDs) > 0 {
+					output = strings.TrimSpace(output)
+					if output != "" {
+						output += "\n\n"
+					}
+					output += "Artifacts: " + strings.Join(result.ArtifactIDs, ", ")
 				}
 				s.MissionManagerV2.SetRemoteResult(result.MissionID, result.Result, output)
 				broadcastMissionState(s)

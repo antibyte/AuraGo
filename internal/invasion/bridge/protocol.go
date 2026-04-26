@@ -73,11 +73,14 @@ type TaskPayload struct {
 
 // ResultPayload is sent by the egg after completing a task.
 type ResultPayload struct {
-	TaskID string `json:"task_id"`
-	Status string `json:"status"` // "success" | "partial" | "failure"
-	Output string `json:"output"`
-	Error  string `json:"error,omitempty"`
-	Tokens int    `json:"tokens_used"`
+	TaskID      string          `json:"task_id"`
+	Status      string          `json:"status"` // "success" | "partial" | "failure"
+	Output      string          `json:"output"`
+	Error       string          `json:"error,omitempty"`
+	Tokens      int             `json:"tokens_used"`
+	ArtifactIDs []string        `json:"artifact_ids,omitempty"`
+	Message     string          `json:"message,omitempty"`
+	Metadata    json.RawMessage `json:"metadata,omitempty"`
 }
 
 // MissionSyncPayload installs or updates a mission on an egg.
@@ -111,10 +114,13 @@ type MissionDeletePayload struct {
 
 // MissionResultPayload reports completion of a synced mission from an egg.
 type MissionResultPayload struct {
-	MissionID string `json:"mission_id"`
-	Result    string `json:"result"`
-	Output    string `json:"output,omitempty"`
-	Error     string `json:"error,omitempty"`
+	MissionID   string          `json:"mission_id"`
+	Result      string          `json:"result"`
+	Output      string          `json:"output,omitempty"`
+	Error       string          `json:"error,omitempty"`
+	ArtifactIDs []string        `json:"artifact_ids,omitempty"`
+	Message     string          `json:"message,omitempty"`
+	Metadata    json.RawMessage `json:"metadata,omitempty"`
 }
 
 // SecretPayload carries an encrypted vault secret from master to egg.

@@ -403,6 +403,8 @@ type ToolCall struct {
 	ActionInput         map[string]interface{}   `json:"action_input"` // LangChain-style nested params
 	Label               string                   `json:"label"`
 	ArtifactType        string                   `json:"artifact_type"`
+	ArtifactID          string                   `json:"artifact_id"`
+	ArtifactIDs         []string                 `json:"artifact_ids"`
 	Command             string                   `json:"command"`
 	ThresholdLow        int                      `json:"threshold_low"`
 	ThresholdMedium     int                      `json:"threshold_medium"`
@@ -417,6 +419,9 @@ type ToolCall struct {
 	Account             string                   `json:"account"` // email account ID (multi-account)
 	ChannelID           string                   `json:"channel_id"`
 	Message             string                   `json:"message"`
+	Severity            string                   `json:"severity"`
+	DedupKey            string                   `json:"dedup_key"`
+	WakeupRequested     bool                     `json:"wakeup_requested"`
 	// Telnyx fields
 	CallControlID string   `json:"call_control_id,omitempty"`
 	MaxDigits     int      `json:"max_digits,omitempty"`
@@ -431,6 +436,8 @@ type ToolCall struct {
 	Category           string `json:"category"`
 	Done               int    `json:"done"` // -1=all, 0=open, 1=done (filter for list)
 	TaskID             string `json:"task_id"`
+	MissionID          string `json:"mission_id"`
+	Status             string `json:"status"`
 	Result             string `json:"result"`
 	Error              string `json:"error"`
 	// Journal fields
@@ -489,6 +496,7 @@ type ToolCall struct {
 	DevicePort  int     `json:"device_port"`
 	Volume      float64 `json:"volume"`
 	ContentType string  `json:"content_type"`
+	MIMEType    string  `json:"mime_type"`
 	Language    string  `json:"language"`
 	// MDNS / UPnP fields
 	ServiceType string `json:"service_type"`
@@ -587,7 +595,6 @@ type ToolCall struct {
 	TagMode   string `json:"tag_mode,omitempty"`   // add, remove, set (for media_registry tag op)
 	Reason    string `json:"reason,omitempty"`     // edit reason (homepage_registry log_edit)
 	Problem   string `json:"problem,omitempty"`    // problem description (homepage_registry log_problem/resolve_problem)
-	Status    string `json:"status,omitempty"`     // project status: active, archived, maintenance
 	Notes     string `json:"notes,omitempty"`      // additional notes
 	// Document Creator fields
 	PaperSize   string       `json:"paper_size,omitempty"`   // A4, A3, Letter, Legal

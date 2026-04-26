@@ -137,6 +137,7 @@ func InitDB(dbPath string) (*sql.DB, error) {
 		status        TEXT NOT NULL DEFAULT 'pending',
 		result_output TEXT DEFAULT '',
 		result_error  TEXT DEFAULT '',
+		artifact_ids_json TEXT DEFAULT '[]',
 		created_at    TEXT NOT NULL,
 		sent_at       TEXT DEFAULT '',
 		completed_at  TEXT DEFAULT ''
@@ -147,6 +148,65 @@ func InitDB(dbPath string) (*sql.DB, error) {
 	if _, err := db.Exec(tasksSchema); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("failed to create invasion_tasks schema: %w", err)
+	}
+
+	artifactsSchema := `
+	CREATE TABLE IF NOT EXISTS invasion_artifacts (
+		id              TEXT PRIMARY KEY,
+		nest_id         TEXT NOT NULL,
+		egg_id          TEXT DEFAULT '',
+		mission_id      TEXT DEFAULT '',
+		task_id         TEXT DEFAULT '',
+		filename        TEXT NOT NULL,
+		mime_type       TEXT DEFAULT '',
+		size_bytes      INTEGER DEFAULT 0,
+		sha256          TEXT DEFAULT '',
+		storage_path    TEXT DEFAULT '',
+		web_path        TEXT DEFAULT '',
+		metadata_json   TEXT DEFAULT '',
+		status          TEXT NOT NULL DEFAULT 'pending',
+		created_at      TEXT NOT NULL,
+		completed_at    TEXT DEFAULT ''
+	);
+	CREATE INDEX IF NOT EXISTS idx_invasion_artifacts_nest ON invasion_artifacts(nest_id, created_at);
+	CREATE INDEX IF NOT EXISTS idx_invasion_artifacts_mission ON invasion_artifacts(mission_id, created_at);
+	CREATE INDEX IF NOT EXISTS idx_invasion_artifacts_task ON invasion_artifacts(task_id, created_at);
+
+	CREATE TABLE IF NOT EXISTS invasion_artifact_uploads (
+		token_hash      TEXT PRIMARY KEY,
+		artifact_id     TEXT NOT NULL,
+		expected_size   INTEGER DEFAULT 0,
+		expected_sha256 TEXT DEFAULT '',
+		expires_at      TEXT NOT NULL,
+		created_at      TEXT NOT NULL,
+		completed_at    TEXT DEFAULT '',
+		status          TEXT NOT NULL DEFAULT 'pending'
+	);
+	CREATE INDEX IF NOT EXISTS idx_invasion_artifact_uploads_artifact ON invasion_artifact_uploads(artifact_id);
+
+	CREATE TABLE IF NOT EXISTS invasion_egg_messages (
+		id                 TEXT PRIMARY KEY,
+		nest_id            TEXT NOT NULL,
+		egg_id             TEXT DEFAULT '',
+		mission_id         TEXT DEFAULT '',
+		task_id            TEXT DEFAULT '',
+		severity           TEXT DEFAULT 'info',
+		title              TEXT DEFAULT '',
+		body               TEXT DEFAULT '',
+		artifact_ids_json  TEXT DEFAULT '[]',
+		dedup_key          TEXT DEFAULT '',
+		wakeup_requested   INTEGER NOT NULL DEFAULT 0,
+		wakeup_allowed     INTEGER NOT NULL DEFAULT 0,
+		created_at         TEXT NOT NULL,
+		acknowledged_at    TEXT DEFAULT ''
+	);
+	CREATE INDEX IF NOT EXISTS idx_invasion_egg_messages_nest ON invasion_egg_messages(nest_id, created_at);
+	CREATE INDEX IF NOT EXISTS idx_invasion_egg_messages_dedup ON invasion_egg_messages(nest_id, egg_id, dedup_key);
+	`
+
+	if _, err := db.Exec(artifactsSchema); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("failed to create invasion artifact schema: %w", err)
 	}
 
 	deployHistorySchema := `
@@ -211,6 +271,7 @@ func InitDB(dbPath string) (*sql.DB, error) {
 		"ALTER TABLE eggs ADD COLUMN inherit_llm INTEGER NOT NULL DEFAULT 0",
 		"ALTER TABLE eggs ADD COLUMN egg_port INTEGER NOT NULL DEFAULT 8099",
 		"ALTER TABLE eggs ADD COLUMN allowed_tools TEXT DEFAULT ''",
+		"ALTER TABLE invasion_tasks ADD COLUMN artifact_ids_json TEXT DEFAULT '[]'",
 	}
 	for _, m := range migrations {
 		_, err := db.Exec(m)
@@ -618,17 +679,18 @@ func UpdateNestHatchStatus(db *sql.DB, id, status, hatchError string) error {
 
 // TaskRecord represents a tracked task sent to an egg.
 type TaskRecord struct {
-	ID           string `json:"id"`
-	NestID       string `json:"nest_id"`
-	EggID        string `json:"egg_id"`
-	Description  string `json:"description"`
-	Timeout      int    `json:"timeout"`
-	Status       string `json:"status"` // pending, sent, acked, completed, failed, timeout
-	ResultOutput string `json:"result_output"`
-	ResultError  string `json:"result_error"`
-	CreatedAt    string `json:"created_at"`
-	SentAt       string `json:"sent_at"`
-	CompletedAt  string `json:"completed_at"`
+	ID           string   `json:"id"`
+	NestID       string   `json:"nest_id"`
+	EggID        string   `json:"egg_id"`
+	Description  string   `json:"description"`
+	Timeout      int      `json:"timeout"`
+	Status       string   `json:"status"` // pending, sent, acked, completed, failed, timeout
+	ResultOutput string   `json:"result_output"`
+	ResultError  string   `json:"result_error"`
+	ArtifactIDs  []string `json:"artifact_ids,omitempty"`
+	CreatedAt    string   `json:"created_at"`
+	SentAt       string   `json:"sent_at"`
+	CompletedAt  string   `json:"completed_at"`
 }
 
 // CreateTask inserts a new task record with status "pending".
@@ -666,10 +728,22 @@ func UpdateTaskStatus(db *sql.DB, taskID, status, output, errMsg string) error {
 	return nil
 }
 
+// UpdateTaskResult transitions a task to a terminal state and records artifact references.
+func UpdateTaskResult(db *sql.DB, taskID, status, output, errMsg string, artifactIDs []string) error {
+	now := time.Now().UTC().Format(time.RFC3339)
+	artifactJSON, _ := json.Marshal(artifactIDs)
+	_, err := db.Exec(`UPDATE invasion_tasks SET status=?, result_output=?, result_error=?, artifact_ids_json=?, completed_at=? WHERE id=?`,
+		status, output, errMsg, string(artifactJSON), now, taskID)
+	if err != nil {
+		return fmt.Errorf("failed to update task result: %w", err)
+	}
+	return nil
+}
+
 // GetPendingTasks returns all tasks for a nest that are in a recoverable state.
 func GetPendingTasks(db *sql.DB, nestID string) ([]TaskRecord, error) {
 	rows, err := db.Query(`SELECT id, nest_id, egg_id, description, timeout, status,
-		result_output, result_error, created_at, sent_at, completed_at
+		result_output, result_error, artifact_ids_json, created_at, sent_at, completed_at
 		FROM invasion_tasks WHERE nest_id=? AND status IN ('pending','sent') ORDER BY created_at ASC`, nestID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query pending tasks: %w", err)
@@ -684,7 +758,7 @@ func GetTasksByNest(db *sql.DB, nestID string, limit int) ([]TaskRecord, error) 
 		limit = 100
 	}
 	rows, err := db.Query(`SELECT id, nest_id, egg_id, description, timeout, status,
-		result_output, result_error, created_at, sent_at, completed_at
+		result_output, result_error, artifact_ids_json, created_at, sent_at, completed_at
 		FROM invasion_tasks WHERE nest_id=? ORDER BY created_at DESC LIMIT ?`, nestID, limit)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query tasks: %w", err)
@@ -696,15 +770,17 @@ func GetTasksByNest(db *sql.DB, nestID string, limit int) ([]TaskRecord, error) 
 // GetTaskByID retrieves a single task by ID.
 func GetTaskByID(db *sql.DB, taskID string) (*TaskRecord, error) {
 	row := db.QueryRow(`SELECT id, nest_id, egg_id, description, timeout, status,
-		result_output, result_error, created_at, sent_at, completed_at
+		result_output, result_error, artifact_ids_json, created_at, sent_at, completed_at
 		FROM invasion_tasks WHERE id=?`, taskID)
 	var t TaskRecord
 	var sentAt, completedAt sql.NullString
+	var artifactJSON string
 	err := row.Scan(&t.ID, &t.NestID, &t.EggID, &t.Description, &t.Timeout, &t.Status,
-		&t.ResultOutput, &t.ResultError, &t.CreatedAt, &sentAt, &completedAt)
+		&t.ResultOutput, &t.ResultError, &artifactJSON, &t.CreatedAt, &sentAt, &completedAt)
 	if err != nil {
 		return nil, fmt.Errorf("task not found: %w", err)
 	}
+	_ = json.Unmarshal([]byte(artifactJSON), &t.ArtifactIDs)
 	t.SentAt = nullStr(sentAt)
 	t.CompletedAt = nullStr(completedAt)
 	return &t, nil
@@ -725,10 +801,12 @@ func scanTasks(rows *sql.Rows) ([]TaskRecord, error) {
 	for rows.Next() {
 		var t TaskRecord
 		var sentAt, completedAt sql.NullString
+		var artifactJSON string
 		if err := rows.Scan(&t.ID, &t.NestID, &t.EggID, &t.Description, &t.Timeout, &t.Status,
-			&t.ResultOutput, &t.ResultError, &t.CreatedAt, &sentAt, &completedAt); err != nil {
+			&t.ResultOutput, &t.ResultError, &artifactJSON, &t.CreatedAt, &sentAt, &completedAt); err != nil {
 			return nil, fmt.Errorf("failed to scan task: %w", err)
 		}
+		_ = json.Unmarshal([]byte(artifactJSON), &t.ArtifactIDs)
 		t.SentAt = nullStr(sentAt)
 		t.CompletedAt = nullStr(completedAt)
 		tasks = append(tasks, t)

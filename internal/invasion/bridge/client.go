@@ -1,10 +1,19 @@
 package bridge
 
 import (
+	"bytes"
+	"context"
+	"crypto/hmac"
+	"crypto/sha256"
 	"crypto/tls"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
+	"net/http"
+	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -23,6 +32,7 @@ type EggClient struct {
 	SharedKey     string // hex-encoded
 	Version       string
 	TLSSkipVerify bool // skip TLS certificate verification (for self-signed certs)
+	HTTPClient    *http.Client
 
 	conn        *websocket.Conn
 	mu          sync.Mutex
@@ -38,6 +48,42 @@ type EggClient struct {
 	OnMissionSync   func(payload MissionSyncPayload) error
 	OnMissionRun    func(payload MissionRunPayload) error
 	OnMissionDelete func(payload MissionDeletePayload) error
+}
+
+type EggArtifactUpload struct {
+	MissionID      string                 `json:"mission_id,omitempty"`
+	TaskID         string                 `json:"task_id,omitempty"`
+	Filename       string                 `json:"filename"`
+	MIMEType       string                 `json:"mime_type,omitempty"`
+	ExpectedSize   int64                  `json:"expected_size,omitempty"`
+	ExpectedSHA256 string                 `json:"expected_sha256,omitempty"`
+	Metadata       map[string]interface{} `json:"metadata,omitempty"`
+	Reader         io.Reader              `json:"-"`
+}
+
+type EggArtifactUploadResult struct {
+	Status     string `json:"status"`
+	ArtifactID string `json:"artifact_id"`
+	WebPath    string `json:"web_path"`
+	SHA256     string `json:"sha256,omitempty"`
+	SizeBytes  int64  `json:"size_bytes,omitempty"`
+}
+
+type EggHostMessage struct {
+	MissionID       string   `json:"mission_id,omitempty"`
+	TaskID          string   `json:"task_id,omitempty"`
+	Severity        string   `json:"severity,omitempty"`
+	Title           string   `json:"title,omitempty"`
+	Body            string   `json:"body,omitempty"`
+	ArtifactIDs     []string `json:"artifact_ids,omitempty"`
+	DedupKey        string   `json:"dedup_key,omitempty"`
+	WakeupRequested bool     `json:"wakeup_requested,omitempty"`
+}
+
+type EggHostMessageResult struct {
+	Status        string `json:"status"`
+	MessageID     string `json:"message_id"`
+	WakeupAllowed bool   `json:"wakeup_allowed"`
 }
 
 // NewEggClient creates a new client for connecting to the master.
@@ -139,6 +185,166 @@ func (c *EggClient) SendMissionResult(result MissionResultPayload) error {
 		return fmt.Errorf("not connected")
 	}
 	return c.conn.WriteJSON(msg)
+}
+
+// UploadArtifact reserves a host-side artifact slot and streams the file to it.
+func (c *EggClient) UploadArtifact(ctx context.Context, upload EggArtifactUpload) (EggArtifactUploadResult, error) {
+	if upload.Reader == nil {
+		return EggArtifactUploadResult{}, fmt.Errorf("artifact reader is required")
+	}
+	body, err := json.Marshal(upload)
+	if err != nil {
+		return EggArtifactUploadResult{}, fmt.Errorf("marshal artifact offer: %w", err)
+	}
+	baseURL := c.masterHTTPBaseURL()
+	offerURL := baseURL + "/api/invasion/artifacts/offer"
+	req, err := c.newSignedHTTPRequest(ctx, http.MethodPost, offerURL, body)
+	if err != nil {
+		return EggArtifactUploadResult{}, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	client := c.httpClient()
+	resp, err := client.Do(req)
+	if err != nil {
+		return EggArtifactUploadResult{}, fmt.Errorf("artifact offer request failed: %w", err)
+	}
+	defer resp.Body.Close()
+	var offer struct {
+		Status      string `json:"status"`
+		ArtifactID  string `json:"artifact_id"`
+		UploadToken string `json:"upload_token"`
+		UploadURL   string `json:"upload_url"`
+		WebPath     string `json:"web_path"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&offer); err != nil {
+		return EggArtifactUploadResult{}, fmt.Errorf("decode artifact offer response: %w", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return EggArtifactUploadResult{}, fmt.Errorf("artifact offer rejected: %s", offer.Status)
+	}
+	uploadURL := offer.UploadURL
+	if strings.HasPrefix(uploadURL, "/") {
+		uploadURL = baseURL + uploadURL
+	}
+	uploadReq, err := http.NewRequestWithContext(ctx, http.MethodPost, uploadURL, upload.Reader)
+	if err != nil {
+		return EggArtifactUploadResult{}, err
+	}
+	if upload.MIMEType != "" {
+		uploadReq.Header.Set("Content-Type", upload.MIMEType)
+	}
+	uploadResp, err := client.Do(uploadReq)
+	if err != nil {
+		return EggArtifactUploadResult{}, fmt.Errorf("artifact upload request failed: %w", err)
+	}
+	defer uploadResp.Body.Close()
+	var result EggArtifactUploadResult
+	if err := json.NewDecoder(uploadResp.Body).Decode(&result); err != nil {
+		return EggArtifactUploadResult{}, fmt.Errorf("decode artifact upload response: %w", err)
+	}
+	if uploadResp.StatusCode != http.StatusOK {
+		return EggArtifactUploadResult{}, fmt.Errorf("artifact upload rejected: %s", result.Status)
+	}
+	if result.ArtifactID == "" {
+		result.ArtifactID = offer.ArtifactID
+	}
+	if result.WebPath == "" {
+		result.WebPath = offer.WebPath
+	}
+	return result, nil
+}
+
+// SendHostMessage stores a rate-limited message on the host and optionally wakes the host agent.
+func (c *EggClient) SendHostMessage(ctx context.Context, msg EggHostMessage) (EggHostMessageResult, error) {
+	body, err := json.Marshal(msg)
+	if err != nil {
+		return EggHostMessageResult{}, fmt.Errorf("marshal egg message: %w", err)
+	}
+	req, err := c.newSignedHTTPRequest(ctx, http.MethodPost, c.masterHTTPBaseURL()+"/api/invasion/messages", body)
+	if err != nil {
+		return EggHostMessageResult{}, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := c.httpClient().Do(req)
+	if err != nil {
+		return EggHostMessageResult{}, fmt.Errorf("egg message request failed: %w", err)
+	}
+	defer resp.Body.Close()
+	var result EggHostMessageResult
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return EggHostMessageResult{}, fmt.Errorf("decode egg message response: %w", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return EggHostMessageResult{}, fmt.Errorf("egg message rejected: %s", result.Status)
+	}
+	return result, nil
+}
+
+func (c *EggClient) newSignedHTTPRequest(ctx context.Context, method, url string, body []byte) (*http.Request, error) {
+	req, err := http.NewRequestWithContext(ctx, method, url, bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	ts := time.Now().UTC().Format(time.RFC3339)
+	mac, err := c.requestHMAC(method, req.URL.Path, ts, body)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("X-AuraGo-Nest-ID", c.NestID)
+	req.Header.Set("X-AuraGo-Egg-ID", c.EggID)
+	req.Header.Set("X-AuraGo-Timestamp", ts)
+	req.Header.Set("X-AuraGo-Signature", mac)
+	return req, nil
+}
+
+func (c *EggClient) requestHMAC(method, path, timestamp string, body []byte) (string, error) {
+	key, err := hex.DecodeString(c.SharedKey)
+	if err != nil {
+		return "", fmt.Errorf("decode shared key: %w", err)
+	}
+	mac := hmac.New(sha256.New, key)
+	mac.Write([]byte(method))
+	mac.Write([]byte("\n"))
+	mac.Write([]byte(path))
+	mac.Write([]byte("\n"))
+	mac.Write([]byte(timestamp))
+	mac.Write([]byte("\n"))
+	mac.Write(body)
+	return hex.EncodeToString(mac.Sum(nil)), nil
+}
+
+func (c *EggClient) masterHTTPBaseURL() string {
+	if u, err := url.Parse(strings.TrimSpace(c.MasterURL)); err == nil && u.Scheme != "" && u.Host != "" {
+		switch u.Scheme {
+		case "ws":
+			u.Scheme = "http"
+		case "wss":
+			u.Scheme = "https"
+		}
+		u.Path = ""
+		u.RawQuery = ""
+		u.Fragment = ""
+		return strings.TrimSuffix(u.String(), "/")
+	}
+	base := strings.TrimSuffix(c.MasterURL, "/api/invasion/ws")
+	base = strings.TrimSuffix(base, "/")
+	base = strings.TrimPrefix(base, "ws://")
+	if strings.HasPrefix(c.MasterURL, "wss://") {
+		base = strings.TrimPrefix(base, "wss://")
+		return "https://" + base
+	}
+	return "http://" + base
+}
+
+func (c *EggClient) httpClient() *http.Client {
+	if c.HTTPClient != nil {
+		return c.HTTPClient
+	}
+	tr := &http.Transport{}
+	if c.TLSSkipVerify {
+		tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true} //nolint:gosec // user-opted self-signed cert
+	}
+	return &http.Client{Timeout: 10 * time.Minute, Transport: tr}
 }
 
 func (c *EggClient) connect() error {

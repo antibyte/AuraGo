@@ -2,18 +2,26 @@ package agent
 
 import (
 	"bytes"
+	"context"
+	"crypto/sha256"
 	"crypto/tls"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
+	"mime"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"time"
 
 	"aurago/internal/config"
 	"aurago/internal/invasion"
+	"aurago/internal/invasion/bridge"
 	"aurago/internal/security"
 )
 
@@ -55,7 +63,7 @@ func handleInvasionControl(tc ToolCall, cfg *config.Config, db *sql.DB, vault *s
 	}
 	if cfg.InvasionControl.ReadOnly {
 		switch tc.Operation {
-		case "assign_egg", "hatch_egg", "stop_egg", "send_task", "send_secret":
+		case "assign_egg", "hatch_egg", "stop_egg", "send_task", "send_secret", "ack_egg_message", "upload_artifact", "send_host_message":
 			return `Tool Output: {"status":"error","message":"Invasion Control is in read-only mode. Disable invasion_control.read_only to allow changes."}`
 		}
 	}
@@ -79,10 +87,24 @@ func handleInvasionControl(tc ToolCall, cfg *config.Config, db *sql.DB, vault *s
 		return invasionSendTask(cfg, db, tc, logger)
 	case "task_status", "get_result":
 		return invasionTaskStatus(db, tc, logger)
+	case "list_artifacts":
+		return invasionListArtifacts(db, tc, logger)
+	case "get_artifact":
+		return invasionGetArtifact(db, tc, logger)
+	case "read_artifact":
+		return invasionReadArtifact(db, tc, logger)
+	case "list_egg_messages":
+		return invasionListEggMessages(db, tc, logger)
+	case "ack_egg_message":
+		return invasionAckEggMessage(db, tc, logger)
+	case "upload_artifact":
+		return invasionUploadArtifact(cfg, tc, logger)
+	case "send_host_message":
+		return invasionSendHostMessage(cfg, tc, logger)
 	case "send_secret":
 		return invasionSendSecret(cfg, tc, logger)
 	default:
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"Unknown invasion_control operation '%s'. Use: list_nests, list_eggs, nest_status, assign_egg, hatch_egg, stop_egg, egg_status, send_task, task_status, get_result, send_secret"}`, tc.Operation)
+		return fmt.Sprintf(`Tool Output: {"status":"error","message":"Unknown invasion_control operation '%s'. Use: list_nests, list_eggs, nest_status, assign_egg, hatch_egg, stop_egg, egg_status, send_task, task_status, get_result, list_artifacts, get_artifact, read_artifact, list_egg_messages, ack_egg_message, upload_artifact, send_host_message, send_secret"}`, tc.Operation)
 	}
 }
 
@@ -528,6 +550,285 @@ func invasionTaskStatus(db *sql.DB, tc ToolCall, logger *slog.Logger) string {
 	return "Tool Output: " + string(b)
 }
 
+func invasionListArtifacts(db *sql.DB, tc ToolCall, logger *slog.Logger) string {
+	artifacts, err := invasion.ListArtifacts(db, invasion.ArtifactFilter{
+		NestID:    strings.TrimSpace(tc.NestID),
+		EggID:     strings.TrimSpace(tc.EggID),
+		MissionID: strings.TrimSpace(tc.MissionID),
+		TaskID:    strings.TrimSpace(tc.TaskID),
+		Status:    strings.TrimSpace(tc.Status),
+		Limit:     tc.Limit,
+	})
+	if err != nil {
+		logger.Warn("[InvasionTool] Failed to list artifacts", "error", err)
+		b, _ := json.Marshal(map[string]string{"status": "error", "message": err.Error()})
+		return "Tool Output: " + string(b)
+	}
+	out := map[string]interface{}{"status": "success", "count": len(artifacts), "artifacts": artifacts}
+	b, _ := json.Marshal(out)
+	return "Tool Output: " + string(b)
+}
+
+func invasionGetArtifact(db *sql.DB, tc ToolCall, logger *slog.Logger) string {
+	artifactID := invasionArtifactID(tc)
+	if artifactID == "" {
+		return `Tool Output: {"status":"error","message":"'artifact_id' is required"}`
+	}
+	artifact, err := invasion.GetArtifact(db, artifactID)
+	if err != nil {
+		logger.Warn("[InvasionTool] Failed to get artifact", "artifact_id", artifactID, "error", err)
+		b, _ := json.Marshal(map[string]string{"status": "error", "message": err.Error(), "artifact_id": artifactID})
+		return "Tool Output: " + string(b)
+	}
+	b, _ := json.Marshal(map[string]interface{}{"status": "success", "artifact": artifact})
+	return "Tool Output: " + string(b)
+}
+
+func invasionReadArtifact(db *sql.DB, tc ToolCall, logger *slog.Logger) string {
+	artifactID := invasionArtifactID(tc)
+	if artifactID == "" {
+		return `Tool Output: {"status":"error","message":"'artifact_id' is required"}`
+	}
+	artifact, err := invasion.GetArtifact(db, artifactID)
+	if err != nil {
+		logger.Warn("[InvasionTool] Failed to read artifact metadata", "artifact_id", artifactID, "error", err)
+		b, _ := json.Marshal(map[string]string{"status": "error", "message": err.Error(), "artifact_id": artifactID})
+		return "Tool Output: " + string(b)
+	}
+	if artifact.Status != invasion.ArtifactStatusCompleted || artifact.StoragePath == "" {
+		b, _ := json.Marshal(map[string]string{"status": "error", "message": "artifact is not available", "artifact_id": artifactID})
+		return "Tool Output: " + string(b)
+	}
+	if !isTextReadableArtifact(artifact) {
+		b, _ := json.Marshal(map[string]string{"status": "error", "message": "artifact is not text-readable; use get_artifact for path and metadata", "artifact_id": artifactID})
+		return "Tool Output: " + string(b)
+	}
+	info, err := os.Stat(artifact.StoragePath)
+	if err != nil {
+		b, _ := json.Marshal(map[string]string{"status": "error", "message": err.Error(), "artifact_id": artifactID})
+		return "Tool Output: " + string(b)
+	}
+	const maxRead = 1 << 20
+	if info.Size() > maxRead {
+		b, _ := json.Marshal(map[string]interface{}{"status": "error", "message": "artifact is too large to read directly", "artifact_id": artifactID, "size_bytes": info.Size(), "max_bytes": maxRead})
+		return "Tool Output: " + string(b)
+	}
+	data, err := os.ReadFile(artifact.StoragePath)
+	if err != nil {
+		b, _ := json.Marshal(map[string]string{"status": "error", "message": err.Error(), "artifact_id": artifactID})
+		return "Tool Output: " + string(b)
+	}
+	out := map[string]interface{}{"status": "success", "artifact": artifact, "content": string(data)}
+	b, _ := json.Marshal(out)
+	return "Tool Output: " + string(b)
+}
+
+func invasionListEggMessages(db *sql.DB, tc ToolCall, logger *slog.Logger) string {
+	messages, err := invasion.ListEggMessages(db, invasion.EggMessageFilter{
+		NestID: strings.TrimSpace(tc.NestID),
+		EggID:  strings.TrimSpace(tc.EggID),
+		Limit:  tc.Limit,
+	})
+	if err != nil {
+		logger.Warn("[InvasionTool] Failed to list egg messages", "error", err)
+		b, _ := json.Marshal(map[string]string{"status": "error", "message": err.Error()})
+		return "Tool Output: " + string(b)
+	}
+	b, _ := json.Marshal(map[string]interface{}{"status": "success", "count": len(messages), "messages": messages})
+	return "Tool Output: " + string(b)
+}
+
+func invasionAckEggMessage(db *sql.DB, tc ToolCall, logger *slog.Logger) string {
+	id := strings.TrimSpace(firstNonEmpty(tc.ID, tc.MessageID))
+	if id == "" {
+		return `Tool Output: {"status":"error","message":"'id' is required for ack_egg_message"}`
+	}
+	if err := invasion.AcknowledgeEggMessage(db, id, time.Now()); err != nil {
+		logger.Warn("[InvasionTool] Failed to acknowledge egg message", "id", id, "error", err)
+		b, _ := json.Marshal(map[string]string{"status": "error", "message": err.Error(), "id": id})
+		return "Tool Output: " + string(b)
+	}
+	b, _ := json.Marshal(map[string]string{"status": "success", "id": id})
+	return "Tool Output: " + string(b)
+}
+
+func invasionUploadArtifact(cfg *config.Config, tc ToolCall, logger *slog.Logger) string {
+	if cfg == nil || !cfg.EggMode.Enabled {
+		return `Tool Output: {"status":"error","message":"upload_artifact is only available when this AuraGo instance runs in egg mode."}`
+	}
+	localPath := strings.TrimSpace(firstNonEmpty(tc.FilePath, tc.Path, tc.LocalPath))
+	if localPath == "" {
+		return `Tool Output: {"status":"error","message":"'file_path' is required for upload_artifact"}`
+	}
+	resolvedPath, err := resolveEggArtifactPath(cfg, localPath)
+	if err != nil {
+		b, _ := json.Marshal(map[string]string{"status": "error", "message": err.Error(), "file_path": localPath})
+		return "Tool Output: " + string(b)
+	}
+	f, err := os.Open(resolvedPath)
+	if err != nil {
+		b, _ := json.Marshal(map[string]string{"status": "error", "message": err.Error(), "file_path": localPath})
+		return "Tool Output: " + string(b)
+	}
+	defer f.Close()
+	info, err := f.Stat()
+	if err != nil {
+		b, _ := json.Marshal(map[string]string{"status": "error", "message": err.Error(), "file_path": localPath})
+		return "Tool Output: " + string(b)
+	}
+	if info.IsDir() {
+		return `Tool Output: {"status":"error","message":"upload_artifact requires a file, not a directory"}`
+	}
+	hasher := sha256.New()
+	if _, err := io.Copy(hasher, f); err != nil {
+		b, _ := json.Marshal(map[string]string{"status": "error", "message": err.Error(), "file_path": localPath})
+		return "Tool Output: " + string(b)
+	}
+	if _, err := f.Seek(0, io.SeekStart); err != nil {
+		b, _ := json.Marshal(map[string]string{"status": "error", "message": err.Error(), "file_path": localPath})
+		return "Tool Output: " + string(b)
+	}
+	filename := strings.TrimSpace(tc.Filename)
+	if filename == "" {
+		filename = filepath.Base(resolvedPath)
+	}
+	mimeType := strings.TrimSpace(firstNonEmpty(tc.MIMEType, tc.ContentType))
+	if mimeType == "" {
+		mimeType = mime.TypeByExtension(filepath.Ext(filename))
+	}
+	client := newEggHTTPClient(cfg, logger)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	defer cancel()
+	result, err := client.UploadArtifact(ctx, bridge.EggArtifactUpload{
+		MissionID:      strings.TrimSpace(tc.MissionID),
+		TaskID:         strings.TrimSpace(tc.TaskID),
+		Filename:       filename,
+		MIMEType:       mimeType,
+		ExpectedSize:   info.Size(),
+		ExpectedSHA256: hex.EncodeToString(hasher.Sum(nil)),
+		Metadata:       tc.Metadata,
+		Reader:         f,
+	})
+	if err != nil {
+		logger.Warn("[InvasionTool] Egg artifact upload failed", "file_path", localPath, "error", err)
+		b, _ := json.Marshal(map[string]string{"status": "error", "message": err.Error(), "file_path": localPath})
+		return "Tool Output: " + string(b)
+	}
+	out := map[string]interface{}{
+		"status":      "success",
+		"artifact_id": result.ArtifactID,
+		"web_path":    result.WebPath,
+		"sha256":      result.SHA256,
+		"size_bytes":  result.SizeBytes,
+		"file_path":   resolvedPath,
+	}
+	b, _ := json.Marshal(out)
+	return "Tool Output: " + string(b)
+}
+
+func resolveEggArtifactPath(cfg *config.Config, requestedPath string) (string, error) {
+	requestedPath = strings.TrimSpace(requestedPath)
+	if requestedPath == "" {
+		return "", fmt.Errorf("file_path is required")
+	}
+	workspace := strings.TrimSpace(cfg.Directories.WorkspaceDir)
+	candidate := requestedPath
+	if workspace != "" && !filepath.IsAbs(candidate) {
+		candidate = filepath.Join(workspace, candidate)
+	}
+	absCandidate, err := filepath.Abs(candidate)
+	if err != nil {
+		return "", fmt.Errorf("resolve artifact path: %w", err)
+	}
+	if evaluated, err := filepath.EvalSymlinks(absCandidate); err == nil {
+		absCandidate = evaluated
+	}
+	if workspace == "" {
+		return absCandidate, nil
+	}
+	absWorkspace, err := filepath.Abs(workspace)
+	if err != nil {
+		return "", fmt.Errorf("resolve workspace path: %w", err)
+	}
+	if evaluated, err := filepath.EvalSymlinks(absWorkspace); err == nil {
+		absWorkspace = evaluated
+	}
+	rel, err := filepath.Rel(absWorkspace, absCandidate)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
+		return "", fmt.Errorf("artifact path must stay inside the Egg workspace")
+	}
+	return absCandidate, nil
+}
+
+func invasionSendHostMessage(cfg *config.Config, tc ToolCall, logger *slog.Logger) string {
+	if cfg == nil || !cfg.EggMode.Enabled {
+		return `Tool Output: {"status":"error","message":"send_host_message is only available when this AuraGo instance runs in egg mode."}`
+	}
+	body := strings.TrimSpace(firstNonEmpty(tc.Body, tc.Message, tc.Content, tc.Text, tc.Description))
+	if body == "" {
+		return `Tool Output: {"status":"error","message":"'body' or 'message' is required for send_host_message"}`
+	}
+	artifactIDs := append([]string{}, tc.ArtifactIDs...)
+	if len(artifactIDs) == 0 && strings.TrimSpace(tc.ArtifactID) != "" {
+		artifactIDs = []string{strings.TrimSpace(tc.ArtifactID)}
+	}
+	client := newEggHTTPClient(cfg, logger)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	result, err := client.SendHostMessage(ctx, bridge.EggHostMessage{
+		MissionID:       strings.TrimSpace(tc.MissionID),
+		TaskID:          strings.TrimSpace(tc.TaskID),
+		Severity:        strings.TrimSpace(tc.Severity),
+		Title:           strings.TrimSpace(firstNonEmpty(tc.Title, tc.Subject, "Egg message")),
+		Body:            body,
+		ArtifactIDs:     artifactIDs,
+		DedupKey:        strings.TrimSpace(tc.DedupKey),
+		WakeupRequested: tc.WakeupRequested,
+	})
+	if err != nil {
+		logger.Warn("[InvasionTool] Egg host message failed", "error", err)
+		b, _ := json.Marshal(map[string]string{"status": "error", "message": err.Error()})
+		return "Tool Output: " + string(b)
+	}
+	b, _ := json.Marshal(map[string]interface{}{"status": "success", "message_id": result.MessageID, "wakeup_allowed": result.WakeupAllowed})
+	return "Tool Output: " + string(b)
+}
+
+func newEggHTTPClient(cfg *config.Config, logger *slog.Logger) *bridge.EggClient {
+	client := bridge.NewEggClient(
+		cfg.EggMode.MasterURL,
+		cfg.EggMode.EggID,
+		cfg.EggMode.NestID,
+		cfg.EggMode.SharedKey,
+		"1.0.0",
+		logger,
+	)
+	client.TLSSkipVerify = cfg.EggMode.TLSSkipVerify
+	return client
+}
+
+func invasionArtifactID(tc ToolCall) string {
+	return strings.TrimSpace(firstNonEmpty(tc.ArtifactID, tc.ID, tc.FileID))
+}
+
+func isTextReadableArtifact(artifact invasion.ArtifactRecord) bool {
+	mime := strings.ToLower(strings.TrimSpace(artifact.MIMEType))
+	name := strings.ToLower(strings.TrimSpace(artifact.Filename))
+	if strings.HasPrefix(mime, "text/") {
+		return true
+	}
+	switch mime {
+	case "application/json", "application/xml", "application/yaml", "application/x-yaml", "application/toml", "application/csv":
+		return true
+	}
+	for _, suffix := range []string{".txt", ".md", ".json", ".csv", ".log", ".yaml", ".yml", ".toml", ".xml"} {
+		if strings.HasSuffix(name, suffix) {
+			return true
+		}
+	}
+	return false
+}
+
 func waitForInvasionTaskResult(db *sql.DB, taskID string, waitFor, pollEvery time.Duration) (*invasion.TaskRecord, bool, error) {
 	if db == nil || strings.TrimSpace(taskID) == "" {
 		return nil, false, nil
@@ -580,6 +881,7 @@ func mergeInvasionTaskResult(out map[string]interface{}, task *invasion.TaskReco
 	out["egg_id"] = task.EggID
 	out["result_output"] = task.ResultOutput
 	out["result_error"] = task.ResultError
+	out["artifact_ids"] = task.ArtifactIDs
 	out["created_at"] = task.CreatedAt
 	out["sent_at"] = task.SentAt
 	out["completed_at"] = task.CompletedAt
