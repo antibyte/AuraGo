@@ -1,5 +1,19 @@
 package tools
 
+// stringArgWithFallback extracts a string value from args, falling back to "query"
+// if the primary key is empty. This makes tool calls more robust when the LLM
+// uses "query" as a universal parameter even though the schema expects a
+// specific key (e.g. "username", "url", "asin", etc.).
+func stringArgWithFallback(args map[string]interface{}, key string) string {
+	if v, ok := args[key].(string); ok && v != "" {
+		return v
+	}
+	if v, ok := args["query"].(string); ok && v != "" {
+		return v
+	}
+	return ""
+}
+
 // stringSliceFromArgs extracts a string slice from map arguments.
 // Handles both []interface{} (from JSON unmarshalling) and []string.
 func stringSliceFromArgs(args map[string]interface{}, key string) []string {

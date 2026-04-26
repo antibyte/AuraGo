@@ -20,7 +20,7 @@ func DispatchYepAPISEO(ctx context.Context, client *YepAPIClient, operation stri
 		return yepAPIFormatSuccess(data), nil
 
 	case "keyword_ideas":
-		seed, _ := args["seed"].(string)
+		seed := stringArgWithFallback(args, "seed")
 		if seed == "" {
 			return yepAPIFormatError("keyword_ideas operation requires a 'seed' string"), nil
 		}
@@ -31,7 +31,7 @@ func DispatchYepAPISEO(ctx context.Context, client *YepAPIClient, operation stri
 		return yepAPIFormatSuccess(data), nil
 
 	case "domain_overview":
-		domain, _ := args["domain"].(string)
+		domain := stringArgWithFallback(args, "domain")
 		if domain == "" {
 			return yepAPIFormatError("domain_overview operation requires a 'domain' string"), nil
 		}
@@ -42,7 +42,7 @@ func DispatchYepAPISEO(ctx context.Context, client *YepAPIClient, operation stri
 		return yepAPIFormatSuccess(data), nil
 
 	case "domain_keywords":
-		domain, _ := args["domain"].(string)
+		domain := stringArgWithFallback(args, "domain")
 		if domain == "" {
 			return yepAPIFormatError("domain_keywords operation requires a 'domain' string"), nil
 		}
@@ -67,7 +67,7 @@ func DispatchYepAPISEO(ctx context.Context, client *YepAPIClient, operation stri
 		return yepAPIFormatSuccess(data), nil
 
 	case "backlinks":
-		target, _ := args["target"].(string)
+		target := stringArgWithFallback(args, "target")
 		if target == "" {
 			return yepAPIFormatError("backlinks operation requires a 'target' string (domain or URL)"), nil
 		}
@@ -78,7 +78,7 @@ func DispatchYepAPISEO(ctx context.Context, client *YepAPIClient, operation stri
 		return yepAPIFormatSuccess(data), nil
 
 	case "onpage":
-		url, _ := args["url"].(string)
+		url := stringArgWithFallback(args, "url")
 		if url == "" {
 			return yepAPIFormatError("onpage operation requires a 'url' string"), nil
 		}

@@ -39,7 +39,7 @@ func DispatchYepAPITikTok(ctx context.Context, client *YepAPIClient, operation s
 		return yepAPIFormatSuccess(data), nil
 
 	case "video":
-		videoURL, _ := args["url"].(string)
+		videoURL := stringArgWithFallback(args, "url")
 		if videoURL == "" {
 			return yepAPIFormatError("video operation requires a 'url' string (TikTok video URL)"), nil
 		}
@@ -50,7 +50,7 @@ func DispatchYepAPITikTok(ctx context.Context, client *YepAPIClient, operation s
 		return yepAPIFormatSuccess(data), nil
 
 	case "user":
-		username, _ := args["username"].(string)
+		username := stringArgWithFallback(args, "username")
 		if username == "" {
 			return yepAPIFormatError("user operation requires a 'username' string"), nil
 		}
@@ -61,7 +61,7 @@ func DispatchYepAPITikTok(ctx context.Context, client *YepAPIClient, operation s
 		return yepAPIFormatSuccess(data), nil
 
 	case "user_posts":
-		username, _ := args["username"].(string)
+		username := stringArgWithFallback(args, "username")
 		if username == "" {
 			return yepAPIFormatError("user_posts operation requires a 'username' string"), nil
 		}
@@ -76,7 +76,7 @@ func DispatchYepAPITikTok(ctx context.Context, client *YepAPIClient, operation s
 		return yepAPIFormatSuccess(data), nil
 
 	case "comments":
-		videoURL, _ := args["url"].(string)
+		videoURL := stringArgWithFallback(args, "url")
 		if videoURL == "" {
 			return yepAPIFormatError("comments operation requires a 'url' string (TikTok video URL)"), nil
 		}
@@ -91,7 +91,7 @@ func DispatchYepAPITikTok(ctx context.Context, client *YepAPIClient, operation s
 		return yepAPIFormatSuccess(data), nil
 
 	case "music":
-		musicURL, _ := args["url"].(string)
+		musicURL := stringArgWithFallback(args, "url")
 		if musicURL == "" {
 			return yepAPIFormatError("music operation requires a 'url' string (TikTok music URL)"), nil
 		}
@@ -102,7 +102,7 @@ func DispatchYepAPITikTok(ctx context.Context, client *YepAPIClient, operation s
 		return yepAPIFormatSuccess(data), nil
 
 	case "challenge":
-		name, _ := args["name"].(string)
+		name := stringArgWithFallback(args, "name")
 		if name == "" {
 			return yepAPIFormatError("challenge operation requires a 'name' string"), nil
 		}

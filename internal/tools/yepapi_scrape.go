@@ -8,7 +8,7 @@ import (
 
 // DispatchYepAPIScrape handles web scraping operations via YepAPI.
 func DispatchYepAPIScrape(ctx context.Context, client *YepAPIClient, operation string, args map[string]interface{}) (string, error) {
-	url, _ := args["url"].(string)
+	url := stringArgWithFallback(args, "url")
 	if url == "" {
 		return yepAPIFormatError("scrape operations require a 'url' string"), nil
 	}

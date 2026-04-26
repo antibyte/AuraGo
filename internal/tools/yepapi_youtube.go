@@ -24,7 +24,7 @@ func DispatchYepAPIYouTube(ctx context.Context, client *YepAPIClient, operation 
 		return yepAPIFormatSuccess(data), nil
 
 	case "video":
-		videoID, _ := args["video_id"].(string)
+		videoID := stringArgWithFallback(args, "video_id")
 		if videoID == "" {
 			return yepAPIFormatError("video operation requires a 'video_id' string"), nil
 		}
@@ -35,7 +35,7 @@ func DispatchYepAPIYouTube(ctx context.Context, client *YepAPIClient, operation 
 		return yepAPIFormatSuccess(data), nil
 
 	case "transcript":
-		videoID, _ := args["video_id"].(string)
+		videoID := stringArgWithFallback(args, "video_id")
 		if videoID == "" {
 			return yepAPIFormatError("transcript operation requires a 'video_id' string"), nil
 		}
@@ -46,7 +46,7 @@ func DispatchYepAPIYouTube(ctx context.Context, client *YepAPIClient, operation 
 		return yepAPIFormatSuccess(data), nil
 
 	case "comments":
-		videoID, _ := args["video_id"].(string)
+		videoID := stringArgWithFallback(args, "video_id")
 		if videoID == "" {
 			return yepAPIFormatError("comments operation requires a 'video_id' string"), nil
 		}
@@ -61,7 +61,7 @@ func DispatchYepAPIYouTube(ctx context.Context, client *YepAPIClient, operation 
 		return yepAPIFormatSuccess(data), nil
 
 	case "channel":
-		channelID, _ := args["channel_id"].(string)
+		channelID := stringArgWithFallback(args, "channel_id")
 		if channelID == "" {
 			return yepAPIFormatError("channel operation requires a 'channel_id' string"), nil
 		}
@@ -72,7 +72,7 @@ func DispatchYepAPIYouTube(ctx context.Context, client *YepAPIClient, operation 
 		return yepAPIFormatSuccess(data), nil
 
 	case "channel_videos":
-		channelID, _ := args["channel_id"].(string)
+		channelID := stringArgWithFallback(args, "channel_id")
 		if channelID == "" {
 			return yepAPIFormatError("channel_videos operation requires a 'channel_id' string"), nil
 		}
@@ -87,7 +87,7 @@ func DispatchYepAPIYouTube(ctx context.Context, client *YepAPIClient, operation 
 		return yepAPIFormatSuccess(data), nil
 
 	case "playlist":
-		playlistID, _ := args["playlist_id"].(string)
+		playlistID := stringArgWithFallback(args, "playlist_id")
 		if playlistID == "" {
 			return yepAPIFormatError("playlist operation requires a 'playlist_id' string"), nil
 		}

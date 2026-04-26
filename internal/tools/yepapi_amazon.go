@@ -29,7 +29,7 @@ func DispatchYepAPIAmazon(ctx context.Context, client *YepAPIClient, operation s
 		return yepAPIFormatSuccess(data), nil
 
 	case "product":
-		asin, _ := args["asin"].(string)
+		asin := stringArgWithFallback(args, "asin")
 		if asin == "" {
 			return yepAPIFormatError("product operation requires an 'asin' string"), nil
 		}
@@ -46,7 +46,7 @@ func DispatchYepAPIAmazon(ctx context.Context, client *YepAPIClient, operation s
 		return yepAPIFormatSuccess(data), nil
 
 	case "reviews":
-		asin, _ := args["asin"].(string)
+		asin := stringArgWithFallback(args, "asin")
 		if asin == "" {
 			return yepAPIFormatError("reviews operation requires an 'asin' string"), nil
 		}

@@ -20,7 +20,7 @@ func DispatchYepAPIInstagram(ctx context.Context, client *YepAPIClient, operatio
 		return yepAPIFormatSuccess(data), nil
 
 	case "user":
-		username, _ := args["username"].(string)
+		username := stringArgWithFallback(args, "username")
 		if username == "" {
 			return yepAPIFormatError("user operation requires a 'username' string"), nil
 		}
@@ -31,7 +31,7 @@ func DispatchYepAPIInstagram(ctx context.Context, client *YepAPIClient, operatio
 		return yepAPIFormatSuccess(data), nil
 
 	case "user_posts":
-		username, _ := args["username"].(string)
+		username := stringArgWithFallback(args, "username")
 		if username == "" {
 			return yepAPIFormatError("user_posts operation requires a 'username' string"), nil
 		}
@@ -46,7 +46,7 @@ func DispatchYepAPIInstagram(ctx context.Context, client *YepAPIClient, operatio
 		return yepAPIFormatSuccess(data), nil
 
 	case "user_reels":
-		username, _ := args["username"].(string)
+		username := stringArgWithFallback(args, "username")
 		if username == "" {
 			return yepAPIFormatError("user_reels operation requires a 'username' string"), nil
 		}
@@ -61,7 +61,7 @@ func DispatchYepAPIInstagram(ctx context.Context, client *YepAPIClient, operatio
 		return yepAPIFormatSuccess(data), nil
 
 	case "post":
-		shortcode, _ := args["shortcode"].(string)
+		shortcode := stringArgWithFallback(args, "shortcode")
 		if shortcode == "" {
 			return yepAPIFormatError("post operation requires a 'shortcode' string"), nil
 		}
@@ -72,7 +72,7 @@ func DispatchYepAPIInstagram(ctx context.Context, client *YepAPIClient, operatio
 		return yepAPIFormatSuccess(data), nil
 
 	case "post_comments":
-		shortcode, _ := args["shortcode"].(string)
+		shortcode := stringArgWithFallback(args, "shortcode")
 		if shortcode == "" {
 			return yepAPIFormatError("post_comments operation requires a 'shortcode' string"), nil
 		}
@@ -87,7 +87,7 @@ func DispatchYepAPIInstagram(ctx context.Context, client *YepAPIClient, operatio
 		return yepAPIFormatSuccess(data), nil
 
 	case "hashtag":
-		tag, _ := args["tag"].(string)
+		tag := stringArgWithFallback(args, "tag")
 		if tag == "" {
 			return yepAPIFormatError("hashtag operation requires a 'tag' string (without #)"), nil
 		}
