@@ -71,3 +71,42 @@ func TestResolveInvasionTaskNestByEggNamePrefersRunningAssignedNest(t *testing.T
 		t.Fatalf("resolved egg = %#v, want Web Scraper %q", egg, eggID)
 	}
 }
+
+func TestResolveInvasionEggStatusTargetByEggName(t *testing.T) {
+	db, err := invasion.InitDB(t.TempDir() + "/invasion.db")
+	if err != nil {
+		t.Fatalf("InitDB: %v", err)
+	}
+	defer db.Close()
+
+	eggID, err := invasion.CreateEgg(db, invasion.EggRecord{
+		Name:   "Web Scraper",
+		Active: true,
+	})
+	if err != nil {
+		t.Fatalf("CreateEgg: %v", err)
+	}
+
+	nestID, err := invasion.CreateNest(db, invasion.NestRecord{
+		Name:        "agent nest",
+		AccessType:  "docker",
+		Active:      true,
+		EggID:       eggID,
+		HatchStatus: "running",
+	})
+	if err != nil {
+		t.Fatalf("CreateNest: %v", err)
+	}
+
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	nest, egg, err := resolveInvasionEggStatusTarget(db, ToolCall{EggName: "web scraper"}, logger)
+	if err != nil {
+		t.Fatalf("resolveInvasionEggStatusTarget: %v", err)
+	}
+	if nest.ID != nestID {
+		t.Fatalf("resolved nest ID = %q, want %q", nest.ID, nestID)
+	}
+	if egg.ID != eggID || egg.Name != "Web Scraper" {
+		t.Fatalf("resolved egg = %#v, want Web Scraper %q", egg, eggID)
+	}
+}

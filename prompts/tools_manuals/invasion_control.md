@@ -27,8 +27,8 @@ Egg names are not tool names. If an Egg is named `web scraper`, call `invasion_c
 | `operation` | string | yes | One of the operations above |
 | `nest_id` | string | for most nest operations | Nest ID |
 | `nest_name` | string | no | Nest name — alternative to nest_id for lookup |
-| `egg_id` | string | for assign_egg; optional target for send_task | Egg ID |
-| `egg_name` | string | optional target for send_task | Egg name — alternative to egg_id when the user names the Egg |
+| `egg_id` | string | for assign_egg; optional target for egg_status/send_task | Egg ID |
+| `egg_name` | string | optional target for egg_status/send_task | Egg name — alternative to egg_id when the user names the Egg |
 | `task` | string | for send_task | Task description in natural language |
 | `key` | string | for send_secret | Secret key name |
 | `value` | string | for send_secret | Secret value |
@@ -65,6 +65,11 @@ Egg names are not tool names. If an Egg is named `web scraper`, call `invasion_c
 {"action": "invasion_control", "operation": "send_task", "egg_name": "web scraper", "task": "Tell me a short joke in German"}
 ```
 
+**Check status when only the Egg name is known:**
+```json
+{"action": "invasion_control", "operation": "egg_status", "egg_name": "web scraper"}
+```
+
 **Send a secret to a running egg:**
 ```json
 {"action": "invasion_control", "operation": "send_secret", "nest_id": "nest-123", "egg_id": "egg-456", "key": "API_KEY", "value": "secret123"}
@@ -88,4 +93,4 @@ Egg names are not tool names. If an Egg is named `web scraper`, call `invasion_c
 - Nests and eggs are the core concepts in the invasion control system
 - Eggs must be assigned to a nest before they can be hatched
 - Running eggs can receive tasks and secrets dynamically
-- Use `egg_status` to monitor the state of deployed eggs
+- Use `egg_status` to monitor the state of deployed eggs. If the user names an Egg, pass `egg_name`; do not ask the user for a nest ID first.

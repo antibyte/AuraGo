@@ -6,15 +6,15 @@ func appendMemoryToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai.
 	if ff.MemoryEnabled {
 		tools = append(tools,
 			tool("manage_memory",
-				"Manage permanently stored core memory facts. Use 'add' to store a new fact, 'update' to correct an existing fact by ID, 'delete' to remove a fact by ID, 'remove' to remove a fact by text match, 'list' to read all stored facts.",
+				"Manage permanently stored core memory facts. Use this only for durable facts and preferences, not task lists, cleanup scratchpads, or session status. Use 'add' to store a new fact, 'update' to correct an existing fact by ID, 'delete' to remove a fact by ID, 'remove' to remove a fact by exact text match, 'list' to read all stored facts. For cleanup, delete at most one clearly identified numeric ID per call and stop after any warning or error.",
 				schema(map[string]interface{}{
 					"operation": map[string]interface{}{
 						"type":        "string",
 						"description": "Operation: 'add' (store new fact), 'update' (edit by id), 'delete' (remove by id), 'remove' (remove by text match), 'list' (read all)",
 						"enum":        []string{"add", "update", "delete", "remove", "list"},
 					},
-					"fact": prop("string", "The factual statement to add or remove. Required for 'add' and 'remove'."),
-					"id":   prop("string", "Numeric ID of the fact to update or delete. Required for 'update' and 'delete'. IDs are shown in brackets when listing facts."),
+					"fact": prop("string", "The factual statement to add or remove. Required for 'add' and 'remove'. For 'remove', this must be the exact stored fact text."),
+					"id":   prop("string", "Numeric ID of the fact to update or delete. Required for 'update' and 'delete'. Never call 'delete' without a numeric ID from a recent list result."),
 				}, "operation"),
 			),
 			tool("query_memory",

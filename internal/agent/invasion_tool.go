@@ -68,7 +68,7 @@ func handleInvasionControl(tc ToolCall, cfg *config.Config, db *sql.DB, vault *s
 	case "stop_egg":
 		return invasionStopEgg(cfg, tc, logger)
 	case "egg_status":
-		return invasionEggDeployStatus(cfg, tc, logger)
+		return invasionEggDeployStatus(cfg, db, tc, logger)
 	case "send_task":
 		return invasionSendTask(cfg, db, tc, logger)
 	case "send_secret":
@@ -376,13 +376,15 @@ func invasionStopEgg(cfg *config.Config, tc ToolCall, logger *slog.Logger) strin
 	return fmt.Sprintf(`Tool Output: {"status":"success","message":"Egg stopped on nest %s"}`, tc.NestID)
 }
 
-// invasionEggDeployStatus returns the deployment status of a nest.
-func invasionEggDeployStatus(cfg *config.Config, tc ToolCall, logger *slog.Logger) string {
-	if tc.NestID == "" {
-		return `Tool Output: {"status":"error","message":"'nest_id' is required for egg_status."}`
+// invasionEggDeployStatus returns the deployment status of a nest or named egg.
+func invasionEggDeployStatus(cfg *config.Config, db *sql.DB, tc ToolCall, logger *slog.Logger) string {
+	nest, egg, err := resolveInvasionEggStatusTarget(db, tc, logger)
+	if err != nil {
+		b, _ := json.Marshal(map[string]string{"status": "error", "message": err.Error()})
+		return "Tool Output: " + string(b)
 	}
 
-	url := invasionLoopbackURL(cfg, fmt.Sprintf("/api/invasion/nests/%s/status", tc.NestID))
+	url := invasionLoopbackURL(cfg, fmt.Sprintf("/api/invasion/nests/%s/status", nest.ID))
 	resp, err := invasionGet(url)
 	if err != nil {
 		return fmt.Sprintf(`Tool Output: {"status":"error","message":"Status request failed: %v"}`, err)
@@ -399,6 +401,10 @@ func invasionEggDeployStatus(cfg *config.Config, tc ToolCall, logger *slog.Logge
 	}
 
 	result["status"] = "success"
+	result["nest_id"] = nest.ID
+	result["nest_name"] = nest.Name
+	result["egg_id"] = egg.ID
+	result["egg_name"] = egg.Name
 	b, _ := json.Marshal(result)
 	return "Tool Output: " + string(b)
 }
@@ -516,6 +522,16 @@ func resolveInvasionTaskNest(db *sql.DB, tc ToolCall, logger *slog.Logger) (inva
 	default:
 		return invasion.NestRecord{}, invasion.EggRecord{}, fmt.Errorf("egg %q is not assigned to an active nest", egg.Name)
 	}
+}
+
+func resolveInvasionEggStatusTarget(db *sql.DB, tc ToolCall, logger *slog.Logger) (invasion.NestRecord, invasion.EggRecord, error) {
+	if strings.TrimSpace(tc.NestID) == "" &&
+		strings.TrimSpace(tc.NestName) == "" &&
+		strings.TrimSpace(tc.EggID) == "" &&
+		strings.TrimSpace(tc.EggName) == "" {
+		return invasion.NestRecord{}, invasion.EggRecord{}, fmt.Errorf("provide nest_id, nest_name, egg_id, or egg_name for egg_status")
+	}
+	return resolveInvasionTaskNest(db, tc, logger)
 }
 
 func resolveInvasionEggForTask(db *sql.DB, tc ToolCall) (invasion.EggRecord, error) {
