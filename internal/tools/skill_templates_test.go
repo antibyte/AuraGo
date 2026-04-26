@@ -114,6 +114,7 @@ func TestCreateSkillFromTemplate(t *testing.T) {
 }
 
 func TestCreateSkillFromTemplate_AllTemplates(t *testing.T) {
+	pythonCmd := findPythonForSkillTemplateTest(t)
 	for _, tmpl := range AvailableSkillTemplates() {
 		t.Run(tmpl.Name, func(t *testing.T) {
 			dir := t.TempDir()
@@ -125,15 +126,20 @@ func TestCreateSkillFromTemplate_AllTemplates(t *testing.T) {
 			if _, err := os.Stat(filepath.Join(dir, "test_"+tmpl.Name+".json")); err != nil {
 				t.Errorf("manifest not created for %s", tmpl.Name)
 			}
-			if _, err := os.Stat(filepath.Join(dir, "test_"+tmpl.Name+".py")); err != nil {
+			pyPath := filepath.Join(dir, "test_"+tmpl.Name+".py")
+			if _, err := os.Stat(pyPath); err != nil {
 				t.Errorf("script not created for %s", tmpl.Name)
 			}
-			pyData, err := os.ReadFile(filepath.Join(dir, "test_"+tmpl.Name+".py"))
+			pyData, err := os.ReadFile(pyPath)
 			if err != nil {
 				t.Fatalf("failed to read script for %s: %v", tmpl.Name, err)
 			}
 			if got := strings.Count(string(pyData), `if __name__ == "__main__":`); got != 1 {
 				t.Fatalf("expected exactly one main block in %s, got %d", tmpl.Name, got)
+			}
+			compileCmd := pythonCmd.command("-m", "py_compile", pyPath)
+			if out, err := compileCmd.CombinedOutput(); err != nil {
+				t.Fatalf("generated script for %s has invalid Python syntax: %v\n%s", tmpl.Name, err, out)
 			}
 		})
 	}
