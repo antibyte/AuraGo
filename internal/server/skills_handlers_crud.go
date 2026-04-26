@@ -153,11 +153,12 @@ func handleCreateSkill(s *Server) http.HandlerFunc {
 		}
 
 		var req struct {
-			Name        string   `json:"name"`
-			Description string   `json:"description"`
-			Category    string   `json:"category"`
-			Tags        []string `json:"tags"`
-			Code        string   `json:"code"`
+			Name          string   `json:"name"`
+			Description   string   `json:"description"`
+			Category      string   `json:"category"`
+			Tags          []string `json:"tags"`
+			Code          string   `json:"code"`
+			Documentation string   `json:"documentation"`
 		}
 		if err := json.NewDecoder(io.LimitReader(r.Body, 2<<20)).Decode(&req); err != nil {
 			jsonError(w, "Invalid request body", http.StatusBadRequest)
@@ -179,6 +180,15 @@ func handleCreateSkill(s *Server) http.HandlerFunc {
 		if err != nil {
 			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to create skill", "Failed to create skill", err, "skill_name", req.Name)
 			return
+		}
+
+		// Persist optional Markdown documentation manual.
+		if strings.TrimSpace(req.Documentation) != "" {
+			if docErr := s.SkillManager.SetSkillDocumentation(skill.ID, req.Documentation, "user"); docErr != nil {
+				s.Logger.Warn("Failed to save skill documentation", "id", skill.ID, "error", docErr)
+			} else if refreshed, refreshErr := s.SkillManager.GetSkill(skill.ID); refreshErr == nil {
+				skill = refreshed
+			}
 		}
 
 		// Run security scan

@@ -555,10 +555,16 @@ function showDisabledState() {
                 <div class="sk-detail-row"><span class="sk-detail-label">⚙️ ${t('skills.internal_tools_label') || 'Internal Tools'}:</span> <span>${internalTools.length > 0 ? internalTools.map(tool => `<code class="sk-dep-tag sk-internal-tool-tag">${esc(tool)}</code>`).join(' ') : `<span class="sk-vault-none">${t('skills.internal_tools_none') || 'No internal tools'}</span>`}</span></div>
             </div>
             ${renderDaemonSettings(s, data.daemon)}
+            ${renderSkillDocumentation(s)}
             ${renderSkillHistory(detailVersions)}
             ${renderSkillAudit(detailAudit)}
             ${secHTML}`;
             if (typeof applyI18n === 'function') applyI18n();
+            // Documentation section is loaded lazily so the panel opens fast.
+            const hasDoc = s.HasDocumentation || s.has_documentation;
+            if (hasDoc) {
+                loadAndRenderSkillDocumentation(s.ID || s.id);
+            }
         } catch (e) {
             body.innerHTML = `<p class="sk-error">${t('common.error') || 'Error'}</p>`;
         }
@@ -659,6 +665,8 @@ function showDisabledState() {
         document.getElementById('code-draft-description').value = meta.description || '';
         document.getElementById('code-draft-category').value = meta.category || '';
         document.getElementById('code-draft-tags').value = (meta.tags || []).join(', ');
+        const docEl = document.getElementById('code-draft-documentation');
+        if (docEl) docEl.value = meta.documentation || '';
         saveBtn.textContent = readOnly ? (t('common.btn_close') || 'Close') : (t('skills.btn_create_skill') || 'Create Skill');
     }
 
@@ -733,10 +741,12 @@ function showDisabledState() {
                 const description = document.getElementById('code-draft-description').value.trim();
                 const category = document.getElementById('code-draft-category').value.trim();
                 const tags = parseCSV(document.getElementById('code-draft-tags').value);
+                const docEl = document.getElementById('code-draft-documentation');
+                const documentation = docEl ? docEl.value : '';
                 resp = await fetch('/api/skills', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, description, category, tags, code })
+                    body: JSON.stringify({ name, description, category, tags, code, documentation })
                 });
             }
             const data = await resp.json();
@@ -830,6 +840,8 @@ function showDisabledState() {
         document.getElementById('upload-description').value = '';
         document.getElementById('upload-category').value = '';
         document.getElementById('upload-tags').value = '';
+        const docEl = document.getElementById('upload-documentation');
+        if (docEl) docEl.value = '';
         document.getElementById('upload-modal').classList.add('active');
     }
 
@@ -851,6 +863,10 @@ function showDisabledState() {
         fd.append('description', document.getElementById('upload-description').value.trim());
         fd.append('category', document.getElementById('upload-category').value.trim());
         fd.append('tags', document.getElementById('upload-tags').value.trim());
+        const uploadDocEl = document.getElementById('upload-documentation');
+        if (uploadDocEl && uploadDocEl.value.trim()) {
+            fd.append('documentation', uploadDocEl.value);
+        }
 
         try {
             const resp = await fetch('/api/skills/upload', { method: 'POST', body: fd });
@@ -946,6 +962,8 @@ function showDisabledState() {
         const tags = parseCSV(document.getElementById('template-tags-input').value);
         const baseURL = document.getElementById('template-base-url-input').value.trim();
         const dependencies = parseCSV(document.getElementById('template-dependencies-input').value);
+        const tplDocEl = document.getElementById('template-documentation');
+        const documentation = tplDocEl ? tplDocEl.value : '';
 
         if (!templateName || !skillName) {
             showToast(t('skills.template_required') || 'Template and skill name are required', 'error');
@@ -967,7 +985,8 @@ function showDisabledState() {
                     category: category,
                     tags: tags,
                     base_url: baseURL,
-                    dependencies: dependencies
+                    dependencies: dependencies,
+                    documentation: documentation
                 })
             });
             const data = await resp.json();
@@ -1024,6 +1043,156 @@ function showDisabledState() {
                 showToast(data.message || t('common.error'), 'error');
             }
         } catch (e) {
+            showToast(t('common.error') || 'Error', 'error');
+        }
+    }
+
+    function renderSkillDocumentation(s) {
+        const has = s.HasDocumentation || s.has_documentation;
+        const hint = t('skills.documentation_hint') || 'Markdown manual the agent can read before reusing this skill. Max 64 KB. Never paste secrets or API keys.';
+        const editLabel = has ? (t('skills.documentation_edit') || 'Edit Manual') : (t('skills.documentation_add') || 'Add Manual');
+        const deleteBtn = has ? `<button class="btn btn-sm btn-danger" onclick="deleteSkillDocumentation()" data-i18n="skills.documentation_delete">${t('skills.documentation_delete') || 'Delete Manual'}</button>` : '';
+        const placeholder = has ? `<p class="sk-loading">${t('common.loading') || 'Loading...'}</p>` : `<p class="sk-vault-none" data-i18n="skills.documentation_empty">${t('skills.documentation_empty') || 'No documentation manual attached yet.'}</p>`;
+        return `<div class="sk-findings sk-documentation-block">
+        <h4>📖 ${t('skills.documentation_title') || 'Skill Manual'}</h4>
+        <p class="sk-inline-help">${esc(hint)}</p>
+        <div id="sk-documentation-content" class="sk-documentation-content">${placeholder}</div>
+        <div class="sk-documentation-actions">
+            <button class="btn btn-sm btn-secondary" onclick="openSkillDocumentationEditor()">${esc(editLabel)}</button>
+            ${deleteBtn}
+        </div>
+    </div>`;
+    }
+
+    async function loadAndRenderSkillDocumentation(id) {
+        const target = document.getElementById('sk-documentation-content');
+        if (!target) return;
+        try {
+            const resp = await fetch(`/api/skills/${encodeURIComponent(id)}/documentation`);
+            const data = await resp.json();
+            if (resp.ok && data.status === 'ok' && data.content) {
+                let rendered;
+                if (window.marked && window.DOMPurify) {
+                    rendered = window.DOMPurify.sanitize(window.marked.parse(data.content));
+                } else if (window.marked) {
+                    // marked is configured for safe defaults via setOptions on init.
+                    rendered = window.marked.parse(data.content);
+                } else {
+                    rendered = `<pre class="sk-documentation-pre">${esc(data.content)}</pre>`;
+                }
+                target.innerHTML = `<div class="sk-documentation-rendered">${rendered}</div>`;
+            } else {
+                target.innerHTML = `<p class="sk-vault-none">${t('skills.documentation_empty') || 'No documentation manual attached yet.'}</p>`;
+            }
+        } catch (_) {
+            target.innerHTML = `<p class="sk-error">${t('common.error') || 'Error'}</p>`;
+        }
+    }
+
+    // eslint-disable-next-line no-unused-vars
+    async function openSkillDocumentationEditor() {
+        if (!currentDetailId) return;
+        let current = '';
+        try {
+            const resp = await fetch(`/api/skills/${encodeURIComponent(currentDetailId)}/documentation`);
+            if (resp.ok) {
+                const data = await resp.json();
+                current = data.content || '';
+            }
+        } catch (_) { /* ignore, start empty */ }
+
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay active';
+        overlay.id = 'sk-doc-editor-modal';
+        overlay.innerHTML = `<div class="modal modal-wide">
+            <div class="modal-header">
+                <h2>${t('skills.documentation_title') || 'Skill Manual'}</h2>
+                <button class="modal-close" onclick="closeSkillDocumentationEditor()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="sk-inline-help">${esc(t('skills.documentation_hint') || 'Markdown manual the agent can read before reusing this skill. Max 64 KB. Never paste secrets or API keys.')}</p>
+                <textarea id="sk-doc-editor-textarea" class="sk-input sk-textarea" rows="20" style="font-family:monospace"></textarea>
+                <div class="sk-form-group" style="margin-top:8px">
+                    <label>${esc(t('skills.documentation_upload') || 'Or upload a .md file')}</label>
+                    <input type="file" id="sk-doc-editor-file" accept=".md,.markdown,.txt" onchange="handleSkillDocumentationFileSelect(event)">
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="closeSkillDocumentationEditor()">${t('common.btn_cancel') || 'Cancel'}</button>
+                <button class="btn btn-primary" onclick="saveSkillDocumentation()">${t('common.btn_save') || 'Save'}</button>
+            </div>
+        </div>`;
+        document.body.appendChild(overlay);
+        document.getElementById('sk-doc-editor-textarea').value = current;
+    }
+
+    // eslint-disable-next-line no-unused-vars
+    function closeSkillDocumentationEditor() {
+        const m = document.getElementById('sk-doc-editor-modal');
+        if (m) m.remove();
+    }
+
+    // eslint-disable-next-line no-unused-vars
+    function handleSkillDocumentationFileSelect(event) {
+        const f = event.target.files && event.target.files[0];
+        if (!f) return;
+        if (f.size > 64 * 1024) {
+            showToast(t('skills.documentation_too_large') || 'Manual exceeds the 64 KB limit', 'error');
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            document.getElementById('sk-doc-editor-textarea').value = e.target.result || '';
+        };
+        reader.readAsText(f, 'utf-8');
+    }
+
+    // eslint-disable-next-line no-unused-vars
+    async function saveSkillDocumentation() {
+        if (!currentDetailId) return;
+        const content = document.getElementById('sk-doc-editor-textarea').value;
+        if (!content.trim()) {
+            showToast(t('skills.documentation_empty_save') || 'Please enter Markdown content or use Delete Manual.', 'error');
+            return;
+        }
+        try {
+            const resp = await fetch(`/api/skills/${encodeURIComponent(currentDetailId)}/documentation`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content })
+            });
+            const data = await resp.json().catch(() => ({}));
+            if (resp.ok && data.status === 'ok') {
+                showToast(t('skills.documentation_saved') || 'Manual saved', 'success');
+                closeSkillDocumentationEditor();
+                showDetail(currentDetailId);
+            } else if (resp.status === 413) {
+                showToast(t('skills.documentation_too_large') || 'Manual exceeds the 64 KB limit', 'error');
+            } else if (resp.status === 403) {
+                showToast(t('skills.documentation_readonly') || 'Skill Manager is in read-only mode', 'error');
+            } else {
+                showToast(data.message || (t('common.error') || 'Error'), 'error');
+            }
+        } catch (_) {
+            showToast(t('common.error') || 'Error', 'error');
+        }
+    }
+
+    // eslint-disable-next-line no-unused-vars
+    async function deleteSkillDocumentation() {
+        if (!currentDetailId) return;
+        try {
+            const resp = await fetch(`/api/skills/${encodeURIComponent(currentDetailId)}/documentation`, { method: 'DELETE' });
+            if (resp.ok) {
+                showToast(t('skills.documentation_deleted') || 'Manual deleted', 'success');
+                showDetail(currentDetailId);
+            } else if (resp.status === 403) {
+                showToast(t('skills.documentation_readonly') || 'Skill Manager is in read-only mode', 'error');
+            } else {
+                const data = await resp.json().catch(() => ({}));
+                showToast(data.message || (t('common.error') || 'Error'), 'error');
+            }
+        } catch (_) {
             showToast(t('common.error') || 'Error', 'error');
         }
     }
@@ -1276,7 +1445,8 @@ function showDisabledState() {
                 name: data.draft.name || '',
                 description: data.draft.description || '',
                 category: data.draft.category || '',
-                tags: data.draft.tags || []
+                tags: data.draft.tags || [],
+                documentation: data.draft.documentation || ''
             });
             showToast(t('skills.generate_success') || 'Draft generated', 'success');
         } catch (e) {

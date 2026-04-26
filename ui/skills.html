@@ -155,6 +155,11 @@
                             <input type="text" id="code-draft-tags" class="sk-input" data-i18n-placeholder="skills.placeholder_tags" placeholder="api, automation">
                         </div>
                     </div>
+                    <div class="sk-form-group">
+                        <label data-i18n="skills.documentation_label">Manual (Markdown, optional)</label>
+                        <textarea id="code-draft-documentation" class="sk-input sk-textarea" rows="6" data-i18n-placeholder="skills.documentation_placeholder" placeholder="## Description&#10;..."></textarea>
+                        <p class="sk-inline-help" data-i18n="skills.documentation_hint">Markdown manual the agent can read before reusing this skill. Max 64 KB. Never paste secrets or API keys.</p>
+                    </div>
                 </div>
                 <div id="code-editor-container" class="sk-code-editor-container"></div>
             </div>
@@ -204,6 +209,11 @@
                     <span id="sk-selected-name"></span>
                     <button class="btn btn-sm btn-secondary" onclick="clearFileSelection()" data-i18n="skills.upload_clear">Clear</button>
                 </div>
+                <div class="sk-form-group">
+                    <label data-i18n="skills.documentation_label">Manual (Markdown, optional)</label>
+                    <textarea id="upload-documentation" class="sk-input sk-textarea" rows="6" data-i18n-placeholder="skills.documentation_placeholder" placeholder="## Description&#10;What this skill does.&#10;&#10;## Parameters&#10;- name (string)&#10;&#10;## Output&#10;...&#10;&#10;## Example&#10;...&#10;&#10;## Errors&#10;..."></textarea>
+                    <p class="sk-inline-help" data-i18n="skills.documentation_hint">Markdown manual the agent can read before reusing this skill. Max 64 KB. Never paste secrets or API keys.</p>
+                </div>
             </div>
             <div class="modal-actions">
                 <button class="btn btn-secondary" onclick="closeUploadModal()" data-i18n="common.btn_cancel">Cancel</button>
@@ -252,6 +262,11 @@
                 <div class="sk-form-group">
                     <label data-i18n="skills.field_dependencies">Dependencies</label>
                     <input type="text" id="template-dependencies-input" class="sk-input" data-i18n-placeholder="skills.placeholder_dependencies" placeholder="requests, pyyaml">
+                </div>
+                <div class="sk-form-group">
+                    <label data-i18n="skills.documentation_label">Manual (Markdown, optional)</label>
+                    <textarea id="template-documentation" class="sk-input sk-textarea" rows="6" data-i18n-placeholder="skills.documentation_placeholder" placeholder="## Description&#10;..."></textarea>
+                    <p class="sk-inline-help" data-i18n="skills.documentation_hint">Markdown manual the agent can read before reusing this skill. Max 64 KB. Never paste secrets or API keys.</p>
                 </div>
             </div>
             <div class="modal-actions">
