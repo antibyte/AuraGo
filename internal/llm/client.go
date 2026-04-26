@@ -65,6 +65,10 @@ func detectProviderURLMismatch(providerType, baseURL string) string {
 		if strings.Contains(lower, "anthropic") {
 			return "provider=minimax uses MiniMax's OpenAI-compatible endpoint — use https://api.minimax.io/v1 or provider=anthropic for an Anthropic-compatible endpoint"
 		}
+	case "yepapi":
+		if !strings.Contains(lower, "yepapi") {
+			return "provider=yepapi but URL does not contain 'yepapi' — use https://api.yepapi.com/v1/ai"
+		}
 	case "ollama":
 		if !strings.Contains(lower, "localhost") && !strings.Contains(lower, "127.0.0.1") && !strings.Contains(lower, "ollama") {
 			return "provider=ollama but URL doesn't reference localhost or ollama — ollama is typically on localhost:11434"

@@ -1433,6 +1433,9 @@ type Config struct {
 	// LDAP/Active Directory integration
 	LDAP LDAPConfig `yaml:"ldap"`
 
+	// YepAPI integration for SEO, SERP, scraping, YouTube, TikTok, Instagram, Amazon and LLM access
+	YepAPI YepAPIConfig `yaml:"yepapi"`
+
 	// gwProvider is a synthetic ProviderEntry used by FindProvider for Google Workspace OAuth.
 	gwProvider ProviderEntry `yaml:"-" json:"-"`
 }
@@ -1545,6 +1548,23 @@ func obsidianConfigHasYAMLKey(node *yaml.Node, key string) bool {
 		}
 	}
 	return false
+}
+
+// YepAPIConfig holds settings for the YepAPI tool suite.
+type YepAPIConfig struct {
+	Enabled   bool                `yaml:"enabled" json:"enabled"`
+	SEO       YepAPIServiceConfig `yaml:"seo" json:"seo"`
+	SERP      YepAPIServiceConfig `yaml:"serp" json:"serp"`
+	Scraping  YepAPIServiceConfig `yaml:"scraping" json:"scraping"`
+	YouTube   YepAPIServiceConfig `yaml:"youtube" json:"youtube"`
+	TikTok    YepAPIServiceConfig `yaml:"tiktok" json:"tiktok"`
+	Instagram YepAPIServiceConfig `yaml:"instagram" json:"instagram"`
+	Amazon    YepAPIServiceConfig `yaml:"amazon" json:"amazon"`
+}
+
+// YepAPIServiceConfig holds per-service enablement for YepAPI.
+type YepAPIServiceConfig struct {
+	Enabled bool `yaml:"enabled" json:"enabled"`
 }
 
 // LDAPConfig holds configuration for LDAP/Active Directory integration.

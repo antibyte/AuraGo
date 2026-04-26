@@ -174,6 +174,7 @@ var knownProviderTypes = map[string]bool{
 	"anthropic": true, "google": true, "workers-ai": true,
 	"custom": true, "stability": true, "ideogram": true,
 	"vision": true, "minimax": true, "glm": true,
+	"yepapi": true,
 }
 
 // ResolveProviders populates the resolved (yaml:"-") fields on every LLM slot

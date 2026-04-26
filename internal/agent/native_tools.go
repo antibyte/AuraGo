@@ -151,6 +151,15 @@ type ToolFeatureFlags struct {
 	// FritzBox sub-feature flags
 	FritzBoxSystemEnabled    bool
 	FritzBoxNetworkEnabled   bool
+	// YepAPI services
+	YepAPIEnabled           bool
+	YepAPISEOEnabled        bool
+	YepAPISERPEnabled       bool
+	YepAPIScrapingEnabled   bool
+	YepAPIYouTubeEnabled    bool
+	YepAPITikTokEnabled     bool
+	YepAPIInstagramEnabled  bool
+	YepAPIAmazonEnabled     bool
 	FritzBoxTelephonyEnabled bool
 	FritzBoxSmartHomeEnabled bool
 	FritzBoxStorageEnabled   bool

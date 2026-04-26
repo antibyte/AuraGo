@@ -297,6 +297,16 @@ func Load(path string) (*Config, error) {
 	cfg.LDAP.Enabled = false
 	cfg.LDAP.ReadOnly = true
 	cfg.LDAP.UseTLS = true
+
+	// YepAPI defaults: disabled by default, all services opt-in.
+	cfg.YepAPI.Enabled = false
+	cfg.YepAPI.SEO.Enabled = false
+	cfg.YepAPI.SERP.Enabled = false
+	cfg.YepAPI.Scraping.Enabled = false
+	cfg.YepAPI.YouTube.Enabled = false
+	cfg.YepAPI.TikTok.Enabled = false
+	cfg.YepAPI.Instagram.Enabled = false
+	cfg.YepAPI.Amazon.Enabled = false
 	cfg.LDAP.Port = 636
 	cfg.LDAP.ConnectTimeout = 10
 	cfg.LDAP.RequestTimeout = 30
