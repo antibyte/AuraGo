@@ -91,9 +91,29 @@ func (c *YepAPIClient) Post(ctx context.Context, endpoint string, payload interf
 }
 
 // ResolveYepAPIKey resolves the YepAPI API key from the config/vault.
-// It first checks for a provider with type "yepapi", then falls back to a dedicated vault key.
+// Priority:
+//  1. Explicit provider ID from cfg.YepAPI.Provider
+//  2. First provider with type "yepapi"
+//  3. Dedicated vault key "yepapi_api_key"
 func ResolveYepAPIKey(cfg *config.Config, vault config.SecretReader) (string, error) {
-	// Strategy 1: Find a provider with type "yepapi" and use its key
+	// Strategy 1: Explicit provider ID configured in YepAPI section
+	if cfg.YepAPI.Provider != "" {
+		for _, p := range cfg.Providers {
+			if p.ID == cfg.YepAPI.Provider {
+				key, err := vault.ReadSecret(fmt.Sprintf("provider_%s_api_key", p.ID))
+				if err == nil && key != "" {
+					return key, nil
+				}
+				if p.APIKey != "" {
+					return p.APIKey, nil
+				}
+				return "", fmt.Errorf("provider '%s' configured for YepAPI but has no API key", p.ID)
+			}
+		}
+		return "", fmt.Errorf("provider '%s' configured for YepAPI but not found in providers list", cfg.YepAPI.Provider)
+	}
+
+	// Strategy 2: Find a provider with type "yepapi" and use its key
 	for _, p := range cfg.Providers {
 		if p.Type == "yepapi" {
 			key, err := vault.ReadSecret(fmt.Sprintf("provider_%s_api_key", p.ID))
@@ -106,13 +126,13 @@ func ResolveYepAPIKey(cfg *config.Config, vault config.SecretReader) (string, er
 		}
 	}
 
-	// Strategy 2: Dedicated vault key
+	// Strategy 3: Dedicated vault key
 	key, err := vault.ReadSecret("yepapi_api_key")
 	if err == nil && key != "" {
 		return key, nil
 	}
 
-	return "", fmt.Errorf("no YepAPI API key found: configure a provider with type 'yepapi' or set the 'yepapi_api_key' vault secret")
+	return "", fmt.Errorf("no YepAPI API key found: configure a provider with type 'yepapi', select one in the YepAPI settings, or set the 'yepapi_api_key' vault secret")
 }
 
 // formatError wraps an error message in a JSON string for consistent tool output.

@@ -1599,7 +1599,8 @@ const SECTION_MODULES = {
     daemon_skills: { m: 'daemon_skills', fn: 'renderDaemonSkillsSection' },
     ollama: { m: 'ollama', fn: 'renderOllamaSection' },
     mission_preparation: { m: 'mission_preparation', fn: 'renderMissionPreparationSection' },
-    mqtt: { m: 'mqtt', fn: 'renderMQTTSection' }
+    mqtt: { m: 'mqtt', fn: 'renderMQTTSection' },
+    yepapi: { m: 'yepapi', fn: 'renderYepAPISection' }
 };
 
 function loadModule(name) {

@@ -163,6 +163,9 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	mux.HandleFunc("/api/browser-automation/status", handleBrowserAutomationStatus(s))
 	mux.HandleFunc("/api/browser-automation/test", handleBrowserAutomationTest(s))
 
+	// YepAPI integration endpoints
+	mux.HandleFunc("/api/yepapi/test", handleYepAPITest(s))
+
 	// Ansible endpoints
 	mux.HandleFunc("/api/ansible/generate-token", handleAnsibleGenerateToken(s))
 

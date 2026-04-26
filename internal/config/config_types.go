@@ -1552,14 +1552,16 @@ func obsidianConfigHasYAMLKey(node *yaml.Node, key string) bool {
 
 // YepAPIConfig holds settings for the YepAPI tool suite.
 type YepAPIConfig struct {
-	Enabled   bool                `yaml:"enabled" json:"enabled"`
-	SEO       YepAPIServiceConfig `yaml:"seo" json:"seo"`
-	SERP      YepAPIServiceConfig `yaml:"serp" json:"serp"`
-	Scraping  YepAPIServiceConfig `yaml:"scraping" json:"scraping"`
-	YouTube   YepAPIServiceConfig `yaml:"youtube" json:"youtube"`
-	TikTok    YepAPIServiceConfig `yaml:"tiktok" json:"tiktok"`
-	Instagram YepAPIServiceConfig `yaml:"instagram" json:"instagram"`
-	Amazon    YepAPIServiceConfig `yaml:"amazon" json:"amazon"`
+	Enabled      bool                `yaml:"enabled" json:"enabled"`
+	Provider     string              `yaml:"provider" json:"provider"`          // provider entry ID (empty = auto-select first yepapi provider)
+	ProviderType string              `yaml:"-" json:"-"`                       // resolved: provider type
+	SEO          YepAPIServiceConfig `yaml:"seo" json:"seo"`
+	SERP         YepAPIServiceConfig `yaml:"serp" json:"serp"`
+	Scraping     YepAPIServiceConfig `yaml:"scraping" json:"scraping"`
+	YouTube      YepAPIServiceConfig `yaml:"youtube" json:"youtube"`
+	TikTok       YepAPIServiceConfig `yaml:"tiktok" json:"tiktok"`
+	Instagram    YepAPIServiceConfig `yaml:"instagram" json:"instagram"`
+	Amazon       YepAPIServiceConfig `yaml:"amazon" json:"amazon"`
 }
 
 // YepAPIServiceConfig holds per-service enablement for YepAPI.

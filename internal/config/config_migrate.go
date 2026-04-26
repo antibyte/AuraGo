@@ -564,6 +564,13 @@ func (c *Config) ResolveProviders() {
 			}
 		}
 	}
+
+	// ── YepAPI ──
+	if c.YepAPI.Provider != "" {
+		if p := c.FindProvider(c.YepAPI.Provider); p != nil {
+			c.YepAPI.ProviderType = p.Type
+		}
+	}
 }
 
 // resolveSpecialistLLM resolves a single specialist's LLM fields.

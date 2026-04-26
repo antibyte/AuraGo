@@ -356,6 +356,67 @@ func TestResolveYepAPIKey(t *testing.T) {
 			t.Fatal("expected error when key is not found")
 		}
 	})
+
+	t.Run("explicit_provider", func(t *testing.T) {
+		cfg := &config.Config{
+			YepAPI: config.YepAPIConfig{Provider: "my_yep"},
+			Providers: []config.ProviderEntry{
+				{ID: "other", Type: "yepapi", APIKey: "other_key"},
+				{ID: "my_yep", Type: "yepapi", APIKey: "explicit_key"},
+			},
+		}
+		vault := &mockSecretReader{secrets: map[string]string{}}
+		key, err := ResolveYepAPIKey(cfg, vault)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if key != "explicit_key" {
+			t.Fatalf("expected 'explicit_key', got %q", key)
+		}
+	})
+
+	t.Run("explicit_provider_from_vault", func(t *testing.T) {
+		cfg := &config.Config{
+			YepAPI: config.YepAPIConfig{Provider: "my_yep"},
+			Providers: []config.ProviderEntry{
+				{ID: "my_yep", Type: "yepapi", APIKey: ""},
+			},
+		}
+		vault := &mockSecretReader{secrets: map[string]string{"provider_my_yep_api_key": "vault_prov_key"}}
+		key, err := ResolveYepAPIKey(cfg, vault)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if key != "vault_prov_key" {
+			t.Fatalf("expected 'vault_prov_key', got %q", key)
+		}
+	})
+
+	t.Run("explicit_provider_not_found", func(t *testing.T) {
+		cfg := &config.Config{
+			YepAPI: config.YepAPIConfig{Provider: "missing"},
+			Providers: []config.ProviderEntry{},
+		}
+		vault := &mockSecretReader{secrets: map[string]string{}}
+		_, err := ResolveYepAPIKey(cfg, vault)
+		if err == nil {
+			t.Fatal("expected error when explicit provider not found")
+		}
+	})
+
+	t.Run("explicit_provider_no_key", func(t *testing.T) {
+		cfg := &config.Config{
+			YepAPI: config.YepAPIConfig{Provider: "my_yep"},
+			Providers: []config.ProviderEntry{
+				{ID: "my_yep", Type: "yepapi", APIKey: ""},
+			},
+		}
+		vault := &mockSecretReader{secrets: map[string]string{}}
+		_, err := ResolveYepAPIKey(cfg, vault)
+		if err == nil {
+			t.Fatal("expected error when explicit provider has no key")
+		}
+	})
 }
 
 type mockSecretReader struct {

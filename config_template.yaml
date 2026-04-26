@@ -935,6 +935,7 @@ notifications:
 # Providers section above.
 yepapi:
     enabled: false
+    provider: ""                            # provider entry ID with type 'yepapi' (empty = auto-select first)
     seo:
         enabled: false                      # keyword research, domain overview, competitor analysis, backlinks
     serp:
