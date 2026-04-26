@@ -2,7 +2,7 @@
 
 Willkommen zum AuraGo Benutzerhandbuch – deiner umfassenden Anleitung für den persönlichen KI-Agenten.
 
-> 📅 **Stand:** 12. April 2026  
+> 📅 **Stand:** 26. April 2026
 > 🔄 **Version:** 2.x kompatibel  
 > 📝 **Letzte Aktualisierung:** Dokumentations-Sync mit aktuellem Code-Stand (Chat-Commands, Tools, Integrationen, Config)
 
@@ -20,6 +20,7 @@ AuraGo ist ein vollständig autonomer KI-Agent, der als einzelne portable Binary
 | **🛡️ LLM Guardian** | KI-basierte Sicherheitsüberwachung |
 | **⚡ Adaptive Tools** | Intelligente Tool-Filterung spart Tokens |
 | **📄 Document AI** | PDF-Erstellung und -Analyse |
+| **🎬 Video Generation** | KI-Text-zu-Video und Bild-zu-Video-Generierung |
 | **🔐 AES-256 Vault** | Sichere Speicherung aller Secrets |
 | **🌐 50+ Integrationen** | Von S3 über OneDrive bis TrueNAS |
 | **☁️ Cloudflare Tunnel** | Sicherer Remote-Zugriff ohne öffentliche IP |
@@ -162,6 +163,7 @@ Eine vollständige Übersicht aller 100+ internen Tools findest du im Abschnitt 
 | 2026-03 | **Skill Manager, Media Registry, Egg Mode** ergänzt |
 | 2026-04 | **Kapitel 23: Interna** – Architektur, Module und interne Arbeitsweise dokumentiert |
 | 2026-04 | Dokumentations-Sync mit aktuellem Code-Stand: Chat-Commands ergänzt (/voice, /warnings), interne Tools bereinigt, Integrationen korrigiert, Config-Referenzen aktualisiert |
+| 2026-04 | Video Generation, send_video, LDAP, n8n-Scopes, A2A-Nutzung, Web Push, Managed Ollama, File KG Sync, Backup/Restore, Mission Preparation und Security-Proxy-API dokumentiert |
 | 2026-03 | **Chat-Commands /sudopwd** hinzugefügt |
 
 ---

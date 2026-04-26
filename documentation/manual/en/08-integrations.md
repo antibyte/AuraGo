@@ -366,21 +366,41 @@ adguard:
 
 ## n8n Integration
 
-Connect with n8n workflow automation.
+Connect with n8n workflow automation. AuraGo can expose scoped API access to n8n workflows, execute selected tools, create isolated chat sessions, search/store memory, and create or manage missions from workflows.
 
 ### Web UI Setup
 1. Open **Config → Integrations → n8n**.
 2. Enable the integration.
-3. Enter your **Webhook Base URL**.
-4. Save and restart.
+3. Enter your **Webhook Base URL** for outbound calls from AuraGo to n8n.
+4. Configure allowed scopes and tools. Use the narrowest scopes that your workflow needs.
+5. Enable HMAC/token checks and rate limits for public endpoints.
+6. Save and restart.
 
 AuraGo also provides an official n8n community node: `@antibyte/n8n-nodes-aurago`.
+
+### Scopes and capabilities
+
+| Scope | Allows |
+|-------|--------|
+| `n8n:chat` | Start or continue isolated AuraGo chat sessions from n8n |
+| `n8n:tools` | Execute explicitly allowed AuraGo tools from workflows |
+| `n8n:memory` | Search or store memory entries through workflow logic |
+| `n8n:missions` | Create, update, trigger, or inspect Mission Control tasks |
+| `n8n:admin` | Administrative operations; keep disabled unless required |
+
+Use `readonly: true` for workflows that should only read state. Use `allowed_tools` instead of `*` when exposing tool execution to n8n.
 
 ### YAML Reference
 ```yaml
 n8n:
     enabled: true
+    readonly: false
     webhook_base_url: "https://n8n.yourdomain.com"
+    allowed_events: ["message", "tool_result"]
+    require_token: true
+    allowed_tools: ["query_memory", "manage_missions"]
+    rate_limit_rps: 10
+    scopes: ["n8n:chat", "n8n:tools", "n8n:memory"]
 ```
 
 ---
@@ -518,6 +538,45 @@ image_generation:
     provider: "openai"
     model: "dall-e-3"
 ```
+
+---
+
+## Video Generation Integration
+
+Generate short videos from text prompts or image guidance. Supported providers include MiniMax Hailuo and Google Veo, depending on your configured API credentials and model availability.
+
+### Capabilities
+
+| Capability | Description |
+|------------|-------------|
+| Text-to-video | Generate a video directly from a prompt |
+| Image-to-video | Use a first frame as guidance |
+| First/last frame guidance | Provider-supported start/end frame control |
+| Reference images | Provider-supported image references |
+| Media Registry | Generated MP4 files are saved and registered automatically |
+| Daily limits | Limit cost and provider usage with `max_daily` |
+
+### Web UI Setup
+1. Open **Config → Integrations → Video Generation**.
+2. Enable the integration.
+3. Select a **Provider** (`minimax` or `google`) and model.
+4. Set duration, resolution, aspect ratio, and daily limits.
+5. Store provider credentials in the Vault.
+6. Save and restart.
+
+### YAML Reference
+```yaml
+video_generation:
+    enabled: true
+    provider: "minimax"
+    model: "hailuo-02"
+    duration_seconds: 6
+    resolution: "720p"
+    aspect_ratio: "16:9"
+    max_daily: 5
+```
+
+Use the `generate_video` tool in chat. Existing video files can be sent back to the user with `send_video`, which renders them as inline video players in the Web UI.
 
 ---
 
@@ -676,6 +735,23 @@ notifications:
         url: "https://ntfy.sh"
         topic: "aurago"
 ```
+
+---
+
+## Web Push / PWA Notifications
+
+AuraGo also supports browser Web Push for the installable PWA. This is separate from ntfy and Pushover: browsers subscribe through VAPID keys, subscriptions are stored in `data/push.db`, and AuraGo can deliver local browser notifications without an external notification provider.
+
+### API Endpoints
+
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /api/push/vapid-pubkey` | Retrieve the public VAPID key |
+| `POST /api/push/subscribe` | Register the browser push subscription |
+| `POST /api/push/unsubscribe` | Remove the current browser subscription |
+| `GET /api/push/status` | Check push availability and subscription state |
+
+Web Push requires HTTPS or `localhost`, because browsers block service-worker push subscriptions on insecure origins.
 
 ---
 
@@ -905,7 +981,9 @@ co_agents:
 
 ## Mission Preparation Integration
 
-Pre-analyse missions before execution.
+Pre-analyse missions before execution. The Mission Preparation service asks an LLM to create structured run guidance before a scheduled or manual mission starts.
+
+It can generate essential tools, step plans, likely pitfalls, decision points, preload hints, and a confidence score. Prepared guidance is cached by mission checksum and invalidated when the mission changes. When enabled, scheduled missions can be prepared automatically before execution.
 
 ### Web UI Setup
 1. Open **Config → Integrations → Mission Preparation**.
@@ -918,6 +996,8 @@ Pre-analyse missions before execution.
 mission_preparation:
     enabled: true
     timeout_seconds: 120
+    auto_prepare_scheduled: true
+    min_confidence: 0.6
 ```
 
 ---
@@ -959,11 +1039,21 @@ Manage local LLMs.
 4. Optionally enable **Managed Instance** to let AuraGo run Ollama in Docker.
 5. Save and restart.
 
+### Managed Ollama
+
+When managed mode is enabled, AuraGo controls an `aurago_ollama_managed` Docker container. It can keep model data in a persistent volume, detect available GPU support (NVIDIA, AMD, Intel where supported by Docker), apply memory limits, pull configured default models, and recreate the container from the Web UI or API.
+
+Use `GET /api/ollama/managed/status` to inspect the container and `POST /api/ollama/managed/recreate` to rebuild it after configuration changes.
+
 ### YAML Reference
 ```yaml
 ollama:
     enabled: true
     url: "http://localhost:11434"
+    managed:
+      enabled: true
+      image: "ollama/ollama:latest"
+      default_models: ["llama3.1"]
 ```
 
 ---
@@ -1040,7 +1130,9 @@ ansible:
 
 ## A2A Protocol Integration
 
-AuraGo supports the Google A2A (Agent-to-Agent) protocol for communication between AI agents.
+AuraGo supports the Google A2A (Agent-to-Agent) protocol for communication between AI agents. It can publish an Agent Card so other A2A clients know its name, capabilities, endpoints, and authentication requirements. AuraGo can also act as an A2A client and register remote agents for delegated tasks.
+
+A2A is useful when multiple autonomous agents need to exchange tasks without sharing a single chat session. AuraGo supports REST, JSON-RPC, and gRPC bindings where enabled, plus streaming and push notifications.
 
 ### Web UI Setup
 1. Open **Config → Integrations → A2A**.
@@ -1088,6 +1180,32 @@ music_generation:
   model: ""
   max_daily: 10
 ```
+
+## LDAP / Active Directory Integration
+
+Query and authenticate against LDAP or Active Directory. The `ldap` tool can search users and groups, retrieve details, list groups, and authenticate credentials. Write operations are blocked unless LDAP read-only mode is disabled.
+
+### Web UI Setup
+1. Open **Config → Integrations → LDAP**.
+2. Enable the integration.
+3. Enter the **Server URL**, **Base DN**, and Bind DN.
+4. Store the Bind password in the Vault.
+5. Enable TLS or LDAPS where available.
+6. Use the test button before allowing non-read-only operations.
+
+### YAML Reference
+```yaml
+ldap:
+  enabled: true
+  url: "ldap://ldap.example.com:389"
+  base_dn: "dc=example,dc=com"
+  bind_dn: "cn=admin,dc=example,dc=com"
+  use_tls: true
+  insecure_skip_verify: false
+  readonly: true
+```
+
+---
 
 ## Firewall Integration
 
@@ -1148,7 +1266,7 @@ tools:
 
 ## Security Proxy
 
-Protection layer for publicly reachable AuraGo instances with rate limiting, IP filtering, and geo-blocking.
+Protection layer for publicly reachable AuraGo instances with rate limiting, IP filtering, and geo-blocking. AuraGo manages the proxy as a Caddy-based Docker container, reloads the generated configuration, and exposes logs and lifecycle actions via API.
 
 ### Web UI Setup
 1. Open **Config → Integrations → Security Proxy**.
@@ -1173,6 +1291,17 @@ security_proxy:
         enabled: false
         blocked_countries: []
 ```
+
+### Runtime API
+
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /api/proxy/status` | Current proxy/container status |
+| `POST /api/proxy/start` | Start the managed proxy container |
+| `POST /api/proxy/stop` | Stop the proxy |
+| `POST /api/proxy/destroy` | Remove the managed proxy container |
+| `POST /api/proxy/reload` | Regenerate and reload the Caddy configuration |
+| `GET /api/proxy/logs` | Fetch recent proxy logs |
 
 ---
 

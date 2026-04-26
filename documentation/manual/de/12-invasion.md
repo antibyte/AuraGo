@@ -412,6 +412,14 @@ docker stats aurago-edge-01
 
 > 💡 **Tipp:** Für das Management mehrerer AuraGo-Instanzen ist Invasion Control über die Web-UI die bevorzugte Methode.
 
+## Synchronisierte Hinweise zu aktuellen Invasion-Features
+
+Die aktuelle Implementierung verwaltet Nests, Eggs, Tasks, Artefakte, Deployment-Historie, sichere Konfigurationsrevisionen und Rollbacks. Nests können über lokale Docker-Connectoren, SSH-Connectoren oder andere unterstützte Transportwege angebunden werden. Eggs sind keine Tool-Namen, sondern Deployment-Konfigurationen; Aufgaben an Eggs laufen über das Tool `invasion_control` oder die `/api/invasion/*`-Endpunkte.
+
+Wichtige Zusatzfunktionen sind `send_task`, `send_secret`, Artefakt-Angebote und Uploads, Key-Rotation, Safe-Reconfigure, Config-History und Config-Rollback. Für Live-Status nutzt die Web-UI den Invasion-WebSocket `/api/invasion/ws`.
+
+Remote-Routing kann direkt, über SSH-Tunnel, VPN/Tailscale oder über die konfigurierte Bridge erfolgen. Secrets werden nicht frei exportiert, sondern gezielt an Eggs übertragen, wenn der Benutzer oder eine erlaubte Operation dies auslöst.
+
 ---
 
 **Vorheriges Kapitel:** [Kapitel 11: Mission Control](./11-missions.md)  

@@ -295,6 +295,9 @@ Send image to user (local path or URL).
 ### `send_audio`
 Send audio file (inline player).
 
+### `send_video`
+Send a local or remote video file to the user. Supported browser-playable formats are copied or downloaded to the generated video area, registered in the media registry, and rendered as an inline video player in the Web UI.
+
 ### `send_document`
 Send document (with Open/Download buttons).
 
@@ -319,6 +322,9 @@ Browse/manage media registry (images, TTS, audio).
 
 ### `generate_music`
 Generate AI music (text-to-music).
+
+### `generate_video`
+Generate short AI videos from text prompts or provider-supported image guidance. Supports configured MiniMax Hailuo and Google Veo providers, async polling, provider-specific model options, daily limits, and automatic Media Registry registration.
 
 ---
 
@@ -785,7 +791,7 @@ Not all tools are available by default. Availability depends on **Tool Feature F
 - `discover_tools`
 - `ddg_search`, `wikipedia_search`
 - `analyze_image`, `transcribe_audio`
-- `send_image`, `send_audio`, `send_document`
+- `send_image`, `send_audio`, `send_video`, `send_document`
 - `list_skills`, `execute_skill`
 - `dns_lookup`, `whois_lookup`
 - `detect_file_type`, `archive`
@@ -822,6 +828,7 @@ Not all tools are available by default. Availability depends on **Tool Feature F
 | `google_workspace_enabled` | `google_workspace` |
 | `onedrive_enabled` | `onedrive` |
 | `image_generation_enabled` | `generate_image` |
+| `video_generation_enabled` | `generate_video` |
 | `fritzbox_*_enabled` | `fritzbox_system`, `fritzbox_network`, `fritzbox_telephony`, `fritzbox_smarthome`, `fritzbox_storage`, `fritzbox_tv` |
 | `telnyx_*_enabled` | `telnyx_sms`, `telnyx_call`, `telnyx_manage` |
 | `webhooks_enabled` | `call_webhook`, `manage_outgoing_webhooks`, `manage_webhooks` |

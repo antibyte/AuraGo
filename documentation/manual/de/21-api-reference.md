@@ -2,7 +2,7 @@
 
 AuraGo bietet eine umfassende REST API für den programmatischen Zugriff auf alle Funktionen. Die API folgt den REST-Prinzipien und verwendet JSON für die Datenübertragung.
 
-> 📅 **Stand:** März 2026  
+> 📅 **Stand:** April 2026
 > 🔌 **Basis-URL:** `http://localhost:8088` (Standard)
 
 ---
@@ -669,9 +669,19 @@ POST /api/indexing/directories
 
 ## Backup API
 
+AuraGo-Backups verwenden das `.ago`-Format. Archive sind ZIP-basiert und können mit AES-256-GCM und Argon2id-abgeleiteten Schlüsseln verschlüsselt werden. Sie können Konfiguration, SQLite-Datenbanken inklusive WAL/SHM-Dateien, VectorDB-Daten, Skills, Tools, ausgewählte Workspace-Dateien und separat verschlüsselte Vault-Secrets für Instanzmigrationen enthalten.
+
 ### Backup erstellen
 ```http
 POST /api/backup/create
+Content-Type: application/json
+
+{
+  "include_vectordb": true,
+  "include_workdir": false,
+  "encrypt": true,
+  "passphrase": "starkes-passwort"
+}
 ```
 
 ### Backup importieren
@@ -679,6 +689,8 @@ POST /api/backup/create
 POST /api/backup/import
 Content-Type: multipart/form-data
 ```
+
+Importe werden zuerst gestaged, auf Path-Traversal, Schema-Warnungen und Archiv-Kompatibilität geprüft und danach so atomar wie möglich wiederhergestellt.
 
 ---
 
@@ -798,6 +810,17 @@ POST /api/music-generation/test
 
 ---
 
+## Video Generation API
+
+### Verbindung testen
+```http
+POST /api/video-generation/test
+```
+
+Validiert Provider-Konfiguration und Credential-Verfügbarkeit für das konfigurierte Video-Generation-Backend.
+
+---
+
 ## Document Creator API
 
 ### Test Gotenberg Connection
@@ -839,6 +862,21 @@ GET /api/knowledge-graph/stats
 GET /api/knowledge-graph/quality
 GET /api/knowledge-graph/important
 ```
+
+`/api/knowledge-graph/quality` meldet isolierte Nodes, untypisierte Nodes und mögliche Duplikate. `POST /api/knowledge-graph/node/protect` markiert wichtige Nodes als geschützt, damit automatische Bereinigung sie nicht versehentlich entfernt.
+
+### File-Sync-Debugging
+```http
+GET /api/debug/kg-file-sync-stats
+GET /api/debug/kg-orphans
+GET /api/debug/file-sync-status
+GET /api/debug/file-sync-last-run
+GET /api/debug/kg-file-entities
+GET /api/debug/kg-node-sources
+POST /api/debug/kg-file-sync-cleanup
+```
+
+Diese Endpunkte prüfen und warten den Hintergrunddienst File KG Sync, der Entitäten und Beziehungen aus indexierten Dateien in den Knowledge Graph extrahiert.
 
 ---
 
@@ -1017,10 +1055,30 @@ GET /api/ollama/models
 GET /api/ollama/managed/status
 ```
 
+Gibt Status des verwalteten Docker-Containers, erkannte Runtime, Modell-Volume-Status, verfügbare GPU-Unterstützung soweit erkennbar und konfigurierte Standardmodelle zurück.
+
 ### Managed Ollama neu erstellen
 ```http
 POST /api/ollama/managed/recreate
 ```
+
+Erstellt den verwalteten Container `aurago_ollama_managed` nach Konfigurationsänderungen neu.
+
+---
+
+## Security Proxy API
+
+### Proxy-Lifecycle
+```http
+GET /api/proxy/status
+POST /api/proxy/start
+POST /api/proxy/stop
+POST /api/proxy/destroy
+POST /api/proxy/reload
+GET /api/proxy/logs
+```
+
+Die Security Proxy API steuert die verwaltete Caddy-Schutzschicht für Rate-Limiting, TLS-Terminierung, IP-Filter, Geo-Blocking und öffentliche Härtung.
 
 ---
 

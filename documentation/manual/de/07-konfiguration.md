@@ -529,6 +529,68 @@ AuraGo validiert die Konfiguration beim Start:
 
 ---
 
+## Erweiterte Konfigurationsblöcke
+
+Diese Ergänzung synchronisiert die deutsche Referenz mit den aktuellen englischen Kapiteln und dem aktuellen `config_template.yaml`.
+
+### Medien- und Generierungsfeatures
+
+```yaml
+image_generation:
+  enabled: true
+  provider: "openai"
+
+music_generation:
+  enabled: true
+  provider: "minimax"
+  max_daily: 10
+
+video_generation:
+  enabled: true
+  provider: "minimax"
+  model: "hailuo-02"
+  duration_seconds: 6
+  resolution: "720p"
+  aspect_ratio: "16:9"
+  max_daily: 5
+
+media_registry:
+  enabled: true
+```
+
+### Background Services
+
+| Block | Zweck |
+|-------|-------|
+| `indexing` | Dateien überwachen, chunking und RAG-Index aktualisieren |
+| `mission_preparation` | Missionen per LLM voranalysieren und Ergebnisse cachen |
+| `maintenance` | Nightly Maintenance, Konsolidierung und Speicherpflege |
+| `agent.output_compression` | Tool-Ausgaben vor dem LLM-Kontext komprimieren |
+| `co_agents` | Spezialisten-Agenten mit Budgets und Circuit Breakern konfigurieren |
+
+### Externe Protokolle und Bridges
+
+| Block | Zweck |
+|-------|-------|
+| `mcp` | Externe MCP-Server als Client nutzen |
+| `mcp_server` | AuraGo selbst als MCP-Server bereitstellen |
+| `a2a` | Agent-to-Agent-Kommunikation und Remote Agents |
+| `python_tool_bridge` | Ausgewählte native Tools für Python-Skills freigeben |
+| `n8n` | Workflow-Automation mit Scopes, Tool-Freigabe und Webhooks |
+
+### Sicherheit und Public Exposure
+
+| Block | Zweck |
+|-------|-------|
+| `auth` | Login, Sessions, TOTP und Lockout-Regeln |
+| `vault` | AES-GCM-Secret-Storage |
+| `llm_guardian` | LLM-basierte Risikoanalyse für Tool Calls und externe Inhalte |
+| `security_proxy` | Verwalteter Caddy-Proxy mit Rate-Limiting/IP-Filter |
+| `cloudflare_tunnel` | Cloudflare Tunnel für Remote-Zugriff |
+| `tailscale.tsnet` | Eingebetteter Tailscale-Node mit optionalem Funnel |
+
+---
+
 ## Zusammenfassung
 
 | Abschnitt | Zweck |

@@ -262,6 +262,24 @@ export AURAGO_MASTER_KEY=$(openssl rand -hex 32)
 
 ---
 
+## Additional Public-Facing Protections
+
+The German security chapter contains a more detailed public-exposure checklist; the current English sync adds the key operational points here.
+
+| Protection | Recommendation |
+|------------|----------------|
+| Login protection | Enable auth before exposing AuraGo beyond localhost |
+| TOTP | Enable 2FA for all internet-facing deployments |
+| Security Proxy | Use the managed Caddy proxy for rate limiting, TLS termination, IP filtering, and geo-blocking |
+| Cloudflare Tunnel / Tailscale | Prefer private tunnels or VPN access over direct port forwarding |
+| Webhooks and n8n | Require tokens/HMAC, narrow scopes, and rate limits |
+| Tool permissions | Keep Danger Zone toggles disabled until a feature is actually needed |
+| Backups | Encrypt `.ago` backups and store passphrases outside the repository |
+
+For incident response, rotate exposed API keys immediately, invalidate webhook tokens, review recent logs, and regenerate credentials stored in Vault if compromise is suspected.
+
+---
+
 > 🔍 **Deep Dive: Cryptography**
 > 
 > The vault uses AES-256-GCM:

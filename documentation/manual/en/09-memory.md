@@ -134,6 +134,19 @@ Query: "Where does Sarah work?"
 → "Sarah works at Google in Mountain View."
 ```
 
+### Knowledge Graph Quality and Protection
+
+The current Knowledge Graph implementation includes maintenance features that help keep the graph useful over time:
+
+| Feature | Purpose |
+|---------|---------|
+| **Quality reports** | Find isolated nodes, untyped nodes, low-confidence data, and possible duplicates |
+| **Protected nodes** | Mark critical entities so cleanup routines do not remove them accidentally |
+| **Access tracking** | Track recently used nodes to improve retrieval relevance |
+| **Semantic indexing** | Improve graph search through embedding-backed retrieval where enabled |
+
+The Web UI and API expose graph search, stats, quality reports, important nodes, and node protection through `/api/knowledge-graph/*` endpoints.
+
 ## Core Memory
 
 Core Memory contains permanent facts that are always included in the system prompt, ensuring critical information is never forgotten.
@@ -234,6 +247,38 @@ User: "Show my todos"
 User: "Mark grocery shopping as done"
 User: "What tasks are due this week?"
 ```
+
+## File KG Sync
+
+File KG Sync is a background service that connects file indexing with the Knowledge Graph. When the file indexer discovers or updates supported files, the sync service can extract entities, relationships, and source references from those indexed chunks and write them into the Knowledge Graph.
+
+### What it does
+
+| Step | Description |
+|------|-------------|
+| Index | The FileIndexer scans configured directories and stores searchable chunks |
+| Extract | An LLM extracts candidate entities and relations from indexed content |
+| Score | Extracted items receive confidence and source metadata |
+| Merge | Existing nodes are reused where possible to avoid duplicates |
+| Cleanup | Orphaned file-derived entities can be detected and cleaned up |
+
+This makes uploaded or indexed documentation discoverable both through semantic RAG and structured graph queries. For example, a server runbook can create graph nodes for services, hosts, ports, owners, and dependencies.
+
+### Debug and maintenance endpoints
+
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /api/debug/kg-file-sync-stats` | File-to-graph sync statistics |
+| `GET /api/debug/kg-orphans` | File-derived graph nodes without current sources |
+| `GET /api/debug/file-sync-status` | Current sync health/status |
+| `GET /api/debug/file-sync-last-run` | Last sync run details |
+| `GET /api/debug/kg-file-entities` | Entities created from indexed files |
+| `GET /api/debug/kg-node-sources` | Source files/chunks behind graph nodes |
+| `POST /api/debug/kg-file-sync-cleanup` | Cleanup orphaned file-derived graph data |
+
+### Practical guidance
+
+Keep indexed directories focused and avoid dumping huge unrelated trees into the index. File KG Sync works best for runbooks, inventories, project notes, architecture docs, configuration references, and other semi-structured knowledge.
 
 ## How Memory Works in Conversations
 

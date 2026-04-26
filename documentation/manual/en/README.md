@@ -2,7 +2,7 @@
 
 Welcome to the AuraGo User Manual – your comprehensive guide to the personal AI agent.
 
-> 📅 **Updated:** April 12, 2026  
+> 📅 **Updated:** April 26, 2026
 > 🔄 **Version:** 2.x compatible  
 > 📝 **Last Update:** Documentation sync with current codebase (chat commands, tools, integrations, config)
 
@@ -20,6 +20,7 @@ AuraGo is a fully autonomous AI agent shipped as a single portable binary with a
 | **🛡️ LLM Guardian** | AI-based security monitoring |
 | **⚡ Adaptive Tools** | Intelligent tool filtering saves tokens |
 | **📄 Document AI** | PDF creation and analysis |
+| **🎬 Video Generation** | AI text-to-video and image-to-video generation |
 | **🔐 AES-256 Vault** | Secure storage of all secrets |
 | **🌐 50+ Integrations** | From S3 to OneDrive to TrueNAS |
 | **☁️ Cloudflare Tunnel** | Secure remote access without public IP |
@@ -162,6 +163,7 @@ A complete overview of all 100+ internal tools can be found in the [Internal Too
 | 2026-03 | **Added Skill Manager, Media Registry, Egg Mode** |
 | 2026-04 | **Chapter 23: Internals** – Architecture, modules, and internal workings documented |
 | 2026-04 | Documentation sync with current codebase: added chat commands (/voice, /warnings), cleaned up internal tools, corrected integrations, updated config references |
+| 2026-04 | Documented video generation, send_video, LDAP, n8n scopes, A2A usage, Web Push, managed Ollama, File KG Sync, Backup/Restore, Mission Preparation, and Security Proxy API endpoints |
 | 2026-03 | **Added Chat Command /sudopwd** |
 
 ---

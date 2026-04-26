@@ -26,16 +26,15 @@
 Unlike cloud AI services, AuraGo runs **on your hardware**, has **direct access to your infrastructure**, and keeps all data local.
 It runs 24/7 in Docker, a container, VM or on PC and works for you on demand or automated.
 
-```
-
 ### What Makes It Special
 
 | Feature | What It Does |
 |---------|--------------|
 | **🧠 Personality Engine V2** | Learns your preferences, tech stack, and communication style — adapts to you over time and has it`s own personality |
 | **🛡️ LLM Guardian** | AI-powered security scanner monitors every tool call and external content for threats |
-| **⚡ Adaptive Tools** | Intelligently filters 90+ tools based on conversation context — saves tokens, improves accuracy |
-| **📄 Document AI** | Create PDFs (invoices, reports) and extract text from documents with LLM analysis |
+| **⚡ Adaptive Tools** | Intelligently filters 100+ tools based on conversation context — saves tokens, improves accuracy |
+| **📄 Document AI** | Create PDFs (invoices, reports), extract text from documents, and process PDF forms |
+| **🎬 Generative Media** | Generate images, music, and short videos with provider-backed limits and media registry tracking |
 | **🤖 Native Function Calling** | OpenAI-compatible tool calls with auto-detection for many models |
 | **🔐 AES-256 Vault** | All secrets encrypted with no access by the agent; Web UI with bcrypt passwords and TOTP 2FA |
 | **📱 PWA & Mobile** | Installable as PWA with voice control and TTS for a native mobile experience |
@@ -108,7 +107,7 @@ AuraGo has some built-in themes to choose from:
 
 ## Capabilities at a Glance
 
-AuraGo includes **90+ built-in tools** across these categories:
+AuraGo includes **100+ built-in tools** across these categories:
 
 <details>
 <summary><b>🏠 Home Lab & Infrastructure</b> — Docker, Proxmox, Home Assistant, TrueNAS</summary>
@@ -173,6 +172,8 @@ AuraGo includes **90+ built-in tools** across these categories:
 - **PDF Extractor** — Text extraction with LLM summarization
 - **Document Creator** — PDF generation (maroto or Gotenberg)
 - **Image Generation** — Multi-provider support (OpenAI, Stability, etc.)
+- **Music & Video Generation** — Generate audio tracks and short videos via configured providers
+- **Media Registry** — Search, tag, and manage generated or uploaded media assets
 - **Chromecast** — Cast TTS and media to devices
 - **Network Tools** — Ping, port scan, mDNS/UPnP discovery
 - **Web Capture** — Screenshots and PDF from web pages
@@ -227,8 +228,12 @@ AuraGo is designed with security-first principles:
 | `/debug on\|off` | Toggle detailed error reporting |
 | `/budget` | Show daily token cost breakdown |
 | `/personality <name>` | Switch personality profile |
-| `/sudo` | Elevate privileges for sensitive operations |
-| `/journal` | Open journal management |
+| `/restart` | Restart the AuraGo server |
+| `/voice on\|off` | Toggle voice output mode |
+| `/warnings` | Show active system warnings |
+| `/sudopwd` | Store or remove the sudo password in the vault |
+| `/addssh` | Register an SSH server in inventory and vault |
+| `/credits` | Show OpenRouter credit balance |
 
 ---
 

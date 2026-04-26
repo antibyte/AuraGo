@@ -15,6 +15,7 @@ AuraGo's **100+ built-in tools** transform it from a chatbot into an autonomous 
 | **🏠 Smart Home** | Home Assistant, MQTT, Wake-on-LAN | Yes |
 | **☁️ Cloud** | Google Workspace, WebDAV, GitHub, S3, OneDrive | No (partial) |
 | **📧 Communication** | Email, Telegram, Discord, Telnyx | No |
+| **🎬 Media Generation** | Images, music, videos, TTS, media registry | No (provider limits apply) |
 | **🔧 System** | Metrics, processes, cron, network tools | Partial |
 | **🧠 Memory** | Memory, notes, knowledge graph | No |
 | **🌐 Network** | Ping, port scan, mDNS, UPnP | No |
@@ -33,6 +34,8 @@ The current version includes several powerful extensions:
 | **Adaptive Tools** | Token optimization through context-aware tool selection |
 | **Document Creator** | PDF creation for invoices, reports |
 | **PDF Extractor** | Text extraction with optional LLM summarization |
+| **Video Generation** | AI text-to-video and image-to-video with MiniMax Hailuo or Google Veo |
+| **Media Registry** | Search, tag, and reuse generated images, audio, music, and videos |
 | **MCP Client/Server** | Model Context Protocol for interoperability |
 | **Invasion Control** | Distributed orchestration across multiple hosts |
 | **Sudo Execution** | Vault-backed credential handling for privileged commands |
@@ -118,6 +121,29 @@ brave_search:
   country: "US"
   lang: "en"
 ```
+
+---
+
+### 8. Media Generation
+
+```yaml
+image_generation:
+  enabled: true
+  provider: "openai"
+
+music_generation:
+  enabled: true
+  provider: "minimax"
+  max_daily: 10
+
+video_generation:
+  enabled: true
+  provider: "minimax"      # or "google"
+  model: "hailuo-02"       # provider-specific
+  max_daily: 5
+```
+
+The related tools are `generate_image`, `generate_music`, and `generate_video`. Generated files are saved locally and registered in the Media Registry so they can be searched, tagged, sent back to chat, or reused later.
 
 ---
 
@@ -234,6 +260,16 @@ Agent: 🔍 Searching...
        ...
 ```
 
+### Video Generation
+```
+You: Create a short 16:9 video of a sunrise over a futuristic home lab
+Agent: 🎬 Generating video with the configured provider...
+       ✅ Video created and registered in the media registry
+
+You: Send the generated video to me
+Agent: ▶️ Video attached with an inline player
+```
+
 ---
 
 ## Creating Custom Tools
@@ -261,6 +297,7 @@ Created tools are saved to `agent_workspace/tools/` and available immediately.
 | **Security** | Read-only mode, Danger Zone, LLM Guardian |
 | **Flexibility** | Dynamic tool creation at runtime |
 | **Efficiency** | Adaptive Tools save tokens |
+| **Media** | Generate and deliver images, music, audio, documents, and videos |
 
 > 💡 **Remember:** AuraGo's strength lies in combining tools. A single chat can chain shell commands, web searches, Docker operations, and email notifications — fully automatically!
 

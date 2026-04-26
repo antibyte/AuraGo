@@ -18,6 +18,8 @@ Dieser Ordner ist ein Einstiegspfad für Nutzer, die `documentation/manuals` erw
 | Konfiguration | [de/07-konfiguration.md](../manual/de/07-konfiguration.md) | [en/07-configuration.md](../manual/en/07-configuration.md) |
 | Integrationen | [de/08-integrations.md](../manual/de/08-integrations.md) | [en/08-integrations.md](../manual/en/08-integrations.md) |
 | Sicherheit | [de/14-sicherheit.md](../manual/de/14-sicherheit.md) | [en/14-security.md](../manual/en/14-security.md) |
+| Video Generation & Medien | [de/06-tools.md](../manual/de/06-tools.md) | [en/06-tools.md](../manual/en/06-tools.md) |
+| File KG Sync & Knowledge Graph | [de/09-memory.md](../manual/de/09-memory.md) | [en/09-memory.md](../manual/en/09-memory.md) |
 | API-Referenz | [de/21-api-reference.md](../manual/de/21-api-reference.md) | [en/21-api-reference.md](../manual/en/21-api-reference.md) |
 | Troubleshooting | [de/16-troubleshooting.md](../manual/de/16-troubleshooting.md) | [en/16-troubleshooting.md](../manual/en/16-troubleshooting.md) |
 | FAQ | [de/faq.md](../manual/de/faq.md) | [en/faq.md](../manual/en/faq.md) |

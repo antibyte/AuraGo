@@ -289,11 +289,21 @@ Lokale LLM-Verwaltung.
 
 **Web-UI:** Config → Integrationen → Ollama → URL eingeben (z. B. `http://localhost:11434`). Optional: Verwaltung eines lokalen Docker-Containers aktivieren.
 
+### Managed Ollama
+
+Wenn Managed Mode aktiviert ist, verwaltet AuraGo einen Docker-Container `aurago_ollama_managed`. AuraGo kann Modell-Daten in einem persistenten Volume halten, verfügbare GPU-Unterstützung erkennen (NVIDIA, AMD, Intel soweit Docker-seitig verfügbar), Speicherlimits setzen, Standardmodelle automatisch ziehen und den Container über Web-UI oder API neu erstellen.
+
+Prüfe den Status mit `GET /api/ollama/managed/status`; erstelle den Container nach Konfigurationsänderungen mit `POST /api/ollama/managed/recreate` neu.
+
 ### YAML-Referenz
 ```yaml
 ollama:
   enabled: true
   url: "http://localhost:11434"
+  managed:
+    enabled: true
+    image: "ollama/ollama:latest"
+    default_models: ["llama3.1"]
 ```
 
 ## MeshCentral
@@ -370,11 +380,23 @@ adguard:
 
 ## n8n Integration
 
-Verbindung mit der n8n Workflow-Automatisierungsplattform.
+Verbindung mit der n8n Workflow-Automatisierungsplattform. AuraGo kann n8n gezielt API-Zugriff geben, ausgewählte Tools ausführen, isolierte Chat-Sessions starten, Memory durchsuchen oder speichern und Missionen aus Workflows heraus erstellen oder verwalten.
 
-**Web-UI:** Config → Integrationen → n8n → Webhook Base-URL und erlaubte Tools/Scopes konfigurieren.
+**Web-UI:** Config → Integrationen → n8n → Webhook Base-URL, erlaubte Tools/Scopes, Token/HMAC-Schutz und Rate-Limits konfigurieren.
 
 > 💡 AuraGo bietet einen offiziellen n8n Community Node: `@antibyte/n8n-nodes-aurago`
+
+### Scopes und Fähigkeiten
+
+| Scope | Erlaubt |
+|-------|---------|
+| `n8n:chat` | Isolierte AuraGo-Chat-Sessions aus n8n starten oder fortsetzen |
+| `n8n:tools` | Explizit erlaubte AuraGo-Tools aus Workflows ausführen |
+| `n8n:memory` | Memory aus Workflows durchsuchen oder Einträge speichern |
+| `n8n:missions` | Mission-Control-Aufgaben erstellen, aktualisieren, auslösen oder prüfen |
+| `n8n:admin` | Administrative Operationen; nur aktivieren, wenn wirklich nötig |
+
+Nutze `readonly: true` für Workflows, die nur lesen dürfen. Setze `allowed_tools` möglichst eng statt `*`, wenn Tool-Ausführung für n8n freigegeben wird.
 
 ### YAML-Referenz
 ```yaml
@@ -384,9 +406,9 @@ n8n:
   webhook_base_url: "https://n8n.deinedomain.com/webhook"
   allowed_events: ["message", "tool_result"]
   require_token: true
-  allowed_tools: ["*"]
+  allowed_tools: ["query_memory", "manage_missions"]
   rate_limit_rps: 10
-  scopes: ["chat", "tools", "memory"]
+  scopes: ["n8n:chat", "n8n:tools", "n8n:memory"]
 ```
 
 ## Notifications
@@ -402,6 +424,21 @@ notifications:
     enabled: true
     topic: "aurago-alerts"
 ```
+
+## Web Push / PWA-Benachrichtigungen
+
+AuraGo unterstützt zusätzlich Browser-Web-Push für die installierbare PWA. Das ist unabhängig von ntfy und Pushover: Browser abonnieren Push über VAPID-Schlüssel, Subscriptions werden in `data/push.db` gespeichert und AuraGo kann lokale Browser-Benachrichtigungen senden.
+
+### API-Endpunkte
+
+| Endpunkt | Zweck |
+|----------|-------|
+| `GET /api/push/vapid-pubkey` | Öffentlichen VAPID-Schlüssel abrufen |
+| `POST /api/push/subscribe` | Browser-Push-Subscription registrieren |
+| `POST /api/push/unsubscribe` | Aktuelle Subscription entfernen |
+| `GET /api/push/status` | Push-Verfügbarkeit und Subscription-Status prüfen |
+
+Web Push benötigt HTTPS oder `localhost`, da Browser Service-Worker-Push auf unsicheren Origins blockieren.
 
 ## Telnyx Integration
 
@@ -737,6 +774,37 @@ image_generation:
   provider: ""
 ```
 
+## Video Generation
+
+Generiere kurze Videos aus Text-Prompts oder Bildvorlagen. Unterstützte Provider sind je nach Konfiguration MiniMax Hailuo und Google Veo.
+
+### Fähigkeiten
+
+| Fähigkeit | Beschreibung |
+|-----------|--------------|
+| Text-zu-Video | Video direkt aus einem Prompt generieren |
+| Bild-zu-Video | Erstes Frame als visuelle Vorgabe nutzen |
+| Start-/Endframe | Provider-unterstützte Kontrolle über erstes/letztes Frame |
+| Referenzbilder | Provider-unterstützte Bildreferenzen |
+| Media Registry | Generierte MP4-Dateien werden automatisch registriert |
+| Tageslimits | Kosten und Provider-Nutzung mit `max_daily` begrenzen |
+
+**Web-UI:** Config → Integrationen → Video Generation → Provider (`minimax` oder `google`), Modell, Dauer, Auflösung, Seitenverhältnis und Tageslimit konfigurieren. Zugangsdaten im Vault speichern.
+
+### YAML-Referenz
+```yaml
+video_generation:
+  enabled: true
+  provider: "minimax"
+  model: "hailuo-02"
+  duration_seconds: 6
+  resolution: "720p"
+  aspect_ratio: "16:9"
+  max_daily: 5
+```
+
+Im Chat nutzt der Agent dafür `generate_video`. Bereits vorhandene Videodateien kann `send_video` mit Inline-Player an den Benutzer senden.
+
 ## Fallback LLM
 
 Failover-LLM, der automatisch aktiviert wird, wenn der Haupt-Provider ausfällt.
@@ -765,7 +833,9 @@ co_agents:
 
 ## Mission Preparation
 
-Analysiert Missionen vor der Ausführung.
+Analysiert Missionen vor der Ausführung. Der Dienst lässt ein LLM vor geplanten oder manuellen Missionen strukturierte Ausführungshinweise erstellen.
+
+Mission Preparation kann benötigte Tools, Schrittpläne, mögliche Fallstricke, Entscheidungspunkte, Preload-Hinweise und einen Confidence-Score erzeugen. Ergebnisse werden anhand eines Mission-Checksums gecacht und bei Änderungen invalidiert. Geplante Missionen können automatisch vorbereitet werden.
 
 **Web-UI:** Config → Integrationen → Mission Preparation → aktivieren und Timeout/Confidence-Level einstellen.
 
@@ -774,6 +844,8 @@ Analysiert Missionen vor der Ausführung.
 mission_preparation:
   enabled: true
   timeout_seconds: 120
+  auto_prepare_scheduled: true
+  min_confidence: 0.6
 ```
 
 ## Rocket.Chat Integration
@@ -810,7 +882,9 @@ tts:
 
 ## A2A Protocol
 
-AuraGo unterstützt das Google A2A (Agent-to-Agent) Protokoll für die Kommunikation zwischen KI-Agenten.
+AuraGo unterstützt das Google A2A (Agent-to-Agent) Protokoll für die Kommunikation zwischen KI-Agenten. AuraGo kann eine Agent Card veröffentlichen, damit andere A2A-Clients Name, Fähigkeiten, Endpunkte und Auth-Anforderungen erkennen. Umgekehrt kann AuraGo als A2A-Client Remote Agents registrieren und Aufgaben delegieren.
+
+A2A eignet sich, wenn mehrere autonome Agenten Aufgaben austauschen sollen, ohne eine gemeinsame Chat-Session zu teilen. AuraGo unterstützt REST-, JSON-RPC- und gRPC-Bindings, Streaming und Push Notifications, sofern aktiviert.
 
 **Web-UI:** Config → Integrationen → A2A → Server-Port, Agent Card und Remote Agents konfigurieren.
 
@@ -901,7 +975,7 @@ tools:
 
 ## Security Proxy
 
-Schutzschicht für öffentlich erreichbare AuraGo-Instanzen mit Rate-Limiting, IP-Filter und Geo-Blocking.
+Schutzschicht für öffentlich erreichbare AuraGo-Instanzen mit Rate-Limiting, IP-Filter und Geo-Blocking. AuraGo verwaltet den Proxy als Caddy-basierten Docker-Container, lädt die generierte Konfiguration neu und stellt Lifecycle-Aktionen sowie Logs per API bereit.
 
 ### Einrichtung in der Web-UI
 1. Öffne **Config → Integrationen → Security Proxy**.
@@ -926,6 +1000,17 @@ security_proxy:
     enabled: false
     blocked_countries: []
 ```
+
+### Runtime API
+
+| Endpunkt | Zweck |
+|----------|-------|
+| `GET /api/proxy/status` | Aktueller Proxy-/Containerstatus |
+| `POST /api/proxy/start` | Verwalteten Proxy-Container starten |
+| `POST /api/proxy/stop` | Proxy stoppen |
+| `POST /api/proxy/destroy` | Verwalteten Proxy-Container entfernen |
+| `POST /api/proxy/reload` | Caddy-Konfiguration neu generieren und laden |
+| `GET /api/proxy/logs` | Aktuelle Proxy-Logs abrufen |
 
 ---
 

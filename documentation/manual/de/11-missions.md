@@ -352,6 +352,14 @@ tail -f log/supervisor.log | grep -i mission
 
 > 💡 **Tipp:** Für komplexe Automatisierungen nutze die Web-UI. Für Integrationen in externe Systeme verwende die REST API.
 
+## Synchronisierte Hinweise zu Mission Control V2
+
+Die aktuelle Mission-Control-Implementierung unterstützt neben einfachen Cron-Jobs auch Queue- und Execution-Views, Abhängigkeiten, Remote Targets und vorbereitete Missionen. Die wichtigsten REST-Bereiche sind `/api/missions/v2`, `/api/missions/v2/queue`, `/api/missions/v2/execution`, `/api/missions/v2/dependencies`, `/api/missions/v2/history` und `/api/missions/v2/remote-targets`.
+
+Mission Preparation kann vor der Ausführung automatisch einen Plan erstellen: benötigte Tools, Risiken, Schritte, Entscheidungspunkte, Preload-Hinweise und Confidence Score. Diese Vorbereitung wird gecacht und bei Änderungen an der Mission erneuert.
+
+Missions sind weiterhin primär Web-UI/API-Features. Es gibt keine eigenen Slash-Commands für Mission Control.
+
 ---
 
 **Vorheriges Kapitel:** [Kapitel 10: Persönlichkeit](./10-personality.md)  

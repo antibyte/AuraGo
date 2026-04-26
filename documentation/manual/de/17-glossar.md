@@ -162,6 +162,21 @@ Dieses Glossar erklärt alle Fachbegriffe, Abkürzungen und Konzepte von AuraGo.
 - **Security** → siehe auch: Vault, AES, bcrypt, TOTP, Danger Zone
 - **Tools** → siehe auch: Action, Function Calling, Capability
 
+## Ergänzte aktuelle Begriffe
+
+| Begriff | Bedeutung |
+|---------|-----------|
+| **A2A** | Agent-to-Agent-Protokoll für Aufgaben zwischen kompatiblen KI-Agenten |
+| **Agent Card** | Maschinenlesbare Beschreibung eines A2A-Agenten mit Name, Fähigkeiten, Endpunkten und Auth-Anforderungen |
+| **File KG Sync** | Hintergrunddienst, der indexierte Dateien in Knowledge-Graph-Entitäten und Beziehungen überführt |
+| **Managed Ollama** | Von AuraGo verwalteter Ollama-Docker-Container mit persistentem Modell-Volume und optionaler GPU-Erkennung |
+| **Security Proxy** | Verwaltete Caddy-Schutzschicht für öffentlich erreichbare AuraGo-Instanzen |
+| **VAPID** | Schlüsselmechanismus für Browser-Web-Push-Benachrichtigungen |
+| **Video Generation** | KI-Generierung kurzer Videos aus Text- oder Bildvorgaben |
+| **Media Registry** | Datenbank für generierte oder importierte Medien mit Suche, Tags und Metadaten |
+| **Mission Preparation** | LLM-gestützte Voranalyse von Missionen vor der Ausführung |
+| **n8n Scope** | Berechtigung, die festlegt, welche AuraGo-Funktionen ein n8n-Workflow nutzen darf |
+
 ---
 
 > 💡 **Tipp:** Viele Begriffe haben im Kontext von AuraGo spezifische Bedeutungen. Bei Unklarheiten immer auch die entsprechenden Kapitel konsultieren.

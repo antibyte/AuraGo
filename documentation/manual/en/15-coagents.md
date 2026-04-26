@@ -350,6 +350,20 @@ Co-agent activities are logged with:
 2024-01-15 14:30:34 [co-agent] [coagent-1] Completed: 2100 tokens, 5 tools
 ```
 
+### Operational Limits and Safety
+
+The German chapter contains extra safety guidance that is now reflected here:
+
+| Area | Guidance |
+|------|----------|
+| Concurrency | Keep `max_concurrent` low until you know the token and CPU impact |
+| Budgets | Assign explicit per-agent token limits and use circuit breakers |
+| Tool access | Do not grant memory-writing, destructive, or nested co-agent capabilities unless required |
+| Result handling | Treat co-agent results as supporting evidence, not automatically trusted truth |
+| Long tasks | Prefer Mission Control, daemon skills, or `wait_for_event` for work that must survive long waits |
+
+Specialists are best used for bounded, independently verifiable work: research, code review, security checks, writing drafts, and parallel data gathering. Avoid using them for tasks that require live user interaction or privileged changes.
+
 ---
 
 > 🔍 **Deep Dive: Lifecycle**

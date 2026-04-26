@@ -182,6 +182,69 @@ Agent: [Inhalt der indexierten Datei]
 
 ---
 
+## Knowledge Graph
+
+Der Knowledge Graph speichert strukturierte Entitäten und Beziehungen. Er ergänzt die semantische Suche, weil AuraGo dadurch nicht nur Textstellen findet, sondern Zusammenhänge zwischen Personen, Geräten, Diensten, Projekten, Orten oder Konzepten verfolgen kann.
+
+### Typische Entitäten und Beziehungen
+
+| Entität | Beispiele |
+|---------|-----------|
+| Person | Kontakte, Teammitglieder, Verantwortliche |
+| Gerät | Server, VMs, Router, NAS, IoT-Geräte |
+| Dienst | Home Assistant, Docker-Container, Datenbanken |
+| Projekt | Aufgaben, Repositories, Dokumentationen |
+| Konzept | Architekturentscheidungen, Risiken, Standards |
+
+Beziehungen können z. B. `runs_on`, `depends_on`, `owned_by`, `uses`, `related_to` oder `located_at` sein.
+
+### Qualität und Schutz
+
+| Feature | Zweck |
+|---------|-------|
+| **Quality Reports** | Isolierte Nodes, untypisierte Nodes und mögliche Duplikate finden |
+| **Protected Nodes** | Kritische Entitäten vor automatischer Bereinigung schützen |
+| **Access Tracking** | Kürzlich genutzte Nodes für bessere Retrieval-Relevanz berücksichtigen |
+| **Semantische Indexierung** | Graph-Suche mit Embedding-gestützter Suche verbessern, wenn aktiviert |
+
+Die Web-UI und API stellen Suche, Statistiken, Qualitätsberichte, wichtige Nodes und Node-Schutz über `/api/knowledge-graph/*` bereit.
+
+---
+
+## File KG Sync
+
+File KG Sync ist ein Hintergrunddienst, der Datei-Indexierung und Knowledge Graph verbindet. Wenn der FileIndexer unterstützte Dateien findet oder aktualisiert, kann der Sync-Dienst Entitäten, Beziehungen und Quellen aus indexierten Chunks extrahieren und in den Knowledge Graph schreiben.
+
+### Ablauf
+
+| Schritt | Beschreibung |
+|---------|--------------|
+| Index | Der FileIndexer scannt konfigurierte Verzeichnisse und speichert durchsuchbare Chunks |
+| Extraktion | Ein LLM extrahiert mögliche Entitäten und Beziehungen aus indexierten Inhalten |
+| Scoring | Extrahierte Einträge erhalten Confidence- und Quellen-Metadaten |
+| Merge | Bestehende Nodes werden wiederverwendet, um Duplikate zu vermeiden |
+| Cleanup | Verwaiste dateibasierte Entitäten können erkannt und bereinigt werden |
+
+Dadurch werden hochgeladene oder indexierte Dokumente sowohl über semantisches RAG als auch über strukturierte Graph-Abfragen nutzbar. Ein Server-Runbook kann z. B. Nodes für Dienste, Hosts, Ports, Verantwortliche und Abhängigkeiten erzeugen.
+
+### Debug- und Wartungsendpunkte
+
+| Endpunkt | Zweck |
+|----------|-------|
+| `GET /api/debug/kg-file-sync-stats` | Statistiken zur Datei-zu-Graph-Synchronisation |
+| `GET /api/debug/kg-orphans` | Dateibasierte Graph-Nodes ohne aktuelle Quellen |
+| `GET /api/debug/file-sync-status` | Aktueller Sync-Status |
+| `GET /api/debug/file-sync-last-run` | Details zum letzten Sync-Lauf |
+| `GET /api/debug/kg-file-entities` | Aus Dateien erzeugte Entitäten |
+| `GET /api/debug/kg-node-sources` | Quellen hinter Graph-Nodes |
+| `POST /api/debug/kg-file-sync-cleanup` | Verwaiste dateibasierte Graph-Daten bereinigen |
+
+### Praxisempfehlung
+
+Halte indexierte Verzeichnisse fokussiert und vermeide riesige, unstrukturierte Verzeichnisbäume. File KG Sync funktioniert am besten mit Runbooks, Inventaren, Projektnotizen, Architektur-Dokumentation, Konfigurationsreferenzen und anderen halbstrukturierten Wissensquellen.
+
+---
+
 ## Helper LLM — Automatisierte Wartung
 
 Der Helper LLM ist ein sekundäres, kostengünstigeres LLM, das Hintergrundwartungsaufgaben erledigt, um den Hauptagenten schnell und effizient zu halten.

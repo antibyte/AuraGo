@@ -511,6 +511,30 @@ $env:AURAGO_MASTER_KEY = -join ((1..32) | ForEach-Object { '{0:x2}' -f (Get-Rand
 
 ---
 
+## Aktualisierte Kurzreferenz aktueller Endpunkte
+
+| Feature | Endpunkte |
+|---------|-----------|
+| Security Proxy | `GET /api/proxy/status`, `POST /api/proxy/start`, `POST /api/proxy/stop`, `POST /api/proxy/reload`, `GET /api/proxy/logs` |
+| Web Push | `GET /api/push/vapid-pubkey`, `POST /api/push/subscribe`, `POST /api/push/unsubscribe`, `GET /api/push/status` |
+| Video Generation | `POST /api/video-generation/test` |
+| Managed Ollama | `GET /api/ollama/managed/status`, `POST /api/ollama/managed/recreate` |
+| File KG Sync | `GET /api/debug/file-sync-status`, `GET /api/debug/kg-file-sync-stats`, `POST /api/debug/kg-file-sync-cleanup` |
+| A2A | `GET /api/a2a/status`, `GET /api/a2a/card`, `GET /api/a2a/remote-agents`, `POST /api/a2a/test` |
+| Backup/Restore | `POST /api/backup/create`, `POST /api/backup/import` |
+
+## Aktualisierte Tool-Kurzreferenz
+
+| Tool | Zweck |
+|------|-------|
+| `generate_video` | Kurze KI-Videos aus Text- oder Bildvorgaben erstellen |
+| `send_video` | Videodateien mit Inline-Player an den Benutzer senden |
+| `ldap` | LDAP/Active Directory durchsuchen und authentifizieren |
+| `wait_for_event` | Hintergrundprozess, HTTP-Endpunkt oder Dateiänderung asynchron abwarten |
+| `follow_up` | Autonome Folgeaufgabe nach der aktuellen Antwort planen |
+
+---
+
 ## Lizenz
 
 AuraGo wird bereitgestellt als Open Source Software für persönliche und Bildungszwecke.
