@@ -370,4 +370,7 @@
   "config.section.video_download.desc": "Αναζήτηση YouTube, αναπαραγωγή στη συνομιλία και προαιρετική λήψη ή απομαγνητοφώνηση.",
   "config.section.video_generation.label": "Δημιουργία βίντεο",
   "config.section.video_generation.desc": "Δημιουργήστε σύντομα βίντεο από κείμενο και εικόνες με AI"
+,
+  "config.section.yepapi.label": "YepAPI",
+  "config.section.yepapi.desc": "Unified API for SEO, SERP, scraping, YouTube, TikTok, Instagram and Amazon"
 }

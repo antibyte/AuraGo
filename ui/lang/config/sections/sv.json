@@ -370,4 +370,7 @@
   "config.section.video_download.desc": "YouTube-sökning, chattspelare och valfri nedladdning eller transkribering.",
   "config.section.video_generation.label": "Videogenerering",
   "config.section.video_generation.desc": "Generera korta videor från text- och bildprompter med AI"
+,
+  "config.section.yepapi.label": "YepAPI",
+  "config.section.yepapi.desc": "Unified API for SEO, SERP, scraping, YouTube, TikTok, Instagram and Amazon"
 }

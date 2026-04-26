@@ -370,4 +370,7 @@
   "config.section.video_download.desc": "YouTube 検索、チャット内プレーヤー、任意のダウンロードまたは文字起こし。",
   "config.section.video_generation.label": "動画生成",
   "config.section.video_generation.desc": "AIでテキストや画像プロンプトから短い動画を生成"
+,
+  "config.section.yepapi.label": "YepAPI",
+  "config.section.yepapi.desc": "Unified API for SEO, SERP, scraping, YouTube, TikTok, Instagram and Amazon"
 }

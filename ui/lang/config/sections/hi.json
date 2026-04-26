@@ -370,4 +370,7 @@
   "config.section.video_download.desc": "YouTube खोज, चैट प्लेयर, और वैकल्पिक डाउनलोड या ट्रांसक्रिप्शन।",
   "config.section.video_generation.label": "वीडियो जनरेशन",
   "config.section.video_generation.desc": "AI से टेक्स्ट और इमेज प्रॉम्प्ट से छोटे वीडियो बनाएं"
+,
+  "config.section.yepapi.label": "YepAPI",
+  "config.section.yepapi.desc": "Unified API for SEO, SERP, scraping, YouTube, TikTok, Instagram and Amazon"
 }

@@ -370,4 +370,7 @@
   "config.section.video_download.desc": "Vyhledávání YouTube, přehrávač v chatu a volitelné stahování nebo přepis.",
   "config.section.video_generation.label": "Generovani videa",
   "config.section.video_generation.desc": "Generujte kratka videa z textovych a obrazovych promptu pomoci AI"
+,
+  "config.section.yepapi.label": "YepAPI",
+  "config.section.yepapi.desc": "Unified API for SEO, SERP, scraping, YouTube, TikTok, Instagram and Amazon"
 }

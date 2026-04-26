@@ -370,4 +370,7 @@
   "config.section.video_download.desc": "Búsqueda en YouTube, reproductor en chat y descarga o transcripción opcional.",
   "config.section.video_generation.label": "Generación de vídeo",
   "config.section.video_generation.desc": "Genera vídeos cortos a partir de texto e imágenes con IA"
+,
+  "config.section.yepapi.label": "YepAPI",
+  "config.section.yepapi.desc": "Unified API for SEO, SERP, scraping, YouTube, TikTok, Instagram and Amazon"
 }

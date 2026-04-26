@@ -370,4 +370,7 @@
   "config.section.video_download.desc": "YouTube 搜索、聊天播放器，以及可选下载或转写。",
   "config.section.video_generation.label": "视频生成",
   "config.section.video_generation.desc": "使用 AI 从文本和图像提示生成短视频"
+,
+  "config.section.yepapi.label": "YepAPI",
+  "config.section.yepapi.desc": "Unified API for SEO, SERP, scraping, YouTube, TikTok, Instagram and Amazon"
 }
