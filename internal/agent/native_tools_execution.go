@@ -179,15 +179,33 @@ func appendExecutionToolSchemas(tools []openai.Tool, ff ToolFeatureFlags, execut
 		))
 
 		tools = append(tools, tool("create_skill_from_template",
-			"Create a new Python skill from a built-in template. The skill is immediately usable via execute_skill. Use list_skill_templates to see all available templates.",
+			"Create a new Python skill from a built-in template. The skill is immediately usable via execute_skill. Use list_skill_templates to see all available templates. "+
+				"After creation you should call set_skill_documentation so the skill keeps a Markdown manual that future invocations (also after a context reset) can rely on.",
 			schema(map[string]interface{}{
-				"template":     prop("string", "Template name from list_skill_templates (e.g. api_client, data_transformer, monitor_check, docker_manager, daemon_monitor)"),
-				"name":         prop("string", "Unique name for the new skill (e.g. 'weather_api', 'log_parser')"),
-				"description":  prop("string", "What this skill does"),
-				"url":          prop("string", "Base URL for the API (api_client template only)"),
-				"dependencies": map[string]interface{}{"type": "array", "description": "Additional pip packages to install", "items": map[string]interface{}{"type": "string"}},
-				"vault_keys":   map[string]interface{}{"type": "array", "description": "Vault secret keys this skill needs at runtime (e.g. API_KEY)", "items": map[string]interface{}{"type": "string"}},
+				"template":      prop("string", "Template name from list_skill_templates (e.g. api_client, data_transformer, monitor_check, docker_manager, daemon_monitor)"),
+				"name":          prop("string", "Unique name for the new skill (e.g. 'weather_api', 'log_parser')"),
+				"description":   prop("string", "What this skill does"),
+				"url":           prop("string", "Base URL for the API (api_client template only)"),
+				"dependencies":  map[string]interface{}{"type": "array", "description": "Additional pip packages to install", "items": map[string]interface{}{"type": "string"}},
+				"vault_keys":    map[string]interface{}{"type": "array", "description": "Vault secret keys this skill needs at runtime (e.g. API_KEY)", "items": map[string]interface{}{"type": "string"}},
+				"documentation": prop("string", "OPTIONAL Markdown manual for the skill (sections: Description, Parameters, Output, Example, Errors). Max 64KB. Strongly recommended."),
 			}, "template", "name"),
+		))
+
+		tools = append(tools, tool("get_skill_documentation",
+			"Read the Markdown manual attached to a skill so you can call it correctly. Returns the full Markdown text or a hint if no manual exists yet.",
+			schema(map[string]interface{}{
+				"name": prop("string", "Exact skill name as returned by list_skills"),
+			}, "name"),
+		))
+
+		tools = append(tools, tool("set_skill_documentation",
+			"Write or replace the Markdown manual for an existing skill. Use this immediately after creating a skill, or whenever you discover new edge cases. "+
+				"Recommended sections: '## Description', '## Parameters', '## Output', '## Example', '## Errors'. Never include secrets or API keys. Max 64KB.",
+			schema(map[string]interface{}{
+				"name":          prop("string", "Exact skill name as returned by list_skills"),
+				"documentation": prop("string", "Full Markdown manual that replaces any previous documentation."),
+			}, "name", "documentation"),
 		))
 	}
 

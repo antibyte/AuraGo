@@ -325,10 +325,12 @@ var adaptiveToolNeighbors = map[string][]string{
 	"system_metrics":     {"process_analyzer"},
 
 	// Skills Management
-	"list_skills":                {"execute_skill", "list_skill_templates"},
-	"execute_skill":              {"list_skills"},
+	"list_skills":                {"execute_skill", "list_skill_templates", "get_skill_documentation"},
+	"execute_skill":              {"list_skills", "get_skill_documentation"},
 	"list_skill_templates":       {"create_skill_from_template", "list_skills"},
-	"create_skill_from_template": {"list_skill_templates", "save_tool", "execute_skill"},
+	"create_skill_from_template": {"list_skill_templates", "save_tool", "execute_skill", "set_skill_documentation"},
+	"get_skill_documentation":    {"execute_skill", "list_skills"},
+	"set_skill_documentation":    {"get_skill_documentation", "execute_skill"},
 	"save_tool":                  {"execute_skill", "filesystem"},
 
 	// Agents & Teams

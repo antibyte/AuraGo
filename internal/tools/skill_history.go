@@ -128,24 +128,30 @@ func (m *SkillManager) ExportSkillBundle(id string) (*SkillExportBundle, error) 
 		return nil, err
 	}
 	manifest := SkillManifest{
-		Name:         skill.Name,
-		Description:  skill.Description,
-		Executable:   skill.Executable,
-		Category:     skill.Category,
-		Tags:         skill.Tags,
-		Parameters:   skill.Parameters,
-		Returns:      "JSON object with 'status' and 'result' or 'message' fields.",
-		Dependencies: skill.Dependencies,
-		VaultKeys:    skill.VaultKeys,
+		Name:          skill.Name,
+		Description:   skill.Description,
+		Executable:    skill.Executable,
+		Category:      skill.Category,
+		Tags:          skill.Tags,
+		Parameters:    skill.Parameters,
+		Returns:       "JSON object with 'status' and 'result' or 'message' fields.",
+		Dependencies:  skill.Dependencies,
+		VaultKeys:     skill.VaultKeys,
+		CheatsheetIDs: skill.CheatsheetIDs,
+	}
+	docContent, _ := m.GetSkillDocumentation(id)
+	if docContent != "" {
+		manifest.Documentation = SkillDocumentationFilename(skill.Executable)
 	}
 	return &SkillExportBundle{
-		Format:   "aurago-skill-bundle/v1",
-		Exported: time.Now().UTC(),
-		Skill:    skill,
-		Manifest: manifest,
-		Code:     code,
-		Versions: versions,
-		Audit:    audit,
+		Format:        "aurago-skill-bundle/v1",
+		Exported:      time.Now().UTC(),
+		Skill:         skill,
+		Manifest:      manifest,
+		Code:          code,
+		Documentation: docContent,
+		Versions:      versions,
+		Audit:         audit,
 	}, nil
 }
 
@@ -191,6 +197,16 @@ func (m *SkillManager) ImportSkillBundle(bundle *SkillExportBundle, createdBy st
 	}
 	if len(manifest.VaultKeys) > 0 {
 		if err := m.UpdateVaultKeys(entry.ID, manifest.VaultKeys); err != nil {
+			return nil, err
+		}
+	}
+	if len(manifest.CheatsheetIDs) > 0 {
+		if err := m.UpdateSkillCheatsheetIDs(entry.ID, manifest.CheatsheetIDs, createdBy); err != nil {
+			return nil, err
+		}
+	}
+	if bundle.Documentation != "" {
+		if err := m.SetSkillDocumentation(entry.ID, bundle.Documentation, createdBy); err != nil {
 			return nil, err
 		}
 	}

@@ -73,6 +73,14 @@ func (s *Server) registerToolAPIRoutes(mux *http.ServeMux) {
 				handleDaemonSkillSettings(s)(w, r)
 				return
 			}
+			if strings.HasSuffix(r.URL.Path, "/documentation/upload") {
+				handleUploadSkillDocumentation(s)(w, r)
+				return
+			}
+			if strings.HasSuffix(r.URL.Path, "/documentation") {
+				handleSkillDocumentation(s)(w, r)
+				return
+			}
 			switch r.Method {
 			case http.MethodGet:
 				handleGetSkill(s)(w, r)

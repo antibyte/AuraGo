@@ -26,12 +26,13 @@ type manageOutgoingWebhooksArgs struct {
 }
 
 type createSkillFromTemplateArgs struct {
-	Template     string
-	Name         string
-	Description  string
-	URL          string
-	Dependencies []string
-	VaultKeys    []string
+	Template      string
+	Name          string
+	Description   string
+	URL           string
+	Dependencies  []string
+	VaultKeys     []string
+	Documentation string
 }
 
 type googleWorkspaceArgs struct {
@@ -431,10 +432,11 @@ func (req manageOutgoingWebhooksArgs) rawParameters() []interface{} {
 
 func decodeCreateSkillFromTemplateArgs(tc ToolCall) createSkillFromTemplateArgs {
 	req := createSkillFromTemplateArgs{
-		Template:    firstNonEmptyToolString(tc.Template, toolArgString(tc.Params, "template")),
-		Name:        firstNonEmptyToolString(tc.Name, toolArgString(tc.Params, "name")),
-		Description: firstNonEmptyToolString(tc.Description, toolArgString(tc.Params, "description")),
-		URL:         firstNonEmptyToolString(tc.URL, toolArgString(tc.Params, "url")),
+		Template:      firstNonEmptyToolString(tc.Template, toolArgString(tc.Params, "template")),
+		Name:          firstNonEmptyToolString(tc.Name, toolArgString(tc.Params, "name")),
+		Description:   firstNonEmptyToolString(tc.Description, toolArgString(tc.Params, "description")),
+		URL:           firstNonEmptyToolString(tc.URL, toolArgString(tc.Params, "url")),
+		Documentation: toolArgString(tc.Params, "documentation"),
 	}
 	if len(tc.VaultKeys) > 0 {
 		req.VaultKeys = append([]string(nil), tc.VaultKeys...)

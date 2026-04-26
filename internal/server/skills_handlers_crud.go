@@ -474,6 +474,7 @@ func handleUploadSkill(s *Server) http.HandlerFunc {
 		description := strings.TrimSpace(r.FormValue("description"))
 		category := strings.TrimSpace(r.FormValue("category"))
 		tags := splitCommaSeparated(r.FormValue("tags"))
+		documentation := r.FormValue("documentation")
 
 		// Create entry
 		skill, err := s.SkillManager.CreateSkillEntry(name, description, string(fileData), tools.SkillTypeUser, "user", category, tags)
@@ -485,6 +486,15 @@ func handleUploadSkill(s *Server) http.HandlerFunc {
 			s.Logger.Error("Failed to save uploaded skill", "name", name, "error", err)
 			jsonError(w, "Failed to save skill", http.StatusInternalServerError)
 			return
+		}
+
+		// Persist optional documentation manual provided in the upload form.
+		if strings.TrimSpace(documentation) != "" {
+			if docErr := s.SkillManager.SetSkillDocumentation(skill.ID, documentation, "user"); docErr != nil {
+				s.Logger.Warn("Failed to save skill documentation on upload", "id", skill.ID, "error", docErr)
+			} else if refreshed, refErr := s.SkillManager.GetSkill(skill.ID); refErr == nil {
+				skill = refreshed
+			}
 		}
 
 		// Run security scan

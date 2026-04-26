@@ -209,6 +209,8 @@ func TestToolSchemaManualSync(t *testing.T) {
 		"save_tool":                  true, // simple tool registration
 		"list_skill_templates":       true, // covered by skill_templates.md
 		"create_skill_from_template": true, // covered by skill_templates.md
+		"get_skill_documentation":    true, // covered by skills_engine.md
+		"set_skill_documentation":    true, // covered by skills_engine.md
 		"wake_on_lan":                true, // simple WOL packet
 		"call_webhook":               true, // just triggers a named webhook
 		"manage_webhooks":            true, // covered by webhook docs

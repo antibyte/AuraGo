@@ -60,14 +60,15 @@ func handleCreateSkillFromTemplate(s *Server) http.HandlerFunc {
 		}
 
 		var req struct {
-			TemplateName string   `json:"template_name"`
-			SkillName    string   `json:"skill_name"`
-			Description  string   `json:"description"`
-			Category     string   `json:"category"`
-			Tags         []string `json:"tags"`
-			BaseURL      string   `json:"base_url"`
-			Dependencies []string `json:"dependencies"`
-			VaultKeys    []string `json:"vault_keys"`
+			TemplateName  string   `json:"template_name"`
+			SkillName     string   `json:"skill_name"`
+			Description   string   `json:"description"`
+			Category      string   `json:"category"`
+			Tags          []string `json:"tags"`
+			BaseURL       string   `json:"base_url"`
+			Dependencies  []string `json:"dependencies"`
+			VaultKeys     []string `json:"vault_keys"`
+			Documentation string   `json:"documentation"`
 		}
 		if err := json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&req); err != nil {
 			jsonError(w, "Invalid request body", http.StatusBadRequest)
@@ -106,6 +107,11 @@ func handleCreateSkillFromTemplate(s *Server) http.HandlerFunc {
 						description = req.Description
 					}
 					_ = s.SkillManager.UpdateSkillMetadata(skillID, description, req.Category, req.Tags, "user")
+				}
+			}
+			if strings.TrimSpace(req.Documentation) != "" {
+				if docErr := s.SkillManager.SetSkillDocumentation(skillID, req.Documentation, "user"); docErr != nil {
+					s.Logger.Warn("Failed to save skill documentation from template", "id", skillID, "error", docErr)
 				}
 			}
 		}
@@ -249,12 +255,15 @@ func handleGenerateSkillDraft(s *Server) http.HandlerFunc {
 		}
 		systemPrompt := "You generate AuraGo Python skills. Return exactly one JSON object and nothing else: no markdown, no fences, no explanation, no wrapper object, no schema echo. " +
 			"Required schema with double-quoted JSON keys only: " +
-			`{"name":"skill_name","description":"what it does","category":"category","tags":["tag1","tag2"],"dependencies":["dep1"],"code":"python code as a single JSON string"}. ` +
+			`{"name":"skill_name","description":"what it does","category":"category","tags":["tag1","tag2"],"dependencies":["dep1"],"code":"python code as a single JSON string","documentation":"markdown manual"}. ` +
 			"Do not output placeholders such as \"...\", `[ ... ]`, or `{ ... }`. Do not output keys like status, enabled, draft, notes, reasoning, examples, or comments. " +
 			"Rules for the Python code: read one JSON object from stdin, write exactly one JSON object to stdout, catch errors and return them in JSON, keep code compact and production-ready. " +
 			"The skill runs inside AuraGo's execute_skill Python sandbox. Never use subprocess, os.system, os.popen, shell commands, ping, curl, wget, dig, nslookup, host, nmap, sudo, or any external CLI/tool/binary. " +
 			"Use Python stdlib or direct libraries/APIs only. For DNS checks use socket or a Python DNS library, never ping. For HTTP use requests/httpx, never curl. " +
-			"Bad example: subprocess.run(['ping', ...]). Good example: socket.gethostbyname(host)."
+			"Bad example: subprocess.run(['ping', ...]). Good example: socket.gethostbyname(host). " +
+			"The 'documentation' field MUST contain a Markdown manual (max 8 KB) for the agent that reuses this skill later. " +
+			"It MUST include the sections: '## Description', '## Parameters', '## Output', '## Example', '## Errors'. " +
+			"Use concrete JSON examples in fenced code blocks. Never embed secrets, API keys or credentials in the manual."
 		userPrompt := strings.TrimSpace(strings.Join([]string{
 			req.Prompt,
 			userNameHint,
@@ -321,12 +330,13 @@ func handleGenerateSkillDraft(s *Server) http.HandlerFunc {
 }
 
 type generatedSkillDraft struct {
-	Name         string   `json:"name"`
-	Description  string   `json:"description"`
-	Category     string   `json:"category"`
-	Tags         []string `json:"tags"`
-	Dependencies []string `json:"dependencies"`
-	Code         string   `json:"code"`
+	Name          string   `json:"name"`
+	Description   string   `json:"description"`
+	Category      string   `json:"category"`
+	Tags          []string `json:"tags"`
+	Dependencies  []string `json:"dependencies"`
+	Code          string   `json:"code"`
+	Documentation string   `json:"documentation"`
 }
 
 func decodeSkillDraft(raw string) (*generatedSkillDraft, error) {
@@ -385,6 +395,7 @@ func parseGeneratedSkillDraftStrict(raw []byte) (generatedSkillDraft, error) {
 		direct.Tags = normalizeStringList(direct.Tags)
 		direct.Dependencies = normalizeStringList(direct.Dependencies)
 		direct.Code = strings.TrimSpace(direct.Code)
+		direct.Documentation = strings.TrimSpace(direct.Documentation)
 		if direct.Name != "" || direct.Code != "" || direct.Description != "" || direct.Category != "" || len(direct.Tags) > 0 || len(direct.Dependencies) > 0 {
 			return direct, nil
 		}
@@ -401,12 +412,13 @@ func parseGeneratedSkillDraftStrict(raw []byte) (generatedSkillDraft, error) {
 	}
 
 	draft := generatedSkillDraft{
-		Name:         firstNonEmptyString(generic, "name", "skill_name", "skill"),
-		Description:  firstNonEmptyString(generic, "description", "summary"),
-		Category:     firstNonEmptyString(generic, "category"),
-		Tags:         coerceStringList(generic["tags"]),
-		Dependencies: coerceStringList(generic["dependencies"]),
-		Code:         firstNonEmptyString(generic, "code", "python_code", "script"),
+		Name:          firstNonEmptyString(generic, "name", "skill_name", "skill"),
+		Description:   firstNonEmptyString(generic, "description", "summary"),
+		Category:      firstNonEmptyString(generic, "category"),
+		Tags:          coerceStringList(generic["tags"]),
+		Dependencies:  coerceStringList(generic["dependencies"]),
+		Code:          firstNonEmptyString(generic, "code", "python_code", "script"),
+		Documentation: firstNonEmptyString(generic, "documentation", "manual", "doc", "readme"),
 	}
 	draft.Name = strings.TrimSpace(draft.Name)
 	draft.Description = strings.TrimSpace(draft.Description)
@@ -414,6 +426,7 @@ func parseGeneratedSkillDraftStrict(raw []byte) (generatedSkillDraft, error) {
 	draft.Tags = normalizeStringList(draft.Tags)
 	draft.Dependencies = normalizeStringList(draft.Dependencies)
 	draft.Code = strings.TrimSpace(draft.Code)
+	draft.Documentation = strings.TrimSpace(draft.Documentation)
 	return draft, nil
 }
 

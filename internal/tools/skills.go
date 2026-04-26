@@ -56,6 +56,8 @@ type SkillManifest struct {
 	Dependencies  []string               `json:"dependencies,omitempty"`   // pip packages required by this skill
 	VaultKeys     []string               `json:"vault_keys,omitempty"`     // vault secret keys this skill needs at runtime
 	InternalTools []string               `json:"internal_tools,omitempty"` // AuraGo native tools this skill may call via tool bridge
+	Documentation string                 `json:"documentation,omitempty"`  // optional path to a Markdown manual relative to skills_dir; defaults to <name>.md when present
+	CheatsheetIDs []string               `json:"cheatsheet_ids,omitempty"` // optional cheatsheet IDs that complement this skill's manual
 	Daemon        *DaemonManifest        `json:"daemon,omitempty"`         // if set, skill can run as a background daemon
 }
 

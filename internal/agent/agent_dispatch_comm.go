@@ -262,11 +262,108 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			// Provision dependencies immediately
 			tools.ProvisionSkillDependencies(cfg.Directories.SkillsDir, cfg.Directories.WorkspaceDir, logger)
 
+			// Persist optional documentation manual so future reuses (also after reset)
+			// can rely on a canonical "how-to" attached to the skill.
+			docNote := ""
+			if strings.TrimSpace(req.Documentation) != "" {
+				if mgr := tools.DefaultSkillManager(); mgr != nil {
+					_ = mgr.SyncFromDisk()
+					skills, _ := mgr.ListSkillsFiltered("", "", req.Name, nil)
+					var skillID string
+					for _, sk := range skills {
+						if sk.Name == req.Name {
+							skillID = sk.ID
+							break
+						}
+					}
+					if skillID != "" {
+						if docErr := mgr.SetSkillDocumentation(skillID, req.Documentation, "agent"); docErr != nil {
+							docNote = fmt.Sprintf(" (documentation NOT saved: %v)", docErr)
+						} else {
+							docNote = " (documentation saved)"
+						}
+					}
+				}
+			} else {
+				docNote = " (NOTE: no documentation supplied; call set_skill_documentation next so the agent can reuse this skill correctly later)"
+			}
+
 			logger.Info("Skill created from template",
 				"template", req.Template,
 				"skill", req.Name,
+				"has_documentation", req.Documentation != "",
 			)
-			return "Tool Output: " + result
+			return "Tool Output: " + result + docNote
+
+		case "get_skill_documentation":
+			name := firstNonEmptyToolString(tc.Name, toolArgString(tc.Params, "name"))
+			if name == "" {
+				return "Tool Output: ERROR 'name' is required."
+			}
+			mgr := tools.DefaultSkillManager()
+			if mgr == nil {
+				return "Tool Output: ERROR Skill Manager is not available."
+			}
+			skills, err := mgr.ListSkillsFiltered("", "", name, nil)
+			if err != nil {
+				return fmt.Sprintf("Tool Output: ERROR listing skills: %v", err)
+			}
+			var skillID string
+			for _, sk := range skills {
+				if sk.Name == name {
+					skillID = sk.ID
+					break
+				}
+			}
+			if skillID == "" {
+				return fmt.Sprintf("Tool Output: ERROR skill %q not found.", name)
+			}
+			content, err := mgr.GetSkillDocumentation(skillID)
+			if err != nil {
+				return fmt.Sprintf("Tool Output: ERROR reading documentation: %v", err)
+			}
+			if strings.TrimSpace(content) == "" {
+				return fmt.Sprintf("Tool Output: Skill %q has no documentation manual yet. Use set_skill_documentation to add one.", name)
+			}
+			return fmt.Sprintf("Tool Output: Documentation for skill %q:\n\n%s", name, content)
+
+		case "set_skill_documentation":
+			if !cfg.Agent.AllowPython {
+				return "Tool Output: [PERMISSION DENIED] set_skill_documentation is disabled in Danger Zone settings (agent.allow_python: false)."
+			}
+			name := firstNonEmptyToolString(tc.Name, toolArgString(tc.Params, "name"))
+			content := toolArgString(tc.Params, "documentation")
+			if content == "" {
+				content = toolArgString(tc.Params, "content")
+			}
+			if name == "" {
+				return "Tool Output: ERROR 'name' is required."
+			}
+			if strings.TrimSpace(content) == "" {
+				return "Tool Output: ERROR 'documentation' must contain Markdown content."
+			}
+			mgr := tools.DefaultSkillManager()
+			if mgr == nil {
+				return "Tool Output: ERROR Skill Manager is not available."
+			}
+			skills, err := mgr.ListSkillsFiltered("", "", name, nil)
+			if err != nil {
+				return fmt.Sprintf("Tool Output: ERROR listing skills: %v", err)
+			}
+			var skillID string
+			for _, sk := range skills {
+				if sk.Name == name {
+					skillID = sk.ID
+					break
+				}
+			}
+			if skillID == "" {
+				return fmt.Sprintf("Tool Output: ERROR skill %q not found.", name)
+			}
+			if err := mgr.SetSkillDocumentation(skillID, content, "agent"); err != nil {
+				return fmt.Sprintf("Tool Output: ERROR saving documentation: %v", err)
+			}
+			return fmt.Sprintf("Tool Output: Documentation for skill %q saved (%d bytes).", name, len(content))
 
 		case "list_skills":
 			logger.Info("LLM requested to list skills")
@@ -287,11 +384,29 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			if len(availableSkills) == 0 {
 				return "Tool Output: No internal skills found."
 			}
-			b, err := json.MarshalIndent(availableSkills, "", "  ")
+			// Enrich each entry with has_documentation so the agent knows which
+			// skills carry a Markdown manual it should consult before calling.
+			docFlags := map[string]bool{}
+			if mgr := tools.DefaultSkillManager(); mgr != nil {
+				if entries, listErr := mgr.ListSkillsFiltered("", "", "", nil); listErr == nil {
+					for _, e := range entries {
+						docFlags[e.Name] = e.HasDocumentation
+					}
+				}
+			}
+			type listed struct {
+				tools.SkillManifest
+				HasDocumentation bool `json:"has_documentation"`
+			}
+			out := make([]listed, len(availableSkills))
+			for i, sk := range availableSkills {
+				out[i] = listed{SkillManifest: sk, HasDocumentation: docFlags[sk.Name]}
+			}
+			b, err := json.MarshalIndent(out, "", "  ")
 			if err != nil {
 				return fmt.Sprintf("Tool Output: ERROR serializing skills list: %v", err)
 			}
-			return fmt.Sprintf("Tool Output: Internal Skills Configuration:\n%s", string(b))
+			return fmt.Sprintf("Tool Output: Internal Skills Configuration (use get_skill_documentation for skills with has_documentation=true):\n%s", string(b))
 
 		case "execute_skill":
 			logger.Info("LLM requested skill execution", "skill", tc.Skill, "args", tc.SkillArgs, "params", tc.Params)

@@ -60,6 +60,15 @@ type SkillRegistryEntry struct {
 	FilePath       string                 `json:"file_path"`
 	FileHash       string                 `json:"file_hash"`
 	IsDaemon       bool                   `json:"is_daemon,omitempty"`
+
+	// Documentation: optional Markdown manual that explains how the agent
+	// should call this skill (parameters, output schema, examples, gotchas).
+	// The Markdown content lives on disk next to the manifest as <name>.md.
+	// The DB only tracks the path and hash so drift can be detected.
+	DocumentationPath string   `json:"documentation_path,omitempty"`
+	DocumentationHash string   `json:"documentation_hash,omitempty"`
+	HasDocumentation  bool     `json:"has_documentation"`
+	CheatsheetIDs     []string `json:"cheatsheet_ids,omitempty"`
 }
 
 // SkillManager manages the skill registry and lifecycle.
@@ -117,13 +126,14 @@ type SkillAuditEntry struct {
 }
 
 type SkillExportBundle struct {
-	Format   string              `json:"format"`
-	Exported time.Time           `json:"exported_at"`
-	Skill    *SkillRegistryEntry `json:"skill"`
-	Manifest SkillManifest       `json:"manifest"`
-	Code     string              `json:"code"`
-	Versions []SkillVersion      `json:"versions,omitempty"`
-	Audit    []SkillAuditEntry   `json:"audit,omitempty"`
+	Format        string              `json:"format"`
+	Exported      time.Time           `json:"exported_at"`
+	Skill         *SkillRegistryEntry `json:"skill"`
+	Manifest      SkillManifest       `json:"manifest"`
+	Code          string              `json:"code"`
+	Documentation string              `json:"documentation,omitempty"`
+	Versions      []SkillVersion      `json:"versions,omitempty"`
+	Audit         []SkillAuditEntry   `json:"audit,omitempty"`
 }
 
 // InitSkillsDB opens (or creates) the skills registry SQLite database and runs migrations.
@@ -215,6 +225,10 @@ func InitSkillsDB(dbPath string) (*sql.DB, error) {
 		"ALTER TABLE skills_registry ADD COLUMN daemon_last_error TEXT DEFAULT ''",
 		"ALTER TABLE skills_registry ADD COLUMN daemon_auto_disabled INTEGER DEFAULT 0",
 		"ALTER TABLE skills_registry ADD COLUMN internal_tools TEXT",
+		// Skill documentation (agent manual) – content lives on disk as <name>.md.
+		"ALTER TABLE skills_registry ADD COLUMN documentation_path TEXT DEFAULT ''",
+		"ALTER TABLE skills_registry ADD COLUMN documentation_hash TEXT DEFAULT ''",
+		"ALTER TABLE skills_registry ADD COLUMN cheatsheet_ids TEXT DEFAULT ''",
 	}
 	for _, stmt := range migrations {
 		if _, err := db.Exec(stmt); err != nil && !strings.Contains(strings.ToLower(err.Error()), "duplicate column name") {
@@ -327,14 +341,15 @@ func (m *SkillManager) SyncFromDisk() error {
 			if itErr != nil {
 				m.logger.Warn("Failed to marshal internal_tools", "name", manifest.Name, "error", itErr)
 			}
+			cheatsheetIDsJSON, _ := json.Marshal(append([]string{}, manifest.CheatsheetIDs...))
 
 			_, err := m.db.Exec(`INSERT INTO skills_registry 
 				(id, name, type, description, executable, category, tags, parameters, dependencies, vault_keys, internal_tools,
-				 created_by, enabled, security_status, file_path, file_hash)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)`,
+				 created_by, enabled, security_status, file_path, file_hash, cheatsheet_ids)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?)`,
 				id, manifest.Name, string(skillType), manifest.Description,
 				manifest.Executable, manifest.Category, mustJSONString(manifest.Tags), string(params), string(deps), string(vaultKeys), string(internalTools),
-				string(skillType), string(SecurityPending), manifest.Executable, fileHash,
+				string(skillType), string(SecurityPending), manifest.Executable, fileHash, string(cheatsheetIDsJSON),
 			)
 			if err != nil {
 				m.logger.Warn("Failed to insert skill", "name", manifest.Name, "error", err)
@@ -343,10 +358,22 @@ func (m *SkillManager) SyncFromDisk() error {
 			if readErr == nil && len(codeBytes) > 0 {
 				m.runStaticScan(id, string(codeBytes))
 			}
+			if manifest.Executable != "__builtin__" {
+				m.syncDocumentationForSkill(id, manifest.Executable)
+			}
 		} else if err == nil {
 			// Always refresh manifest-derived fields that are not user-editable
 			itJSON, _ := json.Marshal(manifest.InternalTools)
 			m.db.Exec("UPDATE skills_registry SET internal_tools = ? WHERE id = ?", string(itJSON), existingID)
+
+			// Cheatsheet links live in the manifest as the source of truth.
+			csIDs := manifest.CheatsheetIDs
+			if csIDs == nil {
+				csIDs = []string{}
+			}
+			if csJSON, csErr := json.Marshal(csIDs); csErr == nil {
+				m.db.Exec("UPDATE skills_registry SET cheatsheet_ids = ? WHERE id = ?", string(csJSON), existingID)
+			}
 
 			if manifest.Executable == "__builtin__" {
 				m.db.Exec("UPDATE skills_registry SET type = ?, file_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
@@ -362,6 +389,11 @@ func (m *SkillManager) SyncFromDisk() error {
 					m.db.Exec("UPDATE skills_registry SET file_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
 						fileHash, existingID)
 				}
+			}
+
+			// Refresh documentation tracking from disk (auto-detect <name>.md).
+			if manifest.Executable != "__builtin__" {
+				m.syncDocumentationForSkill(existingID, manifest.Executable)
 			}
 		}
 	}
@@ -427,7 +459,8 @@ func detectSkillType(name string, skillsDir string) SkillType {
 func (m *SkillManager) ListSkillsFiltered(skillType, status, search string, enabledFilter *bool) ([]SkillRegistryEntry, error) {
 	query := "SELECT id, name, type, description, executable, category, tags, parameters, dependencies, vault_keys, internal_tools, " +
 		"created_at, updated_at, created_by, enabled, security_status, security_report, last_scan_at, " +
-		"file_path, file_hash FROM skills_registry WHERE 1=1"
+		"file_path, file_hash, COALESCE(documentation_path,''), COALESCE(documentation_hash,''), COALESCE(cheatsheet_ids,'') " +
+		"FROM skills_registry WHERE 1=1"
 	var args []interface{}
 
 	if skillType != "" {
@@ -466,19 +499,24 @@ func (m *SkillManager) ListSkillsFiltered(skillType, status, search string, enab
 	var skills []SkillRegistryEntry
 	for rows.Next() {
 		var s SkillRegistryEntry
-		var params, deps, vaultKeys, internalToolsRaw, secReport, tags sql.NullString
+		var params, deps, vaultKeys, internalToolsRaw, secReport, tags, cheatsheetIDs sql.NullString
 		var lastScan sql.NullTime
 		var enabled int
+		var docPath, docHash string
 
 		err := rows.Scan(&s.ID, &s.Name, &s.Type, &s.Description, &s.Executable, &s.Category, &tags,
 			&params, &deps, &vaultKeys, &internalToolsRaw,
 			&s.CreatedAt, &s.UpdatedAt, &s.CreatedBy, &enabled,
 			&s.SecurityStatus, &secReport, &lastScan,
-			&s.FilePath, &s.FileHash)
+			&s.FilePath, &s.FileHash, &docPath, &docHash, &cheatsheetIDs)
 		if err != nil {
 			m.logger.Warn("Failed to scan skill row", "error", err)
 			continue
 		}
+		s.DocumentationPath = docPath
+		s.DocumentationHash = docHash
+		s.HasDocumentation = docPath != ""
+		s.CheatsheetIDs = loadCheatsheetIDs(cheatsheetIDs)
 		m.populateSkillFromScan(&s, params, deps, vaultKeys, internalToolsRaw, secReport, tags, lastScan, enabled)
 		skills = append(skills, s)
 	}
@@ -515,14 +553,16 @@ func (m *SkillManager) GetSkill(id string) (*SkillRegistryEntry, error) {
 	var lastScan sql.NullTime
 	var enabled int
 
+	var cheatsheetIDs sql.NullString
+	var docPath, docHash string
 	err := m.db.QueryRow(`SELECT id, name, type, description, executable, category, tags, parameters, dependencies, vault_keys, internal_tools,
 		created_at, updated_at, created_by, enabled, security_status, security_report, last_scan_at,
-		file_path, file_hash FROM skills_registry WHERE id = ?`, id).
+		file_path, file_hash, COALESCE(documentation_path,''), COALESCE(documentation_hash,''), COALESCE(cheatsheet_ids,'') FROM skills_registry WHERE id = ?`, id).
 		Scan(&s.ID, &s.Name, &s.Type, &s.Description, &s.Executable, &s.Category, &tags,
 			&params, &deps, &vaultKeys, &internalToolsRaw,
 			&s.CreatedAt, &s.UpdatedAt, &s.CreatedBy, &enabled,
 			&s.SecurityStatus, &secReport, &lastScan,
-			&s.FilePath, &s.FileHash)
+			&s.FilePath, &s.FileHash, &docPath, &docHash, &cheatsheetIDs)
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("skill not found: %s", id)
 	}
@@ -530,6 +570,10 @@ func (m *SkillManager) GetSkill(id string) (*SkillRegistryEntry, error) {
 		return nil, fmt.Errorf("querying skill: %w", err)
 	}
 
+	s.DocumentationPath = docPath
+	s.DocumentationHash = docHash
+	s.HasDocumentation = docPath != ""
+	s.CheatsheetIDs = loadCheatsheetIDs(cheatsheetIDs)
 	m.populateSkillFromScan(&s, params, deps, vaultKeys, internalToolsRaw, secReport, tags, lastScan, enabled)
 
 	// Enrich with daemon info from manifest
@@ -741,6 +785,11 @@ func (m *SkillManager) DeleteSkill(id string, deleteFiles bool, deletedBy string
 		// Delete JSON manifest - derive from Executable (same as pyPath) not Name
 		jsonPath := filepath.Join(m.skillsDir, strings.TrimSuffix(s.Executable, filepath.Ext(s.Executable))+".json")
 		os.Remove(jsonPath)
+
+		// Delete optional documentation manual (<basename>.md)
+		if docName := SkillDocumentationFilename(s.Executable); docName != "" {
+			os.Remove(filepath.Join(m.skillsDir, docName))
+		}
 	}
 
 	m.logger.Info("Skill deleted", "id", id, "name", s.Name, "files_deleted", deleteFiles)
