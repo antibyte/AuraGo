@@ -79,6 +79,18 @@ func TestStreamToolCallAssemblerAppendsFragments(t *testing.T) {
 	}
 }
 
+func TestCompactMemoryForPromptStripsEscapedThinkingTags(t *testing.T) {
+	input := "headline\n&lt;think&gt;private reasoning&lt;/think&gt;\nuseful memory"
+
+	got := compactMemoryForPrompt(input, 1000)
+	if strings.Contains(got, "private reasoning") || strings.Contains(strings.ToLower(got), "think") {
+		t.Fatalf("expected escaped thinking block to be stripped, got %q", got)
+	}
+	if !strings.Contains(got, "useful memory") {
+		t.Fatalf("expected useful memory to remain, got %q", got)
+	}
+}
+
 func TestAssembleSortedStreamToolCallsHandlesSparseIndices(t *testing.T) {
 	streamToolCalls := map[int]*openai.ToolCall{}
 	mergeStreamToolCallChunk(streamToolCalls, openai.ToolCall{

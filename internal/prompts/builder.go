@@ -16,6 +16,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	tiktoken "github.com/pkoukk/tiktoken-go"
 )
@@ -510,9 +511,10 @@ func buildSystemPromptInner(promptsDir string, flags *ContextFlags, coreMemory s
 			"- Do NOT announce what you are about to do before the JSON (no preamble)\n" +
 			"- If you need to call multiple tools, output one tool call per turn — " +
 			"the system will return the result and you can call the next tool\n\n")
-		finalPrompt.WriteString("**Preamble rule:** Same as native mode — when calling a tool as a " +
-			"single-step action, your response must be ONLY the JSON object. " +
-			"For multi-step tasks, a brief 1-sentence acknowledgment may precede the JSON.\n\n")
+		finalPrompt.WriteString("**Preamble rule:** Text JSON mode has no preamble exception. " +
+			"When calling a tool, your response must be ONLY the JSON object. " +
+			"If a behavioral rule asks for an acknowledgment before a long action, skip the acknowledgment " +
+			"and emit the tool JSON directly.\n\n")
 	}
 
 	// Language Instruction
@@ -530,7 +532,7 @@ func buildSystemPromptInner(promptsDir string, flags *ContextFlags, coreMemory s
 	// Core Memory — always inject (small and critical)
 	if coreMemory != "" {
 		finalPrompt.WriteString("### CORE MEMORY ###\n")
-		finalPrompt.WriteString(coreMemory)
+		finalPrompt.WriteString(compactCoreMemoryForPrompt(coreMemory))
 		finalPrompt.WriteString("\n\n")
 	}
 
@@ -855,6 +857,77 @@ func stripTextJSONToolProtocolForNative(content string) string {
 		return content
 	}
 	return strings.TrimSpace(content[idx:])
+}
+
+const (
+	maxCoreMemoryPromptChars   = 12000
+	maxCoreMemoryPromptEntries = 60
+	coreMemoryHeadEntries      = 20
+)
+
+func compactCoreMemoryForPrompt(coreMemory string) string {
+	lines := nonEmptyLines(coreMemory)
+	if len(lines) == 0 {
+		return ""
+	}
+	if len(coreMemory) <= maxCoreMemoryPromptChars && len(lines) <= maxCoreMemoryPromptEntries {
+		return strings.Join(lines, "\n")
+	}
+
+	headCount := coreMemoryHeadEntries
+	if headCount > len(lines) {
+		headCount = len(lines)
+	}
+	tailCount := maxCoreMemoryPromptEntries - headCount
+	if tailCount < 0 {
+		tailCount = 0
+	}
+	if headCount+tailCount > len(lines) {
+		tailCount = len(lines) - headCount
+	}
+
+	compacted := make([]string, 0, headCount+tailCount+1)
+	compacted = append(compacted, lines[:headCount]...)
+	omitted := len(lines) - headCount - tailCount
+	if omitted > 0 {
+		compacted = append(compacted, fmt.Sprintf("[CORE MEMORY COMPACTED: %d middle entries omitted from this prompt; use manage_memory list if needed]", omitted))
+	}
+	if tailCount > 0 {
+		compacted = append(compacted, lines[len(lines)-tailCount:]...)
+	}
+
+	result := strings.Join(compacted, "\n")
+	if len(result) <= maxCoreMemoryPromptChars {
+		return result
+	}
+	return hardTruncateText(result, maxCoreMemoryPromptChars)
+}
+
+func nonEmptyLines(text string) []string {
+	rawLines := strings.Split(strings.TrimSpace(text), "\n")
+	lines := make([]string, 0, len(rawLines))
+	for _, line := range rawLines {
+		line = strings.TrimSpace(line)
+		if line != "" {
+			lines = append(lines, line)
+		}
+	}
+	return lines
+}
+
+func hardTruncateText(text string, maxChars int) string {
+	if maxChars <= 0 || len(text) <= maxChars {
+		return text
+	}
+	const marker = "\n[CORE MEMORY COMPACTED: truncated to fit prompt budget]"
+	if maxChars <= len(marker) {
+		return text[:maxChars]
+	}
+	cut := maxChars - len(marker)
+	for cut > 0 && !utf8.ValidString(text[:cut]) {
+		cut--
+	}
+	return strings.TrimSpace(text[:cut]) + marker
 }
 
 // budgetShed progressively removes content sections until the prompt fits within the token budget.

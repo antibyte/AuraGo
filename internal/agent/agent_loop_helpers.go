@@ -2,6 +2,7 @@ package agent
 
 import (
 	"encoding/json"
+	"html"
 	"log/slog"
 	"path/filepath"
 	"regexp"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"aurago/internal/config"
+	"aurago/internal/security"
 	"aurago/internal/tools"
 
 	"github.com/sashabaranov/go-openai"
@@ -1011,11 +1013,24 @@ func emitMediaSSEEvents(broker FeedbackBroker, action, resultContent string, dat
 }
 
 func compactMemoryForPrompt(text string, maxLen int) string {
-	text = strings.TrimSpace(text)
+	text = sanitizeMemoryForPrompt(text)
 	if maxLen <= 0 || len(text) <= maxLen {
 		return text
 	}
 	return strings.TrimSpace(text[:maxLen]) + "…"
+}
+
+func sanitizeMemoryForPrompt(text string) string {
+	text = strings.TrimSpace(text)
+	for i := 0; i < 2; i++ {
+		text = security.StripThinkingTags(text)
+		unescaped := html.UnescapeString(text)
+		if unescaped == text {
+			break
+		}
+		text = unescaped
+	}
+	return strings.TrimSpace(security.StripThinkingTags(text))
 }
 
 func wantsDetailedMemory(query string) bool {

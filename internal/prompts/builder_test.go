@@ -2,6 +2,7 @@ package prompts
 
 import (
 	"errors"
+	"fmt"
 	"log/slog"
 	"strings"
 	"sync"
@@ -279,6 +280,43 @@ func TestBuildSystemPromptNativeModeOmitsRawJSONToolProtocol(t *testing.T) {
 	}
 	if strings.Contains(prompt, "When calling a tool, your ENTIRE response = a raw JSON object") {
 		t.Fatalf("native prompt must not include raw JSON-only response rule")
+	}
+}
+
+func TestBuildSystemPromptTextJSONModeDoesNotAllowPreambleBeforeJSON(t *testing.T) {
+	flags := ContextFlags{
+		Tier:            "full",
+		SystemLanguage:  "en",
+		IsTextModeModel: true,
+	}
+
+	prompt, _ := buildSystemPromptInner("", &flags, "", slog.Default())
+	if strings.Contains(prompt, "brief 1-sentence acknowledgment may precede the JSON") {
+		t.Fatalf("text JSON prompt must not allow acknowledgments before raw JSON tool calls")
+	}
+	if !strings.Contains(prompt, "Text JSON mode has no preamble exception") {
+		t.Fatalf("prompt missing explicit text JSON no-preamble rule")
+	}
+	if strings.Contains(prompt, `os.path.join("agent_workspace", "workdir", "filename")`) {
+		t.Fatalf("prompt must not instruct JSON tool calls to use Python path expressions")
+	}
+}
+
+func TestBuildSystemPromptCompactsOversizedCoreMemory(t *testing.T) {
+	var core strings.Builder
+	for i := 1; i <= 160; i++ {
+		core.WriteString(fmt.Sprintf("[%d] core-memory-entry-%03d %s\n", i, i, strings.Repeat("x", 160)))
+	}
+
+	prompt, _ := buildSystemPromptInner("", &ContextFlags{Tier: "full", SystemLanguage: "en"}, core.String(), slog.Default())
+	if !strings.Contains(prompt, "[CORE MEMORY COMPACTED:") {
+		t.Fatalf("expected oversized core memory to be compacted")
+	}
+	if strings.Contains(prompt, "core-memory-entry-050") {
+		t.Fatalf("expected middle core memory entries to be omitted")
+	}
+	if !strings.Contains(prompt, "core-memory-entry-001") || !strings.Contains(prompt, "core-memory-entry-160") {
+		t.Fatalf("expected oldest anchor and newest core memories to remain")
 	}
 }
 
