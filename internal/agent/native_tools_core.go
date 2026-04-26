@@ -237,6 +237,14 @@ func buildCoreToolSchemas(ff ToolFeatureFlags, execSkillProps map[string]interfa
 				"title": prop("string", "Optional title shown above the video player"),
 			}, "path"),
 		),
+		tool("send_youtube_video",
+			"Send a YouTube video to the user. In the Web UI it appears as an embedded YouTube player; in Telegram, Discord, and other text channels it appears as a normal YouTube link. Do not download the video.",
+			schema(map[string]interface{}{
+				"url":           prop("string", "YouTube URL (youtube.com/watch, youtu.be, shorts, live, or embed URL)"),
+				"title":         prop("string", "Optional title shown above the embedded player or before the link"),
+				"start_seconds": map[string]interface{}{"type": "integer", "description": "Optional playback start offset in seconds"},
+			}, "url"),
+		),
 		tool("send_document",
 			"Send a document to the user. Shown with Open and Download buttons in the Web UI. PDF files can be viewed inline in the browser. Provide a local workspace path or a direct HTTPS URL.",
 			schema(map[string]interface{}{

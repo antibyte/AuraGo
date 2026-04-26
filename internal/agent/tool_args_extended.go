@@ -233,6 +233,12 @@ type sendMediaArgs struct {
 	Caption string
 }
 
+type youtubeVideoArgs struct {
+	URL          string
+	Title        string
+	StartSeconds int
+}
+
 func toolArgStringSlice(args map[string]interface{}, keys ...string) []string {
 	for _, key := range keys {
 		raw, ok := args[key]
@@ -712,6 +718,14 @@ func decodeSendMediaArgs(tc ToolCall) sendMediaArgs {
 		Path:    firstNonEmptyToolString(tc.Path, tc.FilePath, toolArgString(tc.Params, "path", "file_path")),
 		Title:   firstNonEmptyToolString(tc.Title, toolArgString(tc.Params, "title")),
 		Caption: firstNonEmptyToolString(tc.Caption, toolArgString(tc.Params, "caption")),
+	}
+}
+
+func decodeYouTubeVideoArgs(tc ToolCall) youtubeVideoArgs {
+	return youtubeVideoArgs{
+		URL:          firstNonEmptyToolString(tc.URL, tc.Path, tc.Content, toolArgString(tc.Params, "url", "video_url", "youtube_url", "path")),
+		Title:        firstNonEmptyToolString(tc.Title, toolArgString(tc.Params, "title")),
+		StartSeconds: toolArgInt(tc.Params, 0, "start_seconds", "start"),
 	}
 }
 

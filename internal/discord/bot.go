@@ -585,34 +585,33 @@ func processDiscordMessage(s *discordgo.Session, m *discordgo.MessageCreate, inp
 	// Send result back to Discord
 	if len(resp.Choices) > 0 {
 		answer := security.StripThinkingTags(resp.Choices[0].Message.Content)
-		if answer != "" {
-			// Extract markdown images and send as native Discord attachments
-			cleanText, images := media.ExtractMarkdownImages(answer)
-			for _, img := range images {
-				var localPath string
-				if strings.HasPrefix(img.URL, "/files/") {
-					// Local workspace file
-					localPath = filepath.Join(cfg.Directories.WorkspaceDir, strings.TrimPrefix(img.URL, "/files/"))
-				} else if strings.HasPrefix(img.URL, "http://") || strings.HasPrefix(img.URL, "https://") {
-					// Remote URL: download and sanitize before sending
-					imagesDir := filepath.Join(cfg.Directories.WorkspaceDir, "images")
-					sanitized, err := media.DownloadAndSanitizeImage(img.URL, imagesDir)
-					if err != nil {
-						logger.Warn("[Discord] Failed to download/sanitize image URL", "url", img.URL, "error", err)
-						continue
-					}
-					localPath = sanitized
-				} else {
+		// Extract markdown images and send as native Discord attachments
+		cleanText, images := media.ExtractMarkdownImages(answer)
+		for _, img := range images {
+			var localPath string
+			if strings.HasPrefix(img.URL, "/files/") {
+				// Local workspace file
+				localPath = filepath.Join(cfg.Directories.WorkspaceDir, strings.TrimPrefix(img.URL, "/files/"))
+			} else if strings.HasPrefix(img.URL, "http://") || strings.HasPrefix(img.URL, "https://") {
+				// Remote URL: download and sanitize before sending
+				imagesDir := filepath.Join(cfg.Directories.WorkspaceDir, "images")
+				sanitized, err := media.DownloadAndSanitizeImage(img.URL, imagesDir)
+				if err != nil {
+					logger.Warn("[Discord] Failed to download/sanitize image URL", "url", img.URL, "error", err)
 					continue
 				}
-				if err := SendDiscordImage(m.ChannelID, localPath, img.Caption, logger); err != nil {
-					logger.Warn("[Discord] Failed to send image", "path", localPath, "error", err)
-				}
+				localPath = sanitized
+			} else {
+				continue
 			}
-			if cleanText != "" {
-				if err := SendMessage(m.ChannelID, cleanText, logger); err != nil {
-					logger.Error("[Discord] Failed to send response", "error", err)
-				}
+			if err := SendDiscordImage(m.ChannelID, localPath, img.Caption, logger); err != nil {
+				logger.Warn("[Discord] Failed to send image", "path", localPath, "error", err)
+			}
+		}
+		cleanText = telegram.AppendMissingYouTubeLinks(cleanText, broker.YouTubeVideos)
+		if cleanText != "" {
+			if err := SendMessage(m.ChannelID, cleanText, logger); err != nil {
+				logger.Error("[Discord] Failed to send response", "error", err)
 			}
 		}
 	}
@@ -622,10 +621,11 @@ func processDiscordMessage(s *discordgo.Session, m *discordgo.MessageCreate, inp
 
 // DiscordBroker implements agent.FeedbackBroker for real-time Discord feedback.
 type DiscordBroker struct {
-	session    *discordgo.Session
-	channelID  string
-	logger     *slog.Logger
-	AudioFiles []telegram.CapturedAudio
+	session       *discordgo.Session
+	channelID     string
+	logger        *slog.Logger
+	AudioFiles    []telegram.CapturedAudio
+	YouTubeVideos []telegram.CapturedYouTubeVideo
 }
 
 func (b *DiscordBroker) Send(event, message string) {
@@ -643,6 +643,21 @@ func (b *DiscordBroker) Send(event, message string) {
 				Title:    audio.Title,
 				MimeType: audio.MimeType,
 				Filename: audio.Filename,
+			})
+		}
+		return
+	}
+	if event == "youtube_video" {
+		var video struct {
+			URL     string `json:"url"`
+			Title   string `json:"title"`
+			VideoID string `json:"video_id"`
+		}
+		if json.Unmarshal([]byte(message), &video) == nil && video.URL != "" {
+			b.YouTubeVideos = append(b.YouTubeVideos, telegram.CapturedYouTubeVideo{
+				URL:     video.URL,
+				Title:   video.Title,
+				VideoID: video.VideoID,
 			})
 		}
 		return

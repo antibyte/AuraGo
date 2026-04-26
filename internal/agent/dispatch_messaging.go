@@ -56,6 +56,11 @@ func dispatchMessagingCases(ctx context.Context, tc ToolCall, dc *DispatchContex
 		logger.Info("LLM requested video send", "path", req.Path, "title", req.Title)
 		return handleSendVideo(req, cfg, logger, mediaRegistryDB), true
 
+	case "send_youtube_video":
+		req := decodeYouTubeVideoArgs(tc)
+		logger.Info("LLM requested YouTube video send", "url", req.URL, "title", req.Title)
+		return handleSendYouTubeVideo(req, logger), true
+
 	case "send_document":
 		req := decodeSendMediaArgs(tc)
 		logger.Info("LLM requested document send", "path", req.Path, "title", req.Title)

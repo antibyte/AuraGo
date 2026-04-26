@@ -361,6 +361,16 @@ function handleSSEMessage(e) {
                 }
             } catch (e) { }
             return;
+        } else if (data.event === 'youtube_video') {
+            try {
+                const youtubeData = JSON.parse(data.detail);
+                const key = youtubeData && (youtubeData.video_id || youtubeData.url || youtubeData.embed_url);
+                if (key && !seenSSEYouTubeVideos.has(key)) {
+                    seenSSEYouTubeVideos.add(key);
+                    appendYouTubeMessage(youtubeData);
+                }
+            } catch (e) { }
+            return;
         } else if (data.event === 'document') {
             try {
                 const docData = JSON.parse(data.detail);

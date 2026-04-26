@@ -403,6 +403,7 @@ func processUpdate(bot *tgbotapi.BotAPI, update tgbotapi.Update, cfg *config.Con
 				logger.Warn("Failed to send Telegram photo", "path", localPath, "error", err)
 			}
 		}
+		cleanText = AppendMissingYouTubeLinks(cleanText, broker.YouTubeVideos)
 		if cleanText != "" {
 			if err := sendTelegramMessage(bot, msg.From.ID, cleanText); err != nil {
 				logger.Error("Failed to send Telegram message", "error", err)
@@ -416,6 +417,27 @@ func sendTelegramMessage(bot *tgbotapi.BotAPI, chatID int64, text string) error 
 	msg := tgbotapi.NewMessage(chatID, text)
 	_, err := bot.Send(msg)
 	return err
+}
+
+// AppendMissingYouTubeLinks appends captured YouTube links to text channels when
+// the final assistant message did not already include the canonical link.
+func AppendMissingYouTubeLinks(text string, videos []CapturedYouTubeVideo) string {
+	result := strings.TrimSpace(text)
+	for _, video := range videos {
+		url := strings.TrimSpace(video.URL)
+		if url == "" || strings.Contains(result, url) {
+			continue
+		}
+		line := url
+		if title := strings.TrimSpace(video.Title); title != "" {
+			line = title + ": " + url
+		}
+		if result != "" {
+			result += "\n\n"
+		}
+		result += line
+	}
+	return result
 }
 
 // sendTelegramPhoto sends a local image file as a native Telegram photo with optional caption.
@@ -462,12 +484,21 @@ type CapturedAudio struct {
 	Filename string
 }
 
+// CapturedYouTubeVideo represents a YouTube link captured during the agent loop
+// for text-channel delivery.
+type CapturedYouTubeVideo struct {
+	URL     string
+	Title   string
+	VideoID string
+}
+
 // TelegramBroker implements agent.FeedbackProvider for Telegram
 type TelegramBroker struct {
-	bot        *tgbotapi.BotAPI
-	chatID     int64
-	logger     *slog.Logger
-	AudioFiles []CapturedAudio
+	bot           *tgbotapi.BotAPI
+	chatID        int64
+	logger        *slog.Logger
+	AudioFiles    []CapturedAudio
+	YouTubeVideos []CapturedYouTubeVideo
 }
 
 func (b *TelegramBroker) Send(event, message string) {
@@ -485,6 +516,21 @@ func (b *TelegramBroker) Send(event, message string) {
 				Title:    audio.Title,
 				MimeType: audio.MimeType,
 				Filename: audio.Filename,
+			})
+		}
+		return
+	}
+	if event == "youtube_video" {
+		var video struct {
+			URL     string `json:"url"`
+			Title   string `json:"title"`
+			VideoID string `json:"video_id"`
+		}
+		if json.Unmarshal([]byte(message), &video) == nil && video.URL != "" {
+			b.YouTubeVideos = append(b.YouTubeVideos, CapturedYouTubeVideo{
+				URL:     video.URL,
+				Title:   video.Title,
+				VideoID: video.VideoID,
 			})
 		}
 		return

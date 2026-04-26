@@ -72,6 +72,7 @@ The supervisor loads up to 5 manuals at once into your next prompt. **Always bat
 | `git_backup_restore` | Manage repository backups |
 | `tts` | Generate audio from text (Google/ElevenLabs/MiniMax/Piper) — **use this built-in tool, NEVER use Python. TTS audio is auto-posted to WebUI chat; do NOT follow up with send_audio** |
 | `send_video` | Send an existing video file to the WebUI chat as an inline player |
+| `send_youtube_video` | Send a YouTube video; WebUI shows an embedded player, other channels receive a link |
 | `mdns_scan` | Discover services on the local network via mDNS/Bonjour |
 | `upnp_scan` | Discover UPnP/SSDP devices on the LAN (routers, TVs, NAS, IoT) |
 

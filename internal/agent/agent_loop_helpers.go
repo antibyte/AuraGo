@@ -192,13 +192,13 @@ var adaptiveFamilySeedTools = map[string][]string{
 		"invasion_control", "execute_shell", "system_metrics", "process_analyzer",
 	},
 	"communication": {
-		"fetch_email", "send_email", "send_document", "send_audio", "send_video",
+		"fetch_email", "send_email", "send_document", "send_audio", "send_video", "send_youtube_video",
 	},
 	"automation": {
 		"cron_scheduler", "follow_up", "manage_missions", "co_agent",
 	},
 	"media": {
-		"media_registry", "media_conversion", "send_document", "send_audio", "send_video", "send_image", "tts",
+		"media_registry", "media_conversion", "send_document", "send_audio", "send_video", "send_youtube_video", "send_image", "tts",
 		"transcribe_audio", "generate_image", "generate_music", "generate_video", "chromecast",
 	},
 }
@@ -228,21 +228,22 @@ var adaptiveToolNeighbors = map[string][]string{
 	"transfer_remote_file": {"remote_execution", "filesystem", "ssh_exec"},
 
 	// Media & Documents
-	"document_creator": {"media_registry", "media_conversion", "send_document", "filesystem"},
-	"media_registry":   {"document_creator", "media_conversion", "send_document", "filesystem", "generate_image", "generate_video", "send_image", "send_video", "tts", "send_audio", "generate_music"},
-	"media_conversion": {"media_registry", "document_creator", "image_processing", "transcribe_audio", "send_audio", "send_video", "send_image", "filesystem"},
-	"send_document":    {"media_registry", "document_creator"},
-	"send_image":       {"media_registry", "generate_image"},
-	"send_audio":       {"media_registry", "tts", "generate_music"},
-	"send_video":       {"media_registry", "generate_video", "media_conversion"},
-	"generate_image":   {"media_registry", "send_image", "analyze_image"},
-	"generate_music":   {"media_registry", "send_audio", "tts"},
-	"generate_video":   {"media_registry", "media_conversion", "send_video"},
-	"analyze_image":    {"generate_image", "media_registry"},
-	"tts":              {"media_registry", "send_audio"},
-	"transcribe_audio": {"filesystem", "media_registry"},
-	"pdf_operations":   {"detect_file_type", "filesystem", "document_creator"},
-	"image_processing": {"detect_file_type", "filesystem", "media_registry"},
+	"document_creator":   {"media_registry", "media_conversion", "send_document", "filesystem"},
+	"media_registry":     {"document_creator", "media_conversion", "send_document", "filesystem", "generate_image", "generate_video", "send_image", "send_video", "tts", "send_audio", "generate_music"},
+	"media_conversion":   {"media_registry", "document_creator", "image_processing", "transcribe_audio", "send_audio", "send_video", "send_image", "filesystem"},
+	"send_document":      {"media_registry", "document_creator"},
+	"send_image":         {"media_registry", "generate_image"},
+	"send_audio":         {"media_registry", "tts", "generate_music"},
+	"send_video":         {"media_registry", "generate_video", "media_conversion"},
+	"send_youtube_video": {"send_video"},
+	"generate_image":     {"media_registry", "send_image", "analyze_image"},
+	"generate_music":     {"media_registry", "send_audio", "tts"},
+	"generate_video":     {"media_registry", "media_conversion", "send_video"},
+	"analyze_image":      {"generate_image", "media_registry"},
+	"tts":                {"media_registry", "send_audio"},
+	"transcribe_audio":   {"filesystem", "media_registry"},
+	"pdf_operations":     {"detect_file_type", "filesystem", "document_creator"},
+	"image_processing":   {"detect_file_type", "filesystem", "media_registry"},
 
 	// Docker & Infrastructure
 	"docker":          {"docker_compose", "execute_shell", "filesystem"},
@@ -945,6 +946,26 @@ func emitMediaSSEEvents(broker FeedbackBroker, action, resultContent string, dat
 				"format":    videoRes.Format,
 			})
 			broker.Send("video", string(evtPayload))
+		}
+	case "send_youtube_video":
+		var videoRes struct {
+			Status       string `json:"status"`
+			URL          string `json:"url"`
+			EmbedURL     string `json:"embed_url"`
+			VideoID      string `json:"video_id"`
+			Title        string `json:"title"`
+			StartSeconds int    `json:"start_seconds"`
+		}
+		if json.Unmarshal([]byte(raw), &videoRes) == nil && videoRes.Status == "success" {
+			evtPayload, _ := json.Marshal(map[string]interface{}{
+				"url":           videoRes.URL,
+				"embed_url":     videoRes.EmbedURL,
+				"video_id":      videoRes.VideoID,
+				"title":         videoRes.Title,
+				"start_seconds": videoRes.StartSeconds,
+				"provider":      "youtube",
+			})
+			broker.Send("youtube_video", string(evtPayload))
 		}
 	case "generate_video":
 		var videoRes struct {

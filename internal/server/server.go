@@ -1152,6 +1152,7 @@ func securityHeadersMiddleware(next http.Handler, tlsActive, behindProxy bool) h
 			"connect-src 'self' ws: wss:; " +
 			"object-src 'none'; " +
 			"form-action 'self'; " +
+			"frame-src 'self' https://www.youtube-nocookie.com https://www.youtube.com; " +
 			"frame-ancestors 'none'; " +
 			"base-uri 'self';"
 		w.Header().Set("Content-Security-Policy", csp)

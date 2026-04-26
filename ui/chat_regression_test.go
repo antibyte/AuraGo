@@ -52,6 +52,8 @@ func TestChatFrontend_ToolLeakSanitizerPatternsRemainPresent(t *testing.T) {
 		"trimmed.includes('\"parameters\"')",
 		"data.event === 'video'",
 		"appendVideoMessage(videoData)",
+		"data.event === 'youtube_video'",
+		"appendYouTubeMessage(youtubeData)",
 	}
 	for _, marker := range requiredStreamingMarkers {
 		if !strings.Contains(stream, marker) {
@@ -83,10 +85,17 @@ func TestChatFrontend_VideoPlayerFlowRemainsPresent(t *testing.T) {
 	all := string(mainContent) + "\n" + string(messagesContent) + "\n" + string(streamingContent)
 	requiredMarkers := []string{
 		"let seenSSEVideos = new Set()",
+		"let seenSSEYouTubeVideos = new Set()",
 		"function appendVideoMessage(videoData)",
+		"function appendYouTubeMessage(youtubeData)",
+		"function renderYouTubeLinksAsPlayers(html)",
+		"className = 'chat-youtube-player'",
+		"https://www.youtube-nocookie.com/embed/",
 		"className = 'chat-video-player'",
 		"renderVideoLinksAsPlayers(finalHTML)",
+		"renderYouTubeLinksAsPlayers(finalHTML)",
 		"data.event === 'video'",
+		"data.event === 'youtube_video'",
 	}
 	for _, marker := range requiredMarkers {
 		if !strings.Contains(all, marker) {
@@ -213,6 +222,7 @@ func TestChatToolIconPngSpriteCatalogRemainsWired(t *testing.T) {
 		"key: 'github'",
 		"key: 'cloudflare_tunnel'",
 		"key: 'truenas'",
+		"'send_youtube_video'",
 		"key: 'generic_tool'",
 		"window.AuraToolIcons",
 		"createIcon(toolName",

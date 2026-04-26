@@ -767,7 +767,7 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			}
 			return "Tool Output: " + scanResult
 
-		case "send_telegram", "send_notification", "notification_center", "send_push_notification", "web_push", "send_image", "send_audio", "send_video", "send_document":
+		case "send_telegram", "send_notification", "notification_center", "send_push_notification", "web_push", "send_image", "send_audio", "send_video", "send_youtube_video", "send_document":
 			res, _ := dispatchMessagingCases(ctx, tc, dc)
 			return res
 

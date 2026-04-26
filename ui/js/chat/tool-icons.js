@@ -80,7 +80,7 @@
         { slot: 77, key: 'media_registry', label: 'Media registry', row: 7, col: 7, aliases: Object.freeze([]) },
         { slot: 78, key: 'media_conversion', label: 'Media conversion', row: 7, col: 8, aliases: Object.freeze([]) },
         { slot: 79, key: 'send_image', label: 'Send image', row: 7, col: 9, aliases: Object.freeze([]) },
-        { slot: 80, key: 'send_video', label: 'Send video', row: 8, col: 0, aliases: Object.freeze([]) },
+        { slot: 80, key: 'send_video', label: 'Send video', row: 8, col: 0, aliases: Object.freeze(['send_youtube_video']) },
         { slot: 81, key: 'send_audio', label: 'Send audio', row: 8, col: 1, aliases: Object.freeze([]) },
         { slot: 82, key: 'send_document', label: 'Send document', row: 8, col: 2, aliases: Object.freeze([]) },
         { slot: 83, key: 'analyze_image', label: 'Analyze image', row: 8, col: 3, aliases: Object.freeze([]) },

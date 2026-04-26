@@ -151,6 +151,7 @@ function appendMessage(role, text) {
                 finalHTML = replaceRedactedMarkers(finalHTML);
                 finalHTML = sanitizeRenderedHTML(finalHTML);
                 finalHTML = renderVideoLinksAsPlayers(finalHTML);
+                finalHTML = renderYouTubeLinksAsPlayers(finalHTML);
 
                 // If the rendered content contains only thinking blocks with no visible
                 // text, add a subtle "done" indicator so the bubble is never blank.
@@ -359,6 +360,58 @@ function filenameFromPath(path) {
     }
 }
 
+function parseYouTubeTimeValue(raw) {
+    const value = String(raw || '').trim().toLowerCase();
+    if (!value) return 0;
+    if (/^\d+s?$/.test(value)) return parseInt(value, 10) || 0;
+    if (value.includes(':')) {
+        return value.split(':').reduce((total, part) => {
+            const n = parseInt(part, 10);
+            return Number.isFinite(n) ? (total * 60) + n : 0;
+        }, 0);
+    }
+    const match = value.match(/^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?$/);
+    if (!match) return 0;
+    return ((parseInt(match[1] || '0', 10) || 0) * 3600)
+        + ((parseInt(match[2] || '0', 10) || 0) * 60)
+        + (parseInt(match[3] || '0', 10) || 0);
+}
+
+function parseYouTubeVideoLink(raw) {
+    if (!raw || typeof raw !== 'string') return null;
+    let href = raw.trim();
+    if (!href) return null;
+    if (!href.includes('://') && (href.includes('youtube.') || href.includes('youtu.be'))) {
+        href = `https://${href}`;
+    }
+    try {
+        const parsed = new URL(href, window.location.origin);
+        const host = parsed.hostname.toLowerCase().replace(/^www\./, '');
+        const segments = parsed.pathname.split('/').filter(Boolean).map((part) => {
+            try { return decodeURIComponent(part); } catch (_err) { return part; }
+        });
+        let videoID = '';
+        if (host === 'youtu.be') {
+            videoID = segments[0] || '';
+        } else if (host === 'youtube.com' || host === 'm.youtube.com' || host === 'music.youtube.com') {
+            if (segments.length === 0 || segments[0] === 'watch') {
+                videoID = parsed.searchParams.get('v') || '';
+            } else if (['shorts', 'embed', 'live'].includes(segments[0])) {
+                videoID = segments[1] || '';
+            }
+        } else if (host === 'youtube-nocookie.com' && segments[0] === 'embed') {
+            videoID = segments[1] || '';
+        }
+        if (!/^[A-Za-z0-9_-]{11}$/.test(videoID)) return null;
+        const startSeconds = parseYouTubeTimeValue(parsed.searchParams.get('start')) || parseYouTubeTimeValue(parsed.searchParams.get('t'));
+        const canonicalURL = `https://www.youtube.com/watch?v=${videoID}${startSeconds > 0 ? `&t=${startSeconds}s` : ''}`;
+        const embedURL = `https://www.youtube-nocookie.com/embed/${videoID}${startSeconds > 0 ? `?start=${startSeconds}` : ''}`;
+        return { video_id: videoID, url: canonicalURL, embed_url: embedURL, start_seconds: startSeconds };
+    } catch (_err) {
+        return null;
+    }
+}
+
 function createChatVideoElement(videoData) {
     const path = videoData && videoData.path ? String(videoData.path) : '';
     const wrapper = document.createElement('div');
@@ -397,6 +450,50 @@ function createChatVideoElement(videoData) {
     return wrapper;
 }
 
+function createChatYouTubeElement(youtubeData) {
+    const parsed = parseYouTubeVideoLink((youtubeData && (youtubeData.url || youtubeData.embed_url || youtubeData.path)) || '');
+    const videoID = (youtubeData && youtubeData.video_id && /^[A-Za-z0-9_-]{11}$/.test(youtubeData.video_id))
+        ? youtubeData.video_id
+        : (parsed && parsed.video_id);
+    if (!videoID) return null;
+    const startSeconds = Number((youtubeData && youtubeData.start_seconds) || (parsed && parsed.start_seconds) || 0);
+    const url = (youtubeData && youtubeData.url) || `https://www.youtube.com/watch?v=${videoID}${startSeconds > 0 ? `&t=${startSeconds}s` : ''}`;
+    const embedURL = (youtubeData && youtubeData.embed_url) || `https://www.youtube-nocookie.com/embed/${videoID}${startSeconds > 0 ? `?start=${startSeconds}` : ''}`;
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'chat-youtube-wrapper';
+    wrapper.dataset.youtubeId = videoID;
+
+    const title = String((youtubeData && youtubeData.title) || 'YouTube').trim();
+    if (title) {
+        const titleEl = document.createElement('div');
+        titleEl.className = 'chat-video-title';
+        titleEl.textContent = title;
+        wrapper.appendChild(titleEl);
+    }
+
+    const iframe = document.createElement('iframe');
+    iframe.className = 'chat-youtube-player';
+    iframe.src = embedURL;
+    iframe.title = title || 'YouTube';
+    iframe.loading = 'lazy';
+    iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
+    iframe.allowFullscreen = true;
+    wrapper.appendChild(iframe);
+
+    const actions = document.createElement('div');
+    actions.className = 'chat-video-actions';
+    const link = document.createElement('a');
+    link.href = url;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.textContent = 'YouTube';
+    actions.appendChild(link);
+    wrapper.appendChild(actions);
+
+    return wrapper;
+}
+
 function appendVideoMessage(videoData) {
     if (!videoData || !videoData.path || !isVideoHref(videoData.path)) return false;
     const greet = chatContent.querySelector('[data-greeting]');
@@ -407,6 +504,22 @@ function appendVideoMessage(videoData) {
     const botIcon = window.chatUiIconMarkup ? window.chatUiIconMarkup('bot') : '';
     row.innerHTML = `<div class="avatar bot">${botIcon}</div><div class="bubble bot"></div>`;
     row.querySelector('.bubble').appendChild(createChatVideoElement(videoData));
+    chatContent.appendChild(row);
+    chatBox.scrollTop = chatBox.scrollHeight;
+    return true;
+}
+
+function appendYouTubeMessage(youtubeData) {
+    const element = createChatYouTubeElement(youtubeData);
+    if (!element) return false;
+    const greet = chatContent.querySelector('[data-greeting]');
+    if (greet) greet.remove();
+
+    const row = document.createElement('div');
+    row.className = 'msg-row bot';
+    const botIcon = window.chatUiIconMarkup ? window.chatUiIconMarkup('bot') : '';
+    row.innerHTML = `<div class="avatar bot">${botIcon}</div><div class="bubble bot"></div>`;
+    row.querySelector('.bubble').appendChild(element);
     chatContent.appendChild(row);
     chatBox.scrollTop = chatBox.scrollHeight;
     return true;
@@ -462,6 +575,27 @@ function renderVideoLinksAsPlayers(html) {
             fragment.appendChild(document.createTextNode(text.slice(lastIndex)));
         }
         textNode.parentNode.replaceChild(fragment, textNode);
+    });
+    return template.innerHTML;
+}
+
+function renderYouTubeLinksAsPlayers(html) {
+    const template = document.createElement('template');
+    template.innerHTML = html;
+    template.content.querySelectorAll('a[href]').forEach((anchor) => {
+        const href = anchor.getAttribute('href') || '';
+        const parsed = parseYouTubeVideoLink(href);
+        if (!parsed) return;
+        const key = parsed.video_id || parsed.url;
+        if (typeof seenSSEYouTubeVideos !== 'undefined' && seenSSEYouTubeVideos.has(key)) {
+            anchor.remove();
+            return;
+        }
+        const element = createChatYouTubeElement({
+            ...parsed,
+            title: anchor.textContent || 'YouTube'
+        });
+        if (element) anchor.replaceWith(element);
     });
     return template.innerHTML;
 }

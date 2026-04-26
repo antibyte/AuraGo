@@ -322,6 +322,7 @@ let _httpResponseRendered = false;
 let _fetchConnectionLost = false;
 let seenSSEAudios = new Set();
 let seenSSEVideos = new Set();
+let seenSSEYouTubeVideos = new Set();
 let seenSSEDocuments = new Set();
 let currentPlanState = null;
 
@@ -953,6 +954,7 @@ async function handleOutgoingMessage(inputMessage, displayMessageOverride = '') 
         seenSSEImages.clear(); // reset after final response is rendered
         seenSSEAudios.clear();
         seenSSEVideos.clear();
+        seenSSEYouTubeVideos.clear();
         seenSSEDocuments.clear();
         conversation.push(assistantMessage);
         // Cap to last 200 messages to prevent unbounded memory growth

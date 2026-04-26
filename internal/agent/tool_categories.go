@@ -108,6 +108,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"send_image", "Send an image to the user"},
 		{"send_audio", "Send an audio file to the user"},
 		{"send_video", "Send a video file to the user"},
+		{"send_youtube_video", "Send a YouTube video as an embed or link"},
 		{"send_document", "Send a document to the user"},
 		{"analyze_image", "Analyze images using Vision LLM (OCR, describe, identify)"},
 		{"transcribe_audio", "Transcribe audio files to text (Speech-to-Text)"},
