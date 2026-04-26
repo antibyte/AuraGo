@@ -5,6 +5,7 @@ let galleryOffset = 0;
 let galleryTotal = 0;
 const GALLERY_LIMIT = 30;
 let currentLightboxId = null;
+let currentLightboxSource = '';
 
 document.addEventListener('DOMContentLoaded', function () {
     loadGallery();
@@ -79,7 +80,7 @@ function renderGrid(images) {
         const promptDisplay = escapeHtml(img.prompt || '').substring(0, 100);
         const date = img.created_at ? new Date(img.created_at).toLocaleDateString() : '';
         const providerBadge = img.provider || '';
-        html += '<div class="gallery-card" data-source="' + escapeHtml(img.source_db || '') + '" data-media-id="' + img.id + '" onclick="openLightbox(' + img.id + ')">';
+        html += '<div class="gallery-card" data-source="' + escapeHtml(img.source_db || '') + '" data-media-id="' + img.id + '" onclick="openLightbox(this.dataset.mediaId, this.dataset.source)">';
         html += '<img src="' + escapeHtml(webPath) + '" loading="lazy" alt="' + escapeHtml(img.prompt || '') + '">';
         html += '<div class="gallery-card-info">';
         html += '<div class="gallery-card-prompt">' + promptDisplay + '</div>';
@@ -134,11 +135,21 @@ function populateProviderFilter(images) {
     });
 }
 
-function openLightbox(id) {
-    const img = galleryImages.find(function (i) { return i.id === id; });
+function findGalleryImage(id, source) {
+    const numericID = parseInt(id);
+    return galleryImages.find(function (i) {
+        return i.id === numericID && (!source || i.source_db === source);
+    }) || galleryImages.find(function (i) {
+        return i.id === numericID;
+    });
+}
+
+function openLightbox(id, source = '') {
+    const img = findGalleryImage(id, source);
     if (!img) return;
 
-    currentLightboxId = id;
+    currentLightboxId = img.id;
+    currentLightboxSource = img.source_db || '';
     const webPath = img.web_path || ('/files/generated_images/' + img.filename);
 
     document.getElementById('lightbox-img').src = webPath;
@@ -169,16 +180,38 @@ function closeLightbox(event) {
     if (event && event.target !== document.getElementById('lightbox')) return;
     document.getElementById('lightbox').classList.add('is-hidden');
     currentLightboxId = null;
+    currentLightboxSource = '';
 }
 
 async function galleryDeleteCurrent() {
     if (currentLightboxId === null) return;
-    
-    // Use modal dialog instead of confirm()
-    document.getElementById('delete-target-id').value = currentLightboxId;
-    document.getElementById('delete-target-type').value = 'gallery-image';
-    document.getElementById('delete-confirm-text').textContent = t('gallery.confirm_delete');
-    document.getElementById('delete-modal').classList.add('active');
+
+    const id = currentLightboxId;
+    const source = currentLightboxSource;
+    const confirmed = await showConfirm(t('common.confirm_title'), t('gallery.confirm_delete'));
+    if (!confirmed) return;
+    await deleteGalleryImage(id, source);
+}
+
+async function deleteGalleryImage(id, source = '') {
+    var img = findGalleryImage(id, source);
+    var sourceDB = source || (img && img.source_db ? img.source_db : '');
+
+    try {
+        var url = '/api/image-gallery/' + id;
+        if (sourceDB) url += '?source=' + encodeURIComponent(sourceDB);
+        const resp = await fetch(url, { method: 'DELETE' });
+        const data = await resp.json();
+        if (data.status === 'ok') {
+            closeModal('delete-modal');
+            closeLightbox();
+            loadGallery();
+        } else {
+            showToast(data.message || t('common.error'), 'error');
+        }
+    } catch (e) {
+        showToast(e.message || t('common.error'), 'error');
+    }
 }
 
 function escapeHtml(str) {
@@ -199,22 +232,5 @@ async function confirmDeleteGallery() {
         return;
     }
 
-    var img = galleryImages.find(function (i) { return i.id === parseInt(id); });
-    var source = img && img.source_db ? img.source_db : '';
-
-    try {
-        var url = '/api/image-gallery/' + id;
-        if (source) url += '?source=' + encodeURIComponent(source);
-        const resp = await fetch(url, { method: 'DELETE' });
-        const data = await resp.json();
-        if (data.status === 'ok') {
-            closeModal('delete-modal');
-            closeLightbox();
-            loadGallery();
-        } else {
-            showToast(data.message || t('common.error'), 'error');
-        }
-    } catch (e) {
-        showToast(e.message || t('common.error'), 'error');
-    }
+    await deleteGalleryImage(id);
 }

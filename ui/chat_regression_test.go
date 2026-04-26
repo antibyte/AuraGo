@@ -769,3 +769,42 @@ func TestMediaFrontend_VideoTabFlowRemainsPresent(t *testing.T) {
 		}
 	}
 }
+
+func TestMediaFrontend_ImageDeleteFlowUsesSharedConfirm(t *testing.T) {
+	t.Parallel()
+
+	mediaHTMLPath := "media.html"
+	mediaJSPath := filepath.Join("js", "gallery", "main.js")
+
+	mediaHTML, err := os.ReadFile(mediaHTMLPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", mediaHTMLPath, err)
+	}
+	galleryJS, err := os.ReadFile(mediaJSPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", mediaJSPath, err)
+	}
+
+	for _, marker := range []string{
+		`<script src="/shared.js`,
+		`<script src="/js/gallery/main.js"></script>`,
+	} {
+		if !strings.Contains(string(mediaHTML), marker) {
+			t.Fatalf("%s is missing image delete dependency marker %q", mediaHTMLPath, marker)
+		}
+	}
+
+	for _, marker := range []string{
+		`const confirmed = await showConfirm(t('common.confirm_title'), t('gallery.confirm_delete'))`,
+		`let currentLightboxSource = '';`,
+		`onclick="openLightbox(this.dataset.mediaId, this.dataset.source)"`,
+		`function findGalleryImage(id, source)`,
+		`async function deleteGalleryImage(id, source = '')`,
+		`await deleteGalleryImage(id, source)`,
+		`source_db`,
+	} {
+		if !strings.Contains(string(galleryJS), marker) {
+			t.Fatalf("%s is missing shared confirm delete marker %q", mediaJSPath, marker)
+		}
+	}
+}
