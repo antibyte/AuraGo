@@ -562,18 +562,21 @@ func appendIntegrationToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []op
 		tools = append(tools, tool("invasion_control",
 			"Manage deployment nests (target servers/VMs/containers) and eggs (sub-agent configurations). "+
 				"List, inspect, assign, deploy (hatch), stop, monitor eggs, send tasks and secrets to running eggs. "+
-				"Use send_task to talk to an Egg or remote agent. Egg names are not tool names: if an Egg is named 'web scraper', still call invasion_control, not web_scraper.",
+				"Use send_task to talk to an Egg or remote agent; it waits briefly and returns the Egg result when available. "+
+				"Egg names are not tool names: if an Egg is named 'web scraper', still call invasion_control, not web_scraper.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",
 					"description": "Operation to perform",
-					"enum":        []string{"list_nests", "list_eggs", "nest_status", "assign_egg", "hatch_egg", "stop_egg", "egg_status", "send_task", "send_secret"},
+					"enum":        []string{"list_nests", "list_eggs", "nest_status", "assign_egg", "hatch_egg", "stop_egg", "egg_status", "send_task", "task_status", "get_result", "send_secret"},
 				},
 				"nest_id":   prop("string", "Nest ID (for nest_status, assign_egg, hatch_egg, stop_egg, egg_status, send_task, send_secret)"),
 				"nest_name": prop("string", "Nest name — alternative to nest_id for lookup"),
 				"egg_id":    prop("string", "Egg ID (for assign_egg, or as an alternative target for egg_status/send_task)"),
 				"egg_name":  prop("string", "Egg name — alternative target for egg_status/send_task when the user names an Egg or remote agent"),
 				"task":      prop("string", "Natural-language instruction to send to the running Egg/remote agent (for send_task)"),
+				"task_id":   prop("string", "Task ID returned by send_task (for task_status/get_result)"),
+				"timeout":   prop("integer", "Optional task timeout in seconds; send_task waits up to this value, capped at 60 seconds, for a result"),
 				"key":       prop("string", "Secret key name (for send_secret)"),
 				"value":     prop("string", "Secret value (for send_secret)"),
 			}, "operation"),

@@ -17,7 +17,9 @@ Egg names are not tool names. If an Egg is named `web scraper`, call `invasion_c
 | `hatch_egg` | Deploy/start an egg in a nest |
 | `stop_egg` | Stop a running egg |
 | `egg_status` | Get status of a running egg |
-| `send_task` | Send a task to a running egg |
+| `send_task` | Send a task to a running egg and wait briefly for the result |
+| `task_status` | Check a previously sent task by `task_id` |
+| `get_result` | Alias for `task_status` |
 | `send_secret` | Send a secret to a running egg |
 
 ## Parameters
@@ -30,6 +32,8 @@ Egg names are not tool names. If an Egg is named `web scraper`, call `invasion_c
 | `egg_id` | string | for assign_egg; optional target for egg_status/send_task | Egg ID |
 | `egg_name` | string | optional target for egg_status/send_task | Egg name — alternative to egg_id when the user names the Egg |
 | `task` | string | for send_task | Task description in natural language |
+| `task_id` | string | for task_status/get_result | Task ID returned by send_task |
+| `timeout` | integer | no | Optional task timeout in seconds; send_task waits up to this value, capped at 60 seconds, for a result |
 | `key` | string | for send_secret | Secret key name |
 | `value` | string | for send_secret | Secret value |
 
@@ -65,6 +69,13 @@ Egg names are not tool names. If an Egg is named `web scraper`, call `invasion_c
 {"action": "invasion_control", "operation": "send_task", "egg_name": "web scraper", "task": "Tell me a short joke in German"}
 ```
 
+`send_task` returns the task result directly when the Egg answers within the wait window. If `result_available` is false, call `task_status` with the returned `task_id` instead of telling the user that no result can be retrieved.
+
+**Check a task result later:**
+```json
+{"action": "invasion_control", "operation": "task_status", "task_id": "task-123"}
+```
+
 **Check status when only the Egg name is known:**
 ```json
 {"action": "invasion_control", "operation": "egg_status", "egg_name": "web scraper"}
@@ -94,3 +105,4 @@ Egg names are not tool names. If an Egg is named `web scraper`, call `invasion_c
 - Eggs must be assigned to a nest before they can be hatched
 - Running eggs can receive tasks and secrets dynamically
 - Use `egg_status` to monitor the state of deployed eggs. If the user names an Egg, pass `egg_name`; do not ask the user for a nest ID first.
+- Use `task_status`/`get_result` with the `task_id` from `send_task` when a remote Egg result is still pending.

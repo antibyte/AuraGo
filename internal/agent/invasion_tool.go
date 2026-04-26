@@ -29,6 +29,12 @@ var hatchClient = &http.Client{
 	},
 }
 
+const (
+	invasionTaskResultDefaultWait = 25 * time.Second
+	invasionTaskResultMaxWait     = 60 * time.Second
+	invasionTaskResultPollEvery   = 250 * time.Millisecond
+)
+
 // agentInternalToken holds the per-process crypto token for loopback auth.
 // Set by SetAgentInternalToken during startup before any loopback call is made.
 // Accessed from multiple goroutines — stored as atomic.Value for race-free reads.
@@ -71,10 +77,12 @@ func handleInvasionControl(tc ToolCall, cfg *config.Config, db *sql.DB, vault *s
 		return invasionEggDeployStatus(cfg, db, tc, logger)
 	case "send_task":
 		return invasionSendTask(cfg, db, tc, logger)
+	case "task_status", "get_result":
+		return invasionTaskStatus(db, tc, logger)
 	case "send_secret":
 		return invasionSendSecret(cfg, tc, logger)
 	default:
-		return fmt.Sprintf(`Tool Output: {"status":"error","message":"Unknown invasion_control operation '%s'. Use: list_nests, list_eggs, nest_status, assign_egg, hatch_egg, stop_egg, egg_status, send_task, send_secret"}`, tc.Operation)
+		return fmt.Sprintf(`Tool Output: {"status":"error","message":"Unknown invasion_control operation '%s'. Use: list_nests, list_eggs, nest_status, assign_egg, hatch_egg, stop_egg, egg_status, send_task, task_status, get_result, send_secret"}`, tc.Operation)
 	}
 }
 
@@ -426,7 +434,11 @@ func invasionSendTask(cfg *config.Config, db *sql.DB, tc ToolCall, logger *slog.
 	}
 
 	url := invasionLoopbackURL(cfg, fmt.Sprintf("/api/invasion/nests/%s/send-task", nest.ID))
-	body, _ := json.Marshal(map[string]interface{}{"description": taskDesc, "timeout": 0})
+	taskTimeout := tc.Timeout
+	if taskTimeout < 0 {
+		taskTimeout = 0
+	}
+	body, _ := json.Marshal(map[string]interface{}{"description": taskDesc, "timeout": taskTimeout})
 	resp, err := invasionPost(url, "application/json", bytes.NewReader(body))
 	if err != nil {
 		logger.Error("[InvasionTool] send_task loopback failed", "error", err)
@@ -445,7 +457,7 @@ func invasionSendTask(cfg *config.Config, db *sql.DB, tc ToolCall, logger *slog.
 
 	taskID, _ := result["task_id"].(string)
 	logger.Info("[InvasionTool] Task sent to egg", "nest_id", nest.ID, "nest_name", nest.Name, "egg_id", egg.ID, "egg_name", egg.Name, "task_id", taskID)
-	bOut, _ := json.Marshal(map[string]string{
+	out := map[string]interface{}{
 		"status":    "success",
 		"message":   "Task sent to egg '" + egg.Name + "' on nest '" + nest.Name + "'.",
 		"task_id":   taskID,
@@ -454,8 +466,141 @@ func invasionSendTask(cfg *config.Config, db *sql.DB, tc ToolCall, logger *slog.
 		"nest_name": nest.Name,
 		"egg_id":    egg.ID,
 		"egg_name":  egg.Name,
-	})
+	}
+	if taskID != "" {
+		task, completed, waitErr := waitForInvasionTaskResult(db, taskID, invasionTaskWaitDuration(tc), invasionTaskResultPollEvery)
+		if waitErr != nil {
+			logger.Warn("[InvasionTool] Failed to wait for egg task result", "task_id", taskID, "error", waitErr)
+			out["result_available"] = false
+			out["message"] = "Task sent, but checking the result failed: " + waitErr.Error()
+		} else if task != nil {
+			mergeInvasionTaskResult(out, task)
+			if completed {
+				out["result_available"] = true
+				out["message"] = "Task completed by egg '" + egg.Name + "' on nest '" + nest.Name + "'."
+				if isFailedInvasionTaskStatus(task.Status) {
+					out["status"] = "error"
+					out["message"] = "Task failed on egg '" + egg.Name + "' on nest '" + nest.Name + "'."
+				}
+			} else {
+				out["result_available"] = false
+				out["message"] = "Task sent to egg '" + egg.Name + "' on nest '" + nest.Name + "', but the result is still pending. Call invasion_control with operation 'task_status' and this task_id to check again."
+			}
+		}
+	}
+	bOut, _ := json.Marshal(out)
 	return "Tool Output: " + string(bOut)
+}
+
+func invasionTaskStatus(db *sql.DB, tc ToolCall, logger *slog.Logger) string {
+	taskID := strings.TrimSpace(tc.TaskID)
+	if taskID == "" {
+		taskID = strings.TrimSpace(tc.ID)
+	}
+	if taskID == "" {
+		return `Tool Output: {"status":"error","message":"'task_id' is required for task_status/get_result."}`
+	}
+
+	task, err := invasion.GetTaskByID(db, taskID)
+	if err != nil {
+		logger.Warn("[InvasionTool] Failed to get task status", "task_id", taskID, "error", err)
+		b, _ := json.Marshal(map[string]string{"status": "error", "message": err.Error(), "task_id": taskID})
+		return "Tool Output: " + string(b)
+	}
+
+	out := map[string]interface{}{
+		"status":           "success",
+		"task_id":          task.ID,
+		"task_status":      task.Status,
+		"result_available": isTerminalInvasionTaskStatus(task.Status),
+	}
+	mergeInvasionTaskResult(out, task)
+	if nest, err := invasion.GetNest(db, task.NestID); err == nil {
+		out["nest_name"] = nest.Name
+	}
+	if egg, err := invasion.GetEgg(db, task.EggID); err == nil {
+		out["egg_name"] = egg.Name
+	}
+	if isFailedInvasionTaskStatus(task.Status) {
+		out["status"] = "error"
+	}
+	b, _ := json.Marshal(out)
+	return "Tool Output: " + string(b)
+}
+
+func waitForInvasionTaskResult(db *sql.DB, taskID string, waitFor, pollEvery time.Duration) (*invasion.TaskRecord, bool, error) {
+	if db == nil || strings.TrimSpace(taskID) == "" {
+		return nil, false, nil
+	}
+	if waitFor <= 0 {
+		waitFor = invasionTaskResultDefaultWait
+	}
+	if pollEvery <= 0 {
+		pollEvery = invasionTaskResultPollEvery
+	}
+
+	deadline := time.Now().Add(waitFor)
+	for {
+		task, err := invasion.GetTaskByID(db, taskID)
+		if err != nil {
+			return nil, false, err
+		}
+		if isTerminalInvasionTaskStatus(task.Status) {
+			return task, true, nil
+		}
+		remaining := time.Until(deadline)
+		if remaining <= 0 {
+			return task, false, nil
+		}
+		if remaining < pollEvery {
+			time.Sleep(remaining)
+		} else {
+			time.Sleep(pollEvery)
+		}
+	}
+}
+
+func invasionTaskWaitDuration(tc ToolCall) time.Duration {
+	if tc.Timeout <= 0 {
+		return invasionTaskResultDefaultWait
+	}
+	waitFor := time.Duration(tc.Timeout) * time.Second
+	if waitFor > invasionTaskResultMaxWait {
+		return invasionTaskResultMaxWait
+	}
+	return waitFor
+}
+
+func mergeInvasionTaskResult(out map[string]interface{}, task *invasion.TaskRecord) {
+	out["task_id"] = task.ID
+	out["task_status"] = task.Status
+	out["description"] = task.Description
+	out["timeout"] = task.Timeout
+	out["nest_id"] = task.NestID
+	out["egg_id"] = task.EggID
+	out["result_output"] = task.ResultOutput
+	out["result_error"] = task.ResultError
+	out["created_at"] = task.CreatedAt
+	out["sent_at"] = task.SentAt
+	out["completed_at"] = task.CompletedAt
+}
+
+func isTerminalInvasionTaskStatus(status string) bool {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "completed", "failed", "timeout":
+		return true
+	default:
+		return false
+	}
+}
+
+func isFailedInvasionTaskStatus(status string) bool {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "failed", "timeout":
+		return true
+	default:
+		return false
+	}
 }
 
 func resolveInvasionTaskNest(db *sql.DB, tc ToolCall, logger *slog.Logger) (invasion.NestRecord, invasion.EggRecord, error) {

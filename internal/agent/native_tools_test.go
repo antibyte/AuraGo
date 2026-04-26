@@ -332,6 +332,9 @@ func TestBuiltinToolSchemasInvasionControlSupportsEggName(t *testing.T) {
 		if _, ok := props["egg_name"]; !ok {
 			t.Fatal("invasion_control schema should expose egg_name")
 		}
+		if _, ok := props["task_id"]; !ok {
+			t.Fatal("invasion_control schema should expose task_id")
+		}
 		return
 	}
 
