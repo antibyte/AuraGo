@@ -21,9 +21,22 @@ func TestMissionResponseLooksIncomplete_NoToolsAndMissionPlanLanguage(t *testing
 	}
 }
 
+func TestMissionResponseLooksIncomplete_NoToolsAndToolFailureText(t *testing.T) {
+	content := "The tools did not run:\n- `ddg_search`: \"Query is required\"\n- `generate_image`: \"'prompt' is required\""
+	if !missionResponseLooksIncomplete(content, 0) {
+		t.Fatal("expected tool failure text without recorded tool activity to be flagged")
+	}
+}
+
 func TestMissionResponseLooksIncomplete_NoToolsButFinishedResult(t *testing.T) {
 	if missionResponseLooksIncomplete("Die Seite wurde bereits aktualisiert und ist unter https://example.test erreichbar.", 0) {
 		t.Fatal("did not expect a concrete completed-result message to be flagged")
+	}
+}
+
+func TestMissionResponseLooksIncomplete_NoToolsButNoActionRequired(t *testing.T) {
+	if missionResponseLooksIncomplete("No action is required right now.", 0) {
+		t.Fatal("did not expect a stable no-action result to be flagged")
 	}
 }
 

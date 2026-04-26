@@ -164,6 +164,24 @@ func TestValidateHomepageRelativePathArgGuidance(t *testing.T) {
 	}
 }
 
+func TestValidateHomepageSourceEditPathRejectsGeneratedOutput(t *testing.T) {
+	for _, path := range []string{
+		"ki-news-new/dist/index.html",
+		"ki-news-new/build/index.html",
+		"ki-news-new/out/index.html",
+	} {
+		if err := validateHomepageSourceEditPath(path); err == nil {
+			t.Fatalf("expected generated output path %q to be rejected", path)
+		}
+	}
+}
+
+func TestValidateHomepageSourceEditPathAllowsSourceBuildFolder(t *testing.T) {
+	if err := validateHomepageSourceEditPath("ki-news-new/src/build/helpers.ts"); err != nil {
+		t.Fatalf("expected source build helper path to be allowed, got: %v", err)
+	}
+}
+
 func TestHomepageWorkspacePathNotConfiguredJSONIncludesGuidance(t *testing.T) {
 	result := homepageWorkspacePathNotConfiguredJSON()
 	if !strings.Contains(result, "workspace_path not configured") {

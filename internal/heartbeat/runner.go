@@ -55,7 +55,8 @@ func buildHeartbeatPrompt(hb config.HeartbeatConfig, now time.Time) string {
 
 	parts = append(parts, "")
 	parts = append(parts, "If nothing requires immediate action, simply confirm that all is well with a brief status summary.")
-	parts = append(parts, "If you find items needing attention, create appropriate reminders, missions, or notifications.")
+	parts = append(parts, "This heartbeat is a read-only status check by default. Do not edit homepage or project files, do not build or deploy websites, and do not change external systems unless the additional user instructions explicitly request that action.")
+	parts = append(parts, "If you find items needing attention, report the issue instead of making broad changes. Create reminders, missions, or notifications only when they are clearly necessary and low risk.")
 	parts = append(parts, "Do NOT ask the user questions — this is an autonomous background check.")
 	parts = append(parts, "Be concise and efficient — avoid unnecessary tool calls if the situation is stable.")
 

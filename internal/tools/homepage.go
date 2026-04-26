@@ -43,6 +43,7 @@ var homepageDockerExecInternalFunc = dockerExecInternal
 var homepageWebCaptureFunc = WebCapture
 
 var homepageUIDGIDPattern = regexp.MustCompile(`^\d+:\d+$`)
+var homepageWorkspaceGeneratedOutputPattern = regexp.MustCompile(`(?i)(?:^|[\s"'=;|&])/(?:workspace)/[^\s"';&|]+/(?:dist|build|out)(?:/|$)`)
 
 // activePythonServerCmd tracks the last Python HTTP server started as fallback.
 var (
@@ -282,6 +283,20 @@ func validateHomepageRelativePathArg(path, field string) error {
 		return fmt.Errorf("%s must be relative to the homepage workspace, e.g. 'my-site/src/app/page.tsx' not %q", field, path)
 	}
 	return nil
+}
+
+func validateHomepageSourceEditPath(path string) error {
+	normalized := filepath.ToSlash(strings.TrimSpace(path))
+	parts := strings.Split(normalized, "/")
+	if len(parts) < 2 {
+		return nil
+	}
+	switch strings.ToLower(parts[1]) {
+	case "dist", "build", "out":
+		return fmt.Errorf("direct edits to generated output directory %q are blocked. Edit source files with homepage write_file/edit_file, run the project build, then deploy the generated output", parts[1])
+	default:
+		return nil
+	}
 }
 
 // resolveHomepagePath resolves a workspace-relative path and validates that the
@@ -747,11 +762,47 @@ func HomepageExec(cfg HomepageConfig, command string, env []string, logger *slog
 	if command == "" {
 		return errJSON("command is required")
 	}
+	if err := validateHomepageExecCommand(command); err != nil {
+		return errJSON("%v", err)
+	}
 	logger.Info("[Homepage] Exec", "cmd", command)
 	if err := homepageEnsureWorkspaceWritable(dockerCfg, logger); err != nil {
 		return errJSON("Homepage dev container /workspace is not writable and automatic permission repair failed: %v", err)
 	}
 	return homepageDockerExecInternalFunc(dockerCfg, homepageContainerName, command, "", env)
+}
+
+func validateHomepageExecCommand(command string) error {
+	normalized := strings.ToLower(strings.ReplaceAll(command, "\\", "/"))
+	if !homepageWorkspaceGeneratedOutputPattern.MatchString(normalized) {
+		return nil
+	}
+	if !homepageExecCommandMayWrite(normalized) {
+		return nil
+	}
+	return fmt.Errorf("direct writes to generated output directories such as dist, build, or out are blocked in homepage exec. Edit source files with homepage write_file/edit_file, then run the project build and deploy the detected output")
+}
+
+func homepageExecCommandMayWrite(normalized string) bool {
+	writeMarkers := []string{
+		">",
+		" tee ",
+		" tee -",
+		" cp ",
+		" cp -",
+		" mv ",
+		" mv -",
+		" rm ",
+		" rm -",
+		" sed -i",
+		" perl -pi",
+	}
+	for _, marker := range writeMarkers {
+		if strings.Contains(normalized, marker) {
+			return true
+		}
+	}
+	return false
 }
 
 // HomepageInitProject scaffolds a new web project inside the container.

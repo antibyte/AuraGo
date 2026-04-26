@@ -35,6 +35,13 @@ func HomepageJsonEdit(cfg HomepageConfig, path, operation, jsonPath string, setV
 	if err := validateHomepageRelativePathArg(path, "path"); err != nil {
 		return errJSON("%v", err)
 	}
+	switch operation {
+	case "get", "keys", "validate":
+	default:
+		if err := validateHomepageSourceEditPath(path); err != nil {
+			return errJSON("%v", err)
+		}
+	}
 	logger.Info("[Homepage] JsonEdit", "path", path, "op", operation)
 
 	if !checkDockerAvailable(cfg.DockerHost) {
@@ -174,6 +181,13 @@ func applyHomepageJsonEdit(content, operation, jsonPath string, setValue interfa
 func HomepageYamlEdit(cfg HomepageConfig, path, operation, dotPath string, setValue interface{}, logger *slog.Logger) string {
 	if err := validateHomepageRelativePathArg(path, "path"); err != nil {
 		return errJSON("%v", err)
+	}
+	switch operation {
+	case "get", "keys", "validate":
+	default:
+		if err := validateHomepageSourceEditPath(path); err != nil {
+			return errJSON("%v", err)
+		}
 	}
 	logger.Info("[Homepage] YamlEdit", "path", path, "op", operation)
 
@@ -320,6 +334,13 @@ func applyHomepageYamlEdit(content, operation, dotPath string, setValue interfac
 func HomepageXmlEdit(cfg HomepageConfig, path, operation, xpath string, setValue interface{}, logger *slog.Logger) string {
 	if err := validateHomepageRelativePathArg(path, "path"); err != nil {
 		return errJSON("%v", err)
+	}
+	switch operation {
+	case "get", "validate":
+	default:
+		if err := validateHomepageSourceEditPath(path); err != nil {
+			return errJSON("%v", err)
+		}
 	}
 	logger.Info("[Homepage] XmlEdit", "path", path, "op", operation)
 

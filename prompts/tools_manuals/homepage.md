@@ -133,6 +133,8 @@ Keep `project_dir`/`path` values relative to the homepage workspace.
 {"action": "homepage", "operation": "exec", "command": "cd /workspace/my-site && npm run dev"}
 ```
 
+Use `exec` for development commands such as installing packages, builds, tests, and dev servers. Do not use shell redirects, `cp`, `mv`, or similar commands to write directly into generated output directories like `/workspace/my-site/dist`, `/workspace/my-site/build`, or `/workspace/my-site/out`. Edit source files with `write_file`/`edit_file`, run `build`, then deploy the generated output.
+
 ### write_file — Write/create a file
 Content is safely base64-encoded internally. Parent directories are created automatically.
 ```json
@@ -452,6 +454,7 @@ Starts a Cloudflare quick tunnel to expose a local port to the internet via a te
 - The Caddy web server can serve with automatic HTTPS if a domain is configured (Docker mode only)
 - Use compound operations (`init_project`, `build`, `deploy`) to save tokens — avoid running many individual `exec` calls
 - **NEVER use the `filesystem` tool for homepage project files.** The filesystem tool writes to `agent_workspace/workdir/` — a completely different location from the homepage workspace. Files created there will NOT be found by `build`, `deploy`, `deploy_netlify`, `deploy_vercel`, or `publish_local`. Always use `homepage` → `write_file` instead.
+- **Do not directly edit generated output** (`dist`, `build`, `out`) with shell redirection or copy commands. These directories are deployment artifacts; change source files and rebuild.
 
 ### Using Generated Images in Netlify Deployments
 

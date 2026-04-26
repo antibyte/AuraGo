@@ -120,3 +120,49 @@ func TestHomepageExecRepairsWorkspaceBeforeRunningCommand(t *testing.T) {
 		t.Fatalf("expected HomepageExec to repair and recheck workspace, got %d write checks", writeChecks)
 	}
 }
+
+func TestHomepageExecRejectsDirectWriteToGeneratedOutput(t *testing.T) {
+	oldExec := homepageDockerExecInternalFunc
+	defer func() { homepageDockerExecInternalFunc = oldExec }()
+
+	homepageDockerExecInternalFunc = func(cfg DockerConfig, containerID, cmd, user string, env []string) string {
+		t.Fatalf("HomepageExec should reject generated output writes before docker exec, got cmd=%q", cmd)
+		return `{"status":"error"}`
+	}
+
+	cmd := "cat > /workspace/ki-news-new/dist/index.html << 'EOF'\n<html></html>\nEOF"
+	result := HomepageExec(HomepageConfig{}, cmd, nil, slogDiscard())
+	if !strings.Contains(result, `"status":"error"`) {
+		t.Fatalf("expected error result, got: %s", result)
+	}
+	if !strings.Contains(result, "generated output") || !strings.Contains(result, "write_file") {
+		t.Fatalf("expected generated-output guidance, got: %s", result)
+	}
+}
+
+func TestHomepageExecAllowsReadOnlyGeneratedOutputInspection(t *testing.T) {
+	oldExec := homepageDockerExecInternalFunc
+	defer func() { homepageDockerExecInternalFunc = oldExec }()
+
+	writeChecks := 0
+	homepageDockerExecInternalFunc = func(cfg DockerConfig, containerID, cmd, user string, env []string) string {
+		switch {
+		case strings.Contains(cmd, ".aurago-write-test"):
+			writeChecks++
+			return `{"status":"ok","exit_code":0,"output":""}`
+		case cmd == "ls -la /workspace/ki-news-new/dist/":
+			return `{"status":"ok","exit_code":0,"output":"index.html"}`
+		default:
+			t.Fatalf("unexpected docker exec call user=%q cmd=%q", user, cmd)
+			return `{"status":"error","exit_code":1}`
+		}
+	}
+
+	result := HomepageExec(HomepageConfig{}, "ls -la /workspace/ki-news-new/dist/", nil, slogDiscard())
+	if !strings.Contains(result, `"output":"index.html"`) {
+		t.Fatalf("expected read-only inspection to run, got: %s", result)
+	}
+	if writeChecks == 0 {
+		t.Fatal("expected workspace writability check before read-only command")
+	}
+}

@@ -188,6 +188,9 @@ func HomepageWriteFile(cfg HomepageConfig, path, content string, logger *slog.Lo
 	if err := validateHomepageRelativePathArg(path, "path"); err != nil {
 		return errJSON("%v", err)
 	}
+	if err := validateHomepageSourceEditPath(path); err != nil {
+		return errJSON("%v", err)
+	}
 	if len(content) > maxHomepageWriteFileSize {
 		return errJSON("content too large: %d bytes exceeds maximum of %d bytes", len(content), maxHomepageWriteFileSize)
 	}
@@ -234,6 +237,9 @@ func HomepageWriteFile(cfg HomepageConfig, path, content string, logger *slog.Lo
 // It reads the file, applies the edit in Go, then writes back.
 func HomepageEditFile(cfg HomepageConfig, path, operation, old, new_, marker, content string, startLine, endLine int, logger *slog.Logger) string {
 	if err := validateHomepageRelativePathArg(path, "path"); err != nil {
+		return errJSON("%v", err)
+	}
+	if err := validateHomepageSourceEditPath(path); err != nil {
 		return errJSON("%v", err)
 	}
 	logger.Info("[Homepage] EditFile", "path", path, "op", operation)

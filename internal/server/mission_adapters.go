@@ -81,6 +81,10 @@ func missionResponseLooksIncomplete(content string, toolResultCount int) bool {
 	}
 
 	lower := strings.ToLower(trimmed)
+	if missionResponseContainsFailureSignal(lower) {
+		return true
+	}
+
 	if strings.Contains(lower, "```") && strings.Contains(lower, `"action"`) {
 		return true
 	}
@@ -139,5 +143,25 @@ func missionResponseLooksIncomplete(content string, toolResultCount int) bool {
 		}
 	}
 
+	return false
+}
+
+func missionResponseContainsFailureSignal(lowerContent string) bool {
+	failureMarkers := []string{
+		`"status":"error"`,
+		`"status": "error"`,
+		"[error]",
+		"tool output:",
+		"query is required",
+		"prompt' is required",
+		"'prompt' is required",
+		"failed to ",
+		"permission denied",
+	}
+	for _, marker := range failureMarkers {
+		if strings.Contains(lowerContent, marker) {
+			return true
+		}
+	}
 	return false
 }

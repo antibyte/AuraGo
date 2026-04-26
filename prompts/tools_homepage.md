@@ -38,6 +38,8 @@ You have expert-level web design and development capabilities through the `homep
 
 **CRITICAL — File management:** Always use `homepage` → `write_file` / `read_file` / `list_files` for all homepage project files. **Never use the `filesystem` tool** to create or edit homepage files — the `filesystem` tool writes to `agent_workspace/workdir/` which is a completely different path from the homepage workspace (`data/homepage/`). Files created via `filesystem` will **not be found** by `build`, `deploy`, `deploy_netlify`, `deploy_vercel`, or `publish_local`. If `init_project` fails, use `homepage` → `write_file` to create files manually in the correct location.
 
+**CRITICAL — Build output:** Do not edit or overwrite generated output directories such as `dist`, `build`, or `out` with `exec` redirection/copy commands. Edit source files with `write_file`/`edit_file`, run `build`, then deploy the detected output.
+
 **Netlify deployment:** Always use `deploy_netlify` — it handles build + ZIP + upload entirely server-side. **Never use sandbox/Python to create a ZIP and pass it via `netlify › deploy_zip`** — binary/base64 data cannot be reliably transported through tool arguments and will produce a 400 error from the Netlify API.
 
 **Vercel deployment:** Use `deploy_vercel` for homepage workspace publishing to Vercel. It validates the build locally, deploys from the homepage workspace with the Vercel CLI, and can assign an alias or custom domain after deployment when permitted by config.

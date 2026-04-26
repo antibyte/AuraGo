@@ -89,7 +89,7 @@ func (pm *PreparedMission) RenderPreparedContext() string {
 
 	var buf []byte
 	buf = append(buf, "\n\n---\n## Mission Execution Plan (Advisory)\n"...)
-	buf = append(buf, "Above is your original mission prompt — follow it as the primary instruction. Use the following pre-computed plan as guidance to structure your approach. You may deviate from it when the situation requires it.\n\n"...)
+	buf = append(buf, "Scheduler-generated guidance for organizing this mission. Base the final result on actual tool outputs, verified observations, or clearly reported limitations.\n\n"...)
 
 	if a.Summary != "" {
 		buf = append(buf, "### Summary\n"...)
