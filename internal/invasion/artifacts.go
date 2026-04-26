@@ -7,6 +7,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -16,6 +18,7 @@ import (
 
 const (
 	ArtifactStatusPending   = "pending"
+	ArtifactStatusUploading = "uploading"
 	ArtifactStatusCompleted = "completed"
 	ArtifactStatusFailed    = "failed"
 )
@@ -73,6 +76,11 @@ type ArtifactFilter struct {
 	Limit     int
 }
 
+type ArtifactCleanupResult struct {
+	ExpiredUploads        int64
+	StalePendingArtifacts int64
+}
+
 func CreateArtifactUpload(db *sql.DB, req ArtifactUploadRequest) (string, ArtifactRecord, error) {
 	if db == nil {
 		return "", ArtifactRecord{}, fmt.Errorf("invasion database is unavailable")
@@ -88,8 +96,14 @@ func CreateArtifactUpload(db *sql.DB, req ArtifactUploadRequest) (string, Artifa
 	if req.ExpectedSize < 0 {
 		return "", ArtifactRecord{}, fmt.Errorf("expected_size must not be negative")
 	}
+	if req.ExpectedSize <= 0 {
+		return "", ArtifactRecord{}, fmt.Errorf("expected_size is required")
+	}
+	if req.ExpectedSize > MaxArtifactSizeBytes {
+		return "", ArtifactRecord{}, fmt.Errorf("expected_size exceeds maximum %d", MaxArtifactSizeBytes)
+	}
 	expectedSHA := normalizeSHA256(req.ExpectedSHA256)
-	if expectedSHA != "" && len(expectedSHA) != 64 {
+	if len(expectedSHA) != 64 {
 		return "", ArtifactRecord{}, fmt.Errorf("expected_sha256 must be a 64-character hex string")
 	}
 	if strings.TrimSpace(req.MetadataJSON) != "" && !json.Valid([]byte(req.MetadataJSON)) {
@@ -152,7 +166,34 @@ func GetArtifactUploadByToken(db *sql.DB, token string, now time.Time) (Artifact
 	if db == nil {
 		return ArtifactUploadSlot{}, fmt.Errorf("invasion database is unavailable")
 	}
+	return getArtifactUploadByTokenHash(db, uploadTokenHash(token), now, ArtifactStatusPending)
+}
+
+func ClaimArtifactUploadByToken(db *sql.DB, token string, now time.Time) (ArtifactUploadSlot, error) {
+	if db == nil {
+		return ArtifactUploadSlot{}, fmt.Errorf("invasion database is unavailable")
+	}
+	if now.IsZero() {
+		now = time.Now().UTC()
+	}
 	tokenHash := uploadTokenHash(token)
+	res, err := db.Exec(`UPDATE invasion_artifact_uploads SET status=?
+		WHERE token_hash=? AND status=? AND expires_at >= ?`,
+		ArtifactStatusUploading, tokenHash, ArtifactStatusPending, now.UTC().Format(time.RFC3339))
+	if err != nil {
+		return ArtifactUploadSlot{}, fmt.Errorf("failed to claim artifact upload: %w", err)
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return ArtifactUploadSlot{}, fmt.Errorf("failed to check artifact upload claim: %w", err)
+	}
+	if rows != 1 {
+		return ArtifactUploadSlot{}, fmt.Errorf("upload token not found, expired, or already used")
+	}
+	return getArtifactUploadByTokenHash(db, tokenHash, now, ArtifactStatusUploading)
+}
+
+func getArtifactUploadByTokenHash(db *sql.DB, tokenHash string, now time.Time, allowedStatuses ...string) (ArtifactUploadSlot, error) {
 	row := db.QueryRow(`SELECT u.token_hash, u.expected_size, u.expected_sha256, u.expires_at, u.status,
 		a.id, a.nest_id, a.egg_id, a.mission_id, a.task_id, a.filename, a.mime_type, a.size_bytes,
 		a.sha256, a.storage_path, a.web_path, a.metadata_json, a.status, a.created_at, a.completed_at
@@ -179,8 +220,18 @@ func GetArtifactUploadByToken(db *sql.DB, token string, now time.Time) (Artifact
 	if now.IsZero() {
 		now = time.Now()
 	}
-	if slot.Status != ArtifactStatusPending {
-		return ArtifactUploadSlot{}, fmt.Errorf("upload token is not pending")
+	if len(allowedStatuses) == 0 {
+		allowedStatuses = []string{ArtifactStatusPending}
+	}
+	allowed := false
+	for _, status := range allowedStatuses {
+		if slot.Status == status {
+			allowed = true
+			break
+		}
+	}
+	if !allowed {
+		return ArtifactUploadSlot{}, fmt.Errorf("upload token is not available")
 	}
 	if now.After(expires) {
 		return ArtifactUploadSlot{}, fmt.Errorf("upload token expired")
@@ -192,7 +243,7 @@ func CompleteArtifactUpload(db *sql.DB, token, storagePath string, sizeBytes int
 	if db == nil {
 		return fmt.Errorf("invasion database is unavailable")
 	}
-	slot, err := GetArtifactUploadByToken(db, token, completedAt)
+	slot, err := getArtifactUploadByTokenHash(db, uploadTokenHash(token), completedAt, ArtifactStatusPending, ArtifactStatusUploading)
 	if err != nil {
 		return err
 	}
@@ -228,10 +279,58 @@ func RegisterCompletedArtifact(db *sql.DB, artifact ArtifactRecord) (string, err
 		artifact.WebPath = artifactWebPath(artifact.ID)
 	}
 	artifact.SHA256 = normalizeSHA256(artifact.SHA256)
+	if artifact.Status == ArtifactStatusCompleted {
+		if err := validateCompletedArtifactFile(&artifact); err != nil {
+			return "", err
+		}
+	}
 	if err := insertArtifactTx(db, artifact); err != nil {
 		return "", err
 	}
 	return artifact.ID, nil
+}
+
+func validateCompletedArtifactFile(artifact *ArtifactRecord) error {
+	if artifact == nil {
+		return fmt.Errorf("artifact is required")
+	}
+	artifact.StoragePath = strings.TrimSpace(artifact.StoragePath)
+	if artifact.StoragePath == "" {
+		return fmt.Errorf("storage_path is required for completed artifact")
+	}
+	info, err := os.Stat(artifact.StoragePath)
+	if err != nil {
+		return fmt.Errorf("completed artifact file is not accessible: %w", err)
+	}
+	if info.IsDir() {
+		return fmt.Errorf("completed artifact storage_path points to a directory")
+	}
+	if artifact.SizeBytes > 0 && artifact.SizeBytes != info.Size() {
+		return fmt.Errorf("artifact size mismatch: got %d bytes on disk, expected %d", info.Size(), artifact.SizeBytes)
+	}
+	artifact.SizeBytes = info.Size()
+	actualSHA, err := fileSHA256(artifact.StoragePath)
+	if err != nil {
+		return err
+	}
+	if artifact.SHA256 != "" && artifact.SHA256 != actualSHA {
+		return fmt.Errorf("artifact sha256 mismatch: got %s, expected %s", actualSHA, artifact.SHA256)
+	}
+	artifact.SHA256 = actualSHA
+	return nil
+}
+
+func fileSHA256(path string) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", fmt.Errorf("open artifact file: %w", err)
+	}
+	defer f.Close()
+	hasher := sha256.New()
+	if _, err := io.Copy(hasher, f); err != nil {
+		return "", fmt.Errorf("hash artifact file: %w", err)
+	}
+	return hex.EncodeToString(hasher.Sum(nil)), nil
 }
 
 func GetArtifact(db *sql.DB, id string) (ArtifactRecord, error) {
@@ -340,15 +439,71 @@ func completeArtifact(db *sql.DB, artifactID, tokenHash, storagePath string, siz
 	if err != nil {
 		return fmt.Errorf("failed to complete artifact: %w", err)
 	}
-	if rows, _ := res.RowsAffected(); rows == 0 {
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to check artifact completion: %w", err)
+	}
+	if rows == 0 {
 		return fmt.Errorf("artifact not found: %s", artifactID)
 	}
-	_, err = tx.Exec(`UPDATE invasion_artifact_uploads SET status=?, completed_at=? WHERE token_hash=?`,
-		ArtifactStatusCompleted, completedAt.UTC().Format(time.RFC3339), tokenHash)
+	res, err = tx.Exec(`UPDATE invasion_artifact_uploads SET status=?, completed_at=?
+		WHERE token_hash=? AND status IN (?, ?)`,
+		ArtifactStatusCompleted, completedAt.UTC().Format(time.RFC3339), tokenHash, ArtifactStatusPending, ArtifactStatusUploading)
 	if err != nil {
 		return fmt.Errorf("failed to complete artifact upload: %w", err)
 	}
+	rows, err = res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to check artifact upload completion: %w", err)
+	}
+	if rows == 0 {
+		return fmt.Errorf("artifact upload token was already used")
+	}
 	return tx.Commit()
+}
+
+func CleanupExpiredArtifactUploads(db *sql.DB, pendingMaxAge time.Duration) (ArtifactCleanupResult, error) {
+	if db == nil {
+		return ArtifactCleanupResult{}, fmt.Errorf("invasion database is unavailable")
+	}
+	if pendingMaxAge <= 0 {
+		pendingMaxAge = 24 * time.Hour
+	}
+	now := time.Now().UTC().Format(time.RFC3339)
+	pendingCutoff := time.Now().UTC().Add(-pendingMaxAge).Format(time.RFC3339)
+
+	tx, err := db.Begin()
+	if err != nil {
+		return ArtifactCleanupResult{}, err
+	}
+	defer tx.Rollback()
+
+	res, err := tx.Exec(`DELETE FROM invasion_artifact_uploads
+		WHERE status IN (?, ?) AND expires_at < ?`,
+		ArtifactStatusPending, ArtifactStatusUploading, now)
+	if err != nil {
+		return ArtifactCleanupResult{}, fmt.Errorf("failed to cleanup expired artifact uploads: %w", err)
+	}
+	expiredUploads, err := res.RowsAffected()
+	if err != nil {
+		return ArtifactCleanupResult{}, fmt.Errorf("failed to check expired artifact uploads cleanup: %w", err)
+	}
+
+	res, err = tx.Exec(`DELETE FROM invasion_artifacts
+		WHERE status=? AND created_at < ?`,
+		ArtifactStatusPending, pendingCutoff)
+	if err != nil {
+		return ArtifactCleanupResult{}, fmt.Errorf("failed to cleanup stale pending artifacts: %w", err)
+	}
+	staleArtifacts, err := res.RowsAffected()
+	if err != nil {
+		return ArtifactCleanupResult{}, fmt.Errorf("failed to check stale artifact cleanup: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return ArtifactCleanupResult{}, err
+	}
+	return ArtifactCleanupResult{ExpiredUploads: expiredUploads, StalePendingArtifacts: staleArtifacts}, nil
 }
 
 type artifactScanner interface {
@@ -390,4 +545,16 @@ func artifactWebPath(id string) string {
 		return ""
 	}
 	return "/api/invasion/artifacts/" + id + "/download"
+}
+
+func decodeArtifactIDsJSON(raw string) ([]string, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil, nil
+	}
+	var ids []string
+	if err := json.Unmarshal([]byte(raw), &ids); err != nil {
+		return nil, fmt.Errorf("invalid artifact_ids_json: %w", err)
+	}
+	return ids, nil
 }

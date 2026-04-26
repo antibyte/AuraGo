@@ -80,8 +80,11 @@ func RecordEggMessage(db *sql.DB, msg EggMessageRecord, policy EggMessageRatePol
 	}
 	msg.ID = uid.New()
 	msg.CreatedAt = now.UTC().Format(time.RFC3339)
-	artifactJSON, _ := json.Marshal(msg.ArtifactIDs)
-	_, err := db.Exec(`INSERT INTO invasion_egg_messages
+	artifactJSON, err := json.Marshal(msg.ArtifactIDs)
+	if err != nil {
+		return EggMessageRecord{}, fmt.Errorf("failed to encode egg message artifact ids: %w", err)
+	}
+	_, err = db.Exec(`INSERT INTO invasion_egg_messages
 		(id, nest_id, egg_id, mission_id, task_id, severity, title, body, artifact_ids_json, dedup_key,
 		 wakeup_requested, wakeup_allowed, created_at, acknowledged_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '')`,
@@ -177,7 +180,10 @@ func scanEggMessage(scanner eggMessageScanner) (EggMessageRecord, error) {
 	if err != nil {
 		return EggMessageRecord{}, err
 	}
-	_ = json.Unmarshal([]byte(artifactJSON), &msg.ArtifactIDs)
+	msg.ArtifactIDs, err = decodeArtifactIDsJSON(artifactJSON)
+	if err != nil {
+		return EggMessageRecord{}, fmt.Errorf("egg message %s: %w", msg.ID, err)
+	}
 	msg.WakeupRequested = wakeReq != 0
 	msg.WakeupAllowed = wakeAllowed != 0
 	msg.AcknowledgedAt = nullStr(ack)

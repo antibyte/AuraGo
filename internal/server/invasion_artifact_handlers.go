@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -93,11 +94,30 @@ func handleInvasionArtifactUpload(s *Server) http.HandlerFunc {
 			jsonError(w, "Missing upload token", http.StatusBadRequest)
 			return
 		}
+		nestID, eggID, err := verifyEggSignedRequest(s, r, nil)
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusUnauthorized)
+			return
+		}
+		if r.ContentLength > invasion.MaxArtifactSizeBytes {
+			jsonError(w, fmt.Sprintf("artifact exceeds maximum size %d", invasion.MaxArtifactSizeBytes), http.StatusRequestEntityTooLarge)
+			return
+		}
 		slot, err := invasion.GetArtifactUploadByToken(s.InvasionDB, token, time.Now())
 		if err != nil {
 			jsonError(w, err.Error(), http.StatusUnauthorized)
 			return
 		}
+		if slot.Artifact.NestID != nestID || slot.Artifact.EggID != eggID {
+			jsonError(w, "upload token does not belong to authenticated egg", http.StatusUnauthorized)
+			return
+		}
+		slot, err = invasion.ClaimArtifactUploadByToken(s.InvasionDB, token, time.Now())
+		if err != nil {
+			jsonError(w, err.Error(), http.StatusUnauthorized)
+			return
+		}
+		r.Body = http.MaxBytesReader(w, r.Body, invasion.MaxArtifactSizeBytes)
 		storage := invasion.NewArtifactStorage(filepath.Join(s.Cfg.Directories.DataDir, "invasion_artifacts"))
 		stored, err := storage.Save(slot.Artifact, r.Body, slot.ExpectedSize, slot.ExpectedSHA256)
 		if err != nil {
@@ -139,6 +159,14 @@ func handleInvasionArtifactDownload(s *Server) http.HandlerFunc {
 		}
 		if artifact.Status != invasion.ArtifactStatusCompleted || artifact.StoragePath == "" {
 			jsonError(w, "Artifact is not available", http.StatusConflict)
+			return
+		}
+		if _, err := os.Stat(artifact.StoragePath); err != nil {
+			if os.IsNotExist(err) {
+				jsonLoggedError(w, s.Logger, http.StatusNotFound, "Artifact file missing", "Artifact file missing", err, "artifact_id", artifact.ID, "path", artifact.StoragePath)
+				return
+			}
+			jsonLoggedError(w, s.Logger, http.StatusInternalServerError, "Failed to access artifact file", "Artifact stat failed", err, "artifact_id", artifact.ID)
 			return
 		}
 		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", artifact.Filename))
@@ -276,7 +304,7 @@ func readLimitedRequestBody(r *http.Request, maxBytes int64) ([]byte, error) {
 	var buf bytes.Buffer
 	limited := io.LimitReader(r.Body, maxBytes+1)
 	if _, err := buf.ReadFrom(limited); err != nil {
-		return nil, fmt.Errorf("failed to read request body")
+		return nil, fmt.Errorf("failed to read request body: %w", err)
 	}
 	if int64(buf.Len()) > maxBytes {
 		return nil, fmt.Errorf("request body too large")

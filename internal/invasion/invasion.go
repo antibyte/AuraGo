@@ -731,8 +731,11 @@ func UpdateTaskStatus(db *sql.DB, taskID, status, output, errMsg string) error {
 // UpdateTaskResult transitions a task to a terminal state and records artifact references.
 func UpdateTaskResult(db *sql.DB, taskID, status, output, errMsg string, artifactIDs []string) error {
 	now := time.Now().UTC().Format(time.RFC3339)
-	artifactJSON, _ := json.Marshal(artifactIDs)
-	_, err := db.Exec(`UPDATE invasion_tasks SET status=?, result_output=?, result_error=?, artifact_ids_json=?, completed_at=? WHERE id=?`,
+	artifactJSON, err := json.Marshal(artifactIDs)
+	if err != nil {
+		return fmt.Errorf("failed to encode task artifact ids: %w", err)
+	}
+	_, err = db.Exec(`UPDATE invasion_tasks SET status=?, result_output=?, result_error=?, artifact_ids_json=?, completed_at=? WHERE id=?`,
 		status, output, errMsg, string(artifactJSON), now, taskID)
 	if err != nil {
 		return fmt.Errorf("failed to update task result: %w", err)
@@ -780,7 +783,10 @@ func GetTaskByID(db *sql.DB, taskID string) (*TaskRecord, error) {
 	if err != nil {
 		return nil, fmt.Errorf("task not found: %w", err)
 	}
-	_ = json.Unmarshal([]byte(artifactJSON), &t.ArtifactIDs)
+	t.ArtifactIDs, err = decodeArtifactIDsJSON(artifactJSON)
+	if err != nil {
+		return nil, fmt.Errorf("task %s: %w", t.ID, err)
+	}
 	t.SentAt = nullStr(sentAt)
 	t.CompletedAt = nullStr(completedAt)
 	return &t, nil
@@ -806,7 +812,11 @@ func scanTasks(rows *sql.Rows) ([]TaskRecord, error) {
 			&t.ResultOutput, &t.ResultError, &artifactJSON, &t.CreatedAt, &sentAt, &completedAt); err != nil {
 			return nil, fmt.Errorf("failed to scan task: %w", err)
 		}
-		_ = json.Unmarshal([]byte(artifactJSON), &t.ArtifactIDs)
+		var err error
+		t.ArtifactIDs, err = decodeArtifactIDsJSON(artifactJSON)
+		if err != nil {
+			return nil, fmt.Errorf("task %s: %w", t.ID, err)
+		}
 		t.SentAt = nullStr(sentAt)
 		t.CompletedAt = nullStr(completedAt)
 		tasks = append(tasks, t)

@@ -45,9 +45,9 @@ func TestArtifactUploadLifecycleStoresCompletedArtifact(t *testing.T) {
 		t.Fatalf("status = %q, want pending", artifact.Status)
 	}
 
-	slot, err := GetArtifactUploadByToken(db, token, time.Now())
+	slot, err := ClaimArtifactUploadByToken(db, token, time.Now())
 	if err != nil {
-		t.Fatalf("GetArtifactUploadByToken: %v", err)
+		t.Fatalf("ClaimArtifactUploadByToken: %v", err)
 	}
 	if slot.Artifact.ID != artifact.ID || slot.ExpectedSHA256 != expectedHash {
 		t.Fatalf("slot = %#v, artifact = %#v", slot, artifact)
@@ -81,6 +81,118 @@ func TestArtifactUploadLifecycleStoresCompletedArtifact(t *testing.T) {
 	}
 }
 
+func TestCreateArtifactUploadRequiresSizeAndSHA256(t *testing.T) {
+	db, err := InitDB(filepath.Join(t.TempDir(), "invasion.db"))
+	if err != nil {
+		t.Fatalf("InitDB: %v", err)
+	}
+	defer db.Close()
+
+	_, _, err = CreateArtifactUpload(db, ArtifactUploadRequest{
+		NestID:       "nest-1",
+		EggID:        "egg-1",
+		Filename:     "report.txt",
+		ExpectedSize: 5,
+	})
+	if err == nil || !strings.Contains(err.Error(), "expected_sha256") {
+		t.Fatalf("missing expected_sha256 error = %v", err)
+	}
+
+	_, _, err = CreateArtifactUpload(db, ArtifactUploadRequest{
+		NestID:         "nest-1",
+		EggID:          "egg-1",
+		Filename:       "report.txt",
+		ExpectedSize:   0,
+		ExpectedSHA256: strings.Repeat("a", 64),
+	})
+	if err == nil || !strings.Contains(err.Error(), "expected_size") {
+		t.Fatalf("missing expected_size error = %v", err)
+	}
+}
+
+func TestClaimArtifactUploadTokenIsSingleUse(t *testing.T) {
+	db, err := InitDB(filepath.Join(t.TempDir(), "invasion.db"))
+	if err != nil {
+		t.Fatalf("InitDB: %v", err)
+	}
+	defer db.Close()
+
+	sum := sha256.Sum256([]byte("hello"))
+	token, _, err := CreateArtifactUpload(db, ArtifactUploadRequest{
+		NestID:         "nest-1",
+		EggID:          "egg-1",
+		Filename:       "report.txt",
+		ExpectedSize:   5,
+		ExpectedSHA256: hex.EncodeToString(sum[:]),
+		TTL:            time.Minute,
+	})
+	if err != nil {
+		t.Fatalf("CreateArtifactUpload: %v", err)
+	}
+
+	if _, err := ClaimArtifactUploadByToken(db, token, time.Now()); err != nil {
+		t.Fatalf("first claim: %v", err)
+	}
+	if _, err := ClaimArtifactUploadByToken(db, token, time.Now()); err == nil {
+		t.Fatal("second claim succeeded; token should be single-use")
+	}
+}
+
+func TestCleanupExpiredArtifactUploadsRemovesStaleRows(t *testing.T) {
+	db, err := InitDB(filepath.Join(t.TempDir(), "invasion.db"))
+	if err != nil {
+		t.Fatalf("InitDB: %v", err)
+	}
+	defer db.Close()
+
+	_, artifact, err := CreateArtifactUpload(db, ArtifactUploadRequest{
+		NestID:         "nest-1",
+		EggID:          "egg-1",
+		Filename:       "stale.txt",
+		ExpectedSize:   5,
+		ExpectedSHA256: strings.Repeat("a", 64),
+		TTL:            time.Minute,
+	})
+	if err != nil {
+		t.Fatalf("CreateArtifactUpload: %v", err)
+	}
+	old := time.Now().UTC().Add(-48 * time.Hour).Format(time.RFC3339)
+	if _, err := db.Exec(`UPDATE invasion_artifacts SET created_at=? WHERE id=?`, old, artifact.ID); err != nil {
+		t.Fatalf("age artifact: %v", err)
+	}
+	if _, err := db.Exec(`UPDATE invasion_artifact_uploads SET expires_at=? WHERE artifact_id=?`, old, artifact.ID); err != nil {
+		t.Fatalf("expire upload: %v", err)
+	}
+
+	result, err := CleanupExpiredArtifactUploads(db, 24*time.Hour)
+	if err != nil {
+		t.Fatalf("CleanupExpiredArtifactUploads: %v", err)
+	}
+	if result.ExpiredUploads != 1 || result.StalePendingArtifacts != 1 {
+		t.Fatalf("cleanup result = %#v, want one upload and one artifact", result)
+	}
+	if _, err := GetArtifact(db, artifact.ID); err == nil {
+		t.Fatal("stale pending artifact still exists")
+	}
+}
+
+func TestRegisterCompletedArtifactRejectsMissingFile(t *testing.T) {
+	db, err := InitDB(filepath.Join(t.TempDir(), "invasion.db"))
+	if err != nil {
+		t.Fatalf("InitDB: %v", err)
+	}
+	defer db.Close()
+
+	_, err = RegisterCompletedArtifact(db, ArtifactRecord{
+		NestID:      "nest-1",
+		Filename:    "missing.txt",
+		StoragePath: filepath.Join(t.TempDir(), "missing.txt"),
+	})
+	if err == nil {
+		t.Fatal("expected missing storage file to be rejected")
+	}
+}
+
 func TestArtifactStorageRejectsHashMismatchAndRemovesPartialFile(t *testing.T) {
 	store := NewArtifactStorage(t.TempDir())
 	artifact := ArtifactRecord{
@@ -101,14 +213,34 @@ func TestArtifactStorageRejectsHashMismatchAndRemovesPartialFile(t *testing.T) {
 	}
 }
 
+func TestArtifactStorageRequiresBoundedSizeAndSHA256(t *testing.T) {
+	store := NewArtifactStorage(t.TempDir())
+	artifact := ArtifactRecord{
+		ID:       "artifact-1",
+		NestID:   "nest-1",
+		Filename: "evidence.txt",
+	}
+
+	if _, err := store.Save(artifact, strings.NewReader("hello"), 0, strings.Repeat("a", 64)); err == nil {
+		t.Fatal("expected unknown-size upload to be rejected")
+	}
+	if _, err := store.Save(artifact, strings.NewReader("hello"), 5, ""); err == nil {
+		t.Fatal("expected missing sha256 to be rejected")
+	}
+	if _, err := store.Save(artifact, strings.NewReader("hello"), MaxArtifactSizeBytes+1, strings.Repeat("a", 64)); err == nil {
+		t.Fatal("expected oversized artifact to be rejected")
+	}
+}
+
 func TestArtifactStorageKeepsPathsInsideBaseDir(t *testing.T) {
 	base := t.TempDir()
 	store := NewArtifactStorage(base)
+	sum := sha256.Sum256([]byte("hello"))
 	stored, err := store.Save(ArtifactRecord{
 		ID:       "../artifact-1",
 		NestID:   "../nest-1",
 		Filename: "../evidence.txt",
-	}, strings.NewReader("hello"), 5, "")
+	}, strings.NewReader("hello"), 5, hex.EncodeToString(sum[:]))
 	if err != nil {
 		t.Fatalf("Save: %v", err)
 	}
@@ -208,5 +340,50 @@ func TestEggMessageListAndAcknowledge(t *testing.T) {
 	}
 	if len(messages[0].ArtifactIDs) != 1 || messages[0].ArtifactIDs[0] != "artifact-1" {
 		t.Fatalf("ArtifactIDs = %#v, want artifact-1", messages[0].ArtifactIDs)
+	}
+}
+
+func TestTaskArtifactIDsJSONCorruptionReturnsError(t *testing.T) {
+	db, err := InitDB(filepath.Join(t.TempDir(), "invasion.db"))
+	if err != nil {
+		t.Fatalf("InitDB: %v", err)
+	}
+	defer db.Close()
+
+	taskID, err := CreateTask(db, "nest-1", "egg-1", "collect evidence", 0)
+	if err != nil {
+		t.Fatalf("CreateTask: %v", err)
+	}
+	if _, err := db.Exec(`UPDATE invasion_tasks SET artifact_ids_json=? WHERE id=?`, `["artifact-1"`, taskID); err != nil {
+		t.Fatalf("corrupt task artifact JSON: %v", err)
+	}
+
+	if _, err := GetTaskByID(db, taskID); err == nil {
+		t.Fatal("expected corrupt task artifact JSON to return an error")
+	}
+}
+
+func TestEggMessageArtifactIDsJSONCorruptionReturnsError(t *testing.T) {
+	db, err := InitDB(filepath.Join(t.TempDir(), "invasion.db"))
+	if err != nil {
+		t.Fatalf("InitDB: %v", err)
+	}
+	defer db.Close()
+
+	msg, err := RecordEggMessage(db, EggMessageRecord{
+		NestID:      "nest-1",
+		EggID:       "egg-1",
+		Title:       "Report ready",
+		ArtifactIDs: []string{"artifact-1"},
+	}, EggMessageRatePolicy{}, time.Now())
+	if err != nil {
+		t.Fatalf("RecordEggMessage: %v", err)
+	}
+	if _, err := db.Exec(`UPDATE invasion_egg_messages SET artifact_ids_json=? WHERE id=?`, `["artifact-1"`, msg.ID); err != nil {
+		t.Fatalf("corrupt message artifact JSON: %v", err)
+	}
+
+	if _, err := ListEggMessages(db, EggMessageFilter{NestID: "nest-1"}); err == nil {
+		t.Fatal("expected corrupt egg message artifact JSON to return an error")
 	}
 }

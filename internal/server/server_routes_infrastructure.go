@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -152,6 +153,17 @@ func (s *Server) registerInfrastructureRoutes(mux *http.ServeMux, shutdownCh cha
 						s.Logger.Warn("Deployment history cleanup failed", "error", err)
 					} else if n > 0 {
 						s.Logger.Info("Cleaned up old deployment history", "count", n)
+					}
+					if result, err := invasion.CleanupExpiredArtifactUploads(s.InvasionDB, 24*time.Hour); err != nil {
+						s.Logger.Warn("Artifact upload cleanup failed", "error", err)
+					} else if result.ExpiredUploads > 0 || result.StalePendingArtifacts > 0 {
+						s.Logger.Info("Cleaned up stale invasion artifacts", "expired_uploads", result.ExpiredUploads, "stale_pending_artifacts", result.StalePendingArtifacts)
+					}
+					storage := invasion.NewArtifactStorage(filepath.Join(s.Cfg.Directories.DataDir, "invasion_artifacts"))
+					if n, err := storage.CleanupTempFiles(24 * time.Hour); err != nil {
+						s.Logger.Warn("Artifact temp-file cleanup failed", "error", err)
+					} else if n > 0 {
+						s.Logger.Info("Cleaned up stale invasion artifact temp files", "count", n)
 					}
 				}
 			}

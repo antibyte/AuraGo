@@ -11,6 +11,8 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+const MaxEggWebSocketMessageBytes int64 = 10 << 20
+
 // EggConnection represents a single connected egg worker.
 type EggConnection struct {
 	Conn          *websocket.Conn
@@ -376,6 +378,7 @@ func (h *EggHub) SendRekey(nestID, newKeyHex string) error {
 // Blocks until the connection closes or an error occurs.
 func (h *EggHub) HandleMessages(conn *EggConnection) {
 	defer h.Unregister(conn.NestID)
+	conn.Conn.SetReadLimit(MaxEggWebSocketMessageBytes)
 
 	// Rate limit: max 100 messages per second per connection
 	const rateLimit = 100

@@ -226,9 +226,13 @@ func (c *EggClient) UploadArtifact(ctx context.Context, upload EggArtifactUpload
 	if strings.HasPrefix(uploadURL, "/") {
 		uploadURL = baseURL + uploadURL
 	}
-	uploadReq, err := http.NewRequestWithContext(ctx, http.MethodPost, uploadURL, upload.Reader)
+	uploadReq, err := c.newSignedHTTPRequest(ctx, http.MethodPost, uploadURL, nil)
 	if err != nil {
 		return EggArtifactUploadResult{}, err
+	}
+	uploadReq.Body = io.NopCloser(upload.Reader)
+	if upload.ExpectedSize > 0 {
+		uploadReq.ContentLength = upload.ExpectedSize
 	}
 	if upload.MIMEType != "" {
 		uploadReq.Header.Set("Content-Type", upload.MIMEType)
@@ -359,6 +363,7 @@ func (c *EggClient) connect() error {
 	if err != nil {
 		return fmt.Errorf("websocket dial failed: %w", err)
 	}
+	conn.SetReadLimit(MaxEggWebSocketMessageBytes)
 
 	// Send auth message
 	authMsg, err := NewMessage(MsgAuth, c.EggID, c.NestID, c.SharedKey, AuthPayload{

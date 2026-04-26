@@ -27,12 +27,80 @@ func TestHandleInvasionArtifactUploadCompletesLocalArtifact(t *testing.T) {
 	}
 	defer db.Close()
 
+	eggID, err := invasion.CreateEgg(db, invasion.EggRecord{Name: "Reporter", Active: true})
+	if err != nil {
+		t.Fatalf("CreateEgg: %v", err)
+	}
+	nestID, err := invasion.CreateNest(db, invasion.NestRecord{Name: "Nest", Active: true, EggID: eggID})
+	if err != nil {
+		t.Fatalf("CreateNest: %v", err)
+	}
+	sharedKey := strings.Repeat("a", 64)
+	vault, err := security.NewVault(strings.Repeat("b", 64), filepath.Join(dataDir, "vault.bin"))
+	if err != nil {
+		t.Fatalf("NewVault: %v", err)
+	}
+	if err := vault.WriteSecret("egg_shared_"+nestID, sharedKey); err != nil {
+		t.Fatalf("WriteSecret: %v", err)
+	}
+
 	sum := sha256.Sum256([]byte("hello"))
 	token, artifact, err := invasion.CreateArtifactUpload(db, invasion.ArtifactUploadRequest{
+		NestID:         nestID,
+		EggID:          eggID,
+		Filename:       "hello.txt",
+		MIMEType:       "text/plain",
+		ExpectedSize:   5,
+		ExpectedSHA256: hex.EncodeToString(sum[:]),
+		TTL:            time.Minute,
+	})
+	if err != nil {
+		t.Fatalf("CreateArtifactUpload: %v", err)
+	}
+
+	s := &Server{
+		Cfg:        &config.Config{},
+		InvasionDB: db,
+		Vault:      vault,
+		Logger:     slog.New(slog.NewTextHandler(bytes.NewBuffer(nil), nil)),
+	}
+	s.Cfg.Directories.DataDir = dataDir
+
+	req := httptest.NewRequest(http.MethodPost, "/api/invasion/artifacts/upload/"+token, strings.NewReader("hello"))
+	signEggRequest(t, req, sharedKey, nil)
+	req.Header.Set("X-AuraGo-Nest-ID", nestID)
+	req.Header.Set("X-AuraGo-Egg-ID", eggID)
+	rec := httptest.NewRecorder()
+	handleInvasionArtifactUpload(s)(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body=%s", rec.Code, rec.Body.String())
+	}
+	completed, err := invasion.GetArtifact(db, artifact.ID)
+	if err != nil {
+		t.Fatalf("GetArtifact: %v", err)
+	}
+	if completed.Status != invasion.ArtifactStatusCompleted {
+		t.Fatalf("artifact status = %q, want completed", completed.Status)
+	}
+	if !strings.Contains(completed.StoragePath, filepath.Join("invasion_artifacts", nestID, artifact.ID)) {
+		t.Fatalf("storage_path = %q", completed.StoragePath)
+	}
+}
+
+func TestHandleInvasionArtifactUploadRejectsUnsignedUpload(t *testing.T) {
+	dataDir := t.TempDir()
+	db, err := invasion.InitDB(filepath.Join(dataDir, "invasion.db"))
+	if err != nil {
+		t.Fatalf("InitDB: %v", err)
+	}
+	defer db.Close()
+
+	sum := sha256.Sum256([]byte("hello"))
+	token, _, err := invasion.CreateArtifactUpload(db, invasion.ArtifactUploadRequest{
 		NestID:         "nest-1",
 		EggID:          "egg-1",
 		Filename:       "hello.txt",
-		MIMEType:       "text/plain",
 		ExpectedSize:   5,
 		ExpectedSHA256: hex.EncodeToString(sum[:]),
 		TTL:            time.Minute,
@@ -52,18 +120,8 @@ func TestHandleInvasionArtifactUploadCompletesLocalArtifact(t *testing.T) {
 	rec := httptest.NewRecorder()
 	handleInvasionArtifactUpload(s)(rec, req)
 
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status = %d, body=%s", rec.Code, rec.Body.String())
-	}
-	completed, err := invasion.GetArtifact(db, artifact.ID)
-	if err != nil {
-		t.Fatalf("GetArtifact: %v", err)
-	}
-	if completed.Status != invasion.ArtifactStatusCompleted {
-		t.Fatalf("artifact status = %q, want completed", completed.Status)
-	}
-	if !strings.Contains(completed.StoragePath, filepath.Join("invasion_artifacts", "nest-1", artifact.ID)) {
-		t.Fatalf("storage_path = %q", completed.StoragePath)
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusUnauthorized, rec.Body.String())
 	}
 }
 
