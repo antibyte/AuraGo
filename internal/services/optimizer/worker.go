@@ -273,6 +273,13 @@ Ensure the instructions prevent these errors. Reply ONLY with the new markdown m
 		return
 	}
 
+	sanitizedPrompt, ok := prompts.SanitizeToolGuideOverride(newPrompt)
+	if !ok {
+		slog.Warn("[Optimizer] Rejected mutated prompt with unsafe or unusable content", "tool", toolName)
+		return
+	}
+	newPrompt = sanitizedPrompt
+
 	hash := sha256.Sum256([]byte(currentManual))
 	hashStr := hex.EncodeToString(hash[:])
 

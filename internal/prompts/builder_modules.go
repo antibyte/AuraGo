@@ -2,6 +2,7 @@ package prompts
 
 import (
 	"aurago/internal/memory"
+	"aurago/internal/security"
 	promptsembed "aurago/prompts"
 	"fmt"
 	"io/fs"
@@ -64,23 +65,6 @@ func loadPromptModules(dir string, logger *slog.Logger) []PromptModule {
 	// the on-disk promptsDir.  The disk copy always wins over the embedded copy.
 	moduleMap := make(map[string]PromptModule)
 
-	// 0. Seed from Optimizer DB overrides (highest system priority before files)
-	// We parse them so they have the proper metadata for version tracking.
-	var overrides map[string]string
-	if GetActivePromptOverrides != nil {
-		overrides = GetActivePromptOverrides()
-	}
-	optimizerKeys := make(map[string]bool, len(overrides))
-	for name, content := range overrides {
-		filename := name + ".md"
-		mod := parseOrFallback(filename, content, logger)
-		// Return the correct metadata so the shadow test can log the version
-		mod.Metadata.Version = "optim-db"
-		key := strings.ToLower(filename)
-		moduleMap[key] = mod
-		optimizerKeys[key] = true
-	}
-
 	// 1. Seed from embedded FS (system prompts — tamper-proof in the binary)
 	_ = fs.WalkDir(promptsembed.FS, ".", func(path string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
@@ -117,9 +101,6 @@ func loadPromptModules(dir string, logger *slog.Logger) []PromptModule {
 				continue
 			}
 			key := strings.ToLower(file.Name())
-			if optimizerKeys[key] {
-				continue
-			}
 			moduleMap[key] = parseOrFallback(file.Name(), string(data), logger)
 		}
 	} else if len(moduleMap) == 0 {
@@ -181,6 +162,10 @@ func ClearPromptCache() {
 	promptCacheMu.Lock()
 	promptCacheByDir = make(map[string]promptDirCache)
 	promptCacheMu.Unlock()
+
+	guideCacheMu.Lock()
+	guideCache = make(map[string]guideCacheEntry)
+	guideCacheMu.Unlock()
 }
 
 func parsePromptModule(raw string) (*PromptModule, error) {
@@ -582,6 +567,10 @@ func evictGuideCacheLocked() {
 func readToolGuide(path string) (string, bool) {
 	const maxGuideTokens = 2048
 
+	if content, ok := activeToolGuideOverride(path); ok {
+		return truncateGuide(content, maxGuideTokens), true
+	}
+
 	guideCacheMu.RLock()
 	cached, ok := guideCache[path]
 	guideCacheMu.RUnlock()
@@ -623,6 +612,89 @@ func readToolGuide(path string) (string, bool) {
 		guideCacheMu.Unlock()
 	}
 	return content, true
+}
+
+func activeToolGuideOverride(path string) (string, bool) {
+	if GetActivePromptOverrides == nil {
+		return "", false
+	}
+
+	toolName := toolGuideNameFromPath(path)
+	if toolName == "" {
+		return "", false
+	}
+
+	overrides := GetActivePromptOverrides()
+	if len(overrides) == 0 {
+		return "", false
+	}
+
+	for name, raw := range overrides {
+		if normalizeToolGuideOverrideName(name) != toolName {
+			continue
+		}
+		return SanitizeToolGuideOverride(raw)
+	}
+
+	return "", false
+}
+
+func toolGuideNameFromPath(path string) string {
+	base := filepath.Base(filepath.Clean(path))
+	ext := filepath.Ext(base)
+	if ext != "" {
+		base = strings.TrimSuffix(base, ext)
+	}
+	return normalizeToolGuideOverrideName(base)
+}
+
+func normalizeToolGuideOverrideName(name string) string {
+	name = filepath.Base(filepath.ToSlash(strings.TrimSpace(name)))
+	name = strings.TrimSuffix(name, filepath.Ext(name))
+	return strings.ToLower(name)
+}
+
+// SanitizeToolGuideOverride removes optimizer reasoning traces and rejects
+// prompt echoes before an optimized manual can enter the runtime prompt.
+func SanitizeToolGuideOverride(raw string) (string, bool) {
+	content := strings.TrimSpace(security.StripThinkingTags(raw))
+	content = stripSingleMarkdownFence(content)
+	if content == "" {
+		return "", false
+	}
+
+	lower := strings.ToLower(content)
+	rejectMarkers := []string{
+		"<think",
+		"<thinking",
+		"</think",
+		"</thinking",
+		"<current_manual",
+		"</current_manual>",
+		"recent execution errors:",
+		"reply only with the new markdown manual",
+	}
+	for _, marker := range rejectMarkers {
+		if strings.Contains(lower, marker) {
+			return "", false
+		}
+	}
+
+	return content, true
+}
+
+func stripSingleMarkdownFence(content string) string {
+	content = strings.TrimSpace(content)
+	if !strings.HasPrefix(content, "```") {
+		return content
+	}
+
+	lines := strings.Split(content, "\n")
+	if len(lines) < 2 || !strings.HasPrefix(strings.TrimSpace(lines[len(lines)-1]), "```") {
+		return content
+	}
+
+	return strings.TrimSpace(strings.Join(lines[1:len(lines)-1], "\n"))
 }
 
 // ReadToolGuide is the exported variant of readToolGuide.
