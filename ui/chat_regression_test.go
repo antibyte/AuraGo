@@ -807,7 +807,8 @@ func TestMediaFrontend_ImageDeleteFlowUsesSharedConfirm(t *testing.T) {
 	for _, marker := range []string{
 		`const confirmed = await showConfirm(t('common.confirm_title'), t('gallery.confirm_delete'))`,
 		`let currentLightboxSource = '';`,
-		`onclick="openLightbox(this.dataset.mediaId, this.dataset.source)"`,
+		`onclick="handleGalleryCardClick(event, this.dataset.mediaId, this.dataset.source)"`,
+		`function handleGalleryCardClick(event, id, source = '')`,
 		`function findGalleryImage(id, source)`,
 		`async function deleteGalleryImage(id, source = '')`,
 		`await deleteGalleryImage(id, source)`,
@@ -862,8 +863,8 @@ func TestMediaFrontend_AudioPlayerIconsRemainWired(t *testing.T) {
 
 	audioPlayerJS := string(audioPlayerJSBytes)
 	for _, marker := range []string{
-		`window.chatUiIconMarkup('play', 'play-icon')`,
-		`window.chatUiIconMarkup('pause', 'pause-icon is-hidden')`,
+		`<span class="audio-emoji-icon play-icon" aria-hidden="true">`,
+		`<span class="audio-emoji-icon pause-icon is-hidden" aria-hidden="true">`,
 		`window.chatUiIconMarkup('download')`,
 	} {
 		if !strings.Contains(audioPlayerJS, marker) {
@@ -876,9 +877,52 @@ func TestMediaFrontend_AudioPlayerIconsRemainWired(t *testing.T) {
 		`.chat-ui-icon`,
 		`--chat-ui-icon-url`,
 		`background-image: var(--chat-ui-icon-url)`,
+		`.audio-emoji-icon`,
 	} {
 		if !strings.Contains(mediaCSS, marker) {
 			t.Fatalf("%s is missing audio player icon CSS marker %q", mediaCSSPath, marker)
+		}
+	}
+}
+
+func TestMediaFrontend_BulkDeleteSelectionFlowRemainsPresent(t *testing.T) {
+	t.Parallel()
+
+	mediaHTMLPath := "media.html"
+	mediaJSPath := filepath.Join("js", "media", "main.js")
+	galleryJSPath := filepath.Join("js", "gallery", "main.js")
+	mediaCSSPath := filepath.Join("css", "media.css")
+
+	mediaHTML, err := os.ReadFile(mediaHTMLPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", mediaHTMLPath, err)
+	}
+	mediaJS, err := os.ReadFile(mediaJSPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", mediaJSPath, err)
+	}
+	galleryJS, err := os.ReadFile(galleryJSPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", galleryJSPath, err)
+	}
+	mediaCSS, err := os.ReadFile(mediaCSSPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", mediaCSSPath, err)
+	}
+
+	combined := string(mediaHTML) + "\n" + string(mediaJS) + "\n" + string(galleryJS) + "\n" + string(mediaCSS)
+	for _, marker := range []string{
+		`media-bulk-toolbar`,
+		`function toggleMediaSelectionMode()`,
+		`function selectVisibleMediaItems()`,
+		`async function deleteSelectedMediaItems()`,
+		`/api/media/bulk-delete`,
+		`/api/image-gallery/bulk-delete`,
+		`media-select-check`,
+		`function handleMediaGalleryCardClick(event, id, source)`,
+	} {
+		if !strings.Contains(combined, marker) {
+			t.Fatalf("media bulk delete frontend is missing marker %q", marker)
 		}
 	}
 }

@@ -3,6 +3,14 @@
 
 let currentTab = 'images';
 let mediaSearchDebounce;
+let mediaSelectionMode = false;
+const mediaSelections = {
+    images: new Map(),
+    audio: new Map(),
+    videos: new Map(),
+    documents: new Map()
+};
+window.mediaSelectionMode = false;
 
 // ── Audio tab state ──────────────────────────────────────────────────────────
 let audioItems = [];
@@ -34,6 +42,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const gallerySearchEl = document.getElementById('gallery-search');
         if (gallerySearchEl) gallerySearchEl.value = this.value;
         mediaSearchDebounce = setTimeout(function () {
+            clearAllMediaSelections();
             if (currentTab === 'images') {
                 galleryOffset = 0;
                 loadGallery();
@@ -56,6 +65,15 @@ document.addEventListener('DOMContentLoaded', function () {
         // Keep gallery-search hidden/synced with the unified search bar
         gallerySearchEl.classList.add('is-hidden');
     }
+
+    const providerFilter = document.getElementById('gallery-provider-filter');
+    if (providerFilter) {
+        providerFilter.addEventListener('change', function () {
+            clearAllMediaSelections();
+        });
+    }
+
+    updateMediaBulkToolbar();
 });
 
 // ── Tab switching ─────────────────────────────────────────────────────────────
@@ -79,6 +97,9 @@ document.addEventListener('keydown', function (e) {
 });
 
 function switchTab(tab) {
+    if (tab !== currentTab) {
+        clearAllMediaSelections();
+    }
     currentTab = tab;
 
     document.querySelectorAll('.media-tab').forEach(function (btn) {
@@ -98,10 +119,13 @@ function switchTab(tab) {
         loadGallery();
     } else if (tab === 'audio') {
         if (audioItems.length === 0) loadAudio();
+        else renderAudioGrid(audioItems);
     } else if (tab === 'videos') {
         if (videoItems.length === 0) loadVideos();
+        else renderVideoGrid(videoItems);
     } else if (tab === 'documents') {
         if (docItems.length === 0) loadDocuments();
+        else renderDocList(docItems);
     }
 }
 
@@ -168,6 +192,11 @@ function renderAudioGrid(items) {
 
         const card = document.createElement('div');
         card.className = 'media-audio-card' + (hasFile ? '' : ' media-audio-card--unavailable');
+        const selectionKey = mediaSelectionKey('audio', item);
+        if (mediaSelectionMode) {
+            if (isMediaItemSelected('audio', selectionKey)) card.classList.add('media-card-selected');
+            card.appendChild(createMediaSelectionCheckbox('audio', selectionKey, { id: item.id }));
+        }
 
         // Title
         const titleEl = document.createElement('div');
@@ -245,8 +274,8 @@ function updateAudioPagination() {
     document.getElementById('audio-page-info').textContent = page + ' / ' + pages + ' (' + audioTotal + ')';
 }
 
-function audioPrev() { audioOffset = Math.max(0, audioOffset - MEDIA_LIMIT); loadAudio(); }
-function audioNext() { audioOffset += MEDIA_LIMIT; loadAudio(); }
+function audioPrev() { clearCurrentMediaSelection(false); audioOffset = Math.max(0, audioOffset - MEDIA_LIMIT); loadAudio(); }
+function audioNext() { clearCurrentMediaSelection(false); audioOffset += MEDIA_LIMIT; loadAudio(); }
 
 async function deleteAudioItem(id) {
     const confirmed = await showConfirm(t('common.confirm_title'), t('gallery.confirm_delete'));
@@ -338,6 +367,277 @@ async function audioDeleteCurrent() {
     } catch (e) { await showAlert(t('common.error'), e.message || t('common.error')); }
 }
 
+function isMediaSelectionModeActive() {
+    return mediaSelectionMode;
+}
+
+function mediaSelectionKey(tab, item) {
+    if (!item) return '';
+    if (tab === 'images') {
+        return String(item.source || item.source_db || '') + ':' + String(item.id || '');
+    }
+    return String(item.id || '');
+}
+
+function currentMediaSelection() {
+    return mediaSelections[currentTab] || new Map();
+}
+
+function isMediaItemSelected(tab, key) {
+    const map = mediaSelections[tab];
+    return !!(map && map.has(String(key)));
+}
+
+function selectedMediaCount(tab) {
+    const map = mediaSelections[tab || currentTab];
+    return map ? map.size : 0;
+}
+
+function mediaTranslateCount(key, count) {
+    const template = t(key);
+    return String(template || '').replace('{count}', String(count));
+}
+
+function updateMediaBulkToolbar() {
+    window.mediaSelectionMode = mediaSelectionMode;
+    document.body.classList.toggle('media-selection-active', mediaSelectionMode);
+
+    const selectBtn = document.getElementById('media-select-mode-btn');
+    const selectVisibleBtn = document.getElementById('media-select-visible-btn');
+    const clearBtn = document.getElementById('media-clear-selection-btn');
+    const deleteBtn = document.getElementById('media-delete-selected-btn');
+    const countEl = document.getElementById('media-selected-count');
+    const count = selectedMediaCount();
+
+    if (selectBtn) {
+        selectBtn.textContent = mediaSelectionMode ? t('media.bulk_select_done') : t('media.bulk_select');
+        selectBtn.classList.toggle('active', mediaSelectionMode);
+    }
+    if (selectVisibleBtn) selectVisibleBtn.disabled = !mediaSelectionMode;
+    if (clearBtn) clearBtn.disabled = count === 0;
+    if (deleteBtn) deleteBtn.disabled = count === 0;
+    if (countEl) {
+        countEl.textContent = count > 0
+            ? mediaTranslateCount('media.bulk_selected_count', count)
+            : t('media.bulk_selected_none');
+    }
+}
+
+function rerenderCurrentMediaTab() {
+    if (currentTab === 'images' && typeof renderGrid === 'function') {
+        renderGrid(galleryImages || []);
+    } else if (currentTab === 'audio') {
+        renderAudioGrid(audioItems || []);
+    } else if (currentTab === 'videos') {
+        renderVideoGrid(videoItems || []);
+    } else if (currentTab === 'documents') {
+        renderDocList(docItems || []);
+    }
+}
+
+function toggleMediaSelectionMode() {
+    mediaSelectionMode = !mediaSelectionMode;
+    if (!mediaSelectionMode) clearAllMediaSelections(false);
+    updateMediaBulkToolbar();
+    rerenderCurrentMediaTab();
+}
+
+function clearCurrentMediaSelection(rerender = true) {
+    currentMediaSelection().clear();
+    updateMediaBulkToolbar();
+    if (rerender) rerenderCurrentMediaTab();
+}
+
+function clearAllMediaSelections(rerender = false) {
+    Object.keys(mediaSelections).forEach(function (tab) {
+        mediaSelections[tab].clear();
+    });
+    updateMediaBulkToolbar();
+    if (rerender) rerenderCurrentMediaTab();
+}
+
+function getCurrentVisibleMediaItems() {
+    if (currentTab === 'images') {
+        return (galleryImages || []).map(function (item) {
+            const payload = { id: item.id, source: item.source_db || '' };
+            return { key: mediaSelectionKey('images', payload), payload: payload };
+        });
+    }
+    if (currentTab === 'audio') {
+        return (audioItems || []).map(function (item) {
+            return { key: mediaSelectionKey('audio', item), payload: { id: item.id } };
+        });
+    }
+    if (currentTab === 'videos') {
+        return (videoItems || []).map(function (item) {
+            return { key: mediaSelectionKey('videos', item), payload: { id: item.id } };
+        });
+    }
+    if (currentTab === 'documents') {
+        return (docItems || []).map(function (item) {
+            return { key: mediaSelectionKey('documents', item), payload: { id: item.id } };
+        });
+    }
+    return [];
+}
+
+function selectVisibleMediaItems() {
+    if (!mediaSelectionMode) {
+        mediaSelectionMode = true;
+    }
+    const map = currentMediaSelection();
+    getCurrentVisibleMediaItems().forEach(function (entry) {
+        if (entry.key) map.set(String(entry.key), entry.payload);
+    });
+    updateMediaBulkToolbar();
+    rerenderCurrentMediaTab();
+}
+
+async function reloadCurrentMediaTabAfterDelete() {
+    if (currentTab === 'images') {
+        await loadGallery();
+        if ((galleryImages || []).length === 0 && galleryOffset > 0) {
+            galleryOffset = Math.max(0, galleryOffset - GALLERY_LIMIT);
+            await loadGallery();
+        }
+    } else if (currentTab === 'audio') {
+        await loadAudio();
+        if ((audioItems || []).length === 0 && audioOffset > 0) {
+            audioOffset = Math.max(0, audioOffset - MEDIA_LIMIT);
+            await loadAudio();
+        }
+    } else if (currentTab === 'videos') {
+        await loadVideos();
+        if ((videoItems || []).length === 0 && videoOffset > 0) {
+            videoOffset = Math.max(0, videoOffset - MEDIA_LIMIT);
+            await loadVideos();
+        }
+    } else if (currentTab === 'documents') {
+        await loadDocuments();
+        if ((docItems || []).length === 0 && docOffset > 0) {
+            docOffset = Math.max(0, docOffset - MEDIA_LIMIT);
+            await loadDocuments();
+        }
+    }
+}
+
+async function deleteSelectedMediaItems() {
+    const selection = Array.from(currentMediaSelection().values());
+    const count = selection.length;
+    if (count === 0) return;
+
+    const confirmed = await showConfirm(t('common.confirm_title'), mediaTranslateCount('media.bulk_confirm_delete', count));
+    if (!confirmed) return;
+
+    try {
+        let resp;
+        if (currentTab === 'images') {
+            resp = await fetch('/api/image-gallery/bulk-delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ items: selection })
+            });
+        } else {
+            resp = await fetch('/api/media/bulk-delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids: selection.map(function (item) { return item.id; }) })
+            });
+        }
+        const data = await resp.json();
+        if (!resp.ok || data.status === 'error') {
+            await showAlert(t('common.error'), data.message || t('common.error'));
+            return;
+        }
+
+        const deleted = Number(data.deleted || 0);
+        const failed = Array.isArray(data.failed) ? data.failed.length : 0;
+        clearCurrentMediaSelection(false);
+        if (data.status === 'partial') {
+            showToast(mediaTranslateCount('media.bulk_partial_deleted', deleted).replace('{failed}', String(failed)), 'warning');
+        } else {
+            showToast(mediaTranslateCount('media.bulk_deleted', deleted), 'success');
+        }
+        await reloadCurrentMediaTabAfterDelete();
+        updateMediaBulkToolbar();
+    } catch (e) {
+        await showAlert(t('common.error'), e.message || t('common.error'));
+    }
+}
+
+function toggleMediaItemSelection(tab, key, payload, checked) {
+    const map = mediaSelections[tab];
+    if (!map || !key) return;
+    if (checked) {
+        map.set(String(key), payload);
+    } else {
+        map.delete(String(key));
+    }
+    updateMediaBulkToolbar();
+}
+
+function createMediaSelectionCheckbox(tab, key, payload) {
+    const label = document.createElement('label');
+    label.className = 'media-select-check-wrap';
+    label.addEventListener('click', function (event) {
+        event.stopPropagation();
+    });
+
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.className = 'media-select-check';
+    input.checked = isMediaItemSelected(tab, key);
+    input.setAttribute('aria-label', t('media.bulk_select_item'));
+    input.addEventListener('change', function (event) {
+        event.stopPropagation();
+        toggleMediaItemSelection(tab, key, payload, input.checked);
+        rerenderCurrentMediaTab();
+    });
+    label.appendChild(input);
+    return label;
+}
+
+function wireGalleryMediaSelectionChecks(root) {
+    root.querySelectorAll('.media-select-check[data-tab="images"]').forEach(function (input) {
+        input.addEventListener('click', function (event) {
+            event.stopPropagation();
+        });
+        input.addEventListener('change', function (event) {
+            event.stopPropagation();
+            const payload = { id: parseInt(input.dataset.id, 10), source: input.dataset.source || '' };
+            toggleMediaItemSelection('images', input.dataset.selectionKey, payload, input.checked);
+            rerenderCurrentMediaTab();
+        });
+    });
+}
+
+function wireDocumentMediaSelectionChecks(root) {
+    root.querySelectorAll('.media-select-check[data-tab="documents"]').forEach(function (input) {
+        input.addEventListener('click', function (event) {
+            event.stopPropagation();
+        });
+        input.addEventListener('change', function (event) {
+            event.stopPropagation();
+            toggleMediaItemSelection('documents', input.dataset.selectionKey, { id: parseInt(input.dataset.id, 10) }, input.checked);
+            rerenderCurrentMediaTab();
+        });
+    });
+}
+
+function handleMediaGalleryCardClick(event, id, source) {
+    if (!mediaSelectionMode) return false;
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    const payload = { id: parseInt(id, 10), source: source || '' };
+    const key = mediaSelectionKey('images', payload);
+    const nextChecked = !isMediaItemSelected('images', key);
+    toggleMediaItemSelection('images', key, payload, nextChecked);
+    rerenderCurrentMediaTab();
+    return true;
+}
+
 // ── Videos tab ────────────────────────────────────────────────────────────────
 async function loadVideos() {
     if (isLoadingVideos) return;
@@ -394,6 +694,11 @@ function renderVideoGrid(items) {
 
         const card = document.createElement('div');
         card.className = 'media-video-card' + (hasFile ? '' : ' media-video-card--unavailable');
+        const selectionKey = mediaSelectionKey('videos', item);
+        if (mediaSelectionMode) {
+            if (isMediaItemSelected('videos', selectionKey)) card.classList.add('media-card-selected');
+            card.appendChild(createMediaSelectionCheckbox('videos', selectionKey, { id: item.id }));
+        }
 
         const titleEl = document.createElement('div');
         titleEl.className = 'media-video-card-title';
@@ -472,8 +777,8 @@ function updateVideoPagination() {
     document.getElementById('video-page-info').textContent = page + ' / ' + pages + ' (' + videoTotal + ')';
 }
 
-function videoPrev() { videoOffset = Math.max(0, videoOffset - MEDIA_LIMIT); loadVideos(); }
-function videoNext() { videoOffset += MEDIA_LIMIT; loadVideos(); }
+function videoPrev() { clearCurrentMediaSelection(false); videoOffset = Math.max(0, videoOffset - MEDIA_LIMIT); loadVideos(); }
+function videoNext() { clearCurrentMediaSelection(false); videoOffset += MEDIA_LIMIT; loadVideos(); }
 
 async function deleteVideoItem(id) {
     const confirmed = await showConfirm(t('common.confirm_title'), t('gallery.confirm_delete'));
@@ -593,8 +898,15 @@ function renderDocList(items) {
         const previewHref = isInlineDocFmt(fmt) ? escapeHtml(webPath + '?inline=1') : '';
         const dlHref = escapeHtml(webPath);
         const filename = escapeHtml(item.filename || 'document');
+        const selectionKey = mediaSelectionKey('documents', item);
+        const selectedClass = mediaSelectionMode && isMediaItemSelected('documents', selectionKey) ? ' media-card-selected' : '';
 
-        html += '<div class="media-doc-row">';
+        html += '<div class="media-doc-row' + selectedClass + '">';
+        if (mediaSelectionMode) {
+            html += '<label class="media-select-check-wrap" onclick="event.stopPropagation()">';
+            html += '<input type="checkbox" class="media-select-check" data-tab="documents" data-selection-key="' + escapeHtml(selectionKey) + '" data-id="' + item.id + '"' + (selectedClass ? ' checked' : '') + ' aria-label="' + escapeHtml(t('media.bulk_select_item')) + '">';
+            html += '</label>';
+        }
         html += '<div class="media-doc-row-icon">' + icon + '</div>';
         html += '<div class="media-doc-row-info">';
         html += '<div class="media-doc-row-title">' + title + '</div>';
@@ -610,6 +922,7 @@ function renderDocList(items) {
         html += '</div>';
     });
     list.innerHTML = html;
+    wireDocumentMediaSelectionChecks(list);
 }
 
 function updateDocPagination() {
@@ -623,8 +936,8 @@ function updateDocPagination() {
     document.getElementById('doc-page-info').textContent = page + ' / ' + pages + ' (' + docTotal + ')';
 }
 
-function docPrev() { docOffset = Math.max(0, docOffset - MEDIA_LIMIT); loadDocuments(); }
-function docNext() { docOffset += MEDIA_LIMIT; loadDocuments(); }
+function docPrev() { clearCurrentMediaSelection(false); docOffset = Math.max(0, docOffset - MEDIA_LIMIT); loadDocuments(); }
+function docNext() { clearCurrentMediaSelection(false); docOffset += MEDIA_LIMIT; loadDocuments(); }
 
 async function docDelete(id) {
     const confirmed = await showConfirm(t('common.confirm_title'), t('gallery.confirm_delete'));

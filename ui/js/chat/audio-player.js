@@ -42,8 +42,8 @@ class ChatAudioPlayer {
         
         container.innerHTML = `
             <button class="audio-play-btn" title="${t('chat.audio_play_pause')}">
-                ${window.chatUiIconMarkup ? window.chatUiIconMarkup('play', 'play-icon') : ''}
-                ${window.chatUiIconMarkup ? window.chatUiIconMarkup('pause', 'pause-icon is-hidden') : ''}
+                <span class="audio-emoji-icon play-icon" aria-hidden="true">▶️</span>
+                <span class="audio-emoji-icon pause-icon is-hidden" aria-hidden="true">⏸️</span>
             </button>
             <div class="audio-progress-container">
                 <div class="audio-progress-bar">

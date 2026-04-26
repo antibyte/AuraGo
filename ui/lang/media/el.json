@@ -14,5 +14,16 @@
   "media.audio_type_audio": "Αρχείο ήχου",
   "media.audio_type_music": "Μουσική",
   "media.video_type_video": "Βίντεο",
-  "media.file_not_available": "Το αρχείο δεν είναι διαθέσιμο"
+  "media.file_not_available": "Το αρχείο δεν είναι διαθέσιμο",
+  "media.bulk_select": "Επιλογή",
+  "media.bulk_select_done": "Τέλος",
+  "media.bulk_select_visible": "Επιλογή ορατών",
+  "media.bulk_clear_selection": "Εκκαθάριση επιλογής",
+  "media.bulk_delete_selected": "Διαγραφή επιλεγμένων",
+  "media.bulk_selected_count": "{count} επιλεγμένα",
+  "media.bulk_selected_none": "0 επιλεγμένα",
+  "media.bulk_select_item": "Επιλογή στοιχείου",
+  "media.bulk_confirm_delete": "Να διαγραφούν {count} επιλεγμένα στοιχεία;",
+  "media.bulk_deleted": "Διαγράφηκαν {count} στοιχεία",
+  "media.bulk_partial_deleted": "Διαγράφηκαν {count}, απέτυχαν {failed}"
 }

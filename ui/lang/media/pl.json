@@ -14,5 +14,16 @@
   "media.audio_type_audio": "Plik audio",
   "media.audio_type_music": "Muzyka",
   "media.video_type_video": "Wideo",
-  "media.file_not_available": "Plik niedostępny"
+  "media.file_not_available": "Plik niedostępny",
+  "media.bulk_select": "Wybierz",
+  "media.bulk_select_done": "Gotowe",
+  "media.bulk_select_visible": "Wybierz widoczne",
+  "media.bulk_clear_selection": "Wyczyść wybór",
+  "media.bulk_delete_selected": "Usuń wybrane",
+  "media.bulk_selected_count": "Wybrano {count}",
+  "media.bulk_selected_none": "Wybrano 0",
+  "media.bulk_select_item": "Wybierz element",
+  "media.bulk_confirm_delete": "Usunąć {count} wybranych elementów?",
+  "media.bulk_deleted": "Usunięto {count} elementów",
+  "media.bulk_partial_deleted": "Usunięto {count}, niepowodzeń: {failed}"
 }

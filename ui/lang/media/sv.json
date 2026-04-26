@@ -14,5 +14,16 @@
   "media.audio_type_audio": "Ljudfil",
   "media.audio_type_music": "Musik",
   "media.video_type_video": "Video",
-  "media.file_not_available": "Fil inte tillgänglig"
+  "media.file_not_available": "Fil inte tillgänglig",
+  "media.bulk_select": "Välj",
+  "media.bulk_select_done": "Klar",
+  "media.bulk_select_visible": "Välj synliga",
+  "media.bulk_clear_selection": "Rensa val",
+  "media.bulk_delete_selected": "Ta bort valda",
+  "media.bulk_selected_count": "{count} valda",
+  "media.bulk_selected_none": "0 valda",
+  "media.bulk_select_item": "Välj objekt",
+  "media.bulk_confirm_delete": "Ta bort {count} valda objekt?",
+  "media.bulk_deleted": "Tog bort {count} objekt",
+  "media.bulk_partial_deleted": "Tog bort {count}, {failed} misslyckades"
 }

@@ -75,12 +75,21 @@ async function loadGallery() {
 function renderGrid(images) {
     const grid = document.getElementById('gallery-grid');
     let html = '';
+    const selectionActive = typeof isMediaSelectionModeActive === 'function' && isMediaSelectionModeActive();
     images.forEach(function (img) {
         const webPath = img.web_path || ('/files/generated_images/' + img.filename);
         const promptDisplay = escapeHtml(img.prompt || '').substring(0, 100);
         const date = img.created_at ? new Date(img.created_at).toLocaleDateString() : '';
         const providerBadge = img.provider || '';
-        html += '<div class="gallery-card" data-source="' + escapeHtml(img.source_db || '') + '" data-media-id="' + img.id + '" onclick="openLightbox(this.dataset.mediaId, this.dataset.source)">';
+        const sourceDB = img.source_db || '';
+        const selectionKey = sourceDB + ':' + img.id;
+        const selectedClass = selectionActive && typeof isMediaItemSelected === 'function' && isMediaItemSelected('images', selectionKey) ? ' media-card-selected' : '';
+        html += '<div class="gallery-card' + selectedClass + '" data-source="' + escapeHtml(sourceDB) + '" data-media-id="' + img.id + '" onclick="handleGalleryCardClick(event, this.dataset.mediaId, this.dataset.source)">';
+        if (selectionActive) {
+            html += '<label class="media-select-check-wrap" onclick="event.stopPropagation()">';
+            html += '<input type="checkbox" class="media-select-check" data-tab="images" data-selection-key="' + escapeHtml(selectionKey) + '" data-id="' + img.id + '" data-source="' + escapeHtml(sourceDB) + '"' + (selectedClass ? ' checked' : '') + ' aria-label="' + escapeHtml(t('media.bulk_select_item')) + '">';
+            html += '</label>';
+        }
         html += '<img src="' + escapeHtml(webPath) + '" loading="lazy" alt="' + escapeHtml(img.prompt || '') + '">';
         html += '<div class="gallery-card-info">';
         html += '<div class="gallery-card-prompt">' + promptDisplay + '</div>';
@@ -88,6 +97,9 @@ function renderGrid(images) {
         html += '</div></div>';
     });
     grid.innerHTML = html;
+    if (typeof wireGalleryMediaSelectionChecks === 'function') {
+        wireGalleryMediaSelectionChecks(grid);
+    }
 }
 
 function updatePagination() {
@@ -111,11 +123,13 @@ function updatePagination() {
 }
 
 function galleryPrev() {
+    if (typeof clearCurrentMediaSelection === 'function') clearCurrentMediaSelection(false);
     galleryOffset = Math.max(0, galleryOffset - GALLERY_LIMIT);
     loadGallery();
 }
 
 function galleryNext() {
+    if (typeof clearCurrentMediaSelection === 'function') clearCurrentMediaSelection(false);
     galleryOffset += GALLERY_LIMIT;
     loadGallery();
 }
@@ -181,6 +195,13 @@ function closeLightbox(event) {
     document.getElementById('lightbox').classList.add('is-hidden');
     currentLightboxId = null;
     currentLightboxSource = '';
+}
+
+function handleGalleryCardClick(event, id, source = '') {
+    if (typeof handleMediaGalleryCardClick === 'function' && handleMediaGalleryCardClick(event, id, source)) {
+        return;
+    }
+    openLightbox(id, source);
 }
 
 async function galleryDeleteCurrent() {

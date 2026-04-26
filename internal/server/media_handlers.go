@@ -2,6 +2,8 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -10,6 +12,17 @@ import (
 
 	"aurago/internal/tools"
 )
+
+var errMediaItemNotFound = errors.New("media item not found")
+
+type mediaBulkDeleteRequest struct {
+	IDs []int64 `json:"ids"`
+}
+
+type mediaBulkDeleteFailure struct {
+	ID      int64  `json:"id"`
+	Message string `json:"message"`
+}
 
 // handleMediaList handles GET /api/media — lists media items with optional type/search filter.
 func handleMediaList(s *Server) http.HandlerFunc {
@@ -43,6 +56,101 @@ func handleMediaList(s *Server) http.HandlerFunc {
 			"total":  total,
 			"limit":  limit,
 			"offset": offset,
+		})
+	}
+}
+
+func (s *Server) deleteMediaItemByID(id int64, dataDir string) error {
+	item, err := tools.GetMedia(s.MediaRegistryDB, id)
+	if err != nil {
+		return errMediaItemNotFound
+	}
+	if err := tools.DeleteMedia(s.MediaRegistryDB, id); err != nil {
+		return fmt.Errorf("failed to delete media item: %w", err)
+	}
+
+	if item.FilePath != "" {
+		_ = os.Remove(item.FilePath)
+		return nil
+	}
+	if item.Filename == "" {
+		return nil
+	}
+
+	var subDir string
+	switch item.MediaType {
+	case "audio", "music":
+		subDir = "audio"
+	case "tts":
+		subDir = "tts"
+	case "document":
+		subDir = "documents"
+	case "image":
+		subDir = "generated_images"
+	case "video":
+		subDir = "generated_videos"
+	}
+	if subDir != "" {
+		_ = os.Remove(filepath.Join(dataDir, subDir, item.Filename))
+	}
+	return nil
+}
+
+// handleMediaBulkDelete handles POST /api/media/bulk-delete for registry media
+// such as audio, videos, and documents.
+func handleMediaBulkDelete(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "method not allowed"})
+			return
+		}
+
+		var req mediaBulkDeleteRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "invalid request body"})
+			return
+		}
+
+		seen := make(map[int64]bool)
+		var ids []int64
+		for _, id := range req.IDs {
+			if id <= 0 || seen[id] {
+				continue
+			}
+			seen[id] = true
+			ids = append(ids, id)
+		}
+		if len(ids) == 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "no media IDs selected"})
+			return
+		}
+
+		s.CfgMu.RLock()
+		dataDir := s.Cfg.Directories.DataDir
+		s.CfgMu.RUnlock()
+
+		deleted := 0
+		failures := []mediaBulkDeleteFailure{}
+		for _, id := range ids {
+			if err := s.deleteMediaItemByID(id, dataDir); err != nil {
+				failures = append(failures, mediaBulkDeleteFailure{ID: id, Message: err.Error()})
+				continue
+			}
+			deleted++
+		}
+
+		status := "ok"
+		if len(failures) > 0 {
+			status = "partial"
+		}
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"status":  status,
+			"deleted": deleted,
+			"failed":  failures,
 		})
 	}
 }
@@ -88,41 +196,16 @@ func handleMediaByID(s *Server) http.HandlerFunc {
 			json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok", "item": item})
 
 		case http.MethodDelete:
-			// Get file info first for physical removal
-			item, err := tools.GetMedia(s.MediaRegistryDB, id)
-			if err != nil {
-				w.WriteHeader(http.StatusNotFound)
-				json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "media item not found"})
-				return
-			}
-			// Soft-delete DB record
-			if err := tools.DeleteMedia(s.MediaRegistryDB, id); err != nil {
+			if err := s.deleteMediaItemByID(id, dataDir); err != nil {
+				if errors.Is(err, errMediaItemNotFound) {
+					w.WriteHeader(http.StatusNotFound)
+					json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "media item not found"})
+					return
+				}
 				w.WriteHeader(http.StatusInternalServerError)
 				s.Logger.Error("Failed to delete media item", "media_id", id, "error", err)
 				json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "Failed to delete media item"})
 				return
-			}
-			// Best-effort physical file removal
-			if item.FilePath != "" {
-				os.Remove(item.FilePath)
-			} else if item.Filename != "" {
-				// Try to compute path from media type
-				var subDir string
-				switch item.MediaType {
-				case "audio", "music":
-					subDir = "audio"
-				case "tts":
-					subDir = "tts"
-				case "document":
-					subDir = "documents"
-				case "image":
-					subDir = "generated_images"
-				case "video":
-					subDir = "generated_videos"
-				}
-				if subDir != "" {
-					os.Remove(filepath.Join(dataDir, subDir, item.Filename))
-				}
 			}
 			json.NewEncoder(w).Encode(map[string]string{"status": "ok", "message": "Media item deleted"})
 

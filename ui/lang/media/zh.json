@@ -14,5 +14,16 @@
   "media.audio_type_audio": "音频文件",
   "media.audio_type_music": "音乐",
   "media.video_type_video": "视频",
-  "media.file_not_available": "文件不可用"
+  "media.file_not_available": "文件不可用",
+  "media.bulk_select": "选择",
+  "media.bulk_select_done": "完成",
+  "media.bulk_select_visible": "选择可见项",
+  "media.bulk_clear_selection": "清除选择",
+  "media.bulk_delete_selected": "删除所选",
+  "media.bulk_selected_count": "已选择 {count} 项",
+  "media.bulk_selected_none": "已选择 0 项",
+  "media.bulk_select_item": "选择项目",
+  "media.bulk_confirm_delete": "删除选中的 {count} 项？",
+  "media.bulk_deleted": "已删除 {count} 项",
+  "media.bulk_partial_deleted": "已删除 {count} 项，{failed} 项失败"
 }

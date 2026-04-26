@@ -84,6 +84,70 @@
     display: none;
 }
 
+.media-bulk-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    flex-wrap: wrap;
+    margin: -0.35rem 0 1rem;
+    padding: 0.65rem 0;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.media-bulk-toolbar .btn-gallery-nav.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.media-selected-count {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    margin-left: auto;
+}
+
+.media-container .gallery-card,
+.media-audio-card,
+.media-video-card,
+.media-doc-row {
+    position: relative;
+}
+
+.media-select-check-wrap {
+    position: absolute;
+    top: 0.55rem;
+    left: 0.55rem;
+    z-index: 4;
+    display: grid;
+    place-items: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--bg-primary) 80%, transparent);
+    border: 1px solid var(--border-subtle);
+    box-shadow: var(--surface-shadow);
+    cursor: pointer;
+}
+
+.media-select-check {
+    width: 1.05rem;
+    height: 1.05rem;
+    margin: 0;
+    accent-color: var(--accent);
+    cursor: pointer;
+}
+
+.media-card-selected {
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 50%, transparent), var(--surface-shadow) !important;
+}
+
+.media-doc-row .media-select-check-wrap {
+    position: static;
+    flex: 0 0 auto;
+    margin-right: 0.25rem;
+}
+
 /* ── Extra controls per tab (e.g. provider filter for images) ── */
 .media-extra-controls {
     display: flex;
@@ -442,6 +506,19 @@
         align-items: stretch;
     }
 
+    .media-bulk-toolbar {
+        align-items: stretch;
+    }
+
+    .media-bulk-toolbar .btn-gallery-nav {
+        flex: 1 1 calc(50% - 0.55rem);
+    }
+
+    .media-selected-count {
+        flex: 1 1 100%;
+        margin-left: 0;
+    }
+
     .media-controls > * {
         width: 100%;
         min-width: 0;
@@ -531,6 +608,17 @@
     font-size: 0.75rem;
     transition: all 0.2s ease;
     flex-shrink: 0;
+}
+
+.audio-emoji-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.15rem;
+    height: 1.15rem;
+    font-size: 0.95rem;
+    line-height: 1;
+    pointer-events: none;
 }
 
 .audio-play-btn:hover {

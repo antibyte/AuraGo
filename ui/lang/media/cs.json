@@ -14,5 +14,16 @@
   "media.audio_type_audio": "Zvukový soubor",
   "media.audio_type_music": "Hudba",
   "media.video_type_video": "Video",
-  "media.file_not_available": "Soubor není dostupný"
+  "media.file_not_available": "Soubor není dostupný",
+  "media.bulk_select": "Vybrat",
+  "media.bulk_select_done": "Hotovo",
+  "media.bulk_select_visible": "Vybrat viditelné",
+  "media.bulk_clear_selection": "Zrušit výběr",
+  "media.bulk_delete_selected": "Smazat vybrané",
+  "media.bulk_selected_count": "{count} vybráno",
+  "media.bulk_selected_none": "0 vybráno",
+  "media.bulk_select_item": "Vybrat položku",
+  "media.bulk_confirm_delete": "Smazat {count} vybraných položek?",
+  "media.bulk_deleted": "Smazáno {count} položek",
+  "media.bulk_partial_deleted": "Smazáno {count}, {failed} se nezdařilo"
 }

@@ -14,5 +14,16 @@
   "media.audio_type_audio": "音声ファイル",
   "media.audio_type_music": "音楽",
   "media.video_type_video": "動画",
-  "media.file_not_available": "ファイルが利用できません"
+  "media.file_not_available": "ファイルが利用できません",
+  "media.bulk_select": "選択",
+  "media.bulk_select_done": "完了",
+  "media.bulk_select_visible": "表示中を選択",
+  "media.bulk_clear_selection": "選択を解除",
+  "media.bulk_delete_selected": "選択を削除",
+  "media.bulk_selected_count": "{count} 件選択中",
+  "media.bulk_selected_none": "0 件選択中",
+  "media.bulk_select_item": "項目を選択",
+  "media.bulk_confirm_delete": "選択した {count} 件を削除しますか？",
+  "media.bulk_deleted": "{count} 件を削除しました",
+  "media.bulk_partial_deleted": "{count} 件削除、{failed} 件失敗"
 }

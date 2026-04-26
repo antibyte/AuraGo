@@ -14,5 +14,16 @@
   "media.audio_type_audio": "Lydfil",
   "media.audio_type_music": "Musikk",
   "media.video_type_video": "Video",
-  "media.file_not_available": "Fil ikke tilgjengelig"
+  "media.file_not_available": "Fil ikke tilgjengelig",
+  "media.bulk_select": "Velg",
+  "media.bulk_select_done": "Ferdig",
+  "media.bulk_select_visible": "Velg synlige",
+  "media.bulk_clear_selection": "Tøm valg",
+  "media.bulk_delete_selected": "Slett valgte",
+  "media.bulk_selected_count": "{count} valgt",
+  "media.bulk_selected_none": "0 valgt",
+  "media.bulk_select_item": "Velg element",
+  "media.bulk_confirm_delete": "Slette {count} valgte elementer?",
+  "media.bulk_deleted": "Slettet {count} elementer",
+  "media.bulk_partial_deleted": "Slettet {count}, {failed} feilet"
 }

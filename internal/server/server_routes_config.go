@@ -128,10 +128,12 @@ func (s *Server) registerConfigAPIRoutes(mux *http.ServeMux, sse *SSEBroadcaster
 	// Image Generation endpoints
 	mux.HandleFunc("/api/image-generation/test", handleImageGenerationTest(s))
 	mux.HandleFunc("/api/image-gallery", handleImageGalleryList(s))
+	mux.HandleFunc("/api/image-gallery/bulk-delete", handleImageGalleryBulkDelete(s))
 	mux.HandleFunc("/api/image-gallery/", handleImageGalleryByID(s))
 
 	// Media Registry endpoints (audio, documents, and agent-sent media)
 	mux.HandleFunc("/api/media", handleMediaList(s))
+	mux.HandleFunc("/api/media/bulk-delete", handleMediaBulkDelete(s))
 	mux.HandleFunc("/api/media/", handleMediaByID(s))
 
 	// AdGuard Home integration endpoints

@@ -2,6 +2,8 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -11,6 +13,17 @@ import (
 
 	"aurago/internal/tools"
 )
+
+var errImageGalleryItemNotFound = errors.New("image not found")
+
+type imageGalleryBulkDeleteItem struct {
+	ID     int64  `json:"id"`
+	Source string `json:"source"`
+}
+
+type imageGalleryBulkDeleteRequest struct {
+	Items []imageGalleryBulkDeleteItem `json:"items"`
+}
 
 // handleImageGenerationTest returns a handler that tests image generation with a simple prompt.
 func handleImageGenerationTest(s *Server) http.HandlerFunc {
@@ -105,6 +118,47 @@ type unifiedImage struct {
 
 func (u unifiedImage) GetCreatedAt() string {
 	return u.CreatedAt
+}
+
+func (s *Server) deleteImageGalleryItemByID(id int64, source, dataDir string) error {
+	var filename string
+	var filePath string
+
+	if source == "media_registry" && s.MediaRegistryDB != nil {
+		item, err := tools.GetMedia(s.MediaRegistryDB, id)
+		if err != nil {
+			return errImageGalleryItemNotFound
+		}
+		filename = item.Filename
+		filePath = item.FilePath
+		if err := tools.DeleteMedia(s.MediaRegistryDB, id); err != nil {
+			return fmt.Errorf("failed to delete image: %w", err)
+		}
+		if _, err := tools.DeleteGeneratedImagesByFilename(s.ImageGalleryDB, filename); err != nil {
+			s.Logger.Warn("Failed to delete companion generated image record", "filename", filename, "error", err)
+		}
+	} else {
+		img, err := tools.GetGeneratedImage(s.ImageGalleryDB, id)
+		if err != nil {
+			return errImageGalleryItemNotFound
+		}
+		filename = img.Filename
+		if err := tools.DeleteGeneratedImage(s.ImageGalleryDB, id, dataDir); err != nil {
+			return fmt.Errorf("failed to delete image: %w", err)
+		}
+		if _, err := tools.DeleteMediaImagesByFilename(s.MediaRegistryDB, filename); err != nil {
+			s.Logger.Warn("Failed to delete companion media image record", "filename", filename, "error", err)
+		}
+	}
+
+	if filename != "" {
+		if filePath != "" {
+			_ = os.Remove(filePath)
+		} else {
+			_ = os.Remove(filepath.Join(dataDir, "generated_images", filename))
+		}
+	}
+	return nil
 }
 
 // handleImageGalleryList returns a handler that lists generated images with pagination.
@@ -231,6 +285,72 @@ func handleImageGalleryList(s *Server) http.HandlerFunc {
 	}
 }
 
+// handleImageGalleryBulkDelete handles POST /api/image-gallery/bulk-delete.
+func handleImageGalleryBulkDelete(s *Server) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.Method != http.MethodPost {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "method not allowed"})
+			return
+		}
+
+		var req imageGalleryBulkDeleteRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "invalid request body"})
+			return
+		}
+
+		seen := make(map[string]bool)
+		var items []imageGalleryBulkDeleteItem
+		for _, item := range req.Items {
+			source := strings.TrimSpace(item.Source)
+			if source == "" {
+				source = "image_gallery"
+			}
+			if item.ID <= 0 {
+				continue
+			}
+			key := source + ":" + strconv.FormatInt(item.ID, 10)
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+			items = append(items, imageGalleryBulkDeleteItem{ID: item.ID, Source: source})
+		}
+		if len(items) == 0 {
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "no images selected"})
+			return
+		}
+
+		s.CfgMu.RLock()
+		dataDir := s.Cfg.Directories.DataDir
+		s.CfgMu.RUnlock()
+
+		deleted := 0
+		failures := []mediaBulkDeleteFailure{}
+		for _, item := range items {
+			if err := s.deleteImageGalleryItemByID(item.ID, item.Source, dataDir); err != nil {
+				failures = append(failures, mediaBulkDeleteFailure{ID: item.ID, Message: err.Error()})
+				continue
+			}
+			deleted++
+		}
+
+		status := "ok"
+		if len(failures) > 0 {
+			status = "partial"
+		}
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"status":  status,
+			"deleted": deleted,
+			"failed":  failures,
+		})
+	}
+}
+
 // handleImageGalleryByID routes GET and DELETE for /api/image-gallery/{id}.
 func handleImageGalleryByID(s *Server) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -320,55 +440,17 @@ func handleImageGalleryByID(s *Server) http.HandlerFunc {
 			})
 
 		case http.MethodDelete:
-			var filename string
-			var filePath string
-
-			if source == "media_registry" && s.MediaRegistryDB != nil {
-				item, err := tools.GetMedia(s.MediaRegistryDB, id)
-				if err != nil {
+			if err := s.deleteImageGalleryItemByID(id, source, dataDir); err != nil {
+				if errors.Is(err, errImageGalleryItemNotFound) {
 					w.WriteHeader(http.StatusNotFound)
 					json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "Image not found"})
 					return
 				}
-				filename = item.Filename
-				filePath = item.FilePath
-				if err := tools.DeleteMedia(s.MediaRegistryDB, id); err != nil {
-					w.WriteHeader(http.StatusInternalServerError)
-					s.Logger.Error("Failed to delete media image", "id", id, "error", err)
-					json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "Failed to delete image"})
-					return
-				}
-				if _, err := tools.DeleteGeneratedImagesByFilename(s.ImageGalleryDB, filename); err != nil {
-					s.Logger.Warn("Failed to delete companion generated image record", "filename", filename, "error", err)
-				}
-			} else {
-				img, err := tools.GetGeneratedImage(s.ImageGalleryDB, id)
-				if err != nil {
-					w.WriteHeader(http.StatusNotFound)
-					json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "Image not found"})
-					return
-				}
-				filename = img.Filename
-				if err := tools.DeleteGeneratedImage(s.ImageGalleryDB, id, dataDir); err != nil {
-					w.WriteHeader(http.StatusInternalServerError)
-					s.Logger.Error("Failed to delete generated image", "image_id", id, "error", err)
-					json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "Failed to delete image"})
-					return
-				}
-				if _, err := tools.DeleteMediaImagesByFilename(s.MediaRegistryDB, filename); err != nil {
-					s.Logger.Warn("Failed to delete companion media image record", "filename", filename, "error", err)
-				}
+				w.WriteHeader(http.StatusInternalServerError)
+				s.Logger.Error("Failed to delete image", "image_id", id, "source", source, "error", err)
+				json.NewEncoder(w).Encode(map[string]string{"status": "error", "message": "Failed to delete image"})
+				return
 			}
-
-			// Best-effort: remove the physical file after both registries have been cleared.
-			if filename != "" {
-				if filePath != "" {
-					os.Remove(filePath)
-				} else {
-					os.Remove(filepath.Join(dataDir, "generated_images", filename))
-				}
-			}
-
 			json.NewEncoder(w).Encode(map[string]string{"status": "ok", "message": "Image deleted"})
 
 		default:

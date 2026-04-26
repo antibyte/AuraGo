@@ -62,6 +62,14 @@
                 onclick="switchTab('documents')" data-i18n="media.tab_documents">📄 Documents</button>
         </div>
 
+        <div id="media-bulk-toolbar" class="media-bulk-toolbar" aria-live="polite">
+            <button id="media-select-mode-btn" type="button" class="btn-gallery-nav" onclick="toggleMediaSelectionMode()" data-i18n="media.bulk_select">Select</button>
+            <button id="media-select-visible-btn" type="button" class="btn-gallery-nav" onclick="selectVisibleMediaItems()" data-i18n="media.bulk_select_visible">Select visible</button>
+            <button id="media-clear-selection-btn" type="button" class="btn-gallery-nav" onclick="clearCurrentMediaSelection()" data-i18n="media.bulk_clear_selection">Clear selection</button>
+            <button id="media-delete-selected-btn" type="button" class="btn-gallery-nav btn-danger" onclick="deleteSelectedMediaItems()" disabled data-i18n="media.bulk_delete_selected">Delete selected</button>
+            <span id="media-selected-count" class="media-selected-count" data-i18n="media.bulk_selected_none">0 selected</span>
+        </div>
+
         <!-- Tab panels -->
         <div id="panel-images" class="media-panel active">
             <div id="images-extra-controls" class="media-extra-controls">

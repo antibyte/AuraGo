@@ -14,5 +14,16 @@
   "media.audio_type_audio": "ऑडियो फ़ाइल",
   "media.audio_type_music": "संगीत",
   "media.video_type_video": "वीडियो",
-  "media.file_not_available": "फ़ाइल उपलब्ध नहीं है"
+  "media.file_not_available": "फ़ाइल उपलब्ध नहीं है",
+  "media.bulk_select": "चुनें",
+  "media.bulk_select_done": "पूर्ण",
+  "media.bulk_select_visible": "दिख रहे चुनें",
+  "media.bulk_clear_selection": "चयन साफ करें",
+  "media.bulk_delete_selected": "चुने हुए हटाएं",
+  "media.bulk_selected_count": "{count} चयनित",
+  "media.bulk_selected_none": "0 चयनित",
+  "media.bulk_select_item": "आइटम चुनें",
+  "media.bulk_confirm_delete": "{count} चुने हुए आइटम हटाएं?",
+  "media.bulk_deleted": "{count} आइटम हटाए गए",
+  "media.bulk_partial_deleted": "{count} हटाए गए, {failed} विफल"
 }

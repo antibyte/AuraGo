@@ -14,5 +14,16 @@
   "media.audio_type_audio": "Audiobestand",
   "media.audio_type_music": "Muziek",
   "media.video_type_video": "Video",
-  "media.file_not_available": "Bestand niet beschikbaar"
+  "media.file_not_available": "Bestand niet beschikbaar",
+  "media.bulk_select": "Selecteren",
+  "media.bulk_select_done": "Gereed",
+  "media.bulk_select_visible": "Zichtbare selecteren",
+  "media.bulk_clear_selection": "Selectie wissen",
+  "media.bulk_delete_selected": "Geselecteerde verwijderen",
+  "media.bulk_selected_count": "{count} geselecteerd",
+  "media.bulk_selected_none": "0 geselecteerd",
+  "media.bulk_select_item": "Item selecteren",
+  "media.bulk_confirm_delete": "{count} geselecteerde items verwijderen?",
+  "media.bulk_deleted": "{count} items verwijderd",
+  "media.bulk_partial_deleted": "{count} verwijderd, {failed} mislukt"
 }
