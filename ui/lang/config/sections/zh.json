@@ -366,6 +366,8 @@
   "config.browser_automation.advanced_desc": "Playwright 边车的技术性 Docker 和会话设置。大多数用户通常不需要修改这些值。",
   "config.section.media_conversion.label": "媒体转换",
   "config.section.media_conversion.desc": "使用 FFmpeg 和 ImageMagick 转换音频、视频和图像。",
+  "config.section.video_download.label": "视频和 YouTube",
+  "config.section.video_download.desc": "YouTube 搜索、聊天播放器，以及可选下载或转写。",
   "config.section.video_generation.label": "视频生成",
   "config.section.video_generation.desc": "使用 AI 从文本和图像提示生成短视频"
 }

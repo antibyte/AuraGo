@@ -9,16 +9,22 @@ conditions: ["tools.video_download.enabled"]
 
 Search, inspect, download, and transcribe videos using yt-dlp.
 
+Search and metadata lookup are read-only. Download and transcription are separate opt-in permissions.
+
 ## Backend
 
 - Default: Docker mode runs `ghcr.io/jauderho/yt-dlp:latest` in an ephemeral container.
 - Native mode is optional and requires `yt-dlp` to be installed on the host or configured via `tools.video_download.yt_dlp_path`.
+- `tools.video_download.enabled: true` exposes `search` and `info`.
+- `download` requires `tools.video_download.allow_download: true`.
+- `transcribe` requires `tools.video_download.allow_transcribe: true`.
+- `tools.video_download.readonly: true` blocks `download` and `transcribe` even when their opt-in flags are enabled.
 
 ## Parameters
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `operation` | string | yes | `search`, `info`, `download`, or `transcribe` |
+| `operation` | string | yes | `search`, `info`, and optionally `download` / `transcribe` when enabled |
 | `query` | string | for `search` | Search query |
 | `url` | string | for `info`, `download`, `transcribe` | Video URL |
 | `format` | string | no | `video`, `audio`, `best`, `bestaudio`, or custom yt-dlp format |

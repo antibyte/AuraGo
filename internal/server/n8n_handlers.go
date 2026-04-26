@@ -1526,6 +1526,9 @@ func buildFeatureFlags(s *Server) agent.ToolFeatureFlags {
 		AllowRemoteShell:             cfg.Agent.AllowRemoteShell,
 		AllowSelfUpdate:              cfg.Agent.AllowSelfUpdate,
 		ContactsEnabled:              cfg.Tools.Contacts.Enabled,
+		VideoDownloadEnabled:         cfg.Tools.VideoDownload.Enabled,
+		VideoDownloadAllowDownload:   cfg.Tools.VideoDownload.AllowDownload && !cfg.Tools.VideoDownload.ReadOnly,
+		VideoDownloadAllowTranscribe: cfg.Tools.VideoDownload.AllowTranscribe && !cfg.Tools.VideoDownload.ReadOnly,
 		PythonSecretInjectionEnabled: cfg.Tools.PythonSecretInjection.Enabled,
 	}
 }

@@ -366,6 +366,8 @@
   "config.browser_automation.advanced_desc": "Playwright साइडकार के लिए तकनीकी Docker और सेशन सेटिंग्स। अधिकांश उपयोगकर्ताओं को सामान्यतः इन मानों को बदलने की आवश्यकता नहीं होती।",
   "config.section.media_conversion.label": "मीडिया रूपांतरण",
   "config.section.media_conversion.desc": "FFmpeg और ImageMagick से ऑडियो, वीडियो और छवियाँ रूपांतरित करें।",
+  "config.section.video_download.label": "वीडियो और YouTube",
+  "config.section.video_download.desc": "YouTube खोज, चैट प्लेयर, और वैकल्पिक डाउनलोड या ट्रांसक्रिप्शन।",
   "config.section.video_generation.label": "वीडियो जनरेशन",
   "config.section.video_generation.desc": "AI से टेक्स्ट और इमेज प्रॉम्प्ट से छोटे वीडियो बनाएं"
 }

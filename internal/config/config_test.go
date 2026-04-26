@@ -425,8 +425,14 @@ func TestLoadVideoDownloadDefaults(t *testing.T) {
 		t.Fatalf("Load() error = %v", err)
 	}
 
-	if cfg.Tools.VideoDownload.Enabled {
-		t.Fatal("expected tools.video_download.enabled to default to false")
+	if !cfg.Tools.VideoDownload.Enabled {
+		t.Fatal("expected tools.video_download.enabled to default to true so search/info are available")
+	}
+	if cfg.Tools.VideoDownload.AllowDownload {
+		t.Fatal("expected tools.video_download.allow_download to default to false")
+	}
+	if cfg.Tools.VideoDownload.AllowTranscribe {
+		t.Fatal("expected tools.video_download.allow_transcribe to default to false")
 	}
 	if cfg.Tools.VideoDownload.Mode != "docker" {
 		t.Fatalf("mode = %q, want docker", cfg.Tools.VideoDownload.Mode)

@@ -366,6 +366,8 @@
   "config.browser_automation.advanced_desc": "Technická nastavení Dockeru a relací pro Playwright sidecar. Většina uživatelů tyto hodnoty obvykle měnit nemusí.",
   "config.section.media_conversion.label": "Konverze médií",
   "config.section.media_conversion.desc": "Převádějte audio, video a obrázky pomocí FFmpeg a ImageMagick.",
+  "config.section.video_download.label": "Stahování videí",
+  "config.section.video_download.desc": "Vyhledávání YouTube, přehrávač v chatu a volitelné stahování nebo přepis.",
   "config.section.video_generation.label": "Generovani videa",
   "config.section.video_generation.desc": "Generujte kratka videa z textovych a obrazovych promptu pomoci AI"
 }

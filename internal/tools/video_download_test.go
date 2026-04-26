@@ -1,6 +1,8 @@
 package tools
 
 import (
+	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -115,5 +117,49 @@ func TestVideoDownloadModeDefaultsToDocker(t *testing.T) {
 	cfg.Tools.VideoDownload.Mode = "native"
 	if got := videoDownloadMode(cfg); got != "native" {
 		t.Fatalf("mode = %q, want native", got)
+	}
+}
+
+func TestDispatchVideoDownloadRequiresExplicitDownloadPermission(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Tools.VideoDownload.Enabled = true
+	cfg.Tools.VideoDownload.AllowDownload = false
+
+	raw := DispatchVideoDownload(context.Background(), cfg, nil, VideoDownloadRequest{
+		Operation: "download",
+		URL:       "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+	}, nil)
+
+	var result videoDownloadResult
+	if err := json.Unmarshal([]byte(raw), &result); err != nil {
+		t.Fatalf("decode result: %v\n%s", err, raw)
+	}
+	if result.Status != "error" {
+		t.Fatalf("status = %q, want error", result.Status)
+	}
+	if !strings.Contains(result.Message, "allow_download") {
+		t.Fatalf("message = %q, want allow_download guidance", result.Message)
+	}
+}
+
+func TestDispatchVideoDownloadRequiresExplicitTranscribePermission(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Tools.VideoDownload.Enabled = true
+	cfg.Tools.VideoDownload.AllowTranscribe = false
+
+	raw := DispatchVideoDownload(context.Background(), cfg, nil, VideoDownloadRequest{
+		Operation: "transcribe",
+		URL:       "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+	}, nil)
+
+	var result videoDownloadResult
+	if err := json.Unmarshal([]byte(raw), &result); err != nil {
+		t.Fatalf("decode result: %v\n%s", err, raw)
+	}
+	if result.Status != "error" {
+		t.Fatalf("status = %q, want error", result.Status)
+	}
+	if !strings.Contains(result.Message, "allow_transcribe") {
+		t.Fatalf("message = %q, want allow_transcribe guidance", result.Message)
 	}
 }

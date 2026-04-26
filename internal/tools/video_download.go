@@ -70,6 +70,12 @@ func DispatchVideoDownload(ctx context.Context, cfg *config.Config, mediaDB *sql
 	if cfg.Tools.VideoDownload.ReadOnly && (op == "download" || op == "transcribe") {
 		return videoDownloadJSON(videoDownloadResult{Status: "error", Operation: op, Message: "video_download is in read-only mode; only search and info are allowed"})
 	}
+	if op == "download" && !cfg.Tools.VideoDownload.AllowDownload {
+		return videoDownloadJSON(videoDownloadResult{Status: "error", Operation: op, Message: "video_download download operation is disabled. Set tools.video_download.allow_download=true to allow file downloads."})
+	}
+	if op == "transcribe" && !cfg.Tools.VideoDownload.AllowTranscribe {
+		return videoDownloadJSON(videoDownloadResult{Status: "error", Operation: op, Message: "video_download transcribe operation is disabled. Set tools.video_download.allow_transcribe=true to allow downloading audio for transcription."})
+	}
 
 	switch op {
 	case "search":

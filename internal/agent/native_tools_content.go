@@ -178,15 +178,22 @@ func appendContentToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai
 	}
 
 	if ff.VideoDownloadEnabled {
+		videoDownloadOps := []string{"search", "info"}
+		if ff.VideoDownloadAllowDownload {
+			videoDownloadOps = append(videoDownloadOps, "download")
+		}
+		if ff.VideoDownloadAllowTranscribe {
+			videoDownloadOps = append(videoDownloadOps, "transcribe")
+		}
 		tools = append(tools, tool("video_download",
-			"Search, inspect, download, and optionally transcribe videos using yt-dlp. "+
+			"Search and inspect videos using yt-dlp. Download and transcription operations are optional and only available when explicitly enabled in config. "+
 				"Docker mode uses an auto-managed ghcr.io/jauderho/yt-dlp container by default; native mode requires yt-dlp installed on the host. "+
-				"Operations: search, info, download, transcribe. Read-only mode allows only search and info.",
+				"Operations currently available in this session are listed in the operation enum.",
 			schema(map[string]interface{}{
 				"operation": map[string]interface{}{
 					"type":        "string",
 					"description": "Operation to perform",
-					"enum":        []string{"search", "info", "download", "transcribe"},
+					"enum":        videoDownloadOps,
 				},
 				"url":     prop("string", "Video URL for info, download, or transcribe"),
 				"query":   prop("string", "Search query for search operation"),

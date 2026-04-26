@@ -366,6 +366,8 @@
   "config.browser_automation.advanced_desc": "Tekniske Docker- og sesjonsinnstillinger for Playwright-sidecaren. De fleste brukere trenger normalt ikke å endre disse verdiene.",
   "config.section.media_conversion.label": "Mediakonvertering",
   "config.section.media_conversion.desc": "Konverter lyd, video og bilder med FFmpeg og ImageMagick.",
+  "config.section.video_download.label": "Video og YouTube",
+  "config.section.video_download.desc": "YouTube-søk, chat-spiller og valgfri nedlasting eller transkribering.",
   "config.section.video_generation.label": "Videogenerering",
   "config.section.video_generation.desc": "Generer korte videoer fra tekst- og bildeprompter med AI"
 }

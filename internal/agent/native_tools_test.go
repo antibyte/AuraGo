@@ -679,6 +679,61 @@ func TestSendYouTubeVideoSchemaHonorsFeatureFlag(t *testing.T) {
 	}
 }
 
+func TestVideoDownloadSchemaReflectsOptionalWritePermissions(t *testing.T) {
+	readOnlySchemas := builtinToolSchemas(ToolFeatureFlags{VideoDownloadEnabled: true})
+	readOnlyOps := videoDownloadOperationEnum(t, readOnlySchemas)
+	for _, want := range []string{"search", "info"} {
+		if !containsName(readOnlyOps, want) {
+			t.Fatalf("read-only video_download schema missing %q in %v", want, readOnlyOps)
+		}
+	}
+	for _, blocked := range []string{"download", "transcribe"} {
+		if containsName(readOnlyOps, blocked) {
+			t.Fatalf("read-only video_download schema unexpectedly exposes %q in %v", blocked, readOnlyOps)
+		}
+	}
+
+	fullSchemas := builtinToolSchemas(ToolFeatureFlags{
+		VideoDownloadEnabled:         true,
+		VideoDownloadAllowDownload:   true,
+		VideoDownloadAllowTranscribe: true,
+	})
+	fullOps := videoDownloadOperationEnum(t, fullSchemas)
+	for _, want := range []string{"search", "info", "download", "transcribe"} {
+		if !containsName(fullOps, want) {
+			t.Fatalf("full video_download schema missing %q in %v", want, fullOps)
+		}
+	}
+}
+
+func videoDownloadOperationEnum(t *testing.T, schemas []openai.Tool) []string {
+	t.Helper()
+	for _, s := range schemas {
+		if s.Function == nil || s.Function.Name != "video_download" {
+			continue
+		}
+		params, ok := s.Function.Parameters.(map[string]interface{})
+		if !ok {
+			t.Fatalf("video_download parameters type = %T", s.Function.Parameters)
+		}
+		props, ok := params["properties"].(map[string]interface{})
+		if !ok {
+			t.Fatal("video_download properties missing")
+		}
+		opProp, ok := props["operation"].(map[string]interface{})
+		if !ok {
+			t.Fatal("video_download operation property missing")
+		}
+		enum, ok := opProp["enum"].([]string)
+		if !ok {
+			t.Fatalf("video_download operation enum type = %T", opProp["enum"])
+		}
+		return enum
+	}
+	t.Fatal("video_download schema not found")
+	return nil
+}
+
 func TestBuiltinToolSchemasNetlifyOmitsZipDeployOperations(t *testing.T) {
 	schemas := builtinToolSchemas(ToolFeatureFlags{NetlifyEnabled: true})
 

@@ -366,6 +366,8 @@
   "config.browser_automation.advanced_desc": "Playwright サイドカー用の技術的な Docker とセッション設定です。通常、ほとんどのユーザーはこれらの値を変更する必要はありません。",
   "config.section.media_conversion.label": "メディア変換",
   "config.section.media_conversion.desc": "FFmpeg と ImageMagick で音声、動画、画像を変換します。",
+  "config.section.video_download.label": "動画と YouTube",
+  "config.section.video_download.desc": "YouTube 検索、チャット内プレーヤー、任意のダウンロードまたは文字起こし。",
   "config.section.video_generation.label": "動画生成",
   "config.section.video_generation.desc": "AIでテキストや画像プロンプトから短い動画を生成"
 }

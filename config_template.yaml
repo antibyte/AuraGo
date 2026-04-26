@@ -357,8 +357,10 @@ tools:
     send_youtube_video:
         enabled: true                                       # show YouTube links as embedded players in Web Chat; disable for privacy-hardened installs
     video_download:
-        enabled: false
-        readonly: false
+        enabled: true                                       # search/info tool; download/transcribe stay separately gated below
+        readonly: false                                     # hard read-only override; when true, download/transcribe are blocked
+        allow_download: false                               # opt-in: allow downloading video/audio files
+        allow_transcribe: false                             # opt-in: allow downloading audio and running speech-to-text
         mode: docker                                      # docker (default, auto-managed container) or native (requires yt-dlp installed on the host)
         yt_dlp_path: ""                                  # native mode only: optional yt-dlp binary path override; auto-detected if empty
         download_dir: data/downloads                      # host directory for downloaded media

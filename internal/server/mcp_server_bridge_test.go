@@ -140,3 +140,27 @@ func TestMCPFeatureFlagsIncludeSendYouTubeVideo(t *testing.T) {
 		t.Fatal("expected SendYouTubeVideoEnabled to be true")
 	}
 }
+
+func TestMCPFeatureFlagsIncludeVideoDownloadPermissions(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Tools.VideoDownload.Enabled = true
+	cfg.Tools.VideoDownload.AllowDownload = true
+	cfg.Tools.VideoDownload.AllowTranscribe = true
+
+	flags := mcpFeatureFlags(&Server{Cfg: cfg})
+	if !flags.VideoDownloadEnabled {
+		t.Fatal("expected VideoDownloadEnabled to be true")
+	}
+	if !flags.VideoDownloadAllowDownload {
+		t.Fatal("expected VideoDownloadAllowDownload to be true")
+	}
+	if !flags.VideoDownloadAllowTranscribe {
+		t.Fatal("expected VideoDownloadAllowTranscribe to be true")
+	}
+
+	cfg.Tools.VideoDownload.ReadOnly = true
+	flags = mcpFeatureFlags(&Server{Cfg: cfg})
+	if flags.VideoDownloadAllowDownload || flags.VideoDownloadAllowTranscribe {
+		t.Fatal("expected read-only mode to suppress video download write permissions")
+	}
+}

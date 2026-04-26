@@ -152,6 +152,8 @@ type MediaConversionConfig struct {
 type VideoDownloadConfig struct {
 	Enabled          bool   `yaml:"enabled"`            // enable video_download tool
 	ReadOnly         bool   `yaml:"readonly"`           // allow search/info only when true
+	AllowDownload    bool   `yaml:"allow_download"`     // allow downloading media files
+	AllowTranscribe  bool   `yaml:"allow_transcribe"`   // allow downloading audio and transcribing it
 	Mode             string `yaml:"mode"`               // "docker" (default) or "native"
 	YtDlpPath        string `yaml:"yt_dlp_path"`        // native mode only; optional yt-dlp binary path override
 	DownloadDir      string `yaml:"download_dir"`       // host directory for downloaded media

@@ -75,7 +75,7 @@ func allBuiltinToolFeatureFlags() ToolFeatureFlags {
 		SchedulerEnabled: true, NotesEnabled: true, MissionsEnabled: true, StopProcessEnabled: true,
 		InventoryEnabled: true, MemoryMaintenanceEnabled: true, WOLEnabled: true,
 		MediaRegistryEnabled: true, HomepageRegistryEnabled: true, ContactsEnabled: true,
-		PlannerEnabled: true, JournalEnabled: true, MemoryAnalysisEnabled: true, DocumentCreatorEnabled: true, MediaConversionEnabled: true, VideoDownloadEnabled: true, SendYouTubeVideoEnabled: true,
+		PlannerEnabled: true, JournalEnabled: true, MemoryAnalysisEnabled: true, DocumentCreatorEnabled: true, MediaConversionEnabled: true, VideoDownloadEnabled: true, VideoDownloadAllowDownload: true, VideoDownloadAllowTranscribe: true, SendYouTubeVideoEnabled: true,
 		WebCaptureEnabled: true, BrowserAutomationEnabled: true, NetworkPingEnabled: true, WebScraperEnabled: true,
 		S3Enabled: true, NetworkScanEnabled: true, FormAutomationEnabled: true, UPnPScanEnabled: true,
 		JellyfinEnabled: true, ChromecastEnabled: true, DiscordEnabled: true, TelegramEnabled: true, TrueNASEnabled: true,
@@ -163,6 +163,8 @@ func (ff ToolFeatureFlags) Key() string {
 	appendToolFeatureKeyPart("document_creator", ff.DocumentCreatorEnabled)
 	appendToolFeatureKeyPart("media_conversion", ff.MediaConversionEnabled)
 	appendToolFeatureKeyPart("video_download", ff.VideoDownloadEnabled)
+	appendToolFeatureKeyPart("video_download_download", ff.VideoDownloadAllowDownload)
+	appendToolFeatureKeyPart("video_download_transcribe", ff.VideoDownloadAllowTranscribe)
 	appendToolFeatureKeyPart("send_youtube_video", ff.SendYouTubeVideoEnabled)
 	appendToolFeatureKeyPart("web_capture", ff.WebCaptureEnabled)
 	appendToolFeatureKeyPart("browser_automation", ff.BrowserAutomationEnabled)

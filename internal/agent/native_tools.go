@@ -104,34 +104,36 @@ type ToolFeatureFlags struct {
 	AllowSelfUpdate          bool
 	HomepageAllowLocalServer bool // Allow Python HTTP server fallback when Docker unavailable
 	// Built-in tool toggles
-	MemoryEnabled            bool
-	KnowledgeGraphEnabled    bool
-	SecretsVaultEnabled      bool
-	SchedulerEnabled         bool
-	NotesEnabled             bool
-	MissionsEnabled          bool
-	StopProcessEnabled       bool
-	InventoryEnabled         bool
-	MemoryMaintenanceEnabled bool
-	WOLEnabled               bool
-	MediaRegistryEnabled     bool
-	HomepageRegistryEnabled  bool
-	ContactsEnabled          bool
-	PlannerEnabled           bool
-	JournalEnabled           bool
-	MemoryAnalysisEnabled    bool
-	DocumentCreatorEnabled   bool
-	MediaConversionEnabled   bool
-	VideoDownloadEnabled     bool
-	SendYouTubeVideoEnabled  bool
-	WebCaptureEnabled        bool
-	BrowserAutomationEnabled bool
-	NetworkPingEnabled       bool
-	WebScraperEnabled        bool
-	S3Enabled                bool
-	NetworkScanEnabled       bool
-	FormAutomationEnabled    bool
-	UPnPScanEnabled          bool
+	MemoryEnabled                bool
+	KnowledgeGraphEnabled        bool
+	SecretsVaultEnabled          bool
+	SchedulerEnabled             bool
+	NotesEnabled                 bool
+	MissionsEnabled              bool
+	StopProcessEnabled           bool
+	InventoryEnabled             bool
+	MemoryMaintenanceEnabled     bool
+	WOLEnabled                   bool
+	MediaRegistryEnabled         bool
+	HomepageRegistryEnabled      bool
+	ContactsEnabled              bool
+	PlannerEnabled               bool
+	JournalEnabled               bool
+	MemoryAnalysisEnabled        bool
+	DocumentCreatorEnabled       bool
+	MediaConversionEnabled       bool
+	VideoDownloadEnabled         bool
+	VideoDownloadAllowDownload   bool
+	VideoDownloadAllowTranscribe bool
+	SendYouTubeVideoEnabled      bool
+	WebCaptureEnabled            bool
+	BrowserAutomationEnabled     bool
+	NetworkPingEnabled           bool
+	WebScraperEnabled            bool
+	S3Enabled                    bool
+	NetworkScanEnabled           bool
+	FormAutomationEnabled        bool
+	UPnPScanEnabled              bool
 	// Jellyfin media server
 	JellyfinEnabled bool
 	// Obsidian knowledge management

@@ -330,6 +330,8 @@ func buildToolFlagsFromConfig(cfg *config.Config) ToolFeatureFlags {
 		DocumentCreatorEnabled:       cfg.Tools.DocumentCreator.Enabled,
 		MediaConversionEnabled:       cfg.Tools.MediaConversion.Enabled,
 		VideoDownloadEnabled:         cfg.Tools.VideoDownload.Enabled,
+		VideoDownloadAllowDownload:   cfg.Tools.VideoDownload.AllowDownload && !cfg.Tools.VideoDownload.ReadOnly,
+		VideoDownloadAllowTranscribe: cfg.Tools.VideoDownload.AllowTranscribe && !cfg.Tools.VideoDownload.ReadOnly,
 		SendYouTubeVideoEnabled:      cfg.Tools.SendYouTubeVideo.Enabled,
 		WebCaptureEnabled:            cfg.Tools.WebCapture.Enabled,
 		BrowserAutomationEnabled:     cfg.BrowserAutomation.Enabled && cfg.Tools.BrowserAutomation.Enabled,

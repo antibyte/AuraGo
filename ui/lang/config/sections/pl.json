@@ -366,6 +366,8 @@
   "config.browser_automation.advanced_desc": "Techniczne ustawienia Dockera i sesji dla sidecara Playwright. Większość użytkowników zwykle nie musi zmieniać tych wartości.",
   "config.section.media_conversion.label": "Konwersja multimediów",
   "config.section.media_conversion.desc": "Konwertuj audio, wideo i obrazy za pomocą FFmpeg oraz ImageMagick.",
+  "config.section.video_download.label": "Wideo i YouTube",
+  "config.section.video_download.desc": "Wyszukiwanie YouTube, odtwarzacz w czacie oraz opcjonalne pobieranie lub transkrypcja.",
   "config.section.video_generation.label": "Generowanie wideo",
   "config.section.video_generation.desc": "Generuj krótkie filmy z promptów tekstowych i obrazów za pomocą AI"
 }

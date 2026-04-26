@@ -366,6 +366,8 @@
   "config.browser_automation.advanced_desc": "Technische Docker- und Sitzungsoptionen für den Playwright-Sidecar. Die meisten Nutzer müssen diese Werte normalerweise nicht ändern.",
   "config.section.media_conversion.label": "Medienkonvertierung",
   "config.section.media_conversion.desc": "Audio, Video und Bilder mit FFmpeg und ImageMagick konvertieren.",
+  "config.section.video_download.label": "Video & YouTube",
+  "config.section.video_download.desc": "YouTube-Suche, Chat-Player und optionaler Download oder Transkription.",
   "config.section.video_generation.label": "Videogenerierung",
   "config.section.video_generation.desc": "Kurze Videos aus Text- und Bildprompts mit KI generieren"
 }

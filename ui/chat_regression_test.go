@@ -132,6 +132,67 @@ func TestChatFrontend_PasteAttachmentFlowRemainsPresent(t *testing.T) {
 	}
 }
 
+func TestConfigFrontendVideoDownloadSectionRemainsWired(t *testing.T) {
+	t.Parallel()
+
+	mainPath := filepath.Join("js", "config", "main.js")
+	modulePath := filepath.Join("cfg", "video_download.js")
+	sectionLangPath := filepath.Join("lang", "config", "sections", "en.json")
+	moduleLangPath := filepath.Join("lang", "config", "video_download", "en.json")
+
+	mainContent, err := os.ReadFile(mainPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", mainPath, err)
+	}
+	moduleContent, err := os.ReadFile(modulePath)
+	if err != nil {
+		t.Fatalf("read %s: %v", modulePath, err)
+	}
+	sectionLangContent, err := os.ReadFile(sectionLangPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", sectionLangPath, err)
+	}
+	moduleLangContent, err := os.ReadFile(moduleLangPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", moduleLangPath, err)
+	}
+
+	checks := map[string]string{
+		mainPath:        string(mainContent),
+		modulePath:      string(moduleContent),
+		sectionLangPath: string(sectionLangContent),
+		moduleLangPath:  string(moduleLangContent),
+	}
+	requiredMarkers := map[string][]string{
+		mainPath: {
+			"{ key: 'video_download'",
+			"video_download: { m: 'video_download', fn: 'renderVideoDownloadSection' }",
+			"'send_youtube_video'",
+		},
+		modulePath: {
+			"tools.video_download.mode",
+			"tools.video_download.allow_download",
+			"tools.video_download.allow_transcribe",
+			"tools.send_youtube_video.enabled",
+		},
+		sectionLangPath: {
+			"config.section.video_download.label",
+			"config.section.video_download.desc",
+		},
+		moduleLangPath: {
+			"config.video_download.mode_docker",
+			"help.video_download.allow_transcribe",
+		},
+	}
+	for path, markers := range requiredMarkers {
+		for _, marker := range markers {
+			if !strings.Contains(checks[path], marker) {
+				t.Fatalf("%s is missing video download config marker %q", path, marker)
+			}
+		}
+	}
+}
+
 func TestChatRobotGreetingStartsAboveGreetingText(t *testing.T) {
 	t.Parallel()
 

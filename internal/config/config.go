@@ -148,6 +148,9 @@ func Load(path string) (*Config, error) {
 	cfg.Tools.MediaConversion.ReadOnly = false
 	cfg.Tools.MediaConversion.TimeoutSeconds = 120
 	cfg.Tools.MediaConversion.MaxFileSizeMB = 500
+	cfg.Tools.VideoDownload.Enabled = true
+	cfg.Tools.VideoDownload.AllowDownload = false
+	cfg.Tools.VideoDownload.AllowTranscribe = false
 	cfg.Tools.VideoDownload.Mode = "docker"
 	cfg.Tools.VideoDownload.DownloadDir = "data/downloads"
 	cfg.Tools.VideoDownload.MaxFileSizeMB = 500
