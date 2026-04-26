@@ -354,6 +354,8 @@ tools:
         ffmpeg_path: ""
         imagemagick_path: ""
         timeout_seconds: 120
+    send_youtube_video:
+        enabled: true                                       # show YouTube links as embedded players in Web Chat; disable for privacy-hardened installs
     video_download:
         enabled: false
         readonly: false

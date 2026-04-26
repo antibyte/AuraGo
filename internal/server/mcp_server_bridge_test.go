@@ -130,3 +130,13 @@ func TestMCPFeatureFlagsIncludeMediaConversion(t *testing.T) {
 		t.Fatal("expected MediaConversionEnabled to be true")
 	}
 }
+
+func TestMCPFeatureFlagsIncludeSendYouTubeVideo(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Tools.SendYouTubeVideo.Enabled = true
+
+	flags := mcpFeatureFlags(&Server{Cfg: cfg})
+	if !flags.SendYouTubeVideoEnabled {
+		t.Fatal("expected SendYouTubeVideoEnabled to be true")
+	}
+}

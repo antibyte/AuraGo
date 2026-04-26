@@ -55,6 +55,20 @@ func TestParseYouTubeVideoURLRejectsInvalidInput(t *testing.T) {
 	}
 }
 
+func TestParseYouTubeTimeValueDurationForms(t *testing.T) {
+	tests := map[string]int{
+		"1h2m3s": 3723,
+		"2m3s":   123,
+		"90s":    90,
+		"1:30":   90,
+	}
+	for raw, want := range tests {
+		if got := parseYouTubeTimeValue(raw); got != want {
+			t.Fatalf("parseYouTubeTimeValue(%q) = %d, want %d", raw, got, want)
+		}
+	}
+}
+
 func TestHandleSendYouTubeVideoReturnsEmbedPayload(t *testing.T) {
 	raw := handleSendYouTubeVideo(youtubeVideoArgs{
 		URL:          "https://youtu.be/dQw4w9WgXcQ",

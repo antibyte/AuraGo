@@ -96,6 +96,25 @@ func TestDispatchCommCallWebhookUsesWebhookNameFromParams(t *testing.T) {
 	}
 }
 
+func TestDispatchMessagingSendYouTubeVideoHonorsDisabledConfig(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Tools.SendYouTubeVideo.Enabled = false
+
+	out, ok := dispatchMessagingCases(context.Background(), ToolCall{
+		Action: "send_youtube_video",
+		URL:    "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+	}, &DispatchContext{
+		Cfg:    cfg,
+		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	})
+	if !ok {
+		t.Fatal("expected dispatchMessagingCases to handle send_youtube_video")
+	}
+	if !strings.Contains(out, "send_youtube_video is disabled") {
+		t.Fatalf("expected disabled error, got %s", out)
+	}
+}
+
 func TestFilterExecuteSkillArgsUsesManifestParameters(t *testing.T) {
 	skillsDir := t.TempDir()
 	manifest := `{

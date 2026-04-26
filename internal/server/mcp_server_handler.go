@@ -387,6 +387,7 @@ func mcpFeatureFlags(s *Server) agent.ToolFeatureFlags {
 		ContactsEnabled:              cfg.Tools.Contacts.Enabled,
 		PlannerEnabled:               cfg.Tools.Planner.Enabled,
 		MediaConversionEnabled:       cfg.Tools.MediaConversion.Enabled,
+		SendYouTubeVideoEnabled:      cfg.Tools.SendYouTubeVideo.Enabled,
 		PythonSecretInjectionEnabled: cfg.Tools.PythonSecretInjection.Enabled,
 	}
 }

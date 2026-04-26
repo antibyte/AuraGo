@@ -156,6 +156,7 @@ func Load(path string) (*Config, error) {
 	cfg.Tools.VideoDownload.MaxSearchResults = 10
 	cfg.Tools.VideoDownload.ContainerImage = "ghcr.io/jauderho/yt-dlp:latest"
 	cfg.Tools.VideoDownload.AutoPull = true
+	cfg.Tools.SendYouTubeVideo.Enabled = true
 	cfg.Tools.DocumentCreator.Backend = "maroto"
 	cfg.Tools.DocumentCreator.OutputDir = "data/documents"
 	cfg.Tools.DocumentCreator.Gotenberg.URL = defaultSidecarURL(runningInDocker, "gotenberg", 3000)

@@ -10,7 +10,10 @@ import (
 	"strings"
 )
 
-var youtubeVideoIDRe = regexp.MustCompile(`^[A-Za-z0-9_-]{11}$`)
+var (
+	youtubeVideoIDRe = regexp.MustCompile(`^[A-Za-z0-9_-]{11}$`)
+	youtubeTimeRe    = regexp.MustCompile(`^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?$`)
+)
 
 type youtubeVideoRef struct {
 	VideoID      string
@@ -21,7 +24,17 @@ type youtubeVideoRef struct {
 
 func handleSendYouTubeVideo(req youtubeVideoArgs, logger *slog.Logger) string {
 	encode := func(r map[string]interface{}) string {
-		b, _ := json.Marshal(r)
+		b, err := json.Marshal(r)
+		if err != nil {
+			fallback, fallbackErr := json.Marshal(map[string]interface{}{
+				"status":  "error",
+				"message": fmt.Sprintf("encode send_youtube_video result: %v", err),
+			})
+			if fallbackErr != nil {
+				return `Tool Output: {"status":"error","message":"encode send_youtube_video result failed"}`
+			}
+			return "Tool Output: " + string(fallback)
+		}
 		return "Tool Output: " + string(b)
 	}
 
@@ -162,7 +175,7 @@ func parseYouTubeTimeValue(raw string) int {
 		return total
 	}
 
-	matches := regexp.MustCompile(`^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?$`).FindStringSubmatch(value)
+	matches := youtubeTimeRe.FindStringSubmatch(value)
 	if matches == nil {
 		return 0
 	}

@@ -445,6 +445,23 @@ func TestLoadVideoDownloadDefaults(t *testing.T) {
 	}
 }
 
+func TestLoadSendYouTubeVideoDefaults(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	if err := os.WriteFile(configPath, []byte("server:\n  ui_language: en\n"), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if !cfg.Tools.SendYouTubeVideo.Enabled {
+		t.Fatal("expected tools.send_youtube_video.enabled to default to true")
+	}
+}
+
 func TestLoadMigratesLegacyBrowserAutomationDockerURLOutsideDocker(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.yaml")

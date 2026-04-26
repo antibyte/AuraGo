@@ -163,6 +163,11 @@ type VideoDownloadConfig struct {
 	AutoPull         bool   `yaml:"auto_pull"`          // pull Docker image automatically when missing
 }
 
+// SendYouTubeVideoConfig holds settings for sending YouTube embeds into chat.
+type SendYouTubeVideoConfig struct {
+	Enabled bool `yaml:"enabled"` // enable send_youtube_video tool
+}
+
 // BrowserAutomationViewport defines the browser viewport used for new sessions.
 type BrowserAutomationViewport struct {
 	Width  int `yaml:"width"`
@@ -1209,10 +1214,11 @@ type Config struct {
 			SummaryAPIKey  string `yaml:"-" json:"-"`
 			SummaryModel   string `yaml:"-" json:"-"`
 		} `yaml:"pdf_extractor"`
-		MediaConversion MediaConversionConfig `yaml:"media_conversion"`
-		VideoDownload   VideoDownloadConfig   `yaml:"video_download"`
-		DocumentCreator DocumentCreatorConfig `yaml:"document_creator"`
-		WebCapture      struct {
+		MediaConversion  MediaConversionConfig  `yaml:"media_conversion"`
+		VideoDownload    VideoDownloadConfig    `yaml:"video_download"`
+		SendYouTubeVideo SendYouTubeVideoConfig `yaml:"send_youtube_video"`
+		DocumentCreator  DocumentCreatorConfig  `yaml:"document_creator"`
+		WebCapture       struct {
 			Enabled bool `yaml:"enabled"` // enable web_capture tool (screenshot/pdf via headless Chromium, default true)
 		} `yaml:"web_capture"`
 		BrowserAutomation struct {

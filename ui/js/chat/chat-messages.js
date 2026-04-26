@@ -412,6 +412,31 @@ function parseYouTubeVideoLink(raw) {
     }
 }
 
+function youtubePlayerDedupKey(data) {
+    const id = data && data.video_id ? String(data.video_id) : '';
+    const rawStart = Number((data && data.start_seconds) || 0);
+    const start = Number.isFinite(rawStart) && rawStart > 0 ? Math.floor(rawStart) : 0;
+    const url = data && (data.url || data.embed_url || data.path) ? String(data.url || data.embed_url || data.path) : '';
+    return id ? `${id}:${start}` : `${url}:${start}`;
+}
+
+function safeYouTubeEmbedURL(raw, expectedVideoID, expectedStartSeconds) {
+    if (!raw || !expectedVideoID) return '';
+    try {
+        const parsed = new URL(String(raw), window.location.origin);
+        const host = parsed.hostname.toLowerCase().replace(/^www\./, '');
+        const parts = parsed.pathname.split('/').filter(Boolean).map((part) => {
+            try { return decodeURIComponent(part); } catch (_err) { return part; }
+        });
+        if (host !== 'youtube-nocookie.com' || parts[0] !== 'embed' || parts[1] !== expectedVideoID) return '';
+        const start = parseYouTubeTimeValue(parsed.searchParams.get('start'));
+        if (start !== (Number(expectedStartSeconds) || 0)) return '';
+        return `https://www.youtube-nocookie.com/embed/${expectedVideoID}${start > 0 ? `?start=${start}` : ''}`;
+    } catch (_err) {
+        return '';
+    }
+}
+
 function createChatVideoElement(videoData) {
     const path = videoData && videoData.path ? String(videoData.path) : '';
     const wrapper = document.createElement('div');
@@ -456,9 +481,11 @@ function createChatYouTubeElement(youtubeData) {
         ? youtubeData.video_id
         : (parsed && parsed.video_id);
     if (!videoID) return null;
-    const startSeconds = Number((youtubeData && youtubeData.start_seconds) || (parsed && parsed.start_seconds) || 0);
-    const url = (youtubeData && youtubeData.url) || `https://www.youtube.com/watch?v=${videoID}${startSeconds > 0 ? `&t=${startSeconds}s` : ''}`;
-    const embedURL = (youtubeData && youtubeData.embed_url) || `https://www.youtube-nocookie.com/embed/${videoID}${startSeconds > 0 ? `?start=${startSeconds}` : ''}`;
+    const rawStartSeconds = Number((youtubeData && youtubeData.start_seconds) || (parsed && parsed.start_seconds) || 0);
+    const startSeconds = Number.isFinite(rawStartSeconds) && rawStartSeconds > 0 ? Math.floor(rawStartSeconds) : 0;
+    const url = `https://www.youtube.com/watch?v=${videoID}${startSeconds > 0 ? `&t=${startSeconds}s` : ''}`;
+    const fallbackEmbedURL = `https://www.youtube-nocookie.com/embed/${videoID}${startSeconds > 0 ? `?start=${startSeconds}` : ''}`;
+    const embedURL = safeYouTubeEmbedURL(youtubeData && youtubeData.embed_url, videoID, startSeconds) || fallbackEmbedURL;
 
     const wrapper = document.createElement('div');
     wrapper.className = 'chat-youtube-wrapper';
@@ -586,7 +613,7 @@ function renderYouTubeLinksAsPlayers(html) {
         const href = anchor.getAttribute('href') || '';
         const parsed = parseYouTubeVideoLink(href);
         if (!parsed) return;
-        const key = parsed.video_id || parsed.url;
+        const key = youtubePlayerDedupKey(parsed);
         if (typeof seenSSEYouTubeVideos !== 'undefined' && seenSSEYouTubeVideos.has(key)) {
             anchor.remove();
             return;

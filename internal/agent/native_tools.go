@@ -123,6 +123,7 @@ type ToolFeatureFlags struct {
 	DocumentCreatorEnabled   bool
 	MediaConversionEnabled   bool
 	VideoDownloadEnabled     bool
+	SendYouTubeVideoEnabled  bool
 	WebCaptureEnabled        bool
 	BrowserAutomationEnabled bool
 	NetworkPingEnabled       bool

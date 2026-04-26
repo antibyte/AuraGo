@@ -668,6 +668,15 @@ func TestBuiltinToolSchemasHomepageUsesSubOperationField(t *testing.T) {
 	}
 }
 
+func TestSendYouTubeVideoSchemaHonorsFeatureFlag(t *testing.T) {
+	if containsName(toolNames(builtinToolSchemas(ToolFeatureFlags{})), "send_youtube_video") {
+		t.Fatal("send_youtube_video should be hidden when disabled")
+	}
+	if !containsName(toolNames(builtinToolSchemas(ToolFeatureFlags{SendYouTubeVideoEnabled: true})), "send_youtube_video") {
+		t.Fatal("send_youtube_video should be visible when enabled")
+	}
+}
+
 func TestBuiltinToolSchemasNetlifyOmitsZipDeployOperations(t *testing.T) {
 	schemas := builtinToolSchemas(ToolFeatureFlags{NetlifyEnabled: true})
 

@@ -28,6 +28,22 @@ func TestParseYtDlpSearch(t *testing.T) {
 	}
 }
 
+func TestParseYtDlpSearchTruncatesLongDescription(t *testing.T) {
+	longDescription := strings.Repeat("a", 260)
+	output := `{"id":"abc123","title":"Example","description":"` + longDescription + `"}`
+
+	items := parseYtDlpSearch(output)
+	if len(items) != 1 {
+		t.Fatalf("len(items) = %d, want 1", len(items))
+	}
+	if len(items[0].Description) > 203 {
+		t.Fatalf("description length = %d, want <= 203", len(items[0].Description))
+	}
+	if !strings.HasSuffix(items[0].Description, "...") {
+		t.Fatalf("description should end with truncation marker: %q", items[0].Description)
+	}
+}
+
 func TestResolveDownloadedFilePathMapsContainerPath(t *testing.T) {
 	dir := t.TempDir()
 	filePath := filepath.Join(dir, "video.mp4")
@@ -43,6 +59,40 @@ func TestResolveDownloadedFilePathMapsContainerPath(t *testing.T) {
 	}
 	if got != filePath {
 		t.Fatalf("path = %q, want %q", got, filePath)
+	}
+}
+
+func TestResolveDownloadedFilePathRejectsTraversalOutsideDownloadDir(t *testing.T) {
+	dir := t.TempDir()
+	outside := filepath.Clean(filepath.Join(dir, "..", "escape.mp4"))
+	if err := os.WriteFile(outside, []byte("x"), 0o644); err != nil {
+		t.Fatalf("write outside file: %v", err)
+	}
+	cfg := &config.Config{}
+	cfg.Tools.VideoDownload.Mode = "docker"
+
+	got, err := resolveDownloadedFilePath(cfg, dir, "/downloads/../escape.mp4\n")
+	if err == nil {
+		t.Fatalf("resolveDownloadedFilePath() = %q, want traversal error", got)
+	}
+	if strings.Contains(filepath.Clean(got), filepath.Base(outside)) {
+		t.Fatalf("resolver returned escaped path %q", got)
+	}
+}
+
+func TestBuildYtDlpDownloadArgsUsesModeSpecificOutputDir(t *testing.T) {
+	cfg := &config.Config{}
+	req := VideoDownloadRequest{Format: "video"}
+
+	dockerArgs := buildYtDlpDownloadArgs(cfg, req, "https://youtu.be/dQw4w9WgXcQ", "video", videoDownloadContainerDir)
+	if !strings.Contains(strings.Join(dockerArgs, " "), "/downloads/%(title).200B") {
+		t.Fatalf("docker args should use container download dir: %v", dockerArgs)
+	}
+
+	nativeDir := filepath.Join(t.TempDir(), "downloads")
+	nativeArgs := buildYtDlpDownloadArgs(cfg, req, "https://youtu.be/dQw4w9WgXcQ", "video", nativeDir)
+	if !strings.Contains(strings.Join(nativeArgs, " "), filepath.ToSlash(nativeDir)+"/%(title).200B") {
+		t.Fatalf("native args should use host download dir: %v", nativeArgs)
 	}
 }
 

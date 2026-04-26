@@ -20,6 +20,7 @@ import (
 )
 
 const videoDownloadContainerDir = "/downloads"
+const maxVideoSearchDescriptionLength = 200
 
 type VideoDownloadRequest struct {
 	Operation string
@@ -134,7 +135,11 @@ func videoDownloadFile(ctx context.Context, cfg *config.Config, mediaDB *sql.DB,
 	if transcribe && formatMode == "" {
 		formatMode = "audio"
 	}
-	args := buildYtDlpDownloadArgs(cfg, req, videoURL, formatMode)
+	outputDir := downloadDir
+	if videoDownloadMode(cfg) == "docker" {
+		outputDir = videoDownloadContainerDir
+	}
+	args := buildYtDlpDownloadArgs(cfg, req, videoURL, formatMode, outputDir)
 	stdout, stderr, err := runYtDlp(ctx, cfg, args, logger)
 	if err != nil {
 		return videoDownloadJSON(videoDownloadResult{Status: "error", Operation: req.Operation, Mode: videoDownloadMode(cfg), Message: commandErrMessage(err, stderr)})
@@ -166,7 +171,7 @@ func videoDownloadFile(ctx context.Context, cfg *config.Config, mediaDB *sql.DB,
 	if transcribe {
 		transcript, cost, err := TranscribeAudioFile(filePath, cfg)
 		if err != nil {
-			result.Status = "error"
+			result.Status = "partial"
 			result.Message = fmt.Sprintf("download succeeded but transcription failed: %v", err)
 			return videoDownloadJSON(result)
 		}
@@ -188,7 +193,7 @@ func fetchYtDlpInfo(ctx context.Context, cfg *config.Config, videoURL string, lo
 	return info, stderr, nil
 }
 
-func buildYtDlpDownloadArgs(cfg *config.Config, req VideoDownloadRequest, videoURL, formatMode string) []string {
+func buildYtDlpDownloadArgs(cfg *config.Config, req VideoDownloadRequest, videoURL, formatMode, outputDir string) []string {
 	format := strings.TrimSpace(req.Format)
 	quality := strings.ToLower(strings.TrimSpace(req.Quality))
 	if format == "" || formatMode == "video" || formatMode == "audio" {
@@ -203,7 +208,11 @@ func buildYtDlpDownloadArgs(cfg *config.Config, req VideoDownloadRequest, videoU
 		format = "bestvideo[height<=480]+bestaudio/best[height<=480]/best"
 	}
 
-	args := []string{"--no-playlist", "--no-progress", "--newline", "--restrict-filenames", "--print", "after_move:filepath", "-o", videoDownloadContainerDir + "/%(title).200B [%(id)s].%(ext)s"}
+	if strings.TrimSpace(outputDir) == "" {
+		outputDir = videoDownloadContainerDir
+	}
+	outputTemplate := strings.TrimRight(filepath.ToSlash(filepath.Clean(outputDir)), "/") + "/%(title).200B [%(id)s].%(ext)s"
+	args := []string{"--no-playlist", "--no-progress", "--newline", "--restrict-filenames", "--print", "after_move:filepath", "-o", outputTemplate}
 	if formatMode == "audio" || format == "bestaudio" {
 		args = append(args, "-f", "bestaudio/best", "-x", "--audio-format", "mp3")
 	} else {
@@ -236,7 +245,9 @@ func nativeRunYtDlp(ctx context.Context, cfg *config.Config, args []string) (str
 		}
 	}
 	cmd := exec.CommandContext(ctx, binary, args...)
-	cmd.Dir = filepath.Dir(binary)
+	if downloadDir, err := resolveVideoDownloadDir(cfg); err == nil {
+		cmd.Dir = downloadDir
+	}
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
@@ -393,7 +404,7 @@ func parseYtDlpSearch(output string) []videoSearchResult {
 			Uploader:    stringFromMap(raw, "uploader"),
 			Duration:    floatFromMap(raw, "duration"),
 			ViewCount:   intFromMap(raw, "view_count"),
-			Description: stringFromMap(raw, "description"),
+			Description: truncateVideoSearchDescription(stringFromMap(raw, "description")),
 			Thumbnail:   stringFromMap(raw, "thumbnail"),
 		}
 		if item.URL == "" && item.ID != "" {
@@ -402,6 +413,14 @@ func parseYtDlpSearch(output string) []videoSearchResult {
 		results = append(results, item)
 	}
 	return results
+}
+
+func truncateVideoSearchDescription(value string) string {
+	value = strings.TrimSpace(value)
+	if len(value) <= maxVideoSearchDescriptionLength {
+		return value
+	}
+	return strings.TrimSpace(value[:maxVideoSearchDescriptionLength]) + "..."
 }
 
 func compactVideoInfo(info map[string]interface{}) map[string]interface{} {
@@ -449,12 +468,35 @@ func resolveDownloadedFilePath(cfg *config.Config, downloadDir, stdout string) (
 		if !filepath.IsAbs(candidate) {
 			candidate = filepath.Join(downloadDir, candidate)
 		}
-		candidate = filepath.Clean(candidate)
+		var err error
+		candidate, err = ensurePathInsideDir(downloadDir, candidate)
+		if err != nil {
+			return "", err
+		}
 		if info, err := os.Stat(candidate); err == nil && !info.IsDir() {
 			return candidate, nil
 		}
 	}
 	return "", fmt.Errorf("yt-dlp did not report a downloaded file path")
+}
+
+func ensurePathInsideDir(baseDir, candidate string) (string, error) {
+	baseAbs, err := filepath.Abs(filepath.Clean(baseDir))
+	if err != nil {
+		return "", fmt.Errorf("resolve download directory: %w", err)
+	}
+	candidateAbs, err := filepath.Abs(filepath.Clean(candidate))
+	if err != nil {
+		return "", fmt.Errorf("resolve downloaded file path: %w", err)
+	}
+	rel, err := filepath.Rel(baseAbs, candidateAbs)
+	if err != nil {
+		return "", fmt.Errorf("compare downloaded file path: %w", err)
+	}
+	if rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
+		return "", fmt.Errorf("resolved file path escapes download directory")
+	}
+	return candidateAbs, nil
 }
 
 func enforceVideoDownloadSize(cfg *config.Config, size int64) error {
@@ -512,7 +554,14 @@ func commandErrMessage(err error, stderr string) string {
 }
 
 func videoDownloadJSON(result videoDownloadResult) string {
-	b, _ := json.Marshal(result)
+	b, err := json.Marshal(result)
+	if err != nil {
+		fallback, fallbackErr := json.Marshal(videoDownloadResult{Status: "error", Message: fmt.Sprintf("encode video_download result: %v", err)})
+		if fallbackErr != nil {
+			return `{"status":"error","message":"encode video_download result failed"}`
+		}
+		return string(fallback)
+	}
 	return string(b)
 }
 

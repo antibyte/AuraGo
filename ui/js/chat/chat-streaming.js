@@ -364,7 +364,7 @@ function handleSSEMessage(e) {
         } else if (data.event === 'youtube_video') {
             try {
                 const youtubeData = JSON.parse(data.detail);
-                const key = youtubeData && (youtubeData.video_id || youtubeData.url || youtubeData.embed_url);
+                const key = youtubePlayerDedupKey(youtubeData);
                 if (key && !seenSSEYouTubeVideos.has(key)) {
                     seenSSEYouTubeVideos.add(key);
                     appendYouTubeMessage(youtubeData);

@@ -57,6 +57,9 @@ func dispatchMessagingCases(ctx context.Context, tc ToolCall, dc *DispatchContex
 		return handleSendVideo(req, cfg, logger, mediaRegistryDB), true
 
 	case "send_youtube_video":
+		if !cfg.Tools.SendYouTubeVideo.Enabled {
+			return `Tool Output: {"status":"error","message":"send_youtube_video is disabled. Set tools.send_youtube_video.enabled=true in config.yaml."}`, true
+		}
 		req := decodeYouTubeVideoArgs(tc)
 		logger.Info("LLM requested YouTube video send", "url", req.URL, "title", req.Title)
 		return handleSendYouTubeVideo(req, logger), true
