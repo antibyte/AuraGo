@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"aurago/internal/config"
@@ -18,6 +19,9 @@ const yepAPIBaseURL = "https://api.yepapi.com"
 
 var yepAPIHTTPClient = &http.Client{Timeout: 60 * time.Second}
 
+// yepAPIClientCache holds reusable YepAPI clients per (apiKey|baseURL) tuple.
+var yepAPIClientCache sync.Map
+
 // YepAPIClient is a lightweight HTTP client for the YepAPI unified API.
 type YepAPIClient struct {
 	apiKey  string
@@ -27,11 +31,35 @@ type YepAPIClient struct {
 
 // NewYepAPIClient creates a new YepAPI client with the given API key.
 func NewYepAPIClient(apiKey string) *YepAPIClient {
+	return NewYepAPIClientWithBaseURL(apiKey, "")
+}
+
+// NewYepAPIClientWithBaseURL creates a new YepAPI client with the given API key
+// and an optional custom base URL. If baseURL is empty, the default YepAPI URL is used.
+func NewYepAPIClientWithBaseURL(apiKey, baseURL string) *YepAPIClient {
+	if baseURL == "" {
+		baseURL = yepAPIBaseURL
+	}
 	return &YepAPIClient{
 		apiKey:  apiKey,
-		baseURL: yepAPIBaseURL,
+		baseURL: strings.TrimRight(baseURL, "/"),
 		client:  yepAPIHTTPClient,
 	}
+}
+
+// GetYepAPIClient returns a cached YepAPI client for the given API key and base URL,
+// creating one if necessary. The returned client is safe for concurrent use.
+func GetYepAPIClient(apiKey, baseURL string) *YepAPIClient {
+	if baseURL == "" {
+		baseURL = yepAPIBaseURL
+	}
+	key := apiKey + "|" + baseURL
+	if c, ok := yepAPIClientCache.Load(key); ok {
+		return c.(*YepAPIClient)
+	}
+	c := NewYepAPIClientWithBaseURL(apiKey, baseURL)
+	yepAPIClientCache.Store(key, c)
+	return c
 }
 
 // YepAPIResponse is the standard JSON envelope returned by every YepAPI endpoint.
@@ -45,7 +73,38 @@ type YepAPIResponse struct {
 }
 
 // Post sends a POST request to a YepAPI endpoint and returns the data payload.
+// It retries transient failures (network errors, 5xx, 429) up to 3 times with
+// exponential backoff (500ms, 1s, 2s).
 func (c *YepAPIClient) Post(ctx context.Context, endpoint string, payload interface{}) ([]byte, error) {
+	var lastErr error
+	backoff := 500 * time.Millisecond
+
+	for attempt := 0; attempt < 3; attempt++ {
+		if attempt > 0 {
+			select {
+			case <-ctx.Done():
+				return nil, fmt.Errorf("yepapi: context cancelled during retry: %w", ctx.Err())
+			case <-time.After(backoff):
+				backoff *= 2
+			}
+		}
+
+		data, err := c.postOnce(ctx, endpoint, payload)
+		if err == nil {
+			return data, nil
+		}
+		lastErr = err
+
+		// Do not retry on client errors (4xx except 429) or unmarshalling errors.
+		if isNonRetryableError(err) {
+			return nil, err
+		}
+	}
+
+	return nil, fmt.Errorf("yepapi: request failed after 3 attempts: %w", lastErr)
+}
+
+func (c *YepAPIClient) postOnce(ctx context.Context, endpoint string, payload interface{}) ([]byte, error) {
 	url := c.baseURL + endpoint
 
 	var body []byte
@@ -103,6 +162,23 @@ func (c *YepAPIClient) Post(ctx context.Context, endpoint string, payload interf
 	}
 
 	return env.Data, nil
+}
+
+// isNonRetryableError returns true for errors that should not be retried.
+func isNonRetryableError(err error) bool {
+	if err == nil {
+		return false
+	}
+	s := err.Error()
+	// 4xx client errors (except 429 Too Many Requests) are non-retryable.
+	if strings.Contains(s, "HTTP 4") && !strings.Contains(s, "HTTP 429") {
+		return true
+	}
+	// JSON unmarshalling errors indicate a bad response format, not a transient issue.
+	if strings.Contains(s, "invalid JSON response") {
+		return true
+	}
+	return false
 }
 
 // ResolveYepAPIKey resolves the YepAPI API key from the config/vault.

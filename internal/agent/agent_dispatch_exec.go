@@ -1472,7 +1472,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				b, _ := json.Marshal(keyErr.Error())
 				return fmt.Sprintf(`Tool Output: {"status":"error","message":%s}`, b)
 			}
-			client := tools.NewYepAPIClient(apiKey)
+			client := tools.GetYepAPIClient(apiKey, cfg.YepAPI.BaseURL)
 			res, err := tools.DispatchYepAPISEO(ctx, client, tc.Operation, tc.Params)
 			if err != nil {
 				b, _ := json.Marshal(err.Error())
@@ -1495,7 +1495,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				b, _ := json.Marshal(keyErr.Error())
 				return fmt.Sprintf(`Tool Output: {"status":"error","message":%s}`, b)
 			}
-			client := tools.NewYepAPIClient(apiKey)
+			client := tools.GetYepAPIClient(apiKey, cfg.YepAPI.BaseURL)
 			res, err := tools.DispatchYepAPISERP(ctx, client, tc.Operation, tc.Params)
 			if err != nil {
 				b, _ := json.Marshal(err.Error())
@@ -1518,7 +1518,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				b, _ := json.Marshal(keyErr.Error())
 				return fmt.Sprintf(`Tool Output: {"status":"error","message":%s}`, b)
 			}
-			client := tools.NewYepAPIClient(apiKey)
+			client := tools.GetYepAPIClient(apiKey, cfg.YepAPI.BaseURL)
 			res, err := tools.DispatchYepAPIScrape(ctx, client, tc.Operation, tc.Params)
 			if err != nil {
 				b, _ := json.Marshal(err.Error())
@@ -1541,7 +1541,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				b, _ := json.Marshal(keyErr.Error())
 				return fmt.Sprintf(`Tool Output: {"status":"error","message":%s}`, b)
 			}
-			client := tools.NewYepAPIClient(apiKey)
+			client := tools.GetYepAPIClient(apiKey, cfg.YepAPI.BaseURL)
 			res, err := tools.DispatchYepAPIYouTube(ctx, client, tc.Operation, tc.Params)
 			if err != nil {
 				b, _ := json.Marshal(err.Error())
@@ -1564,7 +1564,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				b, _ := json.Marshal(keyErr.Error())
 				return fmt.Sprintf(`Tool Output: {"status":"error","message":%s}`, b)
 			}
-			client := tools.NewYepAPIClient(apiKey)
+			client := tools.GetYepAPIClient(apiKey, cfg.YepAPI.BaseURL)
 			res, err := tools.DispatchYepAPITikTok(ctx, client, tc.Operation, tc.Params)
 			if err != nil {
 				b, _ := json.Marshal(err.Error())
@@ -1587,7 +1587,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				b, _ := json.Marshal(keyErr.Error())
 				return fmt.Sprintf(`Tool Output: {"status":"error","message":%s}`, b)
 			}
-			client := tools.NewYepAPIClient(apiKey)
+			client := tools.GetYepAPIClient(apiKey, cfg.YepAPI.BaseURL)
 			res, err := tools.DispatchYepAPIInstagram(ctx, client, tc.Operation, tc.Params)
 			if err != nil {
 				b, _ := json.Marshal(err.Error())
@@ -1610,7 +1610,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				b, _ := json.Marshal(keyErr.Error())
 				return fmt.Sprintf(`Tool Output: {"status":"error","message":%s}`, b)
 			}
-			client := tools.NewYepAPIClient(apiKey)
+			client := tools.GetYepAPIClient(apiKey, cfg.YepAPI.BaseURL)
 			res, err := tools.DispatchYepAPIAmazon(ctx, client, tc.Operation, tc.Params)
 			if err != nil {
 				b, _ := json.Marshal(err.Error())

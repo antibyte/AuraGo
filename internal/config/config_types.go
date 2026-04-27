@@ -1555,6 +1555,7 @@ type YepAPIConfig struct {
 	Enabled      bool                `yaml:"enabled" json:"enabled"`
 	Provider     string              `yaml:"provider" json:"provider"` // provider entry ID (empty = auto-select first yepapi provider)
 	ProviderType string              `yaml:"-" json:"-"`               // resolved: provider type
+	BaseURL      string              `yaml:"base_url" json:"base_url"` // custom YepAPI base URL (empty = https://api.yepapi.com)
 	SEO          YepAPIServiceConfig `yaml:"seo" json:"seo"`
 	SERP         YepAPIServiceConfig `yaml:"serp" json:"serp"`
 	Scraping     YepAPIServiceConfig `yaml:"scraping" json:"scraping"`

@@ -936,6 +936,7 @@ notifications:
 yepapi:
     enabled: false
     provider: ""                            # provider entry ID with type 'yepapi' (empty = auto-select first)
+    base_url: ""                            # custom YepAPI base URL (empty = https://api.yepapi.com)
     seo:
         enabled: false                      # keyword research, domain overview, competitor analysis, backlinks
     serp:

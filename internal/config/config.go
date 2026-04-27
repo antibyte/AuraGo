@@ -300,6 +300,7 @@ func Load(path string) (*Config, error) {
 
 	// YepAPI defaults: disabled by default, all services opt-in.
 	cfg.YepAPI.Enabled = false
+	cfg.YepAPI.BaseURL = "https://api.yepapi.com"
 	cfg.YepAPI.SEO.Enabled = false
 	cfg.YepAPI.SERP.Enabled = false
 	cfg.YepAPI.Scraping.Enabled = false
