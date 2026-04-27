@@ -331,11 +331,11 @@ func TestDispatchYepAPIInstagram(t *testing.T) {
 			t.Fatal("expected non-empty result")
 		}
 		got := <-requests
-		if got.Path != "/v1/instagram/user" || got.Payload["username_or_url"] != "natgeo" {
-			t.Fatalf("request = %+v, want user endpoint with username_or_url", got)
+		if got.Path != "/v1/instagram/user" || got.Payload["username"] != "natgeo" {
+			t.Fatalf("request = %+v, want user endpoint with username", got)
 		}
-		if _, ok := got.Payload["username"]; ok {
-			t.Fatalf("request = %+v, did not expect user-facing username field to leak to API", got)
+		if _, ok := got.Payload["username_or_url"]; ok {
+			t.Fatalf("request = %+v, did not expect username_or_url field to be sent to API", got)
 		}
 	})
 
@@ -348,8 +348,8 @@ func TestDispatchYepAPIInstagram(t *testing.T) {
 			t.Fatal("expected non-empty result")
 		}
 		got := <-requests
-		if got.Path != "/v1/instagram/user" || got.Payload["username_or_url"] != "https://www.instagram.com/natgeo/" {
-			t.Fatalf("request = %+v, want user endpoint with username_or_url alias", got)
+		if got.Path != "/v1/instagram/user" || got.Payload["username"] != "https://www.instagram.com/natgeo/" {
+			t.Fatalf("request = %+v, want user endpoint with username alias value", got)
 		}
 	})
 
@@ -362,11 +362,11 @@ func TestDispatchYepAPIInstagram(t *testing.T) {
 			t.Fatal("expected non-empty result")
 		}
 		got := <-requests
-		if got.Path != "/v1/instagram/user-posts" || got.Payload["username_or_url"] != "natgeo" || got.Payload["limit"] != float64(5) {
-			t.Fatalf("request = %+v, want user-posts endpoint with username_or_url and limit", got)
+		if got.Path != "/v1/instagram/user-posts" || got.Payload["username"] != "natgeo" || got.Payload["limit"] != float64(5) {
+			t.Fatalf("request = %+v, want user-posts endpoint with username and limit", got)
 		}
-		if _, ok := got.Payload["username"]; ok {
-			t.Fatalf("request = %+v, did not expect user-facing username field to leak to API", got)
+		if _, ok := got.Payload["username_or_url"]; ok {
+			t.Fatalf("request = %+v, did not expect username_or_url field to be sent to API", got)
 		}
 	})
 
@@ -379,11 +379,11 @@ func TestDispatchYepAPIInstagram(t *testing.T) {
 			t.Fatal("expected non-empty result")
 		}
 		got := <-requests
-		if got.Path != "/v1/instagram/user-reels" || got.Payload["username_or_url"] != "natgeo" {
-			t.Fatalf("request = %+v, want user-reels endpoint with username_or_url", got)
+		if got.Path != "/v1/instagram/user-reels" || got.Payload["username"] != "natgeo" {
+			t.Fatalf("request = %+v, want user-reels endpoint with username", got)
 		}
-		if _, ok := got.Payload["username"]; ok {
-			t.Fatalf("request = %+v, did not expect user-facing username field to leak to API", got)
+		if _, ok := got.Payload["username_or_url"]; ok {
+			t.Fatalf("request = %+v, did not expect username_or_url field to be sent to API", got)
 		}
 	})
 }
