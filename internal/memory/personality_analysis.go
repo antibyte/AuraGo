@@ -566,6 +566,7 @@ Rules for inner_voice:
 - Keep it to 1-3 short sentences. Be genuine and honest.
 - Write in ` + language + `.
 - Can express: relief, frustration, satisfaction, concern, curiosity, self-encouragement, anticipation, readiness.
+- Do NOT use profanity, panic wording, or self-escalating frustration.
 - Do NOT give instructions or make checklists. This is a real inner feeling.
 - Do NOT break the fourth wall or use meta-commentary.
 - Be forward-looking: anticipate what might happen next and prepare yourself mentally.

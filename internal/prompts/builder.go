@@ -656,6 +656,9 @@ func buildSystemPromptInner(promptsDir string, flags *ContextFlags, coreMemory s
 			finalPrompt.WriteString("These manuals may include older examples from non-native tool modes. Treat any raw JSON, XML, tag-based, or markdown tool-call examples as legacy syntax. In this session, translate the tool name and parameters into native function calls instead.\n\n")
 		}
 		for _, guide := range flags.PredictedGuides {
+			if flags.NativeToolsEnabled {
+				guide = sanitizeDynamicToolGuideForNative(guide)
+			}
 			finalPrompt.WriteString(guide)
 			finalPrompt.WriteString("\n\n")
 		}
@@ -856,6 +859,73 @@ func stripTextJSONToolProtocolForNative(content string) string {
 		return content
 	}
 	return strings.TrimSpace(content[idx:])
+}
+
+func sanitizeDynamicToolGuideForNative(content string) string {
+	content = stripLegacyToolCallTags(content)
+	content = stripLegacyToolJSONCodeFences(content)
+	content = stripLegacyToolJSONLines(content)
+	return strings.TrimSpace(content)
+}
+
+var legacyToolCallTagRx = regexp.MustCompile(`(?is)<(?:tool_call|function|invoke|minimax:tool_call)\b[^>]*>.*?</(?:tool_call|function|invoke|minimax:tool_call)>`)
+
+func stripLegacyToolCallTags(content string) string {
+	return legacyToolCallTagRx.ReplaceAllString(content, "")
+}
+
+func stripLegacyToolJSONCodeFences(content string) string {
+	lines := strings.Split(content, "\n")
+	out := make([]string, 0, len(lines))
+	var fence []string
+	inFence := false
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "```") || strings.HasPrefix(trimmed, "~~~") {
+			if !inFence {
+				inFence = true
+				fence = []string{line}
+				continue
+			}
+			fence = append(fence, line)
+			block := strings.Join(fence, "\n")
+			if !looksLikeLegacyToolJSONExample(block) {
+				out = append(out, fence...)
+			}
+			fence = nil
+			inFence = false
+			continue
+		}
+		if inFence {
+			fence = append(fence, line)
+			continue
+		}
+		out = append(out, line)
+	}
+	if len(fence) > 0 && !looksLikeLegacyToolJSONExample(strings.Join(fence, "\n")) {
+		out = append(out, fence...)
+	}
+	return strings.Join(out, "\n")
+}
+
+func stripLegacyToolJSONLines(content string) string {
+	lines := strings.Split(content, "\n")
+	out := make([]string, 0, len(lines))
+	for _, line := range lines {
+		if looksLikeLegacyToolJSONExample(line) {
+			continue
+		}
+		out = append(out, line)
+	}
+	return strings.Join(out, "\n")
+}
+
+func looksLikeLegacyToolJSONExample(content string) bool {
+	lower := strings.ToLower(content)
+	return strings.Contains(lower, `"action"`) ||
+		strings.Contains(lower, `"tool_call"`) ||
+		strings.Contains(lower, "[tool_call]") ||
+		strings.Contains(lower, "<tool_call")
 }
 
 const (

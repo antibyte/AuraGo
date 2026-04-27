@@ -628,13 +628,9 @@ func Load(path string) (*Config, error) {
 		cfg.Personality.EngineV2 = true
 		cfg.Personality.Engine = true
 	}
-	// Auto-enable InnerVoice when EmotionSynthesizer is active — they are designed as a pair.
-	// EmotionSynthesizer analyses emotional state; InnerVoice is the mechanism that exposes
-	// that state as subconscious nudges in the system prompt.  Having one without the other
-	// produces no visible effect for the user.
-	if cfg.Personality.EmotionSynthesizer.Enabled && cfg.Personality.EngineV2 && !cfg.Personality.InnerVoice.Enabled {
-		cfg.Personality.InnerVoice.Enabled = true
-	}
+	// InnerVoice is prompt-injected agent self-talk and must stay explicit opt-in.
+	// EmotionSynthesizer can run on its own to update mood state without injecting
+	// subconscious text into recovery prompts.
 	if cfg.Agent.SystemPromptTokenBudget <= 0 {
 		cfg.Agent.SystemPromptTokenBudgetAuto = true
 		cfg.Agent.SystemPromptTokenBudget = 0

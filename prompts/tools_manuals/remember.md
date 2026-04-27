@@ -27,25 +27,10 @@ A simplified single-entry-point for storing any kind of information. The system 
 
 ## Examples
 
-**Auto-classified as core memory:**
-```json
-{"action": "remember", "content": "User's main server is a Dell R730 running Proxmox"}
-```
-
-**Auto-classified as note/task:**
-```json
-{"action": "remember", "content": "TODO: Update the Docker Compose file for the new service"}
-```
-
-**Auto-classified as journal event:**
-```json
-{"action": "remember", "content": "Successfully configured Tailscale mesh network for all devices"}
-```
-
-**Explicit relationship (knowledge graph):**
-```json
-{"action": "remember", "content": "prod-server uses PostgreSQL", "category": "relationship", "source": "prod-server", "target": "postgresql", "relation": "uses"}
-```
+- Core memory style: set `content` to a durable fact such as the user's main server model and platform.
+- Note/task style: set `content` to a TODO or reminder.
+- Journal event style: set `content` to a completed milestone or operational event.
+- Relationship style: set `category` to `relationship` and provide `source`, `target`, and `relation`.
 
 ## Notes
 

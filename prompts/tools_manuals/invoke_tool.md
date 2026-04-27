@@ -20,11 +20,14 @@ Do not use `invoke_tool` for normal active tools, disabled tools, or Python skil
 | `tool_name` | Yes | Native tool name returned by `discover_tools` |
 | `arguments` | Yes | Arguments matching the schema returned by `discover_tools` |
 
-## Example
+## Usage
 
-```json
-{"action":"invoke_tool","tool_name":"yepapi_instagram","arguments":{"operation":"user","username":"jopliness"}}
-```
+Use the `invoke_tool` tool with:
+
+- `tool_name`: the hidden native tool name returned by `discover_tools`
+- `arguments`: the parameter object from that tool's schema
+
+For example, after discovering `yepapi_instagram`, invoke `invoke_tool` with `tool_name` set to `yepapi_instagram` and put Instagram parameters such as `operation`, `username`, or `username_or_url` inside `arguments`.
 
 After a hidden native tool is discovered or invoked, AuraGo marks it for schema re-injection so follow-up calls can use the real native tool schema directly.
 

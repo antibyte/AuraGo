@@ -163,7 +163,7 @@ func TestShouldGenerateInnerVoice_RequiresEmotionSynthesizer(t *testing.T) {
 	}
 }
 
-func TestShouldGenerateInnerVoice_ErrorStreak(t *testing.T) {
+func TestShouldGenerateInnerVoice_SuppressesActiveErrorRecovery(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Personality.InnerVoice.Enabled = true
 	cfg.Personality.EmotionSynthesizer.Enabled = true
@@ -182,9 +182,10 @@ func TestShouldGenerateInnerVoice_ErrorStreak(t *testing.T) {
 		t.Fatal("should not trigger with only 1 consecutive error")
 	}
 
-	// At threshold — trigger
-	if !shouldGenerateInnerVoice("sess-a", cfg, 2, 2, 0, false, false, false) {
-		t.Fatal("should trigger with error streak >= 2")
+	// At threshold, active tool recovery should stay procedural and not inject
+	// subconscious emotional text into the next system prompt.
+	if shouldGenerateInnerVoice("sess-a", cfg, 2, 2, 0, false, false, false) {
+		t.Fatal("should not trigger during an active error streak")
 	}
 }
 
@@ -251,6 +252,15 @@ func TestNormalizeInnerVoiceRejectsCommandTone(t *testing.T) {
 		t.Fatal("expected command-like nudge to be rejected")
 	} else if reason != "command_tone" {
 		t.Fatalf("expected command_tone rejection, got %q", reason)
+	}
+}
+
+func TestNormalizeInnerVoiceRejectsProfanePanic(t *testing.T) {
+	ResetInnerVoiceState()
+	if _, _, _, accepted, reason := normalizeInnerVoice("sess-a", "Fuck, this is the third attempt and I am losing it.", "focus", 0.8); accepted {
+		t.Fatal("expected profane panic nudge to be rejected")
+	} else if reason != "unsafe_tone" {
+		t.Fatalf("expected unsafe_tone rejection, got %q", reason)
 	}
 }
 

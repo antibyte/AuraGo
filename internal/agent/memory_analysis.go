@@ -62,6 +62,7 @@ Rules:
 - Do NOT extract emotions, moods, or temporary states.
 - Use category "recent_operational_details" for details likely needed in the next days (paths, versions, hostnames, ports, identifiers, deadlines).
 - NEVER extract any claim about whether a tool, integration, capability, or feature is currently available, enabled, configured, active, or missing. This is transient system state that changes with configuration and must never be stored in memory.
+- NEVER extract unverified claims that a tool is broken, failing, buggy, or producing a specific transient error. Tool failures are tracked by the tool-error system, not long-term memory.
 - Only create pending actions when the exchange clearly indicates deferred future work, a follow-up promise, or an unfinished task likely relevant in the next days/weeks.
 - For pending actions provide: title, summary, trigger_query, confidence.
 - If there is nothing worth remembering, return empty arrays.
@@ -547,6 +548,9 @@ func shouldStoreExtractedMemory(content, category string) bool {
 	if strings.EqualFold(strings.TrimSpace(category), "tool_availability") {
 		return false
 	}
+	if isTransientToolFailureClaim(text, category) {
+		return false
+	}
 
 	if containsTransientMemoryPhrase(content) {
 		return false
@@ -583,6 +587,33 @@ func shouldStoreExtractedMemory(content, category string) bool {
 	}
 
 	return true
+}
+
+func isTransientToolFailureClaim(text, category string) bool {
+	lowerCategory := strings.ToLower(strings.TrimSpace(category))
+	if lowerCategory == "tool_bug" || lowerCategory == "tool_failure" || lowerCategory == "tool_error" {
+		return true
+	}
+
+	toolSubject := strings.Contains(text, "tool") ||
+		strings.Contains(text, "integration") ||
+		strings.Contains(text, "_tool") ||
+		strings.Contains(text, "yepapi_")
+	if !toolSubject {
+		return false
+	}
+
+	failureTerms := []string{
+		"broken", "buggy", "bug", "failed", "failing", "failure", "error",
+		"kaputt", "fehler", "fehlgeschlagen", "scheitert", "erkennt parameter nicht",
+		"http 422", "missing field", "deserializ", "deserialize",
+	}
+	for _, term := range failureTerms {
+		if strings.Contains(text, term) {
+			return true
+		}
+	}
+	return false
 }
 
 func isWeakOperationalLabel(text string) bool {

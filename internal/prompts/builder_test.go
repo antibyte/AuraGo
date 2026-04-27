@@ -359,6 +359,47 @@ func TestBuildSystemPromptNativeModeAppendsFinalProtocolReminder(t *testing.T) {
 	}
 }
 
+func TestBuildSystemPromptNativeModeSanitizesDynamicToolGuides(t *testing.T) {
+	flags := ContextFlags{
+		Tier:               "full",
+		SystemLanguage:     "en",
+		NativeToolsEnabled: true,
+		PredictedGuides: []string{
+			"# invoke_tool\n\n```json\n{\"action\":\"invoke_tool\",\"tool_name\":\"yepapi_instagram\",\"arguments\":{\"operation\":\"user\",\"username\":\"jopliness\"}}\n```\n\n<tool_call>{\"name\":\"invoke_tool\"}</tool_call>\n\nUse tool_name and arguments from the schema.",
+		},
+	}
+
+	prompt, _ := buildSystemPromptInner("", &flags, "", slog.Default())
+	if !strings.Contains(prompt, "# TOOL GUIDES") {
+		t.Fatalf("prompt missing dynamic tool guides")
+	}
+	forbidden := []string{`{"action":"invoke_tool"`, "<tool_call>", "</tool_call>"}
+	for _, needle := range forbidden {
+		if strings.Contains(prompt, needle) {
+			t.Fatalf("native prompt must sanitize dynamic guide legacy syntax %q", needle)
+		}
+	}
+	if !strings.Contains(prompt, "Use tool_name and arguments from the schema.") {
+		t.Fatalf("sanitizer removed non-example guide prose")
+	}
+}
+
+func TestBuildSystemPromptTextJSONModeKeepsDynamicToolGuideExamples(t *testing.T) {
+	flags := ContextFlags{
+		Tier:            "full",
+		SystemLanguage:  "en",
+		IsTextModeModel: true,
+		PredictedGuides: []string{
+			"# invoke_tool\n\n```json\n{\"action\":\"invoke_tool\",\"tool_name\":\"yepapi_instagram\",\"arguments\":{\"operation\":\"user\",\"username\":\"jopliness\"}}\n```",
+		},
+	}
+
+	prompt, _ := buildSystemPromptInner("", &flags, "", slog.Default())
+	if !strings.Contains(prompt, `{"action":"invoke_tool"`) {
+		t.Fatalf("text JSON mode should keep raw JSON guide examples")
+	}
+}
+
 func TestBuildSystemPromptTextJSONModeDoesNotAllowPreambleBeforeJSON(t *testing.T) {
 	flags := ContextFlags{
 		Tier:            "full",

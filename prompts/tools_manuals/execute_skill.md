@@ -15,23 +15,11 @@ Run a registered skill for external data retrieval, processing, or automation.
 
 Always call `list_skills` first to discover available skills and their parameters. Skills are added dynamically — the list changes over time.
 
-```json
-{"action": "list_skills"}
-```
+Use the `list_skills` tool and inspect the returned skill names and parameter schemas.
 
 ## Examples
 
-```json
-{"action": "execute_skill", "skill": "ddg_search", "skill_args": {"query": "golang best practices 2026", "max_results": 5}}
-```
-
-```json
-{"action": "execute_skill", "skill": "web_scraper", "skill_args": {"url": "https://example.com"}}
-```
-
-```json
-{"action": "execute_skill", "skill": "pdf_extractor", "skill_args": {"filepath": "docs/report.pdf"}}
-```
+Call `execute_skill` with the discovered skill name in `skill` and the skill-specific parameters in `skill_args`. For example, a search skill would receive its query and result limit inside `skill_args`; a scraper skill would receive its URL inside `skill_args`; a document extractor would receive its file path inside `skill_args`.
 
 Use `analyze_image` instead of `pdf_extractor` for PNG/JPG/WebP screenshots or photos.
 
@@ -45,4 +33,4 @@ Use `analyze_image` instead of `pdf_extractor` for PNG/JPG/WebP screenshots or p
 - Use `list_skills` (not `list_tools`) to discover available skills
 - Native AuraGo tools are **not** skills. If `discover_tools` reports `kind: native`, do not wrap it in `execute_skill`.
 - If the native tool is `active`, call it directly with its own `action`. If it is `hidden`, use `invoke_tool` exactly as instructed by `discover_tools`; the real native schema will be re-injected for follow-up calls.
-- Example: use `{"action":"upnp_scan"}` directly, or `{"action":"invoke_tool","tool_name":"upnp_scan","arguments":{...}}` only when `discover_tools` returned `call_method: "invoke_tool"`. Do not use `{"action":"execute_skill","skill":"upnp_scan"}`.
+- Example: call an active native tool directly by its native tool name, or call `invoke_tool` with `tool_name` and `arguments` only when `discover_tools` returned `call_method: "invoke_tool"`. Do not call `execute_skill` for native tools.

@@ -287,6 +287,60 @@ indexing:
 	}
 }
 
+func TestLoadDoesNotAutoEnableInnerVoiceFromEmotionSynthesizer(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	configContent := `
+personality:
+  engine_v2: true
+  emotion_synthesizer:
+    enabled: true
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if cfg.Personality.InnerVoice.Enabled {
+		t.Fatal("inner_voice.enabled should stay opt-in even when emotion_synthesizer is enabled")
+	}
+	if !cfg.Personality.EmotionSynthesizer.Enabled {
+		t.Fatal("emotion_synthesizer.enabled should remain enabled")
+	}
+}
+
+func TestLoadInnerVoiceStillEnablesDependenciesWhenExplicit(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.yaml")
+	configContent := `
+personality:
+  inner_voice:
+    enabled: true
+`
+	if err := os.WriteFile(configPath, []byte(configContent), 0o644); err != nil {
+		t.Fatalf("failed to write config file: %v", err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+
+	if !cfg.Personality.InnerVoice.Enabled {
+		t.Fatal("explicit inner_voice.enabled=true should be preserved")
+	}
+	if !cfg.Personality.EmotionSynthesizer.Enabled {
+		t.Fatal("explicit inner voice should enable emotion synthesizer dependency")
+	}
+	if !cfg.Personality.EngineV2 {
+		t.Fatal("explicit inner voice should enable personality engine v2 dependency")
+	}
+}
+
 func TestLoadRemoteControlDefaults(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.yaml")

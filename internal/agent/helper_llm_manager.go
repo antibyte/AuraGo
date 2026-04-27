@@ -78,6 +78,7 @@ Rules for memory_analysis:
 - Pending actions: only explicit deferred follow-ups or unfinished work that should surface later.
 - Use category "recent_operational_details" for paths, versions, hostnames, ports, identifiers, deadlines, or operational details likely useful in the next days.
 - Never store transient capability state such as whether a tool or integration is currently enabled, available, configured, active, or missing.
+- Never store unverified claims that a tool is broken, failing, buggy, or producing a specific transient error. Tool failures are tracked by the tool-error system instead.
 - If nothing is worth remembering, return empty arrays.
 
 Rules for activity_digest:
@@ -796,6 +797,7 @@ func buildHelperTurnPersonalitySection(input *helperTurnPersonalityInput) string
 		b.WriteString(`{"inner_thought": "1-3 first-person sentences, e.g. I feel...", "nudge_category": "one of: ` + memory.InnerVoiceNudgeCategories + `", "confidence": 0.8}`)
 		b.WriteString("\nWrite inner_thought in: " + ivLang + "\n")
 		b.WriteString("Write as the agent's inner subconscious voice — genuine, subtle, not commanding.\n")
+		b.WriteString("Do not use profanity, panic wording, or self-escalating frustration.\n")
 		b.WriteString("Be forward-looking: anticipate what might happen next and prepare yourself mentally.\n")
 		b.WriteString("Use predictive context to form a forward-looking thought about what's coming next.\n")
 		b.WriteString("Match the conversation phase: opening=curiosity, execution=focus, struggling=patience, closing=satisfaction.\n")

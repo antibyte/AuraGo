@@ -155,9 +155,11 @@ func shouldGenerateInnerVoice(
 		return false
 	}
 
-	// Trigger: error streak
-	if consecutiveErrors >= cfg.Personality.InnerVoice.ErrorStreakMin {
-		return true
+	// Active error recovery must stay procedural. Inner voice text is injected into
+	// the next system prompt, so generating it during a failing tool chain can turn
+	// transient frustration into instructions for the next recovery step.
+	if consecutiveErrors > 0 {
+		return false
 	}
 
 	// Trigger: task completed after errors (recovery) — consecutiveErrors is 0 when recovered,
@@ -202,6 +204,13 @@ func innerVoiceCommandPhrases() []string {
 	}
 }
 
+func innerVoiceUnsafeTonePhrases() []string {
+	return []string{
+		"fuck", "shit", "scheisse", "scheiße", "verdammt", "wahnsinnig",
+		"losing it", "i am losing", "i'm losing", "ich verliere", "ich raste",
+	}
+}
+
 func normalizeInnerVoiceText(thought string) string {
 	thought = strings.TrimSpace(thought)
 	thought = strings.Trim(thought, `"'`)
@@ -233,6 +242,11 @@ func normalizeInnerVoice(sessionID, thought, category string, confidence float64
 	for _, phrase := range innerVoiceCommandPhrases() {
 		if strings.Contains(lower, phrase) {
 			return "", "", confidence, false, "command_tone"
+		}
+	}
+	for _, phrase := range innerVoiceUnsafeTonePhrases() {
+		if strings.Contains(lower, phrase) {
+			return "", "", confidence, false, "unsafe_tone"
 		}
 	}
 

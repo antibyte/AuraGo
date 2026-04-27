@@ -339,6 +339,18 @@ func TestShouldStoreExtractedMemory(t *testing.T) {
 			want:     false,
 		},
 		{
+			name:     "drops unverified tool bug claim",
+			content:  "YepAPI Instagram tool is broken with HTTP 422 deserialization errors.",
+			category: "tool_bug",
+			want:     false,
+		},
+		{
+			name:     "drops german transient tool failure claim",
+			content:  "Das yepapi_instagram Tool ist kaputt und erkennt Parameter nicht.",
+			category: "recent_operational_details",
+			want:     false,
+		},
+		{
 			name:     "drops ephemeral playback success claim",
 			content:  "Song läuft auf dem Google Home Mini.",
 			category: "recent_operational_details",

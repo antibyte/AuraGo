@@ -185,16 +185,16 @@ func TestInvokeToolRoutesHiddenNativeTool(t *testing.T) {
 
 func TestInvokeToolAcceptsFlattenedArguments(t *testing.T) {
 	args := flattenedInvokeArgs(map[string]interface{}{
-		"tool_name": "yepapi_instagram",
-		"operation": "user",
-		"username":  "jopliness",
+		"tool_name":       "yepapi_instagram",
+		"operation":       "user",
+		"username_or_url": "jopliness",
 	})
 	routed := toolCallFromInvokeArgs("yepapi_instagram", args)
 	if routed.Action != "yepapi_instagram" || routed.Operation != "user" {
 		t.Fatalf("routed = %+v, want native action with operation", routed)
 	}
-	if routed.Params["username"] != "jopliness" {
-		t.Fatalf("params = %+v, want username preserved", routed.Params)
+	if routed.Params["username_or_url"] != "jopliness" {
+		t.Fatalf("params = %+v, want username_or_url preserved", routed.Params)
 	}
 	if _, ok := routed.Params["tool_name"]; ok {
 		t.Fatalf("params = %+v, tool_name should not leak into invoked tool args", routed.Params)
