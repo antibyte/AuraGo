@@ -1,6 +1,7 @@
 package prompts
 
 import (
+	promptsembed "aurago/prompts"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -218,6 +219,27 @@ func TestBuildSystemPromptIncludesOperationalIssueReminder(t *testing.T) {
 	}
 	if !strings.Contains(prompt, "Maintenance failed") {
 		t.Fatalf("prompt = %q, want operational issue content", prompt)
+	}
+}
+
+func TestMaintenancePromptIncludesWorkdirCleanupProtocol(t *testing.T) {
+	raw, err := promptsembed.FS.ReadFile("maintenance.md")
+	if err != nil {
+		t.Fatalf("read embedded maintenance prompt: %v", err)
+	}
+
+	prompt := string(raw)
+	required := []string{
+		"**Workdir Cleanup.**",
+		"agent_workspace/workdir",
+		"Never delete",
+		"archive/maintenance",
+		"Report deleted, moved, renamed",
+	}
+	for _, marker := range required {
+		if !strings.Contains(prompt, marker) {
+			t.Fatalf("maintenance prompt missing workdir cleanup marker %q", marker)
+		}
 	}
 }
 
