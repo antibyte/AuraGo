@@ -113,6 +113,16 @@ func getInnerVoiceForPrompt(sessionID string, decayTurns, decayMaxAgeSecs int) (
 	return state.currentThought, state.nudgeCategory
 }
 
+func shouldInjectInnerVoiceIntoPrompt(cfg *config.Config, consecutiveErrors int, isMission bool, isCoAgent bool) bool {
+	if cfg == nil || !cfg.Personality.InnerVoice.Enabled {
+		return false
+	}
+	if isMission || isCoAgent {
+		return false
+	}
+	return consecutiveErrors == 0
+}
+
 // shouldGenerateInnerVoice determines whether the inner voice system should trigger.
 // It evaluates rate limits, session caps, and situational triggers.
 func shouldGenerateInnerVoice(

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"strings"
 	"testing"
@@ -421,6 +422,40 @@ func TestDispatchYepAPIInstagram(t *testing.T) {
 			t.Fatalf("request = %+v, want username_or_url compatibility field", got)
 		}
 	})
+}
+
+func TestDispatchYepAPIInstagramLogsPayloadShape(t *testing.T) {
+	var logs strings.Builder
+	logger := slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	requests := make(chan yepAPIRecordedRequest, 1)
+	client := newYepAPITestClient(func(r *http.Request) (int, string) {
+		var payload map[string]interface{}
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Fatalf("decode request body: %v", err)
+		}
+		requests <- yepAPIRecordedRequest{Path: r.URL.Path, Payload: payload}
+		return http.StatusOK, `{"ok":true,"data":{}}`
+	})
+
+	ctx := WithYepAPILogger(context.Background(), logger)
+	if _, err := DispatchYepAPIInstagram(ctx, client, "user", map[string]interface{}{"username": "natgeo"}); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	<-requests
+
+	got := logs.String()
+	if !strings.Contains(got, "[YepAPI] Prepared request payload") {
+		t.Fatalf("logs = %q, want payload diagnostic", got)
+	}
+	if !strings.Contains(got, "/v1/instagram/user") {
+		t.Fatalf("logs = %q, want endpoint", got)
+	}
+	if !strings.Contains(got, "username") || !strings.Contains(got, "username_or_url") {
+		t.Fatalf("logs = %q, want payload keys", got)
+	}
+	if strings.Contains(got, "natgeo") {
+		t.Fatalf("logs = %q, should not contain raw payload value", got)
+	}
 }
 
 func TestYepAPIFormatSuccessPromotesEmbeddedErrors(t *testing.T) {

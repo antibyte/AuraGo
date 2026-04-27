@@ -1591,7 +1591,8 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				return fmt.Sprintf(`Tool Output: {"status":"error","message":%s}`, b)
 			}
 			client := tools.GetYepAPIClient(apiKey, cfg.YepAPI.BaseURL)
-			res, err := tools.DispatchYepAPIInstagram(ctx, client, tc.Operation, tc.Params)
+			yepCtx := tools.WithYepAPILogger(ctx, logger)
+			res, err := tools.DispatchYepAPIInstagram(yepCtx, client, tc.Operation, tc.Params)
 			if err != nil {
 				logToolCommandFailure(logger, "yepapi_instagram", tc.Operation, err.Error(), tc.Params)
 				b, _ := json.Marshal(err.Error())

@@ -189,6 +189,24 @@ func TestShouldGenerateInnerVoice_SuppressesActiveErrorRecovery(t *testing.T) {
 	}
 }
 
+func TestShouldInjectInnerVoiceIntoPromptSuppressesActiveRecovery(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Personality.InnerVoice.Enabled = true
+
+	if shouldInjectInnerVoiceIntoPrompt(cfg, 1, false, false) {
+		t.Fatal("should not inject stored inner voice during active tool recovery")
+	}
+	if !shouldInjectInnerVoiceIntoPrompt(cfg, 0, false, false) {
+		t.Fatal("should inject stored inner voice when no recovery is active")
+	}
+	if shouldInjectInnerVoiceIntoPrompt(cfg, 0, true, false) {
+		t.Fatal("should not inject for missions")
+	}
+	if shouldInjectInnerVoiceIntoPrompt(cfg, 0, false, true) {
+		t.Fatal("should not inject for co-agents")
+	}
+}
+
 func TestShouldGenerateInnerVoice_RecoveryTrigger(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Personality.InnerVoice.Enabled = true
