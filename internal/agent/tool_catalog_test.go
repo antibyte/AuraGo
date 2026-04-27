@@ -201,6 +201,55 @@ func TestInvokeToolAcceptsFlattenedArguments(t *testing.T) {
 	}
 }
 
+func TestInvokeToolLogsFlattenedArgumentsAndMissingOperation(t *testing.T) {
+	resetToolCatalogForTest(t)
+	var logs strings.Builder
+	logger := slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	cfg := &config.Config{}
+	cfg.YepAPI.Enabled = true
+	cfg.YepAPI.Instagram.Enabled = false
+	schemas := []openai.Tool{testToolSchema("yepapi_instagram", "Instagram data via YepAPI")}
+	SetDiscoverToolsState("sess-invoke-log", schemas, nil, "")
+
+	out, ok := dispatchComm(context.Background(), ToolCall{
+		Action: "invoke_tool",
+		Params: map[string]interface{}{
+			"tool_name":       "yepapi_instagram",
+			"username_or_url": "jopliness",
+		},
+	}, &DispatchContext{
+		Cfg:       cfg,
+		Logger:    logger,
+		SessionID: "sess-invoke-log",
+	})
+	if !ok {
+		t.Fatal("expected dispatchComm to handle invoke_tool")
+	}
+	if !strings.Contains(out, "YepAPI Instagram is disabled") {
+		t.Fatalf("expected disabled response, got %s", out)
+	}
+	got := logs.String()
+	if !strings.Contains(got, "invoke_tool received flattened arguments") {
+		t.Fatalf("logs = %q, want flattened argument diagnostic", got)
+	}
+	if !strings.Contains(got, "missing_operation") {
+		t.Fatalf("logs = %q, want missing operation diagnostic", got)
+	}
+	if strings.Contains(got, "jopliness") {
+		t.Fatalf("logs = %q, should not include raw argument values", got)
+	}
+}
+
+func TestToolCommandErrorMessageDetectsErrorEnvelope(t *testing.T) {
+	msg, ok := toolCommandErrorMessage(`{"status":"error","message":"username_or_url is required"}`)
+	if !ok {
+		t.Fatal("expected error envelope to be detected")
+	}
+	if msg != "username_or_url is required" {
+		t.Fatalf("message = %q, want username_or_url is required", msg)
+	}
+}
+
 func TestInvokeToolRejectsDisabledTool(t *testing.T) {
 	resetToolCatalogForTest(t)
 	SetDiscoverToolsState("sess-disabled", nil, nil, "")

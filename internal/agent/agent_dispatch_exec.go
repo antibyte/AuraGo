@@ -1576,6 +1576,9 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			return res
 
 		case "yepapi_instagram":
+			if tc.Operation == "" {
+				logInvalidToolCommand(logger, "yepapi_instagram", "", "missing_operation", tc.Params)
+			}
 			if !cfg.YepAPI.Enabled || !cfg.YepAPI.Instagram.Enabled {
 				return `Tool Output: {"status":"error","message":"YepAPI Instagram is disabled. Enable it in Settings > YepAPI > Instagram."}`
 			}
@@ -1590,8 +1593,12 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			client := tools.GetYepAPIClient(apiKey, cfg.YepAPI.BaseURL)
 			res, err := tools.DispatchYepAPIInstagram(ctx, client, tc.Operation, tc.Params)
 			if err != nil {
+				logToolCommandFailure(logger, "yepapi_instagram", tc.Operation, err.Error(), tc.Params)
 				b, _ := json.Marshal(err.Error())
 				return fmt.Sprintf(`Tool Output: {"status":"error","message":%s}`, b)
+			}
+			if msg, ok := toolCommandErrorMessage(res); ok {
+				logToolCommandFailure(logger, "yepapi_instagram", tc.Operation, msg, tc.Params)
 			}
 			if budgetTracker != nil {
 				budgetTracker.RecordCostForCategory("yepapi", 0.01)
