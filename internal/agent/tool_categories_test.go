@@ -31,8 +31,8 @@ func TestToolCategoryOrderMatchesDefs(t *testing.T) {
 }
 
 func TestToolCategoryCount(t *testing.T) {
-	if len(toolCategoryOrder) != 7 {
-		t.Errorf("expected 7 categories, got %d", len(toolCategoryOrder))
+	if len(toolCategoryOrder) != 8 {
+		t.Errorf("expected 8 categories, got %d", len(toolCategoryOrder))
 	}
 }
 
@@ -48,6 +48,7 @@ func TestGetToolCategory(t *testing.T) {
 		{"filesystem", "files"},
 		{"execute_shell", "system"},
 		{"send_email", "communication"},
+		{"yepapi_instagram", "data_apis"},
 		{"nonexistent_tool", ""},
 	}
 	for _, tt := range tests {
@@ -128,6 +129,36 @@ func TestSearchToolsInCategories(t *testing.T) {
 	}
 	if !found {
 		t.Error("expected 'mcp_call' in search results for 'mcp'")
+	}
+
+	results = SearchToolsInCategories("instagram")
+	if len(results) == 0 {
+		t.Fatal("expected results for 'instagram'")
+	}
+	found = false
+	for _, r := range results {
+		if r.Entry.Name == "yepapi_instagram" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected 'yepapi_instagram' in search results for 'instagram'")
+	}
+
+	results = SearchToolsInCategories("yepapi")
+	if len(results) == 0 {
+		t.Fatal("expected results for 'yepapi'")
+	}
+	found = false
+	for _, r := range results {
+		if r.Entry.Name == "yepapi_instagram" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("expected 'yepapi_instagram' in search results for 'yepapi'")
 	}
 
 	// No results

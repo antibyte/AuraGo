@@ -153,6 +153,15 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 		{"invasion_control", "Manage distributed egg/nest compute nodes"},
 		{"mcp_call", "Call tools on connected MCP (Model Context Protocol) servers"},
 	},
+	"data_apis": {
+		{"yepapi_seo", "SEO data via YepAPI: domain overviews, keywords, competitors, and backlinks"},
+		{"yepapi_serp", "Search engine results via YepAPI: Google, Google Maps, News, Images, and autocomplete"},
+		{"yepapi_scrape", "Scrape and extract web page content through YepAPI"},
+		{"yepapi_youtube", "YouTube data via YepAPI: search, videos, transcripts, comments, channels, and playlists"},
+		{"yepapi_tiktok", "TikTok data via YepAPI: videos, users, posts, comments, music, and challenges"},
+		{"yepapi_instagram", "Instagram data via YepAPI: users, posts, reels, comments, hashtags, and places"},
+		{"yepapi_amazon", "Amazon data via YepAPI: products, reviews, offers, categories, and search"},
+	},
 	"communication": {
 		{"send_email", "Send emails via configured SMTP accounts"},
 		{"fetch_email", "Fetch and read emails from IMAP accounts"},
@@ -173,7 +182,7 @@ var toolCategoryDef = map[string][]ToolCategoryEntry{
 
 // toolCategoryOrder defines the display order of categories.
 var toolCategoryOrder = []string{
-	"system", "files", "network", "media", "smart_home", "infrastructure", "communication",
+	"system", "files", "network", "media", "smart_home", "infrastructure", "data_apis", "communication",
 }
 
 // toolCategoryLabels provides human-readable labels for categories.
@@ -184,6 +193,7 @@ var toolCategoryLabels = map[string]string{
 	"media":          "Media & Content",
 	"smart_home":     "Smart Home & IoT",
 	"infrastructure": "Infrastructure & DevOps",
+	"data_apis":      "Data APIs & Intelligence",
 	"communication":  "Communication & Messaging",
 }
 
