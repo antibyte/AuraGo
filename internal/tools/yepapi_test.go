@@ -26,6 +26,38 @@ func newYepAPITestClient(handler func(*http.Request) (int, string)) *YepAPIClien
 	return client
 }
 
+type yepAPIRecordedRequest struct {
+	Path    string
+	Payload map[string]interface{}
+}
+
+func newRecordingYepAPITestClient(t *testing.T, capacity int) (*YepAPIClient, <-chan yepAPIRecordedRequest) {
+	t.Helper()
+	requests := make(chan yepAPIRecordedRequest, capacity)
+	client := newYepAPITestClient(func(r *http.Request) (int, string) {
+		var payload map[string]interface{}
+		if r.Body != nil {
+			_ = json.NewDecoder(r.Body).Decode(&payload)
+		}
+		requests <- yepAPIRecordedRequest{Path: r.URL.Path, Payload: payload}
+		return http.StatusOK, `{"ok":true,"data":{"ok":true}}`
+	})
+	return client, requests
+}
+
+func requireYepAPIRequest(t *testing.T, requests <-chan yepAPIRecordedRequest, wantPath string, wantPayload map[string]interface{}) {
+	t.Helper()
+	req := <-requests
+	if req.Path != wantPath {
+		t.Fatalf("expected path %s, got %s", wantPath, req.Path)
+	}
+	for key, want := range wantPayload {
+		if got := req.Payload[key]; got != want {
+			t.Fatalf("expected payload[%s]=%v, got %v (payload=%v)", key, want, got, req.Payload)
+		}
+	}
+}
+
 func TestYepAPIClient_Post(t *testing.T) {
 	client := newYepAPITestClient(func(r *http.Request) (int, string) {
 		status := http.StatusOK
@@ -454,6 +486,141 @@ func TestDispatchYepAPIAmazon(t *testing.T) {
 			t.Fatal("expected non-empty result")
 		}
 	})
+}
+
+func TestDispatchYepAPIScrapeParityEndpoints(t *testing.T) {
+	client, requests := newRecordingYepAPITestClient(t, 2)
+	ctx := context.Background()
+
+	if _, err := DispatchYepAPIScrape(ctx, client, "extract", map[string]interface{}{"url": "https://example.com", "prompt": "title"}); err != nil {
+		t.Fatalf("extract failed: %v", err)
+	}
+	requireYepAPIRequest(t, requests, "/v1/scrape/extract", map[string]interface{}{"url": "https://example.com", "prompt": "title"})
+
+	if _, err := DispatchYepAPIScrape(ctx, client, "search_google", map[string]interface{}{"query": "aurago", "limit": 3.0}); err != nil {
+		t.Fatalf("search_google failed: %v", err)
+	}
+	requireYepAPIRequest(t, requests, "/v1/search/google", map[string]interface{}{"query": "aurago", "limit": 3.0})
+}
+
+func TestDispatchYepAPIYouTubeParityEndpoints(t *testing.T) {
+	client, requests := newRecordingYepAPITestClient(t, 16)
+	ctx := context.Background()
+
+	tests := []struct {
+		name    string
+		args    map[string]interface{}
+		path    string
+		payload map[string]interface{}
+	}{
+		{"video_info", map[string]interface{}{"video_id": "vid"}, "/v1/youtube/video-info", map[string]interface{}{"videoId": "vid"}},
+		{"metadata", map[string]interface{}{"video_id": "vid"}, "/v1/youtube/metadata", map[string]interface{}{"videoId": "vid"}},
+		{"subtitles", map[string]interface{}{"video_id": "vid"}, "/v1/youtube/subtitles", map[string]interface{}{"videoId": "vid"}},
+		{"channel_shorts", map[string]interface{}{"channel_id": "chan", "limit": 4.0}, "/v1/youtube/channel-shorts", map[string]interface{}{"channelId": "chan", "limit": 4.0}},
+		{"channel_live", map[string]interface{}{"channel_id": "chan"}, "/v1/youtube/channel-live", map[string]interface{}{"channelId": "chan"}},
+		{"channel_playlists", map[string]interface{}{"channel_id": "chan"}, "/v1/youtube/channel-playlists", map[string]interface{}{"channelId": "chan"}},
+		{"channel_channels", map[string]interface{}{"channel_id": "chan"}, "/v1/youtube/channel-channels", map[string]interface{}{"channelId": "chan"}},
+		{"channel_search", map[string]interface{}{"channel_id": "chan", "query": "go"}, "/v1/youtube/channel-search", map[string]interface{}{"channelId": "chan", "query": "go"}},
+		{"playlist_info", map[string]interface{}{"playlist_id": "pl"}, "/v1/youtube/playlist-info", map[string]interface{}{"playlistId": "pl"}},
+		{"related", map[string]interface{}{"video_id": "vid", "limit": 2.0}, "/v1/youtube/related", map[string]interface{}{"videoId": "vid", "limit": 2.0}},
+		{"screenshot", map[string]interface{}{"video_id": "vid"}, "/v1/youtube/screenshot", map[string]interface{}{"videoId": "vid"}},
+		{"shorts_info", map[string]interface{}{"video_id": "vid"}, "/v1/youtube/shorts-info", map[string]interface{}{"videoId": "vid"}},
+		{"hashtag", map[string]interface{}{"tag": "golang"}, "/v1/youtube/hashtag", map[string]interface{}{"tag": "golang"}},
+		{"home", map[string]interface{}{"country": "DE"}, "/v1/youtube/home", map[string]interface{}{"country": "DE"}},
+		{"hype", map[string]interface{}{"language": "de"}, "/v1/youtube/hype", map[string]interface{}{"language": "de"}},
+		{"resolve", map[string]interface{}{"url": "https://youtu.be/vid"}, "/v1/youtube/resolve", map[string]interface{}{"url": "https://youtu.be/vid"}},
+	}
+
+	for _, tt := range tests {
+		if _, err := DispatchYepAPIYouTube(ctx, client, tt.name, tt.args); err != nil {
+			t.Fatalf("%s failed: %v", tt.name, err)
+		}
+		requireYepAPIRequest(t, requests, tt.path, tt.payload)
+	}
+}
+
+func TestDispatchYepAPITikTokParityEndpoints(t *testing.T) {
+	client, requests := newRecordingYepAPITestClient(t, 12)
+	ctx := context.Background()
+
+	tests := []struct {
+		name    string
+		args    map[string]interface{}
+		path    string
+		payload map[string]interface{}
+	}{
+		{"search_challenge", map[string]interface{}{"query": "dance"}, "/v1/tiktok/search-challenge", map[string]interface{}{"keyword": "dance"}},
+		{"search_photo", map[string]interface{}{"query": "food"}, "/v1/tiktok/search-photo", map[string]interface{}{"keywords": "food"}},
+		{"user_followers", map[string]interface{}{"username": "user", "limit": 5.0}, "/v1/tiktok/user-followers", map[string]interface{}{"unique_id": "user", "count": 5.0}},
+		{"user_following", map[string]interface{}{"username": "user"}, "/v1/tiktok/user-following", map[string]interface{}{"unique_id": "user"}},
+		{"user_favorites", map[string]interface{}{"username": "user"}, "/v1/tiktok/user-favorites", map[string]interface{}{"unique_id": "user"}},
+		{"user_reposts", map[string]interface{}{"username": "user"}, "/v1/tiktok/user-reposts", map[string]interface{}{"unique_id": "user"}},
+		{"user_story", map[string]interface{}{"username": "user"}, "/v1/tiktok/user-story", map[string]interface{}{"unique_id": "user"}},
+		{"comment_replies", map[string]interface{}{"comment_id": "123", "url": "https://tiktok.example/v/1"}, "/v1/tiktok/comment-replies", map[string]interface{}{"comment_id": "123", "url": "https://tiktok.example/v/1"}},
+		{"music_videos", map[string]interface{}{"url": "https://tiktok.example/music/1"}, "/v1/tiktok/music-videos", map[string]interface{}{"url": "https://tiktok.example/music/1"}},
+		{"challenge_videos", map[string]interface{}{"name": "dance"}, "/v1/tiktok/challenge-videos", map[string]interface{}{"name": "dance"}},
+	}
+
+	for _, tt := range tests {
+		if _, err := DispatchYepAPITikTok(ctx, client, tt.name, tt.args); err != nil {
+			t.Fatalf("%s failed: %v", tt.name, err)
+		}
+		requireYepAPIRequest(t, requests, tt.path, tt.payload)
+	}
+}
+
+func TestDispatchYepAPIInstagramParityEndpoints(t *testing.T) {
+	client, requests := newRecordingYepAPITestClient(t, 10)
+	ctx := context.Background()
+
+	tests := []struct {
+		name    string
+		args    map[string]interface{}
+		path    string
+		payload map[string]interface{}
+	}{
+		{"user_about", map[string]interface{}{"username": "natgeo"}, "/v1/instagram/user-about", map[string]interface{}{"username": "natgeo"}},
+		{"user_stories", map[string]interface{}{"username": "natgeo"}, "/v1/instagram/user-stories", map[string]interface{}{"username": "natgeo"}},
+		{"user_highlights", map[string]interface{}{"username": "natgeo"}, "/v1/instagram/user-highlights", map[string]interface{}{"username": "natgeo"}},
+		{"user_tagged", map[string]interface{}{"username": "natgeo", "limit": 4.0}, "/v1/instagram/user-tagged", map[string]interface{}{"username": "natgeo", "limit": 4.0}},
+		{"user_followers", map[string]interface{}{"username": "natgeo"}, "/v1/instagram/user-followers", map[string]interface{}{"username": "natgeo"}},
+		{"user_similar", map[string]interface{}{"username": "natgeo"}, "/v1/instagram/user-similar", map[string]interface{}{"username": "natgeo"}},
+		{"post_likers", map[string]interface{}{"shortcode": "abc"}, "/v1/instagram/post-likers", map[string]interface{}{"shortcode": "abc"}},
+		{"media_id", map[string]interface{}{"shortcode": "abc"}, "/v1/instagram/media-id", map[string]interface{}{"shortcode": "abc"}},
+	}
+
+	for _, tt := range tests {
+		if _, err := DispatchYepAPIInstagram(ctx, client, tt.name, tt.args); err != nil {
+			t.Fatalf("%s failed: %v", tt.name, err)
+		}
+		requireYepAPIRequest(t, requests, tt.path, tt.payload)
+	}
+}
+
+func TestDispatchYepAPIAmazonParityEndpoints(t *testing.T) {
+	client, requests := newRecordingYepAPITestClient(t, 8)
+	ctx := context.Background()
+
+	tests := []struct {
+		name    string
+		args    map[string]interface{}
+		path    string
+		payload map[string]interface{}
+	}{
+		{"product_offers", map[string]interface{}{"asin": "B000", "country": "DE", "page": 2.0}, "/v1/amazon/product-offers", map[string]interface{}{"asin": "B000", "country": "DE", "page": 2.0}},
+		{"products_by_category", map[string]interface{}{"category": "electronics"}, "/v1/amazon/products-by-category", map[string]interface{}{"category": "electronics", "country": "US"}},
+		{"categories", map[string]interface{}{"country": "UK"}, "/v1/amazon/categories", map[string]interface{}{"country": "UK"}},
+		{"influencer", map[string]interface{}{"handle": "creator"}, "/v1/amazon/influencer", map[string]interface{}{"handle": "creator", "country": "US"}},
+		{"seller", map[string]interface{}{"seller_id": "SELLER"}, "/v1/amazon/seller", map[string]interface{}{"seller_id": "SELLER", "country": "US"}},
+		{"seller_reviews", map[string]interface{}{"seller_id": "SELLER", "limit": 3.0}, "/v1/amazon/seller-reviews", map[string]interface{}{"seller_id": "SELLER", "country": "US", "limit": 3.0}},
+	}
+
+	for _, tt := range tests {
+		if _, err := DispatchYepAPIAmazon(ctx, client, tt.name, tt.args); err != nil {
+			t.Fatalf("%s failed: %v", tt.name, err)
+		}
+		requireYepAPIRequest(t, requests, tt.path, tt.payload)
+	}
 }
 
 func TestResolveYepAPIKey(t *testing.T) {

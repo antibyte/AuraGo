@@ -60,12 +60,16 @@ Web scraping with multiple modes.
 - `js` — JavaScript-rendered page scrape
 - `stealth` — Stealth scrape with anti-bot bypass
 - `screenshot` — Full-page screenshot as base64 PNG
-- `ai_extract` — AI-powered data extraction via natural language prompt. Provide the extraction instruction via the `prompt` parameter.
+- `extract` — AI-powered data extraction via natural language prompt. Provide the extraction instruction via the `prompt` parameter.
+- `ai_extract` — Backward-compatible alias for `extract`.
+- `search_google` — Google search through YepAPI search endpoint. Provide the search text via `query`.
 
 **Parameters:**
-- `url` (required) — URL to scrape
+- `url` — URL to scrape (required for scrape/js/stealth/screenshot/extract)
+- `query` — Search query (required for search_google)
 - `format` — Output format for scrape operation
-- `prompt` — Natural language extraction instruction for ai_extract
+- `prompt` — Natural language extraction instruction for extract/ai_extract
+- `limit` — Max search results for search_google
 
 **Pricing:** $0.01–$0.03 per call.
 
@@ -76,20 +80,39 @@ YouTube data without quota limits.
 **Operations:**
 - `search` — Search videos, channels, playlists
 - `video` — Full video metadata and formats by video ID
+- `video_info` — Lightweight video information by video ID
+- `metadata` — Video metadata by video ID
 - `transcript` — Video transcript / captions by video ID
+- `subtitles` — Video subtitles by video ID
 - `comments` — Video comments by video ID
 - `channel` — Channel overview by channel ID
 - `channel_videos` — Channel videos list by channel ID
+- `channel_shorts` — Channel shorts by channel ID
+- `channel_live` — Channel live streams by channel ID
+- `channel_playlists` — Channel playlists by channel ID
+- `channel_channels` — Related/subscribed channels by channel ID
+- `channel_search` — Search within a channel by channel ID and query
 - `playlist` — Playlist details and videos by playlist ID
+- `playlist_info` — Playlist metadata by playlist ID
 - `trending` — Trending videos
+- `related` — Related videos by video ID
+- `screenshot` — Video screenshot by video ID
 - `shorts` — Shorts feed
+- `shorts_info` — Shorts details by video ID
 - `suggest` — Search suggestions / autocomplete
+- `hashtag` — Hashtag feed by tag
+- `home` — YouTube home feed
+- `hype` — YouTube hype feed
+- `resolve` — Resolve a YouTube URL
 
 **Parameters:**
-- `query` — Search query (for search, suggest)
-- `video_id` — YouTube video ID (for video, transcript, comments)
-- `channel_id` — YouTube channel ID (for channel, channel_videos)
-- `playlist_id` — YouTube playlist ID (for playlist)
+- `query` — Search query (for search, suggest, shorts, channel_search)
+- `video_id` — YouTube video ID (for video, video_info, metadata, transcript, subtitles, comments, related, screenshot, shorts_info)
+- `channel_id` — YouTube channel ID (for channel and channel_* operations)
+- `playlist_id` — YouTube playlist ID (for playlist and playlist_info)
+- `url` — YouTube URL (for resolve)
+- `tag` — Hashtag/tag without # (for hashtag)
+- `country` / `language` — Optional feed localization
 - `limit` — Max results (default: 10)
 
 **Pricing:** $0.01–$0.02 per call.
@@ -101,18 +124,29 @@ TikTok data access.
 **Operations:**
 - `search` — Search TikTok videos by keyword
 - `search_user` — Search TikTok users by keyword
+- `search_challenge` — Search TikTok challenges by keyword
+- `search_photo` — Search TikTok photo posts by keyword
 - `video` — Full video details by URL
 - `user` — User profile by username/unique_id
 - `user_posts` — User's posted videos by username
+- `user_followers` — User followers by username
+- `user_following` — User following by username
+- `user_favorites` — User favorites by username
+- `user_reposts` — User reposts by username
+- `user_story` — User story by username
 - `comments` — Video comments by video URL
+- `comment_replies` — Replies for a comment ID
 - `music` — Music/sound info by URL
+- `music_videos` — Videos using a music/sound URL
 - `challenge` — Challenge info by name
+- `challenge_videos` — Videos for a challenge name
 
 **Parameters:**
-- `query` — Search query (for search, search_user)
-- `url` — TikTok video or music URL (for video, comments, music)
-- `username` — TikTok username/unique_id (for user, user_posts)
-- `name` — Challenge name (for challenge)
+- `query` — Search query (for search, search_user, search_challenge, search_photo)
+- `url` — TikTok video or music URL (for video, comments, music, music_videos)
+- `username` — TikTok username/unique_id (for user and user_* operations)
+- `name` — Challenge name (for challenge and challenge_videos)
+- `comment_id` — Comment ID (for comment_replies)
 - `limit` — Max results (default: 10)
 
 **Pricing:** $0.01 per call.
@@ -124,17 +158,25 @@ Instagram data access.
 **Operations:**
 - `search` — Search users, hashtags, and places
 - `user` — User profile by username
+- `user_about` — User about/profile details by username
 - `user_posts` — User's posts by username
 - `user_reels` — User's reels by username
+- `user_stories` — User stories by username
+- `user_highlights` — User highlights by username
+- `user_tagged` — Posts where user is tagged
+- `user_followers` — User followers by username
+- `user_similar` — Similar users by username
 - `post` — Post details by shortcode
 - `post_comments` — Post comments by shortcode
+- `post_likers` — Post likers by shortcode
 - `hashtag` — Hashtag top and recent posts
+- `media_id` — Resolve media ID by shortcode
 
 **Parameters:**
 - `query` — Search query (for search)
-- `username` — Instagram username (for user, user_posts, user_reels)
+- `username` — Instagram username (for user and user_* operations)
 - `username_or_url` — Optional alias accepted by AuraGo for user-facing convenience; AuraGo sends it to YepAPI as `username`
-- `shortcode` — Instagram post shortcode (for post, post_comments)
+- `shortcode` — Instagram post shortcode (for post, post_comments, post_likers, media_id)
 - `tag` — Hashtag without # (for hashtag)
 - `limit` — Max results (default: 10)
 
@@ -148,15 +190,24 @@ Amazon product data.
 - `search` — Search Amazon products by keyword
 - `product` — Full product details for an ASIN (50+ fields)
 - `reviews` — Product reviews with star/verified filters
+- `product_offers` — Product offers for an ASIN
+- `products_by_category` — Products for a category slug or browse node
+- `categories` — Amazon category list for a marketplace
 - `deals` — Amazon's live deals feed
 - `best_sellers` — Best sellers per category
+- `influencer` — Amazon influencer page data
+- `seller` — Amazon seller profile data
+- `seller_reviews` — Amazon seller reviews
 
 **Parameters:**
 - `query` — Search query (for search)
-- `asin` — Amazon ASIN (for product, reviews)
+- `asin` — Amazon ASIN (for product, reviews, product_offers)
 - `country` — Marketplace country code: "US", "UK", "DE", etc. (default: "US")
-- `category` — Category slug or browse node ID (for deals, best_sellers)
+- `category` — Category slug or browse node ID (for products_by_category, deals, best_sellers)
+- `handle` — Amazon influencer handle (for influencer)
+- `seller_id` — Amazon seller ID (for seller and seller_reviews)
 - `limit` — Max results (default: 10)
+- `page` — Page number for paginated operations
 - `sort_by` — Review sort: "TOP_REVIEWS" or "MOST_RECENT" (for reviews)
 
 **Pricing:** $0.01–$0.02 per call.

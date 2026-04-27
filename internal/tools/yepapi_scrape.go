@@ -9,20 +9,12 @@ import (
 
 // DispatchYepAPIScrape handles web scraping operations via YepAPI.
 func DispatchYepAPIScrape(ctx context.Context, client *YepAPIClient, operation string, args map[string]interface{}) (string, error) {
-	url := stringArgWithFallback(args, "url")
-	if url == "" {
-		return yepAPIFormatError("scrape operations require a 'url' string"), nil
-	}
-	url = strings.TrimSpace(url)
-	parsedURL, err := neturl.ParseRequestURI(url)
-	if err != nil || parsedURL.Host == "" || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
-		return yepAPIFormatError("scrape operations require a valid http:// or https:// URL with a host"), nil
-	}
-
-	payload := map[string]interface{}{"url": url}
-
 	switch operation {
 	case "scrape":
+		payload, ok, msg := scrapeURLPayload(args)
+		if !ok {
+			return yepAPIFormatError(msg), nil
+		}
 		if format, ok := args["format"].(string); ok && format != "" {
 			payload["format"] = format // "markdown" or "html"
 		} else {
@@ -35,6 +27,10 @@ func DispatchYepAPIScrape(ctx context.Context, client *YepAPIClient, operation s
 		return yepAPIFormatSuccess(data), nil
 
 	case "js":
+		payload, ok, msg := scrapeURLPayload(args)
+		if !ok {
+			return yepAPIFormatError(msg), nil
+		}
 		if format, ok := args["format"].(string); ok && format != "" {
 			payload["format"] = format
 		}
@@ -45,6 +41,10 @@ func DispatchYepAPIScrape(ctx context.Context, client *YepAPIClient, operation s
 		return yepAPIFormatSuccess(data), nil
 
 	case "stealth":
+		payload, ok, msg := scrapeURLPayload(args)
+		if !ok {
+			return yepAPIFormatError(msg), nil
+		}
 		if format, ok := args["format"].(string); ok && format != "" {
 			payload["format"] = format
 		}
@@ -55,19 +55,40 @@ func DispatchYepAPIScrape(ctx context.Context, client *YepAPIClient, operation s
 		return yepAPIFormatSuccess(data), nil
 
 	case "screenshot":
+		payload, ok, msg := scrapeURLPayload(args)
+		if !ok {
+			return yepAPIFormatError(msg), nil
+		}
 		data, err := client.Post(ctx, "/v1/scrape/screenshot", payload)
 		if err != nil {
 			return "", err
 		}
 		return yepAPIFormatSuccess(data), nil
 
-	case "ai_extract":
+	case "extract", "ai_extract":
+		payload, ok, msg := scrapeURLPayload(args)
+		if !ok {
+			return yepAPIFormatError(msg), nil
+		}
 		if prompt, ok := args["prompt"].(string); ok && prompt != "" {
 			payload["prompt"] = prompt
 		} else {
-			return yepAPIFormatError("ai_extract operation requires a 'prompt' string describing what to extract"), nil
+			return yepAPIFormatError("extract operation requires a 'prompt' string describing what to extract"), nil
 		}
-		data, err := client.Post(ctx, "/v1/scrape/ai-extract", payload)
+		data, err := client.Post(ctx, "/v1/scrape/extract", payload)
+		if err != nil {
+			return "", err
+		}
+		return yepAPIFormatSuccess(data), nil
+
+	case "search_google":
+		query, _ := args["query"].(string)
+		if query == "" {
+			return yepAPIFormatError("search_google operation requires a 'query' string"), nil
+		}
+		payload := map[string]interface{}{"query": query}
+		addPositiveIntArg(payload, args, "limit", "limit")
+		data, err := client.Post(ctx, "/v1/search/google", payload)
 		if err != nil {
 			return "", err
 		}
@@ -76,4 +97,17 @@ func DispatchYepAPIScrape(ctx context.Context, client *YepAPIClient, operation s
 	default:
 		return "", fmt.Errorf("unknown yepapi_scrape operation: %s", operation)
 	}
+}
+
+func scrapeURLPayload(args map[string]interface{}) (map[string]interface{}, bool, string) {
+	url := stringArgWithFallback(args, "url")
+	if url == "" {
+		return nil, false, "scrape operations require a 'url' string"
+	}
+	url = strings.TrimSpace(url)
+	parsedURL, err := neturl.ParseRequestURI(url)
+	if err != nil || parsedURL.Host == "" || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
+		return nil, false, "scrape operations require a valid http:// or https:// URL with a host"
+	}
+	return map[string]interface{}{"url": url}, true, ""
 }

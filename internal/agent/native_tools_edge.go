@@ -147,10 +147,10 @@ func appendEdgeToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai.To
 					"items":       map[string]interface{}{"type": "string"},
 					"description": "Array of keywords (for 'keywords' operation)",
 				},
-				"seed":     prop("string", "Seed keyword for suggestions (for 'keyword_ideas' operation)"),
-				"domain":   prop("string", "Domain name, e.g. 'example.com' (for domain_* operations)"),
-				"target":   prop("string", "Target domain or URL (for 'backlinks' operation)"),
-				"url":      prop("string", "Page URL to audit (for 'onpage' operation)"),
+				"seed":   prop("string", "Seed keyword for suggestions (for 'keyword_ideas' operation)"),
+				"domain": prop("string", "Domain name, e.g. 'example.com' (for domain_* operations)"),
+				"target": prop("string", "Target domain or URL (for 'backlinks' operation)"),
+				"url":    prop("string", "Page URL to audit (for 'onpage' operation)"),
 			}, "operation"),
 		))
 	}
@@ -185,12 +185,14 @@ func appendEdgeToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai.To
 				"operation": map[string]interface{}{
 					"type":        "string",
 					"description": "Scraping operation to perform",
-					"enum":        []string{"scrape", "js", "stealth", "screenshot", "ai_extract"},
+					"enum":        []string{"scrape", "js", "stealth", "screenshot", "extract", "ai_extract", "search_google"},
 				},
-				"url":    prop("string", "URL to scrape (required)"),
+				"url":    prop("string", "URL to scrape (required for scrape/js/stealth/screenshot/extract)"),
+				"query":  prop("string", "Google search query (for search_google operation)"),
 				"format": map[string]interface{}{"type": "string", "description": "Output format: 'markdown' or 'html' (default: markdown). Supported by scrape, js, and stealth operations."},
-				"prompt": prop("string", "Natural language extraction prompt (for 'ai_extract' operation)"),
-			}, "operation", "url"),
+				"prompt": prop("string", "Natural language extraction prompt (for extract/ai_extract operation)"),
+				"limit":  map[string]interface{}{"type": "integer", "description": "Max results for search_google"},
+			}, "operation"),
 		))
 	}
 	return tools

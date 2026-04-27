@@ -43,3 +43,23 @@ func stringSliceFromArgs(args map[string]interface{}, key string) []string {
 
 	return nil
 }
+
+func addPositiveIntArg(payload map[string]interface{}, args map[string]interface{}, argKey, payloadKey string) {
+	if n, ok := args[argKey].(float64); ok && n > 0 {
+		payload[payloadKey] = int(n)
+	}
+}
+
+func addOptionalStringArg(payload map[string]interface{}, args map[string]interface{}, argKey, payloadKey string) {
+	if v, ok := args[argKey].(string); ok && v != "" {
+		payload[payloadKey] = v
+	}
+}
+
+func addCountryArg(payload map[string]interface{}, args map[string]interface{}) {
+	if country, ok := args["country"].(string); ok && country != "" {
+		payload["country"] = country
+		return
+	}
+	payload["country"] = "US"
+}
