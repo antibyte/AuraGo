@@ -22,7 +22,7 @@
   "help.video_download.mode": "Docker používá spravovaný kontejner yt-dlp. Nativní režim používá binárku yt-dlp na hostiteli.",
   "help.video_download.allow_download": "Dovolí agentovi stahovat video nebo audio soubory do složky pro stažení.",
   "help.video_download.allow_transcribe": "Dovolí agentovi stáhnout audio a odeslat ho do převodu řeči na text.",
-  "help.video_download.download_dir": "Hostitelská složka pro uložené mediální soubory.",
+  "help.video_download.download_dir": "Projektová složka pro uložené mediální soubory.",
   "help.video_download.default_format": "Výchozí formát yt-dlp. Použijte best, bestaudio, audio, video nebo vlastní řetězec.",
   "help.video_download.max_file_size_mb": "Maximální velikost staženého souboru. 0 znamená bez omezení.",
   "help.video_download.timeout_seconds": "Maximální doba jedné operace yt-dlp.",

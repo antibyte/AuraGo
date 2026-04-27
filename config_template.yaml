@@ -363,7 +363,7 @@ tools:
         allow_transcribe: false                             # opt-in: allow downloading audio and running speech-to-text
         mode: docker                                      # docker (default, auto-managed container) or native (requires yt-dlp installed on the host)
         yt_dlp_path: ""                                  # native mode only: optional yt-dlp binary path override; auto-detected if empty
-        download_dir: data/downloads                      # host directory for downloaded media
+        download_dir: data/downloads                      # project-local directory for downloaded media
         max_file_size_mb: 500                             # maximum downloaded file size in MB (0 = unlimited)
         timeout_seconds: 300                              # per-command timeout in seconds
         default_format: best                              # best, bestaudio, or a custom yt-dlp format string

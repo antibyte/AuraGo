@@ -156,7 +156,7 @@ type VideoDownloadConfig struct {
 	AllowTranscribe  bool   `yaml:"allow_transcribe"`   // allow downloading audio and transcribing it
 	Mode             string `yaml:"mode"`               // "docker" (default) or "native"
 	YtDlpPath        string `yaml:"yt_dlp_path"`        // native mode only; optional yt-dlp binary path override
-	DownloadDir      string `yaml:"download_dir"`       // host directory for downloaded media
+	DownloadDir      string `yaml:"download_dir"`       // project-local directory for downloaded media
 	MaxFileSizeMB    int    `yaml:"max_file_size_mb"`   // max downloaded file size in MB (0 = unlimited)
 	TimeoutSeconds   int    `yaml:"timeout_seconds"`    // per-command timeout in seconds
 	DefaultFormat    string `yaml:"default_format"`     // "best", "bestaudio", or yt-dlp format string
@@ -1553,8 +1553,8 @@ func obsidianConfigHasYAMLKey(node *yaml.Node, key string) bool {
 // YepAPIConfig holds settings for the YepAPI tool suite.
 type YepAPIConfig struct {
 	Enabled      bool                `yaml:"enabled" json:"enabled"`
-	Provider     string              `yaml:"provider" json:"provider"`          // provider entry ID (empty = auto-select first yepapi provider)
-	ProviderType string              `yaml:"-" json:"-"`                       // resolved: provider type
+	Provider     string              `yaml:"provider" json:"provider"` // provider entry ID (empty = auto-select first yepapi provider)
+	ProviderType string              `yaml:"-" json:"-"`               // resolved: provider type
 	SEO          YepAPIServiceConfig `yaml:"seo" json:"seo"`
 	SERP         YepAPIServiceConfig `yaml:"serp" json:"serp"`
 	Scraping     YepAPIServiceConfig `yaml:"scraping" json:"scraping"`

@@ -22,7 +22,7 @@
   "help.video_download.mode": "Docker gebruikt de beheerde yt-dlp-container. Native gebruikt een yt-dlp-binary op de host.",
   "help.video_download.allow_download": "Staat toe dat de agent video- of audiobestanden downloadt naar de downloadmap.",
   "help.video_download.allow_transcribe": "Staat toe dat de agent audio downloadt en naar speech-to-text stuurt.",
-  "help.video_download.download_dir": "Hostmap waar gedownloade mediabestanden worden opgeslagen.",
+  "help.video_download.download_dir": "Projectlokale map waar gedownloade mediabestanden worden opgeslagen.",
   "help.video_download.default_format": "Standaard yt-dlp-formaat. Gebruik best, bestaudio, audio, video of een eigen formaatstring.",
   "help.video_download.max_file_size_mb": "Maximale grootte van een gedownload bestand. 0 betekent onbeperkt.",
   "help.video_download.timeout_seconds": "Maximale looptijd voor één yt-dlp-operatie.",

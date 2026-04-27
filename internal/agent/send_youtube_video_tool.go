@@ -109,7 +109,7 @@ func parseYouTubeVideoURL(raw string) (youtubeVideoRef, error) {
 		return youtubeVideoRef{}, fmt.Errorf("invalid YouTube video id")
 	}
 
-	startSeconds := parseYouTubeStartSeconds(parsed.Query())
+	startSeconds := parseYouTubeStartSeconds(parsed.Query(), parsed.Fragment)
 	canonicalURL, embedURL := buildYouTubeURLs(videoID, startSeconds)
 	return youtubeVideoRef{
 		VideoID:      videoID,
@@ -138,11 +138,14 @@ func normalizeYouTubeHost(host string) string {
 	return host
 }
 
-func parseYouTubeStartSeconds(query url.Values) int {
+func parseYouTubeStartSeconds(query url.Values, fragment string) int {
 	for _, key := range []string{"start", "t"} {
 		if seconds := parseYouTubeTimeValue(query.Get(key)); seconds > 0 {
 			return seconds
 		}
+	}
+	if seconds := parseYouTubeTimeValue(fragment); seconds > 0 {
+		return seconds
 	}
 	return 0
 }
@@ -154,6 +157,8 @@ func parseYouTubeTimeValue(raw string) int {
 	}
 	value = strings.TrimPrefix(value, "?t=")
 	value = strings.TrimPrefix(value, "#t=")
+	value = strings.TrimPrefix(value, "t=")
+	value = strings.TrimPrefix(value, "start=")
 	if seconds, err := strconv.Atoi(value); err == nil && seconds > 0 {
 		return seconds
 	}

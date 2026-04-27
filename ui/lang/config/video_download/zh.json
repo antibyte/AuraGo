@@ -22,7 +22,7 @@
   "help.video_download.mode": "Docker 使用受管的 yt-dlp 容器。原生模式使用主机上的 yt-dlp 二进制文件。",
   "help.video_download.allow_download": "允许代理将视频或音频文件下载到下载目录。",
   "help.video_download.allow_transcribe": "允许代理下载音频并发送到语音转文本进行转写。",
-  "help.video_download.download_dir": "保存下载媒体文件的主机目录。",
+  "help.video_download.download_dir": "保存下载媒体文件的项目内目录。",
   "help.video_download.default_format": "默认 yt-dlp 格式。可使用 best、bestaudio、audio、video 或自定义格式字符串。",
   "help.video_download.max_file_size_mb": "下载文件的最大大小。0 表示无限制。",
   "help.video_download.timeout_seconds": "单个 yt-dlp 操作的最长运行时间。",

@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"aurago/internal/config"
@@ -218,14 +220,25 @@ func TestDispatchYepAPIScrape(t *testing.T) {
 }
 
 func TestDispatchYepAPIYouTube(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintln(w, `{"ok":true,"data":{"items":[]}}`)
-	}))
-	defer server.Close()
-
+	type yepAPIRequest struct {
+		Path    string
+		Payload map[string]interface{}
+	}
+	requests := make(chan yepAPIRequest, 4)
 	client := NewYepAPIClient("test_key")
-	client.baseURL = server.URL
+	client.baseURL = "https://yepapi.test"
+	client.client = &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		body, _ := io.ReadAll(r.Body)
+		var payload map[string]interface{}
+		_ = json.Unmarshal(body, &payload)
+		requests <- yepAPIRequest{Path: r.URL.Path, Payload: payload}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+			Body:       io.NopCloser(strings.NewReader(`{"ok":true,"data":{"items":[]}}`)),
+			Request:    r,
+		}, nil
+	})}
 
 	ctx := context.Background()
 
@@ -237,6 +250,10 @@ func TestDispatchYepAPIYouTube(t *testing.T) {
 		if res == "" {
 			t.Fatal("expected non-empty result")
 		}
+		got := <-requests
+		if got.Path != "/v1/youtube/search" || got.Payload["query"] != "golang" {
+			t.Fatalf("request = %+v, want search endpoint and query", got)
+		}
 	})
 
 	t.Run("video", func(t *testing.T) {
@@ -247,6 +264,10 @@ func TestDispatchYepAPIYouTube(t *testing.T) {
 		if res == "" {
 			t.Fatal("expected non-empty result")
 		}
+		got := <-requests
+		if got.Path != "/v1/youtube/video" || got.Payload["videoId"] != "dQw4w9WgXcQ" {
+			t.Fatalf("request = %+v, want video endpoint and videoId", got)
+		}
 	})
 
 	t.Run("search_with_limit", func(t *testing.T) {
@@ -256,6 +277,10 @@ func TestDispatchYepAPIYouTube(t *testing.T) {
 		}
 		if res == "" {
 			t.Fatal("expected non-empty result")
+		}
+		got := <-requests
+		if got.Path != "/v1/youtube/search" || got.Payload["query"] != "golang" || got.Payload["limit"] != float64(5) {
+			t.Fatalf("request = %+v, want search endpoint with limit", got)
 		}
 	})
 }
@@ -444,7 +469,7 @@ func TestResolveYepAPIKey(t *testing.T) {
 
 	t.Run("explicit_provider_not_found", func(t *testing.T) {
 		cfg := &config.Config{
-			YepAPI: config.YepAPIConfig{Provider: "missing"},
+			YepAPI:    config.YepAPIConfig{Provider: "missing"},
 			Providers: []config.ProviderEntry{},
 		}
 		vault := &mockSecretReader{secrets: map[string]string{}}

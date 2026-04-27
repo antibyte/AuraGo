@@ -117,6 +117,9 @@ func videoDownloadInfo(ctx context.Context, cfg *config.Config, req VideoDownloa
 	if videoURL == "" {
 		return videoDownloadJSON(videoDownloadResult{Status: "error", Operation: "info", Message: "url is required for info"})
 	}
+	if err := validateVideoDownloadURL(videoURL); err != nil {
+		return videoDownloadJSON(videoDownloadResult{Status: "error", Operation: "info", Message: err.Error()})
+	}
 	info, stderr, err := fetchYtDlpInfo(ctx, cfg, videoURL, logger)
 	if err != nil {
 		return videoDownloadJSON(videoDownloadResult{Status: "error", Operation: "info", Mode: videoDownloadMode(cfg), Message: commandErrMessage(err, stderr)})
@@ -128,6 +131,9 @@ func videoDownloadFile(ctx context.Context, cfg *config.Config, mediaDB *sql.DB,
 	videoURL := strings.TrimSpace(req.URL)
 	if videoURL == "" {
 		return videoDownloadJSON(videoDownloadResult{Status: "error", Operation: req.Operation, Message: "url is required"})
+	}
+	if err := validateVideoDownloadURL(videoURL); err != nil {
+		return videoDownloadJSON(videoDownloadResult{Status: "error", Operation: req.Operation, Message: err.Error()})
 	}
 	downloadDir, err := resolveVideoDownloadDir(cfg)
 	if err != nil {
@@ -219,6 +225,9 @@ func buildYtDlpDownloadArgs(cfg *config.Config, req VideoDownloadRequest, videoU
 	}
 	outputTemplate := strings.TrimRight(filepath.ToSlash(filepath.Clean(outputDir)), "/") + "/%(title).200B [%(id)s].%(ext)s"
 	args := []string{"--no-playlist", "--no-progress", "--newline", "--restrict-filenames", "--print", "after_move:filepath", "-o", outputTemplate}
+	if cfg.Tools.VideoDownload.MaxFileSizeMB > 0 {
+		args = append(args, "--max-filesize", fmt.Sprintf("%dM", cfg.Tools.VideoDownload.MaxFileSizeMB))
+	}
 	if formatMode == "audio" || format == "bestaudio" {
 		args = append(args, "-f", "bestaudio/best", "-x", "--audio-format", "mp3")
 	} else {
@@ -314,7 +323,9 @@ func dockerRunYtDlp(ctx context.Context, cfg *config.Config, args []string, logg
 	}
 	containerID := createResp.ID
 	defer func() {
-		_, _, _ = dockerRequestContext(context.Background(), dockerCfg, http.MethodDelete, "/containers/"+url.PathEscape(containerID)+"?force=true&v=true", "")
+		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cleanupCancel()
+		_, _, _ = dockerRequestContext(cleanupCtx, dockerCfg, http.MethodDelete, "/containers/"+url.PathEscape(containerID)+"?force=true&v=true", "")
 	}()
 
 	data, code, err = dockerRequestContext(ctx, dockerCfg, http.MethodPost, "/containers/"+url.PathEscape(containerID)+"/start", "")
@@ -336,7 +347,9 @@ func dockerRunYtDlp(ctx context.Context, cfg *config.Config, args []string, logg
 		StatusCode int `json:"StatusCode"`
 	}
 	_ = json.Unmarshal(data, &waitResp)
-	logs, _, logErr := dockerRequestContext(context.Background(), dockerCfg, http.MethodGet, "/containers/"+url.PathEscape(containerID)+"/logs?stdout=true&stderr=true", "")
+	logCtx, logCancel := context.WithTimeout(ctx, 30*time.Second)
+	defer logCancel()
+	logs, _, logErr := dockerRequestContext(logCtx, dockerCfg, http.MethodGet, "/containers/"+url.PathEscape(containerID)+"/logs?stdout=true&stderr=true", "")
 	stdout, stderr := splitDockerLogStreams(logs)
 	if logErr != nil {
 		stderr += "\n" + logErr.Error()
@@ -367,6 +380,18 @@ func dockerRequestContext(ctx context.Context, cfg DockerConfig, method, endpoin
 		return nil, resp.StatusCode, err
 	}
 	return data, resp.StatusCode, nil
+}
+
+func validateVideoDownloadURL(raw string) error {
+	parsed, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || parsed.Hostname() == "" {
+		return fmt.Errorf("invalid video URL")
+	}
+	scheme := strings.ToLower(parsed.Scheme)
+	if scheme != "http" && scheme != "https" {
+		return fmt.Errorf("unsupported video URL scheme: %s", parsed.Scheme)
+	}
+	return nil
 }
 
 func splitDockerLogStreams(raw []byte) (string, string) {
@@ -446,14 +471,27 @@ func resolveVideoDownloadDir(cfg *config.Config) (string, error) {
 		dir = filepath.Join(cfg.Directories.DataDir, "downloads")
 	}
 	if filepath.IsAbs(dir) {
-		return filepath.Clean(dir), nil
+		cleanDir := filepath.Clean(dir)
+		base := strings.TrimSpace(cfg.Directories.WorkspaceDir)
+		if base == "" {
+			return "", fmt.Errorf("workspace_dir is not configured")
+		}
+		root := detectFilesystemProjectRoot(base)
+		if _, err := ensurePathInsideDir(root, cleanDir); err != nil {
+			return "", fmt.Errorf("download_dir must stay inside the AuraGo project directory")
+		}
+		return cleanDir, nil
 	}
 	base := strings.TrimSpace(cfg.Directories.WorkspaceDir)
 	if base == "" {
 		return "", fmt.Errorf("workspace_dir is not configured")
 	}
 	root := detectFilesystemProjectRoot(base)
-	return filepath.Clean(filepath.Join(root, filepath.FromSlash(dir))), nil
+	cleanDir := filepath.Clean(filepath.Join(root, filepath.FromSlash(dir)))
+	if _, err := ensurePathInsideDir(root, cleanDir); err != nil {
+		return "", fmt.Errorf("download_dir must stay inside the AuraGo project directory")
+	}
+	return cleanDir, nil
 }
 
 // ResolveVideoDownloadDir returns the host directory used by the video_download tool.

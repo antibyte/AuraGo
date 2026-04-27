@@ -84,17 +84,63 @@ func TestResolveDownloadedFilePathRejectsTraversalOutsideDownloadDir(t *testing.
 
 func TestBuildYtDlpDownloadArgsUsesModeSpecificOutputDir(t *testing.T) {
 	cfg := &config.Config{}
+	cfg.Tools.VideoDownload.MaxFileSizeMB = 500
 	req := VideoDownloadRequest{Format: "video"}
 
 	dockerArgs := buildYtDlpDownloadArgs(cfg, req, "https://youtu.be/dQw4w9WgXcQ", "video", videoDownloadContainerDir)
 	if !strings.Contains(strings.Join(dockerArgs, " "), "/downloads/%(title).200B") {
 		t.Fatalf("docker args should use container download dir: %v", dockerArgs)
 	}
+	if !strings.Contains(strings.Join(dockerArgs, " "), "--max-filesize 500M") {
+		t.Fatalf("docker args should enforce yt-dlp max filesize: %v", dockerArgs)
+	}
 
 	nativeDir := filepath.Join(t.TempDir(), "downloads")
 	nativeArgs := buildYtDlpDownloadArgs(cfg, req, "https://youtu.be/dQw4w9WgXcQ", "video", nativeDir)
 	if !strings.Contains(strings.Join(nativeArgs, " "), filepath.ToSlash(nativeDir)+"/%(title).200B") {
 		t.Fatalf("native args should use host download dir: %v", nativeArgs)
+	}
+}
+
+func TestValidateVideoDownloadURLRejectsUnsafeSchemes(t *testing.T) {
+	for _, raw := range []string{
+		"file:///etc/passwd",
+		"javascript:alert(1)",
+		"ftp://example.com/video.mp4",
+		"not a url",
+	} {
+		t.Run(raw, func(t *testing.T) {
+			if err := validateVideoDownloadURL(raw); err == nil {
+				t.Fatalf("validateVideoDownloadURL(%q) succeeded, want error", raw)
+			}
+		})
+	}
+	if err := validateVideoDownloadURL("https://www.youtube.com/watch?v=dQw4w9WgXcQ"); err != nil {
+		t.Fatalf("validateVideoDownloadURL(https) error = %v", err)
+	}
+}
+
+func TestResolveVideoDownloadDirRejectsAbsolutePathOutsideProject(t *testing.T) {
+	projectRoot := t.TempDir()
+	workspace := filepath.Join(projectRoot, "agent_workspace", "workdir")
+	cfg := &config.Config{}
+	cfg.Directories.WorkspaceDir = workspace
+	cfg.Tools.VideoDownload.DownloadDir = filepath.Join(t.TempDir(), "external-downloads")
+
+	if got, err := resolveVideoDownloadDir(cfg); err == nil {
+		t.Fatalf("resolveVideoDownloadDir() = %q, want external path rejection", got)
+	}
+}
+
+func TestResolveVideoDownloadDirRejectsRelativeTraversalOutsideProject(t *testing.T) {
+	projectRoot := t.TempDir()
+	workspace := filepath.Join(projectRoot, "agent_workspace", "workdir")
+	cfg := &config.Config{}
+	cfg.Directories.WorkspaceDir = workspace
+	cfg.Tools.VideoDownload.DownloadDir = "../escape"
+
+	if got, err := resolveVideoDownloadDir(cfg); err == nil {
+		t.Fatalf("resolveVideoDownloadDir() = %q, want traversal rejection", got)
 	}
 }
 

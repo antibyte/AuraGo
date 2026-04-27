@@ -22,7 +22,7 @@
   "help.video_download.mode": "Docker bruker den administrerte yt-dlp-containeren. Native bruker en yt-dlp-binær på verten.",
   "help.video_download.allow_download": "Lar agenten laste ned video- eller lydfiler til nedlastingsmappen.",
   "help.video_download.allow_transcribe": "Lar agenten laste ned lyd og sende den til tale-til-tekst.",
-  "help.video_download.download_dir": "Vertsmappe der nedlastede mediefiler lagres.",
+  "help.video_download.download_dir": "Prosjektlokal mappe der nedlastede mediefiler lagres.",
   "help.video_download.default_format": "Standard yt-dlp-format. Bruk best, bestaudio, audio, video eller en egendefinert formatstreng.",
   "help.video_download.max_file_size_mb": "Maksimal størrelse på en nedlastet fil. 0 betyr ubegrenset.",
   "help.video_download.timeout_seconds": "Maksimal kjøretid for én yt-dlp-operasjon.",

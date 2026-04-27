@@ -22,7 +22,7 @@
   "help.video_download.mode": "Docker は管理された yt-dlp コンテナを使います。ネイティブはホスト上の yt-dlp バイナリを使います。",
   "help.video_download.allow_download": "動画または音声ファイルをダウンロード先へ保存することを許可します。",
   "help.video_download.allow_transcribe": "音声をダウンロードし speech-to-text に送って文字起こしすることを許可します。",
-  "help.video_download.download_dir": "ダウンロードしたメディアファイルを保存するホスト上のディレクトリです。",
+  "help.video_download.download_dir": "ダウンロードしたメディアファイルを保存するプロジェクト内ディレクトリです。",
   "help.video_download.default_format": "既定の yt-dlp フォーマット。best、bestaudio、audio、video、またはカスタム文字列を使えます。",
   "help.video_download.max_file_size_mb": "ダウンロードファイルの最大サイズ。0 は無制限です。",
   "help.video_download.timeout_seconds": "1 回の yt-dlp 操作の最大実行時間です。",

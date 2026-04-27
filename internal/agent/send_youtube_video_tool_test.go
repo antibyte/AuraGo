@@ -16,6 +16,7 @@ func TestParseYouTubeVideoURL(t *testing.T) {
 	}{
 		{name: "watch url", raw: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", wantID: "dQw4w9WgXcQ"},
 		{name: "short url", raw: "https://youtu.be/dQw4w9WgXcQ?t=1m30s", wantID: "dQw4w9WgXcQ", wantStart: 90},
+		{name: "fragment start url", raw: "https://youtu.be/dQw4w9WgXcQ#t=43", wantID: "dQw4w9WgXcQ", wantStart: 43},
 		{name: "shorts url", raw: "https://youtube.com/shorts/dQw4w9WgXcQ", wantID: "dQw4w9WgXcQ"},
 		{name: "embed url", raw: "https://www.youtube.com/embed/dQw4w9WgXcQ?start=42", wantID: "dQw4w9WgXcQ", wantStart: 42},
 		{name: "nocookie embed", raw: "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ", wantID: "dQw4w9WgXcQ"},

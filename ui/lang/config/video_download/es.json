@@ -22,7 +22,7 @@
   "help.video_download.mode": "Docker usa el contenedor yt-dlp gestionado. Nativo usa un binario yt-dlp en el host.",
   "help.video_download.allow_download": "Permite descargar archivos de vídeo o audio al directorio de descargas.",
   "help.video_download.allow_transcribe": "Permite descargar audio y enviarlo a voz-a-texto para transcripción.",
-  "help.video_download.download_dir": "Directorio del host donde se guardan los medios descargados.",
+  "help.video_download.download_dir": "Directorio local del proyecto donde se guardan los medios descargados.",
   "help.video_download.default_format": "Formato yt-dlp predeterminado. Usa best, bestaudio, audio, video o una cadena personalizada.",
   "help.video_download.max_file_size_mb": "Tamaño máximo de un archivo descargado. 0 significa ilimitado.",
   "help.video_download.timeout_seconds": "Tiempo máximo de una operación yt-dlp.",

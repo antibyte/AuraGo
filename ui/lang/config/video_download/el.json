@@ -22,7 +22,7 @@
   "help.video_download.mode": "Το Docker χρησιμοποιεί το διαχειριζόμενο container yt-dlp. Το native χρησιμοποιεί δυαδικό yt-dlp στον host.",
   "help.video_download.allow_download": "Επιτρέπει στον agent να κατεβάζει βίντεο ή ήχο στον φάκελο λήψεων.",
   "help.video_download.allow_transcribe": "Επιτρέπει στον agent να κατεβάζει ήχο και να τον στέλνει σε speech-to-text.",
-  "help.video_download.download_dir": "Φάκελος host όπου αποθηκεύονται τα ληφθέντα αρχεία πολυμέσων.",
+  "help.video_download.download_dir": "Τοπικός φάκελος έργου όπου αποθηκεύονται τα ληφθέντα αρχεία πολυμέσων.",
   "help.video_download.default_format": "Προεπιλεγμένη μορφή yt-dlp. Χρησιμοποιήστε best, bestaudio, audio, video ή προσαρμοσμένη μορφή.",
   "help.video_download.max_file_size_mb": "Μέγιστο μέγεθος ληφθέντος αρχείου. 0 σημαίνει απεριόριστο.",
   "help.video_download.timeout_seconds": "Μέγιστη διάρκεια μίας λειτουργίας yt-dlp.",

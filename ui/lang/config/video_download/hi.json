@@ -22,7 +22,7 @@
   "help.video_download.mode": "Docker प्रबंधित yt-dlp कंटेनर का उपयोग करता है। Native होस्ट पर yt-dlp बाइनरी का उपयोग करता है।",
   "help.video_download.allow_download": "एजेंट को डाउनलोड डायरेक्टरी में वीडियो या ऑडियो फ़ाइलें डाउनलोड करने देता है।",
   "help.video_download.allow_transcribe": "एजेंट को ऑडियो डाउनलोड करके speech-to-text में भेजने देता है।",
-  "help.video_download.download_dir": "होस्ट डायरेक्टरी जहाँ डाउनलोड की गई मीडिया फ़ाइलें रखी जाती हैं।",
+  "help.video_download.download_dir": "प्रोजेक्ट-लोकल डायरेक्टरी जहाँ डाउनलोड की गई मीडिया फ़ाइलें रखी जाती हैं।",
   "help.video_download.default_format": "डिफ़ॉल्ट yt-dlp फ़ॉर्मैट। best, bestaudio, audio, video या कस्टम स्ट्रिंग उपयोग करें।",
   "help.video_download.max_file_size_mb": "डाउनलोड फ़ाइल का अधिकतम आकार। 0 का अर्थ असीमित है।",
   "help.video_download.timeout_seconds": "एक yt-dlp ऑपरेशन का अधिकतम रनटाइम।",
