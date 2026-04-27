@@ -60,14 +60,23 @@ func DispatchYepAPIYouTube(ctx context.Context, client *YepAPIClient, operation 
 	case "channel_shorts":
 		return dispatchYouTubeChannelID(ctx, client, "/v1/youtube/channel-shorts", operation, args, true)
 
-	case "channel_live":
-		return dispatchYouTubeChannelID(ctx, client, "/v1/youtube/channel-live", operation, args, false)
+	case "channel_livestreams", "channel_live":
+		return dispatchYouTubeChannelID(ctx, client, "/v1/youtube/channel-livestreams", operation, args, false)
 
 	case "channel_playlists":
 		return dispatchYouTubeChannelID(ctx, client, "/v1/youtube/channel-playlists", operation, args, true)
 
+	case "channel_community":
+		return dispatchYouTubeChannelID(ctx, client, "/v1/youtube/channel-community", operation, args, true)
+
+	case "channel_about":
+		return dispatchYouTubeChannelID(ctx, client, "/v1/youtube/channel-about", operation, args, false)
+
 	case "channel_channels":
 		return dispatchYouTubeChannelID(ctx, client, "/v1/youtube/channel-channels", operation, args, true)
+
+	case "channel_store":
+		return dispatchYouTubeChannelID(ctx, client, "/v1/youtube/channel-store", operation, args, false)
 
 	case "channel_search":
 		channelID := stringArgWithFallback(args, "channel_id")
@@ -152,6 +161,30 @@ func DispatchYepAPIYouTube(ctx context.Context, client *YepAPIClient, operation 
 		payload := map[string]interface{}{"tag": tag}
 		addPositiveIntArg(payload, args, "limit", "limit")
 		data, err := client.Post(ctx, "/v1/youtube/hashtag", payload)
+		if err != nil {
+			return "", err
+		}
+		return yepAPIFormatSuccess(data), nil
+
+	case "post":
+		postID := stringArgWithFallback(args, "post_id")
+		if postID == "" {
+			return yepAPIFormatError("post operation requires a 'post_id' string"), nil
+		}
+		data, err := client.Post(ctx, "/v1/youtube/post", map[string]interface{}{"postId": postID})
+		if err != nil {
+			return "", err
+		}
+		return yepAPIFormatSuccess(data), nil
+
+	case "post_comments":
+		postID := stringArgWithFallback(args, "post_id")
+		if postID == "" {
+			return yepAPIFormatError("post_comments operation requires a 'post_id' string"), nil
+		}
+		payload := map[string]interface{}{"postId": postID}
+		addPositiveIntArg(payload, args, "limit", "limit")
+		data, err := client.Post(ctx, "/v1/youtube/post-comments", payload)
 		if err != nil {
 			return "", err
 		}

@@ -70,12 +70,24 @@ func DispatchYepAPIScrape(ctx context.Context, client *YepAPIClient, operation s
 		if !ok {
 			return yepAPIFormatError(msg), nil
 		}
-		if prompt, ok := args["prompt"].(string); ok && prompt != "" {
-			payload["prompt"] = prompt
+		endpoint := "/v1/scrape/extract"
+		if operation == "ai_extract" {
+			endpoint = "/v1/scrape/ai-extract"
+			if prompt, ok := args["prompt"].(string); ok && prompt != "" {
+				payload["prompt"] = prompt
+			} else {
+				return yepAPIFormatError("ai_extract operation requires a 'prompt' string describing what to extract"), nil
+			}
 		} else {
-			return yepAPIFormatError("extract operation requires a 'prompt' string describing what to extract"), nil
+			addOptionalStringArg(payload, args, "selector", "selector")
+			addOptionalStringArg(payload, args, "xpath", "xpath")
+			if _, hasSelector := payload["selector"]; !hasSelector {
+				if _, hasXPath := payload["xpath"]; !hasXPath {
+					return yepAPIFormatError("extract operation requires a 'selector' or 'xpath' string"), nil
+				}
+			}
 		}
-		data, err := client.Post(ctx, "/v1/scrape/extract", payload)
+		data, err := client.Post(ctx, endpoint, payload)
 		if err != nil {
 			return "", err
 		}

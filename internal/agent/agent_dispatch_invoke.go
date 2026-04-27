@@ -14,7 +14,7 @@ func dispatchInvokeTool(ctx context.Context, tc ToolCall, dc *DispatchContext) s
 	}
 	args := mapValueFromMap(tc.Params, "arguments", "params", "skill_args")
 	if args == nil {
-		args = map[string]interface{}{}
+		args = flattenedInvokeArgs(tc.Params)
 	}
 
 	catalog := GetToolCatalogState()
@@ -65,6 +65,19 @@ func dispatchInvokeTool(ctx context.Context, tc ToolCall, dc *DispatchContext) s
 
 	b, _ := json.Marshal(fmt.Sprintf("Tool '%s' cannot be invoked through invoke_tool", entry.Name))
 	return fmt.Sprintf(`Tool Output: {"status":"error","message":%s}`, b)
+}
+
+func flattenedInvokeArgs(params map[string]interface{}) map[string]interface{} {
+	args := make(map[string]interface{})
+	for key, value := range params {
+		switch key {
+		case "tool_name", "name", "action", "tool", "arguments", "params", "skill_args":
+			continue
+		default:
+			args[key] = value
+		}
+	}
+	return args
 }
 
 func toolCallFromInvokeArgs(action string, args map[string]interface{}) ToolCall {

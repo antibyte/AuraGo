@@ -60,15 +60,17 @@ Web scraping with multiple modes.
 - `js` — JavaScript-rendered page scrape
 - `stealth` — Stealth scrape with anti-bot bypass
 - `screenshot` — Full-page screenshot as base64 PNG
-- `extract` — AI-powered data extraction via natural language prompt. Provide the extraction instruction via the `prompt` parameter.
-- `ai_extract` — Backward-compatible alias for `extract`.
+- `extract` — CSS/XPath structured extraction. Provide either `selector` or `xpath`.
+- `ai_extract` — AI-powered data extraction via natural language prompt. Provide the extraction instruction via the `prompt` parameter.
 - `search_google` — Google search through YepAPI search endpoint. Provide the search text via `query`.
 
 **Parameters:**
-- `url` — URL to scrape (required for scrape/js/stealth/screenshot/extract)
+- `url` — URL to scrape (required for scrape/js/stealth/screenshot/extract/ai_extract)
 - `query` — Search query (required for search_google)
+- `selector` — CSS selector for extract
+- `xpath` — XPath selector for extract
 - `format` — Output format for scrape operation
-- `prompt` — Natural language extraction instruction for extract/ai_extract
+- `prompt` — Natural language extraction instruction for ai_extract
 - `limit` — Max search results for search_google
 
 **Pricing:** $0.01–$0.03 per call.
@@ -88,9 +90,13 @@ YouTube data without quota limits.
 - `channel` — Channel overview by channel ID
 - `channel_videos` — Channel videos list by channel ID
 - `channel_shorts` — Channel shorts by channel ID
-- `channel_live` — Channel live streams by channel ID
+- `channel_livestreams` — Channel live streams by channel ID
+- `channel_live` — Backward-compatible alias for `channel_livestreams`
 - `channel_playlists` — Channel playlists by channel ID
+- `channel_community` — Channel community posts by channel ID
+- `channel_about` — Channel about information by channel ID
 - `channel_channels` — Related/subscribed channels by channel ID
+- `channel_store` — Channel store/merch info by channel ID
 - `channel_search` — Search within a channel by channel ID and query
 - `playlist` — Playlist details and videos by playlist ID
 - `playlist_info` — Playlist metadata by playlist ID
@@ -101,6 +107,8 @@ YouTube data without quota limits.
 - `shorts_info` — Shorts details by video ID
 - `suggest` — Search suggestions / autocomplete
 - `hashtag` — Hashtag feed by tag
+- `post` — Single community post by post ID
+- `post_comments` — Community post comments by post ID
 - `home` — YouTube home feed
 - `hype` — YouTube hype feed
 - `resolve` — Resolve a YouTube URL
@@ -112,6 +120,7 @@ YouTube data without quota limits.
 - `playlist_id` — YouTube playlist ID (for playlist and playlist_info)
 - `url` — YouTube URL (for resolve)
 - `tag` — Hashtag/tag without # (for hashtag)
+- `post_id` — YouTube community post ID (for post and post_comments)
 - `country` / `language` — Optional feed localization
 - `limit` — Max results (default: 10)
 
@@ -175,7 +184,7 @@ Instagram data access.
 **Parameters:**
 - `query` — Search query (for search)
 - `username` — Instagram username (for user and user_* operations)
-- `username_or_url` — Optional alias accepted by AuraGo for user-facing convenience; AuraGo sends it to YepAPI as `username`
+- `username_or_url` — Optional alias accepted by AuraGo for user-facing convenience; AuraGo sends user lookups with both `username` and `username_or_url` for compatibility with current YepAPI validation
 - `shortcode` — Instagram post shortcode (for post, post_comments, post_likers, media_id)
 - `tag` — Hashtag without # (for hashtag)
 - `limit` — Max results (default: 10)

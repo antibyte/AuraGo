@@ -366,8 +366,8 @@ func TestDispatchYepAPIInstagram(t *testing.T) {
 		if got.Path != "/v1/instagram/user" || got.Payload["username"] != "natgeo" {
 			t.Fatalf("request = %+v, want user endpoint with username", got)
 		}
-		if _, ok := got.Payload["username_or_url"]; ok {
-			t.Fatalf("request = %+v, did not expect username_or_url field to be sent to API", got)
+		if got.Payload["username_or_url"] != "natgeo" {
+			t.Fatalf("request = %+v, want username_or_url compatibility field", got)
 		}
 	})
 
@@ -383,6 +383,9 @@ func TestDispatchYepAPIInstagram(t *testing.T) {
 		if got.Path != "/v1/instagram/user" || got.Payload["username"] != "https://www.instagram.com/natgeo/" {
 			t.Fatalf("request = %+v, want user endpoint with username alias value", got)
 		}
+		if got.Payload["username_or_url"] != "https://www.instagram.com/natgeo/" {
+			t.Fatalf("request = %+v, want username_or_url compatibility field", got)
+		}
 	})
 
 	t.Run("user_posts_maps_username_to_api_field", func(t *testing.T) {
@@ -397,8 +400,8 @@ func TestDispatchYepAPIInstagram(t *testing.T) {
 		if got.Path != "/v1/instagram/user-posts" || got.Payload["username"] != "natgeo" || got.Payload["limit"] != float64(5) {
 			t.Fatalf("request = %+v, want user-posts endpoint with username and limit", got)
 		}
-		if _, ok := got.Payload["username_or_url"]; ok {
-			t.Fatalf("request = %+v, did not expect username_or_url field to be sent to API", got)
+		if got.Payload["username_or_url"] != "natgeo" {
+			t.Fatalf("request = %+v, want username_or_url compatibility field", got)
 		}
 	})
 
@@ -414,8 +417,8 @@ func TestDispatchYepAPIInstagram(t *testing.T) {
 		if got.Path != "/v1/instagram/user-reels" || got.Payload["username"] != "natgeo" {
 			t.Fatalf("request = %+v, want user-reels endpoint with username", got)
 		}
-		if _, ok := got.Payload["username_or_url"]; ok {
-			t.Fatalf("request = %+v, did not expect username_or_url field to be sent to API", got)
+		if got.Payload["username_or_url"] != "natgeo" {
+			t.Fatalf("request = %+v, want username_or_url compatibility field", got)
 		}
 	})
 }
@@ -492,10 +495,10 @@ func TestDispatchYepAPIScrapeParityEndpoints(t *testing.T) {
 	client, requests := newRecordingYepAPITestClient(t, 2)
 	ctx := context.Background()
 
-	if _, err := DispatchYepAPIScrape(ctx, client, "extract", map[string]interface{}{"url": "https://example.com", "prompt": "title"}); err != nil {
+	if _, err := DispatchYepAPIScrape(ctx, client, "extract", map[string]interface{}{"url": "https://example.com", "selector": "h1"}); err != nil {
 		t.Fatalf("extract failed: %v", err)
 	}
-	requireYepAPIRequest(t, requests, "/v1/scrape/extract", map[string]interface{}{"url": "https://example.com", "prompt": "title"})
+	requireYepAPIRequest(t, requests, "/v1/scrape/extract", map[string]interface{}{"url": "https://example.com", "selector": "h1"})
 
 	if _, err := DispatchYepAPIScrape(ctx, client, "search_google", map[string]interface{}{"query": "aurago", "limit": 3.0}); err != nil {
 		t.Fatalf("search_google failed: %v", err)
@@ -504,7 +507,7 @@ func TestDispatchYepAPIScrapeParityEndpoints(t *testing.T) {
 }
 
 func TestDispatchYepAPIYouTubeParityEndpoints(t *testing.T) {
-	client, requests := newRecordingYepAPITestClient(t, 16)
+	client, requests := newRecordingYepAPITestClient(t, 22)
 	ctx := context.Background()
 
 	tests := []struct {
@@ -517,15 +520,20 @@ func TestDispatchYepAPIYouTubeParityEndpoints(t *testing.T) {
 		{"metadata", map[string]interface{}{"video_id": "vid"}, "/v1/youtube/metadata", map[string]interface{}{"videoId": "vid"}},
 		{"subtitles", map[string]interface{}{"video_id": "vid"}, "/v1/youtube/subtitles", map[string]interface{}{"videoId": "vid"}},
 		{"channel_shorts", map[string]interface{}{"channel_id": "chan", "limit": 4.0}, "/v1/youtube/channel-shorts", map[string]interface{}{"channelId": "chan", "limit": 4.0}},
-		{"channel_live", map[string]interface{}{"channel_id": "chan"}, "/v1/youtube/channel-live", map[string]interface{}{"channelId": "chan"}},
+		{"channel_livestreams", map[string]interface{}{"channel_id": "chan"}, "/v1/youtube/channel-livestreams", map[string]interface{}{"channelId": "chan"}},
 		{"channel_playlists", map[string]interface{}{"channel_id": "chan"}, "/v1/youtube/channel-playlists", map[string]interface{}{"channelId": "chan"}},
+		{"channel_community", map[string]interface{}{"channel_id": "chan"}, "/v1/youtube/channel-community", map[string]interface{}{"channelId": "chan"}},
+		{"channel_about", map[string]interface{}{"channel_id": "chan"}, "/v1/youtube/channel-about", map[string]interface{}{"channelId": "chan"}},
 		{"channel_channels", map[string]interface{}{"channel_id": "chan"}, "/v1/youtube/channel-channels", map[string]interface{}{"channelId": "chan"}},
+		{"channel_store", map[string]interface{}{"channel_id": "chan"}, "/v1/youtube/channel-store", map[string]interface{}{"channelId": "chan"}},
 		{"channel_search", map[string]interface{}{"channel_id": "chan", "query": "go"}, "/v1/youtube/channel-search", map[string]interface{}{"channelId": "chan", "query": "go"}},
 		{"playlist_info", map[string]interface{}{"playlist_id": "pl"}, "/v1/youtube/playlist-info", map[string]interface{}{"playlistId": "pl"}},
 		{"related", map[string]interface{}{"video_id": "vid", "limit": 2.0}, "/v1/youtube/related", map[string]interface{}{"videoId": "vid", "limit": 2.0}},
 		{"screenshot", map[string]interface{}{"video_id": "vid"}, "/v1/youtube/screenshot", map[string]interface{}{"videoId": "vid"}},
 		{"shorts_info", map[string]interface{}{"video_id": "vid"}, "/v1/youtube/shorts-info", map[string]interface{}{"videoId": "vid"}},
 		{"hashtag", map[string]interface{}{"tag": "golang"}, "/v1/youtube/hashtag", map[string]interface{}{"tag": "golang"}},
+		{"post", map[string]interface{}{"post_id": "post1"}, "/v1/youtube/post", map[string]interface{}{"postId": "post1"}},
+		{"post_comments", map[string]interface{}{"post_id": "post1"}, "/v1/youtube/post-comments", map[string]interface{}{"postId": "post1"}},
 		{"home", map[string]interface{}{"country": "DE"}, "/v1/youtube/home", map[string]interface{}{"country": "DE"}},
 		{"hype", map[string]interface{}{"language": "de"}, "/v1/youtube/hype", map[string]interface{}{"language": "de"}},
 		{"resolve", map[string]interface{}{"url": "https://youtu.be/vid"}, "/v1/youtube/resolve", map[string]interface{}{"url": "https://youtu.be/vid"}},
@@ -579,12 +587,12 @@ func TestDispatchYepAPIInstagramParityEndpoints(t *testing.T) {
 		path    string
 		payload map[string]interface{}
 	}{
-		{"user_about", map[string]interface{}{"username": "natgeo"}, "/v1/instagram/user-about", map[string]interface{}{"username": "natgeo"}},
-		{"user_stories", map[string]interface{}{"username": "natgeo"}, "/v1/instagram/user-stories", map[string]interface{}{"username": "natgeo"}},
-		{"user_highlights", map[string]interface{}{"username": "natgeo"}, "/v1/instagram/user-highlights", map[string]interface{}{"username": "natgeo"}},
-		{"user_tagged", map[string]interface{}{"username": "natgeo", "limit": 4.0}, "/v1/instagram/user-tagged", map[string]interface{}{"username": "natgeo", "limit": 4.0}},
-		{"user_followers", map[string]interface{}{"username": "natgeo"}, "/v1/instagram/user-followers", map[string]interface{}{"username": "natgeo"}},
-		{"user_similar", map[string]interface{}{"username": "natgeo"}, "/v1/instagram/user-similar", map[string]interface{}{"username": "natgeo"}},
+		{"user_about", map[string]interface{}{"username": "natgeo"}, "/v1/instagram/user-about", map[string]interface{}{"username": "natgeo", "username_or_url": "natgeo"}},
+		{"user_stories", map[string]interface{}{"username": "natgeo"}, "/v1/instagram/user-stories", map[string]interface{}{"username": "natgeo", "username_or_url": "natgeo"}},
+		{"user_highlights", map[string]interface{}{"username": "natgeo"}, "/v1/instagram/user-highlights", map[string]interface{}{"username": "natgeo", "username_or_url": "natgeo"}},
+		{"user_tagged", map[string]interface{}{"username": "natgeo", "limit": 4.0}, "/v1/instagram/user-tagged", map[string]interface{}{"username": "natgeo", "username_or_url": "natgeo", "limit": 4.0}},
+		{"user_followers", map[string]interface{}{"username": "natgeo"}, "/v1/instagram/user-followers", map[string]interface{}{"username": "natgeo", "username_or_url": "natgeo"}},
+		{"user_similar", map[string]interface{}{"username": "natgeo"}, "/v1/instagram/user-similar", map[string]interface{}{"username": "natgeo", "username_or_url": "natgeo"}},
 		{"post_likers", map[string]interface{}{"shortcode": "abc"}, "/v1/instagram/post-likers", map[string]interface{}{"shortcode": "abc"}},
 		{"media_id", map[string]interface{}{"shortcode": "abc"}, "/v1/instagram/media-id", map[string]interface{}{"shortcode": "abc"}},
 	}

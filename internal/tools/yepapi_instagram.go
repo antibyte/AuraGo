@@ -103,6 +103,7 @@ func dispatchInstagramUsername(ctx context.Context, client *YepAPIClient, endpoi
 		return yepAPIFormatError(fmt.Sprintf("%s operation requires a 'username' or 'username_or_url' string", operation)), nil
 	}
 	payload := map[string]interface{}{"username": username}
+	payload["username_or_url"] = username
 	if withLimit {
 		addPositiveIntArg(payload, args, "limit", "limit")
 	}

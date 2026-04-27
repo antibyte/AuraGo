@@ -187,11 +187,13 @@ func appendEdgeToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai.To
 					"description": "Scraping operation to perform",
 					"enum":        []string{"scrape", "js", "stealth", "screenshot", "extract", "ai_extract", "search_google"},
 				},
-				"url":    prop("string", "URL to scrape (required for scrape/js/stealth/screenshot/extract)"),
-				"query":  prop("string", "Google search query (for search_google operation)"),
-				"format": map[string]interface{}{"type": "string", "description": "Output format: 'markdown' or 'html' (default: markdown). Supported by scrape, js, and stealth operations."},
-				"prompt": prop("string", "Natural language extraction prompt (for extract/ai_extract operation)"),
-				"limit":  map[string]interface{}{"type": "integer", "description": "Max results for search_google"},
+				"url":      prop("string", "URL to scrape (required for scrape/js/stealth/screenshot/extract/ai_extract)"),
+				"query":    prop("string", "Google search query (for search_google operation)"),
+				"selector": prop("string", "CSS selector for extract operation"),
+				"xpath":    prop("string", "XPath selector for extract operation"),
+				"format":   map[string]interface{}{"type": "string", "description": "Output format: 'markdown' or 'html' (default: markdown). Supported by scrape, js, and stealth operations."},
+				"prompt":   prop("string", "Natural language extraction prompt (for ai_extract operation)"),
+				"limit":    map[string]interface{}{"type": "integer", "description": "Max results for search_google"},
 			}, "operation"),
 		))
 	}
