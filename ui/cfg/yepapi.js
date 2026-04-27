@@ -36,7 +36,7 @@ async function renderYepAPISection(section) {
     let currentProvider = cfg.provider || '';
     // Auto-select first yepapi provider if none selected
     if (!currentProvider && typeof providersCache !== 'undefined' && providersCache) {
-        const yepProvider = providersCache.find(p => p.type === 'yepapi');
+        const yepProvider = providersCache.find(p => String(p.type || '').toLowerCase() === 'yepapi');
         if (yepProvider) {
             currentProvider = yepProvider.id;
             setNestedValue(configData, 'yepapi.provider', currentProvider);
@@ -49,6 +49,7 @@ async function renderYepAPISection(section) {
     html += '<option value=""' + (!currentProvider ? ' selected' : '') + '>' + t('config.yepapi.provider_none') + '</option>';
     if (typeof providersCache !== 'undefined' && providersCache) {
         providersCache.forEach(p => {
+            if (String(p.type || '').toLowerCase() !== 'yepapi') return;
             const sel = (String(currentProvider) === String(p.id)) ? ' selected' : '';
             const name = p.name || p.id;
             const badge = p.type ? (' [' + p.type + ']') : '';

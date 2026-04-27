@@ -3,6 +3,7 @@ package tools
 import (
 	"context"
 	"fmt"
+	neturl "net/url"
 	"strings"
 )
 
@@ -13,8 +14,9 @@ func DispatchYepAPIScrape(ctx context.Context, client *YepAPIClient, operation s
 		return yepAPIFormatError("scrape operations require a 'url' string"), nil
 	}
 	url = strings.TrimSpace(url)
-	if !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") {
-		return yepAPIFormatError("only http:// and https:// URLs are supported"), nil
+	parsedURL, err := neturl.ParseRequestURI(url)
+	if err != nil || parsedURL.Host == "" || (parsedURL.Scheme != "http" && parsedURL.Scheme != "https") {
+		return yepAPIFormatError("scrape operations require a valid http:// or https:// URL with a host"), nil
 	}
 
 	payload := map[string]interface{}{"url": url}

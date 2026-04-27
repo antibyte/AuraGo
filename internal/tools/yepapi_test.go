@@ -6,36 +6,40 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 
 	"aurago/internal/config"
 )
 
-func TestYepAPIClient_Post(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get("x-api-key") != "test_key" {
-			http.Error(w, `{"ok":false,"error":{"code":"INVALID_API_KEY","message":"Invalid key"}}`, http.StatusUnauthorized)
-			return
-		}
-		if r.URL.Path == "/v1/seo/keywords" {
-			w.Header().Set("Content-Type", "application/json")
-			fmt.Fprintln(w, `{"ok":true,"data":[{"keyword":"test","searchVolume":1000}]}`)
-			return
-		}
-		if r.URL.Path == "/v1/serp/google" {
-			w.Header().Set("Content-Type", "application/json")
-			fmt.Fprintln(w, `{"ok":true,"data":{"query":"hello","items":[{"title":"Result"}]}}`)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintln(w, `{"ok":false,"error":{"code":"NOT_FOUND","message":"Unknown endpoint"}}`)
-	}))
-	defer server.Close()
-
+func newYepAPITestClient(handler func(*http.Request) (int, string)) *YepAPIClient {
 	client := NewYepAPIClient("test_key")
-	client.baseURL = server.URL
+	client.baseURL = "https://yepapi.test"
+	client.client = &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		status, body := handler(r)
+		return &http.Response{
+			StatusCode: status,
+			Header:     make(http.Header),
+			Body:       io.NopCloser(strings.NewReader(body)),
+		}, nil
+	})}
+	return client
+}
+
+func TestYepAPIClient_Post(t *testing.T) {
+	client := newYepAPITestClient(func(r *http.Request) (int, string) {
+		status := http.StatusOK
+		body := `{"ok":false,"error":{"code":"NOT_FOUND","message":"Unknown endpoint"}}`
+		if r.Header.Get("x-api-key") != "test_key" {
+			status = http.StatusUnauthorized
+			body = `{"ok":false,"error":{"code":"INVALID_API_KEY","message":"Invalid key"}}`
+		} else if r.URL.Path == "/v1/seo/keywords" {
+			body = `{"ok":true,"data":[{"keyword":"test","searchVolume":1000}]}`
+		} else if r.URL.Path == "/v1/serp/google" {
+			body = `{"ok":true,"data":{"query":"hello","items":[{"title":"Result"}]}}`
+		}
+		return status, body
+	})
 
 	ctx := context.Background()
 
@@ -55,7 +59,8 @@ func TestYepAPIClient_Post(t *testing.T) {
 
 	t.Run("invalid_api_key", func(t *testing.T) {
 		badClient := NewYepAPIClient("wrong_key")
-		badClient.baseURL = server.URL
+		badClient.baseURL = client.baseURL
+		badClient.client = client.client
 		_, err := badClient.Post(ctx, "/v1/seo/keywords", map[string]interface{}{"keywords": []string{"test"}})
 		if err == nil {
 			t.Fatal("expected error for invalid API key")
@@ -71,14 +76,9 @@ func TestYepAPIClient_Post(t *testing.T) {
 }
 
 func TestDispatchYepAPISEO(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintln(w, `{"ok":true,"data":{"domain":"example.com","organicTraffic":50000}}`)
-	}))
-	defer server.Close()
-
-	client := NewYepAPIClient("test_key")
-	client.baseURL = server.URL
+	client := newYepAPITestClient(func(r *http.Request) (int, string) {
+		return http.StatusOK, `{"ok":true,"data":{"domain":"example.com","organicTraffic":50000}}`
+	})
 
 	ctx := context.Background()
 
@@ -116,16 +116,11 @@ func TestDispatchYepAPISEO(t *testing.T) {
 }
 
 func TestDispatchYepAPISERP(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
+	client := newYepAPITestClient(func(r *http.Request) (int, string) {
 		body := map[string]interface{}{"query": "test", "items": []interface{}{}}
 		b, _ := json.Marshal(body)
-		fmt.Fprintln(w, `{"ok":true,"data":`+string(b)+`}`)
-	}))
-	defer server.Close()
-
-	client := NewYepAPIClient("test_key")
-	client.baseURL = server.URL
+		return http.StatusOK, `{"ok":true,"data":` + string(b) + `}`
+	})
 
 	ctx := context.Background()
 
@@ -163,14 +158,9 @@ func TestDispatchYepAPISERP(t *testing.T) {
 }
 
 func TestDispatchYepAPIScrape(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintln(w, `{"ok":true,"data":{"url":"https://example.com","content":"# Hello"}}`)
-	}))
-	defer server.Close()
-
-	client := NewYepAPIClient("test_key")
-	client.baseURL = server.URL
+	client := newYepAPITestClient(func(r *http.Request) (int, string) {
+		return http.StatusOK, `{"ok":true,"data":{"url":"https://example.com","content":"# Hello"}}`
+	})
 
 	ctx := context.Background()
 
@@ -193,6 +183,18 @@ func TestDispatchYepAPIScrape(t *testing.T) {
 		json.Unmarshal([]byte(res), &out)
 		if out["status"] != "error" {
 			t.Fatalf("expected SSRF rejection, got: %s", res)
+		}
+	})
+
+	t.Run("malformed_http_url_rejection", func(t *testing.T) {
+		res, err := DispatchYepAPIScrape(ctx, client, "scrape", map[string]interface{}{"url": "https://"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		var out map[string]interface{}
+		json.Unmarshal([]byte(res), &out)
+		if out["status"] != "error" {
+			t.Fatalf("expected malformed URL rejection, got: %s", res)
 		}
 	})
 
@@ -286,14 +288,9 @@ func TestDispatchYepAPIYouTube(t *testing.T) {
 }
 
 func TestDispatchYepAPITikTok(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintln(w, `{"ok":true,"data":{}}`)
-	}))
-	defer server.Close()
-
-	client := NewYepAPIClient("test_key")
-	client.baseURL = server.URL
+	client := newYepAPITestClient(func(r *http.Request) (int, string) {
+		return http.StatusOK, `{"ok":true,"data":{}}`
+	})
 
 	ctx := context.Background()
 
@@ -309,14 +306,9 @@ func TestDispatchYepAPITikTok(t *testing.T) {
 }
 
 func TestDispatchYepAPIInstagram(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintln(w, `{"ok":true,"data":{}}`)
-	}))
-	defer server.Close()
-
-	client := NewYepAPIClient("test_key")
-	client.baseURL = server.URL
+	client := newYepAPITestClient(func(r *http.Request) (int, string) {
+		return http.StatusOK, `{"ok":true,"data":{}}`
+	})
 
 	ctx := context.Background()
 
@@ -332,14 +324,9 @@ func TestDispatchYepAPIInstagram(t *testing.T) {
 }
 
 func TestDispatchYepAPIAmazon(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintln(w, `{"ok":true,"data":{}}`)
-	}))
-	defer server.Close()
-
-	client := NewYepAPIClient("test_key")
-	client.baseURL = server.URL
+	client := newYepAPITestClient(func(r *http.Request) (int, string) {
+		return http.StatusOK, `{"ok":true,"data":{}}`
+	})
 
 	ctx := context.Background()
 
@@ -450,6 +437,23 @@ func TestResolveYepAPIKey(t *testing.T) {
 		}
 	})
 
+	t.Run("explicit_provider_wrong_type_rejected", func(t *testing.T) {
+		cfg := &config.Config{
+			YepAPI: config.YepAPIConfig{Provider: "main_llm"},
+			Providers: []config.ProviderEntry{
+				{ID: "main_llm", Type: "openrouter", APIKey: "llm_key"},
+			},
+		}
+		vault := &mockSecretReader{secrets: map[string]string{}}
+		_, err := ResolveYepAPIKey(cfg, vault)
+		if err == nil {
+			t.Fatal("expected error when explicit provider is not type yepapi")
+		}
+		if !strings.Contains(err.Error(), "expected provider type 'yepapi'") {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
 	t.Run("explicit_provider_from_vault", func(t *testing.T) {
 		cfg := &config.Config{
 			YepAPI: config.YepAPIConfig{Provider: "my_yep"},
@@ -464,6 +468,34 @@ func TestResolveYepAPIKey(t *testing.T) {
 		}
 		if key != "vault_prov_key" {
 			t.Fatalf("expected 'vault_prov_key', got %q", key)
+		}
+	})
+
+	t.Run("nil_vault_provider_plaintext_key", func(t *testing.T) {
+		cfg := &config.Config{
+			Providers: []config.ProviderEntry{
+				{ID: "yepapi_main", Type: "yepapi", APIKey: "provider_key"},
+			},
+		}
+		key, err := ResolveYepAPIKey(cfg, nil)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if key != "provider_key" {
+			t.Fatalf("expected 'provider_key', got %q", key)
+		}
+	})
+
+	t.Run("nil_vault_no_key_errors_without_panic", func(t *testing.T) {
+		cfg := &config.Config{}
+		defer func() {
+			if r := recover(); r != nil {
+				t.Fatalf("ResolveYepAPIKey should not panic with nil vault: %v", r)
+			}
+		}()
+		_, err := ResolveYepAPIKey(cfg, nil)
+		if err == nil {
+			t.Fatal("expected error when key is not found")
 		}
 	})
 

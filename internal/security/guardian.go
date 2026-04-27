@@ -275,6 +275,13 @@ func (g *Guardian) SanitizeToolOutput(toolName, output string) string {
 		"ansible":           true,
 		"jellyfin":          true,
 		"cloudflare_tunnel": true,
+		"yepapi_seo":        true,
+		"yepapi_serp":       true,
+		"yepapi_scrape":     true,
+		"yepapi_youtube":    true,
+		"yepapi_tiktok":     true,
+		"yepapi_instagram":  true,
+		"yepapi_amazon":     true,
 	}
 
 	// Tools that may contain external data depending on usage

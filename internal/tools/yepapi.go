@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"aurago/internal/config"
@@ -82,7 +83,7 @@ func (c *YepAPIClient) Post(ctx context.Context, endpoint string, payload interf
 		if len(preview) > 200 {
 			preview = preview[:200] + "..."
 		}
-		return nil, fmt.Errorf("yepapi: HTTP %d — %s", resp.StatusCode, preview)
+		return nil, fmt.Errorf("yepapi: HTTP %d - %s", resp.StatusCode, security.IsolateExternalData(preview))
 	}
 
 	var env YepAPIResponse
@@ -91,12 +92,12 @@ func (c *YepAPIClient) Post(ctx context.Context, endpoint string, payload interf
 		if len(preview) > 200 {
 			preview = preview[:200] + "..."
 		}
-		return nil, fmt.Errorf("yepapi: invalid JSON response (%s): %w", preview, err)
+		return nil, fmt.Errorf("yepapi: invalid JSON response (%s): %w", security.IsolateExternalData(preview), err)
 	}
 
 	if !env.OK {
 		if env.Error != nil {
-			return nil, fmt.Errorf("yepapi: %s - %s", env.Error.Code, env.Error.Message)
+			return nil, fmt.Errorf("yepapi: %s - %s", env.Error.Code, security.IsolateExternalData(env.Error.Message))
 		}
 		return nil, fmt.Errorf("yepapi: unknown error")
 	}
@@ -114,7 +115,10 @@ func ResolveYepAPIKey(cfg *config.Config, vault config.SecretReader) (string, er
 	if cfg.YepAPI.Provider != "" {
 		for _, p := range cfg.Providers {
 			if p.ID == cfg.YepAPI.Provider {
-				key, err := vault.ReadSecret(fmt.Sprintf("provider_%s_api_key", p.ID))
+				if !strings.EqualFold(p.Type, "yepapi") {
+					return "", fmt.Errorf("provider '%s' configured for YepAPI has type '%s'; expected provider type 'yepapi'", p.ID, p.Type)
+				}
+				key, err := readYepAPISecret(vault, fmt.Sprintf("provider_%s_api_key", p.ID))
 				if err == nil && key != "" {
 					return key, nil
 				}
@@ -129,8 +133,8 @@ func ResolveYepAPIKey(cfg *config.Config, vault config.SecretReader) (string, er
 
 	// Strategy 2: Find a provider with type "yepapi" and use its key
 	for _, p := range cfg.Providers {
-		if p.Type == "yepapi" {
-			key, err := vault.ReadSecret(fmt.Sprintf("provider_%s_api_key", p.ID))
+		if strings.EqualFold(p.Type, "yepapi") {
+			key, err := readYepAPISecret(vault, fmt.Sprintf("provider_%s_api_key", p.ID))
 			if err == nil && key != "" {
 				return key, nil
 			}
@@ -141,12 +145,19 @@ func ResolveYepAPIKey(cfg *config.Config, vault config.SecretReader) (string, er
 	}
 
 	// Strategy 3: Dedicated vault key
-	key, err := vault.ReadSecret("yepapi_api_key")
+	key, err := readYepAPISecret(vault, "yepapi_api_key")
 	if err == nil && key != "" {
 		return key, nil
 	}
 
 	return "", fmt.Errorf("no YepAPI API key found: configure a provider with type 'yepapi', select one in the YepAPI settings, or set the 'yepapi_api_key' vault secret")
+}
+
+func readYepAPISecret(vault config.SecretReader, key string) (string, error) {
+	if vault == nil {
+		return "", fmt.Errorf("vault is not available")
+	}
+	return vault.ReadSecret(key)
 }
 
 // formatError wraps an error message in a JSON string for consistent tool output.
