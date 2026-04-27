@@ -188,7 +188,7 @@ func appendEdgeToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai.To
 					"enum":        []string{"scrape", "js", "stealth", "screenshot", "ai_extract"},
 				},
 				"url":    prop("string", "URL to scrape (required)"),
-				"format": map[string]interface{}{"type": "string", "description": "Output format for 'scrape' operation: 'markdown' or 'html' (default: markdown)"},
+				"format": map[string]interface{}{"type": "string", "description": "Output format: 'markdown' or 'html' (default: markdown). Supported by scrape, js, and stealth operations."},
 				"prompt": prop("string", "Natural language extraction prompt (for 'ai_extract' operation)"),
 			}, "operation", "url"),
 		))

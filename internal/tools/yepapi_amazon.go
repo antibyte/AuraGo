@@ -51,6 +51,11 @@ func DispatchYepAPIAmazon(ctx context.Context, client *YepAPIClient, operation s
 			return yepAPIFormatError("reviews operation requires an 'asin' string"), nil
 		}
 		payload := map[string]interface{}{"asin": asin}
+		if country, ok := args["country"].(string); ok && country != "" {
+			payload["country"] = country
+		} else {
+			payload["country"] = "US"
+		}
 		if limit, ok := args["limit"].(float64); ok && limit > 0 {
 			payload["page"] = int(limit)
 		}
@@ -65,6 +70,11 @@ func DispatchYepAPIAmazon(ctx context.Context, client *YepAPIClient, operation s
 
 	case "deals":
 		payload := map[string]interface{}{}
+		if country, ok := args["country"].(string); ok && country != "" {
+			payload["country"] = country
+		} else {
+			payload["country"] = "US"
+		}
 		if category, ok := args["category"].(string); ok && category != "" {
 			payload["category"] = category
 		}
@@ -79,6 +89,11 @@ func DispatchYepAPIAmazon(ctx context.Context, client *YepAPIClient, operation s
 
 	case "best_sellers":
 		payload := map[string]interface{}{}
+		if country, ok := args["country"].(string); ok && country != "" {
+			payload["country"] = country
+		} else {
+			payload["country"] = "US"
+		}
 		if category, ok := args["category"].(string); ok && category != "" {
 			payload["category"] = category
 		}

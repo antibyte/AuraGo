@@ -33,6 +33,9 @@ func DispatchYepAPIScrape(ctx context.Context, client *YepAPIClient, operation s
 		return yepAPIFormatSuccess(data), nil
 
 	case "js":
+		if format, ok := args["format"].(string); ok && format != "" {
+			payload["format"] = format
+		}
 		data, err := client.Post(ctx, "/v1/scrape/js", payload)
 		if err != nil {
 			return "", err
@@ -40,6 +43,9 @@ func DispatchYepAPIScrape(ctx context.Context, client *YepAPIClient, operation s
 		return yepAPIFormatSuccess(data), nil
 
 	case "stealth":
+		if format, ok := args["format"].(string); ok && format != "" {
+			payload["format"] = format
+		}
 		data, err := client.Post(ctx, "/v1/scrape/stealth", payload)
 		if err != nil {
 			return "", err

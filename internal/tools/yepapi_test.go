@@ -194,6 +194,16 @@ func TestDispatchYepAPIScrape(t *testing.T) {
 		}
 	})
 
+	t.Run("stealth_format", func(t *testing.T) {
+		res, err := DispatchYepAPIScrape(ctx, client, "stealth", map[string]interface{}{"url": "https://example.com", "format": "html"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if res == "" {
+			t.Fatal("expected non-empty result")
+		}
+	})
+
 	t.Run("missing_url", func(t *testing.T) {
 		res, err := DispatchYepAPIScrape(ctx, client, "scrape", map[string]interface{}{})
 		if err != nil {
@@ -231,6 +241,16 @@ func TestDispatchYepAPIYouTube(t *testing.T) {
 
 	t.Run("video", func(t *testing.T) {
 		res, err := DispatchYepAPIYouTube(ctx, client, "video", map[string]interface{}{"video_id": "dQw4w9WgXcQ"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if res == "" {
+			t.Fatal("expected non-empty result")
+		}
+	})
+
+	t.Run("search_with_limit", func(t *testing.T) {
+		res, err := DispatchYepAPIYouTube(ctx, client, "search", map[string]interface{}{"query": "golang", "limit": 5.0})
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -310,6 +330,36 @@ func TestDispatchYepAPIAmazon(t *testing.T) {
 
 	t.Run("product", func(t *testing.T) {
 		res, err := DispatchYepAPIAmazon(ctx, client, "product", map[string]interface{}{"asin": "B07ZPKBL9V"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if res == "" {
+			t.Fatal("expected non-empty result")
+		}
+	})
+
+	t.Run("reviews_with_country", func(t *testing.T) {
+		res, err := DispatchYepAPIAmazon(ctx, client, "reviews", map[string]interface{}{"asin": "B07ZPKBL9V", "country": "DE"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if res == "" {
+			t.Fatal("expected non-empty result")
+		}
+	})
+
+	t.Run("deals_default_country", func(t *testing.T) {
+		res, err := DispatchYepAPIAmazon(ctx, client, "deals", map[string]interface{}{})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if res == "" {
+			t.Fatal("expected non-empty result")
+		}
+	})
+
+	t.Run("best_sellers_with_category", func(t *testing.T) {
+		res, err := DispatchYepAPIAmazon(ctx, client, "best_sellers", map[string]interface{}{"category": "electronics", "country": "UK"})
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
