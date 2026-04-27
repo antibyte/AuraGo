@@ -282,6 +282,61 @@ func TestBuildSystemPromptNativeModeOmitsRawJSONToolProtocol(t *testing.T) {
 	}
 }
 
+func TestBuildSystemPromptNativeModeOmitsLegacyToolSyntaxExamples(t *testing.T) {
+	flags := ContextFlags{
+		Tier:               "full",
+		SystemLanguage:     "en",
+		NativeToolsEnabled: true,
+	}
+
+	prompt, _ := buildSystemPromptInner("", &flags, "", slog.Default())
+
+	forbidden := []string{
+		`{"action": "register_device"`,
+		`{"action": "media_registry"`,
+		`{"action": "send_document"`,
+		`{"action": "send_video"`,
+		`{"action": "homepage_registry"`,
+		"<workflow_plan>",
+		"JSON-only tool protocol wins",
+		"Raw JSON tool mode has no acknowledgment exception",
+	}
+	for _, needle := range forbidden {
+		if strings.Contains(prompt, needle) {
+			t.Fatalf("native prompt must not include legacy tool syntax %q", needle)
+		}
+	}
+}
+
+func TestBuildSystemPromptNativeModeAppendsFinalProtocolReminder(t *testing.T) {
+	flags := ContextFlags{
+		Tier:               "full",
+		SystemLanguage:     "en",
+		NativeToolsEnabled: true,
+		IsVoiceMode:        true,
+		AdditionalPrompt:   "Custom instructions may mention older tool examples.",
+	}
+
+	prompt, _ := buildSystemPromptInner("", &flags, "", slog.Default())
+
+	additionalIdx := strings.Index(prompt, "# ADDITIONAL INSTRUCTIONS")
+	voiceIdx := strings.Index(prompt, "VOICE MODE ACTIVE")
+	reminderIdx := strings.LastIndex(prompt, "NATIVE TOOL MODE REMINDER")
+
+	if additionalIdx < 0 {
+		t.Fatalf("prompt missing additional instructions")
+	}
+	if voiceIdx < 0 {
+		t.Fatalf("prompt missing voice mode instructions")
+	}
+	if reminderIdx < 0 {
+		t.Fatalf("prompt missing native tool mode reminder")
+	}
+	if reminderIdx < additionalIdx || reminderIdx < voiceIdx {
+		t.Fatalf("native tool mode reminder must appear after late custom sections")
+	}
+}
+
 func TestBuildSystemPromptTextJSONModeDoesNotAllowPreambleBeforeJSON(t *testing.T) {
 	flags := ContextFlags{
 		Tier:            "full",

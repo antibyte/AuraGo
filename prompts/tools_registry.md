@@ -40,12 +40,8 @@ When multiple tool calls are **independent** (no data dependency between them), 
 
 ## TOOL ROUTING — CHOOSE THE RIGHT TOOL
 
-### Pre-loading Tool Manuals
-Before starting a multi-step task, request the manuals for ALL tools you plan to use:
-```
-<workflow_plan>["tool_name_1", "tool_name_2", "tool_name_3"]</workflow_plan>
-```
-The supervisor loads up to 5 manuals at once into your next prompt. **Always batch-request** manuals when your plan involves multiple unfamiliar tools — this saves round-trips and tokens.
+### Loading Tool Manuals
+Before starting a multi-step task, load the manuals for unfamiliar tools through the active tool-calling mechanism. Prefer `discover_tools` with `operation: get_tool_info` and batch independent lookups when the tool interface supports batching. In native function-calling sessions, do not emit legacy manual-preload tags or raw JSON snippets as tool calls.
 
 ### Device Inventory
 | Tool | Purpose |
