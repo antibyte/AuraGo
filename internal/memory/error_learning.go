@@ -199,3 +199,29 @@ func (s *SQLiteMemory) GetErrorPatternsCount() (int, error) {
 	}
 	return count, nil
 }
+
+// CleanOldErrorPatterns deletes unresolved error patterns whose last_seen is
+// older than the given number of days. Resolved patterns are kept regardless
+// because they encode actionable knowledge. Returns the number of rows deleted.
+//
+// Goal: prevent stale, no-longer-relevant errors from being injected into the
+// system prompt forever, biasing the model toward "this is still broken".
+// Patterns naturally drop out when they stop recurring.
+func (s *SQLiteMemory) CleanOldErrorPatterns(days int) (int, error) {
+	if days <= 0 {
+		return 0, nil
+	}
+	cutoff := time.Now().UTC().AddDate(0, 0, -days).Format(time.RFC3339)
+	res, err := s.db.Exec(`
+		DELETE FROM error_patterns
+		WHERE (resolution IS NULL OR resolution = '')
+		  AND last_seen < ?`, cutoff)
+	if err != nil {
+		return 0, fmt.Errorf("clean old error patterns: %w", err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("clean old error patterns rows: %w", err)
+	}
+	return int(n), nil
+}

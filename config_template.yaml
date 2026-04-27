@@ -71,6 +71,15 @@ agent:
     # ── Announcement detector ──
     announcement_detector:
         enabled: false                                              # detect and suppress "I will now do X" announcements without action
+    # ── Reuse-First materialisation ──
+    # Controls when the agent automatically creates cheatsheets / skills from successful runs.
+    # Without these gates, runs that ended in errors but happened to use words like "fixed" or
+    # "resolved" in the final answer would be promoted into "knowledge", creating noise.
+    reuse_first:
+        auto_materialize: true                                      # master toggle for automatic cheatsheet/skill creation (default: true)
+        require_success_signal: true                                # only materialise when no tool errors occurred during the turn (default: true)
+        min_steps: 3                                                # minimum number of distinct tool steps required before materialising (default: 3)
+        max_artifacts_per_session: 1                                # cap on auto-created cheatsheets+skills per session (default: 1 each)
     # ── Tool guide injection ──
     max_tool_guides: 5                                              # max tool guide documents injected into prompt (default: 5)
     budget:

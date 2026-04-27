@@ -400,6 +400,13 @@ type Config struct {
 			MaxRetries int  `yaml:"max_retries"` // max corrective retries per user turn (default: 2)
 		} `yaml:"announcement_detector"`
 
+		ReuseFirst struct {
+			AutoMaterialize        bool `yaml:"auto_materialize"`          // master toggle for automatic cheatsheet/skill creation after runs (default: true)
+			RequireSuccessSignal   bool `yaml:"require_success_signal"`    // only materialise when the run had no tool errors (default: true)
+			MinSteps               int  `yaml:"min_steps"`                 // minimum number of distinct tool steps required before materialising (default: 3)
+			MaxArtifactsPerSession int  `yaml:"max_artifacts_per_session"` // cap on auto-created cheatsheets+skills per session (default: 1 each)
+		} `yaml:"reuse_first"`
+
 		// ── Legacy personality fields — read-only for YAML migration to Personality section ──
 		LegacyPersonalityEngine         bool   `yaml:"personality_engine"         json:"-"`  // migrated → Personality.Engine
 		LegacyPersonalityEngineV2       bool   `yaml:"personality_engine_v2"      json:"-"`  // migrated → Personality.EngineV2

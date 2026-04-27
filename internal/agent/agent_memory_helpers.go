@@ -16,6 +16,31 @@ import (
 
 const coreMemCacheTTL = 5 * time.Minute
 
+// formatErrorAge renders a compact human-readable age (e.g. "12h ago", "2d ago")
+// for an error pattern's last_seen timestamp. Returns "" if the timestamp cannot
+// be parsed. Used by the error-pattern injection to give the LLM a freshness
+// signal so stale entries are not treated as current constraints.
+func formatErrorAge(lastSeen string, now time.Time) string {
+	if lastSeen == "" {
+		return ""
+	}
+	ts, err := time.Parse(time.RFC3339, lastSeen)
+	if err != nil {
+		return ""
+	}
+	diff := now.Sub(ts)
+	if diff < time.Minute {
+		return "just now"
+	}
+	if diff < time.Hour {
+		return fmt.Sprintf("%dm ago", int(diff.Minutes()))
+	}
+	if diff < 24*time.Hour {
+		return fmt.Sprintf("%dh ago", int(diff.Hours()))
+	}
+	return fmt.Sprintf("%dd ago", int(diff.Hours()/24))
+}
+
 func retrievalLatencyBucket(elapsed time.Duration) string {
 	switch {
 	case elapsed < 50*time.Millisecond:

@@ -103,6 +103,16 @@ func runMaintenanceTask(ctx context.Context, cfg *config.Config, logger *slog.Lo
 			logger.Info("[Maintenance] Cleaned old mood log entries", "deleted", deletedMoodLog)
 		}
 
+		// Stale error pattern eviction: unresolved errors older than 7 days are
+		// likely no longer relevant to current conditions and would otherwise
+		// bias the system prompt indefinitely. Resolved patterns are kept.
+		deletedErr, err := shortTermMem.CleanOldErrorPatterns(7)
+		if err != nil {
+			logger.Error("[Maintenance] Failed to clean old error patterns", "error", err)
+		} else if deletedErr > 0 {
+			logger.Info("[Maintenance] Cleaned stale error patterns", "deleted", deletedErr)
+		}
+
 		cleanDays := cfg.Agent.AdaptiveTools.CleanTransitionsAfterDays
 		if cleanDays <= 0 {
 			cleanDays = 90

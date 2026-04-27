@@ -757,20 +757,42 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 		}
 
-		// Error Pattern Context: inject known errors when in error recovery state
+		// Error Pattern Context: inject known errors when in error recovery state.
+		// Phase A1/A2: Drop stale entries (>24h old without resolution), tag freshness
+		// per entry, and reframe as hypotheses to re-test rather than constraints.
 		if flags.IsErrorState && shortTermMem != nil {
 			errPatterns, err := shortTermMem.GetRecentErrors(5)
 			if err == nil && len(errPatterns) > 0 {
-				var epBuf strings.Builder
-				epBuf.WriteString("Previous tool errors (learn from these to avoid repeating):\n")
+				now := time.Now().UTC()
+				filtered := make([]memory.ErrorPattern, 0, len(errPatterns))
 				for _, ep := range errPatterns {
-					epBuf.WriteString(fmt.Sprintf("- Tool: %s | Error: %s (occurred %d times)", ep.ToolName, ep.ErrorMessage, ep.OccurrenceCount))
 					if ep.Resolution != "" {
-						epBuf.WriteString(fmt.Sprintf(" | Resolution: %s", ep.Resolution))
+						filtered = append(filtered, ep)
+						continue
 					}
-					epBuf.WriteString("\n")
+					if ts, parseErr := time.Parse(time.RFC3339, ep.LastSeen); parseErr == nil {
+						if now.Sub(ts) > 24*time.Hour {
+							continue
+						}
+					}
+					filtered = append(filtered, ep)
 				}
-				flags.ErrorPatternContext = epBuf.String()
+				if len(filtered) > 0 {
+					var epBuf strings.Builder
+					epBuf.WriteString("Previously observed tool errors. Treat each as a hypothesis to re-test under current conditions, not as a constraint. They may already be fixed.\n")
+					for _, ep := range filtered {
+						age := formatErrorAge(ep.LastSeen, now)
+						epBuf.WriteString(fmt.Sprintf("- [advisory, verify] Tool: %s | Error: %s | seen %dx", ep.ToolName, ep.ErrorMessage, ep.OccurrenceCount))
+						if age != "" {
+							epBuf.WriteString(fmt.Sprintf(" | last %s", age))
+						}
+						if ep.Resolution != "" {
+							epBuf.WriteString(fmt.Sprintf(" | Resolution: %s", ep.Resolution))
+						}
+						epBuf.WriteString("\n")
+					}
+					flags.ErrorPatternContext = epBuf.String()
+				}
 			}
 		}
 
@@ -1663,9 +1685,29 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		JournalAutoTrigger(cfg, shortTermMem, s.currentLogger, sessionID, recentTools, lastUserMsg)
 
 		if !isEmpty && !runCfg.IsMission && !runCfg.IsCoAgent {
-			evaluation := evaluateReusability(lastUserMsg, content, turnToolNames, turnToolSummaries, reuseLookup)
-			if err := applyReusabilityDecision(runCfg, s.currentLogger, evaluation); err != nil {
-				s.currentLogger.Warn("[ReuseFirst] Failed to apply reusability decision", "error", err, "reuse_decision", evaluation.Decision)
+			rf := cfg.Agent.ReuseFirst
+			if !rf.AutoMaterialize {
+				s.currentLogger.Debug("[ReuseFirst] Auto-materialisation disabled by config", "session_id", sessionID)
+			} else if reuseFirstSessionAtCap(sessionID, rf.MaxArtifactsPerSession) {
+				s.currentLogger.Info("[ReuseFirst] Skipping materialisation: per-session cool-down reached",
+					"session_id", sessionID,
+					"cap", rf.MaxArtifactsPerSession)
+			} else {
+				outcome := DeriveRunOutcomeFromSummaries(turnToolSummaries)
+				evaluation := evaluateReusabilityWithOutcome(lastUserMsg, content, turnToolNames, turnToolSummaries, reuseLookup, outcome, rf.RequireSuccessSignal)
+				if evaluation.Decision == ReusableArtifactNone {
+					s.currentLogger.Debug("[ReuseFirst] No materialisation",
+						"session_id", sessionID,
+						"reason", evaluation.Reason,
+						"any_tool_error", outcome.AnyToolError,
+						"recovery_loop_hits", outcome.RecoveryLoopHits)
+				} else {
+					if err := applyReusabilityDecision(runCfg, s.currentLogger, evaluation); err != nil {
+						s.currentLogger.Warn("[ReuseFirst] Failed to apply reusability decision", "error", err, "reuse_decision", evaluation.Decision)
+					} else {
+						reuseFirstSessionRecord(sessionID, evaluation.Decision)
+					}
+				}
 			}
 		}
 

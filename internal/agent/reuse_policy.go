@@ -8,8 +8,10 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
+	"unicode/utf8"
 
 	"aurago/internal/memory"
 	"aurago/internal/tools"
@@ -423,10 +425,75 @@ func renderReusePrompt(result ReuseLookupResult) string {
 	return strings.TrimSpace(sb.String())
 }
 
+// RunOutcome captures whether a turn finished successfully, used as a gate
+// before auto-materialising cheatsheets/skills. Goal: only "teach" the system
+// from runs that actually worked, not from half-broken recovery loops whose
+// final text happens to contain words like "fixed" or "resolved".
+type RunOutcome struct {
+	// LastToolError is true when the most recent tool call in the turn ended in error.
+	LastToolError bool
+	// AnyToolError is true when any tool call in the turn surfaced an error or
+	// "permission denied" / native-tool-skill confusion. This is the strongest
+	// negative signal: a single failed step is enough to suppress materialisation.
+	AnyToolError bool
+	// RecoveryLoopHits counts how many distinct error states the turn passed
+	// through (e.g. circuit-breaker recoveries, repeated identical tool errors).
+	RecoveryLoopHits int
+	// UserFollowUpNegative reserved for future thumbs-down feedback; currently always false.
+	UserFollowUpNegative bool
+}
+
+// DeriveRunOutcomeFromSummaries reconstructs a RunOutcome from the per-tool
+// summaries collected during the turn. Activity capture encodes status as
+// "<tool>: error - …" / "<tool>: warning - …" / "<tool>: completed - …".
+// We treat both "error" and "permission denied" markers as failures.
+func DeriveRunOutcomeFromSummaries(toolSummaries []string) RunOutcome {
+	outcome := RunOutcome{}
+	for i, summary := range toolSummaries {
+		lower := strings.ToLower(summary)
+		isErr := strings.Contains(lower, ": error") ||
+			strings.Contains(lower, "permission denied") ||
+			strings.Contains(lower, "is a native auraGo tool, not a python skill") ||
+			strings.Contains(lower, "[execution error]")
+		if isErr {
+			outcome.AnyToolError = true
+			outcome.RecoveryLoopHits++
+			if i == len(toolSummaries)-1 {
+				outcome.LastToolError = true
+			}
+		}
+	}
+	return outcome
+}
+
 func evaluateReusability(query, finalAnswer string, toolNames, toolSummaries []string, lookup ReuseLookupResult) ReusabilityEvaluation {
+	return evaluateReusabilityWithOutcome(query, finalAnswer, toolNames, toolSummaries, lookup, RunOutcome{}, true)
+}
+
+// evaluateReusabilityWithOutcome is the gated entry point. When
+// requireSuccessSignal is true (the production default), any tool error in the
+// turn vetoes auto-materialisation. The legacy entry point above passes
+// requireSuccessSignal=false for backwards compatibility with existing tests.
+func evaluateReusabilityWithOutcome(query, finalAnswer string, toolNames, toolSummaries []string, lookup ReuseLookupResult, outcome RunOutcome, requireSuccessSignal bool) ReusabilityEvaluation {
 	eval := ReusabilityEvaluation{
 		Decision: ReusableArtifactNone,
 		Reason:   "not_evaluated",
+	}
+	if requireSuccessSignal {
+		switch {
+		case outcome.AnyToolError:
+			eval.Reason = "gate_blocked_any_tool_error"
+			return eval
+		case outcome.LastToolError:
+			eval.Reason = "gate_blocked_last_tool_error"
+			return eval
+		case outcome.RecoveryLoopHits > 0:
+			eval.Reason = "gate_blocked_recovery_loop"
+			return eval
+		case outcome.UserFollowUpNegative:
+			eval.Reason = "gate_blocked_user_negative"
+			return eval
+		}
 	}
 	if lookup.Complexity != TaskComplexityNonTrivial {
 		eval.Reason = "task_trivial"
@@ -460,6 +527,20 @@ func evaluateReusability(query, finalAnswer string, toolNames, toolSummaries []s
 	if needsCheatsheet {
 		eval.CheatsheetName = deriveReusableCheatsheetName(query, toolNames)
 		eval.CheatsheetContent = composeReusableCheatsheetContent(query, finalAnswer, toolNames, toolSummaries)
+		// Naming hardening: if the derived name is fragmentary (Step B9), drop
+		// the cheatsheet branch entirely rather than persist garbage like
+		// "Gro Bugfix Teste".
+		if !isAcceptableArtifactName(eval.CheatsheetName) {
+			needsCheatsheet = false
+			eval.CheatsheetName = ""
+			eval.CheatsheetContent = ""
+		}
+		// Quality gate (Step B10): require enough body to be actually useful.
+		if needsCheatsheet && !isAcceptableCheatsheetContent(query, eval.CheatsheetContent) {
+			needsCheatsheet = false
+			eval.CheatsheetName = ""
+			eval.CheatsheetContent = ""
+		}
 	}
 	if needsSkill {
 		eval.TemplateName = templateName
@@ -467,6 +548,18 @@ func evaluateReusability(query, finalAnswer string, toolNames, toolSummaries []s
 		eval.SkillTags = tags
 		eval.SkillName = deriveReusableSkillName(query, templateName)
 		eval.SkillDescription = deriveReusableSkillDescription(query, templateName)
+		if !isAcceptableArtifactName(eval.SkillName) {
+			needsSkill = false
+			eval.SkillName = ""
+			eval.SkillDescription = ""
+			eval.TemplateName = ""
+			eval.SkillCategory = ""
+			eval.SkillTags = nil
+		}
+	}
+	if !needsCheatsheet && !needsSkill {
+		eval.Reason = "low_quality_artifact_dropped"
+		return eval
 	}
 
 	switch {
@@ -497,6 +590,76 @@ func evaluateReusability(query, finalAnswer string, toolNames, toolSummaries []s
 	}
 
 	return eval
+}
+
+// isAcceptableArtifactName guards against fragmentary names produced from a
+// query like "Gro Bugfix Teste" → "Gro Bugfix Teste Workflow". It requires at
+// least two word tokens of length ≥4 (excluding generic suffixes), each
+// alphabetic, so we reject single-token, very short, or stop-wordy names.
+func isAcceptableArtifactName(name string) bool {
+	trimmed := strings.TrimSpace(name)
+	if trimmed == "" {
+		return false
+	}
+	if utf8.RuneCountInString(trimmed) < 8 {
+		return false
+	}
+	// Split on whitespace, underscore, and hyphen so both prose-style names
+	// ("Docker Deployment Recovery Workflow") and snake_case skill names
+	// ("automate_docker_deployment_workflow_skill") are tokenised.
+	tokens := strings.FieldsFunc(trimmed, func(r rune) bool {
+		return r == ' ' || r == '_' || r == '-' || r == '.'
+	})
+	if len(tokens) < 2 {
+		return false
+	}
+	meaningful := 0
+	for _, tok := range tokens {
+		clean := strings.ToLower(strings.Trim(tok, ".,;:!?"))
+		if len(clean) < 4 {
+			continue
+		}
+		// Skip generic / suffix words
+		switch clean {
+		case "workflow", "skill", "tool", "task", "reuse", "recurring", "agent":
+			continue
+		}
+		// At least one alphabetic letter required
+		hasAlpha := false
+		for _, r := range clean {
+			if (r >= 'a' && r <= 'z') || r > 127 { // accept unicode letters loosely
+				hasAlpha = true
+				break
+			}
+		}
+		if hasAlpha {
+			meaningful++
+		}
+	}
+	return meaningful >= 2
+}
+
+// isAcceptableCheatsheetContent rejects bodies that are too short or are
+// effectively just an echo of the original query, since those provide no
+// reusable knowledge for future runs.
+func isAcceptableCheatsheetContent(query, content string) bool {
+	body := strings.TrimSpace(content)
+	if utf8.RuneCountInString(body) < 120 {
+		return false
+	}
+	bullets := strings.Count(body, "\n- ")
+	if bullets < 2 {
+		return false
+	}
+	// Reject if >70% of the body matches the raw query verbatim.
+	q := strings.TrimSpace(query)
+	if q != "" && len(body) > 0 {
+		overlap := strings.Count(strings.ToLower(body), strings.ToLower(q))
+		if overlap > 0 && len(q)*overlap*100/len(body) > 70 {
+			return false
+		}
+	}
+	return true
 }
 
 func applyReusabilityDecision(runCfg RunConfig, logger *slog.Logger, evaluation ReusabilityEvaluation) error {
@@ -1093,4 +1256,45 @@ func reuseMax(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// Per-session cool-down state for auto-materialisation. Goal: prevent a
+// single session from spamming the cheatsheet/skill DB with several
+// half-baked artefacts. The counters live in-process; a fresh restart
+// resets them, which is acceptable since materialisation is best-effort.
+var (
+	reuseFirstSessionMu       sync.Mutex
+	reuseFirstSessionCheatset = map[string]int{}
+	reuseFirstSessionSkill    = map[string]int{}
+)
+
+// reuseFirstSessionAtCap reports whether the session has already reached
+// (or exceeded) the per-session materialisation cap for both artifact types.
+// A cap of <=0 disables the limiter entirely.
+func reuseFirstSessionAtCap(sessionID string, cap int) bool {
+	if cap <= 0 || sessionID == "" {
+		return false
+	}
+	reuseFirstSessionMu.Lock()
+	defer reuseFirstSessionMu.Unlock()
+	return reuseFirstSessionCheatset[sessionID] >= cap && reuseFirstSessionSkill[sessionID] >= cap
+}
+
+// reuseFirstSessionRecord increments the per-session counters for the given
+// decision so subsequent turns can be throttled.
+func reuseFirstSessionRecord(sessionID string, decision ReusableArtifactDecision) {
+	if sessionID == "" {
+		return
+	}
+	reuseFirstSessionMu.Lock()
+	defer reuseFirstSessionMu.Unlock()
+	switch decision {
+	case ReusableArtifactCreateCheatsheet, ReusableArtifactUpdateExistingAgentCheatsheet:
+		reuseFirstSessionCheatset[sessionID]++
+	case ReusableArtifactCreateSkill, ReusableArtifactUpdateExistingAgentSkill:
+		reuseFirstSessionSkill[sessionID]++
+	case ReusableArtifactCreateBoth, ReusableArtifactUpdateBoth:
+		reuseFirstSessionCheatset[sessionID]++
+		reuseFirstSessionSkill[sessionID]++
+	}
 }

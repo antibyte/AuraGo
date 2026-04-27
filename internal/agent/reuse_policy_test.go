@@ -358,3 +358,145 @@ func TestApplyReusableSkillCreatesAgentVariantWhenUserSkillExists(t *testing.T) 
 		t.Fatalf("CreatedBy = %q, want %q", created.CreatedBy, "agent")
 	}
 }
+
+// TestEvaluateReusabilityGatesOnToolErrors verifies that auto-materialisation
+// is suppressed when the run had any tool error, regardless of how
+// confidently the final answer claims success.
+func TestEvaluateReusabilityGatesOnToolErrors(t *testing.T) {
+	query := "automate recurring database backup and restore validation"
+	answer := "Resolved by exporting snapshots and restoring them into a validation database with verified row counts."
+	tools := []string{"sql_query", "archive", "execute_shell"}
+	summaries := []string{
+		"export the production snapshot with the configured backup command",
+		"restore the snapshot into the validation database",
+		"verify schema and row counts to confirm integrity",
+	}
+	lookup := ReuseLookupResult{Complexity: TaskComplexityNonTrivial}
+
+	// Sanity: without the gate, the run is materialisable.
+	if got := evaluateReusabilityWithOutcome(query, answer, tools, summaries, lookup, RunOutcome{}, true); got.Decision == ReusableArtifactNone {
+		t.Fatalf("baseline decision must not be none, got reason=%q", got.Reason)
+	}
+
+	t.Run("any_tool_error_blocks", func(t *testing.T) {
+		got := evaluateReusabilityWithOutcome(query, answer, tools, summaries, lookup, RunOutcome{AnyToolError: true}, true)
+		if got.Decision != ReusableArtifactNone {
+			t.Fatalf("Decision=%q, want none", got.Decision)
+		}
+		if got.Reason != "gate_blocked_any_tool_error" {
+			t.Fatalf("Reason=%q, want gate_blocked_any_tool_error", got.Reason)
+		}
+	})
+
+	t.Run("last_tool_error_blocks", func(t *testing.T) {
+		got := evaluateReusabilityWithOutcome(query, answer, tools, summaries, lookup, RunOutcome{LastToolError: true}, true)
+		if got.Decision != ReusableArtifactNone {
+			t.Fatalf("Decision=%q, want none", got.Decision)
+		}
+	})
+
+	t.Run("gate_disabled_passes_through", func(t *testing.T) {
+		got := evaluateReusabilityWithOutcome(query, answer, tools, summaries, lookup, RunOutcome{AnyToolError: true}, false)
+		if got.Decision == ReusableArtifactNone && strings.HasPrefix(got.Reason, "gate_blocked_") {
+			t.Fatalf("expected gate to be bypassed when requireSuccessSignal=false, got reason=%q", got.Reason)
+		}
+	})
+}
+
+// TestDeriveRunOutcomeFromSummaries verifies error detection from compact
+// activity summaries produced by compactActivityToolResult.
+func TestDeriveRunOutcomeFromSummaries(t *testing.T) {
+	cases := []struct {
+		name             string
+		summaries        []string
+		wantAnyError     bool
+		wantLastError    bool
+		wantRecoveryHits int
+	}{
+		{
+			name:      "all_completed",
+			summaries: []string{"docker: completed - 3 containers running", "execute_shell: completed - exit 0"},
+		},
+		{
+			name:             "trailing_error",
+			summaries:        []string{"docker: completed - 3 containers running", "execute_shell: error - exit 1: command not found"},
+			wantAnyError:     true,
+			wantLastError:    true,
+			wantRecoveryHits: 1,
+		},
+		{
+			name:             "recovered_run_still_blocked",
+			summaries:        []string{"execute_shell: error - file not found", "execute_shell: completed - retry succeeded"},
+			wantAnyError:     true,
+			wantRecoveryHits: 1,
+		},
+		{
+			name:             "permission_denied_treated_as_error",
+			summaries:        []string{"manage_files: permission denied while writing /etc/hosts"},
+			wantAnyError:     true,
+			wantLastError:    true,
+			wantRecoveryHits: 1,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := DeriveRunOutcomeFromSummaries(tc.summaries)
+			if got.AnyToolError != tc.wantAnyError {
+				t.Errorf("AnyToolError=%v, want %v", got.AnyToolError, tc.wantAnyError)
+			}
+			if got.LastToolError != tc.wantLastError {
+				t.Errorf("LastToolError=%v, want %v", got.LastToolError, tc.wantLastError)
+			}
+			if got.RecoveryLoopHits != tc.wantRecoveryHits {
+				t.Errorf("RecoveryLoopHits=%d, want %d", got.RecoveryLoopHits, tc.wantRecoveryHits)
+			}
+		})
+	}
+}
+
+// TestIsAcceptableArtifactName ensures fragmentary names like
+// "Gro Bugfix Teste Workflow" are rejected while substantive prose-style
+// and snake_case skill names are accepted.
+func TestIsAcceptableArtifactName(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want bool
+	}{
+		{"empty_rejected", "", false},
+		{"single_token_rejected", "Workflow", false},
+		{"too_short_rejected", "X Y", false},
+		{"prose_name_accepted", "Docker Deployment Recovery Workflow", true},
+		{"snake_skill_accepted", "automate_database_backup_validation_skill", true},
+		{"only_generic_tokens_rejected", "Workflow Skill Tool", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := isAcceptableArtifactName(tc.in); got != tc.want {
+				t.Fatalf("isAcceptableArtifactName(%q)=%v, want %v", tc.in, got, tc.want)
+			}
+		})
+	}
+}
+
+// TestReuseFirstSessionCoolDown verifies that a session that already created
+// one cheatsheet and one skill is gated from creating more in the same run.
+func TestReuseFirstSessionCoolDown(t *testing.T) {
+	const sid = "test-cooldown-session"
+	if reuseFirstSessionAtCap(sid, 1) {
+		t.Fatal("fresh session must not be at cap")
+	}
+	reuseFirstSessionRecord(sid, ReusableArtifactCreateCheatsheet)
+	if reuseFirstSessionAtCap(sid, 1) {
+		t.Fatal("after one cheatsheet only, skill slot still free, must not be at cap")
+	}
+	reuseFirstSessionRecord(sid, ReusableArtifactCreateSkill)
+	if !reuseFirstSessionAtCap(sid, 1) {
+		t.Fatal("after one cheatsheet and one skill, must be at cap")
+	}
+	// Cap of 0 disables the limiter.
+	if reuseFirstSessionAtCap(sid, 0) {
+		t.Fatal("cap<=0 must disable the limiter")
+	}
+}

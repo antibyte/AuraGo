@@ -600,18 +600,9 @@ func buildSystemPromptInner(promptsDir string, flags *ContextFlags, coreMemory s
 		// RAG: Retrieved Long-Term Memories — skip in minimal tier
 		if flags.RetrievedMemories != "" && tier != "minimal" {
 			finalPrompt.WriteString("# RETRIEVED MEMORIES\n")
-			finalPrompt.WriteString("**Critical**: Memories are snapshots of past observations and ARE FREQUENTLY OUTDATED. " +
-				"**Priority rule: fresh tool output always overrides memory.** " +
-				"If you have just read a file, executed a tool, or received a tool result in this conversation, " +
-				"that is the authoritative current state — ignore any conflicting memory entry about the same file, code, or resource. " +
-				"Memories about file content, code structure, integration status, system configuration, prior failures, " +
-				"or tool availability are especially prone to staleness. " +
-				"NEVER treat a memory as proof that something is currently true, currently false, or currently impossible. " +
-				"NEVER skip an attempt, abandon a fix, or reject a path just because memory says it failed before. " +
-				"Use memories only as leads: verify them against the current files, current tool output, or a fresh reproducible check first. " +
-				"If memory reports a past error, interpret that as a debugging clue to re-test under current conditions — not as a final fact. " +
-				"NEVER act on a memory about specific code or file contents without verifying against the actual current file. " +
-				"Treat every memory entry as a *hint to investigate*, not a fact.\n\n")
+			finalPrompt.WriteString("Each entry below is **[advisory, verify]** — a snapshot of past observations that may be outdated. " +
+				"Fresh tool output, freshly read files, and current reproducible checks always outrank these memories. " +
+				"Use them as leads to investigate, never as proof that something is currently true, false, or impossible.\n\n")
 			finalPrompt.WriteString(security.IsolateExternalData(flags.RetrievedMemories))
 			finalPrompt.WriteString("\n\n")
 		}

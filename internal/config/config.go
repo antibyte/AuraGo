@@ -681,6 +681,20 @@ func Load(path string) (*Config, error) {
 	if cfg.Agent.AnnouncementDetector.MaxRetries <= 0 {
 		cfg.Agent.AnnouncementDetector.MaxRetries = 2
 	}
+	// ReuseFirst defaults — auto-materialisation on, but gated by run-success signal.
+	// Both flags default to true when not explicitly provided in YAML.
+	if !yamlHasPath(data, "agent", "reuse_first", "auto_materialize") {
+		cfg.Agent.ReuseFirst.AutoMaterialize = true
+	}
+	if !yamlHasPath(data, "agent", "reuse_first", "require_success_signal") {
+		cfg.Agent.ReuseFirst.RequireSuccessSignal = true
+	}
+	if cfg.Agent.ReuseFirst.MinSteps <= 0 {
+		cfg.Agent.ReuseFirst.MinSteps = 3
+	}
+	if cfg.Agent.ReuseFirst.MaxArtifactsPerSession <= 0 {
+		cfg.Agent.ReuseFirst.MaxArtifactsPerSession = 1
+	}
 	if cfg.Agent.Recovery.MaxProvider422Recoveries <= 0 {
 		cfg.Agent.Recovery.MaxProvider422Recoveries = 3
 	}
