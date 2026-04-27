@@ -596,6 +596,9 @@ func (s *Server) run(shutdownCh chan struct{}) error {
 		all := s.HistoryManager.GetAll()
 		var filtered []memory.HistoryMessage
 		for _, m := range all {
+			if memory.ShouldHideAutonomousMessage("default", m.Role, m.Content) {
+				continue
+			}
 			if !m.IsInternal {
 				filtered = append(filtered, m)
 			}

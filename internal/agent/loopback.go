@@ -19,6 +19,14 @@ func shouldPersistLoopbackHistory(sessionID string) bool {
 	return sessionID == "default"
 }
 
+func isAutonomousLoopback(runCfg RunConfig, sessionID string) bool {
+	switch runCfg.MessageSource {
+	case "heartbeat":
+		return true
+	}
+	return sessionID == "heartbeat"
+}
+
 // Loopback injects an external message into the agent loop synchronously.
 // Used by webhook-based integrations (e.g. Telnyx SMS) to relay incoming
 // messages through the full agent pipeline including tool execution.
@@ -43,6 +51,7 @@ func Loopback(runCfg RunConfig, message string, broker FeedbackBroker) {
 	if sessionID == "" {
 		sessionID = "default"
 	}
+	isInternalMessage := isAutonomousLoopback(runCfg, sessionID)
 
 	// Create manifest for tool resolution
 	if runCfg.Manifest == nil {
@@ -52,13 +61,13 @@ func Loopback(runCfg RunConfig, message string, broker FeedbackBroker) {
 	safeMessage := security.IsolateExternalData(message)
 
 	// Insert external message into short-term memory
-	mid, err := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, safeMessage, false, false)
+	mid, err := shortTermMem.InsertMessage(sessionID, openai.ChatMessageRoleUser, safeMessage, false, isInternalMessage)
 	if err != nil {
 		logger.Error("[Loopback] Failed to insert message", "error", err)
 		return
 	}
 	NoteInnerVoiceUserTurn(sessionID)
-	if shouldPersistLoopbackHistory(sessionID) {
+	if shouldPersistLoopbackHistory(sessionID) && !isInternalMessage {
 		historyManager.Add(openai.ChatMessageRoleUser, safeMessage, mid, false, false)
 	}
 

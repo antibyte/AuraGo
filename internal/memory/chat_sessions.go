@@ -38,6 +38,13 @@ func sqliteDatetimeToRFC3339(dt string) string {
 	return t.UTC().Format(time.RFC3339)
 }
 
+func ShouldHideAutonomousMessage(sessionID, role, content string) bool {
+	if sessionID == "heartbeat" {
+		return true
+	}
+	return role == "user" && strings.Contains(content, "[SYSTEM HEARTBEAT]")
+}
+
 // CreateChatSession creates a new chat session and returns its ID.
 // It also runs rotation to ensure we don't exceed MaxChatSessions.
 func (s *SQLiteMemory) CreateChatSession() (*ChatSession, error) {
@@ -71,6 +78,7 @@ func (s *SQLiteMemory) ListChatSessions() ([]ChatSession, error) {
 	rows, err := s.db.Query(
 		`SELECT id, COALESCE(preview, ''), created_at, last_active_at, message_count
 		 FROM chat_sessions
+		 WHERE id != 'heartbeat'
 		 ORDER BY last_active_at DESC
 		 LIMIT ?`, MaxChatSessions,
 	)
@@ -113,11 +121,23 @@ func (s *SQLiteMemory) GetChatSession(id string) (*ChatSession, error) {
 // UpdateChatSessionPreview updates the preview text and message count for a session.
 // The preview is derived from the first non-empty user message in the session.
 func (s *SQLiteMemory) UpdateChatSessionPreview(sessionID string) error {
+	if sessionID == "heartbeat" {
+		_, err := s.db.Exec(
+			`UPDATE chat_sessions SET preview = '', message_count = 0 WHERE id = ?`,
+			sessionID,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to update heartbeat chat session preview: %w", err)
+		}
+		return nil
+	}
+
 	// Get first non-internal user message for preview
 	var content string
 	err := s.db.QueryRow(
 		`SELECT content FROM messages
 		 WHERE session_id = ? AND role = 'user' AND is_internal = 0
+		 AND content NOT LIKE '%[SYSTEM HEARTBEAT]%'
 		 ORDER BY timestamp ASC, id ASC LIMIT 1`, sessionID,
 	).Scan(&content)
 	if err != nil {
@@ -144,7 +164,9 @@ func (s *SQLiteMemory) UpdateChatSessionPreview(sessionID string) error {
 	// Count visible messages
 	var count int
 	_ = s.db.QueryRow(
-		`SELECT COUNT(*) FROM messages WHERE session_id = ? AND is_internal = 0`, sessionID,
+		`SELECT COUNT(*) FROM messages
+		 WHERE session_id = ? AND is_internal = 0
+		 AND NOT (role = 'user' AND content LIKE '%[SYSTEM HEARTBEAT]%')`, sessionID,
 	).Scan(&count)
 
 	now := time.Now().UTC().Format("2006-01-02 15:04:05")
@@ -236,6 +258,9 @@ func (s *SQLiteMemory) GetSessionMessages(sessionID string) ([]HistoryMessage, e
 		}
 		msg.Pinned = pinned
 		msg.IsInternal = internal
+		if ShouldHideAutonomousMessage(sessionID, msg.Role, msg.Content) {
+			continue
+		}
 		messages = append(messages, msg)
 	}
 	return messages, rows.Err()

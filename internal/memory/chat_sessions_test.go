@@ -69,6 +69,28 @@ func TestListChatSessions(t *testing.T) {
 	}
 }
 
+func TestListChatSessionsExcludesHeartbeatSession(t *testing.T) {
+	stm := newTestSTM(t)
+	now := "2026-04-27 01:40:00"
+	_, err := stm.db.Exec(
+		`INSERT INTO chat_sessions (id, preview, created_at, last_active_at, message_count) VALUES (?, ?, ?, ?, ?)`,
+		"heartbeat", "[SYSTEM HEARTBEAT]", now, now, 2,
+	)
+	if err != nil {
+		t.Fatalf("insert heartbeat chat session: %v", err)
+	}
+
+	sessions, err := stm.ListChatSessions()
+	if err != nil {
+		t.Fatalf("ListChatSessions: %v", err)
+	}
+	for _, sess := range sessions {
+		if sess.ID == "heartbeat" {
+			t.Fatalf("heartbeat session should not be listed: %+v", sessions)
+		}
+	}
+}
+
 func TestGetChatSession(t *testing.T) {
 	stm := newTestSTM(t)
 
@@ -120,6 +142,55 @@ func TestUpdateChatSessionPreview(t *testing.T) {
 	}
 	if got.MessageCount != 1 {
 		t.Fatalf("expected 1 message, got %d", got.MessageCount)
+	}
+}
+
+func TestUpdateChatSessionPreviewIgnoresHeartbeatPrompts(t *testing.T) {
+	stm := newTestSTM(t)
+
+	sess, _ := stm.CreateChatSession()
+	_, _ = stm.InsertMessage(sess.ID, "user", "[SYSTEM HEARTBEAT] Automated wake-up check at 01:40.", false, false)
+	_, _ = stm.InsertMessage(sess.ID, "user", "real user message", false, false)
+
+	err := stm.UpdateChatSessionPreview(sess.ID)
+	if err != nil {
+		t.Fatalf("UpdateChatSessionPreview: %v", err)
+	}
+
+	got, _ := stm.GetChatSession(sess.ID)
+	if got.Preview != "real user message" {
+		t.Fatalf("expected real message preview, got %q", got.Preview)
+	}
+	if got.MessageCount != 1 {
+		t.Fatalf("expected leaked heartbeat prompt excluded from count, got %d", got.MessageCount)
+	}
+}
+
+func TestUpdateChatSessionPreviewClearsHeartbeatSession(t *testing.T) {
+	stm := newTestSTM(t)
+	now := "2026-04-27 01:40:00"
+	_, err := stm.db.Exec(
+		`INSERT INTO chat_sessions (id, preview, created_at, last_active_at, message_count) VALUES (?, ?, ?, ?, ?)`,
+		"heartbeat", "[SYSTEM HEARTBEAT]", now, now, 2,
+	)
+	if err != nil {
+		t.Fatalf("insert heartbeat chat session: %v", err)
+	}
+
+	err = stm.UpdateChatSessionPreview("heartbeat")
+	if err != nil {
+		t.Fatalf("UpdateChatSessionPreview heartbeat: %v", err)
+	}
+
+	got, _ := stm.GetChatSession("heartbeat")
+	if got == nil {
+		t.Fatal("expected heartbeat session to exist")
+	}
+	if got.Preview != "" {
+		t.Fatalf("expected heartbeat preview cleared, got %q", got.Preview)
+	}
+	if got.MessageCount != 0 {
+		t.Fatalf("expected heartbeat count cleared, got %d", got.MessageCount)
 	}
 }
 
@@ -232,6 +303,30 @@ func TestGetSessionMessages(t *testing.T) {
 	}
 	if msgs[1].Role != "assistant" || msgs[1].Content != "hi there" {
 		t.Fatalf("unexpected second message: %+v", msgs[1])
+	}
+}
+
+func TestGetSessionMessagesHidesHeartbeatMessages(t *testing.T) {
+	stm := newTestSTM(t)
+
+	_, _ = stm.InsertMessage("heartbeat", "user", "[SYSTEM HEARTBEAT] Automated wake-up check at 01:40.", false, false)
+	_, _ = stm.InsertMessage("heartbeat", "assistant", "All is well.", false, false)
+	_, _ = stm.InsertMessage("default", "user", "[SYSTEM HEARTBEAT] Automated wake-up check at 01:40.", false, false)
+
+	hbMsgs, err := stm.GetSessionMessages("heartbeat")
+	if err != nil {
+		t.Fatalf("GetSessionMessages heartbeat: %v", err)
+	}
+	if len(hbMsgs) != 0 {
+		t.Fatalf("expected heartbeat session messages hidden, got %d", len(hbMsgs))
+	}
+
+	defaultMsgs, err := stm.GetSessionMessages("default")
+	if err != nil {
+		t.Fatalf("GetSessionMessages default: %v", err)
+	}
+	if len(defaultMsgs) != 0 {
+		t.Fatalf("expected leaked heartbeat prompt hidden from default session, got %d", len(defaultMsgs))
 	}
 }
 

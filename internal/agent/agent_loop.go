@@ -1402,11 +1402,12 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 		}
 		if !isEmpty {
-			id, err := shortTermMem.InsertMessage(sessionID, resp.Choices[0].Message.Role, content, false, false)
+			isInternalFinal := runCfg.MessageSource == "heartbeat" || sessionID == "heartbeat"
+			id, err := shortTermMem.InsertMessage(sessionID, resp.Choices[0].Message.Role, content, false, isInternalFinal)
 			if err != nil {
 				s.currentLogger.Error("Failed to persist final-answer message to SQLite", "error", err)
 			}
-			if sessionID == "default" {
+			if sessionID == "default" && !isInternalFinal {
 				historyManager.Add(resp.Choices[0].Message.Role, content, id, false, false)
 			}
 		} else {
