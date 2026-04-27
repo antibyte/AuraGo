@@ -641,35 +641,16 @@ func expandAdaptiveAlwaysInclude(cfg *config.Config, alwaysInclude []string) []s
 		}
 	}
 
+	// The discovery tool is the generic escape hatch for every tool hidden by
+	// adaptive filtering. If it disappears, the model has no reliable way to
+	// inspect and re-include enabled tools.
+	add("discover_tools")
+
 	// MCP must stay callable once the user enabled it. Hiding the generic bridge
 	// causes the model to improvise fake direct tool names like
 	// "minimax_understand_image" instead of using mcp_call.
 	if cfg.Agent.AllowMCP && cfg.MCP.Enabled {
 		add("mcp_call")
-	}
-
-	if cfg.YepAPI.Enabled {
-		if cfg.YepAPI.SEO.Enabled {
-			add("yepapi_seo")
-		}
-		if cfg.YepAPI.SERP.Enabled {
-			add("yepapi_serp")
-		}
-		if cfg.YepAPI.Scraping.Enabled {
-			add("yepapi_scrape")
-		}
-		if cfg.YepAPI.YouTube.Enabled {
-			add("yepapi_youtube")
-		}
-		if cfg.YepAPI.TikTok.Enabled {
-			add("yepapi_tiktok")
-		}
-		if cfg.YepAPI.Instagram.Enabled {
-			add("yepapi_instagram")
-		}
-		if cfg.YepAPI.Amazon.Enabled {
-			add("yepapi_amazon")
-		}
 	}
 
 	return out
