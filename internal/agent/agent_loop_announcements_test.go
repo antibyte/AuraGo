@@ -9,6 +9,26 @@ func TestIsAnnouncementOnlyResponseBeforeAnyToolCall(t *testing.T) {
 	}
 }
 
+func TestClaimsToolUnavailableWithoutDiscovery(t *testing.T) {
+	cases := []string{
+		"Tool 'yepapi' not found. It may be disabled in config.",
+		"Ich sehe das YepAPI-Tool einfach nicht in meiner aktiven Tool-Liste.",
+		"Das Tool ist nicht verfügbar.",
+	}
+	for _, content := range cases {
+		if !claimsToolUnavailableWithoutDiscovery(content) {
+			t.Fatalf("expected availability claim to trigger recovery: %q", content)
+		}
+	}
+}
+
+func TestClaimsToolUnavailableWithoutDiscoveryIgnoresDiscoveryInstruction(t *testing.T) {
+	content := "Use discover_tools to check whether the tool is not available."
+	if claimsToolUnavailableWithoutDiscovery(content) {
+		t.Fatalf("did not expect discovery instruction to trigger recovery: %q", content)
+	}
+}
+
 func TestIsAnnouncementOnlyResponseAfterToolCallWithForwardCue(t *testing.T) {
 	tc := ToolCall{}
 	content := "Dateien aktualisiert! Jetzt baue ich das Projekt und deploye es:"

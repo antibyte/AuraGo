@@ -159,6 +159,40 @@ func isAnnouncementOnlyResponse(content string, tc ToolCall, useNativePath, last
 	return (hasActionIntent || strongForwardSignal) && (containsForwardCue || containsActionCue || hasPlanStructure)
 }
 
+func claimsToolUnavailableWithoutDiscovery(content string) bool {
+	lc := strings.ToLower(strings.TrimSpace(content))
+	if lc == "" {
+		return false
+	}
+	if !strings.Contains(lc, "tool") && !strings.Contains(lc, "werkzeug") {
+		return false
+	}
+	if strings.Contains(lc, "discover_tools") {
+		return false
+	}
+
+	availabilityClaims := []string{
+		"tool '", "tool `", "tool \"",
+		"not found", "not available", "not in my active tool list",
+		"disabled in config", "disabled in the config",
+		"nicht gefunden", "nicht verfügbar", "nicht in meiner aktiven tool-liste",
+		"nicht in meiner aktiven toolliste", "nicht in der aktiven tool-liste",
+	}
+	if containsAnySubstring(lc, availabilityClaims) &&
+		(strings.Contains(lc, "not found") ||
+			strings.Contains(lc, "not available") ||
+			strings.Contains(lc, "disabled in config") ||
+			strings.Contains(lc, "disabled in the config") ||
+			strings.Contains(lc, "nicht gefunden") ||
+			strings.Contains(lc, "nicht verfügbar") ||
+			strings.Contains(lc, "nicht in meiner aktiven") ||
+			strings.Contains(lc, "nicht in der aktiven")) {
+		return true
+	}
+
+	return strings.Contains(lc, "sehe") && strings.Contains(lc, "nicht")
+}
+
 func isOperationalExecutionRequest(msg string) bool {
 	lower := strings.ToLower(strings.TrimSpace(msg))
 	if lower == "" {

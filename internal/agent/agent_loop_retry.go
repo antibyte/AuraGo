@@ -204,6 +204,25 @@ func handleAgentLoopRecoveries(s *agentLoopState, content string, tc ToolCall, p
 		return content, tc, true, false
 	}
 
+	if !tc.IsTool && !parsedToolResp.IsFinished && !s.lastResponseWasTool &&
+		claimsToolUnavailableWithoutDiscovery(parsedToolResp.SanitizedContent) &&
+		s.announcementCount < cfg.Agent.AnnouncementDetector.MaxRetries {
+		s.announcementCount++
+		currentLogger.Warn("[Sync] Tool availability claim without discovery detected, requesting discover_tools",
+			"attempt", s.announcementCount,
+			"content_preview", Truncate(parsedToolResp.SanitizedContent, 120))
+		feedbackMsg := applyEmotionRecoveryNudge(FormatToolAvailabilityDiscoveryFeedback(), emotionPolicy)
+		msgs := s.recoverySession.PersistRecoveryMessages(PersistRecoveryParams{
+			SessionID:        sessionID,
+			AssistantContent: content,
+			FeedbackMsg:      feedbackMsg,
+			BrokerEventType:  "error_recovery",
+			I18nKey:          "backend.stream_error_recovery_announcement_no_action",
+		}, shortTermMem, historyManager)
+		s.req.Messages = append(s.req.Messages, msgs...)
+		return content, tc, true, false
+	}
+
 	// Language-agnostic recovery: if the PREVIOUS iteration was a tool call (mid-task)
 	// and the model now outputs only text without <done/> and without a new tool call,
 	// it is stuck.

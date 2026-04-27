@@ -234,3 +234,7 @@ func FormatAnnouncementFeedback(useNativeFunctions bool, recentTools []string) s
 	}
 	return feedbackMsg
 }
+
+func FormatToolAvailabilityDiscoveryFeedback() string {
+	return "ERROR: You claimed a tool is unavailable without checking the live tool registry. Tool availability memories are stale. You MUST call discover_tools NOW with operation='search' or operation='get_tool_info' for the exact tool name or tool family. Do not answer in text until discover_tools has returned current status."
+}
