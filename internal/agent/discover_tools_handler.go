@@ -8,6 +8,8 @@ import (
 
 	"aurago/internal/config"
 	"aurago/internal/prompts"
+
+	openai "github.com/sashabaranov/go-openai"
 )
 
 // handleDiscoverTools dispatches discover_tools operations (list_categories, search, get_tool_info).
@@ -69,6 +71,11 @@ func handleDiscoverTools(tc ToolCall, cfg *config.Config, logger *slog.Logger, s
 		guide, _ := prompts.ReadToolGuide(guidePath)
 
 		info := FormatToolInfo(resolvedToolName, allSchemas, guide)
+		if !toolSchemaExists(resolvedToolName, allSchemas) {
+			if groupInfo := formatDiscoverToolGroupInfo(resolvedToolName, activeNames, enabledNames, sessionID); groupInfo != "" {
+				return groupInfo
+			}
+		}
 		active := activeNames[resolvedToolName]
 		var hint string
 		if active {
@@ -87,4 +94,49 @@ func handleDiscoverTools(tc ToolCall, cfg *config.Config, logger *slog.Logger, s
 	default:
 		return fmt.Sprintf("Tool Output: ERROR Unknown operation '%s'. Use list_categories, search, or get_tool_info.", op)
 	}
+}
+
+func toolSchemaExists(toolName string, schemas []openai.Tool) bool {
+	for _, s := range schemas {
+		if s.Function != nil && s.Function.Name == toolName {
+			return true
+		}
+	}
+	return false
+}
+
+func formatDiscoverToolGroupInfo(query string, activeNames, enabledNames map[string]bool, sessionID string) string {
+	results := SearchToolsInCategories(query)
+	if len(results) == 0 {
+		return ""
+	}
+
+	var enabledResults []struct {
+		Category string
+		Entry    ToolCategoryEntry
+	}
+	for _, r := range results {
+		if enabledNames[r.Entry.Name] {
+			enabledResults = append(enabledResults, r)
+		}
+	}
+	if len(enabledResults) == 0 {
+		return ""
+	}
+
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("Tool Output:\nTool family '%s' has %d enabled tools:\n", query, len(enabledResults)))
+	for _, r := range enabledResults {
+		status := "○"
+		if activeNames[r.Entry.Name] {
+			status = "●"
+		} else {
+			MarkDiscoverRequestedTool(sessionID, r.Entry.Name)
+		}
+		sb.WriteString(fmt.Sprintf("  %s %s [%s] - %s\n", status, r.Entry.Name, r.Category, r.Entry.ShortDesc))
+	}
+	sb.WriteString("\n● = active   ○ = enabled but hidden by adaptive filtering")
+	sb.WriteString("\nUse get_tool_info with one exact tool name above, then call that exact tool.")
+	sb.WriteString("\n[STATUS] These enabled tools were requested and will be re-included on the next agent turn.")
+	return sb.String()
 }

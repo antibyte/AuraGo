@@ -52,6 +52,66 @@ func TestHandleDiscoverToolsMarksHiddenToolForSession(t *testing.T) {
 	}
 }
 
+func TestHandleDiscoverToolsFamilyNameSurfacesEnabledYepAPITools(t *testing.T) {
+	t.Cleanup(func() {
+		discoverToolsState.mu.Lock()
+		discoverToolsState.allSchemas = nil
+		discoverToolsState.activeNames = nil
+		discoverToolsState.enabledNames = nil
+		discoverToolsState.requested = nil
+		discoverToolsState.promptsDir = ""
+		discoverToolsState.mu.Unlock()
+	})
+
+	allSchemas := []openai.Tool{
+		{
+			Type: openai.ToolTypeFunction,
+			Function: &openai.FunctionDefinition{
+				Name:        "yepapi_instagram",
+				Description: "Instagram data via YepAPI",
+				Parameters:  map[string]any{"type": "object"},
+			},
+		},
+		{
+			Type: openai.ToolTypeFunction,
+			Function: &openai.FunctionDefinition{
+				Name:        "yepapi_youtube",
+				Description: "YouTube data via YepAPI",
+				Parameters:  map[string]any{"type": "object"},
+			},
+		},
+	}
+	SetDiscoverToolsState("sess-yepapi", allSchemas, nil, "")
+
+	cfg := &config.Config{}
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	out := handleDiscoverTools(ToolCall{
+		Params: map[string]interface{}{
+			"operation": "get_tool_info",
+			"tool_name": "yepapi",
+		},
+	}, cfg, logger, "sess-yepapi")
+
+	if strings.Contains(out, "disabled in config") {
+		t.Fatalf("family lookup should not report disabled config: %s", out)
+	}
+	if !strings.Contains(out, "Tool family 'yepapi'") ||
+		!strings.Contains(out, "yepapi_instagram") ||
+		!strings.Contains(out, "yepapi_youtube") {
+		t.Fatalf("expected YepAPI family tools in output, got: %s", out)
+	}
+	requested := GetDiscoverRequestedTools("sess-yepapi")
+	requestedSet := make(map[string]bool, len(requested))
+	for _, name := range requested {
+		requestedSet[name] = true
+	}
+	for _, want := range []string{"yepapi_instagram", "yepapi_youtube"} {
+		if !requestedSet[want] {
+			t.Fatalf("requested tools = %v, missing %s", requested, want)
+		}
+	}
+}
+
 func TestGetDiscoverRequestedToolsIsSessionScoped(t *testing.T) {
 	t.Cleanup(func() {
 		discoverToolsState.mu.Lock()
