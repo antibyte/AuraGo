@@ -786,6 +786,24 @@ func TestBuiltinToolSchemasDoNotContainDuplicateNames(t *testing.T) {
 	}
 }
 
+func TestAllBuiltinToolFeatureFlagsIncludeYepAPITools(t *testing.T) {
+	schemas := builtinToolSchemas(allBuiltinToolFeatureFlags())
+	names := toolNames(schemas)
+	for _, want := range []string{
+		"yepapi_seo",
+		"yepapi_serp",
+		"yepapi_scrape",
+		"yepapi_youtube",
+		"yepapi_tiktok",
+		"yepapi_instagram",
+		"yepapi_amazon",
+	} {
+		if !containsName(names, want) {
+			t.Fatalf("allBuiltinToolFeatureFlags missing %s; discover_tools/tests cannot see enabled YepAPI tools", want)
+		}
+	}
+}
+
 func TestBuiltinToolSchemasIncludeWikipediaAndDDGSearch(t *testing.T) {
 	schemas := builtinToolSchemas(allBuiltinToolFeatureFlags())
 	foundWikipedia := false

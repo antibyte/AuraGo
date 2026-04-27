@@ -112,6 +112,53 @@ func TestHandleDiscoverToolsFamilyNameSurfacesEnabledYepAPITools(t *testing.T) {
 	}
 }
 
+func TestHandleDiscoverToolsSearchMarksHiddenToolForSession(t *testing.T) {
+	t.Cleanup(func() {
+		discoverToolsState.mu.Lock()
+		discoverToolsState.allSchemas = nil
+		discoverToolsState.activeNames = nil
+		discoverToolsState.enabledNames = nil
+		discoverToolsState.requested = nil
+		discoverToolsState.promptsDir = ""
+		discoverToolsState.mu.Unlock()
+	})
+
+	allSchemas := []openai.Tool{
+		{
+			Type: openai.ToolTypeFunction,
+			Function: &openai.FunctionDefinition{
+				Name:        "yepapi_instagram",
+				Description: "Instagram data via YepAPI",
+				Parameters:  map[string]any{"type": "object"},
+			},
+		},
+	}
+	SetDiscoverToolsState("sess-search", allSchemas, nil, "")
+
+	cfg := &config.Config{}
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	out := handleDiscoverTools(ToolCall{
+		Params: map[string]interface{}{
+			"operation": "search",
+			"query":     "yepapi_instagram",
+		},
+	}, cfg, logger, "sess-search")
+
+	if strings.Contains(out, "✗ yepapi_instagram") {
+		t.Fatalf("hidden enabled tool should not be reported as disabled: %s", out)
+	}
+	if !strings.Contains(out, "○ yepapi_instagram") {
+		t.Fatalf("expected hidden enabled tool marker, got: %s", out)
+	}
+	if !strings.Contains(out, "re-included on the next agent turn") {
+		t.Fatalf("expected re-include guidance, got: %s", out)
+	}
+	requested := GetDiscoverRequestedTools("sess-search")
+	if len(requested) != 1 || requested[0] != "yepapi_instagram" {
+		t.Fatalf("requested tools = %v, want [yepapi_instagram]", requested)
+	}
+}
+
 func TestGetDiscoverRequestedToolsIsSessionScoped(t *testing.T) {
 	t.Cleanup(func() {
 		discoverToolsState.mu.Lock()

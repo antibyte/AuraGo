@@ -43,6 +43,7 @@ func handleDiscoverTools(tc ToolCall, cfg *config.Config, logger *slog.Logger, s
 		}
 		var sb strings.Builder
 		sb.WriteString(fmt.Sprintf("Tool Output: %d tools matching '%s':\n", len(results), query))
+		markedHidden := false
 		for _, r := range results {
 			status := "○"
 			if activeNames[r.Entry.Name] {
@@ -50,10 +51,16 @@ func handleDiscoverTools(tc ToolCall, cfg *config.Config, logger *slog.Logger, s
 			}
 			if !enabledNames[r.Entry.Name] {
 				status = "✗"
+			} else if !activeNames[r.Entry.Name] {
+				MarkDiscoverRequestedTool(sessionID, r.Entry.Name)
+				markedHidden = true
 			}
 			sb.WriteString(fmt.Sprintf("  %s %s [%s] — %s\n", status, r.Entry.Name, r.Category, r.Entry.ShortDesc))
 		}
 		sb.WriteString("\n● = active   ○ = available (hidden)   ✗ = disabled in config")
+		if markedHidden {
+			sb.WriteString("\n[STATUS] Hidden enabled matches were requested and will be re-included on the next agent turn.")
+		}
 		sb.WriteString("\nUse get_tool_info to see full parameters for any available tool, then call it directly.")
 		return sb.String()
 

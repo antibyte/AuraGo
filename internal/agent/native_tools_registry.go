@@ -84,6 +84,10 @@ func allBuiltinToolFeatureFlags() ToolFeatureFlags {
 		FritzBoxTVEnabled: true, TelnyxSMSEnabled: true, TelnyxCallEnabled: true,
 		SQLConnectionsEnabled: true, PythonSecretInjectionEnabled: true,
 		LDAPEnabled: true, ObsidianEnabled: true,
+		YepAPIEnabled: true, YepAPISEOEnabled: true, YepAPISERPEnabled: true,
+		YepAPIScrapingEnabled: true, YepAPIYouTubeEnabled: true,
+		YepAPITikTokEnabled: true, YepAPIInstagramEnabled: true,
+		YepAPIAmazonEnabled: true,
 	}
 }
 

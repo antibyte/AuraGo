@@ -435,6 +435,11 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				return "Tool Output: ERROR 'skill' name is required. Use {\"action\": \"execute_skill\", \"skill\": \"name\", \"params\": {...}}"
 			}
 
+			cleanSkillName := strings.TrimSuffix(skillName, ".py")
+			if nativeAction, ok := mistakenNativeToolSkillName(cleanSkillName); ok {
+				return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s is a native AuraGo tool, not a Python skill. Call the native tool directly with tool_name/action \"%s\". If it is hidden by adaptive filtering, first call discover_tools with get_tool_info for \"%s\"; then call \"%s\" directly on the next turn. Do not use execute_skill for native tools.","redirect_action":"%s","redirect_example":"{\"action\":\"%s\"}"}`, cleanSkillName, nativeAction, nativeAction, nativeAction, nativeAction, nativeAction)
+			}
+
 			// Unwrap skill_args if the LLM nested the actual parameters under that key.
 			// e.g. {"skill_name": "ddg_search", "skill_args": {"query": "..."}} → {"query": "..."}
 			if innerArgs, ok := args["skill_args"].(map[string]interface{}); ok && len(innerArgs) > 0 {
@@ -449,10 +454,6 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 					}
 				}
 				args = cleanArgs
-			}
-			cleanSkillName := strings.TrimSuffix(skillName, ".py")
-			if nativeAction, ok := mistakenNativeToolSkillName(cleanSkillName); ok {
-				return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s is a native AuraGo tool, not a Python skill. Call it directly as {\"action\":\"%s\"} instead of wrapping it in execute_skill.","redirect_action":"%s","redirect_example":"{\"action\":\"%s\"}"}`, cleanSkillName, nativeAction, nativeAction, nativeAction)
 			}
 			args = filterExecuteSkillArgs(cfg.Directories.SkillsDir, cleanSkillName, args)
 			if result, ok := handleExecuteSkillBuiltinAction(ctx, dc, cleanSkillName, args); ok {
@@ -1868,6 +1869,13 @@ var nativeToolSkillConfusions = map[string]string{
 	"site_crawler":     "site_crawler",
 	"web_capture":      "web_capture",
 	"web_performance":  "web_performance",
+	"yepapi_seo":       "yepapi_seo",
+	"yepapi_serp":      "yepapi_serp",
+	"yepapi_scrape":    "yepapi_scrape",
+	"yepapi_youtube":   "yepapi_youtube",
+	"yepapi_tiktok":    "yepapi_tiktok",
+	"yepapi_instagram": "yepapi_instagram",
+	"yepapi_amazon":    "yepapi_amazon",
 }
 
 func mistakenNativeToolSkillName(skillName string) (string, bool) {

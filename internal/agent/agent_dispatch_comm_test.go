@@ -71,6 +71,35 @@ func TestBuiltinArgsFromToolCallMergesRawParams(t *testing.T) {
 	}
 }
 
+func TestExecuteSkillRedirectsNativeToolBeforeFilteringArgs(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.Directories.SkillsDir = t.TempDir()
+
+	out, ok := dispatchComm(context.Background(), ToolCall{
+		Action: "execute_skill",
+		Skill:  "yepapi_instagram",
+		SkillArgs: map[string]interface{}{
+			"operation": "user",
+			"username":  "jopliness",
+		},
+	}, &DispatchContext{
+		Cfg:    cfg,
+		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	})
+	if !ok {
+		t.Fatal("expected dispatchComm to handle execute_skill")
+	}
+	if !strings.Contains(out, "native AuraGo tool") {
+		t.Fatalf("expected native tool redirect, got %s", out)
+	}
+	if !strings.Contains(out, "yepapi_instagram") {
+		t.Fatalf("expected redirect to mention yepapi_instagram, got %s", out)
+	}
+	if strings.Contains(out, "skill not found") {
+		t.Fatalf("expected redirect before skill manager lookup, got %s", out)
+	}
+}
+
 func TestDispatchCommCallWebhookUsesWebhookNameFromParams(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.Webhooks.Enabled = true
