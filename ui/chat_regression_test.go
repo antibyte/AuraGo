@@ -132,6 +132,32 @@ func TestChatFrontend_PasteAttachmentFlowRemainsPresent(t *testing.T) {
 	}
 }
 
+func TestChatSmartScrollerIgnoresEmptyNonScrollableState(t *testing.T) {
+	t.Parallel()
+
+	scrollerPath := filepath.Join("js", "chat", "modules", "smart-scroller.js")
+	scrollerContent, err := os.ReadFile(scrollerPath)
+	if err != nil {
+		t.Fatalf("read %s: %v", scrollerPath, err)
+	}
+
+	scrollerJS := string(scrollerContent)
+	requiredMarkers := []string{
+		"hasScrollableOverflow()",
+		"hasRenderedMessages()",
+		"const hasOverflow = this.hasScrollableOverflow();",
+		"const hasMessages = this.hasRenderedMessages();",
+		"this.isUserScrolledUp = hasOverflow && hasMessages && distanceFromBottom > this.scrollThreshold;",
+		"if (!this.isUserScrolledUp || !this.hasScrollableOverflow() || !this.hasRenderedMessages())",
+		"this.scrollButton.disabled = true;",
+	}
+	for _, marker := range requiredMarkers {
+		if !strings.Contains(scrollerJS, marker) {
+			t.Fatalf("%s is missing empty-state scroll guard marker %q", scrollerPath, marker)
+		}
+	}
+}
+
 func TestConfigFrontendVideoDownloadSectionRemainsWired(t *testing.T) {
 	t.Parallel()
 
