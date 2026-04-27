@@ -306,7 +306,17 @@ func TestDispatchYepAPITikTok(t *testing.T) {
 }
 
 func TestDispatchYepAPIInstagram(t *testing.T) {
+	type yepAPIRequest struct {
+		Path    string
+		Payload map[string]interface{}
+	}
+	requests := make(chan yepAPIRequest, 3)
 	client := newYepAPITestClient(func(r *http.Request) (int, string) {
+		var payload map[string]interface{}
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Fatalf("decode request body: %v", err)
+		}
+		requests <- yepAPIRequest{Path: r.URL.Path, Payload: payload}
 		return http.StatusOK, `{"ok":true,"data":{}}`
 	})
 
@@ -319,6 +329,47 @@ func TestDispatchYepAPIInstagram(t *testing.T) {
 		}
 		if res == "" {
 			t.Fatal("expected non-empty result")
+		}
+		got := <-requests
+		if got.Path != "/v1/instagram/user" || got.Payload["username"] != "natgeo" {
+			t.Fatalf("request = %+v, want user endpoint with username", got)
+		}
+		if _, ok := got.Payload["username_or_url"]; ok {
+			t.Fatalf("request = %+v, did not expect legacy username_or_url field", got)
+		}
+	})
+
+	t.Run("user_posts_uses_username", func(t *testing.T) {
+		res, err := DispatchYepAPIInstagram(ctx, client, "user_posts", map[string]interface{}{"username": "natgeo", "limit": 5.0})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if res == "" {
+			t.Fatal("expected non-empty result")
+		}
+		got := <-requests
+		if got.Path != "/v1/instagram/user-posts" || got.Payload["username"] != "natgeo" || got.Payload["limit"] != float64(5) {
+			t.Fatalf("request = %+v, want user-posts endpoint with username and limit", got)
+		}
+		if _, ok := got.Payload["username_or_url"]; ok {
+			t.Fatalf("request = %+v, did not expect legacy username_or_url field", got)
+		}
+	})
+
+	t.Run("user_reels_uses_username", func(t *testing.T) {
+		res, err := DispatchYepAPIInstagram(ctx, client, "user_reels", map[string]interface{}{"username": "natgeo"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if res == "" {
+			t.Fatal("expected non-empty result")
+		}
+		got := <-requests
+		if got.Path != "/v1/instagram/user-reels" || got.Payload["username"] != "natgeo" {
+			t.Fatalf("request = %+v, want user-reels endpoint with username", got)
+		}
+		if _, ok := got.Payload["username_or_url"]; ok {
+			t.Fatalf("request = %+v, did not expect legacy username_or_url field", got)
 		}
 	})
 }
