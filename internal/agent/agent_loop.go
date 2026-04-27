@@ -811,7 +811,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 			// Inner Voice: inject if available and not decayed. During active
 			// tool recovery, keep the next prompt strictly procedural.
-			if shouldInjectInnerVoiceIntoPrompt(cfg, recoveryState.ConsecutiveErrorCount, runCfg.IsMission, runCfg.IsCoAgent) {
+			if shouldInjectInnerVoiceIntoPrompt(cfg, recoveryState.ConsecutiveErrorCount, runCfg.IsMission, runCfg.IsCoAgent, lastResponseWasTool) {
 				if iv, ivCategory := getInnerVoiceForPrompt(sessionID, cfg.Personality.InnerVoice.DecayTurns, cfg.Personality.InnerVoice.DecayMaxAgeSecs); iv != "" {
 					flags.InnerVoice = iv
 					s.currentLogger.Info("[InnerVoice] Injecting inner voice into system prompt",

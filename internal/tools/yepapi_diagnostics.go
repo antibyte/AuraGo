@@ -2,6 +2,7 @@ package tools
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
 	"sort"
 )
@@ -42,6 +43,17 @@ func logYepAPIRequestPayload(ctx context.Context, toolName, operation, endpoint 
 	)
 }
 
+func logYepAPIMarshaledRequestBody(ctx context.Context, endpoint string, body []byte) {
+	logger := yepAPILoggerFromContext(ctx)
+	if logger == nil {
+		return
+	}
+	logger.Warn("[YepAPI] Marshaled request body",
+		"endpoint", endpoint,
+		"body_keys", safeYepAPIJSONBodyKeys(body),
+	)
+}
+
 func safeYepAPIPayloadKeys(payload map[string]interface{}) []string {
 	if len(payload) == 0 {
 		return nil
@@ -52,4 +64,15 @@ func safeYepAPIPayloadKeys(payload map[string]interface{}) []string {
 	}
 	sort.Strings(keys)
 	return keys
+}
+
+func safeYepAPIJSONBodyKeys(body []byte) []string {
+	if len(body) == 0 {
+		return nil
+	}
+	var obj map[string]interface{}
+	if err := json.Unmarshal(body, &obj); err != nil {
+		return nil
+	}
+	return safeYepAPIPayloadKeys(obj)
 }

@@ -113,11 +113,14 @@ func getInnerVoiceForPrompt(sessionID string, decayTurns, decayMaxAgeSecs int) (
 	return state.currentThought, state.nudgeCategory
 }
 
-func shouldInjectInnerVoiceIntoPrompt(cfg *config.Config, consecutiveErrors int, isMission bool, isCoAgent bool) bool {
+func shouldInjectInnerVoiceIntoPrompt(cfg *config.Config, consecutiveErrors int, isMission bool, isCoAgent bool, lastResponseWasTool bool) bool {
 	if cfg == nil || !cfg.Personality.InnerVoice.Enabled {
 		return false
 	}
 	if isMission || isCoAgent {
+		return false
+	}
+	if lastResponseWasTool {
 		return false
 	}
 	return consecutiveErrors == 0

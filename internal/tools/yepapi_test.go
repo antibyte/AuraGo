@@ -108,6 +108,37 @@ func TestYepAPIClient_Post(t *testing.T) {
 	})
 }
 
+func TestYepAPIClientPostLogsMarshaledBodyKeys(t *testing.T) {
+	var logs strings.Builder
+	logger := slog.New(slog.NewTextHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	client := newYepAPITestClient(func(r *http.Request) (int, string) {
+		return http.StatusOK, `{"ok":true,"data":{}}`
+	})
+
+	ctx := WithYepAPILogger(context.Background(), logger)
+	_, err := client.Post(ctx, "/v1/instagram/user", map[string]interface{}{
+		"username":        "natgeo",
+		"username_or_url": "natgeo",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	got := logs.String()
+	if !strings.Contains(got, "[YepAPI] Marshaled request body") {
+		t.Fatalf("logs = %q, want marshaled body diagnostic", got)
+	}
+	if !strings.Contains(got, "/v1/instagram/user") {
+		t.Fatalf("logs = %q, want endpoint", got)
+	}
+	if !strings.Contains(got, "username") || !strings.Contains(got, "username_or_url") {
+		t.Fatalf("logs = %q, want marshaled body keys", got)
+	}
+	if strings.Contains(got, "natgeo") {
+		t.Fatalf("logs = %q, should not contain raw body values", got)
+	}
+}
+
 func TestDispatchYepAPISEO(t *testing.T) {
 	client := newYepAPITestClient(func(r *http.Request) (int, string) {
 		return http.StatusOK, `{"ok":true,"data":{"domain":"example.com","organicTraffic":50000}}`
@@ -455,6 +486,36 @@ func TestDispatchYepAPIInstagramLogsPayloadShape(t *testing.T) {
 	}
 	if strings.Contains(got, "natgeo") {
 		t.Fatalf("logs = %q, should not contain raw payload value", got)
+	}
+}
+
+func TestDispatchYepAPIInstagramErrorIncludesSentPayloadKeys(t *testing.T) {
+	client := newYepAPITestClient(func(r *http.Request) (int, string) {
+		return http.StatusOK, `{"ok":true,"data":{"error":"username_or_url is required"}}`
+	})
+
+	res, err := DispatchYepAPIInstagram(context.Background(), client, "user", map[string]interface{}{"username": "natgeo"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var payload map[string]interface{}
+	if err := json.Unmarshal([]byte(res), &payload); err != nil {
+		t.Fatalf("decode result %q: %v", res, err)
+	}
+	if payload["status"] != "error" {
+		t.Fatalf("status = %v, want error", payload["status"])
+	}
+	keys, ok := payload["sent_payload_keys"].([]interface{})
+	if !ok {
+		t.Fatalf("sent_payload_keys missing from %v", payload)
+	}
+	gotKeys := fmt.Sprint(keys)
+	if !strings.Contains(gotKeys, "username") || !strings.Contains(gotKeys, "username_or_url") {
+		t.Fatalf("sent_payload_keys = %v, want username and username_or_url", keys)
+	}
+	if fmt.Sprint(payload) == "" || strings.Contains(fmt.Sprint(payload), "natgeo") {
+		t.Fatalf("diagnostic payload should not include raw values: %v", payload)
 	}
 }
 

@@ -114,6 +114,7 @@ func (c *YepAPIClient) postOnce(ctx context.Context, endpoint string, payload in
 		if err != nil {
 			return nil, fmt.Errorf("yepapi: failed to marshal payload: %w", err)
 		}
+		logYepAPIMarshaledRequestBody(ctx, endpoint, body)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
@@ -238,21 +239,36 @@ func readYepAPISecret(vault config.SecretReader, key string) (string, error) {
 
 // formatError wraps an error message in a JSON string for consistent tool output.
 func yepAPIFormatError(msg string) string {
-	b, _ := json.Marshal(map[string]interface{}{
+	return yepAPIFormatErrorWithDiagnostics(msg, nil)
+}
+
+func yepAPIFormatErrorWithDiagnostics(msg string, diagnostics map[string]interface{}) string {
+	payload := map[string]interface{}{
 		"status":  "error",
 		"message": security.IsolateExternalData(msg),
-	})
+	}
+	for key, value := range diagnostics {
+		if key == "" || value == nil {
+			continue
+		}
+		payload[key] = value
+	}
+	b, _ := json.Marshal(payload)
 	return string(b)
 }
 
 // formatSuccess wraps raw JSON data in a success envelope.
 func yepAPIFormatSuccess(data json.RawMessage) string {
+	return yepAPIFormatSuccessWithDiagnostics(data, nil)
+}
+
+func yepAPIFormatSuccessWithDiagnostics(data json.RawMessage, diagnostics map[string]interface{}) string {
 	var obj map[string]interface{}
 	if err := json.Unmarshal(data, &obj); err == nil {
 		if rawErr, ok := obj["error"]; ok && rawErr != nil {
 			msg := fmt.Sprint(rawErr)
 			if msg != "" {
-				return yepAPIFormatError(msg)
+				return yepAPIFormatErrorWithDiagnostics(msg, diagnostics)
 			}
 		}
 	}

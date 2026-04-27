@@ -193,16 +193,19 @@ func TestShouldInjectInnerVoiceIntoPromptSuppressesActiveRecovery(t *testing.T) 
 	cfg := &config.Config{}
 	cfg.Personality.InnerVoice.Enabled = true
 
-	if shouldInjectInnerVoiceIntoPrompt(cfg, 1, false, false) {
+	if shouldInjectInnerVoiceIntoPrompt(cfg, 1, false, false, false) {
 		t.Fatal("should not inject stored inner voice during active tool recovery")
 	}
-	if !shouldInjectInnerVoiceIntoPrompt(cfg, 0, false, false) {
+	if shouldInjectInnerVoiceIntoPrompt(cfg, 0, false, false, true) {
+		t.Fatal("should not inject stored inner voice immediately after a tool result")
+	}
+	if !shouldInjectInnerVoiceIntoPrompt(cfg, 0, false, false, false) {
 		t.Fatal("should inject stored inner voice when no recovery is active")
 	}
-	if shouldInjectInnerVoiceIntoPrompt(cfg, 0, true, false) {
+	if shouldInjectInnerVoiceIntoPrompt(cfg, 0, true, false, false) {
 		t.Fatal("should not inject for missions")
 	}
-	if shouldInjectInnerVoiceIntoPrompt(cfg, 0, false, true) {
+	if shouldInjectInnerVoiceIntoPrompt(cfg, 0, false, true, false) {
 		t.Fatal("should not inject for co-agents")
 	}
 }
