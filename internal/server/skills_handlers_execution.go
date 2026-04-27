@@ -102,12 +102,21 @@ func handleTestSkill(s *Server) http.HandlerFunc {
 }
 
 func loadPlainSkillSecrets(s *Server, skill *tools.SkillRegistryEntry) map[string]string {
-	if s.Vault == nil || skill == nil {
+	if s == nil || s.Cfg == nil || s.Vault == nil || skill == nil {
+		return nil
+	}
+	if !s.Cfg.Tools.PythonSecretInjection.Enabled {
 		return nil
 	}
 	secrets := make(map[string]string)
 	for _, key := range skill.VaultKeys {
 		if strings.HasPrefix(key, "cred:") {
+			continue
+		}
+		if !tools.IsPythonAccessibleSecret(key) {
+			if s.Logger != nil {
+				s.Logger.Warn("[Skills] blocked system-managed vault key for skill test", "skill", skill.Name, "key", key)
+			}
 			continue
 		}
 		value, err := s.Vault.ReadSecret(key)

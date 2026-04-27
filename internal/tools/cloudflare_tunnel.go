@@ -23,6 +23,8 @@ import (
 	"time"
 )
 
+var cfHTTPClient = &http.Client{Timeout: 30 * time.Second}
+
 // CloudflareTunnelConfig holds the merged config for tunnel management.
 type CloudflareTunnelConfig struct {
 	Enabled        bool
@@ -379,7 +381,7 @@ func cfLookupTunnelID(ctx context.Context, accountID, apiToken, name string) (st
 	req.Header.Set("Authorization", "Bearer "+apiToken)
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := cfHTTPClient.Do(req)
 	if err != nil {
 		return "", err
 	}
@@ -412,7 +414,7 @@ func cfGetTunnelConfig(ctx context.Context, accountID, apiToken, tunnelID string
 	req.Header.Set("Authorization", "Bearer "+apiToken)
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := cfHTTPClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -446,7 +448,7 @@ func cfPutTunnelConfig(ctx context.Context, accountID, apiToken, tunnelID string
 	req.Header.Set("Authorization", "Bearer "+apiToken)
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := cfHTTPClient.Do(req)
 	if err != nil {
 		return err
 	}

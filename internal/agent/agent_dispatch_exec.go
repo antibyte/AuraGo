@@ -146,7 +146,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			}
 
 			if op == "structure" {
-				items, err := analyzer.ExtractStructure(target)
+				items, err := analyzer.ExtractStructureInWorkspace(cfg.Directories.WorkspaceDir, target)
 				if err != nil {
 					return "Tool Output: [ERROR] ExtractStructure failed: " + err.Error()
 				}
@@ -162,7 +162,7 @@ func dispatchExec(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 				if symbol == "" {
 					return "Tool Output: [ERROR] 'symbol' is required for symbol_search operation."
 				}
-				locations, err := analyzer.SymbolSearch(target, symbol)
+				locations, err := analyzer.SymbolSearchInWorkspace(cfg.Directories.WorkspaceDir, target, symbol)
 				if err != nil {
 					return "Tool Output: [ERROR] SymbolSearch failed: " + err.Error()
 				}

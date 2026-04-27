@@ -43,7 +43,6 @@ func resetTokenEncoderStateForTest(tb testing.TB, loader func() (tokenEncoder, e
 	oldLoader := tiktokenLoadEncoding
 	oldTimeout := tiktokenInitTimeout
 	oldBackoff := tiktokenRetryBackoff
-	oldWarnOnce := tiktokenWarnOnce
 	tiktokenMu.Unlock()
 
 	tiktokenMu.Lock()
@@ -66,7 +65,7 @@ func resetTokenEncoderStateForTest(tb testing.TB, loader func() (tokenEncoder, e
 		tiktokenLoadEncoding = oldLoader
 		tiktokenInitTimeout = oldTimeout
 		tiktokenRetryBackoff = oldBackoff
-		tiktokenWarnOnce = oldWarnOnce
+		tiktokenWarnOnce = sync.Once{}
 		tiktokenMu.Unlock()
 	})
 }

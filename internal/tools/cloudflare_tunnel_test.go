@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 )
 
 type cloudflareRoundTripFunc func(*http.Request) (*http.Response, error)
@@ -61,5 +62,14 @@ func TestCloudflaredDownloadMetadataFailsClosedWithoutChecksum(t *testing.T) {
 	_, err := cloudflaredDownloadMetadata("windows", "amd64")
 	if err == nil || !strings.Contains(err.Error(), "checksum") {
 		t.Fatalf("expected unsupported checksum metadata error, got %v", err)
+	}
+}
+
+func TestCloudflareAPIClientHasTimeout(t *testing.T) {
+	if cfHTTPClient == nil {
+		t.Fatal("cfHTTPClient is nil")
+	}
+	if cfHTTPClient.Timeout < 10*time.Second {
+		t.Fatalf("cfHTTPClient.Timeout = %v, want explicit production timeout", cfHTTPClient.Timeout)
 	}
 }

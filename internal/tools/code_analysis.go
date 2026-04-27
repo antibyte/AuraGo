@@ -24,6 +24,37 @@ type StructureItem struct {
 	Language string
 }
 
+func resolveCodeAnalysisPath(workspaceDir, userPath string) (string, error) {
+	if strings.TrimSpace(workspaceDir) == "" {
+		return "", fmt.Errorf("workspace directory is required")
+	}
+	resolved, err := secureResolve(workspaceDir, userPath)
+	if err != nil {
+		return "", fmt.Errorf("code analysis path outside allowed workspace/project bounds: %w", err)
+	}
+	return resolved, nil
+}
+
+// ExtractStructureInWorkspace parses a file after resolving it through the
+// workspace/project path guard used by filesystem tools.
+func (c *CodeAnalyzer) ExtractStructureInWorkspace(workspaceDir, filePath string) ([]StructureItem, error) {
+	resolved, err := resolveCodeAnalysisPath(workspaceDir, filePath)
+	if err != nil {
+		return nil, err
+	}
+	return c.ExtractStructure(resolved)
+}
+
+// SymbolSearchInWorkspace searches for a symbol after resolving the target
+// through the workspace/project path guard used by filesystem tools.
+func (c *CodeAnalyzer) SymbolSearchInWorkspace(workspaceDir, dirOrFile, symbol string) ([]string, error) {
+	resolved, err := resolveCodeAnalysisPath(workspaceDir, dirOrFile)
+	if err != nil {
+		return nil, err
+	}
+	return c.SymbolSearch(resolved, symbol)
+}
+
 // ExtractStructure parses a file to extract its major structural components using regex.
 func (c *CodeAnalyzer) ExtractStructure(filePath string) ([]StructureItem, error) {
 	file, err := os.Open(filePath)
