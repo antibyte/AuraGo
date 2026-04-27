@@ -179,6 +179,9 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 
 	result := func() string {
 		switch tc.Action {
+		case "invoke_tool":
+			return dispatchInvokeTool(ctx, tc, dc)
+
 		case "call_webhook":
 			if !cfg.Webhooks.Enabled {
 				return `Tool Output: {"status":"error","message":"Webhooks are disabled in the config. Set webhooks.enabled=true."}`
@@ -436,10 +439,11 @@ func dispatchComm(ctx context.Context, tc ToolCall, dc *DispatchContext) (string
 			}
 
 			cleanSkillName := strings.TrimSuffix(skillName, ".py")
-			if nativeAction, ok := mistakenNativeToolSkillName(cleanSkillName); ok {
-				return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s is a native AuraGo tool, not a Python skill. Call the native tool directly with tool_name/action \"%s\". If it is hidden by adaptive filtering, first call discover_tools with get_tool_info for \"%s\"; then call \"%s\" directly on the next turn. Do not use execute_skill for native tools.","redirect_action":"%s","redirect_example":"{\"action\":\"%s\"}"}`, cleanSkillName, nativeAction, nativeAction, nativeAction, nativeAction, nativeAction)
+			if catalog := GetToolCatalogState(); catalog != nil {
+				if entry, ok := catalog.Get(cleanSkillName); ok && entry.Kind != ToolKindSkill {
+					return wrongToolKindForExecuteSkill(entry)
+				}
 			}
-
 			// Unwrap skill_args if the LLM nested the actual parameters under that key.
 			// e.g. {"skill_name": "ddg_search", "skill_args": {"query": "..."}} → {"query": "..."}
 			if innerArgs, ok := args["skill_args"].(map[string]interface{}); ok && len(innerArgs) > 0 {
@@ -1858,30 +1862,18 @@ func upnpAutoRegister(scanJSON string, db *sql.DB, deviceType string, tags []str
 	return string(b)
 }
 
-var nativeToolSkillConfusions = map[string]string{
-	"upnp_scan":        "upnp_scan",
-	"mdns_scan":        "mdns_scan",
-	"network_ping":     "network_ping",
-	"port_scanner":     "port_scanner",
-	"dns_lookup":       "dns_lookup",
-	"whois_lookup":     "whois_lookup",
-	"detect_file_type": "detect_file_type",
-	"site_crawler":     "site_crawler",
-	"web_capture":      "web_capture",
-	"web_performance":  "web_performance",
-	"yepapi_seo":       "yepapi_seo",
-	"yepapi_serp":      "yepapi_serp",
-	"yepapi_scrape":    "yepapi_scrape",
-	"yepapi_youtube":   "yepapi_youtube",
-	"yepapi_tiktok":    "yepapi_tiktok",
-	"yepapi_instagram": "yepapi_instagram",
-	"yepapi_amazon":    "yepapi_amazon",
-}
-
-func mistakenNativeToolSkillName(skillName string) (string, bool) {
-	clean := strings.ToLower(strings.TrimSpace(strings.TrimSuffix(skillName, ".py")))
-	action, ok := nativeToolSkillConfusions[clean]
-	return action, ok
+func wrongToolKindForExecuteSkill(entry *ToolCatalogEntry) string {
+	if entry == nil {
+		return `Tool Output: {"status":"error","message":"not a skill"}`
+	}
+	switch entry.Kind {
+	case ToolKindNative, ToolKindMCP:
+		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s is a native AuraGo tool, not a Python skill. Use invoke_tool when it is hidden by adaptive filtering, or call it directly when active.","correct_action":"invoke_tool","tool_name":"%s","invoke_example":"{\"action\":\"invoke_tool\",\"tool_name\":\"%s\",\"arguments\":{...}}"}`, entry.Name, entry.Name, entry.Name)
+	case ToolKindCustom:
+		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s is a custom tool, not a Python skill. Use run_tool or invoke_tool.","correct_action":"run_tool","tool_name":"%s"}`, entry.Name, entry.Name)
+	default:
+		return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s is not executable via execute_skill"}`, entry.Name)
+	}
 }
 
 // isBuiltinSkillEnabled returns false for built-in skills whose backing

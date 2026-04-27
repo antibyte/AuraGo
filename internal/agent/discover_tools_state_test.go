@@ -3,7 +3,6 @@ package agent
 import (
 	"io"
 	"log/slog"
-	"strings"
 	"testing"
 
 	"aurago/internal/config"
@@ -19,6 +18,7 @@ func TestHandleDiscoverToolsMarksHiddenToolForSession(t *testing.T) {
 		discoverToolsState.enabledNames = nil
 		discoverToolsState.requested = nil
 		discoverToolsState.promptsDir = ""
+		discoverToolsState.catalog = nil
 		discoverToolsState.mu.Unlock()
 	})
 
@@ -43,8 +43,10 @@ func TestHandleDiscoverToolsMarksHiddenToolForSession(t *testing.T) {
 		},
 	}, cfg, logger, "sess-1")
 
-	if !strings.Contains(out, "hidden by adaptive filtering but enabled") {
-		t.Fatalf("unexpected output: %s", out)
+	var payload DiscoverToolsResponse
+	decodeToolOutputJSON(t, out, &payload)
+	if payload.Tool == nil || payload.Tool.ToolStatus != string(ToolStatusHidden) || payload.Tool.CallMethod != "invoke_tool" {
+		t.Fatalf("unexpected output: %+v raw=%s", payload, out)
 	}
 	requested := GetDiscoverRequestedTools("sess-1")
 	if len(requested) != 1 || requested[0] != "chromecast" {
@@ -60,6 +62,7 @@ func TestHandleDiscoverToolsFamilyNameSurfacesEnabledYepAPITools(t *testing.T) {
 		discoverToolsState.enabledNames = nil
 		discoverToolsState.requested = nil
 		discoverToolsState.promptsDir = ""
+		discoverToolsState.catalog = nil
 		discoverToolsState.mu.Unlock()
 	})
 
@@ -92,13 +95,10 @@ func TestHandleDiscoverToolsFamilyNameSurfacesEnabledYepAPITools(t *testing.T) {
 		},
 	}, cfg, logger, "sess-yepapi")
 
-	if strings.Contains(out, "disabled in config") {
-		t.Fatalf("family lookup should not report disabled config: %s", out)
-	}
-	if !strings.Contains(out, "Tool family 'yepapi'") ||
-		!strings.Contains(out, "yepapi_instagram") ||
-		!strings.Contains(out, "yepapi_youtube") {
-		t.Fatalf("expected YepAPI family tools in output, got: %s", out)
+	var payload DiscoverToolsResponse
+	decodeToolOutputJSON(t, out, &payload)
+	if payload.Status != "success" || len(payload.Results) < 2 {
+		t.Fatalf("expected YepAPI family tools in output, got: %+v raw=%s", payload, out)
 	}
 	requested := GetDiscoverRequestedTools("sess-yepapi")
 	requestedSet := make(map[string]bool, len(requested))
@@ -120,6 +120,7 @@ func TestHandleDiscoverToolsSearchMarksHiddenToolForSession(t *testing.T) {
 		discoverToolsState.enabledNames = nil
 		discoverToolsState.requested = nil
 		discoverToolsState.promptsDir = ""
+		discoverToolsState.catalog = nil
 		discoverToolsState.mu.Unlock()
 	})
 
@@ -144,14 +145,14 @@ func TestHandleDiscoverToolsSearchMarksHiddenToolForSession(t *testing.T) {
 		},
 	}, cfg, logger, "sess-search")
 
-	if strings.Contains(out, "✗ yepapi_instagram") {
-		t.Fatalf("hidden enabled tool should not be reported as disabled: %s", out)
+	var payload DiscoverToolsResponse
+	decodeToolOutputJSON(t, out, &payload)
+	if len(payload.Results) != 1 {
+		t.Fatalf("expected one result, got: %+v raw=%s", payload, out)
 	}
-	if !strings.Contains(out, "○ yepapi_instagram") {
-		t.Fatalf("expected hidden enabled tool marker, got: %s", out)
-	}
-	if !strings.Contains(out, "re-included on the next agent turn") {
-		t.Fatalf("expected re-include guidance, got: %s", out)
+	got := payload.Results[0]
+	if got.Name != "yepapi_instagram" || got.ToolStatus != string(ToolStatusHidden) || got.CallMethod != "invoke_tool" {
+		t.Fatalf("expected hidden enabled result, got: %+v raw=%s", got, out)
 	}
 	requested := GetDiscoverRequestedTools("sess-search")
 	if len(requested) != 1 || requested[0] != "yepapi_instagram" {
@@ -167,6 +168,7 @@ func TestGetDiscoverRequestedToolsIsSessionScoped(t *testing.T) {
 		discoverToolsState.enabledNames = nil
 		discoverToolsState.requested = nil
 		discoverToolsState.promptsDir = ""
+		discoverToolsState.catalog = nil
 		discoverToolsState.mu.Unlock()
 	})
 

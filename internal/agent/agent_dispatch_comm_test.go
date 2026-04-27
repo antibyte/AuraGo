@@ -13,6 +13,8 @@ import (
 	"aurago/internal/config"
 	"aurago/internal/security"
 	"aurago/internal/tools"
+
+	openai "github.com/sashabaranov/go-openai"
 )
 
 type fakeEmailContentEvaluator struct {
@@ -72,8 +74,12 @@ func TestBuiltinArgsFromToolCallMergesRawParams(t *testing.T) {
 }
 
 func TestExecuteSkillRedirectsNativeToolBeforeFilteringArgs(t *testing.T) {
+	resetToolCatalogForTest(t)
 	cfg := &config.Config{}
 	cfg.Directories.SkillsDir = t.TempDir()
+	SetDiscoverToolsState("sess-execute-skill-native", []openai.Tool{
+		testToolSchema("yepapi_instagram", "Instagram data via YepAPI"),
+	}, nil, "")
 
 	out, ok := dispatchComm(context.Background(), ToolCall{
 		Action: "execute_skill",
@@ -248,16 +254,6 @@ func TestBuiltinSkillManifestParametersStayInSync(t *testing.T) {
 		if !found[name] {
 			t.Fatalf("expected builtin skill manifest %q in %s", name, skillsDir)
 		}
-	}
-}
-
-func TestMistakenNativeToolSkillNameDetectsNativeTools(t *testing.T) {
-	action, ok := mistakenNativeToolSkillName("upnp_scan")
-	if !ok {
-		t.Fatal("expected upnp_scan to be recognized as a native tool")
-	}
-	if action != "upnp_scan" {
-		t.Fatalf("action = %q, want upnp_scan", action)
 	}
 }
 
@@ -436,12 +432,6 @@ func TestDispatchCommManageDaemonUnknownOp(t *testing.T) {
 	}
 	if !strings.Contains(out, "Unknown daemon operation") {
 		t.Fatalf("expected unknown operation message, got %s", out)
-	}
-}
-
-func TestMistakenNativeToolSkillNameIgnoresRealSkills(t *testing.T) {
-	if _, ok := mistakenNativeToolSkillName("ddg_search"); ok {
-		t.Fatal("did not expect builtin skill ddg_search to be treated as native-only tool")
 	}
 }
 

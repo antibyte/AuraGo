@@ -15,6 +15,7 @@ var discoverToolsState struct {
 	enabledNames map[string]bool
 	requested    map[string]map[string]bool
 	promptsDir   string
+	catalog      *ToolCatalog
 }
 
 // SetDiscoverToolsState stores the current tool state for discover_tools lookups.
@@ -35,6 +36,7 @@ func SetDiscoverToolsState(sessionID string, allSchemas []openai.Tool, activeSch
 	discoverToolsState.allSchemas = allSchemas
 	discoverToolsState.activeNames = active
 	discoverToolsState.enabledNames = enabled
+	discoverToolsState.catalog = BuildToolCatalog(allSchemas, activeSchemas, promptsDir)
 	if discoverToolsState.requested == nil {
 		discoverToolsState.requested = make(map[string]map[string]bool)
 	}
@@ -89,4 +91,10 @@ func GetDiscoverToolsState() (allSchemas []openai.Tool, activeNames map[string]b
 	discoverToolsState.mu.RLock()
 	defer discoverToolsState.mu.RUnlock()
 	return discoverToolsState.allSchemas, discoverToolsState.activeNames, discoverToolsState.enabledNames, discoverToolsState.promptsDir
+}
+
+func GetToolCatalogState() *ToolCatalog {
+	discoverToolsState.mu.RLock()
+	defer discoverToolsState.mu.RUnlock()
+	return discoverToolsState.catalog
 }

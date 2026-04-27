@@ -6,6 +6,7 @@ package agent
 
 import (
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"reflect"
 	"regexp"
@@ -149,17 +150,17 @@ type ToolFeatureFlags struct {
 	// Koofr cloud storage
 	KoofrEnabled bool
 	// FritzBox sub-feature flags
-	FritzBoxSystemEnabled    bool
-	FritzBoxNetworkEnabled   bool
+	FritzBoxSystemEnabled  bool
+	FritzBoxNetworkEnabled bool
 	// YepAPI services
-	YepAPIEnabled           bool
-	YepAPISEOEnabled        bool
-	YepAPISERPEnabled       bool
-	YepAPIScrapingEnabled   bool
-	YepAPIYouTubeEnabled    bool
-	YepAPITikTokEnabled     bool
-	YepAPIInstagramEnabled  bool
-	YepAPIAmazonEnabled     bool
+	YepAPIEnabled            bool
+	YepAPISEOEnabled         bool
+	YepAPISERPEnabled        bool
+	YepAPIScrapingEnabled    bool
+	YepAPIYouTubeEnabled     bool
+	YepAPITikTokEnabled      bool
+	YepAPIInstagramEnabled   bool
+	YepAPIAmazonEnabled      bool
 	FritzBoxTelephonyEnabled bool
 	FritzBoxSmartHomeEnabled bool
 	FritzBoxStorageEnabled   bool
@@ -437,10 +438,7 @@ func BuildNativeToolSchemas(skillsDir string, manifest *tools.Manifest, ff ToolF
 				schemaName,
 				"(Skill) "+skill.Description+". Use execute_skill with skill='"+skill.Name+"'.",
 				schema(map[string]interface{}{
-					"skill_args": map[string]interface{}{
-						"type":        "object",
-						"description": "Arguments for this skill",
-					},
+					"skill_args": skillArgsSchemaFromManifest(skill.Parameters),
 				}),
 			))
 		}
@@ -560,6 +558,41 @@ func nativeToolSortName(schema openai.Tool) string {
 		return ""
 	}
 	return schema.Function.Name
+}
+
+func skillArgsSchemaFromManifest(params map[string]interface{}) map[string]interface{} {
+	if len(params) == 0 {
+		return map[string]interface{}{
+			"type":        "object",
+			"description": "Arguments for this skill",
+		}
+	}
+	if schemaType, _ := params["type"].(string); schemaType == "object" {
+		out := make(map[string]interface{}, len(params)+1)
+		for k, v := range params {
+			out[k] = v
+		}
+		if _, ok := out["description"]; !ok {
+			out["description"] = "Arguments for this skill"
+		}
+		return out
+	}
+	props := make(map[string]interface{}, len(params))
+	for name, raw := range params {
+		if propSchema, ok := raw.(map[string]interface{}); ok {
+			props[name] = propSchema
+			continue
+		}
+		props[name] = map[string]interface{}{
+			"type":        "string",
+			"description": fmt.Sprint(raw),
+		}
+	}
+	return map[string]interface{}{
+		"type":        "object",
+		"description": "Arguments for this skill",
+		"properties":  props,
+	}
 }
 
 func containsRequiredString(items []string, target string) bool {

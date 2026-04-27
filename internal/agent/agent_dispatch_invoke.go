@@ -1,0 +1,112 @@
+package agent
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"strings"
+)
+
+func dispatchInvokeTool(ctx context.Context, tc ToolCall, dc *DispatchContext) string {
+	toolName := stringValueFromMap(tc.Params, "tool_name", "name")
+	if toolName == "" {
+		return `Tool Output: {"status":"error","message":"invoke_tool requires tool_name"}`
+	}
+	args := mapValueFromMap(tc.Params, "arguments", "params", "skill_args")
+	if args == nil {
+		args = map[string]interface{}{}
+	}
+
+	catalog := GetToolCatalogState()
+	if catalog == nil {
+		return `Tool Output: {"status":"error","message":"tool catalog is not available yet; call discover_tools first"}`
+	}
+	entry, ok := catalog.Get(toolName)
+	if !ok {
+		b, _ := json.Marshal(fmt.Sprintf("Tool '%s' not found in catalog", toolName))
+		return fmt.Sprintf(`Tool Output: {"status":"error","message":%s}`, b)
+	}
+	if !entry.Enabled || entry.Status == ToolStatusDisabled {
+		b, _ := json.Marshal(fmt.Sprintf("Tool '%s' is disabled in config", entry.Name))
+		return fmt.Sprintf(`Tool Output: {"status":"error","message":%s}`, b)
+	}
+	if entry.Name == "invoke_tool" {
+		return `Tool Output: {"status":"error","message":"invoke_tool cannot invoke itself"}`
+	}
+
+	if entry.Kind == ToolKindNative && entry.Status == ToolStatusHidden {
+		MarkDiscoverRequestedTool(dc.SessionID, entry.Name)
+	}
+
+	switch entry.Kind {
+	case ToolKindNative, ToolKindMCP:
+		action := entry.Routing.NativeAction
+		if action == "" {
+			action = entry.Name
+		}
+		routed := toolCallFromInvokeArgs(action, args)
+		if result, ok := dispatchExec(ctx, routed, dc); ok {
+			return result
+		}
+		if result, ok := dispatchComm(ctx, routed, dc); ok {
+			return result
+		}
+		if result, ok := dispatchServices(ctx, routed, dc); ok {
+			return result
+		}
+		if result, ok := dispatchInfra(ctx, routed, dc); ok {
+			return result
+		}
+	case ToolKindSkill:
+		return dispatchCommMustHandle(ctx, ToolCall{Action: "execute_skill", Skill: entry.Routing.SkillName, SkillArgs: args, Params: args}, dc)
+	case ToolKindCustom:
+		return dispatchExecMustHandle(ctx, ToolCall{Action: "run_tool", Name: entry.Routing.CustomName, Params: map[string]interface{}{"name": entry.Routing.CustomName, "args": args}}, dc)
+	}
+
+	b, _ := json.Marshal(fmt.Sprintf("Tool '%s' cannot be invoked through invoke_tool", entry.Name))
+	return fmt.Sprintf(`Tool Output: {"status":"error","message":%s}`, b)
+}
+
+func toolCallFromInvokeArgs(action string, args map[string]interface{}) ToolCall {
+	routed := ToolCall{Action: action, Params: args}
+	if len(args) == 0 {
+		return routed
+	}
+	raw, err := json.Marshal(args)
+	if err == nil {
+		_ = json.Unmarshal(raw, &routed)
+	}
+	routed.Action = action
+	routed.Params = args
+	if routed.Operation == "" {
+		routed.Operation = stringValueFromMap(args, "operation")
+	}
+	return routed
+}
+
+func dispatchCommMustHandle(ctx context.Context, tc ToolCall, dc *DispatchContext) string {
+	if result, ok := dispatchComm(ctx, tc, dc); ok {
+		return result
+	}
+	return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s could not be routed"}`, strings.TrimSpace(tc.Action))
+}
+
+func dispatchExecMustHandle(ctx context.Context, tc ToolCall, dc *DispatchContext) string {
+	if result, ok := dispatchExec(ctx, tc, dc); ok {
+		return result
+	}
+	return fmt.Sprintf(`Tool Output: {"status":"error","message":"%s could not be routed"}`, strings.TrimSpace(tc.Action))
+}
+
+func mapValueFromMap(m map[string]interface{}, keys ...string) map[string]interface{} {
+	for _, key := range keys {
+		raw, ok := m[key]
+		if !ok {
+			continue
+		}
+		if value, ok := raw.(map[string]interface{}); ok {
+			return value
+		}
+	}
+	return nil
+}

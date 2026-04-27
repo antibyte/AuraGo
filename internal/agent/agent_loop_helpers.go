@@ -645,6 +645,9 @@ func expandAdaptiveAlwaysInclude(cfg *config.Config, alwaysInclude []string) []s
 	// adaptive filtering. If it disappears, the model has no reliable way to
 	// inspect and re-include enabled tools.
 	add("discover_tools")
+	add("invoke_tool")
+	add("execute_skill")
+	add("run_tool")
 
 	// MCP must stay callable once the user enabled it. Hiding the generic bridge
 	// causes the model to improvise fake direct tool names like

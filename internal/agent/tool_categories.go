@@ -214,6 +214,11 @@ func buildToolToCategoryMap() {
 	})
 }
 
+func ToolCategoryForName(name string) string {
+	buildToolToCategoryMap()
+	return toolToCategoryMap[name]
+}
+
 // GetToolCategory returns the category a tool belongs to, or "" if not categorized.
 func GetToolCategory(toolName string) string {
 	buildToolToCategoryMap()

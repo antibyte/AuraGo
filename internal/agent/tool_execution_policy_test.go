@@ -88,6 +88,49 @@ func TestFinalizeToolExecutionGuardianBlockedSetsOutcome(t *testing.T) {
 	}
 }
 
+func TestFinalizeToolExecutionTracksInvokeToolAsUnderlyingTool(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	defer stm.Close()
+
+	cfg := &config.Config{}
+	cfg.Agent.ToolOutputLimit = 50000
+	req := openai.ChatCompletionRequest{}
+	state := newToolRecoveryState()
+
+	result := finalizeToolExecution(ToolCall{
+		Action: "invoke_tool",
+		Params: map[string]interface{}{
+			"tool_name": "yepapi_instagram",
+			"arguments": map[string]interface{}{
+				"operation": "user",
+				"username":  "jopliness",
+			},
+		},
+	}, `{"status":"success","data":{}}`, false, cfg, stm, "default", &state, &req, logger, AgentTelemetryScope{}, "v1", 100)
+	if result.Failed {
+		t.Fatalf("expected success, got %+v", result)
+	}
+
+	invokeCount, err := stm.GetToolUsageCount("invoke_tool")
+	if err != nil {
+		t.Fatalf("GetToolUsageCount invoke_tool: %v", err)
+	}
+	if invokeCount != 0 {
+		t.Fatalf("invoke_tool usage count = %d, want 0", invokeCount)
+	}
+	instagramCount, err := stm.GetToolUsageCount("yepapi_instagram")
+	if err != nil {
+		t.Fatalf("GetToolUsageCount yepapi_instagram: %v", err)
+	}
+	if instagramCount != 1 {
+		t.Fatalf("yepapi_instagram usage count = %d, want 1", instagramCount)
+	}
+}
+
 func TestExecutionOutcomeString(t *testing.T) {
 	tests := []struct {
 		outcome ExecutionOutcome

@@ -259,6 +259,16 @@ func buildCoreToolSchemas(ff ToolFeatureFlags, execSkillProps map[string]interfa
 				"tool_name": prop("string", "Tool name to get full info for (for get_tool_info)"),
 			}, "operation"),
 		),
+		tool("invoke_tool",
+			"Recovery-only invoker for enabled native tools hidden by adaptive filtering. Use ONLY after discover_tools returns status='hidden' with call_method='invoke_tool'. Prefer direct native tool calls whenever the tool is active; skills must use execute_skill.",
+			schema(map[string]interface{}{
+				"tool_name": prop("string", "Exact tool name returned by discover_tools"),
+				"arguments": map[string]interface{}{
+					"type":        "object",
+					"description": "Tool-specific arguments matching the schema returned by discover_tools",
+				},
+			}, "tool_name", "arguments"),
+		),
 	}
 	if ff.SendYouTubeVideoEnabled {
 		tools = append(tools, tool("send_youtube_video",
