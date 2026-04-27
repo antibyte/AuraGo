@@ -648,6 +648,30 @@ func expandAdaptiveAlwaysInclude(cfg *config.Config, alwaysInclude []string) []s
 		add("mcp_call")
 	}
 
+	if cfg.YepAPI.Enabled {
+		if cfg.YepAPI.SEO.Enabled {
+			add("yepapi_seo")
+		}
+		if cfg.YepAPI.SERP.Enabled {
+			add("yepapi_serp")
+		}
+		if cfg.YepAPI.Scraping.Enabled {
+			add("yepapi_scrape")
+		}
+		if cfg.YepAPI.YouTube.Enabled {
+			add("yepapi_youtube")
+		}
+		if cfg.YepAPI.TikTok.Enabled {
+			add("yepapi_tiktok")
+		}
+		if cfg.YepAPI.Instagram.Enabled {
+			add("yepapi_instagram")
+		}
+		if cfg.YepAPI.Amazon.Enabled {
+			add("yepapi_amazon")
+		}
+	}
+
 	return out
 }
 

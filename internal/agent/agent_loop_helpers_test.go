@@ -472,6 +472,26 @@ func TestExpandAdaptiveAlwaysIncludeSkipsMCPCallWhenDisabled(t *testing.T) {
 	}
 }
 
+func TestExpandAdaptiveAlwaysIncludeAddsEnabledYepAPITools(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.YepAPI.Enabled = true
+	cfg.YepAPI.YouTube.Enabled = true
+	cfg.YepAPI.Instagram.Enabled = true
+	cfg.YepAPI.Amazon.Enabled = true
+
+	got := expandAdaptiveAlwaysInclude(cfg, []string{"filesystem"})
+	for _, want := range []string{"yepapi_youtube", "yepapi_instagram", "yepapi_amazon"} {
+		if !containsName(got, want) {
+			t.Fatalf("expected %s in always-include set, got %v", want, got)
+		}
+	}
+	for _, disabled := range []string{"yepapi_seo", "yepapi_serp", "yepapi_scrape", "yepapi_tiktok"} {
+		if containsName(got, disabled) {
+			t.Fatalf("did not expect disabled YepAPI service %s in always-include set, got %v", disabled, got)
+		}
+	}
+}
+
 func TestCollectRecentUserIntentTextKeepsRecentUserContext(t *testing.T) {
 	messages := []openai.ChatCompletionMessage{
 		{Role: openai.ChatMessageRoleUser, Content: "erste frage"},
