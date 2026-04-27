@@ -171,6 +171,16 @@ func yepAPIFormatError(msg string) string {
 
 // formatSuccess wraps raw JSON data in a success envelope.
 func yepAPIFormatSuccess(data json.RawMessage) string {
+	var obj map[string]interface{}
+	if err := json.Unmarshal(data, &obj); err == nil {
+		if rawErr, ok := obj["error"]; ok && rawErr != nil {
+			msg := fmt.Sprint(rawErr)
+			if msg != "" {
+				return yepAPIFormatError(msg)
+			}
+		}
+	}
+
 	b, _ := json.Marshal(map[string]interface{}{
 		"status": "success",
 		"data":   json.RawMessage(data),

@@ -5,6 +5,13 @@ import (
 	"fmt"
 )
 
+func instagramUsernameOrURLArg(args map[string]interface{}) string {
+	if v, ok := args["username_or_url"].(string); ok && v != "" {
+		return v
+	}
+	return stringArgWithFallback(args, "username")
+}
+
 // DispatchYepAPIInstagram handles Instagram data operations via YepAPI.
 func DispatchYepAPIInstagram(ctx context.Context, client *YepAPIClient, operation string, args map[string]interface{}) (string, error) {
 	switch operation {
@@ -20,22 +27,22 @@ func DispatchYepAPIInstagram(ctx context.Context, client *YepAPIClient, operatio
 		return yepAPIFormatSuccess(data), nil
 
 	case "user":
-		username := stringArgWithFallback(args, "username")
+		username := instagramUsernameOrURLArg(args)
 		if username == "" {
-			return yepAPIFormatError("user operation requires a 'username' string"), nil
+			return yepAPIFormatError("user operation requires a 'username' or 'username_or_url' string"), nil
 		}
-		data, err := client.Post(ctx, "/v1/instagram/user", map[string]interface{}{"username": username})
+		data, err := client.Post(ctx, "/v1/instagram/user", map[string]interface{}{"username_or_url": username})
 		if err != nil {
 			return "", err
 		}
 		return yepAPIFormatSuccess(data), nil
 
 	case "user_posts":
-		username := stringArgWithFallback(args, "username")
+		username := instagramUsernameOrURLArg(args)
 		if username == "" {
-			return yepAPIFormatError("user_posts operation requires a 'username' string"), nil
+			return yepAPIFormatError("user_posts operation requires a 'username' or 'username_or_url' string"), nil
 		}
-		payload := map[string]interface{}{"username": username}
+		payload := map[string]interface{}{"username_or_url": username}
 		if limit, ok := args["limit"].(float64); ok && limit > 0 {
 			payload["limit"] = int(limit)
 		}
@@ -46,11 +53,11 @@ func DispatchYepAPIInstagram(ctx context.Context, client *YepAPIClient, operatio
 		return yepAPIFormatSuccess(data), nil
 
 	case "user_reels":
-		username := stringArgWithFallback(args, "username")
+		username := instagramUsernameOrURLArg(args)
 		if username == "" {
-			return yepAPIFormatError("user_reels operation requires a 'username' string"), nil
+			return yepAPIFormatError("user_reels operation requires a 'username' or 'username_or_url' string"), nil
 		}
-		payload := map[string]interface{}{"username": username}
+		payload := map[string]interface{}{"username_or_url": username}
 		if limit, ok := args["limit"].(float64); ok && limit > 0 {
 			payload["limit"] = int(limit)
 		}

@@ -322,7 +322,7 @@ func TestDispatchYepAPIInstagram(t *testing.T) {
 
 	ctx := context.Background()
 
-	t.Run("user", func(t *testing.T) {
+	t.Run("user_maps_username_to_api_field", func(t *testing.T) {
 		res, err := DispatchYepAPIInstagram(ctx, client, "user", map[string]interface{}{"username": "natgeo"})
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -331,15 +331,29 @@ func TestDispatchYepAPIInstagram(t *testing.T) {
 			t.Fatal("expected non-empty result")
 		}
 		got := <-requests
-		if got.Path != "/v1/instagram/user" || got.Payload["username"] != "natgeo" {
-			t.Fatalf("request = %+v, want user endpoint with username", got)
+		if got.Path != "/v1/instagram/user" || got.Payload["username_or_url"] != "natgeo" {
+			t.Fatalf("request = %+v, want user endpoint with username_or_url", got)
 		}
-		if _, ok := got.Payload["username_or_url"]; ok {
-			t.Fatalf("request = %+v, did not expect legacy username_or_url field", got)
+		if _, ok := got.Payload["username"]; ok {
+			t.Fatalf("request = %+v, did not expect user-facing username field to leak to API", got)
 		}
 	})
 
-	t.Run("user_posts_uses_username", func(t *testing.T) {
+	t.Run("user_accepts_username_or_url_alias", func(t *testing.T) {
+		res, err := DispatchYepAPIInstagram(ctx, client, "user", map[string]interface{}{"username_or_url": "https://www.instagram.com/natgeo/"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if res == "" {
+			t.Fatal("expected non-empty result")
+		}
+		got := <-requests
+		if got.Path != "/v1/instagram/user" || got.Payload["username_or_url"] != "https://www.instagram.com/natgeo/" {
+			t.Fatalf("request = %+v, want user endpoint with username_or_url alias", got)
+		}
+	})
+
+	t.Run("user_posts_maps_username_to_api_field", func(t *testing.T) {
 		res, err := DispatchYepAPIInstagram(ctx, client, "user_posts", map[string]interface{}{"username": "natgeo", "limit": 5.0})
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -348,15 +362,15 @@ func TestDispatchYepAPIInstagram(t *testing.T) {
 			t.Fatal("expected non-empty result")
 		}
 		got := <-requests
-		if got.Path != "/v1/instagram/user-posts" || got.Payload["username"] != "natgeo" || got.Payload["limit"] != float64(5) {
-			t.Fatalf("request = %+v, want user-posts endpoint with username and limit", got)
+		if got.Path != "/v1/instagram/user-posts" || got.Payload["username_or_url"] != "natgeo" || got.Payload["limit"] != float64(5) {
+			t.Fatalf("request = %+v, want user-posts endpoint with username_or_url and limit", got)
 		}
-		if _, ok := got.Payload["username_or_url"]; ok {
-			t.Fatalf("request = %+v, did not expect legacy username_or_url field", got)
+		if _, ok := got.Payload["username"]; ok {
+			t.Fatalf("request = %+v, did not expect user-facing username field to leak to API", got)
 		}
 	})
 
-	t.Run("user_reels_uses_username", func(t *testing.T) {
+	t.Run("user_reels_maps_username_to_api_field", func(t *testing.T) {
 		res, err := DispatchYepAPIInstagram(ctx, client, "user_reels", map[string]interface{}{"username": "natgeo"})
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -365,13 +379,23 @@ func TestDispatchYepAPIInstagram(t *testing.T) {
 			t.Fatal("expected non-empty result")
 		}
 		got := <-requests
-		if got.Path != "/v1/instagram/user-reels" || got.Payload["username"] != "natgeo" {
-			t.Fatalf("request = %+v, want user-reels endpoint with username", got)
+		if got.Path != "/v1/instagram/user-reels" || got.Payload["username_or_url"] != "natgeo" {
+			t.Fatalf("request = %+v, want user-reels endpoint with username_or_url", got)
 		}
-		if _, ok := got.Payload["username_or_url"]; ok {
-			t.Fatalf("request = %+v, did not expect legacy username_or_url field", got)
+		if _, ok := got.Payload["username"]; ok {
+			t.Fatalf("request = %+v, did not expect user-facing username field to leak to API", got)
 		}
 	})
+}
+
+func TestYepAPIFormatSuccessPromotesEmbeddedErrors(t *testing.T) {
+	res := yepAPIFormatSuccess(json.RawMessage(`{"error":"username_or_url is required"}`))
+	if !strings.Contains(res, `"status":"error"`) {
+		t.Fatalf("expected embedded data.error to become tool error, got %s", res)
+	}
+	if !strings.Contains(res, "username_or_url is required") {
+		t.Fatalf("expected original error message, got %s", res)
+	}
 }
 
 func TestDispatchYepAPIAmazon(t *testing.T) {

@@ -429,11 +429,12 @@ func appendContentToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai
 					"description": "Instagram operation to perform",
 					"enum":        []string{"search", "user", "user_posts", "user_reels", "post", "post_comments", "hashtag"},
 				},
-				"query":      prop("string", "Search query (for search operation)"),
-				"username":   prop("string", "Instagram username (for user and user_posts/user_reels operations)"),
-				"shortcode":  prop("string", "Instagram post shortcode (for post and post_comments operations)"),
-				"tag":        prop("string", "Hashtag without # (for hashtag operation)"),
-				"limit":      map[string]interface{}{"type": "integer", "description": "Max results to return (default: 10)"},
+				"query":           prop("string", "Search query (for search operation)"),
+				"username":        prop("string", "Instagram username (for user and user_posts/user_reels operations)"),
+				"username_or_url": prop("string", "Instagram username or profile URL (alias for username; accepted for user and user_posts/user_reels operations)"),
+				"shortcode":       prop("string", "Instagram post shortcode (for post and post_comments operations)"),
+				"tag":             prop("string", "Hashtag without # (for hashtag operation)"),
+				"limit":           map[string]interface{}{"type": "integer", "description": "Max results to return (default: 10)"},
 			}, "operation"),
 		))
 	}

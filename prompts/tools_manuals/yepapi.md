@@ -133,6 +133,7 @@ Instagram data access.
 **Parameters:**
 - `query` — Search query (for search)
 - `username` — Instagram username (for user, user_posts, user_reels)
+- `username_or_url` — Instagram username or profile URL alias (accepted for user, user_posts, user_reels)
 - `shortcode` — Instagram post shortcode (for post, post_comments)
 - `tag` — Hashtag without # (for hashtag)
 - `limit` — Max results (default: 10)
