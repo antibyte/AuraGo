@@ -11,6 +11,7 @@ let allCredentials = [];
 let contactSearchTimer = null;
 let previewResetTimer = null;
 let pendingCredentialCertificateText = '';
+let knowledgeDeleteInFlight = false;
 const knowledgeActiveTabKey = 'aurago-knowledge-active-tab';
 
 // PDF preview state
@@ -907,14 +908,15 @@ function askDeleteCredential(id, name) {
 // ═══════════════════════════════════════════════════════════════
 
 async function confirmDelete() {
+    if (knowledgeDeleteInFlight) return;
+    knowledgeDeleteInFlight = true;
+    setKnowledgeDeleteBusy(true);
     const id = document.getElementById('delete-target-id').value;
     const type = document.getElementById('delete-target-type').value;
-    const deleteButton = document.querySelector('#delete-modal .btn-danger');
     const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
     const timeout = controller ? setTimeout(() => controller.abort(), 15000) : null;
 
     try {
-        if (deleteButton) deleteButton.disabled = true;
         let resp;
         if (type === 'contact') {
             resp = await fetch('/api/contacts/' + encodeURIComponent(id), { method: 'DELETE', signal: controller ? controller.signal : undefined });
@@ -946,7 +948,15 @@ async function confirmDelete() {
         showToast(t('common.error') + ': ' + e.message, 'error');
     } finally {
         if (timeout) clearTimeout(timeout);
-        if (deleteButton) deleteButton.disabled = false;
+        knowledgeDeleteInFlight = false;
+        setKnowledgeDeleteBusy(false);
+    }
+}
+
+function setKnowledgeDeleteBusy(busy) {
+    const confirmBtn = document.getElementById('knowledge-delete-confirm-btn');
+    if (confirmBtn) {
+        confirmBtn.disabled = busy;
     }
 }
 

@@ -254,6 +254,44 @@ func TestSkillsDestructiveDeleteFlowContract(t *testing.T) {
 	}
 }
 
+func TestKnowledgeDestructiveDeleteFlowContract(t *testing.T) {
+	t.Parallel()
+
+	html, err := os.ReadFile(filepath.Join(".", "knowledge.html"))
+	if err != nil {
+		t.Fatalf("read knowledge.html: %v", err)
+	}
+	js, err := os.ReadFile(filepath.Join(".", "js", "knowledge", "main.js"))
+	if err != nil {
+		t.Fatalf("read knowledge main.js: %v", err)
+	}
+
+	htmlText := string(html)
+	jsText := string(js)
+	for _, marker := range []string{
+		`id="knowledge-delete-confirm-btn"`,
+		`onclick="confirmDelete()"`,
+		`id="delete-target-type"`,
+	} {
+		if !strings.Contains(htmlText, marker) {
+			t.Fatalf("knowledge delete flow is missing stable destructive-flow marker %q", marker)
+		}
+	}
+	for _, marker := range []string{
+		"let knowledgeDeleteInFlight = false;",
+		"if (knowledgeDeleteInFlight) return;",
+		"knowledgeDeleteInFlight = true;",
+		"setKnowledgeDeleteBusy(true);",
+		"setKnowledgeDeleteBusy(false);",
+		"function setKnowledgeDeleteBusy(busy)",
+		"confirmBtn.disabled = busy;",
+	} {
+		if !strings.Contains(jsText, marker) {
+			t.Fatalf("knowledge delete flow is missing double-submit guard marker %q", marker)
+		}
+	}
+}
+
 func (f *destructiveFlowFixture) loadContainersPage(t *testing.T, page *rod.Page) {
 	t.Helper()
 
