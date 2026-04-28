@@ -857,6 +857,28 @@ func TestKGSearchForContextUsesSemanticIndex(t *testing.T) {
 	}
 }
 
+func TestKGSemanticQuerySkipsShortInputs(t *testing.T) {
+	tests := []struct {
+		query string
+		want  bool
+	}{
+		{query: "", want: true},
+		{query: "*", want: true},
+		{query: "hi", want: true},
+		{query: "status?", want: true},
+		{query: "tailscale", want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.query, func(t *testing.T) {
+			got := shouldSkipKnowledgeGraphSemanticQuery(tt.query)
+			if got != tt.want {
+				t.Fatalf("shouldSkipKnowledgeGraphSemanticQuery(%q) = %v, want %v", tt.query, got, tt.want)
+			}
+		})
+	}
+}
+
 // TestKGCoOccurrenceThreshold verifies that co_mentioned_with edges are promoted
 // from "pending" to "activity_turn" only once the coOccurrenceThreshold is reached.
 func TestKGCoOccurrenceThreshold(t *testing.T) {

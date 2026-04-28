@@ -615,7 +615,7 @@ func shouldIndexKnowledgeGraphNode(node Node) bool {
 
 func shouldSkipKnowledgeGraphSemanticQuery(query string) bool {
 	query = strings.TrimSpace(query)
-	if query == "" || query == "*" || len([]rune(query)) < 3 {
+	if query == "" || query == "*" || len([]rune(query)) < 8 {
 		return true
 	}
 	return false
