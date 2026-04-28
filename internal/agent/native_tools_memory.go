@@ -60,10 +60,10 @@ func appendMemoryToolSchemas(tools []openai.Tool, ff ToolFeatureFlags) []openai.
 
 			// remember — simplified single-entry-point for storing any kind of information
 			tool("remember",
-				"Store information without worrying about which memory system to use. Automatically routes to the right place: core memory (facts/preferences), journal (events/milestones), notes (tasks/todos), or knowledge graph (relationships). Use 'category' to override auto-classification.",
+				"Store useful information without worrying about which memory system to use. Automatically routes to the right place: core memory (only stable facts/preferences/constraints that rarely change), journal (events/milestones/learnings), notes (tasks/todos), or knowledge graph (relationships). Ambiguous information should not go to core memory. Use 'category' to override auto-classification.",
 				schema(map[string]interface{}{
 					"content":    prop("string", "The information to remember (required)"),
-					"category":   prop("string", "Optional routing hint: 'fact' (core memory), 'event' (journal), 'task' (note/todo), 'relationship' (knowledge graph). If omitted, auto-classified from content."),
+					"category":   prop("string", "Optional routing hint: 'fact' (core memory; only durable facts/preferences), 'event' (journal), 'task' (note/todo), 'relationship' (knowledge graph). If omitted, auto-classified from content."),
 					"title":      prop("string", "Optional title (used for journal entries and notes)"),
 					"source":     prop("string", "Source entity (only for relationship: source -[relation]-> target)"),
 					"target":     prop("string", "Target entity (only for relationship)"),

@@ -38,10 +38,10 @@ func TestClassifyMemoryTargetTreatsInstallationPreferencesAsFact(t *testing.T) {
 	}
 }
 
-func TestClassifyMemoryTargetTreatsDebuggingTipAsFact(t *testing.T) {
+func TestClassifyMemoryTargetTreatsDebuggingTipAsEvent(t *testing.T) {
 	content := "Python debugging tip: run pytest -k failing_test before touching the implementation"
-	if got := classifyMemoryTarget(ToolCall{}, content); got != "fact" {
-		t.Fatalf("classifyMemoryTarget() = %q, want fact", got)
+	if got := classifyMemoryTarget(ToolCall{}, content); got != "event" {
+		t.Fatalf("classifyMemoryTarget() = %q, want event", got)
 	}
 }
 
@@ -56,6 +56,38 @@ func TestClassifyMemoryTargetDetectsEventsWithTemporalSignals(t *testing.T) {
 	content := "Completed Docker migration successfully yesterday"
 	if got := classifyMemoryTarget(ToolCall{}, content); got != "event" {
 		t.Fatalf("classifyMemoryTarget() = %q, want event", got)
+	}
+}
+
+func TestClassifyMemoryTargetDefaultsAmbiguousContentToEvent(t *testing.T) {
+	content := "Koofr upload returned a zero-byte image during mission test run"
+	if got := classifyMemoryTarget(ToolCall{}, content); got != "event" {
+		t.Fatalf("classifyMemoryTarget() = %q, want event", got)
+	}
+}
+
+func TestRememberAmbiguousContentUsesJournal(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	if err := stm.InitJournalTables(); err != nil {
+		t.Fatalf("InitJournalTables: %v", err)
+	}
+	t.Cleanup(func() { _ = stm.Close() })
+
+	out := handleRemember(
+		ToolCall{Content: "Koofr upload returned a zero-byte image during mission test run"},
+		nil,
+		logger,
+		stm,
+		nil,
+		"session-test",
+	)
+
+	if !strings.Contains(out, `"stored_as":"journal"`) {
+		t.Fatalf("handleRemember output = %q, want journal storage", out)
 	}
 }
 

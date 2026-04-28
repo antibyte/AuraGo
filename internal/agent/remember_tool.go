@@ -47,8 +47,10 @@ func handleRemember(tc ToolCall, cfg *config.Config, logger *slog.Logger,
 	case "relationship", "entity", "graph":
 		return rememberAsGraphEdge(content, tc, kg, logger)
 	default:
-		// Default: store as core memory fact
-		return rememberAsFact(content, shortTermMem, cfg, logger)
+		// Unknown categories should not pollute Core Memory. Treat ambiguous
+		// useful information as a searchable journal learning unless the caller
+		// explicitly requests category=fact/core or the classifier is confident.
+		return rememberAsJournal(content, tc, shortTermMem, sessionID, logger)
 	}
 }
 
@@ -81,7 +83,8 @@ func classifyMemoryTarget(tc ToolCall, content string) string {
 	preferencePatterns := []string{
 		"prefer ", "preference", "preferred", "usually uses", "normally uses",
 		"spricht", "antwortet auf", "likes ", "dislikes ", "language", "timezone",
-		"setup preference", "installation preference", "debugging tip", "tip ",
+		"setup preference", "installation preference", "communication style", "hard constraint",
+		"always ", "never ", "immer ", "nie ",
 	}
 	for _, p := range preferencePatterns {
 		if strings.Contains(normalized, p) {
@@ -120,8 +123,9 @@ func classifyMemoryTarget(tc ToolCall, content string) string {
 		}
 	}
 
-	// Default to core memory fact (preferences, identity, environment)
-	return "fact"
+	// Ambiguous information is usually an event/learning, not a durable profile
+	// fact. Core memory is reserved for explicit stable facts and preferences.
+	return "event"
 }
 
 func normalizeHeuristicText(value string) string {
