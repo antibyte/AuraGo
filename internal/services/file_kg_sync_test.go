@@ -74,6 +74,75 @@ func TestFileKGSyncer_CleanupFile_DryRun(t *testing.T) {
 	}
 }
 
+func TestFileKGSyncer_CleanupOrphans_RemovesRenamedAndDeletedFileEntities(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	cfg := &config.Config{}
+	stm, err := memory.NewSQLiteMemory(":memory:", logger)
+	if err != nil {
+		t.Fatalf("NewSQLiteMemory: %v", err)
+	}
+	defer stm.Close()
+	kg, err := memory.NewKnowledgeGraph(":memory:", "", logger)
+	if err != nil {
+		t.Fatalf("NewKnowledgeGraph: %v", err)
+	}
+	defer kg.Close()
+
+	activePath := "/docs/new-name.md"
+	renamedPath := "/docs/old-name.md"
+	deletedPath := "/docs/deleted.md"
+	if err := stm.UpdateFileIndexWithDocs(activePath, IndexerCollection, time.Now(), []string{"doc-new"}); err != nil {
+		t.Fatalf("UpdateFileIndexWithDocs active: %v", err)
+	}
+	if err := kg.BulkMergeExtractedEntities([]memory.Node{
+		{ID: "active-node", Label: "Active", Properties: map[string]string{"source": "file_sync", "source_file": activePath}},
+		{ID: "renamed-node", Label: "Renamed", Properties: map[string]string{"source": "file_sync", "source_file": renamedPath}},
+		{ID: "deleted-node", Label: "Deleted", Properties: map[string]string{"source": "file_sync", "source_file": deletedPath}},
+	}, []memory.Edge{
+		{Source: "renamed-node", Target: "deleted-node", Relation: "related_to", Properties: map[string]string{"source": "file_sync", "source_file": renamedPath}},
+	}); err != nil {
+		t.Fatalf("BulkMergeExtractedEntities: %v", err)
+	}
+
+	syncer := NewFileKGSyncer(cfg, logger, nil, nil, stm, kg)
+	result := syncer.CleanupOrphans(false)
+	if len(result.Errors) != 0 {
+		t.Fatalf("CleanupOrphans errors: %v", result.Errors)
+	}
+	if result.FilesProcessed != 2 {
+		t.Fatalf("expected 2 orphan source files cleaned, got %#v", result)
+	}
+	if result.NodesExtracted != 2 {
+		t.Fatalf("expected 2 orphan nodes removed, got %#v", result)
+	}
+	if result.EdgesExtracted != 1 {
+		t.Fatalf("expected 1 orphan edge removed, got %#v", result)
+	}
+
+	nodes, err := kg.GetAllNodes(20)
+	if err != nil {
+		t.Fatalf("GetAllNodes: %v", err)
+	}
+	seen := make(map[string]bool)
+	for _, node := range nodes {
+		seen[node.ID] = true
+	}
+	if !seen["active-node"] {
+		t.Fatal("expected active file node to remain")
+	}
+	if seen["renamed-node"] || seen["deleted-node"] {
+		t.Fatalf("expected orphan nodes to be removed, got nodes %#v", seen)
+	}
+
+	orphanNodes, orphanEdges, err := syncer.FindOrphans()
+	if err != nil {
+		t.Fatalf("FindOrphans after cleanup: %v", err)
+	}
+	if len(orphanNodes) != 0 || len(orphanEdges) != 0 {
+		t.Fatalf("expected no orphan entities after cleanup, got nodes=%d edges=%d", len(orphanNodes), len(orphanEdges))
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Content preparation tests
 // ---------------------------------------------------------------------------

@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -307,21 +308,85 @@ func (s *FileKGSyncer) CleanupFile(path, collection string, dryRun bool) FileKGS
 		return result
 	}
 
-	deletedNodes, err := s.kg.DeleteNodesBySourceFile(path)
-	if err != nil {
-		s.logger.Warn("[FileKGSync] Failed to delete nodes by source file", "path", path, "error", err)
-		result.Errors = append(result.Errors, fmt.Sprintf("delete nodes for %s: %v", path, err))
-	}
 	deletedEdges, err := s.kg.DeleteEdgesBySourceFile(path)
 	if err != nil {
 		s.logger.Warn("[FileKGSync] Failed to delete edges by source file", "path", path, "error", err)
 		result.Errors = append(result.Errors, fmt.Sprintf("delete edges for %s: %v", path, err))
+	}
+	deletedNodes, err := s.kg.DeleteNodesBySourceFile(path)
+	if err != nil {
+		s.logger.Warn("[FileKGSync] Failed to delete nodes by source file", "path", path, "error", err)
+		result.Errors = append(result.Errors, fmt.Sprintf("delete nodes for %s: %v", path, err))
 	}
 
 	s.logger.Info("[FileKGSync] Cleaned up file entities", "path", path,
 		"deleted_nodes", deletedNodes, "deleted_edges", deletedEdges)
 	result.NodesExtracted = deletedNodes
 	result.EdgesExtracted = deletedEdges
+	return result
+}
+
+// CleanupOrphans removes file_sync KG entities whose source_file is no longer
+// tracked by STM. It covers rename/delete/reset cleanup after the file index
+// has changed.
+func (s *FileKGSyncer) CleanupOrphans(dryRun bool) FileKGSyncResult {
+	var result FileKGSyncResult
+	orphanNodes, orphanEdges, err := s.FindOrphans()
+	if err != nil {
+		result.Errors = append(result.Errors, fmt.Sprintf("find orphans: %v", err))
+		return result
+	}
+
+	sourceFiles := make(map[string]struct{})
+	edgeSourceFiles := make(map[string]struct{})
+	for _, node := range orphanNodes {
+		if node.Properties != nil {
+			if sourceFile := strings.TrimSpace(node.Properties["source_file"]); sourceFile != "" {
+				sourceFiles[sourceFile] = struct{}{}
+			}
+		}
+	}
+	for _, edge := range orphanEdges {
+		if edge.Properties != nil {
+			if sourceFile := strings.TrimSpace(edge.Properties["source_file"]); sourceFile != "" {
+				sourceFiles[sourceFile] = struct{}{}
+				edgeSourceFiles[sourceFile] = struct{}{}
+			}
+		}
+	}
+	if len(sourceFiles) == 0 {
+		return result
+	}
+
+	paths := make([]string, 0, len(sourceFiles))
+	for sourceFile := range sourceFiles {
+		paths = append(paths, sourceFile)
+	}
+	sort.Slice(paths, func(i, j int) bool {
+		_, iHasEdges := edgeSourceFiles[paths[i]]
+		_, jHasEdges := edgeSourceFiles[paths[j]]
+		if iHasEdges != jHasEdges {
+			return iHasEdges
+		}
+		return paths[i] < paths[j]
+	})
+
+	if dryRun {
+		result.FilesProcessed = len(paths)
+		result.NodesExtracted = len(orphanNodes)
+		result.EdgesExtracted = len(orphanEdges)
+		s.logger.Info("[FileKGSync] Dry-run: would cleanup orphan file entities",
+			"files", len(paths), "nodes", len(orphanNodes), "edges", len(orphanEdges))
+		return result
+	}
+
+	for _, path := range paths {
+		cleanup := s.CleanupFile(path, "", false)
+		result.FilesProcessed++
+		result.NodesExtracted += cleanup.NodesExtracted
+		result.EdgesExtracted += cleanup.EdgesExtracted
+		result.Errors = append(result.Errors, cleanup.Errors...)
+	}
 	return result
 }
 

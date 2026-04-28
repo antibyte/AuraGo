@@ -51,6 +51,19 @@ func TestApplyPendingEmbeddingsResetClearsVectorState(t *testing.T) {
 	if err := stm.UpsertMemoryMeta("aurago_memories_test_chunk_1"); err != nil {
 		t.Fatalf("UpsertMemoryMeta: %v", err)
 	}
+	kg, err := memory.NewKnowledgeGraph(filepath.Join(tmpDir, "kg.db"), "", logger)
+	if err != nil {
+		t.Fatalf("NewKnowledgeGraph: %v", err)
+	}
+	defer kg.Close()
+	if err := kg.BulkMergeExtractedEntities([]memory.Node{
+		{ID: "file-node", Label: "File Node", Properties: map[string]string{"source": "file_sync", "source_file": "knowledge/test.pdf"}},
+		{ID: "manual-node", Label: "Manual Node", Properties: map[string]string{"source": "manual"}},
+	}, []memory.Edge{
+		{Source: "file-node", Target: "manual-node", Relation: "mentions", Properties: map[string]string{"source": "file_sync", "source_file": "knowledge/test.pdf"}},
+	}); err != nil {
+		t.Fatalf("BulkMergeExtractedEntities: %v", err)
+	}
 
 	vectorDir := filepath.Join(tmpDir, "vectordb")
 	if err := os.MkdirAll(vectorDir, 0750); err != nil {
@@ -68,7 +81,7 @@ func TestApplyPendingEmbeddingsResetClearsVectorState(t *testing.T) {
 		t.Fatalf("WriteEmbeddingsResetMarker: %v", err)
 	}
 
-	applied, err := ApplyPendingEmbeddingsReset(cfg, stm, nil, logger)
+	applied, err := ApplyPendingEmbeddingsReset(cfg, stm, kg, logger)
 	if err != nil {
 		t.Fatalf("ApplyPendingEmbeddingsReset: %v", err)
 	}
@@ -102,6 +115,22 @@ func TestApplyPendingEmbeddingsResetClearsVectorState(t *testing.T) {
 	}
 	if len(meta) != 0 {
 		t.Fatalf("expected memory meta to be cleared, got %d entries", len(meta))
+	}
+	nodes, err := kg.GetAllNodes(10)
+	if err != nil {
+		t.Fatalf("GetAllNodes: %v", err)
+	}
+	for _, node := range nodes {
+		if node.ID == "file-node" {
+			t.Fatalf("expected file_sync KG node to be removed during embeddings reset")
+		}
+	}
+	edges, err := kg.GetAllEdges(10)
+	if err != nil {
+		t.Fatalf("GetAllEdges: %v", err)
+	}
+	if len(edges) != 0 {
+		t.Fatalf("expected file_sync KG edges to be removed during embeddings reset, got %d", len(edges))
 	}
 
 	info, err := os.Stat(vectorDir)

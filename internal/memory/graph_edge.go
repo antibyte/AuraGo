@@ -223,6 +223,22 @@ func (kg *KnowledgeGraph) GetImportantEdges(limit int, nodeIDs []string) ([]Edge
 }
 
 func (kg *KnowledgeGraph) DeleteEdgesBySourceFile(path string) (int, error) {
+	rows, err := kg.db.Query(`
+		SELECT source, target, relation FROM kg_edges
+		WHERE json_extract(properties, '$.source_file') = ?
+	`, path)
+	if err != nil {
+		return 0, fmt.Errorf("query edges by source file: %w", err)
+	}
+	var edges []Edge
+	for rows.Next() {
+		var edge Edge
+		if err := rows.Scan(&edge.Source, &edge.Target, &edge.Relation); err == nil {
+			edges = append(edges, edge)
+		}
+	}
+	rows.Close()
+
 	res, err := kg.db.Exec(`
 		DELETE FROM kg_edges
 		WHERE json_extract(properties, '$.source_file') = ?
@@ -231,6 +247,12 @@ func (kg *KnowledgeGraph) DeleteEdgesBySourceFile(path string) (int, error) {
 		return 0, fmt.Errorf("delete edges by source file: %w", err)
 	}
 	n, _ := res.RowsAffected()
+	for _, edge := range edges {
+		if err := kg.removeSemanticEdgeIndex(edge.Source, edge.Target, edge.Relation); err != nil && kg.logger != nil {
+			kg.logger.Warn("DeleteEdgesBySourceFile: failed to remove semantic edge index",
+				"source", edge.Source, "target", edge.Target, "relation", edge.Relation, "error", err)
+		}
+	}
 	return int(n), nil
 }
 

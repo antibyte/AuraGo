@@ -326,6 +326,7 @@ func (kg *KnowledgeGraph) removeSemanticNodeIndex(nodeID string) error {
 	kg.semantic.mu.Lock()
 	defer kg.semantic.mu.Unlock()
 
+	delete(kg.semantic.contentCache, nodeID)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	return kg.semantic.collection.Delete(ctx, nil, nil, nodeID)

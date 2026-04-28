@@ -523,6 +523,25 @@ func (kg *KnowledgeGraph) DeleteNodesBySourceFile(path string) (int, error) {
 	}
 	rows.Close()
 
+	incidentEdges := make([]Edge, 0)
+	for _, id := range ids {
+		edgeRows, err := tx.Query(`
+			SELECT source, target, relation FROM kg_edges
+			WHERE source = ? OR target = ?
+		`, id, id)
+		if err != nil {
+			kg.logger.Warn("DeleteNodesBySourceFile: failed to load incident edges", "id", id, "error", err)
+			continue
+		}
+		for edgeRows.Next() {
+			var edge Edge
+			if err := edgeRows.Scan(&edge.Source, &edge.Target, &edge.Relation); err == nil {
+				incidentEdges = append(incidentEdges, edge)
+			}
+		}
+		edgeRows.Close()
+	}
+
 	for _, id := range ids {
 		if _, err := tx.Exec("DELETE FROM kg_edges WHERE source = ? OR target = ?", id, id); err != nil {
 			kg.logger.Warn("DeleteNodesBySourceFile: failed to delete edges for node", "id", id, "error", err)
@@ -534,6 +553,17 @@ func (kg *KnowledgeGraph) DeleteNodesBySourceFile(path string) (int, error) {
 
 	if err := tx.Commit(); err != nil {
 		return 0, fmt.Errorf("commit delete nodes by source file: %w", err)
+	}
+	for _, edge := range incidentEdges {
+		if err := kg.removeSemanticEdgeIndex(edge.Source, edge.Target, edge.Relation); err != nil && kg.logger != nil {
+			kg.logger.Warn("DeleteNodesBySourceFile: failed to remove semantic edge index",
+				"source", edge.Source, "target", edge.Target, "relation", edge.Relation, "error", err)
+		}
+	}
+	for _, id := range ids {
+		if err := kg.removeSemanticNodeIndex(id); err != nil && kg.logger != nil {
+			kg.logger.Warn("DeleteNodesBySourceFile: failed to remove semantic node index", "id", id, "error", err)
+		}
 	}
 	return len(ids), nil
 }
