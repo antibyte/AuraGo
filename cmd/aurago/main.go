@@ -282,12 +282,13 @@ func main() {
 			appLog.Warn("Failed to setup Web UI access log", "error", err)
 		}
 
-		// Truncate prompts.log on each startup so it only contains entries from the current session
-		if cfg.Logging.EnablePromptLog {
-			promptLogPath := filepath.Join(cfg.Logging.LogDir, "prompts.log")
-			if err := os.WriteFile(promptLogPath, nil, 0644); err != nil {
-				appLog.Warn("Failed to truncate prompts.log", "error", err)
-			}
+	}
+
+	// Truncate prompts.log on each startup so it only contains entries from the
+	// current process run. This must not depend on regular file logging.
+	if cfg.Logging.EnablePromptLog {
+		if err := logger.ResetPromptLog(cfg.Logging.LogDir); err != nil {
+			appLog.Warn("Failed to truncate prompts.log", "error", err)
 		}
 	}
 

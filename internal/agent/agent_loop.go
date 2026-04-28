@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -1065,27 +1064,21 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 		}
 
 		// Prompt log: append full request JSON to prompts.log when enabled
-		if cfg.Logging.EnablePromptLog && cfg.Logging.LogDir != "" {
-			if f, ferr := os.OpenFile(
-				filepath.Join(cfg.Logging.LogDir, "prompts.log"),
-				os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600,
-			); ferr == nil {
-				type promptLogEntry struct {
-					Time       string                         `json:"time"`
-					Model      string                         `json:"model"`
-					ToolsCount int                            `json:"tools_count"`
-					Messages   []openai.ChatCompletionMessage `json:"messages"`
-				}
-				entry := promptLogEntry{
-					Time:       time.Now().UTC().Format(time.RFC3339),
-					Model:      req.Model,
-					ToolsCount: len(req.Tools),
-					Messages:   req.Messages,
-				}
-				if err := json.NewEncoder(f).Encode(entry); err != nil {
-					s.currentLogger.Warn("[PromptLog] Failed to encode entry", "error", err)
-				}
-				f.Close()
+		if cfg.Logging.EnablePromptLog {
+			type promptLogEntry struct {
+				Time       string                         `json:"time"`
+				Model      string                         `json:"model"`
+				ToolsCount int                            `json:"tools_count"`
+				Messages   []openai.ChatCompletionMessage `json:"messages"`
+			}
+			entry := promptLogEntry{
+				Time:       time.Now().UTC().Format(time.RFC3339),
+				Model:      req.Model,
+				ToolsCount: len(req.Tools),
+				Messages:   req.Messages,
+			}
+			if err := loggerPkg.AppendPromptLogEntry(cfg.Logging.LogDir, entry); err != nil {
+				s.currentLogger.Warn("[PromptLog] Failed to write entry", "error", err)
 			}
 		}
 
