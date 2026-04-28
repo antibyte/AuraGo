@@ -137,7 +137,7 @@ function fbCheckStatus() {
                 return;
             }
             banner.className = 'cfg-status-banner cfg-status-success';
-            banner.textContent = '🟢 ' + t('config.fritzbox.status_ok') + ' — ' + (res.host || '');
+            banner.textContent = t('config.fritzbox.status_ok') + ' — ' + (res.host || '');
         })
         .catch(() => {
             banner.className = 'cfg-status-banner cfg-status-error';

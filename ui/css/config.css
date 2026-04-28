@@ -1091,6 +1091,7 @@ select.cfg-input option {
     border-radius: 12px;
     padding: 1rem;
     margin-top: 1rem;
+    margin-bottom: 1rem;
     font-size: var(--text-sm);
     overflow-wrap: anywhere;
 }
@@ -2343,14 +2344,27 @@ select.cfg-input option {
     margin-bottom: 1rem;
 }
 
+@media (max-width: 480px) {
+    .cc-actions-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .cc-actions-row .btn-save {
+        width: 100%;
+        text-align: center;
+    }
+}
+
 .cc-btn-primary {
     padding: 0.45rem 1.1rem;
     font-size: 0.82rem;
+    white-space: nowrap;
 }
 
 .cc-btn-secondary {
     padding: 0.45rem 1.1rem;
     font-size: 0.82rem;
+    white-space: nowrap;
     background: var(--bg-tertiary);
     color: var(--text-primary);
     border: 1px solid var(--border-subtle);
@@ -2413,35 +2427,54 @@ select.cfg-input option {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 0.5rem;
     padding: 0.4rem 0.6rem;
     border-radius: 8px;
     border: 1px solid var(--border-subtle);
     background: var(--bg-secondary);
+    min-width: 0;
 }
 
 .cc-discovery-item.is-added {
     opacity: 0.5;
 }
 
+.cc-discovery-item > div:first-child {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+}
+
 .cc-discovery-name {
     font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .cc-discovery-meta {
-    margin-left: 0.5rem;
     color: var(--text-tertiary);
     font-family: 'SF Mono', 'Fira Code', monospace;
     font-size: 0.78rem;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .cc-discovery-added {
     color: var(--text-tertiary);
     font-size: 0.78rem;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .cc-btn-compact {
     padding: 0.3rem 0.8rem;
     font-size: 0.78rem;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .cc-table-wrap {
@@ -4166,6 +4199,10 @@ select.cfg-input option {
 
 .adg-quick-stats {
     margin-top: 1.5rem;
+    background: var(--card-bg);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    padding: 1rem;
 }
 
 .adg-stats-title {
@@ -5077,6 +5114,7 @@ select.cfg-input option {
 }
 
 .cfg-note-banner {
+    margin-top: 0.5rem;
     margin-bottom: 1.2rem;
     padding: 0.65rem 0.9rem;
     border-radius: 9px;
