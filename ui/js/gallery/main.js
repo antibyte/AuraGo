@@ -6,6 +6,7 @@ let galleryTotal = 0;
 const GALLERY_LIMIT = 30;
 let currentLightboxId = null;
 let currentLightboxSource = '';
+let galleryDeleteInFlight = false;
 
 document.addEventListener('DOMContentLoaded', function () {
     loadGallery();
@@ -215,6 +216,9 @@ async function galleryDeleteCurrent() {
 }
 
 async function deleteGalleryImage(id, source = '') {
+    if (galleryDeleteInFlight) return;
+    galleryDeleteInFlight = true;
+    setGalleryDeleteBusy(true);
     var img = findGalleryImage(id, source);
     var sourceDB = source || (img && img.source_db ? img.source_db : '');
 
@@ -232,6 +236,20 @@ async function deleteGalleryImage(id, source = '') {
         }
     } catch (e) {
         showToast(e.message || t('common.error'), 'error');
+    } finally {
+        galleryDeleteInFlight = false;
+        setGalleryDeleteBusy(false);
+    }
+}
+
+function setGalleryDeleteBusy(busy) {
+    const confirmBtn = document.getElementById('gallery-delete-confirm-btn');
+    const lightboxBtn = document.getElementById('lightbox-delete');
+    if (confirmBtn) {
+        confirmBtn.disabled = busy;
+    }
+    if (lightboxBtn) {
+        lightboxBtn.disabled = busy;
     }
 }
 

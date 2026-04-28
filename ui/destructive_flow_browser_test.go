@@ -177,6 +177,45 @@ func TestContainersDestructiveDeleteFlowContract(t *testing.T) {
 	}
 }
 
+func TestGalleryDestructiveDeleteFlowContract(t *testing.T) {
+	t.Parallel()
+
+	html, err := os.ReadFile(filepath.Join(".", "gallery.html"))
+	if err != nil {
+		t.Fatalf("read gallery.html: %v", err)
+	}
+	js, err := os.ReadFile(filepath.Join(".", "js", "gallery", "main.js"))
+	if err != nil {
+		t.Fatalf("read gallery main.js: %v", err)
+	}
+
+	htmlText := string(html)
+	jsText := string(js)
+	for _, marker := range []string{
+		`id="gallery-delete-confirm-btn"`,
+		`onclick="confirmDeleteGallery()"`,
+		`id="lightbox-delete"`,
+	} {
+		if !strings.Contains(htmlText, marker) {
+			t.Fatalf("gallery delete flow is missing stable destructive-flow marker %q", marker)
+		}
+	}
+	for _, marker := range []string{
+		"let galleryDeleteInFlight = false;",
+		"if (galleryDeleteInFlight) return;",
+		"galleryDeleteInFlight = true;",
+		"setGalleryDeleteBusy(true);",
+		"setGalleryDeleteBusy(false);",
+		"function setGalleryDeleteBusy(busy)",
+		"confirmBtn.disabled = busy;",
+		"lightboxBtn.disabled = busy;",
+	} {
+		if !strings.Contains(jsText, marker) {
+			t.Fatalf("gallery delete flow is missing double-submit guard marker %q", marker)
+		}
+	}
+}
+
 func (f *destructiveFlowFixture) loadContainersPage(t *testing.T, page *rod.Page) {
 	t.Helper()
 
