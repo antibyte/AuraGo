@@ -62,3 +62,15 @@ func TestResolveCompletedPendingActionsKeepsDeferredResponsesOpen(t *testing.T) 
 		t.Fatalf("len(resolved) = %d, want 0", len(resolved))
 	}
 }
+
+func TestShouldInjectRecentMemoryContextSkipsBareGreeting(t *testing.T) {
+	if shouldInjectRecentMemoryContext("hi") {
+		t.Fatal("bare greeting should not inject recent memory context")
+	}
+	if !shouldInjectRecentMemoryContext("gibts was neues?") {
+		t.Fatal("status query should inject recent memory context")
+	}
+	if !shouldInjectRecentMemoryContext("prüfe tailscale status") {
+		t.Fatal("specific operational query should inject recent memory context")
+	}
+}

@@ -1010,12 +1010,30 @@ func isTransientCoreMemoryPromptLine(line string) bool {
 		"[operation]",
 		"[tool]",
 		"[project]",
+		"[project_name]",
+		"[git_repository_path]",
+		"[git_repository_output]",
+		"[test_file_output]",
+		"[framework]",
+		"[container_id]",
 		"[docker_image]",
 		"[required_docker_image]",
 		"[playwright_version]",
 	}
 	for _, marker := range transientMarkers {
 		if strings.Contains(lower, marker) {
+			return true
+		}
+	}
+	transientPhrases := []string{
+		"webgl demo",
+		"phaser-demo",
+		"test file created by homepage tool",
+		"reinitialized existing git repository",
+		"funny penguin pizza image",
+	}
+	for _, phrase := range transientPhrases {
+		if strings.Contains(lower, phrase) {
 			return true
 		}
 	}

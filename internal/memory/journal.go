@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode"
 )
 
 // JournalEntry represents a single event in the agent's journal timeline.
@@ -571,10 +572,12 @@ func (s *SQLiteMemory) GetPendingEpisodicActionsForQuery(query string, limit int
 	if limit <= 0 {
 		limit = 3
 	}
-	pattern := "%"
-	if trimmed := strings.TrimSpace(query); trimmed != "" {
-		pattern = "%" + escapeLike(trimmed) + "%"
+	trimmed := strings.TrimSpace(query)
+	if !hasSpecificPendingActionQueryTerm(trimmed) {
+		return nil, nil
 	}
+	pattern := "%"
+	pattern = "%" + escapeLike(trimmed) + "%"
 	rows, err := s.db.Query(`
 		SELECT id, event_date, title, summary, details_json, importance, source, session_id, hierarchy_level, action_status, trigger_query, COALESCE(resolved_at, ''), participants_json, related_doc_ids, emotional_valence, created_at
 		FROM episodic_memories
@@ -600,6 +603,27 @@ func (s *SQLiteMemory) GetPendingEpisodicActionsForQuery(query string, limit int
 		entries = append(entries, entry)
 	}
 	return entries, rows.Err()
+}
+
+func hasSpecificPendingActionQueryTerm(query string) bool {
+	lower := strings.ToLower(strings.TrimSpace(query))
+	if lower == "" {
+		return false
+	}
+	lowSignal := map[string]struct{}{
+		"hi": {}, "hello": {}, "hey": {}, "hallo": {}, "moin": {}, "servus": {}, "yo": {}, "ok": {}, "okay": {},
+	}
+	if _, ok := lowSignal[lower]; ok {
+		return false
+	}
+	for _, field := range strings.FieldsFunc(lower, func(r rune) bool {
+		return !unicode.IsLetter(r) && !unicode.IsDigit(r)
+	}) {
+		if len([]rune(field)) >= 3 {
+			return true
+		}
+	}
+	return false
 }
 
 // GetEpisodicMemoriesByHierarchyLevel returns non-pending episodic memories at the requested hierarchy level.

@@ -30,6 +30,13 @@ func TestUpsertPendingEpisodicActionAndQuery(t *testing.T) {
 	if entries[0].ActionStatus != "pending" || entries[0].TriggerQuery == "" {
 		t.Fatalf("unexpected pending action payload: %+v", entries[0])
 	}
+	greetingEntries, err := stm.GetPendingEpisodicActionsForQuery("hi", 5)
+	if err != nil {
+		t.Fatalf("GetPendingEpisodicActionsForQuery greeting: %v", err)
+	}
+	if len(greetingEntries) != 0 {
+		t.Fatalf("greeting matched pending actions: %#v", greetingEntries)
+	}
 	if err := stm.ResolvePendingEpisodicAction(entries[0].ID); err != nil {
 		t.Fatalf("ResolvePendingEpisodicAction: %v", err)
 	}

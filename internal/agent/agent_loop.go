@@ -687,7 +687,8 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 
 		// Inject lightweight recent-day anchors and episodic cards, even when
 		// long-term memory retrieval is unavailable/disabled.
-		if !runCfg.IsMission && !isAutonomousRun && lastUserMsg != "" && shortTermMem != nil {
+		shouldInjectRecentContext := shouldInjectRecentMemoryContext(lastUserMsg)
+		if !runCfg.IsMission && !isAutonomousRun && shouldInjectRecentContext && shortTermMem != nil {
 			pendingActions, pErr := shortTermMem.GetPendingEpisodicActionsForQuery(lastUserMsg, 2)
 			if pErr == nil && len(pendingActions) > 0 {
 				turnPendingActions = append(turnPendingActions, pendingActions...)
@@ -726,7 +727,7 @@ func ExecuteAgentLoop(ctx context.Context, req openai.ChatCompletionRequest, run
 			}
 		}
 
-		if !runCfg.IsMission && !isAutonomousRun && shortTermMem != nil {
+		if !runCfg.IsMission && !isAutonomousRun && shouldInjectRecentContext && shortTermMem != nil {
 			if overview, err := shortTermMem.BuildRecentActivityPromptOverview(3); err == nil {
 				flags.RecentActivityOverview = overview
 			}

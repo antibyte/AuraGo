@@ -443,6 +443,9 @@ func TestCompactCoreMemoryForPromptFiltersTransientOperationalDetails(t *testing
 		"[2] [recent_operational_details] WebGL demo updated two weeks ago source:memory_analysis session:default",
 		"[3] [user_goal] User wanted to debug a temporary homepage issue source:memory_analysis session:default",
 		"[4] [infrastructure] Proxmox cluster is reachable via API",
+		"[5] [project_name] phaser-demo source:memory_analysis session:mission-123",
+		"[6] [test_file_output] Test file created by homepage tool source:memory_analysis session:mission-123",
+		"[7] [WebGL Demo updates] WebGL Galaxy Demo updated with camera position source:memory_analysis session:default",
 	}, "\n")
 
 	got := compactCoreMemoryForPrompt(coreMemory)
@@ -452,6 +455,9 @@ func TestCompactCoreMemoryForPromptFiltersTransientOperationalDetails(t *testing
 	}
 	if strings.Contains(got, "[user_goal]") {
 		t.Fatalf("transient user goal leaked into prompt core memory: %q", got)
+	}
+	if strings.Contains(got, "phaser-demo") || strings.Contains(got, "Test file created") || strings.Contains(got, "WebGL Galaxy") {
+		t.Fatalf("stale project/demo artifact leaked into prompt core memory: %q", got)
 	}
 	if !strings.Contains(got, "User prefers German") || !strings.Contains(got, "Proxmox cluster") {
 		t.Fatalf("durable facts missing from core memory prompt: %q", got)
