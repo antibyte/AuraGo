@@ -15,6 +15,8 @@ let isQuickFlow = false;
 let selectedProfile = null;
 let profiles = [];
 let saving = false;
+let setupStepInFlight = false;
+let setupSkipInFlight = false;
 let setupPasswordRequired = true;
 let csrfToken = '';
 let setupOllamaBaseURL = 'http://localhost:11434/v1';
@@ -938,49 +940,73 @@ function goToStep(index) {
     updateUI();
 }
 
-function nextStep(skip = false) {
-    const flow = activeFlow();
-    const stepId = flow[currentStepIndex];
+function setSetupStepBusy(busy) {
+    ['btn-next', 'btn-skip-step', 'btn-back'].forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) btn.disabled = busy;
+    });
+    if (!busy) updateNextButtonState();
+}
 
-    // Validate current step
-    if (stepId === 'plan-select') {
-        // Must select a profile before advancing
-        if (!selectedProfile) {
-            const grid = document.getElementById('profile-grid');
-            if (grid) {
-                grid.classList.add('shake');
-                setTimeout(() => grid.classList.remove('shake'), 400);
+function releaseSetupStepBusySoon() {
+    window.setTimeout(() => {
+        setupStepInFlight = false;
+        setSetupStepBusy(false);
+    }, 250);
+}
+
+async function nextStep(skip = false) {
+    if (setupStepInFlight || saving) return;
+    setupStepInFlight = true;
+    setSetupStepBusy(true);
+
+    try {
+        const flow = activeFlow();
+        const stepId = flow[currentStepIndex];
+
+        // Validate current step
+        if (stepId === 'plan-select') {
+            // Must select a profile before advancing
+            if (!selectedProfile) {
+                const grid = document.getElementById('profile-grid');
+                if (grid) {
+                    grid.classList.add('shake');
+                    setTimeout(() => grid.classList.remove('shake'), 400);
+                }
+                return;
             }
-            return;
+            // Determine flow based on selected profile
+            isQuickFlow = (selectedProfile.id !== 'custom');
+        } else if (stepId === 'plan-quick') {
+            if (!validateQuickStep(skip)) return;
+        } else if (stepId === 'step-0') {
+            if (!validateStep0(skip)) return;
         }
-        // Determine flow based on selected profile
-        isQuickFlow = (selectedProfile.id !== 'custom');
-    } else if (stepId === 'plan-quick') {
-        if (!validateQuickStep(skip)) return;
-    } else if (stepId === 'step-0') {
-        if (!validateStep0(skip)) return;
-    }
 
-    const nextIndex = currentStepIndex + 1;
-    const nextId = activeFlow()[nextIndex];
+        const nextIndex = currentStepIndex + 1;
+        const nextId = activeFlow()[nextIndex];
 
-    // Pre-select trust level from profile when entering step-3 in quick flow
-    if (nextId === 'step-3' && isQuickFlow && selectedProfile && selectedProfile.default_trust_level) {
-        const level = selectedProfile.default_trust_level;
-        const radio = document.querySelector(`input[name="trust-level"][value="${level}"]`);
-        if (radio) radio.checked = true;
-    }
+        // Pre-select trust level from profile when entering step-3 in quick flow
+        if (nextId === 'step-3' && isQuickFlow && selectedProfile && selectedProfile.default_trust_level) {
+            const level = selectedProfile.default_trust_level;
+            const radio = document.querySelector(`input[name="trust-level"][value="${level}"]`);
+            if (radio) radio.checked = true;
+        }
 
-    if (currentStepIndex < activeFlow().length - 1) {
-        currentStepIndex++;
-        if (currentStepIndex > highestStepIndex) highestStepIndex = currentStepIndex;
-        updateUI();
-    } else {
-        saveConfig();
+        if (currentStepIndex < activeFlow().length - 1) {
+            currentStepIndex++;
+            if (currentStepIndex > highestStepIndex) highestStepIndex = currentStepIndex;
+            updateUI();
+        } else {
+            await saveConfig();
+        }
+    } finally {
+        releaseSetupStepBusySoon();
     }
 }
 
 function prevStep() {
+    if (setupStepInFlight || saving) return;
     if (currentStepIndex > 0) {
         // When going back to plan-select, reset flow choice to allow changing
         if (currentStepIndex === 1) {
@@ -1030,7 +1056,7 @@ function updateNextButtonState() {
     if (!btnNext) return;
     const flow = activeFlow();
     const stepId = flow[currentStepIndex];
-    const shouldDisable = (stepId === 'plan-select' && !selectedProfile);
+    const shouldDisable = setupStepInFlight || saving || (stepId === 'plan-select' && !selectedProfile);
     btnNext.disabled = shouldDisable;
     btnNext.classList.toggle('disabled', shouldDisable);
 }
@@ -1471,9 +1497,28 @@ async function saveConfig() {
 }
 
 // ── Skip Setup ───────────────────────────────
+function setSetupSkipBusy(busy) {
+    const skipBtn = document.getElementById('btn-skip-setup');
+    if (skipBtn) skipBtn.disabled = busy;
+}
+
 async function skipSetup() {
-    if (await showConfirm(t('setup.confirm_skip_setup_title') || 'Skip Setup', t('setup.confirm_skip_setup'))) {
-        window.location.href = '/?skip_setup=1';
+    if (setupSkipInFlight) return;
+    setupSkipInFlight = true;
+    setSetupSkipBusy(true);
+
+    let confirmed = false;
+    try {
+        confirmed = await showConfirm(t('setup.confirm_skip_setup_title') || 'Skip Setup', t('setup.confirm_skip_setup'));
+        if (confirmed) {
+            window.location.href = '/?skip_setup=1';
+            return;
+        }
+    } finally {
+        if (!confirmed) {
+            setupSkipInFlight = false;
+            setSetupSkipBusy(false);
+        }
     }
 }
 

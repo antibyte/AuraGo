@@ -339,6 +339,54 @@ func TestConfigEmbeddingsResetRestartFlowContract(t *testing.T) {
 	}
 }
 
+func TestSetupSkipFlowContract(t *testing.T) {
+	t.Parallel()
+
+	html, err := os.ReadFile(filepath.Join(".", "setup.html"))
+	if err != nil {
+		t.Fatalf("read setup.html: %v", err)
+	}
+	js, err := os.ReadFile(filepath.Join(".", "js", "setup", "main.js"))
+	if err != nil {
+		t.Fatalf("read setup main.js: %v", err)
+	}
+
+	htmlText := string(html)
+	jsText := string(js)
+	for _, marker := range []string{
+		`id="btn-skip-setup"`,
+		`onclick="skipSetup()"`,
+		`id="btn-skip-step"`,
+		`onclick="nextStep(true)"`,
+		`id="btn-next"`,
+		`onclick="nextStep()"`,
+	} {
+		if !strings.Contains(htmlText, marker) {
+			t.Fatalf("setup skip/navigation flow is missing stable action marker %q", marker)
+		}
+	}
+	for _, marker := range []string{
+		"let setupStepInFlight = false;",
+		"let setupSkipInFlight = false;",
+		"if (setupStepInFlight || saving) return;",
+		"setupStepInFlight = true;",
+		"setSetupStepBusy(true);",
+		"releaseSetupStepBusySoon();",
+		"function setSetupStepBusy(busy)",
+		"function releaseSetupStepBusySoon()",
+		"if (setupSkipInFlight) return;",
+		"setupSkipInFlight = true;",
+		"setSetupSkipBusy(true);",
+		"setSetupSkipBusy(false);",
+		"function setSetupSkipBusy(busy)",
+		"skipBtn.disabled = busy;",
+	} {
+		if !strings.Contains(jsText, marker) {
+			t.Fatalf("setup skip/navigation flow is missing in-flight guard marker %q", marker)
+		}
+	}
+}
+
 func (f *destructiveFlowFixture) loadContainersPage(t *testing.T, page *rod.Page) {
 	t.Helper()
 
